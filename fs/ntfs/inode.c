@@ -1,7 +1,7 @@
 /**
- * inode.c - NTFS kernel inode handling. Part of the Linux-NTFS project.
+ * inode.c - NTFS kernel inode handling.
  *
- * Copyright (c) 2001-2007 Anton Altaparmakov
+ * Copyright (c) 2001-2014 Anton Altaparmakov and Tuxera Inc.
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -1012,6 +1012,7 @@ skip_large_dir_stuff:
 		/* Setup the operations for this inode. */
 		vi->i_op = &ntfs_dir_inode_ops;
 		vi->i_fop = &ntfs_dir_ops;
+		vi->i_mapping->a_ops = &ntfs_mst_aops;
 	} else {
 		/* It is a file. */
 		ntfs_attr_reinit_search_ctx(ctx);
@@ -1160,11 +1161,12 @@ no_data_attr_special_case:
 		/* Setup the operations for this inode. */
 		vi->i_op = &ntfs_file_inode_ops;
 		vi->i_fop = &ntfs_file_ops;
+		vi->i_mapping->a_ops = &ntfs_normal_aops;
+		if (NInoMstProtected(ni))
+			vi->i_mapping->a_ops = &ntfs_mst_aops;
+		else if (NInoCompressed(ni))
+			vi->i_mapping->a_ops = &ntfs_compressed_aops;
 	}
-	if (NInoMstProtected(ni))
-		vi->i_mapping->a_ops = &ntfs_mst_aops;
-	else
-		vi->i_mapping->a_ops = &ntfs_aops;
 	/*
 	 * The number of 512-byte blocks used on disk (for stat). This is in so
 	 * far inaccurate as it doesn't account for any named streams or other
@@ -1414,10 +1416,11 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 		ni->allocated_size = sle64_to_cpu(
 				a->data.non_resident.allocated_size);
 	}
+	vi->i_mapping->a_ops = &ntfs_normal_aops;
 	if (NInoMstProtected(ni))
 		vi->i_mapping->a_ops = &ntfs_mst_aops;
-	else
-		vi->i_mapping->a_ops = &ntfs_aops;
+	else if (NInoCompressed(ni))
+		vi->i_mapping->a_ops = &ntfs_compressed_aops;
 	if ((NInoCompressed(ni) || NInoSparse(ni)) && ni->type != AT_INDEX_ROOT)
 		vi->i_blocks = ni->itype.compressed.size >> 9;
 	else

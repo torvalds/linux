@@ -187,8 +187,9 @@ int il4965_mac_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    u8 buf_size);
 int il4965_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
-void il4965_mac_channel_switch(struct ieee80211_hw *hw,
-			       struct ieee80211_channel_switch *ch_switch);
+void
+il4965_mac_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_channel_switch *ch_switch);
 
 void il4965_led_enable(struct il_priv *il);
 

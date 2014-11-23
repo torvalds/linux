@@ -87,6 +87,9 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, len))
 		goto drop;
 
+	uh = udp_hdr(skb);
+	guehdr = (struct guehdr *)&uh[1];
+
 	if (guehdr->version != 0)
 		goto drop;
 

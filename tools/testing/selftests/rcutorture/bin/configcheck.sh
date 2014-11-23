@@ -1,5 +1,5 @@
-#!/bin/sh
-# Usage: sh configcheck.sh .config .config-template
+#!/bin/bash
+# Usage: configcheck.sh .config .config-template
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

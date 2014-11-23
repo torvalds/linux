@@ -45,19 +45,18 @@ static void mv_xor_issue_pending(struct dma_chan *chan);
 #define mv_chan_to_devp(chan)           \
 	((chan)->dmadev.dev)
 
-static void mv_desc_init(struct mv_xor_desc_slot *desc, unsigned long flags)
+static void mv_desc_init(struct mv_xor_desc_slot *desc,
+			 dma_addr_t addr, u32 byte_count,
+			 enum dma_ctrl_flags flags)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
 
-	hw_desc->status = (1 << 31);
+	hw_desc->status = XOR_DESC_DMA_OWNED;
 	hw_desc->phy_next_desc = 0;
-	hw_desc->desc_command = (1 << 31);
-}
-
-static void mv_desc_set_byte_count(struct mv_xor_desc_slot *desc,
-				   u32 byte_count)
-{
-	struct mv_xor_desc *hw_desc = desc->hw_desc;
+	/* Enable end-of-descriptor interrupts only for DMA_PREP_INTERRUPT */
+	hw_desc->desc_command = (flags & DMA_PREP_INTERRUPT) ?
+				XOR_DESC_EOD_INT_EN : 0;
+	hw_desc->phy_dest_addr = addr;
 	hw_desc->byte_count = byte_count;
 }
 
@@ -74,20 +73,6 @@ static void mv_desc_clear_next_desc(struct mv_xor_desc_slot *desc)
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
 	hw_desc->phy_next_desc = 0;
 }
-
-static void mv_desc_set_dest_addr(struct mv_xor_desc_slot *desc,
-				  dma_addr_t addr)
-{
-	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	hw_desc->phy_dest_addr = addr;
-}
-
-static int mv_chan_memset_slot_count(size_t len)
-{
-	return 1;
-}
-
-#define mv_chan_memcpy_slot_count(c) mv_chan_memset_slot_count(c)
 
 static void mv_desc_set_src_addr(struct mv_xor_desc_slot *desc,
 				 int index, dma_addr_t addr)
@@ -123,17 +108,12 @@ static u32 mv_chan_get_intr_cause(struct mv_xor_chan *chan)
 	return intr_cause;
 }
 
-static int mv_is_err_intr(u32 intr_cause)
-{
-	if (intr_cause & ((1<<4)|(1<<5)|(1<<6)|(1<<7)|(1<<8)|(1<<9)))
-		return 1;
-
-	return 0;
-}
-
 static void mv_xor_device_clear_eoc_cause(struct mv_xor_chan *chan)
 {
-	u32 val = ~(1 << (chan->idx * 16));
+	u32 val;
+
+	val = XOR_INT_END_OF_DESC | XOR_INT_END_OF_CHAIN | XOR_INT_STOPPED;
+	val = ~(val << (chan->idx * 16));
 	dev_dbg(mv_chan_to_devp(chan), "%s, val 0x%08x\n", __func__, val);
 	writel_relaxed(val, XOR_INTR_CAUSE(chan));
 }
@@ -142,17 +122,6 @@ static void mv_xor_device_clear_err_status(struct mv_xor_chan *chan)
 {
 	u32 val = 0xFFFF0000 >> (chan->idx * 16);
 	writel_relaxed(val, XOR_INTR_CAUSE(chan));
-}
-
-static int mv_can_chain(struct mv_xor_desc_slot *desc)
-{
-	struct mv_xor_desc_slot *chain_old_tail = list_entry(
-		desc->chain_node.prev, struct mv_xor_desc_slot, chain_node);
-
-	if (chain_old_tail->type != desc->type)
-		return 0;
-
-	return 1;
 }
 
 static void mv_set_mode(struct mv_xor_chan *chan,
@@ -206,11 +175,6 @@ static char mv_chan_is_busy(struct mv_xor_chan *chan)
 	return (state == 1) ? 1 : 0;
 }
 
-static int mv_chan_xor_slot_count(size_t len, int src_cnt)
-{
-	return 1;
-}
-
 /**
  * mv_xor_free_slots - flags descriptor slots for reuse
  * @slot: Slot to free
@@ -222,7 +186,7 @@ static void mv_xor_free_slots(struct mv_xor_chan *mv_chan,
 	dev_dbg(mv_chan_to_devp(mv_chan), "%s %d slot %p\n",
 		__func__, __LINE__, slot);
 
-	slot->slots_per_op = 0;
+	slot->slot_used = 0;
 
 }
 
@@ -236,13 +200,11 @@ static void mv_xor_start_new_chain(struct mv_xor_chan *mv_chan,
 {
 	dev_dbg(mv_chan_to_devp(mv_chan), "%s %d: sw_desc %p\n",
 		__func__, __LINE__, sw_desc);
-	if (sw_desc->type != mv_chan->current_type)
-		mv_set_mode(mv_chan, sw_desc->type);
 
 	/* set the hardware chain */
 	mv_chan_set_next_descriptor(mv_chan, sw_desc->async_tx.phys);
 
-	mv_chan->pending += sw_desc->slot_cnt;
+	mv_chan->pending++;
 	mv_xor_issue_pending(&mv_chan->dmachan);
 }
 
@@ -263,8 +225,6 @@ mv_xor_run_tx_complete_actions(struct mv_xor_desc_slot *desc,
 				desc->async_tx.callback_param);
 
 		dma_descriptor_unmap(&desc->async_tx);
-		if (desc->group_head)
-			desc->group_head = NULL;
 	}
 
 	/* run dependent operations */
@@ -377,19 +337,16 @@ static void mv_xor_tasklet(unsigned long data)
 }
 
 static struct mv_xor_desc_slot *
-mv_xor_alloc_slots(struct mv_xor_chan *mv_chan, int num_slots,
-		    int slots_per_op)
+mv_xor_alloc_slot(struct mv_xor_chan *mv_chan)
 {
-	struct mv_xor_desc_slot *iter, *_iter, *alloc_start = NULL;
-	LIST_HEAD(chain);
-	int slots_found, retry = 0;
+	struct mv_xor_desc_slot *iter, *_iter;
+	int retry = 0;
 
 	/* start search from the last allocated descrtiptor
 	 * if a contiguous allocation can not be found start searching
 	 * from the beginning of the list
 	 */
 retry:
-	slots_found = 0;
 	if (retry == 0)
 		iter = mv_chan->last_used;
 	else
@@ -399,55 +356,29 @@ retry:
 
 	list_for_each_entry_safe_continue(
 		iter, _iter, &mv_chan->all_slots, slot_node) {
+
 		prefetch(_iter);
 		prefetch(&_iter->async_tx);
-		if (iter->slots_per_op) {
+		if (iter->slot_used) {
 			/* give up after finding the first busy slot
 			 * on the second pass through the list
 			 */
 			if (retry)
 				break;
-
-			slots_found = 0;
 			continue;
 		}
 
-		/* start the allocation if the slot is correctly aligned */
-		if (!slots_found++)
-			alloc_start = iter;
+		/* pre-ack descriptor */
+		async_tx_ack(&iter->async_tx);
 
-		if (slots_found == num_slots) {
-			struct mv_xor_desc_slot *alloc_tail = NULL;
-			struct mv_xor_desc_slot *last_used = NULL;
-			iter = alloc_start;
-			while (num_slots) {
-				int i;
+		iter->slot_used = 1;
+		INIT_LIST_HEAD(&iter->chain_node);
+		iter->async_tx.cookie = -EBUSY;
+		mv_chan->last_used = iter;
+		mv_desc_clear_next_desc(iter);
 
-				/* pre-ack all but the last descriptor */
-				async_tx_ack(&iter->async_tx);
+		return iter;
 
-				list_add_tail(&iter->chain_node, &chain);
-				alloc_tail = iter;
-				iter->async_tx.cookie = 0;
-				iter->slot_cnt = num_slots;
-				iter->xor_check_result = NULL;
-				for (i = 0; i < slots_per_op; i++) {
-					iter->slots_per_op = slots_per_op - i;
-					last_used = iter;
-					iter = list_entry(iter->slot_node.next,
-						struct mv_xor_desc_slot,
-						slot_node);
-				}
-				num_slots -= slots_per_op;
-			}
-			alloc_tail->group_head = alloc_start;
-			alloc_tail->async_tx.cookie = -EBUSY;
-			list_splice(&chain, &alloc_tail->tx_list);
-			mv_chan->last_used = last_used;
-			mv_desc_clear_next_desc(alloc_start);
-			mv_desc_clear_next_desc(alloc_tail);
-			return alloc_tail;
-		}
 	}
 	if (!retry++)
 		goto retry;
@@ -464,7 +395,7 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct mv_xor_desc_slot *sw_desc = to_mv_xor_slot(tx);
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(tx->chan);
-	struct mv_xor_desc_slot *grp_start, *old_chain_tail;
+	struct mv_xor_desc_slot *old_chain_tail;
 	dma_cookie_t cookie;
 	int new_hw_chain = 1;
 
@@ -472,30 +403,24 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 		"%s sw_desc %p: async_tx %p\n",
 		__func__, sw_desc, &sw_desc->async_tx);
 
-	grp_start = sw_desc->group_head;
-
 	spin_lock_bh(&mv_chan->lock);
 	cookie = dma_cookie_assign(tx);
 
 	if (list_empty(&mv_chan->chain))
-		list_splice_init(&sw_desc->tx_list, &mv_chan->chain);
+		list_add_tail(&sw_desc->chain_node, &mv_chan->chain);
 	else {
 		new_hw_chain = 0;
 
 		old_chain_tail = list_entry(mv_chan->chain.prev,
 					    struct mv_xor_desc_slot,
 					    chain_node);
-		list_splice_init(&grp_start->tx_list,
-				 &old_chain_tail->chain_node);
-
-		if (!mv_can_chain(grp_start))
-			goto submit_done;
+		list_add_tail(&sw_desc->chain_node, &mv_chan->chain);
 
 		dev_dbg(mv_chan_to_devp(mv_chan), "Append to last desc %pa\n",
 			&old_chain_tail->async_tx.phys);
 
 		/* fix up the hardware chain */
-		mv_desc_set_next_desc(old_chain_tail, grp_start->async_tx.phys);
+		mv_desc_set_next_desc(old_chain_tail, sw_desc->async_tx.phys);
 
 		/* if the channel is not busy */
 		if (!mv_chan_is_busy(mv_chan)) {
@@ -510,9 +435,8 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	if (new_hw_chain)
-		mv_xor_start_new_chain(mv_chan, grp_start);
+		mv_xor_start_new_chain(mv_chan, sw_desc);
 
-submit_done:
 	spin_unlock_bh(&mv_chan->lock);
 
 	return cookie;
@@ -533,8 +457,9 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 	while (idx < num_descs_in_pool) {
 		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot) {
-			printk(KERN_INFO "MV XOR Channel only initialized"
-				" %d descriptor slots", idx);
+			dev_info(mv_chan_to_devp(mv_chan),
+				 "channel only initialized %d descriptor slots",
+				 idx);
 			break;
 		}
 		virt_desc = mv_chan->dma_desc_pool_virt;
@@ -544,7 +469,6 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 		slot->async_tx.tx_submit = mv_xor_tx_submit;
 		INIT_LIST_HEAD(&slot->chain_node);
 		INIT_LIST_HEAD(&slot->slot_node);
-		INIT_LIST_HEAD(&slot->tx_list);
 		dma_desc = mv_chan->dma_desc_pool;
 		slot->async_tx.phys = dma_desc + idx * MV_XOR_SLOT_SIZE;
 		slot->idx = idx++;
@@ -568,51 +492,11 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 }
 
 static struct dma_async_tx_descriptor *
-mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
-		size_t len, unsigned long flags)
-{
-	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
-	struct mv_xor_desc_slot *sw_desc, *grp_start;
-	int slot_cnt;
-
-	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s dest: %pad src %pad len: %u flags: %ld\n",
-		__func__, &dest, &src, len, flags);
-	if (unlikely(len < MV_XOR_MIN_BYTE_COUNT))
-		return NULL;
-
-	BUG_ON(len > MV_XOR_MAX_BYTE_COUNT);
-
-	spin_lock_bh(&mv_chan->lock);
-	slot_cnt = mv_chan_memcpy_slot_count(len);
-	sw_desc = mv_xor_alloc_slots(mv_chan, slot_cnt, 1);
-	if (sw_desc) {
-		sw_desc->type = DMA_MEMCPY;
-		sw_desc->async_tx.flags = flags;
-		grp_start = sw_desc->group_head;
-		mv_desc_init(grp_start, flags);
-		mv_desc_set_byte_count(grp_start, len);
-		mv_desc_set_dest_addr(sw_desc->group_head, dest);
-		mv_desc_set_src_addr(grp_start, 0, src);
-		sw_desc->unmap_src_cnt = 1;
-		sw_desc->unmap_len = len;
-	}
-	spin_unlock_bh(&mv_chan->lock);
-
-	dev_dbg(mv_chan_to_devp(mv_chan),
-		"%s sw_desc %p async_tx %p\n",
-		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : NULL);
-
-	return sw_desc ? &sw_desc->async_tx : NULL;
-}
-
-static struct dma_async_tx_descriptor *
 mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		    unsigned int src_cnt, size_t len, unsigned long flags)
 {
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
-	struct mv_xor_desc_slot *sw_desc, *grp_start;
-	int slot_cnt;
+	struct mv_xor_desc_slot *sw_desc;
 
 	if (unlikely(len < MV_XOR_MIN_BYTE_COUNT))
 		return NULL;
@@ -624,26 +508,48 @@ mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		__func__, src_cnt, len, &dest, flags);
 
 	spin_lock_bh(&mv_chan->lock);
-	slot_cnt = mv_chan_xor_slot_count(len, src_cnt);
-	sw_desc = mv_xor_alloc_slots(mv_chan, slot_cnt, 1);
+	sw_desc = mv_xor_alloc_slot(mv_chan);
 	if (sw_desc) {
 		sw_desc->type = DMA_XOR;
 		sw_desc->async_tx.flags = flags;
-		grp_start = sw_desc->group_head;
-		mv_desc_init(grp_start, flags);
-		/* the byte count field is the same as in memcpy desc*/
-		mv_desc_set_byte_count(grp_start, len);
-		mv_desc_set_dest_addr(sw_desc->group_head, dest);
-		sw_desc->unmap_src_cnt = src_cnt;
-		sw_desc->unmap_len = len;
+		mv_desc_init(sw_desc, dest, len, flags);
 		while (src_cnt--)
-			mv_desc_set_src_addr(grp_start, src_cnt, src[src_cnt]);
+			mv_desc_set_src_addr(sw_desc, src_cnt, src[src_cnt]);
 	}
 	spin_unlock_bh(&mv_chan->lock);
 	dev_dbg(mv_chan_to_devp(mv_chan),
 		"%s sw_desc %p async_tx %p \n",
 		__func__, sw_desc, &sw_desc->async_tx);
 	return sw_desc ? &sw_desc->async_tx : NULL;
+}
+
+static struct dma_async_tx_descriptor *
+mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
+		size_t len, unsigned long flags)
+{
+	/*
+	 * A MEMCPY operation is identical to an XOR operation with only
+	 * a single source address.
+	 */
+	return mv_xor_prep_dma_xor(chan, dest, &src, 1, len, flags);
+}
+
+static struct dma_async_tx_descriptor *
+mv_xor_prep_dma_interrupt(struct dma_chan *chan, unsigned long flags)
+{
+	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
+	dma_addr_t src, dest;
+	size_t len;
+
+	src = mv_chan->dummy_src_addr;
+	dest = mv_chan->dummy_dst_addr;
+	len = MV_XOR_MIN_BYTE_COUNT;
+
+	/*
+	 * We implement the DMA_INTERRUPT operation as a minimum sized
+	 * XOR operation with a single dummy source address.
+	 */
+	return mv_xor_prep_dma_xor(chan, dest, &src, 1, len, flags);
 }
 
 static void mv_xor_free_chan_resources(struct dma_chan *chan)
@@ -733,18 +639,16 @@ static void mv_dump_xor_regs(struct mv_xor_chan *chan)
 static void mv_xor_err_interrupt_handler(struct mv_xor_chan *chan,
 					 u32 intr_cause)
 {
-	if (intr_cause & (1 << 4)) {
-	     dev_dbg(mv_chan_to_devp(chan),
-		     "ignore this error\n");
-	     return;
+	if (intr_cause & XOR_INT_ERR_DECODE) {
+		dev_dbg(mv_chan_to_devp(chan), "ignoring address decode error\n");
+		return;
 	}
 
-	dev_err(mv_chan_to_devp(chan),
-		"error on chan %d. intr cause 0x%08x\n",
+	dev_err(mv_chan_to_devp(chan), "error on chan %d. intr cause 0x%08x\n",
 		chan->idx, intr_cause);
 
 	mv_dump_xor_regs(chan);
-	BUG();
+	WARN_ON(1);
 }
 
 static irqreturn_t mv_xor_interrupt_handler(int irq, void *data)
@@ -754,7 +658,7 @@ static irqreturn_t mv_xor_interrupt_handler(int irq, void *data)
 
 	dev_dbg(mv_chan_to_devp(chan), "intr cause %x\n", intr_cause);
 
-	if (mv_is_err_intr(intr_cause))
+	if (intr_cause & XOR_INTR_ERRORS)
 		mv_xor_err_interrupt_handler(chan, intr_cause);
 
 	tasklet_schedule(&chan->irq_tasklet);
@@ -1041,6 +945,10 @@ static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 
 	dma_free_coherent(dev, MV_XOR_POOL_SIZE,
 			  mv_chan->dma_desc_pool_virt, mv_chan->dma_desc_pool);
+	dma_unmap_single(dev, mv_chan->dummy_src_addr,
+			 MV_XOR_MIN_BYTE_COUNT, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, mv_chan->dummy_dst_addr,
+			 MV_XOR_MIN_BYTE_COUNT, DMA_TO_DEVICE);
 
 	list_for_each_entry_safe(chan, _chan, &mv_chan->dmadev.channels,
 				 device_node) {
@@ -1070,6 +978,16 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 
 	dma_dev = &mv_chan->dmadev;
 
+	/*
+	 * These source and destination dummy buffers are used to implement
+	 * a DMA_INTERRUPT operation as a minimum-sized XOR operation.
+	 * Hence, we only need to map the buffers at initialization-time.
+	 */
+	mv_chan->dummy_src_addr = dma_map_single(dma_dev->dev,
+		mv_chan->dummy_src, MV_XOR_MIN_BYTE_COUNT, DMA_FROM_DEVICE);
+	mv_chan->dummy_dst_addr = dma_map_single(dma_dev->dev,
+		mv_chan->dummy_dst, MV_XOR_MIN_BYTE_COUNT, DMA_TO_DEVICE);
+
 	/* allocate coherent memory for hardware descriptors
 	 * note: writecombine gives slightly better performance, but
 	 * requires that we explicitly flush the writes
@@ -1094,6 +1012,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	dma_dev->dev = &pdev->dev;
 
 	/* set prep routines based on capability */
+	if (dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask))
+		dma_dev->device_prep_dma_interrupt = mv_xor_prep_dma_interrupt;
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask))
 		dma_dev->device_prep_dma_memcpy = mv_xor_prep_dma_memcpy;
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
@@ -1116,7 +1036,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 
 	mv_chan_unmask_interrupts(mv_chan);
 
-	mv_set_mode(mv_chan, DMA_MEMCPY);
+	mv_set_mode(mv_chan, DMA_XOR);
 
 	spin_lock_init(&mv_chan->lock);
 	INIT_LIST_HEAD(&mv_chan->chain);

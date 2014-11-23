@@ -1370,7 +1370,7 @@ struct rtl_mac {
 	bool rdg_en;
 
 	/*AP*/
-	u8 bssid[6];
+	u8 bssid[ETH_ALEN] __aligned(2);
 	u32 vendor;
 	u8 mcs[16];	/* 16 bytes mcs for HT rates. */
 	u32 basic_rates; /* b/g rates */

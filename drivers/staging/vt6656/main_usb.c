@@ -856,7 +856,9 @@ static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return 0;
 }
 
-static void vnt_sw_scan_start(struct ieee80211_hw *hw)
+static void vnt_sw_scan_start(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      const u8 *addr)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -865,7 +867,8 @@ static void vnt_sw_scan_start(struct ieee80211_hw *hw)
 	vnt_update_pre_ed_threshold(priv, true);
 }
 
-static void vnt_sw_scan_complete(struct ieee80211_hw *hw)
+static void vnt_sw_scan_complete(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif)
 {
 	struct vnt_private *priv = hw->priv;
 

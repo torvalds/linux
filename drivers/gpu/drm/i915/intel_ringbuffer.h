@@ -5,6 +5,13 @@
 
 #define I915_CMD_HASH_ORDER 9
 
+/* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
+ * but keeps the logic simple. Indeed, the whole purpose of this macro is just
+ * to give some inclination as to some of the magic values used in the various
+ * workarounds!
+ */
+#define CACHELINE_BYTES 64
+
 /*
  * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
  * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
@@ -90,6 +97,15 @@ struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
 	void __iomem *virtual_start;
 
+	struct intel_engine_cs *ring;
+
+	/*
+	 * FIXME: This backpointer is an artifact of the history of how the
+	 * execlist patches came into being. It will get removed once the basic
+	 * code has landed.
+	 */
+	struct intel_context *FIXME_lrc_ctx;
+
 	u32 head;
 	u32 tail;
 	int space;
@@ -131,6 +147,8 @@ struct  intel_engine_cs {
 	void		(*irq_put)(struct intel_engine_cs *ring);
 
 	int		(*init)(struct intel_engine_cs *ring);
+
+	int		(*init_context)(struct intel_engine_cs *ring);
 
 	void		(*write_tail)(struct intel_engine_cs *ring,
 				      u32 value);
@@ -214,6 +232,18 @@ struct  intel_engine_cs {
 				  unsigned int num_dwords);
 	} semaphore;
 
+	/* Execlists */
+	spinlock_t execlist_lock;
+	struct list_head execlist_queue;
+	u8 next_context_status_buffer;
+	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
+	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
+	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
+				      u32 invalidate_domains,
+				      u32 flush_domains);
+	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,
+					 u64 offset, unsigned flags);
+
 	/**
 	 * List of objects currently involved in rendering from the
 	 * ringbuffer.
@@ -287,11 +317,7 @@ struct  intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-static inline bool
-intel_ring_initialized(struct intel_engine_cs *ring)
-{
-	return ring->buffer && ring->buffer->obj;
-}
+bool intel_ring_initialized(struct intel_engine_cs *ring);
 
 static inline unsigned
 intel_ring_flag(struct intel_engine_cs *ring)
@@ -355,6 +381,10 @@ intel_write_status_page(struct intel_engine_cs *ring,
 #define I915_GEM_HWS_SCRATCH_INDEX	0x30
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
+void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
+int intel_alloc_ringbuffer_obj(struct drm_device *dev,
+			       struct intel_ringbuffer *ringbuf);
+
 void intel_stop_ring_buffer(struct intel_engine_cs *ring);
 void intel_cleanup_ring_buffer(struct intel_engine_cs *ring);
 
@@ -372,12 +402,18 @@ static inline void intel_ring_advance(struct intel_engine_cs *ring)
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	ringbuf->tail &= ringbuf->size - 1;
 }
+int __intel_ring_space(int head, int tail, int size);
+int intel_ring_space(struct intel_ringbuffer *ringbuf);
+bool intel_ring_stopped(struct intel_engine_cs *ring);
 void __intel_ring_advance(struct intel_engine_cs *ring);
 
 int __must_check intel_ring_idle(struct intel_engine_cs *ring);
 void intel_ring_init_seqno(struct intel_engine_cs *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_engine_cs *ring);
 int intel_ring_invalidate_all_caches(struct intel_engine_cs *ring);
+
+void intel_fini_pipe_control(struct intel_engine_cs *ring);
+int intel_init_pipe_control(struct intel_engine_cs *ring);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);

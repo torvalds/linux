@@ -27,11 +27,7 @@
 
 static int jornada_lcd_get_power(struct lcd_device *ld)
 {
-	/* LDD2 in PPC = LCD POWER */
-	if (PPSR & PPC_LDD2)
-		return FB_BLANK_UNBLANK;	/* PW ON */
-	else
-		return FB_BLANK_POWERDOWN;	/* PW OFF */
+	return PPSR & PPC_LDD2 ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
 }
 
 static int jornada_lcd_get_contrast(struct lcd_device *ld)

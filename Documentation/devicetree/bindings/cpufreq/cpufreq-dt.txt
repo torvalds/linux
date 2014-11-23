@@ -1,0 +1,64 @@
+Generic cpufreq driver
+
+It is a generic DT based cpufreq driver for frequency management.  It supports
+both uniprocessor (UP) and symmetric multiprocessor (SMP) systems which share
+clock and voltage across all CPUs.
+
+Both required and optional properties listed below must be defined
+under node /cpus/cpu@0.
+
+Required properties:
+- None
+
+Optional properties:
+- operating-points: Refer to Documentation/devicetree/bindings/power/opp.txt for
+  details. OPPs *must* be supplied either via DT, i.e. this property, or
+  populated at runtime.
+- clock-latency: Specify the possible maximum transition latency for clock,
+  in unit of nanoseconds.
+- voltage-tolerance: Specify the CPU voltage tolerance in percentage.
+- #cooling-cells:
+- cooling-min-level:
+- cooling-max-level:
+     Please refer to Documentation/devicetree/bindings/thermal/thermal.txt.
+
+Examples:
+
+cpus {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	cpu@0 {
+		compatible = "arm,cortex-a9";
+		reg = <0>;
+		next-level-cache = <&L2>;
+		operating-points = <
+			/* kHz    uV */
+			792000  1100000
+			396000  950000
+			198000  850000
+		>;
+		clock-latency = <61036>; /* two CLK32 periods */
+		#cooling-cells = <2>;
+		cooling-min-level = <0>;
+		cooling-max-level = <2>;
+	};
+
+	cpu@1 {
+		compatible = "arm,cortex-a9";
+		reg = <1>;
+		next-level-cache = <&L2>;
+	};
+
+	cpu@2 {
+		compatible = "arm,cortex-a9";
+		reg = <2>;
+		next-level-cache = <&L2>;
+	};
+
+	cpu@3 {
+		compatible = "arm,cortex-a9";
+		reg = <3>;
+		next-level-cache = <&L2>;
+	};
+};

@@ -8,8 +8,6 @@
 #define _S390_CPUTIME_H
 
 #include <linux/types.h>
-#include <linux/percpu.h>
-#include <linux/spinlock.h>
 #include <asm/div64.h>
 
 
@@ -17,6 +15,8 @@
 
 typedef unsigned long long __nocast cputime_t;
 typedef unsigned long long __nocast cputime64_t;
+
+#define cmpxchg_cputime(ptr, old, new) cmpxchg64(ptr, old, new)
 
 static inline unsigned long __div(unsigned long long n, unsigned long base)
 {
@@ -165,28 +165,8 @@ static inline clock_t cputime64_to_clock_t(cputime64_t cputime)
 	return clock;
 }
 
-struct s390_idle_data {
-	int nohz_delay;
-	unsigned int sequence;
-	unsigned long long idle_count;
-	unsigned long long idle_time;
-	unsigned long long clock_idle_enter;
-	unsigned long long clock_idle_exit;
-	unsigned long long timer_idle_enter;
-	unsigned long long timer_idle_exit;
-};
+cputime64_t arch_cpu_idle_time(int cpu);
 
-DECLARE_PER_CPU(struct s390_idle_data, s390_idle);
-
-cputime64_t s390_get_idle_time(int cpu);
-
-#define arch_idle_time(cpu) s390_get_idle_time(cpu)
-
-static inline int s390_nohz_delay(int cpu)
-{
-	return __get_cpu_var(s390_idle).nohz_delay != 0;
-}
-
-#define arch_needs_cpu(cpu) s390_nohz_delay(cpu)
+#define arch_idle_time(cpu) arch_cpu_idle_time(cpu)
 
 #endif /* _S390_CPUTIME_H */

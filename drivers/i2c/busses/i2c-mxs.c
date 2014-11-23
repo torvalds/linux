@@ -307,6 +307,9 @@ static int mxs_i2c_pio_wait_xfer_end(struct mxs_i2c_dev *i2c)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
 	while (readl(i2c->regs + MXS_I2C_CTRL0) & MXS_I2C_CTRL0_RUN) {
+		if (readl(i2c->regs + MXS_I2C_CTRL1) &
+				MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+			return -ENXIO;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 		cond_resched();

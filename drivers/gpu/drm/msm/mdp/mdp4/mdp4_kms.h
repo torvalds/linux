@@ -23,12 +23,21 @@
 #include "mdp/mdp_kms.h"
 #include "mdp4.xml.h"
 
+#include "drm_panel.h"
+
 struct mdp4_kms {
 	struct mdp_kms base;
 
 	struct drm_device *dev;
 
 	int rev;
+
+	/* Shadow value for MDP4_LAYERMIXER_IN_CFG.. since setup for all
+	 * crtcs/encoders is in one shared register, we need to update it
+	 * via read/modify/write.  But to avoid getting confused by power-
+	 * on-default values after resume, use this shadow value instead:
+	 */
+	uint32_t mixer_cfg;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
@@ -74,7 +83,7 @@ static inline uint32_t pipe2flush(enum mdp4_pipe pipe)
 	case VG1:      return MDP4_OVERLAY_FLUSH_VG1;
 	case VG2:      return MDP4_OVERLAY_FLUSH_VG2;
 	case RGB1:     return MDP4_OVERLAY_FLUSH_RGB1;
-	case RGB2:     return MDP4_OVERLAY_FLUSH_RGB1;
+	case RGB2:     return MDP4_OVERLAY_FLUSH_RGB2;
 	default:       return 0;
 	}
 }
@@ -108,38 +117,50 @@ static inline uint32_t dma2err(enum mdp4_dma dma)
 	}
 }
 
-static inline uint32_t mixercfg(int mixer, enum mdp4_pipe pipe,
-		enum mdp_mixer_stage_id stage)
+static inline uint32_t mixercfg(uint32_t mixer_cfg, int mixer,
+		enum mdp4_pipe pipe, enum mdp_mixer_stage_id stage)
 {
-	uint32_t mixer_cfg = 0;
-
 	switch (pipe) {
 	case VG1:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE0(stage) |
+		mixer_cfg &= ~(MDP4_LAYERMIXER_IN_CFG_PIPE0__MASK |
+				MDP4_LAYERMIXER_IN_CFG_PIPE0_MIXER1);
+		mixer_cfg |= MDP4_LAYERMIXER_IN_CFG_PIPE0(stage) |
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE0_MIXER1);
 		break;
 	case VG2:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE1(stage) |
+		mixer_cfg &= ~(MDP4_LAYERMIXER_IN_CFG_PIPE1__MASK |
+				MDP4_LAYERMIXER_IN_CFG_PIPE1_MIXER1);
+		mixer_cfg |= MDP4_LAYERMIXER_IN_CFG_PIPE1(stage) |
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE1_MIXER1);
 		break;
 	case RGB1:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE2(stage) |
+		mixer_cfg &= ~(MDP4_LAYERMIXER_IN_CFG_PIPE2__MASK |
+				MDP4_LAYERMIXER_IN_CFG_PIPE2_MIXER1);
+		mixer_cfg |= MDP4_LAYERMIXER_IN_CFG_PIPE2(stage) |
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE2_MIXER1);
 		break;
 	case RGB2:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE3(stage) |
+		mixer_cfg &= ~(MDP4_LAYERMIXER_IN_CFG_PIPE3__MASK |
+				MDP4_LAYERMIXER_IN_CFG_PIPE3_MIXER1);
+		mixer_cfg |= MDP4_LAYERMIXER_IN_CFG_PIPE3(stage) |
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE3_MIXER1);
 		break;
 	case RGB3:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE4(stage) |
+		mixer_cfg &= ~(MDP4_LAYERMIXER_IN_CFG_PIPE4__MASK |
+				MDP4_LAYERMIXER_IN_CFG_PIPE4_MIXER1);
+		mixer_cfg |= MDP4_LAYERMIXER_IN_CFG_PIPE4(stage) |
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE4_MIXER1);
 		break;
 	case VG3:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE5(stage) |
+		mixer_cfg &= ~(MDP4_LAYERMIXER_IN_CFG_PIPE5__MASK |
+				MDP4_LAYERMIXER_IN_CFG_PIPE5_MIXER1);
+		mixer_cfg |= MDP4_LAYERMIXER_IN_CFG_PIPE5(stage) |
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE5_MIXER1);
 		break;
 	case VG4:
-		mixer_cfg = MDP4_LAYERMIXER_IN_CFG_PIPE6(stage) |
+		mixer_cfg &= ~(MDP4_LAYERMIXER_IN_CFG_PIPE6__MASK |
+				MDP4_LAYERMIXER_IN_CFG_PIPE6_MIXER1);
+		mixer_cfg |= MDP4_LAYERMIXER_IN_CFG_PIPE6(stage) |
 			COND(mixer == 1, MDP4_LAYERMIXER_IN_CFG_PIPE6_MIXER1);
 		break;
 	default:
@@ -188,7 +209,7 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc);
 void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
 void mdp4_crtc_set_config(struct drm_crtc *crtc, uint32_t config);
-void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf);
+void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf, int mixer);
 void mdp4_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane);
 void mdp4_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane);
 struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
@@ -197,6 +218,22 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 
 long mdp4_dtv_round_pixclk(struct drm_encoder *encoder, unsigned long rate);
 struct drm_encoder *mdp4_dtv_encoder_init(struct drm_device *dev);
+
+long mdp4_lcdc_round_pixclk(struct drm_encoder *encoder, unsigned long rate);
+struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
+		struct drm_panel *panel);
+
+struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
+		struct drm_panel *panel, struct drm_encoder *encoder);
+
+#ifdef CONFIG_COMMON_CLK
+struct clk *mpd4_lvds_pll_init(struct drm_device *dev);
+#else
+static inline struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 
 #ifdef CONFIG_MSM_BUS_SCALING
 static inline int match_dev_name(struct device *dev, void *data)

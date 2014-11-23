@@ -66,12 +66,12 @@ static struct snd_soc_card odroidx2 = {
 	.late_probe		= odroidx2_late_probe,
 };
 
-struct odroidx2_drv_data odroidx2_drvdata = {
+static const struct odroidx2_drv_data odroidx2_drvdata = {
 	.dapm_widgets		= odroidx2_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(odroidx2_dapm_widgets),
 };
 
-struct odroidx2_drv_data odroidu3_drvdata = {
+static const struct odroidx2_drv_data odroidu3_drvdata = {
 	.dapm_widgets		= odroidu3_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(odroidu3_dapm_widgets),
 };

@@ -198,7 +198,6 @@ struct ep_data {
 	struct list_head		epfiles;
 	wait_queue_head_t		wait;
 	struct dentry			*dentry;
-	struct inode			*inode;
 };
 
 static inline void get_ep (struct ep_data *data)
@@ -1618,10 +1617,9 @@ static void destroy_ep_files (struct dev_data *dev)
 }
 
 
-static struct inode *
+static struct dentry *
 gadgetfs_create_file (struct super_block *sb, char const *name,
-		void *data, const struct file_operations *fops,
-		struct dentry **dentry_p);
+		void *data, const struct file_operations *fops);
 
 static int activate_ep_files (struct dev_data *dev)
 {
@@ -1649,10 +1647,9 @@ static int activate_ep_files (struct dev_data *dev)
 		if (!data->req)
 			goto enomem1;
 
-		data->inode = gadgetfs_create_file (dev->sb, data->name,
-				data, &ep_config_operations,
-				&data->dentry);
-		if (!data->inode)
+		data->dentry = gadgetfs_create_file (dev->sb, data->name,
+				data, &ep_config_operations);
+		if (!data->dentry)
 			goto enomem2;
 		list_add_tail (&data->epfiles, &dev->epfiles);
 	}
@@ -2012,10 +2009,9 @@ gadgetfs_make_inode (struct super_block *sb,
 /* creates in fs root directory, so non-renamable and non-linkable.
  * so inode and dentry are paired, until device reconfig.
  */
-static struct inode *
+static struct dentry *
 gadgetfs_create_file (struct super_block *sb, char const *name,
-		void *data, const struct file_operations *fops,
-		struct dentry **dentry_p)
+		void *data, const struct file_operations *fops)
 {
 	struct dentry	*dentry;
 	struct inode	*inode;
@@ -2031,8 +2027,7 @@ gadgetfs_create_file (struct super_block *sb, char const *name,
 		return NULL;
 	}
 	d_add (dentry, inode);
-	*dentry_p = dentry;
-	return inode;
+	return dentry;
 }
 
 static const struct super_operations gadget_fs_operations = {
@@ -2080,9 +2075,8 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 		goto Enomem;
 
 	dev->sb = sb;
-	if (!gadgetfs_create_file (sb, CHIP,
-				dev, &dev_init_operations,
-				&dev->dentry)) {
+	dev->dentry = gadgetfs_create_file(sb, CHIP, dev, &dev_init_operations);
+	if (!dev->dentry) {
 		put_dev(dev);
 		goto Enomem;
 	}

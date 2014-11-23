@@ -84,7 +84,6 @@ static struct key_type cifs_idmap_key_type = {
 	.instantiate = cifs_idmap_key_instantiate,
 	.destroy     = cifs_idmap_key_destroy,
 	.describe    = user_describe,
-	.match       = user_match,
 };
 
 static char *

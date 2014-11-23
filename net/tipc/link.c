@@ -1924,7 +1924,12 @@ void tipc_link_bundle_rcv(struct sk_buff *buf)
 		}
 		omsg = buf_msg(obuf);
 		pos += align(msg_size(omsg));
-		if (msg_isdata(omsg) || (msg_user(omsg) == CONN_MANAGER)) {
+		if (msg_isdata(omsg)) {
+			if (unlikely(msg_type(omsg) == TIPC_MCAST_MSG))
+				tipc_sk_mcast_rcv(obuf);
+			else
+				tipc_sk_rcv(obuf);
+		} else if (msg_user(omsg) == CONN_MANAGER) {
 			tipc_sk_rcv(obuf);
 		} else if (msg_user(omsg) == NAME_DISTRIBUTOR) {
 			tipc_named_rcv(obuf);

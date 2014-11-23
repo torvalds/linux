@@ -9,6 +9,7 @@
 #include "perf_regs.h"
 #include "map.h"
 #include "thread.h"
+#include "callchain.h"
 
 static int mmap_handler(struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
@@ -119,6 +120,8 @@ int test__dwarf_unwind(void)
 		pr_err("Could not get machine\n");
 		return -1;
 	}
+
+	callchain_param.record_mode = CALLCHAIN_DWARF;
 
 	if (init_live_machine(machine)) {
 		pr_err("Could not init machine\n");

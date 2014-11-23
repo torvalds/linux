@@ -104,8 +104,6 @@ unsigned long __nongprelbss dma_coherent_mem_end;
 unsigned long __initdata __sdram_old_base;
 unsigned long __initdata num_mappedpages;
 
-struct cpuinfo_frv __nongprelbss boot_cpu_data;
-
 char __initdata command_line[COMMAND_LINE_SIZE];
 char __initdata redboot_command_line[COMMAND_LINE_SIZE];
 

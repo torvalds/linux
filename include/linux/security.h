@@ -1559,7 +1559,7 @@ struct security_operations {
 	int (*file_lock) (struct file *file, unsigned int cmd);
 	int (*file_fcntl) (struct file *file, unsigned int cmd,
 			   unsigned long arg);
-	int (*file_set_fowner) (struct file *file);
+	void (*file_set_fowner) (struct file *file);
 	int (*file_send_sigiotask) (struct task_struct *tsk,
 				    struct fown_struct *fown, int sig);
 	int (*file_receive) (struct file *file);
@@ -1834,7 +1834,7 @@ int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 			   unsigned long prot);
 int security_file_lock(struct file *file, unsigned int cmd);
 int security_file_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
-int security_file_set_fowner(struct file *file);
+void security_file_set_fowner(struct file *file);
 int security_file_send_sigiotask(struct task_struct *tsk,
 				 struct fown_struct *fown, int sig);
 int security_file_receive(struct file *file);
@@ -2108,7 +2108,7 @@ static inline int security_dentry_init_security(struct dentry *dentry,
 static inline int security_inode_init_security(struct inode *inode,
 						struct inode *dir,
 						const struct qstr *qstr,
-						const initxattrs initxattrs,
+						const initxattrs xattrs,
 						void *fs_data)
 {
 	return 0;
@@ -2312,9 +2312,9 @@ static inline int security_file_fcntl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static inline int security_file_set_fowner(struct file *file)
+static inline void security_file_set_fowner(struct file *file)
 {
-	return 0;
+	return;
 }
 
 static inline int security_file_send_sigiotask(struct task_struct *tsk,

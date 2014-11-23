@@ -152,7 +152,7 @@ static void max77693_haptic_disable(struct max77693_haptic *haptic)
 {
 	int error;
 
-	if (haptic->enabled)
+	if (!haptic->enabled)
 		return;
 
 	error = max77693_haptic_configure(haptic, false);

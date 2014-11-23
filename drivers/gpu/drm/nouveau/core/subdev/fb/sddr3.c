@@ -20,9 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * 	    Roy Spliet <rspliet@eclipso.eu>
  */
 
-#include <subdev/bios.h>
 #include "priv.h"
 
 struct ramxlat {
@@ -69,31 +69,52 @@ ramddr3_cwl[] = {
 int
 nouveau_sddr3_calc(struct nouveau_ram *ram)
 {
-	struct nouveau_bios *bios = nouveau_bios(ram);
-	int WL, CL, WR;
+	int CWL, CL, WR, DLL = 0, ODT = 0;
 
-	switch (!!ram->timing.data * ram->timing.version) {
+	switch (ram->next->bios.timing_ver) {
+	case 0x10:
+		if (ram->next->bios.timing_hdr < 0x17) {
+			/* XXX: NV50: Get CWL from the timing register */
+			return -ENOSYS;
+		}
+		CWL = ram->next->bios.timing_10_CWL;
+		CL  = ram->next->bios.timing_10_CL;
+		WR  = ram->next->bios.timing_10_WR;
+		DLL = !ram->next->bios.ramcfg_10_02_40;
+		ODT = ram->next->bios.timing_10_ODT;
+		break;
 	case 0x20:
-		WL = (nv_ro16(bios, ram->timing.data + 0x04) & 0x0f80) >> 7;
-		CL =  nv_ro08(bios, ram->timing.data + 0x04) & 0x1f;
-		WR =  nv_ro08(bios, ram->timing.data + 0x0a) & 0x7f;
+		CWL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;
+		CL  = (ram->next->bios.timing[1] & 0x0000001f) >> 0;
+		WR  = (ram->next->bios.timing[2] & 0x007f0000) >> 16;
+		/* XXX: Get these values from the VBIOS instead */
+		DLL = !(ram->mr[1] & 0x1);
+		ODT =   (ram->mr[1] & 0x004) >> 2 |
+			(ram->mr[1] & 0x040) >> 5 |
+		        (ram->mr[1] & 0x200) >> 7;
 		break;
 	default:
 		return -ENOSYS;
 	}
 
-	WL = ramxlat(ramddr3_cwl, WL);
-	CL = ramxlat(ramddr3_cl, CL);
-	WR = ramxlat(ramddr3_wr, WR);
-	if (WL < 0 || CL < 0 || WR < 0)
+	CWL = ramxlat(ramddr3_cwl, CWL);
+	CL  = ramxlat(ramddr3_cl, CL);
+	WR  = ramxlat(ramddr3_wr, WR);
+	if (CL < 0 || CWL < 0 || WR < 0)
 		return -EINVAL;
 
-	ram->mr[0] &= ~0xe74;
+	ram->mr[0] &= ~0xf74;
 	ram->mr[0] |= (WR & 0x07) << 9;
 	ram->mr[0] |= (CL & 0x0e) << 3;
 	ram->mr[0] |= (CL & 0x01) << 2;
 
+	ram->mr[1] &= ~0x245;
+	ram->mr[1] |= (ODT & 0x1) << 2;
+	ram->mr[1] |= (ODT & 0x2) << 5;
+	ram->mr[1] |= (ODT & 0x4) << 7;
+	ram->mr[1] |= !DLL;
+
 	ram->mr[2] &= ~0x038;
-	ram->mr[2] |= (WL & 0x07) << 3;
+	ram->mr[2] |= (CWL & 0x07) << 3;
 	return 0;
 }

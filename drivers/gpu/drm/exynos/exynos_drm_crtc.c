@@ -32,7 +32,6 @@ enum exynos_crtc_mode {
  * Exynos specific crtc structure.
  *
  * @drm_crtc: crtc object.
- * @drm_plane: pointer of private plane object for this crtc
  * @manager: the manager associated with this crtc
  * @pipe: a crtc index created at load() with a new crtc object creation
  *	and the crtc object would be set to private->crtc array
@@ -46,7 +45,6 @@ enum exynos_crtc_mode {
  */
 struct exynos_drm_crtc {
 	struct drm_crtc			drm_crtc;
-	struct drm_plane		*plane;
 	struct exynos_drm_manager	*manager;
 	unsigned int			pipe;
 	unsigned int			dpms;
@@ -94,12 +92,12 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 
 	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 
-	exynos_plane_commit(exynos_crtc->plane);
+	exynos_plane_commit(crtc->primary);
 
 	if (manager->ops->commit)
 		manager->ops->commit(manager);
 
-	exynos_plane_dpms(exynos_crtc->plane, DRM_MODE_DPMS_ON);
+	exynos_plane_dpms(crtc->primary, DRM_MODE_DPMS_ON);
 }
 
 static bool
@@ -123,10 +121,9 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_manager *manager = exynos_crtc->manager;
-	struct drm_plane *plane = exynos_crtc->plane;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	unsigned int crtc_w;
 	unsigned int crtc_h;
-	int ret;
 
 	/*
 	 * copy the mode data adjusted by mode_fixup() into crtc->mode
@@ -134,29 +131,21 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	 */
 	memcpy(&crtc->mode, adjusted_mode, sizeof(*adjusted_mode));
 
-	crtc_w = crtc->primary->fb->width - x;
-	crtc_h = crtc->primary->fb->height - y;
+	crtc_w = fb->width - x;
+	crtc_h = fb->height - y;
 
 	if (manager->ops->mode_set)
 		manager->ops->mode_set(manager, &crtc->mode);
 
-	ret = exynos_plane_mode_set(plane, crtc, crtc->primary->fb, 0, 0, crtc_w, crtc_h,
-				    x, y, crtc_w, crtc_h);
-	if (ret)
-		return ret;
-
-	plane->crtc = crtc;
-	plane->fb = crtc->primary->fb;
-	drm_framebuffer_reference(plane->fb);
-
-	return 0;
+	return exynos_plane_mode_set(crtc->primary, crtc, fb, 0, 0,
+				     crtc_w, crtc_h, x, y, crtc_w, crtc_h);
 }
 
 static int exynos_drm_crtc_mode_set_commit(struct drm_crtc *crtc, int x, int y,
 					  struct drm_framebuffer *old_fb)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_plane *plane = exynos_crtc->plane;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	unsigned int crtc_w;
 	unsigned int crtc_h;
 	int ret;
@@ -167,11 +156,11 @@ static int exynos_drm_crtc_mode_set_commit(struct drm_crtc *crtc, int x, int y,
 		return -EPERM;
 	}
 
-	crtc_w = crtc->primary->fb->width - x;
-	crtc_h = crtc->primary->fb->height - y;
+	crtc_w = fb->width - x;
+	crtc_h = fb->height - y;
 
-	ret = exynos_plane_mode_set(plane, crtc, crtc->primary->fb, 0, 0, crtc_w, crtc_h,
-				    x, y, crtc_w, crtc_h);
+	ret = exynos_plane_mode_set(crtc->primary, crtc, fb, 0, 0,
+				    crtc_w, crtc_h, x, y, crtc_w, crtc_h);
 	if (ret)
 		return ret;
 
@@ -304,8 +293,7 @@ static int exynos_drm_crtc_set_property(struct drm_crtc *crtc,
 			exynos_drm_crtc_commit(crtc);
 			break;
 		case CRTC_MODE_BLANK:
-			exynos_plane_dpms(exynos_crtc->plane,
-					  DRM_MODE_DPMS_OFF);
+			exynos_plane_dpms(crtc->primary, DRM_MODE_DPMS_OFF);
 			break;
 		default:
 			break;
@@ -351,8 +339,10 @@ static void exynos_drm_crtc_attach_mode_property(struct drm_crtc *crtc)
 int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
 {
 	struct exynos_drm_crtc *exynos_crtc;
+	struct drm_plane *plane;
 	struct exynos_drm_private *private = manager->drm_dev->dev_private;
 	struct drm_crtc *crtc;
+	int ret;
 
 	exynos_crtc = kzalloc(sizeof(*exynos_crtc), GFP_KERNEL);
 	if (!exynos_crtc)
@@ -364,11 +354,11 @@ int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
 	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
 	exynos_crtc->manager = manager;
 	exynos_crtc->pipe = manager->pipe;
-	exynos_crtc->plane = exynos_plane_init(manager->drm_dev,
-				1 << manager->pipe, true);
-	if (!exynos_crtc->plane) {
-		kfree(exynos_crtc);
-		return -ENOMEM;
+	plane = exynos_plane_init(manager->drm_dev, 1 << manager->pipe,
+				  DRM_PLANE_TYPE_PRIMARY);
+	if (IS_ERR(plane)) {
+		ret = PTR_ERR(plane);
+		goto err_plane;
 	}
 
 	manager->crtc = &exynos_crtc->drm_crtc;
@@ -376,12 +366,22 @@ int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
 
 	private->crtc[manager->pipe] = crtc;
 
-	drm_crtc_init(manager->drm_dev, crtc, &exynos_crtc_funcs);
+	ret = drm_crtc_init_with_planes(manager->drm_dev, crtc, plane, NULL,
+					&exynos_crtc_funcs);
+	if (ret < 0)
+		goto err_crtc;
+
 	drm_crtc_helper_add(crtc, &exynos_crtc_helper_funcs);
 
 	exynos_drm_crtc_attach_mode_property(crtc);
 
 	return 0;
+
+err_crtc:
+	plane->funcs->destroy(plane);
+err_plane:
+	kfree(exynos_crtc);
+	return ret;
 }
 
 int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)

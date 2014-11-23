@@ -491,20 +491,14 @@ struct ib_mr_init_attr {
 	u32	    flags;
 };
 
-enum ib_signature_type {
-	IB_SIG_TYPE_T10_DIF,
-};
-
 /**
- * T10-DIF Signature types
- * T10-DIF types are defined by SCSI
- * specifications.
+ * Signature types
+ * IB_SIG_TYPE_NONE: Unprotected.
+ * IB_SIG_TYPE_T10_DIF: Type T10-DIF
  */
-enum ib_t10_dif_type {
-	IB_T10DIF_NONE,
-	IB_T10DIF_TYPE1,
-	IB_T10DIF_TYPE2,
-	IB_T10DIF_TYPE3
+enum ib_signature_type {
+	IB_SIG_TYPE_NONE,
+	IB_SIG_TYPE_T10_DIF,
 };
 
 /**
@@ -520,24 +514,26 @@ enum ib_t10_dif_bg_type {
 /**
  * struct ib_t10_dif_domain - Parameters specific for T10-DIF
  *     domain.
- * @type: T10-DIF type (0|1|2|3)
  * @bg_type: T10-DIF block guard type (CRC|CSUM)
  * @pi_interval: protection information interval.
  * @bg: seed of guard computation.
  * @app_tag: application tag of guard block
  * @ref_tag: initial guard block reference tag.
- * @type3_inc_reftag: T10-DIF type 3 does not state
- *     about the reference tag, it is the user
- *     choice to increment it or not.
+ * @ref_remap: Indicate wethear the reftag increments each block
+ * @app_escape: Indicate to skip block check if apptag=0xffff
+ * @ref_escape: Indicate to skip block check if reftag=0xffffffff
+ * @apptag_check_mask: check bitmask of application tag.
  */
 struct ib_t10_dif_domain {
-	enum ib_t10_dif_type	type;
 	enum ib_t10_dif_bg_type bg_type;
 	u16			pi_interval;
 	u16			bg;
 	u16			app_tag;
 	u32			ref_tag;
-	bool			type3_inc_reftag;
+	bool			ref_remap;
+	bool			app_escape;
+	bool			ref_escape;
+	u16			apptag_check_mask;
 };
 
 /**

@@ -265,7 +265,6 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 static struct platform_driver pm860x_backlight_driver = {
 	.driver		= {
 		.name	= "88pm860x-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pm860x_backlight_probe,
 };

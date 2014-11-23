@@ -77,6 +77,16 @@ config I2C_AMD8111
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-amd8111.
 
+config I2C_HIX5HD2
+	tristate "Hix5hd2 high-speed I2C driver"
+	depends on ARCH_HIX5HD2
+	help
+	  Say Y here to include support for high-speed I2C controller in the
+	  Hisilicon based hix5hd2 SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-hix5hd2.
+
 config I2C_I801
 	tristate "Intel 82801 (ICH/PCH)"
 	depends on PCI
@@ -112,6 +122,7 @@ config I2C_I801
 	    Wildcat Point (PCH)
 	    Wildcat Point-LP (PCH)
 	    BayTrail (SOC)
+	    Sunrise Point-H (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -337,6 +348,17 @@ config I2C_AU1550
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
 
+config I2C_AXXIA
+	tristate "Axxia I2C controller"
+	depends on ARCH_AXXIA || COMPILE_TEST
+	default ARCH_AXXIA
+	help
+	  Say yes if you want to support the I2C bus on Axxia platforms.
+
+	  Please note that this controller is limited to transfers of maximum
+	  255 bytes in length. Any attempt to to a larger transfer will return
+	  an error.
+
 config I2C_BCM2835
 	tristate "Broadcom BCM2835 I2C controller"
 	depends on ARCH_BCM2835
@@ -423,6 +445,7 @@ config I2C_DESIGNWARE_CORE
 config I2C_DESIGNWARE_PLATFORM
 	tristate "Synopsys DesignWare Platform"
 	select I2C_DESIGNWARE_CORE
+	depends on (ACPI && COMMON_CLK) || !ACPI
 	help
 	  If you say yes to this option, support will be included for the
 	  Synopsys DesignWare I2C adapter. Only master mode is supported.
@@ -465,7 +488,7 @@ config I2C_EG20T
 
 config I2C_EXYNOS5
 	tristate "Exynos5 high-speed I2C driver"
-	depends on ARCH_EXYNOS5 && OF
+	depends on ARCH_EXYNOS && OF
 	default y
 	help
 	  High-speed I2C controller on Exynos5 based Samsung SoCs.

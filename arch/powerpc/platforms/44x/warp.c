@@ -28,7 +28,7 @@
 #include <asm/dma.h>
 
 
-static __initdata struct of_device_id warp_of_bus[] = {
+static const struct of_device_id warp_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },

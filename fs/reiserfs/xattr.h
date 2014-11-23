@@ -7,7 +7,6 @@ struct inode;
 struct dentry;
 struct iattr;
 struct super_block;
-struct nameidata;
 
 int reiserfs_xattr_register_handlers(void) __init;
 void reiserfs_xattr_unregister_handlers(void);

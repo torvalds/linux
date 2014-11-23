@@ -1040,6 +1040,8 @@ static enum drm_connector_status hdmi_detect(struct drm_connector *connector,
 
 static void hdmi_connector_destroy(struct drm_connector *connector)
 {
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
 }
 
 static struct drm_connector_funcs hdmi_connector_funcs = {
@@ -2314,8 +2316,8 @@ static void hdmi_unbind(struct device *dev, struct device *master, void *data)
 	struct drm_encoder *encoder = display->encoder;
 	struct hdmi_context *hdata = display->ctx;
 
+	hdmi_connector_destroy(&hdata->connector);
 	encoder->funcs->destroy(encoder);
-	drm_connector_cleanup(&hdata->connector);
 }
 
 static const struct component_ops hdmi_component_ops = {

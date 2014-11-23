@@ -352,7 +352,7 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	} else {
 		for (i = 0; i < rtd->num_codecs; i++) {
 			codec_dai = rtd->codec_dais[i];
-			if (codec_dai->driver->playback.sig_bits == 0) {
+			if (codec_dai->driver->capture.sig_bits == 0) {
 				bits = 0;
 				break;
 			}

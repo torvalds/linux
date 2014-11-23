@@ -24,23 +24,6 @@ struct ipu_soc;
 
 #include <video/imx-ipu-v3.h>
 
-#define IPUV3_CHANNEL_CSI0			 0
-#define IPUV3_CHANNEL_CSI1			 1
-#define IPUV3_CHANNEL_CSI2			 2
-#define IPUV3_CHANNEL_CSI3			 3
-#define IPUV3_CHANNEL_MEM_BG_SYNC		23
-#define IPUV3_CHANNEL_MEM_FG_SYNC		27
-#define IPUV3_CHANNEL_MEM_DC_SYNC		28
-#define IPUV3_CHANNEL_MEM_FG_SYNC_ALPHA		31
-#define IPUV3_CHANNEL_MEM_DC_ASYNC		41
-#define IPUV3_CHANNEL_ROT_ENC_MEM		45
-#define IPUV3_CHANNEL_ROT_VF_MEM		46
-#define IPUV3_CHANNEL_ROT_PP_MEM		47
-#define IPUV3_CHANNEL_ROT_ENC_MEM_OUT		48
-#define IPUV3_CHANNEL_ROT_VF_MEM_OUT		49
-#define IPUV3_CHANNEL_ROT_PP_MEM_OUT		50
-#define IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA		51
-
 #define IPU_MCU_T_DEFAULT	8
 #define IPU_CM_IDMAC_REG_OFS	0x00008000
 #define IPU_CM_IC_REG_OFS	0x00020000
@@ -85,6 +68,7 @@ struct ipu_soc;
 #define IPU_DISP_TASK_STAT		IPU_CM_REG(0x0254)
 #define IPU_CHA_BUF0_RDY(ch)		IPU_CM_REG(0x0268 + 4 * ((ch) / 32))
 #define IPU_CHA_BUF1_RDY(ch)		IPU_CM_REG(0x0270 + 4 * ((ch) / 32))
+#define IPU_CHA_BUF2_RDY(ch)		IPU_CM_REG(0x0288 + 4 * ((ch) / 32))
 #define IPU_ALT_CHA_BUF0_RDY(ch)	IPU_CM_REG(0x0278 + 4 * ((ch) / 32))
 #define IPU_ALT_CHA_BUF1_RDY(ch)	IPU_CM_REG(0x0280 + 4 * ((ch) / 32))
 
@@ -149,9 +133,11 @@ struct ipuv3_channel {
 };
 
 struct ipu_cpmem;
+struct ipu_csi;
 struct ipu_dc_priv;
 struct ipu_dmfc_priv;
 struct ipu_di;
+struct ipu_ic_priv;
 struct ipu_smfc_priv;
 
 struct ipu_devtype;
@@ -181,6 +167,8 @@ struct ipu_soc {
 	struct ipu_dp_priv	*dp_priv;
 	struct ipu_dmfc_priv	*dmfc_priv;
 	struct ipu_di		*di_priv[2];
+	struct ipu_csi		*csi_priv[2];
+	struct ipu_ic_priv	*ic_priv;
 	struct ipu_smfc_priv	*smfc_priv;
 };
 
@@ -202,6 +190,14 @@ int ipu_module_disable(struct ipu_soc *ipu, u32 mask);
 
 bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno);
 int ipu_wait_interrupt(struct ipu_soc *ipu, int irq, int ms);
+
+int ipu_csi_init(struct ipu_soc *ipu, struct device *dev, int id,
+		 unsigned long base, u32 module, struct clk *clk_ipu);
+void ipu_csi_exit(struct ipu_soc *ipu, int id);
+
+int ipu_ic_init(struct ipu_soc *ipu, struct device *dev,
+		unsigned long base, unsigned long tpmem_base);
+void ipu_ic_exit(struct ipu_soc *ipu);
 
 int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 		unsigned long base, u32 module, struct clk *ipu_clk);

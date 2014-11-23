@@ -112,7 +112,6 @@ static int twl6040_clk_remove(struct platform_device *pdev)
 static struct platform_driver twl6040_clk_driver = {
 	.driver = {
 		.name = "twl6040-clk",
-		.owner = THIS_MODULE,
 	},
 	.probe = twl6040_clk_probe,
 	.remove = twl6040_clk_remove,

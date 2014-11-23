@@ -729,7 +729,7 @@ static inline void exynos4_jpeg_set_qtbl_chr(void __iomem *regs, int quality)
 			     ARRAY_SIZE(qtbl_chrominance[quality]));
 }
 
-void exynos4_jpeg_set_huff_tbl(void __iomem *base)
+static void exynos4_jpeg_set_huff_tbl(void __iomem *base)
 {
 	exynos4_jpeg_set_tbl(base, hdctbl0, EXYNOS4_HUFF_TBL_HDCLL,
 							ARRAY_SIZE(hdctbl0));

@@ -8,9 +8,10 @@ u32 nvbios_rammapTe(struct nouveau_bios *, u8 *ver, u8 *hdr,
 
 u32 nvbios_rammapEe(struct nouveau_bios *, int idx,
 		    u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
+u32 nvbios_rammapEp(struct nouveau_bios *, int idx,
+		    u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+		    struct nvbios_ramcfg *);
 u32 nvbios_rammapEm(struct nouveau_bios *, u16 mhz,
-		    u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
-u32 nvbios_rammapEp(struct nouveau_bios *, u16 mhz,
 		    u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		    struct nvbios_ramcfg *);
 

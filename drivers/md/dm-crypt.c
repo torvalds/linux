@@ -526,29 +526,26 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 			    u8 *data)
 {
 	struct iv_lmk_private *lmk = &cc->iv_gen_private.lmk;
-	struct {
-		struct shash_desc desc;
-		char ctx[crypto_shash_descsize(lmk->hash_tfm)];
-	} sdesc;
+	SHASH_DESC_ON_STACK(desc, lmk->hash_tfm);
 	struct md5_state md5state;
 	__le32 buf[4];
 	int i, r;
 
-	sdesc.desc.tfm = lmk->hash_tfm;
-	sdesc.desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	desc->tfm = lmk->hash_tfm;
+	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	r = crypto_shash_init(&sdesc.desc);
+	r = crypto_shash_init(desc);
 	if (r)
 		return r;
 
 	if (lmk->seed) {
-		r = crypto_shash_update(&sdesc.desc, lmk->seed, LMK_SEED_SIZE);
+		r = crypto_shash_update(desc, lmk->seed, LMK_SEED_SIZE);
 		if (r)
 			return r;
 	}
 
 	/* Sector is always 512B, block size 16, add data of blocks 1-31 */
-	r = crypto_shash_update(&sdesc.desc, data + 16, 16 * 31);
+	r = crypto_shash_update(desc, data + 16, 16 * 31);
 	if (r)
 		return r;
 
@@ -557,12 +554,12 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 	buf[1] = cpu_to_le32((((u64)dmreq->iv_sector >> 32) & 0x00FFFFFF) | 0x80000000);
 	buf[2] = cpu_to_le32(4024);
 	buf[3] = 0;
-	r = crypto_shash_update(&sdesc.desc, (u8 *)buf, sizeof(buf));
+	r = crypto_shash_update(desc, (u8 *)buf, sizeof(buf));
 	if (r)
 		return r;
 
 	/* No MD5 padding here */
-	r = crypto_shash_export(&sdesc.desc, &md5state);
+	r = crypto_shash_export(desc, &md5state);
 	if (r)
 		return r;
 
@@ -679,10 +676,7 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 	struct iv_tcw_private *tcw = &cc->iv_gen_private.tcw;
 	u64 sector = cpu_to_le64((u64)dmreq->iv_sector);
 	u8 buf[TCW_WHITENING_SIZE];
-	struct {
-		struct shash_desc desc;
-		char ctx[crypto_shash_descsize(tcw->crc32_tfm)];
-	} sdesc;
+	SHASH_DESC_ON_STACK(desc, tcw->crc32_tfm);
 	int i, r;
 
 	/* xor whitening with sector number */
@@ -691,16 +685,16 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 	crypto_xor(&buf[8], (u8 *)&sector, 8);
 
 	/* calculate crc32 for every 32bit part and xor it */
-	sdesc.desc.tfm = tcw->crc32_tfm;
-	sdesc.desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	desc->tfm = tcw->crc32_tfm;
+	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	for (i = 0; i < 4; i++) {
-		r = crypto_shash_init(&sdesc.desc);
+		r = crypto_shash_init(desc);
 		if (r)
 			goto out;
-		r = crypto_shash_update(&sdesc.desc, &buf[i * 4], 4);
+		r = crypto_shash_update(desc, &buf[i * 4], 4);
 		if (r)
 			goto out;
-		r = crypto_shash_final(&sdesc.desc, &buf[i * 4]);
+		r = crypto_shash_final(desc, &buf[i * 4]);
 		if (r)
 			goto out;
 	}

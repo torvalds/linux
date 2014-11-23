@@ -39,19 +39,13 @@
  *
  * @head:           list head for thread-private list.
  * @bo:             refcounted buffer object pointer.
- * @reserved:       Indicates whether @bo has been reserved for validation.
- * @removed:        Indicates whether @bo has been removed from lru lists.
- * @put_count:      Number of outstanding references on bo::list_kref.
- * @old_sync_obj:   Pointer to a sync object about to be unreferenced
+ * @shared:         should the fence be added shared?
  */
 
 struct ttm_validate_buffer {
 	struct list_head head;
 	struct ttm_buffer_object *bo;
-	bool reserved;
-	bool removed;
-	int put_count;
-	void *old_sync_obj;
+	bool shared;
 };
 
 /**
@@ -73,6 +67,7 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * @ticket:  [out] ww_acquire_ctx filled in by call, or NULL if only
  *           non-blocking reserves should be tried.
  * @list:    thread private list of ttm_validate_buffer structs.
+ * @intr:    should the wait be interruptible
  *
  * Tries to reserve bos pointed to by the list entries for validation.
  * If the function returns 0, all buffers are marked as "unfenced",
@@ -84,9 +79,9 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  * CPU write reservations to be cleared, and for other threads to
  * unreserve their buffers.
  *
- * This function may return -ERESTART or -EAGAIN if the calling process
- * receives a signal while waiting. In that case, no buffers on the list
- * will be reserved upon return.
+ * If intr is set to true, this function may return -ERESTARTSYS if the
+ * calling process receives a signal while waiting. In that case, no
+ * buffers on the list will be reserved upon return.
  *
  * Buffers reserved by this function should be unreserved by
  * a call to either ttm_eu_backoff_reservation() or
@@ -95,14 +90,14 @@ extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
  */
 
 extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
-				  struct list_head *list);
+				  struct list_head *list, bool intr);
 
 /**
  * function ttm_eu_fence_buffer_objects.
  *
  * @ticket:      ww_acquire_ctx from reserve call
  * @list:        thread private list of ttm_validate_buffer structs.
- * @sync_obj:    The new sync object for the buffers.
+ * @fence:       The new exclusive fence for the buffers.
  *
  * This function should be called when command submission is complete, and
  * it will add a new sync object to bos pointed to by entries on @list.
@@ -111,6 +106,7 @@ extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
  */
 
 extern void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
-					struct list_head *list, void *sync_obj);
+					struct list_head *list,
+					struct fence *fence);
 
 #endif

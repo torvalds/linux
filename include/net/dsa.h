@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
+#include <linux/ethtool.h>
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE = 0,

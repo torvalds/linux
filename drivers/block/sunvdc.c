@@ -9,6 +9,7 @@
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/genhd.h>
+#include <linux/cdrom.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -22,8 +23,8 @@
 
 #define DRV_MODULE_NAME		"sunvdc"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.0"
-#define DRV_MODULE_RELDATE	"June 25, 2007"
+#define DRV_MODULE_VERSION	"1.1"
+#define DRV_MODULE_RELDATE	"February 13, 2013"
 
 static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -32,7 +33,7 @@ MODULE_DESCRIPTION("Sun LDOM virtual disk client driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-#define VDC_TX_RING_SIZE	256
+#define VDC_TX_RING_SIZE	512
 
 #define WAITING_FOR_LINK_UP	0x01
 #define WAITING_FOR_TX_SPACE	0x02
@@ -65,10 +66,10 @@ struct vdc_port {
 	u64			operations;
 	u32			vdisk_size;
 	u8			vdisk_type;
+	u8			vdisk_mtype;
 
 	char			disk_name[32];
 
-	struct vio_disk_geom	geom;
 	struct vio_disk_vtoc	label;
 };
 
@@ -79,8 +80,15 @@ static inline struct vdc_port *to_vdc_port(struct vio_driver_state *vio)
 
 /* Ordered from largest major to lowest */
 static struct vio_version vdc_versions[] = {
+	{ .major = 1, .minor = 1 },
 	{ .major = 1, .minor = 0 },
 };
+
+static inline int vdc_version_supported(struct vdc_port *port,
+					u16 major, u16 minor)
+{
+	return port->vio.ver.major == major && port->vio.ver.minor >= minor;
+}
 
 #define VDCBLK_NAME	"vdisk"
 static int vdc_major;
@@ -94,18 +102,54 @@ static inline u32 vdc_tx_dring_avail(struct vio_dring_state *dr)
 static int vdc_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	struct vdc_port *port = disk->private_data;
+	sector_t nsect = get_capacity(disk);
+	sector_t cylinders = nsect;
 
-	geo->heads = (u8) port->geom.num_hd;
-	geo->sectors = (u8) port->geom.num_sec;
-	geo->cylinders = port->geom.num_cyl;
+	geo->heads = 0xff;
+	geo->sectors = 0x3f;
+	sector_div(cylinders, geo->heads * geo->sectors);
+	geo->cylinders = cylinders;
+	if ((sector_t)(geo->cylinders + 1) * geo->heads * geo->sectors < nsect)
+		geo->cylinders = 0xffff;
 
 	return 0;
+}
+
+/* Add ioctl/CDROM_GET_CAPABILITY to support cdrom_id in udev
+ * when vdisk_mtype is VD_MEDIA_TYPE_CD or VD_MEDIA_TYPE_DVD.
+ * Needed to be able to install inside an ldom from an iso image.
+ */
+static int vdc_ioctl(struct block_device *bdev, fmode_t mode,
+		     unsigned command, unsigned long argument)
+{
+	int i;
+	struct gendisk *disk;
+
+	switch (command) {
+	case CDROMMULTISESSION:
+		pr_debug(PFX "Multisession CDs not supported\n");
+		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
+			if (put_user(0, (char __user *)(argument + i)))
+				return -EFAULT;
+		return 0;
+
+	case CDROM_GET_CAPABILITY:
+		disk = bdev->bd_disk;
+
+		if (bdev->bd_disk && (disk->flags & GENHD_FL_CD))
+			return 0;
+		return -EINVAL;
+
+	default:
+		pr_debug(PFX "ioctl %08x not supported\n", command);
+		return -EINVAL;
+	}
 }
 
 static const struct block_device_operations vdc_fops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= vdc_getgeo,
+	.ioctl		= vdc_ioctl,
 };
 
 static void vdc_finish(struct vio_driver_state *vio, int err, int waiting_for)
@@ -165,9 +209,9 @@ static int vdc_handle_attr(struct vio_driver_state *vio, void *arg)
 	struct vio_disk_attr_info *pkt = arg;
 
 	viodbg(HS, "GOT ATTR stype[0x%x] ops[%llx] disk_size[%llu] disk_type[%x] "
-	       "xfer_mode[0x%x] blksz[%u] max_xfer[%llu]\n",
+	       "mtype[0x%x] xfer_mode[0x%x] blksz[%u] max_xfer[%llu]\n",
 	       pkt->tag.stype, pkt->operations,
-	       pkt->vdisk_size, pkt->vdisk_type,
+	       pkt->vdisk_size, pkt->vdisk_type, pkt->vdisk_mtype,
 	       pkt->xfer_mode, pkt->vdisk_block_size,
 	       pkt->max_xfer_size);
 
@@ -192,8 +236,11 @@ static int vdc_handle_attr(struct vio_driver_state *vio, void *arg)
 		}
 
 		port->operations = pkt->operations;
-		port->vdisk_size = pkt->vdisk_size;
 		port->vdisk_type = pkt->vdisk_type;
+		if (vdc_version_supported(port, 1, 1)) {
+			port->vdisk_size = pkt->vdisk_size;
+			port->vdisk_mtype = pkt->vdisk_mtype;
+		}
 		if (pkt->max_xfer_size < port->max_xfer_size)
 			port->max_xfer_size = pkt->max_xfer_size;
 		port->vdisk_block_size = pkt->vdisk_block_size;
@@ -236,7 +283,9 @@ static void vdc_end_one(struct vdc_port *port, struct vio_dring_state *dr,
 
 	__blk_end_request(req, (desc->status ? -EIO : 0), desc->size);
 
-	if (blk_queue_stopped(port->disk->queue))
+	/* restart blk queue when ring is half emptied */
+	if (blk_queue_stopped(port->disk->queue) &&
+	    vdc_tx_dring_avail(dr) * 100 / VDC_TX_RING_SIZE >= 50)
 		blk_start_queue(port->disk->queue);
 }
 
@@ -388,12 +437,6 @@ static int __send_request(struct request *req)
 	for (i = 0; i < nsg; i++)
 		len += sg[i].length;
 
-	if (unlikely(vdc_tx_dring_avail(dr) < 1)) {
-		blk_stop_queue(port->disk->queue);
-		err = -ENOMEM;
-		goto out;
-	}
-
 	desc = vio_dring_cur(dr);
 
 	err = ldc_map_sg(port->vio.lp, sg, nsg,
@@ -433,21 +476,32 @@ static int __send_request(struct request *req)
 		port->req_id++;
 		dr->prod = (dr->prod + 1) & (VDC_TX_RING_SIZE - 1);
 	}
-out:
 
 	return err;
 }
 
-static void do_vdc_request(struct request_queue *q)
+static void do_vdc_request(struct request_queue *rq)
 {
-	while (1) {
-		struct request *req = blk_fetch_request(q);
+	struct request *req;
 
-		if (!req)
+	while ((req = blk_peek_request(rq)) != NULL) {
+		struct vdc_port *port;
+		struct vio_dring_state *dr;
+
+		port = req->rq_disk->private_data;
+		dr = &port->vio.drings[VIO_DRIVER_TX_RING];
+		if (unlikely(vdc_tx_dring_avail(dr) < 1))
+			goto wait;
+
+		blk_start_request(req);
+
+		if (__send_request(req) < 0) {
+			blk_requeue_request(rq, req);
+wait:
+			/* Avoid pointless unplugs. */
+			blk_stop_queue(rq);
 			break;
-
-		if (__send_request(req) < 0)
-			__blk_end_request_all(req, -EIO);
+		}
 	}
 }
 
@@ -663,17 +717,26 @@ static int probe_disk(struct vdc_port *port)
 		return err;
 	}
 
-	err = generic_request(port, VD_OP_GET_DISKGEOM,
-			      &port->geom, sizeof(port->geom));
-	if (err < 0) {
-		printk(KERN_ERR PFX "VD_OP_GET_DISKGEOM returns "
-		       "error %d\n", err);
-		return err;
-	}
+	if (vdc_version_supported(port, 1, 1)) {
+		/* vdisk_size should be set during the handshake, if it wasn't
+		 * then the underlying disk is reserved by another system
+		 */
+		if (port->vdisk_size == -1)
+			return -ENODEV;
+	} else {
+		struct vio_disk_geom geom;
 
-	port->vdisk_size = ((u64)port->geom.num_cyl *
-			    (u64)port->geom.num_hd *
-			    (u64)port->geom.num_sec);
+		err = generic_request(port, VD_OP_GET_DISKGEOM,
+				      &geom, sizeof(geom));
+		if (err < 0) {
+			printk(KERN_ERR PFX "VD_OP_GET_DISKGEOM returns "
+			       "error %d\n", err);
+			return err;
+		}
+		port->vdisk_size = ((u64)geom.num_cyl *
+				    (u64)geom.num_hd *
+				    (u64)geom.num_sec);
+	}
 
 	q = blk_init_queue(do_vdc_request, &port->vio.lock);
 	if (!q) {
@@ -691,6 +754,10 @@ static int probe_disk(struct vdc_port *port)
 
 	port->disk = g;
 
+	/* Each segment in a request is up to an aligned page in size. */
+	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+	blk_queue_max_segment_size(q, PAGE_SIZE);
+
 	blk_queue_max_segments(q, port->ring_cookies);
 	blk_queue_max_hw_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
@@ -704,9 +771,32 @@ static int probe_disk(struct vdc_port *port)
 
 	set_capacity(g, port->vdisk_size);
 
-	printk(KERN_INFO PFX "%s: %u sectors (%u MB)\n",
+	if (vdc_version_supported(port, 1, 1)) {
+		switch (port->vdisk_mtype) {
+		case VD_MEDIA_TYPE_CD:
+			pr_info(PFX "Virtual CDROM %s\n", port->disk_name);
+			g->flags |= GENHD_FL_CD;
+			g->flags |= GENHD_FL_REMOVABLE;
+			set_disk_ro(g, 1);
+			break;
+
+		case VD_MEDIA_TYPE_DVD:
+			pr_info(PFX "Virtual DVD %s\n", port->disk_name);
+			g->flags |= GENHD_FL_CD;
+			g->flags |= GENHD_FL_REMOVABLE;
+			set_disk_ro(g, 1);
+			break;
+
+		case VD_MEDIA_TYPE_FIXED:
+			pr_info(PFX "Virtual Hard disk %s\n", port->disk_name);
+			break;
+		}
+	}
+
+	pr_info(PFX "%s: %u sectors (%u MB) protocol %d.%d\n",
 	       g->disk_name,
-	       port->vdisk_size, (port->vdisk_size >> (20 - 9)));
+	       port->vdisk_size, (port->vdisk_size >> (20 - 9)),
+	       port->vio.ver.major, port->vio.ver.minor);
 
 	add_disk(g);
 
@@ -765,6 +855,7 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	else
 		snprintf(port->disk_name, sizeof(port->disk_name),
 			 VDCBLK_NAME "%c", 'a' + ((int)vdev->dev_no % 26));
+	port->vdisk_size = -1;
 
 	err = vio_driver_init(&port->vio, vdev, VDEV_DISK,
 			      vdc_versions, ARRAY_SIZE(vdc_versions),

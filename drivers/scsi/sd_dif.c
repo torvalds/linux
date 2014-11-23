@@ -21,7 +21,7 @@
  */
 
 #include <linux/blkdev.h>
-#include <linux/crc-t10dif.h>
+#include <linux/t10-pi.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -33,267 +33,7 @@
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsicam.h>
 
-#include <net/checksum.h>
-
 #include "sd.h"
-
-typedef __u16 (csum_fn) (void *, unsigned int);
-
-static __u16 sd_dif_crc_fn(void *data, unsigned int len)
-{
-	return cpu_to_be16(crc_t10dif(data, len));
-}
-
-static __u16 sd_dif_ip_fn(void *data, unsigned int len)
-{
-	return ip_compute_csum(data, len);
-}
-
-/*
- * Type 1 and Type 2 protection use the same format: 16 bit guard tag,
- * 16 bit app tag, 32 bit reference tag.
- */
-static void sd_dif_type1_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
-{
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t sector = bix->sector;
-	unsigned int i;
-
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
-		sdt->guard_tag = fn(buf, bix->sector_size);
-		sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
-		sdt->app_tag = 0;
-
-		buf += bix->sector_size;
-		sector++;
-	}
-}
-
-static void sd_dif_type1_generate_crc(struct blk_integrity_exchg *bix)
-{
-	sd_dif_type1_generate(bix, sd_dif_crc_fn);
-}
-
-static void sd_dif_type1_generate_ip(struct blk_integrity_exchg *bix)
-{
-	sd_dif_type1_generate(bix, sd_dif_ip_fn);
-}
-
-static int sd_dif_type1_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
-{
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t sector = bix->sector;
-	unsigned int i;
-	__u16 csum;
-
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
-		/* Unwritten sectors */
-		if (sdt->app_tag == 0xffff)
-			return 0;
-
-		if (be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
-			printk(KERN_ERR
-			       "%s: ref tag error on sector %lu (rcvd %u)\n",
-			       bix->disk_name, (unsigned long)sector,
-			       be32_to_cpu(sdt->ref_tag));
-			return -EIO;
-		}
-
-		csum = fn(buf, bix->sector_size);
-
-		if (sdt->guard_tag != csum) {
-			printk(KERN_ERR "%s: guard tag error on sector %lu " \
-			       "(rcvd %04x, data %04x)\n", bix->disk_name,
-			       (unsigned long)sector,
-			       be16_to_cpu(sdt->guard_tag), be16_to_cpu(csum));
-			return -EIO;
-		}
-
-		buf += bix->sector_size;
-		sector++;
-	}
-
-	return 0;
-}
-
-static int sd_dif_type1_verify_crc(struct blk_integrity_exchg *bix)
-{
-	return sd_dif_type1_verify(bix, sd_dif_crc_fn);
-}
-
-static int sd_dif_type1_verify_ip(struct blk_integrity_exchg *bix)
-{
-	return sd_dif_type1_verify(bix, sd_dif_ip_fn);
-}
-
-/*
- * Functions for interleaving and deinterleaving application tags
- */
-static void sd_dif_type1_set_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
-		sdt->app_tag = tag[j] << 8 | tag[j+1];
-		BUG_ON(sdt->app_tag == 0xffff);
-	}
-}
-
-static void sd_dif_type1_get_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
-		tag[j] = (sdt->app_tag & 0xff00) >> 8;
-		tag[j+1] = sdt->app_tag & 0xff;
-	}
-}
-
-static struct blk_integrity dif_type1_integrity_crc = {
-	.name			= "T10-DIF-TYPE1-CRC",
-	.generate_fn		= sd_dif_type1_generate_crc,
-	.verify_fn		= sd_dif_type1_verify_crc,
-	.get_tag_fn		= sd_dif_type1_get_tag,
-	.set_tag_fn		= sd_dif_type1_set_tag,
-	.tuple_size		= sizeof(struct sd_dif_tuple),
-	.tag_size		= 0,
-};
-
-static struct blk_integrity dif_type1_integrity_ip = {
-	.name			= "T10-DIF-TYPE1-IP",
-	.generate_fn		= sd_dif_type1_generate_ip,
-	.verify_fn		= sd_dif_type1_verify_ip,
-	.get_tag_fn		= sd_dif_type1_get_tag,
-	.set_tag_fn		= sd_dif_type1_set_tag,
-	.tuple_size		= sizeof(struct sd_dif_tuple),
-	.tag_size		= 0,
-};
-
-
-/*
- * Type 3 protection has a 16-bit guard tag and 16 + 32 bits of opaque
- * tag space.
- */
-static void sd_dif_type3_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
-{
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
-	unsigned int i;
-
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
-		sdt->guard_tag = fn(buf, bix->sector_size);
-		sdt->ref_tag = 0;
-		sdt->app_tag = 0;
-
-		buf += bix->sector_size;
-	}
-}
-
-static void sd_dif_type3_generate_crc(struct blk_integrity_exchg *bix)
-{
-	sd_dif_type3_generate(bix, sd_dif_crc_fn);
-}
-
-static void sd_dif_type3_generate_ip(struct blk_integrity_exchg *bix)
-{
-	sd_dif_type3_generate(bix, sd_dif_ip_fn);
-}
-
-static int sd_dif_type3_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
-{
-	void *buf = bix->data_buf;
-	struct sd_dif_tuple *sdt = bix->prot_buf;
-	sector_t sector = bix->sector;
-	unsigned int i;
-	__u16 csum;
-
-	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
-		/* Unwritten sectors */
-		if (sdt->app_tag == 0xffff && sdt->ref_tag == 0xffffffff)
-			return 0;
-
-		csum = fn(buf, bix->sector_size);
-
-		if (sdt->guard_tag != csum) {
-			printk(KERN_ERR "%s: guard tag error on sector %lu " \
-			       "(rcvd %04x, data %04x)\n", bix->disk_name,
-			       (unsigned long)sector,
-			       be16_to_cpu(sdt->guard_tag), be16_to_cpu(csum));
-			return -EIO;
-		}
-
-		buf += bix->sector_size;
-		sector++;
-	}
-
-	return 0;
-}
-
-static int sd_dif_type3_verify_crc(struct blk_integrity_exchg *bix)
-{
-	return sd_dif_type3_verify(bix, sd_dif_crc_fn);
-}
-
-static int sd_dif_type3_verify_ip(struct blk_integrity_exchg *bix)
-{
-	return sd_dif_type3_verify(bix, sd_dif_ip_fn);
-}
-
-static void sd_dif_type3_set_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 6, sdt++) {
-		sdt->app_tag = tag[j] << 8 | tag[j+1];
-		sdt->ref_tag = tag[j+2] << 24 | tag[j+3] << 16 |
-			tag[j+4] << 8 | tag[j+5];
-	}
-}
-
-static void sd_dif_type3_get_tag(void *prot, void *tag_buf, unsigned int sectors)
-{
-	struct sd_dif_tuple *sdt = prot;
-	u8 *tag = tag_buf;
-	unsigned int i, j;
-
-	for (i = 0, j = 0 ; i < sectors ; i++, j += 2, sdt++) {
-		tag[j] = (sdt->app_tag & 0xff00) >> 8;
-		tag[j+1] = sdt->app_tag & 0xff;
-		tag[j+2] = (sdt->ref_tag & 0xff000000) >> 24;
-		tag[j+3] = (sdt->ref_tag & 0xff0000) >> 16;
-		tag[j+4] = (sdt->ref_tag & 0xff00) >> 8;
-		tag[j+5] = sdt->ref_tag & 0xff;
-		BUG_ON(sdt->app_tag == 0xffff || sdt->ref_tag == 0xffffffff);
-	}
-}
-
-static struct blk_integrity dif_type3_integrity_crc = {
-	.name			= "T10-DIF-TYPE3-CRC",
-	.generate_fn		= sd_dif_type3_generate_crc,
-	.verify_fn		= sd_dif_type3_verify_crc,
-	.get_tag_fn		= sd_dif_type3_get_tag,
-	.set_tag_fn		= sd_dif_type3_set_tag,
-	.tuple_size		= sizeof(struct sd_dif_tuple),
-	.tag_size		= 0,
-};
-
-static struct blk_integrity dif_type3_integrity_ip = {
-	.name			= "T10-DIF-TYPE3-IP",
-	.generate_fn		= sd_dif_type3_generate_ip,
-	.verify_fn		= sd_dif_type3_verify_ip,
-	.get_tag_fn		= sd_dif_type3_get_tag,
-	.set_tag_fn		= sd_dif_type3_set_tag,
-	.tuple_size		= sizeof(struct sd_dif_tuple),
-	.tag_size		= 0,
-};
 
 /*
  * Configure exchange of protection information between OS and HBA.
@@ -316,22 +56,30 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		return;
 
 	/* Enable DMA of protection information */
-	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP)
+	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP) {
 		if (type == SD_DIF_TYPE3_PROTECTION)
-			blk_integrity_register(disk, &dif_type3_integrity_ip);
+			blk_integrity_register(disk, &t10_pi_type3_ip);
 		else
-			blk_integrity_register(disk, &dif_type1_integrity_ip);
-	else
+			blk_integrity_register(disk, &t10_pi_type1_ip);
+
+		disk->integrity->flags |= BLK_INTEGRITY_IP_CHECKSUM;
+	} else
 		if (type == SD_DIF_TYPE3_PROTECTION)
-			blk_integrity_register(disk, &dif_type3_integrity_crc);
+			blk_integrity_register(disk, &t10_pi_type3_crc);
 		else
-			blk_integrity_register(disk, &dif_type1_integrity_crc);
+			blk_integrity_register(disk, &t10_pi_type1_crc);
 
 	sd_printk(KERN_NOTICE, sdkp,
 		  "Enabling DIX %s protection\n", disk->integrity->name);
 
 	/* Signal to block layer that we support sector tagging */
-	if (dif && type && sdkp->ATO) {
+	if (dif && type) {
+
+		disk->integrity->flags |= BLK_INTEGRITY_DEVICE_CAPABLE;
+
+		if (!sdkp)
+			return;
+
 		if (type == SD_DIF_TYPE3_PROTECTION)
 			disk->integrity->tag_size = sizeof(u16) + sizeof(u32);
 		else
@@ -358,50 +106,49 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
  *
  * Type 3 does not have a reference tag so no remapping is required.
  */
-void sd_dif_prepare(struct request *rq, sector_t hw_sector,
-		    unsigned int sector_sz)
+void sd_dif_prepare(struct scsi_cmnd *scmd)
 {
-	const int tuple_sz = sizeof(struct sd_dif_tuple);
+	const int tuple_sz = sizeof(struct t10_pi_tuple);
 	struct bio *bio;
 	struct scsi_disk *sdkp;
-	struct sd_dif_tuple *sdt;
+	struct t10_pi_tuple *pi;
 	u32 phys, virt;
 
-	sdkp = rq->bio->bi_bdev->bd_disk->private_data;
+	sdkp = scsi_disk(scmd->request->rq_disk);
 
 	if (sdkp->protection_type == SD_DIF_TYPE3_PROTECTION)
 		return;
 
-	phys = hw_sector & 0xffffffff;
+	phys = scsi_prot_ref_tag(scmd);
 
-	__rq_for_each_bio(bio, rq) {
+	__rq_for_each_bio(bio, scmd->request) {
+		struct bio_integrity_payload *bip = bio_integrity(bio);
 		struct bio_vec iv;
 		struct bvec_iter iter;
 		unsigned int j;
 
 		/* Already remapped? */
-		if (bio_flagged(bio, BIO_MAPPED_INTEGRITY))
+		if (bip->bip_flags & BIP_MAPPED_INTEGRITY)
 			break;
 
-		virt = bio->bi_integrity->bip_iter.bi_sector & 0xffffffff;
+		virt = bip_get_seed(bip) & 0xffffffff;
 
-		bip_for_each_vec(iv, bio->bi_integrity, iter) {
-			sdt = kmap_atomic(iv.bv_page)
-				+ iv.bv_offset;
+		bip_for_each_vec(iv, bip, iter) {
+			pi = kmap_atomic(iv.bv_page) + iv.bv_offset;
 
-			for (j = 0; j < iv.bv_len; j += tuple_sz, sdt++) {
+			for (j = 0; j < iv.bv_len; j += tuple_sz, pi++) {
 
-				if (be32_to_cpu(sdt->ref_tag) == virt)
-					sdt->ref_tag = cpu_to_be32(phys);
+				if (be32_to_cpu(pi->ref_tag) == virt)
+					pi->ref_tag = cpu_to_be32(phys);
 
 				virt++;
 				phys++;
 			}
 
-			kunmap_atomic(sdt);
+			kunmap_atomic(pi);
 		}
 
-		bio->bi_flags |= (1 << BIO_MAPPED_INTEGRITY);
+		bip->bip_flags |= BIP_MAPPED_INTEGRITY;
 	}
 }
 
@@ -411,11 +158,11 @@ void sd_dif_prepare(struct request *rq, sector_t hw_sector,
  */
 void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 {
-	const int tuple_sz = sizeof(struct sd_dif_tuple);
+	const int tuple_sz = sizeof(struct t10_pi_tuple);
 	struct scsi_disk *sdkp;
 	struct bio *bio;
-	struct sd_dif_tuple *sdt;
-	unsigned int j, sectors, sector_sz;
+	struct t10_pi_tuple *pi;
+	unsigned int j, intervals;
 	u32 phys, virt;
 
 	sdkp = scsi_disk(scmd->request->rq_disk);
@@ -423,39 +170,35 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 	if (sdkp->protection_type == SD_DIF_TYPE3_PROTECTION || good_bytes == 0)
 		return;
 
-	sector_sz = scmd->device->sector_size;
-	sectors = good_bytes / sector_sz;
-
-	phys = blk_rq_pos(scmd->request) & 0xffffffff;
-	if (sector_sz == 4096)
-		phys >>= 3;
+	intervals = good_bytes / scsi_prot_interval(scmd);
+	phys = scsi_prot_ref_tag(scmd);
 
 	__rq_for_each_bio(bio, scmd->request) {
+		struct bio_integrity_payload *bip = bio_integrity(bio);
 		struct bio_vec iv;
 		struct bvec_iter iter;
 
-		virt = bio->bi_integrity->bip_iter.bi_sector & 0xffffffff;
+		virt = bip_get_seed(bip) & 0xffffffff;
 
-		bip_for_each_vec(iv, bio->bi_integrity, iter) {
-			sdt = kmap_atomic(iv.bv_page)
-				+ iv.bv_offset;
+		bip_for_each_vec(iv, bip, iter) {
+			pi = kmap_atomic(iv.bv_page) + iv.bv_offset;
 
-			for (j = 0; j < iv.bv_len; j += tuple_sz, sdt++) {
+			for (j = 0; j < iv.bv_len; j += tuple_sz, pi++) {
 
-				if (sectors == 0) {
-					kunmap_atomic(sdt);
+				if (intervals == 0) {
+					kunmap_atomic(pi);
 					return;
 				}
 
-				if (be32_to_cpu(sdt->ref_tag) == phys)
-					sdt->ref_tag = cpu_to_be32(virt);
+				if (be32_to_cpu(pi->ref_tag) == phys)
+					pi->ref_tag = cpu_to_be32(virt);
 
 				virt++;
 				phys++;
-				sectors--;
+				intervals--;
 			}
 
-			kunmap_atomic(sdt);
+			kunmap_atomic(pi);
 		}
 	}
 }

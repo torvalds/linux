@@ -339,7 +339,7 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 		return;
 	}
 
-	irq = bcma_core_irq(cc->core);
+	irq = bcma_core_irq(cc->core, 0);
 
 	/* Determine the registers of the UARTs */
 	cc->nr_serial_ports = (cc->capabilities & BCMA_CC_CAP_NRUART);

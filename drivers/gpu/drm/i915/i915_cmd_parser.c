@@ -844,8 +844,6 @@ finish:
  */
 bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-
 	if (!ring->needs_cmd_parser)
 		return false;
 
@@ -854,7 +852,7 @@ bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 	 * disabled. That will cause all of the parser's PPGTT checks to
 	 * fail. For now, disable parsing when PPGTT is off.
 	 */
-	if (!dev_priv->mm.aliasing_ppgtt)
+	if (USES_PPGTT(ring->dev))
 		return false;
 
 	return (i915.enable_cmd_parser == 1);

@@ -168,7 +168,7 @@ static int rx51_spk_event(struct snd_soc_dapm_widget *w,
 static int rx51_hp_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *k, int event)
 {
-	struct snd_soc_codec *codec = w->dapm->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		tpa6130a2_stereo_enable(codec, 1);

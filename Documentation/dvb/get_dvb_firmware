@@ -708,23 +708,25 @@ sub drxk_terratec_htc_stick {
 }
 
 sub it9135 {
-	my $sourcefile = "dvb-usb-it9135.zip";
-	my $url = "http://www.ite.com.tw/uploads/firmware/v3.6.0.0/$sourcefile";
-	my $hash = "1e55f6c8833f1d0ae067c2bb2953e6a9";
-	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
-	my $outfile = "dvb-usb-it9135.fw";
+	my $url = "http://www.ite.com.tw/uploads/firmware/v3.25.0.0/";
+	my $file1 = "dvb-usb-it9135-01.zip";
 	my $fwfile1 = "dvb-usb-it9135-01.fw";
+	my $hash1 = "02fcf11174eda84745dae7e61c5ff9ba";
+	my $file2 = "dvb-usb-it9135-02.zip";
 	my $fwfile2 = "dvb-usb-it9135-02.fw";
+	my $hash2 = "d5e1437dc24358578e07999475d4cac9";
 
 	checkstandard();
 
-	wgetfile($sourcefile, $url);
-	unzip($sourcefile, $tmpdir);
-	verify("$tmpdir/$outfile", $hash);
-	extract("$tmpdir/$outfile", 64, 8128, "$fwfile1");
-	extract("$tmpdir/$outfile", 12866, 5817, "$fwfile2");
+	wgetfile($file1, $url . $file1);
+	unzip($file1, "");
+	verify("$fwfile1", $hash1);
 
-	"$fwfile1 $fwfile2"
+	wgetfile($file2, $url . $file2);
+	unzip($file2, "");
+	verify("$fwfile2", $hash2);
+
+	"$file1 $file2"
 }
 
 sub tda10071 {

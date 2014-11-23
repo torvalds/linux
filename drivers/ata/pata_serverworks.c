@@ -251,12 +251,18 @@ static void serverworks_set_dmamode(struct ata_port *ap, struct ata_device *adev
 	pci_write_config_byte(pdev, 0x54, ultra_cfg);
 }
 
-static struct scsi_host_template serverworks_sht = {
+static struct scsi_host_template serverworks_osb4_sht = {
+	ATA_BMDMA_SHT(DRV_NAME),
+	.sg_tablesize	= LIBATA_DUMB_MAX_PRD,
+};
+
+static struct scsi_host_template serverworks_csb_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations serverworks_osb4_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
+	.qc_prep	= ata_bmdma_dumb_qc_prep,
 	.cable_detect	= serverworks_cable_detect,
 	.mode_filter	= serverworks_osb4_filter,
 	.set_piomode	= serverworks_set_piomode,
@@ -265,6 +271,7 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 
 static struct ata_port_operations serverworks_csb_port_ops = {
 	.inherits	= &serverworks_osb4_port_ops,
+	.qc_prep	= ata_bmdma_qc_prep,
 	.mode_filter	= serverworks_csb_filter,
 };
 
@@ -404,6 +411,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 		}
 	};
 	const struct ata_port_info *ppi[] = { &info[id->driver_data], NULL };
+	struct scsi_host_template *sht = &serverworks_csb_sht;
 	int rc;
 
 	rc = pcim_enable_device(pdev);
@@ -417,6 +425,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 		/* Select non UDMA capable OSB4 if we can't do fixups */
 		if (rc < 0)
 			ppi[0] = &info[1];
+		sht = &serverworks_osb4_sht;
 	}
 	/* setup CSB5/CSB6 : South Bridge and IDE option RAID */
 	else if ((pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE) ||
@@ -433,7 +442,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 			ppi[1] = &ata_dummy_port_info;
 	}
 
-	return ata_pci_bmdma_init_one(pdev, ppi, &serverworks_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM_SLEEP

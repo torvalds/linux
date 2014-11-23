@@ -45,27 +45,6 @@
 static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
 
 /**
- * radeon_ring_write - write a value to the ring
- *
- * @ring: radeon_ring structure holding ring information
- * @v: dword (dw) value to write
- *
- * Write a value to the requested ring buffer (all asics).
- */
-void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
-{
-#if DRM_DEBUG_CODE
-	if (ring->count_dw <= 0) {
-		DRM_ERROR("radeon: writing more dwords to the ring than expected!\n");
-	}
-#endif
-	ring->ring[ring->wptr++] = v;
-	ring->wptr &= ring->ptr_mask;
-	ring->count_dw--;
-	ring->ring_free_dw--;
-}
-
-/**
  * radeon_ring_supports_scratch_reg - check if the ring supports
  * writing to scratch registers
  *
@@ -404,7 +383,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, ring->ring_size, PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT, 0,
+				     RADEON_GEM_DOMAIN_GTT, 0, NULL,
 				     NULL, &ring->ring_obj);
 		if (r) {
 			dev_err(rdev->dev, "(%d) ring create failed\n", r);

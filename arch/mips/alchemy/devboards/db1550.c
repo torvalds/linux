@@ -34,12 +34,9 @@ static void __init db1550_hw_setup(void)
 	void __iomem *base;
 	unsigned long v;
 
-	/* complete SPI setup: link psc0_intclk to a 48MHz source,
-	 * and assign GPIO16 to PSC0_SYNC1 (SPI cs# line) as well as PSC1_SYNC
-	 * for AC97 on PB1550.
+	/* complete pin setup: assign GPIO16 to PSC0_SYNC1 (SPI cs# line)
+	 * as well as PSC1_SYNC for AC97 on PB1550.
 	 */
-	v = alchemy_rdsys(AU1000_SYS_CLKSRC);
-	alchemy_wrsys(v | 0x000001e0, AU1000_SYS_CLKSRC);
 	v = alchemy_rdsys(AU1000_SYS_PINFUNC);
 	alchemy_wrsys(v | 1 | SYS_PF_PSC1_S1, AU1000_SYS_PINFUNC);
 
@@ -586,11 +583,13 @@ int __init db1550_dev_setup(void)
 
 	c = clk_get(NULL, "psc0_intclk");
 	if (!IS_ERR(c)) {
+		clk_set_rate(c, 50000000);
 		clk_prepare_enable(c);
 		clk_put(c);
 	}
 	c = clk_get(NULL, "psc2_intclk");
 	if (!IS_ERR(c)) {
+		clk_set_rate(c, db1550_spi_platdata.mainclk_hz);
 		clk_prepare_enable(c);
 		clk_put(c);
 	}

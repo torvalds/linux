@@ -17,16 +17,11 @@
 #include <linux/netdevice.h>
 
 #include <brcm_hw_ids.h>
-#include "dhd.h"
-#include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "core.h"
+#include "bus.h"
+#include "debug.h"
 #include "fwil.h"
 #include "feature.h"
-
-/*
- * firmware error code received if iovar is unsupported.
- */
-#define EBRCMF_FEAT_UNSUPPORTED		23
 
 /*
  * expand feature list to array of feature strings.

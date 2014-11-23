@@ -10,8 +10,6 @@
 
 #include "affs.h"
 
-extern struct timezone sys_tz;
-
 static char ErrorBuffer[256];
 
 /*

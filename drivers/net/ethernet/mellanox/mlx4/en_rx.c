@@ -76,10 +76,10 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 	page_alloc->dma = dma;
 	page_alloc->page_offset = frag_info->frag_align;
 	/* Not doing get_page() for each frag is a big win
-	 * on asymetric workloads.
+	 * on asymetric workloads. Note we can not use atomic_set().
 	 */
-	atomic_set(&page->_count,
-		   page_alloc->page_size / frag_info->frag_stride);
+	atomic_add(page_alloc->page_size / frag_info->frag_stride - 1,
+		   &page->_count);
 	return 0;
 }
 

@@ -20,10 +20,10 @@
 
 #include <brcmu_wifi.h>
 #include "fwil_types.h"
-#include "dhd.h"
+#include "core.h"
 #include "p2p.h"
-#include "dhd_dbg.h"
-#include "wl_cfg80211.h"
+#include "debug.h"
+#include "cfg80211.h"
 #include "vendor.h"
 #include "fwil.h"
 

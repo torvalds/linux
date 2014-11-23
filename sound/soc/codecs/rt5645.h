@@ -2166,6 +2166,8 @@ struct rt5645_priv {
 	struct snd_soc_codec *codec;
 	struct rt5645_platform_data pdata;
 	struct regmap *regmap;
+	struct i2c_client *i2c;
+	struct snd_soc_jack *jack;
 
 	int sysclk;
 	int sysclk_src;
@@ -2177,5 +2179,8 @@ struct rt5645_priv {
 	int pll_in;
 	int pll_out;
 };
+
+int rt5645_set_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *jack);
 
 #endif /* __RT5645_H__ */

@@ -152,7 +152,7 @@ struct sta2x11_vip {
 	int tcount, bcount;
 	int overflow;
 
-	void *iomem;	/* I/O Memory */
+	void __iomem *iomem;	/* I/O Memory */
 	struct vip_config *config;
 };
 

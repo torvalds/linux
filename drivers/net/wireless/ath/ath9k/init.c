@@ -88,6 +88,21 @@ static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
 
 static void ath9k_deinit_softc(struct ath_softc *sc);
 
+static void ath9k_op_ps_wakeup(struct ath_common *common)
+{
+	ath9k_ps_wakeup((struct ath_softc *) common->priv);
+}
+
+static void ath9k_op_ps_restore(struct ath_common *common)
+{
+	ath9k_ps_restore((struct ath_softc *) common->priv);
+}
+
+static struct ath_ps_ops ath9k_ps_ops = {
+	.wakeup = ath9k_op_ps_wakeup,
+	.restore = ath9k_op_ps_restore,
+};
+
 /*
  * Read and write, they both share the same lock. We do this to serialize
  * reads and writes on Atheros 802.11n PCI devices only. This is required
@@ -172,17 +187,20 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 	ath_reg_notifier_apply(wiphy, request, reg);
 
 	/* Set tx power */
-	if (ah->curchan) {
-		sc->cur_chan->txpower = 2 * ah->curchan->chan->max_power;
-		ath9k_ps_wakeup(sc);
-		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
-		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
-		/* synchronize DFS detector if regulatory domain changed */
-		if (sc->dfs_detector != NULL)
-			sc->dfs_detector->set_dfs_domain(sc->dfs_detector,
-							 request->dfs_region);
-		ath9k_ps_restore(sc);
-	}
+	if (!ah->curchan)
+		return;
+
+	sc->cur_chan->txpower = 2 * ah->curchan->chan->max_power;
+	ath9k_ps_wakeup(sc);
+	ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
+	ath9k_cmn_update_txpow(ah, sc->cur_chan->cur_txpower,
+			       sc->cur_chan->txpower,
+			       &sc->cur_chan->cur_txpower);
+	/* synchronize DFS detector if regulatory domain changed */
+	if (sc->dfs_detector != NULL)
+		sc->dfs_detector->set_dfs_domain(sc->dfs_detector,
+						 request->dfs_region);
+	ath9k_ps_restore(sc);
 }
 
 /*
@@ -348,12 +366,13 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
 
-	sc->spec_config.enabled = 0;
-	sc->spec_config.short_repeat = true;
-	sc->spec_config.count = 8;
-	sc->spec_config.endless = false;
-	sc->spec_config.period = 0xFF;
-	sc->spec_config.fft_period = 0xF;
+	sc->spec_priv.ah = sc->sc_ah;
+	sc->spec_priv.spec_config.enabled = 0;
+	sc->spec_priv.spec_config.short_repeat = true;
+	sc->spec_priv.spec_config.count = 8;
+	sc->spec_priv.spec_config.endless = false;
+	sc->spec_priv.spec_config.period = 0xFF;
+	sc->spec_priv.spec_config.fft_period = 0xF;
 }
 
 static void ath9k_init_pcoem_platform(struct ath_softc *sc)
@@ -361,6 +380,9 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!IS_ENABLED(CONFIG_ATH9K_PCOEM))
+		return;
 
 	if (common->bus_ops->ath_bus_type != ATH_PCI)
 		return;
@@ -419,6 +441,9 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 		ah->config.no_pll_pwrsave = true;
 		ath_info(common, "Disable PLL PowerSave\n");
 	}
+
+	if (sc->driver_data & ATH9K_PCI_LED_ACT_HI)
+		ah->config.led_active_high = true;
 }
 
 static void ath9k_eeprom_request_cb(const struct firmware *eeprom_blob,
@@ -528,10 +553,15 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		ah->is_clk_25mhz = pdata->is_clk_25mhz;
 		ah->get_mac_revision = pdata->get_mac_revision;
 		ah->external_reset = pdata->external_reset;
+		ah->disable_2ghz = pdata->disable_2ghz;
+		ah->disable_5ghz = pdata->disable_5ghz;
+		if (!pdata->endian_check)
+			ah->ah_flags |= AH_NO_EEP_SWAP;
 	}
 
 	common->ops = &ah->reg_ops;
 	common->bus_ops = bus_ops;
+	common->ps_ops = &ath9k_ps_ops;
 	common->ah = ah;
 	common->hw = sc->hw;
 	common->priv = sc;
@@ -734,6 +764,32 @@ static const struct ieee80211_iface_combination if_comb[] = {
 #endif
 };
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+static void ath9k_set_mcc_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!ath9k_is_chanctx_enabled())
+		return;
+
+	hw->flags |= IEEE80211_HW_QUEUE_CONTROL;
+	hw->queues = ATH9K_NUM_TX_QUEUES;
+	hw->offchannel_tx_hw_queue = hw->queues - 1;
+	hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
+	hw->wiphy->iface_combinations = if_comb_multi;
+	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
+	hw->wiphy->max_scan_ssids = 255;
+	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+	hw->wiphy->max_remain_on_channel_duration = 10000;
+	hw->chanctx_data_size = sizeof(void *);
+	hw->extra_beacon_tailroom =
+		sizeof(struct ieee80211_p2p_noa_attr) + 9;
+
+	ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
+}
+#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
+
 static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -746,7 +802,6 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		IEEE80211_HW_SPECTRUM_MGMT |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		IEEE80211_HW_SUPPORTS_RC_TABLE |
-		IEEE80211_HW_QUEUE_CONTROL |
 		IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (ath9k_ps_enable)
@@ -781,24 +836,6 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 	}
 
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
-
-	if (ath9k_is_chanctx_enabled()) {
-		hw->wiphy->interface_modes &= ~ BIT(NL80211_IFTYPE_WDS);
-		hw->wiphy->iface_combinations = if_comb_multi;
-		hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_multi);
-		hw->wiphy->max_scan_ssids = 255;
-		hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
-		hw->wiphy->max_remain_on_channel_duration = 10000;
-		hw->chanctx_data_size = sizeof(void *);
-		hw->extra_beacon_tailroom =
-			sizeof(struct ieee80211_p2p_noa_attr) + 9;
-
-		ath_dbg(common, CHAN_CTX, "Use channel contexts\n");
-	}
-
-#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
-
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
@@ -808,12 +845,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
-	/* allow 4 queues per channel context +
-	 * 1 cab queue + 1 offchannel tx queue
-	 */
-	hw->queues = ATH9K_NUM_TX_QUEUES;
-	/* last queue for offchannel */
-	hw->offchannel_tx_hw_queue = hw->queues - 1;
+	hw->queues = 4;
 	hw->max_rates = 4;
 	hw->max_listen_interval = 10;
 	hw->max_rate_tries = 10;
@@ -837,6 +869,9 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&common->sbands[IEEE80211_BAND_5GHZ];
 
+#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+	ath9k_set_mcc_capab(sc, hw);
+#endif
 	ath9k_init_wow(hw);
 	ath9k_cmn_reload_chainmask(ah);
 

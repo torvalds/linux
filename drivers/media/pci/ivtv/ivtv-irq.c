@@ -192,11 +192,11 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 		if (itv->has_cx23415 && (s->type == IVTV_ENC_STREAM_TYPE_PCM ||
 		    s->type == IVTV_DEC_STREAM_TYPE_VBI)) {
 			s->pending_backup = read_dec(offset - IVTV_DECODER_OFFSET);
-			write_dec_sync(cpu_to_le32(DMA_MAGIC_COOKIE), offset - IVTV_DECODER_OFFSET);
+			write_dec_sync(DMA_MAGIC_COOKIE, offset - IVTV_DECODER_OFFSET);
 		}
 		else {
 			s->pending_backup = read_enc(offset);
-			write_enc_sync(cpu_to_le32(DMA_MAGIC_COOKIE), offset);
+			write_enc_sync(DMA_MAGIC_COOKIE, offset);
 		}
 		s->pending_offset = offset;
 	}
@@ -275,13 +275,11 @@ static void dma_post(struct ivtv_stream *s)
 
 		if (x == 0 && ivtv_use_dma(s)) {
 			offset = s->dma_last_offset;
-			if (u32buf[offset / 4] != DMA_MAGIC_COOKIE)
+			if (le32_to_cpu(u32buf[offset / 4]) != DMA_MAGIC_COOKIE)
 			{
-				for (offset = 0; offset < 64; offset++) {
-					if (u32buf[offset] == DMA_MAGIC_COOKIE) {
+				for (offset = 0; offset < 64; offset++)
+					if (le32_to_cpu(u32buf[offset]) == DMA_MAGIC_COOKIE)
 						break;
-					}
-				}
 				offset *= 4;
 				if (offset == 256) {
 					IVTV_DEBUG_WARN("%s: Couldn't find start of buffer within the first 256 bytes\n", s->name);

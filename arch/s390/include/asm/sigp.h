@@ -15,6 +15,7 @@
 #define SIGP_SET_ARCHITECTURE	     18
 #define SIGP_COND_EMERGENCY_SIGNAL   19
 #define SIGP_SENSE_RUNNING	     21
+#define SIGP_STORE_ADDITIONAL_STATUS 23
 
 /* SIGP condition codes */
 #define SIGP_CC_ORDER_CODE_ACCEPTED 0
@@ -33,9 +34,10 @@
 
 #ifndef __ASSEMBLY__
 
-static inline int __pcpu_sigp(u16 addr, u8 order, u32 parm, u32 *status)
+static inline int __pcpu_sigp(u16 addr, u8 order, unsigned long parm,
+			      u32 *status)
 {
-	register unsigned int reg1 asm ("1") = parm;
+	register unsigned long reg1 asm ("1") = parm;
 	int cc;
 
 	asm volatile(

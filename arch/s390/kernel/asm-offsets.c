@@ -9,7 +9,7 @@
 #include <linux/kbuild.h>
 #include <linux/kvm_host.h>
 #include <linux/sched.h>
-#include <asm/cputime.h>
+#include <asm/idle.h>
 #include <asm/vdso.h>
 #include <asm/pgtable.h>
 
@@ -62,8 +62,12 @@ int main(void)
 	DEFINE(__VDSO_XTIME_STAMP, offsetof(struct vdso_data, xtime_tod_stamp));
 	DEFINE(__VDSO_XTIME_SEC, offsetof(struct vdso_data, xtime_clock_sec));
 	DEFINE(__VDSO_XTIME_NSEC, offsetof(struct vdso_data, xtime_clock_nsec));
+	DEFINE(__VDSO_XTIME_CRS_SEC, offsetof(struct vdso_data, xtime_coarse_sec));
+	DEFINE(__VDSO_XTIME_CRS_NSEC, offsetof(struct vdso_data, xtime_coarse_nsec));
 	DEFINE(__VDSO_WTOM_SEC, offsetof(struct vdso_data, wtom_clock_sec));
 	DEFINE(__VDSO_WTOM_NSEC, offsetof(struct vdso_data, wtom_clock_nsec));
+	DEFINE(__VDSO_WTOM_CRS_SEC, offsetof(struct vdso_data, wtom_coarse_sec));
+	DEFINE(__VDSO_WTOM_CRS_NSEC, offsetof(struct vdso_data, wtom_coarse_nsec));
 	DEFINE(__VDSO_TIMEZONE, offsetof(struct vdso_data, tz_minuteswest));
 	DEFINE(__VDSO_ECTG_OK, offsetof(struct vdso_data, ectg_available));
 	DEFINE(__VDSO_TK_MULT, offsetof(struct vdso_data, tk_mult));
@@ -73,8 +77,11 @@ int main(void)
 	/* constants used by the vdso */
 	DEFINE(__CLOCK_REALTIME, CLOCK_REALTIME);
 	DEFINE(__CLOCK_MONOTONIC, CLOCK_MONOTONIC);
+	DEFINE(__CLOCK_REALTIME_COARSE, CLOCK_REALTIME_COARSE);
+	DEFINE(__CLOCK_MONOTONIC_COARSE, CLOCK_MONOTONIC_COARSE);
 	DEFINE(__CLOCK_THREAD_CPUTIME_ID, CLOCK_THREAD_CPUTIME_ID);
 	DEFINE(__CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
+	DEFINE(__CLOCK_COARSE_RES, LOW_RES_NSEC);
 	BLANK();
 	/* idle data offsets */
 	DEFINE(__CLOCK_IDLE_ENTER, offsetof(struct s390_idle_data, clock_idle_enter));

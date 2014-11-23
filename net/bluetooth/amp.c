@@ -134,6 +134,7 @@ struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 {
 	struct crypto_shash *tfm;
+	struct shash_desc *shash;
 	int ret;
 
 	if (!ksize)
@@ -148,18 +149,24 @@ static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 	ret = crypto_shash_setkey(tfm, key, ksize);
 	if (ret) {
 		BT_DBG("crypto_ahash_setkey failed: err %d", ret);
-	} else {
-		char desc[sizeof(struct shash_desc) +
-			crypto_shash_descsize(tfm)] CRYPTO_MINALIGN_ATTR;
-		struct shash_desc *shash = (struct shash_desc *)desc;
-
-		shash->tfm = tfm;
-		shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-
-		ret = crypto_shash_digest(shash, plaintext, psize,
-					  output);
+		goto failed;
 	}
 
+	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(tfm),
+			GFP_KERNEL);
+	if (!shash) {
+		ret = -ENOMEM;
+		goto failed;
+	}
+
+	shash->tfm = tfm;
+	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	ret = crypto_shash_digest(shash, plaintext, psize, output);
+
+	kfree(shash);
+
+failed:
 	crypto_free_shash(tfm);
 	return ret;
 }

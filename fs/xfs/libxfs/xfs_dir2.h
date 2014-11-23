@@ -136,7 +136,7 @@ extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
 				xfs_fsblock_t *first,
 				struct xfs_bmap_free *flist, xfs_extlen_t tot);
 extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name, uint resblks);
+				struct xfs_name *name);
 
 /*
  * Direct call from the bmap code, bypassing the generic directory layer.

@@ -2742,7 +2742,9 @@ struct _snd_pcm_runtime {
 
         <para>
           Another note is that this callback is non-atomic
-        (schedulable). This is important, because the
+        (schedulable) as default, i.e. when no
+	<structfield>nonatomic</structfield> flag set.
+	This is important, because the
         <structfield>trigger</structfield> callback 
         is atomic (non-schedulable). That is, mutexes or any
         schedule-related functions are not available in
@@ -2900,8 +2902,9 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          As mentioned, this callback is atomic.  You cannot call
-	  functions which may sleep.
+          As mentioned, this callback is atomic as default unless
+	  <structfield>nonatomic</structfield> flag set, and
+	  you cannot call functions which may sleep.
 	  The trigger callback should be as minimal as possible,
 	  just really triggering the DMA.  The other stuff should be
 	  initialized hw_params and prepare callbacks properly
@@ -2936,7 +2939,7 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          This callback is also atomic.
+          This callback is also atomic as default.
         </para>
       </section>
 
@@ -2972,7 +2975,7 @@ struct _snd_pcm_runtime {
 	is useful only for such a purpose.
 	</para>
 	<para>
-	  This callback is atomic.
+	  This callback is atomic as default.
 	</para>
       </section>
 
@@ -3173,6 +3176,21 @@ struct _snd_pcm_runtime {
       <para>
       All three atomic callbacks (trigger, pointer, and ack) are
       called with local interrupts disabled.
+      </para>
+
+      <para>
+      The recent changes in PCM core code, however, allow all PCM
+      operations to be non-atomic.  This assumes that the all caller
+      sides are in non-atomic contexts.  For example, the function
+      <function>snd_pcm_period_elapsed()</function> is called
+      typically from the interrupt handler.  But, if you set up the
+      driver to use a threaded interrupt handler, this call can be in
+      non-atomic context, too.  In such a case, you can set
+      <structfield>nonatomic</structfield> filed of
+      <structname>snd_pcm</structname> object after creating it.
+      When this flag is set, mutex and rwsem are used internally in
+      the PCM core instead of spin and rwlocks, so that you can call
+      all PCM functions safely in a non-atomic context.
       </para>
 
     </section>

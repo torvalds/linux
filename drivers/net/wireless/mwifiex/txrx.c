@@ -64,10 +64,6 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 	else
 		ret = mwifiex_process_sta_rx_packet(priv, skb);
 
-	/* Decrement RX pending counter for each packet */
-	if (adapter->if_ops.data_complete)
-		adapter->if_ops.data_complete(adapter);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);

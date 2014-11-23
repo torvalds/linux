@@ -152,24 +152,6 @@ out:
 	return result;
 }
 
-static int init_defined_templates(void)
-{
-	int i = 0;
-	int result = 0;
-
-	/* Init defined templates. */
-	for (i = 0; i < ARRAY_SIZE(defined_templates); i++) {
-		struct ima_template_desc *template = &defined_templates[i];
-
-		result = template_desc_init_fields(template->fmt,
-						   &(template->fields),
-						   &(template->num_fields));
-		if (result < 0)
-			return result;
-	}
-	return result;
-}
-
 struct ima_template_desc *ima_template_desc_current(void)
 {
 	if (!ima_template)
@@ -178,13 +160,11 @@ struct ima_template_desc *ima_template_desc_current(void)
 	return ima_template;
 }
 
-int ima_init_template(void)
+int __init ima_init_template(void)
 {
-	int result;
+	struct ima_template_desc *template = ima_template_desc_current();
 
-	result = init_defined_templates();
-	if (result < 0)
-		return result;
-
-	return 0;
+	return template_desc_init_fields(template->fmt,
+					 &(template->fields),
+					 &(template->num_fields));
 }

@@ -396,13 +396,17 @@ static int twl4030_init_sih_modules(unsigned line)
 			status = twl_i2c_read(sih->module, rxbuf,
 				sih->mask[line].isr_offset, sih->bytes_ixr);
 			if (status < 0)
-				pr_err("twl4030: err %d initializing %s %s\n",
+				pr_warn("twl4030: err %d initializing %s %s\n",
 					status, sih->name, "ISR");
 
-			if (!sih->set_cor)
+			if (!sih->set_cor) {
 				status = twl_i2c_write(sih->module, buf,
 					sih->mask[line].isr_offset,
 					sih->bytes_ixr);
+				if (status < 0)
+					pr_warn("twl4030: write failed: %d\n",
+						status);
+			}
 			/*
 			 * else COR=1 means read sufficed.
 			 * (for most SIH modules...)

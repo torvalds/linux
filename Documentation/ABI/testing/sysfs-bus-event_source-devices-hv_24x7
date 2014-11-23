@@ -1,6 +1,6 @@
 What:		/sys/bus/event_source/devices/hv_24x7/interface/catalog
 Date:		February 2014
-Contact:	Cody P Schafer <cody@linux.vnet.ibm.com>
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:
 		Provides access to the binary "24x7 catalog" provided by the
 		hypervisor on POWER7 and 8 systems. This catalog lists events
@@ -10,14 +10,14 @@ Description:
 
 What:		/sys/bus/event_source/devices/hv_24x7/interface/catalog_length
 Date:		February 2014
-Contact:	Cody P Schafer <cody@linux.vnet.ibm.com>
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:
 		A number equal to the length in bytes of the catalog. This is
 		also extractable from the provided binary "catalog" sysfs entry.
 
 What:		/sys/bus/event_source/devices/hv_24x7/interface/catalog_version
 Date:		February 2014
-Contact:	Cody P Schafer <cody@linux.vnet.ibm.com>
+Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:
 		Exposes the "version" field of the 24x7 catalog. This is also
 		extractable from the provided binary "catalog" sysfs entry.

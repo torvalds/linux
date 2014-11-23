@@ -63,8 +63,8 @@ enum {
 
 extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		unsigned long flags);
-extern void __disable_irq(struct irq_desc *desc, unsigned int irq, bool susp);
-extern void __enable_irq(struct irq_desc *desc, unsigned int irq, bool resume);
+extern void __disable_irq(struct irq_desc *desc, unsigned int irq);
+extern void __enable_irq(struct irq_desc *desc, unsigned int irq);
 
 extern int irq_startup(struct irq_desc *desc, bool resend);
 extern void irq_shutdown(struct irq_desc *desc);
@@ -194,3 +194,15 @@ static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *d
 	__this_cpu_inc(*desc->kstat_irqs);
 	__this_cpu_inc(kstat.irqs_sum);
 }
+
+#ifdef CONFIG_PM_SLEEP
+bool irq_pm_check_wakeup(struct irq_desc *desc);
+void irq_pm_install_action(struct irq_desc *desc, struct irqaction *action);
+void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action);
+#else
+static inline bool irq_pm_check_wakeup(struct irq_desc *desc) { return false; }
+static inline void
+irq_pm_install_action(struct irq_desc *desc, struct irqaction *action) { }
+static inline void
+irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action) { }
+#endif

@@ -30,7 +30,7 @@
 
 /**
  * struct geneve_port - Keeps track of open UDP ports
- * @sock: The socket created for this port number.
+ * @gs: The socket created for this port number.
  * @name: vport name.
  */
 struct geneve_port {

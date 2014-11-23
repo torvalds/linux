@@ -235,7 +235,6 @@ static struct ifacaddr6 *aca_alloc(struct rt6_info *rt,
 	/* aca_tstamp should be updated upon changes */
 	aca->aca_cstamp = aca->aca_tstamp = jiffies;
 	atomic_set(&aca->aca_refcnt, 1);
-	spin_lock_init(&aca->aca_lock);
 
 	return aca;
 }

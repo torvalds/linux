@@ -12,6 +12,7 @@
 #include <linux/percpu_counter.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/gfp.h>
 
 struct prop_global {
 	/*
@@ -40,7 +41,7 @@ struct prop_descriptor {
 	struct mutex mutex;		/* serialize the prop_global switch */
 };
 
-int prop_descriptor_init(struct prop_descriptor *pd, int shift);
+int prop_descriptor_init(struct prop_descriptor *pd, int shift, gfp_t gfp);
 void prop_change_shift(struct prop_descriptor *pd, int new_shift);
 
 /*
@@ -61,7 +62,7 @@ struct prop_local_percpu {
 	raw_spinlock_t lock;		/* protect the snapshot state */
 };
 
-int prop_local_init_percpu(struct prop_local_percpu *pl);
+int prop_local_init_percpu(struct prop_local_percpu *pl, gfp_t gfp);
 void prop_local_destroy_percpu(struct prop_local_percpu *pl);
 void __prop_inc_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl);
 void prop_fraction_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl,

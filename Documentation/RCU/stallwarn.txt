@@ -56,8 +56,20 @@ RCU_STALL_RAT_DELAY
 	two jiffies.  (This is a cpp macro, not a kernel configuration
 	parameter.)
 
-When a CPU detects that it is stalling, it will print a message similar
-to the following:
+rcupdate.rcu_task_stall_timeout
+
+	This boot/sysfs parameter controls the RCU-tasks stall warning
+	interval.  A value of zero or less suppresses RCU-tasks stall
+	warnings.  A positive value sets the stall-warning interval
+	in jiffies.  An RCU-tasks stall warning starts wtih the line:
+
+		INFO: rcu_tasks detected stalls on tasks:
+
+	And continues with the output of sched_show_task() for each
+	task stalling the current RCU-tasks grace period.
+
+For non-RCU-tasks flavors of RCU, when a CPU detects that it is stalling,
+it will print a message similar to the following:
 
 INFO: rcu_sched_state detected stall on CPU 5 (t=2500 jiffies)
 
@@ -174,8 +186,12 @@ o	A CPU looping with preemption disabled.  This condition can
 o	A CPU looping with bottom halves disabled.  This condition can
 	result in RCU-sched and RCU-bh stalls.
 
-o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the kernel
-	without invoking schedule().
+o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the
+	kernel without invoking schedule().  Note that cond_resched()
+	does not necessarily prevent RCU CPU stall warnings.  Therefore,
+	if the looping in the kernel is really expected and desirable
+	behavior, you might need to replace some of the cond_resched()
+	calls with calls to cond_resched_rcu_qs().
 
 o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
 	happen to preempt a low-priority task in the middle of an RCU
@@ -208,11 +224,10 @@ o	A hardware failure.  This is quite unlikely, but has occurred
 	This resulted in a series of RCU CPU stall warnings, eventually
 	leading the realization that the CPU had failed.
 
-The RCU, RCU-sched, and RCU-bh implementations have CPU stall warning.
-SRCU does not have its own CPU stall warnings, but its calls to
-synchronize_sched() will result in RCU-sched detecting RCU-sched-related
-CPU stalls.  Please note that RCU only detects CPU stalls when there is
-a grace period in progress.  No grace period, no CPU stall warnings.
+The RCU, RCU-sched, RCU-bh, and RCU-tasks implementations have CPU stall
+warning.  Note that SRCU does -not- have CPU stall warnings.  Please note
+that RCU only detects CPU stalls when there is a grace period in progress.
+No grace period, no CPU stall warnings.
 
 To diagnose the cause of the stall, inspect the stack traces.
 The offending function will usually be near the top of the stack.

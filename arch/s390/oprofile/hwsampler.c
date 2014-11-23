@@ -178,7 +178,7 @@ static int smp_ctl_qsi(int cpu)
 static void hws_ext_handler(struct ext_code ext_code,
 			    unsigned int param32, unsigned long param64)
 {
-	struct hws_cpu_buffer *cb = &__get_cpu_var(sampler_cpu_buffer);
+	struct hws_cpu_buffer *cb = this_cpu_ptr(&sampler_cpu_buffer);
 
 	if (!(param32 & CPU_MF_INT_SF_MASK))
 		return;

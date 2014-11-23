@@ -765,12 +765,18 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 			return -ENOSYS;
 
 		ret = of_property_read_u32(np, "adc-port", &priv->adc_ssi_port);
-		if (ret)
-			goto out;
+		if (ret) {
+			of_node_put(np);
+			return ret;
+		}
 
 		ret = of_property_read_u32(np, "dac-port", &priv->dac_ssi_port);
-		if (ret)
-			goto out;
+		if (ret) {
+			of_node_put(np);
+			return ret;
+		}
+
+		of_node_put(np);
 	}
 
 	dev_set_drvdata(&pdev->dev, priv);
@@ -783,8 +789,6 @@ static int __init mc13783_codec_probe(struct platform_device *pdev)
 		ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_mc13783,
 			mc13783_dai_async, ARRAY_SIZE(mc13783_dai_async));
 
-out:
-	of_node_put(np);
 	return ret;
 }
 

@@ -3892,7 +3892,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	/* Register extent status tree shrinker */
 	ext4_es_register_shrinker(sbi);
 
-	if ((err = percpu_counter_init(&sbi->s_extent_cache_cnt, 0)) != 0) {
+	err = percpu_counter_init(&sbi->s_extent_cache_cnt, 0, GFP_KERNEL);
+	if (err) {
 		ext4_msg(sb, KERN_ERR, "insufficient memory");
 		goto failed_mount3;
 	}
@@ -4106,17 +4107,20 @@ no_journal:
 	block = ext4_count_free_clusters(sb);
 	ext4_free_blocks_count_set(sbi->s_es, 
 				   EXT4_C2B(sbi, block));
-	err = percpu_counter_init(&sbi->s_freeclusters_counter, block);
+	err = percpu_counter_init(&sbi->s_freeclusters_counter, block,
+				  GFP_KERNEL);
 	if (!err) {
 		unsigned long freei = ext4_count_free_inodes(sb);
 		sbi->s_es->s_free_inodes_count = cpu_to_le32(freei);
-		err = percpu_counter_init(&sbi->s_freeinodes_counter, freei);
+		err = percpu_counter_init(&sbi->s_freeinodes_counter, freei,
+					  GFP_KERNEL);
 	}
 	if (!err)
 		err = percpu_counter_init(&sbi->s_dirs_counter,
-					  ext4_count_dirs(sb));
+					  ext4_count_dirs(sb), GFP_KERNEL);
 	if (!err)
-		err = percpu_counter_init(&sbi->s_dirtyclusters_counter, 0);
+		err = percpu_counter_init(&sbi->s_dirtyclusters_counter, 0,
+					  GFP_KERNEL);
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "insufficient memory");
 		goto failed_mount6;

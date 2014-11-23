@@ -19,6 +19,7 @@
 #define PLL_CPLL		3
 #define PLL_GPLL		4
 #define PLL_NPLL		5
+#define ARMCLK			6
 
 /* sclk gates (special clocks) */
 #define SCLK_GPU		64
@@ -61,6 +62,15 @@
 #define SCLK_LCDC_PWM1		101
 #define SCLK_MAC_RX		102
 #define SCLK_MAC_TX		103
+#define SCLK_EDP_24M		104
+#define SCLK_EDP		105
+#define SCLK_RGA		106
+#define SCLK_ISP		107
+#define SCLK_ISP_JPE		108
+#define SCLK_HDMI_HDCP		109
+#define SCLK_HDMI_CEC		110
+#define SCLK_HEVC_CABAC		111
+#define SCLK_HEVC_CORE		112
 
 #define DCLK_VOP0		190
 #define DCLK_VOP1		191
@@ -75,6 +85,16 @@
 #define ACLK_VOP1		198
 #define ACLK_CRYPTO		199
 #define ACLK_RGA		200
+#define ACLK_RGA_NIU		201
+#define ACLK_IEP		202
+#define ACLK_VIO0_NIU		203
+#define ACLK_VIP		204
+#define ACLK_ISP		205
+#define ACLK_VIO1_NIU		206
+#define ACLK_HEVC		207
+#define ACLK_VCODEC		208
+#define ACLK_CPU		209
+#define ACLK_PERI		210
 
 /* pclk gates */
 #define PCLK_GPIO0		320
@@ -112,6 +132,15 @@
 #define PCLK_PS2C		352
 #define PCLK_TIMER		353
 #define PCLK_TZPC		354
+#define PCLK_EDP_CTRL		355
+#define PCLK_MIPI_DSI0		356
+#define PCLK_MIPI_DSI1		357
+#define PCLK_MIPI_CSI		358
+#define PCLK_LVDS_PHY		359
+#define PCLK_HDMI_CTRL		360
+#define PCLK_VIO2_H2P		361
+#define PCLK_CPU		362
+#define PCLK_PERI		363
 
 /* hclk gates */
 #define HCLK_GPS		448
@@ -137,8 +166,16 @@
 #define HCLK_IEP		468
 #define HCLK_ISP		469
 #define HCLK_RGA		470
+#define HCLK_VIO_AHB_ARBI	471
+#define HCLK_VIO_NIU		472
+#define HCLK_VIP		473
+#define HCLK_VIO2_H2P		474
+#define HCLK_HEVC		475
+#define HCLK_VCODEC		476
+#define HCLK_CPU		477
+#define HCLK_PERI		478
 
-#define CLK_NR_CLKS		(HCLK_RGA + 1)
+#define CLK_NR_CLKS		(HCLK_PERI + 1)
 
 /* soft-reset indices */
 #define SRST_CORE0		0
@@ -276,3 +313,46 @@
 #define SRST_USBHOST1_CON	140
 #define SRST_USB_ADP		141
 #define SRST_ACC_EFUSE		142
+
+#define SRST_CORESIGHT		144
+#define SRST_PD_CORE_AHB_NOC	145
+#define SRST_PD_CORE_APB_NOC	146
+#define SRST_PD_CORE_MP_AXI	147
+#define SRST_GIC		148
+#define SRST_LCDC_PWM0		149
+#define SRST_LCDC_PWM1		150
+#define SRST_VIO0_H2P_BRG	151
+#define SRST_VIO1_H2P_BRG	152
+#define SRST_RGA_H2P_BRG	153
+#define SRST_HEVC		154
+#define SRST_TSADC		159
+
+#define SRST_DDRPHY0		160
+#define SRST_DDRPHY0_APB	161
+#define SRST_DDRCTRL0		162
+#define SRST_DDRCTRL0_APB	163
+#define SRST_DDRPHY0_CTRL	164
+#define SRST_DDRPHY1		165
+#define SRST_DDRPHY1_APB	166
+#define SRST_DDRCTRL1		167
+#define SRST_DDRCTRL1_APB	168
+#define SRST_DDRPHY1_CTRL	169
+#define SRST_DDRMSCH0		170
+#define SRST_DDRMSCH1		171
+#define SRST_CRYPTO		174
+#define SRST_C2C_HOST		175
+
+#define SRST_LCDC1_AXI		176
+#define SRST_LCDC1_AHB		177
+#define SRST_LCDC1_DCLK		178
+#define SRST_UART0		179
+#define SRST_UART1		180
+#define SRST_UART2		181
+#define SRST_UART3		182
+#define SRST_UART4		183
+#define SRST_SIMC		186
+#define SRST_PS2C		187
+#define SRST_TSP		188
+#define SRST_TSP_CLKIN0		189
+#define SRST_TSP_CLKIN1		190
+#define SRST_TSP_27M		191

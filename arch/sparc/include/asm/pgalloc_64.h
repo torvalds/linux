@@ -15,6 +15,13 @@
 
 extern struct kmem_cache *pgtable_cache;
 
+static inline void __pgd_populate(pgd_t *pgd, pud_t *pud)
+{
+	pgd_set(pgd, pud);
+}
+
+#define pgd_populate(MM, PGD, PUD)	__pgd_populate(PGD, PUD)
+
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	return kmem_cache_alloc(pgtable_cache, GFP_KERNEL);
@@ -25,7 +32,23 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	kmem_cache_free(pgtable_cache, pgd);
 }
 
-#define pud_populate(MM, PUD, PMD)	pud_set(PUD, PMD)
+static inline void __pud_populate(pud_t *pud, pmd_t *pmd)
+{
+	pud_set(pud, pmd);
+}
+
+#define pud_populate(MM, PUD, PMD)	__pud_populate(PUD, PMD)
+
+static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	return kmem_cache_alloc(pgtable_cache,
+				GFP_KERNEL|__GFP_REPEAT);
+}
+
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+{
+	kmem_cache_free(pgtable_cache, pud);
+}
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
@@ -90,5 +113,8 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pte_t *pte,
 
 #define __pmd_free_tlb(tlb, pmd, addr)		      \
 	pgtable_free_tlb(tlb, pmd, false)
+
+#define __pud_free_tlb(tlb, pud, addr)		      \
+	pgtable_free_tlb(tlb, pud, false)
 
 #endif /* _SPARC64_PGALLOC_H */

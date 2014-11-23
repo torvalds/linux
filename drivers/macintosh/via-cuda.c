@@ -379,6 +379,7 @@ cuda_request(struct adb_request *req, void (*done)(struct adb_request *),
     req->reply_expected = 1;
     return cuda_write(req);
 }
+EXPORT_SYMBOL(cuda_request);
 
 static int
 cuda_write(struct adb_request *req)
@@ -441,6 +442,7 @@ cuda_poll(void)
     if (cuda_irq)
 	enable_irq(cuda_irq);
 }
+EXPORT_SYMBOL(cuda_poll);
 
 static irqreturn_t
 cuda_interrupt(int irq, void *arg)

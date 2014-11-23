@@ -80,4 +80,5 @@ static inline bool gfs2_rs_active(struct gfs2_blkreserv *rs)
 	return rs && !RB_EMPTY_NODE(&rs->rs_node);
 }
 
+extern void check_and_update_goal(struct gfs2_inode *ip);
 #endif /* __RGRP_DOT_H__ */

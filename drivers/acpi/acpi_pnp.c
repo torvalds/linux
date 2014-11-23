@@ -130,10 +130,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"PNP0401"},		/* ECP Printer Port */
 	/* apple-gmux */
 	{"APP000B"},
-	/* fujitsu-laptop.c */
-	{"FUJ02bf"},
-	{"FUJ02B1"},
-	{"FUJ02E3"},
 	/* system */
 	{"PNP0c02"},		/* General ID for reserving resources */
 	{"PNP0c01"},		/* memory controller */

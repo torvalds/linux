@@ -118,3 +118,10 @@ config IRQ_CROSSBAR
 	  The primary irqchip invokes the crossbar's callback which inturn allocates
 	  a free irq and configures the IP. Thus the peripheral interrupts are
 	  routed to one of the free irqchip interrupt lines.
+
+config KEYSTONE_IRQ
+	tristate "Keystone 2 IRQ controller IP"
+	depends on ARCH_KEYSTONE
+	help
+		Support for Texas Instruments Keystone 2 IRQ controller IP which
+		is part of the Keystone 2 IPC mechanism

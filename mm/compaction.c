@@ -67,6 +67,49 @@ static inline bool migrate_async_suitable(int migratetype)
 	return is_migrate_cma(migratetype) || migratetype == MIGRATE_MOVABLE;
 }
 
+/*
+ * Check that the whole (or subset of) a pageblock given by the interval of
+ * [start_pfn, end_pfn) is valid and within the same zone, before scanning it
+ * with the migration of free compaction scanner. The scanners then need to
+ * use only pfn_valid_within() check for arches that allow holes within
+ * pageblocks.
+ *
+ * Return struct page pointer of start_pfn, or NULL if checks were not passed.
+ *
+ * It's possible on some configurations to have a setup like node0 node1 node0
+ * i.e. it's possible that all pages within a zones range of pages do not
+ * belong to a single zone. We assume that a border between node0 and node1
+ * can occur within a single pageblock, but not a node0 node1 node0
+ * interleaving within a single pageblock. It is therefore sufficient to check
+ * the first and last page of a pageblock and avoid checking each individual
+ * page in a pageblock.
+ */
+static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+				unsigned long end_pfn, struct zone *zone)
+{
+	struct page *start_page;
+	struct page *end_page;
+
+	/* end_pfn is one past the range we are checking */
+	end_pfn--;
+
+	if (!pfn_valid(start_pfn) || !pfn_valid(end_pfn))
+		return NULL;
+
+	start_page = pfn_to_page(start_pfn);
+
+	if (page_zone(start_page) != zone)
+		return NULL;
+
+	end_page = pfn_to_page(end_pfn);
+
+	/* This gives a shorter code than deriving page_zone(end_page) */
+	if (page_zone_id(start_page) != page_zone_id(end_page))
+		return NULL;
+
+	return start_page;
+}
+
 #ifdef CONFIG_COMPACTION
 /* Returns true if the pageblock should be scanned for pages to isolate. */
 static inline bool isolation_suitable(struct compact_control *cc,
@@ -132,7 +175,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
  */
 static void update_pageblock_skip(struct compact_control *cc,
 			struct page *page, unsigned long nr_isolated,
-			bool set_unsuitable, bool migrate_scanner)
+			bool migrate_scanner)
 {
 	struct zone *zone = cc->zone;
 	unsigned long pfn;
@@ -146,12 +189,7 @@ static void update_pageblock_skip(struct compact_control *cc,
 	if (nr_isolated)
 		return;
 
-	/*
-	 * Only skip pageblocks when all forms of compaction will be known to
-	 * fail in the near future.
-	 */
-	if (set_unsuitable)
-		set_pageblock_skip(page);
+	set_pageblock_skip(page);
 
 	pfn = page_to_pfn(page);
 
@@ -180,52 +218,77 @@ static inline bool isolation_suitable(struct compact_control *cc,
 
 static void update_pageblock_skip(struct compact_control *cc,
 			struct page *page, unsigned long nr_isolated,
-			bool set_unsuitable, bool migrate_scanner)
+			bool migrate_scanner)
 {
 }
 #endif /* CONFIG_COMPACTION */
 
-static inline bool should_release_lock(spinlock_t *lock)
+/*
+ * Compaction requires the taking of some coarse locks that are potentially
+ * very heavily contended. For async compaction, back out if the lock cannot
+ * be taken immediately. For sync compaction, spin on the lock if needed.
+ *
+ * Returns true if the lock is held
+ * Returns false if the lock is not held and compaction should abort
+ */
+static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
+						struct compact_control *cc)
 {
-	return need_resched() || spin_is_contended(lock);
+	if (cc->mode == MIGRATE_ASYNC) {
+		if (!spin_trylock_irqsave(lock, *flags)) {
+			cc->contended = COMPACT_CONTENDED_LOCK;
+			return false;
+		}
+	} else {
+		spin_lock_irqsave(lock, *flags);
+	}
+
+	return true;
 }
 
 /*
  * Compaction requires the taking of some coarse locks that are potentially
- * very heavily contended. Check if the process needs to be scheduled or
- * if the lock is contended. For async compaction, back out in the event
- * if contention is severe. For sync compaction, schedule.
+ * very heavily contended. The lock should be periodically unlocked to avoid
+ * having disabled IRQs for a long time, even when there is nobody waiting on
+ * the lock. It might also be that allowing the IRQs will result in
+ * need_resched() becoming true. If scheduling is needed, async compaction
+ * aborts. Sync compaction schedules.
+ * Either compaction type will also abort if a fatal signal is pending.
+ * In either case if the lock was locked, it is dropped and not regained.
  *
- * Returns true if the lock is held.
- * Returns false if the lock is released and compaction should abort
+ * Returns true if compaction should abort due to fatal signal pending, or
+ *		async compaction due to need_resched()
+ * Returns false when compaction can continue (sync compaction might have
+ *		scheduled)
  */
-static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
-				      bool locked, struct compact_control *cc)
+static bool compact_unlock_should_abort(spinlock_t *lock,
+		unsigned long flags, bool *locked, struct compact_control *cc)
 {
-	if (should_release_lock(lock)) {
-		if (locked) {
-			spin_unlock_irqrestore(lock, *flags);
-			locked = false;
-		}
+	if (*locked) {
+		spin_unlock_irqrestore(lock, flags);
+		*locked = false;
+	}
 
-		/* async aborts if taking too long or contended */
+	if (fatal_signal_pending(current)) {
+		cc->contended = COMPACT_CONTENDED_SCHED;
+		return true;
+	}
+
+	if (need_resched()) {
 		if (cc->mode == MIGRATE_ASYNC) {
-			cc->contended = true;
-			return false;
+			cc->contended = COMPACT_CONTENDED_SCHED;
+			return true;
 		}
-
 		cond_resched();
 	}
 
-	if (!locked)
-		spin_lock_irqsave(lock, *flags);
-	return true;
+	return false;
 }
 
 /*
  * Aside from avoiding lock contention, compaction also periodically checks
  * need_resched() and either schedules in sync compaction or aborts async
- * compaction. This is similar to what compact_checklock_irqsave() does, but
+ * compaction. This is similar to what compact_unlock_should_abort() does, but
  * is used where no lock is concerned.
  *
  * Returns false when no scheduling was needed, or sync compaction scheduled.
@@ -236,7 +299,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
 	/* async compaction aborts if contended */
 	if (need_resched()) {
 		if (cc->mode == MIGRATE_ASYNC) {
-			cc->contended = true;
+			cc->contended = COMPACT_CONTENDED_SCHED;
 			return true;
 		}
 
@@ -250,8 +313,15 @@ static inline bool compact_should_abort(struct compact_control *cc)
 static bool suitable_migration_target(struct page *page)
 {
 	/* If the page is a large free page, then disallow migration */
-	if (PageBuddy(page) && page_order(page) >= pageblock_order)
-		return false;
+	if (PageBuddy(page)) {
+		/*
+		 * We are checking page_order without zone->lock taken. But
+		 * the only small danger is that we skip a potentially suitable
+		 * pageblock, so it's not worth to check order for valid range.
+		 */
+		if (page_order_unsafe(page) >= pageblock_order)
+			return false;
+	}
 
 	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
 	if (migrate_async_suitable(get_pageblock_migratetype(page)))
@@ -267,16 +337,16 @@ static bool suitable_migration_target(struct page *page)
  * (even though it may still end up isolating some pages).
  */
 static unsigned long isolate_freepages_block(struct compact_control *cc,
-				unsigned long blockpfn,
+				unsigned long *start_pfn,
 				unsigned long end_pfn,
 				struct list_head *freelist,
 				bool strict)
 {
 	int nr_scanned = 0, total_isolated = 0;
 	struct page *cursor, *valid_page = NULL;
-	unsigned long flags;
+	unsigned long flags = 0;
 	bool locked = false;
-	bool checked_pageblock = false;
+	unsigned long blockpfn = *start_pfn;
 
 	cursor = pfn_to_page(blockpfn);
 
@@ -284,6 +354,16 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
 		int isolated, i;
 		struct page *page = cursor;
+
+		/*
+		 * Periodically drop the lock (if held) regardless of its
+		 * contention, to give chance to IRQs. Abort if fatal signal
+		 * pending or async compaction detects need_resched()
+		 */
+		if (!(blockpfn % SWAP_CLUSTER_MAX)
+		    && compact_unlock_should_abort(&cc->zone->lock, flags,
+								&locked, cc))
+			break;
 
 		nr_scanned++;
 		if (!pfn_valid_within(blockpfn))
@@ -295,33 +375,30 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 			goto isolate_fail;
 
 		/*
-		 * The zone lock must be held to isolate freepages.
-		 * Unfortunately this is a very coarse lock and can be
-		 * heavily contended if there are parallel allocations
-		 * or parallel compactions. For async compaction do not
-		 * spin on the lock and we acquire the lock as late as
-		 * possible.
+		 * If we already hold the lock, we can skip some rechecking.
+		 * Note that if we hold the lock now, checked_pageblock was
+		 * already set in some previous iteration (or strict is true),
+		 * so it is correct to skip the suitable migration target
+		 * recheck as well.
 		 */
-		locked = compact_checklock_irqsave(&cc->zone->lock, &flags,
-								locked, cc);
-		if (!locked)
-			break;
-
-		/* Recheck this is a suitable migration target under lock */
-		if (!strict && !checked_pageblock) {
+		if (!locked) {
 			/*
-			 * We need to check suitability of pageblock only once
-			 * and this isolate_freepages_block() is called with
-			 * pageblock range, so just check once is sufficient.
+			 * The zone lock must be held to isolate freepages.
+			 * Unfortunately this is a very coarse lock and can be
+			 * heavily contended if there are parallel allocations
+			 * or parallel compactions. For async compaction do not
+			 * spin on the lock and we acquire the lock as late as
+			 * possible.
 			 */
-			checked_pageblock = true;
-			if (!suitable_migration_target(page))
+			locked = compact_trylock_irqsave(&cc->zone->lock,
+								&flags, cc);
+			if (!locked)
 				break;
-		}
 
-		/* Recheck this is a buddy page under lock */
-		if (!PageBuddy(page))
-			goto isolate_fail;
+			/* Recheck this is a buddy page under lock */
+			if (!PageBuddy(page))
+				goto isolate_fail;
+		}
 
 		/* Found a free page, break it into order-0 pages */
 		isolated = split_free_page(page);
@@ -346,6 +423,9 @@ isolate_fail:
 
 	}
 
+	/* Record how far we have got within the block */
+	*start_pfn = blockpfn;
+
 	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
 
 	/*
@@ -361,8 +441,7 @@ isolate_fail:
 
 	/* Update the pageblock-skip if the whole pageblock was scanned */
 	if (blockpfn == end_pfn)
-		update_pageblock_skip(cc, valid_page, total_isolated, true,
-				      false);
+		update_pageblock_skip(cc, valid_page, total_isolated, false);
 
 	count_compact_events(COMPACTFREE_SCANNED, nr_scanned);
 	if (total_isolated)
@@ -390,19 +469,21 @@ isolate_freepages_range(struct compact_control *cc,
 	unsigned long isolated, pfn, block_end_pfn;
 	LIST_HEAD(freelist);
 
-	for (pfn = start_pfn; pfn < end_pfn; pfn += isolated) {
-		if (!pfn_valid(pfn) || cc->zone != page_zone(pfn_to_page(pfn)))
-			break;
+	pfn = start_pfn;
+	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
 
-		/*
-		 * On subsequent iterations ALIGN() is actually not needed,
-		 * but we keep it that we not to complicate the code.
-		 */
-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+	for (; pfn < end_pfn; pfn += isolated,
+				block_end_pfn += pageblock_nr_pages) {
+		/* Protect pfn from changing by isolate_freepages_block */
+		unsigned long isolate_start_pfn = pfn;
+
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
-		isolated = isolate_freepages_block(cc, pfn, block_end_pfn,
-						   &freelist, true);
+		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
+			break;
+
+		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
+						block_end_pfn, &freelist, true);
 
 		/*
 		 * In strict mode, isolate_freepages_block() returns 0 if
@@ -433,22 +514,19 @@ isolate_freepages_range(struct compact_control *cc,
 }
 
 /* Update the number of anon and file isolated pages in the zone */
-static void acct_isolated(struct zone *zone, bool locked, struct compact_control *cc)
+static void acct_isolated(struct zone *zone, struct compact_control *cc)
 {
 	struct page *page;
 	unsigned int count[2] = { 0, };
 
+	if (list_empty(&cc->migratepages))
+		return;
+
 	list_for_each_entry(page, &cc->migratepages, lru)
 		count[!!page_is_file_cache(page)]++;
 
-	/* If locked we can use the interrupt unsafe versions */
-	if (locked) {
-		__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-		__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-	} else {
-		mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-		mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-	}
+	mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
+	mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
 }
 
 /* Similar to reclaim, but different enough that they don't share logic */
@@ -467,40 +545,34 @@ static bool too_many_isolated(struct zone *zone)
 }
 
 /**
- * isolate_migratepages_range() - isolate all migrate-able pages in range.
- * @zone:	Zone pages are in.
+ * isolate_migratepages_block() - isolate all migrate-able pages within
+ *				  a single pageblock
  * @cc:		Compaction control structure.
- * @low_pfn:	The first PFN of the range.
- * @end_pfn:	The one-past-the-last PFN of the range.
- * @unevictable: true if it allows to isolate unevictable pages
+ * @low_pfn:	The first PFN to isolate
+ * @end_pfn:	The one-past-the-last PFN to isolate, within same pageblock
+ * @isolate_mode: Isolation mode to be used.
  *
  * Isolate all pages that can be migrated from the range specified by
- * [low_pfn, end_pfn).  Returns zero if there is a fatal signal
- * pending), otherwise PFN of the first page that was not scanned
- * (which may be both less, equal to or more then end_pfn).
+ * [low_pfn, end_pfn). The range is expected to be within same pageblock.
+ * Returns zero if there is a fatal signal pending, otherwise PFN of the
+ * first page that was not scanned (which may be both less, equal to or more
+ * than end_pfn).
  *
- * Assumes that cc->migratepages is empty and cc->nr_migratepages is
- * zero.
- *
- * Apart from cc->migratepages and cc->nr_migratetypes this function
- * does not modify any cc's fields, in particular it does not modify
- * (or read for that matter) cc->migrate_pfn.
+ * The pages are isolated on cc->migratepages list (not required to be empty),
+ * and cc->nr_migratepages is updated accordingly. The cc->migrate_pfn field
+ * is neither read nor updated.
  */
-unsigned long
-isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-		unsigned long low_pfn, unsigned long end_pfn, bool unevictable)
+static unsigned long
+isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+			unsigned long end_pfn, isolate_mode_t isolate_mode)
 {
-	unsigned long last_pageblock_nr = 0, pageblock_nr;
+	struct zone *zone = cc->zone;
 	unsigned long nr_scanned = 0, nr_isolated = 0;
 	struct list_head *migratelist = &cc->migratepages;
 	struct lruvec *lruvec;
-	unsigned long flags;
+	unsigned long flags = 0;
 	bool locked = false;
 	struct page *page = NULL, *valid_page = NULL;
-	bool set_unsuitable = true;
-	const isolate_mode_t mode = (cc->mode == MIGRATE_ASYNC ?
-					ISOLATE_ASYNC_MIGRATE : 0) |
-				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
 
 	/*
 	 * Ensure that there are not too many pages isolated from the LRU
@@ -523,72 +595,43 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 
 	/* Time to isolate some pages for migration */
 	for (; low_pfn < end_pfn; low_pfn++) {
-		/* give a chance to irqs before checking need_resched() */
-		if (locked && !(low_pfn % SWAP_CLUSTER_MAX)) {
-			if (should_release_lock(&zone->lru_lock)) {
-				spin_unlock_irqrestore(&zone->lru_lock, flags);
-				locked = false;
-			}
-		}
-
 		/*
-		 * migrate_pfn does not necessarily start aligned to a
-		 * pageblock. Ensure that pfn_valid is called when moving
-		 * into a new MAX_ORDER_NR_PAGES range in case of large
-		 * memory holes within the zone
+		 * Periodically drop the lock (if held) regardless of its
+		 * contention, to give chance to IRQs. Abort async compaction
+		 * if contended.
 		 */
-		if ((low_pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
-			if (!pfn_valid(low_pfn)) {
-				low_pfn += MAX_ORDER_NR_PAGES - 1;
-				continue;
-			}
-		}
+		if (!(low_pfn % SWAP_CLUSTER_MAX)
+		    && compact_unlock_should_abort(&zone->lru_lock, flags,
+								&locked, cc))
+			break;
 
 		if (!pfn_valid_within(low_pfn))
 			continue;
 		nr_scanned++;
 
-		/*
-		 * Get the page and ensure the page is within the same zone.
-		 * See the comment in isolate_freepages about overlapping
-		 * nodes. It is deliberate that the new zone lock is not taken
-		 * as memory compaction should not move pages between nodes.
-		 */
 		page = pfn_to_page(low_pfn);
-		if (page_zone(page) != zone)
-			continue;
 
 		if (!valid_page)
 			valid_page = page;
 
-		/* If isolation recently failed, do not retry */
-		pageblock_nr = low_pfn >> pageblock_order;
-		if (last_pageblock_nr != pageblock_nr) {
-			int mt;
-
-			last_pageblock_nr = pageblock_nr;
-			if (!isolation_suitable(cc, page))
-				goto next_pageblock;
+		/*
+		 * Skip if free. We read page order here without zone lock
+		 * which is generally unsafe, but the race window is small and
+		 * the worst thing that can happen is that we skip some
+		 * potential isolation targets.
+		 */
+		if (PageBuddy(page)) {
+			unsigned long freepage_order = page_order_unsafe(page);
 
 			/*
-			 * For async migration, also only scan in MOVABLE
-			 * blocks. Async migration is optimistic to see if
-			 * the minimum amount of work satisfies the allocation
+			 * Without lock, we cannot be sure that what we got is
+			 * a valid page order. Consider only values in the
+			 * valid order range to prevent low_pfn overflow.
 			 */
-			mt = get_pageblock_migratetype(page);
-			if (cc->mode == MIGRATE_ASYNC &&
-			    !migrate_async_suitable(mt)) {
-				set_unsuitable = false;
-				goto next_pageblock;
-			}
-		}
-
-		/*
-		 * Skip if free. page_order cannot be used without zone->lock
-		 * as nothing prevents parallel allocations or buddy merging.
-		 */
-		if (PageBuddy(page))
+			if (freepage_order > 0 && freepage_order < MAX_ORDER)
+				low_pfn += (1UL << freepage_order) - 1;
 			continue;
+		}
 
 		/*
 		 * Check may be lockless but that's ok as we recheck later.
@@ -597,7 +640,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		 */
 		if (!PageLRU(page)) {
 			if (unlikely(balloon_page_movable(page))) {
-				if (locked && balloon_page_isolate(page)) {
+				if (balloon_page_isolate(page)) {
 					/* Successfully isolated */
 					goto isolate_success;
 				}
@@ -617,8 +660,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		 */
 		if (PageTransHuge(page)) {
 			if (!locked)
-				goto next_pageblock;
-			low_pfn += (1 << compound_order(page)) - 1;
+				low_pfn = ALIGN(low_pfn + 1,
+						pageblock_nr_pages) - 1;
+			else
+				low_pfn += (1 << compound_order(page)) - 1;
+
 			continue;
 		}
 
@@ -631,24 +677,26 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		    page_count(page) > page_mapcount(page))
 			continue;
 
-		/* Check if it is ok to still hold the lock */
-		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
-								locked, cc);
-		if (!locked || fatal_signal_pending(current))
-			break;
+		/* If we already hold the lock, we can skip some rechecking */
+		if (!locked) {
+			locked = compact_trylock_irqsave(&zone->lru_lock,
+								&flags, cc);
+			if (!locked)
+				break;
 
-		/* Recheck PageLRU and PageTransHuge under lock */
-		if (!PageLRU(page))
-			continue;
-		if (PageTransHuge(page)) {
-			low_pfn += (1 << compound_order(page)) - 1;
-			continue;
+			/* Recheck PageLRU and PageTransHuge under lock */
+			if (!PageLRU(page))
+				continue;
+			if (PageTransHuge(page)) {
+				low_pfn += (1 << compound_order(page)) - 1;
+				continue;
+			}
 		}
 
 		lruvec = mem_cgroup_page_lruvec(page, zone);
 
 		/* Try isolate the page */
-		if (__isolate_lru_page(page, mode) != 0)
+		if (__isolate_lru_page(page, isolate_mode) != 0)
 			continue;
 
 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
@@ -667,14 +715,14 @@ isolate_success:
 			++low_pfn;
 			break;
 		}
-
-		continue;
-
-next_pageblock:
-		low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
 	}
 
-	acct_isolated(zone, locked, cc);
+	/*
+	 * The PageBuddy() check could have potentially brought us outside
+	 * the range to be scanned.
+	 */
+	if (unlikely(low_pfn > end_pfn))
+		low_pfn = end_pfn;
 
 	if (locked)
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
@@ -684,8 +732,7 @@ next_pageblock:
 	 * if the whole pageblock was scanned without isolating any page.
 	 */
 	if (low_pfn == end_pfn)
-		update_pageblock_skip(cc, valid_page, nr_isolated,
-				      set_unsuitable, true);
+		update_pageblock_skip(cc, valid_page, nr_isolated, true);
 
 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
 
@@ -696,17 +743,65 @@ next_pageblock:
 	return low_pfn;
 }
 
+/**
+ * isolate_migratepages_range() - isolate migrate-able pages in a PFN range
+ * @cc:        Compaction control structure.
+ * @start_pfn: The first PFN to start isolating.
+ * @end_pfn:   The one-past-last PFN.
+ *
+ * Returns zero if isolation fails fatally due to e.g. pending signal.
+ * Otherwise, function returns one-past-the-last PFN of isolated page
+ * (which may be greater than end_pfn if end fell in a middle of a THP page).
+ */
+unsigned long
+isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+							unsigned long end_pfn)
+{
+	unsigned long pfn, block_end_pfn;
+
+	/* Scan block by block. First and last block may be incomplete */
+	pfn = start_pfn;
+	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+
+	for (; pfn < end_pfn; pfn = block_end_pfn,
+				block_end_pfn += pageblock_nr_pages) {
+
+		block_end_pfn = min(block_end_pfn, end_pfn);
+
+		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
+			continue;
+
+		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
+							ISOLATE_UNEVICTABLE);
+
+		/*
+		 * In case of fatal failure, release everything that might
+		 * have been isolated in the previous iteration, and signal
+		 * the failure back to caller.
+		 */
+		if (!pfn) {
+			putback_movable_pages(&cc->migratepages);
+			cc->nr_migratepages = 0;
+			break;
+		}
+	}
+	acct_isolated(cc->zone, cc);
+
+	return pfn;
+}
+
 #endif /* CONFIG_COMPACTION || CONFIG_CMA */
 #ifdef CONFIG_COMPACTION
 /*
  * Based on information in the current compact_control, find blocks
  * suitable for isolating free pages from and then isolate them.
  */
-static void isolate_freepages(struct zone *zone,
-				struct compact_control *cc)
+static void isolate_freepages(struct compact_control *cc)
 {
+	struct zone *zone = cc->zone;
 	struct page *page;
 	unsigned long block_start_pfn;	/* start of current pageblock */
+	unsigned long isolate_start_pfn; /* exact pfn we start at */
 	unsigned long block_end_pfn;	/* end of current pageblock */
 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
 	int nr_freepages = cc->nr_freepages;
@@ -715,14 +810,15 @@ static void isolate_freepages(struct zone *zone,
 	/*
 	 * Initialise the free scanner. The starting point is where we last
 	 * successfully isolated from, zone-cached value, or the end of the
-	 * zone when isolating for the first time. We need this aligned to
-	 * the pageblock boundary, because we do
+	 * zone when isolating for the first time. For looping we also need
+	 * this pfn aligned down to the pageblock boundary, because we do
 	 * block_start_pfn -= pageblock_nr_pages in the for loop.
 	 * For ending point, take care when isolating in last pageblock of a
 	 * a zone which ends in the middle of a pageblock.
 	 * The low boundary is the end of the pageblock the migration scanner
 	 * is using.
 	 */
+	isolate_start_pfn = cc->free_pfn;
 	block_start_pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
 	block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
 						zone_end_pfn(zone));
@@ -735,7 +831,8 @@ static void isolate_freepages(struct zone *zone,
 	 */
 	for (; block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
 				block_end_pfn = block_start_pfn,
-				block_start_pfn -= pageblock_nr_pages) {
+				block_start_pfn -= pageblock_nr_pages,
+				isolate_start_pfn = block_start_pfn) {
 		unsigned long isolated;
 
 		/*
@@ -747,18 +844,9 @@ static void isolate_freepages(struct zone *zone,
 						&& compact_should_abort(cc))
 			break;
 
-		if (!pfn_valid(block_start_pfn))
-			continue;
-
-		/*
-		 * Check for overlapping nodes/zones. It's possible on some
-		 * configurations to have a setup like
-		 * node0 node1 node0
-		 * i.e. it's possible that all pages within a zones range of
-		 * pages do not belong to a single zone.
-		 */
-		page = pfn_to_page(block_start_pfn);
-		if (page_zone(page) != zone)
+		page = pageblock_pfn_to_page(block_start_pfn, block_end_pfn,
+									zone);
+		if (!page)
 			continue;
 
 		/* Check the block is suitable for migration */
@@ -769,11 +857,23 @@ static void isolate_freepages(struct zone *zone,
 		if (!isolation_suitable(cc, page))
 			continue;
 
-		/* Found a block suitable for isolating free pages from */
-		cc->free_pfn = block_start_pfn;
-		isolated = isolate_freepages_block(cc, block_start_pfn,
+		/* Found a block suitable for isolating free pages from. */
+		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
 					block_end_pfn, freelist, false);
 		nr_freepages += isolated;
+
+		/*
+		 * Remember where the free scanner should restart next time,
+		 * which is where isolate_freepages_block() left off.
+		 * But if it scanned the whole pageblock, isolate_start_pfn
+		 * now points at block_end_pfn, which is the start of the next
+		 * pageblock.
+		 * In that case we will however want to restart at the start
+		 * of the previous pageblock.
+		 */
+		cc->free_pfn = (isolate_start_pfn < block_end_pfn) ?
+				isolate_start_pfn :
+				block_start_pfn - pageblock_nr_pages;
 
 		/*
 		 * Set a flag that we successfully isolated in this pageblock.
@@ -822,7 +922,7 @@ static struct page *compaction_alloc(struct page *migratepage,
 	 */
 	if (list_empty(&cc->freepages)) {
 		if (!cc->contended)
-			isolate_freepages(cc->zone, cc);
+			isolate_freepages(cc);
 
 		if (list_empty(&cc->freepages))
 			return NULL;
@@ -856,38 +956,84 @@ typedef enum {
 } isolate_migrate_t;
 
 /*
- * Isolate all pages that can be migrated from the block pointed to by
- * the migrate scanner within compact_control.
+ * Isolate all pages that can be migrated from the first suitable block,
+ * starting at the block pointed to by the migrate scanner pfn within
+ * compact_control.
  */
 static isolate_migrate_t isolate_migratepages(struct zone *zone,
 					struct compact_control *cc)
 {
 	unsigned long low_pfn, end_pfn;
+	struct page *page;
+	const isolate_mode_t isolate_mode =
+		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
 
-	/* Do not scan outside zone boundaries */
-	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
+	/*
+	 * Start at where we last stopped, or beginning of the zone as
+	 * initialized by compact_zone()
+	 */
+	low_pfn = cc->migrate_pfn;
 
 	/* Only scan within a pageblock boundary */
 	end_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages);
 
-	/* Do not cross the free scanner or scan within a memory hole */
-	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
-		cc->migrate_pfn = end_pfn;
-		return ISOLATE_NONE;
+	/*
+	 * Iterate over whole pageblocks until we find the first suitable.
+	 * Do not cross the free scanner.
+	 */
+	for (; end_pfn <= cc->free_pfn;
+			low_pfn = end_pfn, end_pfn += pageblock_nr_pages) {
+
+		/*
+		 * This can potentially iterate a massively long zone with
+		 * many pageblocks unsuitable, so periodically check if we
+		 * need to schedule, or even abort async compaction.
+		 */
+		if (!(low_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
+						&& compact_should_abort(cc))
+			break;
+
+		page = pageblock_pfn_to_page(low_pfn, end_pfn, zone);
+		if (!page)
+			continue;
+
+		/* If isolation recently failed, do not retry */
+		if (!isolation_suitable(cc, page))
+			continue;
+
+		/*
+		 * For async compaction, also only scan in MOVABLE blocks.
+		 * Async compaction is optimistic to see if the minimum amount
+		 * of work satisfies the allocation.
+		 */
+		if (cc->mode == MIGRATE_ASYNC &&
+		    !migrate_async_suitable(get_pageblock_migratetype(page)))
+			continue;
+
+		/* Perform the isolation */
+		low_pfn = isolate_migratepages_block(cc, low_pfn, end_pfn,
+								isolate_mode);
+
+		if (!low_pfn || cc->contended)
+			return ISOLATE_ABORT;
+
+		/*
+		 * Either we isolated something and proceed with migration. Or
+		 * we failed and compact_zone should decide if we should
+		 * continue or not.
+		 */
+		break;
 	}
 
-	/* Perform the isolation */
-	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn, false);
-	if (!low_pfn || cc->contended)
-		return ISOLATE_ABORT;
-
+	acct_isolated(zone, cc);
+	/* Record where migration scanner will be restarted */
 	cc->migrate_pfn = low_pfn;
 
-	return ISOLATE_SUCCESS;
+	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
 }
 
-static int compact_finished(struct zone *zone,
-			    struct compact_control *cc)
+static int compact_finished(struct zone *zone, struct compact_control *cc,
+			    const int migratetype)
 {
 	unsigned int order;
 	unsigned long watermark;
@@ -933,7 +1079,7 @@ static int compact_finished(struct zone *zone,
 		struct free_area *area = &zone->free_area[order];
 
 		/* Job done if page is free of the right migratetype */
-		if (!list_empty(&area->free_list[cc->migratetype]))
+		if (!list_empty(&area->free_list[migratetype]))
 			return COMPACT_PARTIAL;
 
 		/* Job done if allocation would set block type */
@@ -999,6 +1145,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	int ret;
 	unsigned long start_pfn = zone->zone_start_pfn;
 	unsigned long end_pfn = zone_end_pfn(zone);
+	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
 	const bool sync = cc->mode != MIGRATE_ASYNC;
 
 	ret = compaction_suitable(zone, cc->order);
@@ -1041,7 +1188,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 	migrate_prep_local();
 
-	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
+	while ((ret = compact_finished(zone, cc, migratetype)) ==
+						COMPACT_CONTINUE) {
 		int err;
 
 		switch (isolate_migratepages(zone, cc)) {
@@ -1055,9 +1203,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 		case ISOLATE_SUCCESS:
 			;
 		}
-
-		if (!cc->nr_migratepages)
-			continue;
 
 		err = migrate_pages(&cc->migratepages, compaction_alloc,
 				compaction_free, (unsigned long)cc, cc->mode,
@@ -1092,14 +1237,14 @@ out:
 }
 
 static unsigned long compact_zone_order(struct zone *zone, int order,
-		gfp_t gfp_mask, enum migrate_mode mode, bool *contended)
+		gfp_t gfp_mask, enum migrate_mode mode, int *contended)
 {
 	unsigned long ret;
 	struct compact_control cc = {
 		.nr_freepages = 0,
 		.nr_migratepages = 0,
 		.order = order,
-		.migratetype = allocflags_to_migratetype(gfp_mask),
+		.gfp_mask = gfp_mask,
 		.zone = zone,
 		.mode = mode,
 	};
@@ -1124,47 +1269,116 @@ int sysctl_extfrag_threshold = 500;
  * @gfp_mask: The GFP mask of the current allocation
  * @nodemask: The allowed nodes to allocate from
  * @mode: The migration mode for async, sync light, or sync migration
- * @contended: Return value that is true if compaction was aborted due to lock contention
- * @page: Optionally capture a free page of the requested order during compaction
+ * @contended: Return value that determines if compaction was aborted due to
+ *	       need_resched() or lock contention
+ * @candidate_zone: Return the zone where we think allocation should succeed
  *
  * This is the main entry point for direct page compaction.
  */
 unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
-			enum migrate_mode mode, bool *contended)
+			enum migrate_mode mode, int *contended,
+			struct zone **candidate_zone)
 {
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	int may_enter_fs = gfp_mask & __GFP_FS;
 	int may_perform_io = gfp_mask & __GFP_IO;
 	struct zoneref *z;
 	struct zone *zone;
-	int rc = COMPACT_SKIPPED;
+	int rc = COMPACT_DEFERRED;
 	int alloc_flags = 0;
+	int all_zones_contended = COMPACT_CONTENDED_LOCK; /* init for &= op */
+
+	*contended = COMPACT_CONTENDED_NONE;
 
 	/* Check if the GFP flags allow compaction */
 	if (!order || !may_enter_fs || !may_perform_io)
-		return rc;
-
-	count_compact_event(COMPACTSTALL);
+		return COMPACT_SKIPPED;
 
 #ifdef CONFIG_CMA
-	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
 		alloc_flags |= ALLOC_CMA;
 #endif
 	/* Compact each zone in the list */
 	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
 								nodemask) {
 		int status;
+		int zone_contended;
+
+		if (compaction_deferred(zone, order))
+			continue;
 
 		status = compact_zone_order(zone, order, gfp_mask, mode,
-						contended);
+							&zone_contended);
 		rc = max(status, rc);
+		/*
+		 * It takes at least one zone that wasn't lock contended
+		 * to clear all_zones_contended.
+		 */
+		all_zones_contended &= zone_contended;
 
 		/* If a normal allocation would succeed, stop compacting */
 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
-				      alloc_flags))
-			break;
+				      alloc_flags)) {
+			*candidate_zone = zone;
+			/*
+			 * We think the allocation will succeed in this zone,
+			 * but it is not certain, hence the false. The caller
+			 * will repeat this with true if allocation indeed
+			 * succeeds in this zone.
+			 */
+			compaction_defer_reset(zone, order, false);
+			/*
+			 * It is possible that async compaction aborted due to
+			 * need_resched() and the watermarks were ok thanks to
+			 * somebody else freeing memory. The allocation can
+			 * however still fail so we better signal the
+			 * need_resched() contention anyway (this will not
+			 * prevent the allocation attempt).
+			 */
+			if (zone_contended == COMPACT_CONTENDED_SCHED)
+				*contended = COMPACT_CONTENDED_SCHED;
+
+			goto break_loop;
+		}
+
+		if (mode != MIGRATE_ASYNC) {
+			/*
+			 * We think that allocation won't succeed in this zone
+			 * so we defer compaction there. If it ends up
+			 * succeeding after all, it will be reset.
+			 */
+			defer_compaction(zone, order);
+		}
+
+		/*
+		 * We might have stopped compacting due to need_resched() in
+		 * async compaction, or due to a fatal signal detected. In that
+		 * case do not try further zones and signal need_resched()
+		 * contention.
+		 */
+		if ((zone_contended == COMPACT_CONTENDED_SCHED)
+					|| fatal_signal_pending(current)) {
+			*contended = COMPACT_CONTENDED_SCHED;
+			goto break_loop;
+		}
+
+		continue;
+break_loop:
+		/*
+		 * We might not have tried all the zones, so  be conservative
+		 * and assume they are not all lock contended.
+		 */
+		all_zones_contended = 0;
+		break;
 	}
+
+	/*
+	 * If at least one zone wasn't deferred or skipped, we report if all
+	 * zones that were tried were lock contended.
+	 */
+	if (rc > COMPACT_SKIPPED && all_zones_contended)
+		*contended = COMPACT_CONTENDED_LOCK;
 
 	return rc;
 }

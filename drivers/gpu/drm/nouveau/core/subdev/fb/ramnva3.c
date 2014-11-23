@@ -79,20 +79,27 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nva3_ram *ram = (void *)pfb->ram;
 	struct nva3_ramfuc *fuc = &ram->fuc;
 	struct nva3_clock_info mclk;
-	u8  ver, cnt, len, strap;
+	struct nouveau_ram_data *next;
+	u8  ver, hdr, cnt, len, strap;
 	u32 data;
-	struct {
-		u32 data;
-		u8  size;
-	} rammap, ramcfg, timing;
 	u32 r004018, r100760, ctrl;
 	u32 unk714, unk718, unk71c;
-	int ret;
+	int ret, i;
+
+	next = &ram->base.target;
+	next->freq = freq;
+	ram->base.next = next;
 
 	/* lookup memory config data relevant to the target frequency */
-	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
-				     &cnt, &ramcfg.size);
-	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
+	i = 0;
+	while ((data = nvbios_rammapEp(bios, i++, &ver, &hdr, &cnt, &len,
+				      &next->bios))) {
+		if (freq / 1000 >= next->bios.rammap_min &&
+		    freq / 1000 <= next->bios.rammap_max)
+			break;
+	}
+
+	if (!data || ver != 0x10 || hdr < 0x0e) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
 		return -EINVAL;
 	}
@@ -104,26 +111,25 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		return -EINVAL;
 	}
 
-	ramcfg.data = rammap.data + rammap.size + (strap * ramcfg.size);
-	if (!ramcfg.data || ver != 0x10 || ramcfg.size < 0x0e) {
+	data = nvbios_rammapSp(bios, data, ver, hdr, cnt, len, strap,
+			       &ver, &hdr, &next->bios);
+	if (!data || ver != 0x10 || hdr < 0x0e) {
 		nv_error(pfb, "invalid/missing ramcfg entry\n");
 		return -EINVAL;
 	}
 
 	/* lookup memory timings, if bios says they're present */
-	strap = nv_ro08(bios, ramcfg.data + 0x01);
-	if (strap != 0xff) {
-		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
-					     &cnt, &len);
-		if (!timing.data || ver != 0x10 || timing.size < 0x19) {
+	if (next->bios.ramcfg_timing != 0xff) {
+		data = nvbios_timingEp(bios, next->bios.ramcfg_timing,
+				       &ver, &hdr, &cnt, &len,
+				       &next->bios);
+		if (!data || ver != 0x10 || hdr < 0x19) {
 			nv_error(pfb, "invalid/missing timing entry\n");
 			return -EINVAL;
 		}
-	} else {
-		timing.data = 0;
 	}
 
-	ret = nva3_clock_info(nouveau_clock(pfb), 0x12, 0x4000, freq, &mclk);
+	ret = nva3_pll_info(nouveau_clock(pfb), 0x12, 0x4000, freq, &mclk);
 	if (ret < 0) {
 		nv_error(pfb, "failed mclk calculation\n");
 		return ret;
@@ -163,17 +169,17 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram_mask(fuc, 0x004168, 0x003f3141, ctrl);
 	}
 
-	if ( (nv_ro08(bios, ramcfg.data + 0x02) & 0x10)) {
+	if (next->bios.ramcfg_10_02_10) {
 		ram_mask(fuc, 0x111104, 0x00000600, 0x00000000);
 	} else {
 		ram_mask(fuc, 0x111100, 0x40000000, 0x40000000);
 		ram_mask(fuc, 0x111104, 0x00000180, 0x00000000);
 	}
 
-	if (!(nv_ro08(bios, rammap.data + 0x04) & 0x02))
+	if (!next->bios.rammap_10_04_02)
 		ram_mask(fuc, 0x100200, 0x00000800, 0x00000000);
 	ram_wr32(fuc, 0x611200, 0x00003300);
-	if (!(nv_ro08(bios, ramcfg.data + 0x02) & 0x10))
+	if (!next->bios.ramcfg_10_02_10)
 		ram_wr32(fuc, 0x111100, 0x4c020000); /*XXX*/
 
 	ram_wr32(fuc, 0x1002d4, 0x00000001);
@@ -202,17 +208,16 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram_wr32(fuc, 0x004018, 0x0000d000 | r004018);
 	}
 
-	if ( (nv_ro08(bios, rammap.data + 0x04) & 0x08)) {
-		u32 unk5a0 = (nv_ro16(bios, ramcfg.data + 0x05) << 8) |
-			      nv_ro08(bios, ramcfg.data + 0x05);
-		u32 unk5a4 = (nv_ro16(bios, ramcfg.data + 0x07));
-		u32 unk804 = (nv_ro08(bios, ramcfg.data + 0x09) & 0xf0) << 16 |
-			     (nv_ro08(bios, ramcfg.data + 0x03) & 0x0f) << 16 |
-			     (nv_ro08(bios, ramcfg.data + 0x09) & 0x0f) |
-			     0x80000000;
-		ram_wr32(fuc, 0x1005a0, unk5a0);
-		ram_wr32(fuc, 0x1005a4, unk5a4);
-		ram_wr32(fuc, 0x10f804, unk804);
+	if (next->bios.rammap_10_04_08) {
+		ram_wr32(fuc, 0x1005a0, next->bios.ramcfg_10_06 << 16 |
+					next->bios.ramcfg_10_05 << 8 |
+					next->bios.ramcfg_10_05);
+		ram_wr32(fuc, 0x1005a4, next->bios.ramcfg_10_08 << 8 |
+					next->bios.ramcfg_10_07);
+		ram_wr32(fuc, 0x10f804, next->bios.ramcfg_10_09_f0 << 20 |
+					next->bios.ramcfg_10_03_0f << 16 |
+					next->bios.ramcfg_10_09_0f |
+					0x80000000);
 		ram_mask(fuc, 0x10053c, 0x00001000, 0x00000000);
 	} else {
 		ram_mask(fuc, 0x10053c, 0x00001000, 0x00001000);
@@ -250,27 +255,26 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x100220[0], 0x00000000, 0x00000000);
 	ram_mask(fuc, 0x100220[8], 0x00000000, 0x00000000);
 
-	data = (nv_ro08(bios, ramcfg.data + 0x02) & 0x08) ? 0x00000000 : 0x00001000;
-	ram_mask(fuc, 0x100200, 0x00001000, data);
+	ram_mask(fuc, 0x100200, 0x00001000, !next->bios.ramcfg_10_02_08 << 12);
 
 	unk714 = ram_rd32(fuc, 0x100714) & ~0xf0000010;
 	unk718 = ram_rd32(fuc, 0x100718) & ~0x00000100;
 	unk71c = ram_rd32(fuc, 0x10071c) & ~0x00000100;
-	if ( (nv_ro08(bios, ramcfg.data + 0x02) & 0x20))
+	if (next->bios.ramcfg_10_02_20)
 		unk714 |= 0xf0000000;
-	if (!(nv_ro08(bios, ramcfg.data + 0x02) & 0x04))
+	if (!next->bios.ramcfg_10_02_04)
 		unk714 |= 0x00000010;
 	ram_wr32(fuc, 0x100714, unk714);
 
-	if (nv_ro08(bios, ramcfg.data + 0x02) & 0x01)
+	if (next->bios.ramcfg_10_02_01)
 		unk71c |= 0x00000100;
 	ram_wr32(fuc, 0x10071c, unk71c);
 
-	if (nv_ro08(bios, ramcfg.data + 0x02) & 0x02)
+	if (next->bios.ramcfg_10_02_02)
 		unk718 |= 0x00000100;
 	ram_wr32(fuc, 0x100718, unk718);
 
-	if (nv_ro08(bios, ramcfg.data + 0x02) & 0x10)
+	if (next->bios.ramcfg_10_02_10)
 		ram_wr32(fuc, 0x111100, 0x48000000); /*XXX*/
 
 	ram_mask(fuc, mr[0], 0x100, 0x100);
@@ -282,9 +286,9 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	ram_nsec(fuc, 12000);
 
 	ram_wr32(fuc, 0x611200, 0x00003330);
-	if ( (nv_ro08(bios, rammap.data + 0x04) & 0x02))
+	if (next->bios.rammap_10_04_02)
 		ram_mask(fuc, 0x100200, 0x00000800, 0x00000800);
-	if ( (nv_ro08(bios, ramcfg.data + 0x02) & 0x10)) {
+	if (next->bios.ramcfg_10_02_10) {
 		ram_mask(fuc, 0x111104, 0x00000180, 0x00000180);
 		ram_mask(fuc, 0x111100, 0x40000000, 0x00000000);
 	} else {
@@ -404,11 +408,11 @@ nva3_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	ram->fuc.r_0x100714 = ramfuc_reg(0x100714);
 	ram->fuc.r_0x100718 = ramfuc_reg(0x100718);
 	ram->fuc.r_0x10071c = ramfuc_reg(0x10071c);
-	ram->fuc.r_0x100760 = ramfuc_reg(0x100760);
-	ram->fuc.r_0x1007a0 = ramfuc_reg(0x1007a0);
-	ram->fuc.r_0x1007e0 = ramfuc_reg(0x1007e0);
+	ram->fuc.r_0x100760 = ramfuc_stride(0x100760, 4, ram->base.part_mask);
+	ram->fuc.r_0x1007a0 = ramfuc_stride(0x1007a0, 4, ram->base.part_mask);
+	ram->fuc.r_0x1007e0 = ramfuc_stride(0x1007e0, 4, ram->base.part_mask);
 	ram->fuc.r_0x10f804 = ramfuc_reg(0x10f804);
-	ram->fuc.r_0x1110e0 = ramfuc_reg(0x1110e0);
+	ram->fuc.r_0x1110e0 = ramfuc_stride(0x1110e0, 4, ram->base.part_mask);
 	ram->fuc.r_0x111100 = ramfuc_reg(0x111100);
 	ram->fuc.r_0x111104 = ramfuc_reg(0x111104);
 	ram->fuc.r_0x611200 = ramfuc_reg(0x611200);

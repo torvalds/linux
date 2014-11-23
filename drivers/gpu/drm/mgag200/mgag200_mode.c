@@ -1483,11 +1483,7 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct mga_device *mdev = (struct mga_device*)dev->dev_private;
-	struct mga_fbdev *mfbdev = mdev->mfbdev;
-	struct drm_fb_helper *fb_helper = &mfbdev->helper;
-	struct drm_fb_helper_connector *fb_helper_conn = NULL;
 	int bpp = 32;
-	int i = 0;
 
 	if (IS_G200_SE(mdev)) {
 		if (mdev->unique_rev_id == 0x01) {
@@ -1537,21 +1533,14 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 	}
 
 	/* Validate the mode input by the user */
-	for (i = 0; i < fb_helper->connector_count; i++) {
-		if (fb_helper->connector_info[i]->connector == connector) {
-			/* Found the helper for this connector */
-			fb_helper_conn = fb_helper->connector_info[i];
-			if (fb_helper_conn->cmdline_mode.specified) {
-				if (fb_helper_conn->cmdline_mode.bpp_specified) {
-					bpp = fb_helper_conn->cmdline_mode.bpp;
-				}
-			}
-		}
+	if (connector->cmdline_mode.specified) {
+		if (connector->cmdline_mode.bpp_specified)
+			bpp = connector->cmdline_mode.bpp;
 	}
 
 	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->mc.vram_size) {
-		if (fb_helper_conn)
-			fb_helper_conn->cmdline_mode.specified = false;
+		if (connector->cmdline_mode.specified)
+			connector->cmdline_mode.specified = false;
 		return MODE_BAD;
 	}
 

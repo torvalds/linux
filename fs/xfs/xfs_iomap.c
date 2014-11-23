@@ -404,8 +404,8 @@ xfs_quota_calc_throttle(
 	int shift = 0;
 	struct xfs_dquot *dq = xfs_inode_dquot(ip, type);
 
-	/* over hi wmark, squash the prealloc completely */
-	if (dq->q_res_bcount >= dq->q_prealloc_hi_wmark) {
+	/* no dq, or over hi wmark, squash the prealloc completely */
+	if (!dq || dq->q_res_bcount >= dq->q_prealloc_hi_wmark) {
 		*qblocks = 0;
 		*qfreesp = 0;
 		return;

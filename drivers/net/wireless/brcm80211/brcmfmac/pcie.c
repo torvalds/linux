@@ -30,8 +30,8 @@
 #include <brcmu_wifi.h>
 #include <brcm_hw_ids.h>
 
-#include "dhd_dbg.h"
-#include "dhd_bus.h"
+#include "debug.h"
+#include "bus.h"
 #include "commonring.h"
 #include "msgbuf.h"
 #include "pcie.h"

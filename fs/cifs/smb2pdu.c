@@ -1098,6 +1098,8 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 	if (oparms->create_options & CREATE_OPTION_READONLY)
 		file_attributes |= ATTR_READONLY;
+	if (oparms->create_options & CREATE_OPTION_SPECIAL)
+		file_attributes |= ATTR_SYSTEM;
 
 	req->ImpersonationLevel = IL_IMPERSONATION;
 	req->DesiredAccess = cpu_to_le32(oparms->desired_access);

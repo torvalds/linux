@@ -687,6 +687,4 @@ snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
 				struct snd_dma_buffer *dmab) {}
 #endif
 
-#define EXPORT_SYMBOL_HDA(sym) EXPORT_SYMBOL_GPL(sym)
-
 #endif /* __SOUND_HDA_CODEC_H */

@@ -1143,7 +1143,7 @@ static int uvc_video_encode_data(struct uvc_streaming *stream,
 static void uvc_video_validate_buffer(const struct uvc_streaming *stream,
 				      struct uvc_buffer *buf)
 {
-	if (buf->length != buf->bytesused &&
+	if (stream->frame_size != buf->bytesused &&
 	    !(stream->cur_format->flags & UVC_FMT_FLAG_COMPRESSED))
 		buf->error = 1;
 }
@@ -1463,7 +1463,7 @@ static unsigned int uvc_endpoint_max_bpi(struct usb_device *dev,
 
 	switch (dev->speed) {
 	case USB_SPEED_SUPER:
-		return ep->ss_ep_comp.wBytesPerInterval;
+		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
 	case USB_SPEED_HIGH:
 		psize = usb_endpoint_maxp(&ep->desc);
 		return (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
@@ -1677,6 +1677,12 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 			return ret;
 		}
 	}
+
+	/* The Logitech C920 temporarily forgets that it should not be adjusting
+	 * Exposure Absolute during init so restore controls to stored values.
+	 */
+	if (stream->dev->quirks & UVC_QUIRK_RESTORE_CTRLS_ON_INIT)
+		uvc_ctrl_restore_values(stream->dev);
 
 	return 0;
 }

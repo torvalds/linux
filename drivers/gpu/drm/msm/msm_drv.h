@@ -51,6 +51,7 @@ static inline struct device *msm_iommu_get_ctx(const char *ctx_name)
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/msm_drm.h>
+#include <drm/drm_gem.h>
 
 struct msm_kms;
 struct msm_gpu;
@@ -170,7 +171,7 @@ struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 void *msm_gem_prime_vmap(struct drm_gem_object *obj);
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
-		size_t size, struct sg_table *sg);
+		struct dma_buf_attachment *attach, struct sg_table *sg);
 int msm_gem_prime_pin(struct drm_gem_object *obj);
 void msm_gem_prime_unpin(struct drm_gem_object *obj);
 void *msm_gem_vaddr_locked(struct drm_gem_object *obj);

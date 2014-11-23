@@ -90,8 +90,8 @@ void gsc_hw_set_output_buf_masking(struct gsc_dev *dev, u32 shift,
 void gsc_hw_set_input_addr(struct gsc_dev *dev, struct gsc_addr *addr,
 				int index)
 {
-	pr_debug("src_buf[%d]: 0x%X, cb: 0x%X, cr: 0x%X", index,
-			addr->y, addr->cb, addr->cr);
+	pr_debug("src_buf[%d]: %pad, cb: %pad, cr: %pad", index,
+			&addr->y, &addr->cb, &addr->cr);
 	writel(addr->y, dev->regs + GSC_IN_BASE_ADDR_Y(index));
 	writel(addr->cb, dev->regs + GSC_IN_BASE_ADDR_CB(index));
 	writel(addr->cr, dev->regs + GSC_IN_BASE_ADDR_CR(index));
@@ -101,8 +101,8 @@ void gsc_hw_set_input_addr(struct gsc_dev *dev, struct gsc_addr *addr,
 void gsc_hw_set_output_addr(struct gsc_dev *dev,
 			     struct gsc_addr *addr, int index)
 {
-	pr_debug("dst_buf[%d]: 0x%X, cb: 0x%X, cr: 0x%X",
-			index, addr->y, addr->cb, addr->cr);
+	pr_debug("dst_buf[%d]: %pad, cb: %pad, cr: %pad",
+			index, &addr->y, &addr->cb, &addr->cr);
 	writel(addr->y, dev->regs + GSC_OUT_BASE_ADDR_Y(index));
 	writel(addr->cb, dev->regs + GSC_OUT_BASE_ADDR_CB(index));
 	writel(addr->cr, dev->regs + GSC_OUT_BASE_ADDR_CR(index));

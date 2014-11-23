@@ -204,9 +204,8 @@ static int load_HRT (void __iomem *rom_start)
 	u8 temp_byte = 0xFF;
 	u32 rc;
 
-	if (!check_for_compaq_ROM(rom_start)) {
+	if (!check_for_compaq_ROM(rom_start))
 		return -ENODEV;
-	}
 
 	available = 1024;
 
@@ -250,9 +249,8 @@ static u32 store_HRT (void __iomem *rom_start)
 
 	available = 1024;
 
-	if (!check_for_compaq_ROM(rom_start)) {
+	if (!check_for_compaq_ROM(rom_start))
 		return(1);
-	}
 
 	buffer = (u32*) evbuffer;
 
@@ -427,9 +425,9 @@ static u32 store_HRT (void __iomem *rom_start)
 
 void compaq_nvram_init (void __iomem *rom_start)
 {
-	if (rom_start) {
+	if (rom_start)
 		compaq_int15_entry_point = (rom_start + ROM_INT15_PHY_ADDR - ROM_PHY_ADDR);
-	}
+
 	dbg("int15 entry  = %p\n", compaq_int15_entry_point);
 
 	/* initialize our int15 lock */
@@ -661,9 +659,8 @@ int compaq_nvram_store (void __iomem *rom_start)
 
 	if (evbuffer_init) {
 		rc = store_HRT(rom_start);
-		if (rc) {
+		if (rc)
 			err(msg_unable_to_save);
-		}
 	}
 	return rc;
 }

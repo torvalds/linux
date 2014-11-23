@@ -2730,10 +2730,9 @@ void __cpuset_memory_pressure_bump(void)
  *    and we take cpuset_mutex, keeping cpuset_attach() from changing it
  *    anyway.
  */
-int proc_cpuset_show(struct seq_file *m, void *unused_v)
+int proc_cpuset_show(struct seq_file *m, struct pid_namespace *ns,
+		     struct pid *pid, struct task_struct *tsk)
 {
-	struct pid *pid;
-	struct task_struct *tsk;
 	char *buf, *p;
 	struct cgroup_subsys_state *css;
 	int retval;
@@ -2743,24 +2742,16 @@ int proc_cpuset_show(struct seq_file *m, void *unused_v)
 	if (!buf)
 		goto out;
 
-	retval = -ESRCH;
-	pid = m->private;
-	tsk = get_pid_task(pid, PIDTYPE_PID);
-	if (!tsk)
-		goto out_free;
-
 	retval = -ENAMETOOLONG;
 	rcu_read_lock();
 	css = task_css(tsk, cpuset_cgrp_id);
 	p = cgroup_path(css->cgroup, buf, PATH_MAX);
 	rcu_read_unlock();
 	if (!p)
-		goto out_put_task;
+		goto out_free;
 	seq_puts(m, p);
 	seq_putc(m, '\n');
 	retval = 0;
-out_put_task:
-	put_task_struct(tsk);
 out_free:
 	kfree(buf);
 out:

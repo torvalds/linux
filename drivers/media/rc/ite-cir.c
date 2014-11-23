@@ -1666,7 +1666,6 @@ static int ite_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 static int ite_resume(struct pnp_dev *pdev)
 {
-	int ret = 0;
 	struct ite_dev *dev = pnp_get_drvdata(pdev);
 	unsigned long flags;
 
@@ -1681,7 +1680,7 @@ static int ite_resume(struct pnp_dev *pdev)
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static void ite_shutdown(struct pnp_dev *pdev)

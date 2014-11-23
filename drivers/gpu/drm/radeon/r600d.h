@@ -323,11 +323,12 @@
 #define	HDP_TILING_CONFIG				0x2F3C
 #define HDP_DEBUG1                                      0x2F34
 
+#define MC_CONFIG					0x2000
 #define MC_VM_AGP_TOP					0x2184
 #define MC_VM_AGP_BOT					0x2188
 #define	MC_VM_AGP_BASE					0x218C
 #define MC_VM_FB_LOCATION				0x2180
-#define MC_VM_L1_TLB_MCD_RD_A_CNTL			0x219C
+#define MC_VM_L1_TLB_MCB_RD_UVD_CNTL			0x2124
 #define 	ENABLE_L1_TLB					(1 << 0)
 #define		ENABLE_L1_FRAGMENT_PROCESSING			(1 << 1)
 #define		ENABLE_L1_STRICT_ORDERING			(1 << 2)
@@ -347,12 +348,14 @@
 #define		EFFECTIVE_L1_QUEUE_SIZE(x)			(((x) & 7) << 15)
 #define		EFFECTIVE_L1_QUEUE_SIZE_MASK			0x00038000
 #define		EFFECTIVE_L1_QUEUE_SIZE_SHIFT			15
+#define MC_VM_L1_TLB_MCD_RD_A_CNTL			0x219C
 #define MC_VM_L1_TLB_MCD_RD_B_CNTL			0x21A0
 #define MC_VM_L1_TLB_MCB_RD_GFX_CNTL			0x21FC
 #define MC_VM_L1_TLB_MCB_RD_HDP_CNTL			0x2204
 #define MC_VM_L1_TLB_MCB_RD_PDMA_CNTL			0x2208
 #define MC_VM_L1_TLB_MCB_RD_SEM_CNTL			0x220C
 #define	MC_VM_L1_TLB_MCB_RD_SYS_CNTL			0x2200
+#define MC_VM_L1_TLB_MCB_WR_UVD_CNTL			0x212c
 #define MC_VM_L1_TLB_MCD_WR_A_CNTL			0x21A4
 #define MC_VM_L1_TLB_MCD_WR_B_CNTL			0x21A8
 #define MC_VM_L1_TLB_MCB_WR_GFX_CNTL			0x2210
@@ -365,6 +368,8 @@
 #define		LOGICAL_PAGE_NUMBER_SHIFT			0
 #define MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2194
 #define MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x2198
+
+#define RS_DQ_RD_RET_CONF				0x2348
 
 #define	PA_CL_ENHANCE					0x8A14
 #define		CLIP_VTX_REORDER_ENA				(1 << 0)
@@ -922,6 +927,23 @@
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
 
+/* Audio */
+#define AZ_HOT_PLUG_CONTROL               0x7300
+#       define AZ_FORCE_CODEC_WAKE        (1 << 0)
+#       define JACK_DETECTION_ENABLE      (1 << 4)
+#       define UNSOLICITED_RESPONSE_ENABLE (1 << 8)
+#       define CODEC_HOT_PLUG_ENABLE      (1 << 12)
+#       define AUDIO_ENABLED              (1 << 31)
+/* DCE3 adds */
+#       define PIN0_JACK_DETECTION_ENABLE (1 << 4)
+#       define PIN1_JACK_DETECTION_ENABLE (1 << 5)
+#       define PIN2_JACK_DETECTION_ENABLE (1 << 6)
+#       define PIN3_JACK_DETECTION_ENABLE (1 << 7)
+#       define PIN0_AUDIO_ENABLED         (1 << 24)
+#       define PIN1_AUDIO_ENABLED         (1 << 25)
+#       define PIN2_AUDIO_ENABLED         (1 << 26)
+#       define PIN3_AUDIO_ENABLED         (1 << 27)
+
 /* Audio clocks DCE 2.0/3.0 */
 #define AUDIO_DTO                         0x7340
 #       define AUDIO_DTO_PHASE(x)         (((x) & 0xffff) << 0)
@@ -1476,6 +1498,7 @@
 #define UVD_CGC_GATE					0xf4a8
 #define UVD_LMI_CTRL2					0xf4f4
 #define UVD_MASTINT_EN					0xf500
+#define UVD_FW_START					0xf51C
 #define UVD_LMI_ADDR_EXT				0xf594
 #define UVD_LMI_CTRL					0xf598
 #define UVD_LMI_SWAP_CNTL				0xf5b4
@@ -1487,6 +1510,13 @@
 #define UVD_MPC_SET_MUXB1				0xf5f0
 #define UVD_MPC_SET_MUX					0xf5f4
 #define UVD_MPC_SET_ALU					0xf5f8
+
+#define UVD_VCPU_CACHE_OFFSET0				0xf608
+#define UVD_VCPU_CACHE_SIZE0				0xf60c
+#define UVD_VCPU_CACHE_OFFSET1				0xf610
+#define UVD_VCPU_CACHE_SIZE1				0xf614
+#define UVD_VCPU_CACHE_OFFSET2				0xf618
+#define UVD_VCPU_CACHE_SIZE2				0xf61c
 
 #define UVD_VCPU_CNTL					0xf660
 #define UVD_SOFT_RESET					0xf680
@@ -1517,9 +1547,35 @@
 
 #define UVD_CONTEXT_ID					0xf6f4
 
+/* rs780 only */
+#define	GFX_MACRO_BYPASS_CNTL				0x30c0
+#define		SPLL_BYPASS_CNTL			(1 << 0)
+#define		UPLL_BYPASS_CNTL			(1 << 1)
+
+#define CG_UPLL_FUNC_CNTL				0x7e0
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
 #	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_FB_DIV(x)				((x) << 4)
+#	define UPLL_FB_DIV_MASK				0x0000FFF0
+#	define UPLL_REF_DIV(x)				((x) << 16)
+#	define UPLL_REF_DIV_MASK			0x003F0000
+#	define UPLL_REFCLK_SRC_SEL_MASK			0x20000000
 #	define UPLL_CTLACK_MASK				0x40000000
 #	define UPLL_CTLACK2_MASK			0x80000000
+#define CG_UPLL_FUNC_CNTL_2				0x7e4
+#	define UPLL_SW_HILEN(x)				((x) << 0)
+#	define UPLL_SW_LOLEN(x)				((x) << 4)
+#	define UPLL_SW_HILEN2(x)			((x) << 8)
+#	define UPLL_SW_LOLEN2(x)			((x) << 12)
+#	define UPLL_DIVEN_MASK				0x00010000
+#	define UPLL_DIVEN2_MASK				0x00020000
+#	define UPLL_SW_MASK				0x0003FFFF
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
 
 /*
  * PM4

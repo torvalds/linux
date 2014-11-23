@@ -169,7 +169,10 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 
 	if (txq->stopped &&
 	    txq->pending_frames < sc->tx.txq_max_pending[q]) {
-		ieee80211_wake_queue(sc->hw, info->hw_queue);
+		if (ath9k_is_chanctx_enabled())
+			ieee80211_wake_queue(sc->hw, info->hw_queue);
+		else
+			ieee80211_wake_queue(sc->hw, q);
 		txq->stopped = false;
 	}
 }
@@ -2139,6 +2142,28 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 	return bf;
 }
 
+void ath_assign_seq(struct ath_common *common, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_vif *vif = info->control.vif;
+	struct ath_vif *avp;
+
+	if (!(info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
+		return;
+
+	if (!vif)
+		return;
+
+	avp = (struct ath_vif *)vif->drv_priv;
+
+	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+		avp->seq_no += 0x10;
+
+	hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+	hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
+}
+
 static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 			  struct ath_tx_control *txctl)
 {
@@ -2162,17 +2187,7 @@ static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (info->control.hw_key)
 		frmlen += info->control.hw_key->icv_len;
 
-	/*
-	 * As a temporary workaround, assign seq# here; this will likely need
-	 * to be cleaned up to work better with Beacon transmission and virtual
-	 * BSSes.
-	 */
-	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-			sc->tx.seq_no += 0x10;
-		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
-	}
+	ath_assign_seq(ath9k_hw_common(sc->sc_ah), skb);
 
 	if ((vif && vif->type != NL80211_IFTYPE_AP &&
 	            vif->type != NL80211_IFTYPE_AP_VLAN) ||
@@ -2235,7 +2250,10 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		fi->txq = q;
 		if (++txq->pending_frames > sc->tx.txq_max_pending[q] &&
 		    !txq->stopped) {
-			ieee80211_stop_queue(sc->hw, info->hw_queue);
+			if (ath9k_is_chanctx_enabled())
+				ieee80211_stop_queue(sc->hw, info->hw_queue);
+			else
+				ieee80211_stop_queue(sc->hw, q);
 			txq->stopped = true;
 		}
 	}

@@ -78,6 +78,8 @@ struct kernel_param {
 	};
 };
 
+extern const struct kernel_param __start___param[], __stop___param[];
+
 /* Special one for strings we want to copy into */
 struct kparam_string {
 	unsigned int maxlen;

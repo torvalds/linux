@@ -67,14 +67,14 @@ struct device_node {
     ...
  };
 
-Figure 1, describes a generic structure of machine’s un-flattened device tree
+Figure 1, describes a generic structure of machine's un-flattened device tree
 considering only child and sibling pointers. There exists another pointer,
 *parent, that is used to traverse the tree in the reverse direction. So, at
 a particular level the child node and all the sibling nodes will have a parent
-pointer pointing to a common node (e.g. child1, sibling2, sibling3, sibling4’s
+pointer pointing to a common node (e.g. child1, sibling2, sibling3, sibling4's
 parent points to root node)
 
-root (‘/’)
+root ('/')
    |
 child1 -> sibling2 -> sibling3 -> sibling4 -> null
    |         |           |           |
@@ -113,8 +113,8 @@ via the following kernel symbols:
 __dtb_testcases_begin - address marking the start of test data blob
 __dtb_testcases_end   - address marking the end of test data blob
 
-Secondly, it calls of_fdt_unflatten_device_tree() to unflatten the flattened
-blob. And finally, if the machine’s device tree (i.e live tree) is present,
+Secondly, it calls of_fdt_unflatten_tree() to unflatten the flattened
+blob. And finally, if the machine's device tree (i.e live tree) is present,
 then it attaches the unflattened test data tree to the live tree, else it
 attaches itself as a live device tree.
 
@@ -122,7 +122,7 @@ attach_node_and_children() uses of_attach_node() to attach the nodes into the
 live tree as explained below. To explain the same, the test data tree described
  in Figure 2 is attached to the live tree described in Figure 1.
 
-root (‘/’)
+root ('/')
     |
  testcase-data
     |
@@ -138,8 +138,8 @@ root->testcase-data->test-child0->test-child01->test-sibling1->test-sibling2
 
 Figure 2: Example test data tree to be attached to live tree.
 
-According to the scenario above, the live tree is already present so it isn’t
-required to attach the root(‘/’) node. All other nodes are attached by calling
+According to the scenario above, the live tree is already present so it isn't
+required to attach the root('/') node. All other nodes are attached by calling
 of_attach_node() on each node.
 
 In the function of_attach_node(), the new node is attached as the child of the
@@ -148,7 +148,7 @@ replaces the current child and turns it into its sibling. So, when the testcase
 data node is attached to the live tree above (Figure 1), the final structure is
  as shown in Figure 3.
 
-root (‘/’)
+root ('/')
    |
 testcase-data -> child1 -> sibling2 -> sibling3 -> sibling4 -> null
    |               |          |           |           |
@@ -170,7 +170,7 @@ testcase-data -> child1 -> sibling2 -> sibling3 -> sibling4 -> null
                                           null
 -----------------------------------------------------------------------
 
-root (‘/’)
+root ('/')
    |
 testcase-data -> child1 -> sibling2 -> sibling3 -> sibling4 -> null
    |               |          |           |           |
@@ -191,8 +191,8 @@ test-child0 the test-sibling1 is attached that pushes the child node
  as mentioned above.
 
 If a duplicate node is found (i.e. if a node with same full_name property is
-already present in the live tree), then the node isn’t attached rather its
-properties are updated to the live tree’s node by calling the function
+already present in the live tree), then the node isn't attached rather its
+properties are updated to the live tree's node by calling the function
 update_node_properties().
 
 
@@ -205,7 +205,7 @@ whole tree). selftest_data_remove() calls detach_node_and_children() that uses
 of_detach_node() to detach the nodes from the live device tree.
 
 To detach a node, of_detach_node() first updates all_next linked list, by
-attaching the previous node’s allnext to current node’s allnext pointer. And
-then, it either updates the child pointer of given node’s parent to its
-sibling or attaches the previous sibling to the given node’s sibling, as
+attaching the previous node's allnext to current node's allnext pointer. And
+then, it either updates the child pointer of given node's parent to its
+sibling or attaches the previous sibling to the given node's sibling, as
 appropriate. That is it :)

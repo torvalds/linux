@@ -11,6 +11,7 @@
 #include <linux/bcma/bcma.h>
 #include <linux/slab.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 MODULE_DESCRIPTION("Broadcom's specific AMBA driver");
 MODULE_LICENSE("GPL");
@@ -132,7 +133,7 @@ static bool bcma_is_core_needed_early(u16 core_id)
 	return false;
 }
 
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_OF_ADDRESS)
 static struct device_node *bcma_of_find_child_device(struct platform_device *parent,
 						     struct bcma_device *core)
 {
@@ -153,6 +154,46 @@ static struct device_node *bcma_of_find_child_device(struct platform_device *par
 	return NULL;
 }
 
+static int bcma_of_irq_parse(struct platform_device *parent,
+			     struct bcma_device *core,
+			     struct of_phandle_args *out_irq, int num)
+{
+	__be32 laddr[1];
+	int rc;
+
+	if (core->dev.of_node) {
+		rc = of_irq_parse_one(core->dev.of_node, num, out_irq);
+		if (!rc)
+			return rc;
+	}
+
+	out_irq->np = parent->dev.of_node;
+	out_irq->args_count = 1;
+	out_irq->args[0] = num;
+
+	laddr[0] = cpu_to_be32(core->addr);
+	return of_irq_parse_raw(laddr, out_irq);
+}
+
+static unsigned int bcma_of_get_irq(struct platform_device *parent,
+				    struct bcma_device *core, int num)
+{
+	struct of_phandle_args out_irq;
+	int ret;
+
+	if (!parent || !parent->dev.of_node)
+		return 0;
+
+	ret = bcma_of_irq_parse(parent, core, &out_irq, num);
+	if (ret) {
+		bcma_debug(core->bus, "bcma_of_get_irq() failed with rc=%d\n",
+			   ret);
+		return 0;
+	}
+
+	return irq_create_of_mapping(&out_irq);
+}
+
 static void bcma_of_fill_device(struct platform_device *parent,
 				struct bcma_device *core)
 {
@@ -161,18 +202,47 @@ static void bcma_of_fill_device(struct platform_device *parent,
 	node = bcma_of_find_child_device(parent, core);
 	if (node)
 		core->dev.of_node = node;
+
+	core->irq = bcma_of_get_irq(parent, core, 0);
 }
 #else
 static void bcma_of_fill_device(struct platform_device *parent,
 				struct bcma_device *core)
 {
 }
+static inline unsigned int bcma_of_get_irq(struct platform_device *parent,
+					   struct bcma_device *core, int num)
+{
+	return 0;
+}
 #endif /* CONFIG_OF */
 
-static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
+unsigned int bcma_core_irq(struct bcma_device *core, int num)
 {
-	int err;
+	struct bcma_bus *bus = core->bus;
+	unsigned int mips_irq;
 
+	switch (bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		return bus->host_pci->irq;
+	case BCMA_HOSTTYPE_SOC:
+		if (bus->drv_mips.core && num == 0) {
+			mips_irq = bcma_core_mips_irq(core);
+			return mips_irq <= 4 ? mips_irq + 2 : 0;
+		}
+		if (bus->host_pdev)
+			return bcma_of_get_irq(bus->host_pdev, core, num);
+		return 0;
+	case BCMA_HOSTTYPE_SDIO:
+		return 0;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(bcma_core_irq);
+
+void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
+{
 	core->dev.release = bcma_release_core_dev;
 	core->dev.bus = &bcma_bus_type;
 	dev_set_name(&core->dev, "bcma%d:%d", bus->num, core->core_index);
@@ -196,6 +266,11 @@ static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 	case BCMA_HOSTTYPE_SDIO:
 		break;
 	}
+}
+
+static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
+{
+	int err;
 
 	err = device_register(&core->dev);
 	if (err) {

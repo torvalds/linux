@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #
-# sh configinit.sh config-spec-file [ build output dir ]
+# Usage: configinit.sh config-spec-file [ build output dir ]
 #
 # Create a .config file from the spec file.  Run from the kernel source tree.
 # Exits with 0 if all went well, with 1 if all went well but the config

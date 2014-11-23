@@ -936,14 +936,8 @@ EXPORT_SYMBOL(msm_pinctrl_probe);
 int msm_pinctrl_remove(struct platform_device *pdev)
 {
 	struct msm_pinctrl *pctrl = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&pctrl->chip);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to remove gpiochip\n");
-		return ret;
-	}
-
+	gpiochip_remove(&pctrl->chip);
 	pinctrl_unregister(pctrl->pctrl);
 
 	unregister_restart_handler(&pctrl->restart_nb);

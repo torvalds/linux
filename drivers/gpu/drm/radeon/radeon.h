@@ -65,12 +65,16 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/interval_tree.h>
+#include <linux/hashtable.h>
+#include <linux/fence.h>
 
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
 #include <ttm/ttm_execbuf_util.h>
+
+#include <drm/drm_gem.h>
 
 #include "radeon_family.h"
 #include "radeon_mode.h"
@@ -119,9 +123,6 @@ extern int radeon_backlight;
 #define RADEON_DEBUGFS_MAX_COMPONENTS		32
 #define RADEONFB_CONN_LIMIT			4
 #define RADEON_BIOS_NUM_SCRATCH			8
-
-/* fence seq are set to this number when signaled */
-#define RADEON_FENCE_SIGNALED_SEQ		0LL
 
 /* internal ring indices */
 /* r1xx+ has gfx CP ring */
@@ -350,28 +351,32 @@ extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
  * Fences.
  */
 struct radeon_fence_driver {
+	struct radeon_device		*rdev;
 	uint32_t			scratch_reg;
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
 	/* sync_seq is protected by ring emission lock */
 	uint64_t			sync_seq[RADEON_NUM_RINGS];
 	atomic64_t			last_seq;
-	bool				initialized;
+	bool				initialized, delayed_irq;
+	struct delayed_work		lockup_work;
 };
 
 struct radeon_fence {
+	struct fence base;
+
 	struct radeon_device		*rdev;
-	struct kref			kref;
-	/* protected by radeon_fence.lock */
 	uint64_t			seq;
 	/* RB, DMA, etc. */
 	unsigned			ring;
+
+	wait_queue_t			fence_wake;
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
 int radeon_fence_driver_init(struct radeon_device *rdev);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
-void radeon_fence_driver_force_completion(struct radeon_device *rdev);
+void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
@@ -469,7 +474,7 @@ struct radeon_bo {
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	u32				initial_domain;
-	u32				placements[3];
+	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
@@ -489,6 +494,9 @@ struct radeon_bo {
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
+
+	struct radeon_mn		*mn;
+	struct interval_tree_node	mn_it;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -580,8 +588,12 @@ bool radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
 				  struct radeon_semaphore *semaphore);
 bool radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 				struct radeon_semaphore *semaphore);
-void radeon_semaphore_sync_to(struct radeon_semaphore *semaphore,
-			      struct radeon_fence *fence);
+void radeon_semaphore_sync_fence(struct radeon_semaphore *semaphore,
+				 struct radeon_fence *fence);
+int radeon_semaphore_sync_resv(struct radeon_device *rdev,
+			       struct radeon_semaphore *semaphore,
+			       struct reservation_object *resv,
+			       bool shared);
 int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				struct radeon_semaphore *semaphore,
 				int waiting_ring);
@@ -702,7 +714,7 @@ struct radeon_flip_work {
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct radeon_fence		*fence;
+	struct fence			*fence;
 };
 
 struct r500_irq_stat_regs {
@@ -780,6 +792,7 @@ struct radeon_irq {
 int radeon_irq_kms_init(struct radeon_device *rdev);
 void radeon_irq_kms_fini(struct radeon_device *rdev);
 void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev, int ring);
+bool radeon_irq_kms_sw_irq_get_delayed(struct radeon_device *rdev, int ring);
 void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev, int ring);
 void radeon_irq_kms_pflip_irq_get(struct radeon_device *rdev, int crtc);
 void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
@@ -1642,7 +1655,8 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 			      uint32_t handle, struct radeon_fence **fence);
 int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 			       uint32_t handle, struct radeon_fence **fence);
-void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo);
+void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo,
+				       uint32_t allowed_domains);
 void radeon_uvd_free_handles(struct radeon_device *rdev,
 			     struct drm_file *filp);
 int radeon_uvd_cs_parse(struct radeon_cs_parser *parser);
@@ -1731,6 +1745,11 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 			   struct radeon_ring *cpB);
 void radeon_test_syncing(struct radeon_device *rdev);
 
+/*
+ * MMU Notifier
+ */
+int radeon_mn_register(struct radeon_bo *bo, unsigned long addr);
+void radeon_mn_unregister(struct radeon_bo *bo);
 
 /*
  * Debugfs
@@ -1845,24 +1864,24 @@ struct radeon_asic {
 	} display;
 	/* copy functions for bo handling */
 	struct {
-		int (*blit)(struct radeon_device *rdev,
-			    uint64_t src_offset,
-			    uint64_t dst_offset,
-			    unsigned num_gpu_pages,
-			    struct radeon_fence **fence);
+		struct radeon_fence *(*blit)(struct radeon_device *rdev,
+					     uint64_t src_offset,
+					     uint64_t dst_offset,
+					     unsigned num_gpu_pages,
+					     struct reservation_object *resv);
 		u32 blit_ring_index;
-		int (*dma)(struct radeon_device *rdev,
-			   uint64_t src_offset,
-			   uint64_t dst_offset,
-			   unsigned num_gpu_pages,
-			   struct radeon_fence **fence);
+		struct radeon_fence *(*dma)(struct radeon_device *rdev,
+					    uint64_t src_offset,
+					    uint64_t dst_offset,
+					    unsigned num_gpu_pages,
+					    struct reservation_object *resv);
 		u32 dma_ring_index;
 		/* method used for bo copy */
-		int (*copy)(struct radeon_device *rdev,
-			    uint64_t src_offset,
-			    uint64_t dst_offset,
-			    unsigned num_gpu_pages,
-			    struct radeon_fence **fence);
+		struct radeon_fence *(*copy)(struct radeon_device *rdev,
+					     uint64_t src_offset,
+					     uint64_t dst_offset,
+					     unsigned num_gpu_pages,
+					     struct reservation_object *resv);
 		/* ring used for bo copies */
 		u32 copy_ring_index;
 	} copy;
@@ -2144,6 +2163,8 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
 int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp);
+int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *filp);
 int radeon_gem_pin_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int radeon_gem_unpin_ioctl(struct drm_device *dev, void *data,
@@ -2300,6 +2321,7 @@ struct radeon_device {
 	struct radeon_mman		mman;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	wait_queue_head_t		fence_queue;
+	unsigned			fence_context;
 	struct mutex			ring_lock;
 	struct radeon_ring		ring[RADEON_NUM_RINGS];
 	bool				ib_pool_ready;
@@ -2318,7 +2340,7 @@ struct radeon_device {
 	bool				need_dma32;
 	bool				accel_working;
 	bool				fastfb_working; /* IGP feature*/
-	bool				needs_reset;
+	bool				needs_reset, in_reset;
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
@@ -2339,7 +2361,6 @@ struct radeon_device {
 	struct radeon_mec mec;
 	struct work_struct hotplug_work;
 	struct work_struct audio_work;
-	struct work_struct reset_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 	bool has_uvd;
@@ -2376,6 +2397,9 @@ struct radeon_device {
 	/* tracking pinned memory */
 	u64 vram_pin_size;
 	u64 gart_pin_size;
+
+	struct mutex	mn_lock;
+	DECLARE_HASHTABLE(mn_hash, 7);
 };
 
 bool radeon_is_px(struct drm_device *dev);
@@ -2431,7 +2455,17 @@ void cik_mm_wdoorbell(struct radeon_device *rdev, u32 index, u32 v);
 /*
  * Cast helper
  */
-#define to_radeon_fence(p) ((struct radeon_fence *)(p))
+extern const struct fence_ops radeon_fence_ops;
+
+static inline struct radeon_fence *to_radeon_fence(struct fence *f)
+{
+	struct radeon_fence *__f = container_of(f, struct radeon_fence, base);
+
+	if (__f->base.ops == &radeon_fence_ops)
+		return __f;
+
+	return NULL;
+}
 
 /*
  * Registers read & write functions.
@@ -2751,18 +2785,25 @@ void radeon_atombios_fini(struct radeon_device *rdev);
 /*
  * RING helpers.
  */
-#if DRM_DEBUG_CODE == 0
+
+/**
+ * radeon_ring_write - write a value to the ring
+ *
+ * @ring: radeon_ring structure holding ring information
+ * @v: dword (dw) value to write
+ *
+ * Write a value to the requested ring buffer (all asics).
+ */
 static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 {
+	if (ring->count_dw <= 0)
+		DRM_ERROR("radeon: writing more dwords to the ring than expected!\n");
+
 	ring->ring[ring->wptr++] = v;
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw--;
 	ring->ring_free_dw--;
 }
-#else
-/* With debugging this is just too big to inline */
-void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
-#endif
 
 /*
  * ASICs macro.
@@ -2801,9 +2842,9 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_hdmi_setmode(rdev, e, m) (rdev)->asic->display.hdmi_setmode((e), (m))
 #define radeon_fence_ring_emit(rdev, r, fence) (rdev)->asic->ring[(r)]->emit_fence((rdev), (fence))
 #define radeon_semaphore_ring_emit(rdev, r, cp, semaphore, emit_wait) (rdev)->asic->ring[(r)]->emit_semaphore((rdev), (cp), (semaphore), (emit_wait))
-#define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy.blit((rdev), (s), (d), (np), (f))
-#define radeon_copy_dma(rdev, s, d, np, f) (rdev)->asic->copy.dma((rdev), (s), (d), (np), (f))
-#define radeon_copy(rdev, s, d, np, f) (rdev)->asic->copy.copy((rdev), (s), (d), (np), (f))
+#define radeon_copy_blit(rdev, s, d, np, resv) (rdev)->asic->copy.blit((rdev), (s), (d), (np), (resv))
+#define radeon_copy_dma(rdev, s, d, np, resv) (rdev)->asic->copy.dma((rdev), (s), (d), (np), (resv))
+#define radeon_copy(rdev, s, d, np, resv) (rdev)->asic->copy.copy((rdev), (s), (d), (np), (resv))
 #define radeon_copy_blit_ring_index(rdev) (rdev)->asic->copy.blit_ring_index
 #define radeon_copy_dma_ring_index(rdev) (rdev)->asic->copy.dma_ring_index
 #define radeon_copy_ring_index(rdev) (rdev)->asic->copy.copy_ring_index
@@ -2877,6 +2918,10 @@ extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enabl
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
+extern int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
+				     uint32_t flags);
+extern bool radeon_ttm_tt_has_userptr(struct ttm_tt *ttm);
+extern bool radeon_ttm_tt_is_readonly(struct ttm_tt *ttm);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
@@ -2934,10 +2979,10 @@ struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev);
 struct r600_audio_pin *dce6_audio_get_pin(struct radeon_device *rdev);
 void r600_audio_enable(struct radeon_device *rdev,
 		       struct r600_audio_pin *pin,
-		       bool enable);
+		       u8 enable_mask);
 void dce6_audio_enable(struct radeon_device *rdev,
 		       struct r600_audio_pin *pin,
-		       bool enable);
+		       u8 enable_mask);
 
 /*
  * R600 vram scratch functions

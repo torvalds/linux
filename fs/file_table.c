@@ -150,18 +150,10 @@ over:
 
 /**
  * alloc_file - allocate and initialize a 'struct file'
- * @mnt: the vfsmount on which the file will reside
- * @dentry: the dentry representing the new file
+ *
+ * @path: the (dentry, vfsmount) pair for the new file
  * @mode: the mode with which the new file will be opened
  * @fop: the 'struct file_operations' for the new file
- *
- * Use this instead of get_empty_filp() to get a new
- * 'struct file'.  Do so because of the same initialization
- * pitfalls reasons listed for init_file().  This is a
- * preferred interface to using init_file().
- *
- * If all the callers of init_file() are eliminated, its
- * code should be moved into this function.
  */
 struct file *alloc_file(struct path *path, fmode_t mode,
 		const struct file_operations *fop)
@@ -331,5 +323,5 @@ void __init files_init(unsigned long mempages)
 
 	n = (mempages * (PAGE_SIZE / 1024)) / 10;
 	files_stat.max_files = max_t(unsigned long, n, NR_FILE);
-	percpu_counter_init(&nr_files, 0);
+	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
 } 

@@ -56,8 +56,8 @@ void nv50_gpio_reset(struct nouveau_gpio *, u8);
 int  nv50_gpio_drive(struct nouveau_gpio *, int, int, int);
 int  nv50_gpio_sense(struct nouveau_gpio *, int);
 
-void nv92_gpio_intr_stat(struct nouveau_gpio *, u32 *, u32 *);
-void nv92_gpio_intr_mask(struct nouveau_gpio *, u32, u32, u32);
+void nv94_gpio_intr_stat(struct nouveau_gpio *, u32 *, u32 *);
+void nv94_gpio_intr_mask(struct nouveau_gpio *, u32, u32, u32);
 
 void nvd0_gpio_reset(struct nouveau_gpio *, u8);
 int  nvd0_gpio_drive(struct nouveau_gpio *, int, int, int);

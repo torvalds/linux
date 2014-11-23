@@ -131,7 +131,7 @@ struct ct_atc {
 	/* Don't touch! Used for internal object. */
 	void *rsc_mgrs[NUM_RSCTYP]; /* chip resource managers */
 	void *mixer;		/* internal mixer object */
-	void *hw;		/* chip specific hardware access object */
+	struct hw *hw;		/* chip specific hardware access object */
 	void **daios;		/* digital audio io resources */
 	void **pcm;		/* SUMs for collecting all pcm stream */
 	void **srcs;		/* Sample Rate Converters for input signal */

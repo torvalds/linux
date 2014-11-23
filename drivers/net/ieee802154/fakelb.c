@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -29,12 +25,12 @@
 #include <linux/device.h>
 #include <linux/spinlock.h>
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 static int numlbs = 1;
 
 struct fakelb_dev_priv {
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *hw;
 
 	struct list_head list;
 	struct fakelb_priv *fake;
@@ -49,9 +45,8 @@ struct fakelb_priv {
 };
 
 static int
-fakelb_hw_ed(struct ieee802154_dev *dev, u8 *level)
+fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	might_sleep();
 	BUG_ON(!level);
 	*level = 0xbe;
 
@@ -59,13 +54,9 @@ fakelb_hw_ed(struct ieee802154_dev *dev, u8 *level)
 }
 
 static int
-fakelb_hw_channel(struct ieee802154_dev *dev, int page, int channel)
+fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	pr_debug("set channel to %d\n", channel);
-
-	might_sleep();
-	dev->phy->current_page = page;
-	dev->phy->current_channel = channel;
 
 	return 0;
 }
@@ -78,18 +69,16 @@ fakelb_hw_deliver(struct fakelb_dev_priv *priv, struct sk_buff *skb)
 	spin_lock(&priv->lock);
 	if (priv->working) {
 		newskb = pskb_copy(skb, GFP_ATOMIC);
-		ieee802154_rx_irqsafe(priv->dev, newskb, 0xcc);
+		ieee802154_rx_irqsafe(priv->hw, newskb, 0xcc);
 	}
 	spin_unlock(&priv->lock);
 }
 
 static int
-fakelb_hw_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
+fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct fakelb_dev_priv *priv = dev->priv;
+	struct fakelb_dev_priv *priv = hw->priv;
 	struct fakelb_priv *fake = priv->fake;
-
-	might_sleep();
 
 	read_lock_bh(&fake->lock);
 	if (priv->list.next == priv->list.prev) {
@@ -99,8 +88,8 @@ fakelb_hw_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 		struct fakelb_dev_priv *dp;
 		list_for_each_entry(dp, &priv->fake->list, list) {
 			if (dp != priv &&
-			    (dp->dev->phy->current_channel ==
-			     priv->dev->phy->current_channel))
+			    (dp->hw->phy->current_channel ==
+			     priv->hw->phy->current_channel))
 				fakelb_hw_deliver(dp, skb);
 		}
 	}
@@ -110,8 +99,8 @@ fakelb_hw_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 }
 
 static int
-fakelb_hw_start(struct ieee802154_dev *dev) {
-	struct fakelb_dev_priv *priv = dev->priv;
+fakelb_hw_start(struct ieee802154_hw *hw) {
+	struct fakelb_dev_priv *priv = hw->priv;
 	int ret = 0;
 
 	spin_lock(&priv->lock);
@@ -125,17 +114,17 @@ fakelb_hw_start(struct ieee802154_dev *dev) {
 }
 
 static void
-fakelb_hw_stop(struct ieee802154_dev *dev) {
-	struct fakelb_dev_priv *priv = dev->priv;
+fakelb_hw_stop(struct ieee802154_hw *hw) {
+	struct fakelb_dev_priv *priv = hw->priv;
 
 	spin_lock(&priv->lock);
 	priv->working = 0;
 	spin_unlock(&priv->lock);
 }
 
-static struct ieee802154_ops fakelb_ops = {
+static const struct ieee802154_ops fakelb_ops = {
 	.owner = THIS_MODULE,
-	.xmit = fakelb_hw_xmit,
+	.xmit_sync = fakelb_hw_xmit,
 	.ed = fakelb_hw_ed,
 	.set_channel = fakelb_hw_channel,
 	.start = fakelb_hw_start,
@@ -150,54 +139,54 @@ static int fakelb_add_one(struct device *dev, struct fakelb_priv *fake)
 {
 	struct fakelb_dev_priv *priv;
 	int err;
-	struct ieee802154_dev *ieee;
+	struct ieee802154_hw *hw;
 
-	ieee = ieee802154_alloc_device(sizeof(*priv), &fakelb_ops);
-	if (!ieee)
+	hw = ieee802154_alloc_hw(sizeof(*priv), &fakelb_ops);
+	if (!hw)
 		return -ENOMEM;
 
-	priv = ieee->priv;
-	priv->dev = ieee;
+	priv = hw->priv;
+	priv->hw = hw;
 
 	/* 868 MHz BPSK	802.15.4-2003 */
-	ieee->phy->channels_supported[0] |= 1;
+	hw->phy->channels_supported[0] |= 1;
 	/* 915 MHz BPSK	802.15.4-2003 */
-	ieee->phy->channels_supported[0] |= 0x7fe;
+	hw->phy->channels_supported[0] |= 0x7fe;
 	/* 2.4 GHz O-QPSK 802.15.4-2003 */
-	ieee->phy->channels_supported[0] |= 0x7FFF800;
+	hw->phy->channels_supported[0] |= 0x7FFF800;
 	/* 868 MHz ASK 802.15.4-2006 */
-	ieee->phy->channels_supported[1] |= 1;
+	hw->phy->channels_supported[1] |= 1;
 	/* 915 MHz ASK 802.15.4-2006 */
-	ieee->phy->channels_supported[1] |= 0x7fe;
+	hw->phy->channels_supported[1] |= 0x7fe;
 	/* 868 MHz O-QPSK 802.15.4-2006 */
-	ieee->phy->channels_supported[2] |= 1;
+	hw->phy->channels_supported[2] |= 1;
 	/* 915 MHz O-QPSK 802.15.4-2006 */
-	ieee->phy->channels_supported[2] |= 0x7fe;
+	hw->phy->channels_supported[2] |= 0x7fe;
 	/* 2.4 GHz CSS 802.15.4a-2007 */
-	ieee->phy->channels_supported[3] |= 0x3fff;
+	hw->phy->channels_supported[3] |= 0x3fff;
 	/* UWB Sub-gigahertz 802.15.4a-2007 */
-	ieee->phy->channels_supported[4] |= 1;
+	hw->phy->channels_supported[4] |= 1;
 	/* UWB Low band 802.15.4a-2007 */
-	ieee->phy->channels_supported[4] |= 0x1e;
+	hw->phy->channels_supported[4] |= 0x1e;
 	/* UWB High band 802.15.4a-2007 */
-	ieee->phy->channels_supported[4] |= 0xffe0;
+	hw->phy->channels_supported[4] |= 0xffe0;
 	/* 750 MHz O-QPSK 802.15.4c-2009 */
-	ieee->phy->channels_supported[5] |= 0xf;
+	hw->phy->channels_supported[5] |= 0xf;
 	/* 750 MHz MPSK 802.15.4c-2009 */
-	ieee->phy->channels_supported[5] |= 0xf0;
+	hw->phy->channels_supported[5] |= 0xf0;
 	/* 950 MHz BPSK 802.15.4d-2009 */
-	ieee->phy->channels_supported[6] |= 0x3ff;
+	hw->phy->channels_supported[6] |= 0x3ff;
 	/* 950 MHz GFSK 802.15.4d-2009 */
-	ieee->phy->channels_supported[6] |= 0x3ffc00;
+	hw->phy->channels_supported[6] |= 0x3ffc00;
 
 	INIT_LIST_HEAD(&priv->list);
 	priv->fake = fake;
 
 	spin_lock_init(&priv->lock);
 
-	ieee->parent = dev;
+	hw->parent = dev;
 
-	err = ieee802154_register_device(ieee);
+	err = ieee802154_register_hw(hw);
 	if (err)
 		goto err_reg;
 
@@ -208,7 +197,7 @@ static int fakelb_add_one(struct device *dev, struct fakelb_priv *fake)
 	return 0;
 
 err_reg:
-	ieee802154_free_device(priv->dev);
+	ieee802154_free_hw(priv->hw);
 	return err;
 }
 
@@ -218,8 +207,8 @@ static void fakelb_del(struct fakelb_dev_priv *priv)
 	list_del(&priv->list);
 	write_unlock_bh(&priv->fake->lock);
 
-	ieee802154_unregister_device(priv->dev);
-	ieee802154_free_device(priv->dev);
+	ieee802154_unregister_hw(priv->hw);
+	ieee802154_free_hw(priv->hw);
 }
 
 static int fakelb_probe(struct platform_device *pdev)

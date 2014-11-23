@@ -725,7 +725,7 @@ static inline u8 *htt_rx_test_get_chars(struct htt_rx_test *rx_test)
  */
 struct htt_pktlog_msg {
 	u8 pad[3];
-	__le32 payload[1 /* or more */];
+	u8 payload[0];
 } __packed;
 
 struct htt_dbg_stats_rx_reorder_stats {

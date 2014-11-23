@@ -279,7 +279,7 @@ int em28xx_read_ac97(struct em28xx *dev, u8 reg)
 {
 	int ret;
 	u8 addr = (reg & 0x7f) | 0x80;
-	u16 val;
+	__le16 val;
 
 	ret = em28xx_is_ac97_ready(dev);
 	if (ret < 0)
@@ -433,7 +433,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	int ret, i;
 	u8 xclk;
 
-	if (!dev->audio_mode.has_audio)
+	if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE)
 		return 0;
 
 	/* It is assumed that all devices use master volume for output.
@@ -505,37 +505,48 @@ int em28xx_audio_setup(struct em28xx *dev)
 {
 	int vid1, vid2, feat, cfg;
 	u32 vid;
+	u8 i2s_samplerates;
 
-	if (!dev->audio_mode.has_audio)
+	if (dev->chip_id == CHIP_ID_EM2870 ||
+	    dev->chip_id == CHIP_ID_EM2874 ||
+	    dev->chip_id == CHIP_ID_EM28174 ||
+	    dev->chip_id == CHIP_ID_EM28178) {
+		/* Digital only device - don't load any alsa module */
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
+		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
 		return 0;
+	}
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
 	em28xx_info("Config register raw data: 0x%02x\n", cfg);
-	if (cfg < 0) {
-		/* Register read error?  */
-		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
+	if (cfg < 0) { /* Register read error */
+		/* Be conservative */
+		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
 		/* The device doesn't have vendor audio at all */
-		dev->has_alsa_audio = false;
-		dev->audio_mode.has_audio = false;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
+		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
 		return 0;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+		dev->int_audio_type = EM28XX_INT_AUDIO_I2S;
 		if (dev->chip_id < CHIP_ID_EM2860 &&
 	            (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
 		    EM2820_CHIPCFG_I2S_1_SAMPRATE)
-			dev->audio_mode.i2s_samplerates = 1;
+			i2s_samplerates = 1;
 		else if (dev->chip_id >= CHIP_ID_EM2860 &&
 			 (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
 			 EM2860_CHIPCFG_I2S_5_SAMPRATES)
-			dev->audio_mode.i2s_samplerates = 5;
+			i2s_samplerates = 5;
 		else
-			dev->audio_mode.i2s_samplerates = 3;
+			i2s_samplerates = 3;
 		em28xx_info("I2S Audio (%d sample rate(s))\n",
-					       dev->audio_mode.i2s_samplerates);
+					       i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
+	} else {
+		dev->int_audio_type = EM28XX_INT_AUDIO_AC97;
 	}
 
 	dev->audio_mode.ac97 = EM28XX_AC97_OTHER;
@@ -549,8 +560,9 @@ int em28xx_audio_setup(struct em28xx *dev)
 		 */
 		em28xx_warn("AC97 chip type couldn't be determined\n");
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
-		dev->has_alsa_audio = false;
-		dev->audio_mode.has_audio = false;
+		if (dev->usb_audio_type == EM28XX_USB_AUDIO_VENDOR)
+			dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
+		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
 		goto init_audio;
 	}
 
@@ -559,15 +571,12 @@ int em28xx_audio_setup(struct em28xx *dev)
 		goto init_audio;
 
 	vid = vid1 << 16 | vid2;
-
-	dev->audio_mode.ac97_vendor_id = vid;
 	em28xx_warn("AC97 vendor ID = 0x%08x\n", vid);
 
 	feat = em28xx_read_ac97(dev, AC97_RESET);
 	if (feat < 0)
 		goto init_audio;
 
-	dev->audio_mode.ac97_feat = feat;
 	em28xx_warn("AC97 features = 0x%04x\n", feat);
 
 	/* Try to identify what audio processor we have */
@@ -586,8 +595,8 @@ init_audio:
 		em28xx_info("Empia 202 AC97 audio processor detected\n");
 		break;
 	case EM28XX_AC97_SIGMATEL:
-		em28xx_info("Sigmatel audio processor detected(stac 97%02x)\n",
-			    dev->audio_mode.ac97_vendor_id & 0xff);
+		em28xx_info("Sigmatel audio processor detected (stac 97%02x)\n",
+			    vid & 0xff);
 		break;
 	case EM28XX_AC97_OTHER:
 		em28xx_warn("Unknown AC97 audio processor detected!\n");

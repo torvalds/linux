@@ -172,6 +172,15 @@ config XEN_PCIDEV_BACKEND
 
 	  If in doubt, say m.
 
+config XEN_SCSI_BACKEND
+	tristate "XEN SCSI backend driver"
+	depends on XEN && XEN_BACKEND && TARGET_CORE
+	help
+	  The SCSI backend driver allows the kernel to export its SCSI Devices
+	  to other guests via a high-performance shared-memory interface.
+	  Only needed for systems running as XEN driver domains (e.g. Dom0) and
+	  if guests need generic access to SCSI devices.
+
 config XEN_PRIVCMD
 	tristate
 	depends on XEN

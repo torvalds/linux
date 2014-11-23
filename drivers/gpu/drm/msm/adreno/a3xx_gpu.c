@@ -35,10 +35,8 @@
 	 A3XX_INT0_CP_AHB_ERROR_HALT |     \
 	 A3XX_INT0_UCHE_OOB_ACCESS)
 
+extern bool hang_debug;
 
-static bool hang_debug = false;
-MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
-module_param_named(hang_debug, hang_debug, bool, 0600);
 static void a3xx_dump(struct msm_gpu *gpu);
 
 static void a3xx_me_init(struct msm_gpu *gpu)
@@ -387,58 +385,26 @@ static const unsigned int a3xx_registers[] = {
 	0x2750, 0x2756, 0x2760, 0x2760, 0x300c, 0x300e, 0x301c, 0x301d,
 	0x302a, 0x302a, 0x302c, 0x302d, 0x3030, 0x3031, 0x3034, 0x3036,
 	0x303c, 0x303c, 0x305e, 0x305f,
+	~0   /* sentinel */
 };
 
 #ifdef CONFIG_DEBUG_FS
 static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
-	int i;
-
-	adreno_show(gpu, m);
-
 	gpu->funcs->pm_resume(gpu);
-
 	seq_printf(m, "status:   %08x\n",
 			gpu_read(gpu, REG_A3XX_RBBM_STATUS));
-
-	/* dump these out in a form that can be parsed by demsm: */
-	seq_printf(m, "IO:region %s 00000000 00020000\n", gpu->name);
-	for (i = 0; i < ARRAY_SIZE(a3xx_registers); i += 2) {
-		uint32_t start = a3xx_registers[i];
-		uint32_t end   = a3xx_registers[i+1];
-		uint32_t addr;
-
-		for (addr = start; addr <= end; addr++) {
-			uint32_t val = gpu_read(gpu, addr);
-			seq_printf(m, "IO:R %08x %08x\n", addr<<2, val);
-		}
-	}
-
 	gpu->funcs->pm_suspend(gpu);
+	adreno_show(gpu, m);
 }
 #endif
 
 /* would be nice to not have to duplicate the _show() stuff with printk(): */
 static void a3xx_dump(struct msm_gpu *gpu)
 {
-	int i;
-
-	adreno_dump(gpu);
 	printk("status:   %08x\n",
 			gpu_read(gpu, REG_A3XX_RBBM_STATUS));
-
-	/* dump these out in a form that can be parsed by demsm: */
-	printk("IO:region %s 00000000 00020000\n", gpu->name);
-	for (i = 0; i < ARRAY_SIZE(a3xx_registers); i += 2) {
-		uint32_t start = a3xx_registers[i];
-		uint32_t end   = a3xx_registers[i+1];
-		uint32_t addr;
-
-		for (addr = start; addr <= end; addr++) {
-			uint32_t val = gpu_read(gpu, addr);
-			printk("IO:R %08x %08x\n", addr<<2, val);
-		}
-	}
+	adreno_dump(gpu);
 }
 
 static const struct adreno_gpu_funcs funcs = {
@@ -474,7 +440,6 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 	struct msm_gpu *gpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
-	struct adreno_platform_config *config;
 	int ret;
 
 	if (!pdev) {
@@ -482,8 +447,6 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 		ret = -ENXIO;
 		goto fail;
 	}
-
-	config = pdev->dev.platform_data;
 
 	a3xx_gpu = kzalloc(sizeof(*a3xx_gpu), GFP_KERNEL);
 	if (!a3xx_gpu) {
@@ -496,20 +459,12 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 
 	a3xx_gpu->pdev = pdev;
 
-	gpu->fast_rate = config->fast_rate;
-	gpu->slow_rate = config->slow_rate;
-	gpu->bus_freq  = config->bus_freq;
-#ifdef CONFIG_MSM_BUS_SCALING
-	gpu->bus_scale_table = config->bus_scale_table;
-#endif
-
-	DBG("fast_rate=%u, slow_rate=%u, bus_freq=%u",
-			gpu->fast_rate, gpu->slow_rate, gpu->bus_freq);
-
 	gpu->perfcntrs = perfcntrs;
 	gpu->num_perfcntrs = ARRAY_SIZE(perfcntrs);
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, config->rev);
+	adreno_gpu->registers = a3xx_registers;
+
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs);
 	if (ret)
 		goto fail;
 
@@ -548,159 +503,4 @@ fail:
 		a3xx_destroy(&a3xx_gpu->base.base);
 
 	return ERR_PTR(ret);
-}
-
-/*
- * The a3xx device:
- */
-
-#if defined(CONFIG_MSM_BUS_SCALING) && !defined(CONFIG_OF)
-#  include <mach/kgsl.h>
-#endif
-
-static void set_gpu_pdev(struct drm_device *dev,
-		struct platform_device *pdev)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	priv->gpu_pdev = pdev;
-}
-
-static int a3xx_bind(struct device *dev, struct device *master, void *data)
-{
-	static struct adreno_platform_config config = {};
-#ifdef CONFIG_OF
-	struct device_node *child, *node = dev->of_node;
-	u32 val;
-	int ret;
-
-	ret = of_property_read_u32(node, "qcom,chipid", &val);
-	if (ret) {
-		dev_err(dev, "could not find chipid: %d\n", ret);
-		return ret;
-	}
-
-	config.rev = ADRENO_REV((val >> 24) & 0xff,
-			(val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
-
-	/* find clock rates: */
-	config.fast_rate = 0;
-	config.slow_rate = ~0;
-	for_each_child_of_node(node, child) {
-		if (of_device_is_compatible(child, "qcom,gpu-pwrlevels")) {
-			struct device_node *pwrlvl;
-			for_each_child_of_node(child, pwrlvl) {
-				ret = of_property_read_u32(pwrlvl, "qcom,gpu-freq", &val);
-				if (ret) {
-					dev_err(dev, "could not find gpu-freq: %d\n", ret);
-					return ret;
-				}
-				config.fast_rate = max(config.fast_rate, val);
-				config.slow_rate = min(config.slow_rate, val);
-			}
-		}
-	}
-
-	if (!config.fast_rate) {
-		dev_err(dev, "could not find clk rates\n");
-		return -ENXIO;
-	}
-
-#else
-	struct kgsl_device_platform_data *pdata = dev->platform_data;
-	uint32_t version = socinfo_get_version();
-	if (cpu_is_apq8064ab()) {
-		config.fast_rate = 450000000;
-		config.slow_rate = 27000000;
-		config.bus_freq  = 4;
-		config.rev = ADRENO_REV(3, 2, 1, 0);
-	} else if (cpu_is_apq8064()) {
-		config.fast_rate = 400000000;
-		config.slow_rate = 27000000;
-		config.bus_freq  = 4;
-
-		if (SOCINFO_VERSION_MAJOR(version) == 2)
-			config.rev = ADRENO_REV(3, 2, 0, 2);
-		else if ((SOCINFO_VERSION_MAJOR(version) == 1) &&
-				(SOCINFO_VERSION_MINOR(version) == 1))
-			config.rev = ADRENO_REV(3, 2, 0, 1);
-		else
-			config.rev = ADRENO_REV(3, 2, 0, 0);
-
-	} else if (cpu_is_msm8960ab()) {
-		config.fast_rate = 400000000;
-		config.slow_rate = 320000000;
-		config.bus_freq  = 4;
-
-		if (SOCINFO_VERSION_MINOR(version) == 0)
-			config.rev = ADRENO_REV(3, 2, 1, 0);
-		else
-			config.rev = ADRENO_REV(3, 2, 1, 1);
-
-	} else if (cpu_is_msm8930()) {
-		config.fast_rate = 400000000;
-		config.slow_rate = 27000000;
-		config.bus_freq  = 3;
-
-		if ((SOCINFO_VERSION_MAJOR(version) == 1) &&
-			(SOCINFO_VERSION_MINOR(version) == 2))
-			config.rev = ADRENO_REV(3, 0, 5, 2);
-		else
-			config.rev = ADRENO_REV(3, 0, 5, 0);
-
-	}
-#  ifdef CONFIG_MSM_BUS_SCALING
-	config.bus_scale_table = pdata->bus_scale_table;
-#  endif
-#endif
-	dev->platform_data = &config;
-	set_gpu_pdev(dev_get_drvdata(master), to_platform_device(dev));
-	return 0;
-}
-
-static void a3xx_unbind(struct device *dev, struct device *master,
-		void *data)
-{
-	set_gpu_pdev(dev_get_drvdata(master), NULL);
-}
-
-static const struct component_ops a3xx_ops = {
-		.bind   = a3xx_bind,
-		.unbind = a3xx_unbind,
-};
-
-static int a3xx_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &a3xx_ops);
-}
-
-static int a3xx_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &a3xx_ops);
-	return 0;
-}
-
-static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,adreno-3xx" },
-	/* for backwards compat w/ downstream kgsl DT files: */
-	{ .compatible = "qcom,kgsl-3d0" },
-	{}
-};
-
-static struct platform_driver a3xx_driver = {
-	.probe = a3xx_probe,
-	.remove = a3xx_remove,
-	.driver = {
-		.name = "kgsl-3d0",
-		.of_match_table = dt_match,
-	},
-};
-
-void __init a3xx_register(void)
-{
-	platform_driver_register(&a3xx_driver);
-}
-
-void __exit a3xx_unregister(void)
-{
-	platform_driver_unregister(&a3xx_driver);
 }

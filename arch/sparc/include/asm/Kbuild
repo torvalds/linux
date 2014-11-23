@@ -8,6 +8,7 @@ generic-y += emergency-restart.h
 generic-y += exec.h
 generic-y += hash.h
 generic-y += irq_regs.h
+generic-y += irq_work.h
 generic-y += linkage.h
 generic-y += local.h
 generic-y += local64.h

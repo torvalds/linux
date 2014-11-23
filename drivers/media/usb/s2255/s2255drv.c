@@ -2245,7 +2245,7 @@ static int s2255_probe(struct usb_interface *interface,
 	}
 
 	atomic_set(&dev->num_channels, 0);
-	dev->pid = le16_to_cpu(id->idProduct);
+	dev->pid = id->idProduct;
 	dev->fw_data = kzalloc(sizeof(struct s2255_fw), GFP_KERNEL);
 	if (!dev->fw_data)
 		goto errorFWDATA1;

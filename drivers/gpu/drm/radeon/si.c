@@ -4684,7 +4684,7 @@ static int si_vm_packet3_compute_check(struct radeon_device *rdev,
 int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	int ret = 0;
-	u32 idx = 0;
+	u32 idx = 0, i;
 	struct radeon_cs_packet pkt;
 
 	do {
@@ -4695,6 +4695,12 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 		switch (pkt.type) {
 		case RADEON_PACKET_TYPE0:
 			dev_err(rdev->dev, "Packet0 not allowed!\n");
+			for (i = 0; i < ib->length_dw; i++) {
+				if (i == idx)
+					printk("\t0x%08x <---\n", ib->ptr[i]);
+				else
+					printk("\t0x%08x\n", ib->ptr[i]);
+			}
 			ret = -EINVAL;
 			break;
 		case RADEON_PACKET_TYPE2:

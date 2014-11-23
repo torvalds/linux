@@ -139,6 +139,8 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			overlay->crtc_x, overlay->crtc_y,
 			overlay->crtc_width, overlay->crtc_height);
 
+	plane->crtc = crtc;
+
 	exynos_drm_crtc_plane_mode_set(crtc, overlay);
 
 	return 0;
@@ -186,8 +188,6 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 			src_w >> 16, src_h >> 16);
 	if (ret < 0)
 		return ret;
-
-	plane->crtc = crtc;
 
 	exynos_plane_commit(plane);
 	exynos_plane_dpms(plane, DRM_MODE_DPMS_ON);
@@ -254,25 +254,26 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane)
 }
 
 struct drm_plane *exynos_plane_init(struct drm_device *dev,
-				    unsigned long possible_crtcs, bool priv)
+				    unsigned long possible_crtcs,
+				    enum drm_plane_type type)
 {
 	struct exynos_plane *exynos_plane;
 	int err;
 
 	exynos_plane = kzalloc(sizeof(struct exynos_plane), GFP_KERNEL);
 	if (!exynos_plane)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	err = drm_plane_init(dev, &exynos_plane->base, possible_crtcs,
-			      &exynos_plane_funcs, formats, ARRAY_SIZE(formats),
-			      priv);
+	err = drm_universal_plane_init(dev, &exynos_plane->base, possible_crtcs,
+				       &exynos_plane_funcs, formats,
+				       ARRAY_SIZE(formats), type);
 	if (err) {
 		DRM_ERROR("failed to initialize plane\n");
 		kfree(exynos_plane);
-		return NULL;
+		return ERR_PTR(err);
 	}
 
-	if (priv)
+	if (type == DRM_PLANE_TYPE_PRIMARY)
 		exynos_plane->overlay.zpos = DEFAULT_ZPOS;
 	else
 		exynos_plane_attach_zpos_property(&exynos_plane->base);

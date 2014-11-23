@@ -76,6 +76,10 @@
 
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
+#define PCPU_ATOMIC_MAP_MARGIN_LOW	32
+#define PCPU_ATOMIC_MAP_MARGIN_HIGH	64
+#define PCPU_EMPTY_POP_PAGES_LOW	2
+#define PCPU_EMPTY_POP_PAGES_HIGH	4
 
 #ifdef CONFIG_SMP
 /* default addr <-> pcpu_ptr mapping, override in asm/percpu.h if necessary */
@@ -102,12 +106,16 @@ struct pcpu_chunk {
 	int			free_size;	/* free bytes in the chunk */
 	int			contig_hint;	/* max contiguous size hint */
 	void			*base_addr;	/* base address of this chunk */
+
 	int			map_used;	/* # of map entries used before the sentry */
 	int			map_alloc;	/* # of map entries allocated */
 	int			*map;		/* allocation map */
+	struct work_struct	map_extend_work;/* async ->map[] extension */
+
 	void			*data;		/* chunk data */
 	int			first_free;	/* no free below this */
 	bool			immutable;	/* no [de]population allowed */
+	int			nr_populated;	/* # of populated pages */
 	unsigned long		populated[];	/* populated bitmap */
 };
 
@@ -151,38 +159,33 @@ static struct pcpu_chunk *pcpu_first_chunk;
 static struct pcpu_chunk *pcpu_reserved_chunk;
 static int pcpu_reserved_chunk_limit;
 
-/*
- * Synchronization rules.
- *
- * There are two locks - pcpu_alloc_mutex and pcpu_lock.  The former
- * protects allocation/reclaim paths, chunks, populated bitmap and
- * vmalloc mapping.  The latter is a spinlock and protects the index
- * data structures - chunk slots, chunks and area maps in chunks.
- *
- * During allocation, pcpu_alloc_mutex is kept locked all the time and
- * pcpu_lock is grabbed and released as necessary.  All actual memory
- * allocations are done using GFP_KERNEL with pcpu_lock released.  In
- * general, percpu memory can't be allocated with irq off but
- * irqsave/restore are still used in alloc path so that it can be used
- * from early init path - sched_init() specifically.
- *
- * Free path accesses and alters only the index data structures, so it
- * can be safely called from atomic context.  When memory needs to be
- * returned to the system, free path schedules reclaim_work which
- * grabs both pcpu_alloc_mutex and pcpu_lock, unlinks chunks to be
- * reclaimed, release both locks and frees the chunks.  Note that it's
- * necessary to grab both locks to remove a chunk from circulation as
- * allocation path might be referencing the chunk with only
- * pcpu_alloc_mutex locked.
- */
-static DEFINE_MUTEX(pcpu_alloc_mutex);	/* protects whole alloc and reclaim */
-static DEFINE_SPINLOCK(pcpu_lock);	/* protects index data structures */
+static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
+static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop */
 
 static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
 
-/* reclaim work to release fully free chunks, scheduled from free path */
-static void pcpu_reclaim(struct work_struct *work);
-static DECLARE_WORK(pcpu_reclaim_work, pcpu_reclaim);
+/*
+ * The number of empty populated pages, protected by pcpu_lock.  The
+ * reserved chunk doesn't contribute to the count.
+ */
+static int pcpu_nr_empty_pop_pages;
+
+/*
+ * Balance work is used to populate or destroy chunks asynchronously.  We
+ * try to keep the number of populated free pages between
+ * PCPU_EMPTY_POP_PAGES_LOW and HIGH for atomic allocations and at most one
+ * empty chunk.
+ */
+static void pcpu_balance_workfn(struct work_struct *work);
+static DECLARE_WORK(pcpu_balance_work, pcpu_balance_workfn);
+static bool pcpu_async_enabled __read_mostly;
+static bool pcpu_atomic_alloc_failed;
+
+static void pcpu_schedule_balance_work(void)
+{
+	if (pcpu_async_enabled)
+		schedule_work(&pcpu_balance_work);
+}
 
 static bool pcpu_addr_in_first_chunk(void *addr)
 {
@@ -315,6 +318,38 @@ static void pcpu_mem_free(void *ptr, size_t size)
 }
 
 /**
+ * pcpu_count_occupied_pages - count the number of pages an area occupies
+ * @chunk: chunk of interest
+ * @i: index of the area in question
+ *
+ * Count the number of pages chunk's @i'th area occupies.  When the area's
+ * start and/or end address isn't aligned to page boundary, the straddled
+ * page is included in the count iff the rest of the page is free.
+ */
+static int pcpu_count_occupied_pages(struct pcpu_chunk *chunk, int i)
+{
+	int off = chunk->map[i] & ~1;
+	int end = chunk->map[i + 1] & ~1;
+
+	if (!PAGE_ALIGNED(off) && i > 0) {
+		int prev = chunk->map[i - 1];
+
+		if (!(prev & 1) && prev <= round_down(off, PAGE_SIZE))
+			off = round_down(off, PAGE_SIZE);
+	}
+
+	if (!PAGE_ALIGNED(end) && i + 1 < chunk->map_used) {
+		int next = chunk->map[i + 1];
+		int nend = chunk->map[i + 2] & ~1;
+
+		if (!(next & 1) && nend >= round_up(end, PAGE_SIZE))
+			end = round_up(end, PAGE_SIZE);
+	}
+
+	return max_t(int, PFN_DOWN(end) - PFN_UP(off), 0);
+}
+
+/**
  * pcpu_chunk_relocate - put chunk in the appropriate chunk slot
  * @chunk: chunk of interest
  * @oslot: the previous slot it was on
@@ -342,9 +377,14 @@ static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
 /**
  * pcpu_need_to_extend - determine whether chunk area map needs to be extended
  * @chunk: chunk of interest
+ * @is_atomic: the allocation context
  *
- * Determine whether area map of @chunk needs to be extended to
- * accommodate a new allocation.
+ * Determine whether area map of @chunk needs to be extended.  If
+ * @is_atomic, only the amount necessary for a new allocation is
+ * considered; however, async extension is scheduled if the left amount is
+ * low.  If !@is_atomic, it aims for more empty space.  Combined, this
+ * ensures that the map is likely to have enough available space to
+ * accomodate atomic allocations which can't extend maps directly.
  *
  * CONTEXT:
  * pcpu_lock.
@@ -353,15 +393,26 @@ static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
  * New target map allocation length if extension is necessary, 0
  * otherwise.
  */
-static int pcpu_need_to_extend(struct pcpu_chunk *chunk)
+static int pcpu_need_to_extend(struct pcpu_chunk *chunk, bool is_atomic)
 {
-	int new_alloc;
+	int margin, new_alloc;
 
-	if (chunk->map_alloc >= chunk->map_used + 3)
+	if (is_atomic) {
+		margin = 3;
+
+		if (chunk->map_alloc <
+		    chunk->map_used + PCPU_ATOMIC_MAP_MARGIN_LOW &&
+		    pcpu_async_enabled)
+			schedule_work(&chunk->map_extend_work);
+	} else {
+		margin = PCPU_ATOMIC_MAP_MARGIN_HIGH;
+	}
+
+	if (chunk->map_alloc >= chunk->map_used + margin)
 		return 0;
 
 	new_alloc = PCPU_DFL_MAP_ALLOC;
-	while (new_alloc < chunk->map_used + 3)
+	while (new_alloc < chunk->map_used + margin)
 		new_alloc *= 2;
 
 	return new_alloc;
@@ -418,11 +469,76 @@ out_unlock:
 	return 0;
 }
 
+static void pcpu_map_extend_workfn(struct work_struct *work)
+{
+	struct pcpu_chunk *chunk = container_of(work, struct pcpu_chunk,
+						map_extend_work);
+	int new_alloc;
+
+	spin_lock_irq(&pcpu_lock);
+	new_alloc = pcpu_need_to_extend(chunk, false);
+	spin_unlock_irq(&pcpu_lock);
+
+	if (new_alloc)
+		pcpu_extend_area_map(chunk, new_alloc);
+}
+
+/**
+ * pcpu_fit_in_area - try to fit the requested allocation in a candidate area
+ * @chunk: chunk the candidate area belongs to
+ * @off: the offset to the start of the candidate area
+ * @this_size: the size of the candidate area
+ * @size: the size of the target allocation
+ * @align: the alignment of the target allocation
+ * @pop_only: only allocate from already populated region
+ *
+ * We're trying to allocate @size bytes aligned at @align.  @chunk's area
+ * at @off sized @this_size is a candidate.  This function determines
+ * whether the target allocation fits in the candidate area and returns the
+ * number of bytes to pad after @off.  If the target area doesn't fit, -1
+ * is returned.
+ *
+ * If @pop_only is %true, this function only considers the already
+ * populated part of the candidate area.
+ */
+static int pcpu_fit_in_area(struct pcpu_chunk *chunk, int off, int this_size,
+			    int size, int align, bool pop_only)
+{
+	int cand_off = off;
+
+	while (true) {
+		int head = ALIGN(cand_off, align) - off;
+		int page_start, page_end, rs, re;
+
+		if (this_size < head + size)
+			return -1;
+
+		if (!pop_only)
+			return head;
+
+		/*
+		 * If the first unpopulated page is beyond the end of the
+		 * allocation, the whole allocation is populated;
+		 * otherwise, retry from the end of the unpopulated area.
+		 */
+		page_start = PFN_DOWN(head + off);
+		page_end = PFN_UP(head + off + size);
+
+		rs = page_start;
+		pcpu_next_unpop(chunk, &rs, &re, PFN_UP(off + this_size));
+		if (rs >= page_end)
+			return head;
+		cand_off = re * PAGE_SIZE;
+	}
+}
+
 /**
  * pcpu_alloc_area - allocate area from a pcpu_chunk
  * @chunk: chunk of interest
  * @size: wanted size in bytes
  * @align: wanted align
+ * @pop_only: allocate only from the populated area
+ * @occ_pages_p: out param for the number of pages the area occupies
  *
  * Try to allocate @size bytes area aligned at @align from @chunk.
  * Note that this function only allocates the offset.  It doesn't
@@ -437,7 +553,8 @@ out_unlock:
  * Allocated offset in @chunk on success, -1 if no matching area is
  * found.
  */
-static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
+static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align,
+			   bool pop_only, int *occ_pages_p)
 {
 	int oslot = pcpu_chunk_slot(chunk);
 	int max_contig = 0;
@@ -453,11 +570,11 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
 		if (off & 1)
 			continue;
 
-		/* extra for alignment requirement */
-		head = ALIGN(off, align) - off;
-
 		this_size = (p[1] & ~1) - off;
-		if (this_size < head + size) {
+
+		head = pcpu_fit_in_area(chunk, off, this_size, size, align,
+					pop_only);
+		if (head < 0) {
 			if (!seen_free) {
 				chunk->first_free = i;
 				seen_free = true;
@@ -526,6 +643,7 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
 		chunk->free_size -= size;
 		*p |= 1;
 
+		*occ_pages_p = pcpu_count_occupied_pages(chunk, i);
 		pcpu_chunk_relocate(chunk, oslot);
 		return off;
 	}
@@ -541,6 +659,7 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
  * pcpu_free_area - free area to a pcpu_chunk
  * @chunk: chunk of interest
  * @freeme: offset of area to free
+ * @occ_pages_p: out param for the number of pages the area occupies
  *
  * Free area starting from @freeme to @chunk.  Note that this function
  * only modifies the allocation map.  It doesn't depopulate or unmap
@@ -549,7 +668,8 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int size, int align)
  * CONTEXT:
  * pcpu_lock.
  */
-static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
+static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
+			   int *occ_pages_p)
 {
 	int oslot = pcpu_chunk_slot(chunk);
 	int off = 0;
@@ -579,6 +699,8 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
 	p = chunk->map + i;
 	*p = off &= ~1;
 	chunk->free_size += (p[1] & ~1) - off;
+
+	*occ_pages_p = pcpu_count_occupied_pages(chunk, i);
 
 	/* merge with next? */
 	if (!(p[1] & 1))
@@ -620,6 +742,7 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
 	chunk->map_used = 1;
 
 	INIT_LIST_HEAD(&chunk->list);
+	INIT_WORK(&chunk->map_extend_work, pcpu_map_extend_workfn);
 	chunk->free_size = pcpu_unit_size;
 	chunk->contig_hint = pcpu_unit_size;
 
@@ -632,6 +755,50 @@ static void pcpu_free_chunk(struct pcpu_chunk *chunk)
 		return;
 	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
 	pcpu_mem_free(chunk, pcpu_chunk_struct_size);
+}
+
+/**
+ * pcpu_chunk_populated - post-population bookkeeping
+ * @chunk: pcpu_chunk which got populated
+ * @page_start: the start page
+ * @page_end: the end page
+ *
+ * Pages in [@page_start,@page_end) have been populated to @chunk.  Update
+ * the bookkeeping information accordingly.  Must be called after each
+ * successful population.
+ */
+static void pcpu_chunk_populated(struct pcpu_chunk *chunk,
+				 int page_start, int page_end)
+{
+	int nr = page_end - page_start;
+
+	lockdep_assert_held(&pcpu_lock);
+
+	bitmap_set(chunk->populated, page_start, nr);
+	chunk->nr_populated += nr;
+	pcpu_nr_empty_pop_pages += nr;
+}
+
+/**
+ * pcpu_chunk_depopulated - post-depopulation bookkeeping
+ * @chunk: pcpu_chunk which got depopulated
+ * @page_start: the start page
+ * @page_end: the end page
+ *
+ * Pages in [@page_start,@page_end) have been depopulated from @chunk.
+ * Update the bookkeeping information accordingly.  Must be called after
+ * each successful depopulation.
+ */
+static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
+				   int page_start, int page_end)
+{
+	int nr = page_end - page_start;
+
+	lockdep_assert_held(&pcpu_lock);
+
+	bitmap_clear(chunk->populated, page_start, nr);
+	chunk->nr_populated -= nr;
+	pcpu_nr_empty_pop_pages -= nr;
 }
 
 /*
@@ -695,21 +862,23 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
  * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
  * @reserved: allocate from the reserved chunk if available
+ * @gfp: allocation flags
  *
- * Allocate percpu area of @size bytes aligned at @align.
- *
- * CONTEXT:
- * Does GFP_KERNEL allocation.
+ * Allocate percpu area of @size bytes aligned at @align.  If @gfp doesn't
+ * contain %GFP_KERNEL, the allocation is atomic.
  *
  * RETURNS:
  * Percpu pointer to the allocated area on success, NULL on failure.
  */
-static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+				 gfp_t gfp)
 {
 	static int warn_limit = 10;
 	struct pcpu_chunk *chunk;
 	const char *err;
-	int slot, off, new_alloc;
+	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
+	int occ_pages = 0;
+	int slot, off, new_alloc, cpu, ret;
 	unsigned long flags;
 	void __percpu *ptr;
 
@@ -728,7 +897,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 		return NULL;
 	}
 
-	mutex_lock(&pcpu_alloc_mutex);
 	spin_lock_irqsave(&pcpu_lock, flags);
 
 	/* serve reserved allocations from the reserved chunk if available */
@@ -740,16 +908,18 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 			goto fail_unlock;
 		}
 
-		while ((new_alloc = pcpu_need_to_extend(chunk))) {
+		while ((new_alloc = pcpu_need_to_extend(chunk, is_atomic))) {
 			spin_unlock_irqrestore(&pcpu_lock, flags);
-			if (pcpu_extend_area_map(chunk, new_alloc) < 0) {
+			if (is_atomic ||
+			    pcpu_extend_area_map(chunk, new_alloc) < 0) {
 				err = "failed to extend area map of reserved chunk";
-				goto fail_unlock_mutex;
+				goto fail;
 			}
 			spin_lock_irqsave(&pcpu_lock, flags);
 		}
 
-		off = pcpu_alloc_area(chunk, size, align);
+		off = pcpu_alloc_area(chunk, size, align, is_atomic,
+				      &occ_pages);
 		if (off >= 0)
 			goto area_found;
 
@@ -764,13 +934,15 @@ restart:
 			if (size > chunk->contig_hint)
 				continue;
 
-			new_alloc = pcpu_need_to_extend(chunk);
+			new_alloc = pcpu_need_to_extend(chunk, is_atomic);
 			if (new_alloc) {
+				if (is_atomic)
+					continue;
 				spin_unlock_irqrestore(&pcpu_lock, flags);
 				if (pcpu_extend_area_map(chunk,
 							 new_alloc) < 0) {
 					err = "failed to extend area map";
-					goto fail_unlock_mutex;
+					goto fail;
 				}
 				spin_lock_irqsave(&pcpu_lock, flags);
 				/*
@@ -780,74 +952,134 @@ restart:
 				goto restart;
 			}
 
-			off = pcpu_alloc_area(chunk, size, align);
+			off = pcpu_alloc_area(chunk, size, align, is_atomic,
+					      &occ_pages);
 			if (off >= 0)
 				goto area_found;
 		}
 	}
 
-	/* hmmm... no space left, create a new chunk */
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	chunk = pcpu_create_chunk();
-	if (!chunk) {
-		err = "failed to allocate new chunk";
-		goto fail_unlock_mutex;
+	/*
+	 * No space left.  Create a new chunk.  We don't want multiple
+	 * tasks to create chunks simultaneously.  Serialize and create iff
+	 * there's still no empty chunk after grabbing the mutex.
+	 */
+	if (is_atomic)
+		goto fail;
+
+	mutex_lock(&pcpu_alloc_mutex);
+
+	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
+		chunk = pcpu_create_chunk();
+		if (!chunk) {
+			mutex_unlock(&pcpu_alloc_mutex);
+			err = "failed to allocate new chunk";
+			goto fail;
+		}
+
+		spin_lock_irqsave(&pcpu_lock, flags);
+		pcpu_chunk_relocate(chunk, -1);
+	} else {
+		spin_lock_irqsave(&pcpu_lock, flags);
 	}
 
-	spin_lock_irqsave(&pcpu_lock, flags);
-	pcpu_chunk_relocate(chunk, -1);
+	mutex_unlock(&pcpu_alloc_mutex);
 	goto restart;
 
 area_found:
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	/* populate, map and clear the area */
-	if (pcpu_populate_chunk(chunk, off, size)) {
-		spin_lock_irqsave(&pcpu_lock, flags);
-		pcpu_free_area(chunk, off);
-		err = "failed to populate";
-		goto fail_unlock;
+	/* populate if not all pages are already there */
+	if (!is_atomic) {
+		int page_start, page_end, rs, re;
+
+		mutex_lock(&pcpu_alloc_mutex);
+
+		page_start = PFN_DOWN(off);
+		page_end = PFN_UP(off + size);
+
+		pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
+			WARN_ON(chunk->immutable);
+
+			ret = pcpu_populate_chunk(chunk, rs, re);
+
+			spin_lock_irqsave(&pcpu_lock, flags);
+			if (ret) {
+				mutex_unlock(&pcpu_alloc_mutex);
+				pcpu_free_area(chunk, off, &occ_pages);
+				err = "failed to populate";
+				goto fail_unlock;
+			}
+			pcpu_chunk_populated(chunk, rs, re);
+			spin_unlock_irqrestore(&pcpu_lock, flags);
+		}
+
+		mutex_unlock(&pcpu_alloc_mutex);
 	}
 
-	mutex_unlock(&pcpu_alloc_mutex);
+	if (chunk != pcpu_reserved_chunk)
+		pcpu_nr_empty_pop_pages -= occ_pages;
 
-	/* return address relative to base address */
+	if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_LOW)
+		pcpu_schedule_balance_work();
+
+	/* clear the areas and return address relative to base address */
+	for_each_possible_cpu(cpu)
+		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
+
 	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
 	kmemleak_alloc_percpu(ptr, size);
 	return ptr;
 
 fail_unlock:
 	spin_unlock_irqrestore(&pcpu_lock, flags);
-fail_unlock_mutex:
-	mutex_unlock(&pcpu_alloc_mutex);
-	if (warn_limit) {
-		pr_warning("PERCPU: allocation failed, size=%zu align=%zu, "
-			   "%s\n", size, align, err);
+fail:
+	if (!is_atomic && warn_limit) {
+		pr_warning("PERCPU: allocation failed, size=%zu align=%zu atomic=%d, %s\n",
+			   size, align, is_atomic, err);
 		dump_stack();
 		if (!--warn_limit)
 			pr_info("PERCPU: limit reached, disable warning\n");
 	}
+	if (is_atomic) {
+		/* see the flag handling in pcpu_blance_workfn() */
+		pcpu_atomic_alloc_failed = true;
+		pcpu_schedule_balance_work();
+	}
 	return NULL;
 }
+
+/**
+ * __alloc_percpu_gfp - allocate dynamic percpu area
+ * @size: size of area to allocate in bytes
+ * @align: alignment of area (max PAGE_SIZE)
+ * @gfp: allocation flags
+ *
+ * Allocate zero-filled percpu area of @size bytes aligned at @align.  If
+ * @gfp doesn't contain %GFP_KERNEL, the allocation doesn't block and can
+ * be called from any context but is a lot more likely to fail.
+ *
+ * RETURNS:
+ * Percpu pointer to the allocated area on success, NULL on failure.
+ */
+void __percpu *__alloc_percpu_gfp(size_t size, size_t align, gfp_t gfp)
+{
+	return pcpu_alloc(size, align, false, gfp);
+}
+EXPORT_SYMBOL_GPL(__alloc_percpu_gfp);
 
 /**
  * __alloc_percpu - allocate dynamic percpu area
  * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
  *
- * Allocate zero-filled percpu area of @size bytes aligned at @align.
- * Might sleep.  Might trigger writeouts.
- *
- * CONTEXT:
- * Does GFP_KERNEL allocation.
- *
- * RETURNS:
- * Percpu pointer to the allocated area on success, NULL on failure.
+ * Equivalent to __alloc_percpu_gfp(size, align, %GFP_KERNEL).
  */
 void __percpu *__alloc_percpu(size_t size, size_t align)
 {
-	return pcpu_alloc(size, align, false);
+	return pcpu_alloc(size, align, false, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(__alloc_percpu);
 
@@ -869,42 +1101,119 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
  */
 void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
 {
-	return pcpu_alloc(size, align, true);
+	return pcpu_alloc(size, align, true, GFP_KERNEL);
 }
 
 /**
- * pcpu_reclaim - reclaim fully free chunks, workqueue function
+ * pcpu_balance_workfn - manage the amount of free chunks and populated pages
  * @work: unused
  *
  * Reclaim all fully free chunks except for the first one.
- *
- * CONTEXT:
- * workqueue context.
  */
-static void pcpu_reclaim(struct work_struct *work)
+static void pcpu_balance_workfn(struct work_struct *work)
 {
-	LIST_HEAD(todo);
-	struct list_head *head = &pcpu_slot[pcpu_nr_slots - 1];
+	LIST_HEAD(to_free);
+	struct list_head *free_head = &pcpu_slot[pcpu_nr_slots - 1];
 	struct pcpu_chunk *chunk, *next;
+	int slot, nr_to_pop, ret;
 
+	/*
+	 * There's no reason to keep around multiple unused chunks and VM
+	 * areas can be scarce.  Destroy all free chunks except for one.
+	 */
 	mutex_lock(&pcpu_alloc_mutex);
 	spin_lock_irq(&pcpu_lock);
 
-	list_for_each_entry_safe(chunk, next, head, list) {
+	list_for_each_entry_safe(chunk, next, free_head, list) {
 		WARN_ON(chunk->immutable);
 
 		/* spare the first one */
-		if (chunk == list_first_entry(head, struct pcpu_chunk, list))
+		if (chunk == list_first_entry(free_head, struct pcpu_chunk, list))
 			continue;
 
-		list_move(&chunk->list, &todo);
+		list_move(&chunk->list, &to_free);
 	}
 
 	spin_unlock_irq(&pcpu_lock);
 
-	list_for_each_entry_safe(chunk, next, &todo, list) {
-		pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size);
+	list_for_each_entry_safe(chunk, next, &to_free, list) {
+		int rs, re;
+
+		pcpu_for_each_pop_region(chunk, rs, re, 0, pcpu_unit_pages) {
+			pcpu_depopulate_chunk(chunk, rs, re);
+			spin_lock_irq(&pcpu_lock);
+			pcpu_chunk_depopulated(chunk, rs, re);
+			spin_unlock_irq(&pcpu_lock);
+		}
 		pcpu_destroy_chunk(chunk);
+	}
+
+	/*
+	 * Ensure there are certain number of free populated pages for
+	 * atomic allocs.  Fill up from the most packed so that atomic
+	 * allocs don't increase fragmentation.  If atomic allocation
+	 * failed previously, always populate the maximum amount.  This
+	 * should prevent atomic allocs larger than PAGE_SIZE from keeping
+	 * failing indefinitely; however, large atomic allocs are not
+	 * something we support properly and can be highly unreliable and
+	 * inefficient.
+	 */
+retry_pop:
+	if (pcpu_atomic_alloc_failed) {
+		nr_to_pop = PCPU_EMPTY_POP_PAGES_HIGH;
+		/* best effort anyway, don't worry about synchronization */
+		pcpu_atomic_alloc_failed = false;
+	} else {
+		nr_to_pop = clamp(PCPU_EMPTY_POP_PAGES_HIGH -
+				  pcpu_nr_empty_pop_pages,
+				  0, PCPU_EMPTY_POP_PAGES_HIGH);
+	}
+
+	for (slot = pcpu_size_to_slot(PAGE_SIZE); slot < pcpu_nr_slots; slot++) {
+		int nr_unpop = 0, rs, re;
+
+		if (!nr_to_pop)
+			break;
+
+		spin_lock_irq(&pcpu_lock);
+		list_for_each_entry(chunk, &pcpu_slot[slot], list) {
+			nr_unpop = pcpu_unit_pages - chunk->nr_populated;
+			if (nr_unpop)
+				break;
+		}
+		spin_unlock_irq(&pcpu_lock);
+
+		if (!nr_unpop)
+			continue;
+
+		/* @chunk can't go away while pcpu_alloc_mutex is held */
+		pcpu_for_each_unpop_region(chunk, rs, re, 0, pcpu_unit_pages) {
+			int nr = min(re - rs, nr_to_pop);
+
+			ret = pcpu_populate_chunk(chunk, rs, rs + nr);
+			if (!ret) {
+				nr_to_pop -= nr;
+				spin_lock_irq(&pcpu_lock);
+				pcpu_chunk_populated(chunk, rs, rs + nr);
+				spin_unlock_irq(&pcpu_lock);
+			} else {
+				nr_to_pop = 0;
+			}
+
+			if (!nr_to_pop)
+				break;
+		}
+	}
+
+	if (nr_to_pop) {
+		/* ran out of chunks to populate, create a new one and retry */
+		chunk = pcpu_create_chunk();
+		if (chunk) {
+			spin_lock_irq(&pcpu_lock);
+			pcpu_chunk_relocate(chunk, -1);
+			spin_unlock_irq(&pcpu_lock);
+			goto retry_pop;
+		}
 	}
 
 	mutex_unlock(&pcpu_alloc_mutex);
@@ -924,7 +1233,7 @@ void free_percpu(void __percpu *ptr)
 	void *addr;
 	struct pcpu_chunk *chunk;
 	unsigned long flags;
-	int off;
+	int off, occ_pages;
 
 	if (!ptr)
 		return;
@@ -938,7 +1247,10 @@ void free_percpu(void __percpu *ptr)
 	chunk = pcpu_chunk_addr_search(addr);
 	off = addr - chunk->base_addr;
 
-	pcpu_free_area(chunk, off);
+	pcpu_free_area(chunk, off, &occ_pages);
+
+	if (chunk != pcpu_reserved_chunk)
+		pcpu_nr_empty_pop_pages += occ_pages;
 
 	/* if there are more than one fully free chunks, wake up grim reaper */
 	if (chunk->free_size == pcpu_unit_size) {
@@ -946,7 +1258,7 @@ void free_percpu(void __percpu *ptr)
 
 		list_for_each_entry(pos, &pcpu_slot[pcpu_nr_slots - 1], list)
 			if (pos != chunk) {
-				schedule_work(&pcpu_reclaim_work);
+				pcpu_schedule_balance_work();
 				break;
 			}
 	}
@@ -1336,11 +1648,13 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	 */
 	schunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
 	INIT_LIST_HEAD(&schunk->list);
+	INIT_WORK(&schunk->map_extend_work, pcpu_map_extend_workfn);
 	schunk->base_addr = base_addr;
 	schunk->map = smap;
 	schunk->map_alloc = ARRAY_SIZE(smap);
 	schunk->immutable = true;
 	bitmap_fill(schunk->populated, pcpu_unit_pages);
+	schunk->nr_populated = pcpu_unit_pages;
 
 	if (ai->reserved_size) {
 		schunk->free_size = ai->reserved_size;
@@ -1364,11 +1678,13 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	if (dyn_size) {
 		dchunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
 		INIT_LIST_HEAD(&dchunk->list);
+		INIT_WORK(&dchunk->map_extend_work, pcpu_map_extend_workfn);
 		dchunk->base_addr = base_addr;
 		dchunk->map = dmap;
 		dchunk->map_alloc = ARRAY_SIZE(dmap);
 		dchunk->immutable = true;
 		bitmap_fill(dchunk->populated, pcpu_unit_pages);
+		dchunk->nr_populated = pcpu_unit_pages;
 
 		dchunk->contig_hint = dchunk->free_size = dyn_size;
 		dchunk->map[0] = 1;
@@ -1379,6 +1695,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/* link the first chunk in */
 	pcpu_first_chunk = dchunk ?: schunk;
+	pcpu_nr_empty_pop_pages +=
+		pcpu_count_occupied_pages(pcpu_first_chunk, 1);
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
 
 	/* we're done */
@@ -1932,8 +2250,6 @@ void __init setup_per_cpu_areas(void)
 
 	if (pcpu_setup_first_chunk(ai, fc) < 0)
 		panic("Failed to initialize percpu areas.");
-
-	pcpu_free_alloc_info(ai);
 }
 
 #endif	/* CONFIG_SMP */
@@ -1967,3 +2283,15 @@ void __init percpu_init_late(void)
 		spin_unlock_irqrestore(&pcpu_lock, flags);
 	}
 }
+
+/*
+ * Percpu allocator is initialized early during boot when neither slab or
+ * workqueue is available.  Plug async management until everything is up
+ * and running.
+ */
+static int __init percpu_enable_async(void)
+{
+	pcpu_async_enabled = true;
+	return 0;
+}
+subsys_initcall(percpu_enable_async);

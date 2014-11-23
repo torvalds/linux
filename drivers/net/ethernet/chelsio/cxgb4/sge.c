@@ -1123,7 +1123,10 @@ out_free:	dev_kfree_skb_any(skb);
 		lso->c.ipid_ofst = htons(0);
 		lso->c.mss = htons(ssi->gso_size);
 		lso->c.seqno_offset = htonl(0);
-		lso->c.len = htonl(skb->len);
+		if (is_t4(adap->params.chip))
+			lso->c.len = htonl(skb->len);
+		else
+			lso->c.len = htonl(LSO_T5_XFER_SIZE(skb->len));
 		cpl = (void *)(lso + 1);
 		cntrl = TXPKT_CSUM_TYPE(v6 ? TX_CSUM_TCPIP6 : TX_CSUM_TCPIP) |
 			TXPKT_IPHDR_LEN(l3hdr_len) |

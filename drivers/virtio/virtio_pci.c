@@ -57,9 +57,6 @@ struct virtio_pci_device
 	/* Vectors allocated, excluding per-vq vectors if any */
 	unsigned msix_used_vectors;
 
-	/* Status saved during hibernate/restore */
-	u8 saved_status;
-
 	/* Whether we have vector per vq */
 	bool per_vq_vectors;
 };
@@ -211,12 +208,8 @@ static bool vp_notify(struct virtqueue *vq)
 static irqreturn_t vp_config_changed(int irq, void *opaque)
 {
 	struct virtio_pci_device *vp_dev = opaque;
-	struct virtio_driver *drv;
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
 
-	if (drv && drv->config_changed)
-		drv->config_changed(&vp_dev->vdev);
+	virtio_config_changed(&vp_dev->vdev);
 	return IRQ_HANDLED;
 }
 
@@ -768,16 +761,9 @@ static int virtio_pci_freeze(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
-	struct virtio_driver *drv;
 	int ret;
 
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
-
-	ret = 0;
-	vp_dev->saved_status = vp_get_status(&vp_dev->vdev);
-	if (drv && drv->freeze)
-		ret = drv->freeze(&vp_dev->vdev);
+	ret = virtio_device_freeze(&vp_dev->vdev);
 
 	if (!ret)
 		pci_disable_device(pci_dev);
@@ -788,27 +774,14 @@ static int virtio_pci_restore(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
-	struct virtio_driver *drv;
 	int ret;
-
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
 
 	ret = pci_enable_device(pci_dev);
 	if (ret)
 		return ret;
 
 	pci_set_master(pci_dev);
-	vp_finalize_features(&vp_dev->vdev);
-
-	if (drv && drv->restore)
-		ret = drv->restore(&vp_dev->vdev);
-
-	/* Finally, tell the device we're all set */
-	if (!ret)
-		vp_set_status(&vp_dev->vdev, vp_dev->saved_status);
-
-	return ret;
+	return virtio_device_restore(&vp_dev->vdev);
 }
 
 static const struct dev_pm_ops virtio_pci_pm_ops = {

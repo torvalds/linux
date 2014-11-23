@@ -240,7 +240,6 @@ struct exynos_drm_g2d_private {
 struct drm_exynos_file_private {
 	struct exynos_drm_g2d_private	*g2d_priv;
 	struct device			*ipp_dev;
-	struct file			*anon_filp;
 };
 
 /*

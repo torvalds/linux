@@ -75,86 +75,6 @@ static struct attribute_group format_group = {
 
 static struct kmem_cache *hv_page_cache;
 
-/*
- * read_offset_data - copy data from one buffer to another while treating the
- *                    source buffer as a small view on the total avaliable
- *                    source data.
- *
- * @dest: buffer to copy into
- * @dest_len: length of @dest in bytes
- * @requested_offset: the offset within the source data we want. Must be > 0
- * @src: buffer to copy data from
- * @src_len: length of @src in bytes
- * @source_offset: the offset in the sorce data that (src,src_len) refers to.
- *                 Must be > 0
- *
- * returns the number of bytes copied.
- *
- * The following ascii art shows the various buffer possitioning we need to
- * handle, assigns some arbitrary varibles to points on the buffer, and then
- * shows how we fiddle with those values to get things we care about (copy
- * start in src and copy len)
- *
- * s = @src buffer
- * d = @dest buffer
- * '.' areas in d are written to.
- *
- *                       u
- *   x         w	 v  z
- * d           |.........|
- * s |----------------------|
- *
- *                      u
- *   x         w	z     v
- * d           |........------|
- * s |------------------|
- *
- *   x         w        u,z,v
- * d           |........|
- * s |------------------|
- *
- *   x,w                u,v,z
- * d |..................|
- * s |------------------|
- *
- *   x        u
- *   w        v		z
- * d |........|
- * s |------------------|
- *
- *   x      z   w      v
- * d            |------|
- * s |------|
- *
- * x = source_offset
- * w = requested_offset
- * z = source_offset + src_len
- * v = requested_offset + dest_len
- *
- * w_offset_in_s = w - x = requested_offset - source_offset
- * z_offset_in_s = z - x = src_len
- * v_offset_in_s = v - x = request_offset + dest_len - src_len
- */
-static ssize_t read_offset_data(void *dest, size_t dest_len,
-				loff_t requested_offset, void *src,
-				size_t src_len, loff_t source_offset)
-{
-	size_t w_offset_in_s = requested_offset - source_offset;
-	size_t z_offset_in_s = src_len;
-	size_t v_offset_in_s = requested_offset + dest_len - src_len;
-	size_t u_offset_in_s = min(z_offset_in_s, v_offset_in_s);
-	size_t copy_len = u_offset_in_s - w_offset_in_s;
-
-	if (requested_offset < 0 || source_offset < 0)
-		return -EINVAL;
-
-	if (z_offset_in_s <= w_offset_in_s)
-		return 0;
-
-	memcpy(dest, src + w_offset_in_s, copy_len);
-	return copy_len;
-}
-
 static unsigned long h_get_24x7_catalog_page_(unsigned long phys_4096,
 					      unsigned long version,
 					      unsigned long index)
@@ -183,8 +103,10 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 {
 	unsigned long hret;
 	ssize_t ret = 0;
-	size_t catalog_len = 0, catalog_page_len = 0, page_count = 0;
+	size_t catalog_len = 0, catalog_page_len = 0;
 	loff_t page_offset = 0;
+	loff_t offset_in_page;
+	size_t copy_len;
 	uint64_t catalog_version_num = 0;
 	void *page = kmem_cache_alloc(hv_page_cache, GFP_USER);
 	struct hv_24x7_catalog_page_0 *page_0 = page;
@@ -202,7 +124,7 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 	catalog_len = catalog_page_len * 4096;
 
 	page_offset = offset / 4096;
-	page_count  = count  / 4096;
+	offset_in_page = offset % 4096;
 
 	if (page_offset >= catalog_page_len)
 		goto e_free;
@@ -216,8 +138,13 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 		}
 	}
 
-	ret = read_offset_data(buf, count, offset,
-				page, 4096, page_offset * 4096);
+	copy_len = 4096 - offset_in_page;
+	if (copy_len > count)
+		copy_len = count;
+
+	memcpy(buf, page+offset_in_page, copy_len);
+	ret = copy_len;
+
 e_free:
 	if (hret)
 		pr_err("h_get_24x7_catalog_page(ver=%lld, page=%lld) failed:"
@@ -225,9 +152,9 @@ e_free:
 		       catalog_version_num, page_offset, hret);
 	kmem_cache_free(hv_page_cache, page);
 
-	pr_devel("catalog_read: offset=%lld(%lld) count=%zu(%zu) catalog_len=%zu(%zu) => %zd\n",
-			offset, page_offset, count, page_count, catalog_len,
-			catalog_page_len, ret);
+	pr_devel("catalog_read: offset=%lld(%lld) count=%zu "
+			"catalog_len=%zu(%zu) => %zd\n", offset, page_offset,
+			count, catalog_len, catalog_page_len, ret);
 
 	return ret;
 }
@@ -294,7 +221,7 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 					 u16 lpar, u64 *res,
 					 bool success_expected)
 {
-	unsigned long ret;
+	unsigned long ret = -ENOMEM;
 
 	/*
 	 * request_buffer and result_buffer are not required to be 4k aligned,
@@ -304,7 +231,27 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 	struct reqb {
 		struct hv_24x7_request_buffer buf;
 		struct hv_24x7_request req;
-	} __packed __aligned(4096) request_buffer = {
+	} __packed *request_buffer;
+
+	struct {
+		struct hv_24x7_data_result_buffer buf;
+		struct hv_24x7_result res;
+		struct hv_24x7_result_element elem;
+		__be64 result;
+	} __packed *result_buffer;
+
+	BUILD_BUG_ON(sizeof(*request_buffer) > 4096);
+	BUILD_BUG_ON(sizeof(*result_buffer) > 4096);
+
+	request_buffer = kmem_cache_zalloc(hv_page_cache, GFP_USER);
+	if (!request_buffer)
+		goto out;
+
+	result_buffer = kmem_cache_zalloc(hv_page_cache, GFP_USER);
+	if (!result_buffer)
+		goto out_free_request_buffer;
+
+	*request_buffer = (struct reqb) {
 		.buf = {
 			.interface_version = HV_24X7_IF_VERSION_CURRENT,
 			.num_requests = 1,
@@ -320,28 +267,27 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 		}
 	};
 
-	struct resb {
-		struct hv_24x7_data_result_buffer buf;
-		struct hv_24x7_result res;
-		struct hv_24x7_result_element elem;
-		__be64 result;
-	} __packed __aligned(4096) result_buffer = {};
-
 	ret = plpar_hcall_norets(H_GET_24X7_DATA,
-			virt_to_phys(&request_buffer), sizeof(request_buffer),
-			virt_to_phys(&result_buffer),  sizeof(result_buffer));
+			virt_to_phys(request_buffer), sizeof(*request_buffer),
+			virt_to_phys(result_buffer),  sizeof(*result_buffer));
 
 	if (ret) {
 		if (success_expected)
-			pr_err_ratelimited("hcall failed: %d %#x %#x %d => 0x%lx (%ld) detail=0x%x failing ix=%x\n",
-					domain, offset, ix, lpar,
-					ret, ret,
-					result_buffer.buf.detailed_rc,
-					result_buffer.buf.failing_request_ix);
-		return ret;
+			pr_err_ratelimited("hcall failed: %d %#x %#x %d => "
+				"0x%lx (%ld) detail=0x%x failing ix=%x\n",
+				domain, offset, ix, lpar, ret, ret,
+				result_buffer->buf.detailed_rc,
+				result_buffer->buf.failing_request_ix);
+		goto out_free_result_buffer;
 	}
 
-	*res = be64_to_cpu(result_buffer.result);
+	*res = be64_to_cpu(result_buffer->result);
+
+out_free_result_buffer:
+	kfree(result_buffer);
+out_free_request_buffer:
+	kfree(request_buffer);
+out:
 	return ret;
 }
 

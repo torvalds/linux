@@ -123,7 +123,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		struct regulator *reg;
 
-		reg = devm_regulator_get_exclusive(&pdev->dev,
+		reg = devm_regulator_get(&pdev->dev,
 				config->hpd_reg_names[i]);
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);
@@ -139,7 +139,7 @@ struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 	for (i = 0; i < config->pwr_reg_cnt; i++) {
 		struct regulator *reg;
 
-		reg = devm_regulator_get_exclusive(&pdev->dev,
+		reg = devm_regulator_get(&pdev->dev,
 				config->pwr_reg_names[i]);
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);

@@ -880,26 +880,6 @@ bool tcp_syn_flood_action(struct sock *sk,
 }
 EXPORT_SYMBOL(tcp_syn_flood_action);
 
-/*
- * Save and compile IPv4 options into the request_sock if needed.
- */
-static struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
-{
-	const struct ip_options *opt = &TCP_SKB_CB(skb)->header.h4.opt;
-	struct ip_options_rcu *dopt = NULL;
-
-	if (opt && opt->optlen) {
-		int opt_size = sizeof(*dopt) + opt->optlen;
-
-		dopt = kmalloc(opt_size, GFP_ATOMIC);
-		if (dopt && __ip_options_echo(&dopt->opt, skb, opt)) {
-			kfree(dopt);
-			dopt = NULL;
-		}
-	}
-	return dopt;
-}
-
 #ifdef CONFIG_TCP_MD5SIG
 /*
  * RFC2385 MD5 checksumming requires a mapping of
@@ -1428,7 +1408,7 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 
 #ifdef CONFIG_SYN_COOKIES
 	if (!th->syn)
-		sk = cookie_v4_check(sk, skb, &TCP_SKB_CB(skb)->header.h4.opt);
+		sk = cookie_v4_check(sk, skb);
 #endif
 	return sk;
 }

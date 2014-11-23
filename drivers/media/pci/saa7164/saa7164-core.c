@@ -52,7 +52,7 @@ unsigned int saa_debug;
 module_param_named(debug, saa_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-unsigned int fw_debug;
+static unsigned int fw_debug;
 module_param(fw_debug, int, 0644);
 MODULE_PARM_DESC(fw_debug, "Firmware debug level def:2");
 
@@ -72,7 +72,7 @@ static unsigned int card[]  = {[0 ... (SAA7164_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
-unsigned int print_histogram = 64;
+static unsigned int print_histogram = 64;
 module_param(print_histogram, int, 0644);
 MODULE_PARM_DESC(print_histogram, "print histogram values once");
 
@@ -80,7 +80,7 @@ unsigned int crc_checking = 1;
 module_param(crc_checking, int, 0644);
 MODULE_PARM_DESC(crc_checking, "enable crc sanity checking on buffers");
 
-unsigned int guard_checking = 1;
+static unsigned int guard_checking = 1;
 module_param(guard_checking, int, 0644);
 MODULE_PARM_DESC(guard_checking,
 	"enable dma sanity checking for buffer overruns");

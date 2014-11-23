@@ -21,8 +21,7 @@
 #include <asm/idmap.h>
 #include <asm/suspend.h>
 #include <asm/memory.h>
-
-extern const void __nosave_begin, __nosave_end;
+#include <asm/sections.h>
 
 int pfn_is_nosave(unsigned long pfn)
 {

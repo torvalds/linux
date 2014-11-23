@@ -90,7 +90,7 @@ define_machine(gamecube) {
 };
 
 
-static struct of_device_id gamecube_of_bus[] = {
+static const struct of_device_id gamecube_of_bus[] = {
 	{ .compatible = "nintendo,flipper", },
 	{ },
 };

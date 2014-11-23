@@ -1928,9 +1928,6 @@ struct ec_response_power_info {
 
 #define EC_CMD_I2C_PASSTHRU 0x9e
 
-/* Slave address is 10 (not 7) bit */
-#define EC_I2C_FLAG_10BIT	(1 << 16)
-
 /* Read data; if not present, message is a write */
 #define EC_I2C_FLAG_READ	(1 << 15)
 

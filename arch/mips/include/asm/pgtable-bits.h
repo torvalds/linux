@@ -224,38 +224,52 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
 #define _CACHE_CACHABLE_NONCOHERENT 0
+#define _CACHE_UNCACHED_ACCELERATED _CACHE_UNCACHED
 
 #elif defined(CONFIG_CPU_SB1)
 
 /* No penalty for being coherent on the SB1, so just
    use it for "noncoherent" spaces, too.  Shouldn't hurt. */
 
-#define _CACHE_UNCACHED		    (2<<_CACHE_SHIFT)
-#define _CACHE_CACHABLE_COW	    (5<<_CACHE_SHIFT)
 #define _CACHE_CACHABLE_NONCOHERENT (5<<_CACHE_SHIFT)
-#define _CACHE_UNCACHED_ACCELERATED (7<<_CACHE_SHIFT)
 
 #elif defined(CONFIG_CPU_LOONGSON3)
 
 /* Using COHERENT flag for NONCOHERENT doesn't hurt. */
 
-#define _CACHE_UNCACHED             (2<<_CACHE_SHIFT)  /* LOONGSON       */
 #define _CACHE_CACHABLE_NONCOHERENT (3<<_CACHE_SHIFT)  /* LOONGSON       */
 #define _CACHE_CACHABLE_COHERENT    (3<<_CACHE_SHIFT)  /* LOONGSON-3     */
-#define _CACHE_UNCACHED_ACCELERATED (7<<_CACHE_SHIFT)  /* LOONGSON       */
 
-#else
+#elif defined(CONFIG_MACH_JZ4740)
 
-#define _CACHE_CACHABLE_NO_WA	    (0<<_CACHE_SHIFT)  /* R4600 only	  */
-#define _CACHE_CACHABLE_WA	    (1<<_CACHE_SHIFT)  /* R4600 only	  */
-#define _CACHE_UNCACHED		    (2<<_CACHE_SHIFT)  /* R4[0246]00	  */
-#define _CACHE_CACHABLE_NONCOHERENT (3<<_CACHE_SHIFT)  /* R4[0246]00	  */
-#define _CACHE_CACHABLE_CE	    (4<<_CACHE_SHIFT)  /* R4[04]00MC only */
-#define _CACHE_CACHABLE_COW	    (5<<_CACHE_SHIFT)  /* R4[04]00MC only */
-#define _CACHE_CACHABLE_COHERENT    (5<<_CACHE_SHIFT)  /* MIPS32R2 CMP	  */
-#define _CACHE_CACHABLE_CUW	    (6<<_CACHE_SHIFT)  /* R4[04]00MC only */
-#define _CACHE_UNCACHED_ACCELERATED (7<<_CACHE_SHIFT)  /* R10000 only	  */
+/* Ingenic uses the WA bit to achieve write-combine memory writes */
+#define _CACHE_UNCACHED_ACCELERATED (1<<_CACHE_SHIFT)
 
+#endif
+
+#ifndef _CACHE_CACHABLE_NO_WA
+#define _CACHE_CACHABLE_NO_WA		(0<<_CACHE_SHIFT)
+#endif
+#ifndef _CACHE_CACHABLE_WA
+#define _CACHE_CACHABLE_WA		(1<<_CACHE_SHIFT)
+#endif
+#ifndef _CACHE_UNCACHED
+#define _CACHE_UNCACHED			(2<<_CACHE_SHIFT)
+#endif
+#ifndef _CACHE_CACHABLE_NONCOHERENT
+#define _CACHE_CACHABLE_NONCOHERENT	(3<<_CACHE_SHIFT)
+#endif
+#ifndef _CACHE_CACHABLE_CE
+#define _CACHE_CACHABLE_CE		(4<<_CACHE_SHIFT)
+#endif
+#ifndef _CACHE_CACHABLE_COW
+#define _CACHE_CACHABLE_COW		(5<<_CACHE_SHIFT)
+#endif
+#ifndef _CACHE_CACHABLE_CUW
+#define _CACHE_CACHABLE_CUW		(6<<_CACHE_SHIFT)
+#endif
+#ifndef _CACHE_UNCACHED_ACCELERATED
+#define _CACHE_UNCACHED_ACCELERATED	(7<<_CACHE_SHIFT)
 #endif
 
 #define __READABLE	(_PAGE_SILENT_READ | _PAGE_ACCESSED | (cpu_has_rixi ? 0 : _PAGE_READ))

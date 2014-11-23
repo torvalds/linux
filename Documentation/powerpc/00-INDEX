@@ -11,6 +11,8 @@ bootwrapper.txt
 cpu_features.txt
 	- info on how we support a variety of CPUs with minimal compile-time
 	options.
+cxl.txt
+	- Overview of the CXL driver.
 eeh-pci-error-recovery.txt
 	- info on PCI Bus EEH Error Recovery
 firmware-assisted-dump.txt

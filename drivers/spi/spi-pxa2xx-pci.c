@@ -10,42 +10,87 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 
+#include <linux/dmaengine.h>
+#include <linux/platform_data/dma-dw.h>
+
 enum {
 	PORT_CE4100,
 	PORT_BYT,
+	PORT_BSW0,
+	PORT_BSW1,
+	PORT_BSW2,
 };
 
 struct pxa_spi_info {
 	enum pxa_ssp_type type;
 	int port_id;
 	int num_chipselect;
-	int tx_slave_id;
-	int tx_chan_id;
-	int rx_slave_id;
-	int rx_chan_id;
 	unsigned long max_clk_rate;
+
+	/* DMA channel request parameters */
+	void *tx_param;
+	void *rx_param;
 };
+
+static struct dw_dma_slave byt_tx_param = { .dst_id = 0 };
+static struct dw_dma_slave byt_rx_param = { .src_id = 1 };
+
+static struct dw_dma_slave bsw0_tx_param = { .dst_id = 0 };
+static struct dw_dma_slave bsw0_rx_param = { .src_id = 1 };
+static struct dw_dma_slave bsw1_tx_param = { .dst_id = 6 };
+static struct dw_dma_slave bsw1_rx_param = { .src_id = 7 };
+static struct dw_dma_slave bsw2_tx_param = { .dst_id = 8 };
+static struct dw_dma_slave bsw2_rx_param = { .src_id = 9 };
+
+static bool lpss_dma_filter(struct dma_chan *chan, void *param)
+{
+	struct dw_dma_slave *dws = param;
+
+	if (dws->dma_dev != chan->device->dev)
+		return false;
+
+	chan->private = dws;
+	return true;
+}
 
 static struct pxa_spi_info spi_info_configs[] = {
 	[PORT_CE4100] = {
 		.type = PXA25x_SSP,
 		.port_id =  -1,
 		.num_chipselect = -1,
-		.tx_slave_id = -1,
-		.tx_chan_id = -1,
-		.rx_slave_id = -1,
-		.rx_chan_id = -1,
 		.max_clk_rate = 3686400,
 	},
 	[PORT_BYT] = {
 		.type = LPSS_SSP,
 		.port_id = 0,
 		.num_chipselect = 1,
-		.tx_slave_id = 0,
-		.tx_chan_id = 0,
-		.rx_slave_id = 1,
-		.rx_chan_id = 1,
 		.max_clk_rate = 50000000,
+		.tx_param = &byt_tx_param,
+		.rx_param = &byt_rx_param,
+	},
+	[PORT_BSW0] = {
+		.type = LPSS_SSP,
+		.port_id = 0,
+		.num_chipselect = 1,
+		.max_clk_rate = 50000000,
+		.tx_param = &bsw0_tx_param,
+		.rx_param = &bsw0_rx_param,
+	},
+	[PORT_BSW1] = {
+		.type = LPSS_SSP,
+		.port_id = 1,
+		.num_chipselect = 1,
+		.max_clk_rate = 50000000,
+		.tx_param = &bsw1_tx_param,
+		.rx_param = &bsw1_rx_param,
+	},
+	[PORT_BSW2] = {
+		.type = LPSS_SSP,
+		.port_id = 2,
+		.num_chipselect = 1,
+		.max_clk_rate = 50000000,
+		.tx_param = &bsw2_tx_param,
+		.rx_param = &bsw2_rx_param,
 	},
 };
 
@@ -59,6 +104,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	struct ssp_device *ssp;
 	struct pxa_spi_info *c;
 	char buf[40];
+	struct pci_dev *dma_dev;
 
 	ret = pcim_enable_device(dev);
 	if (ret)
@@ -73,11 +119,29 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	memset(&spi_pdata, 0, sizeof(spi_pdata));
 	spi_pdata.num_chipselect = (c->num_chipselect > 0) ?
 					c->num_chipselect : dev->devfn;
-	spi_pdata.tx_slave_id = c->tx_slave_id;
-	spi_pdata.tx_chan_id = c->tx_chan_id;
-	spi_pdata.rx_slave_id = c->rx_slave_id;
-	spi_pdata.rx_chan_id = c->rx_chan_id;
-	spi_pdata.enable_dma = c->rx_slave_id >= 0 && c->tx_slave_id >= 0;
+
+	dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+
+	if (c->tx_param) {
+		struct dw_dma_slave *slave = c->tx_param;
+
+		slave->dma_dev = &dma_dev->dev;
+		slave->src_master = 1;
+		slave->dst_master = 0;
+	}
+
+	if (c->rx_param) {
+		struct dw_dma_slave *slave = c->rx_param;
+
+		slave->dma_dev = &dma_dev->dev;
+		slave->src_master = 1;
+		slave->dst_master = 0;
+	}
+
+	spi_pdata.dma_filter = lpss_dma_filter;
+	spi_pdata.tx_param = c->tx_param;
+	spi_pdata.rx_param = c->rx_param;
+	spi_pdata.enable_dma = c->rx_param && c->tx_param;
 
 	ssp = &spi_pdata.ssp;
 	ssp->phys_base = pci_resource_start(dev, 0);
@@ -128,6 +192,9 @@ static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 static const struct pci_device_id pxa2xx_spi_pci_devices[] = {
 	{ PCI_VDEVICE(INTEL, 0x2e6a), PORT_CE4100 },
 	{ PCI_VDEVICE(INTEL, 0x0f0e), PORT_BYT },
+	{ PCI_VDEVICE(INTEL, 0x228e), PORT_BSW0 },
+	{ PCI_VDEVICE(INTEL, 0x2290), PORT_BSW1 },
+	{ PCI_VDEVICE(INTEL, 0x22ac), PORT_BSW2 },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, pxa2xx_spi_pci_devices);

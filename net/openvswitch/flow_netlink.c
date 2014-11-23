@@ -103,10 +103,19 @@ static void update_range__(struct sw_flow_match *match,
 	SW_FLOW_KEY_MEMCPY_OFFSET(match, offsetof(struct sw_flow_key, field), \
 				  value_p, len, is_mask)
 
-static u16 range_n_bytes(const struct sw_flow_key_range *range)
-{
-	return range->end - range->start;
-}
+#define SW_FLOW_KEY_MEMSET_FIELD(match, field, value, is_mask) \
+	do { \
+		update_range__(match, offsetof(struct sw_flow_key, field),  \
+				     sizeof((match)->key->field), is_mask); \
+		if (is_mask) {						    \
+			if ((match)->mask)				    \
+				memset((u8 *)&(match)->mask->key.field, value,\
+				       sizeof((match)->mask->key.field));   \
+		} else {                                                    \
+			memset((u8 *)&(match)->key->field, value,           \
+			       sizeof((match)->key->field));                \
+		}                                                           \
+	} while (0)
 
 static bool match_validate(const struct sw_flow_match *match,
 			   u64 key_attrs, u64 mask_attrs)
@@ -809,13 +818,26 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match, u64 attrs,
 	return 0;
 }
 
-static void sw_flow_mask_set(struct sw_flow_mask *mask,
-			     struct sw_flow_key_range *range, u8 val)
+static void nlattr_set(struct nlattr *attr, u8 val, bool is_attr_mask_key)
 {
-	u8 *m = (u8 *)&mask->key + range->start;
+	struct nlattr *nla;
+	int rem;
 
-	mask->range = *range;
-	memset(m, val, range_n_bytes(range));
+	/* The nlattr stream should already have been validated */
+	nla_for_each_nested(nla, attr, rem) {
+		/* We assume that ovs_key_lens[type] == -1 means that type is a
+		 * nested attribute
+		 */
+		if (is_attr_mask_key && ovs_key_lens[nla_type(nla)] == -1)
+			nlattr_set(nla, val, false);
+		else
+			memset(nla_data(nla), val, nla_len(nla));
+	}
+}
+
+static void mask_set_nlattr(struct nlattr *attr, u8 val)
+{
+	nlattr_set(attr, val, true);
 }
 
 /**
@@ -836,6 +858,7 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 {
 	const struct nlattr *a[OVS_KEY_ATTR_MAX + 1];
 	const struct nlattr *encap;
+	struct nlattr *newmask = NULL;
 	u64 key_attrs = 0;
 	u64 mask_attrs = 0;
 	bool encap_valid = false;
@@ -882,18 +905,44 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 	if (err)
 		return err;
 
+	if (match->mask && !mask) {
+		/* Create an exact match mask. We need to set to 0xff all the
+		 * 'match->mask' fields that have been touched in 'match->key'.
+		 * We cannot simply memset 'match->mask', because padding bytes
+		 * and fields not specified in 'match->key' should be left to 0.
+		 * Instead, we use a stream of netlink attributes, copied from
+		 * 'key' and set to 0xff: ovs_key_from_nlattrs() will take care
+		 * of filling 'match->mask' appropriately.
+		 */
+		newmask = kmemdup(key, nla_total_size(nla_len(key)),
+				  GFP_KERNEL);
+		if (!newmask)
+			return -ENOMEM;
+
+		mask_set_nlattr(newmask, 0xff);
+
+		/* The userspace does not send tunnel attributes that are 0,
+		 * but we should not wildcard them nonetheless.
+		 */
+		if (match->key->tun_key.ipv4_dst)
+			SW_FLOW_KEY_MEMSET_FIELD(match, tun_key, 0xff, true);
+
+		mask = newmask;
+	}
+
 	if (mask) {
 		err = parse_flow_mask_nlattrs(mask, a, &mask_attrs);
 		if (err)
-			return err;
+			goto free_newmask;
 
-		if (mask_attrs & 1 << OVS_KEY_ATTR_ENCAP)  {
+		if (mask_attrs & 1 << OVS_KEY_ATTR_ENCAP) {
 			__be16 eth_type = 0;
 			__be16 tci = 0;
 
 			if (!encap_valid) {
 				OVS_NLERR("Encap mask attribute is set for non-VLAN frame.\n");
-				return  -EINVAL;
+				err = -EINVAL;
+				goto free_newmask;
 			}
 
 			mask_attrs &= ~(1 << OVS_KEY_ATTR_ENCAP);
@@ -904,10 +953,13 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 				mask_attrs &= ~(1 << OVS_KEY_ATTR_ETHERTYPE);
 				encap = a[OVS_KEY_ATTR_ENCAP];
 				err = parse_flow_mask_nlattrs(encap, a, &mask_attrs);
+				if (err)
+					goto free_newmask;
 			} else {
 				OVS_NLERR("VLAN frames must have an exact match on the TPID (mask=%x).\n",
 						ntohs(eth_type));
-				return -EINVAL;
+				err = -EINVAL;
+				goto free_newmask;
 			}
 
 			if (a[OVS_KEY_ATTR_VLAN])
@@ -915,23 +967,22 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 
 			if (!(tci & htons(VLAN_TAG_PRESENT))) {
 				OVS_NLERR("VLAN tag present bit must have an exact match (tci_mask=%x).\n", ntohs(tci));
-				return -EINVAL;
+				err = -EINVAL;
+				goto free_newmask;
 			}
 		}
 
 		err = ovs_key_from_nlattrs(match, mask_attrs, a, true);
 		if (err)
-			return err;
-	} else {
-		/* Populate exact match flow's key mask. */
-		if (match->mask)
-			sw_flow_mask_set(match->mask, &match->range, 0xff);
+			goto free_newmask;
 	}
 
 	if (!match_validate(match, key_attrs, mask_attrs))
-		return -EINVAL;
+		err = -EINVAL;
 
-	return 0;
+free_newmask:
+	kfree(newmask);
+	return err;
 }
 
 /**

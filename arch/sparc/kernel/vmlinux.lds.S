@@ -35,8 +35,9 @@ jiffies = jiffies_64;
 
 SECTIONS
 {
-	/* swapper_low_pmd_dir is sparc64 only */
-	swapper_low_pmd_dir = 0x0000000000402000;
+#ifdef CONFIG_SPARC64
+	swapper_pg_dir = 0x0000000000402000;
+#endif
 	. = INITIAL_ADDRESS;
 	.text TEXTSTART :
 	{
@@ -121,11 +122,6 @@ SECTIONS
 		__swapper_4m_tsb_phys_patch = .;
 		*(.swapper_4m_tsb_phys_patch)
 		__swapper_4m_tsb_phys_patch_end = .;
-	}
-	.page_offset_shift_patch : {
-		__page_offset_shift_patch = .;
-		*(.page_offset_shift_patch)
-		__page_offset_shift_patch_end = .;
 	}
 	.popc_3insn_patch : {
 		__popc_3insn_patch = .;

@@ -299,16 +299,16 @@ static void loongson3_init_secondary(void)
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;
 
 	i = 0;
-	__get_cpu_var(core0_c0count) = 0;
+	__this_cpu_write(core0_c0count, 0);
 	loongson3_send_ipi_single(0, SMP_ASK_C0COUNT);
-	while (!__get_cpu_var(core0_c0count)) {
+	while (!__this_cpu_read(core0_c0count)) {
 		i++;
 		cpu_relax();
 	}
 
 	if (i > MAX_LOOPS)
 		i = MAX_LOOPS;
-	initcount = __get_cpu_var(core0_c0count) + i;
+	initcount = __this_cpu_read(core0_c0count) + i;
 	write_c0_count(initcount);
 }
 
