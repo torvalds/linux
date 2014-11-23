@@ -95,7 +95,7 @@ int ldlm_expired_completion_wait(void *data)
 	struct obd_device *obd;
 
 	if (lock->l_conn_export == NULL) {
-		static unsigned long next_dump = 0, last_dump = 0;
+		static unsigned long next_dump, last_dump;
 
 		LCONSOLE_WARN("lock timed out (enqueued at "CFS_TIME_T", "
 			      CFS_DURATION_T"s ago)\n",

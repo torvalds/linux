@@ -724,7 +724,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 static struct ldlm_bl_work_item *ldlm_bl_get_work(struct ldlm_bl_pool *blp)
 {
 	struct ldlm_bl_work_item *blwi = NULL;
-	static unsigned int num_bl = 0;
+	static unsigned int num_bl;
 
 	spin_lock(&blp->blp_lock);
 	/* process a request from the blp_list at least every blp_num_threads */
