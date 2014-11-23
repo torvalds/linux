@@ -518,10 +518,7 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 
 	uda134x_reset(codec);
 
-	if (pd->is_powered_on_standby)
-		uda134x_set_bias_level(codec, SND_SOC_BIAS_ON);
-	else
-		uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	if (pd->model == UDA134X_UDA1341) {
 		widgets = uda1341_dapm_widgets;
