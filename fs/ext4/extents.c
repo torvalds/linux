@@ -2574,15 +2574,16 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 
 /*
  * ext4_ext_rm_leaf() Removes the extents associated with the
- * blocks appearing between "start" and "end", and splits the extents
- * if "start" and "end" appear in the same extent
+ * blocks appearing between "start" and "end".  Both "start"
+ * and "end" must appear in the same extent or EIO is returned.
  *
  * @handle: The journal handle
  * @inode:  The files inode
  * @path:   The path to the leaf
  * @partial_cluster: The cluster which we'll have to free if all extents
- *                   has been released from it. It gets negative in case
- *                   that the cluster is still used.
+ *                   has been released from it.  However, if this value is
+ *                   negative, it's a cluster just to the right of the
+ *                   punched region and it must not be freed.
  * @start:  The first block to remove
  * @end:   The last block to remove
  */
@@ -2730,8 +2731,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 					sizeof(struct ext4_extent));
 			}
 			le16_add_cpu(&eh->eh_entries, -1);
-		} else if (*partial_cluster > 0)
-			*partial_cluster = 0;
+		}
 
 		err = ext4_ext_dirty(handle, inode, path + depth);
 		if (err)
@@ -2750,20 +2750,18 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 	/*
 	 * If there's a partial cluster and at least one extent remains in
 	 * the leaf, free the partial cluster if it isn't shared with the
-	 * current extent.  If there's a partial cluster and no extents
-	 * remain in the leaf, it can't be freed here.  It can only be
-	 * freed when it's possible to determine if it's not shared with
-	 * any other extent - when the next leaf is processed or when space
-	 * removal is complete.
+	 * current extent.  If it is shared with the current extent
+	 * we zero partial_cluster because we've reached the start of the
+	 * truncated/punched region and we're done removing blocks.
 	 */
-	if (*partial_cluster > 0 && eh->eh_entries &&
-	    (EXT4_B2C(sbi, ext4_ext_pblock(ex) + ex_ee_len - 1) !=
-	     *partial_cluster)) {
-		int flags = get_default_free_blocks_flags(inode);
-
-		ext4_free_blocks(handle, inode, NULL,
-				 EXT4_C2B(sbi, *partial_cluster),
-				 sbi->s_cluster_ratio, flags);
+	if (*partial_cluster > 0 && ex >= EXT_FIRST_EXTENT(eh)) {
+		pblk = ext4_ext_pblock(ex) + ex_ee_len - 1;
+		if (*partial_cluster != (long long) EXT4_B2C(sbi, pblk)) {
+			ext4_free_blocks(handle, inode, NULL,
+					 EXT4_C2B(sbi, *partial_cluster),
+					 sbi->s_cluster_ratio,
+					 get_default_free_blocks_flags(inode));
+		}
 		*partial_cluster = 0;
 	}
 
