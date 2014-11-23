@@ -194,7 +194,7 @@ static void v4l2_device_release(struct device *cd)
 	mutex_unlock(&videodev_lock);
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (v4l2_dev && v4l2_dev->mdev &&
+	if (v4l2_dev->mdev &&
 	    vdev->vfl_type != VFL_TYPE_SUBDEV)
 		media_device_unregister_entity(&vdev->entity);
 #endif
@@ -207,7 +207,7 @@ static void v4l2_device_release(struct device *cd)
 	 * TODO: In the long run all drivers that use v4l2_device should use the
 	 * v4l2_device release callback. This check will then be unnecessary.
 	 */
-	if (v4l2_dev && v4l2_dev->release == NULL)
+	if (v4l2_dev->release == NULL)
 		v4l2_dev = NULL;
 
 	/* Release video_device and perform other
@@ -360,27 +360,22 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		 * hack but it will have to do for those drivers that are not
 		 * yet converted to use unlocked_ioctl.
 		 *
-		 * There are two options: if the driver implements struct
-		 * v4l2_device, then the lock defined there is used to
-		 * serialize the ioctls. Otherwise the v4l2 core lock defined
-		 * below is used. This lock is really bad since it serializes
-		 * completely independent devices.
+		 * All drivers implement struct v4l2_device, so we use the
+		 * lock defined there to serialize the ioctls.
 		 *
-		 * Both variants suffer from the same problem: if the driver
-		 * sleeps, then it blocks all ioctls since the lock is still
-		 * held. This is very common for VIDIOC_DQBUF since that
-		 * normally waits for a frame to arrive. As a result any other
-		 * ioctl calls will proceed very, very slowly since each call
-		 * will have to wait for the VIDIOC_QBUF to finish. Things that
-		 * should take 0.01s may now take 10-20 seconds.
+		 * However, if the driver sleeps, then it blocks all ioctls
+		 * since the lock is still held. This is very common for
+		 * VIDIOC_DQBUF since that normally waits for a frame to arrive.
+		 * As a result any other ioctl calls will proceed very, very
+		 * slowly since each call will have to wait for the VIDIOC_QBUF
+		 * to finish. Things that should take 0.01s may now take 10-20
+		 * seconds.
 		 *
 		 * The workaround is to *not* take the lock for VIDIOC_DQBUF.
 		 * This actually works OK for videobuf-based drivers, since
 		 * videobuf will take its own internal lock.
 		 */
-		static DEFINE_MUTEX(v4l2_ioctl_mutex);
-		struct mutex *m = vdev->v4l2_dev ?
-			&vdev->v4l2_dev->ioctl_lock : &v4l2_ioctl_mutex;
+		struct mutex *m = &vdev->v4l2_dev->ioctl_lock;
 
 		if (cmd != VIDIOC_DQBUF && mutex_lock_interruptible(m))
 			return -ERESTARTSYS;
@@ -938,12 +933,11 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 			name_base, nr, video_device_node_name(vdev));
 
 	/* Increase v4l2_device refcount */
-	if (vdev->v4l2_dev)
-		v4l2_device_get(vdev->v4l2_dev);
+	v4l2_device_get(vdev->v4l2_dev);
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Part 5: Register the entity. */
-	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev &&
+	if (vdev->v4l2_dev->mdev &&
 	    vdev->vfl_type != VFL_TYPE_SUBDEV) {
 		vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
 		vdev->entity.name = vdev->name;
