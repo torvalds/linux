@@ -403,6 +403,7 @@ static int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
 		return -ENOMEM;
 	}
 
+	acpi_walk_dep_device_list(handle);
 	return 0;
 }
 
