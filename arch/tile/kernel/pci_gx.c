@@ -1453,7 +1453,7 @@ static struct pci_ops tile_cfg_ops = {
 static unsigned int tilegx_msi_startup(struct irq_data *d)
 {
 	if (d->msi_desc)
-		unmask_msi_irq(d);
+		pci_msi_unmask_irq(d);
 
 	return 0;
 }
@@ -1465,14 +1465,14 @@ static void tilegx_msi_ack(struct irq_data *d)
 
 static void tilegx_msi_mask(struct irq_data *d)
 {
-	mask_msi_irq(d);
+	pci_msi_mask_irq(d);
 	__insn_mtspr(SPR_IPI_MASK_SET_K, 1UL << d->irq);
 }
 
 static void tilegx_msi_unmask(struct irq_data *d)
 {
 	__insn_mtspr(SPR_IPI_MASK_RESET_K, 1UL << d->irq);
-	unmask_msi_irq(d);
+	pci_msi_unmask_irq(d);
 }
 
 static struct irq_chip tilegx_msi_chip = {

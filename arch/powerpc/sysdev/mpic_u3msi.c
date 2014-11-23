@@ -25,14 +25,14 @@ static struct mpic *msi_mpic;
 
 static void mpic_u3msi_mask_irq(struct irq_data *data)
 {
-	mask_msi_irq(data);
+	pci_msi_mask_irq(data);
 	mpic_mask_irq(data);
 }
 
 static void mpic_u3msi_unmask_irq(struct irq_data *data)
 {
 	mpic_unmask_irq(data);
-	unmask_msi_irq(data);
+	pci_msi_unmask_irq(data);
 }
 
 static struct irq_chip mpic_u3msi_chip = {

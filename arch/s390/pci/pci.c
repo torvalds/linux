@@ -50,8 +50,8 @@ static DEFINE_SPINLOCK(zpci_list_lock);
 
 static struct irq_chip zpci_irq_chip = {
 	.name = "zPCI",
-	.irq_unmask = unmask_msi_irq,
-	.irq_mask = mask_msi_irq,
+	.irq_unmask = pci_msi_unmask_irq,
+	.irq_mask = pci_msi_mask_irq,
 };
 
 static DECLARE_BITMAP(zpci_domain, ZPCI_NR_DEVICES);

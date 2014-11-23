@@ -155,7 +155,7 @@ static void ks_dw_pcie_msi_irq_mask(struct irq_data *d)
 	/* Mask the end point if PVM implemented */
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		if (msi->msi_attrib.maskbit)
-			mask_msi_irq(d);
+			pci_msi_mask_irq(d);
 	}
 
 	ks_dw_pcie_msi_clear_irq(pp, offset);
@@ -177,7 +177,7 @@ static void ks_dw_pcie_msi_irq_unmask(struct irq_data *d)
 	/* Mask the end point if PVM implemented */
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		if (msi->msi_attrib.maskbit)
-			unmask_msi_irq(d);
+			pci_msi_unmask_irq(d);
 	}
 
 	ks_dw_pcie_msi_set_irq(pp, offset);

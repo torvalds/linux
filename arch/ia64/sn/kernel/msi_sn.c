@@ -228,8 +228,8 @@ static int sn_msi_retrigger_irq(struct irq_data *data)
 
 static struct irq_chip sn_msi_chip = {
 	.name			= "PCI-MSI",
-	.irq_mask		= mask_msi_irq,
-	.irq_unmask		= unmask_msi_irq,
+	.irq_mask		= pci_msi_mask_irq,
+	.irq_unmask		= pci_msi_unmask_irq,
 	.irq_ack		= sn_ack_msi_irq,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= sn_set_msi_irq_affinity,

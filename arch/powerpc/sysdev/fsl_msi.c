@@ -82,8 +82,8 @@ static void fsl_msi_print_chip(struct irq_data *irqd, struct seq_file *p)
 
 
 static struct irq_chip fsl_msi_chip = {
-	.irq_mask	= mask_msi_irq,
-	.irq_unmask	= unmask_msi_irq,
+	.irq_mask	= pci_msi_mask_irq,
+	.irq_unmask	= pci_msi_unmask_irq,
 	.irq_ack	= fsl_msi_end_irq,
 	.irq_print_chip = fsl_msi_print_chip,
 };

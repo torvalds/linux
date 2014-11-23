@@ -126,10 +126,10 @@ static void iop13xx_msi_nop(struct irq_data *d)
 static struct irq_chip iop13xx_msi_chip = {
 	.name = "PCI-MSI",
 	.irq_ack = iop13xx_msi_nop,
-	.irq_enable = unmask_msi_irq,
-	.irq_disable = mask_msi_irq,
-	.irq_mask = mask_msi_irq,
-	.irq_unmask = unmask_msi_irq,
+	.irq_enable = pci_msi_unmask_irq,
+	.irq_disable = pci_msi_mask_irq,
+	.irq_mask = pci_msi_mask_irq,
+	.irq_unmask = pci_msi_unmask_irq,
 };
 
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)

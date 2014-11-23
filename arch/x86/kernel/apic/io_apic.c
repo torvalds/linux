@@ -3169,8 +3169,8 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
  */
 static struct irq_chip msi_chip = {
 	.name			= "PCI-MSI",
-	.irq_unmask		= unmask_msi_irq,
-	.irq_mask		= mask_msi_irq,
+	.irq_unmask		= pci_msi_unmask_irq,
+	.irq_mask		= pci_msi_mask_irq,
 	.irq_ack		= ack_apic_edge,
 	.irq_set_affinity	= msi_set_affinity,
 	.irq_retrigger		= ioapic_retrigger_irq,

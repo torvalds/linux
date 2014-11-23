@@ -655,10 +655,10 @@ static void rcar_msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
 
 static struct irq_chip rcar_msi_irq_chip = {
 	.name = "R-Car PCIe MSI",
-	.irq_enable = unmask_msi_irq,
-	.irq_disable = mask_msi_irq,
-	.irq_mask = mask_msi_irq,
-	.irq_unmask = unmask_msi_irq,
+	.irq_enable = pci_msi_unmask_irq,
+	.irq_disable = pci_msi_mask_irq,
+	.irq_mask = pci_msi_mask_irq,
+	.irq_unmask = pci_msi_unmask_irq,
 };
 
 static int rcar_msi_map(struct irq_domain *domain, unsigned int irq,
