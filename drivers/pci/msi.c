@@ -173,7 +173,7 @@ static inline __attribute_const__ u32 msi_mask(unsigned x)
  * reliably as devices without an INTx disable bit will then generate a
  * level IRQ which will never be cleared.
  */
-u32 __msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
+u32 __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {
 	u32 mask_bits = desc->masked;
 
@@ -189,7 +189,7 @@ u32 __msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 
 static void msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {
-	desc->masked = __msi_mask_irq(desc, mask, flag);
+	desc->masked = __pci_msi_desc_mask_irq(desc, mask, flag);
 }
 
 /*
@@ -199,7 +199,7 @@ static void msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
  * file.  This saves a few milliseconds when initialising devices with lots
  * of MSI-X interrupts.
  */
-u32 __msix_mask_irq(struct msi_desc *desc, u32 flag)
+u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag)
 {
 	u32 mask_bits = desc->masked;
 	unsigned offset = desc->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE +
@@ -218,7 +218,7 @@ u32 __msix_mask_irq(struct msi_desc *desc, u32 flag)
 
 static void msix_mask_irq(struct msi_desc *desc, u32 flag)
 {
-	desc->masked = __msix_mask_irq(desc, flag);
+	desc->masked = __pci_msix_desc_mask_irq(desc, flag);
 }
 
 static void msi_set_mask_bit(struct irq_data *data, u32 flag)
@@ -234,12 +234,20 @@ static void msi_set_mask_bit(struct irq_data *data, u32 flag)
 	}
 }
 
-void mask_msi_irq(struct irq_data *data)
+/**
+ * pci_msi_mask_irq - Generic irq chip callback to mask PCI/MSI interrupts
+ * @data:	pointer to irqdata associated to that interrupt
+ */
+void pci_msi_mask_irq(struct irq_data *data)
 {
 	msi_set_mask_bit(data, 1);
 }
 
-void unmask_msi_irq(struct irq_data *data)
+/**
+ * pci_msi_unmask_irq - Generic irq chip callback to unmask PCI/MSI interrupts
+ * @data:	pointer to irqdata associated to that interrupt
+ */
+void pci_msi_unmask_irq(struct irq_data *data)
 {
 	msi_set_mask_bit(data, 0);
 }
@@ -858,7 +866,7 @@ void pci_msi_shutdown(struct pci_dev *dev)
 	/* Return the device with MSI unmasked as initial states */
 	mask = msi_mask(desc->msi_attrib.multi_cap);
 	/* Keep cached state to be restored */
-	__msi_mask_irq(desc, mask, ~mask);
+	__pci_msi_desc_mask_irq(desc, mask, ~mask);
 
 	/* Restore dev->irq to its default pin-assertion irq */
 	dev->irq = desc->msi_attrib.default_irq;
@@ -956,7 +964,7 @@ void pci_msix_shutdown(struct pci_dev *dev)
 	/* Return the device with MSI-X masked as initial states */
 	list_for_each_entry(entry, &dev->msi_list, list) {
 		/* Keep cached states to be restored */
-		__msix_mask_irq(entry, 1);
+		__pci_msix_desc_mask_irq(entry, 1);
 	}
 
 	msix_clear_and_set_ctrl(dev, PCI_MSIX_FLAGS_ENABLE, 0);

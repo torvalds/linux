@@ -14,13 +14,8 @@ extern int pci_msi_ignore_mask;
 /* Helper functions */
 struct irq_data;
 struct msi_desc;
-void mask_msi_irq(struct irq_data *data);
-void unmask_msi_irq(struct irq_data *data);
 void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg);
-
-u32 __msix_mask_irq(struct msi_desc *desc, u32 flag);
-u32 __msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag);
 
 struct msi_desc {
 	struct {
@@ -52,6 +47,11 @@ void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg);
 
+u32 __pci_msix_desc_mask_irq(struct msi_desc *desc, u32 flag);
+u32 __pci_msi_desc_mask_irq(struct msi_desc *desc, u32 mask, u32 flag);
+void pci_msi_mask_irq(struct irq_data *data);
+void pci_msi_unmask_irq(struct irq_data *data);
+
 /* Conversion helpers. Should be removed after merging */
 static inline void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
@@ -60,6 +60,14 @@ static inline void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 static inline void write_msi_msg(int irq, struct msi_msg *msg)
 {
 	pci_write_msi_msg(irq, msg);
+}
+static inline void mask_msi_irq(struct irq_data *data)
+{
+	pci_msi_mask_irq(data);
+}
+static inline void unmask_msi_irq(struct irq_data *data)
+{
+	pci_msi_unmask_irq(data);
 }
 
 /*
