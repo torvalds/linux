@@ -33,11 +33,11 @@ static int socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
 
-	if (cpu1start_addr) {
+	if (socfpga_cpu1start_addr) {
 		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
 		__raw_writel(virt_to_phys(socfpga_secondary_startup),
-			(sys_manager_base_addr + (cpu1start_addr & 0x000000ff)));
+			(sys_manager_base_addr + (socfpga_cpu1start_addr & 0x000000ff)));
 
 		flush_cache_all();
 		smp_wmb();

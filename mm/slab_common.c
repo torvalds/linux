@@ -93,16 +93,6 @@ static int kmem_cache_sanity_check(const char *name, size_t size)
 			       s->object_size);
 			continue;
 		}
-
-#if !defined(CONFIG_SLUB)
-		if (!strcmp(s->name, name)) {
-			pr_err("%s (%s): Cache name already exists.\n",
-			       __func__, name);
-			dump_stack();
-			s = NULL;
-			return -EINVAL;
-		}
-#endif
 	}
 
 	WARN_ON(strchr(name, ' '));	/* It confuses parsers */
@@ -267,6 +257,10 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
 			continue;
 
 		if (s->size - size >= sizeof(void *))
+			continue;
+
+		if (IS_ENABLED(CONFIG_SLAB) && align &&
+			(align > s->align || s->align % align))
 			continue;
 
 		return s;

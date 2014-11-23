@@ -4579,7 +4579,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write32(TPR_THRESHOLD, 0);
 	}
 
-	kvm_vcpu_reload_apic_access_page(vcpu);
+	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
 	if (vmx_vm_has_apicv(vcpu->kvm))
 		memset(&vmx->pi_desc, 0, sizeof(struct pi_desc));
@@ -6426,6 +6426,8 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 	const unsigned long *fields = shadow_read_write_fields;
 	const int num_fields = max_shadow_read_write_fields;
 
+	preempt_disable();
+
 	vmcs_load(shadow_vmcs);
 
 	for (i = 0; i < num_fields; i++) {
@@ -6449,6 +6451,8 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 
 	vmcs_clear(shadow_vmcs);
 	vmcs_load(vmx->loaded_vmcs->vmcs);
+
+	preempt_enable();
 }
 
 static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)

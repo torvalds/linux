@@ -58,7 +58,7 @@ END_FTR_SECTION(0, 1);						\
  */
 
 #define OPAL_CALL(name, token)		\
- _GLOBAL(name);				\
+ _GLOBAL_TOC(name);			\
 	mflr	r0;			\
 	std	r0,16(r1);		\
 	li	r0,token;		\

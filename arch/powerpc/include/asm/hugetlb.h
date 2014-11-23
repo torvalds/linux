@@ -71,7 +71,7 @@ pte_t *huge_pte_offset_and_shift(struct mm_struct *mm,
 
 void flush_dcache_icache_hugepage(struct page *page);
 
-#if defined(CONFIG_PPC_MM_SLICES) || defined(CONFIG_PPC_SUBPAGE_PROT)
+#if defined(CONFIG_PPC_MM_SLICES)
 int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len);
 #else

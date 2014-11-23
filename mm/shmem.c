@@ -2345,6 +2345,32 @@ static int shmem_exchange(struct inode *old_dir, struct dentry *old_dentry, stru
 	return 0;
 }
 
+static int shmem_whiteout(struct inode *old_dir, struct dentry *old_dentry)
+{
+	struct dentry *whiteout;
+	int error;
+
+	whiteout = d_alloc(old_dentry->d_parent, &old_dentry->d_name);
+	if (!whiteout)
+		return -ENOMEM;
+
+	error = shmem_mknod(old_dir, whiteout,
+			    S_IFCHR | WHITEOUT_MODE, WHITEOUT_DEV);
+	dput(whiteout);
+	if (error)
+		return error;
+
+	/*
+	 * Cheat and hash the whiteout while the old dentry is still in
+	 * place, instead of playing games with FS_RENAME_DOES_D_MOVE.
+	 *
+	 * d_lookup() will consistently find one of them at this point,
+	 * not sure which one, but that isn't even important.
+	 */
+	d_rehash(whiteout);
+	return 0;
+}
+
 /*
  * The VFS layer already does all the dentry stuff for rename,
  * we just have to decrement the usage count for the target if
@@ -2356,7 +2382,7 @@ static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struc
 	struct inode *inode = old_dentry->d_inode;
 	int they_are_dirs = S_ISDIR(inode->i_mode);
 
-	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
 		return -EINVAL;
 
 	if (flags & RENAME_EXCHANGE)
@@ -2364,6 +2390,14 @@ static int shmem_rename2(struct inode *old_dir, struct dentry *old_dentry, struc
 
 	if (!simple_empty(new_dentry))
 		return -ENOTEMPTY;
+
+	if (flags & RENAME_WHITEOUT) {
+		int error;
+
+		error = shmem_whiteout(old_dir, old_dentry);
+		if (error)
+			return error;
+	}
 
 	if (new_dentry->d_inode) {
 		(void) shmem_unlink(new_dir, new_dentry);

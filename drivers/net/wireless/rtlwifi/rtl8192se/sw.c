@@ -87,11 +87,8 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 static void rtl92se_fw_cb(const struct firmware *firmware, void *context)
 {
 	struct ieee80211_hw *hw = context;
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(pcipriv);
 	struct rt_firmware *pfirmware = NULL;
-	int err;
 
 	RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
 			 "Firmware callback routine entered!\n");
@@ -112,20 +109,6 @@ static void rtl92se_fw_cb(const struct firmware *firmware, void *context)
 	memcpy(pfirmware->sz_fw_tmpbuffer, firmware->data, firmware->size);
 	pfirmware->sz_fw_tmpbufferlen = firmware->size;
 	release_firmware(firmware);
-
-	err = ieee80211_register_hw(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't register mac80211 hw\n");
-		return;
-	} else {
-		rtlpriv->mac80211.mac80211_registered = 1;
-	}
-	rtlpci->irq_alloc = 1;
-	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
-
-	/*init rfkill */
-	rtl_init_rfkill(hw);
 }
 
 static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
@@ -226,8 +209,8 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 	if (!rtlpriv->rtlhal.pfirmware)
 		return 1;
 
-	rtlpriv->max_fw_size = RTL8190_MAX_RAW_FIRMWARE_CODE_SIZE;
-
+	rtlpriv->max_fw_size = RTL8190_MAX_FIRMWARE_CODE_SIZE*2 +
+			       sizeof(struct fw_hdr);
 	pr_info("Driver for Realtek RTL8192SE/RTL8191SE\n"
 		"Loading firmware %s\n", rtlpriv->cfg->fw_name);
 	/* request fw */
@@ -251,6 +234,19 @@ static void rtl92s_deinit_sw_vars(struct ieee80211_hw *hw)
 		vfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
+}
+
+static bool rtl92se_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue,
+				      u16 index)
+{
+	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
+	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
+	u8 own = (u8)rtl92se_get_desc(entry, true, HW_DESC_OWN);
+
+	if (own)
+		return false;
+	return true;
 }
 
 static struct rtl_hal_ops rtl8192se_hal_ops = {
@@ -286,6 +282,7 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.led_control = rtl92se_led_control,
 	.set_desc = rtl92se_set_desc,
 	.get_desc = rtl92se_get_desc,
+	.is_tx_desc_closed = rtl92se_is_tx_desc_closed,
 	.tx_polling = rtl92se_tx_polling,
 	.enable_hw_sec = rtl92se_enable_hw_security_config,
 	.set_key = rtl92se_set_key,
@@ -294,6 +291,7 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.set_bbreg = rtl92s_phy_set_bb_reg,
 	.get_rfreg = rtl92s_phy_query_rf_reg,
 	.set_rfreg = rtl92s_phy_set_rf_reg,
+	.get_btc_status = rtl_btc_status_false,
 };
 
 static struct rtl_mod_params rtl92se_mod_params = {
@@ -322,6 +320,8 @@ static struct rtl_hal_cfg rtl92se_hal_cfg = {
 	.maps[MAC_RCR_ACRC32] = RCR_ACRC32,
 	.maps[MAC_RCR_ACF] = RCR_ACF,
 	.maps[MAC_RCR_AAP] = RCR_AAP,
+	.maps[MAC_HIMR] = INTA_MASK,
+	.maps[MAC_HIMRE] = INTA_MASK + 4,
 
 	.maps[EFUSE_TEST] = REG_EFUSE_TEST,
 	.maps[EFUSE_CTRL] = REG_EFUSE_CTRL,

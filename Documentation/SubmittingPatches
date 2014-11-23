@@ -483,12 +483,10 @@ have been included in the discussion
 
 14) Using Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: and Fixes:
 
-If this patch fixes a problem reported by somebody else, consider adding a
-Reported-by: tag to credit the reporter for their contribution.  Please
-note that this tag should not be added without the reporter's permission,
-especially if the problem was not reported in a public forum.  That said,
-if we diligently credit our bug reporters, they will, hopefully, be
-inspired to help us again in the future.
+The Reported-by tag gives credit to people who find bugs and report them and it
+hopefully inspires them to help us again in the future.  Please note that if
+the bug was reported in private, then ask for permission first before using the
+Reported-by tag.
 
 A Tested-by: tag indicates that the patch has been successfully tested (in
 some environment) by the person named.  This tag informs maintainers that

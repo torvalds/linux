@@ -454,7 +454,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->master = master;
 
 	of_id = of_match_device(orion_spi_of_match_table, &pdev->dev);
-	devdata = of_id->data;
+	devdata = (of_id) ? of_id->data : &orion_spi_dev_data;
 	spi->devdata = devdata;
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);

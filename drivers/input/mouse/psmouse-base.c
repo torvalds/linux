@@ -1536,15 +1536,8 @@ static int psmouse_reconnect(struct serio *serio)
 {
 	struct psmouse *psmouse = serio_get_drvdata(serio);
 	struct psmouse *parent = NULL;
-	struct serio_driver *drv = serio->drv;
 	unsigned char type;
 	int rc = -1;
-
-	if (!drv || !psmouse) {
-		psmouse_dbg(psmouse,
-			    "reconnect request, but serio is disconnected, ignoring...\n");
-		return -1;
-	}
 
 	mutex_lock(&psmouse_mutex);
 

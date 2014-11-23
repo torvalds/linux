@@ -70,7 +70,7 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 
 	opencores_kbd->addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(opencores_kbd->addr))
-		error = PTR_ERR(opencores_kbd->addr);
+		return PTR_ERR(opencores_kbd->addr);
 
 	input->name = pdev->name;
 	input->phys = "opencores-kbd/input0";

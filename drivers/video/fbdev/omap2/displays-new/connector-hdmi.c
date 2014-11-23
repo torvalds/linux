@@ -437,6 +437,7 @@ static struct platform_driver hdmi_connector_driver = {
 		.name	= "connector-hdmi",
 		.owner	= THIS_MODULE,
 		.of_match_table = hdmic_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
