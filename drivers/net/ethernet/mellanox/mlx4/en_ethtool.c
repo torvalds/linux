@@ -994,7 +994,7 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key)
 			rss_map->base_qpn;
 	}
 	if (key)
-		netdev_rss_key_fill(key, MLX4_EN_RSS_KEY_SIZE);
+		memcpy(key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
 	return err;
 }
 
@@ -1012,6 +1012,8 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 	 * between rings
 	 */
 	for (i = 0; i < priv->rx_ring_num; i++) {
+		if (!ring_index)
+			continue;
 		if (i > 0 && !ring_index[i] && !rss_rings)
 			rss_rings = i;
 
@@ -1032,8 +1034,10 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 		mlx4_en_stop_port(dev, 1);
 	}
 
-	priv->prof->rss_rings = rss_rings;
-
+	if (ring_index)
+		priv->prof->rss_rings = rss_rings;
+	if (key)
+		memcpy(priv->rss_key, key, MLX4_EN_RSS_KEY_SIZE);
 	if (port_up) {
 		err = mlx4_en_start_port(dev);
 		if (err)
