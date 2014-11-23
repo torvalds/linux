@@ -1219,8 +1219,7 @@ static int uvesafb_release(struct fb_info *info, int user)
 	uvesafb_vbe_state_restore(par, par->vbe_state_orig);
 out:
 	atomic_dec(&par->ref_count);
-	if (task)
-		uvesafb_free(task);
+	uvesafb_free(task);
 	return 0;
 }
 
