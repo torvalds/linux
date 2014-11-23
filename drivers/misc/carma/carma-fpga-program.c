@@ -525,7 +525,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 		goto out_dma_unmap;
 	}
 
-	ret = fsl_dma_external_start(chan, 1)
+	ret = fsl_dma_external_start(chan, 1);
 	if (ret) {
 		dev_err(priv->dev, "DMA external control setup failed\n");
 		goto out_dma_unmap;
@@ -749,20 +749,19 @@ static ssize_t fpga_read(struct file *filp, char __user *buf, size_t count,
 			 loff_t *f_pos)
 {
 	struct fpga_dev *priv = filp->private_data;
-	return simple_read_from_buffer(buf, count, ppos,
+	return simple_read_from_buffer(buf, count, f_pos,
 				       priv->vb.vaddr, priv->bytes);
 }
 
 static loff_t fpga_llseek(struct file *filp, loff_t offset, int origin)
 {
 	struct fpga_dev *priv = filp->private_data;
-	loff_t newpos;
 
 	/* only read-only opens are allowed to seek */
 	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
 		return -EINVAL;
 
-	return fixed_size_llseek(file, offset, origin, priv->fw_size);
+	return fixed_size_llseek(filp, offset, origin, priv->fw_size);
 }
 
 static const struct file_operations fpga_fops = {
