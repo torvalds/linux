@@ -260,7 +260,8 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { NULL };
 
-	CDEBUG(D_DLMTRACE, "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
+	CDEBUG(D_DLMTRACE,
+	       "flags %#llx owner %llu pid %u mode %u start %llu end %llu\n",
 	       *flags, new->l_policy_data.l_flock.owner,
 	       new->l_policy_data.l_flock.pid, mode,
 	       req->l_policy_data.l_flock.start,
@@ -497,7 +498,8 @@ reprocess:
 			new->l_policy_data.l_flock.end + 1;
 		new2->l_conn_export = lock->l_conn_export;
 		if (lock->l_export != NULL) {
-			new2->l_export = class_export_lock_get(lock->l_export, new2);
+			new2->l_export = class_export_lock_get(lock->l_export,
+							       new2);
 			if (new2->l_export->exp_lock_hash &&
 			    hlist_unhashed(&new2->l_exp_hash))
 				cfs_hash_add(new2->l_export->exp_lock_hash,

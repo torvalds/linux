@@ -603,7 +603,8 @@ int client_disconnect_export(struct obd_export *exp)
 		/* obd_force == local only */
 		ldlm_cli_cancel_unused(obd->obd_namespace, NULL,
 				       obd->obd_force ? LCF_LOCAL : 0, NULL);
-		ldlm_namespace_free_prior(obd->obd_namespace, imp, obd->obd_force);
+		ldlm_namespace_free_prior(obd->obd_namespace, imp,
+					  obd->obd_force);
 	}
 
 	/* There's no need to hold sem while disconnecting an import,

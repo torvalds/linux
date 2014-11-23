@@ -54,10 +54,10 @@
  * calculated as the number of locks in LRU * lock live time in seconds. If
  * CLV > SLV - lock is canceled.
  *
- * Client has LVF, that is, lock volume factor which regulates how much sensitive
- * client should be about last SLV from server. The higher LVF is the more locks
- * will be canceled on client. Default value for it is 1. Setting LVF to 2 means
- * that client will cancel locks 2 times faster.
+ * Client has LVF, that is, lock volume factor which regulates how much
+ * sensitive client should be about last SLV from server. The higher LVF is the
+ * more locks will be canceled on client. Default value for it is 1. Setting LVF
+ * to 2 means that client will cancel locks 2 times faster.
  *
  * Locks on a client will be canceled more intensively in these cases:
  * (1) if SLV is smaller, that is, load is higher on the server;
@@ -70,11 +70,12 @@
  * if flow is getting thinner, more and more particles become outside of it and
  * as particles are locks, they should be canceled.
  *
- * General idea of this belongs to Vitaly Fertman (vitaly@clusterfs.com). Andreas
- * Dilger (adilger@clusterfs.com) proposed few nice ideas like using LVF and many
- * cleanups. Flow definition to allow more easy understanding of the logic belongs
- * to Nikita Danilov (nikita@clusterfs.com) as well as many cleanups and fixes.
- * And design and implementation are done by Yury Umanets (umka@clusterfs.com).
+ * General idea of this belongs to Vitaly Fertman (vitaly@clusterfs.com).
+ * Andreas Dilger (adilger@clusterfs.com) proposed few nice ideas like using
+ * LVF and many cleanups. Flow definition to allow more easy understanding of
+ * the logic belongs to Nikita Danilov (nikita@clusterfs.com) as well as many
+ * cleanups and fixes. And design and implementation are done by Yury Umanets
+ * (umka@clusterfs.com).
  *
  * Glossary for terms used:
  *
@@ -696,8 +697,9 @@ LPROC_SEQ_FOPS_RO(lprocfs_grant_plan);
 
 LDLM_POOL_PROC_READER_SEQ_SHOW(recalc_period, int);
 LDLM_POOL_PROC_WRITER(recalc_period, int);
-static ssize_t lprocfs_recalc_period_seq_write(struct file *file, const char *buf,
-					   size_t len, loff_t *off)
+static ssize_t lprocfs_recalc_period_seq_write(struct file *file,
+					       const char *buf, size_t len,
+					       loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 
@@ -1134,23 +1136,27 @@ static unsigned long ldlm_pools_scan(ldlm_side_t client, int nr, gfp_t gfp_mask)
 	return (client == LDLM_NAMESPACE_SERVER) ? SHRINK_STOP : freed;
 }
 
-static unsigned long ldlm_pools_srv_count(struct shrinker *s, struct shrink_control *sc)
+static unsigned long ldlm_pools_srv_count(struct shrinker *s,
+					  struct shrink_control *sc)
 {
 	return ldlm_pools_count(LDLM_NAMESPACE_SERVER, sc->gfp_mask);
 }
 
-static unsigned long ldlm_pools_srv_scan(struct shrinker *s, struct shrink_control *sc)
+static unsigned long ldlm_pools_srv_scan(struct shrinker *s,
+					 struct shrink_control *sc)
 {
 	return ldlm_pools_scan(LDLM_NAMESPACE_SERVER, sc->nr_to_scan,
 			       sc->gfp_mask);
 }
 
-static unsigned long ldlm_pools_cli_count(struct shrinker *s, struct shrink_control *sc)
+static unsigned long ldlm_pools_cli_count(struct shrinker *s,
+					  struct shrink_control *sc)
 {
 	return ldlm_pools_count(LDLM_NAMESPACE_CLIENT, sc->gfp_mask);
 }
 
-static unsigned long ldlm_pools_cli_scan(struct shrinker *s, struct shrink_control *sc)
+static unsigned long ldlm_pools_cli_scan(struct shrinker *s,
+					 struct shrink_control *sc)
 {
 	return ldlm_pools_scan(LDLM_NAMESPACE_CLIENT, sc->nr_to_scan,
 			       sc->gfp_mask);

@@ -454,7 +454,8 @@ static void *ldlm_res_hop_object(struct hlist_node *hnode)
 	return hlist_entry(hnode, struct ldlm_resource, lr_hash);
 }
 
-static void ldlm_res_hop_get_locked(struct cfs_hash *hs, struct hlist_node *hnode)
+static void ldlm_res_hop_get_locked(struct cfs_hash *hs,
+				    struct hlist_node *hnode)
 {
 	struct ldlm_resource *res;
 
@@ -462,7 +463,8 @@ static void ldlm_res_hop_get_locked(struct cfs_hash *hs, struct hlist_node *hnod
 	ldlm_resource_getref(res);
 }
 
-static void ldlm_res_hop_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
+static void ldlm_res_hop_put_locked(struct cfs_hash *hs,
+				    struct hlist_node *hnode)
 {
 	struct ldlm_resource *res;
 

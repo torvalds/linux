@@ -158,13 +158,15 @@ void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 	unlock_res_and_lock(lock);
 
 	if (do_ast) {
-		CDEBUG(D_DLMTRACE, "Lock %p already unused, calling callback (%p)\n",
-		       lock, lock->l_blocking_ast);
+		CDEBUG(D_DLMTRACE,
+		       "Lock %p already unused, calling callback (%p)\n", lock,
+		       lock->l_blocking_ast);
 		if (lock->l_blocking_ast != NULL)
 			lock->l_blocking_ast(lock, ld, lock->l_ast_data,
 					     LDLM_CB_BLOCKING);
 	} else {
-		CDEBUG(D_DLMTRACE, "Lock %p is referenced, will be cancelled later\n",
+		CDEBUG(D_DLMTRACE,
+		       "Lock %p is referenced, will be cancelled later\n",
 		       lock);
 	}
 

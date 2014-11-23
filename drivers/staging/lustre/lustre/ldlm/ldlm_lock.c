@@ -1342,7 +1342,8 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 
 	} else if (!(flags & LDLM_FL_TEST_LOCK)) {/*less verbose for test-only*/
 		LDLM_DEBUG_NOLOCK("not matched ns %p type %u mode %u res %llu/%llu (%llu %llu)",
-				  ns, type, mode, res_id->name[0], res_id->name[1],
+				  ns, type, mode, res_id->name[0],
+				  res_id->name[1],
 				  (type == LDLM_PLAIN || type == LDLM_IBITS) ?
 					res_id->name[2] :policy->l_extent.start,
 				  (type == LDLM_PLAIN || type == LDLM_IBITS) ?
@@ -1455,7 +1456,8 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 
 			memcpy(data, lvb, size);
 		} else {
-			LDLM_ERROR(lock, "Replied unexpected lquota LVB size %d",
+			LDLM_ERROR(lock,
+				   "Replied unexpected lquota LVB size %d",
 				   size);
 			return -EINVAL;
 		}

@@ -1275,7 +1275,8 @@ int ldlm_cli_update_pool(struct ptlrpc_request *req)
 	 * server-side namespace is not possible. */
 	if (lustre_msg_get_slv(req->rq_repmsg) == 0 ||
 	    lustre_msg_get_limit(req->rq_repmsg) == 0) {
-		DEBUG_REQ(D_HA, req, "Zero SLV or Limit found (SLV: %llu, Limit: %u)",
+		DEBUG_REQ(D_HA, req,
+			  "Zero SLV or Limit found (SLV: %llu, Limit: %u)",
 			  lustre_msg_get_slv(req->rq_repmsg),
 			  lustre_msg_get_limit(req->rq_repmsg));
 		return 0;
@@ -1591,8 +1592,9 @@ ldlm_cancel_lru_policy(struct ldlm_namespace *ns, int flags)
  *			       sending any RPCs or waiting for any
  *			       outstanding RPC to complete.
  */
-static int ldlm_prepare_lru_list(struct ldlm_namespace *ns, struct list_head *cancels,
-				 int count, int max, int flags)
+static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
+				 struct list_head *cancels, int count, int max,
+				 int flags)
 {
 	ldlm_cancel_lru_policy_t pf;
 	struct ldlm_lock *lock, *next;
@@ -1916,7 +1918,8 @@ struct ldlm_cli_cancel_arg {
 	void   *lc_opaque;
 };
 
-static int ldlm_cli_hash_cancel_unused(struct cfs_hash *hs, struct cfs_hash_bd *bd,
+static int ldlm_cli_hash_cancel_unused(struct cfs_hash *hs,
+				       struct cfs_hash_bd *bd,
 				       struct hlist_node *hnode, void *arg)
 {
 	struct ldlm_resource	   *res = cfs_hash_object(hs, hnode);
