@@ -441,8 +441,7 @@ static void path_deinit(struct mmphw_path_plat *path_plat)
 	if (!path_plat)
 		return;
 
-	if (path_plat->path)
-		mmp_unregister_path(path_plat->path);
+	mmp_unregister_path(path_plat->path);
 }
 
 static int mmphw_probe(struct platform_device *pdev)
