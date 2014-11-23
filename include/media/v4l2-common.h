@@ -80,10 +80,8 @@
 
 /* ------------------------------------------------------------------------- */
 
-/* Control helper functions */
+/* Control helper function */
 
-int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
-		const char * const *menu_items);
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def);
 
 /* ------------------------------------------------------------------------- */
