@@ -220,7 +220,8 @@ resubmit:
 	nexthdr = skb_network_header(skb)[nhoff];
 
 	raw = raw6_local_deliver(skb, nexthdr);
-	if ((ipprot = rcu_dereference(inet6_protos[nexthdr])) != NULL) {
+	ipprot = rcu_dereference(inet6_protos[nexthdr]);
+	if (ipprot != NULL) {
 		int ret;
 
 		if (ipprot->flags & INET6_PROTO_FINAL) {

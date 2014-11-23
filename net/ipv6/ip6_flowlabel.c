@@ -654,7 +654,11 @@ release:
 			goto done;
 
 		err = -ENOMEM;
-		if (sfl1 == NULL || (err = mem_check(sk)) != 0)
+		if (sfl1 == NULL)
+			goto done;
+
+		err = mem_check(sk);
+		if (err != 0)
 			goto done;
 
 		fl1 = fl_intern(net, fl, freq.flr_label);

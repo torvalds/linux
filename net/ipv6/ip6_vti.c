@@ -287,8 +287,8 @@ static int vti6_rcv(struct sk_buff *skb)
 	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 
 	rcu_read_lock();
-	if ((t = vti6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr,
-				 &ipv6h->daddr)) != NULL) {
+	t = vti6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr, &ipv6h->daddr);
+	if (t != NULL) {
 		if (t->parms.proto != IPPROTO_IPV6 && t->parms.proto != 0) {
 			rcu_read_unlock();
 			goto discard;

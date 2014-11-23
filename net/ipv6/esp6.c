@@ -345,7 +345,8 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 	}
 
-	if ((nfrags = skb_cow_data(skb, 0, &trailer)) < 0) {
+	nfrags = skb_cow_data(skb, 0, &trailer);
+	if (nfrags < 0) {
 		ret = -EINVAL;
 		goto out;
 	}

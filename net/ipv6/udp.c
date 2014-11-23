@@ -357,7 +357,8 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 	struct sock *sk;
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 
-	if (unlikely(sk = skb_steal_sock(skb)))
+	sk = skb_steal_sock(skb);
+	if (unlikely(sk))
 		return sk;
 	return __udp6_lib_lookup(dev_net(skb_dst(skb)->dev), &iph->saddr, sport,
 				 &iph->daddr, dport, inet6_iif(skb),
@@ -1026,7 +1027,8 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 	fl6 = &inet->cork.fl.u.ip6;
 
 	/* Grab the skbuff where UDP header space exists. */
-	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
+	skb = skb_peek(&sk->sk_write_queue);
+	if (skb == NULL)
 		goto out;
 
 	/*

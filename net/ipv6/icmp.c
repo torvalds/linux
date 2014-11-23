@@ -243,7 +243,8 @@ int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 	struct icmp6hdr *icmp6h;
 	int err = 0;
 
-	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
+	skb = skb_peek(&sk->sk_write_queue);
+	if (skb == NULL)
 		goto out;
 
 	icmp6h = icmp6_hdr(skb);

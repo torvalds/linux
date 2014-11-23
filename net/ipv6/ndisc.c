@@ -162,7 +162,8 @@ static void ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data)
 	memcpy(opt+2, data, data_len);
 	data_len += 2;
 	opt += data_len;
-	if ((space -= data_len) > 0)
+	space -= data_len;
+	if (space > 0)
 		memset(opt, 0, space);
 }
 
@@ -656,8 +657,8 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 
 	if (skb && ipv6_chk_addr(dev_net(dev), &ipv6_hdr(skb)->saddr, dev, 1))
 		saddr = &ipv6_hdr(skb)->saddr;
-
-	if ((probes -= NEIGH_VAR(neigh->parms, UCAST_PROBES)) < 0) {
+	probes -= NEIGH_VAR(neigh->parms, UCAST_PROBES);
+	if (probes < 0) {
 		if (!(neigh->nud_state & NUD_VALID)) {
 			ND_PRINTK(1, dbg,
 				  "%s: trying to ucast probe in NUD_INVALID: %pI6\n",

@@ -501,8 +501,8 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 	   processing of the error. */
 
 	rcu_read_lock();
-	if ((t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->daddr,
-					&ipv6h->saddr)) == NULL)
+	t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->daddr, &ipv6h->saddr);
+	if (t == NULL)
 		goto out;
 
 	tproto = ACCESS_ONCE(t->parms.proto);
@@ -550,7 +550,8 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 			mtu = IPV6_MIN_MTU;
 		t->dev->mtu = mtu;
 
-		if ((len = sizeof(*ipv6h) + ntohs(ipv6h->payload_len)) > mtu) {
+		len = sizeof(*ipv6h) + ntohs(ipv6h->payload_len);
+		if (len > mtu) {
 			rel_type = ICMPV6_PKT_TOOBIG;
 			rel_code = 0;
 			rel_info = mtu;
@@ -811,9 +812,8 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 	int err;
 
 	rcu_read_lock();
-
-	if ((t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr,
-					&ipv6h->daddr)) != NULL) {
+	t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr, &ipv6h->daddr);
+	if (t != NULL) {
 		struct pcpu_sw_netstats *tstats;
 
 		tproto = ACCESS_ONCE(t->parms.proto);
@@ -1069,7 +1069,8 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	    (skb_cloned(skb) && !skb_clone_writable(skb, 0))) {
 		struct sk_buff *new_skb;
 
-		if (!(new_skb = skb_realloc_headroom(skb, max_headroom)))
+		new_skb = skb_realloc_headroom(skb, max_headroom);
+		if (!new_skb)
 			goto tx_err_dst_release;
 
 		if (skb->sk)

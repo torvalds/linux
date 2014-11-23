@@ -429,7 +429,8 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		struct sk_buff *clone;
 		int i, plen = 0;
 
-		if ((clone = alloc_skb(0, GFP_ATOMIC)) == NULL)
+		clone = alloc_skb(0, GFP_ATOMIC);
+		if (clone == NULL)
 			goto out_oom;
 		clone->next = head->next;
 		head->next = clone;
