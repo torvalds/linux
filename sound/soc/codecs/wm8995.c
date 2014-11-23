@@ -2004,7 +2004,6 @@ static int wm8995_remove(struct snd_soc_codec *codec)
 	int i;
 
 	wm8995 = snd_soc_codec_get_drvdata(codec);
-	wm8995_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); ++i)
 		regulator_unregister_notifier(wm8995->supplies[i].consumer,
@@ -2077,8 +2076,6 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
 		goto err_reg_enable;
 	}
-
-	wm8995_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch volume updates (right only; we always do left then right). */
 	snd_soc_update_bits(codec, WM8995_AIF1_DAC1_RIGHT_VOLUME,
