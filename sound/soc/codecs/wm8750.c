@@ -686,18 +686,6 @@ static struct snd_soc_dai_driver wm8750_dai = {
 	.ops = &wm8750_dai_ops,
 };
 
-static int wm8750_suspend(struct snd_soc_codec *codec)
-{
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8750_resume(struct snd_soc_codec *codec)
-{
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8750_probe(struct snd_soc_codec *codec)
 {
 	int ret;
@@ -707,9 +695,6 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 		printk(KERN_ERR "wm8750: failed to reset: %d\n", ret);
 		return ret;
 	}
-
-	/* charge output caps */
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* set the update bits */
 	snd_soc_update_bits(codec, WM8750_LDAC, 0x0100, 0x0100);
@@ -724,18 +709,10 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static int wm8750_remove(struct snd_soc_codec *codec)
-{
-	wm8750_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8750 = {
 	.probe =	wm8750_probe,
-	.remove =	wm8750_remove,
-	.suspend =	wm8750_suspend,
-	.resume =	wm8750_resume,
 	.set_bias_level = wm8750_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8750_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8750_snd_controls),
