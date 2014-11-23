@@ -3009,16 +3009,18 @@ again:
 	trace_ext4_ext_remove_space_done(inode, start, end, depth,
 			partial_cluster, path->p_hdr->eh_entries);
 
-	/* If we still have something in the partial cluster and we have removed
+	/*
+	 * If we still have something in the partial cluster and we have removed
 	 * even the first extent, then we should free the blocks in the partial
-	 * cluster as well. */
-	if (partial_cluster > 0 && path->p_hdr->eh_entries == 0) {
-		int flags = get_default_free_blocks_flags(inode);
-
+	 * cluster as well.  (This code will only run when there are no leaves
+	 * to the immediate left of the truncated/punched region.)
+	 */
+	if (partial_cluster > 0 && err == 0) {
+		/* don't zero partial_cluster since it's not used afterwards */
 		ext4_free_blocks(handle, inode, NULL,
 				 EXT4_C2B(sbi, partial_cluster),
-				 sbi->s_cluster_ratio, flags);
-		partial_cluster = 0;
+				 sbi->s_cluster_ratio,
+				 get_default_free_blocks_flags(inode));
 	}
 
 	/* TODO: flexible tree reduction should be here */
