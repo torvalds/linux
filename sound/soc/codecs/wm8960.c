@@ -943,22 +943,6 @@ static struct snd_soc_dai_driver wm8960_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8960_suspend(struct snd_soc_codec *codec)
-{
-	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8960_resume(struct snd_soc_codec *codec)
-{
-	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8960_probe(struct snd_soc_codec *codec)
 {
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
@@ -975,8 +959,6 @@ static int wm8960_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to issue reset\n");
 		return ret;
 	}
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the update bits */
 	snd_soc_update_bits(codec, WM8960_LINVOL, 0x100, 0x100);
@@ -997,21 +979,10 @@ static int wm8960_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int wm8960_remove(struct snd_soc_codec *codec)
-{
-	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
-
-	wm8960->set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8960 = {
 	.probe =	wm8960_probe,
-	.remove =	wm8960_remove,
-	.suspend =	wm8960_suspend,
-	.resume =	wm8960_resume,
 	.set_bias_level = wm8960_set_bias_level,
+	.suspend_bias_off = true,
 };
 
 static const struct regmap_config wm8960_regmap = {
