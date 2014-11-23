@@ -78,6 +78,7 @@
 #include "iwl-agn-hw.h"
 #include "iwl-fw-error-dump.h"
 #include "internal.h"
+#include "iwl-fh.h"
 
 /* extended range in FW SRAM */
 #define IWL_FW_MEM_EXTENDED_START	0x40000
@@ -1970,6 +1971,31 @@ static u32 iwl_trans_pcie_dump_csr(struct iwl_trans *trans,
 	return csr_len;
 }
 
+static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
+				       struct iwl_fw_error_dump_data **data)
+{
+	u32 fh_regs_len = FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND;
+	unsigned long flags;
+	__le32 *val;
+	int i;
+
+	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+		return 0;
+
+	(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FH_REGS);
+	(*data)->len = cpu_to_le32(fh_regs_len);
+	val = (void *)(*data)->data;
+
+	for (i = FH_MEM_LOWER_BOUND; i < FH_MEM_UPPER_BOUND; i += sizeof(u32))
+		*val++ = cpu_to_le32(iwl_trans_pcie_read32(trans, i));
+
+	iwl_trans_release_nic_access(trans, &flags);
+
+	*data = iwl_fw_error_next_data(*data);
+
+	return sizeof(**data) + fh_regs_len;
+}
+
 static
 struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 {
@@ -2000,6 +2026,9 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_prph) +
 			num_bytes_in_chunk;
 	}
+
+	/* FH registers */
+	len += sizeof(*data) + (FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND);
 
 	/* FW monitor */
 	if (trans_pcie->fw_mon_page)
@@ -2041,6 +2070,7 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 
 	len += iwl_trans_pcie_dump_prph(trans, &data);
 	len += iwl_trans_pcie_dump_csr(trans, &data);
+	len += iwl_trans_pcie_fh_regs_dump(trans, &data);
 	/* data is already pointing to the next section */
 
 	if (trans_pcie->fw_mon_page) {
