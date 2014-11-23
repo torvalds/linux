@@ -1890,23 +1890,23 @@ static int enic_dev_hang_reset(struct enic *enic)
 
 static int enic_set_rsskey(struct enic *enic)
 {
+	union vnic_rss_key *rss_key_buf_va;
 	dma_addr_t rss_key_buf_pa;
-	union vnic_rss_key *rss_key_buf_va = NULL;
-	union vnic_rss_key rss_key = {
-		.key[0].b = {85, 67, 83, 97, 119, 101, 115, 111, 109, 101},
-		.key[1].b = {80, 65, 76, 79, 117, 110, 105, 113, 117, 101},
-		.key[2].b = {76, 73, 78, 85, 88, 114, 111, 99, 107, 115},
-		.key[3].b = {69, 78, 73, 67, 105, 115, 99, 111, 111, 108},
-	};
-	int err;
+	u8 rss_key[ENIC_RSS_LEN];
+	int i, kidx, bidx, err;
 
-	rss_key_buf_va = pci_alloc_consistent(enic->pdev,
-		sizeof(union vnic_rss_key), &rss_key_buf_pa);
+	rss_key_buf_va = pci_zalloc_consistent(enic->pdev,
+					       sizeof(union vnic_rss_key),
+					       &rss_key_buf_pa);
 	if (!rss_key_buf_va)
 		return -ENOMEM;
 
-	memcpy(rss_key_buf_va, &rss_key, sizeof(union vnic_rss_key));
-
+	netdev_rss_key_fill(rss_key, ENIC_RSS_LEN);
+	for (i = 0; i < ENIC_RSS_LEN; i++) {
+		kidx = i / ENIC_RSS_BYTES_PER_KEY;
+		bidx = i % ENIC_RSS_BYTES_PER_KEY;
+		rss_key_buf_va->key[kidx].b[bidx] = rss_key[i];
+	}
 	spin_lock_bh(&enic->devcmd_lock);
 	err = enic_set_rss_key(enic,
 		rss_key_buf_pa,
