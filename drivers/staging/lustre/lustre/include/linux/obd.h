@@ -87,8 +87,7 @@ static inline void __client_obd_list_lock(client_obd_lock_t *lock,
 			if (task == NULL)
 				continue;
 
-			LCONSOLE_WARN("%s:%d: lock %p was acquired"
-				      " by <%s:%d:%s:%d> for %lu seconds.\n",
+			LCONSOLE_WARN("%s:%d: lock %p was acquired by <%s:%d:%s:%d> for %lu seconds.\n",
 				      current->comm, current->pid,
 				      lock, task->comm, task->pid,
 				      lock->func, lock->line,

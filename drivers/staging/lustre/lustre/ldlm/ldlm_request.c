@@ -102,9 +102,7 @@ int ldlm_expired_completion_wait(void *data)
 			      lock->l_last_activity,
 			      cfs_time_sub(get_seconds(),
 					   lock->l_last_activity));
-		LDLM_DEBUG(lock, "lock timed out (enqueued at "CFS_TIME_T", "
-			   CFS_DURATION_T"s ago); not entering recovery in "
-			   "server code, just going back to sleep",
+		LDLM_DEBUG(lock, "lock timed out (enqueued at " CFS_TIME_T ", " CFS_DURATION_T "s ago); not entering recovery in server code, just going back to sleep",
 			   lock->l_last_activity,
 			   cfs_time_sub(get_seconds(),
 					lock->l_last_activity));
@@ -191,8 +189,7 @@ int ldlm_completion_ast_async(struct ldlm_lock *lock, __u64 flags, void *data)
 		return ldlm_completion_tail(lock);
 	}
 
-	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, "
-		   "going forward");
+	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, going forward");
 	ldlm_reprocess_all(lock->l_resource);
 	return 0;
 }
@@ -240,8 +237,7 @@ int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 		return 0;
 	}
 
-	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, "
-		   "sleeping");
+	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, sleeping");
 
 noreproc:
 
@@ -324,8 +320,7 @@ int ldlm_blocking_ast_nocheck(struct ldlm_lock *lock)
 		if (rc < 0)
 			CERROR("ldlm_cli_cancel: %d\n", rc);
 	} else {
-		LDLM_DEBUG(lock, "Lock still has references, will be "
-			   "cancelled later");
+		LDLM_DEBUG(lock, "Lock still has references, will be cancelled later");
 	}
 	return 0;
 }
@@ -483,8 +478,7 @@ static void failed_lock_cleanup(struct ldlm_namespace *ns,
 
 	if (need_cancel)
 		LDLM_DEBUG(lock,
-			   "setting FL_LOCAL_ONLY | LDLM_FL_FAILED | "
-			   "LDLM_FL_ATOMIC_CB | LDLM_FL_CBPENDING");
+			   "setting FL_LOCAL_ONLY | LDLM_FL_FAILED | LDLM_FL_ATOMIC_CB | LDLM_FL_CBPENDING");
 	else
 		LDLM_DEBUG(lock, "lock was granted or failed in race");
 
@@ -557,8 +551,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			rc = size;
 			goto cleanup;
 		} else if (unlikely(size > lvb_len)) {
-			LDLM_ERROR(lock, "Replied LVB is larger than "
-				   "expectation, expected = %d, replied = %d",
+			LDLM_ERROR(lock, "Replied LVB is larger than expectation, expected = %d, replied = %d",
 				   lvb_len, size);
 			rc = -EINVAL;
 			goto cleanup;
@@ -1107,8 +1100,7 @@ static __u64 ldlm_cli_cancel_local(struct ldlm_lock *lock)
 		unlock_res_and_lock(lock);
 
 		if (local_only) {
-			CDEBUG(D_DLMTRACE, "not sending request (at caller's "
-			       "instruction)\n");
+			CDEBUG(D_DLMTRACE, "not sending request (at caller's instruction)\n");
 			rc = LDLM_FL_LOCAL_ONLY;
 		}
 		ldlm_lock_cancel(lock);
@@ -1223,8 +1215,7 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 			rc = ptlrpc_queue_wait(req);
 		}
 		if (rc == LUSTRE_ESTALE) {
-			CDEBUG(D_DLMTRACE, "client/server (nid %s) "
-			       "out of sync -- not fatal\n",
+			CDEBUG(D_DLMTRACE, "client/server (nid %s) out of sync -- not fatal\n",
 			       libcfs_nid2str(req->rq_import->
 					      imp_connection->c_peer.nid));
 			rc = 0;
@@ -1235,8 +1226,8 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 		} else if (rc != ELDLM_OK) {
 			/* -ESHUTDOWN is common on umount */
 			CDEBUG_LIMIT(rc == -ESHUTDOWN ? D_DLMTRACE : D_ERROR,
-				     "Got rc %d from cancel RPC: "
-				     "canceling anyway\n", rc);
+				     "Got rc %d from cancel RPC: canceling anyway\n",
+				     rc);
 			break;
 		}
 		sent = count;
@@ -2114,8 +2105,7 @@ static int replay_lock_interpret(const struct lu_env *env,
 
 	lock = ldlm_handle2lock(&aa->lock_handle);
 	if (!lock) {
-		CERROR("received replay ack for unknown local cookie %#llx"
-		       " remote cookie %#llx from server %s id %s\n",
+		CERROR("received replay ack for unknown local cookie %#llx remote cookie %#llx from server %s id %s\n",
 		       aa->lock_handle.cookie, reply->lock_handle.cookie,
 		       req->rq_export->exp_client_uuid.uuid,
 		       libcfs_id2str(req->rq_peer));
@@ -2243,9 +2233,8 @@ static void ldlm_cancel_unused_locks_for_replay(struct ldlm_namespace *ns)
 	int canceled;
 	LIST_HEAD(cancels);
 
-	CDEBUG(D_DLMTRACE, "Dropping as many unused locks as possible before"
-			   "replay for namespace %s (%d)\n",
-			   ldlm_ns_name(ns), ns->ns_nr_unused);
+	CDEBUG(D_DLMTRACE, "Dropping as many unused locks as possible before replay for namespace %s (%d)\n",
+	       ldlm_ns_name(ns), ns->ns_nr_unused);
 
 	/* We don't need to care whether or not LRU resize is enabled
 	 * because the LDLM_CANCEL_NO_WAIT policy doesn't use the

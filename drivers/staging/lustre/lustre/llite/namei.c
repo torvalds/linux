@@ -104,8 +104,8 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 
 	lli->lli_fid = body->fid1;
 	if (unlikely(!(body->valid & OBD_MD_FLTYPE))) {
-		CERROR("Can not initialize inode "DFID" without object type: "
-		       "valid = %#llx\n", PFID(&lli->lli_fid), body->valid);
+		CERROR("Can not initialize inode " DFID " without object type: valid = %#llx\n",
+		       PFID(&lli->lli_fid), body->valid);
 		return -EINVAL;
 	}
 
@@ -619,8 +619,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	long long lookup_flags = LOOKUP_OPEN;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),file %p,"
-			   "open_flags %x,mode %x opened %d\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),file %p,open_flags %x,mode %x opened %d\n",
 	       dentry->d_name.len, dentry->d_name.name, dir->i_ino,
 	       dir->i_generation, dir, file, open_flags, mode, *opened);
 
@@ -863,8 +862,7 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 {
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),"
-			   "flags=%u, excl=%d\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),flags=%u, excl=%d\n",
 	       dentry->d_name.len, dentry->d_name.name, dir->i_ino,
 	       dir->i_generation, dir, mode, want_excl);
 
@@ -1151,8 +1149,8 @@ static int ll_rename_generic(struct inode *src, struct dentry *src_dparent,
 	int err;
 
 	CDEBUG(D_VFSTRACE,
-	       "VFS Op:oldname=%.*s,src_dir=%lu/%u(%p),newname=%.*s,"
-	       "tgt_dir=%lu/%u(%p)\n", src_name->len, src_name->name,
+	       "VFS Op:oldname=%.*s,src_dir=%lu/%u(%p),newname=%.*s,tgt_dir=%lu/%u(%p)\n",
+	       src_name->len, src_name->name,
 	       src->i_ino, src->i_generation, src, tgt_name->len,
 	       tgt_name->name, tgt->i_ino, tgt->i_generation, tgt);
 

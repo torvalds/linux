@@ -457,8 +457,7 @@ lnet_check_routes(void)
 
 				lnet_net_unlock(cpt);
 
-				CERROR("Routes to %s via %s and %s not "
-				       "supported\n",
+				CERROR("Routes to %s via %s and %s not supported\n",
 				       libcfs_net2str(net),
 				       libcfs_nid2str(nid1),
 				       libcfs_nid2str(nid2));
@@ -959,8 +958,7 @@ lnet_ping_router_locked (lnet_peer_t *rtr)
 	secs = lnet_router_check_interval(rtr);
 
 	CDEBUG(D_NET,
-	       "rtr %s %d: deadline %lu ping_notsent %d alive %d "
-	       "alive_count %d lp_ping_timestamp %lu\n",
+	       "rtr %s %d: deadline %lu ping_notsent %d alive %d alive_count %d lp_ping_timestamp %lu\n",
 	       libcfs_nid2str(rtr->lp_nid), secs,
 	       rtr->lp_ping_deadline, rtr->lp_ping_notsent,
 	       rtr->lp_alive, rtr->lp_alive_count, rtr->lp_ping_timestamp);
@@ -1010,9 +1008,7 @@ lnet_router_checker_start(void)
 
 	if (check_routers_before_use &&
 	    dead_router_check_interval <= 0) {
-		LCONSOLE_ERROR_MSG(0x10a, "'dead_router_check_interval' must be"
-				   " set if 'check_routers_before_use' is set"
-				   "\n");
+		LCONSOLE_ERROR_MSG(0x10a, "'dead_router_check_interval' must be set if 'check_routers_before_use' is set\n");
 		return -EINVAL;
 	}
 
@@ -1370,8 +1366,8 @@ lnet_nrb_tiny_calculate(int npages)
 
 	if (tiny_router_buffers < 0) {
 		LCONSOLE_ERROR_MSG(0x10c,
-				   "tiny_router_buffers=%d invalid when "
-				   "routing enabled\n", tiny_router_buffers);
+				   "tiny_router_buffers=%d invalid when routing enabled\n",
+				   tiny_router_buffers);
 		return -1;
 	}
 
@@ -1389,8 +1385,8 @@ lnet_nrb_small_calculate(int npages)
 
 	if (small_router_buffers < 0) {
 		LCONSOLE_ERROR_MSG(0x10c,
-				   "small_router_buffers=%d invalid when "
-				   "routing enabled\n", small_router_buffers);
+				   "small_router_buffers=%d invalid when routing enabled\n",
+				   small_router_buffers);
 		return -1;
 	}
 
@@ -1408,8 +1404,8 @@ lnet_nrb_large_calculate(int npages)
 
 	if (large_router_buffers < 0) {
 		LCONSOLE_ERROR_MSG(0x10c,
-				   "large_router_buffers=%d invalid when "
-				   "routing enabled\n", large_router_buffers);
+				   "large_router_buffers=%d invalid when routing enabled\n",
+				   large_router_buffers);
 		return -1;
 	}
 
@@ -1442,8 +1438,7 @@ lnet_rtrpools_alloc(int im_a_router)
 	} else if (!strcmp(forwarding, "enabled")) {
 		/* explicitly enabled */
 	} else {
-		LCONSOLE_ERROR_MSG(0x10b, "'forwarding' not set to either "
-				   "'enabled' or 'disabled'\n");
+		LCONSOLE_ERROR_MSG(0x10b, "'forwarding' not set to either 'enabled' or 'disabled'\n");
 		return -EINVAL;
 	}
 
@@ -1520,11 +1515,10 @@ lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 
 	/* can't do predictions... */
 	if (cfs_time_after(when, now)) {
-		CWARN ("Ignoring prediction from %s of %s %s "
-		       "%ld seconds in the future\n",
-		       (ni == NULL) ? "userspace" : libcfs_nid2str(ni->ni_nid),
-		       libcfs_nid2str(nid), alive ? "up" : "down",
-		       cfs_duration_sec(cfs_time_sub(when, now)));
+		CWARN("Ignoring prediction from %s of %s %s %ld seconds in the future\n",
+		      (ni == NULL) ? "userspace" : libcfs_nid2str(ni->ni_nid),
+		      libcfs_nid2str(nid), alive ? "up" : "down",
+		      cfs_duration_sec(cfs_time_sub(when, now)));
 		return -EINVAL;
 	}
 

@@ -206,8 +206,7 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 
 	spin_unlock(&imp->imp_lock);
 
-	CDEBUG(level == LUSTRE_IMP_FULL ? D_INFO : D_HA, "%s->%s: level %s/%u "
-	       "force %u force_next %u deactive %u pingable %u suppress %u\n",
+	CDEBUG(level == LUSTRE_IMP_FULL ? D_INFO : D_HA, "%s->%s: level %s/%u force %u force_next %u deactive %u pingable %u suppress %u\n",
 	       imp->imp_obd->obd_uuid.uuid, obd2cli_tgt(imp->imp_obd),
 	       ptlrpc_import_state_name(level), level, force, force_next,
 	       imp->imp_deactive, imp->imp_pingable, suppress);
@@ -220,8 +219,7 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 	} else if (level != LUSTRE_IMP_FULL ||
 		   imp->imp_obd->obd_no_recov ||
 		   imp_is_deactive(imp)) {
-		CDEBUG(D_HA, "%s->%s: not pinging (in recovery "
-		       "or recovery disabled: %s)\n",
+		CDEBUG(D_HA, "%s->%s: not pinging (in recovery or recovery disabled: %s)\n",
 		       imp->imp_obd->obd_uuid.uuid, obd2cli_tgt(imp->imp_obd),
 		       ptlrpc_import_state_name(level));
 		if (force) {
@@ -334,11 +332,7 @@ int ptlrpc_start_pinger(void)
 		     thread_is_running(&pinger_thread), &lwi);
 
 	if (suppress_pings)
-		CWARN("Pings will be suppressed at the request of the "
-		      "administrator.  The configuration shall meet the "
-		      "additional requirements described in the manual.  "
-		      "(Search for the \"suppress_pings\" kernel module "
-		      "parameter.)\n");
+		CWARN("Pings will be suppressed at the request of the administrator.  The configuration shall meet the additional requirements described in the manual.  (Search for the \"suppress_pings\" kernel module parameter.)\n");
 
 	return 0;
 }
@@ -623,11 +617,7 @@ static int ping_evictor_main(void *arg)
 			if (expire_time > exp->exp_last_request_time) {
 				class_export_get(exp);
 				spin_unlock(&obd->obd_dev_lock);
-				LCONSOLE_WARN("%s: haven't heard from client %s"
-					      " (at %s) in %ld seconds. I think"
-					      " it's dead, and I am evicting"
-					      " it. exp %p, cur %ld expire %ld"
-					      " last %ld\n",
+				LCONSOLE_WARN("%s: haven't heard from client %s (at %s) in %ld seconds. I think it's dead, and I am evicting it. exp %p, cur %ld expire %ld last %ld\n",
 					      obd->obd_name,
 					      obd_uuid2str(&exp->exp_client_uuid),
 					      obd_export_nid2str(exp),

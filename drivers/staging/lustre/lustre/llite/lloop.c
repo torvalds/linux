@@ -778,8 +778,8 @@ static int __init lloop_init(void)
 
 	if (max_loop < 1 || max_loop > 256) {
 		max_loop = MAX_LOOP_DEFAULT;
-		CWARN("lloop: invalid max_loop (must be between"
-		      " 1 and 256), using default (%u)\n", max_loop);
+		CWARN("lloop: invalid max_loop (must be between 1 and 256), using default (%u)\n",
+		      max_loop);
 	}
 
 	lloop_major = register_blkdev(0, "lloop");

@@ -515,8 +515,8 @@ ksocknal_send_hello_v1 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       hello->kshm_nips * sizeof(__u32),
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %pI4h/%d\n", rc, hello->kshm_nips,
+		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
+			rc, hello->kshm_nips,
 			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 out:
@@ -560,8 +560,8 @@ ksocknal_send_hello_v2 (ksock_conn_t *conn, ksock_hello_msg_t *hello)
 			       hello->kshm_nips * sizeof(__u32),
 			       lnet_acceptor_timeout());
 	if (rc != 0) {
-		CNETERR("Error %d sending HELLO payload (%d)"
-			" to %pI4h/%d\n", rc, hello->kshm_nips,
+		CNETERR("Error %d sending HELLO payload (%d) to %pI4h/%d\n",
+			rc, hello->kshm_nips,
 			&conn->ksnc_ipaddr, conn->ksnc_port);
 	}
 
@@ -595,10 +595,9 @@ ksocknal_recv_hello_v1(ksock_conn_t *conn, ksock_hello_msg_t *hello,
 
 	/* ...and check we got what we expected */
 	if (hdr->type != cpu_to_le32 (LNET_MSG_HELLO)) {
-		CERROR("Expecting a HELLO hdr,"
-			" but got type %d from %pI4h\n",
-			le32_to_cpu (hdr->type),
-			&conn->ksnc_ipaddr);
+		CERROR("Expecting a HELLO hdr, but got type %d from %pI4h\n",
+		       le32_to_cpu(hdr->type),
+		       &conn->ksnc_ipaddr);
 		rc = -EPROTO;
 		goto out;
 	}

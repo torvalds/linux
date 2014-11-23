@@ -614,8 +614,8 @@ int ldlm_pool_shrink(struct ldlm_pool *pl, int nr,
 			lprocfs_counter_add(pl->pl_stats,
 					    LDLM_POOL_SHRINK_FREED_STAT,
 					    cancel);
-			CDEBUG(D_DLMTRACE, "%s: request to shrink %d locks, "
-			       "shrunk %d\n", pl->pl_name, nr, cancel);
+			CDEBUG(D_DLMTRACE, "%s: request to shrink %d locks, shrunk %d\n",
+			       pl->pl_name, nr, cancel);
 		}
 	}
 	return cancel;
@@ -1194,10 +1194,8 @@ int ldlm_pools_recalc(ldlm_side_t client)
 		 * of limit.
 		 */
 		if (nr_l >= 2 * (LDLM_POOL_HOST_L / 3)) {
-			CWARN("\"Modest\" pools eat out 2/3 of server locks "
-			      "limit (%d of %lu). This means that you have too "
-			      "many clients for this amount of server RAM. "
-			      "Upgrade server!\n", nr_l, LDLM_POOL_HOST_L);
+			CWARN("\"Modest\" pools eat out 2/3 of server locks limit (%d of %lu). This means that you have too many clients for this amount of server RAM. Upgrade server!\n",
+			      nr_l, LDLM_POOL_HOST_L);
 			equal = 1;
 		}
 

@@ -259,9 +259,9 @@ void ll_invalidate_aliases(struct inode *inode)
 
 	ll_lock_dcache(inode);
 	ll_d_hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
-		CDEBUG(D_DENTRY, "dentry in drop %.*s (%p) parent %p "
-		       "inode %p flags %d\n", dentry->d_name.len,
-		       dentry->d_name.name, dentry, dentry->d_parent,
+		CDEBUG(D_DENTRY, "dentry in drop %.*s (%p) parent %p inode %p flags %d\n",
+		       dentry->d_name.len, dentry->d_name.name,
+		       dentry, dentry->d_parent,
 		       dentry->d_inode, dentry->d_flags);
 
 		if (unlikely(dentry == dentry->d_sb->s_root)) {

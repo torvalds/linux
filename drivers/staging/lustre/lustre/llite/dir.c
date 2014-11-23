@@ -228,8 +228,8 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 			if (ll_pagevec_add(&lru_pvec, page) == 0)
 				ll_pagevec_lru_add_file(&lru_pvec);
 		} else {
-			CDEBUG(D_VFSTRACE, "page %lu add to page cache failed:"
-			       " %d\n", offset, ret);
+			CDEBUG(D_VFSTRACE, "page %lu add to page cache failed: %d\n",
+			       offset, ret);
 		}
 		page_cache_release(page);
 	}
@@ -600,8 +600,8 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	int			api32	= ll_need_32bit_api(sbi);
 	int			rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) pos %lu/%llu "
-	       " 32bit_api %d\n", inode->i_ino, inode->i_generation,
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) pos %lu/%llu 32bit_api %d\n",
+	       inode->i_ino, inode->i_generation,
 	       inode, (unsigned long)lfd->lfd_pos, i_size_read(inode), api32);
 
 	if (lfd->lfd_pos == MDS_DIR_END_OFF) {
@@ -715,10 +715,9 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 			break;
 		}
 		default: {
-			CDEBUG(D_IOCTL, "bad userland LOV MAGIC:"
-					" %#08x != %#08x nor %#08x\n",
-					lump->lmm_magic, LOV_USER_MAGIC_V1,
-					LOV_USER_MAGIC_V3);
+			CDEBUG(D_IOCTL, "bad userland LOV MAGIC: %#08x != %#08x nor %#08x\n",
+			       lump->lmm_magic, LOV_USER_MAGIC_V1,
+			       LOV_USER_MAGIC_V3);
 			return -EINVAL;
 		}
 		}
@@ -814,8 +813,8 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr failed on inode "
-		       "%lu/%u: rc %d\n", inode->i_ino,
+		CDEBUG(D_INFO, "md_getattr failed on inode %lu/%u: rc %d\n",
+		       inode->i_ino,
 		       inode->i_generation, rc);
 		goto out;
 	}
@@ -1013,8 +1012,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 				     copy->hc_hai.hai_action == HSMA_ARCHIVE);
 		iput(inode);
 		if (rc) {
-			CDEBUG(D_HSM, "Could not read file data version. "
-				      "Request could not be confirmed.\n");
+			CDEBUG(D_HSM, "Could not read file data version. Request could not be confirmed.\n");
 			if (hpk.hpk_errval == 0)
 				hpk.hpk_errval = -rc;
 			goto progress;
@@ -1028,8 +1026,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 		 * to check anyway. */
 		if ((copy->hc_hai.hai_action == HSMA_ARCHIVE) &&
 		    (copy->hc_data_version != data_version)) {
-			CDEBUG(D_HSM, "File data version mismatched. "
-			      "File content was changed during archiving. "
+			CDEBUG(D_HSM, "File data version mismatched. File content was changed during archiving. "
 			       DFID", start:%#llx current:%#llx\n",
 			       PFID(&copy->hc_hai.hai_fid),
 			       copy->hc_data_version, data_version);

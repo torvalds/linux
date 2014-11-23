@@ -1611,8 +1611,8 @@ void osc_wake_cache_waiters(struct client_obd *cli)
 		if ((cli->cl_dirty + PAGE_CACHE_SIZE > cli->cl_dirty_max) ||
 		    (atomic_read(&obd_dirty_pages) + 1 >
 		     obd_max_dirty_pages)) {
-			CDEBUG(D_CACHE, "no dirty room: dirty: %ld "
-			       "osc max %ld, sys max %d\n", cli->cl_dirty,
+			CDEBUG(D_CACHE, "no dirty room: dirty: %ld osc max %ld, sys max %d\n",
+			       cli->cl_dirty,
 			       cli->cl_dirty_max, obd_max_dirty_pages);
 			goto wakeup;
 		}

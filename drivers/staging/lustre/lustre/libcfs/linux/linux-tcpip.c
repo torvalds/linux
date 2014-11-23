@@ -279,8 +279,7 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 			rc = kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
 					     (char *)&tv, sizeof(tv));
 			if (rc != 0) {
-				CERROR("Can't set socket send timeout "
-				       "%ld.%06d: %d\n",
+				CERROR("Can't set socket send timeout %ld.%06d: %d\n",
 				       (long)tv.tv_sec, (int)tv.tv_usec, rc);
 				return rc;
 			}

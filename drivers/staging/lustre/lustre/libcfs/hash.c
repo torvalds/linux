@@ -1121,8 +1121,7 @@ cfs_hash_destroy(struct cfs_hash *hs)
 		cfs_hash_bd_for_each_hlist(hs, &bd, hhead) {
 			hlist_for_each_safe(hnode, pos, hhead) {
 				LASSERTF(!cfs_hash_with_assert_empty(hs),
-					 "hash %s bucket %u(%u) is not "
-					 " empty: %u items left\n",
+					 "hash %s bucket %u(%u) is not empty: %u items left\n",
 					 hs->hs_name, bd.bd_bucket->hsb_index,
 					 bd.bd_offset, bd.bd_bucket->hsb_count);
 				/* can't assert key valicate, because we

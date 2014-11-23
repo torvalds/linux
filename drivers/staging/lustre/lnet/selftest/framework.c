@@ -291,8 +291,7 @@ sfw_server_rpc_done(struct srpc_server_rpc *rpc)
 	int			status	= rpc->srpc_status;
 
 	CDEBUG (D_NET,
-		"Incoming framework RPC done: "
-		"service %s, peer %s, status %s:%d\n",
+		"Incoming framework RPC done: service %s, peer %s, status %s:%d\n",
 		sv->sv_name, libcfs_id2str(rpc->srpc_peer),
 		swi_state2str(rpc->srpc_wi.swi_state),
 		status);
@@ -310,8 +309,7 @@ sfw_client_rpc_fini (srpc_client_rpc_t *rpc)
 	LASSERT (atomic_read(&rpc->crpc_refcount) == 0);
 
 	CDEBUG (D_NET,
-		"Outgoing framework RPC done: "
-		"service %d, peer %s, status %s:%d:%d\n",
+		"Outgoing framework RPC done: service %d, peer %s, status %s:%d:%d\n",
 		rpc->crpc_service, libcfs_id2str(rpc->crpc_dest),
 		swi_state2str(rpc->crpc_wi.swi_state),
 		rpc->crpc_aborted, rpc->crpc_status);
@@ -575,8 +573,8 @@ sfw_load_test(struct sfw_test_instance *tsi)
 
 	rc = srpc_service_add_buffers(svc, nbuf);
 	if (rc != 0) {
-		CWARN("Failed to reserve enough buffers: "
-		      "service %s, %d needed: %d\n", svc->sv_name, nbuf, rc);
+		CWARN("Failed to reserve enough buffers: service %s, %d needed: %d\n",
+		      svc->sv_name, nbuf, rc);
 		/* NB: this error handler is not strictly correct, because
 		 * it may release more buffers than already allocated,
 		 * but it doesn't matter because request portal should
@@ -1270,8 +1268,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 
 		if (sn != NULL &&
 		    sn->sn_features != request->msg_ses_feats) {
-			CNETERR("Features of framework RPC don't match "
-				"features of current session: %x/%x\n",
+			CNETERR("Features of framework RPC don't match features of current session: %x/%x\n",
 				request->msg_ses_feats, sn->sn_features);
 			reply->msg_body.reply.status = EPROTO;
 			reply->msg_body.reply.sid    = sn->sn_id;
@@ -1348,8 +1345,7 @@ sfw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 	spin_lock(&sfw_data.fw_lock);
 
 	if (status != 0) {
-		CERROR("Bulk transfer failed for RPC: "
-		       "service %s, peer %s, status %d\n",
+		CERROR("Bulk transfer failed for RPC: service %s, peer %s, status %d\n",
 		       sv->sv_name, libcfs_id2str(rpc->srpc_peer), status);
 		spin_unlock(&sfw_data.fw_lock);
 		return -EIO;
@@ -1664,12 +1660,10 @@ sfw_startup (void)
 	}
 
 	if (session_timeout == 0)
-		CWARN ("Zero session_timeout specified "
-		       "- test sessions never expire.\n");
+		CWARN("Zero session_timeout specified - test sessions never expire.\n");
 
 	if (rpc_timeout == 0)
-		CWARN ("Zero rpc_timeout specified "
-		       "- test RPC never expire.\n");
+		CWARN("Zero rpc_timeout specified - test RPC never expire.\n");
 
 	memset(&sfw_data, 0, sizeof(struct smoketest_framework));
 
@@ -1727,8 +1721,7 @@ sfw_startup (void)
 
 		rc = srpc_service_add_buffers(sv, sv->sv_wi_total);
 		if (rc != 0) {
-			CWARN("Failed to reserve enough buffers: "
-			      "service %s, %d needed: %d\n",
+			CWARN("Failed to reserve enough buffers: service %s, %d needed: %d\n",
 			      sv->sv_name, sv->sv_wi_total, rc);
 			error = -ENOMEM;
 		}

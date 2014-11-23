@@ -170,8 +170,8 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		 * OSTs and send setattr to back to MDS. */
 		rc = ll_som_update(inode, op_data);
 		if (rc) {
-			CERROR("inode %lu mdc Size-on-MDS update failed: "
-			       "rc = %d\n", inode->i_ino, rc);
+			CERROR("inode %lu mdc Size-on-MDS update failed: rc = %d\n",
+			       inode->i_ino, rc);
 			rc = 0;
 		}
 	} else if (rc) {
@@ -989,8 +989,8 @@ int ll_inode_getattr(struct inode *inode, struct obdo *obdo,
 		struct ost_id *oi = lsm ? &lsm->lsm_oi : &obdo->o_oi;
 
 		obdo_refresh_inode(inode, obdo, obdo->o_valid);
-		CDEBUG(D_INODE, "objid "DOSTID" size %llu, blocks %llu,"
-		       " blksize %lu\n", POSTID(oi), i_size_read(inode),
+		CDEBUG(D_INODE, "objid " DOSTID " size %llu, blocks %llu, blksize %lu\n",
+		       POSTID(oi), i_size_read(inode),
 		       (unsigned long long)inode->i_blocks,
 		       1UL << inode->i_blkbits);
 	}
@@ -1418,8 +1418,8 @@ int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
 	rc = md_getattr_name(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr_name failed "
-		       "on %s: rc %d\n", filename, rc);
+		CDEBUG(D_INFO, "md_getattr_name failed on %s: rc %d\n",
+		       filename, rc);
 		goto out;
 	}
 
@@ -2233,8 +2233,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (cmd == LL_IOC_SETFLAGS) {
 			if ((flags & LL_FILE_IGNORE_LOCK) &&
 			    !(file->f_flags & O_DIRECT)) {
-				CERROR("%s: unable to disable locking on "
-				       "non-O_DIRECT file\n", current->comm);
+				CERROR("%s: unable to disable locking on non-O_DIRECT file\n",
+				       current->comm);
 				return -EINVAL;
 			}
 

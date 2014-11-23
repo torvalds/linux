@@ -580,8 +580,7 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 	svc->srv_nthrs_cpt_init = init;
 
 	if (nthrs * svc->srv_ncpts > tc->tc_nthrs_max) {
-		CDEBUG(D_OTHER, "%s: This service may have more threads (%d) "
-		       "than the given soft limit (%d)\n",
+		CDEBUG(D_OTHER, "%s: This service may have more threads (%d) than the given soft limit (%d)\n",
 		       svc->srv_name, nthrs * svc->srv_ncpts,
 		       tc->tc_nthrs_max);
 	}
@@ -1251,8 +1250,8 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	/* deadline is when the client expects us to reply, margin is the
 	   difference between clients' and servers' expectations */
 	DEBUG_REQ(D_ADAPTTO, req,
-		  "%ssending early reply (deadline %+lds, margin %+lds) for "
-		  "%d+%d", AT_OFF ? "AT off - not " : "",
+		  "%ssending early reply (deadline %+lds, margin %+lds) for %d+%d",
+		  AT_OFF ? "AT off - not " : "",
 		  olddl, olddl - at_get(&svcpt->scp_at_estimate),
 		  at_get(&svcpt->scp_at_estimate), at_extra);
 
@@ -1260,17 +1259,15 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		return 0;
 
 	if (olddl < 0) {
-		DEBUG_REQ(D_WARNING, req, "Already past deadline (%+lds), "
-			  "not sending early reply. Consider increasing "
-			  "at_early_margin (%d)?", olddl, at_early_margin);
+		DEBUG_REQ(D_WARNING, req, "Already past deadline (%+lds), not sending early reply. Consider increasing at_early_margin (%d)?",
+			  olddl, at_early_margin);
 
 		/* Return an error so we're not re-added to the timed list. */
 		return -ETIMEDOUT;
 	}
 
 	if (!(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
-		DEBUG_REQ(D_INFO, req, "Wanted to ask client for more time, "
-			  "but no AT support");
+		DEBUG_REQ(D_INFO, req, "Wanted to ask client for more time, but no AT support");
 		return -ENOSYS;
 	}
 
@@ -1296,8 +1293,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		 * we may be past adaptive_max */
 		if (req->rq_deadline >= req->rq_arrival_time.tv_sec +
 		    at_get(&svcpt->scp_at_estimate)) {
-			DEBUG_REQ(D_WARNING, req, "Couldn't add any time "
-				  "(%ld/%ld), not sending early reply\n",
+			DEBUG_REQ(D_WARNING, req, "Couldn't add any time (%ld/%ld), not sending early reply\n",
 				  olddl, req->rq_arrival_time.tv_sec +
 				  at_get(&svcpt->scp_at_estimate) -
 				  get_seconds());
@@ -1329,8 +1325,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	LASSERT(atomic_read(&req->rq_refcount));
 	/** if it is last refcount then early reply isn't needed */
 	if (atomic_read(&req->rq_refcount) == 1) {
-		DEBUG_REQ(D_ADAPTTO, reqcopy, "Normal reply already sent out, "
-			  "abort sending early reply\n");
+		DEBUG_REQ(D_ADAPTTO, reqcopy, "Normal reply already sent out, abort sending early reply\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -1454,16 +1449,14 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 
 	spin_unlock(&svcpt->scp_at_lock);
 
-	CDEBUG(D_ADAPTTO, "timeout in %+ds, asking for %d secs on %d early "
-	       "replies\n", first, at_extra, counter);
+	CDEBUG(D_ADAPTTO, "timeout in %+ds, asking for %d secs on %d early replies\n",
+	       first, at_extra, counter);
 	if (first < 0) {
 		/* We're already past request deadlines before we even get a
 		   chance to send early replies */
-		LCONSOLE_WARN("%s: This server is not able to keep up with "
-			      "request traffic (cpu-bound).\n",
+		LCONSOLE_WARN("%s: This server is not able to keep up with request traffic (cpu-bound).\n",
 			      svcpt->scp_service->srv_name);
-		CWARN("earlyQ=%d reqQ=%d recA=%d, svcEst=%d, "
-		      "delay="CFS_DURATION_T"(jiff)\n",
+		CWARN("earlyQ=%d reqQ=%d recA=%d, svcEst=%d, delay=" CFS_DURATION_T "(jiff)\n",
 		      counter, svcpt->scp_nreqs_incoming,
 		      svcpt->scp_nreqs_active,
 		      at_get(&svcpt->scp_at_estimate), delay);
@@ -1825,8 +1818,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		if (rc == 0) {
 			rc = sptlrpc_target_export_check(req->rq_export, req);
 			if (rc)
-				DEBUG_REQ(D_ERROR, req, "DROPPING req with "
-					  "illegal security flavor,");
+				DEBUG_REQ(D_ERROR, req, "DROPPING req with illegal security flavor,");
 		}
 
 		if (rc)
@@ -1942,18 +1934,17 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	/* Discard requests queued for longer than the deadline.
 	   The deadline is increased if we send an early reply. */
 	if (get_seconds() > request->rq_deadline) {
-		DEBUG_REQ(D_ERROR, request, "Dropping timed-out request from %s"
-			  ": deadline "CFS_DURATION_T":"CFS_DURATION_T"s ago\n",
+		DEBUG_REQ(D_ERROR, request, "Dropping timed-out request from %s: deadline " CFS_DURATION_T ":" CFS_DURATION_T "s ago\n",
 			  libcfs_id2str(request->rq_peer),
 			  cfs_time_sub(request->rq_deadline,
-			  request->rq_arrival_time.tv_sec),
+				       request->rq_arrival_time.tv_sec),
 			  cfs_time_sub(get_seconds(),
-			  request->rq_deadline));
+				       request->rq_deadline));
 		goto put_conn;
 	}
 
-	CDEBUG(D_RPCTRACE, "Handling RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x%llu:%s:%d\n", current_comm(),
+	CDEBUG(D_RPCTRACE, "Handling RPC pname:cluuid+ref:pid:xid:nid:opc %s:%s+%d:%d:x%llu:%s:%d\n",
+	       current_comm(),
 	       (request->rq_export ?
 		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
 	       (request->rq_export ?
@@ -1986,26 +1977,24 @@ put_conn:
 
 	do_gettimeofday(&work_end);
 	timediff = cfs_timeval_sub(&work_end, &work_start, NULL);
-	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x%llu:%s:%d Request processed in "
-	       "%ldus (%ldus total) trans %llu rc %d/%d\n",
-		current_comm(),
-		(request->rq_export ?
-		 (char *)request->rq_export->exp_client_uuid.uuid : "0"),
-		(request->rq_export ?
-		 atomic_read(&request->rq_export->exp_refcount) : -99),
-		lustre_msg_get_status(request->rq_reqmsg),
-		request->rq_xid,
-		libcfs_id2str(request->rq_peer),
-		lustre_msg_get_opc(request->rq_reqmsg),
-		timediff,
-		cfs_timeval_sub(&work_end, &request->rq_arrival_time, NULL),
-		(request->rq_repmsg ?
-		 lustre_msg_get_transno(request->rq_repmsg) :
-		 request->rq_transno),
-		request->rq_status,
-		(request->rq_repmsg ?
-		 lustre_msg_get_status(request->rq_repmsg) : -999));
+	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc %s:%s+%d:%d:x%llu:%s:%d Request processed in %ldus (%ldus total) trans %llu rc %d/%d\n",
+	       current_comm(),
+	       (request->rq_export ?
+		(char *)request->rq_export->exp_client_uuid.uuid : "0"),
+	       (request->rq_export ?
+		atomic_read(&request->rq_export->exp_refcount) : -99),
+	       lustre_msg_get_status(request->rq_reqmsg),
+	       request->rq_xid,
+	       libcfs_id2str(request->rq_peer),
+	       lustre_msg_get_opc(request->rq_reqmsg),
+	       timediff,
+	       cfs_timeval_sub(&work_end, &request->rq_arrival_time, NULL),
+	       (request->rq_repmsg ?
+		lustre_msg_get_transno(request->rq_repmsg) :
+		request->rq_transno),
+	       request->rq_status,
+	       (request->rq_repmsg ?
+		lustre_msg_get_status(request->rq_repmsg) : -999));
 	if (likely(svc->srv_stats != NULL && request->rq_reqmsg != NULL)) {
 		__u32 op = lustre_msg_get_opc(request->rq_reqmsg);
 		int opc = opcode_offset(op);
@@ -2557,8 +2546,8 @@ static int ptlrpc_start_hr_threads(void)
 		if (!IS_ERR_VALUE(rc))
 			continue;
 
-		CERROR("Reply handling thread %d:%d Failed on starting: "
-		       "rc = %d\n", i, j, rc);
+		CERROR("Reply handling thread %d:%d Failed on starting: rc = %d\n",
+		       i, j, rc);
 		ptlrpc_stop_hr_threads();
 		return rc;
 	}
@@ -2920,8 +2909,7 @@ ptlrpc_service_unlink_rqbd(struct ptlrpc_service *svc)
 			rc = l_wait_event(svcpt->scp_waitq,
 					  svcpt->scp_nrqbds_posted == 0, &lwi);
 			if (rc == -ETIMEDOUT) {
-				CWARN("Service %s waiting for "
-				      "request buffers\n",
+				CWARN("Service %s waiting for request buffers\n",
 				      svcpt->scp_service->srv_name);
 			}
 			spin_lock(&svcpt->scp_lock);

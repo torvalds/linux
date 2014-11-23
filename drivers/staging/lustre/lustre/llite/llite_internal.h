@@ -1435,8 +1435,8 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		 * case the dcache being cleared */
 		if (it->d.lustre.it_remote_lock_mode) {
 			handle.cookie = it->d.lustre.it_remote_lock_handle;
-			CDEBUG(D_DLMTRACE, "setting l_data to inode %p"
-			       "(%lu/%u) for remote lock %#llx\n", inode,
+			CDEBUG(D_DLMTRACE, "setting l_data to inode %p(%lu/%u) for remote lock %#llx\n",
+			       inode,
 			       inode->i_ino, inode->i_generation,
 			       handle.cookie);
 			md_set_lock_data(exp, &handle.cookie, inode, NULL);
@@ -1444,8 +1444,8 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 
 		handle.cookie = it->d.lustre.it_lock_handle;
 
-		CDEBUG(D_DLMTRACE, "setting l_data to inode %p (%lu/%u)"
-		       " for lock %#llx\n", inode, inode->i_ino,
+		CDEBUG(D_DLMTRACE, "setting l_data to inode %p (%lu/%u) for lock %#llx\n",
+		       inode, inode->i_ino,
 		       inode->i_generation, handle.cookie);
 
 		md_set_lock_data(exp, &handle.cookie, inode,
@@ -1489,8 +1489,8 @@ static inline void __d_lustre_invalidate(struct dentry *dentry)
  */
 static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 {
-	CDEBUG(D_DENTRY, "invalidate dentry %.*s (%p) parent %p inode %p "
-	       "refc %d\n", dentry->d_name.len, dentry->d_name.name, dentry,
+	CDEBUG(D_DENTRY, "invalidate dentry %.*s (%p) parent %p inode %p refc %d\n",
+	       dentry->d_name.len, dentry->d_name.name, dentry,
 	       dentry->d_parent, dentry->d_inode, d_count(dentry));
 
 	spin_lock_nested(&dentry->d_lock,

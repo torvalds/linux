@@ -201,8 +201,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 #endif
 	if (rc) {
 		if (rc == -EOPNOTSUPP && xattr_type == XATTR_USER_T) {
-			LCONSOLE_INFO("Disabling user_xattr feature because "
-				      "it is not supported on the server\n");
+			LCONSOLE_INFO("Disabling user_xattr feature because it is not supported on the server\n");
 			sbi->ll_flags &= ~LL_SBI_USER_XATTR;
 		}
 		return rc;

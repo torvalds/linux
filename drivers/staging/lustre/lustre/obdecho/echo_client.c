@@ -871,8 +871,7 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 	spin_lock(&ec->ec_lock);
 	while (!list_empty(&ec->ec_objects)) {
 		spin_unlock(&ec->ec_lock);
-		CERROR("echo_client still has objects at cleanup time, "
-		       "wait for 1 second\n");
+		CERROR("echo_client still has objects at cleanup time, wait for 1 second\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(1));
 		lu_site_purge(env, &ed->ed_site->cs_lu, -1);

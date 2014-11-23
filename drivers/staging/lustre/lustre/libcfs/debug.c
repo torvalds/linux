@@ -318,9 +318,7 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
 	if (t >= 1 && matched == n) {
 		/* don't print warning for lctl set_param debug=0 or -1 */
 		if (m != 0 && m != -1)
-			CWARN("You are trying to use a numerical value for the "
-			      "mask - this will be deprecated in a future "
-			      "release.\n");
+			CWARN("You are trying to use a numerical value for the mask - this will be deprecated in a future release.\n");
 		*mask = m;
 		return 0;
 	}
@@ -375,8 +373,8 @@ void libcfs_debug_dumplog(void)
 			     (void *)(long)current_pid(),
 			     "libcfs_debug_dumper");
 	if (IS_ERR(dumper))
-		pr_err("LustreError: cannot start log dump thread:"
-		       " %ld\n", PTR_ERR(dumper));
+		pr_err("LustreError: cannot start log dump thread: %ld\n",
+		       PTR_ERR(dumper));
 	else
 		schedule();
 

@@ -678,9 +678,7 @@ srpc_finish_service(struct srpc_service *sv)
 
 		rpc = list_entry(scd->scd_rpc_active.next,
 				     struct srpc_server_rpc, srpc_list);
-		CNETERR("Active RPC %p on shutdown: sv %s, peer %s, "
-			"wi %s scheduled %d running %d, "
-			"ev fired %d type %d status %d lnet %d\n",
+		CNETERR("Active RPC %p on shutdown: sv %s, peer %s, wi %s scheduled %d running %d, ev fired %d type %d status %d lnet %d\n",
 			rpc, sv->sv_name, libcfs_id2str(rpc->srpc_peer),
 			swi_state2str(rpc->srpc_wi.swi_state),
 			rpc->srpc_wi.swi_workitem.wi_scheduled,
@@ -1236,20 +1234,18 @@ srpc_send_rpc (swi_workitem_t *wi)
 		if (reply->msg_type != type ||
 		    (reply->msg_magic != SRPC_MSG_MAGIC &&
 		     reply->msg_magic != __swab32(SRPC_MSG_MAGIC))) {
-			CWARN ("Bad message from %s: type %u (%d expected),"
-			       " magic %u (%d expected).\n",
-			       libcfs_id2str(rpc->crpc_dest),
-			       reply->msg_type, type,
-			       reply->msg_magic, SRPC_MSG_MAGIC);
+			CWARN("Bad message from %s: type %u (%d expected), magic %u (%d expected).\n",
+			      libcfs_id2str(rpc->crpc_dest),
+			      reply->msg_type, type,
+			      reply->msg_magic, SRPC_MSG_MAGIC);
 			rc = -EBADMSG;
 			break;
 		}
 
 		if (do_bulk && reply->msg_body.reply.status != 0) {
-			CWARN ("Remote error %d at %s, unlink bulk buffer in "
-			       "case peer didn't initiate bulk transfer\n",
-			       reply->msg_body.reply.status,
-			       libcfs_id2str(rpc->crpc_dest));
+			CWARN("Remote error %d at %s, unlink bulk buffer in case peer didn't initiate bulk transfer\n",
+			      reply->msg_body.reply.status,
+			      libcfs_id2str(rpc->crpc_dest));
 			LNetMDUnlink(rpc->crpc_bulk.bk_mdh);
 		}
 
@@ -1504,11 +1500,10 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		     msg->msg_type != __swab32(type)) ||
 		    (msg->msg_magic != SRPC_MSG_MAGIC &&
 		     msg->msg_magic != __swab32(SRPC_MSG_MAGIC))) {
-			CERROR ("Dropping RPC (%s) from %s: "
-				"status %d mlength %d type %u magic %u.\n",
-				sv->sv_name, libcfs_id2str(ev->initiator),
-				ev->status, ev->mlength,
-				msg->msg_type, msg->msg_magic);
+			CERROR("Dropping RPC (%s) from %s: status %d mlength %d type %u magic %u.\n",
+			       sv->sv_name, libcfs_id2str(ev->initiator),
+			       ev->status, ev->mlength,
+			       msg->msg_type, msg->msg_magic);
 
 			/* NB can't call srpc_service_recycle_buffer here since
 			 * it may call LNetM[DE]Attach. The invalid magic tells

@@ -253,10 +253,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	err = obd_connect(NULL, &sbi->ll_md_exp, obd, &sbi->ll_sb_uuid,
 			  data, NULL);
 	if (err == -EBUSY) {
-		LCONSOLE_ERROR_MSG(0x14f, "An MDT (md %s) is performing "
-				   "recovery, of which this client is not a "
-				   "part. Please wait for recovery to complete,"
-				   " abort, or time out.\n", md);
+		LCONSOLE_ERROR_MSG(0x14f, "An MDT (md %s) is performing recovery, of which this client is not a part. Please wait for recovery to complete, abort, or time out.\n",
+				   md);
 		goto out;
 	} else if (err) {
 		CERROR("cannot connect to %s: rc = %d\n", md, err);
@@ -268,8 +266,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	err = obd_fid_init(sbi->ll_md_exp->exp_obd, sbi->ll_md_exp,
 			   LUSTRE_SEQ_METADATA);
 	if (err) {
-		CERROR("%s: Can't init metadata layer FID infrastructure, "
-		       "rc = %d\n", sbi->ll_md_exp->exp_obd->obd_name, err);
+		CERROR("%s: Can't init metadata layer FID infrastructure, rc = %d\n",
+		       sbi->ll_md_exp->exp_obd->obd_name, err);
 		goto out_md;
 	}
 
@@ -297,10 +295,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		buf = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
 		obd_connect_flags2str(buf, PAGE_CACHE_SIZE,
 				      valid ^ CLIENT_CONNECT_MDT_REQD, ",");
-		LCONSOLE_ERROR_MSG(0x170, "Server %s does not support "
-				   "feature(s) needed for correct operation "
-				   "of this client (%s). Please upgrade "
-				   "server or downgrade client.\n",
+		LCONSOLE_ERROR_MSG(0x170, "Server %s does not support feature(s) needed for correct operation of this client (%s). Please upgrade server or downgrade client.\n",
 				   sbi->ll_md_exp->exp_obd->obd_name, buf);
 		OBD_FREE(buf, PAGE_CACHE_SIZE);
 		err = -EPROTO;
@@ -326,8 +321,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	if ((sbi->ll_flags & LL_SBI_USER_XATTR) &&
 	    !(data->ocd_connect_flags & OBD_CONNECT_XATTR)) {
-		LCONSOLE_INFO("Disabling user_xattr feature because "
-			      "it is not supported on the server\n");
+		LCONSOLE_INFO("Disabling user_xattr feature because it is not supported on the server\n");
 		sbi->ll_flags &= ~LL_SBI_USER_XATTR;
 	}
 
@@ -352,8 +346,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	} else {
 		if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
 			sbi->ll_flags &= ~LL_SBI_RMT_CLIENT;
-			LCONSOLE_INFO("client claims to be remote, but server "
-				      "rejected, forced to be local.\n");
+			LCONSOLE_INFO("client claims to be remote, but server rejected, forced to be local.\n");
 		}
 	}
 
@@ -430,8 +423,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
 		data->ocd_connect_flags |= OBD_CONNECT_RMT_CLIENT_FORCE;
 
-	CDEBUG(D_RPCTRACE, "ocd_connect_flags: %#llx ocd_version: %d "
-	       "ocd_grant: %d\n", data->ocd_connect_flags,
+	CDEBUG(D_RPCTRACE, "ocd_connect_flags: %#llx ocd_version: %d ocd_grant: %d\n",
+	       data->ocd_connect_flags,
 	       data->ocd_version, data->ocd_grant);
 
 	obd->obd_upcall.onu_owner = &sbi->ll_lco;
@@ -442,10 +435,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	err = obd_connect(NULL, &sbi->ll_dt_exp, obd, &sbi->ll_sb_uuid, data,
 			  NULL);
 	if (err == -EBUSY) {
-		LCONSOLE_ERROR_MSG(0x150, "An OST (dt %s) is performing "
-				   "recovery, of which this client is not a "
-				   "part.  Please wait for recovery to "
-				   "complete, abort, or time out.\n", dt);
+		LCONSOLE_ERROR_MSG(0x150, "An OST (dt %s) is performing recovery, of which this client is not a part.  Please wait for recovery to complete, abort, or time out.\n",
+				   dt);
 		goto out_md;
 	} else if (err) {
 		CERROR("%s: Cannot connect to %s: rc = %d\n",
@@ -458,8 +449,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	err = obd_fid_init(sbi->ll_dt_exp->exp_obd, sbi->ll_dt_exp,
 			   LUSTRE_SEQ_METADATA);
 	if (err) {
-		CERROR("%s: Can't init data layer FID infrastructure, "
-		       "rc = %d\n", sbi->ll_dt_exp->exp_obd->obd_name, err);
+		CERROR("%s: Can't init data layer FID infrastructure, rc = %d\n",
+		       sbi->ll_dt_exp->exp_obd->obd_name, err);
 		goto out_dt;
 	}
 
@@ -699,8 +690,8 @@ void lustre_dump_dentry(struct dentry *dentry, int recur)
 	list_for_each(tmp, &dentry->d_subdirs)
 		subdirs++;
 
-	CERROR("dentry %p dump: name=%.*s parent=%.*s (%p), inode=%p, count=%u,"
-	       " flags=0x%x, fsdata=%p, %d subdirs\n", dentry,
+	CERROR("dentry %p dump: name=%.*s parent=%.*s (%p), inode=%p, count=%u, flags=0x%x, fsdata=%p, %d subdirs\n",
+	       dentry,
 	       dentry->d_name.len, dentry->d_name.name,
 	       dentry->d_parent->d_name.len, dentry->d_parent->d_name.name,
 	       dentry->d_parent, dentry->d_inode, d_count(dentry),
@@ -1023,9 +1014,8 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	/* Profile set with LCFG_MOUNTOPT so we can find our mdc and osc obds */
 	lprof = class_get_profile(profilenm);
 	if (lprof == NULL) {
-		LCONSOLE_ERROR_MSG(0x156, "The client profile '%s' could not be"
-				   " read from the MGS.  Does that filesystem "
-				   "exist?\n", profilenm);
+		LCONSOLE_ERROR_MSG(0x156, "The client profile '%s' could not be read from the MGS.  Does that filesystem exist?\n",
+				   profilenm);
 		err = -EINVAL;
 		goto out_free;
 	}
@@ -1141,8 +1131,7 @@ struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock)
 		} else {
 			inode = lock->l_resource->lr_lvb_inode;
 			LDLM_DEBUG_LIMIT(inode->i_state & I_FREEING ?  D_INFO :
-					 D_WARNING, lock, "lr_lvb_inode %p is "
-					 "bogus: magic %08x",
+					 D_WARNING, lock, "lr_lvb_inode %p is bogus: magic %08x",
 					 lock->l_resource->lr_lvb_inode,
 					 lli->lli_inode_magic);
 			inode = NULL;
@@ -1763,9 +1752,7 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 				if (lli->lli_flags & (LLIF_DONE_WRITING |
 						      LLIF_EPOCH_PENDING |
 						      LLIF_SOM_DIRTY)) {
-					CERROR("ino %lu flags %u still has "
-					       "size authority! do not trust "
-					       "the size got from MDS\n",
+					CERROR("ino %lu flags %u still has size authority! do not trust the size got from MDS\n",
 					       inode->i_ino, lli->lli_flags);
 				} else {
 					/* Use old size assignment to avoid
@@ -1867,8 +1854,7 @@ void ll_delete_inode(struct inode *inode)
 		spin_lock_irq(&inode->i_data.tree_lock);
 		spin_unlock_irq(&inode->i_data.tree_lock);
 		LASSERTF(inode->i_data.nrpages == 0,
-			 "inode=%lu/%u(%p) nrpages=%lu, see "
-			 "http://jira.whamcloud.com/browse/LU-118\n",
+			 "inode=%lu/%u(%p) nrpages=%lu, see http://jira.whamcloud.com/browse/LU-118\n",
 			 inode->i_ino, inode->i_generation, inode,
 			 inode->i_data.nrpages);
 	}
@@ -2418,8 +2404,8 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 	}
 
 	CDEBUG(D_WARNING,
-	       "%s: dirty page discard: %s/fid: "DFID"/%s may get corrupted "
-	       "(rc %d)\n", ll_get_fsname(page->mapping->host->i_sb, NULL, 0),
+	       "%s: dirty page discard: %s/fid: " DFID "/%s may get corrupted (rc %d)\n",
+	       ll_get_fsname(page->mapping->host->i_sb, NULL, 0),
 	       s2lsi(page->mapping->host->i_sb)->lsi_lmd->lmd_dev,
 	       PFID(&obj->cob_header.coh_lu.loh_fid),
 	       (path && !IS_ERR(path)) ? path : "", ioret);

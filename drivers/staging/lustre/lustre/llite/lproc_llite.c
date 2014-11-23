@@ -284,8 +284,7 @@ static ssize_t ll_max_readahead_per_file_mb_seq_write(struct file *file,
 
 	if (pages_number < 0 ||
 		pages_number > sbi->ll_ra_info.ra_max_pages) {
-		CERROR("can't set file readahead more than"
-		       "max_read_ahead_mb %lu MB\n",
+		CERROR("can't set file readahead more than max_read_ahead_mb %lu MB\n",
 		       sbi->ll_ra_info.ra_max_pages);
 		return -ERANGE;
 	}
@@ -330,9 +329,8 @@ static ssize_t ll_max_read_ahead_whole_mb_seq_write(struct file *file,
 	 * algorithm does this anyway so it's pointless to set it larger. */
 	if (pages_number < 0 ||
 	    pages_number > sbi->ll_ra_info.ra_max_pages_per_file) {
-		CERROR("can't set max_read_ahead_whole_mb more than "
-		       "max_read_ahead_per_file_mb: %lu\n",
-			sbi->ll_ra_info.ra_max_pages_per_file >> (20 - PAGE_CACHE_SHIFT));
+		CERROR("can't set max_read_ahead_whole_mb more than max_read_ahead_per_file_mb: %lu\n",
+		       sbi->ll_ra_info.ra_max_pages_per_file >> (20 - PAGE_CACHE_SHIFT));
 		return -ERANGE;
 	}
 
@@ -619,8 +617,8 @@ static ssize_t ll_statahead_max_seq_write(struct file *file,
 	if (val >= 0 && val <= LL_SA_RPC_MAX)
 		sbi->ll_sa_max = val;
 	else
-		CERROR("Bad statahead_max value %d. Valid values are in the "
-		       "range [0, %d]\n", val, LL_SA_RPC_MAX);
+		CERROR("Bad statahead_max value %d. Valid values are in the range [0, %d]\n",
+		       val, LL_SA_RPC_MAX);
 
 	return count;
 }
@@ -770,8 +768,8 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 
 	while (flags != 0) {
 		if (ARRAY_SIZE(str) <= i) {
-			CERROR("%s: Revise array LL_SBI_FLAGS to match sbi "
-				"flags please.\n", ll_get_fsname(sb, NULL, 0));
+			CERROR("%s: Revise array LL_SBI_FLAGS to match sbi flags please.\n",
+			       ll_get_fsname(sb, NULL, 0));
 			return -EINVAL;
 		}
 
@@ -1143,8 +1141,8 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 		read_cum += r;
 		write_cum += w;
 		end = 1 << (i + LL_HIST_START - units);
-		seq_printf(seq, "%4lu%c - %4lu%c%c: %14lu %4lu %4lu  | "
-			   "%14lu %4lu %4lu\n", start, *unitp, end, *unitp,
+		seq_printf(seq, "%4lu%c - %4lu%c%c: %14lu %4lu %4lu  | %14lu %4lu %4lu\n",
+			   start, *unitp, end, *unitp,
 			   (i == LL_HIST_MAX - 1) ? '+' : ' ',
 			   r, pct(r, read_tot), pct(read_cum, read_tot),
 			   w, pct(w, write_tot), pct(write_cum, write_tot));
@@ -1170,8 +1168,7 @@ static int ll_rw_extents_stats_pp_seq_show(struct seq_file *seq, void *v)
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
-				"write anything in this file to activate, "
-				"then 0 or \"[D/d]isabled\" to deactivate\n");
+			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
@@ -1249,8 +1246,7 @@ static int ll_rw_extents_stats_seq_show(struct seq_file *seq, void *v)
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
-				"write anything in this file to activate, "
-				"then 0 or \"[D/d]isabled\" to deactivate\n");
+			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
@@ -1428,8 +1424,7 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
-				"write anything in this file to activate, "
-				"then 0 or \"[D/d]isabled\" to deactivate\n");
+			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
 	spin_lock(&sbi->ll_process_lock);

@@ -1087,8 +1087,7 @@ void __class_export_del_lock_ref(struct obd_export *exp, struct ldlm_lock *lock)
 	spin_lock(&exp->exp_locks_list_guard);
 	LASSERT(lock->l_exp_refs_nr > 0);
 	if (lock->l_exp_refs_target != exp) {
-		LCONSOLE_WARN("lock %p, "
-			      "mismatching export pointers: %p, %p\n",
+		LCONSOLE_WARN("lock %p, mismatching export pointers: %p, %p\n",
 			      lock, lock->l_exp_refs_target, exp);
 	}
 	if (-- lock->l_exp_refs_nr == 0) {
@@ -1259,8 +1258,7 @@ static void class_disconnect_export_list(struct list_head *list,
 		}
 
 		class_export_get(exp);
-		CDEBUG(D_HA, "%s: disconnecting export at %s (%p), "
-		       "last request at "CFS_TIME_T"\n",
+		CDEBUG(D_HA, "%s: disconnecting export at %s (%p), last request at " CFS_TIME_T "\n",
 		       exp->exp_obd->obd_name, obd_export_nid2str(exp),
 		       exp, exp->exp_last_request_time);
 		/* release one export reference anyway */
@@ -1284,8 +1282,8 @@ void class_disconnect_exports(struct obd_device *obd)
 	spin_unlock(&obd->obd_dev_lock);
 
 	if (!list_empty(&work_list)) {
-		CDEBUG(D_HA, "OBD device %d (%p) has exports, "
-		       "disconnecting them\n", obd->obd_minor, obd);
+		CDEBUG(D_HA, "OBD device %d (%p) has exports, disconnecting them\n",
+		       obd->obd_minor, obd);
 		class_disconnect_export_list(&work_list,
 					     exp_flags_from_obd(obd));
 	} else
@@ -1422,8 +1420,8 @@ int obd_export_evict_by_nid(struct obd_device *obd, const char *nid)
 		LASSERTF(doomed_exp != obd->obd_self_export,
 			 "self-export is hashed by NID?\n");
 		exports_evicted++;
-		LCONSOLE_WARN("%s: evicting %s (at %s) by administrative "
-			      "request\n", obd->obd_name,
+		LCONSOLE_WARN("%s: evicting %s (at %s) by administrative request\n",
+			      obd->obd_name,
 			      obd_uuid2str(&doomed_exp->exp_client_uuid),
 			      obd_export_nid2str(doomed_exp));
 		class_fail_export(doomed_exp);
@@ -1546,9 +1544,7 @@ void obd_exports_barrier(struct obd_device *obd)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(waited));
 		if (waited > 5 && IS_PO2(waited)) {
-			LCONSOLE_WARN("%s is waiting for obd_unlinked_exports "
-				      "more than %d seconds. "
-				      "The obd refcount = %d. Is it stuck?\n",
+			LCONSOLE_WARN("%s is waiting for obd_unlinked_exports more than %d seconds. The obd refcount = %d. Is it stuck?\n",
 				      obd->obd_name, waited,
 				      atomic_read(&obd->obd_refcount));
 			dump_exports(obd, 1);

@@ -1491,10 +1491,7 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 		sai->sai_consecutive_miss++;
 		if (sa_low_hit(sai) && thread_is_running(thread)) {
 			atomic_inc(&sbi->ll_sa_wrong);
-			CDEBUG(D_READA, "Statahead for dir "DFID" hit "
-			       "ratio too low: hit/miss %llu/%llu"
-			       ", sent/replied %llu/%llu, stopping "
-			       "statahead thread\n",
+			CDEBUG(D_READA, "Statahead for dir " DFID " hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,
 			       sai->sai_replied);
@@ -1612,8 +1609,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 				} else if ((*dentryp)->d_inode != inode) {
 					/* revalidate, but inode is recreated */
 					CDEBUG(D_READA,
-					      "stale dentry %.*s inode %lu/%u, "
-					      "statahead inode %lu/%u\n",
+					      "stale dentry %.*s inode %lu/%u, statahead inode %lu/%u\n",
 					      (*dentryp)->d_name.len,
 					      (*dentryp)->d_name.name,
 					      (*dentryp)->d_inode->i_ino,
@@ -1666,8 +1662,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	if (unlikely(sai->sai_inode != parent->d_inode)) {
 		struct ll_inode_info *nlli = ll_i2info(parent->d_inode);
 
-		CWARN("Race condition, someone changed %.*s just now: "
-		      "old parent "DFID", new parent "DFID"\n",
+		CWARN("Race condition, someone changed %.*s just now: old parent " DFID ", new parent " DFID "\n",
 		      (*dentryp)->d_name.len, (*dentryp)->d_name.name,
 		      PFID(&lli->lli_fid), PFID(&nlli->lli_fid));
 		dput(parent);

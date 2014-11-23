@@ -140,8 +140,7 @@ static int osc_object_print(const struct lu_env *env, void *cookie,
 	struct lov_oinfo    *oinfo = osc->oo_oinfo;
 	struct osc_async_rc *ar    = &oinfo->loi_ar;
 
-	(*p)(env, cookie, "id: "DOSTID" "
-	     "idx: %d gen: %d kms_valid: %u kms %llu rc: %d force_sync: %d min_xid: %llu ",
+	(*p)(env, cookie, "id: " DOSTID " idx: %d gen: %d kms_valid: %u kms %llu rc: %d force_sync: %d min_xid: %llu ",
 	     POSTID(&oinfo->loi_oi), oinfo->loi_ost_idx,
 	     oinfo->loi_ost_gen, oinfo->loi_kms_valid, oinfo->loi_kms,
 	     ar->ar_rc, ar->ar_force_sync, ar->ar_min_xid);

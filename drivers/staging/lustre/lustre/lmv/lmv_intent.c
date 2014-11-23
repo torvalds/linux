@@ -186,8 +186,8 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 			return rc;
 	}
 
-	CDEBUG(D_INODE, "OPEN_INTENT with fid1="DFID", fid2="DFID","
-	       " name='%s' -> mds #%d\n", PFID(&op_data->op_fid1),
+	CDEBUG(D_INODE, "OPEN_INTENT with fid1=" DFID ", fid2=" DFID ", name='%s' -> mds #%d\n",
+	       PFID(&op_data->op_fid1),
 	       PFID(&op_data->op_fid2), op_data->op_name, tgt->ltd_idx);
 
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it, flags,
@@ -226,8 +226,8 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 		 * this is normal situation, we should not print error here,
 		 * only debug info.
 		 */
-		CDEBUG(D_INODE, "Can't handle remote %s: dir "DFID"("DFID"):"
-		       "%*s: %d\n", LL_IT2STR(it), PFID(&op_data->op_fid2),
+		CDEBUG(D_INODE, "Can't handle remote %s: dir " DFID "(" DFID "):%*s: %d\n",
+		       LL_IT2STR(it), PFID(&op_data->op_fid2),
 		       PFID(&op_data->op_fid1), op_data->op_namelen,
 		       op_data->op_name, rc);
 		return rc;
