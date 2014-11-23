@@ -53,11 +53,13 @@
 #define FEC_R_FSTART		0x150 /* FIFO receive start reg */
 #define FEC_R_DES_START_1	0x160 /* Receive descriptor ring 1 */
 #define FEC_X_DES_START_1	0x164 /* Transmit descriptor ring 1 */
+#define FEC_R_BUFF_SIZE_1	0x168 /* Maximum receive buff ring1 size */
 #define FEC_R_DES_START_2	0x16c /* Receive descriptor ring 2 */
 #define FEC_X_DES_START_2	0x170 /* Transmit descriptor ring 2 */
+#define FEC_R_BUFF_SIZE_2	0x174 /* Maximum receive buff ring2 size */
 #define FEC_R_DES_START_0	0x180 /* Receive descriptor ring */
 #define FEC_X_DES_START_0	0x184 /* Transmit descriptor ring */
-#define FEC_R_BUFF_SIZE		0x188 /* Maximum receive buff size */
+#define FEC_R_BUFF_SIZE_0	0x188 /* Maximum receive buff size */
 #define FEC_R_FIFO_RSFL		0x190 /* Receive FIFO section full threshold */
 #define FEC_R_FIFO_RSEM		0x194 /* Receive FIFO section empty threshold */
 #define FEC_R_FIFO_RAEM		0x198 /* Receive FIFO almost empty threshold */
@@ -165,7 +167,9 @@
 #define FEC_X_DES_START_0	0x3d4 /* Transmit descriptor ring */
 #define FEC_X_DES_START_1	FEC_X_DES_START_0
 #define FEC_X_DES_START_2	FEC_X_DES_START_0
-#define FEC_R_BUFF_SIZE		0x3d8 /* Maximum receive buff size */
+#define FEC_R_BUFF_SIZE_0	0x3d8 /* Maximum receive buff size */
+#define FEC_R_BUFF_SIZE_1	FEC_R_BUFF_SIZE_0
+#define FEC_R_BUFF_SIZE_2	FEC_R_BUFF_SIZE_0
 #define FEC_FIFO_RAM		0x400 /* FIFO RAM buffer */
 /* Not existed in real chip
  * Just for pass build.
@@ -285,6 +289,9 @@ struct bufdesc_ex {
 #define FEC_X_DES_START(X)	(((X) == 1) ? FEC_X_DES_START_1 : \
 				(((X) == 2) ? \
 					FEC_X_DES_START_2 : FEC_X_DES_START_0))
+#define FEC_R_BUFF_SIZE(X)	(((X) == 1) ? FEC_R_BUFF_SIZE_1 : \
+				(((X) == 2) ? \
+					FEC_R_BUFF_SIZE_2 : FEC_R_BUFF_SIZE_0))
 #define FEC_R_DES_ACTIVE(X)	(((X) == 1) ? FEC_R_DES_ACTIVE_1 : \
 				(((X) == 2) ? \
 				   FEC_R_DES_ACTIVE_2 : FEC_R_DES_ACTIVE_0))
