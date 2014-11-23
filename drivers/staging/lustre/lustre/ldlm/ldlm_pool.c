@@ -943,6 +943,7 @@ EXPORT_SYMBOL(ldlm_pool_del);
 __u64 ldlm_pool_get_slv(struct ldlm_pool *pl)
 {
 	__u64 slv;
+
 	spin_lock(&pl->pl_lock);
 	slv = pl->pl_server_lock_volume;
 	spin_unlock(&pl->pl_lock);
@@ -971,6 +972,7 @@ EXPORT_SYMBOL(ldlm_pool_set_slv);
 __u64 ldlm_pool_get_clv(struct ldlm_pool *pl)
 {
 	__u64 slv;
+
 	spin_lock(&pl->pl_lock);
 	slv = pl->pl_client_lock_volume;
 	spin_unlock(&pl->pl_lock);

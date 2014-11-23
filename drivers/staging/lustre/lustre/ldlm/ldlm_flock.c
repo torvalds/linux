@@ -291,6 +291,7 @@ reprocess:
 		}
 	} else {
 		int reprocess_failed = 0;
+
 		lockmode_verify(mode);
 
 		/* This loop determines if there are existing locks

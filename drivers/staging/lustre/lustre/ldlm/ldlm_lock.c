@@ -226,6 +226,7 @@ EXPORT_SYMBOL(ldlm_lock_put);
 int ldlm_lock_remove_from_lru_nolock(struct ldlm_lock *lock)
 {
 	int rc = 0;
+
 	if (!list_empty(&lock->l_lru)) {
 		struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
@@ -858,6 +859,7 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 void ldlm_lock_decref(struct lustre_handle *lockh, __u32 mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
+
 	LASSERTF(lock != NULL, "Non-existing lock: %#llx\n", lockh->cookie);
 	ldlm_lock_decref_internal(lock, mode);
 	LDLM_LOCK_PUT(lock);
@@ -1286,6 +1288,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 			__u64 wait_flags = LDLM_FL_LVB_READY |
 				LDLM_FL_DESTROYED | LDLM_FL_FAIL_NOTIFIED;
 			struct l_wait_info lwi;
+
 			if (lock->l_completion_ast) {
 				int err = lock->l_completion_ast(lock,
 							  LDLM_FL_WAIT_NOREPROC,
@@ -2219,6 +2222,7 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 		nid = libcfs_nid2str(exp->exp_connection->c_peer.nid);
 	} else if (exp && exp->exp_obd != NULL) {
 		struct obd_import *imp = exp->exp_obd->u.cli.cl_import;
+
 		nid = libcfs_nid2str(imp->imp_connection->c_peer.nid);
 	}
 

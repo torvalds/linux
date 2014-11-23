@@ -190,6 +190,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CANCEL_BL_CB_RACE)) {
 		int to = cfs_time_seconds(1);
+
 		while (to > 0) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(to);
@@ -884,6 +885,7 @@ void ldlm_put_ref(void)
 	mutex_lock(&ldlm_ref_mutex);
 	if (ldlm_refcount == 1) {
 		int rc = ldlm_cleanup();
+
 		if (rc)
 			CERROR("ldlm_cleanup failed: %d\n", rc);
 		else
@@ -966,6 +968,7 @@ static cfs_hash_ops_t ldlm_export_lock_ops = {
 int ldlm_init_export(struct obd_export *exp)
 {
 	int rc;
+
 	exp->exp_lock_hash =
 		cfs_hash_create(obd_uuid2str(&exp->exp_client_uuid),
 				HASH_EXP_LOCK_CUR_BITS,

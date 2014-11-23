@@ -804,6 +804,7 @@ static int __ldlm_namespace_free(struct ldlm_namespace *ns, int force)
 	if (atomic_read(&ns->ns_bref) > 0) {
 		struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 		int rc;
+
 		CDEBUG(D_DLMTRACE,
 		       "dlm namespace %s free waiting on refcount %d\n",
 		       ldlm_ns_name(ns), atomic_read(&ns->ns_bref));
@@ -1332,6 +1333,7 @@ void ldlm_dump_all_namespaces(ldlm_side_t client, int level)
 
 	list_for_each(tmp, ldlm_namespace_list(client)) {
 		struct ldlm_namespace *ns;
+
 		ns = list_entry(tmp, struct ldlm_namespace, ns_list_chain);
 		ldlm_namespace_dump(level, ns);
 	}

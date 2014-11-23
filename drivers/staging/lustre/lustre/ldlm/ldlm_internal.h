@@ -214,6 +214,7 @@ static inline struct ldlm_extent *
 ldlm_interval_extent(struct ldlm_interval *node)
 {
 	struct ldlm_lock *lock;
+
 	LASSERT(!list_empty(&node->li_group));
 
 	lock = list_entry(node->li_group.next, struct ldlm_lock,
