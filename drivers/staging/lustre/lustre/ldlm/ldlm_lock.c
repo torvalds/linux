@@ -982,7 +982,6 @@ static void search_granted_lock(struct list_head *queue,
 	prev->res_link = queue->prev;
 	prev->mode_link = &req->l_sl_mode;
 	prev->policy_link = &req->l_sl_policy;
-	return;
 }
 
 /**
