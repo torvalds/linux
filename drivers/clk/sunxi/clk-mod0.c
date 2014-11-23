@@ -79,7 +79,17 @@ static DEFINE_SPINLOCK(sun4i_a10_mod0_lock);
 
 static void __init sun4i_a10_mod0_setup(struct device_node *node)
 {
-	sunxi_factors_register(node, &sun4i_a10_mod0_data, &sun4i_a10_mod0_lock);
+	void __iomem *reg;
+
+	reg = of_iomap(node, 0);
+	if (!reg) {
+		pr_err("Could not get registers for mod0-clk: %s\n",
+		       node->name);
+		return;
+	}
+
+	sunxi_factors_register(node, &sun4i_a10_mod0_data,
+			       &sun4i_a10_mod0_lock, reg);
 }
 CLK_OF_DECLARE(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk", sun4i_a10_mod0_setup);
 
@@ -87,7 +97,17 @@ static DEFINE_SPINLOCK(sun5i_a13_mbus_lock);
 
 static void __init sun5i_a13_mbus_setup(struct device_node *node)
 {
-	struct clk *mbus = sunxi_factors_register(node, &sun4i_a10_mod0_data, &sun5i_a13_mbus_lock);
+	struct clk *mbus;
+	void __iomem *reg;
+
+	reg = of_iomap(node, 0);
+	if (!reg) {
+		pr_err("Could not get registers for a13-mbus-clk\n");
+		return;
+	}
+
+	mbus = sunxi_factors_register(node, &sun4i_a10_mod0_data,
+				      &sun5i_a13_mbus_lock, reg);
 
 	/* The MBUS clocks needs to be always enabled */
 	__clk_get(mbus);
