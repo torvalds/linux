@@ -334,8 +334,7 @@ static void mx3fb_init_backlight(struct mx3fb_data *fbd)
 
 static void mx3fb_exit_backlight(struct mx3fb_data *fbd)
 {
-	if (fbd->bl)
-		backlight_device_unregister(fbd->bl);
+	backlight_device_unregister(fbd->bl);
 }
 
 static void mx3fb_dma_done(void *);
