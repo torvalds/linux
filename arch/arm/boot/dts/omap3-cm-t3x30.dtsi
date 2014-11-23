@@ -66,6 +66,10 @@
 #include "twl4030_omap3.dtsi"
 #include <dt-bindings/input/input.h>
 
+&venc {
+	vdda-supply = <&vdac>;
+};
+
 &mmc1 {
 	vmmc-supply = <&vmmc1>;
 };
