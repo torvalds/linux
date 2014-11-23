@@ -93,7 +93,7 @@ int ldlm_proc_setup(void)
 		  &ldlm_dump_granted_max },
 		{ "cancel_unused_locks_before_replay", &ldlm_rw_uint_fops,
 		  &ldlm_cancel_unused_locks_before_replay },
-		{ NULL }};
+		{ NULL } };
 	LASSERT(ldlm_ns_proc_dir == NULL);
 
 	ldlm_type_proc_dir = lprocfs_register(OBD_LDLM_DEVICENAME,
@@ -385,8 +385,8 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 #undef MAX_STRING_SIZE
 #else /* CONFIG_PROC_FS */
 
-#define ldlm_namespace_proc_unregister(ns)      ({;})
-#define ldlm_namespace_proc_register(ns)	({0;})
+#define ldlm_namespace_proc_unregister(ns)      ({; })
+#define ldlm_namespace_proc_register(ns)	({0; })
 
 #endif /* CONFIG_PROC_FS */
 
@@ -578,7 +578,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 		return NULL;
 	}
 
-	for (idx = 0;;idx++) {
+	for (idx = 0;; idx++) {
 		nsd = &ldlm_ns_hash_defs[idx];
 		if (nsd->nsd_type == LDLM_NS_TYPE_UNKNOWN) {
 			CERROR("Unknown type %d for ns %s\n", ns_type, name);

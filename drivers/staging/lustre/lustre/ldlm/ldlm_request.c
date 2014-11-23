@@ -2082,7 +2082,8 @@ static int ldlm_chain_lock_for_replay(struct ldlm_lock *lock, void *closure)
 	/* we use l_pending_chain here, because it's unused on clients. */
 	LASSERTF(list_empty(&lock->l_pending_chain),
 		 "lock %p next %p prev %p\n",
-		 lock, &lock->l_pending_chain.next,&lock->l_pending_chain.prev);
+		 lock, &lock->l_pending_chain.next,
+		 &lock->l_pending_chain.prev);
 	/* bug 9573: don't replay locks left after eviction, or
 	 * bug 17614: locks being actively cancelled. Get a reference
 	 * on a lock so that it does not disappear under us (e.g. due to cancel)

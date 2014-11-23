@@ -576,7 +576,7 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 
 	/* It's unlikely but possible that someone marked the lock as
 	 * destroyed after we did handle2object on it */
-	if (flags == 0 && ((lock->l_flags & LDLM_FL_DESTROYED)== 0)) {
+	if (flags == 0 && ((lock->l_flags & LDLM_FL_DESTROYED) == 0)) {
 		lu_ref_add(&lock->l_reference, "handle", current);
 		return lock;
 	}
@@ -1345,7 +1345,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 				  ns, type, mode, res_id->name[0],
 				  res_id->name[1],
 				  (type == LDLM_PLAIN || type == LDLM_IBITS) ?
-					res_id->name[2] :policy->l_extent.start,
+					res_id->name[2] : policy->l_extent.start,
 				  (type == LDLM_PLAIN || type == LDLM_IBITS) ?
 					res_id->name[3] : policy->l_extent.end);
 	}
