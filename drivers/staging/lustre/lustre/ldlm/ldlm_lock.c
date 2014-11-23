@@ -1823,24 +1823,24 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	arg->list = rpc_list;
 
 	switch (ast_type) {
-		case LDLM_WORK_BL_AST:
-			arg->type = LDLM_BL_CALLBACK;
-			work_ast_lock = ldlm_work_bl_ast_lock;
-			break;
-		case LDLM_WORK_CP_AST:
-			arg->type = LDLM_CP_CALLBACK;
-			work_ast_lock = ldlm_work_cp_ast_lock;
-			break;
-		case LDLM_WORK_REVOKE_AST:
-			arg->type = LDLM_BL_CALLBACK;
-			work_ast_lock = ldlm_work_revoke_ast_lock;
-			break;
-		case LDLM_WORK_GL_AST:
-			arg->type = LDLM_GL_CALLBACK;
-			work_ast_lock = ldlm_work_gl_ast_lock;
-			break;
-		default:
-			LBUG();
+	case LDLM_WORK_BL_AST:
+		arg->type = LDLM_BL_CALLBACK;
+		work_ast_lock = ldlm_work_bl_ast_lock;
+		break;
+	case LDLM_WORK_CP_AST:
+		arg->type = LDLM_CP_CALLBACK;
+		work_ast_lock = ldlm_work_cp_ast_lock;
+		break;
+	case LDLM_WORK_REVOKE_AST:
+		arg->type = LDLM_BL_CALLBACK;
+		work_ast_lock = ldlm_work_revoke_ast_lock;
+		break;
+	case LDLM_WORK_GL_AST:
+		arg->type = LDLM_GL_CALLBACK;
+		work_ast_lock = ldlm_work_gl_ast_lock;
+		break;
+	default:
+		LBUG();
 	}
 
 	/* We create a ptlrpc request set with flow control extension.

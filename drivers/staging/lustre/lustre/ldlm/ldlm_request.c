@@ -1419,14 +1419,14 @@ static ldlm_policy_res_t ldlm_cancel_no_wait_policy(struct ldlm_namespace *ns,
 	/* don't check added & count since we want to process all locks
 	 * from unused list */
 	switch (lock->l_resource->lr_type) {
-		case LDLM_EXTENT:
-		case LDLM_IBITS:
-			if (cb && cb(lock))
-				break;
-		default:
-			result = LDLM_POLICY_SKIP_LOCK;
-			lock->l_flags |= LDLM_FL_SKIPPED;
+	case LDLM_EXTENT:
+	case LDLM_IBITS:
+		if (cb && cb(lock))
 			break;
+	default:
+		result = LDLM_POLICY_SKIP_LOCK;
+		lock->l_flags |= LDLM_FL_SKIPPED;
+		break;
 	}
 
 	unlock_res_and_lock(lock);
