@@ -82,7 +82,7 @@
 #include <linux/uio.h>
 
 struct raw_frag_vec {
-	struct iovec *iov;
+	struct msghdr *msg;
 	union {
 		struct icmphdr icmph;
 		char c[1];
@@ -440,7 +440,7 @@ static int raw_probe_proto_opt(struct raw_frag_vec *rfv, struct flowi4 *fl4)
 	/* We only need the first two bytes. */
 	rfv->hlen = 2;
 
-	err = memcpy_fromiovec(rfv->hdr.c, rfv->iov, rfv->hlen);
+	err = memcpy_from_msg(rfv->hdr.c, rfv->msg, rfv->hlen);
 	if (err)
 		return err;
 
@@ -478,7 +478,7 @@ static int raw_getfrag(void *from, char *to, int offset, int len, int odd,
 
 	offset -= rfv->hlen;
 
-	return ip_generic_getfrag(rfv->iov, to, offset, len, odd, skb);
+	return ip_generic_getfrag(rfv->msg->msg_iov, to, offset, len, odd, skb);
 }
 
 static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
@@ -600,7 +600,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			   daddr, saddr, 0, 0);
 
 	if (!inet->hdrincl) {
-		rfv.iov = msg->msg_iov;
+		rfv.msg = msg;
 		rfv.hlen = 0;
 
 		err = raw_probe_proto_opt(&rfv, &fl4);
