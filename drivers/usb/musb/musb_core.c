@@ -1116,21 +1116,7 @@ static void musb_shutdown(struct platform_device *pdev)
  * We don't currently use dynamic fifo setup capability to do anything
  * more than selecting one of a bunch of predefined configurations.
  */
-#if defined(CONFIG_USB_MUSB_TUSB6010)			\
-	|| defined(CONFIG_USB_MUSB_TUSB6010_MODULE)	\
-	|| defined(CONFIG_USB_MUSB_OMAP2PLUS)		\
-	|| defined(CONFIG_USB_MUSB_OMAP2PLUS_MODULE)	\
-	|| defined(CONFIG_USB_MUSB_AM35X)		\
-	|| defined(CONFIG_USB_MUSB_AM35X_MODULE)	\
-	|| defined(CONFIG_USB_MUSB_DSPS)		\
-	|| defined(CONFIG_USB_MUSB_DSPS_MODULE)
-static ushort fifo_mode = 4;
-#elif defined(CONFIG_USB_MUSB_UX500)			\
-	|| defined(CONFIG_USB_MUSB_UX500_MODULE)
-static ushort fifo_mode = 5;
-#else
-static ushort fifo_mode = 2;
-#endif
+static ushort fifo_mode;
 
 /* "modprobe ... fifo_mode=1" etc */
 module_param(fifo_mode, ushort, 0);
@@ -2042,6 +2028,11 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb->io.ep_offset = musb_flat_ep_offset;
 		musb->io.ep_select = musb_flat_ep_select;
 	}
+
+	if (musb->ops->fifo_mode)
+		fifo_mode = musb->ops->fifo_mode;
+	else
+		fifo_mode = 4;
 
 	if (musb->ops->fifo_offset)
 		musb->io.fifo_offset = musb->ops->fifo_offset;

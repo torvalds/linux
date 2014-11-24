@@ -474,6 +474,7 @@ static const struct musb_platform_ops bfin_ops = {
 	.writew		= bfin_writew,
 	.readl		= bfin_readl,
 	.writel		= bfin_writel,
+	.fifo_mode	= 2,
 	.read_fifo	= bfin_read_fifo,
 	.write_fifo	= bfin_write_fifo,
 	.enable		= bfin_musb_enable,

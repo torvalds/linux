@@ -107,6 +107,7 @@ static int jz4740_musb_exit(struct musb *musb)
 
 static const struct musb_platform_ops jz4740_musb_ops = {
 	.quirks		= MUSB_INDEXED_EP,
+	.fifo_mode	= 2,
 	.init		= jz4740_musb_init,
 	.exit		= jz4740_musb_exit,
 };
