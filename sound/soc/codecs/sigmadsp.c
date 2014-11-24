@@ -633,7 +633,6 @@ static int sigmadsp_alloc_control(struct sigmadsp *sigmadsp,
 {
 	struct snd_kcontrol_new template;
 	struct snd_kcontrol *kcontrol;
-	int ret;
 
 	memset(&template, 0, sizeof(template));
 	template.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -653,11 +652,7 @@ static int sigmadsp_alloc_control(struct sigmadsp *sigmadsp,
 	kcontrol->private_free = sigmadsp_control_free;
 	ctrl->kcontrol = kcontrol;
 
-	ret = snd_ctl_add(sigmadsp->component->card->snd_card, kcontrol);
-	if (ret)
-		return ret;
-
-	return 0;
+	return snd_ctl_add(sigmadsp->component->card->snd_card, kcontrol);
 }
 
 static void sigmadsp_activate_ctrl(struct sigmadsp *sigmadsp,
