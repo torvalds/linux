@@ -92,7 +92,7 @@ static __always_inline void arch_spin_lock(arch_spinlock_t *lock)
 		unsigned count = SPIN_THRESHOLD;
 
 		do {
-			if (ACCESS_ONCE(lock->tickets.head) == inc.tail)
+			if (READ_ONCE(lock->tickets.head) == inc.tail)
 				goto out;
 			cpu_relax();
 		} while (--count);
@@ -105,7 +105,7 @@ static __always_inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	arch_spinlock_t old, new;
 
-	old.tickets = ACCESS_ONCE(lock->tickets);
+	old.tickets = READ_ONCE(lock->tickets);
 	if (old.tickets.head != (old.tickets.tail & ~TICKET_SLOWPATH_FLAG))
 		return 0;
 
@@ -162,14 +162,14 @@ static __always_inline void arch_spin_unlock(arch_spinlock_t *lock)
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
-	struct __raw_tickets tmp = ACCESS_ONCE(lock->tickets);
+	struct __raw_tickets tmp = READ_ONCE(lock->tickets);
 
 	return tmp.tail != tmp.head;
 }
 
 static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 {
-	struct __raw_tickets tmp = ACCESS_ONCE(lock->tickets);
+	struct __raw_tickets tmp = READ_ONCE(lock->tickets);
 
 	return (__ticket_t)(tmp.tail - tmp.head) > TICKET_LOCK_INC;
 }
