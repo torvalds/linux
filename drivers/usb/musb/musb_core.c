@@ -1527,7 +1527,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 		struct musb_hw_ep	*hw_ep = musb->endpoints + i;
 
 		hw_ep->fifo = musb->io.fifo_offset(i) + mbase;
-#if defined(CONFIG_USB_MUSB_TUSB6010) || defined (CONFIG_USB_MUSB_TUSB6010_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
 		if (musb->io.quirks & MUSB_IN_TUSB) {
 			hw_ep->fifo_async = musb->async + 0x400 +
 				musb->io.fifo_offset(i);

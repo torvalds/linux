@@ -216,8 +216,7 @@ struct musb_hw_ep {
 	void __iomem		*fifo;
 	void __iomem		*regs;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
 	void __iomem		*conf;
 #endif
 
@@ -234,8 +233,7 @@ struct musb_hw_ep {
 	struct dma_channel	*tx_channel;
 	struct dma_channel	*rx_channel;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
 	/* TUSB has "asynchronous" and "synchronous" dma modes */
 	dma_addr_t		fifo_async;
 	dma_addr_t		fifo_sync;
@@ -339,8 +337,7 @@ struct musb {
 	void __iomem		*ctrl_base;
 	void __iomem		*mregs;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
 	dma_addr_t		async;
 	dma_addr_t		sync;
 	void __iomem		*sync_va;

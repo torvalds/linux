@@ -287,10 +287,7 @@
 #define MUSB_FIFOSIZE		0x0F
 #define MUSB_CONFIGDATA		MUSB_FIFOSIZE	/* Re-used for EP0 */
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) ||	\
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
 #include "tusb6010.h"		/* Needed "only" for TUSB_EP0_CONF */
-#endif
 
 #define MUSB_TXCSR_MODE			0x2000
 
