@@ -181,7 +181,7 @@ struct i915_address_space {
 	 * List of objects currently involved in rendering.
 	 *
 	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives.  last_rendering_seqno
+	 * flushed, not necessarily primitives. last_read_req
 	 * represents when the rendering involved will be completed.
 	 *
 	 * A reference is held on the buffer while on this list.
@@ -192,7 +192,7 @@ struct i915_address_space {
 	 * LRU list of objects which are not in the ringbuffer and
 	 * are ready to unbind, but are still in the GTT.
 	 *
-	 * last_rendering_seqno is 0 while an object is in this list.
+	 * last_read_req is NULL while an object is in this list.
 	 *
 	 * A reference is not held on the buffer while on this list,
 	 * as merely being GTT-bound shouldn't prevent its being

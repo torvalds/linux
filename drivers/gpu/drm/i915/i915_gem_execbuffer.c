@@ -946,7 +946,7 @@ void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct intel_engine_cs *ring)
 {
-	u32 seqno = intel_ring_get_seqno(ring);
+	struct drm_i915_gem_request *req = intel_ring_get_request(ring);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, vmas, exec_list) {
@@ -963,7 +963,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		i915_vma_move_to_active(vma, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
-			obj->last_write_seqno = seqno;
+			i915_gem_request_assign(&obj->last_write_req, req);
 
 			intel_fb_obj_invalidate(obj, ring);
 
@@ -971,7 +971,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 		}
 		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-			obj->last_fenced_seqno = seqno;
+			i915_gem_request_assign(&obj->last_fenced_req, req);
 			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
 				struct drm_i915_private *dev_priv = to_i915(ring->dev);
 				list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,

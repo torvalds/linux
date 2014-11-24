@@ -251,7 +251,7 @@ struct  intel_engine_cs {
 	 * ringbuffer.
 	 *
 	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives.  last_rendering_seqno
+	 * flushed, not necessarily primitives.  last_read_req
 	 * represents when the rendering involved will be completed.
 	 *
 	 * A reference is held on the buffer while on this list.

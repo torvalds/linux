@@ -1944,10 +1944,10 @@ struct drm_i915_gem_object {
 	struct intel_engine_cs *ring;
 
 	/** Breadcrumb of last rendering to the buffer. */
-	uint32_t last_read_seqno;
-	uint32_t last_write_seqno;
+	struct drm_i915_gem_request *last_read_req;
+	struct drm_i915_gem_request *last_write_req;
 	/** Breadcrumb of last fenced GPU access to the buffer. */
-	uint32_t last_fenced_seqno;
+	struct drm_i915_gem_request *last_fenced_req;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;
@@ -1986,9 +1986,10 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
  * The request queue allows us to note sequence numbers that have been emitted
  * and may be associated with active buffers to be retired.
  *
- * By keeping this list, we can avoid having to do questionable
- * sequence-number comparisons on buffer last_rendering_seqnos, and associate
- * an emission time with seqnos for tracking how far ahead of the GPU we are.
+ * By keeping this list, we can avoid having to do questionable sequence
+ * number comparisons on buffer last_read|write_seqno. It also allows an
+ * emission time to be associated with the request for tracking how far ahead
+ * of the GPU the submission is.
  */
 struct drm_i915_gem_request {
 	struct kref ref;

@@ -131,9 +131,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain,
-		   obj->last_read_seqno,
-		   obj->last_write_seqno,
-		   obj->last_fenced_seqno,
+		   i915_gem_request_get_seqno(obj->last_read_req),
+		   i915_gem_request_get_seqno(obj->last_write_req),
+		   i915_gem_request_get_seqno(obj->last_fenced_req),
 		   i915_cache_level_str(to_i915(obj->base.dev), obj->cache_level),
 		   obj->dirty ? " dirty" : "",
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
