@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/component.h>
 
 #include <drm/exynos_drm.h>
 
@@ -48,11 +49,11 @@ struct vidi_win_data {
 struct vidi_context {
 	struct exynos_drm_manager	manager;
 	struct exynos_drm_display	display;
+	struct platform_device		*pdev;
 	struct drm_device		*drm_dev;
 	struct drm_crtc			*crtc;
 	struct drm_encoder		*encoder;
 	struct drm_connector		connector;
-	struct exynos_drm_subdrv	subdrv;
 	struct vidi_win_data		win_data[WINDOWS_NR];
 	struct edid			*raw_edid;
 	unsigned int			clkdiv;
@@ -560,9 +561,10 @@ static struct exynos_drm_display_ops vidi_display_ops = {
 	.create_connector = vidi_create_connector,
 };
 
-static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
+static int vidi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct vidi_context *ctx = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = data;
 	struct drm_crtc *crtc = ctx->crtc;
 	int ret;
 
@@ -584,9 +586,18 @@ static int vidi_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	return 0;
 }
 
+
+static void vidi_unbind(struct device *dev, struct device *master, void *data)
+{
+}
+
+static const struct component_ops vidi_component_ops = {
+	.bind	= vidi_bind,
+	.unbind = vidi_unbind,
+};
+
 static int vidi_probe(struct platform_device *pdev)
 {
-	struct exynos_drm_subdrv *subdrv;
 	struct vidi_context *ctx;
 	int ret;
 
@@ -599,6 +610,17 @@ static int vidi_probe(struct platform_device *pdev)
 	ctx->display.type = EXYNOS_DISPLAY_TYPE_VIDI;
 	ctx->display.ops = &vidi_display_ops;
 	ctx->default_win = 0;
+	ctx->pdev = pdev;
+
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
+					ctx->manager.type);
+	if (ret)
+		return ret;
+
+	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
+					ctx->display.type);
+	if (ret)
+		goto err_del_crtc_component;
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
@@ -606,23 +628,26 @@ static int vidi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	subdrv = &ctx->subdrv;
-	subdrv->dev = &pdev->dev;
-	subdrv->probe = vidi_subdrv_probe;
-
-	ret = exynos_drm_subdrv_register(subdrv);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register drm vidi device\n");
-		return ret;
-	}
-
 	ret = device_create_file(&pdev->dev, &dev_attr_connection);
 	if (ret < 0) {
-		exynos_drm_subdrv_unregister(subdrv);
-		DRM_INFO("failed to create connection sysfs.\n");
+		DRM_ERROR("failed to create connection sysfs.\n");
+		goto err_del_conn_component;
 	}
 
-	return 0;
+	ret = component_add(&pdev->dev, &vidi_component_ops);
+	if (ret)
+		goto err_remove_file;
+
+	return ret;
+
+err_remove_file:
+	device_remove_file(&pdev->dev, &dev_attr_connection);
+err_del_conn_component:
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+err_del_crtc_component:
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
+
+	return ret;
 }
 
 static int vidi_remove(struct platform_device *pdev)
@@ -635,6 +660,10 @@ static int vidi_remove(struct platform_device *pdev)
 
 		return -EINVAL;
 	}
+
+	component_del(&pdev->dev, &vidi_component_ops);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC);
 
 	return 0;
 }
