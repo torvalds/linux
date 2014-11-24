@@ -1697,11 +1697,8 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	if (cqr->status == DASD_CQR_CLEAR_PENDING &&
 	    scsw_fctl(&irb->scsw) & SCSW_FCTL_CLEAR_FUNC) {
 		cqr->status = DASD_CQR_CLEARED;
-		if (cqr->callback_data == DASD_SLEEPON_START_TAG)
-			cqr->callback_data = DASD_SLEEPON_END_TAG;
 		dasd_device_clear_timer(device);
 		wake_up(&dasd_flush_wq);
-		wake_up(&generic_waitq);
 		dasd_schedule_device_bh(device);
 		return;
 	}
