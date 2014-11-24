@@ -4953,10 +4953,6 @@ int ath10k_mac_register(struct ath10k *ar)
 			IEEE80211_HW_AP_LINK_PS |
 			IEEE80211_HW_SPECTRUM_MGMT;
 
-	/* MSDU can have HTT TX fragment pushed in front. The additional 4
-	 * bytes is used for padding/alignment if necessary. */
-	ar->hw->extra_tx_headroom += sizeof(struct htt_data_tx_desc_frag)*2 + 4;
-
 	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
 
 	if (ar->ht_cap_info & WMI_HT_CAP_DYNAMIC_SMPS)
