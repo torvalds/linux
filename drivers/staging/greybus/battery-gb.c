@@ -85,34 +85,6 @@ struct gb_battery_voltage_response {
 };
 
 /*
- * None of the battery operation requests have any payload.  This
- * function implements all of the requests by allowing the caller to
- * supply a buffer into which the operation response should be
- * copied.  If there is an error, the response buffer is left alone.
- */
-static int battery_operation(struct gb_battery *gb, int type,
-			     void *response, int response_size)
-{
-	struct gb_connection *connection = gb->connection;
-	struct gb_operation *operation;
-	int ret;
-
-	operation = gb_operation_create(connection, type, 0, response_size);
-	if (!operation)
-		return -ENOMEM;
-
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
-	if (ret)
-		pr_err("version operation failed (%d)\n", ret);
-	else	/* Good response, so copy to the caller's buffer */
-		memcpy(response, operation->response->payload, response_size);
-	gb_operation_destroy(operation);
-
-	return ret;
-}
-
-/*
  * This request only uses the connection field, and if successful,
  * fills in the major and minor protocol version of the target.
  */
@@ -121,7 +93,9 @@ static int get_version(struct gb_battery *gb)
 	struct gb_battery_proto_version_response version_response;
 	int retval;
 
-	retval = battery_operation(gb, GB_BATTERY_TYPE_PROTOCOL_VERSION,
+	retval = gb_operation_sync(gb->connection,
+				   GB_BATTERY_TYPE_PROTOCOL_VERSION,
+				   NULL, 0,
 				   &version_response, sizeof(version_response));
 	if (retval)
 		return retval;
@@ -143,7 +117,8 @@ static int get_tech(struct gb_battery *gb)
 	u32 technology;
 	int retval;
 
-	retval = battery_operation(gb, GB_BATTERY_TYPE_TECHNOLOGY,
+	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_TECHNOLOGY,
+				   NULL, 0,
 				   &tech_response, sizeof(tech_response));
 	if (retval)
 		return retval;
@@ -187,7 +162,8 @@ static int get_status(struct gb_battery *gb)
 	u16 battery_status;
 	int retval;
 
-	retval = battery_operation(gb, GB_BATTERY_TYPE_STATUS,
+	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_STATUS,
+				   NULL, 0,
 				   &status_response, sizeof(status_response));
 	if (retval)
 		return retval;
@@ -225,7 +201,8 @@ static int get_max_voltage(struct gb_battery *gb)
 	u32 max_voltage;
 	int retval;
 
-	retval = battery_operation(gb, GB_BATTERY_TYPE_MAX_VOLTAGE,
+	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_MAX_VOLTAGE,
+				   NULL, 0,
 				   &volt_response, sizeof(volt_response));
 	if (retval)
 		return retval;
@@ -240,8 +217,9 @@ static int get_capacity(struct gb_battery *gb)
 	u32 capacity;
 	int retval;
 
-	retval = battery_operation(gb, GB_BATTERY_TYPE_CAPACITY,
-				   &capacity_response, sizeof(capacity_response));
+	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_CAPACITY,
+				   NULL, 0, &capacity_response,
+				   sizeof(capacity_response));
 	if (retval)
 		return retval;
 
@@ -255,7 +233,8 @@ static int get_temp(struct gb_battery *gb)
 	u32 temperature;
 	int retval;
 
-	retval = battery_operation(gb, GB_BATTERY_TYPE_TEMPERATURE,
+	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_TEMPERATURE,
+				   NULL, 0,
 				   &temp_response, sizeof(temp_response));
 	if (retval)
 		return retval;
@@ -270,7 +249,8 @@ static int get_voltage(struct gb_battery *gb)
 	u32 voltage;
 	int retval;
 
-	retval = battery_operation(gb, GB_BATTERY_TYPE_VOLTAGE,
+	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_VOLTAGE,
+				   NULL, 0,
 				   &voltage_response, sizeof(voltage_response));
 	if (retval)
 		return retval;
