@@ -1143,7 +1143,7 @@ iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 }
 #endif
 void iwl_mvm_set_wowlan_qos_seq(struct iwl_mvm_sta *mvm_ap_sta,
-				struct iwl_wowlan_config_cmd_v2 *cmd);
+				struct iwl_wowlan_config_cmd *cmd);
 int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       bool disable_offloading,
