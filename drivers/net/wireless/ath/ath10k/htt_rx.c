@@ -1381,6 +1381,8 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 {
 	struct sk_buff *msdu;
 	struct htt_rx_desc *rxd;
+	bool is_mgmt;
+	bool has_fcs_err;
 
 	msdu = skb_peek(amsdu);
 	rxd = (void *)msdu->data - sizeof(*rxd);
@@ -1394,12 +1396,19 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 		return false;
 	}
 
+	is_mgmt = !!(rxd->attention.flags &
+		     __cpu_to_le32(RX_ATTENTION_FLAGS_MGMT_TYPE));
+	has_fcs_err = !!(rxd->attention.flags &
+			 __cpu_to_le32(RX_ATTENTION_FLAGS_FCS_ERR));
+
 	/* Management frames are handled via WMI events. The pros of such
 	 * approach is that channel is explicitly provided in WMI events
 	 * whereas HTT doesn't provide channel information for Rxed frames.
+	 *
+	 * However some firmware revisions don't report corrupted frames via
+	 * WMI so don't drop them.
 	 */
-	if (rxd->attention.flags &
-	    __cpu_to_le32(RX_ATTENTION_FLAGS_MGMT_TYPE)) {
+	if (is_mgmt && !has_fcs_err) {
 		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx mgmt ctrl\n");
 		return false;
 	}

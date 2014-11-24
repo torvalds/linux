@@ -1166,8 +1166,11 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (rx_status & WMI_RX_STATUS_ERR_CRC)
-		status->flag |= RX_FLAG_FAILED_FCS_CRC;
+	if (rx_status & WMI_RX_STATUS_ERR_CRC) {
+		dev_kfree_skb(skb);
+		return 0;
+	}
+
 	if (rx_status & WMI_RX_STATUS_ERR_MIC)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
