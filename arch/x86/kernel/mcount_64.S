@@ -21,8 +21,22 @@
 # define function_hook	mcount
 #endif
 
+/* All cases save the original rbp (8 bytes) */
+#ifdef CONFIG_FRAME_POINTER
+# ifdef CC_USING_FENTRY
+/* Save parent and function stack frames (rip and rbp) */
+#  define MCOUNT_FRAME_SIZE	(8+16*2)
+# else
+/* Save just function stack frame (rip and rbp) */
+#  define MCOUNT_FRAME_SIZE	(8+16)
+# endif
+#else
+/* No need to save a stack frame */
+# define MCOUNT_FRAME_SIZE	8
+#endif /* CONFIG_FRAME_POINTER */
+
 /* Size of stack used to save mcount regs in save_mcount_regs */
-#define MCOUNT_REG_SIZE		(SS+8)
+#define MCOUNT_REG_SIZE		(SS+8 + MCOUNT_FRAME_SIZE)
 
 /*
  * gcc -pg option adds a call to 'mcount' in most functions.
@@ -42,10 +56,37 @@
 
 /* @added: the amount of stack added before calling this */
 .macro save_mcount_regs added=0
-	 /*
-	  * We add enough stack to save all regs.
-	  */
-	subq $MCOUNT_REG_SIZE, %rsp
+
+	/* Always save the original rbp */
+	pushq %rbp
+
+#ifdef CONFIG_FRAME_POINTER
+	/*
+	 * Stack traces will stop at the ftrace trampoline if the frame pointer
+	 * is not set up properly. If fentry is used, we need to save a frame
+	 * pointer for the parent as well as the function traced, because the
+	 * fentry is called before the stack frame is set up, where as mcount
+	 * is called afterward.
+	 */
+#ifdef CC_USING_FENTRY
+	/* Save the parent pointer (skip orig rbp and our return address) */
+	pushq \added+8*2(%rsp)
+	pushq %rbp
+	movq %rsp, %rbp
+	/* Save the return address (now skip orig rbp, rbp and parent) */
+	pushq \added+8*3(%rsp)
+#else
+	/* Can't assume that rip is before this (unless added was zero) */
+	pushq \added+8(%rsp)
+#endif
+	pushq %rbp
+	movq %rsp, %rbp
+#endif /* CONFIG_FRAME_POINTER */
+
+	/*
+	 * We add enough stack to save all regs.
+	 */
+	subq $(MCOUNT_REG_SIZE - MCOUNT_FRAME_SIZE), %rsp
 	movq %rax, RAX(%rsp)
 	movq %rcx, RCX(%rsp)
 	movq %rdx, RDX(%rsp)
@@ -53,6 +94,13 @@
 	movq %rdi, RDI(%rsp)
 	movq %r8, R8(%rsp)
 	movq %r9, R9(%rsp)
+	/*
+	 * Save the original RBP. Even though the mcount ABI does not
+	 * require this, it helps out callers.
+	 */
+	movq MCOUNT_REG_SIZE-8(%rsp), %rdx
+	movq %rdx, RBP(%rsp)
+
 	 /* Move RIP to its proper location */
 	movq MCOUNT_REG_SIZE+\added(%rsp), %rdi
 	movq %rdi, RIP(%rsp)
@@ -66,7 +114,12 @@
 	movq RDX(%rsp), %rdx
 	movq RCX(%rsp), %rcx
 	movq RAX(%rsp), %rax
+
+	/* ftrace_regs_caller can modify %rbp */
+	movq RBP(%rsp), %rbp
+
 	addq $MCOUNT_REG_SIZE, %rsp
+
 	.endm
 
 /* skip is set if stack has been adjusted */
@@ -84,7 +137,10 @@ GLOBAL(\trace_label)
 #ifdef CC_USING_FENTRY
 	movq MCOUNT_REG_SIZE+8+\added(%rsp), %rsi
 #else
-	movq 8+\added(%rbp), %rsi
+	/* Need to grab the original %rbp */
+	movq RBP(%rsp), %rsi
+	/* Now parent address is 8 above original %rbp */
+	movq 8(%rsi), %rsi
 #endif
 .endm
 
@@ -94,50 +150,13 @@ ENTRY(function_hook)
 	retq
 END(function_hook)
 
-#ifdef CONFIG_FRAME_POINTER
-/*
- * Stack traces will stop at the ftrace trampoline if the frame pointer
- * is not set up properly. If fentry is used, we need to save a frame
- * pointer for the parent as well as the function traced, because the
- * fentry is called before the stack frame is set up, where as mcount
- * is called afterward.
- */
-.macro create_frame parent rip
-#ifdef CC_USING_FENTRY
-	pushq \parent
-	pushq %rbp
-	movq %rsp, %rbp
-#endif
-	pushq \rip
-	pushq %rbp
-	movq %rsp, %rbp
-.endm
-
-.macro restore_frame
-#ifdef CC_USING_FENTRY
-	addq $16, %rsp
-#endif
-	popq %rbp
-	addq $8, %rsp
-.endm
-#else
-.macro create_frame parent rip
-.endm
-.macro restore_frame
-.endm
-#endif /* CONFIG_FRAME_POINTER */
-
 ENTRY(ftrace_caller)
 	ftrace_caller_setup ftrace_caller_op_ptr
 	/* regs go into 4th parameter (but make it NULL) */
 	movq $0, %rcx
 
-	create_frame %rsi, %rdi
-
 GLOBAL(ftrace_call)
 	call ftrace_stub
-
-	restore_frame
 
 	restore_mcount_regs
 
@@ -172,7 +191,6 @@ ENTRY(ftrace_regs_caller)
 	movq %r12, R12(%rsp)
 	movq %r11, R11(%rsp)
 	movq %r10, R10(%rsp)
-	movq %rbp, RBP(%rsp)
 	movq %rbx, RBX(%rsp)
 	/* Copy saved flags */
 	movq MCOUNT_REG_SIZE(%rsp), %rcx
@@ -189,12 +207,8 @@ ENTRY(ftrace_regs_caller)
 	/* regs go into 4th parameter */
 	leaq (%rsp), %rcx
 
-	create_frame %rsi, %rdi
-
 GLOBAL(ftrace_regs_call)
 	call ftrace_stub
-
-	restore_frame
 
 	/* Copy flags back to SS, to restore them */
 	movq EFLAGS(%rsp), %rax
@@ -210,7 +224,6 @@ GLOBAL(ftrace_regs_call)
 	movq R13(%rsp), %r13
 	movq R12(%rsp), %r12
 	movq R10(%rsp), %r10
-	movq RBP(%rsp), %rbp
 	movq RBX(%rsp), %rbx
 
 	restore_mcount_regs
@@ -269,8 +282,11 @@ ENTRY(ftrace_graph_caller)
 	leaq MCOUNT_REG_SIZE+8(%rsp), %rdi
 	movq $0, %rdx	/* No framepointers needed */
 #else
-	leaq 8(%rbp), %rdi
-	movq (%rbp), %rdx
+	/* Need to grab the original %rbp */
+	movq RBP(%rsp), %rdx
+	/* Now parent address is 8 above original %rbp */
+	leaq 8(%rdx), %rdi
+	movq (%rdx), %rdx
 #endif
 	movq RIP(%rsp), %rsi
 	subq $MCOUNT_INSN_SIZE, %rsi
