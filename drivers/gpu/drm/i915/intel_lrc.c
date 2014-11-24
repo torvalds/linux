@@ -879,37 +879,48 @@ void intel_lr_context_unpin(struct intel_engine_cs *ring,
 static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
 				    struct intel_context *ctx)
 {
+	struct drm_i915_gem_request *request;
 	int ret;
 
-	if (ring->outstanding_lazy_seqno)
+	/* XXX: The aim is to replace seqno values with request structures.
+	 * A step along the way is to switch to using the PLR in preference
+	 * to the OLS. That requires the PLR to only be valid when the OLS is
+	 * also valid. I.e., the two must be kept in step. */
+
+	if (ring->outstanding_lazy_seqno) {
+		WARN_ON(ring->preallocated_lazy_request == NULL);
 		return 0;
+	}
+	WARN_ON(ring->preallocated_lazy_request != NULL);
 
-	if (ring->preallocated_lazy_request == NULL) {
-		struct drm_i915_gem_request *request;
+	request = kmalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
 
-		request = kmalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-
-		if (ctx != ring->default_context) {
-			ret = intel_lr_context_pin(ring, ctx);
-			if (ret) {
-				kfree(request);
-				return ret;
-			}
+	if (ctx != ring->default_context) {
+		ret = intel_lr_context_pin(ring, ctx);
+		if (ret) {
+			kfree(request);
+			return ret;
 		}
-
-		/* Hold a reference to the context this request belongs to
-		 * (we will need it when the time comes to emit/retire the
-		 * request).
-		 */
-		request->ctx = ctx;
-		i915_gem_context_reference(request->ctx);
-
-		ring->preallocated_lazy_request = request;
 	}
 
-	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
+	ret = i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
+	if (ret) {
+		intel_lr_context_unpin(ring, ctx);
+		kfree(request);
+		return ret;
+	}
+
+	/* Hold a reference to the context this request belongs to
+	 * (we will need it when the time comes to emit/retire the
+	 * request).
+	 */
+	request->ctx = ctx;
+	i915_gem_context_reference(request->ctx);
+
+	ring->preallocated_lazy_request = request;
+	return 0;
 }
 
 static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,

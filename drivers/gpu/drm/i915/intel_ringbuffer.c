@@ -2024,20 +2024,33 @@ int intel_ring_idle(struct intel_engine_cs *ring)
 static int
 intel_ring_alloc_seqno(struct intel_engine_cs *ring)
 {
-	if (ring->outstanding_lazy_seqno)
+	int ret;
+	struct drm_i915_gem_request *request;
+
+	/* XXX: The aim is to replace seqno values with request structures.
+	 * A step along the way is to switch to using the PLR in preference
+	 * to the OLS. That requires the PLR to only be valid when the OLS
+	 * is also valid. I.e., the two must be kept in step. */
+
+	if (ring->outstanding_lazy_seqno) {
+		WARN_ON(ring->preallocated_lazy_request == NULL);
 		return 0;
-
-	if (ring->preallocated_lazy_request == NULL) {
-		struct drm_i915_gem_request *request;
-
-		request = kmalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-
-		ring->preallocated_lazy_request = request;
 	}
 
-	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
+	WARN_ON(ring->preallocated_lazy_request != NULL);
+
+	request = kmalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
+
+	ret = i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
+	if (ret) {
+		kfree(request);
+		return ret;
+	}
+
+	ring->preallocated_lazy_request = request;
+	return 0;
 }
 
 static int __intel_ring_prepare(struct intel_engine_cs *ring,
