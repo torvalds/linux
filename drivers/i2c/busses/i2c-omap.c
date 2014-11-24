@@ -344,8 +344,10 @@ static int omap_i2c_reset(struct omap_i2c_dev *dev)
 		/* SYSC register is cleared by the reset; rewrite it */
 		omap_i2c_write_reg(dev, OMAP_I2C_SYSC_REG, sysc);
 
-		/* Schedule I2C-bus monitoring on the next transfer */
-		dev->bb_valid = 0;
+		if (dev->rev > OMAP_I2C_REV_ON_3430_3530) {
+			/* Schedule I2C-bus monitoring on the next transfer */
+			dev->bb_valid = 0;
+		}
 	}
 
 	return 0;
@@ -460,7 +462,7 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	dev->scllstate = scll;
 	dev->sclhstate = sclh;
 
-	if (dev->rev < OMAP_I2C_OMAP1_REV_2) {
+	if (dev->rev <= OMAP_I2C_REV_ON_3430_3530) {
 		/* Not implemented */
 		dev->bb_valid = 1;
 	}
