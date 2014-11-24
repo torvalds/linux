@@ -9612,20 +9612,24 @@ static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 
 static void intel_mmio_flip_work_func(struct work_struct *work)
 {
-	struct intel_crtc *intel_crtc =
+	struct intel_crtc *crtc =
 		container_of(work, struct intel_crtc, mmio_flip.work);
-	struct intel_engine_cs *ring;
-	uint32_t seqno;
+	struct intel_mmio_flip *mmio_flip;
 
-	seqno = intel_crtc->mmio_flip.seqno;
-	ring = intel_crtc->mmio_flip.ring;
-
-	if (seqno)
-		WARN_ON(__i915_wait_seqno(ring, seqno,
-					  intel_crtc->reset_counter,
+	mmio_flip = &crtc->mmio_flip;
+	if (mmio_flip->req)
+		WARN_ON(__i915_wait_seqno(i915_gem_request_get_ring(mmio_flip->req),
+					  i915_gem_request_get_seqno(mmio_flip->req),
+					  crtc->reset_counter,
 					  false, NULL, NULL) != 0);
 
-	intel_do_mmio_flip(intel_crtc);
+	intel_do_mmio_flip(crtc);
+	if (mmio_flip->req) {
+		mutex_lock(&crtc->base.dev->struct_mutex);
+		i915_gem_request_unreference(mmio_flip->req);
+		mutex_unlock(&crtc->base.dev->struct_mutex);
+	}
+	mmio_flip->req = NULL;
 }
 
 static int intel_queue_mmio_flip(struct drm_device *dev,
@@ -9637,9 +9641,8 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	intel_crtc->mmio_flip.seqno =
-			     i915_gem_request_get_seqno(obj->last_write_req);
-	intel_crtc->mmio_flip.ring = obj->ring;
+	i915_gem_request_assign(&intel_crtc->mmio_flip.req,
+				obj->last_write_req);
 
 	schedule_work(&intel_crtc->mmio_flip.work);
 

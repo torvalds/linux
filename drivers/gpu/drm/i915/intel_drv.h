@@ -406,8 +406,7 @@ struct intel_pipe_wm {
 };
 
 struct intel_mmio_flip {
-	u32 seqno;
-	struct intel_engine_cs *ring;
+	struct drm_i915_gem_request *req;
 	struct work_struct work;
 };
 
