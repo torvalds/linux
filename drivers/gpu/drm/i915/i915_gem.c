@@ -2569,21 +2569,30 @@ static void i915_set_reset_status(struct drm_i915_private *dev_priv,
 
 static void i915_gem_free_request(struct drm_i915_gem_request *request)
 {
-	struct intel_context *ctx = request->ctx;
-
 	list_del(&request->list);
 	i915_gem_request_remove_from_client(request);
 
+	i915_gem_request_unreference(request);
+}
+
+void i915_gem_request_free(struct kref *req_ref)
+{
+	struct drm_i915_gem_request *req = container_of(req_ref,
+						 typeof(*req), ref);
+	struct intel_context *ctx = req->ctx;
+
 	if (ctx) {
 		if (i915.enable_execlists) {
-			struct intel_engine_cs *ring = request->ring;
+			struct intel_engine_cs *ring = req->ring;
 
 			if (ctx != ring->default_context)
 				intel_lr_context_unpin(ring, ctx);
 		}
+
 		i915_gem_context_unreference(ctx);
 	}
-	kfree(request);
+
+	kfree(req);
 }
 
 struct drm_i915_gem_request *
@@ -2671,8 +2680,7 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	}
 
 	/* These may not have been flush before the reset, do so now */
-	kfree(ring->preallocated_lazy_request);
-	ring->preallocated_lazy_request = NULL;
+	i915_gem_request_assign(&ring->preallocated_lazy_request, NULL);
 	ring->outstanding_lazy_seqno = 0;
 }
 

@@ -1991,6 +1991,8 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
  * an emission time with seqnos for tracking how far ahead of the GPU we are.
  */
 struct drm_i915_gem_request {
+	struct kref ref;
+
 	/** On Which ring this request was generated */
 	struct intel_engine_cs *ring;
 
@@ -2019,6 +2021,32 @@ struct drm_i915_gem_request {
 	/** file_priv list entry for this request */
 	struct list_head client_list;
 };
+
+void i915_gem_request_free(struct kref *req_ref);
+
+static inline void
+i915_gem_request_reference(struct drm_i915_gem_request *req)
+{
+	kref_get(&req->ref);
+}
+
+static inline void
+i915_gem_request_unreference(struct drm_i915_gem_request *req)
+{
+	kref_put(&req->ref, i915_gem_request_free);
+}
+
+static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
+					   struct drm_i915_gem_request *src)
+{
+	if (src)
+		i915_gem_request_reference(src);
+
+	if (*pdst)
+		i915_gem_request_unreference(*pdst);
+
+	*pdst = src;
+}
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;

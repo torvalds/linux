@@ -905,6 +905,8 @@ static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
 		}
 	}
 
+	kref_init(&request->ref);
+
 	ret = i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
 	if (ret) {
 		intel_lr_context_unpin(ring, ctx);
@@ -1374,7 +1376,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 
 	intel_logical_ring_stop(ring);
 	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
-	ring->preallocated_lazy_request = NULL;
+	i915_gem_request_assign(&ring->preallocated_lazy_request, NULL);
 	ring->outstanding_lazy_seqno = 0;
 
 	if (ring->cleanup)

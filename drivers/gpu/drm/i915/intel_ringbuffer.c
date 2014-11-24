@@ -1870,7 +1870,7 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	intel_unpin_ringbuffer_obj(ringbuf);
 	intel_destroy_ringbuffer_obj(ringbuf);
-	ring->preallocated_lazy_request = NULL;
+	i915_gem_request_assign(&ring->preallocated_lazy_request, NULL);
 	ring->outstanding_lazy_seqno = 0;
 
 	if (ring->cleanup)
@@ -2042,6 +2042,8 @@ intel_ring_alloc_seqno(struct intel_engine_cs *ring)
 	request = kmalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL)
 		return -ENOMEM;
+
+	kref_init(&request->ref);
 
 	ret = i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
 	if (ret) {
