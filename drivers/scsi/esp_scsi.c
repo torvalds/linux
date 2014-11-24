@@ -2219,46 +2219,50 @@ static void esp_get_revision(struct esp *esp)
 	u8 val;
 
 	esp->config1 = (ESP_CONFIG1_PENABLE | (esp->scsi_id & 7));
-	esp->config2 = (ESP_CONFIG2_SCSI2ENAB | ESP_CONFIG2_REGPARITY);
-	esp_write8(esp->config2, ESP_CFG2);
-
-	val = esp_read8(ESP_CFG2);
-	val &= ~ESP_CONFIG2_MAGIC;
-	if (val != (ESP_CONFIG2_SCSI2ENAB | ESP_CONFIG2_REGPARITY)) {
-		/* If what we write to cfg2 does not come back, cfg2 is not
-		 * implemented, therefore this must be a plain esp100.
-		 */
-		esp->rev = ESP100;
-	} else {
-		esp->config2 = 0;
-		esp_set_all_config3(esp, 5);
-		esp->prev_cfg3 = 5;
+	if (esp->config2 == 0) {
+		esp->config2 = (ESP_CONFIG2_SCSI2ENAB | ESP_CONFIG2_REGPARITY);
 		esp_write8(esp->config2, ESP_CFG2);
-		esp_write8(0, ESP_CFG3);
+
+		val = esp_read8(ESP_CFG2);
+		val &= ~ESP_CONFIG2_MAGIC;
+
+		esp->config2 = 0;
+		if (val != (ESP_CONFIG2_SCSI2ENAB | ESP_CONFIG2_REGPARITY)) {
+			/*
+			 * If what we write to cfg2 does not come back,
+			 * cfg2 is not implemented.
+			 * Therefore this must be a plain esp100.
+			 */
+			esp->rev = ESP100;
+			return;
+		}
+	}
+
+	esp_set_all_config3(esp, 5);
+	esp->prev_cfg3 = 5;
+	esp_write8(esp->config2, ESP_CFG2);
+	esp_write8(0, ESP_CFG3);
+	esp_write8(esp->prev_cfg3, ESP_CFG3);
+
+	val = esp_read8(ESP_CFG3);
+	if (val != 5) {
+		/* The cfg2 register is implemented, however
+		 * cfg3 is not, must be esp100a.
+		 */
+		esp->rev = ESP100A;
+	} else {
+		esp_set_all_config3(esp, 0);
+		esp->prev_cfg3 = 0;
 		esp_write8(esp->prev_cfg3, ESP_CFG3);
 
-		val = esp_read8(ESP_CFG3);
-		if (val != 5) {
-			/* The cfg2 register is implemented, however
-			 * cfg3 is not, must be esp100a.
-			 */
-			esp->rev = ESP100A;
+		/* All of cfg{1,2,3} implemented, must be one of
+		 * the fas variants, figure out which one.
+		 */
+		if (esp->cfact == 0 || esp->cfact > ESP_CCF_F5) {
+			esp->rev = FAST;
+			esp->sync_defp = SYNC_DEFP_FAST;
 		} else {
-			esp_set_all_config3(esp, 0);
-			esp->prev_cfg3 = 0;
-			esp_write8(esp->prev_cfg3, ESP_CFG3);
-
-			/* All of cfg{1,2,3} implemented, must be one of
-			 * the fas variants, figure out which one.
-			 */
-			if (esp->cfact == 0 || esp->cfact > ESP_CCF_F5) {
-				esp->rev = FAST;
-				esp->sync_defp = SYNC_DEFP_FAST;
-			} else {
-				esp->rev = ESP236;
-			}
-			esp->config2 = 0;
-			esp_write8(esp->config2, ESP_CFG2);
+			esp->rev = ESP236;
 		}
 	}
 }
