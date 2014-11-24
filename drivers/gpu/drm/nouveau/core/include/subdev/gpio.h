@@ -40,7 +40,7 @@ nouveau_gpio(void *obj)
 
 extern struct nouveau_oclass *nv10_gpio_oclass;
 extern struct nouveau_oclass *nv50_gpio_oclass;
-extern struct nouveau_oclass *nv92_gpio_oclass;
+extern struct nouveau_oclass *nv94_gpio_oclass;
 extern struct nouveau_oclass *nvd0_gpio_oclass;
 extern struct nouveau_oclass *nve0_gpio_oclass;
 

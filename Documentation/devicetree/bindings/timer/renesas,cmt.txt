@@ -11,15 +11,47 @@ datasheets.
 
 Required Properties:
 
-  - compatible: must contain one of the following.
-    - "renesas,cmt-32" for the 32-bit CMT
+  - compatible: must contain one or more of the following:
+    - "renesas,cmt-32-r8a7740" for the r8a7740 32-bit CMT
+		(CMT0)
+    - "renesas,cmt-32-sh7372" for the sh7372 32-bit CMT
+		(CMT0)
+    - "renesas,cmt-32-sh73a0" for the sh73a0 32-bit CMT
+		(CMT0)
+    - "renesas,cmt-32" for all 32-bit CMT without fast clock support
 		(CMT0 on sh7372, sh73a0 and r8a7740)
-    - "renesas,cmt-32-fast" for the 32-bit CMT with fast clock support
+		This is a fallback for the above renesas,cmt-32-* entries.
+
+    - "renesas,cmt-32-fast-r8a7740" for the r8a7740 32-bit CMT with fast
+		clock support (CMT[234])
+    - "renesas,cmt-32-fast-sh7372" for the sh7372 32-bit CMT with fast
+		clock support (CMT[234])
+    - "renesas,cmt-32-fast-sh73a0" for the sh73A0 32-bit CMT with fast
+		clock support (CMT[234])
+    - "renesas,cmt-32-fast" for all 32-bit CMT with fast clock support
 		(CMT[234] on sh7372, sh73a0 and r8a7740)
-    - "renesas,cmt-48" for the 48-bit CMT
+		This is a fallback for the above renesas,cmt-32-fast-* entries.
+
+    - "renesas,cmt-48-sh7372" for the sh7372 48-bit CMT
+		(CMT1)
+    - "renesas,cmt-48-sh73a0" for the sh73A0 48-bit CMT
+		(CMT1)
+    - "renesas,cmt-48-r8a7740" for the r8a7740 48-bit CMT
+		(CMT1)
+    - "renesas,cmt-48" for all non-second generation 48-bit CMT
 		(CMT1 on sh7372, sh73a0 and r8a7740)
-    - "renesas,cmt-48-gen2" for the second generation 48-bit CMT
+		This is a fallback for the above renesas,cmt-48-* entries.
+
+    - "renesas,cmt-48-r8a73a4" for the r8a73a4 48-bit CMT
+		(CMT[01])
+    - "renesas,cmt-48-r8a7790" for the r8a7790 48-bit CMT
+		(CMT[01])
+    - "renesas,cmt-48-r8a7791" for the r8a7791 48-bit CMT
+		(CMT[01])
+    - "renesas,cmt-48-gen2" for all second generation 48-bit CMT
 		(CMT[01] on r8a73a4, r8a7790 and r8a7791)
+		This is a fallback for the renesas,cmt-48-r8a73a4,
+		renesas,cmt-48-r8a7790 and renesas,cmt-48-r8a7791 entries.
 
   - reg: base address and length of the registers block for the timer module.
   - interrupts: interrupt-specifier for the timer, one per channel.
@@ -36,7 +68,7 @@ Example: R8A7790 (R-Car H2) CMT0 node
 	them channels 0 and 1 in the documentation.
 
 	cmt0: timer@ffca0000 {
-		compatible = "renesas,cmt-48-gen2";
+		compatible = "renesas,cmt-48-r8a7790", "renesas,cmt-48-gen2";
 		reg = <0 0xffca0000 0 0x1004>;
 		interrupts = <0 142 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 142 IRQ_TYPE_LEVEL_HIGH>;

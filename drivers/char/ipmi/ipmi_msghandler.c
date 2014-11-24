@@ -2796,7 +2796,6 @@ channel_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 					= IPMI_CHANNEL_MEDIUM_IPMB;
 				intf->channels[0].protocol
 					= IPMI_CHANNEL_PROTOCOL_IPMB;
-				rv = -ENOSYS;
 
 				intf->curr_channel = IPMI_MAX_CHANNELS;
 				wake_up(&intf->waitq);
@@ -2821,12 +2820,12 @@ channel_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 
 		if (rv) {
 			/* Got an error somehow, just give up. */
+			printk(KERN_WARNING PFX
+			       "Error sending channel information for channel"
+			       " %d: %d\n", intf->curr_channel, rv);
+
 			intf->curr_channel = IPMI_MAX_CHANNELS;
 			wake_up(&intf->waitq);
-
-			printk(KERN_WARNING PFX
-			       "Error sending channel information: %d\n",
-			       rv);
 		}
 	}
  out:
@@ -2964,8 +2963,12 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		intf->null_user_handler = channel_handler;
 		intf->curr_channel = 0;
 		rv = send_channel_info_cmd(intf, 0);
-		if (rv)
+		if (rv) {
+			printk(KERN_WARNING PFX
+			       "Error sending channel information for channel"
+			       " 0, %d\n", rv);
 			goto out;
+		}
 
 		/* Wait for the channel info to be read. */
 		wait_event(intf->waitq,

@@ -254,14 +254,14 @@ static void update_attrib_vcs_info(struct rtw_adapter *padapter, struct xmit_fra
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
-        if (pattrib->psta) {
+	if (pattrib->psta) {
 		psta = pattrib->psta;
 	} else {
 		DBG_8723A("%s, call rtw_get_stainfo23a()\n", __func__);
 		psta = rtw_get_stainfo23a(&padapter->stapriv, &pattrib->ra[0]);
 	}
 
-        if (psta == NULL) {
+	if (psta == NULL) {
 		DBG_8723A("%s, psta == NUL\n", __func__);
 		return;
 	}

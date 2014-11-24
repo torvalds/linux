@@ -499,7 +499,7 @@ csio_reduce_sqsets(struct csio_hw *hw, int cnt)
 static int
 csio_enable_msix(struct csio_hw *hw)
 {
-	int rv, i, j, k, n, min, cnt;
+	int i, j, k, n, min, cnt;
 	struct csio_msix_entries *entryp;
 	struct msix_entry *entries;
 	int extra = CSIO_EXTRA_VECS;
@@ -521,21 +521,15 @@ csio_enable_msix(struct csio_hw *hw)
 
 	csio_dbg(hw, "FW supp #niq:%d, trying %d msix's\n", hw->cfg_niq, cnt);
 
-	while ((rv = pci_enable_msix(hw->pdev, entries, cnt)) >= min)
-		cnt = rv;
-	if (!rv) {
-		if (cnt < (hw->num_sqsets + extra)) {
-			csio_dbg(hw, "Reducing sqsets to %d\n", cnt - extra);
-			csio_reduce_sqsets(hw, cnt - extra);
-		}
-	} else {
-		if (rv > 0) {
-			pci_disable_msix(hw->pdev);
-			csio_info(hw, "Not using MSI-X, remainder:%d\n", rv);
-		}
-
+	cnt = pci_enable_msix_range(hw->pdev, entries, min, cnt);
+	if (cnt < 0) {
 		kfree(entries);
-		return -ENOMEM;
+		return cnt;
+	}
+
+	if (cnt < (hw->num_sqsets + extra)) {
+		csio_dbg(hw, "Reducing sqsets to %d\n", cnt - extra);
+		csio_reduce_sqsets(hw, cnt - extra);
 	}
 
 	/* Save off vectors */

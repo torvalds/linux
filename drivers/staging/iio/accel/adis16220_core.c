@@ -70,7 +70,7 @@ static int adis16220_capture(struct iio_dev *indio_dev)
 	if (ret)
 		dev_err(&indio_dev->dev, "problem beginning capture");
 
-	msleep(10); /* delay for capture to finish */
+	usleep_range(10000, 11000); /* delay for capture to finish */
 
 	return ret;
 }
@@ -323,15 +323,14 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 		sval = (s16)(sval << (16 - bits)) >> (16 - bits);
 		*val = sval;
 		return IIO_VAL_INT;
-	} else {
-		ret = adis_read_reg_16(&st->adis, addr->addr, &uval);
-		if (ret)
-			return ret;
-		bits = addr->bits;
-		uval &= (1 << bits) - 1;
-		*val = uval;
-		return IIO_VAL_INT;
 	}
+	ret = adis_read_reg_16(&st->adis, addr->addr, &uval);
+	if (ret)
+		return ret;
+	bits = addr->bits;
+	uval &= (1 << bits) - 1;
+	*val = uval;
+	return IIO_VAL_INT;
 }
 
 static const struct iio_chan_spec adis16220_channels[] = {

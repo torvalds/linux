@@ -123,7 +123,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 static int xgbe_mdio_read(struct mii_bus *mii, int prtad, int mmd_reg)
 {
 	struct xgbe_prv_data *pdata = mii->priv;

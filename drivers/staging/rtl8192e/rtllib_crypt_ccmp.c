@@ -69,7 +69,7 @@ static void *rtllib_ccmp_init(int key_idx)
 
 	priv->tfm = (void *)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
-		printk(KERN_DEBUG "rtllib_crypt_ccmp: could not allocate "
+		pr_debug("rtllib_crypt_ccmp: could not allocate "
 		       "crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
@@ -90,6 +90,7 @@ fail:
 static void rtllib_ccmp_deinit(void *priv)
 {
 	struct rtllib_ccmp_data *_priv = priv;
+
 	if (_priv && _priv->tfm)
 		crypto_free_cipher((void *)_priv->tfm);
 	kfree(priv);
@@ -99,6 +100,7 @@ static void rtllib_ccmp_deinit(void *priv)
 static inline void xor_block(u8 *b, u8 *a, size_t len)
 {
 	int i;
+
 	for (i = 0; i < len; i++)
 		b[i] ^= a[i];
 }
@@ -276,7 +278,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: received packet without ExtIV"
+			pr_debug("CCMP: received packet without ExtIV"
 			       " flag from %pM\n", hdr->addr2);
 		}
 		key->dot11RSNAStatsCCMPFormatErrors++;
@@ -284,13 +286,13 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	keyidx >>= 6;
 	if (key->key_idx != keyidx) {
-		printk(KERN_DEBUG "CCMP: RX tkey->key_idx=%d frame "
+		pr_debug("CCMP: RX tkey->key_idx=%d frame "
 		       "keyidx=%d priv=%p\n", key->key_idx, keyidx, priv);
 		return -6;
 	}
 	if (!key->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: received packet from %pM"
+			pr_debug("CCMP: received packet from %pM"
 			       " with keyid=%d that does not have a configured"
 			       " key\n", hdr->addr2, keyidx);
 		}
@@ -339,7 +341,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		if (memcmp(mic, a, CCMP_MIC_LEN) != 0) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "CCMP: decrypt failed: STA="
+				pr_debug("CCMP: decrypt failed: STA="
 				" %pM\n", hdr->addr2);
 			}
 			key->dot11RSNAStatsCCMPDecryptErrors++;
@@ -415,6 +417,7 @@ static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 {
 	struct rtllib_ccmp_data *ccmp = priv;
+
 	seq_printf(m,
 		   "key[%d] alg=CCMP key_set=%d "
 		   "tx_pn=%pM rx_pn=%pM "

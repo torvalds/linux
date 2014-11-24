@@ -74,6 +74,10 @@
 #define SPI_INT_RXFI			(1 << 4)
 #define SPI_INT_MSTI			(1 << 5)
 
+/* Bit fields in DMACR */
+#define SPI_DMA_RDMAE			(1 << 0)
+#define SPI_DMA_TDMAE			(1 << 1)
+
 /* TX RX interrupt level threshold, max can be 256 */
 #define SPI_INT_THRESHOLD		32
 
@@ -140,7 +144,6 @@ struct dw_spi {
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	struct dw_spi_dma_ops	*dma_ops;
 	void			*dma_priv; /* platform relate info */
-	struct pci_dev		*dmac;
 
 	/* Bus interface info */
 	void			*priv;
@@ -217,11 +220,11 @@ static inline void spi_umask_intr(struct dw_spi *dws, u32 mask)
  * Each SPI slave device to work with dw_api controller should
  * has such a structure claiming its working mode (PIO/DMA etc),
  * which can be save in the "controller_data" member of the
- * struct spi_device
+ * struct spi_device.
  */
 struct dw_spi_chip {
-	u8 poll_mode;	/* 0 for contoller polling mode */
-	u8 type;	/* SPI/SSP/Micrwire */
+	u8 poll_mode;	/* 1 for controller polling mode */
+	u8 type;	/* SPI/SSP/MicroWire */
 	u8 enable_dma;
 	void (*cs_control)(u32 command);
 };

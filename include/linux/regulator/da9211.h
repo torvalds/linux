@@ -1,5 +1,5 @@
 /*
- * da9211.h - Regulator device driver for DA9211
+ * da9211.h - Regulator device driver for DA9211/DA9213
  * Copyright (C) 2014  Dialog Semiconductor Ltd.
  *
  * This library is free software; you can redistribute it and/or
@@ -20,6 +20,11 @@
 
 #define DA9211_MAX_REGULATORS	2
 
+enum da9211_chip_id {
+	DA9211,
+	DA9213,
+};
+
 struct da9211_pdata {
 	/*
 	 * Number of buck
@@ -27,6 +32,6 @@ struct da9211_pdata {
 	 * 2 : 2 phase 2 buck
 	 */
 	int num_buck;
-	struct regulator_init_data *init_data;
+	struct regulator_init_data *init_data[DA9211_MAX_REGULATORS];
 };
 #endif

@@ -176,11 +176,11 @@ static void dns_resolver_free_preparse(struct key_preparsed_payload *prep)
  * The domain name may be a simple name or an absolute domain name (which
  * should end with a period).  The domain name is case-independent.
  */
-static int
-dns_resolver_match(const struct key *key, const void *description)
+static bool dns_resolver_cmp(const struct key *key,
+			     const struct key_match_data *match_data)
 {
 	int slen, dlen, ret = 0;
-	const char *src = key->description, *dsp = description;
+	const char *src = key->description, *dsp = match_data->raw_data;
 
 	kenter("%s,%s", src, dsp);
 
@@ -206,6 +206,16 @@ matched:
 no_match:
 	kleave(" = %d", ret);
 	return ret;
+}
+
+/*
+ * Preparse the match criterion.
+ */
+static int dns_resolver_match_preparse(struct key_match_data *match_data)
+{
+	match_data->lookup_type = KEYRING_SEARCH_LOOKUP_ITERATE;
+	match_data->cmp = dns_resolver_cmp;
+	return 0;
 }
 
 /*
@@ -242,7 +252,7 @@ struct key_type key_type_dns_resolver = {
 	.preparse	= dns_resolver_preparse,
 	.free_preparse	= dns_resolver_free_preparse,
 	.instantiate	= generic_key_instantiate,
-	.match		= dns_resolver_match,
+	.match_preparse	= dns_resolver_match_preparse,
 	.revoke		= user_revoke,
 	.destroy	= user_destroy,
 	.describe	= dns_resolver_describe,

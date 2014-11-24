@@ -241,9 +241,12 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	/* strip the nci data header */
 	skb_pull(skb, NCI_DATA_HDR_SIZE);
 
-	if (ndev->target_active_prot == NFC_PROTO_MIFARE) {
+	if (ndev->target_active_prot == NFC_PROTO_MIFARE ||
+	    ndev->target_active_prot == NFC_PROTO_JEWEL ||
+	    ndev->target_active_prot == NFC_PROTO_FELICA ||
+	    ndev->target_active_prot == NFC_PROTO_ISO15693) {
 		/* frame I/F => remove the status byte */
-		pr_debug("NFC_PROTO_MIFARE => remove the status byte\n");
+		pr_debug("frame I/F => remove the status byte\n");
 		skb_trim(skb, (skb->len - 1));
 	}
 

@@ -1088,7 +1088,7 @@ static int bcm63xx_ep_disable(struct usb_ep *ep)
 			breq->req.status = -ESHUTDOWN;
 
 			spin_unlock_irqrestore(&udc->lock, flags);
-			breq->req.complete(&iudma->bep->ep, &breq->req);
+			usb_gadget_giveback_request(&iudma->bep->ep, &breq->req);
 			spin_lock_irqsave(&udc->lock, flags);
 		}
 	}

@@ -48,7 +48,7 @@
 # include <linux/sched.h>  /* for struct task_struct, for current.h */
 # include <linux/proc_fs.h>
 # include <linux/mount.h>
-#include "lustre_intent.h"
+#include "../lustre_intent.h"
 
 struct ll_iattr {
 	struct iattr	iattr;

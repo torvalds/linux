@@ -152,8 +152,10 @@ static inline bool synth_full(void)
 static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 {
 	u_char ch;
+
 	while ((ch = *buf)) {
 		int timeout = SPK_XMITR_TIMEOUT;
+
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		if (synth_full())
@@ -257,6 +259,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	unsigned int port_val = 0;
 	int i = 0;
+
 	pr_info("Probing for %s.\n", synth->long_name);
 	if (port_forced) {
 		speakup_info.port_tts = port_forced;

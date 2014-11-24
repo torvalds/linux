@@ -938,7 +938,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	if (!glue_info)
 		return -EINVAL;
 
-	cdd = kzalloc(sizeof(*cdd), GFP_KERNEL);
+	cdd = devm_kzalloc(&pdev->dev, sizeof(*cdd), GFP_KERNEL);
 	if (!cdd)
 		return -ENOMEM;
 
@@ -959,10 +959,8 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->qmgr_mem = of_iomap(dev->of_node, 3);
 
 	if (!cdd->usbss_mem || !cdd->ctrl_mem || !cdd->sched_mem ||
-			!cdd->qmgr_mem) {
-		ret = -ENXIO;
-		goto err_remap;
-	}
+			!cdd->qmgr_mem)
+		return -ENXIO;
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
@@ -989,7 +987,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 
 	cppi_writel(USBSS_IRQ_PD_COMP, cdd->usbss_mem + USBSS_IRQ_ENABLER);
 
-	ret = request_irq(irq, glue_info->isr, IRQF_SHARED,
+	ret = devm_request_irq(&pdev->dev, irq, glue_info->isr, IRQF_SHARED,
 			dev_name(dev), cdd);
 	if (ret)
 		goto err_irq;
@@ -1009,7 +1007,6 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 err_of:
 	dma_async_device_unregister(&cdd->ddev);
 err_dma_reg:
-	free_irq(irq, cdd);
 err_irq:
 	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
 	cleanup_chans(cdd);
@@ -1023,8 +1020,6 @@ err_get_sync:
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
 	iounmap(cdd->qmgr_mem);
-err_remap:
-	kfree(cdd);
 	return ret;
 }
 
@@ -1036,7 +1031,7 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&cdd->ddev);
 
 	cppi_writel(0, cdd->usbss_mem + USBSS_IRQ_CLEARR);
-	free_irq(cdd->irq, cdd);
+	devm_free_irq(&pdev->dev, cdd->irq, cdd);
 	cleanup_chans(cdd);
 	deinit_cppi41(&pdev->dev, cdd);
 	iounmap(cdd->usbss_mem);
@@ -1045,7 +1040,6 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	iounmap(cdd->qmgr_mem);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	kfree(cdd);
 	return 0;
 }
 

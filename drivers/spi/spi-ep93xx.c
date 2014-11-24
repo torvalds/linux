@@ -266,6 +266,7 @@ static int ep93xx_spi_setup(struct spi_device *spi)
 
 		if (chip->ops && chip->ops->setup) {
 			int ret = chip->ops->setup(spi);
+
 			if (ret) {
 				kfree(chip);
 				return ret;

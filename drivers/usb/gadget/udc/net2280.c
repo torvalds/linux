@@ -928,7 +928,7 @@ done(struct net2280_ep *ep, struct net2280_request *req, int status)
 	/* don't modify queue heads during completion callback */
 	ep->stopped = 1;
 	spin_unlock(&dev->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&dev->lock);
 	ep->stopped = stopped;
 }

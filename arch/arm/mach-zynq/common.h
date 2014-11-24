@@ -24,6 +24,8 @@ extern int zynq_early_slcr_init(void);
 extern void zynq_slcr_system_reset(void);
 extern void zynq_slcr_cpu_stop(int cpu);
 extern void zynq_slcr_cpu_start(int cpu);
+extern bool zynq_slcr_cpu_state_read(int cpu);
+extern void zynq_slcr_cpu_state_write(int cpu, bool die);
 extern u32 zynq_slcr_get_device_id(void);
 
 #ifdef CONFIG_SMP
@@ -37,7 +39,17 @@ extern struct smp_operations zynq_smp_ops __initdata;
 
 extern void __iomem *zynq_scu_base;
 
-/* Hotplug */
-extern void zynq_platform_cpu_die(unsigned int cpu);
+void zynq_pm_late_init(void);
+
+static inline void zynq_core_pm_init(void)
+{
+	/* A9 clock gating */
+	asm volatile ("mrc  p15, 0, r12, c15, c0, 0\n"
+		      "orr  r12, r12, #1\n"
+		      "mcr  p15, 0, r12, c15, c0, 0\n"
+		      : /* no outputs */
+		      : /* no inputs */
+		      : "r12");
+}
 
 #endif

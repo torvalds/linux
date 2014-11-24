@@ -117,7 +117,7 @@ static int sca3000_read_first_n_hw_rb(struct iio_buffer *r,
 		goto error_ret;
 
 	for (i = 0; i < num_read; i++)
-		*(((u16 *)rx) + i) = be16_to_cpup((u16 *)rx + i);
+		*(((u16 *)rx) + i) = be16_to_cpup((__be16 *)rx + i);
 
 	if (copy_to_user(buf, rx, num_read))
 		ret = -EFAULT;

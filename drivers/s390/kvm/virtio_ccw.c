@@ -888,7 +888,6 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
 	int i;
 	struct virtqueue *vq;
-	struct virtio_driver *drv;
 
 	if (!vcdev)
 		return;
@@ -940,11 +939,7 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 		vring_interrupt(0, vq);
 	}
 	if (test_bit(0, &vcdev->indicators2)) {
-		drv = container_of(vcdev->vdev.dev.driver,
-				   struct virtio_driver, driver);
-
-		if (drv && drv->config_changed)
-			drv->config_changed(&vcdev->vdev);
+		virtio_config_changed(&vcdev->vdev);
 		clear_bit(0, &vcdev->indicators2);
 	}
 }

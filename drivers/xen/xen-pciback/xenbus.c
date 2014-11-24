@@ -719,11 +719,13 @@ static const struct xenbus_device_id xen_pcibk_ids[] = {
 	{""},
 };
 
-static DEFINE_XENBUS_DRIVER(xen_pcibk, DRV_NAME,
+static struct xenbus_driver xen_pcibk_driver = {
+	.name                   = DRV_NAME,
+	.ids                    = xen_pcibk_ids,
 	.probe			= xen_pcibk_xenbus_probe,
 	.remove			= xen_pcibk_xenbus_remove,
 	.otherend_changed	= xen_pcibk_frontend_changed,
-);
+};
 
 const struct xen_pcibk_backend *__read_mostly xen_pcibk_backend;
 

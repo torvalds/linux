@@ -214,6 +214,7 @@ struct dvb_usb_adapter_properties {
  * @read_config: called to resolve device configuration
  * @read_mac_address: called to resolve adapter mac-address
  * @frontend_attach: called to attach the possible frontends
+ * @frontend_detach: called to detach the possible frontends
  * @tuner_attach: called to attach the possible tuners
  * @frontend_ctrl: called to power on/off active frontend
  * @streaming_ctrl: called to start/stop the usb streaming of adapter
@@ -254,7 +255,9 @@ struct dvb_usb_device_properties {
 	int (*read_config) (struct dvb_usb_device *d);
 	int (*read_mac_address) (struct dvb_usb_adapter *, u8 []);
 	int (*frontend_attach) (struct dvb_usb_adapter *);
+	int (*frontend_detach)(struct dvb_usb_adapter *);
 	int (*tuner_attach) (struct dvb_usb_adapter *);
+	int (*tuner_detach)(struct dvb_usb_adapter *);
 	int (*frontend_ctrl) (struct dvb_frontend *, int);
 	int (*streaming_ctrl) (struct dvb_frontend *, int);
 	int (*init) (struct dvb_usb_device *);

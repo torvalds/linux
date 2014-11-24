@@ -410,6 +410,7 @@ static __refdata struct usb_gadget_driver dbgp_driver = {
 	.bind = dbgp_bind,
 	.unbind = dbgp_unbind,
 	.setup = dbgp_setup,
+	.reset = dbgp_disconnect,
 	.disconnect = dbgp_disconnect,
 	.driver	= {
 		.owner = THIS_MODULE,

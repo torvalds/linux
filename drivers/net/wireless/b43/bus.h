@@ -33,6 +33,7 @@ struct b43_bus_dev {
 			   size_t count, u16 offset, u8 reg_width);
 	void (*block_write)(struct b43_bus_dev *dev, const void *buffer,
 			    size_t count, u16 offset, u8 reg_width);
+	bool flush_writes;
 
 	struct device *dev;
 	struct device *dma_dev;
@@ -60,7 +61,21 @@ static inline bool b43_bus_host_is_pcmcia(struct b43_bus_dev *dev)
 #else
 	return false;
 #endif
+};
+
+static inline bool b43_bus_host_is_pci(struct b43_bus_dev *dev)
+{
+#ifdef CONFIG_B43_BCMA
+	if (dev->bus_type == B43_BUS_BCMA)
+		return (dev->bdev->bus->hosttype == BCMA_HOSTTYPE_PCI);
+#endif
+#ifdef CONFIG_B43_SSB
+	if (dev->bus_type == B43_BUS_SSB)
+		return (dev->sdev->bus->bustype == SSB_BUSTYPE_PCI);
+#endif
+	return false;
 }
+
 static inline bool b43_bus_host_is_sdio(struct b43_bus_dev *dev)
 {
 #ifdef CONFIG_B43_SSB

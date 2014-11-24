@@ -380,7 +380,6 @@ struct rtd_private {
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 	DECLARE_BITMAP(chan_is_bipolar, RTD_MAX_CHANLIST);
-	unsigned int ao_readback[2];
 	unsigned fifosz;
 };
 
@@ -400,15 +399,15 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
 {
 	int divider;
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (*nanosec + base - 1) / base;
 		break;
 	}
@@ -438,7 +437,7 @@ static int rtd_ns_to_timer(unsigned int *ns, unsigned int flags)
 static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 					    unsigned int chanspec, int index)
 {
-	const struct rtd_boardinfo *board = comedi_board(dev);
+	const struct rtd_boardinfo *board = dev->board_ptr;
 	struct rtd_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(chanspec);
 	unsigned int range = CR_RANGE(chanspec);
@@ -809,26 +808,26 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 						      RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
 						      RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		} else {
 			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 						      RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
 						      RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		}
@@ -844,26 +843,26 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
 						      RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
 						      RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		} else {
 			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
 						      RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_UP);
+						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
 			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
 						      RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_DOWN);
+						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		}
@@ -875,12 +874,10 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* TODO check for rounding error due to counter wrap */
-	} else {
-		/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	}
 
 	if (err)
 		return 3;
@@ -956,7 +953,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (TRIG_TIMER == cmd->scan_begin_src) {
 		/* scan_begin_arg is in nanoseconds */
 		/* find out how many samples to wait before transferring */
-		if (cmd->flags & TRIG_WAKE_EOS) {
+		if (cmd->flags & CMDF_WAKE_EOS) {
 			/*
 			 * this may generate un-sustainable interrupt rates
 			 * the application is responsible for doing the
@@ -1020,7 +1017,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:	/* periodic scanning */
 		timer = rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_NEAREST);
+					CMDF_ROUND_NEAREST);
 		/* set PACER clock */
 		writel(timer & 0xffffff, dev->mmio + LAS0_PCLK);
 
@@ -1038,7 +1035,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (cmd->chanlist_len > 1) {
 			/* only needed for multi-channel */
 			timer = rtd_ns_to_timer(&cmd->convert_arg,
-						TRIG_ROUND_NEAREST);
+						CMDF_ROUND_NEAREST);
 			/* setup BURST clock */
 			writel(timer & 0x3ff, dev->mmio + LAS0_BCLK);
 		}
@@ -1138,7 +1135,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
 		writew(0, dev->mmio + ((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
 
-		devpriv->ao_readback[chan] = data[i];
+		s->readback[chan] = data[i];
 
 		ret = comedi_timeout(dev, s, insn, rtd_ao_eoc, 0);
 		if (ret)
@@ -1146,23 +1143,6 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 	}
 
 	/* return the number of samples read/written */
-	return i;
-}
-
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
-static int rtd_ao_rinsn(struct comedi_device *dev,
-			struct comedi_subdevice *s, struct comedi_insn *insn,
-			unsigned int *data)
-{
-	struct rtd_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-
 	return i;
 }
 
@@ -1323,7 +1303,11 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0x0fff;
 	s->range_table	= &rtd_ao_range;
 	s->insn_write	= rtd_ao_winsn;
-	s->insn_read	= rtd_ao_rinsn;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */

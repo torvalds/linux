@@ -17,7 +17,7 @@ Required properties:
 - samsung,pbl: Integer, Programmable Burst Length.
   Supported values are 1, 2, 4, 8, 16, or 32.
 - samsung,burst-map: Integer, Program the possible bursts supported by sxgbe
-  This is an interger and represents allowable DMA bursts when fixed burst.
+  This is an integer and represents allowable DMA bursts when fixed burst.
   Allowable range is 0x01-0x3F. When this field is set fixed burst is enabled.
   When fixed length is needed for burst mode, it can be set within allowable
   range.

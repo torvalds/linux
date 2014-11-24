@@ -28,7 +28,7 @@ VOID SortPackInfo(struct bcm_mini_adapter *Adapter)
 			DBG_LVL_ALL, "<=======");
 
 	sort(Adapter->PackInfo, NO_OF_QUEUES, sizeof(struct bcm_packet_info),
-		compare_packet_info, NULL);
+	     compare_packet_info, NULL);
 }
 
 static int compare_classifiers(void const *a, void const *b)
@@ -48,5 +48,5 @@ VOID SortClassifiers(struct bcm_mini_adapter *Adapter)
 			DBG_LVL_ALL, "<=======");
 
 	sort(Adapter->astClassifierTable, MAX_CLASSIFIERS,
-		sizeof(struct bcm_classifier_rule), compare_classifiers, NULL);
+	     sizeof(struct bcm_classifier_rule), compare_classifiers, NULL);
 }

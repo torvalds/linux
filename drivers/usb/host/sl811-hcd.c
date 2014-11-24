@@ -674,7 +674,7 @@ retry:
 			sl811->next_periodic = sl811->periodic[index];
 	}
 
-	/* khubd manages debouncing and wakeup */
+	/* hub_wq manages debouncing and wakeup */
 	if (irqstat & SL11H_INTMASK_INSRMV) {
 		sl811->stat_insrmv++;
 
@@ -714,7 +714,7 @@ retry:
 #endif
 
 		/* port status seems weird until after reset, so
-		 * force the reset and make khubd clean up later.
+		 * force the reset and make hub_wq clean up later.
 		 */
 		if (irqstat & SL11H_INTMASK_RD)
 			sl811->port1 &= ~USB_PORT_STAT_CONNECTION;
@@ -1079,7 +1079,7 @@ sl811h_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!(sl811->port1 & (0xffff << 16)))
 		return 0;
 
-	/* tell khubd port 1 changed */
+	/* tell hub_wq port 1 changed */
 	*buf = (1 << 1);
 	return 1;
 }
@@ -1196,7 +1196,7 @@ sl811h_timer(unsigned long _sl811)
 		sl811_write(sl811, SL811_EP_A(SL11H_HOSTCTLREG),
 				SL11H_HCTLMASK_ARM);
 
-		/* khubd provides debounce delay */
+		/* hub_wq provides debounce delay */
 	} else {
 		sl811->ctrl1 = 0;
 	}

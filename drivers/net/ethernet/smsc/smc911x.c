@@ -1927,9 +1927,6 @@ static int smc911x_probe(struct net_device *dev)
 	}
 	dev->irq = irq_canonicalize(dev->irq);
 
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(dev);
-
 	dev->netdev_ops = &smc911x_netdev_ops;
 	dev->watchdog_timeo = msecs_to_jiffies(watchdog);
 	dev->ethtool_ops = &smc911x_ethtool_ops;

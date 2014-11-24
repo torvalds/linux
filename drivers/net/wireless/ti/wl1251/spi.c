@@ -345,7 +345,6 @@ static int wl1251_spi_remove(struct spi_device *spi)
 {
 	struct wl1251 *wl = spi_get_drvdata(spi);
 
-	free_irq(wl->irq, wl);
 	wl1251_free_hw(wl);
 	regulator_disable(wl->vio);
 

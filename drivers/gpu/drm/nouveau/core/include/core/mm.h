@@ -6,6 +6,10 @@ struct nouveau_mm_node {
 	struct list_head fl_entry;
 	struct list_head rl_entry;
 
+#define NVKM_MM_HEAP_ANY 0x00
+	u8  heap;
+#define NVKM_MM_TYPE_NONE 0x00
+#define NVKM_MM_TYPE_HOLE 0xff
 	u8  type;
 	u32 offset;
 	u32 length;
@@ -27,10 +31,10 @@ nouveau_mm_initialised(struct nouveau_mm *mm)
 
 int  nouveau_mm_init(struct nouveau_mm *, u32 offset, u32 length, u32 block);
 int  nouveau_mm_fini(struct nouveau_mm *);
-int  nouveau_mm_head(struct nouveau_mm *, u8 type, u32 size_max, u32 size_min,
-		     u32 align, struct nouveau_mm_node **);
-int  nouveau_mm_tail(struct nouveau_mm *, u8 type, u32 size_max, u32 size_min,
-		     u32 align, struct nouveau_mm_node **);
+int  nouveau_mm_head(struct nouveau_mm *, u8 heap, u8 type, u32 size_max,
+		     u32 size_min, u32 align, struct nouveau_mm_node **);
+int  nouveau_mm_tail(struct nouveau_mm *, u8 heap, u8 type, u32 size_max,
+		     u32 size_min, u32 align, struct nouveau_mm_node **);
 void nouveau_mm_free(struct nouveau_mm *, struct nouveau_mm_node **);
 
 #endif

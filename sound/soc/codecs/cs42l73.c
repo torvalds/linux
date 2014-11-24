@@ -1330,24 +1330,9 @@ static struct snd_soc_dai_driver cs42l73_dai[] = {
 	 }
 };
 
-static int cs42l73_suspend(struct snd_soc_codec *codec)
-{
-	cs42l73_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int cs42l73_resume(struct snd_soc_codec *codec)
-{
-	cs42l73_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int cs42l73_probe(struct snd_soc_codec *codec)
 {
 	struct cs42l73_private *cs42l73 = snd_soc_codec_get_drvdata(codec);
-
-	cs42l73_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Set Charge Pump Frequency */
 	if (cs42l73->pdata.chgfreq)
@@ -1362,18 +1347,10 @@ static int cs42l73_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int cs42l73_remove(struct snd_soc_codec *codec)
-{
-	cs42l73_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_cs42l73 = {
 	.probe = cs42l73_probe,
-	.remove = cs42l73_remove,
-	.suspend = cs42l73_suspend,
-	.resume = cs42l73_resume,
 	.set_bias_level = cs42l73_set_bias_level,
+	.suspend_bias_off = true,
 
 	.dapm_widgets = cs42l73_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(cs42l73_dapm_widgets),

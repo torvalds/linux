@@ -77,21 +77,23 @@ static int ll_readlink_internal(struct inode *inode,
 	if (rc) {
 		if (rc != -ENOENT)
 			CERROR("inode %lu: rc = %d\n", inode->i_ino, rc);
-		GOTO (failed, rc);
+		goto failed;
 	}
 
 	body = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_BODY);
 	LASSERT(body != NULL);
 	if ((body->valid & OBD_MD_LINKNAME) == 0) {
 		CERROR("OBD_MD_LINKNAME not set on reply\n");
-		GOTO(failed, rc = -EPROTO);
+		rc = -EPROTO;
+		goto failed;
 	}
 
 	LASSERT(symlen != 0);
 	if (body->eadatasize != symlen) {
 		CERROR("inode %lu: symlink length %d not expected %d\n",
 			inode->i_ino, body->eadatasize - 1, symlen - 1);
-		GOTO(failed, rc = -EPROTO);
+		rc = -EPROTO;
+		goto failed;
 	}
 
 	*symname = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_MD);
@@ -100,10 +102,11 @@ static int ll_readlink_internal(struct inode *inode,
 		/* not full/NULL terminated */
 		CERROR("inode %lu: symlink not NULL terminated string"
 			"of length %d\n", inode->i_ino, symlen - 1);
-		GOTO(failed, rc = -EPROTO);
+		rc = -EPROTO;
+		goto failed;
 	}
 
-	OBD_ALLOC(lli->lli_symlink_name, symlen);
+	lli->lli_symlink_name = kzalloc(symlen, GFP_NOFS);
 	/* do not return an error if we cannot cache the symlink locally */
 	if (lli->lli_symlink_name) {
 		memcpy(lli->lli_symlink_name, *symname, symlen);

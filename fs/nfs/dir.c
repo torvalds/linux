@@ -486,8 +486,7 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 				nfs_setsecurity(dentry->d_inode, entry->fattr, entry->label);
 			goto out;
 		} else {
-			if (d_invalidate(dentry) != 0)
-				goto out;
+			d_invalidate(dentry);
 			dput(dentry);
 		}
 	}
@@ -1211,10 +1210,6 @@ out_zap_parent:
 		if (IS_ROOT(dentry))
 			goto out_valid;
 	}
-	/* If we have submounts, don't unhash ! */
-	if (check_submounts_and_drop(dentry) != 0)
-		goto out_valid;
-
 	dput(parent);
 	dfprintk(LOOKUPCACHE, "NFS: %s(%pd2) is invalid\n",
 			__func__, dentry);
@@ -1532,6 +1527,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		case -ENOENT:
 			d_drop(dentry);
 			d_add(dentry, NULL);
+			nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 			break;
 		case -EISDIR:
 		case -ENOTDIR:

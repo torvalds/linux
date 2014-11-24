@@ -56,6 +56,13 @@ ip_forward_use_pmtu - BOOLEAN
 	0 - disabled
 	1 - enabled
 
+fwmark_reflect - BOOLEAN
+	Controls the fwmark of kernel-generated IPv4 reply packets that are not
+	associated with a socket for example, TCP RSTs or ICMP echo replies).
+	If unset, these packets have a fwmark of zero. If set, they have the
+	fwmark of the packet they are replying to.
+	Default: 0
+
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
@@ -64,6 +71,12 @@ neigh/default/gc_thresh1 - INTEGER
 	Minimum number of entries to keep.  Garbage collector will not
 	purge entries if there are fewer than this number.
 	Default: 128
+
+neigh/default/gc_thresh2 - INTEGER
+	Threshold when garbage collector becomes more aggressive about
+	purging entries. Entries older than 5 seconds will be cleared
+	when over this number.
+	Default: 512
 
 neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
@@ -580,12 +593,6 @@ tcp_workaround_signed_windows - BOOLEAN
 	not receive a window scaling option from them.
 	Default: 0
 
-tcp_dma_copybreak - INTEGER
-	Lower limit, in bytes, of the size of socket reads that will be
-	offloaded to a DMA copy engine, if one is present in the system
-	and CONFIG_NET_DMA is enabled.
-	Default: 4096
-
 tcp_thin_linear_timeouts - BOOLEAN
 	Enable dynamic triggering of linear timeouts for thin streams.
 	If set, a check is performed upon retransmission by timeout to
@@ -763,7 +770,20 @@ icmp_ratelimit - INTEGER
 	icmp_ratemask (see below) to specific targets.
 	0 to disable any limiting,
 	otherwise the minimal space between responses in milliseconds.
+	Note that another sysctl, icmp_msgs_per_sec limits the number
+	of ICMP packets	sent on all targets.
 	Default: 1000
+
+icmp_msgs_per_sec - INTEGER
+	Limit maximal number of ICMP packets sent per second from this host.
+	Only messages whose type matches icmp_ratemask (see below) are
+	controlled by this limit.
+	Default: 1000
+
+icmp_msgs_burst - INTEGER
+	icmp_msgs_per_sec controls number of ICMP packets sent per second,
+	while icmp_msgs_burst controls the burst size of these packets.
+	Default: 50
 
 icmp_ratemask - INTEGER
 	Mask made of ICMP types for which rates are being limited.
@@ -837,6 +857,11 @@ igmp_max_memberships - INTEGER
 	"interface" is the name of your network interface)
 
 	conf/all/*	  is special, changes the settings for all interfaces
+
+igmp_qrv - INTEGER
+	 Controls the IGMP query robustness variable (see RFC2236 8.1).
+	 Default: 2 (as specified by RFC2236 8.1)
+	 Minimum: 1 (as specified by RFC6636 4.5)
 
 log_martians - BOOLEAN
 	Log packets with impossible addresses to kernel log.
@@ -941,14 +966,9 @@ accept_source_route - BOOLEAN
 		FALSE (host)
 
 accept_local - BOOLEAN
-	Accept packets with local source addresses. In combination
-	with suitable routing, this can be used to direct packets
-	between two local interfaces over the wire and have them
-	accepted properly.
-
-	rp_filter must be set to a non-zero value in order for
-	accept_local to have an effect.
-
+	Accept packets with local source addresses. In combination with
+	suitable routing, this can be used to direct packets between two
+	local interfaces over the wire and have them accepted properly.
 	default FALSE
 
 route_localnet - BOOLEAN
@@ -1146,6 +1166,11 @@ anycast_src_echo_reply - BOOLEAN
 	FALSE: disabled
 	Default: FALSE
 
+mld_qrv - INTEGER
+	Controls the MLD query robustness variable (see RFC3810 9.1).
+	Default: 2 (as specified by RFC3810 9.1)
+	Minimum: 1 (as specified by RFC6636 4.5)
+
 IPv6 Fragmentation:
 
 ip6frag_high_thresh - INTEGER
@@ -1182,6 +1207,13 @@ conf/all/forwarding - BOOLEAN
 
 proxy_ndp - BOOLEAN
 	Do proxy ndp.
+
+fwmark_reflect - BOOLEAN
+	Controls the fwmark of kernel-generated IPv6 reply packets that are not
+	associated with a socket for example, TCP RSTs or ICMPv6 echo replies).
+	If unset, these packets have a fwmark of zero. If set, they have the
+	fwmark of the packet they are replying to.
+	Default: 0
 
 conf/interface/*:
 	Change special settings per interface.

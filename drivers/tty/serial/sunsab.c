@@ -436,7 +436,7 @@ static void sunsab_start_tx(struct uart_port *port)
 	struct circ_buf *xmit = &up->port.state->xmit;
 	int i;
 
-	if (uart_circ_empty(xmit))
+	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
 		return;
 
 	up->interrupt_mask1 &= ~(SAB82532_IMR1_ALLS|SAB82532_IMR1_XPR);
@@ -467,6 +467,9 @@ static void sunsab_send_xchar(struct uart_port *port, char ch)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 	unsigned long flags;
+
+	if (ch == __DISABLED_CHAR)
+		return;
 
 	spin_lock_irqsave(&up->port.lock, flags);
 

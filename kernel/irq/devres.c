@@ -38,7 +38,7 @@ static int devm_irq_match(struct device *dev, void *res, void *data)
  *
  *	Except for the extra @dev argument, this function takes the
  *	same arguments and performs the same function as
- *	request_irq().  IRQs requested with this function will be
+ *	request_threaded_irq().  IRQs requested with this function will be
  *	automatically freed on driver detach.
  *
  *	If an IRQ allocated with this function needs to be freed

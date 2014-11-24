@@ -67,6 +67,16 @@ do {								\
 #define MAXPORTS	8
 #define MAX_STOPS_SENT	5
 
+/* Board ids */
+#define PCI_DEVICE_ID_NEO_4             0x00B0
+#define PCI_DEVICE_ID_NEO_1_422         0x00CC
+#define PCI_DEVICE_ID_NEO_1_422_485     0x00CD
+#define PCI_DEVICE_ID_NEO_2_422_485     0x00CE
+#define PCIE_DEVICE_ID_NEO_8            0x00F0
+#define PCIE_DEVICE_ID_NEO_4            0x00F1
+#define PCIE_DEVICE_ID_NEO_4RJ45        0x00F2
+#define PCIE_DEVICE_ID_NEO_8RJ45        0x00F3
+
 /* Board type definitions */
 
 #define T_NEO		0000

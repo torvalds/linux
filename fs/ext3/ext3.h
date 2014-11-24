@@ -237,6 +237,8 @@ struct ext3_new_group_data {
 #define EXT3_IOC32_GETVERSION_OLD	FS_IOC32_GETVERSION
 #define EXT3_IOC32_SETVERSION_OLD	FS_IOC32_SETVERSION
 
+/* Number of supported quota types */
+#define EXT3_MAXQUOTAS 2
 
 /*
  *  Mount options
@@ -248,7 +250,7 @@ struct ext3_mount_options {
 	unsigned long s_commit_interval;
 #ifdef CONFIG_QUOTA
 	int s_jquota_fmt;
-	char *s_qf_names[MAXQUOTAS];
+	char *s_qf_names[EXT3_MAXQUOTAS];
 #endif
 };
 
@@ -669,7 +671,7 @@ struct ext3_sb_info {
 	unsigned long s_commit_interval;
 	struct block_device *journal_bdev;
 #ifdef CONFIG_QUOTA
-	char *s_qf_names[MAXQUOTAS];		/* Names of quota files with journalled quota */
+	char *s_qf_names[EXT3_MAXQUOTAS];	/* Names of quota files with journalled quota */
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
 };
@@ -1183,9 +1185,9 @@ extern const struct inode_operations ext3_fast_symlink_inode_operations;
 #define EXT3_QUOTA_INIT_BLOCKS(sb) 0
 #define EXT3_QUOTA_DEL_BLOCKS(sb) 0
 #endif
-#define EXT3_MAXQUOTAS_TRANS_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_TRANS_BLOCKS(sb))
-#define EXT3_MAXQUOTAS_INIT_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_INIT_BLOCKS(sb))
-#define EXT3_MAXQUOTAS_DEL_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_DEL_BLOCKS(sb))
+#define EXT3_MAXQUOTAS_TRANS_BLOCKS(sb) (EXT3_MAXQUOTAS*EXT3_QUOTA_TRANS_BLOCKS(sb))
+#define EXT3_MAXQUOTAS_INIT_BLOCKS(sb) (EXT3_MAXQUOTAS*EXT3_QUOTA_INIT_BLOCKS(sb))
+#define EXT3_MAXQUOTAS_DEL_BLOCKS(sb) (EXT3_MAXQUOTAS*EXT3_QUOTA_DEL_BLOCKS(sb))
 
 int
 ext3_mark_iloc_dirty(handle_t *handle,

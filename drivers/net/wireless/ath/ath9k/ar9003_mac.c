@@ -431,6 +431,24 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	return 0;
 }
 
+static int ar9003_hw_get_duration(struct ath_hw *ah, const void *ds, int index)
+{
+	const struct ar9003_txc *adc = ds;
+
+	switch (index) {
+	case 0:
+		return MS(ACCESS_ONCE(adc->ctl15), AR_PacketDur0);
+	case 1:
+		return MS(ACCESS_ONCE(adc->ctl15), AR_PacketDur1);
+	case 2:
+		return MS(ACCESS_ONCE(adc->ctl16), AR_PacketDur2);
+	case 3:
+		return MS(ACCESS_ONCE(adc->ctl16), AR_PacketDur3);
+	default:
+		return 0;
+	}
+}
+
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 {
 	struct ath_hw_ops *ops = ath9k_hw_ops(hw);
@@ -440,6 +458,7 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 	ops->get_isr = ar9003_hw_get_isr;
 	ops->set_txdesc = ar9003_set_txdesc;
 	ops->proc_txdesc = ar9003_hw_proc_txdesc;
+	ops->get_duration = ar9003_hw_get_duration;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)

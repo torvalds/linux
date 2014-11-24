@@ -27,7 +27,7 @@ int btrfs_insert_orphan_item(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
-	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
 	key.offset = offset;
 
 	path = btrfs_alloc_path();
@@ -48,7 +48,7 @@ int btrfs_del_orphan_item(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
-	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
 	key.offset = offset;
 
 	path = btrfs_alloc_path();

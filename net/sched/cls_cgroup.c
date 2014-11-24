@@ -22,17 +22,17 @@ struct cls_cgroup_head {
 	u32			handle;
 	struct tcf_exts		exts;
 	struct tcf_ematch_tree	ematches;
+	struct tcf_proto	*tp;
+	struct rcu_head		rcu;
 };
 
 static int cls_cgroup_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			       struct tcf_result *res)
 {
-	struct cls_cgroup_head *head = tp->root;
+	struct cls_cgroup_head *head = rcu_dereference_bh(tp->root);
 	u32 classid;
 
-	rcu_read_lock();
 	classid = task_cls_state(current)->classid;
-	rcu_read_unlock();
 
 	/*
 	 * Due to the nature of the classifier it is required to ignore all
@@ -80,13 +80,25 @@ static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 	[TCA_CGROUP_EMATCHES]	= { .type = NLA_NESTED },
 };
 
+static void cls_cgroup_destroy_rcu(struct rcu_head *root)
+{
+	struct cls_cgroup_head *head = container_of(root,
+						    struct cls_cgroup_head,
+						    rcu);
+
+	tcf_exts_destroy(&head->exts);
+	tcf_em_tree_destroy(&head->ematches);
+	kfree(head);
+}
+
 static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
 			     unsigned long *arg, bool ovr)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
-	struct cls_cgroup_head *head = tp->root;
+	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
+	struct cls_cgroup_head *new;
 	struct tcf_ematch_tree t;
 	struct tcf_exts e;
 	int err;
@@ -94,53 +106,58 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	if (!tca[TCA_OPTIONS])
 		return -EINVAL;
 
-	if (head == NULL) {
-		if (!handle)
-			return -EINVAL;
+	if (!head && !handle)
+		return -EINVAL;
 
-		head = kzalloc(sizeof(*head), GFP_KERNEL);
-		if (head == NULL)
-			return -ENOBUFS;
-
-		tcf_exts_init(&head->exts, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
-		head->handle = handle;
-
-		tcf_tree_lock(tp);
-		tp->root = head;
-		tcf_tree_unlock(tp);
-	}
-
-	if (handle != head->handle)
+	if (head && handle != head->handle)
 		return -ENOENT;
 
+	new = kzalloc(sizeof(*head), GFP_KERNEL);
+	if (!new)
+		return -ENOBUFS;
+
+	tcf_exts_init(&new->exts, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
+	if (head)
+		new->handle = head->handle;
+	else
+		new->handle = handle;
+
+	new->tp = tp;
 	err = nla_parse_nested(tb, TCA_CGROUP_MAX, tca[TCA_OPTIONS],
 			       cgroup_policy);
 	if (err < 0)
-		return err;
+		goto errout;
 
 	tcf_exts_init(&e, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
 	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
 	if (err < 0)
-		return err;
+		goto errout;
 
 	err = tcf_em_tree_validate(tp, tb[TCA_CGROUP_EMATCHES], &t);
-	if (err < 0)
-		return err;
+	if (err < 0) {
+		tcf_exts_destroy(&e);
+		goto errout;
+	}
 
-	tcf_exts_change(tp, &head->exts, &e);
-	tcf_em_tree_change(tp, &head->ematches, &t);
+	tcf_exts_change(tp, &new->exts, &e);
+	tcf_em_tree_change(tp, &new->ematches, &t);
 
+	rcu_assign_pointer(tp->root, new);
+	if (head)
+		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
 	return 0;
+errout:
+	kfree(new);
+	return err;
 }
 
 static void cls_cgroup_destroy(struct tcf_proto *tp)
 {
-	struct cls_cgroup_head *head = tp->root;
+	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 
 	if (head) {
-		tcf_exts_destroy(tp, &head->exts);
-		tcf_em_tree_destroy(tp, &head->ematches);
-		kfree(head);
+		RCU_INIT_POINTER(tp->root, NULL);
+		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
 	}
 }
 
@@ -151,7 +168,7 @@ static int cls_cgroup_delete(struct tcf_proto *tp, unsigned long arg)
 
 static void cls_cgroup_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
-	struct cls_cgroup_head *head = tp->root;
+	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 
 	if (arg->count < arg->skip)
 		goto skip;
@@ -167,7 +184,7 @@ skip:
 static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			   struct sk_buff *skb, struct tcmsg *t)
 {
-	struct cls_cgroup_head *head = tp->root;
+	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 

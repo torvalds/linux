@@ -2083,7 +2083,6 @@ MODULE_DEVICE_TABLE(of, davinci_emac_of_match);
 static struct platform_driver davinci_emac_driver = {
 	.driver = {
 		.name	 = "davinci_emac",
-		.owner	 = THIS_MODULE,
 		.pm	 = &davinci_emac_pm_ops,
 		.of_match_table = of_match_ptr(davinci_emac_of_match),
 	},

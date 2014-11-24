@@ -352,7 +352,7 @@ static void set_bwmode(struct rtw_adapter *padapter, unsigned short bwmode,
 }
 
 void set_channel_bwmode23a(struct rtw_adapter *padapter, unsigned char channel,
-		        unsigned char channel_offset, unsigned short bwmode)
+			   unsigned char channel_offset, unsigned short bwmode)
 {
 	u8 center_ch;
 
@@ -1537,7 +1537,7 @@ void process_addba_req23a(struct rtw_adapter *padapter,
 	u16 tid, start_seq, param;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct ADDBA_request *preq = (struct ADDBA_request*)paddba_req;
+	struct ADDBA_request *preq = (struct ADDBA_request *)paddba_req;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 

@@ -399,6 +399,8 @@ static bool _rtl92s_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 		case 2:
 			currentcmd = &postcommoncmd[*step];
 			break;
+		default:
+			return true;
 		}
 
 		if (currentcmd->cmdid == CMDID_END) {

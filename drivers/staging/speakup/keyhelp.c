@@ -64,6 +64,7 @@ static void build_key_data(void)
 	u_char *kp, counters[MAXFUNCS], ch, ch1;
 	u_short *p_key = key_data, key;
 	int i, offset = 1;
+
 	nstates = (int)(state_tbl[-1]);
 	memset(counters, 0, sizeof(counters));
 	memset(key_offsets, 0, sizeof(key_offsets));
@@ -112,6 +113,7 @@ static void build_key_data(void)
 static void say_key(int key)
 {
 	int i, state = key >> 8;
+
 	key &= 0xff;
 	for (i = 0; i < 6; i++) {
 		if (state & masks[i])
@@ -127,9 +129,11 @@ static int help_init(void)
 	char start = SPACE;
 	int i;
 	int num_funcs = MSG_FUNCNAMES_END - MSG_FUNCNAMES_START + 1;
-state_tbl = spk_our_keys[0]+SHIFT_TBL_SIZE+2;
+
+	state_tbl = spk_our_keys[0]+SHIFT_TBL_SIZE+2;
 	for (i = 0; i < num_funcs; i++) {
 		char *cur_funcname = spk_msg_get(MSG_FUNCNAMES_START + i);
+
 		if (start == *cur_funcname)
 			continue;
 		start = *cur_funcname;
@@ -144,6 +148,7 @@ int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 	char *name;
 	u_char func, *kp;
 	u_short *p_keys, val;
+
 	if (letter_offsets[0] == -1)
 		help_init();
 	if (type == KT_LATIN) {

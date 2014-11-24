@@ -85,6 +85,18 @@ SoCs:
 - DRA722
   compatible = "ti,dra722", "ti,dra72", "ti,dra7"
 
+- AM5728
+  compatible = "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
+
+- AM5726
+  compatible = "ti,am5726", "ti,dra742", "ti,dra74", "ti,dra7"
+
+- AM5718
+  compatible = "ti,am5718", "ti,dra722", "ti,dra72", "ti,dra7"
+
+- AM5716
+  compatible = "ti,am5716", "ti,dra722", "ti,dra72", "ti,dra7"
+
 - AM4372
   compatible = "ti,am4372", "ti,am43"
 

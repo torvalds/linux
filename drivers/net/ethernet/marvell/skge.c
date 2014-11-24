@@ -1107,7 +1107,7 @@ static u16 xm_phy_read(struct skge_hw *hw, int port, u16 reg)
 {
 	u16 v = 0;
 	if (__xm_phy_read(hw, port, reg, &v))
-		pr_warning("%s: phy read timed out\n", hw->dev[port]->name);
+		pr_warn("%s: phy read timed out\n", hw->dev[port]->name);
 	return v;
 }
 
@@ -1903,7 +1903,7 @@ static int gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 			return 0;
 	}
 
-	pr_warning("%s: phy write timeout\n", hw->dev[port]->name);
+	pr_warn("%s: phy write timeout\n", hw->dev[port]->name);
 	return -EIO;
 }
 
@@ -1931,7 +1931,7 @@ static u16 gm_phy_read(struct skge_hw *hw, int port, u16 reg)
 {
 	u16 v = 0;
 	if (__gm_phy_read(hw, port, reg, &v))
-		pr_warning("%s: phy read timeout\n", hw->dev[port]->name);
+		pr_warn("%s: phy read timeout\n", hw->dev[port]->name);
 	return v;
 }
 

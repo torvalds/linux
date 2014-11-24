@@ -336,7 +336,6 @@ enum fw_h2c_cmd {
 	H2C_TMP3,
 	H2C_WOWLAN_UPDATE_IV_CMD,			/*50*/
 	H2C_TMP4,
-	MAX_H2CCMD					/*52*/
 };
 
 /* The following macros are used for FW

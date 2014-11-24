@@ -73,7 +73,7 @@ static inline bool i40e_vc_isvalid_queue_id(struct i40e_vf *vf, u8 vsi_id,
 {
 	struct i40e_pf *pf = vf->pf;
 
-	return qid < pf->vsi[vsi_id]->num_queue_pairs;
+	return qid < pf->vsi[vsi_id]->alloc_queue_pairs;
 }
 
 /**
@@ -350,6 +350,7 @@ static int i40e_config_vsi_rx_queue(struct i40e_vf *vf, u16 vsi_idx,
 	rx_ctx.lrxqthresh = 2;
 	rx_ctx.crcstrip = 1;
 	rx_ctx.prefena = 1;
+	rx_ctx.l2tsel = 1;
 
 	/* clear the context in the HMC */
 	ret = i40e_clear_lan_rx_queue_context(hw, pf_queue_id);
@@ -468,7 +469,7 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 	wr32(hw, I40E_VPLAN_MAPENA(vf->vf_id), reg);
 
 	/* map PF queues to VF queues */
-	for (j = 0; j < pf->vsi[vf->lan_vsi_index]->num_queue_pairs; j++) {
+	for (j = 0; j < pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs; j++) {
 		u16 qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_index, j);
 		reg = (qid & I40E_VPLAN_QTABLE_QINDEX_MASK);
 		wr32(hw, I40E_VPLAN_QTABLE(total_queue_pairs, vf->vf_id), reg);
@@ -477,7 +478,7 @@ static void i40e_enable_vf_mappings(struct i40e_vf *vf)
 
 	/* map PF queues to VSI */
 	for (j = 0; j < 7; j++) {
-		if (j * 2 >= pf->vsi[vf->lan_vsi_index]->num_queue_pairs) {
+		if (j * 2 >= pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs) {
 			reg = 0x07FF07FF;	/* unused */
 		} else {
 			u16 qid = i40e_vc_get_pf_queue_id(vf, vf->lan_vsi_index,
@@ -584,7 +585,7 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 	ret = i40e_alloc_vsi_res(vf, I40E_VSI_SRIOV);
 	if (ret)
 		goto error_alloc;
-	total_queue_pairs += pf->vsi[vf->lan_vsi_index]->num_queue_pairs;
+	total_queue_pairs += pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs;
 	set_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
 
 	/* store the total qps number for the runtime
@@ -706,35 +707,6 @@ complete_reset:
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
 	i40e_flush(hw);
 }
-
-/**
- * i40e_vfs_are_assigned
- * @pf: pointer to the pf structure
- *
- * Determine if any VFs are assigned to VMs
- **/
-static bool i40e_vfs_are_assigned(struct i40e_pf *pf)
-{
-	struct pci_dev *pdev = pf->pdev;
-	struct pci_dev *vfdev;
-
-	/* loop through all the VFs to see if we own any that are assigned */
-	vfdev = pci_get_device(PCI_VENDOR_ID_INTEL, I40E_DEV_ID_VF , NULL);
-	while (vfdev) {
-		/* if we don't own it we don't care */
-		if (vfdev->is_virtfn && pci_physfn(vfdev) == pdev) {
-			/* if it is assigned we cannot release it */
-			if (vfdev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
-				return true;
-		}
-
-		vfdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				       I40E_DEV_ID_VF,
-				       vfdev);
-	}
-
-	return false;
-}
 #ifdef CONFIG_PCI_IOV
 
 /**
@@ -842,7 +814,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	 * assigned. Setting the number of VFs to 0 through sysfs is caught
 	 * before this function ever gets called.
 	 */
-	if (!i40e_vfs_are_assigned(pf)) {
+	if (!pci_vfs_assigned(pf->pdev)) {
 		pci_disable_sriov(pf->pdev);
 		/* Acknowledge VFLR for all VFS. Without this, VFs will fail to
 		 * work correctly when SR-IOV gets re-enabled.
@@ -979,7 +951,7 @@ int i40e_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	if (num_vfs)
 		return i40e_pci_sriov_enable(pdev, num_vfs);
 
-	if (!i40e_vfs_are_assigned(pf)) {
+	if (!pci_vfs_assigned(pf->pdev)) {
 		i40e_free_vfs(pf);
 	} else {
 		dev_warn(&pdev->dev, "Unable to free VFs because some are assigned to VMs.\n");
@@ -1123,7 +1095,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf)
 		vfres->vsi_res[i].vsi_id = vf->lan_vsi_index;
 		vfres->vsi_res[i].vsi_type = I40E_VSI_SRIOV;
 		vfres->vsi_res[i].num_queue_pairs =
-		    pf->vsi[vf->lan_vsi_index]->num_queue_pairs;
+		    pf->vsi[vf->lan_vsi_index]->alloc_queue_pairs;
 		memcpy(vfres->vsi_res[i].default_mac_addr,
 		       vf->default_lan_addr.addr, ETH_ALEN);
 		i++;
@@ -1209,6 +1181,7 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	struct i40e_virtchnl_vsi_queue_config_info *qci =
 	    (struct i40e_virtchnl_vsi_queue_config_info *)msg;
 	struct i40e_virtchnl_queue_pair_info *qpi;
+	struct i40e_pf *pf = vf->pf;
 	u16 vsi_id, vsi_queue_id;
 	i40e_status aq_ret = 0;
 	int i;
@@ -1242,6 +1215,8 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			goto error_param;
 		}
 	}
+	/* set vsi num_queue_pairs in use to num configured by vf */
+	pf->vsi[vf->lan_vsi_index]->num_queue_pairs = qci->num_queue_pairs;
 
 error_param:
 	/* send the response to the vf */
@@ -2094,7 +2069,6 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	/* Force the VF driver stop so it has to reload with new MAC address */
 	i40e_vc_disable_vf(pf, vf);
 	dev_info(&pf->pdev->dev, "Reload the VF driver to make this change effective.\n");
-	ret = 0;
 
 error_param:
 	return ret;
@@ -2419,7 +2393,7 @@ error_out:
  *
  * Enable or disable VF spoof checking
  **/
-int i40e_ndo_set_vf_spoofck(struct net_device *netdev, int vf_id, bool enable)
+int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;

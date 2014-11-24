@@ -265,15 +265,18 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 			FSCTL_QUERY_NETWORK_INTERFACE_INFO, true /* is_fsctl */,
 			NULL /* no data input */, 0 /* no data input */,
 			(char **)&out_buf, &ret_data_len);
-
-	if ((rc == 0)  && (ret_data_len > 0)) {
+	if (rc != 0)
+		cifs_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
+	else if (ret_data_len < sizeof(struct network_interface_info_ioctl_rsp)) {
+		cifs_dbg(VFS, "server returned bad net interface info buf\n");
+		rc = -EINVAL;
+	} else {
 		/* Dump info on first interface */
 		cifs_dbg(FYI, "Adapter Capability 0x%x\t",
 			le32_to_cpu(out_buf->Capability));
 		cifs_dbg(FYI, "Link Speed %lld\n",
 			le64_to_cpu(out_buf->LinkSpeed));
-	} else
-		cifs_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
+	}
 
 	return rc;
 }
@@ -711,23 +714,23 @@ smb2_read_data_length(char *buf)
 
 
 static int
-smb2_sync_read(const unsigned int xid, struct cifsFileInfo *cfile,
+smb2_sync_read(const unsigned int xid, struct cifs_fid *pfid,
 	       struct cifs_io_parms *parms, unsigned int *bytes_read,
 	       char **buf, int *buf_type)
 {
-	parms->persistent_fid = cfile->fid.persistent_fid;
-	parms->volatile_fid = cfile->fid.volatile_fid;
+	parms->persistent_fid = pfid->persistent_fid;
+	parms->volatile_fid = pfid->volatile_fid;
 	return SMB2_read(xid, parms, bytes_read, buf, buf_type);
 }
 
 static int
-smb2_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
+smb2_sync_write(const unsigned int xid, struct cifs_fid *pfid,
 		struct cifs_io_parms *parms, unsigned int *written,
 		struct kvec *iov, unsigned long nr_segs)
 {
 
-	parms->persistent_fid = cfile->fid.persistent_fid;
-	parms->volatile_fid = cfile->fid.volatile_fid;
+	parms->persistent_fid = pfid->persistent_fid;
+	parms->volatile_fid = pfid->volatile_fid;
 	return SMB2_write(xid, parms, written, iov, nr_segs);
 }
 
@@ -1452,6 +1455,8 @@ struct smb_version_operations smb21_operations = {
 	.rename = smb2_rename_path,
 	.create_hardlink = smb2_create_hardlink,
 	.query_symlink = smb2_query_symlink,
+	.query_mf_symlink = smb3_query_mf_symlink,
+	.create_mf_symlink = smb3_create_mf_symlink,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
@@ -1531,6 +1536,8 @@ struct smb_version_operations smb30_operations = {
 	.rename = smb2_rename_path,
 	.create_hardlink = smb2_create_hardlink,
 	.query_symlink = smb2_query_symlink,
+	.query_mf_symlink = smb3_query_mf_symlink,
+	.create_mf_symlink = smb3_create_mf_symlink,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,

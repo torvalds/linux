@@ -684,12 +684,13 @@ static const struct xenbus_device_id xenfb_ids[] = {
 	{ "" }
 };
 
-static DEFINE_XENBUS_DRIVER(xenfb, ,
+static struct xenbus_driver xenfb_driver = {
+	.ids = xenfb_ids,
 	.probe = xenfb_probe,
 	.remove = xenfb_remove,
 	.resume = xenfb_resume,
 	.otherend_changed = xenfb_backend_changed,
-);
+};
 
 static int __init xenfb_init(void)
 {

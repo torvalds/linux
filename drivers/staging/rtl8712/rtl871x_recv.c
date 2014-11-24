@@ -73,8 +73,8 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 	precvpriv->adapter = padapter;
 	precvpriv->free_recvframe_cnt = NR_RECVFRAME;
 	precvpriv->pallocated_frame_buf = kmalloc(NR_RECVFRAME *
-						  sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
-						  GFP_ATOMIC);
+				sizeof(union recv_frame) + RXFRAME_ALIGN_SZ,
+				GFP_ATOMIC);
 	if (precvpriv->pallocated_frame_buf == NULL)
 		return _FAIL;
 	kmemleak_not_leak(precvpriv->pallocated_frame_buf);
@@ -631,7 +631,7 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	rmv_len = pattrib->hdrlen + pattrib->iv_len +
 		  (bsnaphdr ? SNAP_SIZE : 0);
 	len = precvframe->u.hdr.len - rmv_len;
-	if ((check_fwstate(pmlmepriv, WIFI_MP_STATE) == true)) {
+	if (check_fwstate(pmlmepriv, WIFI_MP_STATE) == true) {
 		ptr += rmv_len;
 		*ptr = 0x87;
 		*(ptr+1) = 0x12;

@@ -107,7 +107,8 @@ void __mmu_notifier_release(struct mm_struct *mm)
  * existed or not.
  */
 int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
-					unsigned long address)
+					unsigned long start,
+					unsigned long end)
 {
 	struct mmu_notifier *mn;
 	int young = 0, id;
@@ -115,7 +116,7 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->clear_flush_young)
-			young |= mn->ops->clear_flush_young(mn, mm, address);
+			young |= mn->ops->clear_flush_young(mn, mm, start, end);
 	}
 	srcu_read_unlock(&srcu, id);
 

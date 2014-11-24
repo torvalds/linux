@@ -1298,27 +1298,27 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	dev_priv->buffers_offset = init->buffers_offset;
 	dev_priv->gart_textures_offset = init->gart_textures_offset;
 
-	master_priv->sarea = drm_getsarea(dev);
+	master_priv->sarea = drm_legacy_getsarea(dev);
 	if (!master_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		radeon_do_cleanup_cp(dev);
 		return -EINVAL;
 	}
 
-	dev_priv->cp_ring = drm_core_findmap(dev, init->ring_offset);
+	dev_priv->cp_ring = drm_legacy_findmap(dev, init->ring_offset);
 	if (!dev_priv->cp_ring) {
 		DRM_ERROR("could not find cp ring region!\n");
 		radeon_do_cleanup_cp(dev);
 		return -EINVAL;
 	}
-	dev_priv->ring_rptr = drm_core_findmap(dev, init->ring_rptr_offset);
+	dev_priv->ring_rptr = drm_legacy_findmap(dev, init->ring_rptr_offset);
 	if (!dev_priv->ring_rptr) {
 		DRM_ERROR("could not find ring read pointer!\n");
 		radeon_do_cleanup_cp(dev);
 		return -EINVAL;
 	}
 	dev->agp_buffer_token = init->buffers_offset;
-	dev->agp_buffer_map = drm_core_findmap(dev, init->buffers_offset);
+	dev->agp_buffer_map = drm_legacy_findmap(dev, init->buffers_offset);
 	if (!dev->agp_buffer_map) {
 		DRM_ERROR("could not find dma buffer region!\n");
 		radeon_do_cleanup_cp(dev);
@@ -1327,7 +1327,7 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 
 	if (init->gart_textures_offset) {
 		dev_priv->gart_textures =
-		    drm_core_findmap(dev, init->gart_textures_offset);
+		    drm_legacy_findmap(dev, init->gart_textures_offset);
 		if (!dev_priv->gart_textures) {
 			DRM_ERROR("could not find GART texture region!\n");
 			radeon_do_cleanup_cp(dev);
@@ -1337,9 +1337,9 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & RADEON_IS_AGP) {
-		drm_core_ioremap_wc(dev_priv->cp_ring, dev);
-		drm_core_ioremap_wc(dev_priv->ring_rptr, dev);
-		drm_core_ioremap_wc(dev->agp_buffer_map, dev);
+		drm_legacy_ioremap_wc(dev_priv->cp_ring, dev);
+		drm_legacy_ioremap_wc(dev_priv->ring_rptr, dev);
+		drm_legacy_ioremap_wc(dev->agp_buffer_map, dev);
 		if (!dev_priv->cp_ring->handle ||
 		    !dev_priv->ring_rptr->handle ||
 		    !dev->agp_buffer_map->handle) {
@@ -1475,7 +1475,7 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 			dev_priv->gart_info.mapping.size =
 			    dev_priv->gart_info.table_size;
 
-			drm_core_ioremap_wc(&dev_priv->gart_info.mapping, dev);
+			drm_legacy_ioremap_wc(&dev_priv->gart_info.mapping, dev);
 			dev_priv->gart_info.addr =
 			    dev_priv->gart_info.mapping.handle;
 
@@ -1569,15 +1569,15 @@ static int radeon_do_cleanup_cp(struct drm_device * dev)
 #if __OS_HAS_AGP
 	if (dev_priv->flags & RADEON_IS_AGP) {
 		if (dev_priv->cp_ring != NULL) {
-			drm_core_ioremapfree(dev_priv->cp_ring, dev);
+			drm_legacy_ioremapfree(dev_priv->cp_ring, dev);
 			dev_priv->cp_ring = NULL;
 		}
 		if (dev_priv->ring_rptr != NULL) {
-			drm_core_ioremapfree(dev_priv->ring_rptr, dev);
+			drm_legacy_ioremapfree(dev_priv->ring_rptr, dev);
 			dev_priv->ring_rptr = NULL;
 		}
 		if (dev->agp_buffer_map != NULL) {
-			drm_core_ioremapfree(dev->agp_buffer_map, dev);
+			drm_legacy_ioremapfree(dev->agp_buffer_map, dev);
 			dev->agp_buffer_map = NULL;
 		}
 	} else
@@ -1597,7 +1597,7 @@ static int radeon_do_cleanup_cp(struct drm_device * dev)
 
 		if (dev_priv->gart_info.gart_table_location == DRM_ATI_GART_FB)
 		{
-			drm_core_ioremapfree(&dev_priv->gart_info.mapping, dev);
+			drm_legacy_ioremapfree(&dev_priv->gart_info.mapping, dev);
 			dev_priv->gart_info.addr = NULL;
 		}
 	}
@@ -2106,9 +2106,9 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	else
 		dev_priv->flags |= RADEON_IS_PCI;
 
-	ret = drm_addmap(dev, pci_resource_start(dev->pdev, 2),
-			 pci_resource_len(dev->pdev, 2), _DRM_REGISTERS,
-			 _DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
+	ret = drm_legacy_addmap(dev, pci_resource_start(dev->pdev, 2),
+				pci_resource_len(dev->pdev, 2), _DRM_REGISTERS,
+				_DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
 	if (ret != 0)
 		return ret;
 
@@ -2135,8 +2135,8 @@ int radeon_master_create(struct drm_device *dev, struct drm_master *master)
 
 	/* prebuild the SAREA */
 	sareapage = max_t(unsigned long, SAREA_MAX, PAGE_SIZE);
-	ret = drm_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK,
-			 &master_priv->sarea);
+	ret = drm_legacy_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK,
+				&master_priv->sarea);
 	if (ret) {
 		DRM_ERROR("SAREA setup failed\n");
 		kfree(master_priv);
@@ -2162,7 +2162,7 @@ void radeon_master_destroy(struct drm_device *dev, struct drm_master *master)
 
 	master_priv->sarea_priv = NULL;
 	if (master_priv->sarea)
-		drm_rmmap_locked(dev, master_priv->sarea);
+		drm_legacy_rmmap_locked(dev, master_priv->sarea);
 
 	kfree(master_priv);
 
@@ -2181,9 +2181,9 @@ int radeon_driver_firstopen(struct drm_device *dev)
 	dev_priv->gart_info.table_size = RADEON_PCIGART_TABLE_SIZE;
 
 	dev_priv->fb_aper_offset = pci_resource_start(dev->pdev, 0);
-	ret = drm_addmap(dev, dev_priv->fb_aper_offset,
-			 pci_resource_len(dev->pdev, 0), _DRM_FRAME_BUFFER,
-			 _DRM_WRITE_COMBINING, &map);
+	ret = drm_legacy_addmap(dev, dev_priv->fb_aper_offset,
+				pci_resource_len(dev->pdev, 0),
+				_DRM_FRAME_BUFFER, _DRM_WRITE_COMBINING, &map);
 	if (ret != 0)
 		return ret;
 
@@ -2196,7 +2196,7 @@ int radeon_driver_unload(struct drm_device *dev)
 
 	DRM_DEBUG("\n");
 
-	drm_rmmap(dev, dev_priv->mmio);
+	drm_legacy_rmmap(dev, dev_priv->mmio);
 
 	kfree(dev_priv);
 

@@ -121,6 +121,7 @@ struct ath_tx_status {
 	u32 evm0;
 	u32 evm1;
 	u32 evm2;
+	u32 duration;
 };
 
 struct ath_rx_status {

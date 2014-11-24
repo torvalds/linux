@@ -237,7 +237,7 @@ noted. This means that most methods can block safely. All methods are
 only called from a process context (i.e. not from an interrupt handler
 or bottom half).
 
-  alloc_inode: this method is called by inode_alloc() to allocate memory
+  alloc_inode: this method is called by alloc_inode() to allocate memory
  	for struct inode and initialize it.  If this function is not
  	defined, a simple 'struct inode' is allocated.  Normally
  	alloc_inode will be used to allocate a larger structure which
@@ -364,6 +364,7 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 			unsigned open_flag, umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -696,6 +697,12 @@ struct address_space_operations {
   	but instead uses bmap to find out where the blocks in the file
   	are and uses those addresses directly.
 
+  dentry_open: *WARNING: probably going away soon, do not use!* This is an
+	alternative to f_op->open(), the difference is that this method may open
+	a file not necessarily originating from the same filesystem as the one
+	i_op->open() was called on.  It may be useful for stacking filesystems
+	which want to allow native I/O directly on underlying files.
+
 
   invalidatepage: If a page has PagePrivate set, then invalidatepage
         will be called when part or all of the page is to be removed
@@ -826,7 +833,7 @@ struct file_operations {
 	int (*flock) (struct file *, int, struct file_lock *);
 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned int);
 	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
-	int (*setlease)(struct file *, long arg, struct file_lock **);
+	int (*setlease)(struct file *, long arg, struct file_lock **, void **);
 	long (*fallocate)(struct file *, int mode, loff_t offset, loff_t len);
 	int (*show_fdinfo)(struct seq_file *m, struct file *f);
 };
@@ -895,8 +902,9 @@ otherwise noted.
   splice_read: called by the VFS to splice data from file to a pipe. This
 	       method is used by the splice(2) system call
 
-  setlease: called by the VFS to set or release a file lock lease.
-	    setlease has the file_lock_lock held and must not sleep.
+  setlease: called by the VFS to set or release a file lock lease. setlease
+	    implementations should call generic_setlease to record or remove
+	    the lease in the inode after setting it.
 
   fallocate: called by the VFS to preallocate blocks or punch a hole.
 

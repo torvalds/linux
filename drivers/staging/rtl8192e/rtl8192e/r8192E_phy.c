@@ -56,6 +56,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 static u32 rtl8192_CalculateBitShift(u32 dwBitMask)
 {
 	u32 i;
+
 	for (i = 0; i <= 31; i++) {
 		if (((dwBitMask >> i) & 0x1) == 1)
 			break;
@@ -67,6 +68,7 @@ u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath)
 {
 	u8 ret = 1;
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	if (priv->rf_type == RF_2T4R)
 		ret = 0;
 	else if (priv->rf_type == RF_1T2R) {
@@ -112,6 +114,7 @@ static u32 rtl8192_phy_RFSerialRead(struct net_device *dev,
 	u32 ret = 0;
 	u32 NewOffset = 0;
 	struct bb_reg_definition *pPhyReg = &priv->PHYRegDef[eRFPath];
+
 	Offset &= 0x3f;
 
 	if (priv->rf_chip == RF_8256) {
@@ -261,6 +264,7 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
 {
 	u32 Original_Value, Readback_Value, BitShift;
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 		return 0;
 	if (priv->rtllib->eRFPowerState != eRfOn && !priv->being_init_adapter)
@@ -282,9 +286,9 @@ u32 rtl8192_phy_QueryRFReg(struct net_device *dev, enum rf90_radio_path eRFPath,
 static u32 phy_FwRFSerialRead(struct net_device *dev,
 			      enum rf90_radio_path eRFPath, u32 Offset)
 {
-	u32		retValue = 0;
 	u32		Data = 0;
 	u8		time = 0;
+
 	Data |= ((Offset & 0xFF) << 12);
 	Data |= ((eRFPath & 0x3) << 20);
 	Data |= 0x80000000;
@@ -301,9 +305,7 @@ static u32 phy_FwRFSerialRead(struct net_device *dev,
 		else
 			return 0;
 	}
-	retValue = read_nic_dword(dev, RF_DATA);
-
-	return	retValue;
+	return read_nic_dword(dev, RF_DATA);
 
 }	/* phy_FwRFSerialRead */
 
@@ -601,11 +603,8 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 }
 bool rtl8192_BBConfig(struct net_device *dev)
 {
-	bool rtStatus = true;
-
 	rtl8192_InitBBRFRegDef(dev);
-	rtStatus = rtl8192_BB_Config_ParaFile(dev);
-	return rtStatus;
+	return rtl8192_BB_Config_ParaFile(dev);
 }
 
 void rtl8192_phy_getTxPower(struct net_device *dev)
@@ -700,6 +699,7 @@ bool rtl8192_phy_RFConfig(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool rtStatus = true;
+
 	switch (priv->rf_chip) {
 	case RF_8225:
 		break;
@@ -1018,6 +1018,7 @@ void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	RT_TRACE(COMP_PHY, "=====>%s()\n", __func__);
 	if (IS_NIC_DOWN(priv)) {
 		RT_TRACE(COMP_ERR, "%s(): ERR !! driver is not up\n", __func__);
@@ -1438,6 +1439,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 			     RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC)) {
 				bool rtstatus = true;
 				u32 InitilizeCount = 3;
+
 				do {
 					InitilizeCount--;
 					priv->RegRfOff = false;

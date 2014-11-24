@@ -55,7 +55,7 @@ static int multiblock_erase(int ebnum, int blocks)
 {
 	int err;
 	struct erase_info ei;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	memset(&ei, 0, sizeof(struct erase_info));
 	ei.mtd  = mtd;
@@ -80,7 +80,7 @@ static int multiblock_erase(int ebnum, int blocks)
 
 static int write_eraseblock(int ebnum)
 {
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	return mtdtest_write(mtd, addr, mtd->erasesize, iobuf);
 }
@@ -88,7 +88,7 @@ static int write_eraseblock(int ebnum)
 static int write_eraseblock_by_page(int ebnum)
 {
 	int i, err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < pgcnt; i++) {
@@ -106,7 +106,7 @@ static int write_eraseblock_by_2pages(int ebnum)
 {
 	size_t sz = pgsize * 2;
 	int i, n = pgcnt / 2, err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < n; i++) {
@@ -124,7 +124,7 @@ static int write_eraseblock_by_2pages(int ebnum)
 
 static int read_eraseblock(int ebnum)
 {
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	return mtdtest_read(mtd, addr, mtd->erasesize, iobuf);
 }
@@ -132,7 +132,7 @@ static int read_eraseblock(int ebnum)
 static int read_eraseblock_by_page(int ebnum)
 {
 	int i, err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < pgcnt; i++) {
@@ -150,7 +150,7 @@ static int read_eraseblock_by_2pages(int ebnum)
 {
 	size_t sz = pgsize * 2;
 	int i, n = pgcnt / 2, err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < n; i++) {

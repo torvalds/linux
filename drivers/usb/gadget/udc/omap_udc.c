@@ -315,7 +315,7 @@ done(struct omap_ep *ep, struct omap_req *req, int status)
 	/* don't modify queue heads during completion callback */
 	ep->stopped = 1;
 	spin_unlock(&ep->udc->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->udc->lock);
 	ep->stopped = stopped;
 }

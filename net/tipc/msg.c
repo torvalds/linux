@@ -56,8 +56,35 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 	msg_set_size(m, hsize);
 	msg_set_prevnode(m, tipc_own_addr);
 	msg_set_type(m, type);
-	msg_set_orignode(m, tipc_own_addr);
-	msg_set_destnode(m, destnode);
+	if (hsize > SHORT_H_SIZE) {
+		msg_set_orignode(m, tipc_own_addr);
+		msg_set_destnode(m, destnode);
+	}
+}
+
+struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
+				uint data_sz, u32 dnode, u32 onode,
+				u32 dport, u32 oport, int errcode)
+{
+	struct tipc_msg *msg;
+	struct sk_buff *buf;
+
+	buf = tipc_buf_acquire(hdr_sz + data_sz);
+	if (unlikely(!buf))
+		return NULL;
+
+	msg = buf_msg(buf);
+	tipc_msg_init(msg, user, type, hdr_sz, dnode);
+	msg_set_size(msg, hdr_sz + data_sz);
+	msg_set_prevnode(msg, onode);
+	msg_set_origport(msg, oport);
+	msg_set_destport(msg, dport);
+	msg_set_errcode(msg, errcode);
+	if (hdr_sz > SHORT_H_SIZE) {
+		msg_set_orignode(msg, onode);
+		msg_set_destnode(msg, dnode);
+	}
+	return buf;
 }
 
 /* tipc_buf_append(): Append a buffer to the fragment list of another buffer
@@ -155,7 +182,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 	struct sk_buff *buf, *prev;
 	char *pktpos;
 	int rc;
-
+	uint chain_sz = 0;
 	msg_set_size(mhdr, msz);
 
 	/* No fragmentation needed? */
@@ -166,6 +193,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 			return -ENOMEM;
 		skb_copy_to_linear_data(buf, mhdr, mhsz);
 		pktpos = buf->data + mhsz;
+		TIPC_SKB_CB(buf)->chain_sz = 1;
 		if (!dsz || !memcpy_fromiovecend(pktpos, iov, offset, dsz))
 			return dsz;
 		rc = -EFAULT;
@@ -182,6 +210,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 	*chain = buf = tipc_buf_acquire(pktmax);
 	if (!buf)
 		return -ENOMEM;
+	chain_sz = 1;
 	pktpos = buf->data;
 	skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
 	pktpos += INT_H_SIZE;
@@ -215,6 +244,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 			rc = -ENOMEM;
 			goto error;
 		}
+		chain_sz++;
 		prev->next = buf;
 		msg_set_type(&pkthdr, FRAGMENT);
 		msg_set_size(&pkthdr, pktsz);
@@ -224,7 +254,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 		pktrem = pktsz - INT_H_SIZE;
 
 	} while (1);
-
+	TIPC_SKB_CB(*chain)->chain_sz = chain_sz;
 	msg_set_type(buf_msg(buf), LAST_FRAGMENT);
 	return dsz;
 error:

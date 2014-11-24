@@ -5,11 +5,9 @@
  *
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
-#include <linux/moduleloader.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/filter.h>
-#include <linux/random.h>
 #include <linux/init.h>
 #include <asm/cacheflush.h>
 #include <asm/facility.h>
@@ -148,6 +146,12 @@ struct bpf_jit {
 	ret;						\
 })
 
+static void bpf_jit_fill_hole(void *area, unsigned int size)
+{
+	/* Fill whole space with illegal instructions */
+	memset(area, 0, size);
+}
+
 static void bpf_jit_prologue(struct bpf_jit *jit)
 {
 	/* Save registers and create stack frame if necessary */
@@ -222,37 +226,6 @@ static void bpf_jit_epilogue(struct bpf_jit *jit)
 	/* br %r14 */
 	EMIT2(0x07fe);
 }
-
-/* Helper to find the offset of pkt_type in sk_buff
- * Make sure its still a 3bit field starting at the MSBs within a byte.
- */
-#define PKT_TYPE_MAX 0xe0
-static int pkt_type_offset;
-
-static int __init bpf_pkt_type_offset_init(void)
-{
-	struct sk_buff skb_probe = {
-		.pkt_type = ~0,
-	};
-	char *ct = (char *)&skb_probe;
-	int off;
-
-	pkt_type_offset = -1;
-	for (off = 0; off < sizeof(struct sk_buff); off++) {
-		if (!ct[off])
-			continue;
-		if (ct[off] == PKT_TYPE_MAX)
-			pkt_type_offset = off;
-		else {
-			/* Found non matching bit pattern, fix needed. */
-			WARN_ON_ONCE(1);
-			pkt_type_offset = -1;
-			return -1;
-		}
-	}
-	return 0;
-}
-device_initcall(bpf_pkt_type_offset_init);
 
 /*
  * make sure we dont leak kernel information to user
@@ -753,12 +726,10 @@ call_fn:	/* lg %r1,<d(function)>(%r13) */
 		}
 		break;
 	case BPF_ANC | SKF_AD_PKTTYPE:
-		if (pkt_type_offset < 0)
-			goto out;
 		/* lhi %r5,0 */
 		EMIT4(0xa7580000);
 		/* ic %r5,<d(pkt_type_offset)>(%r2) */
-		EMIT4_DISP(0x43502000, pkt_type_offset);
+		EMIT4_DISP(0x43502000, PKT_TYPE_OFFSET());
 		/* srl %r5,5 */
 		EMIT4_DISP(0x88500000, 5);
 		break;
@@ -778,38 +749,6 @@ call_fn:	/* lg %r1,<d(function)>(%r13) */
 	return 0;
 out:
 	return -1;
-}
-
-/*
- * Note: for security reasons, bpf code will follow a randomly
- *	 sized amount of illegal instructions.
- */
-struct bpf_binary_header {
-	unsigned int pages;
-	u8 image[];
-};
-
-static struct bpf_binary_header *bpf_alloc_binary(unsigned int bpfsize,
-						  u8 **image_ptr)
-{
-	struct bpf_binary_header *header;
-	unsigned int sz, hole;
-
-	/* Most BPF filters are really small, but if some of them fill a page,
-	 * allow at least 128 extra bytes for illegal instructions.
-	 */
-	sz = round_up(bpfsize + sizeof(*header) + 128, PAGE_SIZE);
-	header = module_alloc(sz);
-	if (!header)
-		return NULL;
-	memset(header, 0, sz);
-	header->pages = sz / PAGE_SIZE;
-	hole = min(sz - (bpfsize + sizeof(*header)), PAGE_SIZE - sizeof(*header));
-	/* Insert random number of illegal instructions before BPF code
-	 * and make sure the first instruction starts at an even address.
-	 */
-	*image_ptr = &header->image[(prandom_u32() % hole) & -2];
-	return header;
 }
 
 void bpf_jit_compile(struct bpf_prog *fp)
@@ -850,7 +789,8 @@ void bpf_jit_compile(struct bpf_prog *fp)
 			size = prg_len + lit_len;
 			if (size >= BPF_SIZE_MAX)
 				goto out;
-			header = bpf_alloc_binary(size, &jit.start);
+			header = bpf_jit_binary_alloc(size, &jit.start,
+						      2, bpf_jit_fill_hole);
 			if (!header)
 				goto out;
 			jit.prg = jit.mid = jit.start + prg_len;
@@ -869,7 +809,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	if (jit.start) {
 		set_memory_ro((unsigned long)header, header->pages);
 		fp->bpf_func = (void *) jit.start;
-		fp->jited = 1;
+		fp->jited = true;
 	}
 out:
 	kfree(addrs);
@@ -884,8 +824,8 @@ void bpf_jit_free(struct bpf_prog *fp)
 		goto free_filter;
 
 	set_memory_rw(addr, header->pages);
-	module_free(NULL, header);
+	bpf_jit_binary_free(header);
 
 free_filter:
-	kfree(fp);
+	bpf_prog_unlock_free(fp);
 }

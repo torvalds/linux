@@ -903,6 +903,10 @@
 #define AR_SREV_9340(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9340))
 
+#define AR_SREV_9340_13(_ah) \
+	(AR_SREV_9340((_ah)) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9340_13))
+
 #define AR_SREV_9340_13_OR_LATER(_ah) \
 	(AR_SREV_9340((_ah)) && \
 	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9340_13))
@@ -1240,12 +1244,23 @@ enum {
 #define AR_CH0_DPLL3_PHASE_SHIFT_S   23
 #define AR_PHY_CCA_NOM_VAL_2GHZ      -118
 
+#define AR_RTC_9300_SOC_PLL_DIV_INT          0x0000003f
+#define AR_RTC_9300_SOC_PLL_DIV_INT_S        0
+#define AR_RTC_9300_SOC_PLL_DIV_FRAC         0x000fffc0
+#define AR_RTC_9300_SOC_PLL_DIV_FRAC_S       6
+#define AR_RTC_9300_SOC_PLL_REFDIV           0x01f00000
+#define AR_RTC_9300_SOC_PLL_REFDIV_S         20
+#define AR_RTC_9300_SOC_PLL_CLKSEL           0x06000000
+#define AR_RTC_9300_SOC_PLL_CLKSEL_S         25
+#define AR_RTC_9300_SOC_PLL_BYPASS           0x08000000
+
 #define AR_RTC_9300_PLL_DIV          0x000003ff
 #define AR_RTC_9300_PLL_DIV_S        0
 #define AR_RTC_9300_PLL_REFDIV       0x00003C00
 #define AR_RTC_9300_PLL_REFDIV_S     10
 #define AR_RTC_9300_PLL_CLKSEL       0x0000C000
 #define AR_RTC_9300_PLL_CLKSEL_S     14
+#define AR_RTC_9300_PLL_BYPASS       0x00010000
 
 #define AR_RTC_9160_PLL_DIV	0x000003ff
 #define AR_RTC_9160_PLL_DIV_S   0

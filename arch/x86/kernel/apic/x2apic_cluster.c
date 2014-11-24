@@ -42,7 +42,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
 	 * We are to modify mask, so we need an own copy
 	 * and be sure it's manipulated with irq off.
 	 */
-	ipi_mask_ptr = __raw_get_cpu_var(ipi_mask);
+	ipi_mask_ptr = this_cpu_cpumask_var_ptr(ipi_mask);
 	cpumask_copy(ipi_mask_ptr, mask);
 
 	/*

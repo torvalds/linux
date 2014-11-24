@@ -254,8 +254,8 @@ static pgprot_t __init init_pgprot(ulong address)
 	 * Everything else that isn't data or bss is heap, so mark it
 	 * with the initial heap home (hash-for-home, or this cpu).  This
 	 * includes any addresses after the loaded image and any address before
-	 * _einitdata, since we already captured the case of text before
-	 * _sinittext, and __pa(einittext) is approximately __pa(sinitdata).
+	 * __init_end, since we already captured the case of text before
+	 * _sinittext, and __pa(einittext) is approximately __pa(__init_begin).
 	 *
 	 * All the LOWMEM pages that we mark this way will get their
 	 * struct page homecache properly marked later, in set_page_homes().
@@ -263,7 +263,7 @@ static pgprot_t __init init_pgprot(ulong address)
 	 * homes, but with a zero free_time we don't have to actually
 	 * do a flush action the first time we use them, either.
 	 */
-	if (address >= (ulong) _end || address < (ulong) _einitdata)
+	if (address >= (ulong) _end || address < (ulong) __init_end)
 		return construct_pgprot(PAGE_KERNEL, initial_heap_home());
 
 	/* Use hash-for-home if requested for data/bss. */
@@ -593,14 +593,14 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	interrupt_mask_set_mask(-1ULL);
 	rc = flush_and_install_context(__pa(pgtables),
 				       init_pgprot((unsigned long)pgtables),
-				       __get_cpu_var(current_asid),
+				       __this_cpu_read(current_asid),
 				       cpumask_bits(my_cpu_mask));
 	interrupt_mask_restore_mask(irqmask);
 	BUG_ON(rc != 0);
 
 	/* Copy the page table back to the normal swapper_pg_dir. */
 	memcpy(pgd_base, pgtables, sizeof(pgtables));
-	__install_page_table(pgd_base, __get_cpu_var(current_asid),
+	__install_page_table(pgd_base, __this_cpu_read(current_asid),
 			     swapper_pgprot);
 
 	/*
@@ -632,7 +632,7 @@ int devmem_is_allowed(unsigned long pagenr)
 {
 	return pagenr < kaddr_to_pfn(_end) &&
 		!(pagenr >= kaddr_to_pfn(&init_thread_union) ||
-		  pagenr < kaddr_to_pfn(_einitdata)) &&
+		  pagenr < kaddr_to_pfn(__init_end)) &&
 		!(pagenr >= kaddr_to_pfn(_sinittext) ||
 		  pagenr <= kaddr_to_pfn(_einittext-1));
 }
@@ -975,8 +975,8 @@ void free_initmem(void)
 
 	/* Free the data pages that we won't use again after init. */
 	free_init_pages("unused kernel data",
-			(unsigned long)_sinitdata,
-			(unsigned long)_einitdata);
+			(unsigned long)__init_begin,
+			(unsigned long)__init_end);
 
 	/*
 	 * Free the pages mapped from 0xc0000000 that correspond to code

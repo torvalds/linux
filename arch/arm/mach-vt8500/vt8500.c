@@ -69,7 +69,7 @@ static void vt8500_power_off(void)
 {
 	local_irq_disable();
 	writew(5, pmc_base + VT8500_HCR_REG);
-	asm("mcr%? p15, 0, %0, c7, c0, 4" : : "r" (0));
+	asm("mcr p15, 0, %0, c7, c0, 4" : : "r" (0));
 }
 
 static void __init vt8500_init(void)

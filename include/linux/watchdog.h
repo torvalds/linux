@@ -97,13 +97,8 @@ struct watchdog_device {
 #define WDOG_UNREGISTERED	4	/* Has the device been unregistered */
 };
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-#define WATCHDOG_NOWAYOUT		1
-#define WATCHDOG_NOWAYOUT_INIT_STATUS	(1 << WDOG_NO_WAY_OUT)
-#else
-#define WATCHDOG_NOWAYOUT		0
-#define WATCHDOG_NOWAYOUT_INIT_STATUS	0
-#endif
+#define WATCHDOG_NOWAYOUT		IS_BUILTIN(CONFIG_WATCHDOG_NOWAYOUT)
+#define WATCHDOG_NOWAYOUT_INIT_STATUS	(WATCHDOG_NOWAYOUT << WDOG_NO_WAY_OUT)
 
 /* Use the following function to check whether or not the watchdog is active */
 static inline bool watchdog_active(struct watchdog_device *wdd)

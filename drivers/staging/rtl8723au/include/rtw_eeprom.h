@@ -107,12 +107,12 @@ enum rt_customer_id
 };
 
 struct eeprom_priv {
+	u8		mac_addr[6];	/* PermanentAddress */
 	u8		bautoload_fail_flag;
 	u8		bloadfile_fail_flag;
 	u8		bloadmac_fail_flag;
 	/* u8		bempty; */
 	/* u8		sys_config; */
-	u8		mac_addr[6];	/* PermanentAddress */
 	/* u8		config0; */
 	u16		channel_plan;
 	/* u8		country_string[3]; */
@@ -128,7 +128,7 @@ struct eeprom_priv {
 void eeprom_write16(struct rtw_adapter *padapter, u16 reg, u16 data);
 u16 eeprom_read16(struct rtw_adapter *padapter, u16 reg);
 void read_eeprom_content(struct rtw_adapter *padapter);
-void eeprom_read_sz(struct rtw_adapter * padapter, u16 reg,u8* data, u32 sz);
+void eeprom_read_sz(struct rtw_adapter *padapter, u16 reg, u8 *data, u32 sz);
 
 void read_eeprom_content_by_attrib(struct rtw_adapter *padapter);
 

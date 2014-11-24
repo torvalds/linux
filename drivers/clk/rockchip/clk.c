@@ -25,6 +25,7 @@
 #include <linux/clk-provider.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/reboot.h>
 #include "clk.h"
 
 /**
@@ -37,7 +38,7 @@
  *
  * sometimes without one of those components.
  */
-struct clk *rockchip_clk_register_branch(const char *name,
+static struct clk *rockchip_clk_register_branch(const char *name,
 		const char **parent_names, u8 num_parents, void __iomem *base,
 		int muxdiv_offset, u8 mux_shift, u8 mux_width, u8 mux_flags,
 		u8 div_shift, u8 div_width, u8 div_flags,
@@ -97,6 +98,54 @@ struct clk *rockchip_clk_register_branch(const char *name,
 	clk = clk_register_composite(NULL, name, parent_names, num_parents,
 				     mux ? &mux->hw : NULL, mux_ops,
 				     div ? &div->hw : NULL, div_ops,
+				     gate ? &gate->hw : NULL, gate_ops,
+				     flags);
+
+	return clk;
+}
+
+static struct clk *rockchip_clk_register_frac_branch(const char *name,
+		const char **parent_names, u8 num_parents, void __iomem *base,
+		int muxdiv_offset, u8 div_flags,
+		int gate_offset, u8 gate_shift, u8 gate_flags,
+		unsigned long flags, spinlock_t *lock)
+{
+	struct clk *clk;
+	struct clk_gate *gate = NULL;
+	struct clk_fractional_divider *div = NULL;
+	const struct clk_ops *div_ops = NULL, *gate_ops = NULL;
+
+	if (gate_offset >= 0) {
+		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		if (!gate)
+			return ERR_PTR(-ENOMEM);
+
+		gate->flags = gate_flags;
+		gate->reg = base + gate_offset;
+		gate->bit_idx = gate_shift;
+		gate->lock = lock;
+		gate_ops = &clk_gate_ops;
+	}
+
+	if (muxdiv_offset < 0)
+		return ERR_PTR(-EINVAL);
+
+	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	if (!div)
+		return ERR_PTR(-ENOMEM);
+
+	div->flags = div_flags;
+	div->reg = base + muxdiv_offset;
+	div->mshift = 16;
+	div->mmask = 0xffff0000;
+	div->nshift = 0;
+	div->nmask = 0xffff;
+	div->lock = lock;
+	div_ops = &clk_fractional_divider_ops;
+
+	clk = clk_register_composite(NULL, name, parent_names, num_parents,
+				     NULL, NULL,
+				     &div->hw, div_ops,
 				     gate ? &gate->hw : NULL, gate_ops,
 				     flags);
 
@@ -197,8 +246,14 @@ void __init rockchip_clk_register_branches(
 					list->div_flags, &clk_lock);
 			break;
 		case branch_fraction_divider:
-			/* unimplemented */
-			continue;
+			/* keep all gates untouched for now */
+			flags |= CLK_IGNORE_UNUSED;
+
+			clk = rockchip_clk_register_frac_branch(list->name,
+				list->parent_names, list->num_parents,
+				reg_base, list->muxdiv_offset, list->div_flags,
+				list->gate_offset, list->gate_shift,
+				list->gate_flags, flags, &clk_lock);
 			break;
 		case branch_gate:
 			flags |= CLK_SET_RATE_PARENT;
@@ -241,4 +296,62 @@ void __init rockchip_clk_register_branches(
 
 		rockchip_clk_add_lookup(clk, list->id);
 	}
+}
+
+void __init rockchip_clk_register_armclk(unsigned int lookup_id,
+			const char *name, const char **parent_names,
+			u8 num_parents,
+			const struct rockchip_cpuclk_reg_data *reg_data,
+			const struct rockchip_cpuclk_rate_table *rates,
+			int nrates)
+{
+	struct clk *clk;
+
+	clk = rockchip_clk_register_cpuclk(name, parent_names, num_parents,
+					   reg_data, rates, nrates, reg_base,
+					   &clk_lock);
+	if (IS_ERR(clk)) {
+		pr_err("%s: failed to register clock %s: %ld\n",
+		       __func__, name, PTR_ERR(clk));
+		return;
+	}
+
+	rockchip_clk_add_lookup(clk, lookup_id);
+}
+
+void __init rockchip_clk_protect_critical(const char *clocks[], int nclocks)
+{
+	int i;
+
+	/* Protect the clocks that needs to stay on */
+	for (i = 0; i < nclocks; i++) {
+		struct clk *clk = __clk_lookup(clocks[i]);
+
+		if (clk)
+			clk_prepare_enable(clk);
+	}
+}
+
+static unsigned int reg_restart;
+static int rockchip_restart_notify(struct notifier_block *this,
+				   unsigned long mode, void *cmd)
+{
+	writel(0xfdb9, reg_base + reg_restart);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rockchip_restart_handler = {
+	.notifier_call = rockchip_restart_notify,
+	.priority = 128,
+};
+
+void __init rockchip_register_restart_notifier(unsigned int reg)
+{
+	int ret;
+
+	reg_restart = reg;
+	ret = register_restart_handler(&rockchip_restart_handler);
+	if (ret)
+		pr_err("%s: cannot register restart handler, %d\n",
+		       __func__, ret);
 }

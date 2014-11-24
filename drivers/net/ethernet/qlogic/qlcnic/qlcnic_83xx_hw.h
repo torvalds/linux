@@ -83,6 +83,7 @@
 /* Firmware image definitions */
 #define QLC_83XX_BOOTLOADER_FLASH_ADDR	0x10000
 #define QLC_83XX_FW_FILE_NAME		"83xx_fw.bin"
+#define QLC_83XX_POST_FW_FILE_NAME	"83xx_post_fw.bin"
 #define QLC_84XX_FW_FILE_NAME		"84xx_fw.bin"
 #define QLC_83XX_BOOT_FROM_FLASH	0
 #define QLC_83XX_BOOT_FROM_FILE		0x12345678
@@ -360,7 +361,6 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_SFP_MODULE_TYPE(data)		(((data) >> 4) & 0x1F)
 #define QLC_83XX_SFP_CU_LENGTH(data)		(LSB((data) >> 16))
 #define QLC_83XX_SFP_TX_FAULT(data)		((data) & BIT_10)
-#define QLC_83XX_SFP_10G_CAPABLE(data)		((data) & BIT_11)
 #define QLC_83XX_LINK_STATS(data)		((data) & BIT_0)
 #define QLC_83XX_CURRENT_LINK_SPEED(data)	(((data) >> 3) & 7)
 #define QLC_83XX_LINK_PAUSE(data)		(((data) >> 6) & 3)

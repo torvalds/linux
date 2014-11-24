@@ -233,9 +233,6 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-extern int htab_remove_mapping(unsigned long vstart, unsigned long vend,
-			int psize, int ssize);
-
 static void vmemmap_remove_mapping(unsigned long start,
 				   unsigned long page_size)
 {

@@ -17,23 +17,15 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/crc-ccitt.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
-#include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
-#include <linux/firmware.h>
-#include <linux/unaligned/access_ok.h>
 #include <linux/platform_data/st21nfcb.h>
-
-#include <net/nfc/nci.h>
-#include <net/nfc/llc.h>
-#include <net/nfc/nfc.h>
 
 #include "ndlc.h"
 
@@ -63,12 +55,6 @@ struct st21nfcb_i2c_phy {
 	unsigned int irq_polarity;
 
 	int powered;
-
-	/*
-	 * < 0 if hardware error occured (e.g. i2c err)
-	 * and prevents normal operation.
-	 */
-	int hard_fault;
 };
 
 #define I2C_DUMP_SKB(info, skb)					\
@@ -122,8 +108,8 @@ static int st21nfcb_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 
 	I2C_DUMP_SKB("st21nfcb_nci_i2c_write", skb);
 
-	if (phy->hard_fault != 0)
-		return phy->hard_fault;
+	if (phy->ndlc->hard_fault != 0)
+		return phy->ndlc->hard_fault;
 
 	r = i2c_master_send(client, skb->data, skb->len);
 	if (r == -EREMOTEIO) {  /* Retry, chip was in standby */
@@ -168,10 +154,10 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 	if (r == -EREMOTEIO) {  /* Retry, chip was in standby */
 		usleep_range(1000, 4000);
 		r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
-	} else if (r != ST21NFCB_NCI_I2C_MIN_SIZE) {
-		nfc_err(&client->dev, "cannot read ndlc & nci header\n");
-		return -EREMOTEIO;
 	}
+
+	if (r != ST21NFCB_NCI_I2C_MIN_SIZE)
+		return -EREMOTEIO;
 
 	len = be16_to_cpu(*(__be16 *) (buf + 2));
 	if (len > ST21NFCB_NCI_I2C_MAX_SIZE) {
@@ -224,7 +210,7 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	client = phy->i2c_dev;
 	dev_dbg(&client->dev, "IRQ\n");
 
-	if (phy->hard_fault)
+	if (phy->ndlc->hard_fault)
 		return IRQ_HANDLED;
 
 	if (!phy->powered) {
@@ -233,13 +219,8 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	}
 
 	r = st21nfcb_nci_i2c_read(phy, &skb);
-	if (r == -EREMOTEIO) {
-		phy->hard_fault = r;
-                ndlc_recv(phy->ndlc, NULL);
+	if (r == -EREMOTEIO || r == -ENOMEM || r == -EBADMSG)
 		return IRQ_HANDLED;
-	} else if (r == -ENOMEM || r == -EBADMSG) {
-		return IRQ_HANDLED;
-	}
 
 	ndlc_recv(phy->ndlc, skb);
 
@@ -273,16 +254,10 @@ static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
 	}
 
 	/* GPIO request and configuration */
-	r = devm_gpio_request(&client->dev, gpio, "clf_reset");
+	r = devm_gpio_request_one(&client->dev, gpio,
+				GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request reset pin\n");
-		return -ENODEV;
-	}
-
-	r = gpio_direction_output(gpio, 1);
-	if (r) {
-		nfc_err(&client->dev,
-			"Failed to set reset pin direction as output\n");
 		return -ENODEV;
 	}
 	phy->gpio_reset = gpio;
@@ -290,8 +265,7 @@ static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
 	/* IRQ */
 	r = irq_of_parse_and_map(pp, 0);
 	if (r < 0) {
-		nfc_err(&client->dev,
-				"Unable to get irq, error: %d\n", r);
+		nfc_err(&client->dev, "Unable to get irq, error: %d\n", r);
 		return r;
 	}
 
@@ -325,29 +299,17 @@ static int st21nfcb_nci_i2c_request_resources(struct i2c_client *client)
 	phy->gpio_reset = pdata->gpio_reset;
 	phy->irq_polarity = pdata->irq_polarity;
 
-	r = devm_gpio_request(&client->dev, phy->gpio_irq, "wake_up");
+	r = devm_gpio_request_one(&client->dev, phy->gpio_irq,
+				GPIOF_IN, "clf_irq");
 	if (r) {
 		pr_err("%s : gpio_request failed\n", __FILE__);
 		return -ENODEV;
 	}
 
-	r = gpio_direction_input(phy->gpio_irq);
-	if (r) {
-		pr_err("%s : gpio_direction_input failed\n", __FILE__);
-		return -ENODEV;
-	}
-
-	r = devm_gpio_request(&client->dev,
-			      phy->gpio_reset, "clf_reset");
+	r = devm_gpio_request_one(&client->dev,
+			phy->gpio_reset, GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
-		return -ENODEV;
-	}
-
-	r = gpio_direction_output(phy->gpio_reset, 1);
-	if (r) {
-		pr_err("%s : reset gpio_direction_output failed\n",
-			__FILE__);
 		return -ENODEV;
 	}
 
@@ -448,7 +410,6 @@ static struct i2c_driver st21nfcb_nci_i2c_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = ST21NFCB_NCI_I2C_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_st21nfcb_i2c_match),
 	},
 	.probe = st21nfcb_nci_i2c_probe,

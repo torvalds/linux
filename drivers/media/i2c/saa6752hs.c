@@ -660,7 +660,7 @@ static const struct v4l2_subdev_ops saa6752hs_ops = {
 static int saa6752hs_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	struct saa6752hs_state *h = kzalloc(sizeof(*h), GFP_KERNEL);
+	struct saa6752hs_state *h;
 	struct v4l2_subdev *sd;
 	struct v4l2_ctrl_handler *hdl;
 	u8 addr = 0x13;
@@ -668,6 +668,8 @@ static int saa6752hs_probe(struct i2c_client *client,
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
+
+	h = devm_kzalloc(&client->dev, sizeof(*h), GFP_KERNEL);
 	if (h == NULL)
 		return -ENOMEM;
 	sd = &h->sd;
@@ -752,7 +754,6 @@ static int saa6752hs_probe(struct i2c_client *client,
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(h);
 		return err;
 	}
 	v4l2_ctrl_cluster(3, &h->video_bitrate_mode);
@@ -767,7 +768,6 @@ static int saa6752hs_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&to_state(sd)->hdl);
-	kfree(to_state(sd));
 	return 0;
 }
 

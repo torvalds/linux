@@ -577,7 +577,7 @@ static inline u16 musb_read_hwvers(void __iomem *mbase)
 {
 	/*
 	 * This register is invisible on Blackfin, actually the MUSB
-	 * RTL version of Blackfin is 1.9, so just harcode its value.
+	 * RTL version of Blackfin is 1.9, so just hardcode its value.
 	 */
 	return MUSB_HWVERS_1900;
 }

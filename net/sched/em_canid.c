@@ -120,7 +120,7 @@ static int em_canid_match(struct sk_buff *skb, struct tcf_ematch *m,
 	return match;
 }
 
-static int em_canid_change(struct tcf_proto *tp, void *data, int len,
+static int em_canid_change(struct net *net, void *data, int len,
 			  struct tcf_ematch *m)
 {
 	struct can_filter *conf = data; /* Array with rules */
@@ -183,7 +183,7 @@ static int em_canid_change(struct tcf_proto *tp, void *data, int len,
 	return 0;
 }
 
-static void em_canid_destroy(struct tcf_proto *tp, struct tcf_ematch *m)
+static void em_canid_destroy(struct tcf_ematch *m)
 {
 	struct canid_match *cm = em_canid_priv(m);
 

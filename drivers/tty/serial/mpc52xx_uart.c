@@ -1087,22 +1087,6 @@ mpc52xx_uart_start_tx(struct uart_port *port)
 }
 
 static void
-mpc52xx_uart_send_xchar(struct uart_port *port, char ch)
-{
-	unsigned long flags;
-	spin_lock_irqsave(&port->lock, flags);
-
-	port->x_char = ch;
-	if (ch) {
-		/* Make sure tx interrupts are on */
-		/* Truly necessary ??? They should be anyway */
-		psc_ops->start_tx(port);
-	}
-
-	spin_unlock_irqrestore(&port->lock, flags);
-}
-
-static void
 mpc52xx_uart_stop_rx(struct uart_port *port)
 {
 	/* port->lock taken by caller */
@@ -1361,7 +1345,6 @@ static struct uart_ops mpc52xx_uart_ops = {
 	.get_mctrl	= mpc52xx_uart_get_mctrl,
 	.stop_tx	= mpc52xx_uart_stop_tx,
 	.start_tx	= mpc52xx_uart_start_tx,
-	.send_xchar	= mpc52xx_uart_send_xchar,
 	.stop_rx	= mpc52xx_uart_stop_rx,
 	.enable_ms	= mpc52xx_uart_enable_ms,
 	.break_ctl	= mpc52xx_uart_break_ctl,

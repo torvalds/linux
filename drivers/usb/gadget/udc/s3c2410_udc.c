@@ -272,7 +272,7 @@ static void s3c2410_udc_done(struct s3c2410_ep *ep,
 		status = req->req.status;
 
 	ep->halted = 1;
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	ep->halted = halted;
 }
 

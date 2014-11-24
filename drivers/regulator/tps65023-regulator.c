@@ -211,9 +211,6 @@ static int tps_65023_probe(struct i2c_client *client,
 	int i;
 	int error;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -EIO;
-
 	/**
 	 * init_data points to array of regulator_init structures
 	 * coming from the board-evm file.

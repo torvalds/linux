@@ -444,14 +444,14 @@ static inline u16 adjust_phyreg(struct b43_wldev *dev, u16 offset)
 static u16 b43_aphy_op_read(struct b43_wldev *dev, u16 reg)
 {
 	reg = adjust_phyreg(dev, reg);
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_PHY_CONTROL, reg);
 	return b43_read16(dev, B43_MMIO_PHY_DATA);
 }
 
 static void b43_aphy_op_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
 	reg = adjust_phyreg(dev, reg);
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_PHY_DATA, value);
 }
 

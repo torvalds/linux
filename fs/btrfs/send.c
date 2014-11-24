@@ -515,7 +515,8 @@ static int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off)
 	set_fs(KERNEL_DS);
 
 	while (pos < len) {
-		ret = vfs_write(filp, (char *)buf + pos, len - pos, off);
+		ret = vfs_write(filp, (__force const char __user *)buf + pos,
+				len - pos, off);
 		/* TODO handle that correctly */
 		/*if (ret == -ERESTARTSYS) {
 			continue;
@@ -985,11 +986,13 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	int num;
 	u8 type;
 
-	if (found_key->type == BTRFS_XATTR_ITEM_KEY)
-		buf_len = BTRFS_MAX_XATTR_SIZE(root);
-	else
-		buf_len = PATH_MAX;
-
+	/*
+	 * Start with a small buffer (1 page). If later we end up needing more
+	 * space, which can happen for xattrs on a fs with a leaf size greater
+	 * then the page size, attempt to increase the buffer. Typically xattr
+	 * values are small.
+	 */
+	buf_len = PATH_MAX;
 	buf = kmalloc(buf_len, GFP_NOFS);
 	if (!buf) {
 		ret = -ENOMEM;
@@ -1016,7 +1019,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 				ret = -ENAMETOOLONG;
 				goto out;
 			}
-			if (name_len + data_len > buf_len) {
+			if (name_len + data_len > BTRFS_MAX_XATTR_SIZE(root)) {
 				ret = -E2BIG;
 				goto out;
 			}
@@ -1024,9 +1027,31 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 			/*
 			 * Path too long
 			 */
-			if (name_len + data_len > buf_len) {
+			if (name_len + data_len > PATH_MAX) {
 				ret = -ENAMETOOLONG;
 				goto out;
+			}
+		}
+
+		if (name_len + data_len > buf_len) {
+			buf_len = name_len + data_len;
+			if (is_vmalloc_addr(buf)) {
+				vfree(buf);
+				buf = NULL;
+			} else {
+				char *tmp = krealloc(buf, buf_len,
+						     GFP_NOFS | __GFP_NOWARN);
+
+				if (!tmp)
+					kfree(buf);
+				buf = tmp;
+			}
+			if (!buf) {
+				buf = vmalloc(buf_len);
+				if (!buf) {
+					ret = -ENOMEM;
+					goto out;
+				}
 			}
 		}
 
@@ -1050,7 +1075,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 	}
 
 out:
-	kfree(buf);
+	kvfree(buf);
 	return ret;
 }
 
@@ -3302,7 +3327,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 		if (ret < 0 && ret != -ENOENT) {
 			goto out;
 		} else if (ret == -ENOENT) {
-			ret = 1;
+			ret = 0;
 			break;
 		}
 
@@ -5703,7 +5728,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			NULL);
 	sort_clone_roots = 1;
 
-	current->journal_info = (void *)BTRFS_SEND_TRANS_STUB;
+	current->journal_info = BTRFS_SEND_TRANS_STUB;
 	ret = send_subvol(sctx);
 	current->journal_info = NULL;
 	if (ret < 0)

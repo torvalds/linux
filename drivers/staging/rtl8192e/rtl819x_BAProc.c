@@ -196,6 +196,7 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 				 struct ba_record *pBA)
 {
 	struct sk_buff *skb = NULL;
+
 	skb = rtllib_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ);
 
 	if (skb) {
@@ -205,20 +206,19 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
 	}
-	return;
 }
 
 static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 				 struct ba_record *pBA, u16 StatusCode)
 {
 	struct sk_buff *skb = NULL;
+
 	skb = rtllib_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP);
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
-	return;
 }
 
 static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
@@ -226,13 +226,13 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 			      u16 ReasonCode)
 {
 	struct sk_buff *skb = NULL;
+
 	skb = rtllib_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode);
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "alloc skb error in function"
 			     " %s()\n", __func__);
-	return ;
 }
 
 int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
@@ -312,6 +312,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 OnADDBAReq_Fail:
 	{
 		struct ba_record BA;
+
 		BA.BaParamSet = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
 		BA.DialogToken = *pDialogToken;
@@ -372,7 +373,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
 
 
-	if ((pAdmittedBA->bValid == true)) {
+	if (pAdmittedBA->bValid == true) {
 		RTLLIB_DEBUG(RTLLIB_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp."
 			     " Drop because already admit it!\n");
 		return -1;
@@ -416,6 +417,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 OnADDBARsp_Reject:
 	{
 		struct ba_record BA;
+
 		BA.BaParamSet = *pBaParamSet;
 		rtllib_send_DELBA(ieee, dst, &BA, TX_DIR, ReasonCode);
 		return 0;
@@ -561,5 +563,4 @@ void RxBaInactTimeout(unsigned long data)
 	rtllib_send_DELBA(ieee, pRxTs->TsCommonInfo.Addr,
 			  &pRxTs->RxAdmittedBARecord, RX_DIR,
 			  DELBA_REASON_TIMEOUT);
-	return ;
 }

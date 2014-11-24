@@ -88,16 +88,17 @@
  * @chip:	instance of the gpio_chip
  * @base_addr:	base address of the GPIO device
  * @clk:	clock resource for this controller
+ * @irq:	interrupt for the GPIO device
  */
 struct zynq_gpio {
 	struct gpio_chip chip;
 	void __iomem *base_addr;
 	struct clk *clk;
+	int irq;
 };
 
 static struct irq_chip zynq_gpio_level_irqchip;
 static struct irq_chip zynq_gpio_edge_irqchip;
-
 /**
  * zynq_gpio_get_bank_pin - Get the bank number and pin number within that bank
  * for a given pin in the GPIO device
@@ -137,6 +138,13 @@ static inline void zynq_gpio_get_bank_pin(unsigned int pin_num,
 		break;
 	}
 }
+
+static const unsigned int zynq_gpio_bank_offset[] = {
+	ZYNQ_GPIO_BANK0_PIN_MIN,
+	ZYNQ_GPIO_BANK1_PIN_MIN,
+	ZYNQ_GPIO_BANK2_PIN_MIN,
+	ZYNQ_GPIO_BANK3_PIN_MIN,
+};
 
 /**
  * zynq_gpio_get_value - Get the state of the specified pin of GPIO device
@@ -427,10 +435,9 @@ static int zynq_gpio_set_irq_type(struct irq_data *irq_data, unsigned int type)
 
 static int zynq_gpio_set_wake(struct irq_data *data, unsigned int on)
 {
-	if (on)
-		zynq_gpio_irq_unmask(data);
-	else
-		zynq_gpio_irq_mask(data);
+	struct zynq_gpio *gpio = irq_data_get_irq_chip_data(data);
+
+	irq_set_irq_wake(gpio->irq, on);
 
 	return 0;
 }
@@ -444,7 +451,8 @@ static struct irq_chip zynq_gpio_level_irqchip = {
 	.irq_unmask	= zynq_gpio_irq_unmask,
 	.irq_set_type	= zynq_gpio_set_irq_type,
 	.irq_set_wake	= zynq_gpio_set_wake,
-	.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED,
+	.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED |
+			  IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static struct irq_chip zynq_gpio_edge_irqchip = {
@@ -455,7 +463,27 @@ static struct irq_chip zynq_gpio_edge_irqchip = {
 	.irq_unmask	= zynq_gpio_irq_unmask,
 	.irq_set_type	= zynq_gpio_set_irq_type,
 	.irq_set_wake	= zynq_gpio_set_wake,
+	.flags		= IRQCHIP_MASK_ON_SUSPEND,
 };
+
+static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
+				      unsigned int bank_num,
+				      unsigned long pending)
+{
+	unsigned int bank_offset = zynq_gpio_bank_offset[bank_num];
+	struct irq_domain *irqdomain = gpio->chip.irqdomain;
+	int offset;
+
+	if (!pending)
+		return;
+
+	for_each_set_bit(offset, &pending, 32) {
+		unsigned int gpio_irq;
+
+		gpio_irq = irq_find_mapping(irqdomain, offset + bank_offset);
+		generic_handle_irq(gpio_irq);
+	}
+}
 
 /**
  * zynq_gpio_irqhandler - IRQ handler for the gpio banks of a gpio device
@@ -482,18 +510,7 @@ static void zynq_gpio_irqhandler(unsigned int irq, struct irq_desc *desc)
 					ZYNQ_GPIO_INTSTS_OFFSET(bank_num));
 		int_enb = readl_relaxed(gpio->base_addr +
 					ZYNQ_GPIO_INTMASK_OFFSET(bank_num));
-		int_sts &= ~int_enb;
-		if (int_sts) {
-			int offset;
-			unsigned long pending = int_sts;
-
-			for_each_set_bit(offset, &pending, 32) {
-				unsigned int gpio_irq =
-					irq_find_mapping(gpio->chip.irqdomain,
-							offset);
-				generic_handle_irq(gpio_irq);
-			}
-		}
+		zynq_gpio_handle_bank_irq(gpio, bank_num, int_sts & ~int_enb);
 	}
 
 	chained_irq_exit(irqchip, desc);
@@ -501,7 +518,11 @@ static void zynq_gpio_irqhandler(unsigned int irq, struct irq_desc *desc)
 
 static int __maybe_unused zynq_gpio_suspend(struct device *dev)
 {
-	if (!device_may_wakeup(dev))
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq = platform_get_irq(pdev, 0);
+	struct irq_data *data = irq_get_irq_data(irq);
+
+	if (!irqd_is_wakeup_set(data))
 		return pm_runtime_force_suspend(dev);
 
 	return 0;
@@ -509,7 +530,11 @@ static int __maybe_unused zynq_gpio_suspend(struct device *dev)
 
 static int __maybe_unused zynq_gpio_resume(struct device *dev)
 {
-	if (!device_may_wakeup(dev))
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq = platform_get_irq(pdev, 0);
+	struct irq_data *data = irq_get_irq_data(irq);
+
+	if (!irqd_is_wakeup_set(data))
 		return pm_runtime_force_resume(dev);
 
 	return 0;
@@ -570,7 +595,7 @@ static const struct dev_pm_ops zynq_gpio_dev_pm_ops = {
  */
 static int zynq_gpio_probe(struct platform_device *pdev)
 {
-	int ret, bank_num, irq;
+	int ret, bank_num;
 	struct zynq_gpio *gpio;
 	struct gpio_chip *chip;
 	struct resource *res;
@@ -586,10 +611,10 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->base_addr))
 		return PTR_ERR(gpio->base_addr);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	gpio->irq = platform_get_irq(pdev, 0);
+	if (gpio->irq < 0) {
 		dev_err(&pdev->dev, "invalid IRQ\n");
-		return irq;
+		return gpio->irq;
 	}
 
 	/* configure the gpio chip */
@@ -637,19 +662,16 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 		goto err_rm_gpiochip;
 	}
 
-	gpiochip_set_chained_irqchip(chip, &zynq_gpio_edge_irqchip, irq,
+	gpiochip_set_chained_irqchip(chip, &zynq_gpio_edge_irqchip, gpio->irq,
 				     zynq_gpio_irqhandler);
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	device_set_wakeup_capable(&pdev->dev, 1);
-
 	return 0;
 
 err_rm_gpiochip:
-	if (gpiochip_remove(chip))
-		dev_err(&pdev->dev, "Failed to remove gpio chip\n");
+	gpiochip_remove(chip);
 err_disable_clk:
 	clk_disable_unprepare(gpio->clk);
 
@@ -664,16 +686,10 @@ err_disable_clk:
  */
 static int zynq_gpio_remove(struct platform_device *pdev)
 {
-	int ret;
 	struct zynq_gpio *gpio = platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(&pdev->dev);
-
-	ret = gpiochip_remove(&gpio->chip);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to remove gpio chip\n");
-		return ret;
-	}
+	gpiochip_remove(&gpio->chip);
 	clk_disable_unprepare(gpio->clk);
 	device_set_wakeup_capable(&pdev->dev, 0);
 	return 0;
@@ -688,7 +704,6 @@ MODULE_DEVICE_TABLE(of, zynq_gpio_of_match);
 static struct platform_driver zynq_gpio_driver = {
 	.driver	= {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &zynq_gpio_dev_pm_ops,
 		.of_match_table = zynq_gpio_of_match,
 	},

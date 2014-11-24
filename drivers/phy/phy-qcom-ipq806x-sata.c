@@ -201,7 +201,6 @@ static struct platform_driver qcom_ipq806x_sata_phy_driver = {
 	.remove	= qcom_ipq806x_sata_phy_remove,
 	.driver = {
 		.name	= "qcom-ipq806x-sata-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table	= qcom_ipq806x_sata_phy_of_match,
 	}
 };

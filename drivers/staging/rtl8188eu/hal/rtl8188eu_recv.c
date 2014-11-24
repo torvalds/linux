@@ -41,15 +41,16 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 	/* init recv_buf */
 	_rtw_init_queue(&precvpriv->free_recv_buf_queue);
 
-	precvpriv->pallocated_recv_buf = kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4, GFP_KERNEL);
+	precvpriv->pallocated_recv_buf =
+		kzalloc(NR_RECVBUFF * sizeof(struct recv_buf), GFP_KERNEL);
 	if (precvpriv->pallocated_recv_buf == NULL) {
 		res = _FAIL;
-		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("alloc recv_buf fail!\n"));
+		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
+				("alloc recv_buf fail!\n"));
 		goto exit;
 	}
-	memset(precvpriv->pallocated_recv_buf, 0, NR_RECVBUFF * sizeof(struct recv_buf) + 4);
 
-	precvpriv->precv_buf = (u8 *)N_BYTE_ALIGMENT((size_t)(precvpriv->pallocated_recv_buf), 4);
+	precvpriv->precv_buf = precvpriv->pallocated_recv_buf;
 
 
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
@@ -66,20 +67,23 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 	{
 		int i;
 		size_t tmpaddr = 0;
-		size_t alignment = 0;
+		size_t alignm = 0;
 		struct sk_buff *pskb = NULL;
 
 		skb_queue_head_init(&precvpriv->free_recv_skb_queue);
 
 		for (i = 0; i < NR_PREALLOC_RECV_SKB; i++) {
-			pskb = __netdev_alloc_skb(padapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ, GFP_KERNEL);
+			pskb = __netdev_alloc_skb(padapter->pnetdev,
+					MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ,
+					GFP_KERNEL);
 			if (pskb) {
 				pskb->dev = padapter->pnetdev;
 				tmpaddr = (size_t)pskb->data;
-				alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
-				skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignment));
+				alignm = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+				skb_reserve(pskb, (RECVBUFF_ALIGN_SZ - alignm));
 
-				skb_queue_tail(&precvpriv->free_recv_skb_queue, pskb);
+				skb_queue_tail(&precvpriv->free_recv_skb_queue,
+						pskb);
 			}
 			pskb = NULL;
 		}
@@ -109,7 +113,8 @@ void rtl8188eu_free_recv_priv(struct adapter *padapter)
 
 
 	if (skb_queue_len(&precvpriv->free_recv_skb_queue))
-		DBG_88E(KERN_WARNING "free_recv_skb_queue not empty, %d\n", skb_queue_len(&precvpriv->free_recv_skb_queue));
+		DBG_88E(KERN_WARNING "free_recv_skb_queue not empty, %d\n",
+				skb_queue_len(&precvpriv->free_recv_skb_queue));
 
 	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 }

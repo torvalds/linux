@@ -318,7 +318,7 @@ void __init ltq_soc_init(void)
 				res_cgu.name) < 0) ||
 		(request_mem_region(res_ebu.start, resource_size(&res_ebu),
 				res_ebu.name) < 0))
-		pr_err("Failed to request core reources");
+		pr_err("Failed to request core resources");
 
 	pmu_membase = ioremap_nocache(res_pmu.start, resource_size(&res_pmu));
 	ltq_cgu_membase = ioremap_nocache(res_cgu.start,

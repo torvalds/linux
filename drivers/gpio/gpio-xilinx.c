@@ -197,6 +197,7 @@ static int xgpio_of_probe(struct device_node *np)
 	struct xgpio_instance *chip;
 	int status = 0;
 	const u32 *tree_info;
+	u32 ngpio;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -211,12 +212,13 @@ static int xgpio_of_probe(struct device_node *np)
 	/* Update GPIO direction shadow register with default value */
 	of_property_read_u32(np, "xlnx,tri-default", &chip->gpio_dir);
 
-	/* By default assume full GPIO controller */
-	chip->mmchip.gc.ngpio = 32;
-
-	/* Check device node and parent device node for device width */
-	of_property_read_u32(np, "xlnx,gpio-width",
-			      (u32 *)&chip->mmchip.gc.ngpio);
+	/*
+	 * Check device node and parent device node for device width
+	 * and assume default width of 32
+	 */
+	if (of_property_read_u32(np, "xlnx,gpio-width", &ngpio))
+		ngpio = 32;
+	chip->mmchip.gc.ngpio = (u16)ngpio;
 
 	spin_lock_init(&chip->gpio_lock);
 
@@ -258,12 +260,13 @@ static int xgpio_of_probe(struct device_node *np)
 		/* Update GPIO direction shadow register with default value */
 		of_property_read_u32(np, "xlnx,tri-default-2", &chip->gpio_dir);
 
-		/* By default assume full GPIO controller */
-		chip->mmchip.gc.ngpio = 32;
-
-		/* Check device node and parent device node for device width */
-		of_property_read_u32(np, "xlnx,gpio2-width",
-				     (u32 *)&chip->mmchip.gc.ngpio);
+		/*
+		 * Check device node and parent device node for device width
+		 * and assume default width of 32
+		 */
+		if (of_property_read_u32(np, "xlnx,gpio2-width", &ngpio))
+			ngpio = 32;
+		chip->mmchip.gc.ngpio = (u16)ngpio;
 
 		spin_lock_init(&chip->gpio_lock);
 

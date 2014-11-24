@@ -213,7 +213,6 @@ struct dt2811_private {
 		dac_bipolar_5, dac_bipolar_2_5, dac_unipolar_5
 	} dac_range[2];
 	const struct comedi_lrange *range_type_list[2];
-	unsigned int ao_readback[2];
 };
 
 static const struct comedi_lrange *dac_range_types[] = {
@@ -257,39 +256,24 @@ static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int dt2811_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	struct dt2811_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
-	int chan;
-
-	chan = CR_CHAN(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++) {
-		outb(data[i] & 0xff, dev->iobase + DT2811_DADAT0LO + 2 * chan);
-		outb((data[i] >> 8) & 0xff,
+		val = data[i];
+		outb(val & 0xff, dev->iobase + DT2811_DADAT0LO + 2 * chan);
+		outb((val >> 8) & 0xff,
 		     dev->iobase + DT2811_DADAT0HI + 2 * chan);
-		devpriv->ao_readback[chan] = data[i];
 	}
+	s->readback[chan] = val;
 
-	return i;
-}
-
-static int dt2811_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct dt2811_private *devpriv = dev->private;
-	int i;
-	int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 static int dt2811_di_insn_bits(struct comedi_device *dev,
@@ -337,7 +321,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	/* int i; */
-	const struct dt2811_board *board = comedi_board(dev);
+	const struct dt2811_board *board = dev->board_ptr;
 	struct dt2811_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
@@ -429,12 +413,16 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
-	s->insn_write = dt2811_ao_insn;
-	s->insn_read = dt2811_ao_insn_read;
 	s->maxdata = 0xfff;
 	s->range_table_list = devpriv->range_type_list;
 	devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
 	devpriv->range_type_list[1] = dac_range_types[devpriv->dac_range[1]];
+	s->insn_write = dt2811_ao_insn_write;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* di subdevice */

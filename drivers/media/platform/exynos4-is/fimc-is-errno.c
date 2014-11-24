@@ -15,7 +15,7 @@
 
 #include "fimc-is-errno.h"
 
-const char * const fimc_is_param_strerr(unsigned int error)
+const char *fimc_is_param_strerr(unsigned int error)
 {
 	switch (error) {
 	case ERROR_COMMON_CMD:
@@ -146,7 +146,7 @@ const char * const fimc_is_param_strerr(unsigned int error)
 	}
 }
 
-const char * const fimc_is_strerr(unsigned int error)
+const char *fimc_is_strerr(unsigned int error)
 {
 	error &= ~IS_ERROR_TIME_OUT_FLAG;
 

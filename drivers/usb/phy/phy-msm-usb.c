@@ -281,7 +281,7 @@ static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 {
 	int ret = 0;
 
-	if (motg->pdata->phy_clk_reset && motg->phy_reset_clk)
+	if (motg->pdata->phy_clk_reset)
 		ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
 	else if (motg->phy_rst)
 		ret = reset_control_reset(motg->phy_rst);
@@ -1394,7 +1394,7 @@ out:
 	return status;
 }
 
-const struct file_operations msm_otg_mode_fops = {
+static const struct file_operations msm_otg_mode_fops = {
 	.open = msm_otg_mode_open,
 	.read = seq_read,
 	.write = msm_otg_mode_write,
@@ -1554,11 +1554,14 @@ static int msm_otg_probe(struct platform_device *pdev)
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
 
-	motg->phy_reset_clk = devm_clk_get(&pdev->dev,
+	if (motg->pdata->phy_clk_reset) {
+		motg->phy_reset_clk = devm_clk_get(&pdev->dev,
 					   np ? "phy" : "usb_phy_clk");
-	if (IS_ERR(motg->phy_reset_clk)) {
-		dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
-		motg->phy_reset_clk = NULL;
+
+		if (IS_ERR(motg->phy_reset_clk)) {
+			dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
+			return PTR_ERR(motg->phy_reset_clk);
+		}
 	}
 
 	motg->clk = devm_clk_get(&pdev->dev, np ? "core" : "usb_hs_clk");
@@ -1838,7 +1841,6 @@ static struct platform_driver msm_otg_driver = {
 	.remove = msm_otg_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &msm_otg_dev_pm_ops,
 		.of_match_table = msm_otg_dt_match,
 	},

@@ -295,6 +295,9 @@ struct wusbhc {
 	} __attribute__((packed)) gtk;
 	u8 gtk_index;
 	u32 gtk_tkid;
+
+	/* workqueue for WUSB security related tasks. */
+	struct workqueue_struct *wq_security;
 	struct work_struct gtk_rekey_work;
 
 	struct usb_encryption_descriptor *ccm1_etd;

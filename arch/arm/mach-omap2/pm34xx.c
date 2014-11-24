@@ -465,7 +465,7 @@ int __init omap3_pm_init(void)
 	int ret;
 
 	if (!omap3_has_io_chain_ctrl())
-		pr_warning("PM: no software I/O chain control; some wakeups may be lost\n");
+		pr_warn("PM: no software I/O chain control; some wakeups may be lost\n");
 
 	pm_errata_configure();
 

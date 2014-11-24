@@ -57,12 +57,14 @@ static void sort_pins_by_sequence(hda_nid_t *pins, struct auto_out_pin *list,
 
 
 /* add the found input-pin to the cfg->inputs[] table */
-static void add_auto_cfg_input_pin(struct auto_pin_cfg *cfg, hda_nid_t nid,
-				   int type)
+static void add_auto_cfg_input_pin(struct hda_codec *codec, struct auto_pin_cfg *cfg,
+				   hda_nid_t nid, int type)
 {
 	if (cfg->num_inputs < AUTO_CFG_MAX_INS) {
 		cfg->inputs[cfg->num_inputs].pin = nid;
 		cfg->inputs[cfg->num_inputs].type = type;
+		cfg->inputs[cfg->num_inputs].has_boost_on_pin =
+			nid_has_volume(codec, nid, HDA_INPUT);
 		cfg->num_inputs++;
 	}
 }
@@ -71,7 +73,12 @@ static int compare_input_type(const void *ap, const void *bp)
 {
 	const struct auto_pin_cfg_item *a = ap;
 	const struct auto_pin_cfg_item *b = bp;
-	return (int)(a->type - b->type);
+	if (a->type != b->type)
+		return (int)(a->type - b->type);
+
+	/* In case one has boost and the other one has not,
+	   pick the one with boost first. */
+	return (int)(b->has_boost_on_pin - a->has_boost_on_pin);
 }
 
 /* Reorder the surround channels
@@ -268,16 +275,16 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			cfg->hp_outs++;
 			break;
 		case AC_JACK_MIC_IN:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_MIC);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_MIC);
 			break;
 		case AC_JACK_LINE_IN:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_LINE_IN);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_LINE_IN);
 			break;
 		case AC_JACK_CD:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_CD);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_CD);
 			break;
 		case AC_JACK_AUX:
-			add_auto_cfg_input_pin(cfg, nid, AUTO_PIN_AUX);
+			add_auto_cfg_input_pin(codec, cfg, nid, AUTO_PIN_AUX);
 			break;
 		case AC_JACK_SPDIF_OUT:
 		case AC_JACK_DIG_OTHER_OUT:

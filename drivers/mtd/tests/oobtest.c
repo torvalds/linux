@@ -120,7 +120,7 @@ static int verify_eraseblock(int ebnum)
 	int i;
 	struct mtd_oob_ops ops;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, use_len_max * pgcnt);
 	for (i = 0; i < pgcnt; ++i, addr += mtd->writesize) {
@@ -214,7 +214,7 @@ static int verify_eraseblock_in_one_go(int ebnum)
 {
 	struct mtd_oob_ops ops;
 	int err = 0;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	size_t len = mtd->ecclayout->oobavail * pgcnt;
 
 	prandom_bytes_state(&rnd_state, writebuf, len);
@@ -568,7 +568,7 @@ static int __init mtd_oobtest_init(void)
 		size_t sz = mtd->ecclayout->oobavail;
 		if (bbt[i] || bbt[i + 1])
 			continue;
-		addr = (i + 1) * mtd->erasesize - mtd->writesize;
+		addr = (loff_t)(i + 1) * mtd->erasesize - mtd->writesize;
 		prandom_bytes_state(&rnd_state, writebuf, sz * cnt);
 		for (pg = 0; pg < cnt; ++pg) {
 			ops.mode      = MTD_OPS_AUTO_OOB;
@@ -598,7 +598,7 @@ static int __init mtd_oobtest_init(void)
 			continue;
 		prandom_bytes_state(&rnd_state, writebuf,
 					mtd->ecclayout->oobavail * 2);
-		addr = (i + 1) * mtd->erasesize - mtd->writesize;
+		addr = (loff_t)(i + 1) * mtd->erasesize - mtd->writesize;
 		ops.mode      = MTD_OPS_AUTO_OOB;
 		ops.len       = 0;
 		ops.retlen    = 0;

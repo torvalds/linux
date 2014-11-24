@@ -167,17 +167,10 @@ later is recommended, due to some significant improvements).
 PCMCIAutils
 -----------
 
-PCMCIAutils replaces pcmcia-cs (see below). It properly sets up
+PCMCIAutils replaces pcmcia-cs. It properly sets up
 PCMCIA sockets at system startup and loads the appropriate modules
 for 16-bit PCMCIA devices if the kernel is modularized and the hotplug
 subsystem is used.
-
-Pcmcia-cs
----------
-
-PCMCIA (PC Card) support is now partially implemented in the main
-kernel source. The "pcmciautils" package (see above) replaces pcmcia-cs
-for newest kernels.
 
 Quota-tools
 -----------
@@ -341,17 +334,13 @@ Pcmciautils
 -----------
 o  <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
 
-Pcmcia-cs
----------
-o  <http://pcmcia-cs.sourceforge.net/>
-
 Quota-tools
 ----------
 o  <http://sourceforge.net/projects/linuxquota/>
 
 DocBook Stylesheets
 -------------------
-o  <http://nwalsh.com/docbook/dsssl/>
+o  <http://sourceforge.net/projects/docbook/files/docbook-dsssl/>
 
 XMLTO XSLT Frontend
 -------------------
@@ -359,11 +348,11 @@ o  <http://cyberelk.net/tim/xmlto/>
 
 Intel P6 microcode
 ------------------
-o  <http://www.urbanmyth.org/microcode/>
+o  <https://downloadcenter.intel.com/>
 
 udev
 ----
-o <http://www.kernel.org/pub/linux/utils/kernel/hotplug/udev.html>
+o <http://www.freedesktop.org/software/systemd/man/udev.html>
 
 FUSE
 ----
@@ -371,7 +360,7 @@ o <http://sourceforge.net/projects/fuse>
 
 mcelog
 ------
-o <ftp://ftp.kernel.org/pub/linux/utils/cpu/mce/>
+o <http://www.mcelog.org/>
 
 Networking
 **********

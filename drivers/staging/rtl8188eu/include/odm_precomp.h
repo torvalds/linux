@@ -37,20 +37,13 @@
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_debug.h"
-#include "odm_RegDefine11AC.h"
 #include "odm_RegDefine11N.h"
 
-#include "HalPhyRf_8188e.h"/* for IQK,LCK,Power-tracking */
 #include "Hal8188ERateAdaptive.h"/* for  RA,Power training */
 #include "rtl8188e_hal.h"
 
 #include "odm_reg.h"
 
-#include "HalHWImg8188E_MAC.h"
-#include "HalHWImg8188E_RF.h"
-#include "HalHWImg8188E_BB.h"
-
-#include "odm_RegConfig8188E.h"
 #include "odm_RTL8188E.h"
 
 void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm);

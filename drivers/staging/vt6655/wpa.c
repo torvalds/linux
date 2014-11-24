@@ -43,8 +43,6 @@
 #include "80211mgr.h"
 
 /*---------------------  Static Variables  --------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
-
 static const unsigned char abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };
 static const unsigned char abyOUI01[4] = { 0x00, 0x50, 0xf2, 0x01 };
 static const unsigned char abyOUI02[4] = { 0x00, 0x50, 0xf2, 0x02 };
@@ -115,13 +113,13 @@ WPA_ParseRSN(
 
 	WPA_ClearRSN(pBSSList);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WPA_ParseRSN: [%d]\n", pRSN->len);
+	pr_debug("WPA_ParseRSN: [%d]\n", pRSN->len);
 
 	// information element header makes sense
 	if ((pRSN->len >= 6) // oui1(4)+ver(2)
 	    && (pRSN->byElementID == WLAN_EID_RSN_WPA) && !memcmp(pRSN->abyOUI, abyOUI01, 4)
 	    && (pRSN->wVersion == 1)) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Legal RSN\n");
+		pr_debug("Legal RSN\n");
 		// update each variable if pRSN is long enough to contain the variable
 		if (pRSN->len >= 10) {
 			//OUI1(4)+ver(2)+GKSuite(4)
@@ -139,13 +137,14 @@ WPA_ParseRSN(
 				// any vendor checks here
 				pBSSList->byGKType = WPA_NONE;
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "byGKType: %x\n", pBSSList->byGKType);
+			pr_debug("byGKType: %x\n", pBSSList->byGKType);
 		}
 
 		if (pRSN->len >= 12) {
 			//oui1(4)+ver(2)+GKS(4)+PKSCnt(2)
 			j = 0;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wPKCount: %d, sizeof(pBSSList->abyPKType): %zu\n", pRSN->wPKCount, sizeof(pBSSList->abyPKType));
+			pr_debug("wPKCount: %d, sizeof(pBSSList->abyPKType): %zu\n",
+				 pRSN->wPKCount, sizeof(pBSSList->abyPKType));
 			for (i = 0; (i < pRSN->wPKCount) && (j < ARRAY_SIZE(pBSSList->abyPKType)); i++) {
 				if (pRSN->len >= 12+i*4+4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*i)
 					if (!memcmp(pRSN->PKSList[i].abyOUI, abyOUI00, 4))
@@ -163,19 +162,20 @@ WPA_ParseRSN(
 					break;
 			}
 			pBSSList->wPKCount = (unsigned short)j;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wPKCount: %d\n", pBSSList->wPKCount);
+			pr_debug("wPKCount: %d\n", pBSSList->wPKCount);
 		}
 
 		m = pRSN->wPKCount;
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "m: %d\n", m);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "14+m*4: %d\n", 14+m*4);
+		pr_debug("m: %d\n", m);
+		pr_debug("14+m*4: %d\n", 14+m*4);
 
 		if (pRSN->len >= 14+m*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)
 			// overlay IE_RSN_Auth structure into correct place
 			pIE_RSN_Auth = (PWLAN_IE_RSN_AUTH) pRSN->PKSList[m].abyOUI;
 			j = 0;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wAuthCount: %d, sizeof(pBSSList->abyAuthType): %zu\n",
-				pIE_RSN_Auth->wAuthCount, sizeof(pBSSList->abyAuthType));
+			pr_debug("wAuthCount: %d, sizeof(pBSSList->abyAuthType): %zu\n",
+				 pIE_RSN_Auth->wAuthCount,
+				 sizeof(pBSSList->abyAuthType));
 			for (i = 0; (i < pIE_RSN_Auth->wAuthCount) && (j < ARRAY_SIZE(pBSSList->abyAuthType)); i++) {
 				if (pRSN->len >= 14+4+(m+i)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*i)
 					if (!memcmp(pIE_RSN_Auth->AuthKSList[i].abyOUI, abyOUI01, 4))
@@ -191,14 +191,14 @@ WPA_ParseRSN(
 			}
 			if (j > 0)
 				pBSSList->wAuthCount = (unsigned short)j;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wAuthCount: %d\n", pBSSList->wAuthCount);
+			pr_debug("wAuthCount: %d\n", pBSSList->wAuthCount);
 		}
 
 		if (pIE_RSN_Auth != NULL) {
 			n = pIE_RSN_Auth->wAuthCount;
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "n: %d\n", n);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "14+4+(m+n)*4: %d\n", 14+4+(m+n)*4);
+			pr_debug("n: %d\n", n);
+			pr_debug("14+4+(m+n)*4: %d\n", 14+4+(m+n)*4);
 
 			if (pRSN->len+2 >= 14+4+(m+n)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*n)+Cap(2)
 				pbyCaps = (unsigned char *)pIE_RSN_Auth->AuthKSList[n].abyOUI;

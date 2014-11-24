@@ -232,6 +232,7 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	u_char *cp1;
 	u_char ch;
 	unsigned long flags;
+
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	cp1 = spk_key_buf + SHIFT_TBL_SIZE;
 	num_keys = (int)(*cp1);
@@ -905,9 +906,11 @@ static struct kobj_attribute spell_delay_attribute =
 static struct kobj_attribute announcements_attribute =
 	__ATTR(announcements, S_IWUSR|S_IRUGO, message_show, message_store);
 static struct kobj_attribute characters_attribute =
-	__ATTR(characters, S_IWUSR|S_IRUGO, chars_chartab_show, chars_chartab_store);
+	__ATTR(characters, S_IWUSR|S_IRUGO, chars_chartab_show,
+	       chars_chartab_store);
 static struct kobj_attribute chartab_attribute =
-	__ATTR(chartab, S_IWUSR|S_IRUGO, chars_chartab_show, chars_chartab_store);
+	__ATTR(chartab, S_IWUSR|S_IRUGO, chars_chartab_show,
+	       chars_chartab_store);
 static struct kobj_attribute ctl_keys_attribute =
 	__ATTR(ctl_keys, S_IWUSR|S_IRUGO, message_show, message_store);
 static struct kobj_attribute colors_attribute =

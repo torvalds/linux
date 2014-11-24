@@ -165,8 +165,7 @@ static void send_sigtrap(struct task_struct *tsk, struct uml_pt_regs *regs,
  */
 void syscall_trace_enter(struct pt_regs *regs)
 {
-	audit_syscall_entry(HOST_AUDIT_ARCH,
-			    UPT_SYSCALL_NR(&regs->regs),
+	audit_syscall_entry(UPT_SYSCALL_NR(&regs->regs),
 			    UPT_SYSCALL_ARG1(&regs->regs),
 			    UPT_SYSCALL_ARG2(&regs->regs),
 			    UPT_SYSCALL_ARG3(&regs->regs),

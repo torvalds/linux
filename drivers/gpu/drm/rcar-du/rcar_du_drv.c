@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.c  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013 Renesas Corporation
+ * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -28,6 +29,97 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_regs.h"
+
+/* -----------------------------------------------------------------------------
+ * Device Information
+ */
+
+static const struct rcar_du_device_info rcar_du_r8a7779_info = {
+	.features = 0,
+	.num_crtcs = 2,
+	.routes = {
+		/* R8A7779 has two RGB outputs and one (currently unsupported)
+		 * TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_DPAD1] = {
+			.possible_crtcs = BIT(1) | BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 1,
+		},
+	},
+	.num_lvds = 0,
+};
+
+static const struct rcar_du_device_info rcar_du_r8a7790_info = {
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8,
+	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
+	.num_crtcs = 3,
+	.routes = {
+		/* R8A7790 has one RGB output, two LVDS outputs and one
+		 * (currently unsupported) TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 1,
+		},
+		[RCAR_DU_OUTPUT_LVDS1] = {
+			.possible_crtcs = BIT(2) | BIT(1),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 2,
+		},
+	},
+	.num_lvds = 2,
+};
+
+static const struct rcar_du_device_info rcar_du_r8a7791_info = {
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8,
+	.num_crtcs = 2,
+	.routes = {
+		/* R8A7791 has one RGB output, one LVDS output and one
+		 * (currently unsupported) TCON output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(1),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 1,
+		},
+	},
+	.num_lvds = 1,
+};
+
+static const struct platform_device_id rcar_du_id_table[] = {
+	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
+	{ "rcar-du-r8a7790", (kernel_ulong_t)&rcar_du_r8a7790_info },
+	{ "rcar-du-r8a7791", (kernel_ulong_t)&rcar_du_r8a7791_info },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(platform, rcar_du_id_table);
+
+static const struct of_device_id rcar_du_of_table[] = {
+	{ .compatible = "renesas,du-r8a7779", .data = &rcar_du_r8a7779_info },
+	{ .compatible = "renesas,du-r8a7790", .data = &rcar_du_r8a7790_info },
+	{ .compatible = "renesas,du-r8a7791", .data = &rcar_du_r8a7791_info },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, rcar_du_of_table);
 
 /* -----------------------------------------------------------------------------
  * DRM operations
@@ -53,12 +145,13 @@ static int rcar_du_unload(struct drm_device *dev)
 static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
+	struct device_node *np = pdev->dev.of_node;
 	struct rcar_du_platform_data *pdata = pdev->dev.platform_data;
 	struct rcar_du_device *rcdu;
 	struct resource *mem;
 	int ret;
 
-	if (pdata == NULL) {
+	if (pdata == NULL && np == NULL) {
 		dev_err(dev->dev, "no platform data\n");
 		return -ENODEV;
 	}
@@ -71,7 +164,8 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 
 	rcdu->dev = &pdev->dev;
 	rcdu->pdata = pdata;
-	rcdu->info = (struct rcar_du_device_info *)pdev->id_entry->driver_data;
+	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
+		   : (void *)platform_get_device_id(pdev)->driver_data;
 	rcdu->ddev = dev;
 	dev->dev_private = rcdu;
 
@@ -158,6 +252,7 @@ static struct drm_driver rcar_du_driver = {
 	.unload			= rcar_du_unload,
 	.preclose		= rcar_du_preclose,
 	.lastclose		= rcar_du_lastclose,
+	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= rcar_du_enable_vblank,
 	.disable_vblank		= rcar_du_disable_vblank,
@@ -231,77 +326,6 @@ static int rcar_du_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct rcar_du_device_info rcar_du_r8a7779_info = {
-	.features = 0,
-	.num_crtcs = 2,
-	.routes = {
-		/* R8A7779 has two RGB outputs and one (currently unsupported)
-		 * TCON output.
-		 */
-		[RCAR_DU_OUTPUT_DPAD0] = {
-			.possible_crtcs = BIT(0),
-			.encoder_type = DRM_MODE_ENCODER_NONE,
-		},
-		[RCAR_DU_OUTPUT_DPAD1] = {
-			.possible_crtcs = BIT(1) | BIT(0),
-			.encoder_type = DRM_MODE_ENCODER_NONE,
-		},
-	},
-	.num_lvds = 0,
-};
-
-static const struct rcar_du_device_info rcar_du_r8a7790_info = {
-	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8,
-	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
-	.num_crtcs = 3,
-	.routes = {
-		/* R8A7790 has one RGB output, two LVDS outputs and one
-		 * (currently unsupported) TCON output.
-		 */
-		[RCAR_DU_OUTPUT_DPAD0] = {
-			.possible_crtcs = BIT(2) | BIT(1) | BIT(0),
-			.encoder_type = DRM_MODE_ENCODER_NONE,
-		},
-		[RCAR_DU_OUTPUT_LVDS0] = {
-			.possible_crtcs = BIT(0),
-			.encoder_type = DRM_MODE_ENCODER_LVDS,
-		},
-		[RCAR_DU_OUTPUT_LVDS1] = {
-			.possible_crtcs = BIT(2) | BIT(1),
-			.encoder_type = DRM_MODE_ENCODER_LVDS,
-		},
-	},
-	.num_lvds = 2,
-};
-
-static const struct rcar_du_device_info rcar_du_r8a7791_info = {
-	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8,
-	.num_crtcs = 2,
-	.routes = {
-		/* R8A7791 has one RGB output, one LVDS output and one
-		 * (currently unsupported) TCON output.
-		 */
-		[RCAR_DU_OUTPUT_DPAD0] = {
-			.possible_crtcs = BIT(1),
-			.encoder_type = DRM_MODE_ENCODER_NONE,
-		},
-		[RCAR_DU_OUTPUT_LVDS0] = {
-			.possible_crtcs = BIT(0),
-			.encoder_type = DRM_MODE_ENCODER_LVDS,
-		},
-	},
-	.num_lvds = 1,
-};
-
-static const struct platform_device_id rcar_du_id_table[] = {
-	{ "rcar-du-r8a7779", (kernel_ulong_t)&rcar_du_r8a7779_info },
-	{ "rcar-du-r8a7790", (kernel_ulong_t)&rcar_du_r8a7790_info },
-	{ "rcar-du-r8a7791", (kernel_ulong_t)&rcar_du_r8a7791_info },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(platform, rcar_du_id_table);
-
 static struct platform_driver rcar_du_platform_driver = {
 	.probe		= rcar_du_probe,
 	.remove		= rcar_du_remove,
@@ -309,6 +333,7 @@ static struct platform_driver rcar_du_platform_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "rcar-du",
 		.pm	= &rcar_du_pm_ops,
+		.of_match_table = rcar_du_of_table,
 	},
 	.id_table	= rcar_du_id_table,
 };

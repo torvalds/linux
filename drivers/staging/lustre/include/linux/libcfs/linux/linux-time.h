@@ -53,8 +53,6 @@
 #include <linux/time.h>
 #include <asm/div64.h>
 
-#include "portals_compat25.h"
-
 /*
  * post 2.5 kernels.
  */
@@ -108,8 +106,7 @@ static inline void cfs_duration_usec(long d, struct timeval *s)
 	s->tv_usec = t;
 #else
 	s->tv_sec = d / HZ;
-	s->tv_usec = ((d - (long)s->tv_sec * HZ) * \
-		ONE_MILLION) / HZ;
+	s->tv_usec = ((d - (long)s->tv_sec * HZ) * ONE_MILLION) / HZ;
 #endif
 }
 

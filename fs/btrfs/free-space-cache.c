@@ -279,8 +279,7 @@ static int io_ctl_init(struct io_ctl *io_ctl, struct inode *inode,
 	int num_pages;
 	int check_crcs = 0;
 
-	num_pages = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-		    PAGE_CACHE_SHIFT;
+	num_pages = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
 
 	if (btrfs_ino(inode) != BTRFS_FREE_INO_OBJECTID)
 		check_crcs = 1;
@@ -1998,6 +1997,128 @@ static bool try_merge_free_space(struct btrfs_free_space_ctl *ctl,
 	return merged;
 }
 
+static bool steal_from_bitmap_to_end(struct btrfs_free_space_ctl *ctl,
+				     struct btrfs_free_space *info,
+				     bool update_stat)
+{
+	struct btrfs_free_space *bitmap;
+	unsigned long i;
+	unsigned long j;
+	const u64 end = info->offset + info->bytes;
+	const u64 bitmap_offset = offset_to_bitmap(ctl, end);
+	u64 bytes;
+
+	bitmap = tree_search_offset(ctl, bitmap_offset, 1, 0);
+	if (!bitmap)
+		return false;
+
+	i = offset_to_bit(bitmap->offset, ctl->unit, end);
+	j = find_next_zero_bit(bitmap->bitmap, BITS_PER_BITMAP, i);
+	if (j == i)
+		return false;
+	bytes = (j - i) * ctl->unit;
+	info->bytes += bytes;
+
+	if (update_stat)
+		bitmap_clear_bits(ctl, bitmap, end, bytes);
+	else
+		__bitmap_clear_bits(ctl, bitmap, end, bytes);
+
+	if (!bitmap->bytes)
+		free_bitmap(ctl, bitmap);
+
+	return true;
+}
+
+static bool steal_from_bitmap_to_front(struct btrfs_free_space_ctl *ctl,
+				       struct btrfs_free_space *info,
+				       bool update_stat)
+{
+	struct btrfs_free_space *bitmap;
+	u64 bitmap_offset;
+	unsigned long i;
+	unsigned long j;
+	unsigned long prev_j;
+	u64 bytes;
+
+	bitmap_offset = offset_to_bitmap(ctl, info->offset);
+	/* If we're on a boundary, try the previous logical bitmap. */
+	if (bitmap_offset == info->offset) {
+		if (info->offset == 0)
+			return false;
+		bitmap_offset = offset_to_bitmap(ctl, info->offset - 1);
+	}
+
+	bitmap = tree_search_offset(ctl, bitmap_offset, 1, 0);
+	if (!bitmap)
+		return false;
+
+	i = offset_to_bit(bitmap->offset, ctl->unit, info->offset) - 1;
+	j = 0;
+	prev_j = (unsigned long)-1;
+	for_each_clear_bit_from(j, bitmap->bitmap, BITS_PER_BITMAP) {
+		if (j > i)
+			break;
+		prev_j = j;
+	}
+	if (prev_j == i)
+		return false;
+
+	if (prev_j == (unsigned long)-1)
+		bytes = (i + 1) * ctl->unit;
+	else
+		bytes = (i - prev_j) * ctl->unit;
+
+	info->offset -= bytes;
+	info->bytes += bytes;
+
+	if (update_stat)
+		bitmap_clear_bits(ctl, bitmap, info->offset, bytes);
+	else
+		__bitmap_clear_bits(ctl, bitmap, info->offset, bytes);
+
+	if (!bitmap->bytes)
+		free_bitmap(ctl, bitmap);
+
+	return true;
+}
+
+/*
+ * We prefer always to allocate from extent entries, both for clustered and
+ * non-clustered allocation requests. So when attempting to add a new extent
+ * entry, try to see if there's adjacent free space in bitmap entries, and if
+ * there is, migrate that space from the bitmaps to the extent.
+ * Like this we get better chances of satisfying space allocation requests
+ * because we attempt to satisfy them based on a single cache entry, and never
+ * on 2 or more entries - even if the entries represent a contiguous free space
+ * region (e.g. 1 extent entry + 1 bitmap entry starting where the extent entry
+ * ends).
+ */
+static void steal_from_bitmap(struct btrfs_free_space_ctl *ctl,
+			      struct btrfs_free_space *info,
+			      bool update_stat)
+{
+	/*
+	 * Only work with disconnected entries, as we can change their offset,
+	 * and must be extent entries.
+	 */
+	ASSERT(!info->bitmap);
+	ASSERT(RB_EMPTY_NODE(&info->offset_index));
+
+	if (ctl->total_bitmaps > 0) {
+		bool stole_end;
+		bool stole_front = false;
+
+		stole_end = steal_from_bitmap_to_end(ctl, info, update_stat);
+		if (ctl->total_bitmaps > 0)
+			stole_front = steal_from_bitmap_to_front(ctl, info,
+								 update_stat);
+
+		if (stole_end || stole_front)
+			try_merge_free_space(ctl, info, update_stat);
+	}
+}
+
 int __btrfs_add_free_space(struct btrfs_free_space_ctl *ctl,
 			   u64 offset, u64 bytes)
 {
@@ -2010,6 +2131,7 @@ int __btrfs_add_free_space(struct btrfs_free_space_ctl *ctl,
 
 	info->offset = offset;
 	info->bytes = bytes;
+	RB_CLEAR_NODE(&info->offset_index);
 
 	spin_lock(&ctl->tree_lock);
 
@@ -2029,6 +2151,14 @@ int __btrfs_add_free_space(struct btrfs_free_space_ctl *ctl,
 		goto out;
 	}
 link:
+	/*
+	 * Only steal free space from adjacent bitmaps if we're sure we're not
+	 * going to add the new free space to existing bitmap entries - because
+	 * that would mean unnecessary work that would be reverted. Therefore
+	 * attempt to steal space from bitmaps if we're adding an extent entry.
+	 */
+	steal_from_bitmap(ctl, info, true);
+
 	ret = link_free_space(ctl, info);
 	if (ret)
 		kmem_cache_free(btrfs_free_space_cachep, info);
@@ -2205,10 +2335,13 @@ __btrfs_return_cluster_to_free_space(
 		entry = rb_entry(node, struct btrfs_free_space, offset_index);
 		node = rb_next(&entry->offset_index);
 		rb_erase(&entry->offset_index, &cluster->root);
+		RB_CLEAR_NODE(&entry->offset_index);
 
 		bitmap = (entry->bitmap != NULL);
-		if (!bitmap)
+		if (!bitmap) {
 			try_merge_free_space(ctl, entry, false);
+			steal_from_bitmap(ctl, entry, false);
+		}
 		tree_insert_offset(&ctl->free_space_offset,
 				   entry->offset, &entry->offset_index, bitmap);
 	}
@@ -3033,10 +3166,10 @@ struct inode *lookup_free_ino_inode(struct btrfs_root *root,
 {
 	struct inode *inode = NULL;
 
-	spin_lock(&root->cache_lock);
-	if (root->cache_inode)
-		inode = igrab(root->cache_inode);
-	spin_unlock(&root->cache_lock);
+	spin_lock(&root->ino_cache_lock);
+	if (root->ino_cache_inode)
+		inode = igrab(root->ino_cache_inode);
+	spin_unlock(&root->ino_cache_lock);
 	if (inode)
 		return inode;
 
@@ -3044,10 +3177,10 @@ struct inode *lookup_free_ino_inode(struct btrfs_root *root,
 	if (IS_ERR(inode))
 		return inode;
 
-	spin_lock(&root->cache_lock);
+	spin_lock(&root->ino_cache_lock);
 	if (!btrfs_fs_closing(root->fs_info))
-		root->cache_inode = igrab(inode);
-	spin_unlock(&root->cache_lock);
+		root->ino_cache_inode = igrab(inode);
+	spin_unlock(&root->ino_cache_lock);
 
 	return inode;
 }
@@ -3176,6 +3309,7 @@ again:
 		map = NULL;
 		add_new_bitmap(ctl, info, offset);
 		bitmap_info = info;
+		info = NULL;
 	}
 
 	bytes_added = add_bytes_to_bitmap(ctl, bitmap_info, offset, bytes);
@@ -3186,6 +3320,8 @@ again:
 	if (bytes)
 		goto again;
 
+	if (info)
+		kmem_cache_free(btrfs_free_space_cachep, info);
 	if (map)
 		kfree(map);
 	return 0;
@@ -3260,6 +3396,7 @@ have_info:
 			goto have_info;
 		}
 
+		ret = 0;
 		goto out;
 	}
 

@@ -364,7 +364,7 @@ static int __init mtd_nandbiterrs_init(void)
 
 	pr_info("Device uses %d subpages of %d bytes\n", subcount, subsize);
 
-	offset     = page_offset * mtd->writesize;
+	offset     = (loff_t)page_offset * mtd->writesize;
 	eraseblock = mtd_div_by_eb(offset, mtd);
 
 	pr_info("Using page=%u, offset=%llu, eraseblock=%u\n",

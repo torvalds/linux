@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -32,5 +28,7 @@
 
 int rtl88e_init_sw_vars(struct ieee80211_hw *hw);
 void rtl88e_deinit_sw_vars(struct ieee80211_hw *hw);
+bool rtl88e_get_btc_status(void);
+
 
 #endif

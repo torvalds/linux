@@ -910,7 +910,7 @@ lstcon_batch_list(int index, int len, char *name_up)
 
 	list_for_each_entry(bat, &console_session.ses_bat_list, bat_link) {
 		if (index-- == 0) {
-			return copy_to_user(name_up,bat->bat_name, len) ?
+			return copy_to_user(name_up, bat->bat_name, len) ?
 			       -EFAULT: 0;
 		}
 	}
@@ -1977,7 +1977,7 @@ out:
 }
 
 srpc_service_t lstcon_acceptor_service;
-void lstcon_init_acceptor_service(void)
+static void lstcon_init_acceptor_service(void)
 {
 	/* initialize selftest console acceptor service table */
 	lstcon_acceptor_service.sv_name    = "join session";

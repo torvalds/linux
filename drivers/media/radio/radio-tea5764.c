@@ -124,11 +124,11 @@ struct tea5764_regs {
 
 struct tea5764_write_regs {
 	u8 intreg;				/* INTMSK */
-	u16 frqset;				/* FRQSETMSB & FRQSETLSB */
-	u16 tnctrl;				/* TNCTRL1 & TNCTRL2 */
-	u16 testreg;				/* TESTBITS & TESTMODE */
-	u16 rdsctrl;				/* RDSCTRL1 & RDSCTRL2 */
-	u16 rdsbbl;				/* PAUSEDET & RDSBBL */
+	__be16 frqset;				/* FRQSETMSB & FRQSETLSB */
+	__be16 tnctrl;				/* TNCTRL1 & TNCTRL2 */
+	__be16 testreg;				/* TESTBITS & TESTMODE */
+	__be16 rdsctrl;				/* RDSCTRL1 & RDSCTRL2 */
+	__be16 rdsbbl;				/* PAUSEDET & RDSBBL */
 } __attribute__ ((packed));
 
 #ifdef CONFIG_RADIO_TEA5764_XTAL
@@ -165,7 +165,7 @@ static int tea5764_i2c_read(struct tea5764_device *radio)
 	if (i2c_transfer(radio->i2c_client->adapter, msgs, 1) != 1)
 		return -EIO;
 	for (i = 0; i < sizeof(struct tea5764_regs) / sizeof(u16); i++)
-		p[i] = __be16_to_cpu(p[i]);
+		p[i] = __be16_to_cpu((__force __be16)p[i]);
 
 	return 0;
 }

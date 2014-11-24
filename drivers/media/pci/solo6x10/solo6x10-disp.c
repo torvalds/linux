@@ -172,7 +172,7 @@ static void solo_vout_config(struct solo_dev *solo_dev)
 static int solo_dma_vin_region(struct solo_dev *solo_dev, u32 off,
 			       u16 val, int reg_size)
 {
-	u16 *buf;
+	__le16 *buf;
 	const int n = 64, size = n * sizeof(*buf);
 	int i, ret = 0;
 
@@ -211,7 +211,7 @@ int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
 {
 	const unsigned size = sizeof(u16) * 64;
 	u32 off = SOLO_MOT_FLAG_AREA + ch * SOLO_MOT_THRESH_SIZE * 2;
-	u16 *buf;
+	__le16 *buf;
 	int x, y;
 	int ret = 0;
 

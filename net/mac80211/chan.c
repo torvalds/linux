@@ -549,12 +549,12 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 		compat = cfg80211_chandef_compatible(
 				&sdata->vif.bss_conf.chandef, compat);
-		if (!compat)
+		if (WARN_ON_ONCE(!compat))
 			break;
 	}
 	rcu_read_unlock();
 
-	if (WARN_ON_ONCE(!compat))
+	if (!compat)
 		return;
 
 	ieee80211_change_chanctx(local, ctx, compat);
@@ -637,41 +637,6 @@ out:
 						 BSS_CHANGED_IDLE);
 
 	return ret;
-}
-
-static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_chanctx_conf *conf;
-	struct ieee80211_chanctx *ctx;
-	bool use_reserved_switch = false;
-
-	lockdep_assert_held(&local->chanctx_mtx);
-
-	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
-					 lockdep_is_held(&local->chanctx_mtx));
-	if (!conf)
-		return;
-
-	ctx = container_of(conf, struct ieee80211_chanctx, conf);
-
-	if (sdata->reserved_chanctx) {
-		if (sdata->reserved_chanctx->replace_state ==
-		    IEEE80211_CHANCTX_REPLACES_OTHER &&
-		    ieee80211_chanctx_num_reserved(local,
-						   sdata->reserved_chanctx) > 1)
-			use_reserved_switch = true;
-
-		ieee80211_vif_unreserve_chanctx(sdata);
-	}
-
-	ieee80211_assign_vif_chanctx(sdata, NULL);
-	if (ieee80211_chanctx_refcount(local, ctx) == 0)
-		ieee80211_free_chanctx(local, ctx);
-
-	/* Unreserving may ready an in-place reservation. */
-	if (use_reserved_switch)
-		ieee80211_vif_use_reserved_switch(local);
 }
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
@@ -762,63 +727,6 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 	chanctx->conf.rx_chains_static = rx_chains_static;
 	chanctx->conf.rx_chains_dynamic = rx_chains_dynamic;
 	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RX_CHAINS);
-}
-
-int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
-			      const struct cfg80211_chan_def *chandef,
-			      enum ieee80211_chanctx_mode mode)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_chanctx *ctx;
-	u8 radar_detect_width = 0;
-	int ret;
-
-	lockdep_assert_held(&local->mtx);
-
-	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
-
-	mutex_lock(&local->chanctx_mtx);
-
-	ret = cfg80211_chandef_dfs_required(local->hw.wiphy,
-					    chandef,
-					    sdata->wdev.iftype);
-	if (ret < 0)
-		goto out;
-	if (ret > 0)
-		radar_detect_width = BIT(chandef->width);
-
-	sdata->radar_required = ret;
-
-	ret = ieee80211_check_combinations(sdata, chandef, mode,
-					   radar_detect_width);
-	if (ret < 0)
-		goto out;
-
-	__ieee80211_vif_release_channel(sdata);
-
-	ctx = ieee80211_find_chanctx(local, chandef, mode);
-	if (!ctx)
-		ctx = ieee80211_new_chanctx(local, chandef, mode);
-	if (IS_ERR(ctx)) {
-		ret = PTR_ERR(ctx);
-		goto out;
-	}
-
-	sdata->vif.bss_conf.chandef = *chandef;
-
-	ret = ieee80211_assign_vif_chanctx(sdata, ctx);
-	if (ret) {
-		/* if assign fails refcount stays the same */
-		if (ieee80211_chanctx_refcount(local, ctx) == 0)
-			ieee80211_free_chanctx(local, ctx);
-		goto out;
-	}
-
-	ieee80211_recalc_smps_chanctx(local, ctx);
-	ieee80211_recalc_radar_chanctx(local, ctx);
- out:
-	mutex_unlock(&local->chanctx_mtx);
-	return ret;
 }
 
 static void
@@ -1269,8 +1177,7 @@ err:
 	return err;
 }
 
-int
-ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
+static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata, *sdata_tmp;
 	struct ieee80211_chanctx *ctx, *ctx_tmp, *old_ctx;
@@ -1520,6 +1427,98 @@ err:
 	}
 
 	return err;
+}
+
+static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+	bool use_reserved_switch = false;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf)
+		return;
+
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+
+	if (sdata->reserved_chanctx) {
+		if (sdata->reserved_chanctx->replace_state ==
+		    IEEE80211_CHANCTX_REPLACES_OTHER &&
+		    ieee80211_chanctx_num_reserved(local,
+						   sdata->reserved_chanctx) > 1)
+			use_reserved_switch = true;
+
+		ieee80211_vif_unreserve_chanctx(sdata);
+	}
+
+	ieee80211_assign_vif_chanctx(sdata, NULL);
+	if (ieee80211_chanctx_refcount(local, ctx) == 0)
+		ieee80211_free_chanctx(local, ctx);
+
+	/* Unreserving may ready an in-place reservation. */
+	if (use_reserved_switch)
+		ieee80211_vif_use_reserved_switch(local);
+}
+
+int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
+			      const struct cfg80211_chan_def *chandef,
+			      enum ieee80211_chanctx_mode mode)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx *ctx;
+	u8 radar_detect_width = 0;
+	int ret;
+
+	lockdep_assert_held(&local->mtx);
+
+	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
+
+	mutex_lock(&local->chanctx_mtx);
+
+	ret = cfg80211_chandef_dfs_required(local->hw.wiphy,
+					    chandef,
+					    sdata->wdev.iftype);
+	if (ret < 0)
+		goto out;
+	if (ret > 0)
+		radar_detect_width = BIT(chandef->width);
+
+	sdata->radar_required = ret;
+
+	ret = ieee80211_check_combinations(sdata, chandef, mode,
+					   radar_detect_width);
+	if (ret < 0)
+		goto out;
+
+	__ieee80211_vif_release_channel(sdata);
+
+	ctx = ieee80211_find_chanctx(local, chandef, mode);
+	if (!ctx)
+		ctx = ieee80211_new_chanctx(local, chandef, mode);
+	if (IS_ERR(ctx)) {
+		ret = PTR_ERR(ctx);
+		goto out;
+	}
+
+	sdata->vif.bss_conf.chandef = *chandef;
+
+	ret = ieee80211_assign_vif_chanctx(sdata, ctx);
+	if (ret) {
+		/* if assign fails refcount stays the same */
+		if (ieee80211_chanctx_refcount(local, ctx) == 0)
+			ieee80211_free_chanctx(local, ctx);
+		goto out;
+	}
+
+	ieee80211_recalc_smps_chanctx(local, ctx);
+	ieee80211_recalc_radar_chanctx(local, ctx);
+ out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
 }
 
 int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata)

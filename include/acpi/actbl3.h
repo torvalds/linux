@@ -310,10 +310,15 @@ struct acpi_gtdt_timer_entry {
 	u32 common_flags;
 };
 
+/* Flag Definitions: timer_flags and virtual_timer_flags above */
+
+#define ACPI_GTDT_GT_IRQ_MODE               (1)
+#define ACPI_GTDT_GT_IRQ_POLARITY           (1<<1)
+
 /* Flag Definitions: common_flags above */
 
-#define ACPI_GTDT_GT_IS_SECURE_TIMER    (1)
-#define ACPI_GTDT_GT_ALWAYS_ON          (1<<1)
+#define ACPI_GTDT_GT_IS_SECURE_TIMER        (1)
+#define ACPI_GTDT_GT_ALWAYS_ON              (1<<1)
 
 /* 1: SBSA Generic Watchdog Structure */
 

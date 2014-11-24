@@ -1,0 +1,43 @@
+Renesas R-Car CAN controller Device Tree Bindings
+-------------------------------------------------
+
+Required properties:
+- compatible: "renesas,can-r8a7778" if CAN controller is a part of R8A7778 SoC.
+	      "renesas,can-r8a7779" if CAN controller is a part of R8A7779 SoC.
+	      "renesas,can-r8a7790" if CAN controller is a part of R8A7790 SoC.
+	      "renesas,can-r8a7791" if CAN controller is a part of R8A7791 SoC.
+- reg: physical base address and size of the R-Car CAN register map.
+- interrupts: interrupt specifier for the sole interrupt.
+- clocks: phandles and clock specifiers for 3 CAN clock inputs.
+- clock-names: 3 clock input name strings: "clkp1", "clkp2", "can_clk".
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-names: must be "default".
+
+Optional properties:
+- renesas,can-clock-select: R-Car CAN Clock Source Select. Valid values are:
+			    <0x0> (default) : Peripheral clock (clkp1)
+			    <0x1> : Peripheral clock (clkp2)
+			    <0x3> : Externally input clock
+
+Example
+-------
+
+SoC common .dtsi file:
+
+	can0: can@e6e80000 {
+		compatible = "renesas,can-r8a7791";
+		reg = <0 0xe6e80000 0 0x1000>;
+		interrupts = <0 186 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp9_clks R8A7791_CLK_RCAN0>,
+			 <&cpg_clocks R8A7791_CLK_RCAN>, <&can_clk>;
+		clock-names = "clkp1", "clkp2", "can_clk";
+		status = "disabled";
+	};
+
+Board specific .dts file:
+
+&can0 {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};

@@ -644,6 +644,12 @@ struct bcma_drv_cc {
 #endif
 };
 
+struct bcma_drv_cc_b {
+	struct bcma_device *core;
+	u8 setup_done:1;
+	void __iomem *mii;
+};
+
 /* Register access */
 #define bcma_cc_read32(cc, offset) \
 	bcma_read32((cc)->core, offset)
@@ -698,5 +704,7 @@ extern void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc,
 extern void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid);
 
 extern u32 bcma_pmu_get_bus_clock(struct bcma_drv_cc *cc);
+
+void bcma_chipco_b_mii_write(struct bcma_drv_cc_b *ccb, u32 offset, u32 value);
 
 #endif /* LINUX_BCMA_DRIVER_CC_H_ */

@@ -89,6 +89,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/hid.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
@@ -143,4 +144,9 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 				   struct wacom_wac *wacom_wac);
 int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 				       struct wacom_wac *wacom_wac);
+void wacom_wac_usage_mapping(struct hid_device *hdev,
+		struct hid_field *field, struct hid_usage *usage);
+int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
+		struct hid_usage *usage, __s32 value);
+void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 #endif

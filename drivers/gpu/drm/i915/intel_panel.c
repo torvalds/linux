@@ -419,9 +419,8 @@ static uint32_t scale(uint32_t source_val,
 	source_val = clamp(source_val, source_min, source_max);
 
 	/* avoid overflows */
-	target_val = (uint64_t)(source_val - source_min) *
-		(target_max - target_min);
-	do_div(target_val, source_max - source_min);
+	target_val = DIV_ROUND_CLOSEST_ULL((uint64_t)(source_val - source_min) *
+			(target_max - target_min), source_max - source_min);
 	target_val += target_min;
 
 	return target_val;
@@ -751,6 +750,8 @@ void intel_panel_disable_backlight(struct intel_connector *connector)
 
 	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 
+	if (panel->backlight.device)
+		panel->backlight.device->props.power = FB_BLANK_POWERDOWN;
 	panel->backlight.enabled = false;
 	dev_priv->display.disable_backlight(connector);
 
@@ -957,6 +958,8 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 
 	dev_priv->display.enable_backlight(connector);
 	panel->backlight.enabled = true;
+	if (panel->backlight.device)
+		panel->backlight.device->props.power = FB_BLANK_UNBLANK;
 
 	spin_unlock_irqrestore(&dev_priv->backlight_lock, flags);
 }
@@ -965,6 +968,7 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 static int intel_backlight_device_update_status(struct backlight_device *bd)
 {
 	struct intel_connector *connector = bl_get_data(bd);
+	struct intel_panel *panel = &connector->panel;
 	struct drm_device *dev = connector->base.dev;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
@@ -972,6 +976,23 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 		      bd->props.brightness, bd->props.max_brightness);
 	intel_panel_set_backlight(connector, bd->props.brightness,
 				  bd->props.max_brightness);
+
+	/*
+	 * Allow flipping bl_power as a sub-state of enabled. Sadly the
+	 * backlight class device does not make it easy to to differentiate
+	 * between callbacks for brightness and bl_power, so our backlight_power
+	 * callback needs to take this into account.
+	 */
+	if (panel->backlight.enabled) {
+		if (panel->backlight_power) {
+			bool enable = bd->props.power == FB_BLANK_UNBLANK &&
+				bd->props.brightness != 0;
+			panel->backlight_power(connector, enable);
+		}
+	} else {
+		bd->props.power = FB_BLANK_POWERDOWN;
+	}
+
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 	return 0;
 }
@@ -1023,6 +1044,11 @@ static int intel_backlight_device_register(struct intel_connector *connector)
 					    panel->backlight.level,
 					    props.max_brightness);
 
+	if (panel->backlight.enabled)
+		props.power = FB_BLANK_UNBLANK;
+	else
+		props.power = FB_BLANK_POWERDOWN;
+
 	/*
 	 * Note: using the same name independent of the connector prevents
 	 * registration of multiple backlight devices in the driver.
@@ -1072,12 +1098,25 @@ static u32 get_backlight_min_vbt(struct intel_connector *connector)
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
+	int min;
 
 	WARN_ON(panel->backlight.max == 0);
 
+	/*
+	 * XXX: If the vbt value is 255, it makes min equal to max, which leads
+	 * to problems. There are such machines out there. Either our
+	 * interpretation is wrong or the vbt has bogus data. Or both. Safeguard
+	 * against this by letting the minimum be at most (arbitrarily chosen)
+	 * 25% of the max.
+	 */
+	min = clamp_t(int, dev_priv->vbt.backlight.min_brightness, 0, 64);
+	if (min != dev_priv->vbt.backlight.min_brightness) {
+		DRM_DEBUG_KMS("clamping VBT min backlight %d/255 to %d/255\n",
+			      dev_priv->vbt.backlight.min_brightness, min);
+	}
+
 	/* vbt value is a coefficient in range [0..255] */
-	return scale(dev_priv->vbt.backlight.min_brightness, 0, 255,
-		     0, panel->backlight.max);
+	return scale(min, 0, 255, 0, panel->backlight.max);
 }
 
 static int bdw_setup_backlight(struct intel_connector *connector)
@@ -1203,7 +1242,7 @@ static int vlv_setup_backlight(struct intel_connector *connector)
 	enum pipe pipe;
 	u32 ctl, ctl2, val;
 
-	for_each_pipe(pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		u32 cur_val = I915_READ(VLV_BLC_PWM_CTL(pipe));
 
 		/* Skip if the modulation freq is already set */

@@ -103,6 +103,10 @@ EBU Armada family
     NOTE: not to be confused with the non-SMP 78xx0 SoCs
     Product Brief: http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
     Functional Spec: http://www.marvell.com/embedded-processors/armada-xp/assets/ARMADA-XP-Functional-SpecDatasheet.pdf
+    Hardware Specs:
+      http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78230_OS.PDF
+      http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78260_OS.PDF
+      http://www.marvell.com/embedded-processors/armada-xp/assets/HW_MV78460_OS.PDF
 
   Core: Sheeva ARMv7 compatible
 

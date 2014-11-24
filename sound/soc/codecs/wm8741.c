@@ -413,7 +413,6 @@ static int wm8741_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 #else
-#define wm8741_suspend NULL
 #define wm8741_resume NULL
 #endif
 

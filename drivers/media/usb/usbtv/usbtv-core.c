@@ -1,5 +1,5 @@
 /*
- * Fushicai USBTV007 Video Grabber Driver
+ * Fushicai USBTV007 Audio-Video Grabber Driver
  *
  * Product web site:
  * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
@@ -84,11 +84,18 @@ static int usbtv_probe(struct usb_interface *intf,
 	if (ret < 0)
 		goto usbtv_video_fail;
 
+	ret = usbtv_audio_init(usbtv);
+	if (ret < 0)
+		goto usbtv_audio_fail;
+
 	/* for simplicity we exploit the v4l2_device reference counting */
 	v4l2_device_get(&usbtv->v4l2_dev);
 
-	dev_info(dev, "Fushicai USBTV007 Video Grabber\n");
+	dev_info(dev, "Fushicai USBTV007 Audio-Video Grabber\n");
 	return 0;
+
+usbtv_audio_fail:
+	usbtv_video_free(usbtv);
 
 usbtv_video_fail:
 	usb_set_intfdata(intf, NULL);
@@ -101,11 +108,13 @@ usbtv_video_fail:
 static void usbtv_disconnect(struct usb_interface *intf)
 {
 	struct usbtv *usbtv = usb_get_intfdata(intf);
+
 	usb_set_intfdata(intf, NULL);
 
 	if (!usbtv)
 		return;
 
+	usbtv_audio_free(usbtv);
 	usbtv_video_free(usbtv);
 
 	usb_put_dev(usbtv->udev);
@@ -122,8 +131,8 @@ static struct usb_device_id usbtv_id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, usbtv_id_table);
 
-MODULE_AUTHOR("Lubomir Rintel");
-MODULE_DESCRIPTION("Fushicai USBTV007 Video Grabber Driver");
+MODULE_AUTHOR("Lubomir Rintel, Federico Simoncelli");
+MODULE_DESCRIPTION("Fushicai USBTV007 Audio-Video Grabber Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 static struct usb_driver usbtv_usb_driver = {

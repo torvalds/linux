@@ -83,7 +83,7 @@
 	};
 
 	pmic@58 {
-		compatible = "dialog,da9063";
+		compatible = "dlg,da9063";
 		reg = <0x58>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <17 0x8>; /* active-low GPIO4_17 */

@@ -1,8 +1,9 @@
 config DRM_UDL
 	tristate "DisplayLink"
 	depends on DRM
+	depends on USB_SUPPORT
 	depends on USB_ARCH_HAS_HCD
-	select DRM_USB
+	select USB
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT

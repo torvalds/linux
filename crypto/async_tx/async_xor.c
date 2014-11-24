@@ -78,8 +78,6 @@ do_async_xor(struct dma_chan *chan, struct dmaengine_unmap_data *unmap,
 		tx = dma->device_prep_dma_xor(chan, dma_dest, src_list,
 					      xor_src_cnt, unmap->len,
 					      dma_flags);
-		src_list[0] = tmp;
-
 
 		if (unlikely(!tx))
 			async_tx_quiesce(&submit->depend_tx);
@@ -92,6 +90,7 @@ do_async_xor(struct dma_chan *chan, struct dmaengine_unmap_data *unmap,
 						      xor_src_cnt, unmap->len,
 						      dma_flags);
 		}
+		src_list[0] = tmp;
 
 		dma_set_unmap(tx, unmap);
 		async_tx_submit(chan, tx, submit);

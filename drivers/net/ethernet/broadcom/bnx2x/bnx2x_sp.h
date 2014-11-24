@@ -711,6 +711,7 @@ enum {
 	BNX2X_RSS_IPV6,
 	BNX2X_RSS_IPV6_TCP,
 	BNX2X_RSS_IPV6_UDP,
+	BNX2X_RSS_GRE_INNER_HDRS,
 };
 
 struct bnx2x_config_rss_params {
@@ -769,7 +770,9 @@ enum {
 	BNX2X_Q_UPDATE_SILENT_VLAN_REM_CHNG,
 	BNX2X_Q_UPDATE_SILENT_VLAN_REM,
 	BNX2X_Q_UPDATE_TX_SWITCHING_CHNG,
-	BNX2X_Q_UPDATE_TX_SWITCHING
+	BNX2X_Q_UPDATE_TX_SWITCHING,
+	BNX2X_Q_UPDATE_PTP_PKTS_CHNG,
+	BNX2X_Q_UPDATE_PTP_PKTS,
 };
 
 /* Allowed Queue states */
@@ -831,6 +834,7 @@ enum {
 	BNX2X_Q_FLG_ANTI_SPOOF,
 	BNX2X_Q_FLG_SILENT_VLAN_REM,
 	BNX2X_Q_FLG_FORCE_DEFAULT_PRI,
+	BNX2X_Q_FLG_REFUSE_OUTBAND_VLAN,
 	BNX2X_Q_FLG_PCSUM_ON_PKT,
 	BNX2X_Q_FLG_TUN_INC_INNER_IP_ID
 };
@@ -851,6 +855,10 @@ enum bnx2x_q_type {
 #define BNX2X_MULTI_TX_COS			3 /* Maximum possible */
 
 #define MAC_PAD (ALIGN(ETH_ALEN, sizeof(u32)) - ETH_ALEN)
+/* DMAE channel to be used by FW for timesync workaroun. A driver that sends
+ * timesync-related ramrods must not use this DMAE command ID.
+ */
+#define FW_DMAE_CMD_ID 6
 
 struct bnx2x_queue_init_params {
 	struct {
@@ -1085,6 +1093,20 @@ struct bnx2x_queue_sp_obj {
 };
 
 /********************** Function state update *********************************/
+
+/* UPDATE command options */
+enum {
+	BNX2X_F_UPDATE_TX_SWITCH_SUSPEND_CHNG,
+	BNX2X_F_UPDATE_TX_SWITCH_SUSPEND,
+	BNX2X_F_UPDATE_SD_VLAN_TAG_CHNG,
+	BNX2X_F_UPDATE_SD_VLAN_ETH_TYPE_CHNG,
+	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_CHNG,
+	BNX2X_F_UPDATE_VLAN_FORCE_PRIO_FLAG,
+	BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
+	BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
+	BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
+};
+
 /* Allowed Function states */
 enum bnx2x_func_state {
 	BNX2X_F_STATE_RESET,
@@ -1105,6 +1127,7 @@ enum bnx2x_func_cmd {
 	BNX2X_F_CMD_TX_STOP,
 	BNX2X_F_CMD_TX_START,
 	BNX2X_F_CMD_SWITCH_UPDATE,
+	BNX2X_F_CMD_SET_TIMESYNC,
 	BNX2X_F_CMD_MAX,
 };
 
@@ -1146,18 +1169,44 @@ struct bnx2x_func_start_params {
 	/* Function cos mode */
 	u8 network_cos_mode;
 
-	/* NVGRE classification enablement */
-	u8 nvgre_clss_en;
+	/* TUNN_MODE_NONE/TUNN_MODE_VXLAN/TUNN_MODE_GRE */
+	u8 tunnel_mode;
 
-	/* NO_GRE_TUNNEL/NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
-	u8 gre_tunnel_mode;
+	/* tunneling classification enablement */
+	u8 tunn_clss_en;
 
-	/* GRE_OUTER_HEADERS_RSS/GRE_INNER_HEADERS_RSS/NVGRE_KEY_ENTROPY_RSS */
-	u8 gre_tunnel_rss;
+	/* NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
+	u8 gre_tunnel_type;
+
+	/* Enables Inner GRE RSS on the function, depends on the client RSS
+	 * capailities
+	 */
+	u8 inner_gre_rss_en;
+
+	/* Allows accepting of packets failing MF classification, possibly
+	 * only matching a given ethertype
+	 */
+	u8 class_fail;
+	u16 class_fail_ethtype;
+
+	/* Override priority of output packets */
+	u8 sd_vlan_force_pri;
+	u8 sd_vlan_force_pri_val;
+
+	/* Replace vlan's ethertype */
+	u16 sd_vlan_eth_type;
+
+	/* Prevent inner vlans from being added by FW */
+	u8 no_added_tags;
 };
 
 struct bnx2x_func_switch_update_params {
-	u8 suspend;
+	unsigned long changes; /* BNX2X_F_UPDATE_XX bits */
+	u16 vlan;
+	u16 vlan_eth_type;
+	u8 vlan_force_prio;
+	u8 tunnel_mode;
+	u8 gre_tunnel_type;
 };
 
 struct bnx2x_func_afex_update_params {
@@ -1172,11 +1221,30 @@ struct bnx2x_func_afex_viflists_params {
 	u8 afex_vif_list_command;
 	u8 func_to_clear;
 };
+
 struct bnx2x_func_tx_start_params {
 	struct priority_cos traffic_type_to_priority_cos[MAX_TRAFFIC_TYPES];
 	u8 dcb_enabled;
 	u8 dcb_version;
 	u8 dont_add_pri_0_en;
+};
+
+struct bnx2x_func_set_timesync_params {
+	/* Reset, set or keep the current drift value */
+	u8 drift_adjust_cmd;
+
+	/* Dec, inc or keep the current offset */
+	u8 offset_cmd;
+
+	/* Drift value direction */
+	u8 add_sub_drift_adjust_value;
+
+	/* Drift, period and offset values to be used according to the commands
+	 * above.
+	 */
+	u8 drift_adjust_value;
+	u32 drift_adjust_period;
+	u64 offset_delta;
 };
 
 struct bnx2x_func_state_params {
@@ -1197,6 +1265,7 @@ struct bnx2x_func_state_params {
 		struct bnx2x_func_afex_update_params afex_update;
 		struct bnx2x_func_afex_viflists_params afex_viflists;
 		struct bnx2x_func_tx_start_params tx_start;
+		struct bnx2x_func_set_timesync_params set_timesync;
 	} params;
 };
 

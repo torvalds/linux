@@ -192,11 +192,12 @@ visorchipset_ioctl(struct inode *inode, struct file *file,
 	int rc = SUCCESS;
 	s64 adjustment;
 	s64 vrtc_offset;
+
 	DBGINF("entered visorchipset_ioctl, cmd=%d", cmd);
 	switch (cmd) {
 	case VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET:
 		/* get the physical rtc offset */
-		vrtc_offset = Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET();
+		vrtc_offset = issue_vmcall_query_guest_virtual_time_offset();
 		if (copy_to_user
 		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset))) {
 			rc = -EFAULT;
@@ -213,7 +214,7 @@ visorchipset_ioctl(struct inode *inode, struct file *file,
 		}
 		DBGINF("insde visorchipset_ioctl, cmd=%d, adjustment=%lld", cmd,
 		       adjustment);
-		rc = Issue_VMCALL_UPDATE_PHYSICAL_TIME(adjustment);
+		rc = issue_vmcall_update_physical_time(adjustment);
 		break;
 	default:
 		LOGERR("visorchipset_ioctl received invalid command");

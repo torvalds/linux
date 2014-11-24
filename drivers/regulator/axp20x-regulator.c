@@ -245,7 +245,7 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < AXP20X_REG_ID_MAX; i++) {
 		init_data = axp20x_matches[i].init_data;
 
-		config.dev = &pdev->dev;
+		config.dev = pdev->dev.parent;
 		config.init_data = init_data;
 		config.regmap = axp20x->regmap;
 		config.of_node = axp20x_matches[i].of_node;

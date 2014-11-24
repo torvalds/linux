@@ -9,14 +9,6 @@
 	compatible = "nvidia,tegra30";
 	interrupt-parent = <&intc>;
 
-	aliases {
-		serial0 = &uarta;
-		serial1 = &uartb;
-		serial2 = &uartc;
-		serial3 = &uartd;
-		serial4 = &uarte;
-	};
-
 	pcie-controller@00003000 {
 		compatible = "nvidia,tegra30-pcie";
 		device_type = "pci";
@@ -270,6 +262,11 @@
 		reg = <0x60006000 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	flow-controller@60007000 {
+		compatible = "nvidia,tegra30-flowctrl";
+		reg = <0x60007000 0x1000>;
 	};
 
 	apbdma: dma@6000a000 {

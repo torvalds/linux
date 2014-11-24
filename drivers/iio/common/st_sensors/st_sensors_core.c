@@ -306,8 +306,11 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	if (of_pdata)
 		pdata = of_pdata;
 
-	if (pdata)
+	if (pdata) {
 		err = st_sensors_set_drdy_int_pin(indio_dev, pdata);
+		if (err < 0)
+			return err;
+	}
 
 	err = st_sensors_set_enable(indio_dev, false);
 	if (err < 0)

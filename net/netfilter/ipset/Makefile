@@ -18,6 +18,7 @@ obj-$(CONFIG_IP_SET_HASH_IPMARK) += ip_set_hash_ipmark.o
 obj-$(CONFIG_IP_SET_HASH_IPPORT) += ip_set_hash_ipport.o
 obj-$(CONFIG_IP_SET_HASH_IPPORTIP) += ip_set_hash_ipportip.o
 obj-$(CONFIG_IP_SET_HASH_IPPORTNET) += ip_set_hash_ipportnet.o
+obj-$(CONFIG_IP_SET_HASH_MAC) += ip_set_hash_mac.o
 obj-$(CONFIG_IP_SET_HASH_NET) += ip_set_hash_net.o
 obj-$(CONFIG_IP_SET_HASH_NETPORT) += ip_set_hash_netport.o
 obj-$(CONFIG_IP_SET_HASH_NETIFACE) += ip_set_hash_netiface.o

@@ -61,9 +61,9 @@ static void print_llogd_body(struct llogd_body *d)
 
 void lustre_swab_lu_fid(struct lu_fid *fid)
 {
-	__swab64s (&fid->f_seq);
-	__swab32s (&fid->f_oid);
-	__swab32s (&fid->f_ver);
+	__swab64s(&fid->f_seq);
+	__swab32s(&fid->f_oid);
+	__swab32s(&fid->f_ver);
 }
 EXPORT_SYMBOL(lustre_swab_lu_fid);
 
@@ -82,47 +82,47 @@ void lustre_swab_llog_id(struct llog_logid *log_id)
 {
 	__swab64s(&log_id->lgl_oi.oi.oi_id);
 	__swab64s(&log_id->lgl_oi.oi.oi_seq);
-        __swab32s(&log_id->lgl_ogen);
+	__swab32s(&log_id->lgl_ogen);
 }
 EXPORT_SYMBOL(lustre_swab_llog_id);
 
-void lustre_swab_llogd_body (struct llogd_body *d)
+void lustre_swab_llogd_body(struct llogd_body *d)
 {
 	print_llogd_body(d);
 	lustre_swab_llog_id(&d->lgd_logid);
-	__swab32s (&d->lgd_ctxt_idx);
-	__swab32s (&d->lgd_llh_flags);
-	__swab32s (&d->lgd_index);
-	__swab32s (&d->lgd_saved_index);
-	__swab32s (&d->lgd_len);
-	__swab64s (&d->lgd_cur_offset);
+	__swab32s(&d->lgd_ctxt_idx);
+	__swab32s(&d->lgd_llh_flags);
+	__swab32s(&d->lgd_index);
+	__swab32s(&d->lgd_saved_index);
+	__swab32s(&d->lgd_len);
+	__swab64s(&d->lgd_cur_offset);
 	print_llogd_body(d);
 }
 EXPORT_SYMBOL(lustre_swab_llogd_body);
 
-void lustre_swab_llogd_conn_body (struct llogd_conn_body *d)
+void lustre_swab_llogd_conn_body(struct llogd_conn_body *d)
 {
-	__swab64s (&d->lgdc_gen.mnt_cnt);
-	__swab64s (&d->lgdc_gen.conn_cnt);
+	__swab64s(&d->lgdc_gen.mnt_cnt);
+	__swab64s(&d->lgdc_gen.conn_cnt);
 	lustre_swab_llog_id(&d->lgdc_logid);
-	__swab32s (&d->lgdc_ctxt_idx);
+	__swab32s(&d->lgdc_ctxt_idx);
 }
 EXPORT_SYMBOL(lustre_swab_llogd_conn_body);
 
 void lustre_swab_ll_fid(struct ll_fid *fid)
 {
-	__swab64s (&fid->id);
-	__swab32s (&fid->generation);
-	__swab32s (&fid->f_type);
+	__swab64s(&fid->id);
+	__swab32s(&fid->generation);
+	__swab32s(&fid->f_type);
 }
 EXPORT_SYMBOL(lustre_swab_ll_fid);
 
 void lustre_swab_lu_seq_range(struct lu_seq_range *range)
 {
-	__swab64s (&range->lsr_start);
-	__swab64s (&range->lsr_end);
-	__swab32s (&range->lsr_index);
-	__swab32s (&range->lsr_flags);
+	__swab64s(&range->lsr_start);
+	__swab64s(&range->lsr_end);
+	__swab32s(&range->lsr_index);
+	__swab32s(&range->lsr_flags);
 }
 EXPORT_SYMBOL(lustre_swab_lu_seq_range);
 
@@ -168,7 +168,7 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 	}
 	case CHANGELOG_REC:
 	{
-		struct llog_changelog_rec *cr = (struct llog_changelog_rec*)rec;
+		struct llog_changelog_rec *cr = (struct llog_changelog_rec *)rec;
 
 		__swab16s(&cr->cr.cr_namelen);
 		__swab16s(&cr->cr.cr_flags);
@@ -193,7 +193,7 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 	case CHANGELOG_USER_REC:
 	{
 		struct llog_changelog_user_rec *cur =
-			(struct llog_changelog_user_rec*)rec;
+			(struct llog_changelog_user_rec *)rec;
 
 		__swab32s(&cur->cur_id);
 		__swab64s(&cur->cur_endrec);
@@ -294,7 +294,7 @@ static void print_llog_hdr(struct llog_log_hdr *h)
 	CDEBUG(D_OTHER, "\tllh_tail.lrt_len: %#x\n", h->llh_tail.lrt_len);
 }
 
-void lustre_swab_llog_hdr (struct llog_log_hdr *h)
+void lustre_swab_llog_hdr(struct llog_log_hdr *h)
 {
 	print_llog_hdr(h);
 
@@ -367,7 +367,7 @@ struct cfg_marker32 {
 
 void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 {
-	struct cfg_marker32 *cm32 = (struct cfg_marker32*)marker;
+	struct cfg_marker32 *cm32 = (struct cfg_marker32 *)marker;
 
 	if (swab) {
 		__swab32s(&marker->cm_step);

@@ -619,8 +619,8 @@ static struct pinctrl_ops adi_pctrl_ops = {
 	.get_group_pins = adi_get_group_pins,
 };
 
-static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned func_id,
-	unsigned group_id)
+static int adi_pinmux_set(struct pinctrl_dev *pctldev, unsigned func_id,
+			  unsigned group_id)
 {
 	struct adi_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct gpio_port *port;
@@ -698,7 +698,7 @@ static int adi_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 }
 
 static struct pinmux_ops adi_pinmux_ops = {
-	.enable = adi_pinmux_enable,
+	.set_mux = adi_pinmux_set,
 	.get_functions_count = adi_pinmux_get_funcs_count,
 	.get_function_name = adi_pinmux_get_func_name,
 	.get_function_groups = adi_pinmux_get_groups,
@@ -1041,7 +1041,6 @@ static int adi_gpio_remove(struct platform_device *pdev)
 	u8 offset;
 
 	list_del(&port->node);
-	gpiochip_remove_pin_ranges(&port->chip);
 	gpiochip_remove(&port->chip);
 	if (port->pint) {
 		for (offset = 0; offset < port->width; offset++)

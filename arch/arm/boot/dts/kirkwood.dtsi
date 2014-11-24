@@ -309,7 +309,7 @@
 			marvell,tx-checksum-limit = <1600>;
 			status = "disabled";
 
-			ethernet0-port@0 {
+			eth0port: ethernet0-port@0 {
 				compatible = "marvell,kirkwood-eth-port";
 				reg = <0>;
 				interrupts = <11>;
@@ -342,7 +342,7 @@
 			pinctrl-names = "default";
 			status = "disabled";
 
-			ethernet1-port@0 {
+			eth1port: ethernet1-port@0 {
 				compatible = "marvell,kirkwood-eth-port";
 				reg = <0>;
 				interrupts = <15>;

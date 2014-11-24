@@ -36,6 +36,7 @@ MODULE_VERSION("1.0");
 struct goldfish_audio {
 	char __iomem *reg_base;
 	int irq;
+	/* lock protects access to buffer_status and to device registers */
 	spinlock_t lock;
 	wait_queue_head_t wait;
 
@@ -108,12 +109,10 @@ enum {
 					  AUDIO_INT_READ_BUFFER_FULL,
 };
 
-
 static atomic_t open_count = ATOMIC_INIT(0);
 
-
 static ssize_t goldfish_audio_read(struct file *fp, char __user *buf,
-						size_t count, loff_t *pos)
+				   size_t count, loff_t *pos)
 {
 	struct goldfish_audio *data = fp->private_data;
 	int length;
@@ -126,11 +125,10 @@ static ssize_t goldfish_audio_read(struct file *fp, char __user *buf,
 		length = (count > READ_BUFFER_SIZE ? READ_BUFFER_SIZE : count);
 		AUDIO_WRITE(data, AUDIO_START_READ, length);
 
-		wait_event_interruptible(data->wait,
-			(data->buffer_status & AUDIO_INT_READ_BUFFER_FULL));
+		wait_event_interruptible(data->wait, (data->buffer_status &
+					 AUDIO_INT_READ_BUFFER_FULL));
 
-		length = AUDIO_READ(data,
-						AUDIO_READ_BUFFER_AVAILABLE);
+		length = AUDIO_READ(data, AUDIO_READ_BUFFER_AVAILABLE);
 
 		/* copy data to user space */
 		if (copy_to_user(buf, data->read_buffer, length))
@@ -144,7 +142,7 @@ static ssize_t goldfish_audio_read(struct file *fp, char __user *buf,
 }
 
 static ssize_t goldfish_audio_write(struct file *fp, const char __user *buf,
-						 size_t count, loff_t *pos)
+				    size_t count, loff_t *pos)
 {
 	struct goldfish_audio *data = fp->private_data;
 	unsigned long irq_flags;
@@ -218,7 +216,7 @@ static int goldfish_audio_release(struct inode *ip, struct file *fp)
 }
 
 static long goldfish_audio_ioctl(struct file *fp, unsigned int cmd,
-							unsigned long arg)
+				 unsigned long arg)
 {
 	/* temporary workaround, until we switch to the ALSA API */
 	if (cmd == 315)
@@ -307,7 +305,7 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	data->read_buffer = data->buffer_virt + 2 * WRITE_BUFFER_SIZE;
 
 	ret = devm_request_irq(&pdev->dev, data->irq, goldfish_audio_interrupt,
-					IRQF_SHARED, pdev->name, data);
+			       IRQF_SHARED, pdev->name, data);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
 		return ret;
@@ -322,18 +320,18 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	}
 
 	AUDIO_WRITE64(data, AUDIO_SET_WRITE_BUFFER_1,
-				AUDIO_SET_WRITE_BUFFER_1_HIGH, buf_addr);
+		      AUDIO_SET_WRITE_BUFFER_1_HIGH, buf_addr);
 	buf_addr += WRITE_BUFFER_SIZE;
 
 	AUDIO_WRITE64(data, AUDIO_SET_WRITE_BUFFER_2,
-				AUDIO_SET_WRITE_BUFFER_2_HIGH, buf_addr);
+		      AUDIO_SET_WRITE_BUFFER_2_HIGH, buf_addr);
 
 	buf_addr += WRITE_BUFFER_SIZE;
 
 	data->read_supported = AUDIO_READ(data, AUDIO_READ_SUPPORTED);
 	if (data->read_supported)
 		AUDIO_WRITE64(data, AUDIO_SET_READ_BUFFER,
-				AUDIO_SET_READ_BUFFER_HIGH, buf_addr);
+			      AUDIO_SET_READ_BUFFER_HIGH, buf_addr);
 
 	audio_data = data;
 	return 0;

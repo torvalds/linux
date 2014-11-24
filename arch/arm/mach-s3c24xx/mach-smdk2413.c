@@ -138,7 +138,6 @@ MACHINE_START(S3C2413, "S3C2413")
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
 	.init_time	= samsung_timer_init,
-	.restart	= s3c2412_restart,
 MACHINE_END
 
 MACHINE_START(SMDK2412, "SMDK2412")
@@ -150,7 +149,6 @@ MACHINE_START(SMDK2412, "SMDK2412")
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
 	.init_time	= samsung_timer_init,
-	.restart	= s3c2412_restart,
 MACHINE_END
 
 MACHINE_START(SMDK2413, "SMDK2413")
@@ -162,5 +160,4 @@ MACHINE_START(SMDK2413, "SMDK2413")
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
 	.init_time	= smdk2413_init_time,
-	.restart	= s3c2412_restart,
 MACHINE_END

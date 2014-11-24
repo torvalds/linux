@@ -23,6 +23,7 @@ struct gfs2_diradd {
 	unsigned nr_blocks;
 	struct gfs2_dirent *dent;
 	struct buffer_head *bh;
+	int save_loc;
 };
 
 extern struct inode *gfs2_dir_search(struct inode *dir,

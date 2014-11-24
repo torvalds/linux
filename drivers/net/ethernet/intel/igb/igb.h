@@ -403,7 +403,6 @@ struct igb_adapter {
 	struct e1000_hw hw;
 	struct e1000_hw_stats stats;
 	struct e1000_phy_info phy_info;
-	struct e1000_phy_stats phy_stats;
 
 	u32 test_icr;
 	struct igb_ring test_tx_ring;

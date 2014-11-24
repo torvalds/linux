@@ -73,8 +73,6 @@
 #include "mac.h"
 
 unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester
-/*---------------------  Static Definitions -------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
@@ -837,7 +835,7 @@ bool MACbSafeRxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x10);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x10)\n");
+		pr_debug(" DBG_PORT80(0x10)\n");
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -847,7 +845,7 @@ bool MACbSafeRxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x11);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x11)\n");
+		pr_debug(" DBG_PORT80(0x11)\n");
 		return false;
 	}
 
@@ -861,7 +859,7 @@ bool MACbSafeRxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x12);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x12)\n");
+		pr_debug(" DBG_PORT80(0x12)\n");
 		return false;
 	}
 	return true;
@@ -899,7 +897,7 @@ bool MACbSafeTxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x20);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x20)\n");
+		pr_debug(" DBG_PORT80(0x20)\n");
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -909,7 +907,7 @@ bool MACbSafeTxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x21);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x21)\n");
+		pr_debug(" DBG_PORT80(0x21)\n");
 		return false;
 	}
 
@@ -924,7 +922,7 @@ bool MACbSafeTxOff(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x24);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x24)\n");
+		pr_debug(" DBG_PORT80(0x24)\n");
 		return false;
 	}
 	return true;
@@ -949,13 +947,13 @@ bool MACbSafeStop(void __iomem *dwIoBase)
 
 	if (!MACbSafeRxOff(dwIoBase)) {
 		DBG_PORT80(0xA1);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " MACbSafeRxOff == false)\n");
+		pr_debug(" MACbSafeRxOff == false)\n");
 		MACbSafeSoftwareReset(dwIoBase);
 		return false;
 	}
 	if (!MACbSafeTxOff(dwIoBase)) {
 		DBG_PORT80(0xA2);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " MACbSafeTxOff == false)\n");
+		pr_debug(" MACbSafeTxOff == false)\n");
 		MACbSafeSoftwareReset(dwIoBase);
 		return false;
 	}
@@ -1172,7 +1170,7 @@ void MACvSetCurrAC0DescAddrEx(void __iomem *dwIoBase, unsigned long dwCurrDescAd
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x26);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x26)\n");
+		pr_debug(" DBG_PORT80(0x26)\n");
 	}
 	VNSvOutPortD(dwIoBase + MAC_REG_AC0DMAPTR, dwCurrDescAddr);
 	if (byOrgDMACtl & DMACTL_RUN)
@@ -1295,7 +1293,7 @@ bool MACbTxDMAOff(void __iomem *dwIoBase, unsigned int idx)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x29);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x29)\n");
+		pr_debug(" DBG_PORT80(0x29)\n");
 		return false;
 	}
 	return true;
@@ -1319,7 +1317,7 @@ void MACvClearBusSusInd(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x33);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x33)\n");
+		pr_debug(" DBG_PORT80(0x33)\n");
 	}
 }
 
@@ -1341,7 +1339,7 @@ void MACvEnableBusSusEn(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x34);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x34)\n");
+		pr_debug(" DBG_PORT80(0x34)\n");
 	}
 }
 
@@ -1364,7 +1362,7 @@ bool MACbFlushSYNCFifo(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x35);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x33)\n");
+		pr_debug(" DBG_PORT80(0x33)\n");
 	}
 	return true;
 }
@@ -1388,7 +1386,7 @@ bool MACbPSWakeup(void __iomem *dwIoBase)
 	}
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x36);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x33)\n");
+		pr_debug(" DBG_PORT80(0x33)\n");
 		return false;
 	}
 	return true;
@@ -1419,7 +1417,7 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	if (byLocalID <= 1)
 		return;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetKeyEntry\n");
+	pr_debug("MACvSetKeyEntry\n");
 	wOffset = MISCFIFO_KEYETRY0;
 	wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
@@ -1427,7 +1425,8 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	dwData |= wKeyCtl;
 	dwData <<= 16;
 	dwData |= MAKEWORD(*(pbyAddr+4), *(pbyAddr+5));
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "1. wOffset: %d, Data: %X, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
+	pr_debug("1. wOffset: %d, Data: %X, KeyCtl:%X\n",
+		 wOffset, dwData, wKeyCtl);
 
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
@@ -1442,7 +1441,7 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	dwData |= *(pbyAddr+1);
 	dwData <<= 8;
 	dwData |= *(pbyAddr+0);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "2. wOffset: %d, Data: %X\n", wOffset, dwData);
+	pr_debug("2. wOffset: %d, Data: %X\n", wOffset, dwData);
 
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
@@ -1452,7 +1451,8 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 	wOffset += (uKeyIdx * 4);
 	for (ii = 0; ii < 4; ii++) {
 		// always push 128 bits
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "3.(%d) wOffset: %d, Data: %X\n", ii, wOffset+ii, *pdwKey);
+		pr_debug("3.(%d) wOffset: %d, Data: %X\n",
+			 ii, wOffset+ii, *pdwKey);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
 		VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
@@ -1510,7 +1510,7 @@ void MACvSetDefaultKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
 	if (byLocalID <= 1)
 		return;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetDefaultKeyEntry\n");
+	pr_debug("MACvSetDefaultKeyEntry\n");
 	wOffset = MISCFIFO_KEYETRY0;
 	wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
 
@@ -1519,7 +1519,8 @@ void MACvSetDefaultKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
 	wOffset += (uKeyIdx * 4);
 	// always push 128 bits
 	for (ii = 0; ii < 3; ii++) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
+		pr_debug("(%d) wOffset: %d, Data: %lX\n",
+			 ii, wOffset+ii, *pdwKey);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
 		VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
@@ -1531,7 +1532,7 @@ void MACvSetDefaultKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+3);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "End. wOffset: %d, Data: %lX\n", wOffset+3, dwData);
+	pr_debug("End. wOffset: %d, Data: %lX\n", wOffset+3, dwData);
 }
 
 /*
@@ -1564,7 +1565,7 @@ void MACvSetDefaultKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
   VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
   VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
   VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-  DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvEnableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
+  pr_debug("MACvEnableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
 
   }
 */
@@ -1595,7 +1596,8 @@ void MACvDisableDefaultKey(void __iomem *dwIoBase)
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvDisableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
+	pr_debug("MACvDisableDefaultKey: wOffset: %d, Data: %lX\n",
+		 wOffset, dwData);
 }
 
 /*
@@ -1622,7 +1624,7 @@ void MACvSetDefaultTKIPKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
 	if (byLocalID <= 1)
 		return;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetDefaultTKIPKeyEntry\n");
+	pr_debug("MACvSetDefaultTKIPKeyEntry\n");
 	wOffset = MISCFIFO_KEYETRY0;
 	// Kyle test : change offset from 10 -> 0
 	wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
@@ -1640,10 +1642,12 @@ void MACvSetDefaultTKIPKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
 	wOffset++;
 
 	wOffset += (uKeyIdx * 4);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "1. wOffset: %d, Data: %lX, idx:%d\n", wOffset, *pdwKey, uKeyIdx);
+	pr_debug("1. wOffset: %d, Data: %lX, idx:%d\n",
+		 wOffset, *pdwKey, uKeyIdx);
 	// always push 128 bits
 	for (ii = 0; ii < 4; ii++) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "2.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
+		pr_debug("2.(%d) wOffset: %d, Data: %lX\n",
+			 ii, wOffset+ii, *pdwKey);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
 		VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
@@ -1673,7 +1677,7 @@ void MACvSetDefaultKeyCtl(void __iomem *dwIoBase, unsigned short wKeyCtl, unsign
 	if (byLocalID <= 1)
 		return;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MACvSetKeyEntry\n");
+	pr_debug("MACvSetKeyEntry\n");
 	wOffset = MISCFIFO_KEYETRY0;
 	wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
@@ -1681,7 +1685,8 @@ void MACvSetDefaultKeyCtl(void __iomem *dwIoBase, unsigned short wKeyCtl, unsign
 	dwData |= wKeyCtl;
 	dwData <<= 16;
 	dwData |= 0xffff;
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "1. wOffset: %d, Data: %lX, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
+	pr_debug("1. wOffset: %d, Data: %lX, KeyCtl:%X\n",
+		 wOffset, dwData, wKeyCtl);
 
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
 	VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);

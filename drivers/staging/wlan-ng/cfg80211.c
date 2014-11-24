@@ -422,6 +422,7 @@ static int prism2_scan(struct wiphy *wiphy,
 						      IEEE80211_BAND_2GHZ);
 		bss = cfg80211_inform_bss(wiphy,
 			ieee80211_get_channel(wiphy, freq),
+			CFG80211_BSS_FTYPE_UNKNOWN,
 			(const u8 *) &(msg2.bssid.data.data),
 			msg2.timestamp.data, msg2.capinfo.data,
 			msg2.beaconperiod.data,

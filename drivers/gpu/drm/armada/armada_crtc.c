@@ -260,7 +260,7 @@ static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 	 * Tell the DRM core that vblank IRQs aren't going to happen for
 	 * a while.  This cleans up any pending vblank events for us.
 	 */
-	drm_vblank_off(dev, dcrtc->num);
+	drm_crtc_vblank_off(&dcrtc->crtc);
 
 	/* Handle any pending flip event. */
 	spin_lock_irq(&dev->event_lock);
@@ -289,6 +289,8 @@ static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
 		armada_drm_crtc_update(dcrtc);
 		if (dpms_blanked(dpms))
 			armada_drm_vblank_off(dcrtc);
+		else
+			drm_crtc_vblank_on(&dcrtc->crtc);
 	}
 }
 
@@ -526,7 +528,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	/* Wait for pending flips to complete */
 	wait_event(dcrtc->frame_wait, !dcrtc->frame_work);
 
-	drm_vblank_pre_modeset(crtc->dev, dcrtc->num);
+	drm_crtc_vblank_off(crtc);
 
 	crtc->mode = *adj;
 
@@ -617,7 +619,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 
 	armada_drm_crtc_update(dcrtc);
 
-	drm_vblank_post_modeset(crtc->dev, dcrtc->num);
+	drm_crtc_vblank_on(crtc);
 	armada_drm_crtc_finish_fb(dcrtc, old_fb, dpms_blanked(dcrtc->dpms));
 
 	return 0;
@@ -945,18 +947,15 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	armada_reg_queue_end(work->regs, i);
 
 	/*
-	 * Hold the old framebuffer for the work - DRM appears to drop our
-	 * reference to the old framebuffer in drm_mode_page_flip_ioctl().
+	 * Ensure that we hold a reference on the new framebuffer.
+	 * This has to match the behaviour in mode_set.
 	 */
-	drm_framebuffer_reference(work->old_fb);
+	drm_framebuffer_reference(fb);
 
 	ret = armada_drm_crtc_queue_frame_work(dcrtc, work);
 	if (ret) {
-		/*
-		 * Undo our reference above; DRM does not drop the reference
-		 * to this object on error, so that's okay.
-		 */
-		drm_framebuffer_unreference(work->old_fb);
+		/* Undo our reference above */
+		drm_framebuffer_unreference(fb);
 		kfree(work);
 		return ret;
 	}

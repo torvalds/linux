@@ -3,7 +3,7 @@
 
 #include "x86.h"
 
-void kvm_update_cpuid(struct kvm_vcpu *vcpu);
+int kvm_update_cpuid(struct kvm_vcpu *vcpu);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 					      u32 function, u32 index);
 int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
@@ -86,6 +86,14 @@ static inline bool guest_cpuid_has_x2apic(struct kvm_vcpu *vcpu)
 
 	best = kvm_find_cpuid_entry(vcpu, 1, 0);
 	return best && (best->ecx & bit(X86_FEATURE_X2APIC));
+}
+
+static inline bool guest_cpuid_is_amd(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0, 0);
+	return best && best->ebx == X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx;
 }
 
 static inline bool guest_cpuid_has_gbpages(struct kvm_vcpu *vcpu)

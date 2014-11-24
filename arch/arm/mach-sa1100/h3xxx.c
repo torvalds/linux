@@ -25,6 +25,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/h3xxx.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -244,9 +245,23 @@ static struct platform_device h3xxx_keys = {
 	},
 };
 
+static struct resource h3xxx_micro_resources[] = {
+	DEFINE_RES_MEM(0x80010000, SZ_4K),
+	DEFINE_RES_MEM(0x80020000, SZ_4K),
+	DEFINE_RES_IRQ(IRQ_Ser1UART),
+};
+
+struct platform_device h3xxx_micro_asic = {
+	.name = "ipaq-h3xxx-micro",
+	.id = -1,
+	.resource = h3xxx_micro_resources,
+	.num_resources = ARRAY_SIZE(h3xxx_micro_resources),
+};
+
 static struct platform_device *h3xxx_devices[] = {
 	&h3xxx_egpio,
 	&h3xxx_keys,
+	&h3xxx_micro_asic,
 };
 
 void __init h3xxx_mach_init(void)

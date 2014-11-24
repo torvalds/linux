@@ -2,8 +2,8 @@
 # USB peripheral controller drivers
 #
 
-ccflags-y			:= -Idrivers/usb/gadget/
-ccflags-y			+= -Idrivers/usb/gadget/udc/
+ccflags-y			:= -I$(srctree)/drivers/usb/gadget/
+ccflags-y			+= -I$(srctree)/drivers/usb/gadget/udc/
 
 # USB Functions
 usb_f_acm-y			:= f_acm.o
@@ -32,3 +32,9 @@ usb_f_mass_storage-y		:= f_mass_storage.o storage_common.o
 obj-$(CONFIG_USB_F_MASS_STORAGE)+= usb_f_mass_storage.o
 usb_f_fs-y			:= f_fs.o
 obj-$(CONFIG_USB_F_FS)		+= usb_f_fs.o
+usb_f_uac1-y			:= f_uac1.o u_uac1.o
+obj-$(CONFIG_USB_F_UAC1)	+= usb_f_uac1.o
+usb_f_uac2-y			:= f_uac2.o
+obj-$(CONFIG_USB_F_UAC2)	+= usb_f_uac2.o
+usb_f_uvc-y			:= f_uvc.o uvc_queue.o uvc_v4l2.o uvc_video.o
+obj-$(CONFIG_USB_F_UVC)		+= usb_f_uvc.o

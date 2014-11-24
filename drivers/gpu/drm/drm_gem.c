@@ -38,6 +38,8 @@
 #include <linux/dma-buf.h>
 #include <drm/drmP.h>
 #include <drm/drm_vma_manager.h>
+#include <drm/drm_gem.h>
+#include "drm_internal.h"
 
 /** @file drm_gem.c
  *
@@ -146,7 +148,7 @@ int drm_gem_object_init(struct drm_device *dev,
 EXPORT_SYMBOL(drm_gem_object_init);
 
 /**
- * drm_gem_object_init - initialize an allocated private GEM object
+ * drm_gem_private_object_init - initialize an allocated private GEM object
  * @dev: drm_device the object should be initialized for
  * @obj: drm_gem_object to initialize
  * @size: object size
@@ -579,7 +581,7 @@ drm_gem_close_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_close *args = data;
 	int ret;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
 	ret = drm_gem_handle_delete(file_priv, args->handle);
@@ -606,7 +608,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	int ret;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
@@ -659,7 +661,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	int ret;
 	u32 handle;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
 	mutex_lock(&dev->object_name_lock);
@@ -887,7 +889,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 					   vma_pages(vma));
 	if (!node) {
 		mutex_unlock(&dev->struct_mutex);
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 	} else if (!drm_vma_node_is_allowed(node, filp)) {
 		mutex_unlock(&dev->struct_mutex);
 		return -EACCES;

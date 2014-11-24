@@ -112,17 +112,6 @@ static inline int __apic_test_and_clear_vector(int vec, void *bitmap)
 struct static_key_deferred apic_hw_disabled __read_mostly;
 struct static_key_deferred apic_sw_disabled __read_mostly;
 
-static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
-{
-	if ((kvm_apic_get_reg(apic, APIC_SPIV) ^ val) & APIC_SPIV_APIC_ENABLED) {
-		if (val & APIC_SPIV_APIC_ENABLED)
-			static_key_slow_dec_deferred(&apic_sw_disabled);
-		else
-			static_key_slow_inc(&apic_sw_disabled.key);
-	}
-	apic_set_reg(apic, APIC_SPIV, val);
-}
-
 static inline int apic_enabled(struct kvm_lapic *apic)
 {
 	return kvm_apic_sw_enabled(apic) &&	kvm_apic_hw_enabled(apic);
@@ -208,6 +197,20 @@ out:
 		kfree_rcu(old, rcu);
 
 	kvm_vcpu_request_scan_ioapic(kvm);
+}
+
+static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
+{
+	u32 prev = kvm_apic_get_reg(apic, APIC_SPIV);
+
+	apic_set_reg(apic, APIC_SPIV, val);
+	if ((prev ^ val) & APIC_SPIV_APIC_ENABLED) {
+		if (val & APIC_SPIV_APIC_ENABLED) {
+			static_key_slow_dec_deferred(&apic_sw_disabled);
+			recalculate_apic_map(apic->vcpu->kvm);
+		} else
+			static_key_slow_inc(&apic_sw_disabled.key);
+	}
 }
 
 static inline void kvm_apic_set_id(struct kvm_lapic *apic, u8 id)
@@ -706,6 +709,8 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	int result = 0;
 	struct kvm_vcpu *vcpu = apic->vcpu;
 
+	trace_kvm_apic_accept_irq(vcpu->vcpu_id, delivery_mode,
+				  trig_mode, vector);
 	switch (delivery_mode) {
 	case APIC_DM_LOWEST:
 		vcpu->arch.apic_arb_prio++;
@@ -727,8 +732,6 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
 		}
-		trace_kvm_apic_accept_irq(vcpu->vcpu_id, delivery_mode,
-					  trig_mode, vector, false);
 		break;
 
 	case APIC_DM_REMRD:
@@ -1352,6 +1355,9 @@ void kvm_set_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu, u64 data)
 		return;
 
 	hrtimer_cancel(&apic->lapic_timer.timer);
+	/* Inject here so clearing tscdeadline won't override new value */
+	if (apic_has_pending_timer(vcpu))
+		kvm_inject_apic_timer_irqs(vcpu);
 	apic->lapic_timer.tscdeadline = data;
 	start_apic_timer(apic);
 }
@@ -1639,6 +1645,8 @@ void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
 
 	if (atomic_read(&apic->lapic_timer.pending) > 0) {
 		kvm_apic_local_deliver(apic, APIC_LVTT);
+		if (apic_lvtt_tscdeadline(apic))
+			apic->lapic_timer.tscdeadline = 0;
 		atomic_set(&apic->lapic_timer.pending, 0);
 	}
 }

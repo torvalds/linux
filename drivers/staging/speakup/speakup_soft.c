@@ -192,6 +192,7 @@ static int softsynth_open(struct inode *inode, struct file *fp)
 static int softsynth_close(struct inode *inode, struct file *fp)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	synth_soft.alive = 0;
 	init_pos = 0;
@@ -283,6 +284,7 @@ static unsigned int softsynth_poll(struct file *fp,
 {
 	unsigned long flags;
 	int ret = 0;
+
 	poll_wait(fp, &speakup_event, wait);
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
@@ -295,6 +297,7 @@ static unsigned int softsynth_poll(struct file *fp,
 static unsigned char get_index(void)
 {
 	int rv;
+
 	rv = last_index;
 	last_index = 0;
 	return rv;

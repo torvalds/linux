@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -135,7 +135,7 @@ static void wil6210_unmask_irq_pseudo(struct wil6210_priv *wil)
 		  HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW));
 }
 
-void wil6210_disable_irq(struct wil6210_priv *wil)
+void wil_mask_irq(struct wil6210_priv *wil)
 {
 	wil_dbg_irq(wil, "%s()\n", __func__);
 
@@ -145,7 +145,7 @@ void wil6210_disable_irq(struct wil6210_priv *wil)
 	wil6210_mask_irq_pseudo(wil);
 }
 
-void wil6210_enable_irq(struct wil6210_priv *wil)
+void wil_unmask_irq(struct wil6210_priv *wil)
 {
 	wil_dbg_irq(wil, "%s()\n", __func__);
 
@@ -157,17 +157,7 @@ void wil6210_enable_irq(struct wil6210_priv *wil)
 		  offsetof(struct RGF_ICR, ICC));
 
 	/* interrupt moderation parameters */
-	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
-		/* disable interrupt moderation for monitor
-		 * to get better timestamp precision
-		 */
-		iowrite32(0, wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_CRL));
-	} else {
-		iowrite32(WIL6210_ITR_TRSH,
-			  wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_TRSH));
-		iowrite32(BIT_DMA_ITR_CNT_CRL_EN,
-			  wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_CRL));
-	}
+	wil_set_itr_trsh(wil);
 
 	wil6210_unmask_irq_pseudo(wil);
 	wil6210_unmask_irq_tx(wil);
@@ -196,8 +186,13 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 		wil_dbg_irq(wil, "RX done\n");
 		isr &= ~BIT_DMA_EP_RX_ICR_RX_DONE;
 		if (test_bit(wil_status_reset_done, &wil->status)) {
-			wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
-			napi_schedule(&wil->napi_rx);
+			if (test_bit(wil_status_napi_en, &wil->status)) {
+				wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
+				napi_schedule(&wil->napi_rx);
+			} else {
+				wil_err(wil, "Got Rx interrupt while "
+					"stopping interface\n");
+			}
 		} else {
 			wil_err(wil, "Got Rx interrupt while in reset\n");
 		}
@@ -506,7 +501,8 @@ free0:
 
 	return rc;
 }
-/* can't use wil_ioread32_and_clear because ICC value is not ser yet */
+
+/* can't use wil_ioread32_and_clear because ICC value is not set yet */
 static inline void wil_clear32(void __iomem *addr)
 {
 	u32 x = ioread32(addr);
@@ -522,11 +518,15 @@ void wil6210_clear_irq(struct wil6210_priv *wil)
 		    offsetof(struct RGF_ICR, ICR));
 	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_MISC_ICR) +
 		    offsetof(struct RGF_ICR, ICR));
+	wmb(); /* make sure write completed */
 }
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq)
 {
 	int rc;
+
+	wil_dbg_misc(wil, "%s() n_msi=%d\n", __func__, wil->n_msi);
+
 	if (wil->n_msi == 3)
 		rc = wil6210_request_3msi(wil, irq);
 	else
@@ -534,17 +534,14 @@ int wil6210_init_irq(struct wil6210_priv *wil, int irq)
 					  wil6210_thread_irq,
 					  wil->n_msi ? 0 : IRQF_SHARED,
 					  WIL_NAME, wil);
-	if (rc)
-		return rc;
-
-	wil6210_enable_irq(wil);
-
-	return 0;
+	return rc;
 }
 
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq)
 {
-	wil6210_disable_irq(wil);
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	wil_mask_irq(wil);
 	free_irq(irq, wil);
 	if (wil->n_msi == 3) {
 		free_irq(irq + 1, wil);

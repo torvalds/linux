@@ -684,12 +684,38 @@ static bool fsl_asrc_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config fsl_asrc_regmap_config = {
+static struct reg_default fsl_asrc_reg[] = {
+	{ REG_ASRCTR, 0x0000 }, { REG_ASRIER, 0x0000 },
+	{ REG_ASRCNCR, 0x0000 }, { REG_ASRCFG, 0x0000 },
+	{ REG_ASRCSR, 0x0000 }, { REG_ASRCDR1, 0x0000 },
+	{ REG_ASRCDR2, 0x0000 }, { REG_ASRSTR, 0x0000 },
+	{ REG_ASRRA, 0x0000 }, { REG_ASRRB, 0x0000 },
+	{ REG_ASRRC, 0x0000 }, { REG_ASRPM1, 0x0000 },
+	{ REG_ASRPM2, 0x0000 }, { REG_ASRPM3, 0x0000 },
+	{ REG_ASRPM4, 0x0000 }, { REG_ASRPM5, 0x0000 },
+	{ REG_ASRTFR1, 0x0000 }, { REG_ASRCCR, 0x0000 },
+	{ REG_ASRDIA, 0x0000 }, { REG_ASRDOA, 0x0000 },
+	{ REG_ASRDIB, 0x0000 }, { REG_ASRDOB, 0x0000 },
+	{ REG_ASRDIC, 0x0000 }, { REG_ASRDOC, 0x0000 },
+	{ REG_ASRIDRHA, 0x0000 }, { REG_ASRIDRLA, 0x0000 },
+	{ REG_ASRIDRHB, 0x0000 }, { REG_ASRIDRLB, 0x0000 },
+	{ REG_ASRIDRHC, 0x0000 }, { REG_ASRIDRLC, 0x0000 },
+	{ REG_ASR76K, 0x0A47 }, { REG_ASR56K, 0x0DF3 },
+	{ REG_ASRMCRA, 0x0000 }, { REG_ASRFSTA, 0x0000 },
+	{ REG_ASRMCRB, 0x0000 }, { REG_ASRFSTB, 0x0000 },
+	{ REG_ASRMCRC, 0x0000 }, { REG_ASRFSTC, 0x0000 },
+	{ REG_ASRMCR1A, 0x0000 }, { REG_ASRMCR1B, 0x0000 },
+	{ REG_ASRMCR1C, 0x0000 },
+};
+
+static const struct regmap_config fsl_asrc_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 
 	.max_register = REG_ASRMCR1C,
+	.reg_defaults = fsl_asrc_reg,
+	.num_reg_defaults = ARRAY_SIZE(fsl_asrc_reg),
 	.readable_reg = fsl_asrc_readable_reg,
 	.volatile_reg = fsl_asrc_volatile_reg,
 	.writeable_reg = fsl_asrc_writeable_reg,
@@ -792,7 +818,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	asrc_priv->pdev = pdev;
-	strcpy(asrc_priv->name, np->name);
+	strncpy(asrc_priv->name, np->name, sizeof(asrc_priv->name) - 1);
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -801,10 +827,6 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	asrc_priv->paddr = res->start;
-
-	/* Register regmap and let it prepare core clock */
-	if (of_property_read_bool(np, "big-endian"))
-		fsl_asrc_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	asrc_priv->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "mem", regs,
 						      &fsl_asrc_regmap_config);

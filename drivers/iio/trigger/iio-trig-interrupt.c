@@ -109,7 +109,6 @@ static struct platform_driver iio_interrupt_trigger_driver = {
 	.remove = iio_interrupt_trigger_remove,
 	.driver = {
 		.name = "iio_interrupt_trigger",
-		.owner = THIS_MODULE,
 	},
 };
 

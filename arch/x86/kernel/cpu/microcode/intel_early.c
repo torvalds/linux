@@ -28,8 +28,8 @@
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
 
-unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
-struct mc_saved_data {
+static unsigned long mc_saved_in_initrd[MAX_UCODE_COUNT];
+static struct mc_saved_data {
 	unsigned int mc_saved_count;
 	struct microcode_intel **mc_saved;
 } mc_saved_data;
@@ -415,7 +415,7 @@ static void __ref show_saved_mc(void)
 	struct ucode_cpu_info uci;
 
 	if (mc_saved_data.mc_saved_count == 0) {
-		pr_debug("no micorcode data saved.\n");
+		pr_debug("no microcode data saved.\n");
 		return;
 	}
 	pr_debug("Total microcode saved: %d\n", mc_saved_data.mc_saved_count);
@@ -506,7 +506,7 @@ int save_mc_for_early(u8 *mc)
 
 	if (mc_saved && mc_saved_count)
 		memcpy(mc_saved_tmp, mc_saved,
-		       mc_saved_count * sizeof(struct mirocode_intel *));
+		       mc_saved_count * sizeof(struct microcode_intel *));
 	/*
 	 * Save the microcode patch mc in mc_save_tmp structure if it's a newer
 	 * version.
@@ -526,7 +526,7 @@ int save_mc_for_early(u8 *mc)
 	show_saved_mc();
 
 	/*
-	 * Free old saved microcod data.
+	 * Free old saved microcode data.
 	 */
 	if (mc_saved) {
 		for (i = 0; i < mc_saved_count_init; i++)

@@ -57,7 +57,7 @@ struct sn_hub_info_s {
 	u16 nasid_bitmask;
 };
 DECLARE_PER_CPU(struct sn_hub_info_s, __sn_hub_info);
-#define sn_hub_info 	(&__get_cpu_var(__sn_hub_info))
+#define sn_hub_info 	this_cpu_ptr(&__sn_hub_info)
 #define is_shub2()	(sn_hub_info->shub2)
 #define is_shub1()	(sn_hub_info->shub2 == 0)
 
@@ -72,7 +72,7 @@ DECLARE_PER_CPU(struct sn_hub_info_s, __sn_hub_info);
  * cpu.
  */
 DECLARE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_COMPACT_NODES]);
-#define sn_cnodeid_to_nasid	(&__get_cpu_var(__sn_cnodeid_to_nasid[0]))
+#define sn_cnodeid_to_nasid	this_cpu_ptr(&__sn_cnodeid_to_nasid[0])
 
 
 extern u8 sn_partition_id;

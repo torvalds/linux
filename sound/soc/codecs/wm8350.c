@@ -212,7 +212,7 @@ static void wm8350_pga_work(struct work_struct *work)
 {
 	struct snd_soc_dapm_context *dapm =
 	    container_of(work, struct snd_soc_dapm_context, delayed_work.work);
-	struct snd_soc_codec *codec = dapm->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_data->out1,
 	    *out2 = &wm8350_data->out2;

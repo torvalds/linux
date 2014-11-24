@@ -30,7 +30,6 @@
 struct spi_clps711x_data {
 	void __iomem		*syncio;
 	struct regmap		*syscon;
-	struct regmap		*syscon1;
 	struct clk		*spi_clk;
 
 	u8			*tx_buf;
@@ -45,27 +44,6 @@ static int spi_clps711x_setup(struct spi_device *spi)
 	gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 	return 0;
-}
-
-static void spi_clps711x_setup_xfer(struct spi_device *spi,
-				    struct spi_transfer *xfer)
-{
-	struct spi_master *master = spi->master;
-	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
-
-	/* Setup SPI frequency divider */
-	if (xfer->speed_hz >= master->max_speed_hz)
-		regmap_update_bits(hw->syscon1, SYSCON_OFFSET,
-				   SYSCON1_ADCKSEL_MASK, SYSCON1_ADCKSEL(3));
-	else if (xfer->speed_hz >= (master->max_speed_hz / 2))
-		regmap_update_bits(hw->syscon1, SYSCON_OFFSET,
-				   SYSCON1_ADCKSEL_MASK, SYSCON1_ADCKSEL(2));
-	else if (xfer->speed_hz >= (master->max_speed_hz / 8))
-		regmap_update_bits(hw->syscon1, SYSCON_OFFSET,
-				   SYSCON1_ADCKSEL_MASK, SYSCON1_ADCKSEL(1));
-	else
-		regmap_update_bits(hw->syscon1, SYSCON_OFFSET,
-				   SYSCON1_ADCKSEL_MASK, SYSCON1_ADCKSEL(0));
 }
 
 static int spi_clps711x_prepare_message(struct spi_master *master,
@@ -87,7 +65,7 @@ static int spi_clps711x_transfer_one(struct spi_master *master,
 	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
 	u8 data;
 
-	spi_clps711x_setup_xfer(spi, xfer);
+	clk_set_rate(hw->spi_clk, xfer->speed_hz ? : spi->max_speed_hz);
 
 	hw->len = xfer->len;
 	hw->bpw = xfer->bits_per_word;
@@ -176,23 +154,15 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 		}
 	}
 
-	hw->spi_clk = devm_clk_get(&pdev->dev, "spi");
+	hw->spi_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(hw->spi_clk)) {
-		dev_err(&pdev->dev, "Can't get clocks\n");
 		ret = PTR_ERR(hw->spi_clk);
 		goto err_out;
 	}
-	master->max_speed_hz = clk_get_rate(hw->spi_clk);
 
 	hw->syscon = syscon_regmap_lookup_by_pdevname("syscon.3");
 	if (IS_ERR(hw->syscon)) {
 		ret = PTR_ERR(hw->syscon);
-		goto err_out;
-	}
-
-	hw->syscon1 = syscon_regmap_lookup_by_pdevname("syscon.1");
-	if (IS_ERR(hw->syscon1)) {
-		ret = PTR_ERR(hw->syscon1);
 		goto err_out;
 	}
 

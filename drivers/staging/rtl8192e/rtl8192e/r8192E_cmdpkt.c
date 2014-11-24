@@ -153,18 +153,14 @@ static void cmpk_handle_tx_feedback(struct net_device *dev, u8 *pmsg)
 static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u16 tx_rate;
 
 	if ((priv->rtllib->current_network.mode == IEEE_A)  ||
 	    (priv->rtllib->current_network.mode == IEEE_N_5G) ||
 	    ((priv->rtllib->current_network.mode == IEEE_N_24G)  &&
-	    (!priv->rtllib->pHTInfo->bCurSuppCCK))) {
-		tx_rate = 60;
+	    (!priv->rtllib->pHTInfo->bCurSuppCCK)))
 		DMESG("send beacon frame  tx rate is 6Mbpm\n");
-	} else {
-		tx_rate = 10;
+	else
 		DMESG("send beacon frame  tx rate is 1Mbpm\n");
-	}
 }
 
 static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)

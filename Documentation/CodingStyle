@@ -675,7 +675,7 @@ the ones already enabled by DEBUG.
 Many subsystems have Kconfig debug options to turn on -DDEBUG in the
 corresponding Makefile; in other cases specific files #define DEBUG.  And
 when a debug message should be unconditionally printed, such as if it is
-already inside a debug-related #ifdef secton, printk(KERN_DEBUG ...) can be
+already inside a debug-related #ifdef section, printk(KERN_DEBUG ...) can be
 used.
 
 

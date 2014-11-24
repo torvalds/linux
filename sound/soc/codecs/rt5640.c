@@ -1906,6 +1906,32 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+int rt5640_dmic_enable(struct snd_soc_codec *codec,
+		       bool dmic1_data_pin, bool dmic2_data_pin)
+{
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+
+	regmap_update_bits(rt5640->regmap, RT5640_GPIO_CTRL1,
+		RT5640_GP2_PIN_MASK, RT5640_GP2_PIN_DMIC1_SCL);
+
+	if (dmic1_data_pin) {
+		regmap_update_bits(rt5640->regmap, RT5640_DMIC,
+			RT5640_DMIC_1_DP_MASK, RT5640_DMIC_1_DP_GPIO3);
+		regmap_update_bits(rt5640->regmap, RT5640_GPIO_CTRL1,
+			RT5640_GP3_PIN_MASK, RT5640_GP3_PIN_DMIC1_SDA);
+	}
+
+	if (dmic2_data_pin) {
+		regmap_update_bits(rt5640->regmap, RT5640_DMIC,
+			RT5640_DMIC_2_DP_MASK, RT5640_DMIC_2_DP_GPIO4);
+		regmap_update_bits(rt5640->regmap, RT5640_GPIO_CTRL1,
+			RT5640_GP4_PIN_MASK, RT5640_GP4_PIN_DMIC2_SDA);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt5640_dmic_enable);
+
 static int rt5640_probe(struct snd_soc_codec *codec)
 {
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
@@ -1944,6 +1970,10 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 			"The driver is for RT5639 RT5640 or RT5642 only\n");
 		return -ENODEV;
 	}
+
+	if (rt5640->pdata.dmic_en)
+		rt5640_dmic_enable(codec, rt5640->pdata.dmic1_data_pin,
+					  rt5640->pdata.dmic2_data_pin);
 
 	return 0;
 }
@@ -2194,25 +2224,6 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 	if (rt5640->pdata.in2_diff)
 		regmap_update_bits(rt5640->regmap, RT5640_IN3_IN4,
 					RT5640_IN_DF2, RT5640_IN_DF2);
-
-	if (rt5640->pdata.dmic_en) {
-		regmap_update_bits(rt5640->regmap, RT5640_GPIO_CTRL1,
-			RT5640_GP2_PIN_MASK, RT5640_GP2_PIN_DMIC1_SCL);
-
-		if (rt5640->pdata.dmic1_data_pin) {
-			regmap_update_bits(rt5640->regmap, RT5640_DMIC,
-				RT5640_DMIC_1_DP_MASK, RT5640_DMIC_1_DP_GPIO3);
-			regmap_update_bits(rt5640->regmap, RT5640_GPIO_CTRL1,
-				RT5640_GP3_PIN_MASK, RT5640_GP3_PIN_DMIC1_SDA);
-		}
-
-		if (rt5640->pdata.dmic2_data_pin) {
-			regmap_update_bits(rt5640->regmap, RT5640_DMIC,
-				RT5640_DMIC_2_DP_MASK, RT5640_DMIC_2_DP_GPIO4);
-			regmap_update_bits(rt5640->regmap, RT5640_GPIO_CTRL1,
-				RT5640_GP4_PIN_MASK, RT5640_GP4_PIN_DMIC2_SDA);
-		}
-	}
 
 	rt5640->hp_mute = 1;
 

@@ -164,6 +164,16 @@ config IR_ENE
 	   To compile this driver as a module, choose M here: the
 	   module will be called ene_ir.
 
+config IR_HIX5HD2
+	tristate "Hisilicon hix5hd2 IR remote control"
+	depends on RC_CORE
+	help
+	 Say Y here if you want to use hisilicon hix5hd2 remote control.
+	 To compile this driver as a module, choose M here: the module will be
+	 called ir-hix5hd2.
+
+	 If you're not sure, select N here
+
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
 	depends on USB_ARCH_HAS_HCD
@@ -333,7 +343,8 @@ config IR_GPIO_CIR
 
 config RC_ST
 	tristate "ST remote control receiver"
-	depends on ARCH_STI && RC_CORE
+	depends on RC_CORE
+	depends on ARCH_STI || COMPILE_TEST
 	help
 	 Say Y here if you want support for ST remote control driver
 	 which allows both IR and UHF RX.
@@ -344,7 +355,7 @@ config RC_ST
 config IR_SUNXI
     tristate "SUNXI IR remote control"
     depends on RC_CORE
-    depends on ARCH_SUNXI
+    depends on ARCH_SUNXI || COMPILE_TEST
     ---help---
       Say Y if you want to use sunXi internal IR Controller
 

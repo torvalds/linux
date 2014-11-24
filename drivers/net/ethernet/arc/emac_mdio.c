@@ -100,7 +100,6 @@ static int arc_mdio_write(struct mii_bus *bus, int phy_addr,
 
 /**
  * arc_mdio_probe - MDIO probe function.
- * @pdev:	Pointer to platform device.
  * @priv:	Pointer to ARC EMAC private data structure.
  *
  * returns:	0 on success, -ENOMEM when mdiobus_alloc
@@ -108,7 +107,7 @@ static int arc_mdio_write(struct mii_bus *bus, int phy_addr,
  *
  * Sets up and registers the MDIO interface.
  */
-int arc_mdio_probe(struct platform_device *pdev, struct arc_emac_priv *priv)
+int arc_mdio_probe(struct arc_emac_priv *priv)
 {
 	struct mii_bus *bus;
 	int error;
@@ -124,9 +123,9 @@ int arc_mdio_probe(struct platform_device *pdev, struct arc_emac_priv *priv)
 	bus->read = &arc_mdio_read;
 	bus->write = &arc_mdio_write;
 
-	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", pdev->name);
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", bus->name);
 
-	error = of_mdiobus_register(bus, pdev->dev.of_node);
+	error = of_mdiobus_register(bus, priv->dev->of_node);
 	if (error) {
 		dev_err(priv->dev, "cannot register MDIO bus %s\n", bus->name);
 		mdiobus_free(bus);

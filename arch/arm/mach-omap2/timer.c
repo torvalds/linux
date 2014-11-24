@@ -141,7 +141,7 @@ static struct property device_disabled = {
 	.value = "disabled",
 };
 
-static struct of_device_id omap_timer_match[] __initdata = {
+static const struct of_device_id omap_timer_match[] __initconst = {
 	{ .compatible = "ti,omap2420-timer", },
 	{ .compatible = "ti,omap3430-timer", },
 	{ .compatible = "ti,omap4430-timer", },
@@ -162,7 +162,7 @@ static struct of_device_id omap_timer_match[] __initdata = {
  * the timer node in device-tree as disabled, to prevent the kernel from
  * registering this timer as a platform device and so no one else can use it.
  */
-static struct device_node * __init omap_get_timer_dt(struct of_device_id *match,
+static struct device_node * __init omap_get_timer_dt(const struct of_device_id *match,
 						     const char *property)
 {
 	struct device_node *np;
@@ -388,7 +388,7 @@ static u64 notrace dmtimer_read_sched_clock(void)
 	return 0;
 }
 
-static struct of_device_id omap_counter_match[] __initdata = {
+static const struct of_device_id omap_counter_match[] __initconst = {
 	{ .compatible = "ti,omap-counter32k", },
 	{ }
 };

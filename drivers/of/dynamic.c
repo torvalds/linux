@@ -45,6 +45,9 @@ void __of_detach_node_sysfs(struct device_node *np)
 {
 	struct property *pp;
 
+	if (!IS_ENABLED(CONFIG_SYSFS))
+		return;
+
 	BUG_ON(!of_node_is_initialized(np));
 	if (!of_kset)
 		return;
@@ -244,7 +247,7 @@ void of_node_release(struct kobject *kobj)
  * @allocflags:	Allocation flags (typically pass GFP_KERNEL)
  *
  * Copy a property by dynamically allocating the memory of both the
- * property stucture and the property name & contents. The property's
+ * property structure and the property name & contents. The property's
  * flags have the OF_DYNAMIC bit set so that we can differentiate between
  * dynamically allocated properties and not.
  * Returns the newly allocated property or NULL on out of memory error.

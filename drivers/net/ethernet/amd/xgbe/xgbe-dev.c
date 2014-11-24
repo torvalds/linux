@@ -122,7 +122,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 static unsigned int xgbe_usec_to_riwt(struct xgbe_prv_data *pdata,
 				      unsigned int usec)
 {

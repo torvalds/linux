@@ -50,6 +50,7 @@
 #include <video/sh_mobile_lcdc.h>
 
 #include "common.h"
+#include "intc.h"
 #include "irqs.h"
 #include "sh73a0.h"
 
@@ -910,7 +911,6 @@ DT_MACHINE_START(KZM9G_DT, "kzm9g")
 	.smp		= smp_ops(sh73a0_smp_ops),
 	.map_io		= sh73a0_map_io,
 	.init_early	= sh73a0_add_early_devices,
-	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
 	.init_machine	= kzm_init,
 	.init_late	= shmobile_init_late,

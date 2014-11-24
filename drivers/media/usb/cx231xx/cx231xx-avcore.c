@@ -1595,7 +1595,7 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 		if_freq = 16000000;
 	}
 
-	cx231xx_info("Enter IF=%zd\n",
+	cx231xx_info("Enter IF=%zu\n",
 			ARRAY_SIZE(Dif_set_array));
 	for (i = 0; i < ARRAY_SIZE(Dif_set_array); i++) {
 		if (Dif_set_array[i].if_freq == if_freq) {
@@ -2223,7 +2223,7 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 	if (status < 0)
 		return status;
 
-	tmp = le32_to_cpu(*((u32 *) value));
+	tmp = le32_to_cpu(*((__le32 *) value));
 
 	switch (mode) {
 	case POLARIS_AVMODE_ENXTERNAL_AV:
@@ -2444,7 +2444,7 @@ int cx231xx_power_suspend(struct cx231xx *dev)
 	if (status > 0)
 		return status;
 
-	tmp = le32_to_cpu(*((u32 *) value));
+	tmp = le32_to_cpu(*((__le32 *) value));
 	tmp &= (~PWR_MODE_MASK);
 
 	value[0] = (u8) tmp;
@@ -2472,7 +2472,7 @@ int cx231xx_start_stream(struct cx231xx *dev, u32 ep_mask)
 	if (status < 0)
 		return status;
 
-	tmp = le32_to_cpu(*((u32 *) value));
+	tmp = le32_to_cpu(*((__le32 *) value));
 	tmp |= ep_mask;
 	value[0] = (u8) tmp;
 	value[1] = (u8) (tmp >> 8);
@@ -2497,7 +2497,7 @@ int cx231xx_stop_stream(struct cx231xx *dev, u32 ep_mask)
 	if (status < 0)
 		return status;
 
-	tmp = le32_to_cpu(*((u32 *) value));
+	tmp = le32_to_cpu(*((__le32 *) value));
 	tmp &= (~ep_mask);
 	value[0] = (u8) tmp;
 	value[1] = (u8) (tmp >> 8);
@@ -2644,7 +2644,7 @@ static int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 gpio_val)
 {
 	int status = 0;
 
-	gpio_val = cpu_to_le32(gpio_val);
+	gpio_val = (__force u32)cpu_to_le32(gpio_val);
 	status = cx231xx_send_gpio_cmd(dev, gpio_bit, (u8 *)&gpio_val, 4, 0, 0);
 
 	return status;
@@ -2652,7 +2652,7 @@ static int cx231xx_set_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 gpio_val)
 
 static int cx231xx_get_gpio_bit(struct cx231xx *dev, u32 gpio_bit, u32 *gpio_val)
 {
-	u32 tmp;
+	__le32 tmp;
 	int status = 0;
 
 	status = cx231xx_send_gpio_cmd(dev, gpio_bit, (u8 *)&tmp, 4, 0, 1);

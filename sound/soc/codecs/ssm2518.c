@@ -646,17 +646,6 @@ static struct snd_soc_dai_driver ssm2518_dai = {
 	.ops = &ssm2518_dai_ops,
 };
 
-static int ssm2518_probe(struct snd_soc_codec *codec)
-{
-	return ssm2518_set_bias_level(codec, SND_SOC_BIAS_OFF);
-}
-
-static int ssm2518_remove(struct snd_soc_codec *codec)
-{
-	ssm2518_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int ssm2518_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	int source, unsigned int freq, int dir)
 {
@@ -727,8 +716,6 @@ static int ssm2518_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 }
 
 static struct snd_soc_codec_driver ssm2518_codec_driver = {
-	.probe = ssm2518_probe,
-	.remove = ssm2518_remove,
 	.set_bias_level = ssm2518_set_bias_level,
 	.set_sysclk = ssm2518_set_sysclk,
 	.idle_bias_off = true,

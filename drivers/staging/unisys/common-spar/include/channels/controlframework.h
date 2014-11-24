@@ -25,7 +25,7 @@
 #ifndef _CONTROL_FRAMEWORK_H_
 #define _CONTROL_FRAMEWORK_H_
 
-#include "commontypes.h"
+#include <linux/types.h>
 #include "channel.h"
 
 #define ULTRA_MEMORY_COUNT_Ki 1024

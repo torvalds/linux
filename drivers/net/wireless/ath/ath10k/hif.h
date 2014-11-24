@@ -91,7 +91,6 @@ struct ath10k_hif_ops {
 	int (*resume)(struct ath10k *ar);
 };
 
-
 static inline int ath10k_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 				   struct ath10k_hif_sg_item *items,
 				   int n_items)

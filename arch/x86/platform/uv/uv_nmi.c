@@ -63,8 +63,8 @@
 
 static struct uv_hub_nmi_s **uv_hub_nmi_list;
 
-DEFINE_PER_CPU(struct uv_cpu_nmi_s, __uv_cpu_nmi);
-EXPORT_PER_CPU_SYMBOL_GPL(__uv_cpu_nmi);
+DEFINE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
+EXPORT_PER_CPU_SYMBOL_GPL(uv_cpu_nmi);
 
 static unsigned long nmi_mmr;
 static unsigned long nmi_mmr_clear;
@@ -215,7 +215,7 @@ static int uv_check_nmi(struct uv_hub_nmi_s *hub_nmi)
 	int nmi = 0;
 
 	local64_inc(&uv_nmi_count);
-	uv_cpu_nmi.queries++;
+	this_cpu_inc(uv_cpu_nmi.queries);
 
 	do {
 		nmi = atomic_read(&hub_nmi->in_nmi);
@@ -293,7 +293,7 @@ static void uv_nmi_nr_cpus_ping(void)
 	int cpu;
 
 	for_each_cpu(cpu, uv_nmi_cpu_mask)
-		atomic_set(&uv_cpu_nmi_per(cpu).pinging, 1);
+		uv_cpu_nmi_per(cpu).pinging = 1;
 
 	apic->send_IPI_mask(uv_nmi_cpu_mask, APIC_DM_NMI);
 }
@@ -304,8 +304,8 @@ static void uv_nmi_cleanup_mask(void)
 	int cpu;
 
 	for_each_cpu(cpu, uv_nmi_cpu_mask) {
-		atomic_set(&uv_cpu_nmi_per(cpu).pinging, 0);
-		atomic_set(&uv_cpu_nmi_per(cpu).state, UV_NMI_STATE_OUT);
+		uv_cpu_nmi_per(cpu).pinging =  0;
+		uv_cpu_nmi_per(cpu).state = UV_NMI_STATE_OUT;
 		cpumask_clear_cpu(cpu, uv_nmi_cpu_mask);
 	}
 }
@@ -328,7 +328,7 @@ static int uv_nmi_wait_cpus(int first)
 		int loop_delay = uv_nmi_loop_delay;
 
 		for_each_cpu(j, uv_nmi_cpu_mask) {
-			if (atomic_read(&uv_cpu_nmi_per(j).state)) {
+			if (uv_cpu_nmi_per(j).state) {
 				cpumask_clear_cpu(j, uv_nmi_cpu_mask);
 				if (++k >= n)
 					break;
@@ -359,7 +359,7 @@ static int uv_nmi_wait_cpus(int first)
 static void uv_nmi_wait(int master)
 {
 	/* indicate this cpu is in */
-	atomic_set(&uv_cpu_nmi.state, UV_NMI_STATE_IN);
+	this_cpu_write(uv_cpu_nmi.state, UV_NMI_STATE_IN);
 
 	/* if not the first cpu in (the master), then we are a slave cpu */
 	if (!master)
@@ -419,7 +419,7 @@ static void uv_nmi_dump_state_cpu(int cpu, struct pt_regs *regs)
 			"UV:%sNMI process trace for CPU %d\n", dots, cpu);
 		show_regs(regs);
 	}
-	atomic_set(&uv_cpu_nmi.state, UV_NMI_STATE_DUMP_DONE);
+	this_cpu_write(uv_cpu_nmi.state, UV_NMI_STATE_DUMP_DONE);
 }
 
 /* Trigger a slave cpu to dump it's state */
@@ -427,20 +427,20 @@ static void uv_nmi_trigger_dump(int cpu)
 {
 	int retry = uv_nmi_trigger_delay;
 
-	if (atomic_read(&uv_cpu_nmi_per(cpu).state) != UV_NMI_STATE_IN)
+	if (uv_cpu_nmi_per(cpu).state != UV_NMI_STATE_IN)
 		return;
 
-	atomic_set(&uv_cpu_nmi_per(cpu).state, UV_NMI_STATE_DUMP);
+	uv_cpu_nmi_per(cpu).state = UV_NMI_STATE_DUMP;
 	do {
 		cpu_relax();
 		udelay(10);
-		if (atomic_read(&uv_cpu_nmi_per(cpu).state)
+		if (uv_cpu_nmi_per(cpu).state
 				!= UV_NMI_STATE_DUMP)
 			return;
 	} while (--retry > 0);
 
 	pr_crit("UV: CPU %d stuck in process dump function\n", cpu);
-	atomic_set(&uv_cpu_nmi_per(cpu).state, UV_NMI_STATE_DUMP_DONE);
+	uv_cpu_nmi_per(cpu).state = UV_NMI_STATE_DUMP_DONE;
 }
 
 /* Wait until all cpus ready to exit */
@@ -488,7 +488,7 @@ static void uv_nmi_dump_state(int cpu, struct pt_regs *regs, int master)
 	} else {
 		while (!atomic_read(&uv_nmi_slave_continue))
 			cpu_relax();
-		while (atomic_read(&uv_cpu_nmi.state) != UV_NMI_STATE_DUMP)
+		while (this_cpu_read(uv_cpu_nmi.state) != UV_NMI_STATE_DUMP)
 			cpu_relax();
 		uv_nmi_dump_state_cpu(cpu, regs);
 	}
@@ -615,7 +615,7 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	local_irq_save(flags);
 
 	/* If not a UV System NMI, ignore */
-	if (!atomic_read(&uv_cpu_nmi.pinging) && !uv_check_nmi(hub_nmi)) {
+	if (!this_cpu_read(uv_cpu_nmi.pinging) && !uv_check_nmi(hub_nmi)) {
 		local_irq_restore(flags);
 		return NMI_DONE;
 	}
@@ -639,7 +639,7 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 		uv_call_kgdb_kdb(cpu, regs, master);
 
 	/* Clear per_cpu "in nmi" flag */
-	atomic_set(&uv_cpu_nmi.state, UV_NMI_STATE_OUT);
+	this_cpu_write(uv_cpu_nmi.state, UV_NMI_STATE_OUT);
 
 	/* Clear MMR NMI flag on each hub */
 	uv_clear_nmi(cpu);
@@ -666,16 +666,16 @@ static int uv_handle_nmi_ping(unsigned int reason, struct pt_regs *regs)
 {
 	int ret;
 
-	uv_cpu_nmi.queries++;
-	if (!atomic_read(&uv_cpu_nmi.pinging)) {
+	this_cpu_inc(uv_cpu_nmi.queries);
+	if (!this_cpu_read(uv_cpu_nmi.pinging)) {
 		local64_inc(&uv_nmi_ping_misses);
 		return NMI_DONE;
 	}
 
-	uv_cpu_nmi.pings++;
+	this_cpu_inc(uv_cpu_nmi.pings);
 	local64_inc(&uv_nmi_ping_count);
 	ret = uv_handle_nmi(reason, regs);
-	atomic_set(&uv_cpu_nmi.pinging, 0);
+	this_cpu_write(uv_cpu_nmi.pinging, 0);
 	return ret;
 }
 

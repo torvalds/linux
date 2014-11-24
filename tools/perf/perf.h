@@ -41,8 +41,6 @@ void pthread__unblock_sigwinch(void);
 
 struct record_opts {
 	struct target target;
-	int	     call_graph;
-	bool         call_graph_enabled;
 	bool	     group;
 	bool	     inherit_stat;
 	bool	     no_buffering;
@@ -60,7 +58,6 @@ struct record_opts {
 	u64          branch_stack;
 	u64	     default_interval;
 	u64	     user_interval;
-	u16	     stack_dump_size;
 	bool	     sample_transaction;
 	unsigned     initial_delay;
 };

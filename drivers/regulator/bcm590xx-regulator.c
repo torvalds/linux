@@ -202,7 +202,6 @@ static struct bcm590xx_info bcm590xx_regs[] = {
 struct bcm590xx_reg {
 	struct regulator_desc *desc;
 	struct bcm590xx *mfd;
-	struct bcm590xx_info **info;
 };
 
 static int bcm590xx_get_vsel_register(int id)
@@ -389,11 +388,6 @@ static int bcm590xx_probe(struct platform_device *pdev)
 	if (!pmu->desc)
 		return -ENOMEM;
 
-	pmu->info = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
-			sizeof(struct bcm590xx_info *), GFP_KERNEL);
-	if (!pmu->info)
-		return -ENOMEM;
-
 	info = bcm590xx_regs;
 
 	for (i = 0; i < BCM590XX_NUM_REGS; i++, info++) {
@@ -403,8 +397,6 @@ static int bcm590xx_probe(struct platform_device *pdev)
 			reg_data = NULL;
 
 		/* Register the regulators */
-		pmu->info[i] = info;
-
 		pmu->desc[i].name = info->name;
 		pmu->desc[i].supply_name = info->vin_name;
 		pmu->desc[i].id = i;

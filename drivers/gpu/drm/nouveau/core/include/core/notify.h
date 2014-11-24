@@ -25,8 +25,9 @@ struct nvkm_notify {
 	const void *data;
 };
 
-int  nvkm_notify_init(struct nvkm_event *, int (*func)(struct nvkm_notify *),
-		      bool work, void *data, u32 size, u32 reply,
+int  nvkm_notify_init(struct nouveau_object *, struct nvkm_event *,
+		      int (*func)(struct nvkm_notify *), bool work,
+		      void *data, u32 size, u32 reply,
 		      struct nvkm_notify *);
 void nvkm_notify_fini(struct nvkm_notify *);
 void nvkm_notify_get(struct nvkm_notify *);

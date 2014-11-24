@@ -7,6 +7,9 @@
 
 #include "bcma_private.h"
 #include "scan.h"
+#include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/bcma/bcma.h>
 #include <linux/bcma/bcma_soc.h>
 
@@ -134,12 +137,16 @@ static void bcma_host_soc_block_write(struct bcma_device *core,
 
 static u32 bcma_host_soc_aread32(struct bcma_device *core, u16 offset)
 {
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+		return ~0;
 	return readl(core->io_wrap + offset);
 }
 
 static void bcma_host_soc_awrite32(struct bcma_device *core, u16 offset,
 				  u32 value)
 {
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+		return;
 	writel(value, core->io_wrap + offset);
 }
 
@@ -161,7 +168,6 @@ static const struct bcma_host_ops bcma_host_soc_ops = {
 int __init bcma_host_soc_register(struct bcma_soc *soc)
 {
 	struct bcma_bus *bus = &soc->bus;
-	int err;
 
 	/* iomap only first core. We have to read some register on this core
 	 * to scan the bus.
@@ -173,11 +179,100 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	/* Host specific */
 	bus->hosttype = BCMA_HOSTTYPE_SOC;
 	bus->ops = &bcma_host_soc_ops;
+	bus->host_pdev = NULL;
 
-	/* Register */
+	/* Initialize struct, detect chip */
+	bcma_init_bus(bus);
+
+	return 0;
+}
+
+int __init bcma_host_soc_init(struct bcma_soc *soc)
+{
+	struct bcma_bus *bus = &soc->bus;
+	int err;
+
+	/* Scan bus and initialize it */
 	err = bcma_bus_early_register(bus, &soc->core_cc, &soc->core_mips);
 	if (err)
 		iounmap(bus->mmio);
 
 	return err;
 }
+
+#ifdef CONFIG_OF
+static int bcma_host_soc_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct bcma_bus *bus;
+	int err;
+
+	/* Alloc */
+	bus = devm_kzalloc(dev, sizeof(*bus), GFP_KERNEL);
+	if (!bus)
+		return -ENOMEM;
+
+	/* Map MMIO */
+	bus->mmio = of_iomap(np, 0);
+	if (!bus->mmio)
+		return -ENOMEM;
+
+	/* Host specific */
+	bus->hosttype = BCMA_HOSTTYPE_SOC;
+	bus->ops = &bcma_host_soc_ops;
+	bus->host_pdev = pdev;
+
+	/* Initialize struct, detect chip */
+	bcma_init_bus(bus);
+
+	/* Register */
+	err = bcma_bus_register(bus);
+	if (err)
+		goto err_unmap_mmio;
+
+	platform_set_drvdata(pdev, bus);
+
+	return err;
+
+err_unmap_mmio:
+	iounmap(bus->mmio);
+	return err;
+}
+
+static int bcma_host_soc_remove(struct platform_device *pdev)
+{
+	struct bcma_bus *bus = platform_get_drvdata(pdev);
+
+	bcma_bus_unregister(bus);
+	iounmap(bus->mmio);
+	platform_set_drvdata(pdev, NULL);
+
+	return 0;
+}
+
+static const struct of_device_id bcma_host_soc_of_match[] = {
+	{ .compatible = "brcm,bus-axi", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bcma_host_soc_of_match);
+
+static struct platform_driver bcma_host_soc_driver = {
+	.driver = {
+		.name = "bcma-host-soc",
+		.of_match_table = bcma_host_soc_of_match,
+	},
+	.probe		= bcma_host_soc_probe,
+	.remove		= bcma_host_soc_remove,
+};
+
+int __init bcma_host_soc_register_driver(void)
+{
+	return platform_driver_register(&bcma_host_soc_driver);
+}
+
+void __exit bcma_host_soc_unregister_driver(void)
+{
+	platform_driver_unregister(&bcma_host_soc_driver);
+}
+#endif /* CONFIG_OF */

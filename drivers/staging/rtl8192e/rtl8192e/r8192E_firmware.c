@@ -261,6 +261,7 @@ bool init_firmware(struct net_device *dev)
 				};
 				const struct firmware *fw_entry;
 				int rc;
+
 				rc = request_firmware(&fw_entry,
 						      fw_name[init_step],
 						      &priv->pdev->dev);

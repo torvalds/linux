@@ -535,6 +535,7 @@ void rtl8723a_set_bcn_func(struct rtw_adapter *padapter, u8 val)
 void rtl8723a_check_bssid(struct rtw_adapter *padapter, u8 val)
 {
 	u32 val32;
+
 	val32 = rtl8723au_read32(padapter, REG_RCR);
 	if (val)
 		val32 |= RCR_CBSSID_DATA | RCR_CBSSID_BCN;
@@ -588,7 +589,7 @@ void rtl8723a_on_rcr_am(struct rtw_adapter *padapter)
 {
 	rtl8723au_write32(padapter, REG_RCR,
 		    rtl8723au_read32(padapter, REG_RCR) | RCR_AM);
-	DBG_8723A("%s, %d, RCR = %x \n", __func__, __LINE__,
+	DBG_8723A("%s, %d, RCR = %x\n", __func__, __LINE__,
 		  rtl8723au_read32(padapter, REG_RCR));
 }
 
@@ -596,7 +597,7 @@ void rtl8723a_off_rcr_am(struct rtw_adapter *padapter)
 {
 	rtl8723au_write32(padapter, REG_RCR,
 		    rtl8723au_read32(padapter, REG_RCR) & (~RCR_AM));
-	DBG_8723A("%s, %d, RCR = %x \n", __func__, __LINE__,
+	DBG_8723A("%s, %d, RCR = %x\n", __func__, __LINE__,
 		  rtl8723au_read32(padapter, REG_RCR));
 }
 
@@ -666,12 +667,12 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, WCAMI, ulContent);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx \n",
+		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx\n",
 		   ulContent));*/
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, REG_CAMCMD, ulCommand);
 		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx \n",
+		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx\n",
 		   ulCommand));*/
 	}
 }
@@ -741,9 +742,8 @@ void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)
 			if (!v32)
 				break;
 		} while (trycnt--);
-		if (trycnt == 0) {
+		if (trycnt == 0)
 			DBG_8723A("Stop RX DMA failed......\n");
-		}
 
 		/*  RQPN Load 0 */
 		rtl8723au_write16(padapter, REG_RQPN_NPQ, 0);

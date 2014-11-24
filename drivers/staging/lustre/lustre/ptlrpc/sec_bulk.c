@@ -365,7 +365,7 @@ static void enc_pools_insert(struct page ***pools, int npools, int npages)
 	 */
 	cur_npools = (page_pools.epp_total_pages + PAGES_PER_POOL - 1) /
 		     PAGES_PER_POOL;
-	end_npools = (page_pools.epp_total_pages + npages + PAGES_PER_POOL -1) /
+	end_npools = (page_pools.epp_total_pages + npages + PAGES_PER_POOL - 1) /
 		     PAGES_PER_POOL;
 	LASSERT(end_npools <= page_pools.epp_max_pools);
 
@@ -794,7 +794,7 @@ static int cfs_hash_alg_id[] = {
 	[BULK_HASH_ALG_SHA384]	= CFS_HASH_ALG_SHA384,
 	[BULK_HASH_ALG_SHA512]	= CFS_HASH_ALG_SHA512,
 };
-const char * sptlrpc_get_hash_name(__u8 hash_alg)
+const char *sptlrpc_get_hash_name(__u8 hash_alg)
 {
 	return cfs_crypto_hash_name(cfs_hash_alg_id[hash_alg]);
 }

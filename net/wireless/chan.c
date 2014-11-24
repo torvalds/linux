@@ -4,6 +4,7 @@
  * any point in time.
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  */
 
 #include <linux/export.h>

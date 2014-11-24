@@ -9,7 +9,6 @@
  */
 #include <linux/clk.h>
 #include <linux/bitmap.h>
-#include <linux/dw_dmac.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
@@ -24,6 +23,9 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/atmel-abdac.h>
+
+#include <linux/platform_data/dma-dw.h>
+#include <linux/dma/dw.h>
 
 /* DAC register offsets */
 #define DAC_DATA                                0x0000

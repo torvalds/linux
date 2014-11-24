@@ -717,8 +717,6 @@ static int prism2mib_priv(struct mibrec *mib,
 {
 	p80211pstrd_t *pstr = (p80211pstrd_t *) data;
 
-	int result;
-
 	switch (mib->did) {
 	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE:{
 			hfa384x_WPAData_t wpa;
@@ -734,11 +732,10 @@ static int prism2mib_priv(struct mibrec *mib,
 				wpa.datalen = cpu_to_le16(pstr->len);
 				memcpy(wpa.data, pstr->data, pstr->len);
 
-				result =
-				    hfa384x_drvr_setconfig(hw,
-						   HFA384x_RID_CNFWPADATA,
-						   (u8 *) &wpa,
-						   sizeof(wpa));
+				hfa384x_drvr_setconfig(hw,
+						       HFA384x_RID_CNFWPADATA,
+						       (u8 *) &wpa,
+						       sizeof(wpa));
 			}
 			break;
 		}

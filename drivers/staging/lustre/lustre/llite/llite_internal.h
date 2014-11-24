@@ -45,7 +45,7 @@
 #include "../include/cl_object.h"
 #include "../include/lclient.h"
 #include "../include/lustre_mdc.h"
-#include "../include/linux/lustre_intent.h"
+#include "../include/lustre_intent.h"
 #include <linux/compat.h>
 #include <linux/posix_acl_xattr.h>
 
@@ -305,8 +305,8 @@ int ll_xattr_cache_get(struct inode *inode,
 void ll_inode_size_lock(struct inode *inode);
 void ll_inode_size_unlock(struct inode *inode);
 
-// FIXME: replace the name of this with LL_I to conform to kernel stuff
-// static inline struct ll_inode_info *LL_I(struct inode *inode)
+/* FIXME: replace the name of this with LL_I to conform to kernel stuff */
+/* static inline struct ll_inode_info *LL_I(struct inode *inode) */
 static inline struct ll_inode_info *ll_i2info(struct inode *inode)
 {
 	return container_of(inode, struct ll_inode_info, lli_vfs_inode);
@@ -652,7 +652,7 @@ static inline struct inode *ll_info2i(struct ll_inode_info *lli)
 }
 
 __u32 ll_i2suppgid(struct inode *i);
-void ll_i2gids(__u32 *suppgids, struct inode *i1,struct inode *i2);
+void ll_i2gids(__u32 *suppgids, struct inode *i1, struct inode *i2);
 
 static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 {
@@ -775,7 +775,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 		     int *lmm_size, struct ptlrpc_request **request);
 int ll_fsync(struct file *file, loff_t start, loff_t end, int data);
 int ll_merge_lvb(const struct lu_env *env, struct inode *inode);
-int ll_fid2path(struct inode *inode, void *arg);
+int ll_fid2path(struct inode *inode, void __user *arg);
 int ll_data_version(struct inode *inode, __u64 *data_version, int extent_lock);
 int ll_hsm_release(struct inode *inode);
 
@@ -894,6 +894,10 @@ struct vvp_io {
 				 * fault API used bitflags for return code.
 				 */
 				unsigned int    ft_flags;
+				/**
+				 * check that flags are from filemap_fault
+				 */
+				bool		ft_flags_valid;
 			} fault;
 		} fault;
 	} u;
@@ -991,7 +995,7 @@ int ll_close_thread_start(struct ll_close_queue **lcq_ret);
 /* llite/llite_mmap.c */
 
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last);
-int ll_file_mmap(struct file * file, struct vm_area_struct * vma);
+int ll_file_mmap(struct file *file, struct vm_area_struct *vma);
 void policy_from_vma(ldlm_policy_data_t *policy,
 		struct vm_area_struct *vma, unsigned long addr, size_t count);
 struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
@@ -1032,7 +1036,7 @@ static inline struct client_obd *sbi2mdc(struct ll_sb_info *sbi)
 	return &obd->u.cli;
 }
 
-// FIXME: replace the name of this with LL_SB to conform to kernel stuff
+/* FIXME: replace the name of this with LL_SB to conform to kernel stuff */
 static inline struct ll_sb_info *ll_i2sbi(struct inode *inode)
 {
 	return ll_s2sbi(inode->i_sb);
@@ -1124,7 +1128,7 @@ struct eacl_entry {
 	ext_acl_xattr_header *ee_acl;
 };
 
-obd_valid rce_ops2valid(int ops);
+u64 rce_ops2valid(int ops);
 struct rmtacl_ctl_entry *rct_search(struct rmtacl_ctl_table *rct, pid_t key);
 int rct_add(struct rmtacl_ctl_table *rct, pid_t key, int ops);
 int rct_del(struct rmtacl_ctl_table *rct, pid_t key);
@@ -1140,7 +1144,7 @@ void et_search_free(struct eacl_table *et, pid_t key);
 void et_init(struct eacl_table *et);
 void et_fini(struct eacl_table *et);
 #else
-static inline obd_valid rce_ops2valid(int ops)
+static inline u64 rce_ops2valid(int ops)
 {
 	return 0;
 }

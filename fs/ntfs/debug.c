@@ -112,7 +112,7 @@ void __ntfs_error(const char *function, const struct super_block *sb,
 /* If 1, output debug messages, and if 0, don't. */
 int debug_msgs = 0;
 
-void __ntfs_debug (const char *file, int line, const char *function,
+void __ntfs_debug(const char *file, int line, const char *function,
 		const char *fmt, ...)
 {
 	struct va_format vaf;

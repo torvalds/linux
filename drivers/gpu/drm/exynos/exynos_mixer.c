@@ -1302,15 +1302,12 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 static void mixer_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct exynos_drm_manager *mgr = dev_get_drvdata(dev);
-	struct drm_crtc *crtc = mgr->crtc;
 
 	dev_info(dev, "remove successful\n");
 
 	mixer_mgr_remove(mgr);
 
 	pm_runtime_disable(dev);
-
-	crtc->funcs->destroy(crtc);
 }
 
 static const struct component_ops mixer_component_ops = {

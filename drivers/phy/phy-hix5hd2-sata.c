@@ -180,7 +180,6 @@ static struct platform_driver hix5hd2_sata_phy_driver = {
 	.probe	= hix5hd2_sata_phy_probe,
 	.driver = {
 		.name	= "hix5hd2-sata-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table	= hix5hd2_sata_phy_of_match,
 	}
 };

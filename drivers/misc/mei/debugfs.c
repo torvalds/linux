@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/debugfs.h>
-#include <linux/pci.h>
 
 #include <linux/mei.h>
 
@@ -28,39 +27,47 @@ static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
 	struct mei_device *dev = fp->private_data;
-	struct mei_me_client *cl;
-	const size_t bufsz = 1024;
-	char *buf = kzalloc(bufsz, GFP_KERNEL);
-	int i;
+	struct mei_me_client *me_cl;
+	size_t bufsz = 1;
+	char *buf;
+	int i = 0;
 	int pos = 0;
 	int ret;
 
-	if  (!buf)
-		return -ENOMEM;
-
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"  |id|addr|         UUID                       |con|msg len|\n");
+#define HDR "  |id|addr|         UUID                       |con|msg len|sb|\n"
 
 	mutex_lock(&dev->device_lock);
+
+	list_for_each_entry(me_cl, &dev->me_clients, list)
+		bufsz++;
+
+	bufsz *= sizeof(HDR) + 1;
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		mutex_unlock(&dev->device_lock);
+		return -ENOMEM;
+	}
+
+	pos += scnprintf(buf + pos, bufsz - pos, HDR);
 
 	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
-	for (i = 0; i < dev->me_clients_num; i++) {
-		cl = &dev->me_clients[i];
+	list_for_each_entry(me_cl, &dev->me_clients, list) {
 
 		/* skip me clients that cannot be connected */
-		if (cl->props.max_number_of_connections == 0)
+		if (me_cl->props.max_number_of_connections == 0)
 			continue;
 
 		pos += scnprintf(buf + pos, bufsz - pos,
-			"%2d|%2d|%4d|%pUl|%3d|%7d|\n",
-			i, cl->client_id,
-			cl->props.fixed_address,
-			&cl->props.protocol_name,
-			cl->props.max_number_of_connections,
-			cl->props.max_msg_length);
+			"%2d|%2d|%4d|%pUl|%3d|%7d|%2d|\n",
+			i++, me_cl->client_id,
+			me_cl->props.fixed_address,
+			&me_cl->props.protocol_name,
+			me_cl->props.max_number_of_connections,
+			me_cl->props.max_msg_length,
+			me_cl->props.single_recv_buf);
 	}
 out:
 	mutex_unlock(&dev->device_lock);
@@ -98,7 +105,7 @@ static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
 
 	mutex_lock(&dev->device_lock);
 
-	/*  if the driver is not enabled the list won't b consitent */
+	/*  if the driver is not enabled the list won't be consistent */
 	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
@@ -135,8 +142,13 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 	if  (!buf)
 		return -ENOMEM;
 
-	pos += scnprintf(buf + pos, bufsz - pos, "%s\n",
+	pos += scnprintf(buf + pos, bufsz - pos, "dev: %s\n",
 			mei_dev_state_str(dev->dev_state));
+	pos += scnprintf(buf + pos, bufsz - pos, "hbm: %s\n",
+			mei_hbm_state_str(dev->hbm_state));
+	pos += scnprintf(buf + pos, bufsz - pos, "pg:  %s, %s\n",
+			mei_pg_is_enabled(dev) ? "ENABLED" : "DISABLED",
+			mei_pg_state_str(mei_pg_state(dev)));
 	ret = simple_read_from_buffer(ubuf, cnt, ppos, buf, pos);
 	kfree(buf);
 	return ret;
@@ -149,7 +161,8 @@ static const struct file_operations mei_dbgfs_fops_devstate = {
 
 /**
  * mei_dbgfs_deregister - Remove the debugfs files and directories
- * @mei - pointer to mei device private data
+ *
+ * @dev: the mei device structure
  */
 void mei_dbgfs_deregister(struct mei_device *dev)
 {
@@ -160,12 +173,17 @@ void mei_dbgfs_deregister(struct mei_device *dev)
 }
 
 /**
- * Add the debugfs files
+ * mei_dbgfs_register - Add the debugfs files
  *
+ * @dev: the mei device structure
+ * @name: the mei device name
+ *
+ * Return: 0 on success, <0 on failure.
  */
 int mei_dbgfs_register(struct mei_device *dev, const char *name)
 {
 	struct dentry *dir, *f;
+
 	dir = debugfs_create_dir(name, NULL);
 	if (!dir)
 		return -ENOMEM;
@@ -173,19 +191,19 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 	f = debugfs_create_file("meclients", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_meclients);
 	if (!f) {
-		dev_err(&dev->pdev->dev, "meclients: registration failed\n");
+		dev_err(dev->dev, "meclients: registration failed\n");
 		goto err;
 	}
 	f = debugfs_create_file("active", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_active);
 	if (!f) {
-		dev_err(&dev->pdev->dev, "meclients: registration failed\n");
+		dev_err(dev->dev, "meclients: registration failed\n");
 		goto err;
 	}
 	f = debugfs_create_file("devstate", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_devstate);
 	if (!f) {
-		dev_err(&dev->pdev->dev, "devstate: registration failed\n");
+		dev_err(dev->dev, "devstate: registration failed\n");
 		goto err;
 	}
 	dev->dbgfs_dir = dir;

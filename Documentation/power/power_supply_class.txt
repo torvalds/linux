@@ -101,6 +101,10 @@ VOLTAGE_MAX, VOLTAGE_MIN - same as _DESIGN voltage values except that
 these ones should be used if hardware could only guess (measure and
 retain) the thresholds of a given power supply.
 
+VOLTAGE_BOOT - Reports the voltage measured during boot
+
+CURRENT_BOOT - Reports the current measured during boot
+
 CHARGE_FULL_DESIGN, CHARGE_EMPTY_DESIGN - design charge values, when
 battery considered full/empty.
 
@@ -122,6 +126,8 @@ INPUT_CURRENT_LIMIT - input current limit programmed by charger. Indicates
 the current drawn from a charging source.
 CHARGE_TERM_CURRENT - Charge termination current used to detect the end of charge
 condition.
+
+CALIBRATE - battery or coulomb counter calibration status
 
 CONSTANT_CHARGE_VOLTAGE - constant charge voltage programmed by charger.
 CONSTANT_CHARGE_VOLTAGE_MAX - maximum charge voltage supported by the

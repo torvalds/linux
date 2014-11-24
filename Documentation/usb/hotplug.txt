@@ -58,7 +58,7 @@ USB POLICY AGENT
 
 The USB subsystem currently invokes /sbin/hotplug when USB devices
 are added or removed from system.  The invocation is done by the kernel
-hub daemon thread [khubd], or else as part of root hub initialization
+hub workqueue [hub_wq], or else as part of root hub initialization
 (done by init, modprobe, kapmd, etc).  Its single command line parameter
 is the string "usb", and it passes these environment variables:
 

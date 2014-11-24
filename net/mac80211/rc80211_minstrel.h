@@ -31,6 +31,27 @@ minstrel_ewma(int old, int new, int weight)
 	return (new * (EWMA_DIV - weight) + old * weight) / EWMA_DIV;
 }
 
+struct minstrel_rate_stats {
+	/* current / last sampling period attempts/success counters */
+	unsigned int attempts, last_attempts;
+	unsigned int success, last_success;
+
+	/* total attempts/success counters */
+	u64 att_hist, succ_hist;
+
+	/* current throughput */
+	unsigned int cur_tp;
+
+	/* packet delivery probabilities */
+	unsigned int cur_prob, probability;
+
+	/* maximum retry counts */
+	unsigned int retry_count;
+	unsigned int retry_count_rtscts;
+
+	u8 sample_skipped;
+	bool retry_updated;
+};
 
 struct minstrel_rate {
 	int bitrate;
@@ -40,26 +61,10 @@ struct minstrel_rate {
 	unsigned int ack_time;
 
 	int sample_limit;
-	unsigned int retry_count;
 	unsigned int retry_count_cts;
-	unsigned int retry_count_rtscts;
 	unsigned int adjusted_retry_count;
 
-	u32 success;
-	u32 attempts;
-	u32 last_attempts;
-	u32 last_success;
-	u8 sample_skipped;
-
-	/* parts per thousand */
-	u32 cur_prob;
-	u32 probability;
-
-	/* per-rate throughput */
-	u32 cur_tp;
-
-	u64 succ_hist;
-	u64 att_hist;
+	struct minstrel_rate_stats stats;
 };
 
 struct minstrel_sta_info {
@@ -73,8 +78,8 @@ struct minstrel_sta_info {
 
 	u8 max_tp_rate[MAX_THR_RATES];
 	u8 max_prob_rate;
-	unsigned int packet_count;
-	unsigned int sample_count;
+	unsigned int total_packets;
+	unsigned int sample_packets;
 	int sample_deferred;
 
 	unsigned int sample_row;

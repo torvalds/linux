@@ -98,7 +98,7 @@ static int usb3503_connect(struct usb3503 *hub)
 			return err;
 		}
 
-		/* PDS : Disable For Self Powered Operation */
+		/* PDS : Set the ports which are disabled in self-powered mode. */
 		if (hub->port_off_mask) {
 			err = regmap_update_bits(hub->regmap, USB3503_PDS,
 					hub->port_off_mask,
@@ -109,7 +109,7 @@ static int usb3503_connect(struct usb3503 *hub)
 			}
 		}
 
-		/* CFG1 : SELF_BUS_PWR -> Self-Powerd operation */
+		/* CFG1 : Set SELF_BUS_PWR, this enables self-powered operation. */
 		err = regmap_update_bits(hub->regmap, USB3503_CFG1,
 					 USB3503_SELF_BUS_PWR,
 					 USB3503_SELF_BUS_PWR);
@@ -271,7 +271,7 @@ static int usb3503_probe(struct usb3503 *hub)
 					    "usb3503 intn");
 		if (err) {
 			dev_err(dev,
-				"unable to request GPIO %d as connect pin (%d)\n",
+				"unable to request GPIO %d as interrupt pin (%d)\n",
 				hub->gpio_intn, err);
 			return err;
 		}

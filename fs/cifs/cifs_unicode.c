@@ -20,6 +20,7 @@
  */
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "cifs_uniupr.h"
 #include "cifspdu.h"
@@ -61,26 +62,24 @@ cifs_utf16_bytes(const __le16 *from, int maxbytes,
 	return outlen;
 }
 
-/*
- * cifs_mapchar - convert a host-endian char to proper char in codepage
- * @target - where converted character should be copied
- * @src_char - 2 byte host-endian source character
- * @cp - codepage to which character should be converted
- * @mapchar - should character be mapped according to mapchars mount option?
- *
- * This function handles the conversion of a single character. It is the
- * responsibility of the caller to ensure that the target buffer is large
- * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
- */
-static int
-cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
-	     bool mapchar)
+int cifs_remap(struct cifs_sb_info *cifs_sb)
 {
-	int len = 1;
+	int map_type;
 
-	if (!mapchar)
-		goto cp_convert;
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SFM_CHR)
+		map_type = SFM_MAP_UNI_RSVD;
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+		map_type = SFU_MAP_UNI_RSVD;
+	else
+		map_type = NO_MAP_UNI_RSVD;
 
+	return map_type;
+}
+
+/* Convert character using the SFU - "Services for Unix" remapping range */
+static bool
+convert_sfu_char(const __u16 src_char, char *target)
+{
 	/*
 	 * BB: Cannot handle remapping UNI_SLASH until all the calls to
 	 *     build_path_from_dentry are modified, as they use slash as
@@ -106,19 +105,74 @@ cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
 		*target = '<';
 		break;
 	default:
-		goto cp_convert;
+		return false;
 	}
+	return true;
+}
 
-out:
-	return len;
+/* Convert character using the SFM - "Services for Mac" remapping range */
+static bool
+convert_sfm_char(const __u16 src_char, char *target)
+{
+	switch (src_char) {
+	case SFM_COLON:
+		*target = ':';
+		break;
+	case SFM_ASTERISK:
+		*target = '*';
+		break;
+	case SFM_QUESTION:
+		*target = '?';
+		break;
+	case SFM_PIPE:
+		*target = '|';
+		break;
+	case SFM_GRTRTHAN:
+		*target = '>';
+		break;
+	case SFM_LESSTHAN:
+		*target = '<';
+		break;
+	case SFM_SLASH:
+		*target = '\\';
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
 
-cp_convert:
+
+/*
+ * cifs_mapchar - convert a host-endian char to proper char in codepage
+ * @target - where converted character should be copied
+ * @src_char - 2 byte host-endian source character
+ * @cp - codepage to which character should be converted
+ * @map_type - How should the 7 NTFS/SMB reserved characters be mapped to UCS2?
+ *
+ * This function handles the conversion of a single character. It is the
+ * responsibility of the caller to ensure that the target buffer is large
+ * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
+ */
+static int
+cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
+	     int maptype)
+{
+	int len = 1;
+
+	if ((maptype == SFM_MAP_UNI_RSVD) && convert_sfm_char(src_char, target))
+		return len;
+	else if ((maptype == SFU_MAP_UNI_RSVD) &&
+		  convert_sfu_char(src_char, target))
+		return len;
+
+	/* if character not one of seven in special remap set */
 	len = cp->uni2char(src_char, target, NLS_MAX_CHARSET_SIZE);
 	if (len <= 0) {
 		*target = '?';
 		len = 1;
 	}
-	goto out;
+	return len;
 }
 
 /*
@@ -145,7 +199,7 @@ cp_convert:
  */
 int
 cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
-		 const struct nls_table *codepage, bool mapchar)
+		const struct nls_table *codepage, int map_type)
 {
 	int i, charlen, safelen;
 	int outlen = 0;
@@ -172,13 +226,13 @@ cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
 		 * conversion bleed into the null terminator
 		 */
 		if (outlen >= safelen) {
-			charlen = cifs_mapchar(tmp, ftmp, codepage, mapchar);
+			charlen = cifs_mapchar(tmp, ftmp, codepage, map_type);
 			if ((outlen + charlen) > (tolen - nullsize))
 				break;
 		}
 
 		/* put converted char into 'to' buffer */
-		charlen = cifs_mapchar(&to[outlen], ftmp, codepage, mapchar);
+		charlen = cifs_mapchar(&to[outlen], ftmp, codepage, map_type);
 		outlen += charlen;
 	}
 
@@ -267,7 +321,7 @@ cifs_strndup_from_utf16(const char *src, const int maxlen,
 		if (!dst)
 			return NULL;
 		cifs_from_utf16(dst, (__le16 *) src, len, maxlen, codepage,
-			       false);
+			       NO_MAP_UNI_RSVD);
 	} else {
 		len = strnlen(src, maxlen);
 		len++;
@@ -280,6 +334,66 @@ cifs_strndup_from_utf16(const char *src, const int maxlen,
 	return dst;
 }
 
+static __le16 convert_to_sfu_char(char src_char)
+{
+	__le16 dest_char;
+
+	switch (src_char) {
+	case ':':
+		dest_char = cpu_to_le16(UNI_COLON);
+		break;
+	case '*':
+		dest_char = cpu_to_le16(UNI_ASTERISK);
+		break;
+	case '?':
+		dest_char = cpu_to_le16(UNI_QUESTION);
+		break;
+	case '<':
+		dest_char = cpu_to_le16(UNI_LESSTHAN);
+		break;
+	case '>':
+		dest_char = cpu_to_le16(UNI_GRTRTHAN);
+		break;
+	case '|':
+		dest_char = cpu_to_le16(UNI_PIPE);
+		break;
+	default:
+		dest_char = 0;
+	}
+
+	return dest_char;
+}
+
+static __le16 convert_to_sfm_char(char src_char)
+{
+	__le16 dest_char;
+
+	switch (src_char) {
+	case ':':
+		dest_char = cpu_to_le16(SFM_COLON);
+		break;
+	case '*':
+		dest_char = cpu_to_le16(SFM_ASTERISK);
+		break;
+	case '?':
+		dest_char = cpu_to_le16(SFM_QUESTION);
+		break;
+	case '<':
+		dest_char = cpu_to_le16(SFM_LESSTHAN);
+		break;
+	case '>':
+		dest_char = cpu_to_le16(SFM_GRTRTHAN);
+		break;
+	case '|':
+		dest_char = cpu_to_le16(SFM_PIPE);
+		break;
+	default:
+		dest_char = 0;
+	}
+
+	return dest_char;
+}
+
 /*
  * Convert 16 bit Unicode pathname to wire format from string in current code
  * page. Conversion may involve remapping up the six characters that are
@@ -288,7 +402,7 @@ cifs_strndup_from_utf16(const char *src, const int maxlen,
  */
 int
 cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
-		 const struct nls_table *cp, int mapChars)
+		 const struct nls_table *cp, int map_chars)
 {
 	int i, charlen;
 	int j = 0;
@@ -296,39 +410,30 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 	__le16 dst_char;
 	wchar_t tmp;
 
-	if (!mapChars)
+	if (map_chars == NO_MAP_UNI_RSVD)
 		return cifs_strtoUTF16(target, source, PATH_MAX, cp);
 
 	for (i = 0; i < srclen; j++) {
 		src_char = source[i];
 		charlen = 1;
-		switch (src_char) {
-		case 0:
+
+		/* check if end of string */
+		if (src_char == 0)
 			goto ctoUTF16_out;
-		case ':':
-			dst_char = cpu_to_le16(UNI_COLON);
-			break;
-		case '*':
-			dst_char = cpu_to_le16(UNI_ASTERISK);
-			break;
-		case '?':
-			dst_char = cpu_to_le16(UNI_QUESTION);
-			break;
-		case '<':
-			dst_char = cpu_to_le16(UNI_LESSTHAN);
-			break;
-		case '>':
-			dst_char = cpu_to_le16(UNI_GRTRTHAN);
-			break;
-		case '|':
-			dst_char = cpu_to_le16(UNI_PIPE);
-			break;
+
+		/* see if we must remap this char */
+		if (map_chars == SFU_MAP_UNI_RSVD)
+			dst_char = convert_to_sfu_char(src_char);
+		else if (map_chars == SFM_MAP_UNI_RSVD)
+			dst_char = convert_to_sfm_char(src_char);
+		else
+			dst_char = 0;
 		/*
 		 * FIXME: We can not handle remapping backslash (UNI_SLASH)
 		 * until all the calls to build_path_from_dentry are modified,
 		 * as they use backslash as separator.
 		 */
-		default:
+		if (dst_char == 0) {
 			charlen = cp->char2uni(source + i, srclen - i, &tmp);
 			dst_char = cpu_to_le16(tmp);
 

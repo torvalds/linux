@@ -222,8 +222,6 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 	WARN_ON(sizeof(ax) != sizeof(struct aes_ccm_block));
 
 	result = -ENOMEM;
-	zero_padding = sizeof(struct aes_ccm_block)
-		- blen % sizeof(struct aes_ccm_block);
 	zero_padding = blen % sizeof(struct aes_ccm_block);
 	if (zero_padding)
 		zero_padding = sizeof(struct aes_ccm_block) - zero_padding;

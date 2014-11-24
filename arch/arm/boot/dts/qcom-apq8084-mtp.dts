@@ -3,4 +3,10 @@
 / {
 	model = "Qualcomm APQ 8084-MTP";
 	compatible = "qcom,apq8084-mtp", "qcom,apq8084";
+
+	soc {
+		serial@f995e000 {
+			status = "okay";
+		};
+	};
 };

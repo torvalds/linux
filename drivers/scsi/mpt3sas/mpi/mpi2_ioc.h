@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2013 LSI Corporation.
+ * Copyright (c) 2000-2014 LSI Corporation.
  *
  *
  *          Name:  mpi2_ioc.h
  *         Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  * Creation Date:  October 11, 2006
  *
- * mpi2_ioc.h Version:  02.00.22
+ * mpi2_ioc.h Version:  02.00.23
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -127,6 +127,11 @@
  * 07-26-12  02.00.22  Added MPI2_IOCFACTS_EXCEPT_PARTIAL_MEMORY_FAILURE.
  *                     Added ElapsedSeconds field to
  *                     MPI2_EVENT_DATA_IR_OPERATION_STATUS.
+ * 08-19-13  02.00.23  For IOCInit, added MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE
+ *			and MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY.
+ *			Added MPI2_IOCFACTS_CAPABILITY_RDPQ_ARRAY_CAPABLE.
+ *			Added MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY.
+ *			Added Encrypted Hash Extended Image.
  * --------------------------------------------------------------------------
  */
 
@@ -182,6 +187,10 @@ typedef struct _MPI2_IOC_INIT_REQUEST {
 #define MPI2_WHOINIT_HOST_DRIVER                (0x04)
 #define MPI2_WHOINIT_MANUFACTURER               (0x05)
 
+/* MsgFlags */
+#define MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE    (0x01)
+
+
 /*MsgVersion */
 #define MPI2_IOCINIT_MSGVERSION_MAJOR_MASK      (0xFF00)
 #define MPI2_IOCINIT_MSGVERSION_MAJOR_SHIFT     (8)
@@ -194,8 +203,18 @@ typedef struct _MPI2_IOC_INIT_REQUEST {
 #define MPI2_IOCINIT_HDRVERSION_DEV_MASK        (0x00FF)
 #define MPI2_IOCINIT_HDRVERSION_DEV_SHIFT       (0)
 
-/*minimum depth for the Reply Descriptor Post Queue */
+/*minimum depth for a Reply Descriptor Post Queue */
 #define MPI2_RDPQ_DEPTH_MIN                     (16)
+
+/* Reply Descriptor Post Queue Array Entry */
+typedef struct _MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY {
+	U64                 RDPQBaseAddress;                    /* 0x00 */
+	U32                 Reserved1;                          /* 0x08 */
+	U32                 Reserved2;                          /* 0x0C */
+} MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY,
+*PTR_MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY,
+Mpi2IOCInitRDPQArrayEntry, *pMpi2IOCInitRDPQArrayEntry;
+
 
 /*IOCInit Reply message */
 typedef struct _MPI2_IOC_INIT_REPLY {
@@ -306,6 +325,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 /*ProductID field uses MPI2_FW_HEADER_PID_ */
 
 /*IOCCapabilities */
+#define MPI2_IOCFACTS_CAPABILITY_RDPQ_ARRAY_CAPABLE     (0x00040000)
 #define MPI25_IOCFACTS_CAPABILITY_FAST_PATH_CAPABLE     (0x00020000)
 #define MPI2_IOCFACTS_CAPABILITY_HOST_BASED_DISCOVERY   (0x00010000)
 #define MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX            (0x00008000)
@@ -1140,6 +1160,7 @@ typedef struct _MPI2_FW_DOWNLOAD_REQUEST {
 #define MPI2_FW_DOWNLOAD_ITYPE_MEGARAID             (0x09)
 #define MPI2_FW_DOWNLOAD_ITYPE_COMPLETE             (0x0A)
 #define MPI2_FW_DOWNLOAD_ITYPE_COMMON_BOOT_BLOCK    (0x0B)
+#define MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY           (0x0C)
 #define MPI2_FW_DOWNLOAD_ITYPE_MIN_PRODUCT_SPECIFIC (0xF0)
 
 /*MPI v2.0 FWDownload TransactionContext Element */
@@ -1404,6 +1425,7 @@ typedef struct _MPI2_EXT_IMAGE_HEADER {
 #define MPI2_EXT_IMAGE_TYPE_FLASH_LAYOUT            (0x06)
 #define MPI2_EXT_IMAGE_TYPE_SUPPORTED_DEVICES       (0x07)
 #define MPI2_EXT_IMAGE_TYPE_MEGARAID                (0x08)
+#define MPI2_EXT_IMAGE_TYPE_ENCRYPTED_HASH          (0x09)
 #define MPI2_EXT_IMAGE_TYPE_MIN_PRODUCT_SPECIFIC    (0x80)
 #define MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC    (0xFF)
 
@@ -1559,6 +1581,42 @@ typedef struct _MPI2_INIT_IMAGE_FOOTER {
 
 /*defines for the ResetVector field */
 #define MPI2_INIT_IMAGE_RESETVECTOR_OFFSET      (0x14)
+
+
+/* Encrypted Hash Extended Image Data */
+
+typedef struct _MPI25_ENCRYPTED_HASH_ENTRY {
+	U8		HashImageType;		/* 0x00 */
+	U8		HashAlgorithm;		/* 0x01 */
+	U8		EncryptionAlgorithm;	/* 0x02 */
+	U8		Reserved1;		/* 0x03 */
+	U32		Reserved2;		/* 0x04 */
+	U32		EncryptedHash[1];	/* 0x08 */ /* variable length */
+} MPI25_ENCRYPTED_HASH_ENTRY, *PTR_MPI25_ENCRYPTED_HASH_ENTRY,
+Mpi25EncryptedHashEntry_t, *pMpi25EncryptedHashEntry_t;
+
+/* values for HashImageType */
+#define MPI25_HASH_IMAGE_TYPE_UNUSED		(0x00)
+#define MPI25_HASH_IMAGE_TYPE_FIRMWARE		(0x01)
+
+/* values for HashAlgorithm */
+#define MPI25_HASH_ALGORITHM_UNUSED		(0x00)
+#define MPI25_HASH_ALGORITHM_SHA256		(0x01)
+
+/* values for EncryptionAlgorithm */
+#define MPI25_ENCRYPTION_ALG_UNUSED		(0x00)
+#define MPI25_ENCRYPTION_ALG_RSA256		(0x01)
+
+typedef struct _MPI25_ENCRYPTED_HASH_DATA {
+	U8				ImageVersion;		/* 0x00 */
+	U8				NumHash;		/* 0x01 */
+	U16				Reserved1;		/* 0x02 */
+	U32				Reserved2;		/* 0x04 */
+	MPI25_ENCRYPTED_HASH_ENTRY	EncryptedHashEntry[1];  /* 0x08 */
+} MPI25_ENCRYPTED_HASH_DATA, *PTR_MPI25_ENCRYPTED_HASH_DATA,
+Mpi25EncryptedHashData_t, *pMpi25EncryptedHashData_t;
+
+
 
 /****************************************************************************
 * PowerManagementControl message

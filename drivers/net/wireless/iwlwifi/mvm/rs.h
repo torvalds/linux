@@ -207,6 +207,7 @@ struct rs_rate {
 	u8 ant;
 	u32 bw;
 	bool sgi;
+	bool ldpc;
 };
 
 
@@ -329,9 +330,8 @@ struct iwl_lq_sta {
 				 */
 	u64 last_tx;
 	bool is_vht;
+	bool ldpc;              /* LDPC Rx is supported by the STA */
 	enum ieee80211_band band;
-
-	struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
 
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
 	unsigned long active_legacy_rate;
@@ -343,7 +343,6 @@ struct iwl_lq_sta {
 	u8 max_siso_rate_idx;
 	u8 max_mimo2_rate_idx;
 
-	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 
 	struct iwl_lq_cmd lq;
@@ -361,11 +360,14 @@ struct iwl_lq_sta {
 	int tpc_reduce;
 
 	/* persistent fields - initialized only once - keep last! */
-	struct {
+	struct lq_sta_pers {
 #ifdef CONFIG_MAC80211_DEBUGFS
 		u32 dbg_fixed_rate;
 		u8 dbg_fixed_txp_reduction;
 #endif
+		u8 chains;
+		s8 chain_signal[IEEE80211_MAX_CHAINS];
+		struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
 		struct iwl_mvm *drv;
 	} pers;
 };
@@ -373,6 +375,10 @@ struct iwl_lq_sta {
 /* Initialize station's rate scaling information after adding station */
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  enum ieee80211_band band, bool init);
+
+/* Notify RS about Tx status */
+void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  int tid, struct ieee80211_tx_info *info);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks

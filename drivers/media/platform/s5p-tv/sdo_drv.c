@@ -190,7 +190,7 @@ static int sdo_s_power(struct v4l2_subdev *sd, int on)
 		ret = pm_runtime_put_sync(dev);
 
 	/* only values < 0 indicate errors */
-	return IS_ERR_VALUE(ret) ? ret : 0;
+	return ret < 0 ? ret : 0;
 }
 
 static int sdo_streamon(struct sdo_device *sdev)

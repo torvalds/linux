@@ -609,7 +609,7 @@ static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 		otg->host->otg_port = fsl_otg_initdata.otg_port;
 		otg->host->is_b_host = otg_dev->fsm.id;
 		/*
-		 * must leave time for khubd to finish its thing
+		 * must leave time for hub_wq to finish its thing
 		 * before yanking the host driver out from under it,
 		 * so suspend the host after a short delay.
 		 */

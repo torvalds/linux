@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/brcmphy.h>
+#include <linux/mdio.h>
 
 /* Broadcom BCM7xxx internal PHY registers */
 #define MII_BCM7XXX_CHANNEL_WIDTH	0x2000
@@ -146,15 +147,79 @@ static int bcm7xxx_28nm_afe_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm7xxx_apd_enable(struct phy_device *phydev)
+{
+	int val;
+
+	/* Enable powering down of the DLL during auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_SCR3);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
+	bcm54xx_shadow_write(phydev, BCM54XX_SHD_SCR3, val);
+
+	/* Enable auto-power down */
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_APD);
+	if (val < 0)
+		return val;
+
+	val |= BCM54XX_SHD_APD_EN;
+	return bcm54xx_shadow_write(phydev, BCM54XX_SHD_APD, val);
+}
+
+static int bcm7xxx_eee_enable(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
+				    MDIO_MMD_AN, phydev->addr);
+	if (val < 0)
+		return val;
+
+	/* Enable general EEE feature at the PHY level */
+	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+
+	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
+			       MDIO_MMD_AN, phydev->addr, val);
+
+	/* Advertise supported modes */
+	val = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
+				    MDIO_MMD_AN, phydev->addr);
+
+	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	phy_write_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
+			       MDIO_MMD_AN, phydev->addr, val);
+
+	return 0;
+}
+
 static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 {
-	int ret;
+	u8 rev = PHY_BRCM_7XXX_REV(phydev->dev_flags);
+	u8 patch = PHY_BRCM_7XXX_PATCH(phydev->dev_flags);
+	int ret = 0;
 
-	ret = bcm7445_config_init(phydev);
+	dev_info(&phydev->dev, "PHY revision: 0x%02x, patch: %d\n", rev, patch);
+
+	switch (rev) {
+	case 0xa0:
+	case 0xb0:
+		ret = bcm7445_config_init(phydev);
+		break;
+	default:
+		ret = bcm7xxx_28nm_afe_config_init(phydev);
+		break;
+	}
+
 	if (ret)
 		return ret;
 
-	return bcm7xxx_28nm_afe_config_init(phydev);
+	ret = bcm7xxx_eee_enable(phydev);
+	if (ret)
+		return ret;
+
+	return bcm7xxx_apd_enable(phydev);
 }
 
 static int bcm7xxx_28nm_resume(struct phy_device *phydev)
@@ -201,8 +266,8 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 	phy_write(phydev, MII_BCM7XXX_AUX_MODE, MII_BCM7XX_64CLK_MDIO);
 	phy_read(phydev, MII_BCM7XXX_AUX_MODE);
 
-	/* Workaround only required for 100Mbits/sec */
-	if (!(phydev->dev_flags & PHY_BRCM_100MBPS_WAR))
+	/* Workaround only required for 100Mbits/sec capable PHYs */
+	if (phydev->supported & PHY_GBIT_FEATURES)
 		return 0;
 
 	/* set shadow mode 2 */
@@ -263,43 +328,53 @@ static int bcm7xxx_dummy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+#define BCM7XXX_28NM_GPHY(_oui, _name)					\
+{									\
+	.phy_id		= (_oui),					\
+	.phy_id_mask	= 0xfffffff0,					\
+	.name		= _name,					\
+	.features	= PHY_GBIT_FEATURES |				\
+			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,	\
+	.flags		= PHY_IS_INTERNAL,				\
+	.config_init	= bcm7xxx_28nm_afe_config_init,			\
+	.config_aneg	= genphy_config_aneg,				\
+	.read_status	= genphy_read_status,				\
+	.resume		= bcm7xxx_28nm_resume,				\
+	.driver		= { .owner = THIS_MODULE },			\
+}
+
 static struct phy_driver bcm7xxx_driver[] = {
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7250, "Broadcom BCM7250"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7364, "Broadcom BCM7364"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7366, "Broadcom BCM7366"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7439, "Broadcom BCM7439"),
+	BCM7XXX_28NM_GPHY(PHY_ID_BCM7445, "Broadcom BCM7445"),
 {
-	.phy_id		= PHY_ID_BCM7366,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7366",
-	.features	= PHY_GBIT_FEATURES |
+	.phy_id         = PHY_ID_BCM7425,
+	.phy_id_mask    = 0xfffffff0,
+	.name           = "Broadcom BCM7425",
+	.features       = PHY_GBIT_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_afe_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_resume,
-	.driver		= { .owner = THIS_MODULE },
+	.flags          = 0,
+	.config_init    = bcm7xxx_config_init,
+	.config_aneg    = genphy_config_aneg,
+	.read_status    = genphy_read_status,
+	.suspend        = bcm7xxx_suspend,
+	.resume         = bcm7xxx_config_init,
+	.driver         = { .owner = THIS_MODULE },
 }, {
-	.phy_id		= PHY_ID_BCM7439,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7439",
-	.features	= PHY_GBIT_FEATURES |
+	.phy_id         = PHY_ID_BCM7429,
+	.phy_id_mask    = 0xfffffff0,
+	.name           = "Broadcom BCM7429",
+	.features       = PHY_GBIT_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_afe_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_resume,
-	.driver		= { .owner = THIS_MODULE },
-}, {
-	.phy_id		= PHY_ID_BCM7445,
-	.phy_id_mask	= 0xfffffff0,
-	.name		= "Broadcom BCM7445",
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.resume		= bcm7xxx_28nm_afe_config_init,
-	.driver		= { .owner = THIS_MODULE },
+	.flags          = PHY_IS_INTERNAL,
+	.config_init    = bcm7xxx_config_init,
+	.config_aneg    = genphy_config_aneg,
+	.read_status    = genphy_read_status,
+	.suspend        = bcm7xxx_suspend,
+	.resume         = bcm7xxx_config_init,
+	.driver         = { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_BCM_OUI_4,
 	.phy_id_mask	= 0xffff0000,
@@ -329,7 +404,11 @@ static struct phy_driver bcm7xxx_driver[] = {
 } };
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
+	{ PHY_ID_BCM7250, 0xfffffff0, },
+	{ PHY_ID_BCM7364, 0xfffffff0, },
 	{ PHY_ID_BCM7366, 0xfffffff0, },
+	{ PHY_ID_BCM7425, 0xfffffff0, },
+	{ PHY_ID_BCM7429, 0xfffffff0, },
 	{ PHY_ID_BCM7439, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
 	{ PHY_BCM_OUI_4, 0xffff0000 },

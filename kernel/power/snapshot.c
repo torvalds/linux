@@ -1343,6 +1343,9 @@ void swsusp_free(void)
 {
 	unsigned long fb_pfn, fr_pfn;
 
+	if (!forbidden_pages_map || !free_pages_map)
+		goto out;
+
 	memory_bm_position_reset(forbidden_pages_map);
 	memory_bm_position_reset(free_pages_map);
 
@@ -1370,6 +1373,7 @@ loop:
 		goto loop;
 	}
 
+out:
 	nr_copy_pages = 0;
 	nr_meta_pages = 0;
 	restore_pblist = NULL;

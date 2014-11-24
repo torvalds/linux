@@ -126,7 +126,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 		 * For the most part, it should be a bug when name_len is zero.
 		 * We stop here for figuring out where the bugs has occurred.
 		 */
-		f2fs_bug_on(!de->name_len);
+		f2fs_bug_on(F2FS_P_SB(dentry_page), !de->name_len);
 
 		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
 	}
@@ -151,7 +151,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	bool room = false;
 	int max_slots = 0;
 
-	f2fs_bug_on(level > MAX_DIR_HASH_DEPTH);
+	f2fs_bug_on(F2FS_I_SB(dir), level > MAX_DIR_HASH_DEPTH);
 
 	nbucket = dir_buckets(level, F2FS_I(dir)->i_dir_level);
 	nblock = bucket_blocks(level);
@@ -284,10 +284,9 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 
 int update_dent_inode(struct inode *inode, const struct qstr *name)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
 
-	page = get_node_page(sbi, inode->i_ino);
+	page = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
@@ -337,7 +336,6 @@ static int make_empty_dir(struct inode *inode,
 static struct page *init_inode_metadata(struct inode *inode,
 		struct inode *dir, const struct qstr *name)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	struct page *page;
 	int err;
 
@@ -360,7 +358,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 		if (err)
 			goto put_error;
 	} else {
-		page = get_node_page(F2FS_SB(dir->i_sb), inode->i_ino);
+		page = get_node_page(F2FS_I_SB(dir), inode->i_ino);
 		if (IS_ERR(page))
 			return page;
 
@@ -381,7 +379,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 		 * we should remove this inode from orphan list.
 		 */
 		if (inode->i_nlink == 0)
-			remove_orphan_inode(sbi, inode->i_ino);
+			remove_orphan_inode(F2FS_I_SB(dir), inode->i_ino);
 		inc_nlink(inode);
 	}
 	return page;
@@ -571,8 +569,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 {
 	struct	f2fs_dentry_block *dentry_blk;
 	unsigned int bit_pos;
-	struct address_space *mapping = page->mapping;
-	struct inode *dir = mapping->host;
+	struct inode *dir = page->mapping->host;
 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
 	int i;
 
@@ -594,7 +591,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 
 	if (inode) {
-		struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
+		struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 
 		down_write(&F2FS_I(inode)->i_sem);
 
@@ -621,7 +618,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 		truncate_hole(dir, page->index, page->index + 1);
 		clear_page_dirty_for_io(page);
 		ClearPageUptodate(page);
-		inode_dec_dirty_dents(dir);
+		inode_dec_dirty_pages(dir);
 	}
 	f2fs_put_page(page, 1);
 }

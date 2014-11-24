@@ -15,6 +15,7 @@
 #define UDL_DRV_H
 
 #include <linux/usb.h>
+#include <drm/drm_gem.h>
 
 #define DRIVER_NAME		"udl"
 #define DRIVER_DESC		"DisplayLink"
@@ -47,6 +48,7 @@ struct udl_fbdev;
 struct udl_device {
 	struct device *dev;
 	struct drm_device *ddev;
+	struct usb_device *udev;
 
 	int sku_pixel_limit;
 

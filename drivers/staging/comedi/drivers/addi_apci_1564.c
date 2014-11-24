@@ -1,3 +1,26 @@
+/*
+ * addi_apci_1564.c
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data.com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 2 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ */
+
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -42,10 +65,10 @@ static int apci1564_reset(struct comedi_device *dev)
 	outl(0x0, devpriv->amcc_iobase + APCI1564_TIMER_RELOAD_REG);
 
 	/* Reset the counter registers */
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER1));
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER2));
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER3));
-	outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(APCI1564_COUNTER4));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER1));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER2));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER3));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER4));
 
 	return 0;
 }
@@ -94,17 +117,20 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	}
 
 	for (chan = 0; chan < 4; chan++) {
-		status = inl(dev->iobase + APCI1564_TCW_IRQ_REG(chan));
+		status = inl(dev->iobase + APCI1564_COUNTER_IRQ_REG(chan));
 		if (status & 0x01) {
 			/*  Disable Counter Interrupt */
-			ctrl = inl(dev->iobase + APCI1564_TCW_CTRL_REG(chan));
-			outl(0x0, dev->iobase + APCI1564_TCW_CTRL_REG(chan));
+			ctrl = inl(dev->iobase +
+				  APCI1564_COUNTER_CTRL_REG(chan));
+			outl(0x0, dev->iobase +
+			    APCI1564_COUNTER_CTRL_REG(chan));
 
 			/* Send a signal to from kernel to user space */
 			send_sig(SIGIO, devpriv->tsk_current, 0);
 
 			/*  Enable Counter Interrupt */
-			outl(ctrl, dev->iobase + APCI1564_TCW_CTRL_REG(chan));
+			outl(ctrl, dev->iobase +
+			    APCI1564_COUNTER_CTRL_REG(chan));
 		}
 	}
 
@@ -282,9 +308,6 @@ static int apci1564_cos_cmdtest(struct comedi_device *dev,
 	/* Step 2a : make sure trigger sources are unique */
 	/* Step 2b : and mutually compatible */
 
-	if (err)
-		return 2;
-
 	/* Step 3: check if arguments are trivially valid */
 
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
@@ -296,10 +319,9 @@ static int apci1564_cos_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: ignored */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -374,53 +396,52 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 32;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = apci1564_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 32;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci1564_di_insn_bits;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 32;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_config = apci1564_do_config;
-	s->insn_bits = apci1564_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 32;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci1564_do_insn_bits;
 
 	/* Change-Of-State (COS) interrupt subdevice */
 	s = &dev->subdevices[2];
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-		s->n_chan = 1;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->len_chanlist = 1;
-		s->insn_config = apci1564_cos_insn_config;
-		s->insn_bits = apci1564_cos_insn_bits;
-		s->do_cmdtest = apci1564_cos_cmdtest;
-		s->do_cmd = apci1564_cos_cmd;
-		s->cancel = apci1564_cos_cancel;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ;
+		s->n_chan	= 1;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->len_chanlist	= 1;
+		s->insn_config	= apci1564_cos_insn_config;
+		s->insn_bits	= apci1564_cos_insn_bits;
+		s->do_cmdtest	= apci1564_cos_cmdtest;
+		s->do_cmd	= apci1564_cos_cmd;
+		s->cancel	= apci1564_cos_cancel;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 1;
-	s->maxdata = 0;
-	s->len_chanlist = 1;
-	s->range_table = &range_digital;
-	s->insn_write = apci1564_timer_write;
-	s->insn_read = apci1564_timer_read;
-	s->insn_config = apci1564_timer_config;
+	s->type		= COMEDI_SUBD_TIMER;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 0;
+	s->len_chanlist	= 1;
+	s->range_table	= &range_digital;
+	s->insn_write	= apci1564_timer_write;
+	s->insn_read	= apci1564_timer_read;
+	s->insn_config	= apci1564_timer_config;
 
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[4];
@@ -430,12 +451,12 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 
 	/* Initialize the diagnostic status subdevice */
 	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 2;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = apci1564_diag_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci1564_diag_insn_bits;
 
 	return 0;
 }
@@ -444,9 +465,7 @@ static void apci1564_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci1564_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci1564_driver = {

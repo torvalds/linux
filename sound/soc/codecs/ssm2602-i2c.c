@@ -41,10 +41,19 @@ static const struct i2c_device_id ssm2602_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ssm2602_i2c_id);
 
+static const struct of_device_id ssm2602_of_match[] = {
+	{ .compatible = "adi,ssm2602", },
+	{ .compatible = "adi,ssm2603", },
+	{ .compatible = "adi,ssm2604", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ssm2602_of_match);
+
 static struct i2c_driver ssm2602_i2c_driver = {
 	.driver = {
 		.name = "ssm2602",
 		.owner = THIS_MODULE,
+		.of_match_table = ssm2602_of_match,
 	},
 	.probe = ssm2602_i2c_probe,
 	.remove = ssm2602_i2c_remove,

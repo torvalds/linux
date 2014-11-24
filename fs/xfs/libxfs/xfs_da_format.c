@@ -270,7 +270,6 @@ xfs_dir3_data_get_ftype(
 {
 	__uint8_t	ftype = dep->name[dep->namelen];
 
-	ASSERT(ftype < XFS_DIR3_FT_MAX);
 	if (ftype >= XFS_DIR3_FT_MAX)
 		return XFS_DIR3_FT_UNKNOWN;
 	return ftype;

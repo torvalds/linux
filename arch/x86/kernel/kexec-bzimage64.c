@@ -26,6 +26,7 @@
 #include <asm/setup.h>
 #include <asm/crash.h>
 #include <asm/efi.h>
+#include <asm/kexec-bzimage64.h>
 
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
 
@@ -267,7 +268,7 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	return ret;
 }
 
-int bzImage64_probe(const char *buf, unsigned long len)
+static int bzImage64_probe(const char *buf, unsigned long len)
 {
 	int ret = -ENOEXEC;
 	struct setup_header *header;
@@ -325,10 +326,10 @@ int bzImage64_probe(const char *buf, unsigned long len)
 	return ret;
 }
 
-void *bzImage64_load(struct kimage *image, char *kernel,
-		     unsigned long kernel_len, char *initrd,
-		     unsigned long initrd_len, char *cmdline,
-		     unsigned long cmdline_len)
+static void *bzImage64_load(struct kimage *image, char *kernel,
+			    unsigned long kernel_len, char *initrd,
+			    unsigned long initrd_len, char *cmdline,
+			    unsigned long cmdline_len)
 {
 
 	struct setup_header *header;
@@ -514,7 +515,7 @@ out_free_params:
 }
 
 /* This cleanup function is called after various segments have been loaded */
-int bzImage64_cleanup(void *loader_data)
+static int bzImage64_cleanup(void *loader_data)
 {
 	struct bzimage64_data *ldata = loader_data;
 
@@ -528,7 +529,7 @@ int bzImage64_cleanup(void *loader_data)
 }
 
 #ifdef CONFIG_KEXEC_BZIMAGE_VERIFY_SIG
-int bzImage64_verify_sig(const char *kernel, unsigned long kernel_len)
+static int bzImage64_verify_sig(const char *kernel, unsigned long kernel_len)
 {
 	bool trusted;
 	int ret;

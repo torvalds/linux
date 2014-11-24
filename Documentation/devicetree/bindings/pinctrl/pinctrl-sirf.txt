@@ -13,7 +13,7 @@ Optional properties:
 Please refer to pinctrl-bindings.txt in this directory for details of the common
 pinctrl bindings used by client devices.
 
-SiRFprimaII's pinmux nodes act as a container for an abitrary number of subnodes.
+SiRFprimaII's pinmux nodes act as a container for an arbitrary number of subnodes.
 Each of these subnodes represents some desired configuration for a group of pins.
 
 Required subnode-properties:

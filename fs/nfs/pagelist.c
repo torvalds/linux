@@ -481,6 +481,14 @@ size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 		return 0;
 	}
 
+	/*
+	 * Limit the request size so that we can still allocate a page array
+	 * for it without upsetting the slab allocator.
+	 */
+	if (((desc->pg_count + req->wb_bytes) >> PAGE_SHIFT) *
+			sizeof(struct page) > PAGE_SIZE)
+		return 0;
+
 	return min(desc->pg_bsize - desc->pg_count, (size_t)req->wb_bytes);
 }
 EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
@@ -518,7 +526,8 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
  */
 void nfs_pgio_data_destroy(struct nfs_pgio_header *hdr)
 {
-	put_nfs_open_context(hdr->args.context);
+	if (hdr->args.context)
+		put_nfs_open_context(hdr->args.context);
 	if (hdr->page_array.pagevec != hdr->page_array.page_array)
 		kfree(hdr->page_array.pagevec);
 }
@@ -743,12 +752,11 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &hdr->pages);
 
-		if (WARN_ON_ONCE(pageused >= pagecount))
-			return nfs_pgio_error(desc, hdr);
-
 		if (!last_page || last_page != req->wb_page) {
-			*pages++ = last_page = req->wb_page;
 			pageused++;
+			if (pageused > pagecount)
+				break;
+			*pages++ = last_page = req->wb_page;
 		}
 	}
 	if (WARN_ON_ONCE(pageused != pagecount))

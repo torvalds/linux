@@ -71,4 +71,14 @@ struct xt_set_info_match_v3 {
 	__u32 flags;
 };
 
+/* Revision 3 target */
+
+struct xt_set_info_target_v3 {
+	struct xt_set_info add_set;
+	struct xt_set_info del_set;
+	struct xt_set_info map_set;
+	__u32 flags;
+	__u32 timeout;
+};
+
 #endif /*_XT_SET_H*/

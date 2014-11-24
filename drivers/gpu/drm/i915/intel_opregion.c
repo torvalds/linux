@@ -396,6 +396,16 @@ int intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
 	return -EINVAL;
 }
 
+/*
+ * If the vendor backlight interface is not in use and ACPI backlight interface
+ * is broken, do not bother processing backlight change requests from firmware.
+ */
+static bool should_ignore_backlight_request(void)
+{
+	return acpi_video_backlight_support() &&
+	       !acpi_video_verify_backlight_support();
+}
+
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -404,11 +414,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
-	/*
-	 * If the acpi_video interface is not supposed to be used, don't
-	 * bother processing backlight level change requests from firmware.
-	 */
-	if (!acpi_video_verify_backlight_support()) {
+	if (should_ignore_backlight_request()) {
 		DRM_DEBUG_KMS("opregion backlight request ignored\n");
 		return 0;
 	}

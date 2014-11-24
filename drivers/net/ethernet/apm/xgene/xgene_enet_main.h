@@ -38,6 +38,12 @@
 #define SKB_BUFFER_SIZE		(XGENE_ENET_MAX_MTU - NET_IP_ALIGN)
 #define NUM_PKT_BUF	64
 #define NUM_BUFPOOL	32
+#define START_ETH_BUFNUM	2
+#define START_BP_BUFNUM		0x22
+#define START_RING_NUM		8
+
+#define PHY_POLL_LINK_ON	(10 * HZ)
+#define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
 
 /* software context of a descriptor ring */
 struct xgene_enet_desc_ring {
@@ -68,6 +74,24 @@ struct xgene_enet_desc_ring {
 	};
 };
 
+struct xgene_mac_ops {
+	void (*init)(struct xgene_enet_pdata *pdata);
+	void (*reset)(struct xgene_enet_pdata *pdata);
+	void (*tx_enable)(struct xgene_enet_pdata *pdata);
+	void (*rx_enable)(struct xgene_enet_pdata *pdata);
+	void (*tx_disable)(struct xgene_enet_pdata *pdata);
+	void (*rx_disable)(struct xgene_enet_pdata *pdata);
+	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+	void (*link_state)(struct work_struct *work);
+};
+
+struct xgene_port_ops {
+	int (*reset)(struct xgene_enet_pdata *pdata);
+	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
+			   u32 dst_ring_num, u16 bufpool_id);
+	void (*shutdown)(struct xgene_enet_pdata *pdata);
+};
+
 /* ethernet private data */
 struct xgene_enet_pdata {
 	struct net_device *ndev;
@@ -88,16 +112,23 @@ struct xgene_enet_pdata {
 	void __iomem *eth_ring_if_addr;
 	void __iomem *eth_diag_csr_addr;
 	void __iomem *mcx_mac_addr;
-	void __iomem *mcx_stats_addr;
 	void __iomem *mcx_mac_csr_addr;
 	void __iomem *base_addr;
 	void __iomem *ring_csr_addr;
 	void __iomem *ring_cmd_addr;
-	u32 phy_addr;
 	int phy_mode;
-	u32 speed;
-	u16 rm;
+	enum xgene_enet_rm rm;
 	struct rtnl_link_stats64 stats;
+	struct xgene_mac_ops *mac_ops;
+	struct xgene_port_ops *port_ops;
+	struct delayed_work link_work;
+};
+
+struct xgene_indirect_ctl {
+	void __iomem *addr;
+	void __iomem *ctl;
+	void __iomem *cmd;
+	void __iomem *cmd_done;
 };
 
 /* Set the specified value into a bit-field defined by its starting position

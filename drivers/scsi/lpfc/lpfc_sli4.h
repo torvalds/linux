@@ -670,22 +670,22 @@ void lpfc_sli4_hba_reset(struct lpfc_hba *);
 struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
 			uint32_t);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
-uint32_t lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
-uint32_t lpfc_modify_fcp_eq_delay(struct lpfc_hba *, uint16_t);
-uint32_t lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
+int lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
+int lpfc_modify_fcp_eq_delay(struct lpfc_hba *, uint16_t);
+int lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);
 int32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
 		       struct lpfc_queue *, uint32_t);
-uint32_t lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
+int lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t);
-uint32_t lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
+int lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, struct lpfc_queue *, uint32_t);
 void lpfc_rq_adjust_repost(struct lpfc_hba *, struct lpfc_queue *, int);
-uint32_t lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
-uint32_t lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);
-uint32_t lpfc_mq_destroy(struct lpfc_hba *, struct lpfc_queue *);
-uint32_t lpfc_wq_destroy(struct lpfc_hba *, struct lpfc_queue *);
-uint32_t lpfc_rq_destroy(struct lpfc_hba *, struct lpfc_queue *,
+int lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
+int lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);
+int lpfc_mq_destroy(struct lpfc_hba *, struct lpfc_queue *);
+int lpfc_wq_destroy(struct lpfc_hba *, struct lpfc_queue *);
+int lpfc_rq_destroy(struct lpfc_hba *, struct lpfc_queue *,
 			 struct lpfc_queue *);
 int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);

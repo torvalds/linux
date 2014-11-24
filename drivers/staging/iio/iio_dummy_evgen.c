@@ -202,6 +202,7 @@ static struct device iio_evgen_dev = {
 static __init int iio_dummy_evgen_init(void)
 {
 	int ret = iio_dummy_evgen_create();
+
 	if (ret < 0)
 		return ret;
 	device_initialize(&iio_evgen_dev);

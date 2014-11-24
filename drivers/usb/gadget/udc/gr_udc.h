@@ -156,6 +156,10 @@ struct gr_ep {
 	struct list_head queue;
 
 	struct list_head ep_list;
+
+	/* Bounce buffer for end of "odd" sized OUT requests */
+	void *tailbuf;
+	dma_addr_t tailbuf_paddr;
 };
 
 struct gr_request {
@@ -166,6 +170,9 @@ struct gr_request {
 	struct gr_dma_desc *first_desc; /* First in the chain */
 	struct gr_dma_desc *curr_desc; /* Current descriptor */
 	struct gr_dma_desc *last_desc; /* Last in the chain */
+
+	u16 evenlen; /* Size of even length head (if oddlen != 0) */
+	u16 oddlen; /* Size of odd length tail if buffer length is "odd" */
 
 	u8 setup; /* Setup packet */
 };

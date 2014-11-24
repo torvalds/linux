@@ -51,9 +51,9 @@ struct pkt_hdr {
 
 struct cam_hdr {
 	uint8_t magic[2];
-	uint16_t len;
-	uint16_t cmd;
-	uint16_t tag;
+	__le16 len;
+	__le16 cmd;
+	__le16 tag;
 };
 
 /* specific webcam descriptor */
@@ -188,9 +188,9 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 		       rhdr->tag, chdr->tag);
 		return -1;
 	}
-	if (cpu_to_le16(rhdr->len) != (actual_len/2)) {
+	if (le16_to_cpu(rhdr->len) != (actual_len/2)) {
 		pr_err("send_cmd: Bad len %04x != %04x\n",
-		       cpu_to_le16(rhdr->len), (int)(actual_len/2));
+		       le16_to_cpu(rhdr->len), (int)(actual_len/2));
 		return -1;
 	}
 
@@ -211,7 +211,7 @@ static int write_register(struct gspca_dev *gspca_dev, uint16_t reg,
 			uint16_t data)
 {
 	uint16_t reply[2];
-	uint16_t cmd[2];
+	__le16 cmd[2];
 	int res;
 
 	cmd[0] = cpu_to_le16(reg);

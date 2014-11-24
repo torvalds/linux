@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/hashtable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -24,7 +25,7 @@ static struct selftest_results {
 	int failed;
 } selftest_results;
 
-#define NO_OF_NODES 2
+#define NO_OF_NODES 3
 static struct device_node *nodes[NO_OF_NODES];
 static int last_node_index;
 static bool selftest_live_tree;
@@ -145,6 +146,97 @@ static void __init of_selftest_dynamic(void)
 			 "Adding a large property should have passed\n");
 }
 
+static int __init of_selftest_check_node_linkage(struct device_node *np)
+{
+	struct device_node *child, *allnext_index = np;
+	int count = 0, rc;
+
+	for_each_child_of_node(np, child) {
+		if (child->parent != np) {
+			pr_err("Child node %s links to wrong parent %s\n",
+				 child->name, np->name);
+			return -EINVAL;
+		}
+
+		while (allnext_index && allnext_index != child)
+			allnext_index = allnext_index->allnext;
+		if (allnext_index != child) {
+			pr_err("Node %s is ordered differently in sibling and allnode lists\n",
+				 child->name);
+			return -EINVAL;
+		}
+
+		rc = of_selftest_check_node_linkage(child);
+		if (rc < 0)
+			return rc;
+		count += rc;
+	}
+
+	return count + 1;
+}
+
+static void __init of_selftest_check_tree_linkage(void)
+{
+	struct device_node *np;
+	int allnode_count = 0, child_count;
+
+	if (!of_allnodes)
+		return;
+
+	for_each_of_allnodes(np)
+		allnode_count++;
+	child_count = of_selftest_check_node_linkage(of_allnodes);
+
+	selftest(child_count > 0, "Device node data structure is corrupted\n");
+	selftest(child_count == allnode_count, "allnodes list size (%i) doesn't match"
+		 "sibling lists size (%i)\n", allnode_count, child_count);
+	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
+}
+
+struct node_hash {
+	struct hlist_node node;
+	struct device_node *np;
+};
+
+static DEFINE_HASHTABLE(phandle_ht, 8);
+static void __init of_selftest_check_phandles(void)
+{
+	struct device_node *np;
+	struct node_hash *nh;
+	struct hlist_node *tmp;
+	int i, dup_count = 0, phandle_count = 0;
+
+	for_each_of_allnodes(np) {
+		if (!np->phandle)
+			continue;
+
+		hash_for_each_possible(phandle_ht, nh, node, np->phandle) {
+			if (nh->np->phandle == np->phandle) {
+				pr_info("Duplicate phandle! %i used by %s and %s\n",
+					np->phandle, nh->np->full_name, np->full_name);
+				dup_count++;
+				break;
+			}
+		}
+
+		nh = kzalloc(sizeof(*nh), GFP_KERNEL);
+		if (WARN_ON(!nh))
+			return;
+
+		nh->np = np;
+		hash_add(phandle_ht, &nh->node, np->phandle);
+		phandle_count++;
+	}
+	selftest(dup_count == 0, "Found %i duplicates in %i phandles\n",
+		 dup_count, phandle_count);
+
+	/* Clean up */
+	hash_for_each_safe(phandle_ht, i, tmp, nh, node) {
+		hash_del(&nh->node);
+		kfree(nh);
+	}
+}
+
 static void __init of_selftest_parse_phandle_with_args(void)
 {
 	struct device_node *np;
@@ -247,8 +339,9 @@ static void __init of_selftest_parse_phandle_with_args(void)
 	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 }
 
-static void __init of_selftest_property_match_string(void)
+static void __init of_selftest_property_string(void)
 {
+	const char *strings[4];
 	struct device_node *np;
 	int rc;
 
@@ -265,13 +358,66 @@ static void __init of_selftest_property_match_string(void)
 	rc = of_property_match_string(np, "phandle-list-names", "third");
 	selftest(rc == 2, "third expected:0 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "fourth");
-	selftest(rc == -ENODATA, "unmatched string; rc=%i", rc);
+	selftest(rc == -ENODATA, "unmatched string; rc=%i\n", rc);
 	rc = of_property_match_string(np, "missing-property", "blah");
-	selftest(rc == -EINVAL, "missing property; rc=%i", rc);
+	selftest(rc == -EINVAL, "missing property; rc=%i\n", rc);
 	rc = of_property_match_string(np, "empty-property", "blah");
-	selftest(rc == -ENODATA, "empty property; rc=%i", rc);
+	selftest(rc == -ENODATA, "empty property; rc=%i\n", rc);
 	rc = of_property_match_string(np, "unterminated-string", "blah");
-	selftest(rc == -EILSEQ, "unterminated string; rc=%i", rc);
+	selftest(rc == -EILSEQ, "unterminated string; rc=%i\n", rc);
+
+	/* of_property_count_strings() tests */
+	rc = of_property_count_strings(np, "string-property");
+	selftest(rc == 1, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_count_strings(np, "phandle-list-names");
+	selftest(rc == 3, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_count_strings(np, "unterminated-string");
+	selftest(rc == -EILSEQ, "unterminated string; rc=%i\n", rc);
+	rc = of_property_count_strings(np, "unterminated-string-list");
+	selftest(rc == -EILSEQ, "unterminated string array; rc=%i\n", rc);
+
+	/* of_property_read_string_index() tests */
+	rc = of_property_read_string_index(np, "string-property", 0, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "foobar"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "string-property", 1, strings);
+	selftest(rc == -ENODATA && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "phandle-list-names", 0, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "first"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "phandle-list-names", 1, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "second"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "phandle-list-names", 2, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "third"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "phandle-list-names", 3, strings);
+	selftest(rc == -ENODATA && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "unterminated-string", 0, strings);
+	selftest(rc == -EILSEQ && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "unterminated-string-list", 0, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "first"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "unterminated-string-list", 2, strings); /* should fail */
+	selftest(rc == -EILSEQ && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[1] = NULL;
+
+	/* of_property_read_string_array() tests */
+	rc = of_property_read_string_array(np, "string-property", strings, 4);
+	selftest(rc == 1, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_read_string_array(np, "phandle-list-names", strings, 4);
+	selftest(rc == 3, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_read_string_array(np, "unterminated-string", strings, 4);
+	selftest(rc == -EILSEQ, "unterminated string; rc=%i\n", rc);
+	/* -- An incorrectly formed string should cause a failure */
+	rc = of_property_read_string_array(np, "unterminated-string-list", strings, 4);
+	selftest(rc == -EILSEQ, "unterminated string array; rc=%i\n", rc);
+	/* -- parsing the correctly formed strings should still work: */
+	strings[2] = NULL;
+	rc = of_property_read_string_array(np, "unterminated-string-list", strings, 2);
+	selftest(rc == 2 && strings[2] == NULL, "of_property_read_string_array() failure; rc=%i\n", rc);
+	strings[1] = NULL;
+	rc = of_property_read_string_array(np, "phandle-list-names", strings, 1);
+	selftest(rc == 1 && strings[1] == NULL, "Overwrote end of string array; rc=%i, str='%s'\n", rc, strings[1]);
 }
 
 #define propcmp(p1, p2) (((p1)->length == (p2)->length) && \
@@ -637,6 +783,8 @@ static int attach_node_and_children(struct device_node *np)
 	dup = np;
 
 	while (dup) {
+		if (WARN_ON(last_node_index >= NO_OF_NODES))
+			return -EINVAL;
 		nodes[last_node_index++] = dup;
 		dup = dup->sibling;
 	}
@@ -670,6 +818,7 @@ static int __init selftest_data_add(void)
 	extern uint8_t __dtb_testcases_begin[];
 	extern uint8_t __dtb_testcases_end[];
 	const int size = __dtb_testcases_end - __dtb_testcases_begin;
+	int rc;
 
 	if (!size) {
 		pr_warn("%s: No testcase data to attach; not running tests\n",
@@ -689,6 +838,12 @@ static int __init selftest_data_add(void)
 	if (!selftest_data_node) {
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
 		return -ENODATA;
+	}
+	of_node_set_flag(selftest_data_node, OF_DETACHED);
+	rc = of_resolve_phandles(selftest_data_node);
+	if (rc) {
+		pr_err("%s: Failed to resolve phandles (rc=%i)\n", __func__, rc);
+		return -EINVAL;
 	}
 
 	if (!of_allnodes) {
@@ -717,10 +872,6 @@ static void detach_node_and_children(struct device_node *np)
 {
 	while (np->child)
 		detach_node_and_children(np->child);
-
-	while (np->sibling)
-		detach_node_and_children(np->sibling);
-
 	of_detach_node(np);
 }
 
@@ -745,12 +896,15 @@ static void selftest_data_remove(void)
 		return;
 	}
 
-	while (last_node_index >= 0) {
+	while (last_node_index-- > 0) {
 		if (nodes[last_node_index]) {
 			np = of_find_node_by_path(nodes[last_node_index]->full_name);
-			if (strcmp(np->full_name, "/aliases") != 0) {
-				detach_node_and_children(np->child);
-				of_detach_node(np);
+			if (np == nodes[last_node_index]) {
+				if (of_aliases == np) {
+					of_node_put(of_aliases);
+					of_aliases = NULL;
+				}
+				detach_node_and_children(np);
 			} else {
 				for_each_property_of_node(np, prop) {
 					if (strcmp(prop->name, "testcase-alias") == 0)
@@ -758,7 +912,6 @@ static void selftest_data_remove(void)
 				}
 			}
 		}
-		last_node_index--;
 	}
 }
 
@@ -771,6 +924,8 @@ static int __init of_selftest(void)
 	res = selftest_data_add();
 	if (res)
 		return res;
+	if (!of_aliases)
+		of_aliases = of_find_node_by_path("/aliases");
 
 	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
 	if (!np) {
@@ -780,21 +935,27 @@ static int __init of_selftest(void)
 	of_node_put(np);
 
 	pr_info("start of selftest - you will see error messages\n");
+	of_selftest_check_tree_linkage();
+	of_selftest_check_phandles();
 	of_selftest_find_node_by_name();
 	of_selftest_dynamic();
 	of_selftest_parse_phandle_with_args();
-	of_selftest_property_match_string();
+	of_selftest_property_string();
 	of_selftest_property_copy();
 	of_selftest_changeset();
 	of_selftest_parse_interrupts();
 	of_selftest_parse_interrupts_extended();
 	of_selftest_match_node();
 	of_selftest_platform_populate();
-	pr_info("end of selftest - %i passed, %i failed\n",
-		selftest_results.passed, selftest_results.failed);
 
 	/* removing selftest data from live tree */
 	selftest_data_remove();
+
+	/* Double check linkage after removing testcase data */
+	of_selftest_check_tree_linkage();
+
+	pr_info("end of selftest - %i passed, %i failed\n",
+		selftest_results.passed, selftest_results.failed);
 
 	return 0;
 }

@@ -1964,6 +1964,7 @@ static int tsl2x7x_suspend(struct device *dev)
 
 	if (chip->pdata && chip->pdata->platform_power) {
 		pm_message_t pmm = {PM_EVENT_SUSPEND};
+
 		chip->pdata->platform_power(dev, pmm);
 	}
 
@@ -1978,6 +1979,7 @@ static int tsl2x7x_resume(struct device *dev)
 
 	if (chip->pdata && chip->pdata->platform_power) {
 		pm_message_t pmm = {PM_EVENT_RESUME};
+
 		chip->pdata->platform_power(dev, pmm);
 	}
 

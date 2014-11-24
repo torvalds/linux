@@ -67,6 +67,12 @@ static inline int ath9k_hw_txprocdesc(struct ath_hw *ah, void *ds,
 	return ath9k_hw_ops(ah)->proc_txdesc(ah, ds, ts);
 }
 
+static inline int ath9k_hw_get_duration(struct ath_hw *ah, const void *ds,
+					int index)
+{
+	return ath9k_hw_ops(ah)->get_duration(ah, ds, index);
+}
+
 static inline void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
 		struct ath_hw_antcomb_conf *antconf)
 {

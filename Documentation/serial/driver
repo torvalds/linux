@@ -140,6 +140,8 @@ hardware.
 	will append the character to the circular buffer and then call
 	start_tx() / stop_tx() to flush the data out.
 
+	Do not transmit if ch == '\0' (__DISABLED_CHAR).
+
 	Locking: none.
 	Interrupts: caller dependent.
 

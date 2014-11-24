@@ -1107,8 +1107,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		if (wlandev->netdev->type == ARPHRD_ETHER) {
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_invalid_parameters;
-			result = 0;
-			goto exit;
+			return 0;
 		}
 		/* Disable monitor mode */
 		result = hfa384x_cmd_monitor(hw, HFA384x_MONITOR_DISABLE);
@@ -1166,9 +1165,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 
 		netdev_info(wlandev->netdev, "monitor mode disabled\n");
 		msg->resultcode.data = P80211ENUM_resultcode_success;
-		result = 0;
-		goto exit;
-		break;
+		return 0;
 	case P80211ENUM_truth_true:
 		/* Disable the port (if enabled), only check Port 0 */
 		if (hw->port_enabled[0]) {
@@ -1313,19 +1310,13 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		}
 
 		msg->resultcode.data = P80211ENUM_resultcode_success;
-		result = 0;
-		goto exit;
-		break;
+		return 0;
 	default:
 		msg->resultcode.data = P80211ENUM_resultcode_invalid_parameters;
-		result = 0;
-		goto exit;
-		break;
+		return 0;
 	}
 
 failed:
 	msg->resultcode.data = P80211ENUM_resultcode_refused;
-	result = 0;
-exit:
-	return result;
+	return 0;
 }

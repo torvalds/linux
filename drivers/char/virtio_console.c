@@ -2024,6 +2024,8 @@ static int virtcons_probe(struct virtio_device *vdev)
 	spin_lock_init(&portdev->ports_lock);
 	INIT_LIST_HEAD(&portdev->ports);
 
+	virtio_device_ready(portdev->vdev);
+
 	if (multiport) {
 		unsigned int nr_added_bufs;
 
@@ -2181,6 +2183,8 @@ static int virtcons_restore(struct virtio_device *vdev)
 	ret = init_vqs(portdev);
 	if (ret)
 		return ret;
+
+	virtio_device_ready(portdev->vdev);
 
 	if (use_multiport(portdev))
 		fill_queue(portdev->c_ivq, &portdev->c_ivq_lock);

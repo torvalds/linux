@@ -287,7 +287,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    unsigned int flags)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard = dev->board_ptr;
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -326,8 +326,8 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			}
 		}
 	}
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		/*  if least upper bound is better approximation */
 		if (lub - *period < *period - glb)
@@ -335,10 +335,10 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 		else
 			*period = glb;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		*period = lub;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		*period = glb;
 		break;
 	}
@@ -436,7 +436,7 @@ static int a2150_ai_check_chanlist(struct comedi_device *dev,
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct a2150_board *thisboard = comedi_board(dev);
+	const struct a2150_board *thisboard = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
@@ -511,9 +511,9 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
-			"dma incompatible with hard real-time interrupt (TRIG_RT), aborting\n");
+			"dma incompatible with hard real-time interrupt (CMDF_PRIORITY), aborting\n");
 		return -1;
 	}
 	/*  clear fifo and reset triggering circuitry */
@@ -705,8 +705,12 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	dev->board_ptr = a2150_boards + a2150_probe(dev);
-	thisboard = comedi_board(dev);
+	i = a2150_probe(dev);
+	if (i >= ARRAY_SIZE(a2150_boards))
+		return -ENODEV;
+
+	dev->board_ptr = a2150_boards + i;
+	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
 	if ((irq >= 3 && irq <= 7) || (irq >= 9 && irq <= 12) ||

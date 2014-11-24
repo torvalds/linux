@@ -46,7 +46,7 @@ static const struct file_operations r128_driver_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_mmap,
+	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = r128_compat_ioctl,
@@ -62,6 +62,7 @@ static struct drm_driver driver = {
 	.load = r128_driver_load,
 	.preclose = r128_driver_preclose,
 	.lastclose = r128_driver_lastclose,
+	.set_busid = drm_pci_set_busid,
 	.get_vblank_counter = r128_get_vblank_counter,
 	.enable_vblank = r128_enable_vblank,
 	.disable_vblank = r128_disable_vblank,

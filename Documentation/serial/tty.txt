@@ -146,7 +146,7 @@ set_termios()		Notify the tty driver that the device's termios
 			driver function is responsible for modifying any
 			bits in the request it cannot fulfill to indicate
 			the actual modes being used. A device with no
-			hardware capability for change (eg a USB dongle or
+			hardware capability for change (e.g. a USB dongle or
 			virtual port) can provide NULL for this method.
 
 throttle()		Notify the tty driver that input buffers for the
@@ -258,7 +258,7 @@ put_char()	-	Stuff a single character onto the queue. The
 
 flush_chars()	-	Ask the kernel to write put_char queue
 
-write_room()	-	Return the number of characters tht can be stuffed
+write_room()	-	Return the number of characters that can be stuffed
 			into the port buffers without overflow (or less).
 			The ldisc is responsible for being intelligent
  			about multi-threading of write_room/write calls

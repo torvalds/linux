@@ -215,5 +215,4 @@ MACHINE_START(RX3715, "IPAQ-RX3715")
 	.init_irq	= s3c2440_init_irq,
 	.init_machine	= rx3715_init_machine,
 	.init_time	= rx3715_init_time,
-	.restart	= s3c244x_restart,
 MACHINE_END

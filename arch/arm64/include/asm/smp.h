@@ -48,6 +48,8 @@ extern void smp_init_cpus(void);
  */
 extern void set_smp_cross_call(void (*)(const struct cpumask *, unsigned int));
 
+extern void (*__smp_cross_call)(const struct cpumask *, unsigned int);
+
 /*
  * Called from the secondary holding pen, this is the secondary CPU entry point.
  */

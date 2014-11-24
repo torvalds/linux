@@ -79,7 +79,6 @@ static const struct das16cs_board das16cs_boards[] = {
 };
 
 struct das16cs_private {
-	unsigned int ao_readback[2];
 	unsigned short status1;
 	unsigned short status2;
 };
@@ -153,20 +152,20 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-static int das16cs_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int das16cs_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	unsigned short status1;
-	unsigned short d;
 	int bit;
+	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		devpriv->ao_readback[chan] = data[i];
-		d = data[i];
+		val = data[i];
 
 		outw(devpriv->status1, dev->iobase + DAS16CS_MISC1);
 		udelay(1);
@@ -181,7 +180,7 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 		udelay(1);
 
 		for (bit = 15; bit >= 0; bit--) {
-			int b = (d >> bit) & 0x1;
+			int b = (val >> bit) & 0x1;
 
 			b <<= 1;
 			outw(status1 | b | 0x0000, dev->iobase + DAS16CS_MISC1);
@@ -195,22 +194,9 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 		 */
 		outw(status1 | 0x9, dev->iobase + DAS16CS_MISC1);
 	}
+	s->readback[chan] = val;
 
-	return i;
-}
-
-static int das16cs_ao_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct das16cs_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 static int das16cs_dio_insn_bits(struct comedi_device *dev,
@@ -318,8 +304,12 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 		s->n_chan	= board->n_ao_chans;
 		s->maxdata	= 0xffff;
 		s->range_table	= &range_bipolar10;
-		s->insn_write	= &das16cs_ao_winsn;
-		s->insn_read	= &das16cs_ao_rinsn;
+		s->insn_write	= &das16cs_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}

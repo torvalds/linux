@@ -93,7 +93,7 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
          * tr->alloced is not set since the transaction structure is
          * on the stack */
 	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes, sizeof(u64));
-	tr.tr_ip = (unsigned long)__builtin_return_address(0);
+	tr.tr_ip = _RET_IP_;
 	sb_start_intwrite(sdp->sd_vfs);
 	if (gfs2_log_reserve(sdp, tr.tr_reserved) < 0) {
 		sb_end_intwrite(sdp->sd_vfs);

@@ -230,30 +230,25 @@ static inline void sun6i_dma_dump_chan_regs(struct sun6i_dma_dev *sdev,
 		readl(pchan->base + DMA_CHAN_CUR_PARA));
 }
 
-static inline int convert_burst(u32 maxburst, u8 *burst)
+static inline s8 convert_burst(u32 maxburst)
 {
 	switch (maxburst) {
 	case 1:
-		*burst = 0;
-		break;
+		return 0;
 	case 8:
-		*burst = 2;
-		break;
+		return 2;
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
-static inline int convert_buswidth(enum dma_slave_buswidth addr_width, u8 *width)
+static inline s8 convert_buswidth(enum dma_slave_buswidth addr_width)
 {
 	if ((addr_width < DMA_SLAVE_BUSWIDTH_1_BYTE) ||
 	    (addr_width > DMA_SLAVE_BUSWIDTH_4_BYTES))
 		return -EINVAL;
 
-	*width = addr_width >> 1;
-	return 0;
+	return addr_width >> 1;
 }
 
 static void *sun6i_dma_lli_add(struct sun6i_dma_lli *prev,
@@ -284,26 +279,25 @@ static inline int sun6i_dma_cfg_lli(struct sun6i_dma_lli *lli,
 				    struct dma_slave_config *config)
 {
 	u8 src_width, dst_width, src_burst, dst_burst;
-	int ret;
 
 	if (!config)
 		return -EINVAL;
 
-	ret = convert_burst(config->src_maxburst, &src_burst);
-	if (ret)
-		return ret;
+	src_burst = convert_burst(config->src_maxburst);
+	if (src_burst)
+		return src_burst;
 
-	ret = convert_burst(config->dst_maxburst, &dst_burst);
-	if (ret)
-		return ret;
+	dst_burst = convert_burst(config->dst_maxburst);
+	if (dst_burst)
+		return dst_burst;
 
-	ret = convert_buswidth(config->src_addr_width, &src_width);
-	if (ret)
-		return ret;
+	src_width = convert_buswidth(config->src_addr_width);
+	if (src_width)
+		return src_width;
 
-	ret = convert_buswidth(config->dst_addr_width, &dst_width);
-	if (ret)
-		return ret;
+	dst_width = convert_buswidth(config->dst_addr_width);
+	if (dst_width)
+		return dst_width;
 
 	lli->cfg = DMA_CHAN_CFG_SRC_BURST(src_burst) |
 		DMA_CHAN_CFG_SRC_WIDTH(src_width) |
@@ -542,11 +536,10 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 {
 	struct sun6i_dma_dev *sdev = to_sun6i_dma_dev(chan->device);
 	struct sun6i_vchan *vchan = to_sun6i_vchan(chan);
-	struct dma_slave_config *sconfig = &vchan->cfg;
 	struct sun6i_dma_lli *v_lli;
 	struct sun6i_desc *txd;
 	dma_addr_t p_lli;
-	int ret;
+	s8 burst, width;
 
 	dev_dbg(chan2dev(chan),
 		"%s; chan: %d, dest: %pad, src: %pad, len: %zu. flags: 0x%08lx\n",
@@ -565,14 +558,21 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 		goto err_txd_free;
 	}
 
-	ret = sun6i_dma_cfg_lli(v_lli, src, dest, len, sconfig);
-	if (ret)
-		goto err_dma_free;
+	v_lli->src = src;
+	v_lli->dst = dest;
+	v_lli->len = len;
+	v_lli->para = NORMAL_WAIT;
 
+	burst = convert_burst(8);
+	width = convert_buswidth(DMA_SLAVE_BUSWIDTH_4_BYTES);
 	v_lli->cfg |= DMA_CHAN_CFG_SRC_DRQ(DRQ_SDRAM) |
 		DMA_CHAN_CFG_DST_DRQ(DRQ_SDRAM) |
 		DMA_CHAN_CFG_DST_LINEAR_MODE |
-		DMA_CHAN_CFG_SRC_LINEAR_MODE;
+		DMA_CHAN_CFG_SRC_LINEAR_MODE |
+		DMA_CHAN_CFG_SRC_BURST(burst) |
+		DMA_CHAN_CFG_SRC_WIDTH(width) |
+		DMA_CHAN_CFG_DST_BURST(burst) |
+		DMA_CHAN_CFG_DST_WIDTH(width);
 
 	sun6i_dma_lli_add(NULL, v_lli, p_lli, txd);
 
@@ -580,8 +580,6 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 
 	return vchan_tx_prep(&vchan->vc, &txd->vd, flags);
 
-err_dma_free:
-	dma_pool_free(sdev->pool, v_lli, p_lli);
 err_txd_free:
 	kfree(txd);
 	return NULL;
@@ -862,7 +860,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 {
 	struct sun6i_dma_dev *sdc;
 	struct resource *res;
-	struct clk *mux, *pll6;
 	int ret, i;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
@@ -884,28 +881,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(sdc->clk)) {
 		dev_err(&pdev->dev, "No clock specified\n");
 		return PTR_ERR(sdc->clk);
-	}
-
-	mux = clk_get(NULL, "ahb1_mux");
-	if (IS_ERR(mux)) {
-		dev_err(&pdev->dev, "Couldn't get AHB1 Mux\n");
-		return PTR_ERR(mux);
-	}
-
-	pll6 = clk_get(NULL, "pll6");
-	if (IS_ERR(pll6)) {
-		dev_err(&pdev->dev, "Couldn't get PLL6\n");
-		clk_put(mux);
-		return PTR_ERR(pll6);
-	}
-
-	ret = clk_set_parent(mux, pll6);
-	clk_put(pll6);
-	clk_put(mux);
-
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't reparent AHB1 on PLL6\n");
-		return ret;
 	}
 
 	sdc->rstc = devm_reset_control_get(&pdev->dev, NULL);
@@ -938,6 +913,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	sdc->slave.device_prep_dma_memcpy	= sun6i_dma_prep_dma_memcpy;
 	sdc->slave.device_control		= sun6i_dma_control;
 	sdc->slave.chancnt			= NR_MAX_VCHANS;
+	sdc->slave.copy_align			= 4;
 
 	sdc->slave.dev = &pdev->dev;
 

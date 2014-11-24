@@ -14,11 +14,18 @@
 #ifndef __ASM_ARC_PROCESSOR_H
 #define __ASM_ARC_PROCESSOR_H
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 
 #include <asm/ptrace.h>
+
+#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
+/* These DPFP regs need to be saved/restored across ctx-sw */
+struct arc_fpu {
+	struct {
+		unsigned int l, h;
+	} aux_dpfp[2];
+};
+#endif
 
 /* Arch specific stuff which needs to be saved per task.
  * However these items are not so important so as to earn a place in
@@ -127,7 +134,5 @@ extern unsigned int get_wchan(struct task_struct *p);
  * space during mmap's.
  */
 #define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
-
-#endif /* __KERNEL__ */
 
 #endif /* __ASM_ARC_PROCESSOR_H */

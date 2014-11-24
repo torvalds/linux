@@ -178,7 +178,7 @@ override:
 
 	spin_lock_bh(&police->tcf_lock);
 	if (est) {
-		err = gen_replace_estimator(&police->tcf_bstats,
+		err = gen_replace_estimator(&police->tcf_bstats, NULL,
 					    &police->tcf_rate_est,
 					    &police->tcf_lock, est);
 		if (err)
@@ -231,7 +231,7 @@ override:
 	if (ret != ACT_P_CREATED)
 		return ret;
 
-	police->tcfp_t_c = ktime_to_ns(ktime_get());
+	police->tcfp_t_c = ktime_get_ns();
 	police->tcf_index = parm->index ? parm->index :
 		tcf_hash_new_index(hinfo);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
@@ -279,7 +279,7 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 			return police->tcfp_result;
 		}
 
-		now = ktime_to_ns(ktime_get());
+		now = ktime_get_ns();
 		toks = min_t(s64, now - police->tcfp_t_c,
 			     police->tcfp_burst);
 		if (police->peak_present) {

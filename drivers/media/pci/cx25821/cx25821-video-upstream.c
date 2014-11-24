@@ -330,8 +330,9 @@ int cx25821_write_frame(struct cx25821_channel *chan,
 
 	if (frame_size - curpos < count)
 		count = frame_size - curpos;
-	memcpy((char *)out->_data_buf_virt_addr + frame_offset + curpos,
-			data, count);
+	if (copy_from_user((__force char *)out->_data_buf_virt_addr + frame_offset + curpos,
+				data, count))
+		return -EFAULT;
 	curpos += count;
 	if (curpos == frame_size) {
 		out->_frame_count++;

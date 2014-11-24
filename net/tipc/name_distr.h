@@ -73,5 +73,6 @@ void named_cluster_distribute(struct sk_buff *buf);
 void tipc_named_node_up(u32 dnode);
 void tipc_named_rcv(struct sk_buff *buf);
 void tipc_named_reinit(void);
+void tipc_named_process_backlog(void);
 
 #endif

@@ -235,7 +235,7 @@ define_machine(wii) {
 	.machine_shutdown	= wii_shutdown,
 };
 
-static struct of_device_id wii_of_bus[] = {
+static const struct of_device_id wii_of_bus[] = {
 	{ .compatible = "nintendo,hollywood", },
 	{ },
 };

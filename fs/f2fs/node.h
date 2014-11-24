@@ -39,10 +39,16 @@ struct node_info {
 	unsigned char version;	/* version of the node */
 };
 
+enum {
+	IS_CHECKPOINTED,	/* is it checkpointed before? */
+	HAS_FSYNCED_INODE,	/* is the inode fsynced before? */
+	HAS_LAST_FSYNC,		/* has the latest node fsync mark? */
+	IS_DIRTY,		/* this nat entry is dirty? */
+};
+
 struct nat_entry {
 	struct list_head list;	/* for clean or dirty nat list */
-	bool checkpointed;	/* whether it is checkpointed or not */
-	bool fsync_done;	/* whether the latest node has fsync mark */
+	unsigned char flag;	/* for node information bits */
 	struct node_info ni;	/* in-memory node information */
 };
 
@@ -55,17 +61,31 @@ struct nat_entry {
 #define nat_get_version(nat)		(nat->ni.version)
 #define nat_set_version(nat, v)		(nat->ni.version = v)
 
-#define __set_nat_cache_dirty(nm_i, ne)					\
-	do {								\
-		ne->checkpointed = false;				\
-		list_move_tail(&ne->list, &nm_i->dirty_nat_entries);	\
-	} while (0)
-#define __clear_nat_cache_dirty(nm_i, ne)				\
-	do {								\
-		ne->checkpointed = true;				\
-		list_move_tail(&ne->list, &nm_i->nat_entries);		\
-	} while (0)
 #define inc_node_version(version)	(++version)
+
+static inline void set_nat_flag(struct nat_entry *ne,
+				unsigned int type, bool set)
+{
+	unsigned char mask = 0x01 << type;
+	if (set)
+		ne->flag |= mask;
+	else
+		ne->flag &= ~mask;
+}
+
+static inline bool get_nat_flag(struct nat_entry *ne, unsigned int type)
+{
+	unsigned char mask = 0x01 << type;
+	return ne->flag & mask;
+}
+
+static inline void nat_reset_flag(struct nat_entry *ne)
+{
+	/* these states can be set only after checkpoint was done */
+	set_nat_flag(ne, IS_CHECKPOINTED, true);
+	set_nat_flag(ne, HAS_FSYNCED_INODE, false);
+	set_nat_flag(ne, HAS_LAST_FSYNC, true);
+}
 
 static inline void node_info_from_raw_nat(struct node_info *ni,
 						struct f2fs_nat_entry *raw_ne)
@@ -90,9 +110,9 @@ enum mem_type {
 };
 
 struct nat_entry_set {
-	struct list_head set_list;	/* link with all nat sets */
+	struct list_head set_list;	/* link with other nat sets */
 	struct list_head entry_list;	/* link with dirty nat entries */
-	nid_t start_nid;		/* start nid of nats in set */
+	nid_t set;			/* set number*/
 	unsigned int entry_cnt;		/* the # of nat entries in set */
 };
 
@@ -110,18 +130,19 @@ struct free_nid {
 	int state;		/* in use or not: NID_NEW or NID_ALLOC */
 };
 
-static inline int next_free_nid(struct f2fs_sb_info *sbi, nid_t *nid)
+static inline void next_free_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *fnid;
 
-	if (nm_i->fcnt <= 0)
-		return -1;
 	spin_lock(&nm_i->free_nid_list_lock);
+	if (nm_i->fcnt <= 0) {
+		spin_unlock(&nm_i->free_nid_list_lock);
+		return;
+	}
 	fnid = list_entry(nm_i->free_nid_list.next, struct free_nid, list);
 	*nid = fnid->nid;
 	spin_unlock(&nm_i->free_nid_list_lock);
-	return 0;
 }
 
 /*
@@ -197,8 +218,7 @@ static inline void copy_node_footer(struct page *dst, struct page *src)
 
 static inline void fill_node_footer_blkaddr(struct page *page, block_t blkaddr)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
-	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_P_SB(page));
 	struct f2fs_node *rn = F2FS_NODE(page);
 
 	rn->footer.cp_ver = ckpt->checkpoint_ver;

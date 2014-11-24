@@ -11,7 +11,6 @@ struct lockd_net {
 
 	struct delayed_work grace_period_end;
 	struct lock_manager lockd_manager;
-	struct list_head grace_list;
 
 	spinlock_t nsm_clnt_lock;
 	unsigned int nsm_users;

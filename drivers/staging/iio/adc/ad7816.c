@@ -118,8 +118,7 @@ static ssize_t ad7816_show_mode(struct device *dev,
 
 	if (chip->mode)
 		return sprintf(buf, "power-save\n");
-	else
-		return sprintf(buf, "full\n");
+	return sprintf(buf, "full\n");
 }
 
 static ssize_t ad7816_store_mode(struct device *dev,
@@ -226,8 +225,8 @@ static ssize_t ad7816_show_value(struct device *dev,
 		if (value < 0)
 			data = (1 << AD7816_TEMP_FLOAT_OFFSET) - data;
 		return sprintf(buf, "%d.%.2d\n", value, data * 25);
-	} else
-		return sprintf(buf, "%u\n", data);
+	}
+	return sprintf(buf, "%u\n", data);
 }
 
 static IIO_DEVICE_ATTR(value, S_IRUGO, ad7816_show_value, NULL, 0);
@@ -275,8 +274,8 @@ static ssize_t ad7816_show_oti(struct device *dev,
 			(chip->oti_data[chip->channel_id] -
 			AD7816_BOUND_VALUE_BASE);
 		return sprintf(buf, "%d\n", value);
-	} else
-		return sprintf(buf, "%u\n", chip->oti_data[chip->channel_id]);
+	}
+	return sprintf(buf, "%u\n", chip->oti_data[chip->channel_id]);
 }
 
 static inline ssize_t ad7816_set_oti(struct device *dev,
@@ -442,6 +441,5 @@ static struct spi_driver ad7816_driver = {
 module_spi_driver(ad7816_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("Analog Devices AD7816/7/8 digital"
-			" temperature sensor driver");
+MODULE_DESCRIPTION("Analog Devices AD7816/7/8 digital temperature sensor driver");
 MODULE_LICENSE("GPL v2");

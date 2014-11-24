@@ -91,6 +91,7 @@ _GLOBAL(setup_altivec_idle)
 
 	blr
 
+#ifdef CONFIG_PPC_E500MC
 _GLOBAL(__setup_cpu_e6500)
 	mflr	r6
 #ifdef CONFIG_PPC64
@@ -107,14 +108,20 @@ _GLOBAL(__setup_cpu_e6500)
 	bl	__setup_cpu_e5500
 	mtlr	r6
 	blr
+#endif /* CONFIG_PPC_E500MC */
 
 #ifdef CONFIG_PPC32
+#ifdef CONFIG_E200
 _GLOBAL(__setup_cpu_e200)
 	/* enable dedicated debug exception handling resources (Debug APU) */
 	mfspr	r3,SPRN_HID0
 	ori	r3,r3,HID0_DAPUEN@l
 	mtspr	SPRN_HID0,r3
 	b	__setup_e200_ivors
+#endif /* CONFIG_E200 */
+
+#ifdef CONFIG_E500
+#ifndef CONFIG_PPC_E500MC
 _GLOBAL(__setup_cpu_e500v1)
 _GLOBAL(__setup_cpu_e500v2)
 	mflr	r4
@@ -129,6 +136,7 @@ _GLOBAL(__setup_cpu_e500v2)
 #endif
 	mtlr	r4
 	blr
+#else /* CONFIG_PPC_E500MC */
 _GLOBAL(__setup_cpu_e500mc)
 _GLOBAL(__setup_cpu_e5500)
 	mflr	r5
@@ -159,7 +167,9 @@ _GLOBAL(__setup_cpu_e5500)
 2:
 	mtlr	r5
 	blr
-#endif
+#endif /* CONFIG_PPC_E500MC */
+#endif /* CONFIG_E500 */
+#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC_BOOK3E_64
 _GLOBAL(__restore_cpu_e6500)

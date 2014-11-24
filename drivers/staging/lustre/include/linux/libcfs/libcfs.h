@@ -165,7 +165,6 @@ void cfs_get_random_bytes(void *buf, int size);
 #include "libcfs_kernelcomm.h"
 #include "libcfs_workitem.h"
 #include "libcfs_hash.h"
-#include "libcfs_heap.h"
 #include "libcfs_fail.h"
 #include "libcfs_crypto.h"
 
@@ -174,8 +173,7 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 {
 	if (unlikely(IS_ERR(ptr) || ptr == NULL))
 		return ptr;
-	else
-		return (char *)ptr - shift;
+	return (char *)ptr - shift;
 }
 
 #define container_of0(ptr, type, member) \

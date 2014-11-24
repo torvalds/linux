@@ -325,7 +325,6 @@ static struct platform_driver sun4i_usb_phy_driver = {
 	.driver = {
 		.of_match_table	= sun4i_usb_phy_of_match,
 		.name  = "sun4i-usb-phy",
-		.owner = THIS_MODULE,
 	}
 };
 module_platform_driver(sun4i_usb_phy_driver);

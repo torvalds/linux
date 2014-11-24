@@ -54,7 +54,6 @@
 #include "../include/lprocfs_status.h"
 
 #include "../include/dt_object.h"
-#include "../include/md_object.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
 #include "fld_internal.h"
@@ -263,8 +262,8 @@ void fld_cache_punch_hole(struct fld_cache *cache,
 			  struct fld_cache_entry *f_new)
 {
 	const struct lu_seq_range *range = &f_new->fce_range;
-	const seqno_t new_start  = range->lsr_start;
-	const seqno_t new_end  = range->lsr_end;
+	const u64 new_start  = range->lsr_start;
+	const u64 new_end  = range->lsr_end;
 	struct fld_cache_entry *fldt;
 
 	OBD_ALLOC_GFP(fldt, sizeof(*fldt), GFP_ATOMIC);
@@ -302,9 +301,9 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 				struct fld_cache_entry *f_new)
 {
 	const struct lu_seq_range *range = &f_new->fce_range;
-	const seqno_t new_start  = range->lsr_start;
-	const seqno_t new_end  = range->lsr_end;
-	const mdsno_t mdt = range->lsr_index;
+	const u64 new_start  = range->lsr_start;
+	const u64 new_end  = range->lsr_end;
+	const u32 mdt = range->lsr_index;
 
 	/* this is overlap case, these case are checking overlapping with
 	 * prev range only. fixup will handle overlapping with next range. */
@@ -386,8 +385,8 @@ int fld_cache_insert_nolock(struct fld_cache *cache,
 	struct fld_cache_entry *n;
 	struct list_head *head;
 	struct list_head *prev = NULL;
-	const seqno_t new_start  = f_new->fce_range.lsr_start;
-	const seqno_t new_end  = f_new->fce_range.lsr_end;
+	const u64 new_start  = f_new->fce_range.lsr_start;
+	const u64 new_end  = f_new->fce_range.lsr_end;
 	__u32 new_flags  = f_new->fce_range.lsr_flags;
 
 	/*
@@ -516,7 +515,7 @@ struct fld_cache_entry
  * lookup \a seq sequence for range in fld cache.
  */
 int fld_cache_lookup(struct fld_cache *cache,
-		     const seqno_t seq, struct lu_seq_range *range)
+		     const u64 seq, struct lu_seq_range *range)
 {
 	struct fld_cache_entry *flde;
 	struct fld_cache_entry *prev = NULL;

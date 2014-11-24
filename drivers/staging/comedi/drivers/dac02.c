@@ -68,10 +68,6 @@ static const struct comedi_lrange das02_ao_ranges = {
 	}
 };
 
-struct dac02_private {
-	unsigned int ao_readback[2];
-};
-
 /*
  * Register I/O map
  */
@@ -83,7 +79,6 @@ static int dac02_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct dac02_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val;
@@ -92,7 +87,7 @@ static int dac02_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 
-		devpriv->ao_readback[chan] = val;
+		s->readback[chan] = val;
 
 		/*
 		 * Unipolar outputs are true binary encoding.
@@ -113,30 +108,10 @@ static int dac02_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dac02_ao_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct dac02_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
-}
-
 static int dac02_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct dac02_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x08);
 	if (ret)
@@ -154,7 +129,11 @@ static int dac02_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x0fff;
 	s->range_table	= &das02_ao_ranges;
 	s->insn_write	= dac02_ao_insn_write;
-	s->insn_read	= dac02_ao_insn_read;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	return 0;
 }

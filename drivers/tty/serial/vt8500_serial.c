@@ -33,8 +33,8 @@
 #include <linux/serial.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
-#include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/err.h>
 
 /*
@@ -78,13 +78,40 @@
 #define RX_FIFO_INTS	(RXFAF | RXFF | RXOVER | PER | FER | RXTOUT)
 #define TX_FIFO_INTS	(TXFAE | TXFE | TXUDR)
 
+/*
+ * Line control bits
+ */
+
+#define VT8500_TXEN	(1 << 0)	/* Enable transmit logic */
+#define VT8500_RXEN	(1 << 1)	/* Enable receive logic */
+#define VT8500_CS8	(1 << 2)	/* 8-bit data length (vs. 7-bit) */
+#define VT8500_CSTOPB	(1 << 3)	/* 2 stop bits (vs. 1) */
+#define VT8500_PARENB	(1 << 4)	/* Enable parity */
+#define VT8500_PARODD	(1 << 5)	/* Odd parity (vs. even) */
+#define VT8500_RTS	(1 << 6)	/* Ready to send */
+#define VT8500_LOOPBK	(1 << 7)	/* Enable internal loopback */
+#define VT8500_DMA	(1 << 8)	/* Enable DMA mode (needs FIFO) */
+#define VT8500_BREAK	(1 << 9)	/* Initiate break signal */
+#define VT8500_PSLVERR	(1 << 10)	/* APB error upon empty RX FIFO read */
+#define VT8500_SWRTSCTS	(1 << 11)	/* Software-controlled RTS/CTS */
+
+/*
+ * Capability flags (driver-internal)
+ */
+
+#define VT8500_HAS_SWRTSCTS_SWITCH	(1 << 1)
+
+#define VT8500_RECOMMENDED_CLK		12000000
+#define VT8500_OVERSAMPLING_DIVISOR	13
 #define VT8500_MAX_PORTS	6
 
 struct vt8500_port {
 	struct uart_port	uart;
 	char			name[16];
 	struct clk		*clk;
+	unsigned int		clk_predivisor;
 	unsigned int		ier;
+	unsigned int		vt8500_uart_flags;
 };
 
 /*
@@ -267,30 +294,44 @@ static unsigned int vt8500_get_mctrl(struct uart_port *port)
 
 static void vt8500_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	unsigned int lcr = vt8500_read(port, VT8500_URLCR);
+
+	if (mctrl & TIOCM_RTS)
+		lcr |= VT8500_RTS;
+	else
+		lcr &= ~VT8500_RTS;
+
+	vt8500_write(port, lcr, VT8500_URLCR);
 }
 
 static void vt8500_break_ctl(struct uart_port *port, int break_ctl)
 {
 	if (break_ctl)
-		vt8500_write(port, vt8500_read(port, VT8500_URLCR) | (1 << 9),
+		vt8500_write(port,
+			     vt8500_read(port, VT8500_URLCR) | VT8500_BREAK,
 			     VT8500_URLCR);
 }
 
 static int vt8500_set_baud_rate(struct uart_port *port, unsigned int baud)
 {
+	struct vt8500_port *vt8500_port =
+			container_of(port, struct vt8500_port, uart);
 	unsigned long div;
 	unsigned int loops = 1000;
 
-	div = vt8500_read(port, VT8500_URDIV) & ~(0x3ff);
+	div = ((vt8500_port->clk_predivisor - 1) & 0xf) << 16;
+	div |= (uart_get_divisor(port, baud) - 1) & 0x3ff;
 
-	if (unlikely((baud < 900) || (baud > 921600)))
-		div |= 7;
-	else
-		div |= (921600 / baud) - 1;
+	/* Effective baud rate */
+	baud = port->uartclk / 16 / ((div & 0x3ff) + 1);
 
 	while ((vt8500_read(port, VT8500_URUSR) & (1 << 5)) && --loops)
 		cpu_relax();
+
 	vt8500_write(port, div, VT8500_URDIV);
+
+	/* Break signal timing depends on baud rate, update accordingly */
+	vt8500_write(port, mult_frac(baud, 4096, 1000000), VT8500_URBKR);
 
 	return baud;
 }
@@ -347,31 +388,35 @@ static void vt8500_set_termios(struct uart_port *port,
 
 	/* calculate parity */
 	lcr = vt8500_read(&vt8500_port->uart, VT8500_URLCR);
-	lcr &= ~((1 << 5) | (1 << 4));
+	lcr &= ~(VT8500_PARENB | VT8500_PARODD);
 	if (termios->c_cflag & PARENB) {
-		lcr |= (1 << 4);
+		lcr |= VT8500_PARENB;
 		termios->c_cflag &= ~CMSPAR;
 		if (termios->c_cflag & PARODD)
-			lcr |= (1 << 5);
+			lcr |= VT8500_PARODD;
 	}
 
 	/* calculate bits per char */
-	lcr &= ~(1 << 2);
+	lcr &= ~VT8500_CS8;
 	switch (termios->c_cflag & CSIZE) {
 	case CS7:
 		break;
 	case CS8:
 	default:
-		lcr |= (1 << 2);
+		lcr |= VT8500_CS8;
 		termios->c_cflag &= ~CSIZE;
 		termios->c_cflag |= CS8;
 		break;
 	}
 
 	/* calculate stop bits */
-	lcr &= ~(1 << 3);
+	lcr &= ~VT8500_CSTOPB;
 	if (termios->c_cflag & CSTOPB)
-		lcr |= (1 << 3);
+		lcr |= VT8500_CSTOPB;
+
+	lcr &= ~VT8500_SWRTSCTS;
+	if (vt8500_port->vt8500_uart_flags & VT8500_HAS_SWRTSCTS_SWITCH)
+		lcr |= VT8500_SWRTSCTS;
 
 	/* set parity, bits per char, and stop bit */
 	vt8500_write(&vt8500_port->uart, lcr, VT8500_URLCR);
@@ -521,6 +566,33 @@ static struct console vt8500_console = {
 #define VT8500_CONSOLE	NULL
 #endif
 
+#ifdef CONFIG_CONSOLE_POLL
+static int vt8500_get_poll_char(struct uart_port *port)
+{
+	unsigned int status = vt8500_read(port, VT8500_URFIDX);
+
+	if (!(status & 0x1f00))
+		return NO_POLL_CHAR;
+
+	return vt8500_read(port, VT8500_RXFIFO) & 0xff;
+}
+
+static void vt8500_put_poll_char(struct uart_port *port, unsigned char c)
+{
+	unsigned int status, tmout = 10000;
+
+	do {
+		status = vt8500_read(port, VT8500_URFIDX);
+
+		if (--tmout == 0)
+			break;
+		udelay(1);
+	} while (status & 0x10);
+
+	vt8500_write(port, c, VT8500_TXFIFO);
+}
+#endif
+
 static struct uart_ops vt8500_uart_pops = {
 	.tx_empty	= vt8500_tx_empty,
 	.set_mctrl	= vt8500_set_mctrl,
@@ -538,6 +610,10 @@ static struct uart_ops vt8500_uart_pops = {
 	.request_port	= vt8500_request_port,
 	.config_port	= vt8500_config_port,
 	.verify_port	= vt8500_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= vt8500_get_poll_char,
+	.poll_put_char	= vt8500_put_poll_char,
+#endif
 };
 
 static struct uart_driver vt8500_uart_driver = {
@@ -548,13 +624,30 @@ static struct uart_driver vt8500_uart_driver = {
 	.cons		= VT8500_CONSOLE,
 };
 
+static unsigned int vt8500_flags; /* none required so far */
+static unsigned int wm8880_flags = VT8500_HAS_SWRTSCTS_SWITCH;
+
+static const struct of_device_id wmt_dt_ids[] = {
+	{ .compatible = "via,vt8500-uart", .data = &vt8500_flags},
+	{ .compatible = "wm,wm8880-uart", .data = &wm8880_flags},
+	{}
+};
+
 static int vt8500_serial_probe(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port;
 	struct resource *mmres, *irqres;
 	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+	const unsigned int *flags;
 	int ret;
 	int port;
+
+	match = of_match_device(wmt_dt_ids, &pdev->dev);
+	if (!match)
+		return -EINVAL;
+
+	flags = match->data;
 
 	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irqres = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -605,6 +698,11 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	vt8500_port->vt8500_uart_flags = *flags;
+	vt8500_port->clk_predivisor = DIV_ROUND_CLOSEST(
+					clk_get_rate(vt8500_port->clk),
+					VT8500_RECOMMENDED_CLK
+				      );
 	vt8500_port->uart.type = PORT_VT8500;
 	vt8500_port->uart.iotype = UPIO_MEM;
 	vt8500_port->uart.mapbase = mmres->start;
@@ -615,7 +713,10 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port->uart.dev = &pdev->dev;
 	vt8500_port->uart.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 
-	vt8500_port->uart.uartclk = clk_get_rate(vt8500_port->clk);
+	/* Serial core uses the magic "16" everywhere - adjust for it */
+	vt8500_port->uart.uartclk = 16 * clk_get_rate(vt8500_port->clk) /
+					vt8500_port->clk_predivisor /
+					VT8500_OVERSAMPLING_DIVISOR;
 
 	snprintf(vt8500_port->name, sizeof(vt8500_port->name),
 		 "VT8500 UART%d", pdev->id);
@@ -638,11 +739,6 @@ static int vt8500_serial_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id wmt_dt_ids[] = {
-	{ .compatible = "via,vt8500-uart", },
-	{}
-};
 
 static struct platform_driver vt8500_platform_driver = {
 	.probe  = vt8500_serial_probe,

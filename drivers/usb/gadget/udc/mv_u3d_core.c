@@ -222,12 +222,8 @@ void mv_u3d_done(struct mv_u3d_ep *ep, struct mv_u3d_req *req, int status)
 	}
 
 	spin_unlock(&ep->u3d->lock);
-	/*
-	 * complete() is from gadget layer,
-	 * eg fsg->bulk_in_complete()
-	 */
-	if (req->req.complete)
-		req->req.complete(&ep->ep, &req->req);
+
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 
 	spin_lock(&ep->u3d->lock);
 }

@@ -1377,9 +1377,6 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 		goto err_out_iounmap;
 	}
 
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(ndev);
-
 	/* Setup driver functions */
 	ndev->netdev_ops = &lpc_netdev_ops;
 	ndev->ethtool_ops = &lpc_eth_ethtool_ops;

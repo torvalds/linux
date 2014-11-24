@@ -72,11 +72,11 @@
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
-#define  S_PIDX_T5   0
-#define  M_PIDX_T5   0x1fffU
-#define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
+#define  PIDX_SHIFT_T5   0
+#define  PIDX_T5(x)  ((x) << PIDX_SHIFT_T5)
 
 
+#define SGE_TIMERREGS	6
 #define SGE_PF_GTS 0x4
 #define  INGRESSQID_MASK   0xffff0000U
 #define  INGRESSQID_SHIFT  16
@@ -95,6 +95,7 @@
 #define X_INGPADBOUNDARY_SHIFT 5
 
 #define SGE_CONTROL 0x1008
+#define SGE_CONTROL2_A		0x1124
 #define  DCASYSTYPE             0x00080000U
 #define  RXPKTCPLMODE_MASK      0x00040000U
 #define  RXPKTCPLMODE_SHIFT     18
@@ -106,6 +107,7 @@
 #define  PKTSHIFT_SHIFT         10
 #define  PKTSHIFT(x)            ((x) << PKTSHIFT_SHIFT)
 #define  PKTSHIFT_GET(x)	(((x) & PKTSHIFT_MASK) >> PKTSHIFT_SHIFT)
+#define  INGPCIEBOUNDARY_32B_X	0
 #define  INGPCIEBOUNDARY_MASK   0x00000380U
 #define  INGPCIEBOUNDARY_SHIFT  7
 #define  INGPCIEBOUNDARY(x)     ((x) << INGPCIEBOUNDARY_SHIFT)
@@ -114,6 +116,14 @@
 #define  INGPADBOUNDARY(x)      ((x) << INGPADBOUNDARY_SHIFT)
 #define  INGPADBOUNDARY_GET(x)	(((x) & INGPADBOUNDARY_MASK) \
 				 >> INGPADBOUNDARY_SHIFT)
+#define  INGPACKBOUNDARY_16B_X	0
+#define  INGPACKBOUNDARY_SHIFT_X 5
+
+#define  INGPACKBOUNDARY_S	16
+#define  INGPACKBOUNDARY_M	0x7U
+#define  INGPACKBOUNDARY_V(x)	((x) << INGPACKBOUNDARY_S)
+#define  INGPACKBOUNDARY_G(x)	(((x) >> INGPACKBOUNDARY_S) \
+				 & INGPACKBOUNDARY_M)
 #define  EGRPCIEBOUNDARY_MASK   0x0000000eU
 #define  EGRPCIEBOUNDARY_SHIFT  1
 #define  EGRPCIEBOUNDARY(x)     ((x) << EGRPCIEBOUNDARY_SHIFT)
@@ -157,7 +167,26 @@
 #define  QUEUESPERPAGEPF0_MASK   0x0000000fU
 #define  QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
 
+#define QUEUESPERPAGEPF0    0
 #define QUEUESPERPAGEPF1    4
+
+/* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
+ * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
+ * offsets 8x and a Write Combining single 64-byte Egress Queue Unit
+ * (X_IDXSIZE_UNIT) Gather Buffer interface at offset 64.  For Ingress Queues,
+ * we have a Going To Sleep register at offsets 8x+4.
+ *
+ * As noted above, we have many instances of the Simple Doorbell and Going To
+ * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
+ * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * avoid buffering of the writes to the Simple Doorbell and we want to use a
+ * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * possible combining between them.
+ */
+#define SGE_UDB_SIZE            128
+#define SGE_UDB_KDOORBELL       8
+#define SGE_UDB_GTS             20
+#define SGE_UDB_WCDOORBELL      64
 
 #define SGE_INT_CAUSE1 0x1024
 #define SGE_INT_CAUSE2 0x1030

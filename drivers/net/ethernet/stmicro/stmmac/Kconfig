@@ -26,6 +26,16 @@ config STMMAC_PLATFORM
 
 	  If unsure, say N.
 
+config DWMAC_MESON
+	bool "Amlogic Meson dwmac support"
+	depends on STMMAC_PLATFORM && ARCH_MESON
+	help
+	  Support for Ethernet controller on Amlogic Meson SoCs.
+
+	  This selects the Amlogic Meson SoC glue layer support for
+	  the stmmac device driver. This driver is used for Meson6 and
+	  Meson8 SoCs.
+
 config DWMAC_SOCFPGA
 	bool "SOCFPGA dwmac support"
 	depends on STMMAC_PLATFORM && MFD_SYSCON && (ARCH_SOCFPGA || COMPILE_TEST)

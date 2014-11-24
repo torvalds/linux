@@ -1423,7 +1423,6 @@ struct ni_private {
 	unsigned int changain_spec;
 
 	unsigned int caldac_maxdata_list[MAX_N_CALDACS];
-	unsigned short ao[MAX_N_AO_CHAN];
 	unsigned short caldacs[MAX_N_CALDACS];
 
 	unsigned short ai_cmd2;

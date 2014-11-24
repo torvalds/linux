@@ -151,12 +151,20 @@ static inline struct asc_port *to_asc_port(struct uart_port *port)
 
 static inline u32 asc_in(struct uart_port *port, u32 offset)
 {
+#ifdef readl_relaxed
+	return readl_relaxed(port->membase + offset);
+#else
 	return readl(port->membase + offset);
+#endif
 }
 
 static inline void asc_out(struct uart_port *port, u32 offset, u32 value)
 {
+#ifdef writel_relaxed
+	writel_relaxed(value, port->membase + offset);
+#else
 	writel(value, port->membase + offset);
+#endif
 }
 
 /*

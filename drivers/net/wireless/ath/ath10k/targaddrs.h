@@ -284,7 +284,6 @@ Fw Mode/SubMode Mask
 #define HI_OPTION_ALL_FW_SUBMODE_MASK  0xFF00
 #define HI_OPTION_ALL_FW_SUBMODE_SHIFT 0x8
 
-
 /* hi_option_flag2 options */
 #define HI_OPTION_OFFLOAD_AMSDU     0x01
 #define HI_OPTION_DFS_SUPPORT       0x02 /* Enable DFS support */

@@ -138,7 +138,6 @@ struct atmio16d_private {
 	enum { dac_internal, dac_external } dac0_reference, dac1_reference;
 	enum { dac_2comp, dac_straight } dac0_coding, dac1_coding;
 	const struct comedi_lrange *ao_range_type_list[2];
-	unsigned int ao_readback[2];
 	unsigned int com_reg_1_state; /* current state of command register 1 */
 	unsigned int com_reg_2_state; /* current state of command register 2 */
 };
@@ -275,11 +274,10 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* any count is allowed */
-	} else {	/* TRIG_NONE */
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	}
 
 	if (err)
 		return 3;
@@ -496,48 +494,34 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int atmio16d_ao_insn_read(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
-{
-	struct atmio16d_private *devpriv = dev->private;
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
-	return i;
-}
-
 static int atmio16d_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct atmio16d_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int reg = (chan) ? DAC1_REG : DAC0_REG;
+	bool munge = false;
 	int i;
-	int chan;
-	int d;
 
-	chan = CR_CHAN(insn->chanspec);
+	if (chan == 0 && devpriv->dac0_coding == dac_2comp)
+		munge = true;
+	if (chan == 1 && devpriv->dac1_coding == dac_2comp)
+		munge = true;
 
 	for (i = 0; i < insn->n; i++) {
-		d = data[i];
-		switch (chan) {
-		case 0:
-			if (devpriv->dac0_coding == dac_2comp)
-				d ^= 0x800;
-			outw(d, dev->iobase + DAC0_REG);
-			break;
-		case 1:
-			if (devpriv->dac1_coding == dac_2comp)
-				d ^= 0x800;
-			outw(d, dev->iobase + DAC1_REG);
-			break;
-		default:
-			return -EINVAL;
-		}
-		devpriv->ao_readback[chan] = data[i];
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
+
+		if (munge)
+			val ^= 0x800;
+
+		outw(val, dev->iobase + reg);
 	}
-	return i;
+
+	return insn->n;
 }
 
 static int atmio16d_dio_insn_bits(struct comedi_device *dev,
@@ -617,7 +601,7 @@ static int atmio16d_dio_insn_config(struct comedi_device *dev,
 static int atmio16d_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
-	const struct atmio16_board_t *board = comedi_board(dev);
+	const struct atmio16_board_t *board = dev->board_ptr;
 	struct atmio16d_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -688,8 +672,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
-	s->insn_read = atmio16d_ao_insn_read;
-	s->insn_write = atmio16d_ao_insn_write;
 	s->maxdata = 0xfff;	/* 4095 decimal */
 	s->range_table_list = devpriv->ao_range_type_list;
 	switch (devpriv->dac0_range) {
@@ -708,6 +690,12 @@ static int atmio16d_attach(struct comedi_device *dev,
 		devpriv->ao_range_type_list[1] = &range_unipolar10;
 		break;
 	}
+	s->insn_write = atmio16d_ao_insn_write;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital I/O */
 	s = &dev->subdevices[2];
@@ -722,7 +710,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	/* 8255 subdevice */
 	s = &dev->subdevices[3];
 	if (board->has_8255) {
-		ret = subdev_8255_init(dev, s, NULL, dev->iobase);
+		ret = subdev_8255_init(dev, s, NULL, 0x00);
 		if (ret)
 			return ret;
 	} else {

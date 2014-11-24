@@ -258,7 +258,8 @@ static int get_amixer_rsc(struct amixer_mgr *mgr,
 	}
 	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
-		printk(KERN_ERR "ctxfi: Can't meet AMIXER resource request!\n");
+		dev_err(mgr->card->dev,
+			"Can't meet AMIXER resource request!\n");
 		goto error;
 	}
 
@@ -296,7 +297,7 @@ static int put_amixer_rsc(struct amixer_mgr *mgr, struct amixer *amixer)
 	return 0;
 }
 
-int amixer_mgr_create(void *hw, struct amixer_mgr **ramixer_mgr)
+int amixer_mgr_create(struct hw *hw, struct amixer_mgr **ramixer_mgr)
 {
 	int err;
 	struct amixer_mgr *amixer_mgr;
@@ -314,6 +315,7 @@ int amixer_mgr_create(void *hw, struct amixer_mgr **ramixer_mgr)
 
 	amixer_mgr->get_amixer = get_amixer_rsc;
 	amixer_mgr->put_amixer = put_amixer_rsc;
+	amixer_mgr->card = hw->card;
 
 	*ramixer_mgr = amixer_mgr;
 
@@ -411,7 +413,8 @@ static int get_sum_rsc(struct sum_mgr *mgr,
 	}
 	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
-		printk(KERN_ERR "ctxfi: Can't meet SUM resource request!\n");
+		dev_err(mgr->card->dev,
+			"Can't meet SUM resource request!\n");
 		goto error;
 	}
 
@@ -449,7 +452,7 @@ static int put_sum_rsc(struct sum_mgr *mgr, struct sum *sum)
 	return 0;
 }
 
-int sum_mgr_create(void *hw, struct sum_mgr **rsum_mgr)
+int sum_mgr_create(struct hw *hw, struct sum_mgr **rsum_mgr)
 {
 	int err;
 	struct sum_mgr *sum_mgr;
@@ -467,6 +470,7 @@ int sum_mgr_create(void *hw, struct sum_mgr **rsum_mgr)
 
 	sum_mgr->get_sum = get_sum_rsc;
 	sum_mgr->put_sum = put_sum_rsc;
+	sum_mgr->card = hw->card;
 
 	*rsum_mgr = sum_mgr;
 

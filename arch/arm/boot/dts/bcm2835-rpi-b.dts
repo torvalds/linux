@@ -23,7 +23,7 @@
 
 &gpio {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gpioout &alt0 &alt3>;
+	pinctrl-0 = <&gpioout &alt0 &alt2 &alt3>;
 
 	gpioout: gpioout {
 		brcm,pins = <6>;
@@ -38,6 +38,12 @@
 	alt3: alt3 {
 		brcm,pins = <48 49 50 51 52 53>;
 		brcm,function = <7>; /* alt3 */
+	};
+
+	/* I2S interface */
+	alt2: alt2 {
+		brcm,pins = <28 29 30 31>;
+		brcm,function = <6>; /* alt2 */
 	};
 };
 

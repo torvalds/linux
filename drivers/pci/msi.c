@@ -56,16 +56,6 @@ void __weak arch_teardown_msi_irq(unsigned int irq)
 	chip->teardown_irq(chip, irq);
 }
 
-int __weak arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
-{
-	struct msi_chip *chip = dev->bus->msi;
-
-	if (!chip || !chip->check_device)
-		return 0;
-
-	return chip->check_device(chip, dev, nvec, type);
-}
-
 int __weak arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *entry;
@@ -130,7 +120,7 @@ static void default_restore_msi_irq(struct pci_dev *dev, int irq)
 	}
 
 	if (entry)
-		write_msi_msg(irq, &entry->msg);
+		__write_msi_msg(entry, &entry->msg);
 }
 
 void __weak arch_restore_msi_irqs(struct pci_dev *dev)
@@ -312,6 +302,7 @@ void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
 
 	__get_cached_msi_msg(entry, msg);
 }
+EXPORT_SYMBOL_GPL(get_cached_msi_msg);
 
 void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
@@ -356,6 +347,7 @@ void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 
 	__write_msi_msg(entry, msg);
 }
+EXPORT_SYMBOL_GPL(write_msi_msg);
 
 static void free_msi_irqs(struct pci_dev *dev)
 {
@@ -382,17 +374,6 @@ static void free_msi_irqs(struct pci_dev *dev)
 		if (entry->msi_attrib.is_msix) {
 			if (list_is_last(&entry->list, &dev->msi_list))
 				iounmap(entry->mask_base);
-		}
-
-		/*
-		 * Its possible that we get into this path
-		 * When populate_msi_sysfs fails, which means the entries
-		 * were not registered with sysfs.  In that case don't
-		 * unregister them.
-		 */
-		if (entry->kobj.parent) {
-			kobject_del(&entry->kobj);
-			kobject_put(&entry->kobj);
 		}
 
 		list_del(&entry->list);
@@ -595,7 +576,6 @@ static struct msi_desc *msi_setup_entry(struct pci_dev *dev)
 	entry->msi_attrib.entry_nr	= 0;
 	entry->msi_attrib.maskbit	= !!(control & PCI_MSI_FLAGS_MASKBIT);
 	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
-	entry->msi_attrib.pos		= dev->msi_cap;
 	entry->msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
 
 	if (control & PCI_MSI_FLAGS_64BIT)
@@ -699,7 +679,6 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 		entry->msi_attrib.is_64		= 1;
 		entry->msi_attrib.entry_nr	= entries[i].entry;
 		entry->msi_attrib.default_irq	= dev->irq;
-		entry->msi_attrib.pos		= dev->msix_cap;
 		entry->mask_base		= base;
 
 		list_add_tail(&entry->list, &dev->msi_list);
@@ -806,23 +785,24 @@ out_free:
 }
 
 /**
- * pci_msi_check_device - check whether MSI may be enabled on a device
+ * pci_msi_supported - check whether MSI may be enabled on a device
  * @dev: pointer to the pci_dev data structure of MSI device function
  * @nvec: how many MSIs have been requested ?
- * @type: are we checking for MSI or MSI-X ?
  *
  * Look at global flags, the device itself, and its parent buses
  * to determine if MSI/-X are supported for the device. If MSI/-X is
- * supported return 0, else return an error code.
+ * supported return 1, else return 0.
  **/
-static int pci_msi_check_device(struct pci_dev *dev, int nvec, int type)
+static int pci_msi_supported(struct pci_dev *dev, int nvec)
 {
 	struct pci_bus *bus;
-	int ret;
 
 	/* MSI must be globally enabled and supported by the device */
-	if (!pci_msi_enable || !dev || dev->no_msi)
-		return -EINVAL;
+	if (!pci_msi_enable)
+		return 0;
+
+	if (!dev || dev->no_msi || dev->current_state != PCI_D0)
+		return 0;
 
 	/*
 	 * You can't ask to have 0 or less MSIs configured.
@@ -830,7 +810,7 @@ static int pci_msi_check_device(struct pci_dev *dev, int nvec, int type)
 	 *  b) the list manipulation code assumes nvec >= 1.
 	 */
 	if (nvec < 1)
-		return -ERANGE;
+		return 0;
 
 	/*
 	 * Any bridge which does NOT route MSI transactions from its
@@ -841,13 +821,9 @@ static int pci_msi_check_device(struct pci_dev *dev, int nvec, int type)
 	 */
 	for (bus = dev->bus; bus; bus = bus->parent)
 		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			return -EINVAL;
+			return 0;
 
-	ret = arch_msi_check_device(dev, nvec, type);
-	if (ret)
-		return ret;
-
-	return 0;
+	return 1;
 }
 
 /**
@@ -946,15 +922,14 @@ EXPORT_SYMBOL(pci_msix_vec_count);
  **/
 int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 {
-	int status, nr_entries;
+	int nr_entries;
 	int i, j;
 
-	if (!entries || !dev->msix_cap || dev->current_state != PCI_D0)
+	if (!pci_msi_supported(dev, nvec))
 		return -EINVAL;
 
-	status = pci_msi_check_device(dev, nvec, PCI_CAP_ID_MSIX);
-	if (status)
-		return status;
+	if (!entries)
+		return -EINVAL;
 
 	nr_entries = pci_msix_vec_count(dev);
 	if (nr_entries < 0)
@@ -978,8 +953,7 @@ int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 		dev_info(&dev->dev, "can't enable MSI-X (MSI IRQ already assigned)\n");
 		return -EINVAL;
 	}
-	status = msix_capability_init(dev, entries, nvec);
-	return status;
+	return msix_capability_init(dev, entries, nvec);
 }
 EXPORT_SYMBOL(pci_enable_msix);
 
@@ -1062,7 +1036,7 @@ int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 	int nvec;
 	int rc;
 
-	if (dev->current_state != PCI_D0)
+	if (!pci_msi_supported(dev, minvec))
 		return -EINVAL;
 
 	WARN_ON(!!dev->msi_enabled);
@@ -1084,17 +1058,6 @@ int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 		return -EINVAL;
 	else if (nvec > maxvec)
 		nvec = maxvec;
-
-	do {
-		rc = pci_msi_check_device(dev, nvec, PCI_CAP_ID_MSI);
-		if (rc < 0) {
-			return rc;
-		} else if (rc > 0) {
-			if (rc < minvec)
-				return -ENOSPC;
-			nvec = rc;
-		}
-	} while (rc);
 
 	do {
 		rc = msi_capability_init(dev, nvec);

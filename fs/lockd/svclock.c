@@ -245,7 +245,6 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_host *host,
 	block->b_daemon = rqstp->rq_server;
 	block->b_host   = host;
 	block->b_file   = file;
-	block->b_fl = NULL;
 	file->f_count++;
 
 	/* Add to file's list of blocks */
@@ -295,7 +294,6 @@ static void nlmsvc_free_block(struct kref *kref)
 	nlmsvc_freegrantargs(block->b_call);
 	nlmsvc_release_call(block->b_call);
 	nlm_release_file(block->b_file);
-	kfree(block->b_fl);
 	kfree(block);
 }
 
@@ -508,7 +506,6 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 		struct nlm_host *host, struct nlm_lock *lock,
 		struct nlm_lock *conflock, struct nlm_cookie *cookie)
 {
-	struct nlm_block 	*block = NULL;
 	int			error;
 	__be32			ret;
 
@@ -519,63 +516,26 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end);
 
-	/* Get existing block (in case client is busy-waiting) */
-	block = nlmsvc_lookup_block(file, lock);
-
-	if (block == NULL) {
-		struct file_lock *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
-
-		if (conf == NULL)
-			return nlm_granted;
-		block = nlmsvc_create_block(rqstp, host, file, lock, cookie);
-		if (block == NULL) {
-			kfree(conf);
-			return nlm_granted;
-		}
-		block->b_fl = conf;
-	}
-	if (block->b_flags & B_QUEUED) {
-		dprintk("lockd: nlmsvc_testlock deferred block %p flags %d fl %p\n",
-			block, block->b_flags, block->b_fl);
-		if (block->b_flags & B_TIMED_OUT) {
-			nlmsvc_unlink_block(block);
-			ret = nlm_lck_denied;
-			goto out;
-		}
-		if (block->b_flags & B_GOT_CALLBACK) {
-			nlmsvc_unlink_block(block);
-			if (block->b_fl != NULL
-					&& block->b_fl->fl_type != F_UNLCK) {
-				lock->fl = *block->b_fl;
-				goto conf_lock;
-			} else {
-				ret = nlm_granted;
-				goto out;
-			}
-		}
-		ret = nlm_drop_reply;
-		goto out;
-	}
-
 	if (locks_in_grace(SVC_NET(rqstp))) {
 		ret = nlm_lck_denied_grace_period;
 		goto out;
 	}
+
 	error = vfs_test_lock(file->f_file, &lock->fl);
-	if (error == FILE_LOCK_DEFERRED) {
-		ret = nlmsvc_defer_lock_rqst(rqstp, block);
-		goto out;
-	}
 	if (error) {
+		/* We can't currently deal with deferred test requests */
+		if (error == FILE_LOCK_DEFERRED)
+			WARN_ON_ONCE(1);
+
 		ret = nlm_lck_denied_nolocks;
 		goto out;
 	}
+
 	if (lock->fl.fl_type == F_UNLCK) {
 		ret = nlm_granted;
 		goto out;
 	}
 
-conf_lock:
 	dprintk("lockd: conflicting lock(ty=%d, %Ld-%Ld)\n",
 		lock->fl.fl_type, (long long)lock->fl.fl_start,
 		(long long)lock->fl.fl_end);
@@ -586,10 +546,9 @@ conf_lock:
 	conflock->fl.fl_type = lock->fl.fl_type;
 	conflock->fl.fl_start = lock->fl.fl_start;
 	conflock->fl.fl_end = lock->fl.fl_end;
+	locks_release_private(&lock->fl);
 	ret = nlm_lck_denied;
 out:
-	if (block)
-		nlmsvc_release_block(block);
 	return ret;
 }
 
@@ -660,29 +619,22 @@ nlmsvc_cancel_blocked(struct net *net, struct nlm_file *file, struct nlm_lock *l
  * This is a callback from the filesystem for VFS file lock requests.
  * It will be used if lm_grant is defined and the filesystem can not
  * respond to the request immediately.
- * For GETLK request it will copy the reply to the nlm_block.
  * For SETLK or SETLKW request it will get the local posix lock.
  * In all cases it will move the block to the head of nlm_blocked q where
  * nlmsvc_retry_blocked() can send back a reply for SETLKW or revisit the
  * deferred rpc for GETLK and SETLK.
  */
 static void
-nlmsvc_update_deferred_block(struct nlm_block *block, struct file_lock *conf,
-			     int result)
+nlmsvc_update_deferred_block(struct nlm_block *block, int result)
 {
 	block->b_flags |= B_GOT_CALLBACK;
 	if (result == 0)
 		block->b_granted = 1;
 	else
 		block->b_flags |= B_TIMED_OUT;
-	if (conf) {
-		if (block->b_fl)
-			__locks_copy_lock(block->b_fl, conf);
-	}
 }
 
-static int nlmsvc_grant_deferred(struct file_lock *fl, struct file_lock *conf,
-					int result)
+static int nlmsvc_grant_deferred(struct file_lock *fl, int result)
 {
 	struct nlm_block *block;
 	int rc = -ENOENT;
@@ -697,7 +649,7 @@ static int nlmsvc_grant_deferred(struct file_lock *fl, struct file_lock *conf,
 					rc = -ENOLCK;
 					break;
 				}
-				nlmsvc_update_deferred_block(block, conf, result);
+				nlmsvc_update_deferred_block(block, result);
 			} else if (result == 0)
 				block->b_granted = 1;
 

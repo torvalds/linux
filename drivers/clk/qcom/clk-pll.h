@@ -18,6 +18,21 @@
 #include "clk-regmap.h"
 
 /**
+ * struct pll_freq_tbl - PLL frequency table
+ * @l: L value
+ * @m: M value
+ * @n: N value
+ * @ibits: internal values
+ */
+struct pll_freq_tbl {
+	unsigned long freq;
+	u16 l;
+	u16 m;
+	u16 n;
+	u32 ibits;
+};
+
+/**
  * struct clk_pll - phase locked loop (PLL)
  * @l_reg: L register
  * @m_reg: M register
@@ -26,6 +41,7 @@
  * @mode_reg: mode register
  * @status_reg: status register
  * @status_bit: ANDed with @status_reg to determine if PLL is enabled
+ * @freq_tbl: PLL frequency table
  * @hw: handle between common and hardware-specific interfaces
  */
 struct clk_pll {
@@ -36,6 +52,10 @@ struct clk_pll {
 	u32	mode_reg;
 	u32	status_reg;
 	u8	status_bit;
+	u8	post_div_width;
+	u8	post_div_shift;
+
+	const struct pll_freq_tbl *freq_tbl;
 
 	struct clk_regmap clkr;
 };

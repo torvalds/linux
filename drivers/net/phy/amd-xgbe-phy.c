@@ -75,7 +75,6 @@
 #include <linux/of_device.h>
 #include <linux/uaccess.h>
 
-
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION("1.0.0-a");
@@ -100,9 +99,11 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #ifndef MDIO_PMA_10GBR_PMD_CTRL
 #define MDIO_PMA_10GBR_PMD_CTRL		0x0096
 #endif
+
 #ifndef MDIO_PMA_10GBR_FEC_CTRL
 #define MDIO_PMA_10GBR_FEC_CTRL		0x00ab
 #endif
+
 #ifndef MDIO_AN_XNP
 #define MDIO_AN_XNP			0x0016
 #endif
@@ -110,12 +111,21 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #ifndef MDIO_AN_INTMASK
 #define MDIO_AN_INTMASK			0x8001
 #endif
+
 #ifndef MDIO_AN_INT
 #define MDIO_AN_INT			0x8002
 #endif
 
+#ifndef MDIO_AN_KR_CTRL
+#define MDIO_AN_KR_CTRL			0x8003
+#endif
+
 #ifndef MDIO_CTRL1_SPEED1G
 #define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
+#endif
+
+#ifndef MDIO_KR_CTRL_PDETECT
+#define MDIO_KR_CTRL_PDETECT		0x01
 #endif
 
 /* SerDes integration register offsets */
@@ -160,7 +170,6 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define SPEED_1000_RATE			0x3
 #define SPEED_1000_TXAMP		0xf
 #define SPEED_1000_WORD			0x1
-
 
 /* SerDes RxTx register offsets */
 #define RXTX_REG20			0x0050
@@ -255,7 +264,6 @@ do {									\
 	XSIR1_IOWRITE((_priv), _reg, reg_val);				\
 } while (0)
 
-
 /* Macros for reading or writing SerDes RxTx registers
  *  The ioread macros will get bit fields or full values using the
  *  register definitions formed using the input names
@@ -282,7 +290,6 @@ do {									\
 		 _reg##_##_field##_WIDTH, (_val));			\
 	XRXTX_IOWRITE((_priv), _reg, reg_val);				\
 } while (0)
-
 
 enum amd_xgbe_phy_an {
 	AMD_XGBE_AN_READY = 0,
@@ -331,7 +338,6 @@ struct amd_xgbe_phy_priv {
 
 	/* Maintain link status for re-starting auto-negotiation */
 	unsigned int link;
-	enum amd_xgbe_phy_mode mode;
 	unsigned int speed_set;
 
 	/* Auto-negotiation state machine support */
@@ -342,6 +348,7 @@ struct amd_xgbe_phy_priv {
 	enum amd_xgbe_phy_rx kx_state;
 	struct work_struct an_work;
 	struct workqueue_struct *an_workqueue;
+	unsigned int parallel_detect;
 };
 
 static int amd_xgbe_an_enable_kr_training(struct phy_device *phydev)
@@ -468,8 +475,6 @@ static int amd_xgbe_phy_xgmii_mode(struct phy_device *phydev)
 
 	amd_xgbe_phy_serdes_complete_ratechange(phydev);
 
-	priv->mode = AMD_XGBE_MODE_KR;
-
 	return 0;
 }
 
@@ -517,8 +522,6 @@ static int amd_xgbe_phy_gmii_2500_mode(struct phy_device *phydev)
 	XRXTX_IOWRITE_BITS(priv, RXTX_REG114, PQ_REG, RXTX_2500_PQ);
 
 	amd_xgbe_phy_serdes_complete_ratechange(phydev);
-
-	priv->mode = AMD_XGBE_MODE_KX;
 
 	return 0;
 }
@@ -568,9 +571,34 @@ static int amd_xgbe_phy_gmii_mode(struct phy_device *phydev)
 
 	amd_xgbe_phy_serdes_complete_ratechange(phydev);
 
-	priv->mode = AMD_XGBE_MODE_KX;
+	return 0;
+}
+
+static int amd_xgbe_phy_cur_mode(struct phy_device *phydev,
+				 enum amd_xgbe_phy_mode *mode)
+{
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL2);
+	if (ret < 0)
+		return ret;
+
+	if ((ret & MDIO_PCS_CTRL2_TYPE) == MDIO_PCS_CTRL2_10GBR)
+		*mode = AMD_XGBE_MODE_KR;
+	else
+		*mode = AMD_XGBE_MODE_KX;
 
 	return 0;
+}
+
+static bool amd_xgbe_phy_in_kr_mode(struct phy_device *phydev)
+{
+	enum amd_xgbe_phy_mode mode;
+
+	if (amd_xgbe_phy_cur_mode(phydev, &mode))
+		return false;
+
+	return (mode == AMD_XGBE_MODE_KR);
 }
 
 static int amd_xgbe_phy_switch_mode(struct phy_device *phydev)
@@ -579,7 +607,7 @@ static int amd_xgbe_phy_switch_mode(struct phy_device *phydev)
 	int ret;
 
 	/* If we are in KR switch to KX, and vice-versa */
-	if (priv->mode == AMD_XGBE_MODE_KR) {
+	if (amd_xgbe_phy_in_kr_mode(phydev)) {
 		if (priv->speed_set == AMD_XGBE_PHY_SPEEDSET_1000_10000)
 			ret = amd_xgbe_phy_gmii_mode(phydev);
 		else
@@ -591,15 +619,20 @@ static int amd_xgbe_phy_switch_mode(struct phy_device *phydev)
 	return ret;
 }
 
-static enum amd_xgbe_phy_an amd_xgbe_an_switch_mode(struct phy_device *phydev)
+static int amd_xgbe_phy_set_mode(struct phy_device *phydev,
+				 enum amd_xgbe_phy_mode mode)
 {
+	enum amd_xgbe_phy_mode cur_mode;
 	int ret;
 
-	ret = amd_xgbe_phy_switch_mode(phydev);
-	if (ret < 0)
-		return AMD_XGBE_AN_ERROR;
+	ret = amd_xgbe_phy_cur_mode(phydev, &cur_mode);
+	if (ret)
+		return ret;
 
-	return AMD_XGBE_AN_START;
+	if (mode != cur_mode)
+		ret = amd_xgbe_phy_switch_mode(phydev);
+
+	return ret;
 }
 
 static enum amd_xgbe_phy_an amd_xgbe_an_tx_training(struct phy_device *phydev,
@@ -610,8 +643,8 @@ static enum amd_xgbe_phy_an amd_xgbe_an_tx_training(struct phy_device *phydev,
 
 	*state = AMD_XGBE_RX_COMPLETE;
 
-	/* If we're in KX mode then we're done */
-	if (priv->mode == AMD_XGBE_MODE_KX)
+	/* If we're not in KR mode then we're done */
+	if (!amd_xgbe_phy_in_kr_mode(phydev))
 		return AMD_XGBE_AN_EVENT;
 
 	/* Enable/Disable FEC */
@@ -669,7 +702,6 @@ static enum amd_xgbe_phy_an amd_xgbe_an_tx_xnp(struct phy_device *phydev,
 static enum amd_xgbe_phy_an amd_xgbe_an_rx_bpa(struct phy_device *phydev,
 					       enum amd_xgbe_phy_rx *state)
 {
-	struct amd_xgbe_phy_priv *priv = phydev->priv;
 	unsigned int link_support;
 	int ret, ad_reg, lp_reg;
 
@@ -679,9 +711,9 @@ static enum amd_xgbe_phy_an amd_xgbe_an_rx_bpa(struct phy_device *phydev,
 		return AMD_XGBE_AN_ERROR;
 
 	/* Check for a supported mode, otherwise restart in a different one */
-	link_support = (priv->mode == AMD_XGBE_MODE_KR) ? 0x80 : 0x20;
+	link_support = amd_xgbe_phy_in_kr_mode(phydev) ? 0x80 : 0x20;
 	if (!(ret & link_support))
-		return amd_xgbe_an_switch_mode(phydev);
+		return AMD_XGBE_AN_INCOMPAT_LINK;
 
 	/* Check Extended Next Page support */
 	ad_reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_ADVERTISE);
@@ -722,7 +754,7 @@ static enum amd_xgbe_phy_an amd_xgbe_an_start(struct phy_device *phydev)
 	int ret;
 
 	/* Be sure we aren't looping trying to negotiate */
-	if (priv->mode == AMD_XGBE_MODE_KR) {
+	if (amd_xgbe_phy_in_kr_mode(phydev)) {
 		if (priv->kr_state != AMD_XGBE_RX_READY)
 			return AMD_XGBE_AN_NO_LINK;
 		priv->kr_state = AMD_XGBE_RX_BPA;
@@ -785,6 +817,13 @@ static enum amd_xgbe_phy_an amd_xgbe_an_start(struct phy_device *phydev)
 	/* Enable and start auto-negotiation */
 	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_INT, 0);
 
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_KR_CTRL);
+	if (ret < 0)
+		return AMD_XGBE_AN_ERROR;
+
+	ret |= MDIO_KR_CTRL_PDETECT;
+	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_KR_CTRL, ret);
+
 	ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1);
 	if (ret < 0)
 		return AMD_XGBE_AN_ERROR;
@@ -825,8 +864,8 @@ static enum amd_xgbe_phy_an amd_xgbe_an_page_received(struct phy_device *phydev)
 	enum amd_xgbe_phy_rx *state;
 	int ret;
 
-	state = (priv->mode == AMD_XGBE_MODE_KR) ? &priv->kr_state
-						 : &priv->kx_state;
+	state = amd_xgbe_phy_in_kr_mode(phydev) ? &priv->kr_state
+						: &priv->kx_state;
 
 	switch (*state) {
 	case AMD_XGBE_RX_BPA:
@@ -846,7 +885,13 @@ static enum amd_xgbe_phy_an amd_xgbe_an_page_received(struct phy_device *phydev)
 
 static enum amd_xgbe_phy_an amd_xgbe_an_incompat_link(struct phy_device *phydev)
 {
-	return amd_xgbe_an_switch_mode(phydev);
+	int ret;
+
+	ret = amd_xgbe_phy_switch_mode(phydev);
+	if (ret)
+		return AMD_XGBE_AN_ERROR;
+
+	return AMD_XGBE_AN_START;
 }
 
 static void amd_xgbe_an_state_machine(struct work_struct *work)
@@ -859,6 +904,10 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 	int sleep;
 	unsigned int an_supported = 0;
 
+	/* Start in KX mode */
+	if (amd_xgbe_phy_set_mode(phydev, AMD_XGBE_MODE_KX))
+		priv->an_state = AMD_XGBE_AN_ERROR;
+
 	while (1) {
 		mutex_lock(&priv->an_mutex);
 
@@ -866,8 +915,9 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 
 		switch (priv->an_state) {
 		case AMD_XGBE_AN_START:
-			priv->an_state = amd_xgbe_an_start(phydev);
 			an_supported = 0;
+			priv->parallel_detect = 0;
+			priv->an_state = amd_xgbe_an_start(phydev);
 			break;
 
 		case AMD_XGBE_AN_EVENT:
@@ -884,6 +934,7 @@ static void amd_xgbe_an_state_machine(struct work_struct *work)
 			break;
 
 		case AMD_XGBE_AN_COMPLETE:
+			priv->parallel_detect = an_supported ? 0 : 1;
 			netdev_info(phydev->attached_dev, "%s successful\n",
 				    an_supported ? "Auto negotiation"
 						 : "Parallel detection");
@@ -1018,7 +1069,6 @@ static int amd_xgbe_phy_config_aneg(struct phy_device *phydev)
 {
 	struct amd_xgbe_phy_priv *priv = phydev->priv;
 	u32 mmd_mask = phydev->c45_ids.devices_in_package;
-	int ret;
 
 	if (phydev->autoneg != AUTONEG_ENABLE)
 		return amd_xgbe_phy_setup_forced(phydev);
@@ -1026,11 +1076,6 @@ static int amd_xgbe_phy_config_aneg(struct phy_device *phydev)
 	/* Make sure we have the AN MMD present */
 	if (!(mmd_mask & MDIO_DEVS_AN))
 		return -EINVAL;
-
-	/* Get the current speed mode */
-	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL2);
-	if (ret < 0)
-		return ret;
 
 	/* Start/Restart the auto-negotiation state machine */
 	mutex_lock(&priv->an_mutex);
@@ -1121,18 +1166,14 @@ static int amd_xgbe_phy_read_status(struct phy_device *phydev)
 {
 	struct amd_xgbe_phy_priv *priv = phydev->priv;
 	u32 mmd_mask = phydev->c45_ids.devices_in_package;
-	int ret, mode, ad_ret, lp_ret;
+	int ret, ad_ret, lp_ret;
 
 	ret = amd_xgbe_phy_update_link(phydev);
 	if (ret)
 		return ret;
 
-	mode = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL2);
-	if (mode < 0)
-		return mode;
-	mode &= MDIO_PCS_CTRL2_TYPE;
-
-	if (phydev->autoneg == AUTONEG_ENABLE) {
+	if ((phydev->autoneg == AUTONEG_ENABLE) &&
+	    !priv->parallel_detect) {
 		if (!(mmd_mask & MDIO_DEVS_AN))
 			return -EINVAL;
 
@@ -1163,40 +1204,39 @@ static int amd_xgbe_phy_read_status(struct phy_device *phydev)
 		ad_ret &= lp_ret;
 		if (ad_ret & 0x80) {
 			phydev->speed = SPEED_10000;
-			if (mode != MDIO_PCS_CTRL2_10GBR) {
-				ret = amd_xgbe_phy_xgmii_mode(phydev);
-				if (ret < 0)
-					return ret;
-			}
+			ret = amd_xgbe_phy_set_mode(phydev, AMD_XGBE_MODE_KR);
+			if (ret)
+				return ret;
 		} else {
-			int (*mode_fcn)(struct phy_device *);
-
-			if (priv->speed_set ==
-			    AMD_XGBE_PHY_SPEEDSET_1000_10000) {
+			switch (priv->speed_set) {
+			case AMD_XGBE_PHY_SPEEDSET_1000_10000:
 				phydev->speed = SPEED_1000;
-				mode_fcn = amd_xgbe_phy_gmii_mode;
-			} else {
+				break;
+
+			case AMD_XGBE_PHY_SPEEDSET_2500_10000:
 				phydev->speed = SPEED_2500;
-				mode_fcn = amd_xgbe_phy_gmii_2500_mode;
+				break;
 			}
 
-			if (mode == MDIO_PCS_CTRL2_10GBR) {
-				ret = mode_fcn(phydev);
-				if (ret < 0)
-					return ret;
-			}
+			ret = amd_xgbe_phy_set_mode(phydev, AMD_XGBE_MODE_KX);
+			if (ret)
+				return ret;
 		}
 
 		phydev->duplex = DUPLEX_FULL;
 	} else {
-		if (mode == MDIO_PCS_CTRL2_10GBR) {
+		if (amd_xgbe_phy_in_kr_mode(phydev)) {
 			phydev->speed = SPEED_10000;
 		} else {
-			if (priv->speed_set ==
-			    AMD_XGBE_PHY_SPEEDSET_1000_10000)
+			switch (priv->speed_set) {
+			case AMD_XGBE_PHY_SPEEDSET_1000_10000:
 				phydev->speed = SPEED_1000;
-			else
+				break;
+
+			case AMD_XGBE_PHY_SPEEDSET_2500_10000:
 				phydev->speed = SPEED_2500;
+				break;
+			}
 		}
 		phydev->duplex = DUPLEX_FULL;
 		phydev->pause = 0;
@@ -1328,14 +1368,6 @@ static int amd_xgbe_phy_probe(struct phy_device *phydev)
 	}
 
 	priv->link = 1;
-
-	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL2);
-	if (ret < 0)
-		goto err_sir1;
-	if ((ret & MDIO_PCS_CTRL2_TYPE) == MDIO_PCS_CTRL2_10GBR)
-		priv->mode = AMD_XGBE_MODE_KR;
-	else
-		priv->mode = AMD_XGBE_MODE_KX;
 
 	mutex_init(&priv->an_mutex);
 	INIT_WORK(&priv->an_work, amd_xgbe_an_state_machine);

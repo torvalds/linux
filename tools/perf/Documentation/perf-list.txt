@@ -19,7 +19,7 @@ various perf commands with the -e option.
 EVENT MODIFIERS
 ---------------
 
-Events can optionally have a modifer by appending a colon and one or
+Events can optionally have a modifier by appending a colon and one or
 more modifiers. Modifiers allow the user to restrict the events to be
 counted. The following modifiers exist:
 

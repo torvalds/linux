@@ -588,13 +588,11 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 		}
 		i++;
 	}
-	if (xgifb_info->rate_idx > 0) {
+	if (xgifb_info->rate_idx > 0)
 		return xgifb_info->rate_idx;
-	} else {
-		pr_info("Unsupported rate %d for %dx%d\n",
-		       rate, xres, yres);
-		return 0;
-	}
+	pr_info("Unsupported rate %d for %dx%d\n",
+		rate, xres, yres);
+	return 0;
 }
 
 static void XGIfb_search_tvstd(const char *name)

@@ -51,7 +51,7 @@ static void __init imx51_ipu_mipi_setup(void)
 
 static void __init imx51_dt_init(void)
 {
-	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
+	struct platform_device_info devinfo = { .name = "cpufreq-dt", };
 
 	mxc_arch_reset_init_dt();
 	imx51_ipu_mipi_setup();
