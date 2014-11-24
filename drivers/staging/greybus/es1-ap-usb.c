@@ -293,6 +293,7 @@ static int check_urb_status(struct urb *urb)
 static void ap_disconnect(struct usb_interface *interface)
 {
 	struct es1_ap_dev *es1;
+	struct usb_device *udev;
 	int i;
 
 	es1 = usb_get_intfdata(interface);
@@ -329,9 +330,10 @@ static void ap_disconnect(struct usb_interface *interface)
 	es1->svc_buffer = NULL;
 
 	usb_set_intfdata(interface, NULL);
+	udev = es1->usb_dev;
 	greybus_remove_hd(es1->hd);
 
-	usb_put_dev(es1->usb_dev);
+	usb_put_dev(udev);
 }
 
 /* Callback for when we get a SVC message */
