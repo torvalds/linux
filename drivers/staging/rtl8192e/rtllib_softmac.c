@@ -3168,6 +3168,7 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 	cancel_delayed_work(&ieee->associate_retry_wq);
 	destroy_workqueue(ieee->wq);
 	up(&ieee->wx_sem);
+	tasklet_kill(&ieee->ps_task);
 }
 
 /********************************************************
