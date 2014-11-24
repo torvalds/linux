@@ -18,6 +18,7 @@
 #include "drm.h"
 #include "gem.h"
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -399,6 +400,8 @@ static const struct drm_plane_funcs tegra_primary_plane_funcs = {
 	.update_plane = drm_plane_helper_update,
 	.disable_plane = drm_plane_helper_disable,
 	.destroy = tegra_primary_plane_destroy,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
@@ -683,6 +686,8 @@ static const struct drm_plane_funcs tegra_cursor_plane_funcs = {
 	.update_plane = drm_plane_helper_update,
 	.disable_plane = drm_plane_helper_disable,
 	.destroy = tegra_plane_destroy,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
@@ -731,6 +736,8 @@ static const struct drm_plane_funcs tegra_overlay_plane_funcs = {
 	.update_plane = drm_plane_helper_update,
 	.disable_plane = drm_plane_helper_disable,
 	.destroy = tegra_overlay_plane_destroy,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
@@ -983,6 +990,9 @@ static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		drm_crtc_vblank_get(crtc);
 	}
 
+	if (crtc->primary->state)
+		drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
+
 	tegra_dc_set_base(dc, 0, 0, fb);
 	crtc->primary->fb = fb;
 
@@ -998,6 +1008,8 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.page_flip = tegra_dc_page_flip,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = tegra_dc_destroy,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 

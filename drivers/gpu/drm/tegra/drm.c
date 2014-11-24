@@ -77,6 +77,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	if (err < 0)
 		goto fbdev;
 
+	drm_mode_config_reset(drm);
+
 	/*
 	 * We don't use the drm_irq_install() helpers provided by the DRM
 	 * core, so we need to set this manually in order to allow the

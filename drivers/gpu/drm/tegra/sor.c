@@ -735,9 +735,11 @@ tegra_sor_connector_detect(struct drm_connector *connector, bool force)
 
 static const struct drm_connector_funcs tegra_sor_connector_funcs = {
 	.dpms = tegra_sor_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_sor_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = tegra_output_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 

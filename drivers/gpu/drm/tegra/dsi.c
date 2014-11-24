@@ -734,9 +734,11 @@ static void tegra_dsi_connector_dpms(struct drm_connector *connector, int mode)
 
 static const struct drm_connector_funcs tegra_dsi_connector_funcs = {
 	.dpms = tegra_dsi_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = tegra_output_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
