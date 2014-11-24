@@ -180,12 +180,12 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 	return retval;
 }
 
-static int send_line_coding(struct gb_tty *tty,
-			    struct gb_serial_line_coding *line_coding)
+static int send_line_coding(struct gb_tty *tty)
 {
 	struct gb_uart_set_line_coding_request request;
 
-	memcpy(&request.line_coding, line_coding, sizeof(*line_coding));
+	memcpy(&request.line_coding, &tty->line_coding,
+	       sizeof(tty->line_coding));
 	return gb_operation_sync(tty->connection, GB_UART_REQ_SET_LINE_CODING,
 				 &request, sizeof(request), NULL, 0);
 }
@@ -384,7 +384,7 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 
 	if (memcpy(&gb_tty->line_coding, &newline, sizeof(newline))) {
 		memcpy(&gb_tty->line_coding, &newline, sizeof(newline));
-		send_line_coding(gb_tty, &gb_tty->line_coding);
+		send_line_coding(gb_tty);
 	}
 }
 
@@ -668,7 +668,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty->line_coding.format = GB_SERIAL_1_STOP_BITS;
 	gb_tty->line_coding.parity = GB_SERIAL_NO_PARITY;
 	gb_tty->line_coding.data = 8;
-	send_line_coding(gb_tty, &gb_tty->line_coding);
+	send_line_coding(gb_tty);
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
 					   &connection->dev);
