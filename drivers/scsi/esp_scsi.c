@@ -1334,6 +1334,35 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 	bytes_sent = esp->data_dma_len;
 	bytes_sent -= ecount;
 
+	/*
+	 * The am53c974 has a DMA 'pecularity'. The doc states:
+	 * In some odd byte conditions, one residual byte will
+	 * be left in the SCSI FIFO, and the FIFO Flags will
+	 * never count to '0 '. When this happens, the residual
+	 * byte should be retrieved via PIO following completion
+	 * of the BLAST operation.
+	 */
+	if (fifo_cnt == 1 && ent->flags & ESP_CMD_FLAG_RESIDUAL) {
+		size_t count = 1;
+		size_t offset = bytes_sent;
+		u8 bval = esp_read8(ESP_FDATA);
+
+		if (ent->flags & ESP_CMD_FLAG_AUTOSENSE)
+			ent->sense_ptr[bytes_sent] = bval;
+		else {
+			struct esp_cmd_priv *p = ESP_CMD_PRIV(cmd);
+			u8 *ptr;
+
+			ptr = scsi_kmap_atomic_sg(p->cur_sg, p->u.num_sg,
+						  &offset, &count);
+			if (likely(ptr)) {
+				*(ptr + offset) = bval;
+				scsi_kunmap_atomic_sg(ptr);
+			}
+		}
+		bytes_sent += fifo_cnt;
+		ent->flags &= ~ESP_CMD_FLAG_RESIDUAL;
+	}
 	if (!(ent->flags & ESP_CMD_FLAG_WRITE))
 		bytes_sent -= fifo_cnt;
 

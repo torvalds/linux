@@ -200,6 +200,12 @@ static void pci_esp_dma_drain(struct esp *esp)
 	}
 	pci_esp_write8(esp, ESP_DMA_CMD_DIR | ESP_DMA_CMD_IDLE, ESP_DMA_CMD);
 	esp_dma_log("DMA blast done (%d tries, %d bytes left)\n", lim, resid);
+	/* BLAST residual handling is currently untested */
+	if (WARN_ON_ONCE(resid == 1)) {
+		struct esp_cmd_entry *ent = esp->active_cmd;
+
+		ent->flags |= ESP_CMD_FLAG_RESIDUAL;
+	}
 }
 
 static void pci_esp_dma_invalidate(struct esp *esp)
