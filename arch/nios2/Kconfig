@@ -119,6 +119,7 @@ config CMDLINE_FORCE
 
 config NIOS2_CMDLINE_IGNORE_DTB
 	bool "Ignore kernel command string from DTB"
+	depends on CMDLINE_BOOL
 	depends on !CMDLINE_FORCE
 	default y
 	help
