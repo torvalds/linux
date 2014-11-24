@@ -33,6 +33,41 @@ struct bfin_glue {
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
+static u32 bfin_fifo_offset(u8 epnum)
+{
+	return USB_OFFSET(USB_EP0_FIFO) + (epnum * 8);
+}
+
+static u8 bfin_readb(const void __iomem *addr, unsigned offset)
+{
+	return (u8)(bfin_read16(addr + offset));
+}
+
+static u16 bfin_readw(const void __iomem *addr, unsigned offset)
+{
+	return bfin_read16(addr + offset);
+}
+
+static u32 bfin_readl(const void __iomem *addr, unsigned offset)
+{
+	return (u32)(bfin_read16(addr + offset));
+}
+
+static void bfin_writeb(void __iomem *addr, unsigned offset, u8 data)
+{
+	bfin_write16(addr + offset, (u16)data);
+}
+
+static void bfin_writew(void __iomem *addr, unsigned offset, u16 data)
+{
+	bfin_write16(addr + offset, data);
+}
+
+static void binf_writel(void __iomem *addr, unsigned offset, u32 data)
+{
+	bfin_write16(addr + offset, (u16)data);
+}
+
 /*
  * Load an endpoint's FIFO
  */
@@ -433,6 +468,14 @@ static const struct musb_platform_ops bfin_ops = {
 	.init		= bfin_musb_init,
 	.exit		= bfin_musb_exit,
 
+	.readb		= bfin_readb,
+	.writeb		= bfin_writeb,
+	.readw		= bfin_readw,
+	.writew		= bfin_writew,
+	.readl		= bfin_readl,
+	.writel		= bfin_writel,
+	.read_fifo	= musb_read_fifo,
+	.write_fifo	= musb_write_fifo,
 	.enable		= bfin_musb_enable,
 	.disable	= bfin_musb_disable,
 
