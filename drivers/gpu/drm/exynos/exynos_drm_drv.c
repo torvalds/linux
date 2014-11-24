@@ -610,6 +610,12 @@ static int exynos_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const char * const strings[] = {
+	"samsung,exynos3",
+	"samsung,exynos4",
+	"samsung,exynos5",
+};
+
 static struct platform_driver exynos_drm_platform_driver = {
 	.probe	= exynos_drm_platform_probe,
 	.remove	= exynos_drm_platform_remove,
@@ -622,6 +628,7 @@ static struct platform_driver exynos_drm_platform_driver = {
 
 static int exynos_drm_init(void)
 {
+	bool is_exynos = false;
 	int ret, i, j;
 
 	/*
@@ -631,9 +638,14 @@ static int exynos_drm_init(void)
 	 * by Exynos drm driver when using multi-platform kernel.
 	 * So these codes will be replaced with more generic way later.
 	 */
-	if (!of_machine_is_compatible("samsung,exynos3") &&
-			!of_machine_is_compatible("samsung,exynos4") &&
-			!of_machine_is_compatible("samsung,exynos5"))
+	for (i = 0; i < ARRAY_SIZE(strings); i++) {
+		if (of_machine_is_compatible(strings[i])) {
+			is_exynos = true;
+			break;
+		}
+	}
+
+	if (!is_exynos)
 		return -ENODEV;
 
 	exynos_drm_pdev = platform_device_register_simple("exynos-drm", -1,
