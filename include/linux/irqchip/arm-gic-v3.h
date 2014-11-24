@@ -49,6 +49,10 @@
 #define GICD_CTLR_ENABLE_G1A		(1U << 1)
 #define GICD_CTLR_ENABLE_G1		(1U << 0)
 
+#define GICD_TYPER_ID_BITS(typer)	((((typer) >> 19) & 0x1f) + 1)
+#define GICD_TYPER_IRQS(typer)		((((typer) & 0x1f) + 1) * 32)
+#define GICD_TYPER_LPIS			(1U << 17)
+
 #define GICD_IROUTER_SPI_MODE_ONE	(0U << 31)
 #define GICD_IROUTER_SPI_MODE_ANY	(1U << 31)
 
@@ -188,6 +192,17 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/stringify.h>
+
+struct rdists {
+	struct {
+		void __iomem	*rd_base;
+		struct page	*pend_page;
+		phys_addr_t	phys_base;
+	} __percpu		*rdist;
+	struct page		*prop_page;
+	int			id_bits;
+	u64			flags;
+};
 
 static inline void gic_write_eoir(u64 irq)
 {
