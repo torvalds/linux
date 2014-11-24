@@ -239,7 +239,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 	struct uart_port *port = &ourport->port;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
 	unsigned long flags;
-	int max_count = 64;
+	int max_count = port->fifosize;
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -330,7 +330,7 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 	struct uart_port *port = &ourport->port;
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned long flags;
-	int count = 256;
+	int count = port->fifosize;
 
 	spin_lock_irqsave(&port->lock, flags);
 
