@@ -2760,8 +2760,7 @@ static bool
 ring_idle(struct intel_engine_cs *ring)
 {
 	return (list_empty(&ring->request_list) ||
-		i915_seqno_passed(ring->get_seqno(ring, false),
-			i915_gem_request_get_seqno(ring_last_request(ring))));
+		i915_gem_request_completed(ring_last_request(ring), false));
 }
 
 static bool

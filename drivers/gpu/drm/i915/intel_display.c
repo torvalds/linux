@@ -9742,11 +9742,7 @@ static bool __intel_pageflip_stall_check(struct drm_device *dev,
 
 	if (work->flip_ready_vblank == 0) {
 		if (work->flip_queued_ring) {
-			uint32_t s1 = work->flip_queued_ring->get_seqno(
-					       work->flip_queued_ring, true);
-			uint32_t s2 = i915_gem_request_get_seqno(
-						      work->flip_queued_req);
-			if (!i915_seqno_passed(s1, s2))
+			if (!i915_gem_request_completed(work->flip_queued_req, true))
 				return false;
 		}
 

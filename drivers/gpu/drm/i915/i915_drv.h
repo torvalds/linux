@@ -2062,6 +2062,12 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 	*pdst = src;
 }
 
+/*
+ * XXX: i915_gem_request_completed should be here but currently needs the
+ * definition of i915_seqno_passed() which is below. It will be moved in
+ * a later patch when the call to i915_seqno_passed() is obsoleted...
+ */
+
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
 	struct drm_file *file;
@@ -2561,6 +2567,18 @@ static inline bool
 i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 {
 	return (int32_t)(seq1 - seq2) >= 0;
+}
+
+static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req,
+					      bool lazy_coherency)
+{
+	u32 seqno;
+
+	BUG_ON(req == NULL);
+
+	seqno = req->ring->get_seqno(req->ring, lazy_coherency);
+
+	return i915_seqno_passed(seqno, req->seqno);
 }
 
 int __must_check i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
