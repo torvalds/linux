@@ -3515,8 +3515,6 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	enum port port = intel_dig_port->port;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(intel_dig_port->base.base.crtc);
 	uint32_t DP = intel_dp->DP;
 
 	if (WARN_ON(HAS_DDI(dev)))
@@ -3541,8 +3539,6 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	if (HAS_PCH_IBX(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
-		struct drm_crtc *crtc = intel_dig_port->base.base.crtc;
-
 		/* Hardware workaround: leaving our transcoder select
 		 * set to transcoder B while it's off will prevent the
 		 * corresponding HDMI output on transcoder A.
@@ -3553,18 +3549,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		 */
 		DP &= ~DP_PIPEB_SELECT;
 		I915_WRITE(intel_dp->output_reg, DP);
-
-		/* Changes to enable or select take place the vblank
-		 * after being written.
-		 */
-		if (WARN_ON(crtc == NULL)) {
-			/* We should never try to disable a port without a crtc
-			 * attached. For paranoia keep the code around for a
-			 * bit. */
-			POSTING_READ(intel_dp->output_reg);
-			msleep(50);
-		} else
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
+		POSTING_READ(intel_dp->output_reg);
 	}
 
 	DP &= ~DP_AUDIO_OUTPUT_ENABLE;
