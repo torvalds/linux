@@ -1215,8 +1215,10 @@ static int fimd_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ctx);
 
 	ctx->display = exynos_dpi_probe(dev);
-	if (IS_ERR(ctx->display))
-		return PTR_ERR(ctx->display);
+	if (IS_ERR(ctx->display)) {
+		ret = PTR_ERR(ctx->display);
+		goto err_del_component;
+	}
 
 	pm_runtime_enable(dev);
 
