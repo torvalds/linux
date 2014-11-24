@@ -1338,9 +1338,9 @@ static struct sk_buff *l2cap_sock_alloc_skb_cb(struct l2cap_chan *chan,
 
 static int l2cap_sock_memcpy_fromiovec_cb(struct l2cap_chan *chan,
 					  unsigned char *kdata,
-					  struct iovec *iov, int len)
+					  struct msghdr *msg, int len)
 {
-	return memcpy_fromiovec(kdata, iov, len);
+	return memcpy_from_msg(kdata, msg, len);
 }
 
 static void l2cap_sock_ready_cb(struct l2cap_chan *chan)

@@ -608,7 +608,7 @@ struct l2cap_ops {
 					       unsigned long len, int nb);
 	int			(*memcpy_fromiovec) (struct l2cap_chan *chan,
 						     unsigned char *kdata,
-						     struct iovec *iov,
+						     struct msghdr *msg,
 						     int len);
 };
 
@@ -905,13 +905,13 @@ static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
 
 static inline int l2cap_chan_no_memcpy_fromiovec(struct l2cap_chan *chan,
 						 unsigned char *kdata,
-						 struct iovec *iov,
+						 struct msghdr *msg,
 						 int len)
 {
 	/* Following is safe since for compiler definitions of kvec and
 	 * iovec are identical, yielding the same in-core layout and alignment
 	 */
-	struct kvec *vec = (struct kvec *)iov;
+	struct kvec *vec = (struct kvec *)msg->msg_iov;
 
 	while (len > 0) {
 		if (vec->iov_len) {
