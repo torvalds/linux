@@ -77,13 +77,12 @@ static inline struct tegra_dsi *to_dsi(struct tegra_output *output)
 	return container_of(output, struct tegra_dsi, output);
 }
 
-static inline unsigned long tegra_dsi_readl(struct tegra_dsi *dsi,
-					    unsigned long reg)
+static inline u32 tegra_dsi_readl(struct tegra_dsi *dsi, unsigned long reg)
 {
 	return readl(dsi->regs + (reg << 2));
 }
 
-static inline void tegra_dsi_writel(struct tegra_dsi *dsi, unsigned long value,
+static inline void tegra_dsi_writel(struct tegra_dsi *dsi, u32 value,
 				    unsigned long reg)
 {
 	writel(value, dsi->regs + (reg << 2));
@@ -95,7 +94,7 @@ static int tegra_dsi_show_regs(struct seq_file *s, void *data)
 	struct tegra_dsi *dsi = node->info_ent->data;
 
 #define DUMP_REG(name)						\
-	seq_printf(s, "%-32s %#05x %08lx\n", #name, name,	\
+	seq_printf(s, "%-32s %#05x %08x\n", #name, name,	\
 		   tegra_dsi_readl(dsi, name))
 
 	DUMP_REG(DSI_INCR_SYNCPT);
@@ -341,7 +340,8 @@ static const u32 pkt_seq_command_mode[NUM_PKT_SEQ] = {
 static int tegra_dsi_set_phy_timing(struct tegra_dsi *dsi)
 {
 	struct mipi_dphy_timing timing;
-	unsigned long value, period;
+	unsigned long period;
+	u32 value;
 	long rate;
 	int err;
 
@@ -728,7 +728,7 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 {
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct tegra_dsi *dsi = to_dsi(output);
-	unsigned long value;
+	u32 value;
 	int err;
 
 	if (!dsi->enabled)
@@ -888,7 +888,7 @@ static const struct tegra_output_ops dsi_ops = {
 
 static int tegra_dsi_pad_enable(struct tegra_dsi *dsi)
 {
-	unsigned long value;
+	u32 value;
 
 	value = DSI_PAD_CONTROL_VS1_PULLDN(0) | DSI_PAD_CONTROL_VS1_PDIO(0);
 	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_0);
