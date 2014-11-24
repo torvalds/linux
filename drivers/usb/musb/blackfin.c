@@ -71,7 +71,7 @@ static void binf_writel(void __iomem *addr, unsigned offset, u32 data)
 /*
  * Load an endpoint's FIFO
  */
-void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
+static void bfin_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 {
 	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
@@ -135,7 +135,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 /*
  * Unload an endpoint's FIFO
  */
-void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
+static void bfin_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
 	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
@@ -474,8 +474,8 @@ static const struct musb_platform_ops bfin_ops = {
 	.writew		= bfin_writew,
 	.readl		= bfin_readl,
 	.writel		= bfin_writel,
-	.read_fifo	= musb_read_fifo,
-	.write_fifo	= musb_write_fifo,
+	.read_fifo	= bfin_read_fifo,
+	.write_fifo	= bfin_write_fifo,
 	.enable		= bfin_musb_enable,
 	.disable	= bfin_musb_disable,
 

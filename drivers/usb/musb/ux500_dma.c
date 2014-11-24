@@ -91,9 +91,9 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 	struct scatterlist sg;
 	struct dma_slave_config slave_conf;
 	enum dma_slave_buswidth addr_width;
-	dma_addr_t usb_fifo_addr = (MUSB_FIFO_OFFSET(hw_ep->epnum) +
-					ux500_channel->controller->phy_base);
 	struct musb *musb = ux500_channel->controller->private_data;
+	dma_addr_t usb_fifo_addr = (musb->io.fifo_offset(hw_ep->epnum) +
+					ux500_channel->controller->phy_base);
 
 	dev_dbg(musb->controller,
 		"packet_sz=%d, mode=%d, dma_addr=0x%llx, len=%d is_tx=%d\n",
