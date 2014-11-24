@@ -288,62 +288,6 @@ enum OpalMessageType {
 	OPAL_MSG_TYPE_MAX,
 };
 
-/* Machine check related definitions */
-enum OpalMCE_Version {
-	OpalMCE_V1 = 1,
-};
-
-enum OpalMCE_Severity {
-	OpalMCE_SEV_NO_ERROR = 0,
-	OpalMCE_SEV_WARNING = 1,
-	OpalMCE_SEV_ERROR_SYNC = 2,
-	OpalMCE_SEV_FATAL = 3,
-};
-
-enum OpalMCE_Disposition {
-	OpalMCE_DISPOSITION_RECOVERED = 0,
-	OpalMCE_DISPOSITION_NOT_RECOVERED = 1,
-};
-
-enum OpalMCE_Initiator {
-	OpalMCE_INITIATOR_UNKNOWN = 0,
-	OpalMCE_INITIATOR_CPU = 1,
-};
-
-enum OpalMCE_ErrorType {
-	OpalMCE_ERROR_TYPE_UNKNOWN = 0,
-	OpalMCE_ERROR_TYPE_UE = 1,
-	OpalMCE_ERROR_TYPE_SLB = 2,
-	OpalMCE_ERROR_TYPE_ERAT = 3,
-	OpalMCE_ERROR_TYPE_TLB = 4,
-};
-
-enum OpalMCE_UeErrorType {
-	OpalMCE_UE_ERROR_INDETERMINATE = 0,
-	OpalMCE_UE_ERROR_IFETCH = 1,
-	OpalMCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH = 2,
-	OpalMCE_UE_ERROR_LOAD_STORE = 3,
-	OpalMCE_UE_ERROR_PAGE_TABLE_WALK_LOAD_STORE = 4,
-};
-
-enum OpalMCE_SlbErrorType {
-	OpalMCE_SLB_ERROR_INDETERMINATE = 0,
-	OpalMCE_SLB_ERROR_PARITY = 1,
-	OpalMCE_SLB_ERROR_MULTIHIT = 2,
-};
-
-enum OpalMCE_EratErrorType {
-	OpalMCE_ERAT_ERROR_INDETERMINATE = 0,
-	OpalMCE_ERAT_ERROR_PARITY = 1,
-	OpalMCE_ERAT_ERROR_MULTIHIT = 2,
-};
-
-enum OpalMCE_TlbErrorType {
-	OpalMCE_TLB_ERROR_INDETERMINATE = 0,
-	OpalMCE_TLB_ERROR_PARITY = 1,
-	OpalMCE_TLB_ERROR_MULTIHIT = 2,
-};
-
 enum OpalThreadStatus {
 	OPAL_THREAD_INACTIVE = 0x0,
 	OPAL_THREAD_STARTED = 0x1,
@@ -465,54 +409,6 @@ struct opal_ipmi_msg {
 	uint8_t		netfn;
 	uint8_t		cmd;
 	uint8_t		data[];
-};
-
-struct opal_machine_check_event {
-	enum OpalMCE_Version	version:8;	/* 0x00 */
-	uint8_t			in_use;		/* 0x01 */
-	enum OpalMCE_Severity	severity:8;	/* 0x02 */
-	enum OpalMCE_Initiator	initiator:8;	/* 0x03 */
-	enum OpalMCE_ErrorType	error_type:8;	/* 0x04 */
-	enum OpalMCE_Disposition disposition:8; /* 0x05 */
-	uint8_t			reserved_1[2];	/* 0x06 */
-	uint64_t		gpr3;		/* 0x08 */
-	uint64_t		srr0;		/* 0x10 */
-	uint64_t		srr1;		/* 0x18 */
-	union {					/* 0x20 */
-		struct {
-			enum OpalMCE_UeErrorType ue_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		physical_address_provided;
-			uint8_t		reserved_1[5];
-			uint64_t	effective_address;
-			uint64_t	physical_address;
-			uint8_t		reserved_2[8];
-		} ue_error;
-
-		struct {
-			enum OpalMCE_SlbErrorType slb_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
-		} slb_error;
-
-		struct {
-			enum OpalMCE_EratErrorType erat_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
-		} erat_error;
-
-		struct {
-			enum OpalMCE_TlbErrorType tlb_error_type:8;
-			uint8_t		effective_address_provided;
-			uint8_t		reserved_1[6];
-			uint64_t	effective_address;
-			uint8_t		reserved_2[16];
-		} tlb_error;
-	} u;
 };
 
 /* FSP memory errors handling */
