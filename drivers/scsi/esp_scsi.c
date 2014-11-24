@@ -2317,6 +2317,10 @@ int scsi_esp_register(struct esp *esp, struct device *dev)
 	static int instance;
 	int err;
 
+	if (!esp->num_tags)
+		esp->num_tags = ESP_DEFAULT_TAGS;
+	else if (esp->num_tags >= ESP_MAX_TAG)
+		esp->num_tags = ESP_MAX_TAG - 1;
 	esp->host->transportt = esp_transport_template;
 	esp->host->max_lun = ESP_MAX_LUN;
 	esp->host->cmd_per_lun = 2;
@@ -2403,12 +2407,8 @@ static int esp_slave_configure(struct scsi_device *dev)
 	struct esp *esp = shost_priv(dev->host);
 	struct esp_target_data *tp = &esp->target[dev->id];
 
-	if (dev->tagged_supported) {
-		/* XXX make this configurable somehow XXX */
-		int goal_tags = min(ESP_DEFAULT_TAGS, ESP_MAX_TAG);
-
-		scsi_change_queue_depth(dev, goal_tags);
-	}
+	if (dev->tagged_supported)
+		scsi_change_queue_depth(dev, esp->num_tags);
 
 	tp->flags |= ESP_TGT_DISCONNECT;
 
