@@ -9910,7 +9910,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		if (ret)
 			goto cleanup_unpin;
 
-		work->flip_queued_seqno = intel_ring_get_seqno(ring);
+		work->flip_queued_seqno =
+		    i915_gem_request_get_seqno(intel_ring_get_request(ring));
 		work->flip_queued_ring = ring;
 	}
 

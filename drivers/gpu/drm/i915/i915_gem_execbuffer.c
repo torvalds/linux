@@ -1211,7 +1211,9 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 			return ret;
 	}
 
-	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
+	trace_i915_gem_ring_dispatch(ring,
+		    i915_gem_request_get_seqno(intel_ring_get_request(ring)),
+		    flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);

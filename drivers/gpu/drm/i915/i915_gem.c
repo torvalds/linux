@@ -1164,7 +1164,7 @@ i915_gem_check_olr(struct intel_engine_cs *ring, u32 seqno)
 	BUG_ON(!mutex_is_locked(&ring->dev->struct_mutex));
 
 	ret = 0;
-	if (seqno == ring->outstanding_lazy_seqno)
+	if (seqno == i915_gem_request_get_seqno(ring->outstanding_lazy_request))
 		ret = i915_add_request(ring, NULL);
 
 	return ret;
@@ -2421,7 +2421,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	u32 request_ring_position, request_start;
 	int ret;
 
-	request = ring->preallocated_lazy_request;
+	request = ring->outstanding_lazy_request;
 	if (WARN_ON(request == NULL))
 		return -ENOMEM;
 
@@ -2466,7 +2466,6 @@ int __i915_add_request(struct intel_engine_cs *ring,
 			return ret;
 	}
 
-	request->seqno = intel_ring_get_seqno(ring);
 	request->ring = ring;
 	request->head = request_start;
 	request->tail = request_ring_position;
@@ -2503,8 +2502,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	}
 
 	trace_i915_gem_request_add(ring, request->seqno);
-	ring->outstanding_lazy_seqno = 0;
-	ring->preallocated_lazy_request = NULL;
+	ring->outstanding_lazy_request = NULL;
 
 	i915_queue_hangcheck(ring->dev);
 
@@ -2689,9 +2687,8 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 		i915_gem_free_request(request);
 	}
 
-	/* These may not have been flush before the reset, do so now */
-	i915_gem_request_assign(&ring->preallocated_lazy_request, NULL);
-	ring->outstanding_lazy_seqno = 0;
+	/* This may not have been flushed before the reset, so clean it now */
+	i915_gem_request_assign(&ring->outstanding_lazy_request, NULL);
 }
 
 void i915_gem_restore_fences(struct drm_device *dev)

@@ -876,22 +876,14 @@ void intel_lr_context_unpin(struct intel_engine_cs *ring,
 	}
 }
 
-static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
-				    struct intel_context *ctx)
+static int logical_ring_alloc_request(struct intel_engine_cs *ring,
+				      struct intel_context *ctx)
 {
 	struct drm_i915_gem_request *request;
 	int ret;
 
-	/* XXX: The aim is to replace seqno values with request structures.
-	 * A step along the way is to switch to using the PLR in preference
-	 * to the OLS. That requires the PLR to only be valid when the OLS is
-	 * also valid. I.e., the two must be kept in step. */
-
-	if (ring->outstanding_lazy_seqno) {
-		WARN_ON(ring->preallocated_lazy_request == NULL);
+	if (ring->outstanding_lazy_request)
 		return 0;
-	}
-	WARN_ON(ring->preallocated_lazy_request != NULL);
 
 	request = kmalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL)
@@ -907,7 +899,7 @@ static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
 
 	kref_init(&request->ref);
 
-	ret = i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
+	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
 	if (ret) {
 		intel_lr_context_unpin(ring, ctx);
 		kfree(request);
@@ -921,7 +913,7 @@ static int logical_ring_alloc_seqno(struct intel_engine_cs *ring,
 	request->ctx = ctx;
 	i915_gem_context_reference(request->ctx);
 
-	ring->preallocated_lazy_request = request;
+	ring->outstanding_lazy_request = request;
 	return 0;
 }
 
@@ -1098,7 +1090,7 @@ int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords)
 		return ret;
 
 	/* Preallocate the olr before touching the ring */
-	ret = logical_ring_alloc_seqno(ring, ringbuf->FIXME_lrc_ctx);
+	ret = logical_ring_alloc_request(ring, ringbuf->FIXME_lrc_ctx);
 	if (ret)
 		return ret;
 
@@ -1351,7 +1343,8 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf)
 				(ring->status_page.gfx_addr +
 				(I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)));
 	intel_logical_ring_emit(ringbuf, 0);
-	intel_logical_ring_emit(ringbuf, ring->outstanding_lazy_seqno);
+	intel_logical_ring_emit(ringbuf,
+		i915_gem_request_get_seqno(ring->outstanding_lazy_request));
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	intel_logical_ring_advance_and_submit(ringbuf);
@@ -1376,8 +1369,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 
 	intel_logical_ring_stop(ring);
 	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
-	i915_gem_request_assign(&ring->preallocated_lazy_request, NULL);
-	ring->outstanding_lazy_seqno = 0;
+	i915_gem_request_assign(&ring->outstanding_lazy_request, NULL);
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
