@@ -218,6 +218,9 @@ config USB_F_PTP
 config USB_F_AUDIO_SRC
 	tristate
 
+config USB_F_ACC
+	tristate
+
 # this first set of drivers all depend on bulk-capable hardware.
 
 config USB_CONFIGFS
@@ -385,9 +388,16 @@ config USB_CONFIGFS_F_PTP
 	help
 	  USB gadget PTP support
 
+config USB_CONFIGFS_F_ACC
+	boolean "Accessory gadget"
+	depends on USB_CONFIGFS
+	select USB_F_ACC
+	help
+	  USB gadget Accessory support
+
 config USB_CONFIGFS_F_AUDIO_SRC
 	boolean "Audio Source gadget"
-	depends on USB_CONFIGFS
+	depends on USB_CONFIGFS && USB_CONFIGFS_F_ACC
 	select USB_F_AUDIO_SRC
 	help
 	  USB gadget Audio Source support
