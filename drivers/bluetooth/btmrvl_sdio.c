@@ -764,8 +764,8 @@ static void btmrvl_sdio_interrupt(struct sdio_func *func)
 
 	card = sdio_get_drvdata(func);
 	if (!card || !card->priv) {
-		BT_ERR("sbi_interrupt(%p) card or priv is "
-				"NULL, card=%p\n", func, card);
+		BT_ERR("sbi_interrupt(%p) card or priv is NULL, card=%p",
+		       func, card);
 		return;
 	}
 
