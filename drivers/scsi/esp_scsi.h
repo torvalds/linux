@@ -478,6 +478,7 @@ struct esp {
 #define ESP_FLAG_WIDE_CAPABLE	0x00000008
 #define ESP_FLAG_QUICKIRQ_CHECK	0x00000010
 #define ESP_FLAG_DISABLE_SYNC	0x00000020
+#define ESP_FLAG_USE_FIFO	0x00000040
 
 	u8			select_state;
 #define ESP_SELECT_NONE		0x00 /* Not selecting */

@@ -143,6 +143,24 @@ void scsi_esp_cmd(struct esp *esp, u8 val)
 }
 EXPORT_SYMBOL(scsi_esp_cmd);
 
+static void esp_send_dma_cmd(struct esp *esp, int len, int max_len, int cmd)
+{
+	if (esp->flags & ESP_FLAG_USE_FIFO) {
+		int i;
+
+		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
+		for (i = 0; i < len; i++)
+			esp_write8(esp->command_block[i], ESP_FDATA);
+		scsi_esp_cmd(esp, cmd);
+	} else {
+		if (esp->rev == FASHME)
+			scsi_esp_cmd(esp, ESP_CMD_FLUSH);
+		cmd |= ESP_CMD_DMA;
+		esp->ops->send_dma_cmd(esp, esp->command_block_dma,
+				       len, max_len, 0, cmd);
+	}
+}
+
 static void esp_event(struct esp *esp, u8 val)
 {
 	struct esp_event_ent *p;
@@ -650,10 +668,7 @@ static void esp_autosense(struct esp *esp, struct esp_cmd_entry *ent)
 
 	val = (p - esp->command_block);
 
-	if (esp->rev == FASHME)
-		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
-	esp->ops->send_dma_cmd(esp, esp->command_block_dma,
-			       val, 16, 0, ESP_CMD_DMA | ESP_CMD_SELA);
+	esp_send_dma_cmd(esp, val, 16, ESP_CMD_SELA);
 }
 
 static struct esp_cmd_entry *find_and_prep_issuable_command(struct esp *esp)
@@ -789,12 +804,12 @@ build_identify:
 	}
 
 	if (!(esp->flags & ESP_FLAG_DOING_SLOWCMD)) {
-		start_cmd = ESP_CMD_DMA | ESP_CMD_SELA;
+		start_cmd = ESP_CMD_SELA;
 		if (ent->tag[0]) {
 			*p++ = ent->tag[0];
 			*p++ = ent->tag[1];
 
-			start_cmd = ESP_CMD_DMA | ESP_CMD_SA3;
+			start_cmd = ESP_CMD_SA3;
 		}
 
 		for (i = 0; i < cmd->cmd_len; i++)
@@ -814,7 +829,7 @@ build_identify:
 			esp->msg_out_len += 2;
 		}
 
-		start_cmd = ESP_CMD_DMA | ESP_CMD_SELAS;
+		start_cmd = ESP_CMD_SELAS;
 		esp->select_state = ESP_SELECT_MSGOUT;
 	}
 	val = tgt;
@@ -834,10 +849,7 @@ build_identify:
 		printk("]\n");
 	}
 
-	if (esp->rev == FASHME)
-		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
-	esp->ops->send_dma_cmd(esp, esp->command_block_dma,
-			       val, 16, 0, start_cmd);
+	esp_send_dma_cmd(esp, val, 16, start_cmd);
 }
 
 static struct esp_cmd_entry *esp_get_ent(struct esp *esp)
@@ -1646,7 +1658,7 @@ static int esp_msgin_process(struct esp *esp)
 
 static int esp_process_event(struct esp *esp)
 {
-	int write;
+	int write, i;
 
 again:
 	write = 0;
@@ -1872,6 +1884,10 @@ again:
 			if (esp->msg_out_len == 1) {
 				esp_write8(esp->msg_out[0], ESP_FDATA);
 				scsi_esp_cmd(esp, ESP_CMD_TI);
+			} else if (esp->flags & ESP_FLAG_USE_FIFO) {
+				for (i = 0; i < esp->msg_out_len; i++)
+					esp_write8(esp->msg_out[i], ESP_FDATA);
+				scsi_esp_cmd(esp, ESP_CMD_TI);
 			} else {
 				/* Use DMA. */
 				memcpy(esp->command_block,
@@ -1949,11 +1965,7 @@ again:
 	case ESP_EVENT_CMD_START:
 		memcpy(esp->command_block, esp->cmd_bytes_ptr,
 		       esp->cmd_bytes_left);
-		if (esp->rev == FASHME)
-			scsi_esp_cmd(esp, ESP_CMD_FLUSH);
-		esp->ops->send_dma_cmd(esp, esp->command_block_dma,
-				       esp->cmd_bytes_left, 16, 0,
-				       ESP_CMD_DMA | ESP_CMD_TI);
+		esp_send_dma_cmd(esp, esp->cmd_bytes_left, 16, ESP_CMD_TI);
 		esp_event(esp, ESP_EVENT_CMD_DONE);
 		esp->flags |= ESP_FLAG_QUICKIRQ_CHECK;
 		break;
