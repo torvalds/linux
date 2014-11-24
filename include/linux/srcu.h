@@ -45,7 +45,7 @@ struct rcu_batch {
 #define RCU_BATCH_INIT(name) { NULL, &(name.head) }
 
 struct srcu_struct {
-	unsigned completed;
+	unsigned long completed;
 	struct srcu_struct_array __percpu *per_cpu_ref;
 	spinlock_t queue_lock; /* protect ->batch_queue, ->running */
 	bool running;
@@ -135,7 +135,7 @@ int __srcu_read_lock(struct srcu_struct *sp) __acquires(sp);
 void __srcu_read_unlock(struct srcu_struct *sp, int idx) __releases(sp);
 void synchronize_srcu(struct srcu_struct *sp);
 void synchronize_srcu_expedited(struct srcu_struct *sp);
-long srcu_batches_completed(struct srcu_struct *sp);
+unsigned long srcu_batches_completed(struct srcu_struct *sp);
 void srcu_barrier(struct srcu_struct *sp);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
