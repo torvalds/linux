@@ -727,7 +727,7 @@ static int raw6_getfrag(void *from, char *to, int offset, int len, int odd,
 
 	offset -= rfv->hlen;
 
-	return ip_generic_getfrag(rfv->msg->msg_iov, to, offset, len, odd, skb);
+	return ip_generic_getfrag(rfv->msg, to, offset, len, odd, skb);
 }
 
 static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,

@@ -19,7 +19,8 @@ extern struct udp_table		udplite_table;
 static __inline__ int udplite_getfrag(void *from, char *to, int  offset,
 				      int len, int odd, struct sk_buff *skb)
 {
-	return memcpy_fromiovecend(to, (struct iovec *) from, offset, len);
+	struct msghdr *msg = from;
+	return memcpy_fromiovecend(to, msg->msg_iov, offset, len);
 }
 
 /* Designate sk as UDP-Lite socket */
