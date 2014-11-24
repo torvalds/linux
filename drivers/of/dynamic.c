@@ -87,18 +87,17 @@ const char *action_names[] = {
 };
 #endif
 
-int of_reconfig_notify(unsigned long action, void *p)
+int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 {
 	int rc;
 #ifdef DEBUG
-	struct device_node *dn = p;
-	struct of_prop_reconfig *pr = p;
+	struct of_reconfig_data *pr = p;
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
 		pr_debug("of/notify %-15s %s\n", action_names[action],
-			dn->full_name);
+			pr->dn->full_name);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
@@ -122,31 +121,22 @@ int of_reconfig_notify(unsigned long action, void *p)
  * Returns 0 on device going from enabled to disabled, 1 on device
  * going from disabled to enabled and -1 on no change.
  */
-int of_reconfig_get_state_change(unsigned long action, void *arg)
+int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *pr)
 {
-	struct device_node *dn;
-	struct property *prop, *old_prop;
-	struct of_prop_reconfig *pr;
+	struct property *prop, *old_prop = NULL;
 	int is_status, status_state, old_status_state, prev_state, new_state;
 
 	/* figure out if a device should be created or destroyed */
-	dn = NULL;
-	prop = old_prop = NULL;
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		dn = arg;
-		prop = of_find_property(dn, "status", NULL);
+		prop = of_find_property(pr->dn, "status", NULL);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
-		pr = arg;
-		dn = pr->dn;
 		prop = pr->prop;
 		break;
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr = arg;
-		dn = pr->dn;
 		prop = pr->prop;
 		old_prop = pr->old_prop;
 		break;
@@ -212,7 +202,7 @@ EXPORT_SYMBOL_GPL(of_reconfig_get_state_change);
 int of_property_notify(int action, struct device_node *np,
 		       struct property *prop, struct property *oldprop)
 {
-	struct of_prop_reconfig pr;
+	struct of_reconfig_data pr;
 
 	/* only call notifiers if the node is attached */
 	if (!of_node_is_attached(np))
@@ -250,7 +240,11 @@ void __of_attach_node(struct device_node *np)
  */
 int of_attach_node(struct device_node *np)
 {
+	struct of_reconfig_data rd;
 	unsigned long flags;
+
+	memset(&rd, 0, sizeof(rd));
+	rd.dn = np;
 
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -260,7 +254,7 @@ int of_attach_node(struct device_node *np)
 	__of_attach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, np);
+	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, &rd);
 
 	return 0;
 }
@@ -298,8 +292,12 @@ void __of_detach_node(struct device_node *np)
  */
 int of_detach_node(struct device_node *np)
 {
+	struct of_reconfig_data rd;
 	unsigned long flags;
 	int rc = 0;
+
+	memset(&rd, 0, sizeof(rd));
+	rd.dn = np;
 
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -309,7 +307,7 @@ int of_detach_node(struct device_node *np)
 	__of_detach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, np);
+	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, &rd);
 
 	return rc;
 }
@@ -505,6 +503,7 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 
 static void __of_changeset_entry_notify(struct of_changeset_entry *ce, bool revert)
 {
+	struct of_reconfig_data rd;
 	struct of_changeset_entry ce_inverted;
 	int ret;
 
@@ -516,7 +515,9 @@ static void __of_changeset_entry_notify(struct of_changeset_entry *ce, bool reve
 	switch (ce->action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		ret = of_reconfig_notify(ce->action, ce->np);
+		memset(&rd, 0, sizeof(rd));
+		rd.dn = ce->np;
+		ret = of_reconfig_notify(ce->action, &rd);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
