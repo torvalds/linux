@@ -4147,6 +4147,10 @@ ath10k_default_bitrate_mask(struct ath10k *ar,
 	u32 legacy = 0x00ff;
 	u8 ht = 0xff, i;
 	u16 vht = 0x3ff;
+	u16 nrf = ar->num_rf_chains;
+
+	if (ar->cfg_tx_chainmask)
+		nrf = get_nss_from_chainmask(ar->cfg_tx_chainmask);
 
 	switch (band) {
 	case IEEE80211_BAND_2GHZ:
@@ -4162,11 +4166,11 @@ ath10k_default_bitrate_mask(struct ath10k *ar,
 	if (mask->control[band].legacy != legacy)
 		return false;
 
-	for (i = 0; i < ar->num_rf_chains; i++)
+	for (i = 0; i < nrf; i++)
 		if (mask->control[band].ht_mcs[i] != ht)
 			return false;
 
-	for (i = 0; i < ar->num_rf_chains; i++)
+	for (i = 0; i < nrf; i++)
 		if (mask->control[band].vht_mcs[i] != vht)
 			return false;
 
@@ -4416,6 +4420,9 @@ static int ath10k_set_bitrate_mask(struct ieee80211_hw *hw,
 	u8 fixed_rate = WMI_FIXED_RATE_NONE;
 	u8 fixed_nss = ar->num_rf_chains;
 	u8 force_sgi;
+
+	if (ar->cfg_tx_chainmask)
+		fixed_nss = get_nss_from_chainmask(ar->cfg_tx_chainmask);
 
 	force_sgi = mask->control[band].gi;
 	if (force_sgi == NL80211_TXRATE_FORCE_LGI)
