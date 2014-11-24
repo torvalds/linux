@@ -7033,7 +7033,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->vcpu_reset(vcpu);
 }
 
-void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, unsigned int vector)
+void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
 {
 	struct kvm_segment cs;
 

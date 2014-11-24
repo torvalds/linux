@@ -1954,7 +1954,7 @@ int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data)
 void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	unsigned int sipi_vector;
+	u8 sipi_vector;
 	unsigned long pe;
 
 	if (!kvm_vcpu_has_lapic(vcpu) || !apic->pending_events)
