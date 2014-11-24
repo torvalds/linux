@@ -37,6 +37,24 @@
 
 #include <linux/io.h>
 
+/**
+ * struct musb_io - IO functions for MUSB
+ * @quirks:	platform specific flags
+ * @ep_offset:	platform specific function to get end point offset
+ * @ep_select:	platform specific function to select end point
+ * @fifo_offset: platform specific function to get fifo offset
+ * @read_fifo:	platform specific function to read fifo
+ * @write_fifo:	platform specific function to write fifo
+ */
+struct musb_io {
+	u32	quirks;
+	u32	(*ep_offset)(u8 epnum, u16 offset);
+	void	(*ep_select)(void __iomem *mbase, u8 epnum);
+	u32	(*fifo_offset)(u8 epnum);
+	void	(*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
+	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
+};
+
 #ifndef CONFIG_BLACKFIN
 
 /* NOTE:  these offsets are all in bytes */
