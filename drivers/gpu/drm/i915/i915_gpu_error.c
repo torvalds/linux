@@ -679,8 +679,6 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->pinned = 0;
 	if (i915_gem_obj_is_pinned(obj))
 		err->pinned = 1;
-	if (obj->user_pin_count > 0)
-		err->pinned = -1;
 	err->tiling = obj->tiling_mode;
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;

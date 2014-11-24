@@ -96,9 +96,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 static const char *get_pin_flag(struct drm_i915_gem_object *obj)
 {
-	if (obj->user_pin_count > 0)
-		return "P";
-	else if (i915_gem_obj_is_pinned(obj))
+	if (i915_gem_obj_is_pinned(obj))
 		return "p";
 	else
 		return " ";

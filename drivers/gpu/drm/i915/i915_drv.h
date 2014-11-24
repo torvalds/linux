@@ -1958,10 +1958,6 @@ struct drm_i915_gem_object {
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
 
-	/** User space pin count and filp owning the pin */
-	unsigned long user_pin_count;
-	struct drm_file *pin_filp;
-
 	union {
 		/** for phy allocated objects */
 		struct drm_dma_handle *phys_handle;
@@ -2427,10 +2423,6 @@ int i915_gem_ringbuffer_submission(struct drm_device *dev,
 int i915_gem_execbuffer(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_execbuffer2(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-int i915_gem_pin_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-int i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);

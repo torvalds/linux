@@ -3903,18 +3903,14 @@ static bool is_pin_display(struct drm_i915_gem_object *obj)
 	if (!vma)
 		return false;
 
-	/* There are 3 sources that pin objects:
+	/* There are 2 sources that pin objects:
 	 *   1. The display engine (scanouts, sprites, cursors);
 	 *   2. Reservations for execbuffer;
-	 *   3. The user.
 	 *
 	 * We can ignore reservations as we hold the struct_mutex and
-	 * are only called outside of the reservation path.  The user
-	 * can only increment pin_count once, and so if after
-	 * subtracting the potential reference by the user, any pin_count
-	 * remains, it must be due to another use by the display engine.
+	 * are only called outside of the reservation path.
 	 */
-	return vma->pin_count - !!obj->user_pin_count;
+	return vma->pin_count;
 }
 
 /*
@@ -4255,102 +4251,6 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 		WARN_ON(dev_priv->fence_regs[obj->fence_reg].pin_count <= 0);
 		dev_priv->fence_regs[obj->fence_reg].pin_count--;
 	}
-}
-
-int
-i915_gem_pin_ioctl(struct drm_device *dev, void *data,
-		   struct drm_file *file)
-{
-	struct drm_i915_gem_pin *args = data;
-	struct drm_i915_gem_object *obj;
-	int ret;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (&obj->base == NULL) {
-		ret = -ENOENT;
-		goto unlock;
-	}
-
-	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_DEBUG("Attempting to pin a purgeable buffer\n");
-		ret = -EFAULT;
-		goto out;
-	}
-
-	if (obj->pin_filp != NULL && obj->pin_filp != file) {
-		DRM_DEBUG("Already pinned in i915_gem_pin_ioctl(): %d\n",
-			  args->handle);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (obj->user_pin_count == ULONG_MAX) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (obj->user_pin_count == 0) {
-		ret = i915_gem_obj_ggtt_pin(obj, args->alignment, PIN_MAPPABLE);
-		if (ret)
-			goto out;
-	}
-
-	obj->user_pin_count++;
-	obj->pin_filp = file;
-
-	args->offset = i915_gem_obj_ggtt_offset(obj);
-out:
-	drm_gem_object_unreference(&obj->base);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
-}
-
-int
-i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
-		     struct drm_file *file)
-{
-	struct drm_i915_gem_pin *args = data;
-	struct drm_i915_gem_object *obj;
-	int ret;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (&obj->base == NULL) {
-		ret = -ENOENT;
-		goto unlock;
-	}
-
-	if (obj->pin_filp != file) {
-		DRM_DEBUG("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
-			  args->handle);
-		ret = -EINVAL;
-		goto out;
-	}
-	obj->user_pin_count--;
-	if (obj->user_pin_count == 0) {
-		obj->pin_filp = NULL;
-		i915_gem_object_ggtt_unpin(obj);
-	}
-
-out:
-	drm_gem_object_unreference(&obj->base);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
 }
 
 int
