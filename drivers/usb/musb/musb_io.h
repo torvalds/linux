@@ -37,6 +37,8 @@
 
 #include <linux/io.h>
 
+#define musb_ep_select(_mbase, _epnum)	musb->io.ep_select((_mbase), (_epnum))
+
 /**
  * struct musb_io - IO functions for MUSB
  * @quirks:	platform specific flags

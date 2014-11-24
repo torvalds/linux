@@ -131,6 +131,17 @@ static u32 tusb_fifo_offset(u8 epnum)
 	return 0x200 + (epnum * 0x20);
 }
 
+static u32 tusb_ep_offset(u8 epnum, u16 offset)
+{
+	return 0x10 + offset;
+}
+
+/* TUSB mapping: "flat" plus ep0 special cases */
+static void tusb_ep_select(void __iomem *mbase, u8 epnum)
+{
+	musb_writeb(mbase, MUSB_INDEX, epnum);
+}
+
 /*
  * TUSB6010 doesn't allow 8-bit access; 16-bit access is the minimum.
  */
@@ -1174,6 +1185,8 @@ static const struct musb_platform_ops tusb_ops = {
 	.init		= tusb_musb_init,
 	.exit		= tusb_musb_exit,
 
+	.ep_offset	= tusb_ep_offset,
+	.ep_select	= tusb_ep_select,
 	.fifo_offset	= tusb_fifo_offset,
 	.readb		= tusb_readb,
 	.writeb		= tusb_writeb,

@@ -229,6 +229,27 @@ static u32 musb_default_fifo_offset(u8 epnum)
 	return 0x20 + (epnum * 4);
 }
 
+/* "flat" mapping: each endpoint has its own i/o address */
+static void musb_flat_ep_select(void __iomem *mbase, u8 epnum)
+{
+}
+
+static u32 musb_flat_ep_offset(u8 epnum, u16 offset)
+{
+	return 0x100 + (0x10 * epnum) + offset;
+}
+
+/* "indexed" mapping: INDEX register controls register bank select */
+static void musb_indexed_ep_select(void __iomem *mbase, u8 epnum)
+{
+	musb_writeb(mbase, MUSB_INDEX, epnum);
+}
+
+static u32 musb_indexed_ep_offset(u8 epnum, u16 offset)
+{
+	return 0x10 + offset;
+}
+
 static u8 musb_default_readb(const void __iomem *addr, unsigned offset)
 {
 	return __raw_readb(addr + offset);
@@ -1537,7 +1558,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 		}
 #endif
 
-		hw_ep->regs = MUSB_EP_OFFSET(i, 0) + mbase;
+		hw_ep->regs = musb->io.ep_offset(i, 0) + mbase;
 		hw_ep->target_regs = musb_read_target_reg_base(i, mbase);
 		hw_ep->rx_reinit = 1;
 		hw_ep->tx_reinit = 1;
@@ -2006,6 +2027,21 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	if (musb->ops->quirks)
 		musb->io.quirks = musb->ops->quirks;
+
+	/* At least tusb6010 has it's own offsets.. */
+	if (musb->ops->ep_offset)
+		musb->io.ep_offset = musb->ops->ep_offset;
+	if (musb->ops->ep_select)
+		musb->io.ep_select = musb->ops->ep_select;
+
+	/* ..and some devices use indexed offset or flat offset */
+	if (musb->io.quirks & MUSB_INDEXED_EP) {
+		musb->io.ep_offset = musb_indexed_ep_offset;
+		musb->io.ep_select = musb_indexed_ep_select;
+	} else {
+		musb->io.ep_offset = musb_flat_ep_offset;
+		musb->io.ep_select = musb_flat_ep_select;
+	}
 
 	if (musb->ops->fifo_offset)
 		musb->io.fifo_offset = musb->ops->fifo_offset;
