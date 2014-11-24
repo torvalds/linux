@@ -911,9 +911,9 @@ size_t iov_iter_single_seg_count(const struct iov_iter *i)
 	if (i->nr_segs == 1)
 		return i->count;
 	else if (i->type & ITER_BVEC)
-		return min(i->count, i->iov->iov_len - i->iov_offset);
-	else
 		return min(i->count, i->bvec->bv_len - i->iov_offset);
+	else
+		return min(i->count, i->iov->iov_len - i->iov_offset);
 }
 EXPORT_SYMBOL(iov_iter_single_seg_count);
 

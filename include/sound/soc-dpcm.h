@@ -102,6 +102,8 @@ struct snd_soc_dpcm_runtime {
 	/* state and update */
 	enum snd_soc_dpcm_update runtime_update;
 	enum snd_soc_dpcm_state state;
+
+	int trigger_pending; /* trigger cmd + 1 if pending, 0 if not */
 };
 
 /* can this BE stop and free */

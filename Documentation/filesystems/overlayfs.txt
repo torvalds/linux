@@ -64,7 +64,7 @@ is formed.
 At mount time, the two directories given as mount options "lowerdir" and
 "upperdir" are combined into a merged directory:
 
-  mount -t overlayfs overlayfs -olowerdir=/lower,upperdir=/upper,\
+  mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,\
 workdir=/work /merged
 
 The "workdir" needs to be an empty directory on the same filesystem
