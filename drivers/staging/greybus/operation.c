@@ -624,6 +624,60 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 	gb_message_cancel(operation->response);
 }
 
+/**
+ * gb_operation_sync: implement a "simple" synchronous gb operation.
+ * @connection: the Greybus connection to send this to
+ * @type: the type of operation to send
+ * @request: pointer to a memory buffer to copy the request from
+ * @request_size: size of @request
+ * @response: pointer to a memory buffer to copy the response to
+ * @response_size: the size of @response.
+ *
+ * This function implements a simple synchronous Greybus operation.  It sends
+ * the provided operation request and waits (sleeps) until the corresponding
+ * operation response message has been successfully received, or an error
+ * occurs.  @request and @response are buffers to hold the request and response
+ * data respectively, and if they are not NULL, their size must be specified in
+ * @request_size and @response_size.
+ *
+ * If a response payload is to come back, and @response is not NULL,
+ * @response_size number of bytes will be copied into @response if the operation
+ * is successful.
+ *
+ * If there is an error, the response buffer is left alone.
+ */
+int gb_operation_sync(struct gb_connection *connection, int type,
+		      void *request, int request_size,
+		      void *response, int response_size)
+{
+	struct gb_operation *operation;
+	int ret;
+
+	if ((response_size && !response) ||
+	    (request_size && !request))
+		return -EINVAL;
+
+	operation = gb_operation_create(connection, type,
+					request_size, response_size);
+	if (!operation)
+		return -ENOMEM;
+
+	if (request_size)
+		memcpy(&operation->request->payload, request, request_size);
+
+	/* Synchronous operation--no callback */
+	ret = gb_operation_request_send(operation, NULL);
+	if (ret)
+		pr_err("version operation failed (%d)\n", ret);
+	else
+		if (response_size)
+			memcpy(response, operation->response->payload,
+			       response_size);
+	gb_operation_destroy(operation);
+
+	return ret;
+}
+
 int gb_operation_init(void)
 {
 	gb_operation_cache = kmem_cache_create("gb_operation_cache",
