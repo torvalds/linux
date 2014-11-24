@@ -189,6 +189,7 @@ struct ath_frame_info {
 	u8 rtscts_rate;
 	u8 retries : 7;
 	u8 baw_tracked : 1;
+	u8 tx_power;
 };
 
 struct ath_rxbuf {
