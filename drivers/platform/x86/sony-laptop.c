@@ -3716,8 +3716,7 @@ static void sony_pic_detect_device_type(struct sony_pic_dev *dev)
 	dev->event_types = type2_events;
 
 out:
-	if (pcidev)
-		pci_dev_put(pcidev);
+	pci_dev_put(pcidev);
 
 	pr_info("detected Type%d model\n",
 		dev->model == SONYPI_DEVICE_TYPE1 ? 1 :
