@@ -751,6 +751,33 @@ static void wait_for_fences(struct drm_device *dev,
 	}
 }
 
+static bool framebuffer_changed(struct drm_device *dev,
+				struct drm_atomic_state *old_state,
+				struct drm_crtc *crtc)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+	int nplanes = old_state->dev->mode_config.num_total_plane;
+	int i;
+
+	for (i = 0; i < nplanes; i++) {
+		plane = old_state->planes[i];
+		old_plane_state = old_state->plane_states[i];
+
+		if (!plane)
+			continue;
+
+		if (plane->state->crtc != crtc &&
+		    old_plane_state->crtc != crtc)
+			continue;
+
+		if (plane->state->fb != old_plane_state->fb)
+			return true;
+	}
+
+	return false;
+}
+
 /**
  * drm_atomic_helper_wait_for_vblanks - wait for vblank on crtcs
  * @dev: DRM device
@@ -758,7 +785,9 @@ static void wait_for_fences(struct drm_device *dev,
  *
  * Helper to, after atomic commit, wait for vblanks on all effected
  * crtcs (ie. before cleaning up old framebuffers using
- * drm_atomic_helper_cleanup_planes())
+ * drm_atomic_helper_cleanup_planes()). It will only wait on crtcs where the
+ * framebuffers have actually changed to optimize for the legacy cursor and
+ * plane update use-case.
  */
 void
 drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
@@ -782,6 +811,9 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		old_crtc_state->enable = false;
 
 		if (!crtc->state->enable)
+			continue;
+
+		if (!framebuffer_changed(dev, old_state, crtc))
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
