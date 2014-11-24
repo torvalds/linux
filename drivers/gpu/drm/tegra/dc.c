@@ -1057,7 +1057,7 @@ static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.page_flip = tegra_dc_page_flip,
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.destroy = tegra_dc_destroy,
 	.reset = tegra_crtc_reset,
 	.atomic_duplicate_state = tegra_crtc_atomic_duplicate_state,
