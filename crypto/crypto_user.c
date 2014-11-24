@@ -534,3 +534,4 @@ module_exit(crypto_user_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Steffen Klassert <steffen.klassert@secunet.com>");
 MODULE_DESCRIPTION("Crypto userspace configuration API");
+MODULE_ALIAS("net-pf-16-proto-21");
