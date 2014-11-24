@@ -1153,19 +1153,18 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
 }
 
 /*
- * Compare seqno against outstanding lazy request. Emit a request if they are
- * equal.
+ * Compare arbitrary request against outstanding lazy request. Emit on match.
  */
 int
-i915_gem_check_olr(struct intel_engine_cs *ring, u32 seqno)
+i915_gem_check_olr(struct drm_i915_gem_request *req)
 {
 	int ret;
 
-	BUG_ON(!mutex_is_locked(&ring->dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&req->ring->dev->struct_mutex));
 
 	ret = 0;
-	if (seqno == i915_gem_request_get_seqno(ring->outstanding_lazy_request))
-		ret = i915_add_request(ring, NULL);
+	if (req == req->ring->outstanding_lazy_request)
+		ret = i915_add_request(req->ring, NULL);
 
 	return ret;
 }
@@ -1328,7 +1327,7 @@ i915_wait_seqno(struct intel_engine_cs *ring, uint32_t seqno)
 	if (ret)
 		return ret;
 
-	ret = i915_gem_check_olr(ring, seqno);
+	ret = i915_gem_check_ols(ring, seqno);
 	if (ret)
 		return ret;
 
@@ -1395,7 +1394,6 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring = obj->ring;
 	unsigned reset_counter;
-	u32 seqno;
 	int ret;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -1405,22 +1403,19 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	if (!req)
 		return 0;
 
-	seqno = i915_gem_request_get_seqno(req);
-	WARN_ON(seqno == 0);
-
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error, true);
 	if (ret)
 		return ret;
 
-	ret = i915_gem_check_olr(ring, seqno);
+	ret = i915_gem_check_olr(req);
 	if (ret)
 		return ret;
 
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	i915_gem_request_reference(req);
 	mutex_unlock(&dev->struct_mutex);
-	ret = __i915_wait_seqno(ring, seqno, reset_counter, true, NULL,
-				file_priv);
+	ret = __i915_wait_seqno(ring, i915_gem_request_get_seqno(req),
+				reset_counter, true, NULL, file_priv);
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_request_unreference(req);
 	if (ret)
@@ -2880,8 +2875,7 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 	int ret;
 
 	if (obj->active) {
-		ret = i915_gem_check_olr(obj->ring,
-			     i915_gem_request_get_seqno(obj->last_read_req));
+		ret = i915_gem_check_olr(obj->last_read_req);
 		if (ret)
 			return ret;
 
@@ -3011,7 +3005,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (seqno <= from->semaphore.sync_seqno[idx])
 		return 0;
 
-	ret = i915_gem_check_olr(obj->ring, seqno);
+	ret = i915_gem_check_olr(obj->last_read_req);
 	if (ret)
 		return ret;
 
