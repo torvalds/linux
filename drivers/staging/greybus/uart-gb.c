@@ -137,146 +137,82 @@ static atomic_t reference_count = ATOMIC_INIT(0);
  */
 static int get_version(struct gb_tty *tty)
 {
-	struct gb_operation *operation;
-	struct gb_uart_proto_version_response *response;
+	struct gb_uart_proto_version_response response;
 	int ret;
 
-	operation = gb_operation_create(tty->connection,
-					GB_UART_REQ_PROTOCOL_VERSION,
-					0, sizeof(*response));
-	if (!operation)
-		return -ENOMEM;
+	ret = gb_operation_sync(tty->connection,
+				GB_UART_REQ_PROTOCOL_VERSION,
+				NULL, 0, &response, sizeof(response));
+	if (ret)
+		return ret;
 
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
-		pr_err("version operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	response = operation->response->payload;
-	if (response->major > GB_UART_VERSION_MAJOR) {
+	if (response.major > GB_UART_VERSION_MAJOR) {
 		pr_err("unsupported major version (%hhu > %hhu)\n",
-			response->major, GB_UART_VERSION_MAJOR);
-		ret = -ENOTSUPP;
-		goto out;
+			response.major, GB_UART_VERSION_MAJOR);
+		return -ENOTSUPP;
 	}
-	tty->version_major = response->major;
-	tty->version_minor = response->minor;
+	tty->version_major = response.major;
+	tty->version_minor = response.minor;
 
 	pr_debug("%s: version_major = %u version_minor = %u\n",
 		__func__, tty->version_major, tty->version_minor);
-out:
-	gb_operation_destroy(operation);
-
-	return ret;
+	return 0;
 }
 
 static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 {
-	struct gb_connection *connection = tty->connection;
-	struct gb_operation *operation;
 	struct gb_uart_send_data_request *request;
 	int retval;
 
 	if (!data || !size)
 		return 0;
 
-	operation = gb_operation_create(connection, GB_UART_REQ_SEND_DATA,
-					sizeof(*request) + size, 0);
-	if (!operation)
+	request = kmalloc(sizeof(*request) + size, GFP_KERNEL);
+	if (!request)
 		return -ENOMEM;
-	request = operation->request->payload;
+
 	request->size = cpu_to_le16(size);
 	memcpy(&request->data[0], data, size);
+	retval = gb_operation_sync(tty->connection, GB_UART_REQ_SEND_DATA,
+				   request, sizeof(*request) + size, NULL, 0);
 
-	/* Synchronous operation--no callback */
-	retval = gb_operation_request_send(operation, NULL);
-	if (retval)
-		dev_err(&connection->dev,
-			"send data operation failed (%d)\n", retval);
-	gb_operation_destroy(operation);
-
+	kfree(request);
 	return retval;
 }
 
 static int send_line_coding(struct gb_tty *tty,
 			    struct gb_serial_line_coding *line_coding)
 {
-	struct gb_connection *connection = tty->connection;
-	struct gb_operation *operation;
-	struct gb_uart_set_line_coding_request *request;
-	int retval;
+	struct gb_uart_set_line_coding_request request;
 
-	operation = gb_operation_create(connection, GB_UART_REQ_SET_LINE_CODING,
-					sizeof(*request), 0);
-	if (!operation)
-		return -ENOMEM;
-	request = operation->request->payload;
-	memcpy(&request->line_coding, line_coding, sizeof(*line_coding));
-
-	/* Synchronous operation--no callback */
-	retval = gb_operation_request_send(operation, NULL);
-	if (retval)
-		dev_err(&connection->dev,
-			"send line coding operation failed (%d)\n", retval);
-	gb_operation_destroy(operation);
-
-	return retval;
+	memcpy(&request.line_coding, line_coding, sizeof(*line_coding));
+	return gb_operation_sync(tty->connection, GB_UART_REQ_SET_LINE_CODING,
+				 &request, sizeof(request), NULL, 0);
 }
 
 static int send_control(struct gb_tty *tty, u16 control)
 {
-	struct gb_connection *connection = tty->connection;
-	struct gb_operation *operation;
-	struct gb_uart_set_control_line_state_request *request;
-	int retval;
+	struct gb_uart_set_control_line_state_request request;
 
-	operation = gb_operation_create(connection,
-					GB_UART_REQ_SET_CONTROL_LINE_STATE,
-					sizeof(*request), 0);
-	if (!operation)
-		return -ENOMEM;
-	request = operation->request->payload;
-	request->control = cpu_to_le16(control);
-
-	/* Synchronous operation--no callback */
-	retval = gb_operation_request_send(operation, NULL);
-	if (retval)
-		dev_err(&connection->dev,
-			"send control operation failed (%d)\n", retval);
-	gb_operation_destroy(operation);
-
-	return retval;
+	request.control = cpu_to_le16(control);
+	return gb_operation_sync(tty->connection,
+				 GB_UART_REQ_SET_CONTROL_LINE_STATE,
+				 &request, sizeof(request), NULL, 0);
 }
 
 static int send_break(struct gb_tty *tty, u8 state)
 {
-	struct gb_connection *connection = tty->connection;
-	struct gb_operation *operation;
-	struct gb_uart_set_break_request *request;
-	int retval;
+	struct gb_uart_set_break_request request;
 
 	if ((state != 0) && (state != 1)) {
-		dev_err(&connection->dev, "invalid break state of %d\n", state);
+		dev_err(&tty->connection->dev,
+			"invalid break state of %d\n", state);
 		return -EINVAL;
 	}
 
-	operation = gb_operation_create(connection, GB_UART_REQ_SET_BREAK,
-					sizeof(*request), 0);
-	if (!operation)
-		return -ENOMEM;
-	request = operation->request->payload;
-	request->state = state;
-
-	/* Synchronous operation--no callback */
-	retval = gb_operation_request_send(operation, NULL);
-	if (retval)
-		dev_err(&connection->dev,
-			"send break operation failed (%d)\n", retval);
-	gb_operation_destroy(operation);
-
-	return retval;
+	request.state = state;
+	return gb_operation_sync(tty->connection, GB_UART_REQ_SET_BREAK,
+				 &request, sizeof(request), NULL, 0);
 }
 
 
