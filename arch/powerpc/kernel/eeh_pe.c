@@ -239,10 +239,18 @@ static void *__eeh_pe_get(void *data, void *flag)
 	if (pe->type & EEH_PE_PHB)
 		return NULL;
 
-	/* We prefer PE address */
-	if (edev->pe_config_addr &&
-	   (edev->pe_config_addr == pe->addr))
+	/*
+	 * We prefer PE address. For most cases, we should
+	 * have non-zero PE address
+	 */
+	if (eeh_has_flag(EEH_VALID_PE_ZERO)) {
+		if (edev->pe_config_addr == pe->addr)
+			return pe;
+	} else {
+		if (edev->pe_config_addr &&
+		    (edev->pe_config_addr == pe->addr))
 		return pe;
+	}
 
 	/* Try BDF address */
 	if (edev->config_addr &&
