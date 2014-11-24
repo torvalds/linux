@@ -2263,14 +2263,18 @@ static void
 i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 			       struct intel_engine_cs *ring)
 {
-	struct drm_i915_gem_request *req = intel_ring_get_request(ring);
+	struct drm_i915_gem_request *req;
+	struct intel_engine_cs *old_ring;
 
 	BUG_ON(ring == NULL);
-	if (obj->ring != ring && obj->last_write_req) {
+
+	req = intel_ring_get_request(ring);
+	old_ring = i915_gem_request_get_ring(obj->last_read_req);
+
+	if (old_ring != ring && obj->last_write_req) {
 		/* Keep the request relative to the current ring */
 		i915_gem_request_assign(&obj->last_write_req, req);
 	}
-	obj->ring = ring;
 
 	/* Add a reference if we're newly entering the active list. */
 	if (!obj->active) {
@@ -2309,7 +2313,6 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	intel_fb_obj_flush(obj, true);
 
 	list_del_init(&obj->ring_list);
-	obj->ring = NULL;
 
 	i915_gem_request_assign(&obj->last_read_req, NULL);
 	i915_gem_request_assign(&obj->last_write_req, NULL);
@@ -2326,9 +2329,7 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 static void
 i915_gem_object_retire(struct drm_i915_gem_object *obj)
 {
-	struct intel_engine_cs *ring = obj->ring;
-
-	if (ring == NULL)
+	if (obj->last_read_req == NULL)
 		return;
 
 	if (i915_gem_request_completed(obj->last_read_req, true))
@@ -2861,14 +2862,17 @@ i915_gem_idle_work_handler(struct work_struct *work)
 static int
 i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 {
+	struct intel_engine_cs *ring;
 	int ret;
 
 	if (obj->active) {
+		ring = i915_gem_request_get_ring(obj->last_read_req);
+
 		ret = i915_gem_check_olr(obj->last_read_req);
 		if (ret)
 			return ret;
 
-		i915_gem_retire_requests_ring(obj->ring);
+		i915_gem_retire_requests_ring(ring);
 	}
 
 	return 0;
@@ -2971,9 +2975,11 @@ int
 i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		     struct intel_engine_cs *to)
 {
-	struct intel_engine_cs *from = obj->ring;
+	struct intel_engine_cs *from;
 	u32 seqno;
 	int ret, idx;
+
+	from = i915_gem_request_get_ring(obj->last_read_req);
 
 	if (from == NULL || to == from)
 		return 0;
@@ -3929,7 +3935,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	bool was_pin_display;
 	int ret;
 
-	if (pipelined != obj->ring) {
+	if (pipelined != i915_gem_request_get_ring(obj->last_read_req)) {
 		ret = i915_gem_object_sync(obj, pipelined);
 		if (ret)
 			return ret;
@@ -4284,9 +4290,11 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	ret = i915_gem_object_flush_active(obj);
 
 	args->busy = obj->active;
-	if (obj->ring) {
+	if (obj->last_read_req) {
+		struct intel_engine_cs *ring;
 		BUILD_BUG_ON(I915_NUM_RINGS > 16);
-		args->busy |= intel_ring_flag(obj->ring) << 16;
+		ring = i915_gem_request_get_ring(obj->last_read_req);
+		args->busy |= intel_ring_flag(ring) << 16;
 	}
 
 	drm_gem_object_unreference(&obj->base);

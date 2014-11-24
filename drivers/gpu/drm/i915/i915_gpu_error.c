@@ -683,7 +683,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
-	err->ring = obj->ring ? obj->ring->id : -1;
+	err->ring = obj->last_read_req ?
+			i915_gem_request_get_ring(obj->last_read_req)->id : -1;
 	err->cache_level = obj->cache_level;
 }
 

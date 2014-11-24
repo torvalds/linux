@@ -1941,8 +1941,6 @@ struct drm_i915_gem_object {
 	void *dma_buf_vmapping;
 	int vmapping_count;
 
-	struct intel_engine_cs *ring;
-
 	/** Breadcrumb of last rendering to the buffer. */
 	struct drm_i915_gem_request *last_read_req;
 	struct drm_i915_gem_request *last_write_req;

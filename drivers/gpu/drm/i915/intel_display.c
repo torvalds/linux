@@ -9528,7 +9528,7 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 	else if (i915.enable_execlists)
 		return true;
 	else
-		return ring != obj->ring;
+		return ring != i915_gem_request_get_ring(obj->last_read_req);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc)
@@ -9888,7 +9888,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	} else if (IS_IVYBRIDGE(dev)) {
 		ring = &dev_priv->ring[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		ring = obj->ring;
+		ring = i915_gem_request_get_ring(obj->last_read_req);
 		if (ring == NULL || ring->id != RCS)
 			ring = &dev_priv->ring[BCS];
 	} else {
@@ -9910,7 +9910,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 		i915_gem_request_assign(&work->flip_queued_req,
 					obj->last_write_req);
-		work->flip_queued_ring = obj->ring;
+		work->flip_queued_ring =
+				i915_gem_request_get_ring(obj->last_write_req);
 	} else {
 		ret = dev_priv->display.queue_flip(dev, crtc, fb, obj, ring,
 						   page_flip_flags);
