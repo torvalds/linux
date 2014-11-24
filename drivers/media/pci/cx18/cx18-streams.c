@@ -58,11 +58,14 @@ static struct {
 	int vfl_type;
 	int num_offset;
 	int dma;
+	u32 caps;
 } cx18_stream_info[] = {
 	{	/* CX18_ENC_STREAM_TYPE_MPG */
 		"encoder MPEG",
 		VFL_TYPE_GRABBER, 0,
 		PCI_DMA_FROMDEVICE,
+		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		V4L2_CAP_AUDIO | V4L2_CAP_TUNER
 	},
 	{	/* CX18_ENC_STREAM_TYPE_TS */
 		"TS",
@@ -73,11 +76,15 @@ static struct {
 		"encoder YUV",
 		VFL_TYPE_GRABBER, CX18_V4L2_ENC_YUV_OFFSET,
 		PCI_DMA_FROMDEVICE,
+		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		V4L2_CAP_STREAMING | V4L2_CAP_AUDIO | V4L2_CAP_TUNER
 	},
 	{	/* CX18_ENC_STREAM_TYPE_VBI */
 		"encoder VBI",
 		VFL_TYPE_VBI, 0,
 		PCI_DMA_FROMDEVICE,
+		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_CAPTURE |
+		V4L2_CAP_READWRITE | V4L2_CAP_TUNER
 	},
 	{	/* CX18_ENC_STREAM_TYPE_PCM */
 		"encoder PCM audio",
@@ -93,6 +100,7 @@ static struct {
 		"encoder radio",
 		VFL_TYPE_RADIO, 0,
 		PCI_DMA_NONE,
+		V4L2_CAP_RADIO | V4L2_CAP_TUNER
 	},
 };
 
@@ -260,6 +268,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->handle = CX18_INVALID_TASK_HANDLE;
 
 	s->dma = cx18_stream_info[type].dma;
+	s->v4l2_dev_caps = cx18_stream_info[type].caps;
 	s->buffers = cx->stream_buffers[type];
 	s->buf_size = cx->stream_buf_size[type];
 	INIT_LIST_HEAD(&s->buf_pool);

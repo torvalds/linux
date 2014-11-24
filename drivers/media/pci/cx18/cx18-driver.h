@@ -379,6 +379,7 @@ struct cx18_stream {
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
 	u32 handle;			/* task handle */
+	u32 v4l2_dev_caps;		/* device capabilities */
 	unsigned int mdl_base_idx;
 
 	u32 id;
