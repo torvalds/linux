@@ -445,6 +445,7 @@ static int ab9540_usb_link_status_update(struct ab8500_usb *ab,
 			event = UX500_MUSB_NONE;
 		/* Fallback to default B_IDLE as nothing is connected. */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
+		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
 		break;
 
 	case USB_LINK_ACA_RID_C_NM_9540:
@@ -459,12 +460,14 @@ static int ab9540_usb_link_status_update(struct ab8500_usb *ab,
 			ab8500_usb_peri_phy_en(ab);
 			atomic_notifier_call_chain(&ab->phy.notifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
+			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
 		if (ab->mode == USB_IDLE) {
 			ab->mode = USB_PERIPHERAL;
 			ab8500_usb_peri_phy_en(ab);
 			atomic_notifier_call_chain(&ab->phy.notifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
+			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
 		if (event != UX500_MUSB_RIDC)
 			event = UX500_MUSB_VBUS;
@@ -500,6 +503,7 @@ static int ab9540_usb_link_status_update(struct ab8500_usb *ab,
 		event = UX500_MUSB_CHARGER;
 		atomic_notifier_call_chain(&ab->phy.notifier,
 				event, &ab->vbus_draw);
+		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
 
 	case USB_LINK_PHYEN_NO_VBUS_NO_IDGND_9540:
@@ -524,6 +528,7 @@ static int ab9540_usb_link_status_update(struct ab8500_usb *ab,
 				ab->mode = USB_IDLE;
 				ab->phy.otg->default_a = false;
 				ab->vbus_draw = 0;
+				usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
 			}
 		}
 		break;
@@ -583,6 +588,7 @@ static int ab8540_usb_link_status_update(struct ab8500_usb *ab,
 		 * is connected
 		 */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
+		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
 		break;
 
 	case USB_LINK_ACA_RID_C_NM_8540:
@@ -596,6 +602,7 @@ static int ab8540_usb_link_status_update(struct ab8500_usb *ab,
 			ab8500_usb_peri_phy_en(ab);
 			atomic_notifier_call_chain(&ab->phy.notifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
+			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
 		if (event != UX500_MUSB_RIDC)
 			event = UX500_MUSB_VBUS;
@@ -624,6 +631,7 @@ static int ab8540_usb_link_status_update(struct ab8500_usb *ab,
 		event = UX500_MUSB_CHARGER;
 		atomic_notifier_call_chain(&ab->phy.notifier,
 				event, &ab->vbus_draw);
+		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
 
 	case USB_LINK_PHYEN_NO_VBUS_NO_IDGND_8540:
@@ -646,6 +654,7 @@ static int ab8540_usb_link_status_update(struct ab8500_usb *ab,
 			ab->mode = USB_IDLE;
 			ab->phy.otg->default_a = false;
 			ab->vbus_draw = 0;
+		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
 		}
 		break;
 
@@ -692,6 +701,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		 * is connected
 		 */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
+		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
 		break;
 
 	case USB_LINK_ACA_RID_C_NM_8505:
@@ -705,6 +715,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 			ab8500_usb_peri_phy_en(ab);
 			atomic_notifier_call_chain(&ab->phy.notifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
+			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
 		if (event != UX500_MUSB_RIDC)
 			event = UX500_MUSB_VBUS;
@@ -732,6 +743,7 @@ static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		event = UX500_MUSB_CHARGER;
 		atomic_notifier_call_chain(&ab->phy.notifier,
 				event, &ab->vbus_draw);
+		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
 
 	default:
@@ -775,6 +787,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 			event = UX500_MUSB_NONE;
 		/* Fallback to default B_IDLE as nothing is connected */
 		ab->phy.otg->state = OTG_STATE_B_IDLE;
+		usb_phy_set_event(&ab->phy, USB_EVENT_NONE);
 		break;
 
 	case USB_LINK_ACA_RID_C_NM_8500:
@@ -792,6 +805,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 			ab8500_usb_peri_phy_en(ab);
 			atomic_notifier_call_chain(&ab->phy.notifier,
 					UX500_MUSB_PREPARE, &ab->vbus_draw);
+			usb_phy_set_event(&ab->phy, USB_EVENT_ENUMERATED);
 		}
 		if (event != UX500_MUSB_RIDC)
 			event = UX500_MUSB_VBUS;
@@ -818,6 +832,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
 		event = UX500_MUSB_CHARGER;
 		atomic_notifier_call_chain(&ab->phy.notifier,
 				event, &ab->vbus_draw);
+		usb_phy_set_event(&ab->phy, USB_EVENT_CHARGER);
 		break;
 
 	case USB_LINK_RESERVED_8500:

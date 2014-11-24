@@ -87,6 +87,7 @@ static void check_vbus_state(struct tahvo_usb *tu)
 			if (tu->phy.otg->gadget)
 				usb_gadget_vbus_connect(tu->phy.otg->gadget);
 			tu->phy.otg->state = OTG_STATE_B_PERIPHERAL;
+			usb_phy_set_event(&tu->phy, USB_EVENT_ENUMERATED);
 			break;
 		case OTG_STATE_A_IDLE:
 			/*
@@ -105,6 +106,7 @@ static void check_vbus_state(struct tahvo_usb *tu)
 			if (tu->phy.otg->gadget)
 				usb_gadget_vbus_disconnect(tu->phy.otg->gadget);
 			tu->phy.otg->state = OTG_STATE_B_IDLE;
+			usb_phy_set_event(&tu->phy, USB_EVENT_NONE);
 			break;
 		case OTG_STATE_A_HOST:
 			tu->phy.otg->state = OTG_STATE_A_IDLE;
