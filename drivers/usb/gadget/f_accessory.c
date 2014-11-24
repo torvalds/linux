@@ -39,6 +39,10 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/f_accessory.h>
 
+#include <linux/configfs.h>
+#include <linux/usb/composite.h>
+
+#define MAX_INST_NAME_LEN        40
 #define BULK_BUFFER_SIZE    16384
 #define ACC_STRING_SIZE     256
 
@@ -193,6 +197,11 @@ static struct usb_gadget_strings *acc_strings[] = {
 
 /* temporary variable used between acc_open() and acc_gadget_bind() */
 static struct acc_dev *_acc_dev;
+
+struct acc_instance {
+	struct usb_function_instance func_inst;
+	const char *name;
+};
 
 static inline struct acc_dev *func_to_dev(struct usb_function *f)
 {
@@ -775,7 +784,7 @@ static struct hid_driver acc_hid_driver = {
 	.probe = acc_hid_probe,
 };
 
-static int acc_ctrlrequest(struct usb_composite_dev *cdev,
+int acc_ctrlrequest(struct usb_composite_dev *cdev,
 				const struct usb_ctrlrequest *ctrl)
 {
 	struct acc_dev	*dev = _acc_dev;
@@ -879,9 +888,11 @@ err:
 			w_value, w_index, w_length);
 	return value;
 }
+EXPORT_SYMBOL_GPL(acc_ctrlrequest);
 
 static int
-acc_function_bind(struct usb_configuration *c, struct usb_function *f)
+__acc_function_bind(struct usb_configuration *c,
+			struct usb_function *f, bool configfs)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct acc_dev	*dev = func_to_dev(f);
@@ -890,6 +901,16 @@ acc_function_bind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(cdev, "acc_function_bind dev: %p\n", dev);
 
+	if (configfs) {
+		if (acc_string_defs[INTERFACE_STRING_INDEX].id == 0) {
+			ret = usb_string_id(c->cdev);
+			if (ret < 0)
+				return ret;
+			acc_string_defs[INTERFACE_STRING_INDEX].id = ret;
+			acc_interface_desc.iInterface = ret;
+		}
+		dev->cdev = c->cdev;
+	}
 	ret = hid_register_driver(&acc_hid_driver);
 	if (ret)
 		return ret;
@@ -920,6 +941,17 @@ acc_function_bind(struct usb_configuration *c, struct usb_function *f)
 			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
 			f->name, dev->ep_in->name, dev->ep_out->name);
 	return 0;
+}
+
+static int
+acc_function_bind(struct usb_configuration *c, struct usb_function *f) {
+	return __acc_function_bind(c, f, false);
+}
+
+static int
+acc_function_bind_configfs(struct usb_configuration *c,
+			struct usb_function *f) {
+	return __acc_function_bind(c, f, true);
 }
 
 static void
@@ -1179,11 +1211,12 @@ err:
 	return ret;
 }
 
-static void acc_disconnect(void)
+void acc_disconnect(void)
 {
 	/* unregister all HID devices if USB is disconnected */
 	kill_all_hid_devices(_acc_dev);
 }
+EXPORT_SYMBOL_GPL(acc_disconnect);
 
 static void acc_cleanup(void)
 {
@@ -1191,3 +1224,117 @@ static void acc_cleanup(void)
 	kfree(_acc_dev);
 	_acc_dev = NULL;
 }
+static struct acc_instance *to_acc_instance(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct acc_instance,
+		func_inst.group);
+}
+
+static void acc_attr_release(struct config_item *item)
+{
+	struct acc_instance *fi_acc = to_acc_instance(item);
+
+	usb_put_function_instance(&fi_acc->func_inst);
+}
+
+static struct configfs_item_operations acc_item_ops = {
+	.release        = acc_attr_release,
+};
+
+static struct config_item_type acc_func_type = {
+	.ct_item_ops    = &acc_item_ops,
+	.ct_owner       = THIS_MODULE,
+};
+
+static struct acc_instance *to_fi_acc(struct usb_function_instance *fi)
+{
+	return container_of(fi, struct acc_instance, func_inst);
+}
+
+static int acc_set_inst_name(struct usb_function_instance *fi, const char *name)
+{
+	struct acc_instance *fi_acc;
+	char *ptr;
+	int name_len;
+
+	name_len = strlen(name) + 1;
+	if (name_len > MAX_INST_NAME_LEN)
+		return -ENAMETOOLONG;
+
+	ptr = kstrndup(name, name_len, GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	fi_acc = to_fi_acc(fi);
+	fi_acc->name = ptr;
+	return 0;
+}
+
+static void acc_free_inst(struct usb_function_instance *fi)
+{
+	struct acc_instance *fi_acc;
+
+	fi_acc = to_fi_acc(fi);
+	kfree(fi_acc->name);
+	acc_cleanup();
+}
+
+static struct usb_function_instance *acc_alloc_inst(void)
+{
+	struct acc_instance *fi_acc;
+	struct acc_dev *dev;
+	int err;
+
+	fi_acc = kzalloc(sizeof(*fi_acc), GFP_KERNEL);
+	if (!fi_acc)
+		return ERR_PTR(-ENOMEM);
+	fi_acc->func_inst.set_inst_name = acc_set_inst_name;
+	fi_acc->func_inst.free_func_inst = acc_free_inst;
+
+	err = acc_setup();
+	if (err) {
+		kfree(fi_acc);
+		pr_err("Error setting ACCESSORY\n");
+		return ERR_PTR(err);
+	}
+
+	config_group_init_type_name(&fi_acc->func_inst.group,
+					"", &acc_func_type);
+	dev = _acc_dev;
+	return  &fi_acc->func_inst;
+}
+
+static void acc_free(struct usb_function *f)
+{
+/*NO-OP: no function specific resource allocation in mtp_alloc*/
+}
+
+int acc_ctrlrequest_configfs(struct usb_function *f,
+			const struct usb_ctrlrequest *ctrl) {
+	if (f->config != NULL && f->config->cdev != NULL)
+		return acc_ctrlrequest(f->config->cdev, ctrl);
+	else
+		return -1;
+}
+
+static struct usb_function *acc_alloc(struct usb_function_instance *fi)
+{
+	struct acc_dev *dev = _acc_dev;
+
+	pr_info("acc_alloc\n");
+
+	dev->function.name = "accessory";
+	dev->function.strings = acc_strings,
+	dev->function.fs_descriptors = fs_acc_descs;
+	dev->function.hs_descriptors = hs_acc_descs;
+	dev->function.bind = acc_function_bind_configfs;
+	dev->function.unbind = acc_function_unbind;
+	dev->function.set_alt = acc_function_set_alt;
+	dev->function.disable = acc_function_disable;
+	dev->function.free_func = acc_free;
+	dev->function.setup = acc_ctrlrequest_configfs;
+
+	return &dev->function;
+}
+DECLARE_USB_FUNCTION_INIT(accessory, acc_alloc_inst, acc_alloc);
+MODULE_LICENSE("GPL");
