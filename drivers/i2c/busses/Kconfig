@@ -720,7 +720,7 @@ config I2C_RIIC
 
 config I2C_RK3X
 	tristate "Rockchip RK3xxx I2C adapter"
-	depends on OF
+	depends on OF && COMMON_CLK
 	help
 	  Say Y here to include support for the I2C adapter in Rockchip RK3xxx
 	  SoCs.
