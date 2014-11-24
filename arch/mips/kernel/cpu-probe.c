@@ -898,6 +898,11 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 	switch (c->processor_id & PRID_IMP_MASK) {
+	case PRID_IMP_QEMU_GENERIC:
+		c->writecombine = _CACHE_UNCACHED;
+		c->cputype = CPU_QEMU_GENERIC;
+		__cpu_name[cpu] = "MIPS GENERIC QEMU";
+		break;
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;
 		c->writecombine = _CACHE_UNCACHED;
