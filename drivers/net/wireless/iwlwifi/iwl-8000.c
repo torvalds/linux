@@ -72,10 +72,10 @@
 #define IWL8000_UCODE_API_MAX	10
 
 /* Oldest version we won't warn about */
-#define IWL8000_UCODE_API_OK	8
+#define IWL8000_UCODE_API_OK	10
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	8
+#define IWL8000_UCODE_API_MIN	9
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
