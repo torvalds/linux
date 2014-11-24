@@ -79,6 +79,10 @@ menu "Processor type and features"
 config MMU
 	def_bool y
 
+config NR_CPUS
+	int
+	default "1"
+
 config NIOS2_ALIGNMENT_TRAP
 	bool "Catch alignment trap"
 	default y
