@@ -219,7 +219,7 @@ static struct usb_endpoint_descriptor ss_ep_in_desc = {
 	.wMaxPacketSize =       cpu_to_le16(1024),
 };
 
-struct usb_ss_ep_comp_descriptor ss_ep_in_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_ep_in_comp_desc = {
 	.bLength =              sizeof(ss_ep_in_comp_desc),
 	.bDescriptorType =      USB_DT_SS_ENDPOINT_COMP,
 };
@@ -231,7 +231,7 @@ static struct usb_endpoint_descriptor ss_ep_out_desc = {
 	.wMaxPacketSize =       cpu_to_le16(1024),
 };
 
-struct usb_ss_ep_comp_descriptor ss_ep_out_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_ep_out_comp_desc = {
 	.bLength =              sizeof(ss_ep_out_comp_desc),
 	.bDescriptorType =      USB_DT_SS_ENDPOINT_COMP,
 };
