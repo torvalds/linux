@@ -932,6 +932,21 @@ ieee80211_vif_chanctx_reservation_complete(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
+static void
+ieee80211_vif_update_chandef(struct ieee80211_sub_if_data *sdata,
+			     const struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_sub_if_data *vlan;
+
+	sdata->vif.bss_conf.chandef = *chandef;
+
+	if (sdata->vif.type != NL80211_IFTYPE_AP)
+		return;
+
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		vlan->vif.bss_conf.chandef = *chandef;
+}
+
 static int
 ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 {
@@ -994,7 +1009,7 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	if (sdata->vif.bss_conf.chandef.width != sdata->reserved_chandef.width)
 		changed = BSS_CHANGED_BANDWIDTH;
 
-	sdata->vif.bss_conf.chandef = sdata->reserved_chandef;
+	ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
 
 	if (changed)
 		ieee80211_bss_info_change_notify(sdata, changed);
@@ -1336,7 +1351,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			    sdata->reserved_chandef.width)
 				changed = BSS_CHANGED_BANDWIDTH;
 
-			sdata->vif.bss_conf.chandef = sdata->reserved_chandef;
+			ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
 			if (changed)
 				ieee80211_bss_info_change_notify(sdata,
 								 changed);
@@ -1507,7 +1522,7 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	sdata->vif.bss_conf.chandef = *chandef;
+	ieee80211_vif_update_chandef(sdata, chandef);
 
 	ret = ieee80211_assign_vif_chanctx(sdata, ctx);
 	if (ret) {
@@ -1649,7 +1664,7 @@ int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	sdata->vif.bss_conf.chandef = *chandef;
+	ieee80211_vif_update_chandef(sdata, chandef);
 
 	ieee80211_recalc_chanctx_chantype(local, ctx);
 
