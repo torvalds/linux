@@ -143,6 +143,7 @@ obj-$(CONFIG_SCSI_VIRTIO)	+= virtio_scsi.o
 obj-$(CONFIG_VMWARE_PVSCSI)	+= vmw_pvscsi.o
 obj-$(CONFIG_XEN_SCSI_FRONTEND)	+= xen-scsifront.o
 obj-$(CONFIG_HYPERV_STORAGE)	+= hv_storvsc.o
+obj-$(CONFIG_SCSI_WD719X)	+= wd719x.o
 
 obj-$(CONFIG_ARM)		+= arm/
 
