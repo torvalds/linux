@@ -103,6 +103,11 @@ struct mixer_context {
 	atomic_t		wait_vsync_event;
 };
 
+static inline struct mixer_context *mgr_to_mixer(struct exynos_drm_manager *mgr)
+{
+	return container_of(mgr, struct mixer_context, manager);
+}
+
 struct mixer_drv_data {
 	enum mixer_version_id	version;
 	bool					is_vp_enabled;
@@ -853,7 +858,7 @@ static int mixer_initialize(struct exynos_drm_manager *mgr,
 			struct drm_device *drm_dev)
 {
 	int ret;
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 	struct exynos_drm_private *priv;
 	priv = drm_dev->dev_private;
 
@@ -884,7 +889,7 @@ static int mixer_initialize(struct exynos_drm_manager *mgr,
 
 static void mixer_mgr_remove(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 
 	if (is_drm_iommu_supported(mixer_ctx->drm_dev))
 		drm_iommu_detach_device(mixer_ctx->drm_dev, mixer_ctx->dev);
@@ -892,7 +897,7 @@ static void mixer_mgr_remove(struct exynos_drm_manager *mgr)
 
 static int mixer_enable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
 	if (!mixer_ctx->powered) {
@@ -909,7 +914,7 @@ static int mixer_enable_vblank(struct exynos_drm_manager *mgr)
 
 static void mixer_disable_vblank(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 
 	/* disable vsync interrupt */
@@ -919,7 +924,7 @@ static void mixer_disable_vblank(struct exynos_drm_manager *mgr)
 static void mixer_win_mode_set(struct exynos_drm_manager *mgr,
 			struct exynos_drm_overlay *overlay)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 	struct hdmi_win_data *win_data;
 	int win;
 
@@ -970,7 +975,7 @@ static void mixer_win_mode_set(struct exynos_drm_manager *mgr,
 
 static void mixer_win_commit(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 	int win = zpos == DEFAULT_ZPOS ? MIXER_DEFAULT_WIN : zpos;
 
 	DRM_DEBUG_KMS("win: %d\n", win);
@@ -992,7 +997,7 @@ static void mixer_win_commit(struct exynos_drm_manager *mgr, int zpos)
 
 static void mixer_win_disable(struct exynos_drm_manager *mgr, int zpos)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 	struct mixer_resources *res = &mixer_ctx->mixer_res;
 	int win = zpos == DEFAULT_ZPOS ? MIXER_DEFAULT_WIN : zpos;
 	unsigned long flags;
@@ -1020,7 +1025,7 @@ static void mixer_win_disable(struct exynos_drm_manager *mgr, int zpos)
 
 static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *mixer_ctx = mgr->ctx;
+	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 
 	mutex_lock(&mixer_ctx->mixer_mutex);
 	if (!mixer_ctx->powered) {
@@ -1047,7 +1052,7 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 
 static void mixer_window_suspend(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *ctx = mgr->ctx;
+	struct mixer_context *ctx = mgr_to_mixer(mgr);
 	struct hdmi_win_data *win_data;
 	int i;
 
@@ -1061,7 +1066,7 @@ static void mixer_window_suspend(struct exynos_drm_manager *mgr)
 
 static void mixer_window_resume(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *ctx = mgr->ctx;
+	struct mixer_context *ctx = mgr_to_mixer(mgr);
 	struct hdmi_win_data *win_data;
 	int i;
 
@@ -1076,7 +1081,7 @@ static void mixer_window_resume(struct exynos_drm_manager *mgr)
 
 static void mixer_poweron(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *ctx = mgr->ctx;
+	struct mixer_context *ctx = mgr_to_mixer(mgr);
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
@@ -1110,7 +1115,7 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 
 static void mixer_poweroff(struct exynos_drm_manager *mgr)
 {
-	struct mixer_context *ctx = mgr->ctx;
+	struct mixer_context *ctx = mgr_to_mixer(mgr);
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
@@ -1311,7 +1316,6 @@ static int mixer_probe(struct platform_device *pdev)
 	ctx->mxr_ver = drv->version;
 	init_waitqueue_head(&ctx->wait_vsync_queue);
 	atomic_set(&ctx->wait_vsync_event, 0);
-	ctx->manager.ctx = ctx;
 
 	platform_set_drvdata(pdev, ctx);
 
