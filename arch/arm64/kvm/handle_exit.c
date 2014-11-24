@@ -21,8 +21,10 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
-#include <asm/kvm_emulate.h>
+
+#include <asm/esr.h>
 #include <asm/kvm_coproc.h>
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_psci.h>
 
@@ -61,7 +63,7 @@ static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
  */
 static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	if (kvm_vcpu_get_hsr(vcpu) & ESR_EL2_EC_WFI_ISS_WFE)
+	if (kvm_vcpu_get_hsr(vcpu) & ESR_ELx_WFx_ISS_WFE)
 		kvm_vcpu_on_spin(vcpu);
 	else
 		kvm_vcpu_block(vcpu);
@@ -72,19 +74,19 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 static exit_handle_fn arm_exit_handlers[] = {
-	[ESR_EL2_EC_WFI]	= kvm_handle_wfx,
-	[ESR_EL2_EC_CP15_32]	= kvm_handle_cp15_32,
-	[ESR_EL2_EC_CP15_64]	= kvm_handle_cp15_64,
-	[ESR_EL2_EC_CP14_MR]	= kvm_handle_cp14_32,
-	[ESR_EL2_EC_CP14_LS]	= kvm_handle_cp14_load_store,
-	[ESR_EL2_EC_CP14_64]	= kvm_handle_cp14_64,
-	[ESR_EL2_EC_HVC32]	= handle_hvc,
-	[ESR_EL2_EC_SMC32]	= handle_smc,
-	[ESR_EL2_EC_HVC64]	= handle_hvc,
-	[ESR_EL2_EC_SMC64]	= handle_smc,
-	[ESR_EL2_EC_SYS64]	= kvm_handle_sys_reg,
-	[ESR_EL2_EC_IABT]	= kvm_handle_guest_abort,
-	[ESR_EL2_EC_DABT]	= kvm_handle_guest_abort,
+	[ESR_ELx_EC_WFx]	= kvm_handle_wfx,
+	[ESR_ELx_EC_CP15_32]	= kvm_handle_cp15_32,
+	[ESR_ELx_EC_CP15_64]	= kvm_handle_cp15_64,
+	[ESR_ELx_EC_CP14_MR]	= kvm_handle_cp14_32,
+	[ESR_ELx_EC_CP14_LS]	= kvm_handle_cp14_load_store,
+	[ESR_ELx_EC_CP14_64]	= kvm_handle_cp14_64,
+	[ESR_ELx_EC_HVC32]	= handle_hvc,
+	[ESR_ELx_EC_SMC32]	= handle_smc,
+	[ESR_ELx_EC_HVC64]	= handle_hvc,
+	[ESR_ELx_EC_SMC64]	= handle_smc,
+	[ESR_ELx_EC_SYS64]	= kvm_handle_sys_reg,
+	[ESR_ELx_EC_IABT_LOW]	= kvm_handle_guest_abort,
+	[ESR_ELx_EC_DABT_LOW]	= kvm_handle_guest_abort,
 };
 
 static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
