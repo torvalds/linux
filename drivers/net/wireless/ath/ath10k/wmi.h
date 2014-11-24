@@ -1952,6 +1952,11 @@ struct wmi_ssid_list {
 #define WLAN_SCAN_PARAMS_MAX_BSSID   4
 #define WLAN_SCAN_PARAMS_MAX_IE_LEN  256
 
+/* Values lower than this may be refused by some firmware revisions with a scan
+ * completion with a timedout reason.
+ */
+#define WMI_SCAN_CHAN_MIN_TIME_MSEC 40
+
 /* Scan priority numbers must be sequential, starting with 0 */
 enum wmi_scan_priority {
 	WMI_SCAN_PRIORITY_VERY_LOW = 0,
