@@ -3451,8 +3451,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	hsotg->clk = devm_clk_get(dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
 		hsotg->clk = NULL;
-		dev_err(dev, "cannot get otg clock\n");
-		return PTR_ERR(hsotg->clk);
+		dev_dbg(dev, "cannot get otg clock\n");
 	}
 
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
@@ -3461,7 +3460,12 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 
 	/* reset the system */
 
-	clk_prepare_enable(hsotg->clk);
+	ret = clk_prepare_enable(hsotg->clk);
+	if (ret) {
+		dev_err(dev, "failed to enable otg clk\n");
+		goto err_clk;
+	}
+
 
 	/* regulators */
 
