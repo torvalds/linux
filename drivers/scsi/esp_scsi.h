@@ -25,6 +25,7 @@
 #define ESP_CTEST	0x0aUL		/* wo  Chip test register      0x28  */
 #define ESP_CFG2	0x0bUL		/* rw  Second cfg register     0x2c  */
 #define ESP_CFG3	0x0cUL		/* rw  Third cfg register      0x30  */
+#define ESP_CFG4	0x0dUL		/* rw  Fourth cfg register     0x34  */
 #define ESP_TCHI	0x0eUL		/* rw  High bits transf count  0x38  */
 #define ESP_UID		ESP_TCHI	/* ro  Unique ID code          0x38  */
 #define FAS_RLO		ESP_TCHI	/* rw  HME extended counter    0x38  */
@@ -75,6 +76,18 @@
 #define ESP_CONFIG3_EWIDE     0x40     /* Enable Wide-SCSI     (hme)         */
 #define ESP_CONFIG3_IMS       0x80     /* ID msg chk'ng        (esp/fas236)  */
 #define ESP_CONFIG3_OBPUSH    0x80     /* Push odd-byte to dma (hme)         */
+
+/* ESP config register 4 read-write, found only on am53c974 chips */
+#define ESP_CONFIG4_RADE      0x04     /* Active negation */
+#define ESP_CONFIG4_RAE       0x08     /* Active negation on REQ and ACK */
+#define ESP_CONFIG4_PWD       0x20     /* Reduced power feature */
+#define ESP_CONFIG4_GE0       0x40     /* Glitch eater bit 0 */
+#define ESP_CONFIG4_GE1       0x80     /* Glitch eater bit 1 */
+
+#define ESP_CONFIG_GE_12NS    (0)
+#define ESP_CONFIG_GE_25NS    (ESP_CONFIG_GE1)
+#define ESP_CONFIG_GE_35NS    (ESP_CONFIG_GE0)
+#define ESP_CONFIG_GE_0NS     (ESP_CONFIG_GE0 | ESP_CONFIG_GE1)
 
 /* ESP command register read-write */
 /* Group 1 commands:  These may be sent at any point in time to the ESP
@@ -254,6 +267,7 @@ enum esp_rev {
 	FAS100A    = 0x04,
 	FAST       = 0x05,
 	FASHME     = 0x06,
+	PCSCSI     = 0x07,  /* AM53c974 */
 };
 
 struct esp_cmd_entry {
@@ -466,6 +480,7 @@ struct esp {
 	u8			bursts;
 	u8			config1;
 	u8			config2;
+	u8			config4;
 
 	u8			scsi_id;
 	u32			scsi_id_mask;

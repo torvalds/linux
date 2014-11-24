@@ -268,6 +268,19 @@ static void esp_reset_esp(struct esp *esp)
 	} else {
 		esp->min_period = ((5 * esp->ccycle) / 1000);
 	}
+	if (esp->rev == FAS236) {
+		/*
+		 * The AM53c974 chip returns the same ID as FAS236;
+		 * try to configure glitch eater.
+		 */
+		u8 config4 = ESP_CONFIG4_GE1;
+		esp_write8(config4, ESP_CFG4);
+		config4 = esp_read8(ESP_CFG4);
+		if (config4 & ESP_CONFIG4_GE1) {
+			esp->rev = PCSCSI;
+			esp_write8(esp->config4, ESP_CFG4);
+		}
+	}
 	esp->max_period = (esp->max_period + 3)>>2;
 	esp->min_period = (esp->min_period + 3)>>2;
 
@@ -293,7 +306,8 @@ static void esp_reset_esp(struct esp *esp)
 		/* fallthrough... */
 
 	case FAS236:
-		/* Fast 236 or HME */
+	case PCSCSI:
+		/* Fast 236, AM53c974 or HME */
 		esp_write8(esp->config2, ESP_CFG2);
 		if (esp->rev == FASHME) {
 			u8 cfg3 = esp->target[0].esp_config3;
@@ -2364,6 +2378,7 @@ static const char *esp_chip_names[] = {
 	"FAS100A",
 	"FAST",
 	"FASHME",
+	"AM53C974",
 };
 
 static struct scsi_transport_template *esp_transport_template;

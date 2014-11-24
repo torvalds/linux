@@ -368,6 +368,8 @@ static void dc390_check_eeprom(struct esp *esp)
 	}
 	esp->scsi_id = EEbuf[DC390_EE_ADAPT_SCSI_ID];
 	esp->num_tags = 2 << EEbuf[DC390_EE_TAG_CMD_NUM];
+	if (EEbuf[DC390_EE_MODE2] & DC390_EE_MODE2_ACTIVE_NEGATION)
+		esp->config4 |= ESP_CONFIG4_RADE | ESP_CONFIG4_RAE;
 }
 
 static int pci_esp_probe_one(struct pci_dev *pdev,
