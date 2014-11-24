@@ -51,8 +51,8 @@
 	movq %r8, R8(%rsp)
 	movq %r9, R9(%rsp)
 	 /* Move RIP to its proper location */
-	movq SS+8(%rsp), %rdx
-	movq %rdx, RIP(%rsp)
+	movq SS+8(%rsp), %rdi
+	movq %rdi, RIP(%rsp)
 	.endm
 
 .macro restore_mcount_regs skip=0
@@ -75,8 +75,7 @@ GLOBAL(\trace_label)
 	/* Load the ftrace_ops into the 3rd parameter */
 	movq function_trace_op(%rip), %rdx
 
-	/* Load ip into the first parameter */
-	movq RIP(%rsp), %rdi
+	/* %rdi already has %rip from the save_mcount_regs macro */
 	subq $MCOUNT_INSN_SIZE, %rdi
 	/* Load the parent_ip into the second parameter */
 #ifdef CC_USING_FENTRY
