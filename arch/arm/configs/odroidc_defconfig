@@ -1083,7 +1083,7 @@ CONFIG_MESON_CS_DCDC_REGULATOR=y
 #
 # Security key Support
 #
-CONFIG_SECURITYKEY=y
+# CONFIG_SECURITYKEY is not set
 
 #
 # key management Support
