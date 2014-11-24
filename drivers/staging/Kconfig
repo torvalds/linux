@@ -86,8 +86,6 @@ source "drivers/staging/gdm72xx/Kconfig"
 
 source "drivers/staging/gdm724x/Kconfig"
 
-source "drivers/staging/imx-drm/Kconfig"
-
 source "drivers/staging/fwserial/Kconfig"
 
 source "drivers/staging/goldfish/Kconfig"
