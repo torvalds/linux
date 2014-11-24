@@ -105,4 +105,14 @@ config KXCJK1013
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxcjk-1013.
 
+config MMA9551
+	tristate "Freescale MMA9551L Intelligent Motion-Sensing Platform Driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Freescale MMA9551L
+	  Intelligent Motion-Sensing Platform Driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma9551.
+
 endmenu
