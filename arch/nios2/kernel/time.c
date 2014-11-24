@@ -33,7 +33,6 @@
 struct nios2_timer {
 	void __iomem *base;
 	unsigned long freq;
-	int irq;
 };
 
 struct nios2_clockevent_dev {
@@ -232,7 +231,6 @@ static __init void nios2_clockevent_init(struct device_node *timer)
 		panic("Unable to parse timer irq\n");
 
 	nios2_ce.timer.base = iobase;
-	nios2_ce.timer.irq = irq;
 	nios2_ce.timer.freq = freq;
 
 	nios2_ce.ced.cpumask = cpumask_of(0);
