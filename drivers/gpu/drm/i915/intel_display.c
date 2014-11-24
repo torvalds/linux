@@ -9618,10 +9618,9 @@ static void intel_mmio_flip_work_func(struct work_struct *work)
 
 	mmio_flip = &crtc->mmio_flip;
 	if (mmio_flip->req)
-		WARN_ON(__i915_wait_seqno(i915_gem_request_get_ring(mmio_flip->req),
-					  i915_gem_request_get_seqno(mmio_flip->req),
-					  crtc->reset_counter,
-					  false, NULL, NULL) != 0);
+		WARN_ON(__i915_wait_request(mmio_flip->req,
+					    crtc->reset_counter,
+					    false, NULL, NULL) != 0);
 
 	intel_do_mmio_flip(crtc);
 	if (mmio_flip->req) {

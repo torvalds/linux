@@ -1189,10 +1189,9 @@ static bool can_wait_boost(struct drm_i915_file_private *file_priv)
 }
 
 /**
- * __i915_wait_seqno - wait until execution of seqno has finished
- * @ring: the ring expected to report seqno
- * @seqno: duh!
- * @reset_counter: reset sequence associated with the given seqno
+ * __i915_wait_request - wait until execution of request has finished
+ * @req: duh!
+ * @reset_counter: reset sequence associated with the given request
  * @interruptible: do an interruptible wait (normally yes)
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
  *
@@ -1203,15 +1202,16 @@ static bool can_wait_boost(struct drm_i915_file_private *file_priv)
  * reset_counter _must_ be read before, and an appropriate smp_rmb must be
  * inserted.
  *
- * Returns 0 if the seqno was found within the alloted time. Else returns the
+ * Returns 0 if the request was found within the alloted time. Else returns the
  * errno with remaining time filled in timeout argument.
  */
-int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
+int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
 			bool interruptible,
 			s64 *timeout,
 			struct drm_i915_file_private *file_priv)
 {
+	struct intel_engine_cs *ring = i915_gem_request_get_ring(req);
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const bool irq_test_in_progress =
@@ -1223,7 +1223,8 @@ int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 
 	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
 
-	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
+	if (i915_seqno_passed(ring->get_seqno(ring, true),
+			      i915_gem_request_get_seqno(req)))
 		return 0;
 
 	timeout_expire = timeout ? jiffies + nsecs_to_jiffies((u64)*timeout) : 0;
@@ -1240,7 +1241,8 @@ int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 		return -ENODEV;
 
 	/* Record current time in case interrupted by signal, or wedged */
-	trace_i915_gem_request_wait_begin(ring, seqno);
+	trace_i915_gem_request_wait_begin(i915_gem_request_get_ring(req),
+					  i915_gem_request_get_seqno(req));
 	before = ktime_get_raw_ns();
 	for (;;) {
 		struct timer_list timer;
@@ -1259,7 +1261,8 @@ int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 			break;
 		}
 
-		if (i915_seqno_passed(ring->get_seqno(ring, false), seqno)) {
+		if (i915_seqno_passed(ring->get_seqno(ring, false),
+				      i915_gem_request_get_seqno(req))) {
 			ret = 0;
 			break;
 		}
@@ -1291,7 +1294,8 @@ int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 		}
 	}
 	now = ktime_get_raw_ns();
-	trace_i915_gem_request_wait_end(ring, seqno);
+	trace_i915_gem_request_wait_end(i915_gem_request_get_ring(req),
+					i915_gem_request_get_seqno(req));
 
 	if (!irq_test_in_progress)
 		ring->irq_put(ring);
@@ -1338,8 +1342,8 @@ i915_wait_request(struct drm_i915_gem_request *req)
 
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	i915_gem_request_reference(req);
-	ret = __i915_wait_seqno(req->ring, i915_gem_request_get_seqno(req),
-				reset_counter, interruptible, NULL, NULL);
+	ret = __i915_wait_request(req, reset_counter,
+				  interruptible, NULL, NULL);
 	i915_gem_request_unreference(req);
 	return ret;
 }
@@ -1395,7 +1399,6 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	struct drm_i915_gem_request *req;
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = obj->ring;
 	unsigned reset_counter;
 	int ret;
 
@@ -1417,8 +1420,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 	i915_gem_request_reference(req);
 	mutex_unlock(&dev->struct_mutex);
-	ret = __i915_wait_seqno(ring, i915_gem_request_get_seqno(req),
-				reset_counter, true, NULL, file_priv);
+	ret = __i915_wait_request(req, reset_counter, true, NULL, file_priv);
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_request_unreference(req);
 	if (ret)
@@ -2917,9 +2919,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_i915_gem_wait *args = data;
 	struct drm_i915_gem_object *obj;
 	struct drm_i915_gem_request *req;
-	struct intel_engine_cs *ring = NULL;
 	unsigned reset_counter;
-	u32 seqno = 0;
 	int ret = 0;
 
 	if (args->flags != 0)
@@ -2944,9 +2944,6 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto out;
 
 	req = obj->last_read_req;
-	seqno = i915_gem_request_get_seqno(req);
-	WARN_ON(seqno == 0);
-	ring = obj->ring;
 
 	/* Do this after OLR check to make sure we make forward progress polling
 	 * on this IOCTL with a timeout <=0 (like busy ioctl)
@@ -2961,8 +2958,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	i915_gem_request_reference(req);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __i915_wait_seqno(ring, seqno, reset_counter, true, &args->timeout_ns,
-			   file->driver_priv);
+	ret = __i915_wait_request(req, reset_counter, true, &args->timeout_ns,
+				  file->driver_priv);
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_request_unreference(req);
 	mutex_unlock(&dev->struct_mutex);
@@ -4127,9 +4124,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (target == NULL)
 		return 0;
 
-	ret = __i915_wait_seqno(i915_gem_request_get_ring(target),
-				i915_gem_request_get_seqno(target),
-				reset_counter, true, NULL, NULL);
+	ret = __i915_wait_request(target, reset_counter, true, NULL, NULL);
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
