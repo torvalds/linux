@@ -2327,9 +2327,10 @@ static int bcm2048_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(capability->card, BCM2048_DRIVER_CARD,
 		sizeof(capability->card));
 	snprintf(capability->bus_info, 32, "I2C: 0x%X", bdev->client->addr);
-	capability->version = BCM2048_DRIVER_VERSION;
-	capability->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+	capability->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
 					V4L2_CAP_HW_FREQ_SEEK;
+	capability->capabilities = capability->device_caps |
+		V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
