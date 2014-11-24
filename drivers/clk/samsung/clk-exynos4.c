@@ -505,7 +505,7 @@ static struct samsung_fixed_rate_clock exynos4_fixed_rate_ext_clks[] __initdata 
 /* fixed rate clocks generated inside the soc */
 static struct samsung_fixed_rate_clock exynos4_fixed_rate_clks[] __initdata = {
 	FRATE(0, "sclk_hdmi24m", NULL, CLK_IS_ROOT, 24000000),
-	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", NULL, CLK_IS_ROOT, 27000000),
+	FRATE(CLK_SCLK_HDMIPHY, "sclk_hdmiphy", "hdmi", 0, 27000000),
 	FRATE(0, "sclk_usbphy0", NULL, CLK_IS_ROOT, 48000000),
 };
 
