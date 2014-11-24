@@ -21,6 +21,9 @@
 # define function_hook	mcount
 #endif
 
+/* Size of stack used to save mcount regs in save_mcount_regs */
+#define MCOUNT_REG_SIZE		(SS+8)
+
 /*
  * gcc -pg option adds a call to 'mcount' in most functions.
  * When -mfentry is used, the call is to 'fentry' and not 'mcount'
@@ -42,7 +45,7 @@
 	 /*
 	  * We add enough stack to save all regs.
 	  */
-	subq $(SS+8), %rsp
+	subq $MCOUNT_REG_SIZE, %rsp
 	movq %rax, RAX(%rsp)
 	movq %rcx, RCX(%rsp)
 	movq %rdx, RDX(%rsp)
@@ -51,7 +54,7 @@
 	movq %r8, R8(%rsp)
 	movq %r9, R9(%rsp)
 	 /* Move RIP to its proper location */
-	movq SS+8+\added(%rsp), %rdi
+	movq MCOUNT_REG_SIZE+\added(%rsp), %rdi
 	movq %rdi, RIP(%rsp)
 	.endm
 
@@ -63,7 +66,7 @@
 	movq RDX(%rsp), %rdx
 	movq RCX(%rsp), %rcx
 	movq RAX(%rsp), %rax
-	addq $(SS+8), %rsp
+	addq $MCOUNT_REG_SIZE, %rsp
 	.endm
 
 /* skip is set if stack has been adjusted */
@@ -79,7 +82,7 @@ GLOBAL(\trace_label)
 	subq $MCOUNT_INSN_SIZE, %rdi
 	/* Load the parent_ip into the second parameter */
 #ifdef CC_USING_FENTRY
-	movq SS+16+\added(%rsp), %rsi
+	movq MCOUNT_REG_SIZE+8+\added(%rsp), %rsi
 #else
 	movq 8+\added(%rbp), %rsi
 #endif
@@ -172,7 +175,7 @@ ENTRY(ftrace_regs_caller)
 	movq %rbp, RBP(%rsp)
 	movq %rbx, RBX(%rsp)
 	/* Copy saved flags */
-	movq SS+8(%rsp), %rcx
+	movq MCOUNT_REG_SIZE(%rsp), %rcx
 	movq %rcx, EFLAGS(%rsp)
 	/* Kernel segments */
 	movq $__KERNEL_DS, %rcx
@@ -180,7 +183,7 @@ ENTRY(ftrace_regs_caller)
 	movq $__KERNEL_CS, %rcx
 	movq %rcx, CS(%rsp)
 	/* Stack - skipping return address and flags */
-	leaq SS+8*3(%rsp), %rcx
+	leaq MCOUNT_REG_SIZE+8*2(%rsp), %rcx
 	movq %rcx, RSP(%rsp)
 
 	/* regs go into 4th parameter */
@@ -195,11 +198,11 @@ GLOBAL(ftrace_regs_call)
 
 	/* Copy flags back to SS, to restore them */
 	movq EFLAGS(%rsp), %rax
-	movq %rax, SS+8(%rsp)
+	movq %rax, MCOUNT_REG_SIZE(%rsp)
 
 	/* Handlers can change the RIP */
 	movq RIP(%rsp), %rax
-	movq %rax, SS+8*2(%rsp)
+	movq %rax, MCOUNT_REG_SIZE+8(%rsp)
 
 	/* restore the rest of pt_regs */
 	movq R15(%rsp), %r15
@@ -224,9 +227,6 @@ GLOBAL(ftrace_regs_call)
 GLOBAL(ftrace_regs_caller_end)
 
 	jmp ftrace_return
-
-	popfq
-	jmp  ftrace_stub
 
 END(ftrace_regs_caller)
 
@@ -266,7 +266,7 @@ ENTRY(ftrace_graph_caller)
 	save_mcount_regs
 
 #ifdef CC_USING_FENTRY
-	leaq SS+16(%rsp), %rdi
+	leaq MCOUNT_REG_SIZE+8(%rsp), %rdi
 	movq $0, %rdx	/* No framepointers needed */
 #else
 	leaq 8(%rbp), %rdi
