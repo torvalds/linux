@@ -15,21 +15,6 @@
 
 
 #ifdef CONFIG_BLOCK
-static inline void scsi_set_tag_type(struct scsi_device *sdev, int tag)
-{
-	switch (tag) {
-	case MSG_ORDERED_TAG:
-	case MSG_SIMPLE_TAG:
-		sdev->simple_tags = 1;
-		break;
-	case 0:
-		/* fall through */
-	default:
-		sdev->simple_tags = 0;
-		break;
-	}
-}
-
 static inline struct scsi_cmnd *scsi_mq_find_tag(struct Scsi_Host *shost,
 						 int unique_tag)
 {

@@ -902,8 +902,8 @@ process_message(struct Scsi_Host *host,	struct NCR_700_Host_Parameters *hostdata
 			hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
 
 			SCp->device->tagged_supported = 0;
+			SCp->device->simple_tags = 0;
 			scsi_change_queue_depth(SCp->device, host->cmd_per_lun);
-			scsi_set_tag_type(SCp->device, 0);
 		} else {
 			shost_printk(KERN_WARNING, host,
 				"(%d:%d) Unexpected REJECT Message %s\n",
