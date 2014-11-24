@@ -2817,17 +2817,86 @@ static int load_mapping(void *context, dm_oblock_t oblock, dm_cblock_t cblock,
 	return 0;
 }
 
+/*
+ * The discard block size in the on disk metadata is not
+ * neccessarily the same as we're currently using.  So we have to
+ * be careful to only set the discarded attribute if we know it
+ * covers a complete block of the new size.
+ */
+struct discard_load_info {
+	struct cache *cache;
+
+	/*
+	 * These blocks are sized using the on disk dblock size, rather
+	 * than the current one.
+	 */
+	dm_block_t block_size;
+	dm_block_t discard_begin, discard_end;
+};
+
+static void discard_load_info_init(struct cache *cache,
+				   struct discard_load_info *li)
+{
+	li->cache = cache;
+	li->discard_begin = li->discard_end = 0;
+}
+
+static void set_discard_range(struct discard_load_info *li)
+{
+	sector_t b, e;
+
+	if (li->discard_begin == li->discard_end)
+		return;
+
+	/*
+	 * Convert to sectors.
+	 */
+	b = li->discard_begin * li->block_size;
+	e = li->discard_end * li->block_size;
+
+	/*
+	 * Then convert back to the current dblock size.
+	 */
+	b = dm_sector_div_up(b, li->cache->discard_block_size);
+	sector_div(e, li->cache->discard_block_size);
+
+	/*
+	 * The origin may have shrunk, so we need to check we're still in
+	 * bounds.
+	 */
+	if (e > from_dblock(li->cache->discard_nr_blocks))
+		e = from_dblock(li->cache->discard_nr_blocks);
+
+	for (; b < e; b++)
+		set_discard(li->cache, to_dblock(b));
+}
+
 static int load_discard(void *context, sector_t discard_block_size,
 			dm_dblock_t dblock, bool discard)
 {
-	struct cache *cache = context;
+	struct discard_load_info *li = context;
 
-	/* FIXME: handle mis-matched block size */
+	li->block_size = discard_block_size;
 
-	if (discard)
-		set_discard(cache, dblock);
-	else
-		clear_discard(cache, dblock);
+	if (discard) {
+		if (from_dblock(dblock) == li->discard_end)
+			/*
+			 * We're already in a discard range, just extend it.
+			 */
+			li->discard_end = li->discard_end + 1ULL;
+
+		else {
+			/*
+			 * Emit the old range and start a new one.
+			 */
+			set_discard_range(li);
+			li->discard_begin = from_dblock(dblock);
+			li->discard_end = li->discard_begin + 1ULL;
+		}
+	} else {
+		set_discard_range(li);
+		li->discard_begin = li->discard_end = 0;
+	}
 
 	return 0;
 }
@@ -2911,11 +2980,22 @@ static int cache_preresume(struct dm_target *ti)
 	}
 
 	if (!cache->loaded_discards) {
-		r = dm_cache_load_discards(cache->cmd, load_discard, cache);
+		struct discard_load_info li;
+
+		/*
+		 * The discard bitset could have been resized, or the
+		 * discard block size changed.  To be safe we start by
+		 * setting every dblock to not discarded.
+		 */
+		clear_bitset(cache->discard_bitset, from_dblock(cache->discard_nr_blocks));
+
+		discard_load_info_init(cache, &li);
+		r = dm_cache_load_discards(cache->cmd, load_discard, &li);
 		if (r) {
 			DMERR("could not load origin discards");
 			return r;
 		}
+		set_discard_range(&li);
 
 		cache->loaded_discards = true;
 	}
