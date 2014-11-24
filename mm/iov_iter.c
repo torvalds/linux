@@ -479,6 +479,19 @@ size_t iov_iter_single_seg_count(const struct iov_iter *i)
 }
 EXPORT_SYMBOL(iov_iter_single_seg_count);
 
+void iov_iter_kvec(struct iov_iter *i, int direction,
+			const struct kvec *iov, unsigned long nr_segs,
+			size_t count)
+{
+	BUG_ON(!(direction & ITER_KVEC));
+	i->type = direction;
+	i->kvec = (struct kvec *)iov;
+	i->nr_segs = nr_segs;
+	i->iov_offset = 0;
+	i->count = count;
+}
+EXPORT_SYMBOL(iov_iter_kvec);
+
 unsigned long iov_iter_alignment(const struct iov_iter *i)
 {
 	unsigned long res = 0;
