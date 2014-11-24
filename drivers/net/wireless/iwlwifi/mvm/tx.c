@@ -73,9 +73,9 @@
 /*
  * Sets most of the Tx cmd's fields
  */
-static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
-			       struct iwl_tx_cmd *tx_cmd,
-			       struct ieee80211_tx_info *info, u8 sta_id)
+void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
+			struct iwl_tx_cmd *tx_cmd,
+			struct ieee80211_tx_info *info, u8 sta_id)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
@@ -149,11 +149,9 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 /*
  * Sets the fields in the Tx cmd that are rate related
  */
-static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
-				    struct iwl_tx_cmd *tx_cmd,
-				    struct ieee80211_tx_info *info,
-				    struct ieee80211_sta *sta,
-				    __le16 fc)
+void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
+			    struct ieee80211_tx_info *info,
+			    struct ieee80211_sta *sta, __le16 fc)
 {
 	u32 rate_flags;
 	int rate_idx;
@@ -232,10 +230,10 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
-static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
-				      struct ieee80211_tx_info *info,
-				      struct iwl_tx_cmd *tx_cmd,
-				      struct sk_buff *skb_frag)
+void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
+			       struct ieee80211_tx_info *info,
+			       struct iwl_tx_cmd *tx_cmd,
+			       struct sk_buff *skb_frag)
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
@@ -425,6 +423,13 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	memcpy(tx_cmd->hdr, hdr, ieee80211_hdrlen(fc));
 
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
+
+	if (sta->tdls) {
+		/* default to TID 0 for non-QoS packets */
+		u8 tdls_tid = tid == IWL_MAX_TID_COUNT ? 0 : tid;
+
+		txq_id = mvmsta->hw_queue[tid_to_mac80211_ac[tdls_tid]];
+	}
 
 	if (is_ampdu) {
 		if (WARN_ON_ONCE(mvmsta->tid_data[tid].state != IWL_AGG_ON))
@@ -660,6 +665,12 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 		}
 
+		/*
+		 * TODO: this is not accurate if we are freeing more than one
+		 * packet.
+		 */
+		info->status.tx_time =
+			le16_to_cpu(tx_resp->wireless_media_time);
 		BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 		info->status.status_driver_data[0] =
 				(void *)(uintptr_t)tx_resp->reduced_tpc;
@@ -852,6 +863,8 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		mvmsta->tid_data[tid].rate_n_flags =
 			le32_to_cpu(tx_resp->initial_rate);
 		mvmsta->tid_data[tid].reduced_tpc = tx_resp->reduced_tpc;
+		mvmsta->tid_data[tid].tx_time =
+			le16_to_cpu(tx_resp->wireless_media_time);
 	}
 
 	rcu_read_unlock();
@@ -880,6 +893,8 @@ static void iwl_mvm_tx_info_from_ba_notif(struct ieee80211_tx_info *info,
 	info->status.ampdu_len = ba_notif->txed;
 	iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
 				    info);
+	/* TODO: not accounted if the whole A-MPDU failed */
+	info->status.tx_time = tid_data->tx_time;
 	info->status.status_driver_data[0] =
 		(void *)(uintptr_t)tid_data->reduced_tpc;
 }

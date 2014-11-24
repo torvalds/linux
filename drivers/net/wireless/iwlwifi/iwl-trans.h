@@ -534,6 +534,8 @@ struct iwl_trans_ops {
 			      u32 value);
 	void (*ref)(struct iwl_trans *trans);
 	void (*unref)(struct iwl_trans *trans);
+	void (*suspend)(struct iwl_trans *trans);
+	void (*resume)(struct iwl_trans *trans);
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans);
 };
@@ -700,6 +702,18 @@ static inline void iwl_trans_unref(struct iwl_trans *trans)
 {
 	if (trans->ops->unref)
 		trans->ops->unref(trans);
+}
+
+static inline void iwl_trans_suspend(struct iwl_trans *trans)
+{
+	if (trans->ops->suspend)
+		trans->ops->suspend(trans);
+}
+
+static inline void iwl_trans_resume(struct iwl_trans *trans)
+{
+	if (trans->ops->resume)
+		trans->ops->resume(trans);
 }
 
 static inline struct iwl_trans_dump_data *

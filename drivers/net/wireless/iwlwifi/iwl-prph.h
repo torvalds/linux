@@ -349,10 +349,10 @@ enum secure_load_status_reg {
 
 #define LMPM_SECURE_INSPECTOR_CODE_MEM_SPACE	(0x400000)
 #define LMPM_SECURE_INSPECTOR_DATA_MEM_SPACE	(0x402000)
-#define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x420000)
-#define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
+#define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x404000)
+#define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x405000)
 
-#define LMPM_SECURE_TIME_OUT	(100)
+#define LMPM_SECURE_TIME_OUT	(50000) /* 5 msec */
 
 /* Rx FIFO */
 #define RXF_SIZE_ADDR			(0xa00c88)
@@ -367,5 +367,11 @@ enum secure_load_status_reg {
 #define MON_BUFF_END_ADDR		(0xa03c40)
 #define MON_BUFF_WRPTR			(0xa03c44)
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
+
+/* FW chicken bits */
+#define LMPM_CHICK			0xA01FF8
+enum {
+	LMPM_CHICK_EXTENDED_ADDR_SPACE = BIT(0),
+};
 
 #endif				/* __iwl_prph_h__ */
