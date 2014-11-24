@@ -724,6 +724,30 @@ static void tegra_dsi_disable(struct tegra_dsi *dsi)
 	usleep_range(5000, 10000);
 }
 
+static void tegra_dsi_soft_reset(struct tegra_dsi *dsi)
+{
+	u32 value;
+
+	value = tegra_dsi_readl(dsi, DSI_POWER_CONTROL);
+	value &= ~DSI_POWER_CONTROL_ENABLE;
+	tegra_dsi_writel(dsi, value, DSI_POWER_CONTROL);
+
+	usleep_range(300, 1000);
+
+	value = tegra_dsi_readl(dsi, DSI_POWER_CONTROL);
+	value |= DSI_POWER_CONTROL_ENABLE;
+	tegra_dsi_writel(dsi, value, DSI_POWER_CONTROL);
+
+	usleep_range(300, 1000);
+
+	value = tegra_dsi_readl(dsi, DSI_TRIGGER);
+	if (value)
+		tegra_dsi_writel(dsi, 0, DSI_TRIGGER);
+
+	if (dsi->slave)
+		tegra_dsi_soft_reset(dsi->slave);
+}
+
 static int tegra_output_dsi_disable(struct tegra_output *output)
 {
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
@@ -762,6 +786,7 @@ static int tegra_output_dsi_disable(struct tegra_output *output)
 	if (err < 0)
 		dev_dbg(dsi->dev, "failed to idle DSI: %d\n", err);
 
+	tegra_dsi_soft_reset(dsi);
 	tegra_dsi_disable(dsi);
 
 	dsi->enabled = false;
