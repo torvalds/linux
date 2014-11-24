@@ -271,8 +271,7 @@ static int oaktrail_backlight_init(void)
 
 static void oaktrail_backlight_exit(void)
 {
-	if (oaktrail_bl_device)
-		backlight_device_unregister(oaktrail_bl_device);
+	backlight_device_unregister(oaktrail_bl_device);
 }
 
 static int oaktrail_probe(struct platform_device *pdev)

@@ -1154,8 +1154,7 @@ fail_hotkey1:
 fail_hotkey:
 	platform_driver_unregister(&fujitsupf_driver);
 fail_backlight:
-	if (fujitsu->bl_device)
-		backlight_device_unregister(fujitsu->bl_device);
+	backlight_device_unregister(fujitsu->bl_device);
 fail_sysfs_group:
 	sysfs_remove_group(&fujitsu->pf_device->dev.kobj,
 			   &fujitsupf_attribute_group);
@@ -1179,8 +1178,7 @@ static void __exit fujitsu_cleanup(void)
 
 	platform_driver_unregister(&fujitsupf_driver);
 
-	if (fujitsu->bl_device)
-		backlight_device_unregister(fujitsu->bl_device);
+	backlight_device_unregister(fujitsu->bl_device);
 
 	sysfs_remove_group(&fujitsu->pf_device->dev.kobj,
 			   &fujitsupf_attribute_group);

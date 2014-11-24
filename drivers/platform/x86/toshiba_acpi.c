@@ -1797,8 +1797,7 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 		rfkill_destroy(dev->bt_rfk);
 	}
 
-	if (dev->backlight_dev)
-		backlight_device_unregister(dev->backlight_dev);
+	backlight_device_unregister(dev->backlight_dev);
 
 	if (dev->illumination_supported)
 		led_classdev_unregister(&dev->led_dev);

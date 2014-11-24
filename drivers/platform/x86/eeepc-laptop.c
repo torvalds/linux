@@ -1174,8 +1174,7 @@ static int eeepc_backlight_init(struct eeepc_laptop *eeepc)
 
 static void eeepc_backlight_exit(struct eeepc_laptop *eeepc)
 {
-	if (eeepc->backlight_device)
-		backlight_device_unregister(eeepc->backlight_device);
+	backlight_device_unregister(eeepc->backlight_device);
 	eeepc->backlight_device = NULL;
 }
 
