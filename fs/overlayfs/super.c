@@ -62,8 +62,6 @@ struct ovl_entry {
 
 #define OVL_MAX_STACK 500
 
-const char *ovl_opaque_xattr = "trusted.overlay.opaque";
-
 static struct dentry *__ovl_dentry_lower(struct ovl_entry *oe)
 {
 	return oe->numlower ? oe->lowerstack[0].dentry : NULL;
@@ -254,7 +252,7 @@ static bool ovl_is_opaquedir(struct dentry *dentry)
 	if (!S_ISDIR(inode->i_mode) || !inode->i_op->getxattr)
 		return false;
 
-	res = inode->i_op->getxattr(dentry, ovl_opaque_xattr, &val, 1);
+	res = inode->i_op->getxattr(dentry, OVL_XATTR_OPAQUE, &val, 1);
 	if (res == 1 && val == 'y')
 		return true;
 

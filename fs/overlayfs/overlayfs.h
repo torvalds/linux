@@ -23,7 +23,9 @@ enum ovl_path_type {
 #define OVL_TYPE_MERGE_OR_LOWER(type) \
 	(OVL_TYPE_MERGE(type) || !OVL_TYPE_UPPER(type))
 
-extern const char *ovl_opaque_xattr;
+#define OVL_XATTR_PRE_NAME "trusted.overlay."
+#define OVL_XATTR_PRE_LEN  16
+#define OVL_XATTR_OPAQUE   OVL_XATTR_PRE_NAME"opaque"
 
 static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 {

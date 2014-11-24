@@ -118,14 +118,14 @@ int ovl_create_real(struct inode *dir, struct dentry *newdentry,
 
 static int ovl_set_opaque(struct dentry *upperdentry)
 {
-	return ovl_do_setxattr(upperdentry, ovl_opaque_xattr, "y", 1, 0);
+	return ovl_do_setxattr(upperdentry, OVL_XATTR_OPAQUE, "y", 1, 0);
 }
 
 static void ovl_remove_opaque(struct dentry *upperdentry)
 {
 	int err;
 
-	err = ovl_do_removexattr(upperdentry, ovl_opaque_xattr);
+	err = ovl_do_removexattr(upperdentry, OVL_XATTR_OPAQUE);
 	if (err) {
 		pr_warn("overlayfs: failed to remove opaque from '%s' (%i)\n",
 			upperdentry->d_name.name, err);
