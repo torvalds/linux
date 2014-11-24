@@ -15,6 +15,7 @@
 
 #include <soc/tegra/pmc.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_panel.h>
 
@@ -737,6 +738,7 @@ static const struct drm_connector_funcs tegra_sor_connector_funcs = {
 	.detect = tegra_sor_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = tegra_output_connector_destroy,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int tegra_sor_connector_get_modes(struct drm_connector *connector)

@@ -9,6 +9,7 @@
 
 #include <linux/of_gpio.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_panel.h>
 #include "drm.h"
 

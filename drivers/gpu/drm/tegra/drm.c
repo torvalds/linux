@@ -121,8 +121,8 @@ static int tegra_drm_unload(struct drm_device *drm)
 
 	drm_kms_helper_poll_fini(drm);
 	tegra_drm_fb_exit(drm);
-	drm_vblank_cleanup(drm);
 	drm_mode_config_cleanup(drm);
+	drm_vblank_cleanup(drm);
 
 	err = host1x_device_exit(device);
 	if (err < 0)
