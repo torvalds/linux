@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(mmp_register_path);
 
 /*
  * mmp_unregister_path - unregister and destroy path
- * @p: path to be destoried.
+ * @p: path to be destroyed.
  *
  * this function registers path and destroys it.
  */
