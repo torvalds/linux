@@ -1643,8 +1643,6 @@ static bool vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 			vgic_dist_irq_clear_level(vcpu, irq_num);
 			if (!vgic_dist_irq_soft_pend(vcpu, irq_num))
 				vgic_dist_irq_clear_pending(vcpu, irq_num);
-		} else {
-			vgic_dist_irq_clear_pending(vcpu, irq_num);
 		}
 
 		ret = false;
