@@ -10,6 +10,8 @@
 #include <linux/host1x.h>
 #include <linux/iommu.h>
 
+#include <drm/drm_atomic_helper.h>
+
 #include "drm.h"
 #include "gem.h"
 
@@ -29,6 +31,8 @@ static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 	.output_poll_changed = tegra_fb_output_poll_changed,
 #endif
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
