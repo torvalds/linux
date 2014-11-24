@@ -2811,7 +2811,7 @@ void tipc_socket_stop(void)
 }
 
 /* Caller should hold socket lock for the passed tipc socket. */
-int __tipc_nl_add_sk_con(struct sk_buff *skb, struct tipc_sock *tsk)
+static int __tipc_nl_add_sk_con(struct sk_buff *skb, struct tipc_sock *tsk)
 {
 	u32 peer_node;
 	u32 peer_port;
@@ -2846,8 +2846,8 @@ msg_full:
 }
 
 /* Caller should hold socket lock for the passed tipc socket. */
-int __tipc_nl_add_sk(struct sk_buff *skb, struct netlink_callback *cb,
-		     struct tipc_sock *tsk)
+static int __tipc_nl_add_sk(struct sk_buff *skb, struct netlink_callback *cb,
+			    struct tipc_sock *tsk)
 {
 	int err;
 	void *hdr;
@@ -2912,8 +2912,9 @@ int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb)
 }
 
 /* Caller should hold socket lock for the passed tipc socket. */
-int __tipc_nl_add_sk_publ(struct sk_buff *skb, struct netlink_callback *cb,
-			  struct publication *publ)
+static int __tipc_nl_add_sk_publ(struct sk_buff *skb,
+				 struct netlink_callback *cb,
+				 struct publication *publ)
 {
 	void *hdr;
 	struct nlattr *attrs;
@@ -2950,8 +2951,9 @@ msg_cancel:
 }
 
 /* Caller should hold socket lock for the passed tipc socket. */
-int __tipc_nl_list_sk_publ(struct sk_buff *skb, struct netlink_callback *cb,
-			   struct tipc_sock *tsk, u32 *last_publ)
+static int __tipc_nl_list_sk_publ(struct sk_buff *skb,
+				  struct netlink_callback *cb,
+				  struct tipc_sock *tsk, u32 *last_publ)
 {
 	int err;
 	struct publication *p;

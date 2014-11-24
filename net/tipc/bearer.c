@@ -647,7 +647,8 @@ void tipc_bearer_stop(void)
 }
 
 /* Caller should hold rtnl_lock to protect the bearer */
-int __tipc_nl_add_bearer(struct tipc_nl_msg *msg, struct tipc_bearer *bearer)
+static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
+				struct tipc_bearer *bearer)
 {
 	void *hdr;
 	struct nlattr *attrs;
@@ -905,7 +906,8 @@ int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-int __tipc_nl_add_media(struct tipc_nl_msg *msg, struct tipc_media *media)
+static int __tipc_nl_add_media(struct tipc_nl_msg *msg,
+			       struct tipc_media *media)
 {
 	void *hdr;
 	struct nlattr *attrs;

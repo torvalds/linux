@@ -2514,7 +2514,8 @@ out:
 
 	return res;
 }
-int __tipc_nl_add_stats(struct sk_buff *skb, struct tipc_stats *s)
+
+static int __tipc_nl_add_stats(struct sk_buff *skb, struct tipc_stats *s)
 {
 	int i;
 	struct nlattr *stats;
@@ -2580,7 +2581,7 @@ msg_full:
 }
 
 /* Caller should hold appropriate locks to protect the link */
-int __tipc_nl_add_link(struct tipc_nl_msg *msg, struct tipc_link *link)
+static int __tipc_nl_add_link(struct tipc_nl_msg *msg, struct tipc_link *link)
 {
 	int err;
 	void *hdr;
@@ -2649,8 +2650,9 @@ msg_full:
 }
 
 /* Caller should hold node lock  */
-int __tipc_nl_add_node_links(struct tipc_nl_msg *msg, struct tipc_node *node,
-			     u32 *prev_link)
+static int __tipc_nl_add_node_links(struct tipc_nl_msg *msg,
+				    struct tipc_node *node,
+				    u32 *prev_link)
 {
 	u32 i;
 	int err;

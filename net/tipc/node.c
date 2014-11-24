@@ -609,7 +609,7 @@ void tipc_node_unlock(struct tipc_node *node)
 }
 
 /* Caller should hold node lock for the passed node */
-int __tipc_nl_add_node(struct tipc_nl_msg *msg, struct tipc_node *node)
+static int __tipc_nl_add_node(struct tipc_nl_msg *msg, struct tipc_node *node)
 {
 	void *hdr;
 	struct nlattr *attrs;

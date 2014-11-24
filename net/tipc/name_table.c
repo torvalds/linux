@@ -1002,8 +1002,9 @@ void tipc_nametbl_stop(void)
 	write_unlock_bh(&tipc_nametbl_lock);
 }
 
-int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg, struct name_seq *seq,
-				 struct sub_seq *sseq, u32 *last_publ)
+static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
+					struct name_seq *seq,
+					struct sub_seq *sseq, u32 *last_publ)
 {
 	void *hdr;
 	struct nlattr *attrs;
@@ -1071,8 +1072,8 @@ msg_full:
 	return -EMSGSIZE;
 }
 
-int __tipc_nl_subseq_list(struct tipc_nl_msg *msg, struct name_seq *seq,
-			  u32 *last_lower, u32 *last_publ)
+static int __tipc_nl_subseq_list(struct tipc_nl_msg *msg, struct name_seq *seq,
+				 u32 *last_lower, u32 *last_publ)
 {
 	struct sub_seq *sseq;
 	struct sub_seq *sseq_start;
@@ -1098,8 +1099,8 @@ int __tipc_nl_subseq_list(struct tipc_nl_msg *msg, struct name_seq *seq,
 	return 0;
 }
 
-int __tipc_nl_seq_list(struct tipc_nl_msg *msg, u32 *last_type, u32 *last_lower,
-		       u32 *last_publ)
+static int __tipc_nl_seq_list(struct tipc_nl_msg *msg, u32 *last_type,
+			      u32 *last_lower, u32 *last_publ)
 {
 	struct hlist_head *seq_head;
 	struct name_seq *seq;

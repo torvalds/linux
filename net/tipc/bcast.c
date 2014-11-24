@@ -767,7 +767,8 @@ void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action)
 	tipc_bclink_unlock();
 }
 
-int __tipc_nl_add_bc_link_stat(struct sk_buff *skb, struct tipc_stats *stats)
+static int __tipc_nl_add_bc_link_stat(struct sk_buff *skb,
+				      struct tipc_stats *stats)
 {
 	int i;
 	struct nlattr *nest;
