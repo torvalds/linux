@@ -1343,6 +1343,8 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 			  (((unsigned int)esp_read8(ESP_TCMED)) << 8));
 		if (esp->rev == FASHME)
 			ecount |= ((unsigned int)esp_read8(FAS_RLO)) << 16;
+		if (esp->rev == PCSCSI && (esp->config2 & ESP_CONFIG2_FENAB))
+			ecount |= ((unsigned int)esp_read8(ESP_TCHI)) << 16;
 	}
 
 	bytes_sent = esp->data_dma_len;

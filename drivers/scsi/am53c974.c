@@ -18,6 +18,7 @@
 #define DRV_MODULE_VERSION "1.00"
 
 static bool am53c974_debug;
+static bool am53c974_fenab = true;
 
 #define esp_dma_log(f, a...)						\
 	do {								\
@@ -256,6 +257,8 @@ static void pci_esp_send_dma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 
 	pci_esp_write8(esp, (esp_count >> 0) & 0xff, ESP_TCLOW);
 	pci_esp_write8(esp, (esp_count >> 8) & 0xff, ESP_TCMED);
+	if (esp->config2 & ESP_CONFIG2_FENAB)
+		pci_esp_write8(esp, (esp_count >> 16) & 0xff, ESP_TCHI);
 
 	pci_esp_write32(esp, esp_count, ESP_DMA_STC);
 	pci_esp_write32(esp, addr, ESP_DMA_SPA);
@@ -266,6 +269,33 @@ static void pci_esp_send_dma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 	scsi_esp_cmd(esp, cmd);
 	/* Send DMA Start command */
 	pci_esp_write8(esp, ESP_DMA_CMD_START | val, ESP_DMA_CMD);
+}
+
+static u32 pci_esp_dma_length_limit(struct esp *esp, u32 dma_addr, u32 dma_len)
+{
+	int dma_limit = 16;
+	u32 base, end;
+
+	/*
+	 * If CONFIG2_FENAB is set we can
+	 * handle up to 24 bit addresses
+	 */
+	if (esp->config2 & ESP_CONFIG2_FENAB)
+		dma_limit = 24;
+
+	if (dma_len > (1U << dma_limit))
+		dma_len = (1U << dma_limit);
+
+	/*
+	 * Prevent crossing a 24-bit address boundary.
+	 */
+	base = dma_addr & ((1U << 24) - 1U);
+	end = base + dma_len;
+	if (end > (1U << 24))
+		end = (1U <<24);
+	dma_len = end - base;
+
+	return dma_len;
 }
 
 static const struct esp_driver_ops pci_esp_ops = {
@@ -281,6 +311,7 @@ static const struct esp_driver_ops pci_esp_ops = {
 	.dma_invalidate	=	pci_esp_dma_invalidate,
 	.send_dma_cmd	=	pci_esp_send_dma_cmd,
 	.dma_error	=	pci_esp_dma_error,
+	.dma_length_limit =	pci_esp_dma_length_limit,
 };
 
 /*
@@ -418,6 +449,12 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 	 * DMA for command submission.
 	 */
 	esp->flags |= ESP_FLAG_USE_FIFO;
+	/*
+	 * Enable CONFIG2_FENAB to allow for large DMA transfers
+	 */
+	if (am53c974_fenab)
+		esp->config2 |= ESP_CONFIG2_FENAB;
+
 	pep->esp = esp;
 
 	if (pci_request_regions(pdev, DRV_MODULE_NAME)) {
@@ -540,6 +577,9 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 module_param(am53c974_debug, bool, 0644);
 MODULE_PARM_DESC(am53c974_debug, "Enable debugging");
+
+module_param(am53c974_fenab, bool, 0444);
+MODULE_PARM_DESC(am53c974_fenab, "Enable 24-bit DMA transfer sizes");
 
 module_init(am53c974_module_init);
 module_exit(am53c974_module_exit);
