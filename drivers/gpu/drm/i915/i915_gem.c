@@ -4263,7 +4263,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -4318,6 +4318,9 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_pin *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
