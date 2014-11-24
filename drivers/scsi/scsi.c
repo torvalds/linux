@@ -820,12 +820,6 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 
 	if (sdev->last_queue_full_count <= 10)
 		return 0;
-	if (sdev->last_queue_full_depth < 8) {
-		/* Drop back to untagged */
-		scsi_set_tag_type(sdev, 0);
-		scsi_change_queue_depth(sdev, sdev->host->cmd_per_lun);
-		return -1;
-	}
 
 	return scsi_change_queue_depth(sdev, depth);
 }
