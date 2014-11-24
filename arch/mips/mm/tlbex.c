@@ -514,6 +514,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		case CPU_PROAPTIV:
 		case CPU_P5600:
 		case CPU_M5150:
+		case CPU_QEMU_GENERIC:
 			break;
 
 		default:
