@@ -479,6 +479,20 @@ static struct em28xx_reg_seq pctv_292e[] = {
 	{-1,                             -1,   -1,     -1},
 };
 
+static struct em28xx_reg_seq terratec_t2_stick_hd[] = {
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0},
+	{0x0d,				0xff,	0xff,	600},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfc,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xbc,	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfc,	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0x00,	0xff,	300},
+	{EM2874_R80_GPIO_P0_CTRL,	0xf8,	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfc,	0xff,	300},
+	{0x0d,				0x42,	0xff,	1000},
+	{EM2874_R5F_TS_ENABLE,		0x85,	0xff,	0},
+	{-1,                             -1,   -1,     -1},
+};
+
 /*
  *  Button definitions
  */
@@ -2257,6 +2271,17 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	/* eb1a:8179 Terratec Cinergy T2 Stick HD.
+	 * Empia EM28178, Silicon Labs Si2168, Silicon Labs Si2146 */
+	[EM28178_BOARD_TERRATEC_T2_STICK_HD] = {
+		.name          = "Terratec Cinergy T2 Stick HD",
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = terratec_t2_stick_hd,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_TERRATEC_SLIM_2,
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2440,6 +2465,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_PCTV_292E },
 	{ USB_DEVICE(0x0413, 0x6f07),
 			.driver_info = EM2861_BOARD_LEADTEK_VC100 },
+	{ USB_DEVICE(0xeb1a, 0x8179),
+			.driver_info = EM28178_BOARD_TERRATEC_T2_STICK_HD },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
