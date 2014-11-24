@@ -50,6 +50,12 @@ struct tegra_drm {
 #endif
 
 	unsigned int pitch_align;
+
+	struct {
+		struct drm_atomic_state *state;
+		struct work_struct work;
+		struct mutex lock;
+	} commit;
 };
 
 struct tegra_drm_client;

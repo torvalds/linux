@@ -10,6 +10,7 @@
 #include <linux/host1x.h>
 #include <linux/iommu.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 
 #include "drm.h"
@@ -26,13 +27,90 @@ struct tegra_drm_file {
 	struct list_head contexts;
 };
 
+static void tegra_atomic_schedule(struct tegra_drm *tegra,
+				  struct drm_atomic_state *state)
+{
+	tegra->commit.state = state;
+	schedule_work(&tegra->commit.work);
+}
+
+static void tegra_atomic_complete(struct tegra_drm *tegra,
+				  struct drm_atomic_state *state)
+{
+	struct drm_device *drm = tegra->drm;
+
+	/*
+	 * Everything below can be run asynchronously without the need to grab
+	 * any modeset locks at all under one condition: It must be guaranteed
+	 * that the asynchronous work has either been cancelled (if the driver
+	 * supports it, which at least requires that the framebuffers get
+	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
+	 * before the new state gets committed on the software side with
+	 * drm_atomic_helper_swap_state().
+	 *
+	 * This scheme allows new atomic state updates to be prepared and
+	 * checked in parallel to the asynchronous completion of the previous
+	 * update. Which is important since compositors need to figure out the
+	 * composition of the next frame right after having submitted the
+	 * current layout.
+	 */
+
+	drm_atomic_helper_commit_pre_planes(drm, state);
+	drm_atomic_helper_commit_planes(drm, state);
+	drm_atomic_helper_commit_post_planes(drm, state);
+
+	drm_atomic_helper_wait_for_vblanks(drm, state);
+
+	drm_atomic_helper_cleanup_planes(drm, state);
+	drm_atomic_state_free(state);
+}
+
+static void tegra_atomic_work(struct work_struct *work)
+{
+	struct tegra_drm *tegra = container_of(work, struct tegra_drm,
+					       commit.work);
+
+	tegra_atomic_complete(tegra, tegra->commit.state);
+}
+
+static int tegra_atomic_commit(struct drm_device *drm,
+			       struct drm_atomic_state *state, bool async)
+{
+	struct tegra_drm *tegra = drm->dev_private;
+	int err;
+
+	err = drm_atomic_helper_prepare_planes(drm, state);
+	if (err)
+		return err;
+
+	/* serialize outstanding asynchronous commits */
+	mutex_lock(&tegra->commit.lock);
+	flush_work(&tegra->commit.work);
+
+	/*
+	 * This is the point of no return - everything below never fails except
+	 * when the hw goes bonghits. Which means we can commit the new state on
+	 * the software side now.
+	 */
+
+	drm_atomic_helper_swap_state(drm, state);
+
+	if (async)
+		tegra_atomic_schedule(tegra, state);
+	else
+		tegra_atomic_complete(tegra, state);
+
+	mutex_unlock(&tegra->commit.lock);
+	return 0;
+}
+
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 	.fb_create = tegra_fb_create,
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 	.output_poll_changed = tegra_fb_output_poll_changed,
 #endif
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = tegra_atomic_commit,
 };
 
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
@@ -58,6 +136,10 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
+
+	mutex_init(&tegra->commit.lock);
+	INIT_WORK(&tegra->commit.work, tegra_atomic_work);
+
 	drm->dev_private = tegra;
 	tegra->drm = drm;
 
