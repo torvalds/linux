@@ -1398,7 +1398,7 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"STENR Mux", "Sidetone Right", "ADCR"},
 	{"STENR Mux", "Sidetone Right", "DMICR"},
 	{"DACL", NULL, "STENL Mux"},
-	{"DACR", NULL, "STENL Mux"},
+	{"DACR", NULL, "STENR Mux"},
 
 	{"AIFINL", NULL, "SHDN"},
 	{"AIFINR", NULL, "SHDN"},
