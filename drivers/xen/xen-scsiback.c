@@ -606,7 +606,7 @@ static void scsiback_device_action(struct vscsibk_pend *pending_req,
 	init_waitqueue_head(&tmr->tmr_wait);
 
 	transport_init_se_cmd(se_cmd, tpg->se_tpg.se_tpg_tfo,
-		tpg->tpg_nexus->tvn_se_sess, 0, DMA_NONE, MSG_SIMPLE_TAG,
+		tpg->tpg_nexus->tvn_se_sess, 0, DMA_NONE, TCM_SIMPLE_TAG,
 		&pending_req->sense_buffer[0]);
 
 	rc = core_tmr_alloc_req(se_cmd, tmr, act, GFP_KERNEL);

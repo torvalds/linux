@@ -476,6 +476,12 @@ struct se_dif_v1_tuple {
 	__be32			ref_tag;
 };
 
+/* for sam_task_attr */
+#define TCM_SIMPLE_TAG	0x20
+#define TCM_HEAD_TAG	0x21
+#define TCM_ORDERED_TAG	0x22
+#define TCM_ACA_TAG	0x24
+
 struct se_cmd {
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;

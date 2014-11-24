@@ -6,11 +6,6 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 
-#define MSG_SIMPLE_TAG	0x20
-#define MSG_HEAD_TAG	0x21
-#define MSG_ORDERED_TAG	0x22
-#define MSG_ACA_TAG	0x24	/* unsupported */
-
 #define SCSI_NO_TAG	(-1)    /* identify no tag in use */
 
 

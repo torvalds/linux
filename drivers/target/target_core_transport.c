@@ -1159,7 +1159,7 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
 		return 0;
 
-	if (cmd->sam_task_attr == MSG_ACA_TAG) {
+	if (cmd->sam_task_attr == TCM_ACA_TAG) {
 		pr_debug("SAM Task Attribute ACA"
 			" emulation is not supported\n");
 		return TCM_INVALID_CDB_FIELD;
@@ -1531,7 +1531,7 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 	BUG_ON(!se_tpg);
 
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
-			      0, DMA_NONE, MSG_SIMPLE_TAG, sense);
+			      0, DMA_NONE, TCM_SIMPLE_TAG, sense);
 	/*
 	 * FIXME: Currently expect caller to handle se_cmd->se_tmr_req
 	 * allocation failure.
@@ -1718,12 +1718,12 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	 * to allow the passed struct se_cmd list of tasks to the front of the list.
 	 */
 	switch (cmd->sam_task_attr) {
-	case MSG_HEAD_TAG:
+	case TCM_HEAD_TAG:
 		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x, "
 			 "se_ordered_id: %u\n",
 			 cmd->t_task_cdb[0], cmd->se_ordered_id);
 		return false;
-	case MSG_ORDERED_TAG:
+	case TCM_ORDERED_TAG:
 		atomic_inc_mb(&dev->dev_ordered_sync);
 
 		pr_debug("Added ORDERED for CDB: 0x%02x to ordered list, "
@@ -1828,7 +1828,7 @@ static void target_restart_delayed_cmds(struct se_device *dev)
 
 		__target_execute_cmd(cmd);
 
-		if (cmd->sam_task_attr == MSG_ORDERED_TAG)
+		if (cmd->sam_task_attr == TCM_ORDERED_TAG)
 			break;
 	}
 }
@@ -1844,18 +1844,18 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)
 		return;
 
-	if (cmd->sam_task_attr == MSG_SIMPLE_TAG) {
+	if (cmd->sam_task_attr == TCM_SIMPLE_TAG) {
 		atomic_dec_mb(&dev->simple_cmds);
 		dev->dev_cur_ordered_id++;
 		pr_debug("Incremented dev->dev_cur_ordered_id: %u for"
 			" SIMPLE: %u\n", dev->dev_cur_ordered_id,
 			cmd->se_ordered_id);
-	} else if (cmd->sam_task_attr == MSG_HEAD_TAG) {
+	} else if (cmd->sam_task_attr == TCM_HEAD_TAG) {
 		dev->dev_cur_ordered_id++;
 		pr_debug("Incremented dev_cur_ordered_id: %u for"
 			" HEAD_OF_QUEUE: %u\n", dev->dev_cur_ordered_id,
 			cmd->se_ordered_id);
-	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
+	} else if (cmd->sam_task_attr == TCM_ORDERED_TAG) {
 		atomic_dec_mb(&dev->dev_ordered_sync);
 
 		dev->dev_cur_ordered_id++;

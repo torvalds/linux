@@ -485,7 +485,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 	cmd->t_data_nents_orig = cmd->t_data_nents;
 	cmd->t_data_nents = 1;
 
-	cmd->sam_task_attr = MSG_HEAD_TAG;
+	cmd->sam_task_attr = TCM_HEAD_TAG;
 	cmd->transport_complete_callback = compare_and_write_post;
 	/*
 	 * Now reset ->execute_cmd() to the normal sbc_execute_rw() handler
