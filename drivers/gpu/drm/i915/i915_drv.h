@@ -3132,4 +3132,11 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 	}
 }
 
+static inline void i915_trace_irq_get(struct intel_engine_cs *ring,
+				      struct drm_i915_gem_request *req)
+{
+	if (ring->trace_irq_req == NULL && ring->irq_get(ring))
+		i915_gem_request_assign(&ring->trace_irq_req, req);
+}
+
 #endif

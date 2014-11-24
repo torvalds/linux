@@ -142,7 +142,7 @@ struct  intel_engine_cs {
 
 	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
-	u32		trace_irq_seqno;
+	struct drm_i915_gem_request *trace_irq_req;
 	bool __must_check (*irq_get)(struct intel_engine_cs *ring);
 	void		(*irq_put)(struct intel_engine_cs *ring);
 
@@ -440,12 +440,6 @@ intel_ring_get_request(struct intel_engine_cs *ring)
 {
 	BUG_ON(ring->outstanding_lazy_request == NULL);
 	return ring->outstanding_lazy_request;
-}
-
-static inline void i915_trace_irq_get(struct intel_engine_cs *ring, u32 seqno)
-{
-	if (ring->trace_irq_seqno == 0 && ring->irq_get(ring))
-		ring->trace_irq_seqno = seqno;
 }
 
 #endif /* _INTEL_RINGBUFFER_H_ */

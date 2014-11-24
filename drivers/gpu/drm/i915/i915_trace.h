@@ -369,7 +369,7 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 			   __entry->ring = ring->id;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
 			   __entry->flags = flags;
-			   i915_trace_irq_get(ring, __entry->seqno);
+			   i915_trace_irq_get(ring, req);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
