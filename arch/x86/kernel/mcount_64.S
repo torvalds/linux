@@ -21,6 +21,35 @@
 # define function_hook	mcount
 #endif
 
+/* skip is set if the stack was already partially adjusted */
+.macro MCOUNT_SAVE_FRAME skip=0
+	 /*
+	  * We add enough stack to save all regs.
+	  */
+	subq $(SS+8-\skip), %rsp
+	movq %rax, RAX(%rsp)
+	movq %rcx, RCX(%rsp)
+	movq %rdx, RDX(%rsp)
+	movq %rsi, RSI(%rsp)
+	movq %rdi, RDI(%rsp)
+	movq %r8, R8(%rsp)
+	movq %r9, R9(%rsp)
+	 /* Move RIP to its proper location */
+	movq SS+8(%rsp), %rdx
+	movq %rdx, RIP(%rsp)
+	.endm
+
+.macro MCOUNT_RESTORE_FRAME skip=0
+	movq R9(%rsp), %r9
+	movq R8(%rsp), %r8
+	movq RDI(%rsp), %rdi
+	movq RSI(%rsp), %rsi
+	movq RDX(%rsp), %rdx
+	movq RCX(%rsp), %rcx
+	movq RAX(%rsp), %rax
+	addq $(SS+8-\skip), %rsp
+	.endm
+
 /* skip is set if stack has been adjusted */
 .macro ftrace_caller_setup trace_label skip=0
 	MCOUNT_SAVE_FRAME \skip
