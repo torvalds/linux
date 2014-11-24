@@ -2423,6 +2423,9 @@ static void i915_error_work_func(struct work_struct *work)
 		 * simulated reset via debugs, so get an RPM reference.
 		 */
 		intel_runtime_pm_get(dev_priv);
+
+		intel_prepare_reset(dev);
+
 		/*
 		 * All state reset _must_ be completed before we update the
 		 * reset counter, for otherwise waiters might miss the reset
@@ -2431,7 +2434,7 @@ static void i915_error_work_func(struct work_struct *work)
 		 */
 		ret = i915_reset(dev);
 
-		intel_display_handle_reset(dev);
+		intel_finish_reset(dev);
 
 		intel_runtime_pm_put(dev_priv);
 

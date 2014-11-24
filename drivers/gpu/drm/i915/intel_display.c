@@ -2765,24 +2765,9 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 }
 
-void intel_display_handle_reset(struct drm_device *dev)
+static void intel_complete_page_flips(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-
-	/*
-	 * Flips in the rings have been nuked by the reset,
-	 * so complete all pending flips so that user space
-	 * will get its events and not get stuck.
-	 *
-	 * Also update the base address of all primary
-	 * planes to the the last fb to make sure we're
-	 * showing the correct fb after a reset.
-	 *
-	 * Need to make two loops over the crtcs so that we
-	 * don't try to grab a crtc mutex before the
-	 * pending_flip_queue really got woken up.
-	 */
 
 	for_each_crtc(dev, crtc) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2791,6 +2776,12 @@ void intel_display_handle_reset(struct drm_device *dev)
 		intel_prepare_page_flip(dev, plane);
 		intel_finish_page_flip_plane(dev, plane);
 	}
+}
+
+static void intel_update_primary_planes(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
 
 	for_each_crtc(dev, crtc) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2808,6 +2799,67 @@ void intel_display_handle_reset(struct drm_device *dev)
 							       crtc->y);
 		drm_modeset_unlock(&crtc->mutex);
 	}
+}
+
+void intel_prepare_reset(struct drm_device *dev)
+{
+	/* no reset support for gen2 */
+	if (IS_GEN2(dev))
+		return;
+
+	/* reset doesn't touch the display */
+	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+		return;
+
+	drm_modeset_lock_all(dev);
+}
+
+void intel_finish_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	/*
+	 * Flips in the rings will be nuked by the reset,
+	 * so complete all pending flips so that user space
+	 * will get its events and not get stuck.
+	 */
+	intel_complete_page_flips(dev);
+
+	/* no reset support for gen2 */
+	if (IS_GEN2(dev))
+		return;
+
+	/* reset doesn't touch the display */
+	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev)) {
+		/*
+		 * Flips in the rings have been nuked by the reset,
+		 * so update the base address of all primary
+		 * planes to the the last fb to make sure we're
+		 * showing the correct fb after a reset.
+		 */
+		intel_update_primary_planes(dev);
+		return;
+	}
+
+	/*
+	 * The display has been reset as well,
+	 * so need a full re-initialization.
+	 */
+	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_runtime_pm_enable_interrupts(dev_priv);
+
+	intel_modeset_init_hw(dev);
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (dev_priv->display.hpd_irq_setup)
+		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	intel_modeset_setup_hw_state(dev, true);
+
+	intel_hpd_init(dev_priv);
+
+	drm_modeset_unlock_all(dev);
 }
 
 static int
