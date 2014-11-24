@@ -43,35 +43,6 @@ struct gb_vibrator_on_request {
 };
 
 /*
- * The get_version and turn_off vibrator operations have no payload.
- * This function implements these requests by allowing the caller to
- * supply a buffer into which the operation response should be
- * copied.  The turn_off operation, there is no response either.
- * If there is an error, the response buffer is left alone.
- */
-static int request_operation(struct gb_connection *connection, int type,
-			     void *response, int response_size)
-{
-	struct gb_operation *operation;
-	int ret;
-
-	operation = gb_operation_create(connection, type, 0, response_size);
-	if (!operation)
-		return -ENOMEM;
-
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
-	if (ret)
-		pr_err("version operation failed (%d)\n", ret);
-	else if (response_size && response)
-		memcpy(response, operation->response->payload,
-					response_size);
-	gb_operation_destroy(operation);
-
-	return ret;
-}
-
-/*
  * This request only uses the connection field, and if successful,
  * fills in the major and minor protocol version of the target.
  */
@@ -81,8 +52,9 @@ static int get_version(struct gb_vibrator_device *vib)
 	struct gb_vibrator_proto_version_response version_response;
 	int retval;
 
-	retval = request_operation(connection,
+	retval = gb_operation_sync(connection,
 				   GB_VIBRATOR_TYPE_PROTOCOL_VERSION,
+				   NULL, 0,
 				   &version_response, sizeof(version_response));
 	if (retval)
 		return retval;
@@ -101,33 +73,17 @@ static int get_version(struct gb_vibrator_device *vib)
 
 static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 {
-	struct gb_connection *connection = vib->connection;
-	struct gb_operation *operation;
-	struct gb_vibrator_on_request *request;
-	int retval;
+	struct gb_vibrator_on_request request;
 
-	operation = gb_operation_create(connection, GB_VIBRATOR_TYPE_ON,
-					sizeof(*request), 0);
-	if (!operation)
-		return -ENOMEM;
-	request = operation->request->payload;
-	request->timeout_ms = cpu_to_le16(timeout_ms);
-
-	/* Synchronous operation--no callback */
-	retval = gb_operation_request_send(operation, NULL);
-	if (retval)
-		dev_err(&connection->dev,
-			"send data operation failed (%d)\n", retval);
-	gb_operation_destroy(operation);
-
-	return retval;
+	request.timeout_ms = cpu_to_le16(timeout_ms);
+	return gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_ON,
+				 &request, sizeof(request), NULL, 0);
 }
 
 static int turn_off(struct gb_vibrator_device *vib)
 {
-	struct gb_connection *connection = vib->connection;
-
-	return request_operation(connection, GB_VIBRATOR_TYPE_OFF, NULL, 0);
+	return gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_OFF,
+				 NULL, 0, NULL, 0);
 }
 
 static ssize_t timeout_store(struct device *dev, struct device_attribute *attr,
