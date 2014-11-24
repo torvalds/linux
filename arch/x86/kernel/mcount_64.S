@@ -194,6 +194,7 @@ ENTRY(function_hook)
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
 
+fgraph_trace:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	cmpq $ftrace_stub, ftrace_graph_return
 	jnz ftrace_graph_caller
@@ -220,7 +221,7 @@ trace:
 
 	MCOUNT_RESTORE_FRAME
 
-	jmp ftrace_stub
+	jmp fgraph_trace
 END(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_TRACER */
