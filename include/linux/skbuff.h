@@ -2651,17 +2651,10 @@ int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
 static inline int skb_copy_datagram_msg(const struct sk_buff *from, int offset,
 					struct msghdr *msg, int size)
 {
-	/* XXX: stripping const */
-	return skb_copy_datagram_iovec(from, offset, (struct iovec *)msg->msg_iter.iov, size);
+	return skb_copy_datagram_iter(from, offset, &msg->msg_iter, size);
 }
-int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb, int hlen,
-				     struct iovec *iov);
-static inline int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
-			    struct msghdr *msg)
-{
-	/* XXX: stripping const */
-	return skb_copy_and_csum_datagram_iovec(skb, hlen, (struct iovec *)msg->msg_iter.iov);
-}
+int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
+				   struct msghdr *msg);
 int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 				 struct iov_iter *from, int len);
 int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
@@ -2697,8 +2690,7 @@ static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 
 static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
 {
-	/* XXX: stripping const */
-	return memcpy_toiovec((struct iovec *)msg->msg_iter.iov, data, len);
+	return copy_to_iter(data, len, &msg->msg_iter) == len ? 0 : -EFAULT;
 }
 
 struct skb_checksum_ops {
