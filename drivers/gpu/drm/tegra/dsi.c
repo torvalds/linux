@@ -948,6 +948,14 @@ static int tegra_dsi_init(struct host1x_client *client)
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 	int err;
 
+	reset_control_deassert(dsi->rst);
+
+	err = tegra_dsi_pad_calibrate(dsi);
+	if (err < 0) {
+		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
+		goto reset;
+	}
+
 	/* Gangsters must not register their own outputs. */
 	if (!dsi->master) {
 		dsi->output.type = TEGRA_OUTPUT_DSI;
@@ -968,6 +976,10 @@ static int tegra_dsi_init(struct host1x_client *client)
 	}
 
 	return 0;
+
+reset:
+	reset_control_assert(dsi->rst);
+	return err;
 }
 
 static int tegra_dsi_exit(struct host1x_client *client)
@@ -996,6 +1008,8 @@ static int tegra_dsi_exit(struct host1x_client *client)
 			return err;
 		}
 	}
+
+	reset_control_assert(dsi->rst);
 
 	return 0;
 }
@@ -1423,13 +1437,6 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(dsi->rst))
 		return PTR_ERR(dsi->rst);
 
-	err = reset_control_deassert(dsi->rst);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to bring DSI out of reset: %d\n",
-			err);
-		return err;
-	}
-
 	dsi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dsi->clk)) {
 		dev_err(&pdev->dev, "cannot get DSI clock\n");
@@ -1493,12 +1500,6 @@ static int tegra_dsi_probe(struct platform_device *pdev)
 	if (IS_ERR(dsi->mipi)) {
 		err = PTR_ERR(dsi->mipi);
 		goto disable_vdd;
-	}
-
-	err = tegra_dsi_pad_calibrate(dsi);
-	if (err < 0) {
-		dev_err(dsi->dev, "MIPI calibration failed: %d\n", err);
-		goto mipi_free;
 	}
 
 	dsi->host.ops = &tegra_dsi_host_ops;
