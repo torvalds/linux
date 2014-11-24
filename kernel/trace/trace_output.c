@@ -115,7 +115,7 @@ ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 
 	if (ret == (const char *)(trace_seq_buffer_ptr(p)))
 		trace_seq_printf(p, "0x%lx", val);
-		
+
 	trace_seq_putc(p, 0);
 
 	return ret;
@@ -443,7 +443,32 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 	return trace_print_lat_fmt(s, entry);
 }
 
-static unsigned long preempt_mark_thresh_us = 100;
+#undef MARK
+#define MARK(v, s) {.val = v, .sym = s}
+/* trace overhead mark */
+static const struct trace_mark {
+	unsigned long long	val; /* unit: nsec */
+	char			sym;
+} mark[] = {
+	MARK(1000000000ULL	, '$'), /* 1 sec */
+	MARK(1000000ULL		, '#'), /* 1000 usecs */
+	MARK(100000ULL		, '!'), /* 100 usecs */
+	MARK(10000ULL		, '+'), /* 10 usecs */
+};
+#undef MARK
+
+char trace_find_mark(unsigned long long d)
+{
+	int i;
+	int size = ARRAY_SIZE(mark);
+
+	for (i = 0; i < size; i++) {
+		if (d >= mark[i].val)
+			break;
+	}
+
+	return (i == size) ? ' ' : mark[i].sym;
+}
 
 static int
 lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
@@ -480,8 +505,7 @@ lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
 		trace_seq_printf(
 			s, " %4lldus%c: ",
 			abs_ts,
-			rel_ts > preempt_mark_thresh_us ? '!' :
-			rel_ts > 1 ? '+' : ' ');
+			trace_find_mark(rel_ts * NSEC_PER_USEC));
 
 	} else { /* !verbose && !in_ns */
 		trace_seq_printf(s, " %4lld: ", abs_ts);
@@ -663,7 +687,7 @@ int register_ftrace_event(struct trace_event *event)
 				goto out;
 
 		} else {
-			
+
 			event->type = next_event_type++;
 			list = &ftrace_event_list;
 		}

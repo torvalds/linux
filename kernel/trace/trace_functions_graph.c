@@ -730,8 +730,6 @@ static void
 print_graph_duration(unsigned long long duration, struct trace_seq *s,
 		     u32 flags)
 {
-	bool duration_printed = false;
-
 	if (!(flags & TRACE_GRAPH_PRINT_DURATION) ||
 	    !(trace_flags & TRACE_ITER_CONTEXT_INFO))
 		return;
@@ -750,24 +748,9 @@ print_graph_duration(unsigned long long duration, struct trace_seq *s,
 	}
 
 	/* Signal a overhead of time execution to the output */
-	if (flags & TRACE_GRAPH_PRINT_OVERHEAD) {
-		/* Duration exceeded 100 usecs */
-		if (duration > 100000ULL) {
-			trace_seq_puts(s, "! ");
-			duration_printed = true;
-
-		/* Duration exceeded 10 usecs */
-		} else if (duration > 10000ULL) {
-			trace_seq_puts(s, "+ ");
-			duration_printed = true;
-		}
-	}
-
-	/*
-	 * If we did not exceed the duration tresholds or we dont want
-	 * to print out the overhead. Either way we need to fill out the space.
-	 */
-	if (!duration_printed)
+	if (flags & TRACE_GRAPH_PRINT_OVERHEAD)
+		trace_seq_printf(s, "%c ", trace_find_mark(duration));
+	else
 		trace_seq_puts(s, "  ");
 
 	trace_print_graph_duration(duration, s);
