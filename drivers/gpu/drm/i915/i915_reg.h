@@ -1117,6 +1117,102 @@ enum skl_disp_power_wells {
 #define   DPIO_FRC_LATENCY_SHFIT	8
 #define CHV_TX_DW14(ch, lane) _TXLANE(ch, lane, 0xb8)
 #define   DPIO_UPAR_SHIFT		30
+
+/* BXT PHY registers */
+#define _BXT_PHY(phy, a, b)		_PIPE((phy), (a), (b))
+
+#define BXT_P_CR_GT_DISP_PWRON		0x138090
+#define   GT_DISPLAY_POWER_ON(phy)	(1 << (phy))
+
+#define _PHY_CTL_FAMILY_EDP		0x64C80
+#define _PHY_CTL_FAMILY_DDI		0x64C90
+#define   COMMON_RESET_DIS		(1 << 31)
+#define BXT_PHY_CTL_FAMILY(phy)		_BXT_PHY((phy), _PHY_CTL_FAMILY_DDI, \
+							_PHY_CTL_FAMILY_EDP)
+
+/* BXT PHY common lane registers */
+#define _PORT_CL1CM_DW0_A		0x162000
+#define _PORT_CL1CM_DW0_BC		0x6C000
+#define   PHY_POWER_GOOD		(1 << 16)
+#define BXT_PORT_CL1CM_DW0(phy)		_BXT_PHY((phy), _PORT_CL1CM_DW0_BC, \
+							_PORT_CL1CM_DW0_A)
+
+#define _PORT_CL1CM_DW9_A		0x162024
+#define _PORT_CL1CM_DW9_BC		0x6C024
+#define   IREF0RC_OFFSET_SHIFT		8
+#define   IREF0RC_OFFSET_MASK		(0xFF << IREF0RC_OFFSET_SHIFT)
+#define BXT_PORT_CL1CM_DW9(phy)		_BXT_PHY((phy), _PORT_CL1CM_DW9_BC, \
+							_PORT_CL1CM_DW9_A)
+
+#define _PORT_CL1CM_DW10_A		0x162028
+#define _PORT_CL1CM_DW10_BC		0x6C028
+#define   IREF1RC_OFFSET_SHIFT		8
+#define   IREF1RC_OFFSET_MASK		(0xFF << IREF1RC_OFFSET_SHIFT)
+#define BXT_PORT_CL1CM_DW10(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW10_BC, \
+							_PORT_CL1CM_DW10_A)
+
+#define _PORT_CL1CM_DW28_A		0x162070
+#define _PORT_CL1CM_DW28_BC		0x6C070
+#define   OCL1_POWER_DOWN_EN		(1 << 23)
+#define   DW28_OLDO_DYN_PWR_DOWN_EN	(1 << 22)
+#define   SUS_CLK_CONFIG		0x3
+#define BXT_PORT_CL1CM_DW28(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW28_BC, \
+							_PORT_CL1CM_DW28_A)
+
+#define _PORT_CL1CM_DW30_A		0x162078
+#define _PORT_CL1CM_DW30_BC		0x6C078
+#define   OCL2_LDOFUSE_PWR_DIS		(1 << 6)
+#define BXT_PORT_CL1CM_DW30(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW30_BC, \
+							_PORT_CL1CM_DW30_A)
+
+/* Defined for PHY0 only */
+#define BXT_PORT_CL2CM_DW6_BC		0x6C358
+#define   DW6_OLDO_DYN_PWR_DOWN_EN	(1 << 28)
+
+/* BXT PHY Ref registers */
+#define _PORT_REF_DW3_A			0x16218C
+#define _PORT_REF_DW3_BC		0x6C18C
+#define   GRC_DONE			(1 << 22)
+#define BXT_PORT_REF_DW3(phy)		_BXT_PHY((phy), _PORT_REF_DW3_BC, \
+							_PORT_REF_DW3_A)
+
+#define _PORT_REF_DW6_A			0x162198
+#define _PORT_REF_DW6_BC		0x6C198
+/*
+ * FIXME: BSpec/CHV ConfigDB disagrees on the following two fields, fix them
+ * after testing.
+ */
+#define   GRC_CODE_SHIFT		23
+#define   GRC_CODE_MASK			(0x1FF << GRC_CODE_SHIFT)
+#define   GRC_CODE_FAST_SHIFT		16
+#define   GRC_CODE_FAST_MASK		(0x7F << GRC_CODE_FAST_SHIFT)
+#define   GRC_CODE_SLOW_SHIFT		8
+#define   GRC_CODE_SLOW_MASK		(0xFF << GRC_CODE_SLOW_SHIFT)
+#define   GRC_CODE_NOM_MASK		0xFF
+#define BXT_PORT_REF_DW6(phy)		_BXT_PHY((phy), _PORT_REF_DW6_BC,	\
+						      _PORT_REF_DW6_A)
+
+#define _PORT_REF_DW8_A			0x1621A0
+#define _PORT_REF_DW8_BC		0x6C1A0
+#define   GRC_DIS			(1 << 15)
+#define   GRC_RDY_OVRD			(1 << 1)
+#define BXT_PORT_REF_DW8(phy)		_BXT_PHY((phy), _PORT_REF_DW8_BC,	\
+						      _PORT_REF_DW8_A)
+
+/* BXT PHY TX registers */
+#define _BXT_LANE_OFFSET(lane)           (((lane) >> 1) * 0x200 +	\
+					  ((lane) & 1) * 0x80)
+
+#define _PORT_TX_DW14_LN0_A		0x162538
+#define _PORT_TX_DW14_LN0_B		0x6C538
+#define _PORT_TX_DW14_LN0_C		0x6C938
+#define   LATENCY_OPTIM_SHIFT		30
+#define   LATENCY_OPTIM			(1 << LATENCY_OPTIM_SHIFT)
+#define BXT_PORT_TX_DW14_LN(port, lane)	(_PORT3((port), _PORT_TX_DW14_LN0_A,   \
+							_PORT_TX_DW14_LN0_B,   \
+							_PORT_TX_DW14_LN0_C) + \
+					 _BXT_LANE_OFFSET(lane))
+
 /*
  * Fence registers
  */

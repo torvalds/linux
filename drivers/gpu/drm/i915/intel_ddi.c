@@ -1864,6 +1864,130 @@ static void skl_shared_dplls_init(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void broxton_phy_init(struct drm_i915_private *dev_priv,
+			     enum dpio_phy phy)
+{
+	enum port port;
+	uint32_t val;
+
+	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
+	val |= GT_DISPLAY_POWER_ON(phy);
+	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
+
+	/* Considering 10ms timeout until BSpec is updated */
+	if (wait_for(I915_READ(BXT_PORT_CL1CM_DW0(phy)) & PHY_POWER_GOOD, 10))
+		DRM_ERROR("timeout during PHY%d power on\n", phy);
+
+	for (port =  (phy == DPIO_PHY0 ? PORT_B : PORT_A);
+	     port <= (phy == DPIO_PHY0 ? PORT_C : PORT_A); port++) {
+		int lane;
+
+		for (lane = 0; lane < 4; lane++) {
+			val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
+			/*
+			 * Note that on CHV this flag is called UPAR, but has
+			 * the same function.
+			 */
+			val &= ~LATENCY_OPTIM;
+			if (lane != 1)
+				val |= LATENCY_OPTIM;
+
+			I915_WRITE(BXT_PORT_TX_DW14_LN(port, lane), val);
+		}
+	}
+
+	/* Program PLL Rcomp code offset */
+	val = I915_READ(BXT_PORT_CL1CM_DW9(phy));
+	val &= ~IREF0RC_OFFSET_MASK;
+	val |= 0xE4 << IREF0RC_OFFSET_SHIFT;
+	I915_WRITE(BXT_PORT_CL1CM_DW9(phy), val);
+
+	val = I915_READ(BXT_PORT_CL1CM_DW10(phy));
+	val &= ~IREF1RC_OFFSET_MASK;
+	val |= 0xE4 << IREF1RC_OFFSET_SHIFT;
+	I915_WRITE(BXT_PORT_CL1CM_DW10(phy), val);
+
+	/* Program power gating */
+	val = I915_READ(BXT_PORT_CL1CM_DW28(phy));
+	val |= OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN |
+		SUS_CLK_CONFIG;
+	I915_WRITE(BXT_PORT_CL1CM_DW28(phy), val);
+
+	if (phy == DPIO_PHY0) {
+		val = I915_READ(BXT_PORT_CL2CM_DW6_BC);
+		val |= DW6_OLDO_DYN_PWR_DOWN_EN;
+		I915_WRITE(BXT_PORT_CL2CM_DW6_BC, val);
+	}
+
+	val = I915_READ(BXT_PORT_CL1CM_DW30(phy));
+	val &= ~OCL2_LDOFUSE_PWR_DIS;
+	/*
+	 * On PHY1 disable power on the second channel, since no port is
+	 * connected there. On PHY0 both channels have a port, so leave it
+	 * enabled.
+	 * TODO: port C is only connected on BXT-P, so on BXT0/1 we should
+	 * power down the second channel on PHY0 as well.
+	 */
+	if (phy == DPIO_PHY1)
+		val |= OCL2_LDOFUSE_PWR_DIS;
+	I915_WRITE(BXT_PORT_CL1CM_DW30(phy), val);
+
+	if (phy == DPIO_PHY0) {
+		uint32_t grc_code;
+		/*
+		 * PHY0 isn't connected to an RCOMP resistor so copy over
+		 * the corresponding calibrated value from PHY1, and disable
+		 * the automatic calibration on PHY0.
+		 */
+		if (wait_for(I915_READ(BXT_PORT_REF_DW3(DPIO_PHY1)) & GRC_DONE,
+			     10))
+			DRM_ERROR("timeout waiting for PHY1 GRC\n");
+
+		val = I915_READ(BXT_PORT_REF_DW6(DPIO_PHY1));
+		val = (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
+		grc_code = val << GRC_CODE_FAST_SHIFT |
+			   val << GRC_CODE_SLOW_SHIFT |
+			   val;
+		I915_WRITE(BXT_PORT_REF_DW6(DPIO_PHY0), grc_code);
+
+		val = I915_READ(BXT_PORT_REF_DW8(DPIO_PHY0));
+		val |= GRC_DIS | GRC_RDY_OVRD;
+		I915_WRITE(BXT_PORT_REF_DW8(DPIO_PHY0), val);
+	}
+
+	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
+	val |= COMMON_RESET_DIS;
+	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
+}
+
+void broxton_ddi_phy_init(struct drm_device *dev)
+{
+	/* Enable PHY1 first since it provides Rcomp for PHY0 */
+	broxton_phy_init(dev->dev_private, DPIO_PHY1);
+	broxton_phy_init(dev->dev_private, DPIO_PHY0);
+}
+
+static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
+			       enum dpio_phy phy)
+{
+	uint32_t val;
+
+	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
+	val &= ~COMMON_RESET_DIS;
+	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
+}
+
+void broxton_ddi_phy_uninit(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	broxton_phy_uninit(dev_priv, DPIO_PHY1);
+	broxton_phy_uninit(dev_priv, DPIO_PHY0);
+
+	/* FIXME: do this in broxton_phy_uninit per phy */
+	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, 0);
+}
+
 void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1882,6 +2006,7 @@ void intel_ddi_pll_init(struct drm_device *dev)
 			DRM_ERROR("LCPLL1 is disabled\n");
 	} else if (IS_BROXTON(dev)) {
 		broxton_init_cdclk(dev);
+		broxton_ddi_phy_init(dev);
 	} else {
 		/*
 		 * The LCPLL register should be turned on by the BIOS. For now

@@ -1115,6 +1115,8 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void broxton_init_cdclk(struct drm_device *dev);
 void broxton_uninit_cdclk(struct drm_device *dev);
 void broxton_set_cdclk(struct drm_device *dev, int frequency);
+void broxton_ddi_phy_init(struct drm_device *dev);
+void broxton_ddi_phy_uninit(struct drm_device *dev);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n);
