@@ -18,6 +18,21 @@
 #include "hw.h"
 #include "ar9003_phy.h"
 
+#define AR9300_OFDM_RATES	8
+#define AR9300_HT_SS_RATES	8
+#define AR9300_HT_DS_RATES	8
+#define AR9300_HT_TS_RATES	8
+
+#define AR9300_11NA_OFDM_SHIFT		0
+#define AR9300_11NA_HT_SS_SHIFT		8
+#define AR9300_11NA_HT_DS_SHIFT		16
+#define AR9300_11NA_HT_TS_SHIFT		24
+
+#define AR9300_11NG_OFDM_SHIFT		4
+#define AR9300_11NG_HT_SS_SHIFT		12
+#define AR9300_11NG_HT_DS_SHIFT		20
+#define AR9300_11NG_HT_TS_SHIFT		28
+
 static const int firstep_table[] =
 /* level:  0   1   2   3   4   5   6   7   8  */
 	{ -4, -2,  0,  2,  4,  6,  8, 10, 12 }; /* lvl 0-8, default 2 */
@@ -39,6 +54,71 @@ static const int m1ThreshLowExt_off = 127;
 static const int m2ThreshLowExt_off = 127;
 static const int m1ThreshExt_off = 127;
 static const int m2ThreshExt_off = 127;
+
+static const u8 ofdm2pwr[] = {
+	ALL_TARGET_LEGACY_6_24,
+	ALL_TARGET_LEGACY_6_24,
+	ALL_TARGET_LEGACY_6_24,
+	ALL_TARGET_LEGACY_6_24,
+	ALL_TARGET_LEGACY_6_24,
+	ALL_TARGET_LEGACY_36,
+	ALL_TARGET_LEGACY_48,
+	ALL_TARGET_LEGACY_54
+};
+
+static const u8 mcs2pwr_ht20[] = {
+	ALL_TARGET_HT20_0_8_16,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_4,
+	ALL_TARGET_HT20_5,
+	ALL_TARGET_HT20_6,
+	ALL_TARGET_HT20_7,
+	ALL_TARGET_HT20_0_8_16,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_12,
+	ALL_TARGET_HT20_13,
+	ALL_TARGET_HT20_14,
+	ALL_TARGET_HT20_15,
+	ALL_TARGET_HT20_0_8_16,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_1_3_9_11_17_19,
+	ALL_TARGET_HT20_20,
+	ALL_TARGET_HT20_21,
+	ALL_TARGET_HT20_22,
+	ALL_TARGET_HT20_23
+};
+
+static const u8 mcs2pwr_ht40[] = {
+	ALL_TARGET_HT40_0_8_16,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_4,
+	ALL_TARGET_HT40_5,
+	ALL_TARGET_HT40_6,
+	ALL_TARGET_HT40_7,
+	ALL_TARGET_HT40_0_8_16,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_12,
+	ALL_TARGET_HT40_13,
+	ALL_TARGET_HT40_14,
+	ALL_TARGET_HT40_15,
+	ALL_TARGET_HT40_0_8_16,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_1_3_9_11_17_19,
+	ALL_TARGET_HT40_20,
+	ALL_TARGET_HT40_21,
+	ALL_TARGET_HT40_22,
+	ALL_TARGET_HT40_23,
+};
 
 /**
  * ar9003_hw_set_channel - set channel on single-chip device
@@ -1797,6 +1877,100 @@ static void ar9003_hw_tx99_set_txpower(struct ath_hw *ah, u8 txpower)
 		  ATH9K_POW_SM(p_pwr_array[ALL_TARGET_HT40_20], 16) |
 		  ATH9K_POW_SM(p_pwr_array[ALL_TARGET_HT40_15],  8) |
 		  ATH9K_POW_SM(p_pwr_array[ALL_TARGET_HT40_14],  0));
+}
+
+static void ar9003_hw_init_txpower_cck(struct ath_hw *ah, u8 *rate_array)
+{
+	ah->tx_power[0] = rate_array[ALL_TARGET_LEGACY_1L_5L];
+	ah->tx_power[1] = rate_array[ALL_TARGET_LEGACY_1L_5L];
+	ah->tx_power[2] = min(rate_array[ALL_TARGET_LEGACY_1L_5L],
+			      rate_array[ALL_TARGET_LEGACY_5S]);
+	ah->tx_power[3] = min(rate_array[ALL_TARGET_LEGACY_11L],
+			      rate_array[ALL_TARGET_LEGACY_11S]);
+}
+
+static void ar9003_hw_init_txpower_ofdm(struct ath_hw *ah, u8 *rate_array,
+					int offset)
+{
+	int i, j;
+
+	for (i = offset; i < offset + AR9300_OFDM_RATES; i++) {
+		/* OFDM rate to power table idx */
+		j = ofdm2pwr[i - offset];
+		ah->tx_power[i] = rate_array[j];
+	}
+}
+
+static void ar9003_hw_init_txpower_ht(struct ath_hw *ah, u8 *rate_array,
+				      int ss_offset, int ds_offset,
+				      int ts_offset, bool is_40)
+{
+	int i, j, mcs_idx = 0;
+	const u8 *mcs2pwr = (is_40) ? mcs2pwr_ht40 : mcs2pwr_ht20;
+
+	for (i = ss_offset; i < ss_offset + AR9300_HT_SS_RATES; i++) {
+		j = mcs2pwr[mcs_idx];
+		ah->tx_power[i] = rate_array[j];
+		mcs_idx++;
+	}
+
+	for (i = ds_offset; i < ds_offset + AR9300_HT_DS_RATES; i++) {
+		j = mcs2pwr[mcs_idx];
+		ah->tx_power[i] = rate_array[j];
+		mcs_idx++;
+	}
+
+	for (i = ts_offset; i < ts_offset + AR9300_HT_TS_RATES; i++) {
+		j = mcs2pwr[mcs_idx];
+		ah->tx_power[i] = rate_array[j];
+		mcs_idx++;
+	}
+}
+
+static void ar9003_hw_init_txpower_stbc(struct ath_hw *ah, int ss_offset,
+					int ds_offset, int ts_offset)
+{
+	memcpy(&ah->tx_power_stbc[ss_offset], &ah->tx_power[ss_offset],
+	       AR9300_HT_SS_RATES);
+	memcpy(&ah->tx_power_stbc[ds_offset], &ah->tx_power[ds_offset],
+	       AR9300_HT_DS_RATES);
+	memcpy(&ah->tx_power_stbc[ts_offset], &ah->tx_power[ts_offset],
+	       AR9300_HT_TS_RATES);
+}
+
+void ar9003_hw_init_rate_txpower(struct ath_hw *ah, u8 *rate_array,
+				 struct ath9k_channel *chan)
+{
+	if (IS_CHAN_5GHZ(chan)) {
+		ar9003_hw_init_txpower_ofdm(ah, rate_array,
+					    AR9300_11NA_OFDM_SHIFT);
+		if (IS_CHAN_HT20(chan) || IS_CHAN_HT40(chan)) {
+			ar9003_hw_init_txpower_ht(ah, rate_array,
+						  AR9300_11NA_HT_SS_SHIFT,
+						  AR9300_11NA_HT_DS_SHIFT,
+						  AR9300_11NA_HT_TS_SHIFT,
+						  IS_CHAN_HT40(chan));
+			ar9003_hw_init_txpower_stbc(ah,
+						    AR9300_11NA_HT_SS_SHIFT,
+						    AR9300_11NA_HT_DS_SHIFT,
+						    AR9300_11NA_HT_TS_SHIFT);
+		}
+	} else {
+		ar9003_hw_init_txpower_cck(ah, rate_array);
+		ar9003_hw_init_txpower_ofdm(ah, rate_array,
+					    AR9300_11NG_OFDM_SHIFT);
+		if (IS_CHAN_HT20(chan) || IS_CHAN_HT40(chan)) {
+			ar9003_hw_init_txpower_ht(ah, rate_array,
+						  AR9300_11NG_HT_SS_SHIFT,
+						  AR9300_11NG_HT_DS_SHIFT,
+						  AR9300_11NG_HT_TS_SHIFT,
+						  IS_CHAN_HT40(chan));
+			ar9003_hw_init_txpower_stbc(ah,
+						    AR9300_11NG_HT_SS_SHIFT,
+						    AR9300_11NG_HT_DS_SHIFT,
+						    AR9300_11NG_HT_TS_SHIFT);
+		}
+	}
 }
 
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
