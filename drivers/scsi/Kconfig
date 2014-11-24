@@ -1341,22 +1341,6 @@ config SCSI_DC395x
 	  To compile this driver as a module, choose M here: the
 	  module will be called dc395x.
 
-config SCSI_DC390T
-	tristate "Tekram DC390(T) and Am53/79C974 SCSI support"
-	depends on PCI && SCSI
-	---help---
-	  This driver supports PCI SCSI host adapters based on the Am53C974A
-	  chip, e.g. Tekram DC390(T), DawiControl 2974 and some onboard
-	  PCscsi/PCnet (Am53/79C974) solutions.
-
-	  Documentation can be found in <file:Documentation/scsi/tmscsim.txt>.
-
-	  Note that this driver does NOT support Tekram DC390W/U/F, which are
-	  based on NCR/Symbios chips. Use "NCR53C8XX SCSI support" for those.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tmscsim.
-
 config SCSI_AM53C974
 	tristate "Tekram DC390(T) and Am53/79C974 SCSI support (new driver)"
 	depends on PCI && SCSI

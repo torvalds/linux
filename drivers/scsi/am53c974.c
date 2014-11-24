@@ -574,6 +574,7 @@ MODULE_DESCRIPTION("AM53C974 SCSI driver");
 MODULE_AUTHOR("Hannes Reinecke <hare@suse.de>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
+MODULE_ALIAS("tmscsim");
 
 module_param(am53c974_debug, bool, 0644);
 MODULE_PARM_DESC(am53c974_debug, "Enable debugging");

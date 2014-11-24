@@ -2862,11 +2862,10 @@ F:	Documentation/networking/dmfe.txt
 F:	drivers/net/ethernet/dec/tulip/dmfe.c
 
 DC390/AM53C974 SCSI driver
-M:	Kurt Garloff <garloff@suse.de>
-W:	http://www.garloff.de/kurt/linux/dc390/
-M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+M:	Hannes Reinecke <hare@suse.de>
+L:	linux-scsi@vger.kernel.org
 S:	Maintained
-F:	drivers/scsi/tmscsim.*
+F:	drivers/scsi/am53c974.c
 
 DC395x SCSI driver
 M:	Oliver Neukum <oliver@neukum.org>
