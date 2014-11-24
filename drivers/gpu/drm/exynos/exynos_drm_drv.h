@@ -307,7 +307,10 @@ int exynos_dpi_remove(struct exynos_drm_display *display);
 #else
 static inline struct exynos_drm_display *
 exynos_dpi_probe(struct device *dev) { return NULL; }
-static inline int exynos_dpi_remove(struct device *dev) { return 0; }
+static inline int exynos_dpi_remove(struct exynos_drm_display *display)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_VIDI
