@@ -79,7 +79,6 @@ int main(void)
 	BLANK();
 
 	/* struct thread_info */
-	OFFSET(TI_TASK, thread_info, task);
 	OFFSET(TI_FLAGS, thread_info, flags);
 	OFFSET(TI_PREEMPT_COUNT, thread_info, preempt_count);
 	BLANK();
