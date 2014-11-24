@@ -1453,16 +1453,11 @@ int cx23885_buf_prepare(struct cx23885_buffer *buf, struct cx23885_tsport *port)
 	struct cx23885_dev *dev = port->dev;
 	int size = port->ts_packet_size * port->ts_packet_count;
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(&buf->vb, 0);
-	int rc;
 
 	dprintk(1, "%s: %p\n", __func__, buf);
 	if (vb2_plane_size(&buf->vb, 0) < size)
 		return -EINVAL;
 	vb2_set_plane_payload(&buf->vb, 0, size);
-
-	rc = dma_map_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
-	if (!rc)
-		return -EIO;
 
 	cx23885_risc_databuffer(dev->pci, &buf->risc,
 				sgt->sgl,

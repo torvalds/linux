@@ -1220,32 +1220,17 @@ static int mcam_vb_sg_buf_init(struct vb2_buffer *vb)
 static int mcam_vb_sg_buf_prepare(struct vb2_buffer *vb)
 {
 	struct mcam_vb_buffer *mvb = vb_to_mvb(vb);
-	struct mcam_camera *cam = vb2_get_drv_priv(vb->vb2_queue);
 	struct sg_table *sg_table = vb2_dma_sg_plane_desc(vb, 0);
 	struct mcam_dma_desc *desc = mvb->dma_desc;
 	struct scatterlist *sg;
 	int i;
 
-	mvb->dma_desc_nent = dma_map_sg(cam->dev, sg_table->sgl,
-			sg_table->nents, DMA_FROM_DEVICE);
-	if (mvb->dma_desc_nent <= 0)
-		return -EIO;  /* Not sure what's right here */
-	for_each_sg(sg_table->sgl, sg, mvb->dma_desc_nent, i) {
+	for_each_sg(sg_table->sgl, sg, sg_table->nents, i) {
 		desc->dma_addr = sg_dma_address(sg);
 		desc->segment_len = sg_dma_len(sg);
 		desc++;
 	}
 	return 0;
-}
-
-static void mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
-{
-	struct mcam_camera *cam = vb2_get_drv_priv(vb->vb2_queue);
-	struct sg_table *sg_table = vb2_dma_sg_plane_desc(vb, 0);
-
-	if (sg_table)
-		dma_unmap_sg(cam->dev, sg_table->sgl,
-				sg_table->nents, DMA_FROM_DEVICE);
 }
 
 static void mcam_vb_sg_buf_cleanup(struct vb2_buffer *vb)
@@ -1264,7 +1249,6 @@ static const struct vb2_ops mcam_vb2_sg_ops = {
 	.buf_init		= mcam_vb_sg_buf_init,
 	.buf_prepare		= mcam_vb_sg_buf_prepare,
 	.buf_queue		= mcam_vb_buf_queue,
-	.buf_finish		= mcam_vb_sg_buf_finish,
 	.buf_cleanup		= mcam_vb_sg_buf_cleanup,
 	.start_streaming	= mcam_vb_start_streaming,
 	.stop_streaming		= mcam_vb_stop_streaming,
