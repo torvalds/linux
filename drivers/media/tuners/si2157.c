@@ -129,7 +129,6 @@ static int si2157_init(struct dvb_frontend *fe)
 	case SI2147_A30:
 	case SI2146_A10:
 		goto skip_fw_download;
-		break;
 	default:
 		dev_err(&s->client->dev,
 				"unknown chip version Si21%d-%c%c%c\n",
