@@ -92,38 +92,23 @@ struct gb_i2c_transfer_response {
  */
 static int gb_i2c_proto_version_operation(struct gb_i2c_device *gb_i2c_dev)
 {
-	struct gb_connection *connection = gb_i2c_dev->connection;
-	struct gb_operation *operation;
-	struct gb_i2c_proto_version_response *response;
+	struct gb_i2c_proto_version_response response;
 	int ret;
 
-	/* A protocol version request has no payload */
-	operation = gb_operation_create(connection,
-					GB_I2C_TYPE_PROTOCOL_VERSION,
-					0, sizeof(*response));
-	if (!operation)
-		return -ENOMEM;
+	ret = gb_operation_sync(gb_i2c_dev->connection,
+				GB_I2C_TYPE_PROTOCOL_VERSION,
+				NULL, 0, &response, sizeof(response));
+	if (ret)
+		return ret;
 
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
-		pr_err("version operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	response = operation->response->payload;
-	if (response->major > GB_I2C_VERSION_MAJOR) {
+	if (response.major > GB_I2C_VERSION_MAJOR) {
 		pr_err("unsupported major version (%hhu > %hhu)\n",
-			response->major, GB_I2C_VERSION_MAJOR);
-		ret = -ENOTSUPP;
-		goto out;
+			response.major, GB_I2C_VERSION_MAJOR);
+		return -ENOTSUPP;
 	}
-	gb_i2c_dev->version_major = response->major;
-	gb_i2c_dev->version_minor = response->minor;
-out:
-	gb_operation_destroy(operation);
-
-	return ret;
+	gb_i2c_dev->version_major = response.major;
+	gb_i2c_dev->version_minor = response.minor;
+	return 0;
 }
 
 /*
@@ -136,56 +121,34 @@ static u32 gb_i2c_functionality_map(u32 gb_i2c_functionality)
 
 static int gb_i2c_functionality_operation(struct gb_i2c_device *gb_i2c_dev)
 {
-	struct gb_connection *connection = gb_i2c_dev->connection;
-	struct gb_operation *operation;
-	struct gb_i2c_functionality_response *response;
+	struct gb_i2c_functionality_response response;
 	u32 functionality;
 	int ret;
 
-	/* A functionality request has no payload */
-	operation = gb_operation_create(connection,
-					GB_I2C_TYPE_FUNCTIONALITY,
-					0, sizeof(*response));
-	if (!operation)
-		return -ENOMEM;
+	ret = gb_operation_sync(gb_i2c_dev->connection,
+				GB_I2C_TYPE_FUNCTIONALITY,
+				NULL, 0, &response, sizeof(response));
+	if (ret)
+		return ret;
 
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
-	if (ret) {
-		pr_err("functionality operation failed (%d)\n", ret);
-		goto out;
-	}
-
-	response = operation->response->payload;
-	functionality = le32_to_cpu(response->functionality);
+	functionality = le32_to_cpu(response.functionality);
 	gb_i2c_dev->functionality = gb_i2c_functionality_map(functionality);
-out:
-	gb_operation_destroy(operation);
 
-	return ret;
+	return 0;
 }
 
 static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 {
-	struct gb_connection *connection = gb_i2c_dev->connection;
-	struct gb_operation *operation;
-	struct gb_i2c_timeout_request *request;
+	struct gb_i2c_timeout_request request;
 	int ret;
 
-	operation = gb_operation_create(connection, GB_I2C_TYPE_TIMEOUT,
-					sizeof(*request), 0);
-	if (!operation)
-		return -ENOMEM;
-	request = operation->request->payload;
-	request->msec = cpu_to_le16(msec);
-
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
+	request.msec = cpu_to_le16(msec);
+	ret = gb_operation_sync(gb_i2c_dev->connection, GB_I2C_TYPE_TIMEOUT,
+				&request, sizeof(request), NULL, 0);
 	if (ret)
 		pr_err("timeout operation failed (%d)\n", ret);
 	else
 		gb_i2c_dev->timeout_msec = msec;
-	gb_operation_destroy(operation);
 
 	return ret;
 }
@@ -193,25 +156,16 @@ static int gb_i2c_timeout_operation(struct gb_i2c_device *gb_i2c_dev, u16 msec)
 static int gb_i2c_retries_operation(struct gb_i2c_device *gb_i2c_dev,
 				u8 retries)
 {
-	struct gb_connection *connection = gb_i2c_dev->connection;
-	struct gb_operation *operation;
-	struct gb_i2c_retries_request *request;
+	struct gb_i2c_retries_request request;
 	int ret;
 
-	operation = gb_operation_create(connection, GB_I2C_TYPE_RETRIES,
-					sizeof(*request), 0);
-	if (!operation)
-		return -ENOMEM;
-	request = operation->request->payload;
-	request->retries = retries;
-
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
+	request.retries = retries;
+	ret = gb_operation_sync(gb_i2c_dev->connection, GB_I2C_TYPE_RETRIES,
+				&request, sizeof(request), NULL, 0);
 	if (ret)
 		pr_err("retries operation failed (%d)\n", ret);
 	else
 		gb_i2c_dev->retries = retries;
-	gb_operation_destroy(operation);
 
 	return ret;
 }
