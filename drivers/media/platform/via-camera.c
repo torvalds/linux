@@ -985,9 +985,9 @@ static int viacam_querycap(struct file *filp, void *priv,
 {
 	strcpy(cap->driver, "via-camera");
 	strcpy(cap->card, "via-camera");
-	cap->version = 1;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
