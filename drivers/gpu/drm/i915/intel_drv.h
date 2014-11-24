@@ -708,7 +708,7 @@ struct intel_unpin_work {
 	u32 flip_count;
 	u32 gtt_offset;
 	struct intel_engine_cs *flip_queued_ring;
-	u32 flip_queued_seqno;
+	struct drm_i915_gem_request *flip_queued_req;
 	int flip_queued_vblank;
 	int flip_ready_vblank;
 	bool enable_stall_check;

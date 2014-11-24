@@ -544,11 +544,11 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 			if (work->flip_queued_ring) {
 				seq_printf(m, "Flip queued on %s at seqno %u, next seqno %u [current breadcrumb %u], completed? %d\n",
 					   work->flip_queued_ring->name,
-					   work->flip_queued_seqno,
+					   i915_gem_request_get_seqno(work->flip_queued_req),
 					   dev_priv->next_seqno,
 					   work->flip_queued_ring->get_seqno(work->flip_queued_ring, true),
 					   i915_seqno_passed(work->flip_queued_ring->get_seqno(work->flip_queued_ring, true),
-							     work->flip_queued_seqno));
+							     i915_gem_request_get_seqno(work->flip_queued_req)));
 			} else
 				seq_printf(m, "Flip not associated with any ring\n");
 			seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
