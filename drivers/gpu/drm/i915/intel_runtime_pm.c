@@ -351,6 +351,72 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS)) |	\
 	BIT(POWER_DOMAIN_INIT))
 
+static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	WARN(!IS_BROXTON(dev), "Platform doesn't support DC9.\n");
+	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
+		"DC9 already programmed to be enabled.\n");
+	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+		"DC5 still not disabled to enable DC9.\n");
+	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on.\n");
+	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
+
+	 /*
+	  * TODO: check for the following to verify the conditions to enter DC9
+	  * state are satisfied:
+	  * 1] Check relevant display engine registers to verify if mode set
+	  * disable sequence was followed.
+	  * 2] Check if display uninitialize sequence is initialized.
+	  */
+}
+
+static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
+{
+	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
+	WARN(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
+		"DC9 already programmed to be disabled.\n");
+	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+		"DC5 still not disabled.\n");
+
+	 /*
+	  * TODO: check for the following to verify DC9 state was indeed
+	  * entered before programming to disable it:
+	  * 1] Check relevant display engine registers to verify if mode
+	  *  set disable sequence was followed.
+	  * 2] Check if display uninitialize sequence is initialized.
+	  */
+}
+
+void bxt_enable_dc9(struct drm_i915_private *dev_priv)
+{
+	uint32_t val;
+
+	assert_can_enable_dc9(dev_priv);
+
+	DRM_DEBUG_KMS("Enabling DC9\n");
+
+	val = I915_READ(DC_STATE_EN);
+	val |= DC_STATE_EN_DC9;
+	I915_WRITE(DC_STATE_EN, val);
+	POSTING_READ(DC_STATE_EN);
+}
+
+void bxt_disable_dc9(struct drm_i915_private *dev_priv)
+{
+	uint32_t val;
+
+	assert_can_disable_dc9(dev_priv);
+
+	DRM_DEBUG_KMS("Disabling DC9\n");
+
+	val = I915_READ(DC_STATE_EN);
+	val &= ~DC_STATE_EN_DC9;
+	I915_WRITE(DC_STATE_EN, val);
+	POSTING_READ(DC_STATE_EN);
+}
+
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			struct i915_power_well *power_well, bool enable)
 {

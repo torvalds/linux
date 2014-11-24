@@ -7059,6 +7059,11 @@ enum skl_disp_power_wells {
 #define   BXT_DE_PLL_PLL_ENABLE		(1 << 31)
 #define   BXT_DE_PLL_LOCK		(1 << 30)
 
+/* GEN9 DC */
+#define DC_STATE_EN			0x45504
+#define  DC_STATE_EN_UPTO_DC5		(1<<0)
+#define  DC_STATE_EN_DC9		(1<<3)
+
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */
 #define D_COMP_HSW			(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
