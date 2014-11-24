@@ -1217,7 +1217,6 @@ CLK_OF_DECLARE(sun7i_a20_clk_init, "allwinner,sun7i-a20", sun5i_init_clocks);
 
 static const char *sun6i_critical_clocks[] __initdata = {
 	"cpu",
-	"ahb1_sdram",
 };
 
 static void __init sun6i_init_clocks(struct device_node *node)
