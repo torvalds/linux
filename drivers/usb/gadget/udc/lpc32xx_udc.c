@@ -582,8 +582,7 @@ static void create_debug_file(struct lpc32xx_udc *udc)
 
 static void remove_debug_file(struct lpc32xx_udc *udc)
 {
-	if (udc->pde)
-		debugfs_remove(udc->pde);
+	debugfs_remove(udc->pde);
 }
 
 #else
