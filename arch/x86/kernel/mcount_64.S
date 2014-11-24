@@ -21,12 +21,6 @@
 # define function_hook	mcount
 #endif
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-
-ENTRY(function_hook)
-	retq
-END(function_hook)
-
 /* skip is set if stack has been adjusted */
 .macro ftrace_caller_setup trace_label skip=0
 	MCOUNT_SAVE_FRAME \skip
@@ -46,6 +40,12 @@ GLOBAL(\trace_label)
 	movq 8(%rbp), %rsi
 #endif
 .endm
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+ENTRY(function_hook)
+	retq
+END(function_hook)
 
 #ifdef CONFIG_FRAME_POINTER
 /*
@@ -207,15 +207,7 @@ GLOBAL(ftrace_stub)
 	retq
 
 trace:
-	MCOUNT_SAVE_FRAME
-
-	movq RIP(%rsp), %rdi
-#ifdef CC_USING_FENTRY
-	movq SS+16(%rsp), %rsi
-#else
-	movq 8(%rbp), %rsi
-#endif
-	subq $MCOUNT_INSN_SIZE, %rdi
+	ftrace_caller_setup ftrace_caller_op_ptr
 
 	call   *ftrace_trace_function
 
