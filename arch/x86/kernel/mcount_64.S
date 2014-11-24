@@ -21,8 +21,24 @@
 # define function_hook	mcount
 #endif
 
+/*
+ * gcc -pg option adds a call to 'mcount' in most functions.
+ * When -mfentry is used, the call is to 'fentry' and not 'mcount'
+ * and is done before the function's stack frame is set up.
+ * They both require a set of regs to be saved before calling
+ * any C code and restored before returning back to the function.
+ *
+ * On boot up, all these calls are converted into nops. When tracing
+ * is enabled, the call can jump to either ftrace_caller or
+ * ftrace_regs_caller. Callbacks (tracing functions) that require
+ * ftrace_regs_caller (like kprobes) need to have pt_regs passed to
+ * it. For this reason, the size of the pt_regs structure will be
+ * allocated on the stack and the required mcount registers will
+ * be saved in the locations that pt_regs has them in.
+ */
+
 /* skip is set if the stack was already partially adjusted */
-.macro MCOUNT_SAVE_FRAME skip=0
+.macro save_mcount_regs skip=0
 	 /*
 	  * We add enough stack to save all regs.
 	  */
@@ -39,7 +55,7 @@
 	movq %rdx, RIP(%rsp)
 	.endm
 
-.macro MCOUNT_RESTORE_FRAME skip=0
+.macro restore_mcount_regs skip=0
 	movq R9(%rsp), %r9
 	movq R8(%rsp), %r8
 	movq RDI(%rsp), %rdi
@@ -52,7 +68,7 @@
 
 /* skip is set if stack has been adjusted */
 .macro ftrace_caller_setup trace_label skip=0
-	MCOUNT_SAVE_FRAME \skip
+	save_mcount_regs \skip
 
 	/* Save this location */
 GLOBAL(\trace_label)
@@ -121,7 +137,7 @@ GLOBAL(ftrace_call)
 
 	restore_frame
 
-	MCOUNT_RESTORE_FRAME
+	restore_mcount_regs
 
 	/*
 	 * The copied trampoline must call ftrace_return as it
@@ -196,7 +212,7 @@ GLOBAL(ftrace_regs_call)
 	movq RBX(%rsp), %rbx
 
 	/* skip=8 to skip flags saved in SS */
-	MCOUNT_RESTORE_FRAME 8
+	restore_mcount_regs 8
 
 	/* Restore flags */
 	popfq
@@ -240,7 +256,7 @@ trace:
 
 	call   *ftrace_trace_function
 
-	MCOUNT_RESTORE_FRAME
+	restore_mcount_regs
 
 	jmp fgraph_trace
 END(function_hook)
@@ -249,7 +265,7 @@ END(function_hook)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
-	MCOUNT_SAVE_FRAME
+	save_mcount_regs
 
 #ifdef CC_USING_FENTRY
 	leaq SS+16(%rsp), %rdi
@@ -263,7 +279,7 @@ ENTRY(ftrace_graph_caller)
 
 	call	prepare_ftrace_return
 
-	MCOUNT_RESTORE_FRAME
+	restore_mcount_regs
 
 	retq
 END(ftrace_graph_caller)
