@@ -2024,6 +2024,18 @@ struct drm_i915_gem_request {
 
 void i915_gem_request_free(struct kref *req_ref);
 
+static inline uint32_t
+i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
+{
+	return req ? req->seqno : 0;
+}
+
+static inline struct intel_engine_cs *
+i915_gem_request_get_ring(struct drm_i915_gem_request *req)
+{
+	return req ? req->ring : NULL;
+}
+
 static inline void
 i915_gem_request_reference(struct drm_i915_gem_request *req)
 {

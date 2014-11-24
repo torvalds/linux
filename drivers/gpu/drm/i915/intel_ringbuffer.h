@@ -442,6 +442,13 @@ static inline u32 intel_ring_get_seqno(struct intel_engine_cs *ring)
 	return ring->outstanding_lazy_seqno;
 }
 
+static inline struct drm_i915_gem_request *
+intel_ring_get_request(struct intel_engine_cs *ring)
+{
+	BUG_ON(ring->preallocated_lazy_request == NULL);
+	return ring->preallocated_lazy_request;
+}
+
 static inline void i915_trace_irq_get(struct intel_engine_cs *ring, u32 seqno)
 {
 	if (ring->trace_irq_seqno == 0 && ring->irq_get(ring))
