@@ -5451,6 +5451,9 @@ enum skl_disp_power_wells {
 #define  DISP_FBC_WM_DIS		(1<<15)
 #define DISP_ARB_CTL2	0x45004
 #define  DISP_DATA_PARTITION_5_6	(1<<6)
+#define DBUF_CTL	0x45008
+#define  DBUF_POWER_REQUEST		(1<<31)
+#define  DBUF_POWER_STATE		(1<<30)
 #define GEN7_MSG_CTL	0x45010
 #define  WAIT_FOR_PCH_RESET_ACK		(1<<1)
 #define  WAIT_FOR_PCH_FLR_ACK		(1<<0)
@@ -6402,6 +6405,7 @@ enum skl_disp_power_wells {
 #define   GEN6_PCODE_WRITE_D_COMP		0x11
 #define   GEN6_ENCODE_RC6_VID(mv)		(((mv) - 245) / 5)
 #define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
+#define   HSW_PCODE_DE_WRITE_FREQ_REQ		0x17
 #define   DISPLAY_IPS_CONTROL			0x19
 #define	  HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL	0x1A
 #define GEN6_PCODE_DATA				0x138128
@@ -6873,6 +6877,13 @@ enum skl_disp_power_wells {
 #define  CDCLK_FREQ_675_617		(3<<26)
 #define  CDCLK_FREQ_DECIMAL_MASK	(0x7ff)
 
+#define  BXT_CDCLK_CD2X_DIV_SEL_MASK	(3<<22)
+#define  BXT_CDCLK_CD2X_DIV_SEL_1	(0<<22)
+#define  BXT_CDCLK_CD2X_DIV_SEL_1_5	(1<<22)
+#define  BXT_CDCLK_CD2X_DIV_SEL_2	(2<<22)
+#define  BXT_CDCLK_CD2X_DIV_SEL_4	(3<<22)
+#define  BXT_CDCLK_SSA_PRECHARGE_ENABLE	(1<<16)
+
 /* LCPLL_CTL */
 #define LCPLL1_CTL		0x46010
 #define LCPLL2_CTL		0x46014
@@ -6936,6 +6947,15 @@ enum skl_disp_power_wells {
 
 #define GET_CFG_CR1_REG(id) (DPLL1_CFGCR1 + (id - SKL_DPLL1) * 8)
 #define GET_CFG_CR2_REG(id) (DPLL1_CFGCR2 + (id - SKL_DPLL1) * 8)
+
+/* BXT display engine PLL */
+#define BXT_DE_PLL_CTL			0x6d000
+#define   BXT_DE_PLL_RATIO(x)		(x)	/* {60,65,100} * 19.2MHz */
+#define   BXT_DE_PLL_RATIO_MASK		0xff
+
+#define BXT_DE_PLL_ENABLE		0x46070
+#define   BXT_DE_PLL_PLL_ENABLE		(1 << 31)
+#define   BXT_DE_PLL_LOCK		(1 << 30)
 
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */

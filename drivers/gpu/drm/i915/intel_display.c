@@ -5196,6 +5196,181 @@ static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 	intel_display_set_init_power(dev_priv, false);
 }
 
+void broxton_set_cdclk(struct drm_device *dev, int frequency)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t divider;
+	uint32_t ratio;
+	uint32_t current_freq;
+	int ret;
+
+	/* frequency = 19.2MHz * ratio / 2 / div{1,1.5,2,4} */
+	switch (frequency) {
+	case 144000:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
+		ratio = BXT_DE_PLL_RATIO(60);
+		break;
+	case 288000:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
+		ratio = BXT_DE_PLL_RATIO(60);
+		break;
+	case 384000:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
+		ratio = BXT_DE_PLL_RATIO(60);
+		break;
+	case 576000:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+		ratio = BXT_DE_PLL_RATIO(60);
+		break;
+	case 624000:
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+		ratio = BXT_DE_PLL_RATIO(65);
+		break;
+	case 19200:
+		/*
+		 * Bypass frequency with DE PLL disabled. Init ratio, divider
+		 * to suppress GCC warning.
+		 */
+		ratio = 0;
+		divider = 0;
+		break;
+	default:
+		DRM_ERROR("unsupported CDCLK freq %d", frequency);
+
+		return;
+	}
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	/* Inform power controller of upcoming frequency change */
+	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
+				      0x80000000);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	if (ret) {
+		DRM_ERROR("PCode CDCLK freq change notify failed (err %d, freq %d)\n",
+			  ret, frequency);
+		return;
+	}
+
+	current_freq = I915_READ(CDCLK_CTL) & CDCLK_FREQ_DECIMAL_MASK;
+	/* convert from .1 fixpoint MHz with -1MHz offset to kHz */
+	current_freq = current_freq * 500 + 1000;
+
+	/*
+	 * DE PLL has to be disabled when
+	 * - setting to 19.2MHz (bypass, PLL isn't used)
+	 * - before setting to 624MHz (PLL needs toggling)
+	 * - before setting to any frequency from 624MHz (PLL needs toggling)
+	 */
+	if (frequency == 19200 || frequency == 624000 ||
+	    current_freq == 624000) {
+		I915_WRITE(BXT_DE_PLL_ENABLE, ~BXT_DE_PLL_PLL_ENABLE);
+		/* Timeout 200us */
+		if (wait_for(!(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK),
+			     1))
+			DRM_ERROR("timout waiting for DE PLL unlock\n");
+	}
+
+	if (frequency != 19200) {
+		uint32_t val;
+
+		val = I915_READ(BXT_DE_PLL_CTL);
+		val &= ~BXT_DE_PLL_RATIO_MASK;
+		val |= ratio;
+		I915_WRITE(BXT_DE_PLL_CTL, val);
+
+		I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
+		/* Timeout 200us */
+		if (wait_for(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK, 1))
+			DRM_ERROR("timeout waiting for DE PLL lock\n");
+
+		val = I915_READ(CDCLK_CTL);
+		val &= ~BXT_CDCLK_CD2X_DIV_SEL_MASK;
+		val |= divider;
+		/*
+		 * Disable SSA Precharge when CD clock frequency < 500 MHz,
+		 * enable otherwise.
+		 */
+		val &= ~BXT_CDCLK_SSA_PRECHARGE_ENABLE;
+		if (frequency >= 500000)
+			val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
+
+		val &= ~CDCLK_FREQ_DECIMAL_MASK;
+		/* convert from kHz to .1 fixpoint MHz with -1MHz offset */
+		val |= (frequency - 1000) / 500;
+		I915_WRITE(CDCLK_CTL, val);
+	}
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
+				      DIV_ROUND_UP(frequency, 25000));
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	if (ret) {
+		DRM_ERROR("PCode CDCLK freq set failed, (err %d, freq %d)\n",
+			  ret, frequency);
+		return;
+	}
+
+	dev_priv->cdclk_freq = frequency;
+}
+
+void broxton_init_cdclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t val;
+
+	/*
+	 * NDE_RSTWRN_OPT RST PCH Handshake En must always be 0b on BXT
+	 * or else the reset will hang because there is no PCH to respond.
+	 * Move the handshake programming to initialization sequence.
+	 * Previously was left up to BIOS.
+	 */
+	val = I915_READ(HSW_NDE_RSTWRN_OPT);
+	val &= ~RESET_PCH_HANDSHAKE_ENABLE;
+	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+
+	/* Enable PG1 for cdclk */
+	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
+
+	/* check if cd clock is enabled */
+	if (I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_PLL_ENABLE) {
+		DRM_DEBUG_KMS("Display already initialized\n");
+		return;
+	}
+
+	/*
+	 * FIXME:
+	 * - The initial CDCLK needs to be read from VBT.
+	 *   Need to make this change after VBT has changes for BXT.
+	 * - check if setting the max (or any) cdclk freq is really necessary
+	 *   here, it belongs to modeset time
+	 */
+	broxton_set_cdclk(dev, 624000);
+
+	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
+	udelay(10);
+
+	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
+		DRM_ERROR("DBuf power enable timeout!\n");
+}
+
+void broxton_uninit_cdclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
+	udelay(10);
+
+	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
+		DRM_ERROR("DBuf power disable timeout!\n");
+
+	/* Set minimum (bypass) frequency, in effect turning off the DE PLL */
+	broxton_set_cdclk(dev, 19200);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+}
+
 /* returns HPLL frequency in kHz */
 static int valleyview_get_vco(struct drm_i915_private *dev_priv)
 {
@@ -5363,6 +5538,26 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 		return 200000;
 }
 
+static int broxton_calc_cdclk(struct drm_i915_private *dev_priv,
+			      int max_pixclk)
+{
+	/*
+	 * FIXME:
+	 * - remove the guardband, it's not needed on BXT
+	 * - set 19.2MHz bypass frequency if there are no active pipes
+	 */
+	if (max_pixclk > 576000*9/10)
+		return 624000;
+	else if (max_pixclk > 384000*9/10)
+		return 576000;
+	else if (max_pixclk > 288000*9/10)
+		return 384000;
+	else if (max_pixclk > 144000*9/10)
+		return 288000;
+	else
+		return 144000;
+}
+
 /* compute the max pixel clock for new configuration */
 static int intel_mode_max_pixclk(struct drm_atomic_state *state)
 {
@@ -5392,12 +5587,17 @@ static int valleyview_modeset_global_pipes(struct drm_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_crtc *intel_crtc;
 	int max_pixclk = intel_mode_max_pixclk(state);
+	int cdclk;
 
 	if (max_pixclk < 0)
 		return max_pixclk;
 
-	if (valleyview_calc_cdclk(dev_priv, max_pixclk) ==
-	    dev_priv->cdclk_freq)
+	if (IS_VALLEYVIEW(dev_priv))
+		cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
+	else
+		cdclk = broxton_calc_cdclk(dev_priv, max_pixclk);
+
+	if (cdclk == dev_priv->cdclk_freq)
 		return 0;
 
 	/* disable/enable all currently active pipes while we change cdclk */
@@ -8827,6 +9027,23 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 	intel_prepare_ddi(dev);
 }
 
+static void broxton_modeset_global_resources(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int max_pixclk = intel_mode_max_pixclk(state);
+	int req_cdclk;
+
+	/* see the comment in valleyview_modeset_global_resources */
+	if (WARN_ON(max_pixclk < 0))
+		return;
+
+	req_cdclk = broxton_calc_cdclk(dev_priv, max_pixclk);
+
+	if (req_cdclk != dev_priv->cdclk_freq)
+		broxton_set_cdclk(dev, req_cdclk);
+}
+
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 				      struct intel_crtc_state *crtc_state)
 {
@@ -11983,7 +12200,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * mode set on this crtc.  For other crtcs we need to use the
 	 * adjusted_mode bits in the crtc directly.
 	 */
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev)) {
 		ret = valleyview_modeset_global_pipes(state, &prepare_pipes);
 		if (ret)
 			goto done;
@@ -14005,6 +14222,9 @@ static void intel_init_display(struct drm_device *dev)
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.modeset_global_resources =
 			valleyview_modeset_global_resources;
+	} else if (IS_BROXTON(dev)) {
+		dev_priv->display.modeset_global_resources =
+			broxton_modeset_global_resources;
 	}
 
 	switch (INTEL_INFO(dev)->gen) {
