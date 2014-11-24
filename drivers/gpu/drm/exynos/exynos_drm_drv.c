@@ -591,73 +591,22 @@ static struct platform_driver *const exynos_drm_non_kms_drivers[] = {
 static int exynos_drm_platform_probe(struct platform_device *pdev)
 {
 	struct component_match *match;
-	int ret, i, j;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	exynos_drm_driver.num_ioctls = ARRAY_SIZE(exynos_ioctls);
 
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_kms_drivers); ++i) {
-		ret = platform_driver_register(exynos_drm_kms_drivers[i]);
-		if (ret < 0)
-			goto err_unregister_kms_drivers;
-	}
-
 	match = exynos_drm_match_add(&pdev->dev);
 	if (IS_ERR(match)) {
-		ret = PTR_ERR(match);
-		goto err_unregister_kms_drivers;
+		return PTR_ERR(match);
 	}
 
-	ret = component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
-						match);
-	if (ret < 0)
-		goto err_unregister_kms_drivers;
-
-	for (j = 0; j < ARRAY_SIZE(exynos_drm_non_kms_drivers); ++j) {
-		ret = platform_driver_register(exynos_drm_non_kms_drivers[j]);
-		if (ret < 0)
-			goto err_del_component_master;
-	}
-
-	ret = exynos_platform_device_ipp_register();
-	if (ret < 0)
-		goto err_unregister_non_kms_drivers;
-
-	return ret;
-
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	exynos_platform_device_ipp_unregister();
-#endif
-err_unregister_non_kms_drivers:
-	while (--j >= 0)
-		platform_driver_unregister(exynos_drm_non_kms_drivers[j]);
-
-err_del_component_master:
-	component_master_del(&pdev->dev, &exynos_drm_ops);
-
-err_unregister_kms_drivers:
-	while (--i >= 0)
-		platform_driver_unregister(exynos_drm_kms_drivers[i]);
-
-	return ret;
+	return component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
+					       match);
 }
 
 static int exynos_drm_platform_remove(struct platform_device *pdev)
 {
-	int i;
-
-#ifdef CONFIG_DRM_EXYNOS_IPP
-	exynos_platform_device_ipp_unregister();
-#endif
-
-	for (i = ARRAY_SIZE(exynos_drm_non_kms_drivers) - 1; i >= 0; --i)
-		platform_driver_unregister(exynos_drm_non_kms_drivers[i]);
-
 	component_master_del(&pdev->dev, &exynos_drm_ops);
-
-	for (i = ARRAY_SIZE(exynos_drm_kms_drivers) - 1; i >= 0; --i)
-		platform_driver_unregister(exynos_drm_kms_drivers[i]);
-
 	return 0;
 }
 
@@ -673,7 +622,7 @@ static struct platform_driver exynos_drm_platform_driver = {
 
 static int exynos_drm_init(void)
 {
-	int ret;
+	int ret, i, j;
 
 	/*
 	 * Register device object only in case of Exynos SoC.
@@ -696,13 +645,43 @@ static int exynos_drm_init(void)
 	if (ret < 0)
 		goto err_unregister_pd;
 
+	for (i = 0; i < ARRAY_SIZE(exynos_drm_kms_drivers); ++i) {
+		ret = platform_driver_register(exynos_drm_kms_drivers[i]);
+		if (ret < 0)
+			goto err_unregister_kms_drivers;
+	}
+
+	for (j = 0; j < ARRAY_SIZE(exynos_drm_non_kms_drivers); ++j) {
+		ret = platform_driver_register(exynos_drm_non_kms_drivers[j]);
+		if (ret < 0)
+			goto err_unregister_non_kms_drivers;
+	}
+
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	ret = exynos_platform_device_ipp_register();
+	if (ret < 0)
+		goto err_unregister_non_kms_drivers;
+#endif
+
 	ret = platform_driver_register(&exynos_drm_platform_driver);
 	if (ret)
-		goto err_remove_vidi;
+		goto err_unregister_resources;
 
 	return 0;
 
-err_remove_vidi:
+err_unregister_resources:
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	exynos_platform_device_ipp_unregister();
+#endif
+
+err_unregister_non_kms_drivers:
+	while (--j >= 0)
+		platform_driver_unregister(exynos_drm_non_kms_drivers[j]);
+
+err_unregister_kms_drivers:
+	while (--i >= 0)
+		platform_driver_unregister(exynos_drm_kms_drivers[i]);
+
 	exynos_drm_remove_vidi();
 
 err_unregister_pd:
@@ -713,6 +692,18 @@ err_unregister_pd:
 
 static void exynos_drm_exit(void)
 {
+	int i;
+
+#ifdef CONFIG_DRM_EXYNOS_IPP
+	exynos_platform_device_ipp_unregister();
+#endif
+
+	for (i = ARRAY_SIZE(exynos_drm_non_kms_drivers) - 1; i >= 0; --i)
+		platform_driver_unregister(exynos_drm_non_kms_drivers[i]);
+
+	for (i = ARRAY_SIZE(exynos_drm_kms_drivers) - 1; i >= 0; --i)
+		platform_driver_unregister(exynos_drm_kms_drivers[i]);
+
 	platform_driver_unregister(&exynos_drm_platform_driver);
 
 	exynos_drm_remove_vidi();
