@@ -2096,8 +2096,7 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 	struct sk_buff **frag;
 	int sent = 0;
 
-	if (chan->ops->memcpy_fromiovec(chan, skb_put(skb, count),
-					msg, count))
+	if (copy_from_iter(skb_put(skb, count), count, &msg->msg_iter) != count)
 		return -EFAULT;
 
 	sent += count;
@@ -2117,8 +2116,8 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 
 		*frag = tmp;
 
-		if (chan->ops->memcpy_fromiovec(chan, skb_put(*frag, count),
-						msg, count))
+		if (copy_from_iter(skb_put(*frag, count), count,
+				   &msg->msg_iter) != count)
 			return -EFAULT;
 
 		sent += count;
