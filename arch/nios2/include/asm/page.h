@@ -54,8 +54,6 @@ extern void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
 extern void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 				struct page *to);
 
-extern unsigned long shm_align_mask;
-
 /*
  * These are used to make use of C type-checking.
  */
