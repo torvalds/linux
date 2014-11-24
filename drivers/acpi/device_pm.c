@@ -201,7 +201,7 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	 * Transition Power
 	 * ----------------
 	 * In accordance with the ACPI specification first apply power (via
-	 * power resources) and then evalute _PSx.
+	 * power resources) and then evaluate _PSx.
 	 */
 	if (device->power.flags.power_resources) {
 		result = acpi_power_transition(device, state);
