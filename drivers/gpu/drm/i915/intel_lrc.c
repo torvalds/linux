@@ -898,6 +898,7 @@ static int logical_ring_alloc_request(struct intel_engine_cs *ring,
 	}
 
 	kref_init(&request->ref);
+	request->ring = ring;
 
 	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
 	if (ret) {
