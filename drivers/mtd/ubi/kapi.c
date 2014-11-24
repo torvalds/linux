@@ -137,7 +137,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		return ERR_PTR(-EINVAL);
 
 	if (mode != UBI_READONLY && mode != UBI_READWRITE &&
-	    mode != UBI_EXCLUSIVE)
+	    mode != UBI_EXCLUSIVE && mode != UBI_METAONLY)
 		return ERR_PTR(-EINVAL);
 
 	/*
@@ -182,9 +182,16 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		break;
 
 	case UBI_EXCLUSIVE:
-		if (vol->exclusive || vol->writers || vol->readers)
+		if (vol->exclusive || vol->writers || vol->readers ||
+		    vol->metaonly)
 			goto out_unlock;
 		vol->exclusive = 1;
+		break;
+
+	case UBI_METAONLY:
+		if (vol->metaonly || vol->exclusive)
+			goto out_unlock;
+		vol->metaonly = 1;
 		break;
 	}
 	get_device(&vol->dev);
@@ -343,6 +350,10 @@ void ubi_close_volume(struct ubi_volume_desc *desc)
 		break;
 	case UBI_EXCLUSIVE:
 		vol->exclusive = 0;
+		break;
+	case UBI_METAONLY:
+		vol->metaonly = 0;
+		break;
 	}
 	vol->ref_count -= 1;
 	spin_unlock(&ubi->volumes_lock);

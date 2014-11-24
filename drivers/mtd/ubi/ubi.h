@@ -261,6 +261,7 @@ struct ubi_fm_pool {
  * @readers: number of users holding this volume in read-only mode
  * @writers: number of users holding this volume in read-write mode
  * @exclusive: whether somebody holds this volume in exclusive mode
+ * @metaonly: whether somebody is altering only meta data of this volume
  *
  * @reserved_pebs: how many physical eraseblocks are reserved for this volume
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
@@ -309,6 +310,7 @@ struct ubi_volume {
 	int readers;
 	int writers;
 	int exclusive;
+	int metaonly;
 
 	int reserved_pebs;
 	int vol_type;
@@ -339,7 +341,8 @@ struct ubi_volume {
 /**
  * struct ubi_volume_desc - UBI volume descriptor returned when it is opened.
  * @vol: reference to the corresponding volume description object
- * @mode: open mode (%UBI_READONLY, %UBI_READWRITE, or %UBI_EXCLUSIVE)
+ * @mode: open mode (%UBI_READONLY, %UBI_READWRITE, %UBI_EXCLUSIVE
+ * or %UBI_METAONLY)
  */
 struct ubi_volume_desc {
 	struct ubi_volume *vol;
@@ -390,7 +393,8 @@ struct ubi_debug_info {
  * @volumes_lock: protects @volumes, @rsvd_pebs, @avail_pebs, beb_rsvd_pebs,
  *                @beb_rsvd_level, @bad_peb_count, @good_peb_count, @vol_count,
  *                @vol->readers, @vol->writers, @vol->exclusive,
- *                @vol->ref_count, @vol->mapping and @vol->eba_tbl.
+ *                @vol->metaonly, @vol->ref_count, @vol->mapping and
+ *                @vol->eba_tbl.
  * @ref_count: count of references on the UBI device
  * @image_seq: image sequence number recorded on EC headers
  *

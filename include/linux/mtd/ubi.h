@@ -34,11 +34,14 @@
  * UBI_READONLY: read-only mode
  * UBI_READWRITE: read-write mode
  * UBI_EXCLUSIVE: exclusive mode
+ * UBI_METAONLY: modify only the volume meta-data,
+ *  i.e. the data stored in the volume table, but not in any of volume LEBs.
  */
 enum {
 	UBI_READONLY = 1,
 	UBI_READWRITE,
-	UBI_EXCLUSIVE
+	UBI_EXCLUSIVE,
+	UBI_METAONLY
 };
 
 /**

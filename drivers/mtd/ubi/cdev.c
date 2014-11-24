@@ -61,13 +61,13 @@ static int get_exclusive(struct ubi_device *ubi, struct ubi_volume_desc *desc)
 	struct ubi_volume *vol = desc->vol;
 
 	spin_lock(&vol->ubi->volumes_lock);
-	users = vol->readers + vol->writers + vol->exclusive;
+	users = vol->readers + vol->writers + vol->exclusive + vol->metaonly;
 	ubi_assert(users > 0);
 	if (users > 1) {
 		ubi_err(ubi, "%d users for volume %d", users, vol->vol_id);
 		err = -EBUSY;
 	} else {
-		vol->readers = vol->writers = 0;
+		vol->readers = vol->writers = vol->metaonly = 0;
 		vol->exclusive = 1;
 		err = desc->mode;
 		desc->mode = UBI_EXCLUSIVE;
@@ -87,13 +87,15 @@ static void revoke_exclusive(struct ubi_volume_desc *desc, int mode)
 	struct ubi_volume *vol = desc->vol;
 
 	spin_lock(&vol->ubi->volumes_lock);
-	ubi_assert(vol->readers == 0 && vol->writers == 0);
+	ubi_assert(vol->readers == 0 && vol->writers == 0 && vol->metaonly == 0);
 	ubi_assert(vol->exclusive == 1 && desc->mode == UBI_EXCLUSIVE);
 	vol->exclusive = 0;
 	if (mode == UBI_READONLY)
 		vol->readers = 1;
 	else if (mode == UBI_READWRITE)
 		vol->writers = 1;
+	else if (mode == UBI_METAONLY)
+		vol->metaonly = 1;
 	else
 		vol->exclusive = 1;
 	spin_unlock(&vol->ubi->volumes_lock);
