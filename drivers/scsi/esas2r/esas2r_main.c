@@ -255,7 +255,6 @@ static struct scsi_host_template driver_template = {
 	.emulated			= 0,
 	.proc_name			= ESAS2R_DRVR_NAME,
 	.change_queue_depth		= scsi_change_queue_depth,
-	.change_queue_type		= scsi_change_queue_type,
 	.max_sectors			= 0xFFFF,
 	.use_blk_tags			= 1,
 };

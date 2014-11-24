@@ -15,9 +15,6 @@
 
 
 #ifdef CONFIG_BLOCK
-
-int scsi_change_queue_type(struct scsi_device *sdev, int tag_type);
-
 /**
  * scsi_get_tag_type - get the type of tag the device supports
  * @sdev:	the scsi device

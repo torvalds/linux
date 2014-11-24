@@ -4346,30 +4346,6 @@ static int ipr_change_queue_depth(struct scsi_device *sdev, int qdepth)
 }
 
 /**
- * ipr_change_queue_type - Change the device's queue type
- * @dsev:		scsi device struct
- * @tag_type:	type of tags to use
- *
- * Return value:
- * 	actual queue type set
- **/
-static int ipr_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
-	struct ipr_resource_entry *res;
-	unsigned long lock_flags = 0;
-
-	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
-	res = (struct ipr_resource_entry *)sdev->hostdata;
-	if (res && ipr_is_gscsi(res))
-		tag_type = scsi_change_queue_type(sdev, tag_type);
-	else
-		tag_type = 0;
-	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
-	return tag_type;
-}
-
-/**
  * ipr_show_adapter_handle - Show the adapter's resource handle for this device
  * @dev:	device struct
  * @attr:	device attribute structure
@@ -6302,7 +6278,6 @@ static struct scsi_host_template driver_template = {
 	.target_alloc = ipr_target_alloc,
 	.target_destroy = ipr_target_destroy,
 	.change_queue_depth = ipr_change_queue_depth,
-	.change_queue_type = ipr_change_queue_type,
 	.bios_param = ipr_biosparam,
 	.can_queue = IPR_MAX_COMMANDS,
 	.this_id = -1,

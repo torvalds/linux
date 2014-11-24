@@ -176,7 +176,6 @@ STATIC int NCR_700_slave_alloc(struct scsi_device *SDpnt);
 STATIC int NCR_700_slave_configure(struct scsi_device *SDpnt);
 STATIC void NCR_700_slave_destroy(struct scsi_device *SDpnt);
 static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth);
-static int NCR_700_change_queue_type(struct scsi_device *SDpnt, int depth);
 
 STATIC struct device_attribute *NCR_700_dev_attrs[];
 
@@ -326,7 +325,6 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	tpnt->slave_destroy = NCR_700_slave_destroy;
 	tpnt->slave_alloc = NCR_700_slave_alloc;
 	tpnt->change_queue_depth = NCR_700_change_queue_depth;
-	tpnt->change_queue_type = NCR_700_change_queue_type;
 	tpnt->use_blk_tags = 1;
 
 	if(tpnt->name == NULL)
@@ -2080,39 +2078,6 @@ NCR_700_change_queue_depth(struct scsi_device *SDp, int depth)
 	if (depth > NCR_700_MAX_TAGS)
 		depth = NCR_700_MAX_TAGS;
 	return scsi_change_queue_depth(SDp, depth);
-}
-
-static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
-{
-	int change_tag = ((tag_type ==0 &&  scsi_get_tag_type(SDp) != 0)
-			  || (tag_type != 0 && scsi_get_tag_type(SDp) == 0));
-	struct NCR_700_Host_Parameters *hostdata = 
-		(struct NCR_700_Host_Parameters *)SDp->host->hostdata[0];
-
-	/* We have a global (per target) flag to track whether TCQ is
-	 * enabled, so we'll be turning it off for the entire target here.
-	 * our tag algorithm will fail if we mix tagged and untagged commands,
-	 * so quiesce the device before doing this */
-	if (change_tag)
-		scsi_target_quiesce(SDp->sdev_target);
-
-	scsi_set_tag_type(SDp, tag_type);
-	if (!tag_type) {
-		/* shift back to the default unqueued number of commands
-		 * (the user can still raise this) */
-		scsi_change_queue_depth(SDp, SDp->host->cmd_per_lun);
-		hostdata->tag_negotiated &= ~(1 << sdev_id(SDp));
-	} else {
-		/* Here, we cleared the negotiation flag above, so this
-		 * will force the driver to renegotiate */
-		scsi_change_queue_depth(SDp, SDp->queue_depth);
-		if (change_tag)
-			NCR_700_set_tag_neg_state(SDp, NCR_700_START_TAG_NEGOTIATION);
-	}
-	if (change_tag)
-		scsi_target_resume(SDp->sdev_target);
-
-	return tag_type;
 }
 
 static ssize_t
