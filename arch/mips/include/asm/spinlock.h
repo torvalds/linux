@@ -254,9 +254,6 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 	smp_llsc_mb();
 }
 
-/* Note the use of sub, not subu which will make the kernel die with an
-   overflow exception if we ever try to unlock an rwlock that is already
-   unlocked or is being held by a writer.  */
 static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
@@ -266,7 +263,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"1:	ll	%1, %2		# arch_read_unlock	\n"
-		"	sub	%1, 1					\n"
+		"	addiu	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
 		: "=" GCC_OFF_SMALL_ASM() (rw->lock), "=&r" (tmp)
@@ -276,7 +273,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 		do {
 			__asm__ __volatile__(
 			"1:	ll	%1, %2	# arch_read_unlock	\n"
-			"	sub	%1, 1				\n"
+			"	addiu	%1, -1				\n"
 			"	sc	%1, %0				\n"
 			: "=" GCC_OFF_SMALL_ASM() (rw->lock), "=&r" (tmp)
 			: GCC_OFF_SMALL_ASM() (rw->lock)
