@@ -1656,7 +1656,7 @@ struct drm_i915_private {
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
-	unsigned int vlv_cdclk_freq;
+	unsigned int cdclk_freq;
 	unsigned int hpll_freq;
 
 	/**
