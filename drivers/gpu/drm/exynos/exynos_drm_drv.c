@@ -473,8 +473,6 @@ void exynos_drm_component_del(struct device *dev,
 			list_del(&cdev->list);
 			kfree(cdev);
 		}
-
-		break;
 	}
 
 	mutex_unlock(&drm_component_lock);
