@@ -41,6 +41,9 @@
 #include "trace-s390.h"
 
 #define MEM_OP_MAX_SIZE 65536	/* Maximum transfer size for KVM_S390_MEM_OP */
+#define LOCAL_IRQS 32
+#define VCPU_IRQS_MAX_BUF (sizeof(struct kvm_s390_irq) * \
+			   (KVM_MAX_VCPUS + LOCAL_IRQS))
 
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
@@ -181,6 +184,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_USER_SIGP:
 	case KVM_CAP_S390_USER_STSI:
 	case KVM_CAP_S390_SKEYS:
+	case KVM_CAP_S390_IRQ_STATE:
 		r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:
@@ -2498,6 +2502,38 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			r = kvm_s390_guest_mem_op(vcpu, &mem_op);
 		else
 			r = -EFAULT;
+		break;
+	}
+	case KVM_S390_SET_IRQ_STATE: {
+		struct kvm_s390_irq_state irq_state;
+
+		r = -EFAULT;
+		if (copy_from_user(&irq_state, argp, sizeof(irq_state)))
+			break;
+		if (irq_state.len > VCPU_IRQS_MAX_BUF ||
+		    irq_state.len == 0 ||
+		    irq_state.len % sizeof(struct kvm_s390_irq) > 0) {
+			r = -EINVAL;
+			break;
+		}
+		r = kvm_s390_set_irq_state(vcpu,
+					   (void __user *) irq_state.buf,
+					   irq_state.len);
+		break;
+	}
+	case KVM_S390_GET_IRQ_STATE: {
+		struct kvm_s390_irq_state irq_state;
+
+		r = -EFAULT;
+		if (copy_from_user(&irq_state, argp, sizeof(irq_state)))
+			break;
+		if (irq_state.len == 0) {
+			r = -EINVAL;
+			break;
+		}
+		r = kvm_s390_get_irq_state(vcpu,
+					   (__u8 __user *)  irq_state.buf,
+					   irq_state.len);
 		break;
 	}
 	default:

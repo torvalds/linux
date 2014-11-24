@@ -2123,3 +2123,143 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
 {
 	return -EINVAL;
 }
+
+int kvm_s390_set_irq_state(struct kvm_vcpu *vcpu, void __user *irqstate, int len)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_irq *buf;
+	int r = 0;
+	int n;
+
+	buf = vmalloc(len);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user((void *) buf, irqstate, len)) {
+		r = -EFAULT;
+		goto out_free;
+	}
+
+	/*
+	 * Don't allow setting the interrupt state
+	 * when there are already interrupts pending
+	 */
+	spin_lock(&li->lock);
+	if (li->pending_irqs) {
+		r = -EBUSY;
+		goto out_unlock;
+	}
+
+	for (n = 0; n < len / sizeof(*buf); n++) {
+		r = do_inject_vcpu(vcpu, &buf[n]);
+		if (r)
+			break;
+	}
+
+out_unlock:
+	spin_unlock(&li->lock);
+out_free:
+	vfree(buf);
+
+	return r;
+}
+
+static void store_local_irq(struct kvm_s390_local_interrupt *li,
+			    struct kvm_s390_irq *irq,
+			    unsigned long irq_type)
+{
+	switch (irq_type) {
+	case IRQ_PEND_MCHK_EX:
+	case IRQ_PEND_MCHK_REP:
+		irq->type = KVM_S390_MCHK;
+		irq->u.mchk = li->irq.mchk;
+		break;
+	case IRQ_PEND_PROG:
+		irq->type = KVM_S390_PROGRAM_INT;
+		irq->u.pgm = li->irq.pgm;
+		break;
+	case IRQ_PEND_PFAULT_INIT:
+		irq->type = KVM_S390_INT_PFAULT_INIT;
+		irq->u.ext = li->irq.ext;
+		break;
+	case IRQ_PEND_EXT_EXTERNAL:
+		irq->type = KVM_S390_INT_EXTERNAL_CALL;
+		irq->u.extcall = li->irq.extcall;
+		break;
+	case IRQ_PEND_EXT_CLOCK_COMP:
+		irq->type = KVM_S390_INT_CLOCK_COMP;
+		break;
+	case IRQ_PEND_EXT_CPU_TIMER:
+		irq->type = KVM_S390_INT_CPU_TIMER;
+		break;
+	case IRQ_PEND_SIGP_STOP:
+		irq->type = KVM_S390_SIGP_STOP;
+		irq->u.stop = li->irq.stop;
+		break;
+	case IRQ_PEND_RESTART:
+		irq->type = KVM_S390_RESTART;
+		break;
+	case IRQ_PEND_SET_PREFIX:
+		irq->type = KVM_S390_SIGP_SET_PREFIX;
+		irq->u.prefix = li->irq.prefix;
+		break;
+	}
+}
+
+int kvm_s390_get_irq_state(struct kvm_vcpu *vcpu, __u8 __user *buf, int len)
+{
+	uint8_t sigp_ctrl = vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl;
+	unsigned long sigp_emerg_pending[BITS_TO_LONGS(KVM_MAX_VCPUS)];
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	unsigned long pending_irqs;
+	struct kvm_s390_irq irq;
+	unsigned long irq_type;
+	int cpuaddr;
+	int n = 0;
+
+	spin_lock(&li->lock);
+	pending_irqs = li->pending_irqs;
+	memcpy(&sigp_emerg_pending, &li->sigp_emerg_pending,
+	       sizeof(sigp_emerg_pending));
+	spin_unlock(&li->lock);
+
+	for_each_set_bit(irq_type, &pending_irqs, IRQ_PEND_COUNT) {
+		memset(&irq, 0, sizeof(irq));
+		if (irq_type == IRQ_PEND_EXT_EMERGENCY)
+			continue;
+		if (n + sizeof(irq) > len)
+			return -ENOBUFS;
+		store_local_irq(&vcpu->arch.local_int, &irq, irq_type);
+		if (copy_to_user(&buf[n], &irq, sizeof(irq)))
+			return -EFAULT;
+		n += sizeof(irq);
+	}
+
+	if (test_bit(IRQ_PEND_EXT_EMERGENCY, &pending_irqs)) {
+		for_each_set_bit(cpuaddr, sigp_emerg_pending, KVM_MAX_VCPUS) {
+			memset(&irq, 0, sizeof(irq));
+			if (n + sizeof(irq) > len)
+				return -ENOBUFS;
+			irq.type = KVM_S390_INT_EMERGENCY;
+			irq.u.emerg.code = cpuaddr;
+			if (copy_to_user(&buf[n], &irq, sizeof(irq)))
+				return -EFAULT;
+			n += sizeof(irq);
+		}
+	}
+
+	if ((sigp_ctrl & SIGP_CTRL_C) &&
+	    (atomic_read(&vcpu->arch.sie_block->cpuflags) &
+	     CPUSTAT_ECALL_PEND)) {
+		if (n + sizeof(irq) > len)
+			return -ENOBUFS;
+		memset(&irq, 0, sizeof(irq));
+		irq.type = KVM_S390_INT_EXTERNAL_CALL;
+		irq.u.extcall.code = sigp_ctrl & SIGP_CTRL_SCN_MASK;
+		if (copy_to_user(&buf[n], &irq, sizeof(irq)))
+			return -EFAULT;
+		n += sizeof(irq);
+	}
+
+	return n;
+}

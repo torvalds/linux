@@ -558,6 +558,13 @@ struct kvm_s390_irq {
 	} u;
 };
 
+struct kvm_s390_irq_state {
+	__u64 buf;
+	__u32 flags;
+	__u32 len;
+	__u32 reserved[4];
+};
+
 /* for KVM_SET_GUEST_DEBUG */
 
 #define KVM_GUESTDBG_ENABLE		0x00000001
@@ -803,6 +810,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_USER_STSI 109
 #define KVM_CAP_S390_SKEYS 110
 #define KVM_CAP_S390_INJECT_IRQ 113
+#define KVM_CAP_S390_IRQ_STATE 114
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1185,6 +1193,9 @@ struct kvm_s390_ucas_mapping {
 #define KVM_S390_SET_SKEYS      _IOW(KVMIO, 0xb3, struct kvm_s390_skeys)
 /* Available with KVM_CAP_S390_INJECT_IRQ */
 #define KVM_S390_IRQ              _IOW(KVMIO,  0xb4, struct kvm_s390_irq)
+/* Available with KVM_CAP_S390_IRQ_STATE */
+#define KVM_S390_SET_IRQ_STATE	  _IOW(KVMIO, 0xb5, struct kvm_s390_irq_state)
+#define KVM_S390_GET_IRQ_STATE	  _IOW(KVMIO, 0xb6, struct kvm_s390_irq_state)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 #define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
