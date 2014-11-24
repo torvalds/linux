@@ -718,31 +718,6 @@ struct kvm_irq_ack_notifier {
 	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
 };
 
-struct kvm_assigned_dev_kernel {
-	struct kvm_irq_ack_notifier ack_notifier;
-	struct list_head list;
-	int assigned_dev_id;
-	int host_segnr;
-	int host_busnr;
-	int host_devfn;
-	unsigned int entries_nr;
-	int host_irq;
-	bool host_irq_disabled;
-	bool pci_2_3;
-	struct msix_entry *host_msix_entries;
-	int guest_irq;
-	struct msix_entry *guest_msix_entries;
-	unsigned long irq_requested_type;
-	int irq_source_id;
-	int flags;
-	struct pci_dev *dev;
-	struct kvm *kvm;
-	spinlock_t intx_lock;
-	spinlock_t intx_mask_lock;
-	char irq_name[32];
-	struct pci_saved_state *pci_saved_state;
-};
-
 int kvm_irq_map_gsi(struct kvm *kvm,
 		    struct kvm_kernel_irq_routing_entry *entries, int gsi);
 int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin);
@@ -764,10 +739,6 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 #ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
 int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
 void kvm_iommu_unmap_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
-int kvm_assign_device(struct kvm *kvm,
-		      struct kvm_assigned_dev_kernel *assigned_dev);
-int kvm_deassign_device(struct kvm *kvm,
-			struct kvm_assigned_dev_kernel *assigned_dev);
 #else
 static inline int kvm_iommu_map_pages(struct kvm *kvm,
 				      struct kvm_memory_slot *slot)

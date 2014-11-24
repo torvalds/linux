@@ -1112,27 +1112,4 @@ int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data);
 void kvm_handle_pmu_event(struct kvm_vcpu *vcpu);
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu);
 
-#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
-int kvm_iommu_map_guest(struct kvm *kvm);
-int kvm_iommu_unmap_guest(struct kvm *kvm);
-
-long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
-				  unsigned long arg);
-
-void kvm_free_all_assigned_devices(struct kvm *kvm);
-#else
-static inline int kvm_iommu_unmap_guest(struct kvm *kvm)
-{
-	return 0;
-}
-
-static inline long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
-						unsigned long arg)
-{
-	return -ENOTTY;
-}
-
-static inline void kvm_free_all_assigned_devices(struct kvm *kvm) {}
-#endif
-
 #endif /* _ASM_X86_KVM_HOST_H */

@@ -31,6 +31,7 @@
 #include <linux/dmar.h>
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
+#include "assigned-dev.h"
 
 static bool allow_unsafe_assigned_interrupts;
 module_param_named(allow_unsafe_assigned_interrupts,
@@ -169,10 +170,8 @@ static int kvm_iommu_map_memslots(struct kvm *kvm)
 	return r;
 }
 
-int kvm_assign_device(struct kvm *kvm,
-		      struct kvm_assigned_dev_kernel *assigned_dev)
+int kvm_assign_device(struct kvm *kvm, struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = NULL;
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
 	int r;
 	bool noncoherent;
@@ -181,7 +180,6 @@ int kvm_assign_device(struct kvm *kvm,
 	if (!domain)
 		return 0;
 
-	pdev = assigned_dev->dev;
 	if (pdev == NULL)
 		return -ENODEV;
 
@@ -212,17 +210,14 @@ out_unmap:
 	return r;
 }
 
-int kvm_deassign_device(struct kvm *kvm,
-			struct kvm_assigned_dev_kernel *assigned_dev)
+int kvm_deassign_device(struct kvm *kvm, struct pci_dev *pdev)
 {
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
-	struct pci_dev *pdev = NULL;
 
 	/* check if iommu exists and in use */
 	if (!domain)
 		return 0;
 
-	pdev = assigned_dev->dev;
 	if (pdev == NULL)
 		return -ENODEV;
 

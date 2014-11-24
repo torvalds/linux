@@ -27,6 +27,7 @@
 #include "kvm_cache_regs.h"
 #include "x86.h"
 #include "cpuid.h"
+#include "assigned-dev.h"
 
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>

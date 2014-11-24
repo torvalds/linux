@@ -20,6 +20,32 @@
 #include <linux/namei.h>
 #include <linux/fs.h>
 #include "irq.h"
+#include "assigned-dev.h"
+
+struct kvm_assigned_dev_kernel {
+	struct kvm_irq_ack_notifier ack_notifier;
+	struct list_head list;
+	int assigned_dev_id;
+	int host_segnr;
+	int host_busnr;
+	int host_devfn;
+	unsigned int entries_nr;
+	int host_irq;
+	bool host_irq_disabled;
+	bool pci_2_3;
+	struct msix_entry *host_msix_entries;
+	int guest_irq;
+	struct msix_entry *guest_msix_entries;
+	unsigned long irq_requested_type;
+	int irq_source_id;
+	int flags;
+	struct pci_dev *dev;
+	struct kvm *kvm;
+	spinlock_t intx_lock;
+	spinlock_t intx_mask_lock;
+	char irq_name[32];
+	struct pci_saved_state *pci_saved_state;
+};
 
 static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
 						      int assigned_dev_id)
@@ -748,7 +774,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 		if (r)
 			goto out_list_del;
 	}
-	r = kvm_assign_device(kvm, match);
+	r = kvm_assign_device(kvm, match->dev);
 	if (r)
 		goto out_list_del;
 
@@ -790,7 +816,7 @@ static int kvm_vm_ioctl_deassign_device(struct kvm *kvm,
 		goto out;
 	}
 
-	kvm_deassign_device(kvm, match);
+	kvm_deassign_device(kvm, match->dev);
 
 	kvm_free_assigned_device(kvm, match);
 
