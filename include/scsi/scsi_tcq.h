@@ -15,19 +15,6 @@
 
 
 #ifdef CONFIG_BLOCK
-/**
- * scsi_get_tag_type - get the type of tag the device supports
- * @sdev:	the scsi device
- */
-static inline int scsi_get_tag_type(struct scsi_device *sdev)
-{
-	if (!sdev->tagged_supported)
-		return 0;
-	if (sdev->simple_tags)
-		return MSG_SIMPLE_TAG;
-	return 0;
-}
-
 static inline void scsi_set_tag_type(struct scsi_device *sdev, int tag)
 {
 	switch (tag) {

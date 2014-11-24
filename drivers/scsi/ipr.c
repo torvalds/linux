@@ -5755,7 +5755,7 @@ static void ipr_erp_cancel_all(struct ipr_cmnd *ipr_cmd)
 
 	ipr_reinit_ipr_cmnd_for_erp(ipr_cmd);
 
-	if (!scsi_get_tag_type(scsi_cmd->device)) {
+	if (!scsi_cmd->device->simple_tags) {
 		ipr_erp_request_sense(ipr_cmd);
 		return;
 	}
