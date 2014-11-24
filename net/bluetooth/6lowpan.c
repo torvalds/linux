@@ -537,11 +537,11 @@ static int send_pkt(struct l2cap_chan *chan, struct sk_buff *skb,
 	 */
 	chan->data = skb;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.msg_iov = (struct iovec *) &iv;
-	msg.msg_iovlen = 1;
 	iv.iov_base = skb->data;
 	iv.iov_len = skb->len;
+
+	memset(&msg, 0, sizeof(msg));
+	iov_iter_init(&msg.msg_iter, WRITE, (struct iovec *) &iv, 1, skb->len);
 
 	err = l2cap_chan_send(chan, &msg, skb->len);
 	if (err > 0) {

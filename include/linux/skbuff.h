@@ -2646,22 +2646,24 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 			   struct poll_table_struct *wait);
 int skb_copy_datagram_iovec(const struct sk_buff *from, int offset,
 			    struct iovec *to, int size);
+int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
+			   struct iov_iter *to, int size);
 static inline int skb_copy_datagram_msg(const struct sk_buff *from, int offset,
 					struct msghdr *msg, int size)
 {
-	return skb_copy_datagram_iovec(from, offset, msg->msg_iov, size);
+	/* XXX: stripping const */
+	return skb_copy_datagram_iovec(from, offset, (struct iovec *)msg->msg_iter.iov, size);
 }
 int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb, int hlen,
 				     struct iovec *iov);
 static inline int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
 			    struct msghdr *msg)
 {
-	return skb_copy_and_csum_datagram_iovec(skb, hlen, msg->msg_iov);
+	/* XXX: stripping const */
+	return skb_copy_and_csum_datagram_iovec(skb, hlen, (struct iovec *)msg->msg_iter.iov);
 }
 int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 				 struct iov_iter *from, int len);
-int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
-			   struct iov_iter *to, int size);
 int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb);
 void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb);
@@ -2689,12 +2691,14 @@ int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci);
 
 static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 {
-	return memcpy_fromiovec(data, msg->msg_iov, len);
+	/* XXX: stripping const */
+	return memcpy_fromiovec(data, (struct iovec *)msg->msg_iter.iov, len);
 }
 
 static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
 {
-	return memcpy_toiovec(msg->msg_iov, data, len);
+	/* XXX: stripping const */
+	return memcpy_toiovec((struct iovec *)msg->msg_iter.iov, data, len);
 }
 
 struct skb_checksum_ops {

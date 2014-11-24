@@ -1095,9 +1095,7 @@ static int macvtap_sendmsg(struct kiocb *iocb, struct socket *sock,
 			   struct msghdr *m, size_t total_len)
 {
 	struct macvtap_queue *q = container_of(sock, struct macvtap_queue, sock);
-	struct iov_iter from;
-	iov_iter_init(&from, WRITE, m->msg_iov, m->msg_iovlen, total_len);
-	return macvtap_get_user(q, m, &from, m->msg_flags & MSG_DONTWAIT);
+	return macvtap_get_user(q, m, &m->msg_iter, m->msg_flags & MSG_DONTWAIT);
 }
 
 static int macvtap_recvmsg(struct kiocb *iocb, struct socket *sock,
@@ -1105,12 +1103,10 @@ static int macvtap_recvmsg(struct kiocb *iocb, struct socket *sock,
 			   int flags)
 {
 	struct macvtap_queue *q = container_of(sock, struct macvtap_queue, sock);
-	struct iov_iter to;
 	int ret;
 	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC))
 		return -EINVAL;
-	iov_iter_init(&to, READ, m->msg_iov, m->msg_iovlen, total_len);
-	ret = macvtap_do_read(q, &to, flags & MSG_DONTWAIT);
+	ret = macvtap_do_read(q, &m->msg_iter, flags & MSG_DONTWAIT);
 	if (ret > total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;

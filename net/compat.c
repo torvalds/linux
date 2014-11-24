@@ -37,13 +37,14 @@ ssize_t get_compat_msghdr(struct msghdr *kmsg,
 			  struct iovec **iov)
 {
 	compat_uptr_t uaddr, uiov, tmp3;
+	compat_size_t nr_segs;
 	ssize_t err;
 
 	if (!access_ok(VERIFY_READ, umsg, sizeof(*umsg)) ||
 	    __get_user(uaddr, &umsg->msg_name) ||
 	    __get_user(kmsg->msg_namelen, &umsg->msg_namelen) ||
 	    __get_user(uiov, &umsg->msg_iov) ||
-	    __get_user(kmsg->msg_iovlen, &umsg->msg_iovlen) ||
+	    __get_user(nr_segs, &umsg->msg_iovlen) ||
 	    __get_user(tmp3, &umsg->msg_control) ||
 	    __get_user(kmsg->msg_controllen, &umsg->msg_controllen) ||
 	    __get_user(kmsg->msg_flags, &umsg->msg_flags))
@@ -68,14 +69,15 @@ ssize_t get_compat_msghdr(struct msghdr *kmsg,
 		kmsg->msg_namelen = 0;
 	}
 
-	if (kmsg->msg_iovlen > UIO_MAXIOV)
+	if (nr_segs > UIO_MAXIOV)
 		return -EMSGSIZE;
 
 	err = compat_rw_copy_check_uvector(save_addr ? READ : WRITE,
-					   compat_ptr(uiov), kmsg->msg_iovlen,
+					   compat_ptr(uiov), nr_segs,
 					   UIO_FASTIOV, *iov, iov);
 	if (err >= 0)
-		kmsg->msg_iov = *iov;
+		iov_iter_init(&kmsg->msg_iter, save_addr ? READ : WRITE,
+			      *iov, nr_segs, err);
 	return err;
 }
 

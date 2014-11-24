@@ -911,7 +911,7 @@ static inline int l2cap_chan_no_memcpy_fromiovec(struct l2cap_chan *chan,
 	/* Following is safe since for compiler definitions of kvec and
 	 * iovec are identical, yielding the same in-core layout and alignment
 	 */
-	struct kvec *vec = (struct kvec *)msg->msg_iov;
+	struct kvec *vec = (struct kvec *)msg->msg_iter.iov;
 
 	while (len > 0) {
 		if (vec->iov_len) {

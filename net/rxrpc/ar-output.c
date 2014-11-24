@@ -531,13 +531,11 @@ static int rxrpc_send_data(struct kiocb *iocb,
 	struct rxrpc_skb_priv *sp;
 	unsigned char __user *from;
 	struct sk_buff *skb;
-	struct iovec *iov;
+	const struct iovec *iov;
 	struct sock *sk = &rx->sk;
 	long timeo;
 	bool more;
 	int ret, ioc, segment, copied;
-
-	_enter(",,,{%zu},%zu", msg->msg_iovlen, len);
 
 	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 
@@ -547,8 +545,8 @@ static int rxrpc_send_data(struct kiocb *iocb,
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 		return -EPIPE;
 
-	iov = msg->msg_iov;
-	ioc = msg->msg_iovlen - 1;
+	iov = msg->msg_iter.iov;
+	ioc = msg->msg_iter.nr_segs - 1;
 	from = iov->iov_base;
 	segment = iov->iov_len;
 	iov++;

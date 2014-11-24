@@ -268,8 +268,7 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 
 	memset(&msg, 0, sizeof(msg));
 
-	msg.msg_iov = (struct iovec *) &iv;
-	msg.msg_iovlen = 2;
+	iov_iter_init(&msg.msg_iter, WRITE, (struct iovec *)iv, 2, 1 + len);
 
 	l2cap_chan_send(chan, &msg, 1 + len);
 

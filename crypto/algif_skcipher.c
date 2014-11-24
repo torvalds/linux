@@ -429,13 +429,13 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 	struct skcipher_sg_list *sgl;
 	struct scatterlist *sg;
 	unsigned long iovlen;
-	struct iovec *iov;
+	const struct iovec *iov;
 	int err = -EAGAIN;
 	int used;
 	long copied = 0;
 
 	lock_sock(sk);
-	for (iov = msg->msg_iov, iovlen = msg->msg_iovlen; iovlen > 0;
+	for (iov = msg->msg_iter.iov, iovlen = msg->msg_iter.nr_segs; iovlen > 0;
 	     iovlen--, iov++) {
 		unsigned long seglen = iov->iov_len;
 		char __user *from = iov->iov_base;

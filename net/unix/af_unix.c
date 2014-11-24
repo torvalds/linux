@@ -1459,9 +1459,6 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	struct scm_cookie tmp_scm;
 	int max_level;
 	int data_len = 0;
-	struct iov_iter from;
-
-	iov_iter_init(&from, WRITE, msg->msg_iov, msg->msg_iovlen, len);
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
@@ -1519,7 +1516,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	skb_put(skb, len - data_len);
 	skb->data_len = data_len;
 	skb->len = len;
-	err = skb_copy_datagram_from_iter(skb, 0, &from, len);
+	err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, len);
 	if (err)
 		goto out_free;
 
@@ -1641,9 +1638,6 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	bool fds_sent = false;
 	int max_level;
 	int data_len;
-	struct iov_iter from;
-
-	iov_iter_init(&from, WRITE, msg->msg_iov, msg->msg_iovlen, len);
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
@@ -1700,7 +1694,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		skb_put(skb, size - data_len);
 		skb->data_len = data_len;
 		skb->len = size;
-		err = skb_copy_datagram_from_iter(skb, 0, &from, size);
+		err = skb_copy_datagram_from_iter(skb, 0, &msg->msg_iter, size);
 		if (err) {
 			kfree_skb(skb);
 			goto out_err;

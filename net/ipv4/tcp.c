@@ -1085,7 +1085,7 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		size_t size)
 {
-	struct iovec *iov;
+	const struct iovec *iov;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int iovlen, flags, err, copied = 0;
@@ -1136,8 +1136,8 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	mss_now = tcp_send_mss(sk, &size_goal, flags);
 
 	/* Ok commence sending. */
-	iovlen = msg->msg_iovlen;
-	iov = msg->msg_iov;
+	iovlen = msg->msg_iter.nr_segs;
+	iov = msg->msg_iter.iov;
 	copied = 0;
 
 	err = -EPIPE;

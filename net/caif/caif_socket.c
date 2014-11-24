@@ -535,7 +535,7 @@ static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto err;
 
 	ret = -EINVAL;
-	if (unlikely(msg->msg_iov->iov_base == NULL))
+	if (unlikely(msg->msg_iter.iov->iov_base == NULL))
 		goto err;
 	noblock = msg->msg_flags & MSG_DONTWAIT;
 
