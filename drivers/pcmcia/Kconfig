@@ -147,7 +147,6 @@ config TCIC
 config PCMCIA_ALCHEMY_DEVBOARD
 	tristate "Alchemy Db/Pb1xxx PCMCIA socket services"
 	depends on MIPS_ALCHEMY && PCMCIA
-	select 64BIT_PHYS_ADDR
 	help
 	  Enable this driver of you want PCMCIA support on your Alchemy
 	  Db1000, Db/Pb1100, Db/Pb1500, Db/Pb1550, Db/Pb1200, DB1300
@@ -158,7 +157,6 @@ config PCMCIA_ALCHEMY_DEVBOARD
 config PCMCIA_XXS1500
 	tristate "MyCable XXS1500 PCMCIA socket support"
 	depends on PCMCIA && MIPS_XXS1500
-	select 64BIT_PHYS_ADDR
 	help
 	  Support for the PCMCIA/CF socket interface on MyCable XXS1500
 	  systems.
