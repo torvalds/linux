@@ -117,7 +117,7 @@ int msm_atomic_commit(struct drm_device *dev,
 		if (!plane)
 			continue;
 
-		if (plane->state->fb != new_state->fb)
+		if ((plane->state->fb != new_state->fb) && new_state->fb)
 			add_fb(c, new_state->fb);
 	}
 

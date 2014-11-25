@@ -120,6 +120,8 @@ void msm_framebuffer_cleanup(struct drm_framebuffer *fb, int id)
 uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb, int id, int plane)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
+	if (!msm_fb->planes[plane])
+		return 0;
 	return msm_gem_iova(msm_fb->planes[plane], id);
 }
 

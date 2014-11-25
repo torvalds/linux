@@ -331,7 +331,7 @@ mode_fixup(struct drm_atomic_state *state)
 }
 
 static int
-drm_atomic_helper_check_prepare(struct drm_device *dev,
+drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
 	int ncrtcs = dev->mode_config.num_crtc;
@@ -428,10 +428,6 @@ int drm_atomic_helper_check(struct drm_device *dev,
 	int ncrtcs = dev->mode_config.num_crtc;
 	int i, ret = 0;
 
-	ret = drm_atomic_helper_check_prepare(dev, state);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < nplanes; i++) {
 		struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = state->planes[i];
@@ -475,6 +471,10 @@ int drm_atomic_helper_check(struct drm_device *dev,
 		}
 	}
 
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_check);
@@ -499,9 +499,12 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		if (!old_conn_state || !old_conn_state->crtc)
 			continue;
 
-		encoder = connector->state->best_encoder;
+		encoder = old_conn_state->best_encoder;
 
-		if (!encoder)
+		/* We shouldn't get this far if we didn't previously have
+		 * an encoder.. but WARN_ON() rather than explode.
+		 */
+		if (WARN_ON(!encoder))
 			continue;
 
 		funcs = encoder->helper_private;

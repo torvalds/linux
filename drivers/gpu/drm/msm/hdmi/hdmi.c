@@ -15,6 +15,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/of_irq.h>
 #include "hdmi.h"
 
 void hdmi_set_mode(struct hdmi *hdmi, bool power_on)
@@ -39,7 +40,7 @@ void hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 			power_on ? "Enable" : "Disable", ctrl);
 }
 
-irqreturn_t hdmi_irq(int irq, void *dev_id)
+static irqreturn_t hdmi_irq(int irq, void *dev_id)
 {
 	struct hdmi *hdmi = dev_id;
 
@@ -54,9 +55,8 @@ irqreturn_t hdmi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void hdmi_destroy(struct kref *kref)
+static void hdmi_destroy(struct hdmi *hdmi)
 {
-	struct hdmi *hdmi = container_of(kref, struct hdmi, refcount);
 	struct hdmi_phy *phy = hdmi->phy;
 
 	if (phy)
@@ -83,8 +83,6 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	kref_init(&hdmi->refcount);
 
 	hdmi->pdev = pdev;
 	hdmi->config = config;
@@ -182,7 +180,7 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 
 fail:
 	if (hdmi)
-		hdmi_destroy(&hdmi->refcount);
+		hdmi_destroy(hdmi);
 
 	return ERR_PTR(ret);
 }
@@ -200,7 +198,6 @@ int hdmi_modeset_init(struct hdmi *hdmi,
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = hdmi->pdev;
-	struct hdmi_platform_config *config = pdev->dev.platform_data;
 	int ret;
 
 	hdmi->dev = dev;
@@ -224,22 +221,20 @@ int hdmi_modeset_init(struct hdmi *hdmi,
 		goto fail;
 	}
 
-	if (!config->shared_irq) {
-		hdmi->irq = platform_get_irq(pdev, 0);
-		if (hdmi->irq < 0) {
-			ret = hdmi->irq;
-			dev_err(dev->dev, "failed to get irq: %d\n", ret);
-			goto fail;
-		}
+	hdmi->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (hdmi->irq < 0) {
+		ret = hdmi->irq;
+		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
 
-		ret = devm_request_threaded_irq(&pdev->dev, hdmi->irq,
-				NULL, hdmi_irq, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-				"hdmi_isr", hdmi);
-		if (ret < 0) {
-			dev_err(dev->dev, "failed to request IRQ%u: %d\n",
-					hdmi->irq, ret);
-			goto fail;
-		}
+	ret = devm_request_irq(&pdev->dev, hdmi->irq,
+			hdmi_irq, IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+			"hdmi_isr", hdmi);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to request IRQ%u: %d\n",
+				hdmi->irq, ret);
+		goto fail;
 	}
 
 	encoder->bridge = hdmi->bridge;
@@ -271,12 +266,6 @@ fail:
 
 #include <linux/of_gpio.h>
 
-static void set_hdmi(struct drm_device *dev, struct hdmi *hdmi)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	priv->hdmi = hdmi;
-}
-
 #ifdef CONFIG_OF
 static int get_gpio(struct device *dev, struct device_node *of_node, const char *name)
 {
@@ -297,6 +286,8 @@ static int get_gpio(struct device *dev, struct device_node *of_node, const char 
 
 static int hdmi_bind(struct device *dev, struct device *master, void *data)
 {
+	struct drm_device *drm = dev_get_drvdata(master);
+	struct msm_drm_private *priv = drm->dev_private;
 	static struct hdmi_platform_config config = {};
 	struct hdmi *hdmi;
 #ifdef CONFIG_OF
@@ -318,7 +309,6 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 		config.hpd_clk_cnt   = ARRAY_SIZE(hpd_clk_names);
 		config.pwr_clk_names = pwr_clk_names;
 		config.pwr_clk_cnt   = ARRAY_SIZE(pwr_clk_names);
-		config.shared_irq    = true;
 	} else if (of_device_is_compatible(of_node, "qcom,hdmi-tx-8960")) {
 		static const char *hpd_clk_names[] = {"core_clk", "master_iface_clk", "slave_iface_clk"};
 		static const char *hpd_reg_names[] = {"core-vdda", "hdmi-mux"};
@@ -392,14 +382,19 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	hdmi = hdmi_init(to_platform_device(dev));
 	if (IS_ERR(hdmi))
 		return PTR_ERR(hdmi);
-	set_hdmi(dev_get_drvdata(master), hdmi);
+	priv->hdmi = hdmi;
 	return 0;
 }
 
 static void hdmi_unbind(struct device *dev, struct device *master,
 		void *data)
 {
-	set_hdmi(dev_get_drvdata(master), NULL);
+	struct drm_device *drm = dev_get_drvdata(master);
+	struct msm_drm_private *priv = drm->dev_private;
+	if (priv->hdmi) {
+		hdmi_destroy(priv->hdmi);
+		priv->hdmi = NULL;
+	}
 }
 
 static const struct component_ops hdmi_ops = {
