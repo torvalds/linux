@@ -161,7 +161,7 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	 * pretend to support them.
 	 */
 	WARN_TAINT_ONCE(diff, TAINT_CPU_OUT_OF_SPEC,
-			"Unsupported CPU feature variation.");
+			"Unsupported CPU feature variation.\n");
 }
 
 static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
