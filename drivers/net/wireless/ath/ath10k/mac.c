@@ -3646,9 +3646,11 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			   arvif->vdev_id, sta->addr, ar->num_peers);
 
 		ret = ath10k_peer_create(ar, arvif->vdev_id, sta->addr);
-		if (ret)
+		if (ret) {
 			ath10k_warn(ar, "failed to add peer %pM for vdev %d when adding a new sta: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
+			goto exit;
+		}
 
 		if (vif->type == NL80211_IFTYPE_STATION) {
 			WARN_ON(arvif->is_started);
