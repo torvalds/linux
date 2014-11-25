@@ -131,6 +131,7 @@
 				reg = <0x90020000 0x10000>;
 				interrupts = <31>;
 				clocks = <&clks 35>;
+				resets = <&rstc 6>;
 			};
 		};
 
