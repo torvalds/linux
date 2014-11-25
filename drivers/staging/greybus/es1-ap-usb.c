@@ -245,16 +245,22 @@ static void *buffer_send(struct greybus_host_device *hd, u16 dest_cport_id,
 	return conceal_urb(urb);
 }
 
+/*
+ * The cookie value supplied is the value that buffer_send()
+ * returned to its caller.  It identifies the buffer that should be
+ * canceled.  This function must also handle (which is to say,
+ * ignore) a null cookie value.
+ */
 static void buffer_cancel(void *cookie)
 {
-	struct urb *urb = reveal_urb(cookie);
 
 	/*
 	 * We really should be defensive and track all outstanding
 	 * (sent) buffers rather than trusting the cookie provided
 	 * is valid.  For the time being, this will do.
 	 */
-	usb_kill_urb(urb);
+	if (cookie)
+		usb_kill_urb(reveal_urb(cookie));
 }
 
 static struct greybus_host_driver es1_driver = {
