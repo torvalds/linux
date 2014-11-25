@@ -66,17 +66,43 @@ struct gb_operation_msg_hdr {
 /* XXX Could be per-host device, per-module, or even per-connection */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
+/*
+ * Set an operation's result.  Initially an outgoing operation's
+ * errno value is -EBADR.  If no error occurs before sending the
+ * request message the only valid value operation->errno can be
+ * set to is -EINPROGRESS, indicating the request has been (or
+ * rather is about to be) sent.  At that point nobody should
+ * be looking at the result until the reponse arrives.
+ *
+ * The first time the result gets set after the request has been
+ * sent, that result "sticks."  That is, if two concurrent threads
+ * race to set the result, the first one wins.  The return value
+ * tells the caller whether its result was recorded; if not the
+ * has nothing more to do.
+ */
 static bool gb_operation_result_set(struct gb_operation *operation, int result)
 {
-	if (operation->errno)
+	if (WARN_ON(result == -EBADR))
 		return false;
+
+	if (result == -EINPROGRESS) {
+		if (WARN_ON(operation->errno != -EBADR))
+			return false;
+	} else if (operation->errno != -EINPROGRESS) {
+		return false;
+	}
 	operation->errno = result;
+
 	return true;
 }
 
 int gb_operation_result(struct gb_operation *operation)
 {
-	return operation->errno;
+	int result = operation->errno;
+
+	WARN_ON(result == -EINPROGRESS);
+
+	return result;
 }
 
 static void gb_pending_operation_insert(struct gb_operation *operation)
@@ -350,6 +376,7 @@ gb_operation_create_common(struct gb_connection *connection, bool outgoing,
 			goto err_request;
 		operation->response->operation = operation;
 	}
+	operation->errno = -EBADR;  /* Initial value--means "never set" */
 
 	INIT_WORK(&operation->work, gb_operation_work);
 	operation->callback = NULL;	/* set at submit time */
@@ -475,6 +502,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	schedule_delayed_work(&operation->timeout_work, timeout);
 
 	/* All set, send the request */
+	gb_operation_result_set(operation, -EINPROGRESS);
 	ret = gb_message_send(operation->request, GFP_KERNEL);
 	if (ret || callback)
 		return ret;
