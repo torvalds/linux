@@ -5249,8 +5249,6 @@ ext4_ext_shift_path_extents(struct ext4_ext_path *path, ext4_lblk_t shift,
 				return -EIO;
 
 			ex_last = EXT_LAST_EXTENT(path[depth].p_hdr);
-			if (!ex_last)
-				return -EIO;
 
 			err = ext4_access_path(handle, inode, path + depth);
 			if (err)
