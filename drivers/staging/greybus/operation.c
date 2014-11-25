@@ -324,7 +324,7 @@ int gb_operation_status_map(u8 status)
 	case GB_OP_PROTOCOL_BAD:
 		return -EPROTONOSUPPORT;
 	case GB_OP_OVERFLOW:
-		return -E2BIG;
+		return -EMSGSIZE;
 	case GB_OP_TIMEOUT:
 		return -ETIMEDOUT;
 	default:
@@ -510,7 +510,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	/* Cancel the operation if interrupted */
 	ret = wait_for_completion_interruptible(&operation->completion);
 	if (ret < 0)
-		gb_operation_cancel(operation, -EINTR);
+		gb_operation_cancel(operation, -ECANCELED);
 
 	return gb_operation_result(operation);
 }
@@ -605,7 +605,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		result = gb_operation_status_map(header->result);
 	} else {
 		gb_connection_err(connection, "recv buffer too small");
-		result = -E2BIG;
+		result = -EMSGSIZE;
 	}
 
 	/* We must ignore the payload if a bad status is returned */
