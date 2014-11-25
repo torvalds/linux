@@ -599,12 +599,13 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	gb_pending_operation_remove(operation);
 
 	message = operation->response;
-	if (size <= message->size) {
+	if (size == message->size) {
 		/* Transfer the operation result from the response header */
 		header = message->header;
 		result = gb_operation_status_map(header->result);
 	} else {
-		gb_connection_err(connection, "recv buffer too small");
+		gb_connection_err(connection, "bad message size (%zu != %zu)",
+			size, message->size);
 		result = -EMSGSIZE;
 	}
 
