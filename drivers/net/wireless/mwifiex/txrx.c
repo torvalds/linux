@@ -209,6 +209,7 @@ void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 	struct tx_status_event *tx_status = (void *)priv->adapter->event_body;
 	struct sk_buff *ack_skb;
 	unsigned long flags;
+	struct mwifiex_txinfo *tx_info;
 
 	if (!tx_status->tx_token_id)
 		return;
@@ -219,7 +220,17 @@ void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 		idr_remove(&priv->ack_status_frames, tx_status->tx_token_id);
 	spin_unlock_irqrestore(&priv->ack_status_lock, flags);
 
-	/* consumes ack_skb */
-	if (ack_skb)
-		skb_complete_wifi_ack(ack_skb, !tx_status->status);
+	if (ack_skb) {
+		tx_info = MWIFIEX_SKB_TXCB(ack_skb);
+
+		if (tx_info->flags & MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS) {
+			/* consumes ack_skb */
+			skb_complete_wifi_ack(ack_skb, !tx_status->status);
+		} else {
+			cfg80211_mgmt_tx_status(priv->wdev, tx_info->cookie,
+						ack_skb->data, ack_skb->len,
+						!tx_status->status, GFP_ATOMIC);
+			dev_kfree_skb_any(ack_skb);
+		}
+	}
 }

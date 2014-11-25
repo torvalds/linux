@@ -1342,6 +1342,10 @@ void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
 void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 				   void *event_body);
 
+struct sk_buff *
+mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
+				struct sk_buff *skb, u8 flag, u64 *cookie);
+
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
 void mwifiex_debugfs_remove(void);

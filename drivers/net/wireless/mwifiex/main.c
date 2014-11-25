@@ -608,9 +608,9 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 	return 0;
 }
 
-static struct sk_buff *
+struct sk_buff *
 mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
-				struct sk_buff *skb, u8 flag)
+				struct sk_buff *skb, u8 flag, u64 *cookie)
 {
 	struct sk_buff *orig_skb = skb;
 	struct mwifiex_txinfo *tx_info, *orig_tx_info;
@@ -632,6 +632,10 @@ mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 			orig_tx_info = MWIFIEX_SKB_TXCB(orig_skb);
 			orig_tx_info->ack_frame_id = id;
 			orig_tx_info->flags |= flag;
+
+			if (flag == MWIFIEX_BUF_FLAG_ACTION_TX_STATUS && cookie)
+				orig_tx_info->cookie = *cookie;
+
 		} else if (skb_shared(skb)) {
 			kfree_skb(orig_skb);
 		} else {
@@ -703,7 +707,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		     priv->adapter->fw_api_ver == MWIFIEX_FW_V15))
 		skb = mwifiex_clone_skb_for_tx_status(priv,
 						      skb,
-					MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS);
+					MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS, NULL);
 
 	/* Record the current time the packet was queued; used to
 	 * determine the amount of time the packet was queued in

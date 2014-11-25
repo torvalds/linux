@@ -374,7 +374,8 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 
 	txpd->pkt_delay_2ms = mwifiex_wmm_compute_drv_pkt_delay(priv, skb);
 
-	if (tx_info->flags & MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS) {
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS ||
+	    tx_info->flags & MWIFIEX_BUF_FLAG_ACTION_TX_STATUS) {
 		txpd->tx_token_id = tx_info->ack_frame_id;
 		txpd->flags |= MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS;
 	}
