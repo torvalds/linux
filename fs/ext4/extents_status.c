@@ -1174,6 +1174,8 @@ int ext4_es_register_shrinker(struct ext4_sb_info *sbi)
 {
 	int err;
 
+	/* Make sure we have enough bits for physical block number */
+	BUILD_BUG_ON(ES_SHIFT < 48);
 	INIT_LIST_HEAD(&sbi->s_es_list);
 	sbi->s_es_nr_inode = 0;
 	spin_lock_init(&sbi->s_es_lock);
