@@ -169,13 +169,13 @@ static int simplefb_parse_pd(struct platform_device *pdev,
 
 struct simplefb_par {
 	u32 palette[PSEUDO_PALETTE_SIZE];
-#ifdef CONFIG_OF
+#if defined CONFIG_OF && defined CONFIG_COMMON_CLK
 	int clk_count;
 	struct clk **clks;
 #endif
 };
 
-#ifdef CONFIG_OF
+#if defined CONFIG_OF && defined CONFIG_COMMON_CLK
 /*
  * Clock handling code.
  *
