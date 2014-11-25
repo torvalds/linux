@@ -144,7 +144,12 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	diff |= CHECK(id_isar3, boot, cur, cpu);
 	diff |= CHECK(id_isar4, boot, cur, cpu);
 	diff |= CHECK(id_isar5, boot, cur, cpu);
-	diff |= CHECK(id_mmfr0, boot, cur, cpu);
+	/*
+	 * Regardless of the value of the AuxReg field, the AIFSR, ADFSR, and
+	 * ACTLR formats could differ across CPUs and therefore would have to
+	 * be trapped for virtualization anyway.
+	 */
+	diff |= CHECK_MASK(id_mmfr0, 0xff0fffff, boot, cur, cpu);
 	diff |= CHECK(id_mmfr1, boot, cur, cpu);
 	diff |= CHECK(id_mmfr2, boot, cur, cpu);
 	diff |= CHECK(id_mmfr3, boot, cur, cpu);
