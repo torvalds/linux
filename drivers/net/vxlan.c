@@ -2306,9 +2306,9 @@ static struct socket *vxlan_create_sock(struct net *net, bool ipv6,
 	if (ipv6) {
 		udp_conf.family = AF_INET6;
 		udp_conf.use_udp6_tx_checksums =
-		    !!(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
+		    !(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
 		udp_conf.use_udp6_rx_checksums =
-		    !!(flags & VXLAN_F_UDP_ZERO_CSUM6_RX);
+		    !(flags & VXLAN_F_UDP_ZERO_CSUM6_RX);
 	} else {
 		udp_conf.family = AF_INET;
 		udp_conf.local_ip.s_addr = INADDR_ANY;
