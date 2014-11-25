@@ -2574,11 +2574,13 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 	list_del(&request->list);
 	i915_gem_request_remove_from_client(request);
 
-	if (i915.enable_execlists && ctx) {
-		struct intel_engine_cs *ring = request->ring;
+	if (ctx) {
+		if (i915.enable_execlists) {
+			struct intel_engine_cs *ring = request->ring;
 
-		if (ctx != ring->default_context)
-			intel_lr_context_unpin(ring, ctx);
+			if (ctx != ring->default_context)
+				intel_lr_context_unpin(ring, ctx);
+		}
 		i915_gem_context_unreference(ctx);
 	}
 	kfree(request);
