@@ -54,7 +54,15 @@
  * be saved in the locations that pt_regs has them in.
  */
 
-/* @added: the amount of stack added before calling this */
+/*
+ * @added: the amount of stack added before calling this
+ *
+ * After this is called, the following registers contain:
+ *
+ *  %rdi - holds the address that called the trampoline
+ *  %rsi - holds the parent function (traced function's return address)
+ *  %rdx - holds the original %rbp
+ */
 .macro save_mcount_regs added=0
 
 	/* Always save the original rbp */
@@ -101,9 +109,24 @@
 	movq MCOUNT_REG_SIZE-8(%rsp), %rdx
 	movq %rdx, RBP(%rsp)
 
+	/* Copy the parent address into %rsi (second parameter) */
+#ifdef CC_USING_FENTRY
+	movq MCOUNT_REG_SIZE+8+\added(%rsp), %rsi
+#else
+	/* %rdx contains original %rbp */
+	movq 8(%rdx), %rsi
+#endif
+
 	 /* Move RIP to its proper location */
 	movq MCOUNT_REG_SIZE+\added(%rsp), %rdi
 	movq %rdi, RIP(%rsp)
+
+	/*
+	 * Now %rdi (the first parameter) has the return address of
+	 * where ftrace_call returns. But the callbacks expect the
+	 * the address of the call itself.
+	 */
+	subq $MCOUNT_INSN_SIZE, %rdi
 	.endm
 
 .macro restore_mcount_regs
@@ -122,28 +145,6 @@
 
 	.endm
 
-/* skip is set if stack has been adjusted */
-.macro ftrace_caller_setup trace_label added=0
-	save_mcount_regs \added
-
-	/* Save this location */
-GLOBAL(\trace_label)
-	/* Load the ftrace_ops into the 3rd parameter */
-	movq function_trace_op(%rip), %rdx
-
-	/* %rdi already has %rip from the save_mcount_regs macro */
-	subq $MCOUNT_INSN_SIZE, %rdi
-	/* Load the parent_ip into the second parameter */
-#ifdef CC_USING_FENTRY
-	movq MCOUNT_REG_SIZE+8+\added(%rsp), %rsi
-#else
-	/* Need to grab the original %rbp */
-	movq RBP(%rsp), %rsi
-	/* Now parent address is 8 above original %rbp */
-	movq 8(%rsi), %rsi
-#endif
-.endm
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 ENTRY(function_hook)
@@ -151,7 +152,13 @@ ENTRY(function_hook)
 END(function_hook)
 
 ENTRY(ftrace_caller)
-	ftrace_caller_setup ftrace_caller_op_ptr
+	/* save_mcount_regs fills in first two parameters */
+	save_mcount_regs
+
+GLOBAL(ftrace_caller_op_ptr)
+	/* Load the ftrace_ops into the 3rd parameter */
+	movq function_trace_op(%rip), %rdx
+
 	/* regs go into 4th parameter (but make it NULL) */
 	movq $0, %rcx
 
@@ -182,7 +189,12 @@ ENTRY(ftrace_regs_caller)
 	pushfq
 
 	/* added 8 bytes to save flags */
-	ftrace_caller_setup ftrace_regs_caller_op_ptr 8
+	save_mcount_regs 8
+	/* save_mcount_regs fills in first two parameters */
+
+GLOBAL(ftrace_regs_caller_op_ptr)
+	/* Load the ftrace_ops into the 3rd parameter */
+	movq function_trace_op(%rip), %rdx
 
 	/* Save the rest of pt_regs */
 	movq %r15, R15(%rsp)
@@ -263,7 +275,8 @@ GLOBAL(ftrace_stub)
 	retq
 
 trace:
-	ftrace_caller_setup ftrace_caller_op_ptr
+	/* save_mcount_regs fills in first two parameters */
+	save_mcount_regs
 
 	call   *ftrace_trace_function
 
@@ -276,16 +289,16 @@ END(function_hook)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
+	/* Saves rbp into %rdx */
 	save_mcount_regs
 
 #ifdef CC_USING_FENTRY
 	leaq MCOUNT_REG_SIZE+8(%rsp), %rdi
 	movq $0, %rdx	/* No framepointers needed */
 #else
-	/* Need to grab the original %rbp */
-	movq RBP(%rsp), %rdx
-	/* Now parent address is 8 above original %rbp */
+	/* Save address of the return address of traced function */
 	leaq 8(%rdx), %rdi
+	/* ftrace does sanity checks against frame pointers */
 	movq (%rdx), %rdx
 #endif
 	movq RIP(%rsp), %rsi
