@@ -9,7 +9,6 @@
  *  2 of the License, or (at your option) any later version.
  *
  */
-#include <linux/console.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -249,48 +248,13 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-#ifdef CONFIG_SERIAL_8250
-static void of_serial_suspend_8250(struct of_serial_info *info)
-{
-	struct uart_8250_port *port8250 = serial8250_get_port(info->line);
-	struct uart_port *port = &port8250->port;
-
-	serial8250_suspend_port(info->line);
-	if (info->clk && (!uart_console(port) || console_suspend_enabled))
-		clk_disable_unprepare(info->clk);
-}
-
-static void of_serial_resume_8250(struct of_serial_info *info)
-{
-	struct uart_8250_port *port8250 = serial8250_get_port(info->line);
-	struct uart_port *port = &port8250->port;
-
-	if (info->clk && (!uart_console(port) || console_suspend_enabled))
-		clk_prepare_enable(info->clk);
-
-	serial8250_resume_port(info->line);
-}
-#else
-static inline void of_serial_suspend_8250(struct of_serial_info *info)
-{
-}
-
-static inline void of_serial_resume_8250(struct of_serial_info *info)
-{
-}
-#endif
-
 static int of_serial_suspend(struct device *dev)
 {
 	struct of_serial_info *info = dev_get_drvdata(dev);
 
-	switch(info->type) {
-	case PORT_8250 ... PORT_MAX_8250:
-		of_serial_suspend_8250(info);
-		break;
-	default:
-		break;
-	}
+	serial8250_suspend_port(info->line);
+	if (info->clk)
+		clk_disable_unprepare(info->clk);
 
 	return 0;
 }
@@ -299,13 +263,10 @@ static int of_serial_resume(struct device *dev)
 {
 	struct of_serial_info *info = dev_get_drvdata(dev);
 
-	switch(info->type) {
-	case PORT_8250 ... PORT_MAX_8250:
-		of_serial_resume_8250(info);
-		break;
-	default:
-		break;
-	}
+	if (info->clk)
+		clk_prepare_enable(info->clk);
+
+	serial8250_resume_port(info->line);
 
 	return 0;
 }
