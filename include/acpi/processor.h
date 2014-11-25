@@ -67,9 +67,6 @@ struct acpi_processor_cx {
 };
 
 struct acpi_processor_power {
-	struct acpi_processor_cx *state;
-	unsigned long bm_check_timestamp;
-	u32 default_state;
 	int count;
 	struct acpi_processor_cx states[ACPI_PROCESSOR_MAX_POWER];
 	int timer_broadcast_on_state;
