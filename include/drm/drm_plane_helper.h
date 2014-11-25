@@ -49,6 +49,10 @@ extern int drm_crtc_init(struct drm_device *dev,
 
 /**
  * drm_plane_helper_funcs - helper operations for CRTCs
+ * @prepare_fb: prepare a framebuffer for use by the plane
+ * @cleanup_fb: cleanup a framebuffer when it's no longer used by the plane
+ * @atomic_check: check that a given atomic state is valid and can be applied
+ * @atomic_update: apply an atomic state to the plane
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
