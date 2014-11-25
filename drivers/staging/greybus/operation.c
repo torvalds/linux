@@ -66,9 +66,12 @@ struct gb_operation_msg_hdr {
 /* XXX Could be per-host device, per-module, or even per-connection */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
-static void gb_operation_result_set(struct gb_operation *operation, int result)
+static bool gb_operation_result_set(struct gb_operation *operation, int result)
 {
+	if (operation->errno)
+		return false;
 	operation->errno = result;
+	return true;
 }
 
 int gb_operation_result(struct gb_operation *operation)
@@ -174,7 +177,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 
 	gb_connection_err(operation->connection,
 		"unexpected incoming request type 0x%02hhx\n", header->type);
-	gb_operation_result_set(operation, -EPROTONOSUPPORT);
+	(void)gb_operation_result_set(operation, -EPROTONOSUPPORT);
 }
 #endif
 
@@ -512,8 +515,8 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 	/* XXX Right now we assume we're an outgoing request */
 	message = gb_hd_message_find(hd, header);
 	operation = message->operation;
-	gb_operation_result_set(operation, status);
-	queue_work(gb_operation_workqueue, &operation->work);
+	if (gb_operation_result_set(operation, status))
+		queue_work(gb_operation_workqueue, &operation->work);
 }
 EXPORT_SYMBOL_GPL(greybus_data_sent);
 
@@ -538,8 +541,8 @@ void gb_connection_recv_request(struct gb_connection *connection,
 	memcpy(operation->request->header, data, size);
 
 	/* XXX Right now this will just complete the operation */
-	gb_operation_result_set(operation, -ENOSYS);
-	queue_work(gb_operation_workqueue, &operation->work);
+	if (gb_operation_result_set(operation, -ENOSYS))
+		queue_work(gb_operation_workqueue, &operation->work);
 }
 
 /*
@@ -582,8 +585,8 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		memcpy(message->header, data, size);
 
 	/* The rest will be handled in work queue context */
-	gb_operation_result_set(operation, result);
-	queue_work(gb_operation_workqueue, &operation->work);
+	if (gb_operation_result_set(operation, result))
+		queue_work(gb_operation_workqueue, &operation->work);
 }
 
 /*
@@ -630,9 +633,10 @@ void gb_connection_recv(struct gb_connection *connection,
  */
 void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
-	gb_operation_result_set(operation, errno);
-	gb_message_cancel(operation->request);
-	gb_message_cancel(operation->response);
+	if (gb_operation_result_set(operation, errno)) {
+		gb_message_cancel(operation->request);
+		gb_message_cancel(operation->response);
+	}
 }
 
 /**
