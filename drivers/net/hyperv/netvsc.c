@@ -561,9 +561,7 @@ int netvsc_device_remove(struct hv_device *device)
 	vmbus_close(device->channel);
 
 	/* Release all resources */
-	if (net_device->sub_cb_buf)
-		vfree(net_device->sub_cb_buf);
-
+	vfree(net_device->sub_cb_buf);
 	free_netvsc_device(net_device);
 	return 0;
 }
