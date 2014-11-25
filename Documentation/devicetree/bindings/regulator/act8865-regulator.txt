@@ -6,8 +6,8 @@ Required properties:
 - reg: I2C slave address
 
 Optional properties:
-- poweroff-source: Telling whether or not this pmic is controlling
-  the system power. See Documentation/devicetree/bindings/power/poweroff.txt .
+- system-power-controller: Telling whether or not this pmic is controlling
+  the system power. See Documentation/devicetree/bindings/power/power-controller.txt .
 
 Any standard regulator properties can be used to configure the single regulator.
 
