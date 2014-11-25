@@ -794,10 +794,6 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 		if it before then restart search
 		if after then keep searching till find it */
 
-	if (file->private_data == NULL) {
-		rc = -EINVAL;
-		goto rddir2_exit;
-	}
 	cifsFile = file->private_data;
 	if (cifsFile->srch_inf.endOfSearch) {
 		if (cifsFile->srch_inf.emptyDir) {
