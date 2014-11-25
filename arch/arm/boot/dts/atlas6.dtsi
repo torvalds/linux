@@ -313,6 +313,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 19>;
+				resets = <&rstc 26>;
 				status = "disabled";
 			};
 
@@ -328,6 +329,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 20>;
+				resets = <&rstc 27>;
 				status = "disabled";
 			};
 
