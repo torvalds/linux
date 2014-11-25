@@ -1330,7 +1330,7 @@ static __always_inline void timekeeping_apply_adjustment(struct timekeeper *tk,
 	 *
 	 * XXX - TODO: Doc ntp_error calculation.
 	 */
-	if (tk->tkr.mult + mult_adj < mult_adj) {
+	if ((mult_adj > 0) && (tk->tkr.mult + mult_adj < mult_adj)) {
 		/* NTP adjustment caused clocksource mult overflow */
 		WARN_ON_ONCE(1);
 		return;
