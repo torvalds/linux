@@ -522,6 +522,12 @@
                                                 sirf,function = "sdmmc5";
                                         };
                                 };
+				i2s_mclk_pins_a: i2s_mclk@0 {
+                                        i2s_mclk {
+                                                sirf,pins = "i2smclkgrp";
+                                                sirf,function = "i2s_mclk";
+                                        };
+                                };
                                 i2s_pins_a: i2s@0 {
                                         i2s {
                                                 sirf,pins = "i2sgrp";
