@@ -342,6 +342,113 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	return ret;
 }
 
+static int kvm_s390_set_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	u8 gtod_high;
+
+	if (copy_from_user(&gtod_high, (void __user *)attr->addr,
+					   sizeof(gtod_high)))
+		return -EFAULT;
+
+	if (gtod_high != 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int kvm_s390_set_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_vcpu *cur_vcpu;
+	unsigned int vcpu_idx;
+	u64 host_tod, gtod;
+	int r;
+
+	if (copy_from_user(&gtod, (void __user *)attr->addr, sizeof(gtod)))
+		return -EFAULT;
+
+	r = store_tod_clock(&host_tod);
+	if (r)
+		return r;
+
+	mutex_lock(&kvm->lock);
+	kvm->arch.epoch = gtod - host_tod;
+	kvm_for_each_vcpu(vcpu_idx, cur_vcpu, kvm) {
+		cur_vcpu->arch.sie_block->epoch = kvm->arch.epoch;
+		exit_sie(cur_vcpu);
+	}
+	mutex_unlock(&kvm->lock);
+	return 0;
+}
+
+static int kvm_s390_set_tod(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret;
+
+	if (attr->flags)
+		return -EINVAL;
+
+	switch (attr->attr) {
+	case KVM_S390_VM_TOD_HIGH:
+		ret = kvm_s390_set_tod_high(kvm, attr);
+		break;
+	case KVM_S390_VM_TOD_LOW:
+		ret = kvm_s390_set_tod_low(kvm, attr);
+		break;
+	default:
+		ret = -ENXIO;
+		break;
+	}
+	return ret;
+}
+
+static int kvm_s390_get_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	u8 gtod_high = 0;
+
+	if (copy_to_user((void __user *)attr->addr, &gtod_high,
+					 sizeof(gtod_high)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int kvm_s390_get_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	u64 host_tod, gtod;
+	int r;
+
+	r = store_tod_clock(&host_tod);
+	if (r)
+		return r;
+
+	gtod = host_tod + kvm->arch.epoch;
+	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int kvm_s390_get_tod(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret;
+
+	if (attr->flags)
+		return -EINVAL;
+
+	switch (attr->attr) {
+	case KVM_S390_VM_TOD_HIGH:
+		ret = kvm_s390_get_tod_high(kvm, attr);
+		break;
+	case KVM_S390_VM_TOD_LOW:
+		ret = kvm_s390_get_tod_low(kvm, attr);
+		break;
+	default:
+		ret = -ENXIO;
+		break;
+	}
+	return ret;
+}
+
 static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	int ret;
@@ -349,6 +456,9 @@ static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 	switch (attr->group) {
 	case KVM_S390_VM_MEM_CTRL:
 		ret = kvm_s390_set_mem_control(kvm, attr);
+		break;
+	case KVM_S390_VM_TOD:
+		ret = kvm_s390_set_tod(kvm, attr);
 		break;
 	default:
 		ret = -ENXIO;
@@ -365,6 +475,9 @@ static int kvm_s390_vm_get_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 	switch (attr->group) {
 	case KVM_S390_VM_MEM_CTRL:
 		ret = kvm_s390_get_mem_control(kvm, attr);
+		break;
+	case KVM_S390_VM_TOD:
+		ret = kvm_s390_get_tod(kvm, attr);
 		break;
 	default:
 		ret = -ENXIO;
@@ -384,6 +497,17 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		case KVM_S390_VM_MEM_ENABLE_CMMA:
 		case KVM_S390_VM_MEM_CLR_CMMA:
 		case KVM_S390_VM_MEM_LIMIT_SIZE:
+			ret = 0;
+			break;
+		default:
+			ret = -ENXIO;
+			break;
+		}
+		break;
+	case KVM_S390_VM_TOD:
+		switch (attr->attr) {
+		case KVM_S390_VM_TOD_LOW:
+		case KVM_S390_VM_TOD_HIGH:
 			ret = 0;
 			break;
 		default:
@@ -541,6 +665,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	kvm->arch.css_support = 0;
 	kvm->arch.use_irqchip = 0;
+	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
 
@@ -686,6 +811,9 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
+	mutex_lock(&vcpu->kvm->lock);
+	vcpu->arch.sie_block->epoch = vcpu->kvm->arch.epoch;
+	mutex_unlock(&vcpu->kvm->lock);
 	if (!kvm_is_ucontrol(vcpu->kvm))
 		vcpu->arch.gmap = vcpu->kvm->arch.gmap;
 }

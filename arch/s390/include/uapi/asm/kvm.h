@@ -57,11 +57,16 @@ struct kvm_s390_io_adapter_req {
 
 /* kvm attr_group  on vm fd */
 #define KVM_S390_VM_MEM_CTRL		0
+#define KVM_S390_VM_TOD			1
 
 /* kvm attributes for mem_ctrl */
 #define KVM_S390_VM_MEM_ENABLE_CMMA	0
 #define KVM_S390_VM_MEM_CLR_CMMA	1
 #define KVM_S390_VM_MEM_LIMIT_SIZE	2
+
+/* kvm attributes for KVM_S390_VM_TOD */
+#define KVM_S390_VM_TOD_LOW		0
+#define KVM_S390_VM_TOD_HIGH		1
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {

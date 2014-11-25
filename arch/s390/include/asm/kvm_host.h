@@ -528,6 +528,7 @@ struct kvm_arch{
 	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
 	struct kvm_s390_crypto crypto;
+	u64 epoch;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
