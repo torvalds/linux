@@ -11,8 +11,9 @@
 
 #include "image.h"
 
-#define ARM_EXIT_KEEP(x)
-#define ARM_EXIT_DISCARD(x)	x
+/* .exit.text needed in case of alternative patching */
+#define ARM_EXIT_KEEP(x)	x
+#define ARM_EXIT_DISCARD(x)
 
 OUTPUT_ARCH(aarch64)
 ENTRY(_text)
