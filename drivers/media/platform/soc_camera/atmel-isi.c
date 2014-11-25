@@ -843,6 +843,8 @@ static int isi_camera_set_bus_param(struct soc_camera_device *icd)
 	if (isi->pdata.full_mode)
 		cfg1 |= ISI_CFG1_FULL_MODE;
 
+	cfg1 |= ISI_CFG1_THMASK_BEATS_16;
+
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
 	isi_writel(isi, ISI_CFG1, cfg1);
 
