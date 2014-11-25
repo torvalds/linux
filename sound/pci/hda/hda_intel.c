@@ -196,8 +196,8 @@ MODULE_PARM_DESC(align_buffer_size,
 		"Force buffer and period sizes to be multiple of 128 bytes.");
 
 #ifdef CONFIG_X86
-static bool hda_snoop = true;
-module_param_named(snoop, hda_snoop, bool, 0444);
+static int hda_snoop = -1;
+module_param_named(snoop, hda_snoop, bint, 0444);
 MODULE_PARM_DESC(snoop, "Enable/disable snooping");
 #else
 #define hda_snoop		true
@@ -1370,29 +1370,33 @@ static void check_msi(struct azx *chip)
 /* check the snoop mode availability */
 static void azx_check_snoop_available(struct azx *chip)
 {
-	bool snoop = chip->snoop;
+	int snoop = hda_snoop;
 
+	if (snoop >= 0) {
+		dev_info(chip->card->dev, "Force to %s mode by module option\n",
+			 snoop ? "snoop" : "non-snoop");
+		chip->snoop = snoop;
+		return;
+	}
+
+	snoop = true;
 	if (azx_get_snoop_type(chip) == AZX_SNOOP_TYPE_NONE &&
 	    chip->driver_type == AZX_DRIVER_VIA) {
 		/* force to non-snoop mode for a new VIA controller
 		 * when BIOS is set
 		 */
-		if (snoop) {
-			u8 val;
-			pci_read_config_byte(chip->pci, 0x42, &val);
-			if (!(val & 0x80) && chip->pci->revision == 0x30)
-				snoop = false;
-		}
+		u8 val;
+		pci_read_config_byte(chip->pci, 0x42, &val);
+		if (!(val & 0x80) && chip->pci->revision == 0x30)
+			snoop = false;
 	}
 
 	if (chip->driver_caps & AZX_DCAPS_SNOOP_OFF)
 		snoop = false;
 
-	if (snoop != chip->snoop) {
-		dev_info(chip->card->dev, "Force to %s mode\n",
-			 snoop ? "snoop" : "non-snoop");
-		chip->snoop = snoop;
-	}
+	chip->snoop = snoop;
+	if (!snoop)
+		dev_info(chip->card->dev, "Force to non-snoop mode\n");
 }
 
 static void azx_probe_work(struct work_struct *work)
@@ -1452,7 +1456,6 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	check_probe_mask(chip, dev);
 
 	chip->single_cmd = single_cmd;
-	chip->snoop = hda_snoop;
 	azx_check_snoop_available(chip);
 
 	if (bdl_pos_adj[dev] < 0) {
