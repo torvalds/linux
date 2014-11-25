@@ -168,7 +168,7 @@ static void meson_spifc_fill_buffer(struct meson_spifc *spifc, const u8 *buf,
  * @spifc:	the Meson SPI device
  * @speed:	desired speed in Hz
  */
-void meson_spifc_setup_speed(struct meson_spifc *spifc, u32 speed)
+static void meson_spifc_setup_speed(struct meson_spifc *spifc, u32 speed)
 {
 	unsigned long parent, value;
 	int n;
