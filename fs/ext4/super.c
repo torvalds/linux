@@ -3300,7 +3300,7 @@ int ext4_calculate_overhead(struct super_block *sb)
 	struct ext4_super_block *es = sbi->s_es;
 	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
 	ext4_fsblk_t overhead = 0;
-	char *buf = (char *) get_zeroed_page(GFP_KERNEL);
+	char *buf = (char *) get_zeroed_page(GFP_NOFS);
 
 	if (!buf)
 		return -ENOMEM;
