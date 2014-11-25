@@ -149,7 +149,8 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 	/* Check for Rx data */
 	while ((skb = skb_dequeue(&adapter->rx_data_q))) {
 		atomic_dec(&adapter->rx_pending);
-		if (adapter->delay_main_work &&
+		if ((adapter->delay_main_work ||
+		     adapter->iface_type == MWIFIEX_USB) &&
 		    (atomic_read(&adapter->rx_pending) < LOW_RX_PENDING)) {
 			if (adapter->if_ops.submit_rem_rx_urbs)
 				adapter->if_ops.submit_rem_rx_urbs(adapter);
@@ -202,12 +203,15 @@ process_start:
 		    (adapter->hw_status == MWIFIEX_HW_STATUS_NOT_READY))
 			break;
 
-		/* If we process interrupts first, it would increase RX pending
-		 * even further. Avoid this by checking if rx_pending has
-		 * crossed high threshold and schedule rx work queue
-		 * and then process interrupts
+		/* For non-USB interfaces, If we process interrupts first, it
+		 * would increase RX pending even further. Avoid this by
+		 * checking if rx_pending has crossed high threshold and
+		 * schedule rx work queue and then process interrupts.
+		 * For USB interface, there are no interrupts. We already have
+		 * HIGH_RX_PENDING check in usb.c
 		 */
-		if (atomic_read(&adapter->rx_pending) >= HIGH_RX_PENDING) {
+		if (atomic_read(&adapter->rx_pending) >= HIGH_RX_PENDING &&
+		    adapter->iface_type != MWIFIEX_USB) {
 			adapter->delay_main_work = true;
 			if (!adapter->rx_processing)
 				queue_work(adapter->rx_workqueue,
