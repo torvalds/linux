@@ -15,30 +15,13 @@
 #ifndef _EXYNOS_DRM_DRV_H_
 #define _EXYNOS_DRM_DRV_H_
 
+#include <drm/drmP.h>
 #include <linux/module.h>
 
 #define MAX_CRTC	3
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
 #define DEFAULT_ZPOS	-1
-
-#define _wait_for(COND, MS) ({ \
-	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
-	int ret__ = 0;							\
-	while (!(COND)) {						\
-		if (time_after(jiffies, timeout__)) {			\
-			ret__ = -ETIMEDOUT;				\
-			break;						\
-		}							\
-	}								\
-	ret__;								\
-})
-
-#define wait_for(COND, MS) _wait_for(COND, MS)
-
-struct drm_device;
-struct exynos_drm_overlay;
-struct drm_connector;
 
 /* This enumerates device type. */
 enum exynos_drm_device_type {
@@ -83,10 +66,10 @@ enum exynos_drm_output_type {
  * @dma_addr: array of bus(accessed by dma) address to the memory region
  *	      allocated for a overlay.
  * @zpos: order of overlay layer(z position).
- * @default_win: a window to be enabled.
- * @color_key: color key on or off.
  * @index_color: if using color key feature then this value would be used
  *			as index color.
+ * @default_win: a window to be enabled.
+ * @color_key: color key on or off.
  * @local_path: in case of lcd type, local path mode on or off.
  * @transparency: transparency on or off.
  * @activated: activated or not.
@@ -114,19 +97,20 @@ struct exynos_drm_overlay {
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
 	int zpos;
-
-	bool default_win;
-	bool color_key;
 	unsigned int index_color;
-	bool local_path;
-	bool transparency;
-	bool activated;
+
+	bool default_win:1;
+	bool color_key:1;
+	bool local_path:1;
+	bool transparency:1;
+	bool activated:1;
 };
 
 /*
  * Exynos DRM Display Structure.
  *	- this structure is common to analog tv, digital tv and lcd panel.
  *
+ * @create_connector: initialize and register a new connector
  * @remove: cleans up the display for removal
  * @mode_fixup: fix mode data comparing to hw specific display mode.
  * @mode_set: convert drm_display_mode to hw specific display mode and
@@ -168,7 +152,6 @@ struct exynos_drm_display {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct exynos_drm_display_ops *ops;
-	void *ctx;
 };
 
 /*
@@ -227,7 +210,6 @@ struct exynos_drm_manager {
 	struct drm_crtc *crtc;
 	int pipe;
 	struct exynos_drm_manager_ops *ops;
-	void *ctx;
 };
 
 struct exynos_drm_g2d_private {
@@ -279,8 +261,6 @@ struct exynos_drm_private {
  * @dev: pointer to device object for subdrv device driver.
  * @drm_dev: pointer to drm_device and this pointer would be set
  *	when sub driver calls exynos_drm_subdrv_register().
- * @manager: subdrv has its own manager to control a hardware appropriately
- *     and we can access a hardware drawing on this manager.
  * @probe: this callback would be called by exynos drm driver after
  *     subdrv is registered to it.
  * @remove: this callback is used to release resources created
@@ -312,45 +292,34 @@ int exynos_drm_device_subdrv_remove(struct drm_device *dev);
 int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
 void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
-/*
- * this function registers exynos drm hdmi platform device. It ensures only one
- * instance of the device is created.
- */
-int exynos_platform_device_hdmi_register(void);
-
-/*
- * this function unregisters exynos drm hdmi platform device if it exists.
- */
-void exynos_platform_device_hdmi_unregister(void);
-
-/*
- * this function registers exynos drm ipp platform device.
- */
+#ifdef CONFIG_DRM_EXYNOS_IPP
 int exynos_platform_device_ipp_register(void);
-
-/*
- * this function unregisters exynos drm ipp platform device if it exists.
- */
 void exynos_platform_device_ipp_unregister(void);
+#else
+static inline int exynos_platform_device_ipp_register(void) { return 0; }
+static inline void exynos_platform_device_ipp_unregister(void) {}
+#endif
+
 
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct exynos_drm_display * exynos_dpi_probe(struct device *dev);
-int exynos_dpi_remove(struct device *dev);
+int exynos_dpi_remove(struct exynos_drm_display *display);
 #else
 static inline struct exynos_drm_display *
 exynos_dpi_probe(struct device *dev) { return NULL; }
-static inline int exynos_dpi_remove(struct device *dev) { return 0; }
+static inline int exynos_dpi_remove(struct exynos_drm_display *display)
+{
+	return 0;
+}
 #endif
 
-/*
- * this function registers exynos drm vidi platform device/driver.
- */
+#ifdef CONFIG_DRM_EXYNOS_VIDI
 int exynos_drm_probe_vidi(void);
-
-/*
- * this function unregister exynos drm vidi platform device/driver.
- */
 void exynos_drm_remove_vidi(void);
+#else
+static inline int exynos_drm_probe_vidi(void) { return 0; }
+static inline void exynos_drm_remove_vidi(void) {}
+#endif
 
 /* This function creates a encoder and a connector, and initializes them. */
 int exynos_drm_create_enc_conn(struct drm_device *dev,
