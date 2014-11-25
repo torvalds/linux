@@ -150,7 +150,5 @@ static inline void ext4_es_store_pblock_status(struct extent_status *es,
 
 extern int ext4_es_register_shrinker(struct ext4_sb_info *sbi);
 extern void ext4_es_unregister_shrinker(struct ext4_sb_info *sbi);
-extern void ext4_es_list_add(struct inode *inode);
-extern void ext4_es_list_del(struct inode *inode);
 
 #endif /* _EXT4_EXTENTS_STATUS_H */
