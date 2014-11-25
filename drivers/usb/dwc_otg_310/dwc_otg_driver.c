@@ -76,49 +76,7 @@ extern int pcd_remove(struct platform_device *_dev);
 extern void hcd_remove(struct platform_device *_dev);
 extern void dwc_otg_adp_start(dwc_otg_core_if_t *core_if, uint8_t is_host);
 
-#ifdef CONFIG_USB20_OTG
-static struct usb20otg_pdata_id usb20otg_pdata[] = {
-	{
-	 .name = "rk3188-usb20otg",
-	 .pdata = &usb20otg_pdata_rk3188,
-	 },
-	{
-	 .name = "rk3288-usb20otg",
-	 .pdata = &usb20otg_pdata_rk3288,
-	 },
-	{
-	 .name = "rk3036-usb20otg",
-	 .pdata = &usb20otg_pdata_rk3036,
-	 },
-	{
-	 .name = "rk3126-usb20otg",
-	 .pdata = &usb20otg_pdata_rk3126,
-	 },
-	{},
-};
-#endif
 
-#ifdef CONFIG_USB20_HOST
-static struct usb20host_pdata_id usb20host_pdata[] = {
-	{
-	 .name = "rk3188-usb20host",
-	 .pdata = &usb20host_pdata_rk3188,
-	 },
-	{
-	 .name = "rk3288-usb20host",
-	 .pdata = &usb20host_pdata_rk3288,
-	 },
-	{
-	 .name = "rk3036-usb20host",
-	 .pdata = &usb20host_pdata_rk3036,
-	 },
-	{
-	 .name = "rk3126-usb20host",
-	 .pdata = &usb20host_pdata_rk3126,
-	 },
-	{},
-};
-#endif
 
 static u32 usb_to_uart_status;
 /*-------------------------------------------------------------------------*/
@@ -958,19 +916,19 @@ static int host20_driver_remove(struct platform_device *_dev)
 static const struct of_device_id usb20_host_of_match[] = {
 	{
 	 .compatible = "rockchip,rk3188_usb20_host",
-	 .data = &usb20host_pdata[RK3188_USB_CTLR],
+	 .data = &usb20host_pdata_rk3188,
 	 },
 	{
 	 .compatible = "rockchip,rk3288_usb20_host",
-	 .data = &usb20host_pdata[RK3288_USB_CTLR],
+	 .data = &usb20host_pdata_rk3288,
 	 },
 	{
 	 .compatible = "rockchip,rk3036_usb20_host",
-	 .data = &usb20host_pdata[RK3036_USB_CTLR],
+	 .data = &usb20host_pdata_rk3036,
 	 },
 	{
 	 .compatible = "rockchip,rk3126_usb20_host",
-	 .data = &usb20host_pdata[RK3126_USB_CTLR],
+	 .data = &usb20host_pdata_rk3126,
 	 },
 	{},
 };
@@ -997,18 +955,16 @@ static int host20_driver_probe(struct platform_device *_dev)
 	struct device *dev = &_dev->dev;
 	struct device_node *node = _dev->dev.of_node;
 	struct dwc_otg_platform_data *pldata;
-	struct usb20host_pdata_id *p;
 	const struct of_device_id *match =
 	    of_match_device(of_match_ptr(usb20_host_of_match), &_dev->dev);
 
-	if (match) {
-		p = (struct usb20host_pdata_id *)match->data;
+	if (match && match->data) {
+		dev->platform_data = (void *)match->data;
 	} else {
 		dev_err(dev, "usb20host match failed\n");
 		return -EINVAL;
 	}
 
-	dev->platform_data = p->pdata;
 	pldata = dev->platform_data;
 	pldata->dev = dev;
 
@@ -1326,22 +1282,21 @@ static int otg20_driver_remove(struct platform_device *_dev)
 static const struct of_device_id usb20_otg_of_match[] = {
 	{
 	 .compatible = "rockchip,rk3188_usb20_otg",
-	 .data = &usb20otg_pdata[RK3188_USB_CTLR],
+	 .data = &usb20otg_pdata_rk3188,
 	 },
 	{
 	 .compatible = "rockchip,rk3288_usb20_otg",
-	 .data = &usb20otg_pdata[RK3288_USB_CTLR],
+	 .data = &usb20otg_pdata_rk3288,
 	 },
 	{
 	 .compatible = "rockchip,rk3036_usb20_otg",
-	 .data = &usb20otg_pdata[RK3036_USB_CTLR],
+	 .data = &usb20otg_pdata_rk3036,
 	 },
 	{
 	 .compatible = "rockchip,rk3126_usb20_otg",
-	 .data = &usb20otg_pdata[RK3126_USB_CTLR],
+	 .data = &usb20otg_pdata_rk3126,
 	 },
-	{
-	 },
+	{ },
 };
 
 MODULE_DEVICE_TABLE(of, usb20_otg_of_match);
@@ -1367,19 +1322,16 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	struct device *dev = &_dev->dev;
 	struct device_node *node = _dev->dev.of_node;
 	struct dwc_otg_platform_data *pldata;
-	struct usb20otg_pdata_id *p;
 	const struct of_device_id *match =
 	    of_match_device(of_match_ptr(usb20_otg_of_match), &_dev->dev);
 
 	if (match) {
-		p = (struct usb20otg_pdata_id *)match->data;
+		dev->platform_data = (void *)match->data;
 	} else {
 		dev_err(dev, "usb20otg match failed\n");
 		return -EINVAL;
 	}
 
-	dev->platform_data = p->pdata;
-	/* dev->platform_data = &usb20otg_pdata; */
 	pldata = dev->platform_data;
 	pldata->dev = dev;
 
