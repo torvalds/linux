@@ -382,7 +382,7 @@ static void ext4_es_free_extent(struct inode *inode, struct extent_status *es)
 static int ext4_es_can_be_merged(struct extent_status *es1,
 				 struct extent_status *es2)
 {
-	if (ext4_es_status(es1) != ext4_es_status(es2))
+	if (ext4_es_type(es1) != ext4_es_type(es2))
 		return 0;
 
 	if (((__u64) es1->es_len) + es2->es_len > EXT_MAX_BLOCKS) {
@@ -425,6 +425,8 @@ ext4_es_try_to_merge_left(struct inode *inode, struct extent_status *es)
 	es1 = rb_entry(node, struct extent_status, rb_node);
 	if (ext4_es_can_be_merged(es1, es)) {
 		es1->es_len += es->es_len;
+		if (ext4_es_is_referenced(es))
+			ext4_es_set_referenced(es1);
 		rb_erase(&es->rb_node, &tree->root);
 		ext4_es_free_extent(inode, es);
 		es = es1;
@@ -447,6 +449,8 @@ ext4_es_try_to_merge_right(struct inode *inode, struct extent_status *es)
 	es1 = rb_entry(node, struct extent_status, rb_node);
 	if (ext4_es_can_be_merged(es, es1)) {
 		es->es_len += es1->es_len;
+		if (ext4_es_is_referenced(es1))
+			ext4_es_set_referenced(es);
 		rb_erase(node, &tree->root);
 		ext4_es_free_extent(inode, es1);
 	}
@@ -813,6 +817,8 @@ out:
 		es->es_lblk = es1->es_lblk;
 		es->es_len = es1->es_len;
 		es->es_pblk = es1->es_pblk;
+		if (!ext4_es_is_referenced(es))
+			ext4_es_set_referenced(es);
 		stats->es_stats_cache_hits++;
 	} else {
 		stats->es_stats_cache_misses++;
@@ -1252,11 +1258,17 @@ static int es_do_reclaim_extents(struct ext4_inode_info *ei, ext4_lblk_t end,
 		 * We can't reclaim delayed extent from status tree because
 		 * fiemap, bigallic, and seek_data/hole need to use it.
 		 */
-		if (!ext4_es_is_delayed(es)) {
-			rb_erase(&es->rb_node, &tree->root);
-			ext4_es_free_extent(inode, es);
-			(*nr_shrunk)++;
+		if (ext4_es_is_delayed(es))
+			goto next;
+		if (ext4_es_is_referenced(es)) {
+			ext4_es_clear_referenced(es);
+			goto next;
 		}
+
+		rb_erase(&es->rb_node, &tree->root);
+		ext4_es_free_extent(inode, es);
+		(*nr_shrunk)++;
+next:
 		if (!node)
 			goto out_wrap;
 		es = rb_entry(node, struct extent_status, rb_node);

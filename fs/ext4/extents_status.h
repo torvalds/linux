@@ -34,6 +34,7 @@ enum {
 	ES_UNWRITTEN_B,
 	ES_DELAYED_B,
 	ES_HOLE_B,
+	ES_REFERENCED_B,
 	ES_FLAGS
 };
 
@@ -44,6 +45,12 @@ enum {
 #define EXTENT_STATUS_UNWRITTEN (1 << ES_UNWRITTEN_B)
 #define EXTENT_STATUS_DELAYED	(1 << ES_DELAYED_B)
 #define EXTENT_STATUS_HOLE	(1 << ES_HOLE_B)
+#define EXTENT_STATUS_REFERENCED	(1 << ES_REFERENCED_B)
+
+#define ES_TYPE_MASK	((ext4_fsblk_t)(EXTENT_STATUS_WRITTEN | \
+			  EXTENT_STATUS_UNWRITTEN | \
+			  EXTENT_STATUS_DELAYED | \
+			  EXTENT_STATUS_HOLE) << ES_SHIFT)
 
 struct ext4_sb_info;
 struct ext4_extent;
@@ -93,24 +100,44 @@ static inline unsigned int ext4_es_status(struct extent_status *es)
 	return es->es_pblk >> ES_SHIFT;
 }
 
+static inline unsigned int ext4_es_type(struct extent_status *es)
+{
+	return (es->es_pblk & ES_TYPE_MASK) >> ES_SHIFT;
+}
+
 static inline int ext4_es_is_written(struct extent_status *es)
 {
-	return (ext4_es_status(es) & EXTENT_STATUS_WRITTEN) != 0;
+	return (ext4_es_type(es) & EXTENT_STATUS_WRITTEN) != 0;
 }
 
 static inline int ext4_es_is_unwritten(struct extent_status *es)
 {
-	return (ext4_es_status(es) & EXTENT_STATUS_UNWRITTEN) != 0;
+	return (ext4_es_type(es) & EXTENT_STATUS_UNWRITTEN) != 0;
 }
 
 static inline int ext4_es_is_delayed(struct extent_status *es)
 {
-	return (ext4_es_status(es) & EXTENT_STATUS_DELAYED) != 0;
+	return (ext4_es_type(es) & EXTENT_STATUS_DELAYED) != 0;
 }
 
 static inline int ext4_es_is_hole(struct extent_status *es)
 {
-	return (ext4_es_status(es) & EXTENT_STATUS_HOLE) != 0;
+	return (ext4_es_type(es) & EXTENT_STATUS_HOLE) != 0;
+}
+
+static inline void ext4_es_set_referenced(struct extent_status *es)
+{
+	es->es_pblk |= ((ext4_fsblk_t)EXTENT_STATUS_REFERENCED) << ES_SHIFT;
+}
+
+static inline void ext4_es_clear_referenced(struct extent_status *es)
+{
+	es->es_pblk &= ~(((ext4_fsblk_t)EXTENT_STATUS_REFERENCED) << ES_SHIFT);
+}
+
+static inline int ext4_es_is_referenced(struct extent_status *es)
+{
+	return (ext4_es_status(es) & EXTENT_STATUS_REFERENCED) != 0;
 }
 
 static inline ext4_fsblk_t ext4_es_pblock(struct extent_status *es)
