@@ -443,7 +443,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 			crtc_funcs[i]->atomic_begin(crtc[i]);
 	}
 
-	plane_funcs->atomic_update(plane);
+	plane_funcs->atomic_update(plane, plane_state);
 
 	for (i = 0; i < 2; i++) {
 		if (crtc_funcs[i] && crtc_funcs[i]->atomic_flush)

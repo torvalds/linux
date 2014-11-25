@@ -60,7 +60,8 @@ struct drm_plane_helper_funcs {
 
 	int (*atomic_check)(struct drm_plane *plane,
 			    struct drm_plane_state *state);
-	void (*atomic_update)(struct drm_plane *plane);
+	void (*atomic_update)(struct drm_plane *plane,
+			      struct drm_plane_state *old_state);
 };
 
 static inline void drm_plane_helper_add(struct drm_plane *plane,

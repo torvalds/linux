@@ -1046,6 +1046,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	for (i = 0; i < nplanes; i++) {
 		struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = old_state->planes[i];
+		struct drm_plane_state *old_plane_state;
 
 		if (!plane)
 			continue;
@@ -1055,7 +1056,9 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_update)
 			continue;
 
-		funcs->atomic_update(plane);
+		old_plane_state = old_state->plane_states[i];
+
+		funcs->atomic_update(plane, old_plane_state);
 	}
 
 	for (i = 0; i < ncrtcs; i++) {
