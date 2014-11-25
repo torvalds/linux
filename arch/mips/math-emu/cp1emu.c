@@ -459,12 +459,18 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		switch (insn.i_format.rt) {
 		case bltzal_op:
 		case bltzall_op:
+			if (NO_R6EMU && (insn.i_format.rs ||
+			    insn.i_format.rt == bltzall_op))
+				break;
+
 			regs->regs[31] = regs->cp0_epc +
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
 			/* Fall through */
-		case bltz_op:
 		case bltzl_op:
+			if (NO_R6EMU)
+				break;
+		case bltz_op:
 			if ((long)regs->regs[insn.i_format.rs] < 0)
 				*contpc = regs->cp0_epc +
 					dec_insn.pc_inc +
@@ -476,12 +482,18 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			return 1;
 		case bgezal_op:
 		case bgezall_op:
+			if (NO_R6EMU && (insn.i_format.rs ||
+			    insn.i_format.rt == bgezall_op))
+				break;
+
 			regs->regs[31] = regs->cp0_epc +
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
 			/* Fall through */
-		case bgez_op:
 		case bgezl_op:
+			if (NO_R6EMU)
+				break;
+		case bgez_op:
 			if ((long)regs->regs[insn.i_format.rs] >= 0)
 				*contpc = regs->cp0_epc +
 					dec_insn.pc_inc +
@@ -508,8 +520,10 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		/* Set microMIPS mode bit: XOR for jalx. */
 		*contpc ^= bit;
 		return 1;
-	case beq_op:
 	case beql_op:
+		if (NO_R6EMU)
+			break;
+	case beq_op:
 		if (regs->regs[insn.i_format.rs] ==
 		    regs->regs[insn.i_format.rt])
 			*contpc = regs->cp0_epc +
@@ -520,8 +534,10 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
 		return 1;
-	case bne_op:
 	case bnel_op:
+		if (NO_R6EMU)
+			break;
+	case bne_op:
 		if (regs->regs[insn.i_format.rs] !=
 		    regs->regs[insn.i_format.rt])
 			*contpc = regs->cp0_epc +
@@ -532,8 +548,10 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
 		return 1;
-	case blez_op:
 	case blezl_op:
+		if (NO_R6EMU)
+			break;
+	case blez_op:
 		if ((long)regs->regs[insn.i_format.rs] <= 0)
 			*contpc = regs->cp0_epc +
 				dec_insn.pc_inc +
@@ -543,8 +561,10 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				dec_insn.pc_inc +
 				dec_insn.next_pc_inc;
 		return 1;
-	case bgtz_op:
 	case bgtzl_op:
+		if (NO_R6EMU)
+			break;
+	case bgtz_op:
 		if ((long)regs->regs[insn.i_format.rs] > 0)
 			*contpc = regs->cp0_epc +
 				dec_insn.pc_inc +

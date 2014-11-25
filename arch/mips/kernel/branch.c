@@ -431,8 +431,10 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	 */
 	case bcond_op:
 		switch (insn.i_format.rt) {
-		case bltz_op:
 		case bltzl_op:
+			if (NO_R6EMU)
+				goto sigill_r6;
+		case bltz_op:
 			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bltzl_op)
@@ -442,8 +444,10 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			regs->cp0_epc = epc;
 			break;
 
-		case bgez_op:
 		case bgezl_op:
+			if (NO_R6EMU)
+				goto sigill_r6;
+		case bgez_op:
 			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bgezl_op)
@@ -455,7 +459,29 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 		case bltzal_op:
 		case bltzall_op:
+			if (NO_R6EMU && (insn.i_format.rs ||
+			    insn.i_format.rt == bltzall_op)) {
+				ret = -SIGILL;
+				break;
+			}
 			regs->regs[31] = epc + 8;
+			/*
+			 * OK we are here either because we hit a NAL
+			 * instruction or because we are emulating an
+			 * old bltzal{,l} one. Lets figure out what the
+			 * case really is.
+			 */
+			if (!insn.i_format.rs) {
+				/*
+				 * NAL or BLTZAL with rs == 0
+				 * Doesn't matter if we are R6 or not. The
+				 * result is the same
+				 */
+				regs->cp0_epc += 4 +
+					(insn.i_format.simmediate << 2);
+				break;
+			}
+			/* Now do the real thing for non-R6 BLTZAL{,L} */
 			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bltzall_op)
@@ -467,7 +493,29 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 		case bgezal_op:
 		case bgezall_op:
+			if (NO_R6EMU && (insn.i_format.rs ||
+			    insn.i_format.rt == bgezall_op)) {
+				ret = -SIGILL;
+				break;
+			}
 			regs->regs[31] = epc + 8;
+			/*
+			 * OK we are here either because we hit a BAL
+			 * instruction or because we are emulating an
+			 * old bgezal{,l} one. Lets figure out what the
+			 * case really is.
+			 */
+			if (!insn.i_format.rs) {
+				/*
+				 * BAL or BGEZAL with rs == 0
+				 * Doesn't matter if we are R6 or not. The
+				 * result is the same
+				 */
+				regs->cp0_epc += 4 +
+					(insn.i_format.simmediate << 2);
+				break;
+			}
+			/* Now do the real thing for non-R6 BGEZAL{,L} */
 			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bgezall_op)
@@ -510,8 +558,10 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	/*
 	 * These are conditional and in i_format.
 	 */
-	case beq_op:
 	case beql_op:
+		if (NO_R6EMU)
+			goto sigill_r6;
+	case beq_op:
 		if (regs->regs[insn.i_format.rs] ==
 		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -522,8 +572,10 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc = epc;
 		break;
 
-	case bne_op:
 	case bnel_op:
+		if (NO_R6EMU)
+			goto sigill_r6;
+	case bne_op:
 		if (regs->regs[insn.i_format.rs] !=
 		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -534,8 +586,10 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc = epc;
 		break;
 
-	case blez_op: /* not really i_format */
-	case blezl_op:
+	case blezl_op: /* not really i_format */
+		if (NO_R6EMU)
+			goto sigill_r6;
+	case blez_op:
 		/* rt field assumed to be zero */
 		if ((long)regs->regs[insn.i_format.rs] <= 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -546,8 +600,10 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc = epc;
 		break;
 
-	case bgtz_op:
 	case bgtzl_op:
+		if (NO_R6EMU)
+			goto sigill_r6;
+	case bgtz_op:
 		/* rt field assumed to be zero */
 		if ((long)regs->regs[insn.i_format.rs] > 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
