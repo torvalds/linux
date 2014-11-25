@@ -323,6 +323,7 @@ struct ath10k_debug {
 	/* protected by conf_mutex */
 	u32 fw_dbglog_mask;
 	u32 pktlog_filter;
+	u32 reg_addr;
 
 	u8 htt_max_amsdu;
 	u8 htt_max_ampdu;

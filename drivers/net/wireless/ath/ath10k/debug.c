@@ -928,6 +928,125 @@ static const struct file_operations fops_fw_crash_dump = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_reg_addr_read(struct file *file,
+				    char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 buf[32];
+	unsigned int len = 0;
+	u32 reg_addr;
+
+	mutex_lock(&ar->conf_mutex);
+	reg_addr = ar->debug.reg_addr;
+	mutex_unlock(&ar->conf_mutex);
+
+	len += scnprintf(buf + len, sizeof(buf) - len, "0x%x\n", reg_addr);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath10k_reg_addr_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 reg_addr;
+	int ret;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &reg_addr);
+	if (ret)
+		return ret;
+
+	if (!IS_ALIGNED(reg_addr, 4))
+		return -EFAULT;
+
+	mutex_lock(&ar->conf_mutex);
+	ar->debug.reg_addr = reg_addr;
+	mutex_unlock(&ar->conf_mutex);
+
+	return count;
+}
+
+static const struct file_operations fops_reg_addr = {
+	.read = ath10k_reg_addr_read,
+	.write = ath10k_reg_addr_write,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath10k_reg_value_read(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 buf[48];
+	unsigned int len;
+	u32 reg_addr, reg_val;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	reg_addr = ar->debug.reg_addr;
+
+	reg_val = ath10k_hif_read32(ar, reg_addr);
+	len = scnprintf(buf, sizeof(buf), "0x%08x:0x%08x\n", reg_addr, reg_val);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath10k_reg_value_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 reg_addr, reg_val;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	reg_addr = ar->debug.reg_addr;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &reg_val);
+	if (ret)
+		goto exit;
+
+	ath10k_hif_write32(ar, reg_addr, reg_val);
+
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static const struct file_operations fops_reg_value = {
+	.read = ath10k_reg_value_read,
+	.write = ath10k_reg_value_write,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static int ath10k_debug_htt_stats_req(struct ath10k *ar)
 {
 	u64 cookie;
@@ -1628,6 +1747,12 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("fw_crash_dump", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_fw_crash_dump);
+
+	debugfs_create_file("reg_addr", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_reg_addr);
+
+	debugfs_create_file("reg_value", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_reg_value);
 
 	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_chip_id);

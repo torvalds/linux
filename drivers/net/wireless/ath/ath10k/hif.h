@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include "core.h"
+#include "debug.h"
 
 struct ath10k_hif_sg_item {
 	u16 transfer_id;
@@ -83,6 +84,10 @@ struct ath10k_hif_ops {
 			      struct ath10k_hif_cb *callbacks);
 
 	u16 (*get_free_queue_number)(struct ath10k *ar, u8 pipe_id);
+
+	u32 (*read32)(struct ath10k *ar, u32 address);
+
+	void (*write32)(struct ath10k *ar, u32 address, u32 value);
 
 	/* Power up the device and enter BMI transfer mode for FW download */
 	int (*power_up)(struct ath10k *ar);
@@ -185,6 +190,27 @@ static inline int ath10k_hif_resume(struct ath10k *ar)
 		return -EOPNOTSUPP;
 
 	return ar->hif.ops->resume(ar);
+}
+
+static inline u32 ath10k_hif_read32(struct ath10k *ar, u32 address)
+{
+	if (!ar->hif.ops->read32) {
+		ath10k_warn(ar, "hif read32 not supported\n");
+		return 0xdeaddead;
+	}
+
+	return ar->hif.ops->read32(ar, address);
+}
+
+static inline void ath10k_hif_write32(struct ath10k *ar,
+				      u32 address, u32 data)
+{
+	if (!ar->hif.ops->write32) {
+		ath10k_warn(ar, "hif write32 not supported\n");
+		return;
+	}
+
+	ar->hif.ops->write32(ar, address, data);
 }
 
 #endif /* _HIF_H_ */
