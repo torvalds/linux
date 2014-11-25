@@ -64,15 +64,13 @@ static int fou_udp_recv(struct sock *sk, struct sk_buff *skb)
 }
 
 static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
-				  void *data, int hdrlen, u8 ipproto)
+				  void *data, size_t hdrlen, u8 ipproto)
 {
 	__be16 *pd = data;
-	u16 start = ntohs(pd[0]);
-	u16 offset = ntohs(pd[1]);
-	u16 poffset = 0;
-	u16 plen;
-	__wsum csum, delta;
-	__sum16 *psum;
+	size_t start = ntohs(pd[0]);
+	size_t offset = ntohs(pd[1]);
+	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
+	__wsum delta;
 
 	if (skb->remcsum_offload) {
 		/* Already processed in GRO path */
@@ -80,35 +78,15 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 		return guehdr;
 	}
 
-	if (start > skb->len - hdrlen ||
-	    offset > skb->len - hdrlen - sizeof(u16))
-		return NULL;
-
-	if (unlikely(skb->ip_summed != CHECKSUM_COMPLETE))
-		__skb_checksum_complete(skb);
-
-	plen = hdrlen + offset + sizeof(u16);
 	if (!pskb_may_pull(skb, plen))
 		return NULL;
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
-	if (ipproto == IPPROTO_IP && sizeof(struct iphdr) < plen) {
-		struct iphdr *ip = (struct iphdr *)(skb->data + hdrlen);
+	if (unlikely(skb->ip_summed != CHECKSUM_COMPLETE))
+		__skb_checksum_complete(skb);
 
-		/* If next header happens to be IP we can skip that for the
-		 * checksum calculation since the IP header checksum is zero
-		 * if correct.
-		 */
-		poffset = ip->ihl * 4;
-	}
-
-	csum = csum_sub(skb->csum, skb_checksum(skb, poffset + hdrlen,
-						start - poffset - hdrlen, 0));
-
-	/* Set derived checksum in packet */
-	psum = (__sum16 *)(skb->data + hdrlen + offset);
-	delta = csum_sub(csum_fold(csum), *psum);
-	*psum = csum_fold(csum);
+	delta = remcsum_adjust((void *)guehdr + hdrlen,
+			       skb->csum, start, offset);
 
 	/* Adjust skb->csum since we changed the packet */
 	skb->csum = csum_add(skb->csum, delta);
@@ -158,9 +136,6 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 
 	ip_hdr(skb)->tot_len = htons(ntohs(ip_hdr(skb)->tot_len) - len);
 
-	/* Pull UDP header now, skb->data points to guehdr */
-	__skb_pull(skb, sizeof(struct udphdr));
-
 	/* Pull csum through the guehdr now . This can be used if
 	 * there is a remote checksum offload.
 	 */
@@ -188,7 +163,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(guehdr->control))
 		return gue_control_message(skb, guehdr);
 
-	__skb_pull(skb, hdrlen);
+	__skb_pull(skb, sizeof(struct udphdr) + hdrlen);
 	skb_reset_transport_header(skb);
 
 	return -guehdr->proto_ctype;
@@ -248,23 +223,16 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 				      size_t hdrlen, u8 ipproto)
 {
 	__be16 *pd = data;
-	u16 start = ntohs(pd[0]);
-	u16 offset = ntohs(pd[1]);
-	u16 poffset = 0;
-	u16 plen;
-	void *ptr;
-	__wsum csum, delta;
-	__sum16 *psum;
+	size_t start = ntohs(pd[0]);
+	size_t offset = ntohs(pd[1]);
+	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
+	__wsum delta;
 
 	if (skb->remcsum_offload)
 		return guehdr;
 
-	if (start > skb_gro_len(skb) - hdrlen ||
-	    offset > skb_gro_len(skb) - hdrlen - sizeof(u16) ||
-	    !NAPI_GRO_CB(skb)->csum_valid || skb->remcsum_offload)
+	if (!NAPI_GRO_CB(skb)->csum_valid)
 		return NULL;
-
-	plen = hdrlen + offset + sizeof(u16);
 
 	/* Pull checksum that will be written */
 	if (skb_gro_header_hard(skb, off + plen)) {
@@ -273,26 +241,8 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 			return NULL;
 	}
 
-	ptr = (void *)guehdr + hdrlen;
-
-	if (ipproto == IPPROTO_IP &&
-	    (hdrlen + sizeof(struct iphdr) < plen)) {
-		struct iphdr *ip = (struct iphdr *)(ptr + hdrlen);
-
-		/* If next header happens to be IP we can skip
-		 * that for the checksum calculation since the
-		 * IP header checksum is zero if correct.
-		 */
-		poffset = ip->ihl * 4;
-	}
-
-	csum = csum_sub(NAPI_GRO_CB(skb)->csum,
-			csum_partial(ptr + poffset, start - poffset, 0));
-
-	/* Set derived checksum in packet */
-	psum = (__sum16 *)(ptr + offset);
-	delta = csum_sub(csum_fold(csum), *psum);
-	*psum = csum_fold(csum);
+	delta = remcsum_adjust((void *)guehdr + hdrlen,
+			       NAPI_GRO_CB(skb)->csum, start, offset);
 
 	/* Adjust skb->csum since we changed the packet */
 	skb->csum = csum_add(skb->csum, delta);
