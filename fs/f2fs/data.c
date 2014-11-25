@@ -936,6 +936,17 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	trace_f2fs_write_begin(inode, pos, len, flags);
 
 	f2fs_balance_fs(sbi);
+
+	/*
+	 * We should check this at this moment to avoid deadlock on inode page
+	 * and #0 page. The locking rule for inline_data conversion should be:
+	 * lock_page(page #0) -> lock_page(inode_page)
+	 */
+	if (index != 0) {
+		err = f2fs_convert_inline_inode(inode);
+		if (err)
+			goto fail;
+	}
 repeat:
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
@@ -960,21 +971,10 @@ repeat:
 			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
 			sync_inode_page(&dn);
 			goto put_next;
-		} else if (page->index == 0) {
-			err = f2fs_convert_inline_page(&dn, page);
-			if (err)
-				goto put_fail;
-		} else {
-			struct page *p = grab_cache_page(inode->i_mapping, 0);
-			if (!p) {
-				err = -ENOMEM;
-				goto put_fail;
-			}
-			err = f2fs_convert_inline_page(&dn, p);
-			f2fs_put_page(p, 1);
-			if (err)
-				goto put_fail;
 		}
+		err = f2fs_convert_inline_page(&dn, page);
+		if (err)
+			goto put_fail;
 	}
 	err = f2fs_reserve_block(&dn, index);
 	if (err)
