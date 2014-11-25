@@ -1503,6 +1503,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp))
 		return false;
 
+	cancel_delayed_work(&intel_dp->panel_vdd_work);
 	intel_dp->want_panel_vdd = true;
 
 	if (edp_have_panel_vdd(intel_dp))
