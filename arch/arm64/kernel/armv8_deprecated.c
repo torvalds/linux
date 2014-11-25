@@ -165,7 +165,7 @@ static int emulation_proc_handler(struct ctl_table *table, int write,
 		goto ret;
 
 	ret = update_insn_emulation_mode(insn, prev_mode);
-	if (!ret) {
+	if (ret) {
 		/* Mode change failed, revert to previous mode. */
 		insn->current_mode = prev_mode;
 		update_insn_emulation_mode(insn, INSN_UNDEF);
