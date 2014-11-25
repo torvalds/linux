@@ -152,9 +152,6 @@ struct amdtp_stream {
 	/* quirk: fixed interval of dbc between previos/current packets. */
 	unsigned int tx_dbc_interval;
 
-	/* quirk: the first count of data blocks in an rx packet for MIDI */
-	unsigned int rx_blocks_for_midi;
-
 	bool callbacked;
 	wait_queue_head_t callback_wait;
 	struct amdtp_stream *sync_slave;
