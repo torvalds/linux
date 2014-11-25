@@ -1,7 +1,7 @@
 /*
  * extcon-max14577.c - MAX14577/77836 extcon driver to support MUIC
  *
- * Copyright (C) 2013,2014 Samsung Electrnoics
+ * Copyright (C) 2013,2014 Samsung Electronics
  * Chanwoo Choi <cw00.choi@samsung.com>
  * Krzysztof Kozlowski <k.kozlowski@samsung.com>
  *
