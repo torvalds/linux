@@ -189,7 +189,8 @@ static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.integer.value[0] ==
 		ucontrol->value.integer.value[1]) {
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
-		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0, 2, volume);
+		/* apply volume value to all channels */
+		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0, SST_HSW_CHANNELS_ALL, volume);
 	} else {
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
 		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0, 0, volume);
@@ -255,7 +256,7 @@ static int hsw_volume_put(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[1]) {
 
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
-		sst_hsw_mixer_set_volume(hsw, 0, 2, volume);
+		sst_hsw_mixer_set_volume(hsw, 0, SST_HSW_CHANNELS_ALL, volume);
 
 	} else {
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
@@ -525,7 +526,15 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		dev_err(rtd->dev, "error: failed to commit stream %d\n", ret);
 		return ret;
 	}
-	pcm_data->allocated = true;
+
+	if (!pcm_data->allocated) {
+		/* Set previous saved volume */
+		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
+				0, pcm_data->volume[0]);
+		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
+				1, pcm_data->volume[1]);
+		pcm_data->allocated = true;
+	}
 
 	ret = sst_hsw_stream_pause(hsw, pcm_data->stream, 1);
 	if (ret < 0)
@@ -631,12 +640,6 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 		mutex_unlock(&pcm_data->mutex);
 		return -EINVAL;
 	}
-
-	/* Set previous saved volume */
-	sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
-			0, pcm_data->volume[0]);
-	sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
-			1, pcm_data->volume[1]);
 
 	mutex_unlock(&pcm_data->mutex);
 	return 0;

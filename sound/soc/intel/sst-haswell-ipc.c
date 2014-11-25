@@ -1042,13 +1042,8 @@ int sst_hsw_stream_set_volume(struct sst_hsw *hsw,
 
 	trace_ipc_request("set stream volume", stream->reply.stream_hw_id);
 
-	if (channel > 1)
+	if (channel >= 2 && channel != SST_HSW_CHANNELS_ALL)
 		return -EINVAL;
-
-	if (stream->mute[channel]) {
-		stream->mute_volume[channel] = volume;
-		return 0;
-	}
 
 	header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE) |
 		IPC_STR_TYPE(IPC_STR_STAGE_MESSAGE);
@@ -1057,8 +1052,27 @@ int sst_hsw_stream_set_volume(struct sst_hsw *hsw,
 	header |= (stage_id << IPC_STG_ID_SHIFT);
 
 	req = &stream->vol_req;
-	req->channel = channel;
 	req->target_volume = volume;
+
+	/* set both at same time ? */
+	if (channel == SST_HSW_CHANNELS_ALL) {
+		if (hsw->mute[0] && hsw->mute[1]) {
+			hsw->mute_volume[0] = hsw->mute_volume[1] = volume;
+			return 0;
+		} else if (hsw->mute[0])
+			req->channel = 1;
+		else if (hsw->mute[1])
+			req->channel = 0;
+		else
+			req->channel = SST_HSW_CHANNELS_ALL;
+	} else {
+		/* set only 1 channel */
+		if (hsw->mute[channel]) {
+			hsw->mute_volume[channel] = volume;
+			return 0;
+		}
+		req->channel = channel;
+	}
 
 	ret = ipc_tx_message_wait(hsw, header, req, sizeof(*req), NULL, 0);
 	if (ret < 0) {
@@ -1138,8 +1152,11 @@ int sst_hsw_mixer_set_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 
 	trace_ipc_request("set mixer volume", volume);
 
+	if (channel >= 2 && channel != SST_HSW_CHANNELS_ALL)
+		return -EINVAL;
+
 	/* set both at same time ? */
-	if (channel == 2) {
+	if (channel == SST_HSW_CHANNELS_ALL) {
 		if (hsw->mute[0] && hsw->mute[1]) {
 			hsw->mute_volume[0] = hsw->mute_volume[1] = volume;
 			return 0;
@@ -1148,7 +1165,7 @@ int sst_hsw_mixer_set_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 		else if (hsw->mute[1])
 			req.channel = 0;
 		else
-			req.channel = 0xffffffff;
+			req.channel = SST_HSW_CHANNELS_ALL;
 	} else {
 		/* set only 1 channel */
 		if (hsw->mute[channel]) {
