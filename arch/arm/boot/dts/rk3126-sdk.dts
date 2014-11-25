@@ -1,4 +1,4 @@
-#include "rk312x-sdk.dtsi"
+#include "rk3126-sdk.dtsi"
 #include "lcd-b101ew05.dtsi"
 
 / {

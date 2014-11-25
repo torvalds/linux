@@ -271,7 +271,7 @@
 		status = "disabled";
 	};
 
-	clocks-init{
+	rockchip_clocks_init: clocks-init{
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-parent =
 			<&clk_core &clk_apll>, <&aclk_cpu &clk_gpll_div2>,

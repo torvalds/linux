@@ -1,4 +1,4 @@
-#include "rk312x-sdk.dtsi"
+#include "rk3126-sdk.dtsi"
 #include "lcd-86v-rgb1024x600.dtsi"
 //#include "lcd-y81349.dtsi"
 

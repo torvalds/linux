@@ -1718,9 +1718,11 @@ static int clk_pll_set_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
-	unsigned long flags;
-	u32 refdiv, fbdiv, postdiv1, postdiv2, frac;
 	struct apll_clk_set *ps = (struct apll_clk_set *)(rk3036_apll_table);
+	struct clk *arm_gpll = __clk_lookup("clk_gpll");
+	struct clk *clk = hw->clk;
+	unsigned long flags, arm_gpll_rate, old_rate, temp_rate;
+	u32 temp_div;
 
 	while (ps->rate) {
 		if (ps->rate == rate) {
@@ -1729,50 +1731,73 @@ static int clk_pll_set_rate_3036_apll(struct clk_hw *hw, unsigned long rate,
 		ps++;
 	}
 
-	clk_debug("%s %lu\n", __func__,  rate);
+	if (ps->rate != rate) {
+		clk_err("%s: unsupport arm rate %lu\n", __func__, rate);
+		return 0;
+	}
+
+	if (!arm_gpll) {
+		clk_err("clk arm_gpll is NULL!\n");
+		return 0;
+	}
+
+	old_rate = __clk_get_rate(clk);
+	arm_gpll_rate = __clk_get_rate(arm_gpll);
+	if (soc_is_rk3128() || soc_is_rk3126())
+		arm_gpll_rate /= 2;
+
+	temp_rate = (old_rate > rate) ? old_rate : rate;
+	temp_div = DIV_ROUND_UP(arm_gpll_rate, temp_rate);
+
+	local_irq_save(flags);
+
+	if (rate >= old_rate) {
+		cru_writel(ps->clksel0, RK3036_CRU_CLKSELS_CON(0));
+		cru_writel(ps->clksel1, RK3036_CRU_CLKSELS_CON(1));
+	}
+
+	/* set div first, then select gpll */
+	if (temp_div > 1)
+		cru_writel(RK3036_CLK_CORE_DIV(temp_div), RK3036_CRU_CLKSELS_CON(0));
+	cru_writel(RK3036_CORE_SEL_PLL(1), RK3036_CRU_CLKSELS_CON(0));
+
+	clk_debug("temp select arm_gpll path, get rate %lu\n",
+		  arm_gpll_rate/temp_div);
+	clk_debug("from arm_gpll rate %lu, temp_div %d\n", arm_gpll_rate,
+		  temp_div);
+
+	/**************enter slow mode 24M***********/
+	/*cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);*/
+	loops_per_jiffy = LPJ_24M;
+
+	cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
+	cru_writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
+	cru_writel(ps->pllcon2, pll->reg + RK3188_PLL_CON(2));
+
 	clk_debug("pllcon0 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(0)));
 	clk_debug("pllcon1 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(1)));
 	clk_debug("pllcon2 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(2)));
 	clk_debug("clksel0 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(0)));
 	clk_debug("clksel1 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(1)));
-	if (ps->rate == rate) {
-		clk_debug("apll get a rate\n");
 
-		local_irq_save(flags);
-		/************select gpll_div2******************/
-		cru_writel(RK3036_CORE_SEL_PLL(1), RK3036_CRU_CLKSELS_CON(0));
-		/**************enter slow mode 24M***********/
-		/*cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);*/
-		loops_per_jiffy = LPJ_24M;
+	/*wating lock state*/
+	udelay(ps->rst_dly);
+	rk3036_pll_wait_lock(hw);
 
-		cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
-		cru_writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
-		cru_writel(ps->pllcon2, pll->reg + RK3188_PLL_CON(2));
+	/************select apll******************/
+	cru_writel(RK3036_CORE_SEL_PLL(0), RK3036_CRU_CLKSELS_CON(0));
+	/**************return slow mode***********/
+	/*cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);*/
+
+	cru_writel(RK3036_CLK_CORE_DIV(1), RK3036_CRU_CLKSELS_CON(0));
+
+	if (rate < old_rate) {
 		cru_writel(ps->clksel0, RK3036_CRU_CLKSELS_CON(0));
 		cru_writel(ps->clksel1, RK3036_CRU_CLKSELS_CON(1));
-
-		clk_debug("pllcon0 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(0)));
-		clk_debug("pllcon1 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(1)));
-		clk_debug("pllcon2 %08x\n", cru_readl(pll->reg + RK3188_PLL_CON(2)));
-		clk_debug("clksel0 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(0)));
-		clk_debug("clksel1 %08x\n", cru_readl(RK3036_CRU_CLKSELS_CON(1)));
-
-		/*wating lock state*/
-		udelay(ps->rst_dly);
-		rk3036_pll_wait_lock(hw);
-
-		/************select apll******************/
-		cru_writel(RK3036_CORE_SEL_PLL(0), RK3036_CRU_CLKSELS_CON(0));
-		/**************return slow mode***********/
-		/*cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift), pll->mode_offset);*/
-		loops_per_jiffy = ps->lpj;
-		local_irq_restore(flags);
-	} else {
-		/*FIXME*/
-		rk3036_pll_clk_get_set(parent_rate, rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac);
-		rk3036_pll_set_con(hw, refdiv, fbdiv, postdiv1, postdiv2, frac);
 	}
-	clk_debug("setting OK\n");
+
+	loops_per_jiffy = ps->lpj;
+	local_irq_restore(flags);
 
 	return 0;	
 }
