@@ -32,6 +32,9 @@ static struct kmem_cache *gb_operation_cache;
 /* Workqueue to handle Greybus operation completions. */
 static struct workqueue_struct *gb_operation_workqueue;
 
+/* Protects the cookie representing whether a message is in flight */
+static DEFINE_MUTEX(gb_message_mutex);
+
 /*
  * All operation messages (both requests and responses) begin with
  * a header that encodes the size of the data (header included).
@@ -170,16 +173,20 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 	struct gb_connection *connection = message->operation->connection;
 	u16 dest_cport_id = connection->interface_cport_id;
 	int ret = 0;
+	void *cookie;
 
-	message->cookie = connection->hd->driver->buffer_send(connection->hd,
+	mutex_lock(&gb_message_mutex);
+	cookie = connection->hd->driver->buffer_send(connection->hd,
 					dest_cport_id,
 					message->header,
 					message->size,
 					gfp_mask);
-	if (IS_ERR(message->cookie)) {
-		ret = PTR_ERR(message->cookie);
-		message->cookie = NULL;
-	}
+	if (IS_ERR(cookie))
+		ret = PTR_ERR(cookie);
+	else
+		message->cookie = cookie;
+	mutex_unlock(&gb_message_mutex);
+
 	return ret;
 }
 
@@ -189,13 +196,14 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
  */
 static void gb_message_cancel(struct gb_message *message)
 {
-	struct greybus_host_device *hd;
+	mutex_lock(&gb_message_mutex);
+	if (message->cookie) {
+		struct greybus_host_device *hd;
 
-	if (!message->cookie)
-		return;	/* Don't bother if the message isn't in flight */
-
-	hd = message->operation->connection->hd;
-	hd->driver->buffer_cancel(message->cookie);
+		hd = message->operation->connection->hd;
+		hd->driver->buffer_cancel(message->cookie);
+	}
+	mutex_unlock(&gb_message_mutex);
 }
 
 #if 0
@@ -550,12 +558,16 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 	struct gb_message *message;
 	struct gb_operation *operation;
 
-	/* If there's no error, there's really nothing to do */
+	/* XXX Right now we assume we're an outgoing request */
+	message = gb_hd_message_find(hd, header);
+
+	/* Record that the message is no longer in flight */
+	message->cookie = NULL;
+
+	/* If there's no error, there's really nothing more to do */
 	if (!status)
 		return;	/* Mark it complete? */
 
-	/* XXX Right now we assume we're an outgoing request */
-	message = gb_hd_message_find(hd, header);
 	operation = message->operation;
 	if (gb_operation_result_set(operation, status))
 		queue_work(gb_operation_workqueue, &operation->work);
