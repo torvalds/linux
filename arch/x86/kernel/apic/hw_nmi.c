@@ -30,7 +30,7 @@ u64 hw_nmi_get_sample_period(int watchdog_thresh)
 #ifdef arch_trigger_all_cpu_backtrace
 /* For reliability, we're prepared to waste bits here. */
 static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
-static cpumask_var_t printtrace_mask;
+static cpumask_t printtrace_mask;
 
 #define NMI_BUF_SIZE		4096
 
@@ -73,7 +73,7 @@ void arch_trigger_all_cpu_backtrace(bool include_self)
 	if (!include_self)
 		cpumask_clear_cpu(this_cpu, to_cpumask(backtrace_mask));
 
-	cpumask_copy(printtrace_mask, to_cpumask(backtrace_mask));
+	cpumask_copy(&printtrace_mask, to_cpumask(backtrace_mask));
 	/*
 	 * Set up per_cpu seq_buf buffers that the NMIs running on the other
 	 * CPUs will write to.
@@ -101,7 +101,7 @@ void arch_trigger_all_cpu_backtrace(bool include_self)
 	 * Now that all the NMIs have triggered, we can dump out their
 	 * back traces safely to the console.
 	 */
-	for_each_cpu(cpu, printtrace_mask) {
+	for_each_cpu(cpu, &printtrace_mask) {
 		int last_i = 0;
 
 		s = &per_cpu(nmi_print_seq, cpu);
