@@ -129,6 +129,8 @@ struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
 struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
 
+int udl_gem_get_pages(struct udl_gem_object *obj);
+void udl_gem_put_pages(struct udl_gem_object *obj);
 int udl_gem_vmap(struct udl_gem_object *obj);
 void udl_gem_vunmap(struct udl_gem_object *obj);
 int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);

@@ -90,8 +90,11 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 		return &udl_attach->sgt;
 
 	if (!obj->pages) {
-		DRM_ERROR("pages is null.\n");
-		return ERR_PTR(-ENOMEM);
+		ret = udl_gem_get_pages(obj);
+		if (ret) {
+			DRM_ERROR("failed to map pages.\n");
+			return ERR_PTR(ret);
+		}
 	}
 
 	page_count = obj->base.size / PAGE_SIZE;

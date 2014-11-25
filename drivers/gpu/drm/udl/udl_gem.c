@@ -127,7 +127,7 @@ int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 }
 
-static int udl_gem_get_pages(struct udl_gem_object *obj)
+int udl_gem_get_pages(struct udl_gem_object *obj)
 {
 	struct page **pages;
 
@@ -143,7 +143,7 @@ static int udl_gem_get_pages(struct udl_gem_object *obj)
 	return 0;
 }
 
-static void udl_gem_put_pages(struct udl_gem_object *obj)
+void udl_gem_put_pages(struct udl_gem_object *obj)
 {
 	if (obj->base.import_attach) {
 		drm_free_large(obj->pages);
