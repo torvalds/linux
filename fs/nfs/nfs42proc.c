@@ -90,6 +90,23 @@ int nfs42_proc_allocate(struct file *filep, loff_t offset, loff_t len)
 	return err;
 }
 
+int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
+{
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DEALLOCATE],
+	};
+	struct inode *inode = file_inode(filep);
+	int err;
+
+	if (!nfs_server_capable(inode, NFS_CAP_DEALLOCATE))
+		return -EOPNOTSUPP;
+
+	err = nfs42_proc_fallocate(&msg, filep, offset, len);
+	if (err == -EOPNOTSUPP)
+		NFS_SERVER(inode)->caps &= ~NFS_CAP_DEALLOCATE;
+	return err;
+}
+
 loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 {
 	struct inode *inode = file_inode(filep);

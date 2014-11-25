@@ -145,7 +145,7 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t 
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	if (mode != 0)
+	if ((mode != 0) && (mode != (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE)))
 		return -EOPNOTSUPP;
 
 	ret = inode_newsize_ok(inode, offset + len);
@@ -153,7 +153,10 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t 
 		return ret;
 
 	mutex_lock(&inode->i_mutex);
-	ret = nfs42_proc_allocate(filep, offset, len);
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		ret = nfs42_proc_deallocate(filep, offset, len);
+	else
+		ret = nfs42_proc_allocate(filep, offset, len);
 	mutex_unlock(&inode->i_mutex);
 
 	nfs_zap_caches(inode);

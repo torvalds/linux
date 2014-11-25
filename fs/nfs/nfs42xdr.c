@@ -10,6 +10,9 @@
 #define encode_allocate_maxsz		(op_encode_hdr_maxsz + \
 					 encode_fallocate_maxsz)
 #define decode_allocate_maxsz		(op_decode_hdr_maxsz)
+#define encode_deallocate_maxsz		(op_encode_hdr_maxsz + \
+					 encode_fallocate_maxsz)
+#define decode_deallocate_maxsz		(op_decode_hdr_maxsz)
 #define encode_seek_maxsz		(op_encode_hdr_maxsz + \
 					 encode_stateid_maxsz + \
 					 2 /* offset */ + \
@@ -26,6 +29,12 @@
 #define NFS4_dec_allocate_sz		(compound_decode_hdr_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_allocate_maxsz)
+#define NFS4_enc_deallocate_sz		(compound_encode_hdr_maxsz + \
+					 encode_putfh_maxsz + \
+					 encode_deallocate_maxsz)
+#define NFS4_dec_deallocate_sz		(compound_decode_hdr_maxsz + \
+					 decode_putfh_maxsz + \
+					 decode_deallocate_maxsz)
 #define NFS4_enc_seek_sz		(compound_encode_hdr_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_seek_maxsz)
@@ -47,6 +56,14 @@ static void encode_allocate(struct xdr_stream *xdr,
 			    struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_ALLOCATE, decode_allocate_maxsz, hdr);
+	encode_fallocate(xdr, args);
+}
+
+static void encode_deallocate(struct xdr_stream *xdr,
+			      struct nfs42_falloc_args *args,
+			      struct compound_hdr *hdr)
+{
+	encode_op_hdr(xdr, OP_DEALLOCATE, decode_deallocate_maxsz, hdr);
 	encode_fallocate(xdr, args);
 }
 
@@ -79,6 +96,24 @@ static void nfs4_xdr_enc_allocate(struct rpc_rqst *req,
 }
 
 /*
+ * Encode DEALLOCATE request
+ */
+static void nfs4_xdr_enc_deallocate(struct rpc_rqst *req,
+				    struct xdr_stream *xdr,
+				    struct nfs42_falloc_args *args)
+{
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, args->falloc_fh, &hdr);
+	encode_deallocate(xdr, args, &hdr);
+	encode_nops(&hdr);
+}
+
+/*
  * Encode SEEK request
  */
 static void nfs4_xdr_enc_seek(struct rpc_rqst *req,
@@ -99,6 +134,11 @@ static void nfs4_xdr_enc_seek(struct rpc_rqst *req,
 static int decode_allocate(struct xdr_stream *xdr, struct nfs42_falloc_res *res)
 {
 	return decode_op_hdr(xdr, OP_ALLOCATE);
+}
+
+static int decode_deallocate(struct xdr_stream *xdr, struct nfs42_falloc_res *res)
+{
+	return decode_op_hdr(xdr, OP_DEALLOCATE);
 }
 
 static int decode_seek(struct xdr_stream *xdr, struct nfs42_seek_res *res)
@@ -143,6 +183,30 @@ static int nfs4_xdr_dec_allocate(struct rpc_rqst *rqstp,
 	if (status)
 		goto out;
 	status = decode_allocate(xdr, res);
+out:
+	return status;
+}
+
+/*
+ * Decode DEALLOCATE request
+ */
+static int nfs4_xdr_dec_deallocate(struct rpc_rqst *rqstp,
+				   struct xdr_stream *xdr,
+				   struct nfs42_falloc_res *res)
+{
+	struct compound_hdr hdr;
+	int status;
+
+	status = decode_compound_hdr(xdr, &hdr);
+	if (status)
+		goto out;
+	status = decode_sequence(xdr, &res->seq_res, rqstp);
+	if (status)
+		goto out;
+	status = decode_putfh(xdr);
+	if (status)
+		goto out;
+	status = decode_deallocate(xdr, res);
 out:
 	return status;
 }
