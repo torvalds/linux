@@ -165,7 +165,7 @@ void exynos_plane_dpms(struct drm_plane *plane, int mode)
 	}
 }
 
-static int
+int
 exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		     unsigned int crtc_w, unsigned int crtc_h,
