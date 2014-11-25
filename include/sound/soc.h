@@ -1286,6 +1286,8 @@ void snd_soc_component_async_complete(struct snd_soc_component *component);
 int snd_soc_component_test_bits(struct snd_soc_component *component,
 	unsigned int reg, unsigned int mask, unsigned int value);
 
+#ifdef CONFIG_REGMAP
+
 void snd_soc_component_init_regmap(struct snd_soc_component *component,
 	struct regmap *regmap);
 void snd_soc_component_exit_regmap(struct snd_soc_component *component);
@@ -1320,6 +1322,8 @@ static inline void snd_soc_codec_exit_regmap(struct snd_soc_codec *codec)
 {
 	snd_soc_component_exit_regmap(&codec->component);
 }
+
+#endif
 
 /* device driver data */
 

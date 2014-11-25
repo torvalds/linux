@@ -3661,6 +3661,8 @@ static void snd_soc_component_setup_regmap(struct snd_soc_component *component)
 		component->val_bytes = val_bytes;
 }
 
+#ifdef CONFIG_REGMAP
+
 /**
  * snd_soc_component_init_regmap() - Initialize regmap instance for the component
  * @component: The component for which to initialize the regmap instance
@@ -3695,6 +3697,8 @@ void snd_soc_component_exit_regmap(struct snd_soc_component *component)
 	component->regmap = NULL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
+
+#endif
 
 static void snd_soc_component_add_unlocked(struct snd_soc_component *component)
 {
