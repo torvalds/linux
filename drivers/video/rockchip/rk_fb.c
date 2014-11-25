@@ -2707,6 +2707,10 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case RK_FBIOSET_ENABLE:
 		if (copy_from_user(&enable, argp, sizeof(enable)))
 			return -EFAULT;
+				if (enable)
+					fb_par->state++;
+				else
+					fb_par->state--;
 		dev_drv->ops->open(dev_drv, win_id, enable);
 		break;
 	case RK_FBIOGET_ENABLE:

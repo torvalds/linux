@@ -531,9 +531,9 @@ static void lcdc_layer_enable(struct lcdc_device *lcdc_dev, unsigned int win_id,
 					 "wakeup from standby!\n");
 				lcdc_dev->standby = 0;
 			}
-			lcdc_dev->atv_layer_cnt++;
-		} else if ((lcdc_dev->atv_layer_cnt > 0) && (!open)) {
-			lcdc_dev->atv_layer_cnt--;
+			lcdc_dev->atv_layer_cnt  |= (1 << win_id);
+		} else if ((lcdc_dev->atv_layer_cnt & (1 << win_id)) && (!open)) {
+			 lcdc_dev->atv_layer_cnt &= ~(1 << win_id);
 		}
 		lcdc_dev->driver.win[win_id]->state = open;
 		if (!open) {
