@@ -881,6 +881,9 @@ struct ext4_inode_info {
 	struct list_head i_es_list;
 	unsigned int i_es_all_nr;	/* protected by i_es_lock */
 	unsigned int i_es_shk_nr;	/* protected by i_es_lock */
+	ext4_lblk_t i_es_shrink_lblk;	/* Offset where we start searching for
+					   extents to shrink. Protected by
+					   i_es_lock  */
 
 	/* ialloc */
 	ext4_group_t	i_last_alloc_group;
@@ -1321,7 +1324,7 @@ struct ext4_sb_info {
 
 	/* Reclaim extents from extent status tree */
 	struct shrinker s_es_shrinker;
-	struct list_head s_es_list;
+	struct list_head s_es_list;	/* List of inodes with reclaimable extents */
 	long s_es_nr_inode;
 	struct ext4_es_stats s_es_stats;
 	struct mb_cache *s_mb_cache;

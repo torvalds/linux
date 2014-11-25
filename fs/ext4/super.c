@@ -874,6 +874,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&ei->i_es_list);
 	ei->i_es_all_nr = 0;
 	ei->i_es_shk_nr = 0;
+	ei->i_es_shrink_lblk = 0;
 	ei->i_reserved_data_blocks = 0;
 	ei->i_reserved_meta_blocks = 0;
 	ei->i_allocated_meta_blocks = 0;

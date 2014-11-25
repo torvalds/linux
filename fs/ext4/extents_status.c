@@ -147,8 +147,7 @@ static struct kmem_cache *ext4_es_cachep;
 static int __es_insert_extent(struct inode *inode, struct extent_status *newes);
 static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 			      ext4_lblk_t end);
-static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
-				       int nr_to_scan);
+static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan);
 static int __es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
 		       struct ext4_inode_info *locked_ei);
 
@@ -716,7 +715,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 retry:
 	err = __es_insert_extent(inode, &newes);
 	if (err == -ENOMEM && __es_shrink(EXT4_SB(inode->i_sb),
-					  1, EXT4_I(inode)))
+					  128, EXT4_I(inode)))
 		goto retry;
 	if (err == -ENOMEM && !ext4_es_is_delayed(&newes))
 		err = 0;
@@ -874,7 +873,7 @@ retry:
 				es->es_len = orig_es.es_len;
 				if ((err == -ENOMEM) &&
 				    __es_shrink(EXT4_SB(inode->i_sb),
-							1, EXT4_I(inode)))
+							128, EXT4_I(inode)))
 					goto retry;
 				goto out;
 			}
@@ -976,8 +975,6 @@ retry:
 	spin_lock(&sbi->s_es_lock);
 	nr_to_walk = sbi->s_es_nr_inode;
 	while (nr_to_walk-- > 0) {
-		int shrunk;
-
 		if (list_empty(&sbi->s_es_list)) {
 			spin_unlock(&sbi->s_es_lock);
 			goto out;
@@ -985,7 +982,7 @@ retry:
 		ei = list_first_entry(&sbi->s_es_list, struct ext4_inode_info,
 				      i_es_list);
 		/* Move the inode to the tail */
-		list_move(&ei->i_es_list, sbi->s_es_list.prev);
+		list_move_tail(&ei->i_es_list, &sbi->s_es_list);
 
 		/*
 		 * Normally we try hard to avoid shrinking precached inodes,
@@ -1007,13 +1004,10 @@ retry:
 		 */
 		spin_unlock(&sbi->s_es_lock);
 
-		shrunk = __es_try_to_reclaim_extents(ei, nr_to_scan);
+		nr_shrunk += es_reclaim_extents(ei, &nr_to_scan);
 		write_unlock(&ei->i_es_lock);
 
-		nr_shrunk += shrunk;
-		nr_to_scan -= shrunk;
-
-		if (nr_to_scan == 0)
+		if (nr_to_scan <= 0)
 			goto out;
 		spin_lock(&sbi->s_es_lock);
 	}
@@ -1029,7 +1023,7 @@ retry:
 	}
 
 	if (locked_ei && nr_shrunk == 0)
-		nr_shrunk = __es_try_to_reclaim_extents(locked_ei, nr_to_scan);
+		nr_shrunk = es_reclaim_extents(locked_ei, &nr_to_scan);
 
 out:
 	scan_time = ktime_to_ns(ktime_sub(ktime_get(), start_time));
@@ -1224,14 +1218,59 @@ void ext4_es_unregister_shrinker(struct ext4_sb_info *sbi)
 	unregister_shrinker(&sbi->s_es_shrinker);
 }
 
-static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
-				       int nr_to_scan)
+/*
+ * Shrink extents in given inode from ei->i_es_shrink_lblk till end. Scan at
+ * most *nr_to_scan extents, update *nr_to_scan accordingly.
+ *
+ * Return 0 if we hit end of tree / interval, 1 if we exhausted nr_to_scan.
+ * Increment *nr_shrunk by the number of reclaimed extents. Also update
+ * ei->i_es_shrink_lblk to where we should continue scanning.
+ */
+static int es_do_reclaim_extents(struct ext4_inode_info *ei, ext4_lblk_t end,
+				 int *nr_to_scan, int *nr_shrunk)
 {
 	struct inode *inode = &ei->vfs_inode;
 	struct ext4_es_tree *tree = &ei->i_es_tree;
-	struct rb_node *node;
 	struct extent_status *es;
-	unsigned long nr_shrunk = 0;
+	struct rb_node *node;
+
+	es = __es_tree_search(&tree->root, ei->i_es_shrink_lblk);
+	if (!es)
+		goto out_wrap;
+	node = &es->rb_node;
+	while (*nr_to_scan > 0) {
+		if (es->es_lblk > end) {
+			ei->i_es_shrink_lblk = end + 1;
+			return 0;
+		}
+
+		(*nr_to_scan)--;
+		node = rb_next(&es->rb_node);
+		/*
+		 * We can't reclaim delayed extent from status tree because
+		 * fiemap, bigallic, and seek_data/hole need to use it.
+		 */
+		if (!ext4_es_is_delayed(es)) {
+			rb_erase(&es->rb_node, &tree->root);
+			ext4_es_free_extent(inode, es);
+			(*nr_shrunk)++;
+		}
+		if (!node)
+			goto out_wrap;
+		es = rb_entry(node, struct extent_status, rb_node);
+	}
+	ei->i_es_shrink_lblk = es->es_lblk;
+	return 1;
+out_wrap:
+	ei->i_es_shrink_lblk = 0;
+	return 0;
+}
+
+static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan)
+{
+	struct inode *inode = &ei->vfs_inode;
+	int nr_shrunk = 0;
+	ext4_lblk_t start = ei->i_es_shrink_lblk;
 	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
@@ -1242,22 +1281,10 @@ static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
 	    __ratelimit(&_rs))
 		ext4_warning(inode->i_sb, "forced shrink of precached extents");
 
-	node = rb_first(&tree->root);
-	while (node != NULL) {
-		es = rb_entry(node, struct extent_status, rb_node);
-		node = rb_next(&es->rb_node);
-		/*
-		 * We can't reclaim delayed extent from status tree because
-		 * fiemap, bigallic, and seek_data/hole need to use it.
-		 */
-		if (!ext4_es_is_delayed(es)) {
-			rb_erase(&es->rb_node, &tree->root);
-			ext4_es_free_extent(inode, es);
-			nr_shrunk++;
-			if (--nr_to_scan == 0)
-				break;
-		}
-	}
-	tree->cache_es = NULL;
+	if (!es_do_reclaim_extents(ei, EXT_MAX_BLOCKS, nr_to_scan, &nr_shrunk) &&
+	    start != 0)
+		es_do_reclaim_extents(ei, start - 1, nr_to_scan, &nr_shrunk);
+
+	ei->i_es_tree.cache_es = NULL;
 	return nr_shrunk;
 }
