@@ -417,6 +417,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			regs->regs[insn.r_format.rd] = epc + 8;
 			/* Fall through */
 		case jr_op:
+			if (NO_R6EMU && insn.r_format.func == jr_op)
+				goto sigill_r6;
 			regs->cp0_epc = regs->regs[insn.r_format.rs];
 			break;
 		}
@@ -477,7 +479,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 		case bposge32_op:
 			if (!cpu_has_dsp)
-				goto sigill;
+				goto sigill_dsp;
 
 			dspcontrol = rddsp(0x01);
 
@@ -631,9 +633,14 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 	return ret;
 
-sigill:
+sigill_dsp:
 	printk("%s: DSP branch but not DSP ASE - sending SIGBUS.\n", current->comm);
 	force_sig(SIGBUS, current);
+	return -EFAULT;
+sigill_r6:
+	pr_info("%s: R2 branch but r2-to-r6 emulator is not preset - sending SIGILL.\n",
+		current->comm);
+	force_sig(SIGILL, current);
 	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(__compute_return_epc_for_insn);
