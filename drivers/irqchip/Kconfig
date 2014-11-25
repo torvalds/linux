@@ -8,6 +8,12 @@ config ARM_GIC
 	select IRQ_DOMAIN_HIERARCHY
 	select MULTI_IRQ_HANDLER
 
+config ARM_GIC_V2M
+	bool
+	depends on ARM_GIC
+	depends on PCI && PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+
 config GIC_NON_BANKED
 	bool
 
