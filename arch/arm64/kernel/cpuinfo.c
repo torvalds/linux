@@ -112,6 +112,15 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	diff |= CHECK(cntfrq, boot, cur, cpu);
 
 	/*
+	 * The kernel uses self-hosted debug features and expects CPUs to
+	 * support identical debug features. We presently need CTX_CMPs, WRPs,
+	 * and BRPs to be identical.
+	 * ID_AA64DFR1 is currently RES0.
+	 */
+	diff |= CHECK(id_aa64dfr0, boot, cur, cpu);
+	diff |= CHECK(id_aa64dfr1, boot, cur, cpu);
+
+	/*
 	 * Even in big.LITTLE, processors should be identical instruction-set
 	 * wise.
 	 */
@@ -171,6 +180,8 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_dczid = read_cpuid(DCZID_EL0);
 	info->reg_midr = read_cpuid_id();
 
+	info->reg_id_aa64dfr0 = read_cpuid(ID_AA64DFR0_EL1);
+	info->reg_id_aa64dfr1 = read_cpuid(ID_AA64DFR1_EL1);
 	info->reg_id_aa64isar0 = read_cpuid(ID_AA64ISAR0_EL1);
 	info->reg_id_aa64isar1 = read_cpuid(ID_AA64ISAR1_EL1);
 	info->reg_id_aa64mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
