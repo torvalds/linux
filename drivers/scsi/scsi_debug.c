@@ -179,7 +179,8 @@ static const char *scsi_debug_version_date = "20141022";
 #define SDEBUG_UA_POR 0		/* Power on, reset, or bus device reset */
 #define SDEBUG_UA_BUS_RESET 1
 #define SDEBUG_UA_MODE_CHANGED 2
-#define SDEBUG_NUM_UAS 3
+#define SDEBUG_UA_CAPACITY_CHANGED 3
+#define SDEBUG_NUM_UAS 4
 
 /* for check_readiness() */
 #define UAS_ONLY 1
@@ -582,6 +583,11 @@ static int check_readiness(struct scsi_cmnd *SCpnt, int uas_only,
 			if (debug)
 				cp = "mode parameters changed";
 			break;
+		case SDEBUG_UA_CAPACITY_CHANGED:
+			mk_sense_buffer(SCpnt, UNIT_ATTENTION,
+					UA_CHANGED_ASC, CAPACITY_CHANGED_ASCQ);
+			if (debug)
+				cp = "capacity data changed";
 		default:
 			pr_warn("%s: unexpected unit attention code=%d\n",
 				__func__, k);
@@ -3638,16 +3644,30 @@ static ssize_t virtual_gb_show(struct device_driver *ddp, char *buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_virtual_gb);
 }
+
 static ssize_t virtual_gb_store(struct device_driver *ddp, const char *buf,
 				size_t count)
 {
-        int n;
+	int n;
+	bool changed;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
+		changed = (scsi_debug_virtual_gb != n);
 		scsi_debug_virtual_gb = n;
-
 		sdebug_capacity = get_sdebug_capacity();
+		if (changed) {
+			struct sdebug_host_info *sdhp;
+			struct sdebug_dev_info *dp;
 
+			list_for_each_entry(sdhp, &sdebug_host_list,
+					    host_list) {
+				list_for_each_entry(dp, &sdhp->dev_info_list,
+						    dev_list) {
+					set_bit(SDEBUG_UA_CAPACITY_CHANGED,
+						dp->uas_bm);
+				}
+			}
+		}
 		return count;
 	}
 	return -EINVAL;
