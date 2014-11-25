@@ -2306,16 +2306,16 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 				ext4_lblk_t block)
 {
 	int depth = ext_depth(inode);
-	unsigned long len = 0;
-	ext4_lblk_t lblock = 0;
+	ext4_lblk_t len;
+	ext4_lblk_t lblock;
 	struct ext4_extent *ex;
+	struct extent_status es;
 
 	ex = path[depth].p_ext;
 	if (ex == NULL) {
-		/*
-		 * there is no extent yet, so gap is [0;-] and we
-		 * don't cache it
-		 */
+		/* there is no extent yet, so gap is [0;-] */
+		lblock = 0;
+		len = EXT_MAX_BLOCKS;
 		ext_debug("cache gap(whole file):");
 	} else if (block < le32_to_cpu(ex->ee_block)) {
 		lblock = block;
@@ -2324,9 +2324,6 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 				block,
 				le32_to_cpu(ex->ee_block),
 				 ext4_ext_get_actual_len(ex));
-		if (!ext4_find_delalloc_range(inode, lblock, lblock + len - 1))
-			ext4_es_insert_extent(inode, lblock, len, ~0,
-					      EXTENT_STATUS_HOLE);
 	} else if (block >= le32_to_cpu(ex->ee_block)
 			+ ext4_ext_get_actual_len(ex)) {
 		ext4_lblk_t next;
@@ -2340,14 +2337,19 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 				block);
 		BUG_ON(next == lblock);
 		len = next - lblock;
-		if (!ext4_find_delalloc_range(inode, lblock, lblock + len - 1))
-			ext4_es_insert_extent(inode, lblock, len, ~0,
-					      EXTENT_STATUS_HOLE);
 	} else {
 		BUG();
 	}
 
-	ext_debug(" -> %u:%lu\n", lblock, len);
+	ext4_es_find_delayed_extent_range(inode, lblock, lblock + len - 1, &es);
+	if (es.es_len) {
+		/* There's delayed extent containing lblock? */
+		if (es.es_lblk <= lblock)
+			return;
+		len = min(es.es_lblk - lblock, len);
+	}
+	ext_debug(" -> %u:%u\n", lblock, len);
+	ext4_es_insert_extent(inode, lblock, len, ~0, EXTENT_STATUS_HOLE);
 }
 
 /*
@@ -4368,8 +4370,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		 * put just found gap into cache to speed up
 		 * subsequent requests
 		 */
-		if ((flags & EXT4_GET_BLOCKS_NO_PUT_HOLE) == 0)
-			ext4_ext_put_gap_in_cache(inode, path, map->m_lblk);
+		ext4_ext_put_gap_in_cache(inode, path, map->m_lblk);
 		goto out2;
 	}
 
