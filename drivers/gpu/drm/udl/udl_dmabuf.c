@@ -99,9 +99,9 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 
 	page_count = obj->base.size / PAGE_SIZE;
 	obj->sg = drm_prime_pages_to_sg(obj->pages, page_count);
-	if (!obj->sg) {
-		DRM_ERROR("sg is null.\n");
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(obj->sg)) {
+		DRM_ERROR("failed to allocate sgt.\n");
+		return ERR_CAST(obj->sg);
 	}
 
 	sgt = &udl_attach->sgt;
