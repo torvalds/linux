@@ -84,7 +84,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		.type = DATA,
 		.rw = WRITE_SYNC | REQ_PRIO,
 	};
-	int err;
+	int dirty, err;
 
 	f2fs_bug_on(F2FS_I_SB(dn->inode), page->index);
 
@@ -110,12 +110,17 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	kunmap_atomic(dst_addr);
 	SetPageUptodate(page);
 no_update:
+	/* clear dirty state */
+	dirty = clear_page_dirty_for_io(page);
+
 	/* write data page to try to make data consistent */
 	set_page_writeback(page);
 
 	write_data_page(page, dn, &new_blk_addr, &fio);
 	update_extent_cache(new_blk_addr, dn);
 	f2fs_wait_on_page_writeback(page, DATA);
+	if (dirty)
+		inode_dec_dirty_pages(dn->inode);
 
 	/* clear inline data and flag after data writeback */
 	truncate_inline_data(dn->inode_page, 0);
