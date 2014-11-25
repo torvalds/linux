@@ -528,6 +528,12 @@
                                                 sirf,function = "i2s_mclk";
                                         };
                                 };
+				i2s_ext_clk_input_pins_a: i2s_ext_clk_input@0 {
+                                        i2s_ext_clk_input {
+                                                sirf,pins = "i2s_ext_clk_inputgrp";
+                                                sirf,function = "i2s_ext_clk_input";
+                                        };
+                                };
                                 i2s_pins_a: i2s@0 {
                                         i2s {
                                                 sirf,pins = "i2sgrp";
