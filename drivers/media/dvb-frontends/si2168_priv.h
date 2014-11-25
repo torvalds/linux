@@ -29,7 +29,6 @@
 
 /* state struct */
 struct si2168_dev {
-	struct i2c_client *client;
 	struct i2c_adapter *adapter;
 	struct mutex i2c_mutex;
 	struct dvb_frontend fe;
