@@ -203,3 +203,23 @@ done:
 }
 EXPORT_SYMBOL_GPL(mwifiex_write_data_complete);
 
+void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
+				   void *event_body)
+{
+	struct tx_status_event *tx_status = (void *)priv->adapter->event_body;
+	struct sk_buff *ack_skb;
+	unsigned long flags;
+
+	if (!tx_status->tx_token_id)
+		return;
+
+	spin_lock_irqsave(&priv->ack_status_lock, flags);
+	ack_skb = idr_find(&priv->ack_status_frames, tx_status->tx_token_id);
+	if (ack_skb)
+		idr_remove(&priv->ack_status_frames, tx_status->tx_token_id);
+	spin_unlock_irqrestore(&priv->ack_status_lock, flags);
+
+	/* consumes ack_skb */
+	if (ack_skb)
+		skb_complete_wifi_ack(ack_skb, !tx_status->status);
+}

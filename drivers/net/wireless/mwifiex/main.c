@@ -608,6 +608,44 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 	return 0;
 }
 
+static struct sk_buff *
+mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
+				struct sk_buff *skb, u8 flag)
+{
+	struct sk_buff *orig_skb = skb;
+	struct mwifiex_txinfo *tx_info, *orig_tx_info;
+
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (skb) {
+		unsigned long flags;
+		int id;
+
+		spin_lock_irqsave(&priv->ack_status_lock, flags);
+		id = idr_alloc(&priv->ack_status_frames, orig_skb,
+			       1, 0xff, GFP_ATOMIC);
+		spin_unlock_irqrestore(&priv->ack_status_lock, flags);
+
+		if (id >= 0) {
+			tx_info = MWIFIEX_SKB_TXCB(skb);
+			tx_info->ack_frame_id = id;
+			tx_info->flags |= flag;
+			orig_tx_info = MWIFIEX_SKB_TXCB(orig_skb);
+			orig_tx_info->ack_frame_id = id;
+			orig_tx_info->flags |= flag;
+		} else if (skb_shared(skb)) {
+			kfree_skb(orig_skb);
+		} else {
+			kfree_skb(skb);
+			skb = orig_skb;
+		}
+	} else {
+		/* couldn't clone -- lose tx status ... */
+		skb = orig_skb;
+	}
+
+	return skb;
+}
+
 /*
  * CFG802.11 network device handler for data transmission.
  */
@@ -617,6 +655,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
+	bool multicast;
 
 	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d-%d): Data <= kernel\n",
 		jiffies, priv->bss_type, priv->bss_num);
@@ -656,6 +695,15 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 	tx_info->pkt_len = skb->len;
+
+	multicast = is_multicast_ether_addr(skb->data);
+
+	if (unlikely(!multicast && skb->sk &&
+		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS &&
+		     priv->adapter->fw_api_ver == MWIFIEX_FW_V15))
+		skb = mwifiex_clone_skb_for_tx_status(priv,
+						      skb,
+					MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS);
 
 	/* Record the current time the packet was queued; used to
 	 * determine the amount of time the packet was queued in

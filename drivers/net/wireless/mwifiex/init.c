@@ -473,6 +473,9 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 
 		spin_lock_init(&priv->tx_ba_stream_tbl_lock);
 		spin_lock_init(&priv->rx_reorder_tbl_lock);
+
+		spin_lock_init(&priv->ack_status_lock);
+		idr_init(&priv->ack_status_frames);
 	}
 
 	return 0;

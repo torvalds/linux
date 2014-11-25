@@ -2988,6 +2988,9 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			   NL80211_FEATURE_INACTIVITY_TIMER |
 			   NL80211_FEATURE_NEED_OBSS_SCAN;
 
+	if (adapter->fw_api_ver == MWIFIEX_FW_V15)
+		wiphy->features |= NL80211_FEATURE_SK_TX_STATUS;
+
 	/* Reserve space for mwifiex specific private data for BSS */
 	wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
 

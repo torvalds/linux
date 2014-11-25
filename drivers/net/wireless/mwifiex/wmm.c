@@ -523,6 +523,13 @@ static void mwifiex_wmm_delete_all_ralist(struct mwifiex_private *priv)
 	}
 }
 
+static int mwifiex_free_ack_frame(int id, void *p, void *data)
+{
+	pr_warn("Have pending ack frames!\n");
+	kfree_skb(p);
+	return 0;
+}
+
 /*
  * This function cleans up the Tx and Rx queues.
  *
@@ -558,6 +565,9 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 
 	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp)
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+
+	idr_for_each(&priv->ack_status_frames, mwifiex_free_ack_frame, NULL);
+	idr_destroy(&priv->ack_status_frames);
 }
 
 /*

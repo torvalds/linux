@@ -370,9 +370,14 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	txpd->bss_num = priv->bss_num;
 	txpd->bss_type = priv->bss_type;
 	txpd->tx_pkt_length = cpu_to_le16((u16)(skb->len - len));
-
 	txpd->priority = (u8)skb->priority;
+
 	txpd->pkt_delay_2ms = mwifiex_wmm_compute_drv_pkt_delay(priv, skb);
+
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS) {
+		txpd->tx_token_id = tx_info->ack_frame_id;
+		txpd->flags |= MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS;
+	}
 
 	if (txpd->priority < ARRAY_SIZE(priv->wmm.user_pri_pkt_tx_ctrl))
 		/*

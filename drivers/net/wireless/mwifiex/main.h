@@ -34,6 +34,7 @@
 #include <linux/firmware.h>
 #include <linux/ctype.h>
 #include <linux/of.h>
+#include <linux/idr.h>
 
 #include "decl.h"
 #include "ioctl.h"
@@ -578,6 +579,9 @@ struct mwifiex_private {
 	u8 check_tdls_tx;
 	struct timer_list auto_tdls_timer;
 	bool auto_tdls_timer_active;
+	struct idr ack_status_frames;
+	/* spin lock for ack status */
+	spinlock_t ack_status_lock;
 };
 
 enum mwifiex_ba_status {
@@ -1334,6 +1338,9 @@ void mwifiex_check_auto_tdls(unsigned long context);
 void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
 void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
+
+void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
+				   void *event_body);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

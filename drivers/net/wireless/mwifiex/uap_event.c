@@ -172,6 +172,10 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 			return mwifiex_handle_event_ext_scan_report(priv,
 						adapter->event_skb->data);
 		break;
+	case EVENT_TX_STATUS_REPORT:
+		dev_dbg(adapter->dev, "event: TX_STATUS Report\n");
+		mwifiex_parse_tx_status_event(priv, adapter->event_body);
+		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

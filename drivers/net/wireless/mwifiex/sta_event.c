@@ -504,6 +504,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		ret = mwifiex_parse_tdls_event(priv, adapter->event_skb);
 		break;
 
+	case EVENT_TX_STATUS_REPORT:
+		dev_dbg(adapter->dev, "event: TX_STATUS Report\n");
+		mwifiex_parse_tx_status_event(priv, adapter->event_body);
+		break;
+
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);
