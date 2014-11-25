@@ -303,11 +303,6 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 
 	DBG("%s: check", mdp5_crtc->name);
 
-	if (mdp5_crtc->event) {
-		dev_err(dev->dev, "already pending flip!\n");
-		return -EBUSY;
-	}
-
 	/* request a free CTL, if none is already allocated for this CRTC */
 	if (state->enable && !mdp5_crtc->ctl) {
 		mdp5_crtc->ctl = mdp5_ctlm_request(mdp5_kms->ctlm, crtc);
@@ -364,7 +359,7 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	DBG("%s: flush", mdp5_crtc->name);
+	DBG("%s: event: %p", mdp5_crtc->name, crtc->state->event);
 
 	WARN_ON(mdp5_crtc->event);
 
