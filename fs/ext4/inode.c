@@ -3620,7 +3620,7 @@ out_stop:
 	 * If this was a simple ftruncate() and the file will remain alive,
 	 * then we need to clear up the orphan record which we created above.
 	 * However, if this was a real unlink then we were called by
-	 * ext4_delete_inode(), and we allow that function to clean up the
+	 * ext4_evict_inode(), and we allow that function to clean up the
 	 * orphan info for us.
 	 */
 	if (inode->i_nlink)
