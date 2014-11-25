@@ -679,8 +679,8 @@ static void rcar_dmac_realloc_hwdesc(struct rcar_dmac_chan *chan,
 	desc->hwdescs.size = size;
 }
 
-static void rcar_dmac_fill_hwdesc(struct rcar_dmac_chan *chan,
-				  struct rcar_dmac_desc *desc)
+static int rcar_dmac_fill_hwdesc(struct rcar_dmac_chan *chan,
+				 struct rcar_dmac_desc *desc)
 {
 	struct rcar_dmac_xfer_chunk *chunk;
 	struct rcar_dmac_hw_desc *hwdesc;
@@ -689,7 +689,7 @@ static void rcar_dmac_fill_hwdesc(struct rcar_dmac_chan *chan,
 
 	hwdesc = desc->hwdescs.mem;
 	if (!hwdesc)
-		return;
+		return -ENOMEM;
 
 	list_for_each_entry(chunk, &desc->chunks, node) {
 		hwdesc->sar = chunk->src_addr;
@@ -697,6 +697,8 @@ static void rcar_dmac_fill_hwdesc(struct rcar_dmac_chan *chan,
 		hwdesc->tcr = chunk->size >> desc->xfer_shift;
 		hwdesc++;
 	}
+
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -917,8 +919,10 @@ rcar_dmac_chan_prep_sg(struct rcar_dmac_chan *chan, struct scatterlist *sgl,
 	 * additional complexity remains to be investigated.
 	 */
 	desc->hwdescs.use = !highmem && nchunks > 1;
-	if (desc->hwdescs.use)
-		rcar_dmac_fill_hwdesc(chan, desc);
+	if (desc->hwdescs.use) {
+		if (rcar_dmac_fill_hwdesc(chan, desc) < 0)
+			desc->hwdescs.use = false;
+	}
 
 	return &desc->async_tx;
 }
