@@ -49,9 +49,6 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	  build a working kernel, you must also enable relevant core
 	  tile support or Flattened Device Tree based support options.
 
-config ARCH_VEXPRESS_CA9X4
-	bool "Versatile Express Cortex-A9x4 tile"
-
 config ARCH_VEXPRESS_DCSCB
 	bool "Dual Cluster System Control Block (DCSCB) support"
 	depends on MCPM
