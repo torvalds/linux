@@ -82,18 +82,32 @@ static DEFINE_SPINLOCK(gb_operations_lock);
  */
 static bool gb_operation_result_set(struct gb_operation *operation, int result)
 {
+	int prev;
+
+	/* Nobody should be setting -EBADR */
 	if (WARN_ON(result == -EBADR))
 		return false;
 
+	/* Are we sending the request message? */
 	if (result == -EINPROGRESS) {
-		if (WARN_ON(operation->errno != -EBADR))
-			return false;
-	} else if (operation->errno != -EINPROGRESS) {
-		return false;
-	}
-	operation->errno = result;
+		/* Yes, but verify the result has not already been set */
+		spin_lock_irq(&gb_operations_lock);
+		prev = operation->errno;
+		if (prev == -EBADR)
+			operation->errno = result;
+		spin_unlock_irq(&gb_operations_lock);
 
-	return true;
+		return !WARN_ON(prev != -EBADR);
+	}
+
+	/* Trying to set final status; only the first one succeeds */
+	spin_lock_irq(&gb_operations_lock);
+	prev = operation->errno;
+	if (prev == -EINPROGRESS)
+		operation->errno = result;
+	spin_unlock_irq(&gb_operations_lock);
+
+	return prev == -EINPROGRESS;
 }
 
 int gb_operation_result(struct gb_operation *operation)
