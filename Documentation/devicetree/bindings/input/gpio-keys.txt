@@ -10,9 +10,12 @@ Optional properties:
 Each button (key) is represented as a sub-node of "gpio-keys":
 Subnode properties:
 
-	- gpios: OF device-tree gpio specification.
 	- label: Descriptive name of the key.
 	- linux,code: Keycode to emit.
+
+Required mutual exclusive subnode-properties:
+	- gpios: OF device-tree gpio specification.
+	- interrupts: the interrupt line for that input
 
 Optional subnode-properties:
 	- linux,input-type: Specify event type this button/key generates.
@@ -32,5 +35,10 @@ Example nodes:
 				label = "GPIO Key UP";
 				linux,code = <103>;
 				gpios = <&gpio1 0 1>;
+			};
+			button@22 {
+				label = "GPIO Key DOWN";
+				linux,code = <108>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 			};
 			...
