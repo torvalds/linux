@@ -3338,6 +3338,11 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	if (pipe_crc->source && source)
 		return -EINVAL;
 
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PIPE(pipe))) {
+		DRM_DEBUG_KMS("Trying to capture CRC while pipe is off\n");
+		return -EIO;
+	}
+
 	if (IS_GEN2(dev))
 		ret = i8xx_pipe_crc_ctl_reg(&source, &val);
 	else if (INTEL_INFO(dev)->gen < 5)
