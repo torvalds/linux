@@ -721,6 +721,10 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 	drm_mode_object_put(dev, &crtc->base);
 	list_del(&crtc->head);
 	dev->mode_config.num_crtc--;
+
+	WARN_ON(crtc->state && !crtc->funcs->atomic_destroy_state);
+	if (crtc->state && crtc->funcs->atomic_destroy_state)
+		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
 }
 EXPORT_SYMBOL(drm_crtc_cleanup);
 
@@ -918,6 +922,11 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	connector->name = NULL;
 	list_del(&connector->head);
 	dev->mode_config.num_connector--;
+
+	WARN_ON(connector->state && !connector->funcs->atomic_destroy_state);
+	if (connector->state && connector->funcs->atomic_destroy_state)
+		connector->funcs->atomic_destroy_state(connector,
+						       connector->state);
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
 
@@ -1244,6 +1253,10 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		dev->mode_config.num_overlay_plane--;
 	drm_modeset_unlock_all(dev);
+
+	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
+	if (plane->state && plane->funcs->atomic_destroy_state)
+		plane->funcs->atomic_destroy_state(plane, plane->state);
 }
 EXPORT_SYMBOL(drm_plane_cleanup);
 
