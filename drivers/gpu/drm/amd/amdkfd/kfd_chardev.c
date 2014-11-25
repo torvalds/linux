@@ -242,7 +242,7 @@ static long kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	mutex_lock(&p->mutex);
 
 	pdd = kfd_bind_process_to_device(dev, p);
-	if (IS_ERR(pdd) < 0) {
+	if (IS_ERR(pdd)) {
 		err = PTR_ERR(pdd);
 		goto err_bind_process;
 	}
@@ -389,7 +389,7 @@ static long kfd_ioctl_set_memory_policy(struct file *filep,
 	mutex_lock(&p->mutex);
 
 	pdd = kfd_bind_process_to_device(dev, p);
-	if (IS_ERR(pdd) < 0) {
+	if (IS_ERR(pdd)) {
 		err = PTR_ERR(pdd);
 		goto out;
 	}
