@@ -417,6 +417,12 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	/* Hold our list modification lock here */
 	mutex_lock(&dev_opp_list_lock);
 
+	/* populate the opp table */
+	new_opp->dev_opp = dev_opp;
+	new_opp->rate = freq;
+	new_opp->u_volt = u_volt;
+	new_opp->available = true;
+
 	/* Check for existing list for 'dev' */
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
@@ -441,13 +447,9 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 
 		/* Secure the device list modification */
 		list_add_rcu(&dev_opp->node, &dev_opp_list);
+		head = &dev_opp->opp_list;
+		goto list_add;
 	}
-
-	/* populate the opp table */
-	new_opp->dev_opp = dev_opp;
-	new_opp->rate = freq;
-	new_opp->u_volt = u_volt;
-	new_opp->available = true;
 
 	/*
 	 * Insert new OPP in order of increasing frequency
@@ -474,6 +476,7 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 		return ret;
 	}
 
+list_add:
 	list_add_rcu(&new_opp->node, head);
 	mutex_unlock(&dev_opp_list_lock);
 
