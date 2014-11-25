@@ -224,7 +224,7 @@ struct clk * __init sunxi_factors_register(struct device_node *node,
 		/* set up gate properties */
 		mux->reg = reg;
 		mux->shift = data->mux;
-		mux->mask = SUNXI_FACTORS_MUX_MASK;
+		mux->mask = data->muxmask;
 		mux->lock = factors->lock;
 		mux_hw = &mux->hw;
 	}

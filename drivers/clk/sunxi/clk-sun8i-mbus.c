@@ -60,6 +60,7 @@ static struct clk_factors_config sun8i_a23_mbus_config = {
 static const struct factors_data sun8i_a23_mbus_data __initconst = {
 	.enable = 31,
 	.mux = 24,
+	.muxmask = BIT(1) | BIT(0),
 	.table = &sun8i_a23_mbus_config,
 	.getter = sun8i_a23_get_mbus_factors,
 };
