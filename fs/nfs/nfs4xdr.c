@@ -7394,6 +7394,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
 #endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 	PROC(SEEK,		enc_seek,		dec_seek),
+	PROC(ALLOCATE,		enc_allocate,		dec_allocate),
 #endif /* CONFIG_NFS_V4_2 */
 };
 
