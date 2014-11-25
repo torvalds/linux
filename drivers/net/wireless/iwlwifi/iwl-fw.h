@@ -158,6 +158,7 @@ enum iwl_ucode_tlv_api {
  * @IWL_UCODE_TLV_CAPA_DQA_SUPPORT: supports dynamic queue allocation (DQA),
  *	which also implies support for the scheduler configuration command
  * @IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH: supports TDLS channel switching
+ * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
  */
 enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
@@ -169,6 +170,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_QUIET_PERIOD_SUPPORT		= BIT(11),
 	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= BIT(12),
 	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= BIT(13),
+	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
 };
 
 /* The default calibrate table size if not specified by firmware file */
