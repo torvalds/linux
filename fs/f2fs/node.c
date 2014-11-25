@@ -171,7 +171,7 @@ retry:
 static void __clear_nat_cache_dirty(struct f2fs_nm_info *nm_i,
 						struct nat_entry *ne)
 {
-	nid_t set = ne->ni.nid / NAT_ENTRY_PER_BLOCK;
+	nid_t set = NAT_BLOCK_OFFSET(ne->ni.nid);
 	struct nat_entry_set *head;
 
 	head = radix_tree_lookup(&nm_i->nat_set_root, set);
@@ -1945,6 +1945,8 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 	nid_t set_idx = 0;
 	LIST_HEAD(sets);
 
+	if (!nm_i->dirty_nat_cnt)
+		return;
 	/*
 	 * if there are no enough space in journal to store dirty nat
 	 * entries, remove all entries from journal and merge them
@@ -1952,9 +1954,6 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 	 */
 	if (!__has_cursum_space(sum, nm_i->dirty_nat_cnt, NAT_JOURNAL))
 		remove_nats_in_journal(sbi);
-
-	if (!nm_i->dirty_nat_cnt)
-		return;
 
 	while ((found = __gang_lookup_nat_set(nm_i,
 					set_idx, NATVEC_SIZE, setvec))) {
