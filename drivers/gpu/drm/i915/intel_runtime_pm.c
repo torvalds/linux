@@ -118,7 +118,7 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_display_power_is_enabled - unlocked check for a power domain
+ * intel_display_power_is_enabled - check for a power domain
  * @dev_priv: i915 device instance
  * @domain: power domain to check
  *
