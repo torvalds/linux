@@ -176,6 +176,7 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 	struct exynos_drm_private *dev_priv = dev->dev_private;
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
+	unsigned int crtc_w, crtc_h;
 	int ret = -EINVAL;
 
 	/* when the page flip is requested, crtc's dpms should be on */
@@ -207,8 +208,11 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		spin_unlock_irq(&dev->event_lock);
 
 		crtc->primary->fb = fb;
-		ret = exynos_drm_crtc_mode_set_commit(crtc, crtc->x, crtc->y,
-						    NULL);
+		crtc_w = fb->width - crtc->x;
+		crtc_h = fb->height - crtc->y;
+		ret = exynos_update_plane(crtc->primary, crtc, fb, 0, 0,
+					  crtc_w, crtc_h, crtc->x, crtc->y,
+					  crtc_w, crtc_h);
 		if (ret) {
 			crtc->primary->fb = old_fb;
 
