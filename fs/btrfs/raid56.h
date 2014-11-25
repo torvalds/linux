@@ -43,8 +43,8 @@ struct btrfs_raid_bio;
 struct btrfs_device;
 
 int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
-				 struct btrfs_bio *bbio, u64 *raid_map,
-				 u64 stripe_len, int mirror_num, int hold_bbio);
+			  struct btrfs_bio *bbio, u64 *raid_map,
+			  u64 stripe_len, int mirror_num, int generic_io);
 int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 			       struct btrfs_bio *bbio, u64 *raid_map,
 			       u64 stripe_len);

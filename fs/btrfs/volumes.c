@@ -5843,12 +5843,9 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		} else {
 			ret = raid56_parity_recover(root, bio, bbio,
 						    raid_map, map_length,
-						    mirror_num, 0);
+						    mirror_num, 1);
 		}
-		/*
-		 * FIXME, replace dosen't support raid56 yet, please fix
-		 * it in the future.
-		 */
+
 		btrfs_bio_counter_dec(root->fs_info);
 		return ret;
 	}

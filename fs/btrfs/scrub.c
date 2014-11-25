@@ -1477,7 +1477,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	ret = raid56_parity_recover(fs_info->fs_root, bio, page->recover->bbio,
 				    page->recover->raid_map,
 				    page->recover->map_length,
-				    page->mirror_num, 1);
+				    page->mirror_num, 0);
 	if (ret)
 		return ret;
 

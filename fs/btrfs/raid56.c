@@ -162,6 +162,8 @@ struct btrfs_raid_bio {
 	 */
 	int bio_list_bytes;
 
+	int generic_bio_cnt;
+
 	atomic_t refs;
 
 	atomic_t stripes_pending;
@@ -354,6 +356,7 @@ static void merge_rbio(struct btrfs_raid_bio *dest,
 {
 	bio_list_merge(&dest->bio_list, &victim->bio_list);
 	dest->bio_list_bytes += victim->bio_list_bytes;
+	dest->generic_bio_cnt += victim->generic_bio_cnt;
 	bio_list_init(&victim->bio_list);
 }
 
@@ -891,6 +894,10 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, int err, int uptodate)
 {
 	struct bio *cur = bio_list_get(&rbio->bio_list);
 	struct bio *next;
+
+	if (rbio->generic_bio_cnt)
+		btrfs_bio_counter_sub(rbio->fs_info, rbio->generic_bio_cnt);
+
 	free_raid_bio(rbio);
 
 	while (cur) {
@@ -1775,6 +1782,7 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	struct btrfs_raid_bio *rbio;
 	struct btrfs_plug_cb *plug = NULL;
 	struct blk_plug_cb *cb;
+	int ret;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
 	if (IS_ERR(rbio)) {
@@ -1785,12 +1793,19 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	rbio->bio_list_bytes = bio->bi_iter.bi_size;
 	rbio->operation = BTRFS_RBIO_WRITE;
 
+	btrfs_bio_counter_inc_noblocked(root->fs_info);
+	rbio->generic_bio_cnt = 1;
+
 	/*
 	 * don't plug on full rbios, just get them out the door
 	 * as quickly as we can
 	 */
-	if (rbio_is_full(rbio))
-		return full_stripe_write(rbio);
+	if (rbio_is_full(rbio)) {
+		ret = full_stripe_write(rbio);
+		if (ret)
+			btrfs_bio_counter_dec(root->fs_info);
+		return ret;
+	}
 
 	cb = blk_check_plugged(btrfs_raid_unplug, root->fs_info,
 			       sizeof(*plug));
@@ -1801,10 +1816,13 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 			INIT_LIST_HEAD(&plug->rbio_list);
 		}
 		list_add_tail(&rbio->plug_list, &plug->rbio_list);
+		ret = 0;
 	} else {
-		return __raid56_parity_write(rbio);
+		ret = __raid56_parity_write(rbio);
+		if (ret)
+			btrfs_bio_counter_dec(root->fs_info);
 	}
-	return 0;
+	return ret;
 }
 
 /*
@@ -2139,19 +2157,17 @@ cleanup:
  */
 int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 			  struct btrfs_bio *bbio, u64 *raid_map,
-			  u64 stripe_len, int mirror_num, int hold_bbio)
+			  u64 stripe_len, int mirror_num, int generic_io)
 {
 	struct btrfs_raid_bio *rbio;
 	int ret;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
 	if (IS_ERR(rbio)) {
-		__free_bbio_and_raid_map(bbio, raid_map, !hold_bbio);
+		__free_bbio_and_raid_map(bbio, raid_map, generic_io);
 		return PTR_ERR(rbio);
 	}
 
-	if (hold_bbio)
-		set_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags);
 	rbio->operation = BTRFS_RBIO_READ_REBUILD;
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_iter.bi_size;
@@ -2159,9 +2175,16 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		BUG();
-		__free_bbio_and_raid_map(bbio, raid_map, !hold_bbio);
+		__free_bbio_and_raid_map(bbio, raid_map, generic_io);
 		kfree(rbio);
 		return -EIO;
+	}
+
+	if (generic_io) {
+		btrfs_bio_counter_inc_noblocked(root->fs_info);
+		rbio->generic_bio_cnt = 1;
+	} else {
+		set_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags);
 	}
 
 	/*
