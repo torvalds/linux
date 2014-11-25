@@ -3101,9 +3101,9 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
-
 	cancel_work_sync(&arvif->wep_key_work);
+
+	mutex_lock(&ar->conf_mutex);
 
 	spin_lock_bh(&ar->data_lock);
 	ath10k_mac_vif_beacon_cleanup(arvif);
