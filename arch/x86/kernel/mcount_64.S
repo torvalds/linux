@@ -124,7 +124,7 @@
 	/*
 	 * Now %rdi (the first parameter) has the return address of
 	 * where ftrace_call returns. But the callbacks expect the
-	 * the address of the call itself.
+	 * address of the call itself.
 	 */
 	subq $MCOUNT_INSN_SIZE, %rdi
 	.endm
@@ -289,21 +289,18 @@ END(function_hook)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
-	/* Saves rbp into %rdx */
+	/* Saves rbp into %rdx and fills first parameter  */
 	save_mcount_regs
 
 #ifdef CC_USING_FENTRY
-	leaq MCOUNT_REG_SIZE+8(%rsp), %rdi
+	leaq MCOUNT_REG_SIZE+8(%rsp), %rsi
 	movq $0, %rdx	/* No framepointers needed */
 #else
 	/* Save address of the return address of traced function */
-	leaq 8(%rdx), %rdi
+	leaq 8(%rdx), %rsi
 	/* ftrace does sanity checks against frame pointers */
 	movq (%rdx), %rdx
 #endif
-	movq RIP(%rsp), %rsi
-	subq $MCOUNT_INSN_SIZE, %rsi
-
 	call	prepare_ftrace_return
 
 	restore_mcount_regs
