@@ -172,10 +172,7 @@ csio_scsi_fcp_cmnd(struct csio_ioreq *req, void *addr)
 		fcp_cmnd->fc_cmdref = 0;
 
 		memcpy(fcp_cmnd->fc_cdb, scmnd->cmnd, 16);
-		if (scmnd->flags & SCMD_TAGGED)
-			fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
-		else
-			fcp_cmnd->fc_pri_ta = 0;
+		fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
 		fcp_cmnd->fc_dl = cpu_to_be32(scsi_bufflen(scmnd));
 
 		if (req->nsge)

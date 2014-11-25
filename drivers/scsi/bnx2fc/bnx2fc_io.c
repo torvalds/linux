@@ -1737,11 +1737,7 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 	fcp_cmnd->fc_pri_ta = 0;
 	fcp_cmnd->fc_tm_flags = io_req->mp_req.tm_flags;
 	fcp_cmnd->fc_flags = io_req->io_req_flags;
-
-	if (sc_cmd->flags & SCMD_TAGGED)
-		fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
-	else
-		fcp_cmnd->fc_pri_ta = 0;
+	fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
 }
 
 static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
