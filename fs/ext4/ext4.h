@@ -158,17 +158,8 @@ struct ext4_allocation_request {
 #define EXT4_MAP_MAPPED		(1 << BH_Mapped)
 #define EXT4_MAP_UNWRITTEN	(1 << BH_Unwritten)
 #define EXT4_MAP_BOUNDARY	(1 << BH_Boundary)
-/* Sometimes (in the bigalloc case, from ext4_da_get_block_prep) the caller of
- * ext4_map_blocks wants to know whether or not the underlying cluster has
- * already been accounted for. EXT4_MAP_FROM_CLUSTER conveys to the caller that
- * the requested mapping was from previously mapped (or delayed allocated)
- * cluster. We use BH_AllocFromCluster only for this flag. BH_AllocFromCluster
- * should never appear on buffer_head's state flags.
- */
-#define EXT4_MAP_FROM_CLUSTER	(1 << BH_AllocFromCluster)
 #define EXT4_MAP_FLAGS		(EXT4_MAP_NEW | EXT4_MAP_MAPPED |\
-				 EXT4_MAP_UNWRITTEN | EXT4_MAP_BOUNDARY |\
-				 EXT4_MAP_FROM_CLUSTER)
+				 EXT4_MAP_UNWRITTEN | EXT4_MAP_BOUNDARY)
 
 struct ext4_map_blocks {
 	ext4_fsblk_t m_pblk;
@@ -2788,16 +2779,6 @@ extern int ext4_bio_write_page(struct ext4_io_submit *io,
 
 /* mmp.c */
 extern int ext4_multi_mount_protect(struct super_block *, ext4_fsblk_t);
-
-/*
- * Note that these flags will never ever appear in a buffer_head's state flag.
- * See EXT4_MAP_... to see where this is used.
- */
-enum ext4_state_bits {
-	BH_AllocFromCluster	/* allocated blocks were part of already
-				 * allocated cluster. */
-	= BH_JBDPrivateStart
-};
 
 /*
  * Add new method to test whether block and inode bitmaps are properly
