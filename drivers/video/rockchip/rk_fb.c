@@ -4086,7 +4086,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	}
 
 	/* show logo for primary display device */
-#if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
+#if !defined(CONFIG_FRAMEBUFFER_CONSOLE)
 	if (dev_drv->prop == PRMRY) {
 		struct fb_info *main_fbi = rk_fb->fb[0];
 		main_fbi->fbops->fb_open(main_fbi, 1);
@@ -4101,6 +4101,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		dev_drv->uboot_logo = support_uboot_display();
+#if !defined(CONFIG_LOGO)
 		if (support_uboot_display()) {
 			/*
 			if (dev_drv->iommu_enabled)
@@ -4108,6 +4109,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			*/
 			return 0;
 		}
+#else
 		main_fbi->fbops->fb_set_par(main_fbi);
 #if  defined(CONFIG_LOGO_LINUX_BMP)
 		if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {
@@ -4121,6 +4123,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		}
 #endif
 		main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
+#endif
 	} else {
 		struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
 		int extend_fb_id = get_extend_fb_id(extend_fbi);
