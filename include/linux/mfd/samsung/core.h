@@ -28,6 +28,7 @@
 #define MIN_800_MV		800000
 #define MIN_750_MV		750000
 #define MIN_600_MV		600000
+#define MIN_500_MV		500000
 
 /* Macros to represent steps for LDO/BUCK */
 #define STEP_50_MV		50000
@@ -41,6 +42,7 @@ enum sec_device_type {
 	S5M8767X,
 	S2MPA01,
 	S2MPS11X,
+	S2MPS13X,
 	S2MPS14X,
 	S2MPU02,
 };

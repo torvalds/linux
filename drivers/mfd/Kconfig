@@ -74,7 +74,8 @@ config MFD_AXP20X
 	select REGMAP_IRQ
 	depends on I2C=y
 	help
-	  If you say Y here you get support for the X-Powers AXP202 and AXP209.
+	  If you say Y here you get support for the X-Powers AXP202, AXP209 and
+	  AXP288 power management IC (PMIC).
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
@@ -182,6 +183,16 @@ config MFD_DA9063
 	  This includes the I2C driver and core APIs.
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
+
+config MFD_DLN2
+	tristate "Diolan DLN2 support"
+	select MFD_CORE
+	depends on USB
+	help
+	  This adds support for Diolan USB-I2C/SPI/GPIO Master Adapter
+	  DLN-2. Additional drivers such as I2C_DLN2, GPIO_DLN2,
+	  etc. must be enabled in order to use the functionality of
+	  the device.
 
 config MFD_MC13XXX
 	tristate

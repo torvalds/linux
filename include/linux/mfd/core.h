@@ -111,6 +111,13 @@ extern int mfd_add_devices(struct device *parent, int id,
 			   struct resource *mem_base,
 			   int irq_base, struct irq_domain *irq_domain);
 
+static inline int mfd_add_hotplug_devices(struct device *parent,
+		const struct mfd_cell *cells, int n_devs)
+{
+	return mfd_add_devices(parent, PLATFORM_DEVID_AUTO, cells, n_devs,
+			NULL, 0, NULL);
+}
+
 extern void mfd_remove_devices(struct device *parent);
 
 #endif
