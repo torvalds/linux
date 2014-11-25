@@ -355,6 +355,9 @@ static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 
 	lockdep_assert_held(&ar->conf_mutex);
 
+	if (ar->num_peers >= ar->max_num_peers)
+		return -ENOBUFS;
+
 	ret = ath10k_wmi_peer_create(ar, vdev_id, addr);
 	if (ret) {
 		ath10k_warn(ar, "failed to create wmi peer %pM on vdev %i: %i\n",
@@ -500,6 +503,7 @@ static void ath10k_peer_cleanup_all(struct ath10k *ar)
 	spin_unlock_bh(&ar->data_lock);
 
 	ar->num_peers = 0;
+	ar->num_stations = 0;
 }
 
 /************************/
@@ -3596,6 +3600,37 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static int ath10k_mac_inc_num_stations(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (arvif->vdev_type != WMI_VDEV_TYPE_AP &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
+		return 0;
+
+	if (ar->num_stations >= ar->max_num_stations)
+		return -ENOBUFS;
+
+	ar->num_stations++;
+
+	return 0;
+}
+
+static void ath10k_mac_dec_num_stations(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (arvif->vdev_type != WMI_VDEV_TYPE_AP &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
+		return;
+
+	ar->num_stations--;
+}
+
 static int ath10k_sta_state(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta,
@@ -3605,7 +3640,6 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
-	int max_num_peers;
 	int ret = 0;
 
 	if (old_state == IEEE80211_STA_NOTEXIST &&
@@ -3627,26 +3661,24 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		/*
 		 * New station addition.
 		 */
-		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
-			max_num_peers = TARGET_10X_NUM_PEERS_MAX - 1;
-		else
-			max_num_peers = TARGET_NUM_PEERS;
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac vdev %d peer create %pM (new sta) sta %d / %d peer %d / %d\n",
+			   arvif->vdev_id, sta->addr,
+			   ar->num_stations + 1, ar->max_num_stations,
+			   ar->num_peers + 1, ar->max_num_peers);
 
-		if (ar->num_peers >= max_num_peers) {
-			ath10k_warn(ar, "number of peers exceeded: peers number %d (max peers %d)\n",
-				    ar->num_peers, max_num_peers);
-			ret = -ENOBUFS;
+		ret = ath10k_mac_inc_num_stations(arvif);
+		if (ret) {
+			ath10k_warn(ar, "refusing to associate station: too many connected already (%d)\n",
+				    ar->max_num_stations);
 			goto exit;
 		}
-
-		ath10k_dbg(ar, ATH10K_DBG_MAC,
-			   "mac vdev %d peer create %pM (new sta) num_peers %d\n",
-			   arvif->vdev_id, sta->addr, ar->num_peers);
 
 		ret = ath10k_peer_create(ar, arvif->vdev_id, sta->addr);
 		if (ret) {
 			ath10k_warn(ar, "failed to add peer %pM for vdev %d when adding a new sta: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
+			ath10k_mac_dec_num_stations(arvif);
 			goto exit;
 		}
 
@@ -3659,6 +3691,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 					    arvif->vdev_id, ret);
 				WARN_ON(ath10k_peer_delete(ar, arvif->vdev_id,
 							   sta->addr));
+				ath10k_mac_dec_num_stations(arvif);
 				goto exit;
 			}
 
@@ -3689,6 +3722,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			ath10k_warn(ar, "failed to delete peer %pM for vdev %d: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
 
+		ath10k_mac_dec_num_stations(arvif);
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC &&
 		   (vif->type == NL80211_IFTYPE_AP ||
