@@ -84,6 +84,8 @@ struct gb_operation {
 void gb_connection_recv(struct gb_connection *connection,
 					void *data, size_t size);
 
+int gb_operation_result(struct gb_operation *operation);
+
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
 					size_t response_size);

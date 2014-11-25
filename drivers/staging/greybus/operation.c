@@ -66,6 +66,16 @@ struct gb_operation_msg_hdr {
 /* XXX Could be per-host device, per-module, or even per-connection */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
+static void gb_operation_result_set(struct gb_operation *operation, int result)
+{
+	operation->errno = result;
+}
+
+int gb_operation_result(struct gb_operation *operation)
+{
+	return operation->errno;
+}
+
 static void gb_pending_operation_insert(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
@@ -164,7 +174,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 
 	gb_connection_err(operation->connection,
 		"unexpected incoming request type 0x%02hhx\n", header->type);
-	operation->errno = -EPROTONOSUPPORT;
+	gb_operation_result_set(operation, -EPROTONOSUPPORT);
 }
 #endif
 
@@ -424,11 +434,12 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
  * any payload so the request message is ready to go.  If non-null,
  * the callback function supplied will be called when the response
  * message has arrived indicating the operation is complete.  In
- * that case, the callback function is responsible for extracting
- * the result of the operation from operation->errno if desired,
- * and dropping the final reference to the operation.  A null
- * callback function is used for a synchronous request; return from
- * this function won't occur until the operation is complete.
+ * that case, the callback function is responsible for fetching the
+ * result of the operation using gb_operation_result() if desired,
+ * and dropping the final reference to (i.e., destroying) the
+ * operation.  A null callback function is used for a synchronous
+ * request; in that case return from this function won't occur until
+ * the operation is complete.
  */
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback)
@@ -470,7 +481,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	if (ret < 0)
 		gb_operation_cancel(operation, -EINTR);
 
-	return operation->errno;
+	return gb_operation_result(operation);
 }
 
 /*
@@ -501,7 +512,7 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 	/* XXX Right now we assume we're an outgoing request */
 	message = gb_hd_message_find(hd, header);
 	operation = message->operation;
-	operation->errno = status;
+	gb_operation_result_set(operation, status);
 	queue_work(gb_operation_workqueue, &operation->work);
 }
 EXPORT_SYMBOL_GPL(greybus_data_sent);
@@ -527,7 +538,7 @@ void gb_connection_recv_request(struct gb_connection *connection,
 	memcpy(operation->request->header, data, size);
 
 	/* XXX Right now this will just complete the operation */
-	operation->errno = -ENOSYS;
+	gb_operation_result_set(operation, -ENOSYS);
 	queue_work(gb_operation_workqueue, &operation->work);
 }
 
@@ -571,7 +582,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		memcpy(message->header, data, size);
 
 	/* The rest will be handled in work queue context */
-	operation->errno = result;
+	gb_operation_result_set(operation, result);
 	queue_work(gb_operation_workqueue, &operation->work);
 }
 
@@ -619,7 +630,7 @@ void gb_connection_recv(struct gb_connection *connection,
  */
 void gb_operation_cancel(struct gb_operation *operation, int errno)
 {
-	operation->errno = errno;
+	gb_operation_result_set(operation, errno);
 	gb_message_cancel(operation->request);
 	gb_message_cancel(operation->response);
 }
