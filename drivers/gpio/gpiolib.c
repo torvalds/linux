@@ -148,7 +148,7 @@ static int gpiochip_find_base(int ngpio)
  *
  * This function may sleep if gpiod_cansleep() is true.
  */
-int gpiod_get_direction(const struct gpio_desc *desc)
+int gpiod_get_direction(struct gpio_desc *desc)
 {
 	struct gpio_chip	*chip;
 	unsigned		offset;
@@ -164,13 +164,11 @@ int gpiod_get_direction(const struct gpio_desc *desc)
 	if (status > 0) {
 		/* GPIOF_DIR_IN, or other positive */
 		status = 1;
-		/* FLAG_IS_OUT is just a cache of the result of get_direction(),
-		 * so it does not affect constness per se */
-		clear_bit(FLAG_IS_OUT, &((struct gpio_desc *)desc)->flags);
+		clear_bit(FLAG_IS_OUT, &desc->flags);
 	}
 	if (status == 0) {
 		/* GPIOF_DIR_OUT */
-		set_bit(FLAG_IS_OUT, &((struct gpio_desc *)desc)->flags);
+		set_bit(FLAG_IS_OUT, &desc->flags);
 	}
 	return status;
 }
