@@ -682,6 +682,7 @@ phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
 
 /* Events */
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
+extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
 enum kfd_event_wait_result {
 	KFD_WAIT_COMPLETE,
@@ -701,6 +702,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 void kfd_signal_iommu_event(struct kfd_dev *dev,
 		unsigned int pasid, unsigned long address,
 		bool is_write_requested, bool is_execute_requested);
+void kfd_signal_hw_exception_event(unsigned int pasid);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,

@@ -74,6 +74,7 @@ struct kfd_event {
 
 /* Matching HSA_EVENTTYPE */
 #define KFD_EVENT_TYPE_SIGNAL 0
+#define KFD_EVENT_TYPE_HW_EXCEPTION 3
 #define KFD_EVENT_TYPE_DEBUG 5
 #define KFD_EVENT_TYPE_MEMORY 8
 

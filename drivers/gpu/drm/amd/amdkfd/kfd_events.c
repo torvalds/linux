@@ -936,3 +936,24 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	mutex_unlock(&p->event_mutex);
 	mutex_unlock(&p->mutex);
 }
+
+void kfd_signal_hw_exception_event(unsigned int pasid)
+{
+	/*
+	 * Because we are called from arbitrary context (workqueue) as opposed
+	 * to process context, kfd_process could attempt to exit while we are
+	 * running so the lookup function returns a locked process.
+	 */
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+
+	if (!p)
+		return; /* Presumably process exited. */
+
+	mutex_lock(&p->event_mutex);
+
+	/* Lookup events by type and signal them */
+	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_HW_EXCEPTION, NULL);
+
+	mutex_unlock(&p->event_mutex);
+	mutex_unlock(&p->mutex);
+}
