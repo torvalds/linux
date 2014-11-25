@@ -48,6 +48,8 @@ struct ath10k_hif_ops {
 	int (*diag_read)(struct ath10k *ar, u32 address, void *buf,
 			 size_t buf_len);
 
+	int (*diag_write)(struct ath10k *ar, u32 address, const void *data,
+			  int nbytes);
 	/*
 	 * API to handle HIF-specific BMI message exchanges, this API is
 	 * synchronous and only allowed to be called from a context that
@@ -111,6 +113,15 @@ static inline int ath10k_hif_diag_read(struct ath10k *ar, u32 address, void *buf
 				       size_t buf_len)
 {
 	return ar->hif.ops->diag_read(ar, address, buf, buf_len);
+}
+
+static inline int ath10k_hif_diag_write(struct ath10k *ar, u32 address,
+					const void *data, int nbytes)
+{
+	if (!ar->hif.ops->diag_write)
+		return -EOPNOTSUPP;
+
+	return ar->hif.ops->diag_write(ar, address, data, nbytes);
 }
 
 static inline int ath10k_hif_exchange_bmi_msg(struct ath10k *ar,

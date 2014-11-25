@@ -1047,6 +1047,117 @@ static const struct file_operations fops_reg_value = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_mem_value_read(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 *buf;
+	int ret;
+
+	if (*ppos < 0)
+		return -EINVAL;
+
+	if (!count)
+		return 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	buf = vmalloc(count);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	ret = ath10k_hif_diag_read(ar, *ppos, buf, count);
+	if (ret) {
+		ath10k_warn(ar, "failed to read address 0x%08x via diagnose window fnrom debugfs: %d\n",
+			    (u32)(*ppos), ret);
+		goto exit;
+	}
+
+	ret = copy_to_user(user_buf, buf, count);
+	if (ret) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	count -= ret;
+	*ppos += count;
+	ret = count;
+
+exit:
+	vfree(buf);
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath10k_mem_value_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 *buf;
+	int ret;
+
+	if (*ppos < 0)
+		return -EINVAL;
+
+	if (!count)
+		return 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	buf = vmalloc(count);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	ret = copy_from_user(buf, user_buf, count);
+	if (ret) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	ret = ath10k_hif_diag_write(ar, *ppos, buf, count);
+	if (ret) {
+		ath10k_warn(ar, "failed to write address 0x%08x via diagnose window from debugfs: %d\n",
+			    (u32)(*ppos), ret);
+		goto exit;
+	}
+
+	*ppos += count;
+	ret = count;
+
+exit:
+	vfree(buf);
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static const struct file_operations fops_mem_value = {
+	.read = ath10k_mem_value_read,
+	.write = ath10k_mem_value_write,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static int ath10k_debug_htt_stats_req(struct ath10k *ar)
 {
 	u64 cookie;
@@ -1753,6 +1864,9 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("reg_value", S_IRUSR | S_IWUSR,
 			    ar->debug.debugfs_phy, ar, &fops_reg_value);
+
+	debugfs_create_file("mem_value", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_mem_value);
 
 	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_chip_id);
