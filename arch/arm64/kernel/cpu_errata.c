@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define pr_fmt(fmt) "alternative: " fmt
+#define pr_fmt(fmt) "alternatives: " fmt
 
 #include <linux/types.h>
 #include <asm/cpu.h>
