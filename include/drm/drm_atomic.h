@@ -28,6 +28,8 @@
 #ifndef DRM_ATOMIC_H_
 #define DRM_ATOMIC_H_
 
+#include <drm/drm_crtc.h>
+
 struct drm_atomic_state * __must_check
 drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);
