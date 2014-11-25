@@ -671,18 +671,22 @@ void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
 	 REG_RANGE((reg), 0x22000, 0x24000))
 
 #define FORCEWAKE_GEN9_UNCORE_RANGE_OFFSET(reg) \
-	REG_RANGE((reg), 0xC00,  0x2000)
+	REG_RANGE((reg), 0xB00,  0x2000)
 
 #define FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x2000, 0x4000) || \
+	(REG_RANGE((reg), 0x2000, 0x2700) || \
+	 REG_RANGE((reg), 0x3000, 0x4000) || \
 	 REG_RANGE((reg), 0x5200, 0x8000) || \
+	 REG_RANGE((reg), 0x8140, 0x8160) || \
 	 REG_RANGE((reg), 0x8300, 0x8500) || \
 	 REG_RANGE((reg), 0x8C00, 0x8D00) || \
 	 REG_RANGE((reg), 0xB000, 0xB480) || \
-	 REG_RANGE((reg), 0xE000, 0xE800))
+	 REG_RANGE((reg), 0xE000, 0xE900) || \
+	 REG_RANGE((reg), 0x24400, 0x24800))
 
 #define FORCEWAKE_GEN9_MEDIA_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x8800, 0x8A00) || \
+	(REG_RANGE((reg), 0x8130, 0x8140) || \
+	 REG_RANGE((reg), 0x8800, 0x8A00) || \
 	 REG_RANGE((reg), 0xD000, 0xD800) || \
 	 REG_RANGE((reg), 0x12000, 0x14000) || \
 	 REG_RANGE((reg), 0x1A000, 0x1EA00) || \
