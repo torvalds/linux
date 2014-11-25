@@ -998,8 +998,7 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 
 static int pxa25x_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int pxa25x_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int pxa25x_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops pxa25x_udc_ops = {
 	.get_frame	= pxa25x_udc_get_frame,
@@ -1135,11 +1134,7 @@ static const struct file_operations debug_fops = {
 		dev->debugfs_udc = debugfs_create_file(dev->gadget.name, \
 			S_IRUGO, NULL, dev, &debug_fops); \
 	} while (0)
-#define remove_debug_files(dev) \
-	do { \
-		if (dev->debugfs_udc) \
-			debugfs_remove(dev->debugfs_udc); \
-	} while (0)
+#define remove_debug_files(dev) debugfs_remove(dev->debugfs_udc)
 
 #else	/* !CONFIG_USB_GADGET_DEBUG_FILES */
 
@@ -1285,6 +1280,33 @@ bind_fail:
 }
 
 static void
+reset_gadget(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
+{
+	int i;
+
+	/* don't disconnect drivers more than once */
+	if (dev->gadget.speed == USB_SPEED_UNKNOWN)
+		driver = NULL;
+	dev->gadget.speed = USB_SPEED_UNKNOWN;
+
+	/* prevent new request submissions, kill any outstanding requests  */
+	for (i = 0; i < PXA_UDC_NUM_ENDPOINTS; i++) {
+		struct pxa25x_ep *ep = &dev->ep[i];
+
+		ep->stopped = 1;
+		nuke(ep, -ESHUTDOWN);
+	}
+	del_timer_sync(&dev->timer);
+
+	/* report reset; the driver is already quiesced */
+	if (driver)
+		usb_gadget_udc_reset(&dev->gadget, driver);
+
+	/* re-init driver-visible data structures */
+	udc_reinit(dev);
+}
+
+static void
 stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 {
 	int i;
@@ -1311,15 +1333,14 @@ stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 	udc_reinit(dev);
 }
 
-static int pxa25x_udc_stop(struct usb_gadget*g,
-		struct usb_gadget_driver *driver)
+static int pxa25x_udc_stop(struct usb_gadget*g)
 {
 	struct pxa25x_udc	*dev = to_pxa25x(g);
 
 	local_irq_disable();
 	dev->pullup = 0;
 	pullup(dev);
-	stop_activity(dev, driver);
+	stop_activity(dev, NULL);
 	local_irq_enable();
 
 	if (!IS_ERR_OR_NULL(dev->transceiver))
@@ -1723,7 +1744,7 @@ pxa25x_udc_irq(int irq, void *_dev)
 				/* reset driver and endpoints,
 				 * in case that's not yet done
 				 */
-				stop_activity (dev, dev->driver);
+				reset_gadget(dev, dev->driver);
 
 			} else {
 				DBG(DBG_VERBOSE, "USB reset end\n");

@@ -287,6 +287,7 @@ config USB_MIDI_GADGET
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_RAWMIDI
+	select USB_F_MIDI
 	help
 	  The MIDI Gadget acts as a USB Audio device, with one MIDI
 	  input and one MIDI output. These MIDI jacks appear as
@@ -419,6 +420,7 @@ endif # TTY
 config USB_G_HID
 	tristate "HID Gadget"
 	select USB_LIBCOMPOSITE
+	select USB_F_HID
 	help
 	  The HID gadget driver provides generic emulation of USB
 	  Human Interface Devices (HID).

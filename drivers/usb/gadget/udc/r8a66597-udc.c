@@ -1345,7 +1345,7 @@ static void irq_device_state(struct r8a66597 *r8a66597)
 	if (dvsq == DS_DFLT) {
 		/* bus reset */
 		spin_unlock(&r8a66597->lock);
-		r8a66597->driver->disconnect(&r8a66597->gadget);
+		usb_gadget_udc_reset(&r8a66597->gadget, r8a66597->driver);
 		spin_lock(&r8a66597->lock);
 		r8a66597_update_usb_speed(r8a66597);
 	}
@@ -1763,8 +1763,7 @@ static int r8a66597_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int r8a66597_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int r8a66597_stop(struct usb_gadget *gadget)
 {
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 	unsigned long flags;
@@ -1846,10 +1845,7 @@ static int r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sudmac");
 	r8a66597->sudmac_reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(r8a66597->sudmac_reg))
-		return PTR_ERR(r8a66597->sudmac_reg);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(r8a66597->sudmac_reg);
 }
 
 static int r8a66597_probe(struct platform_device *pdev)

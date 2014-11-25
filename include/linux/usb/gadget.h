@@ -490,8 +490,7 @@ struct usb_gadget_ops {
 	void	(*get_config_params)(struct usb_dcd_config_params *);
 	int	(*udc_start)(struct usb_gadget *,
 			struct usb_gadget_driver *);
-	int	(*udc_stop)(struct usb_gadget *,
-			struct usb_gadget_driver *);
+	int	(*udc_stop)(struct usb_gadget *);
 };
 
 /**
@@ -925,7 +924,7 @@ extern int usb_add_gadget_udc_release(struct device *parent,
 		struct usb_gadget *gadget, void (*release)(struct device *dev));
 extern int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget);
 extern void usb_del_gadget_udc(struct usb_gadget *gadget);
-extern int udc_attach_driver(const char *name,
+extern int usb_udc_attach_driver(const char *name,
 		struct usb_gadget_driver *driver);
 
 /*-------------------------------------------------------------------------*/

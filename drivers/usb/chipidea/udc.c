@@ -692,10 +692,8 @@ __acquires(ci->lock)
 	int retval;
 
 	spin_unlock(&ci->lock);
-	if (ci->gadget.speed != USB_SPEED_UNKNOWN) {
-		if (ci->driver)
-			ci->driver->disconnect(&ci->gadget);
-	}
+	if (ci->gadget.speed != USB_SPEED_UNKNOWN)
+		usb_gadget_udc_reset(&ci->gadget, ci->driver);
 
 	retval = _gadget_stop_activity(&ci->gadget);
 	if (retval)
@@ -708,8 +706,6 @@ __acquires(ci->lock)
 	ci->status = usb_ep_alloc_request(&ci->ep0in->ep, GFP_ATOMIC);
 	if (ci->status == NULL)
 		retval = -ENOMEM;
-
-	usb_gadget_set_state(&ci->gadget, USB_STATE_DEFAULT);
 
 done:
 	spin_lock(&ci->lock);
@@ -1519,8 +1515,8 @@ static int ci_udc_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 
-	if (ci->transceiver)
-		return usb_phy_set_power(ci->transceiver, ma);
+	if (ci->usb_phy)
+		return usb_phy_set_power(ci->usb_phy, ma);
 	return -ENOTSUPP;
 }
 
@@ -1544,8 +1540,7 @@ static int ci_udc_pullup(struct usb_gadget *_gadget, int is_on)
 
 static int ci_udc_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver);
-static int ci_udc_stop(struct usb_gadget *gadget,
-			struct usb_gadget_driver *driver);
+static int ci_udc_stop(struct usb_gadget *gadget);
 /**
  * Device operations part of the API to the USB controller hardware,
  * which don't involve endpoints (or i/o)
@@ -1682,8 +1677,7 @@ static int ci_udc_start(struct usb_gadget *gadget,
 /**
  * ci_udc_stop: unregister a gadget driver
  */
-static int ci_udc_stop(struct usb_gadget *gadget,
-			struct usb_gadget_driver *driver)
+static int ci_udc_stop(struct usb_gadget *gadget)
 {
 	struct ci_hdrc *ci = container_of(gadget, struct ci_hdrc, gadget);
 	unsigned long flags;

@@ -367,19 +367,22 @@ static void set_link_state(struct dummy_hcd *dum_hcd)
 	     dum_hcd->active)
 		dum_hcd->resuming = 0;
 
-	/* if !connected or reset */
+	/* Currently !connected or in reset */
 	if ((dum_hcd->port_status & USB_PORT_STAT_CONNECTION) == 0 ||
 			(dum_hcd->port_status & USB_PORT_STAT_RESET) != 0) {
-		/*
-		 * We're connected and not reset (reset occurred now),
-		 * and driver attached - disconnect!
-		 */
-		if ((dum_hcd->old_status & USB_PORT_STAT_CONNECTION) != 0 &&
-		    (dum_hcd->old_status & USB_PORT_STAT_RESET) == 0 &&
-		    dum->driver) {
+		unsigned disconnect = USB_PORT_STAT_CONNECTION &
+				dum_hcd->old_status & (~dum_hcd->port_status);
+		unsigned reset = USB_PORT_STAT_RESET &
+				(~dum_hcd->old_status) & dum_hcd->port_status;
+
+		/* Report reset and disconnect events to the driver */
+		if (dum->driver && (disconnect || reset)) {
 			stop_activity(dum);
 			spin_unlock(&dum->lock);
-			dum->driver->disconnect(&dum->gadget);
+			if (reset)
+				usb_gadget_udc_reset(&dum->gadget, dum->driver);
+			else
+				dum->driver->disconnect(&dum->gadget);
 			spin_lock(&dum->lock);
 		}
 	} else if (dum_hcd->active != dum_hcd->old_active) {
@@ -851,8 +854,7 @@ static int dummy_pullup(struct usb_gadget *_gadget, int value)
 
 static int dummy_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int dummy_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int dummy_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops dummy_ops = {
 	.get_frame	= dummy_g_get_frame,
@@ -908,22 +910,15 @@ static int dummy_udc_start(struct usb_gadget *g,
 	 */
 
 	dum->devstatus = 0;
-
 	dum->driver = driver;
-	dev_dbg(udc_dev(dum), "binding gadget driver '%s'\n",
-			driver->driver.name);
+
 	return 0;
 }
 
-static int dummy_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int dummy_udc_stop(struct usb_gadget *g)
 {
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
-
-	if (driver)
-		dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
-				driver->driver.name);
 
 	dum->driver = NULL;
 
@@ -2370,7 +2365,6 @@ static void dummy_stop(struct usb_hcd *hcd)
 
 	dum = hcd_to_dummy_hcd(hcd)->dum;
 	device_remove_file(dummy_dev(hcd_to_dummy_hcd(hcd)), &dev_attr_urbs);
-	usb_gadget_unregister_driver(dum->driver);
 	dev_info(dummy_dev(hcd_to_dummy_hcd(hcd)), "stopped\n");
 }
 

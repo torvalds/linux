@@ -98,8 +98,11 @@ static int host_start(struct ci_hdrc *ci)
 	hcd->has_tt = 1;
 
 	hcd->power_budget = ci->platdata->power_budget;
-	hcd->usb_phy = ci->transceiver;
 	hcd->tpl_support = ci->platdata->tpl_support;
+	if (ci->phy)
+		hcd->phy = ci->phy;
+	else
+		hcd->usb_phy = ci->usb_phy;
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;
@@ -117,10 +120,11 @@ static int host_start(struct ci_hdrc *ci)
 	if (ret) {
 		goto put_hcd;
 	} else {
-		struct usb_otg *otg = ci->transceiver->otg;
+		struct usb_otg *otg = &ci->otg;
 
 		ci->hcd = hcd;
-		if (otg) {
+
+		if (ci_otg_is_fsm_mode(ci)) {
 			otg->host = &hcd->self;
 			hcd->self.otg_port = 1;
 		}

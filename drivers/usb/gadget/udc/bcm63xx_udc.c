@@ -1836,8 +1836,7 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
  * @gadget: USB slave device.
  * @driver: Driver for USB slave devices.
  */
-static int bcm63xx_udc_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int bcm63xx_udc_stop(struct usb_gadget *gadget)
 {
 	struct bcm63xx_udc *udc = gadget_to_udc(gadget);
 	unsigned long flags;
@@ -1963,7 +1962,7 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
 {
 	struct bcm63xx_udc *udc = dev_id;
 	u32 stat;
-	bool disconnected = false;
+	bool disconnected = false, bus_reset = false;
 
 	stat = usbd_readl(udc, USBD_EVENT_IRQ_STATUS_REG) &
 	       usbd_readl(udc, USBD_EVENT_IRQ_MASK_REG);
@@ -1991,7 +1990,7 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
 
 		udc->ep0_req_reset = 1;
 		schedule_work(&udc->ep0_wq);
-		disconnected = true;
+		bus_reset = true;
 	}
 	if (stat & BIT(USBD_EVENT_IRQ_SETUP)) {
 		if (bcm63xx_update_link_speed(udc)) {
@@ -2014,6 +2013,8 @@ static irqreturn_t bcm63xx_udc_ctrl_isr(int irq, void *dev_id)
 
 	if (disconnected && udc->driver)
 		udc->driver->disconnect(&udc->gadget);
+	else if (bus_reset && udc->driver)
+		usb_gadget_udc_reset(&udc->gadget, udc->driver);
 
 	return IRQ_HANDLED;
 }
@@ -2324,10 +2325,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	int rc = -ENOMEM, i, irq;
 
 	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
-	if (!udc) {
-		dev_err(dev, "cannot allocate memory\n");
+	if (!udc)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, udc);
 	udc->dev = dev;

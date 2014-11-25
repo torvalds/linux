@@ -213,9 +213,6 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 	fn_cap = opts->fn_cap;
 	fn_cntl = opts->fn_cntl;
 
-	if (!card)
-		return -ENODEV;
-
 	/* Open control device */
 	snd = &card->control;
 	snd->filp = filp_open(fn_cntl, O_RDWR, 0);

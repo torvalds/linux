@@ -328,7 +328,7 @@ static void b_ssend_srp_tmout_func(void *ptr, unsigned long indicator)
 	set_tmout(ci, indicator);
 
 	/* only vbus fall below B_sess_vld in b_idle state */
-	if (ci->transceiver->state == OTG_STATE_B_IDLE)
+	if (ci->fsm.otg->state == OTG_STATE_B_IDLE)
 		ci_otg_queue_work(ci);
 }
 
@@ -582,11 +582,11 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 	 * when there is no gadget class driver
 	 */
 	if (ci->fsm.id && !(ci->driver) &&
-		ci->transceiver->state < OTG_STATE_A_IDLE)
+		ci->fsm.otg->state < OTG_STATE_A_IDLE)
 		return 0;
 
 	if (otg_statemachine(&ci->fsm)) {
-		if (ci->transceiver->state == OTG_STATE_A_IDLE) {
+		if (ci->fsm.otg->state == OTG_STATE_A_IDLE) {
 			/*
 			 * Further state change for cases:
 			 * a_idle to b_idle; or
@@ -600,7 +600,7 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 				ci_otg_queue_work(ci);
 			if (ci->id_event)
 				ci->id_event = false;
-		} else if (ci->transceiver->state == OTG_STATE_B_IDLE) {
+		} else if (ci->fsm.otg->state == OTG_STATE_B_IDLE) {
 			if (ci->fsm.b_sess_vld) {
 				ci->fsm.power_up = 0;
 				/*
@@ -627,7 +627,7 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 	otg_bsess_vld = hw_read_otgsc(ci, OTGSC_BSV);
 	port_conn = hw_read(ci, OP_PORTSC, PORTSC_CCS);
 
-	switch (ci->transceiver->state) {
+	switch (ci->fsm.otg->state) {
 	case OTG_STATE_A_WAIT_BCON:
 		if (port_conn) {
 			fsm->b_conn = 1;
@@ -778,20 +778,17 @@ void ci_hdrc_otg_fsm_start(struct ci_hdrc *ci)
 int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 {
 	int retval = 0;
-	struct usb_otg *otg;
 
-	otg = devm_kzalloc(ci->dev,
-			sizeof(struct usb_otg), GFP_KERNEL);
-	if (!otg)
-		return -ENOMEM;
+	if (ci->phy)
+		ci->otg.phy = ci->phy;
+	else
+		ci->otg.usb_phy = ci->usb_phy;
 
-	otg->phy = ci->transceiver;
-	otg->gadget = &ci->gadget;
-	ci->fsm.otg = otg;
-	ci->transceiver->otg = ci->fsm.otg;
+	ci->otg.gadget = &ci->gadget;
+	ci->fsm.otg = &ci->otg;
 	ci->fsm.power_up = 1;
 	ci->fsm.id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
-	ci->transceiver->state = OTG_STATE_UNDEFINED;
+	ci->fsm.otg->state = OTG_STATE_UNDEFINED;
 	ci->fsm.ops = &ci_otg_ops;
 
 	mutex_init(&ci->fsm.lock);

@@ -1,6 +1,4 @@
 /*
- * drivers/usb/otg/nop-usb-xceiv.c
- *
  * NOP USB transceiver for all USB transceiver which are either built-in
  * into USB IP or which are mostly autonomous.
  *
@@ -123,7 +121,7 @@ static int nop_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 	}
 
 	otg->gadget = gadget;
-	otg->phy->state = OTG_STATE_B_IDLE;
+	otg->state = OTG_STATE_B_IDLE;
 	return 0;
 }
 
@@ -225,10 +223,10 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 	nop->phy.dev		= nop->dev;
 	nop->phy.label		= "nop-xceiv";
 	nop->phy.set_suspend	= nop_set_suspend;
-	nop->phy.state		= OTG_STATE_UNDEFINED;
 	nop->phy.type		= type;
 
-	nop->phy.otg->phy		= &nop->phy;
+	nop->phy.otg->state		= OTG_STATE_UNDEFINED;
+	nop->phy.otg->usb_phy		= &nop->phy;
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
 

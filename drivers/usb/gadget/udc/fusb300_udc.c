@@ -1320,8 +1320,7 @@ static int fusb300_udc_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int fusb300_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int fusb300_udc_stop(struct usb_gadget *g)
 {
 	struct fusb300 *fusb300 = to_fusb300(g);
 
