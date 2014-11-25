@@ -1670,7 +1670,7 @@ struct rt5677_priv {
 	struct rt5677_platform_data pdata;
 	struct regmap *regmap, *regmap_physical;
 	const struct firmware *fw1, *fw2;
-	struct mutex dsp_cmd_lock;
+	struct mutex dsp_cmd_lock, dsp_pri_lock;
 
 	int sysclk;
 	int sysclk_src;

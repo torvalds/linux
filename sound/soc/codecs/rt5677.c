@@ -4287,6 +4287,7 @@ static int rt5677_probe(struct snd_soc_codec *codec)
 	}
 
 	mutex_init(&rt5677->dsp_cmd_lock);
+	mutex_init(&rt5677->dsp_pri_lock);
 
 	return 0;
 }
@@ -4344,10 +4345,19 @@ static int rt5677_read(void *context, unsigned int reg, unsigned int *val)
 	struct i2c_client *client = context;
 	struct rt5677_priv *rt5677 = i2c_get_clientdata(client);
 
-	if (rt5677->is_dsp_mode)
-		rt5677_dsp_mode_i2c_read(rt5677, reg, val);
-	else
+	if (rt5677->is_dsp_mode) {
+		if (reg > 0xff) {
+			mutex_lock(&rt5677->dsp_pri_lock);
+			rt5677_dsp_mode_i2c_write(rt5677, RT5677_PRIV_INDEX,
+				reg & 0xff);
+			rt5677_dsp_mode_i2c_read(rt5677, RT5677_PRIV_DATA, val);
+			mutex_unlock(&rt5677->dsp_pri_lock);
+		} else {
+			rt5677_dsp_mode_i2c_read(rt5677, reg, val);
+		}
+	} else {
 		regmap_read(rt5677->regmap_physical, reg, val);
+	}
 
 	return 0;
 }
@@ -4357,10 +4367,20 @@ static int rt5677_write(void *context, unsigned int reg, unsigned int val)
 	struct i2c_client *client = context;
 	struct rt5677_priv *rt5677 = i2c_get_clientdata(client);
 
-	if (rt5677->is_dsp_mode)
-		rt5677_dsp_mode_i2c_write(rt5677, reg, val);
-	else
+	if (rt5677->is_dsp_mode) {
+		if (reg > 0xff) {
+			mutex_lock(&rt5677->dsp_pri_lock);
+			rt5677_dsp_mode_i2c_write(rt5677, RT5677_PRIV_INDEX,
+				reg & 0xff);
+			rt5677_dsp_mode_i2c_write(rt5677, RT5677_PRIV_DATA,
+				val);
+			mutex_unlock(&rt5677->dsp_pri_lock);
+		} else {
+			rt5677_dsp_mode_i2c_write(rt5677, reg, val);
+		}
+	} else {
 		regmap_write(rt5677->regmap_physical, reg, val);
+	}
 
 	return 0;
 }
@@ -4495,10 +4515,13 @@ static const struct regmap_config rt5677_regmap_physical = {
 	.reg_bits = 8,
 	.val_bits = 16,
 
-	.max_register = RT5677_VENDOR_ID2 + 1,
+	.max_register = RT5677_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5677_ranges) *
+						RT5677_PR_SPACING),
 	.readable_reg = rt5677_readable_register,
 
 	.cache_type = REGCACHE_NONE,
+	.ranges = rt5677_ranges,
+	.num_ranges = ARRAY_SIZE(rt5677_ranges),
 };
 
 static const struct regmap_config rt5677_regmap = {
