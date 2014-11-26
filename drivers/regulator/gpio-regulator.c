@@ -133,7 +133,8 @@ static struct regulator_ops gpio_regulator_voltage_ops = {
 };
 
 static struct gpio_regulator_config *
-of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
+of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
+			     const struct regulator_desc *desc)
 {
 	struct gpio_regulator_config *config;
 	const char *regtype;
@@ -146,7 +147,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	if (!config)
 		return ERR_PTR(-ENOMEM);
 
-	config->init_data = of_get_regulator_init_data(dev, np);
+	config->init_data = of_get_regulator_init_data(dev, np, desc);
 	if (!config->init_data)
 		return ERR_PTR(-EINVAL);
 
@@ -243,16 +244,17 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	struct regulator_config cfg = { };
 	int ptr, ret, state;
 
-	if (np) {
-		config = of_get_gpio_regulator_config(&pdev->dev, np);
-		if (IS_ERR(config))
-			return PTR_ERR(config);
-	}
-
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
 			       GFP_KERNEL);
 	if (drvdata == NULL)
 		return -ENOMEM;
+
+	if (np) {
+		config = of_get_gpio_regulator_config(&pdev->dev, np,
+						      &drvdata->desc);
+		if (IS_ERR(config))
+			return PTR_ERR(config);
+	}
 
 	drvdata->desc.name = kstrdup(config->supply_name, GFP_KERNEL);
 	if (drvdata->desc.name == NULL) {

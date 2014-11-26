@@ -643,10 +643,6 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	match = of_match_device(rpm_of_match, &pdev->dev);
 	template = match->data;
 
-	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node);
-	if (!initdata)
-		return -EINVAL;
-
 	vreg = devm_kmalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
 	if (!vreg) {
 		dev_err(&pdev->dev, "failed to allocate vreg\n");
@@ -665,6 +661,11 @@ static int rpm_reg_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to retrieve handle to rpm\n");
 		return -ENODEV;
 	}
+
+	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
+					      &vreg->desc);
+	if (!initdata)
+		return -EINVAL;
 
 	key = "reg";
 	ret = of_property_read_u32(pdev->dev.of_node, key, &val);
