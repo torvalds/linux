@@ -251,22 +251,20 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 
 static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
-	int i, r = 0;
+	struct radeon_cs_reloc *reloc;
+	int r;
 
-	for (i = 0; i < p->nrelocs; i++) {
+	list_for_each_entry(reloc, &p->validated, tv.head) {
 		struct reservation_object *resv;
 
-		if (!p->relocs[i].robj)
-			continue;
-
-		resv = p->relocs[i].robj->tbo.resv;
+		resv = reloc->robj->tbo.resv;
 		r = radeon_sync_resv(p->rdev, &p->ib.sync, resv,
-				     p->relocs[i].tv.shared);
+				     reloc->tv.shared);
 
 		if (r)
-			break;
+			return r;
 	}
-	return r;
+	return 0;
 }
 
 /* XXX: note that this is called from the legacy UMS CS ioctl as well */
@@ -504,9 +502,6 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 	r = radeon_vm_update_page_directory(rdev, vm);
 	if (r)
 		return r;
-
-	radeon_sync_resv(p->rdev, &p->ib.sync, vm->page_directory->tbo.resv,
-			 true);
 
 	r = radeon_vm_clear_freed(rdev, vm);
 	if (r)
