@@ -122,6 +122,9 @@ no_update:
 	if (dirty)
 		inode_dec_dirty_pages(dn->inode);
 
+	/* this converted inline_data should be recovered. */
+	set_inode_flag(F2FS_I(dn->inode), FI_APPEND_WRITE);
+
 	/* clear inline data and flag after data writeback */
 	truncate_inline_data(dn->inode_page, 0);
 clear_out:
