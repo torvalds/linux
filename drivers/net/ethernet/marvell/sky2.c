@@ -1361,7 +1361,9 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 {
 	unsigned i;
 
-	memset(sky2->rx_le, 0, RX_LE_BYTES);
+	if (sky2->rx_le)
+		memset(sky2->rx_le, 0, RX_LE_BYTES);
+
 	for (i = 0; i < sky2->rx_pending; i++) {
 		struct rx_ring_info *re = sky2->rx_ring + i;
 
