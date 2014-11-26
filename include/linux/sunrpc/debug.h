@@ -55,6 +55,7 @@ extern unsigned int		nlm_debug;
  */
 
 struct rpc_clnt;
+struct rpc_xprt;
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 void		rpc_register_sysctl(void);
@@ -63,6 +64,8 @@ int		sunrpc_debugfs_init(void);
 void		sunrpc_debugfs_exit(void);
 int		rpc_clnt_debugfs_register(struct rpc_clnt *);
 void		rpc_clnt_debugfs_unregister(struct rpc_clnt *);
+int		rpc_xprt_debugfs_register(struct rpc_xprt *);
+void		rpc_xprt_debugfs_unregister(struct rpc_xprt *);
 #else
 static inline int
 sunrpc_debugfs_init(void)
@@ -84,6 +87,18 @@ rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 
 static inline void
 rpc_clnt_debugfs_unregister(struct rpc_clnt *clnt)
+{
+	return;
+}
+
+static inline int
+rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
+{
+	return 0;
+}
+
+static inline void
+rpc_xprt_debugfs_unregister(struct rpc_xprt *xprt)
 {
 	return;
 }

@@ -11,6 +11,7 @@
 
 static struct dentry *topdir;
 static struct dentry *rpc_clnt_dir;
+static struct dentry *rpc_xprt_dir;
 
 struct rpc_clnt_iter {
 	struct rpc_clnt	*clnt;
@@ -131,8 +132,8 @@ static const struct file_operations tasks_fops = {
 int
 rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 {
-	int len;
-	char name[9]; /* 8 for hex digits + NULL terminator */
+	int len, err;
+	char name[24]; /* enough for "../../rpc_xprt/ + 8 hex digits + NULL */
 
 	/* Already registered? */
 	if (clnt->cl_debugfs)
@@ -148,14 +149,28 @@ rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 		return -ENOMEM;
 
 	/* make tasks file */
+	err = -ENOMEM;
 	if (!debugfs_create_file("tasks", S_IFREG | S_IRUSR, clnt->cl_debugfs,
-				 clnt, &tasks_fops)) {
-		debugfs_remove_recursive(clnt->cl_debugfs);
-		clnt->cl_debugfs = NULL;
-		return -ENOMEM;
-	}
+				 clnt, &tasks_fops))
+		goto out_err;
+
+	err = -EINVAL;
+	rcu_read_lock();
+	len = snprintf(name, sizeof(name), "../../rpc_xprt/%s",
+			rcu_dereference(clnt->cl_xprt)->debugfs->d_name.name);
+	rcu_read_unlock();
+	if (len >= sizeof(name))
+		goto out_err;
+
+	err = -ENOMEM;
+	if (!debugfs_create_symlink("xprt", clnt->cl_debugfs, name))
+		goto out_err;
 
 	return 0;
+out_err:
+	debugfs_remove_recursive(clnt->cl_debugfs);
+	clnt->cl_debugfs = NULL;
+	return err;
 }
 
 void
@@ -163,6 +178,88 @@ rpc_clnt_debugfs_unregister(struct rpc_clnt *clnt)
 {
 	debugfs_remove_recursive(clnt->cl_debugfs);
 	clnt->cl_debugfs = NULL;
+}
+
+static int
+xprt_info_show(struct seq_file *f, void *v)
+{
+	struct rpc_xprt *xprt = f->private;
+
+	seq_printf(f, "netid: %s\n", xprt->address_strings[RPC_DISPLAY_NETID]);
+	seq_printf(f, "addr:  %s\n", xprt->address_strings[RPC_DISPLAY_ADDR]);
+	seq_printf(f, "port:  %s\n", xprt->address_strings[RPC_DISPLAY_PORT]);
+	seq_printf(f, "state: 0x%lx\n", xprt->state);
+	return 0;
+}
+
+static int
+xprt_info_open(struct inode *inode, struct file *filp)
+{
+	int ret;
+	struct rpc_xprt *xprt = inode->i_private;
+
+	ret = single_open(filp, xprt_info_show, xprt);
+
+	if (!ret) {
+		if (!xprt_get(xprt)) {
+			single_release(inode, filp);
+			ret = -EINVAL;
+		}
+	}
+	return ret;
+}
+
+static int
+xprt_info_release(struct inode *inode, struct file *filp)
+{
+	struct rpc_xprt *xprt = inode->i_private;
+
+	xprt_put(xprt);
+	return single_release(inode, filp);
+}
+
+static const struct file_operations xprt_info_fops = {
+	.owner		= THIS_MODULE,
+	.open		= xprt_info_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= xprt_info_release,
+};
+
+int
+rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
+{
+	int len, id;
+	static atomic_t	cur_id;
+	char		name[9]; /* 8 hex digits + NULL term */
+
+	id = (unsigned int)atomic_inc_return(&cur_id);
+
+	len = snprintf(name, sizeof(name), "%x", id);
+	if (len >= sizeof(name))
+		return -EINVAL;
+
+	/* make the per-client dir */
+	xprt->debugfs = debugfs_create_dir(name, rpc_xprt_dir);
+	if (!xprt->debugfs)
+		return -ENOMEM;
+
+	/* make tasks file */
+	if (!debugfs_create_file("info", S_IFREG | S_IRUSR, xprt->debugfs,
+				 xprt, &xprt_info_fops)) {
+		debugfs_remove_recursive(xprt->debugfs);
+		xprt->debugfs = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void
+rpc_xprt_debugfs_unregister(struct rpc_xprt *xprt)
+{
+	debugfs_remove_recursive(xprt->debugfs);
+	xprt->debugfs = NULL;
 }
 
 void __exit
@@ -180,6 +277,10 @@ sunrpc_debugfs_init(void)
 
 	rpc_clnt_dir = debugfs_create_dir("rpc_clnt", topdir);
 	if (!rpc_clnt_dir)
+		goto out_remove;
+
+	rpc_xprt_dir = debugfs_create_dir("rpc_xprt", topdir);
+	if (!rpc_xprt_dir)
 		goto out_remove;
 
 	return 0;
