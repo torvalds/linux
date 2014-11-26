@@ -244,8 +244,6 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	scb->sense_buf_length = SCSI_SENSE_BUFFERSIZE;
 	cmd->SCp.dma_handle = dma_map_single(&wd->pdev->dev, cmd->sense_buffer,
 			SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
-	dma_cache_sync(&wd->pdev->dev, cmd->sense_buffer,
-			SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 	scb->sense_buf = cpu_to_le32(cmd->SCp.dma_handle);
 
 	/* request autosense */
