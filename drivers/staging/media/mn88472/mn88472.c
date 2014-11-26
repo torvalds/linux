@@ -30,6 +30,7 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	u32 if_frequency = 0;
+	u64 tmp;
 	u8 delivery_system_val, if_val[3], bw_val[7], bw_val2;
 
 	dev_dbg(&client->dev,
@@ -62,17 +63,14 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 	case SYS_DVBT2:
 		if (c->bandwidth_hz <= 6000000) {
 			/* IF 3570000 Hz, BW 6000000 Hz */
-			memcpy(if_val, "\x2c\x94\xdb", 3);
 			memcpy(bw_val, "\xbf\x55\x55\x15\x6b\x15\x6b", 7);
 			bw_val2 = 0x02;
 		} else if (c->bandwidth_hz <= 7000000) {
 			/* IF 4570000 Hz, BW 7000000 Hz */
-			memcpy(if_val, "\x39\x11\xbc", 3);
 			memcpy(bw_val, "\xa4\x00\x00\x0f\x2c\x0f\x2c", 7);
 			bw_val2 = 0x01;
 		} else if (c->bandwidth_hz <= 8000000) {
 			/* IF 4570000 Hz, BW 8000000 Hz */
-			memcpy(if_val, "\x39\x11\xbc", 3);
 			memcpy(bw_val, "\x8f\x80\x00\x08\xee\x08\xee", 7);
 			bw_val2 = 0x00;
 		} else {
@@ -82,7 +80,6 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 		break;
 	case SYS_DVBC_ANNEX_A:
 		/* IF 5070000 Hz, BW 8000000 Hz */
-		memcpy(if_val, "\x3f\x50\x2c", 3);
 		memcpy(bw_val, "\x8f\x80\x00\x08\xee\x08\xee", 7);
 		bw_val2 = 0x00;
 		break;
@@ -106,17 +103,12 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 		dev_dbg(&client->dev, "get_if_frequency=%d\n", if_frequency);
 	}
 
-	switch (if_frequency) {
-	case 3570000:
-	case 4570000:
-	case 5070000:
-		break;
-	default:
-		dev_err(&client->dev, "IF frequency %d not supported\n",
-				if_frequency);
-		ret = -EINVAL;
-		goto err;
-	}
+	/* Calculate IF registers ( (1<<24)*IF / Xtal ) */
+	tmp =  div_u64(if_frequency * (u64)(1<<24) + (dev->xtal / 2),
+				   dev->xtal);
+	if_val[0] = ((tmp >> 16) & 0xff);
+	if_val[1] = ((tmp >>  8) & 0xff);
+	if_val[2] = ((tmp >>  0) & 0xff);
 
 	ret = regmap_write(dev->regmap[2], 0xfb, 0x13);
 	ret = regmap_write(dev->regmap[2], 0xef, 0x13);
@@ -411,6 +403,7 @@ static int mn88472_probe(struct i2c_client *client,
 	}
 
 	dev->i2c_wr_max = config->i2c_wr_max;
+	dev->xtal = config->xtal;
 	dev->client[0] = client;
 	dev->regmap[0] = regmap_init_i2c(dev->client[0], &regmap_config);
 	if (IS_ERR(dev->regmap[0])) {
