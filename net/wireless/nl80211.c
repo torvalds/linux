@@ -11766,54 +11766,131 @@ void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 }
 EXPORT_SYMBOL(cfg80211_mgmt_tx_status);
 
-void cfg80211_cqm_rssi_notify(struct net_device *dev,
-			      enum nl80211_cqm_rssi_threshold_event rssi_event,
-			      gfp_t gfp)
+static struct sk_buff *cfg80211_prepare_cqm(struct net_device *dev,
+					    const char *mac, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	struct sk_buff *msg;
-	struct nlattr *pinfoattr;
-	void *hdr;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct sk_buff *msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
+	void **cb;
 
-	trace_cfg80211_cqm_rssi_notify(dev, rssi_event);
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
-		return;
+		return NULL;
 
-	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_NOTIFY_CQM);
-	if (!hdr) {
+	cb = (void **)msg->cb;
+
+	cb[0] = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_NOTIFY_CQM);
+	if (!cb[0]) {
 		nlmsg_free(msg);
-		return;
+		return NULL;
 	}
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
 
-	pinfoattr = nla_nest_start(msg, NL80211_ATTR_CQM);
-	if (!pinfoattr)
+	if (mac && nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, mac))
 		goto nla_put_failure;
+
+	cb[1] = nla_nest_start(msg, NL80211_ATTR_CQM);
+	if (!cb[1])
+		goto nla_put_failure;
+
+	cb[2] = rdev;
+
+	return msg;
+ nla_put_failure:
+	nlmsg_free(msg);
+	return NULL;
+}
+
+static void cfg80211_send_cqm(struct sk_buff *msg, gfp_t gfp)
+{
+	void **cb = (void **)msg->cb;
+	struct cfg80211_registered_device *rdev = cb[2];
+
+	nla_nest_end(msg, cb[1]);
+	genlmsg_end(msg, cb[0]);
+
+	memset(msg->cb, 0, sizeof(msg->cb));
+
+	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
+				NL80211_MCGRP_MLME, gfp);
+}
+
+void cfg80211_cqm_rssi_notify(struct net_device *dev,
+			      enum nl80211_cqm_rssi_threshold_event rssi_event,
+			      gfp_t gfp)
+{
+	struct sk_buff *msg;
+
+	trace_cfg80211_cqm_rssi_notify(dev, rssi_event);
+
+	msg = cfg80211_prepare_cqm(dev, NULL, gfp);
+	if (!msg)
+		return;
 
 	if (nla_put_u32(msg, NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT,
 			rssi_event))
 		goto nla_put_failure;
 
-	nla_nest_end(msg, pinfoattr);
+	cfg80211_send_cqm(msg, gfp);
 
-	genlmsg_end(msg, hdr);
-
-	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				NL80211_MCGRP_MLME, gfp);
 	return;
 
  nla_put_failure:
-	genlmsg_cancel(msg, hdr);
 	nlmsg_free(msg);
 }
 EXPORT_SYMBOL(cfg80211_cqm_rssi_notify);
+
+void cfg80211_cqm_txe_notify(struct net_device *dev,
+			     const u8 *peer, u32 num_packets,
+			     u32 rate, u32 intvl, gfp_t gfp)
+{
+	struct sk_buff *msg;
+
+	msg = cfg80211_prepare_cqm(dev, peer, gfp);
+	if (!msg)
+		return;
+
+	if (nla_put_u32(msg, NL80211_ATTR_CQM_TXE_PKTS, num_packets))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NL80211_ATTR_CQM_TXE_RATE, rate))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NL80211_ATTR_CQM_TXE_INTVL, intvl))
+		goto nla_put_failure;
+
+	cfg80211_send_cqm(msg, gfp);
+	return;
+
+ nla_put_failure:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_cqm_txe_notify);
+
+void cfg80211_cqm_pktloss_notify(struct net_device *dev,
+				 const u8 *peer, u32 num_packets, gfp_t gfp)
+{
+	struct sk_buff *msg;
+
+	trace_cfg80211_cqm_pktloss_notify(dev, peer, num_packets);
+
+	msg = cfg80211_prepare_cqm(dev, peer, gfp);
+	if (!msg)
+		return;
+
+	if (nla_put_u32(msg, NL80211_ATTR_CQM_PKT_LOSS_EVENT, num_packets))
+		goto nla_put_failure;
+
+	cfg80211_send_cqm(msg, gfp);
+	return;
+
+ nla_put_failure:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_cqm_pktloss_notify);
 
 static void nl80211_gtk_rekey_notify(struct cfg80211_registered_device *rdev,
 				     struct net_device *netdev, const u8 *bssid,
@@ -12003,59 +12080,6 @@ void cfg80211_ch_switch_started_notify(struct net_device *dev,
 }
 EXPORT_SYMBOL(cfg80211_ch_switch_started_notify);
 
-void cfg80211_cqm_txe_notify(struct net_device *dev,
-			     const u8 *peer, u32 num_packets,
-			     u32 rate, u32 intvl, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	struct sk_buff *msg;
-	struct nlattr *pinfoattr;
-	void *hdr;
-
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
-	if (!msg)
-		return;
-
-	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_NOTIFY_CQM);
-	if (!hdr) {
-		nlmsg_free(msg);
-		return;
-	}
-
-	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
-	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex) ||
-	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, peer))
-		goto nla_put_failure;
-
-	pinfoattr = nla_nest_start(msg, NL80211_ATTR_CQM);
-	if (!pinfoattr)
-		goto nla_put_failure;
-
-	if (nla_put_u32(msg, NL80211_ATTR_CQM_TXE_PKTS, num_packets))
-		goto nla_put_failure;
-
-	if (nla_put_u32(msg, NL80211_ATTR_CQM_TXE_RATE, rate))
-		goto nla_put_failure;
-
-	if (nla_put_u32(msg, NL80211_ATTR_CQM_TXE_INTVL, intvl))
-		goto nla_put_failure;
-
-	nla_nest_end(msg, pinfoattr);
-
-	genlmsg_end(msg, hdr);
-
-	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				NL80211_MCGRP_MLME, gfp);
-	return;
-
- nla_put_failure:
-	genlmsg_cancel(msg, hdr);
-	nlmsg_free(msg);
-}
-EXPORT_SYMBOL(cfg80211_cqm_txe_notify);
-
 void
 nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 		     const struct cfg80211_chan_def *chandef,
@@ -12103,54 +12127,6 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 	genlmsg_cancel(msg, hdr);
 	nlmsg_free(msg);
 }
-
-void cfg80211_cqm_pktloss_notify(struct net_device *dev,
-				 const u8 *peer, u32 num_packets, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	struct sk_buff *msg;
-	struct nlattr *pinfoattr;
-	void *hdr;
-
-	trace_cfg80211_cqm_pktloss_notify(dev, peer, num_packets);
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
-	if (!msg)
-		return;
-
-	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_NOTIFY_CQM);
-	if (!hdr) {
-		nlmsg_free(msg);
-		return;
-	}
-
-	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
-	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex) ||
-	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, peer))
-		goto nla_put_failure;
-
-	pinfoattr = nla_nest_start(msg, NL80211_ATTR_CQM);
-	if (!pinfoattr)
-		goto nla_put_failure;
-
-	if (nla_put_u32(msg, NL80211_ATTR_CQM_PKT_LOSS_EVENT, num_packets))
-		goto nla_put_failure;
-
-	nla_nest_end(msg, pinfoattr);
-
-	genlmsg_end(msg, hdr);
-
-	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				NL80211_MCGRP_MLME, gfp);
-	return;
-
- nla_put_failure:
-	genlmsg_cancel(msg, hdr);
-	nlmsg_free(msg);
-}
-EXPORT_SYMBOL(cfg80211_cqm_pktloss_notify);
 
 void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 			   u64 cookie, bool acked, gfp_t gfp)
