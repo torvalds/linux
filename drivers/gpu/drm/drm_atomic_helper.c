@@ -508,6 +508,12 @@ EXPORT_SYMBOL(drm_atomic_helper_check_planes);
  * Drivers without such needs can directly use this as their ->atomic_check()
  * callback.
  *
+ * This just wraps the two parts of the state checking for planes and modeset
+ * state in the default order: First it calls drm_atomic_helper_check_modeset()
+ * and then drm_atomic_helper_check_planes(). The assumption is that the
+ * ->atomic_check functions depend upon an updated adjusted_mode.clock to
+ * e.g. properly compute watermarks.
+ *
  * RETURNS
  * Zero for success or -errno
  */
@@ -516,11 +522,11 @@ int drm_atomic_helper_check(struct drm_device *dev,
 {
 	int ret;
 
-	ret = drm_atomic_helper_check_planes(dev, state);
+	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
 		return ret;
 
-	ret = drm_atomic_helper_check_modeset(dev, state);
+	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
 		return ret;
 
