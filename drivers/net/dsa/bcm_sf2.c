@@ -404,7 +404,8 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 		*base = of_iomap(dn, i);
 		if (*base == NULL) {
 			pr_err("unable to find register: %s\n", reg_names[i]);
-			return -ENODEV;
+			ret = -ENOMEM;
+			goto out_unmap;
 		}
 		base++;
 	}
@@ -484,7 +485,8 @@ out_free_irq0:
 out_unmap:
 	base = &priv->core;
 	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
-		iounmap(*base);
+		if (*base)
+			iounmap(*base);
 		base++;
 	}
 	return ret;
