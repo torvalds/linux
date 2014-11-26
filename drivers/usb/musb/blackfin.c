@@ -63,7 +63,7 @@ static void bfin_writew(void __iomem *addr, unsigned offset, u16 data)
 	bfin_write16(addr + offset, data);
 }
 
-static void binf_writel(void __iomem *addr, unsigned offset, u32 data)
+static void bfin_writel(void __iomem *addr, unsigned offset, u32 data)
 {
 	bfin_write16(addr + offset, (u16)data);
 }
