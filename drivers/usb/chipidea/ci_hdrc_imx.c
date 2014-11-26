@@ -208,6 +208,41 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int imx_controller_suspend(struct device *dev)
+{
+	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "at %s\n", __func__);
+
+	clk_disable_unprepare(data->clk);
+
+	return 0;
+}
+
+static int imx_controller_resume(struct device *dev)
+{
+	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "at %s\n", __func__);
+
+	return clk_prepare_enable(data->clk);
+}
+
+static int ci_hdrc_imx_suspend(struct device *dev)
+{
+	return imx_controller_suspend(dev);
+}
+
+static int ci_hdrc_imx_resume(struct device *dev)
+{
+	return imx_controller_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
+};
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,
 	.remove = ci_hdrc_imx_remove,
@@ -215,6 +250,7 @@ static struct platform_driver ci_hdrc_imx_driver = {
 		.name = "imx_usb",
 		.owner = THIS_MODULE,
 		.of_match_table = ci_hdrc_imx_dt_ids,
+		.pm = &ci_hdrc_imx_pm_ops,
 	 },
 };
 
