@@ -791,12 +791,16 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		break;
 #endif
 	case cbcond0_op:
+	case cbcond1_op:
 		/* Only valid for MIPS R6 */
 		if (!cpu_has_mips_r6) {
 			ret = -SIGILL;
 			break;
 		}
-		/* Compact branches: bovc, beqc, beqzalc */
+		/*
+		 * Compact branches:
+		 * bovc, beqc, beqzalc, bnvc, bnec, bnezlac
+		 */
 		if (insn.i_format.rt && !insn.i_format.rs)
 			regs->regs[31] = epc + 4;
 		regs->cp0_epc += 8;
