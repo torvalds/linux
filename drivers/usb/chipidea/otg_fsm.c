@@ -303,7 +303,7 @@ static void a_wait_vfall_tmout_func(void *ptr, unsigned long indicator)
 	set_tmout(ci, indicator);
 	/* Disable port power */
 	hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS | PORTSC_PP, 0);
-	/* Clear exsiting DP irq */
+	/* Clear existing DP irq */
 	hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
 	/* Enable data pulse irq */
 	hw_write_otgsc(ci, OTGSC_DPIE, OTGSC_DPIE);
@@ -663,7 +663,7 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 			 fsm->b_bus_suspend = 1;
 			/*
 			 * Init a timer to know how long this suspend
-			 * will contine, if time out, indicates B no longer
+			 * will continue, if time out, indicates B no longer
 			 * wants to be host role
 			 */
 			 ci_otg_add_timer(ci, A_BIDL_ADIS);
