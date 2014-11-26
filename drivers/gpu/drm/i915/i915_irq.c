@@ -1621,7 +1621,7 @@ static void display_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe,
 
 	if (!pipe_crc->entries) {
 		spin_unlock(&pipe_crc->lock);
-		DRM_ERROR("spurious interrupt\n");
+		DRM_DEBUG_KMS("spurious interrupt\n");
 		return;
 	}
 
