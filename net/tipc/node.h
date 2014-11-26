@@ -71,9 +71,7 @@ enum {
  * @last_in: sequence # of last in-sequence b'cast message received from node
  * @last_sent: sequence # of last b'cast message sent by node
  * @oos_state: state tracker for handling OOS b'cast messages
- * @deferred_size: number of OOS b'cast messages in deferred queue
- * @deferred_head: oldest OOS b'cast message received from node
- * @deferred_tail: newest OOS b'cast message received from node
+ * @deferred_queue: deferred queue saved OOS b'cast message received from node
  * @reasm_buf: broadcast reassembly queue head from node
  * @recv_permitted: true if node is allowed to receive b'cast messages
  */
@@ -83,8 +81,7 @@ struct tipc_node_bclink {
 	u32 last_sent;
 	u32 oos_state;
 	u32 deferred_size;
-	struct sk_buff *deferred_head;
-	struct sk_buff *deferred_tail;
+	struct sk_buff_head deferred_queue;
 	struct sk_buff *reasm_buf;
 	bool recv_permitted;
 };

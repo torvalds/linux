@@ -292,6 +292,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 
 	l_ptr->next_out_no = 1;
 	__skb_queue_head_init(&l_ptr->outqueue);
+	__skb_queue_head_init(&l_ptr->deferred_queue);
 	__skb_queue_head_init(&l_ptr->waiting_sks);
 
 	link_reset_statistics(l_ptr);
@@ -398,7 +399,7 @@ void tipc_link_reset_fragments(struct tipc_link *l_ptr)
  */
 void tipc_link_purge_queues(struct tipc_link *l_ptr)
 {
-	kfree_skb_list(l_ptr->oldest_deferred_in);
+	__skb_queue_purge(&l_ptr->deferred_queue);
 	__skb_queue_purge(&l_ptr->outqueue);
 	tipc_link_reset_fragments(l_ptr);
 }
@@ -433,7 +434,7 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 
 	/* Clean up all queues: */
 	__skb_queue_purge(&l_ptr->outqueue);
-	kfree_skb_list(l_ptr->oldest_deferred_in);
+	__skb_queue_purge(&l_ptr->deferred_queue);
 	if (!skb_queue_empty(&l_ptr->waiting_sks)) {
 		skb_queue_splice_init(&l_ptr->waiting_sks, &owner->waiting_sks);
 		owner->action_flags |= TIPC_WAKEUP_USERS;
@@ -442,9 +443,6 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	l_ptr->unacked_window = 0;
 	l_ptr->checkpoint = 1;
 	l_ptr->next_out_no = 1;
-	l_ptr->deferred_inqueue_sz = 0;
-	l_ptr->oldest_deferred_in = NULL;
-	l_ptr->newest_deferred_in = NULL;
 	l_ptr->fsm_msg_cnt = 0;
 	l_ptr->stale_count = 0;
 	link_reset_statistics(l_ptr);
@@ -974,19 +972,23 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *skb,
 static struct sk_buff *link_insert_deferred_queue(struct tipc_link *l_ptr,
 						  struct sk_buff *buf)
 {
+	struct sk_buff_head head;
+	struct sk_buff *skb = NULL;
 	u32 seq_no;
 
-	if (l_ptr->oldest_deferred_in == NULL)
+	if (skb_queue_empty(&l_ptr->deferred_queue))
 		return buf;
 
-	seq_no = buf_seqno(l_ptr->oldest_deferred_in);
+	seq_no = buf_seqno(skb_peek(&l_ptr->deferred_queue));
 	if (seq_no == mod(l_ptr->next_in_no)) {
-		l_ptr->newest_deferred_in->next = buf;
-		buf = l_ptr->oldest_deferred_in;
-		l_ptr->oldest_deferred_in = NULL;
-		l_ptr->deferred_inqueue_sz = 0;
+		__skb_queue_head_init(&head);
+		skb_queue_splice_tail_init(&l_ptr->deferred_queue, &head);
+		skb = head.next;
+		skb->prev = NULL;
+		head.prev->next = buf;
+		head.prev->prev = NULL;
 	}
-	return buf;
+	return skb;
 }
 
 /**
@@ -1170,7 +1172,7 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			continue;
 		}
 		l_ptr->next_in_no++;
-		if (unlikely(l_ptr->oldest_deferred_in))
+		if (unlikely(!skb_queue_empty(&l_ptr->deferred_queue)))
 			head = link_insert_deferred_queue(l_ptr, head);
 
 		if (unlikely(++l_ptr->unacked_window >= TIPC_MIN_LINK_WIN)) {
@@ -1273,48 +1275,37 @@ static int tipc_link_input(struct tipc_link *l, struct sk_buff *buf)
  *
  * Returns increase in queue length (i.e. 0 or 1)
  */
-u32 tipc_link_defer_pkt(struct sk_buff **head, struct sk_buff **tail,
-			struct sk_buff *buf)
+u32 tipc_link_defer_pkt(struct sk_buff_head *list, struct sk_buff *skb)
 {
-	struct sk_buff *queue_buf;
-	struct sk_buff **prev;
-	u32 seq_no = buf_seqno(buf);
-
-	buf->next = NULL;
+	struct sk_buff *skb1;
+	u32 seq_no = buf_seqno(skb);
 
 	/* Empty queue ? */
-	if (*head == NULL) {
-		*head = *tail = buf;
+	if (skb_queue_empty(list)) {
+		__skb_queue_tail(list, skb);
 		return 1;
 	}
 
 	/* Last ? */
-	if (less(buf_seqno(*tail), seq_no)) {
-		(*tail)->next = buf;
-		*tail = buf;
+	if (less(buf_seqno(skb_peek_tail(list)), seq_no)) {
+		__skb_queue_tail(list, skb);
 		return 1;
 	}
 
 	/* Locate insertion point in queue, then insert; discard if duplicate */
-	prev = head;
-	queue_buf = *head;
-	for (;;) {
-		u32 curr_seqno = buf_seqno(queue_buf);
+	skb_queue_walk(list, skb1) {
+		u32 curr_seqno = buf_seqno(skb1);
 
 		if (seq_no == curr_seqno) {
-			kfree_skb(buf);
+			kfree_skb(skb);
 			return 0;
 		}
 
 		if (less(seq_no, curr_seqno))
 			break;
-
-		prev = &queue_buf->next;
-		queue_buf = queue_buf->next;
 	}
 
-	buf->next = queue_buf;
-	*prev = buf;
+	__skb_queue_before(list, skb1, skb);
 	return 1;
 }
 
@@ -1344,15 +1335,14 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 		return;
 	}
 
-	if (tipc_link_defer_pkt(&l_ptr->oldest_deferred_in,
-				&l_ptr->newest_deferred_in, buf)) {
-		l_ptr->deferred_inqueue_sz++;
+	if (tipc_link_defer_pkt(&l_ptr->deferred_queue, buf)) {
 		l_ptr->stats.deferred_recv++;
 		TIPC_SKB_CB(buf)->deferred = true;
-		if ((l_ptr->deferred_inqueue_sz % 16) == 1)
+		if ((skb_queue_len(&l_ptr->deferred_queue) % 16) == 1)
 			tipc_link_proto_xmit(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);
-	} else
+	} else {
 		l_ptr->stats.duplicates++;
+	}
 }
 
 /*
@@ -1388,8 +1378,8 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 		if (l_ptr->next_out)
 			next_sent = buf_seqno(l_ptr->next_out);
 		msg_set_next_sent(msg, next_sent);
-		if (l_ptr->oldest_deferred_in) {
-			u32 rec = buf_seqno(l_ptr->oldest_deferred_in);
+		if (!skb_queue_empty(&l_ptr->deferred_queue)) {
+			u32 rec = buf_seqno(skb_peek(&l_ptr->deferred_queue));
 			gap = mod(rec - mod(l_ptr->next_in_no));
 		}
 		msg_set_seq_gap(msg, gap);

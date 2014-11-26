@@ -124,9 +124,7 @@ struct tipc_stats {
  * @last_retransmitted: sequence number of most recently retransmitted message
  * @stale_count: # of identical retransmit requests made by peer
  * @next_in_no: next sequence number to expect for inbound messages
- * @deferred_inqueue_sz: # of messages in inbound message queue
- * @oldest_deferred_in: ptr to first inbound message in queue
- * @newest_deferred_in: ptr to last inbound message in queue
+ * @deferred_queue: deferred queue saved OOS b'cast message received from node
  * @unacked_window: # of inbound messages rx'd without ack'ing back to peer
  * @next_out: ptr to first unsent outbound message in queue
  * @waiting_sks: linked list of sockets waiting for link congestion to abate
@@ -178,9 +176,7 @@ struct tipc_link {
 
 	/* Reception */
 	u32 next_in_no;
-	u32 deferred_inqueue_sz;
-	struct sk_buff *oldest_deferred_in;
-	struct sk_buff *newest_deferred_in;
+	struct sk_buff_head deferred_queue;
 	u32 unacked_window;
 
 	/* Congestion handling */
@@ -224,8 +220,7 @@ void tipc_link_bundle_rcv(struct sk_buff *buf);
 void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 			  u32 gap, u32 tolerance, u32 priority, u32 acked_mtu);
 void tipc_link_push_packets(struct tipc_link *l_ptr);
-u32 tipc_link_defer_pkt(struct sk_buff **head, struct sk_buff **tail,
-			struct sk_buff *buf);
+u32 tipc_link_defer_pkt(struct sk_buff_head *list, struct sk_buff *buf);
 void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
 void tipc_link_retransmit(struct tipc_link *l_ptr,
 			  struct sk_buff *start, u32 retransmits);

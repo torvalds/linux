@@ -352,6 +352,8 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 	buf = tipc_buf_acquire(INT_H_SIZE);
 	if (buf) {
 		struct tipc_msg *msg = buf_msg(buf);
+		struct sk_buff *skb = skb_peek(&n_ptr->bclink.deferred_queue);
+		u32 to = skb ? buf_seqno(skb) - 1 : n_ptr->bclink.last_sent;
 
 		tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG,
 			      INT_H_SIZE, n_ptr->addr);
@@ -359,9 +361,7 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 		msg_set_mc_netid(msg, tipc_net_id);
 		msg_set_bcast_ack(msg, n_ptr->bclink.last_in);
 		msg_set_bcgap_after(msg, n_ptr->bclink.last_in);
-		msg_set_bcgap_to(msg, n_ptr->bclink.deferred_head
-				 ? buf_seqno(n_ptr->bclink.deferred_head) - 1
-				 : n_ptr->bclink.last_sent);
+		msg_set_bcgap_to(msg, to);
 
 		tipc_bclink_lock();
 		tipc_bearer_send(MAX_BEARERS, buf, NULL);
@@ -574,31 +574,26 @@ receive:
 		if (node->bclink.last_in == node->bclink.last_sent)
 			goto unlock;
 
-		if (!node->bclink.deferred_head) {
+		if (skb_queue_empty(&node->bclink.deferred_queue)) {
 			node->bclink.oos_state = 1;
 			goto unlock;
 		}
 
-		msg = buf_msg(node->bclink.deferred_head);
+		msg = buf_msg(skb_peek(&node->bclink.deferred_queue));
 		seqno = msg_seqno(msg);
 		next_in = mod(next_in + 1);
 		if (seqno != next_in)
 			goto unlock;
 
 		/* Take in-sequence message from deferred queue & deliver it */
-		buf = node->bclink.deferred_head;
-		node->bclink.deferred_head = buf->next;
-		buf->next = NULL;
-		node->bclink.deferred_size--;
+		buf = __skb_dequeue(&node->bclink.deferred_queue);
 		goto receive;
 	}
 
 	/* Handle out-of-sequence broadcast message */
 	if (less(next_in, seqno)) {
-		deferred = tipc_link_defer_pkt(&node->bclink.deferred_head,
-					       &node->bclink.deferred_tail,
+		deferred = tipc_link_defer_pkt(&node->bclink.deferred_queue,
 					       buf);
-		node->bclink.deferred_size += deferred;
 		bclink_update_last_sent(node, seqno);
 		buf = NULL;
 	}
@@ -954,6 +949,7 @@ int tipc_bclink_init(void)
 
 	spin_lock_init(&bclink->lock);
 	__skb_queue_head_init(&bcl->outqueue);
+	__skb_queue_head_init(&bcl->deferred_queue);
 	__skb_queue_head_init(&bcl->waiting_sks);
 	bcl->next_out_no = 1;
 	spin_lock_init(&bclink->node.lock);
