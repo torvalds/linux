@@ -190,6 +190,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_comp;
 
+	dev->irq_enabled = true;
 	dev->vblank_disable_allowed = 1;
 
 	ret = armada_fbdev_init(dev);
@@ -331,7 +332,7 @@ static struct drm_driver armada_drm_driver = {
 	.desc			= "Armada SoC DRM",
 	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
-				  DRIVER_PRIME,
+				  DRIVER_HAVE_IRQ | DRIVER_PRIME,
 	.ioctls			= armada_ioctls,
 	.fops			= &armada_drm_fops,
 };

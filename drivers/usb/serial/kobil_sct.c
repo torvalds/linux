@@ -414,8 +414,6 @@ static int kobil_tiocmset(struct tty_struct *tty,
 	int result;
 	int dtr = 0;
 	int rts = 0;
-	unsigned char *transfer_buffer;
-	int transfer_buffer_length = 8;
 
 	/* FIXME: locking ? */
 	priv = usb_get_serial_port_data(port);
@@ -424,11 +422,6 @@ static int kobil_tiocmset(struct tty_struct *tty,
 		/* This device doesn't support ioctl calls */
 		return -EINVAL;
 	}
-
-	/* allocate memory for transfer buffer */
-	transfer_buffer = kzalloc(transfer_buffer_length, GFP_KERNEL);
-	if (!transfer_buffer)
-		return -ENOMEM;
 
 	if (set & TIOCM_RTS)
 		rts = 1;
@@ -469,7 +462,6 @@ static int kobil_tiocmset(struct tty_struct *tty,
 			KOBIL_TIMEOUT);
 	}
 	dev_dbg(dev, "%s - Send set_status_line URB returns: %i\n", __func__, result);
-	kfree(transfer_buffer);
 	return (result < 0) ? result : 0;
 }
 
@@ -530,8 +522,6 @@ static int kobil_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct kobil_private *priv = usb_get_serial_port_data(port);
-	unsigned char *transfer_buffer;
-	int transfer_buffer_length = 8;
 	int result;
 
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
@@ -541,10 +531,6 @@ static int kobil_ioctl(struct tty_struct *tty,
 
 	switch (cmd) {
 	case TCFLSH:
-		transfer_buffer = kmalloc(transfer_buffer_length, GFP_KERNEL);
-		if (!transfer_buffer)
-			return -ENOBUFS;
-
 		result = usb_control_msg(port->serial->dev,
 			  usb_sndctrlpipe(port->serial->dev, 0),
 			  SUSBCRequest_Misc,
@@ -559,7 +545,6 @@ static int kobil_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev,
 			"%s - Send reset_all_queues (FLUSH) URB returns: %i\n",
 			__func__, result);
-		kfree(transfer_buffer);
 		return (result < 0) ? -EIO: 0;
 	default:
 		return -ENOIOCTLCMD;

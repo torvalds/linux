@@ -537,7 +537,7 @@ static ssize_t counter_show(struct kobject *kobj,
 	if (result)
 		goto end;
 
-	if (!(status & ACPI_EVENT_FLAG_HANDLE))
+	if (!(status & ACPI_EVENT_FLAG_HAS_HANDLER))
 		size += sprintf(buf + size, "   invalid");
 	else if (status & ACPI_EVENT_FLAG_ENABLED)
 		size += sprintf(buf + size, "   enabled");
@@ -581,7 +581,7 @@ static ssize_t counter_set(struct kobject *kobj,
 	if (result)
 		goto end;
 
-	if (!(status & ACPI_EVENT_FLAG_HANDLE)) {
+	if (!(status & ACPI_EVENT_FLAG_HAS_HANDLER)) {
 		printk(KERN_WARNING PREFIX
 		       "Can not change Invalid GPE/Fixed Event status\n");
 		return -EINVAL;

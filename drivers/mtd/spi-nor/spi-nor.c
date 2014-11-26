@@ -28,6 +28,8 @@
 
 #define JEDEC_MFR(_jedec_id)	((_jedec_id) >> 16)
 
+static const struct spi_device_id *spi_nor_match_id(const char *name);
+
 /*
  * Read the status register, returning its value in the location
  * Return the status register value.
@@ -473,7 +475,7 @@ struct flash_info {
  * more nor chips.  This current list focusses on newer chips, which
  * have been converging on command sets which including JEDEC ID.
  */
-const struct spi_device_id spi_nor_ids[] = {
+static const struct spi_device_id spi_nor_ids[] = {
 	/* Atmel -- some are (confusingly) marketed as "DataFlash" */
 	{ "at25fs010",  INFO(0x1f6601, 0, 32 * 1024,   4, SECT_4K) },
 	{ "at25fs040",  INFO(0x1f6604, 0, 64 * 1024,   8, SECT_4K) },
@@ -637,7 +639,6 @@ const struct spi_device_id spi_nor_ids[] = {
 	{ "cat25128", CAT25_INFO(2048, 8, 64, 2, SPI_NOR_NO_ERASE | SPI_NOR_NO_FR) },
 	{ },
 };
-EXPORT_SYMBOL_GPL(spi_nor_ids);
 
 static const struct spi_device_id *spi_nor_read_id(struct spi_nor *nor)
 {
@@ -911,9 +912,9 @@ static int spi_nor_check(struct spi_nor *nor)
 	return 0;
 }
 
-int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
-			enum read_mode mode)
+int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 {
+	const struct spi_device_id	*id = NULL;
 	struct flash_info		*info;
 	struct device *dev = nor->dev;
 	struct mtd_info *mtd = nor->mtd;
@@ -924,6 +925,10 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 	ret = spi_nor_check(nor);
 	if (ret)
 		return ret;
+
+	id = spi_nor_match_id(name);
+	if (!id)
+		return -ENOENT;
 
 	info = (void *)id->driver_data;
 
@@ -1113,7 +1118,7 @@ int spi_nor_scan(struct spi_nor *nor, const struct spi_device_id *id,
 }
 EXPORT_SYMBOL_GPL(spi_nor_scan);
 
-const struct spi_device_id *spi_nor_match_id(char *name)
+static const struct spi_device_id *spi_nor_match_id(const char *name)
 {
 	const struct spi_device_id *id = spi_nor_ids;
 
@@ -1124,7 +1129,6 @@ const struct spi_device_id *spi_nor_match_id(char *name)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(spi_nor_match_id);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Huang Shijie <shijie8@gmail.com>");

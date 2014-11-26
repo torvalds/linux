@@ -9,8 +9,6 @@
 #ifndef _ASM_ARC_ATOMIC_H
 #define _ASM_ARC_ATOMIC_H
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -166,8 +164,6 @@ ATOMIC_OP(and, &=, and)
 #define ATOMIC_INIT(i)			{ (i) }
 
 #include <asm-generic/atomic64.h>
-
-#endif
 
 #endif
 

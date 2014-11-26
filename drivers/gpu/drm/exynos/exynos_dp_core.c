@@ -1355,13 +1355,8 @@ static void exynos_dp_unbind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct exynos_drm_display *display = dev_get_drvdata(dev);
-	struct exynos_dp_device *dp = display->ctx;
-	struct drm_encoder *encoder = dp->encoder;
 
 	exynos_dp_dpms(display, DRM_MODE_DPMS_OFF);
-
-	exynos_dp_connector_destroy(&dp->connector);
-	encoder->funcs->destroy(encoder);
 }
 
 static const struct component_ops exynos_dp_ops = {

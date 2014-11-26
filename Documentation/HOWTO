@@ -324,7 +324,6 @@ tree, they need to be integration-tested.  For this purpose, a special
 testing repository exists into which virtually all subsystem trees are
 pulled on an almost daily basis:
 	http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
-	http://linux.f-seidel.de/linux-next/pmwiki/
 
 This way, the -next kernel gives a summary outlook onto what will be
 expected to go into the mainline kernel at the next merge period.

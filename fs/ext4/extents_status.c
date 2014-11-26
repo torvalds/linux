@@ -11,6 +11,8 @@
  */
 #include <linux/rbtree.h>
 #include <linux/list_sort.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include "ext4.h"
 #include "extents_status.h"
 
@@ -313,19 +315,27 @@ ext4_es_alloc_extent(struct inode *inode, ext4_lblk_t lblk, ext4_lblk_t len,
 	 */
 	if (!ext4_es_is_delayed(es)) {
 		EXT4_I(inode)->i_es_lru_nr++;
-		percpu_counter_inc(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
+		percpu_counter_inc(&EXT4_SB(inode->i_sb)->
+					s_es_stats.es_stats_lru_cnt);
 	}
+
+	EXT4_I(inode)->i_es_all_nr++;
+	percpu_counter_inc(&EXT4_SB(inode->i_sb)->s_es_stats.es_stats_all_cnt);
 
 	return es;
 }
 
 static void ext4_es_free_extent(struct inode *inode, struct extent_status *es)
 {
+	EXT4_I(inode)->i_es_all_nr--;
+	percpu_counter_dec(&EXT4_SB(inode->i_sb)->s_es_stats.es_stats_all_cnt);
+
 	/* Decrease the lru counter when this es is not delayed */
 	if (!ext4_es_is_delayed(es)) {
 		BUG_ON(EXT4_I(inode)->i_es_lru_nr == 0);
 		EXT4_I(inode)->i_es_lru_nr--;
-		percpu_counter_dec(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
+		percpu_counter_dec(&EXT4_SB(inode->i_sb)->
+					s_es_stats.es_stats_lru_cnt);
 	}
 
 	kmem_cache_free(ext4_es_cachep, es);
@@ -426,7 +436,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 	unsigned short ee_len;
 	int depth, ee_status, es_status;
 
-	path = ext4_ext_find_extent(inode, es->es_lblk, NULL, EXT4_EX_NOCACHE);
+	path = ext4_find_extent(inode, es->es_lblk, NULL, EXT4_EX_NOCACHE);
 	if (IS_ERR(path))
 		return;
 
@@ -499,10 +509,8 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		}
 	}
 out:
-	if (path) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
-	}
+	ext4_ext_drop_refs(path);
+	kfree(path);
 }
 
 static void ext4_es_insert_extent_ind_check(struct inode *inode,
@@ -731,6 +739,7 @@ int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 			  struct extent_status *es)
 {
 	struct ext4_es_tree *tree;
+	struct ext4_es_stats *stats;
 	struct extent_status *es1 = NULL;
 	struct rb_node *node;
 	int found = 0;
@@ -767,11 +776,15 @@ int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 	}
 
 out:
+	stats = &EXT4_SB(inode->i_sb)->s_es_stats;
 	if (found) {
 		BUG_ON(!es1);
 		es->es_lblk = es1->es_lblk;
 		es->es_len = es1->es_len;
 		es->es_pblk = es1->es_pblk;
+		stats->es_stats_cache_hits++;
+	} else {
+		stats->es_stats_cache_misses++;
 	}
 
 	read_unlock(&EXT4_I(inode)->i_es_lock);
@@ -933,11 +946,16 @@ static int __ext4_es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
 			    struct ext4_inode_info *locked_ei)
 {
 	struct ext4_inode_info *ei;
+	struct ext4_es_stats *es_stats;
 	struct list_head *cur, *tmp;
 	LIST_HEAD(skipped);
+	ktime_t start_time;
+	u64 scan_time;
 	int nr_shrunk = 0;
 	int retried = 0, skip_precached = 1, nr_skipped = 0;
 
+	es_stats = &sbi->s_es_stats;
+	start_time = ktime_get();
 	spin_lock(&sbi->s_es_lru_lock);
 
 retry:
@@ -948,7 +966,8 @@ retry:
 		 * If we have already reclaimed all extents from extent
 		 * status tree, just stop the loop immediately.
 		 */
-		if (percpu_counter_read_positive(&sbi->s_extent_cache_cnt) == 0)
+		if (percpu_counter_read_positive(
+				&es_stats->es_stats_lru_cnt) == 0)
 			break;
 
 		ei = list_entry(cur, struct ext4_inode_info, i_es_lru);
@@ -958,7 +977,7 @@ retry:
 		 * time.  Normally we try hard to avoid shrinking
 		 * precached inodes, but we will as a last resort.
 		 */
-		if ((sbi->s_es_last_sorted < ei->i_touch_when) ||
+		if ((es_stats->es_stats_last_sorted < ei->i_touch_when) ||
 		    (skip_precached && ext4_test_inode_state(&ei->vfs_inode,
 						EXT4_STATE_EXT_PRECACHED))) {
 			nr_skipped++;
@@ -992,7 +1011,7 @@ retry:
 	if ((nr_shrunk == 0) && nr_skipped && !retried) {
 		retried++;
 		list_sort(NULL, &sbi->s_es_lru, ext4_inode_touch_time_cmp);
-		sbi->s_es_last_sorted = jiffies;
+		es_stats->es_stats_last_sorted = jiffies;
 		ei = list_first_entry(&sbi->s_es_lru, struct ext4_inode_info,
 				      i_es_lru);
 		/*
@@ -1010,6 +1029,22 @@ retry:
 	if (locked_ei && nr_shrunk == 0)
 		nr_shrunk = __es_try_to_reclaim_extents(locked_ei, nr_to_scan);
 
+	scan_time = ktime_to_ns(ktime_sub(ktime_get(), start_time));
+	if (likely(es_stats->es_stats_scan_time))
+		es_stats->es_stats_scan_time = (scan_time +
+				es_stats->es_stats_scan_time*3) / 4;
+	else
+		es_stats->es_stats_scan_time = scan_time;
+	if (scan_time > es_stats->es_stats_max_scan_time)
+		es_stats->es_stats_max_scan_time = scan_time;
+	if (likely(es_stats->es_stats_shrunk))
+		es_stats->es_stats_shrunk = (nr_shrunk +
+				es_stats->es_stats_shrunk*3) / 4;
+	else
+		es_stats->es_stats_shrunk = nr_shrunk;
+
+	trace_ext4_es_shrink(sbi->s_sb, nr_shrunk, scan_time, skip_precached,
+			     nr_skipped, retried);
 	return nr_shrunk;
 }
 
@@ -1020,8 +1055,8 @@ static unsigned long ext4_es_count(struct shrinker *shrink,
 	struct ext4_sb_info *sbi;
 
 	sbi = container_of(shrink, struct ext4_sb_info, s_es_shrinker);
-	nr = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
-	trace_ext4_es_shrink_enter(sbi->s_sb, sc->nr_to_scan, nr);
+	nr = percpu_counter_read_positive(&sbi->s_es_stats.es_stats_lru_cnt);
+	trace_ext4_es_shrink_count(sbi->s_sb, sc->nr_to_scan, nr);
 	return nr;
 }
 
@@ -1033,31 +1068,160 @@ static unsigned long ext4_es_scan(struct shrinker *shrink,
 	int nr_to_scan = sc->nr_to_scan;
 	int ret, nr_shrunk;
 
-	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
-	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan, ret);
+	ret = percpu_counter_read_positive(&sbi->s_es_stats.es_stats_lru_cnt);
+	trace_ext4_es_shrink_scan_enter(sbi->s_sb, nr_to_scan, ret);
 
 	if (!nr_to_scan)
 		return ret;
 
 	nr_shrunk = __ext4_es_shrink(sbi, nr_to_scan, NULL);
 
-	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk, ret);
+	trace_ext4_es_shrink_scan_exit(sbi->s_sb, nr_shrunk, ret);
 	return nr_shrunk;
 }
 
-void ext4_es_register_shrinker(struct ext4_sb_info *sbi)
+static void *ext4_es_seq_shrinker_info_start(struct seq_file *seq, loff_t *pos)
 {
+	return *pos ? NULL : SEQ_START_TOKEN;
+}
+
+static void *
+ext4_es_seq_shrinker_info_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	return NULL;
+}
+
+static int ext4_es_seq_shrinker_info_show(struct seq_file *seq, void *v)
+{
+	struct ext4_sb_info *sbi = seq->private;
+	struct ext4_es_stats *es_stats = &sbi->s_es_stats;
+	struct ext4_inode_info *ei, *max = NULL;
+	unsigned int inode_cnt = 0;
+
+	if (v != SEQ_START_TOKEN)
+		return 0;
+
+	/* here we just find an inode that has the max nr. of objects */
+	spin_lock(&sbi->s_es_lru_lock);
+	list_for_each_entry(ei, &sbi->s_es_lru, i_es_lru) {
+		inode_cnt++;
+		if (max && max->i_es_all_nr < ei->i_es_all_nr)
+			max = ei;
+		else if (!max)
+			max = ei;
+	}
+	spin_unlock(&sbi->s_es_lru_lock);
+
+	seq_printf(seq, "stats:\n  %lld objects\n  %lld reclaimable objects\n",
+		   percpu_counter_sum_positive(&es_stats->es_stats_all_cnt),
+		   percpu_counter_sum_positive(&es_stats->es_stats_lru_cnt));
+	seq_printf(seq, "  %lu/%lu cache hits/misses\n",
+		   es_stats->es_stats_cache_hits,
+		   es_stats->es_stats_cache_misses);
+	if (es_stats->es_stats_last_sorted != 0)
+		seq_printf(seq, "  %u ms last sorted interval\n",
+			   jiffies_to_msecs(jiffies -
+					    es_stats->es_stats_last_sorted));
+	if (inode_cnt)
+		seq_printf(seq, "  %d inodes on lru list\n", inode_cnt);
+
+	seq_printf(seq, "average:\n  %llu us scan time\n",
+	    div_u64(es_stats->es_stats_scan_time, 1000));
+	seq_printf(seq, "  %lu shrunk objects\n", es_stats->es_stats_shrunk);
+	if (inode_cnt)
+		seq_printf(seq,
+		    "maximum:\n  %lu inode (%u objects, %u reclaimable)\n"
+		    "  %llu us max scan time\n",
+		    max->vfs_inode.i_ino, max->i_es_all_nr, max->i_es_lru_nr,
+		    div_u64(es_stats->es_stats_max_scan_time, 1000));
+
+	return 0;
+}
+
+static void ext4_es_seq_shrinker_info_stop(struct seq_file *seq, void *v)
+{
+}
+
+static const struct seq_operations ext4_es_seq_shrinker_info_ops = {
+	.start = ext4_es_seq_shrinker_info_start,
+	.next  = ext4_es_seq_shrinker_info_next,
+	.stop  = ext4_es_seq_shrinker_info_stop,
+	.show  = ext4_es_seq_shrinker_info_show,
+};
+
+static int
+ext4_es_seq_shrinker_info_open(struct inode *inode, struct file *file)
+{
+	int ret;
+
+	ret = seq_open(file, &ext4_es_seq_shrinker_info_ops);
+	if (!ret) {
+		struct seq_file *m = file->private_data;
+		m->private = PDE_DATA(inode);
+	}
+
+	return ret;
+}
+
+static int
+ext4_es_seq_shrinker_info_release(struct inode *inode, struct file *file)
+{
+	return seq_release(inode, file);
+}
+
+static const struct file_operations ext4_es_seq_shrinker_info_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ext4_es_seq_shrinker_info_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= ext4_es_seq_shrinker_info_release,
+};
+
+int ext4_es_register_shrinker(struct ext4_sb_info *sbi)
+{
+	int err;
+
 	INIT_LIST_HEAD(&sbi->s_es_lru);
 	spin_lock_init(&sbi->s_es_lru_lock);
-	sbi->s_es_last_sorted = 0;
+	sbi->s_es_stats.es_stats_last_sorted = 0;
+	sbi->s_es_stats.es_stats_shrunk = 0;
+	sbi->s_es_stats.es_stats_cache_hits = 0;
+	sbi->s_es_stats.es_stats_cache_misses = 0;
+	sbi->s_es_stats.es_stats_scan_time = 0;
+	sbi->s_es_stats.es_stats_max_scan_time = 0;
+	err = percpu_counter_init(&sbi->s_es_stats.es_stats_all_cnt, 0, GFP_KERNEL);
+	if (err)
+		return err;
+	err = percpu_counter_init(&sbi->s_es_stats.es_stats_lru_cnt, 0, GFP_KERNEL);
+	if (err)
+		goto err1;
+
 	sbi->s_es_shrinker.scan_objects = ext4_es_scan;
 	sbi->s_es_shrinker.count_objects = ext4_es_count;
 	sbi->s_es_shrinker.seeks = DEFAULT_SEEKS;
-	register_shrinker(&sbi->s_es_shrinker);
+	err = register_shrinker(&sbi->s_es_shrinker);
+	if (err)
+		goto err2;
+
+	if (sbi->s_proc)
+		proc_create_data("es_shrinker_info", S_IRUGO, sbi->s_proc,
+				 &ext4_es_seq_shrinker_info_fops, sbi);
+
+	return 0;
+
+err2:
+	percpu_counter_destroy(&sbi->s_es_stats.es_stats_lru_cnt);
+err1:
+	percpu_counter_destroy(&sbi->s_es_stats.es_stats_all_cnt);
+	return err;
 }
 
 void ext4_es_unregister_shrinker(struct ext4_sb_info *sbi)
 {
+	if (sbi->s_proc)
+		remove_proc_entry("es_shrinker_info", sbi->s_proc);
+	percpu_counter_destroy(&sbi->s_es_stats.es_stats_all_cnt);
+	percpu_counter_destroy(&sbi->s_es_stats.es_stats_lru_cnt);
 	unregister_shrinker(&sbi->s_es_shrinker);
 }
 
