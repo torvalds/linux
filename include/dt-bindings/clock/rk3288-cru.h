@@ -141,6 +141,10 @@
 #define PCLK_VIO2_H2P		361
 #define PCLK_CPU		362
 #define PCLK_PERI		363
+#define PCLK_DDRUPCTL0		364
+#define PCLK_PUBL0		365
+#define PCLK_DDRUPCTL1		366
+#define PCLK_PUBL1		367
 
 /* hclk gates */
 #define HCLK_GPS		448
