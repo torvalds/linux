@@ -1159,11 +1159,6 @@ static int sca3000_probe(struct spi_device *spi)
 				  ARRAY_SIZE(sca3000_channels));
 	if (ret < 0)
 		goto error_unregister_dev;
-	if (indio_dev->buffer) {
-		iio_scan_mask_set(indio_dev, indio_dev->buffer, 0);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer, 1);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer, 2);
-	}
 
 	if (spi->irq) {
 		ret = request_threaded_irq(spi->irq,
