@@ -2,6 +2,7 @@
 
 Required root node properties:
     - compatible = should be one or more of the following.
+	- "samsung,monk"	- for Exynos3250-based Samsung Simband board.
 	- "samsung,rinato"	- for Exynos3250-based Samsung Gear2 board.
 	- "samsung,smdkv310"	- for Exynos4210-based Samsung SMDKV310 eval board.
 	- "samsung,trats"	- for Exynos4210-based Tizen Reference board.
