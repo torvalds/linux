@@ -2685,13 +2685,20 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx = 0;
 	u32 portid = NETLINK_CB(cb->skb).portid;
 	u32 seq = cb->nlh->nlmsg_seq;
-	struct nlattr *extfilt;
 	u32 filter_mask = 0;
 
-	extfilt = nlmsg_find_attr(cb->nlh, sizeof(struct ifinfomsg),
-				  IFLA_EXT_MASK);
-	if (extfilt)
-		filter_mask = nla_get_u32(extfilt);
+	if (nlmsg_len(cb->nlh) > sizeof(struct ifinfomsg)) {
+		struct nlattr *extfilt;
+
+		extfilt = nlmsg_find_attr(cb->nlh, sizeof(struct ifinfomsg),
+					  IFLA_EXT_MASK);
+		if (extfilt) {
+			if (nla_len(extfilt) < sizeof(filter_mask))
+				return -EINVAL;
+
+			filter_mask = nla_get_u32(extfilt);
+		}
+	}
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
