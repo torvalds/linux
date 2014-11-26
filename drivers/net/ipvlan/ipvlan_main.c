@@ -169,7 +169,8 @@ static int ipvlan_stop(struct net_device *dev)
 	return 0;
 }
 
-netdev_tx_t ipvlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ipvlan_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	const struct ipvl_dev *ipvlan = netdev_priv(dev);
 	int skblen = skb->len;
@@ -541,7 +542,7 @@ static struct rtnl_link_ops ipvlan_link_ops = {
 	.dellink	= ipvlan_link_delete,
 };
 
-int ipvlan_link_register(struct rtnl_link_ops *ops)
+static int ipvlan_link_register(struct rtnl_link_ops *ops)
 {
 	return rtnl_link_register(ops);
 }
