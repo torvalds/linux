@@ -211,7 +211,6 @@ struct exynos_drm_manager_ops {
  */
 struct exynos_drm_manager {
 	struct list_head list;
-	struct drm_device *drm_dev;
 	struct drm_crtc *crtc;
 	struct exynos_drm_manager_ops *ops;
 };

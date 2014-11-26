@@ -301,7 +301,7 @@ static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
 	struct vidi_context *ctx = manager_to_vidi(mgr);
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	mgr->drm_dev = ctx->drm_dev = drm_dev;
+	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
 
 	return 0;
@@ -558,7 +558,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 
 	vidi_mgr_initialize(&ctx->manager, drm_dev);
 
-	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe,
+	ret = exynos_drm_crtc_create(&ctx->manager, drm_dev, ctx->pipe,
 				     EXYNOS_DISPLAY_TYPE_VIDI);
 	if (ret) {
 		DRM_ERROR("failed to create crtc.\n");

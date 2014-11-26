@@ -862,7 +862,7 @@ static int mixer_initialize(struct exynos_drm_manager *mgr,
 	struct exynos_drm_private *priv;
 	priv = drm_dev->dev_private;
 
-	mgr->drm_dev = mixer_ctx->drm_dev = drm_dev;
+	mixer_ctx->drm_dev = drm_dev;
 	mixer_ctx->pipe = priv->pipe++;
 
 	/* acquire resources: regs, irqs, clocks */
@@ -1261,7 +1261,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 	if (ret)
 		return ret;
 
-	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe,
+	ret = exynos_drm_crtc_create(&ctx->manager, drm_dev, ctx->pipe,
 				     EXYNOS_DISPLAY_TYPE_HDMI);
 	if (ret) {
 		mixer_mgr_remove(&ctx->manager);

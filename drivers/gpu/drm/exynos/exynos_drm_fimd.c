@@ -298,7 +298,7 @@ static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
 	struct exynos_drm_private *priv;
 	priv = drm_dev->dev_private;
 
-	mgr->drm_dev = ctx->drm_dev = drm_dev;
+	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
 
 	/* attach this sub driver to iommu mapping if supported. */
@@ -1076,7 +1076,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 
 	fimd_mgr_initialize(&ctx->manager, drm_dev);
-	exynos_drm_crtc_create(&ctx->manager, ctx->pipe,
+	exynos_drm_crtc_create(&ctx->manager, drm_dev, ctx->pipe,
 			       EXYNOS_DISPLAY_TYPE_LCD);
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
