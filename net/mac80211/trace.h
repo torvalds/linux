@@ -1829,6 +1829,12 @@ TRACE_EVENT(api_cqm_rssi_notify,
 	)
 );
 
+DEFINE_EVENT(local_sdata_evt, api_cqm_beacon_loss_notify,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
 TRACE_EVENT(api_scan_completed,
 	TP_PROTO(struct ieee80211_local *local, bool aborted),
 

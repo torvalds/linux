@@ -4670,6 +4670,15 @@ void cfg80211_cqm_txe_notify(struct net_device *dev, const u8 *peer,
 			     u32 num_packets, u32 rate, u32 intvl, gfp_t gfp);
 
 /**
+ * cfg80211_cqm_beacon_loss_notify - beacon loss event
+ * @dev: network device
+ * @gfp: context flags
+ *
+ * Notify userspace about beacon loss from the connected AP.
+ */
+void cfg80211_cqm_beacon_loss_notify(struct net_device *dev, gfp_t gfp);
+
+/**
  * cfg80211_radar_event - radar detection event
  * @wiphy: the wiphy
  * @chandef: chandef for the current channel

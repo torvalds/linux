@@ -11826,6 +11826,10 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 
 	trace_cfg80211_cqm_rssi_notify(dev, rssi_event);
 
+	if (WARN_ON(rssi_event != NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW &&
+		    rssi_event != NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH))
+		return;
+
 	msg = cfg80211_prepare_cqm(dev, NULL, gfp);
 	if (!msg)
 		return;
@@ -11891,6 +11895,25 @@ void cfg80211_cqm_pktloss_notify(struct net_device *dev,
 	nlmsg_free(msg);
 }
 EXPORT_SYMBOL(cfg80211_cqm_pktloss_notify);
+
+void cfg80211_cqm_beacon_loss_notify(struct net_device *dev, gfp_t gfp)
+{
+	struct sk_buff *msg;
+
+	msg = cfg80211_prepare_cqm(dev, NULL, gfp);
+	if (!msg)
+		return;
+
+	if (nla_put_flag(msg, NL80211_ATTR_CQM_BEACON_LOSS_EVENT))
+		goto nla_put_failure;
+
+	cfg80211_send_cqm(msg, gfp);
+	return;
+
+ nla_put_failure:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_cqm_beacon_loss_notify);
 
 static void nl80211_gtk_rekey_notify(struct cfg80211_registered_device *rdev,
 				     struct net_device *netdev, const u8 *bssid,
