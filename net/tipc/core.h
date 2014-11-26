@@ -192,6 +192,7 @@ struct tipc_skb_cb {
 	struct sk_buff *tail;
 	bool deferred;
 	bool wakeup_pending;
+	bool bundling;
 	u16 chain_sz;
 	u16 chain_imp;
 };

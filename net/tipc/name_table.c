@@ -144,7 +144,7 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
 	publ->key = key;
 	INIT_LIST_HEAD(&publ->local_list);
 	INIT_LIST_HEAD(&publ->pport_list);
-	INIT_LIST_HEAD(&publ->subscr.nodesub_list);
+	INIT_LIST_HEAD(&publ->nodesub_list);
 	return publ;
 }
 

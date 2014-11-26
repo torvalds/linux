@@ -37,8 +37,6 @@
 #ifndef _TIPC_NAME_TABLE_H
 #define _TIPC_NAME_TABLE_H
 
-#include "node_subscr.h"
-
 struct tipc_subscription;
 struct tipc_port_list;
 
@@ -56,7 +54,7 @@ struct tipc_port_list;
  * @node: network address of publishing port's node
  * @ref: publishing port
  * @key: publication key
- * @subscr: subscription to "node down" event (for off-node publications only)
+ * @nodesub_list: subscription to "node down" event (off-node publication only)
  * @local_list: adjacent entries in list of publications made by this node
  * @pport_list: adjacent entries in list of publications made by this port
  * @node_list: adjacent matching name seq publications with >= node scope
@@ -73,7 +71,7 @@ struct publication {
 	u32 node;
 	u32 ref;
 	u32 key;
-	struct tipc_node_subscr subscr;
+	struct list_head nodesub_list;
 	struct list_head local_list;
 	struct list_head pport_list;
 	struct list_head node_list;
