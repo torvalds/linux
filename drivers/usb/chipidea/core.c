@@ -410,7 +410,7 @@ static int hw_controller_reset(struct ci_hdrc *ci)
  *
  * This function returns an error code
  */
-int hw_device_reset(struct ci_hdrc *ci, u32 mode)
+int hw_device_reset(struct ci_hdrc *ci)
 {
 	int ret;
 
@@ -440,12 +440,12 @@ int hw_device_reset(struct ci_hdrc *ci, u32 mode)
 
 	/* USBMODE should be configured step by step */
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_IDLE);
-	hw_write(ci, OP_USBMODE, USBMODE_CM, mode);
+	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_DC);
 	/* HW >= 2.3 */
 	hw_write(ci, OP_USBMODE, USBMODE_SLOM, USBMODE_SLOM);
 
-	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != mode) {
-		pr_err("cannot enter in %s mode", ci_role(ci)->name);
+	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != USBMODE_CM_DC) {
+		pr_err("cannot enter in %s device mode", ci_role(ci)->name);
 		pr_err("lpm = %i", ci->hw_bank.lpm);
 		return -ENODEV;
 	}

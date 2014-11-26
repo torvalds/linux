@@ -352,7 +352,7 @@ u32 hw_read_intr_enable(struct ci_hdrc *ci);
 
 u32 hw_read_intr_status(struct ci_hdrc *ci);
 
-int hw_device_reset(struct ci_hdrc *ci, u32 mode);
+int hw_device_reset(struct ci_hdrc *ci);
 
 int hw_port_test_set(struct ci_hdrc *ci, u8 mode);
 

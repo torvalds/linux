@@ -1471,7 +1471,7 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 	if (gadget_ready) {
 		if (is_active) {
 			pm_runtime_get_sync(&_gadget->dev);
-			hw_device_reset(ci, USBMODE_CM_DC);
+			hw_device_reset(ci);
 			hw_device_state(ci, ci->ep0out->qh.dma);
 			usb_gadget_set_state(_gadget, USB_STATE_POWERED);
 		} else {
@@ -1660,7 +1660,7 @@ static int ci_udc_start(struct usb_gadget *gadget,
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (ci->vbus_active) {
 		spin_lock_irqsave(&ci->lock, flags);
-		hw_device_reset(ci, USBMODE_CM_DC);
+		hw_device_reset(ci);
 	} else {
 		pm_runtime_put_sync(&ci->gadget.dev);
 		return retval;
