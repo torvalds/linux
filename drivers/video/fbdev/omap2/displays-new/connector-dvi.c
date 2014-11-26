@@ -391,6 +391,7 @@ static struct platform_driver dvi_connector_driver = {
 		.name	= "connector-dvi",
 		.owner	= THIS_MODULE,
 		.of_match_table = dvic_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

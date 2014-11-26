@@ -132,7 +132,7 @@ static bool bcma_is_core_needed_early(u16 core_id)
 	return false;
 }
 
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_OF_ADDRESS)
 static struct device_node *bcma_of_find_child_device(struct platform_device *parent,
 						     struct bcma_device *core)
 {

@@ -10,10 +10,9 @@
  */
 
 
-/* __attribute__((weak)) makes these declarations overridable */
 /* For every CPU addition a new get_<cpuname>_ops interface needs
  * to be added.
  */
-extern void *get_penwell_ops(void) __attribute__((weak));
-extern void *get_cloverview_ops(void) __attribute__((weak));
-extern void *get_tangier_ops(void) __attribute__((weak));
+extern void *get_penwell_ops(void);
+extern void *get_cloverview_ops(void);
+extern void *get_tangier_ops(void);

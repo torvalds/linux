@@ -592,6 +592,7 @@ struct reorder_tmr_cnxt {
 	struct timer_list timer;
 	struct mwifiex_rx_reorder_tbl *ptr;
 	struct mwifiex_private *priv;
+	u8 timer_is_set;
 };
 
 struct mwifiex_rx_reorder_tbl {

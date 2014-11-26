@@ -41,3 +41,5 @@ EXPORT_SYMBOL(giveup_spe);
 #ifdef CONFIG_EPAPR_PARAVIRT
 EXPORT_SYMBOL(epapr_hypercall_start);
 #endif
+
+EXPORT_SYMBOL(current_stack_pointer);

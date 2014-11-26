@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/pwm.h>
 #include <linux/of.h>
@@ -21,24 +22,30 @@
 
 /* i.MX1 and i.MX21 share the same PWM function block: */
 
-#define MX1_PWMC    0x00   /* PWM Control Register */
-#define MX1_PWMS    0x04   /* PWM Sample Register */
-#define MX1_PWMP    0x08   /* PWM Period Register */
+#define MX1_PWMC			0x00   /* PWM Control Register */
+#define MX1_PWMS			0x04   /* PWM Sample Register */
+#define MX1_PWMP			0x08   /* PWM Period Register */
 
-#define MX1_PWMC_EN		(1 << 4)
+#define MX1_PWMC_EN			(1 << 4)
 
 /* i.MX27, i.MX31, i.MX35 share the same PWM function block: */
 
-#define MX3_PWMCR                 0x00    /* PWM Control Register */
-#define MX3_PWMSAR                0x0C    /* PWM Sample Register */
-#define MX3_PWMPR                 0x10    /* PWM Period Register */
-#define MX3_PWMCR_PRESCALER(x)    (((x - 1) & 0xFFF) << 4)
-#define MX3_PWMCR_DOZEEN                (1 << 24)
-#define MX3_PWMCR_WAITEN                (1 << 23)
+#define MX3_PWMCR			0x00    /* PWM Control Register */
+#define MX3_PWMSR			0x04    /* PWM Status Register */
+#define MX3_PWMSAR			0x0C    /* PWM Sample Register */
+#define MX3_PWMPR			0x10    /* PWM Period Register */
+#define MX3_PWMCR_PRESCALER(x)		((((x) - 1) & 0xFFF) << 4)
+#define MX3_PWMCR_DOZEEN		(1 << 24)
+#define MX3_PWMCR_WAITEN		(1 << 23)
 #define MX3_PWMCR_DBGEN			(1 << 22)
-#define MX3_PWMCR_CLKSRC_IPG_HIGH (2 << 16)
-#define MX3_PWMCR_CLKSRC_IPG      (1 << 16)
-#define MX3_PWMCR_EN              (1 << 0)
+#define MX3_PWMCR_CLKSRC_IPG_HIGH	(2 << 16)
+#define MX3_PWMCR_CLKSRC_IPG		(1 << 16)
+#define MX3_PWMCR_SWR			(1 << 3)
+#define MX3_PWMCR_EN			(1 << 0)
+#define MX3_PWMSR_FIFOAV_4WORDS		0x4
+#define MX3_PWMSR_FIFOAV_MASK		0x7
+
+#define MX3_PWM_SWR_LOOP		5
 
 struct imx_chip {
 	struct clk	*clk_per;
@@ -103,9 +110,43 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 		struct pwm_device *pwm, int duty_ns, int period_ns)
 {
 	struct imx_chip *imx = to_imx_chip(chip);
+	struct device *dev = chip->dev;
 	unsigned long long c;
 	unsigned long period_cycles, duty_cycles, prescale;
-	u32 cr;
+	unsigned int period_ms;
+	bool enable = test_bit(PWMF_ENABLED, &pwm->flags);
+	int wait_count = 0, fifoav;
+	u32 cr, sr;
+
+	/*
+	 * i.MX PWMv2 has a 4-word sample FIFO.
+	 * In order to avoid FIFO overflow issue, we do software reset
+	 * to clear all sample FIFO if the controller is disabled or
+	 * wait for a full PWM cycle to get a relinquished FIFO slot
+	 * when the controller is enabled and the FIFO is fully loaded.
+	 */
+	if (enable) {
+		sr = readl(imx->mmio_base + MX3_PWMSR);
+		fifoav = sr & MX3_PWMSR_FIFOAV_MASK;
+		if (fifoav == MX3_PWMSR_FIFOAV_4WORDS) {
+			period_ms = DIV_ROUND_UP(pwm->period, NSEC_PER_MSEC);
+			msleep(period_ms);
+
+			sr = readl(imx->mmio_base + MX3_PWMSR);
+			if (fifoav == (sr & MX3_PWMSR_FIFOAV_MASK))
+				dev_warn(dev, "there is no free FIFO slot\n");
+		}
+	} else {
+		writel(MX3_PWMCR_SWR, imx->mmio_base + MX3_PWMCR);
+		do {
+			usleep_range(200, 1000);
+			cr = readl(imx->mmio_base + MX3_PWMCR);
+		} while ((cr & MX3_PWMCR_SWR) &&
+			 (wait_count++ < MX3_PWM_SWR_LOOP));
+
+		if (cr & MX3_PWMCR_SWR)
+			dev_warn(dev, "software reset timeout\n");
+	}
 
 	c = clk_get_rate(imx->clk_per);
 	c = c * period_ns;
@@ -135,7 +176,7 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 		MX3_PWMCR_DOZEEN | MX3_PWMCR_WAITEN |
 		MX3_PWMCR_DBGEN | MX3_PWMCR_CLKSRC_IPG_HIGH;
 
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
+	if (enable)
 		cr |= MX3_PWMCR_EN;
 
 	writel(cr, imx->mmio_base + MX3_PWMCR);

@@ -35,6 +35,7 @@ struct f_obex {
 	struct gserial			port;
 	u8				ctrl_id;
 	u8				data_id;
+	u8				cur_alt;
 	u8				port_num;
 	u8				can_activate;
 };
@@ -235,6 +236,8 @@ static int obex_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	} else
 		goto fail;
 
+	obex->cur_alt = alt;
+
 	return 0;
 
 fail:
@@ -245,10 +248,7 @@ static int obex_get_alt(struct usb_function *f, unsigned intf)
 {
 	struct f_obex		*obex = func_to_obex(f);
 
-	if (intf == obex->ctrl_id)
-		return 0;
-
-	return obex->port.in->driver_data ? 1 : 0;
+	return obex->cur_alt;
 }
 
 static void obex_disable(struct usb_function *f)
@@ -397,7 +397,6 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	usb_free_all_descriptors(f);
 	/* we might as well release our claims on endpoints */
 	if (obex->port.out)
 		obex->port.out->driver_data = NULL;
