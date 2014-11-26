@@ -385,20 +385,44 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 }
 
 /**
- * hw_device_reset: resets chip (execute without interruption)
+ * hw_controller_reset: do controller reset
  * @ci: the controller
   *
  * This function returns an error code
  */
+static int hw_controller_reset(struct ci_hdrc *ci)
+{
+	int count = 0;
+
+	hw_write(ci, OP_USBCMD, USBCMD_RST, USBCMD_RST);
+	while (hw_read(ci, OP_USBCMD, USBCMD_RST)) {
+		udelay(10);
+		if (count++ > 1000)
+			return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+/**
+ * hw_device_reset: resets chip (execute without interruption)
+ * @ci: the controller
+ *
+ * This function returns an error code
+ */
 int hw_device_reset(struct ci_hdrc *ci, u32 mode)
 {
+	int ret;
+
 	/* should flush & stop before reset */
 	hw_write(ci, OP_ENDPTFLUSH, ~0, ~0);
 	hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
 
-	hw_write(ci, OP_USBCMD, USBCMD_RST, USBCMD_RST);
-	while (hw_read(ci, OP_USBCMD, USBCMD_RST))
-		udelay(10);		/* not RTOS friendly */
+	ret = hw_controller_reset(ci);
+	if (ret) {
+		dev_err(ci->dev, "error resetting controller, ret=%d\n", ret);
+		return ret;
+	}
 
 	if (ci->platdata->notify_event)
 		ci->platdata->notify_event(ci,
