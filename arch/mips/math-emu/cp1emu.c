@@ -648,6 +648,19 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		else
 			*contpc = regs->cp0_epc + 8;
 		return 1;
+#else
+	case bc6_op:
+		/*
+		 * Only valid for MIPS R6 but we can still end up
+		 * here from a broken userland so just tell emulator
+		 * this is not a branch and let it break later on.
+		 */
+		if  (!cpu_has_mips_r6)
+			break;
+		*contpc = regs->cp0_epc + dec_insn.pc_inc +
+			dec_insn.next_pc_inc;
+
+		return 1;
 #endif
 	case cop0_op:
 	case cop1_op:
