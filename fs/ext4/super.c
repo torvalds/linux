@@ -1695,6 +1695,12 @@ static int parse_options(char *options, struct super_block *sb,
 			return 0;
 		}
 	}
+	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA &&
+	    test_opt(sb, JOURNAL_ASYNC_COMMIT)) {
+		ext4_msg(sb, KERN_ERR, "can't mount with journal_async_commit "
+			 "in data=ordered mode");
+		return 0;
+	}
 	return 1;
 }
 
