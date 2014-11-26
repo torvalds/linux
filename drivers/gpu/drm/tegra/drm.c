@@ -24,6 +24,13 @@ struct tegra_drm_file {
 	struct list_head contexts;
 };
 
+static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
+	.fb_create = tegra_fb_create,
+#ifdef CONFIG_DRM_TEGRA_FBDEV
+	.output_poll_changed = tegra_fb_output_poll_changed,
+#endif
+};
+
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 {
 	struct host1x_device *device = to_host1x_device(drm->dev);
@@ -51,6 +58,14 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	tegra->drm = drm;
 
 	drm_mode_config_init(drm);
+
+	drm->mode_config.min_width = 0;
+	drm->mode_config.min_height = 0;
+
+	drm->mode_config.max_width = 4096;
+	drm->mode_config.max_height = 4096;
+
+	drm->mode_config.funcs = &tegra_drm_mode_funcs;
 
 	err = tegra_drm_fb_prepare(drm);
 	if (err < 0)

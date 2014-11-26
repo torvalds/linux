@@ -292,12 +292,16 @@ struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
 int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling);
+struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
+					struct drm_file *file,
+					struct drm_mode_fb_cmd2 *cmd);
 int tegra_drm_fb_prepare(struct drm_device *drm);
 void tegra_drm_fb_free(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
+void tegra_fb_output_poll_changed(struct drm_device *drm);
 #endif
 
 extern struct platform_driver tegra_dc_driver;
