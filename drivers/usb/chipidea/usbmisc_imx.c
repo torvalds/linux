@@ -117,10 +117,9 @@ static int usbmisc_imx25_post(struct imx_usbmisc_data *data)
 	if (data->index > 2)
 		return -EINVAL;
 
-	reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
-
 	if (data->evdo) {
 		spin_lock_irqsave(&usbmisc->lock, flags);
+		reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
 		val = readl(reg);
 		writel(val | MX25_BM_EXTERNAL_VBUS_DIVIDER, reg);
 		spin_unlock_irqrestore(&usbmisc->lock, flags);
