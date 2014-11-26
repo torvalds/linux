@@ -1887,7 +1887,7 @@ int kvm_x2apic_msr_write(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		return 1;
 
 	/* if this is ICR write vector before command */
-	if (msr == 0x830)
+	if (reg == APIC_ICR)
 		apic_reg_write(apic, APIC_ICR2, (u32)(data >> 32));
 	return apic_reg_write(apic, reg, (u32)data);
 }
@@ -1908,7 +1908,7 @@ int kvm_x2apic_msr_read(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 
 	if (apic_reg_read(apic, reg, 4, &low))
 		return 1;
-	if (msr == 0x830)
+	if (reg == APIC_ICR)
 		apic_reg_read(apic, APIC_ICR2, 4, &high);
 
 	*data = (((u64)high) << 32) | low;
