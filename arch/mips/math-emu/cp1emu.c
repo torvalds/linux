@@ -602,6 +602,33 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 #endif
 	case cop0_op:
 	case cop1_op:
+		/* Need to check for R6 bc1nez and bc1eqz branches */
+		if (cpu_has_mips_r6 &&
+		    ((insn.i_format.rs == bc1eqz_op) ||
+		     (insn.i_format.rs == bc1nez_op))) {
+			bit = 0;
+			switch (insn.i_format.rs) {
+			case bc1eqz_op:
+				if (get_fpr32(&current->thread.fpu.fpr[insn.i_format.rt], 0) & 0x1)
+				    bit = 1;
+				break;
+			case bc1nez_op:
+				if (!(get_fpr32(&current->thread.fpu.fpr[insn.i_format.rt], 0) & 0x1))
+				    bit = 1;
+				break;
+			}
+			if (bit)
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					(insn.i_format.simmediate << 2);
+			else
+				*contpc = regs->cp0_epc +
+					dec_insn.pc_inc +
+					dec_insn.next_pc_inc;
+
+			return 1;
+		}
+		/* R2/R6 compatible cop1 instruction. Fall through */
 	case cop2_op:
 	case cop1x_op:
 		if (insn.i_format.rs == bc_op) {
