@@ -88,8 +88,14 @@ static const struct reset_reg_mask reset_bits_40nm = {
 	.sw_mstr_rst_mask = BIT(0),
 };
 
+static const struct reset_reg_mask reset_bits_65nm = {
+	.rst_src_en_mask = BIT(3),
+	.sw_mstr_rst_mask = BIT(31),
+};
+
 static const struct of_device_id of_match[] = {
 	{ .compatible = "brcm,brcmstb-reboot", .data = &reset_bits_40nm },
+	{ .compatible = "brcm,bcm7038-reboot", .data = &reset_bits_65nm },
 	{},
 };
 
