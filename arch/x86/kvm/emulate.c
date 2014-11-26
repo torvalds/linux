@@ -123,6 +123,7 @@
 #define Prefix      (3<<15)     /* Instruction varies with 66/f2/f3 prefix */
 #define RMExt       (4<<15)     /* Opcode extension in ModRM r/m if mod == 3 */
 #define Escape      (5<<15)     /* Escape to coprocessor instruction */
+#define InstrDual   (6<<15)     /* Alternate instruction decoding of mod == 3 */
 #define Sse         (1<<18)     /* SSE Vector instruction */
 /* Generic ModRM decode. */
 #define ModRM       (1<<19)
@@ -211,6 +212,7 @@ struct opcode {
 		const struct group_dual *gdual;
 		const struct gprefix *gprefix;
 		const struct escape *esc;
+		const struct instr_dual *idual;
 		void (*fastop)(struct fastop *fake);
 	} u;
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
@@ -231,6 +233,11 @@ struct gprefix {
 struct escape {
 	struct opcode op[8];
 	struct opcode high[64];
+};
+
+struct instr_dual {
+	struct opcode mod012;
+	struct opcode mod3;
 };
 
 /* EFLAGS bit definitions. */
@@ -3679,6 +3686,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
 #define G(_f, _g) { .flags = ((_f) | Group | ModRM), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | GroupDual | ModRM), .u.gdual = (_g) }
+#define ID(_f, _i) { .flags = ((_f) | InstrDual | ModRM), .u.idual = (_i) }
 #define E(_f, _e) { .flags = ((_f) | Escape | ModRM), .u.esc = (_e) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 #define F(_f, _e) { .flags = (_f) | Fastop, .u.fastop = (_e) }
@@ -3840,8 +3848,12 @@ static const struct gprefix pfx_0f_6f_0f_7f = {
 	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
 };
 
+static const struct instr_dual instr_dual_0f_2b = {
+	I(0, em_mov), N
+};
+
 static const struct gprefix pfx_0f_2b = {
-	I(0, em_mov), I(0, em_mov), N, N,
+	ID(0, &instr_dual_0f_2b), ID(0, &instr_dual_0f_2b), N, N,
 };
 
 static const struct gprefix pfx_0f_28_0f_29 = {
@@ -3914,6 +3926,10 @@ static const struct escape escape_dd = { {
 	/* 0xF8 - 0xFF */
 	N, N, N, N, N, N, N, N,
 } };
+
+static const struct instr_dual instr_dual_0f_c3 = {
+	I(DstMem | SrcReg | ModRM | No16 | Mov, em_mov), N
+};
 
 static const struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
@@ -4117,7 +4133,7 @@ static const struct opcode twobyte_table[256] = {
 	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xC7 */
 	F2bv(DstMem | SrcReg | ModRM | SrcWrite | Lock, em_xadd),
-	N, I(DstMem | SrcReg | ModRM | No16 | Mov, em_mov),
+	N, ID(0, &instr_dual_0f_c3),
 	N, N, N, GD(0, &group9),
 	/* 0xC8 - 0xCF */
 	X8(I(DstReg, em_bswap)),
@@ -4130,12 +4146,20 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
 };
 
+static const struct instr_dual instr_dual_0f_38_f0 = {
+	I(DstReg | SrcMem | Mov, em_movbe), N
+};
+
+static const struct instr_dual instr_dual_0f_38_f1 = {
+	I(DstMem | SrcReg | Mov, em_movbe), N
+};
+
 static const struct gprefix three_byte_0f_38_f0 = {
-	I(DstReg | SrcMem | Mov, em_movbe), N, N, N
+	ID(0, &instr_dual_0f_38_f0), N, N, N
 };
 
 static const struct gprefix three_byte_0f_38_f1 = {
-	I(DstMem | SrcReg | Mov, em_movbe), N, N, N
+	ID(0, &instr_dual_0f_38_f1), N, N, N
 };
 
 /*
@@ -4535,6 +4559,12 @@ done_prefixes:
 				opcode = opcode.u.esc->high[ctxt->modrm - 0xc0];
 			else
 				opcode = opcode.u.esc->op[(ctxt->modrm >> 3) & 7];
+			break;
+		case InstrDual:
+			if ((ctxt->modrm >> 6) == 3)
+				opcode = opcode.u.idual->mod3;
+			else
+				opcode = opcode.u.idual->mod012;
 			break;
 		default:
 			return EMULATION_FAILED;
