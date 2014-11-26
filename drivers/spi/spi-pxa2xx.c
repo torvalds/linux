@@ -63,9 +63,63 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 				| SSCR1_RFT | SSCR1_TFT | SSCR1_MWDS \
 				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
 
+#define QUARK_X1000_SSCR1_CHANGE_MASK (QUARK_X1000_SSCR1_STRF	\
+				| QUARK_X1000_SSCR1_EFWR	\
+				| QUARK_X1000_SSCR1_RFT		\
+				| QUARK_X1000_SSCR1_TFT		\
+				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
+
 #define LPSS_RX_THRESH_DFLT	64
 #define LPSS_TX_LOTHRESH_DFLT	160
 #define LPSS_TX_HITHRESH_DFLT	224
+
+struct quark_spi_rate {
+	u32 bitrate;
+	u32 dds_clk_rate;
+	u32 clk_div;
+};
+
+/*
+ * 'rate', 'dds', 'clk_div' lookup table, which is defined in
+ * the Quark SPI datasheet.
+ */
+static const struct quark_spi_rate quark_spi_rate_table[] = {
+/*	bitrate,	dds_clk_rate,	clk_div */
+	{50000000,	0x800000,	0},
+	{40000000,	0x666666,	0},
+	{25000000,	0x400000,	0},
+	{20000000,	0x666666,	1},
+	{16667000,	0x800000,	2},
+	{13333000,	0x666666,	2},
+	{12500000,	0x200000,	0},
+	{10000000,	0x800000,	4},
+	{8000000,	0x666666,	4},
+	{6250000,	0x400000,	3},
+	{5000000,	0x400000,	4},
+	{4000000,	0x666666,	9},
+	{3125000,	0x80000,	0},
+	{2500000,	0x400000,	9},
+	{2000000,	0x666666,	19},
+	{1563000,	0x40000,	0},
+	{1250000,	0x200000,	9},
+	{1000000,	0x400000,	24},
+	{800000,	0x666666,	49},
+	{781250,	0x20000,	0},
+	{625000,	0x200000,	19},
+	{500000,	0x400000,	49},
+	{400000,	0x666666,	99},
+	{390625,	0x10000,	0},
+	{250000,	0x400000,	99},
+	{200000,	0x666666,	199},
+	{195313,	0x8000,		0},
+	{125000,	0x100000,	49},
+	{100000,	0x200000,	124},
+	{50000,		0x100000,	124},
+	{25000,		0x80000,	124},
+	{10016,		0x20000,	77},
+	{5040,		0x20000,	154},
+	{1002,		0x8000,		194},
+};
 
 /* Offset from drv_data->lpss_base */
 #define GENERAL_REG		0x08
@@ -80,9 +134,16 @@ static bool is_lpss_ssp(const struct driver_data *drv_data)
 	return drv_data->ssp_type == LPSS_SSP;
 }
 
+static bool is_quark_x1000_ssp(const struct driver_data *drv_data)
+{
+	return drv_data->ssp_type == QUARK_X1000_SSP;
+}
+
 static u32 pxa2xx_spi_get_ssrc1_change_mask(const struct driver_data *drv_data)
 {
 	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		return QUARK_X1000_SSCR1_CHANGE_MASK;
 	default:
 		return SSCR1_CHANGE_MASK;
 	}
@@ -92,6 +153,8 @@ static u32
 pxa2xx_spi_get_rx_default_thre(const struct driver_data *drv_data)
 {
 	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		return RX_THRESH_QUARK_X1000_DFLT;
 	default:
 		return RX_THRESH_DFLT;
 	}
@@ -103,6 +166,9 @@ static bool pxa2xx_spi_txfifo_full(const struct driver_data *drv_data)
 	u32 mask;
 
 	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		mask = QUARK_X1000_SSSR_TFL_MASK;
+		break;
 	default:
 		mask = SSSR_TFL_MASK;
 		break;
@@ -117,6 +183,9 @@ static void pxa2xx_spi_clear_rx_thre(const struct driver_data *drv_data,
 	u32 mask;
 
 	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		mask = QUARK_X1000_SSCR1_RFT;
+		break;
 	default:
 		mask = SSCR1_RFT;
 		break;
@@ -128,6 +197,9 @@ static void pxa2xx_spi_set_rx_thre(const struct driver_data *drv_data,
 				   u32 *sccr1_reg, u32 threshold)
 {
 	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		*sccr1_reg |= QUARK_X1000_SSCR1_RxTresh(threshold);
+		break;
 	default:
 		*sccr1_reg |= SSCR1_RxTresh(threshold);
 		break;
@@ -138,6 +210,11 @@ static u32 pxa2xx_configure_sscr0(const struct driver_data *drv_data,
 				  u32 clk_div, u8 bits)
 {
 	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		return clk_div
+			| QUARK_X1000_SSCR0_Motorola
+			| QUARK_X1000_SSCR0_DataSize(bits > 32 ? 8 : bits)
+			| SSCR0_SSE;
 	default:
 		return clk_div
 			| SSCR0_Motorola
@@ -654,6 +731,28 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 	return drv_data->transfer_handler(drv_data);
 }
 
+/*
+ * The Quark SPI data sheet gives a table, and for the given 'rate',
+ * the 'dds' and 'clk_div' can be found in the table.
+ */
+static u32 quark_x1000_set_clk_regvals(u32 rate, u32 *dds, u32 *clk_div)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(quark_spi_rate_table); i++) {
+		if (rate >= quark_spi_rate_table[i].bitrate) {
+			*dds = quark_spi_rate_table[i].dds_clk_rate;
+			*clk_div = quark_spi_rate_table[i].clk_div;
+			return quark_spi_rate_table[i].bitrate;
+		}
+	}
+
+	*dds = quark_spi_rate_table[i-1].dds_clk_rate;
+	*clk_div = quark_spi_rate_table[i-1].clk_div;
+
+	return quark_spi_rate_table[i-1].bitrate;
+}
+
 static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 {
 	unsigned long ssp_clk = drv_data->max_clk_rate;
@@ -665,6 +764,20 @@ static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 		return ((ssp_clk / (2 * rate) - 1) & 0xff) << 8;
 	else
 		return ((ssp_clk / rate - 1) & 0xfff) << 8;
+}
+
+static unsigned int pxa2xx_ssp_get_clk_div(struct driver_data *drv_data,
+					   struct chip_data *chip, int rate)
+{
+	u32 clk_div;
+
+	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		quark_x1000_set_clk_regvals(rate, &chip->dds_rate, &clk_div);
+		return clk_div << 8;
+	default:
+		return ssp_get_clk_div(drv_data, rate);
+	}
 }
 
 static void pump_transfers(unsigned long data)
@@ -769,7 +882,7 @@ static void pump_transfers(unsigned long data)
 		if (transfer->bits_per_word)
 			bits = transfer->bits_per_word;
 
-		clk_div = ssp_get_clk_div(drv_data, speed);
+		clk_div = pxa2xx_ssp_get_clk_div(drv_data, chip, speed);
 
 		if (bits <= 8) {
 			drv_data->n_bytes = 1;
@@ -836,6 +949,10 @@ static void pump_transfers(unsigned long data)
 		if ((read_SSITF(reg) & 0xffff) != chip->lpss_tx_threshold)
 			write_SSITF(chip->lpss_tx_threshold, reg);
 	}
+
+	if (is_quark_x1000_ssp(drv_data) &&
+	    (read_DDS_RATE(reg) != chip->dds_rate))
+		write_DDS_RATE(chip->dds_rate, reg);
 
 	/* see if we need to reload the config registers */
 	if ((read_SSCR0(reg) != cr0) ||
@@ -940,14 +1057,22 @@ static int setup(struct spi_device *spi)
 	unsigned int clk_div;
 	uint tx_thres, tx_hi_thres, rx_thres;
 
-	if (is_lpss_ssp(drv_data)) {
+	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		tx_thres = TX_THRESH_QUARK_X1000_DFLT;
+		tx_hi_thres = 0;
+		rx_thres = RX_THRESH_QUARK_X1000_DFLT;
+		break;
+	case LPSS_SSP:
 		tx_thres = LPSS_TX_LOTHRESH_DFLT;
 		tx_hi_thres = LPSS_TX_HITHRESH_DFLT;
 		rx_thres = LPSS_RX_THRESH_DFLT;
-	} else {
+		break;
+	default:
 		tx_thres = TX_THRESH_DFLT;
 		tx_hi_thres = 0;
 		rx_thres = RX_THRESH_DFLT;
+		break;
 	}
 
 	/* Only alloc on first setup */
@@ -1000,9 +1125,6 @@ static int setup(struct spi_device *spi)
 		chip->enable_dma = drv_data->master_info->enable_dma;
 	}
 
-	chip->threshold = (SSCR1_RxTresh(rx_thres) & SSCR1_RFT) |
-			(SSCR1_TxTresh(tx_thres) & SSCR1_TFT);
-
 	chip->lpss_rx_threshold = SSIRF_RxThresh(rx_thres);
 	chip->lpss_tx_threshold = SSITF_TxLoThresh(tx_thres)
 				| SSITF_TxHiThresh(tx_hi_thres);
@@ -1021,11 +1143,24 @@ static int setup(struct spi_device *spi)
 		}
 	}
 
-	clk_div = ssp_get_clk_div(drv_data, spi->max_speed_hz);
+	clk_div = pxa2xx_ssp_get_clk_div(drv_data, chip, spi->max_speed_hz);
 	chip->speed_hz = spi->max_speed_hz;
 
 	chip->cr0 = pxa2xx_configure_sscr0(drv_data, clk_div,
 					   spi->bits_per_word);
+	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		chip->threshold = (QUARK_X1000_SSCR1_RxTresh(rx_thres)
+				   & QUARK_X1000_SSCR1_RFT)
+				   | (QUARK_X1000_SSCR1_TxTresh(tx_thres)
+				   & QUARK_X1000_SSCR1_TFT);
+		break;
+	default:
+		chip->threshold = (SSCR1_RxTresh(rx_thres) & SSCR1_RFT) |
+			(SSCR1_TxTresh(tx_thres) & SSCR1_TFT);
+		break;
+	}
+
 	chip->cr1 &= ~(SSCR1_SPO | SSCR1_SPH);
 	chip->cr1 |= (((spi->mode & SPI_CPHA) != 0) ? SSCR1_SPH : 0)
 			| (((spi->mode & SPI_CPOL) != 0) ? SSCR1_SPO : 0);
@@ -1054,7 +1189,8 @@ static int setup(struct spi_device *spi)
 		chip->read = u16_reader;
 		chip->write = u16_writer;
 	} else if (spi->bits_per_word <= 32) {
-		chip->cr0 |= SSCR0_EDSS;
+		if (!is_quark_x1000_ssp(drv_data))
+			chip->cr0 |= SSCR0_EDSS;
 		chip->n_bytes = 4;
 		chip->read = u32_reader;
 		chip->write = u32_writer;
@@ -1205,7 +1341,15 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->ioaddr = ssp->mmio_base;
 	drv_data->ssdr_physical = ssp->phys_base + SSDR;
 	if (pxa25x_ssp_comp(drv_data)) {
-		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
+		switch (drv_data->ssp_type) {
+		case QUARK_X1000_SSP:
+			master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
+			break;
+		default:
+			master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
+			break;
+		}
+
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE;
 		drv_data->dma_cr1 = 0;
 		drv_data->clear_sr = SSSR_ROR;
@@ -1243,16 +1387,35 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 
 	/* Load default SSP configuration */
 	write_SSCR0(0, drv_data->ioaddr);
-	write_SSCR1(SSCR1_RxTresh(RX_THRESH_DFLT) |
-				SSCR1_TxTresh(TX_THRESH_DFLT),
-				drv_data->ioaddr);
-	write_SSCR0(SSCR0_SCR(2)
-			| SSCR0_Motorola
-			| SSCR0_DataSize(8),
-			drv_data->ioaddr);
+	switch (drv_data->ssp_type) {
+	case QUARK_X1000_SSP:
+		write_SSCR1(QUARK_X1000_SSCR1_RxTresh(
+					RX_THRESH_QUARK_X1000_DFLT) |
+			    QUARK_X1000_SSCR1_TxTresh(
+					TX_THRESH_QUARK_X1000_DFLT),
+			    drv_data->ioaddr);
+
+		/* using the Motorola SPI protocol and use 8 bit frame */
+		write_SSCR0(QUARK_X1000_SSCR0_Motorola
+			    | QUARK_X1000_SSCR0_DataSize(8),
+			    drv_data->ioaddr);
+		break;
+	default:
+		write_SSCR1(SSCR1_RxTresh(RX_THRESH_DFLT) |
+			    SSCR1_TxTresh(TX_THRESH_DFLT),
+			    drv_data->ioaddr);
+		write_SSCR0(SSCR0_SCR(2)
+			    | SSCR0_Motorola
+			    | SSCR0_DataSize(8),
+			    drv_data->ioaddr);
+		break;
+	}
+
 	if (!pxa25x_ssp_comp(drv_data))
 		write_SSTO(0, drv_data->ioaddr);
-	write_SSPSP(0, drv_data->ioaddr);
+
+	if (!is_quark_x1000_ssp(drv_data))
+		write_SSPSP(0, drv_data->ioaddr);
 
 	lpss_ssp_setup(drv_data);
 
