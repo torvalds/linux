@@ -11,7 +11,6 @@
 #ifndef _AT91_GENERIC_H
 #define _AT91_GENERIC_H
 
-#include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/reboot.h>
 
@@ -48,16 +47,6 @@ extern void at91rm9200_ioremap_st(u32 addr);
 extern void at91rm9200_timer_init(void);
 extern void at91sam926x_ioremap_pit(u32 addr);
 extern void at91sam926x_pit_init(int irq);
-
- /* Clocks */
-#ifdef CONFIG_OLD_CLK_AT91
-extern int __init at91_clock_init(unsigned long main_clock);
-extern int __init at91_dt_clock_init(void);
-#else
-static int inline at91_clock_init(unsigned long main_clock) { return 0; }
-static int inline at91_dt_clock_init(void) { return 0; }
-#endif
-struct device;
 
  /* Power Management */
 extern void at91_irq_suspend(void);

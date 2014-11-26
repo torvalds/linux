@@ -460,9 +460,6 @@ void __init at91rm9200_dt_initialize(void)
 {
 	at91_dt_ramc();
 
-	/* Init clock subsystem */
-	at91_dt_clock_init();
-
 	/* Register the processor-specific clocks */
 	if (at91_boot_soc.register_clocks)
 		at91_boot_soc.register_clocks();
@@ -473,9 +470,6 @@ void __init at91rm9200_dt_initialize(void)
 void __init at91_dt_initialize(void)
 {
 	at91_dt_ramc();
-
-	/* Init clock subsystem */
-	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
 	if (at91_boot_soc.register_clocks)
@@ -489,9 +483,6 @@ void __init at91_dt_initialize(void)
 void __init at91_initialize(unsigned long main_clock)
 {
 	at91_boot_soc.ioremap_registers();
-
-	/* Init clock subsystem */
-	at91_clock_init(main_clock);
 
 	/* Register the processor-specific clocks */
 	at91_boot_soc.register_clocks();
