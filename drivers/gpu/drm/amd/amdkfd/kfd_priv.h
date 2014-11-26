@@ -279,7 +279,7 @@ struct queue_properties {
 	uint32_t queue_percent;
 	uint32_t *read_ptr;
 	uint32_t *write_ptr;
-	uint32_t *doorbell_ptr;
+	uint32_t __iomem *doorbell_ptr;
 	uint32_t doorbell_off;
 	bool is_interop;
 	bool is_active;
@@ -413,6 +413,8 @@ struct kfd_process_device {
 	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
 	bool bound;
 };
+
+#define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
 
 /* Process data */
 struct kfd_process {

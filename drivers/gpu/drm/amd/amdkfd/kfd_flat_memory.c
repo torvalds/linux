@@ -276,21 +276,22 @@
  */
 
 #define MAKE_GPUVM_APP_BASE(gpu_num) \
-	(((uint64_t)(gpu_num) << 61) + 0x1000000000000)
+	(((uint64_t)(gpu_num) << 61) + 0x1000000000000L)
 
 #define MAKE_GPUVM_APP_LIMIT(base) \
-	(((uint64_t)(base) & 0xFFFFFF0000000000) | 0xFFFFFFFFFF)
+	(((uint64_t)(base) & \
+		0xFFFFFF0000000000UL) | 0xFFFFFFFFFFL)
 
 #define MAKE_SCRATCH_APP_BASE(gpu_num) \
-	(((uint64_t)(gpu_num) << 61) + 0x100000000)
+	(((uint64_t)(gpu_num) << 61) + 0x100000000L)
 
 #define MAKE_SCRATCH_APP_LIMIT(base) \
-	(((uint64_t)base & 0xFFFFFFFF00000000) | 0xFFFFFFFF)
+	(((uint64_t)base & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
 
 #define MAKE_LDS_APP_BASE(gpu_num) \
 	(((uint64_t)(gpu_num) << 61) + 0x0)
 #define MAKE_LDS_APP_LIMIT(base) \
-	(((uint64_t)(base) & 0xFFFFFFFF00000000) | 0xFFFFFFFF)
+	(((uint64_t)(base) & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
 
 int kfd_init_apertures(struct kfd_process *process)
 {

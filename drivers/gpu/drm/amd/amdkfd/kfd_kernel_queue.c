@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/printk.h>
+#include <linux/sched.h>
 #include "kfd_kernel_queue.h"
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
@@ -66,8 +67,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	if (kq->mqd == NULL)
 		return false;
 
-	prop.doorbell_ptr =
-		(uint32_t *)kfd_get_kernel_doorbell(dev, &prop.doorbell_off);
+	prop.doorbell_ptr = kfd_get_kernel_doorbell(dev, &prop.doorbell_off);
 
 	if (prop.doorbell_ptr == NULL)
 		goto err_get_kernel_doorbell;
@@ -172,7 +172,7 @@ err_rptr_allocate_vidmem:
 	kfd2kgd->free_mem(dev->kgd, (struct kgd_mem *) kq->pq);
 err_pq_allocate_vidmem:
 	pr_err("kfd: error init pq\n");
-	kfd_release_kernel_doorbell(dev, (u32 *)prop.doorbell_ptr);
+	kfd_release_kernel_doorbell(dev, prop.doorbell_ptr);
 err_get_kernel_doorbell:
 	pr_err("kfd: error init doorbell");
 	return false;
@@ -195,7 +195,7 @@ static void uninitialize(struct kernel_queue *kq)
 	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->wptr_mem);
 	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->pq);
 	kfd_release_kernel_doorbell(kq->dev,
-				(u32 *)kq->queue->properties.doorbell_ptr);
+					kq->queue->properties.doorbell_ptr);
 	uninit_queue(kq->queue);
 }
 
@@ -255,7 +255,7 @@ static void submit_packet(struct kernel_queue *kq)
 #endif
 
 	*kq->wptr_kernel = kq->pending_wptr;
-	write_kernel_doorbell((u32 *)kq->queue->properties.doorbell_ptr,
+	write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
 				kq->pending_wptr);
 }
 
@@ -275,7 +275,7 @@ static int sync_with_hw(struct kernel_queue *kq, unsigned long timeout_ms)
 				*kq->wptr_kernel, *kq->rptr_kernel);
 			return -ETIME;
 		}
-		cpu_relax();
+		schedule();
 	}
 
 	return 0;
@@ -321,7 +321,7 @@ void kernel_queue_uninit(struct kernel_queue *kq)
 	kfree(kq);
 }
 
-void test_kq(struct kfd_dev *dev)
+static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 {
 	struct kernel_queue *kq;
 	uint32_t *buffer, i;

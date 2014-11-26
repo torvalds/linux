@@ -348,11 +348,6 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	if (err < 0) {
-		amd_iommu_unbind_pasid(dev->pdev, p->pasid);
-		return ERR_PTR(err);
-	}
-
 	pdd->bound = true;
 
 	return pdd;
