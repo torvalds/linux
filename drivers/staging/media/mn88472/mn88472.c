@@ -190,6 +190,8 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 	ret = regmap_write(dev->regmap[0], 0xae, 0x00);
 	ret = regmap_write(dev->regmap[2], 0x08, 0x1d);
 	ret = regmap_write(dev->regmap[0], 0xd9, 0xe3);
+
+	/* Reset demod */
 	ret = regmap_write(dev->regmap[2], 0xf8, 0x9f);
 	if (ret)
 		goto err;
