@@ -589,6 +589,31 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		if (NO_R6EMU)
 			break;
 	case bgtz_op:
+		/*
+		 * Compact branches for R6 for the
+		 * bgtz and bgtzl opcodes.
+		 * BGTZ  | rs = 0 | rt != 0  == BGTZALC
+		 * BGTZ  | rs = rt != 0      == BLTZALC
+		 * BGTZ  | rs != 0 | rt != 0 == BLTUC
+		 * BGTZL | rs = 0 | rt != 0  == BGTZC
+		 * BGTZL | rs = rt != 0      == BLTZC
+		 * BGTZL | rs != 0 | rt != 0 == BLTC
+		 *
+		 * *ZALC varint for BGTZ &&& rt != 0
+		 * For real GTZ{,L}, rt is always 0.
+		 */
+		if (cpu_has_mips_r6 && insn.i_format.rt) {
+			if ((insn.i_format.opcode == blez_op) &&
+			    ((!insn.i_format.rs && insn.i_format.rt) ||
+			     (insn.i_format.rs == insn.i_format.rt)))
+				regs->regs[31] = regs->cp0_epc +
+					dec_insn.pc_inc;
+			*contpc = regs->cp0_epc + dec_insn.pc_inc +
+				dec_insn.next_pc_inc;
+
+			return 1;
+		}
+
 		if ((long)regs->regs[insn.i_format.rs] > 0)
 			*contpc = regs->cp0_epc +
 				dec_insn.pc_inc +
