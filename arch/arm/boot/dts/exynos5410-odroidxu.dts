@@ -13,6 +13,7 @@
 #include "exynos5410.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Hardkernel odroid-xu board based on EXYNOS5410";
@@ -75,5 +76,27 @@
 			disable-wp;
 		};
 	};
+
+    leds {
+        compatible = "gpio-leds";
+        hearbeat {
+            label = "red:heartbeart";
+            gpios = <&gpb2 2 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+            linux,default-trigger = "heartbeat";
+        };
+        eMMC {
+            label = "green:activity";
+            gpios = <&gpb2 1 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+            linux,default-trigger = "mmc0";
+        };
+        microSD {
+            label = "blue:activity";
+            gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+            linux,default-trigger = "mmc1";
+        };
+    };
 
 };
