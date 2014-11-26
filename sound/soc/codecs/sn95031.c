@@ -870,17 +870,8 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int sn95031_codec_remove(struct snd_soc_codec *codec)
-{
-	pr_debug("codec_remove called\n");
-	sn95031_set_vaud_bias(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver sn95031_codec = {
 	.probe		= sn95031_codec_probe,
-	.remove		= sn95031_codec_remove,
 	.set_bias_level	= sn95031_set_vaud_bias,
 	.idle_bias_off	= true,
 
