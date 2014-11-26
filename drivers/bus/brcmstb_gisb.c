@@ -47,6 +47,36 @@ enum {
 	ARB_ERR_CAP_MASTER,
 };
 
+static const int gisb_offsets_bcm7038[] = {
+	[ARB_TIMER]		= 0x00c,
+	[ARB_ERR_CAP_CLR]	= 0x0c4,
+	[ARB_ERR_CAP_HI_ADDR]	= -1,
+	[ARB_ERR_CAP_ADDR]	= 0x0c8,
+	[ARB_ERR_CAP_DATA]	= 0x0cc,
+	[ARB_ERR_CAP_STATUS]	= 0x0d0,
+	[ARB_ERR_CAP_MASTER]	= -1,
+};
+
+static const int gisb_offsets_bcm7400[] = {
+	[ARB_TIMER]		= 0x00c,
+	[ARB_ERR_CAP_CLR]	= 0x0c8,
+	[ARB_ERR_CAP_HI_ADDR]	= -1,
+	[ARB_ERR_CAP_ADDR]	= 0x0cc,
+	[ARB_ERR_CAP_DATA]	= 0x0d0,
+	[ARB_ERR_CAP_STATUS]	= 0x0d4,
+	[ARB_ERR_CAP_MASTER]	= 0x0d8,
+};
+
+static const int gisb_offsets_bcm7435[] = {
+	[ARB_TIMER]		= 0x00c,
+	[ARB_ERR_CAP_CLR]	= 0x168,
+	[ARB_ERR_CAP_HI_ADDR]	= -1,
+	[ARB_ERR_CAP_ADDR]	= 0x16c,
+	[ARB_ERR_CAP_DATA]	= 0x170,
+	[ARB_ERR_CAP_STATUS]	= 0x174,
+	[ARB_ERR_CAP_MASTER]	= 0x178,
+};
+
 static const int gisb_offsets_bcm7445[] = {
 	[ARB_TIMER]		= 0x008,
 	[ARB_ERR_CAP_CLR]	= 0x7e4,
@@ -230,10 +260,20 @@ static struct attribute_group gisb_arb_sysfs_attr_group = {
 	.attrs = gisb_arb_sysfs_attrs,
 };
 
+static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
+	{ .compatible = "brcm,gisb-arb",         .data = gisb_offsets_bcm7445 },
+	{ .compatible = "brcm,bcm7445-gisb-arb", .data = gisb_offsets_bcm7445 },
+	{ .compatible = "brcm,bcm7435-gisb-arb", .data = gisb_offsets_bcm7435 },
+	{ .compatible = "brcm,bcm7400-gisb-arb", .data = gisb_offsets_bcm7400 },
+	{ .compatible = "brcm,bcm7038-gisb-arb", .data = gisb_offsets_bcm7038 },
+	{ },
+};
+
 static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
 	struct brcmstb_gisb_arb_device *gdev;
+	const struct of_device_id *of_id;
 	struct resource *r;
 	int err, timeout_irq, tea_irq;
 	unsigned int num_masters, j = 0;
@@ -254,7 +294,12 @@ static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	if (IS_ERR(gdev->base))
 		return PTR_ERR(gdev->base);
 
-	gdev->gisb_offsets = gisb_offsets_bcm7445;
+	of_id = of_match_node(brcmstb_gisb_arb_of_match, dn);
+	if (!of_id) {
+		pr_err("failed to look up compatible string\n");
+		return -EINVAL;
+	}
+	gdev->gisb_offsets = of_id->data;
 
 	err = devm_request_irq(&pdev->dev, timeout_irq,
 				brcmstb_gisb_timeout_handler, 0, pdev->name,
@@ -306,11 +351,6 @@ static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
-	{ .compatible = "brcm,gisb-arb" },
-	{ },
-};
 
 static struct platform_driver brcmstb_gisb_arb_driver = {
 	.probe	= brcmstb_gisb_arb_probe,
