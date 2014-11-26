@@ -102,13 +102,11 @@ void process_srcu(struct work_struct *work);
  * define and init a srcu struct at build time.
  * dont't call init_srcu_struct() nor cleanup_srcu_struct() on it.
  */
-#define DEFINE_SRCU(name)						\
+#define __DEFINE_SRCU(name, is_static)					\
 	static DEFINE_PER_CPU(struct srcu_struct_array, name##_srcu_array);\
-	struct srcu_struct name = __SRCU_STRUCT_INIT(name);
-
-#define DEFINE_STATIC_SRCU(name)					\
-	static DEFINE_PER_CPU(struct srcu_struct_array, name##_srcu_array);\
-	static struct srcu_struct name = __SRCU_STRUCT_INIT(name);
+	is_static struct srcu_struct name = __SRCU_STRUCT_INIT(name)
+#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
+#define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
 
 /**
  * call_srcu() - Queue a callback for invocation after an SRCU grace period
