@@ -25,7 +25,7 @@
 
 struct exynos_pmu_conf {
 	unsigned int offset;
-	unsigned int val[NUM_SYS_POWERDOWN];
+	u8 val[NUM_SYS_POWERDOWN];
 };
 
 struct exynos_pmu_data {
