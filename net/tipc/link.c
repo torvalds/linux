@@ -367,15 +367,15 @@ static bool link_schedule_user(struct tipc_link *link, u32 oport,
  */
 static void link_prepare_wakeup(struct tipc_link *link)
 {
-	struct sk_buff_head *wq = &link->waiting_sks;
-	struct sk_buff *buf;
 	uint pend_qsz = link->out_queue_size;
+	struct sk_buff *skb, *tmp;
 
-	for (buf = skb_peek(wq); buf; buf = skb_peek(wq)) {
-		if (pend_qsz >= link->queue_limit[TIPC_SKB_CB(buf)->chain_imp])
+	skb_queue_walk_safe(&link->waiting_sks, skb, tmp) {
+		if (pend_qsz >= link->queue_limit[TIPC_SKB_CB(skb)->chain_imp])
 			break;
-		pend_qsz += TIPC_SKB_CB(buf)->chain_sz;
-		__skb_queue_tail(&link->owner->waiting_sks, __skb_dequeue(wq));
+		pend_qsz += TIPC_SKB_CB(skb)->chain_sz;
+		__skb_unlink(skb, &link->waiting_sks);
+		__skb_queue_tail(&link->owner->waiting_sks, skb);
 	}
 }
 
