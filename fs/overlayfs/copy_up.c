@@ -191,7 +191,6 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 		ovl_set_timestamps(upperdentry, stat);
 
 	return err;
-
 }
 
 static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
