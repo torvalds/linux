@@ -129,12 +129,6 @@ error_ret:
 	return ret ? ret : num_read;
 }
 
-/* This is only valid with all 3 elements enabled */
-static int sca3000_ring_get_length(struct iio_buffer *r)
-{
-	return 64;
-}
-
 static bool sca3000_ring_buf_data_available(struct iio_buffer *r)
 {
 	return r->stufftoread;
@@ -248,6 +242,7 @@ static struct iio_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 	ring->private = indio_dev;
 	buf = &ring->buf;
 	buf->stufftoread = 0;
+	buf->length = 64;
 	buf->attrs = sca3000_ring_attributes;
 	iio_buffer_init(buf);
 
@@ -261,7 +256,6 @@ static void sca3000_ring_release(struct iio_buffer *r)
 
 static const struct iio_buffer_access_funcs sca3000_ring_access_funcs = {
 	.read_first_n = &sca3000_read_first_n_hw_rb,
-	.get_length = &sca3000_ring_get_length,
 	.data_available = sca3000_ring_buf_data_available,
 	.release = sca3000_ring_release,
 };

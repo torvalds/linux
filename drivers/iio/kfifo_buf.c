@@ -47,11 +47,6 @@ static int iio_request_update_kfifo(struct iio_buffer *r)
 	return ret;
 }
 
-static int iio_get_length_kfifo(struct iio_buffer *r)
-{
-	return r->length;
-}
-
 static int iio_mark_update_needed_kfifo(struct iio_buffer *r)
 {
 	struct iio_kfifo *kf = iio_to_kfifo(r);
@@ -141,7 +136,6 @@ static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.data_available = iio_kfifo_buf_data_available,
 	.request_update = &iio_request_update_kfifo,
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
-	.get_length = &iio_get_length_kfifo,
 	.set_length = &iio_set_length_kfifo,
 	.release = &iio_kfifo_buffer_release,
 };

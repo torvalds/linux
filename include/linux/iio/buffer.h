@@ -26,7 +26,6 @@ struct iio_buffer;
  * @request_update:	if a parameter change has been marked, update underlying
  *			storage.
  * @set_bytes_per_datum:set number of bytes per datum
- * @get_length:		get number of datums in buffer
  * @set_length:		set number of datums in buffer
  * @release:		called when the last reference to the buffer is dropped,
  *			should free all resources allocated by the buffer.
@@ -49,7 +48,6 @@ struct iio_buffer_access_funcs {
 	int (*request_update)(struct iio_buffer *buffer);
 
 	int (*set_bytes_per_datum)(struct iio_buffer *buffer, size_t bpd);
-	int (*get_length)(struct iio_buffer *buffer);
 	int (*set_length)(struct iio_buffer *buffer, int length);
 
 	void (*release)(struct iio_buffer *buffer);

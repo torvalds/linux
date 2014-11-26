@@ -390,11 +390,7 @@ static ssize_t iio_buffer_read_length(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
 
-	if (buffer->access->get_length)
-		return sprintf(buf, "%d\n",
-			       buffer->access->get_length(buffer));
-
-	return 0;
+	return sprintf(buf, "%d\n", buffer->length);
 }
 
 static ssize_t iio_buffer_write_length(struct device *dev,
@@ -410,9 +406,8 @@ static ssize_t iio_buffer_write_length(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (buffer->access->get_length)
-		if (val == buffer->access->get_length(buffer))
-			return len;
+	if (val == buffer->length)
+		return len;
 
 	mutex_lock(&indio_dev->mlock);
 	if (iio_buffer_is_active(indio_dev->buffer)) {
