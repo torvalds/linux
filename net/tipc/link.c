@@ -875,7 +875,7 @@ void tipc_link_push_packets(struct tipc_link *l_ptr)
 			msg_set_ack(msg, mod(l_ptr->next_in_no - 1));
 			msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
 			if (msg_user(msg) == MSG_BUNDLER)
-				msg_set_type(msg, BUNDLE_CLOSED);
+				TIPC_SKB_CB(skb)->bundling = false;
 			tipc_bearer_send(l_ptr->bearer_id, skb,
 					 &l_ptr->media_addr);
 			l_ptr->next_out = skb->next;

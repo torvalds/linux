@@ -289,7 +289,7 @@ bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu)
 		return false;
 	if (likely(msg_user(bmsg) != MSG_BUNDLER))
 		return false;
-	if (likely(msg_type(bmsg) != BUNDLE_OPEN))
+	if (likely(!TIPC_SKB_CB(bbuf)->bundling))
 		return false;
 	if (unlikely(skb_tailroom(bbuf) < (pad + msz)))
 		return false;
@@ -336,11 +336,12 @@ bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode)
 
 	skb_trim(bbuf, INT_H_SIZE);
 	bmsg = buf_msg(bbuf);
-	tipc_msg_init(bmsg, MSG_BUNDLER, BUNDLE_OPEN, INT_H_SIZE, dnode);
+	tipc_msg_init(bmsg, MSG_BUNDLER, 0, INT_H_SIZE, dnode);
 	msg_set_seqno(bmsg, msg_seqno(msg));
 	msg_set_ack(bmsg, msg_ack(msg));
 	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));
 	bbuf->next = (*buf)->next;
+	TIPC_SKB_CB(bbuf)->bundling = true;
 	tipc_msg_bundle(bbuf, *buf, mtu);
 	*buf = bbuf;
 	return true;

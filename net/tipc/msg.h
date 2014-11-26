@@ -464,11 +464,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 #define FRAGMENT		1
 #define LAST_FRAGMENT		2
 
-/* Bundling protocol message types
- */
-#define BUNDLE_OPEN             0
-#define BUNDLE_CLOSED           1
-
 /*
  * Link management protocol message types
  */
