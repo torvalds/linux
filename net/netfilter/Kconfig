@@ -411,6 +411,13 @@ config NF_NAT_TFTP
 	depends on NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_TFTP
 
+config NF_NAT_REDIRECT
+        tristate "IPv4/IPv6 redirect support"
+	depends on NF_NAT
+        help
+          This is the kernel functionality to redirect packets to local
+          machine through NAT.
+
 config NETFILTER_SYNPROXY
 	tristate
 
@@ -844,8 +851,7 @@ config NETFILTER_XT_TARGET_RATEEST
 config NETFILTER_XT_TARGET_REDIRECT
 	tristate "REDIRECT target support"
 	depends on NF_NAT
-	select NF_NAT_REDIRECT_IPV4 if NF_NAT_IPV4
-	select NF_NAT_REDIRECT_IPV6 if NF_NAT_IPV6
+	select NF_NAT_REDIRECT
 	---help---
 	REDIRECT is a special case of NAT: all incoming connections are
 	mapped onto the incoming interface's address, causing the packets to

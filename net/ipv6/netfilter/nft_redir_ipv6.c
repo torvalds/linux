@@ -15,7 +15,7 @@
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nft_redir.h>
-#include <net/netfilter/ipv6/nf_nat_redirect.h>
+#include <net/netfilter/nf_nat_redirect.h>
 
 static void nft_redir_ipv6_eval(const struct nft_expr *expr,
 				struct nft_data data[NFT_REG_MAX + 1],
