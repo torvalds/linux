@@ -1913,30 +1913,19 @@ static void vpe_buf_queue(struct vb2_buffer *vb)
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
 }
 
-static void vpe_wait_prepare(struct vb2_queue *q)
-{
-	struct vpe_ctx *ctx = vb2_get_drv_priv(q);
-	vpe_unlock(ctx);
-}
-
-static void vpe_wait_finish(struct vb2_queue *q)
-{
-	struct vpe_ctx *ctx = vb2_get_drv_priv(q);
-	vpe_lock(ctx);
-}
-
 static struct vb2_ops vpe_qops = {
 	.queue_setup	 = vpe_queue_setup,
 	.buf_prepare	 = vpe_buf_prepare,
 	.buf_queue	 = vpe_buf_queue,
-	.wait_prepare	 = vpe_wait_prepare,
-	.wait_finish	 = vpe_wait_finish,
+	.wait_prepare	 = vb2_ops_wait_prepare,
+	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,
 		      struct vb2_queue *dst_vq)
 {
 	struct vpe_ctx *ctx = priv;
+	struct vpe_dev *dev = ctx->dev;
 	int ret;
 
 	memset(src_vq, 0, sizeof(*src_vq));
@@ -1947,6 +1936,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &vpe_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->lock = &dev->dev_mutex;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -1960,6 +1950,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &vpe_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->lock = &dev->dev_mutex;
 
 	return vb2_queue_init(dst_vq);
 }
