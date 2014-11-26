@@ -542,12 +542,15 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 				seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
 					   pipe, plane);
 			}
-			if (work->flip_queued_ring) {
+			if (work->flip_queued_req) {
+				struct intel_engine_cs *ring =
+					i915_gem_request_get_ring(work->flip_queued_req);
+
 				seq_printf(m, "Flip queued on %s at seqno %u, next seqno %u [current breadcrumb %u], completed? %d\n",
-					   work->flip_queued_ring->name,
+					   ring->name,
 					   i915_gem_request_get_seqno(work->flip_queued_req),
 					   dev_priv->next_seqno,
-					   work->flip_queued_ring->get_seqno(work->flip_queued_ring, true),
+					   ring->get_seqno(ring, true),
 					   i915_gem_request_completed(work->flip_queued_req, true));
 			} else
 				seq_printf(m, "Flip not associated with any ring\n");

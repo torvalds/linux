@@ -9132,7 +9132,6 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	if (work->flip_queued_req)
 		i915_gem_request_unreference(work->flip_queued_req);
 	work->flip_queued_req  = NULL;
-	work->flip_queued_ring = NULL;
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_frontbuffer_flip_complete(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
@@ -9741,10 +9740,9 @@ static bool __intel_pageflip_stall_check(struct drm_device *dev,
 		return false;
 
 	if (work->flip_ready_vblank == 0) {
-		if (work->flip_queued_ring) {
-			if (!i915_gem_request_completed(work->flip_queued_req, true))
-				return false;
-		}
+		if (work->flip_queued_req &&
+		    !i915_gem_request_completed(work->flip_queued_req, true))
+			return false;
 
 		work->flip_ready_vblank = drm_vblank_count(dev, intel_crtc->pipe);
 	}
@@ -9910,8 +9908,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 		i915_gem_request_assign(&work->flip_queued_req,
 					obj->last_write_req);
-		work->flip_queued_ring =
-				i915_gem_request_get_ring(obj->last_write_req);
 	} else {
 		ret = dev_priv->display.queue_flip(dev, crtc, fb, obj, ring,
 						   page_flip_flags);
@@ -9920,7 +9916,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 		i915_gem_request_assign(&work->flip_queued_req,
 					intel_ring_get_request(ring));
-		work->flip_queued_ring = ring;
 	}
 
 	work->flip_queued_vblank = drm_vblank_count(dev, intel_crtc->pipe);
