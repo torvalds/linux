@@ -185,6 +185,21 @@ struct bcmgenet_mib_counters {
 #define UMAC_MAC1			0x010
 #define UMAC_MAX_FRAME_LEN		0x014
 
+#define UMAC_EEE_CTRL			0x064
+#define  EN_LPI_RX_PAUSE		(1 << 0)
+#define  EN_LPI_TX_PFC			(1 << 1)
+#define  EN_LPI_TX_PAUSE		(1 << 2)
+#define  EEE_EN				(1 << 3)
+#define  RX_FIFO_CHECK			(1 << 4)
+#define  EEE_TX_CLK_DIS			(1 << 5)
+#define  DIS_EEE_10M			(1 << 6)
+#define  LP_IDLE_PREDICTION_MODE	(1 << 7)
+
+#define UMAC_EEE_LPI_TIMER		0x068
+#define UMAC_EEE_WAKE_TIMER		0x06C
+#define UMAC_EEE_REF_COUNT		0x070
+#define  EEE_REFERENCE_COUNT_MASK	0xffff
+
 #define UMAC_TX_FLUSH			0x334
 
 #define UMAC_MIB_START			0x400
@@ -232,6 +247,10 @@ struct bcmgenet_mib_counters {
 #define  RBUF_RXCHK_EN			(1 << 0)
 #define  RBUF_SKIP_FCS			(1 << 4)
 
+#define RBUF_ENERGY_CTRL		0x9c
+#define  RBUF_EEE_EN			(1 << 0)
+#define  RBUF_PM_EN			(1 << 1)
+
 #define RBUF_TBUF_SIZE_CTRL		0xb4
 
 #define RBUF_HFB_CTRL_V1		0x38
@@ -247,6 +266,9 @@ struct bcmgenet_mib_counters {
 
 #define TBUF_CTRL			0x00
 #define TBUF_BP_MC			0x0C
+#define TBUF_ENERGY_CTRL		0x14
+#define  TBUF_EEE_EN			(1 << 0)
+#define  TBUF_PM_EN			(1 << 1)
 
 #define TBUF_CTRL_V1			0x80
 #define TBUF_BP_MC_V1			0xA0
