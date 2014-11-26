@@ -60,7 +60,7 @@
 #define ESC1_CLK_SRC			43
 #define HDMI_CLK_SRC			44
 #define VSYNC_CLK_SRC			45
-#define RBCPR_CLK_SRC			46
+#define MMSS_RBCPR_CLK_SRC		46
 #define RBBMTIMER_CLK_SRC		47
 #define MAPLE_CLK_SRC			48
 #define VDP_CLK_SRC			49
