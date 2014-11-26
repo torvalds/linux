@@ -105,7 +105,6 @@ static struct platform_driver ci_hdrc_usb2_driver = {
 	.remove	= ci_hdrc_usb2_remove,
 	.driver	= {
 		.name		= "chipidea-usb2",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(ci_hdrc_usb2_of_match),
 	},
 };
