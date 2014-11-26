@@ -976,6 +976,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	u8 pressure = 0;
 	u8 orientation = 0;
 	bool active = false;
+	bool hover = false;
 	bool eraser = false;
 	bool barrel = false;
 
@@ -1029,11 +1030,8 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 				if (message[6] & MXT_T107_STYLUS_TIPSWITCH) {
 					if (data->stylus_aux_pressure)
 						pressure = message[data->stylus_aux_pressure];
-					else
-						pressure = MXT_PRESSURE_DEFAULT;
 				} else {
-					/* hover */
-					pressure = 0;
+					hover = true;
 				}
 			} else {
 				/* detected but position cannot be determined */
@@ -1045,6 +1043,21 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			dev_dbg(dev, "Unexpected T100 type\n");
 			return;
 		}
+	}
+
+	if (hover) {
+		pressure = 0;
+		major = 0;
+	} else if (active) {
+		/*
+		 * Values reported should be non-zero if tool is touching the
+		 * device
+		 */
+		if (pressure == 0)
+			pressure = MXT_PRESSURE_DEFAULT;
+
+		if (major == 0)
+			major = MXT_TOUCH_MAJOR_DEFAULT;
 	}
 
 	input_mt_slot(input_dev, id);
