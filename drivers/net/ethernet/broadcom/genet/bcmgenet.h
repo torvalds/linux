@@ -573,6 +573,8 @@ struct bcmgenet_priv {
 	struct device_node *phy_dn;
 	struct mii_bus *mii_bus;
 	u16 gphy_rev;
+	struct clk *clk_eee;
+	bool clk_eee_enabled;
 
 	/* PHY device variables */
 	int old_link;
@@ -609,6 +611,8 @@ struct bcmgenet_priv {
 	u32 wolopts;
 
 	struct bcmgenet_mib_counters mib;
+
+	struct ethtool_eee eee;
 };
 
 #define GENET_IO_MACRO(name, offset)					\
