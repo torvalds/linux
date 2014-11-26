@@ -66,11 +66,6 @@ static struct attribute_group iio_kfifo_attribute_group = {
 	.name = "buffer",
 };
 
-static int iio_get_bytes_per_datum_kfifo(struct iio_buffer *r)
-{
-	return r->bytes_per_datum;
-}
-
 static int iio_mark_update_needed_kfifo(struct iio_buffer *r)
 {
 	struct iio_kfifo *kf = iio_to_kfifo(r);
@@ -159,7 +154,6 @@ static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.read_first_n = &iio_read_first_n_kfifo,
 	.data_available = iio_kfifo_buf_data_available,
 	.request_update = &iio_request_update_kfifo,
-	.get_bytes_per_datum = &iio_get_bytes_per_datum_kfifo,
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
 	.get_length = &iio_get_length_kfifo,
 	.set_length = &iio_set_length_kfifo,
