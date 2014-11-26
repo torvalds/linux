@@ -586,7 +586,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	if (irq < 0) {
 		dev_err(rcdu->dev, "no IRQ for CRTC %u\n", index);
-		return ret;
+		return irq;
 	}
 
 	ret = devm_request_irq(rcdu->dev, irq, rcar_du_crtc_irq, irqflags,

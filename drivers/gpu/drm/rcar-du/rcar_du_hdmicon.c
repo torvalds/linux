@@ -1,7 +1,7 @@
 /*
- * rcar_du_vgacon.c  --  R-Car Display Unit VGA Connector
+ * R-Car Display Unit HDMI Connector
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -14,43 +14,71 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder_slave.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
+#include "rcar_du_hdmicon.h"
 #include "rcar_du_kms.h"
-#include "rcar_du_vgacon.h"
 
-static int rcar_du_vga_connector_get_modes(struct drm_connector *connector)
+#define to_slave_funcs(e)	(to_rcar_encoder(e)->slave.slave_funcs)
+
+static int rcar_du_hdmi_connector_get_modes(struct drm_connector *connector)
 {
-	return 0;
+	struct drm_encoder *encoder = connector->encoder;
+	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+
+	if (sfuncs->get_modes == NULL)
+		return 0;
+
+	return sfuncs->get_modes(encoder, connector);
+}
+
+static int rcar_du_hdmi_connector_mode_valid(struct drm_connector *connector,
+					     struct drm_display_mode *mode)
+{
+	struct drm_encoder *encoder = connector->encoder;
+	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+
+	if (sfuncs->mode_valid == NULL)
+		return MODE_OK;
+
+	return sfuncs->mode_valid(encoder, mode);
 }
 
 static const struct drm_connector_helper_funcs connector_helper_funcs = {
-	.get_modes = rcar_du_vga_connector_get_modes,
+	.get_modes = rcar_du_hdmi_connector_get_modes,
+	.mode_valid = rcar_du_hdmi_connector_mode_valid,
 	.best_encoder = rcar_du_connector_best_encoder,
 };
 
-static void rcar_du_vga_connector_destroy(struct drm_connector *connector)
+static void rcar_du_hdmi_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
 static enum drm_connector_status
-rcar_du_vga_connector_detect(struct drm_connector *connector, bool force)
+rcar_du_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
-	return connector_status_connected;
+	struct drm_encoder *encoder = connector->encoder;
+	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+
+	if (sfuncs->detect == NULL)
+		return connector_status_unknown;
+
+	return sfuncs->detect(encoder, connector);
 }
 
 static const struct drm_connector_funcs connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = rcar_du_vga_connector_detect,
+	.detect = rcar_du_hdmi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = rcar_du_vga_connector_destroy,
+	.destroy = rcar_du_hdmi_connector_destroy,
 };
 
-int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
-			       struct rcar_du_encoder *renc)
+int rcar_du_hdmi_connector_init(struct rcar_du_device *rcdu,
+				struct rcar_du_encoder *renc)
 {
 	struct drm_encoder *encoder = rcar_encoder_to_drm_encoder(renc);
 	struct rcar_du_connector *rcon;
@@ -66,7 +94,7 @@ int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
 	connector->display_info.height_mm = 0;
 
 	ret = drm_connector_init(rcdu->ddev, connector, &connector_funcs,
-				 DRM_MODE_CONNECTOR_VGA);
+				 DRM_MODE_CONNECTOR_HDMIA);
 	if (ret < 0)
 		return ret;
 

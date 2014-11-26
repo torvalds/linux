@@ -381,4 +381,9 @@ static inline int drm_eld_size(const uint8_t *eld)
 	return DRM_ELD_HEADER_BLOCK_SIZE + eld[DRM_ELD_BASELINE_ELD_LEN] * 4;
 }
 
+struct edid *drm_do_get_edid(struct drm_connector *connector,
+	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
+			      size_t len),
+	void *data);
+
 #endif /* __DRM_EDID_H__ */
