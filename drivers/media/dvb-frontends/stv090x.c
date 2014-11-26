@@ -4870,8 +4870,8 @@ err:
 	return -1;
 }
 
-int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio, u8 dir, u8 value,
-		u8 xor_value)
+static int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio, u8 dir,
+			    u8 value, u8 xor_value)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
 	u8 reg = 0;
@@ -4882,7 +4882,6 @@ int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio, u8 dir, u8 value,
 
 	return stv090x_write_reg(state, STV090x_GPIOxCFG(gpio), reg);
 }
-EXPORT_SYMBOL(stv090x_set_gpio);
 
 static struct dvb_frontend_ops stv090x_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
@@ -4919,7 +4918,7 @@ static struct dvb_frontend_ops stv090x_ops = {
 };
 
 
-struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
+struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
 				    struct i2c_adapter *i2c,
 				    enum stv090x_demodulator demod)
 {
@@ -4979,6 +4978,8 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	/* workaround for stuck DiSEqC output */
 	if (config->diseqc_envelope_mode)
 		stv090x_send_diseqc_burst(&state->frontend, SEC_MINI_A);
+
+	config->set_gpio = stv090x_set_gpio;
 
 	dprintk(FE_ERROR, 1, "Attaching %s demodulator(%d) Cut=0x%02x",
 	       state->device == STV0900 ? "STV0900" : "STV0903",

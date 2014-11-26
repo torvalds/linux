@@ -101,17 +101,17 @@ struct stv090x_config {
 	int (*tuner_set_refclk)  (struct dvb_frontend *fe, u32 refclk);
 	int (*tuner_get_status) (struct dvb_frontend *fe, u32 *status);
 	void (*tuner_i2c_lock) (struct dvb_frontend *fe, int lock);
+
+	/* dir = 0 -> output, dir = 1 -> input/open-drain */
+	int (*set_gpio)(struct dvb_frontend *fe, u8 gpio, u8 dir, u8 value,
+			 u8 xor_value);
 };
 
 #if IS_ENABLED(CONFIG_DVB_STV090x)
 
-extern struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
+extern struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
 					   struct i2c_adapter *i2c,
 					   enum stv090x_demodulator demod);
-
-/* dir = 0 -> output, dir = 1 -> input/open-drain */
-extern int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio,
-		u8 dir, u8 value, u8 xor_value);
 
 #else
 
@@ -123,12 +123,6 @@ static inline struct dvb_frontend *stv090x_attach(const struct stv090x_config *c
 	return NULL;
 }
 
-static inline int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio,
-		u8 opd, u8 value, u8 xor_value)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return -ENODEV;
-}
 #endif /* CONFIG_DVB_STV090x */
 
 #endif /* __STV090x_H */
