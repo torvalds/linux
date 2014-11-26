@@ -458,8 +458,6 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 		skb_queue_splice_init(&l_ptr->waiting_sks, &owner->waiting_sks);
 		owner->action_flags |= TIPC_WAKEUP_USERS;
 	}
-	l_ptr->retransm_queue_head = 0;
-	l_ptr->retransm_queue_size = 0;
 	l_ptr->last_out = NULL;
 	l_ptr->first_out = NULL;
 	l_ptr->next_out = NULL;
@@ -870,38 +868,9 @@ static void tipc_link_sync_rcv(struct tipc_node *n, struct sk_buff *buf)
  */
 static u32 tipc_link_push_packet(struct tipc_link *l_ptr)
 {
-	struct sk_buff *buf = l_ptr->first_out;
-	u32 r_q_size = l_ptr->retransm_queue_size;
-	u32 r_q_head = l_ptr->retransm_queue_head;
-
-	/* Step to position where retransmission failed, if any,    */
-	/* consider that buffers may have been released in meantime */
-	if (r_q_size && buf) {
-		u32 last = lesser(mod(r_q_head + r_q_size),
-				  link_last_sent(l_ptr));
-		u32 first = buf_seqno(buf);
-
-		while (buf && less(first, r_q_head)) {
-			first = mod(first + 1);
-			buf = buf->next;
-		}
-		l_ptr->retransm_queue_head = r_q_head = first;
-		l_ptr->retransm_queue_size = r_q_size = mod(last - first);
-	}
-
-	/* Continue retransmission now, if there is anything: */
-	if (r_q_size && buf) {
-		msg_set_ack(buf_msg(buf), mod(l_ptr->next_in_no - 1));
-		msg_set_bcast_ack(buf_msg(buf), l_ptr->owner->bclink.last_in);
-		tipc_bearer_send(l_ptr->bearer_id, buf, &l_ptr->media_addr);
-		l_ptr->retransm_queue_head = mod(++r_q_head);
-		l_ptr->retransm_queue_size = --r_q_size;
-		l_ptr->stats.retransmitted++;
-		return 0;
-	}
+	struct sk_buff *buf = l_ptr->next_out;
 
 	/* Send one deferred data message, if send window not full: */
-	buf = l_ptr->next_out;
 	if (buf) {
 		struct tipc_msg *msg = buf_msg(buf);
 		u32 next = msg_seqno(msg);
@@ -1025,8 +994,6 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *buf,
 		retransmits--;
 		l_ptr->stats.retransmitted++;
 	}
-
-	l_ptr->retransm_queue_head = l_ptr->retransm_queue_size = 0;
 }
 
 /**

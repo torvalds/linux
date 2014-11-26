@@ -130,8 +130,6 @@ struct tipc_stats {
  * @oldest_deferred_in: ptr to first inbound message in queue
  * @newest_deferred_in: ptr to last inbound message in queue
  * @unacked_window: # of inbound messages rx'd without ack'ing back to peer
- * @retransm_queue_size: number of messages to retransmit
- * @retransm_queue_head: sequence number of first message to retransmit
  * @next_out: ptr to first unsent outbound message in queue
  * @waiting_sks: linked list of sockets waiting for link congestion to abate
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
@@ -190,8 +188,6 @@ struct tipc_link {
 	u32 unacked_window;
 
 	/* Congestion handling */
-	u32 retransm_queue_size;
-	u32 retransm_queue_head;
 	struct sk_buff *next_out;
 	struct sk_buff_head waiting_sks;
 
