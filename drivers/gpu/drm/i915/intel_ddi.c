@@ -128,15 +128,15 @@ static const struct ddi_buf_trans bdw_ddi_translations_hdmi[] = {
 };
 
 static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
-	{ 0x00000018, 0x000000a0 },
-	{ 0x00004014, 0x00000098 },
+	{ 0x00000018, 0x000000a2 },
+	{ 0x00004014, 0x0000009B },
 	{ 0x00006012, 0x00000088 },
-	{ 0x00008010, 0x00000080 },
-	{ 0x00000018, 0x00000098 },
+	{ 0x00008010, 0x00000087 },
+	{ 0x00000018, 0x0000009B },
 	{ 0x00004014, 0x00000088 },
-	{ 0x00006012, 0x00000080 },
+	{ 0x00006012, 0x00000087 },
 	{ 0x00000018, 0x00000088 },
-	{ 0x00004014, 0x00000080 },
+	{ 0x00004014, 0x00000087 },
 };
 
 static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
