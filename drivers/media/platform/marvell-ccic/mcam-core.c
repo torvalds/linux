@@ -1102,26 +1102,6 @@ static void mcam_vb_buf_queue(struct vb2_buffer *vb)
 		mcam_read_setup(cam);
 }
 
-
-/*
- * vb2 uses these to release the mutex when waiting in dqbuf.  I'm
- * not actually sure we need to do this (I'm not sure that vb2_dqbuf() needs
- * to be called with the mutex held), but better safe than sorry.
- */
-static void mcam_vb_wait_prepare(struct vb2_queue *vq)
-{
-	struct mcam_camera *cam = vb2_get_drv_priv(vq);
-
-	mutex_unlock(&cam->s_mutex);
-}
-
-static void mcam_vb_wait_finish(struct vb2_queue *vq)
-{
-	struct mcam_camera *cam = vb2_get_drv_priv(vq);
-
-	mutex_lock(&cam->s_mutex);
-}
-
 /*
  * These need to be called with the mutex held from vb2
  */
@@ -1191,8 +1171,8 @@ static const struct vb2_ops mcam_vb2_ops = {
 	.buf_queue		= mcam_vb_buf_queue,
 	.start_streaming	= mcam_vb_start_streaming,
 	.stop_streaming		= mcam_vb_stop_streaming,
-	.wait_prepare		= mcam_vb_wait_prepare,
-	.wait_finish		= mcam_vb_wait_finish,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 
@@ -1252,8 +1232,8 @@ static const struct vb2_ops mcam_vb2_sg_ops = {
 	.buf_cleanup		= mcam_vb_sg_buf_cleanup,
 	.start_streaming	= mcam_vb_start_streaming,
 	.stop_streaming		= mcam_vb_stop_streaming,
-	.wait_prepare		= mcam_vb_wait_prepare,
-	.wait_finish		= mcam_vb_wait_finish,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 #endif /* MCAM_MODE_DMA_SG */
@@ -1265,6 +1245,7 @@ static int mcam_setup_vb2(struct mcam_camera *cam)
 	memset(vq, 0, sizeof(*vq));
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->drv_priv = cam;
+	vq->lock = &cam->s_mutex;
 	INIT_LIST_HEAD(&cam->buffers);
 	switch (cam->buffer_mode) {
 	case B_DMA_contig:
