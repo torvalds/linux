@@ -669,6 +669,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (!ci)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, ci);
 	ci->dev = dev;
 	ci->platdata = dev_get_platdata(dev);
 	ci->imx28_write_fix = !!(ci->platdata->flags &
@@ -782,7 +783,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		}
 	}
 
-	platform_set_drvdata(pdev, ci);
 	ret = devm_request_irq(dev, ci->irq, ci_irq, IRQF_SHARED,
 			ci->platdata->name, ci);
 	if (ret)
