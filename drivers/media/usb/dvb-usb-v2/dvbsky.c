@@ -837,6 +837,14 @@ static const struct usb_device_id dvbsky_id_table[] = {
 		&dvbsky_t680c_props, "DVBSky T680CI", RC_MAP_DVBSKY) },
 	{ DVB_USB_DEVICE(0x0572, 0x0320,
 		&dvbsky_t330_props, "DVBSky T330", RC_MAP_DVBSKY) },
+	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
+		USB_PID_TECHNOTREND_TVSTICK_CT2_4400,
+		&dvbsky_t330_props, "TechnoTrend TVStick CT2-4400",
+		RC_MAP_TT_1500) },
+	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
+		USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI,
+		&dvbsky_t680c_props, "TechnoTrend TT-connect CT2-4650 CI",
+		RC_MAP_TT_1500) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, dvbsky_id_table);
