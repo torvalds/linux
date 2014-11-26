@@ -661,7 +661,8 @@ static void sigmadsp_activate_ctrl(struct sigmadsp *sigmadsp,
 	struct snd_card *card = sigmadsp->component->card->snd_card;
 	struct snd_kcontrol_volatile *vd;
 	struct snd_ctl_elem_id id;
-	bool active, changed;
+	bool active;
+	bool changed = false;
 
 	active = sigmadsp_samplerate_valid(ctrl->samplerates, samplerate_mask);
 
