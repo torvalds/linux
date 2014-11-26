@@ -181,8 +181,3 @@ error_iio_kfifo_free:
 	iio_kfifo_free(indio_dev->buffer);
 	return ret;
 }
-
-void ade7758_uninitialize_ring(struct iio_dev *indio_dev)
-{
-	iio_buffer_unregister(indio_dev);
-}

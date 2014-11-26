@@ -172,15 +172,8 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	 */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 
-	ret = iio_buffer_register(indio_dev, indio_dev->channels,
-				  indio_dev->num_channels);
-	if (ret)
-		goto error_dealloc_pollfunc;
-
 	return 0;
 
-error_dealloc_pollfunc:
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
 error_free_buffer:
 	iio_kfifo_free(indio_dev->buffer);
 error_ret:
@@ -194,7 +187,6 @@ error_ret:
  */
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev)
 {
-	iio_buffer_unregister(indio_dev);
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_kfifo_free(indio_dev->buffer);
 }

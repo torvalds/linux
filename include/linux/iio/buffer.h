@@ -151,22 +151,6 @@ static inline int iio_push_to_buffers_with_timestamp(struct iio_dev *indio_dev,
 int iio_update_demux(struct iio_dev *indio_dev);
 
 /**
- * iio_buffer_register() - register the buffer with IIO core
- * @indio_dev:		device with the buffer to be registered
- * @channels:		the channel descriptions used to construct buffer
- * @num_channels:	the number of channels
- **/
-int iio_buffer_register(struct iio_dev *indio_dev,
-			const struct iio_chan_spec *channels,
-			int num_channels);
-
-/**
- * iio_buffer_unregister() - unregister the buffer from IIO core
- * @indio_dev:		the device with the buffer to be unregistered
- **/
-void iio_buffer_unregister(struct iio_dev *indio_dev);
-
-/**
  * iio_buffer_read_length() - attr func to get number of datums in the buffer
  **/
 ssize_t iio_buffer_read_length(struct device *dev,
@@ -222,16 +206,6 @@ static inline void iio_device_attach_buffer(struct iio_dev *indio_dev,
 }
 
 #else /* CONFIG_IIO_BUFFER */
-
-static inline int iio_buffer_register(struct iio_dev *indio_dev,
-					   const struct iio_chan_spec *channels,
-					   int num_channels)
-{
-	return 0;
-}
-
-static inline void iio_buffer_unregister(struct iio_dev *indio_dev)
-{}
 
 static inline void iio_buffer_get(struct iio_buffer *buffer) {}
 static inline void iio_buffer_put(struct iio_buffer *buffer) {}

@@ -752,23 +752,16 @@ static int ad5933_probe(struct i2c_client *client,
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_buffer_register(indio_dev, ad5933_channels,
-		ARRAY_SIZE(ad5933_channels));
+	ret = ad5933_setup(st);
 	if (ret)
 		goto error_unreg_ring;
 
-	ret = ad5933_setup(st);
-	if (ret)
-		goto error_uninitialize_ring;
-
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_uninitialize_ring;
+		goto error_unreg_ring;
 
 	return 0;
 
-error_uninitialize_ring:
-	iio_buffer_unregister(indio_dev);
 error_unreg_ring:
 	iio_kfifo_free(indio_dev->buffer);
 error_disable_reg:
@@ -784,7 +777,6 @@ static int ad5933_remove(struct i2c_client *client)
 	struct ad5933_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	iio_kfifo_free(indio_dev->buffer);
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);

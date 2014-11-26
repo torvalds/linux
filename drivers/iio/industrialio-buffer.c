@@ -385,14 +385,16 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 
 static const char * const iio_scan_elements_group_name = "scan_elements";
 
-int iio_buffer_register(struct iio_dev *indio_dev,
-			const struct iio_chan_spec *channels,
-			int num_channels)
+int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 {
 	struct iio_dev_attr *p;
 	struct attribute **attr;
 	struct iio_buffer *buffer = indio_dev->buffer;
 	int ret, i, attrn, attrcount, attrcount_orig = 0;
+	const struct iio_chan_spec *channels;
+
+	if (!buffer)
+		return 0;
 
 	if (buffer->attrs)
 		indio_dev->groups[indio_dev->groupcounter++] = buffer->attrs;
@@ -404,9 +406,10 @@ int iio_buffer_register(struct iio_dev *indio_dev,
 	}
 	attrcount = attrcount_orig;
 	INIT_LIST_HEAD(&buffer->scan_el_dev_attr_list);
+	channels = indio_dev->channels;
 	if (channels) {
 		/* new magic */
-		for (i = 0; i < num_channels; i++) {
+		for (i = 0; i < indio_dev->num_channels; i++) {
 			if (channels[i].scan_index < 0)
 				continue;
 
@@ -463,15 +466,16 @@ error_cleanup_dynamic:
 
 	return ret;
 }
-EXPORT_SYMBOL(iio_buffer_register);
 
-void iio_buffer_unregister(struct iio_dev *indio_dev)
+void iio_buffer_free_sysfs_and_mask(struct iio_dev *indio_dev)
 {
+	if (!indio_dev->buffer)
+		return;
+
 	kfree(indio_dev->buffer->scan_mask);
 	kfree(indio_dev->buffer->scan_el_group.attrs);
 	iio_free_chan_devattr_list(&indio_dev->buffer->scan_el_dev_attr_list);
 }
-EXPORT_SYMBOL(iio_buffer_unregister);
 
 ssize_t iio_buffer_read_length(struct device *dev,
 			       struct device_attribute *attr,
