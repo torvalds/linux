@@ -418,8 +418,7 @@ static ssize_t iio_buffer_write_length(struct device *dev,
 	if (iio_buffer_is_active(indio_dev->buffer)) {
 		ret = -EBUSY;
 	} else {
-		if (buffer->access->set_length)
-			buffer->access->set_length(buffer, val);
+		buffer->access->set_length(buffer, val);
 		ret = 0;
 	}
 	mutex_unlock(&indio_dev->mlock);
@@ -760,6 +759,8 @@ static const char * const iio_scan_elements_group_name = "scan_elements";
 
 static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,
 		   iio_buffer_write_length);
+static struct device_attribute dev_attr_length_ro = __ATTR(length,
+	S_IRUGO, iio_buffer_read_length, NULL);
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
 		   iio_buffer_show_enable, iio_buffer_store_enable);
 
@@ -786,7 +787,10 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	if (!buffer->buffer_group.attrs)
 		return -ENOMEM;
 
-	buffer->buffer_group.attrs[0] = &dev_attr_length.attr;
+	if (buffer->access->set_length)
+		buffer->buffer_group.attrs[0] = &dev_attr_length.attr;
+	else
+		buffer->buffer_group.attrs[0] = &dev_attr_length_ro.attr;
 	buffer->buffer_group.attrs[1] = &dev_attr_enable.attr;
 	if (buffer->attrs)
 		memcpy(&buffer->buffer_group.attrs[2], buffer->attrs,
