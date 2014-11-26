@@ -119,9 +119,7 @@ struct tipc_stats {
  * @max_pkt: current maximum packet size for this link
  * @max_pkt_target: desired maximum packet size for this link
  * @max_pkt_probes: # of probes based on current (max_pkt, max_pkt_target)
- * @out_queue_size: # of messages in outbound message queue
- * @first_out: ptr to first outbound message in queue
- * @last_out: ptr to last outbound message in queue
+ * @outqueue: outbound message queue
  * @next_out_no: next sequence number to use for outbound messages
  * @last_retransmitted: sequence number of most recently retransmitted message
  * @stale_count: # of identical retransmit requests made by peer
@@ -173,9 +171,7 @@ struct tipc_link {
 	u32 max_pkt_probes;
 
 	/* Sending */
-	u32 out_queue_size;
-	struct sk_buff *first_out;
-	struct sk_buff *last_out;
+	struct sk_buff_head outqueue;
 	u32 next_out_no;
 	u32 last_retransmitted;
 	u32 stale_count;
@@ -233,6 +229,8 @@ u32 tipc_link_defer_pkt(struct sk_buff **head, struct sk_buff **tail,
 void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
 void tipc_link_retransmit(struct tipc_link *l_ptr,
 			  struct sk_buff *start, u32 retransmits);
+struct sk_buff *tipc_skb_queue_next(const struct sk_buff_head *list,
+				    const struct sk_buff *skb);
 
 int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info);
@@ -256,6 +254,11 @@ static inline u32 mod(u32 x)
 static inline int less_eq(u32 left, u32 right)
 {
 	return mod(right - left) < 32768u;
+}
+
+static inline int more(u32 left, u32 right)
+{
+	return !less_eq(left, right);
 }
 
 static inline int less(u32 left, u32 right)
@@ -294,7 +297,7 @@ static inline int link_reset_reset(struct tipc_link *l_ptr)
 
 static inline int link_congested(struct tipc_link *l_ptr)
 {
-	return l_ptr->out_queue_size >= l_ptr->queue_limit[0];
+	return skb_queue_len(&l_ptr->outqueue) >= l_ptr->queue_limit[0];
 }
 
 #endif
