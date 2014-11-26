@@ -1073,7 +1073,13 @@ static void task_tick_dl(struct rq *rq, struct task_struct *p, int queued)
 {
 	update_curr_dl(rq);
 
-	if (hrtick_enabled(rq) && queued && p->dl.runtime > 0)
+	/*
+	 * Even when we have runtime, update_curr_dl() might have resulted in us
+	 * not being the leftmost task anymore. In that case NEED_RESCHED will
+	 * be set and schedule() will start a new hrtick for the next task.
+	 */
+	if (hrtick_enabled(rq) && queued && p->dl.runtime > 0 &&
+	    is_leftmost(p, &rq->dl))
 		start_hrtick_dl(rq, p);
 }
 
