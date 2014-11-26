@@ -224,9 +224,12 @@ acpi_parse_entries(char *id, unsigned long table_size,
 	while (((unsigned long)entry) + sizeof(struct acpi_subtable_header) <
 	       table_end) {
 		if (entry->type == entry_id
-		    && (!max_entries || count++ < max_entries))
+		    && (!max_entries || count < max_entries)) {
 			if (handler(entry, table_end))
 				return -EINVAL;
+
+			count++;
+		}
 
 		/*
 		 * If entry->length is 0, break from this loop to avoid
