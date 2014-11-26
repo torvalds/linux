@@ -53,9 +53,40 @@ extern unsigned int		nlm_debug;
 /*
  * Sysctl interface for RPC debugging
  */
+
+struct rpc_clnt;
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 void		rpc_register_sysctl(void);
 void		rpc_unregister_sysctl(void);
+int		sunrpc_debugfs_init(void);
+void		sunrpc_debugfs_exit(void);
+int		rpc_clnt_debugfs_register(struct rpc_clnt *);
+void		rpc_clnt_debugfs_unregister(struct rpc_clnt *);
+#else
+static inline int
+sunrpc_debugfs_init(void)
+{
+	return 0;
+}
+
+static inline void
+sunrpc_debugfs_exit(void)
+{
+	return;
+}
+
+static inline int
+rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
+{
+	return 0;
+}
+
+static inline void
+rpc_clnt_debugfs_unregister(struct rpc_clnt *clnt)
+{
+	return;
+}
 #endif
 
 #endif /* _LINUX_SUNRPC_DEBUG_H_ */
