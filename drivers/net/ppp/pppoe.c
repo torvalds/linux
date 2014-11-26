@@ -869,7 +869,7 @@ static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	ph = (struct pppoe_hdr *)skb_put(skb, total_len + sizeof(struct pppoe_hdr));
 	start = (char *)&ph->tag[0];
 
-	error = memcpy_fromiovec(start, m->msg_iov, total_len);
+	error = memcpy_from_msg(start, m, total_len);
 	if (error < 0) {
 		kfree_skb(skb);
 		goto end;

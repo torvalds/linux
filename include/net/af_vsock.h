@@ -103,14 +103,14 @@ struct vsock_transport {
 	int (*dgram_dequeue)(struct kiocb *kiocb, struct vsock_sock *vsk,
 			     struct msghdr *msg, size_t len, int flags);
 	int (*dgram_enqueue)(struct vsock_sock *, struct sockaddr_vm *,
-			     struct iovec *, size_t len);
+			     struct msghdr *, size_t len);
 	bool (*dgram_allow)(u32 cid, u32 port);
 
 	/* STREAM. */
 	/* TODO: stream_bind() */
-	ssize_t (*stream_dequeue)(struct vsock_sock *, struct iovec *,
+	ssize_t (*stream_dequeue)(struct vsock_sock *, struct msghdr *,
 				  size_t len, int flags);
-	ssize_t (*stream_enqueue)(struct vsock_sock *, struct iovec *,
+	ssize_t (*stream_enqueue)(struct vsock_sock *, struct msghdr *,
 				  size_t len);
 	s64 (*stream_has_data)(struct vsock_sock *);
 	s64 (*stream_has_space)(struct vsock_sock *);

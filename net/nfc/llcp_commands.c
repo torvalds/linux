@@ -665,7 +665,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	if (msg_data == NULL)
 		return -ENOMEM;
 
-	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+	if (memcpy_from_msg(msg_data, msg, len)) {
 		kfree(msg_data);
 		return -EFAULT;
 	}
@@ -731,7 +731,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	if (msg_data == NULL)
 		return -ENOMEM;
 
-	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+	if (memcpy_from_msg(msg_data, msg, len)) {
 		kfree(msg_data);
 		return -EFAULT;
 	}

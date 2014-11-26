@@ -703,7 +703,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct socket *sock,
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = dev->ifindex;
 
-	err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
+	err = memcpy_from_msg(skb_put(skb, size), msg, size);
 	if (err < 0)
 		goto free_skb;
 
@@ -750,7 +750,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct socket *sock,
 	else
 		size = skb->len;
 
-	err = memcpy_toiovec(msg->msg_iov, skb->data, size);
+	err = memcpy_to_msg(msg, skb->data, size);
 	if (err < 0) {
 		skb_free_datagram(sk, skb);
 		return err;

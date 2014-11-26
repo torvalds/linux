@@ -1170,7 +1170,7 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_reset_transport_header(skb);
 	skb_put(skb, len);
 
-	rc = memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len);
+	rc = memcpy_from_msg(skb_transport_header(skb), msg, len);
 	if (rc)
 		goto out_kfree_skb;
 

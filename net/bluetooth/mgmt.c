@@ -5767,7 +5767,7 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	if (!buf)
 		return -ENOMEM;
 
-	if (memcpy_fromiovec(buf, msg->msg_iov, msglen)) {
+	if (memcpy_from_msg(buf, msg, msglen)) {
 		err = -EFAULT;
 		goto done;
 	}

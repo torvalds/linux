@@ -1676,7 +1676,7 @@ retry:
 			if (len < hhlen)
 				skb_reset_network_header(skb);
 		}
-		err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+		err = memcpy_from_msg(skb_put(skb, len), msg, len);
 		if (err)
 			goto out_free;
 		goto retry;
@@ -2408,6 +2408,10 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	unsigned short gso_type = 0;
 	int hlen, tlen;
 	int extra_len = 0;
+	struct iov_iter from;
+	ssize_t n;
+
+	iov_iter_init(&from, WRITE, msg->msg_iov, msg->msg_iovlen, len);
 
 	/*
 	 *	Get and verify the address.
@@ -2446,9 +2450,9 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 
 		len -= vnet_hdr_len;
 
-		err = memcpy_fromiovec((void *)&vnet_hdr, msg->msg_iov,
-				       vnet_hdr_len);
-		if (err < 0)
+		err = -EFAULT;
+		n = copy_from_iter(&vnet_hdr, vnet_hdr_len, &from);
+		if (n != vnet_hdr_len)
 			goto out_unlock;
 
 		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
@@ -2518,7 +2522,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	/* Returns -EFAULT on error */
-	err = skb_copy_datagram_from_iovec(skb, offset, msg->msg_iov, 0, len);
+	err = skb_copy_datagram_from_iter(skb, offset, &from, len);
 	if (err)
 		goto out_free;
 
@@ -2950,8 +2954,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 			vnet_hdr.flags = VIRTIO_NET_HDR_F_DATA_VALID;
 		} /* else everything is zero */
 
-		err = memcpy_toiovec(msg->msg_iov, (void *)&vnet_hdr,
-				     vnet_hdr_len);
+		err = memcpy_to_msg(msg, (void *)&vnet_hdr, vnet_hdr_len);
 		if (err < 0)
 			goto out_free;
 	}

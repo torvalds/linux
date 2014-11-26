@@ -1745,8 +1745,7 @@ static int ipx_sendmsg(struct kiocb *iocb, struct socket *sock,
 		memcpy(usipx->sipx_node, ipxs->dest_addr.node, IPX_NODE_LEN);
 	}
 
-	rc = ipxrtr_route_packet(sk, usipx, msg->msg_iov, len,
-				 flags & MSG_DONTWAIT);
+	rc = ipxrtr_route_packet(sk, usipx, msg, len, flags & MSG_DONTWAIT);
 	if (rc >= 0)
 		rc = len;
 out:

@@ -480,18 +480,16 @@ short_copy:
 EXPORT_SYMBOL(skb_copy_datagram_iter);
 
 /**
- *	skb_copy_datagram_from_iovec - Copy a datagram from an iovec.
+ *	skb_copy_datagram_from_iter - Copy a datagram from an iov_iter.
  *	@skb: buffer to copy
  *	@offset: offset in the buffer to start copying to
- *	@from: io vector to copy to
- *	@from_offset: offset in the io vector to start copying from
+ *	@from: the copy source
  *	@len: amount of data to copy to buffer from iovec
  *
  *	Returns 0 or -EFAULT.
- *	Note: the iovec is not modified during the copy.
  */
-int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
-				 const struct iovec *from, int from_offset,
+int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
+				 struct iov_iter *from,
 				 int len)
 {
 	int start = skb_headlen(skb);
@@ -502,13 +500,11 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		if (memcpy_fromiovecend(skb->data + offset, from, from_offset,
-					copy))
+		if (copy_from_iter(skb->data + offset, copy, from) != copy)
 			goto fault;
 		if ((len -= copy) == 0)
 			return 0;
 		offset += copy;
-		from_offset += copy;
 	}
 
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
@@ -520,24 +516,19 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 
 		end = start + skb_frag_size(frag);
 		if ((copy = end - offset) > 0) {
-			int err;
-			u8  *vaddr;
-			struct page *page = skb_frag_page(frag);
+			size_t copied;
 
 			if (copy > len)
 				copy = len;
-			vaddr = kmap(page);
-			err = memcpy_fromiovecend(vaddr + frag->page_offset +
-						  offset - start,
-						  from, from_offset, copy);
-			kunmap(page);
-			if (err)
+			copied = copy_page_from_iter(skb_frag_page(frag),
+					  frag->page_offset + offset - start,
+					  copy, from);
+			if (copied != copy)
 				goto fault;
 
 			if (!(len -= copy))
 				return 0;
 			offset += copy;
-			from_offset += copy;
 		}
 		start = end;
 	}
@@ -551,16 +542,13 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 		if ((copy = end - offset) > 0) {
 			if (copy > len)
 				copy = len;
-			if (skb_copy_datagram_from_iovec(frag_iter,
-							 offset - start,
-							 from,
-							 from_offset,
-							 copy))
+			if (skb_copy_datagram_from_iter(frag_iter,
+							offset - start,
+							from, copy))
 				goto fault;
 			if ((len -= copy) == 0)
 				return 0;
 			offset += copy;
-			from_offset += copy;
 		}
 		start = end;
 	}
@@ -570,78 +558,61 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 fault:
 	return -EFAULT;
 }
-EXPORT_SYMBOL(skb_copy_datagram_from_iovec);
+EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
 /**
- *	zerocopy_sg_from_iovec - Build a zerocopy datagram from an iovec
+ *	zerocopy_sg_from_iter - Build a zerocopy datagram from an iov_iter
  *	@skb: buffer to copy
- *	@from: io vector to copy from
- *	@offset: offset in the io vector to start copying from
- *	@count: amount of vectors to copy to buffer from
+ *	@from: the source to copy from
  *
  *	The function will first copy up to headlen, and then pin the userspace
  *	pages and build frags through them.
  *
  *	Returns 0, -EFAULT or -EMSGSIZE.
- *	Note: the iovec is not modified during the copy
  */
-int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
-				  int offset, size_t count)
+int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 {
-	int len = iov_length(from, count) - offset;
+	int len = iov_iter_count(from);
 	int copy = min_t(int, skb_headlen(skb), len);
-	int size;
-	int i = 0;
+	int frag = 0;
 
 	/* copy up to skb headlen */
-	if (skb_copy_datagram_from_iovec(skb, 0, from, offset, copy))
+	if (skb_copy_datagram_from_iter(skb, 0, from, copy))
 		return -EFAULT;
 
-	if (len == copy)
-		return 0;
-
-	offset += copy;
-	while (count--) {
-		struct page *page[MAX_SKB_FRAGS];
-		int num_pages;
-		unsigned long base;
+	while (iov_iter_count(from)) {
+		struct page *pages[MAX_SKB_FRAGS];
+		size_t start;
+		ssize_t copied;
 		unsigned long truesize;
+		int n = 0;
 
-		/* Skip over from offset and copied */
-		if (offset >= from->iov_len) {
-			offset -= from->iov_len;
-			++from;
-			continue;
-		}
-		len = from->iov_len - offset;
-		base = (unsigned long)from->iov_base + offset;
-		size = ((base & ~PAGE_MASK) + len + ~PAGE_MASK) >> PAGE_SHIFT;
-		if (i + size > MAX_SKB_FRAGS)
+		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
-		num_pages = get_user_pages_fast(base, size, 0, &page[i]);
-		if (num_pages != size) {
-			release_pages(&page[i], num_pages, 0);
+
+		copied = iov_iter_get_pages(from, pages, ~0U,
+					    MAX_SKB_FRAGS - frag, &start);
+		if (copied < 0)
 			return -EFAULT;
-		}
-		truesize = size * PAGE_SIZE;
-		skb->data_len += len;
-		skb->len += len;
+
+		iov_iter_advance(from, copied);
+
+		truesize = PAGE_ALIGN(copied + start);
+		skb->data_len += copied;
+		skb->len += copied;
 		skb->truesize += truesize;
 		atomic_add(truesize, &skb->sk->sk_wmem_alloc);
-		while (len) {
-			int off = base & ~PAGE_MASK;
-			int size = min_t(int, len, PAGE_SIZE - off);
-			skb_fill_page_desc(skb, i, page[i], off, size);
-			base += size;
-			len -= size;
-			i++;
+		while (copied) {
+			int size = min_t(int, copied, PAGE_SIZE - start);
+			skb_fill_page_desc(skb, frag++, pages[n], start, size);
+			start = 0;
+			copied -= size;
+			n++;
 		}
-		offset = 0;
-		++from;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(zerocopy_sg_from_iovec);
+EXPORT_SYMBOL(zerocopy_sg_from_iter);
 
 static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      u8 __user *to, int len,

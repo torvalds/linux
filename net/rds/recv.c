@@ -404,6 +404,7 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	int ret = 0, nonblock = msg_flags & MSG_DONTWAIT;
 	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
 	struct rds_incoming *inc = NULL;
+	struct iov_iter to;
 
 	/* udp_recvmsg()->sock_recvtimeo() gets away without locking too.. */
 	timeo = sock_rcvtimeo(sk, nonblock);
@@ -449,8 +450,8 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		rdsdebug("copying inc %p from %pI4:%u to user\n", inc,
 			 &inc->i_conn->c_faddr,
 			 ntohs(inc->i_hdr.h_sport));
-		ret = inc->i_conn->c_trans->inc_copy_to_user(inc, msg->msg_iov,
-							     size);
+		iov_iter_init(&to, READ, msg->msg_iov, msg->msg_iovlen, size);
+		ret = inc->i_conn->c_trans->inc_copy_to_user(inc, &to);
 		if (ret < 0)
 			break;
 

@@ -2651,13 +2651,16 @@ static inline int skb_copy_datagram_msg(const struct sk_buff *from, int offset,
 }
 int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb, int hlen,
 				     struct iovec *iov);
-int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
-				 const struct iovec *from, int from_offset,
-				 int len);
-int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *frm,
-			   int offset, size_t count);
+static inline int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
+			    struct msghdr *msg)
+{
+	return skb_copy_and_csum_datagram_iovec(skb, hlen, msg->msg_iov);
+}
+int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
+				 struct iov_iter *from, int len);
 int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
 			   struct iov_iter *to, int size);
+int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb);
 void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb);
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags);
@@ -2681,6 +2684,16 @@ struct sk_buff *skb_vlan_untag(struct sk_buff *skb);
 int skb_ensure_writable(struct sk_buff *skb, int write_len);
 int skb_vlan_pop(struct sk_buff *skb);
 int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci);
+
+static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
+{
+	return memcpy_fromiovec(data, msg->msg_iov, len);
+}
+
+static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
+{
+	return memcpy_toiovec(msg->msg_iov, data, len);
+}
 
 struct skb_checksum_ops {
 	__wsum (*update)(const void *mem, int len, __wsum wsum);

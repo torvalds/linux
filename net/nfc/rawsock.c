@@ -231,7 +231,7 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (skb == NULL)
 		return rc;
 
-	rc = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	rc = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (rc < 0) {
 		kfree_skb(skb);
 		return rc;

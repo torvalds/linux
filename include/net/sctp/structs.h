@@ -531,7 +531,7 @@ struct sctp_datamsg {
 
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,
 					    struct sctp_sndrcvinfo *,
-					    struct msghdr *, int len);
+					    struct iov_iter *);
 void sctp_datamsg_free(struct sctp_datamsg *);
 void sctp_datamsg_put(struct sctp_datamsg *);
 void sctp_chunk_fail(struct sctp_chunk *, int error);
@@ -647,8 +647,8 @@ struct sctp_chunk {
 
 void sctp_chunk_hold(struct sctp_chunk *);
 void sctp_chunk_put(struct sctp_chunk *);
-int sctp_user_addto_chunk(struct sctp_chunk *chunk, int off, int len,
-			  struct iovec *data);
+int sctp_user_addto_chunk(struct sctp_chunk *chunk, int len,
+			  struct iov_iter *from);
 void sctp_chunk_free(struct sctp_chunk *);
 void  *sctp_addto_chunk(struct sctp_chunk *, int len, const void *data);
 struct sctp_chunk *sctp_chunkify(struct sk_buff *,

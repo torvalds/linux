@@ -3611,7 +3611,7 @@ static int pfkey_sendmsg(struct kiocb *kiocb,
 		goto out;
 
 	err = -EFAULT;
-	if (memcpy_fromiovec(skb_put(skb,len), msg->msg_iov, len))
+	if (memcpy_from_msg(skb_put(skb,len), msg, len))
 		goto out;
 
 	hdr = pfkey_get_base_msg(skb, &err);
