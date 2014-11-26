@@ -421,8 +421,6 @@ void tipc_link_purge_queues(struct tipc_link *l_ptr)
 	kfree_skb_list(l_ptr->oldest_deferred_in);
 	kfree_skb_list(l_ptr->first_out);
 	tipc_link_reset_fragments(l_ptr);
-	kfree_skb(l_ptr->proto_msg_queue);
-	l_ptr->proto_msg_queue = NULL;
 }
 
 void tipc_link_reset(struct tipc_link *l_ptr)
@@ -455,8 +453,6 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 
 	/* Clean up all queues: */
 	link_release_outqueue(l_ptr);
-	kfree_skb(l_ptr->proto_msg_queue);
-	l_ptr->proto_msg_queue = NULL;
 	kfree_skb_list(l_ptr->oldest_deferred_in);
 	if (!skb_queue_empty(&l_ptr->waiting_sks)) {
 		skb_queue_splice_init(&l_ptr->waiting_sks, &owner->waiting_sks);
@@ -901,18 +897,6 @@ static u32 tipc_link_push_packet(struct tipc_link *l_ptr)
 		l_ptr->retransm_queue_head = mod(++r_q_head);
 		l_ptr->retransm_queue_size = --r_q_size;
 		l_ptr->stats.retransmitted++;
-		return 0;
-	}
-
-	/* Send deferred protocol message, if any: */
-	buf = l_ptr->proto_msg_queue;
-	if (buf) {
-		msg_set_ack(buf_msg(buf), mod(l_ptr->next_in_no - 1));
-		msg_set_bcast_ack(buf_msg(buf), l_ptr->owner->bclink.last_in);
-		tipc_bearer_send(l_ptr->bearer_id, buf, &l_ptr->media_addr);
-		l_ptr->unacked_window = 0;
-		kfree_skb(buf);
-		l_ptr->proto_msg_queue = NULL;
 		return 0;
 	}
 
@@ -1445,12 +1429,6 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 	struct tipc_msg *msg = l_ptr->pmsg;
 	u32 msg_size = sizeof(l_ptr->proto_msg);
 	int r_flag;
-
-	/* Discard any previous message that was deferred due to congestion */
-	if (l_ptr->proto_msg_queue) {
-		kfree_skb(l_ptr->proto_msg_queue);
-		l_ptr->proto_msg_queue = NULL;
-	}
 
 	/* Don't send protocol message during link changeover */
 	if (l_ptr->exp_msg_count)
