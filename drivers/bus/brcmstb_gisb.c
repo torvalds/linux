@@ -29,23 +29,37 @@
 #include <asm/signal.h>
 #endif
 
-#define ARB_TIMER			0x008
-#define ARB_ERR_CAP_CLR			0x7e4
 #define  ARB_ERR_CAP_CLEAR		(1 << 0)
-#define ARB_ERR_CAP_HI_ADDR		0x7e8
-#define ARB_ERR_CAP_ADDR		0x7ec
-#define ARB_ERR_CAP_DATA		0x7f0
-#define ARB_ERR_CAP_STATUS		0x7f4
 #define  ARB_ERR_CAP_STATUS_TIMEOUT	(1 << 12)
 #define  ARB_ERR_CAP_STATUS_TEA		(1 << 11)
 #define  ARB_ERR_CAP_STATUS_BS_SHIFT	(1 << 2)
 #define  ARB_ERR_CAP_STATUS_BS_MASK	0x3c
 #define  ARB_ERR_CAP_STATUS_WRITE	(1 << 1)
 #define  ARB_ERR_CAP_STATUS_VALID	(1 << 0)
-#define ARB_ERR_CAP_MASTER		0x7f8
+
+enum {
+	ARB_TIMER,
+	ARB_ERR_CAP_CLR,
+	ARB_ERR_CAP_HI_ADDR,
+	ARB_ERR_CAP_ADDR,
+	ARB_ERR_CAP_DATA,
+	ARB_ERR_CAP_STATUS,
+	ARB_ERR_CAP_MASTER,
+};
+
+static const int gisb_offsets_bcm7445[] = {
+	[ARB_TIMER]		= 0x008,
+	[ARB_ERR_CAP_CLR]	= 0x7e4,
+	[ARB_ERR_CAP_HI_ADDR]	= 0x7e8,
+	[ARB_ERR_CAP_ADDR]	= 0x7ec,
+	[ARB_ERR_CAP_DATA]	= 0x7f0,
+	[ARB_ERR_CAP_STATUS]	= 0x7f4,
+	[ARB_ERR_CAP_MASTER]	= 0x7f8,
+};
 
 struct brcmstb_gisb_arb_device {
 	void __iomem	*base;
+	const int	*gisb_offsets;
 	struct mutex	lock;
 	struct list_head next;
 	u32 valid_mask;
@@ -56,11 +70,21 @@ static LIST_HEAD(brcmstb_gisb_arb_device_list);
 
 static u32 gisb_read(struct brcmstb_gisb_arb_device *gdev, int reg)
 {
-	return ioread32(gdev->base + reg);
+	int offset = gdev->gisb_offsets[reg];
+
+	/* return 1 if the hardware doesn't have ARB_ERR_CAP_MASTER */
+	if (offset == -1)
+		return 1;
+
+	return ioread32(gdev->base + offset);
 }
 
 static void gisb_write(struct brcmstb_gisb_arb_device *gdev, u32 val, int reg)
 {
+	int offset = gdev->gisb_offsets[reg];
+
+	if (offset == -1)
+		return;
 	iowrite32(val, gdev->base + reg);
 }
 
@@ -229,6 +253,8 @@ static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	gdev->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(gdev->base))
 		return PTR_ERR(gdev->base);
+
+	gdev->gisb_offsets = gisb_offsets_bcm7445;
 
 	err = devm_request_irq(&pdev->dev, timeout_irq,
 				brcmstb_gisb_timeout_handler, 0, pdev->name,
