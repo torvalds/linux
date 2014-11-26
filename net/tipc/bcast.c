@@ -307,7 +307,7 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 	/* Try resolving broadcast link congestion, if necessary */
 
 	if (unlikely(bcl->next_out)) {
-		tipc_link_push_queue(bcl);
+		tipc_link_push_packets(bcl);
 		bclink_set_last_sent();
 	}
 	if (unlikely(released && !skb_queue_empty(&bcl->waiting_sks)))

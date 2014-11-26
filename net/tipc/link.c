@@ -149,18 +149,6 @@ static void link_init_max_pkt(struct tipc_link *l_ptr)
 	l_ptr->max_pkt_probes = 0;
 }
 
-static u32 link_next_sent(struct tipc_link *l_ptr)
-{
-	if (l_ptr->next_out)
-		return buf_seqno(l_ptr->next_out);
-	return mod(l_ptr->next_out_no);
-}
-
-static u32 link_last_sent(struct tipc_link *l_ptr)
-{
-	return mod(link_next_sent(l_ptr) - 1);
-}
-
 /*
  *  Simple non-static link routines (i.e. referenced outside this file)
  */
@@ -222,7 +210,7 @@ static void link_timeout(struct tipc_link *l_ptr)
 	link_state_event(l_ptr, TIMEOUT_EVT);
 
 	if (l_ptr->next_out)
-		tipc_link_push_queue(l_ptr);
+		tipc_link_push_packets(l_ptr);
 
 	tipc_node_unlock(l_ptr->owner);
 }
@@ -864,43 +852,37 @@ static void tipc_link_sync_rcv(struct tipc_node *n, struct sk_buff *buf)
 }
 
 /*
- * tipc_link_push_packet: Push one unsent packet to the media
+ * tipc_link_push_packets - push unsent packets to bearer
+ *
+ * Push out the unsent messages of a link where congestion
+ * has abated. Node is locked.
+ *
+ * Called with node locked
  */
-static u32 tipc_link_push_packet(struct tipc_link *l_ptr)
+void tipc_link_push_packets(struct tipc_link *l_ptr)
 {
-	struct sk_buff *buf = l_ptr->next_out;
+	struct sk_buff *skb;
+	struct tipc_msg *msg;
+	u32 next, first;
 
-	/* Send one deferred data message, if send window not full: */
-	if (buf) {
-		struct tipc_msg *msg = buf_msg(buf);
-		u32 next = msg_seqno(msg);
-		u32 first = buf_seqno(l_ptr->first_out);
+	while (l_ptr->next_out) {
+		skb = l_ptr->next_out;
+		msg = buf_msg(skb);
+		next = msg_seqno(msg);
+		first = buf_seqno(l_ptr->first_out);
 
 		if (mod(next - first) < l_ptr->queue_limit[0]) {
 			msg_set_ack(msg, mod(l_ptr->next_in_no - 1));
 			msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
-			tipc_bearer_send(l_ptr->bearer_id, buf,
-					 &l_ptr->media_addr);
 			if (msg_user(msg) == MSG_BUNDLER)
 				msg_set_type(msg, BUNDLE_CLOSED);
-			l_ptr->next_out = buf->next;
-			return 0;
+			tipc_bearer_send(l_ptr->bearer_id, skb,
+					 &l_ptr->media_addr);
+			l_ptr->next_out = skb->next;
+		} else {
+			break;
 		}
 	}
-	return 1;
-}
-
-/*
- * push_queue(): push out the unsent messages of a link where
- *               congestion has abated. Node is locked
- */
-void tipc_link_push_queue(struct tipc_link *l_ptr)
-{
-	u32 res;
-
-	do {
-		res = tipc_link_push_packet(l_ptr);
-	} while (!res);
 }
 
 void tipc_link_reset_all(struct tipc_node *node)
@@ -1164,7 +1146,7 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 
 		/* Try sending any messages link endpoint has pending */
 		if (unlikely(l_ptr->next_out))
-			tipc_link_push_queue(l_ptr);
+			tipc_link_push_packets(l_ptr);
 
 		if (released && !skb_queue_empty(&l_ptr->waiting_sks)) {
 			link_prepare_wakeup(l_ptr);
