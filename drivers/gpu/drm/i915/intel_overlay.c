@@ -224,8 +224,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 		return ret;
 
 	overlay->flip_tail = tail;
-	ret = i915_wait_seqno(ring,
-			 i915_gem_request_get_seqno(overlay->last_flip_req));
+	ret = i915_wait_request(overlay->last_flip_req);
 	if (ret)
 		return ret;
 	i915_gem_retire_requests(dev);
@@ -367,19 +366,15 @@ static int intel_overlay_off(struct intel_overlay *overlay)
  * We have to be careful not to repeat work forever an make forward progess. */
 static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 {
-	struct drm_device *dev = overlay->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
 	if (overlay->last_flip_req == NULL)
 		return 0;
 
-	ret = i915_wait_seqno(ring,
-			 i915_gem_request_get_seqno(overlay->last_flip_req));
+	ret = i915_wait_request(overlay->last_flip_req);
 	if (ret)
 		return ret;
-	i915_gem_retire_requests(dev);
+	i915_gem_retire_requests(overlay->dev);
 
 	if (overlay->flip_tail)
 		overlay->flip_tail(overlay);
