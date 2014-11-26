@@ -399,6 +399,16 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
  * @returns:	-EFAULT on error and forces SIGBUS, and on success
  *		returns 0 or BRANCH_LIKELY_TAKEN as appropriate after
  *		evaluating the branch.
+ *
+ * MIPS R6 Compact branches and forbidden slots:
+ *	Compact branches do not throw exceptions because they do
+ *	not have delay slots. The forbidden slot instruction ($PC+4)
+ *	is only executed if the branch was not taken. Otherwise the
+ *	forbidden slot is skipped entirely. This means that the
+ *	only possible reason to be here because of a MIPS R6 compact
+ *	branch instruction is that the forbidden slot has thrown one.
+ *	In that case the branch was not taken, so the EPC can be safely
+ *	set to EPC + 8.
  */
 int __compute_return_epc_for_insn(struct pt_regs *regs,
 				   union mips_instruction insn)
@@ -590,6 +600,27 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		if (NO_R6EMU)
 			goto sigill_r6;
 	case blez_op:
+		/*
+		 * Compact branches for R6 for the
+		 * blez and blezl opcodes.
+		 * BLEZ  | rs = 0 | rt != 0  == BLEZALC
+		 * BLEZ  | rs = rt != 0      == BGEZALC
+		 * BLEZ  | rs != 0 | rt != 0 == BGEUC
+		 * BLEZL | rs = 0 | rt != 0  == BLEZC
+		 * BLEZL | rs = rt != 0      == BGEZC
+		 * BLEZL | rs != 0 | rt != 0 == BGEC
+		 *
+		 * For real BLEZ{,L}, rt is always 0.
+		 */
+
+		if (cpu_has_mips_r6 && insn.i_format.rt) {
+			if ((insn.i_format.opcode == blez_op) &&
+			    ((!insn.i_format.rs && insn.i_format.rt) ||
+			     (insn.i_format.rs == insn.i_format.rt)))
+				regs->regs[31] = epc + 4;
+			regs->cp0_epc += 8;
+			break;
+		}
 		/* rt field assumed to be zero */
 		if ((long)regs->regs[insn.i_format.rs] <= 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
