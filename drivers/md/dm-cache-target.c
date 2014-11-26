@@ -2275,9 +2275,8 @@ static int create_cache_policy(struct cache *cache, struct cache_args *ca,
 }
 
 /*
- * We want the discard block size to be a power of two, at least the size
- * of the cache block size, and have no more than 2^14 discard blocks
- * across the origin.
+ * We want the discard block size to be at least the size of the cache
+ * block size and have no more than 2^14 discard blocks across the origin.
  */
 #define MAX_DISCARD_BLOCKS (1 << 14)
 
@@ -2292,9 +2291,7 @@ static bool too_many_discard_blocks(sector_t discard_block_size,
 static sector_t calculate_discard_block_size(sector_t cache_block_size,
 					     sector_t origin_size)
 {
-	sector_t discard_block_size;
-
-	discard_block_size = roundup_pow_of_two(cache_block_size);
+	sector_t discard_block_size = cache_block_size;
 
 	if (origin_size)
 		while (too_many_discard_blocks(discard_block_size, origin_size))
