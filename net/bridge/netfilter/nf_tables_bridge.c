@@ -13,6 +13,54 @@
 #include <linux/module.h>
 #include <linux/netfilter_bridge.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nf_tables_bridge.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+
+int nft_bridge_iphdr_validate(struct sk_buff *skb)
+{
+	struct iphdr *iph;
+	u32 len;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		return 0;
+
+	iph = ip_hdr(skb);
+	if (iph->ihl < 5 || iph->version != 4)
+		return 0;
+
+	len = ntohs(iph->tot_len);
+	if (skb->len < len)
+		return 0;
+	else if (len < (iph->ihl*4))
+		return 0;
+
+	if (!pskb_may_pull(skb, iph->ihl*4))
+		return 0;
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(nft_bridge_iphdr_validate);
+
+int nft_bridge_ip6hdr_validate(struct sk_buff *skb)
+{
+	struct ipv6hdr *hdr;
+	u32 pkt_len;
+
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+		return 0;
+
+	hdr = ipv6_hdr(skb);
+	if (hdr->version != 6)
+		return 0;
+
+	pkt_len = ntohs(hdr->payload_len);
+	if (pkt_len + sizeof(struct ipv6hdr) > skb->len)
+		return 0;
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(nft_bridge_ip6hdr_validate);
 
 static unsigned int
 nft_do_chain_bridge(const struct nf_hook_ops *ops,
