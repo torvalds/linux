@@ -178,6 +178,80 @@ static ssize_t iio_scan_el_show(struct device *dev,
 	return sprintf(buf, "%d\n", ret);
 }
 
+/* Note NULL used as error indicator as it doesn't make sense. */
+static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
+					  unsigned int masklength,
+					  const unsigned long *mask)
+{
+	if (bitmap_empty(mask, masklength))
+		return NULL;
+	while (*av_masks) {
+		if (bitmap_subset(mask, av_masks, masklength))
+			return av_masks;
+		av_masks += BITS_TO_LONGS(masklength);
+	}
+	return NULL;
+}
+
+static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
+	const unsigned long *mask)
+{
+	if (!indio_dev->setup_ops->validate_scan_mask)
+		return true;
+
+	return indio_dev->setup_ops->validate_scan_mask(indio_dev, mask);
+}
+
+/**
+ * iio_scan_mask_set() - set particular bit in the scan mask
+ * @indio_dev: the iio device
+ * @buffer: the buffer whose scan mask we are interested in
+ * @bit: the bit to be set.
+ *
+ * Note that at this point we have no way of knowing what other
+ * buffers might request, hence this code only verifies that the
+ * individual buffers request is plausible.
+ */
+static int iio_scan_mask_set(struct iio_dev *indio_dev,
+		      struct iio_buffer *buffer, int bit)
+{
+	const unsigned long *mask;
+	unsigned long *trialmask;
+
+	trialmask = kmalloc(sizeof(*trialmask)*
+			    BITS_TO_LONGS(indio_dev->masklength),
+			    GFP_KERNEL);
+
+	if (trialmask == NULL)
+		return -ENOMEM;
+	if (!indio_dev->masklength) {
+		WARN_ON("Trying to set scanmask prior to registering buffer\n");
+		goto err_invalid_mask;
+	}
+	bitmap_copy(trialmask, buffer->scan_mask, indio_dev->masklength);
+	set_bit(bit, trialmask);
+
+	if (!iio_validate_scan_mask(indio_dev, trialmask))
+		goto err_invalid_mask;
+
+	if (indio_dev->available_scan_masks) {
+		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
+					   indio_dev->masklength,
+					   trialmask);
+		if (!mask)
+			goto err_invalid_mask;
+	}
+	bitmap_copy(buffer->scan_mask, trialmask, indio_dev->masklength);
+
+	kfree(trialmask);
+
+	return 0;
+
+err_invalid_mask:
+	kfree(trialmask);
+	return -EINVAL;
+}
+
 static int iio_scan_mask_clear(struct iio_buffer *buffer, int bit)
 {
 	clear_bit(bit, buffer->scan_mask);
@@ -454,21 +528,6 @@ ssize_t iio_buffer_show_enable(struct device *dev,
 	return sprintf(buf, "%d\n", iio_buffer_is_active(indio_dev->buffer));
 }
 EXPORT_SYMBOL(iio_buffer_show_enable);
-
-/* Note NULL used as error indicator as it doesn't make sense. */
-static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
-					  unsigned int masklength,
-					  const unsigned long *mask)
-{
-	if (bitmap_empty(mask, masklength))
-		return NULL;
-	while (*av_masks) {
-		if (bitmap_subset(mask, av_masks, masklength))
-			return av_masks;
-		av_masks += BITS_TO_LONGS(masklength);
-	}
-	return NULL;
-}
 
 static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
 				const unsigned long *mask, bool timestamp)
@@ -807,66 +866,6 @@ bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 	return bitmap_weight(mask, indio_dev->masklength) == 1;
 }
 EXPORT_SYMBOL_GPL(iio_validate_scan_mask_onehot);
-
-static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
-	const unsigned long *mask)
-{
-	if (!indio_dev->setup_ops->validate_scan_mask)
-		return true;
-
-	return indio_dev->setup_ops->validate_scan_mask(indio_dev, mask);
-}
-
-/**
- * iio_scan_mask_set() - set particular bit in the scan mask
- * @indio_dev: the iio device
- * @buffer: the buffer whose scan mask we are interested in
- * @bit: the bit to be set.
- *
- * Note that at this point we have no way of knowing what other
- * buffers might request, hence this code only verifies that the
- * individual buffers request is plausible.
- */
-int iio_scan_mask_set(struct iio_dev *indio_dev,
-		      struct iio_buffer *buffer, int bit)
-{
-	const unsigned long *mask;
-	unsigned long *trialmask;
-
-	trialmask = kmalloc(sizeof(*trialmask)*
-			    BITS_TO_LONGS(indio_dev->masklength),
-			    GFP_KERNEL);
-
-	if (trialmask == NULL)
-		return -ENOMEM;
-	if (!indio_dev->masklength) {
-		WARN_ON("Trying to set scanmask prior to registering buffer\n");
-		goto err_invalid_mask;
-	}
-	bitmap_copy(trialmask, buffer->scan_mask, indio_dev->masklength);
-	set_bit(bit, trialmask);
-
-	if (!iio_validate_scan_mask(indio_dev, trialmask))
-		goto err_invalid_mask;
-
-	if (indio_dev->available_scan_masks) {
-		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
-					   indio_dev->masklength,
-					   trialmask);
-		if (!mask)
-			goto err_invalid_mask;
-	}
-	bitmap_copy(buffer->scan_mask, trialmask, indio_dev->masklength);
-
-	kfree(trialmask);
-
-	return 0;
-
-err_invalid_mask:
-	kfree(trialmask);
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(iio_scan_mask_set);
 
 int iio_scan_mask_query(struct iio_dev *indio_dev,
 			struct iio_buffer *buffer, int bit)

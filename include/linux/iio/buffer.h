@@ -117,15 +117,6 @@ int iio_scan_mask_query(struct iio_dev *indio_dev,
 			struct iio_buffer *buffer, int bit);
 
 /**
- * iio_scan_mask_set() - set particular bit in the scan mask
- * @indio_dev		IIO device structure
- * @buffer:		the buffer whose scan mask we are interested in
- * @bit:		the bit to be set.
- **/
-int iio_scan_mask_set(struct iio_dev *indio_dev,
-		      struct iio_buffer *buffer, int bit);
-
-/**
  * iio_push_to_buffers() - push to a registered buffer.
  * @indio_dev:		iio_dev structure for device.
  * @data:		Full scan.
