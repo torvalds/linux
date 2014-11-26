@@ -330,7 +330,29 @@ mode_fixup(struct drm_atomic_state *state)
 	return 0;
 }
 
-static int
+/**
+ * drm_atomic_helper_check - validate state object for modeset changes
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * Check the state object to see if the requested state is physically possible.
+ * This does all the crtc and connector related computations for an atomic
+ * update. It computes and updates crtc_state->mode_changed, adds any additional
+ * connectors needed for full modesets and calls down into ->mode_fixup
+ * functions of the driver backend.
+ *
+ * IMPORTANT:
+ *
+ * Drivers which update ->mode_changed (e.g. in their ->atomic_check hooks if a
+ * plane update can't be done without a full modeset) _must_ call this function
+ * afterwards after that change. It is permitted to call this function multiple
+ * times for the same update, e.g. when the ->atomic_check functions depend upon
+ * the adjusted dotclock for fifo space allocation and watermark computation.
+ *
+ * RETURNS
+ * Zero for success or -errno
+ */
+int
 drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
@@ -406,23 +428,23 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 	return mode_fixup(state);
 }
+EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
 
 /**
- * drm_atomic_helper_check - validate state object
+ * drm_atomic_helper_check - validate state object for modeset changes
  * @dev: DRM device
  * @state: the driver state object
  *
  * Check the state object to see if the requested state is physically possible.
- * Only crtcs and planes have check callbacks, so for any additional (global)
- * checking that a driver needs it can simply wrap that around this function.
- * Drivers without such needs can directly use this as their ->atomic_check()
- * callback.
+ * This does all the plane update related checks using by calling into the
+ * ->atomic_check hooks provided by the driver.
  *
  * RETURNS
  * Zero for success or -errno
  */
-int drm_atomic_helper_check(struct drm_device *dev,
-			    struct drm_atomic_state *state)
+int
+drm_atomic_helper_check_planes(struct drm_device *dev,
+			       struct drm_atomic_state *state)
 {
 	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
@@ -470,6 +492,33 @@ int drm_atomic_helper_check(struct drm_device *dev,
 			return ret;
 		}
 	}
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_atomic_helper_check_planes);
+
+/**
+ * drm_atomic_helper_check - validate state object
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * Check the state object to see if the requested state is physically possible.
+ * Only crtcs and planes have check callbacks, so for any additional (global)
+ * checking that a driver needs it can simply wrap that around this function.
+ * Drivers without such needs can directly use this as their ->atomic_check()
+ * callback.
+ *
+ * RETURNS
+ * Zero for success or -errno
+ */
+int drm_atomic_helper_check(struct drm_device *dev,
+			    struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
 
 	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)

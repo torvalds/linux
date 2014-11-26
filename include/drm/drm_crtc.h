@@ -238,6 +238,7 @@ struct drm_atomic_state;
 /**
  * struct drm_crtc_state - mutable CRTC state
  * @enable: whether the CRTC should be enabled, gates all other state
+ * @active: whether the CRTC is actively displaying (used for DPMS)
  * @mode_changed: for use by helpers and drivers when computing state updates
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
@@ -248,9 +249,16 @@ struct drm_atomic_state;
  * @event: optional pointer to a DRM event to signal upon completion of the
  * 	state update
  * @state: backpointer to global drm_atomic_state
+ *
+ * Note that the distinction between @enable and @active is rather subtile:
+ * Flipping @active while @enable is set without changing anything else may
+ * never return in a failure from the ->atomic_check callback. Userspace assumes
+ * that a DPMS On will always succeed. In other words: @enable controls resource
+ * assignment, @active controls the actual hardware state.
  */
 struct drm_crtc_state {
 	bool enable;
+	bool active;
 
 	/* computed state bits used by helpers and drivers */
 	bool planes_changed : 1;
