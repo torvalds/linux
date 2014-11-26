@@ -398,20 +398,20 @@ static void bclink_peek_nack(struct tipc_msg *msg)
 
 /* tipc_bclink_xmit - broadcast buffer chain to all nodes in cluster
  *                    and to identified node local sockets
- * @buf: chain of buffers containing message
+ * @list: chain of buffers containing message
  * Consumes the buffer chain, except when returning -ELINKCONG
  * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
  */
-int tipc_bclink_xmit(struct sk_buff *buf)
+int tipc_bclink_xmit(struct sk_buff_head *list)
 {
 	int rc = 0;
 	int bc = 0;
-	struct sk_buff *clbuf;
+	struct sk_buff *skb;
 
 	/* Prepare clone of message for local node */
-	clbuf = tipc_msg_reassemble(buf);
-	if (unlikely(!clbuf)) {
-		kfree_skb_list(buf);
+	skb = tipc_msg_reassemble(list);
+	if (unlikely(!skb)) {
+		__skb_queue_purge(list);
 		return -EHOSTUNREACH;
 	}
 
@@ -419,7 +419,7 @@ int tipc_bclink_xmit(struct sk_buff *buf)
 	if (likely(bclink)) {
 		tipc_bclink_lock();
 		if (likely(bclink->bcast_nodes.count)) {
-			rc = __tipc_link_xmit(bcl, buf);
+			rc = __tipc_link_xmit(bcl, list);
 			if (likely(!rc)) {
 				u32 len = skb_queue_len(&bcl->outqueue);
 
@@ -433,13 +433,13 @@ int tipc_bclink_xmit(struct sk_buff *buf)
 	}
 
 	if (unlikely(!bc))
-		kfree_skb_list(buf);
+		__skb_queue_purge(list);
 
 	/* Deliver message clone */
 	if (likely(!rc))
-		tipc_sk_mcast_rcv(clbuf);
+		tipc_sk_mcast_rcv(skb);
 	else
-		kfree_skb(clbuf);
+		kfree_skb(skb);
 
 	return rc;
 }

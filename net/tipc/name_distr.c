@@ -114,9 +114,9 @@ static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 	return buf;
 }
 
-void named_cluster_distribute(struct sk_buff *buf)
+void named_cluster_distribute(struct sk_buff *skb)
 {
-	struct sk_buff *obuf;
+	struct sk_buff *oskb;
 	struct tipc_node *node;
 	u32 dnode;
 
@@ -127,15 +127,15 @@ void named_cluster_distribute(struct sk_buff *buf)
 			continue;
 		if (!tipc_node_active_links(node))
 			continue;
-		obuf = skb_copy(buf, GFP_ATOMIC);
-		if (!obuf)
+		oskb = skb_copy(skb, GFP_ATOMIC);
+		if (!oskb)
 			break;
-		msg_set_destnode(buf_msg(obuf), dnode);
-		tipc_link_xmit(obuf, dnode, dnode);
+		msg_set_destnode(buf_msg(oskb), dnode);
+		tipc_link_xmit_skb(oskb, dnode, dnode);
 	}
 	rcu_read_unlock();
 
-	kfree_skb(buf);
+	kfree_skb(skb);
 }
 
 /**
@@ -190,15 +190,15 @@ struct sk_buff *tipc_named_withdraw(struct publication *publ)
 
 /**
  * named_distribute - prepare name info for bulk distribution to another node
- * @msg_list: list of messages (buffers) to be returned from this function
+ * @list: list of messages (buffers) to be returned from this function
  * @dnode: node to be updated
  * @pls: linked list of publication items to be packed into buffer chain
  */
-static void named_distribute(struct list_head *msg_list, u32 dnode,
+static void named_distribute(struct sk_buff_head *list, u32 dnode,
 			     struct publ_list *pls)
 {
 	struct publication *publ;
-	struct sk_buff *buf = NULL;
+	struct sk_buff *skb = NULL;
 	struct distr_item *item = NULL;
 	uint dsz = pls->size * ITEM_SIZE;
 	uint msg_dsz = (tipc_node_get_mtu(dnode, 0) / ITEM_SIZE) * ITEM_SIZE;
@@ -207,15 +207,15 @@ static void named_distribute(struct list_head *msg_list, u32 dnode,
 
 	list_for_each_entry(publ, &pls->list, local_list) {
 		/* Prepare next buffer: */
-		if (!buf) {
+		if (!skb) {
 			msg_rem = min_t(uint, rem, msg_dsz);
 			rem -= msg_rem;
-			buf = named_prepare_buf(PUBLICATION, msg_rem, dnode);
-			if (!buf) {
+			skb = named_prepare_buf(PUBLICATION, msg_rem, dnode);
+			if (!skb) {
 				pr_warn("Bulk publication failure\n");
 				return;
 			}
-			item = (struct distr_item *)msg_data(buf_msg(buf));
+			item = (struct distr_item *)msg_data(buf_msg(skb));
 		}
 
 		/* Pack publication into message: */
@@ -225,8 +225,8 @@ static void named_distribute(struct list_head *msg_list, u32 dnode,
 
 		/* Append full buffer to list: */
 		if (!msg_rem) {
-			list_add_tail((struct list_head *)buf, msg_list);
-			buf = NULL;
+			__skb_queue_tail(list, skb);
+			skb = NULL;
 		}
 	}
 }
@@ -236,18 +236,16 @@ static void named_distribute(struct list_head *msg_list, u32 dnode,
  */
 void tipc_named_node_up(u32 dnode)
 {
-	LIST_HEAD(msg_list);
-	struct sk_buff *buf_chain;
+	struct sk_buff_head head;
+
+	__skb_queue_head_init(&head);
 
 	read_lock_bh(&tipc_nametbl_lock);
-	named_distribute(&msg_list, dnode, &publ_cluster);
-	named_distribute(&msg_list, dnode, &publ_zone);
+	named_distribute(&head, dnode, &publ_cluster);
+	named_distribute(&head, dnode, &publ_zone);
 	read_unlock_bh(&tipc_nametbl_lock);
 
-	/* Convert circular list to linear list and send: */
-	buf_chain = (struct sk_buff *)msg_list.next;
-	((struct sk_buff *)msg_list.prev)->next = NULL;
-	tipc_link_xmit(buf_chain, dnode, dnode);
+	tipc_link_xmit(&head, dnode, dnode);
 }
 
 static void tipc_publ_subscribe(struct publication *publ, u32 addr)

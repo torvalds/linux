@@ -166,11 +166,12 @@ err:
  * @offset: Posision in iov to start copying from
  * @dsz: Total length of user data
  * @pktmax: Max packet size that can be used
- * @chain: Buffer or chain of buffers to be returned to caller
+ * @list: Buffer or chain of buffers to be returned to caller
+ *
  * Returns message data size or errno: -ENOMEM, -EFAULT
  */
-int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
-		   int offset, int dsz, int pktmax , struct sk_buff **chain)
+int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
+		   int dsz, int pktmax, struct sk_buff_head *list)
 {
 	int mhsz = msg_hdr_sz(mhdr);
 	int msz = mhsz + dsz;
@@ -179,22 +180,22 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 	int pktrem = pktmax;
 	int drem = dsz;
 	struct tipc_msg pkthdr;
-	struct sk_buff *buf, *prev;
+	struct sk_buff *skb;
 	char *pktpos;
 	int rc;
-	uint chain_sz = 0;
+
 	msg_set_size(mhdr, msz);
 
 	/* No fragmentation needed? */
 	if (likely(msz <= pktmax)) {
-		buf = tipc_buf_acquire(msz);
-		*chain = buf;
-		if (unlikely(!buf))
+		skb = tipc_buf_acquire(msz);
+		if (unlikely(!skb))
 			return -ENOMEM;
-		skb_copy_to_linear_data(buf, mhdr, mhsz);
-		pktpos = buf->data + mhsz;
-		TIPC_SKB_CB(buf)->chain_sz = 1;
-		if (!dsz || !memcpy_fromiovecend(pktpos, m->msg_iov, offset, dsz))
+		__skb_queue_tail(list, skb);
+		skb_copy_to_linear_data(skb, mhdr, mhsz);
+		pktpos = skb->data + mhsz;
+		if (!dsz || !memcpy_fromiovecend(pktpos, m->msg_iov, offset,
+						 dsz))
 			return dsz;
 		rc = -EFAULT;
 		goto error;
@@ -207,15 +208,15 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 	msg_set_fragm_no(&pkthdr, pktno);
 
 	/* Prepare first fragment */
-	*chain = buf = tipc_buf_acquire(pktmax);
-	if (!buf)
+	skb = tipc_buf_acquire(pktmax);
+	if (!skb)
 		return -ENOMEM;
-	chain_sz = 1;
-	pktpos = buf->data;
-	skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
+	__skb_queue_tail(list, skb);
+	pktpos = skb->data;
+	skb_copy_to_linear_data(skb, &pkthdr, INT_H_SIZE);
 	pktpos += INT_H_SIZE;
 	pktrem -= INT_H_SIZE;
-	skb_copy_to_linear_data_offset(buf, INT_H_SIZE, mhdr, mhsz);
+	skb_copy_to_linear_data_offset(skb, INT_H_SIZE, mhdr, mhsz);
 	pktpos += mhsz;
 	pktrem -= mhsz;
 
@@ -238,28 +239,25 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 			pktsz = drem + INT_H_SIZE;
 		else
 			pktsz = pktmax;
-		prev = buf;
-		buf = tipc_buf_acquire(pktsz);
-		if (!buf) {
+		skb = tipc_buf_acquire(pktsz);
+		if (!skb) {
 			rc = -ENOMEM;
 			goto error;
 		}
-		chain_sz++;
-		prev->next = buf;
+		__skb_queue_tail(list, skb);
 		msg_set_type(&pkthdr, FRAGMENT);
 		msg_set_size(&pkthdr, pktsz);
 		msg_set_fragm_no(&pkthdr, ++pktno);
-		skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
-		pktpos = buf->data + INT_H_SIZE;
+		skb_copy_to_linear_data(skb, &pkthdr, INT_H_SIZE);
+		pktpos = skb->data + INT_H_SIZE;
 		pktrem = pktsz - INT_H_SIZE;
 
 	} while (1);
-	TIPC_SKB_CB(*chain)->chain_sz = chain_sz;
-	msg_set_type(buf_msg(buf), LAST_FRAGMENT);
+	msg_set_type(buf_msg(skb), LAST_FRAGMENT);
 	return dsz;
 error:
-	kfree_skb_list(*chain);
-	*chain = NULL;
+	__skb_queue_purge(list);
+	__skb_queue_head_init(list);
 	return rc;
 }
 
@@ -430,22 +428,23 @@ int tipc_msg_eval(struct sk_buff *buf, u32 *dnode)
 /* tipc_msg_reassemble() - clone a buffer chain of fragments and
  *                         reassemble the clones into one message
  */
-struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain)
+struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list)
 {
-	struct sk_buff *buf = chain;
-	struct sk_buff *frag = buf;
+	struct sk_buff *skb;
+	struct sk_buff *frag = NULL;
 	struct sk_buff *head = NULL;
 	int hdr_sz;
 
 	/* Copy header if single buffer */
-	if (!buf->next) {
-		hdr_sz = skb_headroom(buf) + msg_hdr_sz(buf_msg(buf));
-		return __pskb_copy(buf, hdr_sz, GFP_ATOMIC);
+	if (skb_queue_len(list) == 1) {
+		skb = skb_peek(list);
+		hdr_sz = skb_headroom(skb) + msg_hdr_sz(buf_msg(skb));
+		return __pskb_copy(skb, hdr_sz, GFP_ATOMIC);
 	}
 
 	/* Clone all fragments and reassemble */
-	while (buf) {
-		frag = skb_clone(buf, GFP_ATOMIC);
+	skb_queue_walk(list, skb) {
+		frag = skb_clone(skb, GFP_ATOMIC);
 		if (!frag)
 			goto error;
 		frag->next = NULL;
@@ -453,7 +452,6 @@ struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain)
 			break;
 		if (!head)
 			goto error;
-		buf = buf->next;
 	}
 	return frag;
 error:

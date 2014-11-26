@@ -739,9 +739,9 @@ bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu);
 bool tipc_msg_make_bundle(struct sk_buff_head *list, struct sk_buff *skb,
 			  u32 mtu, u32 dnode);
 
-int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
-		   int offset, int dsz, int mtu , struct sk_buff **chain);
+int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
+		   int dsz, int mtu, struct sk_buff_head *list);
 
-struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain);
+struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
 
 #endif
