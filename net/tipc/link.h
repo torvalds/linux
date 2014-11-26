@@ -253,15 +253,6 @@ static inline u32 mod(u32 x)
 	return x & 0xffffu;
 }
 
-static inline int between(u32 lower, u32 upper, u32 n)
-{
-	if ((lower < n) && (n < upper))
-		return 1;
-	if ((upper < lower) && ((n > lower) || (n < upper)))
-		return 1;
-	return 0;
-}
-
 static inline int less_eq(u32 left, u32 right)
 {
 	return mod(right - left) < 32768u;
