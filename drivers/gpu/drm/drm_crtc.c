@@ -2405,7 +2405,6 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
 	struct drm_mode_set_plane *plane_req = data;
-	struct drm_mode_object *obj;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc = NULL;
 	struct drm_framebuffer *fb = NULL;
@@ -2428,14 +2427,12 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	 * First, find the plane, crtc, and fb objects.  If not available,
 	 * we don't bother to call the driver.
 	 */
-	obj = drm_mode_object_find(dev, plane_req->plane_id,
-				   DRM_MODE_OBJECT_PLANE);
-	if (!obj) {
+	plane = drm_plane_find(dev, plane_req->plane_id);
+	if (!plane) {
 		DRM_DEBUG_KMS("Unknown plane ID %d\n",
 			      plane_req->plane_id);
 		return -ENOENT;
 	}
-	plane = obj_to_plane(obj);
 
 	if (plane_req->fb_id) {
 		fb = drm_framebuffer_lookup(dev, plane_req->fb_id);
@@ -2445,14 +2442,12 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 			return -ENOENT;
 		}
 
-		obj = drm_mode_object_find(dev, plane_req->crtc_id,
-					   DRM_MODE_OBJECT_CRTC);
-		if (!obj) {
+		crtc = drm_crtc_find(dev, plane_req->crtc_id);
+		if (!crtc) {
 			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
 				      plane_req->crtc_id);
 			return -ENOENT;
 		}
-		crtc = obj_to_crtc(obj);
 	}
 
 	/*
