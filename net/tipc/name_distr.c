@@ -250,13 +250,45 @@ void tipc_named_node_up(u32 dnode)
 	tipc_link_xmit(buf_chain, dnode, dnode);
 }
 
+static void tipc_publ_subscribe(struct publication *publ, u32 addr)
+{
+	struct tipc_node *node;
+
+	if (in_own_node(addr))
+		return;
+
+	node = tipc_node_find(addr);
+	if (!node) {
+		pr_warn("Node subscription rejected, unknown node 0x%x\n",
+			addr);
+		return;
+	}
+
+	tipc_node_lock(node);
+	list_add_tail(&publ->nodesub_list, &node->publ_list);
+	tipc_node_unlock(node);
+}
+
+static void tipc_publ_unsubscribe(struct publication *publ, u32 addr)
+{
+	struct tipc_node *node;
+
+	node = tipc_node_find(addr);
+	if (!node)
+		return;
+
+	tipc_node_lock(node);
+	list_del_init(&publ->nodesub_list);
+	tipc_node_unlock(node);
+}
+
 /**
- * named_purge_publ - remove publication associated with a failed node
+ * tipc_publ_purge - remove publication associated with a failed node
  *
  * Invoked for each publication issued by a newly failed node.
  * Removes publication structure from name table & deletes it.
  */
-static void named_purge_publ(struct publication *publ)
+static void tipc_publ_purge(struct publication *publ, u32 addr)
 {
 	struct publication *p;
 
@@ -264,7 +296,7 @@ static void named_purge_publ(struct publication *publ)
 	p = tipc_nametbl_remove_publ(publ->type, publ->lower,
 				     publ->node, publ->ref, publ->key);
 	if (p)
-		tipc_nodesub_unsubscribe(&p->subscr);
+		tipc_publ_unsubscribe(p, addr);
 	write_unlock_bh(&tipc_nametbl_lock);
 
 	if (p != publ) {
@@ -275,6 +307,14 @@ static void named_purge_publ(struct publication *publ)
 	}
 
 	kfree(p);
+}
+
+void tipc_publ_notify(struct list_head *nsub_list, u32 addr)
+{
+	struct publication *publ, *tmp;
+
+	list_for_each_entry_safe(publ, tmp, nsub_list, nodesub_list)
+		tipc_publ_purge(publ, addr);
 }
 
 /**
@@ -294,9 +334,7 @@ static bool tipc_update_nametbl(struct distr_item *i, u32 node, u32 dtype)
 						TIPC_CLUSTER_SCOPE, node,
 						ntohl(i->ref), ntohl(i->key));
 		if (publ) {
-			tipc_nodesub_subscribe(&publ->subscr, node, publ,
-					       (net_ev_handler)
-					       named_purge_publ);
+			tipc_publ_subscribe(publ, node);
 			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
@@ -304,7 +342,7 @@ static bool tipc_update_nametbl(struct distr_item *i, u32 node, u32 dtype)
 						node, ntohl(i->ref),
 						ntohl(i->key));
 		if (publ) {
-			tipc_nodesub_unsubscribe(&publ->subscr);
+			tipc_publ_unsubscribe(publ, node);
 			kfree(publ);
 			return true;
 		}

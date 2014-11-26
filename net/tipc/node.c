@@ -113,7 +113,7 @@ struct tipc_node *tipc_node_create(u32 addr)
 	spin_lock_init(&n_ptr->lock);
 	INIT_HLIST_NODE(&n_ptr->hash);
 	INIT_LIST_HEAD(&n_ptr->list);
-	INIT_LIST_HEAD(&n_ptr->nsub);
+	INIT_LIST_HEAD(&n_ptr->publ_list);
 	INIT_LIST_HEAD(&n_ptr->conn_sks);
 	__skb_queue_head_init(&n_ptr->waiting_sks);
 
@@ -574,7 +574,7 @@ void tipc_node_unlock(struct tipc_node *node)
 		skb_queue_splice_init(&node->waiting_sks, &waiting_sks);
 
 	if (flags & TIPC_NOTIFY_NODE_DOWN) {
-		list_replace_init(&node->nsub, &nsub_list);
+		list_replace_init(&node->publ_list, &nsub_list);
 		list_replace_init(&node->conn_sks, &conn_sks);
 	}
 	node->action_flags &= ~(TIPC_WAKEUP_USERS | TIPC_NOTIFY_NODE_DOWN |
@@ -591,7 +591,7 @@ void tipc_node_unlock(struct tipc_node *node)
 		tipc_node_abort_sock_conns(&conn_sks);
 
 	if (!list_empty(&nsub_list))
-		tipc_nodesub_notify(&nsub_list);
+		tipc_publ_notify(&nsub_list, addr);
 
 	if (flags & TIPC_WAKEUP_BCAST_USERS)
 		tipc_bclink_wakeup_users();

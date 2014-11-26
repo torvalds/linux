@@ -37,7 +37,6 @@
 #ifndef _TIPC_NODE_H
 #define _TIPC_NODE_H
 
-#include "node_subscr.h"
 #include "addr.h"
 #include "net.h"
 #include "bearer.h"
@@ -104,7 +103,7 @@ struct tipc_node_bclink {
  * @link_cnt: number of links to node
  * @signature: node instance identifier
  * @link_id: local and remote bearer ids of changing link, if any
- * @nsub: list of "node down" subscriptions monitoring node
+ * @publ_list: list of publications
  * @rcu: rcu struct for tipc_node
  */
 struct tipc_node {
@@ -121,7 +120,7 @@ struct tipc_node {
 	int working_links;
 	u32 signature;
 	u32 link_id;
-	struct list_head nsub;
+	struct list_head publ_list;
 	struct sk_buff_head waiting_sks;
 	struct list_head conn_sks;
 	struct rcu_head rcu;
