@@ -349,18 +349,6 @@ static void bcap_buffer_cleanup(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&bcap_dev->lock, flags);
 }
 
-static void bcap_lock(struct vb2_queue *vq)
-{
-	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
-	mutex_lock(&bcap_dev->mutex);
-}
-
-static void bcap_unlock(struct vb2_queue *vq)
-{
-	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
-	mutex_unlock(&bcap_dev->mutex);
-}
-
 static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
@@ -457,8 +445,8 @@ static struct vb2_ops bcap_video_qops = {
 	.buf_prepare            = bcap_buffer_prepare,
 	.buf_cleanup            = bcap_buffer_cleanup,
 	.buf_queue              = bcap_buffer_queue,
-	.wait_prepare           = bcap_unlock,
-	.wait_finish            = bcap_lock,
+	.wait_prepare           = vb2_ops_wait_prepare,
+	.wait_finish            = vb2_ops_wait_finish,
 	.start_streaming        = bcap_start_streaming,
 	.stop_streaming         = bcap_stop_streaming,
 };
@@ -996,6 +984,7 @@ static int bcap_probe(struct platform_device *pdev)
 	q->ops = &bcap_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->lock = &bcap_dev->mutex;
 
 	ret = vb2_queue_init(q);
 	if (ret)
