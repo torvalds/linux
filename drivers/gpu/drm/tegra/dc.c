@@ -47,6 +47,8 @@ struct tegra_dc_state {
 	struct clk *clk;
 	unsigned long pclk;
 	unsigned int div;
+
+	u32 planes;
 };
 
 static inline struct tegra_dc_state *to_dc_state(struct drm_crtc_state *state)
@@ -55,20 +57,6 @@ static inline struct tegra_dc_state *to_dc_state(struct drm_crtc_state *state)
 		return container_of(state, struct tegra_dc_state, base);
 
 	return NULL;
-}
-
-static void tegra_dc_window_commit(struct tegra_dc *dc, unsigned int index)
-{
-	u32 value = WIN_A_ACT_REQ << index;
-
-	tegra_dc_writel(dc, value << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
-}
-
-static void tegra_dc_cursor_commit(struct tegra_dc *dc)
-{
-	tegra_dc_writel(dc, CURSOR_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, CURSOR_ACT_REQ, DC_CMD_STATE_CONTROL);
 }
 
 /*
@@ -388,8 +376,6 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 		break;
 	}
 
-	tegra_dc_window_commit(dc, index);
-
 	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
@@ -432,9 +418,28 @@ static void tegra_plane_cleanup_fb(struct drm_plane *plane,
 {
 }
 
+static int tegra_plane_state_add(struct tegra_plane *plane,
+				 struct drm_plane_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct tegra_dc_state *tegra;
+
+	/* Propagate errors from allocation or locking failures. */
+	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	tegra = to_dc_state(crtc_state);
+
+	tegra->planes |= WIN_A_ACT_REQ << plane->index;
+
+	return 0;
+}
+
 static int tegra_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
+	struct tegra_plane *tegra = to_tegra_plane(plane);
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
 	struct tegra_bo_tiling tiling;
 	int err;
@@ -464,6 +469,10 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 			return -EINVAL;
 		}
 	}
+
+	err = tegra_plane_state_add(tegra, state);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -531,8 +540,6 @@ static void tegra_plane_atomic_disable(struct drm_plane *plane,
 	value &= ~WIN_ENABLE;
 	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
 
-	tegra_dc_window_commit(dc, p->index);
-
 	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
@@ -592,6 +599,9 @@ static const u32 tegra_cursor_plane_formats[] = {
 static int tegra_cursor_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *state)
 {
+	struct tegra_plane *tegra = to_tegra_plane(plane);
+	int err;
+
 	/* no need for further checks if the plane is being disabled */
 	if (!state->crtc)
 		return 0;
@@ -608,6 +618,10 @@ static int tegra_cursor_atomic_check(struct drm_plane *plane,
 	if (state->crtc_w != 32 && state->crtc_w != 64 &&
 	    state->crtc_w != 128 && state->crtc_w != 256)
 		return -EINVAL;
+
+	err = tegra_plane_state_add(tegra, state);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -673,9 +687,6 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 	value = (state->crtc_y & 0x3fff) << 16 | (state->crtc_x & 0x3fff);
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_POSITION);
 
-	/* apply changes */
-	tegra_dc_cursor_commit(dc);
-	tegra_dc_commit(dc);
 }
 
 static void tegra_cursor_atomic_disable(struct drm_plane *plane,
@@ -693,9 +704,6 @@ static void tegra_cursor_atomic_disable(struct drm_plane *plane,
 	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
 	value &= ~CURSOR_ENABLE;
 	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
-
-	tegra_dc_cursor_commit(dc);
-	tegra_dc_commit(dc);
 }
 
 static const struct drm_plane_funcs tegra_cursor_plane_funcs = {
@@ -726,6 +734,13 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * We'll treat the cursor as an overlay plane with index 6 here so
+	 * that the update and activation request bits in DC_CMD_STATE_CONTROL
+	 * match up.
+	 */
+	plane->index = 6;
 
 	num_formats = ARRAY_SIZE(tegra_cursor_plane_formats);
 	formats = tegra_cursor_plane_formats;
@@ -1022,7 +1037,6 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 	}
 
 	drm_crtc_vblank_off(crtc);
-	tegra_dc_commit(dc);
 }
 
 static bool tegra_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -1195,10 +1209,7 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 
 static void tegra_crtc_commit(struct drm_crtc *crtc)
 {
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-
 	drm_crtc_vblank_on(crtc);
-	tegra_dc_commit(dc);
 }
 
 static int tegra_crtc_atomic_check(struct drm_crtc *crtc,
@@ -1223,6 +1234,11 @@ static void tegra_crtc_atomic_begin(struct drm_crtc *crtc)
 
 static void tegra_crtc_atomic_flush(struct drm_crtc *crtc)
 {
+	struct tegra_dc_state *state = to_dc_state(crtc->state);
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
+	tegra_dc_writel(dc, state->planes << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, state->planes, DC_CMD_STATE_CONTROL);
 }
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
