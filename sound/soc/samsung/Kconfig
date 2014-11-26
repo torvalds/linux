@@ -239,3 +239,9 @@ config SND_SOC_ODROIDX2
 	select SND_SAMSUNG_I2S
 	help
 	  Say Y here to enable audio support for the Odroid-X2/U3.
+
+config SND_SOC_ARNDALE_RT5631_ALC5631
+        tristate "Audio support for RT5631(ALC5631) on Arndale Board"
+        depends on SND_SOC_SAMSUNG
+        select SND_SAMSUNG_I2S
+        select SND_SOC_RT5631
