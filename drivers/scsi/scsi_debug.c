@@ -3044,18 +3044,12 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	u8 num;
 	unsigned long iflags;
 	int ret;
+	int retval = 0;
 
-	lba = get_unaligned_be32(cmd + 2);
+	lba = get_unaligned_be64(cmd + 2);
 	num = cmd[13];		/* 1 to a maximum of 255 logical blocks */
 	if (0 == num)
 		return 0;	/* degenerate case, not an error */
-	dnum = 2 * num;
-	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
-	if (NULL == arr) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
-				INSUFF_RES_ASCQ);
-		return check_condition_result;
-	}
 	if (scsi_debug_dif == SD_DIF_TYPE2_PROTECTION &&
 	    (cmd[1] & 0xe0)) {
 		mk_sense_invalid_opcode(scp);
@@ -3078,6 +3072,13 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
 		return check_condition_result;
 	}
+	dnum = 2 * num;
+	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
+	if (NULL == arr) {
+		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
+				INSUFF_RES_ASCQ);
+		return check_condition_result;
+	}
 
 	write_lock_irqsave(&atomic_rw, iflags);
 
@@ -3088,24 +3089,24 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	ret = do_device_access(scp, 0, dnum, true);
 	fake_storep = fake_storep_hold;
 	if (ret == -1) {
-		write_unlock_irqrestore(&atomic_rw, iflags);
-		kfree(arr);
-		return DID_ERROR << 16;
+		retval = DID_ERROR << 16;
+		goto cleanup;
 	} else if ((ret < (dnum * lb_size)) &&
 		 (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts))
 		sdev_printk(KERN_INFO, scp->device, "%s: compare_write: cdb "
 			    "indicated=%u, IO sent=%d bytes\n", my_name,
 			    dnum * lb_size, ret);
 	if (!comp_write_worker(lba, num, arr)) {
-		write_unlock_irqrestore(&atomic_rw, iflags);
-		kfree(arr);
 		mk_sense_buffer(scp, MISCOMPARE, MISCOMPARE_VERIFY_ASC, 0);
-		return check_condition_result;
+		retval = check_condition_result;
+		goto cleanup;
 	}
 	if (scsi_debug_lbp())
 		map_region(lba, num);
+cleanup:
 	write_unlock_irqrestore(&atomic_rw, iflags);
-	return 0;
+	kfree(arr);
+	return retval;
 }
 
 struct unmap_block_desc {
