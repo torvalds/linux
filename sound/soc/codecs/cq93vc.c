@@ -62,14 +62,10 @@ static int cq93vc_mute(struct snd_soc_dai *dai, int mute)
 static int cq93vc_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct davinci_vc *davinci_vc = codec->dev->platform_data;
-
 	switch (freq) {
 	case 22579200:
 	case 27000000:
 	case 33868800:
-		davinci_vc->cq93vc.sysclk = freq;
 		return 0;
 	}
 
@@ -135,10 +131,6 @@ static int cq93vc_resume(struct snd_soc_codec *codec)
 
 static int cq93vc_probe(struct snd_soc_codec *codec)
 {
-	struct davinci_vc *davinci_vc = codec->dev->platform_data;
-
-	davinci_vc->cq93vc.codec = codec;
-
 	/* Off, with power on */
 	cq93vc_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
