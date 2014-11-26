@@ -24,8 +24,10 @@
 #include <linux/of.h>
 #include <linux/bitops.h>
 
+#ifdef CONFIG_ARM
 #include <asm/bug.h>
 #include <asm/signal.h>
+#endif
 
 #define ARB_TIMER			0x008
 #define ARB_ERR_CAP_CLR			0x7e4
@@ -141,6 +143,7 @@ static int brcmstb_gisb_arb_decode_addr(struct brcmstb_gisb_arb_device *gdev,
 	return 0;
 }
 
+#ifdef CONFIG_ARM
 static int brcmstb_bus_error_handler(unsigned long addr, unsigned int fsr,
 				     struct pt_regs *regs)
 {
@@ -165,6 +168,7 @@ void __init brcmstb_hook_fault_code(void)
 	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
 			"imprecise external abort");
 }
+#endif
 
 static irqreturn_t brcmstb_gisb_timeout_handler(int irq, void *dev_id)
 {
