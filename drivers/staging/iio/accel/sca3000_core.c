@@ -459,6 +459,8 @@ static const struct iio_chan_spec sca3000_channels_with_temp[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_OFFSET),
+		/* No buffer support */
+		.scan_index = -1,
 	},
 };
 
@@ -1154,9 +1156,8 @@ static int sca3000_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ret = iio_buffer_register(indio_dev,
-				  sca3000_channels,
-				  ARRAY_SIZE(sca3000_channels));
+	ret = iio_buffer_register(indio_dev, indio_dev->channels,
+				  indio_dev->num_channels);
 	if (ret < 0)
 		goto error_unregister_dev;
 
