@@ -151,6 +151,16 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val);
 int iio_read_channel_processed(struct iio_channel *chan, int *val);
 
 /**
+ * iio_write_channel_raw() - write to a given channel
+ * @chan:		The channel being queried.
+ * @val:		Value being written.
+ *
+ * Note raw writes to iio channels are in dac counts and hence
+ * scale will need to be applied if standard units required.
+ */
+int iio_write_channel_raw(struct iio_channel *chan, int val);
+
+/**
  * iio_get_channel_type() - get the type of a channel
  * @channel:		The channel being queried.
  * @type:		The type of the channel.
