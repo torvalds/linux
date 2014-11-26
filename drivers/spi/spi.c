@@ -2415,7 +2415,7 @@ static int __init spi_init(void)
 	if (status < 0)
 		goto err2;
 
-	if (IS_ENABLED(CONFIG_OF))
+	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
 		WARN_ON(of_reconfig_notifier_register(&spi_of_notifier));
 
 	return 0;
