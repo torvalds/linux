@@ -633,10 +633,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	ci = devm_kzalloc(dev, sizeof(*ci), GFP_KERNEL);
-	if (!ci) {
-		dev_err(dev, "can't allocate device\n");
+	if (!ci)
 		return -ENOMEM;
-	}
 
 	ci->dev = dev;
 	ci->platdata = dev_get_platdata(dev);
