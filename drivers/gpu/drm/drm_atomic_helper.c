@@ -1452,11 +1452,24 @@ retry:
 		goto fail;
 	}
 
+	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
+	if (IS_ERR(primary_state)) {
+		ret = PTR_ERR(primary_state);
+		goto fail;
+	}
+
 	if (!set->mode) {
 		WARN_ON(set->fb);
 		WARN_ON(set->num_connectors);
 
 		crtc_state->enable = false;
+
+		ret = drm_atomic_set_crtc_for_plane(state, crtc->primary, NULL);
+		if (ret != 0)
+			goto fail;
+
+		drm_atomic_set_fb_for_plane(primary_state, NULL);
+
 		goto commit;
 	}
 
@@ -1465,12 +1478,6 @@ retry:
 
 	crtc_state->enable = true;
 	drm_mode_copy(&crtc_state->mode, set->mode);
-
-	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
-	if (IS_ERR(primary_state)) {
-		ret = PTR_ERR(primary_state);
-		goto fail;
-	}
 
 	ret = drm_atomic_set_crtc_for_plane(state, crtc->primary, crtc);
 	if (ret != 0)
