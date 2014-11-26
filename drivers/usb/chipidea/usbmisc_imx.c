@@ -171,8 +171,7 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 		return -EINVAL;
 
 	/* Select a 24 MHz reference clock for the PHY  */
-	reg = usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET;
-	val = readl(reg);
+	val = readl(usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET);
 	val &= ~MX53_USB_PHYCTRL1_PLLDIV_MASK;
 	val |= MX53_USB_PLL_DIV_24_MHZ;
 	writel(val, usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET);
