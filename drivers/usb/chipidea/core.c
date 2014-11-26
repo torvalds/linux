@@ -791,11 +791,59 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static void ci_controller_suspend(struct ci_hdrc *ci)
+{
+	ci_hdrc_enter_lpm(ci, true);
+
+	if (ci->usb_phy)
+		usb_phy_set_suspend(ci->usb_phy, 1);
+}
+
+static int ci_controller_resume(struct device *dev)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "at %s\n", __func__);
+
+	ci_hdrc_enter_lpm(ci, false);
+
+	if (ci->usb_phy) {
+		usb_phy_set_suspend(ci->usb_phy, 0);
+		usb_phy_set_wakeup(ci->usb_phy, false);
+		hw_wait_phy_stable();
+	}
+
+	return 0;
+}
+
+static int ci_suspend(struct device *dev)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	if (ci->wq)
+		flush_workqueue(ci->wq);
+
+	ci_controller_suspend(ci);
+
+	return 0;
+}
+
+static int ci_resume(struct device *dev)
+{
+	return ci_controller_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops ci_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ci_suspend, ci_resume)
+};
 static struct platform_driver ci_hdrc_driver = {
 	.probe	= ci_hdrc_probe,
 	.remove	= ci_hdrc_remove,
 	.driver	= {
 		.name	= "ci_hdrc",
+		.pm	= &ci_pm_ops,
 		.owner	= THIS_MODULE,
 	},
 };
