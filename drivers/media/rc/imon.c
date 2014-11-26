@@ -1678,7 +1678,8 @@ static void imon_incoming_packet(struct imon_context *ictx,
 		if (press_type == 0)
 			rc_keyup(ictx->rdev);
 		else {
-			if (ictx->rc_type == RC_BIT_RC6_MCE)
+			if (ictx->rc_type == RC_BIT_RC6_MCE ||
+			    ictx->rc_type == RC_BIT_OTHER)
 				rc_keydown(ictx->rdev,
 					   ictx->rc_type == RC_BIT_RC6_MCE ? RC_TYPE_RC6_MCE : RC_TYPE_OTHER,
 					   ictx->rc_scancode, ictx->rc_toggle);

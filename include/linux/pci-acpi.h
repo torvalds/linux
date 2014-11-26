@@ -41,8 +41,13 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 
 	if (pci_is_root_bus(pbus))
 		dev = pbus->bridge;
-	else
+	else {
+		/* If pbus is a virtual bus, there is no bridge to it */
+		if (!pbus->self)
+			return NULL;
+
 		dev = &pbus->self->dev;
+	}
 
 	return ACPI_HANDLE(dev);
 }

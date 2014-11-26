@@ -80,6 +80,7 @@ struct reg_dmn_pair_mapping {
 
 struct ath_regulatory {
 	char alpha2[2];
+	enum nl80211_dfs_regions region;
 	u16 country_code;
 	u16 max_power_level;
 	u16 current_rd;

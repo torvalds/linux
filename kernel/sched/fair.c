@@ -828,11 +828,12 @@ static unsigned int task_nr_scan_windows(struct task_struct *p)
 
 static unsigned int task_scan_min(struct task_struct *p)
 {
+	unsigned int scan_size = ACCESS_ONCE(sysctl_numa_balancing_scan_size);
 	unsigned int scan, floor;
 	unsigned int windows = 1;
 
-	if (sysctl_numa_balancing_scan_size < MAX_SCAN_WINDOW)
-		windows = MAX_SCAN_WINDOW / sysctl_numa_balancing_scan_size;
+	if (scan_size < MAX_SCAN_WINDOW)
+		windows = MAX_SCAN_WINDOW / scan_size;
 	floor = 1000 / windows;
 
 	scan = sysctl_numa_balancing_scan_period_min / task_nr_scan_windows(p);
@@ -1164,9 +1165,19 @@ static void task_numa_compare(struct task_numa_env *env,
 	long moveimp = imp;
 
 	rcu_read_lock();
-	cur = ACCESS_ONCE(dst_rq->curr);
-	if (cur->pid == 0) /* idle */
+
+	raw_spin_lock_irq(&dst_rq->lock);
+	cur = dst_rq->curr;
+	/*
+	 * No need to move the exiting task, and this ensures that ->curr
+	 * wasn't reaped and thus get_task_struct() in task_numa_assign()
+	 * is safe under RCU read lock.
+	 * Note that rcu_read_lock() itself can't protect from the final
+	 * put_task_struct() after the last schedule().
+	 */
+	if ((cur->flags & PF_EXITING) || is_idle_task(cur))
 		cur = NULL;
+	raw_spin_unlock_irq(&dst_rq->lock);
 
 	/*
 	 * "imp" is the fault differential for the source task between the
@@ -1520,7 +1531,7 @@ static void update_task_scan_period(struct task_struct *p,
 		 * scanning faster if shared accesses dominate as it may
 		 * simply bounce migrations uselessly
 		 */
-		ratio = DIV_ROUND_UP(private * NUMA_PERIOD_SLOTS, (private + shared));
+		ratio = DIV_ROUND_UP(private * NUMA_PERIOD_SLOTS, (private + shared + 1));
 		diff = (diff * ratio) / NUMA_PERIOD_SLOTS;
 	}
 

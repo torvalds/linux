@@ -343,6 +343,7 @@ int acpi_device_update_power(struct acpi_device *device, int *state_p)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(acpi_device_update_power);
 
 int acpi_bus_update_power(acpi_handle handle, int *state_p)
 {
@@ -710,7 +711,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 		return -ENODEV;
 	}
 
-	return acpi_device_wakeup(adev, enable, ACPI_STATE_S0);
+	return acpi_device_wakeup(adev, ACPI_STATE_S0, enable);
 }
 EXPORT_SYMBOL(acpi_pm_device_run_wake);
 #endif /* CONFIG_PM_RUNTIME */

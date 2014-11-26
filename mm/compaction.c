@@ -784,6 +784,9 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
 			cc->nr_migratepages = 0;
 			break;
 		}
+
+		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
+			break;
 	}
 	acct_isolated(cc->zone, cc);
 

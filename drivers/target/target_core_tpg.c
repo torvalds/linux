@@ -40,6 +40,7 @@
 #include <target/target_core_fabric.h>
 
 #include "target_core_internal.h"
+#include "target_core_pr.h"
 
 extern struct se_device *g_lun0_dev;
 
@@ -166,6 +167,13 @@ void core_tpg_add_node_to_devs(
 
 		core_enable_device_list_for_node(lun, NULL, lun->unpacked_lun,
 				lun_access, acl, tpg);
+		/*
+		 * Check to see if there are any existing persistent reservation
+		 * APTPL pre-registrations that need to be enabled for this dynamic
+		 * LUN ACL now..
+		 */
+		core_scsi3_check_aptpl_registration(dev, tpg, lun, acl,
+						    lun->unpacked_lun);
 		spin_lock(&tpg->tpg_lun_lock);
 	}
 	spin_unlock(&tpg->tpg_lun_lock);
@@ -335,7 +343,7 @@ void core_tpg_clear_object_luns(struct se_portal_group *tpg)
 			continue;
 
 		spin_unlock(&tpg->tpg_lun_lock);
-		core_dev_del_lun(tpg, lun->unpacked_lun);
+		core_dev_del_lun(tpg, lun);
 		spin_lock(&tpg->tpg_lun_lock);
 	}
 	spin_unlock(&tpg->tpg_lun_lock);
@@ -663,13 +671,6 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 	return 0;
 }
 
-static void core_tpg_release_virtual_lun0(struct se_portal_group *se_tpg)
-{
-	struct se_lun *lun = &se_tpg->tpg_virt_lun0;
-
-	core_tpg_post_dellun(se_tpg, lun);
-}
-
 int core_tpg_register(
 	struct target_core_fabric_ops *tfo,
 	struct se_wwn *se_wwn,
@@ -773,7 +774,7 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	spin_unlock_irq(&se_tpg->acl_node_lock);
 
 	if (se_tpg->se_tpg_type == TRANSPORT_TPG_TYPE_NORMAL)
-		core_tpg_release_virtual_lun0(se_tpg);
+		core_tpg_remove_lun(se_tpg, &se_tpg->tpg_virt_lun0);
 
 	se_tpg->se_tpg_fabric_ptr = NULL;
 	array_free(se_tpg->tpg_lun_list, TRANSPORT_MAX_LUNS_PER_TPG);
@@ -838,37 +839,7 @@ int core_tpg_add_lun(
 	return 0;
 }
 
-struct se_lun *core_tpg_pre_dellun(
-	struct se_portal_group *tpg,
-	u32 unpacked_lun)
-{
-	struct se_lun *lun;
-
-	if (unpacked_lun > (TRANSPORT_MAX_LUNS_PER_TPG-1)) {
-		pr_err("%s LUN: %u exceeds TRANSPORT_MAX_LUNS_PER_TPG"
-			"-1: %u for Target Portal Group: %u\n",
-			tpg->se_tpg_tfo->get_fabric_name(), unpacked_lun,
-			TRANSPORT_MAX_LUNS_PER_TPG-1,
-			tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		return ERR_PTR(-EOVERFLOW);
-	}
-
-	spin_lock(&tpg->tpg_lun_lock);
-	lun = tpg->tpg_lun_list[unpacked_lun];
-	if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE) {
-		pr_err("%s Logical Unit Number: %u is not active on"
-			" Target Portal Group: %u, ignoring request.\n",
-			tpg->se_tpg_tfo->get_fabric_name(), unpacked_lun,
-			tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		spin_unlock(&tpg->tpg_lun_lock);
-		return ERR_PTR(-ENODEV);
-	}
-	spin_unlock(&tpg->tpg_lun_lock);
-
-	return lun;
-}
-
-int core_tpg_post_dellun(
+void core_tpg_remove_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun)
 {
@@ -882,6 +853,4 @@ int core_tpg_post_dellun(
 	spin_unlock(&tpg->tpg_lun_lock);
 
 	percpu_ref_exit(&lun->lun_ref);
-
-	return 0;
 }

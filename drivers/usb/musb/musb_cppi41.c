@@ -209,7 +209,8 @@ static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
 		}
 	}
 
-	if (!list_empty(&controller->early_tx_list)) {
+	if (!list_empty(&controller->early_tx_list) &&
+	    !hrtimer_is_queued(&controller->early_tx)) {
 		ret = HRTIMER_RESTART;
 		hrtimer_forward_now(&controller->early_tx,
 				ktime_set(0, 20 * NSEC_PER_USEC));

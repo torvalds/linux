@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "btcd.h"
 #include "r600_dpm.h"
 #include "cypress_dpm.h"
@@ -1169,6 +1170,23 @@ static const struct radeon_blacklist_clocks btc_blacklist_clocks[] =
         { 20000, 30000, RADEON_SCLK_UP },
         { 25000, 30000, RADEON_SCLK_UP }
 };
+
+void btc_get_max_clock_from_voltage_dependency_table(struct radeon_clock_voltage_dependency_table *table,
+						     u32 *max_clock)
+{
+	u32 i, clock = 0;
+
+	if ((table == NULL) || (table->count == 0)) {
+		*max_clock = clock;
+		return;
+	}
+
+	for (i = 0; i < table->count; i++) {
+		if (clock < table->entries[i].clk)
+			clock = table->entries[i].clk;
+	}
+	*max_clock = clock;
+}
 
 void btc_apply_voltage_dependency_rules(struct radeon_clock_voltage_dependency_table *table,
 					u32 clock, u16 max_voltage, u16 *voltage)

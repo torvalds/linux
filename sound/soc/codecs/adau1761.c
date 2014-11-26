@@ -405,6 +405,7 @@ static const struct snd_soc_dapm_widget adau1761_dapm_widgets[] = {
 		2, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("Slew Clock", ADAU1761_CLK_ENABLE0, 6, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ALC Clock", ADAU1761_CLK_ENABLE0, 5, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY_S("Digital Clock 0", 1, ADAU1761_CLK_ENABLE1,
 		0, 0, NULL, 0),
@@ -435,6 +436,9 @@ static const struct snd_soc_dapm_route adau1761_dapm_routes[] = {
 	{ "Slew Clock", NULL, "Digital Clock 0" },
 	{ "Right Playback Mixer", NULL, "Slew Clock" },
 	{ "Left Playback Mixer", NULL, "Slew Clock" },
+
+	{ "Left Input Mixer", NULL, "ALC Clock" },
+	{ "Right Input Mixer", NULL, "ALC Clock" },
 
 	{ "Digital Clock 0", NULL, "SYSCLK" },
 	{ "Digital Clock 1", NULL, "SYSCLK" },

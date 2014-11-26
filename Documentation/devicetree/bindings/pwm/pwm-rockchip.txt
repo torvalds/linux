@@ -7,8 +7,8 @@ Required properties:
    "rockchip,vop-pwm": found integrated in VOP on RK3288 SoC
  - reg: physical base address and length of the controller's registers
  - clocks: phandle and clock specifier of the PWM reference clock
- - #pwm-cells: should be 2. See pwm.txt in this directory for a
-   description of the cell format.
+ - #pwm-cells: must be 2 (rk2928) or 3 (rk3288). See pwm.txt in this directory
+   for a description of the cell format.
 
 Example:
 
