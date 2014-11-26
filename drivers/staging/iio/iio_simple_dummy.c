@@ -239,6 +239,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.scan_index = -1, /* No buffer support */
 		.output = 1,
 		.indexed = 1,
 		.channel = 0,
@@ -248,7 +249,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_ENABLE) |
 			BIT(IIO_CHAN_INFO_CALIBHEIGHT),
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
-		.scan_index = -1,
+		.scan_index = -1, /* No buffer support */
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 		.event_spec = &step_detect_event,
 		.num_event_specs = 1,
@@ -259,6 +260,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_RUNNING,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = -1, /* No buffer support */
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 		.event_spec = &iio_running_event,
 		.num_event_specs = 1,
@@ -269,6 +271,7 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_WALKING,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = -1, /* No buffer support */
 #ifdef CONFIG_IIO_SIMPLE_DUMMY_EVENTS
 		.event_spec = &iio_walking_event,
 		.num_event_specs = 1,
@@ -638,13 +641,7 @@ static int iio_dummy_probe(int index)
 	if (ret < 0)
 		goto error_free_device;
 
-	/*
-	 * Configure buffered capture support and register the channels with the
-	 * buffer, but avoid the output channel being registered by reducing the
-	 * number of channels by 1.
-	 */
-	ret = iio_simple_dummy_configure_buffer(indio_dev,
-						iio_dummy_channels, 5);
+	ret = iio_simple_dummy_configure_buffer(indio_dev);
 	if (ret < 0)
 		goto error_unregister_events;
 
