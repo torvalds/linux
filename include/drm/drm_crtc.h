@@ -1062,6 +1062,19 @@ struct drm_mode_config {
 	uint32_t cursor_width, cursor_height;
 };
 
+/**
+ * drm_for_each_plane_mask - iterate over planes specified by bitmask
+ * @plane: the loop cursor
+ * @dev: the DRM device
+ * @plane_mask: bitmask of plane indices
+ *
+ * Iterate over all planes specified by bitmask.
+ */
+#define drm_for_each_plane_mask(plane, dev, plane_mask) \
+	list_for_each_entry((plane), &(dev)->mode_config.plane_list, head) \
+		if ((plane_mask) & (1 << drm_plane_index(plane)))
+
+
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
 #define obj_to_encoder(x) container_of(x, struct drm_encoder, base)
