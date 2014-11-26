@@ -77,6 +77,7 @@ struct imx_ldb {
 	struct imx_ldb_channel channel[2];
 	struct clk *clk[2]; /* our own clock */
 	struct clk *clk_sel[4]; /* parent of display clock */
+	struct clk *clk_parent[4]; /* original parent of clk_sel */
 	struct clk *clk_pll[2]; /* upstream clock we can adjust */
 	u32 ldb_ctrl;
 	const struct bus_mux *lvds_mux;
@@ -287,6 +288,7 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
+	int mux, ret;
 
 	/*
 	 * imx_ldb_encoder_disable is called by
@@ -313,6 +315,28 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 		clk_disable_unprepare(ldb->clk[0]);
 		clk_disable_unprepare(ldb->clk[1]);
 	}
+
+	if (ldb->lvds_mux) {
+		const struct bus_mux *lvds_mux = NULL;
+
+		if (imx_ldb_ch == &ldb->channel[0])
+			lvds_mux = &ldb->lvds_mux[0];
+		else if (imx_ldb_ch == &ldb->channel[1])
+			lvds_mux = &ldb->lvds_mux[1];
+
+		regmap_read(ldb->regmap, lvds_mux->reg, &mux);
+		mux &= lvds_mux->mask;
+		mux >>= lvds_mux->shift;
+	} else {
+		mux = (imx_ldb_ch == &ldb->channel[0]) ? 0 : 1;
+	}
+
+	/* set display clock mux back to original input clock */
+	ret = clk_set_parent(ldb->clk_sel[mux], ldb->clk_parent[mux]);
+	if (ret)
+		dev_err(ldb->dev,
+			"unable to set di%d parent clock to original parent\n",
+			mux);
 
 	drm_panel_unprepare(imx_ldb_ch->panel);
 }
@@ -499,6 +523,8 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 			imx_ldb->clk_sel[i] = NULL;
 			break;
 		}
+
+		imx_ldb->clk_parent[i] = clk_get_parent(imx_ldb->clk_sel[i]);
 	}
 	if (i == 0)
 		return ret;
