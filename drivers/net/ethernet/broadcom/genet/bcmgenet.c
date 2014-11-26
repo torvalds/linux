@@ -799,6 +799,13 @@ static int bcmgenet_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	return phy_ethtool_set_eee(priv->phydev, e);
 }
 
+static int bcmgenet_nway_reset(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	return genphy_restart_aneg(priv->phydev);
+}
+
 /* standard ethtool support functions. */
 static struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_strings		= bcmgenet_get_strings,
@@ -814,6 +821,7 @@ static struct ethtool_ops bcmgenet_ethtool_ops = {
 	.set_wol		= bcmgenet_set_wol,
 	.get_eee		= bcmgenet_get_eee,
 	.set_eee		= bcmgenet_set_eee,
+	.nway_reset		= bcmgenet_nway_reset,
 };
 
 /* Power down the unimac, based on mode. */
