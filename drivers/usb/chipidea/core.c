@@ -196,18 +196,12 @@ static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
 	enum ci_hw_regs reg = ci->hw_bank.lpm ? OP_DEVLC : OP_PORTSC;
 	bool lpm = !!(hw_read(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm)));
 
-	if (enable && !lpm) {
+	if (enable && !lpm)
 		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
 				PORTSC_PHCD(ci->hw_bank.lpm));
-	} else  if (!enable && lpm) {
+	else if (!enable && lpm)
 		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
 				0);
-		/* 
-		 * the PHY needs some time (less
-		 * than 1ms) to leave low power mode.
-		 */
-		usleep_range(1000, 1100);
-	}
 }
 
 static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
