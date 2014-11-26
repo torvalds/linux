@@ -190,6 +190,17 @@ u8 hw_port_test_get(struct ci_hdrc *ci)
 	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> __ffs(PORTSC_PTC);
 }
 
+static void hw_wait_phy_stable(void)
+{
+	/*
+	 * The phy needs some delay to output the stable status from low
+	 * power mode. And for OTGSC, the status inputs are debounced
+	 * using a 1 ms time constant, so, delay 2ms for controller to get
+	 * the stable status, like vbus and id when the phy leaves low power.
+	 */
+	usleep_range(2000, 2500);
+}
+
 /* The PHY enters/leaves low power mode */
 static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
 {
@@ -351,7 +362,9 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	case USBPHY_INTERFACE_MODE_UTMIW:
 	case USBPHY_INTERFACE_MODE_HSIC:
 		ret = _ci_usb_phy_init(ci);
-		if (ret)
+		if (!ret)
+			hw_wait_phy_stable();
+		else
 			return ret;
 		hw_phymode_configure(ci);
 		break;
@@ -364,6 +377,8 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 		break;
 	default:
 		ret = _ci_usb_phy_init(ci);
+		if (!ret)
+			hw_wait_phy_stable();
 	}
 
 	return ret;
@@ -667,13 +682,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
 		return ret;
-	} else {
-		/* 
-		 * The delay to sync PHY's status, the maximum delay is
-		 * 2ms since the otgsc uses 1ms timer to debounce the
-		 * PHY's input
-		 */
-		usleep_range(2000, 2500);
 	}
 
 	ci->hw_bank.phys = res->start;
