@@ -1000,9 +1000,11 @@ static struct aic3x_pdata rx51_aic3x_data2 = {
 	.gpio_reset = 60,
 };
 
+#if IS_ENABLED(CONFIG_I2C_SI4713) && IS_ENABLED(CONFIG_PLATFORM_SI4713)
 static struct si4713_platform_data rx51_si4713_platform_data = {
 	.is_platform_device = true
 };
+#endif
 
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 #if IS_ENABLED(CONFIG_I2C_SI4713) && IS_ENABLED(CONFIG_PLATFORM_SI4713)
