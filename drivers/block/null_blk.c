@@ -78,7 +78,33 @@ module_param(home_node, int, S_IRUGO);
 MODULE_PARM_DESC(home_node, "Home node for the device");
 
 static int queue_mode = NULL_Q_MQ;
-module_param(queue_mode, int, S_IRUGO);
+
+static int null_param_store_val(const char *str, int *val, int min, int max)
+{
+	int ret, new_val;
+
+	ret = kstrtoint(str, 10, &new_val);
+	if (ret)
+		return -EINVAL;
+
+	if (new_val < min || new_val > max)
+		return -EINVAL;
+
+	*val = new_val;
+	return 0;
+}
+
+static int null_set_queue_mode(const char *str, const struct kernel_param *kp)
+{
+	return null_param_store_val(str, &queue_mode, NULL_Q_BIO, NULL_Q_MQ);
+}
+
+static struct kernel_param_ops null_queue_mode_param_ops = {
+	.set	= null_set_queue_mode,
+	.get	= param_get_int,
+};
+
+device_param_cb(queue_mode, &null_queue_mode_param_ops, &queue_mode, S_IRUGO);
 MODULE_PARM_DESC(queue_mode, "Block interface to use (0=bio,1=rq,2=multiqueue)");
 
 static int gb = 250;
@@ -94,7 +120,19 @@ module_param(nr_devices, int, S_IRUGO);
 MODULE_PARM_DESC(nr_devices, "Number of devices to register");
 
 static int irqmode = NULL_IRQ_SOFTIRQ;
-module_param(irqmode, int, S_IRUGO);
+
+static int null_set_irqmode(const char *str, const struct kernel_param *kp)
+{
+	return null_param_store_val(str, &irqmode, NULL_IRQ_NONE,
+					NULL_IRQ_TIMER);
+}
+
+static struct kernel_param_ops null_irqmode_param_ops = {
+	.set	= null_set_irqmode,
+	.get	= param_get_int,
+};
+
+device_param_cb(irqmode, &null_irqmode_param_ops, &irqmode, S_IRUGO);
 MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
 
 static int completion_nsec = 10000;
