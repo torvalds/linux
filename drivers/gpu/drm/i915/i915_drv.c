@@ -838,6 +838,8 @@ int i915_reset(struct drm_device *dev)
 		return ret;
 	}
 
+	intel_overlay_reset(dev_priv);
+
 	/* Ok, now get things going again... */
 
 	/*

@@ -1081,6 +1081,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 int intel_overlay_attrs(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+void intel_overlay_reset(struct drm_i915_private *dev_priv);
 
 
 /* intel_panel.c */

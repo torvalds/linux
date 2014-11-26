@@ -394,6 +394,8 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	/* Only wait if there is actually an old frame to release to
 	 * guarantee forward progress.
 	 */
@@ -422,6 +424,22 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	i915_gem_track_fb(overlay->old_vid_bo, NULL,
 			  INTEL_FRONTBUFFER_OVERLAY(overlay->crtc->pipe));
 	return 0;
+}
+
+void intel_overlay_reset(struct drm_i915_private *dev_priv)
+{
+	struct intel_overlay *overlay = dev_priv->overlay;
+
+	if (!overlay)
+		return;
+
+	intel_overlay_release_old_vid(overlay);
+
+	overlay->last_flip_req = NULL;
+	overlay->old_xscale = 0;
+	overlay->old_yscale = 0;
+	overlay->crtc = NULL;
+	overlay->active = false;
 }
 
 struct put_image_params {
