@@ -383,9 +383,9 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 	return ret;
 }
 
-ssize_t iio_buffer_read_length(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t iio_buffer_read_length(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
@@ -396,12 +396,10 @@ ssize_t iio_buffer_read_length(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(iio_buffer_read_length);
 
-ssize_t iio_buffer_write_length(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf,
-				size_t len)
+static ssize_t iio_buffer_write_length(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
@@ -428,16 +426,14 @@ ssize_t iio_buffer_write_length(struct device *dev,
 
 	return ret ? ret : len;
 }
-EXPORT_SYMBOL(iio_buffer_write_length);
 
-ssize_t iio_buffer_show_enable(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t iio_buffer_show_enable(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sprintf(buf, "%d\n", iio_buffer_is_active(indio_dev->buffer));
 }
-EXPORT_SYMBOL(iio_buffer_show_enable);
 
 static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
 				const unsigned long *mask, bool timestamp)
@@ -724,10 +720,10 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(iio_update_buffers);
 
-ssize_t iio_buffer_store_enable(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf,
-				size_t len)
+static ssize_t iio_buffer_store_enable(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf,
+				       size_t len)
 {
 	int ret;
 	bool requested_state;
@@ -759,9 +755,13 @@ done:
 	mutex_unlock(&indio_dev->mlock);
 	return (ret < 0) ? ret : len;
 }
-EXPORT_SYMBOL(iio_buffer_store_enable);
 
 static const char * const iio_scan_elements_group_name = "scan_elements";
+
+static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,
+		   iio_buffer_write_length);
+static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
+		   iio_buffer_show_enable, iio_buffer_store_enable);
 
 int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 {
@@ -773,6 +773,27 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 
 	if (!buffer)
 		return 0;
+
+	attrcount = 0;
+	if (buffer->attrs) {
+		while (buffer->attrs[attrcount] != NULL)
+			attrcount++;
+	}
+
+	buffer->buffer_group.name = "buffer";
+	buffer->buffer_group.attrs = kcalloc(attrcount + 3,
+			sizeof(*buffer->buffer_group.attrs), GFP_KERNEL);
+	if (!buffer->buffer_group.attrs)
+		return -ENOMEM;
+
+	buffer->buffer_group.attrs[0] = &dev_attr_length.attr;
+	buffer->buffer_group.attrs[1] = &dev_attr_enable.attr;
+	if (buffer->attrs)
+		memcpy(&buffer->buffer_group.attrs[2], buffer->attrs,
+			sizeof(*&buffer->buffer_group.attrs) * (attrcount - 2));
+	buffer->buffer_group.attrs[attrcount+2] = NULL;
+
+	indio_dev->groups[indio_dev->groupcounter++] = &buffer->buffer_group;
 
 	if (buffer->scan_el_attrs != NULL) {
 		attr = buffer->scan_el_attrs->attrs;
@@ -838,6 +859,7 @@ error_free_scan_mask:
 	kfree(buffer->scan_mask);
 error_cleanup_dynamic:
 	iio_free_chan_devattr_list(&buffer->scan_el_dev_attr_list);
+	kfree(indio_dev->buffer->buffer_group.attrs);
 
 	return ret;
 }
@@ -848,6 +870,7 @@ void iio_buffer_free_sysfs_and_mask(struct iio_dev *indio_dev)
 		return;
 
 	kfree(indio_dev->buffer->scan_mask);
+	kfree(indio_dev->buffer->buffer_group.attrs);
 	kfree(indio_dev->buffer->scan_el_group.attrs);
 	iio_free_chan_devattr_list(&indio_dev->buffer->scan_el_dev_attr_list);
 }

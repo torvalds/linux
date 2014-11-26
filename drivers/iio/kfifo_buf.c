@@ -52,20 +52,6 @@ static int iio_get_length_kfifo(struct iio_buffer *r)
 	return r->length;
 }
 
-static IIO_BUFFER_ENABLE_ATTR;
-static IIO_BUFFER_LENGTH_ATTR;
-
-static struct attribute *iio_kfifo_attributes[] = {
-	&dev_attr_length.attr,
-	&dev_attr_enable.attr,
-	NULL,
-};
-
-static struct attribute_group iio_kfifo_attribute_group = {
-	.attrs = iio_kfifo_attributes,
-	.name = "buffer",
-};
-
 static int iio_mark_update_needed_kfifo(struct iio_buffer *r)
 {
 	struct iio_kfifo *kf = iio_to_kfifo(r);
@@ -169,7 +155,6 @@ struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
 		return NULL;
 	kf->update_needed = true;
 	iio_buffer_init(&kf->buffer);
-	kf->buffer.attrs = &iio_kfifo_attribute_group;
 	kf->buffer.access = &kfifo_access_funcs;
 	kf->buffer.length = 2;
 	mutex_init(&kf->user_lock);

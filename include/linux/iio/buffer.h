@@ -83,10 +83,11 @@ struct iio_buffer {
 	bool					scan_timestamp;
 	const struct iio_buffer_access_funcs	*access;
 	struct list_head			scan_el_dev_attr_list;
+	struct attribute_group			buffer_group;
 	struct attribute_group			scan_el_group;
 	wait_queue_head_t			pollq;
 	bool					stufftoread;
-	const struct attribute_group *attrs;
+	const struct attribute			**attrs;
 	struct list_head			demux_list;
 	void					*demux_bounce;
 	struct list_head			buffer_list;
@@ -147,40 +148,6 @@ static inline int iio_push_to_buffers_with_timestamp(struct iio_dev *indio_dev,
 }
 
 int iio_update_demux(struct iio_dev *indio_dev);
-
-/**
- * iio_buffer_read_length() - attr func to get number of datums in the buffer
- **/
-ssize_t iio_buffer_read_length(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf);
-/**
- * iio_buffer_write_length() - attr func to set number of datums in the buffer
- **/
-ssize_t iio_buffer_write_length(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf,
-			      size_t len);
-/**
- * iio_buffer_store_enable() - attr to turn the buffer on
- **/
-ssize_t iio_buffer_store_enable(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf,
-				size_t len);
-/**
- * iio_buffer_show_enable() - attr to see if the buffer is on
- **/
-ssize_t iio_buffer_show_enable(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf);
-#define IIO_BUFFER_LENGTH_ATTR DEVICE_ATTR(length, S_IRUGO | S_IWUSR,	\
-					   iio_buffer_read_length,	\
-					   iio_buffer_write_length)
-
-#define IIO_BUFFER_ENABLE_ATTR DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,	\
-					   iio_buffer_show_enable,	\
-					   iio_buffer_store_enable)
 
 bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 	const unsigned long *mask);
