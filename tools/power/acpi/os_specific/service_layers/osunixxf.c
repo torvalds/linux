@@ -122,6 +122,14 @@ static void os_enter_line_edit_mode(void)
 {
 	struct termios local_term_attributes;
 
+	term_attributes_were_set = 0;
+
+	/* STDIN must be a terminal */
+
+	if (!isatty(STDIN_FILENO)) {
+		return;
+	}
+
 	/* Get and keep the original attributes */
 
 	if (tcgetattr(STDIN_FILENO, &original_term_attributes)) {

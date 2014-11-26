@@ -417,11 +417,6 @@ static int h_24x7_event_add(struct perf_event *event, int flags)
 	return 0;
 }
 
-static int h_24x7_event_idx(struct perf_event *event)
-{
-	return 0;
-}
-
 static struct pmu h_24x7_pmu = {
 	.task_ctx_nr = perf_invalid_context,
 
@@ -433,7 +428,6 @@ static struct pmu h_24x7_pmu = {
 	.start       = h_24x7_event_start,
 	.stop        = h_24x7_event_stop,
 	.read        = h_24x7_event_update,
-	.event_idx   = h_24x7_event_idx,
 };
 
 static int hv_24x7_init(void)

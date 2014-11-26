@@ -27,12 +27,14 @@
 #define SAFFIRE_CLOCK_SOURCE_INTERNAL		0
 #define SAFFIRE_CLOCK_SOURCE_SPDIF		1
 
-/* '1' is absent, why... */
+/* clock sources as returned from register of Saffire Pro 10 and 26 */
 #define SAFFIREPRO_CLOCK_SOURCE_INTERNAL	0
+#define SAFFIREPRO_CLOCK_SOURCE_SKIP		1 /* never used on hardware */
 #define SAFFIREPRO_CLOCK_SOURCE_SPDIF		2
-#define SAFFIREPRO_CLOCK_SOURCE_ADAT1		3
-#define SAFFIREPRO_CLOCK_SOURCE_ADAT2		4
+#define SAFFIREPRO_CLOCK_SOURCE_ADAT1		3 /* not used on s.pro. 10 */
+#define SAFFIREPRO_CLOCK_SOURCE_ADAT2		4 /* not used on s.pro. 10 */
 #define SAFFIREPRO_CLOCK_SOURCE_WORDCLOCK	5
+#define SAFFIREPRO_CLOCK_SOURCE_COUNT		6
 
 /* S/PDIF, ADAT1, ADAT2 is enabled or not. three quadlets */
 #define SAFFIREPRO_ENABLE_DIG_IFACES		0x01a4
@@ -101,13 +103,34 @@ saffire_write_quad(struct snd_bebob *bebob, u64 offset, u32 value)
 				  &data, sizeof(__be32), 0);
 }
 
-static char *const saffirepro_26_clk_src_labels[] = {
-	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF", "ADAT1", "ADAT2", "Word Clock"
-};
-
 static char *const saffirepro_10_clk_src_labels[] = {
 	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF", "Word Clock"
 };
+static char *const saffirepro_26_clk_src_labels[] = {
+	SND_BEBOB_CLOCK_INTERNAL, "S/PDIF", "ADAT1", "ADAT2", "Word Clock"
+};
+/* Value maps between registers and labels for SaffirePro 10/26. */
+static const signed char saffirepro_clk_maps[][SAFFIREPRO_CLOCK_SOURCE_COUNT] = {
+	/* SaffirePro 10 */
+	[0] = {
+		[SAFFIREPRO_CLOCK_SOURCE_INTERNAL]  =  0,
+		[SAFFIREPRO_CLOCK_SOURCE_SKIP]      = -1, /* not supported */
+		[SAFFIREPRO_CLOCK_SOURCE_SPDIF]     =  1,
+		[SAFFIREPRO_CLOCK_SOURCE_ADAT1]     = -1, /* not supported */
+		[SAFFIREPRO_CLOCK_SOURCE_ADAT2]     = -1, /* not supported */
+		[SAFFIREPRO_CLOCK_SOURCE_WORDCLOCK] =  2,
+	},
+	/* SaffirePro 26 */
+	[1] = {
+		[SAFFIREPRO_CLOCK_SOURCE_INTERNAL]  =  0,
+		[SAFFIREPRO_CLOCK_SOURCE_SKIP]      = -1, /* not supported */
+		[SAFFIREPRO_CLOCK_SOURCE_SPDIF]     =  1,
+		[SAFFIREPRO_CLOCK_SOURCE_ADAT1]     =  2,
+		[SAFFIREPRO_CLOCK_SOURCE_ADAT2]     =  3,
+		[SAFFIREPRO_CLOCK_SOURCE_WORDCLOCK] =  4,
+	}
+};
+
 static int
 saffirepro_both_clk_freq_get(struct snd_bebob *bebob, unsigned int *rate)
 {
@@ -138,24 +161,35 @@ saffirepro_both_clk_freq_set(struct snd_bebob *bebob, unsigned int rate)
 
 	return saffire_write_quad(bebob, SAFFIREPRO_RATE_NOREBOOT, id);
 }
+
+/*
+ * query hardware for current clock source, return our internally
+ * used clock index in *id, depending on hardware.
+ */
 static int
 saffirepro_both_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 {
 	int err;
-	u32 value;
+	u32 value;       /* clock source read from hw register */
+	const signed char *map;
 
 	err = saffire_read_quad(bebob, SAFFIREPRO_OFFSET_CLOCK_SOURCE, &value);
 	if (err < 0)
 		goto end;
 
-	if (bebob->spec->clock->labels == saffirepro_10_clk_src_labels) {
-		if (value == SAFFIREPRO_CLOCK_SOURCE_WORDCLOCK)
-			*id = 2;
-		else if (value == SAFFIREPRO_CLOCK_SOURCE_SPDIF)
-			*id = 1;
-	} else if (value > 1) {
-		*id = value - 1;
+	/* depending on hardware, use a different mapping */
+	if (bebob->spec->clock->labels == saffirepro_10_clk_src_labels)
+		map = saffirepro_clk_maps[0];
+	else
+		map = saffirepro_clk_maps[1];
+
+	/* In a case that this driver cannot handle the value of register. */
+	if (value >= SAFFIREPRO_CLOCK_SOURCE_COUNT || map[value] < 0) {
+		err = -EIO;
+		goto end;
 	}
+
+	*id = (unsigned int)map[value];
 end:
 	return err;
 }

@@ -91,16 +91,6 @@ stext:
 	st	r0, [@uboot_tag]
 	st	r2, [@uboot_arg]
 
-	; Identify if running on ISS vs Silicon
-	; 	IDENTITY Reg [ 3  2  1  0 ]
-	;	(chip-id)      ^^^^^		==> 0xffff for ISS
-	lr	r0, [identity]
-	lsr	r3, r0, 16
-	cmp	r3, 0xffff
-	mov.z	r4, 0
-	mov.nz	r4, 1
-	st	r4, [@running_on_hw]
-
 	; setup "current" tsk and optionally cache it in dedicated r25
 	mov	r9, @init_task
 	SET_CURR_TASK_ON_CPU  r9, r0	; r9 = tsk, r0 = scratch

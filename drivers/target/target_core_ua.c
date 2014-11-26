@@ -161,8 +161,7 @@ int core_scsi3_ua_allocate(
 		spin_unlock(&deve->ua_lock);
 		spin_unlock_irq(&nacl->device_list_lock);
 
-		atomic_inc(&deve->ua_count);
-		smp_mb__after_atomic();
+		atomic_inc_mb(&deve->ua_count);
 		return 0;
 	}
 	list_add_tail(&ua->ua_nacl_list, &deve->ua_list);
@@ -174,8 +173,7 @@ int core_scsi3_ua_allocate(
 		nacl->se_tpg->se_tpg_tfo->get_fabric_name(), unpacked_lun,
 		asc, ascq);
 
-	atomic_inc(&deve->ua_count);
-	smp_mb__after_atomic();
+	atomic_inc_mb(&deve->ua_count);
 	return 0;
 }
 
@@ -189,8 +187,7 @@ void core_scsi3_ua_release_all(
 		list_del(&ua->ua_nacl_list);
 		kmem_cache_free(se_ua_cache, ua);
 
-		atomic_dec(&deve->ua_count);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&deve->ua_count);
 	}
 	spin_unlock(&deve->ua_lock);
 }
@@ -250,8 +247,7 @@ void core_scsi3_ua_for_check_condition(
 		list_del(&ua->ua_nacl_list);
 		kmem_cache_free(se_ua_cache, ua);
 
-		atomic_dec(&deve->ua_count);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&deve->ua_count);
 	}
 	spin_unlock(&deve->ua_lock);
 	spin_unlock_irq(&nacl->device_list_lock);
@@ -309,8 +305,7 @@ int core_scsi3_ua_clear_for_request_sense(
 		list_del(&ua->ua_nacl_list);
 		kmem_cache_free(se_ua_cache, ua);
 
-		atomic_dec(&deve->ua_count);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&deve->ua_count);
 	}
 	spin_unlock(&deve->ua_lock);
 	spin_unlock_irq(&nacl->device_list_lock);

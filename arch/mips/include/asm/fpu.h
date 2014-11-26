@@ -145,8 +145,8 @@ static inline void lose_fpu(int save)
 	if (is_msa_enabled()) {
 		if (save) {
 			save_msa(current);
-			asm volatile("cfc1 %0, $31"
-				: "=r"(current->thread.fpu.fcr31));
+			current->thread.fpu.fcr31 =
+					read_32bit_cp1_register(CP1_STATUS);
 		}
 		disable_msa();
 		clear_thread_flag(TIF_USEDMSA);

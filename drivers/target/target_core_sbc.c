@@ -948,7 +948,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 	}
 
 	/* reject any command that we don't have a handler for */
-	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) && !cmd->execute_cmd)
+	if (!cmd->execute_cmd)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {

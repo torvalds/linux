@@ -94,9 +94,33 @@ static int stmp3xxx_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused stmp3xxx_wdt_suspend(struct device *dev)
+{
+	struct watchdog_device *wdd = &stmp3xxx_wdd;
+
+	if (watchdog_active(wdd))
+		return wdt_stop(wdd);
+
+	return 0;
+}
+
+static int __maybe_unused stmp3xxx_wdt_resume(struct device *dev)
+{
+	struct watchdog_device *wdd = &stmp3xxx_wdd;
+
+	if (watchdog_active(wdd))
+		return wdt_start(wdd);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(stmp3xxx_wdt_pm_ops,
+			 stmp3xxx_wdt_suspend, stmp3xxx_wdt_resume);
+
 static struct platform_driver stmp3xxx_wdt_driver = {
 	.driver = {
 		.name = "stmp3xxx_rtc_wdt",
+		.pm = &stmp3xxx_wdt_pm_ops,
 	},
 	.probe = stmp3xxx_wdt_probe,
 	.remove = stmp3xxx_wdt_remove,

@@ -71,13 +71,16 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 				!atomic_read(&exynos_crtc->pending_flip),
 				HZ/20))
 			atomic_set(&exynos_crtc->pending_flip, 0);
-		drm_vblank_off(crtc->dev, exynos_crtc->pipe);
+		drm_crtc_vblank_off(crtc);
 	}
 
 	if (manager->ops->dpms)
 		manager->ops->dpms(manager, mode);
 
 	exynos_crtc->dpms = mode;
+
+	if (mode == DRM_MODE_DPMS_ON)
+		drm_crtc_vblank_on(crtc);
 }
 
 static void exynos_drm_crtc_prepare(struct drm_crtc *crtc)

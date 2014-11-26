@@ -1397,6 +1397,9 @@ static void bcm_sysport_netif_start(struct net_device *dev)
 	/* Enable NAPI */
 	napi_enable(&priv->napi);
 
+	/* Enable RX interrupt and TX ring full interrupt */
+	intrl2_0_mask_clear(priv, INTRL2_0_RDMA_MBDONE | INTRL2_0_TX_RING_FULL);
+
 	phy_start(priv->phydev);
 
 	/* Enable TX interrupts for the 32 TXQs */
@@ -1498,9 +1501,6 @@ static int bcm_sysport_open(struct net_device *dev)
 	ret = rdma_enable_set(priv, 1);
 	if (ret)
 		goto out_free_rx_ring;
-
-	/* Enable RX interrupt and TX ring full interrupt */
-	intrl2_0_mask_clear(priv, INTRL2_0_RDMA_MBDONE | INTRL2_0_TX_RING_FULL);
 
 	/* Turn on TDMA */
 	ret = tdma_enable_set(priv, 1);
@@ -1858,6 +1858,8 @@ static int bcm_sysport_resume(struct device *d)
 	if (!netif_running(dev))
 		return 0;
 
+	umac_reset(priv);
+
 	/* We may have been suspended and never received a WOL event that
 	 * would turn off MPD detection, take care of that now
 	 */
@@ -1884,9 +1886,6 @@ static int bcm_sysport_resume(struct device *d)
 	}
 
 	netif_device_attach(dev);
-
-	/* Enable RX interrupt and TX ring full interrupt */
-	intrl2_0_mask_clear(priv, INTRL2_0_RDMA_MBDONE | INTRL2_0_TX_RING_FULL);
 
 	/* RX pipe enable */
 	topctrl_writel(priv, 0, RX_FLUSH_CNTL);

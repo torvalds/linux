@@ -192,7 +192,6 @@ static inline void nf_bridge_save_header(struct sk_buff *skb)
 
 static int br_parse_ip_options(struct sk_buff *skb)
 {
-	struct ip_options *opt;
 	const struct iphdr *iph;
 	struct net_device *dev = skb->dev;
 	u32 len;
@@ -201,7 +200,6 @@ static int br_parse_ip_options(struct sk_buff *skb)
 		goto inhdr_error;
 
 	iph = ip_hdr(skb);
-	opt = &(IPCB(skb)->opt);
 
 	/* Basic sanity checks */
 	if (iph->ihl < 5 || iph->version != 4)
@@ -227,23 +225,11 @@ static int br_parse_ip_options(struct sk_buff *skb)
 	}
 
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
-	if (iph->ihl == 5)
-		return 0;
-
-	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
-	if (ip_options_compile(dev_net(dev), opt, skb))
-		goto inhdr_error;
-
-	/* Check correct handling of SRR option */
-	if (unlikely(opt->srr)) {
-		struct in_device *in_dev = __in_dev_get_rcu(dev);
-		if (in_dev && !IN_DEV_SOURCE_ROUTE(in_dev))
-			goto drop;
-
-		if (ip_options_rcv_srr(skb))
-			goto drop;
-	}
-
+	/* We should really parse IP options here but until
+	 * somebody who actually uses IP options complains to
+	 * us we'll just silently ignore the options because
+	 * we're lazy!
+	 */
 	return 0;
 
 inhdr_error:

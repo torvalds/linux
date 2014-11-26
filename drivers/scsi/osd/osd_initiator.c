@@ -7,7 +7,7 @@
  * Copyright (C) 2008 Panasas Inc.  All rights reserved.
  *
  * Authors:
- *   Boaz Harrosh <bharrosh@panasas.com>
+ *   Boaz Harrosh <ooo@electrozaur.com>
  *   Benny Halevy <bhalevy@panasas.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -57,7 +57,7 @@
 
 enum { OSD_REQ_RETRIES = 1 };
 
-MODULE_AUTHOR("Boaz Harrosh <bharrosh@panasas.com>");
+MODULE_AUTHOR("Boaz Harrosh <ooo@electrozaur.com>");
 MODULE_DESCRIPTION("open-osd initiator library libosd.ko");
 MODULE_LICENSE("GPL");
 

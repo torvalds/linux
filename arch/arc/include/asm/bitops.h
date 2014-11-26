@@ -13,8 +13,6 @@
 #error only <linux/bitops.h> can be included directly
 #endif
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -507,7 +505,5 @@ static inline __attribute__ ((const)) int __ffs(unsigned long word)
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
 
 #endif /* !__ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
 
 #endif

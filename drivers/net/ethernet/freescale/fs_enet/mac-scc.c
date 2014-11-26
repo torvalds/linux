@@ -355,6 +355,9 @@ static void restart(struct net_device *dev)
 	if (fep->phydev->duplex)
 		S16(sccp, scc_psmr, SCC_PSMR_LPB | SCC_PSMR_FDE);
 
+	/* Restore multicast and promiscuous settings */
+	set_multicast_list(dev);
+
 	S32(sccp, scc_gsmrl, SCC_GSMRL_ENR | SCC_GSMRL_ENT);
 }
 
