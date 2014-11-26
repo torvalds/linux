@@ -881,8 +881,8 @@ static struct vb2_ops rcar_vin_vb2_ops = {
 	.buf_cleanup	= rcar_vin_videobuf_release,
 	.buf_queue	= rcar_vin_videobuf_queue,
 	.stop_streaming	= rcar_vin_stop_streaming,
-	.wait_prepare	= soc_camera_unlock,
-	.wait_finish	= soc_camera_lock,
+	.wait_prepare	= vb2_ops_wait_prepare,
+	.wait_finish	= vb2_ops_wait_finish,
 };
 
 static irqreturn_t rcar_vin_irq(int irq, void *data)
@@ -1808,6 +1808,8 @@ static int rcar_vin_querycap(struct soc_camera_host *ici,
 static int rcar_vin_init_videobuf2(struct vb2_queue *vq,
 				   struct soc_camera_device *icd)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->io_modes = VB2_MMAP | VB2_USERPTR;
 	vq->drv_priv = icd;
@@ -1815,6 +1817,7 @@ static int rcar_vin_init_videobuf2(struct vb2_queue *vq,
 	vq->mem_ops = &vb2_dma_contig_memops;
 	vq->buf_struct_size = sizeof(struct rcar_vin_buffer);
 	vq->timestamp_flags  = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->lock = &ici->host_lock;
 
 	return vb2_queue_init(vq);
 }
