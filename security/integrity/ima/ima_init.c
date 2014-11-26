@@ -24,12 +24,6 @@
 #include <crypto/hash_info.h>
 #include "ima.h"
 
-#ifdef CONFIG_IMA_X509_PATH
-#define IMA_X509_PATH	CONFIG_IMA_X509_PATH
-#else
-#define IMA_X509_PATH	"/etc/keys/x509_ima.der"
-#endif
-
 /* name for boot aggregate entry */
 static const char *boot_aggregate_name = "boot_aggregate";
 int ima_used_chip;
@@ -103,7 +97,7 @@ void __init ima_load_x509(void)
 	int unset_flags = ima_policy_flag & IMA_APPRAISE;
 
 	ima_policy_flag &= ~unset_flags;
-	integrity_load_x509(INTEGRITY_KEYRING_IMA, IMA_X509_PATH);
+	integrity_load_x509(INTEGRITY_KEYRING_IMA, CONFIG_IMA_X509_PATH);
 	ima_policy_flag |= unset_flags;
 }
 #endif
