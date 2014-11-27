@@ -41,6 +41,15 @@
 		gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_LOW>;
 	};
 
+	power-led {
+		compatible = "gpio-leds";
+		power {
+			label = "standby";
+			gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 

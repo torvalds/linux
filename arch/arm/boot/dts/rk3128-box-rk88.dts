@@ -38,7 +38,7 @@
 		status = "okay";
 	};
 
-		wireless-bluetooth {
+	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 
 		//wifi-bt-power-toggle;
@@ -53,8 +53,23 @@
 		BT,wake_gpio = <&gpio1 GPIO_B4 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 GPIO_C6 GPIO_ACTIVE_LOW>;
 
-        status = "okay";
-    };
+	        status = "okay";
+	};
+
+	power-led {
+		compatible = "gpio-leds";
+		green {
+			label = "standby";
+			gpios = <&gpio0 GPIO_B0 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+		red {
+			label = "normal";
+			gpios = <&gpio0 GPIO_D2 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
+
 	rockchip-spdif-card {
 		compatible = "rockchip-spdif-card";
 		dais {
@@ -64,6 +79,7 @@
 			};
 		};
 	};
+
 	usb_control {
 		compatible = "rockchip,rk3126-usb-control";
 		host_drv_gpio = <&gpio3 GPIO_C4 GPIO_ACTIVE_LOW>;
