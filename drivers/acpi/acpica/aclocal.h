@@ -722,6 +722,7 @@ union acpi_parse_value {
 	ACPI_DISASM_ONLY_MEMBERS (\
 	u8                              disasm_flags;   /* Used during AML disassembly */\
 	u8                              disasm_opcode;  /* Subtype used for disassembly */\
+	char                            *operator_symbol;/* Used for C-style operator name strings */\
 	char                            aml_op_name[16])	/* Op name (debug only) */
 
 /* Flags for disasm_flags field above */
@@ -827,6 +828,7 @@ struct acpi_parse_state {
 #define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
 #define ACPI_PARSEOP_PREDEF_CHECKED     0x08
 #define ACPI_PARSEOP_SPECIAL            0x10
+#define ACPI_PARSEOP_COMPOUND           0x20
 
 /*****************************************************************************
  *
