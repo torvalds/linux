@@ -429,7 +429,7 @@ static struct timer_list scan_timer;
 
 MODULE_DESCRIPTION("Generic parallel port LCD/Keypad driver");
 
-static int parport = -1;
+static int parport = DEFAULT_PARPORT;
 module_param(parport, int, 0000);
 MODULE_PARM_DESC(parport, "Parallel port index (0=lpt1, 1=lpt2, ...)");
 
@@ -2230,9 +2230,6 @@ static int panel_init(void)
 
 	if (lcd_type < 0)
 		lcd_type = lcd_enabled;
-
-	if (parport < 0)
-		parport = DEFAULT_PARPORT;
 
 	/* take care of an eventual profile */
 	switch (profile) {
