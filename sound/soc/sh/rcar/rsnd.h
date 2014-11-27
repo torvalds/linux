@@ -431,8 +431,7 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			struct rsnd_dai *rdai,
 			int use_busif);
 int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
-		       struct rsnd_dai *rdai,
-		       int use_busif);
+		       struct rsnd_dai *rdai);
 int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai);
 

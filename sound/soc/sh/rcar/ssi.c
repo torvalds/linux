@@ -424,7 +424,7 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 
 	rsnd_ssi_hw_stop(ssi, rdai);
 
-	rsnd_src_ssiu_stop(mod, rdai, 0);
+	rsnd_src_ssiu_stop(mod, rdai);
 
 	return 0;
 }
@@ -528,7 +528,7 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 
 	rsnd_dma_stop(dma);
 
-	rsnd_src_ssiu_stop(mod, rdai, 1);
+	rsnd_src_ssiu_stop(mod, rdai);
 
 	return 0;
 }

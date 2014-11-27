@@ -175,14 +175,12 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 }
 
 int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
-			struct rsnd_dai *rdai,
-			int use_busif)
+		       struct rsnd_dai *rdai)
 {
 	/*
 	 * DMA settings for SSIU
 	 */
-	if (use_busif)
-		rsnd_mod_write(ssi_mod, SSI_CTRL, 0);
+	rsnd_mod_write(ssi_mod, SSI_CTRL, 0);
 
 	return 0;
 }
