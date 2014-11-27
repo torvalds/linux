@@ -317,8 +317,7 @@ static int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 }
 
 static int ath10k_htc_rx_completion_handler(struct ath10k *ar,
-					    struct sk_buff *skb,
-					    u8 pipe_id)
+					    struct sk_buff *skb)
 {
 	int status = 0;
 	struct ath10k_htc *htc = &ar->htc;

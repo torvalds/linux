@@ -35,8 +35,7 @@ struct ath10k_hif_cb {
 			     struct sk_buff *wbuf,
 			     unsigned transfer_id);
 	int (*rx_completion)(struct ath10k *ar,
-			     struct sk_buff *wbuf,
-			     u8 pipe_id);
+			     struct sk_buff *wbuf);
 };
 
 struct ath10k_hif_ops {

@@ -875,7 +875,7 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 		ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci rx: ",
 				skb->data, skb->len);
 
-		cb->rx_completion(ar, skb, pipe_info->pipe_num);
+		cb->rx_completion(ar, skb);
 	}
 
 	ath10k_pci_rx_post_pipe(pipe_info);
