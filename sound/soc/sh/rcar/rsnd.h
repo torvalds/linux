@@ -218,7 +218,35 @@ struct rsnd_mod {
 	struct rsnd_mod_ops *ops;
 	struct rsnd_dma dma;
 	struct rsnd_dai_stream *io;
+	u32 status;
 };
+/*
+ * status
+ *
+ * bit
+ * 0	0: probe	1: remove
+ * 1	0: init		1: quit
+ * 2	0: start	1: stop
+ * 3	0: pcm_new
+ * 4	0: fallback
+ */
+#define __rsnd_mod_shift_probe		0
+#define __rsnd_mod_shift_remove		0
+#define __rsnd_mod_shift_init		1
+#define __rsnd_mod_shift_quit		1
+#define __rsnd_mod_shift_start		2
+#define __rsnd_mod_shift_stop		2
+#define __rsnd_mod_shift_pcm_new	3
+#define __rsnd_mod_shift_fallback	4
+
+#define __rsnd_mod_call_probe		0
+#define __rsnd_mod_call_remove		1
+#define __rsnd_mod_call_init		0
+#define __rsnd_mod_call_quit		1
+#define __rsnd_mod_call_start		0
+#define __rsnd_mod_call_stop		1
+#define __rsnd_mod_call_pcm_new		0
+#define __rsnd_mod_call_fallback	0
 
 #define rsnd_mod_to_priv(mod) ((mod)->priv)
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
