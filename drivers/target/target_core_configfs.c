@@ -50,6 +50,19 @@
 #include "target_core_rd.h"
 #include "target_core_xcopy.h"
 
+#define TB_CIT_SETUP(_name, _item_ops, _group_ops, _attrs)		\
+static void target_core_setup_##_name##_cit(struct se_subsystem_api *sa) \
+{									\
+	struct target_backend_cits *tbc = &sa->tb_cits;			\
+	struct config_item_type *cit = &tbc->tb_##_name##_cit;		\
+									\
+	cit->ct_item_ops = _item_ops;					\
+	cit->ct_group_ops = _group_ops;					\
+	cit->ct_attrs = _attrs;						\
+	cit->ct_owner = sa->owner;					\
+	pr_debug("Setup generic %s\n", __stringify(_name));		\
+}
+
 extern struct t10_alua_lu_gp *default_lu_gp;
 
 static LIST_HEAD(g_tf_list);
@@ -1470,7 +1483,7 @@ static struct config_item_type target_core_dev_pr_cit = {
 
 /*  End functions for struct config_item_type target_core_dev_pr_cit */
 
-/*  Start functions for struct config_item_type target_core_dev_cit */
+/*  Start functions for struct config_item_type tb_dev_cit */
 
 static ssize_t target_core_show_dev_info(void *p, char *page)
 {
@@ -1934,7 +1947,7 @@ static struct target_core_configfs_attribute target_core_attr_dev_lba_map = {
 	.store	= target_core_store_dev_lba_map,
 };
 
-static struct configfs_attribute *lio_core_dev_attrs[] = {
+static struct configfs_attribute *target_core_dev_attrs[] = {
 	&target_core_attr_dev_info.attr,
 	&target_core_attr_dev_control.attr,
 	&target_core_attr_dev_alias.attr,
@@ -1993,13 +2006,9 @@ static struct configfs_item_operations target_core_dev_item_ops = {
 	.store_attribute	= target_core_dev_store,
 };
 
-static struct config_item_type target_core_dev_cit = {
-	.ct_item_ops		= &target_core_dev_item_ops,
-	.ct_attrs		= lio_core_dev_attrs,
-	.ct_owner		= THIS_MODULE,
-};
+TB_CIT_SETUP(dev, &target_core_dev_item_ops, NULL, target_core_dev_attrs);
 
-/* End functions for struct config_item_type target_core_dev_cit */
+/* End functions for struct config_item_type tb_dev_cit */
 
 /* Start functions for struct config_item_type target_core_alua_lu_gp_cit */
 
@@ -2815,7 +2824,7 @@ static struct config_group *target_core_make_subdev(
 	if (!dev_cg->default_groups)
 		goto out_free_device;
 
-	config_group_init_type_name(dev_cg, name, &target_core_dev_cit);
+	config_group_init_type_name(dev_cg, name, &t->tb_cits.tb_dev_cit);
 	config_group_init_type_name(&dev->dev_attrib.da_group, "attrib",
 			&target_core_dev_attrib_cit);
 	config_group_init_type_name(&dev->dev_pr_group, "pr",
@@ -3118,6 +3127,12 @@ static struct config_item_type target_core_cit = {
 };
 
 /* Stop functions for struct config_item_type target_core_hba_cit */
+
+void target_core_setup_sub_cits(struct se_subsystem_api *sa)
+{
+	target_core_setup_dev_cit(sa);
+}
+EXPORT_SYMBOL(target_core_setup_sub_cits);
 
 static int __init target_core_init_configfs(void)
 {

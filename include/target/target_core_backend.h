@@ -5,6 +5,10 @@
 #define TRANSPORT_PLUGIN_VHBA_PDEV		2
 #define TRANSPORT_PLUGIN_VHBA_VDEV		3
 
+struct target_backend_cits {
+	struct config_item_type tb_dev_cit;
+};
+
 struct se_subsystem_api {
 	struct list_head sub_api_list;
 
@@ -44,6 +48,8 @@ struct se_subsystem_api {
 	int (*init_prot)(struct se_device *);
 	int (*format_prot)(struct se_device *);
 	void (*free_prot)(struct se_device *);
+
+	struct target_backend_cits tb_cits;
 };
 
 struct sbc_ops {
@@ -95,5 +101,8 @@ sense_reason_t	transport_generic_map_mem_to_cmd(struct se_cmd *,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 
 void	array_free(void *array, int n);
+
+/* From target_core_configfs.c to setup default backend config_item_types */
+void	target_core_setup_sub_cits(struct se_subsystem_api *);
 
 #endif /* TARGET_CORE_BACKEND_H */
