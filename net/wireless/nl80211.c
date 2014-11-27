@@ -2317,7 +2317,8 @@ static inline u64 wdev_id(struct wireless_dev *wdev)
 static int nl80211_send_chandef(struct sk_buff *msg,
 				const struct cfg80211_chan_def *chandef)
 {
-	WARN_ON(!cfg80211_chandef_valid(chandef));
+	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
+		return -EINVAL;
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ,
 			chandef->chan->center_freq))
