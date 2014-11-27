@@ -101,6 +101,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 
 	for (i = 0; i < p->nrelocs; i++) {
 		struct drm_radeon_cs_reloc *r;
+		struct drm_gem_object *gobj;
 		unsigned priority;
 
 		duplicate = false;
@@ -117,15 +118,14 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			continue;
 		}
 
-		p->relocs[i].gobj = drm_gem_object_lookup(ddev, p->filp,
-							  r->handle);
-		if (p->relocs[i].gobj == NULL) {
+		gobj = drm_gem_object_lookup(ddev, p->filp, r->handle);
+		if (gobj == NULL) {
 			DRM_ERROR("gem object lookup failed 0x%x\n",
 				  r->handle);
 			return -ENOENT;
 		}
 		p->relocs_ptr[i] = &p->relocs[i];
-		p->relocs[i].robj = gem_to_radeon_bo(p->relocs[i].gobj);
+		p->relocs[i].robj = gem_to_radeon_bo(gobj);
 
 		/* The userspace buffer priorities are from 0 to 15. A higher
 		 * number means the buffer is more important.
@@ -439,8 +439,11 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 
 	if (parser->relocs != NULL) {
 		for (i = 0; i < parser->nrelocs; i++) {
-			if (parser->relocs[i].gobj)
-				drm_gem_object_unreference_unlocked(parser->relocs[i].gobj);
+			struct radeon_bo *bo = parser->relocs[i].robj;
+			if (bo == NULL)
+				continue;
+
+			drm_gem_object_unreference_unlocked(&bo->gem_base);
 		}
 	}
 	kfree(parser->track);
