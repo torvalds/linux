@@ -641,7 +641,7 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 
 	list_replace_rcu(&opp->node, &new_opp->node);
 	mutex_unlock(&dev_opp_list_lock);
-	kfree_rcu(opp, rcu_head);
+	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, kfree_opp_rcu);
 
 	/* Notify the change of the OPP availability */
 	if (availability_req)
