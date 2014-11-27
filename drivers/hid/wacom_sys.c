@@ -1321,12 +1321,6 @@ static void wacom_calculate_res(struct wacom_features *features)
 						    features->unitExpo);
 }
 
-static int wacom_hid_report_len(struct hid_report *report)
-{
-	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
-	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
-}
-
 static size_t wacom_compute_pktlen(struct hid_device *hdev)
 {
 	struct hid_report_enum *report_enum;
@@ -1336,7 +1330,7 @@ static size_t wacom_compute_pktlen(struct hid_device *hdev)
 	report_enum = hdev->report_enum + HID_INPUT_REPORT;
 
 	list_for_each_entry(report, &report_enum->report_list, list) {
-		size_t report_size = wacom_hid_report_len(report);
+		size_t report_size = hid_report_len(report);
 		if (report_size > size)
 			size = report_size;
 	}

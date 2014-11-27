@@ -1063,6 +1063,17 @@ static inline void hid_hw_wait(struct hid_device *hdev)
 		hdev->ll_driver->wait(hdev);
 }
 
+/**
+ * hid_report_len - calculate the report length
+ *
+ * @report: the report we want to know the length
+ */
+static inline int hid_report_len(struct hid_report *report)
+{
+	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
+	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
+}
+
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt);
 

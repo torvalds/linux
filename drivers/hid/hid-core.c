@@ -1280,12 +1280,6 @@ void hid_output_report(struct hid_report *report, __u8 *data)
 }
 EXPORT_SYMBOL_GPL(hid_output_report);
 
-static int hid_report_len(struct hid_report *report)
-{
-	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
-	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
-}
-
 /*
  * Allocator for buffer that is going to be passed to hid_output_report()
  */

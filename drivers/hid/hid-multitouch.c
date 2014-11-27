@@ -827,7 +827,7 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	r = re->report_id_hash[td->inputmode];
 	if (r) {
 		if (cls->quirks & MT_QUIRK_FORCE_GET_FEATURE) {
-			report_len = ((r->size - 1) >> 3) + 1 + (r->id > 0);
+			report_len = hid_report_len(r);
 			buf = hid_alloc_report_buf(r, GFP_KERNEL);
 			if (!buf) {
 				hid_err(hdev, "failed to allocate buffer for report\n");
