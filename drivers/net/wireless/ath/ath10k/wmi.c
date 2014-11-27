@@ -2516,10 +2516,12 @@ static void ath10k_wmi_event_service_ready(struct ath10k *ar,
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		ret = ath10k_wmi_10x_pull_svc_rdy_ev(skb, &arg);
-		wmi_10x_svc_map(arg.service_map, svc_bmap);
+		wmi_10x_svc_map(arg.service_map, svc_bmap,
+				arg.service_map_len);
 	} else {
 		ret = ath10k_wmi_main_pull_svc_rdy_ev(skb, &arg);
-		wmi_main_svc_map(arg.service_map, svc_bmap);
+		wmi_main_svc_map(arg.service_map, svc_bmap,
+				 arg.service_map_len);
 	}
 
 	if (ret) {
