@@ -12,6 +12,7 @@
 #include <drm/drmP.h>
 
 #include <drm/exynos_drm.h>
+#include <drm/drm_plane_helper.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
@@ -61,16 +62,9 @@ static int exynos_plane_get_size(int start, unsigned length, unsigned last)
 	return size;
 }
 
-int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-			  unsigned int crtc_w, unsigned int crtc_h,
-			  uint32_t src_x, uint32_t src_y,
-			  uint32_t src_w, uint32_t src_h)
+int exynos_check_plane(struct drm_plane *plane, struct drm_framebuffer *fb)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	unsigned int actual_w;
-	unsigned int actual_h;
 	int nr;
 	int i;
 
@@ -88,6 +82,20 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
 				i, (unsigned long)exynos_plane->dma_addr[i]);
 	}
+
+	return 0;
+}
+
+void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
+			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+			  unsigned int crtc_w, unsigned int crtc_h,
+			  uint32_t src_x, uint32_t src_y,
+			  uint32_t src_w, uint32_t src_h)
+{
+	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	unsigned int actual_w;
+	unsigned int actual_h;
 
 	actual_w = exynos_plane_get_size(crtc_x, crtc_w, crtc->mode.hdisplay);
 	actual_h = exynos_plane_get_size(crtc_y, crtc_h, crtc->mode.vdisplay);
@@ -135,8 +143,6 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (exynos_crtc->ops->win_mode_set)
 		exynos_crtc->ops->win_mode_set(exynos_crtc, exynos_plane);
-
-	return 0;
 }
 
 void exynos_plane_dpms(struct drm_plane *plane, int mode)
@@ -177,11 +183,13 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	int ret;
 
-	ret = exynos_plane_mode_set(plane, crtc, fb, crtc_x, crtc_y,
-			crtc_w, crtc_h, src_x >> 16, src_y >> 16,
-			src_w >> 16, src_h >> 16);
+	ret = exynos_check_plane(plane, fb);
 	if (ret < 0)
 		return ret;
+
+	exynos_plane_mode_set(plane, crtc, fb, crtc_x, crtc_y,
+			      crtc_w, crtc_h, src_x >> 16, src_y >> 16,
+			      src_w >> 16, src_h >> 16);
 
 	if (exynos_crtc->ops->win_commit)
 		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
