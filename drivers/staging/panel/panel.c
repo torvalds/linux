@@ -2222,7 +2222,7 @@ static struct parport_driver panel_driver = {
 };
 
 /* init function */
-static int panel_init(void)
+static int __init panel_init_module(void)
 {
 	/* for backwards compatibility */
 	if (keypad_type < 0)
@@ -2332,11 +2332,6 @@ static int panel_init(void)
 	   is finished */
 	init_in_progress = 0;
 	return 0;
-}
-
-static int __init panel_init_module(void)
-{
-	return panel_init();
 }
 
 static void __exit panel_cleanup_module(void)
