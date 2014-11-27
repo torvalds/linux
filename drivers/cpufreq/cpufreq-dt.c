@@ -186,7 +186,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 {
 	struct cpufreq_dt_platform_data *pd;
 	struct cpufreq_frequency_table *freq_table;
-	struct thermal_cooling_device *cdev;
 	struct device_node *np;
 	struct private_data *priv;
 	struct device *cpu_dev;
@@ -269,20 +268,6 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		goto out_free_priv;
 	}
 
-	/*
-	 * For now, just loading the cooling device;
-	 * thermal DT code takes care of matching them.
-	 */
-	if (of_find_property(np, "#cooling-cells", NULL)) {
-		cdev = of_cpufreq_cooling_register(np, policy->related_cpus);
-		if (IS_ERR(cdev))
-			dev_err(cpu_dev,
-				"running cpufreq without cooling device: %ld\n",
-				PTR_ERR(cdev));
-		else
-			priv->cdev = cdev;
-	}
-
 	priv->cpu_dev = cpu_dev;
 	priv->cpu_reg = cpu_reg;
 	policy->driver_data = priv;
@@ -292,7 +277,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	if (ret) {
 		dev_err(cpu_dev, "%s: invalid frequency table: %d\n", __func__,
 			ret);
-		goto out_cooling_unregister;
+		goto out_free_cpufreq_table;
 	}
 
 	policy->cpuinfo.transition_latency = transition_latency;
@@ -305,8 +290,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 	return 0;
 
-out_cooling_unregister:
-	cpufreq_cooling_unregister(priv->cdev);
+out_free_cpufreq_table:
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
 out_free_priv:
 	kfree(priv);
@@ -324,7 +308,8 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
 
-	cpufreq_cooling_unregister(priv->cdev);
+	if (priv->cdev)
+		cpufreq_cooling_unregister(priv->cdev);
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
 	clk_put(policy->clk);
 	if (!IS_ERR(priv->cpu_reg))
@@ -334,6 +319,33 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
+static void cpufreq_ready(struct cpufreq_policy *policy)
+{
+	struct private_data *priv = policy->driver_data;
+	struct device_node *np = of_node_get(priv->cpu_dev->of_node);
+
+	if (WARN_ON(!np))
+		return;
+
+	/*
+	 * For now, just loading the cooling device;
+	 * thermal DT code takes care of matching them.
+	 */
+	if (of_find_property(np, "#cooling-cells", NULL)) {
+		priv->cdev = of_cpufreq_cooling_register(np,
+							 policy->related_cpus);
+		if (IS_ERR(priv->cdev)) {
+			dev_err(priv->cpu_dev,
+				"running cpufreq without cooling device: %ld\n",
+				PTR_ERR(priv->cdev));
+
+			priv->cdev = NULL;
+		}
+	}
+
+	of_node_put(np);
+}
+
 static struct cpufreq_driver dt_cpufreq_driver = {
 	.flags = CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify = cpufreq_generic_frequency_table_verify,
@@ -341,6 +353,7 @@ static struct cpufreq_driver dt_cpufreq_driver = {
 	.get = cpufreq_generic_get,
 	.init = cpufreq_init,
 	.exit = cpufreq_exit,
+	.ready = cpufreq_ready,
 	.name = "cpufreq-dt",
 	.attr = cpufreq_generic_attr,
 };
