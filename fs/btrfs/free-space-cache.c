@@ -27,6 +27,7 @@
 #include "disk-io.h"
 #include "extent_io.h"
 #include "inode-map.h"
+#include "volumes.h"
 
 #define BITS_PER_BITMAP		(PAGE_CACHE_SIZE * 8)
 #define MAX_CACHE_BYTES_PER_GIG	(32 * 1024)
@@ -3101,11 +3102,46 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 
 	*trimmed = 0;
 
+	spin_lock(&block_group->lock);
+	if (block_group->removed) {
+		spin_unlock(&block_group->lock);
+		return 0;
+	}
+	atomic_inc(&block_group->trimming);
+	spin_unlock(&block_group->lock);
+
 	ret = trim_no_bitmap(block_group, trimmed, start, end, minlen);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = trim_bitmaps(block_group, trimmed, start, end, minlen);
+out:
+	spin_lock(&block_group->lock);
+	if (atomic_dec_and_test(&block_group->trimming) &&
+	    block_group->removed) {
+		struct extent_map_tree *em_tree;
+		struct extent_map *em;
+
+		spin_unlock(&block_group->lock);
+
+		em_tree = &block_group->fs_info->mapping_tree.map_tree;
+		write_lock(&em_tree->lock);
+		em = lookup_extent_mapping(em_tree, block_group->key.objectid,
+					   1);
+		BUG_ON(!em); /* logic error, can't happen */
+		remove_extent_mapping(em_tree, em);
+		write_unlock(&em_tree->lock);
+
+		lock_chunks(block_group->fs_info->chunk_root);
+		list_del_init(&em->list);
+		unlock_chunks(block_group->fs_info->chunk_root);
+
+		/* once for us and once for the tree */
+		free_extent_map(em);
+		free_extent_map(em);
+	} else {
+		spin_unlock(&block_group->lock);
+	}
 
 	return ret;
 }

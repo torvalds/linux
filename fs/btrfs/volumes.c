@@ -53,16 +53,6 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *device);
 DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
 
-static void lock_chunks(struct btrfs_root *root)
-{
-	mutex_lock(&root->fs_info->chunk_mutex);
-}
-
-static void unlock_chunks(struct btrfs_root *root)
-{
-	mutex_unlock(&root->fs_info->chunk_mutex);
-}
-
 static struct btrfs_fs_devices *__alloc_fs_devices(void)
 {
 	struct btrfs_fs_devices *fs_devs;
@@ -1068,9 +1058,11 @@ static int contains_pending_extent(struct btrfs_trans_handle *trans,
 				   u64 *start, u64 len)
 {
 	struct extent_map *em;
+	struct list_head *search_list = &trans->transaction->pending_chunks;
 	int ret = 0;
 
-	list_for_each_entry(em, &trans->transaction->pending_chunks, list) {
+again:
+	list_for_each_entry(em, search_list, list) {
 		struct map_lookup *map;
 		int i;
 
@@ -1086,6 +1078,10 @@ static int contains_pending_extent(struct btrfs_trans_handle *trans,
 				em->orig_block_len;
 			ret = 1;
 		}
+	}
+	if (search_list == &trans->transaction->pending_chunks) {
+		search_list = &trans->root->fs_info->pinned_chunks;
+		goto again;
 	}
 
 	return ret;
@@ -2653,18 +2649,12 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ret = btrfs_remove_block_group(trans, extent_root, chunk_offset);
+	ret = btrfs_remove_block_group(trans, extent_root, chunk_offset, em);
 	if (ret) {
 		btrfs_abort_transaction(trans, extent_root, ret);
 		goto out;
 	}
 
-	write_lock(&em_tree->lock);
-	remove_extent_mapping(em_tree, em);
-	write_unlock(&em_tree->lock);
-
-	/* once for the tree */
-	free_extent_map(em);
 out:
 	/* once for us */
 	free_extent_map(em);
