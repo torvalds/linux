@@ -489,6 +489,17 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	/* query firmware version */
+	memcpy(cmd.args, "\x11", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 10;
+	ret = si2168_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
+
+	dev_dbg(&s->client->dev, "firmware version: %c.%c.%d\n",
+			cmd.args[6], cmd.args[7], cmd.args[8]);
+
 	/* set ts mode */
 	memcpy(cmd.args, "\x14\x00\x01\x10\x10\x00", 6);
 	cmd.args[4] |= s->ts_mode;
