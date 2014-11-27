@@ -1231,7 +1231,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct resource *r;
 
-	s = kzalloc(sizeof(struct mxs_auart_port), GFP_KERNEL);
+	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
 
@@ -1239,7 +1239,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	if (ret > 0)
 		s->port.line = pdev->id < 0 ? 0 : pdev->id;
 	else if (ret < 0)
-		goto out_free;
+		return ret;
 
 	if (of_id) {
 		pdev->id_entry = of_id->data;
@@ -1247,10 +1247,8 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	}
 
 	s->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(s->clk)) {
-		ret = PTR_ERR(s->clk);
-		goto out_free;
-	}
+	if (IS_ERR(s->clk))
+		return PTR_ERR(s->clk);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -1310,8 +1308,6 @@ out_free_irq:
 	free_irq(s->irq, s);
 out_free_clk:
 	clk_put(s->clk);
-out_free:
-	kfree(s);
 	return ret;
 }
 
@@ -1326,7 +1322,6 @@ static int mxs_auart_remove(struct platform_device *pdev)
 	mxs_auart_free_gpio_irq(s);
 	clk_put(s->clk);
 	free_irq(s->irq, s);
-	kfree(s);
 
 	return 0;
 }
