@@ -1435,7 +1435,6 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 {
 	struct sgtl5000_priv *sgtl5000;
 	int ret, reg, rev;
-	unsigned int mclk;
 	struct device_node *np = client->dev.of_node;
 	u32 value;
 
@@ -1458,14 +1457,6 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 		if (ret == -ENOENT)
 			return -EPROBE_DEFER;
 		return ret;
-	}
-
-	/* SGTL5000 SYS_MCLK should be between 8 and 27 MHz */
-	mclk = clk_get_rate(sgtl5000->mclk);
-	if (mclk < 8000000 || mclk > 27000000) {
-		dev_err(&client->dev, "Invalid SYS_CLK frequency: %u.%03uMHz\n",
-			mclk / 1000000, mclk / 1000 % 1000);
-		return -EINVAL;
 	}
 
 	ret = clk_prepare_enable(sgtl5000->mclk);
