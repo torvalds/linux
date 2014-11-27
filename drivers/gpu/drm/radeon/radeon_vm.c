@@ -144,7 +144,6 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 	list[0].tv.bo = &vm->page_directory->tbo;
 	list[0].tv.shared = true;
 	list[0].tiling_flags = 0;
-	list[0].handle = 0;
 	list_add(&list[0].tv.head, head);
 
 	for (i = 0, idx = 1; i <= vm->max_pde_used; i++) {
@@ -157,7 +156,6 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 		list[idx].tv.bo = &list[idx].robj->tbo;
 		list[idx].tv.shared = true;
 		list[idx].tiling_flags = 0;
-		list[idx].handle = 0;
 		list_add(&list[idx++].tv.head, head);
 	}
 

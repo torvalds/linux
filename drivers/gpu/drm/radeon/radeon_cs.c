@@ -107,14 +107,15 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
 		for (j = 0; j < i; j++) {
-			if (r->handle == p->relocs[j].handle) {
+			struct drm_radeon_cs_reloc *other;
+			other = (void *)&chunk->kdata[j*4];
+			if (r->handle == other->handle) {
 				p->relocs_ptr[i] = &p->relocs[j];
 				duplicate = true;
 				break;
 			}
 		}
 		if (duplicate) {
-			p->relocs[i].handle = 0;
 			continue;
 		}
 
@@ -184,7 +185,6 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
 		p->relocs[i].tv.shared = !r->write_domain;
-		p->relocs[i].handle = r->handle;
 
 		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,
 				      priority);

@@ -1051,7 +1051,6 @@ struct radeon_cs_reloc {
 	unsigned			prefered_domains;
 	unsigned			allowed_domains;
 	uint32_t			tiling_flags;
-	uint32_t			handle;
 };
 
 struct radeon_cs_chunk {
