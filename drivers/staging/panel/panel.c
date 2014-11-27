@@ -227,6 +227,9 @@ static struct {
 	bool enabled;
 } lcd;
 
+/* Needed only for init */
+static int selected_lcd_type = NOT_SET;
+
 /* contains the LCD config state */
 static unsigned long int lcd_flags;
 /* contains the LCD X offset */
@@ -1415,7 +1418,7 @@ static void panel_lcd_print(const char *s)
 /* initialize the LCD driver */
 static void lcd_init(void)
 {
-	switch (lcd_type) {
+	switch (selected_lcd_type) {
 	case LCD_TYPE_OLD:
 		/* parallel mode, 8 bits */
 		if (lcd_proto == NOT_SET)
@@ -2233,28 +2236,21 @@ static struct parport_driver panel_driver = {
 /* init function */
 static int __init panel_init_module(void)
 {
-	/* for backwards compatibility */
-	if (keypad_type == NOT_SET)
-		keypad_type = keypad_enabled;
-
-	if (lcd_type == NOT_SET)
-		lcd_type = lcd_enabled;
+	int selected_keypad_type = NOT_SET;
 
 	/* take care of an eventual profile */
 	switch (profile) {
 	case PANEL_PROFILE_CUSTOM:
 		/* custom profile */
-		if (keypad_type == NOT_SET)
-			keypad_type = DEFAULT_KEYPAD_TYPE;
-		if (lcd_type == NOT_SET)
-			lcd_type = DEFAULT_LCD_TYPE;
+		selected_keypad_type = DEFAULT_KEYPAD_TYPE;
+		selected_lcd_type = DEFAULT_LCD_TYPE;
 		break;
 	case PANEL_PROFILE_OLD:
 		/* 8 bits, 2*16, old keypad */
-		if (keypad_type == NOT_SET)
-			keypad_type = KEYPAD_TYPE_OLD;
-		if (lcd_type == NOT_SET)
-			lcd_type = LCD_TYPE_OLD;
+		selected_keypad_type = KEYPAD_TYPE_OLD;
+		selected_lcd_type = LCD_TYPE_OLD;
+
+		/* TODO: This two are a little hacky, sort it out later */
 		if (lcd_width == NOT_SET)
 			lcd_width = 16;
 		if (lcd_hwidth == NOT_SET)
@@ -2262,38 +2258,45 @@ static int __init panel_init_module(void)
 		break;
 	case PANEL_PROFILE_NEW:
 		/* serial, 2*16, new keypad */
-		if (keypad_type == NOT_SET)
-			keypad_type = KEYPAD_TYPE_NEW;
-		if (lcd_type == NOT_SET)
-			lcd_type = LCD_TYPE_KS0074;
+		selected_keypad_type = KEYPAD_TYPE_NEW;
+		selected_lcd_type = LCD_TYPE_KS0074;
 		break;
 	case PANEL_PROFILE_HANTRONIX:
 		/* 8 bits, 2*16 hantronix-like, no keypad */
-		if (keypad_type == NOT_SET)
-			keypad_type = KEYPAD_TYPE_NONE;
-		if (lcd_type == NOT_SET)
-			lcd_type = LCD_TYPE_HANTRONIX;
+		selected_keypad_type = KEYPAD_TYPE_NONE;
+		selected_lcd_type = LCD_TYPE_HANTRONIX;
 		break;
 	case PANEL_PROFILE_NEXCOM:
 		/* generic 8 bits, 2*16, nexcom keypad, eg. Nexcom. */
-		if (keypad_type == NOT_SET)
-			keypad_type = KEYPAD_TYPE_NEXCOM;
-		if (lcd_type == NOT_SET)
-			lcd_type = LCD_TYPE_NEXCOM;
+		selected_keypad_type = KEYPAD_TYPE_NEXCOM;
+		selected_lcd_type = LCD_TYPE_NEXCOM;
 		break;
 	case PANEL_PROFILE_LARGE:
 		/* 8 bits, 2*40, old keypad */
-		if (keypad_type == NOT_SET)
-			keypad_type = KEYPAD_TYPE_OLD;
-		if (lcd_type == NOT_SET)
-			lcd_type = LCD_TYPE_OLD;
+		selected_keypad_type = KEYPAD_TYPE_OLD;
+		selected_lcd_type = LCD_TYPE_OLD;
 		break;
 	}
 
-	lcd.enabled = (lcd_type > 0);
-	keypad.enabled = (keypad_type > 0);
+	/*
+	 * Overwrite selection with module param values (both keypad and lcd),
+	 * where the deprecated params have lower prio.
+	 */
+	if (keypad_enabled > -1)
+		selected_keypad_type = keypad_enabled;
+	if (keypad_type > -1)
+		selected_keypad_type = keypad_type;
 
-	switch (keypad_type) {
+	keypad.enabled = (selected_keypad_type > 0);
+
+	if (lcd_enabled > -1)
+		selected_lcd_type = lcd_enabled;
+	if (lcd_type > -1)
+		selected_lcd_type = lcd_type;
+
+	lcd.enabled = (selected_lcd_type > 0);
+
+	switch (selected_keypad_type) {
 	case KEYPAD_TYPE_OLD:
 		keypad_profile = old_keypad_profile;
 		break;
