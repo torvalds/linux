@@ -493,32 +493,6 @@ static ssize_t get_pages_alloc_iovec(struct iov_iter *i,
 	return (res == n ? len : res * PAGE_SIZE) - *start;
 }
 
-static int iov_iter_npages_iovec(const struct iov_iter *i, int maxpages)
-{
-	size_t offset = i->iov_offset;
-	size_t size = i->count;
-	const struct iovec *iov = i->iov;
-	int npages = 0;
-	int n;
-
-	for (n = 0; size && n < i->nr_segs; n++, iov++) {
-		unsigned long addr = (unsigned long)iov->iov_base + offset;
-		size_t len = iov->iov_len - offset;
-		offset = 0;
-		if (unlikely(!len))	/* empty segment */
-			continue;
-		if (len > size)
-			len = size;
-		npages += (addr + len + PAGE_SIZE - 1) / PAGE_SIZE
-			  - addr / PAGE_SIZE;
-		if (npages >= maxpages)	/* don't bother going further */
-			return maxpages;
-		size -= len;
-		offset = 0;
-	}
-	return min(npages, maxpages);
-}
-
 static void memcpy_from_page(char *to, struct page *page, size_t offset, size_t len)
 {
 	char *from = kmap_atomic(page);
@@ -715,30 +689,6 @@ static ssize_t get_pages_alloc_bvec(struct iov_iter *i,
 	return len;
 }
 
-static int iov_iter_npages_bvec(const struct iov_iter *i, int maxpages)
-{
-	size_t offset = i->iov_offset;
-	size_t size = i->count;
-	const struct bio_vec *bvec = i->bvec;
-	int npages = 0;
-	int n;
-
-	for (n = 0; size && n < i->nr_segs; n++, bvec++) {
-		size_t len = bvec->bv_len - offset;
-		offset = 0;
-		if (unlikely(!len))	/* empty segment */
-			continue;
-		if (len > size)
-			len = size;
-		npages++;
-		if (npages >= maxpages)	/* don't bother going further */
-			return maxpages;
-		size -= len;
-		offset = 0;
-	}
-	return min(npages, maxpages);
-}
-
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
@@ -862,9 +812,24 @@ EXPORT_SYMBOL(iov_iter_get_pages_alloc);
 
 int iov_iter_npages(const struct iov_iter *i, int maxpages)
 {
-	if (i->type & ITER_BVEC)
-		return iov_iter_npages_bvec(i, maxpages);
-	else
-		return iov_iter_npages_iovec(i, maxpages);
+	size_t size = i->count;
+	int npages = 0;
+
+	if (!size)
+		return 0;
+
+	iterate_all_kinds(i, size, v, ({
+		unsigned long p = (unsigned long)v.iov_base;
+		npages += DIV_ROUND_UP(p + v.iov_len, PAGE_SIZE)
+			- p / PAGE_SIZE;
+		if (npages >= maxpages)
+			return maxpages;
+	0;}),({
+		npages++;
+		if (npages >= maxpages)
+			return maxpages;
+	})
+	)
+	return npages;
 }
 EXPORT_SYMBOL(iov_iter_npages);
