@@ -224,7 +224,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 
 	dbg_readinode("insert fragment %#04x-%#04x, ver %u at %08x\n", tn->fn->ofs, fn_end, tn->version, ref_offset(tn->fn->raw));
 
-	/* If a node has zero dsize, we only have to keep if it if it might be the
+	/* If a node has zero dsize, we only have to keep it if it might be the
 	   node with highest version -- i.e. the one which will end up as f->metadata.
 	   Note that such nodes won't be REF_UNCHECKED since there are no data to
 	   check anyway. */
