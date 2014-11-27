@@ -772,7 +772,7 @@ TB_CIT_SETUP(dev_attrib, &target_core_dev_attrib_ops, NULL,
 
 /* End functions for struct config_item_type tb_dev_attrib_cit */
 
-/*  Start functions for struct config_item_type target_core_dev_wwn_cit */
+/*  Start functions for struct config_item_type tb_dev_wwn_cit */
 
 CONFIGFS_EATTR_STRUCT(target_core_dev_wwn, t10_wwn);
 #define SE_DEV_WWN_ATTR(_name, _mode)					\
@@ -1003,13 +1003,9 @@ static struct configfs_item_operations target_core_dev_wwn_ops = {
 	.store_attribute	= target_core_dev_wwn_attr_store,
 };
 
-static struct config_item_type target_core_dev_wwn_cit = {
-	.ct_item_ops		= &target_core_dev_wwn_ops,
-	.ct_attrs		= target_core_dev_wwn_attrs,
-	.ct_owner		= THIS_MODULE,
-};
+TB_CIT_SETUP(dev_wwn, &target_core_dev_wwn_ops, NULL, target_core_dev_wwn_attrs);
 
-/*  End functions for struct config_item_type target_core_dev_wwn_cit */
+/*  End functions for struct config_item_type tb_dev_wwn_cit */
 
 /*  Start functions for struct config_item_type tb_dev_pr_cit */
 
@@ -2823,7 +2819,7 @@ static struct config_group *target_core_make_subdev(
 	config_group_init_type_name(&dev->dev_pr_group, "pr",
 			&t->tb_cits.tb_dev_pr_cit);
 	config_group_init_type_name(&dev->t10_wwn.t10_wwn_group, "wwn",
-			&target_core_dev_wwn_cit);
+			&t->tb_cits.tb_dev_wwn_cit);
 	config_group_init_type_name(&dev->t10_alua.alua_tg_pt_gps_group,
 			"alua", &target_core_alua_tg_pt_gps_cit);
 	config_group_init_type_name(&dev->dev_stat_grps.stat_group,
@@ -3126,6 +3122,7 @@ void target_core_setup_sub_cits(struct se_subsystem_api *sa)
 	target_core_setup_dev_cit(sa);
 	target_core_setup_dev_attrib_cit(sa);
 	target_core_setup_dev_pr_cit(sa);
+	target_core_setup_dev_wwn_cit(sa);
 }
 EXPORT_SYMBOL(target_core_setup_sub_cits);
 
