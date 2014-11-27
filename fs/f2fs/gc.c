@@ -603,27 +603,27 @@ next_step:
 
 			data_page = find_data_page(inode,
 					start_bidx + ofs_in_node, false);
-			if (IS_ERR(data_page))
-				goto next_iput;
+			if (IS_ERR(data_page)) {
+				iput(inode);
+				continue;
+			}
 
 			f2fs_put_page(data_page, 0);
 			add_gc_inode(inode, ilist);
-		} else {
-			inode = find_gc_inode(dni.ino, ilist);
-			if (inode) {
-				start_bidx = start_bidx_of_node(nofs,
-								F2FS_I(inode));
-				data_page = get_lock_data_page(inode,
-						start_bidx + ofs_in_node);
-				if (IS_ERR(data_page))
-					continue;
-				move_data_page(inode, data_page, gc_type);
-				stat_inc_data_blk_count(sbi, 1);
-			}
+			continue;
 		}
-		continue;
-next_iput:
-		iput(inode);
+
+		/* phase 3 */
+		inode = find_gc_inode(dni.ino, ilist);
+		if (inode) {
+			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
+			data_page = get_lock_data_page(inode,
+						start_bidx + ofs_in_node);
+			if (IS_ERR(data_page))
+				continue;
+			move_data_page(inode, data_page, gc_type);
+			stat_inc_data_blk_count(sbi, 1);
+		}
 	}
 
 	if (++phase < 4)
