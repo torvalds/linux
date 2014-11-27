@@ -45,8 +45,6 @@ static pm_callback_t __rpm_get_callback(struct device *dev, size_t cb_offset)
 #define RPM_GET_CALLBACK(dev, callback) \
 		__rpm_get_callback(dev, offsetof(struct dev_pm_ops, callback))
 
-#ifdef CONFIG_PM_RUNTIME
-
 static int rpm_resume(struct device *dev, int rpmflags);
 static int rpm_suspend(struct device *dev, int rpmflags);
 
@@ -1399,7 +1397,6 @@ void pm_runtime_remove(struct device *dev)
 	if (dev->power.irq_safe && dev->parent)
 		pm_runtime_put(dev->parent);
 }
-#endif
 
 /**
  * pm_runtime_force_suspend - Force a device into suspend state if needed.
@@ -1419,12 +1416,6 @@ int pm_runtime_force_suspend(struct device *dev)
 	int ret = 0;
 
 	pm_runtime_disable(dev);
-
-	/*
-	 * Note that pm_runtime_status_suspended() returns false while
-	 * !CONFIG_PM_RUNTIME, which means the device will be put into low
-	 * power state.
-	 */
 	if (pm_runtime_status_suspended(dev))
 		return 0;
 
