@@ -193,15 +193,16 @@ static void recalculate_apic_map(struct kvm *kvm)
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvm_lapic *apic = vcpu->arch.apic;
 		u16 cid, lid;
-		u32 ldr;
+		u32 ldr, aid;
 
-		new->phys_map[kvm_apic_id(apic)] = apic;
-
+		aid = kvm_apic_id(apic);
 		ldr = kvm_apic_get_reg(apic, APIC_LDR);
 		cid = apic_cluster_id(new, ldr);
 		lid = apic_logical_id(new, ldr);
 
-		if (lid)
+		if (aid < ARRAY_SIZE(new->phys_map))
+			new->phys_map[aid] = apic;
+		if (lid && cid < ARRAY_SIZE(new->logical_map))
 			new->logical_map[cid][ffs(lid) - 1] = apic;
 	}
 out:
