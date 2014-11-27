@@ -692,7 +692,6 @@ static int acpi_device_wakeup(struct acpi_device *adev, u32 target_state,
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
 /**
  * acpi_pm_device_run_wake - Enable/disable remote wakeup for given device.
  * @dev: Device to enable/disable the platform to wake up.
@@ -714,7 +713,6 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 	return acpi_device_wakeup(adev, ACPI_STATE_S0, enable);
 }
 EXPORT_SYMBOL(acpi_pm_device_run_wake);
-#endif /* CONFIG_PM_RUNTIME */
 
 #ifdef CONFIG_PM_SLEEP
 /**
@@ -773,7 +771,6 @@ static int acpi_dev_pm_full_power(struct acpi_device *adev)
 		acpi_device_set_power(adev, ACPI_STATE_D0) : 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
 /**
  * acpi_dev_runtime_suspend - Put device into a low-power state using ACPI.
  * @dev: Device to put into a low-power state.
@@ -855,7 +852,6 @@ int acpi_subsys_runtime_resume(struct device *dev)
 	return ret ? ret : pm_generic_runtime_resume(dev);
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_runtime_resume);
-#endif /* CONFIG_PM_RUNTIME */
 
 #ifdef CONFIG_PM_SLEEP
 /**
@@ -1023,10 +1019,9 @@ EXPORT_SYMBOL_GPL(acpi_subsys_freeze);
 
 static struct dev_pm_domain acpi_general_pm_domain = {
 	.ops = {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 		.runtime_suspend = acpi_subsys_runtime_suspend,
 		.runtime_resume = acpi_subsys_runtime_resume,
-#endif
 #ifdef CONFIG_PM_SLEEP
 		.prepare = acpi_subsys_prepare,
 		.complete = acpi_subsys_complete,
@@ -1037,6 +1032,7 @@ static struct dev_pm_domain acpi_general_pm_domain = {
 		.poweroff = acpi_subsys_suspend,
 		.poweroff_late = acpi_subsys_suspend_late,
 		.restore_early = acpi_subsys_resume_early,
+#endif
 #endif
 	},
 };
