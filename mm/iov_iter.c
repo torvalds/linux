@@ -486,44 +486,6 @@ static size_t copy_from_iter_bvec(void *to, size_t bytes, struct iov_iter *i)
 	return wanted;
 }
 
-static size_t copy_page_to_iter_bvec(struct page *page, size_t offset,
-					size_t bytes, struct iov_iter *i)
-{
-	void *kaddr = kmap_atomic(page);
-	size_t wanted = copy_to_iter_bvec(kaddr + offset, bytes, i);
-	kunmap_atomic(kaddr);
-	return wanted;
-}
-
-static size_t copy_page_from_iter_bvec(struct page *page, size_t offset,
-					size_t bytes, struct iov_iter *i)
-{
-	void *kaddr = kmap_atomic(page);
-	size_t wanted = copy_from_iter_bvec(kaddr + offset, bytes, i);
-	kunmap_atomic(kaddr);
-	return wanted;
-}
-
-size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
-			 struct iov_iter *i)
-{
-	if (i->type & ITER_BVEC)
-		return copy_page_to_iter_bvec(page, offset, bytes, i);
-	else
-		return copy_page_to_iter_iovec(page, offset, bytes, i);
-}
-EXPORT_SYMBOL(copy_page_to_iter);
-
-size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
-			 struct iov_iter *i)
-{
-	if (i->type & ITER_BVEC)
-		return copy_page_from_iter_bvec(page, offset, bytes, i);
-	else
-		return copy_page_from_iter_iovec(page, offset, bytes, i);
-}
-EXPORT_SYMBOL(copy_page_from_iter);
-
 size_t copy_to_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (i->type & ITER_BVEC)
@@ -541,6 +503,32 @@ size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 		return copy_from_iter_iovec(addr, bytes, i);
 }
 EXPORT_SYMBOL(copy_from_iter);
+
+size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
+			 struct iov_iter *i)
+{
+	if (i->type & (ITER_BVEC|ITER_KVEC)) {
+		void *kaddr = kmap_atomic(page);
+		size_t wanted = copy_to_iter(kaddr + offset, bytes, i);
+		kunmap_atomic(kaddr);
+		return wanted;
+	} else
+		return copy_page_to_iter_iovec(page, offset, bytes, i);
+}
+EXPORT_SYMBOL(copy_page_to_iter);
+
+size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
+			 struct iov_iter *i)
+{
+	if (i->type & ITER_BVEC) {
+		void *kaddr = kmap_atomic(page);
+		size_t wanted = copy_from_iter(kaddr + offset, bytes, i);
+		kunmap_atomic(kaddr);
+		return wanted;
+	} else
+		return copy_page_from_iter_iovec(page, offset, bytes, i);
+}
+EXPORT_SYMBOL(copy_page_from_iter);
 
 size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
 {
