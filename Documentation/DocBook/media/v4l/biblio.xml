@@ -178,6 +178,75 @@ Signal - NTSC for Studio Applications"</title>
 1125-Line High-Definition Production"</title>
     </biblioentry>
 
+    <biblioentry id="srgb">
+      <abbrev>sRGB</abbrev>
+      <authorgroup>
+	<corpauthor>International Electrotechnical Commission
+(<ulink url="http://www.iec.ch">http://www.iec.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>IEC 61966-2-1 ed1.0 "Multimedia systems and equipment - Colour measurement
+and management - Part 2-1: Colour management - Default RGB colour space - sRGB"</title>
+    </biblioentry>
+
+    <biblioentry id="sycc">
+      <abbrev>sYCC</abbrev>
+      <authorgroup>
+	<corpauthor>International Electrotechnical Commission
+(<ulink url="http://www.iec.ch">http://www.iec.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>IEC 61966-2-1-am1 ed1.0 "Amendment 1 - Multimedia systems and equipment - Colour measurement
+and management - Part 2-1: Colour management - Default RGB colour space - sRGB"</title>
+    </biblioentry>
+
+    <biblioentry id="xvycc">
+      <abbrev>xvYCC</abbrev>
+      <authorgroup>
+	<corpauthor>International Electrotechnical Commission
+(<ulink url="http://www.iec.ch">http://www.iec.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>IEC 61966-2-4 ed1.0 "Multimedia systems and equipment - Colour measurement
+and management - Part 2-4: Colour management - Extended-gamut YCC colour space for video
+applications - xvYCC"</title>
+    </biblioentry>
+
+    <biblioentry id="adobergb">
+      <abbrev>AdobeRGB</abbrev>
+      <authorgroup>
+	<corpauthor>Adobe Systems Incorporated (<ulink url="http://www.adobe.com">http://www.adobe.com</ulink>)</corpauthor>
+      </authorgroup>
+      <title>Adobe&copy; RGB (1998) Color Image Encoding Version 2005-05</title>
+    </biblioentry>
+
+    <biblioentry id="oprgb">
+      <abbrev>opRGB</abbrev>
+      <authorgroup>
+	<corpauthor>International Electrotechnical Commission
+(<ulink url="http://www.iec.ch">http://www.iec.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>IEC 61966-2-5 "Multimedia systems and equipment - Colour measurement
+and management - Part 2-5: Colour management - Optional RGB colour space - opRGB"</title>
+    </biblioentry>
+
+    <biblioentry id="itu2020">
+      <abbrev>ITU&nbsp;BT.2020</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-R Recommendation BT.2020 (08/2012) "Parameter values for ultra-high
+definition television systems for production and international programme exchange"
+</title>
+    </biblioentry>
+
+    <biblioentry id="tech3213">
+      <abbrev>EBU&nbsp;Tech&nbsp;3213</abbrev>
+      <authorgroup>
+	<corpauthor>European Broadcast Union (<ulink
+url="http://www.ebu.ch">http://www.ebu.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>E.B.U. Standard for Chromaticity Tolerances for Studio Monitors"</title>
+    </biblioentry>
+
     <biblioentry id="iec62106">
       <abbrev>IEC&nbsp;62106</abbrev>
       <authorgroup>
@@ -264,6 +333,22 @@ in the frequency range from 87,5 to 108,0 MHz</title>
       </authorgroup>
       <title>VESA DisplayPort Standard</title>
       <subtitle>Version 1, Revision 2</subtitle>
+    </biblioentry>
+
+    <biblioentry id="poynton">
+      <abbrev>poynton</abbrev>
+      <authorgroup>
+	<corpauthor>Charles Poynton</corpauthor>
+      </authorgroup>
+      <title>Digital Video and HDTV, Algorithms and Interfaces</title>
+    </biblioentry>
+
+    <biblioentry id="colimg">
+      <abbrev>colimg</abbrev>
+      <authorgroup>
+	<corpauthor>Erik Reinhard et al.</corpauthor>
+      </authorgroup>
+      <title>Color Imaging: Fundamentals and Applications</title>
     </biblioentry>
 
   </bibliography>
