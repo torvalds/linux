@@ -925,14 +925,8 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 	struct drm_i915_gem_request *request;
 	int ret;
 
-	if (ringbuf->last_retired_head != -1) {
-		ringbuf->head = ringbuf->last_retired_head;
-		ringbuf->last_retired_head = -1;
-
-		ringbuf->space = intel_ring_space(ringbuf);
-		if (ringbuf->space >= bytes)
-			return 0;
-	}
+	if (intel_ring_space(ringbuf) >= bytes)
+		return 0;
 
 	list_for_each_entry(request, &ring->request_list, list) {
 		/*
@@ -959,11 +953,8 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 		return ret;
 
 	i915_gem_retire_requests_ring(ring);
-	ringbuf->head = ringbuf->last_retired_head;
-	ringbuf->last_retired_head = -1;
 
-	ringbuf->space = intel_ring_space(ringbuf);
-	return 0;
+	return intel_ring_space(ringbuf) >= bytes ? 0 : -ENOSPC;
 }
 
 static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
@@ -989,12 +980,10 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 	 * case by choosing an insanely large timeout. */
 	end = jiffies + 60 * HZ;
 
+	ret = 0;
 	do {
-		ringbuf->space = intel_ring_space(ringbuf);
-		if (ringbuf->space >= bytes) {
-			ret = 0;
+		if (intel_ring_space(ringbuf) >= bytes)
 			break;
-		}
 
 		msleep(1);
 
@@ -1035,7 +1024,7 @@ static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf)
 		iowrite32(MI_NOOP, virt++);
 
 	ringbuf->tail = 0;
-	ringbuf->space = intel_ring_space(ringbuf);
+	intel_ring_update_space(ringbuf);
 
 	return 0;
 }
@@ -1885,8 +1874,8 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 	ringbuf->effective_size = ringbuf->size;
 	ringbuf->head = 0;
 	ringbuf->tail = 0;
-	ringbuf->space = ringbuf->size;
 	ringbuf->last_retired_head = -1;
+	intel_ring_update_space(ringbuf);
 
 	if (ringbuf->obj == NULL) {
 		ret = intel_alloc_ringbuffer_obj(dev, ringbuf);
