@@ -68,7 +68,6 @@ struct rsnd_ssi {
 	struct rsnd_dai *rdai;
 	u32 cr_own;
 	u32 cr_clk;
-	u32 cr_etc;
 	int err;
 	unsigned int usrcnt;
 	unsigned int rate;
@@ -185,6 +184,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 cr_mode;
 	u32 cr;
 
 	if (0 == ssi->usrcnt) {
@@ -198,9 +198,14 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		}
 	}
 
+	cr_mode = rsnd_ssi_is_dma_mode(&ssi->mod) ?
+		DMEN :			/* DMA : use DMA */
+		UIEN | OIEN | DIEN;	/* PIO : enable interrupt */
+
+
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk	|
-		ssi->cr_etc	|
+		cr_mode		|
 		EN;
 
 	rsnd_mod_write(&ssi->mod, SSICR, cr);
@@ -403,9 +408,6 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	/* enable PIO IRQ */
-	ssi->cr_etc = UIEN | OIEN | DIEN;
-
 	rsnd_src_ssiu_start(mod, rdai, 0);
 
 	rsnd_src_enable_ssi_irq(mod, rdai);
@@ -419,8 +421,6 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 			     struct rsnd_dai *rdai)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-
-	ssi->cr_etc = 0;
 
 	rsnd_ssi_hw_stop(ssi, rdai);
 
@@ -498,9 +498,6 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	/* enable DMA transfer */
-	ssi->cr_etc = DMEN;
-
 	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 
 	rsnd_dma_start(dma);
@@ -519,8 +516,6 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
-
-	ssi->cr_etc = 0;
 
 	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
 
@@ -549,6 +544,12 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.stop	= rsnd_ssi_dma_stop,
 	.fallback = rsnd_ssi_fallback,
 };
+
+int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
+{
+	return mod->ops == &rsnd_ssi_dma_ops;
+}
+
 
 /*
  *		Non SSI
