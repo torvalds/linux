@@ -1426,9 +1426,12 @@ int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 			       struct iwl_device_cmd *cmd);
 struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 						  const char *alpha2,
-						  enum iwl_mcc_source src_id);
-struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm);
+						  enum iwl_mcc_source src_id,
+						  bool *changed);
+struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm,
+							  bool *changed);
 int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm);
+void iwl_mvm_update_changed_regdom(struct iwl_mvm *mvm);
 
 /* smart fifo */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

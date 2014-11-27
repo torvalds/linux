@@ -655,7 +655,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 	IWL_DEBUG_LAR(mvm,
 		      "MCC response status: 0x%x. new MCC: 0x%x ('%c%c') change: %d n_chans: %d\n",
 		      status, mcc, mcc >> 8, mcc & 0xff,
-		      !!(status == MCC_RESP_SAME_CHAN_PROFILE), n_channels);
+		      !!(status == MCC_RESP_NEW_CHAN_PROFILE), n_channels);
 
 	resp_len = sizeof(*mcc_resp) + n_channels * sizeof(__le32);
 	resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
@@ -802,7 +802,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	 */
 	mvm->lar_regdom_set = false;
 
-	regd = iwl_mvm_get_current_regdomain(mvm);
+	regd = iwl_mvm_get_current_regdomain(mvm, NULL);
 	if (IS_ERR_OR_NULL(regd))
 		return -EIO;
 
@@ -810,7 +810,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	    !iwl_mvm_get_bios_mcc(mvm, mcc)) {
 		kfree(regd);
 		regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc,
-					     MCC_SOURCE_BIOS);
+					     MCC_SOURCE_BIOS, NULL);
 		if (IS_ERR_OR_NULL(regd))
 			return -EIO;
 	}
@@ -843,7 +843,7 @@ int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	IWL_DEBUG_LAR(mvm,
 		      "RX: received chub update mcc cmd (mcc '%s' src %d)\n",
 		      mcc, src);
-	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src);
+	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src, NULL);
 	if (IS_ERR_OR_NULL(regd))
 		return 0;
 

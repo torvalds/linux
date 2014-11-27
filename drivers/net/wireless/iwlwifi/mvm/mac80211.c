@@ -304,7 +304,8 @@ static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
 
 struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 						  const char *alpha2,
-						  enum iwl_mcc_source src_id)
+						  enum iwl_mcc_source src_id,
+						  bool *changed)
 {
 	struct ieee80211_regdomain *regd = NULL;
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -321,6 +322,9 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 			      PTR_RET(resp));
 		goto out;
 	}
+
+	if (changed)
+		*changed = (resp->status == MCC_RESP_NEW_CHAN_PROFILE);
 
 	regd = iwl_parse_nvm_mcc_info(mvm->trans->dev, mvm->cfg,
 				      __le32_to_cpu(resp->n_channels),
@@ -344,12 +348,31 @@ out:
 	return regd;
 }
 
-struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm)
+void iwl_mvm_update_changed_regdom(struct iwl_mvm *mvm)
+{
+	bool changed;
+	struct ieee80211_regdomain *regd;
+
+	if (!iwl_mvm_is_lar_supported(mvm))
+		return;
+
+	regd = iwl_mvm_get_current_regdomain(mvm, &changed);
+	if (!IS_ERR_OR_NULL(regd)) {
+		/* only update the regulatory core if changed */
+		if (changed)
+			regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
+
+		kfree(regd);
+	}
+}
+
+struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm,
+							  bool *changed)
 {
 	return iwl_mvm_get_regdomain(mvm->hw->wiphy, "ZZ",
 				     iwl_mvm_is_wifi_mcc_supported(mvm) ?
 				     MCC_SOURCE_GET_CURRENT :
-				     MCC_SOURCE_OLD_FW);
+				     MCC_SOURCE_OLD_FW, changed);
 }
 
 int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
@@ -366,13 +389,13 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 	used_src = mvm->mcc_src;
 	if (iwl_mvm_is_wifi_mcc_supported(mvm)) {
 		/* Notify the firmware we support wifi location updates */
-		regd = iwl_mvm_get_current_regdomain(mvm);
+		regd = iwl_mvm_get_current_regdomain(mvm, NULL);
 		if (!IS_ERR_OR_NULL(regd))
 			kfree(regd);
 	}
 
 	/* Now set our last stored MCC and source */
-	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, r->alpha2, used_src);
+	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, r->alpha2, used_src, NULL);
 	if (IS_ERR_OR_NULL(regd))
 		return -EIO;
 

@@ -1503,7 +1503,7 @@ struct iwl_mcc_update_cmd {
  * Contains the new channel control profile map, if changed, and the new MCC
  * (mobile country code).
  * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
- * @status: 0 for success, 1 no change in channel profile, 2 invalid input.
+ * @status: see &enum iwl_mcc_update_status
  * @mcc: the new applied MCC
  * @cap: capabilities for all channels which matches the MCC
  * @source_id: the MCC source, see iwl_mcc_source
