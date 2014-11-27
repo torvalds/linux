@@ -214,6 +214,9 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	if (rsnd_dai_is_clk_master(rdai))
 		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
 
+	/* clear error status */
+	rsnd_mod_write(&ssi->mod, SSISR, 0);
+
 	ssi->usrcnt++;
 
 	dev_dbg(dev, "%s[%d] hw started\n",
