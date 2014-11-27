@@ -189,7 +189,6 @@ struct dw_mci {
         unsigned int    hold_reg_flag;
         /* Timer for INT_DTO */
         struct timer_list       dto_timer;
-        struct timer_list       rto_timer;
 	/* FIFO push and pull */
 	int			fifo_depth;
 	int			data_shift;
