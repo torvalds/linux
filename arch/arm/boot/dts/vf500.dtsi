@@ -169,3 +169,8 @@
 &usbphy1 {
 	interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 };
+
+&wdoga5 {
+	interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+	status = "okay";
+};

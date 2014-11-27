@@ -184,7 +184,7 @@
 				status = "disabled";
 			};
 
-			wdog@4003e000 {
+			wdoga5: wdog@4003e000 {
 				compatible = "fsl,vf610-wdt", "fsl,imx21-wdt";
 				reg = <0x4003e000 0x1000>;
 				clocks = <&clks VF610_CLK_WDT>;
