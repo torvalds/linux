@@ -4576,6 +4576,7 @@ struct wmi_svc_rdy_ev_arg {
 	__le32 eeprom_rd;
 	__le32 num_mem_reqs;
 	const __le32 *service_map;
+	size_t service_map_len;
 	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];
 };
 

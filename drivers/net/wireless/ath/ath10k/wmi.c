@@ -2457,6 +2457,7 @@ static int ath10k_wmi_main_pull_svc_rdy_ev(struct sk_buff *skb,
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
+	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
 
 	n = min_t(size_t, __le32_to_cpu(arg->num_mem_reqs),
 		  ARRAY_SIZE(arg->mem_reqs));
@@ -2491,6 +2492,7 @@ static int ath10k_wmi_10x_pull_svc_rdy_ev(struct sk_buff *skb,
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
+	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
 
 	n = min_t(size_t, __le32_to_cpu(arg->num_mem_reqs),
 		  ARRAY_SIZE(arg->mem_reqs));
@@ -2541,7 +2543,7 @@ static void ath10k_wmi_event_service_ready(struct ath10k *ar,
 
 	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
-			arg.service_map, sizeof(arg.service_map));
+			arg.service_map, arg.service_map_len);
 
 	/* only manually set fw features when not using FW IE format */
 	if (ar->fw_api == 1 && ar->fw_version_build > 636)
