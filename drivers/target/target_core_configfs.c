@@ -584,7 +584,7 @@ EXPORT_SYMBOL(target_fabric_configfs_deregister);
 // Stop functions called by external Target Fabrics Modules
 //############################################################################*/
 
-/* Start functions for struct config_item_type target_core_dev_attrib_cit */
+/* Start functions for struct config_item_type tb_dev_attrib_cit */
 
 #define DEF_DEV_ATTRIB_SHOW(_name)					\
 static ssize_t target_core_dev_show_attr_##_name(			\
@@ -767,13 +767,10 @@ static struct configfs_item_operations target_core_dev_attrib_ops = {
 	.store_attribute	= target_core_dev_attrib_attr_store,
 };
 
-static struct config_item_type target_core_dev_attrib_cit = {
-	.ct_item_ops		= &target_core_dev_attrib_ops,
-	.ct_attrs		= target_core_dev_attrib_attrs,
-	.ct_owner		= THIS_MODULE,
-};
+TB_CIT_SETUP(dev_attrib, &target_core_dev_attrib_ops, NULL,
+	     target_core_dev_attrib_attrs);
 
-/* End functions for struct config_item_type target_core_dev_attrib_cit */
+/* End functions for struct config_item_type tb_dev_attrib_cit */
 
 /*  Start functions for struct config_item_type target_core_dev_wwn_cit */
 
@@ -2826,7 +2823,7 @@ static struct config_group *target_core_make_subdev(
 
 	config_group_init_type_name(dev_cg, name, &t->tb_cits.tb_dev_cit);
 	config_group_init_type_name(&dev->dev_attrib.da_group, "attrib",
-			&target_core_dev_attrib_cit);
+			&t->tb_cits.tb_dev_attrib_cit);
 	config_group_init_type_name(&dev->dev_pr_group, "pr",
 			&target_core_dev_pr_cit);
 	config_group_init_type_name(&dev->t10_wwn.t10_wwn_group, "wwn",
@@ -3131,6 +3128,7 @@ static struct config_item_type target_core_cit = {
 void target_core_setup_sub_cits(struct se_subsystem_api *sa)
 {
 	target_core_setup_dev_cit(sa);
+	target_core_setup_dev_attrib_cit(sa);
 }
 EXPORT_SYMBOL(target_core_setup_sub_cits);
 
