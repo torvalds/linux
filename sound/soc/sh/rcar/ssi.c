@@ -202,14 +202,14 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	}
 
 	cr_mode = rsnd_ssi_is_dma_mode(&ssi->mod) ?
-		DMEN :			/* DMA : use DMA */
-		UIEN | OIEN | DIEN;	/* PIO : enable interrupt */
+		DMEN :	/* DMA : enable DMA */
+		DIEN;	/* PIO : enable Data interrupt */
 
 
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk	|
 		cr_mode		|
-		EN;
+		UIEN | OIEN | EN;
 
 	rsnd_mod_write(&ssi->mod, SSICR, cr);
 
@@ -355,63 +355,6 @@ static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 /*
  *		SSI PIO
  */
-static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
-{
-	struct rsnd_ssi *ssi = data;
-	struct rsnd_mod *mod = &ssi->mod;
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	u32 status = rsnd_mod_read(mod, SSISR);
-	irqreturn_t ret = IRQ_NONE;
-
-	if (io && (status & DIRQ)) {
-		struct rsnd_dai *rdai = ssi->rdai;
-		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-		u32 *buf = (u32 *)(runtime->dma_area +
-				   rsnd_dai_pointer_offset(io, 0));
-
-		rsnd_ssi_record_error(ssi, status);
-
-		/*
-		 * 8/16/32 data can be assesse to TDR/RDR register
-		 * directly as 32bit data
-		 * see rsnd_ssi_init()
-		 */
-		if (rsnd_dai_is_play(rdai, io))
-			rsnd_mod_write(mod, SSITDR, *buf);
-		else
-			*buf = rsnd_mod_read(mod, SSIRDR);
-
-		rsnd_dai_pointer_update(io, sizeof(*buf));
-
-		ret = IRQ_HANDLED;
-	}
-
-	return ret;
-}
-
-static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int irq = ssi->info->pio_irq;
-	int ret;
-
-	ret = devm_request_irq(dev, irq,
-			       rsnd_ssi_pio_interrupt,
-			       IRQF_SHARED,
-			       dev_name(dev), ssi);
-	if (ret)
-		dev_err(dev, "%s[%d] (PIO) request interrupt failed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
-	else
-		dev_dbg(dev, "%s[%d] (PIO) is probed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return ret;
-}
-
 static int rsnd_ssi_start(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai)
 {
@@ -443,6 +386,79 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	return 0;
 }
 
+static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
+{
+	struct rsnd_ssi *ssi = data;
+	struct rsnd_dai *rdai = ssi->rdai;
+	struct rsnd_mod *mod = &ssi->mod;
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	u32 status = rsnd_mod_read(mod, SSISR);
+
+	if (!io)
+		return IRQ_NONE;
+
+	/* PIO only */
+	if (status & DIRQ) {
+		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+		u32 *buf = (u32 *)(runtime->dma_area +
+				   rsnd_dai_pointer_offset(io, 0));
+
+		/*
+		 * 8/16/32 data can be assesse to TDR/RDR register
+		 * directly as 32bit data
+		 * see rsnd_ssi_init()
+		 */
+		if (rsnd_dai_is_play(rdai, io))
+			rsnd_mod_write(mod, SSITDR, *buf);
+		else
+			*buf = rsnd_mod_read(mod, SSIRDR);
+
+		rsnd_dai_pointer_update(io, sizeof(*buf));
+	}
+
+	/* PIO / DMA */
+	if (status & (UIRQ | OIRQ)) {
+		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		/*
+		 * restart SSI
+		 */
+		rsnd_ssi_stop(mod, rdai);
+		rsnd_ssi_start(mod, rdai);
+
+		dev_dbg(dev, "%s[%d] restart\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	}
+
+	rsnd_ssi_record_error(ssi, status);
+
+	return IRQ_HANDLED;
+}
+
+static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
+			      struct rsnd_dai *rdai)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	int irq = ssi->info->pio_irq;
+	int ret;
+
+	ret = devm_request_irq(dev, irq,
+			       rsnd_ssi_pio_interrupt,
+			       IRQF_SHARED,
+			       dev_name(dev), ssi);
+	if (ret)
+		dev_err(dev, "%s[%d] (PIO) request interrupt failed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	else
+		dev_dbg(dev, "%s[%d] (PIO) is probed\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+
+	return ret;
+}
+
 static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
 	.probe	= rsnd_ssi_pio_probe,
@@ -461,17 +477,28 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 	int dma_id = ssi->info->dma_id;
 	int ret;
 
+	ret = devm_request_irq(dev, ssi->info->pio_irq,
+			       rsnd_ssi_pio_interrupt,
+			       IRQF_SHARED,
+			       dev_name(dev), ssi);
+	if (ret)
+		goto rsnd_ssi_dma_probe_fail;
+
 	ret = rsnd_dma_init(
 		priv, rsnd_mod_to_dma(mod),
 		rsnd_info_is_playback(priv, ssi),
 		dma_id);
+	if (ret)
+		goto rsnd_ssi_dma_probe_fail;
 
-	if (ret < 0)
-		dev_err(dev, "%s[%d] (DMA) is failed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
-	else
-		dev_dbg(dev, "%s[%d] (DMA) is probed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	dev_dbg(dev, "%s[%d] (DMA) is probed\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod));
+
+	return ret;
+
+rsnd_ssi_dma_probe_fail:
+	dev_err(dev, "%s[%d] (DMA) is failed\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }
@@ -479,7 +506,15 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 			       struct rsnd_dai *rdai)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	int irq = ssi->info->pio_irq;
+
 	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
+
+	/* PIO will request IRQ again */
+	devm_free_irq(dev, irq, ssi);
 
 	return 0;
 }
