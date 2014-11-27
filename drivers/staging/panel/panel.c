@@ -1494,17 +1494,17 @@ static void lcd_init(void)
 	}
 
 	/* Overwrite with module params set on loading */
-	if (lcd_height > -1)
+	if (lcd_height != NOT_SET)
 		lcd.height = lcd_height;
-	if (lcd_width > -1)
+	if (lcd_width != NOT_SET)
 		lcd.width = lcd_width;
-	if (lcd_bwidth > -1)
+	if (lcd_bwidth != NOT_SET)
 		lcd.bwidth = lcd_bwidth;
-	if (lcd_hwidth > -1)
+	if (lcd_hwidth != NOT_SET)
 		lcd.hwidth = lcd_hwidth;
-	if (lcd_charset > -1)
+	if (lcd_charset != NOT_SET)
 		lcd.charset = lcd_charset;
-	if (lcd_proto > -1)
+	if (lcd_proto != NOT_SET)
 		lcd.proto = lcd_proto;
 	if (lcd_e_pin != PIN_NOT_SET)
 		lcd.pins.e = lcd_e_pin;
@@ -2304,16 +2304,16 @@ static int __init panel_init_module(void)
 	 * Overwrite selection with module param values (both keypad and lcd),
 	 * where the deprecated params have lower prio.
 	 */
-	if (keypad_enabled > -1)
+	if (keypad_enabled != NOT_SET)
 		selected_keypad_type = keypad_enabled;
-	if (keypad_type > -1)
+	if (keypad_type != NOT_SET)
 		selected_keypad_type = keypad_type;
 
 	keypad.enabled = (selected_keypad_type > 0);
 
-	if (lcd_enabled > -1)
+	if (lcd_enabled != NOT_SET)
 		selected_lcd_type = lcd_enabled;
-	if (lcd_type > -1)
+	if (lcd_type != NOT_SET)
 		selected_lcd_type = lcd_type;
 
 	lcd.enabled = (selected_lcd_type > 0);
