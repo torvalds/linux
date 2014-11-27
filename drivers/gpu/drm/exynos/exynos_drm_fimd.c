@@ -164,7 +164,6 @@ struct fimd_context {
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
 	struct regmap			*sysreg;
-	struct drm_display_mode		mode;
 	struct fimd_win_data		win_data[WINDOWS_NR];
 	unsigned int			default_win;
 	unsigned long			irq_flags;
@@ -345,18 +344,10 @@ static bool fimd_mode_fixup(struct exynos_drm_crtc *crtc,
 	return true;
 }
 
-static void fimd_mode_set(struct exynos_drm_crtc *crtc,
-		const struct drm_display_mode *in_mode)
-{
-	struct fimd_context *ctx = crtc->ctx;
-
-	drm_mode_copy(&ctx->mode, in_mode);
-}
-
 static void fimd_commit(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
-	struct drm_display_mode *mode = &ctx->mode;
+	struct drm_display_mode *mode = &crtc->base.mode;
 	struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
 	u32 val, clkdiv;
@@ -1016,7 +1007,6 @@ static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 static struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.dpms = fimd_dpms,
 	.mode_fixup = fimd_mode_fixup,
-	.mode_set = fimd_mode_set,
 	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,

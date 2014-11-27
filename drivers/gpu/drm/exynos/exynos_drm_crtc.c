@@ -89,7 +89,6 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			  struct drm_display_mode *adjusted_mode, int x, int y,
 			  struct drm_framebuffer *old_fb)
 {
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_framebuffer *fb = crtc->primary->fb;
 	unsigned int crtc_w;
 	unsigned int crtc_h;
@@ -102,10 +101,6 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 
 	crtc_w = fb->width - x;
 	crtc_h = fb->height - y;
-
-	if (exynos_crtc->ops->mode_set)
-		exynos_crtc->ops->mode_set(exynos_crtc, &crtc->mode);
-
 	return exynos_plane_mode_set(crtc->primary, crtc, fb, 0, 0,
 				     crtc_w, crtc_h, x, y, crtc_w, crtc_h);
 }
