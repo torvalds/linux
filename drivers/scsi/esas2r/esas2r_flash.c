@@ -684,9 +684,9 @@ static u16 calc_fi_checksum(struct esas2r_flash_context *fc)
  *              1)  verify the fi_version is correct
  *              2)  verify the checksum of the entire image.
  *              3)  validate the adap_typ, action and length fields.
- *              4)  valdiate each component header. check the img_type and
+ *              4)  validate each component header. check the img_type and
  *                  length fields
- *              5)  valdiate each component image.  validate signatures and
+ *              5)  validate each component image.  validate signatures and
  *                  local checksums
  */
 static bool verify_fi(struct esas2r_adapter *a,
