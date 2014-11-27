@@ -91,6 +91,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/irqdomain.h>
+
 struct device_node;
 
 extern struct irq_chip gic_arch_extn;
