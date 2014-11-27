@@ -2748,7 +2748,7 @@ static struct config_item_type target_core_alua_cit = {
 
 /* End functions for struct config_item_type target_core_alua_cit */
 
-/* Start functions for struct config_item_type target_core_stat_cit */
+/* Start functions for struct config_item_type tb_dev_stat_cit */
 
 static struct config_group *target_core_stat_mkdir(
 	struct config_group *group,
@@ -2769,12 +2769,9 @@ static struct configfs_group_operations target_core_stat_group_ops = {
 	.drop_item		= &target_core_stat_rmdir,
 };
 
-static struct config_item_type target_core_stat_cit = {
-	.ct_group_ops		= &target_core_stat_group_ops,
-	.ct_owner		= THIS_MODULE,
-};
+TB_CIT_SETUP(dev_stat, NULL, &target_core_stat_group_ops, NULL);
 
-/* End functions for struct config_item_type target_core_stat_cit */
+/* End functions for struct config_item_type tb_dev_stat_cit */
 
 /* Start functions for struct config_item_type target_core_hba_cit */
 
@@ -2820,7 +2817,7 @@ static struct config_group *target_core_make_subdev(
 	config_group_init_type_name(&dev->t10_alua.alua_tg_pt_gps_group,
 			"alua", &t->tb_cits.tb_dev_alua_tg_pt_gps_cit);
 	config_group_init_type_name(&dev->dev_stat_grps.stat_group,
-			"statistics", &target_core_stat_cit);
+			"statistics", &t->tb_cits.tb_dev_stat_cit);
 
 	dev_cg->default_groups[0] = &dev->dev_attrib.da_group;
 	dev_cg->default_groups[1] = &dev->dev_pr_group;
@@ -3121,6 +3118,7 @@ void target_core_setup_sub_cits(struct se_subsystem_api *sa)
 	target_core_setup_dev_pr_cit(sa);
 	target_core_setup_dev_wwn_cit(sa);
 	target_core_setup_dev_alua_tg_pt_gps_cit(sa);
+	target_core_setup_dev_stat_cit(sa);
 }
 EXPORT_SYMBOL(target_core_setup_sub_cits);
 
