@@ -418,6 +418,51 @@ struct rsnd_priv {
 })
 
 /*
+ *	rsnd_kctrl
+ */
+struct rsnd_kctrl_cfg {
+	unsigned int max;
+	unsigned int size;
+	u32 *val;
+	const char * const *texts;
+	void (*update)(struct rsnd_mod *mod);
+};
+
+#define RSND_DVC_CHANNELS	2
+struct rsnd_kctrl_cfg_m {
+	struct rsnd_kctrl_cfg cfg;
+	u32 val[RSND_DVC_CHANNELS];
+};
+
+struct rsnd_kctrl_cfg_s {
+	struct rsnd_kctrl_cfg cfg;
+	u32 val;
+};
+
+int rsnd_kctrl_new_m(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct snd_soc_pcm_runtime *rtd,
+		     const unsigned char *name,
+		     void (*update)(struct rsnd_mod *mod),
+		     struct rsnd_kctrl_cfg_m *_cfg,
+		     u32 max);
+int rsnd_kctrl_new_s(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct snd_soc_pcm_runtime *rtd,
+		     const unsigned char *name,
+		     void (*update)(struct rsnd_mod *mod),
+		     struct rsnd_kctrl_cfg_s *_cfg,
+		     u32 max);
+int rsnd_kctrl_new_e(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct snd_soc_pcm_runtime *rtd,
+		     const unsigned char *name,
+		     struct rsnd_kctrl_cfg_s *_cfg,
+		     void (*update)(struct rsnd_mod *mod),
+		     const char * const *texts,
+		     u32 max);
+
+/*
  *	R-Car SRC
  */
 int rsnd_src_probe(struct platform_device *pdev,

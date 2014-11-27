@@ -970,6 +970,150 @@ static struct snd_pcm_ops rsnd_pcm_ops = {
 };
 
 /*
+ *		snd_kcontrol
+ */
+#define kcontrol_to_cfg(kctrl) ((struct rsnd_kctrl_cfg *)kctrl->private_value)
+static int rsnd_kctrl_info(struct snd_kcontrol *kctrl,
+			   struct snd_ctl_elem_info *uinfo)
+{
+	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+
+	if (cfg->texts) {
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+		uinfo->count = cfg->size;
+		uinfo->value.enumerated.items = cfg->max;
+		if (uinfo->value.enumerated.item >= cfg->max)
+			uinfo->value.enumerated.item = cfg->max - 1;
+		strlcpy(uinfo->value.enumerated.name,
+			cfg->texts[uinfo->value.enumerated.item],
+			sizeof(uinfo->value.enumerated.name));
+	} else {
+		uinfo->count = cfg->size;
+		uinfo->value.integer.min = 0;
+		uinfo->value.integer.max = cfg->max;
+		uinfo->type = (cfg->max == 1) ?
+			SNDRV_CTL_ELEM_TYPE_BOOLEAN :
+			SNDRV_CTL_ELEM_TYPE_INTEGER;
+	}
+
+	return 0;
+}
+
+static int rsnd_kctrl_get(struct snd_kcontrol *kctrl,
+			  struct snd_ctl_elem_value *uc)
+{
+	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	int i;
+
+	for (i = 0; i < cfg->size; i++)
+		if (cfg->texts)
+			uc->value.enumerated.item[i] = cfg->val[i];
+		else
+			uc->value.integer.value[i] = cfg->val[i];
+
+	return 0;
+}
+
+static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
+			  struct snd_ctl_elem_value *uc)
+{
+	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
+	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	int i, change = 0;
+
+	for (i = 0; i < cfg->size; i++) {
+		if (cfg->texts) {
+			change |= (uc->value.enumerated.item[i] != cfg->val[i]);
+			cfg->val[i] = uc->value.enumerated.item[i];
+		} else {
+			change |= (uc->value.integer.value[i] != cfg->val[i]);
+			cfg->val[i] = uc->value.integer.value[i];
+		}
+	}
+
+	if (change)
+		cfg->update(mod);
+
+	return change;
+}
+
+static int __rsnd_kctrl_new(struct rsnd_mod *mod,
+			    struct rsnd_dai *rdai,
+			    struct snd_soc_pcm_runtime *rtd,
+			    const unsigned char *name,
+			    struct rsnd_kctrl_cfg *cfg,
+			    void (*update)(struct rsnd_mod *mod))
+{
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_kcontrol *kctrl;
+	struct snd_kcontrol_new knew = {
+		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name		= name,
+		.info		= rsnd_kctrl_info,
+		.get		= rsnd_kctrl_get,
+		.put		= rsnd_kctrl_put,
+		.private_value	= (unsigned long)cfg,
+	};
+	int ret;
+
+	kctrl = snd_ctl_new1(&knew, mod);
+	if (!kctrl)
+		return -ENOMEM;
+
+	ret = snd_ctl_add(card, kctrl);
+	if (ret < 0)
+		return ret;
+
+	cfg->update = update;
+
+	return 0;
+}
+
+int rsnd_kctrl_new_m(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct snd_soc_pcm_runtime *rtd,
+		     const unsigned char *name,
+		     void (*update)(struct rsnd_mod *mod),
+		     struct rsnd_kctrl_cfg_m *_cfg,
+		     u32 max)
+{
+	_cfg->cfg.max	= max;
+	_cfg->cfg.size	= RSND_DVC_CHANNELS;
+	_cfg->cfg.val	= _cfg->val;
+	return __rsnd_kctrl_new(mod, rdai, rtd, name, &_cfg->cfg, update);
+}
+
+int rsnd_kctrl_new_s(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct snd_soc_pcm_runtime *rtd,
+		     const unsigned char *name,
+		     void (*update)(struct rsnd_mod *mod),
+		     struct rsnd_kctrl_cfg_s *_cfg,
+		     u32 max)
+{
+	_cfg->cfg.max	= max;
+	_cfg->cfg.size	= 1;
+	_cfg->cfg.val	= &_cfg->val;
+	return __rsnd_kctrl_new(mod, rdai, rtd, name, &_cfg->cfg, update);
+}
+
+int rsnd_kctrl_new_e(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct snd_soc_pcm_runtime *rtd,
+		     const unsigned char *name,
+		     struct rsnd_kctrl_cfg_s *_cfg,
+		     void (*update)(struct rsnd_mod *mod),
+		     const char * const *texts,
+		     u32 max)
+{
+	_cfg->cfg.max	= max;
+	_cfg->cfg.size	= 1;
+	_cfg->cfg.val	= &_cfg->val;
+	_cfg->cfg.texts	= texts;
+	return __rsnd_kctrl_new(mod, rdai, rtd, name, &_cfg->cfg, update);
+}
+
+/*
  *		snd_soc_platform
  */
 
