@@ -525,16 +525,17 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	u32 convert_rate = rsnd_src_convert_rate(src);
 	uint ratio;
 	int ret;
 
 	/* 6 - 1/6 are very enough ratio for SRC_BSDSR */
-	if (!rsnd_src_convert_rate(src))
+	if (!convert_rate)
 		ratio = 0;
-	else if (rsnd_src_convert_rate(src) > runtime->rate)
-		ratio = 100 * rsnd_src_convert_rate(src) / runtime->rate;
+	else if (convert_rate > runtime->rate)
+		ratio = 100 * convert_rate / runtime->rate;
 	else
-		ratio = 100 * runtime->rate / rsnd_src_convert_rate(src);
+		ratio = 100 * runtime->rate / convert_rate;
 
 	if (ratio > 600) {
 		dev_err(dev, "FSO/FSI ratio error\n");
