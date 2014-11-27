@@ -210,6 +210,10 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 
 	rsnd_mod_write(&ssi->mod, SSICR, cr);
 
+	/* enable WS continue */
+	if (rsnd_dai_is_clk_master(rdai))
+		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
+
 	ssi->usrcnt++;
 
 	dev_dbg(dev, "%s[%d] hw started\n",
@@ -505,10 +509,6 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 	rsnd_dma_start(dma);
 
 	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
-
-	/* enable WS continue */
-	if (rsnd_dai_is_clk_master(rdai))
-		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
 
 	return 0;
 }
