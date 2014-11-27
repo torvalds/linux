@@ -929,6 +929,9 @@ struct radeon_vm {
 
 	struct rb_root		va;
 
+	/* protecting invalidated and freed */
+	spinlock_t		status_lock;
+
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	invalidated;
 
