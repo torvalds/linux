@@ -693,8 +693,6 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 	ret = true;
 
 	if (irq->dest_mode == 0) { /* physical mode */
-		if (irq->delivery_mode == APIC_DM_LOWEST)
-			goto out;
 		dst = &map->phys_map[irq->dest_id & 0xff];
 	} else {
 		u32 mda = irq->dest_id << (32 - map->ldr_bits);
