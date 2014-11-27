@@ -462,20 +462,38 @@ static int si2168_init(struct dvb_frontend *fe)
 	dev_info(&s->client->dev, "downloading firmware from file '%s'\n",
 			fw_file);
 
-	for (remaining = fw->size; remaining > 0; remaining -= i2c_wr_max) {
-		len = remaining;
-		if (len > i2c_wr_max)
-			len = i2c_wr_max;
+	if ((fw->size % 17 == 0) && (fw->data[0] > 5)) {
+		/* firmware is in the new format */
+		for (remaining = fw->size; remaining > 0; remaining -= 17) {
+			len = fw->data[fw->size - remaining];
+			memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
+			cmd.wlen = len;
+			cmd.rlen = 1;
+			ret = si2168_cmd_execute(s, &cmd);
+			if (ret) {
+				dev_err(&s->client->dev,
+						"firmware download failed=%d\n",
+						ret);
+				goto error_fw_release;
+			}
+		}
+	} else {
+		/* firmware is in the old format */
+		for (remaining = fw->size; remaining > 0; remaining -= i2c_wr_max) {
+			len = remaining;
+			if (len > i2c_wr_max)
+				len = i2c_wr_max;
 
-		memcpy(cmd.args, &fw->data[fw->size - remaining], len);
-		cmd.wlen = len;
-		cmd.rlen = 1;
-		ret = si2168_cmd_execute(s, &cmd);
-		if (ret) {
-			dev_err(&s->client->dev,
-					"firmware download failed=%d\n",
-					ret);
-			goto error_fw_release;
+			memcpy(cmd.args, &fw->data[fw->size - remaining], len);
+			cmd.wlen = len;
+			cmd.rlen = 1;
+			ret = si2168_cmd_execute(s, &cmd);
+			if (ret) {
+				dev_err(&s->client->dev,
+						"firmware download failed=%d\n",
+						ret);
+				goto error_fw_release;
+			}
 		}
 	}
 
