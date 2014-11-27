@@ -267,6 +267,10 @@ struct cpufreq_driver {
 	void		(*stop_cpu)(struct cpufreq_policy *policy);
 	int		(*suspend)(struct cpufreq_policy *policy);
 	int		(*resume)(struct cpufreq_policy *policy);
+
+	/* Will be called after the driver is fully initialized */
+	void		(*ready)(struct cpufreq_policy *policy);
+
 	struct freq_attr **attr;
 
 	/* platform specific boost support code */
