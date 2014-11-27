@@ -206,6 +206,8 @@ struct rsnd_mod_ops {
 	int (*pcm_new)(struct rsnd_mod *mod,
 		       struct rsnd_dai *rdai,
 		       struct snd_soc_pcm_runtime *rtd);
+	int (*fallback)(struct rsnd_mod *mod,
+			struct rsnd_dai *rdai);
 };
 
 struct rsnd_dai_stream;

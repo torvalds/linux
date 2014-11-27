@@ -465,10 +465,16 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 			       struct rsnd_dai *rdai)
 {
+	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
+
+	return 0;
+}
+
+static int rsnd_ssi_fallback(struct rsnd_mod *mod,
+			     struct rsnd_dai *rdai)
+{
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-
-	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
 
 	/*
 	 * fallback to PIO
@@ -541,6 +547,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_dma_start,
 	.stop	= rsnd_ssi_dma_stop,
+	.fallback = rsnd_ssi_fallback,
 };
 
 /*

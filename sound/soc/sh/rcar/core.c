@@ -368,7 +368,7 @@ rsnd_dma_channel_err:
 	/*
 	 * DMA failed. try to PIO mode
 	 * see
-	 *	rsnd_ssi_dma_remove()
+	 *	rsnd_ssi_fallback()
 	 *	rsnd_rdai_continuance_probe()
 	 */
 	return -EAGAIN;
@@ -1023,7 +1023,7 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		 * SSI will be switch to PIO mode if it was DMA mode
 		 * see
 		 *	rsnd_dma_init()
-		 *	rsnd_ssi_dma_remove()
+		 *	rsnd_ssi_fallback()
 		 */
 		rsnd_dai_call(remove, io, rdai);
 
@@ -1032,6 +1032,11 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		 */
 		rsnd_path_break(priv, io, src);
 		rsnd_path_break(priv, io, dvc);
+
+		/*
+		 * fallback
+		 */
+		rsnd_dai_call(fallback, io, rdai);
 
 		/*
 		 * retry to "probe".
