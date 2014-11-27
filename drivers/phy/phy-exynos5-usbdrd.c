@@ -141,6 +141,7 @@ struct exynos5_usbdrd_phy_drvdata {
 	const struct exynos5_usbdrd_phy_config *phy_cfg;
 	u32 pmu_offset_usbdrd0_phy;
 	u32 pmu_offset_usbdrd1_phy;
+	bool has_common_clk_gate;
 };
 
 /**
@@ -148,6 +149,9 @@ struct exynos5_usbdrd_phy_drvdata {
  * @dev: pointer to device instance of this platform device
  * @reg_phy: usb phy controller register memory base
  * @clk: phy clock for register access
+ * @pipeclk: clock for pipe3 phy
+ * @utmiclk: clock for utmi+ phy
+ * @itpclk: clock for ITP generation
  * @drv_data: pointer to SoC level driver data structure
  * @phys[]: array for 'EXYNOS5_DRDPHYS_NUM' number of PHY
  *	    instances each with its 'phy' and 'phy_cfg'.
@@ -155,12 +159,16 @@ struct exynos5_usbdrd_phy_drvdata {
  *	       reference clocks' for SS and HS operations
  * @ref_clk: reference clock to PHY block from which PHY's
  *	     operational clocks are derived
- * @ref_rate: rate of above reference clock
+ * vbus: VBUS regulator for phy
+ * vbus_boost: Boost regulator for VBUS present on few Exynos boards
  */
 struct exynos5_usbdrd_phy {
 	struct device *dev;
 	void __iomem *reg_phy;
 	struct clk *clk;
+	struct clk *pipeclk;
+	struct clk *utmiclk;
+	struct clk *itpclk;
 	const struct exynos5_usbdrd_phy_drvdata *drv_data;
 	struct phy_usb_instance {
 		struct phy *phy;
@@ -172,6 +180,7 @@ struct exynos5_usbdrd_phy {
 	u32 extrefclk;
 	struct clk *ref_clk;
 	struct regulator *vbus;
+	struct regulator *vbus_boost;
 };
 
 static inline
@@ -447,13 +456,27 @@ static int exynos5_usbdrd_phy_power_on(struct phy *phy)
 	dev_dbg(phy_drd->dev, "Request to power_on usbdrd_phy phy\n");
 
 	clk_prepare_enable(phy_drd->ref_clk);
+	if (!phy_drd->drv_data->has_common_clk_gate) {
+		clk_prepare_enable(phy_drd->pipeclk);
+		clk_prepare_enable(phy_drd->utmiclk);
+		clk_prepare_enable(phy_drd->itpclk);
+	}
 
 	/* Enable VBUS supply */
+	if (phy_drd->vbus_boost) {
+		ret = regulator_enable(phy_drd->vbus_boost);
+		if (ret) {
+			dev_err(phy_drd->dev,
+				"Failed to enable VBUS boost supply\n");
+			goto fail_vbus;
+		}
+	}
+
 	if (phy_drd->vbus) {
 		ret = regulator_enable(phy_drd->vbus);
 		if (ret) {
 			dev_err(phy_drd->dev, "Failed to enable VBUS supply\n");
-			goto fail_vbus;
+			goto fail_vbus_boost;
 		}
 	}
 
@@ -462,8 +485,17 @@ static int exynos5_usbdrd_phy_power_on(struct phy *phy)
 
 	return 0;
 
+fail_vbus_boost:
+	if (phy_drd->vbus_boost)
+		regulator_disable(phy_drd->vbus_boost);
+
 fail_vbus:
 	clk_disable_unprepare(phy_drd->ref_clk);
+	if (!phy_drd->drv_data->has_common_clk_gate) {
+		clk_disable_unprepare(phy_drd->itpclk);
+		clk_disable_unprepare(phy_drd->utmiclk);
+		clk_disable_unprepare(phy_drd->pipeclk);
+	}
 
 	return ret;
 }
@@ -481,8 +513,15 @@ static int exynos5_usbdrd_phy_power_off(struct phy *phy)
 	/* Disable VBUS supply */
 	if (phy_drd->vbus)
 		regulator_disable(phy_drd->vbus);
+	if (phy_drd->vbus_boost)
+		regulator_disable(phy_drd->vbus_boost);
 
 	clk_disable_unprepare(phy_drd->ref_clk);
+	if (!phy_drd->drv_data->has_common_clk_gate) {
+		clk_disable_unprepare(phy_drd->itpclk);
+		clk_disable_unprepare(phy_drd->pipeclk);
+		clk_disable_unprepare(phy_drd->utmiclk);
+	}
 
 	return 0;
 }
@@ -506,6 +545,57 @@ static struct phy_ops exynos5_usbdrd_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static int exynos5_usbdrd_phy_clk_handle(struct exynos5_usbdrd_phy *phy_drd)
+{
+	unsigned long ref_rate;
+	int ret;
+
+	phy_drd->clk = devm_clk_get(phy_drd->dev, "phy");
+	if (IS_ERR(phy_drd->clk)) {
+		dev_err(phy_drd->dev, "Failed to get phy clock\n");
+		return PTR_ERR(phy_drd->clk);
+	}
+
+	phy_drd->ref_clk = devm_clk_get(phy_drd->dev, "ref");
+	if (IS_ERR(phy_drd->ref_clk)) {
+		dev_err(phy_drd->dev, "Failed to get phy reference clock\n");
+		return PTR_ERR(phy_drd->ref_clk);
+	}
+	ref_rate = clk_get_rate(phy_drd->ref_clk);
+
+	ret = exynos5_rate_to_clk(ref_rate, &phy_drd->extrefclk);
+	if (ret) {
+		dev_err(phy_drd->dev, "Clock rate (%ld) not supported\n",
+			ref_rate);
+		return ret;
+	}
+
+	if (!phy_drd->drv_data->has_common_clk_gate) {
+		phy_drd->pipeclk = devm_clk_get(phy_drd->dev, "phy_pipe");
+		if (IS_ERR(phy_drd->pipeclk)) {
+			dev_info(phy_drd->dev,
+				 "PIPE3 phy operational clock not specified\n");
+			phy_drd->pipeclk = NULL;
+		}
+
+		phy_drd->utmiclk = devm_clk_get(phy_drd->dev, "phy_utmi");
+		if (IS_ERR(phy_drd->utmiclk)) {
+			dev_info(phy_drd->dev,
+				 "UTMI phy operational clock not specified\n");
+			phy_drd->utmiclk = NULL;
+		}
+
+		phy_drd->itpclk = devm_clk_get(phy_drd->dev, "itp");
+		if (IS_ERR(phy_drd->itpclk)) {
+			dev_info(phy_drd->dev,
+				 "ITP clock from main OSC not specified\n");
+			phy_drd->itpclk = NULL;
+		}
+	}
+
+	return 0;
+}
+
 static const struct exynos5_usbdrd_phy_config phy_cfg_exynos5[] = {
 	{
 		.id		= EXYNOS5_DRDPHY_UTMI,
@@ -525,11 +615,19 @@ static const struct exynos5_usbdrd_phy_drvdata exynos5420_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
 	.pmu_offset_usbdrd1_phy	= EXYNOS5420_USBDRD1_PHY_CONTROL,
+	.has_common_clk_gate	= true,
 };
 
 static const struct exynos5_usbdrd_phy_drvdata exynos5250_usbdrd_phy = {
 	.phy_cfg		= phy_cfg_exynos5,
 	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
+	.has_common_clk_gate	= true,
+};
+
+static const struct exynos5_usbdrd_phy_drvdata exynos7_usbdrd_phy = {
+	.phy_cfg		= phy_cfg_exynos5,
+	.pmu_offset_usbdrd0_phy	= EXYNOS5_USBDRD_PHY_CONTROL,
+	.has_common_clk_gate	= false,
 };
 
 static const struct of_device_id exynos5_usbdrd_phy_of_match[] = {
@@ -539,6 +637,9 @@ static const struct of_device_id exynos5_usbdrd_phy_of_match[] = {
 	}, {
 		.compatible = "samsung,exynos5420-usbdrd-phy",
 		.data = &exynos5420_usbdrd_phy
+	}, {
+		.compatible = "samsung,exynos7-usbdrd-phy",
+		.data = &exynos7_usbdrd_phy
 	},
 	{ },
 };
@@ -555,7 +656,6 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	const struct exynos5_usbdrd_phy_drvdata *drv_data;
 	struct regmap *reg_pmu;
 	u32 pmu_offset;
-	unsigned long ref_rate;
 	int i, ret;
 	int channel;
 
@@ -576,23 +676,9 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	drv_data = match->data;
 	phy_drd->drv_data = drv_data;
 
-	phy_drd->clk = devm_clk_get(dev, "phy");
-	if (IS_ERR(phy_drd->clk)) {
-		dev_err(dev, "Failed to get clock of phy controller\n");
-		return PTR_ERR(phy_drd->clk);
-	}
-
-	phy_drd->ref_clk = devm_clk_get(dev, "ref");
-	if (IS_ERR(phy_drd->ref_clk)) {
-		dev_err(dev, "Failed to get reference clock of usbdrd phy\n");
-		return PTR_ERR(phy_drd->ref_clk);
-	}
-	ref_rate = clk_get_rate(phy_drd->ref_clk);
-
-	ret = exynos5_rate_to_clk(ref_rate, &phy_drd->extrefclk);
+	ret = exynos5_usbdrd_phy_clk_handle(phy_drd);
 	if (ret) {
-		dev_err(phy_drd->dev, "Clock rate (%ld) not supported\n",
-			ref_rate);
+		dev_err(dev, "Failed to initialize clocks\n");
 		return ret;
 	}
 
@@ -622,7 +708,7 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 		break;
 	}
 
-	/* Get Vbus regulator */
+	/* Get Vbus regulators */
 	phy_drd->vbus = devm_regulator_get(dev, "vbus");
 	if (IS_ERR(phy_drd->vbus)) {
 		ret = PTR_ERR(phy_drd->vbus);
@@ -633,12 +719,21 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 		phy_drd->vbus = NULL;
 	}
 
+	phy_drd->vbus_boost = devm_regulator_get(dev, "vbus-boost");
+	if (IS_ERR(phy_drd->vbus_boost)) {
+		ret = PTR_ERR(phy_drd->vbus_boost);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
+		dev_warn(dev, "Failed to get VBUS boost supply regulator\n");
+		phy_drd->vbus_boost = NULL;
+	}
+
 	dev_vdbg(dev, "Creating usbdrd_phy phy\n");
 
 	for (i = 0; i < EXYNOS5_DRDPHYS_NUM; i++) {
 		struct phy *phy = devm_phy_create(dev, NULL,
-						  &exynos5_usbdrd_phy_ops,
-						  NULL);
+						  &exynos5_usbdrd_phy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "Failed to create usbdrd_phy phy\n");
 			return PTR_ERR(phy);
