@@ -979,7 +979,7 @@ static int __init l2x0_cache_size_of_parse(const struct device_node *np,
 	/* All these l2 caches have the same line = block size actually */
 	if (!line_size) {
 		if (block_size) {
-			/* If linesize if not given, it is equal to blocksize */
+			/* If linesize is not given, it is equal to blocksize */
 			line_size = block_size;
 		} else {
 			/* Fall back to known size */
