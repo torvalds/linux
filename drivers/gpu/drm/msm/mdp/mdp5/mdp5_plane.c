@@ -113,6 +113,7 @@ static void mdp5_plane_reset(struct drm_plane *plane)
 	} else {
 		mdp5_state->zpos = 1 + drm_plane_index(plane);
 	}
+	mdp5_state->base.plane = plane;
 
 	plane->state = &mdp5_state->base;
 }

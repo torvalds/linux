@@ -517,6 +517,7 @@ int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
 	if (!plane_state)
 		return -ENOMEM;
+	plane_state->plane = plane;
 
 	plane_state->crtc = crtc;
 	drm_atomic_set_fb_for_plane(plane_state, fb);
@@ -563,6 +564,7 @@ int drm_plane_helper_disable(struct drm_plane *plane)
 		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
 	if (!plane_state)
 		return -ENOMEM;
+	plane_state->plane = plane;
 
 	plane_state->crtc = NULL;
 	drm_atomic_set_fb_for_plane(plane_state, NULL);

@@ -237,6 +237,7 @@ struct drm_atomic_state;
 
 /**
  * struct drm_crtc_state - mutable CRTC state
+ * @crtc: backpointer to the CRTC
  * @enable: whether the CRTC should be enabled, gates all other state
  * @active: whether the CRTC is actively displaying (used for DPMS)
  * @mode_changed: for use by helpers and drivers when computing state updates
@@ -257,6 +258,8 @@ struct drm_atomic_state;
  * assignment, @active controls the actual hardware state.
  */
 struct drm_crtc_state {
+	struct drm_crtc *crtc;
+
 	bool enable;
 	bool active;
 
@@ -457,11 +460,14 @@ struct drm_crtc {
 
 /**
  * struct drm_connector_state - mutable connector state
+ * @connector: backpointer to the connector
  * @crtc: CRTC to connect connector to, NULL if disabled
  * @best_encoder: can be used by helpers and drivers to select the encoder
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_connector_state {
+	struct drm_connector *connector;
+
 	struct drm_crtc *crtc;  /* do not write directly, use drm_atomic_set_crtc_for_connector() */
 
 	struct drm_encoder *best_encoder;
@@ -701,6 +707,7 @@ struct drm_connector {
 
 /**
  * struct drm_plane_state - mutable plane state
+ * @plane: backpointer to the plane
  * @crtc: currently bound CRTC, NULL if disabled
  * @fb: currently bound framebuffer
  * @fence: optional fence to wait for before scanning out @fb
@@ -717,6 +724,8 @@ struct drm_connector {
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
+	struct drm_plane *plane;
+
 	struct drm_crtc *crtc;   /* do not write directly, use drm_atomic_set_crtc_for_plane() */
 	struct drm_framebuffer *fb;  /* do not write directly, use drm_atomic_set_fb_for_plane() */
 	struct fence *fence;
