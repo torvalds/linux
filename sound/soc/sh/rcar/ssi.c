@@ -410,9 +410,9 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 
 	rsnd_src_ssiu_start(mod, rdai, 0);
 
-	rsnd_src_enable_ssi_irq(mod, rdai);
-
 	rsnd_ssi_hw_start(ssi, rdai, io);
+
+	rsnd_src_ssi_irq_enable(mod, rdai);
 
 	return 0;
 }
@@ -421,6 +421,8 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 			     struct rsnd_dai *rdai)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	rsnd_src_ssi_irq_disable(mod, rdai);
 
 	rsnd_ssi_hw_stop(ssi, rdai);
 

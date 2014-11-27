@@ -185,14 +185,33 @@ int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 	return 0;
 }
 
-int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
+int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
 
-	/* enable PIO interrupt if Gen2 */
-	if (rsnd_is_gen2(priv))
+	if (rsnd_is_gen1(priv))
+		return 0;
+
+	/* enable SSI interrupt if Gen2 */
+	if (rsnd_ssi_is_dma_mode(ssi_mod))
+		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0e000000);
+	else
 		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0f000000);
+
+	return 0;
+}
+
+int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod,
+			    struct rsnd_dai *rdai)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(ssi_mod);
+
+	if (rsnd_is_gen1(priv))
+		return 0;
+
+	/* disable SSI interrupt if Gen2 */
+	rsnd_mod_write(ssi_mod, INT_ENABLE, 0x00000000);
 
 	return 0;
 }

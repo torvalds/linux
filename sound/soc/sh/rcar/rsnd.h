@@ -432,8 +432,10 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			int use_busif);
 int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
 		       struct rsnd_dai *rdai);
-int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
+int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai);
+int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod,
+			     struct rsnd_dai *rdai);
 
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 
