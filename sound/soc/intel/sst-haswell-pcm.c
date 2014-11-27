@@ -308,10 +308,6 @@ static const struct snd_kcontrol_new hsw_volume_controls[] = {
 	SOC_DOUBLE_EXT_TLV("Media1 Playback Volume", 2, 0, 8,
 		ARRAY_SIZE(volume_map), 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
-	/* Loopback volume */
-	SOC_DOUBLE_EXT_TLV("Loopback Capture Volume", 3, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
-		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 	/* Mic Capture volume */
 	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 4, 0, 8,
 		ARRAY_SIZE(volume_map), 0,
