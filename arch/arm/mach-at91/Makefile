@@ -4,7 +4,6 @@
 
 obj-y		:= gpio.o setup.o sysirq_mask.o
 
-obj-$(CONFIG_OLD_IRQ_AT91)	+= irq.o
 obj-$(CONFIG_SOC_AT91SAM9)	+= sam9_smc.o
 
 # CPU-specific support

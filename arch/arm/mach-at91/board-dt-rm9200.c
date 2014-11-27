@@ -22,7 +22,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include "at91_aic.h"
 #include "generic.h"
 
 static void __init at91rm9200_dt_timer_init(void)

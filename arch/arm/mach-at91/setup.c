@@ -49,10 +49,6 @@ void __init at91_init_irq_default(void)
 
 void __init at91_init_interrupts(unsigned int *priority)
 {
-	/* Initialize the AIC interrupt controller */
-	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91))
-		at91_aic_init(priority, at91_boot_soc.extern_irq);
-
 	/* Enable GPIO interrupts */
 	at91_gpio_irq_setup();
 }
