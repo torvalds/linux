@@ -446,6 +446,62 @@ static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev,
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 }
 
+static unsigned int valid_samples_in_act_dma_buf(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 unsigned int n_raw_samples)
+{
+	struct pci9118_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int start_pos = devpriv->ai_add_front;
+	unsigned int stop_pos = start_pos + cmd->chanlist_len;
+	unsigned int span_len = stop_pos + devpriv->ai_add_back;
+	unsigned int dma_pos = devpriv->ai_act_dmapos;
+	unsigned int whole_spans, n_samples, x;
+
+	if (span_len == cmd->chanlist_len)
+		return n_raw_samples;	/* use all samples */
+
+	/*
+	 * Not all samples are to be used.  Buffer contents consist of a
+	 * possibly non-whole number of spans and a region of each span
+	 * is to be used.
+	 *
+	 * Account for samples in whole number of spans.
+	 */
+	whole_spans = n_raw_samples / span_len;
+	n_samples = whole_spans * cmd->chanlist_len;
+	n_raw_samples -= whole_spans * span_len;
+
+	/*
+	 * Deal with remaining samples which could overlap up to two spans.
+	 */
+	while (n_raw_samples) {
+		if (dma_pos < start_pos) {
+			/* Skip samples before start position. */
+			x = start_pos - dma_pos;
+			if (x > n_raw_samples)
+				x = n_raw_samples;
+			dma_pos += x;
+			n_raw_samples -= x;
+			if (!n_raw_samples)
+				break;
+		}
+		if (dma_pos < stop_pos) {
+			/* Include samples before stop position. */
+			x = stop_pos - dma_pos;
+			if (x > n_raw_samples)
+				x = n_raw_samples;
+			n_samples += x;
+			dma_pos += x;
+			n_raw_samples -= x;
+		}
+		/* Advance to next span. */
+		start_pos += span_len;
+		stop_pos += span_len;
+	}
+	return n_samples;
+}
+
 static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  unsigned short *dma_buffer,
@@ -607,10 +663,16 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[devpriv->dma_actbuf];
-	unsigned int nsamples = comedi_bytes_to_samples(s, dmabuf->use_size);
+	unsigned int n_all = comedi_bytes_to_samples(s, dmabuf->use_size);
+	unsigned int n_valid;
+	bool more_dma;
+
+	/* determine whether more DMA buffers to do after this one */
+	n_valid = valid_samples_in_act_dma_buf(dev, s, n_all);
+	more_dma = n_valid < comedi_nsamples_left(s, n_valid + 1);
 
 	/* switch DMA buffers and restart DMA if double buffering */
-	if (devpriv->dma_doublebuf) {
+	if (more_dma && devpriv->dma_doublebuf) {
 		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
 		pci9118_amcc_setup_dma(dev, devpriv->dma_actbuf);
 		if (devpriv->ai_do == 4) {
@@ -619,10 +681,9 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		}
 	}
 
-	if (nsamples) {
-		nsamples = defragment_dma_buffer(dev, s, dmabuf->virt,
-						 nsamples);
-		comedi_buf_write_samples(s, dmabuf->virt, nsamples);
+	if (n_all) {
+		n_valid = defragment_dma_buffer(dev, s, dmabuf->virt, n_all);
+		comedi_buf_write_samples(s, dmabuf->virt, n_valid);
 	}
 
 	if (!devpriv->ai_neverending) {
@@ -630,8 +691,11 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 			s->async->events |= COMEDI_CB_EOA;
 	}
 
+	if (s->async->events & COMEDI_CB_CANCEL_MASK)
+		more_dma = false;
+
 	/* restart DMA if not double buffering */
-	if (!devpriv->dma_doublebuf) {
+	if (more_dma && !devpriv->dma_doublebuf) {
 		pci9118_amcc_setup_dma(dev, 0);
 		if (devpriv->ai_do == 4)
 			interrupt_pci9118_ai_mode4_switch(dev, 0);
