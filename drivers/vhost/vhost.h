@@ -12,8 +12,6 @@
 #include <linux/virtio_ring.h>
 #include <linux/atomic.h>
 
-struct vhost_device;
-
 struct vhost_work;
 typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 
@@ -53,8 +51,6 @@ struct vhost_log {
 	u64 addr;
 	u64 len;
 };
-
-struct vhost_virtqueue;
 
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
