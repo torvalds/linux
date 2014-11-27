@@ -95,6 +95,9 @@ static int rsnd_ssi_use_busif(struct rsnd_mod *mod)
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int use_busif = 0;
 
+	if (!rsnd_ssi_is_dma_mode(mod))
+		return 0;
+
 	if (!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_NO_BUSIF))
 		use_busif = 1;
 	if (rsnd_io_to_mod_src(io))
@@ -415,7 +418,7 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	rsnd_src_ssiu_start(mod, rdai, 0);
+	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 
 	rsnd_ssi_hw_start(ssi, rdai, io);
 
@@ -430,6 +433,8 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
 	rsnd_src_ssi_irq_disable(mod, rdai);
+
+	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
 
 	rsnd_ssi_hw_stop(ssi, rdai);
 
@@ -509,9 +514,9 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 
 	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 
-	rsnd_dma_start(dma);
-
 	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+
+	rsnd_dma_start(dma);
 
 	return 0;
 }
@@ -522,11 +527,11 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
 
+	rsnd_dma_stop(dma);
+
 	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
 
 	rsnd_ssi_hw_stop(ssi, rdai);
-
-	rsnd_dma_stop(dma);
 
 	rsnd_src_ssiu_stop(mod, rdai);
 
