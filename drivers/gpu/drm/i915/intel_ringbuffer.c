@@ -52,10 +52,10 @@ intel_ring_initialized(struct intel_engine_cs *ring)
 
 int __intel_ring_space(int head, int tail, int size)
 {
-	int space = head - (tail + I915_RING_FREE_SPACE);
-	if (space < 0)
+	int space = head - tail;
+	if (space <= 0)
 		space += size;
-	return space;
+	return space - I915_RING_FREE_SPACE;
 }
 
 int intel_ring_space(struct intel_ringbuffer *ringbuf)
