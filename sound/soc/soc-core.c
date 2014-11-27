@@ -4585,7 +4585,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname)
 {
 	struct device_node *np = card->dev->of_node;
-	int num_routes;
+	int num_routes, old_routes;
 	struct snd_soc_dapm_route *routes;
 	int i, ret;
 
@@ -4603,7 +4603,9 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	routes = devm_kzalloc(card->dev, num_routes * sizeof(*routes),
+	old_routes = card->num_dapm_routes;
+	routes = devm_kzalloc(card->dev,
+			      (old_routes + num_routes) * sizeof(*routes),
 			      GFP_KERNEL);
 	if (!routes) {
 		dev_err(card->dev,
@@ -4611,9 +4613,11 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
+	memcpy(routes, card->dapm_routes, old_routes * sizeof(*routes));
+
 	for (i = 0; i < num_routes; i++) {
 		ret = of_property_read_string_index(np, propname,
-			2 * i, &routes[i].sink);
+			2 * i, &routes[old_routes + i].sink);
 		if (ret) {
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d could not be read: %d\n",
@@ -4621,7 +4625,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 			return -EINVAL;
 		}
 		ret = of_property_read_string_index(np, propname,
-			(2 * i) + 1, &routes[i].source);
+			(2 * i) + 1, &routes[old_routes + i].source);
 		if (ret) {
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d could not be read: %d\n",
@@ -4630,7 +4634,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 		}
 	}
 
-	card->num_dapm_routes = num_routes;
+	card->num_dapm_routes += num_routes;
 	card->dapm_routes = routes;
 
 	return 0;
