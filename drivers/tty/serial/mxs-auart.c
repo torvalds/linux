@@ -1268,7 +1268,8 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 	s->irq = platform_get_irq(pdev, 0);
 	s->port.irq = s->irq;
-	ret = request_irq(s->irq, mxs_auart_irq_handle, 0, dev_name(&pdev->dev), s);
+	ret = devm_request_irq(&pdev->dev, s->irq, mxs_auart_irq_handle, 0,
+			       dev_name(&pdev->dev), s);
 	if (ret)
 		return ret;
 
@@ -1283,7 +1284,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	 */
 	ret = mxs_auart_request_gpio_irq(s);
 	if (ret)
-		goto out_free_irq;
+		return ret;
 
 	auart_port[s->port.line] = s;
 
@@ -1302,9 +1303,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 out_free_gpio_irq:
 	mxs_auart_free_gpio_irq(s);
-out_free_irq:
 	auart_port[pdev->id] = NULL;
-	free_irq(s->irq, s);
 	return ret;
 }
 
@@ -1313,11 +1312,8 @@ static int mxs_auart_remove(struct platform_device *pdev)
 	struct mxs_auart_port *s = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&auart_driver, &s->port);
-
 	auart_port[pdev->id] = NULL;
-
 	mxs_auart_free_gpio_irq(s);
-	free_irq(s->irq, s);
 
 	return 0;
 }
