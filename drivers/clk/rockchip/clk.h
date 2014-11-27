@@ -48,6 +48,14 @@
 #define RK3288_GLB_SRST_SND		0x1b4
 #define RK3288_SOFTRST_CON(x)		(x * 0x4 + 0x1b8)
 #define RK3288_MISC_CON			0x1e8
+#define RK3288_SDMMC_CON0		0x200
+#define RK3288_SDMMC_CON1		0x204
+#define RK3288_SDIO0_CON0		0x208
+#define RK3288_SDIO0_CON1		0x20c
+#define RK3288_SDIO1_CON0		0x210
+#define RK3288_SDIO1_CON1		0x214
+#define RK3288_EMMC_CON0		0x218
+#define RK3288_EMMC_CON1		0x21c
 
 enum rockchip_pll_type {
 	pll_rk3066,
@@ -170,6 +178,10 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates, void __iomem *reg_base, spinlock_t *lock);
 
+struct clk *rockchip_clk_register_mmc(const char *name,
+				const char **parent_names, u8 num_parents,
+				void __iomem *reg, int shift);
+
 #define PNAME(x) static const char *x[] __initconst
 
 enum rockchip_clk_branch_type {
@@ -178,6 +190,7 @@ enum rockchip_clk_branch_type {
 	branch_divider,
 	branch_fraction_divider,
 	branch_gate,
+	branch_mmc,
 };
 
 struct rockchip_clk_branch {
@@ -370,6 +383,16 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
+#define MMC(_id, cname, pname, offset, shift)			\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_mmc,			\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.muxdiv_offset	= offset,			\
+		.div_shift	= shift,			\
+	}
 
 void rockchip_clk_init(struct device_node *np, void __iomem *base,
 		       unsigned long nr_clks);

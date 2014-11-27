@@ -271,6 +271,14 @@ void __init rockchip_clk_register_branches(
 				list->gate_offset, list->gate_shift,
 				list->gate_flags, flags, &clk_lock);
 			break;
+		case branch_mmc:
+			clk = rockchip_clk_register_mmc(
+				list->name,
+				list->parent_names, list->num_parents,
+				reg_base + list->muxdiv_offset,
+				list->div_shift
+			);
+			break;
 		}
 
 		/* none of the cases above matched */

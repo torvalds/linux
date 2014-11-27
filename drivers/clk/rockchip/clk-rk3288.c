@@ -486,6 +486,18 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 			RK3288_CLKSEL_CON(12), 14, 2, MFLAGS, 8, 6, DFLAGS,
 			RK3288_CLKGATE_CON(13), 3, GFLAGS),
 
+	MMC(SCLK_SDMMC_DRV,    "sdmmc_drv",    "sclk_sdmmc", RK3288_SDMMC_CON0, 1),
+	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "sclk_sdmmc", RK3288_SDMMC_CON1, 0),
+
+	MMC(SCLK_SDIO0_DRV,    "sdio0_drv",    "sclk_sdio0", RK3288_SDIO0_CON0, 1),
+	MMC(SCLK_SDIO0_SAMPLE, "sdio0_sample", "sclk_sdio0", RK3288_SDIO0_CON1, 0),
+
+	MMC(SCLK_SDIO1_DRV,    "sdio1_drv",    "sclk_sdio1", RK3288_SDIO1_CON0, 1),
+	MMC(SCLK_SDIO1_SAMPLE, "sdio1_sample", "sclk_sdio1", RK3288_SDIO1_CON1, 0),
+
+	MMC(SCLK_EMMC_DRV,     "emmc_drv",     "sclk_emmc",  RK3288_EMMC_CON0,  1),
+	MMC(SCLK_EMMC_SAMPLE,  "emmc_sample",  "sclk_emmc",  RK3288_EMMC_CON1,  0),
+
 	COMPOSITE(0, "sclk_tspout", mux_tspout_p, 0,
 			RK3288_CLKSEL_CON(35), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3288_CLKGATE_CON(4), 11, GFLAGS),
