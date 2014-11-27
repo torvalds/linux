@@ -31,6 +31,7 @@ struct iov_iter {
 	size_t count;
 	union {
 		const struct iovec *iov;
+		const struct kvec *kvec;
 		const struct bio_vec *bvec;
 	};
 	unsigned long nr_segs;
