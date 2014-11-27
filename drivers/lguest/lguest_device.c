@@ -136,6 +136,9 @@ static void lg_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
+	/* Make sure we don't have any features > 32 bits! */
+	BUG_ON((u32)vdev->features != vdev->features);
+
 	/*
 	 * Since lguest is currently x86-only, we're little-endian.  That
 	 * means we could just memcpy.  But it's not time critical, and in

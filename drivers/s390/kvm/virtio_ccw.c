@@ -714,6 +714,9 @@ static void virtio_ccw_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
+	/* Make sure we don't have any features > 32 bits! */
+	BUG_ON((u32)vdev->features != vdev->features);
+
 	features->index = 0;
 	features->features = cpu_to_le32(vdev->features);
 	/* Write the feature bits to the host. */
