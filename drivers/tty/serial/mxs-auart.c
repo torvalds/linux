@@ -1246,15 +1246,14 @@ static int mxs_auart_probe(struct platform_device *pdev)
 		s->devtype = pdev->id_entry->driver_data;
 	}
 
-	s->clk = clk_get(&pdev->dev, NULL);
+	s->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(s->clk))
 		return PTR_ERR(s->clk);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		ret = -ENXIO;
-		goto out_free_clk;
-	}
+	if (!r)
+		return -ENXIO;
+
 
 	s->port.mapbase = r->start;
 	s->port.membase = ioremap(r->start, resource_size(r));
@@ -1271,7 +1270,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	s->port.irq = s->irq;
 	ret = request_irq(s->irq, mxs_auart_irq_handle, 0, dev_name(&pdev->dev), s);
 	if (ret)
-		goto out_free_clk;
+		return ret;
 
 	platform_set_drvdata(pdev, s);
 
@@ -1306,8 +1305,6 @@ out_free_gpio_irq:
 out_free_irq:
 	auart_port[pdev->id] = NULL;
 	free_irq(s->irq, s);
-out_free_clk:
-	clk_put(s->clk);
 	return ret;
 }
 
@@ -1320,7 +1317,6 @@ static int mxs_auart_remove(struct platform_device *pdev)
 	auart_port[pdev->id] = NULL;
 
 	mxs_auart_free_gpio_irq(s);
-	clk_put(s->clk);
 	free_irq(s->irq, s);
 
 	return 0;
