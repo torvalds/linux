@@ -618,7 +618,7 @@ static int sgtl5000_set_clock(struct snd_soc_codec *codec, int frame_rate)
 	 * factor of freq = 96 kHz can only be 256, since mclk is in the range
 	 * of 8 MHz - 27 MHz
 	 */
-	switch (sgtl5000->sysclk / sys_fs) {
+	switch (sgtl5000->sysclk / frame_rate) {
 	case 256:
 		clk_ctl |= SGTL5000_MCLK_FREQ_256FS <<
 			SGTL5000_MCLK_FREQ_SHIFT;
@@ -641,7 +641,7 @@ static int sgtl5000_set_clock(struct snd_soc_codec *codec, int frame_rate)
 				"PLL not supported in slave mode\n");
 			dev_err(codec->dev, "%d ratio is not supported. "
 				"SYS_MCLK needs to be 256, 384 or 512 * fs\n",
-				sgtl5000->sysclk / sys_fs);
+				sgtl5000->sysclk / frame_rate);
 			return -EINVAL;
 		}
 	}
