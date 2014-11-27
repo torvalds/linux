@@ -1232,10 +1232,8 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	struct resource *r;
 
 	s = kzalloc(sizeof(struct mxs_auart_port), GFP_KERNEL);
-	if (!s) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!s)
+		return -ENOMEM;
 
 	ret = serial_mxs_probe_dt(s, pdev);
 	if (ret > 0)
@@ -1314,7 +1312,6 @@ out_free_clk:
 	clk_put(s->clk);
 out_free:
 	kfree(s);
-out:
 	return ret;
 }
 
