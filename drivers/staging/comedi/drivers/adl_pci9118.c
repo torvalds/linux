@@ -608,16 +608,15 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[devpriv->dma_actbuf];
 	unsigned int nsamples = comedi_bytes_to_samples(s, dmabuf->use_size);
-	unsigned int next_dma_buf;
 
-	if (devpriv->dma_doublebuf) {	/*
-					 * switch DMA buffers if is used
-					 * double buffering
-					 */
-		next_dma_buf = 1 - devpriv->dma_actbuf;
-		pci9118_amcc_setup_dma(dev, next_dma_buf);
-		if (devpriv->ai_do == 4)
-			interrupt_pci9118_ai_mode4_switch(dev, next_dma_buf);
+	/* switch DMA buffers and restart DMA if double buffering */
+	if (devpriv->dma_doublebuf) {
+		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
+		pci9118_amcc_setup_dma(dev, devpriv->dma_actbuf);
+		if (devpriv->ai_do == 4) {
+			interrupt_pci9118_ai_mode4_switch(dev,
+							  devpriv->dma_actbuf);
+		}
 	}
 
 	if (nsamples) {
@@ -631,11 +630,8 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 			s->async->events |= COMEDI_CB_EOA;
 	}
 
-	if (devpriv->dma_doublebuf) {
-		/* switch dma buffers */
-		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
-	} else {
-		/* restart DMA if is not used double buffering */
+	/* restart DMA if not double buffering */
+	if (!devpriv->dma_doublebuf) {
 		pci9118_amcc_setup_dma(dev, 0);
 		if (devpriv->ai_do == 4)
 			interrupt_pci9118_ai_mode4_switch(dev, 0);
