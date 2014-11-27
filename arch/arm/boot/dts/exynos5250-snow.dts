@@ -624,4 +624,8 @@
 	num-cs = <1>;
 };
 
+&usbdrd_dwc3 {
+	dr_mode = "host";
+};
+
 #include "cros-ec-keyboard.dtsi"
