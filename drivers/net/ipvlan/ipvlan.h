@@ -23,8 +23,9 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <linux/inetdevice.h>
+#include <net/ip.h>
+#include <net/ip6_route.h>
 #include <net/rtnetlink.h>
-#include <net/gre.h>
 #include <net/route.h>
 #include <net/addrconf.h>
 
