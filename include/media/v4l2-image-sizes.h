@@ -26,7 +26,7 @@
 #define QVGA_HEIGHT	240
 
 #define SVGA_WIDTH	800
-#define SVGA_HEIGHT	680
+#define SVGA_HEIGHT	600
 
 #define SXGA_WIDTH	1280
 #define SXGA_HEIGHT	1024
