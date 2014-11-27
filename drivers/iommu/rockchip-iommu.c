@@ -670,7 +670,7 @@ static bool rockchip_iommu_disable(struct iommu_drvdata *data)
 
 	spin_unlock_irqrestore(&data->data_lock, flags);
 
-	dev_info(data->iommu,"(%s) Disabled\n", data->dbgname);
+	dev_dbg(data->iommu,"(%s) Disabled\n", data->dbgname);
 
 	return ret;
 }
@@ -741,7 +741,7 @@ static int rockchip_iommu_enable(struct iommu_drvdata *data, unsigned long pgtab
 
 	data->pgtable = pgtable;
 
-	dev_info(data->iommu,"(%s) Enabled\n", data->dbgname);
+	dev_dbg(data->iommu,"(%s) Enabled\n", data->dbgname);
 
 	spin_unlock_irqrestore(&data->data_lock, flags);
 
@@ -1123,7 +1123,8 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 		dev_dbg(dev,"res->start = 0x%08x ioremap to data->res_bases[%d] = 0x%08x\n",
 			res->start, i, (unsigned int)data->res_bases[i]);
 
-		if (strstr(data->dbgname, "vop") && cpu_is_rk312x()) {
+		if (strstr(data->dbgname, "vop") &&
+		    (soc_is_rk3128() || soc_is_rk3126())) {
 			rk312x_vop_mmu_base = data->res_bases[0];
 			dev_dbg(dev, "rk312x_vop_mmu_base = 0x%08x\n",
 				(unsigned int)rk312x_vop_mmu_base);
@@ -1131,7 +1132,8 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < data->num_res_irq; i++) {
-		if (cpu_is_rk312x() && strstr(data->dbgname, "vop")) {
+		if ((soc_is_rk3128() || soc_is_rk3126()) &&
+		    strstr(data->dbgname, "vop")) {
 			dev_info(dev, "skip request vop mmu irq\n");
 			continue;
 		}
