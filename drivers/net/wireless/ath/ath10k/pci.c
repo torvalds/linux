@@ -835,7 +835,7 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 		if (transfer_context == NULL)
 			continue;
 
-		cb->tx_completion(ar, transfer_context, transfer_id);
+		cb->tx_completion(ar, transfer_context);
 	}
 }
 
@@ -1263,7 +1263,7 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 		id = MS(__le16_to_cpu(ce_desc[i].flags),
 			CE_DESC_FLAGS_META_DATA);
 
-		ar_pci->msg_callbacks_current.tx_completion(ar, skb, id);
+		ar_pci->msg_callbacks_current.tx_completion(ar, skb);
 	}
 }
 

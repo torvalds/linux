@@ -32,8 +32,7 @@ struct ath10k_hif_sg_item {
 
 struct ath10k_hif_cb {
 	int (*tx_completion)(struct ath10k *ar,
-			     struct sk_buff *wbuf,
-			     unsigned transfer_id);
+			     struct sk_buff *wbuf);
 	int (*rx_completion)(struct ath10k *ar,
 			     struct sk_buff *wbuf);
 };

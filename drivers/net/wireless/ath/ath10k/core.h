@@ -79,6 +79,7 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
+	u8 eid;
 	u8 vdev_id;
 
 	struct {
