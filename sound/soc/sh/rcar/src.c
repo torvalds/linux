@@ -256,12 +256,6 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SRC_SWRSR, 0);
 	rsnd_mod_write(mod, SRC_SWRSR, 1);
 
-	/*
-	 * Initialize the operation of the SRC internal circuits
-	 * see rsnd_src_start()
-	 */
-	rsnd_mod_write(mod, SRC_SRCIR, 1);
-
 	/* Set channel number and output bit length */
 	rsnd_mod_write(mod, SRC_ADINR, rsnd_get_adinr(mod));
 
@@ -286,6 +280,12 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 
 	clk_prepare_enable(src->clk);
 
+	/*
+	 * Initialize the operation of the SRC internal circuits
+	 * see rsnd_src_start()
+	 */
+	rsnd_mod_write(mod, SRC_SRCIR, 1);
+
 	return 0;
 }
 
@@ -306,7 +306,7 @@ static int rsnd_src_start(struct rsnd_mod *mod,
 
 	/*
 	 * Cancel the initialization and operate the SRC function
-	 * see rsnd_src_set_convert_rate()
+	 * see rsnd_src_init()
 	 */
 	rsnd_mod_write(mod, SRC_SRCIR, 0);
 
