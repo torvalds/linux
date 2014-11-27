@@ -274,7 +274,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	 * thermal DT code takes care of matching them.
 	 */
 	if (of_find_property(np, "#cooling-cells", NULL)) {
-		cdev = of_cpufreq_cooling_register(np, cpu_present_mask);
+		cdev = of_cpufreq_cooling_register(np, policy->related_cpus);
 		if (IS_ERR(cdev))
 			dev_err(cpu_dev,
 				"running cpufreq without cooling device: %ld\n",
