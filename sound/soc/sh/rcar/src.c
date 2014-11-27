@@ -302,16 +302,11 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 static int rsnd_src_start(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
 	/*
 	 * Cancel the initialization and operate the SRC function
 	 * see rsnd_src_init()
 	 */
 	rsnd_mod_write(mod, SRC_SRCIR, 0);
-
-	if (rsnd_src_convert_rate(src))
-		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 1);
 
 	return 0;
 }
@@ -320,11 +315,7 @@ static int rsnd_src_start(struct rsnd_mod *mod,
 static int rsnd_src_stop(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-
-	if (rsnd_src_convert_rate(src))
-		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0);
-
+	/* nothing to do */
 	return 0;
 }
 
@@ -431,6 +422,7 @@ static int rsnd_src_set_convert_timing_gen1(struct rsnd_mod *mod,
 static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod,
 					  struct rsnd_dai *rdai)
 {
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
 
 	ret = rsnd_src_set_convert_rate(mod, rdai);
@@ -443,6 +435,10 @@ static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod,
 	/* Set the restriction value of the FS ratio (98%) */
 	rsnd_mod_write(mod, SRC_MNFSR,
 		       rsnd_mod_read(mod, SRC_IFSVR) / 100 * 98);
+
+	/* Gen1/Gen2 are not compatible */
+	if (rsnd_src_convert_rate(src))
+		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 1);
 
 	/* no SRC_BFSSR settings, since SRC_SRCCR::BUFMD is 0 */
 
@@ -547,6 +543,11 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 		return ret;
 
 	rsnd_mod_write(mod, SRC_SRCCR, 0x00011110);
+
+	if (convert_rate) {
+		/* Gen1/Gen2 are not compatible */
+		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 1);
+	}
 
 	switch (rsnd_mod_id(mod)) {
 	case 5:
