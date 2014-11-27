@@ -1011,7 +1011,7 @@ static struct config_item_type target_core_dev_wwn_cit = {
 
 /*  End functions for struct config_item_type target_core_dev_wwn_cit */
 
-/*  Start functions for struct config_item_type target_core_dev_pr_cit */
+/*  Start functions for struct config_item_type tb_dev_pr_cit */
 
 CONFIGFS_EATTR_STRUCT(target_core_dev_pr, se_device);
 #define SE_DEV_PR_ATTR(_name, _mode)					\
@@ -1472,13 +1472,9 @@ static struct configfs_item_operations target_core_dev_pr_ops = {
 	.store_attribute	= target_core_dev_pr_attr_store,
 };
 
-static struct config_item_type target_core_dev_pr_cit = {
-	.ct_item_ops		= &target_core_dev_pr_ops,
-	.ct_attrs		= target_core_dev_pr_attrs,
-	.ct_owner		= THIS_MODULE,
-};
+TB_CIT_SETUP(dev_pr, &target_core_dev_pr_ops, NULL, target_core_dev_pr_attrs);
 
-/*  End functions for struct config_item_type target_core_dev_pr_cit */
+/*  End functions for struct config_item_type tb_dev_pr_cit */
 
 /*  Start functions for struct config_item_type tb_dev_cit */
 
@@ -2825,7 +2821,7 @@ static struct config_group *target_core_make_subdev(
 	config_group_init_type_name(&dev->dev_attrib.da_group, "attrib",
 			&t->tb_cits.tb_dev_attrib_cit);
 	config_group_init_type_name(&dev->dev_pr_group, "pr",
-			&target_core_dev_pr_cit);
+			&t->tb_cits.tb_dev_pr_cit);
 	config_group_init_type_name(&dev->t10_wwn.t10_wwn_group, "wwn",
 			&target_core_dev_wwn_cit);
 	config_group_init_type_name(&dev->t10_alua.alua_tg_pt_gps_group,
@@ -3129,6 +3125,7 @@ void target_core_setup_sub_cits(struct se_subsystem_api *sa)
 {
 	target_core_setup_dev_cit(sa);
 	target_core_setup_dev_attrib_cit(sa);
+	target_core_setup_dev_pr_cit(sa);
 }
 EXPORT_SYMBOL(target_core_setup_sub_cits);
 
