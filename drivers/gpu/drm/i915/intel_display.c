@@ -11850,13 +11850,11 @@ intel_primary_plane_disable(struct drm_plane *plane)
 	 * In either case, we need to unpin the FB and let the fb pointer get
 	 * updated, but otherwise we don't need to touch the hardware.
 	 */
-	if (!intel_crtc->primary_enabled)
-		goto disable_unpin;
+	if (intel_crtc->primary_enabled) {
+		intel_crtc_wait_for_pending_flips(plane->crtc);
+		intel_disable_primary_hw_plane(plane, plane->crtc);
+	}
 
-	intel_crtc_wait_for_pending_flips(plane->crtc);
-	intel_disable_primary_hw_plane(plane, plane->crtc);
-
-disable_unpin:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_track_fb(intel_fb_obj(plane->fb), NULL,
 			  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
