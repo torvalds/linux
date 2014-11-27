@@ -358,7 +358,7 @@ struct xhci_op_regs {
 /* wake on over-current (enable) */
 #define PORT_WKOC_E	(1 << 27)
 /* bits 28:29 reserved */
-/* true: device is removable - for USB 3.0 roothub emulation */
+/* true: device is non-removable - for USB 3.0 roothub emulation */
 #define PORT_DEV_REMOVE	(1 << 30)
 /* Initiate a warm port reset - complete when PORT_WRC is '1' */
 #define PORT_WR		(1 << 31)
