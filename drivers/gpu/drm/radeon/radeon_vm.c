@@ -125,15 +125,15 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
  * Add the page directory to the list of BOs to
  * validate for command submission (cayman+).
  */
-struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
+struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 					  struct radeon_vm *vm,
 					  struct list_head *head)
 {
-	struct radeon_cs_reloc *list;
+	struct radeon_bo_list *list;
 	unsigned i, idx;
 
 	list = drm_malloc_ab(vm->max_pde_used + 2,
-			     sizeof(struct radeon_cs_reloc));
+			     sizeof(struct radeon_bo_list));
 	if (!list)
 		return NULL;
 

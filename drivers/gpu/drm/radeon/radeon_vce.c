@@ -453,7 +453,7 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi,
 			unsigned size)
 {
 	struct radeon_cs_chunk *relocs_chunk;
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	uint64_t start, end, offset;
 	unsigned idx;
 

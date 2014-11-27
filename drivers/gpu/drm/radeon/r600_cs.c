@@ -969,7 +969,7 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
 static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
 	struct r600_cs_track *track = (struct r600_cs_track *)p->track;
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	u32 m, i, tmp, *ib;
 	int r;
 
@@ -1626,7 +1626,7 @@ static bool r600_is_safe_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 static int r600_packet3_check(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt)
 {
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	struct r600_cs_track *track;
 	volatile u32 *ib;
 	unsigned idx;
@@ -2354,7 +2354,7 @@ static int r600_cs_parser_relocs_legacy(struct radeon_cs_parser *p)
 	if (p->chunk_relocs_idx == -1) {
 		return 0;
 	}
-	p->relocs = kzalloc(sizeof(struct radeon_cs_reloc), GFP_KERNEL);
+	p->relocs = kzalloc(sizeof(struct radeon_bo_list), GFP_KERNEL);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
@@ -2435,7 +2435,7 @@ void r600_cs_legacy_init(void)
  * GPU offset using the provided start.
  **/
 int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
-			   struct radeon_cs_reloc **cs_reloc)
+			   struct radeon_bo_list **cs_reloc)
 {
 	struct radeon_cs_chunk *relocs_chunk;
 	unsigned idx;
@@ -2473,7 +2473,7 @@ int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
 int r600_dma_cs_parse(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_chunk *ib_chunk = &p->chunks[p->chunk_ib_idx];
-	struct radeon_cs_reloc *src_reloc, *dst_reloc;
+	struct radeon_bo_list *src_reloc, *dst_reloc;
 	u32 header, cmd, count, tiled;
 	volatile u32 *ib = p->ib.ptr;
 	u32 idx, idx_value;

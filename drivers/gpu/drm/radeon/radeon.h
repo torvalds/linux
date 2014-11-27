@@ -450,6 +450,15 @@ struct radeon_mman {
 #endif
 };
 
+struct radeon_bo_list {
+	struct radeon_bo		*robj;
+	struct ttm_validate_buffer	tv;
+	uint64_t			gpu_offset;
+	unsigned			prefered_domains;
+	unsigned			allowed_domains;
+	uint32_t			tiling_flags;
+};
+
 /* bo virtual address in a specific vm */
 struct radeon_bo_va {
 	/* protected by bo being reserved */
@@ -1044,15 +1053,6 @@ void cayman_dma_fini(struct radeon_device *rdev);
 /*
  * CS.
  */
-struct radeon_cs_reloc {
-	struct radeon_bo		*robj;
-	struct ttm_validate_buffer	tv;
-	uint64_t			gpu_offset;
-	unsigned			prefered_domains;
-	unsigned			allowed_domains;
-	uint32_t			tiling_flags;
-};
-
 struct radeon_cs_chunk {
 	uint32_t		chunk_id;
 	uint32_t		length_dw;
@@ -1072,9 +1072,9 @@ struct radeon_cs_parser {
 	unsigned		idx;
 	/* relocations */
 	unsigned		nrelocs;
-	struct radeon_cs_reloc	*relocs;
-	struct radeon_cs_reloc	**relocs_ptr;
-	struct radeon_cs_reloc	*vm_bos;
+	struct radeon_bo_list	*relocs;
+	struct radeon_bo_list	**relocs_ptr;
+	struct radeon_bo_list	*vm_bos;
 	struct list_head	validated;
 	unsigned		dma_reloc_idx;
 	/* indices of various chunks */
@@ -2973,7 +2973,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev);
 void radeon_vm_manager_fini(struct radeon_device *rdev);
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
-struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
+struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 					  struct radeon_vm *vm,
                                           struct list_head *head);
 struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
@@ -3087,7 +3087,7 @@ bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p);
 void radeon_cs_dump_packet(struct radeon_cs_parser *p,
 			   struct radeon_cs_packet *pkt);
 int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
-				struct radeon_cs_reloc **cs_reloc,
+				struct radeon_bo_list **cs_reloc,
 				int nomm);
 int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 			       uint32_t *vline_start_end,

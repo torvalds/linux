@@ -92,7 +92,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	if (p->relocs_ptr == NULL) {
 		return -ENOMEM;
 	}
-	p->relocs = kcalloc(p->nrelocs, sizeof(struct radeon_cs_reloc), GFP_KERNEL);
+	p->relocs = kcalloc(p->nrelocs, sizeof(struct radeon_bo_list), GFP_KERNEL);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
@@ -251,7 +251,7 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 
 static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	int r;
 
 	list_for_each_entry(reloc, &p->validated, tv.head) {
@@ -397,8 +397,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 static int cmp_size_smaller_first(void *priv, struct list_head *a,
 				  struct list_head *b)
 {
-	struct radeon_cs_reloc *la = list_entry(a, struct radeon_cs_reloc, tv.head);
-	struct radeon_cs_reloc *lb = list_entry(b, struct radeon_cs_reloc, tv.head);
+	struct radeon_bo_list *la = list_entry(a, struct radeon_bo_list, tv.head);
+	struct radeon_bo_list *lb = list_entry(b, struct radeon_bo_list, tv.head);
 
 	/* Sort A before B if A is smaller. */
 	return (int)la->robj->tbo.num_pages - (int)lb->robj->tbo.num_pages;
@@ -832,7 +832,7 @@ void radeon_cs_dump_packet(struct radeon_cs_parser *p,
  * GPU offset using the provided start.
  **/
 int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
-				struct radeon_cs_reloc **cs_reloc,
+				struct radeon_bo_list **cs_reloc,
 				int nomm)
 {
 	struct radeon_cs_chunk *relocs_chunk;

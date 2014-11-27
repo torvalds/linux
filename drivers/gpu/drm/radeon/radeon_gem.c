@@ -548,7 +548,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 				    struct radeon_bo_va *bo_va)
 {
 	struct ttm_validate_buffer tv, *entry;
-	struct radeon_cs_reloc *vm_bos;
+	struct radeon_bo_list *vm_bos;
 	struct ww_acquire_ctx ticket;
 	struct list_head list;
 	unsigned domain;

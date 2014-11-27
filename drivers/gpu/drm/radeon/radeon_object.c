@@ -502,7 +502,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			    struct ww_acquire_ctx *ticket,
 			    struct list_head *head, int ring)
 {
-	struct radeon_cs_reloc *lobj;
+	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
 	int r;
 	u64 bytes_moved = 0, initial_bytes_moved;

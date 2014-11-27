@@ -488,7 +488,7 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 			       unsigned buf_sizes[], bool *has_msg_cmd)
 {
 	struct radeon_cs_chunk *relocs_chunk;
-	struct radeon_cs_reloc *reloc;
+	struct radeon_bo_list *reloc;
 	unsigned idx, cmd, offset;
 	uint64_t start, end;
 	int r;
