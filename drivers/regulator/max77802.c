@@ -454,7 +454,7 @@ static int max77802_pmic_dt_parse_pdata(struct platform_device *pdev,
 	struct max77686_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *pmic_np, *regulators_np;
 	struct max77686_regulator_data *rdata;
-	struct of_regulator_match rmatch;
+	struct of_regulator_match rmatch = { };
 	unsigned int i;
 
 	pmic_np = iodev->dev->of_node;

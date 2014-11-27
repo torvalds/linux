@@ -60,6 +60,43 @@ void cxgb4_dcb_version_init(struct net_device *dev)
 	dcb->dcb_version = FW_PORT_DCB_VER_AUTO;
 }
 
+static void cxgb4_dcb_cleanup_apps(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct adapter *adap = pi->adapter;
+	struct port_dcb_info *dcb = &pi->dcb;
+	struct dcb_app app;
+	int i, err;
+
+	/* zero priority implies remove */
+	app.priority = 0;
+
+	for (i = 0; i < CXGB4_MAX_DCBX_APP_SUPPORTED; i++) {
+		/* Check if app list is exhausted */
+		if (!dcb->app_priority[i].protocolid)
+			break;
+
+		app.protocol = dcb->app_priority[i].protocolid;
+
+		if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE) {
+			app.priority = dcb->app_priority[i].user_prio_map;
+			app.selector = dcb->app_priority[i].sel_field + 1;
+			err = dcb_ieee_delapp(dev, &app);
+		} else {
+			app.selector = !!(dcb->app_priority[i].sel_field);
+			err = dcb_setapp(dev, &app);
+		}
+
+		if (err) {
+			dev_err(adap->pdev_dev,
+				"Failed DCB Clear %s Application Priority: sel=%d, prot=%d, , err=%d\n",
+				dcb_ver_array[dcb->dcb_version], app.selector,
+				app.protocol, -err);
+			break;
+		}
+	}
+}
+
 /* Finite State machine for Data Center Bridging.
  */
 void cxgb4_dcb_state_fsm(struct net_device *dev,
@@ -80,14 +117,17 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			/* we're going to use Host DCB */
 			dcb->state = CXGB4_DCB_STATE_HOST;
 			dcb->supported = CXGB4_DCBX_HOST_SUPPORT;
-			dcb->enabled = 1;
 			break;
 		}
 
 		case CXGB4_DCB_INPUT_FW_ENABLED: {
 			/* we're going to use Firmware DCB */
 			dcb->state = CXGB4_DCB_STATE_FW_INCOMPLETE;
-			dcb->supported = CXGB4_DCBX_FW_SUPPORT;
+			dcb->supported = DCB_CAP_DCBX_LLD_MANAGED;
+			if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE)
+				dcb->supported |= DCB_CAP_DCBX_VER_IEEE;
+			else
+				dcb->supported |= DCB_CAP_DCBX_VER_CEE;
 			break;
 		}
 
@@ -145,6 +185,7 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			 * state.  We need to reset back to a ground state
 			 * of incomplete.
 			 */
+			cxgb4_dcb_cleanup_apps(dev);
 			cxgb4_dcb_state_init(dev);
 			dcb->state = CXGB4_DCB_STATE_FW_INCOMPLETE;
 			dcb->supported = CXGB4_DCBX_FW_SUPPORT;
@@ -349,6 +390,12 @@ static u8 cxgb4_setstate(struct net_device *dev, u8 enabled)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 
+	/* If DCBx is host-managed, dcb is enabled by outside lldp agents */
+	if (pi->dcb.state == CXGB4_DCB_STATE_HOST) {
+		pi->dcb.enabled = enabled;
+		return 0;
+	}
+
 	/* Firmware doesn't provide any mechanism to control the DCB state.
 	 */
 	if (enabled != (pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED))
@@ -394,14 +441,17 @@ static void cxgb4_getpgtccfg(struct net_device *dev, int tc,
 	*up_tc_map = (1 << tc);
 
 	/* prio_type is link strict */
-	*prio_type = 0x2;
+	if (*pgid != 0xF)
+		*prio_type = 0x2;
 }
 
 static void cxgb4_getpgtccfg_tx(struct net_device *dev, int tc,
 				u8 *prio_type, u8 *pgid, u8 *bw_per,
 				u8 *up_tc_map)
 {
-	return cxgb4_getpgtccfg(dev, tc, prio_type, pgid, bw_per, up_tc_map, 1);
+	/* tc 0 is written at MSB position */
+	return cxgb4_getpgtccfg(dev, (7 - tc), prio_type, pgid, bw_per,
+				up_tc_map, 1);
 }
 
 
@@ -409,7 +459,9 @@ static void cxgb4_getpgtccfg_rx(struct net_device *dev, int tc,
 				u8 *prio_type, u8 *pgid, u8 *bw_per,
 				u8 *up_tc_map)
 {
-	return cxgb4_getpgtccfg(dev, tc, prio_type, pgid, bw_per, up_tc_map, 0);
+	/* tc 0 is written at MSB position */
+	return cxgb4_getpgtccfg(dev, (7 - tc), prio_type, pgid, bw_per,
+				up_tc_map, 0);
 }
 
 static void cxgb4_setpgtccfg_tx(struct net_device *dev, int tc,
@@ -419,6 +471,7 @@ static void cxgb4_setpgtccfg_tx(struct net_device *dev, int tc,
 	struct fw_port_cmd pcmd;
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = pi->adapter;
+	int fw_tc = 7 - tc;
 	u32 _pgid;
 	int err;
 
@@ -437,8 +490,8 @@ static void cxgb4_setpgtccfg_tx(struct net_device *dev, int tc,
 	}
 
 	_pgid = be32_to_cpu(pcmd.u.dcb.pgid.pgid);
-	_pgid &= ~(0xF << (tc * 4));
-	_pgid |= pgid << (tc * 4);
+	_pgid &= ~(0xF << (fw_tc * 4));
+	_pgid |= pgid << (fw_tc * 4);
 	pcmd.u.dcb.pgid.pgid = cpu_to_be32(_pgid);
 
 	INIT_PORT_DCB_WRITE_CMD(pcmd, pi->port_id);
@@ -551,7 +604,7 @@ static void cxgb4_getpfccfg(struct net_device *dev, int priority, u8 *pfccfg)
 	    priority >= CXGB4_MAX_PRIORITY)
 		*pfccfg = 0;
 	else
-		*pfccfg = (pi->dcb.pfcen >> priority) & 1;
+		*pfccfg = (pi->dcb.pfcen >> (7 - priority)) & 1;
 }
 
 /* Enable/disable Priority Pause Frames for the specified Traffic Class
@@ -576,9 +629,9 @@ static void cxgb4_setpfccfg(struct net_device *dev, int priority, u8 pfccfg)
 	pcmd.u.dcb.pfc.pfcen = pi->dcb.pfcen;
 
 	if (pfccfg)
-		pcmd.u.dcb.pfc.pfcen |= (1 << priority);
+		pcmd.u.dcb.pfc.pfcen |= (1 << (7 - priority));
 	else
-		pcmd.u.dcb.pfc.pfcen &= (~(1 << priority));
+		pcmd.u.dcb.pfc.pfcen &= (~(1 << (7 - priority)));
 
 	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
 	if (err != FW_PORT_DCB_CFG_SUCCESS) {
@@ -833,10 +886,15 @@ static int cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
 
 /* Return whether IEEE Data Center Bridging has been negotiated.
  */
-static inline int cxgb4_ieee_negotiation_complete(struct net_device *dev)
+static inline int
+cxgb4_ieee_negotiation_complete(struct net_device *dev,
+				enum cxgb4_dcb_fw_msgs dcb_subtype)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct port_dcb_info *dcb = &pi->dcb;
+
+	if (dcb_subtype && !(dcb->msgs & dcb_subtype))
+		return 0;
 
 	return (dcb->state == CXGB4_DCB_STATE_FW_ALLSYNCED &&
 		(dcb->supported & DCB_CAP_DCBX_VER_IEEE));
@@ -850,7 +908,7 @@ static int cxgb4_ieee_getapp(struct net_device *dev, struct dcb_app *app)
 {
 	int prio;
 
-	if (!cxgb4_ieee_negotiation_complete(dev))
+	if (!cxgb4_ieee_negotiation_complete(dev, CXGB4_DCB_FW_APP_ID))
 		return -EINVAL;
 	if (!(app->selector && app->protocol))
 		return -EINVAL;
@@ -872,7 +930,7 @@ static int cxgb4_ieee_setapp(struct net_device *dev, struct dcb_app *app)
 {
 	int ret;
 
-	if (!cxgb4_ieee_negotiation_complete(dev))
+	if (!cxgb4_ieee_negotiation_complete(dev, CXGB4_DCB_FW_APP_ID))
 		return -EINVAL;
 	if (!(app->selector && app->protocol))
 		return -EINVAL;

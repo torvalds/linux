@@ -1692,6 +1692,7 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 {
 	struct mvpp2_prs_entry *pe;
 	int tid_aux, tid;
+	int ret = 0;
 
 	pe = mvpp2_prs_vlan_find(priv, tpid, ai);
 
@@ -1723,8 +1724,10 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 				break;
 		}
 
-		if (tid <= tid_aux)
-			return -EINVAL;
+		if (tid <= tid_aux) {
+			ret = -EINVAL;
+			goto error;
+		}
 
 		memset(pe, 0 , sizeof(struct mvpp2_prs_entry));
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_VLAN);
@@ -1756,9 +1759,10 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 
 	mvpp2_prs_hw_write(priv, pe);
 
+error:
 	kfree(pe);
 
-	return 0;
+	return ret;
 }
 
 /* Get first free double vlan ai number */
@@ -1821,7 +1825,7 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 				     unsigned int port_map)
 {
 	struct mvpp2_prs_entry *pe;
-	int tid_aux, tid, ai;
+	int tid_aux, tid, ai, ret = 0;
 
 	pe = mvpp2_prs_double_vlan_find(priv, tpid1, tpid2);
 
@@ -1838,8 +1842,10 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 
 		/* Set ai value for new double vlan entry */
 		ai = mvpp2_prs_double_vlan_ai_free_get(priv);
-		if (ai < 0)
-			return ai;
+		if (ai < 0) {
+			ret = ai;
+			goto error;
+		}
 
 		/* Get first single/triple vlan tid */
 		for (tid_aux = MVPP2_PE_FIRST_FREE_TID;
@@ -1859,8 +1865,10 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 				break;
 		}
 
-		if (tid >= tid_aux)
-			return -ERANGE;
+		if (tid >= tid_aux) {
+			ret = -ERANGE;
+			goto error;
+		}
 
 		memset(pe, 0, sizeof(struct mvpp2_prs_entry));
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_VLAN);
@@ -1887,8 +1895,9 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 	mvpp2_prs_tcam_port_map_set(pe, port_map);
 	mvpp2_prs_hw_write(priv, pe);
 
+error:
 	kfree(pe);
-	return 0;
+	return ret;
 }
 
 /* IPv4 header parsing for fragmentation and L4 offset */

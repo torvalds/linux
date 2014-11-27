@@ -420,7 +420,7 @@ static ssize_t logger_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct logger_log *log = file_get_log(iocb->ki_filp);
 	struct logger_entry header;
 	struct timespec now;
-	size_t len, count;
+	size_t len, count, w_off;
 
 	count = min_t(size_t, iocb->ki_nbytes, LOGGER_ENTRY_MAX_PAYLOAD);
 
@@ -452,11 +452,14 @@ static ssize_t logger_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	memcpy(log->buffer + log->w_off, &header, len);
 	memcpy(log->buffer, (char *)&header + len, sizeof(header) - len);
 
-	len = min(count, log->size - log->w_off);
+	/* Work with a copy until we are ready to commit the whole entry */
+	w_off =  logger_offset(log, log->w_off + sizeof(struct logger_entry));
 
-	if (copy_from_iter(log->buffer + log->w_off, len, from) != len) {
+	len = min(count, log->size - w_off);
+
+	if (copy_from_iter(log->buffer + w_off, len, from) != len) {
 		/*
-		 * Note that by not updating w_off, this abandons the
+		 * Note that by not updating log->w_off, this abandons the
 		 * portion of the new entry that *was* successfully
 		 * copied, just above.  This is intentional to avoid
 		 * message corruption from missing fragments.
@@ -470,7 +473,7 @@ static ssize_t logger_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return -EFAULT;
 	}
 
-	log->w_off = logger_offset(log, log->w_off + count);
+	log->w_off = logger_offset(log, w_off + count);
 	mutex_unlock(&log->mutex);
 
 	/* wake up any blocked readers */

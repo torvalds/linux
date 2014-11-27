@@ -1198,7 +1198,6 @@ __iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot,
 {
 	return dma_common_pages_remap(pages, size,
 			VM_ARM_DMA_CONSISTENT | VM_USERMAP, prot, caller);
-	return NULL;
 }
 
 /*

@@ -133,6 +133,8 @@ static int fou_gro_complete(struct sk_buff *skb, int nhoff)
 	int err = -ENOSYS;
 	const struct net_offload **offloads;
 
+	udp_tunnel_gro_complete(skb, nhoff);
+
 	rcu_read_lock();
 	offloads = NAPI_GRO_CB(skb)->is_ipv6 ? inet6_offloads : inet_offloads;
 	ops = rcu_dereference(offloads[proto]);

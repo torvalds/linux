@@ -1925,8 +1925,16 @@ ftrace_find_tramp_ops_curr(struct dyn_ftrace *rec)
 	 * when we are adding another op to the rec or removing the
 	 * current one. Thus, if the op is being added, we can
 	 * ignore it because it hasn't attached itself to the rec
-	 * yet. That means we just need to find the op that has a
-	 * trampoline and is not beeing added.
+	 * yet.
+	 *
+	 * If an ops is being modified (hooking to different functions)
+	 * then we don't care about the new functions that are being
+	 * added, just the old ones (that are probably being removed).
+	 *
+	 * If we are adding an ops to a function that already is using
+	 * a trampoline, it needs to be removed (trampolines are only
+	 * for single ops connected), then an ops that is not being
+	 * modified also needs to be checked.
 	 */
 	do_for_each_ftrace_op(op, ftrace_ops_list) {
 
@@ -1940,16 +1948,22 @@ ftrace_find_tramp_ops_curr(struct dyn_ftrace *rec)
 		if (op->flags & FTRACE_OPS_FL_ADDING)
 			continue;
 
-		/*
-		 * If the ops is not being added and has a trampoline,
-		 * then it must be the one that we want!
-		 */
-		if (hash_contains_ip(ip, op->func_hash))
-			return op;
 
-		/* If the ops is being modified, it may be in the old hash. */
+		/*
+		 * If the ops is being modified and is in the old
+		 * hash, then it is probably being removed from this
+		 * function.
+		 */
 		if ((op->flags & FTRACE_OPS_FL_MODIFYING) &&
 		    hash_contains_ip(ip, &op->old_hash))
+			return op;
+		/*
+		 * If the ops is not being added or modified, and it's
+		 * in its normal filter hash, then this must be the one
+		 * we want!
+		 */
+		if (!(op->flags & FTRACE_OPS_FL_MODIFYING) &&
+		    hash_contains_ip(ip, op->func_hash))
 			return op;
 
 	} while_for_each_ftrace_op(op);
@@ -2293,10 +2307,13 @@ static void ftrace_run_update_code(int command)
 	FTRACE_WARN_ON(ret);
 }
 
-static void ftrace_run_modify_code(struct ftrace_ops *ops, int command)
+static void ftrace_run_modify_code(struct ftrace_ops *ops, int command,
+				   struct ftrace_hash *old_hash)
 {
 	ops->flags |= FTRACE_OPS_FL_MODIFYING;
+	ops->old_hash.filter_hash = old_hash;
 	ftrace_run_update_code(command);
+	ops->old_hash.filter_hash = NULL;
 	ops->flags &= ~FTRACE_OPS_FL_MODIFYING;
 }
 
@@ -3340,7 +3357,7 @@ static struct ftrace_ops trace_probe_ops __read_mostly =
 
 static int ftrace_probe_registered;
 
-static void __enable_ftrace_function_probe(void)
+static void __enable_ftrace_function_probe(struct ftrace_hash *old_hash)
 {
 	int ret;
 	int i;
@@ -3348,7 +3365,8 @@ static void __enable_ftrace_function_probe(void)
 	if (ftrace_probe_registered) {
 		/* still need to update the function call sites */
 		if (ftrace_enabled)
-			ftrace_run_modify_code(&trace_probe_ops, FTRACE_UPDATE_CALLS);
+			ftrace_run_modify_code(&trace_probe_ops, FTRACE_UPDATE_CALLS,
+					       old_hash);
 		return;
 	}
 
@@ -3477,12 +3495,13 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	} while_for_each_ftrace_rec();
 
 	ret = ftrace_hash_move(&trace_probe_ops, 1, orig_hash, hash);
+
+	__enable_ftrace_function_probe(old_hash);
+
 	if (!ret)
 		free_ftrace_hash_rcu(old_hash);
 	else
 		count = ret;
-
-	__enable_ftrace_function_probe();
 
  out_unlock:
 	mutex_unlock(&ftrace_lock);
@@ -3764,10 +3783,11 @@ ftrace_match_addr(struct ftrace_hash *hash, unsigned long ip, int remove)
 	return add_hash_entry(hash, ip);
 }
 
-static void ftrace_ops_update_code(struct ftrace_ops *ops)
+static void ftrace_ops_update_code(struct ftrace_ops *ops,
+				   struct ftrace_hash *old_hash)
 {
 	if (ops->flags & FTRACE_OPS_FL_ENABLED && ftrace_enabled)
-		ftrace_run_modify_code(ops, FTRACE_UPDATE_CALLS);
+		ftrace_run_modify_code(ops, FTRACE_UPDATE_CALLS, old_hash);
 }
 
 static int
@@ -3813,7 +3833,7 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 	old_hash = *orig_hash;
 	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
 	if (!ret) {
-		ftrace_ops_update_code(ops);
+		ftrace_ops_update_code(ops, old_hash);
 		free_ftrace_hash_rcu(old_hash);
 	}
 	mutex_unlock(&ftrace_lock);
@@ -4058,7 +4078,7 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 		ret = ftrace_hash_move(iter->ops, filter_hash,
 				       orig_hash, iter->hash);
 		if (!ret) {
-			ftrace_ops_update_code(iter->ops);
+			ftrace_ops_update_code(iter->ops, old_hash);
 			free_ftrace_hash_rcu(old_hash);
 		}
 		mutex_unlock(&ftrace_lock);

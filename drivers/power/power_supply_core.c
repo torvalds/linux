@@ -417,6 +417,9 @@ static int psy_register_thermal(struct power_supply *psy)
 {
 	int i;
 
+	if (psy->no_thermal)
+		return 0;
+
 	/* Register battery zone device psy reports temperature */
 	for (i = 0; i < psy->num_properties; i++) {
 		if (psy->properties[i] == POWER_SUPPLY_PROP_TEMP) {

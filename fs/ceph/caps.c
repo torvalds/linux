@@ -2638,7 +2638,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 
 	for (i = 0; i < CEPH_CAP_BITS; i++)
 		if ((dirty & (1 << i)) &&
-		    flush_tid == ci->i_cap_flush_tid[i])
+		    (u16)flush_tid == ci->i_cap_flush_tid[i])
 			cleaned |= 1 << i;
 
 	dout("handle_cap_flush_ack inode %p mds%d seq %d on %s cleaned %s,"

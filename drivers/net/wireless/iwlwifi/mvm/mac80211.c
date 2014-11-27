@@ -526,7 +526,8 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	}
 
 	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
-	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
+	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status) &&
+	    !test_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
 		goto drop;
 
 	/* treat non-bufferable MMPDUs as broadcast if sta is sleeping */
@@ -787,6 +788,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 	mvm->ps_disabled = false;
+	mvm->calibrating = false;
 
 	/* just in case one was running */
 	ieee80211_remain_on_channel_expired(mvm->hw);
@@ -1734,6 +1736,13 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 	if (changes & BSS_CHANGED_BEACON &&
 	    iwl_mvm_mac_ctxt_beacon_changed(mvm, vif))
 		IWL_WARN(mvm, "Failed updating beacon data\n");
+
+	if (changes & BSS_CHANGED_TXPOWER) {
+		IWL_DEBUG_CALIB(mvm, "Changing TX Power to %d\n",
+				bss_conf->txpower);
+		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
+	}
+
 }
 
 static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
@@ -2367,14 +2376,19 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 	/* Set the node address */
 	memcpy(aux_roc_req.node_addr, vif->addr, ETH_ALEN);
 
+	lockdep_assert_held(&mvm->mutex);
+
+	spin_lock_bh(&mvm->time_event_lock);
+
+	if (WARN_ON(te_data->id == HOT_SPOT_CMD)) {
+		spin_unlock_bh(&mvm->time_event_lock);
+		return -EIO;
+	}
+
 	te_data->vif = vif;
 	te_data->duration = duration;
 	te_data->id = HOT_SPOT_CMD;
 
-	lockdep_assert_held(&mvm->mutex);
-
-	spin_lock_bh(&mvm->time_event_lock);
-	list_add_tail(&te_data->list, &mvm->time_event_list);
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	/*
@@ -2430,21 +2444,22 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
 
+	mutex_lock(&mvm->mutex);
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		/* Use aux roc framework (HS20) */
 		ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
 					       vif, duration);
-		return ret;
+		goto out_unlock;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* handle below */
 		break;
 	default:
 		IWL_ERR(mvm, "vif isn't P2P_DEVICE: %d\n", vif->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
-
-	mutex_lock(&mvm->mutex);
 
 	for (i = 0; i < NUM_PHY_CTX; i++) {
 		phy_ctxt = &mvm->phy_ctxts[i];

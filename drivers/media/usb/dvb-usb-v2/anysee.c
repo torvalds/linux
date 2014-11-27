@@ -630,8 +630,8 @@ error:
 	return ret;
 }
 
-static int anysee_add_i2c_dev(struct dvb_usb_device *d, char *type, u8 addr,
-		void *platform_data)
+static int anysee_add_i2c_dev(struct dvb_usb_device *d, const char *type,
+		u8 addr, void *platform_data)
 {
 	int ret, num;
 	struct anysee_state *state = d_to_priv(d);
@@ -659,7 +659,7 @@ static int anysee_add_i2c_dev(struct dvb_usb_device *d, char *type, u8 addr,
 		goto err;
 	}
 
-	request_module(board_info.type);
+	request_module("%s", board_info.type);
 
 	/* register I2C device */
 	client = i2c_new_device(adapter, &board_info);

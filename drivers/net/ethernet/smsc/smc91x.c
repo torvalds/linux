@@ -81,6 +81,7 @@ static const char version[] =
 #include <linux/workqueue.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -2188,6 +2189,41 @@ static const struct of_device_id smc91x_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, smc91x_match);
+
+/**
+ * of_try_set_control_gpio - configure a gpio if it exists
+ */
+static int try_toggle_control_gpio(struct device *dev,
+				   struct gpio_desc **desc,
+				   const char *name, int index,
+				   int value, unsigned int nsdelay)
+{
+	struct gpio_desc *gpio = *desc;
+	int res;
+
+	gpio = devm_gpiod_get_index(dev, name, index);
+	if (IS_ERR(gpio)) {
+		if (PTR_ERR(gpio) == -ENOENT) {
+			*desc = NULL;
+			return 0;
+		}
+
+		return PTR_ERR(gpio);
+	}
+	res = gpiod_direction_output(gpio, !value);
+	if (res) {
+		dev_err(dev, "unable to toggle gpio %s: %i\n", name, res);
+		devm_gpiod_put(dev, gpio);
+		gpio = NULL;
+		return res;
+	}
+	if (nsdelay)
+		usleep_range(nsdelay, 2 * nsdelay);
+	gpiod_set_value_cansleep(gpio, value);
+	*desc = gpio;
+
+	return 0;
+}
 #endif
 
 /*
@@ -2207,9 +2243,10 @@ static int smc_drv_probe(struct platform_device *pdev)
 	const struct of_device_id *match = NULL;
 	struct smc_local *lp;
 	struct net_device *ndev;
-	struct resource *res, *ires;
+	struct resource *res;
 	unsigned int __iomem *addr;
 	unsigned long irq_flags = SMC_IRQ_FLAGS;
+	unsigned long irq_resflags;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct smc_local));
@@ -2236,6 +2273,28 @@ static int smc_drv_probe(struct platform_device *pdev)
 	if (match) {
 		struct device_node *np = pdev->dev.of_node;
 		u32 val;
+
+		/* Optional pwrdwn GPIO configured? */
+		ret = try_toggle_control_gpio(&pdev->dev, &lp->power_gpio,
+					      "power", 0, 0, 100);
+		if (ret)
+			return ret;
+
+		/*
+		 * Optional reset GPIO configured? Minimum 100 ns reset needed
+		 * according to LAN91C96 datasheet page 14.
+		 */
+		ret = try_toggle_control_gpio(&pdev->dev, &lp->reset_gpio,
+					      "reset", 0, 0, 100);
+		if (ret)
+			return ret;
+
+		/*
+		 * Need to wait for optional EEPROM to load, max 750 us according
+		 * to LAN91C96 datasheet page 55.
+		 */
+		if (lp->reset_gpio)
+			usleep_range(750, 1000);
 
 		/* Combination of IO widths supported, default to 16-bit */
 		if (!of_property_read_u32(np, "reg-io-width", &val)) {
@@ -2279,16 +2338,19 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_free_netdev;
 	}
 
-	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!ires) {
+	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq <= 0) {
 		ret = -ENODEV;
 		goto out_release_io;
 	}
-
-	ndev->irq = ires->start;
-
-	if (irq_flags == -1 || ires->flags & IRQF_TRIGGER_MASK)
-		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
+	/*
+	 * If this platform does not specify any special irqflags, or if
+	 * the resource supplies a trigger, override the irqflags with
+	 * the trigger flags from the resource.
+	 */
+	irq_resflags = irqd_get_trigger_type(irq_get_irq_data(ndev->irq));
+	if (irq_flags == -1 || irq_resflags & IRQF_TRIGGER_MASK)
+		irq_flags = irq_resflags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev, ndev);
 	if (ret)

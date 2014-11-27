@@ -459,6 +459,10 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	int measure_freq;
 	int ret;
 
+	if (!cpufreq_get_current_driver()) {
+		dev_dbg(&pdev->dev, "no cpufreq driver!");
+		return -EPROBE_DEFER;
+	}
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -521,6 +525,30 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	data->thermal_clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(data->thermal_clk)) {
+		ret = PTR_ERR(data->thermal_clk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"failed to get thermal clk: %d\n", ret);
+		cpufreq_cooling_unregister(data->cdev);
+		return ret;
+	}
+
+	/*
+	 * Thermal sensor needs clk on to get correct value, normally
+	 * we should enable its clk before taking measurement and disable
+	 * clk after measurement is done, but if alarm function is enabled,
+	 * hardware will auto measure the temperature periodically, so we
+	 * need to keep the clk always on for alarm function.
+	 */
+	ret = clk_prepare_enable(data->thermal_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable thermal clk: %d\n", ret);
+		cpufreq_cooling_unregister(data->cdev);
+		return ret;
+	}
+
 	data->tz = thermal_zone_device_register("imx_thermal_zone",
 						IMX_TRIP_NUM,
 						BIT(IMX_TRIP_PASSIVE), data,
@@ -531,24 +559,9 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		ret = PTR_ERR(data->tz);
 		dev_err(&pdev->dev,
 			"failed to register thermal zone device %d\n", ret);
+		clk_disable_unprepare(data->thermal_clk);
 		cpufreq_cooling_unregister(data->cdev);
 		return ret;
-	}
-
-	data->thermal_clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(data->thermal_clk)) {
-		dev_warn(&pdev->dev, "failed to get thermal clk!\n");
-	} else {
-		/*
-		 * Thermal sensor needs clk on to get correct value, normally
-		 * we should enable its clk before taking measurement and disable
-		 * clk after measurement is done, but if alarm function is enabled,
-		 * hardware will auto measure the temperature periodically, so we
-		 * need to keep the clk always on for alarm function.
-		 */
-		ret = clk_prepare_enable(data->thermal_clk);
-		if (ret)
-			dev_warn(&pdev->dev, "failed to enable thermal clk: %d\n", ret);
 	}
 
 	/* Enable measurements at ~ 10 Hz */

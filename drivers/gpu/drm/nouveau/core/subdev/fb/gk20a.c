@@ -27,6 +27,20 @@ struct gk20a_fb_priv {
 };
 
 static int
+gk20a_fb_init(struct nouveau_object *object)
+{
+	struct gk20a_fb_priv *priv = (void *)object;
+	int ret;
+
+	ret = nouveau_fb_init(&priv->base);
+	if (ret)
+		return ret;
+
+	nv_mask(priv, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
+	return 0;
+}
+
+static int
 gk20a_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
@@ -48,7 +62,7 @@ gk20a_fb_oclass = &(struct nouveau_fb_impl) {
 	.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = gk20a_fb_ctor,
 		.dtor = _nouveau_fb_dtor,
-		.init = _nouveau_fb_init,
+		.init = gk20a_fb_init,
 		.fini = _nouveau_fb_fini,
 	},
 	.memtype = nvc0_fb_memtype_valid,

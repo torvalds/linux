@@ -570,8 +570,8 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 err_req:
 	for (i = 0; i < phonet_rxq_size && fp->out_reqv[i]; i++)
 		usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
-err:
 	usb_free_all_descriptors(f);
+err:
 	if (fp->out_ep)
 		fp->out_ep->driver_data = NULL;
 	if (fp->in_ep)

@@ -1320,7 +1320,7 @@ config RTC_DRV_LPC32XX
 
 config RTC_DRV_PM8XXX
 	tristate "Qualcomm PMIC8XXX RTC"
-	depends on MFD_PM8XXX
+	depends on MFD_PM8XXX || MFD_SPMI_PMIC
 	help
 	  If you say yes here you get support for the
 	  Qualcomm PMIC8XXX RTC.
