@@ -158,6 +158,9 @@ enum htt_rx_ring_flags {
 	HTT_RX_RING_FLAGS_PHY_DATA_RX  = 1 << 15
 };
 
+#define HTT_RX_RING_SIZE_MIN 128
+#define HTT_RX_RING_SIZE_MAX 2048
+
 struct htt_rx_ring_setup_ring {
 	__le32 fw_idx_shadow_reg_paddr;
 	__le32 rx_ring_base_paddr;
