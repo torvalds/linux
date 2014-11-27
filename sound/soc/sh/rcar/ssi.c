@@ -82,7 +82,7 @@ struct rsnd_ssi {
 #define rsnd_ssi_nr(priv) ((priv)->ssi_nr)
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_dma_to_ssi(dma)  rsnd_mod_to_ssi(rsnd_dma_to_mod(dma))
-#define rsnd_ssi_pio_available(ssi) ((ssi)->info->pio_irq > 0)
+#define rsnd_ssi_pio_available(ssi) ((ssi)->info->irq > 0)
 #define rsnd_ssi_dma_available(ssi) \
 	rsnd_dma_available(rsnd_mod_to_dma(&(ssi)->mod))
 #define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
@@ -352,9 +352,6 @@ static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 	}
 }
 
-/*
- *		SSI PIO
- */
 static int rsnd_ssi_start(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai)
 {
@@ -386,7 +383,7 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	return 0;
 }
 
-static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
+static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 {
 	struct rsnd_ssi *ssi = data;
 	struct rsnd_dai *rdai = ssi->rdai;
@@ -436,17 +433,19 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/*
+ *		SSI PIO
+ */
 static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int irq = ssi->info->pio_irq;
 	int ret;
 
-	ret = devm_request_irq(dev, irq,
-			       rsnd_ssi_pio_interrupt,
+	ret = devm_request_irq(dev, ssi->info->irq,
+			       rsnd_ssi_interrupt,
 			       IRQF_SHARED,
 			       dev_name(dev), ssi);
 	if (ret)
@@ -477,8 +476,8 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 	int dma_id = ssi->info->dma_id;
 	int ret;
 
-	ret = devm_request_irq(dev, ssi->info->pio_irq,
-			       rsnd_ssi_pio_interrupt,
+	ret = devm_request_irq(dev, ssi->info->irq,
+			       rsnd_ssi_interrupt,
 			       IRQF_SHARED,
 			       dev_name(dev), ssi);
 	if (ret)
@@ -509,7 +508,7 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	int irq = ssi->info->pio_irq;
+	int irq = ssi->info->irq;
 
 	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
 
@@ -680,7 +679,7 @@ static void rsnd_of_parse_ssi(struct platform_device *pdev,
 		/*
 		 * irq
 		 */
-		ssi_info->pio_irq = irq_of_parse_and_map(np, 0);
+		ssi_info->irq = irq_of_parse_and_map(np, 0);
 
 		/*
 		 * DMA
