@@ -2511,16 +2511,17 @@ static void ath10k_wmi_event_service_ready(struct ath10k *ar,
 {
 	struct wmi_svc_rdy_ev_arg arg = {};
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
-	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_MAX) = {};
 	int ret;
+
+	memset(&ar->wmi.svc_map, 0, sizeof(ar->wmi.svc_map));
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		ret = ath10k_wmi_10x_pull_svc_rdy_ev(skb, &arg);
-		wmi_10x_svc_map(arg.service_map, svc_bmap,
+		wmi_10x_svc_map(arg.service_map, ar->wmi.svc_map,
 				arg.service_map_len);
 	} else {
 		ret = ath10k_wmi_main_pull_svc_rdy_ev(skb, &arg);
-		wmi_main_svc_map(arg.service_map, svc_bmap,
+		wmi_main_svc_map(arg.service_map, ar->wmi.svc_map,
 				 arg.service_map_len);
 	}
 
@@ -2543,7 +2544,6 @@ static void ath10k_wmi_event_service_ready(struct ath10k *ar,
 	ar->num_rf_chains = __le32_to_cpu(arg.num_rf_chains);
 	ar->ath_common.regulatory.current_rd = __le32_to_cpu(arg.eeprom_rd);
 
-	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
 			arg.service_map, arg.service_map_len);
 

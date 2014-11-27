@@ -62,9 +62,6 @@ int ath10k_debug_create(struct ath10k *ar);
 void ath10k_debug_destroy(struct ath10k *ar);
 int ath10k_debug_register(struct ath10k *ar);
 void ath10k_debug_unregister(struct ath10k *ar);
-void ath10k_debug_read_service_map(struct ath10k *ar,
-				   const void *service_map,
-				   size_t map_size);
 void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb);
 struct ath10k_fw_crash_data *
 ath10k_debug_get_new_fw_crash_data(struct ath10k *ar);
@@ -106,12 +103,6 @@ static inline int ath10k_debug_register(struct ath10k *ar)
 }
 
 static inline void ath10k_debug_unregister(struct ath10k *ar)
-{
-}
-
-static inline void ath10k_debug_read_service_map(struct ath10k *ar,
-						 const void *service_map,
-						 size_t map_size)
 {
 }
 

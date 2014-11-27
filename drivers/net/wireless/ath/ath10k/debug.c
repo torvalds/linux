@@ -179,13 +179,6 @@ EXPORT_SYMBOL(ath10k_warn);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 
-void ath10k_debug_read_service_map(struct ath10k *ar,
-				   const void *service_map,
-				   size_t map_size)
-{
-	memcpy(ar->debug.wmi_service_bitmap, service_map, map_size);
-}
-
 static ssize_t ath10k_read_wmi_services(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
@@ -207,8 +200,9 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 	if (len > buf_len)
 		len = buf_len;
 
+	spin_lock_bh(&ar->data_lock);
 	for (i = 0; i < WMI_SERVICE_MAX; i++) {
-		enabled = test_bit(i, ar->debug.wmi_service_bitmap);
+		enabled = test_bit(i, ar->wmi.svc_map);
 		name = wmi_service_name(i);
 
 		if (!name) {
@@ -224,6 +218,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 				 "%-40s %s\n",
 				 name, enabled ? "enabled" : "-");
 	}
+	spin_unlock_bh(&ar->data_lock);
 
 	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 

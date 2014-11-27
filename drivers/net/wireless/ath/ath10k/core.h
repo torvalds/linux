@@ -123,6 +123,7 @@ struct ath10k_wmi {
 	struct completion service_ready;
 	struct completion unified_ready;
 	wait_queue_head_t tx_credits_wq;
+	DECLARE_BITMAP(svc_map, WMI_SERVICE_MAX);
 	struct wmi_cmd_map *cmd;
 	struct wmi_vdev_param_map *vdev_param;
 	struct wmi_pdev_param_map *pdev_param;
@@ -313,7 +314,6 @@ struct ath10k_debug {
 	struct ath10k_fw_stats fw_stats;
 	struct completion fw_stats_complete;
 	bool fw_stats_done;
-	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_MAX);
 
 	unsigned long htt_stats_mask;
 	struct delayed_work htt_stats_dwork;
