@@ -756,7 +756,7 @@
 			};
 
 			vpu: vpu@63ff4000 {
-				compatible = "fsl,imx53-vpu";
+				compatible = "fsl,imx53-vpu", "cnm,coda7541";
 				reg = <0x63ff4000 0x1000>;
 				interrupts = <9>;
 				clocks = <&clks IMX5_CLK_VPU_REFERENCE_GATE>,
