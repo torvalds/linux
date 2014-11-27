@@ -664,7 +664,8 @@ static u64 virtio_ccw_get_features(struct virtio_device *vdev)
 {
 	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
 	struct virtio_feature_desc *features;
-	int ret, rc;
+	int ret;
+	u64 rc;
 	struct ccw1 *ccw;
 
 	ccw = kzalloc(sizeof(*ccw), GFP_DMA | GFP_KERNEL);
@@ -677,7 +678,6 @@ static u64 virtio_ccw_get_features(struct virtio_device *vdev)
 		goto out_free;
 	}
 	/* Read the feature bits from the host. */
-	/* TODO: Features > 32 bits */
 	features->index = 0;
 	ccw->cmd_code = CCW_CMD_READ_FEAT;
 	ccw->flags = 0;
@@ -690,6 +690,16 @@ static u64 virtio_ccw_get_features(struct virtio_device *vdev)
 	}
 
 	rc = le32_to_cpu(features->features);
+
+	/* Read second half of the feature bits from the host. */
+	features->index = 1;
+	ccw->cmd_code = CCW_CMD_READ_FEAT;
+	ccw->flags = 0;
+	ccw->count = sizeof(*features);
+	ccw->cda = (__u32)(unsigned long)features;
+	ret = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_READ_FEAT);
+	if (ret == 0)
+		rc |= (u64)le32_to_cpu(features->features) << 32;
 
 out_free:
 	kfree(features);
@@ -714,12 +724,18 @@ static void virtio_ccw_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
-	/* Make sure we don't have any features > 32 bits! */
-	BUG_ON((u32)vdev->features != vdev->features);
-
 	features->index = 0;
-	features->features = cpu_to_le32(vdev->features);
-	/* Write the feature bits to the host. */
+	features->features = cpu_to_le32((u32)vdev->features);
+	/* Write the first half of the feature bits to the host. */
+	ccw->cmd_code = CCW_CMD_WRITE_FEAT;
+	ccw->flags = 0;
+	ccw->count = sizeof(*features);
+	ccw->cda = (__u32)(unsigned long)features;
+	ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_WRITE_FEAT);
+
+	features->index = 1;
+	features->features = cpu_to_le32(vdev->features >> 32);
+	/* Write the second half of the feature bits to the host. */
 	ccw->cmd_code = CCW_CMD_WRITE_FEAT;
 	ccw->flags = 0;
 	ccw->count = sizeof(*features);
