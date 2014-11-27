@@ -299,8 +299,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_src_start(struct rsnd_mod *mod,
-			  struct rsnd_dai *rdai)
+static int rsnd_src_start(struct rsnd_mod *mod)
 {
 	/*
 	 * Cancel the initialization and operate the SRC function
@@ -311,9 +310,7 @@ static int rsnd_src_start(struct rsnd_mod *mod,
 	return 0;
 }
 
-
-static int rsnd_src_stop(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai)
+static int rsnd_src_stop(struct rsnd_mod *mod)
 {
 	/* nothing to do */
 	return 0;
@@ -488,7 +485,7 @@ static int rsnd_src_start_gen1(struct rsnd_mod *mod,
 
 	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), (1 << id));
 
-	return rsnd_src_start(mod, rdai);
+	return rsnd_src_start(mod);
 }
 
 static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
@@ -498,7 +495,7 @@ static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
 
 	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), 0);
 
-	return rsnd_src_stop(mod, rdai);
+	return rsnd_src_stop(mod);
 }
 
 static struct rsnd_mod_ops rsnd_src_gen1_ops = {
@@ -646,7 +643,7 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 
 	rsnd_mod_write(mod, SRC_CTRL, val);
 
-	return rsnd_src_start(mod, rdai);
+	return rsnd_src_start(mod);
 }
 
 static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
@@ -658,7 +655,7 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 
 	rsnd_dma_stop(rsnd_mod_to_dma(&src->mod));
 
-	return rsnd_src_stop(mod, rdai);
+	return rsnd_src_stop(mod);
 }
 
 static struct rsnd_mod_ops rsnd_src_gen2_ops = {
