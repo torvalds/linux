@@ -965,7 +965,6 @@ static struct of_device_id selftest_match[] = {
 	{ .compatible = "selftest", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, altera_jtaguart_match);
 
 static struct platform_driver selftest_driver = {
 	.probe			= selftest_probe,
