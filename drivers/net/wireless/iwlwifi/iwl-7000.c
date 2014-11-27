@@ -89,6 +89,8 @@
 #define IWL3165_TX_POWER_VERSION	0xffff /* meaningless */
 #define IWL7265_NVM_VERSION		0x0a1d
 #define IWL7265_TX_POWER_VERSION	0xffff /* meaningless */
+#define IWL7265D_NVM_VERSION		0x0c11
+#define IWL7265_TX_POWER_VERSION	0xffff /* meaningless */
 
 #define IWL7260_FW_PRE "iwlwifi-7260-"
 #define IWL7260_MODULE_FIRMWARE(api) IWL7260_FW_PRE __stringify(api) ".ucode"
@@ -275,7 +277,7 @@ const struct iwl_cfg iwl7265d_2ac_cfg = {
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7000,
 	.ht_params = &iwl7265_ht_params,
-	.nvm_ver = IWL7265_NVM_VERSION,
+	.nvm_ver = IWL7265D_NVM_VERSION,
 	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 };
@@ -285,7 +287,7 @@ const struct iwl_cfg iwl7265d_2n_cfg = {
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7000,
 	.ht_params = &iwl7265_ht_params,
-	.nvm_ver = IWL7265_NVM_VERSION,
+	.nvm_ver = IWL7265D_NVM_VERSION,
 	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 };
@@ -295,7 +297,7 @@ const struct iwl_cfg iwl7265d_n_cfg = {
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7000,
 	.ht_params = &iwl7265_ht_params,
-	.nvm_ver = IWL7265_NVM_VERSION,
+	.nvm_ver = IWL7265D_NVM_VERSION,
 	.nvm_calib_ver = IWL7265_TX_POWER_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 };
