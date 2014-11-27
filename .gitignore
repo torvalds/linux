@@ -96,7 +96,3 @@ x509.genkey
 
 # Kconfig presets
 all.config
-
-#eclipse files
-.project
-.cproject
