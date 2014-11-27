@@ -732,6 +732,22 @@ static void hdmi_tvenc_set(Hdmi_tx_video_para_t *param)
          SOF_LINES          = 20;                  
          TOTAL_FRAMES       = 4;                   
     }
+    else if(param->VIC==HDMI_800p){
+		 INTERLACE_MODE		= 0;
+		 PIXEL_REPEAT_VENC	= 0; //MDRJR
+		 PIXEL_REPEAT_HDMI  = 0;
+		 ACTIVE_PIXELS      = 1280;
+		 ACTIVE_LINES		= 800;
+		 LINES_F0			= 823;
+		 LINES_F1			= 823;
+		 FRONT_PORCH		= 48;
+		 HSYNC_PIXELS		= 32;
+		 BACK_PORCH			= 80;
+		 EOF_LINES			= 3;
+		 VSYNC_LINES		= 6;
+		 SOF_LINES			= 14;
+		 TOTAL_FRAMES		= 4;
+	}
     else if(param->VIC==HDMI_1280x1024){
          INTERLACE_MODE     = 0;                   
          PIXEL_REPEAT_VENC  = 0;                   
@@ -1098,6 +1114,7 @@ void hdmi_hw_set_powermode(hdmitx_dev_t* hdmitx_device)
     case HDMI_480p60:
     case HDMI_480p60_16x9:
     case HDMI_720p50:
+    case HDMI_800p:
     case HDMI_720p60:
     case HDMI_1080i50:
     case HDMI_1080i60:
@@ -1809,6 +1826,9 @@ static void hdmitx_set_pll(Hdmi_tx_video_para_t *param)
         case HDMI_720p50:
             set_vmode_clk(VMODE_720P);
             break;
+        case HDMI_800p:
+			set_vmode_clk(VMODE_800P);
+			break;
         case HDMI_1080i60:
         case HDMI_1080i50:
             set_vmode_clk(VMODE_1080I);
@@ -1869,7 +1889,7 @@ static int hdmitx_set_dispmode(hdmitx_dev_t* hdmitx_device, Hdmi_tx_video_para_t
         &&(param->VIC!=HDMI_1080p24)
         &&(param->VIC!=HDMI_1080p60)&&(param->VIC!=HDMI_1080p50)
         &&(param->VIC!=HDMI_720p60)&&(param->VIC!=HDMI_720p50)
-        &&(param->VIC!=HDMI_640x480p60) &&(param->VIC!=HDMI_1280x1024) &&(param->VIC!=HDMI_1920x1200)
+        &&(param->VIC!=HDMI_640x480p60) &&(param->VIC!=HDMI_1280x1024) &&(param->VIC!=HDMI_1920x1200) && (param->VIC!=HDMI_800p)
         &&(param->VIC!=HDMI_4k2k_30)&&(param->VIC!=HDMI_4k2k_25)&&(param->VIC!=HDMI_4k2k_24)&&(param->VIC!=HDMI_4k2k_smpte_24)
         &&(param->VIC!=HDMI_1080i60)&&(param->VIC!=HDMI_1080i50)){
         return -1;
@@ -2166,6 +2186,7 @@ static Vic_attr_map vic_attr_map_table[] = {
     {HDMI_480p60,           27000 },
     {HDMI_480p60_16x9,      27000 },
     {HDMI_720p60,           74250 },
+    {HDMI_800p,				71000 },
     {HDMI_1080i60,          74250 },
     {HDMI_480i60,           27000 },
     {HDMI_480i60_16x9,      27000 },
@@ -2308,6 +2329,7 @@ static int hdmitx_set_audmode(struct hdmi_tx_dev_s* hdmitx_device, Hdmi_tx_audio
             }
             break;
         //TMDS Clock:74.176MHz
+        case HDMI_800p:
         case HDMI_720p60:
         case HDMI_720p50:
         case HDMI_1280x1024:

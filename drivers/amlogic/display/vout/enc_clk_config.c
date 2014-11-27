@@ -162,6 +162,16 @@ static void set_hpll_clk_out(unsigned clk)
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4000043d);
             WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
             break;
+        case 1422:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4023d100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a7ad023);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12286);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6000043b);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4000043b);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c40f);
+            break;
 		case 1540:
 			aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c2ab);
 			aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4023d100);
@@ -535,6 +545,7 @@ static enc_clk_val_t setting_enc_clk_val[] = {
     {VMODE_576CVBS,    1296, 4, 1, 1, VIU_ENCI,  6, 4, 2,-1,  2, -1, -1,  2,  -1},
     {VMODE_576P,       2160, 8, 1, 1, VIU_ENCP,  5, 4, 2, 1, -1, -1, -1,  1,  -1},
     {VMODE_720P,       1488, 2, 1, 1, VIU_ENCP, 10, 1, 2, 1, -1, -1, -1,  1,  -1},
+    {VMODE_800P,       1422, 2, 2, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1}, // MDRJR Verify
     {VMODE_1080I,      1488, 2, 1, 1, VIU_ENCP, 10, 1, 2, 1, -1, -1, -1,  1,  -1},
     {VMODE_1080P,      1488, 1, 1, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1},
     {VMODE_1080P,      1488, 1, 1, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1},

@@ -80,6 +80,17 @@ static Hdmi_tx_video_para_t hdmi_tx_video_params[] =
         .ss             = SS_SCAN_UNDER,
         .sc             = SC_SCALE_HORIZ_VERT,
     },
+	{
+		.VIC			= HDMI_800p,
+		.color_prefer	= COLOR_SPACE_RGB444,
+		.color_depth 	= COLOR_24BIT,
+		.bar_info		= B_BAR_VERT_HORIZ,
+		.repeat_time	= NO_REPEAT,
+		.aspect_ratio 	= TV_ASPECT_RATIO_16_9,
+		.cc				= CC_ITU709,
+		.ss				= SS_SCAN_UNDER,
+		.sc				= SC_SCALE_HORIZ_VERT,
+	},
     {
         .VIC            = HDMI_1080i60,
         .color_prefer   = COLOR_SPACE_RGB444,

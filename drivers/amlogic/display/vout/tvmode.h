@@ -37,6 +37,7 @@ typedef enum {
     TVMODE_576P  ,
     TVMODE_576P_RPT  ,
     TVMODE_720P  ,
+    TVMODE_800P	,
     TVMODE_1080I ,
     TVMODE_1080P ,
     TVMODE_720P_50HZ ,

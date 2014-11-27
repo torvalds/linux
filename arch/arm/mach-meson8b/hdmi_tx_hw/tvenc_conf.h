@@ -215,6 +215,10 @@ static  reg_t hdmi_tvenc_regs_1280x1024x60[] = {
     {0,0}
 };  
 
+static reg_t hdmi_tvenc_regs_800p[] = {
+	{ 0, 0 }
+};
+
 static  reg_t hdmi_tvenc_regs_1920x1200[] = {//60hz
     //{ENCP_VIDEO_MODE,                    0x00004040},
     //{ENCP_DE_H_BEGIN,                    0x00000112},
@@ -259,6 +263,7 @@ static const hdmi_tvenc_config_t hdmi_tvenc_configs[] = {
     {HDMI_480p60,                hdmi_tvenc_regs_480p},
     {HDMI_480p60_16x9,           hdmi_tvenc_regs_480p},
     {HDMI_720p60,                hdmi_tvenc_regs_720p},
+    {HDMI_800p,					 hdmi_tvenc_regs_800p},
     {HDMI_1080i60,               hdmi_tvenc_regs_1080i},
     {HDMI_480i60,                hdmi_tvenc_regs_480i},
     {HDMI_480i60_16x9,           hdmi_tvenc_regs_480i},

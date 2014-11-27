@@ -1299,6 +1299,7 @@ static dispmode_vic_t dispmode_VIC_tab[]=
     {"576p",      HDMI_576p50_16x9},
     {"720p50hz",  HDMI_720p50},
     {"720p",      HDMI_720p60},
+    {"800p",	  HDMI_800p},
     {"vga",       HDMI_640x480p60},
     {"sxga",      HDMI_1280x1024},
     {"1920x1200", HDMI_1920x1200},

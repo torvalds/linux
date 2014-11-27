@@ -126,6 +126,32 @@ static const  reg_t tvregs_720p[] = {
     {MREG_END_MARKER,            0      }
 };
 
+static const  reg_t tvregs_800p[] = { // MDRJR verify
+    {P_VENC_VDAC_SETTING,          0xff,  },
+
+    {P_ENCP_VIDEO_EN,              0,     },
+    {P_ENCI_VIDEO_EN,              0,     },
+
+    {P_ENCP_VIDEO_MODE, 0x4040,},
+    {P_ENCP_VIDEO_MODE_ADV, 0x18,},
+    {P_ENCP_VIDEO_MAX_PXCNT, 0x59F,},
+    {P_ENCP_VIDEO_MAX_LNCNT, 0x336,},
+    {P_ENCP_VIDEO_HAVON_BEGIN, 0x70,},
+    {P_ENCP_VIDEO_HAVON_END, 0x56F,},
+    {P_ENCP_VIDEO_VAVON_BLINE, 0x14,},
+    {P_ENCP_VIDEO_VAVON_ELINE, 0x333,},
+    {P_ENCP_VIDEO_HSO_BEGIN, 0x0,},
+    {P_ENCP_VIDEO_HSO_END, 0x20,},
+    {P_ENCP_VIDEO_VSO_BEGIN, 0x1E,},
+    {P_ENCP_VIDEO_VSO_END, 0x32,},
+    {P_ENCP_VIDEO_VSO_BLINE, 0x0,},
+    {P_ENCP_VIDEO_VSO_ELINE, 0x6,},
+
+    {P_ENCP_VIDEO_EN,              1,     },
+    {P_ENCI_VIDEO_EN,              0,     },
+    {MREG_END_MARKER,            0      }
+};
+
 static const  reg_t tvregs_720p_50hz[] = {
     {P_VENC_VDAC_SETTING,          0xff,  },
     {P_HHI_VID_CLK_CNTL,           0x0,},
@@ -1506,6 +1532,7 @@ static const reg_t *tvregsTab[] = {
     tvregs_576p,
     tvregs_576p,        // For REPEAT MODE use, ENC setting is same
     tvregs_720p,
+    tvregs_800p,
     tvregs_1080i,       //Adjust tvregs_* sequences and match the enum define in tvmode.h
     tvregs_1080p,
     tvregs_720p_50hz,
@@ -1535,6 +1562,7 @@ static const tvinfo_t tvinfoTab[] = {
     {.xres =  720, .yres =  576, .id = "576p"},
     {.xres =  720, .yres =  576, .id = "576p_prt"},
     {.xres = 1280, .yres =  720, .id = "720p"},
+    {.xres = 1280, .yres =  800, .id = "800p"},
     {.xres = 1920, .yres = 1080, .id = "1080i"},
     {.xres = 1920, .yres = 1080, .id = "1080p"},
     {.xres = 1280, .yres =  720, .id = "720p50hz"},

@@ -39,6 +39,7 @@ typedef enum {
     VMODE_576P  ,
     VMODE_576P_RPT  ,
     VMODE_720P  ,
+    VMODE_800P ,
     VMODE_1080I ,
     VMODE_1080P ,
     VMODE_720P_50HZ ,
