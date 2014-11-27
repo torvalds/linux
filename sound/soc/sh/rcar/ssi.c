@@ -412,8 +412,8 @@ static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
 	return ret;
 }
 
-static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai)
+static int rsnd_ssi_start(struct rsnd_mod *mod,
+			  struct rsnd_dai *rdai)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
@@ -427,8 +427,8 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
-			     struct rsnd_dai *rdai)
+static int rsnd_ssi_stop(struct rsnd_mod *mod,
+			 struct rsnd_dai *rdai)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
@@ -448,8 +448,8 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.probe	= rsnd_ssi_pio_probe,
 	.init	= rsnd_ssi_init,
 	.quit	= rsnd_ssi_quit,
-	.start	= rsnd_ssi_pio_start,
-	.stop	= rsnd_ssi_pio_stop,
+	.start	= rsnd_ssi_start,
+	.stop	= rsnd_ssi_stop,
 };
 
 static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
@@ -508,13 +508,9 @@ static int rsnd_ssi_fallback(struct rsnd_mod *mod,
 static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
-
-	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+	rsnd_ssi_start(mod, rdai);
 
 	rsnd_dma_start(dma);
 
@@ -524,16 +520,11 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 			     struct rsnd_dai *rdai)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
 	rsnd_dma_stop(dma);
 
-	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
-
-	rsnd_ssi_hw_stop(ssi, rdai);
-
-	rsnd_src_ssiu_stop(mod, rdai);
+	rsnd_ssi_stop(mod, rdai);
 
 	return 0;
 }
