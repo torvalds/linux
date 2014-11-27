@@ -239,7 +239,10 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	size_t srlen, sulen;
 	char *desc = NULL, *p;
 	int ret;
-
+	if(prep == NULL){
+		pr_debug("NULL payload");
+		return PTR_ERR(prep);
+	}
 	cert = x509_cert_parse(prep->data, prep->datalen);
 	if (IS_ERR(cert))
 		return PTR_ERR(cert);
