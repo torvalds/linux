@@ -1018,6 +1018,12 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	performing GSO on a packet. The device returns true if it is
  *	able to GSO the packet, false otherwise. If the return value is
  *	false the stack will do software GSO.
+ *
+ * int (*ndo_switch_parent_id_get)(struct net_device *dev,
+ *				   struct netdev_phys_item_id *psid);
+ *	Called to get an ID of the switch chip this port is part of.
+ *	If driver implements this, it indicates that it represents a port
+ *	of a switch chip.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1171,6 +1177,10 @@ struct net_device_ops {
 	int			(*ndo_get_lock_subclass)(struct net_device *dev);
 	bool			(*ndo_gso_check) (struct sk_buff *skb,
 						  struct net_device *dev);
+#ifdef CONFIG_NET_SWITCHDEV
+	int			(*ndo_switch_parent_id_get)(struct net_device *dev,
+							    struct netdev_phys_item_id *psid);
+#endif
 };
 
 /**
