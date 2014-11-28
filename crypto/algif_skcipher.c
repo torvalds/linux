@@ -359,8 +359,6 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 	err = 0;
 
 	ctx->more = msg->msg_flags & MSG_MORE;
-	if (!ctx->more && !list_empty(&ctx->tsgl))
-		sgl = list_entry(ctx->tsgl.prev, struct skcipher_sg_list, list);
 
 unlock:
 	skcipher_data_wakeup(sk);
@@ -408,8 +406,6 @@ static ssize_t skcipher_sendpage(struct socket *sock, struct page *page,
 
 done:
 	ctx->more = flags & MSG_MORE;
-	if (!ctx->more && !list_empty(&ctx->tsgl))
-		sgl = list_entry(ctx->tsgl.prev, struct skcipher_sg_list, list);
 
 unlock:
 	skcipher_data_wakeup(sk);
