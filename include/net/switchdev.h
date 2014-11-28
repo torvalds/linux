@@ -16,11 +16,18 @@
 
 int netdev_switch_parent_id_get(struct net_device *dev,
 				struct netdev_phys_item_id *psid);
+int netdev_switch_port_stp_update(struct net_device *dev, u8 state);
 
 #else
 
 static inline int netdev_switch_parent_id_get(struct net_device *dev,
 					      struct netdev_phys_item_id *psid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int netdev_switch_port_stp_update(struct net_device *dev,
+						u8 state)
 {
 	return -EOPNOTSUPP;
 }

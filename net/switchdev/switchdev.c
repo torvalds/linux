@@ -31,3 +31,22 @@ int netdev_switch_parent_id_get(struct net_device *dev,
 	return ops->ndo_switch_parent_id_get(dev, psid);
 }
 EXPORT_SYMBOL(netdev_switch_parent_id_get);
+
+/**
+ *	netdev_switch_port_stp_update - Notify switch device port of STP
+ *					state change
+ *	@dev: port device
+ *	@state: port STP state
+ *
+ *	Notify switch device port of bridge port STP state change.
+ */
+int netdev_switch_port_stp_update(struct net_device *dev, u8 state)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (!ops->ndo_switch_port_stp_update)
+		return -EOPNOTSUPP;
+	WARN_ON(!ops->ndo_switch_parent_id_get);
+	return ops->ndo_switch_port_stp_update(dev, state);
+}
+EXPORT_SYMBOL(netdev_switch_port_stp_update);
