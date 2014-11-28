@@ -79,7 +79,7 @@ int rockchip_ion_snapshot_debugfs(struct dentry* root)
 	struct dentry* last_ion_dentry;
 	struct dentry* ion_snapshot_dentry;
 
-	last_ion_dentry = debugfs_create_file("last_ion", S_IRUSR,
+	last_ion_dentry = debugfs_create_file("last_ion", 0664,
 						root,
 						NULL, &last_ion_fops);
 	if (!last_ion_dentry) {
@@ -89,7 +89,7 @@ int rockchip_ion_snapshot_debugfs(struct dentry* root)
 			path, "last_ion");
 	}
 
-	ion_snapshot_dentry = debugfs_create_file("ion_snapshot", S_IRUSR,
+	ion_snapshot_dentry = debugfs_create_file("ion_snapshot", 0664,
 						root,
 						NULL, &ion_snapshot_fops);
 	if (!ion_snapshot_dentry) {
