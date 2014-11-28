@@ -55,6 +55,8 @@
 #define IMX_CHIP_REVISION_3_3		0x33
 #define IMX_CHIP_REVISION_UNKNOWN	0xff
 
+#define IMX_DDR_TYPE_LPDDR2		1
+
 #ifndef __ASSEMBLY__
 extern unsigned int __mxc_cpu_type;
 #endif
