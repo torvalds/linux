@@ -175,4 +175,6 @@ int snd_dice_create_pcm(struct snd_dice *dice);
 
 int snd_dice_create_hwdep(struct snd_dice *dice);
 
+void snd_dice_create_proc(struct snd_dice *dice);
+
 #endif
