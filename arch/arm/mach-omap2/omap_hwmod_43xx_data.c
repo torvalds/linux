@@ -417,6 +417,37 @@ static struct omap_hwmod am43xx_qspi_hwmod = {
 	},
 };
 
+/*
+ * 'adc/tsc' class
+ * TouchScreen Controller (Analog-To-Digital Converter)
+ */
+static struct omap_hwmod_class_sysconfig am43xx_adc_tsc_sysc = {
+	.rev_offs	= 0x00,
+	.sysc_offs	= 0x10,
+	.sysc_flags	= SYSC_HAS_SIDLEMODE,
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			  SIDLE_SMART_WKUP),
+	.sysc_fields	= &omap_hwmod_sysc_type2,
+};
+
+static struct omap_hwmod_class am43xx_adc_tsc_hwmod_class = {
+	.name		= "adc_tsc",
+	.sysc		= &am43xx_adc_tsc_sysc,
+};
+
+static struct omap_hwmod am43xx_adc_tsc_hwmod = {
+	.name		= "adc_tsc",
+	.class		= &am43xx_adc_tsc_hwmod_class,
+	.clkdm_name	= "l3s_tsc_clkdm",
+	.main_clk	= "adc_tsc_fck",
+	.prcm		= {
+		.omap4  = {
+			.clkctrl_offs   = AM43XX_CM_WKUP_ADC_TSC_CLKCTRL_OFFSET,
+			.modulemode     = MODULEMODE_SWCTRL,
+		},
+	},
+};
+
 /* dss */
 
 static struct omap_hwmod am43xx_dss_core_hwmod = {
@@ -545,6 +576,13 @@ static struct omap_hwmod_ocp_if am43xx_l4_wkup__gpio0 = {
 	.slave		= &am43xx_gpio0_hwmod,
 	.clk		= "sys_clkin_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_ocp_if am43xx_l4_wkup__adc_tsc = {
+	.master         = &am33xx_l4_wkup_hwmod,
+	.slave          = &am43xx_adc_tsc_hwmod,
+	.clk            = "dpll_core_m4_div2_ck",
+	.user           = OCP_USER_MPU,
 };
 
 static struct omap_hwmod_ocp_if am43xx_l4_hs__cpgmac0 = {
@@ -789,6 +827,7 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am43xx_l4_wkup__i2c1,
 	&am43xx_l4_wkup__gpio0,
 	&am43xx_l4_wkup__wd_timer1,
+	&am43xx_l4_wkup__adc_tsc,
 	&am43xx_l3_s__qspi,
 	&am33xx_l4_per__dcan0,
 	&am33xx_l4_per__dcan1,
