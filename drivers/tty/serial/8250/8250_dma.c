@@ -59,7 +59,6 @@ static void __dma_rx_complete(void *param)
 
 	dma->rx_running = 0;
 	dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
-	dmaengine_terminate_all(dma->rxchan);
 
 	count = dma->rx_size - state.residue;
 
@@ -131,6 +130,7 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 		if (dma->rx_running) {
 			dmaengine_pause(dma->rxchan);
 			__dma_rx_complete(p);
+			dmaengine_terminate_all(dma->rxchan);
 		}
 		return -ETIMEDOUT;
 	default:
