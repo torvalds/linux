@@ -29,7 +29,6 @@
 #include "xfs_bmap_util.h"
 #include "xfs_alloc.h"
 #include "xfs_mru_cache.h"
-#include "xfs_dinode.h"
 #include "xfs_filestream.h"
 #include "xfs_trace.h"
 

@@ -33,7 +33,6 @@
 #include "xfs_cksum.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
-#include "xfs_dinode.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"

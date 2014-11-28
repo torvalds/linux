@@ -30,7 +30,6 @@
 #include "xfs_icache.h"
 #include "xfs_trans.h"
 #include "xfs_ialloc.h"
-#include "xfs_dinode.h"
 
 /*
  * Check that none of the inode's in the buffer have a next

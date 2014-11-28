@@ -41,7 +41,6 @@
 #include "xfs_trace.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
-#include "xfs_dinode.h"
 #include "xfs_dir2.h"
 
 

@@ -40,7 +40,6 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
-#include "xfs_dinode.h"
 #include "xfs_trans.h"
 
 #include <linux/capability.h>

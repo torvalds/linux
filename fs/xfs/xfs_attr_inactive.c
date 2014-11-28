@@ -39,7 +39,6 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
-#include "xfs_dinode.h"
 #include "xfs_dir2.h"
 
 /*

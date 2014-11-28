@@ -42,7 +42,6 @@
 #include "xfs_quota.h"
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
-#include "xfs_dinode.h"
 
 /*
  * xfs_attr.c

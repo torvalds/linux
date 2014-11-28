@@ -46,7 +46,6 @@
 #include "xfs_trace.h"
 #include "xfs_symlink.h"
 #include "xfs_attr_leaf.h"
-#include "xfs_dinode.h"
 #include "xfs_filestream.h"
 
 

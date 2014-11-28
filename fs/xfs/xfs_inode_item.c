@@ -29,7 +29,6 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_trans_priv.h"
-#include "xfs_dinode.h"
 #include "xfs_log.h"
 
 

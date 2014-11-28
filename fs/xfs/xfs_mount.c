@@ -41,7 +41,6 @@
 #include "xfs_fsops.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_dinode.h"
 #include "xfs_sysfs.h"
 
 

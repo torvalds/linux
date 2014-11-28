@@ -42,7 +42,6 @@
 #include "xfs_symlink.h"
 #include "xfs_trans.h"
 #include "xfs_log.h"
-#include "xfs_dinode.h"
 
 /* ----- Kernel only functions below ----- */
 STATIC int

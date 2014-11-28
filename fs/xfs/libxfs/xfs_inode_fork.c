@@ -34,7 +34,6 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_attr_sf.h"
-#include "xfs_dinode.h"
 
 kmem_zone_t *xfs_ifork_zone;
 

@@ -37,7 +37,6 @@
 #include "xfs_ioctl.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
-#include "xfs_dinode.h"
 #include "xfs_icache.h"
 
 #include <linux/aio.h>

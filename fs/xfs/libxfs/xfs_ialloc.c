@@ -39,7 +39,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_icreate_item.h"
 #include "xfs_icache.h"
-#include "xfs_dinode.h"
 #include "xfs_trace.h"
 
 

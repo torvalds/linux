@@ -34,7 +34,6 @@
 #include "xfs_trace.h"
 #include "xfs_bmap.h"
 #include "xfs_trans.h"
-#include "xfs_dinode.h"
 
 /*
  * Directory file type support functions

@@ -36,7 +36,6 @@
 #include "xfs_quota.h"
 #include "xfs_trace.h"
 #include "xfs_cksum.h"
-#include "xfs_dinode.h"
 
 /*
  * Determine the extent state.
