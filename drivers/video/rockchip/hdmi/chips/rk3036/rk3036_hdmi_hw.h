@@ -112,10 +112,17 @@ enum {
 
 
 #define VIDEO_CONTRL3			0x04
+#define m_COLOR_DEPTH_NOT_INDICATED (1 << 4)
 #define m_SOF			(1 << 3)
+#define m_COLOR_RANGE		(1 << 2)
 #define m_CSC			(1 << 0)
+#define v_COLOR_DEPTH_NOT_INDICATED(n) ((n) << 4) /*1: Force GCP CD[3:0] zero
+						    0: GCP CD[3:0] according
+						       color depth*/
 #define v_SOF_ENABLE		(0 << 3)
 #define v_SOF_DISABLE		(1 << 3)
+#define v_COLOR_RANGE_FULL	(1 << 2)
+#define v_COLOR_RANGE_LIMITED	(0 << 2)
 #define v_CSC_ENABLE		1
 #define v_CSC_DISABLE		0
 
@@ -399,7 +406,7 @@ static inline int hdmi_msk_reg(struct rk_hdmi_device *hdmi_dev, u16 offset,
 }
 static inline void rk3036_hdmi_reset_pclk(void)
 {
-	writel_relaxed(0x00010001, RK_CRU_VIRT+ 0x128);
+	writel_relaxed(0x00010001, RK_CRU_VIRT + 0x128);
 	msleep(100);
 	writel_relaxed(0x00010000, RK_CRU_VIRT + 0x128);
 }

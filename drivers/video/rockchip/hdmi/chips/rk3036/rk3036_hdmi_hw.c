@@ -314,7 +314,7 @@ static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 		if ((vpara->input_color >= VIDEO_INPUT_COLOR_YCBCR444) ||
 		  ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) &&
 		  (vpara->color_limit_range == COLOR_LIMIT_RANGE_0_255))) {
-			value = v_SOF_DISABLE;
+			value = v_SOF_DISABLE | v_COLOR_DEPTH_NOT_INDICATED(1);
 			hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
 			hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
 				     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
@@ -389,7 +389,7 @@ static int rk3036_hdmi_video_csc(struct hdmi *hdmi_drv,
 		hdmi_writel(hdmi_dev, VIDEO_CSC_COEF+i, coeff[i]);
 	}
 
-	value = v_SOF_DISABLE | csc_enable;
+	value = v_SOF_DISABLE | csc_enable | v_COLOR_DEPTH_NOT_INDICATED(1);
 	hdmi_writel(hdmi_dev, VIDEO_CONTRL3, value);
 	hdmi_msk_reg(hdmi_dev, VIDEO_CONTRL,
 		     m_VIDEO_AUTO_CSC | m_VIDEO_C0_C2_EXCHANGE,
