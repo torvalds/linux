@@ -70,6 +70,7 @@
 
 #include <asm/cache.h>
 #include <asm/setup.h>
+#include <asm/uaccess.h>
 
 #include <asm/xen/page.h>
 #include <asm/xen/hypercall.h>
@@ -316,9 +317,9 @@ static void __init xen_rebuild_p2m_list(unsigned long *p2m)
 	paravirt_alloc_pte(&init_mm, __pa(p2m_identity_pte) >> PAGE_SHIFT);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		set_pte(p2m_missing_pte + i,
-			pfn_pte(PFN_DOWN(__pa(p2m_missing)), PAGE_KERNEL));
+			pfn_pte(PFN_DOWN(__pa(p2m_missing)), PAGE_KERNEL_RO));
 		set_pte(p2m_identity_pte + i,
-			pfn_pte(PFN_DOWN(__pa(p2m_identity)), PAGE_KERNEL));
+			pfn_pte(PFN_DOWN(__pa(p2m_identity)), PAGE_KERNEL_RO));
 	}
 
 	for (pfn = 0; pfn < xen_max_p2m_pfn; pfn += chunk) {
@@ -365,7 +366,7 @@ static void __init xen_rebuild_p2m_list(unsigned long *p2m)
 				p2m_missing : p2m_identity;
 			ptep = populate_extra_pte((unsigned long)(p2m + pfn));
 			set_pte(ptep,
-				pfn_pte(PFN_DOWN(__pa(mfns)), PAGE_KERNEL));
+				pfn_pte(PFN_DOWN(__pa(mfns)), PAGE_KERNEL_RO));
 			continue;
 		}
 
@@ -624,6 +625,9 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 		return true;
 	}
 
+	if (likely(!__put_user(mfn, xen_p2m_addr + pfn)))
+		return true;
+
 	ptep = lookup_address((unsigned long)(xen_p2m_addr + pfn), &level);
 	BUG_ON(!ptep || level != PG_LEVEL_4K);
 
@@ -633,9 +637,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	if (pte_pfn(*ptep) == PFN_DOWN(__pa(p2m_identity)))
 		return mfn == IDENTITY_FRAME(pfn);
 
-	xen_p2m_addr[pfn] = mfn;
-
-	return true;
+	return false;
 }
 
 bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
