@@ -232,7 +232,7 @@ int __init rockchip_ion_find_heap(unsigned long node, const char *uname,
 		return 0;
 
 	prop = of_get_flat_dt_prop(node, "rockchip,ion_heap", &len);
-	if (!prop || (len != sizeof(unsigned long)))
+	if (!prop || (len != sizeof(__be32)))
 		return 0;
 
 	heap = &pdata->heaps[pdata->nr++];
@@ -241,10 +241,10 @@ int __init rockchip_ion_find_heap(unsigned long node, const char *uname,
 	rockchip_ion_populate_heap(heap);
 
 	prop = of_get_flat_dt_prop(node, "reg", &len);
-	if (prop && (len >= 2*sizeof(unsigned long))) {
+	if (prop && (len >= 2*sizeof(__be32))) {
 		heap->base = be32_to_cpu(prop[0]);
 		heap->size = be32_to_cpu(prop[1]);
-		if (len==3*sizeof(unsigned long))
+		if (len==3*sizeof(__be32))
 			heap->align = be32_to_cpu(prop[2]);
 	}
 
