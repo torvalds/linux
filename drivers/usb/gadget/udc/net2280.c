@@ -836,12 +836,6 @@ static inline void resume_dma(struct net2280_ep *ep)
 	writel(readl(&ep->dma->dmactl) | BIT(DMA_ENABLE), &ep->dma->dmactl);
 }
 
-static inline void ep_stop_dma(struct net2280_ep *ep)
-{
-	writel(readl(&ep->dma->dmactl) & ~BIT(DMA_ENABLE), &ep->dma->dmactl);
-	spin_stop_dma(ep->dma);
-}
-
 static inline void
 queue_dma(struct net2280_ep *ep, struct net2280_request *req, int valid)
 {
@@ -1115,7 +1109,7 @@ static void restart_dma(struct net2280_ep *ep)
 	start_dma(ep, req);
 }
 
-static void abort_dma_228x(struct net2280_ep *ep)
+static void abort_dma(struct net2280_ep *ep)
 {
 	/* abort the current transfer */
 	if (likely(!list_empty(&ep->queue))) {
@@ -1125,19 +1119,6 @@ static void abort_dma_228x(struct net2280_ep *ep)
 	} else
 		stop_dma(ep->dma);
 	scan_dma_completions(ep);
-}
-
-static void abort_dma_338x(struct net2280_ep *ep)
-{
-	writel(BIT(DMA_ABORT), &ep->dma->dmastat);
-	spin_stop_dma(ep->dma);
-}
-
-static void abort_dma(struct net2280_ep *ep)
-{
-	if (ep->dev->quirks & PLX_LEGACY)
-		return abort_dma_228x(ep);
-	return abort_dma_338x(ep);
 }
 
 /* dequeue ALL requests */
@@ -2813,7 +2794,7 @@ static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 				ep->dev->protocol_stall = 1;
 			else {
 				if (ep->dma)
-					ep_stop_dma(ep);
+					abort_dma(ep);
 				set_halt(ep);
 			}
 			allow_status_338x(ep);
