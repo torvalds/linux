@@ -1304,6 +1304,16 @@ int __i915_wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 		s64 tres = *timeout - (now - before);
 
 		*timeout = tres < 0 ? 0 : tres;
+
+		/*
+		 * Apparently ktime isn't accurate enough and occasionally has a
+		 * bit of mismatch in the jiffies<->nsecs<->ktime loop. So patch
+		 * things up to make the test happy. We allow up to 1 jiffy.
+		 *
+		 * This is a regrssion from the timespec->ktime conversion.
+		 */
+		if (ret == -ETIME && *timeout < jiffies_to_usecs(1)*1000)
+			*timeout = 0;
 	}
 
 	return ret;
