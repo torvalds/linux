@@ -271,19 +271,8 @@ int tegra_output_remove(struct tegra_output *output)
 
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 {
-	int connector, encoder;
-
-	switch (output->type) {
-	case TEGRA_OUTPUT_EDP:
-		connector = DRM_MODE_CONNECTOR_eDP;
-		encoder = DRM_MODE_ENCODER_TMDS;
-		break;
-
-	default:
-		connector = DRM_MODE_CONNECTOR_Unknown;
-		encoder = DRM_MODE_ENCODER_NONE;
-		break;
-	}
+	int connector = DRM_MODE_CONNECTOR_Unknown;
+	int encoder = DRM_MODE_ENCODER_NONE;
 
 	drm_connector_init(drm, &output->connector, &connector_funcs,
 			   connector);

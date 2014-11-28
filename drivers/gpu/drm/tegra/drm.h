@@ -192,16 +192,11 @@ struct tegra_output_ops {
 	enum drm_connector_status (*detect)(struct tegra_output *output);
 };
 
-enum tegra_output_type {
-	TEGRA_OUTPUT_EDP,
-};
-
 struct tegra_output {
 	struct device_node *of_node;
 	struct device *dev;
 
 	const struct tegra_output_ops *ops;
-	enum tegra_output_type type;
 
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
