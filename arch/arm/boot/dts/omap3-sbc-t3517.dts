@@ -11,6 +11,7 @@
 
 	aliases {
 		display0 = &dvi0;
+		display1 = &tv0;
 	};
 
 	/* Only one GPMC smsc9220 on SBC-T3517, CM-T3517 uses am35x Ethernet */

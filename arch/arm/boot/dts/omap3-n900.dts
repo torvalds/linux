@@ -115,6 +115,12 @@
 		eci-switch-gpios = <&gpio6 22 GPIO_ACTIVE_HIGH>; /* 182 */
 		speaker-amplifier-gpios = <&twl_gpio 7 GPIO_ACTIVE_HIGH>;
 	};
+
+	battery: n900-battery {
+		compatible = "nokia,n900-battery";
+		io-channels = <&twl_madc 0>, <&twl_madc 4>, <&twl_madc 12>;
+		io-channel-names = "temp", "bsi", "vbat";
+	};
 };
 
 &omap3_pmx_core {
@@ -565,6 +571,16 @@
 		Vdd-supply = <&vmmc2>;
 
 		power-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>; /* 98 */
+	};
+
+	si4713: si4713@63 {
+		compatible = "silabs,si4713";
+                reg = <0x63>;
+
+                interrupts-extended = <&gpio2 21 IRQ_TYPE_EDGE_FALLING>; /* 53 */
+                reset-gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>; /* 163 */
+                vio-supply = <&vio>;
+                vdd-supply = <&vaux1>;
 	};
 
 	bq24150a: bq24150a@6b {
