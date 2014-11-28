@@ -338,34 +338,42 @@ static const struct victim_selection default_v_ops = {
 	.get_victim = get_victim_by_default,
 };
 
-static struct inode *find_gc_inode(nid_t ino, struct list_head *ilist)
+static struct inode *find_gc_inode(struct gc_inode_list *gc_list, nid_t ino)
 {
 	struct inode_entry *ie;
 
-	list_for_each_entry(ie, ilist, list)
-		if (ie->inode->i_ino == ino)
-			return ie->inode;
+	ie = radix_tree_lookup(&gc_list->iroot, ino);
+	if (ie)
+		return ie->inode;
 	return NULL;
 }
 
-static void add_gc_inode(struct inode *inode, struct list_head *ilist)
+static void add_gc_inode(struct gc_inode_list *gc_list, struct inode *inode)
 {
 	struct inode_entry *new_ie;
+	int ret;
 
-	if (inode == find_gc_inode(inode->i_ino, ilist)) {
+	if (inode == find_gc_inode(gc_list, inode->i_ino)) {
 		iput(inode);
 		return;
 	}
-
+retry:
 	new_ie = f2fs_kmem_cache_alloc(winode_slab, GFP_NOFS);
 	new_ie->inode = inode;
-	list_add_tail(&new_ie->list, ilist);
+
+	ret = radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie);
+	if (ret) {
+		kmem_cache_free(winode_slab, new_ie);
+		goto retry;
+	}
+	list_add_tail(&new_ie->list, &gc_list->ilist);
 }
 
-static void put_gc_inode(struct list_head *ilist)
+static void put_gc_inode(struct gc_inode_list *gc_list)
 {
 	struct inode_entry *ie, *next_ie;
-	list_for_each_entry_safe(ie, next_ie, ilist, list) {
+	list_for_each_entry_safe(ie, next_ie, &gc_list->ilist, list) {
+		radix_tree_delete(&gc_list->iroot, ie->inode->i_ino);
 		iput(ie->inode);
 		list_del(&ie->list);
 		kmem_cache_free(winode_slab, ie);
@@ -551,7 +559,7 @@ out:
  * the victim data block is ignored.
  */
 static void gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
-		struct list_head *ilist, unsigned int segno, int gc_type)
+		struct gc_inode_list *gc_list, unsigned int segno, int gc_type)
 {
 	struct super_block *sb = sbi->sb;
 	struct f2fs_summary *entry;
@@ -609,12 +617,12 @@ next_step:
 			}
 
 			f2fs_put_page(data_page, 0);
-			add_gc_inode(inode, ilist);
+			add_gc_inode(gc_list, inode);
 			continue;
 		}
 
 		/* phase 3 */
-		inode = find_gc_inode(dni.ino, ilist);
+		inode = find_gc_inode(gc_list, dni.ino);
 		if (inode) {
 			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
 			data_page = get_lock_data_page(inode,
@@ -657,7 +665,7 @@ static int __get_victim(struct f2fs_sb_info *sbi, unsigned int *victim,
 }
 
 static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
-				struct list_head *ilist, int gc_type)
+				struct gc_inode_list *gc_list, int gc_type)
 {
 	struct page *sum_page;
 	struct f2fs_summary_block *sum;
@@ -675,7 +683,7 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 		gc_node_segment(sbi, sum->entries, segno, gc_type);
 		break;
 	case SUM_TYPE_DATA:
-		gc_data_segment(sbi, sum->entries, ilist, segno, gc_type);
+		gc_data_segment(sbi, sum->entries, gc_list, segno, gc_type);
 		break;
 	}
 	blk_finish_plug(&plug);
@@ -688,16 +696,18 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 
 int f2fs_gc(struct f2fs_sb_info *sbi)
 {
-	struct list_head ilist;
 	unsigned int segno, i;
 	int gc_type = BG_GC;
 	int nfree = 0;
 	int ret = -1;
 	struct cp_control cpc;
+	struct gc_inode_list gc_list = {
+		.ilist = LIST_HEAD_INIT(gc_list.ilist),
+		.iroot = RADIX_TREE_INIT(GFP_ATOMIC),
+	};
 
 	cpc.reason = test_opt(sbi, FASTBOOT) ? CP_UMOUNT : CP_SYNC;
 
-	INIT_LIST_HEAD(&ilist);
 gc_more:
 	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
 		goto stop;
@@ -719,7 +729,7 @@ gc_more:
 								META_SSA);
 
 	for (i = 0; i < sbi->segs_per_sec; i++)
-		do_garbage_collect(sbi, segno + i, &ilist, gc_type);
+		do_garbage_collect(sbi, segno + i, &gc_list, gc_type);
 
 	if (gc_type == FG_GC) {
 		sbi->cur_victim_sec = NULL_SEGNO;
@@ -735,7 +745,7 @@ gc_more:
 stop:
 	mutex_unlock(&sbi->gc_mutex);
 
-	put_gc_inode(&ilist);
+	put_gc_inode(&gc_list);
 	return ret;
 }
 
