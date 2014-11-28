@@ -3055,7 +3055,7 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_fastopen_request *fo = tp->fastopen_req;
-	int syn_loss = 0, space, err = 0;
+	int syn_loss = 0, space, err = 0, copied;
 	unsigned long last_syn_loss = 0;
 	struct sk_buff *syn_data;
 
@@ -3093,10 +3093,15 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 		goto fallback;
 	syn_data->ip_summed = CHECKSUM_PARTIAL;
 	memcpy(syn_data->cb, syn->cb, sizeof(syn->cb));
-	if (unlikely(memcpy_fromiovecend(skb_put(syn_data, space),
-					 fo->data->msg_iter.iov, 0, space))) {
+	copied = copy_from_iter(skb_put(syn_data, space), space,
+				&fo->data->msg_iter);
+	if (unlikely(!copied)) {
 		kfree_skb(syn_data);
 		goto fallback;
+	}
+	if (copied != space) {
+		skb_trim(syn_data, copied);
+		space = copied;
 	}
 
 	/* No more data pending in inet_wait_for_connect() */
