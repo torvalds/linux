@@ -65,13 +65,25 @@ extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn)
  *   bits (identity or foreign) are set.
  * - __pfn_to_mfn() returns the found entry of the p2m table. A possibly set
  *   identity or foreign indicator will be still set. __pfn_to_mfn() is
- *   encapsulating get_phys_to_machine().
- * - get_phys_to_machine() is to be called by __pfn_to_mfn() only to allow
- *   for future optimizations.
+ *   encapsulating get_phys_to_machine() which is called in special cases only.
+ * - get_phys_to_machine() is to be called by __pfn_to_mfn() only in special
+ *   cases needing an extended handling.
  */
 static inline unsigned long __pfn_to_mfn(unsigned long pfn)
 {
-	return get_phys_to_machine(pfn);
+	unsigned long mfn;
+
+	if (pfn < xen_p2m_size)
+		mfn = xen_p2m_addr[pfn];
+	else if (unlikely(pfn < xen_max_p2m_pfn))
+		return get_phys_to_machine(pfn);
+	else
+		return IDENTITY_FRAME(pfn);
+
+	if (unlikely(mfn == INVALID_P2M_ENTRY))
+		return get_phys_to_machine(pfn);
+
+	return mfn;
 }
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)

@@ -1158,20 +1158,16 @@ static void __init xen_cleanhighmap(unsigned long vaddr,
 	 * instead of somewhere later and be confusing. */
 	xen_mc_flush();
 }
-static void __init xen_pagetable_p2m_copy(void)
+
+static void __init xen_pagetable_p2m_free(void)
 {
 	unsigned long size;
 	unsigned long addr;
-	unsigned long new_mfn_list;
-
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
 
 	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 
-	new_mfn_list = xen_revector_p2m_tree();
 	/* No memory or already called. */
-	if (!new_mfn_list || new_mfn_list == xen_start_info->mfn_list)
+	if ((unsigned long)xen_p2m_addr == xen_start_info->mfn_list)
 		return;
 
 	/* using __ka address and sticking INVALID_P2M_ENTRY! */
@@ -1189,8 +1185,6 @@ static void __init xen_pagetable_p2m_copy(void)
 
 	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 	memblock_free(__pa(xen_start_info->mfn_list), size);
-	/* And revector! Bye bye old array */
-	xen_start_info->mfn_list = new_mfn_list;
 
 	/* At this stage, cleanup_highmap has already cleaned __ka space
 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
@@ -1214,14 +1208,26 @@ static void __init xen_pagetable_p2m_copy(void)
 }
 #endif
 
+static void __init xen_pagetable_p2m_setup(void)
+{
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
+	xen_vmalloc_p2m_tree();
+
+#ifdef CONFIG_X86_64
+	xen_pagetable_p2m_free();
+#endif
+	/* And revector! Bye bye old array */
+	xen_start_info->mfn_list = (unsigned long)xen_p2m_addr;
+}
+
 static void __init xen_pagetable_init(void)
 {
 	paging_init();
-#ifdef CONFIG_X86_64
-	xen_pagetable_p2m_copy();
-#else
-	xen_revector_p2m_tree();
-#endif
+
+	xen_pagetable_p2m_setup();
+
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
 
