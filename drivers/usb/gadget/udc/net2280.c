@@ -2632,38 +2632,19 @@ restore_data_eps:
 	return;
 }
 
-static void ep_stall(struct net2280_ep *ep, int stall)
+static void ep_clear_seqnum(struct net2280_ep *ep)
 {
 	struct net2280 *dev = ep->dev;
 	u32 val;
 	static const u32 ep_pl[9] = { 0, 3, 4, 7, 8, 2, 5, 6, 9 };
 
-	if (stall) {
-		writel(BIT(SET_ENDPOINT_HALT) |
-		       /* BIT(SET_NAK_PACKETS) | */
-		       BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE),
-		       &ep->regs->ep_rsp);
-	} else {
-		if (dev->gadget.speed == USB_SPEED_SUPER) {
-			/*
-			 * Workaround for SS SeqNum not cleared via
-			 * Endpoint Halt (Clear) bit. select endpoint
-			 */
-			val = readl(&dev->plregs->pl_ep_ctrl);
-			val = (val & ~0x1f) | ep_pl[ep->num];
-			writel(val, &dev->plregs->pl_ep_ctrl);
+	val = readl(&dev->plregs->pl_ep_ctrl) & ~0x1f;
+	val |= ep_pl[ep->num];
+	writel(val, &dev->plregs->pl_ep_ctrl);
+	val |= BIT(SEQUENCE_NUMBER_RESET);
+	writel(val, &dev->plregs->pl_ep_ctrl);
 
-			val |= BIT(SEQUENCE_NUMBER_RESET);
-			writel(val, &dev->plregs->pl_ep_ctrl);
-		}
-		val = readl(&ep->regs->ep_rsp);
-		val |= BIT(CLEAR_ENDPOINT_HALT) |
-			BIT(CLEAR_ENDPOINT_TOGGLE);
-		writel(val,
-		       /* | BIT(CLEAR_NAK_PACKETS),*/
-		       &ep->regs->ep_rsp);
-		val = readl(&ep->regs->ep_rsp);
-	}
+	return;
 }
 
 static void handle_stat0_irqs_superspeed(struct net2280 *dev,
@@ -2764,7 +2745,12 @@ static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 			if (w_value != USB_ENDPOINT_HALT)
 				goto do_stall3;
 			ep_vdbg(dev, "%s clear halt\n", e->ep.name);
-			ep_stall(e, false);
+			/*
+			 * Workaround for SS SeqNum not cleared via
+			 * Endpoint Halt (Clear) bit. select endpoint
+			 */
+			ep_clear_seqnum(e);
+			clear_halt(e);
 			if (!list_empty(&e->queue) && e->td_dma)
 				restart_dma(e);
 			allow_status(ep);
@@ -2828,7 +2814,7 @@ static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 			else {
 				if (ep->dma)
 					ep_stop_dma(ep);
-				ep_stall(ep, true);
+				set_halt(ep);
 			}
 			allow_status_338x(ep);
 			break;
@@ -2857,7 +2843,7 @@ do_stall3:
 				r.bRequestType, r.bRequest, tmp);
 		dev->protocol_stall = 1;
 		/* TD 9.9 Halt Endpoint test. TD 9.22 Set feature test */
-		ep_stall(ep, true);
+		set_halt(ep);
 	}
 
 next_endpoints3:
