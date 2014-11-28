@@ -575,9 +575,15 @@ static void out_flush(struct net2280_ep *ep)
 	u32	__iomem *statp;
 	u32	tmp;
 
-	ASSERT_OUT_NAKING(ep);
-
 	statp = &ep->regs->ep_stat;
+
+	tmp = readl(statp);
+	if (tmp & BIT(NAK_OUT_PACKETS)) {
+		ep_dbg(ep->dev, "%s %s %08x !NAK\n",
+			ep->ep.name, __func__, tmp);
+		writel(BIT(SET_NAK_OUT_PACKETS), &ep->regs->ep_rsp);
+	}
+
 	writel(BIT(DATA_OUT_PING_TOKEN_INTERRUPT) |
 		BIT(DATA_PACKET_RECEIVED_INTERRUPT),
 		statp);
