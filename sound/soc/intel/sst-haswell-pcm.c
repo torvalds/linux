@@ -309,7 +309,7 @@ static const struct snd_kcontrol_new hsw_volume_controls[] = {
 		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 	/* Mic Capture volume */
-	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 4, 0, 8,
+	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 0, 0, 8,
 		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 };
@@ -396,8 +396,14 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 	/* DSP stream type depends on DAI ID */
 	switch (rtd->cpu_dai->id) {
 	case 0:
-		stream_type = SST_HSW_STREAM_TYPE_SYSTEM;
-		module_id = SST_HSW_MODULE_PCM_SYSTEM;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			stream_type = SST_HSW_STREAM_TYPE_SYSTEM;
+			module_id = SST_HSW_MODULE_PCM_SYSTEM;
+		}
+		else {
+			stream_type = SST_HSW_STREAM_TYPE_CAPTURE;
+			module_id = SST_HSW_MODULE_PCM_CAPTURE;
+		}
 		break;
 	case 1:
 	case 2:
@@ -409,10 +415,6 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		stream_type = SST_HSW_STREAM_TYPE_LOOPBACK;
 		path_id = SST_HSW_STREAM_PATH_SSP0_OUT;
 		module_id = SST_HSW_MODULE_PCM_REFERENCE;
-		break;
-	case 4:
-		stream_type = SST_HSW_STREAM_TYPE_CAPTURE;
-		module_id = SST_HSW_MODULE_PCM_CAPTURE;
 		break;
 	default:
 		dev_err(rtd->dev, "error: invalid DAI ID %d\n",
@@ -781,6 +783,13 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.rates = SNDRV_PCM_RATE_48000,
 			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
+		.capture = {
+			.stream_name = "Analog Capture",
+			.channels_min = 2,
+			.channels_max = 4,
+			.rates = SNDRV_PCM_RATE_48000,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
+		},
 	},
 	{
 		/* PCM */
@@ -813,17 +822,6 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.stream_name = "Loopback Capture",
 			.channels_min = 2,
 			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_48000,
-			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
-		},
-	},
-	{
-		.name  = "Capture Pin",
-		.id = HSW_PCM_DAI_ID_CAPTURE,
-		.capture = {
-			.stream_name = "Analog Capture",
-			.channels_min = 2,
-			.channels_max = 4,
 			.rates = SNDRV_PCM_RATE_48000,
 			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
