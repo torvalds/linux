@@ -834,16 +834,12 @@ static void start_dma(struct net2280_ep *ep, struct net2280_request *req)
 static inline void resume_dma(struct net2280_ep *ep)
 {
 	writel(readl(&ep->dma->dmactl) | BIT(DMA_ENABLE), &ep->dma->dmactl);
-
-	ep->dma_started = true;
 }
 
 static inline void ep_stop_dma(struct net2280_ep *ep)
 {
 	writel(readl(&ep->dma->dmactl) & ~BIT(DMA_ENABLE), &ep->dma->dmactl);
 	spin_stop_dma(ep->dma);
-
-	ep->dma_started = false;
 }
 
 static inline void
