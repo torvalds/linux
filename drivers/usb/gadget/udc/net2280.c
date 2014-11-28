@@ -1043,8 +1043,6 @@ dma_done(struct net2280_ep *ep,	struct net2280_request *req, u32 dmacount,
 	done(ep, req, status);
 }
 
-static void restart_dma(struct net2280_ep *ep);
-
 static void scan_dma_completions(struct net2280_ep *ep)
 {
 	/* only look at descriptors that were "naturally" retired,
