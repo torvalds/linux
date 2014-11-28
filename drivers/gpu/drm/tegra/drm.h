@@ -272,6 +272,15 @@ int tegra_output_remove(struct tegra_output *output);
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output);
 int tegra_output_exit(struct tegra_output *output);
 
+int tegra_output_connector_get_modes(struct drm_connector *connector);
+struct drm_encoder *
+tegra_output_connector_best_encoder(struct drm_connector *connector);
+enum drm_connector_status
+tegra_output_connector_detect(struct drm_connector *connector, bool force);
+void tegra_output_connector_destroy(struct drm_connector *connector);
+
+void tegra_output_encoder_destroy(struct drm_encoder *encoder);
+
 /* from dpaux.c */
 struct tegra_dpaux;
 struct drm_dp_link;

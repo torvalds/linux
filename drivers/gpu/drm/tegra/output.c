@@ -12,7 +12,7 @@
 #include <drm/drm_panel.h>
 #include "drm.h"
 
-static int tegra_connector_get_modes(struct drm_connector *connector)
+int tegra_output_connector_get_modes(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	struct edid *edid = NULL;
@@ -57,8 +57,8 @@ static int tegra_connector_mode_valid(struct drm_connector *connector,
 	return status;
 }
 
-static struct drm_encoder *
-tegra_connector_best_encoder(struct drm_connector *connector)
+struct drm_encoder *
+tegra_output_connector_best_encoder(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
 
@@ -66,13 +66,13 @@ tegra_connector_best_encoder(struct drm_connector *connector)
 }
 
 static const struct drm_connector_helper_funcs connector_helper_funcs = {
-	.get_modes = tegra_connector_get_modes,
+	.get_modes = tegra_output_connector_get_modes,
 	.mode_valid = tegra_connector_mode_valid,
-	.best_encoder = tegra_connector_best_encoder,
+	.best_encoder = tegra_output_connector_best_encoder,
 };
 
-static enum drm_connector_status
-tegra_connector_detect(struct drm_connector *connector, bool force)
+enum drm_connector_status
+tegra_output_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	enum drm_connector_status status = connector_status_unknown;
@@ -98,7 +98,7 @@ tegra_connector_detect(struct drm_connector *connector, bool force)
 	return status;
 }
 
-static void tegra_connector_destroy(struct drm_connector *connector)
+void tegra_output_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -106,18 +106,18 @@ static void tegra_connector_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = tegra_connector_detect,
+	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = tegra_connector_destroy,
+	.destroy = tegra_output_connector_destroy,
 };
 
-static void tegra_encoder_destroy(struct drm_encoder *encoder)
+void tegra_output_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 }
 
 static const struct drm_encoder_funcs encoder_funcs = {
-	.destroy = tegra_encoder_destroy,
+	.destroy = tegra_output_encoder_destroy,
 };
 
 static void tegra_encoder_dpms(struct drm_encoder *encoder, int mode)
