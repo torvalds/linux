@@ -164,16 +164,6 @@ struct net_bridge_port
 	struct rcu_head			rcu;
 
 	unsigned long 			flags;
-#define BR_HAIRPIN_MODE		0x00000001
-#define BR_BPDU_GUARD           0x00000002
-#define BR_ROOT_BLOCK		0x00000004
-#define BR_MULTICAST_FAST_LEAVE	0x00000008
-#define BR_ADMIN_COST		0x00000010
-#define BR_LEARNING		0x00000020
-#define BR_FLOOD		0x00000040
-#define BR_AUTO_MASK (BR_FLOOD | BR_LEARNING)
-#define BR_PROMISC		0x00000080
-#define BR_PROXYARP		0x00000100
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct bridge_mcast_own_query	ip4_own_query;
