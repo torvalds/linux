@@ -96,10 +96,11 @@ error:
 
 void snd_dice_stream_stop_packets(struct snd_dice *dice)
 {
-	if (amdtp_stream_running(&dice->rx_stream)) {
-		snd_dice_transaction_clear_enable(dice);
-		amdtp_stream_stop(&dice->rx_stream);
-	}
+	if (!amdtp_stream_running(&dice->rx_stream))
+		return;
+
+	snd_dice_transaction_clear_enable(dice);
+	amdtp_stream_stop(&dice->rx_stream);
 }
 
 void snd_dice_stream_stop(struct snd_dice *dice)
