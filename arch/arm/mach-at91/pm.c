@@ -29,7 +29,6 @@
 #include <mach/cpu.h>
 #include <mach/hardware.h>
 
-#include "at91_aic.h"
 #include "generic.h"
 #include "pm.h"
 #include "gpio.h"
@@ -136,19 +135,6 @@ static int at91_pm_enter(suspend_state_t state)
 	else
 		at91_gpio_suspend();
 
-	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91) && at91_aic_base) {
-		at91_irq_suspend();
-
-		pr_debug("AT91: PM - wake mask %08x, pm state %d\n",
-				/* remember all the always-wake irqs */
-				(at91_pmc_read(AT91_PMC_PCSR)
-						| (1 << AT91_ID_FIQ)
-						| (1 << AT91_ID_SYS)
-						| (at91_get_extern_irq()))
-					& at91_aic_read(AT91_AIC_IMR),
-				state);
-	}
-
 	switch (state) {
 		/*
 		 * Suspend-to-RAM is like STANDBY plus slow clock mode, so
@@ -212,16 +198,8 @@ static int at91_pm_enter(suspend_state_t state)
 			goto error;
 	}
 
-	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91) && at91_aic_base)
-		pr_debug("AT91: PM - wakeup %08x\n",
-			 at91_aic_read(AT91_AIC_IPR) &
-			 at91_aic_read(AT91_AIC_IMR));
-
 error:
 	target_state = PM_SUSPEND_ON;
-
-	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91) && at91_aic_base)
-		at91_irq_resume();
 
 	if (of_have_populated_dt())
 		at91_pinctrl_gpio_resume();
