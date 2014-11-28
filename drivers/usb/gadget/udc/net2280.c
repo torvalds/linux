@@ -937,24 +937,12 @@ net2280_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	_req->actual = 0;
 
 	/* kickstart this i/o queue? */
-	if (list_empty(&ep->queue) && !ep->stopped) {
-		/* DMA request while EP halted */
-		if (ep->dma &&
-		    (readl(&ep->regs->ep_rsp) & BIT(CLEAR_ENDPOINT_HALT)) &&
-			(dev->quirks & PLX_SUPERSPEED)) {
-			int valid = 1;
-			if (ep->is_in) {
-				int expect;
-				expect = likely(req->req.zero ||
-						((req->req.length %
-						  ep->ep.maxpacket) != 0));
-				if (expect != ep->in_fifo_validate)
-					valid = 0;
-			}
-			queue_dma(ep, req, valid);
-		}
+	if  (list_empty(&ep->queue) && !ep->stopped &&
+		!((dev->quirks & PLX_SUPERSPEED) && ep->dma &&
+		  (readl(&ep->regs->ep_rsp) & BIT(CLEAR_ENDPOINT_HALT)))) {
+
 		/* use DMA if the endpoint supports it, else pio */
-		else if (ep->dma)
+		if (ep->dma)
 			start_dma(ep, req);
 		else {
 			/* maybe there's no control data, just status ack */
