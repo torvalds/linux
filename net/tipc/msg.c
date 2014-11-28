@@ -189,7 +189,6 @@ err:
  * tipc_msg_build - create buffer chain containing specified header and data
  * @mhdr: Message header, to be prepended to data
  * @m: User message
- * @offset: Posision in iov to start copying from
  * @dsz: Total length of user data
  * @pktmax: Max packet size that can be used
  * @list: Buffer or chain of buffers to be returned to caller
@@ -221,8 +220,7 @@ int tipc_msg_build(struct net *net, struct tipc_msg *mhdr, struct msghdr *m,
 		__skb_queue_tail(list, skb);
 		skb_copy_to_linear_data(skb, mhdr, mhsz);
 		pktpos = skb->data + mhsz;
-		if (!dsz || !memcpy_fromiovecend(pktpos, m->msg_iter.iov, offset,
-						 dsz))
+		if (copy_from_iter(pktpos, dsz, &m->msg_iter) == dsz)
 			return dsz;
 		rc = -EFAULT;
 		goto error;
@@ -252,12 +250,11 @@ int tipc_msg_build(struct net *net, struct tipc_msg *mhdr, struct msghdr *m,
 		if (drem < pktrem)
 			pktrem = drem;
 
-		if (memcpy_fromiovecend(pktpos, m->msg_iter.iov, offset, pktrem)) {
+		if (copy_from_iter(pktpos, pktrem, &m->msg_iter) != pktrem) {
 			rc = -EFAULT;
 			goto error;
 		}
 		drem -= pktrem;
-		offset += pktrem;
 
 		if (!drem)
 			break;
