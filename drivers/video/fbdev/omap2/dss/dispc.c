@@ -2441,7 +2441,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	unsigned long pclk = dispc_plane_pclk_rate(plane);
 	unsigned long lclk = dispc_plane_lclk_rate(plane);
 
-	if (paddr == 0)
+	if (paddr == 0 && rotation_type != OMAP_DSS_ROT_TILER)
 		return -EINVAL;
 
 	out_width = out_width == 0 ? width : out_width;
