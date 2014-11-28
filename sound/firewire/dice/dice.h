@@ -173,4 +173,6 @@ void snd_dice_stream_lock_release(struct snd_dice *dice);
 
 int snd_dice_create_pcm(struct snd_dice *dice);
 
+int snd_dice_create_hwdep(struct snd_dice *dice);
+
 #endif
