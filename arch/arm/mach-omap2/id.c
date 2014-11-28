@@ -471,10 +471,14 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "1.0";
 			break;
 		case 1:
-		/* FALLTHROUGH */
-		default:
 			omap_revision = AM437X_REV_ES1_1;
 			cpu_rev = "1.1";
+			break;
+		case 2:
+		/* FALLTHROUGH */
+		default:
+			omap_revision = AM437X_REV_ES1_2;
+			cpu_rev = "1.2";
 			break;
 		}
 		break;
