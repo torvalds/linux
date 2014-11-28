@@ -404,7 +404,7 @@ static ssize_t phys_port_id_show(struct device *dev,
 		return restart_syscall();
 
 	if (dev_isalive(netdev)) {
-		struct netdev_phys_port_id ppid;
+		struct netdev_phys_item_id ppid;
 
 		ret = dev_get_phys_port_id(netdev, &ppid);
 		if (!ret)
