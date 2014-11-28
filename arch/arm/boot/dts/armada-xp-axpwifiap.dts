@@ -100,8 +100,6 @@
 
 			spi0: spi@10600 {
 				status = "okay";
-				pinctrl-0 = <&pmx_spi>;
-				pinctrl-names = "default";
 
 				spi-flash@0 {
 					#address-cells = <1>;
@@ -136,11 +134,6 @@
 	pmx_keys: pmx-keys {
 		marvell,pins = "mpp33";
 		marvell,function = "gpio";
-	};
-
-	pmx_spi: pmx-spi {
-		marvell,pins = "mpp36", "mpp37", "mpp38", "mpp39";
-		marvell,function = "spi";
 	};
 
 	pmx_phy_int: pmx-phy-int {

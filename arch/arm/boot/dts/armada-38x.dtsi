@@ -25,9 +25,9 @@
 	aliases {
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
-		eth0 = &eth0;
-		eth1 = &eth1;
-		eth2 = &eth2;
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
+		ethernet2 = &eth2;
 	};
 
 	soc {
