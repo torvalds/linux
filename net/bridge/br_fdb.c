@@ -805,31 +805,15 @@ static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge_port *p,
 /* Add new permanent fdb entry with RTM_NEWNEIGH */
 int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	       struct net_device *dev,
-	       const unsigned char *addr, u16 nlh_flags)
+	       const unsigned char *addr, u16 vid, u16 nlh_flags)
 {
 	struct net_bridge_port *p;
 	int err = 0;
 	struct net_port_vlans *pv;
-	unsigned short vid = VLAN_N_VID;
 
 	if (!(ndm->ndm_state & (NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE))) {
 		pr_info("bridge: RTM_NEWNEIGH with invalid state %#x\n", ndm->ndm_state);
 		return -EINVAL;
-	}
-
-	if (tb[NDA_VLAN]) {
-		if (nla_len(tb[NDA_VLAN]) != sizeof(unsigned short)) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan\n");
-			return -EINVAL;
-		}
-
-		vid = nla_get_u16(tb[NDA_VLAN]);
-
-		if (!vid || vid >= VLAN_VID_MASK) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
-				vid);
-			return -EINVAL;
-		}
 	}
 
 	if (is_zero_ether_addr(addr)) {
@@ -845,7 +829,7 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	}
 
 	pv = nbp_get_vlan_info(p);
-	if (vid != VLAN_N_VID) {
+	if (vid) {
 		if (!pv || !test_bit(vid, pv->vlan_bitmap)) {
 			pr_info("bridge: RTM_NEWNEIGH with unconfigured "
 				"vlan %d on port %s\n", vid, dev->name);
@@ -903,27 +887,12 @@ static int __br_fdb_delete(struct net_bridge_port *p,
 /* Remove neighbor entry with RTM_DELNEIGH */
 int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		  struct net_device *dev,
-		  const unsigned char *addr)
+		  const unsigned char *addr, u16 vid)
 {
 	struct net_bridge_port *p;
 	int err;
 	struct net_port_vlans *pv;
-	unsigned short vid = VLAN_N_VID;
 
-	if (tb[NDA_VLAN]) {
-		if (nla_len(tb[NDA_VLAN]) != sizeof(unsigned short)) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan\n");
-			return -EINVAL;
-		}
-
-		vid = nla_get_u16(tb[NDA_VLAN]);
-
-		if (!vid || vid >= VLAN_VID_MASK) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
-				vid);
-			return -EINVAL;
-		}
-	}
 	p = br_port_get_rtnl(dev);
 	if (p == NULL) {
 		pr_info("bridge: RTM_DELNEIGH %s not a bridge port\n",
@@ -932,7 +901,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 	}
 
 	pv = nbp_get_vlan_info(p);
-	if (vid != VLAN_N_VID) {
+	if (vid) {
 		if (!pv || !test_bit(vid, pv->vlan_bitmap)) {
 			pr_info("bridge: RTM_DELNEIGH with unconfigured "
 				"vlan %d on port %s\n", vid, dev->name);
