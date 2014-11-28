@@ -2404,17 +2404,17 @@ static int rocker_flow_tbl_bridge(struct rocker_port *rocker_port,
 	}
 
 	priority = ROCKER_PRIORITY_UNKNOWN;
-	if (vlan_bridging & dflt & wild)
+	if (vlan_bridging && dflt && wild)
 		priority = ROCKER_PRIORITY_BRIDGING_VLAN_DFLT_WILD;
-	else if (vlan_bridging & dflt & !wild)
+	else if (vlan_bridging && dflt && !wild)
 		priority = ROCKER_PRIORITY_BRIDGING_VLAN_DFLT_EXACT;
-	else if (vlan_bridging & !dflt)
+	else if (vlan_bridging && !dflt)
 		priority = ROCKER_PRIORITY_BRIDGING_VLAN;
-	else if (!vlan_bridging & dflt & wild)
+	else if (!vlan_bridging && dflt && wild)
 		priority = ROCKER_PRIORITY_BRIDGING_TENANT_DFLT_WILD;
-	else if (!vlan_bridging & dflt & !wild)
+	else if (!vlan_bridging && dflt && !wild)
 		priority = ROCKER_PRIORITY_BRIDGING_TENANT_DFLT_EXACT;
-	else if (!vlan_bridging & !dflt)
+	else if (!vlan_bridging && !dflt)
 		priority = ROCKER_PRIORITY_BRIDGING_TENANT;
 
 	entry->key.priority = priority;
@@ -3010,9 +3010,9 @@ static void rocker_port_fdb_learn_work(struct work_struct *work)
 	bool removing = (lw->flags & ROCKER_OP_FLAG_REMOVE);
 	bool learned = (lw->flags & ROCKER_OP_FLAG_LEARNED);
 
-	if (learned & removing)
+	if (learned && removing)
 		br_fdb_external_learn_del(lw->dev, lw->addr, lw->vid);
-	else if (learned & !removing)
+	else if (learned && !removing)
 		br_fdb_external_learn_add(lw->dev, lw->addr, lw->vid);
 
 	kfree(work);
