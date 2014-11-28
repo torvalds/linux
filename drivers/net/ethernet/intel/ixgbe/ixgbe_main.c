@@ -7778,7 +7778,7 @@ static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	else
 		mode = BRIDGE_MODE_VEPA;
 
-	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode);
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode, 0, 0);
 }
 
 static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
