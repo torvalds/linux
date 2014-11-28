@@ -6,7 +6,6 @@ comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 
 config MACH_PXA27X_DT
 	bool "Support PXA27x platforms from device tree"
-	select CPU_PXA27x
 	select POWER_SUPPLY
 	select PXA27x
 	select USE_OF
