@@ -23,6 +23,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
+#include <linux/omap-gpmc.h>
 #include <linux/mmc/host.h>
 #include <linux/power/isp1704_charger.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
@@ -54,8 +55,6 @@
 #include "omap-pm.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
-#include "gpmc.h"
-#include "gpmc-onenand.h"
 #include "soc.h"
 #include "omap-secure.h"
 
