@@ -428,8 +428,6 @@ void __init xen_build_dynamic_phys_to_machine(void)
 		}
 		p2m_top[topidx][mididx] = &mfn_list[pfn];
 	}
-
-	m2p_override_init();
 }
 #ifdef CONFIG_X86_64
 unsigned long __init xen_revector_p2m_tree(void)
@@ -500,13 +498,15 @@ unsigned long __init xen_revector_p2m_tree(void)
 		}
 		/* This should be the leafs allocated for identity from _brk. */
 	}
-	return (unsigned long)mfn_list;
 
+	m2p_override_init();
+	return (unsigned long)mfn_list;
 }
 #else
 unsigned long __init xen_revector_p2m_tree(void)
 {
 	use_brk = 0;
+	m2p_override_init();
 	return 0;
 }
 #endif
@@ -796,15 +796,16 @@ bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 #define M2P_OVERRIDE_HASH_SHIFT	10
 #define M2P_OVERRIDE_HASH	(1 << M2P_OVERRIDE_HASH_SHIFT)
 
-static RESERVE_BRK_ARRAY(struct list_head, m2p_overrides, M2P_OVERRIDE_HASH);
+static struct list_head *m2p_overrides;
 static DEFINE_SPINLOCK(m2p_override_lock);
 
 static void __init m2p_override_init(void)
 {
 	unsigned i;
 
-	m2p_overrides = extend_brk(sizeof(*m2p_overrides) * M2P_OVERRIDE_HASH,
-				   sizeof(unsigned long));
+	m2p_overrides = alloc_bootmem_align(
+				sizeof(*m2p_overrides) * M2P_OVERRIDE_HASH,
+				sizeof(unsigned long));
 
 	for (i = 0; i < M2P_OVERRIDE_HASH; i++)
 		INIT_LIST_HEAD(&m2p_overrides[i]);
@@ -932,10 +933,14 @@ EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
 static struct page *m2p_find_override(unsigned long mfn)
 {
 	unsigned long flags;
-	struct list_head *bucket = &m2p_overrides[mfn_hash(mfn)];
+	struct list_head *bucket;
 	struct page *p, *ret;
 
+	if (unlikely(!m2p_overrides))
+		return NULL;
+
 	ret = NULL;
+	bucket = &m2p_overrides[mfn_hash(mfn)];
 
 	spin_lock_irqsave(&m2p_override_lock, flags);
 
