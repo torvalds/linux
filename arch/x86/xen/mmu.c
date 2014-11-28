@@ -1219,6 +1219,8 @@ static void __init xen_pagetable_init(void)
 	paging_init();
 #ifdef CONFIG_X86_64
 	xen_pagetable_p2m_copy();
+#else
+	xen_revector_p2m_tree();
 #endif
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
