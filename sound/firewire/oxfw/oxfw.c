@@ -17,10 +17,10 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include "cmp.h"
-#include "fcp.h"
-#include "amdtp.h"
-#include "lib.h"
+#include "../cmp.h"
+#include "../fcp.h"
+#include "../amdtp.h"
+#include "../lib.h"
 
 #define OXFORD_FIRMWARE_ID_ADDRESS	(CSR_REGISTER_BASE + 0x50000)
 /* 0x970?vvvv or 0x971?vvvv, where vvvv = firmware version */
