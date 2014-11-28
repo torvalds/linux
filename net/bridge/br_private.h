@@ -100,7 +100,8 @@ struct net_bridge_fdb_entry
 	mac_addr			addr;
 	unsigned char			is_local:1,
 					is_static:1,
-					added_by_user:1;
+					added_by_user:1,
+					added_by_external_learn:1;
 	__u16				vlan_id;
 };
 

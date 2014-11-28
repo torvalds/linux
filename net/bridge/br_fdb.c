@@ -481,6 +481,7 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->is_local = 0;
 		fdb->is_static = 0;
 		fdb->added_by_user = 0;
+		fdb->added_by_external_learn = 0;
 		fdb->updated = fdb->used = jiffies;
 		hlist_add_head_rcu(&fdb->hlist, head);
 	}
@@ -613,7 +614,7 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	ndm->ndm_family	 = AF_BRIDGE;
 	ndm->ndm_pad1    = 0;
 	ndm->ndm_pad2    = 0;
-	ndm->ndm_flags	 = 0;
+	ndm->ndm_flags	 = fdb->added_by_external_learn ? NTF_EXT_LEARNED : 0;
 	ndm->ndm_type	 = 0;
 	ndm->ndm_ifindex = fdb->dst ? fdb->dst->dev->ifindex : br->dev->ifindex;
 	ndm->ndm_state   = fdb_to_nud(fdb);
@@ -983,3 +984,91 @@ void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p)
 		}
 	}
 }
+
+int br_fdb_external_learn_add(struct net_device *dev,
+			      const unsigned char *addr, u16 vid)
+{
+	struct net_bridge_port *p;
+	struct net_bridge *br;
+	struct hlist_head *head;
+	struct net_bridge_fdb_entry *fdb;
+	int err = 0;
+
+	rtnl_lock();
+
+	p = br_port_get_rtnl(dev);
+	if (!p) {
+		pr_info("bridge: %s not a bridge port\n", dev->name);
+		err = -EINVAL;
+		goto err_rtnl_unlock;
+	}
+
+	br = p->br;
+
+	spin_lock_bh(&br->hash_lock);
+
+	head = &br->hash[br_mac_hash(addr, vid)];
+	fdb = fdb_find(head, addr, vid);
+	if (!fdb) {
+		fdb = fdb_create(head, p, addr, vid);
+		if (!fdb) {
+			err = -ENOMEM;
+			goto err_unlock;
+		}
+		fdb->added_by_external_learn = 1;
+		fdb_notify(br, fdb, RTM_NEWNEIGH);
+	} else if (fdb->added_by_external_learn) {
+		/* Refresh entry */
+		fdb->updated = fdb->used = jiffies;
+	} else if (!fdb->added_by_user) {
+		/* Take over SW learned entry */
+		fdb->added_by_external_learn = 1;
+		fdb->updated = jiffies;
+		fdb_notify(br, fdb, RTM_NEWNEIGH);
+	}
+
+err_unlock:
+	spin_unlock_bh(&br->hash_lock);
+err_rtnl_unlock:
+	rtnl_unlock();
+
+	return err;
+}
+EXPORT_SYMBOL(br_fdb_external_learn_add);
+
+int br_fdb_external_learn_del(struct net_device *dev,
+			      const unsigned char *addr, u16 vid)
+{
+	struct net_bridge_port *p;
+	struct net_bridge *br;
+	struct hlist_head *head;
+	struct net_bridge_fdb_entry *fdb;
+	int err = 0;
+
+	rtnl_lock();
+
+	p = br_port_get_rtnl(dev);
+	if (!p) {
+		pr_info("bridge: %s not a bridge port\n", dev->name);
+		err = -EINVAL;
+		goto err_rtnl_unlock;
+	}
+
+	br = p->br;
+
+	spin_lock_bh(&br->hash_lock);
+
+	head = &br->hash[br_mac_hash(addr, vid)];
+	fdb = fdb_find(head, addr, vid);
+	if (fdb && fdb->added_by_external_learn)
+		fdb_delete(br, fdb);
+	else
+		err = -ENOENT;
+
+	spin_unlock_bh(&br->hash_lock);
+err_rtnl_unlock:
+	rtnl_unlock();
+
+	return err;
+}
+EXPORT_SYMBOL(br_fdb_external_learn_del);
