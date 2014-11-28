@@ -39,7 +39,6 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 #include "common.h"
-#include "armada-370-xp.h"
 
 
 #define PMSU_BASE_OFFSET    0x100
@@ -312,7 +311,7 @@ static int armada_370_xp_cpu_suspend(unsigned long deepidle)
 	return cpu_suspend(deepidle, armada_370_xp_pmsu_idle_enter);
 }
 
-static int armada_38x_do_cpu_suspend(unsigned long deepidle)
+int armada_38x_do_cpu_suspend(unsigned long deepidle)
 {
 	unsigned long flags = 0;
 

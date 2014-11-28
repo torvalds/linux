@@ -30,6 +30,8 @@
 #include "pmsu.h"
 #include "coherency.h"
 
+#define ARMADA_XP_MAX_CPUS 4
+
 #define AXP_BOOTROM_BASE 0xfff00000
 #define AXP_BOOTROM_SIZE 0x100000
 
