@@ -831,11 +831,6 @@ static void start_dma(struct net2280_ep *ep, struct net2280_request *req)
 	start_queue(ep, tmp, req->td_dma);
 }
 
-static inline void resume_dma(struct net2280_ep *ep)
-{
-	writel(readl(&ep->dma->dmactl) | BIT(DMA_ENABLE), &ep->dma->dmactl);
-}
-
 static inline void
 queue_dma(struct net2280_ep *ep, struct net2280_request *req, int valid)
 {
