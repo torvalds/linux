@@ -580,6 +580,10 @@
 	status = "okay";
 };
 
+&snvs_poweroff {
+	status = "okay";
+};
+
 &ssi2 {
 	status = "okay";
 };

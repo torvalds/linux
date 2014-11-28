@@ -22,18 +22,16 @@
 		reg = <0x80000000 0x8000000>;
 	};
 
-	clocks {
-		audio_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <24576000>;
-		};
+	audio_ext: mclk_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24576000>;
+	};
 
-		enet_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <50000000>;
-		};
+	enet_ext: eth_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
 	};
 
 	regulators {
@@ -95,6 +93,11 @@
 	status = "okay";
 };
 
+&clks {
+	clocks = <&sxosc>, <&fxosc>, <&enet_ext>, <&audio_ext>;
+	clock-names = "sxosc", "fxosc", "enet_ext", "audio_ext";
+};
+
 &dspi0 {
 	bus-num = <0>;
 	pinctrl-names = "default";
@@ -112,10 +115,15 @@
 	};
 };
 
+&edma0 {
+	status = "okay";
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
+	cd-gpios = <&gpio5 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -283,5 +291,21 @@
 
 &usbh1 {
 	disable-over-current;
+	status = "okay";
+};
+
+&usbmisc0 {
+	status = "okay";
+};
+
+&usbmisc1 {
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "okay";
+};
+
+&usbphy1 {
 	status = "okay";
 };

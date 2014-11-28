@@ -248,6 +248,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6q-sabrelite.dtb \
 	imx6q-sabresd.dtb \
 	imx6q-sbc6x.dtb \
+	imx6q-tbs2910.dtb \
 	imx6q-udoo.dtb \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \
@@ -258,6 +259,9 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6q-tx6q-1110.dtb \
 	imx6sl-evk.dtb \
 	imx6sx-sdb.dtb \
+	ls1021a-qds.dtb \
+	ls1021a-twr.dtb \
+	vf500-colibri-eval-v3.dtb \
 	vf610-colibri-eval-v3.dtb \
 	vf610-cosmic.dtb \
 	vf610-twr.dtb
