@@ -2690,11 +2690,11 @@ static int __cache_map(struct cache *cache, struct bio *bio, struct dm_bio_priso
 static int cache_map(struct dm_target *ti, struct bio *bio)
 {
 	int r;
-	struct dm_bio_prison_cell *cell;
+	struct dm_bio_prison_cell *cell = NULL;
 	struct cache *cache = ti->private;
 
 	r = __cache_map(cache, bio, &cell);
-	if (r == DM_MAPIO_REMAPPED) {
+	if (r == DM_MAPIO_REMAPPED && cell) {
 		inc_ds(cache, bio, cell);
 		cell_defer(cache, cell, false);
 	}
