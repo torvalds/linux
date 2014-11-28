@@ -28,12 +28,18 @@
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 
-static int __apply_alternatives(void *dummy)
+struct alt_region {
+	struct alt_instr *begin;
+	struct alt_instr *end;
+};
+
+static int __apply_alternatives(void *alt_region)
 {
 	struct alt_instr *alt;
+	struct alt_region *region = alt_region;
 	u8 *origptr, *replptr;
 
-	for (alt = __alt_instructions; alt < __alt_instructions_end; alt++) {
+	for (alt = region->begin; alt < region->end; alt++) {
 		if (!cpus_have_cap(alt->cpufeature))
 			continue;
 
@@ -51,10 +57,25 @@ static int __apply_alternatives(void *dummy)
 	return 0;
 }
 
-void apply_alternatives(void)
+void apply_alternatives_all(void)
 {
+	struct alt_region region = {
+		.begin	= __alt_instructions,
+		.end	= __alt_instructions_end,
+	};
+
 	/* better not try code patching on a live SMP system */
-	stop_machine(__apply_alternatives, NULL, NULL);
+	stop_machine(__apply_alternatives, &region, NULL);
+}
+
+void apply_alternatives(void *start, size_t length)
+{
+	struct alt_region region = {
+		.begin	= start,
+		.end	= start + length,
+	};
+
+	__apply_alternatives(&region);
 }
 
 void free_alternatives_memory(void)
