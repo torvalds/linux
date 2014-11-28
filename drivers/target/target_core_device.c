@@ -767,12 +767,6 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-
-	if (flag &&
-	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("emulate_fua_write not supported for pSCSI\n");
-		return -EINVAL;
-	}
 	dev->dev_attrib.emulate_fua_write = flag;
 	pr_debug("dev[%p]: SE Device Forced Unit Access WRITEs: %d\n",
 			dev, dev->dev_attrib.emulate_fua_write);
@@ -800,11 +794,6 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 {
 	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
-		return -EINVAL;
-	}
-	if (flag &&
-	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("emulate_write_cache not supported for pSCSI\n");
 		return -EINVAL;
 	}
 	if (flag &&
@@ -1098,26 +1087,15 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 		return -EINVAL;
 	}
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+	if (queue_depth > dev->dev_attrib.queue_depth) {
 		if (queue_depth > dev->dev_attrib.hw_queue_depth) {
-			pr_err("dev[%p]: Passed queue_depth: %u"
-				" exceeds TCM/SE_Device TCQ: %u\n",
-				dev, queue_depth,
+			pr_err("dev[%p]: Passed queue_depth:"
+				" %u exceeds TCM/SE_Device MAX"
+				" TCQ: %u\n", dev, queue_depth,
 				dev->dev_attrib.hw_queue_depth);
 			return -EINVAL;
 		}
-	} else {
-		if (queue_depth > dev->dev_attrib.queue_depth) {
-			if (queue_depth > dev->dev_attrib.hw_queue_depth) {
-				pr_err("dev[%p]: Passed queue_depth:"
-					" %u exceeds TCM/SE_Device MAX"
-					" TCQ: %u\n", dev, queue_depth,
-					dev->dev_attrib.hw_queue_depth);
-				return -EINVAL;
-			}
-		}
 	}
-
 	dev->dev_attrib.queue_depth = dev->queue_depth = queue_depth;
 	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n",
 			dev, queue_depth);
@@ -1146,22 +1124,12 @@ int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
 				DA_STATUS_MAX_SECTORS_MIN);
 		return -EINVAL;
 	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		if (fabric_max_sectors > dev->dev_attrib.hw_max_sectors) {
-			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
-				" greater than TCM/SE_Device max_sectors:"
-				" %u\n", dev, fabric_max_sectors,
-				dev->dev_attrib.hw_max_sectors);
-			 return -EINVAL;
-		}
-	} else {
-		if (fabric_max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
-			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
-				" greater than DA_STATUS_MAX_SECTORS_MAX:"
-				" %u\n", dev, fabric_max_sectors,
-				DA_STATUS_MAX_SECTORS_MAX);
-			return -EINVAL;
-		}
+	if (fabric_max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
+		pr_err("dev[%p]: Passed fabric_max_sectors: %u"
+			" greater than DA_STATUS_MAX_SECTORS_MAX:"
+			" %u\n", dev, fabric_max_sectors,
+			DA_STATUS_MAX_SECTORS_MAX);
+		return -EINVAL;
 	}
 	/*
 	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
@@ -1186,11 +1154,6 @@ int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 		pr_err("dev[%p]: Unable to change SE Device"
 			" optimal_sectors while export_count is %d\n",
 			dev, dev->export_count);
-		return -EINVAL;
-	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("dev[%p]: Passed optimal_sectors cannot be"
-				" changed for TCM/pSCSI\n", dev);
 		return -EINVAL;
 	}
 	if (optimal_sectors > dev->dev_attrib.fabric_max_sectors) {
@@ -1223,13 +1186,6 @@ int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 		pr_err("dev[%p]: Illegal value for block_device: %u"
 			" for SE device, must be 512, 1024, 2048 or 4096\n",
 			dev, block_size);
-		return -EINVAL;
-	}
-
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("dev[%p]: Not allowed to change block_size for"
-			" Physical Device, use for Linux/SCSI to change"
-			" block_size for underlying hardware\n", dev);
 		return -EINVAL;
 	}
 
