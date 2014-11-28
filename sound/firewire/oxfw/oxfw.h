@@ -58,3 +58,5 @@ void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw);
 int firewave_constraints(struct snd_pcm_runtime *runtime);
 int lacie_speakers_constraints(struct snd_pcm_runtime *runtime);
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw);
+
+int snd_oxfw_create_mixer(struct snd_oxfw *oxfw);
