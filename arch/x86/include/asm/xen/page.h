@@ -59,6 +59,21 @@ extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 				     struct page **pages, unsigned int count);
 extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
+/*
+ * When to use pfn_to_mfn(), __pfn_to_mfn() or get_phys_to_machine():
+ * - pfn_to_mfn() returns either INVALID_P2M_ENTRY or the mfn. No indicator
+ *   bits (identity or foreign) are set.
+ * - __pfn_to_mfn() returns the found entry of the p2m table. A possibly set
+ *   identity or foreign indicator will be still set. __pfn_to_mfn() is
+ *   encapsulating get_phys_to_machine().
+ * - get_phys_to_machine() is to be called by __pfn_to_mfn() only to allow
+ *   for future optimizations.
+ */
+static inline unsigned long __pfn_to_mfn(unsigned long pfn)
+{
+	return get_phys_to_machine(pfn);
+}
+
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
 	unsigned long mfn;
@@ -66,7 +81,7 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
 
-	mfn = get_phys_to_machine(pfn);
+	mfn = __pfn_to_mfn(pfn);
 
 	if (mfn != INVALID_P2M_ENTRY)
 		mfn &= ~(FOREIGN_FRAME_BIT | IDENTITY_FRAME_BIT);
@@ -79,7 +94,7 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return 1;
 
-	return get_phys_to_machine(pfn) != INVALID_P2M_ENTRY;
+	return __pfn_to_mfn(pfn) != INVALID_P2M_ENTRY;
 }
 
 static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
@@ -113,7 +128,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		return mfn;
 
 	pfn = mfn_to_pfn_no_overrides(mfn);
-	if (get_phys_to_machine(pfn) != mfn) {
+	if (__pfn_to_mfn(pfn) != mfn) {
 		/*
 		 * If this appears to be a foreign mfn (because the pfn
 		 * doesn't map back to the mfn), then check the local override
@@ -129,8 +144,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	 * entry doesn't map back to the mfn and m2p_override doesn't have a
 	 * valid entry for it.
 	 */
-	if (pfn == ~0 &&
-			get_phys_to_machine(mfn) == IDENTITY_FRAME(mfn))
+	if (pfn == ~0 && __pfn_to_mfn(mfn) == IDENTITY_FRAME(mfn))
 		pfn = mfn;
 
 	return pfn;
@@ -176,7 +190,7 @@ static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
 		return mfn;
 
 	pfn = mfn_to_pfn(mfn);
-	if (get_phys_to_machine(pfn) != mfn)
+	if (__pfn_to_mfn(pfn) != mfn)
 		return -1; /* force !pfn_valid() */
 	return pfn;
 }

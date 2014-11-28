@@ -787,7 +787,7 @@ static int m2p_add_override(unsigned long mfn, struct page *page,
 	 * because mfn_to_pfn (that ends up being called by GUPF) will
 	 * return the backend pfn rather than the frontend pfn. */
 	pfn = mfn_to_pfn_no_overrides(mfn);
-	if (get_phys_to_machine(pfn) == mfn)
+	if (__pfn_to_mfn(pfn) == mfn)
 		set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
 
 	return 0;
@@ -967,7 +967,7 @@ static int m2p_remove_override(struct page *page,
 	 * pfn again. */
 	mfn &= ~FOREIGN_FRAME_BIT;
 	pfn = mfn_to_pfn_no_overrides(mfn);
-	if (get_phys_to_machine(pfn) == FOREIGN_FRAME(mfn) &&
+	if (__pfn_to_mfn(pfn) == FOREIGN_FRAME(mfn) &&
 			m2p_find_override(mfn) == NULL)
 		set_phys_to_machine(pfn, mfn);
 
@@ -992,7 +992,7 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 	}
 
 	for (i = 0; i < count; i++) {
-		unsigned long mfn = get_phys_to_machine(page_to_pfn(pages[i]));
+		unsigned long mfn = __pfn_to_mfn(page_to_pfn(pages[i]));
 		unsigned long pfn = page_to_pfn(pages[i]);
 
 		if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT)) {
