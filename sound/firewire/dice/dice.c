@@ -26,9 +26,9 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include "amdtp.h"
-#include "iso-resources.h"
-#include "lib.h"
+#include "../amdtp.h"
+#include "../iso-resources.h"
+#include "../lib.h"
 #include "dice-interface.h"
 
 
