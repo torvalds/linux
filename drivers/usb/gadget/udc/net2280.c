@@ -927,10 +927,8 @@ net2280_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			return ret;
 	}
 
-#if 0
 	ep_vdbg(dev, "%s queue req %p, len %d buf %p\n",
 			_ep->name, _req, _req->length, _req->buf);
-#endif
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -2287,10 +2285,10 @@ static void handle_ep_small(struct net2280_ep *ep)
 	/* ack all, and handle what we care about */
 	t = readl(&ep->regs->ep_stat);
 	ep->irqs++;
-#if 0
+
 	ep_vdbg(ep->dev, "%s ack ep_stat %08x, req %p\n",
 			ep->ep.name, t, req ? &req->req : 0);
-#endif
+
 	if (!ep->is_in || (ep->dev->quirks & PLX_2280))
 		writel(t & ~BIT(NAK_OUT_PACKETS), &ep->regs->ep_stat);
 	else
