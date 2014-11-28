@@ -218,7 +218,7 @@ static u8 addr_tbl_vpu_h264dec[] = {
 };
 
 static u8 addr_tbl_vpu_vp8dec[] = {
-	10, 12, 13, 14, 18, 19, 27, 40
+	10, 12, 13, 14, 18, 19, 22, 23, 24, 25, 26, 27, 28, 29, 40
 };
 
 static u8 addr_tbl_vpu_vp6dec[] = {
@@ -324,6 +324,7 @@ struct vcodec_mem_region {
 	struct list_head session_lnk;
 	unsigned long iova;	/* virtual address for iommu */
 	unsigned long len;
+        u32 reg_idx;
 	struct ion_handle *hdl;
 };
 
@@ -843,6 +844,7 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl,
 			}
 
 			mem_region->hdl = hdl;
+                        mem_region->reg_idx = tbl[i];
 			vcodec_enter_mode(pservice->dev_id);
 			ret = ion_map_iommu(pservice->dev, pservice->ion_client, mem_region->hdl, &mem_region->iova, &mem_region->len);
 			vcodec_exit_mode();
@@ -1680,8 +1682,8 @@ int vcodec_sysmmu_fault_handler(struct device *dev,
 		list_for_each_entry_safe(mem, n,
 					 &(*pservice->reg_codec)->mem_region_list,
 					 reg_lnk) {
-			pr_info("vcodec, mem region [%02d] 0x%08x %ld\n",
-				i, (u32)mem->iova, mem->len);
+			pr_info("vcodec, reg[%02u] mem region [%02d] 0x%08x %ld\n",
+				mem->reg_idx, i, (u32)mem->iova, mem->len);
 			i++;
 		}
 
