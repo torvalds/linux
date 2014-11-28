@@ -100,7 +100,6 @@ struct net2280_ep {
 	dma_addr_t				td_dma;	/* of dummy */
 	struct net2280				*dev;
 	unsigned long				irqs;
-	unsigned is_halt:1;
 
 	/* analogous to a host-side qh */
 	struct list_head			queue;

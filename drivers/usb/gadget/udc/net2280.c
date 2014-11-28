@@ -2643,7 +2643,6 @@ static void ep_stall(struct net2280_ep *ep, int stall)
 		       /* BIT(SET_NAK_PACKETS) | */
 		       BIT(CLEAR_CONTROL_STATUS_PHASE_HANDSHAKE),
 		       &ep->regs->ep_rsp);
-		ep->is_halt = 1;
 	} else {
 		if (dev->gadget.speed == USB_SPEED_SUPER) {
 			/*
@@ -2663,7 +2662,6 @@ static void ep_stall(struct net2280_ep *ep, int stall)
 		writel(val,
 		       /* | BIT(CLEAR_NAK_PACKETS),*/
 		       &ep->regs->ep_rsp);
-		ep->is_halt = 0;
 		val = readl(&ep->regs->ep_rsp);
 	}
 }
@@ -2924,9 +2922,7 @@ static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 		}
 		ep->stopped = 0;
 		dev->protocol_stall = 0;
-		if (dev->quirks & PLX_SUPERSPEED)
-			ep->is_halt = 0;
-		else{
+		if (!(dev->quirks & PLX_SUPERSPEED)) {
 			if (ep->dev->quirks & PLX_2280)
 				tmp = BIT(FIFO_OVERFLOW) |
 				    BIT(FIFO_UNDERFLOW);
