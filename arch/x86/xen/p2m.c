@@ -181,7 +181,12 @@
 
 static void __init m2p_override_init(void);
 
+unsigned long *xen_p2m_addr __read_mostly;
+EXPORT_SYMBOL_GPL(xen_p2m_addr);
+unsigned long xen_p2m_size __read_mostly;
+EXPORT_SYMBOL_GPL(xen_p2m_size);
 unsigned long xen_max_p2m_pfn __read_mostly;
+EXPORT_SYMBOL_GPL(xen_max_p2m_pfn);
 
 static unsigned long *p2m_mid_missing_mfn;
 static unsigned long *p2m_top_mfn;
@@ -197,13 +202,6 @@ static RESERVE_BRK_ARRAY(unsigned long, p2m_identity, P2M_PER_PAGE);
 static RESERVE_BRK_ARRAY(unsigned long *, p2m_mid_identity, P2M_MID_PER_PAGE);
 
 RESERVE_BRK(p2m_mid, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
-
-/* For each I/O range remapped we may lose up to two leaf pages for the boundary
- * violations and three mid pages to cover up to 3GB. With
- * early_can_reuse_p2m_middle() most of the leaf pages will be reused by the
- * remapped region.
- */
-RESERVE_BRK(p2m_identity_remap, PAGE_SIZE * 2 * 3 * MAX_REMAP_RANGES);
 
 static int use_brk = 1;
 
@@ -381,9 +379,11 @@ void __init xen_build_dynamic_phys_to_machine(void)
 	 if (xen_feature(XENFEAT_auto_translated_physmap))
 		return;
 
+	xen_p2m_addr = (unsigned long *)xen_start_info->mfn_list;
 	mfn_list = (unsigned long *)xen_start_info->mfn_list;
 	max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
 	xen_max_p2m_pfn = max_pfn;
+	xen_p2m_size = max_pfn;
 
 	p2m_missing = alloc_p2m_page();
 	p2m_init(p2m_missing);
@@ -499,6 +499,11 @@ unsigned long __init xen_revector_p2m_tree(void)
 		/* This should be the leafs allocated for identity from _brk. */
 	}
 
+	xen_p2m_size = xen_max_p2m_pfn;
+	xen_p2m_addr = mfn_list;
+
+	xen_inv_extra_mem();
+
 	m2p_override_init();
 	return (unsigned long)mfn_list;
 }
@@ -506,6 +511,8 @@ unsigned long __init xen_revector_p2m_tree(void)
 unsigned long __init xen_revector_p2m_tree(void)
 {
 	use_brk = 0;
+	xen_p2m_size = xen_max_p2m_pfn;
+	xen_inv_extra_mem();
 	m2p_override_init();
 	return 0;
 }
@@ -514,8 +521,12 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 {
 	unsigned topidx, mididx, idx;
 
-	if (unlikely(pfn >= MAX_P2M_PFN))
+	if (unlikely(pfn >= xen_p2m_size)) {
+		if (pfn < xen_max_p2m_pfn)
+			return xen_chk_extra_mem(pfn);
+
 		return IDENTITY_FRAME(pfn);
+	}
 
 	topidx = p2m_top_index(pfn);
 	mididx = p2m_mid_index(pfn);
@@ -613,78 +624,12 @@ static bool alloc_p2m(unsigned long pfn)
 	return true;
 }
 
-static bool __init early_alloc_p2m(unsigned long pfn, bool check_boundary)
-{
-	unsigned topidx, mididx, idx;
-	unsigned long *p2m;
-
-	topidx = p2m_top_index(pfn);
-	mididx = p2m_mid_index(pfn);
-	idx = p2m_index(pfn);
-
-	/* Pfff.. No boundary cross-over, lets get out. */
-	if (!idx && check_boundary)
-		return false;
-
-	WARN(p2m_top[topidx][mididx] == p2m_identity,
-		"P2M[%d][%d] == IDENTITY, should be MISSING (or alloced)!\n",
-		topidx, mididx);
-
-	/*
-	 * Could be done by xen_build_dynamic_phys_to_machine..
-	 */
-	if (p2m_top[topidx][mididx] != p2m_missing)
-		return false;
-
-	/* Boundary cross-over for the edges: */
-	p2m = alloc_p2m_page();
-
-	p2m_init(p2m);
-
-	p2m_top[topidx][mididx] = p2m;
-
-	return true;
-}
-
-static bool __init early_alloc_p2m_middle(unsigned long pfn)
-{
-	unsigned topidx = p2m_top_index(pfn);
-	unsigned long **mid;
-
-	mid = p2m_top[topidx];
-	if (mid == p2m_mid_missing) {
-		mid = alloc_p2m_page();
-
-		p2m_mid_init(mid, p2m_missing);
-
-		p2m_top[topidx] = mid;
-	}
-	return true;
-}
-
-static void __init early_split_p2m(unsigned long pfn)
-{
-	unsigned long mididx, idx;
-
-	mididx = p2m_mid_index(pfn);
-	idx = p2m_index(pfn);
-
-	/*
-	 * Allocate new middle and leaf pages if this pfn lies in the
-	 * middle of one.
-	 */
-	if (mididx || idx)
-		early_alloc_p2m_middle(pfn);
-	if (idx)
-		early_alloc_p2m(pfn, false);
-}
-
 unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 				      unsigned long pfn_e)
 {
 	unsigned long pfn;
 
-	if (unlikely(pfn_s >= MAX_P2M_PFN))
+	if (unlikely(pfn_s >= xen_p2m_size))
 		return 0;
 
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap)))
@@ -693,34 +638,11 @@ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 	if (pfn_s > pfn_e)
 		return 0;
 
-	if (pfn_e > MAX_P2M_PFN)
-		pfn_e = MAX_P2M_PFN;
+	if (pfn_e > xen_p2m_size)
+		pfn_e = xen_p2m_size;
 
-	early_split_p2m(pfn_s);
-	early_split_p2m(pfn_e);
-
-	for (pfn = pfn_s; pfn < pfn_e;) {
-		unsigned topidx = p2m_top_index(pfn);
-		unsigned mididx = p2m_mid_index(pfn);
-
-		if (!__set_phys_to_machine(pfn, IDENTITY_FRAME(pfn)))
-			break;
-		pfn++;
-
-		/*
-		 * If the PFN was set to a middle or leaf identity
-		 * page the remainder must also be identity, so skip
-		 * ahead to the next middle or leaf entry.
-		 */
-		if (p2m_top[topidx] == p2m_mid_identity)
-			pfn = ALIGN(pfn, P2M_MID_PER_PAGE * P2M_PER_PAGE);
-		else if (p2m_top[topidx][mididx] == p2m_identity)
-			pfn = ALIGN(pfn, P2M_PER_PAGE);
-	}
-
-	WARN((pfn - pfn_s) != (pfn_e - pfn_s),
-		"Identity mapping failed. We are %ld short of 1-1 mappings!\n",
-		(pfn_e - pfn_s) - (pfn - pfn_s));
+	for (pfn = pfn_s; pfn < pfn_e; pfn++)
+		xen_p2m_addr[pfn] = IDENTITY_FRAME(pfn);
 
 	return pfn - pfn_s;
 }
@@ -734,7 +656,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap)))
 		return true;
 
-	if (unlikely(pfn >= MAX_P2M_PFN)) {
+	if (unlikely(pfn >= xen_p2m_size)) {
 		BUG_ON(mfn != INVALID_P2M_ENTRY);
 		return true;
 	}

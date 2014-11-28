@@ -41,6 +41,9 @@ typedef struct xpaddr {
 
 extern unsigned long *machine_to_phys_mapping;
 extern unsigned long  machine_to_phys_nr;
+extern unsigned long *xen_p2m_addr;
+extern unsigned long  xen_p2m_size;
+extern unsigned long  xen_max_p2m_pfn;
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);

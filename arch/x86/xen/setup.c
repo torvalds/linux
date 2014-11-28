@@ -76,7 +76,6 @@ static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
 
 static void __init xen_add_extra_mem(u64 start, u64 size)
 {
-	unsigned long pfn;
 	int i;
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
@@ -96,17 +95,75 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 		printk(KERN_WARNING "Warning: not enough extra memory regions\n");
 
 	memblock_reserve(start, size);
+}
 
-	xen_max_p2m_pfn = PFN_DOWN(start + size);
-	for (pfn = PFN_DOWN(start); pfn < xen_max_p2m_pfn; pfn++) {
-		unsigned long mfn = pfn_to_mfn(pfn);
+static void __init xen_del_extra_mem(u64 start, u64 size)
+{
+	int i;
+	u64 start_r, size_r;
 
-		if (WARN_ONCE(mfn == pfn, "Trying to over-write 1-1 mapping (pfn: %lx)\n", pfn))
-			continue;
-		WARN_ONCE(mfn != INVALID_P2M_ENTRY, "Trying to remove %lx which has %lx mfn!\n",
-			  pfn, mfn);
+	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
+		start_r = xen_extra_mem[i].start;
+		size_r = xen_extra_mem[i].size;
 
-		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+		/* Start of region. */
+		if (start_r == start) {
+			BUG_ON(size > size_r);
+			xen_extra_mem[i].start += size;
+			xen_extra_mem[i].size -= size;
+			break;
+		}
+		/* End of region. */
+		if (start_r + size_r == start + size) {
+			BUG_ON(size > size_r);
+			xen_extra_mem[i].size -= size;
+			break;
+		}
+		/* Mid of region. */
+		if (start > start_r && start < start_r + size_r) {
+			BUG_ON(start + size > start_r + size_r);
+			xen_extra_mem[i].size = start - start_r;
+			/* Calling memblock_reserve() again is okay. */
+			xen_add_extra_mem(start + size, start_r + size_r -
+					  (start + size));
+			break;
+		}
+	}
+	memblock_free(start, size);
+}
+
+/*
+ * Called during boot before the p2m list can take entries beyond the
+ * hypervisor supplied p2m list. Entries in extra mem are to be regarded as
+ * invalid.
+ */
+unsigned long __ref xen_chk_extra_mem(unsigned long pfn)
+{
+	int i;
+	unsigned long addr = PFN_PHYS(pfn);
+
+	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
+		if (addr >= xen_extra_mem[i].start &&
+		    addr < xen_extra_mem[i].start + xen_extra_mem[i].size)
+			return INVALID_P2M_ENTRY;
+	}
+
+	return IDENTITY_FRAME(pfn);
+}
+
+/*
+ * Mark all pfns of extra mem as invalid in p2m list.
+ */
+void __init xen_inv_extra_mem(void)
+{
+	unsigned long pfn, pfn_s, pfn_e;
+	int i;
+
+	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
+		pfn_s = PFN_DOWN(xen_extra_mem[i].start);
+		pfn_e = PFN_UP(xen_extra_mem[i].start + xen_extra_mem[i].size);
+		for (pfn = pfn_s; pfn < pfn_e; pfn++)
+			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 	}
 }
 
@@ -268,9 +325,6 @@ static void __init xen_do_set_identity_and_remap_chunk(
 
 	BUG_ON(xen_feature(XENFEAT_auto_translated_physmap));
 
-	/* Don't use memory until remapped */
-	memblock_reserve(PFN_PHYS(remap_pfn), PFN_PHYS(size));
-
 	mfn_save = virt_to_mfn(buf);
 
 	for (ident_pfn_iter = start_pfn, remap_pfn_iter = remap_pfn;
@@ -314,7 +368,7 @@ static void __init xen_do_set_identity_and_remap_chunk(
  * pages. In the case of an error the underlying memory is simply released back
  * to Xen and not remapped.
  */
-static unsigned long __init xen_set_identity_and_remap_chunk(
+static unsigned long xen_set_identity_and_remap_chunk(
         const struct e820entry *list, size_t map_size, unsigned long start_pfn,
 	unsigned long end_pfn, unsigned long nr_pages, unsigned long remap_pfn,
 	unsigned long *identity, unsigned long *released)
@@ -371,7 +425,7 @@ static unsigned long __init xen_set_identity_and_remap_chunk(
 	return remap_pfn;
 }
 
-static unsigned long __init xen_set_identity_and_remap(
+static void __init xen_set_identity_and_remap(
 	const struct e820entry *list, size_t map_size, unsigned long nr_pages,
 	unsigned long *released)
 {
@@ -415,8 +469,6 @@ static unsigned long __init xen_set_identity_and_remap(
 
 	pr_info("Set %ld page(s) to 1-1 mapping\n", identity);
 	pr_info("Released %ld page(s)\n", num_released);
-
-	return last_pfn;
 }
 
 /*
@@ -456,7 +508,7 @@ void __init xen_remap_memory(void)
 		} else if (pfn_s + len == xen_remap_buf.target_pfn) {
 			len += xen_remap_buf.size;
 		} else {
-			memblock_free(PFN_PHYS(pfn_s), PFN_PHYS(len));
+			xen_del_extra_mem(PFN_PHYS(pfn_s), PFN_PHYS(len));
 			pfn_s = xen_remap_buf.target_pfn;
 			len = xen_remap_buf.size;
 		}
@@ -466,7 +518,7 @@ void __init xen_remap_memory(void)
 	}
 
 	if (pfn_s != ~0UL && len)
-		memblock_free(PFN_PHYS(pfn_s), PFN_PHYS(len));
+		xen_del_extra_mem(PFN_PHYS(pfn_s), PFN_PHYS(len));
 
 	set_pte_mfn(buf, mfn_save, PAGE_KERNEL);
 
@@ -533,7 +585,6 @@ char * __init xen_memory_setup(void)
 	int rc;
 	struct xen_memory_map memmap;
 	unsigned long max_pages;
-	unsigned long last_pfn = 0;
 	unsigned long extra_pages = 0;
 	int i;
 	int op;
@@ -583,15 +634,11 @@ char * __init xen_memory_setup(void)
 	 * Set identity map on non-RAM pages and prepare remapping the
 	 * underlying RAM.
 	 */
-	last_pfn = xen_set_identity_and_remap(map, memmap.nr_entries, max_pfn,
-					      &xen_released_pages);
+	xen_set_identity_and_remap(map, memmap.nr_entries, max_pfn,
+				   &xen_released_pages);
 
 	extra_pages += xen_released_pages;
 
-	if (last_pfn > max_pfn) {
-		max_pfn = min(MAX_DOMAIN_PAGES, last_pfn);
-		mem_end = PFN_PHYS(max_pfn);
-	}
 	/*
 	 * Clamp the amount of extra memory to a EXTRA_MEM_RATIO
 	 * factor the base size.  On non-highmem systems, the base
@@ -618,6 +665,7 @@ char * __init xen_memory_setup(void)
 				size = min(size, (u64)extra_pages * PAGE_SIZE);
 				extra_pages -= size / PAGE_SIZE;
 				xen_add_extra_mem(addr, size);
+				xen_max_p2m_pfn = PFN_DOWN(addr + size);
 			} else
 				type = E820_UNUSABLE;
 		}
