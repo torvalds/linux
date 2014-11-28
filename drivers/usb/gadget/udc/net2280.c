@@ -2668,46 +2668,6 @@ static void ep_stall(struct net2280_ep *ep, int stall)
 	}
 }
 
-static void ep_stdrsp(struct net2280_ep *ep, int value, int wedged)
-{
-	/* set/clear, then synch memory views with the device */
-	if (value) {
-		ep->stopped = 1;
-		if (ep->num == 0)
-			ep->dev->protocol_stall = 1;
-		else {
-			if (ep->dma)
-				ep_stop_dma(ep);
-			ep_stall(ep, true);
-		}
-
-		if (wedged)
-			ep->wedged = 1;
-	} else {
-		ep->stopped = 0;
-		ep->wedged = 0;
-
-		ep_stall(ep, false);
-
-		/* Flush the queue */
-		if (!list_empty(&ep->queue)) {
-			struct net2280_request *req =
-			    list_entry(ep->queue.next, struct net2280_request,
-				       queue);
-			if (ep->dma)
-				resume_dma(ep);
-			else {
-				if (ep->is_in)
-					write_fifo(ep, &req->req);
-				else {
-					if (read_fifo(ep, req))
-						done(ep, req, 0);
-				}
-			}
-		}
-	}
-}
-
 static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 		struct net2280_ep *ep, struct usb_ctrlrequest r)
 {
@@ -2864,7 +2824,14 @@ static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 			e = get_ep_by_addr(dev,	w_index);
 			if (!e || (w_value != USB_ENDPOINT_HALT))
 				goto do_stall3;
-			ep_stdrsp(e, true, false);
+			ep->stopped = 1;
+			if (ep->num == 0)
+				ep->dev->protocol_stall = 1;
+			else {
+				if (ep->dma)
+					ep_stop_dma(ep);
+				ep_stall(ep, true);
+			}
 			allow_status_338x(ep);
 			break;
 
