@@ -232,10 +232,7 @@ int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
 		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		ret = -EPROTO; /* request phase complete for this client call */
 	} else {
-		mm_segment_t oldfs = get_fs();
-		set_fs(KERNEL_DS);
 		ret = rxrpc_send_data(NULL, call->socket, call, msg, len);
-		set_fs(oldfs);
 	}
 
 	release_sock(&call->socket->sk);
