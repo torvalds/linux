@@ -593,6 +593,7 @@ static inline unsigned long em28xx_hash_mem(char *buf, int length, int bits)
 	unsigned long l = 0;
 	int len = 0;
 	unsigned char c;
+
 	do {
 		if (len == length) {
 			c = (char)len;
@@ -950,7 +951,7 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned bus,
 	retval = i2c_add_adapter(&dev->i2c_adap[bus]);
 	if (retval < 0) {
 		em28xx_errdev("%s: i2c_add_adapter failed! retval [%d]\n",
-			__func__, retval);
+			      __func__, retval);
 		return retval;
 	}
 
@@ -962,7 +963,7 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned bus,
 		retval = em28xx_i2c_eeprom(dev, bus, &dev->eedata, &dev->eedata_len);
 		if ((retval < 0) && (retval != -ENODEV)) {
 			em28xx_errdev("%s: em28xx_i2_eeprom failed! retval [%d]\n",
-				__func__, retval);
+				      __func__, retval);
 
 			return retval;
 		}

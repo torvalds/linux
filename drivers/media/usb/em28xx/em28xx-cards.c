@@ -64,7 +64,6 @@ module_param(usb_xfer_mode, int, 0444);
 MODULE_PARM_DESC(usb_xfer_mode,
 		 "USB transfer mode for frame data (-1 = auto, 0 = prefer isoc, 1 = prefer bulk)");
 
-
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
 static DECLARE_BITMAP(em28xx_devused, EM28XX_MAXBOARDS);
 
@@ -190,8 +189,8 @@ static struct em28xx_reg_seq kworld_a340_digital[] = {
 };
 
 static struct em28xx_reg_seq kworld_ub435q_v3_digital[] = {
-	{EM2874_R80_GPIO_P0_CTRL,	0xff, 	0xff,	100},
-	{EM2874_R80_GPIO_P0_CTRL,	0xfe, 	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	100},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfe,	0xff,	100},
 	{EM2874_R80_GPIO_P0_CTRL,	0xbe,	0xff,	100},
 	{EM2874_R80_GPIO_P0_CTRL,	0xfe,	0xff,	100},
 	{	-1,			-1,	-1,	-1},
@@ -300,7 +299,6 @@ static struct em28xx_reg_seq dikom_dk300_digital[] = {
 	{EM2880_R04_GPO,	0x08,	0xff,		10},
 	{	-1,		-1,	-1,		-1},
 };
-
 
 /* Reset for the most [digital] boards */
 static struct em28xx_reg_seq leadership_digital[] = {
@@ -561,7 +559,6 @@ static struct em28xx_led pctv_80e_leds[] = {
 	},
 	{-1, 0, 0, 0},
 };
-
 
 /*
  *  Board definitions
@@ -1528,7 +1525,7 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.aout     = EM28XX_AOUT_MONO | 	/* I2S */
+			.aout     = EM28XX_AOUT_MONO |	/* I2S */
 				    EM28XX_AOUT_MASTER,	/* Line out pin */
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
@@ -1550,7 +1547,7 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.aout     = EM28XX_AOUT_MONO | 	/* I2S */
+			.aout     = EM28XX_AOUT_MONO |	/* I2S */
 				    EM28XX_AOUT_MASTER,	/* Line out pin */
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
@@ -2496,6 +2493,7 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0x4ba50080, EM2861_BOARD_GADMEI_UTV330PLUS, TUNER_TNF_5335MF},
 	{0x6b800080, EM2874_BOARD_LEADERSHIP_ISDBT, TUNER_ABSENT},
 };
+
 /* NOTE: introduce a separate hash table for devices with 16 bit eeproms */
 
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
@@ -2738,7 +2736,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 		      " insmod option:\n");
 	for (i = 0; i < em28xx_bcount; i++) {
 		em28xx_errdev("    card=%d -> %s\n",
-				i, em28xx_boards[i].name);
+			      i, em28xx_boards[i].name);
 	}
 	return -1;
 }
@@ -3094,6 +3092,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			if (le16_to_cpu(dev->udev->descriptor.idVendor)
 								    == 0xeb1a) {
 				__le16 idProd = dev->udev->descriptor.idProduct;
+
 				if (le16_to_cpu(idProd) == 0x2710)
 					chip_name = "em2710";
 				else if (le16_to_cpu(idProd) == 0x2820)
@@ -3182,7 +3181,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		retval = em28xx_i2c_register(dev, 0, EM28XX_I2C_ALGO_EM28XX);
 	if (retval < 0) {
 		em28xx_errdev("%s: em28xx_i2c_register bus 0 - error [%d]!\n",
-			__func__, retval);
+			      __func__, retval);
 		return retval;
 	}
 
@@ -3190,13 +3189,13 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	if (dev->def_i2c_bus) {
 		if (dev->is_em25xx)
 			retval = em28xx_i2c_register(dev, 1,
-						  EM28XX_I2C_ALGO_EM25XX_BUS_B);
+						     EM28XX_I2C_ALGO_EM25XX_BUS_B);
 		else
 			retval = em28xx_i2c_register(dev, 1,
-							EM28XX_I2C_ALGO_EM28XX);
+						     EM28XX_I2C_ALGO_EM28XX);
 		if (retval < 0) {
 			em28xx_errdev("%s: em28xx_i2c_register bus 1 - error [%d]!\n",
-				__func__, retval);
+				      __func__, retval);
 
 			em28xx_i2c_unregister(dev, 0);
 
@@ -3236,7 +3235,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		if (nr >= EM28XX_MAXBOARDS) {
 			/* No free device slots */
 			printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
-					EM28XX_MAXBOARDS);
+			       EM28XX_MAXBOARDS);
 			retval = -ENOMEM;
 			goto err_no_slot;
 		}
@@ -3420,6 +3419,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* Checks if audio is provided by a USB Audio Class interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {
 		struct usb_interface *uif = udev->config->interface[i];
+
 		if (uif->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
 			if (has_vendor_audio)
 				em28xx_err("em28xx: device seems to have vendor AND usb audio class interfaces !\n"
@@ -3530,7 +3530,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 }
 
 static int em28xx_usb_suspend(struct usb_interface *interface,
-				pm_message_t message)
+			      pm_message_t message)
 {
 	struct em28xx *dev;
 
