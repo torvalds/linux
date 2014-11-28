@@ -602,14 +602,14 @@ int ping_getfrag(void *from, char *to,
 		if (fraglen < sizeof(struct icmphdr))
 			BUG();
 		if (csum_partial_copy_fromiovecend(to + sizeof(struct icmphdr),
-			    pfh->iov, 0, fraglen - sizeof(struct icmphdr),
+			    pfh->msg->msg_iter.iov, 0, fraglen - sizeof(struct icmphdr),
 			    &pfh->wcheck))
 			return -EFAULT;
 	} else if (offset < sizeof(struct icmphdr)) {
 			BUG();
 	} else {
 		if (csum_partial_copy_fromiovecend
-				(to, pfh->iov, offset - sizeof(struct icmphdr),
+				(to, pfh->msg->msg_iter.iov, offset - sizeof(struct icmphdr),
 				 fraglen, &pfh->wcheck))
 			return -EFAULT;
 	}
@@ -811,8 +811,7 @@ back_from_confirm:
 	pfh.icmph.checksum = 0;
 	pfh.icmph.un.echo.id = inet->inet_sport;
 	pfh.icmph.un.echo.sequence = user_icmph.un.echo.sequence;
-	/* XXX: stripping const */
-	pfh.iov = (struct iovec *)msg->msg_iter.iov;
+	pfh.msg = msg;
 	pfh.wcheck = 0;
 	pfh.family = AF_INET;
 
