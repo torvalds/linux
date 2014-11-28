@@ -298,19 +298,19 @@ static const DECLARE_TLV_DB_SCALE(hsw_vol_tlv, -9000, 300, 1);
 static const struct snd_kcontrol_new hsw_volume_controls[] = {
 	/* Global DSP volume */
 	SOC_DOUBLE_EXT_TLV("Master Playback Volume", 0, 0, 8,
-		ARRAY_SIZE(volume_map) -1, 0,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_volume_get, hsw_volume_put, hsw_vol_tlv),
 	/* Offload 0 volume */
 	SOC_DOUBLE_EXT_TLV("Media0 Playback Volume", 1, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 	/* Offload 1 volume */
 	SOC_DOUBLE_EXT_TLV("Media1 Playback Volume", 2, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 	/* Mic Capture volume */
 	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 4, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 };
 
