@@ -25,6 +25,24 @@
 #include "clk-pll.h"
 #include "clk-pd.h"
 
+static void __iomem *rk_cru_base;
+static void __iomem *rk_grf_base;
+
+u32 cru_readl(u32 offset)
+{
+	return readl(rk_cru_base + (offset));
+}
+
+void cru_writel(u32 val, u32 offset)
+{
+	writel(val, rk_cru_base + (offset));
+	dsb();
+}
+
+u32 grf_readl(u32 offset)
+{
+	return readl(rk_grf_base + (offset));
+}
 
 struct rkclk_muxinfo {
 	const char		*clk_name;
@@ -1502,6 +1520,10 @@ static void rkclk_add_provider(struct device_node *np)
 			for_each_available_child_of_node(node, node_prd) {
 				 _rkclk_add_provider(node_prd);
 			}
+		} else if (strcmp(compatible, "rockchip,rk-clock-special-regs") == 0) {
+			for_each_available_child_of_node(node, node_prd) {
+				 _rkclk_add_provider(node_prd);
+			}
 		} else {
 			clk_err("%s: unknown\n", __func__);
 		}
@@ -1547,7 +1569,8 @@ static void rkclk_cache_parents(struct rkclk *rkclk)
 void rk_dump_cru(void)
 {
 	printk(KERN_WARNING "CRU:\n");
-	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 4, RK_CRU_VIRT, 0x220, false);
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 4, rk_cru_base,
+		       0x220, false);
 }
 EXPORT_SYMBOL_GPL(rk_dump_cru);
 
@@ -1846,15 +1869,23 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	struct rkclk *rkclk;
 	const char *compatible;
 
-	printk("%s start! cru base = %p\n", __func__, RK_CRU_VIRT);
+	printk("%s start!\n", __func__);
 
-	node_init=of_find_node_by_name(NULL,"clocks-init");
+	node_init = of_find_node_by_name(NULL, "clocks-init");
 	if (!node_init) {
 		clk_err("%s: can not get clocks-init node\n", __func__);
 		return;
 	}
-        clk_root_node=of_find_node_by_name(NULL,"clock_regs");
 
+	clk_root_node = of_find_node_by_name(NULL, "clock_regs");
+	rk_cru_base = of_iomap(clk_root_node, 0);
+	if (!rk_cru_base) {
+		clk_err("%s: could not map cru region\n", __func__);
+		return;
+	}
+
+	node = of_parse_phandle(np, "rockchip,grf", 0);
+	rk_grf_base = of_iomap(node, 0);
 
 	for_each_available_child_of_node(np, node) {
 		clk_debug("\n");

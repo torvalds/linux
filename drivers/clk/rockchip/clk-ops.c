@@ -408,6 +408,7 @@ const struct clk_ops clkops_rate_core_peri = {
 	.set_rate	= NULL,
 };
 
+#if 0
 static unsigned long clk_ddr_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
@@ -511,6 +512,7 @@ const struct clk_ops clkops_rate_ddr_div4 = {
 	.set_rate	= clk_ddr_set_rate,
 	.determine_rate = clk_ddr_determine_rate,
 };
+#endif
 
 static unsigned long clk_3288_i2s_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
@@ -789,13 +791,13 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_FRAC,		.clk_ops = &clkops_rate_frac},
 	{.index = CLKOPS_RATE_CORE,		.clk_ops = &clkops_rate_core},
 	{.index = CLKOPS_RATE_CORE_CHILD,	.clk_ops = &clkops_rate_core_peri},
-	{.index = CLKOPS_RATE_DDR,		.clk_ops = &clkops_rate_ddr},
+	{.index = CLKOPS_RATE_DDR,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_RK3288_I2S,	.clk_ops = &clkops_rate_3288_i2s},
 	{.index = CLKOPS_RATE_RK3288_USB480M,	.clk_ops = &clkops_rate_3288_usb480m},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC0,.clk_ops = &clkops_rate_3288_dclk_lcdc0},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC1,.clk_ops = &clkops_rate_3288_dclk_lcdc1},
-	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = &clkops_rate_ddr_div2},
-	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = &clkops_rate_ddr_div4},
+	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = NULL},
+	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_RK3368_MUX_DIV_NPLL,   .clk_ops = &clkops_rate_3368_auto_parent},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},

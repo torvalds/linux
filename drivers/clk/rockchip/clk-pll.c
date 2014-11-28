@@ -334,7 +334,6 @@ static void pll_wait_lock(struct clk_hw *hw)
 	struct clk_pll *pll = to_clk_pll(hw);
 	int delay = 24000000;
 
-
 	while (delay > 0) {
 		if (grf_readl(pll->status_offset) & (1 << pll->status_shift))
 			break;
@@ -1571,7 +1570,7 @@ CHANGE_APLL:
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
 		if (temp_div == 1) {
-			/* when rate/2 < (old_rate-arm_gpll_rate),
+			/* when rate/2 < (rate-arm_gpll_rate),
 		           we can set div to make rate change more gently */
 			if (rate > (2*arm_gpll_rate)) {
 				cru_writel(RK3288_CORE_CLK_DIV(2), RK3288_CRU_CLKSELS_CON(0));
@@ -2033,6 +2032,11 @@ static int clk_pll_set_rate_3368_apllb(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags;
 	int sel_gpll = 0;
 
+	ps = apll_get_best_set(rate, rk3368_apllb_table);
+	clk_debug("apllb will set rate %lu\n", ps->rate);
+	clk_debug("table con:%08x,%08x,%08x, sel:%08x,%08x\n",
+		  ps->pllcon0, ps->pllcon1, ps->pllcon2,
+		  ps->clksel0, ps->clksel1);
 
 #if !RK3368_APLLB_USE_GPLL
 	goto CHANGE_APLL;
@@ -2074,6 +2078,11 @@ static int clk_pll_set_rate_3368_apllb(struct clk_hw *hw, unsigned long rate,
 #endif
 
 	local_irq_save(flags);
+
+	if (rate >= old_rate) {
+		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(0));
+		cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(1));
+	}
 
 	/* select gpll */
 #if RK3368_APLLB_DIV_MORE
@@ -2118,12 +2127,6 @@ static int clk_pll_set_rate_3368_apllb(struct clk_hw *hw, unsigned long rate,
 		  temp_div);
 
 CHANGE_APLL:
-	ps = apll_get_best_set(rate, rk3368_apllb_table);
-	clk_debug("apll will set rate %lu\n", ps->rate);
-	clk_debug("table con:%08x,%08x,%08x, sel:%08x,%08x\n",
-		  ps->pllcon0, ps->pllcon1, ps->pllcon2,
-		  ps->clksel0, ps->clksel1);
-
 	local_irq_save(flags);
 
 	/* If core src don't select gpll, apll need to enter slow mode
@@ -2149,21 +2152,21 @@ CHANGE_APLL:
 	udelay(ps->rst_dly);
 	pll_wait_lock(hw);
 
-	if (rate >= __clk_get_rate(hw->clk)) {
-		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(0));
-		cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(1));
-	}
-
 	/* PLL return from slow mode */
-	if (!sel_gpll)
+	if (!sel_gpll) {
+		if (rate >= old_rate) {
+			cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(0));
+			cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(1));
+		}
 		cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift),
 			   pll->mode_offset);
+	}
 
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
 #if RK3368_APLLB_DIV_MORE
 		if (temp_div == 1) {
-			/* when rate/2 < (old_rate-arm_gpll_rate),
+			/* when rate/2 < (rate-arm_gpll_rate),
 			 we can set div to make rate change more gently */
 			if (rate > (2*arm_gpll_rate)) {
 				cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(0));
@@ -2192,7 +2195,7 @@ CHANGE_APLL:
 #endif
 	}
 
-	if (rate < __clk_get_rate(hw->clk)) {
+	if (rate < old_rate) {
 		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(0));
 		cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(1));
 	}
@@ -2258,6 +2261,11 @@ static int clk_pll_set_rate_3368_aplll(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags;
 	int sel_gpll = 0;
 
+	ps = apll_get_best_set(rate, rk3368_aplll_table);
+	clk_debug("aplll will set rate %lu\n", ps->rate);
+	clk_debug("table con:%08x,%08x,%08x, sel:%08x,%08x\n",
+		  ps->pllcon0, ps->pllcon1, ps->pllcon2,
+		  ps->clksel0, ps->clksel1);
 
 #if !RK3368_APLLL_USE_GPLL
 	goto CHANGE_APLL;
@@ -2299,6 +2307,11 @@ static int clk_pll_set_rate_3368_aplll(struct clk_hw *hw, unsigned long rate,
 #endif
 
 	local_irq_save(flags);
+
+	if (rate >= old_rate) {
+		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(2));
+		cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(3));
+	}
 
 	/* select gpll */
 #if RK3368_APLLL_DIV_MORE
@@ -2343,12 +2356,6 @@ static int clk_pll_set_rate_3368_aplll(struct clk_hw *hw, unsigned long rate,
 		  temp_div);
 
 CHANGE_APLL:
-	ps = apll_get_best_set(rate, rk3368_aplll_table);
-	clk_debug("apll will set rate %lu\n", ps->rate);
-	clk_debug("table con:%08x,%08x,%08x, sel:%08x,%08x\n",
-		  ps->pllcon0, ps->pllcon1, ps->pllcon2,
-		  ps->clksel0, ps->clksel1);
-
 	local_irq_save(flags);
 
 	/* If core src don't select gpll, apll need to enter slow mode
@@ -2374,21 +2381,21 @@ CHANGE_APLL:
 	udelay(ps->rst_dly);
 	pll_wait_lock(hw);
 
-	if (rate >= __clk_get_rate(hw->clk)) {
-		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(2));
-		cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(3));
-	}
-
 	/* PLL return from slow mode */
-	if (!sel_gpll)
+	if (!sel_gpll) {
+		if (rate >= old_rate) {
+			cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(2));
+			cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(3));
+		}
 		cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift),
 			   pll->mode_offset);
+	}
 
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
 #if RK3368_APLLL_DIV_MORE
 		if (temp_div == 1) {
-			/* when rate/2 < (old_rate-arm_gpll_rate),
+			/* when rate/2 < (rate-arm_gpll_rate),
 			 we can set div to make rate change more gently */
 			if (rate > (2*arm_gpll_rate)) {
 				cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(2));
@@ -2417,7 +2424,7 @@ CHANGE_APLL:
 #endif
 	}
 
-	if (rate < __clk_get_rate(hw->clk)) {
+	if (rate < old_rate) {
 		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(2));
 		cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(3));
 	}

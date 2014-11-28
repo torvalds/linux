@@ -13,13 +13,12 @@
  */
 #include <dt-bindings/clock/rockchip,rk3368.h>
 
-
-
 /{
 	clocks {
 		compatible = "rockchip,rk-clocks";
-		#address-cells = <1>;
-		#size-cells = <1>;
+		rockchip,grf = <&grf>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 
 		fixed_rate_cons {
@@ -159,8 +158,8 @@
 			compatible = "rockchip,rk-clock-regs";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0xFF760000 0x0264>;
-			reg = <0xFF760000 0x0264>;/* NEED CONFIRM */
+			ranges = <0x0 0x0 0xff760000 0x1000>;
+			reg = <0x0 0xff760000 0x0 0x1000>;
 
 			/* PLL control regs */
 			pll_cons {
@@ -404,6 +403,7 @@
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					/* 5 reserved */
@@ -469,7 +469,7 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
 						clocks = <&aclk_bus>;
-						clock-output-names = "aclk_bus_div";
+						clock-output-names = "aclk_bus";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
@@ -519,7 +519,7 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
 						clocks = <&aclk_peri>;
-						clock-output-names = "aclk_peri_div";
+						clock-output-names = "aclk_peri";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
@@ -811,6 +811,7 @@
 						clock-output-names = "aclk_gpu_cfg";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 				};
 
@@ -1073,6 +1074,7 @@
 						clocks = <&clk_cpll>, <&clk_gpll>, <&clk_npll>, <&clk_npll>;
 						clock-output-names = "clk_edp";
 						#clock-cells = <0>;
+						#clock-init-cells = <1>;
 					};
 
 					clk_edp_24m: clk_edp_24m_mux {
@@ -1370,6 +1372,7 @@
                                                 clocks = <&clk_cpll>, <&clk_gpll>;
                                                 clock-output-names = "clk_uart_pll";
                                                 #clock-cells = <0>;
+						#clock-init-cells = <1>;
                                         };
 
 					/* 14:13 reserved */
@@ -1819,6 +1822,7 @@
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
+						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
 					};
 
 					/* 7 reserved */
@@ -2071,7 +2075,7 @@
 						<&aclk_gpu_mem>,	<&aclk_gpu_cfg>,
 						<&dummy>,	<&dummy>,
 
-						<&dummy>,	<&i2s_pll>,
+						<&dummy>,	<&i2s_2ch_pll>,
 						<&i2s_2ch_frac>,	<&clk_i2s_2ch>;
 
                                         clock-output-names =
@@ -2084,7 +2088,7 @@
 						"aclk_gpu_mem",	"aclk_gpu_cfg",
 						"reserved",	"reserved",
 
-						"reserved",	"i2s_pll",
+						"reserved",	"i2s_2ch_pll",
 						"i2s_2ch_frac",	"clk_i2s_2ch";
 
 					#clock-cells = <1>;
@@ -2431,7 +2435,7 @@
                                                 "g_aclk_iep",	"g_hclk_iep",
 
 						"g_aclk_vop_iep",	"g_aclk_vop",
-						"g_hclk_vop",	"g_h_vio_ahb_arbi",
+						"g_hclk_vop",	"h_vio_ahb_arbi",
 
 						"g_hclk_vio_noc",	"g_aclk_vio0_noc",
 						"g_aclk_vio1_noc",	"g_aclk_vip",
@@ -2523,8 +2527,8 @@
 						<&pclk_peri>,	<&pclk_peri>;
 
                                         clock-output-names =
-                                                "g_h_p_axi_matrix",	"g_p_p_axi_matrix",
-                                                "g_a_p_axi_matrix",	"g_a_dmac_peri",
+                                                "g_hp_axi_matrix",	"g_pp_axi_matrix",
+                                                "g_ap_axi_matrix",	"g_a_dmac_peri",
 
 						"g_pclk_spi0",	"g_pclk_spi1",
 						"g_pclk_spi2",	"g_pclk_uart0",
@@ -2702,13 +2706,13 @@
 
 		special_regs {
 			compatible = "rockchip,rk-clock-special-regs";
-			#address-cells = <1>;
-			#size-cells = <1>;
+			#address-cells = <2>;
+			#size-cells = <2>;
 			ranges;
 
 			clk_32k_mux: clk_32k_mux {
 				compatible = "rockchip,rk3188-mux-con";
-				reg = <0xff738100 0x4>;
+				reg = <0x0 0xff738100 0x0 0x4>;
 				rockchip,bits = <6 1>;
 				clocks = <&xin32k>, <&clk_gates7 3>;
 				clock-output-names = "clk_32k_mux";
