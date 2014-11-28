@@ -56,7 +56,6 @@ struct device_node {
 	struct	device_node *parent;
 	struct	device_node *child;
 	struct	device_node *sibling;
-	struct	device_node *next;	/* next device of same type */
 	struct	kobject kobj;
 	unsigned long _flags;
 	void	*data;

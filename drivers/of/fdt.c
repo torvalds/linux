@@ -226,12 +226,8 @@ static void * unflatten_dt_node(void *blob,
 		prev_pp = &np->properties;
 		if (dad != NULL) {
 			np->parent = dad;
-			/* we temporarily use the next field as `last_child'*/
-			if (dad->next == NULL)
-				dad->child = np;
-			else
-				dad->next->sibling = np;
-			dad->next = np;
+			np->sibling = dad->child;
+			dad->child = np;
 		}
 	}
 	/* process properties */
@@ -329,6 +325,22 @@ static void * unflatten_dt_node(void *blob,
 
 	if (*poffset < 0 && *poffset != -FDT_ERR_NOTFOUND)
 		pr_err("unflatten: error %d processing FDT\n", *poffset);
+
+	/*
+	 * Reverse the child list. Some drivers assumes node order matches .dts
+	 * node order
+	 */
+	if (!dryrun && np->child) {
+		struct device_node *child = np->child;
+		np->child = NULL;
+		while (child) {
+			struct device_node *next = child->sibling;
+			child->sibling = np->child;
+			np->child = child;
+			child = next;
+		}
+	}
+
 	if (nodepp)
 		*nodepp = np;
 
