@@ -896,6 +896,61 @@ static unsigned long mfn_hash(unsigned long mfn)
 	return hash_long(mfn, M2P_OVERRIDE_HASH_SHIFT);
 }
 
+/* Add an MFN override for a particular page */
+static int m2p_add_override(unsigned long mfn, struct page *page,
+			    struct gnttab_map_grant_ref *kmap_op)
+{
+	unsigned long flags;
+	unsigned long pfn;
+	unsigned long uninitialized_var(address);
+	unsigned level;
+	pte_t *ptep = NULL;
+
+	pfn = page_to_pfn(page);
+	if (!PageHighMem(page)) {
+		address = (unsigned long)__va(pfn << PAGE_SHIFT);
+		ptep = lookup_address(address, &level);
+		if (WARN(ptep == NULL || level != PG_LEVEL_4K,
+			 "m2p_add_override: pfn %lx not mapped", pfn))
+			return -EINVAL;
+	}
+
+	if (kmap_op != NULL) {
+		if (!PageHighMem(page)) {
+			struct multicall_space mcs =
+				xen_mc_entry(sizeof(*kmap_op));
+
+			MULTI_grant_table_op(mcs.mc,
+					GNTTABOP_map_grant_ref, kmap_op, 1);
+
+			xen_mc_issue(PARAVIRT_LAZY_MMU);
+		}
+	}
+	spin_lock_irqsave(&m2p_override_lock, flags);
+	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
+	spin_unlock_irqrestore(&m2p_override_lock, flags);
+
+	/* p2m(m2p(mfn)) == mfn: the mfn is already present somewhere in
+	 * this domain. Set the FOREIGN_FRAME_BIT in the p2m for the other
+	 * pfn so that the following mfn_to_pfn(mfn) calls will return the
+	 * pfn from the m2p_override (the backend pfn) instead.
+	 * We need to do this because the pages shared by the frontend
+	 * (xen-blkfront) can be already locked (lock_page, called by
+	 * do_read_cache_page); when the userspace backend tries to use them
+	 * with direct_IO, mfn_to_pfn returns the pfn of the frontend, so
+	 * do_blockdev_direct_IO is going to try to lock the same pages
+	 * again resulting in a deadlock.
+	 * As a side effect get_user_pages_fast might not be safe on the
+	 * frontend pages while they are being shared with the backend,
+	 * because mfn_to_pfn (that ends up being called by GUPF) will
+	 * return the backend pfn rather than the frontend pfn. */
+	pfn = mfn_to_pfn_no_overrides(mfn);
+	if (get_phys_to_machine(pfn) == mfn)
+		set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
+
+	return 0;
+}
+
 int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 			    struct gnttab_map_grant_ref *kmap_ops,
 			    struct page **pages, unsigned int count)
@@ -955,109 +1010,31 @@ out:
 }
 EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
 
-/* Add an MFN override for a particular page */
-int m2p_add_override(unsigned long mfn, struct page *page,
-		struct gnttab_map_grant_ref *kmap_op)
+static struct page *m2p_find_override(unsigned long mfn)
 {
 	unsigned long flags;
-	unsigned long pfn;
-	unsigned long uninitialized_var(address);
-	unsigned level;
-	pte_t *ptep = NULL;
+	struct list_head *bucket = &m2p_overrides[mfn_hash(mfn)];
+	struct page *p, *ret;
 
-	pfn = page_to_pfn(page);
-	if (!PageHighMem(page)) {
-		address = (unsigned long)__va(pfn << PAGE_SHIFT);
-		ptep = lookup_address(address, &level);
-		if (WARN(ptep == NULL || level != PG_LEVEL_4K,
-			 "m2p_add_override: pfn %lx not mapped", pfn))
-			return -EINVAL;
-	}
+	ret = NULL;
 
-	if (kmap_op != NULL) {
-		if (!PageHighMem(page)) {
-			struct multicall_space mcs =
-				xen_mc_entry(sizeof(*kmap_op));
+	spin_lock_irqsave(&m2p_override_lock, flags);
 
-			MULTI_grant_table_op(mcs.mc,
-					GNTTABOP_map_grant_ref, kmap_op, 1);
-
-			xen_mc_issue(PARAVIRT_LAZY_MMU);
+	list_for_each_entry(p, bucket, lru) {
+		if (page_private(p) == mfn) {
+			ret = p;
+			break;
 		}
 	}
-	spin_lock_irqsave(&m2p_override_lock, flags);
-	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
+
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 
-	/* p2m(m2p(mfn)) == mfn: the mfn is already present somewhere in
-	 * this domain. Set the FOREIGN_FRAME_BIT in the p2m for the other
-	 * pfn so that the following mfn_to_pfn(mfn) calls will return the
-	 * pfn from the m2p_override (the backend pfn) instead.
-	 * We need to do this because the pages shared by the frontend
-	 * (xen-blkfront) can be already locked (lock_page, called by
-	 * do_read_cache_page); when the userspace backend tries to use them
-	 * with direct_IO, mfn_to_pfn returns the pfn of the frontend, so
-	 * do_blockdev_direct_IO is going to try to lock the same pages
-	 * again resulting in a deadlock.
-	 * As a side effect get_user_pages_fast might not be safe on the
-	 * frontend pages while they are being shared with the backend,
-	 * because mfn_to_pfn (that ends up being called by GUPF) will
-	 * return the backend pfn rather than the frontend pfn. */
-	pfn = mfn_to_pfn_no_overrides(mfn);
-	if (get_phys_to_machine(pfn) == mfn)
-		set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(m2p_add_override);
-
-int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
-			      struct gnttab_map_grant_ref *kmap_ops,
-			      struct page **pages, unsigned int count)
-{
-	int i, ret = 0;
-	bool lazy = false;
-
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return 0;
-
-	if (kmap_ops &&
-	    !in_interrupt() &&
-	    paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
-		arch_enter_lazy_mmu_mode();
-		lazy = true;
-	}
-
-	for (i = 0; i < count; i++) {
-		unsigned long mfn = get_phys_to_machine(page_to_pfn(pages[i]));
-		unsigned long pfn = page_to_pfn(pages[i]);
-
-		if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT)) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		set_page_private(pages[i], INVALID_P2M_ENTRY);
-		WARN_ON(!PagePrivate(pages[i]));
-		ClearPagePrivate(pages[i]);
-		set_phys_to_machine(pfn, pages[i]->index);
-
-		if (kmap_ops)
-			ret = m2p_remove_override(pages[i], &kmap_ops[i], mfn);
-		if (ret)
-			goto out;
-	}
-
-out:
-	if (lazy)
-		arch_leave_lazy_mmu_mode();
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
 
-int m2p_remove_override(struct page *page,
-			struct gnttab_map_grant_ref *kmap_op,
-			unsigned long mfn)
+static int m2p_remove_override(struct page *page,
+			       struct gnttab_map_grant_ref *kmap_op,
+			       unsigned long mfn)
 {
 	unsigned long flags;
 	unsigned long pfn;
@@ -1150,29 +1127,50 @@ int m2p_remove_override(struct page *page,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(m2p_remove_override);
 
-struct page *m2p_find_override(unsigned long mfn)
+int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
+			      struct gnttab_map_grant_ref *kmap_ops,
+			      struct page **pages, unsigned int count)
 {
-	unsigned long flags;
-	struct list_head *bucket = &m2p_overrides[mfn_hash(mfn)];
-	struct page *p, *ret;
+	int i, ret = 0;
+	bool lazy = false;
 
-	ret = NULL;
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return 0;
 
-	spin_lock_irqsave(&m2p_override_lock, flags);
-
-	list_for_each_entry(p, bucket, lru) {
-		if (page_private(p) == mfn) {
-			ret = p;
-			break;
-		}
+	if (kmap_ops &&
+	    !in_interrupt() &&
+	    paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+		arch_enter_lazy_mmu_mode();
+		lazy = true;
 	}
 
-	spin_unlock_irqrestore(&m2p_override_lock, flags);
+	for (i = 0; i < count; i++) {
+		unsigned long mfn = get_phys_to_machine(page_to_pfn(pages[i]));
+		unsigned long pfn = page_to_pfn(pages[i]);
 
+		if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		set_page_private(pages[i], INVALID_P2M_ENTRY);
+		WARN_ON(!PagePrivate(pages[i]));
+		ClearPagePrivate(pages[i]);
+		set_phys_to_machine(pfn, pages[i]->index);
+
+		if (kmap_ops)
+			ret = m2p_remove_override(pages[i], &kmap_ops[i], mfn);
+		if (ret)
+			goto out;
+	}
+
+out:
+	if (lazy)
+		arch_leave_lazy_mmu_mode();
 	return ret;
 }
+EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
 
 unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn)
 {
