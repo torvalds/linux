@@ -387,7 +387,7 @@ void __init sa1100_init_irq(void)
 			&sa1100_low_gpio_irqdomain_ops, NULL);
 
 	sa1100_normal_irqdomain = irq_domain_add_legacy(NULL,
-			20, IRQ_LCD, 12,
+			21, IRQ_GPIO11_27, 11,
 			&sa1100_normal_irqdomain_ops, NULL);
 
 	sa1100_high_gpio_irqdomain = irq_domain_add_legacy(NULL,
@@ -397,7 +397,6 @@ void __init sa1100_init_irq(void)
 	/*
 	 * Install handler for GPIO 11-27 edge detect interrupts
 	 */
-	irq_set_chip(IRQ_GPIO11_27, &sa1100_normal_chip);
 	irq_set_chained_handler(IRQ_GPIO11_27, sa1100_high_gpio_handler);
 
 	set_handle_irq(sa1100_handle_irq);
