@@ -170,13 +170,13 @@ struct tegra_dc_window {
 		unsigned int h;
 	} dst;
 	unsigned int bits_per_pixel;
-	unsigned int format;
-	unsigned int swap;
 	unsigned int stride[2];
 	unsigned long base[3];
 	bool bottom_up;
 
 	struct tegra_bo_tiling tiling;
+	u32 format;
+	u32 swap;
 };
 
 /* from dc.c */
