@@ -98,9 +98,9 @@ struct net_bridge_fdb_entry
 	unsigned long			updated;
 	unsigned long			used;
 	mac_addr			addr;
-	unsigned char			is_local;
-	unsigned char			is_static;
-	unsigned char			added_by_user;
+	unsigned char			is_local:1,
+					is_static:1,
+					added_by_user:1;
 	__u16				vlan_id;
 };
 
