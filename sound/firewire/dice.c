@@ -133,7 +133,7 @@ static inline u64 global_address(struct dice *dice, unsigned int offset)
 	return DICE_PRIVATE_SPACE + dice->global_offset + offset;
 }
 
-// TODO: rx index
+/* TODO: rx index */
 static inline u64 rx_address(struct dice *dice, unsigned int offset)
 {
 	return DICE_PRIVATE_SPACE + dice->rx_offset + offset;
@@ -721,13 +721,14 @@ static long dice_hwdep_read(struct snd_hwdep *hwdep, char __user *buf,
 		event.lock_status.status = dice->dev_lock_count > 0;
 		dice->dev_lock_changed = false;
 
-		count = min(count, (long)sizeof(event.lock_status));
+		count = min_t(long, count, sizeof(event.lock_status));
 	} else {
-		event.dice_notification.type = SNDRV_FIREWIRE_EVENT_DICE_NOTIFICATION;
+		event.dice_notification.type =
+					SNDRV_FIREWIRE_EVENT_DICE_NOTIFICATION;
 		event.dice_notification.notification = dice->notification_bits;
 		dice->notification_bits = 0;
 
-		count = min(count, (long)sizeof(event.dice_notification));
+		count = min_t(long, count, sizeof(event.dice_notification));
 	}
 
 	spin_unlock_irq(&dice->lock);
