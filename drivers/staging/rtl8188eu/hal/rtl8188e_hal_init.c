@@ -182,6 +182,7 @@ static void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable
 	case HAL_ODM_STA_INFO:
 		{
 			struct sta_info *psta = pValue1;
+
 			if (bSet) {
 				DBG_88E("### Set STA_(%d) info\n", psta->mac_id);
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
