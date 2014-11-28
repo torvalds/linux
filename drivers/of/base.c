@@ -714,9 +714,14 @@ static struct device_node *__of_find_node_by_path(struct device_node *parent,
 {
 	struct device_node *child;
 	int len = strchrnul(path, '/') - path;
+	int term;
 
 	if (!len)
 		return NULL;
+
+	term = strchrnul(path, ':') - path;
+	if (term < len)
+		len = term;
 
 	__for_each_child_of_node(parent, child) {
 		const char *name = strrchr(child->full_name, '/');
@@ -730,11 +735,14 @@ static struct device_node *__of_find_node_by_path(struct device_node *parent,
 }
 
 /**
- *	of_find_node_by_path - Find a node matching a full OF path
+ *	of_find_node_opts_by_path - Find a node matching a full OF path
  *	@path: Either the full path to match, or if the path does not
  *	       start with '/', the name of a property of the /aliases
  *	       node (an alias).  In the case of an alias, the node
  *	       matching the alias' value will be returned.
+ *	@opts: Address of a pointer into which to store the start of
+ *	       an options string appended to the end of the path with
+ *	       a ':' separator.
  *
  *	Valid paths:
  *		/foo/bar	Full path
@@ -744,11 +752,15 @@ static struct device_node *__of_find_node_by_path(struct device_node *parent,
  *	Returns a node pointer with refcount incremented, use
  *	of_node_put() on it when done.
  */
-struct device_node *of_find_node_by_path(const char *path)
+struct device_node *of_find_node_opts_by_path(const char *path, const char **opts)
 {
 	struct device_node *np = NULL;
 	struct property *pp;
 	unsigned long flags;
+	const char *separator = strchr(path, ':');
+
+	if (opts)
+		*opts = separator ? separator + 1 : NULL;
 
 	if (strcmp(path, "/") == 0)
 		return of_node_get(of_root);
@@ -756,7 +768,7 @@ struct device_node *of_find_node_by_path(const char *path)
 	/* The path could begin with an alias */
 	if (*path != '/') {
 		char *p = strchrnul(path, '/');
-		int len = p - path;
+		int len = separator ? separator - path : p - path;
 
 		/* of_aliases must not be NULL */
 		if (!of_aliases)
@@ -785,7 +797,7 @@ struct device_node *of_find_node_by_path(const char *path)
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
 }
-EXPORT_SYMBOL(of_find_node_by_path);
+EXPORT_SYMBOL(of_find_node_opts_by_path);
 
 /**
  *	of_find_node_by_name - Find a node by its "name" property

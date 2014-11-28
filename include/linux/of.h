@@ -236,7 +236,13 @@ extern struct device_node *of_find_matching_node_and_match(
 	const struct of_device_id *matches,
 	const struct of_device_id **match);
 
-extern struct device_node *of_find_node_by_path(const char *path);
+extern struct device_node *of_find_node_opts_by_path(const char *path,
+	const char **opts);
+static inline struct device_node *of_find_node_by_path(const char *path)
+{
+	return of_find_node_opts_by_path(path, NULL);
+}
+
 extern struct device_node *of_find_node_by_phandle(phandle handle);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_parent(struct device_node *node);
@@ -379,6 +385,12 @@ static inline struct device_node *of_find_matching_node_and_match(
 }
 
 static inline struct device_node *of_find_node_by_path(const char *path)
+{
+	return NULL;
+}
+
+static inline struct device_node *of_find_node_opts_by_path(const char *path,
+	const char **opts)
 {
 	return NULL;
 }

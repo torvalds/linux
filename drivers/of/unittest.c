@@ -47,6 +47,7 @@ static bool selftest_live_tree;
 static void __init of_selftest_find_node_by_name(void)
 {
 	struct device_node *np;
+	const char *options;
 
 	np = of_find_node_by_path("/testcase-data");
 	selftest(np && !strcmp("/testcase-data", np->full_name),
@@ -86,6 +87,35 @@ static void __init of_selftest_find_node_by_name(void)
 
 	np = of_find_node_by_path("testcase-alias/missing-path");
 	selftest(!np, "non-existent alias with relative path returned node %s\n", np->full_name);
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("/testcase-data:testoption", &options);
+	selftest(np && !strcmp("testoption", options),
+		 "option path test failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("/testcase-data:testoption", NULL);
+	selftest(np, "NULL option path test failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("testcase-alias:testaliasoption",
+				       &options);
+	selftest(np && !strcmp("testaliasoption", options),
+		 "option alias path test failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("testcase-alias:testaliasoption", NULL);
+	selftest(np, "NULL option alias path test failed\n");
+	of_node_put(np);
+
+	options = "testoption";
+	np = of_find_node_opts_by_path("testcase-alias", &options);
+	selftest(np && !options, "option clearing test failed\n");
+	of_node_put(np);
+
+	options = "testoption";
+	np = of_find_node_opts_by_path("/", &options);
+	selftest(np && !options, "option clearing root node test failed\n");
 	of_node_put(np);
 }
 
