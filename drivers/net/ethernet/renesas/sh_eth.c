@@ -2036,6 +2036,8 @@ static int sh_eth_open(struct net_device *ndev)
 	if (ret)
 		goto out_free_irq;
 
+	mdp->is_opened = 1;
+
 	return ret;
 
 out_free_irq:
@@ -2125,6 +2127,36 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
+static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
+	if (sh_eth_is_rz_fast_ether(mdp))
+		return &ndev->stats;
+
+	if (!mdp->is_opened)
+		return &ndev->stats;
+
+	ndev->stats.tx_dropped += sh_eth_read(ndev, TROCR);
+	sh_eth_write(ndev, 0, TROCR);	/* (write clear) */
+	ndev->stats.collisions += sh_eth_read(ndev, CDCR);
+	sh_eth_write(ndev, 0, CDCR);	/* (write clear) */
+	ndev->stats.tx_carrier_errors += sh_eth_read(ndev, LCCR);
+	sh_eth_write(ndev, 0, LCCR);	/* (write clear) */
+
+	if (sh_eth_is_gether(mdp)) {
+		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CERCR);
+		sh_eth_write(ndev, 0, CERCR);	/* (write clear) */
+		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CEECR);
+		sh_eth_write(ndev, 0, CEECR);	/* (write clear) */
+	} else {
+		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CNDCR);
+		sh_eth_write(ndev, 0, CNDCR);	/* (write clear) */
+	}
+
+	return &ndev->stats;
+}
+
 /* device close function */
 static int sh_eth_close(struct net_device *ndev)
 {
@@ -2139,6 +2171,7 @@ static int sh_eth_close(struct net_device *ndev)
 	sh_eth_write(ndev, 0, EDTRR);
 	sh_eth_write(ndev, 0, EDRRR);
 
+	sh_eth_get_stats(ndev);
 	/* PHY Disconnect */
 	if (mdp->phydev) {
 		phy_stop(mdp->phydev);
@@ -2157,36 +2190,9 @@ static int sh_eth_close(struct net_device *ndev)
 
 	pm_runtime_put_sync(&mdp->pdev->dev);
 
+	mdp->is_opened = 0;
+
 	return 0;
-}
-
-static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (sh_eth_is_rz_fast_ether(mdp))
-		return &ndev->stats;
-
-	pm_runtime_get_sync(&mdp->pdev->dev);
-
-	ndev->stats.tx_dropped += sh_eth_read(ndev, TROCR);
-	sh_eth_write(ndev, 0, TROCR);	/* (write clear) */
-	ndev->stats.collisions += sh_eth_read(ndev, CDCR);
-	sh_eth_write(ndev, 0, CDCR);	/* (write clear) */
-	ndev->stats.tx_carrier_errors += sh_eth_read(ndev, LCCR);
-	sh_eth_write(ndev, 0, LCCR);	/* (write clear) */
-	if (sh_eth_is_gether(mdp)) {
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CERCR);
-		sh_eth_write(ndev, 0, CERCR);	/* (write clear) */
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CEECR);
-		sh_eth_write(ndev, 0, CEECR);	/* (write clear) */
-	} else {
-		ndev->stats.tx_carrier_errors += sh_eth_read(ndev, CNDCR);
-		sh_eth_write(ndev, 0, CNDCR);	/* (write clear) */
-	}
-	pm_runtime_put_sync(&mdp->pdev->dev);
-
-	return &ndev->stats;
 }
 
 /* ioctl to device function */

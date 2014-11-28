@@ -522,6 +522,7 @@ struct sh_eth_private {
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
+	unsigned is_opened:1;
 };
 
 static inline void sh_eth_soft_swap(char *src, int len)
