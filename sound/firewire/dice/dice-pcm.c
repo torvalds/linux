@@ -67,71 +67,92 @@ static int dice_channels_constraint(struct snd_pcm_hw_params *params,
 	return snd_interval_refine(c, &channels);
 }
 
-
-static int pcm_open(struct snd_pcm_substream *substream)
+static void limit_channels_and_rates(struct snd_dice *dice,
+				     struct snd_pcm_runtime *runtime,
+				     unsigned int *pcm_channels)
 {
-	static const struct snd_pcm_hardware hardware = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_BATCH |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_BLOCK_TRANSFER,
-		.formats = AMDTP_OUT_PCM_FORMAT_BITS,
-		.channels_min = UINT_MAX,
-		.channels_max = 0,
-		.buffer_bytes_max = 16 * 1024 * 1024,
-		.period_bytes_min = 1,
-		.period_bytes_max = UINT_MAX,
-		.periods_min = 1,
-		.periods_max = UINT_MAX,
-	};
-	struct snd_dice *dice = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int i;
-	int err;
+	struct snd_pcm_hardware *hw = &runtime->hw;
+	unsigned int i, rate, mode;
 
-	err = snd_dice_stream_lock_try(dice);
-	if (err < 0)
-		goto error;
-
-	runtime->hw = hardware;
+	hw->channels_min = UINT_MAX;
+	hw->channels_max = 0;
 
 	for (i = 0; i < ARRAY_SIZE(snd_dice_rates); ++i) {
-		if (dice->clock_caps & (1 << i))
-			runtime->hw.rates |=
-				snd_pcm_rate_to_rate_bit(snd_dice_rates[i]);
-	}
-	snd_pcm_limit_hw_rates(runtime);
+		rate = snd_dice_rates[i];
+		if (snd_dice_stream_get_rate_mode(dice, rate, &mode) < 0)
+			continue;
+		hw->rates |= snd_pcm_rate_to_rate_bit(rate);
 
-	for (i = 0; i < 3; ++i) {
-		if (dice->rx_channels[i]) {
-			runtime->hw.channels_min = min(runtime->hw.channels_min,
-						       dice->rx_channels[i]);
-			runtime->hw.channels_max = max(runtime->hw.channels_max,
-						       dice->rx_channels[i]);
-		}
+		if (pcm_channels[mode] == 0)
+			continue;
+		hw->channels_min = min(hw->channels_min, pcm_channels[mode]);
+		hw->channels_max = max(hw->channels_max, pcm_channels[mode]);
 	}
+
+	snd_pcm_limit_hw_rates(runtime);
+}
+
+static void limit_period_and_buffer(struct snd_pcm_hardware *hw)
+{
+	hw->periods_min = 2;			/* SNDRV_PCM_INFO_BATCH */
+	hw->periods_max = UINT_MAX;
+
+	hw->period_bytes_min = 4 * hw->channels_max;    /* byte for a frame */
+
+	/* Just to prevent from allocating much pages. */
+	hw->period_bytes_max = hw->period_bytes_min * 2048;
+	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
+}
+
+static int init_hw_info(struct snd_dice *dice,
+			struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_hardware *hw = &runtime->hw;
+	int err;
+
+	hw->info = SNDRV_PCM_INFO_MMAP |
+		   SNDRV_PCM_INFO_MMAP_VALID |
+		   SNDRV_PCM_INFO_BATCH |
+		   SNDRV_PCM_INFO_INTERLEAVED |
+		   SNDRV_PCM_INFO_BLOCK_TRANSFER;
+	hw->formats = AMDTP_OUT_PCM_FORMAT_BITS;
+
+	limit_channels_and_rates(dice, runtime, dice->rx_channels);
+	limit_period_and_buffer(hw);
 
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 				  dice_rate_constraint, dice,
 				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 	if (err < 0)
-		goto err_lock;
+		goto end;
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  dice_channels_constraint, dice,
 				  SNDRV_PCM_HW_PARAM_RATE, -1);
 	if (err < 0)
-		goto err_lock;
+		goto end;
 
 	err = amdtp_stream_add_pcm_hw_constraints(&dice->rx_stream, runtime);
+end:
+	return err;
+}
+
+static int pcm_open(struct snd_pcm_substream *substream)
+{
+	struct snd_dice *dice = substream->private_data;
+	int err;
+
+	err = snd_dice_stream_lock_try(dice);
 	if (err < 0)
-		goto err_lock;
+		goto end;
 
-	return 0;
-
-err_lock:
+	err = init_hw_info(dice, substream);
+	if (err < 0)
+		goto err_locked;
+end:
+	return err;
+err_locked:
 	snd_dice_stream_lock_release(dice);
-error:
 	return err;
 }
 
