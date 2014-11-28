@@ -842,10 +842,16 @@ STATIC int
 xfs_init_mount_workqueues(
 	struct xfs_mount	*mp)
 {
+	mp->m_buf_workqueue = alloc_workqueue("xfs-buf/%s",
+			WQ_MEM_RECLAIM|WQ_HIGHPRI|WQ_FREEZABLE, 1,
+			mp->m_fsname);
+	if (!mp->m_buf_workqueue)
+		goto out;
+
 	mp->m_data_workqueue = alloc_workqueue("xfs-data/%s",
 			WQ_MEM_RECLAIM|WQ_FREEZABLE, 0, mp->m_fsname);
 	if (!mp->m_data_workqueue)
-		goto out;
+		goto out_destroy_buf;
 
 	mp->m_unwritten_workqueue = alloc_workqueue("xfs-conv/%s",
 			WQ_MEM_RECLAIM|WQ_FREEZABLE, 0, mp->m_fsname);
@@ -884,6 +890,8 @@ out_destroy_unwritten:
 	destroy_workqueue(mp->m_unwritten_workqueue);
 out_destroy_data_iodone_queue:
 	destroy_workqueue(mp->m_data_workqueue);
+out_destroy_buf:
+	destroy_workqueue(mp->m_buf_workqueue);
 out:
 	return -ENOMEM;
 }
@@ -898,6 +906,7 @@ xfs_destroy_mount_workqueues(
 	destroy_workqueue(mp->m_cil_workqueue);
 	destroy_workqueue(mp->m_data_workqueue);
 	destroy_workqueue(mp->m_unwritten_workqueue);
+	destroy_workqueue(mp->m_buf_workqueue);
 }
 
 /*

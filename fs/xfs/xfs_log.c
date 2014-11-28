@@ -1031,7 +1031,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	struct xlog	*log = mp->m_log;
 	int		needed = 0;
 
-	if (!xfs_fs_writable(mp))
+	if (!xfs_fs_writable(mp, SB_FREEZE_WRITE))
 		return 0;
 
 	if (!xlog_cil_empty(log))

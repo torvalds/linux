@@ -1074,11 +1074,23 @@ xfs_unmountfs(
 	xfs_sysfs_del(&mp->m_kobj);
 }
 
-int
-xfs_fs_writable(xfs_mount_t *mp)
+/*
+ * Determine whether modifications can proceed. The caller specifies the minimum
+ * freeze level for which modifications should not be allowed. This allows
+ * certain operations to proceed while the freeze sequence is in progress, if
+ * necessary.
+ */
+bool
+xfs_fs_writable(
+	struct xfs_mount	*mp,
+	int			level)
 {
-	return !(mp->m_super->s_writers.frozen || XFS_FORCED_SHUTDOWN(mp) ||
-		(mp->m_flags & XFS_MOUNT_RDONLY));
+	ASSERT(level > SB_UNFROZEN);
+	if ((mp->m_super->s_writers.frozen >= level) ||
+	    XFS_FORCED_SHUTDOWN(mp) || (mp->m_flags & XFS_MOUNT_RDONLY))
+		return false;
+
+	return true;
 }
 
 /*
@@ -1086,9 +1098,9 @@ xfs_fs_writable(xfs_mount_t *mp)
  *
  * Sync the superblock counters to disk.
  *
- * Note this code can be called during the process of freezing, so
- * we may need to use the transaction allocator which does not
- * block when the transaction subsystem is in its frozen state.
+ * Note this code can be called during the process of freezing, so we use the
+ * transaction allocator that does not block when the transaction subsystem is
+ * in its frozen state.
  */
 int
 xfs_log_sbcount(xfs_mount_t *mp)
@@ -1096,7 +1108,8 @@ xfs_log_sbcount(xfs_mount_t *mp)
 	xfs_trans_t	*tp;
 	int		error;
 
-	if (!xfs_fs_writable(mp))
+	/* allow this to proceed during the freeze sequence... */
+	if (!xfs_fs_writable(mp, SB_FREEZE_COMPLETE))
 		return 0;
 
 	xfs_icsb_sync_counters(mp, 0);
