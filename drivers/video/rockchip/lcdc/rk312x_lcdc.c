@@ -595,7 +595,7 @@ static void rk312x_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 	memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0xe0);
 }
 
-static void rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
+static int rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 {
 	u32 mask, val;
 	struct lcdc_device *lcdc_dev =
@@ -610,6 +610,17 @@ static void rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
 	}
 	/*spin_unlock(&lcdc_dev->reg_lock);*/
+	#if defined(CONFIG_ROCKCHIP_IOMMU)
+	if (dev_drv->iommu_enabled) {
+		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
+			lcdc_dev->iommu_status = 1;
+			rockchip_iovmm_activate(dev_drv->dev);
+			rk312x_lcdc_mmu_en(dev_drv);
+		}
+	}
+	#endif
+
+	return 0;
 }
 static int rk312x_lcdc_set_hwc_lut(struct rk_lcdc_driver *dev_drv,
 				   int *hwc_lut, int mode)
@@ -1825,31 +1836,6 @@ static int rk312x_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
-	#if defined(CONFIG_ROCKCHIP_IOMMU)
-		if (dev_drv->iommu_enabled) {
-			if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
-				lcdc_dev->iommu_status = 1;
-				/*if ((support_uboot_display() &&
-					(lcdc_dev->prop == PRMRY))) {
-					lcdc_writel(lcdc_dev,WIN0_CTRL1,0x0);
-					mask =	m_WIN0_EN;
-					val  =	v_WIN0_EN(0);
-					lcdc_msk_reg(lcdc_dev,
-						     WIN0_CTRL0, mask,val);
-				}
-				lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
-					     v_LCDC_STANDBY(1));*/
-				lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-						       m_WIN0_EN, v_WIN0_EN(0));
-				lcdc_cfg_done(lcdc_dev);
-				mdelay(50);
-				rockchip_iovmm_activate(dev_drv->dev);
-				rk312x_lcdc_mmu_en(dev_drv);
-				lcdc_msk_reg(lcdc_dev,
-					     SYS_CTRL, m_WIN0_EN, v_WIN0_EN(1));
-		}
-	}
-	#endif
 		for (i = 0; i < ARRAY_SIZE(lcdc_win); i++) {
 			win = dev_drv->win[i];
 			if ((win->state == 0) && (win->last_state == 1)) {
@@ -2454,6 +2440,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.set_hwc_lut = rk312x_lcdc_set_hwc_lut,
 	.set_irq_to_cpu = rk312x_lcdc_set_irq_to_cpu,
 	.dsp_black = rk312x_lcdc_dsp_black,
+	.mmu_en = rk312x_lcdc_mmu_en,
 };
 #if 0
 static const struct rk_lcdc_drvdata rk3036_lcdc_drvdata = {

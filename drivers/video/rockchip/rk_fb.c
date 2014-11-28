@@ -2048,6 +2048,8 @@ ext_win_exit:
 	if (!g_first_buf) {
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
+			if (dev_drv->ops->mmu_en)
+				dev_drv->ops->mmu_en(dev_drv);
 			freed_index = 0;
 			g_last_timeout = timeout;
 		}
