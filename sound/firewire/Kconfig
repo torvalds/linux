@@ -13,12 +13,12 @@ config SND_FIREWIRE_LIB
 	select SND_RAWMIDI
 
 config SND_DICE
-	tristate "DICE-based DACs (EXPERIMENTAL)"
+	tristate "DICE-based DACs support"
 	select SND_HWDEP
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for many DACs based on the DICE
-	  chip family (DICE-II/Jr/Mini) from TC Applied Technologies.
+	  chip family (DICE-II/Jr/Mini) which TC Applied Technologies produces.
 
 	  At the moment, this driver supports playback only.  If you
 	  want to use devices that support capturing, use FFADO instead.
