@@ -74,7 +74,7 @@ static void copy_instruction(struct kprobe *p)
 		ftrace_generate_nop_insn((struct ftrace_insn *)p->ainsn.insn);
 		p->ainsn.is_ftrace_insn = 1;
 	} else
-		memcpy(p->ainsn.insn, p->addr, insn_length(p->opcode >> 8));
+		memcpy(p->ainsn.insn, p->addr, insn_length(*p->addr >> 8));
 	p->opcode = p->ainsn.insn[0];
 	if (!probe_is_insn_relative_long(p->ainsn.insn))
 		return;
