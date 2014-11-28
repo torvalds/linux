@@ -1051,9 +1051,8 @@ static void scan_dma_completions(struct net2280_ep *ep)
 			dma_done(ep, req, tmp, 0);
 			break;
 		} else if (!ep->is_in &&
-				(req->req.length % ep->ep.maxpacket) != 0) {
-			if (ep->dev->quirks & PLX_SUPERSPEED)
-				return dma_done(ep, req, tmp, 0);
+			   (req->req.length % ep->ep.maxpacket) &&
+			   !(ep->dev->quirks & PLX_SUPERSPEED)) {
 
 			tmp = readl(&ep->regs->ep_stat);
 			/* AVOID TROUBLE HERE by not issuing short reads from
