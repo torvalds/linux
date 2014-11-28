@@ -125,7 +125,7 @@ static inline void allow_status(struct net2280_ep *ep)
 	ep->stopped = 1;
 }
 
-static void allow_status_338x(struct net2280_ep *ep)
+static inline void allow_status_338x(struct net2280_ep *ep)
 {
 	/*
 	 * Control Status Phase Handshake was set by the chip when the setup
