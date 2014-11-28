@@ -24,6 +24,7 @@ menuconfig ARCH_EXYNOS
 	select PM_GENERIC_DOMAINS if PM_RUNTIME
 	select S5P_DEV_MFC
 	select SRAM
+	select MFD_SYSCON
 	help
 	  Support for SAMSUNG EXYNOS SoCs (EXYNOS4/5)
 
@@ -72,6 +73,11 @@ config SOC_EXYNOS4212
 
 config SOC_EXYNOS4412
 	bool "SAMSUNG EXYNOS4412"
+	default y
+	depends on ARCH_EXYNOS4
+
+config SOC_EXYNOS4415
+	bool "SAMSUNG EXYNOS4415"
 	default y
 	depends on ARCH_EXYNOS4
 
