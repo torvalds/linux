@@ -2687,7 +2687,7 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 		      struct sk_buff *skb,
 		      struct rtllib_rx_stats *stats)
 {
-	struct rtllib_hdr_4addr *header = (struct rtllib_hdr_4addr *)skb->data ;
+	struct rtllib_hdr_4addr *header = (struct rtllib_hdr_4addr *)skb->data;
 
 	if ((WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)) !=
 	    RTLLIB_STYPE_PROBE_RESP) &&
