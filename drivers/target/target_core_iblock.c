@@ -858,6 +858,7 @@ static bool iblock_get_write_cache(struct se_device *dev)
 	return q->flush_flags & REQ_FLUSH;
 }
 
+
 static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.inquiry_prod		= "IBLOCK",
