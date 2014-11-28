@@ -9408,6 +9408,10 @@ static bool page_flip_finished(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
+	    crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
+		return true;
+
 	/*
 	 * The relevant registers doen't exist on pre-ctg.
 	 * As the flip done interrupt doesn't trigger for mmio
