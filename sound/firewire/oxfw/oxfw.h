@@ -54,3 +54,7 @@ int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw);
+
+int firewave_constraints(struct snd_pcm_runtime *runtime);
+int lacie_speakers_constraints(struct snd_pcm_runtime *runtime);
+int snd_oxfw_create_pcm(struct snd_oxfw *oxfw);
