@@ -62,6 +62,18 @@
 		ethernet0 = &gmac;
 	};
 
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer@0 {
+			compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0-hdmi";
+			clocks = <&pll6 0>;
+			status = "disabled";
+		};
+	};
 
 	cpus {
 		enable-method = "allwinner,sun6i-a31";
