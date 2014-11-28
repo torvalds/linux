@@ -321,10 +321,7 @@ typedef struct xfs_mod_sb {
 
 /*
  * Per-ag incore structure, copies of information in agf and agi, to improve the
- * performance of allocation group selection. This is defined for the kernel
- * only, and hence is defined here instead of in xfs_ag.h. You need the struct
- * xfs_mount to be defined to look up a xfs_perag anyway (via mp->m_perag_tree),
- * so this doesn't introduce any strange header file dependencies.
+ * performance of allocation group selection.
  */
 typedef struct xfs_perag {
 	struct xfs_mount *pag_mount;	/* owner filesystem */
