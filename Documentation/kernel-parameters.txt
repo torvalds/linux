@@ -3621,7 +3621,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	usb-storage.delay_use=
 			[UMS] The delay in seconds before a new device is
-			scanned for Logical Units (default 5).
+			scanned for Logical Units (default 1).
 
 	usb-storage.quirks=
 			[UMS] A list of quirks entries to supplement or
