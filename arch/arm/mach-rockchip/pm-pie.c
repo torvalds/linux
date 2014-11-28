@@ -53,7 +53,6 @@ static __sramdata u32 rkpm_sram_ctrbits;
 #define  RKPM_BITSCTR_SRAM_PFUN(bits,fun,fun_p) \
     if(rkpm_chk_sram_ctrbits(bits)&&DATA(pm_sram_ops).fun_p) \
         {DATA(pm_sram_ops).fun;} while(0)
-
 /********************************sram print**********************************/
 
 void PIE_FUNC(rkpm_sram_printch_pie)(char byte)
@@ -86,17 +85,17 @@ EXPORT_PIE_SYMBOL(FUNC(rkpm_sram_printhex_pie));
 
 static void __sramfunc rkpm_sram_suspend(u32 ctrbits)
 {
-
 	rkpm_sram_printch('7');
-	RKPM_BITCTR_SRAM_FUN(DDR,ddr);
-    
-	rkpm_sram_printch('8');  
-	RKPM_BITCTR_SRAM_FUN(VOLTS,volts);
-    
-        rkpm_sram_printch('9');
-                
-      /* RKPM_BITCTR_SRAM_FUN(GTCLKS,gtclks);*/
-	
+	RKPM_BITCTR_SRAM_FUN(VOLTS, volts);
+	rkpm_sram_printch('8');
+	RKPM_BITCTR_SRAM_FUN(BUS_IDLE, bus_idle_request);
+	RKPM_BITCTR_SRAM_FUN(DDR, ddr);
+
+	/*rkpm_sram_printch('8');*/
+	/*RKPM_BITCTR_SRAM_FUN(VOLTS,volts);*/
+	/*rkpm_sram_printch('9');*/
+	/* RKPM_BITCTR_SRAM_FUN(GTCLKS,gtclks);*/
+
 	RKPM_BITSCTR_SRAM_PFUN(RKPM_CTR_SYSCLK,sysclk(rkpm_sram_ctrbits),sysclk);
 	
 	RKPM_BITCTR_SRAM_FUN(PMIC,pmic);

@@ -337,18 +337,28 @@ enum rk312x_pwr_mode_con {
 #define RKPM_BOOTRAM_BASE (RK312X_IMEM_VIRT)
 #define RKPM_BOOTRAM_SIZE (RK312X_IMEM_SIZE)
 
-/*sys resume code in boot ram*/
+#define RKPM_BOOT_CODE_OFFSET (0x0)
+#define RK312XPM_BOOT_CODE_SIZE	(0x700)
+
+#define RK312XPM_BOOT_DATA_OFFSET (RKPM_BOOT_CODE_OFFSET \
+	+ RK312XPM_BOOT_CODE_SIZE)
+#define RKPM_BOOT_DATA_SIZE	(RKPM_BOOTDATA_ARR_SIZE*4)
+
+#define RK312XPM_BOOT_DDRCODE_OFFSET (RK312XPM_BOOT_DATA_OFFSET\
+	+RKPM_BOOT_DATA_SIZE)
+
 #define  RKPM_BOOT_CODE_PHY  (RKPM_BOOTRAM_PHYS + RKPM_BOOT_CODE_OFFSET)
 #define  RKPM_BOOT_CODE_BASE  (RKPM_BOOTRAM_BASE + RKPM_BOOT_CODE_OFFSET)
 
-
-/*sys resume data in boot ram*/
-#define  RKPM_BOOT_DATA_PHY  (RKPM_BOOTRAM_PHYS + RKPM_BOOT_DATA_OFFSET)
-#define  RKPM_BOOT_DATA_BASE  (RKPM_BOOTRAM_BASE + RKPM_BOOT_DATA_OFFSET)
+#define  RKPM_BOOT_DATA_PHY  (RKPM_BOOTRAM_PHYS + RK312XPM_BOOT_DATA_OFFSET)
+#define  RKPM_BOOT_DATA_BASE  (RKPM_BOOTRAM_BASE + RK312XPM_BOOT_DATA_OFFSET)
 
 /*ddr resume data in boot ram*/
-#define  RKPM_BOOT_DDRCODE_PHY   (RKPM_BOOTRAM_PHYS + RKPM_BOOT_DDRCODE_OFFSET)
-#define  RKPM_BOOT_DDRCODE_BASE  (RKPM_BOOTRAM_BASE + RKPM_BOOT_DDRCODE_OFFSET)
+#define  RKPM_BOOT_DDRCODE_PHY   (RKPM_BOOTRAM_PHYS \
+	+ RK312XPM_BOOT_DDRCODE_OFFSET)
+#define  RKPM_BOOT_DDRCODE_BASE  (RKPM_BOOTRAM_BASE \
+	+ RK312XPM_BOOT_DDRCODE_OFFSET)
+
 
 /*#define RKPM_BOOT_CPUSP_PHY (RKPM_BOOTRAM_PHYS+((RKPM_BOOTRAM_SIZE-1)&~0x7))*/
 #define RKPM_BOOT_CPUSP_PHY (0x00 + ((RKPM_BOOTRAM_SIZE - 1) & (~(0x7))))
@@ -369,7 +379,7 @@ static char int_ram_data[INT_RAM_SIZE];
 #define RKPM_BOOT_CODE_BASE (RKPM_BOOTRAM_BASE + PM_BOOT_CODE_OFFSET)
 #define RKPM_BOOT_CODE_SIZE (0x100)
 **************************************************/
-extern void rkpm_slp_cpu_resume(void);
+extern void rk312x_pm_slp_cpu_resume(void);
 
 static void sram_data_for_sleep(char *boot_save, char *int_save, u32 flag)
 {
@@ -384,8 +394,8 @@ static void sram_data_for_sleep(char *boot_save, char *int_save, u32 flag)
 		memcpy(boot_save, addr_base, sr_size);
 	/**********move  resume code and data to boot sram*************/
 	data_dst = (char *)RKPM_BOOT_CODE_BASE;
-	data_src = (char *)rkpm_slp_cpu_resume;
-	data_size = RKPM_BOOT_CODE_SIZE;
+	data_src = (char *)rk312x_pm_slp_cpu_resume;
+	data_size = RK312XPM_BOOT_CODE_SIZE;
 
 	memcpy(data_dst, data_src, data_size);
 	data_dst = (char *)resume_data_base;
@@ -423,13 +433,14 @@ static u32 rkpm_slp_mode_set(u32 ctrbits)
 
 	/*grf_writel(0X00030002, 0xb4);
 	rk3126 GPIO1A1 : RK3128 GPIO3C1 iomux pmic-sleep*/
-	if ((pmic_sleep_gpio == 0) || (pmic_sleep_gpio == 0x1a10)) {
+	if (pmic_sleep_gpio == 0x1a10) {
+		ddr_printch('a');
 		gpio_pmic_sleep_mode = grf_readl(0xb8);
 		grf_writel(0X000C000C, 0xb8);
 	}
 	/*rk3126 GPIO1A1 : RK3128 GPIO3C1 iomux pmic-sleep*/
 	if (pmic_sleep_gpio == 0x3c10) {
-		ddr_printch('a');
+		ddr_printch('c');
 		gpio_pmic_sleep_mode = grf_readl(0xe0);
 		grf_writel(0X000C0008, 0xe0);
 	}
@@ -445,6 +456,28 @@ static u32 rkpm_slp_mode_set(u32 ctrbits)
 		pwr_mode_config |= BIT(pmu_core_pd_en);
 	} else if (rkpm_chk_val_ctrbits(ctrbits, RKPM_CTR_ARMOFF_LPMD)) {
 		rkpm_ddr_printascii("-armoff-");
+		/*arm power off */
+		pwr_mode_config |= 0
+				|BIT(pmu_clk_core_src_gate_en)
+				|BIT(pmu_clk_bus_src_gate_en)
+				| BIT(pmu_core_pd_en)
+			/*	| BIT(pmu_use_if)//aaa*/
+			/*	| BIT(pmu_sref_enter_en)*/
+				|BIT(pmu_int_en)
+			/*	| BIT(pmu_wait_osc_24m)*/
+			/*	| BIT(pmu_ddr_gating_en)*/
+			/*	| BIT(pmu_ddr0io_ret_de_req)*/
+				| BIT(pmu_clr_core)
+			/*	| BIT(pmu_clr_crypto)*/
+			/*	| BIT(pmu_clr_sys)*/
+				/*| BIT(pmu_clr_vio)*/
+				/*| BIT(pmu_clr_video)*/
+			/*| BIT(pmu_clr_peri)*/
+			/*	| BIT(pmu_clr_msch)*/
+				/*| BIT(pmu_clr_gpu) */
+				;
+	} else if (rkpm_chk_val_ctrbits(ctrbits, RKPM_CTR_ARMOFF_LPMD)) {
+		rkpm_ddr_printascii("-armoff ddr -");
 		/*arm power off */
 		pwr_mode_config |= 0
 				|BIT(pmu_clk_core_src_gate_en)
@@ -467,6 +500,7 @@ static u32 rkpm_slp_mode_set(u32 ctrbits)
 				;
 	}
 	pmu_writel(32 * 30, RK312X_PMU_OSC_CNT);
+	pmu_writel(0xbb80, RK312X_PMU_CORE_PWRUP_CNT);
 	pmu_writel(pwr_mode_config, RK312X_PMU_PWRMODE_CON);
 	rk312x_powermode = pwr_mode_config;
 	return pmu_readl(RK312X_PMU_PWRMODE_CON);
@@ -475,7 +509,12 @@ static u32 rkpm_slp_mode_set(u32 ctrbits)
 static void sram_code_data_save(u32 pwrmode)
 {
 	sleep_resume_data[RKPM_BOOTDATA_L2LTY_F] = 0;
-	sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F] = 0;
+	if (rkpm_chk_ctrbits(RKPM_CTR_VOL_PWM0))
+		sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F] |= 0x01;
+	if (rkpm_chk_ctrbits(RKPM_CTR_VOL_PWM1))
+		sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F] |= 0x02;
+	if (rkpm_chk_ctrbits(RKPM_CTR_VOL_PWM2))
+		sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F] |= 0x04;
 	sleep_resume_data[RKPM_BOOTDATA_DDR_F] = 0;
 	sleep_resume_data[RKPM_BOOTDATA_CPUSP] = RKPM_BOOT_CPUSP_PHY;
 	/*in sys resume ,ddr is need resume*/
@@ -820,9 +859,11 @@ static inline void  rkpm_peri_resume_first(u32 power_mode)
 {
 	slp312x_uartdbg_resume();
 }
+extern void rk_sram_suspend(void);
 static void rkpm_slp_setting(void)
 {
 	rk_usb_power_down();
+	rk_sram_suspend();
 }
 static void rkpm_save_setting_resume_first(void)
 {
@@ -899,43 +940,52 @@ static void pmic_sleep_gpio_get_dts_info(struct device_node *parent)
 void PIE_FUNC(ddr_suspend)(void);
 void PIE_FUNC(ddr_resume)(void);
 
-static __sramdata u32 rkpm_pwm_duty0;
-static __sramdata u32 rkpm_pwm_duty1;
-static __sramdata u32 rkpm_pwm_duty2;
 #define PWM_VOLTAGE 0x600
 
 void PIE_FUNC(pwm_regulator_suspend)(void)
 {
+	int gpio0_inout;
+	int gpio0_ddr;
+
+	cru_writel(0x1e000000, 0xf0);
+
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0)) {
-		rkpm_pwm_duty0 = readl_relaxed(RK_PWM_VIRT + 0x08);
-		writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x08);
+		grf_writel(0x00100000, 0xb4);/*iomux  gpio0d2*/
+		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
+		gpio0_ddr = readl_relaxed(RK_GPIO_VIRT(0));
+		writel_relaxed(gpio0_inout | 0x04000000
+			, RK_GPIO_VIRT(0) + 0x04);
+		dsb();
+		writel_relaxed(gpio0_ddr | 0x04000000, RK_GPIO_VIRT(0));
 	}
 
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM1)) {
-		rkpm_pwm_duty1 = readl_relaxed(RK_PWM_VIRT + 0x18);
-		writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x18);
+		grf_writel(0x00400000, 0xb4);/*iomux  gpio0d3*/
+		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
+		gpio0_ddr = readl_relaxed(RK_GPIO_VIRT(0));
+		writel_relaxed(gpio0_inout | 0x08000000
+			, RK_GPIO_VIRT(0) + 0x04);
+		dsb();
+		writel_relaxed(gpio0_ddr | 0x08000000, RK_GPIO_VIRT(0));
 	}
 
 	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM2)) {
-		rkpm_pwm_duty2 = readl_relaxed(RK_PWM_VIRT + 0x28);
-		writel_relaxed(PWM_VOLTAGE, RK_PWM_VIRT + 0x28);
+		grf_writel(0x01000000, 0xb4);/*iomux  gpio0d4*/
+		gpio0_inout = readl_relaxed(RK_GPIO_VIRT(0) + 0x04);
+		gpio0_ddr = readl_relaxed(RK_GPIO_VIRT(0));
+		writel_relaxed(gpio0_inout | 0x10000000
+			, RK_GPIO_VIRT(0) + 0x04);
+		dsb();
+		writel_relaxed(gpio0_ddr | 0x10000000, RK_GPIO_VIRT(0));
 	}
-	rkpm_udelay(30);
+
 }
 
 void PIE_FUNC(pwm_regulator_resume)(void)
 {
-	rkpm_udelay(30);
-	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM0))
-		writel_relaxed(rkpm_pwm_duty0, RK_PWM_VIRT + 0x08);
 
-	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM1))
-		writel_relaxed(rkpm_pwm_duty1, RK_PWM_VIRT + 0x18);
-
-	if (rkpm_chk_sram_ctrbit(RKPM_CTR_VOL_PWM2))
-		writel_relaxed(rkpm_pwm_duty2, RK_PWM_VIRT + 0x28);
-	rkpm_udelay(30);
 }
+
 
 static void reg_pread(void)
 {
@@ -968,7 +1018,18 @@ static void reg_pread(void)
 	n = readl_relaxed(RK_PMU_VIRT);
 	n = readl_relaxed(RK_PWM_VIRT);
 }
+void PIE_FUNC(msch_bus_idle_request)(void)
+{
+	u32 val;
 
+	rkpm_sram_printch('6');
+	val = pmu_readl(RK312X_PMU_IDLE_REQ);
+	val |= 0x40;
+	pmu_writel(val, RK312X_PMU_IDLE_REQ);
+	dsb();
+	while (((pmu_readl(RK312X_PMU_IDLE_ST) & 0x00400040) != 0x00400040))
+		;
+}
 static void __init rk312x_suspend_init(void)
 {
 	struct device_node *parent;
@@ -1000,6 +1061,8 @@ static void __init rk312x_suspend_init(void)
 	rkpm_set_sram_ops_ddr(fn_to_pie(rockchip_pie_chunk
 		, &FUNC(ddr_suspend))
 		, fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_resume)));
+	rkpm_set_sram_ops_bus(fn_to_pie(rockchip_pie_chunk
+		, &FUNC(msch_bus_idle_request)));
 	rkpm_set_sram_ops_volt(fn_to_pie(rockchip_pie_chunk
 		, &FUNC(pwm_regulator_suspend))
 		, fn_to_pie(rockchip_pie_chunk, &FUNC(pwm_regulator_resume)));

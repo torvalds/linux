@@ -125,9 +125,9 @@
 		};
 	};
 
-	sram: sram@10080000 {
+	sram: sram@10080400 {
 		compatible = "mmio-sram";
-		reg = <0x10080000 0x2000>;
+		reg = <0x10080400 0x1C00>;
 		map-exec;
 		map-cacheable;
 	};

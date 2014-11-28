@@ -112,7 +112,8 @@ struct rkpm_sram_ops{
 	
 	rkpm_ops_void_callback ddr;
 	rkpm_ops_void_callback re_ddr;
-    
+
+	rkpm_ops_void_callback bus_idle_request;
         rkpm_ops_printch_callback printch;
 };
 
@@ -172,7 +173,7 @@ extern void rkpm_set_ops_printch(rkpm_ops_printch_callback printch);
 extern void rkpm_set_ops_regs_pread(rkpm_ops_void_callback regs_pread);
 extern void rkpm_set_ops_save_setting(rkpm_ops_paramter_u32_cb save_setting,rkpm_ops_void_callback re_save_setting);
 extern void rkpm_set_ops_regs_sleep(rkpm_ops_void_callback slp_setting,rkpm_ops_void_callback re_last);
-
+void rkpm_set_sram_ops_bus(rkpm_ops_void_callback bus_idle_request);
 extern void rkpm_set_sram_ops_volt(rkpm_ops_void_callback volts,rkpm_ops_void_callback re_volts);
 extern void rkpm_set_sram_ops_gtclks(rkpm_ops_void_callback gtclks,rkpm_ops_void_callback re_gtclks);
 extern void rkpm_set_sram_ops_sysclk(rkpm_ops_paramter_u32_cb sysclk,rkpm_ops_paramter_u32_cb re_sysclk);
@@ -180,6 +181,7 @@ extern void rkpm_set_sram_ops_pmic(rkpm_ops_void_callback pmic,rkpm_ops_void_cal
 extern void rkpm_set_sram_ops_ddr(rkpm_ops_void_callback ddr,rkpm_ops_void_callback re_ddr);
 extern void rkpm_set_sram_ops_printch(rkpm_ops_printch_callback printch);
 
+u32 rkpm_chk_ctrbits(u32 bits);
 extern void rkpm_set_ctrbits(u32 bits);
 extern u32  rkpm_get_ctrbits(void);
 extern void rkpm_clr_ctrbits(u32 bits);//clear
