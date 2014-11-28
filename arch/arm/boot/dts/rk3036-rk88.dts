@@ -21,7 +21,7 @@
 		rockchip,pwm_max_voltage= <1450000>;
 		rockchip,pwm_suspend_voltage= <1000000>;
 		rockchip,pwm_coefficient= <500>;
-		status = "okay";
+		status = "disabled";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;
