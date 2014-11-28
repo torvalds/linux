@@ -1225,6 +1225,10 @@ static void __init xen_pagetable_init(void)
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
 
+	/* Remap memory freed due to conflicts with E820 map */
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		xen_remap_memory();
+
 	xen_setup_shared_info();
 	xen_post_allocator_init();
 }
