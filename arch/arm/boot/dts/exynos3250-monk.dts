@@ -1,10 +1,10 @@
 /*
- * Samsung's Exynos3250 based Rinato board device tree source
+ * Samsung's Exynos3250 based Monk board device tree source
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Device tree source file for Samsung's Rinato board which is based on
+ * Device tree source file for Samsung's Monk board which is based on
  * Samsung Exynos3250 SoC.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Samsung Rinato board";
-	compatible = "samsung,rinato", "samsung,exynos3250", "samsung,exynos3";
+	model = "Samsung Monk board";
+	compatible = "samsung,monk", "samsung,exynos3250", "samsung,exynos3";
 
 	aliases {
 		i2c7 = &i2c_max77836;
@@ -45,6 +45,15 @@
 			debounce-interval = <10>;
 			gpio-key,wakeup;
 		};
+	};
+
+	vemmc_reg: voltage-regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_EMMC_2.8V-fixed";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&gpk0 2 0>;
+		enable-active-high;
 	};
 
 	i2c_max77836: i2c-gpio-0 {
@@ -153,10 +162,6 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-on-in-suspend;
-				};
 			};
 
 			ldo2_reg: LDO2 {
@@ -164,10 +169,6 @@
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo3_reg: LDO3 {
@@ -175,10 +176,6 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo4_reg: LDO4 {
@@ -186,10 +183,6 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo5_reg: LDO5 {
@@ -197,21 +190,12 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo6_reg: LDO6 {
-				regulator-name = "VAP_VMIPI_1.0V";
+				regulator-name = "VAP_MIPI_1.0V";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
-				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo7_reg: LDO7 {
@@ -219,10 +203,6 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo8_reg: LDO8 {
@@ -230,10 +210,6 @@
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo9_reg: LDO9 {
@@ -241,20 +217,12 @@
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-on-in-suspend;
-				};
 			};
 
 			ldo10_reg: LDO10 {
 				regulator-name = "UNUSED_LDO10";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo11_reg: LDO11 {
@@ -272,130 +240,83 @@
 			};
 
 			ldo13_reg: LDO13 {
-				regulator-name = "CAM_AVDD_2.8V";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-name = "VSENSOR_2.85V";
+				regulator-min-microvolt = <2850000>;
+				regulator-max-microvolt = <2850000>;
+				regulator-always-on;
 			};
 
 			ldo14_reg: LDO14 {
 				regulator-name = "UNUSED_LDO14";
-				regulator-min-microvolt = <2700000>;
-				regulator-max-microvolt = <2700000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			ldo15_reg: LDO15 {
 				regulator-name = "TSP_AVDD_3.3V";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo16_reg: LDO16 {
 				regulator-name = "LCD_VDD_3.3V";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo17_reg: LDO17 {
-				regulator-name = "V_IRLED_3.3V";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-name = "UNUSED_LDO17";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			ldo18_reg: LDO18 {
-				regulator-name = "CAM_AF_2.8V";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-name = "UNUSED_LDO18";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			ldo19_reg: LDO19 {
 				regulator-name = "TSP_VDD_1.8V";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo20_reg: LDO20 {
 				regulator-name = "LCD_VDD_1.8V";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			ldo21_reg: LDO21 {
-				regulator-name = "CAM_IO_1.8V";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-name = "UNUSED_LDO21";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
 			};
 
 			ldo22_reg: LDO22 {
-				regulator-name = "CAM_DVDD_1.2V";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-name = "UNUSED_LDO22";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
 			};
 
 			ldo23_reg: LDO23 {
-				regulator-name = "HRM_VCC_1.8V";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
+				regulator-name = "UNUSED_LDO23";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
 			};
 
 			ldo24_reg: LDO24 {
-				regulator-name = "HRM_VCC_3.3V";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-name = "UNUSED_LDO24";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			ldo25_reg: LDO25 {
 				regulator-name = "UNUSED_LDO25";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 
 			buck1_reg: BUCK1 {
@@ -403,10 +324,6 @@
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <900000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			buck2_reg: BUCK2 {
@@ -414,10 +331,6 @@
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1150000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			buck3_reg: BUCK3 {
@@ -425,10 +338,6 @@
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
 			};
 
 			buck4_reg: BUCK4 {
@@ -436,10 +345,6 @@
 				regulator-min-microvolt = <1950000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-on-in-suspend;
-				};
 			};
 
 			buck5_reg: BUCK5 {
@@ -447,10 +352,6 @@
 				regulator-min-microvolt = <1350000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
-
-				regulator-state-mem {
-					regulator-on-in-suspend;
-				};
 			};
 		};
 	};
@@ -476,10 +377,6 @@
 	status = "okay";
 };
 
-&mfc {
-	status = "okay";
-};
-
 &mshc_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -490,7 +387,7 @@
 	desc-num = <4>;
 	mmc-hs200-1_8v;
 	card-detect-delay = <200>;
-	vmmc-supply = <&ldo12_reg>;
+	vmmc-supply = <&vemmc_reg>;
 	clock-frequency = <100000000>;
 	clock-freq-min-max = <400000 100000000>;
 	samsung,dw-mshc-ciu-div = <1>;
@@ -589,8 +486,8 @@
 		PIN_SLP(gpe0-0, PREV, NONE);
 		PIN_SLP(gpe0-1, PREV, NONE);
 		PIN_SLP(gpe0-2, INPUT, DOWN);
-		PIN_SLP(gpe0-3, INPUT, UP);
-		PIN_SLP(gpe0-4, INPUT, DOWN);
+		PIN_SLP(gpe0-3, INPUT, DOWN);
+		PIN_SLP(gpe0-4, PREV, NONE);
 		PIN_SLP(gpe0-5, INPUT, DOWN);
 		PIN_SLP(gpe0-6, INPUT, DOWN);
 		PIN_SLP(gpe0-7, INPUT, DOWN);
@@ -617,13 +514,13 @@
 		PIN_SLP(gpk0-6, INPUT, DOWN);
 		PIN_SLP(gpk0-7, INPUT, DOWN);
 
-		PIN_SLP(gpk1-0, INPUT, DOWN);
-		PIN_SLP(gpk1-1, INPUT, DOWN);
+		PIN_SLP(gpk1-0, PREV, NONE);
+		PIN_SLP(gpk1-1, PREV, NONE);
 		PIN_SLP(gpk1-2, INPUT, DOWN);
-		PIN_SLP(gpk1-3, INPUT, DOWN);
-		PIN_SLP(gpk1-4, INPUT, DOWN);
-		PIN_SLP(gpk1-5, INPUT, DOWN);
-		PIN_SLP(gpk1-6, INPUT, DOWN);
+		PIN_SLP(gpk1-3, PREV, NONE);
+		PIN_SLP(gpk1-4, PREV, NONE);
+		PIN_SLP(gpk1-5, PREV, NONE);
+		PIN_SLP(gpk1-6, PREV, NONE);
 
 		PIN_SLP(gpk2-0, INPUT, DOWN);
 		PIN_SLP(gpk2-1, INPUT, DOWN);

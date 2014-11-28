@@ -560,6 +560,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c0_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 
@@ -573,6 +574,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c1_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 
@@ -586,6 +588,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c2_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 
@@ -599,6 +602,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 
