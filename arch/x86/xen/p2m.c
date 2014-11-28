@@ -922,7 +922,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 			continue;
 
 		if (map_ops[i].flags & GNTMAP_contains_pte) {
-			pte = (pte_t *) (mfn_to_virt(PFN_DOWN(map_ops[i].host_addr)) +
+			pte = (pte_t *)(mfn_to_virt(PFN_DOWN(map_ops[i].host_addr)) +
 				(map_ops[i].host_addr & ~PAGE_MASK));
 			mfn = pte_mfn(*pte);
 		} else {
@@ -970,7 +970,7 @@ int m2p_add_override(unsigned long mfn, struct page *page,
 		address = (unsigned long)__va(pfn << PAGE_SHIFT);
 		ptep = lookup_address(address, &level);
 		if (WARN(ptep == NULL || level != PG_LEVEL_4K,
-					"m2p_add_override: pfn %lx not mapped", pfn))
+			 "m2p_add_override: pfn %lx not mapped", pfn))
 			return -EINVAL;
 	}
 
@@ -1072,7 +1072,7 @@ int m2p_remove_override(struct page *page,
 		ptep = lookup_address(address, &level);
 
 		if (WARN(ptep == NULL || level != PG_LEVEL_4K,
-					"m2p_remove_override: pfn %lx not mapped", pfn))
+			 "m2p_remove_override: pfn %lx not mapped", pfn))
 			return -EINVAL;
 	}
 
@@ -1102,9 +1102,8 @@ int m2p_remove_override(struct page *page,
 			 * hypercall actually returned an error.
 			 */
 			if (kmap_op->handle == GNTST_general_error) {
-				printk(KERN_WARNING "m2p_remove_override: "
-						"pfn %lx mfn %lx, failed to modify kernel mappings",
-						pfn, mfn);
+				pr_warn("m2p_remove_override: pfn %lx mfn %lx, failed to modify kernel mappings",
+					pfn, mfn);
 				put_balloon_scratch_page();
 				return -1;
 			}
@@ -1112,14 +1111,14 @@ int m2p_remove_override(struct page *page,
 			xen_mc_batch();
 
 			mcs = __xen_mc_entry(
-					sizeof(struct gnttab_unmap_and_replace));
+				sizeof(struct gnttab_unmap_and_replace));
 			unmap_op = mcs.args;
 			unmap_op->host_addr = kmap_op->host_addr;
 			unmap_op->new_addr = scratch_page_address;
 			unmap_op->handle = kmap_op->handle;
 
 			MULTI_grant_table_op(mcs.mc,
-					GNTTABOP_unmap_and_replace, unmap_op, 1);
+				GNTTABOP_unmap_and_replace, unmap_op, 1);
 
 			mcs = __xen_mc_entry(0);
 			MULTI_update_va_mapping(mcs.mc, scratch_page_address,
