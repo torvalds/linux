@@ -125,8 +125,7 @@ static void ipvlan_uninit(struct net_device *dev)
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port = ipvlan->port;
 
-	if (ipvlan->pcpu_stats)
-		free_percpu(ipvlan->pcpu_stats);
+	free_percpu(ipvlan->pcpu_stats);
 
 	port->count -= 1;
 	if (!port->count)
