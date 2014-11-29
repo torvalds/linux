@@ -50,6 +50,188 @@ static s32 ixgbe_get_phy_id(struct ixgbe_hw *hw);
 static s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw);
 
 /**
+ *  ixgbe_out_i2c_byte_ack - Send I2C byte with ack
+ *  @hw: pointer to the hardware structure
+ *  @byte: byte to send
+ *
+ *  Returns an error code on error.
+ **/
+static s32 ixgbe_out_i2c_byte_ack(struct ixgbe_hw *hw, u8 byte)
+{
+	s32 status;
+
+	status = ixgbe_clock_out_i2c_byte(hw, byte);
+	if (status)
+		return status;
+	return ixgbe_get_i2c_ack(hw);
+}
+
+/**
+ *  ixgbe_in_i2c_byte_ack - Receive an I2C byte and send ack
+ *  @hw: pointer to the hardware structure
+ *  @byte: pointer to a u8 to receive the byte
+ *
+ *  Returns an error code on error.
+ **/
+static s32 ixgbe_in_i2c_byte_ack(struct ixgbe_hw *hw, u8 *byte)
+{
+	s32 status;
+
+	status = ixgbe_clock_in_i2c_byte(hw, byte);
+	if (status)
+		return status;
+	/* ACK */
+	return ixgbe_clock_out_i2c_bit(hw, false);
+}
+
+/**
+ *  ixgbe_ones_comp_byte_add - Perform one's complement addition
+ *  @add1: addend 1
+ *  @add2: addend 2
+ *
+ *  Returns one's complement 8-bit sum.
+ **/
+static u8 ixgbe_ones_comp_byte_add(u8 add1, u8 add2)
+{
+	u16 sum = add1 + add2;
+
+	sum = (sum & 0xFF) + (sum >> 8);
+	return sum & 0xFF;
+}
+
+/**
+ *  ixgbe_read_i2c_combined_generic - Perform I2C read combined operation
+ *  @hw: pointer to the hardware structure
+ *  @addr: I2C bus address to read from
+ *  @reg: I2C device register to read from
+ *  @val: pointer to location to receive read value
+ *
+ *  Returns an error code on error.
+ **/
+s32 ixgbe_read_i2c_combined_generic(struct ixgbe_hw *hw, u8 addr,
+				    u16 reg, u16 *val)
+{
+	u32 swfw_mask = hw->phy.phy_semaphore_mask;
+	int max_retry = 10;
+	int retry = 0;
+	u8 csum_byte;
+	u8 high_bits;
+	u8 low_bits;
+	u8 reg_high;
+	u8 csum;
+
+	reg_high = ((reg >> 7) & 0xFE) | 1;     /* Indicate read combined */
+	csum = ixgbe_ones_comp_byte_add(reg_high, reg & 0xFF);
+	csum = ~csum;
+	do {
+		if (hw->mac.ops.acquire_swfw_sync(hw, swfw_mask))
+			return IXGBE_ERR_SWFW_SYNC;
+		ixgbe_i2c_start(hw);
+		/* Device Address and write indication */
+		if (ixgbe_out_i2c_byte_ack(hw, addr))
+			goto fail;
+		/* Write bits 14:8 */
+		if (ixgbe_out_i2c_byte_ack(hw, reg_high))
+			goto fail;
+		/* Write bits 7:0 */
+		if (ixgbe_out_i2c_byte_ack(hw, reg & 0xFF))
+			goto fail;
+		/* Write csum */
+		if (ixgbe_out_i2c_byte_ack(hw, csum))
+			goto fail;
+		/* Re-start condition */
+		ixgbe_i2c_start(hw);
+		/* Device Address and read indication */
+		if (ixgbe_out_i2c_byte_ack(hw, addr | 1))
+			goto fail;
+		/* Get upper bits */
+		if (ixgbe_in_i2c_byte_ack(hw, &high_bits))
+			goto fail;
+		/* Get low bits */
+		if (ixgbe_in_i2c_byte_ack(hw, &low_bits))
+			goto fail;
+		/* Get csum */
+		if (ixgbe_clock_in_i2c_byte(hw, &csum_byte))
+			goto fail;
+		/* NACK */
+		if (ixgbe_clock_out_i2c_bit(hw, false))
+			goto fail;
+		ixgbe_i2c_stop(hw);
+		hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+		*val = (high_bits << 8) | low_bits;
+		return 0;
+
+fail:
+		ixgbe_i2c_bus_clear(hw);
+		hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+		retry++;
+		if (retry < max_retry)
+			hw_dbg(hw, "I2C byte read combined error - Retry.\n");
+		else
+			hw_dbg(hw, "I2C byte read combined error.\n");
+	} while (retry < max_retry);
+
+	return IXGBE_ERR_I2C;
+}
+
+/**
+ *  ixgbe_write_i2c_combined_generic - Perform I2C write combined operation
+ *  @hw: pointer to the hardware structure
+ *  @addr: I2C bus address to write to
+ *  @reg: I2C device register to write to
+ *  @val: value to write
+ *
+ *  Returns an error code on error.
+ **/
+s32 ixgbe_write_i2c_combined_generic(struct ixgbe_hw *hw,
+				     u8 addr, u16 reg, u16 val)
+{
+	int max_retry = 1;
+	int retry = 0;
+	u8 reg_high;
+	u8 csum;
+
+	reg_high = (reg >> 7) & 0xFE;   /* Indicate write combined */
+	csum = ixgbe_ones_comp_byte_add(reg_high, reg & 0xFF);
+	csum = ixgbe_ones_comp_byte_add(csum, val >> 8);
+	csum = ixgbe_ones_comp_byte_add(csum, val & 0xFF);
+	csum = ~csum;
+	do {
+		ixgbe_i2c_start(hw);
+		/* Device Address and write indication */
+		if (ixgbe_out_i2c_byte_ack(hw, addr))
+			goto fail;
+		/* Write bits 14:8 */
+		if (ixgbe_out_i2c_byte_ack(hw, reg_high))
+			goto fail;
+		/* Write bits 7:0 */
+		if (ixgbe_out_i2c_byte_ack(hw, reg & 0xFF))
+			goto fail;
+		/* Write data 15:8 */
+		if (ixgbe_out_i2c_byte_ack(hw, val >> 8))
+			goto fail;
+		/* Write data 7:0 */
+		if (ixgbe_out_i2c_byte_ack(hw, val & 0xFF))
+			goto fail;
+		/* Write csum */
+		if (ixgbe_out_i2c_byte_ack(hw, csum))
+			goto fail;
+		ixgbe_i2c_stop(hw);
+		return 0;
+
+fail:
+		ixgbe_i2c_bus_clear(hw);
+		retry++;
+		if (retry < max_retry)
+			hw_dbg(hw, "I2C byte write combined error - Retry.\n");
+		else
+			hw_dbg(hw, "I2C byte write combined error.\n");
+	} while (retry < max_retry);
+
+	return IXGBE_ERR_I2C;
+}
+
+/**
  *  ixgbe_identify_phy_generic - Get physical layer module
  *  @hw: pointer to hardware structure
  *

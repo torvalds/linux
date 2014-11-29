@@ -157,4 +157,8 @@ s32 ixgbe_read_i2c_sff8472_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				   u8 *sff8472_data);
 s32 ixgbe_write_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				   u8 eeprom_data);
+s32 ixgbe_read_i2c_combined_generic(struct ixgbe_hw *hw, u8 addr,
+				    u16 reg, u16 *val);
+s32 ixgbe_write_i2c_combined_generic(struct ixgbe_hw *hw, u8 addr,
+				     u16 reg, u16 val);
 #endif /* _IXGBE_PHY_H_ */
