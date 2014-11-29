@@ -221,6 +221,11 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	reg = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(0)) &
 			WZRD_DIVCLK_DIVIDE_MASK) >> WZRD_DIVCLK_DIVIDE_SHIFT;
 	clk_name = kasprintf(GFP_KERNEL, "%s_mul_div", dev_name(&pdev->dev));
+	if (!clk_name) {
+		ret = -ENOMEM;
+		goto err_rm_int_clk;
+	}
+
 	clk_wzrd->clks_internal[wzrd_clk_mul_div] = clk_register_fixed_factor(
 			&pdev->dev, clk_name,
 			__clk_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
