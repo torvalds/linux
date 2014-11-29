@@ -71,6 +71,15 @@
 #define SCLK_HDMI_CEC		110
 #define SCLK_HEVC_CABAC		111
 #define SCLK_HEVC_CORE		112
+#define SCLK_I2S0_OUT		113
+#define SCLK_SDMMC_DRV		114
+#define SCLK_SDIO0_DRV		115
+#define SCLK_SDIO1_DRV		116
+#define SCLK_EMMC_DRV		117
+#define SCLK_SDMMC_SAMPLE	118
+#define SCLK_SDIO0_SAMPLE	119
+#define SCLK_SDIO1_SAMPLE	120
+#define SCLK_EMMC_SAMPLE	121
 
 #define DCLK_VOP0		190
 #define DCLK_VOP1		191
@@ -141,6 +150,10 @@
 #define PCLK_VIO2_H2P		361
 #define PCLK_CPU		362
 #define PCLK_PERI		363
+#define PCLK_DDRUPCTL0		364
+#define PCLK_PUBL0		365
+#define PCLK_DDRUPCTL1		366
+#define PCLK_PUBL1		367
 
 /* hclk gates */
 #define HCLK_GPS		448
