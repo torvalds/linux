@@ -23,6 +23,7 @@ static u32 integrator_coreid;
 
 static const struct of_device_id integrator_cm_match[] = {
 	{ .compatible = "arm,core-module-integrator", },
+	{ }
 };
 
 static const char *integrator_arch_str(u32 id)
