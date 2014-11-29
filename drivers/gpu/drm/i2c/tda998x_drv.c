@@ -32,6 +32,7 @@
 struct tda998x_priv {
 	struct i2c_client *cec;
 	struct i2c_client *hdmi;
+	struct mutex mutex;
 	uint16_t rev;
 	uint8_t current_page;
 	int dpms;
@@ -402,9 +403,10 @@ reg_read_range(struct tda998x_priv *priv, uint16_t reg, char *buf, int cnt)
 	uint8_t addr = REG2ADDR(reg);
 	int ret;
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = i2c_master_send(client, &addr, sizeof(addr));
 	if (ret < 0)
@@ -414,10 +416,12 @@ reg_read_range(struct tda998x_priv *priv, uint16_t reg, char *buf, int cnt)
 	if (ret < 0)
 		goto fail;
 
-	return ret;
+	goto out;
 
 fail:
 	dev_err(&client->dev, "Error %d reading from 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -431,13 +435,16 @@ reg_write_range(struct tda998x_priv *priv, uint16_t reg, uint8_t *p, int cnt)
 	buf[0] = REG2ADDR(reg);
 	memcpy(&buf[1], p, cnt);
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return;
+		goto out;
 
 	ret = i2c_master_send(client, buf, cnt + 1);
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 }
 
 static int
@@ -459,13 +466,16 @@ reg_write(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
 	uint8_t buf[] = {REG2ADDR(reg), val};
 	int ret;
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return;
+		goto out;
 
 	ret = i2c_master_send(client, buf, sizeof(buf));
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 }
 
 static void
@@ -475,13 +485,16 @@ reg_write16(struct tda998x_priv *priv, uint16_t reg, uint16_t val)
 	uint8_t buf[] = {REG2ADDR(reg), val >> 8, val};
 	int ret;
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return;
+		goto out;
 
 	ret = i2c_master_send(client, buf, sizeof(buf));
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 }
 
 static void
@@ -1267,6 +1280,8 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 		return -ENODEV;
 
 	priv->dpms = DRM_MODE_DPMS_OFF;
+
+	mutex_init(&priv->mutex);	/* protect the page access */
 
 	/* wake up the device: */
 	cec_write(priv, REG_CEC_ENAMODS,
