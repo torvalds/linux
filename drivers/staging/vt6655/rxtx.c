@@ -129,7 +129,7 @@ s_vGenerateTxParameter(
 
 static unsigned int
 s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
-		  unsigned char *pbyTxBufferAddr, unsigned int cbFrameBodySize,
+		  unsigned char *pbyTxBufferAddr,
 		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
 		  unsigned int uNodeIndex);
 
@@ -1030,7 +1030,7 @@ s_vGenerateTxParameter(
 
 static unsigned int
 s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
-		  unsigned char *pbyTxBufferAddr, unsigned int cbFrameBodySize,
+		  unsigned char *pbyTxBufferAddr,
 		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
 		  unsigned int is_pspoll)
 {
@@ -1195,12 +1195,12 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 
 	hdr->duration_id = uDuration;
 
-	cbReqCount = cbHeaderLength + uPadding + cbFrameBodySize;
+	cbReqCount = cbHeaderLength + uPadding + skb->len;
 	pbyBuffer = (unsigned char *)pHeadTD->pTDInfo->buf;
 	uLength = cbHeaderLength + uPadding;
 
 	/* Copy the Packet into a tx Buffer */
-	memcpy((pbyBuffer + uLength), skb->data, cbFrameBodySize);
+	memcpy((pbyBuffer + uLength), skb->data, skb->len);
 
 	ptdCurr = (PSTxDesc)pHeadTD;
 
@@ -1398,7 +1398,7 @@ int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
 
-	s_cbFillTxBufHead(priv, pkt_type, (u8 *)tx_buffer_head, skb->len,
+	s_cbFillTxBufHead(priv, pkt_type, (u8 *)tx_buffer_head,
 			  dma_idx, head_td, is_pspoll);
 
 	if (info->control.hw_key) {
