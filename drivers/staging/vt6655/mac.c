@@ -33,7 +33,6 @@
  *      MACvGetShortRetryLimit - Get 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
  *      MACvSetLoopbackMode - Set MAC Loopback Mode
- *      MACvSetPacketFilter - Set MAC Address Filter
  *      MACvSaveContext - Save Context of MAC Registers
  *      MACvRestoreContext - Restore Context of MAC Registers
  *      MACbSoftwareReset - Software Reset MAC
@@ -211,66 +210,6 @@ void MACvSetLoopbackMode(void __iomem *dwIoBase, unsigned char byLoopbackMode)
 	byOrgValue = byOrgValue & 0x3F;
 	byOrgValue = byOrgValue | byLoopbackMode;
 	VNSvOutPortB(dwIoBase + MAC_REG_TEST, byOrgValue);
-}
-
-/*
- * Description:
- *      Set MAC Address filter
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *      wFilterType     - Filter Type
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetPacketFilter(void __iomem *dwIoBase, unsigned short wFilterType)
-{
-	unsigned char byOldRCR;
-	unsigned char byNewRCR = 0;
-
-	// if only in DIRECTED mode, multicast-address will set to zero,
-	// but if other mode exist (e.g. PROMISCUOUS), multicast-address
-	// will be open
-	if (wFilterType & PKT_TYPE_DIRECTED) {
-		// set multicast address to accept none
-		MACvSelectPage1(dwIoBase);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0, 0L);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(unsigned long), 0L);
-		MACvSelectPage0(dwIoBase);
-	}
-
-	if (wFilterType & (PKT_TYPE_PROMISCUOUS | PKT_TYPE_ALL_MULTICAST)) {
-		// set multicast address to accept all
-		MACvSelectPage1(dwIoBase);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0, 0xFFFFFFFFL);
-		VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(unsigned long), 0xFFFFFFFFL);
-		MACvSelectPage0(dwIoBase);
-	}
-
-	if (wFilterType & PKT_TYPE_PROMISCUOUS) {
-		byNewRCR |= (RCR_RXALLTYPE | RCR_UNICAST | RCR_MULTICAST | RCR_BROADCAST);
-
-		byNewRCR &= ~RCR_BSSID;
-	}
-
-	if (wFilterType & (PKT_TYPE_ALL_MULTICAST | PKT_TYPE_MULTICAST))
-		byNewRCR |= RCR_MULTICAST;
-
-	if (wFilterType & PKT_TYPE_BROADCAST)
-		byNewRCR |= RCR_BROADCAST;
-
-	if (wFilterType & PKT_TYPE_ERROR_CRC)
-		byNewRCR |= RCR_ERRCRC;
-
-	VNSvInPortB(dwIoBase + MAC_REG_RCR,  &byOldRCR);
-	if (byNewRCR != byOldRCR) {
-		// Modify the Receive Command Register
-		VNSvOutPortB(dwIoBase + MAC_REG_RCR, byNewRCR);
-	}
 }
 
 /*
@@ -629,11 +568,6 @@ void MACvInitialize(void __iomem *dwIoBase)
 	VNSvOutPortB(dwIoBase + MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
 	// enable TSF counter
 	VNSvOutPortB(dwIoBase + MAC_REG_TFTCTL, TFTCTL_TSFCNTREN);
-
-	// set packet filter
-	// receive directed and broadcast address
-
-	MACvSetPacketFilter(dwIoBase, PKT_TYPE_DIRECTED | PKT_TYPE_BROADCAST);
 }
 
 /*

@@ -574,17 +574,6 @@
 #define MAC_LB_INTERNAL     0x01        //
 #define MAC_LB_NONE         0x00        //
 
-// Ethernet address filter type
-#define PKT_TYPE_NONE           0x00    // turn off receiver
-#define PKT_TYPE_ALL_MULTICAST  0x80
-#define PKT_TYPE_PROMISCUOUS    0x40
-#define PKT_TYPE_DIRECTED       0x20    // obsolete, directed address is always accepted
-#define PKT_TYPE_BROADCAST      0x10
-#define PKT_TYPE_MULTICAST      0x08
-#define PKT_TYPE_ERROR_WPA      0x04
-#define PKT_TYPE_ERROR_CRC      0x02
-#define PKT_TYPE_BSSID          0x01
-
 #define Default_BI              0x200
 
 // MiscFIFO Offset
@@ -975,8 +964,6 @@ void MACvSetLongRetryLimit(void __iomem *dwIoBase, unsigned char byRetryLimit);
 void MACvGetLongRetryLimit(void __iomem *dwIoBase, unsigned char *pbyRetryLimit);
 
 void MACvSetLoopbackMode(void __iomem *dwIoBase, unsigned char byLoopbackMode);
-
-void MACvSetPacketFilter(void __iomem *dwIoBase, unsigned short wFilterType);
 
 void MACvSaveContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf);
 void MACvRestoreContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf);
