@@ -52,6 +52,8 @@ EXPORT_SYMBOL(empty_zero_page);
  */
 pmd_t *top_pmd;
 
+pmdval_t user_pmd_table = _PAGE_USER_TABLE;
+
 #define CPOLICY_UNCACHED	0
 #define CPOLICY_BUFFERED	1
 #define CPOLICY_WRITETHROUGH	2
@@ -528,14 +530,23 @@ static void __init build_mem_type_table(void)
 	hyp_device_pgprot = mem_types[MT_DEVICE].prot_pte;
 	s2_device_pgprot = mem_types[MT_DEVICE].prot_pte_s2;
 
+#ifndef CONFIG_ARM_LPAE
 	/*
 	 * We don't use domains on ARMv6 (since this causes problems with
 	 * v6/v7 kernels), so we must use a separate memory type for user
 	 * r/o, kernel r/w to map the vectors page.
 	 */
-#ifndef CONFIG_ARM_LPAE
 	if (cpu_arch == CPU_ARCH_ARMv6)
 		vecs_pgprot |= L_PTE_MT_VECTORS;
+
+	/*
+	 * Check is it with support for the PXN bit
+	 * in the Short-descriptor translation table format descriptors.
+	 */
+	if (cpu_arch == CPU_ARCH_ARMv7 &&
+		(read_cpuid_ext(CPUID_EXT_MMFR0) & 0xF) == 4) {
+		user_pmd_table |= PMD_PXNTABLE;
+	}
 #endif
 
 	/*
@@ -605,6 +616,11 @@ static void __init build_mem_type_table(void)
 	}
 	kern_pgprot |= PTE_EXT_AF;
 	vecs_pgprot |= PTE_EXT_AF;
+
+	/*
+	 * Set PXN for user mappings
+	 */
+	user_pgprot |= PTE_EXT_PXN;
 #endif
 
 	for (i = 0; i < 16; i++) {
