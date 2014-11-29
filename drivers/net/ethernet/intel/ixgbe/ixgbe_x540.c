@@ -316,7 +316,7 @@ static s32 ixgbe_write_eewr_buffer_X540(struct ixgbe_hw *hw,
  *
  *  @hw: pointer to hardware structure
  **/
-static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
+static s32 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 {
 	u16 i;
 	u16 j;
@@ -324,6 +324,8 @@ static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 	u16 length = 0;
 	u16 pointer = 0;
 	u16 word = 0;
+	u16 checksum_last_word = IXGBE_EEPROM_CHECKSUM;
+	u16 ptr_start = IXGBE_PCIE_ANALOG_PTR;
 
 	/*
 	 * Do not use hw->eeprom.ops.read because we do not want to take
@@ -332,10 +334,10 @@ static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 	 */
 
 	/* Include 0x0-0x3F in the checksum */
-	for (i = 0; i < IXGBE_EEPROM_CHECKSUM; i++) {
-		if (ixgbe_read_eerd_generic(hw, i, &word) != 0) {
+	for (i = 0; i < checksum_last_word; i++) {
+		if (ixgbe_read_eerd_generic(hw, i, &word)) {
 			hw_dbg(hw, "EEPROM read failed\n");
-			break;
+			return IXGBE_ERR_EEPROM;
 		}
 		checksum += word;
 	}
@@ -344,11 +346,11 @@ static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 	 * Include all data from pointers 0x3, 0x6-0xE.  This excludes the
 	 * FW, PHY module, and PCIe Expansion/Option ROM pointers.
 	 */
-	for (i = IXGBE_PCIE_ANALOG_PTR; i < IXGBE_FW_PTR; i++) {
+	for (i = ptr_start; i < IXGBE_FW_PTR; i++) {
 		if (i == IXGBE_PHY_PTR || i == IXGBE_OPTION_ROM_PTR)
 			continue;
 
-		if (ixgbe_read_eerd_generic(hw, i, &pointer) != 0) {
+		if (ixgbe_read_eerd_generic(hw, i, &pointer)) {
 			hw_dbg(hw, "EEPROM read failed\n");
 			break;
 		}
@@ -358,8 +360,9 @@ static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 		    pointer >= hw->eeprom.word_size)
 			continue;
 
-		if (ixgbe_read_eerd_generic(hw, pointer, &length) != 0) {
+		if (ixgbe_read_eerd_generic(hw, pointer, &length)) {
 			hw_dbg(hw, "EEPROM read failed\n");
+			return IXGBE_ERR_EEPROM;
 			break;
 		}
 
@@ -368,10 +371,10 @@ static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 		    (pointer + length) >= hw->eeprom.word_size)
 			continue;
 
-		for (j = pointer+1; j <= pointer+length; j++) {
-			if (ixgbe_read_eerd_generic(hw, j, &word) != 0) {
+		for (j = pointer + 1; j <= pointer + length; j++) {
+			if (ixgbe_read_eerd_generic(hw, j, &word)) {
 				hw_dbg(hw, "EEPROM read failed\n");
-				break;
+				return IXGBE_ERR_EEPROM;
 			}
 			checksum += word;
 		}
@@ -379,7 +382,7 @@ static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 
 	checksum = (u16)IXGBE_EEPROM_SUM - checksum;
 
-	return checksum;
+	return (s32)checksum;
 }
 
 /**
@@ -410,23 +413,34 @@ static s32 ixgbe_validate_eeprom_checksum_X540(struct ixgbe_hw *hw,
 	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM))
 		return IXGBE_ERR_SWFW_SYNC;
 
-	checksum = hw->eeprom.ops.calc_checksum(hw);
+	status = hw->eeprom.ops.calc_checksum(hw);
+	if (status < 0)
+		goto out;
+
+	checksum = (u16)(status & 0xffff);
 
 	/* Do not use hw->eeprom.ops.read because we do not want to take
 	 * the synchronization semaphores twice here.
 	 */
 	status = ixgbe_read_eerd_generic(hw, IXGBE_EEPROM_CHECKSUM,
 					 &read_checksum);
+	if (status)
+		goto out;
 
-	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+	/* Verify read checksum from EEPROM is the same as
+	 * calculated checksum
+	 */
+	if (read_checksum != checksum) {
+		hw_dbg(hw, "Invalid EEPROM checksum");
+		status = IXGBE_ERR_EEPROM_CHECKSUM;
+	}
 
 	/* If the user cares, return the calculated checksum */
 	if (checksum_val)
 		*checksum_val = checksum;
 
-	/* Verify read and calculated checksums are the same */
-	if (read_checksum != checksum)
-		return IXGBE_ERR_EEPROM_CHECKSUM;
+out:
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 
 	return status;
 }
@@ -457,15 +471,22 @@ static s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw)
 	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM))
 		return  IXGBE_ERR_SWFW_SYNC;
 
-	checksum = hw->eeprom.ops.calc_checksum(hw);
+	status = hw->eeprom.ops.calc_checksum(hw);
+	if (status < 0)
+		goto out;
+
+	checksum = (u16)(status & 0xffff);
 
 	/* Do not use hw->eeprom.ops.write because we do not want to
 	 * take the synchronization semaphores twice here.
 	 */
 	status = ixgbe_write_eewr_generic(hw, IXGBE_EEPROM_CHECKSUM, checksum);
-	if (!status)
-		status = ixgbe_update_flash_X540(hw);
+	if (status)
+		goto out;
 
+	status = ixgbe_update_flash_X540(hw);
+
+out:
 	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 	return status;
 }
