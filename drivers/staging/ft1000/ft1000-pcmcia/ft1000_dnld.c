@@ -101,7 +101,7 @@ struct dsp_file_hdr {
 	u32  version_data_offset;	/* Offset were scrambled version data begins. */
 	u32  version_data_size;	/* Size, in words, of scrambled version data. */
 	u32  nDspImages;	/* Number of DSP images in file. */
-} __attribute__ ((packed));
+} __packed;
 
 struct dsp_image_info {
 	u32  coff_date;		/* Date/time when DSP Coff image was built. */
@@ -112,7 +112,7 @@ struct dsp_image_info {
 	u32  version;		/* Embedded version # of DSP code. */
 	unsigned short checksum;	/* Dsp File checksum */
 	unsigned short pad1;
-} __attribute__ ((packed));
+} __packed;
 
 void card_bootload(struct net_device *dev)
 {
