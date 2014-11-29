@@ -2314,9 +2314,12 @@ enum ixgbe_fdir_pballoc_type {
 #define IXGBE_FDIR_DROP_QUEUE                   127
 
 /* Manageablility Host Interface defines */
-#define IXGBE_HI_MAX_BLOCK_BYTE_LENGTH       1792 /* Num of bytes in range */
-#define IXGBE_HI_MAX_BLOCK_DWORD_LENGTH      448 /* Num of dwords in range */
-#define IXGBE_HI_COMMAND_TIMEOUT             500 /* Process HI command limit */
+#define IXGBE_HI_MAX_BLOCK_BYTE_LENGTH	1792 /* Num of bytes in range */
+#define IXGBE_HI_MAX_BLOCK_DWORD_LENGTH	448 /* Num of dwords in range */
+#define IXGBE_HI_COMMAND_TIMEOUT	500 /* Process HI command limit */
+#define IXGBE_HI_FLASH_ERASE_TIMEOUT	1000 /* Process Erase command limit */
+#define IXGBE_HI_FLASH_UPDATE_TIMEOUT	5000 /* Process Update command limit */
+#define IXGBE_HI_FLASH_APPLY_TIMEOUT	0 /* Process Apply command limit */
 
 /* CEM Support */
 #define FW_CEM_HDR_LEN                0x4

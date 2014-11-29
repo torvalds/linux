@@ -3446,22 +3446,33 @@ static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
  *  @buffer: contains the command to write and where the return status will
  *           be placed
  *  @length: length of buffer, must be multiple of 4 bytes
+ *  @timeout: time in ms to wait for command completion
+ *  @return_data: read and return data from the buffer (true) or not (false)
+ *  Needed because FW structures are big endian and decoding of
+ *  these fields can be 8 bit or 16 bit based on command. Decoding
+ *  is not easily understood without making a table of commands.
+ *  So we will leave this up to the caller to read back the data
+ *  in these cases.
  *
  *  Communicates with the manageability block.  On success return 0
  *  else return IXGBE_ERR_HOST_INTERFACE_COMMAND.
  **/
 static s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
-					u32 length)
+					u32 length, u32 timeout,
+					bool return_data)
 {
-	u32 hicr, i, bi;
+	u32 hicr, i, bi, fwsts;
 	u32 hdr_size = sizeof(struct ixgbe_hic_hdr);
-	u8 buf_len, dword_len;
+	u16 buf_len, dword_len;
 
-	if (length == 0 || length & 0x3 ||
-	    length > IXGBE_HI_MAX_BLOCK_BYTE_LENGTH) {
-		hw_dbg(hw, "Buffer length failure.\n");
+	if (length == 0 || length > IXGBE_HI_MAX_BLOCK_BYTE_LENGTH) {
+		hw_dbg(hw, "Buffer length failure buffersize-%d.\n", length);
 		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
 	}
+
+	/* Set bit 9 of FWSTS clearing FW reset indication */
+	fwsts = IXGBE_READ_REG(hw, IXGBE_FWSTS);
+	IXGBE_WRITE_REG(hw, IXGBE_FWSTS, fwsts | IXGBE_FWSTS_FWRI);
 
 	/* Check that the host interface is enabled. */
 	hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
@@ -3470,7 +3481,12 @@ static s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
 	}
 
-	/* Calculate length in DWORDs */
+	/* Calculate length in DWORDs. We must be DWORD aligned */
+	if ((length % (sizeof(u32))) != 0) {
+		hw_dbg(hw, "Buffer length failure, not aligned to dword");
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
 	dword_len = length >> 2;
 
 	/*
@@ -3484,7 +3500,7 @@ static s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 	/* Setting this bit tells the ARC that a new command is pending. */
 	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);
 
-	for (i = 0; i < IXGBE_HI_COMMAND_TIMEOUT; i++) {
+	for (i = 0; i < timeout; i++) {
 		hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
 		if (!(hicr & IXGBE_HICR_C))
 			break;
@@ -3492,11 +3508,14 @@ static s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 	}
 
 	/* Check command successful completion. */
-	if (i == IXGBE_HI_COMMAND_TIMEOUT ||
+	if ((timeout != 0 && i == timeout) ||
 	    (!(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV))) {
 		hw_dbg(hw, "Command has failed with no status valid.\n");
 		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
 	}
+
+	if (!return_data)
+		return 0;
 
 	/* Calculate length in DWORDs */
 	dword_len = hdr_size >> 2;
@@ -3568,7 +3587,9 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 
 	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
 		ret_val = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
-						       sizeof(fw_cmd));
+						       sizeof(fw_cmd),
+						       IXGBE_HI_COMMAND_TIMEOUT,
+						       true);
 		if (ret_val != 0)
 			continue;
 
