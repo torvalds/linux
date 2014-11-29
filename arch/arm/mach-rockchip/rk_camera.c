@@ -327,7 +327,9 @@ static int rk_dts_cif_probe(struct platform_device *pdev) /*yzm*/
 {
 	int irq,err;
 	struct device *dev = &pdev->dev;
-	const char *compatible = NULL;
+	const char *compatible = NULL;	
+	struct device_node * vpu_node =NULL;	
+    int vpu_iommu_enabled = 0;
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 	
 	rk_camera_platform_data.cif_dev = &pdev->dev;
@@ -346,6 +348,12 @@ static int rk_dts_cif_probe(struct platform_device *pdev) /*yzm*/
 	}
 	err = of_property_read_string(dev->of_node->parent,"compatible",&compatible);	
 	rk_camera_platform_data.rockchip_name = compatible;
+
+    vpu_node = of_find_compatible_node(NULL,NULL, "vpu_service");
+    if(vpu_node){
+        err = of_property_read_u32(vpu_node, "iommu_enabled", &vpu_iommu_enabled);
+		rk_camera_platform_data.iommu_enabled = vpu_iommu_enabled;
+    }
 
 	if (err < 0){
 		printk(KERN_EMERG "Get rockchip compatible failed!!!!!!");

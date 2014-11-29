@@ -620,7 +620,7 @@ enum  v4l2_exposure_auto_type {
 
 /**************yzm**************/
 /* ddl@rock-chips.com : Add ioctrl -  V4L2_CID_SCENE for camera scene control */
-#define V4L2_CID_CAMERA_CLASS_BASE_ROCK		(V4L2_CID_CAMERA_CLASS_BASE + 30)
+#define V4L2_CID_CAMERA_CLASS_BASE_ROCK		(V4L2_CID_CAMERA_CLASS_BASE + 40)
 #define V4L2_CID_SCENE				(V4L2_CID_CAMERA_CLASS_BASE_ROCK+1)
 #define V4L2_CID_EFFECT				(V4L2_CID_CAMERA_CLASS_BASE_ROCK+2)
 #define V4L2_CID_FLASH				(V4L2_CID_CAMERA_CLASS_BASE_ROCK+3)

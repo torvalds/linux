@@ -51,7 +51,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
  
-static int debug;
+static int debug = 0;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define CAMMODULE_NAME     "rk_cam_cif"   
@@ -282,8 +282,11 @@ static u32 CHIP_NAME;
 		 2. Fix cif_clk_out cannot close which base on XIN24M and cannot turn to 0
 		 3. Move Camera Sensor Macro from rk_camera.h to rk_camera_sensor_info.h
 		 4. Support flash control when preview size == picture size
+*v0.1.a:
+		 1. Support rk3288 cif driver
+		 2. Query and upload iommu info
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x9)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xa)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -509,11 +512,29 @@ static void rk_camera_diffchips(const char *rockchip_name)
 
 		CHIP_NAME = 3126;
 	}
+	else if(strstr(rockchip_name,"3288"))
+	{	
+		CRU_PCLK_REG30 = 0xd4;
+		ENANABLE_INVERT_PCLK_CIF0 = ((0x1<<20)|(0x1<<4));
+		DISABLE_INVERT_PCLK_CIF0  = ((0x1<<20)|(0x0<<4));
+		ENANABLE_INVERT_PCLK_CIF1 = ENANABLE_INVERT_PCLK_CIF0;
+		DISABLE_INVERT_PCLK_CIF1  = DISABLE_INVERT_PCLK_CIF0;
+
+		CRU_CLK_OUT = 0x16c;
+		CHIP_NAME = 3288;
+	}
+
+	
 }
 static inline void rk_cru_set_soft_reset(u32 idx, bool on , u32 RK_CRU_SOFTRST_CON)
 {
 	void __iomem *reg = RK_CRU_VIRT + RK_CRU_SOFTRST_CON;
-	u32 val = on ? 0x10001U << 14 : 0x10000U << 14;
+	u32 val = 0;
+	if(CHIP_NAME == 3126){
+		val = on ? 0x10001U << 14 : 0x10000U << 14;
+	}else if(CHIP_NAME == 3288){
+		val = on ? 0x10001U << 8 : 0x10000U << 8;
+	}
 	writel_relaxed(val, reg);
 	dsb();
 }
@@ -523,8 +544,11 @@ static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
     int ctrl_reg,inten_reg,crop_reg,set_size_reg,for_reg,vir_line_width_reg,scl_reg,y_reg,uv_reg;
 	u32 RK_CRU_SOFTRST_CON = 0;
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-	if(strstr(pcdev->pdata->rockchip_name,"3128")||strstr(pcdev->pdata->rockchip_name,"3126"))
+	if(CHIP_NAME == 3126){
 		RK_CRU_SOFTRST_CON = RK312X_CRU_SOFTRSTS_CON(6);
+	}else if(CHIP_NAME == 3288){
+		RK_CRU_SOFTRST_CON = RK3288_CRU_SOFTRSTS_CON(6);
+	}
 	
 	if (only_rst == true) {
         rk_cru_set_soft_reset(0, true ,RK_CRU_SOFTRST_CON);
@@ -1124,7 +1148,6 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
 {
     struct rk_camera_dev *pcdev = data;
     unsigned long reg_intstat;
-
 
 
     spin_lock(&pcdev->lock);
@@ -2353,6 +2376,7 @@ static int rk_camera_querycap(struct soc_camera_host *ici,
     strcat(cap->card,fov);                          /* ddl@rock-chips.com: v0.3.f */
     cap->version = RK_CAM_VERSION_CODE;
     cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->reserved[0] = pcdev->pdata->iommu_enabled;
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
     return 0;
@@ -2540,7 +2564,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
 	/*struct soc_camera_link *tmp_soc_cam_link;*/ /*yzm*/
 	/*tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);*/ /*yzm*/
 
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
 	RKCAMERA_DG1("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
 	if ((pcdev->fps < 1) || (pcdev->last_fps == pcdev->fps)) {
@@ -2979,10 +3003,11 @@ static int rk_camera_cif_iomux(struct device *dev)
     char state_str[20] = {0};
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-    strcpy(state_str,"cif_pin_jpe");
+    strcpy(state_str,"cif_pin_all");
 
-	/*__raw_writel(((1<<1)|(1<<(1+16))),RK_GRF_VIRT+0x0380);*/
-
+	if(CHIP_NAME == 3288){
+		__raw_writel(((1<<1)|(1<<(1+16))),RK_GRF_VIRT+0x0380);
+	}
 
     /*mux CIF0_CLKOUT*/
 
@@ -3136,7 +3161,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     /* config buffer address */
     /* request irq */
     if(irq > 0){
-        err = request_irq(pcdev->irqinfo.irq, rk_camera_irq, 0, RK29_CAM_DRV_NAME,
+		err = request_irq(pcdev->irqinfo.irq, rk_camera_irq, IRQF_DISABLED | IRQF_SHARED , RK29_CAM_DRV_NAME,
                           pcdev);
         if (err) {
             dev_err(pcdev->dev, "Camera interrupt register failed \n");
