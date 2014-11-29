@@ -33,6 +33,7 @@ struct tda998x_priv {
 	struct i2c_client *cec;
 	struct i2c_client *hdmi;
 	struct mutex mutex;
+	struct delayed_work dwork;
 	uint16_t rev;
 	uint8_t current_page;
 	int dpms;
@@ -549,6 +550,17 @@ tda998x_reset(struct tda998x_priv *priv)
 	reg_write(priv, REG_MUX_VP_VIP_OUT, 0x24);
 }
 
+/* handle HDMI connect/disconnect */
+static void tda998x_hpd(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct tda998x_priv *priv =
+			container_of(dwork, struct tda998x_priv, dwork);
+
+	if (priv->encoder && priv->encoder->dev)
+		drm_kms_helper_hotplug_event(priv->encoder->dev);
+}
+
 /*
  * only 2 interrupts may occur: screen plug/unplug and EDID read
  */
@@ -572,8 +584,7 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 		priv->wq_edid_wait = 0;
 		wake_up(&priv->wq_edid);
 	} else if (cec != 0) {			/* HPD change */
-		if (priv->encoder && priv->encoder->dev)
-			drm_helper_hpd_irq_event(priv->encoder->dev);
+		schedule_delayed_work(&priv->dwork, HZ/10);
 	}
 	return IRQ_HANDLED;
 }
@@ -1183,8 +1194,10 @@ static void tda998x_destroy(struct tda998x_priv *priv)
 	/* disable all IRQs and free the IRQ handler */
 	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
 	reg_clear(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
-	if (priv->hdmi->irq)
+	if (priv->hdmi->irq) {
 		free_irq(priv->hdmi->irq, priv);
+		cancel_delayed_work_sync(&priv->dwork);
+	}
 
 	i2c_unregister_device(priv->cec);
 }
@@ -1338,8 +1351,9 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	if (client->irq) {
 		int irqf_trigger;
 
-		/* init read EDID waitqueue */
+		/* init read EDID waitqueue and HDP work */
 		init_waitqueue_head(&priv->wq_edid);
+		INIT_DELAYED_WORK(&priv->dwork, tda998x_hpd);
 
 		/* clear pending interrupts */
 		reg_read(priv, REG_INT_FLAGS_0);
