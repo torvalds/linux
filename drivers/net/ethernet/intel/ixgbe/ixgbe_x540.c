@@ -42,8 +42,8 @@
 
 static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw);
 static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw);
-static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask);
-static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask);
+static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
+static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
 static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw);
 static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw);
 
@@ -544,7 +544,7 @@ static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw)
  * Acquires the SWFW semaphore thought the SW_FW_SYNC register for
  * the specified function (CSR, PHY0, PHY1, NVM, Flash)
  **/
-static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
+static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 {
 	u32 swfw_sync;
 	u32 swmask = mask;
@@ -612,7 +612,7 @@ static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
  * Releases the SWFW semaphore through the SW_FW_SYNC register
  * for the specified function (CSR, PHY0, PHY1, EVM, Flash)
  **/
-static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
+static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 {
 	u32 swfw_sync;
 	u32 swmask = mask;
