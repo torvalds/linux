@@ -457,10 +457,11 @@ static int setup_bd_list_xfr(struct bdc *bdc, struct bdc_req *req, int num_bds)
 			dword3 |= BD_SOT|BD_SBF|(tfs<<BD_TFS_SHIFT);
 			dword2 |= BD_LTF;
 			/* format of first bd for ep0 is different than other */
-			if (ep->ep_num == 1)
+			if (ep->ep_num == 1) {
 				ret = setup_first_bd_ep0(bdc, req, &dword3);
 				if (ret)
 					return ret;
+			}
 		}
 		if (!req->ep->dir)
 			dword3 |= BD_ISP;
