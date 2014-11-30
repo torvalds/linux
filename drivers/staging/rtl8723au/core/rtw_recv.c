@@ -2352,15 +2352,13 @@ void rtw_signal_stat_timer_hdl23a(unsigned long data)
 			tmp_q = 100;
 
 		recvpriv->signal_strength = tmp_s;
-		recvpriv->rssi = (s8)translate_percentage_to_dbm(tmp_s);
 		recvpriv->signal_qual = tmp_q;
 
-		DBG_8723A("%s signal_strength:%3u, rssi:%3d, "
-			  "signal_qual:%3u, num_signal_strength:%u, "
-			  "num_signal_qual:%u\n",
+		DBG_8723A("%s signal_strength:%3u, signal_qual:%3u, "
+			  "num_signal_strength:%u, num_signal_qual:%u\n",
 			  __func__, recvpriv->signal_strength,
-			  recvpriv->rssi, recvpriv->signal_qual,
-			  num_signal_strength, num_signal_qual);
+			  recvpriv->signal_qual, num_signal_strength,
+			  num_signal_qual);
 	}
 
 	rtw_set_signal_stat_timer(recvpriv);

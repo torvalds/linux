@@ -1022,11 +1022,9 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 	 * the ptarget_wlan->network.Rssi is raw data, we use
 	 * ptarget_wlan->network.SignalStrength instead (has scaled)
 	 */
-	padapter->recvpriv.rssi = translate_percentage_to_dbm(
-		ptarget_wlan->network.SignalStrength);
-	DBG_8723A("%s signal_strength:%3u, rssi:%3d, signal_qual:%3u\n",
+	DBG_8723A("%s signal_strength:%3u, signal_qual:%3u\n",
 		  __func__, padapter->recvpriv.signal_strength,
-		  padapter->recvpriv.rssi, padapter->recvpriv.signal_qual);
+		  padapter->recvpriv.signal_qual);
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 
 	/* update fw_state will clr _FW_UNDER_LINKING here indirectly */
