@@ -1202,17 +1202,17 @@ int GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
 void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 			    u32 mac_id, u8 rssi_level)
 {
-	u8	init_rate = 0;
-	u8	networkType, raid;
-	u32	mask, rate_bitmap;
-	u8	shortGIrate = false;
-	int	supportRateNum = 0;
 	struct sta_info	*psta;
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct FW_Sta_Info *fw_sta;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
+	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
+	u8 init_rate, networkType, raid;
+	u32 mask, rate_bitmap;
+	u8 shortGIrate = false;
+	int supportRateNum;
 
 	if (mac_id >= NUM_STA) /* CAM_SIZE */
 		return;
@@ -1241,8 +1241,8 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		break;
 
 	case 1:/* for broadcast/multicast */
-		supportRateNum = rtw_get_rateset_len23a(
-			pmlmeinfo->FW_sta_info[mac_id].SupportedRates);
+		fw_sta = &pmlmeinfo->FW_sta_info[mac_id]; 
+		supportRateNum = rtw_get_rateset_len23a(fw_sta->SupportedRates);
 		if (pmlmeext->cur_wireless_mode & WIRELESS_11B)
 			networkType = WIRELESS_11B;
 		else
@@ -1254,16 +1254,16 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		break;
 
 	default: /* for each sta in IBSS */
-		supportRateNum = rtw_get_rateset_len23a(
-			pmlmeinfo->FW_sta_info[mac_id].SupportedRates);
+		fw_sta = &pmlmeinfo->FW_sta_info[mac_id]; 
+		supportRateNum = rtw_get_rateset_len23a(fw_sta->SupportedRates);
 		networkType = judge_network_type23a(padapter,
-						 pmlmeinfo->FW_sta_info[mac_id].SupportedRates,
-						 supportRateNum) & 0xf;
+						    fw_sta->SupportedRates,
+						    supportRateNum) & 0xf;
 		/* pmlmeext->cur_wireless_mode = networkType; */
 		raid = networktype_to_raid23a(networkType);
 
 		mask = update_supported_rate23a(cur_network->SupportedRates,
-					     supportRateNum);
+						supportRateNum);
 
 		/* todo: support HT in IBSS */
 		break;
@@ -1277,15 +1277,14 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		  __func__, mac_id, networkType, mask, rssi_level, rate_bitmap);
 
 	mask &= rate_bitmap;
-	mask |= ((raid<<28)&0xf0000000);
+	mask |= ((raid << 28) & 0xf0000000);
 
-	init_rate = get_highest_rate_idx23a(mask)&0x3f;
+	init_rate = get_highest_rate_idx23a(mask) & 0x3f;
 
 	if (pHalData->fw_ractrl == true) {
 		u8 arg = 0;
 
-		/* arg = (cam_idx-4)&0x1f;MACID */
-		arg = mac_id&0x1f;/* MACID */
+		arg = mac_id & 0x1f;/* MACID */
 
 		arg |= BIT(7);
 
@@ -1300,7 +1299,7 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		if (shortGIrate == true)
 			init_rate |= BIT(6);
 
-		rtl8723au_write8(padapter, (REG_INIDATA_RATE_SEL+mac_id),
+		rtl8723au_write8(padapter, (REG_INIDATA_RATE_SEL + mac_id),
 				 init_rate);
 	}
 
