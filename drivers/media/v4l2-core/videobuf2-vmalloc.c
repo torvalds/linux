@@ -154,8 +154,7 @@ static void vb2_vmalloc_put_userptr(void *buf_priv)
 		}
 		kfree(buf->pages);
 	} else {
-		if (buf->vma)
-			vb2_put_vma(buf->vma);
+		vb2_put_vma(buf->vma);
 		iounmap(buf->vaddr);
 	}
 	kfree(buf);
