@@ -28,7 +28,6 @@
 
 #define MAX_RECVBUF_SZ			15360 /*  15k < 16k */
 
-#define RECV_BULK_IN_ADDR		0x80
 #define RECV_INT_IN_ADDR		0x81
 
 #define PHY_RSSI_SLID_WIN_MAX		100
