@@ -115,6 +115,7 @@ iface_add(struct rb_root *root, const char **iface)
 #define IP_SET_HASH_WITH_NETS
 #define IP_SET_HASH_WITH_RBTREE
 #define IP_SET_HASH_WITH_MULTI
+#define IP_SET_HASH_WITH_NET0
 
 #define STREQ(a, b)	(strcmp(a, b) == 0)
 

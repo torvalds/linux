@@ -156,7 +156,7 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 
 #define SET_HOST_MASK(family)	(family == AF_INET ? 32 : 128)
 
-#ifdef IP_SET_HASH_WITH_MULTI
+#ifdef IP_SET_HASH_WITH_NET0
 #define NLEN(family)		(SET_HOST_MASK(family) + 1)
 #else
 #define NLEN(family)		SET_HOST_MASK(family)
