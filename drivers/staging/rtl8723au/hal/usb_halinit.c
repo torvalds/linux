@@ -960,9 +960,9 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 		}
 		precvbuf++;
 	}
-	if (rtl8723au_read_interrupt(Adapter, RECV_INT_IN_ADDR) == _FAIL) {
+	if (rtl8723au_read_interrupt(Adapter) == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-			 ("usb_rx_init: usb_read_interrupt error\n"));
+			 ("%s: usb_read_interrupt error\n", __func__));
 		status = _FAIL;
 	}
 	pHalData->IntrMask[0] = rtl8723au_read32(Adapter, REG_USB_HIMR);

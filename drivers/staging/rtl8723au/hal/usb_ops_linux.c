@@ -317,7 +317,7 @@ urb_submit:
 	}
 }
 
-int rtl8723au_read_interrupt(struct rtw_adapter *adapter, u32 addr)
+int rtl8723au_read_interrupt(struct rtw_adapter *adapter)
 {
 	int err;
 	unsigned int pipe;
