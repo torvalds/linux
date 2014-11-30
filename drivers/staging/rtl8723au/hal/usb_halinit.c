@@ -84,8 +84,6 @@ void rtl8723au_chip_configure(struct rtw_adapter *padapter)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 
-	pHalData->interfaceIndex = pdvobjpriv->InterfaceNumber;
-
 	rtl8723au_set_queue_pipe_mapping(padapter,
 					 pdvobjpriv->RtNumInPipes,
 					 pdvobjpriv->RtNumOutPipes);
