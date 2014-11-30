@@ -1858,18 +1858,6 @@ u32 rtw_get_ff_hwaddr23a(struct xmit_frame *pxmitframe)
 	return addr;
 }
 
-static void do_queue_select(struct rtw_adapter	*padapter, struct pkt_attrib *pattrib)
-{
-	u8 qsel;
-
-	qsel = pattrib->priority;
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-		 ("### do_queue_select priority =%d , qsel = %d\n",
-		  pattrib->priority, qsel));
-
-	pattrib->qsel = qsel;
-}
-
 /*
  * The main transmit(tx) entry
  *
@@ -1901,7 +1889,7 @@ int rtw_xmit23a(struct rtw_adapter *padapter, struct sk_buff *skb)
 	}
 	pxmitframe->pkt = skb;
 
-	do_queue_select(padapter, &pxmitframe->attrib);
+	pxmitframe->attrib.qsel = pxmitframe->attrib.priority;
 
 #ifdef CONFIG_8723AU_AP_MODE
 	spin_lock_bh(&pxmitpriv->lock);

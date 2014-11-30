@@ -21,18 +21,6 @@
 /* include <rtl8192c_hal.h> */
 #include <rtl8723a_hal.h>
 
-static void do_queue_select(struct rtw_adapter	*padapter, struct pkt_attrib *pattrib)
-{
-	u8 qsel;
-
-	qsel = pattrib->priority;
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-		 ("### do_queue_select priority =%d , qsel = %d\n",
-		  pattrib->priority, qsel));
-
-	pattrib->qsel = qsel;
-}
-
 static int urb_zero_packet_chk(struct rtw_adapter *padapter, int sz)
 {
 	int blnSetTxDescOffset;
@@ -441,7 +429,7 @@ bool rtl8723au_hal_xmit(struct rtw_adapter *padapter,
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	do_queue_select(padapter, pattrib);
+	pattrib->qsel = pattrib->priority;
 	spin_lock_bh(&pxmitpriv->lock);
 
 #ifdef CONFIG_8723AU_AP_MODE
