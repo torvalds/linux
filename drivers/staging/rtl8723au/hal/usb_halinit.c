@@ -776,8 +776,10 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				int bRegSSPwrLvl)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	u8 value8;
+	u8 value8, sps0;
 	u8 bytetmp;
+
+	sps0 = rtl8723au_read8(Adapter, REG_SPS0_CTRL);
 
 	switch (eRFPowerState) {
 	case rf_on:
@@ -788,8 +790,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 
 			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
 			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
-					 rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
-					 BIT(0) | BIT(3));
+					 sps0 | BIT(0) | BIT(3));
 
 			/*  3. restore BB, AFE control register. */
 			/* RF */
@@ -832,8 +833,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 
 			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
 			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
-					 rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
-					 BIT(0) | BIT(3));
+					 sps0 | BIT(0) | BIT(3));
 
 			/*  3. restore BB, AFE control register. */
 			/* RF */
@@ -882,11 +882,10 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 		break;
 	case rf_sleep:
 	case rf_off:
-		value8 = rtl8723au_read8(Adapter, REG_SPS0_CTRL);
 		if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID))
-			value8 &= ~BIT(0);
+			sps0 &= ~BIT(0);
 		else
-			value8 &= ~(BIT(0) | BIT(3));
+			sps0 &= ~(BIT(0) | BIT(3));
 		if (bRegSSPwrLvl == 1) {
 			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL1\n"));
 			/*  Disable RF and BB only for SelectSuspend. */
@@ -936,7 +935,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 					     bRFRegOffsetMask, 0);
 
 			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL, value8);
+			rtl8723au_write8(Adapter, REG_SPS0_CTRL, sps0);
 		} else {	/*  Level 2 or others. */
 			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL2\n"));
 			{
@@ -1009,7 +1008,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 					     bRFRegOffsetMask, 0);
 
 			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL, value8);
+			rtl8723au_write8(Adapter, REG_SPS0_CTRL, sps0);
 
 			/*  2010/10/13 MH/Isaachsu exchange sequence. */
 			/* h.	AFE_PLL_CTRL 0x28[7:0] = 0x80
