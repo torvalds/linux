@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 
+struct device;
 struct file_operations;
 
 struct debugfs_blob_wrapper {
