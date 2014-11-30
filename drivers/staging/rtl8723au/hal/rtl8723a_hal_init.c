@@ -1369,12 +1369,6 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 	}
 }
 
-static void _ResetDigitalProcedure1(struct rtw_adapter *padapter,
-				    bool bWithoutHWSM)
-{
-	_ResetDigitalProcedure1_92C(padapter, bWithoutHWSM);
-}
-
 static void _ResetDigitalProcedure2(struct rtw_adapter *padapter)
 {
 /*****************************
@@ -1448,7 +1442,7 @@ int CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
 	_DisableRFAFEAndResetBB8192C(padapter);
 
 	/*   ==== Reset digital sequence   ====== */
-	_ResetDigitalProcedure1(padapter, false);
+	_ResetDigitalProcedure1_92C(padapter, false);
 
 	/*   ==== Pull GPIO PIN to balance level and LED control ====== */
 	_DisableGPIO(padapter);
@@ -1473,7 +1467,7 @@ int CardDisableWithoutHWSM(struct rtw_adapter *padapter)
 	_DisableRFAFEAndResetBB8192C(padapter);
 
 	/*   ==== Reset digital sequence   ====== */
-	_ResetDigitalProcedure1(padapter, true);
+	_ResetDigitalProcedure1_92C(padapter, true);
 
 	/*   ==== Pull GPIO PIN to balance level and LED control ====== */
 	_DisableGPIO(padapter);
