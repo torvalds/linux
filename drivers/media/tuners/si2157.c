@@ -157,7 +157,7 @@ static int si2157_init(struct dvb_frontend *fe)
 		dev_err(&s->client->dev, "firmware file '%s' is invalid\n",
 				fw_file);
 		ret = -EINVAL;
-		goto err;
+		goto fw_release_exit;
 	}
 
 	dev_info(&s->client->dev, "downloading firmware from file '%s'\n",
@@ -173,7 +173,7 @@ static int si2157_init(struct dvb_frontend *fe)
 			dev_err(&s->client->dev,
 					"firmware download failed=%d\n",
 					ret);
-			goto err;
+			goto fw_release_exit;
 		}
 	}
 
@@ -195,9 +195,9 @@ warm:
 	s->active = true;
 	return 0;
 
-err:
+fw_release_exit:
 	release_firmware(fw);
-
+err:
 	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
