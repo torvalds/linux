@@ -391,20 +391,11 @@ static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
 	}
 }
 
-/*  Endianness before calling this API */
-static void ODM_PhyStatusQuery23a_92CSeries(struct dm_odm_t *pDM_Odm,
-					 struct phy_info *pPhyInfo,
-					 u8 *pPhyStatus,
-					 struct odm_packet_info *pPktinfo)
+void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct phy_info *pPhyInfo,
+			   u8 *pPhyStatus, struct odm_packet_info *pPktinfo)
 {
 	odm_RxPhyStatus92CSeries_Parsing(pDM_Odm, pPhyInfo,
 					 pPhyStatus, pPktinfo);
 
 	odm_Process_RSSIForDM(pDM_Odm, pPhyInfo, pPktinfo);
-}
-
-void ODM_PhyStatusQuery23a(struct dm_odm_t *pDM_Odm, struct phy_info *pPhyInfo,
-			   u8 *pPhyStatus, struct odm_packet_info *pPktinfo)
-{
-	ODM_PhyStatusQuery23a_92CSeries(pDM_Odm, pPhyInfo, pPhyStatus, pPktinfo);
 }
