@@ -1014,6 +1014,14 @@ module_param_named(edid_fixup, edid_fixup, int, 0400);
 MODULE_PARM_DESC(edid_fixup,
 		 "Minimum number of valid EDID header bytes (0-8, default 6)");
 
+static bool drm_edid_is_zero(const u8 *in_edid, int length)
+{
+	if (memchr_inv(in_edid, 0, length))
+		return false;
+
+	return true;
+}
+
 /**
  * drm_edid_block_valid - Sanity check the EDID block (base or extension)
  * @raw_edid: pointer to raw EDID block
@@ -1174,14 +1182,6 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 	} while (ret != xfers && --retries);
 
 	return ret == xfers ? 0 : -1;
-}
-
-static bool drm_edid_is_zero(u8 *in_edid, int length)
-{
-	if (memchr_inv(in_edid, 0, length))
-		return false;
-
-	return true;
 }
 
 static u8 *
