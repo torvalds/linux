@@ -298,7 +298,7 @@ static void _InitNormalChipThreeOutEpPriority(struct rtw_adapter *Adapter)
 	_InitNormalChipRegPriority(Adapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
 }
 
-static void _InitNormalChipQueuePriority(struct rtw_adapter *Adapter)
+static void _InitQueuePriority(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 
@@ -316,11 +316,6 @@ static void _InitNormalChipQueuePriority(struct rtw_adapter *Adapter)
 		/* RT_ASSERT(false, ("Shall not reach here!\n")); */
 		break;
 	}
-}
-
-static void _InitQueuePriority(struct rtw_adapter *Adapter)
-{
-	_InitNormalChipQueuePriority(Adapter);
 }
 
 static void _InitTransferPageSize(struct rtw_adapter *Adapter)
