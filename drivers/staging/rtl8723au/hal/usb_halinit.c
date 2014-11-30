@@ -60,33 +60,22 @@ _ConfigChipOutEP(struct rtw_adapter *pAdapter, u8 NumOutPipe)
 	   (u32)NumOutPipe, (u32)pHalData->OutEpNumber)); */
 }
 
-static bool rtl8723au_set_queue_pipe_mapping(struct rtw_adapter *pAdapter,
-					     u8 NumInPipe, u8 NumOutPipe)
+bool rtl8723au_chip_configure(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
-	bool result = false;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	u8 NumInPipe = pdvobjpriv->RtNumInPipes;
+	u8 NumOutPipe = pdvobjpriv->RtNumOutPipes;
 
-	_ConfigChipOutEP(pAdapter, NumOutPipe);
+	_ConfigChipOutEP(padapter, NumOutPipe);
 
 	/*  Normal chip with one IN and one OUT doesn't have interrupt IN EP. */
 	if (pHalData->OutEpNumber == 1) {
 		if (NumInPipe != 1)
-			return result;
+			return false;
 	}
 
-	result = Hal_MappingOutPipe23a(pAdapter, NumOutPipe);
-
-	return result;
-}
-
-void rtl8723au_chip_configure(struct rtw_adapter *padapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
-
-	rtl8723au_set_queue_pipe_mapping(padapter,
-					 pdvobjpriv->RtNumInPipes,
-					 pdvobjpriv->RtNumOutPipes);
+	return Hal_MappingOutPipe23a(padapter, NumOutPipe);
 }
 
 static int _InitPowerOn(struct rtw_adapter *padapter)
