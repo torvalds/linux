@@ -196,7 +196,6 @@ enum {
 void rtw_sctx_init23a(struct submit_ctx *sctx, int timeout_ms);
 int rtw_sctx_wait23a(struct submit_ctx *sctx);
 void rtw23a_sctx_done_err(struct submit_ctx **sctx, int status);
-void rtw_sctx_done23a(struct submit_ctx **sctx);
 
 struct xmit_buf {
 	struct list_head list, list2;
