@@ -3175,6 +3175,46 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 
 {
 	/*
+	 * ZOOM R16/24 in audio interface mode.
+	 * Mixer descriptors are garbage, further quirks will be needed
+	 * to make any of it functional, thus disabled for now.
+	 * Playback stream appears to start and run fine but no sound
+	 * is produced, so also disabled for now.
+	 */
+	USB_DEVICE(0x1686, 0x00dd),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				/* Mixer */
+				.ifnum = 0,
+				.type = QUIRK_IGNORE_INTERFACE,
+			},
+			{
+				/* Playback  */
+				.ifnum = 1,
+				.type = QUIRK_IGNORE_INTERFACE,
+			},
+			{
+				/* Capture */
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE,
+			},
+			{
+				/* Midi */
+				.ifnum = 3,
+				.type = QUIRK_MIDI_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			},
+		}
+	}
+},
+
+{
+	/*
 	 * Some USB MIDI devices don't have an audio control interface,
 	 * so we have to grab MIDI streaming interfaces here.
 	 */

@@ -1207,6 +1207,14 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 			break;
 		}
 	}
+
+	/* Zoom R16/24 needs a tiny delay here, otherwise requests like
+	 * get/set frequency return as failed despite actually succeeding.
+	 */
+	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x1686) &&
+	    (le16_to_cpu(dev->descriptor.idProduct) == 0x00dd) &&
+	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+		mdelay(1);
 }
 
 /*
