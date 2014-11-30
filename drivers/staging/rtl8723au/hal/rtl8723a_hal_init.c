@@ -1385,8 +1385,8 @@ m.	SYS_ISO_CTRL 0x01[7:0] = 0x83		isolated ELDR to PON
 static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	u16 value16 = 0;
-	u8 value8 = 0;
+	u16 value16;
+	u8 value8;
 
 	if (bWithoutHWSM) {
 	/*****************************
@@ -1400,7 +1400,7 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		/* rtl8723au_write8(padapter, REG_LDOV12D_CTRL, 0x54); */
 
 		value8 = rtl8723au_read8(padapter, REG_LDOV12D_CTRL);
-		value8 &= (~LDV12_EN);
+		value8 &= ~LDV12_EN;
 		rtl8723au_write8(padapter, REG_LDOV12D_CTRL, value8);
 /*		RT_TRACE(COMP_INIT, DBG_LOUD,
 		(" REG_LDOV12D_CTRL Reg0x21:0x%02x.\n", value8)); */
@@ -1422,9 +1422,9 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		    use HW to shut down 8051 automatically. */
 		/*  Becasue suspend operatione need the asistance of 8051
 		    to wait for 3ms. */
-		value16 |= (APDM_HOST | AFSM_HSUS | PFM_ALDN);
+		value16 = APDM_HOST | AFSM_HSUS | PFM_ALDN;
 	} else {
-		value16 |= (APDM_HOST | AFSM_HSUS | PFM_ALDN);
+		value16 = APDM_HOST | AFSM_HSUS | PFM_ALDN;
 	}
 
 	rtl8723au_write16(padapter, REG_APS_FSMCO, value16);	/* 0x4802 */
