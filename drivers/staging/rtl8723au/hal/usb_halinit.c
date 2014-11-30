@@ -80,9 +80,8 @@ bool rtl8723au_chip_configure(struct rtw_adapter *padapter)
 
 static int _InitPowerOn(struct rtw_adapter *padapter)
 {
-	int status = _SUCCESS;
-	u16 value16 = 0;
-	u8 value8 = 0;
+	u16 value16;
+	u8 value8;
 
 	/*  RSV_CTRL 0x1C[7:0] = 0x00
 	    unlock ISO/CLK/Power control register */
@@ -109,7 +108,7 @@ static int _InitPowerOn(struct rtw_adapter *padapter)
 	/* for Efuse PG, suggest by Jackie 2011.11.23 */
 	PHY_SetBBReg(padapter, REG_EFUSE_CTRL, BIT(28)|BIT(29)|BIT(30), 0x06);
 
-	return status;
+	return _SUCCESS;
 }
 
 /*  Shall USB interface init this? */
