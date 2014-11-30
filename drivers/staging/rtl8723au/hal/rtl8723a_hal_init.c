@@ -1487,22 +1487,20 @@ void Hal_InitPGData(struct rtw_adapter *padapter, u8 *PROMContent)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
-	if (false == pEEPROM->bautoload_fail_flag) {	/*  autoload OK. */
+	if (!pEEPROM->bautoload_fail_flag) {	/*  autoload OK. */
 		if (!pEEPROM->EepromOrEfuse) {
 			/*  Read EFUSE real map to shadow. */
 			EFUSE_ShadowMapUpdate23a(padapter, EFUSE_WIFI);
-			memcpy((void *)PROMContent,
-			       (void *)pEEPROM->efuse_eeprom_data,
+			memcpy(PROMContent, pEEPROM->efuse_eeprom_data,
 			       HWSET_MAX_SIZE);
 		}
-	} else {		/* autoload fail */
+	} else {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
 			 ("AutoLoad Fail reported from CR9346!!\n"));
-/*		pHalData->AutoloadFailFlag = true; */
 		/* update to default value 0xFF */
-		if (false == pEEPROM->EepromOrEfuse)
+		if (!pEEPROM->EepromOrEfuse)
 			EFUSE_ShadowMapUpdate23a(padapter, EFUSE_WIFI);
-		memcpy((void *)PROMContent, (void *)pEEPROM->efuse_eeprom_data,
+		memcpy(PROMContent, pEEPROM->efuse_eeprom_data,
 		       HWSET_MAX_SIZE);
 	}
 }
