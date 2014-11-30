@@ -32,7 +32,6 @@ r8723au-y :=				\
 		hal/rtl8723a_rf6052.o	\
 		hal/rtl8723a_rxdesc.o	\
 		hal/rtl8723a_sreset.o	\
-		hal/rtl8723a_xmit.o	\
 		hal/rtl8723au_recv.o	\
 		hal/rtl8723au_xmit.o	\
 		hal/usb_halinit.o	\

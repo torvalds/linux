@@ -379,7 +379,6 @@ void xmit_delivery_enabled_frames23a(struct rtw_adapter *padapter,
 u8	qos_acm23a(u8 acm_mask, u8 priority);
 u32	rtw_get_ff_hwaddr23a(struct xmit_frame	*pxmitframe);
 int rtw_ack_tx_wait23a(struct xmit_priv *pxmitpriv, u32 timeout_ms);
-void rtw_ack_tx_done23a(struct xmit_priv *pxmitpriv, int status);
 
 /* include after declaring struct xmit_buf, in order to avoid warning */
 #include <xmit_osdep.h>

@@ -1048,6 +1048,21 @@ exit:
 	return ret;
 }
 
+void handle_txrpt_ccx_8723a(struct rtw_adapter *adapter, void *buf)
+{
+	struct txrpt_ccx_8723a *txrpt_ccx = buf;
+	struct submit_ctx *pack_tx_ops = &adapter->xmitpriv.ack_tx_ops;
+
+	if (txrpt_ccx->int_ccx && adapter->xmitpriv.ack_tx) {
+		if (txrpt_ccx->pkt_ok)
+			rtw23a_sctx_done_err(&pack_tx_ops,
+					     RTW_SCTX_DONE_SUCCESS);
+		else
+			rtw23a_sctx_done_err(&pack_tx_ops,
+					     RTW_SCTX_DONE_CCX_PKT_FAIL);
+	}
+}
+
 void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)
 {
 	u8 val;
