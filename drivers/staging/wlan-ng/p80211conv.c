@@ -511,7 +511,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 * protocol.
 *
 * Arguments:
-*	proto	protocl number (in host order) to search for.
+*	proto	protocol number (in host order) to search for.
 *
 * Returns:
 *	1 - if the table is empty or a match is found.

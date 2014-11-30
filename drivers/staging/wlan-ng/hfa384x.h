@@ -1268,7 +1268,7 @@ typedef struct hfa384x {
 	hfa384x_downloadbuffer_t bufinfo;
 	u16 dltimeout;
 
-	int scanflag;		/* to signal scan comlete */
+	int scanflag;		/* to signal scan complete */
 	int join_ap;		/* are we joined to a specific ap */
 	int join_retries;	/* number of join retries till we fail */
 	hfa384x_JoinRequest_data_t joinreq;	/* join request saved data */
