@@ -2419,6 +2419,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 
 	imask = sky2_read32(hw, B0_IMSK);
 	sky2_write32(hw, B0_IMSK, 0);
+	sky2_read32(hw, B0_IMSK);
 
 	dev->trans_start = jiffies;	/* prevent tx timeout */
 	napi_disable(&hw->napi);
@@ -3487,8 +3488,8 @@ static void sky2_all_down(struct sky2_hw *hw)
 	int i;
 
 	if (hw->flags & SKY2_HW_IRQ_SETUP) {
-		sky2_read32(hw, B0_IMSK);
 		sky2_write32(hw, B0_IMSK, 0);
+		sky2_read32(hw, B0_IMSK);
 
 		synchronize_irq(hw->pdev->irq);
 		napi_disable(&hw->napi);
