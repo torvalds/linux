@@ -101,9 +101,9 @@ static int bcm7120_l2_intc_init_one(struct device_node *dn,
 	int parent_irq;
 
 	parent_irq = irq_of_parse_and_map(dn, irq);
-	if (parent_irq < 0) {
+	if (!parent_irq) {
 		pr_err("failed to map interrupt %d\n", irq);
-		return parent_irq;
+		return -EINVAL;
 	}
 
 	data->irq_map_mask |= be32_to_cpup(map_mask + irq);
