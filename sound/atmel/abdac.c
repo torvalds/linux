@@ -185,11 +185,10 @@ static int atmel_abdac_open(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, &dac->constraints_rates);
 }
 
-static int atmel_abdac_close(struct snd_pcm_substream *substream)
+static void atmel_abdac_close(struct snd_pcm_substream *substream)
 {
 	struct atmel_abdac *dac = snd_pcm_substream_chip(substream);
 	dac->substream = NULL;
-	return 0;
 }
 
 static int atmel_abdac_hw_params(struct snd_pcm_substream *substream,
@@ -470,7 +469,8 @@ static int atmel_abdac_probe(struct platform_device *pdev)
 		goto out_unmap_regs;
 	}
 
-	if (pdata->dws.dma_dev) {
+	if (pdata->dws.dma_dev) 
+	{
 		dma_cap_mask_t mask;
 
 		dma_cap_zero(mask);
@@ -501,13 +501,17 @@ static int atmel_abdac_probe(struct platform_device *pdev)
 	sprintf(card->longname, "Atmel Audio Bitstream DAC");
 
 	retval = atmel_abdac_pcm_new(dac);
-	if (retval) {
+
+	if (retval) 
+	{
 		dev_dbg(&pdev->dev, "could not register ABDAC pcm device\n");
 		goto out_release_dma;
 	}
 
 	retval = snd_card_register(card);
-	if (retval) {
+
+	if (retval) 
+	{
 		dev_dbg(&pdev->dev, "could not register sound card\n");
 		goto out_release_dma;
 	}
@@ -535,7 +539,7 @@ out_put_pclk:
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int atmel_abdac_suspend(struct device *pdev)
+static void atmel_abdac_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_abdac *dac = card->private_data;
@@ -543,11 +547,9 @@ static int atmel_abdac_suspend(struct device *pdev)
 	dw_dma_cyclic_stop(dac->dma.chan);
 	clk_disable(dac->sample_clk);
 	clk_disable(dac->pclk);
-
-	return 0;
 }
 
-static int atmel_abdac_resume(struct device *pdev)
+static void atmel_abdac_resume(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_abdac *dac = card->private_data;
@@ -556,8 +558,6 @@ static int atmel_abdac_resume(struct device *pdev)
 	clk_enable(dac->sample_clk);
 	if (test_bit(DMA_READY, &dac->flags))
 		dw_dma_cyclic_start(dac->dma.chan);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(atmel_abdac_pm, atmel_abdac_suspend, atmel_abdac_resume);
@@ -566,7 +566,7 @@ static SIMPLE_DEV_PM_OPS(atmel_abdac_pm, atmel_abdac_suspend, atmel_abdac_resume
 #define ATMEL_ABDAC_PM_OPS	NULL
 #endif
 
-static int atmel_abdac_remove(struct platform_device *pdev)
+static void atmel_abdac_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 	struct atmel_abdac *dac = get_dac(card);
@@ -580,8 +580,6 @@ static int atmel_abdac_remove(struct platform_device *pdev)
 	iounmap(dac->regs);
 	free_irq(dac->irq, dac);
 	snd_card_free(card);
-
-	return 0;
 }
 
 static struct platform_driver atmel_abdac_driver = {
