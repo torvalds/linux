@@ -402,8 +402,6 @@ struct hal_data_8723a {
 	 *  2011/02/23 MH Add for 8723 mylti function definition. The define should be moved to an */
 	/*  independent file in the future. */
 
-	bool				bMACFuncEnable;
-
 	/*  Interrupt related register information. */
 	u32	IntArray[2];
 	u32	IntrMask[2];

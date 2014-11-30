@@ -500,12 +500,13 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 
 int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 {
-	u8 val8 = 0;
-	u32 boundary;
-	int status = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
+	u8 val8 = 0;
+	u32 boundary;
+	int status = _SUCCESS;
+	bool mac_on;
 
 	unsigned long init_start_time = jiffies;
 
@@ -535,9 +536,9 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/* 0x100 value of first mac is 0xEA while 0x100 value of secondary
 	   is 0x00 */
 	if (val8 == 0xEA) {
-		pHalData->bMACFuncEnable = false;
+		mac_on = false;
 	} else {
-		pHalData->bMACFuncEnable = true;
+		mac_on = true;
 		RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
 			 ("%s: MAC has already power on\n", __func__));
 	}
@@ -556,7 +557,7 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 		boundary = WMM_NORMAL_TX_PAGE_BOUNDARY;
 	}
 
-	if (!pHalData->bMACFuncEnable) {
+	if (!mac_on) {
 		status =  InitLLTTable23a(Adapter, boundary);
 		if (status == _FAIL) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
@@ -642,7 +643,7 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)0, RF_CHNLBW, bRFRegOffsetMask);
 	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)1, RF_CHNLBW, bRFRegOffsetMask);
 
-	if (!pHalData->bMACFuncEnable) {
+	if (!mac_on) {
 		_InitQueueReservedPage(Adapter);
 		_InitTxBufferBoundary(Adapter);
 	}
