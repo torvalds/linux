@@ -1,4 +1,4 @@
 language: c
 compiler:
     - gcc
-script: make M=make M=arch/mn10300/kernel/
+script: make M=arch/mn10300/kernel/
