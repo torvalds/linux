@@ -26,8 +26,7 @@
 #include <usb_ops.h>
 
 static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
-				enum rt_rf_power_state eRFPowerState,
-				int bRegSSPwrLvl);
+				enum rt_rf_power_state eRFPowerState);
 
 static void
 _ConfigChipOutEP(struct rtw_adapter *pAdapter, u8 NumOutPipe)
@@ -513,9 +512,7 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	Adapter->hw_init_completed = false;
 
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
-		/* here call with bRegSSPwrLvl 1, bRegSSPwrLvl 2
-		   needs to be verified */
-		phy_SsPwrSwitch92CU(Adapter, rf_on, 1);
+		phy_SsPwrSwitch92CU(Adapter, rf_on);
 
 		if (pHalData->bIQKInitialized) {
 			rtl8723a_phy_iq_calibrate(Adapter, true);
@@ -776,112 +773,50 @@ exit:
 }
 
 static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
-				enum rt_rf_power_state eRFPowerState,
-				int bRegSSPwrLvl)
+				enum rt_rf_power_state eRFPowerState)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	u8 value8, sps0;
-	u8 bytetmp;
+	u8 sps0;
 
 	sps0 = rtl8723au_read8(Adapter, REG_SPS0_CTRL);
 
 	switch (eRFPowerState) {
 	case rf_on:
-		if (bRegSSPwrLvl == 1) {
-			/*  1. Enable MAC Clock. Can not be enabled now. */
-			/* WriteXBYTE(REG_SYS_CLKR+1,
-			   ReadXBYTE(REG_SYS_CLKR+1) | BIT(3)); */
+		/*  1. Enable MAC Clock. Can not be enabled now. */
+		/* WriteXBYTE(REG_SYS_CLKR+1,
+		   ReadXBYTE(REG_SYS_CLKR+1) | BIT(3)); */
 
-			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
-					 sps0 | BIT(0) | BIT(3));
+		/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
+		rtl8723au_write8(Adapter, REG_SPS0_CTRL,
+				 sps0 | BIT(0) | BIT(3));
 
-			/*  3. restore BB, AFE control register. */
-			/* RF */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 1);
-			else
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 1);
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
+		/*  3. restore BB, AFE control register. */
+		/* RF */
+		if (pHalData->rf_type ==  RF_2T2R)
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
+				     0x380038, 1);
+		else
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
+				     0x38, 1);
+		PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
+		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
 
-			/* AFE */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x63DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x631B25A0);
+		/* AFE */
+		if (pHalData->rf_type ==  RF_2T2R)
+			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
+				     0x63DB25A0);
+		else if (pHalData->rf_type ==  RF_1T1R)
+			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
+				     0x631B25A0);
 
-			/*  4. issue 3-wire command that RF set to Rx idle
-			    mode. This is used to re-write the RX idle mode. */
-			/*  We can only prvide a usual value instead and then
-			    HW will modify the value by itself. */
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0,
+		/*  4. issue 3-wire command that RF set to Rx idle
+		    mode. This is used to re-write the RX idle mode. */
+		/*  We can only prvide a usual value instead and then
+		    HW will modify the value by itself. */
+		PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0x32D95);
+		if (pHalData->rf_type ==  RF_2T2R) {
+			PHY_SetRFReg(Adapter, RF_PATH_B, 0,
 				     bRFRegOffsetMask, 0x32D95);
-			if (pHalData->rf_type ==  RF_2T2R) {
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0x32D95);
-			}
-		} else {		/*  Level 2 or others. */
-			/* h.	AFE_PLL_CTRL 0x28[7:0] = 0x80
-			   disable AFE PLL */
-			rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, 0x81);
-
-			/*  i.	AFE_XTAL_CTRL 0x24[15:0] = 0x880F
-			    gated AFE DIG_CLOCK */
-			rtl8723au_write16(Adapter, REG_AFE_XTAL_CTRL, 0x800F);
-			mdelay(1);
-
-			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
-					 sps0 | BIT(0) | BIT(3));
-
-			/*  3. restore BB, AFE control register. */
-			/* RF */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 1);
-			else
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 1);
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
-
-			/* AFE */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA,
-					     bMaskDWord, 0x63DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA,
-					     bMaskDWord, 0x631B25A0);
-
-			/*  4. issue 3-wire command that RF set to Rx idle
-			    mode. This is used to re-write the RX idle mode. */
-			/*  We can only prvide a usual value instead and
-			    then HW will modify the value by itself. */
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0,
-				     bRFRegOffsetMask, 0x32D95);
-			if (pHalData->rf_type ==  RF_2T2R) {
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0x32D95);
-			}
-
-			/*  5. gated MAC Clock */
-			bytetmp = rtl8723au_read8(Adapter, REG_APSD_CTRL);
-			rtl8723au_write8(Adapter, REG_APSD_CTRL,
-					 bytetmp & ~BIT(6));
-
-			mdelay(10);
-
-			/*  Set BB reset at first */
-			/* 0x16 */
-			rtl8723au_write8(Adapter, REG_SYS_FUNC_EN, 0x17);
-
-			/*  Enable TX */
-			rtl8723au_write8(Adapter, REG_TXPAUSE, 0x0);
 		}
 		break;
 	case rf_sleep:
@@ -890,146 +825,57 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 			sps0 &= ~BIT(0);
 		else
 			sps0 &= ~(BIT(0) | BIT(3));
-		if (bRegSSPwrLvl == 1) {
-			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL1\n"));
-			/*  Disable RF and BB only for SelectSuspend. */
 
-			/*  1. Set BB/RF to shutdown. */
-			/*	(1) Reg878[5:3]= 0	 RF rx_code for
-							preamble power saving */
-			/*	(2)Reg878[21:19]= 0	Turn off RF-B */
-			/*	(3) RegC04[7:4]= 0	Turn off all paths
-							for packet detection */
-			/*	(4) Reg800[1] = 1	enable preamble power
-							saving */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF0] =
-				PHY_QueryBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF1] =
-				PHY_QueryBBReg(Adapter, rOFDM0_TRxPathEnable,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
-				PHY_QueryBBReg(Adapter, rFPGA0_RFMOD,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R) {
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 0);
-			} else if (pHalData->rf_type ==  RF_1T1R) {
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 0);
-			}
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
+		RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL1\n"));
+		/*  Disable RF and BB only for SelectSuspend. */
 
-			/*  2 .AFE control register to power down. bit[30:22] */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
-				PHY_QueryBBReg(Adapter, rRx_Wait_CCA,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x00DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x001B25A0);
-
-			/*  3. issue 3-wire command that RF set to power down.*/
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0);
-
-			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL, sps0);
-		} else {	/*  Level 2 or others. */
-			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL2\n"));
-			{
-				u8 eRFPath = RF_PATH_A, value8 = 0;
-				rtl8723au_write8(Adapter, REG_TXPAUSE, 0xFF);
-				PHY_SetRFReg(Adapter,
-					     (enum RF_RADIO_PATH)eRFPath,
-					     0x0, bMaskByte0, 0x0);
-				value8 |= APSDOFF;
-				/* 0x40 */
-				rtl8723au_write8(Adapter, REG_APSD_CTRL,
-						 value8);
-
-				/*  After switch APSD, we need to delay
-				    for stability */
-				mdelay(10);
-
-				/*  Set BB reset at first */
-				value8 = 0;
-				value8 |= (FEN_USBD | FEN_USBA |
-					   FEN_BB_GLB_RSTn);
-				/* 0x16 */
-				rtl8723au_write8(Adapter, REG_SYS_FUNC_EN,
-						 value8);
-			}
-
-			/*  Disable RF and BB only for SelectSuspend. */
-
-			/*  1. Set BB/RF to shutdown. */
-			/*	(1) Reg878[5:3]= 0	RF rx_code for
-							preamble power saving */
-			/*	(2)Reg878[21:19]= 0	Turn off RF-B */
-			/*	(3) RegC04[7:4]= 0	Turn off all paths for
-							packet detection */
-			/*	(4) Reg800[1] = 1	enable preamble power
-							saving */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF0] =
-				PHY_QueryBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF1] =
-				PHY_QueryBBReg(Adapter, rOFDM0_TRxPathEnable,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
-				PHY_QueryBBReg(Adapter, rFPGA0_RFMOD,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 0);
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
-
-			/*  2 .AFE control register to power down. bit[30:22] */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
-				PHY_QueryBBReg(Adapter, rRx_Wait_CCA,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x00DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x001B25A0);
-
-			/* 3. issue 3-wire command that RF set to power down. */
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0);
-
-			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL, sps0);
-
-			/*  2010/10/13 MH/Isaachsu exchange sequence. */
-			/* h.	AFE_PLL_CTRL 0x28[7:0] = 0x80
-				disable AFE PLL */
-			rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, 0x80);
-			mdelay(1);
-
-			/*  i.	AFE_XTAL_CTRL 0x24[15:0] = 0x880F
-				gated AFE DIG_CLOCK */
-			rtl8723au_write16(Adapter, REG_AFE_XTAL_CTRL, 0xA80F);
+		/*  1. Set BB/RF to shutdown. */
+		/*	(1) Reg878[5:3]= 0	RF rx_code for
+						preamble power saving */
+		/*	(2)Reg878[21:19]= 0	Turn off RF-B */
+		/*	(3) RegC04[7:4]= 0	Turn off all paths
+						for packet detection */
+		/*	(4) Reg800[1] = 1	enable preamble power saving */
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF0] =
+			PHY_QueryBBReg(Adapter, rFPGA0_XAB_RFParameter,
+				       bMaskDWord);
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF1] =
+			PHY_QueryBBReg(Adapter, rOFDM0_TRxPathEnable,
+				       bMaskDWord);
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
+			PHY_QueryBBReg(Adapter, rFPGA0_RFMOD, bMaskDWord);
+		if (pHalData->rf_type ==  RF_2T2R) {
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
+				     0x380038, 0);
+		} else if (pHalData->rf_type ==  RF_1T1R) {
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, 0x38, 0);
 		}
+		PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
+		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
+
+		/*  2 .AFE control register to power down. bit[30:22] */
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
+			PHY_QueryBBReg(Adapter, rRx_Wait_CCA, bMaskDWord);
+		if (pHalData->rf_type ==  RF_2T2R)
+			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
+				     0x00DB25A0);
+		else if (pHalData->rf_type ==  RF_1T1R)
+			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
+				     0x001B25A0);
+
+		/*  3. issue 3-wire command that RF set to power down.*/
+		PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0);
+		if (pHalData->rf_type ==  RF_2T2R)
+			PHY_SetRFReg(Adapter, RF_PATH_B, 0,
+				     bRFRegOffsetMask, 0);
+
+		/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
+		rtl8723au_write8(Adapter, REG_SPS0_CTRL, sps0);
 		break;
 	default:
 		break;
 	}
-
-}	/*  phy_PowerSwitch92CU */
+}
 
 static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
 {
