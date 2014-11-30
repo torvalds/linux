@@ -1014,6 +1014,16 @@ module_param_named(edid_fixup, edid_fixup, int, 0400);
 MODULE_PARM_DESC(edid_fixup,
 		 "Minimum number of valid EDID header bytes (0-8, default 6)");
 
+static int drm_edid_block_checksum(const u8 *raw_edid)
+{
+	int i;
+	u8 csum = 0;
+	for (i = 0; i < EDID_LENGTH; i++)
+		csum += raw_edid[i];
+
+	return csum;
+}
+
 static bool drm_edid_is_zero(const u8 *in_edid, int length)
 {
 	if (memchr_inv(in_edid, 0, length))
@@ -1035,8 +1045,7 @@ static bool drm_edid_is_zero(const u8 *in_edid, int length)
  */
 bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 {
-	int i;
-	u8 csum = 0;
+	u8 csum;
 	struct edid *edid = (struct edid *)raw_edid;
 
 	if (WARN_ON(!raw_edid))
@@ -1056,8 +1065,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 		}
 	}
 
-	for (i = 0; i < EDID_LENGTH; i++)
-		csum += raw_edid[i];
+	csum = drm_edid_block_checksum(raw_edid);
 	if (csum) {
 		if (print_bad_edid) {
 			DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
