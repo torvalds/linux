@@ -1088,9 +1088,13 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 
 bad:
 	if (print_bad_edid) {
-		printk(KERN_ERR "Raw EDID:\n");
-		print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
+		if (drm_edid_is_zero(raw_edid, EDID_LENGTH)) {
+			printk(KERN_ERR "EDID block is all zeroes\n");
+		} else {
+			printk(KERN_ERR "Raw EDID:\n");
+			print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
 			       raw_edid, EDID_LENGTH, false);
+		}
 	}
 	return false;
 }
