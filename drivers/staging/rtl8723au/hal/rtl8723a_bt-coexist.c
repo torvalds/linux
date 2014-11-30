@@ -10639,7 +10639,7 @@ void BTDM_BBBackOffLevel(struct rtw_adapter *padapter, u8 type)
 
 void BTDM_FWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_FWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bFWCoexistAllOff)
@@ -10653,7 +10653,7 @@ void BTDM_FWCoexAllOff(struct rtw_adapter *padapter)
 
 void BTDM_SWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_SWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bSWCoexistAllOff)
@@ -10666,7 +10666,7 @@ void BTDM_SWCoexAllOff(struct rtw_adapter *padapter)
 
 void BTDM_HWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_HWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bHWCoexistAllOff)
