@@ -994,6 +994,9 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 		clear_bit(STATUS_RFKILL, &trans->status);
 	if (hw_rfkill != was_hw_rfkill)
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+
+	/* re-take ownership to prevent other users from stealing the deivce */
+	iwl_pcie_prepare_card_hw(trans);
 }
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state)
