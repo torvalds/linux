@@ -199,7 +199,7 @@ static int prism2sta_close(wlandevice_t *wlandev)
 /*----------------------------------------------------------------
 * prism2sta_reset
 *
-* Not currently implented.
+* Currently not implemented.
 *
 * Arguments:
 *	wlandev		wlan device structure
