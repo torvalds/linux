@@ -1289,18 +1289,18 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 	i.     SYS_FUNC_EN 0x02[10]= 1		enable MCU register,
 						(8051 enable)
 	******************************/
-		u16 valu16 = 0;
+		u16 valu16;
 		rtl8723au_write8(padapter, REG_MCUFWDL, 0);
 
 		valu16 = rtl8723au_read16(padapter, REG_SYS_FUNC_EN);
 		/* reset MCU , 8051 */
 		rtl8723au_write16(padapter, REG_SYS_FUNC_EN,
-				  valu16 & (~FEN_CPUEN));
+				  valu16 & ~FEN_CPUEN);
 
 		valu16 = rtl8723au_read16(padapter, REG_SYS_FUNC_EN) & 0x0FFF;
 		/* reset MAC */
 		rtl8723au_write16(padapter, REG_SYS_FUNC_EN,
-				  valu16 | (FEN_HWPDN | FEN_ELDR));
+				  valu16 | FEN_HWPDN | FEN_ELDR);
 
 		valu16 = rtl8723au_read16(padapter, REG_SYS_FUNC_EN);
 		/* enable MCU , 8051 */
@@ -1308,43 +1308,41 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 				  valu16 | FEN_CPUEN);
 	} else {
 		u8 retry_cnts = 0;
+		u8 val8;
+
+		val8 = rtl8723au_read8(padapter, REG_MCUFWDL);
 
 		/*  2010/08/12 MH For USB SS, we can not stop 8051 when we
 		    are trying to enter IPS/HW&SW radio off. For
 		    S3/S4/S5/Disable, we can stop 8051 because */
 		/*  we will init FW when power on again. */
 		/*  If we want to SS mode, we can not reset 8051. */
-		if (rtl8723au_read8(padapter, REG_MCUFWDL) & BIT(1)) {
+		if ((val8 & BIT(1)) && padapter->bFWReady) {
 			/* IF fw in RAM code, do reset */
-			if (padapter->bFWReady) {
-				/*  2010/08/25 MH Accordign to RD alfred's
-				    suggestion, we need to disable other */
-				/*  HRCV INT to influence 8051 reset. */
-				rtl8723au_write8(padapter, REG_FWIMR, 0x20);
-				/*  2011/02/15 MH According to Alex's
-				    suggestion, close mask to prevent
-				    incorrect FW write operation. */
-				rtl8723au_write8(padapter, REG_FTIMR, 0x00);
-				rtl8723au_write8(padapter, REG_FSIMR, 0x00);
+			/*  2010/08/25 MH Accordign to RD alfred's
+			    suggestion, we need to disable other */
+			/*  HRCV INT to influence 8051 reset. */
+			rtl8723au_write8(padapter, REG_FWIMR, 0x20);
+			/*  2011/02/15 MH According to Alex's
+			    suggestion, close mask to prevent
+			    incorrect FW write operation. */
+			rtl8723au_write8(padapter, REG_FTIMR, 0x00);
+			rtl8723au_write8(padapter, REG_FSIMR, 0x00);
 
-				/* 8051 reset by self */
-				rtl8723au_write8(padapter, REG_HMETFR + 3,
-						 0x20);
+			/* 8051 reset by self */
+			rtl8723au_write8(padapter, REG_HMETFR + 3, 0x20);
 
-				while ((retry_cnts++ < 100) &&
-				       (FEN_CPUEN &
-					rtl8723au_read16(padapter,
-							 REG_SYS_FUNC_EN))) {
-					udelay(50);	/* us */
-				}
+			while ((retry_cnts++ < 100) &&
+			       (rtl8723au_read16(padapter, REG_SYS_FUNC_EN) &
+				FEN_CPUEN)) {
+				udelay(50);	/* us */
+			}
 
-				if (retry_cnts >= 100) {
-					/* Reset MAC and Enable 8051 */
-					rtl8723au_write8(padapter,
-							 REG_SYS_FUNC_EN + 1,
-							 0x50);
-					mdelay(10);
-				}
+			if (retry_cnts >= 100) {
+				/* Reset MAC and Enable 8051 */
+				rtl8723au_write8(padapter,
+						 REG_SYS_FUNC_EN + 1, 0x50);
+				mdelay(10);
 			}
 		}
 		/* Reset MAC and Enable 8051 */
