@@ -60,7 +60,7 @@ struct mdc_renew_capa_args {
 
 static int mdc_cleanup(struct obd_device *obd);
 
-int mdc_unpack_capa(struct obd_export *exp, struct ptlrpc_request *req,
+static int mdc_unpack_capa(struct obd_export *exp, struct ptlrpc_request *req,
 		    const struct req_msg_field *field, struct obd_capa **oc)
 {
 	struct lustre_capa *capa;
@@ -147,7 +147,7 @@ out:
 }
 
 /* This should be mdc_get_info("rootfid") */
-int mdc_getstatus(struct obd_export *exp, struct lu_fid *rootfid,
+static int mdc_getstatus(struct obd_export *exp, struct lu_fid *rootfid,
 		  struct obd_capa **pc)
 {
 	return send_getstatus(class_exp2cliimp(exp), rootfid, pc,
@@ -214,7 +214,7 @@ static int mdc_getattr_common(struct obd_export *exp,
 	return 0;
 }
 
-int mdc_getattr(struct obd_export *exp, struct md_op_data *op_data,
+static int mdc_getattr(struct obd_export *exp, struct md_op_data *op_data,
 		struct ptlrpc_request **request)
 {
 	struct ptlrpc_request *req;
@@ -258,7 +258,7 @@ int mdc_getattr(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
-int mdc_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
+static int mdc_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 		     struct ptlrpc_request **request)
 {
 	struct ptlrpc_request *req;
@@ -441,7 +441,7 @@ static int mdc_xattr_common(struct obd_export *exp,
 	return rc;
 }
 
-int mdc_setxattr(struct obd_export *exp, const struct lu_fid *fid,
+static int mdc_setxattr(struct obd_export *exp, const struct lu_fid *fid,
 		 struct obd_capa *oc, u64 valid, const char *xattr_name,
 		 const char *input, int input_size, int output_size,
 		 int flags, __u32 suppgid, struct ptlrpc_request **request)
@@ -452,7 +452,7 @@ int mdc_setxattr(struct obd_export *exp, const struct lu_fid *fid,
 				suppgid, request);
 }
 
-int mdc_getxattr(struct obd_export *exp, const struct lu_fid *fid,
+static int mdc_getxattr(struct obd_export *exp, const struct lu_fid *fid,
 		 struct obd_capa *oc, u64 valid, const char *xattr_name,
 		 const char *input, int input_size, int output_size,
 		 int flags, struct ptlrpc_request **request)
