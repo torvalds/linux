@@ -121,7 +121,7 @@ static int snd_virmidi_probe(struct platform_device *devptr)
 	sprintf(card->longname, "Virtual MIDI Card %i", dev + 1);
 
 	err = snd_card_register(card);
-	if (err) {
+	if (!err) {
 		platform_set_drvdata(devptr, card);
 		return 0;
 	}
