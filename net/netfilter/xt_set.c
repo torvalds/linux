@@ -157,7 +157,7 @@ set_match_v1_destroy(const struct xt_mtdtor_param *par)
 /* Revision 3 match */
 
 static bool
-match_counter(u64 counter, const struct ip_set_counter_match *info)
+match_counter0(u64 counter, const struct ip_set_counter_match0 *info)
 {
 	switch (info->op) {
 	case IPSET_COUNTER_NONE:
@@ -192,13 +192,59 @@ set_match_v3(const struct sk_buff *skb, struct xt_action_param *par)
 	if (!(ret && opt.cmdflags & IPSET_FLAG_MATCH_COUNTERS))
 		return ret;
 
+	if (!match_counter0(opt.ext.packets, &info->packets))
+		return 0;
+	return match_counter0(opt.ext.bytes, &info->bytes);
+}
+
+#define set_match_v3_checkentry	set_match_v1_checkentry
+#define set_match_v3_destroy	set_match_v1_destroy
+
+/* Revision 4 match */
+
+static bool
+match_counter(u64 counter, const struct ip_set_counter_match *info)
+{
+	switch (info->op) {
+	case IPSET_COUNTER_NONE:
+		return true;
+	case IPSET_COUNTER_EQ:
+		return counter == info->value;
+	case IPSET_COUNTER_NE:
+		return counter != info->value;
+	case IPSET_COUNTER_LT:
+		return counter < info->value;
+	case IPSET_COUNTER_GT:
+		return counter > info->value;
+	}
+	return false;
+}
+
+static bool
+set_match_v4(const struct sk_buff *skb, struct xt_action_param *par)
+{
+	const struct xt_set_info_match_v4 *info = par->matchinfo;
+	ADT_OPT(opt, par->family, info->match_set.dim,
+		info->match_set.flags, info->flags, UINT_MAX);
+	int ret;
+
+	if (info->packets.op != IPSET_COUNTER_NONE ||
+	    info->bytes.op != IPSET_COUNTER_NONE)
+		opt.cmdflags |= IPSET_FLAG_MATCH_COUNTERS;
+
+	ret = match_set(info->match_set.index, skb, par, &opt,
+			info->match_set.flags & IPSET_INV_MATCH);
+
+	if (!(ret && opt.cmdflags & IPSET_FLAG_MATCH_COUNTERS))
+		return ret;
+
 	if (!match_counter(opt.ext.packets, &info->packets))
 		return 0;
 	return match_counter(opt.ext.bytes, &info->bytes);
 }
 
-#define set_match_v3_checkentry	set_match_v1_checkentry
-#define set_match_v3_destroy	set_match_v1_destroy
+#define set_match_v4_checkentry	set_match_v1_checkentry
+#define set_match_v4_destroy	set_match_v1_destroy
 
 /* Revision 0 interface: backward compatible with netfilter/iptables */
 
@@ -571,6 +617,27 @@ static struct xt_match set_matches[] __read_mostly = {
 		.matchsize	= sizeof(struct xt_set_info_match_v3),
 		.checkentry	= set_match_v3_checkentry,
 		.destroy	= set_match_v3_destroy,
+		.me		= THIS_MODULE
+	},
+	/* new revision for counters support: update, match */
+	{
+		.name		= "set",
+		.family		= NFPROTO_IPV4,
+		.revision	= 4,
+		.match		= set_match_v4,
+		.matchsize	= sizeof(struct xt_set_info_match_v4),
+		.checkentry	= set_match_v4_checkentry,
+		.destroy	= set_match_v4_destroy,
+		.me		= THIS_MODULE
+	},
+	{
+		.name		= "set",
+		.family		= NFPROTO_IPV6,
+		.revision	= 4,
+		.match		= set_match_v4,
+		.matchsize	= sizeof(struct xt_set_info_match_v4),
+		.checkentry	= set_match_v4_checkentry,
+		.destroy	= set_match_v4_destroy,
 		.me		= THIS_MODULE
 	},
 };
