@@ -253,6 +253,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 				clkout_name, clk_name, 0, 1, reg);
 		if (IS_ERR(clk_wzrd->clkout[i])) {
 			int j;
+
 			for (j = i + 1; j < WZRD_NUM_OUTPUTS; j++)
 				clk_unregister(clk_wzrd->clkout[j]);
 			dev_err(&pdev->dev,
