@@ -5589,12 +5589,8 @@ shift_extent:
 	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
 
 	got.br_startoff = startoff;
-	error = xfs_bmbt_update(cur, got.br_startoff, got.br_startblock,
+	return xfs_bmbt_update(cur, got.br_startoff, got.br_startblock,
 				got.br_blockcount, got.br_state);
-	if (error)
-		return error;
-
-	return 0;
 
 out_error:
 	return error;
