@@ -188,12 +188,6 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	 */
 	plat->maxmtu = JUMBO_LEN;
 
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
 	/*
 	 * Currently only the properties needed on SPEAr600
 	 * are provided. All other properties should be added
@@ -281,6 +275,13 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		return PTR_ERR(addr);
 
 	plat_dat = dev_get_platdata(&pdev->dev);
+
+	/* Set default value for multicast hash bins */
+	plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat_dat->unicast_filter_entries = 1;
+
 	if (pdev->dev.of_node) {
 		if (!plat_dat)
 			plat_dat = devm_kzalloc(&pdev->dev,

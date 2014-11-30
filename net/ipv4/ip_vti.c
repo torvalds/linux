@@ -528,6 +528,7 @@ static struct rtnl_link_ops vti_link_ops __read_mostly = {
 	.validate	= vti_tunnel_validate,
 	.newlink	= vti_newlink,
 	.changelink	= vti_changelink,
+	.dellink        = ip_tunnel_dellink,
 	.get_size	= vti_get_size,
 	.fill_info	= vti_fill_info,
 };

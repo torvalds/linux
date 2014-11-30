@@ -1422,7 +1422,7 @@ static inline long __strnlen_user(const char __user *s, long n)
 }
 
 /*
- * strlen_user: - Get the size of a string in user space.
+ * strnlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
  *
  * Context: User context only.	This function may sleep.
@@ -1431,9 +1431,7 @@ static inline long __strnlen_user(const char __user *s, long n)
  *
  * Returns the size of the string INCLUDING the terminating NUL.
  * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
+ * If the string is too long, returns a value greater than @n.
  */
 static inline long strnlen_user(const char __user *s, long n)
 {
