@@ -2977,10 +2977,7 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 	struct smiapp_platform_data *pdata;
 	struct v4l2_of_endpoint bus_cfg;
 	struct device_node *ep;
-	struct property *prop;
-	__be32 *val;
 	uint32_t asize;
-	unsigned int i;
 	int rval;
 
 	if (!dev->of_node)
@@ -3042,23 +3039,12 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 	}
 
 	asize /= sizeof(*pdata->op_sys_clock);
-	/*
-	 * Read a 64-bit array --- this will be replaced with a
-	 * of_property_read_u64_array() once it's merged.
-	 */
-	prop = of_find_property(dev->of_node, "link-frequencies", NULL);
-	if (!prop)
+	rval = of_property_read_u64_array(
+		dev->of_node, "link-frequencies", pdata->op_sys_clock, asize);
+	if (rval) {
+		dev_warn(dev, "can't get link-frequencies\n");
 		goto out_err;
-	if (!prop->value)
-		goto out_err;
-	if (asize * sizeof(*pdata->op_sys_clock) > prop->length)
-		goto out_err;
-	val = prop->value;
-	if (IS_ERR(val))
-		goto out_err;
-
-	for (i = 0; i < asize; i++)
-		pdata->op_sys_clock[i] = of_read_number(val + i * 2, 2);
+	}
 
 	for (; asize > 0; asize--)
 		dev_dbg(dev, "freq %d: %lld\n", asize - 1,
