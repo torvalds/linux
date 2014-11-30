@@ -1276,11 +1276,6 @@ e.	SYS_FUNC_EN 0x02[7:0] = 0x14		reset BB state machine
 /*	RT_TRACE(COMP_INIT, DBG_LOUD, ("======> RF off and reset BB.\n")); */
 }
 
-static void _DisableRFAFEAndResetBB(struct rtw_adapter *padapter)
-{
-	_DisableRFAFEAndResetBB8192C(padapter);
-}
-
 static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 					bool bWithoutHWSM)
 {
@@ -1452,7 +1447,7 @@ int CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
 		return _SUCCESS;
 	}
 	/*  RF Off Sequence ==== */
-	_DisableRFAFEAndResetBB(padapter);
+	_DisableRFAFEAndResetBB8192C(padapter);
 
 	/*   ==== Reset digital sequence   ====== */
 	_ResetDigitalProcedure1(padapter, false);
@@ -1477,7 +1472,7 @@ int CardDisableWithoutHWSM(struct rtw_adapter *padapter)
 	}
 
 	/*  RF Off Sequence ==== */
-	_DisableRFAFEAndResetBB(padapter);
+	_DisableRFAFEAndResetBB8192C(padapter);
 
 	/*   ==== Reset digital sequence   ====== */
 	_ResetDigitalProcedure1(padapter, true);
