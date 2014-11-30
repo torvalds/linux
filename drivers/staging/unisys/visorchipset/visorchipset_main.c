@@ -1940,7 +1940,6 @@ static HOSTADDRESS controlvm_get_channel_address(void)
 static void
 controlvm_periodic_work(struct work_struct *work)
 {
-	struct visorchipset_channel_info chanInfo;
 	struct controlvm_message inmsg;
 	BOOL gotACommand = FALSE;
 	BOOL handle_command_failed = FALSE;
@@ -1954,8 +1953,6 @@ controlvm_periodic_work(struct work_struct *work)
 	 */
 	if (visorchipset_clientregwait && !clientregistered)
 		goto Away;
-
-	memset(&chanInfo, 0, sizeof(struct visorchipset_channel_info));
 
 	Poll_Count++;
 	if (Poll_Count >= 250)
