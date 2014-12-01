@@ -3,9 +3,11 @@ obj- := dummy.o
 
 # List of programs to build
 hostprogs-y := test_verifier test_maps
+hostprogs-y += sock_example
 
 test_verifier-objs := test_verifier.o libbpf.o
 test_maps-objs := test_maps.o libbpf.o
+sock_example-objs := sock_example.o libbpf.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
