@@ -98,12 +98,9 @@ static int poseidon_fm_open(struct file *filp)
 
 	usb_autopm_get_interface(p->interface);
 	if (0 == p->state) {
-		struct video_device *vfd = &p->radio_data.fm_dev;
-
 		/* default pre-emphasis */
 		if (p->radio_data.pre_emphasis == 0)
 			p->radio_data.pre_emphasis = TLG_TUNE_ASTD_FM_EUR;
-		set_debug_mode(vfd, debug_mode);
 
 		ret = poseidon_check_mode_radio(p);
 		if (ret < 0) {

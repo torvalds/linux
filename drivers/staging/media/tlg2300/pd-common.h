@@ -250,7 +250,6 @@ void free_all_urb_generic(struct urb **urb_array, int num);
 /* misc */
 void poseidon_delete(struct kref *kref);
 extern int debug_mode;
-void set_debug_mode(struct video_device *vfd, int debug_mode);
 
 #ifdef CONFIG_PM
 #define in_hibernation(pd) (pd->msg.event == PM_EVENT_FREEZE)

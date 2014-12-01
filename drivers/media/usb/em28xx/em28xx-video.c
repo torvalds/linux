@@ -2192,7 +2192,6 @@ static struct video_device
 
 	*vfd		= *template;
 	vfd->v4l2_dev	= &dev->v4l2->v4l2_dev;
-	vfd->debug	= video_debug;
 	vfd->lock	= &dev->lock;
 	if (dev->board.is_webcam)
 		vfd->tvnorms = 0;

@@ -1299,15 +1299,6 @@ static int pm_video_resume(struct poseidon *pd)
 }
 #endif
 
-void set_debug_mode(struct video_device *vfd, int debug_mode)
-{
-	vfd->debug = 0;
-	if (debug_mode & 0x1)
-		vfd->debug = V4L2_DEBUG_IOCTL;
-	if (debug_mode & 0x2)
-		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
-}
-
 static void init_video_context(struct running_context *context)
 {
 	context->sig_index	= 0;
@@ -1354,7 +1345,6 @@ static int pd_video_open(struct file *file)
 
 		front->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		pd->video_data.users++;
-		set_debug_mode(vfd, debug_mode);
 
 		videobuf_queue_vmalloc_init(&front->q, &pd_video_qops,
 				NULL, &front->queue_lock,
