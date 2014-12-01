@@ -836,7 +836,6 @@ static unsigned int features[] = {
 	VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE,
 	VIRTIO_BLK_F_TOPOLOGY,
 	VIRTIO_BLK_F_MQ,
-	VIRTIO_F_VERSION_1,
 };
 
 static struct virtio_driver virtio_blk = {
