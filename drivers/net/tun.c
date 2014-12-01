@@ -1362,7 +1362,10 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 		return 0;
 
 	ret = tun_put_user(tun, tfile, skb, to);
-	kfree_skb(skb);
+	if (unlikely(ret < 0))
+		kfree_skb(skb);
+	else
+		consume_skb(skb);
 
 	return ret;
 }
