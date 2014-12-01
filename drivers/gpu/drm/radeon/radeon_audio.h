@@ -43,6 +43,8 @@ struct radeon_audio_funcs
 {
 	void (*write_sad_regs)(struct drm_encoder *encoder,
 		struct cea_sad *sads, int sad_count);
+	void (*write_speaker_allocation)(struct drm_encoder *encoder,
+		u8 *sadb, int sad_count);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -53,5 +55,6 @@ u32 radeon_audio_endpoint_rreg(struct radeon_device *rdev,
 void radeon_audio_endpoint_wreg(struct radeon_device *rdev,
 	u32 offset,	u32 reg, u32 v);
 void radeon_audio_write_sad_regs(struct drm_encoder *encoder);
+void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder);
 
 #endif

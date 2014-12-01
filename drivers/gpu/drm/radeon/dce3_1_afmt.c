@@ -27,35 +27,14 @@
 #include "radeon_audio.h"
 #include "r600d.h"
 
-static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
+void dce3_2_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
+	u8 *sadb, int sad_count)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
 	u32 tmp;
-	u8 *sadb = NULL;
-	int sad_count;
-
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
-		return;
-	}
-
-	sad_count = drm_edid_to_speaker_allocation(radeon_connector->edid, &sadb);
-	if (sad_count < 0) {
-		DRM_DEBUG("Couldn't read Speaker Allocation Data Block: %d\n", sad_count);
-		sad_count = 0;
-	}
 
 	/* program the speaker allocation */
-	tmp = RREG32(AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER);
+	tmp = RREG32_ENDPOINT(0, AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER);
 	tmp &= ~(DP_CONNECTION | SPEAKER_ALLOCATION_MASK);
 	/* set HDMI mode */
 	tmp |= HDMI_CONNECTION;
@@ -63,9 +42,25 @@ static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 		tmp |= SPEAKER_ALLOCATION(sadb[0]);
 	else
 		tmp |= SPEAKER_ALLOCATION(5); /* stereo */
-	WREG32(AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER, tmp);
+	WREG32_ENDPOINT(0, AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER, tmp);
+}
 
-	kfree(sadb);
+void dce3_2_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
+	u8 *sadb, int sad_count)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	u32 tmp;
+
+	/* program the speaker allocation */
+	tmp = RREG32_ENDPOINT(0, AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER);
+	tmp &= ~(HDMI_CONNECTION | SPEAKER_ALLOCATION_MASK);
+	/* set DP mode */
+	tmp |= DP_CONNECTION;
+	if (sad_count)
+		tmp |= SPEAKER_ALLOCATION(sadb[0]);
+	else
+		tmp |= SPEAKER_ALLOCATION(5); /* stereo */
+	WREG32_ENDPOINT(0, AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER, tmp);
 }
 
 void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder,
@@ -167,7 +162,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	}
 
 	if (ASIC_IS_DCE32(rdev)) {
-		dce3_2_afmt_write_speaker_allocation(encoder);
+		radeon_audio_write_speaker_allocation(encoder);
 		radeon_audio_write_sad_regs(encoder);
 	}
 

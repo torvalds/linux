@@ -144,39 +144,18 @@ void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
 	WREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_RESPONSE_LIPSYNC, tmp);
 }
 
-void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
+void dce6_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
+	u8 *sadb, int sad_count)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
 	u32 offset, tmp;
-	u8 *sadb = NULL;
-	int sad_count;
 
 	if (!dig || !dig->afmt || !dig->afmt->pin)
 		return;
 
 	offset = dig->afmt->pin->offset;
-
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
-		return;
-	}
-
-	sad_count = drm_edid_to_speaker_allocation(radeon_connector_edid(connector), &sadb);
-	if (sad_count < 0) {
-		DRM_DEBUG("Couldn't read Speaker Allocation Data Block: %d\n", sad_count);
-		sad_count = 0;
-	}
 
 	/* program the speaker allocation */
 	tmp = RREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER);
@@ -188,8 +167,31 @@ void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	else
 		tmp |= SPEAKER_ALLOCATION(5); /* stereo */
 	WREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER, tmp);
+}
 
-	kfree(sadb);
+void dce6_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
+	u8 *sadb, int sad_count)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	u32 offset, tmp;
+
+	if (!dig || !dig->afmt || !dig->afmt->pin)
+		return;
+
+	offset = dig->afmt->pin->offset;
+
+	/* program the speaker allocation */
+	tmp = RREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER);
+	tmp &= ~(HDMI_CONNECTION | SPEAKER_ALLOCATION_MASK);
+	/* set DP mode */
+	tmp |= DP_CONNECTION;
+	if (sad_count)
+		tmp |= SPEAKER_ALLOCATION(sadb[0]);
+	else
+		tmp |= SPEAKER_ALLOCATION(5); /* stereo */
+	WREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER, tmp);
 }
 
 void dce6_afmt_write_sad_regs(struct drm_encoder *encoder,

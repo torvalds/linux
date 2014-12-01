@@ -41,6 +41,18 @@ void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder,
 		struct cea_sad *sads, int sad_count);
 void dce6_afmt_write_sad_regs(struct drm_encoder *encoder,
 		struct cea_sad *sads, int sad_count);
+void dce3_2_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
+		u8 *sadb, int sad_count);
+void dce3_2_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
+		u8 *sadb, int sad_count);
+void dce4_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
+		u8 *sadb, int sad_count);
+void dce4_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
+		u8 *sadb, int sad_count);
+void dce6_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
+		u8 *sadb, int sad_count);
+void dce6_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
+		u8 *sadb, int sad_count);
 
 static const u32 pin_offsets[7] =
 {
@@ -81,26 +93,32 @@ static struct radeon_audio_basic_funcs dce6_funcs = {
 
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
 	.write_sad_regs = dce3_2_afmt_write_sad_regs,
+	.write_speaker_allocation = dce3_2_afmt_hdmi_write_speaker_allocation,
 };
 
 static struct radeon_audio_funcs dce32_dp_funcs = {
 	.write_sad_regs = dce3_2_afmt_write_sad_regs,
+	.write_speaker_allocation = dce3_2_afmt_dp_write_speaker_allocation,
 };
 
 static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.write_sad_regs = evergreen_hdmi_write_sad_regs,
+	.write_speaker_allocation = dce4_afmt_hdmi_write_speaker_allocation,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
 	.write_sad_regs = evergreen_hdmi_write_sad_regs,
+	.write_speaker_allocation = dce4_afmt_dp_write_speaker_allocation,
 };
 
 static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.write_sad_regs = dce6_afmt_write_sad_regs,
+	.write_speaker_allocation = dce6_afmt_hdmi_write_speaker_allocation,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
 	.write_sad_regs = dce6_afmt_write_sad_regs,
+	.write_speaker_allocation = dce6_afmt_dp_write_speaker_allocation,
 };
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -253,4 +271,39 @@ void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 		radeon_encoder->audio->write_sad_regs(encoder, sads, sad_count);
 
 	kfree(sads);
+}
+
+void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+    struct drm_connector *connector;
+    struct radeon_connector *radeon_connector = NULL;
+    u8 *sadb = NULL;
+    int sad_count;
+
+    list_for_each_entry(connector,
+		&encoder->dev->mode_config.connector_list, head) {
+        if (connector->encoder == encoder) {
+            radeon_connector = to_radeon_connector(connector);
+            break;
+        }
+    }
+
+    if (!radeon_connector) {
+        DRM_ERROR("Couldn't find encoder's connector\n");
+        return;
+    }
+
+    sad_count = drm_edid_to_speaker_allocation(
+		radeon_connector_edid(connector), &sadb);
+    if (sad_count < 0) {
+        DRM_DEBUG("Couldn't read Speaker Allocation Data Block: %d\n",
+			sad_count);
+        sad_count = 0;
+    }
+
+	if (radeon_encoder->audio && radeon_encoder->audio->write_speaker_allocation)
+		radeon_encoder->audio->write_speaker_allocation(encoder, sadb, sad_count);
+
+    kfree(sadb);
 }
