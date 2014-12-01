@@ -1804,16 +1804,6 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	/*
-	 * If a crashdump is active, then we are potentially in a very
-	 * memory constrained environment. Limit us to 1 queue and
-	 * 64 tags to prevent using too much memory.
-	 */
-	if (is_kdump_kernel()) {
-		set->nr_hw_queues = 1;
-		set->queue_depth = min(64U, set->queue_depth);
-	}
-
 	hctxs = kmalloc_node(set->nr_hw_queues * sizeof(*hctxs), GFP_KERNEL,
 			set->numa_node);
 
@@ -2068,6 +2058,16 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 		pr_info("blk-mq: reduced tag depth to %u\n",
 			BLK_MQ_MAX_DEPTH);
 		set->queue_depth = BLK_MQ_MAX_DEPTH;
+	}
+
+	/*
+	 * If a crashdump is active, then we are potentially in a very
+	 * memory constrained environment. Limit us to 1 queue and
+	 * 64 tags to prevent using too much memory.
+	 */
+	if (is_kdump_kernel()) {
+		set->nr_hw_queues = 1;
+		set->queue_depth = min(64U, set->queue_depth);
 	}
 
 	set->tags = kmalloc_node(set->nr_hw_queues *
