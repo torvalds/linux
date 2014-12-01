@@ -84,7 +84,7 @@ static void crtc_flush(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	uint32_t flush = 0;
 
-	for_each_plane_on_crtc(crtc, plane) {
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
 		flush |= pipe2flush(pipe_id);
 	}
@@ -197,7 +197,7 @@ static void setup_mixer(struct mdp4_kms *mdp4_kms)
 		struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 		struct drm_plane *plane;
 
-		for_each_plane_on_crtc(crtc, plane) {
+		drm_atomic_crtc_for_each_plane(plane, crtc) {
 			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
 			int idx = idxs[pipe_id];
 			mixer_cfg = mixercfg(mixer_cfg, mdp4_crtc->mixer,
@@ -221,7 +221,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH1(ovlp), 0);
 
-	for_each_plane_on_crtc(crtc, plane) {
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
 		int idx = idxs[pipe_id];
 		if (idx > 0) {

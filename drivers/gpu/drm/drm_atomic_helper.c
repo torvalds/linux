@@ -751,6 +751,33 @@ static void wait_for_fences(struct drm_device *dev,
 	}
 }
 
+static bool framebuffer_changed(struct drm_device *dev,
+				struct drm_atomic_state *old_state,
+				struct drm_crtc *crtc)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+	int nplanes = old_state->dev->mode_config.num_total_plane;
+	int i;
+
+	for (i = 0; i < nplanes; i++) {
+		plane = old_state->planes[i];
+		old_plane_state = old_state->plane_states[i];
+
+		if (!plane)
+			continue;
+
+		if (plane->state->crtc != crtc &&
+		    old_plane_state->crtc != crtc)
+			continue;
+
+		if (plane->state->fb != old_plane_state->fb)
+			return true;
+	}
+
+	return false;
+}
+
 /**
  * drm_atomic_helper_wait_for_vblanks - wait for vblank on crtcs
  * @dev: DRM device
@@ -758,7 +785,9 @@ static void wait_for_fences(struct drm_device *dev,
  *
  * Helper to, after atomic commit, wait for vblanks on all effected
  * crtcs (ie. before cleaning up old framebuffers using
- * drm_atomic_helper_cleanup_planes())
+ * drm_atomic_helper_cleanup_planes()). It will only wait on crtcs where the
+ * framebuffers have actually changed to optimize for the legacy cursor and
+ * plane update use-case.
  */
 void
 drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
@@ -782,6 +811,9 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		old_crtc_state->enable = false;
 
 		if (!crtc->state->enable)
+			continue;
+
+		if (!framebuffer_changed(dev, old_state, crtc))
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
@@ -1014,6 +1046,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	for (i = 0; i < nplanes; i++) {
 		struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = old_state->planes[i];
+		struct drm_plane_state *old_plane_state;
 
 		if (!plane)
 			continue;
@@ -1023,7 +1056,9 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_update)
 			continue;
 
-		funcs->atomic_update(plane);
+		old_plane_state = old_state->plane_states[i];
+
+		funcs->atomic_update(plane, old_plane_state);
 	}
 
 	for (i = 0; i < ncrtcs; i++) {
@@ -1187,7 +1222,7 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	ret = drm_atomic_set_crtc_for_plane(state, plane, crtc);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(plane_state, fb);
@@ -1243,6 +1278,17 @@ int drm_atomic_helper_disable_plane(struct drm_plane *plane)
 	struct drm_plane_state *plane_state;
 	int ret = 0;
 
+	/*
+	 * FIXME: Without plane->crtc set we can't get at the implicit legacy
+	 * acquire context. The real fix will be to wire the acquire ctx through
+	 * everywhere we need it, but meanwhile prevent chaos by just skipping
+	 * this noop. The critical case is the cursor ioctls which a) only grab
+	 * crtc/cursor-plane locks (so we need the crtc to get at the right
+	 * acquire context) and b) can try to disable the plane multiple times.
+	 */
+	if (!plane->crtc)
+		return 0;
+
 	state = drm_atomic_state_alloc(plane->dev);
 	if (!state)
 		return -ENOMEM;
@@ -1255,7 +1301,7 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+	ret = drm_atomic_set_crtc_for_plane(state, plane, NULL);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(plane_state, NULL);
@@ -1406,11 +1452,24 @@ retry:
 		goto fail;
 	}
 
+	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
+	if (IS_ERR(primary_state)) {
+		ret = PTR_ERR(primary_state);
+		goto fail;
+	}
+
 	if (!set->mode) {
 		WARN_ON(set->fb);
 		WARN_ON(set->num_connectors);
 
 		crtc_state->enable = false;
+
+		ret = drm_atomic_set_crtc_for_plane(state, crtc->primary, NULL);
+		if (ret != 0)
+			goto fail;
+
+		drm_atomic_set_fb_for_plane(primary_state, NULL);
+
 		goto commit;
 	}
 
@@ -1420,13 +1479,7 @@ retry:
 	crtc_state->enable = true;
 	drm_mode_copy(&crtc_state->mode, set->mode);
 
-	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
-	if (IS_ERR(primary_state)) {
-		ret = PTR_ERR(primary_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
+	ret = drm_atomic_set_crtc_for_plane(state, crtc->primary, crtc);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(primary_state, set->fb);
@@ -1698,7 +1751,7 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	ret = drm_atomic_set_crtc_for_plane(state, plane, crtc);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(plane_state, fb);

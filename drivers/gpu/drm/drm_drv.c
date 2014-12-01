@@ -535,6 +535,8 @@ static void drm_fs_inode_free(struct inode *inode)
  * The initial ref-count of the object is 1. Use drm_dev_ref() and
  * drm_dev_unref() to take and drop further ref-counts.
  *
+ * Note that for purely virtual devices @parent can be NULL.
+ *
  * RETURNS:
  * Pointer to new DRM device, or NULL if out of memory.
  */

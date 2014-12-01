@@ -809,7 +809,7 @@ struct drm_device {
 	struct drm_local_map *agp_buffer_map;
 	unsigned int agp_buffer_token;
 
-        struct drm_mode_config mode_config;	/**< Current mode config */
+	struct drm_mode_config mode_config;	/**< Current mode config */
 
 	/** \name GEM information */
 	/*@{ */
