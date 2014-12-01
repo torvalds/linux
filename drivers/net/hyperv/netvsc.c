@@ -764,6 +764,9 @@ int netvsc_send(struct hv_device *device,
 		out_channel = device->channel;
 	packet->channel = out_channel;
 
+	if (out_channel->rescind)
+		return -ENODEV;
+
 	if (packet->page_buf_cnt) {
 		ret = vmbus_sendpacket_pagebuffer(out_channel,
 						  packet->page_buf,
