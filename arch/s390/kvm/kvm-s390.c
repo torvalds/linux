@@ -1184,7 +1184,11 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		kvm->arch.gmap = NULL;
 		kvm->arch.mem_limit = KVM_S390_NO_MEM_LIMIT;
 	} else {
-		kvm->arch.mem_limit = TASK_MAX_SIZE;
+		if (sclp.hamax == U64_MAX)
+			kvm->arch.mem_limit = TASK_MAX_SIZE;
+		else
+			kvm->arch.mem_limit = min_t(unsigned long, TASK_MAX_SIZE,
+						    sclp.hamax + 1);
 		kvm->arch.gmap = gmap_alloc(current->mm, kvm->arch.mem_limit - 1);
 		if (!kvm->arch.gmap)
 			goto out_err;
