@@ -210,8 +210,6 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 	struct vring_rx_desc dd, *d = &dd;
 	volatile struct vring_rx_desc *_d = &vring->va[i].rx;
 	dma_addr_t pa;
-
-	/* TODO align */
 	struct sk_buff *skb = dev_alloc_skb(sz + headroom);
 
 	if (unlikely(!skb))
