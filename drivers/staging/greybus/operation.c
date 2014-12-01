@@ -377,7 +377,7 @@ gb_operation_create_common(struct gb_connection *connection, bool outgoing,
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
-	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t gfp_flags = outgoing ? GFP_KERNEL : GFP_ATOMIC;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
