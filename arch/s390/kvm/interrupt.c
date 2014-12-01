@@ -70,6 +70,26 @@ static int ckc_interrupts_enabled(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static int ckc_irq_pending(struct kvm_vcpu *vcpu)
+{
+	if (!(vcpu->arch.sie_block->ckc <
+	      get_tod_clock_fast() + vcpu->arch.sie_block->epoch))
+		return 0;
+	return ckc_interrupts_enabled(vcpu);
+}
+
+static int cpu_timer_interrupts_enabled(struct kvm_vcpu *vcpu)
+{
+	return !psw_extint_disabled(vcpu) &&
+	       (vcpu->arch.sie_block->gcr[0] & 0x400ul);
+}
+
+static int cpu_timer_irq_pending(struct kvm_vcpu *vcpu)
+{
+	return (vcpu->arch.sie_block->cputm >> 63) &&
+	       cpu_timer_interrupts_enabled(vcpu);
+}
+
 static inline int is_ioirq(unsigned long irq_type)
 {
 	return ((irq_type >= IRQ_PEND_IO_ISC_0) &&
@@ -809,12 +829,7 @@ int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop)
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	if (!(vcpu->arch.sie_block->ckc <
-	      get_tod_clock_fast() + vcpu->arch.sie_block->epoch))
-		return 0;
-	if (!ckc_interrupts_enabled(vcpu))
-		return 0;
-	return 1;
+	return ckc_irq_pending(vcpu) || cpu_timer_irq_pending(vcpu);
 }
 
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
@@ -918,8 +933,13 @@ int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 
 	/* pending ckc conditions might have been invalidated */
 	clear_bit(IRQ_PEND_EXT_CLOCK_COMP, &li->pending_irqs);
-	if (kvm_cpu_has_pending_timer(vcpu))
+	if (ckc_irq_pending(vcpu))
 		set_bit(IRQ_PEND_EXT_CLOCK_COMP, &li->pending_irqs);
+
+	/* pending cpu timer conditions might have been invalidated */
+	clear_bit(IRQ_PEND_EXT_CPU_TIMER, &li->pending_irqs);
+	if (cpu_timer_irq_pending(vcpu))
+		set_bit(IRQ_PEND_EXT_CPU_TIMER, &li->pending_irqs);
 
 	do {
 		irqs = deliverable_irqs(vcpu);
