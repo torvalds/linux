@@ -118,12 +118,13 @@ enum exynos4415_plls {
 	nr_plls,
 };
 
+static struct samsung_clk_provider *exynos4415_ctx;
+
 /*
  * Support for CMU save/restore across system suspends
  */
 #ifdef CONFIG_PM_SLEEP
 static struct samsung_clk_reg_dump *exynos4415_clk_regs;
-static struct samsung_clk_provider *exynos4415_ctx;
 
 static unsigned long exynos4415_cmu_clk_regs[] __initdata = {
 	SRC_LEFTBUS,
@@ -1031,9 +1032,10 @@ enum exynos4415_dmc_plls {
 	nr_dmc_plls,
 };
 
+static struct samsung_clk_provider *exynos4415_dmc_ctx;
+
 #ifdef CONFIG_PM_SLEEP
 static struct samsung_clk_reg_dump *exynos4415_dmc_clk_regs;
-static struct samsung_clk_provider *exynos4415_dmc_ctx;
 
 static unsigned long exynos4415_cmu_dmc_clk_regs[] __initdata = {
 	MPLL_LOCK,
