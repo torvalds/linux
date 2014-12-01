@@ -15,7 +15,7 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 		  const struct bpf_insn *insns, int insn_len,
 		  const char *license);
 
-#define LOG_BUF_SIZE 8192
+#define LOG_BUF_SIZE 65536
 extern char bpf_log_buf[LOG_BUF_SIZE];
 
 /* ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg */
