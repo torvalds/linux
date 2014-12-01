@@ -60,6 +60,14 @@
 		startup-delay-us = <100000>;
 		vin-supply = <&vcc_io>;
 	};
+
+	vsys: vsys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
 };
 
 &i2c1 {
@@ -72,8 +80,14 @@
 		interrupt-parent = <&gpio6>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 
+		vcc1-supply = <&vsys>;
+		vcc2-supply = <&vsys>;
+		vcc3-supply = <&vsys>;
+		vcc4-supply = <&vsys>;
 		vcc5-supply = <&vcc_io>;
 		vcc6-supply = <&vcc_io>;
+		vcc7-supply = <&vsys>;
+		vccio-supply = <&vsys>;
 
 		regulators {
 			vcc_rtc: regulator@0 {
