@@ -669,8 +669,8 @@ done:
  * Give out the data that's requested from the buffer that we have
  * queued up.
  */
-static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
-			    bool to_user)
+static ssize_t fill_readbuf(struct port *port, char __user *out_buf,
+			    size_t out_count, bool to_user)
 {
 	struct port_buffer *buf;
 	unsigned long flags;
@@ -688,7 +688,8 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 		if (ret)
 			return -EFAULT;
 	} else {
-		memcpy(out_buf, buf->buf + buf->offset, out_count);
+		memcpy((__force char *)out_buf, buf->buf + buf->offset,
+		       out_count);
 	}
 
 	buf->offset += out_count;
@@ -1162,7 +1163,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
 	/* If we don't have an input queue yet, we can't get input. */
 	BUG_ON(!port->in_vq);
 
-	return fill_readbuf(port, buf, count, false);
+	return fill_readbuf(port, (__force char __user *)buf, count, false);
 }
 
 static void resize_console(struct port *port)
