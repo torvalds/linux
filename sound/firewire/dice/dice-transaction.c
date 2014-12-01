@@ -31,7 +31,7 @@ static u64 get_subaddr(struct snd_dice *dice, enum snd_dice_addr_type type,
 	default:
 		offset += dice->global_offset;
 		break;
-	};
+	}
 	offset += DICE_PRIVATE_SPACE;
 	return offset;
 }
