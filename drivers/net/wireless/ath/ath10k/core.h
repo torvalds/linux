@@ -79,10 +79,12 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
+	u8 eid;
 	u8 vdev_id;
 
 	struct {
 		u8 tid;
+		u16 freq;
 		bool is_offchan;
 		struct ath10k_htt_txbuf *txbuf;
 		u32 txbuf_paddr;
@@ -122,6 +124,7 @@ struct ath10k_wmi {
 	struct completion service_ready;
 	struct completion unified_ready;
 	wait_queue_head_t tx_credits_wq;
+	DECLARE_BITMAP(svc_map, WMI_SERVICE_MAX);
 	struct wmi_cmd_map *cmd;
 	struct wmi_vdev_param_map *vdev_param;
 	struct wmi_pdev_param_map *pdev_param;
@@ -218,6 +221,8 @@ struct ath10k_peer {
 	int vdev_id;
 	u8 addr[ETH_ALEN];
 	DECLARE_BITMAP(peer_ids, ATH10K_MAX_NUM_PEER_IDS);
+
+	/* protected by ar->data_lock */
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
 };
 
@@ -310,7 +315,6 @@ struct ath10k_debug {
 	struct ath10k_fw_stats fw_stats;
 	struct completion fw_stats_complete;
 	bool fw_stats_done;
-	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_MAX);
 
 	unsigned long htt_stats_mask;
 	struct delayed_work htt_stats_dwork;
@@ -320,6 +324,7 @@ struct ath10k_debug {
 	/* protected by conf_mutex */
 	u32 fw_dbglog_mask;
 	u32 pktlog_filter;
+	u32 reg_addr;
 
 	u8 htt_max_amsdu;
 	u8 htt_max_ampdu;
@@ -560,8 +565,12 @@ struct ath10k {
 	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
 
-	/* number of created peers; protected by data_lock */
+	/* protected by conf_mutex */
 	int num_peers;
+	int num_stations;
+
+	int max_num_peers;
+	int max_num_stations;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;

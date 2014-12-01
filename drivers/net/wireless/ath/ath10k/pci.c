@@ -823,20 +823,24 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_hif_cb *cb = &ar_pci->msg_callbacks_current;
-	void *transfer_context;
+	struct sk_buff_head list;
+	struct sk_buff *skb;
 	u32 ce_data;
 	unsigned int nbytes;
 	unsigned int transfer_id;
 
-	while (ath10k_ce_completed_send_next(ce_state, &transfer_context,
-					     &ce_data, &nbytes,
-					     &transfer_id) == 0) {
+	__skb_queue_head_init(&list);
+	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb, &ce_data,
+					     &nbytes, &transfer_id) == 0) {
 		/* no need to call tx completion for NULL pointers */
-		if (transfer_context == NULL)
+		if (skb == NULL)
 			continue;
 
-		cb->tx_completion(ar, transfer_context, transfer_id);
+		__skb_queue_tail(&list, skb);
 	}
+
+	while ((skb = __skb_dequeue(&list)))
+		cb->tx_completion(ar, skb);
 }
 
 /* Called by lower (CE) layer when data is received from the Target. */
@@ -847,12 +851,14 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
 	struct ath10k_hif_cb *cb = &ar_pci->msg_callbacks_current;
 	struct sk_buff *skb;
+	struct sk_buff_head list;
 	void *transfer_context;
 	u32 ce_data;
 	unsigned int nbytes, max_nbytes;
 	unsigned int transfer_id;
 	unsigned int flags;
 
+	__skb_queue_head_init(&list);
 	while (ath10k_ce_completed_recv_next(ce_state, &transfer_context,
 					     &ce_data, &nbytes, &transfer_id,
 					     &flags) == 0) {
@@ -869,13 +875,16 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 		}
 
 		skb_put(skb, nbytes);
+		__skb_queue_tail(&list, skb);
+	}
 
+	while ((skb = __skb_dequeue(&list))) {
 		ath10k_dbg(ar, ATH10K_DBG_PCI, "pci rx ce pipe %d len %d\n",
 			   ce_state->id, skb->len);
 		ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci rx: ",
 				skb->data, skb->len);
 
-		cb->rx_completion(ar, skb, pipe_info->pipe_num);
+		cb->rx_completion(ar, skb);
 	}
 
 	ath10k_pci_rx_post_pipe(pipe_info);
@@ -1263,7 +1272,7 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 		id = MS(__le16_to_cpu(ce_desc[i].flags),
 			CE_DESC_FLAGS_META_DATA);
 
-		ar_pci->msg_callbacks_current.tx_completion(ar, skb, id);
+		ar_pci->msg_callbacks_current.tx_completion(ar, skb);
 	}
 }
 
@@ -1988,6 +1997,7 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.tx_sg			= ath10k_pci_hif_tx_sg,
 	.diag_read		= ath10k_pci_hif_diag_read,
+	.diag_write		= ath10k_pci_diag_write_mem,
 	.exchange_bmi_msg	= ath10k_pci_hif_exchange_bmi_msg,
 	.start			= ath10k_pci_hif_start,
 	.stop			= ath10k_pci_hif_stop,
@@ -1998,6 +2008,8 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.get_free_queue_number	= ath10k_pci_hif_get_free_queue_number,
 	.power_up		= ath10k_pci_hif_power_up,
 	.power_down		= ath10k_pci_hif_power_down,
+	.read32			= ath10k_pci_read32,
+	.write32		= ath10k_pci_write32,
 #ifdef CONFIG_PM
 	.suspend		= ath10k_pci_hif_suspend,
 	.resume			= ath10k_pci_hif_resume,

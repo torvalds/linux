@@ -799,6 +799,17 @@ static void ath10k_core_restart(struct work_struct *work)
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static void ath10k_core_init_max_sta_count(struct ath10k *ar)
+{
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+		ar->max_num_peers = TARGET_10X_NUM_PEERS;
+		ar->max_num_stations = TARGET_10X_NUM_STATIONS;
+	} else {
+		ar->max_num_peers = TARGET_NUM_PEERS;
+		ar->max_num_stations = TARGET_NUM_STATIONS;
+	}
+}
+
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 {
 	int status;
@@ -1034,6 +1045,8 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		ath10k_hif_power_down(ar);
 		return ret;
 	}
+
+	ath10k_core_init_max_sta_count(ar);
 
 	mutex_lock(&ar->conf_mutex);
 
