@@ -213,18 +213,18 @@
 
 #define	CG_FDO_CTRL0					0xC0300064
 #define		FDO_STATIC_DUTY(x)			((x) << 0)
-#define		FDO_STATIC_DUTY_MASK			0x0000000F
+#define		FDO_STATIC_DUTY_MASK			0x000000FF
 #define		FDO_STATIC_DUTY_SHIFT			0
 #define	CG_FDO_CTRL1					0xC0300068
 #define		FMAX_DUTY100(x)				((x) << 0)
-#define		FMAX_DUTY100_MASK			0x0000000F
+#define		FMAX_DUTY100_MASK			0x000000FF
 #define		FMAX_DUTY100_SHIFT			0
 #define	CG_FDO_CTRL2					0xC030006C
 #define		TMIN(x)					((x) << 0)
-#define		TMIN_MASK				0x0000000F
+#define		TMIN_MASK				0x000000FF
 #define		TMIN_SHIFT				0
 #define		FDO_PWM_MODE(x)				((x) << 11)
-#define		FDO_PWM_MODE_MASK			(3 << 11)
+#define		FDO_PWM_MODE_MASK			(7 << 11)
 #define		FDO_PWM_MODE_SHIFT			11
 #define		TACH_PWM_RESP_RATE(x)			((x) << 25)
 #define		TACH_PWM_RESP_RATE_MASK			(0x7f << 25)
