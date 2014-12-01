@@ -2954,71 +2954,6 @@ static void intel_update_pipe_size(struct intel_crtc *crtc)
 	crtc->config.pipe_src_h = adjusted_mode->crtc_vdisplay;
 }
 
-static int
-intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
-		    struct drm_framebuffer *fb)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_fb);
-	int ret;
-
-	if (intel_crtc_has_pending_flip(crtc)) {
-		DRM_ERROR("pipe is still busy with an old pageflip\n");
-		return -EBUSY;
-	}
-
-	/* no fb bound */
-	if (!fb) {
-		DRM_ERROR("No FB bound\n");
-		return 0;
-	}
-
-	if (intel_crtc->plane > INTEL_INFO(dev)->num_pipes) {
-		DRM_ERROR("no plane for crtc: plane %c, num_pipes %d\n",
-			  plane_name(intel_crtc->plane),
-			  INTEL_INFO(dev)->num_pipes);
-		return -EINVAL;
-	}
-
-	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb, NULL);
-	if (ret == 0)
-		i915_gem_track_fb(old_obj, intel_fb_obj(fb),
-				  INTEL_FRONTBUFFER_PRIMARY(pipe));
-	mutex_unlock(&dev->struct_mutex);
-	if (ret != 0) {
-		DRM_ERROR("pin & fence failed\n");
-		return ret;
-	}
-
-	dev_priv->display.update_primary_plane(crtc, fb, x, y);
-
-	if (intel_crtc->active)
-		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
-
-	crtc->primary->fb = fb;
-	crtc->x = x;
-	crtc->y = y;
-
-	if (old_fb) {
-		if (intel_crtc->active && old_fb != fb)
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
-		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(old_obj);
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	mutex_lock(&dev->struct_mutex);
-	intel_update_fbc(dev);
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static void intel_fdi_normal_train(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -5312,8 +5247,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_connector *connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(crtc->primary->fb);
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 
 	/* crtc should still be enabled when we disable it. */
 	WARN_ON(!crtc->enabled);
@@ -5321,14 +5254,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	dev_priv->display.crtc_disable(crtc);
 	dev_priv->display.off(crtc);
 
-	if (crtc->primary->fb) {
-		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(old_obj);
-		i915_gem_track_fb(old_obj, NULL,
-				  INTEL_FRONTBUFFER_PRIMARY(pipe));
-		mutex_unlock(&dev->struct_mutex);
-		crtc->primary->fb = NULL;
-	}
+	crtc->primary->funcs->disable_plane(crtc->primary);
 
 	/* Update computed state. */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -9691,6 +9617,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_plane *primary = crtc->primary;
+	struct intel_plane *intel_plane = to_intel_plane(primary);
 	enum pipe pipe = intel_crtc->pipe;
 	struct intel_unpin_work *work;
 	struct intel_engine_cs *ring;
@@ -9849,8 +9777,15 @@ free_work:
 
 	if (ret == -EIO) {
 out_hang:
-		intel_crtc_wait_for_pending_flips(crtc);
-		ret = intel_pipe_set_base(crtc, crtc->x, crtc->y, fb);
+		ret = primary->funcs->update_plane(primary, crtc, fb,
+						   intel_plane->crtc_x,
+						   intel_plane->crtc_y,
+						   intel_plane->crtc_h,
+						   intel_plane->crtc_w,
+						   intel_plane->src_x,
+						   intel_plane->src_y,
+						   intel_plane->src_h,
+						   intel_plane->src_w);
 		if (ret == 0 && event) {
 			spin_lock_irq(&dev->event_lock);
 			drm_send_vblank_event(dev, pipe, event);
@@ -11079,26 +11014,15 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * on the DPLL.
 	 */
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
-		struct drm_framebuffer *old_fb = crtc->primary->fb;
-		struct drm_i915_gem_object *old_obj = intel_fb_obj(old_fb);
-		struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+		struct drm_plane *primary = intel_crtc->base.primary;
+		int vdisplay, hdisplay;
 
-		mutex_lock(&dev->struct_mutex);
-		ret = intel_pin_and_fence_fb_obj(crtc->primary, fb, NULL);
-		if (ret != 0) {
-			DRM_ERROR("pin & fence failed\n");
-			mutex_unlock(&dev->struct_mutex);
-			goto done;
-		}
-		if (old_fb)
-			intel_unpin_fb_obj(old_obj);
-		i915_gem_track_fb(old_obj, obj,
-				  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
-		mutex_unlock(&dev->struct_mutex);
-
-		crtc->primary->fb = fb;
-		crtc->x = x;
-		crtc->y = y;
+		drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
+		ret = primary->funcs->update_plane(primary, &intel_crtc->base,
+						   fb, 0, 0,
+						   hdisplay, vdisplay,
+						   x << 16, y << 16,
+						   hdisplay << 16, vdisplay << 16);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -11564,11 +11488,14 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 					   disable_pipes);
 	} else if (config->fb_changed) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(set->crtc);
+		struct drm_plane *primary = set->crtc->primary;
+		int vdisplay, hdisplay;
 
-		intel_crtc_wait_for_pending_flips(set->crtc);
-
-		ret = intel_pipe_set_base(set->crtc,
-					  set->x, set->y, set->fb);
+		drm_crtc_get_hv_timing(set->mode, &hdisplay, &vdisplay);
+		ret = primary->funcs->update_plane(primary, set->crtc, set->fb,
+						   0, 0, hdisplay, vdisplay,
+						   set->x << 16, set->y << 16,
+						   hdisplay << 16, vdisplay << 16);
 
 		/*
 		 * We need to make sure the primary plane is re-enabled if it
