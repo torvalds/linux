@@ -206,10 +206,10 @@ go_write:
 		ret = f2fs_sync_fs(inode->i_sb, 1);
 
 		down_write(&fi->i_sem);
-		F2FS_I(inode)->xattr_ver = 0;
+		fi->xattr_ver = 0;
 		if (file_wrong_pino(inode) && inode->i_nlink == 1 &&
 					get_parent_ino(inode, &pino)) {
-			F2FS_I(inode)->i_pino = pino;
+			fi->i_pino = pino;
 			file_got_pino(inode);
 			up_write(&fi->i_sem);
 			mark_inode_dirty_sync(inode);
@@ -241,7 +241,7 @@ sync_nodes:
 flush_out:
 		remove_dirty_inode(sbi, ino, UPDATE_INO);
 		clear_inode_flag(fi, FI_UPDATE_WRITE);
-		ret = f2fs_issue_flush(F2FS_I_SB(inode));
+		ret = f2fs_issue_flush(sbi);
 	}
 out:
 	trace_f2fs_sync_file_exit(inode, need_cp, datasync, ret);
