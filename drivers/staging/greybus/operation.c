@@ -70,44 +70,70 @@ struct gb_operation_msg_hdr {
 static DEFINE_SPINLOCK(gb_operations_lock);
 
 /*
- * Set an operation's result.  Initially an outgoing operation's
- * errno value is -EBADR.  If no error occurs before sending the
- * request message the only valid value operation->errno can be
- * set to is -EINPROGRESS, indicating the request has been (or
- * rather is about to be) sent.  At that point nobody should
- * be looking at the result until the reponse arrives.
+ * Set an operation's result.
+ *
+ * Initially an outgoing operation's errno value is -EBADR.
+ * If no error occurs before sending the request message the only
+ * valid value operation->errno can be set to is -EINPROGRESS,
+ * indicating the request has been (or rather is about to be) sent.
+ * At that point nobody should be looking at the result until the
+ * reponse arrives.
  *
  * The first time the result gets set after the request has been
  * sent, that result "sticks."  That is, if two concurrent threads
  * race to set the result, the first one wins.  The return value
  * tells the caller whether its result was recorded; if not the
- * has nothing more to do.
+ * caller has nothing more to do.
+ *
+ * The result value -EILSEQ is reserved to signal an implementation
+ * error; if it's ever observed, the code performing the request has
+ * done something fundamentally wrong.  It is an error to try to set
+ * the result to -EBADR, and attempts to do so result in a warning,
+ * and -EILSEQ is used instead.  Similarly, the only valid result
+ * value to set for an operation in initial state is -EINPROGRESS.
+ * Attempts to do otherwise will also record a (successful) -EILSEQ
+ * operation result.
  */
 static bool gb_operation_result_set(struct gb_operation *operation, int result)
 {
 	int prev;
 
-	/* Nobody should be setting -EBADR */
-	if (WARN_ON(result == -EBADR))
-		return false;
-
-	/* Are we sending the request message? */
 	if (result == -EINPROGRESS) {
-		/* Yes, but verify the result has not already been set */
+		/*
+		 * -EINPROGRESS is used to indicate the request is
+		 * in flight.  It should be the first result value
+		 * set after the initial -EBADR.  Issue a warning
+		 * and record an implementation error if it's
+		 * set at any other time.
+		 */
 		spin_lock_irq(&gb_operations_lock);
 		prev = operation->errno;
 		if (prev == -EBADR)
 			operation->errno = result;
+		else
+			operation->errno = -EILSEQ;
 		spin_unlock_irq(&gb_operations_lock);
+		WARN_ON(prev != -EBADR);
 
-		return !WARN_ON(prev != -EBADR);
+		return true;
 	}
 
-	/* Trying to set final status; only the first one succeeds */
+	/*
+	 * The first result value set after a request has been sent
+	 * will be the final result of the operation.  Subsequent
+	 * attempts to set the result are ignored.
+	 *
+	 * Note that -EBADR is a reserved "initial state" result
+	 * value.  Attempts to set this value result in a warning,
+	 * and the result code is set to -EILSEQ instead.
+	 */
+	if (WARN_ON(result == -EBADR))
+		result = -EILSEQ; /* Nobody should be setting -EBADR */
+
 	spin_lock_irq(&gb_operations_lock);
 	prev = operation->errno;
 	if (prev == -EINPROGRESS)
-		operation->errno = result;
+		operation->errno = result;	/* First and final result */
 	spin_unlock_irq(&gb_operations_lock);
 
 	return prev == -EINPROGRESS;
@@ -117,6 +143,7 @@ int gb_operation_result(struct gb_operation *operation)
 {
 	int result = operation->errno;
 
+	WARN_ON(result == -EBADR);
 	WARN_ON(result == -EINPROGRESS);
 
 	return result;
