@@ -378,8 +378,8 @@ static int kvm_s390_get_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	case KVM_S390_VM_MEM_LIMIT_SIZE:
 		ret = 0;
 		VM_EVENT(kvm, 3, "QUERY: max guest memory: %lu bytes",
-			 kvm->arch.gmap->asce_end);
-		if (put_user(kvm->arch.gmap->asce_end, (u64 __user *)attr->addr))
+			 kvm->arch.mem_limit);
+		if (put_user(kvm->arch.mem_limit, (u64 __user *)attr->addr))
 			ret = -EFAULT;
 		break;
 	default:
@@ -431,8 +431,16 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		if (get_user(new_limit, (u64 __user *)attr->addr))
 			return -EFAULT;
 
-		if (new_limit > kvm->arch.gmap->asce_end)
+		if (kvm->arch.mem_limit != KVM_S390_NO_MEM_LIMIT &&
+		    new_limit > kvm->arch.mem_limit)
 			return -E2BIG;
+
+		if (!new_limit)
+			return -EINVAL;
+
+		/* gmap_alloc takes last usable address */
+		if (new_limit != KVM_S390_NO_MEM_LIMIT)
+			new_limit -= 1;
 
 		ret = -EBUSY;
 		mutex_lock(&kvm->lock);
@@ -450,7 +458,9 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 			}
 		}
 		mutex_unlock(&kvm->lock);
-		VM_EVENT(kvm, 3, "SET: max guest memory: %lu bytes", new_limit);
+		VM_EVENT(kvm, 3, "SET: max guest address: %lu", new_limit);
+		VM_EVENT(kvm, 3, "New guest asce: 0x%pK",
+			 (void *) kvm->arch.gmap->asce);
 		break;
 	}
 	default:
@@ -1172,8 +1182,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	if (type & KVM_VM_S390_UCONTROL) {
 		kvm->arch.gmap = NULL;
+		kvm->arch.mem_limit = KVM_S390_NO_MEM_LIMIT;
 	} else {
-		kvm->arch.gmap = gmap_alloc(current->mm, (1UL << 44) - 1);
+		kvm->arch.mem_limit = TASK_MAX_SIZE;
+		kvm->arch.gmap = gmap_alloc(current->mm, kvm->arch.mem_limit - 1);
 		if (!kvm->arch.gmap)
 			goto out_err;
 		kvm->arch.gmap->private = kvm;
@@ -2827,6 +2839,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		return -EINVAL;
 
 	if (mem->memory_size & 0xffffful)
+		return -EINVAL;
+
+	if (mem->guest_phys_addr + mem->memory_size > kvm->arch.mem_limit)
 		return -EINVAL;
 
 	return 0;
