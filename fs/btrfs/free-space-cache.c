@@ -3200,6 +3200,12 @@ out:
 		/* once for us and once for the tree */
 		free_extent_map(em);
 		free_extent_map(em);
+
+		/*
+		 * We've left one free space entry and other tasks trimming
+		 * this block group have left 1 entry each one. Free them.
+		 */
+		__btrfs_remove_free_space_cache(block_group->free_space_ctl);
 	} else {
 		spin_unlock(&block_group->lock);
 	}
