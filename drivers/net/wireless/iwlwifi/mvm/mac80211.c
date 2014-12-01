@@ -767,7 +767,6 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
-	const struct fw_img *img;
 	u32 sram_len, sram_ofs;
 	u32 file_len, rxf_len;
 	unsigned long flags;
@@ -779,9 +778,17 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (!fw_error_dump)
 		return;
 
-	img = &mvm->fw->img[mvm->cur_ucode];
-	sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	/* SRAM - include stack CCM if driver knows the values for it */
+	if (!mvm->cfg->dccm_offset || !mvm->cfg->dccm_len) {
+		const struct fw_img *img;
+
+		img = &mvm->fw->img[mvm->cur_ucode];
+		sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+		sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	} else {
+		sram_ofs = mvm->cfg->dccm_offset;
+		sram_len = mvm->cfg->dccm_len;
+	}
 
 	/* reading buffer size */
 	reg_val = iwl_trans_read_prph(mvm->trans, RXF_SIZE_ADDR);

@@ -81,6 +81,10 @@
 #define IWL8000_NVM_VERSION		0x0a1d
 #define IWL8000_TX_POWER_VERSION	0xffff /* meaningless */
 
+/* DCCM offsets and lengths */
+#define IWL8260_DCCM_OFFSET		0x800000
+#define IWL8260_DCCM_LEN		0x18000
+
 #define IWL8000_FW_PRE "iwlwifi-8000"
 #define IWL8000_MODULE_FIRMWARE(api) \
 	IWL8000_FW_PRE "-" __stringify(api) ".ucode"
@@ -124,7 +128,9 @@ static const struct iwl_ht_params iwl8000_ht_params = {
 	.led_mode = IWL_LED_RF_STATE,				\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,	\
 	.d0i3 = true,						\
-	.non_shared_ant = ANT_A
+	.non_shared_ant = ANT_A,				\
+	.dccm_offset = IWL8260_DCCM_OFFSET,			\
+	.dccm_len = IWL8260_DCCM_LEN
 
 const struct iwl_cfg iwl8260_2n_cfg = {
 	.name = "Intel(R) Dual Band Wireless N 8260",

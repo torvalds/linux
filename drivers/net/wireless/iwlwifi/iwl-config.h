@@ -261,6 +261,8 @@ struct iwl_pwr_tx_backoff {
  *	station can receive in HT
  * @max_vht_ampdu_exponent: the exponent of the max length of A-MPDU that the
  *	station can receive in VHT
+ * @dccm_offset: offset from which DCCM begins
+ * @dccm_len: length of DCCM (including runtime stack CCM)
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -303,6 +305,8 @@ struct iwl_cfg {
 	unsigned int max_tx_agg_size;
 	unsigned int max_ht_ampdu_exponent;
 	unsigned int max_vht_ampdu_exponent;
+	const u32 dccm_offset;
+	const u32 dccm_len;
 };
 
 /*
