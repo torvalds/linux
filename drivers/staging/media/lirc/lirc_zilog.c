@@ -730,11 +730,9 @@ static int send_boot_data(struct IR_tx *tx)
 static void fw_unload_locked(void)
 {
 	if (tx_data) {
-		if (tx_data->code_sets)
-			vfree(tx_data->code_sets);
+		vfree(tx_data->code_sets);
 
-		if (tx_data->datap)
-			vfree(tx_data->datap);
+		vfree(tx_data->datap);
 
 		vfree(tx_data);
 		tx_data = NULL;
