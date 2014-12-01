@@ -141,6 +141,15 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	uint32_t hpd_ctrl;
 	int i, ret;
 
+	for (i = 0; i < config->hpd_reg_cnt; i++) {
+		ret = regulator_enable(hdmi->hpd_regs[i]);
+		if (ret) {
+			dev_err(dev->dev, "failed to enable hpd regulator: %s (%d)\n",
+					config->hpd_reg_names[i], ret);
+			goto fail;
+		}
+	}
+
 	ret = gpio_config(hdmi, true);
 	if (ret) {
 		dev_err(dev->dev, "failed to configure GPIOs: %d\n", ret);
@@ -160,15 +169,6 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 		if (ret) {
 			dev_err(dev->dev, "failed to enable hpd clk: %s (%d)\n",
 					config->hpd_clk_names[i], ret);
-			goto fail;
-		}
-	}
-
-	for (i = 0; i < config->hpd_reg_cnt; i++) {
-		ret = regulator_enable(hdmi->hpd_regs[i]);
-		if (ret) {
-			dev_err(dev->dev, "failed to enable hpd regulator: %s (%d)\n",
-					config->hpd_reg_names[i], ret);
 			goto fail;
 		}
 	}
@@ -200,7 +200,7 @@ fail:
 	return ret;
 }
 
-static int hdp_disable(struct hdmi_connector *hdmi_connector)
+static void hdp_disable(struct hdmi_connector *hdmi_connector)
 {
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
@@ -212,28 +212,19 @@ static int hdp_disable(struct hdmi_connector *hdmi_connector)
 
 	hdmi_set_mode(hdmi, false);
 
-	for (i = 0; i < config->hpd_reg_cnt; i++) {
-		ret = regulator_disable(hdmi->hpd_regs[i]);
-		if (ret) {
-			dev_err(dev->dev, "failed to disable hpd regulator: %s (%d)\n",
-					config->hpd_reg_names[i], ret);
-			goto fail;
-		}
-	}
-
 	for (i = 0; i < config->hpd_clk_cnt; i++)
 		clk_disable_unprepare(hdmi->hpd_clks[i]);
 
 	ret = gpio_config(hdmi, false);
-	if (ret) {
-		dev_err(dev->dev, "failed to unconfigure GPIOs: %d\n", ret);
-		goto fail;
+	if (ret)
+		dev_warn(dev->dev, "failed to unconfigure GPIOs: %d\n", ret);
+
+	for (i = 0; i < config->hpd_reg_cnt; i++) {
+		ret = regulator_disable(hdmi->hpd_regs[i]);
+		if (ret)
+			dev_warn(dev->dev, "failed to disable hpd regulator: %s (%d)\n",
+					config->hpd_reg_names[i], ret);
 	}
-
-	return 0;
-
-fail:
-	return ret;
 }
 
 static void
