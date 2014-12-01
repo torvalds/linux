@@ -159,8 +159,8 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.max_vht_ampdu_exponent = MAX_VHT_AMPDU_EXPONENT_8260_SDIO,
 };
 
-const struct iwl_cfg iwl4265_2ac_sdio_cfg = {
-	.name = "Intel(R) Dual Band Wireless-AC 4265",
+const struct iwl_cfg iwl4165_2ac_sdio_cfg = {
+	.name = "Intel(R) Dual Band Wireless-AC 4165",
 	.fw_name_pre = IWL8000_FW_PRE,
 	IWL_DEVICE_8000,
 	.ht_params = &iwl8000_ht_params,
