@@ -116,6 +116,12 @@ static inline int put_dreq(struct nfs_direct_req *dreq)
 	return atomic_dec_and_test(&dreq->io_count);
 }
 
+void nfs_direct_set_resched_writes(struct nfs_direct_req *dreq)
+{
+	dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
+}
+EXPORT_SYMBOL_GPL(nfs_direct_set_resched_writes);
+
 static void
 nfs_direct_good_bytes(struct nfs_direct_req *dreq, struct nfs_pgio_header *hdr)
 {
