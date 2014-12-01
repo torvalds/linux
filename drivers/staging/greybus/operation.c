@@ -299,6 +299,12 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 	size_t size;
 	u8 *buffer;
 
+	if (hd->buffer_size_max > GB_OPERATION_MESSAGE_SIZE_MAX) {
+		pr_warn("limiting buffer size to %u\n",
+			GB_OPERATION_MESSAGE_SIZE_MAX);
+		hd->buffer_size_max = GB_OPERATION_MESSAGE_SIZE_MAX;
+	}
+
 	if (message_size > hd->buffer_size_max)
 		return NULL;
 
@@ -750,6 +756,9 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 
 int gb_operation_init(void)
 {
+	BUILD_BUG_ON(GB_OPERATION_MESSAGE_SIZE_MAX >
+			U16_MAX - sizeof(struct gb_operation_msg_hdr));
+
 	gb_operation_cache = kmem_cache_create("gb_operation_cache",
 				sizeof(struct gb_operation), 0, 0, NULL);
 	if (!gb_operation_cache)
