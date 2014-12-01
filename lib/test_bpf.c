@@ -124,7 +124,7 @@ static struct bpf_test tests[] = {
 		{ { 0, 0xfffffffd } }
 	},
 	{
-		"DIV_KX",
+		"DIV_MOD_KX",
 		.u.insns = {
 			BPF_STMT(BPF_LD | BPF_IMM, 8),
 			BPF_STMT(BPF_ALU | BPF_DIV | BPF_K, 2),
@@ -134,12 +134,18 @@ static struct bpf_test tests[] = {
 			BPF_STMT(BPF_MISC | BPF_TAX, 0),
 			BPF_STMT(BPF_LD | BPF_IMM, 0xffffffff),
 			BPF_STMT(BPF_ALU | BPF_DIV | BPF_K, 0x70000000),
+			BPF_STMT(BPF_MISC | BPF_TAX, 0),
+			BPF_STMT(BPF_LD | BPF_IMM, 0xffffffff),
+			BPF_STMT(BPF_ALU | BPF_MOD | BPF_X, 0),
+			BPF_STMT(BPF_MISC | BPF_TAX, 0),
+			BPF_STMT(BPF_LD | BPF_IMM, 0xffffffff),
+			BPF_STMT(BPF_ALU | BPF_MOD | BPF_K, 0x70000000),
 			BPF_STMT(BPF_ALU | BPF_ADD | BPF_X, 0),
 			BPF_STMT(BPF_RET | BPF_A, 0)
 		},
 		CLASSIC | FLAG_NO_DATA,
 		{ },
-		{ { 0, 0x40000001 } }
+		{ { 0, 0x20000000 } }
 	},
 	{
 		"AND_OR_LSH_K",
