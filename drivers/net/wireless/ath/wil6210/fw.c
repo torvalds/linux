@@ -15,7 +15,6 @@
  */
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/crc32.h>
 #include "wil6210.h"
 #include "fw.h"

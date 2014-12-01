@@ -471,7 +471,7 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name)
 	size_t sz;
 	const void *d;
 
-	rc = request_firmware(&fw, name, wil_to_pcie_dev(wil));
+	rc = request_firmware(&fw, name, wil_to_dev(wil));
 	if (rc) {
 		wil_err_fw(wil, "Failed to load firmware %s\n", name);
 		return rc;
