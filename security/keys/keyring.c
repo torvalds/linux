@@ -546,7 +546,8 @@ static int keyring_search_iterator(const void *object, void *iterator_data)
 		}
 
 		if (key->expiry && ctx->now.tv_sec >= key->expiry) {
-			ctx->result = ERR_PTR(-EKEYEXPIRED);
+			if (!(ctx->flags & KEYRING_SEARCH_SKIP_EXPIRED))
+				ctx->result = ERR_PTR(-EKEYEXPIRED);
 			kleave(" = %d [expire]", ctx->skipped_ret);
 			goto skipped;
 		}
