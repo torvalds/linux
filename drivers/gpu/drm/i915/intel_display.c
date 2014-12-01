@@ -8417,109 +8417,6 @@ static bool cursor_size_ok(struct drm_device *dev,
 	return true;
 }
 
-static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
-				     struct drm_i915_gem_object *obj,
-				     uint32_t width, uint32_t height)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-	unsigned old_width;
-	uint32_t addr;
-	int ret;
-
-	/* if we want to turn off the cursor ignore width and height */
-	if (!obj) {
-		DRM_DEBUG_KMS("cursor off\n");
-		addr = 0;
-		mutex_lock(&dev->struct_mutex);
-		goto finish;
-	}
-
-	/* we only need to pin inside GTT if cursor is non-phy */
-	mutex_lock(&dev->struct_mutex);
-	if (!INTEL_INFO(dev)->cursor_needs_physical) {
-		unsigned alignment;
-
-		/*
-		 * Global gtt pte registers are special registers which actually
-		 * forward writes to a chunk of system memory. Which means that
-		 * there is no risk that the register values disappear as soon
-		 * as we call intel_runtime_pm_put(), so it is correct to wrap
-		 * only the pin/unpin/fence and not more.
-		 */
-		intel_runtime_pm_get(dev_priv);
-
-		/* Note that the w/a also requires 2 PTE of padding following
-		 * the bo. We currently fill all unused PTE with the shadow
-		 * page and so we should always have valid PTE following the
-		 * cursor preventing the VT-d warning.
-		 */
-		alignment = 0;
-		if (need_vtd_wa(dev))
-			alignment = 64*1024;
-
-		ret = i915_gem_object_pin_to_display_plane(obj, alignment, NULL);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to move cursor bo into the GTT\n");
-			intel_runtime_pm_put(dev_priv);
-			goto fail_locked;
-		}
-
-		ret = i915_gem_object_put_fence(obj);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to release fence for cursor");
-			intel_runtime_pm_put(dev_priv);
-			goto fail_unpin;
-		}
-
-		addr = i915_gem_obj_ggtt_offset(obj);
-
-		intel_runtime_pm_put(dev_priv);
-	} else {
-		int align = IS_I830(dev) ? 16 * 1024 : 256;
-		ret = i915_gem_object_attach_phys(obj, align);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to attach phys object\n");
-			goto fail_locked;
-		}
-		addr = obj->phys_handle->busaddr;
-	}
-
- finish:
-	if (intel_crtc->cursor_bo) {
-		if (!INTEL_INFO(dev)->cursor_needs_physical)
-			i915_gem_object_unpin_from_display_plane(intel_crtc->cursor_bo);
-	}
-
-	i915_gem_track_fb(intel_crtc->cursor_bo, obj,
-			  INTEL_FRONTBUFFER_CURSOR(pipe));
-	mutex_unlock(&dev->struct_mutex);
-
-	old_width = intel_crtc->cursor_width;
-
-	intel_crtc->cursor_addr = addr;
-	intel_crtc->cursor_bo = obj;
-	intel_crtc->cursor_width = width;
-	intel_crtc->cursor_height = height;
-
-	if (intel_crtc->active) {
-		if (old_width != width)
-			intel_update_watermarks(crtc);
-		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
-
-		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_CURSOR(pipe));
-	}
-
-	return 0;
-fail_unpin:
-	i915_gem_object_unpin_from_display_plane(obj);
-fail_locked:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
-}
-
 static void intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 				 u16 *blue, uint32_t start, uint32_t size)
 {
@@ -12129,7 +12026,8 @@ intel_cursor_plane_disable(struct drm_plane *plane)
 
 	BUG_ON(!plane->crtc);
 
-	return intel_crtc_cursor_set_obj(plane->crtc, NULL, 0, 0);
+	return plane->funcs->update_plane(plane, plane->crtc, NULL,
+					  0, 0, 0, 0, 0, 0, 0, 0);
 }
 
 static int
@@ -12193,12 +12091,15 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->crtc;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
-	int crtc_w, crtc_h;
+	struct drm_i915_gem_object *obj = intel_fb_obj(state->fb);
+	enum pipe pipe = intel_crtc->pipe;
+	unsigned old_width;
+	uint32_t addr;
+	int ret;
 
 	crtc->cursor_x = state->orig_dst.x1;
 	crtc->cursor_y = state->orig_dst.y1;
@@ -12213,18 +12114,100 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	intel_plane->src_h = drm_rect_height(&state->orig_src);
 	intel_plane->obj = obj;
 
-	if (fb != crtc->cursor->fb) {
-		crtc_w = drm_rect_width(&state->orig_dst);
-		crtc_h = drm_rect_height(&state->orig_dst);
-		return intel_crtc_cursor_set_obj(crtc, obj, crtc_w, crtc_h);
+	if (intel_crtc->cursor_bo == obj)
+		goto update;
+
+	/* if we want to turn off the cursor ignore width and height */
+	if (!obj) {
+		DRM_DEBUG_KMS("cursor off\n");
+		addr = 0;
+		mutex_lock(&dev->struct_mutex);
+		goto finish;
+	}
+
+	/* we only need to pin inside GTT if cursor is non-phy */
+	mutex_lock(&dev->struct_mutex);
+	if (!INTEL_INFO(dev)->cursor_needs_physical) {
+		unsigned alignment;
+
+		/*
+		 * Global gtt pte registers are special registers which actually
+		 * forward writes to a chunk of system memory. Which means that
+		 * there is no risk that the register values disappear as soon
+		 * as we call intel_runtime_pm_put(), so it is correct to wrap
+		 * only the pin/unpin/fence and not more.
+		 */
+		intel_runtime_pm_get(dev_priv);
+
+		/* Note that the w/a also requires 2 PTE of padding following
+		 * the bo. We currently fill all unused PTE with the shadow
+		 * page and so we should always have valid PTE following the
+		 * cursor preventing the VT-d warning.
+		 */
+		alignment = 0;
+		if (need_vtd_wa(dev))
+			alignment = 64*1024;
+
+		ret = i915_gem_object_pin_to_display_plane(obj, alignment, NULL);
+		if (ret) {
+			DRM_DEBUG_KMS("failed to move cursor bo into the GTT\n");
+			intel_runtime_pm_put(dev_priv);
+			goto fail_locked;
+		}
+
+		ret = i915_gem_object_put_fence(obj);
+		if (ret) {
+			DRM_DEBUG_KMS("failed to release fence for cursor");
+			intel_runtime_pm_put(dev_priv);
+			goto fail_unpin;
+		}
+
+		addr = i915_gem_obj_ggtt_offset(obj);
+
+		intel_runtime_pm_put(dev_priv);
+
 	} else {
+		int align = IS_I830(dev) ? 16 * 1024 : 256;
+		ret = i915_gem_object_attach_phys(obj, align);
+		if (ret) {
+			DRM_DEBUG_KMS("failed to attach phys object\n");
+			goto fail_locked;
+		}
+		addr = obj->phys_handle->busaddr;
+	}
+
+finish:
+	if (intel_crtc->cursor_bo) {
+		if (!INTEL_INFO(dev)->cursor_needs_physical)
+			i915_gem_object_unpin_from_display_plane(intel_crtc->cursor_bo);
+	}
+
+	i915_gem_track_fb(intel_crtc->cursor_bo, obj,
+			  INTEL_FRONTBUFFER_CURSOR(pipe));
+	mutex_unlock(&dev->struct_mutex);
+
+	intel_crtc->cursor_addr = addr;
+	intel_crtc->cursor_bo = obj;
+update:
+	old_width = intel_crtc->cursor_width;
+
+	intel_crtc->cursor_width = drm_rect_width(&state->orig_dst);
+	intel_crtc->cursor_height = drm_rect_height(&state->orig_dst);
+
+	if (intel_crtc->active) {
+		if (old_width != intel_crtc->cursor_width)
+			intel_update_watermarks(crtc);
 		intel_crtc_update_cursor(crtc, state->visible);
 
-		intel_frontbuffer_flip(crtc->dev,
-				       INTEL_FRONTBUFFER_CURSOR(intel_crtc->pipe));
-
-		return 0;
+		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_CURSOR(pipe));
 	}
+
+	return 0;
+fail_unpin:
+	i915_gem_object_unpin_from_display_plane(obj);
+fail_locked:
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 static int
