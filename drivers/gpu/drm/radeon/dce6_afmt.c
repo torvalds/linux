@@ -23,9 +23,10 @@
 #include <linux/hdmi.h>
 #include <drm/drmP.h>
 #include "radeon.h"
+#include "radeon_audio.h"
 #include "sid.h"
 
-static u32 dce6_endpoint_rreg(struct radeon_device *rdev,
+u32 dce6_endpoint_rreg(struct radeon_device *rdev,
 			      u32 block_offset, u32 reg)
 {
 	unsigned long flags;
@@ -39,7 +40,7 @@ static u32 dce6_endpoint_rreg(struct radeon_device *rdev,
 	return r;
 }
 
-static void dce6_endpoint_wreg(struct radeon_device *rdev,
+void dce6_endpoint_wreg(struct radeon_device *rdev,
 			       u32 block_offset, u32 reg, u32 v)
 {
 	unsigned long flags;
@@ -53,10 +54,6 @@ static void dce6_endpoint_wreg(struct radeon_device *rdev,
 	WREG32(AZ_F0_CODEC_ENDPOINT_DATA + block_offset, v);
 	spin_unlock_irqrestore(&rdev->end_idx_lock, flags);
 }
-
-#define RREG32_ENDPOINT(block, reg) dce6_endpoint_rreg(rdev, (block), (reg))
-#define WREG32_ENDPOINT(block, reg, v) dce6_endpoint_wreg(rdev, (block), (reg), (v))
-
 
 static void dce6_afmt_get_connected_pins(struct radeon_device *rdev)
 {

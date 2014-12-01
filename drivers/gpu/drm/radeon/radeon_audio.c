@@ -23,12 +23,18 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 #include "radeon.h"
+#include "atom.h"
+#include "radeon_audio.h"
 
 void r600_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
 void dce6_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
+u32 dce6_endpoint_rreg(struct radeon_device *rdev, u32 offset, u32 reg);
+void dce6_endpoint_wreg(struct radeon_device *rdev,
+		u32 offset, u32 reg, u32 v);
 
 static const u32 pin_offsets[7] =
 {
@@ -40,6 +46,43 @@ static const u32 pin_offsets[7] =
 	(0x5e78 - 0x5e00),
 	(0x5e90 - 0x5e00),
 };
+
+static u32 radeon_audio_rreg(struct radeon_device *rdev, u32 offset, u32 reg)
+{
+	return RREG32(reg);
+}
+
+static void radeon_audio_wreg(struct radeon_device *rdev, u32 offset,
+		u32 reg, u32 v)
+{
+	WREG32(reg, v);
+}
+
+static struct radeon_audio_basic_funcs dce32_funcs = {
+	.endpoint_rreg = radeon_audio_rreg,
+	.endpoint_wreg = radeon_audio_wreg,
+};
+
+static struct radeon_audio_basic_funcs dce4_funcs = {
+	.endpoint_rreg = radeon_audio_rreg,
+	.endpoint_wreg = radeon_audio_wreg,
+};
+
+static struct radeon_audio_basic_funcs dce6_funcs = {
+	.endpoint_rreg = dce6_endpoint_rreg,
+	.endpoint_wreg = dce6_endpoint_wreg,
+};
+
+static void radeon_audio_interface_init(struct radeon_device *rdev)
+{
+	if (ASIC_IS_DCE6(rdev)) {
+		rdev->audio.funcs = &dce6_funcs;
+	} else if (ASIC_IS_DCE4(rdev)) {
+		rdev->audio.funcs = &dce4_funcs;
+	} else {
+		rdev->audio.funcs = &dce32_funcs;
+	}
+}
 
 static int radeon_audio_chipset_supported(struct radeon_device *rdev)
 {
@@ -79,12 +122,63 @@ int radeon_audio_init(struct radeon_device *rdev)
 		rdev->audio.pin[i].connected = false;
 		rdev->audio.pin[i].offset = pin_offsets[i];
 		rdev->audio.pin[i].id = i;
-		/* disable audio.  it will be set up later */
+	}
+
+	radeon_audio_interface_init(rdev);
+
+	/* disable audio.  it will be set up later */
+	for (i = 0; i < rdev->audio.num_pins; i++)
 		if (ASIC_IS_DCE6(rdev))
 			dce6_audio_enable(rdev, &rdev->audio.pin[i], false);
 		else
 			r600_audio_enable(rdev, &rdev->audio.pin[i], false);
-	}
 
 	return 0;
+}
+
+void radeon_audio_detect(struct drm_connector *connector,
+	enum drm_connector_status status)
+{
+	if (!connector || !connector->encoder)
+		return;
+
+	if (status == connector_status_connected) {
+		int sink_type;
+		struct radeon_device *rdev = connector->encoder->dev->dev_private;
+		struct radeon_connector *radeon_connector;
+		struct radeon_encoder *radeon_encoder =
+			to_radeon_encoder(connector->encoder);
+
+		if (!drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+			radeon_encoder->audio = 0;
+			return;
+		}
+
+		radeon_connector = to_radeon_connector(connector);
+		sink_type = radeon_dp_getsinktype(radeon_connector);
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
+			sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
+			radeon_encoder->audio = rdev->audio.dp_funcs;
+		else
+			radeon_encoder->audio = rdev->audio.hdmi_funcs;
+		/* TODO: set up the sads, etc. and set the audio enable_mask */
+	} else {
+		/* TODO: reset the audio enable_mask */
+	}
+}
+
+u32 radeon_audio_endpoint_rreg(struct radeon_device *rdev, u32 offset, u32 reg)
+{
+	if (rdev->audio.funcs->endpoint_rreg)
+		return rdev->audio.funcs->endpoint_rreg(rdev, offset, reg);
+
+	return 0;
+}
+
+void radeon_audio_endpoint_wreg(struct radeon_device *rdev, u32 offset,
+	u32 reg, u32 v)
+{
+	if (rdev->audio.funcs->endpoint_wreg)
+		rdev->audio.funcs->endpoint_wreg(rdev, offset, reg, v);
 }

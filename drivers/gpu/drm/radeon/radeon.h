@@ -1757,6 +1757,9 @@ struct r600_audio {
 	bool enabled;
 	struct r600_audio_pin pin[RADEON_MAX_AFMT_BLOCKS];
 	int num_pins;
+	struct radeon_audio_funcs *hdmi_funcs;
+	struct radeon_audio_funcs *dp_funcs;
+	struct radeon_audio_basic_funcs *funcs;
 };
 
 /*

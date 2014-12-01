@@ -449,6 +449,7 @@ struct radeon_encoder {
 	int audio_polling_active;
 	bool is_ext_encoder;
 	u16 caps;
+	struct radeon_audio_funcs *audio;
 };
 
 struct radeon_connector_atom_dig {

@@ -21,9 +21,35 @@
  *
  * Authors: Slava Grigorev <slava.grigorev@amd.com>
  */
+
 #ifndef __RADEON_AUDIO_H__
 #define __RADEON_AUDIO_H__
 
+#include <linux/types.h>
+
+#define RREG32_ENDPOINT(block, reg)		\
+	radeon_audio_endpoint_rreg(rdev, (block), (reg))
+#define WREG32_ENDPOINT(block, reg, v)	\
+	radeon_audio_endpoint_wreg(rdev, (block), (reg), (v))
+
+struct radeon_audio_basic_funcs
+{
+	u32  (*endpoint_rreg)(struct radeon_device *rdev, u32 offset, u32 reg);
+	void (*endpoint_wreg)(struct radeon_device *rdev,
+		u32 offset, u32 reg, u32 v);
+};
+
+struct radeon_audio_funcs
+{
+	/* TODO: add mode depended audio interface */
+};
+
 int radeon_audio_init(struct radeon_device *rdev);
+void radeon_audio_detect(struct drm_connector *connector,
+	enum drm_connector_status status);
+u32 radeon_audio_endpoint_rreg(struct radeon_device *rdev,
+	u32 offset, u32 reg);
+void radeon_audio_endpoint_wreg(struct radeon_device *rdev,
+	u32 offset,	u32 reg, u32 v);
 
 #endif
