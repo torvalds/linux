@@ -6002,7 +6002,7 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 		}
 
 		/* there was no other matchset, so the RSSI one is alone */
-		if (i == 0)
+		if (i == 0 && n_match_sets)
 			request->match_sets[0].rssi_thold = default_match_rssi;
 
 		request->min_rssi_thold = INT_MAX;
