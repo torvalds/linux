@@ -30,23 +30,6 @@
 #ifndef __STM_ST33_TPM_I2C_MAIN_H__
 #define __STM_ST33_TPM_I2C_MAIN_H__
 
-#define TPM_ACCESS			(0x0)
-#define TPM_STS				(0x18)
-#define TPM_HASH_END			(0x20)
-#define TPM_DATA_FIFO			(0x24)
-#define TPM_HASH_DATA			(0x24)
-#define TPM_HASH_START			(0x28)
-#define TPM_INTF_CAPABILITY		(0x14)
-#define TPM_INT_STATUS			(0x10)
-#define TPM_INT_ENABLE			(0x08)
-
-#define TPM_DUMMY_BYTE			0xAA
-#define TPM_WRITE_DIRECTION		0x80
-#define TPM_HEADER_SIZE			10
-#define TPM_BUFSIZE			2048
-
-#define LOCALITY0		0
-
 #define TPM_ST33_I2C			"st33zp24_i2c"
 
 struct st33zp24_platform_data {
