@@ -147,7 +147,7 @@
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			device_type = "pci";
-			bus-range = <0 0xff>;
+			bus-range = <0 0x7f>;
 			msi-parent = <&v2m0>;
 			reg = <0 0xf0000000 0 0x10000000>;
 
