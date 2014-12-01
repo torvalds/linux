@@ -359,8 +359,11 @@ static inline void pnfs_set_retry_layoutget(struct pnfs_layout_hdr *lo)
 
 static inline void pnfs_clear_retry_layoutget(struct pnfs_layout_hdr *lo)
 {
-	if (test_and_clear_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags))
+	if (test_and_clear_bit(NFS_LAYOUT_RETRY_LAYOUTGET, &lo->plh_flags)) {
 		atomic_dec(&lo->plh_refcount);
+		/* wake up waiters for LAYOUTRETURN as that is not needed */
+		wake_up_bit(&lo->plh_flags, NFS_LAYOUT_RETURN);
+	}
 }
 
 static inline bool pnfs_should_retry_layoutget(struct pnfs_layout_hdr *lo)

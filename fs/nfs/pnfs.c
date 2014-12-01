@@ -1398,6 +1398,26 @@ static bool pnfs_within_mdsthreshold(struct nfs_open_context *ctx,
 	return ret;
 }
 
+/* stop waiting if someone clears NFS_LAYOUT_RETRY_LAYOUTGET bit. */
+static int pnfs_layoutget_retry_bit_wait(struct wait_bit_key *key)
+{
+	if (!test_bit(NFS_LAYOUT_RETRY_LAYOUTGET, key->flags))
+		return 1;
+	return nfs_wait_bit_killable(key);
+}
+
+static bool pnfs_prepare_to_retry_layoutget(struct pnfs_layout_hdr *lo)
+{
+	/*
+	 * send layoutcommit as it can hold up layoutreturn due to lseg
+	 * reference
+	 */
+	pnfs_layoutcommit_inode(lo->plh_inode, false);
+	return !wait_on_bit_action(&lo->plh_flags, NFS_LAYOUT_RETURN,
+				   pnfs_layoutget_retry_bit_wait,
+				   TASK_UNINTERRUPTIBLE);
+}
+
 /*
  * Layout segment is retreived from the server if not cached.
  * The appropriate layout segment is referenced and returned to the caller.
@@ -1444,7 +1464,8 @@ lookup_again:
 	}
 
 	/* if LAYOUTGET already failed once we don't try again */
-	if (pnfs_layout_io_test_failed(lo, iomode))
+	if (pnfs_layout_io_test_failed(lo, iomode) &&
+	    !pnfs_should_retry_layoutget(lo))
 		goto out_unlock;
 
 	first = list_empty(&lo->plh_segs);
@@ -1467,6 +1488,22 @@ lookup_again:
 		lseg = pnfs_find_lseg(lo, &arg);
 		if (lseg)
 			goto out_unlock;
+	}
+
+	/*
+	 * Because we free lsegs before sending LAYOUTRETURN, we need to wait
+	 * for LAYOUTRETURN even if first is true.
+	 */
+	if (!lseg && pnfs_should_retry_layoutget(lo) &&
+	    test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags)) {
+		spin_unlock(&ino->i_lock);
+		dprintk("%s wait for layoutreturn\n", __func__);
+		if (pnfs_prepare_to_retry_layoutget(lo)) {
+			pnfs_put_layout_hdr(lo);
+			dprintk("%s retrying\n", __func__);
+			goto lookup_again;
+		}
+		goto out_put_layout_hdr;
 	}
 
 	if (pnfs_layoutgets_blocked(lo, &arg, 0))
