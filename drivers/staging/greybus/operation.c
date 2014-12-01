@@ -368,20 +368,23 @@ int gb_operation_status_map(u8 status)
 	switch (status) {
 	case GB_OP_SUCCESS:
 		return 0;
-	case GB_OP_INVALID:
-		return -EINVAL;
-	case GB_OP_NO_MEMORY:
-		return -ENOMEM;
 	case GB_OP_INTERRUPTED:
 		return -EINTR;
-	case GB_OP_RETRY:
-		return -EAGAIN;
+	case GB_OP_TIMEOUT:
+		return -ETIMEDOUT;
+	case GB_OP_NO_MEMORY:
+		return -ENOMEM;
 	case GB_OP_PROTOCOL_BAD:
 		return -EPROTONOSUPPORT;
 	case GB_OP_OVERFLOW:
 		return -EMSGSIZE;
-	case GB_OP_TIMEOUT:
-		return -ETIMEDOUT;
+	case GB_OP_INVALID:
+		return -EINVAL;
+	case GB_OP_RETRY:
+		return -EAGAIN;
+	case GB_OP_MALFUNCTION:
+		return -EILSEQ;
+	case GB_OP_UNKNOWN_ERROR:
 	default:
 		return -EIO;
 	}
