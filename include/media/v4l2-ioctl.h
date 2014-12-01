@@ -291,9 +291,18 @@ struct v4l2_ioctl_ops {
 
 /* v4l debugging and diagnostics */
 
-/* Debug bitmask flags to be used on V4L2 */
-#define V4L2_DEBUG_IOCTL     0x01
-#define V4L2_DEBUG_IOCTL_ARG 0x02
+/* Device debug flags to be used with the video device debug attribute */
+
+/* Just log the ioctl name + error code */
+#define V4L2_DEV_DEBUG_IOCTL		0x01
+/* Log the ioctl name arguments + error code */
+#define V4L2_DEV_DEBUG_IOCTL_ARG	0x02
+/* Log the file operations open, release, mmap and get_unmapped_area */
+#define V4L2_DEV_DEBUG_FOP		0x04
+/* Log the read and write file operations and the VIDIOC_(D)QBUF ioctls */
+#define V4L2_DEV_DEBUG_STREAMING	0x08
+/* Log poll() */
+#define V4L2_DEV_DEBUG_POLL		0x10
 
 /*  Video standard functions  */
 extern const char *v4l2_norm_to_name(v4l2_std_id id);
