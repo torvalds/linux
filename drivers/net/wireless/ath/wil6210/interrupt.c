@@ -36,7 +36,8 @@
  */
 
 #define WIL6210_IRQ_DISABLE	(0xFFFFFFFFUL)
-#define WIL6210_IMC_RX		BIT_DMA_EP_RX_ICR_RX_DONE
+#define WIL6210_IMC_RX		(BIT_DMA_EP_RX_ICR_RX_DONE | \
+				 BIT_DMA_EP_RX_ICR_RX_HTRSH)
 #define WIL6210_IMC_TX		(BIT_DMA_EP_TX_ICR_TX_DONE | \
 				BIT_DMA_EP_TX_ICR_TX_DONE_N(0))
 #define WIL6210_IMC_MISC	(ISR_MISC_FW_READY | \
@@ -171,6 +172,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	u32 isr = wil_ioread32_and_clear(wil->csr +
 					 HOSTADDR(RGF_DMA_EP_RX_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
+	bool need_unmask = true;
 
 	trace_wil6210_irq_rx(isr);
 	wil_dbg_irq(wil, "ISR RX 0x%08x\n", isr);
@@ -182,12 +184,24 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 
 	wil6210_mask_irq_rx(wil);
 
-	if (isr & BIT_DMA_EP_RX_ICR_RX_DONE) {
+	/* RX_DONE and RX_HTRSH interrupts are the same if interrupt
+	 * moderation is not used. Interrupt moderation may cause RX
+	 * buffer overflow while RX_DONE is delayed. The required
+	 * action is always the same - should empty the accumulated
+	 * packets from the RX ring.
+	 */
+	if (isr & (BIT_DMA_EP_RX_ICR_RX_DONE | BIT_DMA_EP_RX_ICR_RX_HTRSH)) {
 		wil_dbg_irq(wil, "RX done\n");
-		isr &= ~BIT_DMA_EP_RX_ICR_RX_DONE;
+
+		if (isr & BIT_DMA_EP_RX_ICR_RX_HTRSH)
+			wil_err_ratelimited(wil, "Received \"Rx buffer is in risk "
+				"of overflow\" interrupt\n");
+
+		isr &= ~(BIT_DMA_EP_RX_ICR_RX_DONE | BIT_DMA_EP_RX_ICR_RX_HTRSH);
 		if (test_bit(wil_status_reset_done, &wil->status)) {
 			if (test_bit(wil_status_napi_en, &wil->status)) {
 				wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
+				need_unmask = false;
 				napi_schedule(&wil->napi_rx);
 			} else {
 				wil_err(wil, "Got Rx interrupt while "
@@ -204,6 +218,10 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	/* Rx IRQ will be enabled when NAPI processing finished */
 
 	atomic_inc(&wil->isr_count_rx);
+
+	if (unlikely(need_unmask))
+		wil6210_unmask_irq_rx(wil);
+
 	return IRQ_HANDLED;
 }
 
@@ -213,6 +231,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 	u32 isr = wil_ioread32_and_clear(wil->csr +
 					 HOSTADDR(RGF_DMA_EP_TX_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
+	bool need_unmask = true;
 
 	trace_wil6210_irq_tx(isr);
 	wil_dbg_irq(wil, "ISR TX 0x%08x\n", isr);
@@ -231,6 +250,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 		isr &= ~(BIT(25) - 1UL);
 		if (test_bit(wil_status_reset_done, &wil->status)) {
 			wil_dbg_txrx(wil, "NAPI(Tx) schedule\n");
+			need_unmask = false;
 			napi_schedule(&wil->napi_tx);
 		} else {
 			wil_err(wil, "Got Tx interrupt while in reset\n");
@@ -243,6 +263,10 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 	/* Tx IRQ will be enabled when NAPI processing finished */
 
 	atomic_inc(&wil->isr_count_tx);
+
+	if (unlikely(need_unmask))
+		wil6210_unmask_irq_tx(wil);
+
 	return IRQ_HANDLED;
 }
 
