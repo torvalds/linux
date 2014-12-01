@@ -195,7 +195,7 @@ gb_pending_operation_find(struct gb_connection *connection, u16 operation_id)
 	return found ? operation : NULL;
 }
 
-static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
+static int gb_message_send(struct gb_message *message)
 {
 	struct gb_connection *connection = message->operation->connection;
 	u16 dest_cport_id = connection->interface_cport_id;
@@ -207,7 +207,7 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp_mask)
 					dest_cport_id,
 					message->header,
 					message->size,
-					gfp_mask);
+					GFP_KERNEL);
 	if (IS_ERR(cookie))
 		ret = PTR_ERR(cookie);
 	else
@@ -561,7 +561,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	/* All set, send the request */
 	gb_operation_result_set(operation, -EINPROGRESS);
-	ret = gb_message_send(operation->request, GFP_KERNEL);
+	ret = gb_message_send(operation->request);
 	if (ret || callback)
 		return ret;
 
