@@ -82,4 +82,7 @@
 
 #define SO_INCOMING_CPU		49
 
+#define SO_ATTACH_BPF		50
+#define SO_DETACH_BPF		SO_DETACH_FILTER
+
 #endif /* _UAPI__ASM_AVR32_SOCKET_H */

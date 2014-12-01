@@ -128,7 +128,11 @@ struct bpf_prog_aux {
 	struct work_struct work;
 };
 
+#ifdef CONFIG_BPF_SYSCALL
 void bpf_prog_put(struct bpf_prog *prog);
+#else
+static inline void bpf_prog_put(struct bpf_prog *prog) {}
+#endif
 struct bpf_prog *bpf_prog_get(u32 ufd);
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
