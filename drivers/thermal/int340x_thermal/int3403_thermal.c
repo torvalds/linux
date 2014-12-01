@@ -293,8 +293,7 @@ static int int3403_sensor_add(struct int3403_priv *priv)
 	return 0;
 
  err_free_obj:
-	if (obj->tzone)
-		thermal_zone_device_unregister(obj->tzone);
+	thermal_zone_device_unregister(obj->tzone);
 	return result;
 }
 
