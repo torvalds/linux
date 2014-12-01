@@ -956,6 +956,8 @@ static int sahara_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&dev->queue, SAHARA_QUEUE_LENGTH);
 
+	spin_lock_init(&dev->lock);
+
 	dev_ptr = dev;
 
 	tasklet_init(&dev->queue_task, sahara_aes_queue_task,
