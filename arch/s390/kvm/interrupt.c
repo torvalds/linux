@@ -929,7 +929,7 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 
 	li->irq.pgm = irq->u.pgm;
-	__set_bit(IRQ_PEND_PROG, &li->pending_irqs);
+	set_bit(IRQ_PEND_PROG, &li->pending_irqs);
 	return 0;
 }
 
@@ -995,7 +995,7 @@ int __inject_extcall(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 				   irq->u.extcall.code, 0, 2);
 
 	*extcall = irq->u.extcall;
-	__set_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs);
+	set_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	return 0;
 }
