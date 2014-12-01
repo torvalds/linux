@@ -12014,20 +12014,55 @@ intel_check_cursor_plane(struct drm_plane *plane,
 }
 
 static int
+intel_prepare_cursor_plane(struct drm_plane *plane,
+			   struct intel_plane_state *state)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_framebuffer *fb = state->fb;
+	struct intel_crtc *intel_crtc = to_intel_crtc(state->crtc);
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
+	enum pipe pipe = intel_crtc->pipe;
+	int ret = 0;
+
+	if (old_obj != obj) {
+		/* we only need to pin inside GTT if cursor is non-phy */
+		mutex_lock(&dev->struct_mutex);
+		if (!INTEL_INFO(dev)->cursor_needs_physical) {
+			if (obj)
+				ret = intel_pin_and_fence_fb_obj(plane, fb, NULL);
+		} else {
+			int align = IS_I830(dev) ? 16 * 1024 : 256;
+			if (obj)
+				ret = i915_gem_object_attach_phys(obj, align);
+			if (ret)
+				DRM_DEBUG_KMS("failed to attach phys object\n");
+		}
+
+		if (ret == 0)
+			i915_gem_track_fb(intel_crtc->cursor_bo, obj,
+					  INTEL_FRONTBUFFER_CURSOR(pipe));
+
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	return ret;
+}
+
+static void
 intel_commit_cursor_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(state->fb);
 	enum pipe pipe = intel_crtc->pipe;
 	unsigned old_width;
 	uint32_t addr;
-	int ret;
 
+	plane->fb = state->fb;
 	crtc->cursor_x = state->orig_dst.x1;
 	crtc->cursor_y = state->orig_dst.y1;
 
@@ -12044,74 +12079,20 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	if (intel_crtc->cursor_bo == obj)
 		goto update;
 
-	/* if we want to turn off the cursor ignore width and height */
-	if (!obj) {
-		DRM_DEBUG_KMS("cursor off\n");
+	if (!obj)
 		addr = 0;
-		mutex_lock(&dev->struct_mutex);
-		goto finish;
-	}
-
-	/* we only need to pin inside GTT if cursor is non-phy */
-	mutex_lock(&dev->struct_mutex);
-	if (!INTEL_INFO(dev)->cursor_needs_physical) {
-		unsigned alignment;
-
-		/*
-		 * Global gtt pte registers are special registers which actually
-		 * forward writes to a chunk of system memory. Which means that
-		 * there is no risk that the register values disappear as soon
-		 * as we call intel_runtime_pm_put(), so it is correct to wrap
-		 * only the pin/unpin/fence and not more.
-		 */
-		intel_runtime_pm_get(dev_priv);
-
-		/* Note that the w/a also requires 2 PTE of padding following
-		 * the bo. We currently fill all unused PTE with the shadow
-		 * page and so we should always have valid PTE following the
-		 * cursor preventing the VT-d warning.
-		 */
-		alignment = 0;
-		if (need_vtd_wa(dev))
-			alignment = 64*1024;
-
-		ret = i915_gem_object_pin_to_display_plane(obj, alignment, NULL);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to move cursor bo into the GTT\n");
-			intel_runtime_pm_put(dev_priv);
-			goto fail_locked;
-		}
-
-		ret = i915_gem_object_put_fence(obj);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to release fence for cursor");
-			intel_runtime_pm_put(dev_priv);
-			goto fail_unpin;
-		}
-
+	else if (!INTEL_INFO(dev)->cursor_needs_physical)
 		addr = i915_gem_obj_ggtt_offset(obj);
-
-		intel_runtime_pm_put(dev_priv);
-
-	} else {
-		int align = IS_I830(dev) ? 16 * 1024 : 256;
-		ret = i915_gem_object_attach_phys(obj, align);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to attach phys object\n");
-			goto fail_locked;
-		}
+	else
 		addr = obj->phys_handle->busaddr;
-	}
 
-finish:
 	if (intel_crtc->cursor_bo) {
-		if (!INTEL_INFO(dev)->cursor_needs_physical)
-			i915_gem_object_unpin_from_display_plane(intel_crtc->cursor_bo);
+		if (!INTEL_INFO(dev)->cursor_needs_physical) {
+			mutex_lock(&dev->struct_mutex);
+			intel_unpin_fb_obj(intel_crtc->cursor_bo);
+			mutex_unlock(&dev->struct_mutex);
+		}
 	}
-
-	i915_gem_track_fb(intel_crtc->cursor_bo, obj,
-			  INTEL_FRONTBUFFER_CURSOR(pipe));
-	mutex_unlock(&dev->struct_mutex);
 
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = obj;
@@ -12128,13 +12109,6 @@ update:
 
 		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_CURSOR(pipe));
 	}
-
-	return 0;
-fail_unpin:
-	i915_gem_object_unpin_from_display_plane(obj);
-fail_locked:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
 }
 
 static int
@@ -12175,7 +12149,13 @@ intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	return intel_commit_cursor_plane(plane, &state);
+	ret = intel_prepare_cursor_plane(plane, &state);
+	if (ret)
+		return ret;
+
+	intel_commit_cursor_plane(plane, &state);
+
+	return 0;
 }
 
 static const struct drm_plane_funcs intel_cursor_plane_funcs = {
