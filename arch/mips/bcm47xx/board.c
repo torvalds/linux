@@ -1,8 +1,8 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/string.h>
+#include <bcm47xx.h>
 #include <bcm47xx_board.h>
-#include <bcm47xx_nvram.h>
 
 struct bcm47xx_board_type {
 	const enum bcm47xx_board board;

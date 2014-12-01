@@ -27,7 +27,6 @@
  */
 
 #include <bcm47xx.h>
-#include <bcm47xx_nvram.h>
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 
