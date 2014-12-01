@@ -5048,10 +5048,3 @@ int bttv_handle_chipset(struct bttv *btv)
 		pci_write_config_byte(btv->c.pci, PCI_LATENCY_TIMER, latency);
 	return 0;
 }
-
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

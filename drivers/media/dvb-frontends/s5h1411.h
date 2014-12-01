@@ -83,8 +83,3 @@ static inline struct dvb_frontend *s5h1411_attach(
 #endif /* CONFIG_DVB_S5H1411 */
 
 #endif /* __S5H1411_H__ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */

@@ -531,9 +531,3 @@ static inline unsigned int bttv_muxsel(const struct bttv *btv,
 #define btaor(dat,mask,adr) btwrite((dat) | ((mask) & btread(adr)), adr)
 
 #endif /* _BTTVP_H_ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

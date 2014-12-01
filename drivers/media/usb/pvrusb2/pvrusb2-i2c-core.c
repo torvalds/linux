@@ -686,13 +686,3 @@ void pvr2_i2c_core_done(struct pvr2_hdw *hdw)
 		hdw->i2c_linked = 0;
 	}
 }
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

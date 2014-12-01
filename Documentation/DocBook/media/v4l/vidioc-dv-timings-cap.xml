@@ -212,11 +212,3 @@ standards set in the <structfield>standards</structfield> field.
     &return-value;
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

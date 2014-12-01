@@ -252,9 +252,3 @@ EXPORT_SYMBOL(btcx_screen_clips);
 EXPORT_SYMBOL(btcx_align);
 EXPORT_SYMBOL(btcx_sort_clips);
 EXPORT_SYMBOL(btcx_calc_skips);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
