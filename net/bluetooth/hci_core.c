@@ -274,15 +274,13 @@ static const struct file_operations inquiry_cache_fops = {
 static int link_keys_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
-	struct list_head *p, *n;
+	struct link_key *key;
 
-	hci_dev_lock(hdev);
-	list_for_each_safe(p, n, &hdev->link_keys) {
-		struct link_key *key = list_entry(p, struct link_key, list);
+	rcu_read_lock();
+	list_for_each_entry_rcu(key, &hdev->link_keys, list)
 		seq_printf(f, "%pMR %u %*phN %u\n", &key->bdaddr, key->type,
 			   HCI_LINK_KEY_SIZE, key->val, key->pin_len);
-	}
-	hci_dev_unlock(hdev);
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -1128,6 +1126,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	err = hci_req_run(&req, hci_req_sync_complete);
 	if (err < 0) {
 		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
 		return ERR_PTR(err);
 	}
 
@@ -1196,6 +1195,7 @@ static int __hci_req_sync(struct hci_dev *hdev,
 		hdev->req_status = 0;
 
 		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
@@ -3099,15 +3099,11 @@ void hci_uuids_clear(struct hci_dev *hdev)
 
 void hci_link_keys_clear(struct hci_dev *hdev)
 {
-	struct list_head *p, *n;
+	struct link_key *key;
 
-	list_for_each_safe(p, n, &hdev->link_keys) {
-		struct link_key *key;
-
-		key = list_entry(p, struct link_key, list);
-
-		list_del(p);
-		kfree(key);
+	list_for_each_entry_rcu(key, &hdev->link_keys, list) {
+		list_del_rcu(&key->list);
+		kfree_rcu(key, rcu);
 	}
 }
 
@@ -3135,9 +3131,14 @@ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	struct link_key *k;
 
-	list_for_each_entry(k, &hdev->link_keys, list)
-		if (bacmp(bdaddr, &k->bdaddr) == 0)
+	rcu_read_lock();
+	list_for_each_entry_rcu(k, &hdev->link_keys, list) {
+		if (bacmp(bdaddr, &k->bdaddr) == 0) {
+			rcu_read_unlock();
 			return k;
+		}
+	}
+	rcu_read_unlock();
 
 	return NULL;
 }
@@ -3288,7 +3289,7 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
 			return NULL;
-		list_add(&key->list, &hdev->link_keys);
+		list_add_rcu(&key->list, &hdev->link_keys);
 	}
 
 	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
@@ -3381,8 +3382,8 @@ int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
-	list_del(&key->list);
-	kfree(key);
+	list_del_rcu(&key->list);
+	kfree_rcu(key, rcu);
 
 	return 0;
 }
