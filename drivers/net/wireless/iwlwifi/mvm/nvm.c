@@ -263,7 +263,8 @@ static struct iwl_nvm_data *
 iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 {
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
-	const __le16 *hw, *sw, *calib, *regulatory, *mac_override;
+	const __le16 *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
+	bool is_family_8000_a_step = false;
 
 	/* Checking for required sections */
 	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
@@ -287,6 +288,17 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 				"Can't parse mac_address, empty sections\n");
 			return NULL;
 		}
+
+		if (CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP)
+			is_family_8000_a_step = true;
+
+		/* PHY_SKU section is mandatory in B0 */
+		if (!is_family_8000_a_step &&
+		    !mvm->nvm_sections[NVM_SECTION_TYPE_PHY_SKU].data) {
+			IWL_ERR(mvm,
+				"Can't parse phy_sku in B0, empty sections\n");
+			return NULL;
+		}
 	}
 
 	if (WARN_ON(!mvm->cfg))
@@ -298,13 +310,15 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	regulatory = (const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
 	mac_override =
 		(const __le16 *)sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data;
+	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
 
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
-				  regulatory, mac_override,
+				  regulatory, mac_override, phy_sku,
 				  mvm->fw->valid_tx_ant,
 				  mvm->fw->valid_rx_ant,
 				  mvm->fw->ucode_capa.capa[0] &
-				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT,
+				  is_family_8000_a_step);
 }
 
 #define MAX_NVM_FILE_LEN	16384
