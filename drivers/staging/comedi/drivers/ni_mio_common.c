@@ -3945,7 +3945,7 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 		stc_register = Interrupt_B_Enable_Register;
 		break;
 	default:
-		printk("%s: unhandled register 0x%x in switch.\n",
+		pr_err("%s: unhandled register 0x%x in switch.\n",
 		       __func__, reg);
 		BUG();
 		return 0;
