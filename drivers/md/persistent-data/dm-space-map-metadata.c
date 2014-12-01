@@ -583,7 +583,9 @@ static int sm_bootstrap_get_count(struct dm_space_map *sm, dm_block_t b,
 {
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
-	return b < smm->begin ? 1 : 0;
+	*result = (b < smm->begin) ? 1 : 0;
+
+	return 0;
 }
 
 static int sm_bootstrap_count_is_more_than_one(struct dm_space_map *sm,
