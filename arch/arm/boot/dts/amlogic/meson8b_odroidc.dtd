@@ -132,7 +132,7 @@ void root_func(){
                 status = "okay";
                 reserve-memory = <0x01800000  0x00100000>;
                 reserve-iomap = "true";
-                vmode = <3>; /**0:VMODE_720P 1:VMODE_LCD  2:VMODE_LVDS_1080P 3:VMODE_1080P*/
+                vmode = <0>; /**0:VMODE_720P 1:VMODE_LCD  2:VMODE_LVDS_1080P 3:VMODE_1080P*/
                 scale_mode = <1>; /*0:default 1:new*/
                 4k2k_fb = <0>;
                 display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
