@@ -960,8 +960,10 @@ repeat:
 
 	/* check inline_data */
 	ipage = get_node_page(sbi, inode->i_ino);
-	if (IS_ERR(ipage))
+	if (IS_ERR(ipage)) {
+		err = PTR_ERR(ipage);
 		goto unlock_fail;
+	}
 
 	set_new_dnode(&dn, inode, ipage, ipage, 0);
 
