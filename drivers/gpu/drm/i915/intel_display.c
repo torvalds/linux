@@ -10322,9 +10322,9 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	 * computation to clearly distinguish it from the adjusted mode, which
 	 * can be changed by the connectors in the below retry loop.
 	 */
-	drm_mode_set_crtcinfo(&pipe_config->requested_mode, CRTC_STEREO_DOUBLE);
-	pipe_config->pipe_src_w = pipe_config->requested_mode.crtc_hdisplay;
-	pipe_config->pipe_src_h = pipe_config->requested_mode.crtc_vdisplay;
+	drm_crtc_get_hv_timing(&pipe_config->requested_mode,
+			       &pipe_config->pipe_src_w,
+			       &pipe_config->pipe_src_h);
 
 encoder_retry:
 	/* Ensure the port clock defaults are reset when retrying. */

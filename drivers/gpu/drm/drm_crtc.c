@@ -2550,6 +2550,27 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
 /**
+ * drm_crtc_get_hv_timing - Fetches hdisplay/vdisplay for given mode
+ * @mode: mode to query
+ * @hdisplay: hdisplay value to fill in
+ * @vdisplay: vdisplay value to fill in
+ *
+ * The vdisplay value will be doubled if the specified mode is a stereo mode of
+ * the appropriate layout.
+ */
+void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
+			    int *hdisplay, int *vdisplay)
+{
+	struct drm_display_mode adjusted;
+
+	drm_mode_copy(&adjusted, mode);
+	drm_mode_set_crtcinfo(&adjusted, CRTC_STEREO_DOUBLE_ONLY);
+	*hdisplay = adjusted.crtc_hdisplay;
+	*vdisplay = adjusted.crtc_vdisplay;
+}
+EXPORT_SYMBOL(drm_crtc_get_hv_timing);
+
+/**
  * drm_crtc_check_viewport - Checks that a framebuffer is big enough for the
  *     CRTC viewport
  * @crtc: CRTC that framebuffer will be displayed on
@@ -2566,16 +2587,7 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 {
 	int hdisplay, vdisplay;
 
-	hdisplay = mode->hdisplay;
-	vdisplay = mode->vdisplay;
-
-	if (drm_mode_is_stereo(mode)) {
-		struct drm_display_mode adjusted = *mode;
-
-		drm_mode_set_crtcinfo(&adjusted, CRTC_STEREO_DOUBLE);
-		hdisplay = adjusted.crtc_hdisplay;
-		vdisplay = adjusted.crtc_vdisplay;
-	}
+	drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
 
 	if (crtc->invert_dimensions)
 		swap(hdisplay, vdisplay);

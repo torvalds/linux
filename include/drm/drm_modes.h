@@ -90,6 +90,9 @@ enum drm_mode_status {
 
 #define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
 #define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
+#define CRTC_NO_DBLSCAN		(1 << 2) /* don't adjust doublescan */
+#define CRTC_NO_VSCAN		(1 << 3) /* don't adjust doublescan */
+#define CRTC_STEREO_DOUBLE_ONLY	(CRTC_NO_DBLSCAN | CRTC_NO_VSCAN)
 
 #define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
 
