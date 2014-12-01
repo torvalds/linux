@@ -561,6 +561,12 @@ struct rk_lcdc_driver {
 	int iommu_enabled;
 
 	struct rk_fb_reg_area_data reg_area_data;
+	/*
+	 * front_regs means this config is scaning on the devices.
+	 */
+	struct rk_fb_reg_data *front_regs;
+	struct mutex front_lock;
+
 	struct mutex fb_win_id_mutex;
 	struct mutex win_config;
 
