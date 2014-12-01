@@ -281,6 +281,7 @@ static int __must_check __deliver_cpu_timer(struct kvm_vcpu *vcpu)
 
 	rc  = put_guest_lc(vcpu, EXT_IRQ_CPU_TIMER,
 			   (u16 *)__LC_EXT_INT_CODE);
+	rc |= put_guest_lc(vcpu, 0, (u16 *)__LC_EXT_CPU_ADDR);
 	rc |= write_guest_lc(vcpu, __LC_EXT_OLD_PSW,
 			     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 	rc |= read_guest_lc(vcpu, __LC_EXT_NEW_PSW,
@@ -299,6 +300,7 @@ static int __must_check __deliver_ckc(struct kvm_vcpu *vcpu)
 
 	rc  = put_guest_lc(vcpu, EXT_IRQ_CLK_COMP,
 			   (u16 __user *)__LC_EXT_INT_CODE);
+	rc |= put_guest_lc(vcpu, 0, (u16 *)__LC_EXT_CPU_ADDR);
 	rc |= write_guest_lc(vcpu, __LC_EXT_OLD_PSW,
 			     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 	rc |= read_guest_lc(vcpu, __LC_EXT_NEW_PSW,
@@ -585,6 +587,7 @@ static int __must_check __deliver_service(struct kvm_vcpu *vcpu,
 					 inti->ext.ext_params, 0);
 
 	rc  = put_guest_lc(vcpu, EXT_IRQ_SERVICE_SIG, (u16 *)__LC_EXT_INT_CODE);
+	rc |= put_guest_lc(vcpu, 0, (u16 *)__LC_EXT_CPU_ADDR);
 	rc |= write_guest_lc(vcpu, __LC_EXT_OLD_PSW,
 			     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 	rc |= read_guest_lc(vcpu, __LC_EXT_NEW_PSW,
