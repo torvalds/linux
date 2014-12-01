@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
@@ -140,9 +141,12 @@ USER(9f, ic	ivau, x4	)		// invalidate I line PoU
 	add	x4, x4, x2
 	cmp	x4, x1
 	b.lo	1b
-9:						// ignore any faulting cache operation
 	dsb	ish
 	isb
+	mov	x0, #0
+	ret
+9:
+	mov	x0, #-EFAULT
 	ret
 ENDPROC(flush_icache_range)
 ENDPROC(__flush_cache_user_range)
