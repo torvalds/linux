@@ -1361,7 +1361,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		return PTR_ERR(ssi_private->regs);
 	}
 
-	ssi_private->irq = irq_of_parse_and_map(np, 0);
+	ssi_private->irq = platform_get_irq(pdev, 0);
 	if (!ssi_private->irq) {
 		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
 		return -ENXIO;
@@ -1387,7 +1387,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	if (ssi_private->soc->imx) {
 		ret = fsl_ssi_imx_probe(pdev, ssi_private, iomem);
 		if (ret)
-			goto error_irqmap;
+			return ret;
 	}
 
 	ret = snd_soc_register_component(&pdev->dev, &fsl_ssi_component,
@@ -1458,10 +1458,6 @@ error_asoc_register:
 	if (ssi_private->soc->imx)
 		fsl_ssi_imx_clean(pdev, ssi_private);
 
-error_irqmap:
-	if (ssi_private->use_dma)
-		irq_dispose_mapping(ssi_private->irq);
-
 	return ret;
 }
 
@@ -1477,9 +1473,6 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 
 	if (ssi_private->soc->imx)
 		fsl_ssi_imx_clean(pdev, ssi_private);
-
-	if (ssi_private->use_dma)
-		irq_dispose_mapping(ssi_private->irq);
 
 	return 0;
 }
