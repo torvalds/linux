@@ -70,7 +70,6 @@ struct f_uac1_opts {
 	unsigned			fn_play_alloc:1;
 	unsigned			fn_cap_alloc:1;
 	unsigned			fn_cntl_alloc:1;
-	struct gaudio			*card;
 	struct mutex			lock;
 	int				refcnt;
 };

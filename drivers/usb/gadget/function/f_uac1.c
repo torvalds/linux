@@ -674,7 +674,6 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 
 	audio_opts = container_of(f->fi, struct f_uac1_opts, func_inst);
 	audio->card.gadget = c->cdev->gadget;
-	audio_opts->card = &audio->card;
 	/* set up ASLA audio devices */
 	if (!audio_opts->bound) {
 		status = gaudio_setup(&audio->card);
