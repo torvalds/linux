@@ -35,6 +35,8 @@ void enabled_wait(void)
 	/* Call the assembler magic in entry.S */
 	psw_idle(idle, psw_mask);
 
+	trace_hardirqs_off();
+
 	/* Account time spent with enabled wait psw loaded as idle time. */
 	idle->sequence++;
 	smp_wmb();
