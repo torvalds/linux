@@ -156,6 +156,7 @@ static int read8_reg(struct i2c_client *client, u8 tpm_register,
 static void clear_interruption(struct i2c_client *client)
 {
 	u8 interrupt;
+
 	I2C_READ_DATA(client, TPM_INT_STATUS, &interrupt, 1);
 	I2C_WRITE_DATA(client, TPM_INT_STATUS, &interrupt, 1);
 	I2C_READ_DATA(client, TPM_INT_STATUS, &interrupt, 1);
@@ -232,6 +233,7 @@ static u8 tpm_stm_i2c_status(struct tpm_chip *chip)
 {
 	struct i2c_client *client;
 	u8 data;
+
 	client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	I2C_READ_DATA(client, TPM_STS, &data, 1);
@@ -783,11 +785,11 @@ static int tpm_st33_i2c_pm_suspend(struct device *dev)
 	struct st33zp24_platform_data *pin_infos = dev->platform_data;
 	int ret = 0;
 
-	if (power_mgt) {
+	if (power_mgt)
 		gpio_set_value(pin_infos->io_lpcpd, 0);
-	} else {
+	else
 		ret = tpm_pm_suspend(dev);
-	}
+
 	return ret;
 }				/* tpm_st33_i2c_suspend() */
 
