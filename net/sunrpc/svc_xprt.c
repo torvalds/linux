@@ -220,9 +220,11 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
  */
 static void svc_xprt_received(struct svc_xprt *xprt)
 {
-	WARN_ON_ONCE(!test_bit(XPT_BUSY, &xprt->xpt_flags));
-	if (!test_bit(XPT_BUSY, &xprt->xpt_flags))
+	if (!test_bit(XPT_BUSY, &xprt->xpt_flags)) {
+		WARN_ONCE(1, "xprt=0x%p already busy!", xprt);
 		return;
+	}
+
 	/* As soon as we clear busy, the xprt could be closed and
 	 * 'put', so we need a reference to call svc_xprt_do_enqueue with:
 	 */
