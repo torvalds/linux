@@ -446,7 +446,7 @@ static int wil_fw_load(struct wil6210_priv *wil, const void *data, size_t size)
 		if (size >= sizeof(*hdr)) {
 			wil_err_fw(wil, "Stop at offset %ld"
 				   " record type %d [%zd bytes]\n",
-				   (const void *)hdr - data,
+				   (long)((const void *)hdr - data),
 				   le16_to_cpu(hdr->type), hdr_sz);
 		}
 		return -EINVAL;
