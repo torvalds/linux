@@ -354,6 +354,7 @@ struct kvm_memslots {
 	/* The mapping table from slot id to the index in memslots[]. */
 	short id_to_index[KVM_MEM_SLOTS_NUM];
 	atomic_t lru_slot;
+	int used_slots;
 };
 
 struct kvm {
@@ -791,19 +792,28 @@ static inline void kvm_guest_exit(void)
 static inline struct kvm_memory_slot *
 search_memslots(struct kvm_memslots *slots, gfn_t gfn)
 {
+	int start = 0, end = slots->used_slots;
 	int slot = atomic_read(&slots->lru_slot);
-	struct kvm_memory_slot *memslot = &slots->memslots[slot];
+	struct kvm_memory_slot *memslots = slots->memslots;
 
-	if (gfn >= memslot->base_gfn &&
-	    gfn < memslot->base_gfn + memslot->npages)
-		return memslot;
+	if (gfn >= memslots[slot].base_gfn &&
+	    gfn < memslots[slot].base_gfn + memslots[slot].npages)
+		return &memslots[slot];
 
-	kvm_for_each_memslot(memslot, slots)
-		if (gfn >= memslot->base_gfn &&
-		      gfn < memslot->base_gfn + memslot->npages) {
-			atomic_set(&slots->lru_slot, memslot - slots->memslots);
-			return memslot;
-		}
+	while (start < end) {
+		slot = start + (end - start) / 2;
+
+		if (gfn >= memslots[slot].base_gfn)
+			end = slot;
+		else
+			start = slot + 1;
+	}
+
+	if (gfn >= memslots[start].base_gfn &&
+	    gfn < memslots[start].base_gfn + memslots[start].npages) {
+		atomic_set(&slots->lru_slot, start);
+		return &memslots[start];
+	}
 
 	return NULL;
 }
