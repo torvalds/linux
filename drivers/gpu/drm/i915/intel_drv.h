@@ -244,8 +244,7 @@ typedef struct dpll {
 } intel_clock_t;
 
 struct intel_plane_state {
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
+	struct drm_plane_state base;
 	struct drm_rect src;
 	struct drm_rect dst;
 	struct drm_rect clip;
