@@ -591,6 +591,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	char buildstr[25];
 	u32 build;
 	int num_of_cpus;
+	bool usniffer_images = false;
+	bool usniffer_req = false;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -908,6 +910,9 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				break;
 			}
 
+			if (conf->usniffer)
+				usniffer_req = true;
+
 			IWL_INFO(drv, "Found debug configuration: %d\n",
 				 conf->id);
 
@@ -915,10 +920,22 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			pieces->dbg_conf_tlv_len[conf->id] = tlv_len;
 			break;
 			}
+		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
+			usniffer_images = true;
+			iwl_store_ucode_sec(pieces, tlv_data,
+					    IWL_UCODE_REGULAR_USNIFFER,
+					    tlv_len);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
 		}
+	}
+
+	if (usniffer_req && !usniffer_images) {
+		IWL_ERR(drv,
+			"user selected to work with usniffer but usniffer image isn't available in ucode package\n");
+		return -EINVAL;
 	}
 
 	if (len) {

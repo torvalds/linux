@@ -77,11 +77,13 @@
  * @IWL_UCODE_REGULAR: Normal runtime ucode
  * @IWL_UCODE_INIT: Initial ucode
  * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
+ * @IWL_UCODE_REGULAR_USNIFFER: Normal runtime ucode when using usniffer image
  */
 enum iwl_ucode_type {
 	IWL_UCODE_REGULAR,
 	IWL_UCODE_INIT,
 	IWL_UCODE_WOWLAN,
+	IWL_UCODE_REGULAR_USNIFFER,
 	IWL_UCODE_TYPE_MAX,
 };
 
@@ -229,6 +231,17 @@ iwl_fw_dbg_conf_enabled(const struct iwl_fw *fw, u8 id)
 		return false;
 
 	return trigger->enabled;
+}
+
+static inline bool
+iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
+{
+	const struct iwl_fw_dbg_conf_tlv *conf_tlv = fw->dbg_conf_tlv[id];
+
+	if (!conf_tlv)
+		return false;
+
+	return conf_tlv->usniffer;
 }
 
 #endif  /* __iwl_fw_h__ */
