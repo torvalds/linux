@@ -562,6 +562,7 @@ struct rk_lcdc_driver {
 
 	struct rk_fb_reg_area_data reg_area_data;
 	struct mutex fb_win_id_mutex;
+	struct mutex win_config;
 
 	struct completion frame_done;	/*sync for pan_display,whe we set a new
 					  frame address to lcdc register,we must

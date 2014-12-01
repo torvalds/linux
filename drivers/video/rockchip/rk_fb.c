@@ -1935,10 +1935,12 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			    (win_data->data_format == YUV420 ||
 			     win_data->data_format == YUV420_A))
 				continue;
+			mutex_lock(&dev_drv->win_config);
 			rk_fb_update_win(dev_drv, win, win_data);
 			win->state = 1;
 			dev_drv->ops->set_par(dev_drv, i);
 			dev_drv->ops->pan_display(dev_drv, i);
+			mutex_unlock(&dev_drv->win_config);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 			if (dev_drv->iommu_enabled) {
 				g_last_addr[i] = win_data->reg_area_data[0].smem_start +
@@ -3541,8 +3543,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			info->var.grayscale |=
 				(dev_drv->cur_screen->mode.xres << 8) +
 				(dev_drv->cur_screen->mode.yres << 20);
+			mutex_lock(&dev_drv->win_config);
 			info->fbops->fb_set_par(info);
 			info->fbops->fb_pan_display(&info->var, info);
+			mutex_unlock(&dev_drv->win_config);
 
 			if (dev_drv->ops->dsp_black)
 				dev_drv->ops->dsp_black(dev_drv, 0);
@@ -3596,8 +3600,11 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 							(dev_drv->cur_screen->xsize << 8) +
 							(dev_drv->cur_screen->ysize << 20);
 					}
+
+					mutex_lock(&dev_drv->win_config);
 					info->fbops->fb_set_par(info);
 					info->fbops->fb_pan_display(&info->var, info);
+					mutex_unlock(&dev_drv->win_config);
 				}
 			}
 		}
@@ -3684,9 +3691,11 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 		}
 	}
 
+	mutex_lock(&dev_drv->win_config);
 	info->fbops->fb_set_par(info);
-	/* info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0); */
 	dev_drv->ops->cfg_done(dev_drv);
+	mutex_unlock(&dev_drv->win_config);
+
 	return 0;
 }
 
@@ -3911,6 +3920,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);
 	mutex_init(&dev_drv->fb_win_id_mutex);
+	mutex_init(&dev_drv->win_config);
 	dev_drv->ops->fb_win_remap(dev_drv, dev_drv->fb_win_map);
 	dev_drv->first_frame = 1;
 	dev_drv->overscan.left = 100;
