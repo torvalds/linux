@@ -414,6 +414,8 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	int err;
 	int copied;
 
+	WARN_ON_ONCE(sk->sk_family == AF_INET6);
+
 	err = -EAGAIN;
 	skb = sock_dequeue_err_skb(sk);
 	if (skb == NULL)
