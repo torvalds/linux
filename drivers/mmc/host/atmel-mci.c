@@ -2140,7 +2140,7 @@ static irqreturn_t atmci_detect_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init atmci_init_slot(struct atmel_mci *host,
+static int atmci_init_slot(struct atmel_mci *host,
 		struct mci_slot_pdata *slot_data, unsigned int id,
 		u32 sdc_reg, u32 sdio_irq)
 {
@@ -2302,7 +2302,7 @@ static bool atmci_configure_dma(struct atmel_mci *host)
  * HSMCI provides DMA support and a new config register but no more supports
  * PDC.
  */
-static void __init atmci_get_cap(struct atmel_mci *host)
+static void atmci_get_cap(struct atmel_mci *host)
 {
 	unsigned int version;
 
@@ -2351,7 +2351,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	}
 }
 
-static int __init atmci_probe(struct platform_device *pdev)
+static int atmci_probe(struct platform_device *pdev)
 {
 	struct mci_platform_data	*pdata;
 	struct atmel_mci		*host;
@@ -2502,7 +2502,7 @@ err_init_slot:
 	return ret;
 }
 
-static int __exit atmci_remove(struct platform_device *pdev)
+static int atmci_remove(struct platform_device *pdev)
 {
 	struct atmel_mci	*host = platform_get_drvdata(pdev);
 	unsigned int		i;
@@ -2565,7 +2565,7 @@ static const struct dev_pm_ops atmci_dev_pm_ops = {
 };
 
 static struct platform_driver atmci_driver = {
-	.remove		= __exit_p(atmci_remove),
+	.remove		= atmci_remove,
 	.driver		= {
 		.name		= "atmel_mci",
 		.of_match_table	= of_match_ptr(atmci_dt_ids),
