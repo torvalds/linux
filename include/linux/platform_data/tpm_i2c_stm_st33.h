@@ -12,9 +12,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * STMicroelectronics version 1.2.0, Copyright (C) 2010
  * STMicroelectronics comes with ABSOLUTELY NO WARRANTY.
@@ -30,15 +29,12 @@
 #ifndef __STM_ST33_TPM_I2C_MAIN_H__
 #define __STM_ST33_TPM_I2C_MAIN_H__
 
+
 #define TPM_ST33_I2C			"st33zp24_i2c"
 
 struct st33zp24_platform_data {
 	int io_serirq;
 	int io_lpcpd;
-	struct i2c_client *client;
-	u8 *tpm_i2c_buffer[2]; /* 0 Request 1 Response */
-	struct completion irq_detection;
-	struct mutex lock;
 };
 
 #endif /* __STM_ST33_TPM_I2C_MAIN_H__ */
