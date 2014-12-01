@@ -750,7 +750,7 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 #endif
 
 #if defined(CONFIG_ARCH_RK319X)
-	/// select aclk_vepu as vcodec clock source. 
+	/// select aclk_vepu as vcodec clock source.
 #define BIT_VCODEC_SEL	(1<<7)
 	writel_relaxed(readl_relaxed(RK319X_GRF_BASE + GRF_SOC_CON1) |
 		(BIT_VCODEC_SEL) | (BIT_VCODEC_SEL << 16),
@@ -799,6 +799,41 @@ static inline int reg_probe_width(vpu_reg *reg)
 }
 
 #if defined(CONFIG_VCODEC_MMU)
+static int vcodec_fd_to_iova(struct vpu_service_info *pservice, vpu_reg *reg,int fd)
+{
+	struct ion_handle *hdl;
+	int ret = 0;
+	struct vcodec_mem_region *mem_region;
+
+	hdl = ion_import_dma_buf(pservice->ion_client, fd);
+	if (IS_ERR(hdl)) {
+		dev_err(pservice->dev, "import dma-buf from fd %d failed\n", fd);
+		return PTR_ERR(hdl);
+	}
+	mem_region = kzalloc(sizeof(struct vcodec_mem_region), GFP_KERNEL);
+
+	if (mem_region == NULL) {
+		dev_err(pservice->dev, "allocate memory for iommu memory region failed\n");
+		ion_free(pservice->ion_client, hdl);
+		return -1;
+	}
+
+	mem_region->hdl = hdl;
+	vcodec_enter_mode(pservice->dev_id);
+	ret = ion_map_iommu(pservice->dev, pservice->ion_client, mem_region->hdl, &mem_region->iova, &mem_region->len);
+	vcodec_exit_mode();
+
+	if (ret < 0) {
+		dev_err(pservice->dev, "ion map iommu failed\n");
+		kfree(mem_region);
+		ion_free(pservice->ion_client, hdl);
+		return ret;
+	}
+	INIT_LIST_HEAD(&mem_region->reg_lnk);
+	list_add_tail(&mem_region->reg_lnk, &reg->mem_region_list);
+	return mem_region->iova;
+}
+
 static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl,
 				int size, vpu_reg *reg,
 				struct extra_info_for_iommu *ext_inf)
@@ -835,6 +870,31 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl,
 				return PTR_ERR(hdl);
 			}
 
+			if (tbl[i] == 42 && pservice->hw_info->hw_id == HEVC_ID){
+				int i = 0;
+				char *pps;
+				pps = (char *)ion_map_kernel(pservice->ion_client,hdl);
+				for (i=0; i<64; i++) {
+					u32 scaling_offset;
+					u32 tmp;
+					int scaling_fd= 0;
+					scaling_offset = (u32)pps[i*80+74];
+					scaling_offset += (u32)pps[i*80+75] << 8;
+					scaling_offset += (u32)pps[i*80+76] << 16;
+					scaling_offset += (u32)pps[i*80+77] << 24;
+					scaling_fd = scaling_offset&0x3ff;
+					scaling_offset = scaling_offset >> 10;
+					if(scaling_fd > 0) {
+						tmp = vcodec_fd_to_iova(pservice,reg,scaling_fd);
+						tmp += scaling_offset;
+						pps[i*80+74] = tmp & 0xff;
+						pps[i*80+75] = (tmp >> 8) & 0xff;
+						pps[i*80+76] = (tmp >> 16) & 0xff;
+						pps[i*80+77] = (tmp >> 24) & 0xff;
+					}
+				}
+			}
+
 			mem_region = kzalloc(sizeof(struct vcodec_mem_region), GFP_KERNEL);
 
 			if (mem_region == NULL) {
@@ -844,9 +904,13 @@ static int vcodec_bufid_to_iova(struct vpu_service_info *pservice, u8 *tbl,
 			}
 
 			mem_region->hdl = hdl;
-                        mem_region->reg_idx = tbl[i];
+			mem_region->reg_idx = tbl[i];
 			vcodec_enter_mode(pservice->dev_id);
-			ret = ion_map_iommu(pservice->dev, pservice->ion_client, mem_region->hdl, &mem_region->iova, &mem_region->len);
+			ret = ion_map_iommu(pservice->dev,
+                                            pservice->ion_client,
+                                            mem_region->hdl,
+                                            &mem_region->iova,
+                                            &mem_region->len);
 			vcodec_exit_mode();
 
 			if (ret < 0) {
@@ -1637,14 +1701,14 @@ static struct device *rockchip_get_sysmmu_device_by_compatible(const char *compt
 		printk("can't find device node %s \r\n",compt);
 		return NULL;
 	}
-	
+
 	pd = of_find_device_by_node(dn);
-	if(!pd) {	
+	if(!pd) {
 		printk("can't find platform device in device node %s\n",compt);
 		return  NULL;
 	}
 	ret = &pd->dev;
-	
+
 	return ret;
 
 }
@@ -1748,13 +1812,13 @@ static int vcodec_probe(struct platform_device *pdev)
 		pservice->running = kzalloc(sizeof(struct list_head), GFP_KERNEL);
 		pservice->lock = kzalloc(sizeof(struct mutex), GFP_KERNEL);
 		pservice->reg_codec = kzalloc(sizeof(vpu_reg*), GFP_KERNEL);
-		INIT_LIST_HEAD(pservice->waiting); 
+		INIT_LIST_HEAD(pservice->waiting);
 		INIT_LIST_HEAD(pservice->running);
 		mutex_init(pservice->lock);
 	}
 	INIT_LIST_HEAD(&pservice->done);
 	INIT_LIST_HEAD(&pservice->session);
-	
+
 	pservice->reg_pproc	= NULL;
 	atomic_set(&pservice->total_running, 0);
 	pservice->enabled = false;
