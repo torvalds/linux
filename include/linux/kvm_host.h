@@ -353,6 +353,7 @@ struct kvm_memslots {
 	struct kvm_memory_slot memslots[KVM_MEM_SLOTS_NUM];
 	/* The mapping table from slot id to the index in memslots[]. */
 	short id_to_index[KVM_MEM_SLOTS_NUM];
+	atomic_t lru_slot;
 };
 
 struct kvm {
@@ -790,12 +791,19 @@ static inline void kvm_guest_exit(void)
 static inline struct kvm_memory_slot *
 search_memslots(struct kvm_memslots *slots, gfn_t gfn)
 {
-	struct kvm_memory_slot *memslot;
+	int slot = atomic_read(&slots->lru_slot);
+	struct kvm_memory_slot *memslot = &slots->memslots[slot];
+
+	if (gfn >= memslot->base_gfn &&
+	    gfn < memslot->base_gfn + memslot->npages)
+		return memslot;
 
 	kvm_for_each_memslot(memslot, slots)
 		if (gfn >= memslot->base_gfn &&
-		      gfn < memslot->base_gfn + memslot->npages)
+		      gfn < memslot->base_gfn + memslot->npages) {
+			atomic_set(&slots->lru_slot, memslot - slots->memslots);
 			return memslot;
+		}
 
 	return NULL;
 }
