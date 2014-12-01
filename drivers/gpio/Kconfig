@@ -459,6 +459,7 @@ config GPIO_VX855
 config GPIO_GE_FPGA
 	bool "GE FPGA based GPIO"
 	depends on GE_FPGA
+	select GPIO_GENERIC
 	help
 	  Support for common GPIO functionality provided on some GE Single Board
 	  Computers.
