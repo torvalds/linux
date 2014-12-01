@@ -1,6 +1,6 @@
 /*
  * STMicroelectronics TPM I2C Linux driver for TPM ST33ZP24
- * Copyright (C) 2009, 2010  STMicroelectronics
+ * Copyright (C) 2009, 2010, 2014  STMicroelectronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
- * STMicroelectronics version 1.2.0, Copyright (C) 2010
+ * STMicroelectronics version 1.2.1, Copyright (C) 2014
  * STMicroelectronics comes with ABSOLUTELY NO WARRANTY.
  * This is free software, and you are welcome to redistribute it
  * under certain conditions.
@@ -910,5 +910,5 @@ module_i2c_driver(tpm_stm_i2c_driver);
 
 MODULE_AUTHOR("Christophe Ricard (tpmsupport@st.com)");
 MODULE_DESCRIPTION("STM TPM I2C ST33 Driver");
-MODULE_VERSION("1.2.0");
+MODULE_VERSION("1.2.1");
 MODULE_LICENSE("GPL");
