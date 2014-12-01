@@ -65,6 +65,7 @@ struct mcp23s08_ops {
 
 struct mcp23s08 {
 	u8			addr;
+	bool			irq_active_high;
 
 	u16			cache[11];
 	u16			irq_rise;
@@ -476,6 +477,7 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 {
 	struct gpio_chip *chip = &mcp->chip;
 	int err, irq, j;
+	unsigned long irqflags = IRQF_ONESHOT | IRQF_SHARED;
 
 	mutex_init(&mcp->irq_lock);
 
@@ -484,10 +486,13 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 	if (!mcp->irq_domain)
 		return -ENODEV;
 
+	if (mcp->irq_active_high)
+		irqflags |= IRQF_TRIGGER_HIGH;
+	else
+		irqflags |= IRQF_TRIGGER_LOW;
+
 	err = devm_request_threaded_irq(chip->dev, mcp->irq, NULL, mcp23s08_irq,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT |
-					IRQF_SHARED,
-					dev_name(chip->dev), mcp);
+					irqflags, dev_name(chip->dev), mcp);
 	if (err != 0) {
 		dev_err(chip->dev, "unable to request IRQ#%d: %d\n",
 			mcp->irq, err);
@@ -589,6 +594,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	mcp->data = data;
 	mcp->addr = addr;
+	mcp->irq_active_high = false;
 
 	mcp->chip.direction_input = mcp23s08_direction_input;
 	mcp->chip.get = mcp23s08_get;
@@ -648,14 +654,24 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		goto fail;
 
 	mcp->irq_controller = pdata->irq_controller;
-	if (mcp->irq && mcp->irq_controller && (type == MCP_TYPE_017))
-		mirror = pdata->mirror;
+	if (mcp->irq && mcp->irq_controller) {
+		mcp->irq_active_high = of_property_read_bool(mcp->chip.of_node,
+				"microchip,irq-active-high");
 
-	if ((status & IOCON_SEQOP) || !(status & IOCON_HAEN) || mirror) {
+		if (type == MCP_TYPE_017)
+			mirror = pdata->mirror;
+	}
+
+	if ((status & IOCON_SEQOP) || !(status & IOCON_HAEN) || mirror ||
+	     mcp->irq_active_high) {
 		/* mcp23s17 has IOCON twice, make sure they are in sync */
 		status &= ~(IOCON_SEQOP | (IOCON_SEQOP << 8));
 		status |= IOCON_HAEN | (IOCON_HAEN << 8);
-		status &= ~(IOCON_INTPOL | (IOCON_INTPOL << 8));
+		if (mcp->irq_active_high)
+			status |= IOCON_INTPOL | (IOCON_INTPOL << 8);
+		else
+			status &= ~(IOCON_INTPOL | (IOCON_INTPOL << 8));
+
 		if (mirror)
 			status |= IOCON_MIRROR | (IOCON_MIRROR << 8);
 
