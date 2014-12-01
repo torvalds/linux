@@ -322,7 +322,7 @@ static unsigned long clk_pxa27x_memory_get_rate(struct clk_hw *hw,
 	unsigned long ccsr = CCSR;
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
-	a = cccr & CCCR_A_BIT;
+	a = cccr & (1 << CCCR_A_BIT);
 	l  = ccsr & CCSR_L_MASK;
 
 	if (osc_forced || a)
@@ -341,7 +341,7 @@ static u8 clk_pxa27x_memory_get_parent(struct clk_hw *hw)
 	unsigned long ccsr = CCSR;
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
-	a = cccr & CCCR_A_BIT;
+	a = cccr & (1 << CCCR_A_BIT);
 	if (osc_forced)
 		return PXA_MEM_13Mhz;
 	if (a)

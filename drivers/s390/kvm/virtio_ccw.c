@@ -888,7 +888,6 @@ static void virtio_ccw_int_handler(struct ccw_device *cdev,
 	struct virtio_ccw_device *vcdev = dev_get_drvdata(&cdev->dev);
 	int i;
 	struct virtqueue *vq;
-	struct virtio_driver *drv;
 
 	if (!vcdev)
 		return;

@@ -1098,12 +1098,25 @@ static u32 get_backlight_min_vbt(struct intel_connector *connector)
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
+	int min;
 
 	WARN_ON(panel->backlight.max == 0);
 
+	/*
+	 * XXX: If the vbt value is 255, it makes min equal to max, which leads
+	 * to problems. There are such machines out there. Either our
+	 * interpretation is wrong or the vbt has bogus data. Or both. Safeguard
+	 * against this by letting the minimum be at most (arbitrarily chosen)
+	 * 25% of the max.
+	 */
+	min = clamp_t(int, dev_priv->vbt.backlight.min_brightness, 0, 64);
+	if (min != dev_priv->vbt.backlight.min_brightness) {
+		DRM_DEBUG_KMS("clamping VBT min backlight %d/255 to %d/255\n",
+			      dev_priv->vbt.backlight.min_brightness, min);
+	}
+
 	/* vbt value is a coefficient in range [0..255] */
-	return scale(dev_priv->vbt.backlight.min_brightness, 0, 255,
-		     0, panel->backlight.max);
+	return scale(min, 0, 255, 0, panel->backlight.max);
 }
 
 static int bdw_setup_backlight(struct intel_connector *connector)

@@ -104,6 +104,9 @@ enum xgene_enet_rm {
 #define BLOCK_ETH_MAC_OFFSET		0x0000
 #define BLOCK_ETH_MAC_CSR_OFFSET	0x2800
 
+#define CLKEN_ADDR			0xc208
+#define SRST_ADDR			0xc200
+
 #define MAC_ADDR_REG_OFFSET		0x00
 #define MAC_COMMAND_REG_OFFSET		0x04
 #define MAC_WRITE_REG_OFFSET		0x08
@@ -318,6 +321,7 @@ void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
+bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
 
 extern struct xgene_mac_ops xgene_gmac_ops;
 extern struct xgene_port_ops xgene_gport_ops;
