@@ -225,7 +225,7 @@ static int mn88473_init(struct dvb_frontend *fe)
 	ret = request_firmware(&fw, fw_file, &client->dev);
 	if (ret) {
 		dev_err(&client->dev, "firmare file '%s' not found\n", fw_file);
-		goto err;
+		goto err_request_firmware;
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
@@ -261,9 +261,10 @@ static int mn88473_init(struct dvb_frontend *fe)
 	dev->warm = true;
 
 	return 0;
+
 err:
 	release_firmware(fw);
-
+err_request_firmware:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
