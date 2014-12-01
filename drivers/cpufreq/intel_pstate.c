@@ -1025,15 +1025,46 @@ static bool intel_pstate_no_acpi_pss(void)
 	return true;
 }
 
+static bool intel_pstate_has_acpi_ppc(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct acpi_processor *pr = per_cpu(processors, i);
+
+		if (!pr)
+			continue;
+		if (acpi_has_method(pr->handle, "_PPC"))
+			return true;
+	}
+	return false;
+}
+
+enum {
+	PSS,
+	PPC,
+};
+
 struct hw_vendor_info {
 	u16  valid;
 	char oem_id[ACPI_OEM_ID_SIZE];
 	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE];
+	int  oem_pwr_table;
 };
 
 /* Hardware vendor-specific info that has its own power management modes */
 static struct hw_vendor_info vendor_info[] = {
-	{1, "HP    ", "ProLiant"},
+	{1, "HP    ", "ProLiant", PSS},
+	{1, "ORACLE", "X4-2    ", PPC},
+	{1, "ORACLE", "X4-2L   ", PPC},
+	{1, "ORACLE", "X4-2B   ", PPC},
+	{1, "ORACLE", "X3-2    ", PPC},
+	{1, "ORACLE", "X3-2L   ", PPC},
+	{1, "ORACLE", "X3-2B   ", PPC},
+	{1, "ORACLE", "X4470M2 ", PPC},
+	{1, "ORACLE", "X4270M3 ", PPC},
+	{1, "ORACLE", "X4270M2 ", PPC},
+	{1, "ORACLE", "X4170M2 ", PPC},
 	{0, "", ""},
 };
 
@@ -1057,15 +1088,21 @@ static bool intel_pstate_platform_pwr_mgmt_exists(void)
 
 	for (v_info = vendor_info; v_info->valid; v_info++) {
 		if (!strncmp(hdr.oem_id, v_info->oem_id, ACPI_OEM_ID_SIZE) &&
-		    !strncmp(hdr.oem_table_id, v_info->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
-		    intel_pstate_no_acpi_pss())
-			return true;
+			!strncmp(hdr.oem_table_id, v_info->oem_table_id,
+						ACPI_OEM_TABLE_ID_SIZE))
+			switch (v_info->oem_pwr_table) {
+			case PSS:
+				return intel_pstate_no_acpi_pss();
+			case PPC:
+				return intel_pstate_has_acpi_ppc();
+			}
 	}
 
 	return false;
 }
 #else /* CONFIG_ACPI not enabled */
 static inline bool intel_pstate_platform_pwr_mgmt_exists(void) { return false; }
+static inline bool intel_pstate_has_acpi_ppc(void) { return false; }
 #endif /* CONFIG_ACPI */
 
 static int __init intel_pstate_init(void)
