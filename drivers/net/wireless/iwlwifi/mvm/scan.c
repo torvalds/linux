@@ -72,6 +72,8 @@
 
 #define IWL_PLCP_QUIET_THRESH 1
 #define IWL_ACTIVE_QUIET_TIME 10
+#define IWL_DENSE_EBS_SCAN_RATIO 5
+#define IWL_SPARSE_EBS_SCAN_RATIO 1
 
 struct iwl_mvm_scan_params {
 	u32 max_out_time;
@@ -1296,10 +1298,14 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[0].non_ebs_ratio =
+			cpu_to_le16(IWL_DENSE_EBS_SCAN_RATIO);
 		cmd->channel_opt[1].flags =
 			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[1].non_ebs_ratio =
+			cpu_to_le16(IWL_SPARSE_EBS_SCAN_RATIO);
 	}
 
 	if (iwl_mvm_rrm_scan_needed(mvm))
