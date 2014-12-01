@@ -11689,6 +11689,65 @@ intel_primary_plane_disable(struct drm_plane *plane)
 	return 0;
 }
 
+/**
+ * intel_prepare_plane_fb - Prepare fb for usage on plane
+ * @plane: drm plane to prepare for
+ * @fb: framebuffer to prepare for presentation
+ *
+ * Prepares a framebuffer for usage on a display plane.  Generally this
+ * involves pinning the underlying object and updating the frontbuffer tracking
+ * bits.  Some older platforms need special physical address handling for
+ * cursor planes.
+ *
+ * Returns 0 on success, negative error code on failure.
+ */
+int
+intel_prepare_plane_fb(struct drm_plane *plane,
+		       struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = plane->dev;
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	enum pipe pipe = intel_plane->pipe;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
+	unsigned frontbuffer_bits = 0;
+	int ret = 0;
+
+	if (WARN_ON(fb == plane->fb || !obj))
+		return 0;
+
+	switch (plane->type) {
+	case DRM_PLANE_TYPE_PRIMARY:
+		frontbuffer_bits = INTEL_FRONTBUFFER_PRIMARY(pipe);
+		break;
+	case DRM_PLANE_TYPE_CURSOR:
+		frontbuffer_bits = INTEL_FRONTBUFFER_CURSOR(pipe);
+		break;
+	case DRM_PLANE_TYPE_OVERLAY:
+		frontbuffer_bits = INTEL_FRONTBUFFER_SPRITE(pipe);
+		break;
+	}
+
+	mutex_lock(&dev->struct_mutex);
+
+	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
+	    INTEL_INFO(dev)->cursor_needs_physical) {
+		int align = IS_I830(dev) ? 16 * 1024 : 256;
+		ret = i915_gem_object_attach_phys(obj, align);
+		if (ret)
+			DRM_DEBUG_KMS("failed to attach phys object\n");
+	} else {
+		ret = intel_pin_and_fence_fb_obj(plane, fb, NULL);
+	}
+
+	if (ret == 0)
+		i915_gem_track_fb(old_obj, obj, frontbuffer_bits);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
 static int
 intel_check_primary_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
@@ -11704,42 +11763,6 @@ intel_check_primary_plane(struct drm_plane *plane,
 					     DRM_PLANE_HELPER_NO_SCALING,
 					     DRM_PLANE_HELPER_NO_SCALING,
 					     false, true, &state->visible);
-}
-
-static int
-intel_prepare_primary_plane(struct drm_plane *plane,
-			    struct intel_plane_state *state)
-{
-	struct drm_crtc *crtc = state->base.crtc;
-	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
-	int ret;
-
-	intel_crtc_wait_for_pending_flips(crtc);
-
-	if (intel_crtc_has_pending_flip(crtc)) {
-		DRM_ERROR("pipe is still busy with an old pageflip\n");
-		return -EBUSY;
-	}
-
-	if (old_obj != obj) {
-		mutex_lock(&dev->struct_mutex);
-		ret = intel_pin_and_fence_fb_obj(plane, fb, NULL);
-		if (ret == 0)
-			i915_gem_track_fb(old_obj, obj,
-					  INTEL_FRONTBUFFER_PRIMARY(pipe));
-		mutex_unlock(&dev->struct_mutex);
-		if (ret != 0) {
-			DRM_DEBUG_KMS("pin & fence failed\n");
-			return ret;
-		}
-	}
-
-	return 0;
 }
 
 static void
@@ -11843,6 +11866,7 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 			     uint32_t src_x, uint32_t src_y,
 			     uint32_t src_w, uint32_t src_h)
 {
+	struct drm_framebuffer *old_fb = plane->fb;
 	struct intel_plane_state state;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
@@ -11874,9 +11898,18 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	ret = intel_prepare_primary_plane(plane, &state);
-	if (ret)
-		return ret;
+	intel_crtc_wait_for_pending_flips(crtc);
+
+	if (intel_crtc_has_pending_flip(crtc)) {
+		DRM_ERROR("pipe is still busy with an old pageflip\n");
+		return -EBUSY;
+	}
+
+	if (fb != old_fb && fb) {
+		ret = intel_prepare_plane_fb(plane, fb);
+		if (ret)
+			return ret;
+	}
 
 	intel_commit_primary_plane(plane, &state);
 
@@ -12013,42 +12046,6 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	return ret;
 }
 
-static int
-intel_prepare_cursor_plane(struct drm_plane *plane,
-			   struct intel_plane_state *state)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_framebuffer *fb = state->base.fb;
-	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
-	enum pipe pipe = intel_crtc->pipe;
-	int ret = 0;
-
-	if (old_obj != obj) {
-		/* we only need to pin inside GTT if cursor is non-phy */
-		mutex_lock(&dev->struct_mutex);
-		if (!INTEL_INFO(dev)->cursor_needs_physical) {
-			if (obj)
-				ret = intel_pin_and_fence_fb_obj(plane, fb, NULL);
-		} else {
-			int align = IS_I830(dev) ? 16 * 1024 : 256;
-			if (obj)
-				ret = i915_gem_object_attach_phys(obj, align);
-			if (ret)
-				DRM_DEBUG_KMS("failed to attach phys object\n");
-		}
-
-		if (ret == 0)
-			i915_gem_track_fb(intel_crtc->cursor_bo, obj,
-					  INTEL_FRONTBUFFER_CURSOR(pipe));
-
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	return ret;
-}
-
 static void
 intel_commit_cursor_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
@@ -12058,6 +12055,7 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(state->base.fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
 	enum pipe pipe = intel_crtc->pipe;
 	unsigned old_width;
 	uint32_t addr;
@@ -12078,6 +12076,17 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 
 	if (intel_crtc->cursor_bo == obj)
 		goto update;
+
+	/*
+	 * 'prepare' is only called when fb != NULL; we still need to update
+	 * frontbuffer tracking for the 'disable' case here.
+	 */
+	if (!obj) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_track_fb(old_obj, NULL,
+				  INTEL_FRONTBUFFER_CURSOR(pipe));
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	if (!obj)
 		addr = 0;
@@ -12118,6 +12127,7 @@ intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			  uint32_t src_x, uint32_t src_y,
 			  uint32_t src_w, uint32_t src_h)
 {
+	struct drm_framebuffer *old_fb = plane->fb;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane_state state;
 	int ret;
@@ -12149,9 +12159,11 @@ intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	ret = intel_prepare_cursor_plane(plane, &state);
-	if (ret)
-		return ret;
+	if (fb != old_fb && fb) {
+		ret = intel_prepare_plane_fb(plane, fb);
+		if (ret)
+			return ret;
+	}
 
 	intel_commit_cursor_plane(plane, &state);
 

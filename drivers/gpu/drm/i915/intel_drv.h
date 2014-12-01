@@ -922,6 +922,8 @@ void intel_prepare_page_flip(struct drm_device *dev, int plane);
 void intel_finish_page_flip(struct drm_device *dev, int pipe);
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 void intel_check_page_flip(struct drm_device *dev, int pipe);
+int intel_prepare_plane_fb(struct drm_plane *plane,
+			   struct drm_framebuffer *fb);
 
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);

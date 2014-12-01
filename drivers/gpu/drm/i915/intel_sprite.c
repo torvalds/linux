@@ -1257,41 +1257,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	return 0;
 }
 
-static int
-intel_prepare_sprite_plane(struct drm_plane *plane,
-			   struct intel_plane_state *state)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_crtc *crtc = state->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	enum pipe pipe = intel_crtc->pipe;
-	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_plane->obj;
-	int ret;
-
-	if (old_obj != obj) {
-		mutex_lock(&dev->struct_mutex);
-
-		/* Note that this will apply the VT-d workaround for scanouts,
-		 * which is more restrictive than required for sprites. (The
-		 * primary plane requires 256KiB alignment with 64 PTE padding,
-		 * the sprite planes only require 128KiB alignment and 32 PTE
-		 * padding.
-		 */
-		ret = intel_pin_and_fence_fb_obj(plane, fb, NULL);
-		if (ret == 0)
-			i915_gem_track_fb(old_obj, obj,
-					  INTEL_FRONTBUFFER_SPRITE(pipe));
-		mutex_unlock(&dev->struct_mutex);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static void
 intel_commit_sprite_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
@@ -1387,6 +1352,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   uint32_t src_x, uint32_t src_y,
 		   uint32_t src_w, uint32_t src_h)
 {
+	struct drm_framebuffer *old_fb = plane->fb;
 	struct intel_plane_state state;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
@@ -1417,9 +1383,11 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	ret = intel_prepare_sprite_plane(plane, &state);
-	if (ret)
-		return ret;
+	if (fb != old_fb && fb) {
+		ret = intel_prepare_plane_fb(plane, fb);
+		if (ret)
+			return ret;
+	}
 
 	intel_commit_sprite_plane(plane, &state);
 	return 0;
