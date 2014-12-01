@@ -679,20 +679,17 @@ static void update_memslots(struct kvm_memslots *slots,
 	struct kvm_memory_slot *mslots = slots->memslots;
 
 	WARN_ON(mslots[i].id != id);
-	if (new->npages < mslots[i].npages) {
-		while (i < KVM_MEM_SLOTS_NUM - 1 &&
-		       new->npages < mslots[i + 1].npages) {
-			mslots[i] = mslots[i + 1];
-			slots->id_to_index[mslots[i].id] = i;
-			i++;
-		}
-	} else {
-		while (i > 0 &&
-		       new->npages > mslots[i - 1].npages) {
-			mslots[i] = mslots[i - 1];
-			slots->id_to_index[mslots[i].id] = i;
-			i--;
-		}
+	while (i < KVM_MEM_SLOTS_NUM - 1 &&
+	       new->npages < mslots[i + 1].npages) {
+		mslots[i] = mslots[i + 1];
+		slots->id_to_index[mslots[i].id] = i;
+		i++;
+	}
+	while (i > 0 &&
+	       new->npages > mslots[i - 1].npages) {
+		mslots[i] = mslots[i - 1];
+		slots->id_to_index[mslots[i].id] = i;
+		i--;
 	}
 
 	mslots[i] = *new;
