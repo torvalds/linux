@@ -11782,12 +11782,23 @@ intel_check_primary_plane(struct drm_plane *plane,
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
+	int ret;
 
-	return drm_plane_helper_check_update(plane, crtc, fb,
-					     src, dest, clip,
-					     DRM_PLANE_HELPER_NO_SCALING,
-					     DRM_PLANE_HELPER_NO_SCALING,
-					     false, true, &state->visible);
+	ret = drm_plane_helper_check_update(plane, crtc, fb,
+					    src, dest, clip,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    false, true, &state->visible);
+	if (ret)
+		return ret;
+
+	intel_crtc_wait_for_pending_flips(crtc);
+	if (intel_crtc_has_pending_flip(crtc)) {
+		DRM_ERROR("pipe is still busy with an old pageflip\n");
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 static void
@@ -11873,16 +11884,17 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	}
 }
 
-static int
-intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
-			     struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-			     unsigned int crtc_w, unsigned int crtc_h,
-			     uint32_t src_x, uint32_t src_y,
-			     uint32_t src_w, uint32_t src_h)
+int
+intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
+		   struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+		   unsigned int crtc_w, unsigned int crtc_h,
+		   uint32_t src_x, uint32_t src_y,
+		   uint32_t src_w, uint32_t src_h)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_framebuffer *old_fb = plane->fb;
 	struct intel_plane_state state;
+	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
 
@@ -11909,16 +11921,9 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 	state.orig_src = state.src;
 	state.orig_dst = state.dst;
 
-	ret = intel_check_primary_plane(plane, &state);
+	ret = intel_plane->check_plane(plane, &state);
 	if (ret)
 		return ret;
-
-	intel_crtc_wait_for_pending_flips(crtc);
-
-	if (intel_crtc_has_pending_flip(crtc)) {
-		DRM_ERROR("pipe is still busy with an old pageflip\n");
-		return -EBUSY;
-	}
 
 	if (fb != old_fb && fb) {
 		ret = intel_prepare_plane_fb(plane, fb);
@@ -11926,13 +11931,15 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 			return ret;
 	}
 
-	intel_commit_primary_plane(plane, &state);
+	intel_plane->commit_plane(plane, &state);
 
 	if (fb != old_fb && old_fb) {
 		if (intel_crtc->active)
 			intel_wait_for_vblank(dev, intel_crtc->pipe);
 		intel_cleanup_plane_fb(plane, old_fb);
 	}
+
+	plane->fb = fb;
 
 	return 0;
 }
@@ -11946,7 +11953,7 @@ static void intel_plane_destroy(struct drm_plane *plane)
 }
 
 static const struct drm_plane_funcs intel_primary_plane_funcs = {
-	.update_plane = intel_primary_plane_setplane,
+	.update_plane = intel_update_plane,
 	.disable_plane = intel_primary_plane_disable,
 	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property
@@ -11968,6 +11975,8 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary->pipe = pipe;
 	primary->plane = pipe;
 	primary->rotation = BIT(DRM_ROTATE_0);
+	primary->check_plane = intel_check_primary_plane;
+	primary->commit_plane = intel_commit_primary_plane;
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
 		primary->plane = !pipe;
 
@@ -12133,65 +12142,8 @@ update:
 	}
 }
 
-static int
-intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-			  unsigned int crtc_w, unsigned int crtc_h,
-			  uint32_t src_x, uint32_t src_y,
-			  uint32_t src_w, uint32_t src_h)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_framebuffer *old_fb = plane->fb;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane_state state;
-	int ret;
-
-	state.base.crtc = crtc;
-	state.base.fb = fb;
-
-	/* sample coordinates in 16.16 fixed point */
-	state.src.x1 = src_x;
-	state.src.x2 = src_x + src_w;
-	state.src.y1 = src_y;
-	state.src.y2 = src_y + src_h;
-
-	/* integer pixels */
-	state.dst.x1 = crtc_x;
-	state.dst.x2 = crtc_x + crtc_w;
-	state.dst.y1 = crtc_y;
-	state.dst.y2 = crtc_y + crtc_h;
-
-	state.clip.x1 = 0;
-	state.clip.y1 = 0;
-	state.clip.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0;
-	state.clip.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0;
-
-	state.orig_src = state.src;
-	state.orig_dst = state.dst;
-
-	ret = intel_check_cursor_plane(plane, &state);
-	if (ret)
-		return ret;
-
-	if (fb != old_fb && fb) {
-		ret = intel_prepare_plane_fb(plane, fb);
-		if (ret)
-			return ret;
-	}
-
-	intel_commit_cursor_plane(plane, &state);
-
-	if (fb != old_fb && old_fb) {
-		if (intel_crtc->active)
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
-		intel_cleanup_plane_fb(plane, old_fb);
-	}
-
-	return 0;
-}
-
 static const struct drm_plane_funcs intel_cursor_plane_funcs = {
-	.update_plane = intel_cursor_plane_update,
+	.update_plane = intel_update_plane,
 	.disable_plane = intel_cursor_plane_disable,
 	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property,
@@ -12211,6 +12163,8 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	cursor->pipe = pipe;
 	cursor->plane = pipe;
 	cursor->rotation = BIT(DRM_ROTATE_0);
+	cursor->check_plane = intel_check_cursor_plane;
+	cursor->commit_plane = intel_commit_cursor_plane;
 
 	drm_universal_plane_init(dev, &cursor->base, 0,
 				 &intel_cursor_plane_funcs,

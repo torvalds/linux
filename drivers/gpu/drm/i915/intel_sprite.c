@@ -1328,62 +1328,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 }
 
 static int
-intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
-		   struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-		   unsigned int crtc_w, unsigned int crtc_h,
-		   uint32_t src_x, uint32_t src_y,
-		   uint32_t src_w, uint32_t src_h)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_framebuffer *old_fb = plane->fb;
-	struct intel_plane_state state;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int ret;
-
-	state.base.crtc = crtc;
-	state.base.fb = fb;
-
-	/* sample coordinates in 16.16 fixed point */
-	state.src.x1 = src_x;
-	state.src.x2 = src_x + src_w;
-	state.src.y1 = src_y;
-	state.src.y2 = src_y + src_h;
-
-	/* integer pixels */
-	state.dst.x1 = crtc_x;
-	state.dst.x2 = crtc_x + crtc_w;
-	state.dst.y1 = crtc_y;
-	state.dst.y2 = crtc_y + crtc_h;
-
-	state.clip.x1 = 0;
-	state.clip.y1 = 0;
-	state.clip.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0;
-	state.clip.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0;
-	state.orig_src = state.src;
-	state.orig_dst = state.dst;
-
-	ret = intel_check_sprite_plane(plane, &state);
-	if (ret)
-		return ret;
-
-	if (fb != old_fb && fb) {
-		ret = intel_prepare_plane_fb(plane, fb);
-		if (ret)
-			return ret;
-	}
-
-	intel_commit_sprite_plane(plane, &state);
-
-	if (fb != old_fb && old_fb) {
-		if (intel_crtc->active)
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
-		intel_cleanup_plane_fb(plane, old_fb);
-	}
-
-	return 0;
-}
-
-static int
 intel_disable_plane(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
@@ -1678,6 +1622,8 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane->pipe = pipe;
 	intel_plane->plane = plane;
 	intel_plane->rotation = BIT(DRM_ROTATE_0);
+	intel_plane->check_plane = intel_check_sprite_plane;
+	intel_plane->commit_plane = intel_commit_sprite_plane;
 	possible_crtcs = (1 << pipe);
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
 				       &intel_plane_funcs,

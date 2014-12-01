@@ -508,6 +508,10 @@ struct intel_plane {
 			     uint32_t src_w, uint32_t src_h);
 	void (*disable_plane)(struct drm_plane *plane,
 			      struct drm_crtc *crtc);
+	int (*check_plane)(struct drm_plane *plane,
+			   struct intel_plane_state *state);
+	void (*commit_plane)(struct drm_plane *plane,
+			     struct intel_plane_state *state);
 	int (*update_colorkey)(struct drm_plane *plane,
 			       struct drm_intel_sprite_colorkey *key);
 	void (*get_colorkey)(struct drm_plane *plane,
@@ -1011,6 +1015,11 @@ void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
 void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv);
 uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
 void intel_dp_unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes);
+int intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
+		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+		       unsigned int crtc_w, unsigned int crtc_h,
+		       uint32_t src_x, uint32_t src_y,
+		       uint32_t src_w, uint32_t src_h);
 
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
