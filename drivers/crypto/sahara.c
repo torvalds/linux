@@ -24,10 +24,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #define SAHARA_NAME "sahara"
 #define SAHARA_VERSION_3	3
+#define SAHARA_VERSION_4	4
 #define SAHARA_TIMEOUT_MS	1000
 #define SAHARA_MAX_HW_DESC	2
 #define SAHARA_MAX_HW_LINK	20
@@ -130,6 +132,7 @@ struct sahara_aes_reqctx {
 
 struct sahara_dev {
 	struct device		*device;
+	unsigned int		version;
 	void __iomem		*regs_base;
 	struct clk		*clk_ipg;
 	struct clk		*clk_ahb;
@@ -860,6 +863,7 @@ static struct platform_device_id sahara_platform_ids[] = {
 MODULE_DEVICE_TABLE(platform, sahara_platform_ids);
 
 static struct of_device_id sahara_dt_ids[] = {
+	{ .compatible = "fsl,imx53-sahara" },
 	{ .compatible = "fsl,imx27-sahara" },
 	{ /* sentinel */ }
 };
@@ -973,12 +977,22 @@ static int sahara_probe(struct platform_device *pdev)
 	clk_prepare_enable(dev->clk_ahb);
 
 	version = sahara_read(dev, SAHARA_REG_VERSION);
-	if (version != SAHARA_VERSION_3) {
+	if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx27-sahara")) {
+		if (version != SAHARA_VERSION_3)
+			err = -ENODEV;
+	} else if (of_device_is_compatible(pdev->dev.of_node,
+			"fsl,imx53-sahara")) {
+		if (((version >> 8) & 0xff) != SAHARA_VERSION_4)
+			err = -ENODEV;
+		version = (version >> 8) & 0xff;
+	}
+	if (err == -ENODEV) {
 		dev_err(&pdev->dev, "SAHARA version %d not supported\n",
-			version);
-		err = -ENODEV;
+				version);
 		goto err_algs;
 	}
+
+	dev->version = version;
 
 	sahara_write(dev, SAHARA_CMD_RESET | SAHARA_CMD_MODE_BATCH,
 		     SAHARA_REG_CMD);
