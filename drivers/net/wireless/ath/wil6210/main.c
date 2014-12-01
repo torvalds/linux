@@ -67,6 +67,36 @@ static struct kernel_param_ops mtu_max_ops = {
 module_param_cb(mtu_max, &mtu_max_ops, &mtu_max, S_IRUGO);
 MODULE_PARM_DESC(mtu_max, " Max MTU value.");
 
+static uint rx_ring_order = WIL_RX_RING_SIZE_ORDER_DEFAULT;
+static uint tx_ring_order = WIL_TX_RING_SIZE_ORDER_DEFAULT;
+
+static int ring_order_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	uint x;
+
+	ret = kstrtouint(val, 0, &x);
+	if (ret)
+		return ret;
+
+	if ((x < WIL_RING_SIZE_ORDER_MIN) || (x > WIL_RING_SIZE_ORDER_MAX))
+		return -EINVAL;
+
+	*((uint *)kp->arg) = x;
+
+	return 0;
+}
+
+static struct kernel_param_ops ring_order_ops = {
+	.set = ring_order_set,
+	.get = param_get_uint,
+};
+
+module_param_cb(rx_ring_order, &ring_order_ops, &rx_ring_order, S_IRUGO);
+MODULE_PARM_DESC(rx_ring_order, " Rx ring order; size = 1 << order");
+module_param_cb(tx_ring_order, &ring_order_ops, &tx_ring_order, S_IRUGO);
+MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
+
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
 
@@ -332,7 +362,7 @@ static void wil_connect_worker(struct work_struct *work)
 
 	wil_dbg_wmi(wil, "Configure for connection CID %d\n", cid);
 
-	rc = wil_vring_init_tx(wil, ringid, WIL6210_TX_RING_SIZE, cid, 0);
+	rc = wil_vring_init_tx(wil, ringid, 1 << tx_ring_order, cid, 0);
 	wil->pending_connect_cid = -1;
 	if (rc == 0) {
 		wil->sta[cid].status = wil_sta_connected;
@@ -705,7 +735,7 @@ int __wil_up(struct wil6210_priv *wil)
 		return rc;
 
 	/* Rx VRING. After MAC and beacon */
-	rc = wil_rx_init(wil);
+	rc = wil_rx_init(wil, 1 << rx_ring_order);
 	if (rc)
 		return rc;
 

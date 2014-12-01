@@ -596,7 +596,7 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 	wil_rx_refill(wil, v->size);
 }
 
-int wil_rx_init(struct wil6210_priv *wil)
+int wil_rx_init(struct wil6210_priv *wil, u16 size)
 {
 	struct vring *vring = &wil->vring_rx;
 	int rc;
@@ -608,7 +608,7 @@ int wil_rx_init(struct wil6210_priv *wil)
 		return -EINVAL;
 	}
 
-	vring->size = WIL6210_RX_RING_SIZE;
+	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
 		return rc;

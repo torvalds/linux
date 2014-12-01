@@ -49,8 +49,11 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL6210_RX_RING_SIZE	(128)
-#define WIL6210_TX_RING_SIZE	(512)
+#define WIL_RX_RING_SIZE_ORDER_DEFAULT	(9)
+#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(9)
+/* limit ring size in range [32..32k] */
+#define WIL_RING_SIZE_ORDER_MIN	(5)
+#define WIL_RING_SIZE_ORDER_MAX	(15)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
@@ -590,7 +593,7 @@ int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);
 
-int wil_rx_init(struct wil6210_priv *wil);
+int wil_rx_init(struct wil6210_priv *wil, u16 size);
 void wil_rx_fini(struct wil6210_priv *wil);
 
 /* TX API */
