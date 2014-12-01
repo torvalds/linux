@@ -198,6 +198,22 @@ struct rk3288_vpu_vp8e_run {
 };
 
 /**
+ * struct rk3288_vpu_h264d_run - per-run data specific to H264 decoding.
+ * @sps:		Pointer to a buffer containing H264 SPS.
+ * @pps:		Pointer to a buffer containing H264 PPS.
+ * @scaling_matrix:	Pointer to a buffer containing scaling matrix.
+ * @slice_param:	Pointer to a buffer containing slice parameters array.
+ * @decode_param:	Pointer to a buffer containing decode parameters.
+ */
+struct rk3288_vpu_h264d_run {
+	const struct v4l2_ctrl_h264_sps *sps;
+	const struct v4l2_ctrl_h264_pps *pps;
+	const struct v4l2_ctrl_h264_scaling_matrix *scaling_matrix;
+	const struct v4l2_ctrl_h264_slice_param *slice_param;
+	const struct v4l2_ctrl_h264_decode_param *decode_param;
+};
+
+/**
  * struct rk3288_vpu_run - per-run data for hardware code.
  * @src:		Source buffer to be processed.
  * @dst:		Destination buffer to be processed.
@@ -215,6 +231,7 @@ struct rk3288_vpu_run {
 	/* Specific for particular operating modes. */
 	union {
 		struct rk3288_vpu_vp8e_run vp8e;
+		struct rk3288_vpu_h264d_run h264d;
 		/* Other modes will need different data. */
 	};
 };
@@ -235,6 +252,7 @@ struct rk3288_vpu_run {
  * @src_crop:		Configured source crop rectangle (encoder-only).
  * @vq_dst:		Videobuf2 destination queue
  * @dst_queue:		Internal destination buffer queue.
+ * @dst_bufs:		Private buffers wrapping VB2 buffers (destination).
  *
  * @ctrls:		Array containing pointer to registered controls.
  * @ctrl_handler:	Control handler used to register controls.
@@ -263,6 +281,7 @@ struct rk3288_vpu_ctx {
 	struct v4l2_rect src_crop;
 	struct vb2_queue vq_dst;
 	struct list_head dst_queue;
+	struct vb2_buffer *dst_bufs[VIDEO_MAX_FRAME];
 
 	/* Controls */
 	struct v4l2_ctrl *ctrls[RK3288_VPU_MAX_CTRLS];

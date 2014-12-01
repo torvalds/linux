@@ -31,6 +31,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
+#include "rk3288_vpu_dec.h"
 #include "rk3288_vpu_enc.h"
 #include "rk3288_vpu_hw.h"
 
@@ -340,6 +341,13 @@ static int rk3288_vpu_open(struct file *filp)
 			vpu_err("Failed to initialize encoder context\n");
 			goto err_fh_free;
 		}
+	} else if (vdev == dev->vfd_dec) {
+		/* only for decoder */
+		ret = rk3288_vpu_dec_init(ctx);
+		if (ret) {
+			vpu_err("Failed to initialize decoder context\n");
+			goto err_fh_free;
+		}
 	} else {
 		ret = -ENOENT;
 		goto err_fh_free;
@@ -356,6 +364,8 @@ static int rk3288_vpu_open(struct file *filp)
 
 	if (vdev == dev->vfd_enc)
 		q->ops = get_enc_queue_ops();
+	else if (vdev == dev->vfd_dec)
+		q->ops = get_dec_queue_ops();
 
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
@@ -376,6 +386,8 @@ static int rk3288_vpu_open(struct file *filp)
 
 	if (vdev == dev->vfd_enc)
 		q->ops = get_enc_queue_ops();
+	else if (vdev == dev->vfd_dec)
+		q->ops = get_dec_queue_ops();
 
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
@@ -395,6 +407,8 @@ err_vq_dst_release:
 err_enc_dec_exit:
 	if (vdev == dev->vfd_enc)
 		rk3288_vpu_enc_exit(ctx);
+	else if (vdev == dev->vfd_dec)
+		rk3288_vpu_dec_exit(ctx);
 err_fh_free:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -431,6 +445,8 @@ static int rk3288_vpu_release(struct file *filp)
 
 	if (vdev == dev->vfd_enc)
 		rk3288_vpu_enc_exit(ctx);
+	else if (vdev == dev->vfd_dec)
+		rk3288_vpu_dec_exit(ctx);
 
 	kfree(ctx);
 
@@ -607,10 +623,44 @@ static int rk3288_vpu_probe(struct platform_device *pdev)
 		"Rockchip RK3288 VPU encoder registered as /vpu/video%d\n",
 		vfd->num);
 
+	/* decoder */
+	vfd = video_device_alloc();
+	if (!vfd) {
+		v4l2_err(&vpu->v4l2_dev, "Failed to allocate video device\n");
+		ret = -ENOMEM;
+		goto err_dec_alloc;
+	}
+
+	vfd->fops = &rk3288_vpu_fops;
+	vfd->ioctl_ops = get_dec_v4l2_ioctl_ops();
+	vfd->release = video_device_release;
+	vfd->lock = &vpu->vpu_mutex;
+	vfd->v4l2_dev = &vpu->v4l2_dev;
+	vfd->vfl_dir = VFL_DIR_M2M;
+	snprintf(vfd->name, sizeof(vfd->name), "%s", RK3288_VPU_DEC_NAME);
+	vpu->vfd_dec = vfd;
+
+	video_set_drvdata(vfd, vpu);
+
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&vpu->v4l2_dev, "Failed to register video device\n");
+		video_device_release(vfd);
+		goto err_dec_reg;
+	}
+
+	v4l2_info(&vpu->v4l2_dev,
+		"Rockchip RK3288 VPU decoder registered as /vpu/video%d\n",
+		vfd->num);
+
 	vpu_debug_leave();
 
 	return 0;
 
+err_dec_reg:
+	video_device_release(vpu->vfd_dec);
+err_dec_alloc:
+	video_unregister_device(vpu->vfd_enc);
 err_enc_reg:
 	video_device_release(vpu->vfd_enc);
 err_enc_alloc:
@@ -640,6 +690,7 @@ static int rk3288_vpu_remove(struct platform_device *pdev)
 	 * contexts have been released.
 	 */
 
+	video_unregister_device(vpu->vfd_dec);
 	video_unregister_device(vpu->vfd_enc);
 	v4l2_device_unregister(&vpu->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx);
