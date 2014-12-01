@@ -11898,7 +11898,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
 
-	state.base.crtc = crtc;
+	state.base.crtc = crtc ? crtc : plane->crtc;
 	state.base.fb = fb;
 
 	/* sample coordinates in 16.16 fixed point */
