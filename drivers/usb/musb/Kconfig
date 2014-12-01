@@ -72,6 +72,8 @@ config USB_MUSB_DA8XX
 
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on NOP_USB_XCEIV = USB_MUSB_HDRC # both built-in or both modules
 
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
@@ -85,6 +87,7 @@ config USB_MUSB_AM35X
 config USB_MUSB_DSPS
 	tristate "TI DSPS platforms"
 	select USB_MUSB_AM335X_CHILD
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	depends on OF_IRQ
 
 config USB_MUSB_BLACKFIN
@@ -93,6 +96,7 @@ config USB_MUSB_BLACKFIN
 
 config USB_MUSB_UX500
 	tristate "Ux500 platforms"
+	depends on ARCH_U8500 || COMPILE_TEST
 
 config USB_MUSB_JZ4740
 	tristate "JZ4740"
