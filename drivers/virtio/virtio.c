@@ -197,7 +197,11 @@ static int virtio_dev_probe(struct device *_d)
 		driver_features_legacy = driver_features;
 	}
 
-	if (driver_features & device_features & (1ULL << VIRTIO_F_VERSION_1))
+	/* Detect legacy-only drivers and disable VIRTIO_F_VERSION_1. */
+	if (drv->legacy_only)
+		device_features &= ~(1ULL << VIRTIO_F_VERSION_1);
+
+	if (device_features & (1ULL << VIRTIO_F_VERSION_1))
 		dev->features = driver_features & device_features;
 	else
 		dev->features = driver_features_legacy & device_features;
