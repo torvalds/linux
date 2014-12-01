@@ -265,11 +265,10 @@ static void gb_operation_work(struct work_struct *work)
 	struct gb_operation *operation;
 
 	operation = container_of(work, struct gb_operation, work);
-	if (WARN_ON(!operation->callback))
-		return;
-
-	operation->callback(operation);
-	operation->callback = NULL;
+	if (operation->callback) {
+		operation->callback(operation);
+		operation->callback = NULL;
+	}
 	gb_operation_put(operation);
 }
 
