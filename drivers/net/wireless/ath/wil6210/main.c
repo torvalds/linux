@@ -493,6 +493,9 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	wil_halt_cpu(wil);
 
+	/* Clear Fw Download notification */
+	C(RGF_USER_USAGE_6, BIT(0));
+
 	if (is_sparrow) {
 		S(RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
 		/* XTAL stabilization should take about 3ms */
