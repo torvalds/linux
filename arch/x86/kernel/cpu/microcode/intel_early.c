@@ -650,8 +650,7 @@ static inline void print_ucode(struct ucode_cpu_info *uci)
 }
 #endif
 
-static int apply_microcode_early(struct mc_saved_data *mc_saved_data,
-				 struct ucode_cpu_info *uci)
+static int apply_microcode_early(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc_intel;
 	unsigned int val[2];
@@ -720,7 +719,7 @@ _load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
 		       mc_saved_in_initrd, uci);
 	load_microcode(mc_saved_data, mc_saved_in_initrd,
 		       initrd_start_early, uci);
-	apply_microcode_early(mc_saved_data, uci);
+	apply_microcode_early(uci);
 }
 
 void __init
@@ -783,5 +782,5 @@ void load_ucode_intel_ap(void)
 	collect_cpu_info_early(&uci);
 	load_microcode(mc_saved_data_p, mc_saved_in_initrd_p,
 		       initrd_start_addr, &uci);
-	apply_microcode_early(mc_saved_data_p, &uci);
+	apply_microcode_early(&uci);
 }
