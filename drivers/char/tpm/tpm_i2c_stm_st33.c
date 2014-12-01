@@ -783,10 +783,6 @@ tpm_stm_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto _tpm_clean_answer;
 		}
 
-		ret = I2C_READ_DATA(tpm_dev, TPM_INT_ENABLE, &intmask, 1);
-		if (ret < 0)
-			goto _tpm_clean_answer;
-
 		intmask |= TPM_INTF_CMD_READY_INT
 			|  TPM_INTF_STS_VALID_INT
 			|  TPM_INTF_DATA_AVAIL_INT;
@@ -798,10 +794,6 @@ tpm_stm_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		intmask = TPM_GLOBAL_INT_ENABLE;
 		ret = I2C_WRITE_DATA(tpm_dev, (TPM_INT_ENABLE + 3),
 				     &intmask, 1);
-		if (ret < 0)
-			goto _tpm_clean_answer;
-
-		ret = I2C_READ_DATA(tpm_dev, TPM_INT_STATUS, &intmask, 1);
 		if (ret < 0)
 			goto _tpm_clean_answer;
 
