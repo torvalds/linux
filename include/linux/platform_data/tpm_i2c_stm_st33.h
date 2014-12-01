@@ -33,7 +33,6 @@
 #define TPM_ST33_I2C			"st33zp24_i2c"
 
 struct st33zp24_platform_data {
-	int io_serirq;
 	int io_lpcpd;
 };
 

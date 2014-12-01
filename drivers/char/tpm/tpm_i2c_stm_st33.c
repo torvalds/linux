@@ -103,7 +103,6 @@ struct tpm_stm_dev {
 	struct completion irq_detection;
 	struct tpm_chip *chip;
 	u8 buf[TPM_BUFSIZE + 1];
-	int io_serirq;
 	int io_lpcpd;
 };
 
@@ -688,18 +687,15 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			err = -ENODEV;
 			goto _tpm_clean_answer;
 		}
-		err = gpio_request(platform_data->io_serirq, "TPM IO_SERIRQ");
-		if (err)
-			goto _gpio_init2;
 
 		clear_interruption(tpm_dev);
-		err = request_irq(gpio_to_irq(platform_data->io_serirq),
+		err = request_irq(client->irq,
 				&tpm_ioserirq_handler,
 				IRQF_TRIGGER_HIGH,
 				"TPM SERIRQ management", chip);
 		if (err < 0) {
 			dev_err(chip->dev , "TPM SERIRQ signals %d not available\n",
-				gpio_to_irq(platform_data->io_serirq));
+				client->irq);
 			goto _irq_set;
 		}
 
@@ -739,10 +735,7 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev_info(chip->dev, "TPM I2C Initialized\n");
 	return 0;
 _irq_set:
-	free_irq(gpio_to_irq(platform_data->io_serirq), (void *)chip);
-_gpio_init2:
-	if (interrupts)
-		gpio_free(platform_data->io_serirq);
+	free_irq(client->irq, (void *)chip);
 _gpio_init1:
 	if (power_mgt)
 		gpio_free(platform_data->io_lpcpd);
