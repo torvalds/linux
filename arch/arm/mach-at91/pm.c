@@ -31,7 +31,6 @@
 
 #include "generic.h"
 #include "pm.h"
-#include "gpio.h"
 
 static void (*at91_pm_standby)(void);
 
@@ -130,10 +129,7 @@ extern u32 at91_slow_clock_sz;
 
 static int at91_pm_enter(suspend_state_t state)
 {
-	if (of_have_populated_dt())
-		at91_pinctrl_gpio_suspend();
-	else
-		at91_gpio_suspend();
+	at91_pinctrl_gpio_suspend();
 
 	switch (state) {
 		/*
@@ -201,10 +197,7 @@ static int at91_pm_enter(suspend_state_t state)
 error:
 	target_state = PM_SUSPEND_ON;
 
-	if (of_have_populated_dt())
-		at91_pinctrl_gpio_resume();
-	else
-		at91_gpio_resume();
+	at91_pinctrl_gpio_resume();
 	return 0;
 }
 

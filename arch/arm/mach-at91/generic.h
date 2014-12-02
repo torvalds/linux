@@ -41,20 +41,4 @@ extern void at91sam9_idle(void);
 
 /* Matrix */
 extern void at91_ioremap_matrix(u32 base_addr);
-
- /* GPIO */
-#define AT91RM9200_PQFP		3	/* AT91RM9200 PQFP package has 3 banks */
-#define AT91RM9200_BGA		4	/* AT91RM9200 BGA package has 4 banks */
-
-struct at91_gpio_bank {
-	unsigned short id;		/* peripheral ID */
-	unsigned long regbase;		/* offset from system peripheral base */
-};
-extern void __init at91_gpio_init(struct at91_gpio_bank *, int nr_banks);
-extern void __init at91_gpio_irq_setup(void);
-extern int  __init at91_gpio_of_irq_setup(struct device_node *node,
-					  struct device_node *parent);
-
-extern u32 at91_get_extern_irq(void);
-
 #endif /* _AT91_GENERIC_H */
