@@ -43,7 +43,9 @@ struct tipc_port_list;
 /*
  * TIPC name types reserved for internal TIPC use (both current and planned)
  */
-#define TIPC_ZM_SRV 3		/* zone master service name type */
+#define TIPC_ZM_SRV		3	/* zone master service name type */
+#define TIPC_PUBL_SCOPE_NUM	(TIPC_NODE_SCOPE + 1)
+#define TIPC_NAMETBL_SIZE	1024	/* must be a power of 2 */
 
 /**
  * struct publication - info about a published (name or) name sequence
@@ -79,8 +81,20 @@ struct publication {
 	struct list_head zone_list;
 };
 
+/**
+ * struct name_table - table containing all existing port name publications
+ * @seq_hlist: name sequence hash lists
+ * @publ_list: pulication lists
+ * @local_publ_count: number of publications issued by this node
+ */
+struct name_table {
+	struct hlist_head seq_hlist[TIPC_NAMETBL_SIZE];
+	struct list_head publ_list[TIPC_PUBL_SCOPE_NUM];
+	u32 local_publ_count;
+};
 
 extern rwlock_t tipc_nametbl_lock;
+extern struct name_table *tipc_nametbl;
 
 int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 

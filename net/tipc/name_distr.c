@@ -38,34 +38,6 @@
 #include "link.h"
 #include "name_distr.h"
 
-/**
- * struct publ_list - list of publications made by this node
- * @list: circular list of publications
- */
-struct publ_list {
-	struct list_head list;
-};
-
-static struct publ_list publ_zone = {
-	.list = LIST_HEAD_INIT(publ_zone.list),
-};
-
-static struct publ_list publ_cluster = {
-	.list = LIST_HEAD_INIT(publ_cluster.list),
-};
-
-static struct publ_list publ_node = {
-	.list = LIST_HEAD_INIT(publ_node.list),
-};
-
-static struct publ_list *publ_lists[] = {
-	NULL,
-	&publ_zone,	/* publ_lists[TIPC_ZONE_SCOPE]		*/
-	&publ_cluster,	/* publ_lists[TIPC_CLUSTER_SCOPE]	*/
-	&publ_node	/* publ_lists[TIPC_NODE_SCOPE]		*/
-};
-
-
 int sysctl_tipc_named_timeout __read_mostly = 2000;
 
 /**
@@ -141,7 +113,8 @@ struct sk_buff *tipc_named_publish(struct publication *publ)
 	struct sk_buff *buf;
 	struct distr_item *item;
 
-	list_add_tail(&publ->local_list, &publ_lists[publ->scope]->list);
+	list_add_tail(&publ->local_list,
+		      &tipc_nametbl->publ_list[publ->scope]);
 
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
@@ -188,7 +161,7 @@ struct sk_buff *tipc_named_withdraw(struct publication *publ)
  * @pls: linked list of publication items to be packed into buffer chain
  */
 static void named_distribute(struct sk_buff_head *list, u32 dnode,
-			     struct publ_list *pls)
+			     struct list_head *pls)
 {
 	struct publication *publ;
 	struct sk_buff *skb = NULL;
@@ -196,7 +169,7 @@ static void named_distribute(struct sk_buff_head *list, u32 dnode,
 	uint msg_dsz = (tipc_node_get_mtu(dnode, 0) / ITEM_SIZE) * ITEM_SIZE;
 	uint msg_rem = msg_dsz;
 
-	list_for_each_entry(publ, &pls->list, local_list) {
+	list_for_each_entry(publ, pls, local_list) {
 		/* Prepare next buffer: */
 		if (!skb) {
 			skb = named_prepare_buf(PUBLICATION, msg_rem, dnode);
@@ -236,8 +209,10 @@ void tipc_named_node_up(u32 dnode)
 	__skb_queue_head_init(&head);
 
 	read_lock_bh(&tipc_nametbl_lock);
-	named_distribute(&head, dnode, &publ_cluster);
-	named_distribute(&head, dnode, &publ_zone);
+	named_distribute(&head, dnode,
+			 &tipc_nametbl->publ_list[TIPC_CLUSTER_SCOPE]);
+	named_distribute(&head, dnode,
+			 &tipc_nametbl->publ_list[TIPC_ZONE_SCOPE]);
 	read_unlock_bh(&tipc_nametbl_lock);
 
 	tipc_link_xmit(&head, dnode, dnode);
@@ -427,7 +402,8 @@ void tipc_named_reinit(void)
 	write_lock_bh(&tipc_nametbl_lock);
 
 	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_NODE_SCOPE; scope++)
-		list_for_each_entry(publ, &publ_lists[scope]->list, local_list)
+		list_for_each_entry(publ, &tipc_nametbl->publ_list[scope],
+				    local_list)
 			publ->node = tipc_own_addr;
 
 	write_unlock_bh(&tipc_nametbl_lock);
