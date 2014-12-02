@@ -254,12 +254,14 @@ static void pandora_wl1251_init_card(struct mmc_card *card)
 	 * We have TI wl1251 attached to MMC3. Pass this information to
 	 * SDIO core because it can't be probed by normal methods.
 	 */
-	card->quirks |= MMC_QUIRK_NONSTD_SDIO;
-	card->cccr.wide_bus = 1;
-	card->cis.vendor = 0x104c;
-	card->cis.device = 0x9066;
-	card->cis.blksize = 512;
-	card->cis.max_dtr = 20000000;
+	if (card->type == MMC_TYPE_SDIO || card->type == MMC_TYPE_SD_COMBO) {
+		card->quirks |= MMC_QUIRK_NONSTD_SDIO;
+		card->cccr.wide_bus = 1;
+		card->cis.vendor = 0x104c;
+		card->cis.device = 0x9066;
+		card->cis.blksize = 512;
+		card->cis.max_dtr = 20000000;
+	}
 }
 
 static struct omap2_hsmmc_info omap3pandora_mmc[] = {
