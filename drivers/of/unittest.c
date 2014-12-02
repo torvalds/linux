@@ -516,8 +516,7 @@ static void __init of_selftest_changeset(void)
 	/* Make sure node names are constructed correctly */
 	selftest((np = of_find_node_by_path("/testcase-data/changeset/n2/n21")),
 		 "'%s' not added\n", n21->full_name);
-	if (np)
-		of_node_put(np);
+	of_node_put(np);
 
 	mutex_lock(&of_mutex);
 	selftest(!of_changeset_revert(&chgset), "revert failed\n");
