@@ -1426,16 +1426,14 @@ static void ipr_handle_config_change(struct ipr_ioa_cfg *ioa_cfg,
 		if (res->sdev) {
 			res->del_from_ml = 1;
 			res->res_handle = IPR_INVALID_RES_HANDLE;
-			if (ioa_cfg->allow_ml_add_del)
-				schedule_work(&ioa_cfg->work_q);
+			schedule_work(&ioa_cfg->work_q);
 		} else {
 			ipr_clear_res_target(res);
 			list_move_tail(&res->queue, &ioa_cfg->free_res_q);
 		}
 	} else if (!res->sdev || res->del_from_ml) {
 		res->add_to_ml = 1;
-		if (ioa_cfg->allow_ml_add_del)
-			schedule_work(&ioa_cfg->work_q);
+		schedule_work(&ioa_cfg->work_q);
 	}
 
 	ipr_send_hcam(ioa_cfg, IPR_HCAM_CDB_OP_CODE_CONFIG_CHANGE, hostrcb);
@@ -3273,8 +3271,7 @@ static void ipr_worker_thread(struct work_struct *work)
 restart:
 	do {
 		did_work = 0;
-		if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].allow_cmds ||
-		    !ioa_cfg->allow_ml_add_del) {
+		if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].allow_cmds) {
 			spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 			return;
 		}
@@ -3311,6 +3308,7 @@ restart:
 		}
 	}
 
+	ioa_cfg->scan_done = 1;
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	kobject_uevent(&ioa_cfg->host->shost_dev.kobj, KOBJ_CHANGE);
 	LEAVE;
@@ -5207,6 +5205,28 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
  * @scsi_cmd:	scsi command struct
  *
  * Return value:
+ *	0 if scan in progress / 1 if scan is complete
+ **/
+static int ipr_scan_finished(struct Scsi_Host *shost, unsigned long elapsed_time)
+{
+	unsigned long lock_flags;
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) shost->hostdata;
+	int rc = 0;
+
+	spin_lock_irqsave(shost->host_lock, lock_flags);
+	if (ioa_cfg->hrrq[IPR_INIT_HRRQ].ioa_is_dead || ioa_cfg->scan_done)
+		rc = 1;
+	if ((elapsed_time/HZ) > (ioa_cfg->transop_timeout * 2))
+		rc = 1;
+	spin_unlock_irqrestore(shost->host_lock, lock_flags);
+	return rc;
+}
+
+/**
+ * ipr_eh_host_reset - Reset the host adapter
+ * @scsi_cmd:	scsi command struct
+ *
+ * Return value:
  * 	SUCCESS / FAILED
  **/
 static int ipr_eh_abort(struct scsi_cmnd *scsi_cmd)
@@ -6275,6 +6295,7 @@ static struct scsi_host_template driver_template = {
 	.slave_alloc = ipr_slave_alloc,
 	.slave_configure = ipr_slave_configure,
 	.slave_destroy = ipr_slave_destroy,
+	.scan_finished = ipr_scan_finished,
 	.target_alloc = ipr_target_alloc,
 	.target_destroy = ipr_target_destroy,
 	.change_queue_depth = ipr_change_queue_depth,
@@ -6816,7 +6837,7 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 	ioa_cfg->doorbell |= IPR_RUNTIME_RESET;
 
 	list_for_each_entry(res, &ioa_cfg->used_res_q, queue) {
-		if (ioa_cfg->allow_ml_add_del && (res->add_to_ml || res->del_from_ml)) {
+		if (res->add_to_ml || res->del_from_ml) {
 			ipr_trace;
 			break;
 		}
@@ -6845,6 +6866,7 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 	if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].allow_cmds)
 		scsi_block_requests(ioa_cfg->host);
 
+	schedule_work(&ioa_cfg->work_q);
 	LEAVE;
 	return IPR_RC_JOB_RETURN;
 }
@@ -7584,6 +7606,19 @@ static int ipr_ioafp_page0_inquiry(struct ipr_cmnd *ipr_cmd)
 	memcpy(type, ioa_cfg->vpd_cbs->ioa_vpd.std_inq_data.vpids.product_id, 4);
 	type[4] = '\0';
 	ioa_cfg->type = simple_strtoul((char *)type, NULL, 16);
+
+	if (ipr_invalid_adapter(ioa_cfg)) {
+		dev_err(&ioa_cfg->pdev->dev,
+			"Adapter not supported in this hardware configuration.\n");
+
+		if (!ipr_testmode) {
+			ioa_cfg->reset_retries += IPR_NUM_RESET_RELOAD_RETRIES;
+			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+			list_add_tail(&ipr_cmd->queue,
+					&ioa_cfg->hrrq->hrrq_free_q);
+			return IPR_RC_JOB_RETURN;
+		}
+	}
 
 	ipr_cmd->job_step = ipr_ioafp_page3_inquiry;
 
@@ -8772,20 +8807,6 @@ static int ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
 		_ipr_initiate_ioa_reset(ioa_cfg, ipr_reset_enable_ioa,
 					IPR_SHUTDOWN_NONE);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
-	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
-	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
-
-	if (ioa_cfg->hrrq[IPR_INIT_HRRQ].ioa_is_dead) {
-		rc = -EIO;
-	} else if (ipr_invalid_adapter(ioa_cfg)) {
-		if (!ipr_testmode)
-			rc = -EIO;
-
-		dev_err(&ioa_cfg->pdev->dev,
-			"Adapter not supported in this hardware configuration.\n");
-	}
-
-	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 
 	LEAVE;
 	return rc;
@@ -9239,7 +9260,7 @@ static void ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 					       * ioa_cfg->max_devs_supported)));
 	}
 
-	host->max_channel = IPR_MAX_BUS_TO_SCAN;
+	host->max_channel = IPR_VSET_BUS;
 	host->unique_id = host->host_no;
 	host->max_cmd_len = IPR_MAX_CDB_LEN;
 	host->can_queue = ioa_cfg->max_cmds;
@@ -9739,25 +9760,6 @@ out_scsi_host_put:
 }
 
 /**
- * ipr_scan_vsets - Scans for VSET devices
- * @ioa_cfg:	ioa config struct
- *
- * Description: Since the VSET resources do not follow SAM in that we can have
- * sparse LUNs with no LUN 0, we have to scan for these ourselves.
- *
- * Return value:
- * 	none
- **/
-static void ipr_scan_vsets(struct ipr_ioa_cfg *ioa_cfg)
-{
-	int target, lun;
-
-	for (target = 0; target < IPR_MAX_NUM_TARGETS_PER_BUS; target++)
-		for (lun = 0; lun < IPR_MAX_NUM_VSET_LUNS_PER_TARGET; lun++)
-			scsi_add_device(ioa_cfg->host, IPR_VSET_BUS, target, lun);
-}
-
-/**
  * ipr_initiate_ioa_bringdown - Bring down an adapter
  * @ioa_cfg:		ioa config struct
  * @shutdown_type:	shutdown type
@@ -9912,10 +9914,6 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	}
 
 	scsi_scan_host(ioa_cfg->host);
-	ipr_scan_vsets(ioa_cfg);
-	scsi_add_device(ioa_cfg->host, IPR_IOA_BUS, IPR_IOA_TARGET, IPR_IOA_LUN);
-	ioa_cfg->allow_ml_add_del = 1;
-	ioa_cfg->host->max_channel = IPR_VSET_BUS;
 	ioa_cfg->iopoll_weight = ioa_cfg->chip_cfg->iopoll_weight;
 
 	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
