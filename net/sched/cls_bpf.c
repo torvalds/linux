@@ -141,7 +141,7 @@ static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
 	if (head == NULL)
 		return 0UL;
 
-	list_for_each_entry_rcu(prog, &head->plist, link) {
+	list_for_each_entry(prog, &head->plist, link) {
 		if (prog->handle == handle) {
 			ret = (unsigned long) prog;
 			break;
@@ -337,7 +337,7 @@ static void cls_bpf_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *prog;
 
-	list_for_each_entry_rcu(prog, &head->plist, link) {
+	list_for_each_entry(prog, &head->plist, link) {
 		if (arg->count < arg->skip)
 			goto skip;
 		if (arg->fn(tp, (unsigned long) prog, arg) < 0) {
