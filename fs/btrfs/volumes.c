@@ -4501,6 +4501,8 @@ error_del_extent:
 	free_extent_map(em);
 	/* One for the tree reference */
 	free_extent_map(em);
+	/* One for the pending_chunks list reference */
+	free_extent_map(em);
 error:
 	kfree(devices_info);
 	return ret;
