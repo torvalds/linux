@@ -547,8 +547,7 @@ void asihpi_adapter_remove(struct pci_dev *pci_dev)
 	if (pa->irq)
 		free_irq(pa->irq, pa);
 
-	if (pa->p_buffer)
-		vfree(pa->p_buffer);
+	vfree(pa->p_buffer);
 
 	if (1)
 		dev_info(&pci_dev->dev,
