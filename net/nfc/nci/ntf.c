@@ -103,7 +103,7 @@ static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 			struct rf_tech_specific_params_nfca_poll *nfca_poll,
 						     __u8 *data)
 {
-	nfca_poll->sens_res = __le16_to_cpu(*((__u16 *)data));
+	nfca_poll->sens_res = __le16_to_cpu(*((__le16 *)data));
 	data += 2;
 
 	nfca_poll->nfcid1_len = min_t(__u8, *data++, NFC_NFCID1_MAXSIZE);
