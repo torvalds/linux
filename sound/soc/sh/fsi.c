@@ -842,12 +842,9 @@ static int fsi_clk_disable(struct device *dev,
 		return -EINVAL;
 
 	if (1 == clock->count--) {
-		if (clock->xck)
-			clk_disable(clock->xck);
-		if (clock->ick)
-			clk_disable(clock->ick);
-		if (clock->div)
-			clk_disable(clock->div);
+		clk_disable(clock->xck);
+		clk_disable(clock->ick);
+		clk_disable(clock->div);
 	}
 
 	return 0;
