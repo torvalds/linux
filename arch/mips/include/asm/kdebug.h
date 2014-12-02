@@ -10,7 +10,8 @@ enum die_val {
 	DIE_RI,
 	DIE_PAGE_FAULT,
 	DIE_BREAK,
-	DIE_SSTEPBP
+	DIE_SSTEPBP,
+	DIE_MSAFP
 };
 
 #endif /* _ASM_MIPS_KDEBUG_H */

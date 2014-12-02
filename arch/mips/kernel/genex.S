@@ -360,21 +360,15 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	mips1
 	SET_HARDFLOAT
 	cfc1	a1, fcr31
-	li	a2, ~(0x3f << 12)
-	and	a2, a1
-	ctc1	a2, fcr31
 	.set	pop
-	TRACE_IRQS_ON
-	STI
+	CLI
+	TRACE_IRQS_OFF
 	.endm
 
 	.macro	__build_clear_msa_fpe
 	_cfcmsa	a1, MSA_CSR
-	li	a2, ~(0x3f << 12)
-	and	a1, a1, a2
-	_ctcmsa	MSA_CSR, a1
-	TRACE_IRQS_ON
-	STI
+	CLI
+	TRACE_IRQS_OFF
 	.endm
 
 	.macro	__build_clear_ade
