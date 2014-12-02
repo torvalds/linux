@@ -8,11 +8,7 @@ ifeq ($(ARCH),x86_64)
 	ARCH := x86
 	CFLAGS := -DCONFIG_X86_64 -D__x86_64__
 endif
-
-CFLAGS += -I../../../../arch/x86/include/generated/
-CFLAGS += -I../../../../include/
 CFLAGS += -I../../../../usr/include/
-CFLAGS += -I../../../../arch/x86/include/
 
 all:
 ifeq ($(ARCH),x86)
