@@ -431,6 +431,14 @@ int __init pci_xen_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_PCI_MSI
+void __init xen_msi_init(void)
+{
+	x86_msi.setup_msi_irqs = xen_hvm_setup_msi_irqs;
+	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
+}
+#endif
+
 int __init pci_xen_hvm_init(void)
 {
 	if (!xen_have_vector_callback || !xen_feature(XENFEAT_hvm_pirqs))
@@ -445,8 +453,11 @@ int __init pci_xen_hvm_init(void)
 #endif
 
 #ifdef CONFIG_PCI_MSI
-	x86_msi.setup_msi_irqs = xen_hvm_setup_msi_irqs;
-	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
+	/*
+	 * We need to wait until after x2apic is initialized
+	 * before we can set MSI IRQ ops.
+	 */
+	x86_platform.apic_post_init = xen_msi_init;
 #endif
 	return 0;
 }
