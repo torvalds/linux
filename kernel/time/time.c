@@ -173,6 +173,10 @@ int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
 		return error;
 
 	if (tz) {
+		/* Verify we're witin the +-15 hrs range */
+		if (tz->tz_minuteswest > 15*60 || tz->tz_minuteswest < -15*60)
+			return -EINVAL;
+
 		sys_tz = *tz;
 		update_vsyscall_tz();
 		if (firsttime) {
