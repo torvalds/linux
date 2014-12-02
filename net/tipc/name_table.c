@@ -172,18 +172,6 @@ static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_hea
 	return nseq;
 }
 
-/*
- * nameseq_delete_empty - deletes a name sequence structure if now unused
- */
-static void nameseq_delete_empty(struct name_seq *seq)
-{
-	if (!seq->first_free && list_empty(&seq->subscriptions)) {
-		hlist_del_init(&seq->ns_list);
-		kfree(seq->sseqs);
-		kfree(seq);
-	}
-}
-
 /**
  * nameseq_find_subseq - find sub-sequence (if any) matching a name instance
  *
@@ -476,6 +464,7 @@ static struct name_seq *nametbl_find_seq(u32 type)
 struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 					     u32 scope, u32 node, u32 port, u32 key)
 {
+	struct publication *publ;
 	struct name_seq *seq = nametbl_find_seq(type);
 	int index = hash(type);
 
@@ -492,8 +481,11 @@ struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 	if (!seq)
 		return NULL;
 
-	return tipc_nameseq_insert_publ(seq, type, lower, upper,
+	spin_lock_bh(&seq->lock);
+	publ = tipc_nameseq_insert_publ(seq, type, lower, upper,
 					scope, node, port, key);
+	spin_unlock_bh(&seq->lock);
+	return publ;
 }
 
 struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
@@ -505,8 +497,16 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 	if (!seq)
 		return NULL;
 
+	spin_lock_bh(&seq->lock);
 	publ = tipc_nameseq_remove_publ(seq, lower, node, ref, key);
-	nameseq_delete_empty(seq);
+	if (!seq->first_free && list_empty(&seq->subscriptions)) {
+		hlist_del_init(&seq->ns_list);
+		spin_unlock_bh(&seq->lock);
+		kfree(seq->sseqs);
+		kfree(seq);
+		return publ;
+	}
+	spin_unlock_bh(&seq->lock);
 	return publ;
 }
 
@@ -539,10 +539,10 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 	seq = nametbl_find_seq(type);
 	if (unlikely(!seq))
 		goto not_found;
+	spin_lock_bh(&seq->lock);
 	sseq = nameseq_find_subseq(seq, instance);
 	if (unlikely(!sseq))
-		goto not_found;
-	spin_lock_bh(&seq->lock);
+		goto no_match;
 	info = sseq->info;
 
 	/* Closest-First Algorithm */
@@ -624,7 +624,6 @@ int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit,
 		goto exit;
 
 	spin_lock_bh(&seq->lock);
-
 	sseq = seq->sseqs + nameseq_locate_subseq(seq, lower);
 	sseq_stop = seq->sseqs + seq->first_free;
 	for (; sseq != sseq_stop; sseq++) {
@@ -642,7 +641,6 @@ int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit,
 		if (info->cluster_list_size != info->node_list_size)
 			res = 1;
 	}
-
 	spin_unlock_bh(&seq->lock);
 exit:
 	read_unlock_bh(&tipc_nametbl_lock);
@@ -747,8 +745,14 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
 	if (seq != NULL) {
 		spin_lock_bh(&seq->lock);
 		list_del_init(&s->nameseq_list);
-		spin_unlock_bh(&seq->lock);
-		nameseq_delete_empty(seq);
+		if (!seq->first_free && list_empty(&seq->subscriptions)) {
+			hlist_del_init(&seq->ns_list);
+			spin_unlock_bh(&seq->lock);
+			kfree(seq->sseqs);
+			kfree(seq);
+		} else {
+			spin_unlock_bh(&seq->lock);
+		}
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
 }
@@ -964,6 +968,7 @@ static void tipc_purge_publications(struct name_seq *seq)
 	struct sub_seq *sseq;
 	struct name_info *info;
 
+	spin_lock_bh(&seq->lock);
 	sseq = seq->sseqs;
 	info = sseq->info;
 	list_for_each_entry_safe(publ, safe, &info->zone_list, zone_list) {
@@ -972,6 +977,8 @@ static void tipc_purge_publications(struct name_seq *seq)
 		kfree(publ);
 	}
 	hlist_del_init(&seq->ns_list);
+	spin_lock_bh(&seq->lock);
+
 	kfree(seq->sseqs);
 	kfree(seq);
 }
@@ -1127,7 +1134,6 @@ static int __tipc_nl_seq_list(struct tipc_nl_msg *msg, u32 *last_type,
 
 		hlist_for_each_entry_from(seq, ns_list) {
 			spin_lock_bh(&seq->lock);
-
 			err = __tipc_nl_subseq_list(msg, seq, last_lower,
 						    last_publ);
 
