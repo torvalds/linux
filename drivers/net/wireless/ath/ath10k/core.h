@@ -483,6 +483,7 @@ struct ath10k {
 		u32 id;
 		const char *name;
 		u32 patch_load_addr;
+		int uart_pin;
 
 		struct ath10k_hw_params_fw {
 			const char *dir;

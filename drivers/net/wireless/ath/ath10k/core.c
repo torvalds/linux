@@ -49,6 +49,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.id = QCA988X_HW_2_0_VERSION,
 		.name = "qca988x hw2.0",
 		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
+		.uart_pin = 7,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
 			.fw = QCA988X_HW_2_0_FW_FILE,
@@ -766,7 +767,7 @@ static int ath10k_init_uart(struct ath10k *ar)
 	if (!uart_print)
 		return 0;
 
-	ret = ath10k_bmi_write32(ar, hi_dbg_uart_txpin, 7);
+	ret = ath10k_bmi_write32(ar, hi_dbg_uart_txpin, ar->hw_params.uart_pin);
 	if (ret) {
 		ath10k_warn(ar, "could not enable UART prints (%d)\n", ret);
 		return ret;
