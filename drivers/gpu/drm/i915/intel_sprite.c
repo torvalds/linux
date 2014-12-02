@@ -1268,7 +1268,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_plane->obj;
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
@@ -1326,23 +1325,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 		if (!primary_was_enabled && primary_enabled)
 			intel_post_enable_primary(crtc);
 	}
-
-	/* Unpin old obj after new one is active to avoid ugliness */
-	if (old_obj && old_obj != obj) {
-
-		/*
-		 * It's fairly common to simply update the position of
-		 * an existing object.  In that case, we don't need to
-		 * wait for vblank to avoid ugliness, we only need to
-		 * do the pin & ref bookkeeping.
-		 */
-		if (intel_crtc->active)
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
-
-		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(old_obj);
-		mutex_unlock(&dev->struct_mutex);
-	}
 }
 
 static int
@@ -1352,6 +1334,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   uint32_t src_x, uint32_t src_y,
 		   uint32_t src_w, uint32_t src_h)
 {
+	struct drm_device *dev = plane->dev;
 	struct drm_framebuffer *old_fb = plane->fb;
 	struct intel_plane_state state;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -1390,6 +1373,13 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	intel_commit_sprite_plane(plane, &state);
+
+	if (fb != old_fb && old_fb) {
+		if (intel_crtc->active)
+			intel_wait_for_vblank(dev, intel_crtc->pipe);
+		intel_cleanup_plane_fb(plane, old_fb);
+	}
+
 	return 0;
 }
 
