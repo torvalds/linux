@@ -54,6 +54,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.fw = QCA988X_HW_2_0_FW_FILE,
 			.otp = QCA988X_HW_2_0_OTP_FILE,
 			.board = QCA988X_HW_2_0_BOARD_DATA_FILE,
+			.board_size = QCA988X_BOARD_DATA_SZ,
+			.board_ext_size = QCA988X_BOARD_EXT_DATA_SZ,
 		},
 	},
 };
@@ -147,8 +149,8 @@ static const struct firmware *ath10k_fetch_fw_file(struct ath10k *ar,
 static int ath10k_push_board_ext_data(struct ath10k *ar, const void *data,
 				      size_t data_len)
 {
-	u32 board_data_size = QCA988X_BOARD_DATA_SZ;
-	u32 board_ext_data_size = QCA988X_BOARD_EXT_DATA_SZ;
+	u32 board_data_size = ar->hw_params.fw.board_size;
+	u32 board_ext_data_size = ar->hw_params.fw.board_ext_size;
 	u32 board_ext_data_addr;
 	int ret;
 
@@ -194,7 +196,7 @@ static int ath10k_push_board_ext_data(struct ath10k *ar, const void *data,
 static int ath10k_download_board_data(struct ath10k *ar, const void *data,
 				      size_t data_len)
 {
-	u32 board_data_size = QCA988X_BOARD_DATA_SZ;
+	u32 board_data_size = ar->hw_params.fw.board_size;
 	u32 address;
 	int ret;
 
