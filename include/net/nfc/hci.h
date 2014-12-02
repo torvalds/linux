@@ -64,6 +64,7 @@ struct nfc_hci_ops {
 
 /* Pipes */
 #define NFC_HCI_INVALID_PIPE	0x80
+#define NFC_HCI_DO_NOT_CREATE_PIPE	0x81
 #define NFC_HCI_LINK_MGMT_PIPE	0x00
 #define NFC_HCI_ADMIN_PIPE	0x01
 
