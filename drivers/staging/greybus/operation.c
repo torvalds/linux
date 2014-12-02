@@ -234,7 +234,6 @@ static void gb_message_cancel(struct gb_message *message)
 	mutex_unlock(&gb_message_mutex);
 }
 
-#if 0
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
 	struct gb_protocol *protocol = operation->connection->protocol;
@@ -253,13 +252,21 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 
 	gb_connection_err(operation->connection,
 		"unexpected incoming request type 0x%02hhx\n", header->type);
-	(void)gb_operation_result_set(operation, -EPROTONOSUPPORT);
+	if (gb_operation_result_set(operation, -EPROTONOSUPPORT))
+		queue_work(gb_operation_workqueue, &operation->work);
+	else
+		WARN(true, "failed to mark request bad\n");
 }
-#endif
 
 /*
- * Complete an operation in non-atomic context.  The operation's
- * result value should have been set before queueing this.
+ * Complete an operation in non-atomic context.  For incoming
+ * requests, the callback function is the request handler, and
+ * the operation result should be -EINPROGRESS at this point.
+ *
+ * For outgoing requests, the operation result value should have
+ * been set before queueing this.  The operation callback function
+ * allows the original requester to know the request has completed
+ * and its result is available.
  */
 static void gb_operation_work(struct work_struct *work)
 {
@@ -665,19 +672,29 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 	struct gb_message *message;
 	struct gb_operation *operation;
 
-	/* XXX Right now we assume we're an outgoing request */
+	/* Get the message and record that it is no longer in flight */
 	message = gb_hd_message_find(hd, header);
-
-	/* Record that the message is no longer in flight */
 	message->cookie = NULL;
 
-	/* If there's no error, there's really nothing more to do */
-	if (!status)
-		return;	/* Mark it complete? */
-
+	/*
+	 * If the message was a response, we just need to drop our
+	 * reference to the operation.  If an error occurred, report
+	 * it.
+	 *
+	 * For requests, if there's no error, there's nothing more
+	 * to do until the response arrives.  If an error occurred
+	 * attempting to send it, record that as the result of
+	 * the operation and schedule its completion.
+	 */
 	operation = message->operation;
-	if (gb_operation_result_set(operation, status))
-		queue_work(gb_operation_workqueue, &operation->work);
+	if (message == operation->response) {
+		if (status)
+			pr_err("error %d sending response\n", status);
+		gb_operation_put(operation);
+	} else if (status) {
+		if (gb_operation_result_set(operation, status))
+			queue_work(gb_operation_workqueue, &operation->work);
+	}
 }
 EXPORT_SYMBOL_GPL(greybus_data_sent);
 
@@ -701,8 +718,18 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 		return;		/* XXX Respond with pre-allocated ENOMEM */
 	}
 
-	/* XXX Right now this will just complete the operation */
-	if (gb_operation_result_set(operation, -ENOSYS))
+	/*
+	 * Incoming requests are handled by arranging for the
+	 * request handler to be the operation's callback function.
+	 *
+	 * The last thing the handler does is send a response
+	 * message.  The callback function is then cleared (in
+	 * gb_operation_work()).  The original reference to the
+	 * operation will be dropped when the response has been
+	 * sent.
+	 */
+	operation->callback = gb_operation_request_handle;
+	if (gb_operation_result_set(operation, -EINPROGRESS))
 		queue_work(gb_operation_workqueue, &operation->work);
 }
 
