@@ -28,6 +28,7 @@
 #define GB_OPERATION_MESSAGE_SIZE_MAX	4096
 
 static struct kmem_cache *gb_operation_cache;
+static struct kmem_cache *gb_simple_message_cache;
 
 /* Workqueue to handle Greybus operation completions. */
 static struct workqueue_struct *gb_operation_workqueue;
@@ -369,11 +370,19 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 		hd->buffer_size_max = GB_OPERATION_MESSAGE_SIZE_MAX;
 	}
 
-	if (message_size > hd->buffer_size_max)
-		return NULL;
+	/* Allocate the message.  Use the slab cache for simple messages */
+	if (payload_size) {
+		if (message_size > hd->buffer_size_max) {
+			pr_warn("requested message size too big (%zu > %zu)\n",
+				message_size, hd->buffer_size_max);
+			return NULL;
+		}
 
-	size = sizeof(*message) + hd->buffer_headroom + message_size;
-	message = kzalloc(size, gfp_flags);
+		size = sizeof(*message) + hd->buffer_headroom + message_size;
+		message = kzalloc(size, gfp_flags);
+	} else {
+		message = kmem_cache_zalloc(gb_simple_message_cache, gfp_flags);
+	}
 	if (!message)
 		return NULL;
 
@@ -385,7 +394,10 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 
 static void gb_operation_message_free(struct gb_message *message)
 {
-	kfree(message);
+	if (message->size > sizeof(message->header))
+		kfree(message);
+	else
+		kmem_cache_free(gb_simple_message_cache, message);
 }
 
 /*
@@ -836,22 +848,46 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 
 int gb_operation_init(void)
 {
+	size_t size;
+
 	BUILD_BUG_ON(GB_OPERATION_MESSAGE_SIZE_MAX >
 			U16_MAX - sizeof(struct gb_operation_msg_hdr));
+
+	/*
+	 * A message structure with consists of:
+	 *  - the message structure itself
+	 *  - the headroom set aside for the host device
+	 *  - the message header
+	 *  - space for the message payload
+	 * Messages with no payload are a fairly common case and
+	 * have a known fixed maximum size, so we use a slab cache
+	 * for them.
+	 */
+	size = sizeof(struct gb_message) + GB_BUFFER_HEADROOM_MAX +
+				sizeof(struct gb_operation_msg_hdr);
+	gb_simple_message_cache = kmem_cache_create("gb_simple_message_cache",
+							size, 0, 0, NULL);
+	if (!gb_simple_message_cache)
+		return -ENOMEM;
 
 	gb_operation_cache = kmem_cache_create("gb_operation_cache",
 				sizeof(struct gb_operation), 0, 0, NULL);
 	if (!gb_operation_cache)
-		return -ENOMEM;
+		goto err_simple;
 
 	gb_operation_workqueue = alloc_workqueue("greybus_operation", 0, 1);
-	if (!gb_operation_workqueue) {
-		kmem_cache_destroy(gb_operation_cache);
-		gb_operation_cache = NULL;
-		return -ENOMEM;
-	}
+	if (!gb_operation_workqueue)
+		goto err_operation;
 
 	return 0;
+err_operation:
+	kmem_cache_destroy(gb_operation_cache);
+	gb_operation_cache = NULL;
+err_simple:
+	kmem_cache_destroy(gb_simple_message_cache);
+	gb_simple_message_cache = NULL;
+
+	return -ENOMEM;
 }
 
 void gb_operation_exit(void)
@@ -860,4 +896,6 @@ void gb_operation_exit(void)
 	gb_operation_workqueue = NULL;
 	kmem_cache_destroy(gb_operation_cache);
 	gb_operation_cache = NULL;
+	kmem_cache_destroy(gb_simple_message_cache);
+	gb_simple_message_cache = NULL;
 }
