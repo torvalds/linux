@@ -141,6 +141,7 @@ static int bench_mem_common(int argc, const char **argv,
 {
 	int i;
 	size_t len;
+	double totallen;
 	double result_bps[2];
 	u64 result_cycle[2];
 
@@ -156,6 +157,7 @@ static int bench_mem_common(int argc, const char **argv,
 		init_cycle();
 
 	len = (size_t)perf_atoll((char *)length_str);
+	totallen = (double)len * iterations;
 
 	result_cycle[0] = result_cycle[1] = 0ULL;
 	result_bps[0] = result_bps[1] = 0.0;
@@ -219,10 +221,10 @@ static int bench_mem_common(int argc, const char **argv,
 			if (use_cycle) {
 				printf(" %14lf Cycle/Byte\n",
 					(double)result_cycle[0]
-					/ (double)len);
+					/ totallen);
 				printf(" %14lf Cycle/Byte (with prefault)\n",
 					(double)result_cycle[1]
-					/ (double)len);
+					/ totallen);
 			} else {
 				print_bps(result_bps[0]);
 				printf("\n");
@@ -233,7 +235,7 @@ static int bench_mem_common(int argc, const char **argv,
 			if (use_cycle) {
 				printf(" %14lf Cycle/Byte",
 					(double)result_cycle[pf]
-					/ (double)len);
+					/ totallen);
 			} else
 				print_bps(result_bps[pf]);
 
@@ -244,8 +246,8 @@ static int bench_mem_common(int argc, const char **argv,
 		if (!only_prefault && !no_prefault) {
 			if (use_cycle) {
 				printf("%lf %lf\n",
-					(double)result_cycle[0] / (double)len,
-					(double)result_cycle[1] / (double)len);
+					(double)result_cycle[0] / totallen,
+					(double)result_cycle[1] / totallen);
 			} else {
 				printf("%lf %lf\n",
 					result_bps[0], result_bps[1]);
@@ -253,7 +255,7 @@ static int bench_mem_common(int argc, const char **argv,
 		} else {
 			if (use_cycle) {
 				printf("%lf\n", (double)result_cycle[pf]
-					/ (double)len);
+					/ totallen);
 			} else
 				printf("%lf\n", result_bps[pf]);
 		}
@@ -324,7 +326,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t len,
 
 	free(src);
 	free(dst);
-	return (double)((double)len / timeval2double(&tv_diff));
+	return (double)(((double)len * iterations) / timeval2double(&tv_diff));
 }
 
 int bench_mem_memcpy(int argc, const char **argv,
@@ -389,7 +391,7 @@ static double do_memset_gettimeofday(const struct routine *r, size_t len,
 	timersub(&tv_end, &tv_start, &tv_diff);
 
 	free(dst);
-	return (double)((double)len / timeval2double(&tv_diff));
+	return (double)(((double)len * iterations) / timeval2double(&tv_diff));
 }
 
 static const char * const bench_mem_memset_usage[] = {
