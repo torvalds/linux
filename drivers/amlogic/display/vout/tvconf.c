@@ -72,7 +72,7 @@ SET_TV_CLASS_ATTR(vdac_setting,parse_vdac_setting)
 
 static const tvmode_t vmode_tvmode_tab[] =
 {
-	TVMODE_480I, TVMODE_480I_RPT, TVMODE_480CVBS, TVMODE_480P, TVMODE_480P_RPT, TVMODE_576I, TVMODE_576I_RPT, TVMODE_576CVBS, TVMODE_576P, TVMODE_576P_RPT, TVMODE_720P, TVMODE_800P, TVMODE_1080I, TVMODE_1080P,
+	TVMODE_480I, TVMODE_480I_RPT, TVMODE_480CVBS, TVMODE_480P, TVMODE_480P_RPT, TVMODE_576I, TVMODE_576I_RPT, TVMODE_576CVBS, TVMODE_576P, TVMODE_576P_RPT, TVMODE_720P, TVMODE_800P, TVMODE_800X480P_60HZ, TVMODE_1080I, TVMODE_1080P,
     TVMODE_720P_50HZ, TVMODE_1080I_50HZ, TVMODE_1080P_50HZ,TVMODE_1080P_24HZ, TVMODE_4K2K_30HZ, TVMODE_4K2K_25HZ, TVMODE_4K2K_24HZ, TVMODE_4K2K_SMPTE, 
     VMODE_1920x1200, TVMODE_VGA, TVMODE_SVGA, TVMODE_XGA, TVMODE_SXGA, TVMODE_WSXGA, TVMODE_FHDVGA, 
 };
@@ -223,6 +223,18 @@ static const vinfo_t tv_info[] =
 		.sync_duration_num	= 60,
 		.sync_duration_den	= 1,
 		.video_clk			= 71000000,
+	},
+    { /* VMODE_800X480P_60HZ */
+		.name				= "800x480p60hz",
+		.mode 				= VMODE_800X480P_60HZ,
+		.width				= 800,
+		.height				= 480,
+		.field_height		= 480,
+		.aspect_ratio_num	= 5,
+		.aspect_ratio_den	= 3,
+		.sync_duration_num	= 60,
+		.sync_duration_den	= 1,
+		.video_clk			= 29760000,
 	},
     { /* VMODE_1080I */
 		.name              = "1080i",

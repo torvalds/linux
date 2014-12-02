@@ -152,6 +152,45 @@ static const  reg_t tvregs_800p[] = { // MDRJR verify
     {MREG_END_MARKER,            0      }
 };
 
+static const  reg_t tvregs_800x480p60hz[] = {
+    {P_ENCP_VIDEO_EN, 0},
+    {P_ENCI_VIDEO_EN, 0},
+    {P_VENC_VDAC_SETTING, 0xff},
+    {P_ENCP_VIDEO_MODE, 0x4040},
+    {P_ENCP_VIDEO_MODE_ADV, 0x18},
+    {P_ENCP_VIDEO_MAX_PXCNT, 0x3DF},
+    {P_ENCP_VIDEO_MAX_LNCNT, 0x1F3},
+    {P_ENCP_VIDEO_HAVON_BEGIN, 0xA8},
+    {P_ENCP_VIDEO_HAVON_END, 0x3C7},
+    {P_ENCP_VIDEO_VAVON_BLINE, 0x11},
+    {P_ENCP_VIDEO_VAVON_ELINE, 0x1F0},
+    {P_ENCP_VIDEO_HSO_BEGIN, 0x0},
+    {P_ENCP_VIDEO_HSO_END, 0x48},
+    {P_ENCP_VIDEO_VSO_BEGIN, 0x1E},
+    {P_ENCP_VIDEO_VSO_END, 0x32},
+    {P_ENCP_VIDEO_VSO_BLINE, 0x0},
+    {P_ENCP_VIDEO_VSO_ELINE, 0x7},
+    {P_ENCP_DVI_HSO_BEGIN, 0x2},
+    {P_ENCP_DVI_HSO_END, 0x4A},
+    {P_ENCP_DVI_VSO_BLINE_EVN, 0x0},
+    {P_ENCP_DVI_VSO_BLINE_ODD, 0x0},
+    {P_ENCP_DVI_VSO_ELINE_EVN, 0x7},
+    {P_ENCP_DVI_VSO_ELINE_ODD, 0x0},
+    {P_ENCP_DVI_VSO_BEGIN_EVN, 0x2},
+    {P_ENCP_DVI_VSO_BEGIN_ODD, 0x0},
+    {P_ENCP_DVI_VSO_END_EVN, 0x2},
+    {P_ENCP_DVI_VSO_END_ODD, 0x0},
+    {P_ENCP_DE_H_BEGIN, 0xAA},
+    {P_ENCP_DE_H_END, 0x3CA},
+    {P_ENCP_DE_V_BEGIN_EVEN, 0x11},
+    {P_ENCP_DE_V_END_EVEN, 0x1F1},
+    {P_ENCP_DE_V_BEGIN_ODD, 0x0},
+    {P_ENCP_DE_V_END_ODD, 0x0},
+    {P_ENCP_VIDEO_EN, 1},
+    {P_ENCI_VIDEO_EN, 0},
+    {MREG_END_MARKER, 0},
+};
+
 static const  reg_t tvregs_720p_50hz[] = {
     {P_VENC_VDAC_SETTING,          0xff,  },
     {P_HHI_VID_CLK_CNTL,           0x0,},
@@ -1533,6 +1572,7 @@ static const reg_t *tvregsTab[] = {
     tvregs_576p,        // For REPEAT MODE use, ENC setting is same
     tvregs_720p,
     tvregs_800p,
+    tvregs_800x480p60hz,
     tvregs_1080i,       //Adjust tvregs_* sequences and match the enum define in tvmode.h
     tvregs_1080p,
     tvregs_720p_50hz,
@@ -1563,6 +1603,7 @@ static const tvinfo_t tvinfoTab[] = {
     {.xres =  720, .yres =  576, .id = "576p_prt"},
     {.xres = 1280, .yres =  720, .id = "720p"},
     {.xres = 1280, .yres =  800, .id = "800p"},
+    {.xres = 800, .yres =  480, .id = "800x480p60hz"},
     {.xres = 1920, .yres = 1080, .id = "1080i"},
     {.xres = 1920, .yres = 1080, .id = "1080p"},
     {.xres = 1280, .yres =  720, .id = "720p50hz"},

@@ -28,8 +28,9 @@ typedef enum HDMI_Video_Type_ {
     HDMI_480p60_16x9_rpt = 36,
     HDMI_576p50_16x9_rpt = 38,
     HDMI_1280x1024 = 71,
-    HDMI_1920x1200 = 100,
     HDMI_800p = 72,
+    HDMI_800x480p60hz = 73,
+    HDMI_1920x1200 = 100,
     HDMI_4k2k_24 = 93,      // CEA-861-F
     HDMI_4k2k_25,
     HDMI_4k2k_30,
