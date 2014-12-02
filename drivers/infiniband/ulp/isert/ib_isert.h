@@ -165,6 +165,7 @@ struct isert_conn {
  *
  * @device:     pointer to device handle
  * @cq:         completion queue
+ * @wcs:        work completion array
  * @active_qps: Number of active QPs attached
  *              to completion context
  * @work:       completion work handle
@@ -172,6 +173,7 @@ struct isert_conn {
 struct isert_comp {
 	struct isert_device     *device;
 	struct ib_cq		*cq;
+	struct ib_wc		 wcs[16];
 	int                      active_qps;
 	struct work_struct	 work;
 };
