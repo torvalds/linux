@@ -16,7 +16,8 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
-#include <linux/unaligned/access_ok.h>
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 
