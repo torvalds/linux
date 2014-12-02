@@ -917,6 +917,31 @@ err:
 	return ret;
 }
 
+static int rtl2832u_frontend_detach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct rtl28xxu_priv *priv = d_to_priv(d);
+	struct i2c_client *client;
+
+	dev_dbg(&d->udev->dev, "%s:\n", __func__);
+
+	/* remove I2C slave demod */
+	client = priv->i2c_client_slave_demod;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	/* remove I2C demod */
+	client = priv->i2c_client_demod;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	return 0;
+}
+
 static struct qt1010_config rtl28xxu_qt1010_config = {
 	.i2c_address = 0x62, /* 0xc4 */
 };
@@ -1151,6 +1176,24 @@ err:
 	return ret;
 }
 
+static int rtl2832u_tuner_detach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct rtl28xxu_priv *priv = d_to_priv(d);
+	struct i2c_client *client;
+
+	dev_dbg(&d->udev->dev, "%s:\n", __func__);
+
+	/* remove I2C tuner */
+	client = priv->i2c_client_tuner;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	return 0;
+}
+
 static int rtl28xxu_init(struct dvb_usb_device *d)
 {
 	int ret;
@@ -1183,37 +1226,6 @@ static int rtl28xxu_init(struct dvb_usb_device *d)
 err:
 	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
-}
-
-static void rtl28xxu_exit(struct dvb_usb_device *d)
-{
-	struct rtl28xxu_priv *priv = d->priv;
-	struct i2c_client *client;
-
-	dev_dbg(&d->udev->dev, "%s:\n", __func__);
-
-	/* remove I2C tuner */
-	client = priv->i2c_client_tuner;
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
-	}
-
-	/* remove I2C slave demod */
-	client = priv->i2c_client_slave_demod;
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
-	}
-
-	/* remove I2C demod */
-	client = priv->i2c_client_demod;
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
-	}
-
-	return;
 }
 
 static int rtl2831u_power_ctrl(struct dvb_usb_device *d, int onoff)
@@ -1597,9 +1609,10 @@ static const struct dvb_usb_device_properties rtl2832u_props = {
 	.i2c_algo = &rtl28xxu_i2c_algo,
 	.read_config = rtl2832u_read_config,
 	.frontend_attach = rtl2832u_frontend_attach,
+	.frontend_detach = rtl2832u_frontend_detach,
 	.tuner_attach = rtl2832u_tuner_attach,
+	.tuner_detach = rtl2832u_tuner_detach,
 	.init = rtl28xxu_init,
-	.exit = rtl28xxu_exit,
 	.get_rc_config = rtl2832u_get_rc_config,
 
 	.num_adapters = 1,
