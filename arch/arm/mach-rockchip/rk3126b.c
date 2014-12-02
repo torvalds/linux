@@ -65,7 +65,7 @@ void __init rk3126b_init_suspend(void)
 }
 #endif
 
-#include "ddr_rk3126.c"
+#include "ddr_rk3126b.c"
 static int __init rk3126b_ddr_init(void)
 {
 	if (!soc_is_rk3126b())
