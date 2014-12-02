@@ -2,7 +2,7 @@
 config VIDEO_SAMSUNG_EXYNOS4_IS
 	bool "Samsung S5P/EXYNOS4 SoC series Camera Subsystem driver"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on (PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST)
+	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on OF && COMMON_CLK
 	help
 	  Say Y here to enable camera host interface devices for

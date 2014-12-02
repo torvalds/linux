@@ -153,18 +153,11 @@ static int tcm_loop_change_queue_type(struct scsi_device *sdev, int tag)
 /*
  * Locate the SAM Task Attr from struct scsi_cmnd *
  */
-static int tcm_loop_sam_attr(struct scsi_cmnd *sc)
+static int tcm_loop_sam_attr(struct scsi_cmnd *sc, int tag)
 {
-	if (sc->device->tagged_supported) {
-		switch (sc->tag) {
-		case HEAD_OF_QUEUE_TAG:
-			return MSG_HEAD_TAG;
-		case ORDERED_QUEUE_TAG:
-			return MSG_ORDERED_TAG;
-		default:
-			break;
-		}
-	}
+	if (sc->device->tagged_supported &&
+	    sc->device->ordered_tags && tag >= 0)
+		return MSG_ORDERED_TAG;
 
 	return MSG_SIMPLE_TAG;
 }
@@ -227,7 +220,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 
 	rc = target_submit_cmd_map_sgls(se_cmd, tl_nexus->se_sess, sc->cmnd,
 			&tl_cmd->tl_sense_buf[0], tl_cmd->sc->device->lun,
-			transfer_length, tcm_loop_sam_attr(sc),
+			transfer_length, tcm_loop_sam_attr(sc, tl_cmd->sc_cmd_tag),
 			sc->sc_data_direction, 0,
 			scsi_sglist(sc), scsi_sg_count(sc),
 			sgl_bidi, sgl_bidi_count,
@@ -266,7 +259,7 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 	}
 
 	tl_cmd->sc = sc;
-	tl_cmd->sc_cmd_tag = sc->tag;
+	tl_cmd->sc_cmd_tag = sc->request->tag;
 	INIT_WORK(&tl_cmd->work, tcm_loop_submission_work);
 	queue_work(tcm_loop_workqueue, &tl_cmd->work);
 	return 0;
@@ -370,7 +363,7 @@ static int tcm_loop_abort_task(struct scsi_cmnd *sc)
 	 */
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
 	ret = tcm_loop_issue_tmr(tl_tpg, tl_nexus, sc->device->lun,
-				 sc->tag, TMR_ABORT_TASK);
+				 sc->request->tag, TMR_ABORT_TASK);
 	return (ret == TMR_FUNCTION_COMPLETE) ? SUCCESS : FAILED;
 }
 
@@ -960,8 +953,7 @@ static int tcm_loop_port_link(
 				struct tcm_loop_tpg, tl_se_tpg);
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
-	atomic_inc(&tl_tpg->tl_tpg_port_count);
-	smp_mb__after_atomic();
+	atomic_inc_mb(&tl_tpg->tl_tpg_port_count);
 	/*
 	 * Add Linux/SCSI struct scsi_device by HCTL
 	 */
@@ -995,8 +987,7 @@ static void tcm_loop_port_unlink(
 	scsi_remove_device(sd);
 	scsi_device_put(sd);
 
-	atomic_dec(&tl_tpg->tl_tpg_port_count);
-	smp_mb__after_atomic();
+	atomic_dec_mb(&tl_tpg->tl_tpg_port_count);
 
 	pr_debug("TCM_Loop_ConfigFS: Port Unlink Successful\n");
 }

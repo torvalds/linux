@@ -7,10 +7,20 @@ Required properties:
 
 - clocks : the clock provider of SYS_MCLK
 
+- VDDA-supply : the regulator provider of VDDA
+
+- VDDIO-supply: the regulator provider of VDDIO
+
+Optional properties:
+
+- VDDD-supply : the regulator provider of VDDD
+
 Example:
 
 codec: sgtl5000@0a {
 	compatible = "fsl,sgtl5000";
 	reg = <0x0a>;
 	clocks = <&clks 150>;
+	VDDA-supply = <&reg_3p3v>;
+	VDDIO-supply = <&reg_3p3v>;
 };

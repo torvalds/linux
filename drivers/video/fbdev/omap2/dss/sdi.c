@@ -377,6 +377,7 @@ static struct platform_driver omap_sdi_driver = {
 	.driver         = {
 		.name   = "omapdss_sdi",
 		.owner  = THIS_MODULE,
+		.suppress_bind_attrs = true,
 	},
 };
 

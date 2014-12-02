@@ -210,6 +210,42 @@ void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mas
 }
 
 /*
+ * Sorting function for lists of fsnotify marks.
+ *
+ * Fanotify supports different notification classes (reflected as priority of
+ * notification group). Events shall be passed to notification groups in
+ * decreasing priority order. To achieve this marks in notification lists for
+ * inodes and vfsmounts are sorted so that priorities of corresponding groups
+ * are descending.
+ *
+ * Furthermore correct handling of the ignore mask requires processing inode
+ * and vfsmount marks of each group together. Using the group address as
+ * further sort criterion provides a unique sorting order and thus we can
+ * merge inode and vfsmount lists of marks in linear time and find groups
+ * present in both lists.
+ *
+ * A return value of 1 signifies that b has priority over a.
+ * A return value of 0 signifies that the two marks have to be handled together.
+ * A return value of -1 signifies that a has priority over b.
+ */
+int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
+{
+	if (a == b)
+		return 0;
+	if (!a)
+		return 1;
+	if (!b)
+		return -1;
+	if (a->priority < b->priority)
+		return 1;
+	if (a->priority > b->priority)
+		return -1;
+	if (a < b)
+		return 1;
+	return -1;
+}
+
+/*
  * Attach an initialized mark to a given group and fs object.
  * These marks may be used for the fsnotify backend to determine which
  * event types should be delivered to which group.

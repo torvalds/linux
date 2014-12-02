@@ -9,6 +9,7 @@ Required properties:
 	(a) "samsung,s3c2410-wdt" for Exynos4 and previous SoCs
 	(b) "samsung,exynos5250-wdt" for Exynos5250
 	(c) "samsung,exynos5420-wdt" for Exynos5420
+	(c) "samsung,exynos7-wdt" for Exynos7
 
 - reg : base physical address of the controller and length of memory mapped
 	region.

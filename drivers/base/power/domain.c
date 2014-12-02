@@ -361,8 +361,18 @@ static int __pm_genpd_save_device(struct pm_domain_data *pdd,
 	struct device *dev = pdd->dev;
 	int ret = 0;
 
-	if (gpd_data->need_restore)
+	if (gpd_data->need_restore > 0)
 		return 0;
+
+	/*
+	 * If the value of the need_restore flag is still unknown at this point,
+	 * we trust that pm_genpd_poweroff() has verified that the device is
+	 * already runtime PM suspended.
+	 */
+	if (gpd_data->need_restore < 0) {
+		gpd_data->need_restore = 1;
+		return 0;
+	}
 
 	mutex_unlock(&genpd->lock);
 
@@ -373,7 +383,7 @@ static int __pm_genpd_save_device(struct pm_domain_data *pdd,
 	mutex_lock(&genpd->lock);
 
 	if (!ret)
-		gpd_data->need_restore = true;
+		gpd_data->need_restore = 1;
 
 	return ret;
 }
@@ -389,12 +399,17 @@ static void __pm_genpd_restore_device(struct pm_domain_data *pdd,
 {
 	struct generic_pm_domain_data *gpd_data = to_gpd_data(pdd);
 	struct device *dev = pdd->dev;
-	bool need_restore = gpd_data->need_restore;
+	int need_restore = gpd_data->need_restore;
 
-	gpd_data->need_restore = false;
+	gpd_data->need_restore = 0;
 	mutex_unlock(&genpd->lock);
 
 	genpd_start_dev(genpd, dev);
+
+	/*
+	 * Call genpd_restore_dev() for recently added devices too (need_restore
+	 * is negative then).
+	 */
 	if (need_restore)
 		genpd_restore_dev(genpd, dev);
 
@@ -603,6 +618,7 @@ static void genpd_power_off_work_fn(struct work_struct *work)
 static int pm_genpd_runtime_suspend(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	struct generic_pm_domain_data *gpd_data;
 	bool (*stop_ok)(struct device *__dev);
 	int ret;
 
@@ -628,6 +644,16 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 		return 0;
 
 	mutex_lock(&genpd->lock);
+
+	/*
+	 * If we have an unknown state of the need_restore flag, it means none
+	 * of the runtime PM callbacks has been invoked yet. Let's update the
+	 * flag to reflect that the current state is active.
+	 */
+	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
+	if (gpd_data->need_restore < 0)
+		gpd_data->need_restore = 0;
+
 	genpd->in_progress++;
 	pm_genpd_poweroff(genpd);
 	genpd->in_progress--;
@@ -1437,12 +1463,12 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	spin_unlock_irq(&dev->power.lock);
 
 	if (genpd->attach_dev)
-		genpd->attach_dev(dev);
+		genpd->attach_dev(genpd, dev);
 
 	mutex_lock(&gpd_data->lock);
 	gpd_data->base.dev = dev;
 	list_add_tail(&gpd_data->base.list_node, &genpd->dev_list);
-	gpd_data->need_restore = genpd->status == GPD_STATE_POWER_OFF;
+	gpd_data->need_restore = -1;
 	gpd_data->td.constraint_changed = true;
 	gpd_data->td.effective_constraint_ns = -1;
 	mutex_unlock(&gpd_data->lock);
@@ -1499,7 +1525,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	genpd->max_off_time_changed = true;
 
 	if (genpd->detach_dev)
-		genpd->detach_dev(dev);
+		genpd->detach_dev(genpd, dev);
 
 	spin_lock_irq(&dev->power.lock);
 
@@ -1546,7 +1572,7 @@ void pm_genpd_dev_need_restore(struct device *dev, bool val)
 
 	psd = dev_to_psd(dev);
 	if (psd && psd->domain_data)
-		to_gpd_data(psd->domain_data)->need_restore = val;
+		to_gpd_data(psd->domain_data)->need_restore = val ? 1 : 0;
 
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 }

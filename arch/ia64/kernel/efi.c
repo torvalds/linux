@@ -568,6 +568,7 @@ efi_init (void)
 		{
 			const char *unit;
 			unsigned long size;
+			char buf[64];
 
 			md = p;
 			size = md->num_pages << EFI_PAGE_SHIFT;
@@ -586,9 +587,10 @@ efi_init (void)
 				unit = "KB";
 			}
 
-			printk("mem%02d: type=%2u, attr=0x%016lx, "
+			printk("mem%02d: %s "
 			       "range=[0x%016lx-0x%016lx) (%4lu%s)\n",
-			       i, md->type, md->attribute, md->phys_addr,
+			       i, efi_md_typeattr_format(buf, sizeof(buf), md),
+			       md->phys_addr,
 			       md->phys_addr + efi_md_size(md), size, unit);
 		}
 	}

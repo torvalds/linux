@@ -219,6 +219,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, LPT_LP},"
 			 "{Intel, WPT_LP},"
 			 "{Intel, SPT},"
+			 "{Intel, SPT_LP},"
 			 "{Intel, HPT},"
 			 "{Intel, PBG},"
 			 "{Intel, SCH},"
@@ -374,6 +375,8 @@ static void __mark_pages_wc(struct azx *chip, struct snd_dma_buffer *dmab, bool 
 #ifdef CONFIG_SND_DMA_SGBUF
 	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_SG) {
 		struct snd_sg_buf *sgbuf = dmab->private_data;
+		if (chip->driver_type == AZX_DRIVER_CMEDIA)
+			return; /* deal with only CORB/RIRB buffers */
 		if (on)
 			set_pages_array_wc(sgbuf->page_table, sgbuf->pages);
 		else
@@ -1769,7 +1772,7 @@ static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 #ifdef CONFIG_X86
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
-	if (!azx_snoop(chip))
+	if (!azx_snoop(chip) && chip->driver_type != AZX_DRIVER_CMEDIA)
 		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
 #endif
 }
@@ -2001,6 +2004,9 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
 	/* Sunrise Point */
 	{ PCI_DEVICE(0x8086, 0xa170),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	/* Sunrise Point-LP */
+	{ PCI_DEVICE(0x8086, 0x9d70),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
 	/* Haswell */
 	{ PCI_DEVICE(0x8086, 0x0a0c),

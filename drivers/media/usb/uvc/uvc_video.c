@@ -1143,7 +1143,7 @@ static int uvc_video_encode_data(struct uvc_streaming *stream,
 static void uvc_video_validate_buffer(const struct uvc_streaming *stream,
 				      struct uvc_buffer *buf)
 {
-	if (stream->frame_size != buf->bytesused &&
+	if (stream->ctrl.dwMaxVideoFrameSize != buf->bytesused &&
 	    !(stream->cur_format->flags & UVC_FMT_FLAG_COMPRESSED))
 		buf->error = 1;
 }

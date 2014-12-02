@@ -100,11 +100,11 @@ static void at91sam9g45_restart(enum reboot_mode mode, const char *cmd)
 		/* Disable SDRAM0 accesses */
 		"1:	str	%3, [%0, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
 		/* Power down SDRAM0 */
-		"	str	%4, [%0, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
+		"	str	%4, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
 		/* Disable SDRAM1 accesses */
 		"	strne	%3, [%1, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
 		/* Power down SDRAM1 */
-		"	strne	%4, [%1, #" __stringify(AT91_DDRSDRC_RTR) "]\n\t"
+		"	strne	%4, [%1, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
 		/* Reset CPU */
 		"	str	%5, [%2, #" __stringify(AT91_RSTC_CR) "]\n\t"
 

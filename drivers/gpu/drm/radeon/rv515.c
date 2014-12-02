@@ -1277,6 +1277,9 @@ void rv515_bandwidth_update(struct radeon_device *rdev)
 	struct drm_display_mode *mode0 = NULL;
 	struct drm_display_mode *mode1 = NULL;
 
+	if (!rdev->mode_info.mode_config_initialized)
+		return;
+
 	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)

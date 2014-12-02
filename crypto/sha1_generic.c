@@ -64,7 +64,7 @@ int crypto_sha1_update(struct shash_desc *desc, const u8 *data,
 			src = data + done;
 		} while (done + SHA1_BLOCK_SIZE <= len);
 
-		memset(temp, 0, sizeof(temp));
+		memzero_explicit(temp, sizeof(temp));
 		partial = 0;
 	}
 	memcpy(sctx->buffer + partial, src, len - done);

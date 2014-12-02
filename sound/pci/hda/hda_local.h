@@ -419,7 +419,7 @@ struct snd_hda_pin_quirk {
 	  .subvendor = _subvendor,\
 	  .name = _name,\
 	  .value = _value,\
-	  .pins = (const struct hda_pintbl[]) { _pins } \
+	  .pins = (const struct hda_pintbl[]) { _pins, {0, 0}} \
 	}
 #else
 
@@ -427,7 +427,7 @@ struct snd_hda_pin_quirk {
 	{ .codec = _codec,\
 	  .subvendor = _subvendor,\
 	  .value = _value,\
-	  .pins = (const struct hda_pintbl[]) { _pins } \
+	  .pins = (const struct hda_pintbl[]) { _pins, {0, 0}} \
 	}
 
 #endif
