@@ -10153,6 +10153,48 @@ static bool check_encoder_cloning(struct intel_crtc *crtc)
 	return true;
 }
 
+static bool check_digital_port_conflicts(struct drm_device *dev)
+{
+	struct intel_connector *connector;
+	unsigned int used_ports = 0;
+
+	/*
+	 * Walk the connector list instead of the encoder
+	 * list to detect the problem on ddi platforms
+	 * where there's just one encoder per digital port.
+	 */
+	list_for_each_entry(connector,
+			    &dev->mode_config.connector_list, base.head) {
+		struct intel_encoder *encoder = connector->new_encoder;
+
+		if (!encoder)
+			continue;
+
+		WARN_ON(!encoder->new_crtc);
+
+		switch (encoder->type) {
+			unsigned int port_mask;
+		case INTEL_OUTPUT_UNKNOWN:
+			if (WARN_ON(!HAS_DDI(dev)))
+				break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+		case INTEL_OUTPUT_HDMI:
+		case INTEL_OUTPUT_EDP:
+			port_mask = 1 << enc_to_dig_port(&encoder->base)->port;
+
+			/* the same port mustn't appear more than once */
+			if (used_ports & port_mask)
+				return false;
+
+			used_ports |= port_mask;
+		default:
+			break;
+		}
+	}
+
+	return true;
+}
+
 static struct intel_crtc_config *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
@@ -10166,6 +10208,11 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 	if (!check_encoder_cloning(to_intel_crtc(crtc))) {
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!check_digital_port_conflicts(dev)) {
+		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
 		return ERR_PTR(-EINVAL);
 	}
 
