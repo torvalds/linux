@@ -27,6 +27,8 @@ source "drivers/staging/media/davinci_vpfe/Kconfig"
 
 source "drivers/staging/media/dt3155v4l/Kconfig"
 
+source "drivers/staging/media/tlg2300/Kconfig"
+
 source "drivers/staging/media/mn88472/Kconfig"
 
 source "drivers/staging/media/mn88473/Kconfig"
