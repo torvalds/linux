@@ -935,7 +935,7 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 		return -ENOMEM;
 
 	if (request_size)
-		memcpy(&operation->request->payload, request, request_size);
+		memcpy(operation->request->payload, request, request_size);
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
