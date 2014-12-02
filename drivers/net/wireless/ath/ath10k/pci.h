@@ -152,6 +152,11 @@ struct ath10k_pci_pipe {
 	struct tasklet_struct intr;
 };
 
+struct ath10k_pci_supp_chip {
+	u32 dev_id;
+	u32 rev_id;
+};
+
 struct ath10k_pci {
 	struct pci_dev *pdev;
 	struct device *dev;
