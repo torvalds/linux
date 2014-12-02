@@ -73,12 +73,15 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 		goto err_get_kernel_doorbell;
 
 	retval = kfd_gtt_sa_allocate(dev, queue_size, &kq->pq);
-
 	if (retval != 0)
 		goto err_pq_allocate_vidmem;
 
 	kq->pq_kernel_addr = kq->pq->cpu_ptr;
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
+
+	retval = kq->ops_asic_specific.initialize(kq, dev, type, queue_size);
+	if (retval == false)
+		goto err_eop_allocate_vidmem;
 
 	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->rptr_kernel),
 					&kq->rptr_mem);
@@ -111,6 +114,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	prop.queue_address = kq->pq_gpu_addr;
 	prop.read_ptr = (uint32_t *) kq->rptr_gpu_addr;
 	prop.write_ptr = (uint32_t *) kq->wptr_gpu_addr;
+	prop.eop_ring_buffer_address = kq->eop_gpu_addr;
+	prop.eop_ring_buffer_size = PAGE_SIZE;
 
 	if (init_queue(&kq->queue, prop) != 0)
 		goto err_init_queue;
@@ -156,6 +161,8 @@ err_init_queue:
 err_wptr_allocate_vidmem:
 	kfd_gtt_sa_free(dev, kq->rptr_mem);
 err_rptr_allocate_vidmem:
+	kfd_gtt_sa_free(dev, kq->eop_mem);
+err_eop_allocate_vidmem:
 	kfd_gtt_sa_free(dev, kq->pq);
 err_pq_allocate_vidmem:
 	pr_err("kfd: error init pq\n");
@@ -182,6 +189,7 @@ static void uninitialize(struct kernel_queue *kq)
 
 	kfd_gtt_sa_free(kq->dev, kq->rptr_mem);
 	kfd_gtt_sa_free(kq->dev, kq->wptr_mem);
+	kq->ops_asic_specific.uninitialize(kq);
 	kfd_gtt_sa_free(kq->dev, kq->pq);
 	kfd_release_kernel_doorbell(kq->dev,
 					kq->queue->properties.doorbell_ptr);
@@ -300,6 +308,13 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	kq->ops.sync_with_hw = sync_with_hw;
 	kq->ops.rollback_packet = rollback_packet;
 
+	switch (dev->device_info->asic_family) {
+	case CHIP_CARRIZO:
+		kernel_queue_init_vi(&kq->ops_asic_specific);
+	case CHIP_KAVERI:
+		kernel_queue_init_cik(&kq->ops_asic_specific);
+	}
+
 	if (kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE) == false) {
 		pr_err("kfd: failed to init kernel queue\n");
 		kfree(kq);
@@ -324,7 +339,7 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 
 	BUG_ON(!dev);
 
-	pr_debug("kfd: starting kernel queue test\n");
+	pr_err("kfd: starting kernel queue test\n");
 
 	kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_HIQ);
 	BUG_ON(!kq);
@@ -336,7 +351,7 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 	kq->ops.submit_packet(kq);
 	kq->ops.sync_with_hw(kq, 1000);
 
-	pr_debug("kfd: ending kernel queue test\n");
+	pr_err("kfd: ending kernel queue test\n");
 }
 
 
