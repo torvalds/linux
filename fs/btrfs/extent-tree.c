@@ -9514,18 +9514,24 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		list_move_tail(&em->list, &root->fs_info->pinned_chunks);
 	}
 	spin_unlock(&block_group->lock);
-	unlock_chunks(root);
 
 	if (remove_em) {
 		struct extent_map_tree *em_tree;
 
 		em_tree = &root->fs_info->mapping_tree.map_tree;
 		write_lock(&em_tree->lock);
+		/*
+		 * The em might be in the pending_chunks list, so make sure the
+		 * chunk mutex is locked, since remove_extent_mapping() will
+		 * delete us from that list.
+		 */
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
 		/* once for the tree */
 		free_extent_map(em);
 	}
+
+	unlock_chunks(root);
 
 	btrfs_put_block_group(block_group);
 	btrfs_put_block_group(block_group);
