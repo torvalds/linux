@@ -685,27 +685,28 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 {
 	struct publication *publ;
-	struct sk_buff *buf;
+	struct sk_buff *skb = NULL;
 
 	write_lock_bh(&tipc_nametbl_lock);
 	publ = tipc_nametbl_remove_publ(type, lower, tipc_own_addr, ref, key);
 	if (likely(publ)) {
 		tipc_nametbl->local_publ_count--;
-		buf = tipc_named_withdraw(publ);
+		skb = tipc_named_withdraw(publ);
 		/* Any pending external events? */
 		tipc_named_process_backlog();
-		write_unlock_bh(&tipc_nametbl_lock);
 		list_del_init(&publ->pport_list);
 		kfree(publ);
-
-		if (buf)
-			named_cluster_distribute(buf);
-		return 1;
+	} else {
+		pr_err("Unable to remove local publication\n"
+		       "(type=%u, lower=%u, ref=%u, key=%u)\n",
+		       type, lower, ref, key);
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
-	pr_err("Unable to remove local publication\n"
-	       "(type=%u, lower=%u, ref=%u, key=%u)\n",
-	       type, lower, ref, key);
+
+	if (skb) {
+		named_cluster_distribute(skb);
+		return 1;
+	}
 	return 0;
 }
 
