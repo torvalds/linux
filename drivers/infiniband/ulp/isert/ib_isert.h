@@ -128,6 +128,7 @@ struct isert_conn {
 	atomic_t		post_send_buf_count;
 	u32			responder_resources;
 	u32			initiator_depth;
+	bool			pi_support;
 	u32			max_sge;
 	char			*login_buf;
 	char			*login_req_buf;
