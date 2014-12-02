@@ -58,7 +58,7 @@ struct kvm_fpu {
  *
  * Register set = 2: KVM specific registers (see definitions below).
  *
- * Register set = 3: FPU registers (see definitions below).
+ * Register set = 3: FPU / MSA registers (see definitions below).
  *
  * Other sets registers may be added in the future.  Each set would
  * have its own identifier in bits[31..16].
@@ -148,7 +148,7 @@ struct kvm_fpu {
 
 
 /*
- * KVM_REG_MIPS_FPU - Floating Point registers.
+ * KVM_REG_MIPS_FPU - Floating Point and MIPS SIMD Architecture (MSA) registers.
  *
  *  bits[15..8]  - Register subset (see definitions below).
  *  bits[7..5]   - Must be zero.
@@ -157,18 +157,26 @@ struct kvm_fpu {
 
 #define KVM_REG_MIPS_FPR	(KVM_REG_MIPS_FPU | 0x0000000000000000ULL)
 #define KVM_REG_MIPS_FCR	(KVM_REG_MIPS_FPU | 0x0000000000000100ULL)
+#define KVM_REG_MIPS_MSACR	(KVM_REG_MIPS_FPU | 0x0000000000000200ULL)
 
 /*
  * KVM_REG_MIPS_FPR - Floating point / Vector registers.
  */
 #define KVM_REG_MIPS_FPR_32(n)	(KVM_REG_MIPS_FPR | KVM_REG_SIZE_U32  | (n))
 #define KVM_REG_MIPS_FPR_64(n)	(KVM_REG_MIPS_FPR | KVM_REG_SIZE_U64  | (n))
+#define KVM_REG_MIPS_VEC_128(n)	(KVM_REG_MIPS_FPR | KVM_REG_SIZE_U128 | (n))
 
 /*
  * KVM_REG_MIPS_FCR - Floating point control registers.
  */
 #define KVM_REG_MIPS_FCR_IR	(KVM_REG_MIPS_FCR | KVM_REG_SIZE_U32 |  0)
 #define KVM_REG_MIPS_FCR_CSR	(KVM_REG_MIPS_FCR | KVM_REG_SIZE_U32 | 31)
+
+/*
+ * KVM_REG_MIPS_MSACR - MIPS SIMD Architecture (MSA) control registers.
+ */
+#define KVM_REG_MIPS_MSA_IR	 (KVM_REG_MIPS_MSACR | KVM_REG_SIZE_U32 |  0)
+#define KVM_REG_MIPS_MSA_CSR	 (KVM_REG_MIPS_MSACR | KVM_REG_SIZE_U32 |  1)
 
 
 /*

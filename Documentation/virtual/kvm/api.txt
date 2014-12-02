@@ -1981,8 +1981,11 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
   MIPS  | KVM_REG_MIPS_FPR_32(0..31)    | 32
   MIPS  | KVM_REG_MIPS_FPR_64(0..31)    | 64
+  MIPS  | KVM_REG_MIPS_VEC_128(0..31)   | 128
   MIPS  | KVM_REG_MIPS_FCR_IR           | 32
   MIPS  | KVM_REG_MIPS_FCR_CSR          | 32
+  MIPS  | KVM_REG_MIPS_MSA_IR           | 32
+  MIPS  | KVM_REG_MIPS_MSA_CSR          | 32
 
 ARM registers are mapped using the lower 32 bits.  The upper 16 of that
 is the register group type, or coprocessor number:
@@ -2040,13 +2043,20 @@ MIPS FPU registers (see KVM_REG_MIPS_FPR_{32,64}() above) have the following
 id bit patterns depending on the size of the register being accessed. They are
 always accessed according to the current guest FPU mode (Status.FR and
 Config5.FRE), i.e. as the guest would see them, and they become unpredictable
-if the guest FPU mode is changed:
+if the guest FPU mode is changed. MIPS SIMD Architecture (MSA) vector
+registers (see KVM_REG_MIPS_VEC_128() above) have similar patterns as they
+overlap the FPU registers:
   0x7020 0000 0003 00 <0:3> <reg:5> (32-bit FPU registers)
   0x7030 0000 0003 00 <0:3> <reg:5> (64-bit FPU registers)
+  0x7040 0000 0003 00 <0:3> <reg:5> (128-bit MSA vector registers)
 
 MIPS FPU control registers (see KVM_REG_MIPS_FCR_{IR,CSR} above) have the
 following id bit patterns:
   0x7020 0000 0003 01 <0:3> <reg:5>
+
+MIPS MSA control registers (see KVM_REG_MIPS_MSA_{IR,CSR} above) have the
+following id bit patterns:
+  0x7020 0000 0003 02 <0:3> <reg:5>
 
 
 4.69 KVM_GET_ONE_REG

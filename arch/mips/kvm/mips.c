@@ -531,6 +531,7 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	struct mips_fpu_struct *fpu = &vcpu->arch.fpu;
 	int ret;
 	s64 v;
+	s64 vs[2];
 	unsigned int idx;
 
 	switch (reg->id) {
@@ -577,6 +578,35 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
 			return -EINVAL;
 		v = fpu->fcr31;
+		break;
+
+	/* MIPS SIMD Architecture (MSA) registers */
+	case KVM_REG_MIPS_VEC_128(0) ... KVM_REG_MIPS_VEC_128(31):
+		if (!kvm_mips_guest_has_msa(&vcpu->arch))
+			return -EINVAL;
+		/* Can't access MSA registers in FR=0 mode */
+		if (!(kvm_read_c0_guest_status(cop0) & ST0_FR))
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_VEC_128(0);
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+		/* least significant byte first */
+		vs[0] = get_fpr64(&fpu->fpr[idx], 0);
+		vs[1] = get_fpr64(&fpu->fpr[idx], 1);
+#else
+		/* most significant byte first */
+		vs[0] = get_fpr64(&fpu->fpr[idx], 1);
+		vs[1] = get_fpr64(&fpu->fpr[idx], 0);
+#endif
+		break;
+	case KVM_REG_MIPS_MSA_IR:
+		if (!kvm_mips_guest_has_msa(&vcpu->arch))
+			return -EINVAL;
+		v = boot_cpu_data.msa_id;
+		break;
+	case KVM_REG_MIPS_MSA_CSR:
+		if (!kvm_mips_guest_has_msa(&vcpu->arch))
+			return -EINVAL;
+		v = fpu->msacsr;
 		break;
 
 	/* Co-processor 0 registers */
@@ -664,6 +694,10 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		u32 v32 = (u32)v;
 
 		return put_user(v32, uaddr32);
+	} else if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U128) {
+		void __user *uaddr = (void __user *)(long)reg->addr;
+
+		return copy_to_user(uaddr, vs, 16);
 	} else {
 		return -EINVAL;
 	}
@@ -675,6 +709,7 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct mips_fpu_struct *fpu = &vcpu->arch.fpu;
 	s64 v;
+	s64 vs[2];
 	unsigned int idx;
 
 	if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U64) {
@@ -689,6 +724,10 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		if (get_user(v32, uaddr32) != 0)
 			return -EFAULT;
 		v = (s64)v32;
+	} else if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U128) {
+		void __user *uaddr = (void __user *)(long)reg->addr;
+
+		return copy_from_user(vs, uaddr, 16);
 	} else {
 		return -EINVAL;
 	}
@@ -740,6 +779,32 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
 			return -EINVAL;
 		fpu->fcr31 = v;
+		break;
+
+	/* MIPS SIMD Architecture (MSA) registers */
+	case KVM_REG_MIPS_VEC_128(0) ... KVM_REG_MIPS_VEC_128(31):
+		if (!kvm_mips_guest_has_msa(&vcpu->arch))
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_VEC_128(0);
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+		/* least significant byte first */
+		set_fpr64(&fpu->fpr[idx], 0, vs[0]);
+		set_fpr64(&fpu->fpr[idx], 1, vs[1]);
+#else
+		/* most significant byte first */
+		set_fpr64(&fpu->fpr[idx], 1, vs[0]);
+		set_fpr64(&fpu->fpr[idx], 0, vs[1]);
+#endif
+		break;
+	case KVM_REG_MIPS_MSA_IR:
+		if (!kvm_mips_guest_has_msa(&vcpu->arch))
+			return -EINVAL;
+		/* Read-only */
+		break;
+	case KVM_REG_MIPS_MSA_CSR:
+		if (!kvm_mips_guest_has_msa(&vcpu->arch))
+			return -EINVAL;
+		fpu->msacsr = v;
 		break;
 
 	/* Co-processor 0 registers */
