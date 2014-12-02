@@ -2044,12 +2044,18 @@ isert_handle_wc(struct ib_wc *wc)
 static void
 isert_cq_work(struct work_struct *work)
 {
+	enum { isert_poll_budget = 65536 };
 	struct isert_comp *comp = container_of(work, struct isert_comp,
 					       work);
+	int completed = 0;
 	struct ib_wc wc;
 
-	while (ib_poll_cq(comp->cq, 1, &wc) == 1)
+	while (ib_poll_cq(comp->cq, 1, &wc) == 1) {
 		isert_handle_wc(&wc);
+
+		if (++completed >= isert_poll_budget)
+			break;
+	}
 
 	ib_req_notify_cq(comp->cq, IB_CQ_NEXT_COMP);
 }
