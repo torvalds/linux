@@ -655,7 +655,6 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 {
 	struct gb_operation *operation;
 	struct gb_message *message;
-	struct gb_operation_msg_hdr *header;
 	int result;
 
 	operation = gb_pending_operation_find(connection, operation_id);
@@ -668,19 +667,17 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	gb_pending_operation_remove(operation);
 
 	message = operation->response;
-	if (size == message->size) {
-		/* Transfer the operation result from the response header */
-		header = message->header;
-		result = gb_operation_status_map(header->result);
-	} else {
+	result = gb_operation_status_map(message->header->result);
+	if (!result && size != message->size) {
 		gb_connection_err(connection, "bad message size (%zu != %zu)",
 			size, message->size);
 		result = -EMSGSIZE;
 	}
 
 	/* We must ignore the payload if a bad status is returned */
-	if (!result)
-		memcpy(message->header, data, size);
+	if (result)
+		size = sizeof(*message->header);
+	memcpy(message->header, data, size);
 
 	/* The rest will be handled in work queue context */
 	if (gb_operation_result_set(operation, result))
