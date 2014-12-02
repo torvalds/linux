@@ -574,11 +574,6 @@ unsigned int __clk_get_enable_count(struct clk *clk)
 	return !clk ? 0 : clk->enable_count;
 }
 
-unsigned int __clk_get_prepare_count(struct clk *clk)
-{
-	return !clk ? 0 : clk->prepare_count;
-}
-
 unsigned long __clk_get_rate(struct clk *clk)
 {
 	unsigned long ret;
