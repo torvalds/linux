@@ -627,12 +627,18 @@ static u32 i40evf_get_rxfh_indir_size(struct net_device *netdev)
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  **/
-static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
+static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
+			   u8 *hfunc)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
 	u32 hlut_val;
 	int i, j;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!indir)
+		return 0;
 
 	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		hlut_val = rd32(hw, I40E_VFQF_HLUT(i));
@@ -654,12 +660,19 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
  * returns 0 after programming the table.
  **/
 static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
-			   const u8 *key)
+			   const u8 *key, const u8 hfunc)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;
 	u32 hlut_val;
 	int i, j;
+
+	/* We do not allow change in unsupported parameters */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!indir)
+		return 0;
 
 	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		hlut_val = indir[j++];
