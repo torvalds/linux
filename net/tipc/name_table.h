@@ -62,6 +62,7 @@ struct tipc_port_list;
  * @node_list: adjacent matching name seq publications with >= node scope
  * @cluster_list: adjacent matching name seq publications with >= cluster scope
  * @zone_list: adjacent matching name seq publications with >= zone scope
+ * @rcu: RCU callback head used for deferred freeing
  *
  * Note that the node list, cluster list, and zone list are circular lists.
  */
@@ -79,6 +80,7 @@ struct publication {
 	struct list_head node_list;
 	struct list_head cluster_list;
 	struct list_head zone_list;
+	struct rcu_head rcu;
 };
 
 /**
@@ -93,7 +95,7 @@ struct name_table {
 	u32 local_publ_count;
 };
 
-extern rwlock_t tipc_nametbl_lock;
+extern spinlock_t tipc_nametbl_lock;
 extern struct name_table *tipc_nametbl;
 
 int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);

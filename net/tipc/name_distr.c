@@ -113,8 +113,8 @@ struct sk_buff *tipc_named_publish(struct publication *publ)
 	struct sk_buff *buf;
 	struct distr_item *item;
 
-	list_add_tail(&publ->local_list,
-		      &tipc_nametbl->publ_list[publ->scope]);
+	list_add_tail_rcu(&publ->local_list,
+			  &tipc_nametbl->publ_list[publ->scope]);
 
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
@@ -208,12 +208,12 @@ void tipc_named_node_up(u32 dnode)
 
 	__skb_queue_head_init(&head);
 
-	read_lock_bh(&tipc_nametbl_lock);
+	rcu_read_lock();
 	named_distribute(&head, dnode,
 			 &tipc_nametbl->publ_list[TIPC_CLUSTER_SCOPE]);
 	named_distribute(&head, dnode,
 			 &tipc_nametbl->publ_list[TIPC_ZONE_SCOPE]);
-	read_unlock_bh(&tipc_nametbl_lock);
+	rcu_read_unlock();
 
 	tipc_link_xmit(&head, dnode, dnode);
 }
@@ -260,12 +260,12 @@ static void tipc_publ_purge(struct publication *publ, u32 addr)
 {
 	struct publication *p;
 
-	write_lock_bh(&tipc_nametbl_lock);
+	spin_lock_bh(&tipc_nametbl_lock);
 	p = tipc_nametbl_remove_publ(publ->type, publ->lower,
 				     publ->node, publ->ref, publ->key);
 	if (p)
 		tipc_publ_unsubscribe(p, addr);
-	write_unlock_bh(&tipc_nametbl_lock);
+	spin_unlock_bh(&tipc_nametbl_lock);
 
 	if (p != publ) {
 		pr_err("Unable to remove publication from failed node\n"
@@ -274,7 +274,7 @@ static void tipc_publ_purge(struct publication *publ, u32 addr)
 		       publ->key);
 	}
 
-	kfree(p);
+	kfree_rcu(p, rcu);
 }
 
 void tipc_publ_notify(struct list_head *nsub_list, u32 addr)
@@ -311,7 +311,7 @@ static bool tipc_update_nametbl(struct distr_item *i, u32 node, u32 dtype)
 						ntohl(i->key));
 		if (publ) {
 			tipc_publ_unsubscribe(publ, node);
-			kfree(publ);
+			kfree_rcu(publ, rcu);
 			return true;
 		}
 	} else {
@@ -376,14 +376,14 @@ void tipc_named_rcv(struct sk_buff *buf)
 	u32 count = msg_data_sz(msg) / ITEM_SIZE;
 	u32 node = msg_orignode(msg);
 
-	write_lock_bh(&tipc_nametbl_lock);
+	spin_lock_bh(&tipc_nametbl_lock);
 	while (count--) {
 		if (!tipc_update_nametbl(item, node, msg_type(msg)))
 			tipc_named_add_backlog(item, msg_type(msg), node);
 		item++;
 	}
 	tipc_named_process_backlog();
-	write_unlock_bh(&tipc_nametbl_lock);
+	spin_unlock_bh(&tipc_nametbl_lock);
 	kfree_skb(buf);
 }
 
@@ -399,12 +399,12 @@ void tipc_named_reinit(void)
 	struct publication *publ;
 	int scope;
 
-	write_lock_bh(&tipc_nametbl_lock);
+	spin_lock_bh(&tipc_nametbl_lock);
 
 	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_NODE_SCOPE; scope++)
-		list_for_each_entry(publ, &tipc_nametbl->publ_list[scope],
-				    local_list)
+		list_for_each_entry_rcu(publ, &tipc_nametbl->publ_list[scope],
+					local_list)
 			publ->node = tipc_own_addr;
 
-	write_unlock_bh(&tipc_nametbl_lock);
+	spin_unlock_bh(&tipc_nametbl_lock);
 }
