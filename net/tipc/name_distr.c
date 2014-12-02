@@ -41,26 +41,21 @@
 /**
  * struct publ_list - list of publications made by this node
  * @list: circular list of publications
- * @list_size: number of entries in list
  */
 struct publ_list {
 	struct list_head list;
-	u32 size;
 };
 
 static struct publ_list publ_zone = {
 	.list = LIST_HEAD_INIT(publ_zone.list),
-	.size = 0,
 };
 
 static struct publ_list publ_cluster = {
 	.list = LIST_HEAD_INIT(publ_cluster.list),
-	.size = 0,
 };
 
 static struct publ_list publ_node = {
 	.list = LIST_HEAD_INIT(publ_node.list),
-	.size = 0,
 };
 
 static struct publ_list *publ_lists[] = {
@@ -147,7 +142,6 @@ struct sk_buff *tipc_named_publish(struct publication *publ)
 	struct distr_item *item;
 
 	list_add_tail(&publ->local_list, &publ_lists[publ->scope]->list);
-	publ_lists[publ->scope]->size++;
 
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
@@ -172,7 +166,6 @@ struct sk_buff *tipc_named_withdraw(struct publication *publ)
 	struct distr_item *item;
 
 	list_del(&publ->local_list);
-	publ_lists[publ->scope]->size--;
 
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
@@ -200,16 +193,12 @@ static void named_distribute(struct sk_buff_head *list, u32 dnode,
 	struct publication *publ;
 	struct sk_buff *skb = NULL;
 	struct distr_item *item = NULL;
-	uint dsz = pls->size * ITEM_SIZE;
 	uint msg_dsz = (tipc_node_get_mtu(dnode, 0) / ITEM_SIZE) * ITEM_SIZE;
-	uint rem = dsz;
-	uint msg_rem = 0;
+	uint msg_rem = msg_dsz;
 
 	list_for_each_entry(publ, &pls->list, local_list) {
 		/* Prepare next buffer: */
 		if (!skb) {
-			msg_rem = min_t(uint, rem, msg_dsz);
-			rem -= msg_rem;
 			skb = named_prepare_buf(PUBLICATION, msg_rem, dnode);
 			if (!skb) {
 				pr_warn("Bulk publication failure\n");
@@ -227,7 +216,13 @@ static void named_distribute(struct sk_buff_head *list, u32 dnode,
 		if (!msg_rem) {
 			__skb_queue_tail(list, skb);
 			skb = NULL;
+			msg_rem = msg_dsz;
 		}
+	}
+	if (skb) {
+		msg_set_size(buf_msg(skb), INT_H_SIZE + (msg_dsz - msg_rem));
+		skb_trim(skb, INT_H_SIZE + (msg_dsz - msg_rem));
+		__skb_queue_tail(list, skb);
 	}
 }
 
