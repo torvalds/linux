@@ -578,7 +578,7 @@ static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;
 
-	list_for_each_entry_rcu(f, &head->filters, list)
+	list_for_each_entry(f, &head->filters, list)
 		if (f->handle == handle)
 			return (unsigned long)f;
 	return 0;
@@ -654,7 +654,7 @@ static void flow_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;
 
-	list_for_each_entry_rcu(f, &head->filters, list) {
+	list_for_each_entry(f, &head->filters, list) {
 		if (arg->count < arg->skip)
 			goto skip;
 		if (arg->fn(tp, (unsigned long)f, arg) < 0) {
