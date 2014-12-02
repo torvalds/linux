@@ -163,20 +163,16 @@ struct isert_conn {
  * struct isert_comp - iSER completion context
  *
  * @device:     pointer to device handle
- * @rx_cq:      RX completion queue
- * @tx_cq:      TX completion queue
+ * @cq:         completion queue
  * @active_qps: Number of active QPs attached
  *              to completion context
- * @rx_work:    RX work handle
- * @tx_work:    TX work handle
+ * @work:       completion work handle
  */
 struct isert_comp {
-	struct isert_device      *device;
-	struct ib_cq		*rx_cq;
-	struct ib_cq		*tx_cq;
+	struct isert_device     *device;
+	struct ib_cq		*cq;
 	int                      active_qps;
-	struct work_struct	 rx_work;
-	struct work_struct	 tx_work;
+	struct work_struct	 work;
 };
 
 struct isert_device {
