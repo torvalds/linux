@@ -622,6 +622,261 @@ see <xref linkend="colorspaces" />.</entry>
 	  </tbody>
 	</tgroup>
       </table>
+
+      <para>On LVDS buses, usually each sample is transferred serialized in
+      seven time slots per pixel clock, on three (18-bit) or four (24-bit)
+      differential data pairs at the same time. The remaining bits are used for
+      control signals as defined by SPWG/PSWG/VESA or JEIDA standards.
+      The 24-bit RGB format serialized in seven time slots on four lanes using
+      JEIDA defined bit mapping will be named
+      <constant>MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA</constant>, for example.
+      </para>
+
+      <table pgwide="0" frame="none" id="v4l2-mbus-pixelcode-rgb-lvds">
+	<title>LVDS RGB formats</title>
+	<tgroup cols="8">
+	  <colspec colname="id" align="left" />
+	  <colspec colname="code" align="center" />
+	  <colspec colname="slot" align="center" />
+	  <colspec colname="lane" />
+	  <colspec colnum="5" colname="l03" align="center" />
+	  <colspec colnum="6" colname="l02" align="center" />
+	  <colspec colnum="7" colname="l01" align="center" />
+	  <colspec colnum="8" colname="l00" align="center" />
+	  <spanspec namest="l03" nameend="l00" spanname="l0" />
+	  <thead>
+	    <row>
+	      <entry>Identifier</entry>
+	      <entry>Code</entry>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry spanname="l0">Data organization</entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>Timeslot</entry>
+	      <entry>Lane</entry>
+	      <entry>3</entry>
+	      <entry>2</entry>
+	      <entry>1</entry>
+	      <entry>0</entry>
+	    </row>
+	  </thead>
+	  <tbody valign="top">
+	    <row id="MEDIA-BUS-FMT-RGB666-1X7X3-SPWG">
+	      <entry>MEDIA_BUS_FMT_RGB666_1X7X3_SPWG</entry>
+	      <entry>0x1010</entry>
+	      <entry>0</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>1</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>2</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>d</entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>3</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>4</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>5</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>6</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-RGB888-1X7X4-SPWG">
+	      <entry>MEDIA_BUS_FMT_RGB888_1X7X4_SPWG</entry>
+	      <entry>0x1011</entry>
+	      <entry>0</entry>
+	      <entry></entry>
+	      <entry>d</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>1</entry>
+	      <entry></entry>
+	      <entry>b<subscript>7</subscript></entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>2</entry>
+	      <entry></entry>
+	      <entry>b<subscript>6</subscript></entry>
+	      <entry>d</entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>3</entry>
+	      <entry></entry>
+	      <entry>g<subscript>7</subscript></entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>4</entry>
+	      <entry></entry>
+	      <entry>g<subscript>6</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>5</entry>
+	      <entry></entry>
+	      <entry>r<subscript>7</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>6</entry>
+	      <entry></entry>
+	      <entry>r<subscript>6</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-RGB888-1X7X4-JEIDA">
+	      <entry>MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA</entry>
+	      <entry>0x1012</entry>
+	      <entry>0</entry>
+	      <entry></entry>
+	      <entry>d</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>1</entry>
+	      <entry></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>r<subscript>7</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>2</entry>
+	      <entry></entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>d</entry>
+	      <entry>g<subscript>7</subscript></entry>
+	      <entry>r<subscript>6</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>3</entry>
+	      <entry></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>b<subscript>7</subscript></entry>
+	      <entry>g<subscript>6</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>4</entry>
+	      <entry></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>b<subscript>6</subscript></entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>5</entry>
+	      <entry></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>6</entry>
+	      <entry></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </table>
     </section>
 
     <section>
