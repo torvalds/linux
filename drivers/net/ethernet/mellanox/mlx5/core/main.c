@@ -43,6 +43,7 @@
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/srq.h>
 #include <linux/debugfs.h>
+#include <linux/kmod.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
 
@@ -840,6 +841,8 @@ struct mlx5_core_event_handler {
 		      void *data);
 };
 
+#define MLX5_IB_MOD "mlx5_ib"
+
 static int init_one(struct pci_dev *pdev,
 		    const struct pci_device_id *id)
 {
@@ -877,6 +880,10 @@ static int init_one(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
 		goto out_init;
 	}
+
+	err = request_module_nowait(MLX5_IB_MOD);
+	if (err)
+		pr_info("failed request module on %s\n", MLX5_IB_MOD);
 
 	return 0;
 
