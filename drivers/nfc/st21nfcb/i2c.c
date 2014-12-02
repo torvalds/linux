@@ -255,7 +255,7 @@ static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
 				GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request reset pin\n");
-		return -ENODEV;
+		return r;
 	}
 	phy->gpio_reset = gpio;
 
@@ -290,7 +290,7 @@ static int st21nfcb_nci_i2c_request_resources(struct i2c_client *client)
 			phy->gpio_reset, GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
-		return -ENODEV;
+		return r;
 	}
 
 	return 0;
