@@ -522,11 +522,10 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	if (bforced == true) {
 		if (list_empty(phead))
 			return true;
-		else {
-			prframe = LIST_CONTAINOR(plist, union recv_frame, u);
-			pattrib = &prframe->u.hdr.attrib;
-			preorder_ctrl->indicate_seq = pattrib->seq_num;
-		}
+
+		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pattrib = &prframe->u.hdr.attrib;
+		preorder_ctrl->indicate_seq = pattrib->seq_num;
 	}
 	/* Prepare indication list and indication.
 	 * Check if there is any packet need indicate. */
