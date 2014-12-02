@@ -45,9 +45,6 @@ struct iser_tx_desc {
 	struct ib_sge	tx_sg[2];
 	int		num_sge;
 	struct isert_cmd *isert_cmd;
-	struct llist_node *comp_llnode_batch;
-	struct llist_node comp_llnode;
-	bool		llnode_active;
 	struct ib_send_wr send_wr;
 } __packed;
 
@@ -158,9 +155,6 @@ struct isert_conn {
 	/* lock to protect fastreg pool */
 	spinlock_t		conn_lock;
 	struct work_struct	release_work;
-#define ISERT_COMP_BATCH_COUNT	8
-	int			conn_comp_batch;
-	struct llist_head	conn_comp_llist;
 };
 
 #define ISERT_MAX_CQ 64
