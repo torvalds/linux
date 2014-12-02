@@ -1067,10 +1067,18 @@ static int tegra_crtc_setup_clk(struct drm_crtc *crtc,
 		return -ENODEV;
 
 	/*
+	 * The ->setup_clock() callback is optional, but if encoders don't
+	 * implement it they most likely need to do the equivalent within the
+	 * ->mode_fixup() callback.
+	 */
+	if (!output->ops || !output->ops->setup_clock)
+		return 0;
+
+	/*
 	 * This assumes that the parent clock is pll_d_out0 or pll_d2_out
 	 * respectively, each of which divides the base pll_d by 2.
 	 */
-	err = tegra_output_setup_clock(output, dc->clk, pclk, &div);
+	err = output->ops->setup_clock(output, dc->clk, pclk, &div);
 	if (err < 0) {
 		dev_err(dc->dev, "failed to setup clock: %ld\n", err);
 		return err;

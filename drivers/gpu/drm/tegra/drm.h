@@ -240,16 +240,6 @@ static inline int tegra_output_disable(struct tegra_output *output)
 	return output ? -ENOSYS : -EINVAL;
 }
 
-static inline int tegra_output_setup_clock(struct tegra_output *output,
-					   struct clk *clk, unsigned long pclk,
-					   unsigned int *div)
-{
-	if (output && output->ops && output->ops->setup_clock)
-		return output->ops->setup_clock(output, clk, pclk, div);
-
-	return output ? -ENOSYS : -EINVAL;
-}
-
 static inline int tegra_output_check_mode(struct tegra_output *output,
 					  struct drm_display_mode *mode,
 					  enum drm_mode_status *status)
