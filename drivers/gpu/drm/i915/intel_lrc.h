@@ -24,6 +24,8 @@
 #ifndef _INTEL_LRC_H_
 #define _INTEL_LRC_H_
 
+#define GEN8_LR_CONTEXT_ALIGN 4096
+
 /* Execlists regs */
 #define RING_ELSP(ring)			((ring)->mmio_base+0x230)
 #define RING_EXECLIST_STATUS(ring)	((ring)->mmio_base+0x234)
@@ -67,6 +69,8 @@ int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
 void intel_lr_context_free(struct intel_context *ctx);
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
+void intel_lr_context_unpin(struct intel_engine_cs *ring,
+		struct intel_context *ctx);
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
@@ -104,11 +108,11 @@ struct intel_ctx_submit_request {
 	u32 tail;
 
 	struct list_head execlist_link;
-	struct work_struct work;
 
 	int elsp_submitted;
 };
 
 void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring);
+void intel_execlists_retire_requests(struct intel_engine_cs *ring);
 
 #endif /* _INTEL_LRC_H_ */

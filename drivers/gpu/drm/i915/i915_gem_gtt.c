@@ -43,7 +43,12 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	if (IS_GEN8(dev))
 		has_full_ppgtt = false; /* XXX why? */
 
-	if (enable_ppgtt == 0 || !has_aliasing_ppgtt)
+	/*
+	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
+	 * execlists, the sole mechanism available to submit work.
+	 */
+	if (INTEL_INFO(dev)->gen < 9 &&
+	    (enable_ppgtt == 0 || !has_aliasing_ppgtt))
 		return 0;
 
 	if (enable_ppgtt == 1)
@@ -164,9 +169,6 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
-	/* Mark the page as writeable.  Other platforms don't have a
-	 * setting for read-only/writable, so this matches that behavior.
-	 */
 	if (!(flags & PTE_READ_ONLY))
 		pte |= BYT_PTE_WRITEABLE;
 
@@ -1174,6 +1176,8 @@ i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 
 	ppgtt->file_priv = fpriv;
 
+	trace_i915_ppgtt_create(&ppgtt->base);
+
 	return ppgtt;
 }
 
@@ -1181,6 +1185,8 @@ void  i915_ppgtt_release(struct kref *kref)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(kref, struct i915_hw_ppgtt, ref);
+
+	trace_i915_ppgtt_release(&ppgtt->base);
 
 	/* vmas should already be unbound */
 	WARN_ON(!list_empty(&ppgtt->base.active_list));
@@ -1658,10 +1664,10 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	}
 }
 
-int i915_gem_setup_global_gtt(struct drm_device *dev,
-			      unsigned long start,
-			      unsigned long mappable_end,
-			      unsigned long end)
+static int i915_gem_setup_global_gtt(struct drm_device *dev,
+				     unsigned long start,
+				     unsigned long mappable_end,
+				     unsigned long end)
 {
 	/* Let GEM Manage all of the aperture.
 	 *
@@ -1952,9 +1958,17 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 	 * Only the snoop bit has meaning for CHV, the rest is
 	 * ignored.
 	 *
-	 * Note that the harware enforces snooping for all page
-	 * table accesses. The snoop bit is actually ignored for
-	 * PDEs.
+	 * The hardware will never snoop for certain types of accesses:
+	 * - CPU GTT (GMADR->GGTT->no snoop->memory)
+	 * - PPGTT page tables
+	 * - some other special cycles
+	 *
+	 * As with BDW, we also need to consider the following for GT accesses:
+	 * "For GGTT, there is NO pat_sel[2:0] from the entry,
+	 * so RTL will always use the value corresponding to
+	 * pat_sel = 000".
+	 * Which means we must set the snoop bit in PAT entry 0
+	 * in order to keep the global status page working.
 	 */
 	pat = GEN8_PPAT(0, CHV_PPAT_SNOOP) |
 	      GEN8_PPAT(1, 0) |

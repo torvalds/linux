@@ -1240,11 +1240,12 @@ static int vlv_drpc_info(struct seq_file *m)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rpmodectl1, rcctl1;
+	u32 rpmodectl1, rcctl1, pw_status;
 	unsigned fw_rendercount = 0, fw_mediacount = 0;
 
 	intel_runtime_pm_get(dev_priv);
 
+	pw_status = I915_READ(VLV_GTLC_PW_STATUS);
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
 
@@ -1263,11 +1264,9 @@ static int vlv_drpc_info(struct seq_file *m)
 		   yesno(rcctl1 & (GEN7_RC_CTL_TO_MODE |
 					GEN6_RC_CTL_EI_MODE(1))));
 	seq_printf(m, "Render Power Well: %s\n",
-			(I915_READ(VLV_GTLC_PW_STATUS) &
-				VLV_GTLC_PW_RENDER_STATUS_MASK) ? "Up" : "Down");
+		   (pw_status & VLV_GTLC_PW_RENDER_STATUS_MASK) ? "Up" : "Down");
 	seq_printf(m, "Media Power Well: %s\n",
-			(I915_READ(VLV_GTLC_PW_STATUS) &
-				VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
+		   (pw_status & VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
 
 	seq_printf(m, "Render RC6 residency since boot: %u\n",
 		   I915_READ(VLV_GT_RENDER_RC6));
@@ -1773,6 +1772,50 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static void i915_dump_lrc_obj(struct seq_file *m,
+			      struct intel_engine_cs *ring,
+			      struct drm_i915_gem_object *ctx_obj)
+{
+	struct page *page;
+	uint32_t *reg_state;
+	int j;
+	unsigned long ggtt_offset = 0;
+
+	if (ctx_obj == NULL) {
+		seq_printf(m, "Context on %s with no gem object\n",
+			   ring->name);
+		return;
+	}
+
+	seq_printf(m, "CONTEXT: %s %u\n", ring->name,
+		   intel_execlists_ctx_id(ctx_obj));
+
+	if (!i915_gem_obj_ggtt_bound(ctx_obj))
+		seq_puts(m, "\tNot bound in GGTT\n");
+	else
+		ggtt_offset = i915_gem_obj_ggtt_offset(ctx_obj);
+
+	if (i915_gem_object_get_pages(ctx_obj)) {
+		seq_puts(m, "\tFailed to get pages for context object\n");
+		return;
+	}
+
+	page = i915_gem_object_get_page(ctx_obj, 1);
+	if (!WARN_ON(page == NULL)) {
+		reg_state = kmap_atomic(page);
+
+		for (j = 0; j < 0x600 / sizeof(u32) / 4; j += 4) {
+			seq_printf(m, "\t[0x%08lx] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+				   ggtt_offset + 4096 + (j * 4),
+				   reg_state[j], reg_state[j + 1],
+				   reg_state[j + 2], reg_state[j + 3]);
+		}
+		kunmap_atomic(reg_state);
+	}
+
+	seq_putc(m, '\n');
+}
+
 static int i915_dump_lrc(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -1793,29 +1836,9 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
 		for_each_ring(ring, dev_priv, i) {
-			struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
-
-			if (ring->default_context == ctx)
-				continue;
-
-			if (ctx_obj) {
-				struct page *page = i915_gem_object_get_page(ctx_obj, 1);
-				uint32_t *reg_state = kmap_atomic(page);
-				int j;
-
-				seq_printf(m, "CONTEXT: %s %u\n", ring->name,
-						intel_execlists_ctx_id(ctx_obj));
-
-				for (j = 0; j < 0x600 / sizeof(u32) / 4; j += 4) {
-					seq_printf(m, "\t[0x%08lx] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-					i915_gem_obj_ggtt_offset(ctx_obj) + 4096 + (j * 4),
-					reg_state[j], reg_state[j + 1],
-					reg_state[j + 2], reg_state[j + 3]);
-				}
-				kunmap_atomic(reg_state);
-
-				seq_putc(m, '\n');
-			}
+			if (ring->default_context != ctx)
+				i915_dump_lrc_obj(m, ring,
+						  ctx->engine[i].state);
 		}
 	}
 
@@ -1975,6 +1998,8 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	if (IS_GEN3(dev) || IS_GEN4(dev)) {
 		seq_printf(m, "DDC = 0x%08x\n",
 			   I915_READ(DCC));
+		seq_printf(m, "DDC2 = 0x%08x\n",
+			   I915_READ(DCC2));
 		seq_printf(m, "C0DRB3 = 0x%04x\n",
 			   I915_READ16(C0DRB3));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
@@ -1997,6 +2022,10 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 		seq_printf(m, "DISP_ARB_CTL = 0x%08x\n",
 			   I915_READ(DISP_ARB_CTL));
 	}
+
+	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+		seq_puts(m, "L-shaped memory detected\n");
+
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 

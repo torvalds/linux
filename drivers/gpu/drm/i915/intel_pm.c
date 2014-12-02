@@ -4451,7 +4451,7 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 					dev_priv->rps.min_freq_softlimit);
 
 	if (wait_for(((vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS))
-				& GENFREQSTATUS) == 0, 5))
+				& GENFREQSTATUS) == 0, 100))
 		DRM_ERROR("timed out waiting for Punit\n");
 
 	vlv_force_gfx_clock(dev_priv, false);
@@ -4504,39 +4504,13 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 		      "Odd GPU freq value\n"))
 		val &= ~1;
 
-	if (val != dev_priv->rps.cur_freq) {
-		DRM_DEBUG_DRIVER("GPU freq request from %d MHz (%u) to %d MHz (%u)\n",
-				 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
-				 dev_priv->rps.cur_freq,
-				 vlv_gpu_freq(dev_priv, val), val);
-
+	if (val != dev_priv->rps.cur_freq)
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
-	}
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	dev_priv->rps.cur_freq = val;
 	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv, val));
-}
-
-static void gen8_disable_rps_interrupts(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	I915_WRITE(GEN6_PMINTRMSK, ~GEN8_PMINTR_REDIRECT_TO_NON_DISP);
-	I915_WRITE(GEN8_GT_IER(2), I915_READ(GEN8_GT_IER(2)) &
-				   ~dev_priv->pm_rps_events);
-	/* Complete PM interrupt masking here doesn't race with the rps work
-	 * item again unmasking PM interrupts because that is using a different
-	 * register (GEN8_GT_IMR(2)) to mask PM interrupts. The only risk is in
-	 * leaving stale bits in GEN8_GT_IIR(2) and GEN8_GT_IMR(2) which
-	 * gen8_enable_rps will clean up. */
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir = 0;
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	I915_WRITE(GEN8_GT_IIR(2), dev_priv->pm_rps_events);
 }
 
 static void gen9_disable_rps(struct drm_device *dev)
@@ -4546,36 +4520,12 @@ static void gen9_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 }
 
-static void gen6_disable_rps_interrupts(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
-	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) &
-				~dev_priv->pm_rps_events);
-	/* Complete PM interrupt masking here doesn't race with the rps work
-	 * item again unmasking PM interrupts because that is using a different
-	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
-	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir = 0;
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	I915_WRITE(GEN6_PMIIR, dev_priv->pm_rps_events);
-}
-
 static void gen6_disable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
-
-	if (IS_BROADWELL(dev))
-		gen8_disable_rps_interrupts(dev);
-	else
-		gen6_disable_rps_interrupts(dev);
 }
 
 static void cherryview_disable_rps(struct drm_device *dev)
@@ -4583,8 +4533,6 @@ static void cherryview_disable_rps(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
-
-	gen8_disable_rps_interrupts(dev);
 }
 
 static void valleyview_disable_rps(struct drm_device *dev)
@@ -4598,8 +4546,6 @@ static void valleyview_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
-
-	gen6_disable_rps_interrupts(dev);
 }
 
 static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
@@ -4663,47 +4609,46 @@ int intel_enable_rc6(const struct drm_device *dev)
 	return i915.enable_rc6;
 }
 
-static void gen8_enable_rps_interrupts(struct drm_device *dev)
+static void gen6_init_rps_frequencies(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t rp_state_cap;
+	u32 ddcc_status = 0;
+	int ret;
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	WARN_ON(dev_priv->rps.pm_iir);
-	gen8_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	I915_WRITE(GEN8_GT_IIR(2), dev_priv->pm_rps_events);
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
-static void gen6_enable_rps_interrupts(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	WARN_ON(dev_priv->rps.pm_iir);
-	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	I915_WRITE(GEN6_PMIIR, dev_priv->pm_rps_events);
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
-static void parse_rp_state_cap(struct drm_i915_private *dev_priv, u32 rp_state_cap)
-{
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	/* All of these values are in units of 50MHz */
 	dev_priv->rps.cur_freq		= 0;
-	/* static values from HW: RP0 < RPe < RP1 < RPn (min_freq) */
-	dev_priv->rps.rp1_freq		= (rp_state_cap >>  8) & 0xff;
+	/* static values from HW: RP0 > RP1 > RPn (min_freq) */
 	dev_priv->rps.rp0_freq		= (rp_state_cap >>  0) & 0xff;
+	dev_priv->rps.rp1_freq		= (rp_state_cap >>  8) & 0xff;
 	dev_priv->rps.min_freq		= (rp_state_cap >> 16) & 0xff;
-	/* XXX: only BYT has a special efficient freq */
-	dev_priv->rps.efficient_freq	= dev_priv->rps.rp1_freq;
 	/* hw_max = RP0 until we check for overclocking */
 	dev_priv->rps.max_freq		= dev_priv->rps.rp0_freq;
+
+	dev_priv->rps.efficient_freq = dev_priv->rps.rp1_freq;
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+		ret = sandybridge_pcode_read(dev_priv,
+					HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
+					&ddcc_status);
+		if (0 == ret)
+			dev_priv->rps.efficient_freq =
+				(ddcc_status >> 8) & 0xff;
+	}
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
 		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
 
-	if (dev_priv->rps.min_freq_softlimit == 0)
-		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
+	if (dev_priv->rps.min_freq_softlimit == 0) {
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+			dev_priv->rps.min_freq_softlimit =
+				/* max(RPe, 450 MHz) */
+				max(dev_priv->rps.efficient_freq, (u8) 9);
+		else
+			dev_priv->rps.min_freq_softlimit =
+				dev_priv->rps.min_freq;
+	}
 }
 
 static void gen9_enable_rps(struct drm_device *dev)
@@ -4749,7 +4694,7 @@ static void gen8_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	uint32_t rc6_mask = 0, rp_state_cap;
+	uint32_t rc6_mask = 0;
 	int unused;
 
 	/* 1a: Software RC state - RC0 */
@@ -4762,8 +4707,8 @@ static void gen8_enable_rps(struct drm_device *dev)
 	/* 2a: Disable RC states. */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 
-	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-	parse_rp_state_cap(dev_priv, rp_state_cap);
+	/* Initialize rps frequencies */
+	gen6_init_rps_frequencies(dev);
 
 	/* 2b: Program RC6 thresholds.*/
 	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 40 << 16);
@@ -4821,9 +4766,8 @@ static void gen8_enable_rps(struct drm_device *dev)
 
 	/* 6: Ring frequency + overclocking (our driver does this later */
 
-	gen6_set_rps(dev, (I915_READ(GEN6_GT_PERF_STATUS) & 0xff00) >> 8);
-
-	gen8_enable_rps_interrupts(dev);
+	dev_priv->rps.power = HIGH_POWER; /* force a reset */
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -4832,7 +4776,6 @@ static void gen6_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	u32 rp_state_cap;
 	u32 rc6vids, pcu_mbox = 0, rc6_mask = 0;
 	u32 gtfifodbg;
 	int rc6_mode;
@@ -4856,9 +4799,8 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
-	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-
-	parse_rp_state_cap(dev_priv, rp_state_cap);
+	/* Initialize rps frequencies */
+	gen6_init_rps_frequencies(dev);
 
 	/* disable the counters and set deterministic thresholds */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
@@ -4921,8 +4863,6 @@ static void gen6_enable_rps(struct drm_device *dev)
 	dev_priv->rps.power = HIGH_POWER; /* force a reset */
 	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
 
-	gen6_enable_rps_interrupts(dev);
-
 	rc6vids = 0;
 	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
 	if (IS_GEN6(dev) && ret) {
@@ -4975,9 +4915,9 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 	 * to use for memory access.  We do this by specifying the IA frequency
 	 * the PCU should use as a reference to determine the ring frequency.
 	 */
-	for (gpu_freq = dev_priv->rps.max_freq_softlimit; gpu_freq >= dev_priv->rps.min_freq_softlimit;
+	for (gpu_freq = dev_priv->rps.max_freq; gpu_freq >= dev_priv->rps.min_freq;
 	     gpu_freq--) {
-		int diff = dev_priv->rps.max_freq_softlimit - gpu_freq;
+		int diff = dev_priv->rps.max_freq - gpu_freq;
 		unsigned int ia_freq = 0, ring_freq = 0;
 
 		if (INTEL_INFO(dev)->gen >= 8) {
@@ -5132,12 +5072,15 @@ static void cherryview_setup_pctx(struct drm_device *dev)
 
 	pcbr = I915_READ(VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
+		DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
 		paddr = (dev_priv->mm.stolen_base +
 			 (gtt->stolen_size - pctx_size));
 
 		pctx_paddr = (paddr & (~4095));
 		I915_WRITE(VLV_PCBR, pctx_paddr);
 	}
+
+	DRM_DEBUG_DRIVER("PCBR: 0x%08x\n", I915_READ(VLV_PCBR));
 }
 
 static void valleyview_setup_pctx(struct drm_device *dev)
@@ -5163,6 +5106,8 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 		goto out;
 	}
 
+	DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
+
 	/*
 	 * From the Gunit register HAS:
 	 * The Gfx driver is expected to program this register and ensure
@@ -5181,6 +5126,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	I915_WRITE(VLV_PCBR, pctx_paddr);
 
 out:
+	DRM_DEBUG_DRIVER("PCBR: 0x%08x\n", I915_READ(VLV_PCBR));
 	dev_priv->vlv_pctx = pctx;
 }
 
@@ -5217,7 +5163,7 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 		dev_priv->mem_freq = 1333;
 		break;
 	}
-	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
+	DRM_DEBUG_DRIVER("DDR speed: %d MHz\n", dev_priv->mem_freq);
 
 	dev_priv->rps.max_freq = valleyview_rps_max_freq(dev_priv);
 	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
@@ -5259,7 +5205,10 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	val = vlv_punit_read(dev_priv, CCK_FUSE_REG);
+	mutex_lock(&dev_priv->dpio_lock);
+	val = vlv_cck_read(dev_priv, CCK_FUSE_REG);
+	mutex_unlock(&dev_priv->dpio_lock);
+
 	switch ((val >> 2) & 0x7) {
 	case 0:
 	case 1:
@@ -5283,7 +5232,7 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 		dev_priv->mem_freq = 1600;
 		break;
 	}
-	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
+	DRM_DEBUG_DRIVER("DDR speed: %d MHz\n", dev_priv->mem_freq);
 
 	dev_priv->rps.max_freq = cherryview_rps_max_freq(dev_priv);
 	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
@@ -5369,8 +5318,6 @@ static void cherryview_enable_rps(struct drm_device *dev)
 	/* For now we assume BIOS is allocating and populating the PCBR  */
 	pcbr = I915_READ(VLV_PCBR);
 
-	DRM_DEBUG_DRIVER("PCBR offset : 0x%x\n", pcbr);
-
 	/* 3: Enable RC6 */
 	if ((intel_enable_rc6(dev) & INTEL_RC6_ENABLE) &&
 						(pcbr >> VLV_PCBR_ADDR_SHIFT))
@@ -5400,7 +5347,10 @@ static void cherryview_enable_rps(struct drm_device *dev)
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 
-	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & 0x10 ? "yes" : "no");
+	/* RPS code assumes GPLL is used */
+	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");
+
+	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & GPLLENABLE ? "yes" : "no");
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
 	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
@@ -5413,8 +5363,6 @@ static void cherryview_enable_rps(struct drm_device *dev)
 			 dev_priv->rps.efficient_freq);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
-
-	gen8_enable_rps_interrupts(dev);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -5480,7 +5428,10 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 
-	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & 0x10 ? "yes" : "no");
+	/* RPS code assumes GPLL is used */
+	WARN_ONCE((val & GPLLENABLE) == 0, "GPLL not enabled\n");
+
+	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & GPLLENABLE ? "yes" : "no");
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
 	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
@@ -5493,8 +5444,6 @@ static void valleyview_enable_rps(struct drm_device *dev)
 			 dev_priv->rps.efficient_freq);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
-
-	gen6_enable_rps_interrupts(dev);
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -6254,12 +6203,17 @@ void intel_suspend_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* Interrupts should be disabled already to avoid re-arming. */
-	WARN_ON(intel_irqs_enabled(dev_priv));
+	if (INTEL_INFO(dev)->gen < 6)
+		return;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	cancel_work_sync(&dev_priv->rps.work);
+	/*
+	 * TODO: disable RPS interrupts on GEN9+ too once RPS support
+	 * is added for it.
+	 */
+	if (INTEL_INFO(dev)->gen < 9)
+		gen6_disable_rps_interrupts(dev);
 
 	/* Force GPU to min freq during suspend */
 	gen6_rps_idle(dev_priv);
@@ -6268,9 +6222,6 @@ void intel_suspend_gt_powersave(struct drm_device *dev)
 void intel_disable_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* Interrupts should be disabled already to avoid re-arming. */
-	WARN_ON(intel_irqs_enabled(dev_priv));
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
@@ -6287,6 +6238,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 			valleyview_disable_rps(dev);
 		else
 			gen6_disable_rps(dev);
+
 		dev_priv->rps.enabled = false;
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	}
@@ -6300,6 +6252,13 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
+
+	/*
+	 * TODO: reset/enable RPS interrupts on GEN9+ too, once RPS support is
+	 * added for it.
+	 */
+	if (INTEL_INFO(dev)->gen < 9)
+		gen6_reset_rps_interrupts(dev);
 
 	if (IS_CHERRYVIEW(dev)) {
 		cherryview_enable_rps(dev);
@@ -6315,6 +6274,10 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 		__gen6_update_ring_freq(dev);
 	}
 	dev_priv->rps.enabled = true;
+
+	if (INTEL_INFO(dev)->gen < 9)
+		gen6_enable_rps_interrupts(dev);
+
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
@@ -6953,18 +6916,6 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSDEUnitClockGating:chv */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
-
-	/* WaDisableGunitClockGating:chv (pre-production hw) */
-	I915_WRITE(VLV_GUNIT_CLOCK_GATE, I915_READ(VLV_GUNIT_CLOCK_GATE) |
-		   GINT_DIS);
-
-	/* WaDisableFfDopClockGating:chv (pre-production hw) */
-	I915_WRITE(GEN6_RC_SLEEP_PSMI_CONTROL,
-		   _MASKED_BIT_ENABLE(GEN8_FF_DOP_CLOCK_GATE_DISABLE));
-
-	/* WaDisableDopClockGating:chv (pre-production hw) */
-	I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
-		   GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE);
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
@@ -7135,7 +7086,7 @@ void intel_init_pm(struct drm_device *dev)
 		i915_ironlake_get_mem_freq(dev);
 
 	/* For FIFO watermark updates */
-	if (IS_GEN9(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
 		skl_setup_wm_latency(dev);
 
 		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
@@ -7222,7 +7173,7 @@ void intel_init_pm(struct drm_device *dev)
 	}
 }
 
-int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
+int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
@@ -7232,8 +7183,7 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 	}
 
 	I915_WRITE(GEN6_PCODE_DATA, *val);
-	if (INTEL_INFO(dev_priv)->gen >= 9)
-		I915_WRITE(GEN9_PCODE_DATA1, 0);
+	I915_WRITE(GEN6_PCODE_DATA1, 0);
 	I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
 	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
@@ -7248,7 +7198,7 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 	return 0;
 }
 
-int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
+int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u32 mbox, u32 val)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
@@ -7271,99 +7221,66 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	return 0;
 }
 
-static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
+static int vlv_gpu_freq_div(unsigned int czclk_freq)
 {
-	int div;
-
-	/* 4 x czclk */
-	switch (dev_priv->mem_freq) {
-	case 800:
-		div = 10;
-		break;
-	case 1066:
-		div = 12;
-		break;
-	case 1333:
-		div = 16;
-		break;
+	switch (czclk_freq) {
+	case 200:
+		return 10;
+	case 267:
+		return 12;
+	case 320:
+	case 333:
+		return 16;
+	case 400:
+		return 20;
 	default:
 		return -1;
 	}
+}
 
-	return DIV_ROUND_CLOSEST(dev_priv->mem_freq * (val + 6 - 0xbd), 4 * div);
+static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
+{
+	int div, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->mem_freq, 4);
+
+	div = vlv_gpu_freq_div(czclk_freq);
+	if (div < 0)
+		return div;
+
+	return DIV_ROUND_CLOSEST(czclk_freq * (val + 6 - 0xbd), div);
 }
 
 static int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int mul;
+	int mul, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->mem_freq, 4);
 
-	/* 4 x czclk */
-	switch (dev_priv->mem_freq) {
-	case 800:
-		mul = 10;
-		break;
-	case 1066:
-		mul = 12;
-		break;
-	case 1333:
-		mul = 16;
-		break;
-	default:
-		return -1;
-	}
+	mul = vlv_gpu_freq_div(czclk_freq);
+	if (mul < 0)
+		return mul;
 
-	return DIV_ROUND_CLOSEST(4 * mul * val, dev_priv->mem_freq) + 0xbd - 6;
+	return DIV_ROUND_CLOSEST(mul * val, czclk_freq) + 0xbd - 6;
 }
 
 static int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	int div, freq;
+	int div, czclk_freq = dev_priv->rps.cz_freq;
 
-	switch (dev_priv->rps.cz_freq) {
-	case 200:
-		div = 5;
-		break;
-	case 267:
-		div = 6;
-		break;
-	case 320:
-	case 333:
-	case 400:
-		div = 8;
-		break;
-	default:
-		return -1;
-	}
+	div = vlv_gpu_freq_div(czclk_freq) / 2;
+	if (div < 0)
+		return div;
 
-	freq = (DIV_ROUND_CLOSEST((dev_priv->rps.cz_freq * val), 2 * div) / 2);
-
-	return freq;
+	return DIV_ROUND_CLOSEST(czclk_freq * val, 2 * div) / 2;
 }
 
 static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int mul, opcode;
+	int mul, czclk_freq = dev_priv->rps.cz_freq;
 
-	switch (dev_priv->rps.cz_freq) {
-	case 200:
-		mul = 5;
-		break;
-	case 267:
-		mul = 6;
-		break;
-	case 320:
-	case 333:
-	case 400:
-		mul = 8;
-		break;
-	default:
-		return -1;
-	}
+	mul = vlv_gpu_freq_div(czclk_freq) / 2;
+	if (mul < 0)
+		return mul;
 
 	/* CHV needs even values */
-	opcode = (DIV_ROUND_CLOSEST((val * 2 * mul), dev_priv->rps.cz_freq) * 2);
-
-	return opcode;
+	return DIV_ROUND_CLOSEST(val * 2 * mul, czclk_freq) * 2;
 }
 
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)

@@ -413,6 +413,8 @@ static const u32 gen7_render_regs[] = {
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
 	OACONTROL, /* Only allowed for LRI and SRM. See below. */
+	REG64(MI_PREDICATE_SRC0),
+	REG64(MI_PREDICATE_SRC1),
 	GEN7_3DPRIM_END_OFFSET,
 	GEN7_3DPRIM_START_VERTEX,
 	GEN7_3DPRIM_VERTEX_COUNT,
@@ -1072,6 +1074,8 @@ int i915_cmd_parser_get_version(void)
 	 *
 	 * 1. Initial version. Checks batches and reports violations, but leaves
 	 *    hardware parsing enabled (so does not allow new use cases).
+	 * 2. Allow access to the MI_PREDICATE_SRC0 and
+	 *    MI_PREDICATE_SRC1 registers.
 	 */
-	return 1;
+	return 2;
 }

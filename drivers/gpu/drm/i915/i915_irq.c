@@ -138,6 +138,8 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	POSTING_READ(type##IMR); \
 } while (0)
 
+static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
+
 /* For display hotplug interrupt */
 void
 ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
@@ -200,6 +202,21 @@ void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	ilk_update_gt_irq(dev_priv, mask, 0);
 }
 
+static u32 gen6_pm_iir(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
+}
+
+static u32 gen6_pm_imr(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IMR(2) : GEN6_PMIMR;
+}
+
+static u32 gen6_pm_ier(struct drm_i915_private *dev_priv)
+{
+	return INTEL_INFO(dev_priv)->gen >= 8 ? GEN8_GT_IER(2) : GEN6_PMIER;
+}
+
 /**
   * snb_update_pm_irq - update GEN6_PMIMR
   * @dev_priv: driver private
@@ -223,8 +240,8 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	if (new_val != dev_priv->pm_irq_mask) {
 		dev_priv->pm_irq_mask = new_val;
-		I915_WRITE(GEN6_PMIMR, dev_priv->pm_irq_mask);
-		POSTING_READ(GEN6_PMIMR);
+		I915_WRITE(gen6_pm_imr(dev_priv), dev_priv->pm_irq_mask);
+		POSTING_READ(gen6_pm_imr(dev_priv));
 	}
 }
 
@@ -238,44 +255,50 @@ void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	snb_update_pm_irq(dev_priv, mask, 0);
 }
 
-/**
-  * bdw_update_pm_irq - update GT interrupt 2
-  * @dev_priv: driver private
-  * @interrupt_mask: mask of interrupt bits to update
-  * @enabled_irq_mask: mask of interrupt bits to enable
-  *
-  * Copied from the snb function, updated with relevant register offsets
-  */
-static void bdw_update_pm_irq(struct drm_i915_private *dev_priv,
-			      uint32_t interrupt_mask,
-			      uint32_t enabled_irq_mask)
+void gen6_reset_rps_interrupts(struct drm_device *dev)
 {
-	uint32_t new_val;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t reg = gen6_pm_iir(dev_priv);
 
-	assert_spin_locked(&dev_priv->irq_lock);
-
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return;
-
-	new_val = dev_priv->pm_irq_mask;
-	new_val &= ~interrupt_mask;
-	new_val |= (~enabled_irq_mask & interrupt_mask);
-
-	if (new_val != dev_priv->pm_irq_mask) {
-		dev_priv->pm_irq_mask = new_val;
-		I915_WRITE(GEN8_GT_IMR(2), dev_priv->pm_irq_mask);
-		POSTING_READ(GEN8_GT_IMR(2));
-	}
+	spin_lock_irq(&dev_priv->irq_lock);
+	I915_WRITE(reg, dev_priv->pm_rps_events);
+	I915_WRITE(reg, dev_priv->pm_rps_events);
+	POSTING_READ(reg);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen6_enable_rps_interrupts(struct drm_device *dev)
 {
-	bdw_update_pm_irq(dev_priv, mask, mask);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	WARN_ON(dev_priv->rps.pm_iir);
+	WARN_ON(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
+	dev_priv->rps.interrupts_enabled = true;
+	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen6_disable_rps_interrupts(struct drm_device *dev)
 {
-	bdw_update_pm_irq(dev_priv, mask, 0);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->rps.interrupts_enabled = false;
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	cancel_work_sync(&dev_priv->rps.work);
+
+	I915_WRITE(GEN6_PMINTRMSK, INTEL_INFO(dev_priv)->gen >= 8 ?
+		   ~GEN8_PMINTR_REDIRECT_TO_NON_DISP : ~0);
+	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
+				~dev_priv->pm_rps_events);
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->rps.pm_iir = 0;
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
 }
 
 /**
@@ -980,7 +1003,6 @@ static void notify_ring(struct drm_device *dev,
 	trace_i915_gem_request_complete(ring);
 
 	wake_up_all(&ring->irq_queue);
-	i915_queue_hangcheck(dev);
 }
 
 static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
@@ -1116,14 +1138,15 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	int new_delay, adj;
 
 	spin_lock_irq(&dev_priv->irq_lock);
+	/* Speed up work cancelation during disabling rps interrupts. */
+	if (!dev_priv->rps.interrupts_enabled) {
+		spin_unlock_irq(&dev_priv->irq_lock);
+		return;
+	}
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
-	if (INTEL_INFO(dev_priv->dev)->gen >= 8)
-		gen8_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	else {
-		/* Make sure not to corrupt PMIMR state used by ringbuffer */
-		gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	}
+	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
+	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
@@ -1325,19 +1348,6 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		ivybridge_parity_error_irq_handler(dev, gt_iir);
 }
 
-static void gen8_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
-{
-	if ((pm_iir & dev_priv->pm_rps_events) == 0)
-		return;
-
-	spin_lock(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
-	gen8_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
-	spin_unlock(&dev_priv->irq_lock);
-
-	queue_work(dev_priv->wq, &dev_priv->rps.work);
-}
-
 static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 				       struct drm_i915_private *dev_priv,
 				       u32 master_ctl)
@@ -1399,7 +1409,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			I915_WRITE(GEN8_GT_IIR(2),
 				   tmp & dev_priv->pm_rps_events);
 			ret = IRQ_HANDLED;
-			gen8_rps_irq_handler(dev_priv, tmp);
+			gen6_rps_irq_handler(dev_priv, tmp);
 		} else
 			DRM_ERROR("The master control interrupt lied (PM)!\n");
 	}
@@ -1699,14 +1709,23 @@ static void i9xx_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe)
  * the work queue. */
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
+	/* TODO: RPS on GEN9+ is not supported yet. */
+	if (WARN_ONCE(INTEL_INFO(dev_priv)->gen >= 9,
+		      "GEN9+: unexpected RPS IRQ\n"))
+		return;
+
 	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
-		dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
 		gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
+		if (dev_priv->rps.interrupts_enabled) {
+			dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
+			queue_work(dev_priv->wq, &dev_priv->rps.work);
+		}
 		spin_unlock(&dev_priv->irq_lock);
-
-		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
+
+	if (INTEL_INFO(dev_priv)->gen >= 8)
+		return;
 
 	if (HAS_VEBOX(dev_priv->dev)) {
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
@@ -2222,6 +2241,11 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	irqreturn_t ret = IRQ_NONE;
 	uint32_t tmp = 0;
 	enum pipe pipe;
+	u32 aux_mask = GEN8_AUX_CHANNEL_A;
+
+	if (IS_GEN9(dev))
+		aux_mask |=  GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
+			GEN9_AUX_CHANNEL_D;
 
 	master_ctl = I915_READ(GEN8_MASTER_IRQ);
 	master_ctl &= ~GEN8_MASTER_IRQ_CONTROL;
@@ -2254,7 +2278,8 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		if (tmp) {
 			I915_WRITE(GEN8_DE_PORT_IIR, tmp);
 			ret = IRQ_HANDLED;
-			if (tmp & GEN8_AUX_CHANNEL_A)
+
+			if (tmp & aux_mask)
 				dp_aux_irq_handler(dev);
 			else
 				DRM_ERROR("Unexpected DE Port interrupt\n");
@@ -3036,10 +3061,15 @@ static void i915_hangcheck_elapsed(unsigned long data)
 void i915_queue_hangcheck(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct timer_list *timer = &dev_priv->gpu_error.hangcheck_timer;
+
 	if (!i915.enable_hangcheck)
 		return;
 
-	mod_timer(&dev_priv->gpu_error.hangcheck_timer,
+	/* Don't continually defer the hangcheck, but make sure it is active */
+	if (timer_pending(timer))
+		return;
+	mod_timer(timer,
 		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 }
 
@@ -3488,11 +3518,14 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_masked = GEN8_PIPE_CDCLK_CRC_DONE;
 	uint32_t de_pipe_enables;
 	int pipe;
+	u32 aux_en = GEN8_AUX_CHANNEL_A;
 
-	if (IS_GEN9(dev_priv))
+	if (IS_GEN9(dev_priv)) {
 		de_pipe_masked |= GEN9_PIPE_PLANE1_FLIP_DONE |
 				  GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
-	else
+		aux_en |= GEN9_AUX_CHANNEL_B | GEN9_AUX_CHANNEL_C |
+			GEN9_AUX_CHANNEL_D;
+	} else
 		de_pipe_masked |= GEN8_PIPE_PRIMARY_FLIP_DONE |
 				  GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 
@@ -3510,7 +3543,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  dev_priv->de_irq_mask[pipe],
 					  de_pipe_enables);
 
-	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~GEN8_AUX_CHANNEL_A, GEN8_AUX_CHANNEL_A);
+	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~aux_en, aux_en);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
@@ -3533,34 +3566,8 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 static int cherryview_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 enable_mask = I915_DISPLAY_PORT_INTERRUPT |
-		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
-	u32 pipestat_enable = PLANE_FLIP_DONE_INT_STATUS_VLV |
-		PIPE_CRC_DONE_INTERRUPT_STATUS;
-	int pipe;
 
-	/*
-	 * Leave vblank interrupts masked initially.  enable/disable will
-	 * toggle them based on usage.
-	 */
-	dev_priv->irq_mask = ~enable_mask;
-
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
-	for_each_pipe(dev_priv, pipe)
-		i915_enable_pipestat(dev_priv, pipe, pipestat_enable);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IER, enable_mask);
-	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	POSTING_READ(VLV_IMR);
+	vlv_display_irq_postinstall(dev_priv);
 
 	gen8_gt_irq_postinstall(dev_priv);
 
@@ -3580,6 +3587,20 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 	gen8_irq_reset(dev);
 }
 
+static void vlv_display_irq_uninstall(struct drm_i915_private *dev_priv)
+{
+	/* Interrupt setup is already guaranteed to be single-threaded, this is
+	 * just to make the assert_spin_locked check happy. */
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (dev_priv->display_irqs_enabled)
+		valleyview_display_irqs_uninstall(dev_priv);
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	vlv_display_irq_reset(dev_priv);
+
+	dev_priv->irq_mask = 0;
+}
+
 static void valleyview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3593,22 +3614,12 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 
-	/* Interrupt setup is already guaranteed to be single-threaded, this is
-	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display_irqs_enabled)
-		valleyview_display_irqs_uninstall(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	vlv_display_irq_reset(dev_priv);
-
-	dev_priv->irq_mask = 0;
+	vlv_display_irq_uninstall(dev_priv);
 }
 
 static void cherryview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	if (!dev_priv)
 		return;
@@ -3620,13 +3631,7 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
-	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
-
-	GEN5_IRQ_RESET(VLV_);
+	vlv_display_irq_uninstall(dev_priv);
 }
 
 static void ironlake_irq_uninstall(struct drm_device *dev)
@@ -3759,8 +3764,6 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 		I915_WRITE16(IIR, iir & ~flip_mask);
 		new_iir = I915_READ16(IIR); /* Flush posted writes */
-
-		i915_update_dri1_breadcrumb(dev);
 
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[RCS]);
@@ -3998,8 +4001,6 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		iir = new_iir;
 	} while (iir & ~flip_mask);
 
-	i915_update_dri1_breadcrumb(dev);
-
 	return ret;
 }
 
@@ -4226,8 +4227,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		 */
 		iir = new_iir;
 	}
-
-	i915_update_dri1_breadcrumb(dev);
 
 	return ret;
 }

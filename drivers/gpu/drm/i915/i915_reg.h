@@ -248,6 +248,16 @@
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
 #define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
+/* SKL ones */
+#define   MI_DISPLAY_FLIP_SKL_PLANE_1_A	(0 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_1_B	(1 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_1_C	(2 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_2_A	(4 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_2_B	(5 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_2_C	(6 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_3_A	(7 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_3_B	(8 << 8)
+#define   MI_DISPLAY_FLIP_SKL_PLANE_3_C	(9 << 8)
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6, gen7 */
 #define   MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define   MI_SEMAPHORE_UPDATE	    (1<<21)
@@ -314,6 +324,8 @@
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
 
+#define MI_PREDICATE_SRC0	(0x2400)
+#define MI_PREDICATE_SRC1	(0x2408)
 
 #define MI_PREDICATE_RESULT_2	(0x2214)
 #define  LOWER_SLICE_ENABLED	(1<<0)
@@ -564,6 +576,7 @@ enum punit_power_well {
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
 #define PUNIT_REG_GPU_FREQ_STS			0xd8
+#define   GPLLENABLE				(1<<4)
 #define   GENFREQSTATUS				(1<<0)
 #define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
 #define PUNIT_REG_CZ_TIMESTAMP			0xce
@@ -2030,6 +2043,8 @@ enum punit_power_well {
 #define DCC_ADDRESSING_MODE_MASK			(3 << 0)
 #define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
 #define DCC_CHANNEL_XOR_BIT_17				(1 << 9)
+#define DCC2			0x10204
+#define DCC2_MODIFIED_ENHANCED_DISABLE			(1 << 20)
 
 /* Pineview MCH register contains DDR3 setting */
 #define CSHRDDR3CTL            0x101a8
@@ -2313,7 +2328,6 @@ enum punit_power_well {
 
 #define GEN6_GT_THREAD_STATUS_REG 0x13805c
 #define GEN6_GT_THREAD_STATUS_CORE_MASK 0x7
-#define GEN6_GT_THREAD_STATUS_CORE_MASK_HSW (0x7 | (0x07 << 16))
 
 #define GEN6_GT_PERF_STATUS	(MCHBAR_MIRROR_BASE_SNB + 0x5948)
 #define GEN6_RP_STATE_LIMITS	(MCHBAR_MIRROR_BASE_SNB + 0x5994)
@@ -4904,6 +4918,18 @@ enum punit_power_well {
 #define PF_VSCALE(pipe)		_PIPE(pipe, _PFA_VSCALE, _PFB_VSCALE)
 #define PF_HSCALE(pipe)		_PIPE(pipe, _PFA_HSCALE, _PFB_HSCALE)
 
+#define _PSA_CTL		0x68180
+#define _PSB_CTL		0x68980
+#define PS_ENABLE		(1<<31)
+#define _PSA_WIN_SZ		0x68174
+#define _PSB_WIN_SZ		0x68974
+#define _PSA_WIN_POS		0x68170
+#define _PSB_WIN_POS		0x68970
+
+#define PS_CTL(pipe)		_PIPE(pipe, _PSA_CTL, _PSB_CTL)
+#define PS_WIN_SZ(pipe)		_PIPE(pipe, _PSA_WIN_SZ, _PSB_WIN_SZ)
+#define PS_WIN_POS(pipe)	_PIPE(pipe, _PSA_WIN_POS, _PSB_WIN_POS)
+
 /* legacy palette */
 #define _LGC_PALETTE_A           0x4a000
 #define _LGC_PALETTE_B           0x4a800
@@ -5048,6 +5074,9 @@ enum punit_power_well {
 #define GEN8_DE_PORT_IIR 0x44448
 #define GEN8_DE_PORT_IER 0x4444c
 #define  GEN8_PORT_DP_A_HOTPLUG		(1 << 3)
+#define  GEN9_AUX_CHANNEL_D		(1 << 27)
+#define  GEN9_AUX_CHANNEL_C		(1 << 26)
+#define  GEN9_AUX_CHANNEL_B		(1 << 25)
 #define  GEN8_AUX_CHANNEL_A		(1 << 0)
 
 #define GEN8_DE_MISC_ISR 0x44460
@@ -5131,6 +5160,7 @@ enum punit_power_well {
 /* GEN8 chicken */
 #define HDC_CHICKEN0				0x7300
 #define  HDC_FORCE_NON_COHERENT			(1<<4)
+#define  HDC_DONOT_FETCH_MEM_WHEN_MASKED	(1<<11)
 #define  HDC_FENCE_DEST_SLM_DISABLE		(1<<14)
 
 /* WaCatErrorRejectionIssue */
@@ -6010,11 +6040,12 @@ enum punit_power_well {
 #define   GEN6_ENCODE_RC6_VID(mv)		(((mv) - 245) / 5)
 #define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
 #define   DISPLAY_IPS_CONTROL			0x19
+#define	  HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL	0x1A
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 #define   GEN6_PCODE_FREQ_RING_RATIO_SHIFT	16
+#define GEN6_PCODE_DATA1			0x13812C
 
-#define GEN9_PCODE_DATA1			0x13812C
 #define   GEN9_PCODE_READ_MEM_LATENCY		0x6
 #define   GEN9_MEM_LATENCY_LEVEL_MASK		0xFF
 #define   GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT	8
@@ -6426,6 +6457,83 @@ enum punit_power_well {
 #define  LCPLL_POWER_DOWN_ALLOW		(1<<22)
 #define  LCPLL_CD_SOURCE_FCLK		(1<<21)
 #define  LCPLL_CD_SOURCE_FCLK_DONE	(1<<19)
+
+/*
+ * SKL Clocks
+ */
+
+/* CDCLK_CTL */
+#define CDCLK_CTL			0x46000
+#define  CDCLK_FREQ_SEL_MASK		(3<<26)
+#define  CDCLK_FREQ_450_432		(0<<26)
+#define  CDCLK_FREQ_540			(1<<26)
+#define  CDCLK_FREQ_337_308		(2<<26)
+#define  CDCLK_FREQ_675_617		(3<<26)
+#define  CDCLK_FREQ_DECIMAL_MASK	(0x7ff)
+
+/* LCPLL_CTL */
+#define LCPLL1_CTL		0x46010
+#define LCPLL2_CTL		0x46014
+#define  LCPLL_PLL_ENABLE	(1<<31)
+
+/* DPLL control1 */
+#define DPLL_CTRL1		0x6C058
+#define  DPLL_CTRL1_HDMI_MODE(id)		(1<<((id)*6+5))
+#define  DPLL_CTRL1_SSC(id)			(1<<((id)*6+4))
+#define  DPLL_CRTL1_LINK_RATE_MASK(id)		(7<<((id)*6+1))
+#define  DPLL_CRTL1_LINK_RATE_SHIFT(id)		((id)*6+1)
+#define  DPLL_CRTL1_LINK_RATE(linkrate, id)	((linkrate)<<((id)*6+1))
+#define  DPLL_CTRL1_OVERRIDE(id)		(1<<((id)*6))
+#define  DPLL_CRTL1_LINK_RATE_2700		0
+#define  DPLL_CRTL1_LINK_RATE_1350		1
+#define  DPLL_CRTL1_LINK_RATE_810		2
+#define  DPLL_CRTL1_LINK_RATE_1620		3
+#define  DPLL_CRTL1_LINK_RATE_1080		4
+#define  DPLL_CRTL1_LINK_RATE_2160		5
+
+/* DPLL control2 */
+#define DPLL_CTRL2				0x6C05C
+#define  DPLL_CTRL2_DDI_CLK_OFF(port)		(1<<(port+15))
+#define  DPLL_CTRL2_DDI_CLK_SEL_MASK(port)	(3<<((port)*3+1))
+#define  DPLL_CTRL2_DDI_CLK_SEL_SHIFT(port)    ((port)*3+1)
+#define  DPLL_CTRL2_DDI_CLK_SEL(clk, port)	(clk<<((port)*3+1))
+#define  DPLL_CTRL2_DDI_SEL_OVERRIDE(port)     (1<<((port)*3))
+
+/* DPLL Status */
+#define DPLL_STATUS	0x6C060
+#define  DPLL_LOCK(id) (1<<((id)*8))
+
+/* DPLL cfg */
+#define DPLL1_CFGCR1	0x6C040
+#define DPLL2_CFGCR1	0x6C048
+#define DPLL3_CFGCR1	0x6C050
+#define  DPLL_CFGCR1_FREQ_ENABLE	(1<<31)
+#define  DPLL_CFGCR1_DCO_FRACTION_MASK	(0x7fff<<9)
+#define  DPLL_CFGCR1_DCO_FRACTION(x)	(x<<9)
+#define  DPLL_CFGCR1_DCO_INTEGER_MASK	(0x1ff)
+
+#define DPLL1_CFGCR2	0x6C044
+#define DPLL2_CFGCR2	0x6C04C
+#define DPLL3_CFGCR2	0x6C054
+#define  DPLL_CFGCR2_QDIV_RATIO_MASK	(0xff<<8)
+#define  DPLL_CFGCR2_QDIV_RATIO(x)	(x<<8)
+#define  DPLL_CFGCR2_QDIV_MODE(x)	(x<<7)
+#define  DPLL_CFGCR2_KDIV_MASK		(3<<5)
+#define  DPLL_CFGCR2_KDIV(x)		(x<<5)
+#define  DPLL_CFGCR2_KDIV_5 (0<<5)
+#define  DPLL_CFGCR2_KDIV_2 (1<<5)
+#define  DPLL_CFGCR2_KDIV_3 (2<<5)
+#define  DPLL_CFGCR2_KDIV_1 (3<<5)
+#define  DPLL_CFGCR2_PDIV_MASK		(7<<2)
+#define  DPLL_CFGCR2_PDIV(x)		(x<<2)
+#define  DPLL_CFGCR2_PDIV_1 (0<<2)
+#define  DPLL_CFGCR2_PDIV_2 (1<<2)
+#define  DPLL_CFGCR2_PDIV_3 (2<<2)
+#define  DPLL_CFGCR2_PDIV_7 (4<<2)
+#define  DPLL_CFGCR2_CENTRAL_FREQ_MASK	(3)
+
+#define GET_CFG_CR1_REG(id) (DPLL1_CFGCR1 + (id - SKL_DPLL1) * 8)
+#define GET_CFG_CR2_REG(id) (DPLL1_CFGCR2 + (id - SKL_DPLL1) * 8)
 
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */

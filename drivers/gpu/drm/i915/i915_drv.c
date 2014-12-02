@@ -584,6 +584,8 @@ static int i915_drm_suspend(struct drm_device *dev)
 			return error;
 		}
 
+		intel_suspend_gt_powersave(dev);
+
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
 		 * for _thaw. Also, power gate the CRTC power wells.
@@ -595,14 +597,10 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 		intel_dp_mst_suspend(dev);
 
-		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
 		intel_runtime_pm_disable_interrupts(dev_priv);
 		intel_hpd_cancel_work(dev_priv);
 
 		intel_suspend_encoders(dev_priv);
-
-		intel_suspend_gt_powersave(dev);
 
 		intel_suspend_hw(dev);
 	}
@@ -703,12 +701,10 @@ static int i915_drm_resume(struct drm_device *dev)
 
 		intel_modeset_init_hw(dev);
 
-		{
-			spin_lock_irq(&dev_priv->irq_lock);
-			if (dev_priv->display.hpd_irq_setup)
-				dev_priv->display.hpd_irq_setup(dev);
-			spin_unlock_irq(&dev_priv->irq_lock);
-		}
+		spin_lock_irq(&dev_priv->irq_lock);
+		if (dev_priv->display.hpd_irq_setup)
+			dev_priv->display.hpd_irq_setup(dev);
+		spin_unlock_irq(&dev_priv->irq_lock);
 
 		intel_dp_mst_resume(dev);
 		drm_modeset_lock_all(dev);
@@ -856,10 +852,7 @@ int i915_reset(struct drm_device *dev)
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
-			!dev_priv->ums.mm_suspended) {
-		dev_priv->ums.mm_suspended = 0;
-
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset */
 		dev_priv->gpu_error.reload_in_reset = true;
 
@@ -1395,9 +1388,8 @@ static int intel_runtime_suspend(struct device *device)
 	i915_gem_release_all_mmaps(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-	intel_runtime_pm_disable_interrupts(dev_priv);
 	intel_suspend_gt_powersave(dev);
+	intel_runtime_pm_disable_interrupts(dev_priv);
 
 	ret = intel_suspend_complete(dev_priv);
 	if (ret) {
@@ -1578,8 +1570,6 @@ static struct drm_driver driver = {
 	.resume = i915_resume_legacy,
 
 	.device_is_agp = i915_driver_device_is_agp,
-	.master_create = i915_master_create,
-	.master_destroy = i915_master_destroy,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = i915_debugfs_init,
 	.debugfs_cleanup = i915_debugfs_cleanup,
