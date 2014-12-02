@@ -680,11 +680,21 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 	if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
 		nci_data_exchange_complete(ndev, NULL, -EIO);
 
-	nci_clear_target_list(ndev);
-	if (ntf->type == NCI_DEACTIVATE_TYPE_DISCOVERY)
-		atomic_set(&ndev->state, NCI_DISCOVERY);
-	else
+	switch (ntf->type) {
+	case NCI_DEACTIVATE_TYPE_IDLE_MODE:
+		nci_clear_target_list(ndev);
 		atomic_set(&ndev->state, NCI_IDLE);
+		break;
+	case NCI_DEACTIVATE_TYPE_SLEEP_MODE:
+	case NCI_DEACTIVATE_TYPE_SLEEP_AF_MODE:
+		atomic_set(&ndev->state, NCI_W4_HOST_SELECT);
+		break;
+	case NCI_DEACTIVATE_TYPE_DISCOVERY:
+		nci_clear_target_list(ndev);
+		atomic_set(&ndev->state, NCI_DISCOVERY);
+		break;
+	}
+
 	nci_req_complete(ndev, NCI_STATUS_OK);
 }
 
