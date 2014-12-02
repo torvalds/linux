@@ -530,7 +530,7 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 				  "clf_enable");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request enable pin\n");
-		return -ENODEV;
+		return r;
 	}
 
 	phy->gpio_ena = gpio;
@@ -567,7 +567,7 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 					  GPIOF_OUT_INIT_HIGH, "clf_enable");
 		if (r) {
 			pr_err("%s : ena gpio_request failed\n", __FILE__);
-			return -ENODEV;
+			return r;
 		}
 	}
 
@@ -628,7 +628,7 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	r = st21nfca_hci_platform_init(phy);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to reboot st21nfca\n");
-		return -ENODEV;
+		return r;
 	}
 
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
