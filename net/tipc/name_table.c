@@ -656,13 +656,14 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	struct publication *publ;
 	struct sk_buff *buf = NULL;
 
+	write_lock_bh(&tipc_nametbl_lock);
 	if (tipc_nametbl->local_publ_count >= TIPC_MAX_PUBLICATIONS) {
 		pr_warn("Publication failed, local publication limit reached (%u)\n",
 			TIPC_MAX_PUBLICATIONS);
+		write_unlock_bh(&tipc_nametbl_lock);
 		return NULL;
 	}
 
-	write_lock_bh(&tipc_nametbl_lock);
 	publ = tipc_nametbl_insert_publ(type, lower, upper, scope,
 				   tipc_own_addr, port_ref, key);
 	if (likely(publ)) {
