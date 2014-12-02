@@ -31,8 +31,6 @@ extern void __init at91_sysirq_mask_rtt(u32 rtt_base);
 
  /* Timer */
 extern void at91rm9200_timer_init(void);
-extern void at91sam926x_ioremap_pit(u32 addr);
-extern void at91sam926x_pit_init(int irq);
 
 /* idle */
 extern void at91sam9_idle(void);
