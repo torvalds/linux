@@ -526,10 +526,13 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct mips_fpu_struct *fpu = &vcpu->arch.fpu;
 	int ret;
 	s64 v;
+	unsigned int idx;
 
 	switch (reg->id) {
+	/* General purpose registers */
 	case KVM_REG_MIPS_R0 ... KVM_REG_MIPS_R31:
 		v = (long)vcpu->arch.gprs[reg->id - KVM_REG_MIPS_R0];
 		break;
@@ -543,6 +546,38 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		v = (long)vcpu->arch.pc;
 		break;
 
+	/* Floating point registers */
+	case KVM_REG_MIPS_FPR_32(0) ... KVM_REG_MIPS_FPR_32(31):
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_FPR_32(0);
+		/* Odd singles in top of even double when FR=0 */
+		if (kvm_read_c0_guest_status(cop0) & ST0_FR)
+			v = get_fpr32(&fpu->fpr[idx], 0);
+		else
+			v = get_fpr32(&fpu->fpr[idx & ~1], idx & 1);
+		break;
+	case KVM_REG_MIPS_FPR_64(0) ... KVM_REG_MIPS_FPR_64(31):
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_FPR_64(0);
+		/* Can't access odd doubles in FR=0 mode */
+		if (idx & 1 && !(kvm_read_c0_guest_status(cop0) & ST0_FR))
+			return -EINVAL;
+		v = get_fpr64(&fpu->fpr[idx], 0);
+		break;
+	case KVM_REG_MIPS_FCR_IR:
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		v = boot_cpu_data.fpu_id;
+		break;
+	case KVM_REG_MIPS_FCR_CSR:
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		v = fpu->fcr31;
+		break;
+
+	/* Co-processor 0 registers */
 	case KVM_REG_MIPS_CP0_INDEX:
 		v = (long)kvm_read_c0_guest_index(cop0);
 		break;
@@ -636,7 +671,9 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	u64 v;
+	struct mips_fpu_struct *fpu = &vcpu->arch.fpu;
+	s64 v;
+	unsigned int idx;
 
 	if ((reg->id & KVM_REG_SIZE_MASK) == KVM_REG_SIZE_U64) {
 		u64 __user *uaddr64 = (u64 __user *)(long)reg->addr;
@@ -655,6 +692,7 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	}
 
 	switch (reg->id) {
+	/* General purpose registers */
 	case KVM_REG_MIPS_R0:
 		/* Silently ignore requests to set $0 */
 		break;
@@ -671,6 +709,38 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		vcpu->arch.pc = v;
 		break;
 
+	/* Floating point registers */
+	case KVM_REG_MIPS_FPR_32(0) ... KVM_REG_MIPS_FPR_32(31):
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_FPR_32(0);
+		/* Odd singles in top of even double when FR=0 */
+		if (kvm_read_c0_guest_status(cop0) & ST0_FR)
+			set_fpr32(&fpu->fpr[idx], 0, v);
+		else
+			set_fpr32(&fpu->fpr[idx & ~1], idx & 1, v);
+		break;
+	case KVM_REG_MIPS_FPR_64(0) ... KVM_REG_MIPS_FPR_64(31):
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		idx = reg->id - KVM_REG_MIPS_FPR_64(0);
+		/* Can't access odd doubles in FR=0 mode */
+		if (idx & 1 && !(kvm_read_c0_guest_status(cop0) & ST0_FR))
+			return -EINVAL;
+		set_fpr64(&fpu->fpr[idx], 0, v);
+		break;
+	case KVM_REG_MIPS_FCR_IR:
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		/* Read-only */
+		break;
+	case KVM_REG_MIPS_FCR_CSR:
+		if (!kvm_mips_guest_has_fpu(&vcpu->arch))
+			return -EINVAL;
+		fpu->fcr31 = v;
+		break;
+
+	/* Co-processor 0 registers */
 	case KVM_REG_MIPS_CP0_INDEX:
 		kvm_write_c0_guest_index(cop0, v);
 		break;

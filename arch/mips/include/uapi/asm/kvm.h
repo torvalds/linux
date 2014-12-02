@@ -36,18 +36,8 @@ struct kvm_regs {
 
 /*
  * for KVM_GET_FPU and KVM_SET_FPU
- *
- * If Status[FR] is zero (32-bit FPU), the upper 32-bits of the FPRs
- * are zero filled.
  */
 struct kvm_fpu {
-	__u64 fpr[32];
-	__u32 fir;
-	__u32 fccr;
-	__u32 fexr;
-	__u32 fenr;
-	__u32 fcsr;
-	__u32 pad;
 };
 
 
@@ -68,6 +58,8 @@ struct kvm_fpu {
  *
  * Register set = 2: KVM specific registers (see definitions below).
  *
+ * Register set = 3: FPU registers (see definitions below).
+ *
  * Other sets registers may be added in the future.  Each set would
  * have its own identifier in bits[31..16].
  */
@@ -75,6 +67,7 @@ struct kvm_fpu {
 #define KVM_REG_MIPS_GP		(KVM_REG_MIPS | 0x0000000000000000ULL)
 #define KVM_REG_MIPS_CP0	(KVM_REG_MIPS | 0x0000000000010000ULL)
 #define KVM_REG_MIPS_KVM	(KVM_REG_MIPS | 0x0000000000020000ULL)
+#define KVM_REG_MIPS_FPU	(KVM_REG_MIPS | 0x0000000000030000ULL)
 
 
 /*
@@ -152,6 +145,30 @@ struct kvm_fpu {
  * discontinuities in CP0_Count.
  */
 #define KVM_REG_MIPS_COUNT_HZ	    (KVM_REG_MIPS_KVM | KVM_REG_SIZE_U64 | 2)
+
+
+/*
+ * KVM_REG_MIPS_FPU - Floating Point registers.
+ *
+ *  bits[15..8]  - Register subset (see definitions below).
+ *  bits[7..5]   - Must be zero.
+ *  bits[4..0]   - Register number within register subset.
+ */
+
+#define KVM_REG_MIPS_FPR	(KVM_REG_MIPS_FPU | 0x0000000000000000ULL)
+#define KVM_REG_MIPS_FCR	(KVM_REG_MIPS_FPU | 0x0000000000000100ULL)
+
+/*
+ * KVM_REG_MIPS_FPR - Floating point / Vector registers.
+ */
+#define KVM_REG_MIPS_FPR_32(n)	(KVM_REG_MIPS_FPR | KVM_REG_SIZE_U32  | (n))
+#define KVM_REG_MIPS_FPR_64(n)	(KVM_REG_MIPS_FPR | KVM_REG_SIZE_U64  | (n))
+
+/*
+ * KVM_REG_MIPS_FCR - Floating point control registers.
+ */
+#define KVM_REG_MIPS_FCR_IR	(KVM_REG_MIPS_FCR | KVM_REG_SIZE_U32 |  0)
+#define KVM_REG_MIPS_FCR_CSR	(KVM_REG_MIPS_FCR | KVM_REG_SIZE_U32 | 31)
 
 
 /*
