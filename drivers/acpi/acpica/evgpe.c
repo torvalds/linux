@@ -616,8 +616,11 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info = context;
+	acpi_cpu_flags flags;
 
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 	(void)acpi_ev_finish_gpe(gpe_event_info);
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
 	ACPI_FREE(gpe_event_info);
 	return;
