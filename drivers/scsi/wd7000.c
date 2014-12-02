@@ -1330,9 +1330,9 @@ static int wd7000_show_info(struct seq_file *m, struct Scsi_Host *host)
 	icmbs = adapter->mb.icmb;
 
 	seq_printf(m, "\nControl port value: 0x%x\n", adapter->control);
-	seq_printf(m, "Incoming mailbox:\n");
+	seq_puts(m, "Incoming mailbox:\n");
 	seq_printf(m, "  size: %d\n", ICMB_CNT);
-	seq_printf(m, "  queued messages: ");
+	seq_puts(m, "  queued messages: ");
 
 	for (i = count = 0; i < ICMB_CNT; i++)
 		if (icmbs[i].status) {
@@ -1340,12 +1340,12 @@ static int wd7000_show_info(struct seq_file *m, struct Scsi_Host *host)
 			seq_printf(m, "0x%x ", i);
 		}
 
-	seq_printf(m, count ? "\n" : "none\n");
+	seq_puts(m, count ? "\n" : "none\n");
 
-	seq_printf(m, "Outgoing mailbox:\n");
+	seq_puts(m, "Outgoing mailbox:\n");
 	seq_printf(m, "  size: %d\n", OGMB_CNT);
 	seq_printf(m, "  next message: 0x%x\n", adapter->next_ogmb);
-	seq_printf(m, "  queued messages: ");
+	seq_puts(m, "  queued messages: ");
 
 	for (i = count = 0; i < OGMB_CNT; i++)
 		if (ogmbs[i].status) {
@@ -1353,7 +1353,7 @@ static int wd7000_show_info(struct seq_file *m, struct Scsi_Host *host)
 			seq_printf(m, "0x%x ", i);
 		}
 
-	seq_printf(m, count ? "\n" : "none\n");
+	seq_puts(m, count ? "\n" : "none\n");
 #endif
 
 	spin_unlock_irqrestore(host->host_lock, flags);

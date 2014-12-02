@@ -4623,8 +4623,8 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	unsigned long flags;
 	int dev;
 
-	seq_printf(m, DC395X_BANNER " PCI SCSI Host Adapter\n");
-	seq_printf(m, " Driver Version " DC395X_VERSION "\n");
+	seq_puts(m, DC395X_BANNER " PCI SCSI Host Adapter\n");
+	seq_puts(m, " Driver Version " DC395X_VERSION "\n");
 
 	DC395x_LOCK_IO(acb->scsi_host, flags);
 
@@ -4655,7 +4655,8 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	     acb->dcb_map[11], acb->dcb_map[12], acb->dcb_map[13],
 	     acb->dcb_map[14], acb->dcb_map[15]);
 
-	seq_printf(m, "Un ID LUN Prty Sync Wide DsCn SndS TagQ nego_period SyncFreq SyncOffs MaxCmd\n");
+	seq_puts(m,
+		 "Un ID LUN Prty Sync Wide DsCn SndS TagQ nego_period SyncFreq SyncOffs MaxCmd\n");
 
 	dev = 0;
 	list_for_each_entry(dcb, &acb->dcb_list, list) {
@@ -4681,7 +4682,7 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 			seq_printf(m, "   %2i.%1i M     %02i ", spd, spd1,
 				(dcb->sync_offset & 0x0f));
 		} else
-			seq_printf(m, "                 ");
+			seq_puts(m, "                 ");
 
 		/* Add more info ... */
 		seq_printf(m, "     %02i\n", dcb->max_command);
@@ -4689,9 +4690,9 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	}
 
 	if (timer_pending(&acb->waiting_timer))
-		seq_printf(m, "Waiting queue timer running\n");
+		seq_puts(m, "Waiting queue timer running\n");
 	else
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 
 	list_for_each_entry(dcb, &acb->dcb_list, list) {
 		struct ScsiReqBlk *srb;
@@ -4708,7 +4709,7 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 		list_for_each_entry(srb, &dcb->srb_going_list, list)
 			seq_printf(m, " %p", srb->cmd);
 		if (!list_empty(&dcb->srb_waiting_list) || !list_empty(&dcb->srb_going_list))
-			seq_printf(m, "\n");
+			seq_puts(m, "\n");
 	}
 
 	if (debug_enabled(DBG_1)) {
@@ -4716,7 +4717,7 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 		list_for_each_entry(dcb, &acb->dcb_list, list) {
 			seq_printf(m, "%p -> ", dcb);
 		}
-		seq_printf(m, "END\n");
+		seq_puts(m, "END\n");
 	}
 
 	DC395x_UNLOCK_IO(acb->scsi_host, flags);

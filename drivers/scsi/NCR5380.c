@@ -754,7 +754,7 @@ static int __maybe_unused NCR5380_show_info(struct seq_file *m,
 static void lprint_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m)
 {
 	seq_printf(m, "scsi%d : destination target %d, lun %llu\n", cmd->device->host->host_no, cmd->device->id, cmd->device->lun);
-	seq_printf(m, "        command = ");
+	seq_puts(m, "        command = ");
 	lprint_command(cmd->cmnd, m);
 }
 
@@ -764,7 +764,7 @@ static void lprint_command(unsigned char *command, struct seq_file *m)
 	lprint_opcode(command[0], m);
 	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
 		seq_printf(m, "%02x ", command[i]);
-	seq_printf(m, "\n");
+	seq_puts(m, "\n");
 }
 
 static void lprint_opcode(int opcode, struct seq_file *m)

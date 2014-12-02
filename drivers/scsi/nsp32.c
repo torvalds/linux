@@ -1456,7 +1456,7 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 	data = (nsp32_hw_data *)host->hostdata;
 	base = host->io_port;
 
-	seq_printf(m, "NinjaSCSI-32 status\n\n");
+	seq_puts(m, "NinjaSCSI-32 status\n\n");
 	seq_printf(m, "Driver version:        %s, $Revision: 1.33 $\n", nsp32_release_version);
 	seq_printf(m, "SCSI host No.:         %d\n",		hostno);
 	seq_printf(m, "IRQ:                   %d\n",		host->irq);
@@ -1478,25 +1478,25 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 	spin_unlock_irqrestore(&(data->Lock), flags);
 
 
-	seq_printf(m, "SDTR status\n");
+	seq_puts(m, "SDTR status\n");
 	for (id = 0; id < ARRAY_SIZE(data->target); id++) {
 
 		seq_printf(m, "id %d: ", id);
 
 		if (id == host->this_id) {
-			seq_printf(m, "----- NinjaSCSI-32 host adapter\n");
+			seq_puts(m, "----- NinjaSCSI-32 host adapter\n");
 			continue;
 		}
 
 		if (data->target[id].sync_flag == SDTR_DONE) {
 			if (data->target[id].period == 0            &&
 			    data->target[id].offset == ASYNC_OFFSET ) {
-				seq_printf(m, "async");
+				seq_puts(m, "async");
 			} else {
-				seq_printf(m, " sync");
+				seq_puts(m, " sync");
 			}
 		} else {
-			seq_printf(m, " none");
+			seq_puts(m, " none");
 		}
 
 		if (data->target[id].period != 0) {
@@ -1509,7 +1509,7 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 				data->target[id].offset
 				);
 		}
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 	return 0;
 }

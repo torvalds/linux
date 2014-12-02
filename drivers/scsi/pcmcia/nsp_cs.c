@@ -1375,58 +1375,58 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 	hostno = host->host_no;
 	data = (nsp_hw_data *)host->hostdata;
 
-	seq_printf(m, "NinjaSCSI status\n\n");
-	seq_printf(m, "Driver version:        $Revision: 1.23 $\n");
+	seq_puts(m, "NinjaSCSI status\n\n");
+	seq_puts(m, "Driver version:        $Revision: 1.23 $\n");
 	seq_printf(m, "SCSI host No.:         %d\n",          hostno);
 	seq_printf(m, "IRQ:                   %d\n",          host->irq);
 	seq_printf(m, "IO:                    0x%lx-0x%lx\n", host->io_port, host->io_port + host->n_io_port - 1);
 	seq_printf(m, "MMIO(virtual address): 0x%lx-0x%lx\n", host->base, host->base + data->MmioLength - 1);
 	seq_printf(m, "sg_tablesize:          %d\n",          host->sg_tablesize);
 
-	seq_printf(m, "burst transfer mode:   ");
+	seq_puts(m, "burst transfer mode:   ");
 	switch (nsp_burst_mode) {
 	case BURST_IO8:
-		seq_printf(m, "io8");
+		seq_puts(m, "io8");
 		break;
 	case BURST_IO32:
-		seq_printf(m, "io32");
+		seq_puts(m, "io32");
 		break;
 	case BURST_MEM32:
-		seq_printf(m, "mem32");
+		seq_puts(m, "mem32");
 		break;
 	default:
-		seq_printf(m, "???");
+		seq_puts(m, "???");
 		break;
 	}
-	seq_printf(m, "\n");
+	seq_puts(m, "\n");
 
 
 	spin_lock_irqsave(&(data->Lock), flags);
 	seq_printf(m, "CurrentSC:             0x%p\n\n",      data->CurrentSC);
 	spin_unlock_irqrestore(&(data->Lock), flags);
 
-	seq_printf(m, "SDTR status\n");
+	seq_puts(m, "SDTR status\n");
 	for(id = 0; id < ARRAY_SIZE(data->Sync); id++) {
 
 		seq_printf(m, "id %d: ", id);
 
 		if (id == host->this_id) {
-			seq_printf(m, "----- NinjaSCSI-3 host adapter\n");
+			seq_puts(m, "----- NinjaSCSI-3 host adapter\n");
 			continue;
 		}
 
 		switch(data->Sync[id].SyncNegotiation) {
 		case SYNC_OK:
-			seq_printf(m, " sync");
+			seq_puts(m, " sync");
 			break;
 		case SYNC_NG:
-			seq_printf(m, "async");
+			seq_puts(m, "async");
 			break;
 		case SYNC_NOT_YET:
-			seq_printf(m, " none");
+			seq_puts(m, " none");
 			break;
 		default:
-			seq_printf(m, "?????");
+			seq_puts(m, "?????");
 			break;
 		}
 
@@ -1439,7 +1439,7 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 				data->Sync[id].SyncOffset
 				);
 		}
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 	return 0;
 }
