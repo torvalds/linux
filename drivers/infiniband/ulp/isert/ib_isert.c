@@ -2038,10 +2038,6 @@ isert_cq_comp_err(struct isert_conn *isert_conn, struct ib_wc *wc)
 			target_wait_for_sess_cmds(conn->sess->se_sess);
 		}
 
-		mutex_lock(&isert_conn->conn_mutex);
-		isert_conn_terminate(isert_conn);
-		mutex_unlock(&isert_conn->conn_mutex);
-
 		iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
 		complete(&isert_conn->conn_wait_comp_err);
 	}
