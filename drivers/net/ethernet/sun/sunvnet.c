@@ -73,13 +73,19 @@ static int vnet_handle_unknown(struct vnet_port *port, void *arg)
 	return -ECONNRESET;
 }
 
+static int vnet_port_alloc_tx_ring(struct vnet_port *port);
+
 static int vnet_send_attr(struct vio_driver_state *vio)
 {
 	struct vnet_port *port = to_vnet_port(vio);
 	struct net_device *dev = port->vp->dev;
 	struct vio_net_attr_info pkt;
 	int framelen = ETH_FRAME_LEN;
-	int i;
+	int i, err;
+
+	err = vnet_port_alloc_tx_ring(to_vnet_port(vio));
+	if (err)
+		return err;
 
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.tag.type = VIO_TYPE_CTRL;
@@ -1361,7 +1367,7 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 	}
 }
 
-static int vnet_port_alloc_tx_bufs(struct vnet_port *port)
+static int vnet_port_alloc_tx_ring(struct vnet_port *port)
 {
 	struct vio_dring_state *dr;
 	unsigned long len;
@@ -1640,10 +1646,6 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	netif_napi_add(port->vp->dev, &port->napi, vnet_poll, NAPI_POLL_WEIGHT);
 
-	err = vnet_port_alloc_tx_bufs(port);
-	if (err)
-		goto err_out_free_ldc;
-
 	INIT_HLIST_NODE(&port->hash);
 	INIT_LIST_HEAD(&port->list);
 
@@ -1676,10 +1678,6 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	mdesc_release(hp);
 
 	return 0;
-
-err_out_free_ldc:
-	netif_napi_del(&port->napi);
-	vio_ldc_free(&port->vio);
 
 err_out_free_port:
 	kfree(port);
