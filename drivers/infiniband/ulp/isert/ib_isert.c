@@ -961,7 +961,7 @@ isert_post_recv(struct isert_conn *isert_conn, u32 count)
 
 	for (rx_wr = isert_conn->conn_rx_wr, i = 0; i < count; i++, rx_wr++) {
 		rx_desc		= &isert_conn->conn_rx_descs[rx_head];
-		rx_wr->wr_id	= (unsigned long)rx_desc;
+		rx_wr->wr_id	= (uintptr_t)rx_desc;
 		rx_wr->sg_list	= &rx_desc->rx_sg;
 		rx_wr->num_sge	= 1;
 		rx_wr->next	= rx_wr + 1;
@@ -995,7 +995,7 @@ isert_post_send(struct isert_conn *isert_conn, struct iser_tx_desc *tx_desc)
 				      ISER_HEADERS_LEN, DMA_TO_DEVICE);
 
 	send_wr.next	= NULL;
-	send_wr.wr_id	= (unsigned long)tx_desc;
+	send_wr.wr_id	= (uintptr_t)tx_desc;
 	send_wr.sg_list	= tx_desc->tx_sg;
 	send_wr.num_sge	= tx_desc->num_sge;
 	send_wr.opcode	= IB_WR_SEND;
@@ -1067,7 +1067,7 @@ isert_init_send_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 	struct iser_tx_desc *tx_desc = &isert_cmd->tx_desc;
 
 	isert_cmd->rdma_wr.iser_ib_op = ISER_IB_SEND;
-	send_wr->wr_id = (unsigned long)&isert_cmd->tx_desc;
+	send_wr->wr_id = (uintptr_t)&isert_cmd->tx_desc;
 	send_wr->opcode = IB_WR_SEND;
 	send_wr->sg_list = &tx_desc->tx_sg[0];
 	send_wr->num_sge = isert_cmd->tx_desc.num_sge;
@@ -1090,7 +1090,7 @@ isert_rdma_post_recvl(struct isert_conn *isert_conn)
 		sge.addr, sge.length, sge.lkey);
 
 	memset(&rx_wr, 0, sizeof(struct ib_recv_wr));
-	rx_wr.wr_id = (unsigned long)isert_conn->login_req_buf;
+	rx_wr.wr_id = (uintptr_t)isert_conn->login_req_buf;
 	rx_wr.sg_list = &sge;
 	rx_wr.num_sge = 1;
 
@@ -2061,7 +2061,7 @@ isert_cq_tx_work(struct work_struct *work)
 	struct ib_wc wc;
 
 	while (ib_poll_cq(tx_cq, 1, &wc) == 1) {
-		tx_desc = (struct iser_tx_desc *)(unsigned long)wc.wr_id;
+		tx_desc = (struct iser_tx_desc *)(uintptr_t)wc.wr_id;
 		isert_conn = wc.qp->qp_context;
 
 		if (wc.status == IB_WC_SUCCESS) {
@@ -2101,7 +2101,7 @@ isert_cq_rx_work(struct work_struct *work)
 	unsigned long xfer_len;
 
 	while (ib_poll_cq(rx_cq, 1, &wc) == 1) {
-		rx_desc = (struct iser_rx_desc *)(unsigned long)wc.wr_id;
+		rx_desc = (struct iser_rx_desc *)(uintptr_t)wc.wr_id;
 		isert_conn = wc.qp->qp_context;
 
 		if (wc.status == IB_WC_SUCCESS) {
@@ -2379,7 +2379,7 @@ isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 
 	send_wr->sg_list = ib_sge;
 	send_wr->num_sge = sg_nents;
-	send_wr->wr_id = (unsigned long)&isert_cmd->tx_desc;
+	send_wr->wr_id = (uintptr_t)&isert_cmd->tx_desc;
 	/*
 	 * Perform mapping of TCM scatterlist memory ib_sge dma_addr.
 	 */
@@ -2864,7 +2864,7 @@ isert_reg_rdma(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	send_wr = &isert_cmd->rdma_wr.s_send_wr;
 	send_wr->sg_list = &wr->s_ib_sge;
 	send_wr->num_sge = 1;
-	send_wr->wr_id = (unsigned long)&isert_cmd->tx_desc;
+	send_wr->wr_id = (uintptr_t)&isert_cmd->tx_desc;
 	if (wr->iser_ib_op == ISER_IB_RDMA_WRITE) {
 		send_wr->opcode = IB_WR_RDMA_WRITE;
 		send_wr->wr.rdma.remote_addr = isert_cmd->read_va;
