@@ -185,8 +185,9 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level,
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
-bool smp_irk_matches(struct hci_dev *hdev, u8 irk[16], bdaddr_t *bdaddr);
-int smp_generate_rpa(struct hci_dev *hdev, u8 irk[16], bdaddr_t *rpa);
+bool smp_irk_matches(struct hci_dev *hdev, const u8 irk[16],
+		     const bdaddr_t *bdaddr);
+int smp_generate_rpa(struct hci_dev *hdev, const u8 irk[16], bdaddr_t *rpa);
 
 int smp_register(struct hci_dev *hdev);
 void smp_unregister(struct hci_dev *hdev);
