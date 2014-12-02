@@ -107,22 +107,25 @@ isert_conn_setup_qp(struct isert_conn *isert_conn, struct rdma_cm_id *cma_id)
 {
 	struct isert_device *device = isert_conn->conn_device;
 	struct ib_qp_init_attr attr;
-	int ret, index, min_index = 0;
+	struct isert_comp *comp;
+	int ret, i, min = 0;
 
 	mutex_lock(&device_list_mutex);
-	for (index = 0; index < device->cqs_used; index++)
-		if (device->cq_active_qps[index] <
-		    device->cq_active_qps[min_index])
-			min_index = index;
-	device->cq_active_qps[min_index]++;
-	pr_debug("isert_conn_setup_qp: Using min_index: %d\n", min_index);
+	for (i = 0; i < device->comps_used; i++)
+		if (device->comps[i].active_qps <
+		    device->comps[min].active_qps)
+			min = i;
+	comp = &device->comps[min];
+	comp->active_qps++;
+	pr_info("conn %p, using comp %p min_index: %d\n",
+		   isert_conn, comp, min);
 	mutex_unlock(&device_list_mutex);
 
 	memset(&attr, 0, sizeof(struct ib_qp_init_attr));
 	attr.event_handler = isert_qp_event_callback;
 	attr.qp_context = isert_conn;
-	attr.send_cq = device->dev_tx_cq[min_index];
-	attr.recv_cq = device->dev_rx_cq[min_index];
+	attr.send_cq = comp->tx_cq;
+	attr.recv_cq = comp->rx_cq;
 	attr.cap.max_send_wr = ISERT_QP_MAX_REQ_DTOS;
 	attr.cap.max_recv_wr = ISERT_QP_MAX_RECV_DTOS;
 	/*
@@ -157,7 +160,7 @@ isert_conn_setup_qp(struct isert_conn *isert_conn, struct rdma_cm_id *cma_id)
 	return 0;
 err:
 	mutex_lock(&device_list_mutex);
-	device->cq_active_qps[min_index]--;
+	comp->active_qps--;
 	mutex_unlock(&device_list_mutex);
 
 	return ret;
@@ -243,9 +246,8 @@ static int
 isert_create_device_ib_res(struct isert_device *device)
 {
 	struct ib_device *ib_dev = device->ib_device;
-	struct isert_cq_desc *cq_desc;
 	struct ib_device_attr *dev_attr;
-	int ret = 0, i, j;
+	int ret = 0, i;
 	int max_rx_cqe, max_tx_cqe;
 
 	dev_attr = &device->dev_attr;
@@ -272,55 +274,54 @@ isert_create_device_ib_res(struct isert_device *device)
 	device->pi_capable = dev_attr->device_cap_flags &
 			     IB_DEVICE_SIGNATURE_HANDOVER ? true : false;
 
-	device->cqs_used = min_t(int, num_online_cpus(),
-				 device->ib_device->num_comp_vectors);
-	device->cqs_used = min(ISERT_MAX_CQ, device->cqs_used);
-	pr_debug("Using %d CQs, device %s supports %d vectors support "
-		 "Fast registration %d pi_capable %d\n",
-		 device->cqs_used, device->ib_device->name,
-		 device->ib_device->num_comp_vectors, device->use_fastreg,
-		 device->pi_capable);
-	device->cq_desc = kzalloc(sizeof(struct isert_cq_desc) *
-				device->cqs_used, GFP_KERNEL);
-	if (!device->cq_desc) {
-		pr_err("Unable to allocate device->cq_desc\n");
+	device->comps_used = min(ISERT_MAX_CQ, min_t(int, num_online_cpus(),
+					device->ib_device->num_comp_vectors));
+	pr_info("Using %d CQs, %s supports %d vectors support "
+		   "Fast registration %d pi_capable %d\n",
+		   device->comps_used, device->ib_device->name,
+		   device->ib_device->num_comp_vectors, device->use_fastreg,
+		   device->pi_capable);
+
+	device->comps = kcalloc(device->comps_used, sizeof(struct isert_comp),
+				GFP_KERNEL);
+	if (!device->comps) {
+		pr_err("Unable to allocate completion contexts\n");
 		return -ENOMEM;
 	}
-	cq_desc = device->cq_desc;
 
-	for (i = 0; i < device->cqs_used; i++) {
-		cq_desc[i].device = device;
-		cq_desc[i].cq_index = i;
+	for (i = 0; i < device->comps_used; i++) {
+		struct isert_comp *comp = &device->comps[i];
 
-		INIT_WORK(&cq_desc[i].cq_rx_work, isert_cq_rx_work);
-		device->dev_rx_cq[i] = ib_create_cq(device->ib_device,
-						isert_cq_rx_callback,
-						isert_cq_event_callback,
-						(void *)&cq_desc[i],
-						max_rx_cqe, i);
-		if (IS_ERR(device->dev_rx_cq[i])) {
-			ret = PTR_ERR(device->dev_rx_cq[i]);
-			device->dev_rx_cq[i] = NULL;
+		comp->device = device;
+		INIT_WORK(&comp->rx_work, isert_cq_rx_work);
+		comp->rx_cq = ib_create_cq(device->ib_device,
+					   isert_cq_rx_callback,
+					   isert_cq_event_callback,
+					   (void *)comp,
+					   max_rx_cqe, i);
+		if (IS_ERR(comp->rx_cq)) {
+			ret = PTR_ERR(comp->rx_cq);
+			comp->rx_cq = NULL;
 			goto out_cq;
 		}
 
-		INIT_WORK(&cq_desc[i].cq_tx_work, isert_cq_tx_work);
-		device->dev_tx_cq[i] = ib_create_cq(device->ib_device,
-						isert_cq_tx_callback,
-						isert_cq_event_callback,
-						(void *)&cq_desc[i],
-						max_tx_cqe, i);
-		if (IS_ERR(device->dev_tx_cq[i])) {
-			ret = PTR_ERR(device->dev_tx_cq[i]);
-			device->dev_tx_cq[i] = NULL;
+		INIT_WORK(&comp->tx_work, isert_cq_tx_work);
+		comp->tx_cq = ib_create_cq(device->ib_device,
+					   isert_cq_tx_callback,
+					   isert_cq_event_callback,
+					   (void *)comp,
+					   max_tx_cqe, i);
+		if (IS_ERR(comp->tx_cq)) {
+			ret = PTR_ERR(comp->tx_cq);
+			comp->tx_cq = NULL;
 			goto out_cq;
 		}
 
-		ret = ib_req_notify_cq(device->dev_rx_cq[i], IB_CQ_NEXT_COMP);
+		ret = ib_req_notify_cq(comp->rx_cq, IB_CQ_NEXT_COMP);
 		if (ret)
 			goto out_cq;
 
-		ret = ib_req_notify_cq(device->dev_tx_cq[i], IB_CQ_NEXT_COMP);
+		ret = ib_req_notify_cq(comp->tx_cq, IB_CQ_NEXT_COMP);
 		if (ret)
 			goto out_cq;
 	}
@@ -328,19 +329,19 @@ isert_create_device_ib_res(struct isert_device *device)
 	return 0;
 
 out_cq:
-	for (j = 0; j < i; j++) {
-		cq_desc = &device->cq_desc[j];
+	for (i = 0; i < device->comps_used; i++) {
+		struct isert_comp *comp = &device->comps[i];
 
-		if (device->dev_rx_cq[j]) {
-			cancel_work_sync(&cq_desc->cq_rx_work);
-			ib_destroy_cq(device->dev_rx_cq[j]);
+		if (comp->rx_cq) {
+			cancel_work_sync(&comp->rx_work);
+			ib_destroy_cq(comp->rx_cq);
 		}
-		if (device->dev_tx_cq[j]) {
-			cancel_work_sync(&cq_desc->cq_tx_work);
-			ib_destroy_cq(device->dev_tx_cq[j]);
+		if (comp->tx_cq) {
+			cancel_work_sync(&comp->tx_work);
+			ib_destroy_cq(comp->tx_cq);
 		}
 	}
-	kfree(device->cq_desc);
+	kfree(device->comps);
 
 	return ret;
 }
@@ -348,21 +349,21 @@ out_cq:
 static void
 isert_free_device_ib_res(struct isert_device *device)
 {
-	struct isert_cq_desc *cq_desc;
 	int i;
 
-	for (i = 0; i < device->cqs_used; i++) {
-		cq_desc = &device->cq_desc[i];
+	pr_info("device %p\n", device);
 
-		cancel_work_sync(&cq_desc->cq_rx_work);
-		cancel_work_sync(&cq_desc->cq_tx_work);
-		ib_destroy_cq(device->dev_rx_cq[i]);
-		ib_destroy_cq(device->dev_tx_cq[i]);
-		device->dev_rx_cq[i] = NULL;
-		device->dev_tx_cq[i] = NULL;
+	for (i = 0; i < device->comps_used; i++) {
+		struct isert_comp *comp = &device->comps[i];
+
+		cancel_work_sync(&comp->rx_work);
+		cancel_work_sync(&comp->tx_work);
+		ib_destroy_cq(comp->rx_cq);
+		ib_destroy_cq(comp->tx_cq);
+		comp->rx_cq = NULL;
+		comp->tx_cq = NULL;
 	}
-
-	kfree(device->cq_desc);
+	kfree(device->comps);
 }
 
 static void
@@ -740,7 +741,6 @@ isert_connect_release(struct isert_conn *isert_conn)
 {
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
 	struct isert_device *device = isert_conn->conn_device;
-	int cq_index;
 
 	pr_debug("Entering isert_connect_release(): >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 
@@ -751,11 +751,11 @@ isert_connect_release(struct isert_conn *isert_conn)
 	rdma_destroy_id(isert_conn->conn_cm_id);
 
 	if (isert_conn->conn_qp) {
-		cq_index = ((struct isert_cq_desc *)
-			isert_conn->conn_qp->recv_cq->cq_context)->cq_index;
-		pr_debug("isert_connect_release: cq_index: %d\n", cq_index);
+		struct isert_comp *comp = isert_conn->conn_qp->recv_cq->cq_context;
+
+		pr_debug("dec completion context %p active_qps\n", comp);
 		mutex_lock(&device_list_mutex);
-		isert_conn->conn_device->cq_active_qps[cq_index]--;
+		comp->active_qps--;
 		mutex_unlock(&device_list_mutex);
 
 		ib_destroy_qp(isert_conn->conn_qp);
@@ -1524,7 +1524,7 @@ isert_rx_do_work(struct iser_rx_desc *rx_desc, struct isert_conn *isert_conn)
 
 static void
 isert_rx_completion(struct iser_rx_desc *desc, struct isert_conn *isert_conn,
-		    unsigned long xfer_len)
+		    u32 xfer_len)
 {
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
 	struct iscsi_hdr *hdr;
@@ -2051,18 +2051,16 @@ isert_cq_comp_err(void *desc, struct isert_conn *isert_conn, bool tx)
 static void
 isert_cq_tx_work(struct work_struct *work)
 {
-	struct isert_cq_desc *cq_desc = container_of(work,
-				struct isert_cq_desc, cq_tx_work);
-	struct isert_device *device = cq_desc->device;
-	int cq_index = cq_desc->cq_index;
-	struct ib_cq *tx_cq = device->dev_tx_cq[cq_index];
+	struct isert_comp *comp = container_of(work, struct isert_comp,
+					       tx_work);
+	struct ib_cq *cq = comp->tx_cq;
 	struct isert_conn *isert_conn;
 	struct iser_tx_desc *tx_desc;
 	struct ib_wc wc;
 
-	while (ib_poll_cq(tx_cq, 1, &wc) == 1) {
-		tx_desc = (struct iser_tx_desc *)(uintptr_t)wc.wr_id;
+	while (ib_poll_cq(cq, 1, &wc) == 1) {
 		isert_conn = wc.qp->qp_context;
+		tx_desc = (struct iser_tx_desc *)(uintptr_t)wc.wr_id;
 
 		if (wc.status == IB_WC_SUCCESS) {
 			isert_send_completion(tx_desc, isert_conn);
@@ -2076,36 +2074,34 @@ isert_cq_tx_work(struct work_struct *work)
 		}
 	}
 
-	ib_req_notify_cq(tx_cq, IB_CQ_NEXT_COMP);
+	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 }
 
 static void
 isert_cq_tx_callback(struct ib_cq *cq, void *context)
 {
-	struct isert_cq_desc *cq_desc = (struct isert_cq_desc *)context;
+	struct isert_comp *comp = context;
 
-	queue_work(isert_comp_wq, &cq_desc->cq_tx_work);
+	queue_work(isert_comp_wq, &comp->tx_work);
 }
 
 static void
 isert_cq_rx_work(struct work_struct *work)
 {
-	struct isert_cq_desc *cq_desc = container_of(work,
-			struct isert_cq_desc, cq_rx_work);
-	struct isert_device *device = cq_desc->device;
-	int cq_index = cq_desc->cq_index;
-	struct ib_cq *rx_cq = device->dev_rx_cq[cq_index];
+	struct isert_comp *comp = container_of(work, struct isert_comp,
+					       rx_work);
+	struct ib_cq *cq = comp->rx_cq;
 	struct isert_conn *isert_conn;
 	struct iser_rx_desc *rx_desc;
 	struct ib_wc wc;
-	unsigned long xfer_len;
+	u32 xfer_len;
 
-	while (ib_poll_cq(rx_cq, 1, &wc) == 1) {
-		rx_desc = (struct iser_rx_desc *)(uintptr_t)wc.wr_id;
+	while (ib_poll_cq(cq, 1, &wc) == 1) {
 		isert_conn = wc.qp->qp_context;
+		rx_desc = (struct iser_rx_desc *)(uintptr_t)wc.wr_id;
 
 		if (wc.status == IB_WC_SUCCESS) {
-			xfer_len = (unsigned long)wc.byte_len;
+			xfer_len = wc.byte_len;
 			isert_rx_completion(rx_desc, isert_conn, xfer_len);
 		} else {
 			pr_debug("RX wc.status != IB_WC_SUCCESS >>>>>>>>>>>>>>\n");
@@ -2118,15 +2114,15 @@ isert_cq_rx_work(struct work_struct *work)
 		}
 	}
 
-	ib_req_notify_cq(rx_cq, IB_CQ_NEXT_COMP);
+	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 }
 
 static void
 isert_cq_rx_callback(struct ib_cq *cq, void *context)
 {
-	struct isert_cq_desc *cq_desc = (struct isert_cq_desc *)context;
+	struct isert_comp *comp = context;
 
-	queue_work(isert_rx_wq, &cq_desc->cq_rx_work);
+	queue_work(isert_rx_wq, &comp->rx_work);
 }
 
 static int

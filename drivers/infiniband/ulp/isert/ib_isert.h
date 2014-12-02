@@ -159,23 +159,33 @@ struct isert_conn {
 
 #define ISERT_MAX_CQ 64
 
-struct isert_cq_desc {
-	struct isert_device	*device;
-	int			cq_index;
-	struct work_struct	cq_rx_work;
-	struct work_struct	cq_tx_work;
+/**
+ * struct isert_comp - iSER completion context
+ *
+ * @device:     pointer to device handle
+ * @rx_cq:      RX completion queue
+ * @tx_cq:      TX completion queue
+ * @active_qps: Number of active QPs attached
+ *              to completion context
+ * @rx_work:    RX work handle
+ * @tx_work:    TX work handle
+ */
+struct isert_comp {
+	struct isert_device      *device;
+	struct ib_cq		*rx_cq;
+	struct ib_cq		*tx_cq;
+	int                      active_qps;
+	struct work_struct	 rx_work;
+	struct work_struct	 tx_work;
 };
 
 struct isert_device {
 	int			use_fastreg;
 	bool			pi_capable;
-	int			cqs_used;
 	int			refcount;
-	int			cq_active_qps[ISERT_MAX_CQ];
 	struct ib_device	*ib_device;
-	struct ib_cq		*dev_rx_cq[ISERT_MAX_CQ];
-	struct ib_cq		*dev_tx_cq[ISERT_MAX_CQ];
-	struct isert_cq_desc	*cq_desc;
+	struct isert_comp	*comps;
+	int                     comps_used;
 	struct list_head	dev_node;
 	struct ib_device_attr	dev_attr;
 	int			(*reg_rdma_mem)(struct iscsi_conn *conn,
