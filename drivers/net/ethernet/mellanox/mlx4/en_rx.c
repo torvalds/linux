@@ -1223,7 +1223,19 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 
 	rss_context->flags = rss_mask;
 	rss_context->hash_fn = MLX4_RSS_HASH_TOP;
-	memcpy(rss_context->rss_key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
+	if (priv->rss_hash_fn == ETH_RSS_HASH_XOR) {
+		rss_context->hash_fn = MLX4_RSS_HASH_XOR;
+	} else if (priv->rss_hash_fn == ETH_RSS_HASH_TOP) {
+		rss_context->hash_fn = MLX4_RSS_HASH_TOP;
+		memcpy(rss_context->rss_key, priv->rss_key,
+		       MLX4_EN_RSS_KEY_SIZE);
+		netdev_rss_key_fill(rss_context->rss_key,
+				    MLX4_EN_RSS_KEY_SIZE);
+	} else {
+		en_err(priv, "Unknown RSS hash function requested\n");
+		err = -EINVAL;
+		goto indir_err;
+	}
 	err = mlx4_qp_to_ready(mdev->dev, &priv->res.mtt, &context,
 			       &rss_map->indir_qp, &rss_map->indir_state);
 	if (err)
