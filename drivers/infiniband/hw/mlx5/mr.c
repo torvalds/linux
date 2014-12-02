@@ -159,6 +159,9 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 					    sizeof(*in), reg_mr_callback,
 					    mr, &mr->out);
 		if (err) {
+			spin_lock_irq(&ent->lock);
+			ent->pending--;
+			spin_unlock_irq(&ent->lock);
 			mlx5_ib_warn(dev, "create mkey failed %d\n", err);
 			kfree(mr);
 			break;
