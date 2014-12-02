@@ -91,7 +91,9 @@ see <xref linkend="colorspaces" />.</entry>
 	<listitem><para>For formats where the total number of bits per pixel is smaller
 	than the number of bus samples per pixel times the bus width, a padding
 	value stating if the bytes are padded in their most high order bits
-	(PADHI) or low order bits (PADLO).</para></listitem>
+	(PADHI) or low order bits (PADLO). A "C" prefix is used for component-wise
+	padding in the most high order bits (CPADHI) or low order bits (CPADLO)
+	of each separate component.</para></listitem>
 	<listitem><para>For formats where the number of bus samples per pixel is larger
 	than 1, an endianness value stating if the pixel is transferred MSB first
 	(BE) or LSB first (LE).</para></listitem>
@@ -473,6 +475,36 @@ see <xref linkend="colorspaces" />.</entry>
 	      <entry>g<subscript>2</subscript></entry>
 	      <entry>g<subscript>1</subscript></entry>
 	      <entry>g<subscript>0</subscript></entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>b<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-RGB666-1X24_CPADHI">
+	      <entry>MEDIA_BUS_FMT_RGB666_1X24_CPADHI</entry>
+	      <entry>0x1015</entry>
+	      <entry></entry>
+	      &dash-ent-8;
+	      <entry>0</entry>
+	      <entry>0</entry>
+	      <entry>r<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	      <entry>0</entry>
+	      <entry>0</entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>0</entry>
+	      <entry>0</entry>
 	      <entry>b<subscript>5</subscript></entry>
 	      <entry>b<subscript>4</subscript></entry>
 	      <entry>b<subscript>3</subscript></entry>
