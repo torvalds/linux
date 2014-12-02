@@ -1271,6 +1271,7 @@ scsi_extd_sense_format(unsigned char asc, unsigned char ascq, const char **fmt)
 	int i;
 	unsigned short code = ((asc << 8) | ascq);
 
+	*fmt = NULL;
 	for (i = 0; additional[i].text; i++)
 		if (additional[i].code12 == code)
 			return additional[i].text;
@@ -1282,6 +1283,8 @@ scsi_extd_sense_format(unsigned char asc, unsigned char ascq, const char **fmt)
 			return additional2[i].str;
 		}
 	}
+#else
+	*fmt = NULL;
 #endif
 	return NULL;
 }
