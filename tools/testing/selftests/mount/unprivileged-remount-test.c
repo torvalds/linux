@@ -53,17 +53,14 @@ static void die(char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
-static void write_file(char *filename, char *fmt, ...)
+static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list ap)
 {
 	char buf[4096];
 	int fd;
 	ssize_t written;
 	int buf_len;
-	va_list ap;
 
-	va_start(ap, fmt);
 	buf_len = vsnprintf(buf, sizeof(buf), fmt, ap);
-	va_end(ap);
 	if (buf_len < 0) {
 		die("vsnprintf failed: %s\n",
 		    strerror(errno));
@@ -74,6 +71,8 @@ static void write_file(char *filename, char *fmt, ...)
 
 	fd = open(filename, O_WRONLY);
 	if (fd < 0) {
+		if ((errno == ENOENT) && enoent_ok)
+			return;
 		die("open of %s failed: %s\n",
 		    filename, strerror(errno));
 	}
@@ -90,6 +89,26 @@ static void write_file(char *filename, char *fmt, ...)
 		die("close of %s failed: %s\n",
 			filename, strerror(errno));
 	}
+}
+
+static void maybe_write_file(char *filename, char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vmaybe_write_file(true, filename, fmt, ap);
+	va_end(ap);
+
+}
+
+static void write_file(char *filename, char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vmaybe_write_file(false, filename, fmt, ap);
+	va_end(ap);
+
 }
 
 static int read_mnt_flags(const char *path)
@@ -144,13 +163,10 @@ static void create_and_enter_userns(void)
 			strerror(errno));
 	}
 
+	maybe_write_file("/proc/self/setgroups", "deny");
 	write_file("/proc/self/uid_map", "0 %d 1", uid);
 	write_file("/proc/self/gid_map", "0 %d 1", gid);
 
-	if (setgroups(0, NULL) != 0) {
-		die("setgroups failed: %s\n",
-			strerror(errno));
-	}
 	if (setgid(0) != 0) {
 		die ("setgid(0) failed %s\n",
 			strerror(errno));
