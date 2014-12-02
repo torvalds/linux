@@ -392,7 +392,12 @@ The goto statement comes in handy when a function exits from multiple
 locations and some common work such as cleanup has to be done.  If there is no
 cleanup needed then just return directly.
 
-The rationale is:
+Choose label names which say what the goto does or why the goto exists.  An
+example of a good name could be "out_buffer:" if the goto frees "buffer".  Avoid
+using GW-BASIC names like "err1:" and "err2:".  Also don't name them after the
+goto location like "err_kmalloc_failed:"
+
+The rationale for using gotos is:
 
 - unconditional statements are easier to understand and follow
 - nesting is reduced
@@ -403,9 +408,10 @@ The rationale is:
 int fun(int a)
 {
 	int result = 0;
-	char *buffer = kmalloc(SIZE);
+	char *buffer;
 
-	if (buffer == NULL)
+	buffer = kmalloc(SIZE, GFP_KERNEL);
+	if (!buffer)
 		return -ENOMEM;
 
 	if (condition1) {
@@ -413,13 +419,24 @@ int fun(int a)
 			...
 		}
 		result = 1;
-		goto out;
+		goto out_buffer;
 	}
 	...
-out:
+out_buffer:
 	kfree(buffer);
 	return result;
 }
+
+A common type of bug to be aware of it "one err bugs" which look like this:
+
+err:
+	kfree(foo->bar);
+	kfree(foo);
+	return ret;
+
+The bug in this code is that on some exit paths "foo" is NULL.  Normally the
+fix for this is to split it up into two error labels "err_bar:" and "err_foo:".
+
 
 		Chapter 8: Commenting
 
