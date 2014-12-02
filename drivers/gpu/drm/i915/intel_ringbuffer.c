@@ -710,6 +710,22 @@ static int intel_ring_workarounds_emit(struct intel_engine_cs *ring,
 	return 0;
 }
 
+static int intel_rcs_ctx_init(struct intel_engine_cs *ring,
+			      struct intel_context *ctx)
+{
+	int ret;
+
+	ret = intel_ring_workarounds_emit(ring, ctx);
+	if (ret != 0)
+		return ret;
+
+	ret = i915_gem_render_state_init(ring);
+	if (ret)
+		DRM_ERROR("init render state: %d\n", ret);
+
+	return ret;
+}
+
 static int wa_add(struct drm_i915_private *dev_priv,
 		  const u32 addr, const u32 val, const u32 mask)
 {
@@ -2345,7 +2361,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			}
 		}
 
-		ring->init_context = intel_ring_workarounds_emit;
+		ring->init_context = intel_rcs_ctx_init;
 		ring->add_request = gen6_add_request;
 		ring->flush = gen8_render_ring_flush;
 		ring->irq_get = gen8_ring_get_irq;
