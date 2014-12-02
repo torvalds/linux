@@ -1984,13 +1984,6 @@ static void
 isert_cq_comp_err(struct isert_conn *isert_conn, struct ib_wc *wc)
 {
 	if (wc->wr_id == ISER_BEACON_WRID) {
-		struct iscsi_conn *conn = isert_conn->conn;
-
-		if (conn->sess) {
-			target_sess_cmd_list_set_waiting(conn->sess->se_sess);
-			target_wait_for_sess_cmds(conn->sess->se_sess);
-		}
-
 		pr_info("conn %p completing conn_wait_comp_err\n",
 			   isert_conn);
 		complete(&isert_conn->conn_wait_comp_err);
@@ -3243,6 +3236,15 @@ static void isert_release_work(struct work_struct *work)
 }
 
 static void
+isert_wait4cmds(struct iscsi_conn *conn)
+{
+	if (conn->sess) {
+		target_sess_cmd_list_set_waiting(conn->sess->se_sess);
+		target_wait_for_sess_cmds(conn->sess->se_sess);
+	}
+}
+
+static void
 isert_wait4flush(struct isert_conn *isert_conn)
 {
 	struct ib_recv_wr *bad_wr;
@@ -3276,6 +3278,7 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	isert_conn_terminate(isert_conn);
 	mutex_unlock(&isert_conn->conn_mutex);
 
+	isert_wait4cmds(conn);
 	isert_wait4flush(isert_conn);
 
 	INIT_WORK(&isert_conn->release_work, isert_release_work);
