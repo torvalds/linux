@@ -1974,7 +1974,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 	dwc_udelay(10);
 
 	gahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR8;
-	DWC_MODIFY_REG32(&global_regs->gahbcfg, 0, gahbcfg.b.hburstlen);
+	DWC_MODIFY_REG32(&global_regs->gahbcfg, 0, gahbcfg.d32);
 
 	/* Device configuration register */
 	init_devspd(core_if);
