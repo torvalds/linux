@@ -426,10 +426,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			goto err2;
 
 		/* Copy fold into fnew */
-		fnew->handle = fold->handle;
-		fnew->keymask = fold->keymask;
 		fnew->tp = fold->tp;
-
 		fnew->handle = fold->handle;
 		fnew->nkeys = fold->nkeys;
 		fnew->keymask = fold->keymask;
