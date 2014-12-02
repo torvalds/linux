@@ -455,10 +455,23 @@ err_cache:
 	return NULL;
 }
 
+/*
+ * Create a new operation associated with the given connection.  The
+ * request and response sizes provided are the number of bytes
+ * required to hold the request/response payload only.  Both of
+ * these are allowed to be 0.  Note that 0x00 is reserved as an
+ * invalid operation type for all protocols, and this is enforced
+ * here.
+ */
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
 					size_t response_size)
 {
+	if (WARN_ON_ONCE(!type))
+		return NULL;
+	if (WARN_ON_ONCE(type & GB_OPERATION_TYPE_RESPONSE))
+		type &= ~GB_OPERATION_TYPE_RESPONSE;
+
 	return gb_operation_create_common(connection, true, type,
 					request_size, response_size);
 }
