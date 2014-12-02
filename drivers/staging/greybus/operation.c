@@ -471,6 +471,34 @@ static u8 gb_operation_errno_map(int errno)
 	}
 }
 
+bool gb_operation_response_alloc(struct gb_operation *operation,
+					size_t response_size)
+{
+	struct greybus_host_device *hd = operation->connection->hd;
+	struct gb_operation_msg_hdr *request_header;
+	struct gb_message *response;
+	u8 type;
+
+	request_header = operation->request->header;
+	type = request_header->type | GB_OPERATION_TYPE_RESPONSE;
+	response = gb_operation_message_alloc(hd, type, response_size,
+						GFP_KERNEL);
+	if (!response)
+		return false;
+	response->operation = operation;
+
+	/*
+	 * Size and type get initialized when the message is
+	 * allocated.  The errno will be set before sending.  All
+	 * that's left is the operation id, which we copy from the
+	 * request message header (as-is, in little-endian order).
+	 */
+	response->header->operation_id = request_header->operation_id;
+	operation->response = response;
+
+	return true;
+}
+
 /*
  * Create a Greybus operation to be sent over the given connection.
  * The request buffer will be big enough for a payload of the given
@@ -513,14 +541,9 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	operation->request->operation = operation;
 
 	/* Allocate the response buffer for outgoing operations */
-	if (type) {
-		type |= GB_OPERATION_TYPE_RESPONSE;
-		operation->response = gb_operation_message_alloc(hd, type,
-						response_size, GFP_KERNEL);
-		if (!operation->response)
+	if (type)
+		if (!gb_operation_response_alloc(operation, response_size))
 			goto err_request;
-		operation->response->operation = operation;
-	}
 	operation->errno = -EBADR;  /* Initial value--means "never set" */
 
 	INIT_WORK(&operation->work, gb_operation_work);
@@ -680,7 +703,13 @@ int gb_operation_request_send(struct gb_operation *operation,
 }
 
 /*
- * Send a response for an incoming operation request.
+ * Send a response for an incoming operation request.  A non-zero
+ * errno indicates a failed operation.
+ *
+ * If there is any response payload, the incoming request handler is
+ * responsible for allocating the response message.  Otherwise the
+ * it can simply supply the result errno; this function will
+ * allocate the response message if necessary.
  */
 int gb_operation_response_send(struct gb_operation *operation, int errno)
 {
@@ -689,10 +718,19 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 		pr_err("request result already set\n");
 		return -EIO;	/* Shouldn't happen */
 	}
-	(void)gb_operation_errno_map;	/* avoid a build warning */
-	gb_operation_destroy(operation);
 
-	return 0;
+	if (!operation->response) {
+		if (!gb_operation_response_alloc(operation, 0)) {
+			pr_err("error allocating response\n");
+			/* XXX Respond with pre-allocated -ENOMEM? */
+			return -ENOMEM;
+		}
+	}
+
+	/* Fill in the response header and send it */
+	operation->response->header->result = gb_operation_errno_map(errno);
+
+	return gb_message_send(operation->response);
 }
 
 /*
