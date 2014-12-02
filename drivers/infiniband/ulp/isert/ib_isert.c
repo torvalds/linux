@@ -54,6 +54,10 @@ isert_reg_rdma(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	       struct isert_rdma_wr *wr);
 static int
 isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd);
+static int
+isert_rdma_post_recvl(struct isert_conn *isert_conn);
+static int
+isert_rdma_accept(struct isert_conn *isert_conn);
 
 static void
 isert_qp_event_callback(struct ib_event *e, void *context)
@@ -590,6 +594,7 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	isert_conn->state = ISER_CONN_INIT;
 	INIT_LIST_HEAD(&isert_conn->conn_accept_node);
 	init_completion(&isert_conn->conn_login_comp);
+	init_completion(&isert_conn->login_req_comp);
 	init_completion(&isert_conn->conn_wait);
 	init_completion(&isert_conn->conn_wait_comp_err);
 	kref_init(&isert_conn->conn_kref);
@@ -681,6 +686,14 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	if (ret)
 		goto out_conn_dev;
 
+	ret = isert_rdma_post_recvl(isert_conn);
+	if (ret)
+		goto out_conn_dev;
+
+	ret = isert_rdma_accept(isert_conn);
+	if (ret)
+		goto out_conn_dev;
+
 	mutex_lock(&isert_np->np_accept_mutex);
 	list_add_tail(&isert_conn->conn_accept_node, &isert_np->np_accept_list);
 	mutex_unlock(&isert_np->np_accept_mutex);
@@ -705,6 +718,7 @@ out_login_buf:
 	kfree(isert_conn->login_buf);
 out:
 	kfree(isert_conn);
+	rdma_reject(cma_id, NULL, 0);
 	return ret;
 }
 
@@ -758,8 +772,15 @@ isert_connected_handler(struct rdma_cm_id *cma_id)
 
 	pr_info("conn %p\n", isert_conn);
 
-	isert_conn->state = ISER_CONN_UP;
-	kref_get(&isert_conn->conn_kref);
+	if (!kref_get_unless_zero(&isert_conn->conn_kref)) {
+		pr_warn("conn %p connect_release is running\n", isert_conn);
+		return;
+	}
+
+	mutex_lock(&isert_conn->conn_mutex);
+	if (isert_conn->state != ISER_CONN_FULL_FEATURE)
+		isert_conn->state = ISER_CONN_UP;
+	mutex_unlock(&isert_conn->conn_mutex);
 }
 
 static void
@@ -1118,7 +1139,9 @@ isert_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
 				return ret;
 
 			/* Now we are in FULL_FEATURE phase */
+			mutex_lock(&isert_conn->conn_mutex);
 			isert_conn->state = ISER_CONN_FULL_FEATURE;
+			mutex_unlock(&isert_conn->conn_mutex);
 			goto post_send;
 		}
 
@@ -1135,18 +1158,17 @@ post_send:
 }
 
 static void
-isert_rx_login_req(struct iser_rx_desc *rx_desc, int rx_buflen,
-		   struct isert_conn *isert_conn)
+isert_rx_login_req(struct isert_conn *isert_conn)
 {
+	struct iser_rx_desc *rx_desc = (void *)isert_conn->login_req_buf;
+	int rx_buflen = isert_conn->login_req_len;
 	struct iscsi_conn *conn = isert_conn->conn;
 	struct iscsi_login *login = conn->conn_login;
 	int size;
 
-	if (!login) {
-		pr_err("conn->conn_login is NULL\n");
-		dump_stack();
-		return;
-	}
+	pr_info("conn %p\n", isert_conn);
+
+	WARN_ON_ONCE(!login);
 
 	if (login->first_request) {
 		struct iscsi_login_req *login_req =
@@ -1509,11 +1531,20 @@ isert_rx_completion(struct iser_rx_desc *desc, struct isert_conn *isert_conn,
 		 hdr->opcode, hdr->itt, hdr->flags,
 		 (int)(xfer_len - ISER_HEADERS_LEN));
 
-	if ((char *)desc == isert_conn->login_req_buf)
-		isert_rx_login_req(desc, xfer_len - ISER_HEADERS_LEN,
-				   isert_conn);
-	else
+	if ((char *)desc == isert_conn->login_req_buf) {
+		isert_conn->login_req_len = xfer_len - ISER_HEADERS_LEN;
+		if (isert_conn->conn) {
+			struct iscsi_login *login = isert_conn->conn->conn_login;
+
+			if (login && !login->first_request)
+				isert_rx_login_req(isert_conn);
+		}
+		mutex_lock(&isert_conn->conn_mutex);
+		complete(&isert_conn->login_req_comp);
+		mutex_unlock(&isert_conn->conn_mutex);
+	} else {
 		isert_rx_do_work(desc, isert_conn);
+	}
 
 	ib_dma_sync_single_for_device(ib_dev, rx_dma, rx_buflen,
 				      DMA_FROM_DEVICE);
@@ -3120,7 +3151,15 @@ isert_get_login_rx(struct iscsi_conn *conn, struct iscsi_login *login)
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	int ret;
 
-	pr_debug("isert_get_login_rx before conn_login_comp conn: %p\n", conn);
+	pr_info("before login_req comp conn: %p\n", isert_conn);
+	ret = wait_for_completion_interruptible(&isert_conn->login_req_comp);
+	if (ret) {
+		pr_err("isert_conn %p interrupted before got login req\n",
+			  isert_conn);
+		return ret;
+	}
+	reinit_completion(&isert_conn->login_req_comp);
+
 	/*
 	 * For login requests after the first PDU, isert_rx_login_req() will
 	 * kick schedule_delayed_work(&conn->login_work) as the packet is
@@ -3130,11 +3169,15 @@ isert_get_login_rx(struct iscsi_conn *conn, struct iscsi_login *login)
 	if (!login->first_request)
 		return 0;
 
+	isert_rx_login_req(isert_conn);
+
+	pr_info("before conn_login_comp conn: %p\n", conn);
 	ret = wait_for_completion_interruptible(&isert_conn->conn_login_comp);
 	if (ret)
 		return ret;
 
-	pr_debug("isert_get_login_rx processing login->req: %p\n", login->req);
+	pr_info("processing login->req: %p\n", login->req);
+
 	return 0;
 }
 
@@ -3212,17 +3255,10 @@ accept_wait:
 	isert_conn->conn = conn;
 	max_accept = 0;
 
-	ret = isert_rdma_post_recvl(isert_conn);
-	if (ret)
-		return ret;
-
-	ret = isert_rdma_accept(isert_conn);
-	if (ret)
-		return ret;
-
 	isert_set_conn_info(np, conn, isert_conn);
 
-	pr_debug("Processing isert_accept_np: isert_conn: %p\n", isert_conn);
+	pr_debug("Processing isert_conn: %p\n", isert_conn);
+
 	return 0;
 }
 
