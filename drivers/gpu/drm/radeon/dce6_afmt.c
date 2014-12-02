@@ -102,31 +102,17 @@ void dce6_afmt_select_pin(struct drm_encoder *encoder)
 }
 
 void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
-				    struct drm_display_mode *mode)
+		struct drm_connector *connector, struct drm_display_mode *mode)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
 	u32 tmp = 0, offset;
 
 	if (!dig || !dig->afmt || !dig->afmt->pin)
 		return;
 
 	offset = dig->afmt->pin->offset;
-
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
-		return;
-	}
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		if (connector->latency_present[1])

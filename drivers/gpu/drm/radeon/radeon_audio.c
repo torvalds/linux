@@ -53,6 +53,10 @@ void dce6_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
 		u8 *sadb, int sad_count);
 void dce6_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
 		u8 *sadb, int sad_count);
+void dce4_afmt_write_latency_fields(struct drm_encoder *encoder,
+		struct drm_connector *connector, struct drm_display_mode *mode);
+void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
+		struct drm_connector *connector, struct drm_display_mode *mode);
 
 static const u32 pin_offsets[7] =
 {
@@ -104,21 +108,25 @@ static struct radeon_audio_funcs dce32_dp_funcs = {
 static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.write_sad_regs = evergreen_hdmi_write_sad_regs,
 	.write_speaker_allocation = dce4_afmt_hdmi_write_speaker_allocation,
+	.write_latency_fields = dce4_afmt_write_latency_fields,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
 	.write_sad_regs = evergreen_hdmi_write_sad_regs,
 	.write_speaker_allocation = dce4_afmt_dp_write_speaker_allocation,
+	.write_latency_fields = dce4_afmt_write_latency_fields,
 };
 
 static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.write_sad_regs = dce6_afmt_write_sad_regs,
 	.write_speaker_allocation = dce6_afmt_hdmi_write_speaker_allocation,
+	.write_latency_fields = dce6_afmt_write_latency_fields,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
 	.write_sad_regs = dce6_afmt_write_sad_regs,
 	.write_speaker_allocation = dce6_afmt_dp_write_speaker_allocation,
+	.write_latency_fields = dce6_afmt_write_latency_fields,
 };
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -306,4 +314,30 @@ void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 		radeon_encoder->audio->write_speaker_allocation(encoder, sadb, sad_count);
 
     kfree(sadb);
+}
+
+void radeon_audio_write_latency_fields(struct drm_encoder *encoder,
+	struct drm_display_mode *mode)
+{
+	struct radeon_encoder *radeon_encoder;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector = 0;
+
+	list_for_each_entry(connector,
+		&encoder->dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
+	}
+
+	if (!radeon_connector) {
+		DRM_ERROR("Couldn't find encoder's connector\n");
+		return;
+	}
+
+	radeon_encoder = to_radeon_encoder(encoder);
+
+	if (radeon_encoder->audio && radeon_encoder->audio->write_latency_fields)
+		radeon_encoder->audio->write_latency_fields(encoder, connector, mode);
 }
