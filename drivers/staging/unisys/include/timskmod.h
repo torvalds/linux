@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>

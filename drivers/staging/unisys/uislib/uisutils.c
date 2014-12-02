@@ -25,9 +25,7 @@
 #include "uisutils.h"
 #include "version.h"
 #include "vbushelper.h"
-#include <linux/uuid.h>
 #include <linux/skbuff.h>
-#include <linux/uuid.h>
 #ifdef CONFIG_HIGHMEM
 #include <linux/highmem.h>
 #endif
