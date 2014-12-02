@@ -964,10 +964,6 @@ static void tipc_purge_publications(struct name_seq *seq)
 	struct sub_seq *sseq;
 	struct name_info *info;
 
-	if (!seq->sseqs) {
-		nameseq_delete_empty(seq);
-		return;
-	}
 	sseq = seq->sseqs;
 	info = sseq->info;
 	list_for_each_entry_safe(publ, safe, &info->zone_list, zone_list) {
@@ -975,6 +971,9 @@ static void tipc_purge_publications(struct name_seq *seq)
 					 publ->ref, publ->key);
 		kfree(publ);
 	}
+	hlist_del_init(&seq->ns_list);
+	kfree(seq->sseqs);
+	kfree(seq);
 }
 
 void tipc_nametbl_stop(void)
