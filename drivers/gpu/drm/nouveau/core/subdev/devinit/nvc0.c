@@ -115,4 +115,5 @@ nvc0_devinit_oclass = &(struct nouveau_devinit_impl) {
 	},
 	.pll_set = nvc0_devinit_pll_set,
 	.disable = nvc0_devinit_disable,
+	.post = nvbios_init,
 }.base;

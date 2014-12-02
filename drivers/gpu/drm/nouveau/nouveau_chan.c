@@ -102,14 +102,14 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	chan->drm = drm;
 
 	/* allocate memory for dma push buffer */
-	target = TTM_PL_FLAG_TT;
+	target = TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
 	if (nouveau_vram_pushbuf)
 		target = TTM_PL_FLAG_VRAM;
 
 	ret = nouveau_bo_new(drm->dev, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(chan->push.buffer, target);
+		ret = nouveau_bo_pin(chan->push.buffer, target, false);
 		if (ret == 0)
 			ret = nouveau_bo_map(chan->push.buffer);
 	}
@@ -285,7 +285,6 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nouveau_software_chan *swch;
 	struct nv_dma_v0 args = {};
 	int ret, i;
-	bool save;
 
 	nvif_object_map(chan->object);
 
@@ -387,11 +386,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	}
 
 	/* initialise synchronisation */
-	save = cli->base.super;
-	cli->base.super = true; /* hack until fencenv50 fixed */
-	ret = nouveau_fence(chan->drm)->context_new(chan);
-	cli->base.super = save;
-	return ret;
+	return nouveau_fence(chan->drm)->context_new(chan);
 }
 
 int

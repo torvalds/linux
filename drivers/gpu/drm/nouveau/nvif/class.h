@@ -35,6 +35,7 @@
 #define GK104_DISP                                                   0x00009170
 #define GK110_DISP                                                   0x00009270
 #define GM107_DISP                                                   0x00009470
+#define GM204_DISP                                                   0x00009570
 
 #define NV50_DISP_CURSOR                                             0x0000507a
 #define G82_DISP_CURSOR                                              0x0000827a
@@ -65,6 +66,7 @@
 #define GK104_DISP_CORE_CHANNEL_DMA                                  0x0000917d
 #define GK110_DISP_CORE_CHANNEL_DMA                                  0x0000927d
 #define GM107_DISP_CORE_CHANNEL_DMA                                  0x0000947d
+#define GM204_DISP_CORE_CHANNEL_DMA                                  0x0000957d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                                0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                                 0x0000827e
@@ -131,6 +133,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_COPY1                        0x0000010000000000ULL
 #define NV_DEVICE_V0_DISABLE_VIC                          0x0000020000000000ULL
 #define NV_DEVICE_V0_DISABLE_VENC                         0x0000040000000000ULL
+#define NV_DEVICE_V0_DISABLE_COPY2                        0x0000080000000000ULL
 	__u64 disable;	/* disable particular subsystems */
 	__u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
 };

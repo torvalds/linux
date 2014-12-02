@@ -3,6 +3,7 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
+#include <subdev/bios/init.h>
 #include <subdev/clock/pll.h>
 #include <subdev/devinit.h>
 
@@ -12,6 +13,7 @@ struct nouveau_devinit_impl {
 	int  (*pll_set)(struct nouveau_devinit *, u32 type, u32 freq);
 	u64  (*disable)(struct nouveau_devinit *);
 	u32  (*mmio)(struct nouveau_devinit *, u32);
+	int  (*post)(struct nouveau_subdev *, bool);
 };
 
 #define nouveau_devinit_create(p,e,o,d)                                        \

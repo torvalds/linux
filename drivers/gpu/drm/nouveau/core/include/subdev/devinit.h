@@ -30,5 +30,6 @@ extern struct nouveau_oclass *nva3_devinit_oclass;
 extern struct nouveau_oclass *nvaf_devinit_oclass;
 extern struct nouveau_oclass *nvc0_devinit_oclass;
 extern struct nouveau_oclass *gm107_devinit_oclass;
+extern struct nouveau_oclass *gm204_devinit_oclass;
 
 #endif

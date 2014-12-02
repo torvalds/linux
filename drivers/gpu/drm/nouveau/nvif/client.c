@@ -62,6 +62,7 @@ nvif_drivers[] = {
 #else
 	&nvif_driver_drm,
 	&nvif_driver_lib,
+	&nvif_driver_null,
 #endif
 	NULL
 };

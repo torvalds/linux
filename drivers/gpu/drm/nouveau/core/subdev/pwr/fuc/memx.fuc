@@ -50,6 +50,7 @@ handler(WR32  , 0x0000, 0x0002, #memx_func_wr32)
 handler(WAIT  , 0x0004, 0x0000, #memx_func_wait)
 handler(DELAY , 0x0001, 0x0000, #memx_func_delay)
 handler(VBLANK, 0x0001, 0x0000, #memx_func_wait_vblank)
+handler(TRAIN , 0x0000, 0x0000, #memx_func_train)
 memx_func_tail:
 
 .equ #memx_func_size #memx_func_next - #memx_func_head
@@ -63,6 +64,10 @@ memx_ts_end:
 memx_data_head:
 .skip 0x0800
 memx_data_tail:
+
+memx_train_head:
+.skip 0x0100
+memx_train_tail:
 #endif
 
 /******************************************************************************
@@ -260,6 +265,101 @@ memx_func_delay:
 // description
 //
 // $r15 - current (memx)
+// $r4  - packet length
+// $r3  - opcode desciption
+// $r0  - zero
+memx_func_train:
+#if NVKM_PPWR_CHIPSET == GT215
+// $r5 - outer loop counter
+// $r6 - inner loop counter
+// $r7 - entry counter (#memx_train_head + $r7)
+	movw $r5 0x3
+	movw $r7 0x0
+
+// Read random memory to wake up... things
+	imm32($r9, 0x700000)
+	nv_rd32($r8,$r9)
+	movw $r14 0x2710
+	call(nsec)
+
+	memx_func_train_loop_outer:
+		mulu $r8 $r5 0x101
+		sethi $r8 0x02000000
+		imm32($r9, 0x1111e0)
+		nv_wr32($r9, $r8)
+		push $r5
+
+		movw $r6 0x0
+		memx_func_train_loop_inner:
+			movw $r8 0x1111
+			mulu $r9 $r6 $r8
+			shl b32 $r8 $r9 0x10
+			or $r8 $r9
+			imm32($r9, 0x100720)
+			nv_wr32($r9, $r8)
+
+			imm32($r9, 0x100080)
+			nv_rd32($r8, $r9)
+			or $r8 $r8 0x20
+			nv_wr32($r9, $r8)
+
+			imm32($r9, 0x10053c)
+			imm32($r8, 0x80003002)
+			nv_wr32($r9, $r8)
+
+			imm32($r14, 0x100560)
+			imm32($r13, 0x80000000)
+			add b32 $r12 $r13 0
+			imm32($r11, 0x001e8480)
+			call(wait)
+
+			// $r5 - inner inner loop counter
+			// $r9 - result
+			movw $r5 0
+			imm32($r9, 0x8300ffff)
+			memx_func_train_loop_4x:
+				imm32($r10, 0x100080)
+				nv_rd32($r8, $r10)
+				imm32($r11, 0xffffffdf)
+				and $r8 $r11
+				nv_wr32($r10, $r8)
+
+				imm32($r10, 0x10053c)
+				imm32($r8, 0x80003002)
+				nv_wr32($r10, $r8)
+
+				imm32($r14, 0x100560)
+				imm32($r13, 0x80000000)
+				mov b32 $r12 $r13
+				imm32($r11, 0x00002710)
+				call(wait)
+
+				nv_rd32($r13, $r14)
+				and $r9 $r9 $r13
+
+				add b32 $r5 1
+				cmp b16 $r5 0x4
+				bra l #memx_func_train_loop_4x
+
+			add b32 $r10 $r7 #memx_train_head
+			st b32 D[$r10 + 0] $r9
+			add b32 $r6 1
+			add b32 $r7 4
+
+			cmp b16 $r6 0x10
+			bra l #memx_func_train_loop_inner
+
+		pop $r5
+		add b32 $r5 1
+		cmp b16 $r5 7
+		bra l #memx_func_train_loop_outer
+
+#endif
+	ret
+
+// description
+//
+// $r15 - current (memx)
 // $r14 - sender process name
 // $r13 - message (exec)
 // $r12 - head of script
@@ -307,8 +407,19 @@ memx_exec:
 // $r11 - data1
 // $r0  - zero
 memx_info:
+	cmp b16 $r12 0x1
+	bra e #memx_info_train
+
+	memx_info_data:
 	mov $r12 #memx_data_head
 	mov $r11 #memx_data_tail - #memx_data_head
+	bra #memx_info_send
+
+	memx_info_train:
+	mov $r12 #memx_train_head
+	mov $r11 #memx_train_tail - #memx_train_head
+
+	memx_info_send:
 	call(send)
 	ret
 

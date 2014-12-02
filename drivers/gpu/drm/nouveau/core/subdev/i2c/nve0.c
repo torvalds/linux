@@ -24,7 +24,7 @@
 
 #include "nv50.h"
 
-static void
+void
 nve0_aux_stat(struct nouveau_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
 {
 	u32 intr = nv_rd32(i2c, 0x00dc60);
@@ -38,7 +38,7 @@ nve0_aux_stat(struct nouveau_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
 	nv_wr32(i2c, 0x00dc60, intr);
 }
 
-static void
+void
 nve0_aux_mask(struct nouveau_i2c *i2c, u32 type, u32 mask, u32 data)
 {
 	u32 temp = nv_rd32(i2c, 0x00dc68), i;

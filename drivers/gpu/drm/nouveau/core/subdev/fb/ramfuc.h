@@ -141,6 +141,20 @@ ramfuc_wait_vblank(struct ramfuc *ram)
 }
 
 static inline void
+ramfuc_train(struct ramfuc *ram)
+{
+	nouveau_memx_train(ram->memx);
+}
+
+static inline int
+ramfuc_train_result(struct nouveau_fb *pfb, u32 *result, u32 rsize)
+{
+	struct nouveau_pwr *ppwr = nouveau_pwr(pfb);
+
+	return nouveau_memx_train_result(ppwr, result, rsize);
+}
+
+static inline void
 ramfuc_block(struct ramfuc *ram)
 {
 	nouveau_memx_block(ram->memx);
@@ -162,6 +176,8 @@ ramfuc_unblock(struct ramfuc *ram)
 #define ram_wait(s,r,m,d,n)  ramfuc_wait(&(s)->base, (r), (m), (d), (n))
 #define ram_nsec(s,n)        ramfuc_nsec(&(s)->base, (n))
 #define ram_wait_vblank(s)   ramfuc_wait_vblank(&(s)->base)
+#define ram_train(s)         ramfuc_train(&(s)->base)
+#define ram_train_result(s,r,l) ramfuc_train_result((s), (r), (l))
 #define ram_block(s)         ramfuc_block(&(s)->base)
 #define ram_unblock(s)       ramfuc_unblock(&(s)->base)
 

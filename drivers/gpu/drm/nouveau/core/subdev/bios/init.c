@@ -255,6 +255,8 @@ init_i2c(struct nvbios_init *init, int index)
 		}
 
 		index = init->outp->i2c_index;
+		if (init->outp->type == DCB_OUTPUT_DP)
+			index += NV_I2C_AUX(0);
 	}
 
 	return i2c->find(i2c, index);
@@ -278,7 +280,7 @@ init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 	return -ENODEV;
 }
 
-static int
+static u8
 init_rdauxr(struct nvbios_init *init, u32 addr)
 {
 	struct nouveau_i2c_port *port = init_i2c(init, -2);
@@ -286,20 +288,24 @@ init_rdauxr(struct nvbios_init *init, u32 addr)
 
 	if (port && init_exec(init)) {
 		int ret = nv_rdaux(port, addr, &data, 1);
-		if (ret)
-			return ret;
-		return data;
+		if (ret == 0)
+			return data;
+		trace("auxch read failed with %d\n", ret);
 	}
 
-	return -ENODEV;
+	return 0x00;
 }
 
 static int
 init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 {
 	struct nouveau_i2c_port *port = init_i2c(init, -2);
-	if (port && init_exec(init))
-		return nv_wraux(port, addr, &data, 1);
+	if (port && init_exec(init)) {
+		int ret = nv_wraux(port, addr, &data, 1);
+		if (ret)
+			trace("auxch write failed with %d\n", ret);
+		return ret;
+	}
 	return -ENODEV;
 }
 
@@ -835,6 +841,40 @@ init_io_or(struct nvbios_init *init)
 
 	data = init_rdvgai(init, 0x03d4, index);
 	init_wrvgai(init, 0x03d4, index, data | (1 << or));
+}
+
+/**
+ * INIT_ANDN_REG - opcode 0x47
+ *
+ */
+static void
+init_andn_reg(struct nvbios_init *init)
+{
+	struct nouveau_bios *bios = init->bios;
+	u32  reg = nv_ro32(bios, init->offset + 1);
+	u32 mask = nv_ro32(bios, init->offset + 5);
+
+	trace("ANDN_REG\tR[0x%06x] &= ~0x%08x\n", reg, mask);
+	init->offset += 9;
+
+	init_mask(init, reg, mask, 0);
+}
+
+/**
+ * INIT_OR_REG - opcode 0x48
+ *
+ */
+static void
+init_or_reg(struct nvbios_init *init)
+{
+	struct nouveau_bios *bios = init->bios;
+	u32  reg = nv_ro32(bios, init->offset + 1);
+	u32 mask = nv_ro32(bios, init->offset + 5);
+
+	trace("OR_REG\tR[0x%06x] |= 0x%08x\n", reg, mask);
+	init->offset += 9;
+
+	init_mask(init, reg, 0, mask);
 }
 
 /**
@@ -2068,6 +2108,8 @@ static struct nvbios_init_opcode {
 	[0x3a] = { init_dp_condition },
 	[0x3b] = { init_io_mask_or },
 	[0x3c] = { init_io_or },
+	[0x47] = { init_andn_reg },
+	[0x48] = { init_or_reg },
 	[0x49] = { init_idx_addr_latched },
 	[0x4a] = { init_io_restrict_pll2 },
 	[0x4b] = { init_pll2 },

@@ -1557,7 +1557,7 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		    nvc0_graph_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
 		    nvc0_graph_ctor_fw(priv, "fuc41ac", &priv->fuc41ac) ||
 		    nvc0_graph_ctor_fw(priv, "fuc41ad", &priv->fuc41ad))
-			return -EINVAL;
+			return -ENODEV;
 		priv->firmware = true;
 	}
 
