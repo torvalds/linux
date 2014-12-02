@@ -194,7 +194,7 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm)
 
 	if (!lli->lli_remote_perms)
 		lli->lli_remote_perms = perm_hash;
-	else if (perm_hash)
+	else
 		free_rmtperm_hash(perm_hash);
 
 	head = lli->lli_remote_perms + remote_perm_hashfunc(perm->rp_uid);
@@ -209,8 +209,7 @@ again:
 			continue;
 		if (tmp->lrp_fsgid != perm->rp_fsgid)
 			continue;
-		if (lrp)
-			free_ll_remote_perm(lrp);
+		free_ll_remote_perm(lrp);
 		lrp = tmp;
 		break;
 	}
