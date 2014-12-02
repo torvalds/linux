@@ -113,18 +113,12 @@ static void basic_destroy(struct tcf_proto *tp)
 
 static int basic_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct basic_head *head = rtnl_dereference(tp->root);
-	struct basic_filter *t, *f = (struct basic_filter *) arg;
+	struct basic_filter *f = (struct basic_filter *) arg;
 
-	list_for_each_entry(t, &head->flist, link)
-		if (t == f) {
-			list_del_rcu(&t->link);
-			tcf_unbind_filter(tp, &t->res);
-			call_rcu(&t->rcu, basic_delete_filter);
-			return 0;
-		}
-
-	return -ENOENT;
+	list_del_rcu(&f->link);
+	tcf_unbind_filter(tp, &f->res);
+	call_rcu(&f->rcu, basic_delete_filter);
+	return 0;
 }
 
 static const struct nla_policy basic_policy[TCA_BASIC_MAX + 1] = {
