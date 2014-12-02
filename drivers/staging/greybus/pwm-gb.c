@@ -62,8 +62,8 @@ struct gb_pwm_deactivate_request {
 
 struct gb_pwm_config_request {
 	__u8	which;
-	__u32	duty;
-	__u32	period;
+	__le32	duty;
+	__le32	period;
 };
 
 struct gb_pwm_polarity_request {
@@ -152,8 +152,8 @@ static int gb_pwm_config_operation(struct gb_pwm_chip *pwmc,
 		return -EINVAL;
 
 	request.which = which;
-	request.duty = duty;
-	request.period = period;
+	request.duty = cpu_to_le32(duty);
+	request.period = cpu_to_le32(period);
 	return gb_operation_sync(pwmc->connection, GB_PWM_TYPE_CONFIG,
 				 &request, sizeof(request), NULL, 0);
 }
