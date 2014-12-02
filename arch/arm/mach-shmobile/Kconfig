@@ -128,14 +128,6 @@ config ARCH_R8A7779
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 
-config ARCH_R8A7790
-	bool "R-Car H2 (R8A77900)"
-	select ARCH_RCAR_GEN2
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select MIGHT_HAVE_PCI
-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-
 comment "Renesas ARM SoCs Board Type"
 
 config MACH_APE6EVM
