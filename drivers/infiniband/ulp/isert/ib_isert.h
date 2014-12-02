@@ -82,6 +82,12 @@ struct isert_data_buf {
 	enum dma_data_direction dma_dir;
 };
 
+enum {
+	DATA = 0,
+	PROT = 1,
+	SIG = 2,
+};
+
 struct isert_rdma_wr {
 	struct list_head	wr_list;
 	struct isert_cmd	*isert_cmd;
@@ -91,6 +97,7 @@ struct isert_rdma_wr {
 	int			send_wr_num;
 	struct ib_send_wr	*send_wr;
 	struct ib_send_wr	s_send_wr;
+	struct ib_sge		ib_sg[3];
 	struct isert_data_buf	data;
 	struct isert_data_buf	prot;
 	struct fast_reg_descriptor *fr_desc;
