@@ -1336,6 +1336,18 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf)
 	return 0;
 }
 
+static int gen8_init_rcs_context(struct intel_engine_cs *ring,
+		       struct intel_context *ctx)
+{
+	int ret;
+
+	ret = intel_logical_ring_workarounds_emit(ring, ctx);
+	if (ret)
+		return ret;
+
+	return intel_lr_context_render_state_init(ring, ctx);
+}
+
 /**
  * intel_logical_ring_cleanup() - deallocate the Engine Command Streamer
  *
@@ -1409,7 +1421,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 		ring->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	ring->init_hw = gen8_init_render_ring;
-	ring->init_context = intel_logical_ring_workarounds_emit;
+	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
 	ring->get_seqno = gen8_get_seqno;
 	ring->set_seqno = gen8_set_seqno;
@@ -1904,21 +1916,17 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 
 	if (ctx == ring->default_context)
 		lrc_setup_hardware_status_page(ring, ctx_obj);
-
-	if (ring->id == RCS && !ctx->rcs_initialized) {
+	else if (ring->id == RCS && !ctx->rcs_initialized) {
 		if (ring->init_context) {
 			ret = ring->init_context(ring, ctx);
-			if (ret)
+			if (ret) {
 				DRM_ERROR("ring init context: %d\n", ret);
+				ctx->engine[ring->id].ringbuf = NULL;
+				ctx->engine[ring->id].state = NULL;
+				goto error;
+			}
 		}
 
-		ret = intel_lr_context_render_state_init(ring, ctx);
-		if (ret) {
-			DRM_ERROR("Init render state failed: %d\n", ret);
-			ctx->engine[ring->id].ringbuf = NULL;
-			ctx->engine[ring->id].state = NULL;
-			goto error;
-		}
 		ctx->rcs_initialized = true;
 	}
 
