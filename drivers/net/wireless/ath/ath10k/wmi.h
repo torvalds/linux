@@ -2583,6 +2583,7 @@ struct wmi_pdev_param_map {
 	u32 fast_channel_reset;
 	u32 burst_dur;
 	u32 burst_enable;
+	u32 cal_period;
 };
 
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
@@ -2802,6 +2803,9 @@ struct wmi_pdev_set_param_cmd {
 	__le32 param_id;
 	__le32 param_value;
 } __packed;
+
+/* valid period is 1 ~ 60000ms, unit in millisecond */
+#define WMI_PDEV_PARAM_CAL_PERIOD_MAX 60000
 
 struct wmi_pdev_get_tpc_config_cmd {
 	/* parameter   */

@@ -436,6 +436,7 @@ static struct wmi_pdev_param_map wmi_pdev_param_map = {
 	.fast_channel_reset = WMI_PDEV_PARAM_UNSUPPORTED,
 	.burst_dur = WMI_PDEV_PARAM_UNSUPPORTED,
 	.burst_enable = WMI_PDEV_PARAM_UNSUPPORTED,
+	.cal_period = WMI_PDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_pdev_param_map wmi_10x_pdev_param_map = {
@@ -488,6 +489,7 @@ static struct wmi_pdev_param_map wmi_10x_pdev_param_map = {
 	.fast_channel_reset = WMI_10X_PDEV_PARAM_FAST_CHANNEL_RESET,
 	.burst_dur = WMI_10X_PDEV_PARAM_BURST_DUR,
 	.burst_enable = WMI_10X_PDEV_PARAM_BURST_ENABLE,
+	.cal_period = WMI_10X_PDEV_PARAM_CAL_PERIOD,
 };
 
 /* firmware 10.2 specific mappings */

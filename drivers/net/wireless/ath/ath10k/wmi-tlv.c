@@ -2096,6 +2096,7 @@ static struct wmi_pdev_param_map wmi_tlv_pdev_param_map = {
 	.fast_channel_reset = WMI_TLV_PDEV_PARAM_UNSUPPORTED,
 	.burst_dur = WMI_TLV_PDEV_PARAM_BURST_DUR,
 	.burst_enable = WMI_TLV_PDEV_PARAM_BURST_ENABLE,
+	.cal_period = WMI_PDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_tlv_vdev_param_map = {

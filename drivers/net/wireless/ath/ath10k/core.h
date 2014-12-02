@@ -327,6 +327,7 @@ struct ath10k_debug {
 	u32 fw_dbglog_mask;
 	u32 pktlog_filter;
 	u32 reg_addr;
+	u32 nf_cal_period;
 
 	u8 htt_max_amsdu;
 	u8 htt_max_ampdu;
