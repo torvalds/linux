@@ -299,7 +299,7 @@ static void nci_rf_deactivate_req(struct nci_dev *ndev, unsigned long opt)
 {
 	struct nci_rf_deactivate_cmd cmd;
 
-	cmd.type = NCI_DEACTIVATE_TYPE_IDLE_MODE;
+	cmd.type = opt;
 
 	nci_send_cmd(ndev, NCI_OP_RF_DEACTIVATE_CMD,
 		     sizeof(struct nci_rf_deactivate_cmd), &cmd);
@@ -527,7 +527,8 @@ static int nci_start_poll(struct nfc_dev *nfc_dev,
 	    (atomic_read(&ndev->state) == NCI_POLL_ACTIVE)) {
 		pr_debug("target active or w4 select, implicitly deactivate\n");
 
-		rc = nci_request(ndev, nci_rf_deactivate_req, 0,
+		rc = nci_request(ndev, nci_rf_deactivate_req,
+				 NCI_DEACTIVATE_TYPE_IDLE_MODE,
 				 msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 		if (rc)
 			return -EBUSY;
@@ -568,7 +569,7 @@ static void nci_stop_poll(struct nfc_dev *nfc_dev)
 		return;
 	}
 
-	nci_request(ndev, nci_rf_deactivate_req, 0,
+	nci_request(ndev, nci_rf_deactivate_req, NCI_DEACTIVATE_TYPE_IDLE_MODE,
 		    msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 }
 
@@ -653,7 +654,8 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 	ndev->target_active_prot = 0;
 
 	if (atomic_read(&ndev->state) == NCI_POLL_ACTIVE) {
-		nci_request(ndev, nci_rf_deactivate_req, 0,
+		nci_request(ndev, nci_rf_deactivate_req,
+			    NCI_DEACTIVATE_TYPE_SLEEP_MODE,
 			    msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 	}
 }
