@@ -43,6 +43,13 @@
 		clock-frequency = <32768>;
 	};
 
+	reboot: syscon-reboot {
+		compatible = "syscon-reboot";
+		regmap = <&src>;
+		offset = <0x0>;
+		mask = <0x1000>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -317,6 +324,11 @@
 				reg = <0x40034800 0x200>;
 				clocks = <&clks VF610_CLK_USBC0>;
 				status = "disabled";
+			};
+
+			src: src@4006e000 {
+				compatible = "fsl,vf610-src", "syscon";
+				reg = <0x4006e000 0x1000>;
 			};
 		};
 
