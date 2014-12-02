@@ -20,6 +20,7 @@
 
 #include <linux/clk.h>
 #include <linux/cpu_pm.h>
+#include <linux/cpufreq-dt.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -571,6 +572,10 @@ int mvebu_pmsu_dfs_request(int cpu)
 	return 0;
 }
 
+struct cpufreq_dt_platform_data cpufreq_dt_pd = {
+	.independent_clocks = true,
+};
+
 static int __init armada_xp_pmsu_cpufreq_init(void)
 {
 	struct device_node *np;
@@ -643,7 +648,8 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 		}
 	}
 
-	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
+	platform_device_register_data(NULL, "cpufreq-dt", -1,
+				      &cpufreq_dt_pd, sizeof(cpufreq_dt_pd));
 	return 0;
 }
 
