@@ -720,7 +720,7 @@ tpm_stm_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct tpm_stm_dev *tpm_dev;
 
 	if (!client) {
-		dev_info(&client->dev, "%s: i2c client is NULL. Device not accessible.\n",
+		pr_info("%s: i2c client is NULL. Device not accessible.\n",
 			__func__);
 		return -ENODEV;
 	}
