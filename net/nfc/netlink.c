@@ -1310,6 +1310,51 @@ static int nfc_genl_dump_ses_done(struct netlink_callback *cb)
 	return 0;
 }
 
+static int nfc_se_io(struct nfc_dev *dev, u32 se_idx,
+		     u8 *apdu, size_t apdu_length,
+		     se_io_cb_t cb, void *cb_context)
+{
+	struct nfc_se *se;
+	int rc;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->dev_up) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->ops->se_io) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	se = nfc_find_se(dev, se_idx);
+	if (!se) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+	if (se->state != NFC_SE_ENABLED) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	rc = dev->ops->se_io(dev, se_idx, apdu,
+			apdu_length, cb, cb_context);
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
 struct se_io_ctx {
 	u32 dev_idx;
 	u32 se_idx;
@@ -1392,7 +1437,7 @@ static int nfc_genl_se_io(struct sk_buff *skb, struct genl_info *info)
 	ctx->dev_idx = dev_idx;
 	ctx->se_idx = se_idx;
 
-	return dev->ops->se_io(dev, se_idx, apdu, apdu_len, se_io_cb, ctx);
+	return nfc_se_io(dev, se_idx, apdu, apdu_len, se_io_cb, ctx);
 }
 
 static const struct genl_ops nfc_genl_ops[] = {
