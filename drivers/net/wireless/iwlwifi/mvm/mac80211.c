@@ -774,8 +774,15 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	u32 file_len, rxf_len;
 	unsigned long flags;
 	int reg_val;
+	u32 smem_len = mvm->cfg->smem_len;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	/* W/A for 8000 HW family A-step */
+	if (mvm->cfg->smem_len &&
+	    mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP)
+		smem_len = 0x38000;
 
 	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
@@ -805,6 +812,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		   sram_len +
 		   rxf_len +
 		   sizeof(*dump_info);
+
+	/* Make room for the SMEM, if it exists */
+	if (smem_len)
+		file_len += sizeof(*dump_data) + smem_len;
 
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
@@ -855,6 +866,14 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	dump_data->len = cpu_to_le32(sram_len);
 	iwl_trans_read_mem_bytes(mvm->trans, sram_ofs, dump_data->data,
 				 sram_len);
+
+	if (smem_len) {
+		dump_data = iwl_fw_error_next_data(dump_data);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SMEM);
+		dump_data->len = cpu_to_le32(smem_len);
+		iwl_trans_read_mem_bytes(mvm->trans, mvm->cfg->smem_offset,
+					 dump_data->data, smem_len);
+	}
 
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans);
 	fw_error_dump->op_mode_len = file_len;
