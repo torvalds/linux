@@ -127,6 +127,7 @@ static void hd_buffer_constraints(struct greybus_host_device *hd)
 	 */
 	hd->buffer_headroom = sizeof(u32);	/* For cport id */
 	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX;
+	BUILD_BUG_ON(hd->buffer_headroom > GB_BUFFER_HEADROOM_MAX);
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
