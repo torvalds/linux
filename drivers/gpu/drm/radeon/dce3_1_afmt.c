@@ -136,7 +136,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	offset = dig->afmt->offset;
 
 	/* disable audio prior to setting up hw */
-	dig->afmt->pin = r600_audio_get_pin(rdev);
+	dig->afmt->pin = radeon_audio_get_pin(encoder);
 	r600_audio_enable(rdev, dig->afmt->pin, 0);
 
 	r600_audio_set_dto(encoder, mode->clock);

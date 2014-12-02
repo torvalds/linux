@@ -29,6 +29,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "r600d.h"
 #include "atom.h"
 
@@ -487,7 +488,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	offset = dig->afmt->offset;
 
 	/* disable audio prior to setting up hw */
-	dig->afmt->pin = r600_audio_get_pin(rdev);
+	dig->afmt->pin = radeon_audio_get_pin(encoder);
 	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
 
 	r600_audio_set_dto(encoder, mode->clock);

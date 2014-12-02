@@ -41,6 +41,7 @@ struct radeon_audio_basic_funcs
 
 struct radeon_audio_funcs
 {
+	struct r600_audio_pin* (*get_pin)(struct radeon_device *rdev);
 	void (*write_latency_fields)(struct drm_encoder *encoder,
 		struct drm_connector *connector, struct drm_display_mode *mode);
 	void (*write_sad_regs)(struct drm_encoder *encoder,
@@ -60,5 +61,6 @@ void radeon_audio_write_sad_regs(struct drm_encoder *encoder);
 void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder);
 void radeon_audio_write_latency_fields(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
+struct r600_audio_pin *radeon_audio_get_pin(struct drm_encoder *encoder);
 
 #endif

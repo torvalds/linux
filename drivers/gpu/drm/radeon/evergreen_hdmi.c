@@ -301,11 +301,10 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	}
 
 	/* disable audio prior to setting up hw */
+	dig->afmt->pin = radeon_audio_get_pin(encoder);
 	if (ASIC_IS_DCE6(rdev)) {
-		dig->afmt->pin = dce6_audio_get_pin(rdev);
 		dce6_audio_enable(rdev, dig->afmt->pin, 0);
 	} else {
-		dig->afmt->pin = r600_audio_get_pin(rdev);
 		dce4_audio_enable(rdev, dig->afmt->pin, 0);
 	}
 
