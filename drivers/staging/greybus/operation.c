@@ -651,11 +651,11 @@ static void gb_connection_recv_request(struct gb_connection *connection,
  * data into the response buffer and handle the rest via workqueue.
  */
 static void gb_connection_recv_response(struct gb_connection *connection,
-				u16 operation_id, void *data, size_t size)
+			u16 operation_id, u8 result, void *data, size_t size)
 {
 	struct gb_operation *operation;
 	struct gb_message *message;
-	int result;
+	int errno = gb_operation_status_map(result);
 
 	operation = gb_pending_operation_find(connection, operation_id);
 	if (!operation) {
@@ -667,20 +667,19 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	gb_pending_operation_remove(operation);
 
 	message = operation->response;
-	result = gb_operation_status_map(message->header->result);
-	if (!result && size != message->size) {
+	if (!errno && size != message->size) {
 		gb_connection_err(connection, "bad message size (%zu != %zu)",
 			size, message->size);
-		result = -EMSGSIZE;
+		errno = -EMSGSIZE;
 	}
 
 	/* We must ignore the payload if a bad status is returned */
-	if (result)
+	if (errno)
 		size = sizeof(*message->header);
 	memcpy(message->header, data, size);
 
 	/* The rest will be handled in work queue context */
-	if (gb_operation_result_set(operation, result))
+	if (gb_operation_result_set(operation, errno))
 		queue_work(gb_operation_workqueue, &operation->work);
 }
 
@@ -717,7 +716,7 @@ void gb_connection_recv(struct gb_connection *connection,
 	operation_id = le16_to_cpu(header->operation_id);
 	if (header->type & GB_OPERATION_TYPE_RESPONSE)
 		gb_connection_recv_response(connection, operation_id,
-						data, msg_size);
+						header->result, data, msg_size);
 	else
 		gb_connection_recv_request(connection, operation_id,
 						header->type, data, msg_size);
