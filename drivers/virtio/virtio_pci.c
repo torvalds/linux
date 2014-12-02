@@ -40,6 +40,9 @@ struct virtio_pci_device
 	/* the IO mapping for the PCI config space */
 	void __iomem *ioaddr;
 
+	/* the IO mapping for ISR operation */
+	void __iomem *isr;
+
 	/* a list of queues so we can dispatch IRQs */
 	spinlock_t lock;
 	struct list_head virtqueues;
@@ -248,7 +251,7 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 
 	/* reading the ISR has the effect of also clearing it so it's very
 	 * important to save off the value. */
-	isr = ioread8(vp_dev->ioaddr + VIRTIO_PCI_ISR);
+	isr = ioread8(vp_dev->isr);
 
 	/* It's definitely not us if the ISR was not high */
 	if (!isr)
@@ -718,6 +721,8 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 		err = -ENOMEM;
 		goto out_req_regions;
 	}
+
+	vp_dev->isr = vp_dev->ioaddr + VIRTIO_PCI_ISR;
 
 	pci_set_drvdata(pci_dev, vp_dev);
 	pci_set_master(pci_dev);
