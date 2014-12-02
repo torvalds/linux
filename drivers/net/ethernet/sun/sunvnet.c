@@ -375,6 +375,8 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 		}
 	}
 
+	skb->ip_summed = port->switch_port ? CHECKSUM_NONE : CHECKSUM_PARTIAL;
+
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
 	napi_gro_receive(&port->napi, skb);
@@ -1047,7 +1049,8 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 	if (((unsigned long)skb->data & 7) != VNET_PACKET_SKIP ||
 	    skb_tailroom(skb) < pad ||
 	    skb_headroom(skb) < VNET_PACKET_SKIP || docopy) {
-		int offset;
+		int start = 0, offset;
+		__wsum csum;
 
 		len = skb->len > ETH_ZLEN ? skb->len : ETH_ZLEN;
 		nskb = alloc_and_align_skb(skb->dev, len);
@@ -1065,10 +1068,35 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 		offset = skb_transport_header(skb) - skb->data;
 		skb_set_transport_header(nskb, offset);
 
+		offset = 0;
 		nskb->csum_offset = skb->csum_offset;
 		nskb->ip_summed = skb->ip_summed;
 
-		if (skb_copy_bits(skb, 0, nskb->data, skb->len)) {
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			start = skb_checksum_start_offset(skb);
+		if (start) {
+			struct iphdr *iph = ip_hdr(nskb);
+			int offset = start + nskb->csum_offset;
+
+			if (skb_copy_bits(skb, 0, nskb->data, start)) {
+				dev_kfree_skb(nskb);
+				dev_kfree_skb(skb);
+				return NULL;
+			}
+			*(__sum16 *)(skb->data + offset) = 0;
+			csum = skb_copy_and_csum_bits(skb, start,
+						      nskb->data + start,
+						      skb->len - start, 0);
+			if (iph->protocol == IPPROTO_TCP ||
+			    iph->protocol == IPPROTO_UDP) {
+				csum = csum_tcpudp_magic(iph->saddr, iph->daddr,
+							 skb->len - start,
+							 iph->protocol, csum);
+			}
+			*(__sum16 *)(nskb->data + offset) = csum;
+
+			nskb->ip_summed = CHECKSUM_NONE;
+		} else if (skb_copy_bits(skb, 0, nskb->data, skb->len)) {
 			dev_kfree_skb(nskb);
 			dev_kfree_skb(skb);
 			return NULL;
@@ -1149,6 +1177,9 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		rcu_read_unlock();
 		goto out_dropped;
 	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		vnet_fullcsum(skb);
 
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	i = skb_get_queue_mapping(skb);
@@ -1611,7 +1642,7 @@ static struct vnet *vnet_new(const u64 *local_mac)
 	dev->ethtool_ops = &vnet_ethtool_ops;
 	dev->watchdog_timeo = VNET_TX_TIMEOUT;
 
-	dev->hw_features = NETIF_F_SG;
+	dev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG;
 	dev->features = dev->hw_features;
 
 	err = register_netdev(dev);
