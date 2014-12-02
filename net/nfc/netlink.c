@@ -810,6 +810,31 @@ out:
 	return rc;
 }
 
+static int nfc_genl_activate_target(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	u32 device_idx, target_idx, protocol;
+	int rc;
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+		return -EINVAL;
+
+	device_idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+
+	dev = nfc_get_device(device_idx);
+	if (!dev)
+		return -ENODEV;
+
+	target_idx = nla_get_u32(info->attrs[NFC_ATTR_TARGET_INDEX]);
+	protocol = nla_get_u32(info->attrs[NFC_ATTR_PROTOCOLS]);
+
+	nfc_deactivate_target(dev, target_idx);
+	rc = nfc_activate_target(dev, target_idx, protocol);
+
+	nfc_put_device(dev);
+	return 0;
+}
+
 static int nfc_genl_dep_link_up(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nfc_dev *dev;
@@ -1453,6 +1478,11 @@ static const struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_SE_IO,
 		.doit = nfc_genl_se_io,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_ACTIVATE_TARGET,
+		.doit = nfc_genl_activate_target,
 		.policy = nfc_genl_policy,
 	},
 };

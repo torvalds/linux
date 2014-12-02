@@ -116,6 +116,7 @@ enum nfc_commands {
 	NFC_EVENT_SE_TRANSACTION,
 	NFC_CMD_GET_SE,
 	NFC_CMD_SE_IO,
+	NFC_CMD_ACTIVATE_TARGET,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
