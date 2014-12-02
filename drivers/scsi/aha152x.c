@@ -2490,299 +2490,296 @@ static void show_queues(struct Scsi_Host *shpnt)
 	disp_enintr(shpnt);
 }
 
-#undef SPRINTF
-#define SPRINTF(args...) seq_printf(m, ##args)
-
 static void get_command(struct seq_file *m, Scsi_Cmnd * ptr)
 {
 	int i;
 
-	SPRINTF("%p: target=%d; lun=%d; cmnd=( ",
+	seq_printf(m, "%p: target=%d; lun=%d; cmnd=( ",
 		ptr, ptr->device->id, (u8)ptr->device->lun);
 
 	for (i = 0; i < COMMAND_SIZE(ptr->cmnd[0]); i++)
-		SPRINTF("0x%02x ", ptr->cmnd[i]);
+		seq_printf(m, "0x%02x ", ptr->cmnd[i]);
 
-	SPRINTF("); resid=%d; residual=%d; buffers=%d; phase |",
+	seq_printf(m, "); resid=%d; residual=%d; buffers=%d; phase |",
 		scsi_get_resid(ptr), ptr->SCp.this_residual,
 		ptr->SCp.buffers_residual);
 
 	if (ptr->SCp.phase & not_issued)
-		SPRINTF("not issued|");
+		seq_printf(m, "not issued|");
 	if (ptr->SCp.phase & selecting)
-		SPRINTF("selecting|");
+		seq_printf(m, "selecting|");
 	if (ptr->SCp.phase & disconnected)
-		SPRINTF("disconnected|");
+		seq_printf(m, "disconnected|");
 	if (ptr->SCp.phase & aborted)
-		SPRINTF("aborted|");
+		seq_printf(m, "aborted|");
 	if (ptr->SCp.phase & identified)
-		SPRINTF("identified|");
+		seq_printf(m, "identified|");
 	if (ptr->SCp.phase & completed)
-		SPRINTF("completed|");
+		seq_printf(m, "completed|");
 	if (ptr->SCp.phase & spiordy)
-		SPRINTF("spiordy|");
+		seq_printf(m, "spiordy|");
 	if (ptr->SCp.phase & syncneg)
-		SPRINTF("syncneg|");
-	SPRINTF("; next=0x%p\n", SCNEXT(ptr));
+		seq_printf(m, "syncneg|");
+	seq_printf(m, "; next=0x%p\n", SCNEXT(ptr));
 }
 
 static void get_ports(struct seq_file *m, struct Scsi_Host *shpnt)
 {
 	int s;
 
-	SPRINTF("\n%s: %s(%s) ", CURRENT_SC ? "on bus" : "waiting", states[STATE].name, states[PREVSTATE].name);
+	seq_printf(m, "\n%s: %s(%s) ", CURRENT_SC ? "on bus" : "waiting", states[STATE].name, states[PREVSTATE].name);
 
 	s = GETPORT(SCSISEQ);
-	SPRINTF("SCSISEQ( ");
+	seq_printf(m, "SCSISEQ( ");
 	if (s & TEMODEO)
-		SPRINTF("TARGET MODE ");
+		seq_printf(m, "TARGET MODE ");
 	if (s & ENSELO)
-		SPRINTF("SELO ");
+		seq_printf(m, "SELO ");
 	if (s & ENSELI)
-		SPRINTF("SELI ");
+		seq_printf(m, "SELI ");
 	if (s & ENRESELI)
-		SPRINTF("RESELI ");
+		seq_printf(m, "RESELI ");
 	if (s & ENAUTOATNO)
-		SPRINTF("AUTOATNO ");
+		seq_printf(m, "AUTOATNO ");
 	if (s & ENAUTOATNI)
-		SPRINTF("AUTOATNI ");
+		seq_printf(m, "AUTOATNI ");
 	if (s & ENAUTOATNP)
-		SPRINTF("AUTOATNP ");
+		seq_printf(m, "AUTOATNP ");
 	if (s & SCSIRSTO)
-		SPRINTF("SCSIRSTO ");
-	SPRINTF(");");
+		seq_printf(m, "SCSIRSTO ");
+	seq_printf(m, ");");
 
-	SPRINTF(" SCSISIG(");
+	seq_printf(m, " SCSISIG(");
 	s = GETPORT(SCSISIG);
 	switch (s & P_MASK) {
 	case P_DATAO:
-		SPRINTF("DATA OUT");
+		seq_printf(m, "DATA OUT");
 		break;
 	case P_DATAI:
-		SPRINTF("DATA IN");
+		seq_printf(m, "DATA IN");
 		break;
 	case P_CMD:
-		SPRINTF("COMMAND");
+		seq_printf(m, "COMMAND");
 		break;
 	case P_STATUS:
-		SPRINTF("STATUS");
+		seq_printf(m, "STATUS");
 		break;
 	case P_MSGO:
-		SPRINTF("MESSAGE OUT");
+		seq_printf(m, "MESSAGE OUT");
 		break;
 	case P_MSGI:
-		SPRINTF("MESSAGE IN");
+		seq_printf(m, "MESSAGE IN");
 		break;
 	default:
-		SPRINTF("*invalid*");
+		seq_printf(m, "*invalid*");
 		break;
 	}
 
-	SPRINTF("); ");
+	seq_printf(m, "); ");
 
-	SPRINTF("INTSTAT (%s); ", TESTHI(DMASTAT, INTSTAT) ? "hi" : "lo");
+	seq_printf(m, "INTSTAT (%s); ", TESTHI(DMASTAT, INTSTAT) ? "hi" : "lo");
 
-	SPRINTF("SSTAT( ");
+	seq_printf(m, "SSTAT( ");
 	s = GETPORT(SSTAT0);
 	if (s & TARGET)
-		SPRINTF("TARGET ");
+		seq_printf(m, "TARGET ");
 	if (s & SELDO)
-		SPRINTF("SELDO ");
+		seq_printf(m, "SELDO ");
 	if (s & SELDI)
-		SPRINTF("SELDI ");
+		seq_printf(m, "SELDI ");
 	if (s & SELINGO)
-		SPRINTF("SELINGO ");
+		seq_printf(m, "SELINGO ");
 	if (s & SWRAP)
-		SPRINTF("SWRAP ");
+		seq_printf(m, "SWRAP ");
 	if (s & SDONE)
-		SPRINTF("SDONE ");
+		seq_printf(m, "SDONE ");
 	if (s & SPIORDY)
-		SPRINTF("SPIORDY ");
+		seq_printf(m, "SPIORDY ");
 	if (s & DMADONE)
-		SPRINTF("DMADONE ");
+		seq_printf(m, "DMADONE ");
 
 	s = GETPORT(SSTAT1);
 	if (s & SELTO)
-		SPRINTF("SELTO ");
+		seq_printf(m, "SELTO ");
 	if (s & ATNTARG)
-		SPRINTF("ATNTARG ");
+		seq_printf(m, "ATNTARG ");
 	if (s & SCSIRSTI)
-		SPRINTF("SCSIRSTI ");
+		seq_printf(m, "SCSIRSTI ");
 	if (s & PHASEMIS)
-		SPRINTF("PHASEMIS ");
+		seq_printf(m, "PHASEMIS ");
 	if (s & BUSFREE)
-		SPRINTF("BUSFREE ");
+		seq_printf(m, "BUSFREE ");
 	if (s & SCSIPERR)
-		SPRINTF("SCSIPERR ");
+		seq_printf(m, "SCSIPERR ");
 	if (s & PHASECHG)
-		SPRINTF("PHASECHG ");
+		seq_printf(m, "PHASECHG ");
 	if (s & REQINIT)
-		SPRINTF("REQINIT ");
-	SPRINTF("); ");
+		seq_printf(m, "REQINIT ");
+	seq_printf(m, "); ");
 
 
-	SPRINTF("SSTAT( ");
+	seq_printf(m, "SSTAT( ");
 
 	s = GETPORT(SSTAT0) & GETPORT(SIMODE0);
 
 	if (s & TARGET)
-		SPRINTF("TARGET ");
+		seq_printf(m, "TARGET ");
 	if (s & SELDO)
-		SPRINTF("SELDO ");
+		seq_printf(m, "SELDO ");
 	if (s & SELDI)
-		SPRINTF("SELDI ");
+		seq_printf(m, "SELDI ");
 	if (s & SELINGO)
-		SPRINTF("SELINGO ");
+		seq_printf(m, "SELINGO ");
 	if (s & SWRAP)
-		SPRINTF("SWRAP ");
+		seq_printf(m, "SWRAP ");
 	if (s & SDONE)
-		SPRINTF("SDONE ");
+		seq_printf(m, "SDONE ");
 	if (s & SPIORDY)
-		SPRINTF("SPIORDY ");
+		seq_printf(m, "SPIORDY ");
 	if (s & DMADONE)
-		SPRINTF("DMADONE ");
+		seq_printf(m, "DMADONE ");
 
 	s = GETPORT(SSTAT1) & GETPORT(SIMODE1);
 
 	if (s & SELTO)
-		SPRINTF("SELTO ");
+		seq_printf(m, "SELTO ");
 	if (s & ATNTARG)
-		SPRINTF("ATNTARG ");
+		seq_printf(m, "ATNTARG ");
 	if (s & SCSIRSTI)
-		SPRINTF("SCSIRSTI ");
+		seq_printf(m, "SCSIRSTI ");
 	if (s & PHASEMIS)
-		SPRINTF("PHASEMIS ");
+		seq_printf(m, "PHASEMIS ");
 	if (s & BUSFREE)
-		SPRINTF("BUSFREE ");
+		seq_printf(m, "BUSFREE ");
 	if (s & SCSIPERR)
-		SPRINTF("SCSIPERR ");
+		seq_printf(m, "SCSIPERR ");
 	if (s & PHASECHG)
-		SPRINTF("PHASECHG ");
+		seq_printf(m, "PHASECHG ");
 	if (s & REQINIT)
-		SPRINTF("REQINIT ");
-	SPRINTF("); ");
+		seq_printf(m, "REQINIT ");
+	seq_printf(m, "); ");
 
-	SPRINTF("SXFRCTL0( ");
+	seq_printf(m, "SXFRCTL0( ");
 
 	s = GETPORT(SXFRCTL0);
 	if (s & SCSIEN)
-		SPRINTF("SCSIEN ");
+		seq_printf(m, "SCSIEN ");
 	if (s & DMAEN)
-		SPRINTF("DMAEN ");
+		seq_printf(m, "DMAEN ");
 	if (s & CH1)
-		SPRINTF("CH1 ");
+		seq_printf(m, "CH1 ");
 	if (s & CLRSTCNT)
-		SPRINTF("CLRSTCNT ");
+		seq_printf(m, "CLRSTCNT ");
 	if (s & SPIOEN)
-		SPRINTF("SPIOEN ");
+		seq_printf(m, "SPIOEN ");
 	if (s & CLRCH1)
-		SPRINTF("CLRCH1 ");
-	SPRINTF("); ");
+		seq_printf(m, "CLRCH1 ");
+	seq_printf(m, "); ");
 
-	SPRINTF("SIGNAL( ");
+	seq_printf(m, "SIGNAL( ");
 
 	s = GETPORT(SCSISIG);
 	if (s & SIG_ATNI)
-		SPRINTF("ATNI ");
+		seq_printf(m, "ATNI ");
 	if (s & SIG_SELI)
-		SPRINTF("SELI ");
+		seq_printf(m, "SELI ");
 	if (s & SIG_BSYI)
-		SPRINTF("BSYI ");
+		seq_printf(m, "BSYI ");
 	if (s & SIG_REQI)
-		SPRINTF("REQI ");
+		seq_printf(m, "REQI ");
 	if (s & SIG_ACKI)
-		SPRINTF("ACKI ");
-	SPRINTF("); ");
+		seq_printf(m, "ACKI ");
+	seq_printf(m, "); ");
 
-	SPRINTF("SELID(%02x), ", GETPORT(SELID));
+	seq_printf(m, "SELID(%02x), ", GETPORT(SELID));
 
-	SPRINTF("STCNT(%d), ", GETSTCNT());
+	seq_printf(m, "STCNT(%d), ", GETSTCNT());
 
-	SPRINTF("SSTAT2( ");
+	seq_printf(m, "SSTAT2( ");
 
 	s = GETPORT(SSTAT2);
 	if (s & SOFFSET)
-		SPRINTF("SOFFSET ");
+		seq_printf(m, "SOFFSET ");
 	if (s & SEMPTY)
-		SPRINTF("SEMPTY ");
+		seq_printf(m, "SEMPTY ");
 	if (s & SFULL)
-		SPRINTF("SFULL ");
-	SPRINTF("); SFCNT (%d); ", s & (SFULL | SFCNT));
+		seq_printf(m, "SFULL ");
+	seq_printf(m, "); SFCNT (%d); ", s & (SFULL | SFCNT));
 
 	s = GETPORT(SSTAT3);
-	SPRINTF("SCSICNT (%d), OFFCNT(%d), ", (s & 0xf0) >> 4, s & 0x0f);
+	seq_printf(m, "SCSICNT (%d), OFFCNT(%d), ", (s & 0xf0) >> 4, s & 0x0f);
 
-	SPRINTF("SSTAT4( ");
+	seq_printf(m, "SSTAT4( ");
 	s = GETPORT(SSTAT4);
 	if (s & SYNCERR)
-		SPRINTF("SYNCERR ");
+		seq_printf(m, "SYNCERR ");
 	if (s & FWERR)
-		SPRINTF("FWERR ");
+		seq_printf(m, "FWERR ");
 	if (s & FRERR)
-		SPRINTF("FRERR ");
-	SPRINTF("); ");
+		seq_printf(m, "FRERR ");
+	seq_printf(m, "); ");
 
-	SPRINTF("DMACNTRL0( ");
+	seq_printf(m, "DMACNTRL0( ");
 	s = GETPORT(DMACNTRL0);
-	SPRINTF("%s ", s & _8BIT ? "8BIT" : "16BIT");
-	SPRINTF("%s ", s & DMA ? "DMA" : "PIO");
-	SPRINTF("%s ", s & WRITE_READ ? "WRITE" : "READ");
+	seq_printf(m, "%s ", s & _8BIT ? "8BIT" : "16BIT");
+	seq_printf(m, "%s ", s & DMA ? "DMA" : "PIO");
+	seq_printf(m, "%s ", s & WRITE_READ ? "WRITE" : "READ");
 	if (s & ENDMA)
-		SPRINTF("ENDMA ");
+		seq_printf(m, "ENDMA ");
 	if (s & INTEN)
-		SPRINTF("INTEN ");
+		seq_printf(m, "INTEN ");
 	if (s & RSTFIFO)
-		SPRINTF("RSTFIFO ");
+		seq_printf(m, "RSTFIFO ");
 	if (s & SWINT)
-		SPRINTF("SWINT ");
-	SPRINTF("); ");
+		seq_printf(m, "SWINT ");
+	seq_printf(m, "); ");
 
-	SPRINTF("DMASTAT( ");
+	seq_printf(m, "DMASTAT( ");
 	s = GETPORT(DMASTAT);
 	if (s & ATDONE)
-		SPRINTF("ATDONE ");
+		seq_printf(m, "ATDONE ");
 	if (s & WORDRDY)
-		SPRINTF("WORDRDY ");
+		seq_printf(m, "WORDRDY ");
 	if (s & DFIFOFULL)
-		SPRINTF("DFIFOFULL ");
+		seq_printf(m, "DFIFOFULL ");
 	if (s & DFIFOEMP)
-		SPRINTF("DFIFOEMP ");
-	SPRINTF(")\n");
+		seq_printf(m, "DFIFOEMP ");
+	seq_printf(m, ")\n");
 
-	SPRINTF("enabled interrupts( ");
+	seq_printf(m, "enabled interrupts( ");
 
 	s = GETPORT(SIMODE0);
 	if (s & ENSELDO)
-		SPRINTF("ENSELDO ");
+		seq_printf(m, "ENSELDO ");
 	if (s & ENSELDI)
-		SPRINTF("ENSELDI ");
+		seq_printf(m, "ENSELDI ");
 	if (s & ENSELINGO)
-		SPRINTF("ENSELINGO ");
+		seq_printf(m, "ENSELINGO ");
 	if (s & ENSWRAP)
-		SPRINTF("ENSWRAP ");
+		seq_printf(m, "ENSWRAP ");
 	if (s & ENSDONE)
-		SPRINTF("ENSDONE ");
+		seq_printf(m, "ENSDONE ");
 	if (s & ENSPIORDY)
-		SPRINTF("ENSPIORDY ");
+		seq_printf(m, "ENSPIORDY ");
 	if (s & ENDMADONE)
-		SPRINTF("ENDMADONE ");
+		seq_printf(m, "ENDMADONE ");
 
 	s = GETPORT(SIMODE1);
 	if (s & ENSELTIMO)
-		SPRINTF("ENSELTIMO ");
+		seq_printf(m, "ENSELTIMO ");
 	if (s & ENATNTARG)
-		SPRINTF("ENATNTARG ");
+		seq_printf(m, "ENATNTARG ");
 	if (s & ENPHASEMIS)
-		SPRINTF("ENPHASEMIS ");
+		seq_printf(m, "ENPHASEMIS ");
 	if (s & ENBUSFREE)
-		SPRINTF("ENBUSFREE ");
+		seq_printf(m, "ENBUSFREE ");
 	if (s & ENSCSIPERR)
-		SPRINTF("ENSCSIPERR ");
+		seq_printf(m, "ENSCSIPERR ");
 	if (s & ENPHASECHG)
-		SPRINTF("ENPHASECHG ");
+		seq_printf(m, "ENPHASECHG ");
 	if (s & ENREQINIT)
-		SPRINTF("ENREQINIT ");
-	SPRINTF(")\n");
+		seq_printf(m, "ENREQINIT ");
+	seq_printf(m, ")\n");
 }
 
 static int aha152x_set_info(struct Scsi_Host *shpnt, char *buffer, int length)
@@ -2825,56 +2822,56 @@ static int aha152x_show_info(struct seq_file *m, struct Scsi_Host *shpnt)
 	Scsi_Cmnd *ptr;
 	unsigned long flags;
 
-	SPRINTF(AHA152X_REVID "\n");
+	seq_printf(m, AHA152X_REVID "\n");
 
-	SPRINTF("ioports 0x%04lx to 0x%04lx\n",
+	seq_printf(m, "ioports 0x%04lx to 0x%04lx\n",
 		shpnt->io_port, shpnt->io_port + shpnt->n_io_port - 1);
-	SPRINTF("interrupt 0x%02x\n", shpnt->irq);
-	SPRINTF("disconnection/reconnection %s\n",
+	seq_printf(m, "interrupt 0x%02x\n", shpnt->irq);
+	seq_printf(m, "disconnection/reconnection %s\n",
 		RECONNECT ? "enabled" : "disabled");
-	SPRINTF("parity checking %s\n",
+	seq_printf(m, "parity checking %s\n",
 		PARITY ? "enabled" : "disabled");
-	SPRINTF("synchronous transfers %s\n",
+	seq_printf(m, "synchronous transfers %s\n",
 		SYNCHRONOUS ? "enabled" : "disabled");
-	SPRINTF("%d commands currently queued\n", HOSTDATA(shpnt)->commands);
+	seq_printf(m, "%d commands currently queued\n", HOSTDATA(shpnt)->commands);
 
 	if(SYNCHRONOUS) {
-		SPRINTF("synchronously operating targets (tick=50 ns):\n");
+		seq_printf(m, "synchronously operating targets (tick=50 ns):\n");
 		for (i = 0; i < 8; i++)
 			if (HOSTDATA(shpnt)->syncrate[i] & 0x7f)
-				SPRINTF("target %d: period %dT/%dns; req/ack offset %d\n",
+				seq_printf(m, "target %d: period %dT/%dns; req/ack offset %d\n",
 					i,
 					(((HOSTDATA(shpnt)->syncrate[i] & 0x70) >> 4) + 2),
 					(((HOSTDATA(shpnt)->syncrate[i] & 0x70) >> 4) + 2) * 50,
 				    HOSTDATA(shpnt)->syncrate[i] & 0x0f);
 	}
-	SPRINTF("\nqueue status:\n");
+	seq_printf(m, "\nqueue status:\n");
 	DO_LOCK(flags);
 	if (ISSUE_SC) {
-		SPRINTF("not yet issued commands:\n");
+		seq_printf(m, "not yet issued commands:\n");
 		for (ptr = ISSUE_SC; ptr; ptr = SCNEXT(ptr))
 			get_command(m, ptr);
 	} else
-		SPRINTF("no not yet issued commands\n");
+		seq_printf(m, "no not yet issued commands\n");
 	DO_UNLOCK(flags);
 
 	if (CURRENT_SC) {
-		SPRINTF("current command:\n");
+		seq_printf(m, "current command:\n");
 		get_command(m, CURRENT_SC);
 	} else
-		SPRINTF("no current command\n");
+		seq_printf(m, "no current command\n");
 
 	if (DISCONNECTED_SC) {
-		SPRINTF("disconnected commands:\n");
+		seq_printf(m, "disconnected commands:\n");
 		for (ptr = DISCONNECTED_SC; ptr; ptr = SCNEXT(ptr))
 			get_command(m, ptr);
 	} else
-		SPRINTF("no disconnected commands\n");
+		seq_printf(m, "no disconnected commands\n");
 
 	get_ports(m, shpnt);
 
 #if defined(AHA152X_STAT)
-	SPRINTF("statistics:\n"
+	seq_printf(m, "statistics:\n"
 		"total commands:               %d\n"
 		"disconnections:               %d\n"
 		"busfree with check condition: %d\n"
@@ -2894,7 +2891,7 @@ static int aha152x_show_info(struct seq_file *m, struct Scsi_Host *shpnt)
 		HOSTDATA(shpnt)->busfree_without_done_command,
 		HOSTDATA(shpnt)->busfree_without_any_action);
 	for(i=0; i<maxstate; i++) {
-		SPRINTF("%-10s %-12d %-12d %-12ld\n",
+		seq_printf(m, "%-10s %-12d %-12d %-12ld\n",
 			states[i].name,
 			HOSTDATA(shpnt)->count_trans[i],
 			HOSTDATA(shpnt)->count[i],
