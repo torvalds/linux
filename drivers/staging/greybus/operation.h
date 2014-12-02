@@ -104,8 +104,6 @@ int gb_operation_response_send(struct gb_operation *operation, int errno);
 
 void gb_operation_cancel(struct gb_operation *operation, int errno);
 
-int gb_operation_status_map(u8 status);
-
 void greybus_data_sent(struct greybus_host_device *hd,
 				void *header, int status);
 

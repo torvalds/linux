@@ -411,7 +411,7 @@ static void gb_operation_message_free(struct gb_message *message)
  * Map an enum gb_operation_status value (which is represented in a
  * message as a single byte) to an appropriate Linux negative errno.
  */
-int gb_operation_status_map(u8 status)
+static int gb_operation_status_map(u8 status)
 {
 	switch (status) {
 	case GB_OP_SUCCESS:
@@ -435,6 +435,39 @@ int gb_operation_status_map(u8 status)
 	case GB_OP_UNKNOWN_ERROR:
 	default:
 		return -EIO;
+	}
+}
+
+/*
+ * Map a Linux errno value (from operation->errno) into the value
+ * that should represent it in a response message status sent
+ * over the wire.  Returns an enum gb_operation_status value (which
+ * is represented in a message as a single byte).
+ */
+static u8 gb_operation_errno_map(int errno)
+{
+	switch (errno) {
+	case 0:
+		return GB_OP_SUCCESS;
+	case -EINTR:
+		return GB_OP_INTERRUPTED;
+	case -ETIMEDOUT:
+		return GB_OP_TIMEOUT;
+	case -ENOMEM:
+		return GB_OP_NO_MEMORY;
+	case -EPROTONOSUPPORT:
+		return GB_OP_PROTOCOL_BAD;
+	case -EMSGSIZE:
+		return GB_OP_OVERFLOW;	/* Could be underflow too */
+	case -EINVAL:
+		return GB_OP_INVALID;
+	case -EAGAIN:
+		return GB_OP_RETRY;
+	case -EILSEQ:
+		return GB_OP_MALFUNCTION;
+	case -EIO:
+	default:
+		return GB_OP_UNKNOWN_ERROR;
 	}
 }
 
@@ -656,6 +689,7 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 		pr_err("request result already set\n");
 		return -EIO;	/* Shouldn't happen */
 	}
+	(void)gb_operation_errno_map;	/* avoid a build warning */
 	gb_operation_destroy(operation);
 
 	return 0;
