@@ -72,10 +72,10 @@
 #define IWL8000_UCODE_API_MAX	10
 
 /* Oldest version we won't warn about */
-#define IWL8000_UCODE_API_OK	8
+#define IWL8000_UCODE_API_OK	10
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	8
+#define IWL8000_UCODE_API_MIN	9
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
@@ -159,8 +159,8 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.max_vht_ampdu_exponent = MAX_VHT_AMPDU_EXPONENT_8260_SDIO,
 };
 
-const struct iwl_cfg iwl4265_2ac_sdio_cfg = {
-	.name = "Intel(R) Dual Band Wireless-AC 4265",
+const struct iwl_cfg iwl4165_2ac_sdio_cfg = {
+	.name = "Intel(R) Dual Band Wireless-AC 4165",
 	.fw_name_pre = IWL8000_FW_PRE,
 	IWL_DEVICE_8000,
 	.ht_params = &iwl8000_ht_params,

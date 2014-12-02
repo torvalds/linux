@@ -337,7 +337,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT &&
-	    IWL_UCODE_API(mvm->fw->ucode_ver) >= 9 &&
 	    !iwlwifi_mod_params.uapsd_disable) {
 		hw->flags |= IEEE80211_HW_SUPPORTS_UAPSD;
 		hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
@@ -370,8 +369,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_GO_UAPSD)
 		hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_CSA_FLOW)
-		hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	hw->wiphy->iface_combinations = iwl_mvm_iface_combinations;
 	hw->wiphy->n_iface_combinations =
@@ -2577,9 +2575,15 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		/* Use aux roc framework (HS20) */
-		ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
-					       vif, duration);
+		if (mvm->fw->ucode_capa.capa[0] &
+		    IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT) {
+			/* Use aux roc framework (HS20) */
+			ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
+						       vif, duration);
+			goto out_unlock;
+		}
+		IWL_ERR(mvm, "hotspot not supported\n");
+		ret = -EINVAL;
 		goto out_unlock;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* handle below */

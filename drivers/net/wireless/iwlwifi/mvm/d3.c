@@ -786,32 +786,18 @@ static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
 }
 
 static int
-iwl_mvm_send_wowlan_config_cmd(struct iwl_mvm *mvm,
-			       const struct iwl_wowlan_config_cmd_v3 *cmd)
-{
-	/* start only with the v2 part of the command */
-	u16 cmd_len = sizeof(cmd->common);
-
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID)
-		cmd_len = sizeof(*cmd);
-
-	return iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
-				    cmd_len, cmd);
-}
-
-static int
 iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 			  struct cfg80211_wowlan *wowlan,
-			  struct iwl_wowlan_config_cmd_v3 *wowlan_config_cmd,
+			  struct iwl_wowlan_config_cmd *wowlan_config_cmd,
 			  struct ieee80211_vif *vif, struct iwl_mvm_vif *mvmvif,
 			  struct ieee80211_sta *ap_sta)
 {
 	int ret;
 	struct iwl_mvm_sta *mvm_ap_sta = (struct iwl_mvm_sta *)ap_sta->drv_priv;
 
-	/* TODO: wowlan_config_cmd->common.wowlan_ba_teardown_tids */
+	/* TODO: wowlan_config_cmd->wowlan_ba_teardown_tids */
 
-	wowlan_config_cmd->common.is_11n_connection =
+	wowlan_config_cmd->is_11n_connection =
 					ap_sta->ht_cap.ht_supported;
 
 	/* Query the last used seqno and set it */
@@ -819,32 +805,32 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	if (ret < 0)
 		return ret;
 
-	wowlan_config_cmd->common.non_qos_seq = cpu_to_le16(ret);
+	wowlan_config_cmd->non_qos_seq = cpu_to_le16(ret);
 
-	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, &wowlan_config_cmd->common);
+	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, wowlan_config_cmd);
 
 	if (wowlan->disconnect)
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_BEACON_MISS |
 				    IWL_WOWLAN_WAKEUP_LINK_CHANGE);
 	if (wowlan->magic_pkt)
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_MAGIC_PACKET);
 	if (wowlan->gtk_rekey_failure)
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_GTK_REKEY_FAIL);
 	if (wowlan->eap_identity_req)
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_EAP_IDENT_REQ);
 	if (wowlan->four_way_handshake)
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_4WAY_HANDSHAKE);
 	if (wowlan->n_patterns)
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_PATTERN_MATCH);
 
 	if (wowlan->rfkill_release)
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT);
 
 	if (wowlan->tcp) {
@@ -852,7 +838,7 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 		 * Set the "link change" (really "link lost") flag as well
 		 * since that implies losing the TCP connection.
 		 */
-		wowlan_config_cmd->common.wakeup_filter |=
+		wowlan_config_cmd->wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_REMOTE_LINK_LOSS |
 				    IWL_WOWLAN_WAKEUP_REMOTE_SIGNATURE_TABLE |
 				    IWL_WOWLAN_WAKEUP_REMOTE_WAKEUP_PACKET |
@@ -865,7 +851,7 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 static int
 iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 		      struct cfg80211_wowlan *wowlan,
-		      struct iwl_wowlan_config_cmd_v3 *wowlan_config_cmd,
+		      struct iwl_wowlan_config_cmd *wowlan_config_cmd,
 		      struct ieee80211_vif *vif, struct iwl_mvm_vif *mvmvif,
 		      struct ieee80211_sta *ap_sta)
 {
@@ -947,7 +933,9 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 		}
 	}
 
-	ret = iwl_mvm_send_wowlan_config_cmd(mvm, wowlan_config_cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
+				   sizeof(*wowlan_config_cmd),
+				   wowlan_config_cmd);
 	if (ret)
 		goto out;
 
@@ -972,7 +960,7 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 			 struct cfg80211_sched_scan_request *nd_config,
 			 struct ieee80211_vif *vif)
 {
-	struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {};
+	struct iwl_wowlan_config_cmd wowlan_config_cmd = {};
 	int ret;
 
 	ret = iwl_mvm_switch_to_d3(mvm);
@@ -981,16 +969,51 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 
 	/* rfkill release can be either for wowlan or netdetect */
 	if (wowlan->rfkill_release)
-		wowlan_config_cmd.common.wakeup_filter |=
+		wowlan_config_cmd.wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT);
 
-	ret = iwl_mvm_send_wowlan_config_cmd(mvm, &wowlan_config_cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
+				   sizeof(wowlan_config_cmd),
+				   &wowlan_config_cmd);
 	if (ret)
 		return ret;
 
 	ret = iwl_mvm_scan_offload_start(mvm, vif, nd_config, &mvm->nd_ies);
+	if (ret)
+		return ret;
 
-	return ret;
+	if (WARN_ON(mvm->nd_match_sets || mvm->nd_channels))
+		return -EBUSY;
+
+	/* save the sched scan matchsets... */
+	if (nd_config->n_match_sets) {
+		mvm->nd_match_sets = kmemdup(nd_config->match_sets,
+					     sizeof(*nd_config->match_sets) *
+					     nd_config->n_match_sets,
+					     GFP_KERNEL);
+		if (mvm->nd_match_sets)
+			mvm->n_nd_match_sets = nd_config->n_match_sets;
+	}
+
+	/* ...and the sched scan channels for later reporting */
+	mvm->nd_channels = kmemdup(nd_config->channels,
+				   sizeof(*nd_config->channels) *
+				   nd_config->n_channels,
+				   GFP_KERNEL);
+	if (mvm->nd_channels)
+		mvm->n_nd_channels = nd_config->n_channels;
+
+	return 0;
+}
+
+static void iwl_mvm_free_nd(struct iwl_mvm *mvm)
+{
+	kfree(mvm->nd_match_sets);
+	mvm->nd_match_sets = NULL;
+	mvm->n_nd_match_sets = 0;
+	kfree(mvm->nd_channels);
+	mvm->nd_channels = NULL;
+	mvm->n_nd_channels = 0;
 }
 
 static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
@@ -1051,7 +1074,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 		mvm->net_detect = true;
 	} else {
-		struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {};
+		struct iwl_wowlan_config_cmd wowlan_config_cmd = {};
 
 		ap_sta = rcu_dereference_protected(
 			mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
@@ -1104,8 +1127,10 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	iwl_trans_d3_suspend(mvm->trans, test);
  out:
-	if (ret < 0)
+	if (ret < 0) {
 		ieee80211_restart_hw(mvm->hw);
+		iwl_mvm_free_nd(mvm);
+	}
  out_noreset:
 	mutex_unlock(&mvm->mutex);
 
@@ -1626,15 +1651,64 @@ out_unlock:
 	return false;
 }
 
+struct iwl_mvm_nd_query_results {
+	u32 matched_profiles;
+	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
+};
+
+static int
+iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
+				struct iwl_mvm_nd_query_results *results)
+{
+	struct iwl_scan_offload_profiles_query *query;
+	struct iwl_host_cmd cmd = {
+		.id = SCAN_OFFLOAD_PROFILES_QUERY_CMD,
+		.flags = CMD_WANT_SKB,
+	};
+	int ret, len;
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret) {
+		IWL_ERR(mvm, "failed to query matched profiles (%d)\n", ret);
+		return ret;
+	}
+
+	/* RF-kill already asserted again... */
+	if (!cmd.resp_pkt) {
+		ret = -ERFKILL;
+		goto out_free_resp;
+	}
+
+	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
+	if (len < sizeof(*query)) {
+		IWL_ERR(mvm, "Invalid scan offload profiles query response!\n");
+		ret = -EIO;
+		goto out_free_resp;
+	}
+
+	query = (void *)cmd.resp_pkt->data;
+
+	results->matched_profiles = le32_to_cpu(query->matched_profiles);
+	memcpy(results->matches, query->matches, sizeof(results->matches));
+
+out_free_resp:
+	iwl_free_resp(&cmd);
+	return ret;
+}
+
 static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif)
 {
+	struct cfg80211_wowlan_nd_info *net_detect = NULL;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
 	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
+	struct iwl_mvm_nd_query_results query;
 	struct iwl_wowlan_status *fw_status;
+	unsigned long matched_profiles;
 	u32 reasons = 0;
+	int i, j, n_matches, ret;
 
 	fw_status = iwl_mvm_get_wakeup_status(mvm, vif);
 	if (!IS_ERR_OR_NULL(fw_status))
@@ -1643,13 +1717,73 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_RFKILL_DEASSERTED)
 		wakeup.rfkill_release = true;
 
-	if (reasons == IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS) {
-		/* TODO: read and check if it was netdetect */
+	if (reasons != IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS)
+		goto out;
+
+	ret = iwl_mvm_netdetect_query_results(mvm, &query);
+	if (ret || !query.matched_profiles) {
 		wakeup_report = NULL;
+		goto out;
 	}
+
+	matched_profiles = query.matched_profiles;
+	if (mvm->n_nd_match_sets) {
+		n_matches = hweight_long(matched_profiles);
+	} else {
+		IWL_ERR(mvm, "no net detect match information available\n");
+		n_matches = 0;
+	}
+
+	net_detect = kzalloc(sizeof(*net_detect) +
+			     (n_matches * sizeof(net_detect->matches[0])),
+			     GFP_KERNEL);
+	if (!net_detect || !n_matches)
+		goto out_report_nd;
+
+	for_each_set_bit(i, &matched_profiles, mvm->n_nd_match_sets) {
+		struct iwl_scan_offload_profile_match *fw_match;
+		struct cfg80211_wowlan_nd_match *match;
+		int n_channels = 0;
+
+		fw_match = &query.matches[i];
+
+		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; j++)
+			n_channels += hweight8(fw_match->matching_channels[j]);
+
+		match = kzalloc(sizeof(*match) +
+				(n_channels * sizeof(*match->channels)),
+				GFP_KERNEL);
+		if (!match)
+			goto out_report_nd;
+
+		net_detect->matches[net_detect->n_matches++] = match;
+
+		match->ssid.ssid_len = mvm->nd_match_sets[i].ssid.ssid_len;
+		memcpy(match->ssid.ssid, mvm->nd_match_sets[i].ssid.ssid,
+		       match->ssid.ssid_len);
+
+		if (mvm->n_nd_channels < n_channels)
+			continue;
+
+		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN * 8; j++)
+			if (fw_match->matching_channels[j / 8] & (BIT(j % 8)))
+				match->channels[match->n_channels++] =
+					mvm->nd_channels[j]->center_freq;
+	}
+
+out_report_nd:
+	wakeup.net_detect = net_detect;
+out:
+	iwl_mvm_free_nd(mvm);
 
 	mutex_unlock(&mvm->mutex);
 	ieee80211_report_wowlan_wakeup(vif, wakeup_report, GFP_KERNEL);
+
+	if (net_detect) {
+		for (i = 0; i < net_detect->n_matches; i++)
+			kfree(net_detect->matches[i]);
+		kfree(net_detect);
+	}
 }
 
 static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)

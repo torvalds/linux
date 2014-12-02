@@ -325,11 +325,9 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(WOWLAN_KEK_KCK_MATERIAL),
 	CMD(WOWLAN_GET_STATUSES),
 	CMD(WOWLAN_TX_POWER_PER_DB),
-	CMD(NET_DETECT_CONFIG_CMD),
-	CMD(NET_DETECT_PROFILES_QUERY_CMD),
-	CMD(NET_DETECT_PROFILES_CMD),
-	CMD(NET_DETECT_HOTSPOTS_CMD),
-	CMD(NET_DETECT_HOTSPOTS_QUERY_CMD),
+	CMD(SCAN_OFFLOAD_PROFILES_QUERY_CMD),
+	CMD(SCAN_OFFLOAD_HOTSPOTS_CONFIG_CMD),
+	CMD(SCAN_OFFLOAD_HOTSPOTS_QUERY_CMD),
 	CMD(CARD_STATE_NOTIFICATION),
 	CMD(MISSED_BEACONS_NOTIFICATION),
 	CMD(BT_COEX_PRIO_TABLE),
@@ -498,6 +496,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
 	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
+	trans->dbg_dest_tlv = mvm->fw->dbg_dest_tlv;
+	trans->dbg_dest_reg_num = mvm->fw->dbg_dest_reg_num;
+	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg_conf_tlv,
+	       sizeof(trans->dbg_conf_tlv));
 
 	/* set up notification wait support */
 	iwl_notification_wait_init(&mvm->notif_wait);
@@ -1002,7 +1004,7 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 }
 
 static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
-				    struct iwl_wowlan_config_cmd_v3 *cmd,
+				    struct iwl_wowlan_config_cmd *cmd,
 				    struct iwl_d0i3_iter_data *iter_data)
 {
 	struct ieee80211_sta *ap_sta;
@@ -1018,14 +1020,14 @@ static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
 		goto out;
 
 	mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
-	cmd->common.is_11n_connection = ap_sta->ht_cap.ht_supported;
+	cmd->is_11n_connection = ap_sta->ht_cap.ht_supported;
 	cmd->offloading_tid = iter_data->offloading_tid;
 
 	/*
 	 * The d0i3 uCode takes care of the nonqos counters,
 	 * so configure only the qos seq ones.
 	 */
-	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, &cmd->common);
+	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, cmd);
 out:
 	rcu_read_unlock();
 }
@@ -1037,14 +1039,11 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	struct iwl_d0i3_iter_data d0i3_iter_data = {
 		.mvm = mvm,
 	};
-	struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {
-		.common = {
-			.wakeup_filter =
-				cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
-					    IWL_WOWLAN_WAKEUP_BEACON_MISS |
-					    IWL_WOWLAN_WAKEUP_LINK_CHANGE |
-					    IWL_WOWLAN_WAKEUP_BCN_FILTERING),
-		},
+	struct iwl_wowlan_config_cmd wowlan_config_cmd = {
+		.wakeup_filter = cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
+					     IWL_WOWLAN_WAKEUP_BEACON_MISS |
+					     IWL_WOWLAN_WAKEUP_LINK_CHANGE |
+					     IWL_WOWLAN_WAKEUP_BCN_FILTERING),
 	};
 	struct iwl_d3_manager_config d3_cfg_cmd = {
 		.min_sleep_time = cpu_to_le32(1000),
