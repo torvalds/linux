@@ -226,7 +226,7 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 		table->msix_arr[i].entry = i;
 
 	nvec = pci_enable_msix_range(dev->pdev, table->msix_arr,
-				     MLX5_EQ_VEC_COMP_BASE, nvec);
+				     MLX5_EQ_VEC_COMP_BASE + 1, nvec);
 	if (nvec < 0)
 		return nvec;
 
