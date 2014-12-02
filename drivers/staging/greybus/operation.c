@@ -642,8 +642,13 @@ int gb_operation_request_send(struct gb_operation *operation,
 /*
  * Send a response for an incoming operation request.
  */
-int gb_operation_response_send(struct gb_operation *operation)
+int gb_operation_response_send(struct gb_operation *operation, int errno)
 {
+	/* Record the result */
+	if (!gb_operation_result_set(operation, errno)) {
+		pr_err("request result already set\n");
+		return -EIO;	/* Shouldn't happen */
+	}
 	gb_operation_destroy(operation);
 
 	return 0;
