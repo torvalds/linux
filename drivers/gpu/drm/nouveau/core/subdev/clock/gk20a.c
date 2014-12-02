@@ -470,76 +470,91 @@ gk20a_pstates[] = {
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 72000,
+			.voltage = 0,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 108000,
+			.voltage = 1,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 180000,
+			.voltage = 2,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 252000,
+			.voltage = 3,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 324000,
+			.voltage = 4,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 396000,
+			.voltage = 5,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 468000,
+			.voltage = 6,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 540000,
+			.voltage = 7,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 612000,
+			.voltage = 8,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 648000,
+			.voltage = 9,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 684000,
+			.voltage = 10,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 708000,
+			.voltage = 11,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 756000,
+			.voltage = 12,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 804000,
+			.voltage = 13,
 		},
 	},
 	{
 		.base = {
 			.domain[nv_clk_src_gpc] = 852000,
+			.voltage = 14,
 		},
 	},
 };

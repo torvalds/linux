@@ -226,6 +226,7 @@ nouveau-y += core/subdev/vm/nvc0.o
 nouveau-y += core/subdev/volt/base.o
 nouveau-y += core/subdev/volt/gpio.o
 nouveau-y += core/subdev/volt/nv40.o
+nouveau-y += core/subdev/volt/gk20a.o
 
 nouveau-y += core/engine/falcon.o
 nouveau-y += core/engine/xtensa.o
