@@ -465,11 +465,19 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 
 static struct gb_operation *
 gb_operation_create_incoming(struct gb_connection *connection,
-					u8 type, size_t request_size,
-					size_t response_size)
+					u16 operation_id, u8 type,
+					void *data, size_t request_size)
 {
-	return gb_operation_create_common(connection, false, type,
-					request_size, response_size);
+	struct gb_operation *operation;
+
+	operation = gb_operation_create_common(connection, false, type,
+						request_size, 0);
+	if (operation) {
+		operation->id = operation_id;
+		memcpy(operation->request->header, data, request_size);
+	}
+
+	return operation;
 }
 
 /*
@@ -622,13 +630,12 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 {
 	struct gb_operation *operation;
 
-	operation = gb_operation_create_incoming(connection, type, size, 0);
+	operation = gb_operation_create_incoming(connection, operation_id,
+						type, data, size);
 	if (!operation) {
 		gb_connection_err(connection, "can't create operation");
 		return;		/* XXX Respond with pre-allocated ENOMEM */
 	}
-	operation->id = operation_id;
-	memcpy(operation->request->header, data, size);
 
 	/* XXX Right now this will just complete the operation */
 	if (gb_operation_result_set(operation, -ENOSYS))
