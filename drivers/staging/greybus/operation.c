@@ -302,12 +302,14 @@ gb_hd_message_find(struct greybus_host_device *hd, void *header)
 }
 
 /*
- * Allocate a message to be used for an operation request or
- * response.  For outgoing messages, both types of message contain a
- * common header, which is filled in here.  Incoming requests or
- * responses also contain the same header, but there's no need to
- * initialize it here (it'll be overwritten by the incoming
- * message).
+ * Allocate a message to be used for an operation request or response.
+ * Both types of message contain a common header.  The request message
+ * for an outgoing operation is outbound, as is the response message
+ * for an incoming operation.  The message header for an outbound
+ * message is partially initialized here.
+ *
+ * The headers for inbound messages don't need to be initialized;
+ * they'll be filled in by arriving data.
  *
  * Our message structure consists of:
  *	message structure
@@ -341,14 +343,30 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 	buffer = &message->buffer[0];
 	header = (struct gb_operation_msg_hdr *)(buffer + hd->buffer_headroom);
 
-	/* Fill in the header structure */
-	header->size = cpu_to_le16(message_size);
-	header->operation_id = 0;	/* Filled in when submitted */
-	header->type = type;
-
 	message->header = header;
 	message->payload = header + 1;
 	message->size = message_size;
+
+	/*
+	 * The type supplied for incoming message buffers will be
+	 * 0x00.  Such buffers will be overwritten by arriving data
+	 * so there's no need to initialize the message header.
+	 */
+	if (type) {
+		/*
+		 * For a request, the operation id gets filled in
+		 * when the message is sent.  For a response, it
+		 * will be copied from the request by the caller.
+		 *
+		 * The result field in a request message must be
+		 * zero.  It will be set just prior to sending for
+		 * a response.
+		 */
+		header->size = cpu_to_le16(message_size);
+		header->operation_id = 0;
+		header->type = type;
+		header->result = 0;
+	}
 
 	return message;
 }
@@ -392,27 +410,32 @@ int gb_operation_status_map(u8 status)
 /*
  * Create a Greybus operation to be sent over the given connection.
  * The request buffer will be big enough for a payload of the given
- * size.  Outgoing requests must specify the size of the response
- * buffer size, which must be sufficient to hold all expected
- * response data.
+ * size.
  *
- * Incoming requests will supply a response size of 0, and in that
- * case no response buffer is allocated.  (A response always
- * includes a status byte, so 0 is not a valid size.)  Whatever
- * handles the operation request is responsible for allocating the
- * response buffer.
+ * For outgoing requests, the request message's header will be
+ * initialized with the type of the request and the message size.
+ * Outgoing operations must also specify the response buffer size,
+ * which must be sufficient to hold all expected response data.  The
+ * response message header will eventually be overwritten, so there's
+ * no need to initialize it here.
+ *
+ * Request messages for incoming operations can arrive in interrupt
+ * context, so they must be allocated with GFP_ATOMIC.  In this case
+ * the request buffer will be immediately overwritten, so there is
+ * no need to initialize the message header.  Responsibility for
+ * allocating a response buffer lies with the incoming request
+ * handler for a protocol.  So we don't allocate that here.
  *
  * Returns a pointer to the new operation or a null pointer if an
  * error occurs.
  */
 static struct gb_operation *
-gb_operation_create_common(struct gb_connection *connection, bool outgoing,
-				u8 type, size_t request_size,
-				size_t response_size)
+gb_operation_create_common(struct gb_connection *connection, u8 type,
+				size_t request_size, size_t response_size)
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
-	gfp_t gfp_flags = outgoing ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t gfp_flags = type ? GFP_KERNEL : GFP_ATOMIC;
 
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
@@ -425,7 +448,8 @@ gb_operation_create_common(struct gb_connection *connection, bool outgoing,
 		goto err_cache;
 	operation->request->operation = operation;
 
-	if (outgoing) {
+	/* Allocate the response buffer for outgoing operations */
+	if (type) {
 		type |= GB_OPERATION_TYPE_RESPONSE;
 		operation->response = gb_operation_message_alloc(hd, type,
 						response_size, GFP_KERNEL);
@@ -472,21 +496,19 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	if (WARN_ON_ONCE(type & GB_OPERATION_TYPE_RESPONSE))
 		type &= ~GB_OPERATION_TYPE_RESPONSE;
 
-	return gb_operation_create_common(connection, true, type,
+	return gb_operation_create_common(connection, type,
 					request_size, response_size);
 }
 
 static struct gb_operation *
-gb_operation_create_incoming(struct gb_connection *connection,
-					u16 operation_id, u8 type,
+gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 					void *data, size_t request_size)
 {
 	struct gb_operation *operation;
 
-	operation = gb_operation_create_common(connection, false, type,
-						request_size, 0);
+	operation = gb_operation_create_common(connection, 0, request_size, 0);
 	if (operation) {
-		operation->id = operation_id;
+		operation->id = id;
 		memcpy(operation->request->header, data, request_size);
 	}
 
@@ -638,13 +660,13 @@ EXPORT_SYMBOL_GPL(greybus_data_sent);
  * data into the request buffer and handle the rest via workqueue.
  */
 static void gb_connection_recv_request(struct gb_connection *connection,
-				       u16 operation_id, u8 type, void *data,
+				       u16 operation_id, void *data,
 				       size_t size)
 {
 	struct gb_operation *operation;
 
 	operation = gb_operation_create_incoming(connection, operation_id,
-						type, data, size);
+						data, size);
 	if (!operation) {
 		gb_connection_err(connection, "can't create operation");
 		return;		/* XXX Respond with pre-allocated ENOMEM */
@@ -732,7 +754,7 @@ void gb_connection_recv(struct gb_connection *connection,
 						header->result, data, msg_size);
 	else
 		gb_connection_recv_request(connection, operation_id,
-						header->type, data, msg_size);
+						data, msg_size);
 }
 
 /*
