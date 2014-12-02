@@ -13,12 +13,6 @@
 
 #include "greybus.h"
 
-/*
- * The top bit of the type in an operation message header indicates
- * whether the message is a request (bit clear) or response (bit set)
- */
-#define GB_OPERATION_TYPE_RESPONSE	0x80
-
 #define OPERATION_TIMEOUT_DEFAULT	1000	/* milliseconds */
 
 /*
@@ -329,7 +323,7 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
 	 * 0x00.  Such buffers will be overwritten by arriving data
 	 * so there's no need to initialize the message header.
 	 */
-	if (type) {
+	if (type != GB_OPERATION_TYPE_INVALID) {
 		/*
 		 * For a request, the operation id gets filled in
 		 * when the message is sent.  For a response, it
@@ -527,8 +521,17 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
-	gfp_t gfp_flags = type ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t gfp_flags;
 
+	/*
+	 * An incoming request will pass an invalid operation type,
+	 * because the header will get overwritten anyway.  These
+	 * occur in interrupt context, so we must use GFP_ATOMIC.
+	 */
+	if (type == GB_OPERATION_TYPE_INVALID)
+		gfp_flags = GFP_ATOMIC;
+	else
+		gfp_flags = GFP_KERNEL;
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
 		return NULL;
@@ -541,7 +544,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	operation->request->operation = operation;
 
 	/* Allocate the response buffer for outgoing operations */
-	if (type)
+	if (type != GB_OPERATION_TYPE_INVALID)
 		if (!gb_operation_response_alloc(operation, response_size))
 			goto err_request;
 	operation->errno = -EBADR;  /* Initial value--means "never set" */
@@ -578,7 +581,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
 					size_t response_size)
 {
-	if (WARN_ON_ONCE(!type))
+	if (WARN_ON_ONCE(type == GB_OPERATION_TYPE_INVALID))
 		return NULL;
 	if (WARN_ON_ONCE(type & GB_OPERATION_TYPE_RESPONSE))
 		type &= ~GB_OPERATION_TYPE_RESPONSE;
@@ -593,7 +596,9 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 {
 	struct gb_operation *operation;
 
-	operation = gb_operation_create_common(connection, 0, request_size, 0);
+	operation = gb_operation_create_common(connection,
+					GB_OPERATION_TYPE_INVALID,
+					request_size, 0);
 	if (operation) {
 		operation->id = id;
 		memcpy(operation->request->header, data, request_size);

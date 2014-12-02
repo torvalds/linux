@@ -13,6 +13,18 @@
 
 struct gb_operation;
 
+/*
+ * No protocol may define an operation that has numeric value 0x00.
+ * It is reserved as an explicitly invalid value.
+ */
+#define GB_OPERATION_TYPE_INVALID	((u8)0x00)
+
+/*
+ * The top bit of the type in an operation message header indicates
+ * whether the message is a request (bit clear) or response (bit set)
+ */
+#define GB_OPERATION_TYPE_RESPONSE	((u8)0x80)
+
 enum gb_operation_result {
 	GB_OP_SUCCESS		= 0x00,
 	GB_OP_INTERRUPTED	= 0x01,
