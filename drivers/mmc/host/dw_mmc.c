@@ -759,6 +759,7 @@ disable:
 
 static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 {
+	unsigned long irqflags;
 	int sg_len;
 	u32 temp;
 
@@ -795,9 +796,11 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	mci_writel(host, CTRL, temp);
 
 	/* Disable RX/TX IRQs, let DMA handle it */
+	spin_lock_irqsave(&host->irq_lock, irqflags);
 	temp = mci_readl(host, INTMASK);
 	temp  &= ~(SDMMC_INT_RXDR | SDMMC_INT_TXDR);
 	mci_writel(host, INTMASK, temp);
+	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
 	host->dma_ops->start(host, sg_len);
 
@@ -806,6 +809,7 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 
 static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 {
+	unsigned long irqflags;
 	u32 temp;
 
 	data->error = -EINPROGRESS;
@@ -834,9 +838,12 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 		host->part_buf_count = 0;
 
 		mci_writel(host, RINTSTS, SDMMC_INT_TXDR | SDMMC_INT_RXDR);
+
+		spin_lock_irqsave(&host->irq_lock, irqflags);
 		temp = mci_readl(host, INTMASK);
 		temp |= SDMMC_INT_TXDR | SDMMC_INT_RXDR;
 		mci_writel(host, INTMASK, temp);
+		spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
 		temp = mci_readl(host, CTRL);
 		temp &= ~SDMMC_CTRL_DMA_ENABLE;
@@ -1284,7 +1291,10 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
+	unsigned long irqflags;
 	u32 int_mask;
+
+	spin_lock_irqsave(&host->irq_lock, irqflags);
 
 	/* Enable/disable Slot Specific SDIO interrupt */
 	int_mask = mci_readl(host, INTMASK);
@@ -1293,6 +1303,8 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	else
 		int_mask &= ~SDMMC_INT_SDIO(slot->sdio_id);
 	mci_writel(host, INTMASK, int_mask);
+
+	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 }
 
 static int dw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
@@ -2661,6 +2673,7 @@ int dw_mci_probe(struct dw_mci *host)
 	host->quirks = host->pdata->quirks;
 
 	spin_lock_init(&host->lock);
+	spin_lock_init(&host->irq_lock);
 	INIT_LIST_HEAD(&host->queue);
 
 	/*
