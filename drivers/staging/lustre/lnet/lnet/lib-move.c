@@ -158,7 +158,7 @@ fail_peer(lnet_nid_t nid, int outgoing)
 }
 
 unsigned int
-lnet_iov_nob(unsigned int niov, struct iovec *iov)
+lnet_iov_nob(unsigned int niov, struct kvec *iov)
 {
 	unsigned int nob = 0;
 
@@ -170,8 +170,8 @@ lnet_iov_nob(unsigned int niov, struct iovec *iov)
 EXPORT_SYMBOL(lnet_iov_nob);
 
 void
-lnet_copy_iov2iov(unsigned int ndiov, struct iovec *diov, unsigned int doffset,
-		   unsigned int nsiov, struct iovec *siov, unsigned int soffset,
+lnet_copy_iov2iov(unsigned int ndiov, struct kvec *diov, unsigned int doffset,
+		   unsigned int nsiov, struct kvec *siov, unsigned int soffset,
 		   unsigned int nob)
 {
 	/* NB diov, siov are READ-ONLY */
@@ -229,8 +229,8 @@ lnet_copy_iov2iov(unsigned int ndiov, struct iovec *diov, unsigned int doffset,
 EXPORT_SYMBOL(lnet_copy_iov2iov);
 
 int
-lnet_extract_iov(int dst_niov, struct iovec *dst,
-		  int src_niov, struct iovec *src,
+lnet_extract_iov(int dst_niov, struct kvec *dst,
+		  int src_niov, struct kvec *src,
 		  unsigned int offset, unsigned int len)
 {
 	/* Initialise 'dst' to the subset of 'src' starting at 'offset',
@@ -371,7 +371,7 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 EXPORT_SYMBOL(lnet_copy_kiov2kiov);
 
 void
-lnet_copy_kiov2iov(unsigned int niov, struct iovec *iov, unsigned int iovoffset,
+lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 		   unsigned int nkiov, lnet_kiov_t *kiov,
 		   unsigned int kiovoffset, unsigned int nob)
 {
@@ -443,7 +443,7 @@ EXPORT_SYMBOL(lnet_copy_kiov2iov);
 void
 lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 		   unsigned int kiovoffset, unsigned int niov,
-		   struct iovec *iov, unsigned int iovoffset,
+		   struct kvec *iov, unsigned int iovoffset,
 		   unsigned int nob)
 {
 	/* NB kiov, iov are READ-ONLY */
@@ -566,7 +566,7 @@ lnet_ni_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	     unsigned int offset, unsigned int mlen, unsigned int rlen)
 {
 	unsigned int  niov = 0;
-	struct iovec *iov = NULL;
+	struct kvec *iov = NULL;
 	lnet_kiov_t  *kiov = NULL;
 	int	   rc;
 
