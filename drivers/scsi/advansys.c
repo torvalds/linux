@@ -2903,11 +2903,9 @@ static void asc_prt_adv_bios(struct seq_file *m, struct Scsi_Host *shost)
 	 * the BIOS code segment base address.
 	 */
 	if (boardp->bios_signature != 0x55AA) {
-		seq_puts(m, "Disabled or Pre-3.1\n");
-		seq_puts(m,
-			 "BIOS either disabled or Pre-3.1. If it is pre-3.1, then a newer version\n");
-		seq_puts(m,
-			 "can be found at the ConnectCom FTP site: ftp://ftp.connectcom.net/pub\n");
+		seq_puts(m, "Disabled or Pre-3.1\n"
+			"BIOS either disabled or Pre-3.1. If it is pre-3.1, then a newer version\n"
+			"can be found at the ConnectCom FTP site: ftp://ftp.connectcom.net/pub\n");
 	} else {
 		major = (boardp->bios_version >> 12) & 0xF;
 		minor = (boardp->bios_version >> 8) & 0xF;
@@ -2923,9 +2921,8 @@ static void asc_prt_adv_bios(struct seq_file *m, struct Scsi_Host *shost)
 		 */
 		if (major < 3 || (major <= 3 && minor < 1) ||
 		    (major <= 3 && minor <= 1 && letter < ('I' - 'A'))) {
-			seq_puts(m,
-				 "Newer version of ROM BIOS is available at the ConnectCom FTP site:\n");
-			seq_puts(m, "ftp://ftp.connectcom.net/pub\n");
+			seq_puts(m, "Newer version of ROM BIOS is available at the ConnectCom FTP site:\n"
+				"ftp://ftp.connectcom.net/pub\n");
 		}
 	}
 }
@@ -3071,27 +3068,23 @@ static void asc_prt_asc_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 	seq_puts(m, " Target ID:           ");
 	for (i = 0; i <= ASC_MAX_TID; i++)
 		seq_printf(m, " %d", i);
-	seq_puts(m, "\n");
 
-	seq_puts(m, " Disconnects:         ");
+	seq_puts(m, "\n Disconnects:         ");
 	for (i = 0; i <= ASC_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (ep->disc_enable & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
 
-	seq_puts(m, " Command Queuing:     ");
+	seq_puts(m, "\n Command Queuing:     ");
 	for (i = 0; i <= ASC_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (ep->use_cmd_qng & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
 
-	seq_puts(m, " Start Motor:         ");
+	seq_puts(m, "\n Start Motor:         ");
 	for (i = 0; i <= ASC_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (ep->start_motor & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
 
-	seq_puts(m, " Synchronous Transfer:");
+	seq_puts(m, "\n Synchronous Transfer:");
 	for (i = 0; i <= ASC_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (ep->init_sdtr & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
@@ -3410,10 +3403,9 @@ static void asc_prt_asc_board_info(struct seq_file *m, struct Scsi_Host *shost)
 			   i,
 			   (v->use_tagged_qng & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
 	}
-	seq_puts(m, "\n");
 
 	/* Current number of commands waiting for a device. */
-	seq_puts(m, " Command Queue Pending:");
+	seq_puts(m, "\n Command Queue Pending:");
 	for (i = 0; i <= ASC_MAX_TID; i++) {
 		if ((chip_scsi_id == i) ||
 		    ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(i)) == 0)) {
@@ -3421,10 +3413,9 @@ static void asc_prt_asc_board_info(struct seq_file *m, struct Scsi_Host *shost)
 		}
 		seq_printf(m, " %X:%u", i, v->cur_dvc_qng[i]);
 	}
-	seq_puts(m, "\n");
 
 	/* Current limit on number of commands that can be sent to a device. */
-	seq_puts(m, " Command Queue Limit:");
+	seq_puts(m, "\n Command Queue Limit:");
 	for (i = 0; i <= ASC_MAX_TID; i++) {
 		if ((chip_scsi_id == i) ||
 		    ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(i)) == 0)) {
@@ -3432,10 +3423,9 @@ static void asc_prt_asc_board_info(struct seq_file *m, struct Scsi_Host *shost)
 		}
 		seq_printf(m, " %X:%u", i, v->max_dvc_qng[i]);
 	}
-	seq_puts(m, "\n");
 
 	/* Indicate whether the device has returned queue full status. */
-	seq_puts(m, " Command Queue Full:");
+	seq_puts(m, "\n Command Queue Full:");
 	for (i = 0; i <= ASC_MAX_TID; i++) {
 		if ((chip_scsi_id == i) ||
 		    ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(i)) == 0)) {
@@ -3447,9 +3437,8 @@ static void asc_prt_asc_board_info(struct seq_file *m, struct Scsi_Host *shost)
 		else
 			seq_printf(m, " %X:N", i);
 	}
-	seq_puts(m, "\n");
 
-	seq_puts(m, " Synchronous Transfer:");
+	seq_puts(m, "\n Synchronous Transfer:");
 	for (i = 0; i <= ASC_MAX_TID; i++) {
 		if ((chip_scsi_id == i) ||
 		    ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(i)) == 0)) {
@@ -3555,9 +3544,8 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 			   i,
 			   (tagqng_able & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
 	}
-	seq_puts(m, "\n");
 
-	seq_puts(m, " Queue Limit:");
+	seq_puts(m, "\n Queue Limit:");
 	for (i = 0; i <= ADV_MAX_TID; i++) {
 		if ((chip_scsi_id == i) ||
 		    ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(i)) == 0)) {
@@ -3569,9 +3557,8 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 
 		seq_printf(m, " %X:%d", i, lrambyte);
 	}
-	seq_puts(m, "\n");
 
-	seq_puts(m, " Command Pending:");
+	seq_puts(m, "\n Command Pending:");
 	for (i = 0; i <= ADV_MAX_TID; i++) {
 		if ((chip_scsi_id == i) ||
 		    ((boardp->init_tidmask & ADV_TID_TO_TIDMASK(i)) == 0)) {

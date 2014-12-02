@@ -1375,8 +1375,8 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 	hostno = host->host_no;
 	data = (nsp_hw_data *)host->hostdata;
 
-	seq_puts(m, "NinjaSCSI status\n\n");
-	seq_puts(m, "Driver version:        $Revision: 1.23 $\n");
+	seq_puts(m, "NinjaSCSI status\n\n"
+		"Driver version:        $Revision: 1.23 $\n");
 	seq_printf(m, "SCSI host No.:         %d\n",          hostno);
 	seq_printf(m, "IRQ:                   %d\n",          host->irq);
 	seq_printf(m, "IO:                    0x%lx-0x%lx\n", host->io_port, host->io_port + host->n_io_port - 1);

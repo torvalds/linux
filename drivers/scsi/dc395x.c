@@ -4623,8 +4623,8 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	unsigned long flags;
 	int dev;
 
-	seq_puts(m, DC395X_BANNER " PCI SCSI Host Adapter\n");
-	seq_puts(m, " Driver Version " DC395X_VERSION "\n");
+	seq_puts(m, DC395X_BANNER " PCI SCSI Host Adapter\n"
+		" Driver Version " DC395X_VERSION "\n");
 
 	DC395x_LOCK_IO(acb->scsi_host, flags);
 
