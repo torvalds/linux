@@ -2014,40 +2014,38 @@ isert_send_completion(struct iser_tx_desc *tx_desc,
 }
 
 static void
-isert_cq_tx_comp_err(struct iser_tx_desc *tx_desc, struct isert_conn *isert_conn)
+isert_cq_comp_err(void *desc, struct isert_conn *isert_conn, bool tx)
 {
-	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
-	struct isert_cmd *isert_cmd = tx_desc->isert_cmd;
+	if (tx) {
+		struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
+		struct isert_cmd *isert_cmd;
 
-	if (!isert_cmd)
-		isert_unmap_tx_desc(tx_desc, ib_dev);
-	else
-		isert_completion_put(tx_desc, isert_cmd, ib_dev, true);
-}
-
-static void
-isert_cq_rx_comp_err(struct isert_conn *isert_conn)
-{
-	struct iscsi_conn *conn = isert_conn->conn;
-
-	if (isert_conn->post_recv_buf_count)
-		return;
-
-	if (conn->sess) {
-		target_sess_cmd_list_set_waiting(conn->sess->se_sess);
-		target_wait_for_sess_cmds(conn->sess->se_sess);
+		isert_cmd = ((struct iser_tx_desc *)desc)->isert_cmd;
+		if (!isert_cmd)
+			isert_unmap_tx_desc(desc, ib_dev);
+		else
+			isert_completion_put(desc, isert_cmd, ib_dev, true);
+		atomic_dec(&isert_conn->post_send_buf_count);
+	} else {
+		isert_conn->post_recv_buf_count--;
 	}
 
-	while (atomic_read(&isert_conn->post_send_buf_count))
-		msleep(3000);
+	if (isert_conn->post_recv_buf_count == 0 &&
+	    atomic_read(&isert_conn->post_send_buf_count) == 0) {
+		struct iscsi_conn *conn = isert_conn->conn;
 
-	mutex_lock(&isert_conn->conn_mutex);
-	isert_conn_terminate(isert_conn);
-	mutex_unlock(&isert_conn->conn_mutex);
+		if (conn->sess) {
+			target_sess_cmd_list_set_waiting(conn->sess->se_sess);
+			target_wait_for_sess_cmds(conn->sess->se_sess);
+		}
 
-	iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
+		mutex_lock(&isert_conn->conn_mutex);
+		isert_conn_terminate(isert_conn);
+		mutex_unlock(&isert_conn->conn_mutex);
 
-	complete(&isert_conn->conn_wait_comp_err);
+		iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
+		complete(&isert_conn->conn_wait_comp_err);
+	}
 }
 
 static void
@@ -2073,10 +2071,8 @@ isert_cq_tx_work(struct work_struct *work)
 			pr_debug("TX wc.status: 0x%08x\n", wc.status);
 			pr_debug("TX wc.vendor_err: 0x%08x\n", wc.vendor_err);
 
-			if (wc.wr_id != ISER_FASTREG_LI_WRID) {
-				atomic_dec(&isert_conn->post_send_buf_count);
-				isert_cq_tx_comp_err(tx_desc, isert_conn);
-			}
+			if (wc.wr_id != ISER_FASTREG_LI_WRID)
+				isert_cq_comp_err(tx_desc, isert_conn, true);
 		}
 	}
 
@@ -2118,8 +2114,7 @@ isert_cq_rx_work(struct work_struct *work)
 				pr_debug("RX wc.vendor_err: 0x%08x\n",
 					 wc.vendor_err);
 			}
-			isert_conn->post_recv_buf_count--;
-			isert_cq_rx_comp_err(isert_conn);
+			isert_cq_comp_err(rx_desc, isert_conn, false);
 		}
 	}
 
