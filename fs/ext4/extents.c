@@ -5151,7 +5151,8 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ext4_has_inline_data(inode)) {
 		int has_inline = 1;
 
-		error = ext4_inline_data_fiemap(inode, fieinfo, &has_inline);
+		error = ext4_inline_data_fiemap(inode, fieinfo, &has_inline,
+						start, len);
 
 		if (has_inline)
 			return error;
