@@ -514,6 +514,8 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_EVA;
 	if (config5 & MIPS_CONF5_MRP)
 		c->options |= MIPS_CPU_MAAR;
+	if (config5 & MIPS_CONF5_LLB)
+		c->options |= MIPS_CPU_RW_LLB;
 
 	return config5 & MIPS_CONF_M;
 }

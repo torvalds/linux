@@ -38,6 +38,9 @@
 #ifndef cpu_has_maar
 #define cpu_has_maar		(cpu_data[0].options & MIPS_CPU_MAAR)
 #endif
+#ifndef cpu_has_rw_llb
+#define cpu_has_rw_llb		(cpu_data[0].options & MIPS_CPU_RW_LLB)
+#endif
 
 /*
  * For the moment we don't consider R6000 and R8000 so we can assume that
