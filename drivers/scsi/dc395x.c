@@ -4692,7 +4692,7 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	if (timer_pending(&acb->waiting_timer))
 		seq_puts(m, "Waiting queue timer running\n");
 	else
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 
 	list_for_each_entry(dcb, &acb->dcb_list, list) {
 		struct ScsiReqBlk *srb;
@@ -4709,7 +4709,7 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 		list_for_each_entry(srb, &dcb->srb_going_list, list)
 			seq_printf(m, " %p", srb->cmd);
 		if (!list_empty(&dcb->srb_waiting_list) || !list_empty(&dcb->srb_going_list))
-			seq_puts(m, "\n");
+			seq_putc(m, '\n');
 	}
 
 	if (debug_enabled(DBG_1)) {

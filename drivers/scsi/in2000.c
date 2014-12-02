@@ -2273,7 +2273,7 @@ static int in2000_show_info(struct seq_file *m, struct Scsi_Host *instance)
 	if (hd->proc & PR_TEST) {
 		;		/* insert your own custom function here */
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 	spin_unlock_irqrestore(instance->host_lock, flags);
 #endif				/* PROC_INTERFACE */
 	return 0;

@@ -1509,7 +1509,7 @@ static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 				data->target[id].offset
 				);
 		}
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 	}
 	return 0;
 }

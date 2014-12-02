@@ -2192,7 +2192,7 @@ wd33c93_show_info(struct seq_file *m, struct Scsi_Host *instance)
 			cmd = (struct scsi_cmnd *) cmd->host_scribble;
 		}
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 	spin_unlock_irq(&hd->lock);
 #endif				/* PROC_INTERFACE */
 	return 0;

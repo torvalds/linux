@@ -1398,7 +1398,7 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 		seq_puts(m, "???");
 		break;
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 
 	spin_lock_irqsave(&(data->Lock), flags);
@@ -1439,7 +1439,7 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 				data->Sync[id].SyncOffset
 				);
 		}
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 	}
 	return 0;
 }

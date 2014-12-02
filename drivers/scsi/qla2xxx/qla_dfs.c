@@ -38,7 +38,7 @@ qla2x00_dfs_fce_show(struct seq_file *s, void *unused)
 			seq_printf(s, "\n%llx: ",
 			    (unsigned long long)((cnt * 4) + fce_start));
 		else
-			seq_puts(s, " ");
+			seq_putc(s, ' ');
 		seq_printf(s, "%08x", *fce++);
 	}
 

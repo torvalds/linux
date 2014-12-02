@@ -3088,7 +3088,7 @@ static void asc_prt_asc_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 	for (i = 0; i <= ASC_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (ep->init_sdtr & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 #ifdef CONFIG_ISA
 	if (asc_dvc_varp->bus_type & ASC_IS_ISA) {
@@ -3203,7 +3203,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 	seq_puts(m, " Target ID:           ");
 	for (i = 0; i <= ADV_MAX_TID; i++)
 		seq_printf(m, " %X", i);
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
 		word = ep_3550->disc_enable;
@@ -3216,7 +3216,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 	for (i = 0; i <= ADV_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (word & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
 		word = ep_3550->tagqng_able;
@@ -3229,7 +3229,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 	for (i = 0; i <= ADV_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (word & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
 		word = ep_3550->start_motor;
@@ -3242,7 +3242,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 	for (i = 0; i <= ADV_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (word & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
 		seq_puts(m, " Synchronous Transfer:");
@@ -3250,7 +3250,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 			seq_printf(m, " %c",
 				   (ep_3550->sdtr_able & ADV_TID_TO_TIDMASK(i)) ?
 				   'Y' : 'N');
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
@@ -3259,7 +3259,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 			seq_printf(m, " %c",
 				   (ep_3550->ultra_able & ADV_TID_TO_TIDMASK(i))
 				   ? 'Y' : 'N');
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC3550) {
@@ -3273,7 +3273,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 	for (i = 0; i <= ADV_MAX_TID; i++)
 		seq_printf(m, " %c",
 			   (word & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	if (adv_dvc_varp->chip_type == ADV_CHIP_ASC38C0800 ||
 	    adv_dvc_varp->chip_type == ADV_CHIP_ASC38C1600) {
@@ -3318,7 +3318,7 @@ static void asc_prt_adv_board_eeprom(struct seq_file *m, struct Scsi_Host *shost
 				seq_puts(m, "\n  ");
 			sdtr_speed >>= 4;
 		}
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 	}
 }
 
@@ -3448,7 +3448,7 @@ static void asc_prt_asc_board_info(struct seq_file *m, struct Scsi_Host *shost)
 			   i,
 			   (v->sdtr_done & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	for (i = 0; i <= ASC_MAX_TID; i++) {
 		uchar syn_period_ix;
@@ -3483,7 +3483,7 @@ static void asc_prt_asc_board_info(struct seq_file *m, struct Scsi_Host *shost)
 			seq_puts(m, "*\n");
 			renegotiate = 1;
 		} else {
-			seq_puts(m, "\n");
+			seq_putc(m, '\n');
 		}
 	}
 
@@ -3570,7 +3570,7 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 
 		seq_printf(m, " %X:%d", i, lrambyte);
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	AdvReadWordLram(iop_base, ASC_MC_WDTR_ABLE, wdtr_able);
 	seq_puts(m, " Wide Enabled:");
@@ -3584,7 +3584,7 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 			   i,
 			   (wdtr_able & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	AdvReadWordLram(iop_base, ASC_MC_WDTR_DONE, wdtr_done);
 	seq_puts(m, " Transfer Bit Width:");
@@ -3603,11 +3603,11 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 
 		if ((wdtr_able & ADV_TID_TO_TIDMASK(i)) &&
 		    (wdtr_done & ADV_TID_TO_TIDMASK(i)) == 0) {
-			seq_puts(m, "*");
+			seq_putc(m, '*');
 			renegotiate = 1;
 		}
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	AdvReadWordLram(iop_base, ASC_MC_SDTR_ABLE, sdtr_able);
 	seq_puts(m, " Synchronous Enabled:");
@@ -3621,7 +3621,7 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 			   i,
 			   (sdtr_able & ADV_TID_TO_TIDMASK(i)) ? 'Y' : 'N');
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	AdvReadWordLram(iop_base, ASC_MC_SDTR_DONE, sdtr_done);
 	for (i = 0; i <= ADV_MAX_TID; i++) {
@@ -3670,7 +3670,7 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 			seq_puts(m, "*\n");
 			renegotiate = 1;
 		} else {
-			seq_puts(m, "\n");
+			seq_putc(m, '\n');
 		}
 	}
 

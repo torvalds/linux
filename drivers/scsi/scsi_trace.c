@@ -249,7 +249,7 @@ scsi_trace_misc(struct trace_seq *p, unsigned char *cdb, int len)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
-	trace_seq_puts(p, "-");
+	trace_seq_putc(p, '-');
 	trace_seq_putc(p, 0);
 
 	return ret;

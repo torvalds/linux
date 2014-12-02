@@ -2137,7 +2137,7 @@ ips_host_info(ips_ha_t *ha, struct seq_file *m)
 	seq_printf(m, "\tCurrent Active PT Commands        : %d\n",
 		  ha->num_ioctl);
 
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }

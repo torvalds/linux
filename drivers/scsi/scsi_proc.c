@@ -191,7 +191,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 		if (sdev->vendor[i] >= 0x20)
 			seq_putc(s, sdev->vendor[i]);
 		else
-			seq_puts(s, " ");
+			seq_putc(s, ' ');
 	}
 
 	seq_puts(s, " Model: ");
@@ -199,7 +199,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 		if (sdev->model[i] >= 0x20)
 			seq_putc(s, sdev->model[i]);
 		else
-			seq_puts(s, " ");
+			seq_putc(s, ' ');
 	}
 
 	seq_puts(s, " Rev: ");
@@ -207,10 +207,10 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 		if (sdev->rev[i] >= 0x20)
 			seq_putc(s, sdev->rev[i]);
 		else
-			seq_puts(s, " ");
+			seq_putc(s, ' ');
 	}
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 
 	seq_printf(s, "  Type:   %s ", scsi_device_type(sdev->type));
 	seq_printf(s, "               ANSI  SCSI revision: %02x",
@@ -218,7 +218,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 	if (sdev->scsi_level == 2)
 		seq_puts(s, " CCS\n");
 	else
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 
 out:
 	return 0;

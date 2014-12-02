@@ -148,9 +148,9 @@ ahd_format_transinfo(struct seq_file *m, struct ahd_transinfo *tinfo)
 		}
 		seq_printf(m, "%dbit)", 8 * (0x01 << tinfo->width));
 	} else if (freq != 0) {
-		seq_puts(m, ")");
+		seq_putc(m, ')');
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 }
 
 static void
@@ -294,14 +294,14 @@ ahd_linux_show_info(struct seq_file *m, struct Scsi_Host *shost)
 		seq_puts(m, "Serial EEPROM:\n");
 		for (i = 0; i < sizeof(*ahd->seep_config)/2; i++) {
 			if (((i % 8) == 0) && (i != 0)) {
-				seq_puts(m, "\n");
+				seq_putc(m, '\n');
 			}
 			seq_printf(m, "0x%.4x ",
 				  ((uint16_t*)ahd->seep_config)[i]);
 		}
-		seq_puts(m, "\n");
+		seq_putc(m, '\n');
 	}
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 
 	if ((ahd->features & AHD_WIDE) == 0)
 		max_targ = 8;

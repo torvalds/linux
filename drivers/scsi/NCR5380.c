@@ -764,7 +764,7 @@ static void lprint_command(unsigned char *command, struct seq_file *m)
 	lprint_opcode(command[0], m);
 	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
 		seq_printf(m, "%02x ", command[i]);
-	seq_puts(m, "\n");
+	seq_putc(m, '\n');
 }
 
 static void lprint_opcode(int opcode, struct seq_file *m)
