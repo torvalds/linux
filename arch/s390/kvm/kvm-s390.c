@@ -546,25 +546,30 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 }
 
 /* Section: vcpu related */
+static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.gmap = gmap_alloc(current->mm, -1UL);
+	if (!vcpu->arch.gmap)
+		return -ENOMEM;
+	vcpu->arch.gmap->private = vcpu->kvm;
+
+	return 0;
+}
+
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
-	if (kvm_is_ucontrol(vcpu->kvm)) {
-		vcpu->arch.gmap = gmap_alloc(current->mm, -1UL);
-		if (!vcpu->arch.gmap)
-			return -ENOMEM;
-		vcpu->arch.gmap->private = vcpu->kvm;
-		return 0;
-	}
-
-	vcpu->arch.gmap = vcpu->kvm->arch.gmap;
 	vcpu->run->kvm_valid_regs = KVM_SYNC_PREFIX |
 				    KVM_SYNC_GPRS |
 				    KVM_SYNC_ACRS |
 				    KVM_SYNC_CRS |
 				    KVM_SYNC_ARCH0 |
 				    KVM_SYNC_PFAULT;
+
+	if (kvm_is_ucontrol(vcpu->kvm))
+		return __kvm_ucontrol_vcpu_init(vcpu);
+
 	return 0;
 }
 
@@ -617,6 +622,8 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
+	if (!kvm_is_ucontrol(vcpu->kvm))
+		vcpu->arch.gmap = vcpu->kvm->arch.gmap;
 }
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
