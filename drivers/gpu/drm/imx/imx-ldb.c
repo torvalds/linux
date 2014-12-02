@@ -168,16 +168,16 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 	switch (imx_ldb_ch->chno) {
 	case 0:
 		pixel_fmt = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH0_24) ?
-			V4L2_PIX_FMT_RGB24 : V4L2_PIX_FMT_BGR666;
+			MEDIA_BUS_FMT_RGB888_1X24 : MEDIA_BUS_FMT_RGB666_1X18;
 		break;
 	case 1:
 		pixel_fmt = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH1_24) ?
-			V4L2_PIX_FMT_RGB24 : V4L2_PIX_FMT_BGR666;
+			MEDIA_BUS_FMT_RGB888_1X24 : MEDIA_BUS_FMT_RGB666_1X18;
 		break;
 	default:
 		dev_err(ldb->dev, "unable to config di%d panel format\n",
 			imx_ldb_ch->chno);
-		pixel_fmt = V4L2_PIX_FMT_RGB24;
+		pixel_fmt = MEDIA_BUS_FMT_RGB888_1X24;
 	}
 
 	imx_drm_panel_format(encoder, pixel_fmt);
