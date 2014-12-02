@@ -616,8 +616,9 @@ EXPORT_SYMBOL_GPL(greybus_data_sent);
  * This is called in interrupt context, so just copy the incoming
  * data into the request buffer and handle the rest via workqueue.
  */
-void gb_connection_recv_request(struct gb_connection *connection,
-	u16 operation_id, u8 type, void *data, size_t size)
+static void gb_connection_recv_request(struct gb_connection *connection,
+				       u16 operation_id, u8 type, void *data,
+				       size_t size)
 {
 	struct gb_operation *operation;
 
