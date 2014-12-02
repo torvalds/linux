@@ -26,6 +26,7 @@
 #include <linux/i2c-mux.h>
 
 struct rtl2832_priv {
+	struct i2c_client *client;
 	struct i2c_adapter *i2c;
 	struct i2c_adapter *i2c_adapter;
 	struct i2c_adapter *i2c_adapter_tuner;

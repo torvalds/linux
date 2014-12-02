@@ -50,6 +50,16 @@ struct rtl2832_config {
 	u8 tuner;
 };
 
+struct rtl2832_platform_data {
+	const struct rtl2832_config *config;
+
+	/*
+	 * frontend
+	 * returned by driver
+	 */
+	struct dvb_frontend **dvb_frontend;
+};
+
 #if IS_ENABLED(CONFIG_DVB_RTL2832)
 struct dvb_frontend *rtl2832_attach(
 	const struct rtl2832_config *cfg,
