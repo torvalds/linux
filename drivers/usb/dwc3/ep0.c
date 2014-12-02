@@ -791,6 +791,10 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	trb = dwc->ep0_trb;
 
+	r = next_request(&ep0->request_list);
+	if (!r)
+		return;
+
 	status = DWC3_TRB_SIZE_TRBSTS(trb->size);
 	if (status == DWC3_TRBSTS_SETUP_PENDING) {
 		dwc3_trace(trace_dwc3_ep0, "Setup Pending received");
@@ -800,10 +804,6 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 		return;
 	}
-
-	r = next_request(&ep0->request_list);
-	if (!r)
-		return;
 
 	ur = &r->request;
 

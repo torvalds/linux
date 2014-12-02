@@ -792,6 +792,22 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 }
 
 static int
+nv50_crtc_set_raster_vblank_dmi(struct nouveau_crtc *nv_crtc, u32 usec)
+{
+	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
+	u32 *push;
+
+	push = evo_wait(mast, 8);
+	if (!push)
+		return -ENOMEM;
+
+	evo_mthd(push, 0x0828 + (nv_crtc->index * 0x400), 1);
+	evo_data(push, usec);
+	evo_kick(push, mast);
+	return 0;
+}
+
+static int
 nv50_crtc_set_color_vibrance(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
@@ -1105,14 +1121,14 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 			evo_mthd(push, 0x0804 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00800000 | mode->clock);
 			evo_data(push, (ilace == 2) ? 2 : 0);
-			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 8);
+			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 6);
 			evo_data(push, 0x00000000);
 			evo_data(push, (vactive << 16) | hactive);
 			evo_data(push, ( vsynce << 16) | hsynce);
 			evo_data(push, (vblanke << 16) | hblanke);
 			evo_data(push, (vblanks << 16) | hblanks);
 			evo_data(push, (vblan2e << 16) | vblan2s);
-			evo_data(push, vblankus);
+			evo_mthd(push, 0x082c + (nv_crtc->index * 0x400), 1);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0900 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00000311);
@@ -1142,6 +1158,11 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	nv50_crtc_set_dither(nv_crtc, false);
 	nv50_crtc_set_scale(nv_crtc, false);
+
+	/* G94 only accepts this after setting scale */
+	if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA)
+		nv50_crtc_set_raster_vblank_dmi(nv_crtc, vblankus);
+
 	nv50_crtc_set_color_vibrance(nv_crtc, false);
 	nv50_crtc_set_image(nv_crtc, crtc->primary->fb, x, y, false);
 	return 0;

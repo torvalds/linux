@@ -180,7 +180,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		      EFX_MAX_CHANNELS,
 		      resource_size(&efx->pci_dev->resource[EFX_MEM_BAR]) /
 		      (EFX_VI_PAGE_SIZE * EFX_TXQ_TYPES));
-	BUG_ON(efx->max_channels == 0);
+	if (WARN_ON(efx->max_channels == 0))
+		return -EIO;
 
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
 	if (!nic_data)

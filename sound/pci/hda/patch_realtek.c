@@ -288,6 +288,80 @@ static void alc880_unsol_event(struct hda_codec *codec, unsigned int res)
 	snd_hda_jack_unsol_event(codec, res >> 2);
 }
 
+/* Change EAPD to verb control */
+static void alc_fill_eapd_coef(struct hda_codec *codec)
+{
+	int coef;
+
+	coef = alc_get_coef0(codec);
+
+	switch (codec->vendor_id) {
+	case 0x10ec0262:
+		alc_update_coef_idx(codec, 0x7, 0, 1<<5);
+		break;
+	case 0x10ec0267:
+	case 0x10ec0268:
+		alc_update_coef_idx(codec, 0x7, 0, 1<<13);
+		break;
+	case 0x10ec0269:
+		if ((coef & 0x00f0) == 0x0010)
+			alc_update_coef_idx(codec, 0xd, 0, 1<<14);
+		if ((coef & 0x00f0) == 0x0020)
+			alc_update_coef_idx(codec, 0x4, 1<<15, 0);
+		if ((coef & 0x00f0) == 0x0030)
+			alc_update_coef_idx(codec, 0x10, 1<<9, 0);
+		break;
+	case 0x10ec0280:
+	case 0x10ec0284:
+	case 0x10ec0290:
+	case 0x10ec0292:
+		alc_update_coef_idx(codec, 0x4, 1<<15, 0);
+		break;
+	case 0x10ec0233:
+	case 0x10ec0255:
+	case 0x10ec0282:
+	case 0x10ec0283:
+	case 0x10ec0286:
+	case 0x10ec0288:
+		alc_update_coef_idx(codec, 0x10, 1<<9, 0);
+		break;
+	case 0x10ec0285:
+	case 0x10ec0293:
+		alc_update_coef_idx(codec, 0xa, 1<<13, 0);
+		break;
+	case 0x10ec0662:
+		if ((coef & 0x00f0) == 0x0030)
+			alc_update_coef_idx(codec, 0x4, 1<<10, 0); /* EAPD Ctrl */
+		break;
+	case 0x10ec0272:
+	case 0x10ec0273:
+	case 0x10ec0663:
+	case 0x10ec0665:
+	case 0x10ec0670:
+	case 0x10ec0671:
+	case 0x10ec0672:
+		alc_update_coef_idx(codec, 0xd, 0, 1<<14); /* EAPD Ctrl */
+		break;
+	case 0x10ec0668:
+		alc_update_coef_idx(codec, 0x7, 3<<13, 0);
+		break;
+	case 0x10ec0867:
+		alc_update_coef_idx(codec, 0x4, 1<<10, 0);
+		break;
+	case 0x10ec0888:
+		if ((coef & 0x00f0) == 0x0020 || (coef & 0x00f0) == 0x0030)
+			alc_update_coef_idx(codec, 0x7, 1<<5, 0);
+		break;
+	case 0x10ec0892:
+		alc_update_coef_idx(codec, 0x7, 1<<5, 0);
+		break;
+	case 0x10ec0899:
+	case 0x10ec0900:
+		alc_update_coef_idx(codec, 0x7, 1<<1, 0);
+		break;
+	}
+}
+
 /* additional initialization for ALC888 variants */
 static void alc888_coef_init(struct hda_codec *codec)
 {
@@ -339,6 +413,7 @@ static void alc_eapd_shutup(struct hda_codec *codec)
 /* generic EAPD initialization */
 static void alc_auto_init_amp(struct hda_codec *codec, int type)
 {
+	alc_fill_eapd_coef(codec);
 	alc_auto_setup_eapd(codec, true);
 	switch (type) {
 	case ALC_INIT_GPIO1:
@@ -4445,6 +4520,8 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC269_FIXUP_HEADSET_MODE] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode,
+		.chained = true,
+		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
 	},
 	[ALC269_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
@@ -4634,6 +4711,8 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC255_FIXUP_HEADSET_MODE] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode_alc255,
+		.chained = true,
+		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
 	},
 	[ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
@@ -4669,8 +4748,6 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_dell_wmi,
-		.chained_before = true,
-		.chain_id = ALC255_FIXUP_DELL1_MIC_NO_PRESENCE
 	},
 	[ALC282_FIXUP_ASPIRE_V5_PINS] = {
 		.type = HDA_FIXUP_PINS,
@@ -4708,10 +4785,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x05f4, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x05f5, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x05f6, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x1028, 0x0610, "Dell", ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED),
 	SND_PCI_QUIRK(0x1028, 0x0615, "Dell Vostro 5470", ALC290_FIXUP_SUBWOOFER_HSJACK),
 	SND_PCI_QUIRK(0x1028, 0x0616, "Dell Vostro 5470", ALC290_FIXUP_SUBWOOFER_HSJACK),
-	SND_PCI_QUIRK(0x1028, 0x061f, "Dell", ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED),
 	SND_PCI_QUIRK(0x1028, 0x0638, "Dell Inspiron 5439", ALC290_FIXUP_MONO_SPEAKERS_HSJACK),
 	SND_PCI_QUIRK(0x1028, 0x064a, "Dell", ALC293_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x064b, "Dell", ALC293_FIXUP_DELL1_MIC_NO_PRESENCE),
@@ -4743,7 +4818,6 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x221b, "HP", ALC269_FIXUP_HP_GPIO_MIC1_LED),
 	SND_PCI_QUIRK(0x103c, 0x2221, "HP", ALC269_FIXUP_HP_GPIO_MIC1_LED),
 	SND_PCI_QUIRK(0x103c, 0x2225, "HP", ALC269_FIXUP_HP_GPIO_MIC1_LED),
-	SND_PCI_QUIRK(0x103c, 0x2246, "HP", ALC269_FIXUP_HP_GPIO_MIC1_LED),
 	SND_PCI_QUIRK(0x103c, 0x2253, "HP", ALC269_FIXUP_HP_GPIO_MIC1_LED),
 	SND_PCI_QUIRK(0x103c, 0x2254, "HP", ALC269_FIXUP_HP_GPIO_MIC1_LED),
 	SND_PCI_QUIRK(0x103c, 0x2255, "HP", ALC269_FIXUP_HP_GPIO_MIC1_LED),
@@ -5211,9 +5285,6 @@ static void alc269_fill_coef(struct hda_codec *codec)
 			alc_write_coef_idx(codec, 0x17, val | (1<<7));
 		}
 	}
-
-	/* Class D */
-	alc_update_coef_idx(codec, 0xd, 0, 1<<14);
 
 	/* HP */
 	alc_update_coef_idx(codec, 0x4, 0, 1<<11);
@@ -6124,29 +6195,6 @@ static const struct snd_hda_pin_quirk alc662_pin_fixup_tbl[] = {
 	{}
 };
 
-static void alc662_fill_coef(struct hda_codec *codec)
-{
-	int coef;
-
-	coef = alc_get_coef0(codec);
-
-	switch (codec->vendor_id) {
-	case 0x10ec0662:
-		if ((coef & 0x00f0) == 0x0030)
-			alc_update_coef_idx(codec, 0x4, 1<<10, 0); /* EAPD Ctrl */
-		break;
-	case 0x10ec0272:
-	case 0x10ec0273:
-	case 0x10ec0663:
-	case 0x10ec0665:
-	case 0x10ec0670:
-	case 0x10ec0671:
-	case 0x10ec0672:
-		alc_update_coef_idx(codec, 0xd, 0, 1<<14); /* EAPD Ctrl */
-		break;
-	}
-}
-
 /*
  */
 static int patch_alc662(struct hda_codec *codec)
@@ -6168,10 +6216,6 @@ static int patch_alc662(struct hda_codec *codec)
 	switch (codec->vendor_id) {
 	case 0x10ec0668:
 		spec->init_hook = alc668_restore_default_value;
-		break;
-	default:
-		spec->init_hook = alc662_fill_coef;
-		alc662_fill_coef(codec);
 		break;
 	}
 
