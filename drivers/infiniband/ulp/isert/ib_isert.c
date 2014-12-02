@@ -3369,9 +3369,30 @@ static void
 isert_free_np(struct iscsi_np *np)
 {
 	struct isert_np *isert_np = (struct isert_np *)np->np_context;
+	struct isert_conn *isert_conn, *n;
 
 	if (isert_np->np_cm_id)
 		rdma_destroy_id(isert_np->np_cm_id);
+
+	/*
+	 * FIXME: At this point we don't have a good way to insure
+	 * that at this point we don't have hanging connections that
+	 * completed RDMA establishment but didn't start iscsi login
+	 * process. So work-around this by cleaning up what ever piled
+	 * up in np_accept_list.
+	 */
+	mutex_lock(&isert_np->np_accept_mutex);
+	if (!list_empty(&isert_np->np_accept_list)) {
+		pr_info("Still have isert connections, cleaning up...\n");
+		list_for_each_entry_safe(isert_conn, n,
+					 &isert_np->np_accept_list,
+					 conn_accept_node) {
+			pr_info("cleaning isert_conn %p state (%d)\n",
+				   isert_conn, isert_conn->state);
+			isert_connect_release(isert_conn);
+		}
+	}
+	mutex_unlock(&isert_np->np_accept_mutex);
 
 	np->np_context = NULL;
 	kfree(isert_np);
