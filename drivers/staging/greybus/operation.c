@@ -301,45 +301,14 @@ gb_hd_message_find(struct greybus_host_device *hd, void *header)
 	return message;
 }
 
-/*
- * Allocate a message to be used for an operation request or response.
- * Both types of message contain a common header.  The request message
- * for an outgoing operation is outbound, as is the response message
- * for an incoming operation.  The message header for an outbound
- * message is partially initialized here.
- *
- * The headers for inbound messages don't need to be initialized;
- * they'll be filled in by arriving data.
- *
- * Our message structure consists of:
- *	message structure
- *	headroom
- *	message header  \_ these combined are
- *	message payload /  the message size
- */
-static struct gb_message *
-gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
-				size_t payload_size, gfp_t gfp_flags)
+static void gb_operation_message_init(struct greybus_host_device *hd,
+				struct gb_message *message, u16 operation_id,
+				size_t message_size, u8 type)
 {
-	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
-	size_t message_size = payload_size + sizeof(*header);
-	size_t size;
 	u8 *buffer;
 
-	if (hd->buffer_size_max > GB_OPERATION_MESSAGE_SIZE_MAX) {
-		pr_warn("limiting buffer size to %u\n",
-			GB_OPERATION_MESSAGE_SIZE_MAX);
-		hd->buffer_size_max = GB_OPERATION_MESSAGE_SIZE_MAX;
-	}
-
-	if (message_size > hd->buffer_size_max)
-		return NULL;
-
-	size = sizeof(*message) + hd->buffer_headroom + message_size;
-	message = kzalloc(size, gfp_flags);
-	if (!message)
-		return NULL;
+	BUG_ON(message_size < sizeof(*header));
 	buffer = &message->buffer[0];
 	header = (struct gb_operation_msg_hdr *)(buffer + hd->buffer_headroom);
 
@@ -367,6 +336,49 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 		header->type = type;
 		header->result = 0;
 	}
+}
+
+/*
+ * Allocate a message to be used for an operation request or response.
+ * Both types of message contain a common header.  The request message
+ * for an outgoing operation is outbound, as is the response message
+ * for an incoming operation.  The message header for an outbound
+ * message is partially initialized here.
+ *
+ * The headers for inbound messages don't need to be initialized;
+ * they'll be filled in by arriving data.
+ *
+ * Our message structure consists of:
+ *	message structure
+ *	headroom
+ *	message header  \_ these combined are
+ *	message payload /  the message size
+ */
+static struct gb_message *
+gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
+				size_t payload_size, gfp_t gfp_flags)
+{
+	struct gb_message *message;
+	struct gb_operation_msg_hdr *header;
+	size_t message_size = payload_size + sizeof(*header);
+	size_t size;
+
+	if (hd->buffer_size_max > GB_OPERATION_MESSAGE_SIZE_MAX) {
+		pr_warn("limiting buffer size to %u\n",
+			GB_OPERATION_MESSAGE_SIZE_MAX);
+		hd->buffer_size_max = GB_OPERATION_MESSAGE_SIZE_MAX;
+	}
+
+	if (message_size > hd->buffer_size_max)
+		return NULL;
+
+	size = sizeof(*message) + hd->buffer_headroom + message_size;
+	message = kzalloc(size, gfp_flags);
+	if (!message)
+		return NULL;
+
+	/* Initialize the message.  Operation id is filled in later. */
+	gb_operation_message_init(hd, message, 0, message_size, type);
 
 	return message;
 }
