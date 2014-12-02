@@ -80,8 +80,6 @@ static void st21nfcb_nci_i2c_disable(void *phy_id)
 {
 	struct st21nfcb_i2c_phy *phy = phy_id;
 
-	pr_info("\n");
-
 	phy->powered = 0;
 	/* reset chip in order to flush clf */
 	gpio_set_value(phy->gpio_reset, 0);
