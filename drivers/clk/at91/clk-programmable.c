@@ -57,7 +57,7 @@ static unsigned long clk_programmable_recalc_rate(struct clk_hw *hw,
 static long clk_programmable_determine_rate(struct clk_hw *hw,
 					    unsigned long rate,
 					    unsigned long *best_parent_rate,
-					    struct clk **best_parent_clk)
+					    struct clk_hw **best_parent_hw)
 {
 	struct clk *parent = NULL;
 	long best_rate = -EINVAL;
@@ -84,7 +84,7 @@ static long clk_programmable_determine_rate(struct clk_hw *hw,
 		if (best_rate < 0 || (rate - tmp_rate) < (rate - best_rate)) {
 			best_rate = tmp_rate;
 			*best_parent_rate = parent_rate;
-			*best_parent_clk = parent;
+			*best_parent_hw = __clk_get_hw(parent);
 		}
 
 		if (!best_rate)

@@ -46,7 +46,7 @@ static unsigned long ar100_recalc_rate(struct clk_hw *hw,
 
 static long ar100_determine_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long *best_parent_rate,
-				 struct clk **best_parent_clk)
+				 struct clk_hw **best_parent_clk)
 {
 	int nparents = __clk_get_num_parents(hw->clk);
 	long best_rate = -EINVAL;
@@ -100,7 +100,7 @@ static long ar100_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 		tmp_rate = (parent_rate >> shift) / div;
 		if (!*best_parent_clk || tmp_rate > best_rate) {
-			*best_parent_clk = parent;
+			*best_parent_clk = __clk_get_hw(parent);
 			*best_parent_rate = parent_rate;
 			best_rate = tmp_rate;
 		}

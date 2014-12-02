@@ -1032,7 +1032,7 @@ static long kona_peri_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *best_parent_rate, struct clk **best_parent)
+		unsigned long *best_parent_rate, struct clk_hw **best_parent)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
 	struct clk *clk = hw->clk;
@@ -1075,7 +1075,7 @@ static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
 		if (delta < best_delta) {
 			best_delta = delta;
 			best_rate = other_rate;
-			*best_parent = parent;
+			*best_parent = __clk_get_hw(parent);
 			*best_parent_rate = parent_rate;
 		}
 	}
