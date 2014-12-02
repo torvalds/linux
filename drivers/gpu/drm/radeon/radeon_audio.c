@@ -59,6 +59,7 @@ void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
 		struct drm_connector *connector, struct drm_display_mode *mode);
 struct r600_audio_pin* r600_audio_get_pin(struct radeon_device *rdev);
 struct r600_audio_pin* dce6_audio_get_pin(struct radeon_device *rdev);
+void dce6_afmt_select_pin(struct drm_encoder *encoder);
 
 static const u32 pin_offsets[7] =
 {
@@ -124,6 +125,7 @@ static struct radeon_audio_funcs dce4_dp_funcs = {
 };
 
 static struct radeon_audio_funcs dce6_hdmi_funcs = {
+	.select_pin = dce6_afmt_select_pin,
 	.get_pin = dce6_audio_get_pin,
 	.write_sad_regs = dce6_afmt_write_sad_regs,
 	.write_speaker_allocation = dce6_afmt_hdmi_write_speaker_allocation,
@@ -131,6 +133,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
+	.select_pin = dce6_afmt_select_pin,
 	.get_pin = dce6_audio_get_pin,
 	.write_sad_regs = dce6_afmt_write_sad_regs,
 	.write_speaker_allocation = dce6_afmt_dp_write_speaker_allocation,
@@ -359,4 +362,12 @@ struct r600_audio_pin* radeon_audio_get_pin(struct drm_encoder *encoder)
 		return radeon_encoder->audio->get_pin(rdev);
 
 	return NULL;
+}
+
+void radeon_audio_select_pin(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+
+	if (radeon_encoder->audio && radeon_encoder->audio->select_pin)
+		radeon_encoder->audio->select_pin(encoder);
 }

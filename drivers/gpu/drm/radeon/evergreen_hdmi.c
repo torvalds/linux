@@ -33,8 +33,6 @@
 #include "evergreend.h"
 #include "atom.h"
 
-extern void dce6_afmt_select_pin(struct drm_encoder *encoder);
-
 /* enable the audio stream */
 static void dce4_audio_enable(struct radeon_device *rdev,
 			      struct r600_audio_pin *pin,
@@ -401,9 +399,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	/* fglrx sets 0x40 in 0x5f80 here */
 
-	if (ASIC_IS_DCE6(rdev))
-		dce6_afmt_select_pin(encoder);
-
+	radeon_audio_select_pin(encoder);
 	radeon_audio_write_sad_regs(encoder);
 	radeon_audio_write_latency_fields(encoder, mode);
 
