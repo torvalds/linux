@@ -510,7 +510,7 @@ static void hdmi_init_output(struct platform_device *pdev)
 	omapdss_register_output(out);
 }
 
-static void __exit hdmi_uninit_output(struct platform_device *pdev)
+static void hdmi_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &hdmi.output;
 
