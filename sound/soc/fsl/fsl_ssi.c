@@ -1410,7 +1410,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 
 	ret = fsl_ssi_debugfs_create(&ssi_private->dbg_stats, &pdev->dev);
 	if (ret)
-		goto error_asoc_register;
+		goto error_irq;
 
 	/*
 	 * If codec-handle property is missing from SSI node, we assume
