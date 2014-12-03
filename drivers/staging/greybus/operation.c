@@ -32,15 +32,13 @@ static DEFINE_MUTEX(gb_message_mutex);
 
 /*
  * All operation messages (both requests and responses) begin with
- * a header that encodes the size of the data (header included).
- * This header also contains a unique identifier, which is used to
- * keep track of in-flight operations.  The header contains an
+ * a header that encodes the size of the message (header included).
+ * This header also contains a unique identifier, that associates a
+ * response message with its operation.  The header contains an
  * operation type field, whose interpretation is dependent on what
- * type of protocol is used over the connection.
- *
- * The high bit (0x80) of the operation type field is used to
- * indicate whether the message is a request (clear) or a response
- * (set).
+ * type of protocol is used over the connection.  The high bit
+ * (0x80) of the operation type field is used to indicate whether
+ * the message is a request (clear) or a response (set).
  *
  * Response messages include an additional status byte, which
  * communicates the result of the corresponding request.  A zero
@@ -163,6 +161,7 @@ gb_operation_find(struct gb_connection *connection, u16 operation_id)
 
 static int gb_message_send(struct gb_message *message)
 {
+	size_t message_size = sizeof(*message->header) + message->payload_size;
 	struct gb_connection *connection = message->operation->connection;
 	u16 dest_cport_id = connection->interface_cport_id;
 	int ret = 0;
@@ -172,7 +171,7 @@ static int gb_message_send(struct gb_message *message)
 	cookie = connection->hd->driver->buffer_send(connection->hd,
 					dest_cport_id,
 					message->header,
-					message->size,
+					message_size,
 					GFP_KERNEL);
 	if (IS_ERR(cookie))
 		ret = PTR_ERR(cookie);
@@ -276,18 +275,17 @@ gb_hd_message_find(struct greybus_host_device *hd, void *header)
 
 static void gb_operation_message_init(struct greybus_host_device *hd,
 				struct gb_message *message, u16 operation_id,
-				size_t message_size, u8 type)
+				size_t payload_size, u8 type)
 {
 	struct gb_operation_msg_hdr *header;
 	u8 *buffer;
 
-	BUG_ON(message_size < sizeof(*header));
 	buffer = &message->buffer[0];
 	header = (struct gb_operation_msg_hdr *)(buffer + hd->buffer_headroom);
 
 	message->header = header;
 	message->payload = header + 1;
-	message->size = message_size;
+	message->payload_size = payload_size;
 
 	/*
 	 * The type supplied for incoming message buffers will be
@@ -295,6 +293,8 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
 	 * so there's no need to initialize the message header.
 	 */
 	if (type != GB_OPERATION_TYPE_INVALID) {
+		u16 message_size = (u16)(sizeof(*header) + payload_size);
+
 		/*
 		 * For a request, the operation id gets filled in
 		 * when the message is sent.  For a response, it
@@ -359,14 +359,14 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 		return NULL;
 
 	/* Initialize the message.  Operation id is filled in later. */
-	gb_operation_message_init(hd, message, 0, message_size, type);
+	gb_operation_message_init(hd, message, 0, payload_size, type);
 
 	return message;
 }
 
 static void gb_operation_message_free(struct gb_message *message)
 {
-	if (message->size > sizeof(message->header))
+	if (message->payload_size)
 		kfree(message);
 	else
 		kmem_cache_free(gb_simple_message_cache, message);
@@ -820,6 +820,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	struct gb_operation *operation;
 	struct gb_message *message;
 	int errno = gb_operation_status_map(result);
+	size_t message_size;
 
 	operation = gb_operation_find(connection, operation_id);
 	if (!operation) {
@@ -830,9 +831,10 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	cancel_delayed_work(&operation->timeout_work);
 
 	message = operation->response;
-	if (!errno && size != message->size) {
+	message_size = sizeof(*message->header) + message->payload_size;
+	if (!errno && size != message_size) {
 		gb_connection_err(connection, "bad message size (%zu != %zu)",
-			size, message->size);
+			size, message_size);
 		errno = -EMSGSIZE;
 	}
 

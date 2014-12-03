@@ -38,13 +38,18 @@ enum gb_operation_result {
 	GB_OP_MALFUNCTION	= 0xff,
 };
 
+/*
+ * Protocol code should only examine the payload and payload_size
+ * fields.  All other fields are intended to be private to the
+ * operations core code.
+ */
 struct gb_message {
-	struct gb_operation_msg_hdr	*header;
-	void				*payload;
-	size_t				size;	/* header + payload */
 	struct gb_operation		*operation;
-
 	void				*cookie;
+	struct gb_operation_msg_hdr	*header;
+
+	void				*payload;
+	size_t				payload_size;
 
 	u8				buffer[];
 };
