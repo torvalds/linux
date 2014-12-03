@@ -233,8 +233,11 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
  */
 void tipc_bclink_wakeup_users(void)
 {
-	while (skb_queue_len(&bclink->link.waiting_sks))
-		tipc_sk_rcv(skb_dequeue(&bclink->link.waiting_sks));
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(&bclink->link.waiting_sks)))
+		tipc_sk_rcv(skb);
+
 }
 
 /**
@@ -950,7 +953,7 @@ int tipc_bclink_init(void)
 	spin_lock_init(&bclink->lock);
 	__skb_queue_head_init(&bcl->outqueue);
 	__skb_queue_head_init(&bcl->deferred_queue);
-	__skb_queue_head_init(&bcl->waiting_sks);
+	skb_queue_head_init(&bcl->waiting_sks);
 	bcl->next_out_no = 1;
 	spin_lock_init(&bclink->node.lock);
 	__skb_queue_head_init(&bclink->node.waiting_sks);
