@@ -827,39 +827,6 @@ exit:
 	return TIPC_OK;
 }
 
-/**
- * dest_name_check - verify user is permitted to send to specified port name
- * @dest: destination address
- * @m: descriptor for message to be sent
- *
- * Prevents restricted configuration commands from being issued by
- * unauthorized users.
- *
- * Returns 0 if permission is granted, otherwise errno
- */
-static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
-{
-	struct tipc_cfg_msg_hdr hdr;
-
-	if (unlikely(dest->addrtype == TIPC_ADDR_ID))
-		return 0;
-	if (likely(dest->addr.name.name.type >= TIPC_RESERVED_TYPES))
-		return 0;
-	if (likely(dest->addr.name.name.type == TIPC_TOP_SRV))
-		return 0;
-	if (likely(dest->addr.name.name.type != TIPC_CFG_SRV))
-		return -EACCES;
-
-	if (!m->msg_iovlen || (m->msg_iov[0].iov_len < sizeof(hdr)))
-		return -EMSGSIZE;
-	if (copy_from_user(&hdr, m->msg_iov[0].iov_base, sizeof(hdr)))
-		return -EFAULT;
-	if ((ntohs(hdr.tcm_type) & 0xC000) && (!capable(CAP_NET_ADMIN)))
-		return -EACCES;
-
-	return 0;
-}
-
 static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
 {
 	struct sock *sk = sock->sk;
@@ -912,7 +879,7 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct tipc_name_seq *seq = &dest->addr.nameseq;
 	u32 mtu;
 	long timeo;
-	int rc = -EINVAL;
+	int rc;
 
 	if (unlikely(!dest))
 		return -EDESTADDRREQ;
@@ -945,9 +912,6 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 			tsk->conn_instance = dest->addr.name.name.instance;
 		}
 	}
-	rc = dest_name_check(dest, m);
-	if (rc)
-		goto exit;
 
 	timeo = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
 
