@@ -1,0 +1,31 @@
+Howto use the configfs overlay interface.
+
+A device-tree configfs entry is created in /config/device-tree/overlays
+and and it is manipulated using standard file system I/O.
+Note that this is a debug level interface, for use by developers and
+not necessarily something accessed by normal users due to the
+security implications of having direct access to the kernel's device tree.
+
+* To create an overlay you mkdir the directory:
+
+	# mkdir /config/device-tree/overlays/foo
+
+* Either you echo the overlay firmware file to the path property file.
+
+	# echo foo.dtbo >/config/device-tree/overlays/foo/path
+
+* Or you cat the contents of the overlay to the dtbo file
+
+	# cat foo.dtbo >/config/device-tree/overlays/foo/dtbo
+
+The overlay file will be applied, and devices will be created/destroyed
+as required.
+
+To remove it simply rmdir the directory.
+
+	# rmdir /config/device-tree/overlays/foo
+
+The rationalle of the dual interface (firmware & direct copy) is that each is
+better suited to different use patterns. The firmware interface is what's
+intended to be used by hardware managers in the kernel, while the copy interface
+make sense for developers (since it avoids problems with namespaces).
