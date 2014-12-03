@@ -421,6 +421,12 @@ int af_alg_cmsg_send(struct msghdr *msg, struct af_alg_control *con)
 			con->op = *(u32 *)CMSG_DATA(cmsg);
 			break;
 
+		case ALG_SET_AEAD_ASSOCLEN:
+			if (cmsg->cmsg_len < CMSG_LEN(sizeof(u32)))
+				return -EINVAL;
+			con->aead_assoclen = *(u32 *)CMSG_DATA(cmsg);
+			break;
+
 		default:
 			return -EINVAL;
 		}
