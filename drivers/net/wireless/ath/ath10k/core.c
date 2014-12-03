@@ -1096,8 +1096,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	ret = ath10k_bmi_get_target_info(ar, &target_info);
 	if (ret) {
 		ath10k_err(ar, "could not get target info (%d)\n", ret);
-		ath10k_hif_power_down(ar);
-		return ret;
+		goto err_power_down;
 	}
 
 	ar->target_version = target_info.version;
@@ -1106,15 +1105,13 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	ret = ath10k_init_hw_params(ar);
 	if (ret) {
 		ath10k_err(ar, "could not get hw params (%d)\n", ret);
-		ath10k_hif_power_down(ar);
-		return ret;
+		goto err_power_down;
 	}
 
 	ret = ath10k_core_fetch_firmware_files(ar);
 	if (ret) {
 		ath10k_err(ar, "could not fetch firmware files (%d)\n", ret);
-		ath10k_hif_power_down(ar);
-		return ret;
+		goto err_power_down;
 	}
 
 	ath10k_core_init_max_sta_count(ar);
@@ -1124,10 +1121,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL);
 	if (ret) {
 		ath10k_err(ar, "could not init core (%d)\n", ret);
-		ath10k_core_free_firmware_files(ar);
-		ath10k_hif_power_down(ar);
-		mutex_unlock(&ar->conf_mutex);
-		return ret;
+		goto err_unlock;
 	}
 
 	ath10k_print_driver_info(ar);
@@ -1137,6 +1131,16 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	ath10k_hif_power_down(ar);
 	return 0;
+
+err_unlock:
+	mutex_unlock(&ar->conf_mutex);
+
+	ath10k_core_free_firmware_files(ar);
+
+err_power_down:
+	ath10k_hif_power_down(ar);
+
+	return ret;
 }
 
 static void ath10k_core_register_work(struct work_struct *work)
