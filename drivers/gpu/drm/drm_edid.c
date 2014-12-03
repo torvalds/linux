@@ -1135,7 +1135,7 @@ EXPORT_SYMBOL(drm_edid_is_valid);
 #define DDC_SEGMENT_ADDR 0x30
 /**
  * drm_do_probe_ddc_edid() - get EDID information via I2C
- * @adapter: I2C device adaptor
+ * @data: I2C device adapter
  * @buf: EDID data buffer to be filled
  * @block: 128 byte EDID block to start fetching from
  * @len: EDID data buffer length to fetch
