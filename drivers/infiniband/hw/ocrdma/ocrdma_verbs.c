@@ -1410,6 +1410,8 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	mutex_unlock(&dev->dev_lock);
 	if (status)
 		goto mbx_err;
+	if (qp->qp_type == IB_QPT_UD)
+		qp_attr->qkey = params.qkey;
 	qp_attr->qp_state = get_ibqp_state(IB_QPS_INIT);
 	qp_attr->cur_qp_state = get_ibqp_state(IB_QPS_INIT);
 	qp_attr->path_mtu =
