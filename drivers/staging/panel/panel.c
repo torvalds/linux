@@ -228,9 +228,6 @@ static struct {
 	bool initialized;
 	bool must_clear;
 
-	/* TODO: use bool here? */
-	char left_shift;
-
 	int height;
 	int width;
 	int bwidth;
@@ -1135,12 +1132,10 @@ static inline int handle_lcd_special_code(void)
 		processed = 1;
 		break;
 	case 'L':	/* shift display left */
-		lcd.left_shift++;
 		lcd_write_cmd(0x18);
 		processed = 1;
 		break;
 	case 'R':	/* shift display right */
-		lcd.left_shift--;
 		lcd_write_cmd(0x1C);
 		processed = 1;
 		break;
@@ -1157,7 +1152,6 @@ static inline int handle_lcd_special_code(void)
 	}
 	case 'I':	/* reinitialize display */
 		lcd_init_display();
-		lcd.left_shift = 0;
 		processed = 1;
 		break;
 	case 'G': {
