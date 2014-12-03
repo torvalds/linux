@@ -831,6 +831,10 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * Accordingly return to Guest or Host.
 	 */
 	case BOOK3S_INTERRUPT_H_EMUL_ASSIST:
+		if (vcpu->arch.emul_inst != KVM_INST_FETCH_FAILED)
+			vcpu->arch.last_inst = kvmppc_need_byteswap(vcpu) ?
+				swab32(vcpu->arch.emul_inst) :
+				vcpu->arch.emul_inst;
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP) {
 			r = kvmppc_emulate_debug_inst(run, vcpu);
 		} else {

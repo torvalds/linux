@@ -651,6 +651,8 @@ struct kvm_vcpu_arch {
 	spinlock_t tbacct_lock;
 	u64 busy_stolen;
 	u64 busy_preempt;
+
+	u32 emul_inst;
 #endif
 };
 
