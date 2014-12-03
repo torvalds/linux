@@ -58,6 +58,22 @@ enum ath10k_fw_ie_type {
 	ATH10K_FW_IE_FEATURES = 2,
 	ATH10K_FW_IE_FW_IMAGE = 3,
 	ATH10K_FW_IE_OTP_IMAGE = 4,
+
+	/* WMI "operations" interface version, 32 bit value. Supported from
+	 * FW API 4 and above.
+	 */
+	ATH10K_FW_IE_WMI_OP_VERSION = 5,
+};
+
+enum ath10k_fw_wmi_op_version {
+	ATH10K_FW_WMI_OP_VERSION_UNSET = 0,
+
+	ATH10K_FW_WMI_OP_VERSION_MAIN = 1,
+	ATH10K_FW_WMI_OP_VERSION_10_1 = 2,
+	ATH10K_FW_WMI_OP_VERSION_10_2 = 3,
+
+	/* keep last */
+	ATH10K_FW_WMI_OP_VERSION_MAX,
 };
 
 /* Known pecularities:

@@ -508,7 +508,7 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	int ie_id, i, index, bit, ret;
 	struct ath10k_fw_ie *hdr;
 	const u8 *data;
-	__le32 *timestamp;
+	__le32 *timestamp, *version;
 
 	/* first fetch the firmware file (firmware-*.bin) */
 	ar->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, name);
@@ -622,6 +622,17 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 			ar->otp_data = data;
 			ar->otp_len = ie_len;
 
+			break;
+		case ATH10K_FW_IE_WMI_OP_VERSION:
+			if (ie_len != sizeof(u32))
+				break;
+
+			version = (__le32 *)data;
+
+			ar->wmi.op_version = le32_to_cpup(version);
+
+			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie wmi op version %d\n",
+				   ar->wmi.op_version);
 			break;
 		default:
 			ath10k_warn(ar, "Unknown FW IE: %u\n",
@@ -871,12 +882,40 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		return -EINVAL;
 	}
 
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
-		ar->max_num_peers = TARGET_10X_NUM_PEERS;
-		ar->max_num_stations = TARGET_10X_NUM_STATIONS;
-	} else {
+	if (ar->wmi.op_version >= ATH10K_FW_WMI_OP_VERSION_MAX) {
+		ath10k_err(ar, "unsupported WMI OP version (max %d): %d\n",
+			   ATH10K_FW_WMI_OP_VERSION_MAX, ar->wmi.op_version);
+		return -EINVAL;
+	}
+
+	/* Backwards compatibility for firmwares without
+	 * ATH10K_FW_IE_WMI_OP_VERSION.
+	 */
+	if (ar->wmi.op_version == ATH10K_FW_WMI_OP_VERSION_UNSET) {
+		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+			if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features))
+				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_2;
+			else
+				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
+		} else {
+			ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_MAIN;
+		}
+	}
+
+	switch (ar->wmi.op_version) {
+	case ATH10K_FW_WMI_OP_VERSION_MAIN:
 		ar->max_num_peers = TARGET_NUM_PEERS;
 		ar->max_num_stations = TARGET_NUM_STATIONS;
+		break;
+	case ATH10K_FW_WMI_OP_VERSION_10_1:
+	case ATH10K_FW_WMI_OP_VERSION_10_2:
+		ar->max_num_peers = TARGET_10X_NUM_PEERS;
+		ar->max_num_stations = TARGET_10X_NUM_STATIONS;
+		break;
+	case ATH10K_FW_WMI_OP_VERSION_UNSET:
+	case ATH10K_FW_WMI_OP_VERSION_MAX:
+		WARN_ON(1);
+		return -EINVAL;
 	}
 
 	return 0;
