@@ -1354,6 +1354,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	}
 	INIT_WORK(&msgbuf->txflow_work, brcmf_msgbuf_txflow_worker);
 	count = BITS_TO_LONGS(if_msgbuf->nrof_flowrings);
+	count = count * sizeof(unsigned long);
 	msgbuf->flow_map = kzalloc(count, GFP_KERNEL);
 	if (!msgbuf->flow_map)
 		goto fail;
