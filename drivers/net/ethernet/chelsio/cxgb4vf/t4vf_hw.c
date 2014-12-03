@@ -501,6 +501,48 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	sge_params->sge_ingress_rx_threshold = vals[0];
 	sge_params->sge_congestion_control = vals[1];
 
+	/* For T5 and later we want to use the new BAR2 Doorbells.
+	 * Unfortunately, older firmware didn't allow the this register to be
+	 * read.
+	 */
+	if (!is_t4(adapter->params.chip)) {
+		u32 whoami;
+		unsigned int pf, s_qpp;
+
+		params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+			     FW_PARAMS_PARAM_XYZ_V(
+				     SGE_EGRESS_QUEUES_PER_PAGE_VF_A));
+		params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
+			     FW_PARAMS_PARAM_XYZ_V(
+				     SGE_INGRESS_QUEUES_PER_PAGE_VF_A));
+		v = t4vf_query_params(adapter, 2, params, vals);
+		if (v != FW_SUCCESS) {
+			dev_warn(adapter->pdev_dev,
+				 "Unable to get VF SGE Queues/Page; "
+				 "probably old firmware.\n");
+			return v;
+		}
+		sge_params->sge_egress_queues_per_page = vals[0];
+		sge_params->sge_ingress_queues_per_page = vals[1];
+
+		/* We need the Queues/Page for our VF.  This is based on the
+		 * PF from which we're instantiated and is indexed in the
+		 * register we just read. Do it once here so other code in
+		 * the driver can just use it.
+		 */
+		whoami = t4_read_reg(adapter,
+				     T4VF_PL_BASE_ADDR + A_PL_VF_WHOAMI);
+		pf = SOURCEPF_GET(whoami);
+		s_qpp = (QUEUESPERPAGEPF0_S +
+			 (QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) * pf);
+		sge_params->sge_vf_eq_qpp =
+			((sge_params->sge_egress_queues_per_page >> s_qpp)
+			 & QUEUESPERPAGEPF0_MASK);
+		sge_params->sge_vf_iq_qpp =
+			((sge_params->sge_ingress_queues_per_page >> s_qpp)
+			 & QUEUESPERPAGEPF0_MASK);
+	}
+
 	return 0;
 }
 
@@ -1418,5 +1460,40 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		dev_err(adapter->pdev_dev, "Unknown firmware reply %X\n",
 			opcode);
 	}
+	return 0;
+}
+
+/**
+ */
+int t4vf_prep_adapter(struct adapter *adapter)
+{
+	int err;
+	unsigned int chipid;
+
+	/* Wait for the device to become ready before proceeding ...
+	 */
+	err = t4vf_wait_dev_ready(adapter);
+	if (err)
+		return err;
+
+	/* Default port and clock for debugging in case we can't reach
+	 * firmware.
+	 */
+	adapter->params.nports = 1;
+	adapter->params.vfres.pmask = 1;
+	adapter->params.vpd.cclk = 50000;
+
+	adapter->params.chip = 0;
+	switch (CHELSIO_PCI_ID_VER(adapter->pdev->device)) {
+	case CHELSIO_T4:
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
+		break;
+
+	case CHELSIO_T5:
+		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
+		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
+		break;
+	}
+
 	return 0;
 }
