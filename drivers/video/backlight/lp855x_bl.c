@@ -341,8 +341,10 @@ static const struct attribute_group lp855x_attr_group = {
 };
 
 #ifdef CONFIG_OF
-static int lp855x_parse_dt(struct device *dev, struct device_node *node)
+static int lp855x_parse_dt(struct lp855x *lp)
 {
+	struct device *dev = lp->dev;
+	struct device_node *node = dev->of_node;
 	struct lp855x_platform_data *pdata;
 	int rom_length;
 
@@ -381,12 +383,12 @@ static int lp855x_parse_dt(struct device *dev, struct device_node *node)
 		pdata->rom_data = &rom[0];
 	}
 
-	dev->platform_data = pdata;
+	lp->pdata = pdata;
 
 	return 0;
 }
 #else
-static int lp855x_parse_dt(struct device *dev, struct device_node *node)
+static int lp855x_parse_dt(struct lp855x *lp)
 {
 	return -EINVAL;
 }
@@ -395,17 +397,7 @@ static int lp855x_parse_dt(struct device *dev, struct device_node *node)
 static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp855x *lp;
-	struct lp855x_platform_data *pdata = dev_get_platdata(&cl->dev);
-	struct device_node *node = cl->dev.of_node;
 	int ret;
-
-	if (!pdata) {
-		ret = lp855x_parse_dt(&cl->dev, node);
-		if (ret < 0)
-			return ret;
-
-		pdata = dev_get_platdata(&cl->dev);
-	}
 
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
@@ -414,16 +406,23 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (!lp)
 		return -ENOMEM;
 
-	if (pdata->period_ns > 0)
+	lp->client = cl;
+	lp->dev = &cl->dev;
+	lp->chipname = id->name;
+	lp->chip_id = id->driver_data;
+	lp->pdata = dev_get_platdata(&cl->dev);
+
+	if (!lp->pdata) {
+		ret = lp855x_parse_dt(lp);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (lp->pdata->period_ns > 0)
 		lp->mode = PWM_BASED;
 	else
 		lp->mode = REGISTER_BASED;
 
-	lp->client = cl;
-	lp->dev = &cl->dev;
-	lp->pdata = pdata;
-	lp->chipname = id->name;
-	lp->chip_id = id->driver_data;
 	i2c_set_clientdata(cl, lp);
 
 	ret = lp855x_configure(lp);
