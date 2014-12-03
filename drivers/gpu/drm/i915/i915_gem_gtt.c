@@ -1165,10 +1165,8 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 
 	if (INTEL_INFO(dev)->gen < 8)
 		return gen6_ppgtt_init(ppgtt);
-	else if (IS_GEN8(dev) || IS_GEN9(dev))
-		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
-		BUG();
+		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 }
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
