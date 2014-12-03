@@ -356,7 +356,7 @@ static int smp_e(struct crypto_blkcipher *tfm, const u8 *k, u8 *r)
 	uint8_t tmp[16], data[16];
 	int err;
 
-	if (tfm == NULL) {
+	if (!tfm) {
 		BT_ERR("tfm %p", tfm);
 		return -EINVAL;
 	}
