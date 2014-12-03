@@ -1798,7 +1798,7 @@ hcall_real_table:
 	.long	0		/* 0xd8 */
 	.long	0		/* 0xdc */
 	.long	DOTSYM(kvmppc_h_cede) - hcall_real_table
-	.long	0		/* 0xe4 */
+	.long	DOTSYM(kvmppc_rm_h_confer) - hcall_real_table
 	.long	0		/* 0xe8 */
 	.long	0		/* 0xec */
 	.long	0		/* 0xf0 */

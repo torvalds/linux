@@ -17,6 +17,7 @@
 #include <linux/memblock.h>
 #include <linux/sizes.h>
 #include <linux/cma.h>
+#include <linux/bitops.h>
 
 #include <asm/cputable.h>
 #include <asm/kvm_ppc.h>
@@ -94,6 +95,37 @@ void __init kvm_cma_reserve(void)
 		cma_declare_contiguous(0, selected_size, 0, align_size,
 			KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, false, &kvm_cma);
 	}
+}
+
+/*
+ * Real-mode H_CONFER implementation.
+ * We check if we are the only vcpu out of this virtual core
+ * still running in the guest and not ceded.  If so, we pop up
+ * to the virtual-mode implementation; if not, just return to
+ * the guest.
+ */
+long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
+			    unsigned int yield_count)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	int threads_running;
+	int threads_ceded;
+	int threads_conferring;
+	u64 stop = get_tb() + 10 * tb_ticks_per_usec;
+	int rv = H_SUCCESS; /* => don't yield */
+
+	set_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	while ((get_tb() < stop) && (VCORE_EXIT_COUNT(vc) == 0)) {
+		threads_running = VCORE_ENTRY_COUNT(vc);
+		threads_ceded = hweight32(vc->napping_threads);
+		threads_conferring = hweight32(vc->conferring_threads);
+		if (threads_ceded + threads_conferring >= threads_running) {
+			rv = H_TOO_HARD; /* => do yield */
+			break;
+		}
+	}
+	clear_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	return rv;
 }
 
 /*
