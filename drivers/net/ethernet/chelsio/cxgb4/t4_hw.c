@@ -1213,6 +1213,8 @@ out:
 	if (ret)
 		dev_err(adap->pdev_dev, "firmware download failed, error %d\n",
 			ret);
+	else
+		ret = t4_get_fw_version(adap, &adap->params.fw_vers);
 	return ret;
 }
 
