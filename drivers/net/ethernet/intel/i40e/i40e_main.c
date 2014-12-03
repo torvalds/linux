@@ -7511,7 +7511,7 @@ static void i40e_del_vxlan_port(struct net_device *netdev,
 
 #endif
 static int i40e_get_phys_port_id(struct net_device *netdev,
-				 struct netdev_phys_port_id *ppid)
+				 struct netdev_phys_item_id *ppid)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
@@ -7536,7 +7536,7 @@ static int i40e_get_phys_port_id(struct net_device *netdev,
  */
 static int i40e_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			    struct net_device *dev,
-			    const unsigned char *addr,
+			    const unsigned char *addr, u16 vid,
 			    u16 flags)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);

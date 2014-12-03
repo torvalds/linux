@@ -1,0 +1,59 @@
+Switch (and switch-ish) device drivers HOWTO
+===========================
+
+Please note that the word "switch" is here used in very generic meaning.
+This include devices supporting L2/L3 but also various flow offloading chips,
+including switches embedded into SR-IOV NICs.
+
+Lets describe a topology a bit. Imagine the following example:
+
+       +----------------------------+    +---------------+
+       |     SOME switch chip       |    |      CPU      |
+       +----------------------------+    +---------------+
+       port1 port2 port3 port4 MNGMNT    |     PCI-E     |
+         |     |     |     |     |       +---------------+
+        PHY   PHY    |     |     |         |  NIC0 NIC1
+                     |     |     |         |   |    |
+                     |     |     +- PCI-E -+   |    |
+                     |     +------- MII -------+    |
+                     +------------- MII ------------+
+
+In this example, there are two independent lines between the switch silicon
+and CPU. NIC0 and NIC1 drivers are not aware of a switch presence. They are
+separate from the switch driver. SOME switch chip is by managed by a driver
+via PCI-E device MNGMNT. Note that MNGMNT device, NIC0 and NIC1 may be
+connected to some other type of bus.
+
+Now, for the previous example show the representation in kernel:
+
+       +----------------------------+    +---------------+
+       |     SOME switch chip       |    |      CPU      |
+       +----------------------------+    +---------------+
+       sw0p0 sw0p1 sw0p2 sw0p3 MNGMNT    |     PCI-E     |
+         |     |     |     |     |       +---------------+
+        PHY   PHY    |     |     |         |  eth0 eth1
+                     |     |     |         |   |    |
+                     |     |     +- PCI-E -+   |    |
+                     |     +------- MII -------+    |
+                     +------------- MII ------------+
+
+Lets call the example switch driver for SOME switch chip "SOMEswitch". This
+driver takes care of PCI-E device MNGMNT. There is a netdevice instance sw0pX
+created for each port of a switch. These netdevices are instances
+of "SOMEswitch" driver. sw0pX netdevices serve as a "representation"
+of the switch chip. eth0 and eth1 are instances of some other existing driver.
+
+The only difference of the switch-port netdevice from the ordinary netdevice
+is that is implements couple more NDOs:
+
+  ndo_switch_parent_id_get - This returns the same ID for two port netdevices
+			     of the same physical switch chip. This is
+			     mandatory to be implemented by all switch drivers
+			     and serves the caller for recognition of a port
+			     netdevice.
+  ndo_switch_parent_* - Functions that serve for a manipulation of the switch
+			chip itself (it can be though of as a "parent" of the
+			port, therefore the name). They are not port-specific.
+			Caller might use arbitrary port netdevice of the same
+			switch and it will make no difference.
+  ndo_switch_port_* - Functions that serve for a port-specific manipulation.
