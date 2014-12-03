@@ -191,6 +191,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	list_add_tail(&connection->interface_links, &interface->connections);
 	spin_unlock_irq(&gb_connections_lock);
 
+	atomic_set(&connection->op_cycle, 0);
 	INIT_LIST_HEAD(&connection->operations);
 
 	return connection;

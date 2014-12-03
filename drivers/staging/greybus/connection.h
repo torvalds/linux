@@ -35,7 +35,7 @@ struct gb_connection {
 
 	enum gb_connection_state	state;
 
-	u16				op_cycle;
+	atomic_t			op_cycle;
 	struct list_head		operations;
 
 	void				*private;

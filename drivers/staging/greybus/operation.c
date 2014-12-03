@@ -640,6 +640,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 	unsigned long timeout;
+	unsigned int cycle;
 	int ret;
 
 	if (connection->state != GB_CONNECTION_STATE_ENABLED)
@@ -661,9 +662,8 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 * Assign the operation's id, and store it in the request header.
 	 * Zero is a reserved operation id.
 	 */
-	spin_lock_irq(&gb_operations_lock);
-	operation->id = ++connection->op_cycle % U16_MAX + 1;
-	spin_unlock_irq(&gb_operations_lock);
+	cycle = (unsigned int)atomic_inc_return(&connection->op_cycle);
+	operation->id = (u16)(cycle % U16_MAX + 1);
 	header = operation->request->header;
 	header->operation_id = cpu_to_le16(operation->id);
 
