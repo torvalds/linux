@@ -2753,7 +2753,7 @@ static int rocker_port_vlan_l2_groups(struct rocker_port *rocker_port,
 static struct rocker_ctrl {
 	const u8 *eth_dst;
 	const u8 *eth_dst_mask;
-	u16 eth_type;
+	__be16 eth_type;
 	bool acl;
 	bool bridge;
 	bool term;
