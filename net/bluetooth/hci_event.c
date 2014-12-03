@@ -3294,12 +3294,14 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn) {
-		hci_conn_hold(conn);
-		conn->disc_timeout = HCI_DISCONN_TIMEOUT;
-		hci_conn_drop(conn);
-		conn_set_key(conn, ev->key_type, conn->pin_length);
-	}
+	if (!conn)
+		goto unlock;
+
+	hci_conn_hold(conn);
+	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+	hci_conn_drop(conn);
+
+	conn_set_key(conn, ev->key_type, conn->pin_length);
 
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
@@ -3326,12 +3328,13 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	    !test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags)) {
 		list_del_rcu(&key->list);
 		kfree_rcu(key, rcu);
-	} else if (conn) {
-		if (persistent)
-			clear_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
-		else
-			set_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
+		goto unlock;
 	}
+
+	if (persistent)
+		clear_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
+	else
+		set_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
 
 unlock:
 	hci_dev_unlock(hdev);
