@@ -457,7 +457,7 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi,
 	uint64_t start, end, offset;
 	unsigned idx;
 
-	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
+	relocs_chunk = p->chunk_relocs;
 	offset = radeon_get_ib_value(p, lo);
 	idx = radeon_get_ib_value(p, hi);
 
@@ -534,7 +534,7 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 	uint32_t *size = &tmp;
 	int i, r;
 
-	while (p->idx < p->chunks[p->chunk_ib_idx].length_dw) {
+	while (p->idx < p->chunk_ib->length_dw) {
 		uint32_t len = radeon_get_ib_value(p, p->idx);
 		uint32_t cmd = radeon_get_ib_value(p, p->idx + 1);
 

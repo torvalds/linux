@@ -1057,7 +1057,6 @@ void cayman_dma_fini(struct radeon_device *rdev);
  * CS.
  */
 struct radeon_cs_chunk {
-	uint32_t		chunk_id;
 	uint32_t		length_dw;
 	uint32_t		*kdata;
 	void __user		*user_ptr;
@@ -1080,10 +1079,10 @@ struct radeon_cs_parser {
 	struct list_head	validated;
 	unsigned		dma_reloc_idx;
 	/* indices of various chunks */
-	int			chunk_ib_idx;
-	int			chunk_relocs_idx;
-	int			chunk_flags_idx;
-	int			chunk_const_ib_idx;
+	struct radeon_cs_chunk  *chunk_ib;
+	struct radeon_cs_chunk  *chunk_relocs;
+	struct radeon_cs_chunk  *chunk_flags;
+	struct radeon_cs_chunk  *chunk_const_ib;
 	struct radeon_ib	ib;
 	struct radeon_ib	const_ib;
 	void			*track;
@@ -1097,7 +1096,7 @@ struct radeon_cs_parser {
 
 static inline u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 {
-	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
+	struct radeon_cs_chunk *ibc = p->chunk_ib;
 
 	if (ibc->kdata)
 		return ibc->kdata[idx];

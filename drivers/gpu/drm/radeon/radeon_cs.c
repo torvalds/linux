@@ -81,10 +81,10 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	bool need_mmap_lock = false;
 	int r;
 
-	if (p->chunk_relocs_idx == -1) {
+	if (p->chunk_relocs == NULL) {
 		return 0;
 	}
-	chunk = &p->chunks[p->chunk_relocs_idx];
+	chunk = p->chunk_relocs;
 	p->dma_reloc_idx = 0;
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
@@ -265,10 +265,10 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->idx = 0;
 	p->ib.sa_bo = NULL;
 	p->const_ib.sa_bo = NULL;
-	p->chunk_ib_idx = -1;
-	p->chunk_relocs_idx = -1;
-	p->chunk_flags_idx = -1;
-	p->chunk_const_ib_idx = -1;
+	p->chunk_ib = NULL;
+	p->chunk_relocs = NULL;
+	p->chunk_flags = NULL;
+	p->chunk_const_ib = NULL;
 	p->chunks_array = kcalloc(cs->num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (p->chunks_array == NULL) {
 		return -ENOMEM;
@@ -295,24 +295,23 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			return -EFAULT;
 		}
 		p->chunks[i].length_dw = user_chunk.length_dw;
-		p->chunks[i].chunk_id = user_chunk.chunk_id;
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_RELOCS) {
-			p->chunk_relocs_idx = i;
+		if (user_chunk.chunk_id == RADEON_CHUNK_ID_RELOCS) {
+			p->chunk_relocs = &p->chunks[i];
 		}
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_IB) {
-			p->chunk_ib_idx = i;
+		if (user_chunk.chunk_id == RADEON_CHUNK_ID_IB) {
+			p->chunk_ib = &p->chunks[i];
 			/* zero length IB isn't useful */
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
 		}
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_CONST_IB) {
-			p->chunk_const_ib_idx = i;
+		if (user_chunk.chunk_id == RADEON_CHUNK_ID_CONST_IB) {
+			p->chunk_const_ib = &p->chunks[i];
 			/* zero length CONST IB isn't useful */
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
 		}
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS) {
-			p->chunk_flags_idx = i;
+		if (user_chunk.chunk_id == RADEON_CHUNK_ID_FLAGS) {
+			p->chunk_flags = &p->chunks[i];
 			/* zero length flags aren't useful */
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
@@ -321,10 +320,10 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		size = p->chunks[i].length_dw;
 		cdata = (void __user *)(unsigned long)user_chunk.chunk_data;
 		p->chunks[i].user_ptr = cdata;
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_CONST_IB)
+		if (user_chunk.chunk_id == RADEON_CHUNK_ID_CONST_IB)
 			continue;
 
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_IB) {
+		if (user_chunk.chunk_id == RADEON_CHUNK_ID_IB) {
 			if (!p->rdev || !(p->rdev->flags & RADEON_IS_AGP))
 				continue;
 		}
@@ -337,7 +336,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		if (copy_from_user(p->chunks[i].kdata, cdata, size)) {
 			return -EFAULT;
 		}
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS) {
+		if (user_chunk.chunk_id == RADEON_CHUNK_ID_FLAGS) {
 			p->cs_flags = p->chunks[i].kdata[0];
 			if (p->chunks[i].length_dw > 1)
 				ring = p->chunks[i].kdata[1];
@@ -443,7 +442,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 {
 	int r;
 
-	if (parser->chunk_ib_idx == -1)
+	if (parser->chunk_ib == NULL)
 		return 0;
 
 	if (parser->cs_flags & RADEON_CS_USE_VM)
@@ -527,7 +526,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	struct radeon_vm *vm = &fpriv->vm;
 	int r;
 
-	if (parser->chunk_ib_idx == -1)
+	if (parser->chunk_ib == NULL)
 		return 0;
 	if ((parser->cs_flags & RADEON_CS_USE_VM) == 0)
 		return 0;
@@ -561,7 +560,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 
 	if ((rdev->family >= CHIP_TAHITI) &&
-	    (parser->chunk_const_ib_idx != -1)) {
+	    (parser->chunk_const_ib != NULL)) {
 		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib, true);
 	} else {
 		r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
@@ -588,7 +587,7 @@ static int radeon_cs_ib_fill(struct radeon_device *rdev, struct radeon_cs_parser
 	struct radeon_vm *vm = NULL;
 	int r;
 
-	if (parser->chunk_ib_idx == -1)
+	if (parser->chunk_ib == NULL)
 		return 0;
 
 	if (parser->cs_flags & RADEON_CS_USE_VM) {
@@ -596,8 +595,8 @@ static int radeon_cs_ib_fill(struct radeon_device *rdev, struct radeon_cs_parser
 		vm = &fpriv->vm;
 
 		if ((rdev->family >= CHIP_TAHITI) &&
-		    (parser->chunk_const_ib_idx != -1)) {
-			ib_chunk = &parser->chunks[parser->chunk_const_ib_idx];
+		    (parser->chunk_const_ib != NULL)) {
+			ib_chunk = parser->chunk_const_ib;
 			if (ib_chunk->length_dw > RADEON_IB_VM_MAX_SIZE) {
 				DRM_ERROR("cs IB CONST too big: %d\n", ib_chunk->length_dw);
 				return -EINVAL;
@@ -616,13 +615,13 @@ static int radeon_cs_ib_fill(struct radeon_device *rdev, struct radeon_cs_parser
 				return -EFAULT;
 		}
 
-		ib_chunk = &parser->chunks[parser->chunk_ib_idx];
+		ib_chunk = parser->chunk_ib;
 		if (ib_chunk->length_dw > RADEON_IB_VM_MAX_SIZE) {
 			DRM_ERROR("cs IB too big: %d\n", ib_chunk->length_dw);
 			return -EINVAL;
 		}
 	}
-	ib_chunk = &parser->chunks[parser->chunk_ib_idx];
+	ib_chunk = parser->chunk_ib;
 
 	r =  radeon_ib_get(rdev, parser->ring, &parser->ib,
 			   vm, ib_chunk->length_dw * 4);
@@ -714,7 +713,7 @@ int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 			   struct radeon_cs_packet *pkt,
 			   unsigned idx)
 {
-	struct radeon_cs_chunk *ib_chunk = &p->chunks[p->chunk_ib_idx];
+	struct radeon_cs_chunk *ib_chunk = p->chunk_ib;
 	struct radeon_device *rdev = p->rdev;
 	uint32_t header;
 
@@ -816,12 +815,12 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 	unsigned idx;
 	int r;
 
-	if (p->chunk_relocs_idx == -1) {
+	if (p->chunk_relocs == NULL) {
 		DRM_ERROR("No relocation chunk !\n");
 		return -EINVAL;
 	}
 	*cs_reloc = NULL;
-	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
+	relocs_chunk = p->chunk_relocs;
 	r = radeon_cs_packet_parse(p, &p3reloc, p->idx);
 	if (r)
 		return r;

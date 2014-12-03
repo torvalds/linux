@@ -2061,7 +2061,7 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 		}
 		if (r)
 			return r;
-	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
+	} while (p->idx < p->chunk_ib->length_dw);
 	return 0;
 }
 
