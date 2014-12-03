@@ -258,11 +258,15 @@ gb_i2c_transfer_request(struct gb_connection *connection,
 }
 
 static void gb_i2c_transfer_response(struct i2c_msg *msgs, u32 msg_count,
-					void *data)
+				struct gb_i2c_transfer_response *response)
 {
 	struct i2c_msg *msg = msgs;
+	u8 *data;
 	u32 i;
 
+	if (!response)
+		return;
+	data = response->data;
 	for (i = 0; i < msg_count; i++) {
 		if (msg->flags & I2C_M_RD) {
 			memcpy(msg->buf, data, msg->len);
@@ -276,7 +280,6 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 					struct i2c_msg *msgs, u32 msg_count)
 {
 	struct gb_connection *connection = gb_i2c_dev->connection;
-	struct gb_i2c_transfer_response *response;
 	struct gb_operation *operation;
 	int ret;
 
@@ -284,15 +287,15 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 	if (!operation)
 		return -ENOMEM;
 
-	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send_sync(operation);
-	if (ret) {
-		if (ret != -EAGAIN)
-			pr_err("transfer operation failed (%d)\n", ret);
-	} else {
+	if (!ret) {
+		struct gb_i2c_transfer_response *response;
+
 		response = operation->response->payload;
-		gb_i2c_transfer_response(msgs, msg_count, response->data);
+		gb_i2c_transfer_response(msgs, msg_count, response);
 		ret = msg_count;
+	} else if (ret != -EAGAIN) {
+		pr_err("transfer operation failed (%d)\n", ret);
 	}
 	gb_operation_destroy(operation);
 
