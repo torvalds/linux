@@ -121,13 +121,12 @@ static int i_TimerCounter1Enabled, i_TimerCounter2Enabled,
 
 static unsigned int z8536_read(struct comedi_device *dev, unsigned int reg)
 {
-	struct apci1500_private *devpriv = dev->private;
 	unsigned long flags;
 	unsigned int val;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
-	outb(reg, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
-	val = inb(devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(reg, dev->iobase + APCI1500_Z8536_CTRL_REG);
+	val = inb(dev->iobase + APCI1500_Z8536_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return val;
@@ -136,18 +135,16 @@ static unsigned int z8536_read(struct comedi_device *dev, unsigned int reg)
 static void z8536_write(struct comedi_device *dev,
 			unsigned int val, unsigned int reg)
 {
-	struct apci1500_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
-	outb(reg, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
-	outb(val, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(reg, dev->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(val, dev->iobase + APCI1500_Z8536_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 static void z8536_reset(struct comedi_device *dev)
 {
-	struct apci1500_private *devpriv = dev->private;
 	unsigned long flags;
 
 	/*
@@ -155,12 +152,12 @@ static void z8536_reset(struct comedi_device *dev)
 	 * sequence will reset it and put it in State 0.
 	 */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	inb(devpriv->iobase + APCI1500_Z8536_CTRL_REG);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
-	inb(devpriv->iobase + APCI1500_Z8536_CTRL_REG);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
-	outb(1, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	inb(dev->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(0, dev->iobase + APCI1500_Z8536_CTRL_REG);
+	inb(dev->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(0, dev->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(1, dev->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(0, dev->iobase + APCI1500_Z8536_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	z8536_write(dev, 0xf4, APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
@@ -1541,7 +1538,7 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 			z8536_write(dev, i_RegValue,
 				    APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 			/* Reads port B */
-			i_RegValue = inb(devpriv->iobase +
+			i_RegValue = inb(dev->iobase +
 					 APCI1500_Z8536_PORTB_REG);
 
 			i_RegValue = i_RegValue & 0xC0;
