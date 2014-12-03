@@ -643,13 +643,6 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		goto err;
 	}
 
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features) &&
-	    !test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
-		ath10k_err(ar, "feature bits corrupted: 10.2 feature requires 10.x feature to be set as well");
-		ret = -EINVAL;
-		goto err;
-	}
-
 	/* now fetch the board file */
 	if (ar->hw_params.fw.board == NULL) {
 		ath10k_err(ar, "board data file not defined");
@@ -870,8 +863,14 @@ static void ath10k_core_restart(struct work_struct *work)
 	mutex_unlock(&ar->conf_mutex);
 }
 
-static void ath10k_core_init_max_sta_count(struct ath10k *ar)
+static int ath10k_core_init_firmware_features(struct ath10k *ar)
 {
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features) &&
+	    !test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+		ath10k_err(ar, "feature bits corrupted: 10.2 feature requires 10.x feature to be set as well");
+		return -EINVAL;
+	}
+
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		ar->max_num_peers = TARGET_10X_NUM_PEERS;
 		ar->max_num_stations = TARGET_10X_NUM_STATIONS;
@@ -879,6 +878,8 @@ static void ath10k_core_init_max_sta_count(struct ath10k *ar)
 		ar->max_num_peers = TARGET_NUM_PEERS;
 		ar->max_num_stations = TARGET_NUM_STATIONS;
 	}
+
+	return 0;
 }
 
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
@@ -1114,7 +1115,12 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_power_down;
 	}
 
-	ath10k_core_init_max_sta_count(ar);
+	ret = ath10k_core_init_firmware_features(ar);
+	if (ret) {
+		ath10k_err(ar, "fatal problem with firmware features: %d\n",
+			   ret);
+		goto err_free_firmware_files;
+	}
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -1135,6 +1141,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 err_unlock:
 	mutex_unlock(&ar->conf_mutex);
 
+err_free_firmware_files:
 	ath10k_core_free_firmware_files(ar);
 
 err_power_down:
