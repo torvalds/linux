@@ -192,7 +192,6 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	spin_unlock_irq(&gb_connections_lock);
 
 	INIT_LIST_HEAD(&connection->operations);
-	INIT_LIST_HEAD(&connection->pending);
 
 	return connection;
 }

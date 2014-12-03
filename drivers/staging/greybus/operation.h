@@ -92,7 +92,7 @@ struct gb_operation {
 	struct delayed_work	timeout_work;
 
 	struct kref		kref;
-	struct list_head	links;	/* connection->{operations,pending} */
+	struct list_head	links;		/* connection->operations */
 };
 
 void gb_connection_recv(struct gb_connection *connection,

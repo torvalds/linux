@@ -37,7 +37,6 @@ struct gb_connection {
 
 	u16				op_cycle;
 	struct list_head		operations;
-	struct list_head		pending;	/* awaiting response */
 
 	void				*private;
 };

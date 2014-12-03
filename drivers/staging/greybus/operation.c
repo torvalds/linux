@@ -144,44 +144,14 @@ int gb_operation_result(struct gb_operation *operation)
 	return result;
 }
 
-static void gb_pending_operation_insert(struct gb_operation *operation)
-{
-	struct gb_connection *connection = operation->connection;
-	struct gb_operation_msg_hdr *header;
-
-	/*
-	 * Assign the operation's id and move it into its
-	 * connection's pending list.  Zero is a reserved operation
-	 * id.
-	 */
-	spin_lock_irq(&gb_operations_lock);
-	operation->id = ++connection->op_cycle % U16_MAX + 1;
-	list_move_tail(&operation->links, &connection->pending);
-	spin_unlock_irq(&gb_operations_lock);
-
-	/* Store the operation id in the request header */
-	header = operation->request->header;
-	header->operation_id = cpu_to_le16(operation->id);
-}
-
-static void gb_pending_operation_remove(struct gb_operation *operation)
-{
-	struct gb_connection *connection = operation->connection;
-
-	/* Take us off of the list of pending operations */
-	spin_lock_irq(&gb_operations_lock);
-	list_move_tail(&operation->links, &connection->operations);
-	spin_unlock_irq(&gb_operations_lock);
-}
-
 static struct gb_operation *
-gb_pending_operation_find(struct gb_connection *connection, u16 operation_id)
+gb_operation_find(struct gb_connection *connection, u16 operation_id)
 {
 	struct gb_operation *operation;
 	bool found = false;
 
 	spin_lock_irq(&gb_operations_lock);
-	list_for_each_entry(operation, &connection->pending, links)
+	list_for_each_entry(operation, &connection->operations, links)
 		if (operation->id == operation_id) {
 			found = true;
 			break;
@@ -667,10 +637,12 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback)
 {
+	struct gb_connection *connection = operation->connection;
+	struct gb_operation_msg_hdr *header;
 	unsigned long timeout;
 	int ret;
 
-	if (operation->connection->state != GB_CONNECTION_STATE_ENABLED)
+	if (connection->state != GB_CONNECTION_STATE_ENABLED)
 		return -ENOTCONN;
 
 	/*
@@ -684,7 +656,16 @@ int gb_operation_request_send(struct gb_operation *operation,
 		operation->callback = callback;
 	else
 		operation->callback = gb_operation_sync_callback;
-	gb_pending_operation_insert(operation);
+
+	/*
+	 * Assign the operation's id, and store it in the request header.
+	 * Zero is a reserved operation id.
+	 */
+	spin_lock_irq(&gb_operations_lock);
+	operation->id = ++connection->op_cycle % U16_MAX + 1;
+	spin_unlock_irq(&gb_operations_lock);
+	header = operation->request->header;
+	header->operation_id = cpu_to_le16(operation->id);
 
 	/*
 	 * We impose a time limit for requests to complete.  We need
@@ -826,14 +807,13 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	struct gb_message *message;
 	int errno = gb_operation_status_map(result);
 
-	operation = gb_pending_operation_find(connection, operation_id);
+	operation = gb_operation_find(connection, operation_id);
 	if (!operation) {
 		gb_connection_err(connection, "operation not found");
 		return;
 	}
 
 	cancel_delayed_work(&operation->timeout_work);
-	gb_pending_operation_remove(operation);
 
 	message = operation->response;
 	if (!errno && size != message->size) {
