@@ -151,10 +151,11 @@ static void gb_pending_operation_insert(struct gb_operation *operation)
 
 	/*
 	 * Assign the operation's id and move it into its
-	 * connection's pending list.
+	 * connection's pending list.  Zero is a reserved operation
+	 * id.
 	 */
 	spin_lock_irq(&gb_operations_lock);
-	operation->id = ++connection->op_cycle;
+	operation->id = ++connection->op_cycle % U16_MAX + 1;
 	list_move_tail(&operation->links, &connection->pending);
 	spin_unlock_irq(&gb_operations_lock);
 
