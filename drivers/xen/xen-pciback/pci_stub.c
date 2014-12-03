@@ -278,7 +278,7 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	/* Cleanup our device
 	 * (so it's ready for the next domain)
 	 */
-	lockdep_assert_held(&dev->dev.mutex);
+	device_lock_assert(&dev->dev);
 	__pci_reset_function_locked(dev);
 	pci_restore_state(dev);
 
