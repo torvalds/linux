@@ -276,6 +276,10 @@ enum {
 	(((chip)->driver_caps & AZX_DCAPS_SNOOP_MASK) >> 10)
 #define AZX_DCAPS_SNOOP_TYPE(type) ((AZX_SNOOP_TYPE_ ## type) << 10)
 
+/* quirks for old Intel chipsets */
+#define AZX_DCAPS_INTEL_ICH \
+	(AZX_DCAPS_OLD_SSYNC | AZX_DCAPS_BUFSIZE)
+
 /* quirks for Intel PCH */
 #define AZX_DCAPS_INTEL_PCH_NOPM \
 	(AZX_DCAPS_BUFSIZE | AZX_DCAPS_COUNT_LPIB_DELAY |\
@@ -2054,31 +2058,30 @@ static const struct pci_device_id azx_ids[] = {
 	/* Braswell */
 	{ PCI_DEVICE(0x8086, 0x2284),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
-	/* ICH */
+	/* ICH6 */
 	{ PCI_DEVICE(0x8086, 0x2668),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ICH6 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
+	/* ICH7 */
 	{ PCI_DEVICE(0x8086, 0x27d8),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ICH7 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
+	/* ESB2 */
 	{ PCI_DEVICE(0x8086, 0x269a),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ESB2 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
+	/* ICH8 */
 	{ PCI_DEVICE(0x8086, 0x284b),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ICH8 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
+	/* ICH9 */
 	{ PCI_DEVICE(0x8086, 0x293e),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ICH9 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
+	/* ICH9 */
 	{ PCI_DEVICE(0x8086, 0x293f),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ICH9 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
+	/* ICH10 */
 	{ PCI_DEVICE(0x8086, 0x3a3e),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ICH10 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
+	/* ICH10 */
 	{ PCI_DEVICE(0x8086, 0x3a6e),
-	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |
-	  AZX_DCAPS_BUFSIZE },  /* ICH10 */
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
 	/* Generic Intel */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
