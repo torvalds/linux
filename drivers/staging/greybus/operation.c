@@ -13,6 +13,7 @@
 
 #include "greybus.h"
 
+/* The default amount of time a request is given to complete */
 #define OPERATION_TIMEOUT_DEFAULT	1000	/* milliseconds */
 
 /*
@@ -59,7 +60,10 @@ struct gb_operation_msg_hdr {
 	/* 2 bytes pad, must be zero (ignore when read) */
 } __aligned(sizeof(u64));
 
-/* XXX Could be per-host device, per-module, or even per-connection */
+/*
+ * Protects access to connection operations lists, as well as
+ * updates to operation->errno.
+ */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
 /*
@@ -201,21 +205,18 @@ static void gb_message_cancel(struct gb_message *message)
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
 	struct gb_protocol *protocol = operation->connection->protocol;
-	struct gb_operation_msg_hdr *header;
-
-	header = operation->request->header;
 
 	/*
 	 * If the protocol has no incoming request handler, report
 	 * an error and mark the request bad.
 	 */
 	if (protocol->request_recv) {
-		protocol->request_recv(header->type, operation);
+		protocol->request_recv(operation->type, operation);
 		return;
 	}
 
 	gb_connection_err(operation->connection,
-		"unexpected incoming request type 0x%02hhx\n", header->type);
+		"unexpected incoming request type 0x%02hhx\n", operation->type);
 	if (gb_operation_result_set(operation, -EPROTONOSUPPORT))
 		queue_work(gb_operation_workqueue, &operation->work);
 	else
@@ -444,8 +445,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 	struct gb_message *response;
 	u8 type;
 
-	request_header = operation->request->header;
-	type = request_header->type | GB_OPERATION_TYPE_RESPONSE;
+	type = operation->type | GB_OPERATION_TYPE_RESPONSE;
 	response = gb_operation_message_alloc(hd, type, response_size,
 						GFP_KERNEL);
 	if (!response)
@@ -458,6 +458,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 	 * that's left is the operation id, which we copy from the
 	 * request message header (as-is, in little-endian order).
 	 */
+	request_header = operation->request->header;
 	response->header->operation_id = request_header->operation_id;
 	operation->response = response;
 
@@ -515,9 +516,11 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	operation->request->operation = operation;
 
 	/* Allocate the response buffer for outgoing operations */
-	if (type != GB_OPERATION_TYPE_INVALID)
+	if (type != GB_OPERATION_TYPE_INVALID) {
 		if (!gb_operation_response_alloc(operation, response_size))
 			goto err_request;
+		operation->type = type;
+	}
 	operation->errno = -EBADR;  /* Initial value--means "never set" */
 
 	INIT_WORK(&operation->work, gb_operation_work);
@@ -563,7 +566,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 
 static struct gb_operation *
 gb_operation_create_incoming(struct gb_connection *connection, u16 id,
-					void *data, size_t request_size)
+				u8 type, void *data, size_t request_size)
 {
 	struct gb_operation *operation;
 
@@ -572,6 +575,7 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 					request_size, 0);
 	if (operation) {
 		operation->id = id;
+		operation->type = type;
 		memcpy(operation->request->header, data, request_size);
 	}
 
@@ -779,13 +783,13 @@ EXPORT_SYMBOL_GPL(greybus_data_sent);
  * data into the request buffer and handle the rest via workqueue.
  */
 static void gb_connection_recv_request(struct gb_connection *connection,
-				       u16 operation_id, void *data,
-				       size_t size)
+				       u16 operation_id, u8 type,
+				       void *data, size_t size)
 {
 	struct gb_operation *operation;
 
 	operation = gb_operation_create_incoming(connection, operation_id,
-						data, size);
+						type, data, size);
 	if (!operation) {
 		gb_connection_err(connection, "can't create operation");
 		return;		/* XXX Respond with pre-allocated ENOMEM */
@@ -884,7 +888,7 @@ void gb_connection_recv(struct gb_connection *connection,
 						header->result, data, msg_size);
 	else
 		gb_connection_recv_request(connection, operation_id,
-						data, msg_size);
+						header->type, data, msg_size);
 }
 
 /*
