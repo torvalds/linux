@@ -913,9 +913,37 @@ static struct pvtm_info rk3288v1_arm_pvtm_info = {
 	.max_volt_uv = 1400000,
 };
 
+static struct cpufreq_frequency_table rk3288v2_arm_pvtm_table[] = {
+	{.frequency = 216000,  .index = 5369},
+	{.frequency = 408000,  .index = 6984},
+	{.frequency = 600000,  .index = 8771},
+	{.frequency = 816000,  .index = 11434},
+	{.frequency = 1008000,  .index = 14178},
+	{.frequency = 1200000,  .index = 16797},
+	{.frequency = 1416000,  .index = 20178},
+	{.frequency = 1608000,  .index = 23303},
+	{.frequency = CPUFREQ_TABLE_END, .index = 1},
+};
+
+static struct pvtm_info rk3288v2_arm_pvtm_info = {
+	.compatible = "rockchip,rk3288",
+	.pvtm_table = rk3288v2_arm_pvtm_table,
+	.channel = ARM_DVFS_CH,
+	.process_version = RK3288_PROCESS_V2,
+	.scan_rate_hz = 216000000,
+	.sample_time_us = 1000,
+	.volt_step_uv = 12500,
+	.delta_pvtm_by_volt = 430,
+	.delta_pvtm_by_temp = 12,
+	.volt_margin_uv = 25000,
+	.min_volt_uv = 900000,
+	.max_volt_uv = 1400000,
+};
+
 static struct pvtm_info *pvtm_info_table[] = {
 	&rk3288v0_arm_pvtm_info,
-	&rk3288v1_arm_pvtm_info
+	&rk3288v1_arm_pvtm_info,
+	&rk3288v2_arm_pvtm_info
 };
 
 static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,

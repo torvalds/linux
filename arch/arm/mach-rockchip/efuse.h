@@ -23,6 +23,7 @@
 
 #define RK3288_PROCESS_V0	0
 #define RK3288_PROCESS_V1	1
+#define RK3288_PROCESS_V2	2
 
 int rockchip_efuse_version(void);
 int rockchip_process_version(void);
