@@ -138,6 +138,7 @@ struct sge_params {
 	u32 sge_host_page_size;		/* PF0-7 page sizes */
 	u32 sge_egress_queues_per_page;	/* PF0-7 egress queues/page */
 	u32 sge_ingress_queues_per_page;/* PF0-7 ingress queues/page */
+	u32 sge_vf_hps;                 /* host page size for our vf */
 	u32 sge_vf_eq_qpp;		/* egress queues/page for our VF */
 	u32 sge_vf_iq_qpp;		/* ingress queues/page for our VF */
 	u32 sge_fl_buffer_size[16];	/* free list buffer sizes */
@@ -281,6 +282,13 @@ int t4vf_port_init(struct adapter *, int);
 
 int t4vf_fw_reset(struct adapter *);
 int t4vf_set_params(struct adapter *, unsigned int, const u32 *, const u32 *);
+
+enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
+int t4_bar2_sge_qregs(struct adapter *adapter,
+		      unsigned int qid,
+		      enum t4_bar2_qtype qtype,
+		      u64 *pbar2_qoffset,
+		      unsigned int *pbar2_qid);
 
 int t4vf_get_sge_params(struct adapter *);
 int t4vf_get_vpd_params(struct adapter *);
