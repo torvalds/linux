@@ -545,35 +545,19 @@ void vmw_fence_obj_flush(struct vmw_fence_obj *fence)
 
 static void vmw_fence_destroy(struct vmw_fence_obj *fence)
 {
-	struct vmw_fence_manager *fman = fman_from_fence(fence);
-
 	fence_free(&fence->base);
-
-	/*
-	 * Free kernel space accounting.
-	 */
-	ttm_mem_global_free(vmw_mem_glob(fman->dev_priv),
-			    fman->fence_size);
 }
 
 int vmw_fence_create(struct vmw_fence_manager *fman,
 		     uint32_t seqno,
 		     struct vmw_fence_obj **p_fence)
 {
-	struct ttm_mem_global *mem_glob = vmw_mem_glob(fman->dev_priv);
 	struct vmw_fence_obj *fence;
 	int ret;
 
-	ret = ttm_mem_global_alloc(mem_glob, fman->fence_size,
-				   false, false);
-	if (unlikely(ret != 0))
-		return ret;
-
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (unlikely(fence == NULL)) {
-		ret = -ENOMEM;
-		goto out_no_object;
-	}
+	if (unlikely(fence == NULL))
+		return -ENOMEM;
 
 	ret = vmw_fence_obj_init(fman, fence, seqno,
 				 vmw_fence_destroy);
@@ -585,8 +569,6 @@ int vmw_fence_create(struct vmw_fence_manager *fman,
 
 out_err_init:
 	kfree(fence);
-out_no_object:
-	ttm_mem_global_free(mem_glob, fman->fence_size);
 	return ret;
 }
 
@@ -1105,6 +1087,8 @@ static int vmw_event_fence_action_create(struct drm_file *file_priv,
 	if (ret != 0)
 		goto out_no_queue;
 
+	return 0;
+
 out_no_queue:
 	event->base.destroy(&event->base);
 out_no_event:
@@ -1180,17 +1164,10 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 
 	BUG_ON(fence == NULL);
 
-	if (arg->flags & DRM_VMW_FE_FLAG_REQ_TIME)
-		ret = vmw_event_fence_action_create(file_priv, fence,
-						    arg->flags,
-						    arg->user_data,
-						    true);
-	else
-		ret = vmw_event_fence_action_create(file_priv, fence,
-						    arg->flags,
-						    arg->user_data,
-						    true);
-
+	ret = vmw_event_fence_action_create(file_priv, fence,
+					    arg->flags,
+					    arg->user_data,
+					    true);
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Failed to attach event to fence.\n");
