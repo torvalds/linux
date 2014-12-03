@@ -1041,7 +1041,7 @@ xfs_buf_ioend_work(
 	struct work_struct	*work)
 {
 	struct xfs_buf		*bp =
-		container_of(work, xfs_buf_t, b_iodone_work);
+		container_of(work, xfs_buf_t, b_ioend_work);
 
 	xfs_buf_ioend(bp);
 }
@@ -1050,8 +1050,8 @@ void
 xfs_buf_ioend_async(
 	struct xfs_buf	*bp)
 {
-	INIT_WORK(&bp->b_iodone_work, xfs_buf_ioend_work);
-	queue_work(bp->b_target->bt_mount->m_buf_workqueue, &bp->b_iodone_work);
+	INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
+	queue_work(bp->b_ioend_wq, &bp->b_ioend_work);
 }
 
 void
@@ -1219,6 +1219,13 @@ _xfs_buf_ioapply(
 	 * left over from previous use of the buffer (e.g. failed readahead).
 	 */
 	bp->b_error = 0;
+
+	/*
+	 * Initialize the I/O completion workqueue if we haven't yet or the
+	 * submitter has not opted to specify a custom one.
+	 */
+	if (!bp->b_ioend_wq)
+		bp->b_ioend_wq = bp->b_target->bt_mount->m_buf_workqueue;
 
 	if (bp->b_flags & XBF_WRITE) {
 		if (bp->b_flags & XBF_SYNCIO)

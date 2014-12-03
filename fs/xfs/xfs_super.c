@@ -842,8 +842,7 @@ xfs_init_mount_workqueues(
 	struct xfs_mount	*mp)
 {
 	mp->m_buf_workqueue = alloc_workqueue("xfs-buf/%s",
-			WQ_MEM_RECLAIM|WQ_HIGHPRI|WQ_FREEZABLE, 1,
-			mp->m_fsname);
+			WQ_MEM_RECLAIM|WQ_FREEZABLE, 1, mp->m_fsname);
 	if (!mp->m_buf_workqueue)
 		goto out;
 
@@ -868,7 +867,7 @@ xfs_init_mount_workqueues(
 		goto out_destroy_cil;
 
 	mp->m_log_workqueue = alloc_workqueue("xfs-log/%s",
-			WQ_FREEZABLE, 0, mp->m_fsname);
+			WQ_FREEZABLE|WQ_HIGHPRI, 0, mp->m_fsname);
 	if (!mp->m_log_workqueue)
 		goto out_destroy_reclaim;
 
