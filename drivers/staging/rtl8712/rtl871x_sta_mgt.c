@@ -83,9 +83,8 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	phead = &pstapriv->free_sta_queue.queue;
 	plist = phead->next;
-	while ((end_of_queue_search(phead, plist)) == false) {
+	while ((end_of_queue_search(phead, plist)) == false)
 		plist = plist->next;
-	}
 
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
 }
