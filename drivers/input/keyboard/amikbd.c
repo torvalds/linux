@@ -147,10 +147,11 @@ static unsigned char amikbd_keycode[0x78] __initdata = {
 
 static void __init amikbd_init_console_keymaps(void)
 {
+	/* We can spare 512 bytes on stack for temp_map in init path. */
+	unsigned short temp_map[NR_KEYS];
 	int i, j;
 
 	for (i = 0; i < MAX_NR_KEYMAPS; i++) {
-		static u_short temp_map[NR_KEYS] __initdata;
 		if (!key_maps[i])
 			continue;
 		memset(temp_map, 0, sizeof(temp_map));
