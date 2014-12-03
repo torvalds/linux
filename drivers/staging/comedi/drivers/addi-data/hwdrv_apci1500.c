@@ -51,16 +51,6 @@
 #define TRIGGER				2
 
 /*
- * Zillog I/O enumeration
- */
-enum {
-	APCI1500_Z8536_PORT_C,
-	APCI1500_Z8536_PORT_B,
-	APCI1500_Z8536_PORT_A,
-	APCI1500_Z8536_CONTROL_REGISTER
-};
-
-/*
  * Z8536 CIO Internal Address
  */
 enum {
@@ -136,8 +126,8 @@ static unsigned int z8536_read(struct comedi_device *dev, unsigned int reg)
 	unsigned int val;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
-	outb(reg, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	val = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	outb(reg, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	val = inb(devpriv->iobase + APCI1500_Z8536_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return val;
@@ -150,8 +140,8 @@ static void z8536_write(struct comedi_device *dev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
-	outb(reg, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(val, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	outb(reg, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(val, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -165,12 +155,12 @@ static void z8536_reset(struct comedi_device *dev)
 	 * sequence will reset it and put it in State 0.
 	 */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(1, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	inb(devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(0, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	inb(devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(0, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(1, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
+	outb(0, devpriv->iobase + APCI1500_Z8536_CTRL_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	z8536_write(dev, 0xf4, APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
@@ -1551,9 +1541,8 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 			z8536_write(dev, i_RegValue,
 				    APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 			/* Reads port B */
-			i_RegValue =
-				inb((unsigned int) devpriv->iobase +
-				APCI1500_Z8536_PORT_B);
+			i_RegValue = inb(devpriv->iobase +
+					 APCI1500_Z8536_PORTB_REG);
 
 			i_RegValue = i_RegValue & 0xC0;
 			/* Tests if this is an external error */

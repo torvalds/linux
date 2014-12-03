@@ -7,6 +7,14 @@
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
+/*
+ * PCI Bar 1 Register map (devpriv->iobase)
+ */
+#define APCI1500_Z8536_PORTC_REG	0x00
+#define APCI1500_Z8536_PORTB_REG	0x01
+#define APCI1500_Z8536_PORTA_REG	0x02
+#define APCI1500_Z8536_CTRL_REG		0x03
+
 struct apci1500_private {
 	int iobase;
 	int i_IobaseAmcc;
