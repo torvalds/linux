@@ -285,7 +285,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 		return -ENOMEM;
 
 	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
+	ret = gb_operation_request_send_sync(operation);
 	if (ret) {
 		if (ret != -EAGAIN)
 			pr_err("transfer operation failed (%d)\n", ret);

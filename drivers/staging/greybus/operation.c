@@ -641,7 +641,6 @@ int gb_operation_request_send(struct gb_operation *operation,
 	struct gb_operation_msg_hdr *header;
 	unsigned long timeout;
 	unsigned int cycle;
-	int ret;
 
 	if (connection->state != GB_CONNECTION_STATE_ENABLED)
 		return -ENOTCONN;
@@ -652,11 +651,12 @@ int gb_operation_request_send(struct gb_operation *operation,
 	 */
 	gb_operation_get(operation);
 
-	/* A null callback pointer means synchronous return */
-	if (callback)
-		operation->callback = callback;
-	else
-		operation->callback = gb_operation_sync_callback;
+	/*
+	 * Record the callback function, which is executed in
+	 * non-atomic (workqueue) context when the final result
+	 * of an operation has been set.
+	 */
+	operation->callback = callback;
 
 	/*
 	 * Assign the operation's id, and store it in the request header.
@@ -677,8 +677,22 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	/* All set, send the request */
 	gb_operation_result_set(operation, -EINPROGRESS);
-	ret = gb_message_send(operation->request);
-	if (ret || callback)
+
+	return gb_message_send(operation->request);
+}
+
+/*
+ * Send a synchronous operation.  This function is expected to
+ * block, returning only when the response has arrived, (or when an
+ * error is detected.  The return value is the result of the
+ * operation.
+ */
+int gb_operation_request_send_sync(struct gb_operation *operation)
+{
+	int ret;
+
+	ret = gb_operation_request_send(operation, gb_operation_sync_callback);
+	if (ret)
 		return ret;
 
 	/* Cancel the operation if interrupted */
@@ -923,8 +937,7 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
 
-	/* Synchronous operation--no callback */
-	ret = gb_operation_request_send(operation, NULL);
+	ret = gb_operation_request_send_sync(operation);
 	if (ret)
 		pr_err("version operation failed (%d)\n", ret);
 	else

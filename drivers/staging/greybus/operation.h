@@ -115,6 +115,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback);
+int gb_operation_request_send_sync(struct gb_operation *operation);
 int gb_operation_response_send(struct gb_operation *operation, int errno);
 
 void gb_operation_cancel(struct gb_operation *operation, int errno);

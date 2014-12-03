@@ -169,7 +169,7 @@ static int urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	memcpy(&request->payload, urb->transfer_buffer,
 	       urb->transfer_buffer_length);
 
-	ret = gb_operation_request_send(operation, NULL);
+	ret = gb_operation_request_send_sync(operation);
 	gb_operation_destroy(operation);
 
 	return ret;
