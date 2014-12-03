@@ -1168,6 +1168,11 @@ static void mpc5121_clk_provide_backwards_compat(void)
 	}
 }
 
+/*
+ * The "fixed-clock" nodes (which includes the oscillator node if the board's
+ * DT provides one) has already been scanned by the of_clk_init() in
+ * time_init().
+ */
 int __init mpc5121_clk_init(void)
 {
 	struct device_node *clk_np;
@@ -1185,12 +1190,6 @@ int __init mpc5121_clk_init(void)
 
 	/* invalidate all not yet registered clock slots */
 	mpc512x_clk_preset_data();
-
-	/*
-	 * have the device tree scanned for "fixed-clock" nodes (which
-	 * includes the oscillator node if the board's DT provides one)
-	 */
-	of_clk_init(NULL);
 
 	/*
 	 * add a dummy clock for those situations where a clock spec is
