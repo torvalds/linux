@@ -1,6 +1,7 @@
 
 #include <linux/phy.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 
 #define RTL821x_PHYSR		0x11
 #define RTL821x_PHYSR_DUPLEX	0x2000
@@ -11,6 +12,15 @@
 #define RTL8211F_MMD_CTRL       0x0D
 #define RTL8211F_MMD_DATA       0x0E
 #define	RTL8211E_INER_LINK_STAT	0x10
+
+#define RTL8211F_PHYCTRL        0
+
+#define RTL8211F_PHYCR2         25
+#define RTL8211F_PHYSR          26
+#define RTL8211F_REGPAGE        31
+
+#define RTL8211F_RXCSSC         19
+#define RTL8211F_SYSCLK_SSC     23
 
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
@@ -40,6 +50,30 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 static int rtl8211e_config_init(struct phy_device *phydev)
 {
 	int val;
+
+        /* Disable CLK_OUT */
+        phy_write(phydev, RTL8211F_REGPAGE, 0x0a43);    // return to page 0xa43
+        val = phy_read(phydev, RTL8211F_PHYCR2);
+        phy_write(phydev, RTL8211F_PHYCR2, val & ~(1 << 0));
+        phy_write(phydev, RTL8211F_REGPAGE, 0x0000);    // return to page 0
+
+        /* Enable RXC SSC */
+        phy_write(phydev, RTL8211F_REGPAGE, 0x0c44);    // return to page 0xc44
+        phy_write(phydev, RTL8211F_RXCSSC, 0x5f00);     // enable RXC SSC
+        phy_write(phydev, RTL8211F_REGPAGE, 0x0000);    // return to page 0
+
+        /* Enable System Clock SSC */
+        phy_write(phydev, RTL8211F_REGPAGE, 0x0c44);    // return to page 0xc44
+        phy_write(phydev, RTL8211F_SYSCLK_SSC, 0x4f00); // enable system clock SSC
+        phy_write(phydev, RTL8211F_REGPAGE, 0x0a43);    // return to page 0xa43
+        val = phy_read(phydev, RTL8211F_PHYCR2);
+        phy_write(phydev, RTL8211F_PHYCR2, val | (1 << 3));
+        phy_write(phydev, RTL8211F_REGPAGE, 0x0000);    // return to page 0
+
+        /* PHY Reset */
+        phy_write(phydev, RTL8211F_PHYCTRL, 0x9200);    // PHY reset
+        msleep(10);
+
 /* we want to disable eee */
         phy_write(phydev, RTL8211F_MMD_CTRL, 0x7);
 
