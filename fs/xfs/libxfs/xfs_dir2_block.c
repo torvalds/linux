@@ -353,7 +353,6 @@ xfs_dir2_block_addname(
 	int			low;		/* low index for binary srch */
 	int			lowstale;	/* low stale index */
 	int			mid=0;		/* midpoint for binary srch */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log header */
 	int			needscan;	/* need to rescan freespace */
 	__be16			*tagp;		/* pointer to tag value */
@@ -363,7 +362,6 @@ xfs_dir2_block_addname(
 
 	dp = args->dp;
 	tp = args->trans;
-	mp = dp->i_mount;
 
 	/* Read the (one and only) directory block into bp. */
 	error = xfs_dir3_block_read(tp, dp, &bp);
@@ -618,7 +616,6 @@ xfs_dir2_block_lookup(
 	xfs_inode_t		*dp;		/* incore inode */
 	int			ent;		/* entry index */
 	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 
 	trace_xfs_dir2_block_lookup(args);
 
@@ -629,7 +626,6 @@ xfs_dir2_block_lookup(
 	if ((error = xfs_dir2_block_lookup_int(args, &bp, &ent)))
 		return error;
 	dp = args->dp;
-	mp = dp->i_mount;
 	hdr = bp->b_addr;
 	xfs_dir3_data_check(dp, bp);
 	btp = xfs_dir2_block_tail_p(args->geo, hdr);
@@ -770,7 +766,6 @@ xfs_dir2_block_removename(
 	xfs_inode_t		*dp;		/* incore inode */
 	int			ent;		/* block leaf entry index */
 	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log block header */
 	int			needscan;	/* need to fixup bestfree */
 	xfs_dir2_sf_hdr_t	sfh;		/* shortform header */
@@ -788,7 +783,6 @@ xfs_dir2_block_removename(
 	}
 	dp = args->dp;
 	tp = args->trans;
-	mp = dp->i_mount;
 	hdr = bp->b_addr;
 	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
@@ -852,7 +846,6 @@ xfs_dir2_block_replace(
 	xfs_inode_t		*dp;		/* incore inode */
 	int			ent;		/* leaf entry index */
 	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 
 	trace_xfs_dir2_block_replace(args);
 
@@ -864,7 +857,6 @@ xfs_dir2_block_replace(
 		return error;
 	}
 	dp = args->dp;
-	mp = dp->i_mount;
 	hdr = bp->b_addr;
 	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);

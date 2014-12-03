@@ -297,7 +297,6 @@ xfs_dir2_leaf_to_node(
 	int			i;		/* leaf freespace index */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	xfs_dir2_leaf_tail_t	*ltp;		/* leaf tail structure */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			n;		/* count of live freespc ents */
 	xfs_dir2_data_off_t	off;		/* freespace entry value */
 	__be16			*to;		/* pointer to freespace entry */
@@ -307,7 +306,6 @@ xfs_dir2_leaf_to_node(
 	trace_xfs_dir2_leaf_to_node(args);
 
 	dp = args->dp;
-	mp = dp->i_mount;
 	tp = args->trans;
 	/*
 	 * Add a freespace block to the directory.
@@ -387,16 +385,12 @@ xfs_dir2_leafn_add(
 	int			lfloghigh;	/* high leaf entry logging */
 	int			lfloglow;	/* low leaf entry logging */
 	int			lowstale;	/* previous stale entry */
-	xfs_mount_t		*mp;		/* filesystem mount point */
-	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_dir3_icleaf_hdr leafhdr;
 	struct xfs_dir2_leaf_entry *ents;
 
 	trace_xfs_dir2_leafn_add(args, index);
 
 	dp = args->dp;
-	mp = dp->i_mount;
-	tp = args->trans;
 	leaf = bp->b_addr;
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
@@ -1170,7 +1164,6 @@ xfs_dir2_leafn_remove(
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
 	int			longest;	/* longest data free entry */
 	int			off;		/* data block entry offset */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log data header */
 	int			needscan;	/* need to rescan data frees */
 	xfs_trans_t		*tp;		/* transaction pointer */
@@ -1182,7 +1175,6 @@ xfs_dir2_leafn_remove(
 
 	dp = args->dp;
 	tp = args->trans;
-	mp = dp->i_mount;
 	leaf = bp->b_addr;
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
@@ -1323,7 +1315,6 @@ xfs_dir2_leafn_split(
 	xfs_da_args_t		*args;		/* operation arguments */
 	xfs_dablk_t		blkno;		/* new leaf block number */
 	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	struct xfs_inode	*dp;
 
 	/*
@@ -1331,7 +1322,6 @@ xfs_dir2_leafn_split(
 	 */
 	args = state->args;
 	dp = args->dp;
-	mp = dp->i_mount;
 	ASSERT(oldblk->magic == XFS_DIR2_LEAFN_MAGIC);
 	error = xfs_da_grow_inode(args, &blkno);
 	if (error) {
@@ -2231,12 +2221,10 @@ xfs_dir2_node_trim_free(
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return code */
 	xfs_dir2_free_t		*free;		/* freespace structure */
-	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_dir3_icfree_hdr freehdr;
 
 	dp = args->dp;
-	mp = dp->i_mount;
 	tp = args->trans;
 	/*
 	 * Read the freespace block.

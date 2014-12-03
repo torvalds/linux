@@ -5450,13 +5450,11 @@ xfs_bmse_merge(
 	struct xfs_btree_cur		*cur,
 	int				*logflags)	/* output */
 {
-	struct xfs_ifork		*ifp;
 	struct xfs_bmbt_irec		got;
 	struct xfs_bmbt_irec		left;
 	xfs_filblks_t			blockcount;
 	int				error, i;
 
-	ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_bmbt_get_all(gotp, &got);
 	xfs_bmbt_get_all(leftp, &left);
 	blockcount = left.br_blockcount + got.br_blockcount;

@@ -2485,9 +2485,7 @@ xfs_remove(
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	int			link_zero;
 	uint			resblks;
-	uint			log_count;
 
 	trace_xfs_remove(dp, name);
 
@@ -2502,13 +2500,10 @@ xfs_remove(
 	if (error)
 		goto std_return;
 
-	if (is_dir) {
+	if (is_dir)
 		tp = xfs_trans_alloc(mp, XFS_TRANS_RMDIR);
-		log_count = XFS_DEFAULT_LOG_COUNT;
-	} else {
+	else
 		tp = xfs_trans_alloc(mp, XFS_TRANS_REMOVE);
-		log_count = XFS_REMOVE_LOG_COUNT;
-	}
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 
 	/*
@@ -2575,9 +2570,6 @@ xfs_remove(
 	error = xfs_droplink(tp, ip);
 	if (error)
 		goto out_trans_cancel;
-
-	/* Determine if this is the last link while the inode is locked */
-	link_zero = (ip->i_d.di_nlink == 0);
 
 	xfs_bmap_init(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
