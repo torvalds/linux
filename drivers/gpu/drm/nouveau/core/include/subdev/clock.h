@@ -104,7 +104,7 @@ struct nouveau_clock {
 static inline struct nouveau_clock *
 nouveau_clock(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_CLOCK];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_CLOCK);
 }
 
 struct nouveau_clocks {

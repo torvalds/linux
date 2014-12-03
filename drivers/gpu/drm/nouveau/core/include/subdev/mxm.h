@@ -15,7 +15,7 @@ struct nouveau_mxm {
 static inline struct nouveau_mxm *
 nouveau_mxm(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_MXM];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_MXM);
 }
 
 #define nouveau_mxm_create(p,e,o,d)                                            \

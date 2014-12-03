@@ -24,7 +24,7 @@ struct nouveau_bios {
 static inline struct nouveau_bios *
 nouveau_bios(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_VBIOS];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_VBIOS);
 }
 
 u8  nvbios_checksum(const u8 *data, int size);

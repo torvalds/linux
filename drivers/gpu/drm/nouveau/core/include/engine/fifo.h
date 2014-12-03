@@ -85,7 +85,7 @@ struct nouveau_fifo {
 static inline struct nouveau_fifo *
 nouveau_fifo(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_ENGINE_FIFO];
+	return (void *)nouveau_engine(obj, NVDEV_ENGINE_FIFO);
 }
 
 #define nouveau_fifo_create(o,e,c,fc,lc,d)                                     \

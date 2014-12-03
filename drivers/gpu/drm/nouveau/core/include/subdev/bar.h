@@ -27,7 +27,7 @@ struct nouveau_bar {
 static inline struct nouveau_bar *
 nouveau_bar(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_BAR];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_BAR);
 }
 
 extern struct nouveau_oclass nv50_bar_oclass;

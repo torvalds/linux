@@ -25,7 +25,7 @@ struct nouveau_ltc {
 static inline struct nouveau_ltc *
 nouveau_ltc(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_LTC];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_LTC);
 }
 
 extern struct nouveau_oclass *gf100_ltc_oclass;

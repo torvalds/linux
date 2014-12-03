@@ -47,7 +47,7 @@ struct nouveau_therm {
 static inline struct nouveau_therm *
 nouveau_therm(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_THERM];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_THERM);
 }
 
 #define nouveau_therm_create(p,e,o,d)                                          \

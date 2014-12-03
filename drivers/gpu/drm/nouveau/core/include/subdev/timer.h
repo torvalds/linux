@@ -42,7 +42,7 @@ struct nouveau_timer {
 static inline struct nouveau_timer *
 nouveau_timer(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_TIMER];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_TIMER);
 }
 
 #define nouveau_timer_create(p,e,o,d)                                          \

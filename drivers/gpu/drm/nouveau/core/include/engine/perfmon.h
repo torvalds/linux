@@ -24,7 +24,7 @@ struct nouveau_perfmon {
 static inline struct nouveau_perfmon *
 nouveau_perfmon(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_ENGINE_PERFMON];
+	return (void *)nouveau_engine(obj, NVDEV_ENGINE_PERFMON);
 }
 
 extern struct nouveau_oclass *nv40_perfmon_oclass;

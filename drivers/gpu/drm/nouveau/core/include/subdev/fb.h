@@ -80,7 +80,7 @@ nouveau_fb(void *obj)
 	    nv_subidx(obj) == NVDEV_SUBDEV_FB)
 		return obj;
 
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_FB];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_FB);
 }
 
 extern struct nouveau_oclass *nv04_fb_oclass;

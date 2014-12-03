@@ -18,7 +18,7 @@ struct nouveau_disp {
 static inline struct nouveau_disp *
 nouveau_disp(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_ENGINE_DISP];
+	return (void *)nouveau_engine(obj, NVDEV_ENGINE_DISP);
 }
 
 extern struct nouveau_oclass *nv04_disp_oclass;

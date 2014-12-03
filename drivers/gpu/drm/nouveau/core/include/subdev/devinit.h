@@ -15,7 +15,7 @@ struct nouveau_devinit {
 static inline struct nouveau_devinit *
 nouveau_devinit(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_DEVINIT];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_DEVINIT);
 }
 
 extern struct nouveau_oclass *nv04_devinit_oclass;

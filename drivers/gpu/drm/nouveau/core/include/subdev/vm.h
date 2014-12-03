@@ -91,7 +91,7 @@ struct nouveau_vmmgr {
 static inline struct nouveau_vmmgr *
 nouveau_vmmgr(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_VM];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_VM);
 }
 
 #define nouveau_vmmgr_create(p,e,o,i,f,d)                                      \

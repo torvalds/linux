@@ -42,7 +42,7 @@ nouveau_instmem(void *obj)
 	    nv_subidx(obj) == NVDEV_SUBDEV_INSTMEM)
 		return obj;
 
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_INSTMEM];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_INSTMEM);
 }
 
 extern struct nouveau_oclass *nv04_instmem_oclass;

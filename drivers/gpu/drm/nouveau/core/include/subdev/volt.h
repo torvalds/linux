@@ -29,7 +29,7 @@ struct nouveau_volt {
 static inline struct nouveau_volt *
 nouveau_volt(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_VOLT];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_VOLT);
 }
 
 #define nouveau_volt_create(p, e, o, d)                                        \

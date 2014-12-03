@@ -35,7 +35,7 @@ struct nouveau_gpio {
 static inline struct nouveau_gpio *
 nouveau_gpio(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_GPIO];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_GPIO);
 }
 
 extern struct nouveau_oclass *nv10_gpio_oclass;

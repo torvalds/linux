@@ -35,7 +35,7 @@ struct nouveau_graph {
 static inline struct nouveau_graph *
 nouveau_graph(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_ENGINE_GR];
+	return (void *)nouveau_engine(obj, NVDEV_ENGINE_GR);
 }
 
 #define nouveau_graph_create(p,e,c,y,d)                                        \

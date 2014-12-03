@@ -14,7 +14,7 @@ struct nouveau_mc {
 static inline struct nouveau_mc *
 nouveau_mc(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_MC];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_MC);
 }
 
 extern struct nouveau_oclass *nv04_mc_oclass;

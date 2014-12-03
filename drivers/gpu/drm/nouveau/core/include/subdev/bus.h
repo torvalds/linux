@@ -18,7 +18,7 @@ struct nouveau_bus {
 static inline struct nouveau_bus *
 nouveau_bus(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_BUS];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_BUS);
 }
 
 #define nouveau_bus_create(p, e, o, d)                                         \

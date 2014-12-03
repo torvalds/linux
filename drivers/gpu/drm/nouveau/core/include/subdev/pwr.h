@@ -30,7 +30,7 @@ struct nouveau_pwr {
 static inline struct nouveau_pwr *
 nouveau_pwr(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_PWR];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_PWR);
 }
 
 extern struct nouveau_oclass *nva3_pwr_oclass;

@@ -11,7 +11,7 @@ struct nouveau_fuse {
 static inline struct nouveau_fuse *
 nouveau_fuse(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_FUSE];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_FUSE);
 }
 
 #define nouveau_fuse_create(p, e, o, d)                                        \

@@ -81,7 +81,7 @@ struct nouveau_i2c {
 static inline struct nouveau_i2c *
 nouveau_i2c(void *obj)
 {
-	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_I2C];
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_I2C);
 }
 
 extern struct nouveau_oclass *nv04_i2c_oclass;
