@@ -5303,11 +5303,13 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 
 struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)
 {
+	struct i915_address_space *ggtt = i915_obj_to_ggtt(obj);
 	struct i915_vma *vma;
 
-	vma = list_first_entry(&obj->vma_list, typeof(*vma), vma_link);
-	if (vma->vm != i915_obj_to_ggtt(obj))
-		return NULL;
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		if (vma->vm == ggtt)
+			return vma;
+	}
 
-	return vma;
+	return NULL;
 }
