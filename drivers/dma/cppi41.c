@@ -1,3 +1,4 @@
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -603,12 +604,16 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	 * descriptor before the TD we fetch it from enqueue, it has to be
 	 * there waiting for us.
 	 */
-	if (!c->td_seen && c->td_retry)
+	if (!c->td_seen && c->td_retry) {
+		udelay(1);
 		return -EAGAIN;
-
+	}
 	WARN_ON(!c->td_retry);
+
 	if (!c->td_desc_seen) {
 		desc_phys = cppi41_pop_desc(cdd, c->q_num);
+		if (!desc_phys)
+			desc_phys = cppi41_pop_desc(cdd, c->q_comp_num);
 		WARN_ON(!desc_phys);
 	}
 
