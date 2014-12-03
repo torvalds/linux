@@ -178,6 +178,8 @@ int au_pin(struct au_pin *pin, struct dentry *dentry, aufs_bindex_t bindex,
 	   unsigned int udba, unsigned char flags) __must_check;
 int au_do_pin(struct au_pin *pin) __must_check;
 void au_unpin(struct au_pin *pin);
+int au_reval_for_attr(struct dentry *dentry, unsigned int sigen);
+
 int au_h_path_getattr(struct dentry *dentry, int force, struct path *h_path);
 
 /* i_op_add.c */

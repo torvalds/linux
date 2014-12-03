@@ -668,7 +668,7 @@ int au_pin(struct au_pin *pin, struct dentry *dentry, aufs_bindex_t bindex,
  * for ->setattr(), ia->ia_file is passed from ftruncate only.
  */
 /* todo: consolidate with do_refresh() and simple_reval_dpath() */
-static int au_reval_for_attr(struct dentry *dentry, unsigned int sigen)
+int au_reval_for_attr(struct dentry *dentry, unsigned int sigen)
 {
 	int err;
 	struct inode *inode;
