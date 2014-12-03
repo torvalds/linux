@@ -4120,7 +4120,7 @@ struct wmi_bcn_info {
 
 struct wmi_host_swba_event {
 	__le32 vdev_map;
-	struct wmi_bcn_info bcn_info[1];
+	struct wmi_bcn_info bcn_info[0];
 } __packed;
 
 #define WMI_MAX_AP_VDEV 16
@@ -4567,6 +4567,58 @@ struct wmi_dbglog_cfg_cmd {
 
 #define WMI_MAX_MEM_REQS 16
 
+struct wmi_scan_ev_arg {
+	__le32 event_type; /* %WMI_SCAN_EVENT_ */
+	__le32 reason; /* %WMI_SCAN_REASON_ */
+	__le32 channel_freq; /* only valid for WMI_SCAN_EVENT_FOREIGN_CHANNEL */
+	__le32 scan_req_id;
+	__le32 scan_id;
+	__le32 vdev_id;
+};
+
+struct wmi_mgmt_rx_ev_arg {
+	__le32 channel;
+	__le32 snr;
+	__le32 rate;
+	__le32 phy_mode;
+	__le32 buf_len;
+	__le32 status; /* %WMI_RX_STATUS_ */
+};
+
+struct wmi_ch_info_ev_arg {
+	__le32 err_code;
+	__le32 freq;
+	__le32 cmd_flags;
+	__le32 noise_floor;
+	__le32 rx_clear_count;
+	__le32 cycle_count;
+};
+
+struct wmi_vdev_start_ev_arg {
+	__le32 vdev_id;
+	__le32 req_id;
+	__le32 resp_type; /* %WMI_VDEV_RESP_ */
+	__le32 status;
+};
+
+struct wmi_peer_kick_ev_arg {
+	const u8 *mac_addr;
+};
+
+struct wmi_swba_ev_arg {
+	__le32 vdev_map;
+	const struct wmi_tim_info *tim_info[WMI_MAX_AP_VDEV];
+	const struct wmi_p2p_noa_info *noa_info[WMI_MAX_AP_VDEV];
+};
+
+struct wmi_phyerr_ev_arg {
+	__le32 num_phyerrs;
+	__le32 tsf_l32;
+	__le32 tsf_u32;
+	__le32 buf_len;
+	const struct wmi_phyerr *phyerrs;
+};
+
 struct wmi_svc_rdy_ev_arg {
 	__le32 min_tx_power;
 	__le32 max_tx_power;
@@ -4581,6 +4633,13 @@ struct wmi_svc_rdy_ev_arg {
 	const __le32 *service_map;
 	size_t service_map_len;
 	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];
+};
+
+struct wmi_rdy_ev_arg {
+	__le32 sw_version;
+	__le32 abi_version;
+	__le32 status;
+	const u8 *mac_addr;
 };
 
 struct ath10k;
