@@ -201,6 +201,15 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
  */
 struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
 
+/**
+ * ion_handle_get() - ref ion buffer.
+ */
+void ion_handle_get(struct ion_handle *handle);
+/**
+ * ion_handle_put() - unref ion buffer.
+ */
+int ion_handle_put(struct ion_handle *handle);
+
 #ifdef CONFIG_ARCH_ROCKCHIP
 struct device;
 
