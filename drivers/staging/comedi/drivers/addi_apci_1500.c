@@ -18,7 +18,6 @@
 struct apci1500_private {
 	int i_IobaseAmcc;
 	int i_IobaseAddon;
-	int i_IobaseReserved;
 	unsigned char b_OutputMemoryStatus;
 	struct task_struct *tsk_Current;
 };
@@ -44,7 +43,6 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 1);
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
-	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci1500_interrupt, IRQF_SHARED,
