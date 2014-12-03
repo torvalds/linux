@@ -16,6 +16,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
+#include <asm/mips-r2-to-r6-emul.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 

@@ -48,6 +48,7 @@
 #include <asm/processor.h>
 #include <asm/fpu_emulator.h>
 #include <asm/fpu.h>
+#include <asm/mips-r2-to-r6-emul.h>
 
 #include "ieee754.h"
 
@@ -68,7 +69,7 @@ static int fpux_emu(struct pt_regs *,
 #define modeindex(v) ((v) & FPU_CSR_RM)
 
 /* convert condition code register number to csr bit */
-static const unsigned int fpucondbit[8] = {
+const unsigned int fpucondbit[8] = {
 	FPU_CSR_COND0,
 	FPU_CSR_COND1,
 	FPU_CSR_COND2,

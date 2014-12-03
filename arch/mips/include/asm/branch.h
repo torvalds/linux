@@ -13,9 +13,6 @@
 #include <asm/ptrace.h>
 #include <asm/inst.h>
 
-static int mipsr2_emulation = 0;
-#define NO_R6EMU	(cpu_has_mips_r6 && !mipsr2_emulation)
-
 extern int __isa_exception_epc(struct pt_regs *regs);
 extern int __compute_return_epc(struct pt_regs *regs);
 extern int __compute_return_epc_for_insn(struct pt_regs *regs,

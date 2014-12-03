@@ -46,6 +46,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
+#include <asm/mips-r2-to-r6-emul.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -837,7 +838,7 @@ out:
 	exception_exit(prev_state);
 }
 
-static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
+void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 	const char *str)
 {
 	siginfo_t info;
@@ -1027,7 +1028,32 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	unsigned int opcode = 0;
 	int status = -1;
 
+	/*
+	 * Avoid any kernel code. Just emulate the R2 instruction
+	 * as quickly as possible.
+	 */
+	if (mipsr2_emulation && cpu_has_mips_r6 &&
+	    likely(user_mode(regs))) {
+		if (likely(get_user(opcode, epc) >= 0)) {
+			status = mipsr2_decoder(regs, opcode);
+			switch (status) {
+			case 0:
+			case SIGEMT:
+				return;
+			case SIGILL:
+				goto no_r2_instr;
+			default:
+				process_fpemu_return(status,
+						     &current->thread.cp0_baduaddr);
+				return;
+			}
+		}
+	}
+
+no_r2_instr:
+
 	prev_state = exception_enter();
+
 	if (notify_die(DIE_RI, "RI Fault", regs, 0, regs_to_trapnr(regs),
 		       SIGILL) == NOTIFY_STOP)
 		goto out;
