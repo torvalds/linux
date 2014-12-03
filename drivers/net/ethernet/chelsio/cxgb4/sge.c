@@ -527,14 +527,16 @@ static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 		val |= DBPRIO(1);
 		wmb();
 
-		/* If we're on T4, use the old doorbell mechanism; otherwise
-		 * use the new BAR2 mechanism.
+		/* If we don't have access to the new User Doorbell (T5+), use
+		 * the old doorbell mechanism; otherwise use the new BAR2
+		 * mechanism.
 		 */
-		if (is_t4(adap->params.chip)) {
+		if (unlikely(q->bar2_addr == NULL)) {
 			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
 				     val | QID(q->cntxt_id));
 		} else {
-			writel(val,  adap->bar2 + q->udb + SGE_UDB_KDOORBELL);
+			writel(val | QID(q->bar2_qid),
+			       q->bar2_addr + SGE_UDB_KDOORBELL);
 
 			/* This Write memory Barrier will force the write to
 			 * the User Doorbell area to be flushed.
@@ -850,14 +852,13 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		*end = 0;
 }
 
-/* This function copies a tx_desc struct to memory mapped BAR2 space(user space
- * writes). For coalesced WR SGE, fetches data from the FIFO instead of from
- * Host.
+/* This function copies 64 byte coalesced work request to
+ * memory mapped BAR2 space. For coalesced WR SGE fetches
+ * data from the FIFO instead of from Host.
  */
-static void cxgb_pio_copy(u64 __iomem *dst, struct tx_desc *desc)
+static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
 {
-	int count = sizeof(*desc) / sizeof(u64);
-	u64 *src = (u64 *)desc;
+	int count = 8;
 
 	while (count) {
 		writeq(*src, dst);
@@ -879,7 +880,10 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 {
 	wmb();            /* write descriptors before telling HW */
 
-	if (is_t4(adap->params.chip)) {
+	/* If we don't have access to the new User Doorbell (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(q->bar2_addr == NULL)) {
 		u32 val = PIDX(n);
 		unsigned long flags;
 
@@ -905,21 +909,22 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 		 */
 		WARN_ON(val & DBPRIO(1));
 
-		/* For T5 and later we use the Write-Combine mapped BAR2 User
-		 * Doorbell mechanism.  If we're only writing a single TX
-		 * Descriptor and TX Write Combining hasn't been disabled, we
-		 * can use the Write Combining Gather Buffer; otherwise we use
-		 * the simple doorbell.
+		/* If we're only writing a single TX Descriptor and we can use
+		 * Inferred QID registers, we can use the Write Combining
+		 * Gather Buffer; otherwise we use the simple doorbell.
 		 */
-		if (n == 1) {
+		if (n == 1 && q->bar2_qid == 0) {
 			int index = (q->pidx
 				     ? (q->pidx - 1)
 				     : (q->size - 1));
+			u64 *wr = (u64 *)&q->desc[index];
 
-			cxgb_pio_copy(adap->bar2 + q->udb + SGE_UDB_WCDOORBELL,
-				      q->desc + index);
+			cxgb_pio_copy((u64 __iomem *)
+				      (q->bar2_addr + SGE_UDB_WCDOORBELL),
+				      wr);
 		} else {
-			writel(val,  adap->bar2 + q->udb + SGE_UDB_KDOORBELL);
+			writel(val | QID(q->bar2_qid),
+			       q->bar2_addr + SGE_UDB_KDOORBELL);
 		}
 
 		/* This Write Memory Barrier will force the write to the User
@@ -1997,11 +2002,16 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 		params = QINTR_TIMER_IDX(7);
 
 	val = CIDXINC(work_done) | SEINTARM(params);
-	if (is_t4(q->adap->params.chip)) {
+
+	/* If we don't have access to the new User GTS (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(q->bar2_addr == NULL)) {
 		t4_write_reg(q->adap, MYPF_REG(SGE_PF_GTS),
 			     val | INGRESSQID((u32)q->cntxt_id));
 	} else {
-		writel(val, q->adap->bar2 + q->udb + SGE_UDB_GTS);
+		writel(val | INGRESSQID(q->bar2_qid),
+		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
 	return work_done;
@@ -2047,11 +2057,16 @@ static unsigned int process_intrq(struct adapter *adap)
 	}
 
 	val =  CIDXINC(credits) | SEINTARM(q->intr_params);
-	if (is_t4(adap->params.chip)) {
+
+	/* If we don't have access to the new User GTS (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(q->bar2_addr == NULL)) {
 		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS),
 			     val | INGRESSQID(q->cntxt_id));
 	} else {
-		writel(val, adap->bar2 + q->udb + SGE_UDB_GTS);
+		writel(val | INGRESSQID(q->bar2_qid),
+		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
 	spin_unlock(&adap->sge.intrq_lock);
@@ -2235,48 +2250,32 @@ static void sge_tx_timer_cb(unsigned long data)
 }
 
 /**
- *      udb_address - return the BAR2 User Doorbell address for a Queue
- *      @adap: the adapter
- *      @cntxt_id: the Queue Context ID
- *      @qpp: Queues Per Page (for all PFs)
+ *	bar2_address - return the BAR2 address for an SGE Queue's Registers
+ *	@adapter: the adapter
+ *	@qid: the SGE Queue ID
+ *	@qtype: the SGE Queue Type (Egress or Ingress)
+ *	@pbar2_qid: BAR2 Queue ID or 0 for Queue ID inferred SGE Queues
  *
- *      Returns the BAR2 address of the user Doorbell associated with the
- *      indicated Queue Context ID.  Note that this is only applicable
- *      for T5 and later.
+ *	Returns the BAR2 address for the SGE Queue Registers associated with
+ *	@qid.  If BAR2 SGE Registers aren't available, returns NULL.  Also
+ *	returns the BAR2 Queue ID to be used with writes to the BAR2 SGE
+ *	Queue Registers.  If the BAR2 Queue ID is 0, then "Inferred Queue ID"
+ *	Registers are supported (e.g. the Write Combining Doorbell Buffer).
  */
-static u64 udb_address(struct adapter *adap, unsigned int cntxt_id,
-		       unsigned int qpp)
+static void __iomem *bar2_address(struct adapter *adapter,
+				  unsigned int qid,
+				  enum t4_bar2_qtype qtype,
+				  unsigned int *pbar2_qid)
 {
-	u64 udb;
-	unsigned int s_qpp;
-	unsigned short udb_density;
-	unsigned long qpshift;
-	int page;
+	u64 bar2_qoffset;
+	int ret;
 
-	BUG_ON(is_t4(adap->params.chip));
+	ret = t4_bar2_sge_qregs(adapter, qid, qtype,
+				&bar2_qoffset, pbar2_qid);
+	if (ret)
+		return NULL;
 
-	s_qpp = (QUEUESPERPAGEPF0 +
-		(QUEUESPERPAGEPF1 - QUEUESPERPAGEPF0) * adap->fn);
-	udb_density = 1 << ((qpp >> s_qpp) & QUEUESPERPAGEPF0_MASK);
-	qpshift = PAGE_SHIFT - ilog2(udb_density);
-	udb = (u64)cntxt_id << qpshift;
-	udb &= PAGE_MASK;
-	page = udb / PAGE_SIZE;
-	udb += (cntxt_id - (page * udb_density)) * SGE_UDB_SIZE;
-
-	return udb;
-}
-
-static u64 udb_address_eq(struct adapter *adap, unsigned int cntxt_id)
-{
-	return udb_address(adap, cntxt_id,
-			   t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF));
-}
-
-static u64 udb_address_iq(struct adapter *adap, unsigned int cntxt_id)
-{
-	return udb_address(adap, cntxt_id,
-			   t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF));
+	return adapter->bar2 + bar2_qoffset;
 }
 
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
@@ -2344,8 +2343,10 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->next_intr_params = iq->intr_params;
 	iq->cntxt_id = ntohs(c.iqid);
 	iq->abs_id = ntohs(c.physiqid);
-	if (!is_t4(adap->params.chip))
-		iq->udb = udb_address_iq(adap, iq->cntxt_id);
+	iq->bar2_addr = bar2_address(adap,
+				     iq->cntxt_id,
+				     T4_BAR2_QTYPE_INGRESS,
+				     &iq->bar2_qid);
 	iq->size--;                           /* subtract status entry */
 	iq->netdev = dev;
 	iq->handler = hnd;
@@ -2362,11 +2363,13 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->alloc_failed = fl->large_alloc_failed = fl->starving = 0;
 		adap->sge.egr_map[fl->cntxt_id - adap->sge.egr_start] = fl;
 
-		/* Note, we must initialize the Free List User Doorbell
-		 * address before refilling the Free List!
+		/* Note, we must initialize the BAR2 Free List User Doorbell
+		 * information before refilling the Free List!
 		 */
-		if (!is_t4(adap->params.chip))
-			fl->udb = udb_address_eq(adap, fl->cntxt_id);
+		fl->bar2_addr = bar2_address(adap,
+					     fl->cntxt_id,
+					     T4_BAR2_QTYPE_EGRESS,
+					     &fl->bar2_qid);
 		refill_fl(adap, fl, fl_cap(fl), GFP_KERNEL);
 	}
 	return 0;
@@ -2392,9 +2395,10 @@ err:
 static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 {
 	q->cntxt_id = id;
-	if (!is_t4(adap->params.chip))
-		q->udb = udb_address_eq(adap, q->cntxt_id);
-
+	q->bar2_addr = bar2_address(adap,
+				    q->cntxt_id,
+				    T4_BAR2_QTYPE_EGRESS,
+				    &q->bar2_qid);
 	q->in_use = 0;
 	q->cidx = q->pidx = 0;
 	q->stops = q->restarts = 0;

@@ -525,19 +525,40 @@ static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 {
 	u32 val;
 
-	/*
-	 * The SGE keeps track of its Producer and Consumer Indices in terms
+	/* The SGE keeps track of its Producer and Consumer Indices in terms
 	 * of Egress Queue Units so we can only tell it about integral numbers
 	 * of multiples of Free List Entries per Egress Queue Units ...
 	 */
 	if (fl->pend_cred >= FL_PER_EQ_UNIT) {
-		val = PIDX(fl->pend_cred / FL_PER_EQ_UNIT);
-		if (!is_t4(adapter->params.chip))
-			val |= DBTYPE(1);
+		if (is_t4(adapter->params.chip))
+			val = PIDX(fl->pend_cred / FL_PER_EQ_UNIT);
+		else
+			val = PIDX_T5(fl->pend_cred / FL_PER_EQ_UNIT) |
+			      DBTYPE(1);
+		val |= DBPRIO(1);
+
+		/* Make sure all memory writes to the Free List queue are
+		 * committed before we tell the hardware about them.
+		 */
 		wmb();
-		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
-			     DBPRIO(1) |
-			     QID(fl->cntxt_id) | val);
+
+		/* If we don't have access to the new User Doorbell (T5+), use
+		 * the old doorbell mechanism; otherwise use the new BAR2
+		 * mechanism.
+		 */
+		if (unlikely(fl->bar2_addr == NULL)) {
+			t4_write_reg(adapter,
+				     T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
+				     QID(fl->cntxt_id) | val);
+		} else {
+			writel(val | QID(fl->bar2_qid),
+			       fl->bar2_addr + SGE_UDB_KDOORBELL);
+
+			/* This Write memory Barrier will force the write to
+			 * the User Doorbell area to be flushed.
+			 */
+			wmb();
+		}
 		fl->pend_cred %= FL_PER_EQ_UNIT;
 	}
 }
@@ -949,14 +970,74 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
 static inline void ring_tx_db(struct adapter *adapter, struct sge_txq *tq,
 			      int n)
 {
-	/*
-	 * Warn if we write doorbells with the wrong priority and write
-	 * descriptors before telling HW.
+	/* Make sure that all writes to the TX Descriptors are committed
+	 * before we tell the hardware about them.
 	 */
-	WARN_ON((QID(tq->cntxt_id) | PIDX(n)) & DBPRIO(1));
 	wmb();
-	t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
-		     QID(tq->cntxt_id) | PIDX(n));
+
+	/* If we don't have access to the new User Doorbell (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(tq->bar2_addr == NULL)) {
+		u32 val = PIDX(n);
+
+		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
+			     QID(tq->cntxt_id) | val);
+	} else {
+		u32 val = PIDX_T5(n);
+
+		/* T4 and later chips share the same PIDX field offset within
+		 * the doorbell, but T5 and later shrank the field in order to
+		 * gain a bit for Doorbell Priority.  The field was absurdly
+		 * large in the first place (14 bits) so we just use the T5
+		 * and later limits and warn if a Queue ID is too large.
+		 */
+		WARN_ON(val & DBPRIO(1));
+
+		/* If we're only writing a single Egress Unit and the BAR2
+		 * Queue ID is 0, we can use the Write Combining Doorbell
+		 * Gather Buffer; otherwise we use the simple doorbell.
+		 */
+		if (n == 1 && tq->bar2_qid == 0) {
+			unsigned int index = (tq->pidx
+					      ? (tq->pidx - 1)
+					      : (tq->size - 1));
+			__be64 *src = (__be64 *)&tq->desc[index];
+			__be64 __iomem *dst = (__be64 *)(tq->bar2_addr +
+							 SGE_UDB_WCDOORBELL);
+			unsigned int count = EQ_UNIT / sizeof(__be64);
+
+			/* Copy the TX Descriptor in a tight loop in order to
+			 * try to get it to the adapter in a single Write
+			 * Combined transfer on the PCI-E Bus.  If the Write
+			 * Combine fails (say because of an interrupt, etc.)
+			 * the hardware will simply take the last write as a
+			 * simple doorbell write with a PIDX Increment of 1
+			 * and will fetch the TX Descriptor from memory via
+			 * DMA.
+			 */
+			while (count) {
+				writeq(*src, dst);
+				src++;
+				dst++;
+				count--;
+			}
+		} else
+			writel(val | QID(tq->bar2_qid),
+			       tq->bar2_addr + SGE_UDB_KDOORBELL);
+
+		/* This Write Memory Barrier will force the write to the User
+		 * Doorbell area to be flushed.  This is needed to prevent
+		 * writes on different CPUs for the same queue from hitting
+		 * the adapter out of order.  This is required when some Work
+		 * Requests take the Write Combine Gather Buffer path (user
+		 * doorbell area offset [SGE_UDB_WCDOORBELL..+63]) and some
+		 * take the traditional path where we simply increment the
+		 * PIDX (User Doorbell area SGE_UDB_KDOORBELL) and have the
+		 * hardware DMA read the actual Work Request.
+		 */
+		wmb();
+	}
 }
 
 /**
@@ -1782,6 +1863,7 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	unsigned int intr_params;
 	struct sge_rspq *rspq = container_of(napi, struct sge_rspq, napi);
 	int work_done = process_responses(rspq, budget);
+	u32 val;
 
 	if (likely(work_done < budget)) {
 		napi_complete(napi);
@@ -1793,11 +1875,16 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	if (unlikely(work_done == 0))
 		rspq->unhandled_irqs++;
 
-	t4_write_reg(rspq->adapter,
-		     T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-		     CIDXINC(work_done) |
-		     INGRESSQID((u32)rspq->cntxt_id) |
-		     SEINTARM(intr_params));
+	val = CIDXINC(work_done) | SEINTARM(intr_params);
+	if (is_t4(rspq->adapter->params.chip)) {
+		t4_write_reg(rspq->adapter,
+			     T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
+			     val | INGRESSQID((u32)rspq->cntxt_id));
+	} else {
+		writel(val | INGRESSQID(rspq->bar2_qid),
+		       rspq->bar2_addr + SGE_UDB_GTS);
+		wmb();
+	}
 	return work_done;
 }
 
@@ -1822,6 +1909,7 @@ static unsigned int process_intrq(struct adapter *adapter)
 	struct sge *s = &adapter->sge;
 	struct sge_rspq *intrq = &s->intrq;
 	unsigned int work_done;
+	u32 val;
 
 	spin_lock(&adapter->sge.intrq_lock);
 	for (work_done = 0; ; work_done++) {
@@ -1887,10 +1975,15 @@ static unsigned int process_intrq(struct adapter *adapter)
 		rspq_next(intrq);
 	}
 
-	t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-		     CIDXINC(work_done) |
-		     INGRESSQID(intrq->cntxt_id) |
-		     SEINTARM(intrq->intr_params));
+	val = CIDXINC(work_done) | SEINTARM(intrq->intr_params);
+	if (is_t4(adapter->params.chip))
+		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
+			     val | INGRESSQID(intrq->cntxt_id));
+	else {
+		writel(val | INGRESSQID(intrq->bar2_qid),
+		       intrq->bar2_addr + SGE_UDB_GTS);
+		wmb();
+	}
 
 	spin_unlock(&adapter->sge.intrq_lock);
 
@@ -2036,6 +2129,35 @@ static void sge_tx_timer_cb(unsigned long data)
 }
 
 /**
+ *	bar2_address - return the BAR2 address for an SGE Queue's Registers
+ *	@adapter: the adapter
+ *	@qid: the SGE Queue ID
+ *	@qtype: the SGE Queue Type (Egress or Ingress)
+ *	@pbar2_qid: BAR2 Queue ID or 0 for Queue ID inferred SGE Queues
+ *
+ *	Returns the BAR2 address for the SGE Queue Registers associated with
+ *	@qid.  If BAR2 SGE Registers aren't available, returns NULL.  Also
+ *	returns the BAR2 Queue ID to be used with writes to the BAR2 SGE
+ *	Queue Registers.  If the BAR2 Queue ID is 0, then "Inferred Queue ID"
+ *	Registers are supported (e.g. the Write Combining Doorbell Buffer).
+ */
+static void __iomem *bar2_address(struct adapter *adapter,
+				  unsigned int qid,
+				  enum t4_bar2_qtype qtype,
+				  unsigned int *pbar2_qid)
+{
+	u64 bar2_qoffset;
+	int ret;
+
+	ret = t4_bar2_sge_qregs(adapter, qid, qtype,
+				&bar2_qoffset, pbar2_qid);
+	if (ret)
+		return NULL;
+
+	return adapter->bar2 + bar2_qoffset;
+}
+
+/**
  *	t4vf_sge_alloc_rxq - allocate an SGE RX Queue
  *	@adapter: the adapter
  *	@rspq: pointer to to the new rxq's Response Queue to be filled in
@@ -2166,6 +2288,10 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	rspq->gen = 1;
 	rspq->next_intr_params = rspq->intr_params;
 	rspq->cntxt_id = be16_to_cpu(rpl.iqid);
+	rspq->bar2_addr = bar2_address(adapter,
+				       rspq->cntxt_id,
+				       T4_BAR2_QTYPE_INGRESS,
+				       &rspq->bar2_qid);
 	rspq->abs_id = be16_to_cpu(rpl.physiqid);
 	rspq->size--;			/* subtract status entry */
 	rspq->adapter = adapter;
@@ -2184,6 +2310,15 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		fl->alloc_failed = 0;
 		fl->large_alloc_failed = 0;
 		fl->starving = 0;
+
+		/* Note, we must initialize the BAR2 Free List User Doorbell
+		 * information before refilling the Free List!
+		 */
+		fl->bar2_addr = bar2_address(adapter,
+					     fl->cntxt_id,
+					     T4_BAR2_QTYPE_EGRESS,
+					     &fl->bar2_qid);
+
 		refill_fl(adapter, fl, fl_cap(fl), GFP_KERNEL);
 	}
 
@@ -2296,6 +2431,10 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	txq->q.pidx = 0;
 	txq->q.stat = (void *)&txq->q.desc[txq->q.size];
 	txq->q.cntxt_id = FW_EQ_ETH_CMD_EQID_G(be32_to_cpu(rpl.eqid_pkd));
+	txq->q.bar2_addr = bar2_address(adapter,
+					txq->q.cntxt_id,
+					T4_BAR2_QTYPE_EGRESS,
+					&txq->q.bar2_qid);
 	txq->q.abs_id =
 		FW_EQ_ETH_CMD_PHYSEQID_G(be32_to_cpu(rpl.physeqid_pkd));
 	txq->txq = devq;
