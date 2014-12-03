@@ -1131,6 +1131,27 @@ unsigned int t4_flash_cfg_addr(struct adapter *adapter)
 		return FLASH_CFG_START;
 }
 
+/* Return TRUE if the specified firmware matches the adapter.  I.e. T4
+ * firmware for T4 adapters, T5 firmware for T5 adapters, etc.  We go ahead
+ * and emit an error message for mismatched firmware to save our caller the
+ * effort ...
+ */
+static bool t4_fw_matches_chip(const struct adapter *adap,
+			       const struct fw_hdr *hdr)
+{
+	/* The expression below will return FALSE for any unsupported adapter
+	 * which will keep us "honest" in the future ...
+	 */
+	if ((is_t4(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T4) ||
+	    (is_t5(adap->params.chip) && hdr->chip == FW_HDR_CHIP_T5))
+		return true;
+
+	dev_err(adap->pdev_dev,
+		"FW image (%d) is not suitable for this adapter (%d)\n",
+		hdr->chip, CHELSIO_CHIP_VERSION(adap->params.chip));
+	return false;
+}
+
 /**
  *	t4_load_fw - download firmware
  *	@adap: the adapter
@@ -1170,6 +1191,8 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 			FW_MAX_SIZE);
 		return -EFBIG;
 	}
+	if (!t4_fw_matches_chip(adap, hdr))
+		return -EINVAL;
 
 	for (csum = 0, i = 0; i < size / sizeof(csum); i++)
 		csum += ntohl(p[i]);
@@ -3079,6 +3102,9 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
 	int reset, ret;
+
+	if (!t4_fw_matches_chip(adap, fw_hdr))
+		return -EINVAL;
 
 	ret = t4_fw_halt(adap, mbox, force);
 	if (ret < 0 && !force)
