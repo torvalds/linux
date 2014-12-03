@@ -980,6 +980,45 @@ retry:
 }
 EXPORT_SYMBOL(set_guest_storage_key);
 
+unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
+{
+	spinlock_t *ptl;
+	pgste_t pgste;
+	pte_t *ptep;
+	uint64_t physaddr;
+	unsigned long key = 0;
+
+	down_read(&mm->mmap_sem);
+	ptep = get_locked_pte(mm, addr, &ptl);
+	if (unlikely(!ptep)) {
+		up_read(&mm->mmap_sem);
+		return -EFAULT;
+	}
+	pgste = pgste_get_lock(ptep);
+
+	if (pte_val(*ptep) & _PAGE_INVALID) {
+		key |= (pgste_val(pgste) & PGSTE_ACC_BITS) >> 56;
+		key |= (pgste_val(pgste) & PGSTE_FP_BIT) >> 56;
+		key |= (pgste_val(pgste) & PGSTE_GR_BIT) >> 48;
+		key |= (pgste_val(pgste) & PGSTE_GC_BIT) >> 48;
+	} else {
+		physaddr = pte_val(*ptep) & PAGE_MASK;
+		key = page_get_storage_key(physaddr);
+
+		/* Reflect guest's logical view, not physical */
+		if (pgste_val(pgste) & PGSTE_GR_BIT)
+			key |= _PAGE_REFERENCED;
+		if (pgste_val(pgste) & PGSTE_GC_BIT)
+			key |= _PAGE_CHANGED;
+	}
+
+	pgste_set_unlock(ptep, pgste);
+	pte_unmap_unlock(ptep, ptl);
+	up_read(&mm->mmap_sem);
+	return key;
+}
+EXPORT_SYMBOL(get_guest_storage_key);
+
 #else /* CONFIG_PGSTE */
 
 static inline int page_table_with_pgste(struct page *page)
