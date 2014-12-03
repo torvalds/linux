@@ -206,7 +206,6 @@ struct cyapa {
 	struct i2c_client *client;
 	struct input_dev *input;
 	char phys[32];	/* device physical location */
-	int irq;
 	bool irq_wake;  /* irq wake is enabled */
 	bool smbus;
 
@@ -938,7 +937,7 @@ static int __maybe_unused cyapa_suspend(struct device *dev)
 			 power_mode, error);
 
 	if (device_may_wakeup(dev))
-		cyapa->irq_wake = (enable_irq_wake(cyapa->irq) == 0);
+		cyapa->irq_wake = (enable_irq_wake(client->irq) == 0);
 
 	mutex_unlock(&input->mutex);
 
@@ -956,7 +955,7 @@ static int __maybe_unused cyapa_resume(struct device *dev)
 	mutex_lock(&input->mutex);
 
 	if (device_may_wakeup(dev) && cyapa->irq_wake)
-		disable_irq_wake(cyapa->irq);
+		disable_irq_wake(client->irq);
 
 	power_mode = input->users ? PWR_MODE_FULL_ACTIVE : PWR_MODE_OFF;
 	error = cyapa_set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE);
@@ -964,7 +963,7 @@ static int __maybe_unused cyapa_resume(struct device *dev)
 		dev_warn(dev, "resume: set power mode to %d failed: %d\n",
 			 power_mode, error);
 
-	enable_irq(cyapa->irq);
+	enable_irq(client->irq);
 
 	mutex_unlock(&input->mutex);
 
