@@ -1549,9 +1549,15 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 		ret = cfg80211_reg_can_beacon(wiphy,
 					      &wdev->chandef, wdev->iftype);
 		break;
+	case NL80211_IFTYPE_ADHOC:
+		if (!wdev->ssid_len)
+			goto out;
+
+		ret = cfg80211_reg_can_beacon(wiphy,
+					      &wdev->chandef, wdev->iftype);
+		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
-	case NL80211_IFTYPE_ADHOC:
 		if (!wdev->current_bss ||
 		    !wdev->current_bss->pub.channel)
 			goto out;
