@@ -196,7 +196,7 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 	mmdrop(p->mm);
 
 	work = (struct kfd_process_release_work *)
-		kmalloc(sizeof(struct kfd_process_release_work), GFP_KERNEL);
+		kmalloc(sizeof(struct kfd_process_release_work), GFP_ATOMIC);
 
 	if (work) {
 		INIT_WORK((struct work_struct *) work, kfd_process_wq_release);
