@@ -34,6 +34,8 @@ static struct mc_saved_data {
 	struct microcode_intel **mc_saved;
 } mc_saved_data;
 
+static struct microcode_intel bsp_patch;
+
 static enum ucode_state
 generic_load_microcode_early(struct microcode_intel **mc_saved_p,
 			     unsigned int mc_saved_count,
@@ -650,7 +652,7 @@ static inline void print_ucode(struct ucode_cpu_info *uci)
 }
 #endif
 
-static int apply_microcode_early(struct ucode_cpu_info *uci)
+static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 {
 	struct microcode_intel *mc_intel;
 	unsigned int val[2];
@@ -679,7 +681,10 @@ static int apply_microcode_early(struct ucode_cpu_info *uci)
 #endif
 	uci->cpu_sig.rev = val[1];
 
-	print_ucode(uci);
+	if (early)
+		print_ucode(uci);
+	else
+		print_ucode_info(uci, mc_intel->hdr.date);
 
 	return 0;
 }
@@ -712,14 +717,22 @@ _load_ucode_intel_bsp(struct mc_saved_data *mc_saved_data,
 		      unsigned long *mc_saved_in_initrd,
 		      unsigned long initrd_start_early,
 		      unsigned long initrd_end_early,
-		      struct ucode_cpu_info *uci)
+		      struct ucode_cpu_info *uci,
+		      struct microcode_intel *bsp)
 {
+	enum ucode_state ret;
+
 	collect_cpu_info_early(uci);
 	scan_microcode(initrd_start_early, initrd_end_early, mc_saved_data,
 		       mc_saved_in_initrd, uci);
-	load_microcode(mc_saved_data, mc_saved_in_initrd,
-		       initrd_start_early, uci);
-	apply_microcode_early(uci);
+
+	ret = load_microcode(mc_saved_data, mc_saved_in_initrd,
+			     initrd_start_early, uci);
+
+	if (ret == UCODE_OK) {
+		apply_microcode_early(uci, true);
+		memcpy(bsp, uci->mc, sizeof(*bsp));
+	}
 }
 
 void __init
@@ -728,10 +741,12 @@ load_ucode_intel_bsp(void)
 	u64 ramdisk_image, ramdisk_size;
 	unsigned long initrd_start_early, initrd_end_early;
 	struct ucode_cpu_info uci;
+	struct microcode_intel *bsp_p;
 #ifdef CONFIG_X86_32
 	struct boot_params *boot_params_p;
 
 	boot_params_p = (struct boot_params *)__pa_nodebug(&boot_params);
+	bsp_p	      = (struct microcode_intel *)__pa_nodebug(&bsp_patch);
 	ramdisk_image = boot_params_p->hdr.ramdisk_image;
 	ramdisk_size  = boot_params_p->hdr.ramdisk_size;
 	initrd_start_early = ramdisk_image;
@@ -740,15 +755,17 @@ load_ucode_intel_bsp(void)
 	_load_ucode_intel_bsp(
 		(struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
 		(unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
-		initrd_start_early, initrd_end_early, &uci);
+		initrd_start_early, initrd_end_early, &uci, bsp_p);
 #else
+	bsp_p	      = &bsp_patch;
 	ramdisk_image = boot_params.hdr.ramdisk_image;
 	ramdisk_size  = boot_params.hdr.ramdisk_size;
 	initrd_start_early = ramdisk_image + PAGE_OFFSET;
 	initrd_end_early = initrd_start_early + ramdisk_size;
 
 	_load_ucode_intel_bsp(&mc_saved_data, mc_saved_in_initrd,
-			      initrd_start_early, initrd_end_early, &uci);
+			      initrd_start_early, initrd_end_early,
+			      &uci, bsp_p);
 #endif
 }
 
@@ -782,5 +799,17 @@ void load_ucode_intel_ap(void)
 	collect_cpu_info_early(&uci);
 	load_microcode(mc_saved_data_p, mc_saved_in_initrd_p,
 		       initrd_start_addr, &uci);
-	apply_microcode_early(&uci);
+	apply_microcode_early(&uci, true);
+}
+
+void reload_ucode_intel(void)
+{
+	struct ucode_cpu_info uci;
+
+	if (!bsp_patch.hdr.rev)
+		return;
+
+	uci.mc = &bsp_patch;
+
+	apply_microcode_early(&uci, false);
 }
