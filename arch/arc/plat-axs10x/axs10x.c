@@ -15,6 +15,8 @@
  */
 
 #include <linux/of_platform.h>
+
+#include <asm/asm-offsets.h>
 #include <asm/clk.h>
 #include <asm/io.h>
 #include <asm/mach_desc.h>
@@ -472,5 +474,11 @@ MACHINE_START(AXS103, "axs103")
 	.init_smp	= mcip_init_smp,
 #endif
 MACHINE_END
+
+/*
+ * For the VDK OS-kit, to get the offset to pid and command fields
+ */
+char coware_swa_pid_offset[TASK_PID];
+char coware_swa_comm_offset[TASK_COMM];
 
 #endif	/* CONFIG_AXS103 */

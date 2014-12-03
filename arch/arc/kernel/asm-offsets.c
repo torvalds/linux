@@ -37,6 +37,8 @@ int main(void)
 
 	DEFINE(TASK_ACT_MM, offsetof(struct task_struct, active_mm));
 	DEFINE(TASK_TGID, offsetof(struct task_struct, tgid));
+	DEFINE(TASK_PID, offsetof(struct task_struct, pid));
+	DEFINE(TASK_COMM, offsetof(struct task_struct, comm));
 
 	DEFINE(MM_CTXT, offsetof(struct mm_struct, context));
 	DEFINE(MM_PGD, offsetof(struct mm_struct, pgd));

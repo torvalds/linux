@@ -313,6 +313,7 @@ ENTRY(EV_TLBMissI)
 	CONV_PTE_TO_TLB
 	COMMIT_ENTRY_TO_MMU
 	TLBMISS_RESTORE_REGS
+EV_TLBMissI_fast_ret:	; additional label for VDK OS-kit instrumentation
 	rtie
 
 END(EV_TLBMissI)
@@ -378,6 +379,7 @@ ENTRY(EV_TLBMissD)
 
 	COMMIT_ENTRY_TO_MMU
 	TLBMISS_RESTORE_REGS
+EV_TLBMissD_fast_ret:	; additional label for VDK OS-kit instrumentation
 	rtie
 
 ;-------- Common routine to call Linux Page Fault Handler -----------
