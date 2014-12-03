@@ -1483,114 +1483,103 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 
 	struct comedi_device *dev = d;
 	struct apci1500_private *devpriv = dev->private;
-	unsigned int status;
-	int i_RegValue = 0;
+	unsigned int val;
 
 	/* Clear the interrupt mask */
 	i_InterruptMask = 0;
 
-	/* Read the board interrupt status */
-	status = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
+	val = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
+	if (!(val & INTCSR_INTR_ASSERTED))
+		return IRQ_NONE;
 
-	/* Test if board generated a interrupt */
-	if (status & INTCSR_INTR_ASSERTED) {
-		/* Disable all Interrupt */
-		/* Selects the master interrupt control register */
-		/* Disables  the main interrupt on the board */
-		i_RegValue = z8536_read(dev,
-					APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
-		if ((i_RegValue & 0x60) == 0x60) {
-			/* Deletes the interrupt of port A */
-			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			z8536_write(dev, i_RegValue,
-				    APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
-			i_InterruptMask = i_InterruptMask | 1;
-			if (i_Logic == APCI1500_OR_PRIORITY) {
-				i_RegValue = z8536_read(dev,
-					APCI1500_RW_PORT_A_SPECIFICATION);
+	/* Disable all Interrupt */
+	/* Selects the master interrupt control register */
+	/* Disables  the main interrupt on the board */
+	val = z8536_read(dev, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+	if ((val & 0x60) == 0x60) {
+		/* Deletes the interrupt of port A */
+		val &= 0x0f;
+		val |= 0x20;
+		z8536_write(dev, val, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+		i_InterruptMask = i_InterruptMask | 1;
+		if (i_Logic == APCI1500_OR_PRIORITY) {
+			val = z8536_read(dev, APCI1500_RW_PORT_A_SPECIFICATION);
 
-				i_RegValue = z8536_read(dev,
-					APCI1500_RW_PORT_A_INTERRUPT_CONTROL);
+			val = z8536_read(dev,
+					 APCI1500_RW_PORT_A_INTERRUPT_CONTROL);
 
-				i_InputChannel = 1 + (i_RegValue >> 1);
+			i_InputChannel = 1 + (val >> 1);
 
-			} else {
-				i_InputChannel = 0;
-			}
+		} else {
+			i_InputChannel = 0;
 		}
-
-		i_RegValue = z8536_read(dev,
-					APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
-		if ((i_RegValue & 0x60) == 0x60) {
-			/* Deletes the interrupt of port B */
-			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			z8536_write(dev, i_RegValue,
-				    APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
-			/* Reads port B */
-			i_RegValue = inb(dev->iobase +
-					 APCI1500_Z8536_PORTB_REG);
-
-			i_RegValue = i_RegValue & 0xC0;
-			/* Tests if this is an external error */
-
-			if (i_RegValue) {
-				/* Disable the interrupt */
-				/* Selects the command and status register of port B */
-				outl(0x0, devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-				if (i_RegValue & 0x80) {
-					i_InterruptMask =
-						i_InterruptMask | 0x40;
-				}
-
-				if (i_RegValue & 0x40) {
-					i_InterruptMask =
-						i_InterruptMask | 0x80;
-				}
-			} else {
-				i_InterruptMask = i_InterruptMask | 2;
-			}
-		}
-
-		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR1_CMD_STATUS);
-		if ((i_RegValue & 0x60) == 0x60) {
-			/* Deletes the interrupt of timer 1 */
-			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			z8536_write(dev, i_RegValue,
-				    APCI1500_RW_CPT_TMR1_CMD_STATUS);
-			i_InterruptMask = i_InterruptMask | 4;
-		}
-
-		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR2_CMD_STATUS);
-		if ((i_RegValue & 0x60) == 0x60) {
-			/* Deletes the interrupt of timer 2 */
-			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			z8536_write(dev, i_RegValue,
-				    APCI1500_RW_CPT_TMR2_CMD_STATUS);
-			i_InterruptMask = i_InterruptMask | 8;
-		}
-
-		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR3_CMD_STATUS);
-		if ((i_RegValue & 0x60) == 0x60) {
-			/* Deletes the interrupt of timer 3 */
-			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			z8536_write(dev, i_RegValue,
-				    APCI1500_RW_CPT_TMR3_CMD_STATUS);
-			if (i_CounterLogic == APCI1500_COUNTER)
-				i_InterruptMask = i_InterruptMask | 0x10;
-			else
-				i_InterruptMask = i_InterruptMask | 0x20;
-		}
-
-		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-
-		/* Authorizes the main interrupt on the board */
-		z8536_write(dev, 0xd0, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
-	} else {
-		dev_warn(dev->class_dev,
-			"Interrupt from unknown source\n");
-
 	}
+
+	val = z8536_read(dev, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
+	if ((val & 0x60) == 0x60) {
+		/* Deletes the interrupt of port B */
+		val &= 0x0f;
+		val |= 0x20;
+		z8536_write(dev, val, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
+
+		/* Reads port B */
+		val = inb(dev->iobase + APCI1500_Z8536_PORTB_REG);
+		val &= 0xc0;
+		/* Tests if this is an external error */
+		if (val) {
+			/* Disable the interrupt */
+			/* Selects the command and status register of port B */
+			outl(0x0, devpriv->amcc + AMCC_OP_REG_INTCSR);
+
+			if (val & 0x80)
+				i_InterruptMask |= 0x40;
+
+			if (val & 0x40) {
+				i_InterruptMask |= 0x80;
+			}
+		} else {
+			i_InterruptMask |= 0x02;
+		}
+	}
+
+	val = z8536_read(dev, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+	if ((val & 0x60) == 0x60) {
+		/* Deletes the interrupt of timer 1 */
+		val &= 0x0f;
+		val |= 0x20;
+		z8536_write(dev, val, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+
+		i_InterruptMask |= 0x04;
+	}
+
+	val = z8536_read(dev, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+	if ((val & 0x60) == 0x60) {
+		/* Deletes the interrupt of timer 2 */
+		val &= 0x0f;
+		val |= 0x20;
+		z8536_write(dev, val, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+
+		i_InterruptMask |= 0x08;
+	}
+
+	val = z8536_read(dev, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+	if ((val & 0x60) == 0x60) {
+		/* Deletes the interrupt of timer 3 */
+		val &= 0x0f;
+		val |= 0x20;
+		z8536_write(dev, val, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+
+		if (i_CounterLogic == APCI1500_COUNTER)
+			i_InterruptMask |= 0x10;
+		else
+			i_InterruptMask |= 0x20;
+	}
+
+	/* send signal to the sample */
+	send_sig(SIGIO, devpriv->tsk_Current, 0);
+
+	/* Authorizes the main interrupt on the board */
+	z8536_write(dev, 0xd0, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
 
 	return IRQ_HANDLED;
 }
