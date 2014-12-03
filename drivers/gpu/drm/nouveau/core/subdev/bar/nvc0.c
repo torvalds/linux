@@ -153,8 +153,6 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		ret = nvc0_bar_init_vm(priv, &priv->bar[0], 3);
 		if (ret)
 			return ret;
-		priv->base.alloc = nouveau_bar_alloc;
-		priv->base.kmap = nvc0_bar_kmap;
 	}
 
 	/* BAR1 */
@@ -162,6 +160,10 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	if (has_bar3) {
+		priv->base.alloc = nouveau_bar_alloc;
+		priv->base.kmap = nvc0_bar_kmap;
+	}
 	priv->base.umap = nvc0_bar_umap;
 	priv->base.unmap = nvc0_bar_unmap;
 	priv->base.flush = nv84_bar_flush;
