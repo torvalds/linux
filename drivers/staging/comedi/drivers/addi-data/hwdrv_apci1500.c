@@ -129,6 +129,20 @@ static int i_InputChannel;
 static int i_TimerCounter1Enabled, i_TimerCounter2Enabled,
 	   i_WatchdogCounter3Enabled;
 
+static unsigned int z8536_read(struct comedi_device *dev, unsigned int reg)
+{
+	struct apci1500_private *devpriv = dev->private;
+	unsigned long flags;
+	unsigned int val;
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	outb(reg, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	val = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	return val;
+}
+
 /*
  * An event can be generated for each port. The first event is related to the
  * first 8 channels (port 1) and the second to the following 6 channels (port 2)
@@ -311,14 +325,8 @@ static int apci1500_di_config(struct comedi_device *dev,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 
-			/* Selects the mode specification mask    */
-			/* register of port 1                     */
-			outb(APCI1500_RW_PORT_A_SPECIFICATION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			i_RegValue =
-				inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_A_SPECIFICATION);
 
 			/* Selects the mode specification mask    */
 			/* register of port 1                     */
@@ -366,14 +374,8 @@ static int apci1500_di_config(struct comedi_device *dev,
 			outb(0x74,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
-			/* Selects the mode specification mask  */
-			/* register of port B                   */
-			outb(APCI1500_RW_PORT_B_SPECIFICATION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			i_RegValue =
-				inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_B_SPECIFICATION);
 
 			/* Selects the mode specification mask    */
 			/* register of port B                     */
@@ -416,14 +418,8 @@ static int apci1500_di_config(struct comedi_device *dev,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 
-			/* Selects the mode specification mask    */
-			/* register of port 2                     */
-			outb(APCI1500_RW_PORT_B_SPECIFICATION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			i_RegValue =
-				inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_B_SPECIFICATION);
 			/* Selects the mode specification mask    */
 			/* register of port 2                     */
 			outb(APCI1500_RW_PORT_B_SPECIFICATION,
@@ -500,12 +496,8 @@ static int apci1500_di_write(struct comedi_device *dev,
 						devpriv->iobase +
 						APCI1500_Z8536_CONTROL_REGISTER);
 					i_Event1InterruptStatus = 1;
-					outb(APCI1500_RW_PORT_A_SPECIFICATION,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					i_RegValue =
-						inb(devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					i_RegValue = z8536_read(dev,
+					    APCI1500_RW_PORT_A_SPECIFICATION);
 
 					/* Selects the master interrupt control register */
 					outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
@@ -1068,17 +1060,8 @@ static int apci1500_timer_config(struct comedi_device *dev,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
 
-				/* Selects the master configuration register */
-
-				outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Reads the register */
-
-				i_MasterConfiguration =
-					inb(devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				i_MasterConfiguration = z8536_read(dev,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
 				/* Enables timer/counter 1 and triggers timer/counter 1 */
 
@@ -1228,17 +1211,8 @@ static int apci1500_timer_config(struct comedi_device *dev,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
 
-				/* Selects the master configuration register */
-
-				outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Reads the register */
-
-				i_MasterConfiguration =
-					inb(devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				i_MasterConfiguration = z8536_read(dev,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
 				/* Enables timer/counter 2 and triggers timer/counter 2 */
 
@@ -1382,17 +1356,8 @@ static int apci1500_timer_config(struct comedi_device *dev,
 					devpriv->iobase +
 					APCI1500_Z8536_CONTROL_REGISTER);
 
-				/* Selects the master configuration register */
-
-				outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Reads the register */
-
-				i_MasterConfiguration =
-					inb(devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				i_MasterConfiguration = z8536_read(dev,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
 				/* Enables watchdog/counter 3 and triggers watchdog/counter 3 */
 
@@ -1756,21 +1721,12 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 
-			/* Selects the counter register (high) */
-			outb(APCI1500_R_CPT_TMR1_VALUE_HIGH,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			data[0] =
-				inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			data[0] = z8536_read(dev,
+					     APCI1500_R_CPT_TMR1_VALUE_HIGH);
 			data[0] = data[0] << 8;
 			data[0] = data[0] & 0xff00;
-			outb(APCI1500_R_CPT_TMR1_VALUE_LOW,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			data[0] =
-				data[0] | inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			data[0] |= z8536_read(dev,
+					      APCI1500_R_CPT_TMR1_VALUE_LOW);
 		} else {
 			dev_warn(dev->class_dev,
 				"Timer/Counter1 not configured\n");
@@ -1798,21 +1754,12 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 
-			/* Selects the counter register (high) */
-			outb(APCI1500_R_CPT_TMR2_VALUE_HIGH,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			data[0] =
-				inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			data[0] = z8536_read(dev,
+					     APCI1500_R_CPT_TMR2_VALUE_HIGH);
 			data[0] = data[0] << 8;
 			data[0] = data[0] & 0xff00;
-			outb(APCI1500_R_CPT_TMR2_VALUE_LOW,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			data[0] =
-				data[0] | inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			data[0] |= z8536_read(dev,
+					      APCI1500_R_CPT_TMR2_VALUE_LOW);
 		} else {
 			dev_warn(dev->class_dev,
 				"Timer/Counter2 not configured\n");
@@ -1840,21 +1787,12 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
 
-			/* Selects the counter register (high) */
-			outb(APCI1500_R_CPT_TMR3_VALUE_HIGH,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			data[0] =
-				inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			data[0] = z8536_read(dev,
+					     APCI1500_R_CPT_TMR3_VALUE_HIGH);
 			data[0] = data[0] << 8;
 			data[0] = data[0] & 0xff00;
-			outb(APCI1500_R_CPT_TMR3_VALUE_LOW,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			data[0] =
-				data[0] | inb(devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			data[0] |= z8536_read(dev,
+					      APCI1500_R_CPT_TMR3_VALUE_LOW);
 		} else {
 			dev_warn(dev->class_dev,
 				"WatchdogCounter3 not configured\n");
@@ -1914,10 +1852,7 @@ static int apci1500_do_bits(struct comedi_device *dev,
 		}
 	}
 
-	/* Selects the mode specification register of port B */
-	outb(APCI1500_RW_PORT_B_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_RegValue = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_B_SPECIFICATION);
 	outb(APCI1500_RW_PORT_B_SPECIFICATION,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Writes the new configuration (APCI1500_OR) */
@@ -1942,20 +1877,14 @@ static int apci1500_do_bits(struct comedi_device *dev,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	outb(i_Constant, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 
-	/* Selects the command and status register of port A */
-	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_RegValue = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of port A */
 
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
 	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port  B */
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_RegValue = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of port B */
@@ -1963,10 +1892,7 @@ static int apci1500_do_bits(struct comedi_device *dev,
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
 	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 
-	/* Selects the command and status register of timer 1 */
-	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_RegValue = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR1_CMD_STATUS);
 	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of timer 1 */
@@ -1974,10 +1900,7 @@ static int apci1500_do_bits(struct comedi_device *dev,
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
 	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 
-	/* Selects the command and status register of timer 2 */
-	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_RegValue = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR2_CMD_STATUS);
 	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of timer 2 */
@@ -1985,10 +1908,7 @@ static int apci1500_do_bits(struct comedi_device *dev,
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
 	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 
-	/* Selects the command and status register of timer 3 */
-	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_RegValue = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR3_CMD_STATUS);
 	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
 		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of timer 3 */
@@ -2030,11 +1950,8 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 		/* Disable all Interrupt */
 		/* Selects the master interrupt control register */
 		/* Disables  the main interrupt on the board */
-		/* Selects the command and status register of port A */
-		outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-			devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-		i_RegValue =
-			inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+		i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
 			/* Selects the command and status register of port A */
 			outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
@@ -2047,20 +1964,11 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 				APCI1500_Z8536_CONTROL_REGISTER);
 			i_InterruptMask = i_InterruptMask | 1;
 			if (i_Logic == APCI1500_OR_PRIORITY) {
-				outb(APCI1500_RW_PORT_A_SPECIFICATION,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				i_RegValue =
-					inb(devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_A_SPECIFICATION);
 
-				/* Selects the interrupt vector register of port A */
-				outb(APCI1500_RW_PORT_A_INTERRUPT_CONTROL,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				i_RegValue =
-					inb(devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_A_INTERRUPT_CONTROL);
 
 				i_InputChannel = 1 + (i_RegValue >> 1);
 
@@ -2069,11 +1977,8 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 			}
 		}
 
-		/* Selects the command and status register of port B */
-		outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-			devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-		i_RegValue =
-			inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+		i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
 			/* Selects the command and status register of port B */
 			outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
@@ -2111,11 +2016,7 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 			}
 		}
 
-		/* Selects the command and status register of timer 1 */
-		outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-			devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-		i_RegValue =
-			inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR1_CMD_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
 			/* Selects the command and status register of timer 1 */
 			outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
@@ -2128,11 +2029,8 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 				APCI1500_Z8536_CONTROL_REGISTER);
 			i_InterruptMask = i_InterruptMask | 4;
 		}
-		/* Selects the command and status register of timer 2 */
-		outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-			devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-		i_RegValue =
-			inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+
+		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR2_CMD_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
 			/* Selects the command and status register of timer 2 */
 			outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
@@ -2146,11 +2044,7 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 			i_InterruptMask = i_InterruptMask | 8;
 		}
 
-		/* Selects the command and status register of timer 3 */
-		outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-			devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-		i_RegValue =
-			inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR3_CMD_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
 			/* Selects the command and status register of timer 3 */
 			outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
