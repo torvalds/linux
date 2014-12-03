@@ -85,17 +85,17 @@ nvkm_ioctl_sclass(struct nouveau_handle *handle, void *data, u32 size)
 }
 
 static int
-nvkm_ioctl_new(struct nouveau_handle *parent, void *data, u32 size)
+nvkm_ioctl_new(struct nouveau_handle *handle, void *data, u32 size)
 {
 	union {
 		struct nvif_ioctl_new_v0 v0;
 	} *args = data;
-	struct nouveau_client *client = nouveau_client(parent->object);
+	struct nouveau_client *client = nouveau_client(handle->object);
 	struct nouveau_object *engctx = NULL;
 	struct nouveau_object *object = NULL;
+	struct nouveau_parent *parent;
 	struct nouveau_object *engine;
 	struct nouveau_oclass *oclass;
-	struct nouveau_handle *handle;
 	u32 _handle, _oclass;
 	int ret;
 
@@ -111,16 +111,18 @@ nvkm_ioctl_new(struct nouveau_handle *parent, void *data, u32 size)
 		args->v0.version, _handle, _oclass,
 		args->v0.route, args->v0.token);
 
-	if (!nv_iclass(parent->object, NV_PARENT_CLASS)) {
-		nv_debug(parent->object, "cannot have children (ctor)\n");
+	if (!nv_iclass(handle->object, NV_PARENT_CLASS)) {
+		nv_debug(handle->object, "cannot have children (ctor)\n");
 		ret = -ENODEV;
 		goto fail_class;
 	}
 
+	parent = nv_parent(handle->object);
+
 	/* check that parent supports the requested subclass */
-	ret = nouveau_parent_sclass(parent->object, _oclass, &engine, &oclass);
+	ret = nouveau_parent_sclass(&parent->object, _oclass, &engine, &oclass);
 	if (ret) {
-		nv_debug(parent->object, "illegal class 0x%04x\n", _oclass);
+		nv_debug(parent, "illegal class 0x%04x\n", _oclass);
 		goto fail_class;
 	}
 
@@ -138,13 +140,13 @@ nvkm_ioctl_new(struct nouveau_handle *parent, void *data, u32 size)
 	 * between the parent and its children (eg. PGRAPH context)
 	 */
 	if (engine && nv_engine(engine)->cclass) {
-		ret = nouveau_object_ctor(parent->object, engine,
+		ret = nouveau_object_ctor(&parent->object, engine,
 					  nv_engine(engine)->cclass,
 					  data, size, &engctx);
 		if (ret)
 			goto fail_engctx;
 	} else {
-		nouveau_object_ref(parent->object, &engctx);
+		nouveau_object_ref(&parent->object, &engctx);
 	}
 
 	/* finally, create new object and bind it to its handle */
@@ -157,7 +159,7 @@ nvkm_ioctl_new(struct nouveau_handle *parent, void *data, u32 size)
 	if (ret)
 		goto fail_init;
 
-	ret = nouveau_handle_create(parent->object, parent->name,
+	ret = nouveau_handle_create(&parent->object, handle->name,
 				    _handle, object, &handle);
 	if (ret)
 		goto fail_handle;
