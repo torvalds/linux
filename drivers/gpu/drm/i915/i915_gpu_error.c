@@ -1356,26 +1356,15 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
 
-	switch (INTEL_INFO(dev)->gen) {
-	case 2:
-	case 3:
+	if (IS_GEN2(dev) || IS_GEN3(dev))
 		instdone[0] = I915_READ(INSTDONE);
-		break;
-	case 4:
-	case 5:
-	case 6:
+	else if (IS_GEN4(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
 		instdone[0] = I915_READ(INSTDONE_I965);
 		instdone[1] = I915_READ(INSTDONE1);
-		break;
-	default:
-		WARN_ONCE(1, "Unsupported platform\n");
-	case 7:
-	case 8:
-	case 9:
+	} else if (INTEL_INFO(dev)->gen >= 7) {
 		instdone[0] = I915_READ(GEN7_INSTDONE_1);
 		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
 		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
 		instdone[3] = I915_READ(GEN7_ROW_INSTDONE);
-		break;
 	}
 }
