@@ -716,7 +716,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 
 	/* Source number */
 	val = cfg->iec60958_cfg->status[2] & IEC958_AES2_CON_SOURCE;
-	REG_FLD_MOD(base, HDMI_CORE_FC_AUDSCHNLS(2), val, 3, 4);
+	REG_FLD_MOD(base, HDMI_CORE_FC_AUDSCHNLS(2), val, 3, 0);
 
 	/* Channel number right 0  */
 	REG_FLD_MOD(base, HDMI_CORE_FC_AUDSCHNLS(3), 2, 3, 0);
