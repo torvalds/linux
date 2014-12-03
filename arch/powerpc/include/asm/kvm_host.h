@@ -180,11 +180,6 @@ struct kvmppc_spapr_tce_table {
 	struct page *pages[0];
 };
 
-struct kvm_rma_info {
-	atomic_t use_count;
-	unsigned long base_pfn;
-};
-
 /* XICS components, defined in book3s_xics.c */
 struct kvmppc_xics;
 struct kvmppc_icp;
@@ -214,16 +209,9 @@ struct revmap_entry {
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
-/* Low-order bits in memslot->arch.slot_phys[] */
-#define KVMPPC_PAGE_ORDER_MASK	0x1f
-#define KVMPPC_PAGE_NO_CACHE	HPTE_R_I	/* 0x20 */
-#define KVMPPC_PAGE_WRITETHRU	HPTE_R_W	/* 0x40 */
-#define KVMPPC_GOT_PAGE		0x80
-
 struct kvm_arch_memory_slot {
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	unsigned long *rmap;
-	unsigned long *slot_phys;
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 };
 
@@ -242,14 +230,12 @@ struct kvm_arch {
 	struct kvm_rma_info *rma;
 	unsigned long vrma_slb_v;
 	int rma_setup_done;
-	int using_mmu_notifiers;
 	u32 hpt_order;
 	atomic_t vcpus_running;
 	u32 online_vcores;
 	unsigned long hpt_npte;
 	unsigned long hpt_mask;
 	atomic_t hpte_mod_interest;
-	spinlock_t slot_phys_lock;
 	cpumask_t need_tlb_flush;
 	int hpt_cma_alloc;
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */

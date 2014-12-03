@@ -205,9 +205,6 @@ int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
 	if (arch_compat) {
-		if (!cpu_has_feature(CPU_FTR_ARCH_206))
-			return -EINVAL;	/* 970 has no compat mode support */
-
 		switch (arch_compat) {
 		case PVR_ARCH_205:
 			/*
@@ -622,14 +619,6 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		return RESUME_HOST;
 
 	switch (req) {
-	case H_ENTER:
-		idx = srcu_read_lock(&vcpu->kvm->srcu);
-		ret = kvmppc_virtmode_h_enter(vcpu, kvmppc_get_gpr(vcpu, 4),
-					      kvmppc_get_gpr(vcpu, 5),
-					      kvmppc_get_gpr(vcpu, 6),
-					      kvmppc_get_gpr(vcpu, 7));
-		srcu_read_unlock(&vcpu->kvm->srcu, idx);
-		break;
 	case H_CEDE:
 		break;
 	case H_PROD:
@@ -2003,7 +1992,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* Order vcpus_running vs. rma_setup_done, see kvmppc_alloc_reset_hpt */
 	smp_mb();
 
-	/* On the first time here, set up HTAB and VRMA or RMA */
+	/* On the first time here, set up HTAB and VRMA */
 	if (!vcpu->kvm->arch.rma_setup_done) {
 		r = kvmppc_hv_setup_htab_rma(vcpu);
 		if (r)
@@ -2038,98 +2027,6 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 	atomic_dec(&vcpu->kvm->arch.vcpus_running);
 	return r;
-}
-
-
-/* Work out RMLS (real mode limit selector) field value for a given RMA size.
-   Assumes POWER7 or PPC970. */
-static inline int lpcr_rmls(unsigned long rma_size)
-{
-	switch (rma_size) {
-	case 32ul << 20:	/* 32 MB */
-		if (cpu_has_feature(CPU_FTR_ARCH_206))
-			return 8;	/* only supported on POWER7 */
-		return -1;
-	case 64ul << 20:	/* 64 MB */
-		return 3;
-	case 128ul << 20:	/* 128 MB */
-		return 7;
-	case 256ul << 20:	/* 256 MB */
-		return 4;
-	case 1ul << 30:		/* 1 GB */
-		return 2;
-	case 16ul << 30:	/* 16 GB */
-		return 1;
-	case 256ul << 30:	/* 256 GB */
-		return 0;
-	default:
-		return -1;
-	}
-}
-
-static int kvm_rma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct page *page;
-	struct kvm_rma_info *ri = vma->vm_file->private_data;
-
-	if (vmf->pgoff >= kvm_rma_pages)
-		return VM_FAULT_SIGBUS;
-
-	page = pfn_to_page(ri->base_pfn + vmf->pgoff);
-	get_page(page);
-	vmf->page = page;
-	return 0;
-}
-
-static const struct vm_operations_struct kvm_rma_vm_ops = {
-	.fault = kvm_rma_fault,
-};
-
-static int kvm_rma_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
-	vma->vm_ops = &kvm_rma_vm_ops;
-	return 0;
-}
-
-static int kvm_rma_release(struct inode *inode, struct file *filp)
-{
-	struct kvm_rma_info *ri = filp->private_data;
-
-	kvm_release_rma(ri);
-	return 0;
-}
-
-static const struct file_operations kvm_rma_fops = {
-	.mmap           = kvm_rma_mmap,
-	.release	= kvm_rma_release,
-};
-
-static long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
-				      struct kvm_allocate_rma *ret)
-{
-	long fd;
-	struct kvm_rma_info *ri;
-	/*
-	 * Only do this on PPC970 in HV mode
-	 */
-	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
-	    !cpu_has_feature(CPU_FTR_ARCH_201))
-		return -EINVAL;
-
-	if (!kvm_rma_pages)
-		return -EINVAL;
-
-	ri = kvm_alloc_rma();
-	if (!ri)
-		return -ENOMEM;
-
-	fd = anon_inode_getfd("kvm-rma", &kvm_rma_fops, ri, O_RDWR | O_CLOEXEC);
-	if (fd < 0)
-		kvm_release_rma(ri);
-
-	ret->rma_size = kvm_rma_pages << PAGE_SHIFT;
-	return fd;
 }
 
 static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
@@ -2210,37 +2107,12 @@ out:
 	return r;
 }
 
-static void unpin_slot(struct kvm_memory_slot *memslot)
-{
-	unsigned long *physp;
-	unsigned long j, npages, pfn;
-	struct page *page;
-
-	physp = memslot->arch.slot_phys;
-	npages = memslot->npages;
-	if (!physp)
-		return;
-	for (j = 0; j < npages; j++) {
-		if (!(physp[j] & KVMPPC_GOT_PAGE))
-			continue;
-		pfn = physp[j] >> PAGE_SHIFT;
-		page = pfn_to_page(pfn);
-		SetPageDirty(page);
-		put_page(page);
-	}
-}
-
 static void kvmppc_core_free_memslot_hv(struct kvm_memory_slot *free,
 					struct kvm_memory_slot *dont)
 {
 	if (!dont || free->arch.rmap != dont->arch.rmap) {
 		vfree(free->arch.rmap);
 		free->arch.rmap = NULL;
-	}
-	if (!dont || free->arch.slot_phys != dont->arch.slot_phys) {
-		unpin_slot(free);
-		vfree(free->arch.slot_phys);
-		free->arch.slot_phys = NULL;
 	}
 }
 
@@ -2250,7 +2122,6 @@ static int kvmppc_core_create_memslot_hv(struct kvm_memory_slot *slot,
 	slot->arch.rmap = vzalloc(npages * sizeof(*slot->arch.rmap));
 	if (!slot->arch.rmap)
 		return -ENOMEM;
-	slot->arch.slot_phys = NULL;
 
 	return 0;
 }
@@ -2259,17 +2130,6 @@ static int kvmppc_core_prepare_memory_region_hv(struct kvm *kvm,
 					struct kvm_memory_slot *memslot,
 					struct kvm_userspace_memory_region *mem)
 {
-	unsigned long *phys;
-
-	/* Allocate a slot_phys array if needed */
-	phys = memslot->arch.slot_phys;
-	if (!kvm->arch.using_mmu_notifiers && !phys && memslot->npages) {
-		phys = vzalloc(memslot->npages * sizeof(unsigned long));
-		if (!phys)
-			return -ENOMEM;
-		memslot->arch.slot_phys = phys;
-	}
-
 	return 0;
 }
 
@@ -2327,17 +2187,11 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 {
 	int err = 0;
 	struct kvm *kvm = vcpu->kvm;
-	struct kvm_rma_info *ri = NULL;
 	unsigned long hva;
 	struct kvm_memory_slot *memslot;
 	struct vm_area_struct *vma;
 	unsigned long lpcr = 0, senc;
-	unsigned long lpcr_mask = 0;
 	unsigned long psize, porder;
-	unsigned long rma_size;
-	unsigned long rmls;
-	unsigned long *physp;
-	unsigned long i, npages;
 	int srcu_idx;
 
 	mutex_lock(&kvm->lock);
@@ -2372,88 +2226,25 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	psize = vma_kernel_pagesize(vma);
 	porder = __ilog2(psize);
 
-	/* Is this one of our preallocated RMAs? */
-	if (vma->vm_file && vma->vm_file->f_op == &kvm_rma_fops &&
-	    hva == vma->vm_start)
-		ri = vma->vm_file->private_data;
-
 	up_read(&current->mm->mmap_sem);
 
-	if (!ri) {
-		/* On POWER7, use VRMA; on PPC970, give up */
-		err = -EPERM;
-		if (cpu_has_feature(CPU_FTR_ARCH_201)) {
-			pr_err("KVM: CPU requires an RMO\n");
-			goto out_srcu;
-		}
+	/* We can handle 4k, 64k or 16M pages in the VRMA */
+	err = -EINVAL;
+	if (!(psize == 0x1000 || psize == 0x10000 ||
+	      psize == 0x1000000))
+		goto out_srcu;
 
-		/* We can handle 4k, 64k or 16M pages in the VRMA */
-		err = -EINVAL;
-		if (!(psize == 0x1000 || psize == 0x10000 ||
-		      psize == 0x1000000))
-			goto out_srcu;
+	/* Update VRMASD field in the LPCR */
+	senc = slb_pgsize_encoding(psize);
+	kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
+		(VRMA_VSID << SLB_VSID_SHIFT_1T);
+	/* the -4 is to account for senc values starting at 0x10 */
+	lpcr = senc << (LPCR_VRMASD_SH - 4);
 
-		/* Update VRMASD field in the LPCR */
-		senc = slb_pgsize_encoding(psize);
-		kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
-			(VRMA_VSID << SLB_VSID_SHIFT_1T);
-		lpcr_mask = LPCR_VRMASD;
-		/* the -4 is to account for senc values starting at 0x10 */
-		lpcr = senc << (LPCR_VRMASD_SH - 4);
+	/* Create HPTEs in the hash page table for the VRMA */
+	kvmppc_map_vrma(vcpu, memslot, porder);
 
-		/* Create HPTEs in the hash page table for the VRMA */
-		kvmppc_map_vrma(vcpu, memslot, porder);
-
-	} else {
-		/* Set up to use an RMO region */
-		rma_size = kvm_rma_pages;
-		if (rma_size > memslot->npages)
-			rma_size = memslot->npages;
-		rma_size <<= PAGE_SHIFT;
-		rmls = lpcr_rmls(rma_size);
-		err = -EINVAL;
-		if ((long)rmls < 0) {
-			pr_err("KVM: Can't use RMA of 0x%lx bytes\n", rma_size);
-			goto out_srcu;
-		}
-		atomic_inc(&ri->use_count);
-		kvm->arch.rma = ri;
-
-		/* Update LPCR and RMOR */
-		if (cpu_has_feature(CPU_FTR_ARCH_201)) {
-			/* PPC970; insert RMLS value (split field) in HID4 */
-			lpcr_mask = (1ul << HID4_RMLS0_SH) |
-				(3ul << HID4_RMLS2_SH) | HID4_RMOR;
-			lpcr = ((rmls >> 2) << HID4_RMLS0_SH) |
-				((rmls & 3) << HID4_RMLS2_SH);
-			/* RMOR is also in HID4 */
-			lpcr |= ((ri->base_pfn >> (26 - PAGE_SHIFT)) & 0xffff)
-				<< HID4_RMOR_SH;
-		} else {
-			/* POWER7 */
-			lpcr_mask = LPCR_VPM0 | LPCR_VRMA_L | LPCR_RMLS;
-			lpcr = rmls << LPCR_RMLS_SH;
-			kvm->arch.rmor = ri->base_pfn << PAGE_SHIFT;
-		}
-		pr_info("KVM: Using RMO at %lx size %lx (LPCR = %lx)\n",
-			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
-
-		/* Initialize phys addrs of pages in RMO */
-		npages = kvm_rma_pages;
-		porder = __ilog2(npages);
-		physp = memslot->arch.slot_phys;
-		if (physp) {
-			if (npages > memslot->npages)
-				npages = memslot->npages;
-			spin_lock(&kvm->arch.slot_phys_lock);
-			for (i = 0; i < npages; ++i)
-				physp[i] = ((ri->base_pfn + i) << PAGE_SHIFT) +
-					porder;
-			spin_unlock(&kvm->arch.slot_phys_lock);
-		}
-	}
-
-	kvmppc_update_lpcr(kvm, lpcr, lpcr_mask);
+	kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
 
 	/* Order updates to kvm->arch.lpcr etc. vs. rma_setup_done */
 	smp_wmb();
@@ -2492,34 +2283,20 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	memcpy(kvm->arch.enabled_hcalls, default_enabled_hcalls,
 	       sizeof(kvm->arch.enabled_hcalls));
 
-	kvm->arch.rma = NULL;
-
 	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
 
-	if (cpu_has_feature(CPU_FTR_ARCH_201)) {
-		/* PPC970; HID4 is effectively the LPCR */
-		kvm->arch.host_lpid = 0;
-		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_HID4);
-		lpcr &= ~((3 << HID4_LPID1_SH) | (0xful << HID4_LPID5_SH));
-		lpcr |= ((lpid >> 4) << HID4_LPID1_SH) |
-			((lpid & 0xf) << HID4_LPID5_SH);
-	} else {
-		/* POWER7; init LPCR for virtual RMA mode */
-		kvm->arch.host_lpid = mfspr(SPRN_LPID);
-		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
-		lpcr &= LPCR_PECE | LPCR_LPES;
-		lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
-			LPCR_VPM0 | LPCR_VPM1;
-		kvm->arch.vrma_slb_v = SLB_VSID_B_1T |
-			(VRMA_VSID << SLB_VSID_SHIFT_1T);
-		/* On POWER8 turn on online bit to enable PURR/SPURR */
-		if (cpu_has_feature(CPU_FTR_ARCH_207S))
-			lpcr |= LPCR_ONL;
-	}
+	/* Init LPCR for virtual RMA mode */
+	kvm->arch.host_lpid = mfspr(SPRN_LPID);
+	kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
+	lpcr &= LPCR_PECE | LPCR_LPES;
+	lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
+		LPCR_VPM0 | LPCR_VPM1;
+	kvm->arch.vrma_slb_v = SLB_VSID_B_1T |
+		(VRMA_VSID << SLB_VSID_SHIFT_1T);
+	/* On POWER8 turn on online bit to enable PURR/SPURR */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		lpcr |= LPCR_ONL;
 	kvm->arch.lpcr = lpcr;
-
-	kvm->arch.using_mmu_notifiers = !!cpu_has_feature(CPU_FTR_ARCH_206);
-	spin_lock_init(&kvm->arch.slot_phys_lock);
 
 	/*
 	 * Track that we now have a HV mode VM active. This blocks secondary
@@ -2550,10 +2327,6 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 	kvm_hv_vm_deactivated();
 
 	kvmppc_free_vcores(kvm);
-	if (kvm->arch.rma) {
-		kvm_release_rma(kvm->arch.rma);
-		kvm->arch.rma = NULL;
-	}
 
 	kvmppc_free_hpt(kvm);
 }
@@ -2579,7 +2352,8 @@ static int kvmppc_core_emulate_mfspr_hv(struct kvm_vcpu *vcpu, int sprn,
 
 static int kvmppc_core_check_processor_compat_hv(void)
 {
-	if (!cpu_has_feature(CPU_FTR_HVMODE))
+	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
+	    !cpu_has_feature(CPU_FTR_ARCH_206))
 		return -EIO;
 	return 0;
 }
@@ -2592,16 +2366,6 @@ static long kvm_arch_vm_ioctl_hv(struct file *filp,
 	long r;
 
 	switch (ioctl) {
-
-	case KVM_ALLOCATE_RMA: {
-		struct kvm_allocate_rma rma;
-		struct kvm *kvm = filp->private_data;
-
-		r = kvm_vm_ioctl_allocate_rma(kvm, &rma);
-		if (r >= 0 && copy_to_user(argp, &rma, sizeof(rma)))
-			r = -EFAULT;
-		break;
-	}
 
 	case KVM_PPC_ALLOCATE_HTAB: {
 		u32 htab_order;
