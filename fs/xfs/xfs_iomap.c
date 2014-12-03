@@ -49,7 +49,6 @@ xfs_iomap_eof_align_last_fsb(
 	xfs_extlen_t	extsize,
 	xfs_fileoff_t	*last_fsb)
 {
-	xfs_fileoff_t	new_last_fsb = 0;
 	xfs_extlen_t	align = 0;
 	int		eof, error;
 
@@ -67,8 +66,8 @@ xfs_iomap_eof_align_last_fsb(
 		else if (mp->m_dalign)
 			align = mp->m_dalign;
 
-		if (align && XFS_ISIZE(ip) >= XFS_FSB_TO_B(mp, align))
-			new_last_fsb = roundup_64(*last_fsb, align);
+		if (align && XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, align))
+			align = 0;
 	}
 
 	/*
@@ -76,14 +75,14 @@ xfs_iomap_eof_align_last_fsb(
 	 * (when file on a real-time subvolume or has di_extsize hint).
 	 */
 	if (extsize) {
-		if (new_last_fsb)
-			align = roundup_64(new_last_fsb, extsize);
+		if (align)
+			align = roundup_64(align, extsize);
 		else
 			align = extsize;
-		new_last_fsb = roundup_64(*last_fsb, align);
 	}
 
-	if (new_last_fsb) {
+	if (align) {
+		xfs_fileoff_t	new_last_fsb = roundup_64(*last_fsb, align);
 		error = xfs_bmap_eof(ip, new_last_fsb, XFS_DATA_FORK, &eof);
 		if (error)
 			return error;
@@ -261,7 +260,6 @@ xfs_iomap_eof_want_preallocate(
 {
 	xfs_fileoff_t   start_fsb;
 	xfs_filblks_t   count_fsb;
-	xfs_fsblock_t	firstblock;
 	int		n, error, imaps;
 	int		found_delalloc = 0;
 
@@ -286,7 +284,6 @@ xfs_iomap_eof_want_preallocate(
 	count_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	while (count_fsb > 0) {
 		imaps = nimaps;
-		firstblock = NULLFSBLOCK;
 		error = xfs_bmapi_read(ip, start_fsb, count_fsb, imap, &imaps,
 				       0);
 		if (error)

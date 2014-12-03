@@ -35,7 +35,7 @@
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_priv.h"
+#include "xfs_dir2.h"
 #include "xfs_trans_space.h"
 
 #include <linux/capability.h>
