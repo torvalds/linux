@@ -316,11 +316,6 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
 
-	if (btrfs_fs_incompat(fs_info, RAID56)) {
-		btrfs_warn(fs_info, "dev_replace cannot yet handle RAID5/RAID6");
-		return -EOPNOTSUPP;
-	}
-
 	switch (args->start.cont_reading_from_srcdev_mode) {
 	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
 	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID:
@@ -927,9 +922,9 @@ void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
 	percpu_counter_inc(&fs_info->bio_counter);
 }
 
-void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)
+void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)
 {
-	percpu_counter_dec(&fs_info->bio_counter);
+	percpu_counter_sub(&fs_info->bio_counter, amount);
 
 	if (waitqueue_active(&fs_info->replace_wait))
 		wake_up(&fs_info->replace_wait);

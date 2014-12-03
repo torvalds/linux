@@ -4520,6 +4520,8 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC269_FIXUP_HEADSET_MODE] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode,
+		.chained = true,
+		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
 	},
 	[ALC269_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
@@ -4709,6 +4711,8 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC255_FIXUP_HEADSET_MODE] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode_alc255,
+		.chained = true,
+		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
 	},
 	[ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
@@ -4744,8 +4748,6 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_dell_wmi,
-		.chained_before = true,
-		.chain_id = ALC255_FIXUP_DELL1_MIC_NO_PRESENCE
 	},
 	[ALC282_FIXUP_ASPIRE_V5_PINS] = {
 		.type = HDA_FIXUP_PINS,
@@ -4783,10 +4785,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x05f4, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x05f5, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x05f6, "Dell", ALC269_FIXUP_DELL1_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x1028, 0x0610, "Dell", ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED),
 	SND_PCI_QUIRK(0x1028, 0x0615, "Dell Vostro 5470", ALC290_FIXUP_SUBWOOFER_HSJACK),
 	SND_PCI_QUIRK(0x1028, 0x0616, "Dell Vostro 5470", ALC290_FIXUP_SUBWOOFER_HSJACK),
-	SND_PCI_QUIRK(0x1028, 0x061f, "Dell", ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED),
 	SND_PCI_QUIRK(0x1028, 0x0638, "Dell Inspiron 5439", ALC290_FIXUP_MONO_SPEAKERS_HSJACK),
 	SND_PCI_QUIRK(0x1028, 0x064a, "Dell", ALC293_FIXUP_DELL1_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x064b, "Dell", ALC293_FIXUP_DELL1_MIC_NO_PRESENCE),

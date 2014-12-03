@@ -4167,7 +4167,12 @@ int btrfs_scrub_progress(struct btrfs_root *root, u64 devid,
 /* dev-replace.c */
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info);
 void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info);
-void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info);
+void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount);
+
+static inline void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)
+{
+	btrfs_bio_counter_sub(fs_info, 1);
+}
 
 /* reada.c */
 struct reada_control {
