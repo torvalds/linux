@@ -489,9 +489,10 @@ static int process_ops(struct filter_pred *preds,
 		if (!WARN_ON_ONCE(!pred->fn))
 			match = pred->fn(pred, rec);
 		if (!!match == type)
-			return match;
+			break;
 	}
-	return match;
+	/* If not of not match is equal to not of not, then it is a match */
+	return !!match == !op->not;
 }
 
 struct filter_match_preds_data {
@@ -740,10 +741,10 @@ static int filter_set_pred(struct event_filter *filter,
 		 * then this op can be folded.
 		 */
 		if (left->index & FILTER_PRED_FOLD &&
-		    (left->op == dest->op ||
+		    ((left->op == dest->op && !left->not) ||
 		     left->left == FILTER_PRED_INVALID) &&
 		    right->index & FILTER_PRED_FOLD &&
-		    (right->op == dest->op ||
+		    ((right->op == dest->op && !right->not) ||
 		     right->left == FILTER_PRED_INVALID))
 			dest->index |= FILTER_PRED_FOLD;
 
