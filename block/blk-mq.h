@@ -115,4 +115,9 @@ static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
 	data->hctx = hctx;
 }
 
+static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
+{
+	return hctx->nr_ctx && hctx->tags;
+}
+
 #endif
