@@ -155,6 +155,76 @@ static void z8536_write(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
+static void z8536_reset(struct comedi_device *dev)
+{
+	struct apci1500_private *devpriv = dev->private;
+	unsigned long flags;
+
+	/*
+	 * Even if the state of the Z8536 is not known, the following
+	 * sequence will reset it and put it in State 0.
+	 */
+	spin_lock_irqsave(&dev->spinlock, flags);
+	inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	outb(1, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	z8536_write(dev, 0xf4, APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+
+	z8536_write(dev, 0x10, APCI1500_RW_PORT_A_SPECIFICATION);
+	/* High level of port A means 1 */
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY);
+	/* All bits used as inputs */
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_DIRECTION);
+	/* Deletes IP and IUS */
+	z8536_write(dev, 0x20, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+	/* Deactivates the interrupt management of port A */
+	z8536_write(dev, 0xe0, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+	/* Deletes the register */
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION);
+
+	z8536_write(dev, 0x10, APCI1500_RW_PORT_B_SPECIFICATION);
+	/* A high level of port B means 1 */
+	z8536_write(dev, 0x7f, APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY);
+	/* All bits used as inputs */
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_B_DATA_DIRECTION);
+	/* Deletes IP and IUS */
+	z8536_write(dev, 0x20, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
+	/* Deactivates the interrupt management of port B */
+	z8536_write(dev, 0xe0, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
+	/* Deletes the register */
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION);
+
+	/* High level of port C means 1 */
+	z8536_write(dev, 0x09, APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY);
+	/* All bits used as inputs except channel 1 */
+	z8536_write(dev, 0x0e, APCI1500_RW_PORT_C_DATA_DIRECTION);
+	/* Deletes it */
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL);
+
+	/* Deletes IP and IUS */
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+	/* Deactivates the interrupt management of timer 1 */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+
+	/* Deletes IP and IUS */
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+	/* Deactivates Timer 2 interrupt management */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+
+	/* Deletes IP and IUS */
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+	/* Deactivates interrupt management of timer 3 */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+
+	/* Deletes all interrupts */
+	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
+}
+
 /*
  * An event can be generated for each port. The first event is related to the
  * first 8 channels (port 1) and the second to the following 6 channels (port 2)
@@ -530,65 +600,8 @@ static int apci1500_di_read(struct comedi_device *dev,
 			    struct comedi_insn *insn,
 			    unsigned int *data)
 {
-	struct apci1500_private *devpriv = dev->private;
-	int i_DummyRead = 0;
-
 	/* Software reset */
-	i_DummyRead = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_DummyRead = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(1, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-
-	z8536_write(dev, 0xf4, APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
-
-	z8536_write(dev, 0x10, APCI1500_RW_PORT_A_SPECIFICATION);
-	/* High level of port A means 1 */
-	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY);
-	/* All bits used as inputs */
-	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_DIRECTION);
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
-	/* Deactivates the interrupt management of port A */
-	z8536_write(dev, 0xe0, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
-	/* Deletes the register */
-	z8536_write(dev, 0x00, APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION);
-
-	z8536_write(dev, 0x10, APCI1500_RW_PORT_B_SPECIFICATION);
-	/* A high level of port B means 1 */
-	z8536_write(dev, 0x7f, APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY);
-	/* All bits used as inputs */
-	z8536_write(dev, 0xff, APCI1500_RW_PORT_B_DATA_DIRECTION);
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
-	/* Deactivates the interrupt management of port B */
-	z8536_write(dev, 0xe0, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
-	/* Deletes the register */
-	z8536_write(dev, 0x00, APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION);
-
-	/* High level of port C means 1 */
-	z8536_write(dev, 0x09, APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY);
-	/* All bits used as inputs except channel 1 */
-	z8536_write(dev, 0x0e, APCI1500_RW_PORT_C_DATA_DIRECTION);
-	/* Deletes it */
-	z8536_write(dev, 0x00, APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL);
-
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR1_CMD_STATUS);
-	/* Deactivates the interrupt management of timer 1 */
-	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR1_CMD_STATUS);
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR2_CMD_STATUS);
-	/* Deactivates Timer 2 interrupt management */
-	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR2_CMD_STATUS);
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR3_CMD_STATUS);
-	/* Deactivates interrupt management of timer 3 */
-	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR3_CMD_STATUS);
-
-	/* Deletes all interrupts */
-	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
+	z8536_reset(dev);
 
 	return insn->n;
 }
@@ -1610,7 +1623,6 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 static int apci1500_reset(struct comedi_device *dev)
 {
 	struct apci1500_private *devpriv = dev->private;
-	int i_DummyRead = 0;
 
 	i_TimerCounter1Init = 0;
 	i_TimerCounter2Init = 0;
@@ -1627,63 +1639,7 @@ static int apci1500_reset(struct comedi_device *dev)
 	i_WatchdogCounter3Enabled = 0;
 
 	/* Software reset */
-	i_DummyRead = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_DummyRead = inb(devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(1, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-
-	z8536_write(dev, 0xf4, APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
-
-	z8536_write(dev, 0x10, APCI1500_RW_PORT_A_SPECIFICATION);
-	/* High level of port A means 1 */
-	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY);
-	/* All bits used as inputs */
-	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_DIRECTION);
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
-	/* Deactivates the interrupt management of port A */
-	z8536_write(dev, 0xe0, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
-	/* Deletes the register */
-	z8536_write(dev, 0x00, APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION);
-
-	z8536_write(dev, 0x10, APCI1500_RW_PORT_B_SPECIFICATION);
-	/* A high level of port B means 1 */
-	z8536_write(dev, 0x7f, APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY);
-	/* All bits used as inputs */
-	z8536_write(dev, 0xff, APCI1500_RW_PORT_B_DATA_DIRECTION);
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
-	/* Deactivates the interrupt management of port B */
-	z8536_write(dev, 0xe0, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
-	/* Deletes the register */
-	z8536_write(dev, 0x00, APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION);
-
-	/* High level of port C means 1 */
-	z8536_write(dev, 0x09, APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY);
-	/* All bits used as inputs except channel 1 */
-	z8536_write(dev, 0x0e, APCI1500_RW_PORT_C_DATA_DIRECTION);
-	/* Deletes it */
-	z8536_write(dev, 0x00, APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL);
-
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR1_CMD_STATUS);
-	/* Deactivates the interrupt management of timer 1 */
-	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR1_CMD_STATUS);
-
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR2_CMD_STATUS);
-	/* Deactivates Timer 2 interrupt management */
-	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR2_CMD_STATUS);
-
-	/* Deletes IP and IUS */
-	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR3_CMD_STATUS);
-	/* Deactivates interrupt management of timer 3 */
-	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR3_CMD_STATUS);
-
-	/* Deletes all interrupts */
-	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
+	z8536_reset(dev);
 
 	/* reset all the digital outputs */
 	outw(0x0, devpriv->i_IobaseAddon + APCI1500_DIGITAL_OP);
