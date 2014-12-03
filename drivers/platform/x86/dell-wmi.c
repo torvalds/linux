@@ -65,10 +65,8 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	/* Battery health status button */
 	{ KE_KEY, 0xe007, { KEY_BATTERY } },
 
-	/* This is actually for all radios. Although physically a
-	 * switch, the notification does not provide an indication of
-	 * state and so it should be reported as a key */
-	{ KE_KEY, 0xe008, { KEY_WLAN } },
+	/* Radio devices state change */
+	{ KE_IGNORE, 0xe008, { KEY_RFKILL } },
 
 	/* The next device is at offset 6, the active devices are at
 	   offset 8 and the attached devices at offset 10 */
