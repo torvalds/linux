@@ -1039,12 +1039,14 @@ asmlinkage void do_ri(struct pt_regs *regs)
 			switch (status) {
 			case 0:
 			case SIGEMT:
+				task_thread_info(current)->r2_emul_return = 1;
 				return;
 			case SIGILL:
 				goto no_r2_instr;
 			default:
 				process_fpemu_return(status,
 						     &current->thread.cp0_baduaddr);
+				task_thread_info(current)->r2_emul_return = 1;
 				return;
 			}
 		}
