@@ -5489,32 +5489,25 @@ xfs_bmse_merge(
 	error = xfs_bmbt_lookup_eq(cur, got.br_startoff, got.br_startblock,
 				   got.br_blockcount, &i);
 	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(i == 1);
 
 	error = xfs_btree_delete(cur, &i);
 	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(i == 1);
 
 	/* lookup and update size of the previous extent */
 	error = xfs_bmbt_lookup_eq(cur, left.br_startoff, left.br_startblock,
 				   left.br_blockcount, &i);
 	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(i == 1);
 
 	left.br_blockcount = blockcount;
 
-	error = xfs_bmbt_update(cur, left.br_startoff, left.br_startblock,
-				left.br_blockcount, left.br_state);
-	if (error)
-		goto out_error;
-
-	return 0;
-
-out_error:
-	return error;
+	return xfs_bmbt_update(cur, left.br_startoff, left.br_startblock,
+			       left.br_blockcount, left.br_state);
 }
 
 /*
