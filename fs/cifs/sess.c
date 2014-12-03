@@ -1303,6 +1303,11 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
 		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
 
+	if (ses->Suid != smb_buf->Uid) {
+		ses->Suid = smb_buf->Uid;
+		cifs_dbg(FYI, "UID changed! new UID = %llu\n", ses->Suid);
+	}
+
 	bytes_remaining = get_bcc(smb_buf);
 	bcc_ptr = pByteArea(smb_buf);
 	blob_len = le16_to_cpu(pSMB->resp.SecurityBlobLength);
