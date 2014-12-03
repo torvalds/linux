@@ -120,6 +120,8 @@ static void __soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt,
 
 	if (skt->ops->hw_shutdown)
 		skt->ops->hw_shutdown(skt);
+
+	clk_disable_unprepare(skt->clk);
 }
 
 static void soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
@@ -130,6 +132,8 @@ static void soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret = 0, i;
+
+	clk_prepare_enable(skt->clk);
 
 	if (skt->ops->hw_init) {
 		ret = skt->ops->hw_init(skt);
