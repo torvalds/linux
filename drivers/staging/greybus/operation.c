@@ -284,7 +284,7 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
 	header = (struct gb_operation_msg_hdr *)(buffer + hd->buffer_headroom);
 
 	message->header = header;
-	message->payload = header + 1;
+	message->payload = payload_size ? header + 1 : NULL;
 	message->payload_size = payload_size;
 
 	/*
