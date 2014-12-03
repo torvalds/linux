@@ -166,7 +166,17 @@ static inline bool ktime_before(const ktime_t cmp1, const ktime_t cmp2)
 }
 
 #if BITS_PER_LONG < 64
-extern u64 ktime_divns(const ktime_t kt, s64 div);
+extern u64 __ktime_divns(const ktime_t kt, s64 div);
+static inline u64 ktime_divns(const ktime_t kt, s64 div)
+{
+	if (__builtin_constant_p(div) && !(div >> 32)) {
+		u64 ns = kt.tv64;
+		do_div(ns, div);
+		return ns;
+	} else {
+		return __ktime_divns(kt, div);
+	}
+}
 #else /* BITS_PER_LONG < 64 */
 # define ktime_divns(kt, div)		(u64)((kt).tv64 / (div))
 #endif
