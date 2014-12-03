@@ -5333,7 +5333,7 @@ int evergreen_resume(struct radeon_device *rdev)
 int evergreen_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
@@ -5483,7 +5483,7 @@ int evergreen_init(struct radeon_device *rdev)
 void evergreen_fini(struct radeon_device *rdev)
 {
 	radeon_pm_fini(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);

@@ -1054,7 +1054,7 @@ int rs600_resume(struct radeon_device *rdev)
 int rs600_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	rs600_irq_disable(rdev);
@@ -1065,7 +1065,7 @@ int rs600_suspend(struct radeon_device *rdev)
 void rs600_fini(struct radeon_device *rdev)
 {
 	radeon_pm_fini(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);

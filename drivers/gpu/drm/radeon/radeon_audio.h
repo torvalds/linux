@@ -68,5 +68,6 @@ struct r600_audio_pin *radeon_audio_get_pin(struct drm_encoder *encoder);
 void radeon_audio_select_pin(struct drm_encoder *encoder);
 void radeon_audio_enable(struct radeon_device *rdev,
 	struct r600_audio_pin *pin, u8 enable_mask);
+void radeon_audio_fini(struct radeon_device *rdev);
 
 #endif

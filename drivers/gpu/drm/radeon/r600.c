@@ -3106,7 +3106,7 @@ int r600_resume(struct radeon_device *rdev)
 int r600_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r600_cp_stop(rdev);
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
@@ -3225,7 +3225,7 @@ int r600_init(struct radeon_device *rdev)
 void r600_fini(struct radeon_device *rdev)
 {
 	radeon_pm_fini(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	if (rdev->has_uvd) {

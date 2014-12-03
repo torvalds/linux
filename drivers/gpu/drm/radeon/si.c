@@ -6909,7 +6909,7 @@ int si_resume(struct radeon_device *rdev)
 int si_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	dce6_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);

@@ -8576,7 +8576,7 @@ int cik_suspend(struct radeon_device *rdev)
 {
 	radeon_kfd_suspend(rdev);
 	radeon_pm_suspend(rdev);
-	dce6_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
 	cik_sdma_enable(rdev, false);

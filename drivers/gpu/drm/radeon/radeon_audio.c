@@ -380,3 +380,16 @@ void radeon_audio_enable(struct radeon_device *rdev,
 	if (rdev->audio.funcs->enable)
 		rdev->audio.funcs->enable(rdev, pin, enable_mask);
 }
+
+void radeon_audio_fini(struct radeon_device *rdev)
+{
+	int i;
+
+	if (!rdev->audio.enabled)
+		return;
+
+	for (i = 0; i < rdev->audio.num_pins; i++)
+		radeon_audio_enable(rdev, &rdev->audio.pin[i], false);
+
+	rdev->audio.enabled = false;
+}

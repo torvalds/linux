@@ -183,19 +183,6 @@ void r600_audio_enable(struct radeon_device *rdev,
 	WREG32(AZ_HOT_PLUG_CONTROL, tmp);
 }
 
-/*
- * release the audio timer
- * TODO: How to do this correctly on SMP systems?
- */
-void r600_audio_fini(struct radeon_device *rdev)
-{
-	if (!rdev->audio.enabled)
-		return;
-
-	radeon_audio_enable(rdev, &rdev->audio.pin[0], 0);
-	rdev->audio.enabled = false;
-}
-
 struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev)
 {
 	/* only one pin on 6xx-NI */
