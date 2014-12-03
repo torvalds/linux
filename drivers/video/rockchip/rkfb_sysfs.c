@@ -115,7 +115,7 @@ static void fill_buffer(void *handle, void *vaddr, int size)
 static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
 		    u8 data_format, int win_id, int area_id, bool is_bmp)
 {
-	void __iomem *vaddr;
+	void __iomem *vaddr = NULL;
 	struct file *filp;
 	mm_segment_t old_fs;
 	char name[100];
@@ -139,7 +139,13 @@ static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
 			start += PAGE_SIZE;
 			i++;
 		}
-		vaddr = vmap(pages, nr_pages, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+		vaddr = vmap(pages, nr_pages, VM_MAP,
+			     pgprot_writecombine(PAGE_KERNEL));
+		if (!vaddr) {
+			pr_err("failed to vmap phy addr %lx\n",
+			       area_data->smem_start);
+			return -1;
+		}
 	} else {
 		return -1;
 	}
@@ -170,6 +176,8 @@ static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
 		ion_unmap_kernel(rk_fb->ion_client, ion_handle);
 
 		ion_handle_put(ion_handle);
+	} else if (vaddr) {
+		vunmap(vaddr);
 	}
 
 	filp_close(filp, NULL);
