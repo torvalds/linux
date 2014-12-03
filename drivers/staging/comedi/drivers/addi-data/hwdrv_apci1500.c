@@ -143,6 +143,18 @@ static unsigned int z8536_read(struct comedi_device *dev, unsigned int reg)
 	return val;
 }
 
+static void z8536_write(struct comedi_device *dev,
+			unsigned int val, unsigned int reg)
+{
+	struct apci1500_private *devpriv = dev->private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	outb(reg, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	outb(val, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+}
+
 /*
  * An event can be generated for each port. The first event is related to the
  * first 8 channels (port 1) and the second to the following 6 channels (port 2)
@@ -172,17 +184,13 @@ static int apci1500_di_config(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct apci1500_private *devpriv = dev->private;
 	int i_PatternPolarity = 0, i_PatternTransition = 0, i_PatternMask = 0;
 	int i_MaxChannel = 0, i_Count = 0, i_EventMask = 0;
 	int i_PatternTransitionCount = 0, i_RegValue;
 	int i;
 
-	/* Selects the master interrupt control register */
-	outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Disables  the main interrupt on the board */
-	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	/* Disables the main interrupt on the board */
+	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
 
 	if (data[0] == 1) {
 		i_MaxChannel = 8;
@@ -292,67 +300,29 @@ static int apci1500_di_config(struct comedi_device *dev,
 				}
 			}
 
-			/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-			outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Disable Port A */
-			outb(0xF0,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			/* Selects the polarity register of port 1    */
-			outb(APCI1500_RW_PORT_A_PATTERN_POLARITY,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_PatternPolarity,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, 0xf0,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
-			/* Selects the pattern mask register of      */
-			/* port 1                                    */
-			outb(APCI1500_RW_PORT_A_PATTERN_MASK,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_PatternMask,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			/* Selects the pattern transition register  */
-			/* of port 1                                */
-			outb(APCI1500_RW_PORT_A_PATTERN_TRANSITION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_PatternTransition,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-
-			i_RegValue = z8536_read(dev,
-					APCI1500_RW_PORT_A_SPECIFICATION);
-
-			/* Selects the mode specification mask    */
-			/* register of port 1                     */
-			outb(APCI1500_RW_PORT_A_SPECIFICATION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_PatternPolarity,
+				    APCI1500_RW_PORT_A_PATTERN_POLARITY);
+			z8536_write(dev, i_PatternMask,
+				    APCI1500_RW_PORT_A_PATTERN_MASK);
+			z8536_write(dev, i_PatternTransition,
+				    APCI1500_RW_PORT_A_PATTERN_TRANSITION);
 
 			/* Port A new mode    */
-
+			i_RegValue = z8536_read(dev,
+					APCI1500_RW_PORT_A_SPECIFICATION);
 			i_RegValue = (i_RegValue & 0xF9) | data[1] | 0x9;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_PORT_A_SPECIFICATION);
 
 			i_Event1Status = 1;
 
-			/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-
-			outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Enable Port A */
-			outb(0xF4,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-
+			z8536_write(dev, 0xf4,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 		} else {
 			dev_warn(dev->class_dev,
 				"The choice for interrupt logic does not exist\n");
@@ -366,81 +336,39 @@ static int apci1500_di_config(struct comedi_device *dev,
 		/* Test the event logic */
 
 		if (data[1] == APCI1500_OR) {
-			/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-			outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Disable Port B */
-			outb(0x74,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, 0x74,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+
 			i_RegValue = z8536_read(dev,
 					APCI1500_RW_PORT_B_SPECIFICATION);
-
-			/* Selects the mode specification mask    */
-			/* register of port B                     */
-			outb(APCI1500_RW_PORT_B_SPECIFICATION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			i_RegValue = i_RegValue & 0xF9;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_PORT_B_SPECIFICATION);
 
 			/* Selects error channels 1 and 2 */
-
 			i_PatternMask = (i_PatternMask | 0xC0);
 			i_PatternPolarity = (i_PatternPolarity | 0xC0);
 			i_PatternTransition = (i_PatternTransition | 0xC0);
 
-			/* Selects the polarity register of port 2    */
-			outb(APCI1500_RW_PORT_B_PATTERN_POLARITY,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_PatternPolarity,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			/* Selects the pattern transition register    */
-			/* of port 2                                  */
-			outb(APCI1500_RW_PORT_B_PATTERN_TRANSITION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_PatternTransition,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			/* Selects the pattern Mask register    */
-			/* of port 2                                  */
-
-			outb(APCI1500_RW_PORT_B_PATTERN_MASK,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_PatternMask,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_PatternPolarity,
+				    APCI1500_RW_PORT_B_PATTERN_POLARITY);
+			z8536_write(dev, i_PatternTransition,
+				    APCI1500_RW_PORT_B_PATTERN_TRANSITION);
+			z8536_write(dev, i_PatternMask,
+				    APCI1500_RW_PORT_B_PATTERN_MASK);
 
 			i_RegValue = z8536_read(dev,
 					APCI1500_RW_PORT_B_SPECIFICATION);
-			/* Selects the mode specification mask    */
-			/* register of port 2                     */
-			outb(APCI1500_RW_PORT_B_SPECIFICATION,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			i_RegValue = (i_RegValue & 0xF9) | 4;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_PORT_B_SPECIFICATION);
 
 			i_Event2Status = 1;
-			/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
 
-			outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Enable Port B */
-
-			outb(0xF4,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, 0xf4,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 		} else {
 			dev_warn(dev->class_dev,
 				"The choice for interrupt logic does not exist\n");
@@ -462,7 +390,6 @@ static int apci1500_di_write(struct comedi_device *dev,
 			     struct comedi_insn *insn,
 			     unsigned int *data)
 {
-	struct apci1500_private *devpriv = dev->private;
 	int i_Event1InterruptStatus = 0, i_Event2InterruptStatus =
 		0, i_RegValue;
 
@@ -476,36 +403,24 @@ static int apci1500_di_write(struct comedi_device *dev,
 			if (data[1] == 1) {
 				/* Test if event initialised */
 				if (i_Event1Status == 1) {
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 					/* Disable Port A */
-					outb(0xF0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the command and status register of      */
-					/* port 1                                          */
-					outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xf0,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 					/* Allows the pattern interrupt      */
-					outb(0xC0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xc0,
+					    APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 					/* Enable Port A */
-					outb(0xF4,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xf4,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+
 					i_Event1InterruptStatus = 1;
+
 					i_RegValue = z8536_read(dev,
 					    APCI1500_RW_PORT_A_SPECIFICATION);
 
-					/* Selects the master interrupt control register */
-					outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 					/* Authorizes the main interrupt on the board */
-					outb(0xD0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-
+					z8536_write(dev, 0xd0,
+					    APCI1500_RW_MASTER_INTERRUPT_CONTROL);
 				} else {
 					dev_warn(dev->class_dev,
 						"Event 1 not initialised\n");
@@ -515,32 +430,20 @@ static int apci1500_di_write(struct comedi_device *dev,
 			if (data[1] == 2) {
 
 				if (i_Event2Status == 1) {
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 					/* Disable Port B */
-					outb(0x74,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the command and status register of      */
-					/* port 2                                          */
-					outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0x74,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 					/* Allows the pattern interrupt      */
-					outb(0xC0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xc0,
+					    APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 					/* Enable Port B */
-					outb(0xF4,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xf4,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
-					/* Selects the master interrupt control register */
-					outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 					/* Authorizes the main interrupt on the board */
-					outb(0xD0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xd0,
+					    APCI1500_RW_MASTER_INTERRUPT_CONTROL);
+
 					i_Event2InterruptStatus = 1;
 				} else {
 					dev_warn(dev->class_dev,
@@ -565,25 +468,16 @@ static int apci1500_di_write(struct comedi_device *dev,
 			if (data[1] == 1) {
 				/* Test if event initialised */
 				if (i_Event1Status == 1) {
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 					/* Disable Port A */
-					outb(0xF0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the command and status register of      */
-					/* port 1                                          */
-					outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-					/* Inhibits the pattern interrupt      */
-					outb(0xE0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xf0,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+					/* Inhibits the pattern interrupt */
+					z8536_write(dev, 0xe0,
+					    APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 					/* Enable Port A */
-					outb(0xF4,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xf4,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+
 					i_Event1InterruptStatus = 0;
 				} else {
 					dev_warn(dev->class_dev,
@@ -594,25 +488,16 @@ static int apci1500_di_write(struct comedi_device *dev,
 			if (data[1] == 2) {
 				/* Test if event initialised */
 				if (i_Event2Status == 1) {
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 					/* Disable Port B */
-					outb(0x74,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the command and status register of      */
-					/* port 2                                         */
-					outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0x74,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 					/* Inhibits the pattern interrupt      */
-					outb(0xE0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					/* Selects the APCI1500_RW_MASTER_CONFIGURATION_CONTROL register */
-					outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xe0,
+					    APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 					/* Enable Port B */
-					outb(0xF4,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0xf4,
+					    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+
 					i_Event2InterruptStatus = 0;
 				} else {
 
@@ -656,123 +541,55 @@ static int apci1500_di_read(struct comedi_device *dev,
 	outb(1, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 
-	/* Selects the master configuration control register */
-	outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0xF4, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xf4, APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
-	/* Selects the mode specification register of port A */
-	outb(APCI1500_RW_PORT_A_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0x10, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-
-	/* Selects the data path polarity register of port A */
-	outb(APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x10, APCI1500_RW_PORT_A_SPECIFICATION);
 	/* High level of port A means 1 */
-	outb(0xFF, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-
-	/* Selects the data direction register of port A */
-	outb(APCI1500_RW_PORT_A_DATA_DIRECTION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY);
 	/* All bits used as inputs */
-	outb(0xFF, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port A */
-	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_DIRECTION);
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/*  Selects the command and status register of port A */
-	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates the interrupt management of port A:  */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the handshake specification register of port A */
-	outb(APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+	/* Deactivates the interrupt management of port A */
+	z8536_write(dev, 0xe0, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 	/* Deletes the register */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION);
 
-	/* Selects the mode specification register of port B */
-	outb(APCI1500_RW_PORT_B_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0x10, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the data path polarity register of port B */
-	outb(APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x10, APCI1500_RW_PORT_B_SPECIFICATION);
 	/* A high level of port B means 1 */
-	outb(0x7F, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the data direction register of port B */
-	outb(APCI1500_RW_PORT_B_DATA_DIRECTION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x7f, APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY);
 	/* All bits used as inputs */
-	outb(0xFF, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port B */
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_B_DATA_DIRECTION);
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port B */
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates the interrupt management of port B:         */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the handshake specification register of port B */
-	outb(APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
+	/* Deactivates the interrupt management of port B */
+	z8536_write(dev, 0xe0, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 	/* Deletes the register */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION);
 
-	/* Selects the data path polarity register of port C */
-	outb(APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* High level of port C means 1 */
-	outb(0x9, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the data direction register of port C */
-	outb(APCI1500_RW_PORT_C_DATA_DIRECTION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x09, APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY);
 	/* All bits used as inputs except channel 1 */
-	outb(0x0E, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the special IO register of port C */
-	outb(APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x0e, APCI1500_RW_PORT_C_DATA_DIRECTION);
 	/* Deletes it */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 1 */
-	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL);
+
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 1 */
-	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates the interrupt management of timer 1         */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 2 */
-	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+	/* Deactivates the interrupt management of timer 1 */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR1_CMD_STATUS);
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 2 */
-	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates Timer 2 interrupt management:               */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 3 */
-	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+	/* Deactivates Timer 2 interrupt management */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR2_CMD_STATUS);
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of Timer 3 */
-	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates interrupt management of timer 3:            */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the master interrupt control register */
-	outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+	/* Deactivates interrupt management of timer 3 */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+
 	/* Deletes all interrupts */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
+
 	return insn->n;
 }
 
@@ -1023,82 +840,34 @@ static int apci1500_timer_config(struct comedi_device *dev,
 		/* Test the reload value */
 
 		if ((data[3] >= 0) && (data[3] <= 65535)) {
-			if (data[7] == APCI1500_ENABLE
-				|| data[7] == APCI1500_DISABLE) {
-
-				/* Selects the mode register of timer/counter 1 */
-				outb(APCI1500_RW_CPT_TMR1_MODE_SPECIFICATION,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+			if (data[7] == APCI1500_ENABLE ||
+			    data[7] == APCI1500_DISABLE) {
 				/* Writes the new mode */
-				outb(i_TimerCounterMode,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_TimerCounterMode,
+				    APCI1500_RW_CPT_TMR1_MODE_SPECIFICATION);
 
-				/* Selects the constant register of timer/counter 1 */
-
-				outb(APCI1500_RW_CPT_TMR1_TIME_CST_LOW,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Writes the low value  */
-
-				outb(data[3],
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Selects the constant register of timer/counter 1 */
-
-				outb(APCI1500_RW_CPT_TMR1_TIME_CST_HIGH,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
+				/* Writes the low value */
+				z8536_write(dev, data[3],
+					    APCI1500_RW_CPT_TMR1_TIME_CST_LOW);
 				/* Writes the high value  */
-
 				data[3] = data[3] >> 8;
-				outb(data[3],
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				i_MasterConfiguration = z8536_read(dev,
-				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+				z8536_write(dev, data[3],
+					    APCI1500_RW_CPT_TMR1_TIME_CST_HIGH);
 
 				/* Enables timer/counter 1 and triggers timer/counter 1 */
-
+				i_MasterConfiguration = z8536_read(dev,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 				i_MasterConfiguration =
 					i_MasterConfiguration | 0x40;
-
-				/* Selects the master configuration register */
-				outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Writes the new configuration */
-				outb(i_MasterConfiguration,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				/* Selects the commands register of     */
-				/* timer/counter 1                      */
-
-				outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_MasterConfiguration,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
 				/* Disable timer/counter 1 */
-
-				outb(0x0,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				/* Selects the commands register of     */
-				/* timer/counter 1                      */
-				outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
+				z8536_write(dev, 0x00,
+					    APCI1500_RW_CPT_TMR1_CMD_STATUS);
 				/* Trigger timer/counter 1 */
-				outb(0x2,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, 0x02,
+					    APCI1500_RW_CPT_TMR1_CMD_STATUS);
 			} else {
 				dev_warn(dev->class_dev,
 					"Error in selection of interrupt enable or disable\n");
@@ -1174,82 +943,34 @@ static int apci1500_timer_config(struct comedi_device *dev,
 		/* Test the reload value */
 
 		if ((data[3] >= 0) && (data[3] <= 65535)) {
-			if (data[7] == APCI1500_ENABLE
-				|| data[7] == APCI1500_DISABLE) {
-
-				/* Selects the mode register of timer/counter 2 */
-				outb(APCI1500_RW_CPT_TMR2_MODE_SPECIFICATION,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+			if (data[7] == APCI1500_ENABLE ||
+			    data[7] == APCI1500_DISABLE) {
 				/* Writes the new mode */
-				outb(i_TimerCounterMode,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_TimerCounterMode,
+				    APCI1500_RW_CPT_TMR2_MODE_SPECIFICATION);
 
-				/* Selects the constant register of timer/counter 2 */
-
-				outb(APCI1500_RW_CPT_TMR2_TIME_CST_LOW,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Writes the low value  */
-
-				outb(data[3],
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Selects the constant register of timer/counter 2 */
-
-				outb(APCI1500_RW_CPT_TMR2_TIME_CST_HIGH,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Writes the high value  */
-
+				/* Writes the low value */
+				z8536_write(dev, data[3],
+					    APCI1500_RW_CPT_TMR2_TIME_CST_LOW);
+				/* Writes the high value */
 				data[3] = data[3] >> 8;
-				outb(data[3],
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				i_MasterConfiguration = z8536_read(dev,
-				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+				z8536_write(dev, data[3],
+					    APCI1500_RW_CPT_TMR2_TIME_CST_HIGH);
 
 				/* Enables timer/counter 2 and triggers timer/counter 2 */
-
+				i_MasterConfiguration = z8536_read(dev,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 				i_MasterConfiguration =
 					i_MasterConfiguration | 0x20;
-
-				/* Selects the master configuration register */
-				outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Writes the new configuration */
-				outb(i_MasterConfiguration,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				/* Selects the commands register of     */
-				/* timer/counter 2                      */
-
-				outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_MasterConfiguration,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
 				/* Disable timer/counter 2 */
-
-				outb(0x0,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				/* Selects the commands register of     */
-				/* timer/counter 2                      */
-				outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
+				z8536_write(dev, 0x00,
+					    APCI1500_RW_CPT_TMR2_CMD_STATUS);
 				/* Trigger timer/counter 1 */
-				outb(0x2,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, 0x02,
+					    APCI1500_RW_CPT_TMR2_CMD_STATUS);
 			} else {
 				dev_warn(dev->class_dev,
 					"Error in selection of interrupt enable or disable\n");
@@ -1319,85 +1040,36 @@ static int apci1500_timer_config(struct comedi_device *dev,
 		/* Test the reload value */
 
 		if ((data[3] >= 0) && (data[3] <= 65535)) {
-			if (data[7] == APCI1500_ENABLE
-				|| data[7] == APCI1500_DISABLE) {
-
-				/* Selects the mode register of watchdog/counter 3 */
-				outb(APCI1500_RW_CPT_TMR3_MODE_SPECIFICATION,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+			if (data[7] == APCI1500_ENABLE ||
+			    data[7] == APCI1500_DISABLE) {
 				/* Writes the new mode */
-				outb(i_TimerCounterMode,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Selects the constant register of watchdog/counter 3 */
-
-				outb(APCI1500_RW_CPT_TMR3_TIME_CST_LOW,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_TimerCounterMode,
+				    APCI1500_RW_CPT_TMR3_MODE_SPECIFICATION);
 
 				/* Writes the low value  */
-
-				outb(data[3],
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Selects the constant register of watchdog/counter 3 */
-
-				outb(APCI1500_RW_CPT_TMR3_TIME_CST_HIGH,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
+				z8536_write(dev, data[3],
+					    APCI1500_RW_CPT_TMR3_TIME_CST_LOW);
 				/* Writes the high value  */
-
 				data[3] = data[3] >> 8;
-				outb(data[3],
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				i_MasterConfiguration = z8536_read(dev,
-				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
+				z8536_write(dev, data[3],
+					    APCI1500_RW_CPT_TMR3_TIME_CST_HIGH);
 
 				/* Enables watchdog/counter 3 and triggers watchdog/counter 3 */
-
+				i_MasterConfiguration = z8536_read(dev,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 				i_MasterConfiguration =
 					i_MasterConfiguration | 0x10;
-
-				/* Selects the master configuration register */
-				outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
-				/* Writes the new configuration */
-				outb(i_MasterConfiguration,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_MasterConfiguration,
+				    APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
 				/* Test if COUNTER */
 				if (data[2] == APCI1500_COUNTER) {
-
-					/* Selects the command register of   */
-					/* watchdog/counter 3                */
-					outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
 					/* Disable the  watchdog/counter 3 and starts it */
-					outb(0x0,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-
-					/* Selects the command register of   */
-					/* watchdog/counter 3                */
-
-					outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0x00,
+					    APCI1500_RW_CPT_TMR3_CMD_STATUS);
 					/* Trigger the  watchdog/counter 3 and starts it */
-					outb(0x2,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-
+					z8536_write(dev, 0x02,
+					    APCI1500_RW_CPT_TMR3_CMD_STATUS);
 				}
 
 			} else {
@@ -1436,7 +1108,6 @@ static int apci1500_timer_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct apci1500_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
 
 	switch (data[0]) {
@@ -1451,13 +1122,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 
 				/* Starts timer/counter 1 */
 				i_TimerCounter1Enabled = 1;
-				/* Selects the commands and status register */
-				outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				outb(i_CommandAndStatusValue,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_CommandAndStatusValue,
+					    APCI1500_RW_CPT_TMR1_CMD_STATUS);
 			} else {
 				dev_warn(dev->class_dev,
 					"Counter/Timer1 not configured\n");
@@ -1466,16 +1132,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 			break;
 
 		case STOP:
-
 			/* Stop timer/counter 1 */
-
-			/* Selects the commands and status register */
-			outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(0x00,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, 0x00, APCI1500_RW_CPT_TMR1_CMD_STATUS);
 			i_TimerCounter1Enabled = 0;
 			break;
 
@@ -1490,14 +1148,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 
 					i_CommandAndStatusValue = 0x2;
 				}
-
-				/* Selects the commands and status register */
-				outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				outb(i_CommandAndStatusValue,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_CommandAndStatusValue,
+					    APCI1500_RW_CPT_TMR1_CMD_STATUS);
 			} else {
 				dev_warn(dev->class_dev,
 					"Counter/Timer1 not configured\n");
@@ -1523,13 +1175,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 
 				/* Starts timer/counter 2 */
 				i_TimerCounter2Enabled = 1;
-				/* Selects the commands and status register */
-				outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				outb(i_CommandAndStatusValue,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_CommandAndStatusValue,
+					    APCI1500_RW_CPT_TMR2_CMD_STATUS);
 			} else {
 				dev_warn(dev->class_dev,
 					"Counter/Timer2 not configured\n");
@@ -1538,16 +1185,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 			break;
 
 		case STOP:
-
 			/* Stop timer/counter 2 */
-
-			/* Selects the commands and status register */
-			outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(0x00,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, 0x00, APCI1500_RW_CPT_TMR2_CMD_STATUS);
 			i_TimerCounter2Enabled = 0;
 			break;
 		case TRIGGER:
@@ -1561,14 +1200,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 
 					i_CommandAndStatusValue = 0x2;
 				}
-
-				/* Selects the commands and status register */
-				outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				outb(i_CommandAndStatusValue,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
+				z8536_write(dev, i_CommandAndStatusValue,
+					    APCI1500_RW_CPT_TMR2_CMD_STATUS);
 			} else {
 				dev_warn(dev->class_dev,
 					"Counter/Timer2 not configured\n");
@@ -1593,14 +1226,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 
 				/* Starts Watchdog/counter 3 */
 				i_WatchdogCounter3Enabled = 1;
-				/* Selects the commands and status register */
-				outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-				outb(i_CommandAndStatusValue,
-					devpriv->iobase +
-					APCI1500_Z8536_CONTROL_REGISTER);
-
+				z8536_write(dev, i_CommandAndStatusValue,
+					    APCI1500_RW_CPT_TMR3_CMD_STATUS);
 			} else {
 				dev_warn(dev->class_dev,
 					"Watchdog/Counter3 not configured\n");
@@ -1609,16 +1236,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 			break;
 
 		case STOP:
-
 			/* Stop Watchdog/counter 3 */
-
-			/* Selects the commands and status register */
-			outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(0x00,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, 0x00, APCI1500_RW_CPT_TMR3_CMD_STATUS);
 			i_WatchdogCounter3Enabled = 0;
 			break;
 
@@ -1635,14 +1254,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 
 						i_CommandAndStatusValue = 0x2;
 					}
-
-					/* Selects the commands and status register */
-					outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					outb(i_CommandAndStatusValue,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, i_CommandAndStatusValue,
+					    APCI1500_RW_CPT_TMR3_CMD_STATUS);
 				} else {
 					dev_warn(dev->class_dev,
 						"Counter3 not configured\n");
@@ -1652,14 +1265,8 @@ static int apci1500_timer_write(struct comedi_device *dev,
 			case 1:
 				/* triggering Watchdog 3 */
 				if (i_WatchdogCounter3Init == 1) {
-
-					/* Selects the commands and status register */
-					outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
-					outb(0x6,
-						devpriv->iobase +
-						APCI1500_Z8536_CONTROL_REGISTER);
+					z8536_write(dev, 0x06,
+					    APCI1500_RW_CPT_TMR3_CMD_STATUS);
 				} else {
 					dev_warn(dev->class_dev,
 						"Watchdog 3 not configured\n");
@@ -1696,7 +1303,6 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct apci1500_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
 
 	switch (data[0]) {
@@ -1712,14 +1318,8 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 
 				i_CommandAndStatusValue = 0x8;
 			}
-
-			/* Selects the commands and status register */
-			outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_CommandAndStatusValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_CommandAndStatusValue,
+				    APCI1500_RW_CPT_TMR1_CMD_STATUS);
 
 			data[0] = z8536_read(dev,
 					     APCI1500_R_CPT_TMR1_VALUE_HIGH);
@@ -1745,14 +1345,8 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 
 				i_CommandAndStatusValue = 0x8;
 			}
-
-			/* Selects the commands and status register */
-			outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_CommandAndStatusValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_CommandAndStatusValue,
+				    APCI1500_RW_CPT_TMR2_CMD_STATUS);
 
 			data[0] = z8536_read(dev,
 					     APCI1500_R_CPT_TMR2_VALUE_HIGH);
@@ -1778,14 +1372,8 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 
 				i_CommandAndStatusValue = 0x8;
 			}
-
-			/* Selects the commands and status register */
-			outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
-			outb(i_CommandAndStatusValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_CommandAndStatusValue,
+				    APCI1500_RW_CPT_TMR3_CMD_STATUS);
 
 			data[0] = z8536_read(dev,
 					     APCI1500_R_CPT_TMR3_VALUE_HIGH);
@@ -1852,75 +1440,45 @@ static int apci1500_do_bits(struct comedi_device *dev,
 		}
 	}
 
-	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_B_SPECIFICATION);
-	outb(APCI1500_RW_PORT_B_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Writes the new configuration (APCI1500_OR) */
+	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_B_SPECIFICATION);
 	i_RegValue = (i_RegValue & 0xF9) | APCI1500_OR;
+	z8536_write(dev, i_RegValue, APCI1500_RW_PORT_B_SPECIFICATION);
 
-	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port B */
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Authorises the interrupt on the board */
-	outb(0xC0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the pattern polarity register of port B */
-	outb(APCI1500_RW_PORT_B_PATTERN_POLARITY,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(i_Constant, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the pattern transition register of port B */
-	outb(APCI1500_RW_PORT_B_PATTERN_TRANSITION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(i_Constant, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the pattern mask register of port B */
-	outb(APCI1500_RW_PORT_B_PATTERN_MASK,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(i_Constant, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xc0, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 
-	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
-	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, i_Constant, APCI1500_RW_PORT_B_PATTERN_POLARITY);
+	z8536_write(dev, i_Constant, APCI1500_RW_PORT_B_PATTERN_TRANSITION);
+	z8536_write(dev, i_Constant, APCI1500_RW_PORT_B_PATTERN_MASK);
+
 	/* Deletes the interrupt of port A */
-
+	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
-	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, i_RegValue, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+
 	/* Deletes the interrupt of port B */
-
+	i_RegValue = z8536_read(dev, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
-	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, i_RegValue, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 
-	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR1_CMD_STATUS);
-	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of timer 1 */
-
+	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR1_CMD_STATUS);
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
-	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, i_RegValue, APCI1500_RW_CPT_TMR1_CMD_STATUS);
 
-	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR2_CMD_STATUS);
-	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of timer 2 */
-
+	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR2_CMD_STATUS);
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
-	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, i_RegValue, APCI1500_RW_CPT_TMR2_CMD_STATUS);
 
-	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR3_CMD_STATUS);
-	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Deletes the interrupt of timer 3 */
-
+	i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR3_CMD_STATUS);
 	i_RegValue = (i_RegValue & 0x0F) | 0x20;
-	outb(i_RegValue, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, i_RegValue, APCI1500_RW_CPT_TMR3_CMD_STATUS);
 
-	/* Selects the master interrupt control register */
-	outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* Authorizes the main interrupt on the board */
-	outb(0xD0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xd0, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
 
 	/* Enables the PCI interrupt */
 	outl(0x3000, devpriv->i_IobaseAmcc + 0x38);
@@ -1953,15 +1511,10 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 		i_RegValue = z8536_read(dev,
 					APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
-			/* Selects the command and status register of port A */
-			outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Deletes the interrupt of port A */
 			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 			i_InterruptMask = i_InterruptMask | 1;
 			if (i_Logic == APCI1500_OR_PRIORITY) {
 				i_RegValue = z8536_read(dev,
@@ -1980,15 +1533,10 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 		i_RegValue = z8536_read(dev,
 					APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
-			/* Selects the command and status register of port B */
-			outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Deletes the interrupt of port B */
 			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 			/* Reads port B */
 			i_RegValue =
 				inb((unsigned int) devpriv->iobase +
@@ -2018,43 +1566,28 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 
 		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR1_CMD_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
-			/* Selects the command and status register of timer 1 */
-			outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Deletes the interrupt of timer 1 */
 			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_CPT_TMR1_CMD_STATUS);
 			i_InterruptMask = i_InterruptMask | 4;
 		}
 
 		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR2_CMD_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
-			/* Selects the command and status register of timer 2 */
-			outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Deletes the interrupt of timer 2 */
 			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_CPT_TMR2_CMD_STATUS);
 			i_InterruptMask = i_InterruptMask | 8;
 		}
 
 		i_RegValue = z8536_read(dev, APCI1500_RW_CPT_TMR3_CMD_STATUS);
 		if ((i_RegValue & 0x60) == 0x60) {
-			/* Selects the command and status register of timer 3 */
-			outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
 			/* Deletes the interrupt of timer 3 */
 			i_RegValue = (i_RegValue & 0x0F) | 0x20;
-			outb(i_RegValue,
-				devpriv->iobase +
-				APCI1500_Z8536_CONTROL_REGISTER);
+			z8536_write(dev, i_RegValue,
+				    APCI1500_RW_CPT_TMR3_CMD_STATUS);
 			if (i_CounterLogic == APCI1500_COUNTER)
 				i_InterruptMask = i_InterruptMask | 0x10;
 			else
@@ -2062,13 +1595,9 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 		}
 
 		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-		/* Enable all Interrupts */
 
-		/* Selects the master interrupt control register */
-		outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,
-			devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 		/* Authorizes the main interrupt on the board */
-		outb(0xD0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+		z8536_write(dev, 0xd0, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
 	} else {
 		dev_warn(dev->class_dev,
 			"Interrupt from unknown source\n");
@@ -2105,155 +1634,67 @@ static int apci1500_reset(struct comedi_device *dev)
 	outb(1, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 
-	/* Selects the master configuration control register */
-	outb(APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0xF4, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xf4, APCI1500_RW_MASTER_CONFIGURATION_CONTROL);
 
-	/* Selects the mode specification register of port A */
-	outb(APCI1500_RW_PORT_A_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0x10, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-
-	/* Selects the data path polarity register of port A */
-	outb(APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x10, APCI1500_RW_PORT_A_SPECIFICATION);
 	/* High level of port A means 1 */
-	outb(0xFF, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-
-	/* Selects the data direction register of port A */
-	outb(APCI1500_RW_PORT_A_DATA_DIRECTION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_PCITCH_POLARITY);
 	/* All bits used as inputs */
-	outb(0xFF, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port A */
-	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_A_DATA_DIRECTION);
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/*  Selects the command and status register of port A */
-	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates the interrupt management of port A:  */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the handshake specification register of port A */
-	outb(APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+	/* Deactivates the interrupt management of port A */
+	z8536_write(dev, 0xe0, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
 	/* Deletes the register */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_A_HANDSHAKE_SPECIFICATION);
 
-	/* Selects the mode specification register of port B */
-	outb(APCI1500_RW_PORT_B_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	outb(0x10, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the data path polarity register of port B */
-	outb(APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x10, APCI1500_RW_PORT_B_SPECIFICATION);
 	/* A high level of port B means 1 */
-	outb(0x7F, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the data direction register of port B */
-	outb(APCI1500_RW_PORT_B_DATA_DIRECTION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x7f, APCI1500_RW_PORT_B_DATA_PCITCH_POLARITY);
 	/* All bits used as inputs */
-	outb(0xFF, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port B */
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0xff, APCI1500_RW_PORT_B_DATA_DIRECTION);
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port B */
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates the interrupt management of port B:         */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the handshake specification register of port B */
-	outb(APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
+	/* Deactivates the interrupt management of port B */
+	z8536_write(dev, 0xe0, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
 	/* Deletes the register */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_B_HANDSHAKE_SPECIFICATION);
 
-	/* Selects the data path polarity register of port C */
-	outb(APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	/* High level of port C means 1 */
-	outb(0x9, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the data direction register of port C */
-	outb(APCI1500_RW_PORT_C_DATA_DIRECTION,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x09, APCI1500_RW_PORT_C_DATA_PCITCH_POLARITY);
 	/* All bits used as inputs except channel 1 */
-	outb(0x0E, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the special IO register of port C */
-	outb(APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x0e, APCI1500_RW_PORT_C_DATA_DIRECTION);
 	/* Deletes it */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 1 */
-	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_C_SPECIAL_IO_CONTROL);
+
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 1 */
-	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates the interrupt management of timer 1         */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 2 */
-	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+	/* Deactivates the interrupt management of timer 1 */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 2 */
-	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates Timer 2 interrupt management:               */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 3 */
-	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+	/* Deactivates Timer 2 interrupt management */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+
 	/* Deletes IP and IUS */
-	outb(0x20, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of Timer 3 */
-	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates interrupt management of timer 3:            */
-	outb(0xE0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the master interrupt control register */
-	outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x20, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+	/* Deactivates interrupt management of timer 3 */
+	z8536_write(dev, 0xe0, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+
 	/* Deletes all interrupts */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
+
 	/* reset all the digital outputs */
 	outw(0x0, devpriv->i_IobaseAddon + APCI1500_DIGITAL_OP);
-	/* Disable the board interrupt */
-	/* Selects the master interrupt control register */
-	outb(APCI1500_RW_MASTER_INTERRUPT_CONTROL,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+
 	/* Deactivates all interrupts */
-	outb(0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port A */
-	outb(APCI1500_RW_PORT_A_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates all interrupts */
-	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of port B */
-	outb(APCI1500_RW_PORT_B_COMMAND_AND_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates all interrupts */
-	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 1 */
-	outb(APCI1500_RW_CPT_TMR1_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates all interrupts */
-	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 2 */
-	outb(APCI1500_RW_CPT_TMR2_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates all interrupts */
-	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Selects the command and status register of timer 3*/
-	outb(APCI1500_RW_CPT_TMR3_CMD_STATUS,
-		devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
-	/* Deactivates all interrupts */
-	outb(0x00, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
+	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_A_COMMAND_AND_STATUS);
+	z8536_write(dev, 0x00, APCI1500_RW_PORT_B_COMMAND_AND_STATUS);
+	z8536_write(dev, 0x00, APCI1500_RW_CPT_TMR1_CMD_STATUS);
+	z8536_write(dev, 0x00, APCI1500_RW_CPT_TMR2_CMD_STATUS);
+	z8536_write(dev, 0x00, APCI1500_RW_CPT_TMR3_CMD_STATUS);
+
 	return 0;
 }
