@@ -55,7 +55,6 @@ struct mpc8xxx_spi {
 	u32(*get_tx) (struct mpc8xxx_spi *);
 
 	/* hooks for different controller driver */
-	void (*spi_do_one_msg) (struct spi_message *m);
 	void (*spi_remove) (struct mpc8xxx_spi *mspi);
 
 	unsigned int count;
@@ -77,12 +76,6 @@ struct mpc8xxx_spi {
 	void (*set_shifts)(u32 *rx_shift, u32 *tx_shift,
 			   int bits_per_word, int msb_first);
 #endif
-
-	struct workqueue_struct *workqueue;
-	struct work_struct work;
-
-	struct list_head queue;
-	spinlock_t lock;
 
 	struct completion done;
 };
@@ -123,9 +116,8 @@ extern struct mpc8xxx_spi_probe_info *to_of_pinfo(
 		struct fsl_spi_platform_data *pdata);
 extern int mpc8xxx_spi_bufs(struct mpc8xxx_spi *mspi,
 		struct spi_transfer *t, unsigned int len);
-extern int mpc8xxx_spi_transfer(struct spi_device *spi, struct spi_message *m);
 extern const char *mpc8xxx_spi_strmode(unsigned int flags);
-extern int mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
+extern void mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 		unsigned int irq);
 extern int mpc8xxx_spi_remove(struct device *dev);
 extern int of_mpc8xxx_spi_probe(struct platform_device *ofdev);

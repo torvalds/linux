@@ -353,7 +353,8 @@ static int fsl_spi_bufs(struct spi_device *spi, struct spi_transfer *t,
 	return mpc8xxx_spi->count;
 }
 
-static void fsl_spi_do_one_msg(struct spi_message *m)
+static int fsl_spi_do_one_msg(struct spi_master *master,
+			      struct spi_message *m)
 {
 	struct spi_device *spi = m->spi;
 	struct spi_transfer *t, *first;
@@ -408,8 +409,7 @@ static void fsl_spi_do_one_msg(struct spi_message *m)
 	}
 
 	m->status = status;
-	if (m->complete)
-		m->complete(m->context);
+	spi_finalize_current_message(master);
 
 	if (status || !cs_change) {
 		ndelay(nsecs);
@@ -417,6 +417,7 @@ static void fsl_spi_do_one_msg(struct spi_message *m)
 	}
 
 	fsl_spi_setup_transfer(spi, NULL);
+	return 0;
 }
 
 static int fsl_spi_setup(struct spi_device *spi)
@@ -624,15 +625,13 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 
 	dev_set_drvdata(dev, master);
 
-	ret = mpc8xxx_spi_probe(dev, mem, irq);
-	if (ret)
-		goto err_probe;
+	mpc8xxx_spi_probe(dev, mem, irq);
 
 	master->setup = fsl_spi_setup;
 	master->cleanup = fsl_spi_cleanup;
+	master->transfer_one_message = fsl_spi_do_one_msg;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
-	mpc8xxx_spi->spi_do_one_msg = fsl_spi_do_one_msg;
 	mpc8xxx_spi->spi_remove = fsl_spi_remove;
 	mpc8xxx_spi->max_bits_per_word = 32;
 	mpc8xxx_spi->type = fsl_spi_get_type(dev);
@@ -704,7 +703,6 @@ free_irq:
 err_ioremap:
 	fsl_spi_cpm_free(mpc8xxx_spi);
 err_cpm_init:
-err_probe:
 	spi_master_put(master);
 err:
 	return ERR_PTR(ret);

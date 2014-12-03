@@ -411,7 +411,8 @@ static void fsl_espi_rw_trans(struct spi_message *m,
 	kfree(local_buf);
 }
 
-static void fsl_espi_do_one_msg(struct spi_message *m)
+static int fsl_espi_do_one_msg(struct spi_master *master,
+			       struct spi_message *m)
 {
 	struct spi_transfer *t;
 	u8 *rx_buf = NULL;
@@ -441,8 +442,8 @@ static void fsl_espi_do_one_msg(struct spi_message *m)
 
 	m->actual_length = espi_trans.actual_length;
 	m->status = espi_trans.status;
-	if (m->complete)
-		m->complete(m->context);
+	spi_finalize_current_message(master);
+	return 0;
 }
 
 static int fsl_espi_setup(struct spi_device *spi)
@@ -607,16 +608,14 @@ static struct spi_master * fsl_espi_probe(struct device *dev,
 
 	dev_set_drvdata(dev, master);
 
-	ret = mpc8xxx_spi_probe(dev, mem, irq);
-	if (ret)
-		goto err_probe;
+	mpc8xxx_spi_probe(dev, mem, irq);
 
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 	master->setup = fsl_espi_setup;
 	master->cleanup = fsl_espi_cleanup;
+	master->transfer_one_message = fsl_espi_do_one_msg;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
-	mpc8xxx_spi->spi_do_one_msg = fsl_espi_do_one_msg;
 	mpc8xxx_spi->spi_remove = fsl_espi_remove;
 
 	mpc8xxx_spi->reg_base = ioremap(mem->start, resource_size(mem));
