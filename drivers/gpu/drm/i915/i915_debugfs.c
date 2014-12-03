@@ -2743,6 +2743,9 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	enum pipe pipe;
 	int plane;
 
+	if (INTEL_INFO(dev)->gen < 9)
+		return 0;
+
 	drm_modeset_lock_all(dev);
 
 	ddb = &dev_priv->wm.skl_hw.ddb;
