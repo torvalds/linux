@@ -688,25 +688,8 @@ int au_reval_for_attr(struct dentry *dentry, unsigned int sigen)
 	return err;
 }
 
-#define AuIcpup_DID_CPUP	1
-#define au_ftest_icpup(flags, name)	((flags) & AuIcpup_##name)
-#define au_fset_icpup(flags, name) \
-	do { (flags) |= AuIcpup_##name; } while (0)
-#define au_fclr_icpup(flags, name) \
-	do { (flags) &= ~AuIcpup_##name; } while (0)
-
-struct au_icpup_args {
-	unsigned char flags;
-	unsigned char pin_flags;
-	aufs_bindex_t btgt;
-	unsigned int udba;
-	struct au_pin pin;
-	struct path h_path;
-	struct inode *h_inode;
-};
-
-static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
-			    struct au_icpup_args *a)
+int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
+		     struct au_icpup_args *a)
 {
 	int err;
 	loff_t sz;
@@ -748,11 +731,13 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 
 	a->h_path.dentry = au_h_dptr(dentry, bstart);
 	a->h_inode = a->h_path.dentry->d_inode;
-	mutex_lock_nested(&a->h_inode->i_mutex, AuLsc_I_CHILD);
 	sz = -1;
-	if ((ia->ia_valid & ATTR_SIZE) && ia->ia_size < i_size_read(a->h_inode))
-		sz = ia->ia_size;
-	mutex_unlock(&a->h_inode->i_mutex);
+	if (ia && (ia->ia_valid & ATTR_SIZE)) {
+		mutex_lock_nested(&a->h_inode->i_mutex, AuLsc_I_CHILD);
+		if (ia->ia_size < i_size_read(a->h_inode))
+			sz = ia->ia_size;
+		mutex_unlock(&a->h_inode->i_mutex);
+	}
 
 	hi_wh = NULL;
 	if (au_ftest_icpup(a->flags, DID_CPUP) && d_unlinked(dentry)) {

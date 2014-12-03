@@ -180,6 +180,26 @@ int au_do_pin(struct au_pin *pin) __must_check;
 void au_unpin(struct au_pin *pin);
 int au_reval_for_attr(struct dentry *dentry, unsigned int sigen);
 
+#define AuIcpup_DID_CPUP	1
+#define au_ftest_icpup(flags, name)	((flags) & AuIcpup_##name)
+#define au_fset_icpup(flags, name) \
+	do { (flags) |= AuIcpup_##name; } while (0)
+#define au_fclr_icpup(flags, name) \
+	do { (flags) &= ~AuIcpup_##name; } while (0)
+
+struct au_icpup_args {
+	unsigned char flags;
+	unsigned char pin_flags;
+	aufs_bindex_t btgt;
+	unsigned int udba;
+	struct au_pin pin;
+	struct path h_path;
+	struct inode *h_inode;
+};
+
+int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
+		     struct au_icpup_args *a);
+
 int au_h_path_getattr(struct dentry *dentry, int force, struct path *h_path);
 
 /* i_op_add.c */
