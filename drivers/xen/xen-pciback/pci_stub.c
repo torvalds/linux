@@ -105,7 +105,7 @@ static void pcistub_device_release(struct kref *kref)
 	 */
 	__pci_reset_function_locked(dev);
 	if (pci_load_and_free_saved_state(dev, &dev_data->pci_saved_state))
-		dev_dbg(&dev->dev, "Could not reload PCI state\n");
+		dev_info(&dev->dev, "Could not reload PCI state\n");
 	else
 		pci_restore_state(dev);
 
@@ -257,6 +257,8 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev, *found_psdev = NULL;
 	unsigned long flags;
+	struct xen_pcibk_dev_data *dev_data;
+	int ret;
 
 	spin_lock_irqsave(&pcistub_devices_lock, flags);
 
@@ -280,8 +282,18 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	 */
 	device_lock_assert(&dev->dev);
 	__pci_reset_function_locked(dev);
-	pci_restore_state(dev);
 
+	dev_data = pci_get_drvdata(dev);
+	ret = pci_load_saved_state(dev, dev_data->pci_saved_state);
+	if (!ret) {
+		/*
+		 * The usual sequence is pci_save_state & pci_restore_state
+		 * but the guest might have messed the configuration space up.
+		 * Use the initial version (when device was bound to us).
+		 */
+		pci_restore_state(dev);
+	} else
+		dev_info(&dev->dev, "Could not reload PCI state\n");
 	/* This disables the device. */
 	xen_pcibk_reset_device(dev);
 
