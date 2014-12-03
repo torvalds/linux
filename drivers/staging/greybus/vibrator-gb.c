@@ -139,6 +139,7 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	vib->connection = connection;
+	connection->private = vib;
 
 	retval = get_version(vib);
 	if (retval)

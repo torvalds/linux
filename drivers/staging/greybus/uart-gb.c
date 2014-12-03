@@ -637,6 +637,7 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	if (!gb_tty)
 		return -ENOMEM;
 	gb_tty->connection = connection;
+	connection->private = gb_tty;
 
 	/* Check for compatible protocol version */
 	retval = get_version(gb_tty);
@@ -658,8 +659,6 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	spin_lock_init(&gb_tty->read_lock);
 	init_waitqueue_head(&gb_tty->wioctl);
 	mutex_init(&gb_tty->mutex);
-
-	connection->private = gb_tty;
 
 	send_control(gb_tty, gb_tty->ctrlout);
 

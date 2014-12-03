@@ -266,6 +266,7 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 	if (!pwmc)
 		return -ENOMEM;
 	pwmc->connection = connection;
+	connection->private = pwmc;
 
 	/* Check for compatible protocol version */
 	ret = gb_pwm_proto_version_operation(pwmc);
@@ -290,7 +291,6 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 		pr_err("Failed to register PWM\n");
 		return ret;
 	}
-	connection->private = pwmc;
 
 	return 0;
 out_err:

@@ -377,6 +377,7 @@ static int gb_i2c_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	gb_i2c_dev->connection = connection;	/* refcount? */
+	connection->private = gb_i2c_dev;
 
 	ret = gb_i2c_device_setup(gb_i2c_dev);
 	if (ret)
@@ -398,8 +399,6 @@ static int gb_i2c_connection_init(struct gb_connection *connection)
 	ret = i2c_add_adapter(adapter);
 	if (ret)
 		goto out_err;
-
-	connection->private = gb_i2c_dev;
 
 	return 0;
 out_err:

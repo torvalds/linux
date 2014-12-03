@@ -341,6 +341,7 @@ static int gb_usb_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	gb_usb_dev->connection = connection;
+	connection->private = gb_usb_dev;
 
 	/* Check for compatible protocol version */
 	retval = get_version(gb_usb_dev);

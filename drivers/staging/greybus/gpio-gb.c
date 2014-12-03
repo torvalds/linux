@@ -472,6 +472,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	if (!gb_gpio_controller)
 		return -ENOMEM;
 	gb_gpio_controller->connection = connection;
+	connection->private = gb_gpio_controller;
 
 	ret = gb_gpio_controller_setup(gb_gpio_controller);
 	if (ret)
@@ -502,7 +503,6 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 		pr_err("Failed to register GPIO\n");
 		return ret;
 	}
-	connection->private = gb_gpio_controller;
 
 	return 0;
 out_err:
