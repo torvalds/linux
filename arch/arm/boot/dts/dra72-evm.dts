@@ -160,7 +160,7 @@
 					/* VDD_CORE */
 					regulator-name = "smps2";
 					regulator-min-microvolt = <850000>;
-					regulator-max-microvolt = <1030000>;
+					regulator-max-microvolt = <1060000>;
 					regulator-boot-on;
 					regulator-always-on;
 				};
