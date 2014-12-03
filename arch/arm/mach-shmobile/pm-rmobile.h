@@ -21,6 +21,7 @@ struct rmobile_pm_domain {
 	struct dev_power_governor *gov;
 	int (*suspend)(void);
 	void (*resume)(void);
+	void __iomem *base;
 	unsigned int bit_shift;
 	bool no_debug;
 };

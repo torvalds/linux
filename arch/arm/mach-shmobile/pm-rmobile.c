@@ -20,9 +20,9 @@
 #include "pm-rmobile.h"
 
 /* SYSC */
-#define SPDCR		IOMEM(0xe6180008)
-#define SWUCR		IOMEM(0xe6180014)
-#define PSTR		IOMEM(0xe6180080)
+#define SPDCR		0x08	/* SYS Power Down Control Register */
+#define SWUCR		0x14	/* SYS Wakeup Control Register */
+#define PSTR		0x80	/* Power Status Register */
 
 #define PSTR_RETRIES	100
 #define PSTR_DELAY_US	10
@@ -39,12 +39,12 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 			return ret;
 	}
 
-	if (__raw_readl(PSTR) & mask) {
+	if (__raw_readl(rmobile_pd->base + PSTR) & mask) {
 		unsigned int retry_count;
-		__raw_writel(mask, SPDCR);
+		__raw_writel(mask, rmobile_pd->base + SPDCR);
 
 		for (retry_count = PSTR_RETRIES; retry_count; retry_count--) {
-			if (!(__raw_readl(SPDCR) & mask))
+			if (!(__raw_readl(rmobile_pd->base + SPDCR) & mask))
 				break;
 			cpu_relax();
 		}
@@ -52,7 +52,8 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 
 	if (!rmobile_pd->no_debug)
 		pr_debug("%s: Power off, 0x%08x -> PSTR = 0x%08x\n",
-			 genpd->name, mask, __raw_readl(PSTR));
+			 genpd->name, mask,
+			 __raw_readl(rmobile_pd->base + PSTR));
 
 	return 0;
 }
@@ -64,13 +65,13 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd,
 	unsigned int retry_count;
 	int ret = 0;
 
-	if (__raw_readl(PSTR) & mask)
+	if (__raw_readl(rmobile_pd->base + PSTR) & mask)
 		goto out;
 
-	__raw_writel(mask, SWUCR);
+	__raw_writel(mask, rmobile_pd->base + SWUCR);
 
 	for (retry_count = 2 * PSTR_RETRIES; retry_count; retry_count--) {
-		if (!(__raw_readl(SWUCR) & mask))
+		if (!(__raw_readl(rmobile_pd->base + SWUCR) & mask))
 			break;
 		if (retry_count > PSTR_RETRIES)
 			udelay(PSTR_DELAY_US);
@@ -82,7 +83,8 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd,
 
 	if (!rmobile_pd->no_debug)
 		pr_debug("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
-			 rmobile_pd->genpd.name, mask, __raw_readl(PSTR));
+			 rmobile_pd->genpd.name, mask,
+			 __raw_readl(rmobile_pd->base + PSTR));
 
 out:
 	if (ret == 0 && rmobile_pd->resume && do_resume)
