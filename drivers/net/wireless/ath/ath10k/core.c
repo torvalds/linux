@@ -28,6 +28,7 @@
 #include "debug.h"
 #include "htt.h"
 #include "testmode.h"
+#include "wmi-ops.h"
 
 unsigned int ath10k_debug_mask;
 static bool uart_print;

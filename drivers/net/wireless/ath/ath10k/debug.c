@@ -23,6 +23,7 @@
 #include "core.h"
 #include "debug.h"
 #include "hif.h"
+#include "wmi-ops.h"
 
 /* ms */
 #define ATH10K_DEBUG_HTT_STATS_INTERVAL 1000

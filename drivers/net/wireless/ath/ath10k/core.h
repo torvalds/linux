@@ -129,6 +129,7 @@ struct ath10k_wmi {
 	struct wmi_cmd_map *cmd;
 	struct wmi_vdev_param_map *vdev_param;
 	struct wmi_pdev_param_map *pdev_param;
+	const struct wmi_ops *ops;
 
 	u32 num_mem_chunks;
 	struct ath10k_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];
@@ -618,6 +619,7 @@ struct ath10k {
 		/* protected by conf_mutex */
 		const struct firmware *utf;
 		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
+		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
 
 		/* protected by data_lock */
 		bool utf_monitor;

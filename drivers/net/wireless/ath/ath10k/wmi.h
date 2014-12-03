@@ -4644,7 +4644,6 @@ struct wmi_rdy_ev_arg {
 
 struct ath10k;
 struct ath10k_vif;
-struct ath10k_fw_stats;
 
 int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
@@ -4655,70 +4654,8 @@ int ath10k_wmi_connect(struct ath10k *ar);
 
 struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
-
-int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
-int ath10k_wmi_pdev_resume_target(struct ath10k *ar);
-int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
-				  u16 rd5g, u16 ctl2g, u16 ctl5g,
-				  enum wmi_dfs_region dfs_reg);
-int ath10k_wmi_pdev_set_param(struct ath10k *ar, u32 id, u32 value);
-int ath10k_wmi_cmd_init(struct ath10k *ar);
-int ath10k_wmi_start_scan(struct ath10k *ar, const struct wmi_start_scan_arg *);
+int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
+			       u32 cmd_id);
 void ath10k_wmi_start_scan_init(struct ath10k *ar, struct wmi_start_scan_arg *);
-int ath10k_wmi_stop_scan(struct ath10k *ar,
-			 const struct wmi_stop_scan_arg *arg);
-int ath10k_wmi_vdev_create(struct ath10k *ar, u32 vdev_id,
-			   enum wmi_vdev_type type,
-			   enum wmi_vdev_subtype subtype,
-			   const u8 macaddr[ETH_ALEN]);
-int ath10k_wmi_vdev_delete(struct ath10k *ar, u32 vdev_id);
-int ath10k_wmi_vdev_start(struct ath10k *ar,
-			  const struct wmi_vdev_start_request_arg *);
-int ath10k_wmi_vdev_restart(struct ath10k *ar,
-			    const struct wmi_vdev_start_request_arg *);
-int ath10k_wmi_vdev_stop(struct ath10k *ar, u32 vdev_id);
-int ath10k_wmi_vdev_up(struct ath10k *ar, u32 vdev_id, u32 aid,
-		       const u8 *bssid);
-int ath10k_wmi_vdev_down(struct ath10k *ar, u32 vdev_id);
-int ath10k_wmi_vdev_set_param(struct ath10k *ar, u32 vdev_id,
-			      u32 param_id, u32 param_value);
-int ath10k_wmi_vdev_install_key(struct ath10k *ar,
-				const struct wmi_vdev_install_key_arg *arg);
-int ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
-				  const struct wmi_vdev_spectral_conf_arg *arg);
-int ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
-				    u32 enable);
-int ath10k_wmi_peer_create(struct ath10k *ar, u32 vdev_id,
-			   const u8 peer_addr[ETH_ALEN]);
-int ath10k_wmi_peer_delete(struct ath10k *ar, u32 vdev_id,
-			   const u8 peer_addr[ETH_ALEN]);
-int ath10k_wmi_peer_flush(struct ath10k *ar, u32 vdev_id,
-			  const u8 peer_addr[ETH_ALEN], u32 tid_bitmap);
-int ath10k_wmi_peer_set_param(struct ath10k *ar, u32 vdev_id,
-			      const u8 *peer_addr,
-			      enum wmi_peer_param param_id, u32 param_value);
-int ath10k_wmi_peer_assoc(struct ath10k *ar,
-			  const struct wmi_peer_assoc_complete_arg *arg);
-int ath10k_wmi_set_psmode(struct ath10k *ar, u32 vdev_id,
-			  enum wmi_sta_ps_mode psmode);
-int ath10k_wmi_set_sta_ps_param(struct ath10k *ar, u32 vdev_id,
-				enum wmi_sta_powersave_param param_id,
-				u32 value);
-int ath10k_wmi_set_ap_ps_param(struct ath10k *ar, u32 vdev_id, const u8 *mac,
-			       enum wmi_ap_ps_peer_param param_id, u32 value);
-int ath10k_wmi_scan_chan_list(struct ath10k *ar,
-			      const struct wmi_scan_chan_list_arg *arg);
-int ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif);
-int ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
-				   const struct wmi_pdev_set_wmm_params_arg *arg);
-int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);
-int ath10k_wmi_force_fw_hang(struct ath10k *ar,
-			     enum wmi_force_fw_hang_type type, u32 delay_ms);
-int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb);
-int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable);
-int ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
-			     struct ath10k_fw_stats *stats);
-int ath10k_wmi_pdev_pktlog_enable(struct ath10k *ar, u32 ev_list);
-int ath10k_wmi_pdev_pktlog_disable(struct ath10k *ar);
 
 #endif /* _WMI_H_ */

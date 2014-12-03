@@ -27,6 +27,8 @@
 #include "htt.h"
 #include "txrx.h"
 #include "testmode.h"
+#include "wmi.h"
+#include "wmi-ops.h"
 
 /**********/
 /* Crypto */
