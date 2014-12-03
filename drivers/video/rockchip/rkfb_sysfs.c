@@ -29,9 +29,46 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/vmalloc.h>
 #include <asm/div64.h>
 #include <linux/rk_screen.h>
 #include <linux/rk_fb.h>
+#if defined(CONFIG_ION_ROCKCHIP)
+#include <linux/rockchip_ion.h>
+#endif
+#include "bmp_helper.h"
+
+static char *get_format_str(enum data_format format)
+{
+	switch (format) {
+	case ARGB888:
+		return "ARGB888";
+	case RGB888:
+		return "RGB888";
+	case RGB565:
+		return "RGB565";
+	case YUV420:
+		return "YUV420";
+	case YUV422:
+		return "YUV422";
+	case YUV444:
+		return "YUV444";
+	case YUV420_A:
+		return "YUV420_A";
+	case YUV422_A:
+		return "YUV422_A";
+	case YUV444_A:
+		return "YUV444_A";
+	case XRGB888:
+		return "XRGB888";
+	case XBGR888:
+		return "XBGR888";
+	case ABGR888:
+		return "ABGR888";
+	}
+
+	return "invalid";
+}
 
 static ssize_t show_screen_info(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -65,6 +102,136 @@ static ssize_t show_disp_info(struct device *dev,
 		return dev_drv->ops->get_disp_info(dev_drv, buf, win_id);
 
 	return 0;
+}
+
+static void fill_buffer(void *handle, void *vaddr, int size)
+{
+	struct file *filp = handle;
+
+	if (filp)
+		vfs_write(filp, vaddr, size, &filp->f_pos);
+}
+
+static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
+		    u8 data_format, int win_id, int area_id, bool is_bmp)
+{
+	void __iomem *vaddr;
+	struct file *filp;
+	mm_segment_t old_fs;
+	char name[100];
+	struct ion_handle *ion_handle = area_data->ion_handle;
+	int width = area_data->xvir;
+	int height = area_data->yvir;
+
+	if (ion_handle) {
+		vaddr = ion_map_kernel(rk_fb->ion_client, ion_handle);
+	} else if (area_data->smem_start && area_data->smem_start != -1) {
+		unsigned long start;
+		unsigned int nr_pages;
+		struct page **pages;
+		int i = 0;
+
+		start = area_data->smem_start;
+		nr_pages = width * height * 3 / 2 / PAGE_SIZE;
+		pages = kzalloc(sizeof(struct page) * nr_pages,GFP_KERNEL);
+		while (i < nr_pages) {
+			pages[i] = phys_to_page(start);
+			start += PAGE_SIZE;
+			i++;
+		}
+		vaddr = vmap(pages, nr_pages, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+	} else {
+		return -1;
+	}
+
+	snprintf(name, 100, "/data/win%d_%d_%dx%d_%s.%s", win_id, area_id,
+		 width, height, get_format_str(data_format),
+		 is_bmp ? "bmp" : "bin");
+
+	pr_info("dump win == > /data/win%d_%d_%dx%d_%s.%s\n", win_id, area_id,
+	        width, height, get_format_str(data_format),
+	        is_bmp ? "bmp" : "bin");
+
+	filp = filp_open(name, O_RDWR | O_CREAT, 0x664);
+	if (!filp)
+		printk("fail to create %s\n", name);
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if (is_bmp)
+		datatobmp(vaddr, width, height, data_format, filp, fill_buffer);
+	else
+		fill_buffer(filp, vaddr, width * height * 4);
+
+	set_fs(old_fs);
+
+	if (ion_handle) {
+		ion_unmap_kernel(rk_fb->ion_client, ion_handle);
+
+		ion_handle_put(ion_handle);
+	}
+
+	filp_close(filp, NULL);
+
+	return 0;
+}
+
+static ssize_t set_dump_info(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+	struct rk_fb *rk_fb = dev_get_drvdata(fbi->device);
+	struct rk_fb_reg_data *front_regs;
+	struct rk_fb_reg_win_data *win_data;
+	struct rk_fb_reg_area_data *area_data;
+	bool is_img;
+	int i, j;
+
+	if (!rk_fb->ion_client)
+		return 0;
+
+	front_regs = kmalloc(sizeof(*front_regs), GFP_KERNEL);
+	if (!front_regs)
+		return -ENOMEM;
+
+	mutex_lock(&dev_drv->front_lock);
+
+	if (!dev_drv->front_regs) {
+		mutex_unlock(&dev_drv->front_lock);
+		return 0;
+	}
+	memcpy(front_regs, dev_drv->front_regs, sizeof(*front_regs));
+	for (i = 0; i < front_regs->win_num; i++) {
+		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+			win_data = &front_regs->reg_win_data[i];
+			area_data = &win_data->reg_area_data[j];
+			if (area_data->ion_handle) {
+				ion_handle_get(area_data->ion_handle);
+			}
+		}
+	}
+	mutex_unlock(&dev_drv->front_lock);
+
+	if (strncmp(buf, "bin", 3))
+		is_img = true;
+	else
+		is_img = false;
+
+	for (i = 0; i < front_regs->win_num; i++) {
+		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+			win_data = &front_regs->reg_win_data[i];
+			if (dump_win(rk_fb, &win_data->reg_area_data[j],
+				     win_data->data_format, i, j, is_img))
+				continue;
+		}
+	}
+	kfree(front_regs);
+
+	return count;
 }
 
 static ssize_t show_phys(struct device *dev,
@@ -580,7 +747,7 @@ static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
-	__ATTR(disp_info, S_IRUGO, show_disp_info, NULL),
+	__ATTR(disp_info, S_IRUGO | S_IWUSR, show_disp_info, set_dump_info),
 	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
 	__ATTR(dual_mode, S_IRUGO, show_dual_mode, NULL),
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
