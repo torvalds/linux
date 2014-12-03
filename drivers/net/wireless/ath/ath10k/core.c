@@ -915,6 +915,11 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->max_num_stations = TARGET_10X_NUM_STATIONS;
 		ar->htt.max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
 		break;
+	case ATH10K_FW_WMI_OP_VERSION_TLV:
+		ar->max_num_peers = TARGET_TLV_NUM_PEERS;
+		ar->max_num_stations = TARGET_TLV_NUM_STATIONS;
+		ar->htt.max_num_pending_tx = TARGET_TLV_NUM_MSDU_DESC;
+		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
 		WARN_ON(1);

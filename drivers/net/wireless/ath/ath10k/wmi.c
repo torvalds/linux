@@ -22,6 +22,7 @@
 #include "htc.h"
 #include "debug.h"
 #include "wmi.h"
+#include "wmi-tlv.h"
 #include "mac.h"
 #include "testmode.h"
 #include "wmi-ops.h"
@@ -2735,13 +2736,14 @@ void ath10k_wmi_event_service_ready(struct ath10k *ar, struct sk_buff *skb)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "wmi event service ready min_tx_power 0x%08x max_tx_power 0x%08x ht_cap 0x%08x vht_cap 0x%08x sw_ver0 0x%08x sw_ver1 0x%08x phy_capab 0x%08x num_rf_chains 0x%08x eeprom_rd 0x%08x num_mem_reqs 0x%08x\n",
+		   "wmi event service ready min_tx_power 0x%08x max_tx_power 0x%08x ht_cap 0x%08x vht_cap 0x%08x sw_ver0 0x%08x sw_ver1 0x%08x fw_build 0x%08x phy_capab 0x%08x num_rf_chains 0x%08x eeprom_rd 0x%08x num_mem_reqs 0x%08x\n",
 		   __le32_to_cpu(arg.min_tx_power),
 		   __le32_to_cpu(arg.max_tx_power),
 		   __le32_to_cpu(arg.ht_cap),
 		   __le32_to_cpu(arg.vht_cap),
 		   __le32_to_cpu(arg.sw_ver0),
 		   __le32_to_cpu(arg.sw_ver1),
+		   __le32_to_cpu(arg.fw_build),
 		   __le32_to_cpu(arg.phy_capab),
 		   __le32_to_cpu(arg.num_rf_chains),
 		   __le32_to_cpu(arg.eeprom_rd),
@@ -4761,6 +4763,9 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.ops = &wmi_ops;
 		ar->wmi.vdev_param = &wmi_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_pdev_param_map;
+		break;
+	case ATH10K_FW_WMI_OP_VERSION_TLV:
+		ath10k_wmi_tlv_attach(ar);
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:

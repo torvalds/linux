@@ -1093,6 +1093,8 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 	BUILD_BUG_ON(2*TARGET_10X_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
+	BUILD_BUG_ON(2*TARGET_TLV_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 
 	ce_state->ar = ar;
 	ce_state->id = ce_id;

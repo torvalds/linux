@@ -8,6 +8,7 @@ ath10k_core-y += mac.o \
 		 htt_tx.o \
 		 txrx.o \
 		 wmi.o \
+		 wmi-tlv.o \
 		 bmi.o
 
 ath10k_core-$(CONFIG_ATH10K_DEBUGFS) += spectral.o
