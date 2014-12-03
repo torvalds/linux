@@ -21,45 +21,17 @@
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/netfilter/nf_tables.h>
 
-static const struct {
-       const char	*name;
-       u8		type;
-} table_to_chaintype[] = {
-       { "filter",     NFT_CHAIN_T_DEFAULT },
-       { "raw",        NFT_CHAIN_T_DEFAULT },
-       { "security",   NFT_CHAIN_T_DEFAULT },
-       { "mangle",     NFT_CHAIN_T_ROUTE },
-       { "nat",        NFT_CHAIN_T_NAT },
-       { },
-};
-
-static int nft_compat_table_to_chaintype(const char *table)
-{
-	int i;
-
-	for (i = 0; table_to_chaintype[i].name != NULL; i++) {
-		if (strcmp(table_to_chaintype[i].name, table) == 0)
-			return table_to_chaintype[i].type;
-	}
-
-	return -1;
-}
-
 static int nft_compat_chain_validate_dependency(const char *tablename,
 						const struct nft_chain *chain)
 {
-	enum nft_chain_type type;
 	const struct nft_base_chain *basechain;
 
 	if (!tablename || !(chain->flags & NFT_BASE_CHAIN))
 		return 0;
 
-	type = nft_compat_table_to_chaintype(tablename);
-	if (type < 0)
-		return -EINVAL;
-
 	basechain = nft_base_chain(chain);
-	if (basechain->type->type != type)
+	if (strcmp(tablename, "nat") == 0 &&
+	    basechain->type->type != NFT_CHAIN_T_NAT)
 		return -EINVAL;
 
 	return 0;
@@ -117,7 +89,7 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 			   struct xt_target *target, void *info,
 			   union nft_entry *entry, u8 proto, bool inv)
 {
-	par->net	= &init_net;
+	par->net	= ctx->net;
 	par->table	= ctx->table->name;
 	switch (ctx->afi->family) {
 	case AF_INET:
@@ -324,7 +296,7 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 			  struct xt_match *match, void *info,
 			  union nft_entry *entry, u8 proto, bool inv)
 {
-	par->net	= &init_net;
+	par->net	= ctx->net;
 	par->table	= ctx->table->name;
 	switch (ctx->afi->family) {
 	case AF_INET:
@@ -374,7 +346,7 @@ nft_match_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	union nft_entry e = {};
 	int ret;
 
-	ret = nft_compat_chain_validate_dependency(match->name, ctx->chain);
+	ret = nft_compat_chain_validate_dependency(match->table, ctx->chain);
 	if (ret < 0)
 		goto err;
 
@@ -448,7 +420,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 		if (!(hook_mask & match->hooks))
 			return -EINVAL;
 
-		ret = nft_compat_chain_validate_dependency(match->name,
+		ret = nft_compat_chain_validate_dependency(match->table,
 							   ctx->chain);
 		if (ret < 0)
 			return ret;
