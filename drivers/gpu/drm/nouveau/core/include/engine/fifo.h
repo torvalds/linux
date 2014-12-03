@@ -7,7 +7,7 @@
 #include <core/event.h>
 
 struct nouveau_fifo_chan {
-	struct nouveau_namedb base;
+	struct nouveau_namedb namedb;
 	struct nouveau_dmaobj *pushdma;
 	struct nouveau_gpuobj *pushgpu;
 	void __iomem *user;
@@ -27,9 +27,9 @@ nouveau_fifo_chan(void *obj)
 	nouveau_fifo_channel_create_((p), (e), (c), (b), (a), (s), (n),        \
 				     (m), sizeof(**d), (void **)d)
 #define nouveau_fifo_channel_init(p)                                           \
-	nouveau_namedb_init(&(p)->base)
+	nouveau_namedb_init(&(p)->namedb)
 #define nouveau_fifo_channel_fini(p,s)                                         \
-	nouveau_namedb_fini(&(p)->base, (s))
+	nouveau_namedb_fini(&(p)->namedb, (s))
 
 int  nouveau_fifo_channel_create_(struct nouveau_object *,
 				  struct nouveau_object *,
@@ -48,17 +48,17 @@ void _nouveau_fifo_channel_wr32(struct nouveau_object *, u64, u32);
 int  _nouveau_fifo_channel_ntfy(struct nouveau_object *, u32, struct nvkm_event **);
 
 struct nouveau_fifo_base {
-	struct nouveau_gpuobj base;
+	struct nouveau_gpuobj gpuobj;
 };
 
 #define nouveau_fifo_context_create(p,e,c,g,s,a,f,d)                           \
 	nouveau_gpuobj_create((p), (e), (c), 0, (g), (s), (a), (f), (d))
 #define nouveau_fifo_context_destroy(p)                                        \
-	nouveau_gpuobj_destroy(&(p)->base)
+	nouveau_gpuobj_destroy(&(p)->gpuobj)
 #define nouveau_fifo_context_init(p)                                           \
-	nouveau_gpuobj_init(&(p)->base)
+	nouveau_gpuobj_init(&(p)->gpuobj)
 #define nouveau_fifo_context_fini(p,s)                                         \
-	nouveau_gpuobj_fini(&(p)->base, (s))
+	nouveau_gpuobj_fini(&(p)->gpuobj, (s))
 
 #define _nouveau_fifo_context_dtor _nouveau_gpuobj_dtor
 #define _nouveau_fifo_context_init _nouveau_gpuobj_init

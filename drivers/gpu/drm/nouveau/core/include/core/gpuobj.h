@@ -14,7 +14,7 @@ struct nouveau_vm;
 #define NVOBJ_FLAG_HEAP       0x00000004
 
 struct nouveau_gpuobj {
-	struct nouveau_object base;
+	struct nouveau_object object;
 	struct nouveau_object *parent;
 	struct nouveau_mm_node *node;
 	struct nouveau_mm heap;
@@ -37,8 +37,8 @@ nv_gpuobj(void *obj)
 #define nouveau_gpuobj_create(p,e,c,v,g,s,a,f,d)                               \
 	nouveau_gpuobj_create_((p), (e), (c), (v), (g), (s), (a), (f),         \
 			       sizeof(**d), (void **)d)
-#define nouveau_gpuobj_init(p) nouveau_object_init(&(p)->base)
-#define nouveau_gpuobj_fini(p,s) nouveau_object_fini(&(p)->base, (s))
+#define nouveau_gpuobj_init(p) nouveau_object_init(&(p)->object)
+#define nouveau_gpuobj_fini(p,s) nouveau_object_fini(&(p)->object, (s))
 int  nouveau_gpuobj_create_(struct nouveau_object *, struct nouveau_object *,
 			    struct nouveau_oclass *, u32 pclass,
 			    struct nouveau_object *, u32 size, u32 align,
@@ -59,7 +59,7 @@ void nouveau_gpuobj_unmap(struct nouveau_vma *);
 static inline void
 nouveau_gpuobj_ref(struct nouveau_gpuobj *obj, struct nouveau_gpuobj **ref)
 {
-	nouveau_object_ref(&obj->base, (struct nouveau_object **)ref);
+	nouveau_object_ref(&obj->object, (struct nouveau_object **)ref);
 }
 
 void _nouveau_gpuobj_dtor(struct nouveau_object *);

@@ -11,7 +11,7 @@ struct nouveau_sclass {
 };
 
 struct nouveau_parent {
-	struct nouveau_object base;
+	struct nouveau_object object;
 
 	struct nouveau_sclass *sclass;
 	u64 engine;
@@ -40,9 +40,9 @@ nv_parent(void *obj)
 	nouveau_parent_create_((p), (e), (c), (v), (s), (m),                   \
 			       sizeof(**d), (void **)d)
 #define nouveau_parent_init(p)                                                 \
-	nouveau_object_init(&(p)->base)
+	nouveau_object_init(&(p)->object)
 #define nouveau_parent_fini(p,s)                                               \
-	nouveau_object_fini(&(p)->base, (s))
+	nouveau_object_fini(&(p)->object, (s))
 
 int  nouveau_parent_create_(struct nouveau_object *, struct nouveau_object *,
 			    struct nouveau_oclass *, u32 pclass,

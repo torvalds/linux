@@ -47,7 +47,7 @@ nouveau_gpuobj_destroy(struct nouveau_gpuobj *gpuobj)
 	if (gpuobj->heap.block_size)
 		nouveau_mm_fini(&gpuobj->heap);
 
-	nouveau_object_destroy(&gpuobj->base);
+	nouveau_object_destroy(&gpuobj->object);
 }
 
 int
@@ -290,7 +290,7 @@ nouveau_gpudup_dtor(struct nouveau_object *object)
 {
 	struct nouveau_gpuobj *gpuobj = (void *)object;
 	nouveau_object_ref(NULL, &gpuobj->parent);
-	nouveau_object_destroy(&gpuobj->base);
+	nouveau_object_destroy(&gpuobj->object);
 }
 
 static struct nouveau_oclass

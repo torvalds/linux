@@ -4,7 +4,7 @@
 #include <core/namedb.h>
 
 struct nouveau_client {
-	struct nouveau_namedb base;
+	struct nouveau_namedb namedb;
 	struct nouveau_handle *root;
 	struct nouveau_object *device;
 	char name[32];

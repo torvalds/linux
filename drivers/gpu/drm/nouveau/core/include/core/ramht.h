@@ -4,7 +4,7 @@
 #include <core/gpuobj.h>
 
 struct nouveau_ramht {
-	struct nouveau_gpuobj base;
+	struct nouveau_gpuobj gpuobj;
 	int bits;
 };
 
@@ -17,7 +17,7 @@ int  nouveau_ramht_new(struct nouveau_object *, struct nouveau_object *,
 static inline void
 nouveau_ramht_ref(struct nouveau_ramht *obj, struct nouveau_ramht **ref)
 {
-	nouveau_gpuobj_ref(&obj->base, (struct nouveau_gpuobj **)ref);
+	nouveau_gpuobj_ref(&obj->gpuobj, (struct nouveau_gpuobj **)ref);
 }
 
 #endif

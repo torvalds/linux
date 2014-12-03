@@ -8,7 +8,7 @@
 #define NV_ENGINE(name,var)  NV_ENGINE_(NVDEV_ENGINE_##name, (var))
 
 struct nouveau_engine {
-	struct nouveau_subdev base;
+	struct nouveau_subdev subdev;
 	struct nouveau_oclass *cclass;
 	struct nouveau_oclass *sclass;
 
@@ -40,11 +40,11 @@ nv_engidx(struct nouveau_object *object)
 			       sizeof(**r),(void **)r)
 
 #define nouveau_engine_destroy(p)                                              \
-	nouveau_subdev_destroy(&(p)->base)
+	nouveau_subdev_destroy(&(p)->subdev)
 #define nouveau_engine_init(p)                                                 \
-	nouveau_subdev_init(&(p)->base)
+	nouveau_subdev_init(&(p)->subdev)
 #define nouveau_engine_fini(p,s)                                               \
-	nouveau_subdev_fini(&(p)->base, (s))
+	nouveau_subdev_fini(&(p)->subdev, (s))
 
 int nouveau_engine_create_(struct nouveau_object *, struct nouveau_object *,
 			   struct nouveau_oclass *, bool, const char *,

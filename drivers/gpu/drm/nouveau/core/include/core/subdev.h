@@ -7,7 +7,7 @@
 #define NV_SUBDEV(name,var)  NV_SUBDEV_(NVDEV_SUBDEV_##name, (var))
 
 struct nouveau_subdev {
-	struct nouveau_object base;
+	struct nouveau_object object;
 	struct mutex mutex;
 	const char *name;
 	void __iomem *mmio;

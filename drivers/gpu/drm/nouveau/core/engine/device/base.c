@@ -616,7 +616,7 @@ nouveau_device_dtor(struct nouveau_object *object)
 	if (nv_subdev(device)->mmio)
 		iounmap(nv_subdev(device)->mmio);
 
-	nouveau_engine_destroy(&device->base);
+	nouveau_engine_destroy(&device->engine);
 }
 
 resource_size_t

@@ -116,8 +116,7 @@ nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	pte <<= 3;
 
 	if (mem->tag) {
-		struct nouveau_ltc *ltc =
-			nouveau_ltc(vma->vm->vmm->base.base.parent);
+		struct nouveau_ltc *ltc = nouveau_ltc(vma->vm->vmm);
 		u32 tag = mem->tag->offset + (delta >> 17);
 		phys |= (u64)tag << (32 + 12);
 		next |= (u64)1   << (32 + 12);

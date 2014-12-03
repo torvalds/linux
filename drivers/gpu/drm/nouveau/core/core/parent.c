@@ -150,7 +150,7 @@ nouveau_parent_destroy(struct nouveau_parent *parent)
 		kfree(sclass);
 	}
 
-	nouveau_object_destroy(&parent->base);
+	nouveau_object_destroy(&parent->object);
 }
 
 

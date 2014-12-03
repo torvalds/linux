@@ -38,11 +38,11 @@ nouveau_subdev_reset(struct nouveau_object *subdev)
 int
 nouveau_subdev_init(struct nouveau_subdev *subdev)
 {
-	int ret = nouveau_object_init(&subdev->base);
+	int ret = nouveau_object_init(&subdev->object);
 	if (ret)
 		return ret;
 
-	nouveau_subdev_reset(&subdev->base);
+	nouveau_subdev_reset(&subdev->object);
 	return 0;
 }
 
@@ -60,7 +60,7 @@ nouveau_subdev_fini(struct nouveau_subdev *subdev, bool suspend)
 		nv_mask(subdev, 0x000200, subdev->unit, subdev->unit);
 	}
 
-	return nouveau_object_fini(&subdev->base, suspend);
+	return nouveau_object_fini(&subdev->object, suspend);
 }
 
 int
@@ -74,7 +74,7 @@ nouveau_subdev_destroy(struct nouveau_subdev *subdev)
 {
 	int subidx = nv_hclass(subdev) & 0xff;
 	nv_device(subdev)->subdev[subidx] = NULL;
-	nouveau_object_destroy(&subdev->base);
+	nouveau_object_destroy(&subdev->object);
 }
 
 void

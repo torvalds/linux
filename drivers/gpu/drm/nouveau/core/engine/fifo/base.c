@@ -127,7 +127,7 @@ nouveau_fifo_channel_destroy(struct nouveau_fifo_chan *chan)
 
 	nouveau_gpuobj_ref(NULL, &chan->pushgpu);
 	nouveau_object_ref(NULL, (struct nouveau_object **)&chan->pushdma);
-	nouveau_namedb_destroy(&chan->base);
+	nouveau_namedb_destroy(&chan->namedb);
 }
 
 void

@@ -314,7 +314,7 @@ nv40_fifo_init(struct nouveau_object *object)
 
 	nv_wr32(priv, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
 				       ((priv->ramht->bits - 9) << 16) |
-				        (priv->ramht->base.addr >> 8));
+				        (priv->ramht->gpuobj.addr >> 8));
 	nv_wr32(priv, NV03_PFIFO_RAMRO, priv->ramro->addr >> 8);
 
 	switch (nv_device(priv)->chipset) {

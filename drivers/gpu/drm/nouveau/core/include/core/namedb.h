@@ -6,7 +6,7 @@
 struct nouveau_handle;
 
 struct nouveau_namedb {
-	struct nouveau_parent base;
+	struct nouveau_parent parent;
 	rwlock_t lock;
 	struct list_head list;
 };
@@ -25,11 +25,11 @@ nv_namedb(void *obj)
 	nouveau_namedb_create_((p), (e), (c), (v), (s), (m),                   \
 			       sizeof(**d), (void **)d)
 #define nouveau_namedb_init(p)                                                 \
-	nouveau_parent_init(&(p)->base)
+	nouveau_parent_init(&(p)->parent)
 #define nouveau_namedb_fini(p,s)                                               \
-	nouveau_parent_fini(&(p)->base, (s))
+	nouveau_parent_fini(&(p)->parent, (s))
 #define nouveau_namedb_destroy(p)                                              \
-	nouveau_parent_destroy(&(p)->base)
+	nouveau_parent_destroy(&(p)->parent)
 
 int  nouveau_namedb_create_(struct nouveau_object *, struct nouveau_object *,
 			    struct nouveau_oclass *, u32 pclass,

@@ -64,7 +64,7 @@ enum nv_subdev_type {
 };
 
 struct nouveau_device {
-	struct nouveau_engine base;
+	struct nouveau_engine engine;
 	struct list_head head;
 
 	struct pci_dev *pdev;

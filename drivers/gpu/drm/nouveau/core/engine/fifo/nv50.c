@@ -246,7 +246,7 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 	nv_wo32(base->ramfc, 0x7c, 0x30000001);
 	nv_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				   (4 << 24) /* SEARCH_FULL */ |
-				   (chan->ramht->base.node->offset >> 4));
+				   (chan->ramht->gpuobj.node->offset >> 4));
 	bar->flush(bar);
 	return 0;
 }
@@ -310,7 +310,7 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 	nv_wo32(base->ramfc, 0x7c, 0x30000001);
 	nv_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				   (4 << 24) /* SEARCH_FULL */ |
-				   (chan->ramht->base.node->offset >> 4));
+				   (chan->ramht->gpuobj.node->offset >> 4));
 	bar->flush(bar);
 	return 0;
 }

@@ -190,7 +190,7 @@ nouveau_client_dtor(struct nouveau_object *object)
 		nvkm_client_notify_del(client, i);
 	nouveau_object_ref(NULL, &client->device);
 	nouveau_handle_destroy(client->root);
-	nouveau_namedb_destroy(&client->base);
+	nouveau_namedb_destroy(&client->namedb);
 }
 
 static struct nouveau_oclass

@@ -125,10 +125,10 @@ nouveau_engctx_destroy(struct nouveau_engctx *engctx)
 	if (client->vm)
 		atomic_dec(&client->vm->engref[nv_engidx(engobj)]);
 
-	if (engctx->base.size)
-		nouveau_gpuobj_destroy(&engctx->base);
+	if (engctx->gpuobj.size)
+		nouveau_gpuobj_destroy(&engctx->gpuobj);
 	else
-		nouveau_object_destroy(&engctx->base.base);
+		nouveau_object_destroy(&engctx->gpuobj.object);
 }
 
 int
@@ -140,7 +140,7 @@ nouveau_engctx_init(struct nouveau_engctx *engctx)
 	struct nouveau_subdev *pardev;
 	int ret;
 
-	ret = nouveau_gpuobj_init(&engctx->base);
+	ret = nouveau_gpuobj_init(&engctx->gpuobj);
 	if (ret)
 		return ret;
 
@@ -186,7 +186,7 @@ nouveau_engctx_fini(struct nouveau_engctx *engctx, bool suspend)
 	}
 
 	nv_debug(parent, "detached %s context\n", subdev->name);
-	return nouveau_gpuobj_fini(&engctx->base, suspend);
+	return nouveau_gpuobj_fini(&engctx->gpuobj, suspend);
 }
 
 int

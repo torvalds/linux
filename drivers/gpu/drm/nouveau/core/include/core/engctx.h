@@ -10,7 +10,7 @@
 #define NV_ENGCTX(name,var)  NV_ENGCTX_(NVDEV_ENGINE_##name, (var))
 
 struct nouveau_engctx {
-	struct nouveau_gpuobj base;
+	struct nouveau_gpuobj gpuobj;
 	struct nouveau_vma vma;
 	struct list_head head;
 	unsigned long save;
