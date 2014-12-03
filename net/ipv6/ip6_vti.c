@@ -172,10 +172,6 @@ static int vti6_tnl_create2(struct net_device *dev)
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
 	int err;
 
-	err = vti6_dev_init(dev);
-	if (err < 0)
-		goto out;
-
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out;
@@ -783,6 +779,7 @@ static int vti6_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 static const struct net_device_ops vti6_netdev_ops = {
+	.ndo_init	= vti6_dev_init,
 	.ndo_uninit	= vti6_dev_uninit,
 	.ndo_start_xmit = vti6_tnl_xmit,
 	.ndo_do_ioctl	= vti6_ioctl,
@@ -852,15 +849,9 @@ static int __net_init vti6_fb_tnl_dev_init(struct net_device *dev)
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net *net = dev_net(dev);
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
-	int err = vti6_dev_init_gen(dev);
-
-	if (err)
-		return err;
 
 	t->parms.proto = IPPROTO_IPV6;
 	dev_hold(dev);
-
-	vti6_link_config(t);
 
 	rcu_assign_pointer(ip6n->tnls_wc[0], t);
 	return 0;
@@ -912,6 +903,15 @@ static int vti6_newlink(struct net *src_net, struct net_device *dev,
 		return -EEXIST;
 
 	return vti6_tnl_create2(dev);
+}
+
+static void vti6_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct net *net = dev_net(dev);
+	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
+
+	if (dev != ip6n->fb_tnl_dev)
+		unregister_netdevice_queue(dev, head);
 }
 
 static int vti6_changelink(struct net_device *dev, struct nlattr *tb[],
@@ -989,6 +989,7 @@ static struct rtnl_link_ops vti6_link_ops __read_mostly = {
 	.setup		= vti6_dev_setup,
 	.validate	= vti6_validate,
 	.newlink	= vti6_newlink,
+	.dellink	= vti6_dellink,
 	.changelink	= vti6_changelink,
 	.get_size	= vti6_get_size,
 	.fill_info	= vti6_fill_info,
@@ -1029,6 +1030,7 @@ static int __net_init vti6_init_net(struct net *net)
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;
 	dev_net_set(ip6n->fb_tnl_dev, net);
+	ip6n->fb_tnl_dev->rtnl_link_ops = &vti6_link_ops;
 
 	err = vti6_fb_tnl_dev_init(ip6n->fb_tnl_dev);
 	if (err < 0)

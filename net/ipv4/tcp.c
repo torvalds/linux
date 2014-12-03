@@ -1598,7 +1598,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	u32 urg_hole = 0;
 
 	if (unlikely(flags & MSG_ERRQUEUE))
-		return ip_recv_error(sk, msg, len, addr_len);
+		return inet_recv_error(sk, msg, len, addr_len);
 
 	if (sk_can_busy_loop(sk) && skb_queue_empty(&sk->sk_receive_queue) &&
 	    (sk->sk_state == TCP_ESTABLISHED))

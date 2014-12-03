@@ -264,7 +264,7 @@ static int cpts_match(struct sk_buff *skb, unsigned int ptp_class,
 
 	switch (ptp_class & PTP_CLASS_PMASK) {
 	case PTP_CLASS_IPV4:
-		offset += ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
+		offset += ETH_HLEN + IPV4_HLEN(data + offset) + UDP_HLEN;
 		break;
 	case PTP_CLASS_IPV6:
 		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;

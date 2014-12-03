@@ -3936,8 +3936,8 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		 * if SR-IOV and VMDQ are disabled - otherwise ensure
 		 * that hardware VLAN filters remain enabled.
 		 */
-		if (!(adapter->flags & (IXGBE_FLAG_VMDQ_ENABLED |
-					IXGBE_FLAG_SRIOV_ENABLED)))
+		if (adapter->flags & (IXGBE_FLAG_VMDQ_ENABLED |
+				      IXGBE_FLAG_SRIOV_ENABLED))
 			vlnctrl |= (IXGBE_VLNCTRL_VFE | IXGBE_VLNCTRL_CFIEN);
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
@@ -7669,6 +7669,8 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	br_spec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+	if (!br_spec)
+		return -EINVAL;
 
 	nla_for_each_nested(attr, br_spec, rem) {
 		__u16 mode;
@@ -7676,6 +7678,9 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)
 			continue;
+
+		if (nla_len(attr) < sizeof(mode))
+			return -EINVAL;
 
 		mode = nla_get_u16(attr);
 		if (mode == BRIDGE_MODE_VEPA) {
@@ -7979,6 +7984,7 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i, err, pci_using_dac, expected_gts;
 	unsigned int indices = MAX_TX_QUEUES;
 	u8 part_str[IXGBE_PBANUM_LENGTH];
+	bool disable_dev = false;
 #ifdef IXGBE_FCOE
 	u16 device_caps;
 #endif
@@ -8369,13 +8375,14 @@ err_sw_init:
 	iounmap(adapter->io_addr);
 	kfree(adapter->mac_table);
 err_ioremap:
+	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
 	free_netdev(netdev);
 err_alloc_etherdev:
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_reg:
 err_dma:
-	if (!adapter || !test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+	if (!adapter || disable_dev)
 		pci_disable_device(pdev);
 	return err;
 }
@@ -8393,6 +8400,7 @@ static void ixgbe_remove(struct pci_dev *pdev)
 {
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
+	bool disable_dev;
 
 	ixgbe_dbg_adapter_exit(adapter);
 
@@ -8442,11 +8450,12 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	e_dev_info("complete\n");
 
 	kfree(adapter->mac_table);
+	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
 	free_netdev(netdev);
 
 	pci_disable_pcie_error_reporting(pdev);
 
-	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+	if (disable_dev)
 		pci_disable_device(pdev);
 }
 

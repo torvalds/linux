@@ -129,9 +129,9 @@ do {								\
 #define CPSW_VLAN_AWARE		BIT(1)
 #define CPSW_ALE_VLAN_AWARE	1
 
-#define CPSW_FIFO_NORMAL_MODE		(0 << 15)
-#define CPSW_FIFO_DUAL_MAC_MODE		(1 << 15)
-#define CPSW_FIFO_RATE_LIMIT_MODE	(2 << 15)
+#define CPSW_FIFO_NORMAL_MODE		(0 << 16)
+#define CPSW_FIFO_DUAL_MAC_MODE		(1 << 16)
+#define CPSW_FIFO_RATE_LIMIT_MODE	(2 << 16)
 
 #define CPSW_INTPACEEN		(0x3f << 16)
 #define CPSW_INTPRESCALE_MASK	(0x7FF << 0)

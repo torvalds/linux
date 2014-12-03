@@ -602,16 +602,6 @@ static int iwl_mvm_cancel_regular_scan(struct iwl_mvm *mvm)
 					       SCAN_COMPLETE_NOTIFICATION };
 	int ret;
 
-	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
-		return 0;
-
-	if (iwl_mvm_is_radio_killed(mvm)) {
-		ieee80211_scan_completed(mvm->hw, true);
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
-		return 0;
-	}
-
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_abort,
 				   scan_abort_notif,
 				   ARRAY_SIZE(scan_abort_notif),
@@ -1400,6 +1390,16 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 
 int iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 {
+	if (mvm->scan_status == IWL_MVM_SCAN_NONE)
+		return 0;
+
+	if (iwl_mvm_is_radio_killed(mvm)) {
+		ieee80211_scan_completed(mvm->hw, true);
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		return 0;
+	}
+
 	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
 		return iwl_mvm_scan_offload_stop(mvm, true);
 	return iwl_mvm_cancel_regular_scan(mvm);

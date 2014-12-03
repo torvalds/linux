@@ -1045,7 +1045,7 @@
 #define __NR_seccomp			(__NR_Linux + 316)
 #define __NR_getrandom			(__NR_Linux + 317)
 #define __NR_memfd_create		(__NR_Linux + 318)
-#define __NR_memfd_create		(__NR_Linux + 319)
+#define __NR_bpf			(__NR_Linux + 319)
 
 /*
  * Offset of the last N32 flavoured syscall

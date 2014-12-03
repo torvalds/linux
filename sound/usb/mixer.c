@@ -2033,10 +2033,11 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 	cval->res = 1;
 	cval->initialized = 1;
 
-	if (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR)
-		cval->control = UAC2_CX_CLOCK_SELECTOR;
-	else
+	if (state->mixer->protocol == UAC_VERSION_1)
 		cval->control = 0;
+	else /* UAC_VERSION_2 */
+		cval->control = (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR) ?
+			UAC2_CX_CLOCK_SELECTOR : UAC2_SU_SELECTOR;
 
 	namelist = kmalloc(sizeof(char *) * desc->bNrInPins, GFP_KERNEL);
 	if (!namelist) {

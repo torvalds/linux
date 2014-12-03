@@ -8,7 +8,7 @@
  */
 
 / {
-	compatible = "atmel,samad3xcm", "atmel,sama5d3", "atmel,sama5";
+	compatible = "atmel,sama5d3xcm", "atmel,sama5d3", "atmel,sama5";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 rootfstype=ubifs ubi.mtd=5 root=ubi0:rootfs";
