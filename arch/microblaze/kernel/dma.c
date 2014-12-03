@@ -154,9 +154,36 @@ dma_direct_sync_sg_for_device(struct device *dev,
 			__dma_sync(sg->dma_address, sg->length, direction);
 }
 
+int dma_direct_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
+			     void *cpu_addr, dma_addr_t handle, size_t size,
+			     struct dma_attrs *attrs)
+{
+#ifdef CONFIG_MMU
+	unsigned long user_count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	unsigned long off = vma->vm_pgoff;
+	unsigned long pfn;
+
+	if (off >= count || user_count > (count - off))
+		return -ENXIO;
+
+#ifdef NOT_COHERENT_CACHE
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	pfn = consistent_virt_to_pfn(cpu_addr);
+#else
+	pfn = virt_to_pfn(cpu_addr);
+#endif
+	return remap_pfn_range(vma, vma->vm_start, pfn + off,
+			       vma->vm_end - vma->vm_start, vma->vm_page_prot);
+#else
+	return -ENXIO;
+#endif
+}
+
 struct dma_map_ops dma_direct_ops = {
 	.alloc		= dma_direct_alloc_coherent,
 	.free		= dma_direct_free_coherent,
+	.mmap		= dma_direct_mmap_coherent,
 	.map_sg		= dma_direct_map_sg,
 	.dma_supported	= dma_direct_dma_supported,
 	.map_page	= dma_direct_map_page,
