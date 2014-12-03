@@ -20,6 +20,13 @@
 #define APCI1500_Z8536_PORTA_REG	0x02
 #define APCI1500_Z8536_CTRL_REG		0x03
 
+/*
+ * PCI Bar 2 Register map (devpriv->addon)
+ */
+#define APCI1500_CLK_SEL_REG		0x00
+#define APCI1500_DI_REG			0x00
+#define APCI1500_DO_REG			0x02
+
 struct apci1500_private {
 	unsigned long amcc;
 	unsigned long addon;

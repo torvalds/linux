@@ -26,12 +26,9 @@
 
 /* DIGITAL INPUT-OUTPUT DEFINE */
 
-#define APCI1500_DIGITAL_OP		2
-#define APCI1500_DIGITAL_IP		0
 #define APCI1500_AND			2
 #define APCI1500_OR			4
 #define APCI1500_OR_PRIORITY		6
-#define APCI1500_CLK_SELECT		0
 #define COUNTER1			0
 #define COUNTER2			1
 #define COUNTER3			2
@@ -600,7 +597,7 @@ static int apci1500_di_insn_bits(struct comedi_device *dev,
 {
 	struct apci1500_private *devpriv = dev->private;
 
-	data[1] = inw(devpriv->addon + APCI1500_DIGITAL_IP);
+	data[1] = inw(devpriv->addon + APCI1500_DI_REG);
 
 	return insn->n;
 }
@@ -641,7 +638,7 @@ static int apci1500_do_write(struct comedi_device *dev,
 	if (data[3] == 0) {
 		if (data[1] == 0) {
 			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
-			outw(data[0], devpriv->addon + APCI1500_DIGITAL_OP);
+			outw(data[0], devpriv->addon + APCI1500_DO_REG);
 		} else {
 			if (data[1] == 1) {
 				switch (ui_NoOfChannel) {
@@ -675,8 +672,7 @@ static int apci1500_do_write(struct comedi_device *dev,
 
 				}
 
-				outw(data[0],
-				     devpriv->addon + APCI1500_DIGITAL_OP);
+				outw(data[0], devpriv->addon + APCI1500_DO_REG);
 			} else {
 				dev_warn(dev->class_dev,
 					"Specified channel not supported\n");
@@ -694,8 +690,7 @@ static int apci1500_do_write(struct comedi_device *dev,
 					(data[0] << ui_NoOfChannel) ^
 					0xffffffff;
 				data[0] = data[0] & ui_Temp;
-				outw(data[0],
-				     devpriv->addon + APCI1500_DIGITAL_OP);
+				outw(data[0], devpriv->addon + APCI1500_DO_REG);
 			} else {
 				if (data[1] == 1) {
 					switch (ui_NoOfChannel) {
@@ -749,8 +744,8 @@ static int apci1500_do_write(struct comedi_device *dev,
 
 					}
 
-					outw(data[0], devpriv->addon +
-					     APCI1500_DIGITAL_OP);
+					outw(data[0],
+					     devpriv->addon + APCI1500_DO_REG);
 				} else {
 					dev_warn(dev->class_dev,
 						"Specified channel not supported\n");
@@ -793,7 +788,7 @@ static int apci1500_timer_config(struct comedi_device *dev,
 
 	/* Selection of the input clock */
 	if (data[0] == 0 || data[0] == 1 || data[0] == 2) {
-		outw(data[0], devpriv->addon + APCI1500_CLK_SELECT);
+		outw(data[0], devpriv->addon + APCI1500_CLK_SEL_REG);
 	} else {
 		if (data[0] != 3) {
 			dev_warn(dev->class_dev,
@@ -1625,7 +1620,7 @@ static int apci1500_reset(struct comedi_device *dev)
 	z8536_reset(dev);
 
 	/* reset all the digital outputs */
-	outw(0x0, devpriv->addon + APCI1500_DIGITAL_OP);
+	outw(0x0, devpriv->addon + APCI1500_DO_REG);
 
 	/* Deactivates all interrupts */
 	z8536_write(dev, 0x00, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
