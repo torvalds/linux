@@ -16,6 +16,7 @@
 #include <linux/acpi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -796,6 +797,33 @@ static int kmx61_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int kmx61_suspend(struct device *dev)
+{
+	int ret;
+	struct kmx61_data *data = i2c_get_clientdata(to_i2c_client(dev));
+
+	mutex_lock(&data->lock);
+	ret = kmx61_set_mode(data, KMX61_ALL_STBY, KMX61_ACC | KMX61_MAG,
+			     false);
+	mutex_unlock(&data->lock);
+
+	return ret;
+}
+
+static int kmx61_resume(struct device *dev)
+{
+	u8 stby = 0;
+	struct kmx61_data *data = i2c_get_clientdata(to_i2c_client(dev));
+
+	if (data->acc_stby)
+		stby |= KMX61_ACC_STBY_BIT;
+	if (data->mag_stby)
+		stby |= KMX61_MAG_STBY_BIT;
+
+	return kmx61_set_mode(data, stby, KMX61_ACC | KMX61_MAG, true);
+}
+#endif
 
 #ifdef CONFIG_PM_RUNTIME
 static int kmx61_runtime_suspend(struct device *dev)
@@ -825,6 +853,7 @@ static int kmx61_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops kmx61_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(kmx61_suspend, kmx61_resume)
 	SET_RUNTIME_PM_OPS(kmx61_runtime_suspend, kmx61_runtime_resume, NULL)
 };
 
