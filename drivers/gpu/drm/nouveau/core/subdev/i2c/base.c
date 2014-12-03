@@ -494,8 +494,8 @@ nouveau_i2c_create_port(struct nouveau_i2c *i2c, int index, u8 type,
 		oclass = impl->pad_x;
 	}
 
-	ret = nouveau_object_ctor(NULL, nv_object(i2c), oclass, NULL, pad,
-				 &parent);
+	ret = nouveau_object_ctor(nv_object(i2c), nv_object(i2c), oclass,
+				  NULL, pad, &parent);
 	if (ret < 0)
 		return;
 

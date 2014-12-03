@@ -14,7 +14,7 @@ static inline struct nvkm_i2c_pad *
 nvkm_i2c_pad(struct nouveau_i2c_port *port)
 {
 	struct nouveau_object *pad = nv_object(port);
-	while (pad->parent)
+	while (!nv_iclass(pad->parent, NV_SUBDEV_CLASS))
 		pad = pad->parent;
 	return (void *)pad;
 }
