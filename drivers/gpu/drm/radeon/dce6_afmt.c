@@ -257,7 +257,7 @@ void dce6_audio_fini(struct radeon_device *rdev)
 		return;
 
 	for (i = 0; i < rdev->audio.num_pins; i++)
-		dce6_audio_enable(rdev, &rdev->audio.pin[i], false);
+		radeon_audio_enable(rdev, &rdev->audio.pin[i], false);
 
 	rdev->audio.enabled = false;
 }

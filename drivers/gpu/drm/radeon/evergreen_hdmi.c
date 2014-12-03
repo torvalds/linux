@@ -34,7 +34,7 @@
 #include "atom.h"
 
 /* enable the audio stream */
-static void dce4_audio_enable(struct radeon_device *rdev,
+void dce4_audio_enable(struct radeon_device *rdev,
 			      struct r600_audio_pin *pin,
 			      u8 enable_mask)
 {
@@ -300,11 +300,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	/* disable audio prior to setting up hw */
 	dig->afmt->pin = radeon_audio_get_pin(encoder);
-	if (ASIC_IS_DCE6(rdev)) {
-		dce6_audio_enable(rdev, dig->afmt->pin, 0);
-	} else {
-		dce4_audio_enable(rdev, dig->afmt->pin, 0);
-	}
+	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
 	evergreen_audio_set_dto(encoder, mode->clock);
 
@@ -435,10 +431,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	WREG32(AFMT_RAMP_CONTROL3 + offset, 0x00000001);
 
 	/* enable audio after to setting up hw */
-	if (ASIC_IS_DCE6(rdev))
-		dce6_audio_enable(rdev, dig->afmt->pin, 1);
-	else
-		dce4_audio_enable(rdev, dig->afmt->pin, 0xf);
+	radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
 }
 
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
@@ -458,10 +451,7 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 
 	if (!enable && dig->afmt->pin) {
-		if (ASIC_IS_DCE6(rdev))
-			dce6_audio_enable(rdev, dig->afmt->pin, 0);
-		else
-			dce4_audio_enable(rdev, dig->afmt->pin, 0);
+		radeon_audio_enable(rdev, dig->afmt->pin, 0);
 		dig->afmt->pin = NULL;
 	}
 

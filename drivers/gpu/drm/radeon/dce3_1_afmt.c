@@ -137,7 +137,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 
 	/* disable audio prior to setting up hw */
 	dig->afmt->pin = radeon_audio_get_pin(encoder);
-	r600_audio_enable(rdev, dig->afmt->pin, 0);
+	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
 	r600_audio_set_dto(encoder, mode->clock);
 
@@ -212,5 +212,5 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	r600_hdmi_audio_workaround(encoder);
 
 	/* enable audio after to setting up hw */
-	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
+	radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
 }

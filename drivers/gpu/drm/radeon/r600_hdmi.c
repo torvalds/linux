@@ -192,8 +192,7 @@ void r600_audio_fini(struct radeon_device *rdev)
 	if (!rdev->audio.enabled)
 		return;
 
-	r600_audio_enable(rdev, &rdev->audio.pin[0], 0);
-
+	radeon_audio_enable(rdev, &rdev->audio.pin[0], 0);
 	rdev->audio.enabled = false;
 }
 
@@ -489,7 +488,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	/* disable audio prior to setting up hw */
 	dig->afmt->pin = radeon_audio_get_pin(encoder);
-	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
+	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
 	r600_audio_set_dto(encoder, mode->clock);
 
@@ -575,7 +574,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
 	/* enable audio after to setting up hw */
-	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
+	radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
 }
 
 /**
@@ -661,7 +660,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 
 	if (!enable && dig->afmt->pin) {
-		r600_audio_enable(rdev, dig->afmt->pin, 0);
+		radeon_audio_enable(rdev, dig->afmt->pin, 0);
 		dig->afmt->pin = NULL;
 	}
 

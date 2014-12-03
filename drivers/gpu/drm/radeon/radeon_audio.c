@@ -30,6 +30,8 @@
 
 void r600_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
+void dce4_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
+		u8 enable_mask);
 void dce6_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
 u32 dce6_endpoint_rreg(struct radeon_device *rdev, u32 offset, u32 reg);
@@ -86,16 +88,19 @@ static void radeon_audio_wreg(struct radeon_device *rdev, u32 offset,
 static struct radeon_audio_basic_funcs dce32_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
+	.enable = r600_audio_enable,
 };
 
 static struct radeon_audio_basic_funcs dce4_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
+	.enable = dce4_audio_enable,
 };
 
 static struct radeon_audio_basic_funcs dce6_funcs = {
 	.endpoint_rreg = dce6_endpoint_rreg,
 	.endpoint_wreg = dce6_endpoint_wreg,
+	.enable = dce6_audio_enable,
 };
 
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
@@ -201,10 +206,7 @@ int radeon_audio_init(struct radeon_device *rdev)
 
 	/* disable audio.  it will be set up later */
 	for (i = 0; i < rdev->audio.num_pins; i++)
-		if (ASIC_IS_DCE6(rdev))
-			dce6_audio_enable(rdev, &rdev->audio.pin[i], false);
-		else
-			r600_audio_enable(rdev, &rdev->audio.pin[i], false);
+		radeon_audio_enable(rdev, &rdev->audio.pin[i], false);
 
 	return 0;
 }
@@ -370,4 +372,11 @@ void radeon_audio_select_pin(struct drm_encoder *encoder)
 
 	if (radeon_encoder->audio && radeon_encoder->audio->select_pin)
 		radeon_encoder->audio->select_pin(encoder);
+}
+
+void radeon_audio_enable(struct radeon_device *rdev,
+	struct r600_audio_pin *pin, u8 enable_mask)
+{
+	if (rdev->audio.funcs->enable)
+		rdev->audio.funcs->enable(rdev, pin, enable_mask);
 }
