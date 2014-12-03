@@ -356,7 +356,6 @@ static void xgbe_unmap_skb(struct xgbe_prv_data *pdata,
 
 	rdata->tso_header = 0;
 	rdata->len = 0;
-	rdata->interrupt = 0;
 	rdata->mapped_as_page = 0;
 
 	if (rdata->state_saved) {
