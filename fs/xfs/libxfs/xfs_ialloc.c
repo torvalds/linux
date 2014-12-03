@@ -1137,11 +1137,7 @@ xfs_dialloc_ag_update_inobt(
 	XFS_WANT_CORRUPTED_RETURN((rec.ir_free == frec->ir_free) &&
 				  (rec.ir_freecount == frec->ir_freecount));
 
-	error = xfs_inobt_update(cur, &rec);
-	if (error)
-		return error;
-
-	return 0;
+	return xfs_inobt_update(cur, &rec);
 }
 
 /*
