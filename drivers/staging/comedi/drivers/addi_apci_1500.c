@@ -8,6 +8,11 @@
 #include "amcc_s5933.h"
 
 /*
+ * PCI Bar 0 Register map (devpriv->amcc)
+ * see amcc_s5933.h for register and bit defines
+ */
+
+/*
  * PCI Bar 1 Register map (dev->iobase)
  */
 #define APCI1500_Z8536_PORTC_REG	0x00
@@ -16,7 +21,7 @@
 #define APCI1500_Z8536_CTRL_REG		0x03
 
 struct apci1500_private {
-	int i_IobaseAmcc;
+	unsigned long amcc;
 	int i_IobaseAddon;
 	unsigned char b_OutputMemoryStatus;
 	struct task_struct *tsk_Current;
@@ -41,7 +46,7 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
+	devpriv->amcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 
 	if (pcidev->irq > 0) {

@@ -1422,12 +1422,11 @@ static int apci1500_do_bits(struct comedi_device *dev,
 			    unsigned int *data)
 {
 	struct apci1500_private *devpriv = dev->private;
-	unsigned int ui_Status;
 	int i_RegValue;
 	int i_Constant;
 
 	devpriv->tsk_Current = current;
-	outl(0x0, devpriv->i_IobaseAmcc + 0x38);
+	outl(0x0, devpriv->amcc + AMCC_OP_REG_INTCSR);
 	if (data[0] == 1) {
 		i_Constant = 0xC0;
 	} else {
@@ -1481,10 +1480,12 @@ static int apci1500_do_bits(struct comedi_device *dev,
 	z8536_write(dev, 0xd0, APCI1500_RW_MASTER_INTERRUPT_CONTROL);
 
 	/* Enables the PCI interrupt */
-	outl(0x3000, devpriv->i_IobaseAmcc + 0x38);
-	ui_Status = inl(devpriv->i_IobaseAmcc + 0x10);
-	ui_Status = inl(devpriv->i_IobaseAmcc + 0x38);
-	outl(0x23000, devpriv->i_IobaseAmcc + 0x38);
+	outl(0x2000 | INTCSR_INBOX_FULL_INT,
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
+	inl(devpriv->amcc + AMCC_OP_REG_IMB1);
+	inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
+	outl(INTCSR_INBOX_INTR_STATUS | 0x2000 | INTCSR_INBOX_FULL_INT,
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	return insn->n;
 }
@@ -1494,17 +1495,17 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 
 	struct comedi_device *dev = d;
 	struct apci1500_private *devpriv = dev->private;
-	unsigned int ui_InterruptStatus = 0;
+	unsigned int status;
 	int i_RegValue = 0;
 
 	/* Clear the interrupt mask */
 	i_InterruptMask = 0;
 
 	/* Read the board interrupt status */
-	ui_InterruptStatus = inl(devpriv->i_IobaseAmcc + 0x38);
+	status = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	/* Test if board generated a interrupt */
-	if ((ui_InterruptStatus & 0x800000) == 0x800000) {
+	if (status & INTCSR_INTR_ASSERTED) {
 		/* Disable all Interrupt */
 		/* Selects the master interrupt control register */
 		/* Disables  the main interrupt on the board */
@@ -1547,7 +1548,7 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 			if (i_RegValue) {
 				/* Disable the interrupt */
 				/* Selects the command and status register of port B */
-				outl(0x0, devpriv->i_IobaseAmcc + 0x38);
+				outl(0x0, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 				if (i_RegValue & 0x80) {
 					i_InterruptMask =
