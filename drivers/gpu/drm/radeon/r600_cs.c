@@ -2452,7 +2452,7 @@ int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
 			  idx, p->nrelocs);
 		return -EINVAL;
 	}
-	*cs_reloc = p->relocs_ptr[idx];
+	*cs_reloc = &p->relocs[idx];
 	p->dma_reloc_idx++;
 	return 0;
 }

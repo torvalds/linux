@@ -502,7 +502,7 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 
-	reloc = p->relocs_ptr[(idx / 4)];
+	reloc = &p->relocs[(idx / 4)];
 	start = reloc->gpu_offset;
 	end = start + radeon_bo_size(reloc->robj);
 	start += offset;

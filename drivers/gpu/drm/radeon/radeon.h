@@ -1076,7 +1076,6 @@ struct radeon_cs_parser {
 	/* relocations */
 	unsigned		nrelocs;
 	struct radeon_bo_list	*relocs;
-	struct radeon_bo_list	**relocs_ptr;
 	struct radeon_bo_list	*vm_bos;
 	struct list_head	validated;
 	unsigned		dma_reloc_idx;

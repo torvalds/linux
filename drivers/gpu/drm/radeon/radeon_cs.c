@@ -77,8 +77,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	struct drm_device *ddev = p->rdev->ddev;
 	struct radeon_cs_chunk *chunk;
 	struct radeon_cs_buckets buckets;
-	unsigned i, j;
-	bool duplicate, need_mmap_lock = false;
+	unsigned i;
+	bool need_mmap_lock = false;
 	int r;
 
 	if (p->chunk_relocs_idx == -1) {
@@ -88,10 +88,6 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	p->dma_reloc_idx = 0;
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
-	p->relocs_ptr = kcalloc(p->nrelocs, sizeof(void *), GFP_KERNEL);
-	if (p->relocs_ptr == NULL) {
-		return -ENOMEM;
-	}
 	p->relocs = kcalloc(p->nrelocs, sizeof(struct radeon_bo_list), GFP_KERNEL);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
@@ -104,28 +100,13 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		struct drm_gem_object *gobj;
 		unsigned priority;
 
-		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
-		for (j = 0; j < i; j++) {
-			struct drm_radeon_cs_reloc *other;
-			other = (void *)&chunk->kdata[j*4];
-			if (r->handle == other->handle) {
-				p->relocs_ptr[i] = &p->relocs[j];
-				duplicate = true;
-				break;
-			}
-		}
-		if (duplicate) {
-			continue;
-		}
-
 		gobj = drm_gem_object_lookup(ddev, p->filp, r->handle);
 		if (gobj == NULL) {
 			DRM_ERROR("gem object lookup failed 0x%x\n",
 				  r->handle);
 			return -ENOENT;
 		}
-		p->relocs_ptr[i] = &p->relocs[i];
 		p->relocs[i].robj = gem_to_radeon_bo(gobj);
 
 		/* The userspace buffer priorities are from 0 to 15. A higher
@@ -448,7 +429,6 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 	}
 	kfree(parser->track);
 	kfree(parser->relocs);
-	kfree(parser->relocs_ptr);
 	drm_free_large(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
@@ -522,10 +502,6 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 
 	for (i = 0; i < p->nrelocs; i++) {
 		struct radeon_bo *bo;
-
-		/* ignore duplicates */
-		if (p->relocs_ptr[i] != &p->relocs[i])
-			continue;
 
 		bo = p->relocs[i].robj;
 		bo_va = radeon_vm_bo_find(vm, bo);
@@ -871,6 +847,6 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 			(u64)relocs_chunk->kdata[idx + 3] << 32;
 		(*cs_reloc)->gpu_offset |= relocs_chunk->kdata[idx + 0];
 	} else
-		*cs_reloc = p->relocs_ptr[(idx / 4)];
+		*cs_reloc = &p->relocs[(idx / 4)];
 	return 0;
 }
