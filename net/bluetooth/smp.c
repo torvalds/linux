@@ -1947,6 +1947,18 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (!test_bit(SMP_FLAG_SC, &smp->flags))
 		return smp_random(smp);
 
+	if (hcon->out) {
+		pkax = smp->local_pk;
+		pkbx = smp->remote_pk;
+		na   = smp->prnd;
+		nb   = smp->rrnd;
+	} else {
+		pkax = smp->remote_pk;
+		pkbx = smp->local_pk;
+		na   = smp->rrnd;
+		nb   = smp->prnd;
+	}
+
 	if (smp->method == REQ_OOB) {
 		if (!hcon->out)
 			smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM,
@@ -1969,20 +1981,10 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 
 		if (memcmp(smp->pcnf, cfm, 16))
 			return SMP_CONFIRM_FAILED;
-
-		pkax = smp->local_pk;
-		pkbx = smp->remote_pk;
-		na   = smp->prnd;
-		nb   = smp->rrnd;
 	} else {
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(smp->prnd),
 			     smp->prnd);
 		SMP_ALLOW_CMD(smp, SMP_CMD_DHKEY_CHECK);
-
-		pkax = smp->remote_pk;
-		pkbx = smp->local_pk;
-		na   = smp->rrnd;
-		nb   = smp->prnd;
 	}
 
 mackey_and_ltk:
