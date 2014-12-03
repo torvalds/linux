@@ -1012,16 +1012,21 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_apm_stop(trans);
 
-	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
-	 * Clean again the interrupt here
+	/* stop and reset the on-board processor */
+	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	udelay(20);
+
+	/*
+	 * Upon stop, the APM issues an interrupt if HW RF kill is set.
+	 * This is a bug in certain verions of the hardware.
+	 * Certain devices also keep sending HW RF kill interrupt all
+	 * the time, unless the interrupt is ACKed even if the interrupt
+	 * should be masked. Re-ACK all the interrupts here.
 	 */
 	spin_lock(&trans_pcie->irq_lock);
 	iwl_disable_interrupts(trans);
 	spin_unlock(&trans_pcie->irq_lock);
 
-	/* stop and reset the on-board processor */
-	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	udelay(20);
 
 	/* clear all status bits */
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
