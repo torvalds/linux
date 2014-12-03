@@ -567,7 +567,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 		reg |= GCR_TEARDOWN;
 		cppi_writel(reg, c->gcr_reg);
 		c->td_queued = 1;
-		c->td_retry = 100;
+		c->td_retry = 500;
 	}
 
 	if (!c->td_seen || !c->td_desc_seen) {
