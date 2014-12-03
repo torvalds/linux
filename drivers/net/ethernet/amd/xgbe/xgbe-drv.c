@@ -1285,7 +1285,6 @@ static int xgbe_open(struct net_device *netdev)
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_desc_if *desc_if = &pdata->desc_if;
 	struct xgbe_channel *channel = NULL;
-	char dma_irq_name[IFNAMSIZ + 32];
 	unsigned int i = 0;
 	int ret;
 
@@ -1341,13 +1340,14 @@ static int xgbe_open(struct net_device *netdev)
 	if (pdata->per_channel_irq) {
 		channel = pdata->channel;
 		for (i = 0; i < pdata->channel_count; i++, channel++) {
-			snprintf(dma_irq_name, sizeof(dma_irq_name) - 1,
+			snprintf(channel->dma_irq_name,
+				 sizeof(channel->dma_irq_name) - 1,
 				 "%s-TxRx-%u", netdev_name(netdev),
 				 channel->queue_index);
 
 			ret = devm_request_irq(pdata->dev, channel->dma_irq,
-					       xgbe_dma_isr, 0, dma_irq_name,
-					       channel);
+					       xgbe_dma_isr, 0,
+					       channel->dma_irq_name, channel);
 			if (ret) {
 				netdev_alert(netdev,
 					     "error requesting irq %d\n",

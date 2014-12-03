@@ -400,6 +400,7 @@ struct xgbe_channel {
 
 	/* Per channel interrupt irq number */
 	int dma_irq;
+	char dma_irq_name[IFNAMSIZ + 32];
 
 	/* Netdev related settings */
 	struct napi_struct napi;
