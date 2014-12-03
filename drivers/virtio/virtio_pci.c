@@ -32,8 +32,7 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("1");
 
 /* Our device structure */
-struct virtio_pci_device
-{
+struct virtio_pci_device {
 	struct virtio_device vdev;
 	struct pci_dev *pci_dev;
 
@@ -72,8 +71,7 @@ enum {
 	VP_MSIX_VQ_VECTOR = 1,
 };
 
-struct virtio_pci_vq_info
-{
+struct virtio_pci_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
