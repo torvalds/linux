@@ -308,11 +308,16 @@ static const struct key_entry * __init dell_wmi_prepare_new_keymap(void)
 	for (i = 0; i < hotkey_num; i++) {
 		const struct dell_bios_keymap_entry *bios_entry =
 					&dell_bios_hotkey_table->keymap[i];
-		keymap[i].type = KE_KEY;
-		keymap[i].code = bios_entry->scancode;
-		keymap[i].keycode = bios_entry->keycode < 256 ?
+		u16 keycode = bios_entry->keycode < 256 ?
 				    bios_to_linux_keycode[bios_entry->keycode] :
 				    KEY_RESERVED;
+
+		if (keycode == KEY_KBDILLUMTOGGLE)
+			keymap[i].type = KE_IGNORE;
+		else
+			keymap[i].type = KE_KEY;
+		keymap[i].code = bios_entry->scancode;
+		keymap[i].keycode = keycode;
 	}
 
 	keymap[hotkey_num].type = KE_END;
