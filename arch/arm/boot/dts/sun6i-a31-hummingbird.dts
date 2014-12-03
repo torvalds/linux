@@ -139,6 +139,9 @@
 			pinctrl-0 = <&gmac_pins_rgmii_a>;
 			phy = <&phy1>;
 			phy-mode = "rgmii";
+			snps,reset-gpio = <&pio 0 21 0>;
+			snps,reset-active-low;
+			snps,reset-delays-us = <0 10000 30000>;
 			status = "okay";
 
 			phy1: ethernet-phy@1 {
