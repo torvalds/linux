@@ -1017,9 +1017,8 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	 * to pad short packets (<= 32 bytes) to a 36-byte length.
 	 */
 	if (unlikely(!BEx_chip(adapter) && skb->len <= 32)) {
-		if (skb_padto(skb, 36))
+		if (skb_put_padto(skb, 36))
 			return NULL;
-		skb->len = 36;
 	}
 
 	if (BEx_chip(adapter) || lancer_chip(adapter)) {
