@@ -28,6 +28,8 @@ config ADIS16480
 config KMX61
 	tristate "Kionix KMX61 6-axis accelerometer and magnetometer"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here if you want to build a driver for Kionix KMX61 6-axis
 	  accelerometer and magnetometer.
