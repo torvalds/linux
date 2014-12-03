@@ -670,6 +670,7 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 {
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp = chan->data;
+	struct hci_conn *hcon = conn->hcon;
 	bool complete;
 
 	BUG_ON(!smp);
@@ -677,7 +678,7 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	cancel_delayed_work_sync(&smp->security_timer);
 
 	complete = test_bit(SMP_FLAG_COMPLETE, &smp->flags);
-	mgmt_smp_complete(conn->hcon, complete);
+	mgmt_smp_complete(hcon, complete);
 
 	kfree(smp->csrk);
 	kfree(smp->slave_csrk);
@@ -685,6 +686,16 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 
 	crypto_free_blkcipher(smp->tfm_aes);
 	crypto_free_hash(smp->tfm_cmac);
+
+	/* Ensure that we don't leave any debug key around if debug key
+	 * support hasn't been explicitly enabled.
+	 */
+	if (smp->ltk && smp->ltk->type == SMP_LTK_P256_DEBUG &&
+	    !test_bit(HCI_KEEP_DEBUG_KEYS, &hcon->hdev->dev_flags)) {
+		list_del_rcu(&smp->ltk->list);
+		kfree_rcu(smp->ltk, rcu);
+		smp->ltk = NULL;
+	}
 
 	/* If pairing failed clean up any keys we might have */
 	if (!complete) {
@@ -706,7 +717,7 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 
 	chan->data = NULL;
 	kfree(smp);
-	hci_conn_drop(conn->hcon);
+	hci_conn_drop(hcon);
 }
 
 static void smp_failure(struct l2cap_conn *conn, u8 reason)

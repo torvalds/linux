@@ -3246,15 +3246,7 @@ struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		if (addr_type != k->bdaddr_type || bacmp(bdaddr, &k->bdaddr))
 			continue;
 
-		if (smp_ltk_is_sc(k)) {
-			if (k->type == SMP_LTK_P256_DEBUG &&
-			    !test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags))
-				continue;
-			rcu_read_unlock();
-			return k;
-		}
-
-		if (ltk_role(k->type) == role) {
+		if (smp_ltk_is_sc(k) || ltk_role(k->type) == role) {
 			rcu_read_unlock();
 			return k;
 		}
