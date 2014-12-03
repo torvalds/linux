@@ -135,8 +135,6 @@ nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 	}
 
-	atomic_dec(&ram->parent->refcount);
-	atomic_dec(&ram->engine->refcount);
 	pfb->ram = (void *)ram;
 
 	if (!nouveau_mm_initialised(&pfb->vram)) {
