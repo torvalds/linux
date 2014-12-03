@@ -405,8 +405,8 @@ int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t *core_if)
 	 * Release lock before scheduling workq as it holds spinlock during scheduling
 	 */
 
-	DWC_WORKQ_SCHEDULE(core_if->wq_otg, w_conn_id_status_change,
-			   core_if, "connection id status change");
+	/*DWC_WORKQ_SCHEDULE(core_if->wq_otg, w_conn_id_status_change,
+			   core_if, "connection id status change");*/
 	DWC_SPINLOCK(core_if->lock);
 out:
 	/* Set flag and clear interrupt */

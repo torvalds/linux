@@ -65,9 +65,6 @@ int (*video_data_to_mirroring) (struct fb_info *info, u32 yuv_phy[2]);
 EXPORT_SYMBOL(video_data_to_mirroring);
 #endif
 
-struct rk_fb_reg_win_data g_reg_win_data[4];
-static int g_last_win_num;
-static int g_first_buf = 1;
 static struct rk_fb_trsm_ops *trsm_lvds_ops;
 static struct rk_fb_trsm_ops *trsm_edp_ops;
 static struct rk_fb_trsm_ops *trsm_mipi_ops;
@@ -1935,10 +1932,12 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			    (win_data->data_format == YUV420 ||
 			     win_data->data_format == YUV420_A))
 				continue;
+			mutex_lock(&dev_drv->win_config);
 			rk_fb_update_win(dev_drv, win, win_data);
 			win->state = 1;
 			dev_drv->ops->set_par(dev_drv, i);
 			dev_drv->ops->pan_display(dev_drv, i);
+			mutex_unlock(&dev_drv->win_config);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 			if (dev_drv->iommu_enabled) {
 				g_last_addr[i] = win_data->reg_area_data[0].smem_start +
@@ -2045,27 +2044,37 @@ ext_win_exit:
 #ifdef H_USE_FENCE
 	sw_sync_timeline_inc(dev_drv->timeline, 1);
 #endif
-	if (!g_first_buf) {
+	if (dev_drv->front_regs) {
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
+			if (dev_drv->ops->mmu_en)
+				dev_drv->ops->mmu_en(dev_drv);
 			freed_index = 0;
 			g_last_timeout = timeout;
 		}
 #endif
-		for (i = 0; i < g_last_win_num; i++)
-			rk_fb_free_dma_buf(dev_drv, &g_reg_win_data[i]);
+
+		mutex_lock(&dev_drv->front_lock);
+
+		for (i = 0; i < dev_drv->front_regs->win_num; i++) {
+			win_data = &dev_drv->front_regs->reg_win_data[i];
+			rk_fb_free_dma_buf(dev_drv, win_data);
+		}
+		kfree(dev_drv->front_regs);
+
+		mutex_unlock(&dev_drv->front_lock);
 
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled)
 			freed_addr[freed_index] = 0xfefefefe;
 #endif
 	}
-	for (i = 0; i < regs->win_num; i++) {
-		memcpy(&g_reg_win_data[i], &(regs->reg_win_data[i]),
-		       sizeof(struct rk_fb_reg_win_data));
-	}
-	g_last_win_num = regs->win_num;
-	g_first_buf = 0;
+
+	mutex_lock(&dev_drv->front_lock);
+
+	dev_drv->front_regs = regs;
+
+	mutex_unlock(&dev_drv->front_lock);
 }
 
 static void rk_fb_update_regs_handler(struct kthread_work *work)
@@ -2083,7 +2092,6 @@ static void rk_fb_update_regs_handler(struct kthread_work *work)
 	list_for_each_entry_safe(data, next, &saved_list, list) {
 		rk_fb_update_reg(dev_drv, data);
 		list_del(&data->list);
-		kfree(data);
 	}
 
 	if (dev_drv->wait_fs && list_empty(&dev_drv->update_regs_list))
@@ -2410,7 +2418,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	mutex_lock(&dev_drv->output_lock);
 	if (!(dev_drv->suspend_flag == 0)) {
 		rk_fb_update_reg(dev_drv, regs);
-		kfree(regs);
 		printk(KERN_INFO "suspend_flag = 1\n");
 		goto err;
 	}
@@ -2477,7 +2484,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		} else if (ret == 0) {
 			rk_fb_update_reg(dev_drv, regs);
 		}
-		kfree(regs);
 	}
 
 err:
@@ -2707,6 +2713,10 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case RK_FBIOSET_ENABLE:
 		if (copy_from_user(&enable, argp, sizeof(enable)))
 			return -EFAULT;
+				if (enable)
+					fb_par->state++;
+				else
+					fb_par->state--;
 		dev_drv->ops->open(dev_drv, win_id, enable);
 		break;
 	case RK_FBIOGET_ENABLE:
@@ -3535,8 +3545,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			info->var.grayscale |=
 				(dev_drv->cur_screen->mode.xres << 8) +
 				(dev_drv->cur_screen->mode.yres << 20);
+			mutex_lock(&dev_drv->win_config);
 			info->fbops->fb_set_par(info);
 			info->fbops->fb_pan_display(&info->var, info);
+			mutex_unlock(&dev_drv->win_config);
 
 			if (dev_drv->ops->dsp_black)
 				dev_drv->ops->dsp_black(dev_drv, 0);
@@ -3590,8 +3602,11 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 							(dev_drv->cur_screen->xsize << 8) +
 							(dev_drv->cur_screen->ysize << 20);
 					}
+
+					mutex_lock(&dev_drv->win_config);
 					info->fbops->fb_set_par(info);
 					info->fbops->fb_pan_display(&info->var, info);
+					mutex_unlock(&dev_drv->win_config);
 				}
 			}
 		}
@@ -3678,9 +3693,11 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 		}
 	}
 
+	mutex_lock(&dev_drv->win_config);
 	info->fbops->fb_set_par(info);
-	/* info->fbops->fb_ioctl(info, RK_FBIOSET_CONFIG_DONE, 0); */
 	dev_drv->ops->cfg_done(dev_drv);
+	mutex_unlock(&dev_drv->win_config);
+
 	return 0;
 }
 
@@ -3905,6 +3922,8 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);
 	mutex_init(&dev_drv->fb_win_id_mutex);
+	mutex_init(&dev_drv->win_config);
+	mutex_init(&dev_drv->front_lock);
 	dev_drv->ops->fb_win_remap(dev_drv, dev_drv->fb_win_map);
 	dev_drv->first_frame = 1;
 	dev_drv->overscan.left = 100;
@@ -4082,7 +4101,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	}
 
 	/* show logo for primary display device */
-#if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
+#if !defined(CONFIG_FRAMEBUFFER_CONSOLE)
 	if (dev_drv->prop == PRMRY) {
 		struct fb_info *main_fbi = rk_fb->fb[0];
 		main_fbi->fbops->fb_open(main_fbi, 1);
@@ -4097,6 +4116,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		dev_drv->uboot_logo = support_uboot_display();
+#if !defined(CONFIG_LOGO)
 		if (support_uboot_display()) {
 			/*
 			if (dev_drv->iommu_enabled)
@@ -4104,6 +4124,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			*/
 			return 0;
 		}
+#else
 		main_fbi->fbops->fb_set_par(main_fbi);
 #if  defined(CONFIG_LOGO_LINUX_BMP)
 		if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {
@@ -4117,6 +4138,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		}
 #endif
 		main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
+#endif
 	} else {
 		struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
 		int extend_fb_id = get_extend_fb_id(extend_fbi);

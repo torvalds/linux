@@ -4,7 +4,7 @@
 //#include "lcd-b101ew05.dtsi"
 #include "lcd-F402.dtsi"
 #include "vtl_ts_sdk8846.dtsi"
-
+#include "rk3288-cif-sensor.dtsi"
 / {
 	fiq-debugger {
 		status = "okay";
@@ -1064,3 +1064,8 @@
 		status = "disabled";
 	};
 };
+
+&rk3288_cif_sensor{
+	status = "okay";
+};
+

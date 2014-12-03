@@ -1254,6 +1254,16 @@
 		rockchip,isp,iommu_enable = <1>;
 		status = "okay";
 	};
+	cif: cif@ff950000 {
+	     compatible = "rockchip,cif";
+	     reg = <0xff950000 0x10000>;
+	     interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+	     clocks = <&pd_isp>,<&clk_gates15 14>,<&clk_gates15 15>,<&clkin_cif>,<&clk_gates16 0>,<&clk_cif_out>;
+	     clock-names = "pd_cif0", "aclk_cif0","hclk_cif0","cif0_in","g_pclkin_cif","cif0_out";
+	     pinctrl-names = "cif_pin_all";
+	     pinctrl-0 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d10d11>;
+	     status = "okay";
+	     };
 
 	tsadc: tsadc@ff280000 {
 		compatible = "rockchip,tsadc";

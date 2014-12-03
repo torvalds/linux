@@ -125,9 +125,9 @@
 		};
 	};
 
-	sram: sram@10080000 {
+	sram: sram@10080400 {
 		compatible = "mmio-sram";
-		reg = <0x10080000 0x2000>;
+		reg = <0x10080400 0x1C00>;
 		map-exec;
 		map-cacheable;
 	};
@@ -271,7 +271,7 @@
 		status = "disabled";
 	};
 
-	clocks-init{
+	rockchip_clocks_init: clocks-init{
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-parent =
 			<&clk_core &clk_apll>, <&aclk_cpu &clk_gpll_div2>,
@@ -992,17 +992,4 @@
 			};
 		};
 	};
-	rockchip_suspend {
-                rockchip,ctrbits = <
-                        (0
-                        |RKPM_CTR_PWR_DMNS
-                        |RKPM_CTR_GTCLKS
-                        |RKPM_CTR_PLLS
-                        |RKPM_CTR_ARMOFF_LPMD
-                        )
-                >;
-                rockchip,pmic-suspend_gpios = <
-                       GPIO1_A1
-                        >;
-        };
 };

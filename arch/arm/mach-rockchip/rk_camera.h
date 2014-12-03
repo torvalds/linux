@@ -249,6 +249,7 @@ struct rk29camera_platform_data {
     struct rkcamera_platform_data *register_dev_new;  //sensor   
 	struct device *cif_dev;/*yzm host*/  
 	const char *rockchip_name;
+	int iommu_enabled;
 };
 
 struct rk29camera_platform_ioctl_cb {

@@ -176,6 +176,12 @@ void rkpm_set_sram_ops_ddr(rkpm_ops_void_callback ddr,rkpm_ops_void_callback re_
         p_pm_sram_ops->re_ddr=re_ddr;
     }
 }
+
+void rkpm_set_sram_ops_bus(rkpm_ops_void_callback bus_idle_request)
+{
+	if (p_pm_sram_ops)
+		p_pm_sram_ops->bus_idle_request = bus_idle_request;
+}
 void rkpm_set_sram_ops_printch(rkpm_ops_printch_callback printch)
 {  
     if(p_pm_sram_ops)
@@ -396,13 +402,20 @@ void  rkpm_ddr_printhex(unsigned int hex)
 		hex <<= 4;
 	}
 }
+void rk_sram_suspend(void)
+{
+	RKPM_DDR_FUN(regs_pread);
+	rkpm_ddr_printascii("sram");
+	call_with_stack(p_suspend_pie_cb
+		, &rkpm_jdg_sram_ctrbits, rockchip_sram_stack);
+}
 static int rk_lpmode_enter(unsigned long arg)
 {
 
         //RKPM_DDR_PFUN(slp_setting(rkpm_jdg_sram_ctrbits),slp_setting); 
     
         RKPM_DDR_FUN(slp_setting); 
-                
+
         local_flush_tlb_all();
         flush_cache_all();
         outer_flush_all();
@@ -411,8 +424,8 @@ static int rk_lpmode_enter(unsigned long arg)
         //outer_inv_all();// ???
         //  l2x0_inv_all_pm(); //rk319x is not need
         flush_cache_all();
-        
-        rkpm_ddr_printch('d');
+
+	 rkpm_ddr_printch('d');
 
         //rkpm_udelay(3*10);
 
@@ -422,7 +435,6 @@ static int rk_lpmode_enter(unsigned long arg)
         rkpm_ddr_printch('D');
 	return 0;
 }
-
 
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long));
 static int rkpm_enter(suspend_state_t state)
@@ -470,7 +482,7 @@ static int rkpm_enter(suspend_state_t state)
             if(cpu_suspend(0,rk_lpmode_enter)==0)
             {
                 RKPM_DDR_FUN(slp_re_first);
-                rkpm_ddr_printch('D');
+		rkpm_ddr_printch('K');
                 //rk_soc_pm_ctr_bits_prepare();
             }	  	              
             rkpm_ddr_printch('d');          

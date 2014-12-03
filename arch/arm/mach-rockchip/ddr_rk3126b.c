@@ -464,6 +464,10 @@ typedef volatile struct DDR_REG_Tag {
 #define PHY_LPDDR2           (2)
 #define PHY_Burst8           (1<<2)
 
+//PHY_REG4a
+#define PHY_CL(n)            (((n)&0xF)<<4)
+#define PHY_AL(n)            ((n)&0xF)
+
 #define PHY_RON_DISABLE     (0)
 #define PHY_RON_309ohm      (1)
 #define PHY_RON_155ohm      (2)
@@ -500,63 +504,93 @@ typedef volatile struct DDR_REG_Tag {
 
 #define PHY_DRV_ODT_SET(n) ((n<<4)|n)
 
-/* DDR PHY register struct  updated */
-typedef volatile struct DDRPHY_REG_Tag {
-	volatile uint32 PHY_REG0;	/*PHY soft reset Register*/
-	volatile uint32 PHY_REG1;	/*phy working mode, burst length*/
-	volatile uint32 PHY_REG2;	/*PHY DQS squelch calibration Register*/
-	volatile uint32 PHY_REG3;	/*channel A read odt delay*/
-	volatile uint32 PHY_REG4;	/*channel B read odt dleay*/
-	uint32 reserved0[(0x2c - 0x14) / 4];
-	volatile uint32 PHY_REGb;	/*cl,al*/
-	volatile uint32 PHY_REGc;	/*CWL set register*/
-	uint32 reserved1[(0x44 - 0x34) / 4];
-	volatile uint32 PHY_REG11;	/*cmd drv*/
-	volatile uint32 PHY_REG12;	/*cmd weak pull up*/
-	volatile uint32 PHY_REG13;	/*cmd dll delay*/
-	volatile uint32 PHY_REG14;	/*CK dll delay*/
-	uint32 reserved2;	/*0x54*/
-	volatile uint32 PHY_REG16;	/*/CK drv*/
-	uint32 reserved3[(0x80 - 0x5c) / 4];
-	volatile uint32 PHY_REG20;	/*left channel a drv*/
-	volatile uint32 PHY_REG21;	/*left channel a odt*/
-	uint32 reserved4[(0x98 - 0x88) / 4];
-	volatile uint32 PHY_REG26;	/*left channel a dq write dll*/
-	volatile uint32 PHY_REG27;	/*left channel a dqs write dll*/
-	volatile uint32 PHY_REG28;	/*left channel a dqs read dll*/
-	uint32 reserved5[(0xc0 - 0xa4) / 4];
-	volatile uint32 PHY_REG30;	/*right channel a drv*/
-	volatile uint32 PHY_REG31;	/*right channel a odt*/
-	uint32 reserved6[(0xd8 - 0xc8) / 4];
-	volatile uint32 PHY_REG36;	/*right channel a dq write dll*/
-	volatile uint32 PHY_REG37;	/*right channel a dqs write dll*/
-	volatile uint32 PHY_REG38;	/*right channel a dqs read dll*/
-	uint32 reserved7[(0x100 - 0xe4) / 4];
-	volatile uint32 PHY_REG40;	/*left channel b drv*/
-	volatile uint32 PHY_REG41;	/*left channel b odt*/
-	uint32 reserved8[(0x118 - 0x108) / 4];
-	volatile uint32 PHY_REG46;	/*left channel b dq write dll*/
-	volatile uint32 PHY_REG47;	/*left channel b dqs write dll*/
-	volatile uint32 PHY_REG48;	/*left channel b dqs read dll*/
-	uint32 reserved9[(0x140 - 0x124) / 4];
-	volatile uint32 PHY_REG50;	/*right channel b drv*/
-	volatile uint32 PHY_REG51;	/*right channel b odt*/
-	uint32 reserved10[(0x158 - 0x148) / 4];
-	volatile uint32 PHY_REG56;	/*right channel b dq write dll*/
-	volatile uint32 PHY_REG57;	/*right channel b dqs write dll*/
-	volatile uint32 PHY_REG58;	/*right channel b dqs read dll*/
-	uint32 reserved11[(0x290 - 0x164) / 4];
-	volatile uint32 PHY_REGDLL;	/*dll bypass switch reg*/
-	uint32 reserved12[(0x2c0 - 0x294) / 4];
-	volatile uint32 PHY_REG_skew[(0x3b0 - 0x2c0) / 4];	/*de-skew*/
-	uint32 reserved13[(0x3e8 - 0x3b0) / 4];
-	volatile uint32 PHY_REGfa;	/*idqs*/
-	volatile uint32 PHY_REGfb;	/* left channel a calibration result*/
-	volatile uint32 PHY_REGfc;	/* right channel a calibration result*/
-	volatile uint32 PHY_REGfd;	/*left channel b calibration result*/
-	volatile uint32 PHY_REGfe;	/* right channel b calibration result*/
-	volatile uint32 PHY_REGff;	/*calibrationg done*/
-} DDRPHY_REG_T, *pDDRPHY_REG_T;
+/* DDR PHY register struct */
+typedef volatile struct DDRPHY_REG_Tag
+{
+    volatile uint32 PHY_REG1;               //PHY soft reset Register
+    volatile uint32 PHY_REG3;               //Burst type select Register
+    volatile uint32 PHY_REG2;               //PHY DQS squelch calibration Register
+    uint32 reserved1[(0x38-0x0a)/4];
+    volatile uint32 PHY_REG4a;              //CL,AL set register
+    volatile uint32 PHY_REG4b;              //dqs gata delay select bypass mode register
+    uint32 reserved2[(0x54-0x40)/4];
+    volatile uint32 PHY_REG16;              //
+    uint32 reserved3[(0x5c-0x58)/4];
+    volatile uint32 PHY_REG18;              //0x5c
+    volatile uint32 PHY_REG19;
+    uint32 reserved4[(0x68-0x64)/4];
+    volatile uint32 PHY_REG21;              //0x68
+    uint32 reserved5[(0x70-0x6c)/4];     
+    volatile uint32 PHY_REG22;              //0x70
+    uint32 reserved6[(0x80-0x74)/4];
+    volatile uint32 PHY_REG25;              //0x80
+    volatile uint32 PHY_REG26;
+    volatile uint32 PHY_REG27;
+    volatile uint32 PHY_REG28;
+    uint32 reserved7[(0xd4-0x90)/4];
+    volatile uint32 PHY_REG6;               //0xd4
+    volatile uint32 PHY_REG7;
+    uint32 reserved8[(0xe0-0xdc)/4];
+    volatile uint32 PHY_REG8;               //0xe0
+    volatile uint32 PHY_REG0e4;             //use for DQS ODT off
+    uint32 reserved9[(0x114-0xe8)/4];
+    volatile uint32 PHY_REG9;               //0x114
+    volatile uint32 PHY_REG10;
+    uint32 reserved10[(0x120-0x11c)/4];
+    volatile uint32 PHY_REG11;              //0x120
+    volatile uint32 PHY_REG124;             //use for DQS ODT off
+    uint32 reserved11[(0x1c0-0x128)/4];
+    volatile uint32 PHY_REG29;              //0x1c0
+    uint32 reserved12[(0x264-0x1c4)/4];
+	volatile uint32 PHY_REG264;             //use for phy soft reset
+	uint32 reserved13[(0x2b0-0x268)/4];
+    volatile uint32 PHY_REG2a;              //0x2b0
+    uint32 reserved14[(0x2c4-0x2b4)/4];
+//    volatile uint32 PHY_TX_DeSkew[24];        //0x2c4-0x320
+    volatile uint32 PHY_REG30;
+    volatile uint32 PHY_REG31;
+    volatile uint32 PHY_REG32;
+    volatile uint32 PHY_REG33;
+    volatile uint32 PHY_REG34;
+    volatile uint32 PHY_REG35;
+    volatile uint32 PHY_REG36;
+    volatile uint32 PHY_REG37;
+    volatile uint32 PHY_REG38;
+    volatile uint32 PHY_REG39;
+    volatile uint32 PHY_REG40;
+    volatile uint32 PHY_REG41;
+    volatile uint32 PHY_REG42;
+    volatile uint32 PHY_REG43;
+    volatile uint32 PHY_REG44;
+    volatile uint32 PHY_REG45;
+    volatile uint32 PHY_REG46;
+    volatile uint32 PHY_REG47;
+    volatile uint32 PHY_REG48;
+    volatile uint32 PHY_REG49;
+    volatile uint32 PHY_REG50;
+    volatile uint32 PHY_REG51;
+    volatile uint32 PHY_REG52;
+    volatile uint32 PHY_REG53;
+    uint32 reserved15[(0x328-0x324)/4];
+//    volatile uint32 PHY_RX_DeSkew[11];      //0x328-0x350
+    volatile uint32 PHY_REG54;
+    volatile uint32 PHY_REG55;
+    volatile uint32 PHY_REG56;
+    volatile uint32 PHY_REG57;
+    volatile uint32 PHY_REG58;
+    volatile uint32 PHY_REG59;
+    volatile uint32 PHY_REG5a;
+    volatile uint32 PHY_REG5b;
+    volatile uint32 PHY_REG5c;
+    volatile uint32 PHY_REG5d;
+    volatile uint32 PHY_REG5e;    
+    uint32 reserved16[(0x3c4-0x354)/4];
+    volatile uint32 PHY_REG5f;              //0x3c4
+    uint32 reserved17[(0x3e0-0x3c8)/4];
+    volatile uint32 PHY_REG60;
+    volatile uint32 PHY_REG61;
+    volatile uint32 PHY_REG62;            
+}DDRPHY_REG_T, *pDDRPHY_REG_T;
 
 #define pCRU_Reg               ((pCRU_REG)RK_CRU_VIRT)
 #define pGRF_Reg               ((pREG_FILE)RK_GRF_VIRT)
@@ -572,67 +606,6 @@ typedef volatile struct DDRPHY_REG_Tag {
 #define READ_BW_INFO()   (2>>(((pGRF_Reg->GRF_OS_REG[1])&0xc)>>2))	/*代码中 0->8bit 1->16bit 2->32bit  与grf中定义相反*/
 #define READ_DIE_BW_INFO()   (2>>((pGRF_Reg->GRF_OS_REG[1])&0x3))
 
-/***********************************
- * LPDDR2 define
- ***********************************/
-/*MR0 (Device Information)*/
-#define  LPDDR2_DAI    (0x1)	/* 0:DAI complete, 1:DAI still in progress*/
-#define  LPDDR2_DI     (0x1<<1)	/* 0:S2 or S4 SDRAM, 1:NVM*/
-#define  LPDDR2_DNVI   (0x1<<2)	/* 0:DNV not supported, 1:DNV supported*/
-#define  LPDDR2_RZQI   (0x3<<3)	/*00:RZQ self test not supported, 01:ZQ-pin may connect to VDDCA or float*/
-				    /*10:ZQ-pin may short to GND.     11:ZQ-pin self test completed, no error condition detected.*/
-
-/*MR1 (Device Feature)*/
-#define LPDDR2_BL4     (0x2)
-#define LPDDR2_BL8     (0x3)
-#define LPDDR2_BL16    (0x4)
-#define LPDDR2_nWR(n)  (((n)-2)<<5)
-
-/*MR2 (Device Feature 2)*/
-#define LPDDR2_RL3_WL1  (0x1)
-#define LPDDR2_RL4_WL2  (0x2)
-#define LPDDR2_RL5_WL2  (0x3)
-#define LPDDR2_RL6_WL3  (0x4)
-#define LPDDR2_RL7_WL4  (0x5)
-#define LPDDR2_RL8_WL4  (0x6)
-
-/*MR3 (IO Configuration 1)*/
-#define LPDDR2_DS_34    (0x1)
-#define LPDDR2_DS_40    (0x2)
-#define LPDDR2_DS_48    (0x3)
-#define LPDDR2_DS_60    (0x4)
-#define LPDDR2_DS_80    (0x6)
-#define LPDDR2_DS_120   (0x7)	/*optional*/
-
-/*MR4 (Device Temperature)*/
-#define LPDDR2_tREF_MASK (0x7)
-#define LPDDR2_4_tREF    (0x1)
-#define LPDDR2_2_tREF    (0x2)
-#define LPDDR2_1_tREF    (0x3)
-#define LPDDR2_025_tREF  (0x5)
-#define LPDDR2_025_tREF_DERATE    (0x6)
-
-#define LPDDR2_TUF       (0x1<<7)
-
-/*MR8 (Basic configuration 4)*/
-#define LPDDR2_S4        (0x0)
-#define LPDDR2_S2        (0x1)
-#define LPDDR2_N         (0x2)
-#define LPDDR2_Density(mr8)  (8<<(((mr8)>>2)&0xf))	/*Unit:MB*/
-#define LPDDR2_IO_Width(mr8) (32>>(((mr8)>>6)&0x3))
-
-/*MR10 (Calibration)*/
-#define LPDDR2_ZQINIT   (0xFF)
-#define LPDDR2_ZQCL     (0xAB)
-#define LPDDR2_ZQCS     (0x56)
-#define LPDDR2_ZQRESET  (0xC3)
-
-/*MR16 (PASR Bank Mask)*/
-/*S2 SDRAM Only*/
-#define LPDDR2_PASR_Full (0x0)
-#define LPDDR2_PASR_1_2  (0x1)
-#define LPDDR2_PASR_1_4  (0x2)
-#define LPDDR2_PASR_1_8  (0x3)
 
 typedef enum PLL_ID_Tag {
 	APLL = 0,
@@ -977,10 +950,10 @@ static __sramfunc void ddr_move_to_Config_state(void)
 *----------------------------------------------------------------------*/
 static void __sramfunc ddr_send_command(uint32 rank, uint32 cmd, uint32 arg)
 {
-	pDDR_Reg->MCMD = (start_cmd | (rank << 20) | arg | cmd);
-	dsb();
 	while (pDDR_Reg->MCMD & start_cmd)
 	;
+	pDDR_Reg->MCMD = (start_cmd | (rank << 20) | arg | cmd);
+	dsb();
 }
 
 __sramdata uint32 copy_data[8] = {
@@ -1000,16 +973,15 @@ Notes   : 没有做data training校验
 ----------------------------------------------------------------------*/
 static uint32_t __sramfunc ddr_data_training(void)
 {
-	uint32 value, dram_bw;
+	uint32 value;
 	value = pDDR_Reg->TREFI;
 	pDDR_Reg->TREFI = 0;
-	dram_bw = (pPHY_Reg->PHY_REG0 >> 4) & 0xf;
 	pPHY_Reg->PHY_REG2 |= PHY_AUTO_CALIBRATION;
 	dsb();
 	/*wait echo byte DTDONE*/
 	ddr_delayus(1);
 	/*stop DTT*/
-	while ((pPHY_Reg->PHY_REGff & 0xf) != dram_bw)
+    while((pPHY_Reg->PHY_REG62 & 0x3)!=0x3)
 	;
 	pPHY_Reg->PHY_REG2 = (pPHY_Reg->PHY_REG2 & (~0x1));
 	/*send some auto refresh to complement the lost while DTT*/
@@ -1064,15 +1036,13 @@ static void __sramfunc ddr_set_dll_bypass(uint32 freq)
 		phase = 2;
 	} else
 		phase = 1;
-	pPHY_Reg->PHY_REG28 = phase;	/*rx dll 45°delay*/
-	pPHY_Reg->PHY_REG38 = phase;	/*rx dll 45°delay*/
-	pPHY_Reg->PHY_REG48 = phase;	/*rx dll 45°delay*/
-	pPHY_Reg->PHY_REG58 = phase;	/*rx dll 45°delay*/
+    pPHY_Reg->PHY_REG8 = phase;//rx dll 45°delay
+    pPHY_Reg->PHY_REG11= phase;
 #endif
 	if (freq <= PHY_DLL_DISABLE_FREQ) {
-		pPHY_Reg->PHY_REGDLL |= 0x1F;	/*TX DLL bypass */
+		pPHY_Reg->PHY_REG2a = 0x1F;	/*TX DLL bypass */
 	} else {
-		pPHY_Reg->PHY_REGDLL &= ~0x1F;	/* TX DLL bypass*/
+		pPHY_Reg->PHY_REG2a = 0x3;	/* TX DLL bypass*/
 	}
 
 	dsb();
@@ -1189,7 +1159,7 @@ static uint32 ddr_get_parameter(uint32 nMHz)
 	uint32_t bl;
 	uint32_t cl;
 	uint32_t cwl;
-	uint32_t bl_tmp;
+
 	PCTL_TIMING_T *p_pctl_timing = &(p_ddr_reg->pctl_timing);
 	NOC_TIMING_T *p_noc_timing = &(p_ddr_reg->noc_timing);
 
@@ -1197,563 +1167,267 @@ static uint32 ddr_get_parameter(uint32 nMHz)
 	p_pctl_timing->togcnt100n = nMHz / 10;
 	p_pctl_timing->tinit = 200;
 
-	if (p_ddr_reg->mem_type == DDR3) {
-		if (p_ddr_reg->ddr_speed_bin > DDR3_DEFAULT) {
-			ret = -1;
-			goto out;
-		}
-#define DDR3_tREFI_7_8_us    (78)
-#define DDR3_tMRD            (4)
-#define DDR3_tRFC_512Mb      (90)
-#define DDR3_tRFC_1Gb        (110)
-#define DDR3_tRFC_2Gb        (160)
-#define DDR3_tRFC_4Gb        (300)
-#define DDR3_tRFC_8Gb        (350)
-#define DDR3_tRTW            (2)	/*register min valid value*/
-#define DDR3_tRAS            (37)
-#define DDR3_tRRD            (10)
-#define DDR3_tRTP            (7)
-#define DDR3_tWR             (15)
-#define DDR3_tWTR            (7)
-#define DDR3_tXP             (7)
-#define DDR3_tXPDLL          (24)
-#define DDR3_tZQCS           (80)
-#define DDR3_tZQCSI          (10000)
-#define DDR3_tDQS            (1)
-#define DDR3_tCKSRE          (10)
-#define DDR3_tCKE_400MHz     (7)
-#define DDR3_tCKE_533MHz     (6)
-#define DDR3_tMOD            (15)
-#define DDR3_tRSTL           (100)
-#define DDR3_tZQCL           (320)
-#define DDR3_tDLLK           (512)
-		p_pctl_timing->trsth = 500;
-		al = 0;
-		bl = 8;
-		if (nMHz <= 330) {
-			tmp = 0;
-		} else if (nMHz <= 400) {
-			tmp = 1;
-		} else if (nMHz <= 533) {
-			tmp = 2;
-		} else {	/*666MHz*/
-			tmp = 3;
-		}
-		if (nMHz <= DDR3_DDR2_DLL_DISABLE_FREQ) {	/*when dll bypss cl = cwl = 6*/
-			cl = 6;
-			cwl = 6;
-		} else {
-			cl = ddr3_cl_cwl[p_ddr_reg->ddr_speed_bin][tmp] >> 16;
-			cwl =
-			    ddr3_cl_cwl[p_ddr_reg->ddr_speed_bin][tmp] & 0x0ff;
-		}
-		if (cl == 0) {
-			ret = -4;	/*超过颗粒的最大频率*/
-		}
-		if (nMHz <= DDR3_DDR2_ODT_DISABLE_FREQ) {
-			p_ddr_reg->ddrMR[1] = DDR3_DS_40 | DDR3_Rtt_Nom_DIS;
-		} else {
-			p_ddr_reg->ddrMR[1] = DDR3_DS_40 | DDR3_Rtt_Nom_120;
-		}
-		p_ddr_reg->ddrMR[2] = DDR3_MR2_CWL(cwl) /* | DDR3_Rtt_WR_60 */ ;
-		p_ddr_reg->ddrMR[3] = 0;
-		/**************************************************
-		* PCTL Timing
-		**************************************************/
-		/*
-		 * tREFI, average periodic refresh interval, 7.8us
-		 */
-		p_pctl_timing->trefi = DDR3_tREFI_7_8_us;
-		/*
-		 * tMRD, 4 tCK
-		 */
-		p_pctl_timing->tmrd = DDR3_tMRD & 0x7;
-		/*
-		 * tRFC, 90ns(512Mb),110ns(1Gb),160ns(2Gb),300ns(4Gb),350ns(8Gb)
-		 */
-		if (p_ddr_reg->ddr_capability_per_die <= 0x4000000) {	/*512Mb 90ns*/
-			tmp = DDR3_tRFC_512Mb;
-		} else if (p_ddr_reg->ddr_capability_per_die <= 0x8000000) {	/*1Gb 110ns*/
-			tmp = DDR3_tRFC_1Gb;
-		} else if (p_ddr_reg->ddr_capability_per_die <= 0x10000000) {	/*2Gb 160ns*/
-			tmp = DDR3_tRFC_2Gb;
-		} else if (p_ddr_reg->ddr_capability_per_die <= 0x20000000) {/*4Gb 300ns*/
-			tmp = DDR3_tRFC_4Gb;
-		} else{		/*8Gb  350ns*/
-			tmp = DDR3_tRFC_8Gb;
-		}
-		p_pctl_timing->trfc = (tmp * nMHz + 999) / 1000;
-		/*
-		 * tXSR, =tDLLK=512 tCK
-		 */
-		p_pctl_timing->texsr = DDR3_tDLLK;
-		/*
-		 * tRP=CL
-		 */
-		p_pctl_timing->trp = cl;
-		/*
-		 * WrToMiss=WL*tCK + tWR + tRP + tRCD
-		 */
-		p_noc_timing->b.WrToMiss =
-		    ((cwl + ((DDR3_tWR * nMHz + 999) / 1000) + cl + cl) & 0x3F);
-		/*
-		 * tRC=tRAS+tRP
-		 */
-		p_pctl_timing->trc =
-		    ((((ddr3_tRC_tFAW[p_ddr_reg->ddr_speed_bin] >> 16) * nMHz +
-		       999) / 1000) & 0x3F);
-		p_noc_timing->b.ActToAct =
-		    ((((ddr3_tRC_tFAW[p_ddr_reg->ddr_speed_bin] >> 16) * nMHz +
-		       999) / 1000) & 0x3F);
-
-		p_pctl_timing->trtw = (cl + 2 - cwl);	/*DDR3_tRTW*/
-		p_noc_timing->b.RdToWr = ((cl + 2 - cwl) & 0x1F);
-		p_pctl_timing->tal = al;
-		p_pctl_timing->tcl = cl;
-		p_pctl_timing->tcwl = cwl;
-		/*
-		 * tRAS, 37.5ns(400MHz)     37.5ns(533MHz)
-		 */
-		p_pctl_timing->tras =
-		    (((DDR3_tRAS * nMHz + (nMHz >> 1) + 999) / 1000) & 0x3F);
-		/*
-		 * tRCD=CL
-		 */
-		p_pctl_timing->trcd = cl;
-		/*
-		 * tRRD = max(4nCK, 7.5ns), DDR3-1066(1K), DDR3-1333(2K), DDR3-1600(2K)
-		 *        max(4nCK, 10ns), DDR3-800(1K,2K), DDR3-1066(2K)
-		 *        max(4nCK, 6ns), DDR3-1333(1K), DDR3-1600(1K)
-		 *
-		 */
-		tmp = ((DDR3_tRRD * nMHz + 999) / 1000);
-		if (tmp < 4) {
-			tmp = 4;
-		}
-		p_pctl_timing->trrd = (tmp & 0xF);
-		/*
-		 * tRTP, max(4 tCK,7.5ns)
-		 */
-		tmp = ((DDR3_tRTP * nMHz + (nMHz >> 1) + 999) / 1000);
-		if (tmp < 4) {
-			tmp = 4;
-		}
-		p_pctl_timing->trtp = tmp & 0xF;
-		/*
-		 * RdToMiss=tRTP+tRP + tRCD - (BL/2 * tCK)
-		 */
-		p_noc_timing->b.RdToMiss = ((tmp + cl + cl - (bl >> 1)) & 0x3F);
-		/*
-		 * tWR, 15ns
-		 */
-		tmp = ((DDR3_tWR * nMHz + 999) / 1000);
-		p_pctl_timing->twr = tmp & 0x1F;
-		if (tmp < 9)
-			tmp = tmp - 4;
-		else
-			tmp = tmp >> 1;
-		p_ddr_reg->ddrMR[0] = DDR3_BL8 | DDR3_CL(cl) | DDR3_WR(tmp);
-
-		/*
-		 * tWTR, max(4 tCK,7.5ns)
-		 */
-		tmp = ((DDR3_tWTR * nMHz + (nMHz >> 1) + 999) / 1000);
-		if (tmp < 4) {
-			tmp = 4;
-		}
-		p_pctl_timing->twtr = tmp & 0xF;
-		p_noc_timing->b.WrToRd = ((tmp + cwl) & 0x1F);
-		/*
-		 * tXP, max(3 tCK, 7.5ns)(<933MHz)
-		 */
-		tmp = ((DDR3_tXP * nMHz + (nMHz >> 1) + 999) / 1000);
-		if (tmp < 3) {
-			tmp = 3;
-		}
-		p_pctl_timing->txp = tmp & 0x7;
-		/*
-		 * tXPDLL, max(10 tCK,24ns)
-		 */
-		tmp = ((DDR3_tXPDLL * nMHz + 999) / 1000);
-		if (tmp < 10) {
-			tmp = 10;
-		}
-		p_pctl_timing->txpdll = tmp & 0x3F;
-		/*
-		 * tZQCS, max(64 tCK, 80ns)
-		 */
-		tmp = ((DDR3_tZQCS * nMHz + 999) / 1000);
-		if (tmp < 64) {
-			tmp = 64;
-		}
-		p_pctl_timing->tzqcs = tmp & 0x7F;
-		/*
-		 * tZQCSI,
-		 */
-		p_pctl_timing->tzqcsi = DDR3_tZQCSI;
-		/*
-		 * tDQS,
-		 */
-		p_pctl_timing->tdqs = DDR3_tDQS;
-		/*
-		 * tCKSRE, max(5 tCK, 10ns)
-		 */
-		tmp = ((DDR3_tCKSRE * nMHz + 999) / 1000);
-		if (tmp < 5) {
-			tmp = 5;
-		}
-		p_pctl_timing->tcksre = tmp & 0x1F;
-		/*
-		 * tCKSRX, max(5 tCK, 10ns)
-		 */
-		p_pctl_timing->tcksrx = tmp & 0x1F;
-		/*
-		 * tCKE, max(3 tCK,7.5ns)(400MHz) max(3 tCK,5.625ns)(533MHz)
-		 */
-		if (nMHz >= 533) {
-			tmp = ((DDR3_tCKE_533MHz * nMHz + 999) / 1000);
-		} else {
-			tmp =
-			    ((DDR3_tCKE_400MHz * nMHz + (nMHz >> 1) +
-			      999) / 1000);
-		}
-		if (tmp < 3) {
-			tmp = 3;
-		}
-		p_pctl_timing->tcke = tmp & 0x7;
-		/*
-		 * tCKESR, =tCKE + 1tCK
-		 */
-		p_pctl_timing->tckesr = (tmp + 1) & 0xF;
-		/*
-		 * tMOD, max(12 tCK,15ns)
-		 */
-		tmp = ((DDR3_tMOD * nMHz + 999) / 1000);
-		if (tmp < 12) {
-			tmp = 12;
-		}
-		p_pctl_timing->tmod = tmp & 0x1F;
-		/*
-		 * tRSTL, 100ns
-		 */
-		p_pctl_timing->trstl =
-		    ((DDR3_tRSTL * nMHz + 999) / 1000) & 0x7F;
-		/*
-		 * tZQCL, max(256 tCK, 320ns)
-		 */
-		tmp = ((DDR3_tZQCL * nMHz + 999) / 1000);
-		if (tmp < 256) {
-			tmp = 256;
-		}
-		p_pctl_timing->tzqcl = tmp & 0x3FF;
-		/*
-		 * tMRR, 0 tCK
-		 */
-		p_pctl_timing->tmrr = 0;
-		/*
-		 * tDPD, 0
-		 */
-		p_pctl_timing->tdpd = 0;
-
-		/**************************************************
-		*NOC Timing
-		**************************************************/
-		p_noc_timing->b.BurstLen = ((bl >> 1) & 0x7);
-	} else if (p_ddr_reg->mem_type == LPDDR2) {
-#define LPDDR2_tREFI_3_9_us    (38)	/*unit 100ns*/
-#define LPDDR2_tREFI_7_8_us    (78)	/*unit 100ns*/
-#define LPDDR2_tMRD            (5)	/*tCK*/
-#define LPDDR2_tRFC_8Gb        (210)	/*ns*/
-#define LPDDR2_tRFC_4Gb        (130)	/*ns*/
-#define LPDDR2_tRP_4_BANK               (24)	/*ns*/
-#define LPDDR2_tRPab_SUB_tRPpb_4_BANK   (0)
-#define LPDDR2_tRP_8_BANK               (27)	/*ns*/
-#define LPDDR2_tRPab_SUB_tRPpb_8_BANK   (3)
-#define LPDDR2_tRTW          (1)	/*tCK register min valid value*/
-#define LPDDR2_tRAS          (42)	/*ns*/
-#define LPDDR2_tRCD          (24)	/*ns*/
-#define LPDDR2_tRRD          (10)	/*ns*/
-#define LPDDR2_tRTP          (7)	/*ns*/
-#define LPDDR2_tWR           (15)	/*ns*/
-#define LPDDR2_tWTR_GREAT_200MHz         (7)	/*ns*/
-#define LPDDR2_tWTR_LITTLE_200MHz        (10)	/*ns*/
-#define LPDDR2_tXP           (7)	/*ns*/
-#define LPDDR2_tXPDLL        (0)
-#define LPDDR2_tZQCS         (90)	/*ns*/
-#define LPDDR2_tZQCSI        (0)
-#define LPDDR2_tDQS          (1)
-#define LPDDR2_tCKSRE        (1)	/*tCK*/
-#define LPDDR2_tCKSRX        (2)	/*tCK*/
-#define LPDDR2_tCKE          (3)	/*tCK*/
-#define LPDDR2_tMOD          (0)
-#define LPDDR2_tRSTL         (0)
-#define LPDDR2_tZQCL         (360)	/*ns*/
-#define LPDDR2_tMRR          (2)	/*tCK*/
-#define LPDDR2_tCKESR        (15)	/*ns*/
-#define LPDDR2_tDPD_US       (500)
-#define LPDDR2_tFAW_GREAT_200MHz    (50)	/*ns*/
-#define LPDDR2_tFAW_LITTLE_200MHz   (60)	/*ns*/
-#define LPDDR2_tDLLK         (2)	/*tCK*/
-#define LPDDR2_tDQSCK_MAX    (3)	/*tCK*/
-#define LPDDR2_tDQSCK_MIN    (0)	/*tCK*/
-#define LPDDR2_tDQSS         (1)	/*tCK*/
-
-		uint32 trp_tmp;
-		uint32 trcd_tmp;
-		uint32 tras_tmp;
-		uint32 trtp_tmp;
-		uint32 twr_tmp;
-
-		al = 0;
-		if (nMHz >= 200) {
-			bl = 4;	/*you can change burst here*/
-		} else {
-			bl = 8;	/* freq < 200MHz, BL fixed 8*/
-		}
-		/*     1066 933 800 667 533 400 333
-		 * RL,   8   7   6   5   4   3   3
-		 * WL,   4   4   3   2   2   1   1
-		 */
-		if (nMHz <= 200) {
-			cl = 3;
-			cwl = 1;
-			p_ddr_reg->ddrMR[2] = LPDDR2_RL3_WL1;
-		} else if (nMHz <= 266) {
-			cl = 4;
-			cwl = 2;
-			p_ddr_reg->ddrMR[2] = LPDDR2_RL4_WL2;
-		} else if (nMHz <= 333) {
-			cl = 5;
-			cwl = 2;
-			p_ddr_reg->ddrMR[2] = LPDDR2_RL5_WL2;
-		} else if (nMHz <= 400) {
-			cl = 6;
-			cwl = 3;
-			p_ddr_reg->ddrMR[2] = LPDDR2_RL6_WL3;
-		} else if (nMHz <= 466) {
-			cl = 7;
-			cwl = 4;
-			p_ddr_reg->ddrMR[2] = LPDDR2_RL7_WL4;
-		} else {		/*(nMHz<=1066)*/
-			cl = 8;
-			cwl = 4;
-			p_ddr_reg->ddrMR[2] = LPDDR2_RL8_WL4;
-		}
-		p_ddr_reg->ddrMR[3] = LPDDR2_DS_34;
-		p_ddr_reg->ddrMR[0] = 0;
-		/**************************************************
-		* PCTL Timing
-		**************************************************/
-		/*
-		 * tREFI, average periodic refresh interval, 15.6us(<256Mb) 7.8us(256Mb-1Gb) 3.9us(2Gb-8Gb)
-		 */
-		if (p_ddr_reg->ddr_capability_per_die >= 0x10000000) {	/*2Gb*/
-			p_pctl_timing->trefi = LPDDR2_tREFI_3_9_us;
-		} else {
-			p_pctl_timing->trefi = LPDDR2_tREFI_7_8_us;
-		}
-
-		/*
-		 * tMRD, (=tMRW), 5 tCK
-		 */
-		p_pctl_timing->tmrd = LPDDR2_tMRD & 0x7;
-		/*
-		 * tRFC, 90ns(<=512Mb) 130ns(1Gb-4Gb) 210ns(8Gb)
-		 */
-		if (p_ddr_reg->ddr_capability_per_die >= 0x40000000) {	/*8Gb*/
-			p_pctl_timing->trfc =
-			    (LPDDR2_tRFC_8Gb * nMHz + 999) / 1000;
-			/*
-			 * tXSR, max(2tCK,tRFC+10ns)
-			 */
-			tmp = (((LPDDR2_tRFC_8Gb + 10) * nMHz + 999) / 1000);
-		} else {
-			p_pctl_timing->trfc =
-			    (LPDDR2_tRFC_4Gb * nMHz + 999) / 1000;
-			tmp = (((LPDDR2_tRFC_4Gb + 10) * nMHz + 999) / 1000);
-		}
-		if (tmp < 2) {
-			tmp = 2;
-		}
-		p_pctl_timing->texsr = tmp & 0x3FF;
-		/*
-		 * tRP, max(3tCK, 4-bank:15ns(Fast) 18ns(Typ) 24ns(Slow), 8-bank:18ns(Fast) 21ns(Typ) 27ns(Slow))
-		 */
-		trp_tmp = ((LPDDR2_tRP_8_BANK * nMHz + 999) / 1000);
-		if (trp_tmp < 3) {
-			trp_tmp = 3;
-		}
-		p_pctl_timing->trp =
-		    ((((LPDDR2_tRPab_SUB_tRPpb_8_BANK * nMHz +
-			999) / 1000) & 0x3) << 16) | (trp_tmp & 0xF);
-
-		/*
-		 * tRAS, max(3tCK,42ns)
-		 */
-		tras_tmp = ((LPDDR2_tRAS * nMHz + 999) / 1000);
-		if (tras_tmp < 3) {
-			tras_tmp = 3;
-		}
-		p_pctl_timing->tras = (tras_tmp & 0x3F);
-
-		/*
-		 * tRCD, max(3tCK, 15ns(Fast) 18ns(Typ) 24ns(Slow))
-		 */
-		trcd_tmp = ((LPDDR2_tRCD * nMHz + 999) / 1000);
-		if (trcd_tmp < 3) {
-			trcd_tmp = 3;
-		}
-		p_pctl_timing->trcd = (trcd_tmp & 0xF);
-		/*
-		 * tRTP, max(2tCK, 7.5ns)
-		 */
-		trtp_tmp = ((LPDDR2_tRTP * nMHz + (nMHz >> 1) + 999) / 1000);
-		if (trtp_tmp < 2) {
-			trtp_tmp = 2;
-		}
-		p_pctl_timing->trtp = trtp_tmp & 0xF;
-		/*
-		 * tWR, max(3tCK,15ns)
-		 */
-		twr_tmp = ((LPDDR2_tWR * nMHz + 999) / 1000);
-		if (twr_tmp < 3) {
-			twr_tmp = 3;
-		}
-		p_pctl_timing->twr = twr_tmp & 0x1F;
-		bl_tmp =
-		    (bl ==
-		     16) ? LPDDR2_BL16 : ((bl == 8) ? LPDDR2_BL8 : LPDDR2_BL4);
-		p_ddr_reg->ddrMR[1] = bl_tmp | LPDDR2_nWR(twr_tmp);
-
-		/*
-		 * WrToMiss=WL*tCK + tDQSS + tWR + tRP + tRCD
-		 */
-		p_noc_timing->b.WrToMiss =
-		    ((cwl + LPDDR2_tDQSS + twr_tmp + trp_tmp +
-		      trcd_tmp) & 0x3F);
-		/*
-		 * RdToMiss=tRTP + tRP + tRCD - (BL/2 * tCK)
-		 */
-		p_noc_timing->b.RdToMiss =
-		    ((trtp_tmp + trp_tmp + trcd_tmp - (bl >> 1)) & 0x3F);
-		/*
-		 * tRC=tRAS+tRP
-		 */
-		p_pctl_timing->trc = ((tras_tmp + trp_tmp) & 0x3F);
-		p_noc_timing->b.ActToAct = ((tras_tmp + trp_tmp) & 0x3F);
-		/*
-		 * RdToWr=RL+tDQSCK-WL
-		 */
-		p_pctl_timing->trtw = (cl + LPDDR2_tDQSCK_MAX + (bl / 2) + 1 - cwl);	/*LPDDR2_tRTW*/
-		p_noc_timing->b.RdToWr =
-		    ((cl + LPDDR2_tDQSCK_MAX + 1 - cwl) & 0x1F);
-		p_pctl_timing->tal = al;
-		p_pctl_timing->tcl = cl;
-		p_pctl_timing->tcwl = cwl;
-		/*
-		 * tRRD, max(2tCK,10ns)
-		 */
-		tmp = ((LPDDR2_tRRD * nMHz + 999) / 1000);
-		if (tmp < 2) {
-			tmp = 2;
-		}
-		p_pctl_timing->trrd = (tmp & 0xF);
-		/*
-		 * tWTR, max(2tCK, 7.5ns(533-266MHz)  10ns(200-166MHz))
-		 */
-		if (nMHz > 200) {
-			tmp =
-			    ((LPDDR2_tWTR_GREAT_200MHz * nMHz + (nMHz >> 1) +
-			      999) / 1000);
-		} else {
-			tmp = ((LPDDR2_tWTR_LITTLE_200MHz * nMHz + 999) / 1000);
-		}
-		if (tmp < 2) {
-			tmp = 2;
-		}
-		p_pctl_timing->twtr = tmp & 0xF;
-		/*
-		 * WrToRd=WL+tDQSS+tWTR
-		 */
-		p_noc_timing->b.WrToRd = ((cwl + LPDDR2_tDQSS + tmp) & 0x1F);
-		/*
-		 * tXP, max(2tCK,7.5ns)
-		 */
-		tmp = ((LPDDR2_tXP * nMHz + (nMHz >> 1) + 999) / 1000);
-		if (tmp < 2) {
-			tmp = 2;
-		}
-		p_pctl_timing->txp = tmp & 0x7;
-		/*
-		 * tXPDLL, 0ns
-		 */
-		p_pctl_timing->txpdll = LPDDR2_tXPDLL;
-		/*
-		 * tZQCS, 90ns
-		 */
-		p_pctl_timing->tzqcs =
-		    ((LPDDR2_tZQCS * nMHz + 999) / 1000) & 0x7F;
-		/*
-		 * tZQCSI,
-		 */
-		/*if (pDDR_Reg->MCFG &= lpddr2_s4) {*/
-		if (1) {
-			p_pctl_timing->tzqcsi = LPDDR2_tZQCSI;
-		} else {
-			p_pctl_timing->tzqcsi = 0;
-		}
-		/*
-		 * tDQS,
-		 */
-		p_pctl_timing->tdqs = LPDDR2_tDQS;
-		/*
-		 * tCKSRE, 1 tCK
-		 */
-		p_pctl_timing->tcksre = LPDDR2_tCKSRE;
-		/*
-		 * tCKSRX, 2 tCK
-		 */
-		p_pctl_timing->tcksrx = LPDDR2_tCKSRX;
-		/*
-		 * tCKE, 3 tCK
-		 */
-		p_pctl_timing->tcke = LPDDR2_tCKE;
-		/*
-		 * tMOD, 0 tCK
-		 */
-		p_pctl_timing->tmod = LPDDR2_tMOD;
-		/*
-		 * tRSTL, 0 tCK
-		 */
-		p_pctl_timing->trstl = LPDDR2_tRSTL;
-		/*
-		 * tZQCL, 360ns
-		 */
-		p_pctl_timing->tzqcl =
-		    ((LPDDR2_tZQCL * nMHz + 999) / 1000) & 0x3FF;
-		/*
-		 * tMRR, 2 tCK
-		 */
-		p_pctl_timing->tmrr = LPDDR2_tMRR;
-		/*
-		 * tCKESR, max(3tCK,15ns)
-		 */
-		tmp = ((LPDDR2_tCKESR * nMHz + 999) / 1000);
-		if (tmp < 3) {
-			tmp = 3;
-		}
-		p_pctl_timing->tckesr = tmp & 0xF;
-		/*
-		 * tDPD, 500us
-		 */
-		p_pctl_timing->tdpd = LPDDR2_tDPD_US;
-
-		/*************************************************
-		* NOC Timing
-		**************************************************/
-		p_noc_timing->b.BurstLen = ((bl >> 1) & 0x7);
+	if (p_ddr_reg->ddr_speed_bin > DDR3_DEFAULT) {
+		ret = -1;
+		goto out;
 	}
+    #define DDR3_tREFI_7_8_us    (78)
+    #define DDR3_tMRD            (4)
+    #define DDR3_tRFC_512Mb      (90)
+    #define DDR3_tRFC_1Gb        (110)
+    #define DDR3_tRFC_2Gb        (160)
+    #define DDR3_tRFC_4Gb        (300)
+    #define DDR3_tRFC_8Gb        (350)
+    #define DDR3_tRTW            (2)	/*register min valid value*/
+    #define DDR3_tRAS            (37)
+    #define DDR3_tRRD            (10)
+    #define DDR3_tRTP            (7)
+    #define DDR3_tWR             (15)
+    #define DDR3_tWTR            (7)
+    #define DDR3_tXP             (7)
+    #define DDR3_tXPDLL          (24)
+    #define DDR3_tZQCS           (80)
+    #define DDR3_tZQCSI          (10000)
+    #define DDR3_tDQS            (1)
+    #define DDR3_tCKSRE          (10)
+    #define DDR3_tCKE_400MHz     (7)
+    #define DDR3_tCKE_533MHz     (6)
+    #define DDR3_tMOD            (15)
+    #define DDR3_tRSTL           (100)
+    #define DDR3_tZQCL           (320)
+    #define DDR3_tDLLK           (512)
+	p_pctl_timing->trsth = 500;
+	al = 0;
+	bl = 8;
+	if (nMHz <= 330) {
+		tmp = 0;
+	} else if (nMHz <= 400) {
+		tmp = 1;
+	} else if (nMHz <= 533) {
+		tmp = 2;
+	} else {	/*666MHz*/
+		tmp = 3;
+	}
+	if (nMHz <= DDR3_DDR2_DLL_DISABLE_FREQ) {	/*when dll bypss cl = cwl = 6*/
+		cl = 6;
+		cwl = 6;
+	} else {
+		cl = ddr3_cl_cwl[p_ddr_reg->ddr_speed_bin][tmp] >> 16;
+		cwl =
+		    ddr3_cl_cwl[p_ddr_reg->ddr_speed_bin][tmp] & 0x0ff;
+	}
+	if (cl == 0) {
+		ret = -4;	/*超过颗粒的最大频率*/
+	}
+	if (nMHz <= DDR3_DDR2_ODT_DISABLE_FREQ) {
+		p_ddr_reg->ddrMR[1] = DDR3_DS_40 | DDR3_Rtt_Nom_DIS;
+	} else {
+		p_ddr_reg->ddrMR[1] = DDR3_DS_40 | DDR3_Rtt_Nom_120;
+	}
+	p_ddr_reg->ddrMR[2] = DDR3_MR2_CWL(cwl) /* | DDR3_Rtt_WR_60 */ ;
+	p_ddr_reg->ddrMR[3] = 0;
+	/**************************************************
+	* PCTL Timing
+	**************************************************/
+	/*
+	 * tREFI, average periodic refresh interval, 7.8us
+	 */
+	p_pctl_timing->trefi = DDR3_tREFI_7_8_us;
+	/*
+	 * tMRD, 4 tCK
+	 */
+	p_pctl_timing->tmrd = DDR3_tMRD & 0x7;
+	/*
+	 * tRFC, 90ns(512Mb),110ns(1Gb),160ns(2Gb),300ns(4Gb),350ns(8Gb)
+	 */
+	if (p_ddr_reg->ddr_capability_per_die <= 0x4000000) {	/*512Mb 90ns*/
+		tmp = DDR3_tRFC_512Mb;
+	} else if (p_ddr_reg->ddr_capability_per_die <= 0x8000000) {	/*1Gb 110ns*/
+		tmp = DDR3_tRFC_1Gb;
+	} else if (p_ddr_reg->ddr_capability_per_die <= 0x10000000) {	/*2Gb 160ns*/
+		tmp = DDR3_tRFC_2Gb;
+	} else if (p_ddr_reg->ddr_capability_per_die <= 0x20000000) {/*4Gb 300ns*/
+		tmp = DDR3_tRFC_4Gb;
+	} else{		/*8Gb  350ns*/
+		tmp = DDR3_tRFC_8Gb;
+	}
+	p_pctl_timing->trfc = (tmp * nMHz + 999) / 1000;
+	/*
+	 * tXSR, =tDLLK=512 tCK
+	 */
+	p_pctl_timing->texsr = DDR3_tDLLK;
+	/*
+	 * tRP=CL
+	 */
+	p_pctl_timing->trp = cl;
+	/*
+	 * WrToMiss=WL*tCK + tWR + tRP + tRCD
+	 */
+	p_noc_timing->b.WrToMiss =
+	    ((cwl + ((DDR3_tWR * nMHz + 999) / 1000) + cl + cl) & 0x3F);
+	/*
+	 * tRC=tRAS+tRP
+	 */
+	p_pctl_timing->trc =
+	    ((((ddr3_tRC_tFAW[p_ddr_reg->ddr_speed_bin] >> 16) * nMHz +
+	       999) / 1000) & 0x3F);
+	p_noc_timing->b.ActToAct =
+	    ((((ddr3_tRC_tFAW[p_ddr_reg->ddr_speed_bin] >> 16) * nMHz +
+	       999) / 1000) & 0x3F);
 
+	p_pctl_timing->trtw = (cl + 2 - cwl);	/*DDR3_tRTW*/
+	p_noc_timing->b.RdToWr = ((cl + 2 - cwl) & 0x1F);
+	p_pctl_timing->tal = al;
+	p_pctl_timing->tcl = cl;
+	p_pctl_timing->tcwl = cwl;
+	/*
+	 * tRAS, 37.5ns(400MHz)     37.5ns(533MHz)
+	 */
+	p_pctl_timing->tras =
+	    (((DDR3_tRAS * nMHz + (nMHz >> 1) + 999) / 1000) & 0x3F);
+	/*
+	 * tRCD=CL
+	 */
+	p_pctl_timing->trcd = cl;
+	/*
+	 * tRRD = max(4nCK, 7.5ns), DDR3-1066(1K), DDR3-1333(2K), DDR3-1600(2K)
+	 *        max(4nCK, 10ns), DDR3-800(1K,2K), DDR3-1066(2K)
+	 *        max(4nCK, 6ns), DDR3-1333(1K), DDR3-1600(1K)
+	 *
+	 */
+	tmp = ((DDR3_tRRD * nMHz + 999) / 1000);
+	if (tmp < 4) {
+		tmp = 4;
+	}
+	p_pctl_timing->trrd = (tmp & 0xF);
+	/*
+	 * tRTP, max(4 tCK,7.5ns)
+	 */
+	tmp = ((DDR3_tRTP * nMHz + (nMHz >> 1) + 999) / 1000);
+	if (tmp < 4) {
+		tmp = 4;
+	}
+	p_pctl_timing->trtp = tmp & 0xF;
+	/*
+	 * RdToMiss=tRTP+tRP + tRCD - (BL/2 * tCK)
+	 */
+	p_noc_timing->b.RdToMiss = ((tmp + cl + cl - (bl >> 1)) & 0x3F);
+	/*
+	 * tWR, 15ns
+	 */
+	tmp = ((DDR3_tWR * nMHz + 999) / 1000);
+	p_pctl_timing->twr = tmp & 0x1F;
+	if (tmp < 9)
+		tmp = tmp - 4;
+	else
+		tmp = tmp >> 1;
+	p_ddr_reg->ddrMR[0] = DDR3_BL8 | DDR3_CL(cl) | DDR3_WR(tmp);
+
+	/*
+	 * tWTR, max(4 tCK,7.5ns)
+	 */
+	tmp = ((DDR3_tWTR * nMHz + (nMHz >> 1) + 999) / 1000);
+	if (tmp < 4) {
+		tmp = 4;
+	}
+	p_pctl_timing->twtr = tmp & 0xF;
+	p_noc_timing->b.WrToRd = ((tmp + cwl) & 0x1F);
+	/*
+	 * tXP, max(3 tCK, 7.5ns)(<933MHz)
+	 */
+	tmp = ((DDR3_tXP * nMHz + (nMHz >> 1) + 999) / 1000);
+	if (tmp < 3) {
+		tmp = 3;
+	}
+	p_pctl_timing->txp = tmp & 0x7;
+	/*
+	 * tXPDLL, max(10 tCK,24ns)
+	 */
+	tmp = ((DDR3_tXPDLL * nMHz + 999) / 1000);
+	if (tmp < 10) {
+		tmp = 10;
+	}
+	p_pctl_timing->txpdll = tmp & 0x3F;
+	/*
+	 * tZQCS, max(64 tCK, 80ns)
+	 */
+	tmp = ((DDR3_tZQCS * nMHz + 999) / 1000);
+	if (tmp < 64) {
+		tmp = 64;
+	}
+	p_pctl_timing->tzqcs = tmp & 0x7F;
+	/*
+	 * tZQCSI,
+	 */
+	p_pctl_timing->tzqcsi = DDR3_tZQCSI;
+	/*
+	 * tDQS,
+	 */
+	p_pctl_timing->tdqs = DDR3_tDQS;
+	/*
+	 * tCKSRE, max(5 tCK, 10ns)
+	 */
+	tmp = ((DDR3_tCKSRE * nMHz + 999) / 1000);
+	if (tmp < 5) {
+		tmp = 5;
+	}
+	p_pctl_timing->tcksre = tmp & 0x1F;
+	/*
+	 * tCKSRX, max(5 tCK, 10ns)
+	 */
+	p_pctl_timing->tcksrx = tmp & 0x1F;
+	/*
+	 * tCKE, max(3 tCK,7.5ns)(400MHz) max(3 tCK,5.625ns)(533MHz)
+	 */
+	if (nMHz >= 533) {
+		tmp = ((DDR3_tCKE_533MHz * nMHz + 999) / 1000);
+	} else {
+		tmp =
+		    ((DDR3_tCKE_400MHz * nMHz + (nMHz >> 1) +
+		      999) / 1000);
+	}
+	if (tmp < 3) {
+		tmp = 3;
+	}
+	p_pctl_timing->tcke = tmp & 0x7;
+	/*
+	 * tCKESR, =tCKE + 1tCK
+	 */
+	p_pctl_timing->tckesr = (tmp + 1) & 0xF;
+	/*
+	 * tMOD, max(12 tCK,15ns)
+	 */
+	tmp = ((DDR3_tMOD * nMHz + 999) / 1000);
+	if (tmp < 12) {
+		tmp = 12;
+	}
+	p_pctl_timing->tmod = tmp & 0x1F;
+	/*
+	 * tRSTL, 100ns
+	 */
+	p_pctl_timing->trstl =
+	    ((DDR3_tRSTL * nMHz + 999) / 1000) & 0x7F;
+	/*
+	 * tZQCL, max(256 tCK, 320ns)
+	 */
+	tmp = ((DDR3_tZQCL * nMHz + 999) / 1000);
+	if (tmp < 256) {
+		tmp = 256;
+	}
+	p_pctl_timing->tzqcl = tmp & 0x3FF;
+	/*
+	 * tMRR, 0 tCK
+	 */
+	p_pctl_timing->tmrr = 0;
+	/*
+	 * tDPD, 0
+	 */
+	p_pctl_timing->tdpd = 0;
+
+	/**************************************************
+	*NOC Timing
+	**************************************************/
+	p_noc_timing->b.BurstLen = ((bl >> 1) & 0x7);
 out:
 	return ret;
 }
@@ -1767,7 +1441,6 @@ out:
 *----------------------------------------------------------------------*/
 static uint32 __sramfunc ddr_update_timing(void)
 {
-	uint32_t bl_tmp;
 	uint32_t ret = 0;
 
 	PCTL_TIMING_T *p_pctl_timing = &(DATA(ddr_reg).pctl_timing);
@@ -1775,48 +1448,15 @@ static uint32 __sramfunc ddr_update_timing(void)
 
 	ddr_copy((uint32 *)&(pDDR_Reg->TOGCNT1U),
 		 (uint32 *)&(p_pctl_timing->togcnt1u), 34);
-/*    pPHY_Reg->PHY_REG1 |= PHY_Burst8;*/    /*ddr3 burst length固定为8*/
-	pPHY_Reg->PHY_REGb = ((p_pctl_timing->tcl << 4) | (p_pctl_timing->tal));
-	pPHY_Reg->PHY_REGc = p_pctl_timing->tcwl;
+/*    pPHY_Reg->PHY_REG3 |= PHY_Burst8;*/    /*ddr3 burst length固定为8*/
+	pPHY_Reg->PHY_REG4a = ((p_pctl_timing->tcl << 4) | (p_pctl_timing->tal));
 	*(volatile uint32 *)SysSrv_DdrTiming = p_noc_timing->d32;
 	/*Update PCTL BL*/
-	if (DATA(ddr_reg).mem_type == DDR3) {
-		pDDR_Reg->MCFG =
-		    (pDDR_Reg->MCFG &
-		     (~(0x1 | (0x3 << 18) | (0x1 << 17) | (0x1 << 16))))
-		    | ddr2_ddr3_bl_8 | tfaw_cfg(5) | pd_exit_slow | pd_type(1);
-		pDDR_Reg->DFITRDDATAEN = (pDDR_Reg->TAL + pDDR_Reg->TCL) - 3;	/*trdata_en = rl-3*/
-		pDDR_Reg->DFITPHYWRLAT = pDDR_Reg->TCWL - 1;
-	} else if (DATA(ddr_reg).mem_type == LPDDR2) {
-		if ((DATA(ddr_reg).ddrMR[1] & 0x7) == LPDDR2_BL8) {
-			bl_tmp = mddr_lpddr2_bl_8;
-			pPHY_Reg->PHY_REG1 |= PHY_Burst8;
-		} else if ((DATA(ddr_reg).ddrMR[1] & 0x7) == LPDDR2_BL4) {
-			bl_tmp = mddr_lpddr2_bl_4;
-			pPHY_Reg->PHY_REG1 &= (~PHY_Burst8);
-		} else{		/*if((DATA(ddr_reg).ddrMR[1] & 0x7) == LPDDR2_BL16)*/
-			bl_tmp = mddr_lpddr2_bl_16;
-			ret = -1;
-		}
-		if (DATA(ddr_freq) >= 200) {
-			pDDR_Reg->MCFG =
-			    (pDDR_Reg->MCFG &
-			     (~
-			      ((0x3 << 20) | (0x3 << 18) | (0x1 << 17) |
-			       (0x1 << 16)))) | bl_tmp | tfaw_cfg(5) |
-			    pd_exit_fast | pd_type(1);
-		} else {
-			pDDR_Reg->MCFG =
-			    (pDDR_Reg->MCFG &
-			     (~
-			      ((0x3 << 20) | (0x3 << 18) | (0x1 << 17) |
-			       (0x1 << 16)))) | mddr_lpddr2_bl_8 | tfaw_cfg(6) |
-			    pd_exit_fast | pd_type(1);
-		}
-		pDDR_Reg->DFITRDDATAEN = pDDR_Reg->TCL - 3;
-		pDDR_Reg->DFITPHYWRLAT = pDDR_Reg->TCWL;
-
-	}
+	pDDR_Reg->MCFG =(pDDR_Reg->MCFG &
+	     (~(0x1 | (0x3 << 18) | (0x1 << 17) | (0x1 << 16))))
+	    | ddr2_ddr3_bl_8 | tfaw_cfg(5) | pd_exit_slow | pd_type(1);
+	pDDR_Reg->DFITRDDATAEN = (pDDR_Reg->TAL + pDDR_Reg->TCL) - 3;	/*trdata_en = rl-3*/
+	pDDR_Reg->DFITPHYWRLAT = pDDR_Reg->TCWL - 1;
 	return ret;
 }
 
@@ -1832,48 +1472,29 @@ static uint32 __sramfunc ddr_update_mr(void)
 	/*uint32 cs;
 	cs = READ_CS_INFO();
 	cs = (1 << cs) - 1;	*/
-	if (DATA(ddr_reg).mem_type == DDR3) {
-		if (DATA(ddr_freq) > DDR3_DDR2_DLL_DISABLE_FREQ) {
-			if (DATA(ddr_dll_status) == DDR3_DLL_DISABLE) {	/*off -> on*/
-				ddr_send_command(3, MRS_cmd, bank_addr(0x1) | cmd_addr((DATA(ddr_reg).ddrMR[1])));	/*DLL enable*/
-				ddr_send_command(3, MRS_cmd, bank_addr(0x0) | cmd_addr(((DATA(ddr_reg).ddrMR[0])) | DDR3_DLL_RESET));	/*DLL reset*/
-				ddr_delayus(2);	/*at least 200 DDR cycle*/
-				ddr_send_command(3, MRS_cmd,
-						 bank_addr(0x0) |
-						 cmd_addr((DATA(ddr_reg).ddrMR
-							   [0])));
-				DATA(ddr_dll_status) = DDR3_DLL_ENABLE;
-			} else{  	/*on -> on*/
-				ddr_send_command(3, MRS_cmd,
-						 bank_addr(0x1) |
-						 cmd_addr((DATA(ddr_reg).ddrMR
-							   [1])));
-				ddr_send_command(3, MRS_cmd,
-						 bank_addr(0x0) |
-						 cmd_addr((DATA(ddr_reg).ddrMR
-							   [0])));
-			}
-		} else {
-			ddr_send_command(3, MRS_cmd, bank_addr(0x1) | cmd_addr(((DATA(ddr_reg).ddrMR[1])) | DDR3_DLL_DISABLE));	/*DLL disable*/
-			ddr_send_command(3, MRS_cmd,
-					 bank_addr(0x0) |
+	if (DATA(ddr_freq) > DDR3_DDR2_DLL_DISABLE_FREQ) {
+		if (DATA(ddr_dll_status) == DDR3_DLL_DISABLE) {	/*off -> on*/
+			ddr_send_command(3, MRS_cmd, bank_addr(0x1) | cmd_addr((DATA(ddr_reg).ddrMR[1])));	/*DLL enable*/
+			ddr_send_command(3, MRS_cmd, bank_addr(0x0) | cmd_addr(((DATA(ddr_reg).ddrMR[0])) | DDR3_DLL_RESET));	/*DLL reset*/
+			ddr_delayus(2);	/*at least 200 DDR cycle*/
+			ddr_send_command(3, MRS_cmd, bank_addr(0x0) |
 					 cmd_addr((DATA(ddr_reg).ddrMR[0])));
-			DATA(ddr_dll_status) = DDR3_DLL_DISABLE;
+			DATA(ddr_dll_status) = DDR3_DLL_ENABLE;
+		} else{  	/*on -> on*/
+			ddr_send_command(3, MRS_cmd, bank_addr(0x1) |
+					          cmd_addr((DATA(ddr_reg).ddrMR[1])));
+			ddr_send_command(3, MRS_cmd, bank_addr(0x0) |
+					          cmd_addr((DATA(ddr_reg).ddrMR[0])));
 		}
-		ddr_send_command(3, MRS_cmd,
-				 bank_addr(0x2) |
-				 cmd_addr((DATA(ddr_reg).ddrMR[2])));
-	} else if (DATA(ddr_reg).mem_type == LPDDR2) {
-		ddr_send_command(3, MRS_cmd,
-				 lpddr2_ma(0x1) |
-				 lpddr2_op(DATA(ddr_reg).ddrMR[1]));
-		ddr_send_command(3, MRS_cmd,
-				 lpddr2_ma(0x2) |
-				 lpddr2_op(DATA(ddr_reg).ddrMR[2]));
-		ddr_send_command(3, MRS_cmd,
-				 lpddr2_ma(0x3) |
-				 lpddr2_op(DATA(ddr_reg).ddrMR[3]));
+	} else {
+		ddr_send_command(3, MRS_cmd, bank_addr(0x1) | cmd_addr(((DATA(ddr_reg).ddrMR[1])) | DDR3_DLL_DISABLE));	/*DLL disable*/
+		ddr_send_command(3, MRS_cmd, bank_addr(0x0) |
+				         cmd_addr((DATA(ddr_reg).ddrMR[0])));
+		DATA(ddr_dll_status) = DDR3_DLL_DISABLE;
 	}
+	ddr_send_command(3, MRS_cmd, bank_addr(0x2) |
+			 cmd_addr((DATA(ddr_reg).ddrMR[2])));
+
 	return 0;
 }
 
@@ -1887,29 +1508,20 @@ static void __sramfunc ddr_update_odt(void)
 {
 	/*adjust DRV and ODT*/
 	uint32 phy_odt;
-	if (DATA(ddr_reg).mem_type == DDR3) {
-		if (DATA(ddr_freq) <= PHY_ODT_DISABLE_FREQ) {
-			phy_odt = PHY_RTT_DISABLE;
-		} else {
-			phy_odt = PHY_RTT_216ohm;
-		}
-	} else {
+	if (DATA(ddr_freq) <= PHY_ODT_DISABLE_FREQ) {
 		phy_odt = PHY_RTT_DISABLE;
+	} else {
+		phy_odt = PHY_RTT_216ohm;
 	}
 
-	pPHY_Reg->PHY_REG21 = PHY_DRV_ODT_SET(phy_odt);	/*DQS0 odt*/
-	pPHY_Reg->PHY_REG31 = PHY_DRV_ODT_SET(phy_odt);	/*DQS1 odt*/
-	pPHY_Reg->PHY_REG41 = PHY_DRV_ODT_SET(phy_odt);	/*DQS2 odt*/
-	pPHY_Reg->PHY_REG51 = PHY_DRV_ODT_SET(phy_odt);	/*DQS3 odt*/
+	pPHY_Reg->PHY_REG27 = PHY_DRV_ODT_SET(phy_odt);	/*DQS0 odt*/
+	pPHY_Reg->PHY_REG28 = PHY_DRV_ODT_SET(phy_odt);	/*DQS1 odt*/
 
-	pPHY_Reg->PHY_REG11 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*cmd drv*/
-	pPHY_Reg->PHY_REG16 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*clk drv*/
+	pPHY_Reg->PHY_REG16 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*cmd drv*/
+	pPHY_Reg->PHY_REG22 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*clk drv*/
 
-	pPHY_Reg->PHY_REG20 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS0 drv*/
-	pPHY_Reg->PHY_REG30 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS1 drv*/
-	pPHY_Reg->PHY_REG40 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS2 drv*/
-	pPHY_Reg->PHY_REG50 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS3 drv*/
-
+	pPHY_Reg->PHY_REG25 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS0 drv*/
+	pPHY_Reg->PHY_REG36 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS1 drv*/
 	dsb();
 }
 
@@ -2003,7 +1615,7 @@ static void __sramfunc idle_port(void)
 	;
 
 	/*resume clock gate status*/
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < 11; i++)
 		pCRU_Reg->CRU_CLKGATE_CON[i] = (clk_gate[i] | 0xffff0000);
 }
 
@@ -2046,7 +1658,7 @@ static void __sramfunc deidle_port(void)
 	;
 
 	/*resume clock gate status*/
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < 11; i++)
 		pCRU_Reg->CRU_CLKGATE_CON[i] = (clk_gate[i] | 0xffff0000);
 
 }
@@ -2063,8 +1675,9 @@ static void __sramfunc ddr_selfrefresh_enter(uint32 nMHz)
 {
 	ddr_move_to_Config_state();
 	ddr_move_to_Lowpower_state();
-	pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_EN;
-	pPHY_Reg->PHY_REG0 = (pPHY_Reg->PHY_REG0 & (~(0x3 << 2)));	/*phy soft reset*/
+	/*pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_EN;*/
+	pPHY_Reg->PHY_REG264 &= ~(1<<1);
+	pPHY_Reg->PHY_REG1 = (pPHY_Reg->PHY_REG1 & (~(0x3 << 2)));	/*phy soft reset*/
 	dsb();
 	pCRU_Reg->CRU_CLKGATE_CON[0] = ((0x1 << 2) << 16) | (1 << 2);	/*disable DDR PHY clock*/
 	ddr_delayus(1);
@@ -2111,9 +1724,9 @@ static void __sramfunc ddr_selfrefresh_exit(void)
 	pCRU_Reg->CRU_CLKGATE_CON[0] = ((0x1 << 2) << 16) | (0 << 2);	/*enable DDR PHY clock*/
 	dsb();
 	ddr_delayus(1);
-	pPHY_Reg->PHY_REG0 = (pPHY_Reg->PHY_REG0 | (0x3 << 2));	/*phy soft de-reset*/
-	pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_DISB;
-	/*pPHY_Reg->PHY_REG264 |= (1<<1);*/
+	pPHY_Reg->PHY_REG1 = (pPHY_Reg->PHY_REG1 | (0x3 << 2));	/*phy soft de-reset*/
+	/*pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_DISB;*/
+	pPHY_Reg->PHY_REG264 |= (1<<1);
 	dsb();
 	ddr_move_to_Config_state();
 	ddr_data_training();
@@ -2179,17 +1792,19 @@ static void __sramfunc ddr_SRE_2_SRX(uint32 freq, uint32 freq_slew)
 	DATA(ddr_freq) = freq;
 	ddr_change_freq_in(freq_slew);
 	ddr_move_to_Lowpower_state();
-	pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_EN;
-	pPHY_Reg->PHY_REG0 = (pPHY_Reg->PHY_REG0 & (~(0x3 << 2)));	/*phy soft reset*/
+	/*pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_EN;*/
+	pPHY_Reg->PHY_REG264 &= ~(1<<1);
+    pPHY_Reg->PHY_REG1 = (pPHY_Reg->PHY_REG1 & (~(0x3<<2)));     //phy soft reset
 	dsb();
     /* 3. change frequence  */
 	FUNC(ddr_set_pll) (freq, 1);
 	ddr_set_dll_bypass(freq);	/*set phy dll mode;*/
 	/*pPHY_Reg->PHY_REG0 = (pPHY_Reg->PHY_REG0 | (0x3 << 2)); */      /*phy soft de-reset */
-	pPHY_Reg->PHY_REG0 |= (1 << 2); /*soft de-reset analogue(dll)*/
-	ddr_delayus(5);
-	pPHY_Reg->PHY_REG0 |= (1 << 3);/*soft de-reset digital*/
-	pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_DISB;
+	pPHY_Reg->PHY_REG1 |= (1 << 2); /*soft de-reset analogue(dll)*/
+	ddr_delayus(3);
+	pPHY_Reg->PHY_REG1 |= (1 << 3);/*soft de-reset digital*/
+	/*pGRF_Reg->GRF_SOC_CON[2] = GRF_DDR_LP_DISB;*/
+	pPHY_Reg->PHY_REG264 |= (1<<1);
 	dsb();
 	ddr_update_odt();
 	ddr_move_to_Config_state();

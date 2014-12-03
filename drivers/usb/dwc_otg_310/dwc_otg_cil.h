@@ -1501,4 +1501,6 @@ static inline void cil_pcd_resume(dwc_otg_core_if_t *core_if)
 	}
 }
 
+void dwc_otg_set_force_mode(dwc_otg_core_if_t *core_if, int mode);
+
 #endif

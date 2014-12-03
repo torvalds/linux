@@ -21,7 +21,7 @@
 		rockchip,pwm_max_voltage= <1450000>;
 		rockchip,pwm_suspend_voltage= <1000000>;
 		rockchip,pwm_coefficient= <500>;
-		status = "okay";
+		status = "disabled";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -39,6 +39,15 @@
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
 		gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_LOW>;
+	};
+
+	power-led {
+		compatible = "gpio-leds";
+		power {
+			label = "standby";
+			gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
 	};
 
 	wireless-wlan {

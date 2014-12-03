@@ -45,10 +45,11 @@
 #define RKPM_CTR_GPIOS BIT(4)
 #define RKPM_CTR_DDR BIT(5)
 #define RKPM_CTR_PMIC BIT(6)
-#define RKPM_CTR_VOL_PWM0 BIT(7)
-#define RKPM_CTR_VOL_PWM1 BIT(8)
-#define RKPM_CTR_VOL_PWM2 BIT(9)
-#define RKPM_CTR_VOL_PWM3 BIT(10)
+#define RKPM_CTR_VOL_PWM0 BIT(10)
+#define RKPM_CTR_VOL_PWM1 BIT(11)
+#define RKPM_CTR_VOL_PWM2 BIT(12)
+#define RKPM_CTR_VOL_PWM3 BIT(13)
+#define RKPM_CTR_BUS_IDLE BIT(14)
 /*************************************************************
 *sys_clk 24M div , it is mutex for 
 **RKPM_CTR_SYSCLK_DIV and RKPM_CTR_SYSCLK_32K and RKPM_CTR_SYSCLK_OSC_DIS.

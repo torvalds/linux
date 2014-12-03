@@ -1540,15 +1540,14 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
         int gpio_cd = mmc_gpio_get_cd(mmc);
         int gpio_val;
 
-        if (cpu_is_rk312x() &&
-                soc_is_rk3126() &&
+        if ((soc_is_rk3126() || soc_is_rk3126b()) &&
                 (mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
                 gpio_cd = slot->cd_gpio;
                 if (gpio_is_valid(gpio_cd)) {
                         gpio_val = gpio_get_value(gpio_cd);
                         msleep(10);
                         if (gpio_val == gpio_get_value(gpio_cd)) {
-                                gpio_cd = gpio_get_value(gpio_cd) == 0 ? 1 : 0;
+                                gpio_cd = (gpio_val == 0 ? 1 : 0);
                                 if (gpio_cd == 0) {
                                         /* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
                                         grf_writel((0x1 << 24) | (1 << 8), RK312X_GRF_SOC_CON0);
@@ -2972,11 +2971,11 @@ static void dw_mci_work_routine_card(struct work_struct *work)
                 if (!(IS_ERR(host->pins_udbg)) && !(IS_ERR(host->pins_default))) {
                          if (present) {
                                 if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
                                                 mmc_hostname(host->mmc));
                          } else {
                                 if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
-                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
+                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
                                                 mmc_hostname(host->mmc));
                         }
                 }
@@ -3434,8 +3433,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
         }
 
         /* We assume only low-level chip use gpio_cd */
-        if (cpu_is_rk312x() &&
-                soc_is_rk3126() &&
+        if ((soc_is_rk3126() || soc_is_rk3126b()) &&
                 (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
                 slot->cd_gpio = of_get_named_gpio(host->dev->of_node, "cd-gpios", 0);
                 if (gpio_is_valid(slot->cd_gpio)) {
@@ -4170,6 +4168,8 @@ EXPORT_SYMBOL(dw_mci_remove);
 extern int get_wifi_chip_type(void);
 int dw_mci_suspend(struct dw_mci *host)
 {
+	struct dw_mci_slot *slot = mmc_priv(host->mmc);
+
 	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
 		(get_wifi_chip_type() == WIFI_ESP8089))
 		return 0;
@@ -4180,16 +4180,24 @@ int dw_mci_suspend(struct dw_mci *host)
         /*only for sdmmc controller*/
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 disable_irq(host->irq);
-                if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
-                        MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
-                                                mmc_hostname(host->mmc));
+                if (test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
+			if (!IS_ERR(host->pins_idle) &&
+				pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
+							mmc_hostname(host->mmc));
+		} else {
+			if (IS_ERR(host->pins_udbg) && !IS_ERR(host->pins_idle) &&
+				pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
+							mmc_hostname(host->mmc));
+		}
 
                 mci_writel(host, RINTSTS, 0xFFFFFFFF);
                 mci_writel(host, INTMASK, 0x00);
                 mci_writel(host, CTRL, 0x00);
 
                 /* Soc rk3126 already in gpio_cd mode */
-                if (!(cpu_is_rk312x() && soc_is_rk3126())) {
+                if (!soc_is_rk3126() && !soc_is_rk3126b()) {
                         dw_mci_of_get_cd_gpio(host->dev, 0, host->mmc);
                         enable_irq_wake(host->mmc->slot.cd_irq);
                 }
@@ -4200,7 +4208,7 @@ EXPORT_SYMBOL(dw_mci_suspend);
 
 int dw_mci_resume(struct dw_mci *host)
 {
-	int i, ret, retry_cnt = 0;
+	int i, ret;
 	u32 regs;
         struct dw_mci_slot *slot;
 
@@ -4219,13 +4227,22 @@ int dw_mci_resume(struct dw_mci *host)
     	/*only for sdmmc controller*/
 	if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 /* Soc rk3126 already in gpio_cd mode */
-                if (!(cpu_is_rk312x() && soc_is_rk3126())) {
+                if (!soc_is_rk3126() && !soc_is_rk3126b()) {
                         disable_irq_wake(host->mmc->slot.cd_irq);
                         mmc_gpio_free_cd(host->mmc);
                 }
-		if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                        MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
-                                                mmc_hostname(host->mmc));
+
+		if (test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
+			if (!IS_ERR(host->pins_default) &&
+				pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
+						mmc_hostname(host->mmc));
+		} else {
+			if (IS_ERR(host->pins_udbg) && !IS_ERR(host->pins_default) &&
+				pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
+						mmc_hostname(host->mmc));
+		}
 
 		/* Disable jtag*/
 		if(cpu_is_rk3288())
@@ -4271,7 +4288,7 @@ int dw_mci_resume(struct dw_mci *host)
 	mci_writel(host, INTMASK, regs);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 	/*only for sdmmc controller*/
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)&& (!retry_cnt)){
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)){
 		enable_irq(host->irq);	
 	}   
 

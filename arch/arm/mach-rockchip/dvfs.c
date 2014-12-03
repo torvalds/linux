@@ -1021,7 +1021,7 @@ static void dvfs_virt_temp_limit_work_func(void)
 	static bool in_perf;
 	int i;
 
-	if (!soc_is_rk3126() && !soc_is_rk3128())
+	if (!cpu_is_rk312x())
 		return;
 
 	if (rockchip_get_system_status() & SYS_STATUS_PERFORMANCE) {

@@ -20,6 +20,10 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/vermagic.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/err.h>
+
 
 static int ac_online			= 1;
 static int usb_online			= 1;
@@ -177,6 +181,18 @@ static int __init test_power_init(void)
 {
 	int i;
 	int ret;
+	struct device_node *dev_node;
+
+	dev_node = of_find_node_by_name(NULL, "test-power");
+
+	if (IS_ERR_OR_NULL(dev_node)) {
+		pr_info("not find %s dev node\n",  __func__);
+		return 0;
+	}
+	if (!of_device_is_available(dev_node)) {
+		pr_info("test power disabled\n");
+		return 0;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(test_power_supplies); i++) {
 		ret = power_supply_register(NULL, &test_power_supplies[i]);
