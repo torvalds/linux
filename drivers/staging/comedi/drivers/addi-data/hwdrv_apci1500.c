@@ -21,9 +21,6 @@
  *
  */
 
-/* Card Specific information */
-#define APCI1500_ADDRESS_RANGE		4
-
 /* DIGITAL INPUT-OUTPUT DEFINE */
 
 #define APCI1500_AND			2
