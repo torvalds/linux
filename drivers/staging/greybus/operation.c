@@ -939,7 +939,7 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 
 	ret = gb_operation_request_send_sync(operation);
 	if (ret)
-		pr_err("version operation failed (%d)\n", ret);
+		pr_err("synchronous operation failed (%d)\n", ret);
 	else
 		if (response_size)
 			memcpy(response, operation->response->payload,
