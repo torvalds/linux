@@ -158,6 +158,6 @@ int do_dsemulret(struct pt_regs *xcp)
 
 	/* Set EPC to return to post-branch instruction */
 	xcp->cp0_epc = epc;
-
+	MIPS_FPU_EMU_INC_STATS(ds_emul);
 	return 1;
 }

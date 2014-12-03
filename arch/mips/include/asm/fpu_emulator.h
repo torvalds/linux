@@ -44,6 +44,7 @@ struct mips_fpu_emulator_stats {
 	unsigned long ieee754_overflow;
 	unsigned long ieee754_zerodiv;
 	unsigned long ieee754_invalidop;
+	unsigned long ds_emul;
 };
 
 DECLARE_PER_CPU(struct mips_fpu_emulator_stats, fpuemustats);
