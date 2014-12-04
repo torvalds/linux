@@ -36,8 +36,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	if (iommu_present(&platform_bus_type)) {
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
-		if (IS_ERR(tegra->domain)) {
-			err = PTR_ERR(tegra->domain);
+		if (!tegra->domain) {
+			err = -ENOMEM;
 			goto free;
 		}
 
