@@ -230,30 +230,6 @@ unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
 EXPORT_SYMBOL_GPL(cpufreq_cooling_get_level);
 
 /**
- * get_cpu_frequency - get the absolute value of frequency from level.
- * @cpu: cpu for which frequency is fetched.
- * @level: cooling level
- *
- * This function matches cooling level with frequency. Based on a cooling level
- * of frequency, equals cooling state of cpu cooling device, it will return
- * the corresponding frequency.
- *	e.g level=0 --> 1st MAX FREQ, level=1 ---> 2nd MAX FREQ, .... etc
- *
- * Return: 0 on error, the corresponding frequency otherwise.
- */
-static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
-{
-	int ret = 0;
-	unsigned int freq;
-
-	ret = get_property(cpu, level, &freq, GET_FREQ);
-	if (ret)
-		return 0;
-
-	return freq;
-}
-
-/**
  * cpufreq_thermal_notifier - notifier callback for cpufreq policy change.
  * @nb:	struct notifier_block * with callback info.
  * @event: value showing cpufreq event for which this function invoked.
@@ -358,14 +334,15 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
 	unsigned int cpu = cpumask_any(&cpufreq_device->allowed_cpus);
 	unsigned int clip_freq;
+	int ret;
 
 	/* Check if the old cooling action is same as new cooling action */
 	if (cpufreq_device->cpufreq_state == state)
 		return 0;
 
-	clip_freq = get_cpu_frequency(cpu, state);
-	if (!clip_freq)
-		return -EINVAL;
+	ret = get_property(cpu, state, &clip_freq, GET_FREQ);
+	if (ret)
+		return ret;
 
 	cpufreq_device->cpufreq_state = state;
 	cpufreq_device->cpufreq_val = clip_freq;
@@ -419,10 +396,11 @@ __cpufreq_cooling_register(struct device_node *np,
 	if (!cpufreq_dev)
 		return ERR_PTR(-ENOMEM);
 
-	cpufreq_dev->cpufreq_val = get_cpu_frequency(cpumask_any(clip_cpus), 0);
-	if (!cpufreq_dev->cpufreq_val) {
-		pr_err("%s: Failed to get frequency", __func__);
-		cool_dev = ERR_PTR(-EINVAL);
+	ret = get_property(cpumask_any(clip_cpus), 0, &cpufreq_dev->cpufreq_val,
+			   GET_FREQ);
+	if (ret) {
+		pr_err("%s: Failed to get frequency: %d", __func__, ret);
+		cool_dev = ERR_PTR(ret);
 		goto free_cdev;
 	}
 
