@@ -38,6 +38,8 @@ static void sti_drm_crtc_prepare(struct drm_crtc *crtc)
 		if (clk_prepare_enable(compo->clk_compo_aux))
 			DRM_INFO("Failed to prepare/enable compo_aux clk\n");
 	}
+
+	sti_mixer_clear_all_layers(mixer);
 }
 
 static void sti_drm_crtc_commit(struct drm_crtc *crtc)

@@ -39,6 +39,7 @@ struct sti_mixer *sti_mixer_create(struct device *dev, int id,
 
 int sti_mixer_set_layer_status(struct sti_mixer *mixer,
 		struct sti_layer *layer, bool status);
+void sti_mixer_clear_all_layers(struct sti_mixer *mixer);
 int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer);
 int sti_mixer_active_video_area(struct sti_mixer *mixer,
 		struct drm_display_mode *mode);

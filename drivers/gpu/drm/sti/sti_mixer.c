@@ -215,6 +215,15 @@ int sti_mixer_set_layer_status(struct sti_mixer *mixer,
 	return 0;
 }
 
+void sti_mixer_clear_all_layers(struct sti_mixer *mixer)
+{
+	u32 val;
+
+	DRM_DEBUG_DRIVER("%s clear all layer\n", sti_mixer_to_str(mixer));
+	val = sti_mixer_reg_read(mixer, GAM_MIXER_CTL) & 0xFFFF0000;
+	sti_mixer_reg_write(mixer, GAM_MIXER_CTL, val);
+}
+
 void sti_mixer_set_matrix(struct sti_mixer *mixer)
 {
 	unsigned int i;
