@@ -300,12 +300,12 @@
 
 	qspi_pins: qspi_pins {
 		pinctrl-single,pins = <
-			0x7c (PIN_OUTPUT_PULLUP | MUX_MODE3)	/* gpmc_csn0.qspi_csn */
-			0x88 (PIN_OUTPUT | MUX_MODE2)		/* gpmc_csn3.qspi_clk */
-			0x90 (PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_advn_ale.qspi_d0 */
-			0x94 (PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_oen_ren.qspi_d1 */
-			0x98 (PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_wen.qspi_d2 */
-			0x9c (PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_be0n_cle.qspi_d3 */
+			0x7c (PIN_OUTPUT | MUX_MODE3)	/* gpmc_csn0.qspi_csn */
+			0x88 (PIN_OUTPUT | MUX_MODE2)	/* gpmc_csn3.qspi_clk */
+			0x90 (PIN_INPUT | MUX_MODE3)	/* gpmc_advn_ale.qspi_d0 */
+			0x94 (PIN_INPUT | MUX_MODE3)	/* gpmc_oen_ren.qspi_d1 */
+			0x98 (PIN_INPUT | MUX_MODE3)	/* gpmc_wen.qspi_d2 */
+			0x9c (PIN_INPUT | MUX_MODE3)	/* gpmc_be0n_cle.qspi_d3 */
 		>;
 	};
 
