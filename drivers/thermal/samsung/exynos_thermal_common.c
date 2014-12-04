@@ -371,9 +371,11 @@ int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		th_zone->cool_dev[th_zone->cool_dev_size] =
 					cpufreq_cooling_register(&mask_val);
 		if (IS_ERR(th_zone->cool_dev[th_zone->cool_dev_size])) {
-			dev_err(sensor_conf->dev,
-				"Failed to register cpufreq cooling device\n");
-			ret = -EINVAL;
+			ret = PTR_ERR(th_zone->cool_dev[th_zone->cool_dev_size]);
+			if (ret != -EPROBE_DEFER)
+				dev_err(sensor_conf->dev,
+					"Failed to register cpufreq cooling device: %d\n",
+					ret);
 			goto err_unregister;
 		}
 		th_zone->cool_dev_size++;

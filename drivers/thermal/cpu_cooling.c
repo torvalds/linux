@@ -443,6 +443,11 @@ __cpufreq_cooling_register(struct device_node *np,
 	int ret = 0, i;
 	struct cpufreq_policy policy;
 
+	if (!cpufreq_frequency_get_table(cpumask_first(clip_cpus))) {
+		pr_debug("%s: CPUFreq table not found\n", __func__);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
 	/* Verify that all the clip cpus have same freq_min, freq_max limit */
 	for_each_cpu(i, clip_cpus) {
 		/* continue if cpufreq policy not found and not return error */
