@@ -1001,7 +1001,7 @@ static int spi_init_queue(struct spi_master *master)
 					   dev_name(&master->dev));
 	if (IS_ERR(master->kworker_task)) {
 		dev_err(&master->dev, "failed to create message pump task\n");
-		return -ENOMEM;
+		return PTR_ERR(master->kworker_task);
 	}
 	init_kthread_work(&master->pump_messages, spi_pump_messages);
 
