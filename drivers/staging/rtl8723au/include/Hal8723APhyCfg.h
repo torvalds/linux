@@ -17,17 +17,7 @@
 #define __INC_HAL8723PHYCFG_H__
 
 /*--------------------------Define Parameters-------------------------------*/
-#define LOOP_LIMIT				5
-#define MAX_STALL_TIME		50		/* us */
-#define AntennaDiversityValue	0x80
-#define MAX_TXPWR_IDX_NMODE_92S	63
-#define Reset_Cnt_Limit		3
-
-
 #define MAX_AGGR_NUM	0x0909
-
-/*--------------------------Define Parameters-------------------------------*/
-
 
 /*------------------------------Define structure----------------------------*/
 enum RF_RADIO_PATH {
