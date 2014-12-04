@@ -28,6 +28,20 @@
 #include <linux/cpu.h>
 #include <linux/cpu_cooling.h>
 
+/*
+ * Cooling state <-> CPUFreq frequency
+ *
+ * Cooling states are translated to frequencies throughout this driver and this
+ * is the relation between them.
+ *
+ * Highest cooling state corresponds to lowest possible frequency.
+ *
+ * i.e.
+ *	level 0 --> 1st Max Freq
+ *	level 1 --> 2nd Max Freq
+ *	...
+ */
+
 /**
  * struct cpufreq_cooling_device - data for cooling device with cpufreq
  * @id: unique integer value corresponding to each cpufreq_cooling_device
