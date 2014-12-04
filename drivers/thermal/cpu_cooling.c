@@ -116,7 +116,6 @@ static void release_idr(struct idr *idr, int id)
 enum cpufreq_cooling_property {
 	GET_LEVEL,
 	GET_FREQ,
-	GET_MAXL,
 };
 
 /**
@@ -124,12 +123,11 @@ enum cpufreq_cooling_property {
  * @cpu: cpu for which the property is required
  * @input: query parameter
  * @output: query return
- * @property: type of query (frequency, level, max level)
+ * @property: type of query (frequency, level)
  *
  * This is the common function to
- * 1. get maximum cpu cooling states
- * 2. translate frequency to cooling state
- * 3. translate cooling state to frequency
+ * 1. translate frequency to cooling state
+ * 2. translate cooling state to frequency
  *
  * Note that the code may be not in good shape
  * but it is written in this way in order to:
@@ -175,12 +173,6 @@ static int get_property(unsigned int cpu, unsigned long input,
 
 	/* max_level is an index, not a counter */
 	max_level--;
-
-	/* get max level */
-	if (property == GET_MAXL) {
-		*output = (unsigned int)max_level;
-		return 0;
-	}
 
 	if (property == GET_FREQ)
 		level = descend ? input : (max_level - input);
