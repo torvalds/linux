@@ -1061,6 +1061,12 @@
 				status = "disabled";
 			};
 
+			qspi_m4: qspi-m4 {
+				compatible = "fsl,imx6sx-qspi-m4-restore";
+				reg = <0x021e4000 0x4000>;
+				status = "disabled";
+			};
+
 			uart2: serial@021e8000 {
 				compatible = "fsl,imx6sx-uart",
 					     "fsl,imx6q-uart", "fsl,imx21-uart";

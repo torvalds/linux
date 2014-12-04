@@ -1,0 +1,84 @@
+/*
+ * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6sx-sdb.dts"
+
+/{
+	memory {
+		linux,usable-memory = <0x80000000 0x3ff00000>;
+		reg = <0x80000000 0x40000000>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+};
+
+/*
+ * The flollowing modules are conflicting with M4, disable them when m4
+ * is running.
+ */
+&adc1 {
+	status = "disabled";
+};
+
+&adc2 {
+	status = "disabled";
+};
+
+&flexcan1 {
+	status = "disabled";
+};
+
+&flexcan2 {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "disabled";
+};
+
+&ocram {
+	reg = <0x00901000 0x1E000>;
+};
+
+&qspi2 {
+	status = "disabled";
+};
+
+&qspi_m4 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&clks {
+	fsl,shared-clks-number = <0x23>;
+	fsl,shared-clks-index = <IMX6SX_CLK_PLL2_BUS IMX6SX_CLK_PLL2_PFD0
+			IMX6SX_CLK_PLL2_PFD2 IMX6SX_CLK_PLL3_USB_OTG
+			IMX6SX_CLK_PLL3_PFD1 IMX6SX_CLK_PLL3_PFD2
+			IMX6SX_CLK_PLL3_PFD3 IMX6SX_CLK_PLL4_AUDIO
+			IMX6SX_CLK_PLL5_VIDEO
+			IMX6SX_CLK_OCRAM IMX6SX_CLK_CAN1_SERIAL
+			IMX6SX_CLK_CAN1_IPG IMX6SX_CLK_CAN2_SERIAL
+			IMX6SX_CLK_CAN2_IPG IMX6SX_CLK_CANFD
+			IMX6SX_CLK_ECSPI1 IMX6SX_CLK_ECSPI2
+			IMX6SX_CLK_ECSPI3 IMX6SX_CLK_ECSPI4
+			IMX6SX_CLK_ECSPI5 IMX6SX_CLK_QSPI1
+			IMX6SX_CLK_QSPI2 IMX6SX_CLK_SSI1
+			IMX6SX_CLK_SSI2 IMX6SX_CLK_SSI3
+			IMX6SX_CLK_UART_SERIAL IMX6SX_CLK_UART_IPG
+			IMX6SX_CLK_PERIPH_CLK2_SEL IMX6SX_CLK_DUMMY
+			IMX6SX_CLK_I2C1 IMX6SX_CLK_I2C2
+			IMX6SX_CLK_I2C3 IMX6SX_CLK_I2C4
+			IMX6SX_CLK_EPIT1 IMX6SX_CLK_EPIT2>;
+	fsl,shared-mem-addr = <0x91F000>;
+	fsl,shared-mem-size = <0x1000>;
+};
