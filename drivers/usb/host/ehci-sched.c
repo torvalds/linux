@@ -1581,6 +1581,10 @@ iso_stream_schedule (
 	else
 		next = (now + 2 + 7) & ~0x07;	/* full frame cache */
 
+	/* If needed, initialize last_iso_frame so that this URB will be seen */
+	if (ehci->isoc_count == 0)
+		ehci->last_iso_frame = now >> 3;
+
 	/*
 	 * Use ehci->last_iso_frame as the base.  There can't be any
 	 * TDs scheduled for earlier than that.
@@ -1671,10 +1675,6 @@ iso_stream_schedule (
 	urb->start_frame = start & (mod - 1);
 	if (!stream->highspeed)
 		urb->start_frame >>= 3;
-
-	/* Make sure scan_isoc() sees these */
-	if (ehci->isoc_count == 0)
-		ehci->last_iso_frame = now >> 3;
 	return status;
 
  fail:
