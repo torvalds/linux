@@ -104,7 +104,6 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 	}
 }
 
-
 int mac802154_get_params(struct net_device *dev,
 			 struct ieee802154_llsec_params *params)
 {
@@ -135,7 +134,6 @@ int mac802154_set_params(struct net_device *dev,
 
 	return res;
 }
-
 
 int mac802154_add_key(struct net_device *dev,
 		      const struct ieee802154_llsec_key_id *id,
@@ -168,7 +166,6 @@ int mac802154_del_key(struct net_device *dev,
 	return res;
 }
 
-
 int mac802154_add_dev(struct net_device *dev,
 		      const struct ieee802154_llsec_device *llsec_dev)
 {
@@ -197,7 +194,6 @@ int mac802154_del_dev(struct net_device *dev, __le64 dev_addr)
 
 	return res;
 }
-
 
 int mac802154_add_devkey(struct net_device *dev,
 			 __le64 device_addr,
@@ -231,7 +227,6 @@ int mac802154_del_devkey(struct net_device *dev,
 	return res;
 }
 
-
 int mac802154_add_seclevel(struct net_device *dev,
 			   const struct ieee802154_llsec_seclevel *sl)
 {
@@ -261,7 +256,6 @@ int mac802154_del_seclevel(struct net_device *dev,
 
 	return res;
 }
-
 
 void mac802154_lock_table(struct net_device *dev)
 {
