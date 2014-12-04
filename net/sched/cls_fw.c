@@ -111,10 +111,6 @@ static unsigned long fw_get(struct tcf_proto *tp, u32 handle)
 	return 0;
 }
 
-static void fw_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int fw_init(struct tcf_proto *tp)
 {
 	return 0;
@@ -411,7 +407,6 @@ static struct tcf_proto_ops cls_fw_ops __read_mostly = {
 	.init		=	fw_init,
 	.destroy	=	fw_destroy,
 	.get		=	fw_get,
-	.put		=	fw_put,
 	.change		=	fw_change,
 	.delete		=	fw_delete,
 	.walk		=	fw_walk,

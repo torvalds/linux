@@ -581,10 +581,6 @@ static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
 	return 0;
 }
 
-static void flow_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
@@ -671,7 +667,6 @@ static struct tcf_proto_ops cls_flow_ops __read_mostly = {
 	.change		= flow_change,
 	.delete		= flow_delete,
 	.get		= flow_get,
-	.put		= flow_put,
 	.dump		= flow_dump,
 	.walk		= flow_walk,
 	.owner		= THIS_MODULE,

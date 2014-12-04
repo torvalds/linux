@@ -151,10 +151,6 @@ static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
 	return ret;
 }
 
-static void cls_bpf_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 				   struct cls_bpf_prog *prog,
 				   unsigned long base, struct nlattr **tb,
@@ -356,7 +352,6 @@ static struct tcf_proto_ops cls_bpf_ops __read_mostly = {
 	.init		=	cls_bpf_init,
 	.destroy	=	cls_bpf_destroy,
 	.get		=	cls_bpf_get,
-	.put		=	cls_bpf_put,
 	.change		=	cls_bpf_change,
 	.delete		=	cls_bpf_delete,
 	.walk		=	cls_bpf_walk,

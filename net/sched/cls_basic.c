@@ -72,10 +72,6 @@ static unsigned long basic_get(struct tcf_proto *tp, u32 handle)
 	return l;
 }
 
-static void basic_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int basic_init(struct tcf_proto *tp)
 {
 	struct basic_head *head;
@@ -287,7 +283,6 @@ static struct tcf_proto_ops cls_basic_ops __read_mostly = {
 	.init		=	basic_init,
 	.destroy	=	basic_destroy,
 	.get		=	basic_get,
-	.put		=	basic_put,
 	.change		=	basic_change,
 	.delete		=	basic_delete,
 	.walk		=	basic_walk,

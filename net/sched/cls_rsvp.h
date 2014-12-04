@@ -271,10 +271,6 @@ static unsigned long rsvp_get(struct tcf_proto *tp, u32 handle)
 	return 0;
 }
 
-static void rsvp_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int rsvp_init(struct tcf_proto *tp)
 {
 	struct rsvp_head *data;
@@ -708,7 +704,6 @@ static struct tcf_proto_ops RSVP_OPS __read_mostly = {
 	.init		=	rsvp_init,
 	.destroy	=	rsvp_destroy,
 	.get		=	rsvp_get,
-	.put		=	rsvp_put,
 	.change		=	rsvp_change,
 	.delete		=	rsvp_delete,
 	.walk		=	rsvp_walk,

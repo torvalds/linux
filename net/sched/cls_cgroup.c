@@ -67,10 +67,6 @@ static unsigned long cls_cgroup_get(struct tcf_proto *tp, u32 handle)
 	return 0UL;
 }
 
-static void cls_cgroup_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int cls_cgroup_init(struct tcf_proto *tp)
 {
 	return 0;
@@ -213,7 +209,6 @@ static struct tcf_proto_ops cls_cgroup_ops __read_mostly = {
 	.classify	=	cls_cgroup_classify,
 	.destroy	=	cls_cgroup_destroy,
 	.get		=	cls_cgroup_get,
-	.put		=	cls_cgroup_put,
 	.delete		=	cls_cgroup_delete,
 	.walk		=	cls_cgroup_walk,
 	.dump		=	cls_cgroup_dump,

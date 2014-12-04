@@ -299,10 +299,6 @@ static unsigned long u32_get(struct tcf_proto *tp, u32 handle)
 	return (unsigned long)u32_lookup_key(ht, handle);
 }
 
-static void u32_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static u32 gen_new_htid(struct tc_u_common *tp_c)
 {
 	int i = 0x800;
@@ -1021,7 +1017,6 @@ static struct tcf_proto_ops cls_u32_ops __read_mostly = {
 	.init		=	u32_init,
 	.destroy	=	u32_destroy,
 	.get		=	u32_get,
-	.put		=	u32_put,
 	.change		=	u32_change,
 	.delete		=	u32_delete,
 	.walk		=	u32_walk,
