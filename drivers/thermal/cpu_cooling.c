@@ -316,11 +316,6 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 					&cpufreq_dev->allowed_cpus))
 			continue;
 
-		if (!cpufreq_dev->cpufreq_val)
-			cpufreq_dev->cpufreq_val = get_cpu_frequency(
-					cpumask_any(&cpufreq_dev->allowed_cpus),
-					cpufreq_dev->cpufreq_state);
-
 		max_freq = cpufreq_dev->cpufreq_val;
 
 		if (policy->max != max_freq)
@@ -443,6 +438,13 @@ __cpufreq_cooling_register(struct device_node *np,
 	cpufreq_dev = kzalloc(sizeof(*cpufreq_dev), GFP_KERNEL);
 	if (!cpufreq_dev)
 		return ERR_PTR(-ENOMEM);
+
+	cpufreq_dev->cpufreq_val = get_cpu_frequency(cpumask_any(clip_cpus), 0);
+	if (!cpufreq_dev->cpufreq_val) {
+		pr_err("%s: Failed to get frequency", __func__);
+		cool_dev = ERR_PTR(-EINVAL);
+		goto free_cdev;
+	}
 
 	cpumask_copy(&cpufreq_dev->allowed_cpus, clip_cpus);
 
