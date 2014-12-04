@@ -135,7 +135,8 @@ TOTAL_RESULT=0
 CASENO=0
 testcase() { # testfile
   CASENO=$((CASENO+1))
-  prlog -n "[$CASENO]"`grep "^#[ \t]*description:" $1 | cut -f2 -d:`
+  desc=`grep "^#[ \t]*description:" $1 | cut -f2 -d:`
+  prlog -n "[$CASENO]$desc"
 }
 
 eval_result() { # retval sigval
