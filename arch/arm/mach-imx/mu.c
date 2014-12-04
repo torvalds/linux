@@ -9,6 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/busfreq-imx.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -31,6 +32,19 @@
 
 #define MU_LPM_HANDSHAKE_INDEX		0
 #define MU_RPMSG_HANDSHAKE_INDEX	1
+#define MU_LPM_BUS_HIGH_READY_FOR_M4	0xFFFF6666
+#define MU_LPM_M4_FREQ_CHANGE_READY	0xFFFF7777
+#define MU_LPM_M4_REQUEST_HIGH_BUS	0x2222CCCC
+#define MU_LPM_M4_RELEASE_HIGH_BUS	0x2222BBBB
+#define MU_LPM_M4_WAKEUP_SRC_VAL	0x55555000
+#define MU_LPM_M4_WAKEUP_SRC_MASK	0xFFFFF000
+#define MU_LPM_M4_WAKEUP_IRQ_MASK	0xFF0
+#define MU_LPM_M4_WAKEUP_IRQ_SHIFT	0x4
+#define MU_LPM_M4_WAKEUP_ENABLE_MASK	0xF
+#define MU_LPM_M4_WAKEUP_ENABLE_SHIFT	0x0
+
+#define MU_LPM_HANDSHAKE_INDEX		0
+#define MU_RPMSG_HANDSHAKE_INDEX	1
 
 struct imx_mu_rpmsg_box {
 	const char *name;
@@ -44,6 +58,70 @@ static struct imx_mu_rpmsg_box mu_rpmsg_box = {
 static void __iomem *mu_base;
 static u32 m4_message;
 static struct delayed_work rpmsg_work;
+
+static u32 mu_int_en;
+static struct delayed_work mu_work, rpmsg_work;
+static u32 m4_wake_irqs[4];
+static bool m4_freq_low;
+struct irq_domain *domain;
+
+bool imx_mu_is_m4_in_low_freq(void)
+{
+	return m4_freq_low;
+}
+
+void imx_mu_enable_m4_irqs_in_gic(bool enable)
+{
+	int i, j;
+
+	for (i = 0; i < 4; i++) {
+		if (m4_wake_irqs[i] == 0)
+			continue;
+		for (j = 0; j < 32; j++) {
+			if (m4_wake_irqs[i] & (1 << j)) {
+				if (enable)
+					enable_irq(irq_find_mapping(
+						domain, i * 32 + j));
+				else
+					disable_irq(irq_find_mapping(
+						domain, i * 32 + j));
+			}
+		}
+	}
+}
+
+static irqreturn_t mcc_m4_dummy_isr(int irq, void *param)
+{
+	return IRQ_HANDLED;
+}
+
+int imx_mcc_bsp_int_disable(void)
+{
+	u32 val;
+
+	/* Disablethe bit31(GIE3) and bit19(GIR3) of MU_ACR */
+	mu_int_en = val = readl_relaxed(mu_base + MU_ACR);
+	val &= ~mu_int_en;
+	writel_relaxed(val, mu_base + MU_ACR);
+
+	/* flush */
+	val = readl_relaxed(mu_base + MU_ACR);
+	return 0;
+}
+
+int imx_mcc_bsp_int_enable(void)
+{
+	u32 val;
+
+	/* Enable bit31(GIE3) and bit19(GIR3) of MU_ACR */
+	val = readl_relaxed(mu_base + MU_ACR);
+	val |= mu_int_en;
+	writel_relaxed(val, mu_base + MU_ACR);
+
+	/* flush */
+	val = readl_relaxed(mu_base + MU_ACR);
+	return 0;
+}
 
 static int imx_mu_send_message(unsigned int index, unsigned int data)
 {
@@ -99,6 +177,73 @@ static int imx_mu_send_message(unsigned int index, unsigned int data)
 	return 0;
 }
 
+static void mu_work_handler(struct work_struct *work)
+{
+	int ret;
+	u32 irq, enable, idx, mask, virq;
+	struct of_phandle_args args;
+
+	pr_debug("receive M4 message 0x%x\n", m4_message);
+
+	switch (m4_message) {
+	case MU_LPM_M4_REQUEST_HIGH_BUS:
+		request_bus_freq(BUS_FREQ_HIGH);
+		imx6sx_set_m4_highfreq(true);
+		imx_mu_send_message(MU_LPM_HANDSHAKE_INDEX,
+			MU_LPM_BUS_HIGH_READY_FOR_M4);
+		m4_freq_low = false;
+		break;
+	case MU_LPM_M4_RELEASE_HIGH_BUS:
+		release_bus_freq(BUS_FREQ_HIGH);
+		imx6sx_set_m4_highfreq(false);
+		imx_mu_send_message(MU_LPM_HANDSHAKE_INDEX,
+			MU_LPM_M4_FREQ_CHANGE_READY);
+		m4_freq_low = true;
+		break;
+	default:
+		if ((m4_message & MU_LPM_M4_WAKEUP_SRC_MASK) ==
+			MU_LPM_M4_WAKEUP_SRC_VAL) {
+			irq = (m4_message & MU_LPM_M4_WAKEUP_IRQ_MASK) >>
+				MU_LPM_M4_WAKEUP_IRQ_SHIFT;
+
+			enable = (m4_message & MU_LPM_M4_WAKEUP_ENABLE_MASK) >>
+				MU_LPM_M4_WAKEUP_ENABLE_SHIFT;
+
+			/* to hwirq start from 0 */
+			irq -= 32;
+
+			idx = irq / 32;
+			mask = 1 << irq % 32;
+
+			args.np = of_find_compatible_node(NULL, NULL, "fsl,imx6sx-gpc");
+			args.args_count = 3;
+			args.args[0] = 0;
+			args.args[1] = irq;
+			args.args[2] = IRQ_TYPE_LEVEL_HIGH;
+
+			virq = irq_create_of_mapping(&args);
+
+			if (enable && can_request_irq(virq, 0)) {
+				ret = request_irq(virq, mcc_m4_dummy_isr,
+					IRQF_NO_SUSPEND, "imx-m4-dummy", NULL);
+				if (ret) {
+					pr_err("%s: register interrupt %d failed, rc %d\n",
+						__func__, virq, ret);
+					break;
+				}
+				disable_irq(virq);
+				m4_wake_irqs[idx] = m4_wake_irqs[idx] | mask;
+			}
+			imx_gpc_add_m4_wake_up_irq(irq, enable);
+		}
+		break;
+	}
+	m4_message = 0;
+	/* enable RIE3 interrupt */
+	writel_relaxed(readl_relaxed(mu_base + MU_ACR) | BIT(27),
+		mu_base + MU_ACR);
+}
+
 int imx_mu_rpmsg_send(unsigned int rpmsg)
 {
 	return imx_mu_send_message(MU_RPMSG_HANDSHAKE_INDEX, rpmsg);
@@ -152,6 +297,15 @@ static irqreturn_t imx_mu_isr(int irq, void *param)
 		schedule_delayed_work(&rpmsg_work, 0);
 	}
 
+	if (irqs & (1 << 27)) {
+		/* get message from receive buffer */
+		m4_message = readl_relaxed(mu_base + MU_ARR0_OFFSET);
+		/* disable RIE3 interrupt */
+		writel_relaxed(readl_relaxed(mu_base + MU_ACR) & (~BIT(27)),
+			mu_base + MU_ACR);
+		schedule_delayed_work(&mu_work, 0);
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -167,7 +321,6 @@ static int imx_mu_probe(struct platform_device *pdev)
 	WARN_ON(!mu_base);
 
 	irq = platform_get_irq(pdev, 0);
-
 	ret = request_irq(irq, imx_mu_isr,
 		IRQF_EARLY_RESUME, "imx-mu", &mu_rpmsg_box);
 	if (ret) {
@@ -191,6 +344,18 @@ static int imx_mu_probe(struct platform_device *pdev)
 				return ret;
 			}
 		}
+	} else {
+		INIT_DELAYED_WORK(&mu_work, mu_work_handler);
+
+		/* enable the bit27(RIE3) of MU_ACR */
+		writel_relaxed(readl_relaxed(mu_base + MU_ACR) | BIT(27),
+			mu_base + MU_ACR);
+		/* enable the bit31(GIE3) of MU_ACR, used for MCC */
+		writel_relaxed(readl_relaxed(mu_base + MU_ACR) | BIT(31),
+			mu_base + MU_ACR);
+
+		/* MU always as a wakeup source for low power mode */
+		imx_gpc_add_m4_wake_up_irq(irq_to_desc(irq)->irq_data.hwirq, true);
 	}
 
 	INIT_DELAYED_WORK(&rpmsg_work, rpmsg_work_handler);

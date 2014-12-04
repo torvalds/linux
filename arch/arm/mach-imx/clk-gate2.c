@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2010-2011 Canonical Ltd <jeremy.kerr@canonical.com>
  * Copyright (C) 2011-2012 Mike Turquette, Linaro Ltd <mturquette@linaro.org>
+ * Copyright (C) 2014 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,12 +11,14 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/imx_sema4.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include "clk.h"
+#include "common.h"
 
 /**
  * DOC: basic gatable clock which can gate and ungate it's ouput
@@ -37,11 +40,54 @@ struct clk_gate2 {
 };
 
 #define to_clk_gate2(_hw) container_of(_hw, struct clk_gate2, hw)
+#define CCM_CCGR_FULL_ENABLE	0x3
+
+static void clk_gate2_do_hardware(struct clk_gate2 *gate, bool enable)
+{
+	u32 reg;
+
+	reg = readl(gate->reg);
+	if (enable)
+		reg |= CCM_CCGR_FULL_ENABLE << gate->bit_idx;
+	else
+		reg &= ~(CCM_CCGR_FULL_ENABLE << gate->bit_idx);
+	writel(reg, gate->reg);
+}
+
+static void clk_gate2_do_shared_clks(struct clk_hw *hw, bool enable)
+{
+	struct clk_gate2 *gate = to_clk_gate2(hw);
+
+	if (imx_src_is_m4_enabled()) {
+		if (!amp_power_mutex || !shared_mem) {
+			if (enable)
+				clk_gate2_do_hardware(gate, enable);
+			return;
+		}
+
+		imx_sema4_mutex_lock(amp_power_mutex);
+		if (shared_mem->ca9_valid != SHARED_MEM_MAGIC_NUMBER ||
+			shared_mem->cm4_valid != SHARED_MEM_MAGIC_NUMBER) {
+			imx_sema4_mutex_unlock(amp_power_mutex);
+			return;
+		}
+
+		if (!imx_update_shared_mem(hw, enable)) {
+			imx_sema4_mutex_unlock(amp_power_mutex);
+			return;
+		}
+
+		clk_gate2_do_hardware(gate, enable);
+
+		imx_sema4_mutex_unlock(amp_power_mutex);
+	} else {
+		clk_gate2_do_hardware(gate, enable);
+	}
+}
 
 static int clk_gate2_enable(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
-	u32 reg;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(gate->lock, flags);
@@ -49,10 +95,7 @@ static int clk_gate2_enable(struct clk_hw *hw)
 	if (gate->share_count && (*gate->share_count)++ > 0)
 		goto out;
 
-	reg = readl(gate->reg);
-	reg |= 3 << gate->bit_idx;
-	writel(reg, gate->reg);
-
+	clk_gate2_do_shared_clks(hw, true);
 out:
 	spin_unlock_irqrestore(gate->lock, flags);
 
@@ -62,7 +105,6 @@ out:
 static void clk_gate2_disable(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
-	u32 reg;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(gate->lock, flags);
@@ -74,10 +116,7 @@ static void clk_gate2_disable(struct clk_hw *hw)
 			goto out;
 	}
 
-	reg = readl(gate->reg);
-	reg &= ~(3 << gate->bit_idx);
-	writel(reg, gate->reg);
-
+	clk_gate2_do_shared_clks(hw, false);
 out:
 	spin_unlock_irqrestore(gate->lock, flags);
 }
@@ -103,15 +142,11 @@ static void clk_gate2_disable_unused(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
 	unsigned long flags = 0;
-	u32 reg;
 
 	spin_lock_irqsave(gate->lock, flags);
 
-	if (!gate->share_count || *gate->share_count == 0) {
-		reg = readl(gate->reg);
-		reg &= ~(3 << gate->bit_idx);
-		writel(reg, gate->reg);
-	}
+	if (!gate->share_count || *gate->share_count == 0)
+		clk_gate2_do_shared_clks(hw, false);
 
 	spin_unlock_irqrestore(gate->lock, flags);
 }

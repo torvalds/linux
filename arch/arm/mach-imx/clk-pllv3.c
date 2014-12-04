@@ -13,12 +13,14 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/imx_sema4.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
 #include "clk.h"
 #include "hardware.h"
+#include "common.h"
 
 #define PLL_NUM_OFFSET		0x10
 #define PLL_DENOM_OFFSET	0x20
@@ -76,32 +78,72 @@ static int clk_pllv3_wait_lock(struct clk_pllv3 *pll)
 	return readl_relaxed(pll->base) & BM_PLL_LOCK ? 0 : -ETIMEDOUT;
 }
 
-static int clk_pllv3_prepare(struct clk_hw *hw)
+static int clk_pllv3_do_hardware(struct clk_hw *hw, bool enable)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
+	int ret;
 	u32 val;
 
 	val = readl_relaxed(pll->base);
-	if (pll->powerup_set)
-		val |= pll->powerdown;
-	else
-		val &= ~pll->powerdown;
-	writel_relaxed(val, pll->base);
+	if (enable) {
+		if (pll->powerup_set)
+			val |= pll->powerdown;
+		else
+			val &= ~pll->powerdown;
+		writel_relaxed(val, pll->base);
 
-	return clk_pllv3_wait_lock(pll);
+		ret = clk_pllv3_wait_lock(pll);
+		if (ret)
+			return ret;
+	} else {
+		if (pll->powerup_set)
+			val &= ~pll->powerdown;
+		else
+			val |= pll->powerdown;
+		writel_relaxed(val, pll->base);
+	}
+
+	return 0;
+}
+
+static void clk_pllv3_do_shared_clks(struct clk_hw *hw, bool enable)
+{
+	if (imx_src_is_m4_enabled()) {
+		if (!amp_power_mutex || !shared_mem) {
+			if (enable)
+				clk_pllv3_do_hardware(hw, enable);
+			return;
+		}
+
+		imx_sema4_mutex_lock(amp_power_mutex);
+		if (shared_mem->ca9_valid != SHARED_MEM_MAGIC_NUMBER ||
+			shared_mem->cm4_valid != SHARED_MEM_MAGIC_NUMBER) {
+			imx_sema4_mutex_unlock(amp_power_mutex);
+			return;
+		}
+
+		if (!imx_update_shared_mem(hw, enable)) {
+			imx_sema4_mutex_unlock(amp_power_mutex);
+			return;
+		}
+		clk_pllv3_do_hardware(hw, enable);
+
+		imx_sema4_mutex_unlock(amp_power_mutex);
+	} else {
+		clk_pllv3_do_hardware(hw, enable);
+	}
+}
+
+static int clk_pllv3_prepare(struct clk_hw *hw)
+{
+	clk_pllv3_do_shared_clks(hw, true);
+
+	return 0;
 }
 
 static void clk_pllv3_unprepare(struct clk_hw *hw)
 {
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 val;
-
-	val = readl_relaxed(pll->base);
-	if (pll->powerup_set)
-		val &= ~pll->powerdown;
-	else
-		val |= pll->powerdown;
-	writel_relaxed(val, pll->base);
+	clk_pllv3_do_shared_clks(hw, false);
 }
 
 static unsigned long clk_pllv3_recalc_rate(struct clk_hw *hw,

@@ -35,6 +35,13 @@
 #define GPC_PGC_CPU_PDNSCR	0x2a8
 #define GPC_PGC_SW2ISO_SHIFT	0x8
 #define GPC_PGC_SW_SHIFT	0x0
+#define GPC_M4_LPSR		0x2c
+#define GPC_M4_LPSR_M4_SLEEPING_SHIFT	4
+#define GPC_M4_LPSR_M4_SLEEPING_MASK	0x1
+#define GPC_M4_LPSR_M4_SLEEP_HOLD_REQ_MASK	0x1
+#define GPC_M4_LPSR_M4_SLEEP_HOLD_REQ_SHIFT	0
+#define GPC_M4_LPSR_M4_SLEEP_HOLD_ACK_MASK	0x1
+#define GPC_M4_LPSR_M4_SLEEP_HOLD_ACK_SHIFT	1
 
 #define IMR_NUM			4
 #define GPC_MAX_IRQS		(IMR_NUM * 32)
@@ -57,6 +64,66 @@ static u32 gpc_saved_imrs[IMR_NUM];
 static u32 gpc_mf_irqs[IMR_NUM];
 static u32 gpc_mf_request_on[IMR_NUM];
 static DEFINE_SPINLOCK(gpc_lock);
+
+void imx_gpc_add_m4_wake_up_irq(u32 hwirq, bool enable)
+{
+	unsigned int idx = hwirq / 32;
+	unsigned long flags;
+	u32 mask;
+
+	/* Sanity check for SPI irq */
+	if (hwirq < 32)
+		return;
+
+	mask = 1 << hwirq % 32;
+	spin_lock_irqsave(&gpc_lock, flags);
+	gpc_wake_irqs[idx] = enable ? gpc_wake_irqs[idx] | mask :
+		gpc_wake_irqs[idx] & ~mask;
+	spin_unlock_irqrestore(&gpc_lock, flags);
+}
+
+void imx_gpc_hold_m4_in_sleep(void)
+{
+	int val;
+	unsigned long timeout = jiffies + msecs_to_jiffies(500);
+
+	/* wait M4 in wfi before asserting hold request */
+	while (!imx_gpc_is_m4_sleeping())
+		if (time_after(jiffies, timeout))
+			pr_err("M4 is NOT in expected sleep!\n");
+
+	val = readl_relaxed(gpc_base + GPC_M4_LPSR);
+	val &= ~(GPC_M4_LPSR_M4_SLEEP_HOLD_REQ_MASK <<
+		GPC_M4_LPSR_M4_SLEEP_HOLD_REQ_SHIFT);
+	writel_relaxed(val, gpc_base + GPC_M4_LPSR);
+
+	timeout = jiffies + msecs_to_jiffies(500);
+	while (readl_relaxed(gpc_base + GPC_M4_LPSR)
+		& (GPC_M4_LPSR_M4_SLEEP_HOLD_ACK_MASK <<
+		GPC_M4_LPSR_M4_SLEEP_HOLD_ACK_SHIFT))
+		if (time_after(jiffies, timeout))
+			pr_err("Wait M4 hold ack timeout!\n");
+}
+
+void imx_gpc_release_m4_in_sleep(void)
+{
+	int val;
+
+	val = readl_relaxed(gpc_base + GPC_M4_LPSR);
+	val |= GPC_M4_LPSR_M4_SLEEP_HOLD_REQ_MASK <<
+		GPC_M4_LPSR_M4_SLEEP_HOLD_REQ_SHIFT;
+	writel_relaxed(val, gpc_base + GPC_M4_LPSR);
+}
+
+unsigned int imx_gpc_is_m4_sleeping(void)
+{
+	if (readl_relaxed(gpc_base + GPC_M4_LPSR) &
+		(GPC_M4_LPSR_M4_SLEEPING_MASK <<
+		GPC_M4_LPSR_M4_SLEEPING_SHIFT))
+		return 1;
+
+	return 0;
+}
 
 unsigned int imx_gpc_is_mf_mix_off(void)
 {
@@ -131,11 +198,14 @@ void imx_gpc_post_resume(void)
 static int imx_gpc_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	unsigned int idx = d->hwirq / 32;
+	unsigned long flags;
 	u32 mask;
 
 	mask = 1 << d->hwirq % 32;
+	spin_lock_irqsave(&gpc_lock, flags);
 	gpc_wake_irqs[idx] = on ? gpc_wake_irqs[idx] | mask :
 				  gpc_wake_irqs[idx] & ~mask;
+	spin_unlock_irqrestore(&gpc_lock, flags);
 
 	/*
 	 * Do *not* call into the parent, as the GIC doesn't have any

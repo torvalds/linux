@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
+#include <linux/imx_sema4.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -23,6 +24,7 @@
 #include "clk.h"
 #include "common.h"
 
+#define CCM_CCGR_OFFSET(index)		(index * 2)
 #define CCDR    0x4
 #define BM_CCM_CCDR_MMDC_CH0_MASK       (0x2 << 16)
 
@@ -92,18 +94,19 @@ static const char *pll7_bypass_sels[] = { "pll7", "pll7_bypass_src", };
 
 static struct clk *clks[IMX6SX_CLK_CLK_END];
 static struct clk_onecell_data clk_data;
+struct imx_sema4_mutex *amp_power_mutex;
+
+static int clks_shared[MAX_SHARED_CLK_NUMBER];
+
+struct imx_shared_mem *shared_mem;
+static unsigned int shared_mem_paddr, shared_mem_size;
 
 static int const clks_init_on[] __initconst = {
 	IMX6SX_CLK_AIPS_TZ1, IMX6SX_CLK_AIPS_TZ2, IMX6SX_CLK_AIPS_TZ3,
 	IMX6SX_CLK_IPMUX1, IMX6SX_CLK_IPMUX2, IMX6SX_CLK_IPMUX3,
 	IMX6SX_CLK_WAKEUP, IMX6SX_CLK_MMDC_P0_FAST, IMX6SX_CLK_MMDC_P0_IPG,
 	IMX6SX_CLK_ROM, IMX6SX_CLK_ARM, IMX6SX_CLK_IPG, IMX6SX_CLK_OCRAM,
-	IMX6SX_CLK_PER2_MAIN, IMX6SX_CLK_PERCLK, IMX6SX_CLK_M4,
-	IMX6SX_CLK_QSPI1, IMX6SX_CLK_QSPI2, IMX6SX_CLK_UART_IPG,
-	IMX6SX_CLK_UART_SERIAL, IMX6SX_CLK_I2C3, IMX6SX_CLK_ECSPI5,
-	IMX6SX_CLK_CAN1_IPG, IMX6SX_CLK_CAN1_SERIAL, IMX6SX_CLK_CAN2_IPG,
-	IMX6SX_CLK_CAN2_SERIAL, IMX6SX_CLK_CANFD, IMX6SX_CLK_EPIT1,
-	IMX6SX_CLK_EPIT2,
+	IMX6SX_CLK_PER2_MAIN, IMX6SX_CLK_PERCLK,
 };
 
 static struct clk_div_table clk_enet_ref_table[] = {
@@ -135,6 +138,38 @@ static u32 share_count_esai;
 static u32 share_count_ssi1;
 static u32 share_count_ssi2;
 static u32 share_count_ssi3;
+
+/*
+ * As IMX6SX_CLK_M4_PRE_SEL is NOT a glitchless MUX, so when
+ * M4 is trying to change its clk parent, need to ask A9 to
+ * help do it, and M4 must be hold in wfi. To avoid glitch
+ * occur, need to gate M4 clk first before switching its parent.
+ */
+void imx6sx_set_m4_highfreq(bool high_freq)
+{
+	static struct clk *m4_high_freq_sel;
+
+	imx_gpc_hold_m4_in_sleep();
+
+	clk_disable_unprepare(clks[IMX6SX_CLK_M4]);
+	imx_clk_set_parent(clks[IMX6SX_CLK_M4_SEL],
+		clks[IMX6SX_CLK_LDB_DI0]);
+
+	if (high_freq) {
+		imx_clk_set_parent(clks[IMX6SX_CLK_M4_PRE_SEL],
+			m4_high_freq_sel);
+	} else {
+		m4_high_freq_sel = clk_get_parent(clks[IMX6SX_CLK_M4_PRE_SEL]);
+		imx_clk_set_parent(clks[IMX6SX_CLK_M4_PRE_SEL],
+			clks[IMX6SX_CLK_OSC]);
+	}
+
+	imx_clk_set_parent(clks[IMX6SX_CLK_M4_SEL],
+		clks[IMX6SX_CLK_M4_PRE_SEL]);
+	clk_prepare_enable(clks[IMX6SX_CLK_M4]);
+
+	imx_gpc_release_m4_in_sleep();
+}
 
 static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 {
@@ -489,10 +524,39 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SX_CLK_CKO1]         = imx_clk_gate("cko1",           "cko1_podf",         base + 0x60, 7);
 	clks[IMX6SX_CLK_CKO2]         = imx_clk_gate("cko2",           "cko2_podf",         base + 0x60, 24);
 
+	/* get those shared clk nodes if M4 is active */
+	if (imx_src_is_m4_enabled()) {
+		u32 num;
+
+		of_property_read_u32(np, "fsl,shared-clks-number", &num);
+		if (num > MAX_SHARED_CLK_NUMBER)
+			pr_err("clk: shared clk nodes exceed the max number!\n");
+		of_property_read_u32_array(np, "fsl,shared-clks-index",
+			clks_shared, num);
+		if (of_property_read_u32(np, "fsl,shared-mem-addr",
+			&shared_mem_paddr))
+			pr_err("clk: fsl,shared-mem-addr NOT found!\n");
+		if (of_property_read_u32(np, "fsl,shared-mem-size",
+			&shared_mem_size))
+			pr_err("clk: fsl,shared-mem-size NOT found!\n");
+	}
+
 	/* mask handshake of mmdc */
 	writel_relaxed(BM_CCM_CCDR_MMDC_CH0_MASK, base + CCDR);
 
 	imx_check_clocks(clks, ARRAY_SIZE(clks));
+
+	/*
+	 * QSPI2/GPMI_IO share the same clock source but with the
+	 * different gate, need explicitely gate the QSPI2 & GPMI_IO
+	 * during the clock init phase according to the SOC design.
+	 */
+	if (!imx_src_is_m4_enabled()) {
+		writel_relaxed(readl_relaxed(base + 0x78) &
+			~(3 << CCM_CCGR_OFFSET(5)), base + 0x78);
+		writel_relaxed(readl_relaxed(base + 0x78) &
+			~(3 << CCM_CCGR_OFFSET(14)), base + 0x78);
+	}
 
 	clk_data.clks = clks;
 	clk_data.clk_num = ARRAY_SIZE(clks);
@@ -506,6 +570,10 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	 * init and managed by ocotp driver.
 	 */
 	writel_relaxed(readl_relaxed(base + 0x70) | 1 << 12, base + 0x70);
+
+	/* maintain M4 usecount */
+	if (imx_src_is_m4_enabled())
+		imx_clk_prepare_enable(clks[IMX6SX_CLK_M4]);
 
 	/* set perclk to from OSC */
 	imx_clk_set_parent(clks[IMX6SX_CLK_PERCLK_SEL], clks[IMX6SX_CLK_OSC]);
@@ -585,3 +653,64 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	imx6q_set_lpm(WAIT_CLOCKED);
 }
 CLK_OF_DECLARE(imx6sx, "fsl,imx6sx-ccm", imx6sx_clocks_init);
+
+int imx_update_shared_mem(struct clk_hw *hw, bool enable)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clks_shared); i++) {
+		if (shared_mem->imx_clk[i].self == hw->clk)
+			break;
+	}
+
+	if (i >= ARRAY_SIZE(clks_shared))
+		return 1;
+
+	/* update ca9 clk status in shared memory */
+	if (enable)
+		shared_mem->imx_clk[i].ca9_enabled = 1;
+	else
+		shared_mem->imx_clk[i].ca9_enabled = 0;
+
+	if (shared_mem->imx_clk[i].cm4_enabled == 0)
+		return 1;
+
+	return 0;
+}
+
+static int __init imx_amp_power_init(void)
+{
+	int i;
+	void __iomem *shared_mem_base;
+
+	if (!imx_src_is_m4_enabled())
+		return 0;
+
+	amp_power_mutex = imx_sema4_mutex_create(0, MCC_POWER_SHMEM_NUMBER);
+
+	shared_mem_base = ioremap_nocache(shared_mem_paddr, shared_mem_size);
+
+	if (!amp_power_mutex) {
+		pr_err("Failed to create sema4 mutex!\n");
+		return 0;
+	}
+
+	shared_mem = (struct imx_shared_mem *)shared_mem_base;
+
+	for (i = 0; i < ARRAY_SIZE(clks_shared); i++) {
+		shared_mem->imx_clk[i].self = clks[clks_shared[i]];
+		shared_mem->imx_clk[i].ca9_enabled = 1;
+		pr_debug("%d: name %s, addr 0x%x\n", i,
+			__clk_get_name(shared_mem->imx_clk[i].self),
+			(u32)&(shared_mem->imx_clk[i]));
+	}
+	/* enable amp power management */
+	shared_mem->ca9_valid = SHARED_MEM_MAGIC_NUMBER;
+
+	pr_info("A9-M4 sema4 num %d, A9-M4 magic number 0x%x - 0x%x.\n",
+		amp_power_mutex->gate_num, shared_mem->ca9_valid,
+		shared_mem->cm4_valid);
+
+	return 0;
+}
+late_initcall(imx_amp_power_init);
