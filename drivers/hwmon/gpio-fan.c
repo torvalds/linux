@@ -79,7 +79,7 @@ static ssize_t show_fan_alarm(struct device *dev,
 {
 	struct gpio_fan_data *fan_data = dev_get_drvdata(dev);
 	struct gpio_fan_alarm *alarm = fan_data->alarm;
-	int value = gpio_get_value(alarm->gpio);
+	int value = gpio_get_value_cansleep(alarm->gpio);
 
 	if (alarm->active_low)
 		value = !value;
@@ -131,7 +131,7 @@ static void __set_fan_ctrl(struct gpio_fan_data *fan_data, int ctrl_val)
 	int i;
 
 	for (i = 0; i < fan_data->num_ctrl; i++)
-		gpio_set_value(fan_data->ctrl[i], (ctrl_val >> i) & 1);
+		gpio_set_value_cansleep(fan_data->ctrl[i], (ctrl_val >> i) & 1);
 }
 
 static int __get_fan_ctrl(struct gpio_fan_data *fan_data)
@@ -142,7 +142,7 @@ static int __get_fan_ctrl(struct gpio_fan_data *fan_data)
 	for (i = 0; i < fan_data->num_ctrl; i++) {
 		int value;
 
-		value = gpio_get_value(fan_data->ctrl[i]);
+		value = gpio_get_value_cansleep(fan_data->ctrl[i]);
 		ctrl_val |= (value << i);
 	}
 	return ctrl_val;
@@ -369,7 +369,8 @@ static int fan_ctrl_init(struct gpio_fan_data *fan_data,
 		if (err)
 			return err;
 
-		err = gpio_direction_output(ctrl[i], gpio_get_value(ctrl[i]));
+		err = gpio_direction_output(ctrl[i],
+					    gpio_get_value_cansleep(ctrl[i]));
 		if (err)
 			return err;
 	}
