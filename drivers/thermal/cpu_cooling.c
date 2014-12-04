@@ -40,9 +40,8 @@
  *	frequency.
  * @allowed_cpus: all the cpus involved for this cpufreq_cooling_device.
  *
- * This structure is required for keeping information of each
- * cpufreq_cooling_device registered. In order to prevent corruption of this a
- * mutex lock cooling_cpufreq_lock is used.
+ * This structure is required for keeping information of each registered
+ * cpufreq_cooling_device.
  */
 struct cpufreq_cooling_device {
 	int id;
