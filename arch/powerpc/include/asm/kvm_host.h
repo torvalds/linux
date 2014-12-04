@@ -297,6 +297,7 @@ struct kvmppc_vcore {
 	struct list_head runnable_threads;
 	spinlock_t lock;
 	wait_queue_head_t wq;
+	spinlock_t stoltb_lock;	/* protects stolen_tb and preempt_tb */
 	u64 stolen_tb;
 	u64 preempt_tb;
 	struct kvm_vcpu *runner;

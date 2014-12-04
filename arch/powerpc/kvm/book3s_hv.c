@@ -135,11 +135,10 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
  * stolen.
  *
  * Updates to busy_stolen are protected by arch.tbacct_lock;
- * updates to vc->stolen_tb are protected by the arch.tbacct_lock
- * of the vcpu that has taken responsibility for running the vcore
- * (i.e. vc->runner).  The stolen times are measured in units of
- * timebase ticks.  (Note that the != TB_NIL checks below are
- * purely defensive; they should never fail.)
+ * updates to vc->stolen_tb are protected by the vcore->stoltb_lock
+ * lock.  The stolen times are measured in units of timebase ticks.
+ * (Note that the != TB_NIL checks below are purely defensive;
+ * they should never fail.)
  */
 
 static void kvmppc_core_vcpu_load_hv(struct kvm_vcpu *vcpu, int cpu)
@@ -147,12 +146,21 @@ static void kvmppc_core_vcpu_load_hv(struct kvm_vcpu *vcpu, int cpu)
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	unsigned long flags;
 
-	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
-	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE &&
-	    vc->preempt_tb != TB_NIL) {
-		vc->stolen_tb += mftb() - vc->preempt_tb;
-		vc->preempt_tb = TB_NIL;
+	/*
+	 * We can test vc->runner without taking the vcore lock,
+	 * because only this task ever sets vc->runner to this
+	 * vcpu, and once it is set to this vcpu, only this task
+	 * ever sets it to NULL.
+	 */
+	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE) {
+		spin_lock_irqsave(&vc->stoltb_lock, flags);
+		if (vc->preempt_tb != TB_NIL) {
+			vc->stolen_tb += mftb() - vc->preempt_tb;
+			vc->preempt_tb = TB_NIL;
+		}
+		spin_unlock_irqrestore(&vc->stoltb_lock, flags);
 	}
+	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST &&
 	    vcpu->arch.busy_preempt != TB_NIL) {
 		vcpu->arch.busy_stolen += mftb() - vcpu->arch.busy_preempt;
@@ -166,9 +174,12 @@ static void kvmppc_core_vcpu_put_hv(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	unsigned long flags;
 
-	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
-	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
+	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE) {
+		spin_lock_irqsave(&vc->stoltb_lock, flags);
 		vc->preempt_tb = mftb();
+		spin_unlock_irqrestore(&vc->stoltb_lock, flags);
+	}
+	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	if (vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST)
 		vcpu->arch.busy_preempt = mftb();
 	spin_unlock_irqrestore(&vcpu->arch.tbacct_lock, flags);
@@ -505,25 +516,14 @@ static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 static u64 vcore_stolen_time(struct kvmppc_vcore *vc, u64 now)
 {
 	u64 p;
+	unsigned long flags;
 
-	/*
-	 * If we are the task running the vcore, then since we hold
-	 * the vcore lock, we can't be preempted, so stolen_tb/preempt_tb
-	 * can't be updated, so we don't need the tbacct_lock.
-	 * If the vcore is inactive, it can't become active (since we
-	 * hold the vcore lock), so the vcpu load/put functions won't
-	 * update stolen_tb/preempt_tb, and we don't need tbacct_lock.
-	 */
+	spin_lock_irqsave(&vc->stoltb_lock, flags);
+	p = vc->stolen_tb;
 	if (vc->vcore_state != VCORE_INACTIVE &&
-	    vc->runner->arch.run_task != current) {
-		spin_lock_irq(&vc->runner->arch.tbacct_lock);
-		p = vc->stolen_tb;
-		if (vc->preempt_tb != TB_NIL)
-			p += now - vc->preempt_tb;
-		spin_unlock_irq(&vc->runner->arch.tbacct_lock);
-	} else {
-		p = vc->stolen_tb;
-	}
+	    vc->preempt_tb != TB_NIL)
+		p += now - vc->preempt_tb;
+	spin_unlock_irqrestore(&vc->stoltb_lock, flags);
 	return p;
 }
 
@@ -1359,6 +1359,7 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 
 	INIT_LIST_HEAD(&vcore->runnable_threads);
 	spin_lock_init(&vcore->lock);
+	spin_lock_init(&vcore->stoltb_lock);
 	init_waitqueue_head(&vcore->wq);
 	vcore->preempt_tb = TB_NIL;
 	vcore->lpcr = kvm->arch.lpcr;
@@ -1696,6 +1697,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->n_woken = 0;
 	vc->nap_count = 0;
 	vc->entry_exit_count = 0;
+	vc->preempt_tb = TB_NIL;
 	vc->vcore_state = VCORE_STARTING;
 	vc->in_guest = 0;
 	vc->napping_threads = 0;
