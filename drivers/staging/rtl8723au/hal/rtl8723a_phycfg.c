@@ -920,9 +920,6 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	u8 regBwOpMode;
 	u8 regRRSR_RSC;
 
-	if (pHalData->rf_chip == RF_PSEUDO_11N)
-		return;
-
 	/*  There is no 40MHz mode in RF_8225. */
 	if (pHalData->rf_chip == RF_8225)
 		return;
@@ -1018,10 +1015,6 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 		/*  PHY_SetRF8258Bandwidth(); */
 		break;
 
-	case RF_PSEUDO_11N:
-		/*  Do Nothing */
-		break;
-
 	case RF_6052:
 		rtl8723a_phy_rf6052set_bw(Adapter, pHalData->CurrentChannelBW);
 		break;
@@ -1097,11 +1090,6 @@ void PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	u8 tmpchannel = pHalData->CurrentChannel;
 	bool  result = true;
-
-	if (pHalData->rf_chip == RF_PSEUDO_11N) {
-		/* return immediately if it is peudo-phy */
-		return;
-	}
 
 	if (channel == 0)
 		channel = 1;

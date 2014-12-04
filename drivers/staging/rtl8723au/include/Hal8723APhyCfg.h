@@ -56,7 +56,6 @@ enum rf_type_8190p {
 	RF_8256 = 2,		/*  2 11b/g/n */
 	RF_8258 = 3,		/*  3 11a/b/g/n RF */
 	RF_6052 = 4,		/*  4 11b/g/n RF */
-	RF_PSEUDO_11N = 5,	/*  5, It is a temporality RF. */
 };
 
 struct bb_reg_define {
