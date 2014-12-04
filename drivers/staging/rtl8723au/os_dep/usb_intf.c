@@ -80,11 +80,9 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	struct usb_config_descriptor *pconf_desc;
 	struct usb_host_interface *phost_iface;
 	struct usb_interface_descriptor *piface_desc;
-	struct usb_host_endpoint *phost_endp;
 	struct usb_endpoint_descriptor *pendp_desc;
-	struct usb_device		 *pusbd;
-	int	i;
-	int	status = _FAIL;
+	struct usb_device *pusbd;
+	int i, status = _FAIL;
 
 	pdvobjpriv = kzalloc(sizeof(*pdvobjpriv), GFP_KERNEL);
 	if (!pdvobjpriv)
@@ -114,42 +112,38 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	pdvobjpriv->nr_endpoint = piface_desc->bNumEndpoints;
 
 	for (i = 0; i < pdvobjpriv->nr_endpoint; i++) {
-		phost_endp = phost_iface->endpoint + i;
-		if (phost_endp) {
-			pendp_desc = &phost_endp->desc;
+		pendp_desc = &phost_iface->endpoint[i].desc;
 
-			DBG_8723A("\nusb_endpoint_descriptor(%d):\n", i);
-			DBG_8723A("bLength =%x\n", pendp_desc->bLength);
-			DBG_8723A("bDescriptorType =%x\n",
-				  pendp_desc->bDescriptorType);
-			DBG_8723A("bEndpointAddress =%x\n",
-				  pendp_desc->bEndpointAddress);
-			DBG_8723A("wMaxPacketSize =%d\n",
-				  le16_to_cpu(pendp_desc->wMaxPacketSize));
-			DBG_8723A("bInterval =%x\n", pendp_desc->bInterval);
+		DBG_8723A("\nusb_endpoint_descriptor(%d):\n", i);
+		DBG_8723A("bLength =%x\n", pendp_desc->bLength);
+		DBG_8723A("bDescriptorType =%x\n", pendp_desc->bDescriptorType);
+		DBG_8723A("bEndpointAddress =%x\n",
+			  pendp_desc->bEndpointAddress);
+		DBG_8723A("wMaxPacketSize =%d\n",
+			  le16_to_cpu(pendp_desc->wMaxPacketSize));
+		DBG_8723A("bInterval =%x\n", pendp_desc->bInterval);
 
-			if (usb_endpoint_is_bulk_in(pendp_desc)) {
-				DBG_8723A("usb_endpoint_is_bulk_in = %x\n",
-					  usb_endpoint_num(pendp_desc));
-				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
-					usb_endpoint_num(pendp_desc);
-				pdvobjpriv->RtNumInPipes++;
-			} else if (usb_endpoint_is_int_in(pendp_desc)) {
-				DBG_8723A("usb_endpoint_is_int_in = %x, Interval = %x\n",
-					  usb_endpoint_num(pendp_desc),
-					  pendp_desc->bInterval);
-				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
-					usb_endpoint_num(pendp_desc);
-				pdvobjpriv->RtNumInPipes++;
-			} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
-				DBG_8723A("usb_endpoint_is_bulk_out = %x\n",
-					  usb_endpoint_num(pendp_desc));
-				pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
-					usb_endpoint_num(pendp_desc);
-				pdvobjpriv->RtNumOutPipes++;
-			}
-			pdvobjpriv->ep_num[i] = usb_endpoint_num(pendp_desc);
+		if (usb_endpoint_is_bulk_in(pendp_desc)) {
+			DBG_8723A("usb_endpoint_is_bulk_in = %x\n",
+				  usb_endpoint_num(pendp_desc));
+			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
+				usb_endpoint_num(pendp_desc);
+			pdvobjpriv->RtNumInPipes++;
+		} else if (usb_endpoint_is_int_in(pendp_desc)) {
+			DBG_8723A("usb_endpoint_is_int_in = %x, Interval = "
+				  "%x\n", usb_endpoint_num(pendp_desc),
+				  pendp_desc->bInterval);
+			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
+				usb_endpoint_num(pendp_desc);
+			pdvobjpriv->RtNumInPipes++;
+		} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
+			DBG_8723A("usb_endpoint_is_bulk_out = %x\n",
+				  usb_endpoint_num(pendp_desc));
+			pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
+				usb_endpoint_num(pendp_desc);
+			pdvobjpriv->RtNumOutPipes++;
 		}
+		pdvobjpriv->ep_num[i] = usb_endpoint_num(pendp_desc);
 	}
 	DBG_8723A("nr_endpoint =%d, in_num =%d, out_num =%d\n\n",
 		  pdvobjpriv->nr_endpoint, pdvobjpriv->RtNumInPipes,
