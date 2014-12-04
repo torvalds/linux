@@ -2049,29 +2049,27 @@ static int gpmi_pm_resume(struct device *dev)
 	struct gpmi_nand_data *this = dev_get_drvdata(dev);
 	int ret;
 
-	if (GPMI_IS_MX6SX(this)) {
-		ret = acquire_dma_channels(this);
-		if (ret < 0)
-			return ret;
+	ret = acquire_dma_channels(this);
+	if (ret < 0)
+		return ret;
 
-		/* re-init the GPMI registers */
-		this->flags &= ~GPMI_TIMING_INIT_OK;
-		ret = gpmi_init(this);
-		if (ret) {
-			dev_err(this->dev, "Error setting GPMI : %d\n", ret);
-			return ret;
-		}
-
-		/* re-init the BCH registers */
-		ret = bch_set_geometry(this);
-		if (ret) {
-			dev_err(this->dev, "Error setting BCH : %d\n", ret);
-			return ret;
-		}
-
-		/* re-init others */
-		gpmi_extra_init(this);
+	/* re-init the GPMI registers */
+	this->flags &= ~GPMI_TIMING_INIT_OK;
+	ret = gpmi_init(this);
+	if (ret) {
+		dev_err(this->dev, "Error setting GPMI : %d\n", ret);
+		return ret;
 	}
+
+	/* re-init the BCH registers */
+	ret = bch_set_geometry(this);
+	if (ret) {
+		dev_err(this->dev, "Error setting BCH : %d\n", ret);
+		return ret;
+	}
+
+	/* re-init others */
+	gpmi_extra_init(this);
 
 	return 0;
 }
