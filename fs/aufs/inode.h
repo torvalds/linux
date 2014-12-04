@@ -299,8 +299,11 @@ ssize_t aufs_getxattr(struct dentry *dentry, const char *name, void *value,
 int aufs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
 int aufs_removexattr(struct dentry *dentry, const char *name);
+
+/* void au_xattr_init(struct super_block *sb); */
 #else
 AuStubInt0(au_cpup_xattr, h_dst, h_src, ignore_flags)
+/* AuStubVoid(au_xattr_init, struct super_block *sb); */
 #endif
 
 

@@ -32,7 +32,7 @@ static int au_xattr_ignore(int err, char *name, unsigned int ignore_flags)
 		goto out;
 	}
 
-	if (ignore_flags == AuBrAttr_ICEX) {
+	if ((ignore_flags & AuBrAttr_ICEX) == AuBrAttr_ICEX) {
 		err = 0;
 		goto out;
 	}
@@ -59,6 +59,8 @@ out:
 	return err;
 }
 
+static const int au_xattr_out_of_list = AuBrAttr_ICEX_OTH << 1;
+
 static int au_do_cpup_xattr(struct dentry *h_dst, struct dentry *h_src,
 			    char *name, char **buf, unsigned int ignore_flags)
 {
@@ -70,6 +72,10 @@ static int au_do_cpup_xattr(struct dentry *h_dst, struct dentry *h_src,
 	err = ssz;
 	if (unlikely(err <= 0)) {
 		AuTraceErr(err);
+		if (err == -ENODATA
+		    || (err == -EOPNOTSUPP
+			&& (ignore_flags & au_xattr_out_of_list)))
+			err = 0;
 		goto out;
 	}
 
@@ -89,7 +95,7 @@ out:
 
 int au_cpup_xattr(struct dentry *h_dst, struct dentry *h_src, int ignore_flags)
 {
-	int err, unlocked;
+	int err, unlocked, acl_access, acl_default;
 	ssize_t ssz;
 	struct inode *h_isrc, *h_idst;
 	char *value, *p, *o, *e;
@@ -103,23 +109,27 @@ int au_cpup_xattr(struct dentry *h_dst, struct dentry *h_src, int ignore_flags)
 	mutex_lock_nested(&h_idst->i_mutex, AuLsc_I_CHILD2);
 	unlocked = 0;
 
+	/* some filesystems don't list POSIX ACL, for example tmpfs */
 	ssz = vfs_listxattr(h_src, NULL, 0);
 	err = ssz;
-	if (!err)
-		goto out;
 	if (unlikely(err < 0)) {
-		if (err == -EOPNOTSUPP)
+		if (err == -ENODATA
+		    || err == -EOPNOTSUPP)
 			err = 0;	/* ignore */
 		goto out;
 	}
 
-	err = -ENOMEM;
-	p = kmalloc(ssz, GFP_NOFS);
-	o = p;
-	if (unlikely(!p))
-		goto out;
-
-	err = vfs_listxattr(h_src, p, ssz);
+	err = 0;
+	p = NULL;
+	o = NULL;
+	if (ssz) {
+		err = -ENOMEM;
+		p = kmalloc(ssz, GFP_NOFS);
+		o = p;
+		if (unlikely(!p))
+			goto out;
+		err = vfs_listxattr(h_src, p, ssz);
+	}
 	mutex_unlock(&h_isrc->i_mutex);
 	unlocked = 1;
 	AuDbg("err %d, ssz %zd\n", err, ssz);
@@ -129,10 +139,32 @@ int au_cpup_xattr(struct dentry *h_dst, struct dentry *h_src, int ignore_flags)
 	err = 0;
 	e = p + ssz;
 	value = NULL;
+	acl_access = 0;
+	acl_default = 0;
 	while (!err && p < e) {
+		acl_access |= !strncmp(p, XATTR_NAME_POSIX_ACL_ACCESS,
+				       sizeof(XATTR_NAME_POSIX_ACL_ACCESS) - 1);
+		acl_default |= !strncmp(p, XATTR_NAME_POSIX_ACL_DEFAULT,
+					sizeof(XATTR_NAME_POSIX_ACL_DEFAULT)
+					- 1);
 		err = au_do_cpup_xattr(h_dst, h_src, p, &value, ignore_flags);
 		p += strlen(p) + 1;
 	}
+	AuTraceErr(err);
+	ignore_flags |= au_xattr_out_of_list;
+	if (!err && !acl_access) {
+		err = au_do_cpup_xattr(h_dst, h_src,
+				       XATTR_NAME_POSIX_ACL_ACCESS, &value,
+				       ignore_flags);
+		AuTraceErr(err);
+	}
+	if (!err && !acl_default) {
+		err = au_do_cpup_xattr(h_dst, h_src,
+				       XATTR_NAME_POSIX_ACL_DEFAULT, &value,
+				       ignore_flags);
+		AuTraceErr(err);
+	}
+
 	kfree(value);
 
 out_free:
@@ -140,6 +172,7 @@ out_free:
 out:
 	if (!unlocked)
 		mutex_unlock(&h_isrc->i_mutex);
+	AuTraceErr(err);
 	return err;
 }
 
@@ -363,3 +396,42 @@ int aufs_removexattr(struct dentry *dentry, const char *name)
 
 	return au_srxattr(dentry, &arg);
 }
+
+/* ---------------------------------------------------------------------- */
+
+#if 0
+static size_t au_xattr_list(struct dentry *dentry, char *list, size_t list_size,
+			    const char *name, size_t name_len, int type)
+{
+	return aufs_listxattr(dentry, list, list_size);
+}
+
+static int au_xattr_get(struct dentry *dentry, const char *name, void *buffer,
+			size_t size, int type)
+{
+	return aufs_getxattr(dentry, name, buffer, size);
+}
+
+static int au_xattr_set(struct dentry *dentry, const char *name,
+			const void *value, size_t size, int flags, int type)
+{
+	return aufs_setxattr(dentry, name, value, size, flags);
+}
+
+static const struct xattr_handler au_xattr_handler = {
+	/* no prefix, no flags */
+	.list	= au_xattr_list,
+	.get	= au_xattr_get,
+	.set	= au_xattr_set
+	/* why no remove? */
+};
+
+static const struct xattr_handler *au_xattr_handlers[] = {
+	&au_xattr_handler
+};
+
+void au_xattr_init(struct super_block *sb)
+{
+	/* sb->s_xattr = au_xattr_handlers; */
+}
+#endif
