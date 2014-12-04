@@ -94,16 +94,23 @@ static struct gpio_table gtable[] = {
 	{ GPIO_NC_11_PCONF0, GPIO_NC_11_PAD, 0}
 };
 
+static inline enum port intel_dsi_seq_port_to_port(u8 port)
+{
+	return port ? PORT_C : PORT_A;
+}
+
 static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 {
-	u8 type, byte, mode, vc, port;
+	u8 type, byte, mode, vc, seq_port;
 	u16 len;
+	enum port port;
 
 	byte = *data++;
 	mode = (byte >> MIPI_TRANSFER_MODE_SHIFT) & 0x1;
 	vc = (byte >> MIPI_VIRTUAL_CHANNEL_SHIFT) & 0x3;
-	port = (byte >> MIPI_PORT_SHIFT) & 0x3;
+	seq_port = (byte >> MIPI_PORT_SHIFT) & 0x3;
 
+	port = intel_dsi_seq_port_to_port(seq_port);
 	/* LP or HS mode */
 	intel_dsi->hs = mode;
 
@@ -115,13 +122,13 @@ static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 
 	switch (type) {
 	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
-		dsi_vc_generic_write_0(intel_dsi, vc);
+		dsi_vc_generic_write_0(intel_dsi, vc, port);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
-		dsi_vc_generic_write_1(intel_dsi, vc, *data);
+		dsi_vc_generic_write_1(intel_dsi, vc, *data, port);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
-		dsi_vc_generic_write_2(intel_dsi, vc, *data, *(data + 1));
+		dsi_vc_generic_write_2(intel_dsi, vc, *data, *(data + 1), port);
 		break;
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
@@ -129,19 +136,19 @@ static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 		DRM_DEBUG_DRIVER("Generic Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
-		dsi_vc_generic_write(intel_dsi, vc, data, len);
+		dsi_vc_generic_write(intel_dsi, vc, data, len, port);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE:
-		dsi_vc_dcs_write_0(intel_dsi, vc, *data);
+		dsi_vc_dcs_write_0(intel_dsi, vc, *data, port);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
-		dsi_vc_dcs_write_1(intel_dsi, vc, *data, *(data + 1));
+		dsi_vc_dcs_write_1(intel_dsi, vc, *data, *(data + 1), port);
 		break;
 	case MIPI_DSI_DCS_READ:
 		DRM_DEBUG_DRIVER("DCS Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
-		dsi_vc_dcs_write(intel_dsi, vc, data, len);
+		dsi_vc_dcs_write(intel_dsi, vc, data, len, port);
 		break;
 	}
 

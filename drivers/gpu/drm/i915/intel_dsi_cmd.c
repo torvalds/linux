@@ -48,13 +48,11 @@
  * For memory writes, these should probably be used for performance.
  */
 
-static void print_stat(struct intel_dsi *intel_dsi)
+static void print_stat(struct intel_dsi *intel_dsi, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 val;
 
 	val = I915_READ(MIPI_INTR_STAT(port));
@@ -104,13 +102,12 @@ enum dsi_type {
 };
 
 /* enable or disable command mode hs transmissions */
-void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable)
+void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable,
+						enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 temp;
 	u32 mask = DBI_FIFO_EMPTY;
 
@@ -125,13 +122,11 @@ void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable)
 }
 
 static int dsi_vc_send_short(struct intel_dsi *intel_dsi, int channel,
-			     u8 data_type, u16 data)
+			     u8 data_type, u16 data, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 ctrl_reg;
 	u32 ctrl;
 	u32 mask;
@@ -149,7 +144,7 @@ static int dsi_vc_send_short(struct intel_dsi *intel_dsi, int channel,
 
 	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == 0, 50)) {
 		DRM_ERROR("Timeout waiting for HS/LP CTRL FIFO !full\n");
-		print_stat(intel_dsi);
+		print_stat(intel_dsi, port);
 	}
 
 	/*
@@ -167,13 +162,11 @@ static int dsi_vc_send_short(struct intel_dsi *intel_dsi, int channel,
 }
 
 static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
-			    u8 data_type, const u8 *data, int len)
+		u8 data_type, const u8 *data, int len, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 data_reg;
 	int i, j, n;
 	u32 mask;
@@ -204,12 +197,12 @@ static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
 		 * dwords, then wait for not set, then continue. */
 	}
 
-	return dsi_vc_send_short(intel_dsi, channel, data_type, len);
+	return dsi_vc_send_short(intel_dsi, channel, data_type, len, port);
 }
 
 static int dsi_vc_write_common(struct intel_dsi *intel_dsi,
 			       int channel, const u8 *data, int len,
-			       enum dsi_type type)
+			       enum dsi_type type, enum port port)
 {
 	int ret;
 
@@ -217,50 +210,54 @@ static int dsi_vc_write_common(struct intel_dsi *intel_dsi,
 		BUG_ON(type == DSI_GENERIC);
 		ret = dsi_vc_send_short(intel_dsi, channel,
 					MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM,
-					0);
+					0, port);
 	} else if (len == 1) {
 		ret = dsi_vc_send_short(intel_dsi, channel,
 					type == DSI_GENERIC ?
 					MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM :
-					MIPI_DSI_DCS_SHORT_WRITE, data[0]);
+					MIPI_DSI_DCS_SHORT_WRITE, data[0],
+					port);
 	} else if (len == 2) {
 		ret = dsi_vc_send_short(intel_dsi, channel,
 					type == DSI_GENERIC ?
 					MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM :
 					MIPI_DSI_DCS_SHORT_WRITE_PARAM,
-					(data[1] << 8) | data[0]);
+					(data[1] << 8) | data[0], port);
 	} else {
 		ret = dsi_vc_send_long(intel_dsi, channel,
-				       type == DSI_GENERIC ?
-				       MIPI_DSI_GENERIC_LONG_WRITE :
-				       MIPI_DSI_DCS_LONG_WRITE, data, len);
+					type == DSI_GENERIC ?
+					MIPI_DSI_GENERIC_LONG_WRITE :
+					MIPI_DSI_DCS_LONG_WRITE, data, len,
+					port);
 	}
 
 	return ret;
 }
 
 int dsi_vc_dcs_write(struct intel_dsi *intel_dsi, int channel,
-		     const u8 *data, int len)
+		     const u8 *data, int len, enum port port)
 {
-	return dsi_vc_write_common(intel_dsi, channel, data, len, DSI_DCS);
+	return dsi_vc_write_common(intel_dsi, channel, data, len, DSI_DCS,
+									port);
 }
 
 int dsi_vc_generic_write(struct intel_dsi *intel_dsi, int channel,
-			 const u8 *data, int len)
+			 const u8 *data, int len, enum port port)
 {
-	return dsi_vc_write_common(intel_dsi, channel, data, len, DSI_GENERIC);
+	return dsi_vc_write_common(intel_dsi, channel, data, len, DSI_GENERIC,
+									port);
 }
 
 static int dsi_vc_dcs_send_read_request(struct intel_dsi *intel_dsi,
-					int channel, u8 dcs_cmd)
+				int channel, u8 dcs_cmd, enum port port)
 {
 	return dsi_vc_send_short(intel_dsi, channel, MIPI_DSI_DCS_READ,
-				 dcs_cmd);
+				 dcs_cmd, port);
 }
 
 static int dsi_vc_generic_send_read_request(struct intel_dsi *intel_dsi,
 					    int channel, u8 *reqdata,
-					    int reqlen)
+					    int reqlen, enum port port)
 {
 	u16 data;
 	u8 data_type;
@@ -282,17 +279,15 @@ static int dsi_vc_generic_send_read_request(struct intel_dsi *intel_dsi,
 		BUG();
 	}
 
-	return dsi_vc_send_short(intel_dsi, channel, data_type, data);
+	return dsi_vc_send_short(intel_dsi, channel, data_type, data, port);
 }
 
 static int dsi_read_data_return(struct intel_dsi *intel_dsi,
-				u8 *buf, int buflen)
+				u8 *buf, int buflen, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	int i, len = 0;
 	u32 data_reg, val;
 
@@ -312,13 +307,11 @@ static int dsi_read_data_return(struct intel_dsi *intel_dsi,
 }
 
 int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
-		    u8 *buf, int buflen)
+		    u8 *buf, int buflen, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 mask;
 	int ret;
 
@@ -329,7 +322,7 @@ int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
 
 	I915_WRITE(MIPI_INTR_STAT(port), GEN_READ_DATA_AVAIL);
 
-	ret = dsi_vc_dcs_send_read_request(intel_dsi, channel, dcs_cmd);
+	ret = dsi_vc_dcs_send_read_request(intel_dsi, channel, dcs_cmd, port);
 	if (ret)
 		return ret;
 
@@ -337,7 +330,7 @@ int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
 	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 50))
 		DRM_ERROR("Timeout waiting for read data.\n");
 
-	ret = dsi_read_data_return(intel_dsi, buf, buflen);
+	ret = dsi_read_data_return(intel_dsi, buf, buflen, port);
 	if (ret < 0)
 		return ret;
 
@@ -348,13 +341,11 @@ int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
 }
 
 int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
-			u8 *reqdata, int reqlen, u8 *buf, int buflen)
+		u8 *reqdata, int reqlen, u8 *buf, int buflen, enum port port)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
 	u32 mask;
 	int ret;
 
@@ -366,7 +357,7 @@ int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
 	I915_WRITE(MIPI_INTR_STAT(port), GEN_READ_DATA_AVAIL);
 
 	ret = dsi_vc_generic_send_read_request(intel_dsi, channel, reqdata,
-					       reqlen);
+					       reqlen, port);
 	if (ret)
 		return ret;
 
@@ -374,7 +365,7 @@ int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
 	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 50))
 		DRM_ERROR("Timeout waiting for read data.\n");
 
-	ret = dsi_read_data_return(intel_dsi, buf, buflen);
+	ret = dsi_read_data_return(intel_dsi, buf, buflen, port);
 	if (ret < 0)
 		return ret;
 

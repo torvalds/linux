@@ -36,77 +36,81 @@
 #define DPI_LP_MODE_EN	false
 #define DPI_HS_MODE_EN	true
 
-void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable);
+void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable,
+						enum port port);
 
 int dsi_vc_dcs_write(struct intel_dsi *intel_dsi, int channel,
-		     const u8 *data, int len);
+		     const u8 *data, int len, enum port port);
 
 int dsi_vc_generic_write(struct intel_dsi *intel_dsi, int channel,
-			 const u8 *data, int len);
+			 const u8 *data, int len, enum port port);
 
 int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
-		    u8 *buf, int buflen);
+		    u8 *buf, int buflen, enum port port);
 
 int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
-			u8 *reqdata, int reqlen, u8 *buf, int buflen);
+		u8 *reqdata, int reqlen, u8 *buf, int buflen, enum port port);
 
 int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs);
 void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi);
 
 /* XXX: questionable write helpers */
 static inline int dsi_vc_dcs_write_0(struct intel_dsi *intel_dsi,
-				     int channel, u8 dcs_cmd)
+				     int channel, u8 dcs_cmd, enum port port)
 {
-	return dsi_vc_dcs_write(intel_dsi, channel, &dcs_cmd, 1);
+	return dsi_vc_dcs_write(intel_dsi, channel, &dcs_cmd, 1, port);
 }
 
 static inline int dsi_vc_dcs_write_1(struct intel_dsi *intel_dsi,
-				     int channel, u8 dcs_cmd, u8 param)
+			int channel, u8 dcs_cmd, u8 param, enum port port)
 {
 	u8 buf[2] = { dcs_cmd, param };
-	return dsi_vc_dcs_write(intel_dsi, channel, buf, 2);
+	return dsi_vc_dcs_write(intel_dsi, channel, buf, 2, port);
 }
 
 static inline int dsi_vc_generic_write_0(struct intel_dsi *intel_dsi,
-					 int channel)
+					 int channel, enum port port)
 {
-	return dsi_vc_generic_write(intel_dsi, channel, NULL, 0);
+	return dsi_vc_generic_write(intel_dsi, channel, NULL, 0, port);
 }
 
 static inline int dsi_vc_generic_write_1(struct intel_dsi *intel_dsi,
-					 int channel, u8 param)
+					 int channel, u8 param, enum port port)
 {
-	return dsi_vc_generic_write(intel_dsi, channel, &param, 1);
+	return dsi_vc_generic_write(intel_dsi, channel, &param, 1, port);
 }
 
 static inline int dsi_vc_generic_write_2(struct intel_dsi *intel_dsi,
-					 int channel, u8 param1, u8 param2)
+			int channel, u8 param1, u8 param2, enum port port)
 {
 	u8 buf[2] = { param1, param2 };
-	return dsi_vc_generic_write(intel_dsi, channel, buf, 2);
+	return dsi_vc_generic_write(intel_dsi, channel, buf, 2, port);
 }
 
 /* XXX: questionable read helpers */
 static inline int dsi_vc_generic_read_0(struct intel_dsi *intel_dsi,
-					int channel, u8 *buf, int buflen)
+			int channel, u8 *buf, int buflen, enum port port)
 {
-	return dsi_vc_generic_read(intel_dsi, channel, NULL, 0, buf, buflen);
+	return dsi_vc_generic_read(intel_dsi, channel, NULL, 0, buf, buflen,
+									port);
 }
 
 static inline int dsi_vc_generic_read_1(struct intel_dsi *intel_dsi,
 					int channel, u8 param, u8 *buf,
-					int buflen)
+					int buflen, enum port port)
 {
-	return dsi_vc_generic_read(intel_dsi, channel, &param, 1, buf, buflen);
+	return dsi_vc_generic_read(intel_dsi, channel, &param, 1, buf, buflen,
+									port);
 }
 
 static inline int dsi_vc_generic_read_2(struct intel_dsi *intel_dsi,
 					int channel, u8 param1, u8 param2,
-					u8 *buf, int buflen)
+					u8 *buf, int buflen, enum port port)
 {
 	u8 req[2] = { param1, param2 };
 
-	return dsi_vc_generic_read(intel_dsi, channel, req, 2, buf, buflen);
+	return dsi_vc_generic_read(intel_dsi, channel, req, 2, buf, buflen,
+									port);
 }
 
 
