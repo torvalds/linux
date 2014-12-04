@@ -3277,17 +3277,12 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 	     "bogus fence setup with stride: 0x%x, tiling mode: %i\n",
 	     obj->stride, obj->tiling_mode);
 
-	switch (INTEL_INFO(dev)->gen) {
-	case 9:
-	case 8:
-	case 7:
-	case 6:
-	case 5:
-	case 4: i965_write_fence_reg(dev, reg, obj); break;
-	case 3: i915_write_fence_reg(dev, reg, obj); break;
-	case 2: i830_write_fence_reg(dev, reg, obj); break;
-	default: BUG();
-	}
+	if (IS_GEN2(dev))
+		i830_write_fence_reg(dev, reg, obj);
+	else if (IS_GEN3(dev))
+		i915_write_fence_reg(dev, reg, obj);
+	else if (INTEL_INFO(dev)->gen >= 4)
+		i965_write_fence_reg(dev, reg, obj);
 
 	/* And similarly be paranoid that no direct access to this region
 	 * is reordered to before the fence is installed.
