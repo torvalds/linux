@@ -269,7 +269,7 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 }
 EXPORT_SYMBOL(fld_client_del_target);
 
-struct proc_dir_entry *fld_type_proc_dir = NULL;
+static struct proc_dir_entry *fld_type_proc_dir;
 
 #if defined (CONFIG_PROC_FS)
 static int fld_client_proc_init(struct lu_client_fld *fld)
