@@ -89,29 +89,29 @@ struct stv090x_config {
 
 	bool diseqc_envelope_mode;
 
-	int (*tuner_init) (struct dvb_frontend *fe);
-	int (*tuner_sleep) (struct dvb_frontend *fe);
-	int (*tuner_set_mode) (struct dvb_frontend *fe, enum tuner_mode mode);
-	int (*tuner_set_frequency) (struct dvb_frontend *fe, u32 frequency);
-	int (*tuner_get_frequency) (struct dvb_frontend *fe, u32 *frequency);
-	int (*tuner_set_bandwidth) (struct dvb_frontend *fe, u32 bandwidth);
-	int (*tuner_get_bandwidth) (struct dvb_frontend *fe, u32 *bandwidth);
-	int (*tuner_set_bbgain) (struct dvb_frontend *fe, u32 gain);
-	int (*tuner_get_bbgain) (struct dvb_frontend *fe, u32 *gain);
-	int (*tuner_set_refclk)  (struct dvb_frontend *fe, u32 refclk);
-	int (*tuner_get_status) (struct dvb_frontend *fe, u32 *status);
-	void (*tuner_i2c_lock) (struct dvb_frontend *fe, int lock);
+	int (*tuner_init)(struct dvb_frontend *fe);
+	int (*tuner_sleep)(struct dvb_frontend *fe);
+	int (*tuner_set_mode)(struct dvb_frontend *fe, enum tuner_mode mode);
+	int (*tuner_set_frequency)(struct dvb_frontend *fe, u32 frequency);
+	int (*tuner_get_frequency)(struct dvb_frontend *fe, u32 *frequency);
+	int (*tuner_set_bandwidth)(struct dvb_frontend *fe, u32 bandwidth);
+	int (*tuner_get_bandwidth)(struct dvb_frontend *fe, u32 *bandwidth);
+	int (*tuner_set_bbgain)(struct dvb_frontend *fe, u32 gain);
+	int (*tuner_get_bbgain)(struct dvb_frontend *fe, u32 *gain);
+	int (*tuner_set_refclk)(struct dvb_frontend *fe, u32 refclk);
+	int (*tuner_get_status)(struct dvb_frontend *fe, u32 *status);
+	void (*tuner_i2c_lock)(struct dvb_frontend *fe, int lock);
 
 	/* dir = 0 -> output, dir = 1 -> input/open-drain */
 	int (*set_gpio)(struct dvb_frontend *fe, u8 gpio, u8 dir, u8 value,
-			 u8 xor_value);
+			u8 xor_value);
 };
 
 #if IS_ENABLED(CONFIG_DVB_STV090x)
 
-extern struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
-					   struct i2c_adapter *i2c,
-					   enum stv090x_demodulator demod);
+struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
+				    struct i2c_adapter *i2c,
+				    enum stv090x_demodulator demod);
 
 #else
 
