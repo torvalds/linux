@@ -1208,7 +1208,7 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 {
 	struct bq24190_dev_info *bdi = data;
 	bool alert_userspace = false;
-	u8 ss_reg, f_reg;
+	u8 ss_reg = 0, f_reg = 0;
 	int ret;
 
 	pm_runtime_get_sync(bdi->dev);
