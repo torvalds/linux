@@ -126,7 +126,7 @@ static void status_notify(struct virtio_device *vdev)
  * sorted out, this routine is called so we can tell the Host which features we
  * understand and accept.
  */
-static void lg_finalize_features(struct virtio_device *vdev)
+static int lg_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
@@ -153,6 +153,8 @@ static void lg_finalize_features(struct virtio_device *vdev)
 
 	/* Tell Host we've finished with this device's feature negotiation */
 	status_notify(vdev);
+
+	return 0;
 }
 
 /* Once they've found a field, getting a copy of it is easy. */

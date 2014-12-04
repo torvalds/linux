@@ -217,7 +217,7 @@ static u64 rproc_virtio_get_features(struct virtio_device *vdev)
 	return rsc->dfeatures;
 }
 
-static void rproc_virtio_finalize_features(struct virtio_device *vdev)
+static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct fw_rsc_vdev *rsc;
@@ -235,6 +235,8 @@ static void rproc_virtio_finalize_features(struct virtio_device *vdev)
 	 * to the remote processor once it is powered on.
 	 */
 	rsc->gfeatures = vdev->features;
+
+	return 0;
 }
 
 static void rproc_virtio_get(struct virtio_device *vdev, unsigned offset,

@@ -47,6 +47,7 @@
  *	vdev: the virtio_device
  *	This gives the final feature bits for the device: it can change
  *	the dev->feature bits if it wants.
+ *	Returns 0 on success or error status
  * @bus_name: return the bus name associated with the device
  *	vdev: the virtio_device
  *      This returns a pointer to the bus name a la pci_name from which
@@ -68,7 +69,7 @@ struct virtio_config_ops {
 			const char *names[]);
 	void (*del_vqs)(struct virtio_device *);
 	u64 (*get_features)(struct virtio_device *vdev);
-	void (*finalize_features)(struct virtio_device *vdev);
+	int (*finalize_features)(struct virtio_device *vdev);
 	const char *(*bus_name)(struct virtio_device *vdev);
 	int (*set_vq_affinity)(struct virtqueue *vq, int cpu);
 };

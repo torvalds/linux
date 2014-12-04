@@ -84,7 +84,7 @@ static u64 mic_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void mic_finalize_features(struct virtio_device *vdev)
+static int mic_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	struct mic_device_desc __iomem *desc = to_micvdev(vdev)->desc;
@@ -107,6 +107,8 @@ static void mic_finalize_features(struct virtio_device *vdev)
 			iowrite8(ioread8(&out_features[i / 8]) | (1 << (i % 8)),
 				 &out_features[i / 8]);
 	}
+
+	return 0;
 }
 
 /*

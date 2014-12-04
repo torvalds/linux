@@ -93,7 +93,7 @@ static u64 kvm_get_features(struct virtio_device *vdev)
 	return features;
 }
 
-static void kvm_finalize_features(struct virtio_device *vdev)
+static int kvm_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	struct kvm_device_desc *desc = to_kvmdev(vdev)->desc;
@@ -112,6 +112,8 @@ static void kvm_finalize_features(struct virtio_device *vdev)
 		if (__virtio_test_bit(vdev, i))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
+
+	return 0;
 }
 
 /*

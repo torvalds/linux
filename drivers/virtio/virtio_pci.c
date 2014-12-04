@@ -112,7 +112,7 @@ static u64 vp_get_features(struct virtio_device *vdev)
 }
 
 /* virtio config->finalize_features() implementation */
-static void vp_finalize_features(struct virtio_device *vdev)
+static int vp_finalize_features(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 
@@ -124,6 +124,8 @@ static void vp_finalize_features(struct virtio_device *vdev)
 
 	/* We only support 32 feature bits. */
 	iowrite32(vdev->features, vp_dev->ioaddr + VIRTIO_PCI_GUEST_FEATURES);
+
+	return 0;
 }
 
 /* virtio config->get() implementation */

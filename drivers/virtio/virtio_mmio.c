@@ -152,7 +152,7 @@ static u64 vm_get_features(struct virtio_device *vdev)
 	return readl(vm_dev->base + VIRTIO_MMIO_HOST_FEATURES);
 }
 
-static void vm_finalize_features(struct virtio_device *vdev)
+static int vm_finalize_features(struct virtio_device *vdev)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
 
@@ -164,6 +164,8 @@ static void vm_finalize_features(struct virtio_device *vdev)
 
 	writel(0, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES_SEL);
 	writel(vdev->features, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES);
+
+	return 0;
 }
 
 static void vm_get(struct virtio_device *vdev, unsigned offset,
