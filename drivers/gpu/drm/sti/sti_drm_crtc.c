@@ -64,6 +64,8 @@ static void sti_drm_crtc_commit(struct drm_crtc *crtc)
 	/* Enable layer on mixer */
 	if (sti_mixer_set_layer_status(mixer, layer, true))
 		DRM_ERROR("Can not enable layer at mixer\n");
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static bool sti_drm_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -224,7 +226,7 @@ static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 	/* Then disable layer itself */
 	sti_layer_disable(layer);
 
-	drm_vblank_off(crtc->dev, mixer->id);
+	drm_crtc_vblank_off(crtc);
 
 	/* Disable pixel clock and compo IP clocks */
 	if (mixer->id == STI_MIXER_MAIN) {
