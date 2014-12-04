@@ -466,8 +466,7 @@ static int sh_mobile_i2c_isr_rx(struct sh_mobile_i2c_data *pd)
 
 static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 {
-	struct platform_device *dev = dev_id;
-	struct sh_mobile_i2c_data *pd = platform_get_drvdata(dev);
+	struct sh_mobile_i2c_data *pd = dev_id;
 	unsigned char sr;
 	int wakeup = 0;
 
@@ -804,7 +803,7 @@ static void sh_mobile_i2c_release_dma(struct sh_mobile_i2c_data *pd)
 	}
 }
 
-static int sh_mobile_i2c_hook_irqs(struct platform_device *dev)
+static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, struct sh_mobile_i2c_data *pd)
 {
 	struct resource *res;
 	resource_size_t n;
@@ -813,7 +812,7 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev)
 	while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
 		for (n = res->start; n <= res->end; n++) {
 			ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
-					  0, dev_name(&dev->dev), dev);
+					  0, dev_name(&dev->dev), pd);
 			if (ret) {
 				dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
 				return ret;
@@ -844,7 +843,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		return PTR_ERR(pd->clk);
 	}
 
-	ret = sh_mobile_i2c_hook_irqs(dev);
+	ret = sh_mobile_i2c_hook_irqs(dev, pd);
 	if (ret)
 		return ret;
 
