@@ -464,6 +464,8 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		u64 supported = kvm_supported_xcr0();
 
 		entry->eax &= supported;
+		entry->ebx = xstate_required_size(supported, false);
+		entry->ecx = entry->ebx;
 		entry->edx &= supported >> 32;
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		if (!supported)
