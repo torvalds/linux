@@ -3451,6 +3451,8 @@ enum nl80211_ps_state {
  *	interval in which %NL80211_ATTR_CQM_TXE_PKTS and
  *	%NL80211_ATTR_CQM_TXE_RATE must be satisfied before generating an
  *	%NL80211_CMD_NOTIFY_CQM. Set to 0 to turn off TX error reporting.
+ * @NL80211_ATTR_CQM_BEACON_LOSS_EVENT: flag attribute that's set in a beacon
+ *	loss event
  * @__NL80211_ATTR_CQM_AFTER_LAST: internal
  * @NL80211_ATTR_CQM_MAX: highest key attribute
  */
@@ -3463,6 +3465,7 @@ enum nl80211_attr_cqm {
 	NL80211_ATTR_CQM_TXE_RATE,
 	NL80211_ATTR_CQM_TXE_PKTS,
 	NL80211_ATTR_CQM_TXE_INTVL,
+	NL80211_ATTR_CQM_BEACON_LOSS_EVENT,
 
 	/* keep last */
 	__NL80211_ATTR_CQM_AFTER_LAST,
@@ -3475,9 +3478,7 @@ enum nl80211_attr_cqm {
  *      configured threshold
  * @NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH: The RSSI is higher than the
  *      configured threshold
- * @NL80211_CQM_RSSI_BEACON_LOSS_EVENT: The device experienced beacon loss.
- *	(Note that deauth/disassoc will still follow if the AP is not
- *	available. This event might get used as roaming event, etc.)
+ * @NL80211_CQM_RSSI_BEACON_LOSS_EVENT: (reserved, never sent)
  */
 enum nl80211_cqm_rssi_threshold_event {
 	NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
