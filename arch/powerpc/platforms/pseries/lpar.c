@@ -284,7 +284,7 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
 				       unsigned long vpn,
 				       int psize, int apsize,
-				       int ssize, int local)
+				       int ssize, unsigned long inv_flags)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;

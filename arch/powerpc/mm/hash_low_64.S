@@ -46,7 +46,8 @@
 
 /*
  * _hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
- *		 pte_t *ptep, unsigned long trap, int local, int ssize)
+ *		 pte_t *ptep, unsigned long trap, unsigned long flags,
+ *		 int ssize)
  *
  * Adds a 4K page to the hash table in a segment of 4K pages only
  */
@@ -298,7 +299,7 @@ htab_modify_pte:
 	li	r6,MMU_PAGE_4K		/* base page size */
 	li	r7,MMU_PAGE_4K		/* actual page size */
 	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "flags" param */
 .globl htab_call_hpte_updatepp
 htab_call_hpte_updatepp:
 	bl	.			/* Patched by htab_finish_init() */
@@ -338,8 +339,8 @@ htab_pte_insert_failure:
  *****************************************************************************/
 
 /* _hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
- *		 pte_t *ptep, unsigned long trap, int local, int ssize,
- *		 int subpg_prot)
+ *		 pte_t *ptep, unsigned long trap, unsigned local flags,
+ *		 int ssize, int subpg_prot)
  */
 
 /*
@@ -594,7 +595,7 @@ htab_inval_old_hpte:
 	li	r5,0			/* PTE.hidx */
 	li	r6,MMU_PAGE_64K		/* psize */
 	ld	r7,STK_PARAM(R9)(r1)	/* ssize */
-	ld	r8,STK_PARAM(R8)(r1)	/* local */
+	ld	r8,STK_PARAM(R8)(r1)	/* flags */
 	bl	flush_hash_page
 	/* Clear out _PAGE_HPTE_SUB bits in the new linux PTE */
 	lis	r0,_PAGE_HPTE_SUB@h
@@ -666,7 +667,7 @@ htab_modify_pte:
 	li	r6,MMU_PAGE_4K		/* base page size */
 	li	r7,MMU_PAGE_4K		/* actual page size */
 	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "flags" param */
 .globl htab_call_hpte_updatepp
 htab_call_hpte_updatepp:
 	bl	.			/* patched by htab_finish_init() */
@@ -962,7 +963,7 @@ ht64_modify_pte:
 	li	r6,MMU_PAGE_64K		/* base page size */
 	li	r7,MMU_PAGE_64K		/* actual page size */
 	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "flags" param */
 .globl ht64_call_hpte_updatepp
 ht64_call_hpte_updatepp:
 	bl	.			/* patched by htab_finish_init() */

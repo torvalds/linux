@@ -739,9 +739,10 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 			    pmd_t *pmdp, unsigned long old_pmd)
 {
-	int ssize, local = 0;
+	int ssize;
 	unsigned int psize;
 	unsigned long vsid;
+	unsigned long flags = 0;
 	const struct cpumask *tmp;
 
 	/* get the base page size,vsid and segment size */
@@ -765,9 +766,9 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 
 	tmp = cpumask_of(smp_processor_id());
 	if (cpumask_equal(mm_cpumask(mm), tmp))
-		local = 1;
+		flags |= HPTE_LOCAL_UPDATE;
 
-	return flush_hash_hugepage(vsid, addr, pmdp, psize, ssize, local);
+	return flush_hash_hugepage(vsid, addr, pmdp, psize, ssize, flags);
 }
 
 static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)

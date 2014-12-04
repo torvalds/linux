@@ -144,7 +144,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 	access = (_PAGE_PRESENT | _PAGE_USER);
 	access |= (dsisr & MFC_DSISR_ACCESS_PUT) ? _PAGE_RW : 0UL;
 	local_irq_save(flags);
-	ret = hash_page(ea, access, 0x300);
+	ret = hash_page(ea, access, 0x300, dsisr);
 	local_irq_restore(flags);
 
 	/* hashing failed, so try the actual fault handler */

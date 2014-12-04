@@ -42,7 +42,7 @@ struct machdep_calls {
 					 unsigned long newpp, 
 					 unsigned long vpn,
 					 int bpsize, int apsize,
-					 int ssize, int local);
+					 int ssize, unsigned long flags);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
 					       unsigned long ea,
 					       int psize, int ssize);

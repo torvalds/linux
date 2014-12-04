@@ -283,11 +283,11 @@ static long native_hpte_remove(unsigned long hpte_group)
 
 static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 				 unsigned long vpn, int bpsize,
-				 int apsize, int ssize, int local)
+				 int apsize, int ssize, unsigned long flags)
 {
 	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v, want_v;
-	int ret = 0;
+	int ret = 0, local = 0;
 
 	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
 
@@ -322,8 +322,15 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 		}
 		native_unlock_hpte(hptep);
 	}
-	/* Ensure it is out of the tlb too. */
-	tlbie(vpn, bpsize, apsize, ssize, local);
+
+	if (flags & HPTE_LOCAL_UPDATE)
+		local = 1;
+	/*
+	 * Ensure it is out of the tlb too if it is not a nohpte fault
+	 */
+	if (!(flags & HPTE_NOHPTE_UPDATE))
+		tlbie(vpn, bpsize, apsize, ssize, local);
+
 	return ret;
 }
 
