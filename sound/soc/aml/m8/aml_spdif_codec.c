@@ -26,7 +26,7 @@
 #define DRV_NAME "spdif-dit"
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
-#define STUB_FORMATS	SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE
+#define STUB_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
 
 
 static struct snd_soc_codec_driver soc_codec_spdif_dit;
@@ -38,14 +38,14 @@ static struct snd_soc_dai_driver dit_stub_dai = {
 	.playback 	= {
 		.stream_name	= "Playback",
 		.channels_min	= 1,
-		.channels_max	= 8,
+		.channels_max	= 2,
 		.rates		= STUB_RATES,
 		.formats	= STUB_FORMATS,
 	},
 	.capture 	= {
 		.stream_name	= "Capture",
 		.channels_min	= 1,
-		.channels_max	= 8,
+		.channels_max	= 2,
 		.rates		= STUB_RATES,
 		.formats	= STUB_FORMATS,
 	},	
@@ -57,11 +57,6 @@ void aml_spdif_pinmux_init(struct device *dev)
     printk(KERN_INFO"aml_spdif_unmute \n");
     if(!spdif_pinmux){
         spdif_pinmux = 1;
-        pin_spdif_ctl = devm_pinctrl_get_select(dev, "aml_audio_spdif");
-        if (IS_ERR(pin_spdif_ctl)){
-            pin_spdif_ctl = NULL;
-            printk("aml_spdif_pinmux_init can't get pinctrl \n");
-        }
     }
 }
 
@@ -70,38 +65,12 @@ void aml_spdif_pinmux_deinit(struct device *dev)
     printk(KERN_INFO"aml_spdif_mute \n");
     if(spdif_pinmux){
         spdif_pinmux = 0;
-        if(pin_spdif_ctl)
-            devm_pinctrl_put(pin_spdif_ctl);
     }
 }
-static ssize_t spdif_mute_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-    if(spdif_pinmux){
-        return sprintf(buf, "spdif_unmute\n");
-    }else{
-        return sprintf(buf, "spdif_mute\n");
-    }        
-}
-
-static ssize_t spdif_mute_set(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-    if(strncmp(buf,"spdif_mute",10)){
-        aml_spdif_pinmux_init(dev);
-    }else if(strncmp(buf,"spdif_unmute",12)){
-        aml_spdif_pinmux_deinit(dev);
-    }else{
-        printk("spdif set the wrong value\n");
-    }
-	return count;
-}
-static DEVICE_ATTR(spdif_mute, 0660, spdif_mute_show, spdif_mute_set);
 
 static int spdif_dit_probe(struct platform_device *pdev)
 {
-    int ret = device_create_file(&pdev->dev, &dev_attr_spdif_mute);
+    int ret=0;
 	printk("enter spdif_dit_probe \n");
     spdif_dev = &pdev->dev;
 
@@ -114,7 +83,6 @@ static int spdif_dit_probe(struct platform_device *pdev)
 static int spdif_dit_remove(struct platform_device *pdev)
 {
     aml_spdif_pinmux_deinit(&pdev->dev);
-    device_remove_file(&pdev->dev, &dev_attr_spdif_mute);
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }

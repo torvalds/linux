@@ -51,7 +51,8 @@ void  aml_spdif_play(void)
    	 _aiu_958_channel_status_t chstat;	 
 	struct snd_pcm_substream substream;
 	struct snd_pcm_runtime runtime;
-	substream.runtime = &	runtime;
+	substream.runtime = &	runtime;
+
 	runtime.rate	 = 48000;
 	runtime.format = SNDRV_PCM_FORMAT_S16_LE;
 	runtime.channels  = 2;
@@ -71,7 +72,7 @@ void  aml_spdif_play(void)
 	}	
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 	memset(iec958buf,0,sizeof(iec958buf));
-	audio_set_958outbuf((virt_to_phys(iec958buf)+63)&(~63),128,0); //128 bytes as dma buffer 
+	audio_set_958outbuf((virt_to_phys(iec958buf)+63)&(~63),128,2,0); //128 bytes as dma buffer 
 	audio_set_958_mode(AIU_958_MODE_PCM16, &set);	
 #if OVERCLOCK == 1 || IEC958_OVERCLOCK == 1	
 	WRITE_MPEG_REG_BITS(AIU_CLK_CTRL, 3, 4, 2);//512fs divide 4 == 128fs
@@ -86,7 +87,8 @@ void  aml_spdif_play(void)
 #endif
 }
 static void  aml_spdif_play_stop(void)
-{
+{
+
 	audio_hw_958_enable(0);
 }
 
@@ -267,7 +269,7 @@ static void aml_hw_iec958_init(struct snd_pcm_substream *substream)
         }
 		start = buf->addr;
 		size = snd_pcm_lib_buffer_bytes(substream);
-		audio_set_958outbuf(start, size, 0);
+		audio_set_958outbuf(start, size, runtime->channels, 0);
 		//audio_set_i2s_mode(AIU_I2S_MODE_PCM16);
 		//audio_set_aiubuf(start, size);		
 	}else{
@@ -304,7 +306,7 @@ static void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		}
 		start = buf->addr;
 		size = snd_pcm_lib_buffer_bytes(substream);;
-		audio_set_958outbuf(start, size, (iec958_mode == AIU_958_MODE_RAW)?1:0);
+		audio_set_958outbuf(start, size, runtime->channels, (iec958_mode == AIU_958_MODE_RAW)?1:0);
 		memset((void*)buf->area,0,size);
 	}
 	ALSA_DEBUG("aiu 958 pcm buffer size %d \n",size);	
@@ -485,7 +487,7 @@ static struct snd_soc_dai_driver aml_spdif_dai[] = {
 		.playback = {
 			.stream_name = "S/PDIF Playback",
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 2,
 			.rates = (
 					SNDRV_PCM_RATE_32000 |
 					SNDRV_PCM_RATE_44100 |
@@ -498,7 +500,7 @@ static struct snd_soc_dai_driver aml_spdif_dai[] = {
 		.capture = {
 			.stream_name = "S/PDIF Capture",
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 2,
 			.rates = (SNDRV_PCM_RATE_32000 |
 					SNDRV_PCM_RATE_44100 |
 					SNDRV_PCM_RATE_48000 |
