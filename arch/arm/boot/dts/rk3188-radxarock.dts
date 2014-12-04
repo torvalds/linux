@@ -43,16 +43,19 @@
 		compatible = "gpio-leds";
 
 		green {
+			label = "rock:green:user1";
 			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		yellow {
+		blue {
+			label = "rock:blue:user2";
 			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		sleep {
+			label = "rock:red:power";
 			gpios = <&gpio0 15 0>;
 			default-state = "off";
 		};
