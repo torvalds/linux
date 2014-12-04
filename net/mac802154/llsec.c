@@ -298,12 +298,12 @@ static bool llsec_dev_use_shortaddr(__le16 short_addr)
 
 static u32 llsec_dev_hash_short(__le16 short_addr, __le16 pan_id)
 {
-	return ((__force u16) short_addr) << 16 | (__force u16) pan_id;
+	return ((__force u16)short_addr) << 16 | (__force u16)pan_id;
 }
 
 static u64 llsec_dev_hash_long(__le64 hwaddr)
 {
-	return (__force u64) hwaddr;
+	return (__force u64)hwaddr;
 }
 
 static struct mac802154_llsec_device*
