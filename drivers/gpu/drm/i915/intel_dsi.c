@@ -479,7 +479,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	enum port port;
 	unsigned int bpp = intel_crtc->config.pipe_bpp;
 	unsigned int lane_count = intel_dsi->lane_count;
 
@@ -489,6 +489,15 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	hfp = mode->hsync_start - mode->hdisplay;
 	hsync = mode->hsync_end - mode->hsync_start;
 	hbp = mode->htotal - mode->hsync_end;
+
+	if (intel_dsi->dual_link) {
+		hactive /= 2;
+		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
+			hactive += intel_dsi->pixel_overlap;
+		hfp /= 2;
+		hsync /= 2;
+		hbp /= 2;
+	}
 
 	vfp = mode->vsync_start - mode->vdisplay;
 	vsync = mode->vsync_end - mode->vsync_start;
@@ -502,18 +511,20 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 			    intel_dsi->burst_mode_ratio);
 	hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
 
-	I915_WRITE(MIPI_HACTIVE_AREA_COUNT(port), hactive);
-	I915_WRITE(MIPI_HFP_COUNT(port), hfp);
+	for_each_dsi_port(port, intel_dsi->ports) {
+		I915_WRITE(MIPI_HACTIVE_AREA_COUNT(port), hactive);
+		I915_WRITE(MIPI_HFP_COUNT(port), hfp);
 
-	/* meaningful for video mode non-burst sync pulse mode only, can be zero
-	 * for non-burst sync events and burst modes */
-	I915_WRITE(MIPI_HSYNC_PADDING_COUNT(port), hsync);
-	I915_WRITE(MIPI_HBP_COUNT(port), hbp);
+		/* meaningful for video mode non-burst sync pulse mode only,
+		 * can be zero for non-burst sync events and burst modes */
+		I915_WRITE(MIPI_HSYNC_PADDING_COUNT(port), hsync);
+		I915_WRITE(MIPI_HBP_COUNT(port), hbp);
 
-	/* vertical values are in terms of lines */
-	I915_WRITE(MIPI_VFP_COUNT(port), vfp);
-	I915_WRITE(MIPI_VSYNC_PADDING_COUNT(port), vsync);
-	I915_WRITE(MIPI_VBP_COUNT(port), vbp);
+		/* vertical values are in terms of lines */
+		I915_WRITE(MIPI_VFP_COUNT(port), vfp);
+		I915_WRITE(MIPI_VSYNC_PADDING_COUNT(port), vsync);
+		I915_WRITE(MIPI_VBP_COUNT(port), vbp);
+	}
 }
 
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
