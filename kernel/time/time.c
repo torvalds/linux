@@ -745,6 +745,7 @@ u64 nsecs_to_jiffies64(u64 n)
 	return div_u64(n * 9, (9ull * NSEC_PER_SEC + HZ / 2) / HZ);
 #endif
 }
+EXPORT_SYMBOL(nsecs_to_jiffies64);
 
 /**
  * nsecs_to_jiffies - Convert nsecs in u64 to jiffies

@@ -3032,6 +3032,11 @@ static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
 	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
 }
 
+static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
+{
+        return min_t(u64, MAX_JIFFY_OFFSET, nsecs_to_jiffies64(n) + 1);
+}
+
 static inline unsigned long
 timespec_to_jiffies_timeout(const struct timespec *value)
 {
