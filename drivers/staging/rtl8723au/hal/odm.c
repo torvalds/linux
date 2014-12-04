@@ -983,10 +983,10 @@ void odm_1R_CCA23a(struct dm_odm_t *pDM_Odm)
 void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 {
 	struct dynamic_pwr_sav *pDM_PSTable = &pDM_Odm->DM_PSTable;
-	u8 Rssi_Up_bound = 30 ;
+	u8 Rssi_Up_bound = 30;
 	u8 Rssi_Low_bound = 25;
 	if (pDM_Odm->PatchID == 40) { /* RT_CID_819x_FUNAI_TV */
-		Rssi_Up_bound = 50 ;
+		Rssi_Up_bound = 50;
 		Rssi_Low_bound = 45;
 	}
 	if (pDM_PSTable->initialize == 0) {
