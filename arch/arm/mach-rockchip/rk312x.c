@@ -484,8 +484,9 @@ static int __init rk312x_ddr_init(void)
 		ddr_round_rate = _ddr_round_rate;
 		ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
 		ddr_bandwidth_get = _ddr_bandwidth_get;
-		ddr_init(DDR3_DEFAULT, 300);
-		}
+		ddr_init(DDR3_DEFAULT, 0);
+	}
+
 	return 0;
 }
 arch_initcall_sync(rk312x_ddr_init);
