@@ -254,41 +254,6 @@ static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
 }
 
 /**
- * cpufreq_apply_cooling - function to apply frequency clipping.
- * @cpufreq_device: cpufreq_cooling_device pointer containing frequency
- *	clipping data.
- * @cooling_state: value of the cooling state.
- *
- * Function used to make sure the cpufreq layer is aware of current thermal
- * limits. The limits are applied by updating the cpufreq policy.
- *
- * Return: 0 on success, an error code otherwise (-EINVAL in case wrong
- * cooling state).
- */
-static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
-				 unsigned long cooling_state)
-{
-	unsigned int clip_freq;
-	struct cpumask *mask = &cpufreq_device->allowed_cpus;
-	unsigned int cpu = cpumask_any(mask);
-
-	/* Check if the old cooling action is same as new cooling action */
-	if (cpufreq_device->cpufreq_state == cooling_state)
-		return 0;
-
-	clip_freq = get_cpu_frequency(cpu, cooling_state);
-	if (!clip_freq)
-		return -EINVAL;
-
-	cpufreq_device->cpufreq_state = cooling_state;
-	cpufreq_device->cpufreq_val = clip_freq;
-
-	cpufreq_update_policy(cpu);
-
-	return 0;
-}
-
-/**
  * cpufreq_thermal_notifier - notifier callback for cpufreq policy change.
  * @nb:	struct notifier_block * with callback info.
  * @event: value showing cpufreq event for which this function invoked.
@@ -391,8 +356,23 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long state)
 {
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
+	unsigned int cpu = cpumask_any(&cpufreq_device->allowed_cpus);
+	unsigned int clip_freq;
 
-	return cpufreq_apply_cooling(cpufreq_device, state);
+	/* Check if the old cooling action is same as new cooling action */
+	if (cpufreq_device->cpufreq_state == state)
+		return 0;
+
+	clip_freq = get_cpu_frequency(cpu, state);
+	if (!clip_freq)
+		return -EINVAL;
+
+	cpufreq_device->cpufreq_state = state;
+	cpufreq_device->cpufreq_val = clip_freq;
+
+	cpufreq_update_policy(cpu);
+
+	return 0;
 }
 
 /* Bind cpufreq callbacks to thermal cooling device ops */
