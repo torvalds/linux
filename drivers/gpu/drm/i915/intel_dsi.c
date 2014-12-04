@@ -102,6 +102,36 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
+static void intel_dsi_port_enable(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	u32 temp;
+
+	/* assert ip_tg_enable signal */
+	temp = I915_READ(MIPI_PORT_CTRL(port)) & ~LANE_CONFIGURATION_MASK;
+	temp = temp | intel_dsi->port_bits;
+	I915_WRITE(MIPI_PORT_CTRL(port), temp | DPI_ENABLE);
+	POSTING_READ(MIPI_PORT_CTRL(port));
+}
+
+static void intel_dsi_port_disable(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	u32 temp;
+
+	/* de-assert ip_tg_enable signal */
+	temp = I915_READ(MIPI_PORT_CTRL(port));
+	I915_WRITE(MIPI_PORT_CTRL(port), temp & ~DPI_ENABLE);
+	POSTING_READ(MIPI_PORT_CTRL(port));
+}
+
 static void intel_dsi_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -141,7 +171,6 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
-	u32 temp;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -157,11 +186,7 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 		wait_for_dsi_fifo_empty(intel_dsi);
 
-		/* assert ip_tg_enable signal */
-		temp = I915_READ(MIPI_PORT_CTRL(port)) & ~LANE_CONFIGURATION_MASK;
-		temp = temp | intel_dsi->port_bits;
-		I915_WRITE(MIPI_PORT_CTRL(port), temp | DPI_ENABLE);
-		POSTING_READ(MIPI_PORT_CTRL(port));
+		intel_dsi_port_enable(encoder);
 	}
 }
 
@@ -245,11 +270,7 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	if (is_vid_mode(intel_dsi)) {
 		wait_for_dsi_fifo_empty(intel_dsi);
 
-		/* de-assert ip_tg_enable signal */
-		temp = I915_READ(MIPI_PORT_CTRL(port));
-		I915_WRITE(MIPI_PORT_CTRL(port), temp & ~DPI_ENABLE);
-		POSTING_READ(MIPI_PORT_CTRL(port));
-
+		intel_dsi_port_disable(encoder);
 		msleep(2);
 	}
 
