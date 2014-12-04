@@ -159,5 +159,11 @@ config POWER_RESET_SYSCON
 	help
 	  Reboot support for generic SYSCON mapped register reset.
 
+config POWER_RESET_RMOBILE
+	tristate "Renesas R-Mobile reset driver"
+	depends on ARCH_RMOBILE || COMPILE_TEST
+	help
+	  Reboot support for Renesas R-Mobile and SH-Mobile SoCs.
+
 endif
 
