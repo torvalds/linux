@@ -689,10 +689,10 @@ int rtw_disassoc_cmd23a(struct rtw_adapter *padapter, u32 deauth_timeout_ms, boo
 int rtw_setopmode_cmd23a(struct rtw_adapter *padapter, enum nl80211_iftype ifmode);
 int rtw_setdatarate_cmd(struct rtw_adapter  *padapter, u8 *rateset);
 int rtw_setbasicrate_cmd(struct rtw_adapter  *padapter, u8 *rateset);
-int rtw_setbbreg_cmd(struct rtw_adapter * padapter, u8 offset, u8 val);
-int rtw_setrfreg_cmd(struct rtw_adapter * padapter, u8 offset, u32 val);
-int rtw_getbbreg_cmd(struct rtw_adapter * padapter, u8 offset, u8 * pval);
-int rtw_getrfreg_cmd(struct rtw_adapter * padapter, u8 offset, u8 * pval);
+int rtw_setbbreg_cmd(struct rtw_adapter *padapter, u8 offset, u8 val);
+int rtw_setrfreg_cmd(struct rtw_adapter *padapter, u8 offset, u32 val);
+int rtw_getbbreg_cmd(struct rtw_adapter *padapter, u8 offset, u8 *pval);
+int rtw_getrfreg_cmd(struct rtw_adapter *padapter, u8 offset, u8 *pval);
 int rtw_setrfintfs_cmd(struct rtw_adapter  *padapter, u8 mode);
 int rtw_setrttbl_cmd(struct rtw_adapter  *padapter, struct setratable_parm *prate_table);
 int rtw_getrttbl_cmd(struct rtw_adapter  *padapter, struct getratable_rsp *pval);
