@@ -32,8 +32,8 @@ struct st21nfca_dep_info {
 	u8 lri;
 } __packed;
 
-int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev, struct sk_buff *skb,
-				u8 gate);
+int st21nfca_dep_event_received(struct nfc_hci_dev *hdev,
+				u8 event, struct sk_buff *skb);
 int st21nfca_tm_send_dep_res(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 
 int st21nfca_im_send_atr_req(struct nfc_hci_dev *hdev, u8 *gb, size_t gb_len);
