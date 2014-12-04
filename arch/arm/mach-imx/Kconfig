@@ -56,6 +56,9 @@ config HAVE_IMX_GPC
 config HAVE_IMX_MMDC
 	bool
 
+config HAVE_IMX_AMP
+	bool
+
 config HAVE_IMX_DDRC
 	bool
 
@@ -583,6 +586,7 @@ config SOC_IMX6SL
 config SOC_IMX6SX
 	bool "i.MX6 SoloX support"
 	select PINCTRL_IMX6SX
+	select HAVE_IMX_AMP
 	select SOC_IMX6
 	select HAVE_IMX_RPMSG
 	select RPMSG
