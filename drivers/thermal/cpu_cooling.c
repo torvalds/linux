@@ -499,7 +499,7 @@ __cpufreq_cooling_register(struct device_node *np,
 		return cool_dev;
 	}
 	cpufreq_dev->cool_dev = cool_dev;
-	cpufreq_dev->cpufreq_state = 0;
+
 	mutex_lock(&cooling_cpufreq_lock);
 
 	/* Register the notifier for first cpufreq cooling device */
