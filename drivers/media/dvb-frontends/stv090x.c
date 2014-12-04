@@ -2661,13 +2661,9 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 			return STV090x_RANGEOK;
 		else if (abs(offst_freq) <= (stv090x_car_width(state->srate, state->rolloff) / 2000))
 			return STV090x_RANGEOK;
-		else
-			return STV090x_OUTOFRANGE; /* Out of Range */
 	} else {
 		if (abs(offst_freq) <= ((state->search_range / 2000) + 500))
 			return STV090x_RANGEOK;
-		else
-			return STV090x_OUTOFRANGE;
 	}
 
 	return STV090x_OUTOFRANGE;
