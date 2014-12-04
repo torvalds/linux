@@ -816,6 +816,7 @@ static int check_readiness(struct scsi_cmnd *SCpnt, int uas_only,
 					UA_CHANGED_ASC, CAPACITY_CHANGED_ASCQ);
 			if (debug)
 				cp = "capacity data changed";
+			break;
 		default:
 			pr_warn("%s: unexpected unit attention code=%d\n",
 				__func__, k);
