@@ -640,8 +640,6 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	iod->private = req;
 	req->special = iod;
 
-	nvme_set_info(cmd, iod, req_completion);
-
 	if (req->cmd_flags & REQ_DISCARD) {
 		void *range;
 		/*
@@ -677,6 +675,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(req);
 
  submit_iod:
+	nvme_set_info(cmd, iod, req_completion);
 	spin_lock_irq(&nvmeq->q_lock);
 	if (req->cmd_flags & REQ_DISCARD)
 		nvme_submit_discard(nvmeq, ns, req, iod);
