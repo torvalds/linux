@@ -58,6 +58,9 @@
 
 #include "book3s.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace_hv.h"
+
 /* #define EXIT_DEBUG */
 /* #define EXIT_DEBUG_SIMPLE */
 /* #define EXIT_DEBUG_INT */
@@ -1730,6 +1733,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 		kvmppc_start_thread(vcpu);
 		kvmppc_create_dtl_entry(vcpu, vc);
+		trace_kvm_guest_enter(vcpu);
 	}
 
 	/* Set this explicitly in case thread 0 doesn't have a vcpu */
@@ -1738,6 +1742,9 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	vc->vcore_state = VCORE_RUNNING;
 	preempt_disable();
+
+	trace_kvmppc_run_core(vc, 0);
+
 	spin_unlock(&vc->lock);
 
 	kvm_guest_enter();
@@ -1783,6 +1790,8 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 		    kvmppc_core_pending_dec(vcpu))
 			kvmppc_core_dequeue_dec(vcpu);
 
+		trace_kvm_guest_exit(vcpu);
+
 		ret = RESUME_GUEST;
 		if (vcpu->arch.trap)
 			ret = kvmppc_handle_exit_hv(vcpu->arch.kvm_run, vcpu,
@@ -1808,6 +1817,8 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 			wake_up(&vcpu->arch.cpu_run);
 		}
 	}
+
+	trace_kvmppc_run_core(vc, 1);
 }
 
 /*
@@ -1854,11 +1865,13 @@ static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 	}
 
 	vc->vcore_state = VCORE_SLEEPING;
+	trace_kvmppc_vcore_blocked(vc, 0);
 	spin_unlock(&vc->lock);
 	schedule();
 	finish_wait(&vc->wq, &wait);
 	spin_lock(&vc->lock);
 	vc->vcore_state = VCORE_INACTIVE;
+	trace_kvmppc_vcore_blocked(vc, 1);
 }
 
 static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
@@ -1866,6 +1879,8 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	int n_ceded;
 	struct kvmppc_vcore *vc;
 	struct kvm_vcpu *v, *vn;
+
+	trace_kvmppc_run_vcpu_enter(vcpu);
 
 	kvm_run->exit_reason = 0;
 	vcpu->arch.ret = RESUME_GUEST;
@@ -1896,6 +1911,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		    VCORE_EXIT_COUNT(vc) == 0) {
 			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu);
+			trace_kvm_guest_enter(vcpu);
 		} else if (vc->vcore_state == VCORE_SLEEPING) {
 			wake_up(&vc->wq);
 		}
@@ -1960,6 +1976,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		wake_up(&v->arch.cpu_run);
 	}
 
+	trace_kvmppc_run_vcpu_exit(vcpu, kvm_run);
 	spin_unlock(&vc->lock);
 	return vcpu->arch.ret;
 }
@@ -2005,7 +2022,9 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 		if (run->exit_reason == KVM_EXIT_PAPR_HCALL &&
 		    !(vcpu->arch.shregs.msr & MSR_PR)) {
+			trace_kvm_hcall_enter(vcpu);
 			r = kvmppc_pseries_do_hcall(vcpu);
+			trace_kvm_hcall_exit(vcpu, r);
 			kvmppc_core_prepare_to_enter(vcpu);
 		} else if (r == RESUME_PAGE_FAULT) {
 			srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
