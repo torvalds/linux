@@ -371,7 +371,7 @@ static int fsl_spi_do_one_msg(struct spi_master *master,
 			status = -EINVAL;
 			dev_err(&spi->dev,
 				"bits_per_word/speed_hz should be same for the same SPI transfer\n");
-			return;
+			return -EINVAL;
 		}
 	}
 
