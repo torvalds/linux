@@ -640,8 +640,10 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  */
 	/*  Joseph Note: Keep RfRegChnlVal for later use. */
 	/*  */
-	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)0, RF_CHNLBW, bRFRegOffsetMask);
-	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)1, RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, RF_PATH_A,
+						   RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, RF_PATH_B,
+						   RF_CHNLBW, bRFRegOffsetMask);
 
 	if (!mac_on) {
 		_InitQueueReservedPage(Adapter);
