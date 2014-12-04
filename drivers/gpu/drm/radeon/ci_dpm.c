@@ -5849,7 +5849,6 @@ int ci_dpm_init(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 
 	pi->fan_ctrl_is_in_default_mode = true;
-	rdev->pm.dpm.fan.ucode_fan_control = false;
 
 	return 0;
 }
