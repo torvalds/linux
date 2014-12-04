@@ -1435,6 +1435,7 @@ static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 {
 
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
+
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
@@ -1591,6 +1592,7 @@ ConvertTo_dB23a(
 void ODM_SingleDualAntennaDefaultSetting(struct dm_odm_t *pDM_Odm)
 {
 	struct sw_ant_sw *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
+
 	pDM_SWAT_Table->ANTA_ON = true;
 	pDM_SWAT_Table->ANTB_ON = true;
 }
