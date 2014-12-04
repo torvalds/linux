@@ -347,7 +347,6 @@ void exynos_report_trigger(struct thermal_sensor_conf *conf)
 int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 {
 	int ret;
-	struct cpumask mask_val;
 	struct exynos_thermal_zone *th_zone;
 
 	if (!sensor_conf || !sensor_conf->read_temperature) {
@@ -367,9 +366,8 @@ int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 	 *	 sensor
 	 */
 	if (sensor_conf->cooling_data.freq_clip_count > 0) {
-		cpumask_set_cpu(0, &mask_val);
 		th_zone->cool_dev[th_zone->cool_dev_size] =
-					cpufreq_cooling_register(&mask_val);
+				cpufreq_cooling_register(cpu_present_mask);
 		if (IS_ERR(th_zone->cool_dev[th_zone->cool_dev_size])) {
 			ret = PTR_ERR(th_zone->cool_dev[th_zone->cool_dev_size]);
 			if (ret != -EPROBE_DEFER)
