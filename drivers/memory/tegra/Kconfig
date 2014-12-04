@@ -1,0 +1,7 @@
+config TEGRA_MC
+	bool "NVIDIA Tegra Memory Controller support"
+	default y
+	depends on ARCH_TEGRA
+	help
+	  This driver supports the Memory Controller (MC) hardware found on
+	  NVIDIA Tegra SoCs.

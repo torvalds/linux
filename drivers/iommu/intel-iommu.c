@@ -4467,6 +4467,7 @@ static const struct iommu_ops intel_iommu_ops = {
 	.detach_dev	= intel_iommu_detach_device,
 	.map		= intel_iommu_map,
 	.unmap		= intel_iommu_unmap,
+	.map_sg		= default_iommu_map_sg,
 	.iova_to_phys	= intel_iommu_iova_to_phys,
 	.add_device	= intel_iommu_add_device,
 	.remove_device	= intel_iommu_remove_device,
