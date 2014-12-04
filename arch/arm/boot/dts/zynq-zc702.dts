@@ -42,6 +42,10 @@
 	status = "okay";
 };
 
+&clkc {
+	ps-clk-frequency = <33333333>;
+};
+
 &gem0 {
 	status = "okay";
 	phy-mode = "rgmii-id";

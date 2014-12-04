@@ -15,8 +15,8 @@
 /include/ "zynq-7000.dtsi"
 
 / {
-	model = "Zynq Zed Development Board";
-	compatible = "xlnx,zynq-zed", "xlnx,zynq-7000";
+	model = "Zynq ZYBO Development Board";
+	compatible = "digilent,zynq-zybo", "xlnx,zynq-7000";
 
 	memory {
 		device_type = "memory";
@@ -30,7 +30,7 @@
 };
 
 &clkc {
-	ps-clk-frequency = <33333333>;
+	ps-clk-frequency = <50000000>;
 };
 
 &gem0 {
