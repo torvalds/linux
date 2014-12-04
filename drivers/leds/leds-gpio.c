@@ -170,6 +170,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 	struct fwnode_handle *child;
 	struct gpio_leds_priv *priv;
 	int count, ret;
+	struct device_node *np;
 
 	count = device_get_child_node_count(dev);
 	if (!count)
@@ -189,7 +190,16 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 			goto err;
 		}
 
-		fwnode_property_read_string(child, "label", &led.name);
+		np = of_node(child);
+
+		if (fwnode_property_present(child, "label")) {
+			fwnode_property_read_string(child, "label", &led.name);
+		} else {
+			if (IS_ENABLED(CONFIG_OF) && !led.name && np)
+				led.name = np->name;
+			if (!led.name)
+				return ERR_PTR(-EINVAL);
+		}
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led.default_trigger);
 
