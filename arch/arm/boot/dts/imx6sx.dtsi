@@ -1239,6 +1239,13 @@
 				status = "disabled";
 			};
 
+			sema4: sema4@02290000 { /* sema4 */
+				compatible = "fsl,imx6sx-sema4";
+				reg = <0x02290000 0x4000>;
+				interrupts = <0 116 0x04>;
+				status = "okay";
+			};
+
 			uart6: serial@022a0000 {
 				compatible = "fsl,imx6sx-uart",
 					     "fsl,imx6q-uart", "fsl,imx21-uart";
