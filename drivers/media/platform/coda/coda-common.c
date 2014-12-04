@@ -1980,7 +1980,7 @@ static int coda_probe(struct platform_device *pdev)
 
 	/*
 	 * Start activated so we can directly call coda_hw_init in
-	 * coda_fw_callback regardless of whether CONFIG_PM_RUNTIME is
+	 * coda_fw_callback regardless of whether CONFIG_PM is
 	 * enabled or whether the device is associated with a PM domain.
 	 */
 	pm_runtime_get_noresume(&pdev->dev);
@@ -2013,7 +2013,7 @@ static int coda_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int coda_runtime_resume(struct device *dev)
 {
 	struct coda_dev *cdev = dev_get_drvdata(dev);
