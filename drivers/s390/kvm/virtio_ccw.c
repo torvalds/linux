@@ -733,6 +733,9 @@ static u64 virtio_ccw_get_features(struct virtio_device *vdev)
 
 	rc = le32_to_cpu(features->features);
 
+	if (vcdev->revision == 0)
+		goto out_free;
+
 	/* Read second half of the feature bits from the host. */
 	features->index = 1;
 	ccw->cmd_code = CCW_CMD_READ_FEAT;
@@ -774,6 +777,9 @@ static void virtio_ccw_finalize_features(struct virtio_device *vdev)
 	ccw->count = sizeof(*features);
 	ccw->cda = (__u32)(unsigned long)features;
 	ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_WRITE_FEAT);
+
+	if (vcdev->revision == 0)
+		goto out_free;
 
 	features->index = 1;
 	features->features = cpu_to_le32(vdev->features >> 32);
@@ -1182,9 +1188,13 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	vcdev->vdev.id.vendor = cdev->id.cu_type;
 	vcdev->vdev.id.device = cdev->id.cu_model;
 
-	ret = virtio_ccw_set_transport_rev(vcdev);
-	if (ret)
-		goto out_free;
+	if (virtio_device_is_legacy_only(vcdev->vdev.id)) {
+		vcdev->revision = 0;
+	} else {
+		ret = virtio_ccw_set_transport_rev(vcdev);
+		if (ret)
+			goto out_free;
+	}
 
 	ret = register_virtio_device(&vcdev->vdev);
 	if (ret) {
