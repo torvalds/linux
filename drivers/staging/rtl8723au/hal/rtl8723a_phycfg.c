@@ -698,7 +698,7 @@ storePwrIndexDiffRateOffset(struct rtw_adapter *Adapter, u32 RegAddr,
  * 11/10/2008	tynli	Modify to mew files.
  *---------------------------------------------------------------------------*/
 static	int
-phy_ConfigBBWithPgHeaderFile(struct rtw_adapter *Adapter, u8 ConfigType)
+phy_ConfigBBWithPgHeaderFile(struct rtw_adapter *Adapter)
 {
 	int i;
 	u32 *Rtl819XPHY_REGArray_Table_PG;
@@ -707,17 +707,15 @@ phy_ConfigBBWithPgHeaderFile(struct rtw_adapter *Adapter, u8 ConfigType)
 	PHY_REGArrayPGLen = Rtl8723_PHY_REG_Array_PGLength;
 	Rtl819XPHY_REGArray_Table_PG = (u32 *)Rtl8723_PHY_REG_Array_PG;
 
-	if (ConfigType == BaseBand_Config_PHY_REG) {
-		for (i = 0; i < PHY_REGArrayPGLen; i = i + 3) {
-			storePwrIndexDiffRateOffset(Adapter,
-				Rtl819XPHY_REGArray_Table_PG[i],
-				Rtl819XPHY_REGArray_Table_PG[i+1],
-				Rtl819XPHY_REGArray_Table_PG[i+2]);
-		}
+	for (i = 0; i < PHY_REGArrayPGLen; i = i + 3) {
+		storePwrIndexDiffRateOffset(Adapter,
+					    Rtl819XPHY_REGArray_Table_PG[i],
+					    Rtl819XPHY_REGArray_Table_PG[i+1],
+					    Rtl819XPHY_REGArray_Table_PG[i+2]);
 	}
 
 	return _SUCCESS;
-}	/* phy_ConfigBBWithPgHeaderFile */
+}
 
 static void
 phy_BB8192C_Config_1T(struct rtw_adapter *Adapter)
@@ -768,8 +766,7 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	if (pEEPROM->bautoload_fail_flag == false) {
 		pHalData->pwrGroupCnt = 0;
 
-		rtStatus = phy_ConfigBBWithPgHeaderFile(Adapter,
-							BaseBand_Config_PHY_REG);
+		rtStatus = phy_ConfigBBWithPgHeaderFile(Adapter);
 	}
 
 	if (rtStatus != _SUCCESS)

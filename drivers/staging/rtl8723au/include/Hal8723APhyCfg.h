@@ -49,11 +49,6 @@ enum WIRELESS_MODE {
 	WIRELESS_MODE_AC	= BIT(6)
 };
 
-enum baseband_config_type {
-	BaseBand_Config_PHY_REG = 0,			/* Radio Path A */
-	BaseBand_Config_AGC_TAB = 1,			/* Radio Path B */
-};
-
 /* BB/RF related */
 enum rf_type_8190p {
 	RF_TYPE_MIN,		/*  0 */
