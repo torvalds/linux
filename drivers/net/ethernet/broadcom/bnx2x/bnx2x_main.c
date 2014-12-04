@@ -3163,6 +3163,8 @@ static void bnx2x_pf_q_prep_general(struct bnx2x *bp,
 		gen_init->mtu = bp->dev->mtu;
 
 	gen_init->cos = cos;
+
+	gen_init->fp_hsi = ETH_FP_HSI_VERSION;
 }
 
 static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,

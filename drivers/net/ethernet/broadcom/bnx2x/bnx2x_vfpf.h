@@ -124,7 +124,7 @@ struct vfpf_acquire_tlv {
 #define VF_OS_UNDEFINED		(0 << VF_OS_SHIFT)
 #define VF_OS_WINDOWS		(1 << VF_OS_SHIFT)
 
-		u8 padding;
+		u8 fp_hsi_ver;
 		u8 caps;
 #define VF_CAP_SUPPORT_EXT_BULLETIN	(1 << 0)
 	} vfdev_info;
@@ -202,6 +202,12 @@ struct vfpf_port_phys_id_resp_tlv {
 	struct channel_tlv tl;
 	u8 id[ETH_ALEN];
 	u8 padding[2];
+};
+
+struct vfpf_fp_hsi_resp_tlv {
+	struct channel_tlv tl;
+	u8 is_supported;
+	u8 padding[3];
 };
 
 #define VFPF_INIT_FLG_STATS_COALESCE	(1 << 0) /* when set the VFs queues
@@ -448,6 +454,7 @@ enum channel_tlvs {
 	CHANNEL_TLV_UPDATE_RSS,
 	CHANNEL_TLV_PHYS_PORT_ID,
 	CHANNEL_TLV_UPDATE_TPA,
+	CHANNEL_TLV_FP_HSI_SUPPORT,
 	CHANNEL_TLV_MAX
 };
 
