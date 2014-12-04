@@ -2783,6 +2783,12 @@ static u8 stv090x_optimize_carloop(struct stv090x_state *state, enum stv090x_mod
 				aclc = car_loop[i].crl_pilots_off_30;
 		}
 	} else { /* 16APSK and 32APSK */
+		/*
+		 * This should never happen in practice, except if
+		 * something is really wrong at the car_loop table.
+		 */
+		if (i >= 11)
+			i = 10;
 		if (state->srate <= 3000000)
 			aclc = car_loop_apsk_low[i].crl_pilots_on_2;
 		else if (state->srate <= 7000000)
