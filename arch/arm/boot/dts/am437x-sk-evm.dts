@@ -329,6 +329,18 @@
 			0x1c (PIN_OUTPUT_PULLDOWN | MUX_MODE7) /* gpcm_ad7.gpio1_7 */
 		>;
 	};
+
+	usb1_pins: usb1_pins {
+		pinctrl-single,pins = <
+			0x2c0 (PIN_OUTPUT | MUX_MODE0) /* usb0_drvvbus.usb0_drvvbus */
+		>;
+	};
+
+	usb2_pins: usb2_pins {
+		pinctrl-single,pins = <
+			0x2c4 (PIN_OUTPUT | MUX_MODE0) /* usb0_drvvbus.usb0_drvvbus */
+		>;
+	};
 };
 
 &i2c0 {
@@ -485,6 +497,8 @@
 &usb1 {
 	dr_mode = "peripheral";
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_pins>;
 };
 
 &usb2_phy2 {
@@ -494,6 +508,8 @@
 &usb2 {
 	dr_mode = "host";
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_pins>;
 };
 
 &qspi {
