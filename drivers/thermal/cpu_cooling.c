@@ -112,85 +112,27 @@ static void release_idr(struct idr *idr, int id)
 
 /* Below code defines functions to be used for cpufreq as cooling device */
 
-enum cpufreq_cooling_property {
-	GET_LEVEL,
-	GET_FREQ,
-};
-
 /**
- * get_property - fetch a property of interest for a given cpu.
+ * get_level: Find the level for a particular frequency
  * @cpufreq_dev: cpufreq_dev for which the property is required
- * @input: query parameter
- * @output: query return
- * @property: type of query (frequency, level)
+ * @freq: Frequency
  *
- * This is the common function to
- * 1. translate frequency to cooling state
- * 2. translate cooling state to frequency
- *
- * Note that the code may be not in good shape
- * but it is written in this way in order to:
- * a) reduce duplicate code as most of the code can be shared.
- * b) make sure the logic is consistent when translating between
- *    cooling states and frequencies.
- *
- * Return: 0 on success, -EINVAL when invalid parameters are passed.
+ * Return: level on success, THERMAL_CSTATE_INVALID on error.
  */
-static int get_property(struct cpufreq_cooling_device *cpufreq_dev,
-			unsigned long input, unsigned int *output,
-			enum cpufreq_cooling_property property)
+static unsigned long get_level(struct cpufreq_cooling_device *cpufreq_dev,
+			       unsigned int freq)
 {
-	int i;
-	unsigned long level = 0;
-	unsigned int freq = CPUFREQ_ENTRY_INVALID;
-	int descend = -1;
-	struct cpufreq_frequency_table *pos, *table;
+	unsigned long level;
 
-	if (!output)
-		return -EINVAL;
+	for (level = 0; level <= cpufreq_dev->max_level; level++) {
+		if (freq == cpufreq_dev->freq_table[level])
+			return level;
 
-	table = cpufreq_frequency_get_table(cpumask_first(&cpufreq_dev->allowed_cpus));
-	if (!table)
-		return -EINVAL;
-
-	cpufreq_for_each_valid_entry(pos, table) {
-		/* ignore duplicate entry */
-		if (freq == pos->frequency)
-			continue;
-
-		/* get the frequency order */
-		if (freq != CPUFREQ_ENTRY_INVALID && descend == -1)
-			descend = freq > pos->frequency;
-
-		freq = pos->frequency;
+		if (freq > cpufreq_dev->freq_table[level])
+			break;
 	}
 
-	if (property == GET_FREQ)
-		level = descend ? input : (cpufreq_dev->max_level - input);
-
-	i = 0;
-	cpufreq_for_each_valid_entry(pos, table) {
-		/* ignore duplicate entry */
-		if (freq == pos->frequency)
-			continue;
-
-		/* now we have a valid frequency entry */
-		freq = pos->frequency;
-
-		if (property == GET_LEVEL && (unsigned int)input == freq) {
-			/* get level by frequency */
-			*output = descend ? i : (cpufreq_dev->max_level - i);
-			return 0;
-		}
-		if (property == GET_FREQ && level == i) {
-			/* get frequency by level */
-			*output = freq;
-			return 0;
-		}
-		i++;
-	}
-
-	return -EINVAL;
+	return THERMAL_CSTATE_INVALID;
 }
 
 /**
@@ -211,14 +153,8 @@ unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
 	mutex_lock(&cooling_cpufreq_lock);
 	list_for_each_entry(cpufreq_dev, &cpufreq_dev_list, node) {
 		if (cpumask_test_cpu(cpu, &cpufreq_dev->allowed_cpus)) {
-			unsigned int val;
-
 			mutex_unlock(&cooling_cpufreq_lock);
-			if (get_property(cpufreq_dev, (unsigned long)freq, &val,
-					 GET_LEVEL))
-				return THERMAL_CSTATE_INVALID;
-
-			return (unsigned long)val;
+			return get_level(cpufreq_dev, freq);
 		}
 	}
 	mutex_unlock(&cooling_cpufreq_lock);
@@ -323,16 +259,16 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
 	unsigned int cpu = cpumask_any(&cpufreq_device->allowed_cpus);
 	unsigned int clip_freq;
-	int ret;
+
+	/* Request state should be less than max_level */
+	if (WARN_ON(state > cpufreq_device->max_level))
+		return -EINVAL;
 
 	/* Check if the old cooling action is same as new cooling action */
 	if (cpufreq_device->cpufreq_state == state)
 		return 0;
 
-	ret = get_property(cpufreq_device, state, &clip_freq, GET_FREQ);
-	if (ret)
-		return ret;
-
+	clip_freq = cpufreq_device->freq_table[state];
 	cpufreq_device->cpufreq_state = state;
 	cpufreq_device->cpufreq_val = clip_freq;
 
@@ -402,13 +338,6 @@ __cpufreq_cooling_register(struct device_node *np,
 	if (!cpufreq_dev)
 		return ERR_PTR(-ENOMEM);
 
-	ret = get_property(cpufreq_dev, 0, &cpufreq_dev->cpufreq_val, GET_FREQ);
-	if (ret) {
-		pr_err("%s: Failed to get frequency: %d", __func__, ret);
-		cool_dev = ERR_PTR(ret);
-		goto free_cdev;
-	}
-
 	/* Find max levels */
 	cpufreq_for_each_valid_entry(pos, table)
 		cpufreq_dev->max_level++;
@@ -452,6 +381,7 @@ __cpufreq_cooling_register(struct device_node *np,
 			pr_debug("%s: freq:%u KHz\n", __func__, freq);
 	}
 
+	cpufreq_dev->cpufreq_val = cpufreq_dev->freq_table[0];
 	cpufreq_dev->cool_dev = cool_dev;
 
 	mutex_lock(&cooling_cpufreq_lock);
