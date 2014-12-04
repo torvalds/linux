@@ -3,6 +3,8 @@
 
 #include <asm-generic/irq.h>
 
+struct pt_regs;
+
 extern void migrate_irqs(void);
 extern void set_handle_irq(void (*handle_irq)(struct pt_regs *));
 
