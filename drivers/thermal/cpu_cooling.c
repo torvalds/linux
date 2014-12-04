@@ -448,8 +448,8 @@ __cpufreq_cooling_register(struct device_node *np,
 
 	ret = get_idr(&cpufreq_idr, &cpufreq_dev->id);
 	if (ret) {
-		kfree(cpufreq_dev);
-		return ERR_PTR(ret);
+		cool_dev = ERR_PTR(ret);
+		goto free_cdev;
 	}
 
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
@@ -457,11 +457,9 @@ __cpufreq_cooling_register(struct device_node *np,
 
 	cool_dev = thermal_of_cooling_device_register(np, dev_name, cpufreq_dev,
 						      &cpufreq_cooling_ops);
-	if (IS_ERR(cool_dev)) {
-		release_idr(&cpufreq_idr, cpufreq_dev->id);
-		kfree(cpufreq_dev);
-		return cool_dev;
-	}
+	if (IS_ERR(cool_dev))
+		goto remove_idr;
+
 	cpufreq_dev->cool_dev = cool_dev;
 
 	mutex_lock(&cooling_cpufreq_lock);
@@ -474,6 +472,13 @@ __cpufreq_cooling_register(struct device_node *np,
 	list_add(&cpufreq_dev->node, &cpufreq_dev_list);
 
 	mutex_unlock(&cooling_cpufreq_lock);
+
+	return cool_dev;
+
+remove_idr:
+	release_idr(&cpufreq_idr, cpufreq_dev->id);
+free_cdev:
+	kfree(cpufreq_dev);
 
 	return cool_dev;
 }
