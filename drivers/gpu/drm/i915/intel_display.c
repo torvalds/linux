@@ -4060,7 +4060,7 @@ static void intel_disable_planes(struct drm_crtc *crtc)
 	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
 		intel_plane = to_intel_plane(plane);
 		if (intel_plane->pipe == pipe)
-			intel_plane_disable(&intel_plane->base);
+			plane->funcs->disable_plane(plane);
 	}
 }
 
@@ -11652,43 +11652,6 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
 }
 
-static int
-intel_primary_plane_disable(struct drm_plane *plane)
-{
-	struct drm_device *dev = plane->dev;
-	struct intel_crtc *intel_crtc;
-
-	if (!plane->fb)
-		return 0;
-
-	BUG_ON(!plane->crtc);
-
-	intel_crtc = to_intel_crtc(plane->crtc);
-
-	/*
-	 * Even though we checked plane->fb above, it's still possible that
-	 * the primary plane has been implicitly disabled because the crtc
-	 * coordinates given weren't visible, or because we detected
-	 * that it was 100% covered by a sprite plane.  Or, the CRTC may be
-	 * off and we've set a fb, but haven't actually turned on the CRTC yet.
-	 * In either case, we need to unpin the FB and let the fb pointer get
-	 * updated, but otherwise we don't need to touch the hardware.
-	 */
-	if (intel_crtc->primary_enabled) {
-		intel_crtc_wait_for_pending_flips(plane->crtc);
-		intel_disable_primary_hw_plane(plane, plane->crtc);
-	}
-
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_track_fb(intel_fb_obj(plane->fb), NULL,
-			  INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe));
-	intel_unpin_fb_obj(intel_fb_obj(plane->fb));
-	mutex_unlock(&dev->struct_mutex);
-	plane->fb = NULL;
-
-	return 0;
-}
-
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @plane: drm plane to prepare for
@@ -11810,12 +11773,23 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_rect *src = &state->src;
+	enum pipe pipe = intel_plane->pipe;
 
-	crtc->primary->fb = fb;
+	if (!fb) {
+		/*
+		 * 'prepare' is never called when plane is being disabled, so
+		 * we need to handle frontbuffer tracking here
+		 */
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_track_fb(intel_fb_obj(plane->fb), NULL,
+				  INTEL_FRONTBUFFER_PRIMARY(pipe));
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	plane->fb = fb;
 	crtc->x = src->x1 >> 16;
 	crtc->y = src->y1 >> 16;
 
@@ -11944,6 +11918,25 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	return 0;
 }
 
+/**
+ * intel_disable_plane - disable a plane
+ * @plane: plane to disable
+ *
+ * General disable handler for all plane types.
+ */
+int
+intel_disable_plane(struct drm_plane *plane)
+{
+	if (!plane->fb)
+		return 0;
+
+	if (WARN_ON(!plane->crtc))
+		return -EINVAL;
+
+	return plane->funcs->update_plane(plane, plane->crtc, NULL,
+					  0, 0, 0, 0, 0, 0, 0, 0);
+}
+
 /* Common destruction function for both primary and cursor planes */
 static void intel_plane_destroy(struct drm_plane *plane)
 {
@@ -11954,7 +11947,7 @@ static void intel_plane_destroy(struct drm_plane *plane)
 
 static const struct drm_plane_funcs intel_primary_plane_funcs = {
 	.update_plane = intel_update_plane,
-	.disable_plane = intel_primary_plane_disable,
+	.disable_plane = intel_disable_plane,
 	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property
 };
@@ -12006,18 +11999,6 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	}
 
 	return &primary->base;
-}
-
-static int
-intel_cursor_plane_disable(struct drm_plane *plane)
-{
-	if (!plane->fb)
-		return 0;
-
-	BUG_ON(!plane->crtc);
-
-	return plane->funcs->update_plane(plane, plane->crtc, NULL,
-					  0, 0, 0, 0, 0, 0, 0, 0);
 }
 
 static int
@@ -12144,7 +12125,7 @@ update:
 
 static const struct drm_plane_funcs intel_cursor_plane_funcs = {
 	.update_plane = intel_update_plane,
-	.disable_plane = intel_cursor_plane_disable,
+	.disable_plane = intel_disable_plane,
 	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property,
 };

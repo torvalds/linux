@@ -1020,6 +1020,7 @@ int intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		       unsigned int crtc_w, unsigned int crtc_h,
 		       uint32_t src_x, uint32_t src_y,
 		       uint32_t src_w, uint32_t src_h);
+int intel_disable_plane(struct drm_plane *plane);
 
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
@@ -1201,7 +1202,6 @@ int intel_plane_set_property(struct drm_plane *plane,
 			     struct drm_property *prop,
 			     uint64_t val);
 int intel_plane_restore(struct drm_plane *plane);
-void intel_plane_disable(struct drm_plane *plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
