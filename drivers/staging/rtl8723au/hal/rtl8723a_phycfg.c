@@ -1074,7 +1074,7 @@ PHY_SetBWMode23a8723A(struct rtw_adapter *Adapter,
 
 static void _PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 {
-	u8 eRFPath;
+	enum RF_RADIO_PATH eRFPath;
 	u32 param1, param2;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 
@@ -1088,7 +1088,7 @@ static void _PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
 		pHalData->RfRegChnlVal[eRFPath] =
 			(pHalData->RfRegChnlVal[eRFPath] & 0xfffffc00) | param2;
-		PHY_SetRFReg(Adapter, (enum RF_RADIO_PATH)eRFPath, param1,
+		PHY_SetRFReg(Adapter, eRFPath, param1,
 			     bRFRegOffsetMask, pHalData->RfRegChnlVal[eRFPath]);
 	}
 
