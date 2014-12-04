@@ -3185,16 +3185,18 @@ out:
 
 		spin_unlock(&block_group->lock);
 
+		lock_chunks(block_group->fs_info->chunk_root);
 		em_tree = &block_group->fs_info->mapping_tree.map_tree;
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, block_group->key.objectid,
 					   1);
 		BUG_ON(!em); /* logic error, can't happen */
+		/*
+		 * remove_extent_mapping() will delete us from the pinned_chunks
+		 * list, which is protected by the chunk mutex.
+		 */
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
-
-		lock_chunks(block_group->fs_info->chunk_root);
-		list_del_init(&em->list);
 		unlock_chunks(block_group->fs_info->chunk_root);
 
 		/* once for us and once for the tree */
