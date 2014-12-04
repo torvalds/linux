@@ -451,7 +451,7 @@ __cpufreq_cooling_register(struct device_node *np,
 			   const struct cpumask *clip_cpus)
 {
 	struct thermal_cooling_device *cool_dev;
-	struct cpufreq_cooling_device *cpufreq_dev = NULL;
+	struct cpufreq_cooling_device *cpufreq_dev;
 	unsigned int min = 0, max = 0;
 	char dev_name[THERMAL_NAME_LENGTH];
 	int ret = 0, i;
