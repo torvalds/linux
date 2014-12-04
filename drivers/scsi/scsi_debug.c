@@ -80,6 +80,8 @@ static const char *scsi_debug_version_date = "20141022";
 #define INVALID_FIELD_IN_PARAM_LIST 0x26
 #define UA_RESET_ASC 0x29
 #define UA_CHANGED_ASC 0x2a
+#define TARGET_CHANGED_ASC 0x3f
+#define LUNS_CHANGED_ASCQ 0x0e
 #define INSUFF_RES_ASC 0x55
 #define INSUFF_RES_ASCQ 0x3
 #define POWER_ON_RESET_ASCQ 0x0
@@ -180,7 +182,8 @@ static const char *scsi_debug_version_date = "20141022";
 #define SDEBUG_UA_BUS_RESET 1
 #define SDEBUG_UA_MODE_CHANGED 2
 #define SDEBUG_UA_CAPACITY_CHANGED 3
-#define SDEBUG_NUM_UAS 4
+#define SDEBUG_UA_LUNS_CHANGED 4
+#define SDEBUG_NUM_UAS 5
 
 /* for check_readiness() */
 #define UAS_ONLY 1	/* check for UAs only */
@@ -782,6 +785,22 @@ static int scsi_debug_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 	/* return -ENOTTY; // correct return but upsets fdisk */
 }
 
+static void clear_luns_changed_on_target(struct sdebug_dev_info *devip)
+{
+	struct sdebug_host_info *sdhp;
+	struct sdebug_dev_info *dp;
+
+	spin_lock(&sdebug_host_list_lock);
+	list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
+		list_for_each_entry(dp, &sdhp->dev_info_list, dev_list) {
+			if ((devip->sdbg_host == dp->sdbg_host) &&
+			    (devip->target == dp->target))
+				clear_bit(SDEBUG_UA_LUNS_CHANGED, dp->uas_bm);
+		}
+	}
+	spin_unlock(&sdebug_host_list_lock);
+}
+
 static int check_readiness(struct scsi_cmnd *SCpnt, int uas_only,
 			   struct sdebug_dev_info * devip)
 {
@@ -816,6 +835,23 @@ static int check_readiness(struct scsi_cmnd *SCpnt, int uas_only,
 					UA_CHANGED_ASC, CAPACITY_CHANGED_ASCQ);
 			if (debug)
 				cp = "capacity data changed";
+			break;
+		case SDEBUG_UA_LUNS_CHANGED:
+			/*
+			 * SPC-3 behavior is to report a UNIT ATTENTION with
+			 * ASC/ASCQ REPORTED LUNS DATA HAS CHANGED on every LUN
+			 * on the target, until a REPORT LUNS command is
+			 * received.  SPC-4 behavior is to report it only once.
+			 * NOTE:  scsi_debug_scsi_level does not use the same
+			 * values as struct scsi_device->scsi_level.
+			 */
+			if (scsi_debug_scsi_level >= 6)	/* SPC-4 and above */
+				clear_luns_changed_on_target(devip);
+			mk_sense_buffer(SCpnt, UNIT_ATTENTION,
+					TARGET_CHANGED_ASC,
+					LUNS_CHANGED_ASCQ);
+			if (debug)
+				cp = "reported luns data has changed";
 			break;
 		default:
 			pr_warn("%s: unexpected unit attention code=%d\n",
@@ -3229,6 +3265,7 @@ static int resp_report_luns(struct scsi_cmnd * scp,
 	unsigned char arr[SDEBUG_RLUN_ARR_SZ];
 	unsigned char * max_addr;
 
+	clear_luns_changed_on_target(devip);
 	alloc_len = cmd[9] + (cmd[8] << 8) + (cmd[7] << 16) + (cmd[6] << 24);
 	shortish = (alloc_len < 4);
 	if (shortish || (select_report > 2)) {
@@ -4369,10 +4406,27 @@ static ssize_t max_luns_store(struct device_driver *ddp, const char *buf,
 			      size_t count)
 {
         int n;
+	bool changed;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
+		changed = (scsi_debug_max_luns != n);
 		scsi_debug_max_luns = n;
 		sdebug_max_tgts_luns();
+		if (changed && (scsi_debug_scsi_level >= 5)) {	/* >= SPC-3 */
+			struct sdebug_host_info *sdhp;
+			struct sdebug_dev_info *dp;
+
+			spin_lock(&sdebug_host_list_lock);
+			list_for_each_entry(sdhp, &sdebug_host_list,
+					    host_list) {
+				list_for_each_entry(dp, &sdhp->dev_info_list,
+						    dev_list) {
+					set_bit(SDEBUG_UA_LUNS_CHANGED,
+						dp->uas_bm);
+				}
+			}
+			spin_unlock(&sdebug_host_list_lock);
+		}
 		return count;
 	}
 	return -EINVAL;
