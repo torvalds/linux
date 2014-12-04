@@ -46,7 +46,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-enum chips { tmp401, tmp411, tmp431, tmp432 };
+enum chips { tmp401, tmp411, tmp431, tmp432, tmp435 };
 
 /*
  * The TMP401 registers, note some registers have different addresses for
@@ -136,6 +136,7 @@ static const u8 TMP432_STATUS_REG[] = {
 #define TMP411C_DEVICE_ID			0x10
 #define TMP431_DEVICE_ID			0x31
 #define TMP432_DEVICE_ID			0x32
+#define TMP435_DEVICE_ID			0x35
 
 /*
  * Driver data (common to all clients)
@@ -146,6 +147,7 @@ static const struct i2c_device_id tmp401_id[] = {
 	{ "tmp411", tmp411 },
 	{ "tmp431", tmp431 },
 	{ "tmp432", tmp432 },
+	{ "tmp435", tmp435 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp401_id);
@@ -684,6 +686,11 @@ static int tmp401_detect(struct i2c_client *client,
 			return -ENODEV;
 		kind = tmp432;
 		break;
+	case TMP435_DEVICE_ID:
+		if (client->addr != 0x4c)
+			return -ENODEV;
+		kind = tmp435;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -705,7 +712,9 @@ static int tmp401_detect(struct i2c_client *client,
 static int tmp401_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	const char *names[] = { "TMP401", "TMP411", "TMP431", "TMP432" };
+	static const char * const names[] = {
+		"TMP401", "TMP411", "TMP431", "TMP432", "TMP435"
+	};
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct tmp401_data *data;
