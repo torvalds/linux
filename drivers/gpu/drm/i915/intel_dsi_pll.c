@@ -243,6 +243,9 @@ static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
 
 	dsi_mnp.dsi_pll_ctrl |= DSI_PLL_CLK_GATE_DSI0_DSIPLL;
 
+	if (intel_dsi->dual_link)
+		dsi_mnp.dsi_pll_ctrl |= DSI_PLL_CLK_GATE_DSI1_DSIPLL;
+
 	DRM_DEBUG_KMS("dsi pll div %08x, ctrl %08x\n",
 		      dsi_mnp.dsi_pll_div, dsi_mnp.dsi_pll_ctrl);
 
