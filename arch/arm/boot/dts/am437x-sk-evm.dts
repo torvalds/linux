@@ -610,3 +610,7 @@
 &wdt {
 	status = "okay";
 };
+
+&cpu {
+	cpu0-supply = <&dcdc2>;
+};
