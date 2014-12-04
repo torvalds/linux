@@ -482,8 +482,14 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 					entry[i].ebx =
 						xstate_required_size(supported,
 								     true);
-			} else if (entry[i].eax == 0 || !(supported & mask))
-				continue;
+			} else {
+				if (entry[i].eax == 0 || !(supported & mask))
+					continue;
+				if (WARN_ON_ONCE(entry[i].ecx & 1))
+					continue;
+			}
+			entry[i].ecx = 0;
+			entry[i].edx = 0;
 			entry[i].flags |=
 			       KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 			++*nent;
