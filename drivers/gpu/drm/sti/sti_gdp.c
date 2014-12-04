@@ -73,7 +73,9 @@ struct sti_gdp_node {
 
 struct sti_gdp_node_list {
 	struct sti_gdp_node *top_field;
+	dma_addr_t top_field_paddr;
 	struct sti_gdp_node *btm_field;
+	dma_addr_t btm_field_paddr;
 };
 
 /**
@@ -168,7 +170,6 @@ static int sti_gdp_get_alpharange(int format)
 static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_layer *layer)
 {
 	int hw_nvn;
-	void *virt_nvn;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
 	unsigned int i;
 
@@ -176,11 +177,9 @@ static struct sti_gdp_node_list *sti_gdp_get_free_nodes(struct sti_layer *layer)
 	if (!hw_nvn)
 		goto end;
 
-	virt_nvn = dma_to_virt(layer->dev, (dma_addr_t) hw_nvn);
-
 	for (i = 0; i < GDP_NODE_NB_BANK; i++)
-		if ((virt_nvn != gdp->node_list[i].btm_field) &&
-		    (virt_nvn != gdp->node_list[i].top_field))
+		if ((hw_nvn != gdp->node_list[i].btm_field_paddr) &&
+		    (hw_nvn != gdp->node_list[i].top_field_paddr))
 			return &gdp->node_list[i];
 
 	/* in hazardious cases restart with the first node */
@@ -204,7 +203,6 @@ static
 struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_layer *layer)
 {
 	int hw_nvn;
-	void *virt_nvn;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
 	unsigned int i;
 
@@ -212,11 +210,9 @@ struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_layer *layer)
 	if (!hw_nvn)
 		goto end;
 
-	virt_nvn = dma_to_virt(layer->dev, (dma_addr_t) hw_nvn);
-
 	for (i = 0; i < GDP_NODE_NB_BANK; i++)
-		if ((virt_nvn == gdp->node_list[i].btm_field) ||
-				(virt_nvn == gdp->node_list[i].top_field))
+		if ((hw_nvn == gdp->node_list[i].btm_field_paddr) ||
+				(hw_nvn == gdp->node_list[i].top_field_paddr))
 			return &gdp->node_list[i];
 
 end:
@@ -292,8 +288,8 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 
 	/* Same content and chained together */
 	memcpy(btm_field, top_field, sizeof(*btm_field));
-	top_field->gam_gdp_nvn = virt_to_dma(dev, btm_field);
-	btm_field->gam_gdp_nvn = virt_to_dma(dev, top_field);
+	top_field->gam_gdp_nvn = list->btm_field_paddr;
+	btm_field->gam_gdp_nvn = list->top_field_paddr;
 
 	/* Interlaced mode */
 	if (layer->mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -349,8 +345,8 @@ static int sti_gdp_commit_layer(struct sti_layer *layer)
 	struct sti_gdp_node *updated_top_node = updated_list->top_field;
 	struct sti_gdp_node *updated_btm_node = updated_list->btm_field;
 	struct sti_gdp *gdp = to_sti_gdp(layer);
-	u32 dma_updated_top = virt_to_dma(layer->dev, updated_top_node);
-	u32 dma_updated_btm = virt_to_dma(layer->dev, updated_btm_node);
+	u32 dma_updated_top = updated_list->top_field_paddr;
+	u32 dma_updated_btm = updated_list->btm_field_paddr;
 	struct sti_gdp_node_list *curr_list = sti_gdp_get_current_nodes(layer);
 
 	dev_dbg(layer->dev, "%s %s top/btm_node:0x%p/0x%p\n", __func__,
@@ -461,16 +457,16 @@ static void sti_gdp_init(struct sti_layer *layer)
 {
 	struct sti_gdp *gdp = to_sti_gdp(layer);
 	struct device_node *np = layer->dev->of_node;
-	dma_addr_t dma;
+	dma_addr_t dma_addr;
 	void *base;
 	unsigned int i, size;
 
 	/* Allocate all the nodes within a single memory page */
 	size = sizeof(struct sti_gdp_node) *
 	    GDP_NODE_PER_FIELD * GDP_NODE_NB_BANK;
-
 	base = dma_alloc_writecombine(layer->dev,
-			size, &dma, GFP_KERNEL | GFP_DMA);
+			size, &dma_addr, GFP_KERNEL | GFP_DMA);
+
 	if (!base) {
 		DRM_ERROR("Failed to allocate memory for GDP node\n");
 		return;
@@ -478,21 +474,26 @@ static void sti_gdp_init(struct sti_layer *layer)
 	memset(base, 0, size);
 
 	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
-		if (virt_to_dma(layer->dev, base) & 0xF) {
+		if (dma_addr & 0xF) {
 			DRM_ERROR("Mem alignment failed\n");
 			return;
 		}
 		gdp->node_list[i].top_field = base;
+		gdp->node_list[i].top_field_paddr = dma_addr;
+
 		DRM_DEBUG_DRIVER("node[%d].top_field=%p\n", i, base);
 		base += sizeof(struct sti_gdp_node);
+		dma_addr += sizeof(struct sti_gdp_node);
 
-		if (virt_to_dma(layer->dev, base) & 0xF) {
+		if (dma_addr & 0xF) {
 			DRM_ERROR("Mem alignment failed\n");
 			return;
 		}
 		gdp->node_list[i].btm_field = base;
+		gdp->node_list[i].btm_field_paddr = dma_addr;
 		DRM_DEBUG_DRIVER("node[%d].btm_field=%p\n", i, base);
 		base += sizeof(struct sti_gdp_node);
+		dma_addr += sizeof(struct sti_gdp_node);
 	}
 
 	if (of_device_is_compatible(np, "st,stih407-compositor")) {
