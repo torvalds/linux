@@ -5100,7 +5100,17 @@ static int valleyview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 
 static int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
-	return vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
+	u32 val;
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
+	/*
+	 * According to the BYT Punit GPU turbo HAS 1.1.6.3 the minimum value
+	 * for the minimum frequency in GPLL mode is 0xc1. Contrary to this on
+	 * a BYT-M B0 the above register contains 0xbf. Moreover when setting
+	 * a frequency Punit will not allow values below 0xc0. Clamp it 0xc0
+	 * to make sure it matches what Punit accepts.
+	 */
+	return max_t(u32, val, 0xc0);
 }
 
 /* Check that the pctx buffer wasn't move under us. */
