@@ -366,7 +366,6 @@ void sti_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 	struct sti_drm_private *priv = dev->dev_private;
 	struct sti_compositor *compo = priv->compo;
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
-	unsigned long flags;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -375,13 +374,10 @@ void sti_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	/* free the resources of the pending requests */
-	spin_lock_irqsave(&dev->event_lock, flags);
 	if (compo->mixer[crtc]->pending_event) {
 		drm_vblank_put(dev, crtc);
 		compo->mixer[crtc]->pending_event = NULL;
 	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
 }
 EXPORT_SYMBOL(sti_drm_crtc_disable_vblank);
 
