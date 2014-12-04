@@ -1,5 +1,5 @@
 /*
- * PQ3 GPIO device tree stub [ controller @ offset 0xf000 ]
+ * PQ3 GPIO device tree stub [ controller @ offset 0xfc00 ]
  *
  * Copyright 2011 Freescale Semiconductor Inc.
  *
@@ -32,10 +32,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-gpio-controller@f000 {
+gpio-controller@fc00 {
 	#gpio-cells = <2>;
 	compatible = "fsl,pq3-gpio";
-	reg = <0xf000 0x100>;
+	reg = <0xfc00 0x100>;
 	interrupts = <47 0x2 0 0>;
 	gpio-controller;
 };
