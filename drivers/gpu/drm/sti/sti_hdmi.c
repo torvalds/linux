@@ -272,31 +272,32 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
 
 	/* Infoframe header */
-	val = buffer[0x0];
-	val |= buffer[0x1] << 8;
-	val |= buffer[0x2] << 16;
+	val =  buffer[0];
+	val |= buffer[1] << 8;
+	val |= buffer[2] << 16;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AVI));
 
 	/* Infoframe packet bytes */
-	val = frame[0x0];
-	val |= frame[0x1] << 8;
-	val |= frame[0x2] << 16;
-	val |= frame[0x3] << 24;
+	val =  buffer[3];
+	val |= *(frame++) << 8;
+	val |= *(frame++) << 16;
+	val |= *(frame++) << 24;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AVI));
 
-	val = frame[0x4];
-	val |= frame[0x5] << 8;
-	val |= frame[0x6] << 16;
-	val |= frame[0x7] << 24;
+	val =  *(frame++);
+	val |= *(frame++) << 8;
+	val |= *(frame++) << 16;
+	val |= *(frame++) << 24;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD1(HDMI_IFRAME_SLOT_AVI));
 
-	val = frame[0x8];
-	val |= frame[0x9] << 8;
-	val |= frame[0xA] << 16;
-	val |= frame[0xB] << 24;
+	val =  *(frame++);
+	val |= *(frame++) << 8;
+	val |= *(frame++) << 16;
+	val |= *(frame++) << 24;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD2(HDMI_IFRAME_SLOT_AVI));
 
-	val = frame[0xC];
+	val = *(frame++);
+	val |= *(frame) << 8;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD3(HDMI_IFRAME_SLOT_AVI));
 
 	/* Enable transmission slot for AVI infoframe
