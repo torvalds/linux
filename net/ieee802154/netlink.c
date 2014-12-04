@@ -147,7 +147,6 @@ static const struct genl_multicast_group ieee802154_mcgrps[] = {
 	[IEEE802154_BEACON_MCGRP] = { .name = IEEE802154_MCAST_BEACON_NAME, },
 };
 
-
 int __init ieee802154_nl_init(void)
 {
 	return genl_register_family_with_ops_groups(&nl802154_family,
