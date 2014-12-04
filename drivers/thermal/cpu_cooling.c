@@ -71,8 +71,6 @@ struct cpufreq_cooling_device {
 static DEFINE_IDR(cpufreq_idr);
 static DEFINE_MUTEX(cooling_cpufreq_lock);
 
-static unsigned int cpufreq_dev_count;
-
 static LIST_HEAD(cpufreq_dev_list);
 
 /**
@@ -419,10 +417,9 @@ __cpufreq_cooling_register(struct device_node *np,
 	mutex_lock(&cooling_cpufreq_lock);
 
 	/* Register the notifier for first cpufreq cooling device */
-	if (cpufreq_dev_count == 0)
+	if (list_empty(&cpufreq_dev_list))
 		cpufreq_register_notifier(&thermal_cpufreq_notifier_block,
 					  CPUFREQ_POLICY_NOTIFIER);
-	cpufreq_dev_count++;
 	list_add(&cpufreq_dev->node, &cpufreq_dev_list);
 
 	mutex_unlock(&cooling_cpufreq_lock);
@@ -495,10 +492,9 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	cpufreq_dev = cdev->devdata;
 	mutex_lock(&cooling_cpufreq_lock);
 	list_del(&cpufreq_dev->node);
-	cpufreq_dev_count--;
 
 	/* Unregister the notifier for the last cpufreq cooling device */
-	if (cpufreq_dev_count == 0)
+	if (list_empty(&cpufreq_dev_list))
 		cpufreq_unregister_notifier(&thermal_cpufreq_notifier_block,
 					    CPUFREQ_POLICY_NOTIFIER);
 	mutex_unlock(&cooling_cpufreq_lock);
