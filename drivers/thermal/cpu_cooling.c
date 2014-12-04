@@ -52,6 +52,8 @@
  *	cooling	devices.
  * @cpufreq_val: integer value representing the absolute value of the clipped
  *	frequency.
+ * @max_level: maximum cooling level. One less than total number of valid
+ *	cpufreq frequencies.
  * @allowed_cpus: all the cpus involved for this cpufreq_cooling_device.
  *
  * This structure is required for keeping information of each registered
@@ -62,6 +64,7 @@ struct cpufreq_cooling_device {
 	struct thermal_cooling_device *cool_dev;
 	unsigned int cpufreq_state;
 	unsigned int cpufreq_val;
+	unsigned int max_level;
 	struct cpumask allowed_cpus;
 	struct list_head node;
 };
@@ -283,19 +286,9 @@ static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
 {
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
-	struct cpumask *mask = &cpufreq_device->allowed_cpus;
-	unsigned int cpu;
-	unsigned int count = 0;
-	int ret;
 
-	cpu = cpumask_any(mask);
-
-	ret = get_property(cpu, 0, &count, GET_MAXL);
-
-	if (count > 0)
-		*state = count;
-
-	return ret;
+	*state = cpufreq_device->max_level;
+	return 0;
 }
 
 /**
@@ -385,9 +378,11 @@ __cpufreq_cooling_register(struct device_node *np,
 	struct thermal_cooling_device *cool_dev;
 	struct cpufreq_cooling_device *cpufreq_dev;
 	char dev_name[THERMAL_NAME_LENGTH];
+	struct cpufreq_frequency_table *pos, *table;
 	int ret;
 
-	if (!cpufreq_frequency_get_table(cpumask_first(clip_cpus))) {
+	table = cpufreq_frequency_get_table(cpumask_first(clip_cpus));
+	if (!table) {
 		pr_debug("%s: CPUFreq table not found\n", __func__);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
@@ -403,6 +398,13 @@ __cpufreq_cooling_register(struct device_node *np,
 		cool_dev = ERR_PTR(ret);
 		goto free_cdev;
 	}
+
+	/* Find max levels */
+	cpufreq_for_each_valid_entry(pos, table)
+		cpufreq_dev->max_level++;
+
+	/* max_level is an index, not a counter */
+	cpufreq_dev->max_level--;
 
 	cpumask_copy(&cpufreq_dev->allowed_cpus, clip_cpus);
 
