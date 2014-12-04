@@ -304,6 +304,11 @@ static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
 	struct inode_management *im = &sbi->im[type];
 	struct ino_entry *e;
 retry:
+	if (radix_tree_preload(GFP_NOFS)) {
+		cond_resched();
+		goto retry;
+	}
+
 	spin_lock(&im->ino_lock);
 
 	e = radix_tree_lookup(&im->ino_root, ino);
@@ -311,11 +316,13 @@ retry:
 		e = kmem_cache_alloc(ino_entry_slab, GFP_ATOMIC);
 		if (!e) {
 			spin_unlock(&im->ino_lock);
+			radix_tree_preload_end();
 			goto retry;
 		}
 		if (radix_tree_insert(&im->ino_root, ino, e)) {
 			spin_unlock(&im->ino_lock);
 			kmem_cache_free(ino_entry_slab, e);
+			radix_tree_preload_end();
 			goto retry;
 		}
 		memset(e, 0, sizeof(struct ino_entry));
@@ -326,6 +333,7 @@ retry:
 			im->ino_num++;
 	}
 	spin_unlock(&im->ino_lock);
+	radix_tree_preload_end();
 }
 
 static void __remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)

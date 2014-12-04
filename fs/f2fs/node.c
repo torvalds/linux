@@ -1447,15 +1447,22 @@ static int add_free_nid(struct f2fs_sb_info *sbi, nid_t nid, bool build)
 	i->nid = nid;
 	i->state = NID_NEW;
 
+	if (radix_tree_preload(GFP_NOFS)) {
+		kmem_cache_free(free_nid_slab, i);
+		return 0;
+	}
+
 	spin_lock(&nm_i->free_nid_list_lock);
 	if (radix_tree_insert(&nm_i->free_nid_root, i->nid, i)) {
 		spin_unlock(&nm_i->free_nid_list_lock);
+		radix_tree_preload_end();
 		kmem_cache_free(free_nid_slab, i);
 		return 0;
 	}
 	list_add_tail(&i->list, &nm_i->free_nid_list);
 	nm_i->fcnt++;
 	spin_unlock(&nm_i->free_nid_list_lock);
+	radix_tree_preload_end();
 	return 1;
 }
 
@@ -1994,8 +2001,8 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 
 	INIT_RADIX_TREE(&nm_i->free_nid_root, GFP_ATOMIC);
 	INIT_LIST_HEAD(&nm_i->free_nid_list);
-	INIT_RADIX_TREE(&nm_i->nat_root, GFP_ATOMIC);
-	INIT_RADIX_TREE(&nm_i->nat_set_root, GFP_ATOMIC);
+	INIT_RADIX_TREE(&nm_i->nat_root, GFP_NOIO);
+	INIT_RADIX_TREE(&nm_i->nat_set_root, GFP_NOIO);
 	INIT_LIST_HEAD(&nm_i->nat_entries);
 
 	mutex_init(&nm_i->build_lock);
