@@ -485,7 +485,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	ret = get_idr(&cpufreq_idr, &cpufreq_dev->id);
 	if (ret) {
 		kfree(cpufreq_dev);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(ret);
 	}
 
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
