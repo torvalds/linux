@@ -743,6 +743,24 @@ static int imx6q_pm_enter(suspend_state_t state)
 	unsigned int console_saved_reg[11] = {0};
 	static unsigned int ccm_ccgr4, ccm_ccgr6;
 
+	if (imx_src_is_m4_enabled()) {
+		if (imx_gpc_is_m4_sleeping() && imx_mu_is_m4_in_low_freq()) {
+			imx_gpc_hold_m4_in_sleep();
+			imx_mu_enable_m4_irqs_in_gic(true);
+		} else {
+			pr_info("M4 is busy, enter WAIT mode instead of STOP!\n");
+			imx6q_set_lpm(WAIT_UNCLOCKED);
+			imx6q_set_int_mem_clk_lpm(true);
+			imx_gpc_pre_suspend(false);
+			/* Zzz ... */
+			cpu_do_idle();
+			imx_gpc_post_resume();
+			imx6q_set_lpm(WAIT_CLOCKED);
+
+			return 0;
+		}
+	}
+
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		imx6q_set_lpm(STOP_POWER_ON);
@@ -818,6 +836,11 @@ static int imx6q_pm_enter(suspend_state_t state)
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	if (imx_src_is_m4_enabled()) {
+		imx_mu_enable_m4_irqs_in_gic(false);
+		imx_gpc_release_m4_in_sleep();
 	}
 
 	return 0;

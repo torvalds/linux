@@ -108,6 +108,16 @@ static struct delayed_work bus_freq_daemon;
 
 static RAW_NOTIFIER_HEAD(busfreq_notifier_chain);
 
+static bool check_m4_sleep(void)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(500);
+
+	while (imx_gpc_is_m4_sleeping() == 0)
+		if (time_after(jiffies, timeout))
+			return false;
+	return  true;
+}
+
 static int busfreq_notify(enum busfreq_event event)
 {
 	int ret;
@@ -135,6 +145,10 @@ EXPORT_SYMBOL(unregister_busfreq_notifier);
  */
 static void enter_lpm_imx6_up(void)
 {
+	if (cpu_is_imx6sx() && imx_src_is_m4_enabled())
+		if (!check_m4_sleep())
+			pr_err("M4 is NOT in sleep!!!\n");
+
 	/* set periph_clk2 to source from OSC for periph */
 	imx_clk_set_parent(periph_clk2_sel_clk, osc_clk);
 	imx_clk_set_parent(periph_clk, periph_clk2_clk);
@@ -832,6 +846,10 @@ static int busfreq_probe(struct platform_device *pdev)
 			err = init_mmdc_ddr3_settings_imx6_up(pdev);
 		else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
 			err = init_mmdc_lpddr2_settings(pdev);
+		/* if M4 is enabled and rate > 24MHz, add high bus count */
+		if (imx_src_is_m4_enabled() &&
+			(clk_get_rate(m4_clk) > LPAPM_CLK))
+				high_bus_count++;
 	}
 
 	if (err) {
