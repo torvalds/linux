@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= gpio.o setup.o sysirq_mask.o
+obj-y		:= setup.o sysirq_mask.o
 
 obj-$(CONFIG_SOC_AT91SAM9)	+= sam9_smc.o
 
@@ -24,9 +24,6 @@ obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
 
 # SAMA5 board with device-tree
 obj-$(CONFIG_SOC_SAMA5)		+= board-dt-sama5.o
-
-# Drivers
-obj-y				+= leds.o
 
 # Power Management
 obj-$(CONFIG_PM)		+= pm.o
