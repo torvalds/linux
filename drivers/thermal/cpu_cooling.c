@@ -476,8 +476,7 @@ __cpufreq_cooling_register(struct device_node *np,
 				return ERR_PTR(-EINVAL);
 		}
 	}
-	cpufreq_dev = kzalloc(sizeof(struct cpufreq_cooling_device),
-			      GFP_KERNEL);
+	cpufreq_dev = kzalloc(sizeof(*cpufreq_dev), GFP_KERNEL);
 	if (!cpufreq_dev)
 		return ERR_PTR(-ENOMEM);
 
