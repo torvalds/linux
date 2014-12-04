@@ -1371,4 +1371,7 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
 
+int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf id);
+void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm);
+
 #endif /* __IWL_MVM_H__ */
