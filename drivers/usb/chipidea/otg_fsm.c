@@ -722,25 +722,16 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 		}
 		break;
 	case OTG_STATE_A_PERIPHERAL:
-		if (intr_sts & USBi_SLI) {
-			 fsm->b_bus_suspend = 1;
+		if (intr_sts & USBi_SLI)
 			/*
 			 * Init a timer to know how long this suspend
 			 * will continue, if time out, indicates B no longer
 			 * wants to be host role
 			 */
 			 ci_otg_add_timer(ci, A_BIDL_ADIS);
-		}
 
-		if (intr_sts & USBi_URI)
+		if (intr_sts & (USBi_URI | USBi_PCI))
 			ci_otg_del_timer(ci, A_BIDL_ADIS);
-
-		if (intr_sts & USBi_PCI) {
-			if (fsm->b_bus_suspend == 1) {
-				ci_otg_del_timer(ci, A_BIDL_ADIS);
-				fsm->b_bus_suspend = 0;
-			}
-		}
 		break;
 	case OTG_STATE_A_SUSPEND:
 		if ((intr_sts & USBi_PCI) && !port_conn) {
