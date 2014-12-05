@@ -182,9 +182,6 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 	static const char units[] = "KMGTPE";
 	u64 prot = val & pg_level[level].mask;
 
-	if (addr < LOWEST_ADDR)
-		return;
-
 	if (!st->level) {
 		st->level = level;
 		st->current_prot = prot;
