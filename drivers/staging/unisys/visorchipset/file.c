@@ -103,17 +103,12 @@ static int
 visorchipset_open(struct inode *inode, struct file *file)
 {
 	unsigned minor_number = iminor(inode);
-	int rc = -ENODEV;
 
 	DEBUGDRV("%s", __func__);
 	if (minor_number != 0)
-		goto Away;
+		return -ENODEV;
 	file->private_data = NULL;
-	rc = 0;
-Away:
-	if (rc < 0)
-		ERRDRV("%s minor=%d failed", __func__, minor_number);
-	return rc;
+	return 0;
 }
 
 static int
