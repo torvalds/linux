@@ -57,13 +57,12 @@ static const struct file_operations visorchipset_fops = {
 	.mmap = visorchipset_mmap,
 };
 
-int
-visorchipset_file_init(dev_t majorDev, VISORCHANNEL **pControlVm_channel)
+int visorchipset_file_init(dev_t major_dev, VISORCHANNEL **controlvm_channel)
 {
-	int rc = -1;
+	int rc = 0;
 
-	PControlVm_channel = pControlVm_channel;
-	MajorDev = majorDev;
+	PControlVm_channel = controlvm_channel;
+	MajorDev = major_dev;
 	cdev_init(&Cdev, &visorchipset_fops);
 	Cdev.owner = THIS_MODULE;
 	if (MAJOR(MajorDev) == 0) {
@@ -71,7 +70,7 @@ visorchipset_file_init(dev_t majorDev, VISORCHANNEL **pControlVm_channel)
 		if (alloc_chrdev_region(&MajorDev, 0, 1, MYDRVNAME) < 0) {
 			ERRDRV("Unable to allocate+register char device %s",
 			       MYDRVNAME);
-			goto Away;
+			return -1;
 		}
 		Registered = TRUE;
 		INFODRV("New major number %d registered\n", MAJOR(MajorDev));
@@ -79,20 +78,19 @@ visorchipset_file_init(dev_t majorDev, VISORCHANNEL **pControlVm_channel)
 		/* static major device number registration required */
 		if (register_chrdev_region(MajorDev, 1, MYDRVNAME) < 0) {
 			ERRDRV("Unable to register char device %s", MYDRVNAME);
-			goto Away;
+			return -1;
 		}
 		Registered = TRUE;
 		INFODRV("Static major number %d registered\n", MAJOR(MajorDev));
 	}
-	if (cdev_add(&Cdev, MKDEV(MAJOR(MajorDev), 0), 1) < 0) {
+	rc = cdev_add(&Cdev, MKDEV(MAJOR(MajorDev), 0), 1);
+	if (rc  < 0) {
 		ERRDRV("failed to create char device: (status=%d)\n", rc);
-		goto Away;
+		return -1;
 	}
 	INFODRV("Registered char device for %s (major=%d)",
 		MYDRVNAME, MAJOR(MajorDev));
-	rc = 0;
-Away:
-	return rc;
+	return 0;
 }
 
 void
