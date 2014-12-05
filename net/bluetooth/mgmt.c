@@ -6802,6 +6802,11 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 	mgmt_pending_remove(cmd);
 }
 
+static bool eir_has_uuids(u8 *eir, u16 eir_len, u16 uuid_count, u8 (*uuids)[16])
+{
+	return false;
+}
+
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
 		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len)
@@ -6809,6 +6814,7 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	char buf[512];
 	struct mgmt_ev_device_found *ev = (void *) buf;
 	size_t ev_size;
+	bool match;
 
 	/* Don't send events for a non-kernel initiated discovery. With
 	 * LE one exception is if we have pend_le_reports > 0 in which
@@ -6843,15 +6849,59 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	ev->rssi = rssi;
 	ev->flags = cpu_to_le32(flags);
 
-	if (eir_len > 0)
+	if (eir_len > 0) {
+		/* When using service discovery and a list of UUID is
+		 * provided, results with no matching UUID should be
+		 * dropped. In case there is a match the result is
+		 * kept and checking possible scan response data
+		 * will be skipped.
+		 */
+		if (hdev->discovery.uuid_count > 0) {
+			match = eir_has_uuids(eir, eir_len,
+					      hdev->discovery.uuid_count,
+					      hdev->discovery.uuids);
+			if (!match)
+				return;
+		}
+
+		/* Copy EIR or advertising data into event */
 		memcpy(ev->eir, eir, eir_len);
+	} else {
+		/* When using service discovery and a list of UUID is
+		 * provided, results with empty EIR or advertising data
+		 * should be dropped since they do not match any UUID.
+		 */
+		if (hdev->discovery.uuid_count > 0)
+			return;
+	}
 
 	if (dev_class && !eir_has_data_type(ev->eir, eir_len, EIR_CLASS_OF_DEV))
 		eir_len = eir_append_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
 					  dev_class, 3);
 
-	if (scan_rsp_len > 0)
+	if (scan_rsp_len > 0) {
+		/* When using service discovery and a list of UUID is
+		 * provided, results with no matching UUID should be
+		 * dropped if there is no previous match from the
+		 * advertising data.
+		 */
+		if (hdev->discovery.uuid_count > 0) {
+			if (!match && !eir_has_uuids(scan_rsp, scan_rsp_len,
+						     hdev->discovery.uuid_count,
+						     hdev->discovery.uuids))
+				return;
+		}
+
+		/* Append scan response data to event */
 		memcpy(ev->eir + eir_len, scan_rsp, scan_rsp_len);
+	} else {
+		/* When using service discovery and a list of UUID is
+		 * provided, results with empty scan response and no
+		 * previous matched advertising data should be dropped.
+		 */
+		if (hdev->discovery.uuid_count > 0 && !match)
+			return;
+	}
 
 	ev->eir_len = cpu_to_le16(eir_len + scan_rsp_len);
 	ev_size = sizeof(*ev) + eir_len + scan_rsp_len;
