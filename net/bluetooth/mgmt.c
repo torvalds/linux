@@ -137,6 +137,7 @@ struct pending_cmd {
 	void *param;
 	struct sock *sk;
 	void *user_data;
+	void (*cmd_complete)(struct pending_cmd *cmd, u8 status);
 };
 
 /* HCI to MGMT error code conversion table */
@@ -1469,6 +1470,20 @@ static void cmd_status_rsp(struct pending_cmd *cmd, void *data)
 
 	cmd_status(cmd->sk, cmd->index, cmd->opcode, *status);
 	mgmt_pending_remove(cmd);
+}
+
+static void cmd_complete_rsp(struct pending_cmd *cmd, void *data)
+{
+	if (cmd->cmd_complete) {
+		u8 *status = data;
+
+		cmd->cmd_complete(cmd, *status);
+		mgmt_pending_remove(cmd);
+
+		return;
+	}
+
+	cmd_status_rsp(cmd, data);
 }
 
 static u8 mgmt_bredr_support(struct hci_dev *hdev)
@@ -5976,7 +5991,7 @@ void mgmt_index_removed(struct hci_dev *hdev)
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		return;
 
-	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
+	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status);
 
 	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
 		mgmt_event(MGMT_EV_UNCONF_INDEX_REMOVED, hdev, NULL, 0, NULL);
@@ -6111,7 +6126,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	}
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
-	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status_not_powered);
+	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status_not_powered);
 
 	if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0)
 		mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
