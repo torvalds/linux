@@ -32,6 +32,7 @@
 
 #include "ixgbe.h"
 #include "ixgbe_phy.h"
+#include "ixgbe_x540.h"
 
 #define IXGBE_X540_MAX_TX_QUEUES	128
 #define IXGBE_X540_MAX_RX_QUEUES	128
@@ -42,17 +43,15 @@
 
 static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw);
 static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw);
-static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
-static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
 static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw);
 static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw);
 
-static enum ixgbe_media_type ixgbe_get_media_type_X540(struct ixgbe_hw *hw)
+enum ixgbe_media_type ixgbe_get_media_type_X540(struct ixgbe_hw *hw)
 {
 	return ixgbe_media_type_copper;
 }
 
-static s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
+s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 
@@ -76,9 +75,8 @@ static s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
  *  @speed: new link speed
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  **/
-static s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
-				     ixgbe_link_speed speed,
-				     bool autoneg_wait_to_complete)
+s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw, ixgbe_link_speed speed,
+			      bool autoneg_wait_to_complete)
 {
 	return hw->phy.ops.setup_link_speed(hw, speed,
 					    autoneg_wait_to_complete);
@@ -92,7 +90,7 @@ static s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
  **/
-static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
+s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u32 ctrl, i;
@@ -179,7 +177,7 @@ mac_reset_top:
  *  and the generation start_hw function.
  *  Then performs revision-specific operations, if any.
  **/
-static s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
+s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
 {
 	s32 ret_val;
 
@@ -197,7 +195,7 @@ static s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
  *  Initializes the EEPROM parameters ixgbe_eeprom_info within the
  *  ixgbe_hw struct in order to set up EEPROM access.
  **/
-static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
+s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 {
 	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
 	u32 eec;
@@ -565,7 +563,7 @@ static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw)
  * Acquires the SWFW semaphore thought the SW_FW_SYNC register for
  * the specified function (CSR, PHY0, PHY1, NVM, Flash)
  **/
-static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
+s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 {
 	u32 swfw_sync;
 	u32 swmask = mask;
@@ -633,7 +631,7 @@ static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
  * Releases the SWFW semaphore through the SW_FW_SYNC register
  * for the specified function (CSR, PHY0, PHY1, EVM, Flash)
  **/
-static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
+void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 {
 	u32 swfw_sync;
 	u32 swmask = mask;
@@ -720,7 +718,7 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
  * Devices that implement the version 2 interface:
  *   X540
  **/
-static s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
+s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
 {
 	u32 macc_reg;
 	u32 ledctl_reg;
@@ -756,7 +754,7 @@ static s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
  * Devices that implement the version 2 interface:
  *   X540
  **/
-static s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
+s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
 {
 	u32 macc_reg;
 	u32 ledctl_reg;

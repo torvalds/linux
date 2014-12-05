@@ -77,6 +77,11 @@
 #define IXGBE_I2C_EEPROM_STATUS_PASS		0x1
 #define IXGBE_I2C_EEPROM_STATUS_FAIL		0x2
 #define IXGBE_I2C_EEPROM_STATUS_IN_PROGRESS	0x3
+#define IXGBE_CS4227				0xBE    /* CS4227 address */
+#define IXGBE_CS4227_SPARE24_LSB		0x12B0  /* Reg to program EDC */
+#define IXGBE_CS4227_EDC_MODE_CX1		0x0002
+#define IXGBE_CS4227_EDC_MODE_SR		0x0004
+
 /* Flow control defines */
 #define IXGBE_TAF_SYM_PAUSE                  0x400
 #define IXGBE_TAF_ASM_PAUSE                  0x800
@@ -110,7 +115,6 @@
 /* SFP+ SFF-8472 Compliance code */
 #define IXGBE_SFF_SFF_8472_UNSUP      0x00
 
-s32 ixgbe_init_phy_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw);
 s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw);
 s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,

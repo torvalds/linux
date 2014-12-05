@@ -81,9 +81,11 @@ static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2014 Intel Corporation.";
 
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
-	[board_82598] = &ixgbe_82598_info,
-	[board_82599] = &ixgbe_82599_info,
-	[board_X540] = &ixgbe_X540_info,
+	[board_82598]		= &ixgbe_82598_info,
+	[board_82599]		= &ixgbe_82599_info,
+	[board_X540]		= &ixgbe_X540_info,
+	[board_X550]		= &ixgbe_X550_info,
+	[board_X550EM_x]	= &ixgbe_X550EM_x_info,
 };
 
 /* ixgbe_pci_tbl - PCI Device ID Table
@@ -125,6 +127,9 @@ static const struct pci_device_id ixgbe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599EN_SFP), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF_QP), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T1), board_X540 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550T), board_X550},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KX4), board_X550EM_x},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KR), board_X550EM_x},
 	/* required last entry */
 	{0, }
 };

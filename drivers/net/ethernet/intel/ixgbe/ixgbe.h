@@ -815,11 +815,15 @@ enum ixgbe_boards {
 	board_82598,
 	board_82599,
 	board_X540,
+	board_X550,
+	board_X550EM_x,
 };
 
 extern struct ixgbe_info ixgbe_82598_info;
 extern struct ixgbe_info ixgbe_82599_info;
 extern struct ixgbe_info ixgbe_X540_info;
+extern struct ixgbe_info ixgbe_X550_info;
+extern struct ixgbe_info ixgbe_X550EM_x_info;
 #ifdef CONFIG_IXGBE_DCB
 extern const struct dcbnl_rtnl_ops dcbnl_ops;
 #endif
