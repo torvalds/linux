@@ -166,7 +166,6 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 
 long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int rc = SUCCESS;
 	s64 adjustment;
 	s64 vrtc_offset;
 
@@ -177,28 +176,21 @@ long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		vrtc_offset = issue_vmcall_query_guest_virtual_time_offset();
 		if (copy_to_user
 		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset))) {
-			rc = -EFAULT;
-			goto Away;
+			return -EFAULT;
 		}
 		DBGINF("insde visorchipset_ioctl, cmd=%d, vrtc_offset=%lld",
 		       cmd, vrtc_offset);
-		break;
+		return SUCCESS;
 	case VMCALL_UPDATE_PHYSICAL_TIME:
 		if (copy_from_user
 		    (&adjustment, (void __user *)arg, sizeof(adjustment))) {
-			rc = -EFAULT;
-			goto Away;
+			return -EFAULT;
 		}
 		DBGINF("insde visorchipset_ioctl, cmd=%d, adjustment=%lld", cmd,
 		       adjustment);
-		rc = issue_vmcall_update_physical_time(adjustment);
-		break;
+		return issue_vmcall_update_physical_time(adjustment);
 	default:
 		LOGERR("visorchipset_ioctl received invalid command");
-		rc = -EFAULT;
-		break;
+		return -EFAULT;
 	}
-Away:
-	DBGINF("exiting %d!", rc);
-	return rc;
 }
