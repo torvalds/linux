@@ -31,9 +31,9 @@ struct v4l2_mbus_framefmt {
 	__u32			code;
 	__u32			field;
 	__u32			colorspace;
-	__u32			ycbcr_enc;
-	__u32			quantization;
-	__u32			reserved[5];
+	__u16			ycbcr_enc;
+	__u16			quantization;
+	__u32			reserved[6];
 };
 
 #ifndef __KERNEL__
