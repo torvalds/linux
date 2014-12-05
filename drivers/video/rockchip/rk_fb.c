@@ -3572,7 +3572,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
 		dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
 	}
-	if (!dev_drv->uboot_logo) {
+	if ((!dev_drv->uboot_logo) ||
+	    (rk_fb->disp_policy != DISPLAY_POLICY_BOX)) {
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			info = rk_fb->fb[dev_drv->fb_index_base + i];
 			fb_par = (struct rk_fb_par *)info->par;
