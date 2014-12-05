@@ -346,16 +346,8 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 		spi->dma_tx = sdd->tx_dma.ch;
 	}
 
-	ret = pm_runtime_get_sync(&sdd->pdev->dev);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable device: %d\n", ret);
-		goto out_tx;
-	}
-
 	return 0;
 
-out_tx:
-	dma_release_channel(sdd->tx_dma.ch);
 out_rx:
 	dma_release_channel(sdd->rx_dma.ch);
 out:
@@ -372,7 +364,6 @@ static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 		dma_release_channel(sdd->tx_dma.ch);
 	}
 
-	pm_runtime_put(&sdd->pdev->dev);
 	return 0;
 }
 
