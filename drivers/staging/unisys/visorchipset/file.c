@@ -29,7 +29,7 @@
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_file_c
 
 static struct cdev file_cdev;
-static VISORCHANNEL **file_controlvm_channel;
+static struct visorchannel **file_controlvm_channel;
 static dev_t majordev = -1; /**< indicates major num for device */
 static BOOL registered = FALSE;
 
@@ -48,7 +48,8 @@ static const struct file_operations visorchipset_fops = {
 	.mmap = visorchipset_mmap,
 };
 
-int visorchipset_file_init(dev_t major_dev, VISORCHANNEL **controlvm_channel)
+int
+visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 {
 	int rc = 0;
 

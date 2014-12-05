@@ -101,7 +101,7 @@ static struct controlvm_message_packet g_DeviceChangeStatePacket;
 static LIST_HEAD(BusInfoList);
 static LIST_HEAD(DevInfoList);
 
-static VISORCHANNEL *ControlVm_channel;
+static struct visorchannel *ControlVm_channel;
 
 typedef struct {
 	u8 __iomem *ptr;	/* pointer to base address of payload pool */
