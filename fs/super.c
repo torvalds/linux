@@ -76,6 +76,8 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
 
 	total_objects = sb->s_nr_dentry_unused +
 			sb->s_nr_inodes_unused + fs_objects + 1;
+	if (!total_objects)
+		total_objects = 1;
 
 	if (sc->nr_to_scan) {
 		int	dentries;

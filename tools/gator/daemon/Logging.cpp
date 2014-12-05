@@ -14,15 +14,15 @@
 #include <string.h>
 
 #ifdef WIN32
-#define MUTEX_INIT()	mLoggingMutex = CreateMutex(NULL, false, NULL);
-#define MUTEX_LOCK()	WaitForSingleObject(mLoggingMutex, 0xFFFFFFFF);
-#define MUTEX_UNLOCK()	ReleaseMutex(mLoggingMutex);
-#define snprintf		_snprintf
+#define MUTEX_INIT()    mLoggingMutex = CreateMutex(NULL, false, NULL);
+#define MUTEX_LOCK()    WaitForSingleObject(mLoggingMutex, 0xFFFFFFFF);
+#define MUTEX_UNLOCK()  ReleaseMutex(mLoggingMutex);
+#define snprintf _snprintf
 #else
 #include <pthread.h>
-#define MUTEX_INIT()	pthread_mutex_init(&mLoggingMutex, NULL)
-#define MUTEX_LOCK()	pthread_mutex_lock(&mLoggingMutex)
-#define MUTEX_UNLOCK()	pthread_mutex_unlock(&mLoggingMutex)
+#define MUTEX_INIT()    pthread_mutex_init(&mLoggingMutex, NULL)
+#define MUTEX_LOCK()    pthread_mutex_lock(&mLoggingMutex)
+#define MUTEX_UNLOCK()  pthread_mutex_unlock(&mLoggingMutex)
 #endif
 
 // Global thread-safe logging
@@ -40,7 +40,7 @@ Logging::~Logging() {
 }
 
 void Logging::logError(const char* file, int line, const char* fmt, ...) {
-	va_list	args;
+	va_list args;
 
 	MUTEX_LOCK();
 	if (mDebug) {
@@ -61,7 +61,7 @@ void Logging::logError(const char* file, int line, const char* fmt, ...) {
 
 void Logging::logMessage(const char* fmt, ...) {
 	if (mDebug) {
-		va_list	args;
+		va_list args;
 
 		MUTEX_LOCK();
 		strcpy(mLogBuf, "INFO: ");

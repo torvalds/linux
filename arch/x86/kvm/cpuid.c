@@ -187,8 +187,14 @@ static bool supported_xcr0_bit(unsigned bit)
 
 #define F(x) bit(X86_FEATURE_##x)
 
-static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
-			 u32 index, int *nent, int maxnent)
+static int __do_cpuid_ent_emulated(struct kvm_cpuid_entry2 *entry,
+				   u32 func, u32 index, int *nent, int maxnent)
+{
+	return 0;
+}
+
+static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
+				 u32 index, int *nent, int maxnent)
 {
 	int r;
 	unsigned f_nx = is_efer_nx() ? F(NX) : 0;
@@ -480,6 +486,15 @@ out:
 	return r;
 }
 
+static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 func,
+			u32 idx, int *nent, int maxnent, unsigned int type)
+{
+	if (type == KVM_GET_EMULATED_CPUID)
+		return __do_cpuid_ent_emulated(entry, func, idx, nent, maxnent);
+
+	return __do_cpuid_ent(entry, func, idx, nent, maxnent);
+}
+
 #undef F
 
 struct kvm_cpuid_param {
@@ -494,8 +509,34 @@ static bool is_centaur_cpu(const struct kvm_cpuid_param *param)
 	return boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR;
 }
 
-int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
-				      struct kvm_cpuid_entry2 __user *entries)
+static bool sanity_check_entries(struct kvm_cpuid_entry2 __user *entries,
+				 __u32 num_entries, unsigned int ioctl_type)
+{
+	int i;
+
+	if (ioctl_type != KVM_GET_EMULATED_CPUID)
+		return false;
+
+	/*
+	 * We want to make sure that ->padding is being passed clean from
+	 * userspace in case we want to use it for something in the future.
+	 *
+	 * Sadly, this wasn't enforced for KVM_GET_SUPPORTED_CPUID and so we
+	 * have to give ourselves satisfied only with the emulated side. /me
+	 * sheds a tear.
+	 */
+	for (i = 0; i < num_entries; i++) {
+		if (entries[i].padding[0] ||
+		    entries[i].padding[1] ||
+		    entries[i].padding[2])
+			return true;
+	}
+	return false;
+}
+
+int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
+			    struct kvm_cpuid_entry2 __user *entries,
+			    unsigned int type)
 {
 	struct kvm_cpuid_entry2 *cpuid_entries;
 	int limit, nent = 0, r = -E2BIG, i;
@@ -512,6 +553,10 @@ int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 		goto out;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
 		cpuid->nent = KVM_MAX_CPUID_ENTRIES;
+
+	if (sanity_check_entries(entries, cpuid->nent, type))
+		return -EINVAL;
+
 	r = -ENOMEM;
 	cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry2) * cpuid->nent);
 	if (!cpuid_entries)
@@ -525,7 +570,7 @@ int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 			continue;
 
 		r = do_cpuid_ent(&cpuid_entries[nent], ent->func, ent->idx,
-				&nent, cpuid->nent);
+				&nent, cpuid->nent, type);
 
 		if (r)
 			goto out_free;
@@ -536,7 +581,7 @@ int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 		limit = cpuid_entries[nent - 1].eax;
 		for (func = ent->func + 1; func <= limit && nent < cpuid->nent && r == 0; ++func)
 			r = do_cpuid_ent(&cpuid_entries[nent], func, ent->idx,
-				     &nent, cpuid->nent);
+				     &nent, cpuid->nent, type);
 
 		if (r)
 			goto out_free;

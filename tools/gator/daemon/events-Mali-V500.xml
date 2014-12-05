@@ -1,0 +1,30 @@
+  <category name="Mali-V500">
+    <event counter="ARM_Mali-V500_cnt0" title="MVE-V500 Stats" name="Samples" class="absolute" description="The number of times we have taken a sample"/>
+    <event counter="ARM_Mali-V500_cnt1" title="MVE-V500 Input Totals" name="Queued input-buffers" class="absolute" description="The number of input-buffers that has been queued for consumption by the MVE"/>
+    <event counter="ARM_Mali-V500_cnt2" title="MVE-V500 Input Totals" name="Consumed input-buffers" class="absolute" description="The number of input-buffers that has been consumed by the MVE and returned to the application"/>
+    <event counter="ARM_Mali-V500_cnt3" title="MVE-V500 Output Totals" name="Queued output-buffers" class="absolute" description="The number of output-buffers that has been queued for usage by the MVE"/>
+    <event counter="ARM_Mali-V500_cnt4" title="MVE-V500 Output Totals" name="Consumed output-buffers" class="absolute" description="The number of output-buffers that has been consumed by the MVE and returned to the application"/>
+    <event counter="ARM_Mali-V500_cnt5" title="MVE-V500 Stats" name="Created Sessions" class="absolute" description="The number of created sessions throughout the lifetime of the process"/>
+    <event counter="ARM_Mali-V500_cnt6" title="MVE-V500 Sessions" name="Active Sessions" description="The number of currently existing sessions"/>
+    <event counter="ARM_Mali-V500_cnt7" title="MVE-V500 Stats" name="Processed Frames" class="absolute" description="The number of processed frames. A processed frame is one where the encode or decode is complete for that particular frame. Frames can be processed out of order so this is not the same as the number of output-buffers returned"/>
+    <event counter="ARM_Mali-V500_cnt8" title="MVE-V500 Input Totals" name="Input Flushes Requested" class="absolute" description="The number of requested flushes of the input queue"/>
+    <event counter="ARM_Mali-V500_cnt9" title="MVE-V500 Input Totals" name="Input Flushes Complete" class="absolute" description="The number of completed flushes of the input queue"/>
+    <event counter="ARM_Mali-V500_cnt10" title="MVE-V500 Output Totals" name="Output Flushes Requested" class="absolute" description="The number of requested flushes of the output queue"/>
+    <event counter="ARM_Mali-V500_cnt11" title="MVE-V500 Output Totals" name="Output Flushes Complete" class="absolute" description="The number of completed flushes of the output queue"/>
+    <event counter="ARM_Mali-V500_cnt12" title="MVE-V500 Output" name="Queued Output Buffers (current)" description="The number of output-buffers that are currently queued for usage by the MVE"/>
+    <event counter="ARM_Mali-V500_cnt13" title="MVE-V500 Input" name="Queued Input Buffers (current)" description="The number of input-buffers that are currently queued for consumption by the MVE"/>
+    <event counter="ARM_Mali-V500_cnt14" title="MVE-V500 Output" name="Output Queue Flushes" description="The number of pending flushes for the MVE output-queue"/>
+    <event counter="ARM_Mali-V500_cnt15" title="MVE-V500 Input" name="Input Queue Flushes" description="The number of pending flushes for the MVE input-queue"/>
+    <event counter="ARM_Mali-V500_cnt16" title="MVE-V500 Stats" name="Errors encountered" class="absolute" description="The number of errors encountered"/>
+    <event counter="ARM_Mali-V500_cnt17" title="MVE-V500 Bandwidth" name="Bits consumed" class="absolute" description="The number of bits consumed during decode"/>
+    <event counter="ARM_Mali-V500_cnt18" title="MVE-V500 Bandwidth" name="AFBC bandwidth" class="absolute" description="The amount of AFBC-encoded bytes read or written"/>
+    <event counter="ARM_Mali-V500_cnt19" title="MVE-V500 Bandwidth" name="Bandwidth (read)" class="absolute" description="The amount of bytes read over the AXI bus"/>
+    <event counter="ARM_Mali-V500_cnt20" title="MVE-V500 Bandwidth" name="Bandwidth (write)" class="absolute" description="The amount of bytes written over the AXI bus"/>
+    <event counter="ARM_Mali-V500_evn0" title="MVE-V500 Sessions" name="Session created" description="Generated when a session has been created"/>
+    <event counter="ARM_Mali-V500_evn1" title="MVE-V500 Sessions" name="Session destroyed" description="Generated when a session has been destroyed"/>
+    <event counter="ARM_Mali-V500_evn2" title="MVE-V500 Frames" name="Frame Processed" description="Generated when the MVE has finished processing a frame"/>
+    <event counter="ARM_Mali-V500_evn3" title="MVE-V500 Output" name="Output buffer received" description="Generated when an an output buffer is returned to us from the MVE"/>
+    <event counter="ARM_Mali-V500_evn4" title="MVE-V500 Input" name="Input buffer received" description="Generated when we an input buffer is returned to us from the MVE"/>
+    <event counter="ARM_Mali-V500_act0" title="MVE-V500 Parsed" name="Activity" class="activity" activity1="activity" activity_color1="0x000000ff" rendering_type="bar" average_selection="yes" average_cores="yes" percentage="yes" cores="8" description="Mali-V500 Activity"/>
+    <event counter="ARM_Mali-V500_act1" title="MVE-V500 Piped" name="Activity" class="activity" activity1="activity" activity_color1="0x0000ff00" rendering_type="bar" average_selection="yes" average_cores="yes" percentage="yes" cores="8" description="Mali-V500 Activity"/>
+  </category>

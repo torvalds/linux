@@ -1206,8 +1206,8 @@ static void complete_scsi_command(struct CommandList *cp)
 	scsi_set_resid(cmd, ei->ResidualCnt);
 
 	if (ei->CommandStatus == 0) {
-		cmd->scsi_done(cmd);
 		cmd_free(h, cp);
+		cmd->scsi_done(cmd);
 		return;
 	}
 
@@ -1380,8 +1380,8 @@ static void complete_scsi_command(struct CommandList *cp)
 		dev_warn(&h->pdev->dev, "cp %p returned unknown status %x\n",
 				cp, ei->CommandStatus);
 	}
-	cmd->scsi_done(cmd);
 	cmd_free(h, cp);
+	cmd->scsi_done(cmd);
 }
 
 static void hpsa_pci_unmap(struct pci_dev *pdev,
@@ -3118,7 +3118,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		}
 		if (ioc->Request.Type.Direction == XFER_WRITE) {
 			if (copy_from_user(buff[sg_used], data_ptr, sz)) {
-				status = -ENOMEM;
+				status = -EFAULT;
 				goto cleanup1;
 			}
 		} else

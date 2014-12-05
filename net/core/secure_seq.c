@@ -95,31 +95,6 @@ EXPORT_SYMBOL(secure_ipv6_port_ephemeral);
 #endif
 
 #ifdef CONFIG_INET
-__u32 secure_ip_id(__be32 daddr)
-{
-	u32 hash[MD5_DIGEST_WORDS];
-
-	net_secret_init();
-	hash[0] = (__force __u32) daddr;
-	hash[1] = net_secret[13];
-	hash[2] = net_secret[14];
-	hash[3] = net_secret[15];
-
-	md5_transform(hash, net_secret);
-
-	return hash[0];
-}
-
-__u32 secure_ipv6_id(const __be32 daddr[4])
-{
-	__u32 hash[4];
-
-	net_secret_init();
-	memcpy(hash, daddr, 16);
-	md5_transform(hash, net_secret);
-
-	return hash[0];
-}
 
 __u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
 				 __be16 sport, __be16 dport)

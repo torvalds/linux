@@ -462,7 +462,8 @@ void xhci_test_and_clear_bit(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 }
 
 /* Updates Link Status for super Speed port */
-static void xhci_hub_report_link_state(u32 *status, u32 status_reg)
+static void xhci_hub_report_link_state(struct xhci_hcd *xhci,
+		u32 *status, u32 status_reg)
 {
 	u32 pls = status_reg & PORT_PLS_MASK;
 
@@ -501,7 +502,8 @@ static void xhci_hub_report_link_state(u32 *status, u32 status_reg)
 		 * in which sometimes the port enters compliance mode
 		 * caused by a delay on the host-device negotiation.
 		 */
-		if (pls == USB_SS_PORT_LS_COMP_MOD)
+		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
+				(pls == USB_SS_PORT_LS_COMP_MOD))
 			pls |= USB_PORT_STAT_CONNECTION;
 	}
 
@@ -686,7 +688,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		}
 		/* Update Port Link State for super speed ports*/
 		if (hcd->speed == HCD_USB3) {
-			xhci_hub_report_link_state(&status, temp);
+			xhci_hub_report_link_state(xhci, &status, temp);
 			/*
 			 * Verify if all USB3 Ports Have entered U0 already.
 			 * Delete Compliance Mode Timer if so.

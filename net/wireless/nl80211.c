@@ -6642,6 +6642,9 @@ void __cfg80211_send_event_skb(struct sk_buff *skb, gfp_t gfp)
 	void *hdr = ((void **)skb->cb)[1];
 	struct nlattr *data = ((void **)skb->cb)[2];
 
+	/* clear CB data for netlink core to own from now on */
+	memset(skb->cb, 0, sizeof(skb->cb));
+
 	nla_nest_end(skb, data);
 	genlmsg_end(skb, hdr);
 
@@ -9153,7 +9156,8 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_vendor_cmd,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_RTNL,
+		.internal_flags = NL80211_FLAG_NEED_WIPHY |
+				  NL80211_FLAG_NEED_RTNL,
 	},
 };
 
@@ -10973,11 +10977,11 @@ int nl80211_init(void)
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_testmode_mcgrp);
 	if (err)
 		goto err_out;
-#endif
 
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_vendor_mcgrp);
 	if (err)
 		goto err_out;
+#endif
 
 	err = netlink_register_notifier(&nl80211_netlink_notifier);
 	if (err)

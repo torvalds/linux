@@ -144,8 +144,11 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 	if (!(device->port.membase || device->port.iobase))
 		return 0;
 
-	if (!device->baud)
+	if (!device->baud) {
 		device->baud = probe_baud(&device->port);
+		snprintf(device->options, sizeof(device->options), "%u",
+			 device->baud);
+	}
 
 	init_port(device);
 
@@ -155,6 +158,16 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 }
 EARLYCON_DECLARE(uart8250, early_serial8250_setup);
 EARLYCON_DECLARE(uart, early_serial8250_setup);
+
+int __init setup_early_serial8250_console(char *cmdline)
+{
+	char match[] = "uart8250";
+
+	if (cmdline && cmdline[4] == ',')
+		match[4] = '\0';
+
+	return setup_earlycon(cmdline, match, early_serial8250_setup);
+}
 
 int serial8250_find_port_for_earlycon(void)
 {

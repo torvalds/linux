@@ -74,11 +74,6 @@
 #define SERVER_NAME_LENGTH 40
 #define SERVER_NAME_LEN_WITH_NULL     (SERVER_NAME_LENGTH + 1)
 
-/* used to define string lengths for reversing unicode strings */
-/*         (256+1)*2 = 514                                     */
-/*           (max path length + 1 for null) * 2 for unicode    */
-#define MAX_NAME 514
-
 /* SMB echo "timeout" -- FIXME: tunable? */
 #define SMB_ECHO_INTERVAL (60 * HZ)
 
@@ -380,6 +375,8 @@ struct smb_version_operations {
 			const char *, u32 *);
 	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
 			int);
+	/* check if we need to issue closedir */
+	bool (*dir_needs_close)(struct cifsFileInfo *);
 };
 
 struct smb_version_values {

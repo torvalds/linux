@@ -11,6 +11,7 @@
 #include <dirent.h>
 #include <sys/utsname.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "Buffer.h"
 #include "Config.h"
@@ -21,6 +22,7 @@
 #include "Logging.h"
 #include "PerfGroup.h"
 #include "SessionData.h"
+#include "Setup.h"
 
 #define PERF_DEVICES "/sys/bus/event_source/devices"
 
@@ -30,7 +32,7 @@
 struct gator_cpu {
 	const int cpuid;
 	// Human readable name
-	const char core_name[32];
+	const char *const core_name;
 	// gatorfs event and Perf PMU name
 	const char *const pmnc_name;
 	const int pmnc_counters;
@@ -46,7 +48,6 @@ static const struct gator_cpu gator_cpus[] = {
 	{ 0xc07, "Cortex-A7",    "ARMv7_Cortex_A7",  4 },
 	{ 0xc08, "Cortex-A8",    "ARMv7_Cortex_A8",  4 },
 	{ 0xc09, "Cortex-A9",    "ARMv7_Cortex_A9",  6 },
-	{ 0xc0d, "Cortex-A12",   "ARMv7_Cortex_A12", 6 },
 	{ 0xc0f, "Cortex-A15",   "ARMv7_Cortex_A15", 6 },
 	{ 0xc0e, "Cortex-A17",   "ARMv7_Cortex_A17", 6 },
 	{ 0x00f, "Scorpion",     "Scorpion",         4 },
@@ -62,85 +63,91 @@ static const struct gator_cpu gator_cpus[] = {
 static const char OLD_PMU_PREFIX[] = "ARMv7 Cortex-";
 static const char NEW_PMU_PREFIX[] = "ARMv7_Cortex_";
 
-class PerfCounter {
+struct uncore_counter {
+	// Perf PMU name
+	const char *const perfName;
+	// gatorfs event name
+	const char *const gatorName;
+	const int count;
+};
+
+static const struct uncore_counter uncore_counters[] = {
+	{ "CCI_400", "CCI_400", 4 },
+	{ "CCI_400-r1", "CCI_400-r1", 4 },
+	{ "ccn", "ARM_CCN_5XX", 8 },
+};
+
+class PerfCounter : public DriverCounter {
 public:
-	PerfCounter(PerfCounter *next, const char *name, uint32_t type, uint64_t config) : mNext(next), mName(name), mType(type), mCount(0), mKey(getEventKey()), mConfig(config), mEnabled(false) {}
+	PerfCounter(DriverCounter *next, const char *name, uint32_t type, uint64_t config, bool perCpu) : DriverCounter(next, name), mType(type), mCount(0), mConfig(config), mPerCpu(perCpu) {}
+
 	~PerfCounter() {
-		delete [] mName;
 	}
 
-	PerfCounter *getNext() const { return mNext; }
-	const char *getName() const { return mName; }
 	uint32_t getType() const { return mType; }
 	int getCount() const { return mCount; }
 	void setCount(const int count) { mCount = count; }
-	int getKey() const { return mKey; }
 	uint64_t getConfig() const { return mConfig; }
 	void setConfig(const uint64_t config) { mConfig = config; }
-	bool isEnabled() const { return mEnabled; }
-	void setEnabled(const bool enabled) { mEnabled = enabled; }
+	bool isPerCpu() const { return mPerCpu; }
 
 private:
-	PerfCounter *const mNext;
-	const char *const mName;
 	const uint32_t mType;
 	int mCount;
-	const int mKey;
 	uint64_t mConfig;
-	bool mEnabled;
+	bool mPerCpu;
 };
 
-PerfDriver::PerfDriver() : mCounters(NULL), mIsSetup(false) {
+PerfDriver::PerfDriver() : mIsSetup(false), mLegacySupport(false) {
 }
 
 PerfDriver::~PerfDriver() {
-	while (mCounters != NULL) {
-		PerfCounter *counter = mCounters;
-		mCounters = counter->getNext();
-		delete counter;
-	}
 }
 
 void PerfDriver::addCpuCounters(const char *const counterName, const int type, const int numCounters) {
 	int len = snprintf(NULL, 0, "%s_ccnt", counterName) + 1;
 	char *name = new char[len];
 	snprintf(name, len, "%s_ccnt", counterName);
-	mCounters = new PerfCounter(mCounters, name, type, -1);
+	setCounters(new PerfCounter(getCounters(), name, type, -1, true));
 
 	for (int j = 0; j < numCounters; ++j) {
 		len = snprintf(NULL, 0, "%s_cnt%d", counterName, j) + 1;
 		name = new char[len];
 		snprintf(name, len, "%s_cnt%d", counterName, j);
-		mCounters = new PerfCounter(mCounters, name, type, -1);
+		setCounters(new PerfCounter(getCounters(), name, type, -1, true));
 	}
 }
 
-// From include/generated/uapi/linux/version.h
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+void PerfDriver::addUncoreCounters(const char *const counterName, const int type, const int numCounters) {
+	int len = snprintf(NULL, 0, "%s_ccnt", counterName) + 1;
+	char *name = new char[len];
+	snprintf(name, len, "%s_ccnt", counterName);
+	setCounters(new PerfCounter(getCounters(), name, type, -1, false));
+
+	for (int j = 0; j < numCounters; ++j) {
+		len = snprintf(NULL, 0, "%s_cnt%d", counterName, j) + 1;
+		name = new char[len];
+		snprintf(name, len, "%s_cnt%d", counterName, j);
+		setCounters(new PerfCounter(getCounters(), name, type, -1, false));
+	}
+}
 
 bool PerfDriver::setup() {
 	// Check the kernel version
-	struct utsname utsname;
-	if (uname(&utsname) != 0) {
-		logg->logMessage("%s(%s:%i): uname failed", __FUNCTION__, __FILE__, __LINE__);
+	int release[3];
+	if (!getLinuxVersion(release)) {
+		logg->logMessage("%s(%s:%i): getLinuxVersion failed", __FUNCTION__, __FILE__, __LINE__);
 		return false;
 	}
 
-	int release[3] = { 0, 0, 0 };
-	int part = 0;
-	char *ch = utsname.release;
-	while (*ch >= '0' && *ch <= '9' && part < ARRAY_LENGTH(release)) {
-		release[part] = 10*release[part] + *ch - '0';
-
-		++ch;
-		if (*ch == '.') {
-			++part;
-			++ch;
-		}
-	}
-
-	if (KERNEL_VERSION(release[0], release[1], release[2]) < KERNEL_VERSION(3, 12, 0)) {
+	if (KERNEL_VERSION(release[0], release[1], release[2]) < KERNEL_VERSION(3, 4, 0)) {
 		logg->logMessage("%s(%s:%i): Unsupported kernel version", __FUNCTION__, __FILE__, __LINE__);
+		return false;
+	}
+	mLegacySupport = KERNEL_VERSION(release[0], release[1], release[2]) < KERNEL_VERSION(3, 12, 0);
+
+	if (access(EVENTS_PATH, R_OK) != 0) {
+		logg->logMessage("%s(%s:%i): " EVENTS_PATH " does not exist, is CONFIG_TRACING and CONFIG_CONTEXT_SWITCH_TRACER enabled?", __FUNCTION__, __FILE__, __LINE__);
 		return false;
 	}
 
@@ -155,12 +162,14 @@ bool PerfDriver::setup() {
 	struct dirent *dirent;
 	while ((dirent = readdir(dir)) != NULL) {
 		for (int i = 0; i < ARRAY_LENGTH(gator_cpus); ++i) {
+			const struct gator_cpu *const gator_cpu = &gator_cpus[i];
+
 			// Do the names match exactly?
-			if (strcmp(dirent->d_name, gator_cpus[i].pmnc_name) != 0 &&
-					// Do these names match but have the old vs new prefix?
-			    (strncmp(dirent->d_name, OLD_PMU_PREFIX, sizeof(OLD_PMU_PREFIX) - 1) != 0 ||
-			     strncmp(gator_cpus[i].pmnc_name, NEW_PMU_PREFIX, sizeof(NEW_PMU_PREFIX) - 1) != 0 ||
-			     strcmp(dirent->d_name + sizeof(OLD_PMU_PREFIX) - 1, gator_cpus[i].pmnc_name + sizeof(NEW_PMU_PREFIX) - 1) != 0)) {
+			if (strcasecmp(gator_cpu->pmnc_name, dirent->d_name) != 0 &&
+			    // Do these names match but have the old vs new prefix?
+			    ((strncasecmp(dirent->d_name, OLD_PMU_PREFIX, sizeof(OLD_PMU_PREFIX) - 1) != 0 ||
+			      strncasecmp(gator_cpu->pmnc_name, NEW_PMU_PREFIX, sizeof(NEW_PMU_PREFIX) - 1) != 0 ||
+			      strcasecmp(dirent->d_name + sizeof(OLD_PMU_PREFIX) - 1, gator_cpu->pmnc_name + sizeof(NEW_PMU_PREFIX) - 1) != 0))) {
 				continue;
 			}
 
@@ -172,7 +181,24 @@ bool PerfDriver::setup() {
 			}
 
 			foundCpu = true;
-			addCpuCounters(gator_cpus[i].pmnc_name, type, gator_cpus[i].pmnc_counters);
+			logg->logMessage("Adding cpu counters for %s", gator_cpu->pmnc_name);
+			addCpuCounters(gator_cpu->pmnc_name, type, gator_cpu->pmnc_counters);
+		}
+
+		for (int i = 0; i < ARRAY_LENGTH(uncore_counters); ++i) {
+			if (strcmp(dirent->d_name, uncore_counters[i].perfName) != 0) {
+				continue;
+			}
+
+			int type;
+			char buf[256];
+			snprintf(buf, sizeof(buf), PERF_DEVICES "/%s/type", dirent->d_name);
+			if (DriverSource::readIntDriver(buf, &type) != 0) {
+				continue;
+			}
+
+			logg->logMessage("Adding uncore counters for %s", uncore_counters[i].gatorName);
+			addUncoreCounters(uncore_counters[i].gatorName, type, uncore_counters[i].count);
 		}
 	}
 	closedir(dir);
@@ -185,6 +211,7 @@ bool PerfDriver::setup() {
 			}
 
 			foundCpu = true;
+			logg->logMessage("Adding cpu counters (based on cpuid) for %s", gator_cpus[i].pmnc_name);
 			addCpuCounters(gator_cpus[i].pmnc_name, PERF_TYPE_RAW, gator_cpus[i].pmnc_counters);
 		}
 	}
@@ -203,31 +230,20 @@ bool PerfDriver::setup() {
 
 	id = getTracepointId("irq/softirq_exit", &printb);
 	if (id >= 0) {
-		mCounters = new PerfCounter(mCounters, "Linux_irq_softirq", PERF_TYPE_TRACEPOINT, id);
+		setCounters(new PerfCounter(getCounters(), "Linux_irq_softirq", PERF_TYPE_TRACEPOINT, id, true));
 	}
 
 	id = getTracepointId("irq/irq_handler_exit", &printb);
 	if (id >= 0) {
-		mCounters = new PerfCounter(mCounters, "Linux_irq_irq", PERF_TYPE_TRACEPOINT, id);
+		setCounters(new PerfCounter(getCounters(), "Linux_irq_irq", PERF_TYPE_TRACEPOINT, id, true));
 	}
-
-	//Linux_block_rq_wr
-	//Linux_block_rq_rd
-	//Linux_net_rx
-	//Linux_net_tx
 
 	id = getTracepointId(SCHED_SWITCH, &printb);
 	if (id >= 0) {
-		mCounters = new PerfCounter(mCounters, "Linux_sched_switch", PERF_TYPE_TRACEPOINT, id);
+		setCounters(new PerfCounter(getCounters(), "Linux_sched_switch", PERF_TYPE_TRACEPOINT, id, true));
 	}
 
-	//Linux_meminfo_memused
-	//Linux_meminfo_memfree
-	//Linux_meminfo_bufferram
-	//Linux_power_cpu_freq
-	//Linux_power_cpu_idle
-
-	mCounters = new PerfCounter(mCounters, "Linux_cpu_wait_contention", TYPE_DERIVED, -1);
+	setCounters(new PerfCounter(getCounters(), "Linux_cpu_wait_contention", TYPE_DERIVED, -1, false));
 
 	//Linux_cpu_wait_io
 
@@ -250,57 +266,48 @@ bool PerfDriver::summary(Buffer *const buffer) {
 		logg->logMessage("%s(%s:%i): clock_gettime failed", __FUNCTION__, __FILE__, __LINE__);
 		return false;
 	}
-	const int64_t timestamp = (int64_t)ts.tv_sec * 1000000000L + ts.tv_nsec;
+	const int64_t timestamp = (int64_t)ts.tv_sec * NS_PER_S + ts.tv_nsec;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
-		logg->logMessage("%s(%s:%i): clock_gettime failed", __FUNCTION__, __FILE__, __LINE__);
-		return false;
-	}
-	const int64_t uptime = (int64_t)ts.tv_sec * 1000000000L + ts.tv_nsec;
+	const uint64_t monotonicStarted = getTime();
+	gSessionData->mMonotonicStarted = monotonicStarted;
 
-	buffer->summary(timestamp, uptime, 0, buf);
+	buffer->summary(monotonicStarted, timestamp, monotonicStarted, monotonicStarted, buf);
 
 	for (int i = 0; i < gSessionData->mCores; ++i) {
-		int j;
-		for (j = 0; j < ARRAY_LENGTH(gator_cpus); ++j) {
-			if (gator_cpus[j].cpuid == gSessionData->mCpuIds[i]) {
-				break;
-			}
-		}
-		if (gator_cpus[j].cpuid == gSessionData->mCpuIds[i]) {
-			buffer->coreName(i, gSessionData->mCpuIds[i], gator_cpus[j].core_name);
-		} else {
-			snprintf(buf, sizeof(buf), "Unknown (0x%.3x)", gSessionData->mCpuIds[i]);
-			buffer->coreName(i, gSessionData->mCpuIds[i], buf);
-		}
+		coreName(monotonicStarted, buffer, i);
 	}
-	buffer->commit(1);
+	buffer->commit(monotonicStarted);
 
 	return true;
 }
 
-PerfCounter *PerfDriver::findCounter(const Counter &counter) const {
-	for (PerfCounter * perfCounter = mCounters; perfCounter != NULL; perfCounter = perfCounter->getNext()) {
-		if (strcmp(perfCounter->getName(), counter.getType()) == 0) {
-			return perfCounter;
-		}
+void PerfDriver::coreName(const uint32_t startTime, Buffer *const buffer, const int cpu) {
+	// Don't send information on a cpu we know nothing about
+	if (gSessionData->mCpuIds[cpu] == -1) {
+		return;
 	}
 
-	return NULL;
-}
-
-bool PerfDriver::claimCounter(const Counter &counter) const {
-	return findCounter(counter) != NULL;
-}
-
-void PerfDriver::resetCounters() {
-	for (PerfCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
-		counter->setEnabled(false);
+	int j;
+	for (j = 0; j < ARRAY_LENGTH(gator_cpus); ++j) {
+		if (gator_cpus[j].cpuid == gSessionData->mCpuIds[cpu]) {
+			break;
+		}
+	}
+	if (gator_cpus[j].cpuid == gSessionData->mCpuIds[cpu]) {
+		buffer->coreName(startTime, cpu, gSessionData->mCpuIds[cpu], gator_cpus[j].core_name);
+	} else {
+		char buf[32];
+		if (gSessionData->mCpuIds[cpu] == -1) {
+			snprintf(buf, sizeof(buf), "Unknown");
+		} else {
+			snprintf(buf, sizeof(buf), "Unknown (0x%.3x)", gSessionData->mCpuIds[cpu]);
+		}
+		buffer->coreName(startTime, cpu, gSessionData->mCpuIds[cpu], buf);
 	}
 }
 
 void PerfDriver::setupCounter(Counter &counter) {
-	PerfCounter *const perfCounter = findCounter(counter);
+	PerfCounter *const perfCounter = static_cast<PerfCounter *>(findCounter(counter));
 	if (perfCounter == NULL) {
 		counter.setEnabled(false);
 		return;
@@ -315,21 +322,10 @@ void PerfDriver::setupCounter(Counter &counter) {
 	counter.setKey(perfCounter->getKey());
 }
 
-int PerfDriver::writeCounters(mxml_node_t *root) const {
-	int count = 0;
-	for (PerfCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
-		mxml_node_t *node = mxmlNewElement(root, "counter");
-		mxmlElementSetAttr(node, "name", counter->getName());
-		++count;
-	}
-
-	return count;
-}
-
-bool PerfDriver::enable(PerfGroup *group, Buffer *const buffer) const {
-	for (PerfCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
+bool PerfDriver::enable(const uint64_t currTime, PerfGroup *const group, Buffer *const buffer) const {
+	for (PerfCounter *counter = static_cast<PerfCounter *>(getCounters()); counter != NULL; counter = static_cast<PerfCounter *>(counter->getNext())) {
 		if (counter->isEnabled() && (counter->getType() != TYPE_DERIVED)) {
-			if (!group->add(buffer, counter->getKey(), counter->getType(), counter->getConfig(), counter->getCount(), 0, 0)) {
+			if (!group->add(currTime, buffer, counter->getKey(), counter->getType(), counter->getConfig(), counter->getCount(), counter->getCount() > 0 ? PERF_SAMPLE_TID | PERF_SAMPLE_IP : 0, counter->isPerCpu() ? PERF_GROUP_PER_CPU : 0)) {
 				logg->logMessage("%s(%s:%i): PerfGroup::add failed", __FUNCTION__, __FILE__, __LINE__);
 				return false;
 			}

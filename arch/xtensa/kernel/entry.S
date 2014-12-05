@@ -1121,9 +1121,8 @@ ENTRY(fast_syscall_xtensa)
 	movi	a7, 4			# sizeof(unsigned int)
 	access_ok a3, a7, a0, a2, .Leac	# a0: scratch reg, a2: sp
 
-	addi	a6, a6, -1		# assuming SYS_XTENSA_ATOMIC_SET = 1
-	_bgeui	a6, SYS_XTENSA_COUNT - 1, .Lill
-	_bnei	a6, SYS_XTENSA_ATOMIC_CMP_SWP - 1, .Lnswp
+	_bgeui	a6, SYS_XTENSA_COUNT, .Lill
+	_bnei	a6, SYS_XTENSA_ATOMIC_CMP_SWP, .Lnswp
 
 	/* Fall through for ATOMIC_CMP_SWP. */
 
@@ -1135,27 +1134,26 @@ TRY	s32i	a5, a3, 0		# different, modify value
 	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, 1			# and return 1
-	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 1:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, 0			# return 0 (note that we cannot set
-	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 .Lnswp:	/* Atomic set, add, and exg_add. */
 
 TRY	l32i	a7, a3, 0		# orig
+	addi	a6, a6, -SYS_XTENSA_ATOMIC_SET
 	add	a0, a4, a7		# + arg
 	moveqz	a0, a4, a6		# set
+	addi	a6, a6, SYS_XTENSA_ATOMIC_SET
 TRY	s32i	a0, a3, 0		# write new value
 
 	mov	a0, a2
 	mov	a2, a7
 	l32i	a7, a0, PT_AREG7	# restore a7
 	l32i	a0, a0, PT_AREG0	# restore a0
-	addi	a6, a6, 1		# restore a6 (really necessary?)
 	rfe
 
 CATCH
@@ -1164,7 +1162,7 @@ CATCH
 	movi	a2, -EFAULT
 	rfe
 
-.Lill:	l32i	a7, a2, PT_AREG0	# restore a7
+.Lill:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, -EINVAL
 	rfe
@@ -1703,7 +1701,7 @@ ENTRY(fast_second_level_miss)
 	rsr	a0, excvaddr
 	bltu	a0, a3, 2f
 
-	addi	a1, a0, -(2 << (DCACHE_ALIAS_ORDER + PAGE_SHIFT))
+	addi	a1, a0, -TLBTEMP_SIZE
 	bgeu	a1, a3, 2f
 
 	/* Check if we have to restore an ITLB mapping. */
@@ -1961,7 +1959,6 @@ ENTRY(_switch_to)
 
 	entry	a1, 16
 
-	mov	a10, a2			# preserve 'prev' (a2)
 	mov	a11, a3			# and 'next' (a3)
 
 	l32i	a4, a2, TASK_THREAD_INFO
@@ -1969,8 +1966,14 @@ ENTRY(_switch_to)
 
 	save_xtregs_user a4 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
-	s32i	a0, a10, THREAD_RA	# save return address
-	s32i	a1, a10, THREAD_SP	# save stack pointer
+#if THREAD_RA > 1020 || THREAD_SP > 1020
+	addi	a10, a2, TASK_THREAD
+	s32i	a0, a10, THREAD_RA - TASK_THREAD	# save return address
+	s32i	a1, a10, THREAD_SP - TASK_THREAD	# save stack pointer
+#else
+	s32i	a0, a2, THREAD_RA	# save return address
+	s32i	a1, a2, THREAD_SP	# save stack pointer
+#endif
 
 	/* Disable ints while we manipulate the stack pointer. */
 
@@ -2011,7 +2014,6 @@ ENTRY(_switch_to)
 	load_xtregs_user a5 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
 	wsr	a14, ps
-	mov	a2, a10			# return 'prev'
 	rsync
 
 	retw

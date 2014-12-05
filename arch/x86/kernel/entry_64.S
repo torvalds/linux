@@ -58,6 +58,7 @@
 #include <asm/asm.h>
 #include <asm/context_tracking.h>
 #include <asm/smap.h>
+#include <asm/pgtable_types.h>
 #include <linux/err.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
@@ -365,7 +366,7 @@ ENDPROC(native_usergs_sysret64)
 	/*CFI_REL_OFFSET	ss,0*/
 	pushq_cfi %rax /* rsp */
 	CFI_REL_OFFSET	rsp,0
-	pushq_cfi $(X86_EFLAGS_IF|X86_EFLAGS_BIT1) /* eflags - interrupts on */
+	pushq_cfi $(X86_EFLAGS_IF|X86_EFLAGS_FIXED) /* eflags - interrupts on */
 	/*CFI_REL_OFFSET	rflags,0*/
 	pushq_cfi $__KERNEL_CS /* cs */
 	/*CFI_REL_OFFSET	cs,0*/
@@ -1056,12 +1057,45 @@ restore_args:
 
 irq_return:
 	INTERRUPT_RETURN
-	_ASM_EXTABLE(irq_return, bad_iret)
 
-#ifdef CONFIG_PARAVIRT
 ENTRY(native_iret)
+	/*
+	 * Are we returning to a stack segment from the LDT?  Note: in
+	 * 64-bit mode SS:RSP on the exception stack is always valid.
+	 */
+#ifdef CONFIG_X86_ESPFIX64
+	testb $4,(SS-RIP)(%rsp)
+	jnz native_irq_return_ldt
+#endif
+
+native_irq_return_iret:
 	iretq
-	_ASM_EXTABLE(native_iret, bad_iret)
+	_ASM_EXTABLE(native_irq_return_iret, bad_iret)
+
+#ifdef CONFIG_X86_ESPFIX64
+native_irq_return_ldt:
+	pushq_cfi %rax
+	pushq_cfi %rdi
+	SWAPGS
+	movq PER_CPU_VAR(espfix_waddr),%rdi
+	movq %rax,(0*8)(%rdi)	/* RAX */
+	movq (2*8)(%rsp),%rax	/* RIP */
+	movq %rax,(1*8)(%rdi)
+	movq (3*8)(%rsp),%rax	/* CS */
+	movq %rax,(2*8)(%rdi)
+	movq (4*8)(%rsp),%rax	/* RFLAGS */
+	movq %rax,(3*8)(%rdi)
+	movq (6*8)(%rsp),%rax	/* SS */
+	movq %rax,(5*8)(%rdi)
+	movq (5*8)(%rsp),%rax	/* RSP */
+	movq %rax,(4*8)(%rdi)
+	andl $0xffff0000,%eax
+	popq_cfi %rdi
+	orq PER_CPU_VAR(espfix_stack),%rax
+	SWAPGS
+	movq %rax,%rsp
+	popq_cfi %rax
+	jmp native_irq_return_iret
 #endif
 
 	.section .fixup,"ax"
@@ -1127,9 +1161,40 @@ ENTRY(retint_kernel)
 	call preempt_schedule_irq
 	jmp exit_intr
 #endif
-
 	CFI_ENDPROC
 END(common_interrupt)
+
+	/*
+	 * If IRET takes a fault on the espfix stack, then we
+	 * end up promoting it to a doublefault.  In that case,
+	 * modify the stack to make it look like we just entered
+	 * the #GP handler from user space, similar to bad_iret.
+	 */
+#ifdef CONFIG_X86_ESPFIX64
+	ALIGN
+__do_double_fault:
+	XCPT_FRAME 1 RDI+8
+	movq RSP(%rdi),%rax		/* Trap on the espfix stack? */
+	sarq $PGDIR_SHIFT,%rax
+	cmpl $ESPFIX_PGD_ENTRY,%eax
+	jne do_double_fault		/* No, just deliver the fault */
+	cmpl $__KERNEL_CS,CS(%rdi)
+	jne do_double_fault
+	movq RIP(%rdi),%rax
+	cmpq $native_irq_return_iret,%rax
+	jne do_double_fault		/* This shouldn't happen... */
+	movq PER_CPU_VAR(kernel_stack),%rax
+	subq $(6*8-KERNEL_STACK_OFFSET),%rax	/* Reset to original stack */
+	movq %rax,RSP(%rdi)
+	movq $0,(%rax)			/* Missing (lost) #GP error code */
+	movq $general_protection,RIP(%rdi)
+	retq
+	CFI_ENDPROC
+END(__do_double_fault)
+#else
+# define __do_double_fault do_double_fault
+#endif
+
 /*
  * End of kprobes section
  */
@@ -1298,7 +1363,7 @@ zeroentry overflow do_overflow
 zeroentry bounds do_bounds
 zeroentry invalid_op do_invalid_op
 zeroentry device_not_available do_device_not_available
-paranoiderrorentry double_fault do_double_fault
+paranoiderrorentry double_fault __do_double_fault
 zeroentry coprocessor_segment_overrun do_coprocessor_segment_overrun
 errorentry invalid_TSS do_invalid_TSS
 errorentry segment_not_present do_segment_not_present
@@ -1585,7 +1650,7 @@ error_sti:
  */
 error_kernelspace:
 	incl %ebx
-	leaq irq_return(%rip),%rcx
+	leaq native_irq_return_iret(%rip),%rcx
 	cmpq %rcx,RIP+8(%rsp)
 	je error_swapgs
 	movl %ecx,%eax	/* zero extend */

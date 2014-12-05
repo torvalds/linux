@@ -1406,12 +1406,12 @@ static void error(struct mddev *mddev, struct md_rdev *rdev)
 		mddev->degraded++;
 		set_bit(Faulty, &rdev->flags);
 		spin_unlock_irqrestore(&conf->device_lock, flags);
-		/*
-		 * if recovery is running, make sure it aborts.
-		 */
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	} else
 		set_bit(Faulty, &rdev->flags);
+	/*
+	 * if recovery is running, make sure it aborts.
+	 */
+	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	printk(KERN_ALERT
 	       "md/raid1:%s: Disk failure on %s, disabling device.\n"
@@ -2051,7 +2051,7 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 			d--;
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
-			    test_bit(In_sync, &rdev->flags))
+			    !test_bit(Faulty, &rdev->flags))
 				r1_sync_page_io(rdev, sect, s,
 						conf->tmppage, WRITE);
 		}
@@ -2063,7 +2063,7 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 			d--;
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
-			    test_bit(In_sync, &rdev->flags)) {
+			    !test_bit(Faulty, &rdev->flags)) {
 				if (r1_sync_page_io(rdev, sect, s,
 						    conf->tmppage, READ)) {
 					atomic_add(s, &rdev->corrected_errors);

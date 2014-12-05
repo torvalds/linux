@@ -490,9 +490,6 @@ static int snd_compress_check_input(struct snd_compr_params *params)
 	if (params->codec.ch_in == 0 || params->codec.ch_out == 0)
 		return -EINVAL;
 
-	if (!(params->codec.sample_rate & SNDRV_PCM_RATE_8000_192000))
-		return -EINVAL;
-
 	return 0;
 }
 

@@ -787,7 +787,7 @@ static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPIP;
+	fl6.flowi6_proto = IPPROTO_GRE;
 
 	dsfield = ipv4_get_dsfield(iph);
 
@@ -837,7 +837,7 @@ static inline int ip6gre_xmit_ipv6(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPV6;
+	fl6.flowi6_proto = IPPROTO_GRE;
 
 	dsfield = ipv6_get_dsfield(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
@@ -961,8 +961,6 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 		dev->flags |= IFF_POINTOPOINT;
 	else
 		dev->flags &= ~IFF_POINTOPOINT;
-
-	dev->iflink = p->link;
 
 	/* Precalculate GRE options length */
 	if (t->parms.o_flags&(GRE_CSUM|GRE_KEY|GRE_SEQ)) {
@@ -1267,6 +1265,8 @@ static int ip6gre_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
+	dev->iflink = tunnel->parms.link;
+
 	return 0;
 }
 
@@ -1281,7 +1281,6 @@ static void ip6gre_fb_tunnel_init(struct net_device *dev)
 
 	dev_hold(dev);
 }
-
 
 static struct inet6_protocol ip6gre_protocol __read_mostly = {
 	.handler     = ip6gre_rcv,
@@ -1457,6 +1456,8 @@ static int ip6gre_tap_init(struct net_device *dev)
 	dev->tstats = alloc_percpu(struct pcpu_tstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	dev->iflink = tunnel->parms.link;
 
 	return 0;
 }

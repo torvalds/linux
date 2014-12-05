@@ -132,10 +132,14 @@ See the comments in spte_has_volatile_bits() and mmu_spte_update().
 ------------
 
 Name:		kvm_lock
-Type:		raw_spinlock
+Type:		spinlock_t
 Arch:		any
 Protects:	- vm_list
-		- hardware virtualization enable/disable
+
+Name:		kvm_count_lock
+Type:		raw_spinlock_t
+Arch:		any
+Protects:	- hardware virtualization enable/disable
 Comment:	'raw' because hardware enabling/disabling must be atomic /wrt
 		migration.
 

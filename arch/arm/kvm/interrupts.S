@@ -52,10 +52,10 @@ ENTRY(__kvm_tlb_flush_vmid_ipa)
 	dsb	ishst
 	add	r0, r0, #KVM_VTTBR
 	ldrd	r2, r3, [r0]
-	mcrr	p15, 6, r2, r3, c2	@ Write VTTBR
+	mcrr	p15, 6, rr_lo_hi(r2, r3), c2	@ Write VTTBR
 	isb
 	mcr     p15, 0, r0, c8, c3, 0	@ TLBIALLIS (rt ignored)
-	dsb
+	dsb	ish
 	isb
 	mov	r2, #0
 	mov	r3, #0
@@ -79,7 +79,7 @@ ENTRY(__kvm_flush_vm_context)
 	mcr     p15, 4, r0, c8, c3, 4
 	/* Invalidate instruction caches Inner Shareable (ICIALLUIS) */
 	mcr     p15, 0, r0, c7, c1, 0
-	dsb
+	dsb	ish
 	isb				@ Not necessary if followed by eret
 
 	bx	lr
@@ -135,7 +135,7 @@ ENTRY(__kvm_vcpu_run)
 	ldr	r1, [vcpu, #VCPU_KVM]
 	add	r1, r1, #KVM_VTTBR
 	ldrd	r2, r3, [r1]
-	mcrr	p15, 6, r2, r3, c2	@ Write VTTBR
+	mcrr	p15, 6, rr_lo_hi(r2, r3), c2	@ Write VTTBR
 
 	@ We're all done, just restore the GPRs and go to the guest
 	restore_guest_regs
@@ -199,8 +199,13 @@ after_vfp_restore:
 
 	restore_host_regs
 	clrex				@ Clear exclusive monitor
+#ifndef CONFIG_CPU_ENDIAN_BE8
 	mov	r0, r1			@ Return the return code
 	mov	r1, #0			@ Clear upper bits in return value
+#else
+	@ r1 already has return code
+	mov	r0, #0			@ Clear upper bits in return value
+#endif /* CONFIG_CPU_ENDIAN_BE8 */
 	bx	lr			@ return to IOCTL
 
 /********************************************************************
@@ -219,6 +224,10 @@ after_vfp_restore:
  * function pointer can be passed).  The function being called must be mapped
  * in Hyp mode (see init_hyp_mode in arch/arm/kvm/arm.c).  Return values are
  * passed in r0 and r1.
+ *
+ * A function pointer with a value of 0xffffffff has a special meaning,
+ * and is used to implement __hyp_get_vectors in the same way as in
+ * arch/arm/kernel/hyp_stub.S.
  *
  * The calling convention follows the standard AAPCS:
  *   r0 - r3: caller save
@@ -363,6 +372,11 @@ hyp_hvc:
 host_switch_to_hyp:
 	pop	{r0, r1, r2}
 
+	/* Check for __hyp_get_vectors */
+	cmp	r0, #-1
+	mrceq	p15, 4, r0, c12, c0, 0	@ get HVBAR
+	beq	1f
+
 	push	{lr}
 	mrs	lr, SPSR
 	push	{lr}
@@ -378,7 +392,7 @@ THUMB(	orr	lr, #1)
 	pop	{lr}
 	msr	SPSR_csxf, lr
 	pop	{lr}
-	eret
+1:	eret
 
 guest_trap:
 	load_vcpu			@ Load VCPU pointer to r0
@@ -492,10 +506,10 @@ __kvm_hyp_code_end:
 	.section ".rodata"
 
 und_die_str:
-	.ascii	"unexpected undefined exception in Hyp mode at: %#08x"
+	.ascii	"unexpected undefined exception in Hyp mode at: %#08x\n"
 pabt_die_str:
-	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x"
+	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x\n"
 dabt_die_str:
-	.ascii	"unexpected data abort in Hyp mode at: %#08x"
+	.ascii	"unexpected data abort in Hyp mode at: %#08x\n"
 svc_die_str:
-	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x"
+	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x\n"

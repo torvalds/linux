@@ -3,25 +3,34 @@ include $(CLEAR_VARS)
 
 XML_H := $(shell cd $(LOCAL_PATH) && make events_xml.h defaults_xml.h)
 
-LOCAL_CFLAGS += -Wall -O3 -mthumb-interwork -fno-exceptions -DETCDIR=\"/etc\" -Ilibsensors
-
 LOCAL_SRC_FILES := \
+	AnnotateListener.cpp \
 	Buffer.cpp \
+	CCNDriver.cpp \
+	CPUFreqDriver.cpp \
 	CapturedXML.cpp \
 	Child.cpp \
+	Command.cpp \
 	ConfigurationXML.cpp \
+	DiskIODriver.cpp \
 	Driver.cpp \
 	DriverSource.cpp \
 	DynBuf.cpp \
 	EventsXML.cpp \
 	ExternalSource.cpp \
+	FSDriver.cpp \
 	Fifo.cpp \
-	Hwmon.cpp \
+	FtraceDriver.cpp \
+	FtraceSource.cpp \
+	HwmonDriver.cpp \
 	KMod.cpp \
 	LocalCapture.cpp \
 	Logging.cpp \
 	main.cpp \
+	MaliVideoDriver.cpp \
+	MemInfoDriver.cpp\
 	Monitor.cpp \
+	NetDriver.cpp \
 	OlySocket.cpp \
 	OlyUtility.cpp \
 	PerfBuffer.cpp \
@@ -32,6 +41,7 @@ LOCAL_SRC_FILES := \
 	Sender.cpp \
 	SessionData.cpp \
 	SessionXML.cpp \
+	Setup.cpp \
 	Source.cpp \
 	StreamlineSetup.cpp \
 	UEvent.cpp \
@@ -55,7 +65,10 @@ LOCAL_SRC_FILES := \
 	mxml/mxml-set.c \
 	mxml/mxml-string.c
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH) 
+LOCAL_CFLAGS += -Wall -O3 -fno-exceptions -pthread -DETCDIR=\"/etc\" -Ilibsensors -fPIE
+LOCAL_LDFLAGS += -fPIE -pie
+
+LOCAL_C_INCLUDES := $(LOCAL_PATH)
 
 LOCAL_MODULE := gatord
 LOCAL_MODULE_TAGS := optional

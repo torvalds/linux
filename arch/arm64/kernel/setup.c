@@ -507,9 +507,20 @@ static int c_show(struct seq_file *m, void *v)
 	for (i = 0; hwcap_str[i]; i++)
 		if (elf_hwcap & (1 << i))
 			seq_printf(m, "%s ", hwcap_str[i]);
+#ifdef CONFIG_ARMV7_COMPAT_CPUINFO
+	if (is_compat_task()) {
+		/* Print out the non-optional ARMv8 HW capabilities */
+		seq_printf(m, "wp half thumb fastmult vfp edsp neon vfpv3 tlsi ");
+		seq_printf(m, "vfpv4 idiva idivt ");
+	}
+#endif
 
 	seq_printf(m, "\nCPU implementer\t: 0x%02x\n", read_cpuid_id() >> 24);
-	seq_printf(m, "CPU architecture: AArch64\n");
+	seq_printf(m, "CPU architecture: %s\n",
+#if IS_ENABLED(CONFIG_ARMV7_COMPAT_CPUINFO)
+			is_compat_task() ? "8" :
+#endif
+			"AArch64");
 	seq_printf(m, "CPU variant\t: 0x%x\n", (read_cpuid_id() >> 20) & 15);
 	seq_printf(m, "CPU part\t: 0x%03x\n", (read_cpuid_id() >> 4) & 0xfff);
 	seq_printf(m, "CPU revision\t: %d\n", read_cpuid_id() & 15);

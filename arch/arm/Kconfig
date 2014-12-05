@@ -4,6 +4,7 @@ config ARM
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAVE_CUSTOM_GPIO_H
+	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT if MMU
@@ -1876,6 +1877,14 @@ config HW_PERF_EVENTS
 	help
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
+
+config SYS_SUPPORTS_HUGETLBFS
+       def_bool y
+       depends on ARM_LPAE
+
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+       def_bool y
+       depends on ARM_LPAE
 
 source "mm/Kconfig"
 

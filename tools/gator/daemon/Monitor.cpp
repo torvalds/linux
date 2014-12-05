@@ -9,6 +9,7 @@
 #include "Monitor.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -18,17 +19,37 @@ Monitor::Monitor() : mFd(-1) {
 }
 
 Monitor::~Monitor() {
-	if (mFd >= -1) {
-		close(mFd);
+	if (mFd >= 0) {
+		::close(mFd);
+	}
+}
+
+void Monitor::close() {
+	if (mFd >= 0) {
+		::close(mFd);
+		mFd = -1;
 	}
 }
 
 bool Monitor::init() {
+#ifdef EPOLL_CLOEXEC
+	mFd = epoll_create1(EPOLL_CLOEXEC);
+#else
 	mFd = epoll_create(16);
+#endif
 	if (mFd < 0) {
 		logg->logMessage("%s(%s:%i): epoll_create1 failed", __FUNCTION__, __FILE__, __LINE__);
 		return false;
 	}
+
+#ifndef EPOLL_CLOEXEC
+  int fdf = fcntl(mFd, F_GETFD);
+  if ((fdf == -1) || (fcntl(mFd, F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+		logg->logMessage("%s(%s:%i): fcntl failed", __FUNCTION__, __FILE__, __LINE__);
+    ::close(mFd);
+    return -1;
+  }
+#endif
 
 	return true;
 }

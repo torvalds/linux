@@ -25,9 +25,9 @@
 #include <asm/asm-offsets.h>
 #include <asm/errno.h>
 #include <asm/esr.h>
+#include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/unistd32.h>
 
 /*
  * Bad Abort numbers
@@ -590,7 +590,7 @@ fast_work_pending:
 	str	x0, [sp, #S_X0]			// returned x0
 work_pending:
 	tbnz	x1, #TIF_NEED_RESCHED, work_resched
-	/* TIF_SIGPENDING or TIF_NOTIFY_RESUME case */
+	/* TIF_SIGPENDING, TIF_NOTIFY_RESUME or TIF_FOREIGN_FPSTATE case */
 	ldr	x2, [sp, #S_PSTATE]
 	mov	x0, sp				// 'regs'
 	tst	x2, #PSR_MODE_MASK		// user mode regs?
@@ -666,6 +666,10 @@ __sys_trace:
 	mov	x0, sp
 	bl	syscall_trace_enter
 	adr	lr, __sys_trace_return		// return address
+	cmp	w0, #RET_SKIP_SYSCALL_TRACE	// skip syscall and tracing?
+	b.eq	ret_to_user
+	cmp	w0, #RET_SKIP_SYSCALL		// skip syscall?
+	b.eq	__sys_trace_return_skipped
 	uxtw	scno, w0			// syscall number (possibly new)
 	mov	x1, sp				// pointer to regs
 	cmp	scno, sc_nr			// check upper syscall limit
@@ -679,6 +683,7 @@ __sys_trace:
 
 __sys_trace_return:
 	str	x0, [sp]			// save returned x0
+__sys_trace_return_skipped:			// x0 already in regs[0]
 	mov	x0, sp
 	bl	syscall_trace_exit
 	b	ret_to_user

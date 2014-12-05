@@ -28,26 +28,35 @@ static ulong block_rq_rd_key;
 static atomic_t blockCnt[BLOCK_TOTAL];
 static int blockGet[BLOCK_TOTAL * 4];
 
+/* Tracepoint changed in 3.15 backported to older kernels. The Makefile tries to autodetect the correct value, but if it fails change the #if below */
+#if OLD_BLOCK_RQ_COMPLETE
+GATOR_DEFINE_PROBE(block_rq_complete, TP_PROTO(struct request_queue *q, struct request *rq))
+#else
 GATOR_DEFINE_PROBE(block_rq_complete, TP_PROTO(struct request_queue *q, struct request *rq, unsigned int nr_bytes))
+#endif
 {
 	int write;
+	unsigned int size;
 
 	if (!rq)
 		return;
 
 	write = rq->cmd_flags & EVENTWRITE;
+#if OLD_BLOCK_RQ_COMPLETE
+	size = rq->resid_len;
+#else
+	size = nr_bytes;
+#endif
 
-	if (!nr_bytes)
+	if (!size)
 		return;
 
 	if (write) {
-		if (block_rq_wr_enabled) {
-			atomic_add(nr_bytes, &blockCnt[BLOCK_RQ_WR]);
-		}
+		if (block_rq_wr_enabled)
+			atomic_add(size, &blockCnt[BLOCK_RQ_WR]);
 	} else {
-		if (block_rq_rd_enabled) {
-			atomic_add(nr_bytes, &blockCnt[BLOCK_RQ_RD]);
-		}
+		if (block_rq_rd_enabled)
+			atomic_add(size, &blockCnt[BLOCK_RQ_RD]);
 	}
 }
 
@@ -57,17 +66,15 @@ static int gator_events_block_create_files(struct super_block *sb, struct dentry
 
 	/* block_complete_wr */
 	dir = gatorfs_mkdir(sb, root, "Linux_block_rq_wr");
-	if (!dir) {
+	if (!dir)
 		return -1;
-	}
 	gatorfs_create_ulong(sb, dir, "enabled", &block_rq_wr_enabled);
 	gatorfs_create_ro_ulong(sb, dir, "key", &block_rq_wr_key);
 
 	/* block_complete_rd */
 	dir = gatorfs_mkdir(sb, root, "Linux_block_rq_rd");
-	if (!dir) {
+	if (!dir)
 		return -1;
-	}
 	gatorfs_create_ulong(sb, dir, "enabled", &block_rq_rd_enabled);
 	gatorfs_create_ro_ulong(sb, dir, "key", &block_rq_rd_key);
 
@@ -76,7 +83,7 @@ static int gator_events_block_create_files(struct super_block *sb, struct dentry
 
 static int gator_events_block_start(void)
 {
-	// register tracepoints
+	/* register tracepoints */
 	if (block_rq_wr_enabled || block_rq_rd_enabled)
 		if (GATOR_REGISTER_TRACE(block_rq_complete))
 			goto fail_block_rq_exit;
@@ -84,7 +91,7 @@ static int gator_events_block_start(void)
 
 	return 0;
 
-	// unregister tracepoints on error
+	/* unregister tracepoints on error */
 fail_block_rq_exit:
 	pr_err("gator: block event tracepoints failed to activate, please verify that tracepoints are enabled in the linux kernel\n");
 
@@ -101,19 +108,19 @@ static void gator_events_block_stop(void)
 	block_rq_rd_enabled = 0;
 }
 
-static int gator_events_block_read(int **buffer)
+static int gator_events_block_read(int **buffer, bool sched_switch)
 {
 	int len, value, data = 0;
 
-	if (!on_primary_core()) {
+	if (!on_primary_core())
 		return 0;
-	}
 
 	len = 0;
 	if (block_rq_wr_enabled && (value = atomic_read(&blockCnt[BLOCK_RQ_WR])) > 0) {
 		atomic_sub(value, &blockCnt[BLOCK_RQ_WR]);
 		blockGet[len++] = block_rq_wr_key;
-		blockGet[len++] = 0;	// indicates to Streamline that value bytes were written now, not since the last message
+		/* Indicates to Streamline that value bytes were written now, not since the last message */
+		blockGet[len++] = 0;
 		blockGet[len++] = block_rq_wr_key;
 		blockGet[len++] = value;
 		data += value;
@@ -121,7 +128,8 @@ static int gator_events_block_read(int **buffer)
 	if (block_rq_rd_enabled && (value = atomic_read(&blockCnt[BLOCK_RQ_RD])) > 0) {
 		atomic_sub(value, &blockCnt[BLOCK_RQ_RD]);
 		blockGet[len++] = block_rq_rd_key;
-		blockGet[len++] = 0;	// indicates to Streamline that value bytes were read now, not since the last message
+		/* Indicates to Streamline that value bytes were read now, not since the last message */
+		blockGet[len++] = 0;
 		blockGet[len++] = block_rq_rd_key;
 		blockGet[len++] = value;
 		data += value;

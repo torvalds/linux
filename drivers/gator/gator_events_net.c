@@ -25,7 +25,7 @@ static int netGet[TOTALNET * 4];
 
 static struct timer_list net_wake_up_timer;
 
-// Must be run in process context as the kernel function dev_get_stats() can sleep
+/* Must be run in process context as the kernel function dev_get_stats() can sleep */
 static void get_network_stats(struct work_struct *wsptr)
 {
 	int rx = 0, tx = 0;
@@ -49,7 +49,7 @@ DECLARE_WORK(wq_get_stats, get_network_stats);
 
 static void net_wake_up_handler(unsigned long unused_data)
 {
-	// had to delay scheduling work as attempting to schedule work during the context switch is illegal in kernel versions 3.5 and greater
+	/* had to delay scheduling work as attempting to schedule work during the context switch is illegal in kernel versions 3.5 and greater */
 	schedule_work(&wq_get_stats);
 }
 
@@ -73,21 +73,19 @@ static void calculate_delta(int *rx, int *tx)
 
 static int gator_events_net_create_files(struct super_block *sb, struct dentry *root)
 {
-	// Network counters are not currently supported in RT-Preempt full because mod_timer is used
+	/* Network counters are not currently supported in RT-Preempt full because mod_timer is used */
 #ifndef CONFIG_PREEMPT_RT_FULL
 	struct dentry *dir;
 
 	dir = gatorfs_mkdir(sb, root, "Linux_net_rx");
-	if (!dir) {
+	if (!dir)
 		return -1;
-	}
 	gatorfs_create_ulong(sb, dir, "enabled", &netrx_enabled);
 	gatorfs_create_ro_ulong(sb, dir, "key", &netrx_key);
 
 	dir = gatorfs_mkdir(sb, root, "Linux_net_tx");
-	if (!dir) {
+	if (!dir)
 		return -1;
-	}
 	gatorfs_create_ulong(sb, dir, "enabled", &nettx_enabled);
 	gatorfs_create_ro_ulong(sb, dir, "key", &nettx_key);
 #endif
@@ -115,10 +113,10 @@ static void gator_events_net_stop(void)
 	nettx_enabled = 0;
 }
 
-static int gator_events_net_read(int **buffer)
+static int gator_events_net_read(int **buffer, bool sched_switch)
 {
 	int len, rx_delta, tx_delta;
-	static int last_rx_delta = 0, last_tx_delta = 0;
+	static int last_rx_delta, last_tx_delta;
 
 	if (!on_primary_core())
 		return 0;
@@ -134,7 +132,8 @@ static int gator_events_net_read(int **buffer)
 	if (netrx_enabled && last_rx_delta != rx_delta) {
 		last_rx_delta = rx_delta;
 		netGet[len++] = netrx_key;
-		netGet[len++] = 0;	// indicates to Streamline that rx_delta bytes were transmitted now, not since the last message
+		/* indicates to Streamline that rx_delta bytes were transmitted now, not since the last message */
+		netGet[len++] = 0;
 		netGet[len++] = netrx_key;
 		netGet[len++] = rx_delta;
 	}
@@ -142,7 +141,8 @@ static int gator_events_net_read(int **buffer)
 	if (nettx_enabled && last_tx_delta != tx_delta) {
 		last_tx_delta = tx_delta;
 		netGet[len++] = nettx_key;
-		netGet[len++] = 0;	// indicates to Streamline that tx_delta bytes were transmitted now, not since the last message
+		/* indicates to Streamline that tx_delta bytes were transmitted now, not since the last message */
+		netGet[len++] = 0;
 		netGet[len++] = nettx_key;
 		netGet[len++] = tx_delta;
 	}

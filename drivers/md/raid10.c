@@ -1681,11 +1681,11 @@ static void error(struct mddev *mddev, struct md_rdev *rdev)
 		spin_lock_irqsave(&conf->device_lock, flags);
 		mddev->degraded++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
-		/*
-		 * if recovery is running, make sure it aborts.
-		 */
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	}
+	/*
+	 * If recovery is running, make sure it aborts.
+	 */
+	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(Blocked, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
@@ -2948,6 +2948,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 		 */
 		if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery)) {
 			end_reshape(conf);
+			close_sync(conf);
 			return 0;
 		}
 
@@ -4398,7 +4399,7 @@ read_more:
 	read_bio->bi_private = r10_bio;
 	read_bio->bi_end_io = end_sync_read;
 	read_bio->bi_rw = READ;
-	read_bio->bi_flags &= ~(BIO_POOL_MASK - 1);
+	read_bio->bi_flags &= (~0UL << BIO_RESET_BITS);
 	read_bio->bi_flags |= 1 << BIO_UPTODATE;
 	read_bio->bi_vcnt = 0;
 	read_bio->bi_size = 0;

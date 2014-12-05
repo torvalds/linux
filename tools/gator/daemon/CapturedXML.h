@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef	__CAPTURED_XML_H__
-#define	__CAPTURED_XML_H__
+#ifndef __CAPTURED_XML_H__
+#define __CAPTURED_XML_H__
 
 #include "mxml/mxml.h"
 
@@ -23,4 +23,4 @@ private:
 
 const char * mxmlWhitespaceCB(mxml_node_t *node, int where);
 
-#endif 	//__CAPTURED_XML_H__
+#endif //__CAPTURED_XML_H__
