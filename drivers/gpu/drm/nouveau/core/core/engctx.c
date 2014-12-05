@@ -102,7 +102,7 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 	}
 
 	if (client->vm)
-		atomic_inc(&client->vm->engref[nv_engidx(engobj)]);
+		atomic_inc(&client->vm->engref[nv_engidx(engine)]);
 	list_add(&nv_engctx(engctx)->head, &engine->contexts);
 	nv_engctx(engctx)->addr = ~0ULL;
 	spin_unlock_irqrestore(&engine->lock, save);
@@ -112,8 +112,7 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 void
 nouveau_engctx_destroy(struct nouveau_engctx *engctx)
 {
-	struct nouveau_object *engobj = nv_object(engctx)->engine;
-	struct nouveau_engine *engine = nv_engine(engobj);
+	struct nouveau_engine *engine = engctx->gpuobj.object.engine;
 	struct nouveau_client *client = nouveau_client(engctx);
 	unsigned long save;
 
@@ -123,7 +122,7 @@ nouveau_engctx_destroy(struct nouveau_engctx *engctx)
 	spin_unlock_irqrestore(&engine->lock, save);
 
 	if (client->vm)
-		atomic_dec(&client->vm->engref[nv_engidx(engobj)]);
+		atomic_dec(&client->vm->engref[nv_engidx(engine)]);
 
 	if (engctx->gpuobj.size)
 		nouveau_gpuobj_destroy(&engctx->gpuobj);

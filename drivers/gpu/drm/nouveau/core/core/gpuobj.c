@@ -229,7 +229,7 @@ nouveau_gpuobj_new(struct nouveau_object *parent, struct nouveau_object *pargpu,
 	};
 
 	if (!nv_iclass(engine, NV_SUBDEV_CLASS))
-		engine = engine->engine;
+		engine = &engine->engine->subdev.object;
 	BUG_ON(engine == NULL);
 
 	return nouveau_object_ctor(parent, engine, &_nouveau_gpuobj_oclass,
@@ -310,7 +310,7 @@ nouveau_gpuobj_dup(struct nouveau_object *parent, struct nouveau_gpuobj *base,
 	struct nouveau_gpuobj *gpuobj;
 	int ret;
 
-	ret = nouveau_object_create(parent, parent->engine,
+	ret = nouveau_object_create(parent, &parent->engine->subdev.object,
 				   &nouveau_gpudup_oclass, 0, &gpuobj);
 	*pgpuobj = gpuobj;
 	if (ret)

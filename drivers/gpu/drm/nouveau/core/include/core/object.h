@@ -17,7 +17,7 @@
 struct nouveau_object {
 	struct nouveau_oclass *oclass;
 	struct nouveau_object *parent;
-	struct nouveau_object *engine;
+	struct nouveau_engine *engine;
 	atomic_t refcount;
 	atomic_t usecount;
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA

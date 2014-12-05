@@ -69,7 +69,7 @@ nv_printk_(struct nouveau_object *object, int level, const char *fmt, ...)
 			while (subdev && !nv_iclass(subdev, NV_SUBDEV_CLASS))
 				subdev = subdev->parent;
 		} else {
-			subdev = object->engine;
+			subdev = &object->engine->subdev.object;
 		}
 
 		device = subdev;

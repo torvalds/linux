@@ -30,9 +30,9 @@ nv_engine(void *obj)
 }
 
 static inline int
-nv_engidx(struct nouveau_object *object)
+nv_engidx(struct nouveau_engine *engine)
 {
-	return nv_subidx(object);
+	return nv_subidx(&engine->subdev);
 }
 
 struct nouveau_engine *nouveau_engine(void *obj, int idx);

@@ -53,7 +53,7 @@ nouveau_engine_create_(struct nouveau_object *parent,
 
 	if (parent) {
 		struct nouveau_device *device = nv_device(parent);
-		int engidx = nv_engidx(nv_object(engine));
+		int engidx = nv_engidx(engine);
 
 		if (device->disable_mask & (1ULL << engidx)) {
 			if (!nouveau_boolopt(device->cfgopt, iname, false)) {

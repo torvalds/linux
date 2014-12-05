@@ -39,7 +39,7 @@ nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
 	sclass = nv_parent(parent)->sclass;
 	while (sclass) {
 		if ((sclass->oclass->handle & 0xffff) == handle) {
-			*pengine = parent->engine;
+			*pengine = &parent->engine->subdev.object;
 			*poclass = sclass->oclass;
 			return 0;
 		}

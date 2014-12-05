@@ -110,7 +110,7 @@ nouveau_bar_alloc(struct nouveau_bar *bar, struct nouveau_object *parent,
 		  struct nouveau_mem *mem, struct nouveau_object **pobject)
 {
 	struct nouveau_object *gpuobj;
-	int ret = nouveau_object_ctor(parent, parent->engine,
+	int ret = nouveau_object_ctor(parent, &parent->engine->subdev.object,
 				      &nouveau_barobj_oclass,
 				      mem, 0, &gpuobj);
 	if (ret == 0)

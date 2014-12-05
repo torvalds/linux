@@ -74,8 +74,8 @@ nouveau_instmem_alloc(struct nouveau_instmem *imem,
 {
 	struct nouveau_instmem_impl *impl = (void *)imem->base.object.oclass;
 	struct nouveau_instobj_args args = { .size = size, .align = align };
-	return nouveau_object_ctor(parent, parent->engine, impl->instobj, &args,
-				   sizeof(args), pobject);
+	return nouveau_object_ctor(parent, &parent->engine->subdev.object,
+				   impl->instobj, &args, sizeof(args), pobject);
 }
 
 int

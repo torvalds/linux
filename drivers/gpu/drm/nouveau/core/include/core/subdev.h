@@ -28,9 +28,9 @@ nv_subdev(void *obj)
 }
 
 static inline int
-nv_subidx(struct nouveau_object *object)
+nv_subidx(struct nouveau_subdev *subdev)
 {
-	return nv_hclass(nv_subdev(object)) & 0xff;
+	return nv_hclass(subdev) & 0xff;
 }
 
 struct nouveau_subdev *nouveau_subdev(void *obj, int idx);

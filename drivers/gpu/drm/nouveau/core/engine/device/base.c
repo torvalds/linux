@@ -516,7 +516,7 @@ nv_device(void *obj)
 		while (device && device->parent)
 			device = device->parent;
 	} else {
-		device = nv_object(obj)->engine;
+		device = &nv_object(obj)->engine->subdev.object;
 		if (device && device->parent)
 			device = device->parent;
 	}

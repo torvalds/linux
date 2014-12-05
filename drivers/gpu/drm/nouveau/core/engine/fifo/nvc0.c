@@ -445,7 +445,6 @@ static void
 nvc0_fifo_recover(struct nvc0_fifo_priv *priv, struct nouveau_engine *engine,
 		  struct nvc0_fifo_chan *chan)
 {
-	struct nouveau_object *engobj = nv_object(engine);
 	u32 chid = chan->base.chid;
 	unsigned long flags;
 
@@ -456,7 +455,7 @@ nvc0_fifo_recover(struct nvc0_fifo_priv *priv, struct nouveau_engine *engine,
 	chan->state = KILLED;
 
 	spin_lock_irqsave(&priv->base.lock, flags);
-	priv->mask |= 1ULL << nv_engidx(engobj);
+	priv->mask |= 1ULL << nv_engidx(engine);
 	spin_unlock_irqrestore(&priv->base.lock, flags);
 	schedule_work(&priv->fault);
 }

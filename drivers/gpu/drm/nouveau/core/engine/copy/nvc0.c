@@ -91,7 +91,7 @@ nvc0_copy_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	nv_wo32(priv, 0x084, nv_engidx(object) - NVDEV_ENGINE_COPY0);
+	nv_wo32(priv, 0x084, nv_engidx(&priv->base.base) - NVDEV_ENGINE_COPY0);
 	return 0;
 }
 

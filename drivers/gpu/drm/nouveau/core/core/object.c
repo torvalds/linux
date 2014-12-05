@@ -43,7 +43,7 @@ nouveau_object_create_(struct nouveau_object *parent,
 		return -ENOMEM;
 
 	nouveau_object_ref(parent, &object->parent);
-	nouveau_object_ref(engine, &object->engine);
+	nouveau_object_ref(engine, (struct nouveau_object **)&object->engine);
 	object->oclass = oclass;
 	object->oclass->handle |= pclass;
 	atomic_set(&object->refcount, 1);
@@ -77,7 +77,7 @@ nouveau_object_destroy(struct nouveau_object *object)
 	list_del(&object->list);
 	spin_unlock(&_objlist_lock);
 #endif
-	nouveau_object_ref(NULL, &object->engine);
+	nouveau_object_ref(NULL, (struct nouveau_object **)&object->engine);
 	nouveau_object_ref(NULL, &object->parent);
 	kfree(object);
 }
@@ -182,7 +182,7 @@ nouveau_object_inc(struct nouveau_object *object)
 
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		ret = nouveau_object_inc(object->engine);
+		ret = nouveau_object_inc(&object->engine->subdev.object);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 		if (ret) {
 			nv_error(object, "engine failed, %d\n", ret);
@@ -203,7 +203,7 @@ nouveau_object_inc(struct nouveau_object *object)
 fail_self:
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		nouveau_object_dec(object->engine, false);
+		nouveau_object_dec(&object->engine->subdev.object, false);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 	}
 fail_engine:
@@ -228,7 +228,7 @@ nouveau_object_decf(struct nouveau_object *object)
 
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		nouveau_object_dec(object->engine, false);
+		nouveau_object_dec(&object->engine->subdev.object, false);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 	}
 
@@ -255,7 +255,7 @@ nouveau_object_decs(struct nouveau_object *object)
 
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		ret = nouveau_object_dec(object->engine, true);
+		ret = nouveau_object_dec(&object->engine->subdev.object, true);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 		if (ret) {
 			nv_warn(object, "engine failed suspend, %d\n", ret);
@@ -277,7 +277,7 @@ nouveau_object_decs(struct nouveau_object *object)
 fail_parent:
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		rret = nouveau_object_inc(object->engine);
+		rret = nouveau_object_inc(&object->engine->subdev.object);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 		if (rret)
 			nv_fatal(object, "engine failed to reinit, %d\n", rret);

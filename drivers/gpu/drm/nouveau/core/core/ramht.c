@@ -96,7 +96,7 @@ nouveau_ramht_new(struct nouveau_object *parent, struct nouveau_object *pargpu,
 	int ret;
 
 	ret = nouveau_gpuobj_create(parent, parent->engine ?
-				    parent->engine : parent, /* <nv50 ramht */
+				    &parent->engine->subdev.object : parent, /* <nv50 ramht */
 				    &nouveau_ramht_oclass, 0, pargpu, size,
 				    align, NVOBJ_FLAG_ZERO_ALLOC, &ramht);
 	*pramht = ramht;

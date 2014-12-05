@@ -33,7 +33,7 @@ nouveau_subdev(void *obj, int idx)
 	struct nouveau_object *object = nv_object(obj);
 	while (object && !nv_iclass(object, NV_SUBDEV_CLASS))
 		object = object->parent;
-	if (object == NULL || nv_subidx(object) != idx)
+	if (object == NULL || nv_subidx(nv_subdev(object)) != idx)
 		object = nv_device(obj)->subdev[idx];
 	return object ? nv_subdev(object) : NULL;
 }

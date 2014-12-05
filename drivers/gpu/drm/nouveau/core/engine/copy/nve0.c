@@ -69,7 +69,7 @@ nve0_copy_cclass = {
 static void
 nve0_copy_intr(struct nouveau_subdev *subdev)
 {
-	const int ce = nv_subidx(nv_object(subdev)) - NVDEV_ENGINE_COPY0;
+	const int ce = nv_subidx(subdev) - NVDEV_ENGINE_COPY0;
 	struct nve0_copy_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, 0x104908 + (ce * 0x1000));
 
