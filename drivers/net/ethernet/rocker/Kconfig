@@ -17,7 +17,7 @@ if NET_VENDOR_ROCKER
 
 config ROCKER
 	tristate "Rocker switch driver (EXPERIMENTAL)"
-	depends on PCI && NET_SWITCHDEV
+	depends on PCI && NET_SWITCHDEV && BRIDGE
 	---help---
 	  This driver supports Rocker switch device.
 
