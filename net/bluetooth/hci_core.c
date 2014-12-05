@@ -1743,6 +1743,20 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 						 * Report
 						 */
 
+		/* If the controller supports the LE Read Local P-256
+		 * Public Key command, enable the corresponding event.
+		 */
+		if (hdev->commands[34] & 0x02)
+			events[0] |= 0x80;	/* LE Read Local P-256
+						 * Public Key Complete
+						 */
+
+		/* If the controller supports the LE Generate DHKey
+		 * command, enable the corresponding event.
+		 */
+		if (hdev->commands[34] & 0x04)
+			events[1] |= 0x01;	/* LE Generate DHKey Complete */
+
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 
