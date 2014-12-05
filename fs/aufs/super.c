@@ -224,8 +224,11 @@ static int aufs_show_options(struct seq_file *m, struct dentry *dentry)
 		seq_printf(m, "," #str "=%u", val); \
 } while (0)
 
-	/* lock free root dinfo */
 	sb = dentry->d_sb;
+	if (sb->s_flags & MS_POSIXACL)
+		seq_puts(m, ",acl");
+
+	/* lock free root dinfo */
 	si_noflush_read_lock(sb);
 	sbinfo = au_sbi(sb);
 	seq_printf(m, ",si=%lx", sysaufs_si_id(sbinfo));
@@ -884,6 +887,7 @@ static int aufs_fill_super(struct super_block *sb, void *raw_data,
 	sb->s_magic = AUFS_SUPER_MAGIC;
 	sb->s_maxbytes = 0;
 	au_export_init(sb);
+	/* au_xattr_init(sb); */
 
 	err = alloc_root(sb);
 	if (unlikely(err)) {
