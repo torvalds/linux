@@ -117,13 +117,19 @@ out:
 
 static void scm_request_done(struct scm_request *scmrq)
 {
-	struct msb *msb = &scmrq->aob->msb[0];
-	u64 aidaw = msb->data_addr;
 	unsigned long flags;
+	struct msb *msb;
+	u64 aidaw;
+	int i;
 
-	if ((msb->flags & MSB_FLAG_IDA) && aidaw &&
-	    IS_ALIGNED(aidaw, PAGE_SIZE))
-		mempool_free(virt_to_page(aidaw), aidaw_pool);
+	for (i = 0; i < SCM_RQ_PER_IO && scmrq->request[i]; i++) {
+		msb = &scmrq->aob->msb[i];
+		aidaw = msb->data_addr;
+
+		if ((msb->flags & MSB_FLAG_IDA) && aidaw &&
+		    IS_ALIGNED(aidaw, PAGE_SIZE))
+			mempool_free(virt_to_page(aidaw), aidaw_pool);
+	}
 
 	spin_lock_irqsave(&list_lock, flags);
 	list_add(&scmrq->list, &inactive_requests);
@@ -167,51 +173,57 @@ static int scm_request_prepare(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
 	struct scm_device *scmdev = bdev->gendisk->private_data;
-	struct msb *msb = &scmrq->aob->msb[0];
+	int pos = scmrq->aob->request.msb_count;
+	struct msb *msb = &scmrq->aob->msb[pos];
+	struct request *req = scmrq->request[pos];
 	struct req_iterator iter;
 	struct aidaw *aidaw;
 	struct bio_vec bv;
 
-	aidaw = scm_aidaw_fetch(scmrq, blk_rq_bytes(scmrq->request));
+	aidaw = scm_aidaw_fetch(scmrq, blk_rq_bytes(req));
 	if (!aidaw)
 		return -ENOMEM;
 
 	msb->bs = MSB_BS_4K;
-	scmrq->aob->request.msb_count = 1;
-	msb->scm_addr = scmdev->address +
-		((u64) blk_rq_pos(scmrq->request) << 9);
-	msb->oc = (rq_data_dir(scmrq->request) == READ) ?
-		MSB_OC_READ : MSB_OC_WRITE;
+	scmrq->aob->request.msb_count++;
+	msb->scm_addr = scmdev->address + ((u64) blk_rq_pos(req) << 9);
+	msb->oc = (rq_data_dir(req) == READ) ? MSB_OC_READ : MSB_OC_WRITE;
 	msb->flags |= MSB_FLAG_IDA;
 	msb->data_addr = (u64) aidaw;
 
-	rq_for_each_segment(bv, scmrq->request, iter) {
+	rq_for_each_segment(bv, req, iter) {
 		WARN_ON(bv.bv_offset);
 		msb->blk_count += bv.bv_len >> 12;
 		aidaw->data_addr = (u64) page_address(bv.bv_page);
 		aidaw++;
 	}
 
+	scmrq->next_aidaw = aidaw;
 	return 0;
 }
 
+static inline void scm_request_set(struct scm_request *scmrq,
+				   struct request *req)
+{
+	scmrq->request[scmrq->aob->request.msb_count] = req;
+}
+
 static inline void scm_request_init(struct scm_blk_dev *bdev,
-				    struct scm_request *scmrq,
-				    struct request *req)
+				    struct scm_request *scmrq)
 {
 	struct aob_rq_header *aobrq = to_aobrq(scmrq);
 	struct aob *aob = scmrq->aob;
 
+	memset(scmrq->request, 0, sizeof(scmrq->request));
 	memset(aob, 0, sizeof(*aob));
 	aobrq->scmdev = bdev->scmdev;
 	aob->request.cmd_code = ARQB_CMD_MOVE;
 	aob->request.data = (u64) aobrq;
-	scmrq->request = req;
 	scmrq->bdev = bdev;
 	scmrq->retries = 4;
 	scmrq->error = 0;
 	/* We don't use all msbs - place aidaws at the end of the aob page. */
-	scmrq->next_aidaw = (void *) &aob->msb[1];
+	scmrq->next_aidaw = (void *) &aob->msb[SCM_RQ_PER_IO];
 	scm_request_cluster_init(scmrq);
 }
 
@@ -227,9 +239,12 @@ static void scm_ensure_queue_restart(struct scm_blk_dev *bdev)
 void scm_request_requeue(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
+	int i;
 
 	scm_release_cluster(scmrq);
-	blk_requeue_request(bdev->rq, scmrq->request);
+	for (i = 0; i < SCM_RQ_PER_IO && scmrq->request[i]; i++)
+		blk_requeue_request(bdev->rq, scmrq->request[i]);
+
 	atomic_dec(&bdev->queued_reqs);
 	scm_request_done(scmrq);
 	scm_ensure_queue_restart(bdev);
@@ -238,20 +253,41 @@ void scm_request_requeue(struct scm_request *scmrq)
 void scm_request_finish(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
+	int i;
 
 	scm_release_cluster(scmrq);
-	blk_end_request_all(scmrq->request, scmrq->error);
+	for (i = 0; i < SCM_RQ_PER_IO && scmrq->request[i]; i++)
+		blk_end_request_all(scmrq->request[i], scmrq->error);
+
 	atomic_dec(&bdev->queued_reqs);
 	scm_request_done(scmrq);
+}
+
+static int scm_request_start(struct scm_request *scmrq)
+{
+	struct scm_blk_dev *bdev = scmrq->bdev;
+	int ret;
+
+	atomic_inc(&bdev->queued_reqs);
+	if (!scmrq->aob->request.msb_count) {
+		scm_request_requeue(scmrq);
+		return -EINVAL;
+	}
+
+	ret = eadm_start_aob(scmrq->aob);
+	if (ret) {
+		SCM_LOG(5, "no subchannel");
+		scm_request_requeue(scmrq);
+	}
+	return ret;
 }
 
 static void scm_blk_request(struct request_queue *rq)
 {
 	struct scm_device *scmdev = rq->queuedata;
 	struct scm_blk_dev *bdev = dev_get_drvdata(&scmdev->dev);
-	struct scm_request *scmrq;
+	struct scm_request *scmrq = NULL;
 	struct request *req;
-	int ret;
 
 	while ((req = blk_peek_request(rq))) {
 		if (req->cmd_type != REQ_TYPE_FS) {
@@ -261,47 +297,64 @@ static void scm_blk_request(struct request_queue *rq)
 			continue;
 		}
 
-		if (!scm_permit_request(bdev, req)) {
-			scm_ensure_queue_restart(bdev);
-			return;
-		}
-		scmrq = scm_request_fetch();
+		if (!scm_permit_request(bdev, req))
+			goto out;
+
 		if (!scmrq) {
-			SCM_LOG(5, "no request");
-			scm_ensure_queue_restart(bdev);
-			return;
+			scmrq = scm_request_fetch();
+			if (!scmrq) {
+				SCM_LOG(5, "no request");
+				goto out;
+			}
+			scm_request_init(bdev, scmrq);
 		}
-		scm_request_init(bdev, scmrq, req);
+		scm_request_set(scmrq, req);
+
 		if (!scm_reserve_cluster(scmrq)) {
 			SCM_LOG(5, "cluster busy");
+			scm_request_set(scmrq, NULL);
+			if (scmrq->aob->request.msb_count)
+				goto out;
+
 			scm_request_done(scmrq);
 			return;
 		}
+
 		if (scm_need_cluster_request(scmrq)) {
-			atomic_inc(&bdev->queued_reqs);
-			blk_start_request(req);
-			scm_initiate_cluster_request(scmrq);
-			return;
+			if (scmrq->aob->request.msb_count) {
+				/* Start cluster requests separately. */
+				scm_request_set(scmrq, NULL);
+				if (scm_request_start(scmrq))
+					return;
+			} else {
+				atomic_inc(&bdev->queued_reqs);
+				blk_start_request(req);
+				scm_initiate_cluster_request(scmrq);
+			}
+			scmrq = NULL;
+			continue;
 		}
 
 		if (scm_request_prepare(scmrq)) {
-			SCM_LOG(5, "no aidaw");
-			scm_release_cluster(scmrq);
-			scm_request_done(scmrq);
-			scm_ensure_queue_restart(bdev);
-			return;
+			SCM_LOG(5, "aidaw alloc failed");
+			scm_request_set(scmrq, NULL);
+			goto out;
 		}
-
-		atomic_inc(&bdev->queued_reqs);
 		blk_start_request(req);
 
-		ret = eadm_start_aob(scmrq->aob);
-		if (ret) {
-			SCM_LOG(5, "no subchannel");
-			scm_request_requeue(scmrq);
+		if (scmrq->aob->request.msb_count < SCM_RQ_PER_IO)
+			continue;
+
+		if (scm_request_start(scmrq))
 			return;
-		}
+
+		scmrq = NULL;
 	}
+out:
+	if (scmrq)
+		scm_request_start(scmrq);
+	else
+		scm_ensure_queue_restart(bdev);
 }
 
 static void __scmrq_log_error(struct scm_request *scmrq)

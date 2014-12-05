@@ -11,6 +11,7 @@
 #include <asm/eadm.h>
 
 #define SCM_NR_PARTS 8
+#define SCM_RQ_PER_IO 8
 #define SCM_QUEUE_DELAY 5
 
 struct scm_blk_dev {
@@ -31,7 +32,7 @@ struct scm_blk_dev {
 struct scm_request {
 	struct scm_blk_dev *bdev;
 	struct aidaw *next_aidaw;
-	struct request *request;
+	struct request *request[SCM_RQ_PER_IO];
 	struct aob *aob;
 	struct list_head list;
 	u8 retries;
