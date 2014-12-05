@@ -148,9 +148,9 @@ Away:
 		if (chipset_driver_info)
 			bus_device_info_init(chipset_driver_info, "chipset",
 					     "uislib", VERSION, NULL);
-	} else
+	} else {
 		LOGERR("failed to register type %pUL.\n", &switch_uuid);
-
+	}
 	return rc;
 }
 EXPORT_SYMBOL_GPL(uisctrl_register_req_handler_ex);
