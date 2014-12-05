@@ -263,22 +263,21 @@ EXPORT_SYMBOL_GPL(uisqueue_interlocked_and);
 static u8
 do_locked_client_insert(struct uisqueue_info *queueinfo,
 			unsigned int whichqueue,
-			void *pSignal,
+			void *signal,
 			spinlock_t *lock,
-			unsigned char issueInterruptIfEmpty,
-			u64 interruptHandle, u8 *channelId)
+			u8 *channel_id)
 {
 	unsigned long flags;
 	u8 rc = 0;
 
 	spin_lock_irqsave(lock, flags);
-	if (!spar_channel_client_acquire_os(queueinfo->chan, channelId))
+	if (!spar_channel_client_acquire_os(queueinfo->chan, channel_id))
 		goto unlock;
-	if (spar_signal_insert(queueinfo->chan, whichqueue, pSignal)) {
+	if (spar_signal_insert(queueinfo->chan, whichqueue, signal)) {
 		queueinfo->packets_sent++;
 		rc = 1;
 	}
-	spar_channel_client_release_os(queueinfo->chan, channelId);
+	spar_channel_client_release_os(queueinfo->chan, channel_id);
 unlock:
 	spin_unlock_irqrestore((spinlock_t *)lock, flags);
 	return rc;
@@ -295,8 +294,7 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 {
 	while (!do_locked_client_insert(queueinfo, whichqueue, cmdrsp,
 					(spinlock_t *)insertlock,
-					issue_irq_if_empty,
-					irq_handle, channel_id)) {
+					channel_id)) {
 		if (oktowait != OK_TO_WAIT) {
 			LOGERR("****FAILED visor_signal_insert failed; cannot wait; insert aborted\n");
 			return 0;	/* failed to queue */
