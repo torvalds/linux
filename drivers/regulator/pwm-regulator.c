@@ -149,7 +149,8 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	config.init_data = of_get_regulator_init_data(&pdev->dev, np);
+	config.init_data = of_get_regulator_init_data(&pdev->dev, np,
+						      &drvdata->desc);
 	if (!config.init_data)
 		return -ENOMEM;
 
