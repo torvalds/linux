@@ -27,11 +27,11 @@
 #include <core/option.h>
 
 struct nouveau_engine *
-nouveau_engine(void *obj, int sub)
+nouveau_engine(void *obj, int idx)
 {
-	struct nouveau_subdev *subdev = nouveau_subdev(obj, sub);
-	if (subdev && nv_iclass(subdev, NV_ENGINE_CLASS))
-		return nv_engine(subdev);
+	obj = nouveau_subdev(obj, idx);
+	if (obj && nv_iclass(obj, NV_ENGINE_CLASS))
+		return nv_engine(obj);
 	return NULL;
 }
 

@@ -511,22 +511,18 @@ nouveau_devobj_ofuncs = {
 struct nouveau_device *
 nv_device(void *obj)
 {
-	struct nouveau_object *object = nv_object(obj);
-	struct nouveau_object *device = object;
-
-	if (device->engine)
-		device = device->engine;
-	if (device->parent)
+	struct nouveau_object *device = nv_object(obj);
+	while (device && device->parent)
 		device = device->parent;
-
-#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(device, NV_SUBDEV_CLASS) ||
-		     (nv_hclass(device) & 0xff) != NVDEV_ENGINE_DEVICE)) {
-		nv_assert("BAD CAST -> NvDevice, 0x%08x 0x%08x",
-			  nv_hclass(object), nv_hclass(device));
+	if (!nv_iclass(device, NV_ENGINE_CLASS)) {
+		device = nv_object(obj)->engine;
+		if (device && device->parent)
+			device = device->parent;
 	}
+#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
+	if (unlikely(!device))
+		nv_assert("BAD CAST -> NvDevice, 0x%08x\n", nv_hclass(obj));
 #endif
-
 	return (void *)device;
 }
 

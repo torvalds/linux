@@ -28,11 +28,14 @@
 #include <core/option.h>
 
 struct nouveau_subdev *
-nouveau_subdev(void *obj, int sub)
+nouveau_subdev(void *obj, int idx)
 {
-	if (nv_device(obj)->subdev[sub])
-		return nv_subdev(nv_device(obj)->subdev[sub]);
-	return NULL;
+	struct nouveau_object *object = nv_object(obj);
+	while (object && !nv_iclass(object, NV_SUBDEV_CLASS))
+		object = object->parent;
+	if (object == NULL || nv_subidx(object) != idx)
+		object = nv_device(obj)->subdev[idx];
+	return object ? nv_subdev(object) : NULL;
 }
 
 void
