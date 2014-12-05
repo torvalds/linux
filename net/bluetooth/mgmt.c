@@ -3870,9 +3870,12 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
+	/* Clear the discovery filter first to free any previously
+	 * allocated memory for the UUID list.
+	 */
+	hci_discovery_filter_clear(hdev);
+
 	hdev->discovery.type = cp->type;
-	hdev->discovery.rssi = HCI_RSSI_INVALID;
-	hdev->discovery.uuid_count = 0;
 
 	hci_req_init(&req, hdev);
 
@@ -3956,6 +3959,11 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 		err = -ENOMEM;
 		goto failed;
 	}
+
+	/* Clear the discovery filter first to free any previously
+	 * allocated memory for the UUID list.
+	 */
+	hci_discovery_filter_clear(hdev);
 
 	hdev->discovery.type = cp->type;
 	hdev->discovery.rssi = cp->rssi;

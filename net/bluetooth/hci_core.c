@@ -4255,6 +4255,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_remote_oob_data_clear(hdev);
 	hci_bdaddr_list_clear(&hdev->le_white_list);
 	hci_conn_params_clear_all(hdev);
+	hci_discovery_filter_clear(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
