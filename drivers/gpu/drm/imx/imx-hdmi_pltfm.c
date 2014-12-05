@@ -28,6 +28,57 @@ struct imx_hdmi_priv {
 	struct regmap *regmap;
 };
 
+static const struct mpll_config imx_mpll_cfg[] = {
+	{
+		45250000, {
+			{ 0x01e0, 0x0000 },
+			{ 0x21e1, 0x0000 },
+			{ 0x41e2, 0x0000 }
+		},
+	}, {
+		92500000, {
+			{ 0x0140, 0x0005 },
+			{ 0x2141, 0x0005 },
+			{ 0x4142, 0x0005 },
+	},
+	}, {
+		148500000, {
+			{ 0x00a0, 0x000a },
+			{ 0x20a1, 0x000a },
+			{ 0x40a2, 0x000a },
+		},
+	}, {
+		~0UL, {
+			{ 0x00a0, 0x000a },
+			{ 0x2001, 0x000f },
+			{ 0x4002, 0x000f },
+		},
+	}
+};
+
+static const struct curr_ctrl imx_cur_ctr[] = {
+	/*      pixelclk     bpp8    bpp10   bpp12 */
+	{
+		54000000, { 0x091c, 0x091c, 0x06dc },
+	}, {
+		58400000, { 0x091c, 0x06dc, 0x06dc },
+	}, {
+		72000000, { 0x06dc, 0x06dc, 0x091c },
+	}, {
+		74250000, { 0x06dc, 0x0b5c, 0x091c },
+	}, {
+		118800000, { 0x091c, 0x091c, 0x06dc },
+	}, {
+		216000000, { 0x06dc, 0x0b5c, 0x091c },
+	}
+};
+
+static const struct sym_term imx_sym_term[] = {
+	/*pixelclk   symbol   term*/
+	{ 148500000, 0x800d, 0x0005 },
+	{ ~0UL,      0x0000, 0x0000 }
+};
+
 static int imx_hdmi_parse_dt(struct imx_hdmi_priv *hdmi)
 {
 	struct device_node *np = hdmi->dev->of_node;
@@ -88,10 +139,16 @@ static struct drm_encoder_funcs imx_hdmi_encoder_funcs = {
 };
 
 static struct imx_hdmi_plat_data imx6q_hdmi_drv_data = {
+	.mpll_cfg = imx_mpll_cfg,
+	.cur_ctr  = imx_cur_ctr,
+	.sym_term = imx_sym_term,
 	.dev_type = IMX6Q_HDMI,
 };
 
 static struct imx_hdmi_plat_data imx6dl_hdmi_drv_data = {
+	.mpll_cfg = imx_mpll_cfg,
+	.cur_ctr  = imx_cur_ctr,
+	.sym_term = imx_sym_term,
 	.dev_type = IMX6DL_HDMI,
 };
 

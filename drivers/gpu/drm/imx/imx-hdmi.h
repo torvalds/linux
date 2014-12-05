@@ -1037,6 +1037,35 @@ enum imx_hdmi_devtype {
 
 struct imx_hdmi_plat_data {
 	enum imx_hdmi_devtype dev_type;
+	const struct mpll_config *mpll_cfg;
+	const struct curr_ctrl *cur_ctr;
+	const struct sym_term *sym_term;
+};
+
+enum {
+	RES_8,
+	RES_10,
+	RES_12,
+	RES_MAX,
+};
+
+struct mpll_config {
+	unsigned long mpixelclock;
+	struct {
+		u16 cpce;
+		u16 gmp;
+	} res[RES_MAX];
+};
+
+struct curr_ctrl {
+	unsigned long mpixelclock;
+	u16 curr[RES_MAX];
+};
+
+struct sym_term {
+	unsigned long mpixelclock;
+	u16 sym_ctr;    /*clock symbol and transmitter control*/
+	u16 term;       /*transmission termination value*/
 };
 
 int imx_hdmi_bind(struct device *dev, struct device *master,
