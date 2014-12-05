@@ -161,15 +161,17 @@ static noinline_for_stack
 int cpup_iattr(struct dentry *dst, aufs_bindex_t bindex, struct dentry *h_src,
 	       struct au_cpup_reg_attr *h_src_attr)
 {
-	int err, sbits;
+	int err, sbits, icex;
 	struct iattr ia;
 	struct path h_path;
 	struct inode *h_isrc, *h_idst;
 	struct kstat *h_st;
+	struct au_branch *br;
 
 	h_path.dentry = au_h_dptr(dst, bindex);
 	h_idst = h_path.dentry->d_inode;
-	h_path.mnt = au_sbr_mnt(dst->d_sb, bindex);
+	br = au_sbr(dst->d_sb, bindex);
+	h_path.mnt = au_br_mnt(br);
 	h_isrc = h_src->d_inode;
 	ia.ia_valid = ATTR_FORCE | ATTR_UID | ATTR_GID
 		| ATTR_ATIME | ATTR_MTIME
@@ -208,6 +210,10 @@ int cpup_iattr(struct dentry *dst, aufs_bindex_t bindex, struct dentry *h_src,
 		ia.ia_mode = h_isrc->i_mode;
 		err = vfsub_notify_change(&h_path, &ia);
 	}
+
+	icex = br->br_perm & AuBrAttr_ICEX;
+	if (!err)
+		err = au_cpup_xattr(h_path.dentry, h_src, icex);
 
 	return err;
 }
