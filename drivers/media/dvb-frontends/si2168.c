@@ -672,7 +672,7 @@ static int si2168_probe(struct i2c_client *client,
 	if (!dev) {
 		ret = -ENOMEM;
 		dev_err(&client->dev, "kzalloc() failed\n");
-		goto err_kfree;
+		goto err;
 	}
 
 	mutex_init(&dev->i2c_mutex);
@@ -700,6 +700,7 @@ static int si2168_probe(struct i2c_client *client,
 	return 0;
 err_kfree:
 	kfree(dev);
+err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
