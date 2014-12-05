@@ -269,9 +269,10 @@ req_handler_add(uuid_le switch_uuid,
 	      const char *switch_type_name,
 	      int (*controlfunc)(struct io_msgs *),
 	      unsigned long min_channel_bytes,
-	      int (*Server_Channel_Ok)(unsigned long channelBytes),
-	      int (*Server_Channel_Init)
-	       (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes))
+	      int (*server_channel_ok)(unsigned long channel_bytes),
+	      int (*server_channel_init)
+	       (void *x, unsigned char *clientstr, u32 clientstr_len,
+		u64 bytes))
 {
 	struct req_handler_info *rc = NULL;
 
@@ -281,13 +282,13 @@ req_handler_add(uuid_le switch_uuid,
 	rc->switch_uuid = switch_uuid;
 	rc->controlfunc = controlfunc;
 	rc->min_channel_bytes = min_channel_bytes;
-	rc->server_channel_ok = Server_Channel_Ok;
-	rc->server_channel_init = Server_Channel_Init;
+	rc->server_channel_ok = server_channel_ok;
+	rc->server_channel_init = server_channel_init;
 	if (switch_type_name)
 		strncpy(rc->switch_type_name, switch_type_name,
 			sizeof(rc->switch_type_name) - 1);
 	spin_lock(&req_handler_info_list_lock);
-	list_add_tail(&(rc->list_link), &req_handler_info_list);
+	list_add_tail(&rc->list_link, &req_handler_info_list);
 	spin_unlock(&req_handler_info_list_lock);
 
 	return rc;
