@@ -22,6 +22,7 @@
 #include <linux/limits.h>
 #include <linux/of.h>
 #include <linux/of_iommu.h>
+#include <linux/slab.h>
 
 static const struct of_device_id __iommu_of_table_sentinel
 	__used __section(__iommu_of_table_end);
@@ -93,6 +94,44 @@ int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_dma_window);
+
+struct of_iommu_node {
+	struct list_head list;
+	struct device_node *np;
+	struct iommu_ops *ops;
+};
+static LIST_HEAD(of_iommu_list);
+static DEFINE_SPINLOCK(of_iommu_lock);
+
+void of_iommu_set_ops(struct device_node *np, struct iommu_ops *ops)
+{
+	struct of_iommu_node *iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
+
+	if (WARN_ON(!iommu))
+		return;
+
+	INIT_LIST_HEAD(&iommu->list);
+	iommu->np = np;
+	iommu->ops = ops;
+	spin_lock(&of_iommu_lock);
+	list_add_tail(&iommu->list, &of_iommu_list);
+	spin_unlock(&of_iommu_lock);
+}
+
+struct iommu_ops *of_iommu_get_ops(struct device_node *np)
+{
+	struct of_iommu_node *node;
+	struct iommu_ops *ops = NULL;
+
+	spin_lock(&of_iommu_lock);
+	list_for_each_entry(node, &of_iommu_list, list)
+		if (node->np == np) {
+			ops = node->ops;
+			break;
+		}
+	spin_unlock(&of_iommu_lock);
+	return ops;
+}
 
 struct iommu_ops *of_iommu_configure(struct device *dev)
 {
