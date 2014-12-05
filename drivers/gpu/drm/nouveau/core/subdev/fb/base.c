@@ -128,7 +128,7 @@ nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	pfb->memtype_valid = impl->memtype;
 
-	ret = nouveau_object_ctor(nv_object(pfb), nv_object(pfb),
+	ret = nouveau_object_ctor(nv_object(pfb), NULL,
 				  impl->ram, NULL, 0, &ram);
 	if (ret) {
 		nv_fatal(pfb, "error detecting memory configuration!!\n");
