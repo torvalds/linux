@@ -148,6 +148,10 @@ static int do_read_inode(struct inode *inode)
 	__get_inode_rdev(inode, ri);
 
 	f2fs_put_page(node_page, 1);
+
+	stat_inc_inline_inode(inode);
+	stat_inc_inline_dir(inode);
+
 	return err;
 }
 
@@ -199,8 +203,6 @@ make_now:
 		goto bad_inode;
 	}
 	unlock_new_inode(inode);
-	stat_inc_inline_inode(inode);
-	stat_inc_inline_dir(inode);
 	trace_f2fs_iget(inode);
 	return inode;
 
