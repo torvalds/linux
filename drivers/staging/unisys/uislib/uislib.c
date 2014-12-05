@@ -593,32 +593,31 @@ static int pause_device(struct controlvm_message *msg)
 	return retval;
 }
 
-static int
-resume_device(struct controlvm_message *msg)
+static int resume_device(struct controlvm_message *msg)
 {
-	u32 busNo, devNo;
+	u32 bus_no, dev_no;
 	struct bus_info *bus;
 	struct device_info *dev;
 	struct guest_msgs cmd;
 	int retval = CONTROLVM_RESP_SUCCESS;
 
-	busNo = msg->cmd.device_change_state.bus_no;
-	devNo = msg->cmd.device_change_state.dev_no;
+	bus_no = msg->cmd.device_change_state.bus_no;
+	dev_no = msg->cmd.device_change_state.dev_no;
 
 	read_lock(&bus_list_lock);
 	for (bus = bus_list; bus; bus = bus->next) {
-		if (bus->bus_no == busNo) {
+		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->device_count) {
+			if (dev_no >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: device(%d) >= deviceCount(%d).",
-				       devNo, bus->device_count);
+				       dev_no, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
-				dev = bus->device[devNo];
+				dev = bus->device[dev_no];
 				if (!dev) {
 					LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: device %d does not exist.",
-					       devNo);
+					       dev_no);
 					retval =
 					  CONTROLVM_RESP_ERROR_ALREADY_DONE;
 				}
@@ -629,7 +628,7 @@ resume_device(struct controlvm_message *msg)
 
 	if (!bus) {
 		LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: bus %d does not exist",
-		       busNo);
+		       bus_no);
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
 	read_unlock(&bus_list_lock);
@@ -637,12 +636,12 @@ resume_device(struct controlvm_message *msg)
 	 * guest_msgs struct to callback
 	 */
 	if (retval == CONTROLVM_RESP_SUCCESS) {
-		if (!uuid_le_cmp(dev->channel_uuid,
-				 spar_vhba_channel_protocol_uuid)) {
+		if (uuid_le_cmp(dev->channel_uuid,
+				spar_vhba_channel_protocol_uuid) == 0) {
 			cmd.msgtype = GUEST_RESUME_VHBA;
 			cmd.resume_vhba.chanptr = dev->chanptr;
-		} else if (!uuid_le_cmp(dev->channel_uuid,
-					spar_vnic_channel_protocol_uuid)) {
+		} else if (uuid_le_cmp(dev->channel_uuid,
+				       spar_vnic_channel_protocol_uuid) == 0) {
 			cmd.msgtype = GUEST_RESUME_VNIC;
 			cmd.resume_vnic.chanptr = dev->chanptr;
 		} else {
