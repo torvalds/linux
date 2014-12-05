@@ -1,0 +1,26 @@
+/*
+ * Broadcom BCM470X / BCM5301X ARM platform code.
+ * DTS for BCM47081 SoC.
+ *
+ * Copyright © 2014 Rafał Miłecki <zajec5@gmail.com>
+ *
+ * Licensed under the GNU/GPL. See COPYING for details.
+ */
+
+#include "bcm5301x.dtsi"
+
+/ {
+	compatible = "brcm,bcm47081";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
+			reg = <0x0>;
+		};
+	};
+};
