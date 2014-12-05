@@ -39,6 +39,28 @@ static bool tls_desc_okay(const struct user_desc *info)
 	if (!info->seg_32bit)
 		return false;
 
+	/* Only allow data segments in the TLS array. */
+	if (info->contents > 1)
+		return false;
+
+	/*
+	 * Non-present segments with DPL 3 present an interesting attack
+	 * surface.  The kernel should handle such segments correctly,
+	 * but TLS is very difficult to protect in a sandbox, so prevent
+	 * such segments from being created.
+	 *
+	 * If userspace needs to remove a TLS entry, it can still delete
+	 * it outright.
+	 */
+	if (info->seg_not_present)
+		return false;
+
+#ifdef CONFIG_X86_64
+	/* The L bit makes no sense for data. */
+	if (info->lm)
+		return false;
+#endif
+
 	return true;
 }
 
