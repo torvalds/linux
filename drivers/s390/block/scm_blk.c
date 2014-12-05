@@ -25,9 +25,13 @@ static mempool_t *aidaw_pool;
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_requests);
 static unsigned int nr_requests = 64;
+static unsigned int nr_requests_per_io = 8;
 static atomic_t nr_devices = ATOMIC_INIT(0);
 module_param(nr_requests, uint, S_IRUGO);
 MODULE_PARM_DESC(nr_requests, "Number of parallel requests.");
+
+module_param(nr_requests_per_io, uint, S_IRUGO);
+MODULE_PARM_DESC(nr_requests_per_io, "Number of requests per IO.");
 
 MODULE_DESCRIPTION("Block driver for s390 storage class memory.");
 MODULE_LICENSE("GPL");
@@ -39,6 +43,7 @@ static void __scm_free_rq(struct scm_request *scmrq)
 
 	free_page((unsigned long) scmrq->aob);
 	__scm_free_rq_cluster(scmrq);
+	kfree(scmrq->request);
 	kfree(aobrq);
 }
 
@@ -69,15 +74,16 @@ static int __scm_alloc_rq(void)
 
 	scmrq = (void *) aobrq->data;
 	scmrq->aob = (void *) get_zeroed_page(GFP_DMA);
-	if (!scmrq->aob) {
-		__scm_free_rq(scmrq);
-		return -ENOMEM;
-	}
+	if (!scmrq->aob)
+		goto free;
 
-	if (__scm_alloc_rq_cluster(scmrq)) {
-		__scm_free_rq(scmrq);
-		return -ENOMEM;
-	}
+	scmrq->request = kcalloc(nr_requests_per_io, sizeof(scmrq->request[0]),
+				 GFP_KERNEL);
+	if (!scmrq->request)
+		goto free;
+
+	if (__scm_alloc_rq_cluster(scmrq))
+		goto free;
 
 	INIT_LIST_HEAD(&scmrq->list);
 	spin_lock_irq(&list_lock);
@@ -85,6 +91,9 @@ static int __scm_alloc_rq(void)
 	spin_unlock_irq(&list_lock);
 
 	return 0;
+free:
+	__scm_free_rq(scmrq);
+	return -ENOMEM;
 }
 
 static int scm_alloc_rqs(unsigned int nrqs)
@@ -122,7 +131,7 @@ static void scm_request_done(struct scm_request *scmrq)
 	u64 aidaw;
 	int i;
 
-	for (i = 0; i < SCM_RQ_PER_IO && scmrq->request[i]; i++) {
+	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++) {
 		msb = &scmrq->aob->msb[i];
 		aidaw = msb->data_addr;
 
@@ -214,7 +223,8 @@ static inline void scm_request_init(struct scm_blk_dev *bdev,
 	struct aob_rq_header *aobrq = to_aobrq(scmrq);
 	struct aob *aob = scmrq->aob;
 
-	memset(scmrq->request, 0, sizeof(scmrq->request));
+	memset(scmrq->request, 0,
+	       nr_requests_per_io * sizeof(scmrq->request[0]));
 	memset(aob, 0, sizeof(*aob));
 	aobrq->scmdev = bdev->scmdev;
 	aob->request.cmd_code = ARQB_CMD_MOVE;
@@ -223,7 +233,7 @@ static inline void scm_request_init(struct scm_blk_dev *bdev,
 	scmrq->retries = 4;
 	scmrq->error = 0;
 	/* We don't use all msbs - place aidaws at the end of the aob page. */
-	scmrq->next_aidaw = (void *) &aob->msb[SCM_RQ_PER_IO];
+	scmrq->next_aidaw = (void *) &aob->msb[nr_requests_per_io];
 	scm_request_cluster_init(scmrq);
 }
 
@@ -242,7 +252,7 @@ void scm_request_requeue(struct scm_request *scmrq)
 	int i;
 
 	scm_release_cluster(scmrq);
-	for (i = 0; i < SCM_RQ_PER_IO && scmrq->request[i]; i++)
+	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++)
 		blk_requeue_request(bdev->rq, scmrq->request[i]);
 
 	atomic_dec(&bdev->queued_reqs);
@@ -256,7 +266,7 @@ void scm_request_finish(struct scm_request *scmrq)
 	int i;
 
 	scm_release_cluster(scmrq);
-	for (i = 0; i < SCM_RQ_PER_IO && scmrq->request[i]; i++)
+	for (i = 0; i < nr_requests_per_io && scmrq->request[i]; i++)
 		blk_end_request_all(scmrq->request[i], scmrq->error);
 
 	atomic_dec(&bdev->queued_reqs);
@@ -342,7 +352,7 @@ static void scm_blk_request(struct request_queue *rq)
 		}
 		blk_start_request(req);
 
-		if (scmrq->aob->request.msb_count < SCM_RQ_PER_IO)
+		if (scmrq->aob->request.msb_count < nr_requests_per_io)
 			continue;
 
 		if (scm_request_start(scmrq))
@@ -551,11 +561,19 @@ void scm_blk_set_available(struct scm_blk_dev *bdev)
 	spin_unlock_irqrestore(&bdev->lock, flags);
 }
 
+static bool __init scm_blk_params_valid(void)
+{
+	if (!nr_requests_per_io || nr_requests_per_io > 64)
+		return false;
+
+	return scm_cluster_size_valid();
+}
+
 static int __init scm_blk_init(void)
 {
 	int ret = -EINVAL;
 
-	if (!scm_cluster_size_valid())
+	if (!scm_blk_params_valid())
 		goto out;
 
 	ret = register_blkdev(0, "scm");
