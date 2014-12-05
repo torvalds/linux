@@ -69,6 +69,7 @@ static inline void ablkcipher_queue_write(struct ablkcipher_walk *walk,
 static inline u8 *ablkcipher_get_spot(u8 *start, unsigned int len)
 {
 	u8 *end_page = (u8 *)(((unsigned long)(start + len - 1)) & PAGE_MASK);
+
 	return max(start, end_page);
 }
 
@@ -86,7 +87,8 @@ static inline unsigned int ablkcipher_done_slow(struct ablkcipher_walk *walk,
 		if (n == len_this_page)
 			break;
 		n -= len_this_page;
-		scatterwalk_start(&walk->out, scatterwalk_sg_next(walk->out.sg));
+		scatterwalk_start(&walk->out, scatterwalk_sg_next(
+			walk->out.sg));
 	}
 
 	return bsize;
@@ -284,6 +286,7 @@ static int ablkcipher_walk_first(struct ablkcipher_request *req,
 	walk->iv = req->info;
 	if (unlikely(((unsigned long)walk->iv & alignmask))) {
 		int err = ablkcipher_copy_iv(walk, tfm, alignmask);
+
 		if (err)
 			return err;
 	}
@@ -589,7 +592,8 @@ static int crypto_givcipher_default(struct crypto_alg *alg, u32 type, u32 mask)
 	if (IS_ERR(inst))
 		goto put_tmpl;
 
-	if ((err = crypto_register_instance(tmpl, inst))) {
+	err = crypto_register_instance(tmpl, inst);
+	if (err) {
 		tmpl->free(inst);
 		goto put_tmpl;
 	}
