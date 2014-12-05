@@ -83,7 +83,8 @@ unsigned int do_dts;
 unsigned int do_ptm;
 unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
-double rapl_power_units, rapl_energy_units, rapl_time_units;
+double rapl_power_units, rapl_time_units;
+double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
 unsigned int do_core_perf_limit_reasons;
 unsigned int do_gfx_perf_limit_reasons;
@@ -600,7 +601,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		if (do_rapl & RAPL_GFX)
 			outp += sprintf(outp, fmt8, p->energy_gfx * rapl_energy_units / interval_float);
 		if (do_rapl & RAPL_DRAM)
-			outp += sprintf(outp, fmt8, p->energy_dram * rapl_energy_units / interval_float);
+			outp += sprintf(outp, fmt8, p->energy_dram * rapl_dram_energy_units / interval_float);
 		if (do_rapl & RAPL_PKG_PERF_STATUS)
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
@@ -617,7 +618,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 					p->energy_gfx * rapl_energy_units);
 		if (do_rapl & RAPL_DRAM)
 			outp += sprintf(outp, fmt8,
-					p->energy_dram * rapl_energy_units);
+					p->energy_dram * rapl_dram_energy_units);
 		if (do_rapl & RAPL_PKG_PERF_STATUS)
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_pkg_perf_status * rapl_time_units / interval_float);
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
@@ -1935,6 +1936,25 @@ double get_tdp(model)
 	}
 }
 
+/*
+ * rapl_dram_energy_units_probe()
+ * Energy units are either hard-coded, or come from RAPL Energy Unit MSR.
+ */
+static double
+rapl_dram_energy_units_probe(int  model, double rapl_energy_units)
+{
+	/* only called for genuine_intel, family 6 */
+
+	switch (model) {
+	case 0x3F:	/* HSX */
+	case 0x4F:	/* BDX */
+	case 0x56:	/* BDX-DE */
+		return (rapl_dram_energy_units = 15.3 / 1000000);
+	default:
+		return (rapl_energy_units);
+	}
+}
+
 
 /*
  * rapl_probe()
@@ -1993,6 +2013,8 @@ void rapl_probe(unsigned int family, unsigned int model)
 		rapl_energy_units = 1.0 * (1 << (msr >> 8 & 0x1F)) / 1000000;
 	else
 		rapl_energy_units = 1.0 / (1 << (msr >> 8 & 0x1F));
+
+	rapl_dram_energy_units = rapl_dram_energy_units_probe(model, rapl_energy_units);
 
 	time_unit = msr >> 16 & 0xF;
 	if (time_unit == 0)
