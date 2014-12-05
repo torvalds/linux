@@ -462,7 +462,10 @@ static void __init arch_counter_register(unsigned type)
 
 	/* Register the CP15 based counter if we have one */
 	if (type & ARCH_CP15_TIMER) {
-		arch_timer_read_counter = arch_counter_get_cntvct;
+		if (arch_timer_use_virtual)
+			arch_timer_read_counter = arch_counter_get_cntvct;
+		else
+			arch_timer_read_counter = arch_counter_get_cntpct;
 	} else {
 		arch_timer_read_counter = arch_counter_get_cntvct_mem;
 
@@ -700,6 +703,14 @@ static void __init arch_timer_init(struct device_node *np)
 	for (i = PHYS_SECURE_PPI; i < MAX_TIMER_PPI; i++)
 		arch_timer_ppi[i] = irq_of_parse_and_map(np, i);
 	arch_timer_detect_rate(NULL, np);
+
+	/*
+	 * If we cannot rely on firmware initializing the timer registers then
+	 * we should use the physical timers instead.
+	 */
+	if (IS_ENABLED(CONFIG_ARM) &&
+	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
+			arch_timer_use_virtual = false;
 
 	/*
 	 * If HYP mode is available, we know that the physical timer
