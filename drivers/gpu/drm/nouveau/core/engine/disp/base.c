@@ -225,8 +225,7 @@ nouveau_disp_create_(struct nouveau_object *parent,
 			sclass++;
 		}
 
-		nouveau_object_ctor(*pobject, *pobject, oclass,
-				    &dcbE, i, &object);
+		nouveau_object_ctor(*pobject, NULL, oclass, &dcbE, i, &object);
 		hpd = max(hpd, (u8)(dcbE.connector + 1));
 	}
 

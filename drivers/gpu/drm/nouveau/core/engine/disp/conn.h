@@ -46,7 +46,7 @@ struct nvkm_connector_impl {
 #ifndef MSG
 #define MSG(l,f,a...) do {                                                     \
 	struct nvkm_connector *_conn = (void *)conn;                           \
-	nv_##l(nv_object(conn)->engine, "%02x:%02x%02x: "f, _conn->index,      \
+	nv_##l(_conn, "%02x:%02x%02x: "f, _conn->index,                        \
 	       _conn->info.location, _conn->info.type, ##a);                   \
 } while(0)
 #define DBG(f,a...) MSG(debug, f, ##a)

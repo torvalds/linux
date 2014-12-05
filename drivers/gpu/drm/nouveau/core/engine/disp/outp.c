@@ -62,9 +62,9 @@ nvkm_output_create_(struct nouveau_object *parent,
 		    struct dcb_output *dcbE, int index,
 		    int length, void **pobject)
 {
-	struct nouveau_bios *bios = nouveau_bios(engine);
+	struct nouveau_disp *disp = nouveau_disp(parent);
+	struct nouveau_bios *bios = nouveau_bios(parent);
 	struct nouveau_i2c *i2c = nouveau_i2c(parent);
-	struct nouveau_disp *disp = (void *)engine;
 	struct nvbios_connE connE;
 	struct nvkm_output *outp;
 	u8  ver, hdr;
@@ -98,7 +98,7 @@ nvkm_output_create_(struct nouveau_object *parent,
 		connE.type = DCB_CONNECTOR_NONE;
 	}
 
-	ret = nouveau_object_ctor(parent, engine, nvkm_connector_oclass,
+	ret = nouveau_object_ctor(parent, NULL, nvkm_connector_oclass,
 				 &connE, outp->info.connector,
 				 (struct nouveau_object **)&outp->conn);
 	if (ret < 0) {

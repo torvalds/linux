@@ -50,7 +50,7 @@ struct nvkm_output_impl {
 #ifndef MSG
 #define MSG(l,f,a...) do {                                                     \
 	struct nvkm_output *_outp = (void *)outp;                              \
-	nv_##l(nv_object(outp)->engine, "%02x:%04x:%04x: "f, _outp->index,     \
+	nv_##l(_outp, "%02x:%04x:%04x: "f, _outp->index,                       \
 	       _outp->info.hasht, _outp->info.hashm, ##a);                     \
 } while(0)
 #define DBG(f,a...) MSG(debug, f, ##a)

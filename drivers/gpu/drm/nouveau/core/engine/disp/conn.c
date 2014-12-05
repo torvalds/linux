@@ -86,8 +86,8 @@ nvkm_connector_create_(struct nouveau_object *parent,
 		       int length, void **pobject)
 {
 	static const u8 hpd[] = { 0x07, 0x08, 0x51, 0x52, 0x5e, 0x5f, 0x60 };
+	struct nouveau_disp *disp = nouveau_disp(parent);
 	struct nouveau_gpio *gpio = nouveau_gpio(parent);
-	struct nouveau_disp *disp = (void *)engine;
 	struct nvkm_connector *conn;
 	struct nvkm_output *outp;
 	struct dcb_gpio_func func;
