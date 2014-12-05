@@ -22,6 +22,129 @@
 #include <linux/xattr.h>
 #include "aufs.h"
 
+static int au_xattr_ignore(int err, char *name, unsigned int ignore_flags)
+{
+	if (!ignore_flags)
+		goto out;
+	switch (err) {
+	case -ENOMEM:
+	case -EDQUOT:
+		goto out;
+	}
+
+	if (ignore_flags == AuBrAttr_ICEX) {
+		err = 0;
+		goto out;
+	}
+
+#define cmp(brattr, prefix) do {					\
+		if (!strncmp(name, XATTR_##prefix##_PREFIX,		\
+			     XATTR_##prefix##_PREFIX_LEN)) {		\
+			if (ignore_flags & AuBrAttr_ICEX_##brattr)	\
+				err = 0;				\
+			goto out;					\
+		}							\
+	} while (0)
+
+	cmp(SEC, SECURITY);
+	cmp(SYS, SYSTEM);
+	cmp(TR, TRUSTED);
+	cmp(USR, USER);
+#undef cmp
+
+	if (ignore_flags & AuBrAttr_ICEX_OTH)
+		err = 0;
+
+out:
+	return err;
+}
+
+static int au_do_cpup_xattr(struct dentry *h_dst, struct dentry *h_src,
+			    char *name, char **buf, unsigned int ignore_flags)
+{
+	int err;
+	ssize_t ssz;
+	struct inode *h_idst;
+
+	ssz = vfs_getxattr_alloc(h_src, name, buf, 0, GFP_NOFS);
+	err = ssz;
+	if (unlikely(err <= 0)) {
+		AuTraceErr(err);
+		goto out;
+	}
+
+	/* unlock it temporary */
+	h_idst = h_dst->d_inode;
+	mutex_unlock(&h_idst->i_mutex);
+	err = vfsub_setxattr(h_dst, name, *buf, ssz, /*flags*/0);
+	mutex_lock_nested(&h_idst->i_mutex, AuLsc_I_CHILD2);
+	if (unlikely(err)) {
+		AuDbg("%s, err %d\n", name, err);
+		err = au_xattr_ignore(err, name, ignore_flags);
+	}
+
+out:
+	return err;
+}
+
+int au_cpup_xattr(struct dentry *h_dst, struct dentry *h_src, int ignore_flags)
+{
+	int err, unlocked;
+	ssize_t ssz;
+	struct inode *h_isrc, *h_idst;
+	char *value, *p, *o, *e;
+
+	/* try stopping to update the source inode while we are referencing */
+	/* there should not be the parent-child relation ship between them */
+	h_isrc = h_src->d_inode;
+	h_idst = h_dst->d_inode;
+	mutex_unlock(&h_idst->i_mutex);
+	mutex_lock_nested(&h_isrc->i_mutex, AuLsc_I_CHILD);
+	mutex_lock_nested(&h_idst->i_mutex, AuLsc_I_CHILD2);
+	unlocked = 0;
+
+	ssz = vfs_listxattr(h_src, NULL, 0);
+	err = ssz;
+	if (!err)
+		goto out;
+	if (unlikely(err < 0)) {
+		if (err == -EOPNOTSUPP)
+			err = 0;	/* ignore */
+		goto out;
+	}
+
+	err = -ENOMEM;
+	p = kmalloc(ssz, GFP_NOFS);
+	o = p;
+	if (unlikely(!p))
+		goto out;
+
+	err = vfs_listxattr(h_src, p, ssz);
+	mutex_unlock(&h_isrc->i_mutex);
+	unlocked = 1;
+	AuDbg("err %d, ssz %zd\n", err, ssz);
+	if (unlikely(err < 0))
+		goto out_free;
+
+	err = 0;
+	e = p + ssz;
+	value = NULL;
+	while (!err && p < e) {
+		err = au_do_cpup_xattr(h_dst, h_src, p, &value, ignore_flags);
+		p += strlen(p) + 1;
+	}
+	kfree(value);
+
+out_free:
+	kfree(o);
+out:
+	if (!unlocked)
+		mutex_unlock(&h_isrc->i_mutex);
+	return err;
+}
+
+/* ---------------------------------------------------------------------- */
+
 enum {
 	AU_XATTR_LIST,
 	AU_XATTR_GET
