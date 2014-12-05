@@ -558,6 +558,7 @@
 #define SD_SAMPLE_POINT_CTL		0xFDA7
 #define SD_PUSH_POINT_CTL		0xFDA8
 #define SD_CMD0				0xFDA9
+#define   SD_CMD_START			0x40
 #define SD_CMD1				0xFDAA
 #define SD_CMD2				0xFDAB
 #define SD_CMD3				0xFDAC
@@ -993,6 +994,14 @@ static inline int rtsx_pci_update_cfg_byte(struct rtsx_pcr *pcr, int addr,
 	if (err < 0)
 		return err;
 	return pci_write_config_byte(pcr->pci, addr, (val & mask) | append);
+}
+
+static inline void rtsx_pci_write_be32(struct rtsx_pcr *pcr, u16 reg, u32 val)
+{
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg,     0xFF, val >> 24);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg + 1, 0xFF, val >> 16);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg + 2, 0xFF, val >> 8);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg + 3, 0xFF, val);
 }
 
 #endif
