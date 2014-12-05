@@ -7006,9 +7006,12 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	 * if such a RSSI threshold is specified. If a RSSI threshold has
 	 * been specified, then all results with a RSSI smaller than the
 	 * RSSI threshold will be dropped.
+	 *
+	 * For BR/EDR devices (pre 1.2) providing no RSSI during inquiry,
+	 * the results are also dropped.
 	 */
 	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
-	    rssi < hdev->discovery.rssi)
+	    (rssi < hdev->discovery.rssi || rssi == HCI_RSSI_INVALID))
 		return;
 
 	/* Make sure that the buffer is big enough. The 5 extra bytes
@@ -7018,6 +7021,10 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		return;
 
 	memset(buf, 0, sizeof(buf));
+
+	/* Reset invalid RSSI to 0 to keep backwards API compliance */
+	if (rssi == HCI_RSSI_INVALID)
+		rssi = 0;
 
 	bacpy(&ev->addr.bdaddr, bdaddr);
 	ev->addr.type = link_to_bdaddr(link_type, addr_type);
