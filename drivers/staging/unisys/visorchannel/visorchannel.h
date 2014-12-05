@@ -68,7 +68,7 @@ u64 visorchannel_get_clientpartition(VISORCHANNEL *channel);
 uuid_le visorchannel_get_uuid(VISORCHANNEL *channel);
 struct memregion *visorchannel_get_memregion(VISORCHANNEL *channel);
 char *visorchannel_uuid_id(uuid_le *guid, char *s);
-void visorchannel_debug(VISORCHANNEL *channel, int nQueues,
+void visorchannel_debug(VISORCHANNEL *channel, int num_queues,
 			struct seq_file *seq, u32 off);
 void visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 			       int off, int len, struct seq_file *seq);

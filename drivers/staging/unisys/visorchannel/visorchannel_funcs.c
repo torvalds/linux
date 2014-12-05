@@ -565,7 +565,7 @@ sigqueue_debug(struct signal_queue_header *q, int which, struct seq_file *seq)
 }
 
 void
-visorchannel_debug(VISORCHANNEL *channel, int nQueues,
+visorchannel_debug(VISORCHANNEL *channel, int num_queues,
 		   struct seq_file *seq, u32 off)
 {
 	HOSTADDRESS addr = 0;
@@ -625,7 +625,7 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 	if ((phdr->ch_space_offset == 0) || (errcode < 0))
 		;
 	else
-		for (i = 0; i < nQueues; i++) {
+		for (i = 0; i < num_queues; i++) {
 			struct signal_queue_header q;
 
 			errcode = visorchannel_read(channel,
