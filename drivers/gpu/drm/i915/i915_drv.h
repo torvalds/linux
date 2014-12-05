@@ -55,7 +55,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20141121"
+#define DRIVER_DATE		"20141205"
 
 #undef WARN_ON
 #define WARN_ON(x)		WARN(x, "WARN_ON(" #x ")")
