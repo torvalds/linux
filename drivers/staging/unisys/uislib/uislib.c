@@ -1315,8 +1315,9 @@ Process_Incoming(void *v)
 					      &List_Polling_Device_Channels))) {
 						new_tail = lelt;
 						dev->moved_to_tail_cnt++;
-					} else
+					} else {
 						dev->last_on_list_cnt++;
+					}
 				}
 			}
 			if (Incoming_ThreadInfo.should_stop)
