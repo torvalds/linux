@@ -5625,6 +5625,19 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	 */
 	filter_policy = update_white_list(req);
 
+	/* When the controller is using random resolvable addresses and
+	 * with that having LE privacy enabled, then controllers with
+	 * Extended Scanner Filter Policies support can now enable support
+	 * for handling directed advertising.
+	 *
+	 * So instead of using filter polices 0x00 (no whitelist)
+	 * and 0x01 (whitelist enabled) use the new filter policies
+	 * 0x02 (no whitelist) and 0x03 (whitelist enabled).
+	 */
+	if (test_bit(HCI_PRIVACY, &hdev->dev_flags) &&
+	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
+		filter_policy |= 0x02;
+
 	memset(&param_cp, 0, sizeof(param_cp));
 	param_cp.type = LE_SCAN_PASSIVE;
 	param_cp.interval = cpu_to_le16(hdev->le_scan_interval);
