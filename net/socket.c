@@ -651,7 +651,8 @@ static inline int __sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return err ?: __sock_sendmsg_nosec(iocb, sock, msg, size);
 }
 
-int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
+static int do_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+			   size_t size, bool nosec)
 {
 	struct kiocb iocb;
 	struct sock_iocb siocb;
@@ -659,25 +660,22 @@ int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 
 	init_sync_kiocb(&iocb, NULL);
 	iocb.private = &siocb;
-	ret = __sock_sendmsg(&iocb, sock, msg, size);
+	ret = nosec ? __sock_sendmsg_nosec(&iocb, sock, msg, size) :
+		      __sock_sendmsg(&iocb, sock, msg, size);
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&iocb);
 	return ret;
+}
+
+int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
+{
+	return do_sock_sendmsg(sock, msg, size, false);
 }
 EXPORT_SYMBOL(sock_sendmsg);
 
 static int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg, size_t size)
 {
-	struct kiocb iocb;
-	struct sock_iocb siocb;
-	int ret;
-
-	init_sync_kiocb(&iocb, NULL);
-	iocb.private = &siocb;
-	ret = __sock_sendmsg_nosec(&iocb, sock, msg, size);
-	if (-EIOCBQUEUED == ret)
-		ret = wait_on_sync_kiocb(&iocb);
-	return ret;
+	return do_sock_sendmsg(sock, msg, size, true);
 }
 
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
