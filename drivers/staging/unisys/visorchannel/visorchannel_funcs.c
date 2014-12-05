@@ -49,7 +49,7 @@ struct VISORCHANNEL_Tag {
  * NOT modify this data area.
  */
 static VISORCHANNEL *
-visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
+visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 			 VISORCHANNEL *parent, ulong off, uuid_le guid,
 			 BOOL needs_lock)
 {
@@ -87,18 +87,18 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
 		rc = NULL;
 		goto cleanup;
 	}
-	if (channelBytes == 0)
+	if (channel_bytes == 0)
 		/* we had better be a CLIENT of this channel */
-		channelBytes = (ulong)p->chan_hdr.size;
+		channel_bytes = (ulong)p->chan_hdr.size;
 	if (uuid_le_cmp(guid, NULL_UUID_LE) == 0)
 		/* we had better be a CLIENT of this channel */
 		guid = p->chan_hdr.chtype;
-	if (visor_memregion_resize(p->memregion, channelBytes) < 0) {
+	if (visor_memregion_resize(p->memregion, channel_bytes) < 0) {
 		ERRDRV("visor_memregion_resize failed: (status=0)\n");
 		rc = NULL;
 		goto cleanup;
 	}
-	p->size = channelBytes;
+	p->size = channel_bytes;
 	p->guid = guid;
 
 	rc = p;
@@ -114,37 +114,37 @@ cleanup:
 }
 
 VISORCHANNEL *
-visorchannel_create(HOSTADDRESS physaddr, ulong channelBytes, uuid_le guid)
+visorchannel_create(HOSTADDRESS physaddr, ulong channel_bytes, uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channelBytes, NULL, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, NULL, 0, guid,
 					FALSE);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create);
 
 VISORCHANNEL *
-visorchannel_create_with_lock(HOSTADDRESS physaddr, ulong channelBytes,
+visorchannel_create_with_lock(HOSTADDRESS physaddr, ulong channel_bytes,
 			      uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channelBytes, NULL, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, NULL, 0, guid,
 					TRUE);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create_with_lock);
 
 VISORCHANNEL *
-visorchannel_create_overlapped(ulong channelBytes,
+visorchannel_create_overlapped(ulong channel_bytes,
 			       VISORCHANNEL *parent, ulong off, uuid_le guid)
 {
-	return visorchannel_create_guts(0, channelBytes, parent, off, guid,
+	return visorchannel_create_guts(0, channel_bytes, parent, off, guid,
 					FALSE);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create_overlapped);
 
 VISORCHANNEL *
-visorchannel_create_overlapped_with_lock(ulong channelBytes,
+visorchannel_create_overlapped_with_lock(ulong channel_bytes,
 					 VISORCHANNEL *parent, ulong off,
 					 uuid_le guid)
 {
-	return visorchannel_create_guts(0, channelBytes, parent, off, guid,
+	return visorchannel_create_guts(0, channel_bytes, parent, off, guid,
 					TRUE);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create_overlapped_with_lock);

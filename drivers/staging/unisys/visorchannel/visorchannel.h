@@ -35,17 +35,17 @@
 typedef struct VISORCHANNEL_Tag VISORCHANNEL;
 
 /* Note that for visorchannel_create() and visorchannel_create_overlapped(),
- * <channelBytes> and <guid> arguments may be 0 if we are a channel CLIENT.
+ * <channel_bytes> and <guid> arguments may be 0 if we are a channel CLIENT.
  * In this case, the values can simply be read from the channel header.
  */
 VISORCHANNEL *visorchannel_create(HOSTADDRESS physaddr,
-				  ulong channelBytes, uuid_le guid);
-VISORCHANNEL *visorchannel_create_overlapped(ulong channelBytes,
+				  ulong channel_bytes, uuid_le guid);
+VISORCHANNEL *visorchannel_create_overlapped(ulong channel_bytes,
 					     VISORCHANNEL *parent, ulong off,
 					     uuid_le guid);
 VISORCHANNEL *visorchannel_create_with_lock(HOSTADDRESS physaddr,
-					    ulong channelBytes, uuid_le guid);
-VISORCHANNEL *visorchannel_create_overlapped_with_lock(ulong channelBytes,
+					    ulong channel_bytes, uuid_le guid);
+VISORCHANNEL *visorchannel_create_overlapped_with_lock(ulong channel_bytes,
 						       VISORCHANNEL *parent,
 						       ulong off, uuid_le guid);
 void visorchannel_destroy(VISORCHANNEL *channel);
