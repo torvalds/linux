@@ -272,12 +272,14 @@ void vlv_enable_dsi_pll(struct intel_encoder *encoder)
 	tmp |= DSI_PLL_VCO_EN;
 	vlv_cck_write(dev_priv, CCK_REG_DSI_PLL_CONTROL, tmp);
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	if (wait_for(vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL) &
+						DSI_PLL_LOCK, 20)) {
 
-	if (wait_for(I915_READ(PIPECONF(PIPE_A)) & PIPECONF_DSI_PLL_LOCKED, 20)) {
+		mutex_unlock(&dev_priv->dpio_lock);
 		DRM_ERROR("DSI PLL lock failed\n");
 		return;
 	}
+	mutex_unlock(&dev_priv->dpio_lock);
 
 	DRM_DEBUG_KMS("DSI PLL locked\n");
 }
