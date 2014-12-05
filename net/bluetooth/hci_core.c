@@ -2061,10 +2061,7 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 		 * count, it is important to actually free the allocated
 		 * list of UUIDs here.
 		 */
-		hdev->discovery.rssi = HCI_RSSI_INVALID;
-		hdev->discovery.uuid_count = 0;
-		kfree(hdev->discovery.uuids);
-		hdev->discovery.uuids = NULL;
+		hci_discovery_filter_clear(hdev);
 
 		if (old_state != DISCOVERY_STARTING)
 			mgmt_discovering(hdev, 0);

@@ -509,6 +509,14 @@ static inline void discovery_init(struct hci_dev *hdev)
 	hdev->discovery.rssi = HCI_RSSI_INVALID;
 }
 
+static inline void hci_discovery_filter_clear(struct hci_dev *hdev)
+{
+	hdev->discovery.rssi = HCI_RSSI_INVALID;
+	hdev->discovery.uuid_count = 0;
+	kfree(hdev->discovery.uuids);
+	hdev->discovery.uuids = NULL;
+}
+
 bool hci_discovery_active(struct hci_dev *hdev);
 
 void hci_discovery_set_state(struct hci_dev *hdev, int state);
