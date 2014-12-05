@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2010 -2013 Espressif System.
+ *
+ *   extended gpio
+ *    - interface for other driver or kernel
+ *    - gpio control
+ *
+ */
+
 #ifdef USE_EXT_GPIO
 
 #include <net/cfg80211.h>
@@ -118,7 +127,6 @@ int ext_gpio_release(int gpio_no)
 		return -ERANGE;
 	}
 	sif_lock_bus(ext_epub);
-	sif_raw_dummy_read(ext_epub,1);
 	ret = sif_config_gpio_mode(ext_epub, (u8)gpio_no, EXT_GPIO_MODE_DISABLE);
 	sif_unlock_bus(ext_epub);	
 	if (ret) {
@@ -205,7 +213,6 @@ int ext_gpio_set_mode(int gpio_no, int mode, void *data)
 	}
 
 	sif_lock_bus(ext_epub);
-	sif_raw_dummy_read(ext_epub,1);
 	ret = sif_config_gpio_mode(ext_epub, (u8)gpio_no, gpio_mode);
 	sif_unlock_bus(ext_epub);
 	if (ret) {
@@ -278,7 +285,6 @@ int ext_gpio_set_output_state(int gpio_no, int state)
 	}
 
 	sif_lock_bus(ext_epub);
-	sif_raw_dummy_read(ext_epub,1);
 	ret = sif_set_gpio_output(ext_epub, 1<<gpio_no, state<<gpio_no);
 	sif_unlock_bus(ext_epub);	
 	if (ret) {
@@ -318,7 +324,6 @@ int ext_gpio_get_state(int gpio_no)
 		state = gpio_list[gpio_no].gpio_state;
 	 } else if (gpio_list[gpio_no].gpio_mode == EXT_GPIO_MODE_INPUT) {
 		sif_lock_bus(ext_epub);
-		sif_raw_dummy_read(ext_epub,1);
 		ret = sif_get_gpio_input(ext_epub, &mask, &state);
 		sif_unlock_bus(ext_epub);
 		if (ret) {
@@ -364,7 +369,6 @@ int ext_irq_ack(int gpio_no)
 	}
 
 	sif_lock_bus(ext_epub);
-	sif_raw_dummy_read(ext_epub,1);
 	ret = sif_set_gpio_output(ext_epub, 0x00, 1<<gpio_no);
 	sif_unlock_bus(ext_epub);
 	if (ret) {

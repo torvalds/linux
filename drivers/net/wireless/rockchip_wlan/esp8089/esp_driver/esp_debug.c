@@ -1,5 +1,9 @@
 /*
- * Copyright (c) 2011 Espressif System.
+ * Copyright (c) 2011-2014 Espressif System.
+ *
+ * esp debug interface
+ *  - debugfs
+ *  - debug level control
  */
 
 #include <linux/types.h>

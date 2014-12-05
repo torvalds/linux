@@ -1,6 +1,7 @@
 /*
- *  Copyright (c) 2009- 2012 Espressif System.
+ *  Copyright (c) 2009- 2014 Espressif System.
  *
+ *  SIP ctrl packet parse and pack
  */
 #ifndef _ESP_CTRL_H_
 #define _ESP_CTRL_H_
@@ -35,11 +36,9 @@ int sip_send_ps_config(struct esp_pub *epub, struct esp_ps *ps);
 
 int sip_parse_events(struct esp_sip *sip, u8 *buf);
 
-int sip_cmd(struct esp_pub *epub, enum sip_cmd_id cmd_id, u8 *cmd_buf, u8 cmd_len);
+int sip_send_recalc_credit(struct esp_pub *epub);
 
-#ifdef ESP_RX_COPYBACK_TEST
-int sip_show_copyback_buf(void);
-#endif /* ESP_RX_COPYBACK_TEST */
+int sip_cmd(struct esp_pub *epub, enum sip_cmd_id cmd_id, u8 *cmd_buf, u8 cmd_len);
 
 #endif /* _ESP_CTRL_H_ */
 

@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2010 -2013 Espressif System.
+ * Copyright (c) 2010 -2014 Espressif System.
  *
- *   sdio serial i/f driver
+ *   spi serial i/f driver
  *    - sdio device control routines
  *    - sync/async DMA/PIO read/write
  *
@@ -24,15 +24,18 @@
 #include "slc_host_register.h"
 #include "esp_version.h"
 #include "esp_ctrl.h"
-#ifdef ANDROID
-#include "esp_android.h"
-#endif /* ANDROID */
+#include "esp_file.h"
 #ifdef USE_EXT_GPIO
 #include "esp_ext.h"
 #endif /* USE_EXT_GPIO */
 
-static int esp_spi_init(void);
-static void  esp_spi_exit(void);
+static int /*__init */ esp_spi_init(void);
+static void /* __exit */ esp_spi_exit(void);
+
+#ifdef ESP_PREALLOC
+extern u8 *esp_get_lspi_buf(void);
+extern void esp_put_lspi_buf(u8 **p);
+#endif
 
 #define SPI_BLOCK_SIZE              (512)
 
@@ -115,7 +118,6 @@ bool log_off = false;
 #ifdef REQUEST_RTC_IRQ
 extern int request_rtc_irq(void);
 #endif
-struct sif_req * sif_alloc_req(struct esp_spi_ctrl *sctrl);
 
 #include "spi_stub.c"
 
@@ -155,48 +157,6 @@ int sif_spi_write_then_read(struct spi_device *spi, unsigned char* bufwrite, int
 	}
 
 	return 0;
-}
-
-int sif_spi_read_reg_window(struct spi_device *spi, unsigned int reg_addr, unsigned char *value)
-{
-    int ret = 0;
-    int retry = 20;
-
-    if(reg_addr > 0x1f)
-        return -1;
-
-    check_buf[0] = 0x80 | (reg_addr & 0x1f);
-
-    ret = sif_spi_write_bytes(spi, 0x40,check_buf , 1, NOT_DUMMYMODE);
-    
-    if(ret == 0)
-    { 
-        do{
-            if(retry < 20)
-                mdelay(10);
-            retry --;
-            ret = sif_spi_read_bytes(spi, 0xc, check_buf, 4, NOT_DUMMYMODE);
-        }while(retry >0 && ret != 0);
-    }
-    
-    if(ret ==0)
-        memcpy(value,check_buf,4);
-
-    return ret; 
-}
-
-int sif_spi_write_reg_window(struct spi_device *spi, unsigned int reg_addr,unsigned char *value)
-{
-    int ret = 0;
-
-    if(reg_addr > 0x1f)
-        return -1;
-    memcpy(check_buf,value,4);   
-    check_buf[4] = 0xc0 |(reg_addr & 0x1f);
-    
-    ret = sif_spi_write_bytes(spi, 0x3c,check_buf , 5, NOT_DUMMYMODE);
-
-    return ret;
 }
 
 int sif_spi_write_async_read(struct spi_device *spi, unsigned char* bufwrite,unsigned char* bufread,int size)
@@ -769,49 +729,43 @@ goto_err:
     return err_ret;
 }
 
-int sif_spi_write_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode,int reg_window)
+int sif_spi_write_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode)
 {
-    int blk_cnt;
-    int remain_len;
-    int err;
-    if(reg_window == 0)
-    {
-        blk_cnt = len/SPI_BLOCK_SIZE;
-        remain_len = len%SPI_BLOCK_SIZE;
+	int blk_cnt;
+	int remain_len;
+	int err;
+	do {
+		blk_cnt = len/SPI_BLOCK_SIZE;
+		remain_len = len%SPI_BLOCK_SIZE;
 
-        if (blk_cnt > 0) {
-            err  = sif_spi_write_blocks(spi, addr, buf, blk_cnt);
-            if (err) 
-                return err;
-        }
+		if (blk_cnt > 0) {
+			err  = sif_spi_write_blocks(spi, addr, buf, blk_cnt);
+			if (err) 
+				return err;
+		}
 
-        if (remain_len > 0) {
-            err = sif_spi_write_bytes(spi, addr, (buf + (blk_cnt*SPI_BLOCK_SIZE)), remain_len, dummymode);
-            if (err)
-                return err;
-        }
-    }else
-    {
-        err =sif_spi_write_reg_window(spi,addr,buf);
-        if(err)
-            return err;
-    }
-    return 0;
+		if (remain_len > 0) {
+			err = sif_spi_write_bytes(spi, addr, (buf + (blk_cnt*SPI_BLOCK_SIZE)), remain_len, dummymode);
+			if (err)
+				return err;
+		}
+	} while(0);
+	return 0;
 
 }
 
-int sif_spi_write_mix_sync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode,int reg_window) 
+int sif_spi_write_mix_sync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode) 
 {
 	int err;
 
 	spi_bus_lock(spi->master);
-	err = sif_spi_write_mix_nosync(spi, addr, buf, len, dummymode,reg_window);
+	err = sif_spi_write_mix_nosync(spi, addr, buf, len, dummymode);
 	spi_bus_unlock(spi->master);
 
 	return err;
 }
 
-int sif_spi_epub_write_mix_nosync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode,int reg_window)
+int sif_spi_epub_write_mix_nosync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -827,10 +781,10 @@ int sif_spi_epub_write_mix_nosync(struct esp_pub *epub, unsigned int addr, unsig
 		return -EINVAL;
 	}
 
-	return sif_spi_write_mix_nosync(spi, addr, buf, len, dummymode,reg_window);
+	return sif_spi_write_mix_nosync(spi, addr, buf, len, dummymode);
 }
 
-int sif_spi_epub_write_mix_sync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode,int reg_window)
+int sif_spi_epub_write_mix_sync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -846,7 +800,7 @@ int sif_spi_epub_write_mix_sync(struct esp_pub *epub, unsigned int addr, unsigne
 		return -EINVAL;
 	}
 
-	return sif_spi_write_mix_sync(spi, addr, buf, len, dummymode,reg_window);
+	return sif_spi_write_mix_sync(spi, addr, buf, len, dummymode);
 }
 
 int sif_spi_read_bytes(struct spi_device *spi, unsigned int addr,unsigned char *dst, int count, int dummymode)
@@ -1285,94 +1239,88 @@ goto_err:
     return err_ret;
 }
 
-int sif_spi_read_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode,int reg_window)
+int sif_spi_read_mix_nosync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode)
 {
 	int blk_cnt;
 	int remain_len;
-    int err = 0;
-    int retry = 20;
+	int err = 0;
+	int retry = 20;
 
-    if(reg_window == 0)
-    {
-        blk_cnt = len/SPI_BLOCK_SIZE;
-        remain_len = len%SPI_BLOCK_SIZE;
+	do{
+		blk_cnt = len/SPI_BLOCK_SIZE;
+		remain_len = len%SPI_BLOCK_SIZE;
 
-        if (blk_cnt > 0) {
+		if (blk_cnt > 0) {
 
-            retry = 20;
-            do {
-                if(retry < 20)
-                    mdelay(10);
-                retry--;
-                check_buf[0] = 1<<2;
-                err  = sif_spi_read_blocks(spi, addr, buf, blk_cnt);
-                if(err == 0)
-                {
-                    sif_spi_write_bytes(spi,SLC_HOST_CONF_W4 + 2,check_buf,1,0);
-                } else if(err == -4 ||err == -5 ||err == -6||err == -7 ||err == -8)
-                {
-                    sif_spi_read_reg_window(spi, 0x9, check_buf);
-                    check_buf[3] = check_buf[3] | (1<<5);
-                    sif_spi_write_reg_window(spi,0x9, check_buf);
-                } else if(err == -3)
-                {
-                    continue;
-                } else
-                {
-                    break;
-                }
+			retry = 20;
+			do {
+				if(retry < 20)
+					mdelay(10);
+				retry--;
+				check_buf[0] = 1<<2;
+				err  = sif_spi_read_blocks(spi, addr, buf, blk_cnt);
+				if(err == 0)
+				{
+					sif_spi_write_bytes(spi,SLC_HOST_CONF_W4 + 2,check_buf,1,0);
+				} else if(err == -4 ||err == -5 ||err == -6||err == -7 ||err == -8)
+				{
+					struct esp_spi_ctrl *sctrl = spi_get_drvdata(spi);
+					if(sctrl != NULL) {
+						sif_ack_target_read_err(sctrl->epub);
+					}
+				} else if(err == -3)
+				{
+					continue;
+				} else
+				{
+					break;
+				}
 
-            }while(retry > 0 && err != 0);
-            if(err != 0 && retry == 0)
-                    esp_dbg(ESP_DBG_ERROR, "spierr 20 times retry block read fail\n");
-          
-            if(err)
-                return err;
-        }
+			}while(retry > 0 && err != 0);
+			if(err != 0 && retry == 0)
+				esp_dbg(ESP_DBG_ERROR, "spierr 20 times retry block read fail\n");
 
-        if (remain_len > 0) {
-            if(dummymode == 0 )
-            {
-                retry = 20;
-                do{
-                    if(retry <20)
-                        mdelay(10);
-                    retry--;
-                    err = sif_spi_read_bytes(spi, addr, (buf + (blk_cnt*SPI_BLOCK_SIZE)), remain_len, dummymode);
-                }while(retry >0 && err != 0);
+			if(err)
+				return err;
+		}
 
-                if(err != 0 &&  retry == 0)
-                    esp_dbg(ESP_DBG_ERROR, "spierr 20 times retry byte read fail\n");
-            }
-            else
-            {
-                err = sif_spi_read_bytes(spi, addr, (buf + (blk_cnt*SPI_BLOCK_SIZE)), remain_len, dummymode);
-            }
-            if (err)
-                return err;
-        }
-    }
-    else
-    {
-        err =sif_spi_read_reg_window(spi,addr,buf);
-        if(err)
-            return err;
-    }
-    return 0;
+		if (remain_len > 0) {
+			if(dummymode == 0 )
+			{
+				retry = 20;
+				do{
+					if(retry <20)
+						mdelay(10);
+					retry--;
+					err = sif_spi_read_bytes(spi, addr, (buf + (blk_cnt*SPI_BLOCK_SIZE)), remain_len, dummymode);
+				}while(retry >0 && err != 0);
+
+				if(err != 0 &&  retry == 0)
+					esp_dbg(ESP_DBG_ERROR, "spierr 20 times retry byte read fail\n");
+			}
+			else
+			{
+				err = sif_spi_read_bytes(spi, addr, (buf + (blk_cnt*SPI_BLOCK_SIZE)), remain_len, dummymode);
+			}
+			if (err)
+				return err;
+		}
+	} while(0);
+	return 0;
 }
 
-int sif_spi_read_mix_sync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode, int reg_window)
+int sif_spi_read_mix_sync(struct spi_device *spi, unsigned int addr, unsigned char *buf, int len, int dummymode)
 {
 	int err;
 	
 	spi_bus_lock(spi->master);
-	err = sif_spi_read_mix_nosync(spi, addr, buf, len, dummymode,reg_window);
+	err = sif_spi_read_mix_nosync(spi, addr, buf, len, dummymode);
 	spi_bus_unlock(spi->master);
 
 	return err;
 }
 
-int sif_spi_epub_read_mix_nosync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode, int reg_window)
+int sif_spi_epub_read_mix_nosync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -1388,10 +1336,10 @@ int sif_spi_epub_read_mix_nosync(struct esp_pub *epub, unsigned int addr, unsign
 		return -EINVAL;
 	}
 
-	return sif_spi_read_mix_nosync(spi, addr, buf, len, dummymode,reg_window);
+	return sif_spi_read_mix_nosync(spi, addr, buf, len, dummymode);
 }
 
-int sif_spi_epub_read_mix_sync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode,int reg_window)
+int sif_spi_epub_read_mix_sync(struct esp_pub *epub, unsigned int addr, unsigned char *buf,int len, int dummymode)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -1407,10 +1355,10 @@ int sif_spi_epub_read_mix_sync(struct esp_pub *epub, unsigned int addr, unsigned
 		return -EINVAL;
 	}
 
-	return sif_spi_read_mix_sync(spi, addr, buf, len, dummymode,reg_window);
+	return sif_spi_read_mix_sync(spi, addr, buf, len, dummymode);
 }
 
-int sif_spi_read_sync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode,int reg_window)
+int sif_spi_read_sync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -1439,10 +1387,10 @@ int sif_spi_read_sync(struct esp_pub *epub, unsigned char *buf, int len, int dum
                 break;
         }
 	
-	return sif_spi_read_mix_sync(spi, sctrl->slc_window_end_addr - 2 - (len), buf, read_len, dummymode,reg_window);
+	return sif_spi_read_mix_sync(spi, sctrl->slc_window_end_addr - 2 - (len), buf, read_len, dummymode);
 }
 
-int sif_spi_write_sync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode,int reg_window)
+int sif_spi_write_sync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -1470,10 +1418,10 @@ int sif_spi_write_sync(struct esp_pub *epub, unsigned char *buf, int len, int du
                 write_len = len;
                 break;
         }
-	return sif_spi_write_mix_sync(spi, sctrl->slc_window_end_addr - (len), buf, write_len, dummymode,reg_window);
+	return sif_spi_write_mix_sync(spi, sctrl->slc_window_end_addr - (len), buf, write_len, dummymode);
 }
 
-int sif_spi_read_nosync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode, bool noround,int reg_window)
+int sif_spi_read_nosync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode, bool noround)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -1505,10 +1453,10 @@ int sif_spi_read_nosync(struct esp_pub *epub, unsigned char *buf, int len, int d
                 break;
         }
 	
-	return sif_spi_read_mix_nosync(spi, sctrl->slc_window_end_addr - 2 - (len), buf, read_len, dummymode,reg_window);
+	return sif_spi_read_mix_nosync(spi, sctrl->slc_window_end_addr - 2 - (len), buf, read_len, dummymode);
 }
 
-int sif_spi_write_nosync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode,int reg_window)
+int sif_spi_write_nosync(struct esp_pub *epub, unsigned char *buf, int len, int dummymode)
 {
 	struct esp_spi_ctrl *sctrl = NULL;
         struct spi_device *spi = NULL;
@@ -1536,7 +1484,7 @@ int sif_spi_write_nosync(struct esp_pub *epub, unsigned char *buf, int len, int 
                 write_len = len;
                 break;
         }
-	return sif_spi_write_mix_nosync(spi, sctrl->slc_window_end_addr - (len), buf, write_len, dummymode,reg_window);
+	return sif_spi_write_mix_nosync(spi, sctrl->slc_window_end_addr - (len), buf, write_len, dummymode);
 }
 
 int sif_spi_protocol_init(struct spi_device *spi)
@@ -1943,14 +1891,25 @@ void sif_disable_irq(struct esp_pub *epub)
 
 int esp_setup_spi(struct spi_device *spi)
 {
+#ifndef ESP_PREALLOC
+	int retry = 10;
+#endif
 	/**** alloc buffer for spi io */
 	if (sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT) {
-		if ((buf_addr = (unsigned char *)kmalloc (MAX_BUF_SIZE, GFP_KERNEL)) == NULL)
-			return -ENOMEM;
+#ifdef ESP_PREALLOC
+		if ((buf_addr = esp_get_lspi_buf()) == NULL)
+			goto _err_buf_addr;
+#else
+		while ((buf_addr = (unsigned char *)kmalloc (MAX_BUF_SIZE, GFP_KERNEL)) == NULL) {
+				if (--retry < 0)
+					goto _err_buf_addr;
+		}
+#endif
         	if ((check_buf = (unsigned char *)kmalloc (256, GFP_KERNEL)) == NULL)
-			return -ENOMEM;
+					goto _err_check_buf;
+
         	if ((ff_buf = (unsigned char *)kmalloc (256, GFP_KERNEL)) == NULL)
-			return -ENOMEM;
+					goto _err_ff_buf;
         
         	memset(ff_buf,0xff,256);
 
@@ -1974,14 +1933,25 @@ int esp_setup_spi(struct spi_device *spi)
         	spi_resp.block_w_data_resp_size_final = 1000;
         	spi_resp.block_r_data_resp_size_final = 1000;
 	}
-#if 0
-       spi->mode = 0x03;
-	spi->bits_per_word = 8;
-	spi->max_speed_hz = SPI_FREQ;
 
-	return spi_setup(spi);
-#endif
 	return 0;
+
+_err_ff_buf:
+	if (check_buf) {
+		kfree(check_buf);
+		check_buf = NULL;
+	}
+_err_check_buf:
+	if (buf_addr) {
+#ifdef ESP_PREALLOC
+		esp_put_lspi_buf(&buf_addr);
+#else
+		kfree(buf_addr);
+#endif
+		buf_addr = NULL;
+	}
+_err_buf_addr:
+	return -ENOMEM;
 }
 
 
@@ -2071,9 +2041,6 @@ static int esp_spi_probe(struct spi_device *spi)
         }
         check_target_id(epub);
 
-#ifdef SDIO_TEST
-        sif_test_tx(sctrl);
-#else
         err = esp_pub_init_all(epub);
 
         if (err) {
@@ -2086,7 +2053,6 @@ static int esp_spi_probe(struct spi_device *spi)
 			goto _err_second_init;
         }
 
-#endif //SDIO_TEST
         esp_dbg(ESP_DBG_TRACE, " %s return  %d\n", __func__, err);
 	if(sif_sdio_state == ESP_SDIO_STATE_FIRST_INIT){
 		esp_dbg(ESP_DBG_ERROR, "first normal exit\n");
@@ -2108,7 +2074,11 @@ _err_last:
         kfree(sctrl);
 _err_spi:
 	if (buf_addr) {
+#ifdef ESP_PREALLOC
+		esp_put_lspi_buf(&buf_addr);
+#else
 		kfree(buf_addr);
+#endif
 		buf_addr = NULL;
 		tx_cmd = NULL;
 		rx_cmd = NULL;
@@ -2138,6 +2108,8 @@ _err_second_init:
 static int esp_spi_remove(struct spi_device *spi) 
 {
         struct esp_spi_ctrl *sctrl = NULL;
+
+	esp_dbg(ESP_SHOW, "%s \n", __func__);
 
         sctrl = spi_get_drvdata(spi);
 
@@ -2184,7 +2156,11 @@ static int esp_spi_remove(struct spi_device *spi)
 			kfree(sctrl);
 
 			if (buf_addr) {
+#ifdef ESP_PREALLOC
+				esp_put_lspi_buf(&buf_addr);
+#else
 				kfree(buf_addr);
+#endif
 				buf_addr = NULL;
 				rx_cmd = NULL;
 				tx_cmd = NULL;
@@ -2297,9 +2273,7 @@ static int __init esp_spi_init(void)
 #endif
         edf_ret = esp_debugfs_init();
 
-#ifdef ANDROID
-	android_request_init_conf();
-#endif /* defined(ANDROID)*/
+	request_init_conf();
 
         esp_wakelock_init();
         esp_wake_lock();
@@ -2380,7 +2354,7 @@ _fail:
 
 static void __exit esp_spi_exit(void) 
 {
-	esp_dbg(ESP_DBG_TRACE, "%s \n", __func__);
+	esp_dbg(ESP_SHOW, "%s \n", __func__);
 
 	esp_debugfs_exit();
 	

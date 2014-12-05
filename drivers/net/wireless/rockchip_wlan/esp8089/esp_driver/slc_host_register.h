@@ -10,6 +10,7 @@
 /* #define REG_SLC_HOST_BASE  0x00000000 */
 /* skip the token1, since reading it will clean the credit */
 #define REG_SLC_HOST_BASE  0x00000000
+#define REG_SLC_BASE  0x00000000
 
 
 #define SLC_HOST_PF                          (REG_SLC_HOST_BASE + 0x0)
@@ -218,6 +219,8 @@
 #define SLC_HOST_CONF20 0x000000FF
 #define SLC_HOST_CONF20_S 0
 
+#define SLC_HOST_WIN_CMD                     (REG_SLC_HOST_BASE + 0x40)
+
 
 #define SLC_HOST_DATE                         (REG_SLC_HOST_BASE + 0x78)
 #define SLC_HOST_ID                           (REG_SLC_HOST_BASE + 0x7C)
@@ -237,6 +240,23 @@
 	(v) &= SLC_ADDR_WINDOW_CLEAR_MASK; \
 	(v) |= SLC_TO_HOST_ADDR_WINDOW; \
 } while (0);
+
+#define SLC_INT_ENA                     	(REG_SLC_BASE + 0xC)
+#define SLC_RX_EOF_INT_ENA BIT(17)
+#define SLC_FRHOST_BIT2_INT_ENA BIT(2)
+
+#define SLC_RX_LINK                     	(REG_SLC_BASE + 0x24)
+#define SLC_RXLINK_START BIT(29)
+
+#define SLC_BRIDGE_CONF                     	(REG_SLC_BASE + 0x44)
+#define SLC_TX_PUSH_IDLE_NUM 0xFFFF
+#define SLC_TX_PUSH_IDLE_NUM_S 16
+#define SLC_HDA_MAP_128K BIT(13)
+#define SLC_TX_DUMMY_MODE BIT(12)
+#define SLC_FIFO_MAP_ENA 0x0000000F
+#define SLC_FIFO_MAP_ENA_S 8
+#define SLC_TXEOF_ENA 0x0000003F
+#define SLC_TXEOF_ENA_S
 
 
 #endif // SLC_HOST_REGISTER_H_INCLUDED

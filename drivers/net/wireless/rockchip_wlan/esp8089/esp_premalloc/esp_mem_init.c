@@ -2,6 +2,7 @@
 #include "esp_mem.h"
 #include "esp_slab.h"
 #include "esp_log.h"
+#include "version.h"
 
 #define RETRY_COUNT 10
 
@@ -11,6 +12,7 @@ static int __init esp_mem_init(void)
 	int retry;
 
 	logi("%s enter date %s %s\n", __func__, __DATE__, __TIME__);
+	logi("%s VERSION [%s]\n", __func__, PREALLOC_VERSION);
 
 #ifdef ESP_SLAB
 	retry = RETRY_COUNT;
@@ -22,6 +24,9 @@ static int __init esp_mem_init(void)
 			break;
 
 	} while (--retry > 0);
+
+	if (retry <= 0)
+		goto _err_slab;
 #endif
 
 #ifdef ESP_PRE_MEM
@@ -34,9 +39,21 @@ static int __init esp_mem_init(void)
 			break;
 
 	} while (--retry > 0);
+
+	if (retry <= 0)
+		goto _err_mem;
 #endif
 	logi("%s complete \n", __func__);
-	return err;
+	return 0;
+
+#ifdef ESP_PRE_MEM
+_err_mem:
+#endif
+#ifdef ESP_SLAB
+	esp_slab_deinit();
+_err_slab:
+#endif
+	return err;	
 }
 
 static void __exit esp_mem_exit(void)

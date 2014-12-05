@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2009 - 2013 Espressif System.
+ * Copyright (c) 2009 - 2014 Espressif System.
+ *
+ * Serial Interconnctor Protocol
  */
 
 #include <linux/ieee80211.h>
@@ -17,6 +19,7 @@
 #include <linux/mmc/sd.h>
 #include <linux/completion.h> 
 
+#include "esp_mac80211.h"
 #include "esp_pub.h"
 #include "esp_sip.h"
 #include "esp_ctrl.h"
@@ -34,12 +37,16 @@
 #endif /* USE_EXT_GPIO */
 
 extern struct completion *gl_bootup_cplx; 
-static u32 bcn_counter = 0;
-static u32 probe_rsp_counter = 0;
 
 static int old_signal = -35;
 static int avg_signal = 0;
 static int signal_loop = 0;
+
+struct esp_mac_prefix esp_mac_prefix_table[] = {
+	{0,{0x18,0xfe,0x34}},
+	{1,{0xac,0xd0,0x74}},
+	{255,{0x18,0xfe,0x34}},
+};
 
 #define SIGNAL_COUNT  300
 
@@ -64,12 +71,7 @@ static struct sip_trace str;
 #define STRACE_RX_TXSTATUS_INC() (str.rx_tx_status++)
 #define STRACE_TX_OUT_OF_CREDIT_INC() (str.tx_out_of_credit++)
 #define STRACE_TX_ONE_SHOT_INC() (str.tx_one_shot_overflow++)
-
-#if 0
-static void sip_show_trace(struct esp_sip *sip);
-#endif //0000
-
-#define STRACE_SHOW(sip)  sip_show_trace(sip)
+#define STRACE_SHOW(sip)
 #else
 #define esp_sip_dbg(...)
 #define STRACE_TX_DATA_INC()
@@ -90,7 +92,6 @@ static void sip_show_trace(struct esp_sip *sip);
 #endif /* !FAST_TX_STATUS */
 
 #define SIP_MIN_DATA_PKT_LEN    (sizeof(struct esp_mac_rx_ctrl) + 24) //24 is min 80211hdr
-#define TARGET_RX_SIZE 524
 
 #ifdef ESP_PREALLOC
 extern struct sk_buff *esp_get_sip_skb(int size);
@@ -101,14 +102,17 @@ extern void esp_put_tx_aggr_buf(u8 **p);
 
 #endif
 
+static void sip_recalc_credit_init(struct esp_sip *sip);
+
+static int sip_recalc_credit_claim(struct esp_sip *sip, int force);
+
+static void sip_recalc_credit_release(struct esp_sip *sip);
+
 static struct sip_pkt *sip_get_ctrl_buf(struct esp_sip *sip, SIP_BUF_TYPE bftype);
 
 static void sip_reclaim_ctrl_buf(struct esp_sip *sip, struct sip_pkt *pkt, SIP_BUF_TYPE bftype);
 
 static void sip_free_init_ctrl_buf(struct esp_sip *sip);
-
-static void sip_dec_credit(struct esp_sip *sip);
-
 
 static int sip_pack_pkt(struct esp_sip *sip, struct sk_buff *skb, int *pm_state);
 
@@ -116,28 +120,19 @@ static struct esp_mac_rx_ctrl *sip_parse_normal_mac_ctrl(struct sk_buff *skb, in
 
 static struct sk_buff * sip_parse_data_rx_info(struct esp_sip *sip, struct sk_buff *skb, int pkt_len_enc, int buf_len, struct esp_mac_rx_ctrl *mac_ctrl, int *pulled_len);
 
-#ifndef RX_SYNC
 static inline void sip_rx_pkt_enqueue(struct esp_sip *sip, struct sk_buff *skb);
 
-static inline struct sk_buff * sip_rx_pkt_dequeue(struct esp_sip *sip);
-#endif /* RX_SYNC */
 #ifndef FAST_TX_STATUS
 static void sip_after_tx_status_update(struct esp_sip *sip);
 #endif /* !FAST_TX_STATUS */
 
 static void sip_after_write_pkts(struct esp_sip *sip);
 
-//static void show_data_seq(u8 *pkt);
-
 static void sip_update_tx_credits(struct esp_sip *sip, u16 recycled_credits);
 
 //static void sip_trigger_txq_process(struct esp_sip *sip);
 
-#ifndef RX_SYNC
 static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb);
-#else
-static void sip_rx_pkt_process_sync(struct esp_sip *sip, struct sk_buff *skb);
-#endif /* RX_SYNC */
 
 #ifdef FAST_TX_STATUS
 static void sip_tx_status_report(struct esp_sip *sip, struct sk_buff *skb, struct ieee80211_tx_info* tx_info, bool success);
@@ -147,12 +142,6 @@ static void sip_tx_status_report(struct esp_sip *sip, struct sk_buff *skb, struc
 static void sip_check_skb_alignment(struct sk_buff *skb);
 #endif /* NEW_KERNEL */
 
-#ifdef ESP_RX_COPYBACK_TEST
-/* only for rx test */
-static u8 *copyback_buf;
-static u32 copyback_offset = 0;
-#endif /* ESP_RX_COPYBACK_TEST */
-
 #ifdef FPGA_TXDATA
 int sip_send_tx_data(struct esp_sip *sip);
 #endif/* FPGA_TXDATA */
@@ -161,33 +150,6 @@ int sip_send_tx_data(struct esp_sip *sip);
 int sip_send_loopback_cmd_mblk(struct esp_sip *sip);
 #endif /* FPGA_LOOPBACK */
 
-#ifdef SIP_DEBUG
-#if 0
-static void sip_show_trace(struct esp_sip *sip)
-{
-        esp_sip_dbg(ESP_DBG_TRACE, "\n \t tx_data %u \t tx_cmd %u \t rx_data %u \t rx_evt %u \t rx_tx_status %u \n\n", \
-                    str.tx_data, str.tx_cmd, str.rx_data, str.rx_evt, str.rx_tx_status);
-}
-#endif //0000
-#endif //SIP_DEBUG
-
-#if 0
-static void show_data_seq(u8 *pkt)
-{
-        struct ieee80211_hdr * wh = (struct ieee80211_hdr *)pkt;
-        u16 seq = 0;
-
-        if (ieee80211_is_data(wh->frame_control)) {
-                seq = (le16_to_cpu(wh->seq_ctrl) >> 4);
-                esp_sip_dbg(ESP_DBG_TRACE, " ieee80211 seq %u addr1 %pM\n", seq, wh->addr1);
-        } else if (ieee80211_is_beacon(wh->frame_control) || ieee80211_is_probe_resp(wh->frame_control))
-                esp_sip_dbg(ESP_DBG_TRACE, " ieee80211 probe resp or beacon 0x%04x\n", wh->frame_control);
-        else
-                esp_sip_dbg(ESP_DBG_TRACE, " ieee80211 other mgmt pkt 0x%04x\n", wh->frame_control);
-}
-#endif //0000
-
-//#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 static bool check_ac_tid(u8 *pkt, u8 ac, u8 tid)
 {
         struct ieee80211_hdr * wh = (struct ieee80211_hdr *)pkt;
@@ -234,18 +196,74 @@ static bool check_ac_tid(u8 *pkt, u8 ac, u8 tid)
 
         return false;
 }
-//#endif /* NEW_KERNEL || KERNEL_35 */
+
+static void sip_recalc_credit_timeout(unsigned long data)
+{
+	struct esp_sip *sip = (struct esp_sip *)data;
+
+	esp_dbg(ESP_DBG_ERROR, "rct");
+
+	sip_recalc_credit_claim(sip, 1);      /* recalc again */
+}
+
+static void sip_recalc_credit_init(struct esp_sip *sip)
+{
+	atomic_set(&sip->credit_status, RECALC_CREDIT_DISABLE);  //set it disable
+
+	init_timer(&sip->credit_timer);
+	sip->credit_timer.data = (unsigned long)sip;
+	sip->credit_timer.function = sip_recalc_credit_timeout;
+}
+
+static int sip_recalc_credit_claim(struct esp_sip *sip, int force)
+{
+	int ret;
+
+	if (atomic_read(&sip->credit_status) == RECALC_CREDIT_ENABLE && force == 0)
+		return 1;
+
+	atomic_set(&sip->credit_status, RECALC_CREDIT_ENABLE);
+        ret = sip_send_recalc_credit(sip->epub);
+	if (ret) {
+		esp_dbg(ESP_DBG_ERROR, "%s error %d", __func__, ret);
+		return ret;
+	}
+	/*setup a timer for handle the abs_credit not receive */
+	mod_timer(&sip->credit_timer, jiffies + msecs_to_jiffies(2000));
+	
+	esp_dbg(ESP_SHOW, "rcc");
+
+	return ret;
+}
+
+static void sip_recalc_credit_release(struct esp_sip *sip)
+{
+	esp_dbg(ESP_SHOW, "rcr");
+
+	if (atomic_read(&sip->credit_status) == RECALC_CREDIT_ENABLE) {
+		atomic_set(&sip->credit_status, RECALC_CREDIT_DISABLE);
+		del_timer_sync(&sip->credit_timer);
+	} else
+		esp_dbg(ESP_SHOW, "maybe bogus credit");
+}
 
 static void sip_update_tx_credits(struct esp_sip *sip, u16 recycled_credits)
 {
         esp_sip_dbg(ESP_DBG_TRACE, "%s:before add, credits is %d\n", __func__, atomic_read(&sip->tx_credits));
-        atomic_add(recycled_credits, &sip->tx_credits);
+        
+	if (recycled_credits & 0x800) {
+		atomic_set(&sip->tx_credits, (recycled_credits & 0x7ff));
+		sip_recalc_credit_release(sip);
+	} else
+		atomic_add(recycled_credits, &sip->tx_credits);
+
         esp_sip_dbg(ESP_DBG_TRACE, "%s:after add %d, credits is %d\n", __func__, recycled_credits, atomic_read(&sip->tx_credits));
 }
 
 void sip_trigger_txq_process(struct esp_sip *sip)
 {
-        if (atomic_read(&sip->tx_credits) <= sip->credit_to_reserve)  //no credits, do nothing
+        if (atomic_read(&sip->tx_credits) <= sip->credit_to_reserve + SIP_CTRL_CREDIT_RESERVE             //no credits, do nothing
+		|| atomic_read(&sip->credit_status) == RECALC_CREDIT_ENABLE)
                 return;
 
         if (sip_queue_may_resume(sip)) {
@@ -278,11 +296,7 @@ static bool sip_ampdu_occupy_buf(struct esp_sip *sip, struct esp_rx_ampdu_len * 
         return (ampdu_len->substate == 0 || esp_wmac_rxsec_error(ampdu_len->substate) || (sip->dump_rpbm_err && ampdu_len->substate == RX_RPBM_ERR));
 }
 
-#ifdef RX_SYNC
-static void sip_rx_pkt_process_sync(struct esp_sip *sip, struct sk_buff *skb)
-#else
 static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
-#endif /* RX_SYNC */
 {
 #define DO_NOT_COPY false
 #define DO_COPY true
@@ -294,17 +308,10 @@ static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
 	u8 *bufptr = NULL;
 	int ret = 0;
 	bool trigger_rxq = false;
-#ifdef RX_SYNC
-	bool trigger_txq = false;
-#endif/* RX_SYNC */
 
 	if (skb == NULL) {
 		esp_sip_dbg(ESP_DBG_ERROR, "%s NULL SKB!!!!!!!! \n", __func__);
-#ifdef RX_SYNC
-		return;
-#else
 		return trigger_rxq;
-#endif /* RX_SYNC */
 	}
 
 	hdr = (struct sip_hdr *)skb->data;
@@ -314,9 +321,6 @@ static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
 	esp_sip_dbg(ESP_DBG_TRACE, "%s Hcredits 0x%08x, realCredits %d\n", __func__, hdr->h_credits, hdr->h_credits & SIP_CREDITS_MASK);
 	if (hdr->h_credits & SIP_CREDITS_MASK) {
 		sip_update_tx_credits(sip, hdr->h_credits & SIP_CREDITS_MASK);
-#ifdef RX_SYNC
-		trigger_txq = true;
-#endif/* RX_SYNC */
 	}
 
 	hdr->h_credits &= ~SIP_CREDITS_MASK; /* clean credits in sip_hdr, prevent over-add */
@@ -334,6 +338,7 @@ static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
 
 	esp_dbg(ESP_DBG_TRACE, "%s first_pkt_len %d, whole pkt len %d \n", __func__, first_pkt_len, remains_len);
 	if (first_pkt_len > remains_len) {
+		sip_recalc_credit_claim(sip, 0);
 		esp_dbg(ESP_DBG_ERROR, "first_pkt_len %d, whole pkt len %d\n", first_pkt_len, remains_len);
 		show_buf((u8 *)hdr, first_pkt_len);
 		ESSERT(0);
@@ -346,6 +351,7 @@ static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
 	 */
 	while (remains_len) {
 		if (remains_len < sizeof(struct sip_hdr)) {
+			sip_recalc_credit_claim(sip, 0);
 			ESSERT(0);
 			show_buf((u8 *)hdr, 512);
                 	goto _exit;
@@ -353,17 +359,20 @@ static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
 		
 		hdr = (struct sip_hdr *)bufptr;
 		if (hdr->len <= 0) {
+			sip_recalc_credit_claim(sip, 0);
 			show_buf((u8 *)hdr, 512);
 			ESSERT(0);
 			goto _exit;
 		}
 
 		if((hdr->len & 3) != 0) {
+			sip_recalc_credit_claim(sip, 0);
 			show_buf((u8 *)hdr, 512);
 			ESSERT(0);
                 	goto _exit;
 		}
 		if (unlikely(hdr->seq != sip->rxseq++)) {
+			sip_recalc_credit_claim(sip, 0);
 			esp_dbg(ESP_DBG_ERROR, "%s seq mismatch! got %u, expect %u\n", __func__, hdr->seq, sip->rxseq-1);
 			sip->rxseq = hdr->seq + 1;
 			show_buf(bufptr, 32);
@@ -440,13 +449,15 @@ static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
 			memcpy(&new_mac_ctrl, mac_ctrl, sizeof(struct esp_mac_rx_ctrl));
 			mac_ctrl = &new_mac_ctrl;
 			pkt_num = mac_ctrl->ampdu_cnt;
-			esp_sip_dbg(ESP_DBG_TRACE, "%s %d rx ampdu %u pkts, %d pkts dumped, first len %u\n",
-					__func__, __LINE__, (unsigned int)((hdr->len % sip->rx_blksz) / sizeof(struct esp_rx_ampdu_len)), pkt_num, (unsigned int)ampdu_len->sublen);
+			esp_sip_dbg(ESP_DBG_TRACE, "%s %d rx ampdu %u pkts, %d pkts dumped, first len %u\n",__func__,
+				__LINE__, (unsigned int)((hdr->len % sip->rx_blksz) / sizeof(struct esp_rx_ampdu_len)),
+				pkt_num, (unsigned int)ampdu_len->sublen);
 
 			pkt_total += mac_ctrl->ampdu_cnt;
 			//esp_sip_dbg(ESP_DBG_ERROR, "%s ampdu dropped %d/%d\n", __func__, pkt_dropped, pkt_total);
 			while (pkt_num > 0) {
-				esp_sip_dbg(ESP_DBG_TRACE, "%s %d ampdu sub state %02x,\n", __func__, __LINE__, ampdu_len->substate);
+				esp_sip_dbg(ESP_DBG_TRACE, "%s %d ampdu sub state %02x,\n", __func__, __LINE__,
+					ampdu_len->substate);
 
 				if (sip_ampdu_occupy_buf(sip, ampdu_len)) { //pkt is dumped
 
@@ -476,10 +487,10 @@ static bool sip_rx_pkt_process(struct esp_sip * sip, struct sk_buff *skb)
 #endif
 						local_bh_disable();
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
-				ieee80211_rx(sip->epub->hw, rskb);
+						ieee80211_rx(sip->epub->hw, rskb);
 #else
                 //simulate IEEE80211_SKB_RXCB in 2.6.32 
-                ieee80211_rx(sip->epub->hw, rskb ,(struct ieee80211_rx_status *)rskb->cb);
+						ieee80211_rx(sip->epub->hw, rskb ,(struct ieee80211_rx_status *)rskb->cb);
 #endif
 						local_bh_enable();
 #endif /* RX_SENDUP_SYNC */
@@ -560,22 +571,12 @@ _exit:
 	kfree_skb(skb);
 #endif
 
-#ifdef RX_SYNC
-	if (trigger_rxq) {
-		queue_work(sip->epub->esp_wkq, &sip->epub->sendup_work);
-	}
-	if (trigger_txq) {
-		sip_trigger_txq_process(sip);
-	}
-#else
 	return trigger_rxq;
-#endif /* RX_SYNC */
 
 #undef DO_NOT_COPY
 #undef DO_COPY
 }
 
-#ifndef RX_SYNC
 static void _sip_rxq_process(struct esp_sip *sip)
 {
         struct sk_buff *skb = NULL;
@@ -622,7 +623,6 @@ static inline void sip_rx_pkt_enqueue(struct esp_sip *sip, struct sk_buff *skb)
 static inline struct sk_buff * sip_rx_pkt_dequeue(struct esp_sip *sip) {
         return skb_dequeue(&sip->rxq);
 }
-#endif /* RX_SYNC */
 
 static u32 sip_rx_count = 0;
 void sip_debug_show(struct esp_sip *sip)
@@ -641,27 +641,29 @@ int sip_rx(struct esp_pub *epub)
         struct esp_sip *sip = epub->sip;
         int err = 0;
         struct sk_buff *first_skb = NULL;
-#ifndef LOOKAHEAD
-        struct sk_buff *next_skb = NULL;
-#endif
         u8 *rx_buf = NULL;
         u32 rx_blksz;
         struct sk_buff *rx_skb = NULL;
 
         u32 first_sz; 
 
-#ifdef LOOKAHEAD
-#ifndef SIF_DSR_WAR
-        struct slc_host_regs *regs = sif_get_regs(epub);
-
-        memset(regs, 0x0, sizeof(struct slc_host_regs));
-        esp_common_read_with_addr(epub, REG_SLC_HOST_BASE + 8, (u8 *)regs, sizeof(struct slc_host_regs), ESP_SIF_SYNC);
-#endif
         first_sz = sif_get_regs(epub)->config_w0;
-#else 
-        first_sz = 4;
-#endif
 
+	if (likely(sif_get_ate_config() != 1)) {
+		do {
+			u8 raw_seq = sif_get_regs(epub)->intr_raw & 0xff;
+
+			if (raw_seq != sip->to_host_seq) {
+				if (raw_seq == sip->to_host_seq + 1) { /* when last read pkt crc err, this situation may occur, but raw_seq mustn't < to_host_Seq */
+					sip->to_host_seq = raw_seq;
+					esp_dbg(ESP_DBG_TRACE, "warn: to_host_seq reg 0x%02x, seq 0x%02x", raw_seq, sip->to_host_seq);
+					break;
+				}     
+				esp_dbg(ESP_DBG_ERROR, "err: to_host_seq reg 0x%02x, seq 0x%02x", raw_seq, sip->to_host_seq);
+				goto _err;
+			}
+		} while (0);
+	}
         esp_sip_dbg(ESP_DBG_LOG, "%s enter\n", __func__);
 
 
@@ -672,22 +674,14 @@ int sip_rx(struct esp_pub *epub)
          *  read_buf_pointe access.  It coule be optimized late.
          */
         rx_blksz = sif_get_blksz(epub);
-#ifdef LOOKAHEAD
 #ifdef ESP_PREALLOC
         first_skb = esp_get_sip_skb(roundup(first_sz, rx_blksz));
 #else 
         first_skb = __dev_alloc_skb(roundup(first_sz, rx_blksz), GFP_KERNEL);
 #endif /* ESP_PREALLOC */
-#else
-#ifdef ESP_PREALLOC
-        first_skb = esp_get_sip_skb(first_sz);
-#else
-        first_skb = __dev_alloc_skb(first_sz, GFP_KERNEL);
-#endif /* ESP_PREALLOC */
-#endif /* LOOKAHEAD */
 
         if (first_skb == NULL) {
-        	    sif_unlock_bus(epub);
+		sif_unlock_bus(epub);
                 esp_sip_dbg(ESP_DBG_ERROR, "%s first no memory \n", __func__);
                 goto _err;
         }
@@ -703,12 +697,12 @@ int sip_rx(struct esp_pub *epub)
 		u16 intr_mask = ext_gpio_get_int_mask_reg();
 		if(!intr_mask)
 			break;
-        value = sif_get_regs(epub)->config_w3 & intr_mask;
-        if(value)
-        {
-            err2 = sif_interrupt_target(epub, 6);
-            esp_sip_dbg(ESP_DBG, "write gpio\n");
-        }
+		value = sif_get_regs(epub)->config_w3 & intr_mask;
+		if(value)
+		{
+			err2 = sif_interrupt_target(epub, 6);
+			esp_sip_dbg(ESP_DBG, "write gpio\n");
+		}
 
 		if(!err2 && value) {
             		esp_sip_dbg(ESP_DBG_TRACE, "%s intr_mask[0x%04x] value[0x%04x]\n", __func__, intr_mask, value);
@@ -717,7 +711,6 @@ int sip_rx(struct esp_pub *epub)
 	}while(0);
 #endif
 
-#ifdef LOOKAHEAD
 #ifdef ESP_ACK_INTERRUPT
 #ifdef ESP_ACK_LATER
 		err = esp_common_read(epub, rx_buf, first_sz, ESP_SIF_NOSYNC, false);
@@ -729,19 +722,6 @@ int sip_rx(struct esp_pub *epub)
 #else
         err = esp_common_read(epub, rx_buf, first_sz, ESP_SIF_NOSYNC, false);
 #endif //ESP_ACK_INTERRUPT
-#else
-#ifdef ESP_ACK_INTERRUPT
-#ifdef ESP_ACK_LATER
-		err = esp_common_read(epub, rx_buf, first_sz, ESP_SIF_NOSYNC, true);
-        sif_platform_ack_interrupt(epub);
-#else
-        sif_platform_ack_interrupt(epub);
-		err = esp_common_read(epub, rx_buf, first_sz, ESP_SIF_NOSYNC, true);
-#endif /* ESP_ACK_LATER */
-#else
-        err = esp_common_read(epub, rx_buf, first_sz, ESP_SIF_NOSYNC, true);
-#endif //ESP_ACK_INTERRUPT
-#endif //LOOKAHEAD 
 	sip_rx_count++;
         if (unlikely(err)) {
                 esp_dbg(ESP_DBG_ERROR, " %s first read err %d %d\n", __func__, err, sif_get_regs(epub)->config_w0);
@@ -760,8 +740,12 @@ int sip_rx(struct esp_pub *epub)
 		esp_dbg(ESP_DBG_TRACE, "s\n");
 	}
 
+	if (likely(sif_get_ate_config() != 1)) {
+		sip->to_host_seq++;
+	}
+ 
         if ((shdr->len & 3) != 0){
-                esp_sip_dbg(ESP_DBG_ERROR, "%s shdr->len[%d] error\n", __func__, shdr->len);
+               esp_sip_dbg(ESP_DBG_ERROR, "%s shdr->len[%d] error\n", __func__, shdr->len);
 #ifdef ESP_PREALLOC
 		esp_put_sip_skb(&first_skb);
 #else
@@ -771,8 +755,6 @@ int sip_rx(struct esp_pub *epub)
                 err = -EIO;
                 goto _err;
         }
-
-#ifdef LOOKAHEAD
         if (shdr->len != first_sz){
 		esp_sip_dbg(ESP_DBG_ERROR, "%s shdr->len[%d]  first_size[%d] error\n", __func__, shdr->len, first_sz);
 #ifdef ESP_PREALLOC
@@ -783,62 +765,14 @@ int sip_rx(struct esp_pub *epub)
                 sif_unlock_bus(epub);
                 err = -EIO;
                 goto _err;
-        }
-#else
-        if (shdr->len > first_sz)  {
-                /* larger than one blk, fetch the rest */
-#ifdef ESP_PREALLOC
-                next_skb = esp_get_sip_skb(roundup(shdr->len, rx_blksz) + first_sz);
-#else
-                next_skb = __dev_alloc_skb(roundup(shdr->len, rx_blksz) + first_sz, GFP_KERNEL);
-#endif /* ESP_PREALLOC */
-
-                if (unlikely(next_skb == NULL)) {
-                        sif_unlock_bus(epub);
-                        esp_sip_dbg(ESP_DBG_ERROR, "%s next no memory \n", __func__);
-#ifdef ESP_PREALLOC
-			esp_put_sip_skb(&first_skb);
-#else
-			kfree_skb(first_skb);
-#endif /* ESP_PREALLOC */
-                        goto _err;
-                }
-                rx_buf = skb_put(next_skb, shdr->len);
-                rx_buf += first_sz; /* skip the first block */
-
-        	err = esp_common_read(epub, rx_buf, (shdr->len - first_sz), ESP_SIF_NOSYNC, false);
-        	sif_unlock_bus(epub);
-
-                if (unlikely(err)) {
-                        esp_sip_dbg(ESP_DBG_ERROR, "%s next read err %d \n", __func__, err);
-#ifdef ESP_PREALLOC
-			esp_put_sip_skb(&first_skb);
-			esp_put_sip_skb(&next_skb);
-#else
-			kfree_skb(first_skb);
-                        kfree_skb(next_skb);
-#endif /* ESP_PREALLOC */
-                        goto _err;
-                }
-                /* merge two skbs, TBD: could be optimized by skb_linearize*/
-                memcpy(next_skb->data, first_skb->data, first_sz);
-                esp_dbg(ESP_DBG_TRACE, " %s  next skb\n", __func__);
-
-                rx_skb = next_skb;
-#ifdef ESP_PREALLOC
-		esp_put_sip_skb(&first_skb);
-#else
-                kfree_skb(first_skb);
-#endif /* ESP_PREALLOC */
-        }
-#endif 
-        else {
+        } else {
 		sif_unlock_bus(epub);
                 skb_trim(first_skb, shdr->len);
                 esp_dbg(ESP_DBG_TRACE, " %s first_skb only\n", __func__);
 
                 rx_skb = first_skb;
         }
+
         if (atomic_read(&sip->state) == SIP_STOP) {
 #ifdef ESP_PREALLOC
 		esp_put_sip_skb(&rx_skb);
@@ -848,83 +782,21 @@ int sip_rx(struct esp_pub *epub)
                 esp_sip_dbg(ESP_DBG_ERROR, "%s when sip stopped\n", __func__);
                 return 0;
         }
-#ifndef RX_SYNC
+
         sip_rx_pkt_enqueue(sip, rx_skb);
         queue_work(sip->epub->esp_wkq, &sip->rx_process_work);
-#else
-        sip_rx_pkt_process_sync(sip, rx_skb);
-#endif /* RX_SYNC */
 
 _err:
         return err;
 }
 
-int sip_get_raw_credits(struct esp_sip *sip)
-{
-#if 1
-        unsigned long timeout;
-        int err = 0;
-
-        esp_dbg(ESP_DBG_TRACE, "%s entern \n", __func__);
-
-        /* 1s timeout */
-        timeout = jiffies + msecs_to_jiffies(1000);
-
-        while (time_before(jiffies, timeout) && !sip->boot_credits) {
-
-		err = esp_common_read_with_addr(sip->epub, SLC_HOST_TOKEN_RDATA, (u8 *)&sip->boot_credits, 4, ESP_SIF_SYNC);
-
-                if (err) {
-                        esp_dbg(ESP_DBG_ERROR, "Can't read credits\n");
-                        return err;
-                }
-                sip->boot_credits &= SLC_HOST_TOKEN0_MASK;
-#ifdef SIP_DEBUG
-                if (sip->boot_credits == 0) {
-                        esp_dbg(ESP_DBG_ERROR, "no credit, try again\n");
-                        mdelay(50);
-                }
-#endif /* SIP_DEBUG */
-        }
-
-        if (!sip->boot_credits) {
-                esp_dbg(ESP_DBG_ERROR, "read credits timeout\n");
-                return -ETIMEDOUT;
-        }
-
-        esp_dbg(ESP_DBG_TRACE, "%s got credits: %d\n", __func__, sip->boot_credits);
-#endif //0000
-
-        return 0;
-}
-
-
-/* Only cooperate with get_raw_credits */
-static void
-sip_dec_credit(struct esp_sip *sip)
-{
-#if 0
-        u32 reg = 0;
-        int err = 0;
-
-        reg = SLC_HOST_TOKEN0_WR | SLC_HOST_TOKEN0_DEC;
-        memcpy(sip->rawbuf, &reg, sizeof(u32));
-        err = sif_io_sync(sip->epub, SLC_HOST_INT_CLR, sip->rawbuf, sizeof(u32), SIF_TO_DEVICE | SIF_SYNC | SIF_BYTE_BASIS | SIF_INC_ADDR);
-
-        if (err)
-                esp_dbg(ESP_DBG_ERROR, "%s can't clear target token0 \n", __func__);
-
-#endif //0000
-        /* SLC 2.0, token reg is read-to-clean, thus no need to access target */
-        sip->boot_credits--;
-}
-
 int sip_post_init(struct esp_sip *sip, struct sip_evt_bootup2 *bevt)
 {
         struct esp_pub *epub;
-#ifndef ESP_PREALLOC
-        int po = 0;
-#endif
+
+        u8 mac_id = bevt->mac_addr[0];
+        int mac_index = 0;
+        int i = 0;
 
 	if (sip == NULL) {
         	ESSERT(0);
@@ -933,16 +805,6 @@ int sip_post_init(struct esp_sip *sip, struct sip_evt_bootup2 *bevt)
 
         epub = sip->epub;
 
-#ifdef ESP_PREALLOC
-	sip->tx_aggr_buf = (u8 *)esp_get_tx_aggr_buf();
-#else
-        po = get_order(SIP_TX_AGGR_BUF_SIZE);
-        sip->tx_aggr_buf = (u8 *)__get_free_pages(GFP_ATOMIC, po);
-#endif
-        if (sip->tx_aggr_buf == NULL) {
-                esp_dbg(ESP_DBG_ERROR, "no mem for tx_aggr_buf! \n");
-                return -ENOMEM;
-        }
 
         sip->tx_aggr_write_ptr = sip->tx_aggr_buf;
 
@@ -958,7 +820,25 @@ int sip_post_init(struct esp_sip *sip, struct sip_evt_bootup2 *bevt)
 
         /* print out MAC addr... */
         memcpy(epub->mac_addr, bevt->mac_addr, ETH_ALEN);
-	atomic_set(&sip->noise_floor, bevt->noise_floor);
+        for(i = 0;i < sizeof(esp_mac_prefix_table)/sizeof(struct esp_mac_prefix);i++) {
+		if(esp_mac_prefix_table[i].mac_index == mac_id) {
+			mac_index = i;
+			break;
+		}
+        }
+
+        epub->mac_addr[0] = esp_mac_prefix_table[mac_index].mac_addr_prefix[0];
+        epub->mac_addr[1] = esp_mac_prefix_table[mac_index].mac_addr_prefix[1];
+        epub->mac_addr[2] = esp_mac_prefix_table[mac_index].mac_addr_prefix[2];
+
+#ifdef SELF_MAC
+        epub->mac_addr[0] = 0xff;            
+        epub->mac_addr[1] = 0xff;        
+        epub->mac_addr[2] = 0xff;             
+#endif
+        atomic_set(&sip->noise_floor, bevt->noise_floor);
+
+	sip_recalc_credit_init(sip);
 
         esp_sip_dbg(ESP_DBG_TRACE, "%s tx_blksz %d rx_blksz %d mac addr %pM\n", __func__, sip->tx_blksz, sip->rx_blksz, epub->mac_addr);
 
@@ -991,8 +871,6 @@ static void sip_write_pkts(struct esp_sip *sip, int pm_state)
 
         /* still use lock bus instead of sif_lldesc_write_sync since we want to protect several global varibles assignments */
         sif_lock_bus(sip->epub);
-
-        sif_raw_dummy_read(sip->epub,0);
 
 	err = esp_common_write(sip->epub, sip->tx_aggr_buf, tx_aggr_len, ESP_SIF_NOSYNC);
 
@@ -1107,12 +985,10 @@ static int sip_pack_pkt(struct esp_sip *sip, struct sk_buff *skb, int *pm_state)
                                 shdr->d_ac = 4;
                         }
                 }
-//#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
                 if (check_ac_tid(skb->data, shdr->d_ac, shdr->d_tid)) {
                         shdr->d_ac = WME_AC_BE;
                         shdr->d_tid = 0;
                 }
-//#endif  /* NEW_KERNEL || KERNEL_35 */
 
 
                 /* make sure data is start at 4 bytes aligned addr. */
@@ -1443,7 +1319,8 @@ sip_txq_process(struct esp_pub *epub)
 {
         struct sk_buff *skb;
         struct esp_sip *sip = epub->sip;
-        u32 pkt_len = 0, tx_len = 0, blknum = 0;
+        u32 pkt_len = 0, tx_len = 0;
+	int blknum = 0;
         bool queued_back = false;
         bool out_of_credits = false;
         struct ieee80211_tx_info *itx_info;
@@ -1469,21 +1346,37 @@ sip_txq_process(struct esp_pub *epub)
                 blknum = pkt_len / sip->tx_blksz;
                 esp_dbg(ESP_DBG_TRACE, "%s skb_len %d pkt_len %d blknum %d\n", __func__, skb->len, pkt_len, blknum);
 
-                if (unlikely(blknum > atomic_read(&sip->tx_credits) - sip->credit_to_reserve)) {
-                        esp_dbg(ESP_DBG_TRACE, "%s out of credits!\n", __func__);
-                        STRACE_TX_OUT_OF_CREDIT_INC();
-                        queued_back = true;
-                        out_of_credits = true;
-			/*
-                        if (epub->hw) {
-                                ieee80211_stop_queues(epub->hw);
-                                atomic_set(&epub->txq_stopped, true);
-                        }
-			*/
-                        /* we will be back */
-                        break;
-                }
-
+	        if (unlikely(atomic_read(&sip->credit_status) == RECALC_CREDIT_ENABLE)) {      /* need recalc credit */
+			struct sip_hdr *hdr = (struct sip_hdr*)skb->data;
+			itx_info = IEEE80211_SKB_CB(skb);
+        		if (!(itx_info->flags == 0xffffffff && SIP_HDR_GET_TYPE(hdr->fc[0]) == SIP_CTRL && hdr->c_cmdid == SIP_CMD_RECALC_CREDIT
+					&& blknum <= atomic_read(&sip->tx_credits) - sip->credit_to_reserve)) {         /* except cmd recalc credit */
+                        	esp_dbg(ESP_DBG_ERROR, "%s recalc credits!\n", __func__);
+                        	STRACE_TX_OUT_OF_CREDIT_INC();
+                        	queued_back = true;
+                        	out_of_credits = true;
+                        	break;
+			}
+                } else {                  /* normal situation */
+                	if (unlikely(blknum > (atomic_read(&sip->tx_credits) - sip->credit_to_reserve - SIP_CTRL_CREDIT_RESERVE))) {
+				itx_info = IEEE80211_SKB_CB(skb);
+        			if (itx_info->flags == 0xffffffff) {         /* priv ctrl pkt */
+					if (blknum > atomic_read(&sip->tx_credits) - sip->credit_to_reserve) {
+		                        	esp_dbg(ESP_DBG_TRACE, "%s cmd pkt out of credits!\n", __func__);
+               			        	STRACE_TX_OUT_OF_CREDIT_INC();
+                        			queued_back = true;
+                        			out_of_credits = true;
+						break;
+					}
+				} else {
+	                        	esp_dbg(ESP_DBG_TRACE, "%s out of credits!\n", __func__);
+                                	STRACE_TX_OUT_OF_CREDIT_INC();
+               		        	queued_back = true;
+                        		out_of_credits = true;
+					break;
+				}
+			}
+		}
                 tx_len += pkt_len;
                 if (tx_len >= SIP_TX_AGGR_BUF_SIZE) {
                         /* do we need to have limitation likemax 8 pkts in a row? */
@@ -1531,21 +1424,12 @@ sip_txq_process(struct esp_pub *epub)
         if (queued_back && !out_of_credits) {
 
                 /* skb pending, do async process again */
-                //	if (!skb_queue_empty(&epub->txq))
                 sip_trigger_txq_process(sip);
         }
 }
 
 static void sip_after_write_pkts(struct esp_sip *sip)
 {
-        //enable txq
-#if 0
-        if (atomic_read(&sip->epub->txq_stopped) == true && sip_queue_may_resume(sip)) {
-                atomic_set(&sip->epub->txq_stopped, false);
-                ieee80211_wake_queues(sip->epub->hw);
-                esp_sip_dbg(ESP_DBG_TRACE, "%s resume ieee80211 tx \n", __func__);
-        }
-#endif
 
 #ifndef FAST_TX_NOWAIT
         sip_txdoneq_process(sip);
@@ -1572,14 +1456,6 @@ static void sip_check_skb_alignment(struct sk_buff *skb)
 
         hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
-#if 0
-
-        /* TBD */
-        if (rx->flags & IEEE80211_RX_AMSDU)
-                hdrlen += ETH_HLEN;
-
-#endif
-
         if (unlikely(((unsigned long)(skb->data + hdrlen)) & 3)) {
 
                 esp_sip_dbg(ESP_DBG_TRACE, "%s adjust skb data postion \n", __func__);
@@ -1590,61 +1466,101 @@ static void sip_check_skb_alignment(struct sk_buff *skb)
 }
 #endif /* !NEW_KERNEL */
 
-int sip_channel_value_inconsistency(u8 *start, size_t len, unsigned channel)
+#ifndef NO_WMM_DUMMY
+static struct esp_80211_wmm_param_element esp_wmm_param = {
+	.oui = {0x00, 0x50, 0xf2},
+	.oui_type = 0x02,
+	.oui_subtype = 0x01,
+	.version = 0x01,
+	.qos_info = 0x00,
+	.reserved = 0x00,
+	.ac = {
+		{
+			.aci_aifsn = 0x03,
+			.cw = 0xa4,
+			.txop_limit = 0x0000,
+		},
+		{
+			.aci_aifsn = 0x27,
+			.cw = 0xa4,
+			.txop_limit = 0x0000,
+		},
+		{
+			.aci_aifsn = 0x42,
+			.cw = 0x43,
+			.txop_limit = 0x005e,
+		},
+		{
+			.aci_aifsn = 0x62,
+			.cw = 0x32,
+			.txop_limit = 0x002f,
+		},
+	},
+};
+
+static int esp_add_wmm(struct sk_buff *skb)
 {
-        size_t left = len;
-        u8 *pos = start;
-        u8 *DS_Param = NULL;
-        u8 channel_parsed = 0xff;
-        bool found = false;
-        u8 ssid[33];
+	u8 *p;
+	int flag = 0;
+	int remain_len;
+	int base_len;
+	int len;
+	struct ieee80211_mgmt * mgmt;
+	struct ieee80211_hdr * wh;
 
-        while(left >=2 && !found) {
-                u8 id, elen;
-                id = *pos++;
-                elen = *pos++;
-                left -= 2;
+	if (!skb)
+		return -1;
 
-                if(elen > left)
-                        break;
+	wh = (struct ieee80211_hdr *)skb->data;
+        mgmt = (struct ieee80211_mgmt *)((u8 *)skb->data);
 
-                switch (id) {
-                case WLAN_EID_SSID:
-			if (elen >= 33) {
-                		esp_dbg(ESP_DBG_ERROR, "SSID to long\n");
-				//show_buf(start-36, 256);
-				return -1;
-			}
-                       	memcpy(ssid, pos, elen);
-                       	ssid[elen] = 0;
-                        esp_sip_dbg(ESP_DBG_TRACE, "ssid:%s\n", ssid);
-                        break;
-                case WLAN_EID_SUPP_RATES:
-                        break;
-                case WLAN_EID_FH_PARAMS:
-                        break;
-                case WLAN_EID_DS_PARAMS:
-                        DS_Param = pos;
-                        found = true;
-                        break;
-                default:
-                        break;
-                }
+	if (ieee80211_is_assoc_resp(wh->frame_control)) {
+		p = mgmt->u.assoc_resp.variable;	
+		base_len = (u8 *)mgmt->u.assoc_resp.variable - (u8 *)mgmt;
+	} else if (ieee80211_is_reassoc_resp(wh->frame_control)) {
+		p = mgmt->u.reassoc_resp.variable;	
+		base_len = (u8 *)mgmt->u.reassoc_resp.variable - (u8 *)mgmt;
+	} else if (ieee80211_is_probe_resp(wh->frame_control)) {
+		p = mgmt->u.probe_resp.variable;	
+		base_len = (u8 *)mgmt->u.probe_resp.variable - (u8 *)mgmt;
+	} else if (ieee80211_is_beacon(wh->frame_control)) {
+		p = mgmt->u.beacon.variable;	
+		base_len = (u8 *)mgmt->u.beacon.variable - (u8 *)mgmt;
+	} else 
+		return 1;
 
-                left -= elen;
-                pos += elen;
-        }
 
-        if (DS_Param) {
-                channel_parsed = DS_Param[0];
-        } else {
-                esp_dbg(ESP_DBG_ERROR, "DS_Param not found\n");
-		//show_buf(start-36, 256);
-                return -1;
-        }
+	remain_len = skb->len - base_len;
 
-        return channel_parsed != channel;
+	while (remain_len > 0) {
+		if (*p == 0xdd && *(p+5) == 0x02)      //wmm type
+			return 0;
+		else if (*p == 0x2d)                   //has ht cap
+			flag = 1;
+
+		len = *(++p);
+		p += (len + 1);
+		remain_len -= (len + 2);
+	}
+
+	if(remain_len < 0) {
+		esp_dbg(ESP_DBG_TRACE, "%s remain_len %d, skb->len %d, base_len %d, flag %d", __func__, remain_len, skb->len, base_len, flag);
+		return -2;
+	}
+
+	if (flag == 1) {
+		skb_put(skb, 2 + sizeof(esp_wmm_param));
+
+		memset(p, 0xdd, sizeof(u8));
+		memset(p + 1, sizeof(esp_wmm_param), sizeof(u8));
+		memcpy(p + 2, &esp_wmm_param, sizeof(esp_wmm_param));
+
+		esp_dbg(ESP_DBG_TRACE, "esp_wmm_param");
+	}
+
+	return 0;
 }
+#endif /* NO_WMM_DUMMY */
 
 /*  parse mac_rx_ctrl and return length */
 static int sip_parse_mac_rx_info(struct esp_sip *sip, struct esp_mac_rx_ctrl * mac_ctrl, struct sk_buff *skb)
@@ -1725,31 +1641,10 @@ static int sip_parse_mac_rx_info(struct esp_sip *sip, struct esp_mac_rx_ctrl * m
         do {
                 struct ieee80211_hdr * wh = (struct ieee80211_hdr *)((u8 *)skb->data);
 
-                if (ieee80211_is_beacon(wh->frame_control) || ieee80211_is_probe_resp(wh->frame_control)) {
-                        struct ieee80211_mgmt * mgmt = (struct ieee80211_mgmt *)((u8 *)skb->data);
-                        u8 *start = NULL;
-                        size_t baselen, len = skb->len;
-                        int inconsistency = 0;
-
-                        if (ieee80211_is_beacon(wh->frame_control)) {
-                                start = mgmt->u.beacon.variable;
-                                baselen = (u8 *) mgmt->u.beacon.variable - (u8 *) mgmt;
-                                bcn_counter++;
-                        } else {
-                                start = mgmt->u.probe_resp.variable;
-                                baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
-                                probe_rsp_counter++;
-                        }
-
-                        if (baselen > len)
-                                return -1;
-
-                        inconsistency = sip_channel_value_inconsistency(start, len-baselen, mac_ctrl->channel);
-
-                        if (inconsistency) {
-                                return -1;
-                        }
-                }
+#ifndef NO_WMM_DUMMY
+		if (ieee80211_is_mgmt(wh->frame_control))
+			esp_add_wmm(skb);
+#endif 
 
 #ifdef KERNEL_IV_WAR
 		/* some kernel e.g. 3.0.8 wrongly handles non-encrypted pkt like eapol */
@@ -1823,9 +1718,17 @@ static struct sk_buff * sip_parse_data_rx_info(struct esp_sip *sip, struct sk_bu
         esp_dbg(ESP_DBG_TRACE, "%s pkt_len %u, pkt_len_enc %u!, delta %d \n", __func__, pkt_len, pkt_len_enc, pkt_len_enc - pkt_len);
         do {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39))
+#ifndef NO_WMM_DUMMY
+                rskb = __dev_alloc_skb(pkt_len_enc + 2 + sizeof(esp_wmm_param) + 2, GFP_ATOMIC);
+#else
                 rskb = __dev_alloc_skb(pkt_len_enc + 2, GFP_ATOMIC);
+#endif /* NO_WMM_DUMMY */
+#else
+#ifndef NO_WMM_DUMMY
+                rskb = __dev_alloc_skb(pkt_len_enc + sizeof(esp_wmm_param) + 2, GFP_ATOMIC);
 #else
                 rskb = __dev_alloc_skb(pkt_len_enc, GFP_ATOMIC);
+#endif /* NO_WMM_DUMMY */
 #endif/* NEW_KERNEL */
                 if (unlikely(rskb == NULL)) {
                         esp_sip_dbg(ESP_DBG_ERROR, "%s no mem for rskb\n", __func__);
@@ -1872,15 +1775,26 @@ struct esp_sip * sip_attach(struct esp_pub *epub)
         struct esp_sip *sip = NULL;
         struct sip_pkt *pkt = NULL;
         int i;
+#ifndef ESP_PREALLOC
+        int po = 0;
+#endif
 
         sip = kzalloc(sizeof(struct esp_sip), GFP_KERNEL);
-	if (sip == NULL)
-		return NULL;
+	if (sip == NULL) {
+                esp_dbg(ESP_DBG_ERROR, "no mem for sip! \n");
+		goto _err_sip;
+	}
 
-#ifdef ESP_RX_COPYBACK_TEST
-        /* alloc 64KB for rx test */
-        copyback_buf = kzalloc(0x10000, GFP_KERNEL);
-#endif /* ESP_RX_COPYBACK_TEST */
+#ifdef ESP_PREALLOC
+	sip->tx_aggr_buf = (u8 *)esp_get_tx_aggr_buf();
+#else
+        po = get_order(SIP_TX_AGGR_BUF_SIZE);
+        sip->tx_aggr_buf = (u8 *)__get_free_pages(GFP_ATOMIC, po);
+#endif
+        if (sip->tx_aggr_buf == NULL) {
+                esp_dbg(ESP_DBG_ERROR, "no mem for tx_aggr_buf! \n");
+		goto _err_aggr;
+        }
 
         spin_lock_init(&sip->lock);
 
@@ -1890,13 +1804,15 @@ struct esp_sip * sip_attach(struct esp_pub *epub)
         for (i = 0; i < SIP_CTRL_BUF_N; i++) {
                 pkt = kzalloc(sizeof(struct sip_pkt), GFP_KERNEL);
 
-                if (!pkt) break;
+                if (!pkt)
+			goto _err_pkt;
 
                 pkt->buf_begin = kzalloc(SIP_CTRL_BUF_SZ, GFP_KERNEL);
 
                 if (pkt->buf_begin == NULL) {
-                        kfree(pkt);
-                        break;
+			kfree(pkt);
+			pkt = NULL;
+			goto _err_pkt;
                 }
 
                 pkt->buf_len = SIP_CTRL_BUF_SZ;
@@ -1911,9 +1827,7 @@ struct esp_sip * sip_attach(struct esp_pub *epub)
 
         mutex_init(&sip->rx_mtx);
         skb_queue_head_init(&sip->rxq);
-#ifndef RX_SYNC
         INIT_WORK(&sip->rx_process_work, sip_rxq_process);
-#endif/* RX_SYNC */
 
         sip->epub = epub;
 	atomic_set(&sip->noise_floor, -96);
@@ -1921,7 +1835,38 @@ struct esp_sip * sip_attach(struct esp_pub *epub)
         atomic_set(&sip->state, SIP_INIT);
 	atomic_set(&sip->tx_credits, 0);
 
+        if (sip->rawbuf == NULL) {
+                sip->rawbuf = kzalloc(SIP_BOOT_BUF_SIZE, GFP_KERNEL);
+                if (sip->rawbuf == NULL) {
+                	esp_dbg(ESP_DBG_ERROR, "no mem for rawbuf! \n");
+			goto _err_pkt;
+        	}
+	}
+
+        atomic_set(&sip->state, SIP_PREPARE_BOOT);
+     
         return sip;
+
+_err_pkt:
+	sip_free_init_ctrl_buf(sip);
+
+	if (sip->tx_aggr_buf) {
+#ifdef ESP_PREALLOC
+		esp_put_tx_aggr_buf(&sip->tx_aggr_buf);
+#else
+                po = get_order(SIP_TX_AGGR_BUF_SIZE);
+                free_pages((unsigned long)sip->tx_aggr_buf, po);
+                sip->tx_aggr_buf = NULL;
+#endif
+	}
+_err_aggr:
+	if (sip) {
+		kfree(sip);
+		sip = NULL;
+	}
+_err_sip:
+	return NULL;
+	
 }
 
 static void sip_free_init_ctrl_buf(struct esp_sip *sip)
@@ -1961,9 +1906,7 @@ void sip_detach(struct esp_sip *sip)
 
                 /* disable irq here */
                 sif_disable_irq(sip->epub);
-#ifndef RX_SYNC
                 cancel_work_sync(&sip->rx_process_work);
-#endif/* RX_SYNC */
 
                 skb_queue_purge(&sip->rxq);
 		mutex_destroy(&sip->rx_mtx);
@@ -2003,9 +1946,7 @@ void sip_detach(struct esp_sip *sip)
                         kfree(sip->rawbuf);
 
                 if (atomic_read(&sip->state) == SIP_SEND_INIT) {
-#ifndef RX_SYNC
                         cancel_work_sync(&sip->rx_process_work);
-#endif/* RX_SYNC */
                         skb_queue_purge(&sip->rxq);
 			mutex_destroy(&sip->rx_mtx);
                         cancel_work_sync(&sip->epub->sendup_work);
@@ -2025,25 +1966,6 @@ void sip_detach(struct esp_sip *sip)
                 esp_dbg(ESP_DBG_ERROR, "%s wrong state %d\n", __func__, atomic_read(&sip->state));
 
         kfree(sip);
-}
-
-int sip_prepare_boot(struct esp_sip *sip)
-{
-        if (atomic_read(&sip->state) != SIP_INIT) {
-                esp_dbg(ESP_DBG_ERROR, "%s wrong state %d\n", __func__, atomic_read(&sip->state));
-                return -ENOTRECOVERABLE;
-        }
-
-        if (sip->rawbuf == NULL) {
-                sip->rawbuf = kzalloc(SIP_BOOT_BUF_SIZE, GFP_KERNEL);
-
-                if (sip->rawbuf == NULL)
-                        return -ENOMEM;
-        }
-
-        atomic_set(&sip->state, SIP_PREPARE_BOOT);
-        
-	return 0;
 }
 
 int sip_write_memory(struct esp_sip *sip, u32 addr, u8 *buf, u16 len)
@@ -2105,7 +2027,6 @@ int sip_write_memory(struct esp_sip *sip, u32 addr, u8 *buf, u16 len)
                 // 1ms is enough, in fact on dell-d430, need not delay at all.
                 mdelay(1);
 
-                sip_dec_credit(sip);
         }
 
         return err;
@@ -2141,8 +2062,6 @@ int sip_send_cmd(struct esp_sip *sip, int cid, u32 cmdlen, void *cmd)
 
         if (ret)
                 esp_dbg(ESP_DBG_ERROR, "%s send cmd %d failed \n", __func__, cid);
-
-        sip_dec_credit(sip);
 
         sip_reclaim_ctrl_buf(sip, pkt, SIP_TX_CTRL_BUF);
 
@@ -2237,7 +2156,6 @@ sip_reclaim_ctrl_buf(struct esp_sip *sip, struct sip_pkt *pkt, SIP_BUF_TYPE bfty
         else return;
 
         pkt->buf = pkt->buf_begin;
-        pkt->payload_len = 0;
 
         spin_lock_bh(&sip->lock);
         list_add_tail(&pkt->list, bflist);
@@ -2260,9 +2178,9 @@ sip_poll_bootup_event(struct esp_sip *sip)
 		return -ETIMEDOUT;
 	}	
 
-    if(sif_get_ate_config() == 0){
-        ret = esp_register_mac80211(sip->epub);
-    }
+	if(sif_get_ate_config() == 0){
+		ret = esp_register_mac80211(sip->epub);
+	}
 
 #ifdef TEST_MODE
         ret = test_init_netlink(sip);
@@ -2352,7 +2270,7 @@ sip_tx_data_may_resume(struct esp_sip *sip)
 #endif /* FAST_TX_STATUS */
 
 int
-sip_cmd_enqueue(struct esp_sip *sip, struct sk_buff *skb)
+sip_cmd_enqueue(struct esp_sip *sip, struct sk_buff *skb, int prior)
 {
 	if (!sip || !sip->epub) {
 		esp_dbg(ESP_DBG_ERROR, "func %s, sip->epub->txq is NULL\n", __func__);
@@ -2364,7 +2282,10 @@ sip_cmd_enqueue(struct esp_sip *sip, struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-        skb_queue_tail(&sip->epub->txq, skb);
+	if (prior == ENQUEUE_PRIOR_HEAD)
+        	skb_queue_head(&sip->epub->txq, skb);
+	else
+        	skb_queue_tail(&sip->epub->txq, skb);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
         if(sif_get_ate_config() == 0){
@@ -2417,23 +2338,6 @@ int sip_send_tx_data(struct esp_sip *sip)
         bsscmd->isassoc= (assoc==true)? 1: 0;
         memcpy(bsscmd->bssid, bssid, ETH_ALEN);
         STRACE_SHOW(epub->sip);
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 #endif /* FPGA_TXDATA */
-
-#ifdef SIP_DEBUG
-void sip_dump_pending_data(struct esp_pub *epub)
-{
-#if 0
-        struct sk_buff *tskb, *tmp;
-
-        skb_queue_walk_safe(&epub->txdoneq, tskb, tmp) {
-                show_buf(tskb->data, 32);
-        }
-#endif //0000
-}
-#else
-void sip_dump_pending_data(struct esp_pub *epub)
-{}
-#endif /* SIP_DEBUG */
-
