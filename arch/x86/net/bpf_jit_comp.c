@@ -24,7 +24,7 @@ extern u8 sk_load_byte_positive_offset[];
 extern u8 sk_load_word_negative_offset[], sk_load_half_negative_offset[];
 extern u8 sk_load_byte_negative_offset[];
 
-static inline u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
+static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 {
 	if (len == 1)
 		*ptr = bytes;
@@ -52,12 +52,12 @@ static inline u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 #define EMIT4_off32(b1, b2, b3, b4, off) \
 	do {EMIT4(b1, b2, b3, b4); EMIT(off, 4); } while (0)
 
-static inline bool is_imm8(int value)
+static bool is_imm8(int value)
 {
 	return value <= 127 && value >= -128;
 }
 
-static inline bool is_simm32(s64 value)
+static bool is_simm32(s64 value)
 {
 	return value == (s64) (s32) value;
 }
@@ -94,7 +94,7 @@ static int bpf_size_to_x86_bytes(int bpf_size)
 #define X86_JGE 0x7D
 #define X86_JG  0x7F
 
-static inline void bpf_flush_icache(void *start, void *end)
+static void bpf_flush_icache(void *start, void *end)
 {
 	mm_segment_t old_fs = get_fs();
 
@@ -133,7 +133,7 @@ static const int reg2hex[] = {
  * which need extra byte of encoding.
  * rax,rcx,...,rbp have simpler encoding
  */
-static inline bool is_ereg(u32 reg)
+static bool is_ereg(u32 reg)
 {
 	return (1 << reg) & (BIT(BPF_REG_5) |
 			     BIT(AUX_REG) |
@@ -143,14 +143,14 @@ static inline bool is_ereg(u32 reg)
 }
 
 /* add modifiers if 'reg' maps to x64 registers r8..r15 */
-static inline u8 add_1mod(u8 byte, u32 reg)
+static u8 add_1mod(u8 byte, u32 reg)
 {
 	if (is_ereg(reg))
 		byte |= 1;
 	return byte;
 }
 
-static inline u8 add_2mod(u8 byte, u32 r1, u32 r2)
+static u8 add_2mod(u8 byte, u32 r1, u32 r2)
 {
 	if (is_ereg(r1))
 		byte |= 1;
@@ -160,13 +160,13 @@ static inline u8 add_2mod(u8 byte, u32 r1, u32 r2)
 }
 
 /* encode 'dst_reg' register into x64 opcode 'byte' */
-static inline u8 add_1reg(u8 byte, u32 dst_reg)
+static u8 add_1reg(u8 byte, u32 dst_reg)
 {
 	return byte + reg2hex[dst_reg];
 }
 
 /* encode 'dst_reg' and 'src_reg' registers into x64 opcode 'byte' */
-static inline u8 add_2reg(u8 byte, u32 dst_reg, u32 src_reg)
+static u8 add_2reg(u8 byte, u32 dst_reg, u32 src_reg)
 {
 	return byte + reg2hex[dst_reg] + (reg2hex[src_reg] << 3);
 }
