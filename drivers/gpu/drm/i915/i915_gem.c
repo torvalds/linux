@@ -4860,22 +4860,18 @@ int i915_gem_init(struct drm_device *dev)
 	}
 
 	ret = i915_gem_init_userptr(dev);
-	if (ret) {
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	if (ret)
+		goto out_unlock;
 
 	i915_gem_init_global_gtt(dev);
 
 	ret = i915_gem_context_init(dev);
-	if (ret) {
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	if (ret)
+		goto out_unlock;
 
 	ret = dev_priv->gt.init_rings(dev);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
 	ret = i915_gem_init_hw(dev);
 	if (ret == -EIO) {
@@ -4887,6 +4883,8 @@ int i915_gem_init(struct drm_device *dev)
 		atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 		ret = 0;
 	}
+
+out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
