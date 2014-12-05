@@ -6665,6 +6665,7 @@ enum punit_power_well {
 #define  DPI_ENABLE					(1 << 31) /* A + C */
 #define  MIPIA_MIPI4DPHY_DELAY_COUNT_SHIFT		27
 #define  MIPIA_MIPI4DPHY_DELAY_COUNT_MASK		(0xf << 27)
+#define  DUAL_LINK_MODE_SHIFT				26
 #define  DUAL_LINK_MODE_MASK				(1 << 26)
 #define  DUAL_LINK_MODE_FRONT_BACK			(0 << 26)
 #define  DUAL_LINK_MODE_PIXEL_ALTERNATIVE		(1 << 26)

@@ -104,6 +104,7 @@ struct intel_dsi {
 	u8 clock_stop;
 
 	u8 escape_clk_div;
+	u8 dual_link;
 	u32 port_bits;
 	u32 bw_timer;
 	u32 dphy_reg;

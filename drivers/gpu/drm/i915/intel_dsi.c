@@ -108,28 +108,41 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	enum port port;
 	u32 temp;
 
-	/* assert ip_tg_enable signal */
-	temp = I915_READ(MIPI_PORT_CTRL(port)) & ~LANE_CONFIGURATION_MASK;
-	temp = temp | intel_dsi->port_bits;
-	I915_WRITE(MIPI_PORT_CTRL(port), temp | DPI_ENABLE);
-	POSTING_READ(MIPI_PORT_CTRL(port));
+	for_each_dsi_port(port, intel_dsi->ports) {
+		temp = I915_READ(MIPI_PORT_CTRL(port));
+		temp &= ~LANE_CONFIGURATION_MASK;
+		temp &= ~DUAL_LINK_MODE_MASK;
+
+		if (intel_dsi->ports == ((1 << PORT_A) | (1 << PORT_C))) {
+			temp |= (intel_dsi->dual_link - 1)
+						<< DUAL_LINK_MODE_SHIFT;
+			temp |= intel_crtc->pipe ?
+					LANE_CONFIGURATION_DUAL_LINK_B :
+					LANE_CONFIGURATION_DUAL_LINK_A;
+		}
+		/* assert ip_tg_enable signal */
+		I915_WRITE(MIPI_PORT_CTRL(port), temp | DPI_ENABLE);
+		POSTING_READ(MIPI_PORT_CTRL(port));
+	}
 }
 
 static void intel_dsi_port_disable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
 	u32 temp;
 
-	/* de-assert ip_tg_enable signal */
-	temp = I915_READ(MIPI_PORT_CTRL(port));
-	I915_WRITE(MIPI_PORT_CTRL(port), temp & ~DPI_ENABLE);
-	POSTING_READ(MIPI_PORT_CTRL(port));
+	for_each_dsi_port(port, intel_dsi->ports) {
+		/* de-assert ip_tg_enable signal */
+		temp = I915_READ(MIPI_PORT_CTRL(port));
+		I915_WRITE(MIPI_PORT_CTRL(port), temp & ~DPI_ENABLE);
+		POSTING_READ(MIPI_PORT_CTRL(port));
+	}
 }
 
 static void intel_dsi_device_ready(struct intel_encoder *encoder)
