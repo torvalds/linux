@@ -1154,12 +1154,11 @@ err_done:
 	return -1;
 }
 
-static ssize_t
-info_debugfs_read(struct file *file, char __user *buf,
-		  size_t len, loff_t *offset)
+static ssize_t info_debugfs_read(struct file *file, char __user *buf,
+				 size_t len, loff_t *offset)
 {
 	char *temp;
-	int totalBytes = 0;
+	int total_bytes = 0;
 	int remaining_bytes = PROC_READ_BUFFER_SIZE;
 
 /* *start = buf; */
@@ -1178,14 +1177,14 @@ info_debugfs_read(struct file *file, char __user *buf,
 	if ((*offset == 0) || (!debug_buf_valid)) {
 		DBGINF("calling info_debugfs_read_helper.\n");
 		/* if the read fails, then -1 will be returned */
-		totalBytes = info_debugfs_read_helper(&temp, &remaining_bytes);
+		total_bytes = info_debugfs_read_helper(&temp, &remaining_bytes);
 		debug_buf_valid = 1;
 	} else {
-		totalBytes = strlen(debug_buf);
+		total_bytes = strlen(debug_buf);
 	}
 
 	return simple_read_from_buffer(buf, len, offset,
-				       debug_buf, totalBytes);
+				       debug_buf, total_bytes);
 }
 
 static struct device_info *
