@@ -105,44 +105,7 @@ struct nouveau_device {
 
 int nouveau_device_list(u64 *name, int size);
 
-static inline struct nouveau_device *
-nv_device(void *obj)
-{
-	struct nouveau_object *object = nv_object(obj);
-	struct nouveau_object *device = object;
-
-	if (device->engine)
-		device = device->engine;
-	if (device->parent)
-		device = device->parent;
-
-#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
-	if (unlikely(!nv_iclass(device, NV_SUBDEV_CLASS) ||
-		     (nv_hclass(device) & 0xff) != NVDEV_ENGINE_DEVICE)) {
-		nv_assert("BAD CAST -> NvDevice, 0x%08x 0x%08x",
-			  nv_hclass(object), nv_hclass(device));
-	}
-#endif
-
-	return (void *)device;
-}
-
-static inline struct nouveau_subdev *
-nouveau_subdev(void *obj, int sub)
-{
-	if (nv_device(obj)->subdev[sub])
-		return nv_subdev(nv_device(obj)->subdev[sub]);
-	return NULL;
-}
-
-static inline struct nouveau_engine *
-nouveau_engine(void *obj, int sub)
-{
-	struct nouveau_subdev *subdev = nouveau_subdev(obj, sub);
-	if (subdev && nv_iclass(subdev, NV_ENGINE_CLASS))
-		return nv_engine(subdev);
-	return NULL;
-}
+struct nouveau_device *nv_device(void *obj);
 
 static inline bool
 nv_device_match(struct nouveau_object *object, u16 dev, u16 ven, u16 sub)

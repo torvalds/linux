@@ -27,6 +27,14 @@
 #include <core/device.h>
 #include <core/option.h>
 
+struct nouveau_subdev *
+nouveau_subdev(void *obj, int sub)
+{
+	if (nv_device(obj)->subdev[sub])
+		return nv_subdev(nv_device(obj)->subdev[sub]);
+	return NULL;
+}
+
 void
 nouveau_subdev_reset(struct nouveau_object *subdev)
 {

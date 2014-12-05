@@ -26,6 +26,15 @@
 #include <core/engine.h>
 #include <core/option.h>
 
+struct nouveau_engine *
+nouveau_engine(void *obj, int sub)
+{
+	struct nouveau_subdev *subdev = nouveau_subdev(obj, sub);
+	if (subdev && nv_iclass(subdev, NV_ENGINE_CLASS))
+		return nv_engine(subdev);
+	return NULL;
+}
+
 int
 nouveau_engine_create_(struct nouveau_object *parent,
 		       struct nouveau_object *engobj,

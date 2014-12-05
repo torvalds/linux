@@ -508,6 +508,28 @@ nouveau_devobj_ofuncs = {
  * nouveau_device: engine functions
  *****************************************************************************/
 
+struct nouveau_device *
+nv_device(void *obj)
+{
+	struct nouveau_object *object = nv_object(obj);
+	struct nouveau_object *device = object;
+
+	if (device->engine)
+		device = device->engine;
+	if (device->parent)
+		device = device->parent;
+
+#if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
+	if (unlikely(!nv_iclass(device, NV_SUBDEV_CLASS) ||
+		     (nv_hclass(device) & 0xff) != NVDEV_ENGINE_DEVICE)) {
+		nv_assert("BAD CAST -> NvDevice, 0x%08x 0x%08x",
+			  nv_hclass(object), nv_hclass(device));
+	}
+#endif
+
+	return (void *)device;
+}
+
 static struct nouveau_oclass
 nouveau_device_sclass[] = {
 	{ 0x0080, &nouveau_devobj_ofuncs },

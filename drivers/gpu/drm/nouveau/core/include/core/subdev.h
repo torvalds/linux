@@ -33,6 +33,8 @@ nv_subidx(struct nouveau_object *object)
 	return nv_hclass(nv_subdev(object)) & 0xff;
 }
 
+struct nouveau_subdev *nouveau_subdev(void *obj, int idx);
+
 #define nouveau_subdev_create(p,e,o,v,s,f,d)                                   \
 	nouveau_subdev_create_((p), (e), (o), (v), (s), (f),                   \
 			       sizeof(**d),(void **)d)

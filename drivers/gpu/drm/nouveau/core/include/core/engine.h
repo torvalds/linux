@@ -35,6 +35,8 @@ nv_engidx(struct nouveau_object *object)
 	return nv_subidx(object);
 }
 
+struct nouveau_engine *nouveau_engine(void *obj, int idx);
+
 #define nouveau_engine_create(p,e,c,d,i,f,r)                                   \
 	nouveau_engine_create_((p), (e), (c), (d), (i), (f),                   \
 			       sizeof(**r),(void **)r)
