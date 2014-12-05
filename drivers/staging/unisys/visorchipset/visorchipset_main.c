@@ -20,7 +20,6 @@
 #include "procobjecttree.h"
 #include "visorchannel.h"
 #include "periodic_work.h"
-#include "testing.h"
 #include "file.h"
 #include "parser.h"
 #include "uniklog.h"
