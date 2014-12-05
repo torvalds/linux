@@ -1308,7 +1308,6 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 					     HostCmd_ACT_GEN_SET, 0,
 					     sta_node->mac_addr, true))
 				return -1;
-			mwifiex_uap_del_sta_data(priv, sta_node);
 		}
 	} else {
 		wiphy_dbg(wiphy, "%s: mac address %pM\n", __func__,
@@ -1321,7 +1320,6 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 					     HostCmd_ACT_GEN_SET, 0,
 					     sta_node->mac_addr, true))
 				return -1;
-			mwifiex_uap_del_sta_data(priv, sta_node);
 		}
 	}
 
