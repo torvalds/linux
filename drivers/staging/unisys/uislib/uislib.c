@@ -1403,7 +1403,7 @@ uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 	dev->interrupt = interrupt;
 	dev->interrupt_context = interrupt_context;
 	dev->polling = TRUE;
-	list_add_tail(&(dev->list_polling_device_channels),
+	list_add_tail(&dev->list_polling_device_channels,
 		      &List_Polling_Device_Channels);
 	up(&Lock_Polling_Device_Channels);
 }
