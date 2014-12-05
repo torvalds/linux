@@ -42,7 +42,6 @@ atomic_t uisutils_registered_services = ATOMIC_INIT(0);
 					 * uisctrl_register_req_handler() or
 					 * uisctrl_register_req_handler_ex() */
 
-
 /*****************************************************/
 /* Utility functions                                 */
 /*****************************************************/
@@ -255,7 +254,6 @@ dolist: if (skb_shinfo(skb)->frag_list) {
 
 		for (skbinlist = skb_shinfo(skb)->frag_list; skbinlist;
 		     skbinlist = skbinlist->next) {
-
 			c = uisutil_copy_fragsinfo_from_skb("recursive",
 				skbinlist,
 				skbinlist->len - skbinlist->data_len,
