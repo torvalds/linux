@@ -1735,6 +1735,14 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 						 * Parameter Request
 						 */
 
+		/* If the controller supports Extended Scanner Filter
+		 * Policies, enable the correspondig event.
+		 */
+		if (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY)
+			events[1] |= 0x04;	/* LE Direct Advertising
+						 * Report
+						 */
+
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 

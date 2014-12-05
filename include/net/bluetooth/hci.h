@@ -343,6 +343,7 @@ enum {
 #define HCI_LE_ENCRYPTION		0x01
 #define HCI_LE_CONN_PARAM_REQ_PROC	0x02
 #define HCI_LE_PING			0x10
+#define HCI_LE_EXT_SCAN_POLICY		0x80
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
