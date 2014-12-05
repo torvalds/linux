@@ -625,7 +625,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 		return true;
 	}
 
-	if (likely(!__put_user(mfn, xen_p2m_addr + pfn)))
+	if (likely(!xen_safe_write_ulong(xen_p2m_addr + pfn, mfn)))
 		return true;
 
 	ptep = lookup_address((unsigned long)(xen_p2m_addr + pfn), &level);
