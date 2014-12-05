@@ -5287,10 +5287,40 @@ unlock:
 	return err;
 }
 
+static void clock_info_cmd_complete(struct pending_cmd *cmd, u8 status)
+{
+	struct hci_conn *conn = cmd->user_data;
+	struct mgmt_rp_get_clock_info rp;
+	struct hci_dev *hdev;
+
+	memset(&rp, 0, sizeof(rp));
+	memcpy(&rp.addr, &cmd->param, sizeof(rp.addr));
+
+	if (status)
+		goto complete;
+
+	hdev = hci_dev_get(cmd->index);
+	if (hdev) {
+		rp.local_clock = cpu_to_le32(hdev->clock);
+		hci_dev_put(hdev);
+	}
+
+	if (conn) {
+		rp.piconet_clock = cpu_to_le32(conn->clock);
+		rp.accuracy = cpu_to_le16(conn->clock_accuracy);
+	}
+
+complete:
+	cmd_complete(cmd->sk, cmd->index, cmd->opcode, status, &rp, sizeof(rp));
+
+	if (conn) {
+		hci_conn_drop(conn);
+		hci_conn_put(conn);
+	}
+}
+
 static void get_clock_info_complete(struct hci_dev *hdev, u8 status)
 {
-	struct mgmt_cp_get_clock_info *cp;
-	struct mgmt_rp_get_clock_info rp;
 	struct hci_cp_read_clock *hci_cp;
 	struct pending_cmd *cmd;
 	struct hci_conn *conn;
@@ -5314,29 +5344,8 @@ static void get_clock_info_complete(struct hci_dev *hdev, u8 status)
 	if (!cmd)
 		goto unlock;
 
-	cp = cmd->param;
-
-	memset(&rp, 0, sizeof(rp));
-	memcpy(&rp.addr, &cp->addr, sizeof(rp.addr));
-
-	if (status)
-		goto send_rsp;
-
-	rp.local_clock = cpu_to_le32(hdev->clock);
-
-	if (conn) {
-		rp.piconet_clock = cpu_to_le32(conn->clock);
-		rp.accuracy = cpu_to_le16(conn->clock_accuracy);
-	}
-
-send_rsp:
-	cmd_complete(cmd->sk, cmd->index, cmd->opcode, mgmt_status(status),
-		     &rp, sizeof(rp));
+	cmd->cmd_complete(cmd, mgmt_status(status));
 	mgmt_pending_remove(cmd);
-	if (conn) {
-		hci_conn_drop(conn);
-		hci_conn_put(conn);
-	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -5391,6 +5400,8 @@ static int get_clock_info(struct sock *sk, struct hci_dev *hdev, void *data,
 		err = -ENOMEM;
 		goto unlock;
 	}
+
+	cmd->cmd_complete = clock_info_cmd_complete;
 
 	hci_req_init(&req, hdev);
 
