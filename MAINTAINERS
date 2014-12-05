@@ -9720,12 +9720,18 @@ F:	drivers/media/pci/tw68/
 
 TPM DEVICE DRIVER
 M:	Peter Huewe <peterhuewe@gmx.de>
-M:	Ashley Lai <ashley@ashleylai.com>
 M:	Marcel Selhorst <tpmdd@selhorst.net>
 W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/char/tpm/
+
+TPM IBM_VTPM DEVICE DRIVER
+M:	Ashley Lai <ashleydlai@gmail.com>
+W:	http://tpmdd.sourceforge.net
+L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/char/tpm/tpm_ibmvtpm*
 
 TRACING
 M:	Steven Rostedt <rostedt@goodmis.org>
