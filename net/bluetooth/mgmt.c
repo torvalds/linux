@@ -3129,7 +3129,7 @@ void mgmt_smp_complete(struct hci_conn *conn, bool complete)
 
 	cmd = find_pairing(conn);
 	if (cmd)
-		pairing_complete(cmd, status);
+		cmd->cmd_complete(cmd, status);
 }
 
 static void pairing_complete_cb(struct hci_conn *conn, u8 status)
@@ -3142,7 +3142,7 @@ static void pairing_complete_cb(struct hci_conn *conn, u8 status)
 	if (!cmd)
 		BT_DBG("Unable to find a pending command");
 	else
-		pairing_complete(cmd, mgmt_status(status));
+		cmd->cmd_complete(cmd, mgmt_status(status));
 }
 
 static void le_pairing_complete_cb(struct hci_conn *conn, u8 status)
@@ -3158,7 +3158,7 @@ static void le_pairing_complete_cb(struct hci_conn *conn, u8 status)
 	if (!cmd)
 		BT_DBG("Unable to find a pending command");
 	else
-		pairing_complete(cmd, mgmt_status(status));
+		cmd->cmd_complete(cmd, mgmt_status(status));
 }
 
 static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -3254,6 +3254,8 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		hci_conn_drop(conn);
 		goto unlock;
 	}
+
+	cmd->cmd_complete = pairing_complete;
 
 	/* For LE, just connecting isn't a proof that the pairing finished */
 	if (cp->addr.type == BDADDR_BREDR) {
