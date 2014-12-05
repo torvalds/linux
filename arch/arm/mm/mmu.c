@@ -52,6 +52,8 @@ EXPORT_SYMBOL(empty_zero_page);
  */
 pmd_t *top_pmd;
 
+pmdval_t user_pmd_table = _PAGE_USER_TABLE;
+
 #define CPOLICY_UNCACHED	0
 #define CPOLICY_BUFFERED	1
 #define CPOLICY_WRITETHROUGH	2
@@ -192,7 +194,7 @@ early_param("cachepolicy", early_cachepolicy);
 static int __init early_nocache(char *__unused)
 {
 	char *p = "buffered";
-	printk(KERN_WARNING "nocache is deprecated; use cachepolicy=%s\n", p);
+	pr_warn("nocache is deprecated; use cachepolicy=%s\n", p);
 	early_cachepolicy(p);
 	return 0;
 }
@@ -201,7 +203,7 @@ early_param("nocache", early_nocache);
 static int __init early_nowrite(char *__unused)
 {
 	char *p = "uncached";
-	printk(KERN_WARNING "nowb is deprecated; use cachepolicy=%s\n", p);
+	pr_warn("nowb is deprecated; use cachepolicy=%s\n", p);
 	early_cachepolicy(p);
 	return 0;
 }
@@ -354,44 +356,6 @@ const struct mem_type *get_mem_type(unsigned int type)
 }
 EXPORT_SYMBOL(get_mem_type);
 
-#define PTE_SET_FN(_name, pteop) \
-static int pte_set_##_name(pte_t *ptep, pgtable_t token, unsigned long addr, \
-			void *data) \
-{ \
-	pte_t pte = pteop(*ptep); \
-\
-	set_pte_ext(ptep, pte, 0); \
-	return 0; \
-} \
-
-#define SET_MEMORY_FN(_name, callback) \
-int set_memory_##_name(unsigned long addr, int numpages) \
-{ \
-	unsigned long start = addr; \
-	unsigned long size = PAGE_SIZE*numpages; \
-	unsigned end = start + size; \
-\
-	if (start < MODULES_VADDR || start >= MODULES_END) \
-		return -EINVAL;\
-\
-	if (end < MODULES_VADDR || end >= MODULES_END) \
-		return -EINVAL; \
-\
-	apply_to_page_range(&init_mm, start, size, callback, NULL); \
-	flush_tlb_kernel_range(start, end); \
-	return 0;\
-}
-
-PTE_SET_FN(ro, pte_wrprotect)
-PTE_SET_FN(rw, pte_mkwrite)
-PTE_SET_FN(x, pte_mkexec)
-PTE_SET_FN(nx, pte_mknexec)
-
-SET_MEMORY_FN(ro, pte_set_ro)
-SET_MEMORY_FN(rw, pte_set_rw)
-SET_MEMORY_FN(x, pte_set_x)
-SET_MEMORY_FN(nx, pte_set_nx)
-
 /*
  * Adjust the PMD section entries according to the CPU in use.
  */
@@ -528,14 +492,23 @@ static void __init build_mem_type_table(void)
 	hyp_device_pgprot = mem_types[MT_DEVICE].prot_pte;
 	s2_device_pgprot = mem_types[MT_DEVICE].prot_pte_s2;
 
+#ifndef CONFIG_ARM_LPAE
 	/*
 	 * We don't use domains on ARMv6 (since this causes problems with
 	 * v6/v7 kernels), so we must use a separate memory type for user
 	 * r/o, kernel r/w to map the vectors page.
 	 */
-#ifndef CONFIG_ARM_LPAE
 	if (cpu_arch == CPU_ARCH_ARMv6)
 		vecs_pgprot |= L_PTE_MT_VECTORS;
+
+	/*
+	 * Check is it with support for the PXN bit
+	 * in the Short-descriptor translation table format descriptors.
+	 */
+	if (cpu_arch == CPU_ARCH_ARMv7 &&
+		(read_cpuid_ext(CPUID_EXT_MMFR0) & 0xF) == 4) {
+		user_pmd_table |= PMD_PXNTABLE;
+	}
 #endif
 
 	/*
@@ -605,6 +578,11 @@ static void __init build_mem_type_table(void)
 	}
 	kern_pgprot |= PTE_EXT_AF;
 	vecs_pgprot |= PTE_EXT_AF;
+
+	/*
+	 * Set PXN for user mappings
+	 */
+	user_pgprot |= PTE_EXT_PXN;
 #endif
 
 	for (i = 0; i < 16; i++) {
@@ -786,8 +764,7 @@ static void __init create_36bit_mapping(struct map_desc *md,
 	length = PAGE_ALIGN(md->length);
 
 	if (!(cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())) {
-		printk(KERN_ERR "MM: CPU does not support supersection "
-		       "mapping for 0x%08llx at 0x%08lx\n",
+		pr_err("MM: CPU does not support supersection mapping for 0x%08llx at 0x%08lx\n",
 		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
@@ -799,15 +776,13 @@ static void __init create_36bit_mapping(struct map_desc *md,
 	 *	of the actual domain assignments in use.
 	 */
 	if (type->domain) {
-		printk(KERN_ERR "MM: invalid domain in supersection "
-		       "mapping for 0x%08llx at 0x%08lx\n",
+		pr_err("MM: invalid domain in supersection mapping for 0x%08llx at 0x%08lx\n",
 		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
 
 	if ((addr | length | __pfn_to_phys(md->pfn)) & ~SUPERSECTION_MASK) {
-		printk(KERN_ERR "MM: cannot create mapping for 0x%08llx"
-		       " at 0x%08lx invalid alignment\n",
+		pr_err("MM: cannot create mapping for 0x%08llx at 0x%08lx invalid alignment\n",
 		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
@@ -850,18 +825,16 @@ static void __init create_mapping(struct map_desc *md)
 	pgd_t *pgd;
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
-		printk(KERN_WARNING "BUG: not creating mapping for 0x%08llx"
-		       " at 0x%08lx in user region\n",
-		       (long long)__pfn_to_phys((u64)md->pfn), md->virtual);
+		pr_warn("BUG: not creating mapping for 0x%08llx at 0x%08lx in user region\n",
+			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
 
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET &&
 	    (md->virtual < VMALLOC_START || md->virtual >= VMALLOC_END)) {
-		printk(KERN_WARNING "BUG: mapping for 0x%08llx"
-		       " at 0x%08lx out of vmalloc space\n",
-		       (long long)__pfn_to_phys((u64)md->pfn), md->virtual);
+		pr_warn("BUG: mapping for 0x%08llx at 0x%08lx out of vmalloc space\n",
+			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
 	type = &mem_types[md->type];
@@ -881,9 +854,8 @@ static void __init create_mapping(struct map_desc *md)
 	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
 
 	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
-		printk(KERN_WARNING "BUG: map for 0x%08llx at 0x%08lx can not "
-		       "be mapped using pages, ignoring.\n",
-		       (long long)__pfn_to_phys(md->pfn), addr);
+		pr_warn("BUG: map for 0x%08llx at 0x%08lx can not be mapped using pages, ignoring.\n",
+			(long long)__pfn_to_phys(md->pfn), addr);
 		return;
 	}
 
@@ -1053,15 +1025,13 @@ static int __init early_vmalloc(char *arg)
 
 	if (vmalloc_reserve < SZ_16M) {
 		vmalloc_reserve = SZ_16M;
-		printk(KERN_WARNING
-			"vmalloc area too small, limiting to %luMB\n",
+		pr_warn("vmalloc area too small, limiting to %luMB\n",
 			vmalloc_reserve >> 20);
 	}
 
 	if (vmalloc_reserve > VMALLOC_END - (PAGE_OFFSET + SZ_32M)) {
 		vmalloc_reserve = VMALLOC_END - (PAGE_OFFSET + SZ_32M);
-		printk(KERN_WARNING
-			"vmalloc area is too big, limiting to %luMB\n",
+		pr_warn("vmalloc area is too big, limiting to %luMB\n",
 			vmalloc_reserve >> 20);
 	}
 
@@ -1094,7 +1064,7 @@ void __init sanity_check_meminfo(void)
 
 			if (highmem) {
 				pr_notice("Ignoring RAM at %pa-%pa (!CONFIG_HIGHMEM)\n",
-					&block_start, &block_end);
+					  &block_start, &block_end);
 				memblock_remove(reg->base, reg->size);
 				continue;
 			}
@@ -1103,7 +1073,7 @@ void __init sanity_check_meminfo(void)
 				phys_addr_t overlap_size = reg->size - size_limit;
 
 				pr_notice("Truncating RAM at %pa-%pa to -%pa",
-				      &block_start, &block_end, &vmalloc_limit);
+					  &block_start, &block_end, &vmalloc_limit);
 				memblock_remove(vmalloc_limit, overlap_size);
 				block_end = vmalloc_limit;
 			}

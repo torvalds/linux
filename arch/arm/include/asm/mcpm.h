@@ -219,6 +219,23 @@ void __mcpm_outbound_leave_critical(unsigned int cluster, int state);
 bool __mcpm_outbound_enter_critical(unsigned int this_cpu, unsigned int cluster);
 int __mcpm_cluster_state(unsigned int cluster);
 
+/**
+ * mcpm_sync_init - Initialize the cluster synchronization support
+ *
+ * @power_up_setup: platform specific function invoked during very
+ * 		    early CPU/cluster bringup stage.
+ *
+ * This prepares memory used by vlocks and the MCPM state machine used
+ * across CPUs that may have their caches active or inactive. Must be
+ * called only after a successful call to mcpm_platform_register().
+ *
+ * The power_up_setup argument is a pointer to assembly code called when
+ * the MMU and caches are still disabled during boot  and no stack space is
+ * available. The affinity level passed to that code corresponds to the
+ * resource that needs to be initialized (e.g. 1 for cluster level, 0 for
+ * CPU level).  Proper exclusion mechanisms are already activated at that
+ * point.
+ */
 int __init mcpm_sync_init(
 	void (*power_up_setup)(unsigned int affinity_level));
 

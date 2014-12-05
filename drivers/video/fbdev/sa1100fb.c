@@ -178,6 +178,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 
 #include <video/sa1100fb.h>
 
@@ -416,9 +417,9 @@ sa1100fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->transp.offset);
 
 #ifdef CONFIG_CPU_FREQ
-	dev_dbg(fbi->dev, "dma period = %d ps, clock = %d kHz\n",
+	dev_dbg(fbi->dev, "dma period = %d ps, clock = %ld kHz\n",
 		sa1100fb_display_dma_period(var),
-		cpufreq_get(smp_processor_id()));
+		clk_get_rate(fbi->clk) / 1000);
 #endif
 
 	return 0;
@@ -592,9 +593,10 @@ static struct fb_ops sa1100fb_ops = {
  * Calculate the PCD value from the clock rate (in picoseconds).
  * We take account of the PPCR clock setting.
  */
-static inline unsigned int get_pcd(unsigned int pixclock, unsigned int cpuclock)
+static inline unsigned int get_pcd(struct sa1100fb_info *fbi,
+		unsigned int pixclock)
 {
-	unsigned int pcd = cpuclock / 100;
+	unsigned int pcd = clk_get_rate(fbi->clk) / 100 / 1000;
 
 	pcd *= pixclock;
 	pcd /= 10000000;
@@ -673,7 +675,7 @@ static int sa1100fb_activate_var(struct fb_var_screeninfo *var, struct sa1100fb_
 		LCCR2_BegFrmDel(var->upper_margin) +
 		LCCR2_EndFrmDel(var->lower_margin);
 
-	pcd = get_pcd(var->pixclock, cpufreq_get(0));
+	pcd = get_pcd(fbi, var->pixclock);
 	new_regs.lccr3 = LCCR3_PixClkDiv(pcd) | fbi->inf->lccr3 |
 		(var->sync & FB_SYNC_HOR_HIGH_ACT ? LCCR3_HorSnchH : LCCR3_HorSnchL) |
 		(var->sync & FB_SYNC_VERT_HIGH_ACT ? LCCR3_VrtSnchH : LCCR3_VrtSnchL);
@@ -787,6 +789,9 @@ static void sa1100fb_enable_controller(struct sa1100fb_info *fbi)
 	fbi->palette_cpu[0] &= 0xcfff;
 	fbi->palette_cpu[0] |= palette_pbs(&fbi->fb.var);
 
+	/* enable LCD controller clock */
+	clk_prepare_enable(fbi->clk);
+
 	/* Sequence from 11.7.10 */
 	writel_relaxed(fbi->reg_lccr3, fbi->base + LCCR3);
 	writel_relaxed(fbi->reg_lccr2, fbi->base + LCCR2);
@@ -831,6 +836,9 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 
 	schedule_timeout(20 * HZ / 1000);
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
+
+	/* disable LCD controller clock */
+	clk_disable_unprepare(fbi->clk);
 }
 
 /*
@@ -1009,7 +1017,6 @@ sa1100fb_freq_transition(struct notifier_block *nb, unsigned long val,
 			 void *data)
 {
 	struct sa1100fb_info *fbi = TO_INF(nb, freq_transition);
-	struct cpufreq_freqs *f = data;
 	u_int pcd;
 
 	switch (val) {
@@ -1018,7 +1025,7 @@ sa1100fb_freq_transition(struct notifier_block *nb, unsigned long val,
 		break;
 
 	case CPUFREQ_POSTCHANGE:
-		pcd = get_pcd(fbi->fb.var.pixclock, f->new);
+		pcd = get_pcd(fbi, fbi->fb.var.pixclock);
 		fbi->reg_lccr3 = (fbi->reg_lccr3 & ~0xff) | LCCR3_PixClkDiv(pcd);
 		set_ctrlr_state(fbi, C_ENABLE_CLKCHANGE);
 		break;
@@ -1225,6 +1232,13 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	if (!fbi)
 		goto failed;
 
+	fbi->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(fbi->clk)) {
+		ret = PTR_ERR(fbi->clk);
+		fbi->clk = NULL;
+		goto failed;
+	}
+
 	fbi->base = ioremap(res->start, resource_size(res));
 	if (!fbi->base)
 		goto failed;
@@ -1277,6 +1291,8 @@ static int sa1100fb_probe(struct platform_device *pdev)
  failed:
 	if (fbi)
 		iounmap(fbi->base);
+	if (fbi->clk)
+		clk_put(fbi->clk);
 	kfree(fbi);
 	release_mem_region(res->start, resource_size(res));
 	return ret;
