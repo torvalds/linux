@@ -3,3 +3,8 @@ config DRM_PTN3460
 	depends on DRM
 	select DRM_KMS_HELPER
 	---help---
+
+config DRM_DW_HDMI
+	tristate
+	depends on DRM
+	select DRM_KMS_HELPER

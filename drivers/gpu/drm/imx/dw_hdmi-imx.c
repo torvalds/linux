@@ -1,6 +1,6 @@
 /* Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  *
- * derived from imx-hdmi.c
+ * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c now)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,6 +11,7 @@
 #include <linux/component.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
+#include <drm/bridge/dw_hdmi.h>
 #include <video/imx-ipu-v3.h>
 #include <linux/regmap.h>
 #include <drm/drm_of.h>
@@ -20,15 +21,14 @@
 #include <drm/drm_encoder_slave.h>
 
 #include "imx-drm.h"
-#include "imx-hdmi.h"
 
-struct imx_hdmi_priv {
+struct imx_hdmi {
 	struct device *dev;
 	struct drm_encoder encoder;
 	struct regmap *regmap;
 };
 
-static const struct mpll_config imx_mpll_cfg[] = {
+static const struct dw_hdmi_mpll_config imx_mpll_cfg[] = {
 	{
 		45250000, {
 			{ 0x01e0, 0x0000 },
@@ -56,7 +56,7 @@ static const struct mpll_config imx_mpll_cfg[] = {
 	}
 };
 
-static const struct curr_ctrl imx_cur_ctr[] = {
+static const struct dw_hdmi_curr_ctrl imx_cur_ctr[] = {
 	/*      pixelclk     bpp8    bpp10   bpp12 */
 	{
 		54000000, { 0x091c, 0x091c, 0x06dc },
@@ -73,13 +73,13 @@ static const struct curr_ctrl imx_cur_ctr[] = {
 	}
 };
 
-static const struct sym_term imx_sym_term[] = {
+static const struct dw_hdmi_sym_term imx_sym_term[] = {
 	/*pixelclk   symbol   term*/
 	{ 148500000, 0x800d, 0x0005 },
 	{ ~0UL,      0x0000, 0x0000 }
 };
 
-static int imx_hdmi_parse_dt(struct imx_hdmi_priv *hdmi)
+static int dw_hdmi_imx_parse_dt(struct imx_hdmi *hdmi)
 {
 	struct device_node *np = hdmi->dev->of_node;
 
@@ -92,28 +92,26 @@ static int imx_hdmi_parse_dt(struct imx_hdmi_priv *hdmi)
 	return 0;
 }
 
-static void imx_hdmi_encoder_disable(struct drm_encoder *encoder)
+static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
 {
 }
 
-static bool imx_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
-					const struct drm_display_mode *mode,
-					struct drm_display_mode *adj_mode)
+static bool dw_hdmi_imx_encoder_mode_fixup(struct drm_encoder *encoder,
+					   const struct drm_display_mode *mode,
+					   struct drm_display_mode *adj_mode)
 {
 	return true;
 }
 
-static void imx_hdmi_encoder_mode_set(struct drm_encoder *encoder,
-				      struct drm_display_mode *mode,
-				      struct drm_display_mode *adj_mode)
+static void dw_hdmi_imx_encoder_mode_set(struct drm_encoder *encoder,
+					 struct drm_display_mode *mode,
+					 struct drm_display_mode *adj_mode)
 {
 }
 
-static void imx_hdmi_encoder_commit(struct drm_encoder *encoder)
+static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
 {
-	struct imx_hdmi_priv *hdmi = container_of(encoder,
-						  struct imx_hdmi_priv,
-						  encoder);
+	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
 	int mux = imx_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
@@ -121,38 +119,38 @@ static void imx_hdmi_encoder_commit(struct drm_encoder *encoder)
 			   mux << IMX6Q_GPR3_HDMI_MUX_CTL_SHIFT);
 }
 
-static void imx_hdmi_encoder_prepare(struct drm_encoder *encoder)
+static void dw_hdmi_imx_encoder_prepare(struct drm_encoder *encoder)
 {
 	imx_drm_panel_format(encoder, V4L2_PIX_FMT_RGB24);
 }
 
-static struct drm_encoder_helper_funcs imx_hdmi_encoder_helper_funcs = {
-	.mode_fixup = imx_hdmi_encoder_mode_fixup,
-	.mode_set   = imx_hdmi_encoder_mode_set,
-	.prepare    = imx_hdmi_encoder_prepare,
-	.commit     = imx_hdmi_encoder_commit,
-	.disable    = imx_hdmi_encoder_disable,
+static struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
+	.mode_fixup = dw_hdmi_imx_encoder_mode_fixup,
+	.mode_set   = dw_hdmi_imx_encoder_mode_set,
+	.prepare    = dw_hdmi_imx_encoder_prepare,
+	.commit     = dw_hdmi_imx_encoder_commit,
+	.disable    = dw_hdmi_imx_encoder_disable,
 };
 
-static struct drm_encoder_funcs imx_hdmi_encoder_funcs = {
+static struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static struct imx_hdmi_plat_data imx6q_hdmi_drv_data = {
+static struct dw_hdmi_plat_data imx6q_hdmi_drv_data = {
 	.mpll_cfg = imx_mpll_cfg,
 	.cur_ctr  = imx_cur_ctr,
 	.sym_term = imx_sym_term,
 	.dev_type = IMX6Q_HDMI,
 };
 
-static struct imx_hdmi_plat_data imx6dl_hdmi_drv_data = {
+static struct dw_hdmi_plat_data imx6dl_hdmi_drv_data = {
 	.mpll_cfg = imx_mpll_cfg,
 	.cur_ctr  = imx_cur_ctr,
 	.sym_term = imx_sym_term,
 	.dev_type = IMX6DL_HDMI,
 };
 
-static const struct of_device_id imx_hdmi_dt_ids[] = {
+static const struct of_device_id dw_hdmi_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-hdmi",
 	  .data = &imx6q_hdmi_drv_data
 	}, {
@@ -161,17 +159,17 @@ static const struct of_device_id imx_hdmi_dt_ids[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, imx_hdmi_dt_ids);
+MODULE_DEVICE_TABLE(of, dw_hdmi_imx_dt_ids);
 
-static int imx_hdmi_pltfm_bind(struct device *dev, struct device *master,
-			       void *data)
+static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
+			    void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	const struct imx_hdmi_plat_data *plat_data;
+	const struct dw_hdmi_plat_data *plat_data;
 	const struct of_device_id *match;
 	struct drm_device *drm = data;
 	struct drm_encoder *encoder;
-	struct imx_hdmi_priv *hdmi;
+	struct imx_hdmi *hdmi;
 	struct resource *iores;
 	int irq;
 	int ret;
@@ -183,7 +181,7 @@ static int imx_hdmi_pltfm_bind(struct device *dev, struct device *master,
 	if (!hdmi)
 		return -ENOMEM;
 
-	match = of_match_node(imx_hdmi_dt_ids, pdev->dev.of_node);
+	match = of_match_node(dw_hdmi_imx_dt_ids, pdev->dev.of_node);
 	plat_data = match->data;
 	hdmi->dev = &pdev->dev;
 	encoder = &hdmi->encoder;
@@ -208,53 +206,53 @@ static int imx_hdmi_pltfm_bind(struct device *dev, struct device *master,
 	if (encoder->possible_crtcs == 0)
 		return -EPROBE_DEFER;
 
-	ret = imx_hdmi_parse_dt(hdmi);
+	ret = dw_hdmi_imx_parse_dt(hdmi);
 	if (ret < 0)
 		return ret;
 
-	drm_encoder_helper_add(encoder, &imx_hdmi_encoder_helper_funcs);
-	drm_encoder_init(drm, encoder, &imx_hdmi_encoder_funcs,
+	drm_encoder_helper_add(encoder, &dw_hdmi_imx_encoder_helper_funcs);
+	drm_encoder_init(drm, encoder, &dw_hdmi_imx_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 
-	return imx_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+	return dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
 }
 
-static void imx_hdmi_pltfm_unbind(struct device *dev, struct device *master,
-				  void *data)
+static void dw_hdmi_imx_unbind(struct device *dev, struct device *master,
+			       void *data)
 {
-	return imx_hdmi_unbind(dev, master, data);
+	return dw_hdmi_unbind(dev, master, data);
 }
 
-static const struct component_ops imx_hdmi_ops = {
-	.bind	= imx_hdmi_pltfm_bind,
-	.unbind	= imx_hdmi_pltfm_unbind,
+static const struct component_ops dw_hdmi_imx_ops = {
+	.bind	= dw_hdmi_imx_bind,
+	.unbind	= dw_hdmi_imx_unbind,
 };
 
-static int imx_hdmi_probe(struct platform_device *pdev)
+static int dw_hdmi_imx_probe(struct platform_device *pdev)
 {
-	return component_add(&pdev->dev, &imx_hdmi_ops);
+	return component_add(&pdev->dev, &dw_hdmi_imx_ops);
 }
 
-static int imx_hdmi_remove(struct platform_device *pdev)
+static int dw_hdmi_imx_remove(struct platform_device *pdev)
 {
-	component_del(&pdev->dev, &imx_hdmi_ops);
+	component_del(&pdev->dev, &dw_hdmi_imx_ops);
 
 	return 0;
 }
 
-static struct platform_driver imx_hdmi_pltfm_driver = {
-	.probe  = imx_hdmi_probe,
-	.remove = imx_hdmi_remove,
+static struct platform_driver dw_hdmi_imx_platform_driver = {
+	.probe  = dw_hdmi_imx_probe,
+	.remove = dw_hdmi_imx_remove,
 	.driver = {
-		.name = "hdmi-imx",
-		.of_match_table = imx_hdmi_dt_ids,
+		.name = "dwhdmi-imx",
+		.of_match_table = dw_hdmi_imx_dt_ids,
 	},
 };
 
-module_platform_driver(imx_hdmi_pltfm_driver);
+module_platform_driver(dw_hdmi_imx_platform_driver);
 
 MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com>");
 MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
 MODULE_DESCRIPTION("IMX6 Specific DW-HDMI Driver Extension");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:hdmi-imx");
+MODULE_ALIAS("platform:dwhdmi-imx");
