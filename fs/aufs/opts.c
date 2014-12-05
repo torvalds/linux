@@ -50,6 +50,7 @@ enum {
 	Opt_verbose, Opt_noverbose,
 	Opt_sum, Opt_nosum, Opt_wsum,
 	Opt_dirperm1, Opt_nodirperm1,
+	Opt_acl, Opt_noacl,
 	Opt_tail, Opt_ignore, Opt_ignore_silent, Opt_err
 };
 
@@ -157,6 +158,15 @@ static match_table_t options = {
 	{Opt_wbr_copyup, "copyup=%s"},
 	{Opt_wbr_copyup, "copyup_policy=%s"},
 
+	/* generic VFS flag */
+#ifdef CONFIG_FS_POSIX_ACL
+	{Opt_acl, "acl"},
+	{Opt_noacl, "noacl"},
+#else
+	{Opt_ignore_silent, "acl"},
+	{Opt_ignore_silent, "noacl"},
+#endif
+
 	/* internal use for the scripts */
 	{Opt_ignore_silent, "si=%s"},
 
@@ -220,6 +230,12 @@ static match_table_t brattr = {
 	{AuBrAttr_COO_ALL, AUFS_BRATTR_COO_ALL},
 	{AuBrAttr_UNPIN, AUFS_BRATTR_UNPIN},
 	{AuBrAttr_FHSM, AUFS_BRATTR_FHSM},
+	{AuBrAttr_ICEX, AUFS_BRATTR_ICEX},
+	{AuBrAttr_ICEX_SEC, AUFS_BRATTR_ICEX_SEC},
+	{AuBrAttr_ICEX_SYS, AUFS_BRATTR_ICEX_SYS},
+	{AuBrAttr_ICEX_TR, AUFS_BRATTR_ICEX_TR},
+	{AuBrAttr_ICEX_USR, AUFS_BRATTR_ICEX_USR},
+	{AuBrAttr_ICEX_OTH, AUFS_BRATTR_ICEX_OTH},
 
 	/* ro/rr branch */
 	{AuBrRAttr_WH, AUFS_BRRATTR_WH},
@@ -715,6 +731,12 @@ static void dump_opts(struct au_opts *opts)
 		case Opt_fhsm_sec:
 			AuDbg("fhsm_sec %u\n", opt->fhsm_second);
 			break;
+		case Opt_acl:
+			AuLabel(acl);
+			break;
+		case Opt_noacl:
+			AuLabel(noacl);
+			break;
 		default:
 			BUG();
 		}
@@ -1161,6 +1183,8 @@ int au_opts_parse(struct super_block *sb, char *str, struct au_opts *opts)
 		case Opt_wsum:
 		case Opt_rdblk_def:
 		case Opt_rdhash_def:
+		case Opt_acl:
+		case Opt_noacl:
 			err = 0;
 			opt->type = token;
 			break;
@@ -1430,6 +1454,13 @@ static int au_opt_simple(struct super_block *sb, struct au_opt *opt,
 		au_fclr_opts(opts->flags, TRUNC_XIB);
 		break;
 
+	case Opt_acl:
+		sb->s_flags |= MS_POSIXACL;
+		break;
+	case Opt_noacl:
+		sb->s_flags &= ~MS_POSIXACL;
+		break;
+
 	default:
 		err = 0;
 		break;
@@ -1580,8 +1611,17 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		skip = 0;
 		h_dir = au_h_iptr(dir, bindex);
 		br = au_sbr(sb, bindex);
-		do_free = 0;
 
+		if ((br->br_perm & AuBrAttr_ICEX)
+		    && !h_dir->i_op->listxattr)
+			br->br_perm &= ~AuBrAttr_ICEX;
+#if 0
+		if ((br->br_perm & AuBrAttr_ICEX_SEC)
+		    && (au_br_sb(br)->s_flags & MS_NOSEC))
+			br->br_perm &= ~AuBrAttr_ICEX_SEC;
+#endif
+
+		do_free = 0;
 		wbr = br->br_wbr;
 		if (wbr)
 			wbr_wh_read_lock(wbr);

@@ -1,0 +1,96 @@
+
+# Copyright (C) 2014 Junjiro R. Okajima
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+
+Listing XATTR/EA and getting the value
+----------------------------------------------------------------------
+For the inode standard attributes (owner, group, timestamps, etc.), aufs
+shows the values from the topmost existing file. This behaviour is good
+for the non-dir entreis since the bahaviour exactly matches the shown
+information. But for the directories, aufs considers all the same named
+entries on the lower branches. Which means, if one of the lower entry
+rejects readdir call, then aufs returns an error even if the topmost
+entry allows it. This behaviour is necessary to respect the branch fs's
+security, but can make users confused since the user-visible standard
+attributes don't match the behaviour.
+To address this issue, aufs has a mount option called dirperm1 which
+checks the permission for the topmost entry only, and ignores the lower
+entry's permission.
+
+A similar issue can happen around XATTR.
+getxattr(2) and listxattr(2) families behave as if dirperm1 option is
+always set. Otherwise these very unpleasant situation can happen.
+- listxattr(2) may return the duplicated entires.
+- users may not be able to remove or reset the XATTR forever,
+
+
+XATTR/EA support in the internal (copy,move)-(up,down)
+----------------------------------------------------------------------
+Generally the extended attributes of inode are categorazied as these.
+- "security" for LSM and capability.
+- "system" for posix ACL, 'acl' mount option is required for the branch
+  fs generally.
+- "trusted" for userspace, CAP_SYS_ADMIN is required.
+- "user" for userspace, 'user_xattr' mount option is required for the
+  branch fs generally.
+
+Moreover there are some other categories. Aufs handles these rather
+unpopular categories as the ordinary ones, ie. there is no special
+condition nor exception.
+
+In copy-up, the support for XATTR on the dst branch may differ from the
+src branch. In this case, the copy-up operation will get an error and
+the original user operation which triggered the copy-up fails. It can
+happen that even all copy-up will fail.
+When both of src and dst branches support XATTR and if an error occurs
+during copying XATTR, then the copy-up should fail obviously. That is a
+good reason and aufs should return an error to userspace. But when only
+the src branch support XATTR, aufs should not return an error.
+For example, the src branch supports ACL but the dst branch doesn't
+because the dst branch may natively un-support it or temporary
+un-support it due to "noacl" mount option. Of course, the dst branch fs
+may NOT return an error even if the XATTR is not supported. It is
+totally up to the branch fs.
+
+Anyway when the aufs internal copy-up gets an error from the dst branch
+fs, then aufs tries removing the just copied entry and returns the error
+to the userspace. The worst case of this situation will be all copy-up
+will fail.
+
+For the copy-up operation, there two basic approaches.
+- copy the specified XATTR only (by category above), and return the
+  error if it happens inconditionally.
+- copy all XATTR, and ignore the error on the specified category only.
+
+In order to support XATTR and to implement the correct behaviour, aufs
+chooses the latter approach and introduces some attributes for its
+branch, "icexsec", "icexsys", "icextr", "icexusr", and "icexoth".
+They correspond to the XATTR namespaces (see above). Additionally, to be
+convenient, "icex" is also provided which means all "ix*" attributes are
+set.
+
+The meaning of these attributes is to ignore the error from setting
+XATTR on that branch.
+Note that aufs tries copying all XATTR unconditionally, and ignores the
+error from the dst branch according to the specified attributes.
+
+Some XATTR may have its default value. The default value may come from
+the parent dir or the environment. If the default value is set at the
+file creating-time, it will be overwritten by copy-up.
+Some contradiction may happen I am afraid.
+Do we need another attribute to stop copying XATTR? I am unsure. For
+now, aufs implements the branch attributes to ignore the error.
