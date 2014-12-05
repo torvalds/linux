@@ -1495,7 +1495,8 @@ uislib_mod_init(void)
 
 	/* initialize global pointers to NULL */
 	BusListHead = NULL;
-	BusListCount = MaxBusCount = 0;
+	BusListCount = 0;
+	MaxBusCount = 0;
 	rwlock_init(&BusListLock);
 	virt_control_chan_func = NULL;
 
