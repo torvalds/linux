@@ -272,15 +272,15 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	int i;
 	struct bus_info *bus, *prev = NULL;
 	struct guest_msgs cmd;
-	u32 busNo;
+	u32 bus_no;
 
-	busNo = msg->cmd.destroy_bus.bus_no;
+	bus_no = msg->cmd.destroy_bus.bus_no;
 
 	read_lock(&bus_list_lock);
 
 	bus = bus_list;
 	while (bus) {
-		if (bus->bus_no == busNo)
+		if (bus->bus_no == bus_no)
 			break;
 		prev = bus;
 		bus = bus->next;
@@ -288,7 +288,7 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 
 	if (!bus) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: failed to find bus %d.\n",
-		       busNo);
+		       bus_no);
 		read_unlock(&bus_list_lock);
 		return CONTROLVM_RESP_ERROR_ALREADY_DONE;
 	}
@@ -297,7 +297,7 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	for (i = 0; i < bus->device_count; i++) {
 		if (bus->device[i] != NULL) {
 			LOGERR("CONTROLVM_BUS_DESTROY Failed: device %i attached to bus %d.",
-			       i, busNo);
+			       i, bus_no);
 			read_unlock(&bus_list_lock);
 			return CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED;
 		}
@@ -310,7 +310,7 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	/* client messages require us to call the virtpci callback associated
 	   with this bus. */
 	cmd.msgtype = GUEST_DEL_VBUS;
-	cmd.del_vbus.bus_no = busNo;
+	cmd.del_vbus.bus_no = bus_no;
 	if (!virt_control_chan_func) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci callback not registered.");
 		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
