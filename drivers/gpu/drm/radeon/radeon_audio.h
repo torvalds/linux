@@ -51,6 +51,8 @@ struct radeon_audio_funcs
 		struct cea_sad *sads, int sad_count);
 	void (*write_speaker_allocation)(struct drm_encoder *encoder,
 		u8 *sadb, int sad_count);
+	void (*set_dto)(struct radeon_device *rdev,
+		struct radeon_crtc *crtc, unsigned int clock);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -69,5 +71,6 @@ void radeon_audio_select_pin(struct drm_encoder *encoder);
 void radeon_audio_enable(struct radeon_device *rdev,
 	struct r600_audio_pin *pin, u8 enable_mask);
 void radeon_audio_fini(struct radeon_device *rdev);
+void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock);
 
 #endif

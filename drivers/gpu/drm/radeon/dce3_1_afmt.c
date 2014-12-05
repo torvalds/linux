@@ -113,6 +113,60 @@ void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder,
 	}
 }
 
+void dce3_2_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock)
+{
+	struct radeon_encoder *radeon_encoder;
+	struct radeon_encoder_atom_dig *dig;
+	unsigned int max_ratio = clock / 24000;
+	u32 dto_phase;
+	u32 wallclock_ratio;
+	u32 dto_cntl;
+
+	if (!crtc)
+		return;
+
+	radeon_encoder = to_radeon_encoder(crtc->encoder);
+	dig = radeon_encoder->enc_priv;
+
+	if (!dig)
+		return;
+
+	if (max_ratio >= 8) {
+		dto_phase = 192 * 1000;
+		wallclock_ratio = 3;
+	} else if (max_ratio >= 4) {
+		dto_phase = 96 * 1000;
+		wallclock_ratio = 2;
+	} else if (max_ratio >= 2) {
+		dto_phase = 48 * 1000;
+		wallclock_ratio = 1;
+	} else {
+		dto_phase = 24 * 1000;
+		wallclock_ratio = 0;
+	}
+
+	/* Express [24MHz / target pixel clock] as an exact rational
+	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 */
+	if (dig->dig_encoder == 0) {
+		dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+		dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
+		WREG32(DCCG_AUDIO_DTO0_CNTL, dto_cntl);
+		WREG32(DCCG_AUDIO_DTO0_PHASE, dto_phase);
+		WREG32(DCCG_AUDIO_DTO0_MODULE, clock);
+		WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
+	} else {
+		dto_cntl = RREG32(DCCG_AUDIO_DTO1_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+		dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
+		WREG32(DCCG_AUDIO_DTO1_CNTL, dto_cntl);
+		WREG32(DCCG_AUDIO_DTO1_PHASE, dto_phase);
+		WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
+		WREG32(DCCG_AUDIO_DTO_SELECT, 1); /* select DTO1 */
+	}
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -139,7 +193,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	dig->afmt->pin = radeon_audio_get_pin(encoder);
 	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
-	r600_audio_set_dto(encoder, mode->clock);
+	radeon_audio_set_dto(encoder, mode->clock);
 
 	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
 	       HDMI0_NULL_SEND); /* send null packets when required */

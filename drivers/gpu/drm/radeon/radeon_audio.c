@@ -62,6 +62,18 @@ void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
 struct r600_audio_pin* r600_audio_get_pin(struct radeon_device *rdev);
 struct r600_audio_pin* dce6_audio_get_pin(struct radeon_device *rdev);
 void dce6_afmt_select_pin(struct drm_encoder *encoder);
+void r600_hdmi_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock);
+void dce3_2_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock);
+void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock);
+void dce4_dp_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock);
+void dce6_hdmi_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock);
+void dce6_dp_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock);
 
 static const u32 pin_offsets[7] =
 {
@@ -85,6 +97,12 @@ static void radeon_audio_wreg(struct radeon_device *rdev, u32 offset,
 	WREG32(reg, v);
 }
 
+static struct radeon_audio_basic_funcs r600_funcs = {
+	.endpoint_rreg = radeon_audio_rreg,
+	.endpoint_wreg = radeon_audio_wreg,
+	.enable = r600_audio_enable,
+};
+
 static struct radeon_audio_basic_funcs dce32_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
@@ -103,16 +121,23 @@ static struct radeon_audio_basic_funcs dce6_funcs = {
 	.enable = dce6_audio_enable,
 };
 
+static struct radeon_audio_funcs r600_hdmi_funcs = {
+	.get_pin = r600_audio_get_pin,
+	.set_dto = r600_hdmi_audio_set_dto,
+};
+
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
 	.get_pin = r600_audio_get_pin,
 	.write_sad_regs = dce3_2_afmt_write_sad_regs,
 	.write_speaker_allocation = dce3_2_afmt_hdmi_write_speaker_allocation,
+	.set_dto = dce3_2_audio_set_dto,
 };
 
 static struct radeon_audio_funcs dce32_dp_funcs = {
 	.get_pin = r600_audio_get_pin,
 	.write_sad_regs = dce3_2_afmt_write_sad_regs,
 	.write_speaker_allocation = dce3_2_afmt_dp_write_speaker_allocation,
+	.set_dto = dce3_2_audio_set_dto,
 };
 
 static struct radeon_audio_funcs dce4_hdmi_funcs = {
@@ -120,6 +145,7 @@ static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.write_sad_regs = evergreen_hdmi_write_sad_regs,
 	.write_speaker_allocation = dce4_afmt_hdmi_write_speaker_allocation,
 	.write_latency_fields = dce4_afmt_write_latency_fields,
+	.set_dto = dce4_hdmi_audio_set_dto,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
@@ -127,6 +153,7 @@ static struct radeon_audio_funcs dce4_dp_funcs = {
 	.write_sad_regs = evergreen_hdmi_write_sad_regs,
 	.write_speaker_allocation = dce4_afmt_dp_write_speaker_allocation,
 	.write_latency_fields = dce4_afmt_write_latency_fields,
+	.set_dto = dce4_dp_audio_set_dto,
 };
 
 static struct radeon_audio_funcs dce6_hdmi_funcs = {
@@ -135,6 +162,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.write_sad_regs = dce6_afmt_write_sad_regs,
 	.write_speaker_allocation = dce6_afmt_hdmi_write_speaker_allocation,
 	.write_latency_fields = dce6_afmt_write_latency_fields,
+	.set_dto = dce6_hdmi_audio_set_dto,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
@@ -143,6 +171,7 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.write_sad_regs = dce6_afmt_write_sad_regs,
 	.write_speaker_allocation = dce6_afmt_dp_write_speaker_allocation,
 	.write_latency_fields = dce6_afmt_write_latency_fields,
+	.set_dto = dce6_dp_audio_set_dto,
 };
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -155,10 +184,14 @@ static void radeon_audio_interface_init(struct radeon_device *rdev)
 		rdev->audio.funcs = &dce4_funcs;
 		rdev->audio.hdmi_funcs = &dce4_hdmi_funcs;
 		rdev->audio.dp_funcs = &dce4_dp_funcs;
-	} else {
+	} else if (ASIC_IS_DCE32(rdev)) {
 		rdev->audio.funcs = &dce32_funcs;
 		rdev->audio.hdmi_funcs = &dce32_hdmi_funcs;
 		rdev->audio.dp_funcs = &dce32_dp_funcs;
+	} else {
+		rdev->audio.funcs = &r600_funcs;
+		rdev->audio.hdmi_funcs = &r600_hdmi_funcs;
+		rdev->audio.dp_funcs = 0;
 	}
 }
 
@@ -392,4 +425,14 @@ void radeon_audio_fini(struct radeon_device *rdev)
 		radeon_audio_enable(rdev, &rdev->audio.pin[i], false);
 
 	rdev->audio.enabled = false;
+}
+
+void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_crtc *crtc = to_radeon_crtc(encoder->crtc);
+
+	if (radeon_encoder->audio && radeon_encoder->audio->set_dto)
+		radeon_encoder->audio->set_dto(rdev, crtc, clock);
 }

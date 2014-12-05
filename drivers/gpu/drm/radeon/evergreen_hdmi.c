@@ -218,54 +218,74 @@ static void evergreen_hdmi_update_avi_infoframe(struct drm_encoder *encoder,
 		frame[0xC] | (frame[0xD] << 8) | (header[1] << 24));
 }
 
-static void evergreen_audio_set_dto(struct drm_encoder *encoder, u32 clock)
+void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock)
 {
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
-	u32 base_rate = 24000;
-	u32 max_ratio = clock / base_rate;
+	unsigned int max_ratio = clock / 24000;
 	u32 dto_phase;
-	u32 dto_modulo = clock;
 	u32 wallclock_ratio;
-	u32 dto_cntl;
+	u32 value;
 
-	if (!dig || !dig->afmt)
-		return;
-
-	if (ASIC_IS_DCE6(rdev)) {
-		dto_phase = 24 * 1000;
+	if (max_ratio >= 8) {
+		dto_phase = 192 * 1000;
+		wallclock_ratio = 3;
+	} else if (max_ratio >= 4) {
+		dto_phase = 96 * 1000;
+		wallclock_ratio = 2;
+	} else if (max_ratio >= 2) {
+		dto_phase = 48 * 1000;
+		wallclock_ratio = 1;
 	} else {
-		if (max_ratio >= 8) {
-			dto_phase = 192 * 1000;
-			wallclock_ratio = 3;
-		} else if (max_ratio >= 4) {
-			dto_phase = 96 * 1000;
-			wallclock_ratio = 2;
-		} else if (max_ratio >= 2) {
-			dto_phase = 48 * 1000;
-			wallclock_ratio = 1;
-		} else {
-			dto_phase = 24 * 1000;
-			wallclock_ratio = 0;
-		}
-		dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
-		dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
-		WREG32(DCCG_AUDIO_DTO0_CNTL, dto_cntl);
+		dto_phase = 24 * 1000;
+		wallclock_ratio = 0;
 	}
 
-	/* XXX two dtos; generally use dto0 for hdmi */
+	value = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+	value |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
+	value &= ~DCCG_AUDIO_DTO1_USE_512FBR_DTO;
+	WREG32(DCCG_AUDIO_DTO0_CNTL, value);
+
+	/* Two dtos; generally use dto0 for HDMI */
+	value = 0;
+
+	if (crtc)
+		value |= DCCG_AUDIO_DTO0_SOURCE_SEL(crtc->crtc_id);
+
+	WREG32(DCCG_AUDIO_DTO_SOURCE, value);
+
 	/* Express [24MHz / target pixel clock] as an exact rational
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
-	WREG32(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL(radeon_crtc->crtc_id));
 	WREG32(DCCG_AUDIO_DTO0_PHASE, dto_phase);
-	WREG32(DCCG_AUDIO_DTO0_MODULE, dto_modulo);
+	WREG32(DCCG_AUDIO_DTO0_MODULE, clock);
 }
 
+void dce4_dp_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock)
+{
+	u32 value;
+
+	value = RREG32(DCCG_AUDIO_DTO1_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+	value |= DCCG_AUDIO_DTO1_USE_512FBR_DTO;
+	WREG32(DCCG_AUDIO_DTO1_CNTL, value);
+
+	/* Two dtos; generally use dto1 for DP */
+	value = 0;
+	value |= DCCG_AUDIO_DTO_SEL;
+
+	if (crtc)
+		value |= DCCG_AUDIO_DTO0_SOURCE_SEL(crtc->crtc_id);
+
+	WREG32(DCCG_AUDIO_DTO_SOURCE, value);
+
+	/* Express [24MHz / target pixel clock] as an exact rational
+	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 */
+	WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
+	WREG32(DCCG_AUDIO_DTO1_MODULE, rdev->clock.max_pixel_clock * 10);
+}
 
 /*
  * update the info frames with the data from the current display mode
@@ -302,7 +322,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	dig->afmt->pin = radeon_audio_get_pin(encoder);
 	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
-	evergreen_audio_set_dto(encoder, mode->clock);
+	radeon_audio_set_dto(encoder, mode->clock);
 
 	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
 	       HDMI_NULL_SEND); /* send null packets when required */

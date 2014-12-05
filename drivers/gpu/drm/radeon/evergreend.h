@@ -509,6 +509,7 @@
 #define DCCG_AUDIO_DTO1_MODULE            0x05c4
 #define DCCG_AUDIO_DTO1_LOAD              0x05c8
 #define DCCG_AUDIO_DTO1_CNTL              0x05cc
+#       define DCCG_AUDIO_DTO1_USE_512FBR_DTO (1 << 3)
 
 /* DCE 4.0 AFMT */
 #define HDMI_CONTROL                         0x7030

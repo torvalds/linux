@@ -380,73 +380,29 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 		 value, ~HDMI0_AUDIO_TEST_EN);
 }
 
-void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
+void r600_hdmi_audio_set_dto(struct radeon_device *rdev,
+    struct radeon_crtc *crtc, unsigned int clock)
 {
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u32 base_rate = 24000;
-	u32 max_ratio = clock / base_rate;
-	u32 dto_phase;
-	u32 dto_modulo = clock;
-	u32 wallclock_ratio;
-	u32 dto_cntl;
+	struct radeon_encoder *radeon_encoder;
+	struct radeon_encoder_atom_dig *dig;
 
-	if (!dig || !dig->afmt)
+	if (!crtc)
 		return;
 
-	if (max_ratio >= 8) {
-		dto_phase = 192 * 1000;
-		wallclock_ratio = 3;
-	} else if (max_ratio >= 4) {
-		dto_phase = 96 * 1000;
-		wallclock_ratio = 2;
-	} else if (max_ratio >= 2) {
-		dto_phase = 48 * 1000;
-		wallclock_ratio = 1;
-	} else {
-		dto_phase = 24 * 1000;
-		wallclock_ratio = 0;
-	}
+	radeon_encoder = to_radeon_encoder(crtc->encoder);
+	dig = radeon_encoder->enc_priv;
 
-	/* there are two DTOs selected by DCCG_AUDIO_DTO_SELECT.
-	 * doesn't matter which one you use.  Just use the first one.
-	 */
-	/* XXX two dtos; generally use dto0 for hdmi */
-	/* Express [24MHz / target pixel clock] as an exact rational
-	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
-	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
-	 */
-	if (ASIC_IS_DCE32(rdev)) {
-		if (dig->dig_encoder == 0) {
-			dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
-			dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
-			WREG32(DCCG_AUDIO_DTO0_CNTL, dto_cntl);
-			WREG32(DCCG_AUDIO_DTO0_PHASE, dto_phase);
-			WREG32(DCCG_AUDIO_DTO0_MODULE, dto_modulo);
-			WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
-		} else {
-			dto_cntl = RREG32(DCCG_AUDIO_DTO1_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
-			dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
-			WREG32(DCCG_AUDIO_DTO1_CNTL, dto_cntl);
-			WREG32(DCCG_AUDIO_DTO1_PHASE, dto_phase);
-			WREG32(DCCG_AUDIO_DTO1_MODULE, dto_modulo);
-			WREG32(DCCG_AUDIO_DTO_SELECT, 1); /* select DTO1 */
-		}
+	if (!dig)
+		return;
+
+	if (dig->dig_encoder == 0) {
+		WREG32(DCCG_AUDIO_DTO0_PHASE, 24000 * 100);
+		WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
+		WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
 	} else {
-		/* according to the reg specs, this should DCE3.2 only, but in
-		 * practice it seems to cover DCE2.0/3.0/3.1 as well.
-		 */
-		if (dig->dig_encoder == 0) {
-			WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 100);
-			WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
-			WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
-		} else {
-			WREG32(DCCG_AUDIO_DTO1_PHASE, base_rate * 100);
-			WREG32(DCCG_AUDIO_DTO1_MODULE, clock * 100);
-			WREG32(DCCG_AUDIO_DTO_SELECT, 1); /* select DTO1 */
-		}
+		WREG32(DCCG_AUDIO_DTO1_PHASE, 24000 * 100);
+		WREG32(DCCG_AUDIO_DTO1_MODULE, clock * 100);
+		WREG32(DCCG_AUDIO_DTO_SELECT, 1); /* select DTO1 */
 	}
 }
 
@@ -477,7 +433,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	dig->afmt->pin = radeon_audio_get_pin(encoder);
 	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
-	r600_audio_set_dto(encoder, mode->clock);
+	radeon_audio_set_dto(encoder, mode->clock);
 
 	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		 HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */

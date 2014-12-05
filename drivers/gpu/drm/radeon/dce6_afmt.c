@@ -248,3 +248,42 @@ void dce6_audio_enable(struct radeon_device *rdev,
 	WREG32_ENDPOINT(pin->offset, AZ_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
 			enable_mask ? AUDIO_ENABLED : 0);
 }
+
+void dce6_hdmi_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock)
+{
+    /* Two dtos; generally use dto0 for HDMI */
+	u32 value = 0;
+
+    if (crtc)
+		value |= DCCG_AUDIO_DTO0_SOURCE_SEL(crtc->crtc_id);
+
+	WREG32(DCCG_AUDIO_DTO_SOURCE, value);
+
+    /* Express [24MHz / target pixel clock] as an exact rational
+     * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+     * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+     */
+    WREG32(DCCG_AUDIO_DTO0_PHASE, 24000);
+    WREG32(DCCG_AUDIO_DTO0_MODULE, clock);
+}
+
+void dce6_dp_audio_set_dto(struct radeon_device *rdev,
+	struct radeon_crtc *crtc, unsigned int clock)
+{
+    /* Two dtos; generally use dto1 for DP */
+	u32 value = 0;
+	value |= DCCG_AUDIO_DTO_SEL;
+
+    if (crtc)
+		value |= DCCG_AUDIO_DTO0_SOURCE_SEL(crtc->crtc_id);
+
+	WREG32(DCCG_AUDIO_DTO_SOURCE, value);
+
+    /* Express [24MHz / target pixel clock] as an exact rational
+     * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+     * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+     */
+    WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
+    WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
+}
