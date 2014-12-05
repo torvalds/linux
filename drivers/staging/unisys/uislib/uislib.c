@@ -136,8 +136,8 @@ init_vbus_channel(u64 channelAddr, u32 channelBytes)
 
 	if (!pChan) {
 		LOGERR("CONTROLVM_BUS_CREATE error: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
-		     (unsigned long long) channelAddr,
-		     (unsigned long long) channelBytes);
+		     (unsigned long long)channelAddr,
+		     (unsigned long long)channelBytes);
 		rc = NULL;
 		goto Away;
 	}
@@ -194,10 +194,10 @@ create_bus(struct controlvm_message *msg, char *buf)
 		bus->local_vnic = 1;
 	} else
 		bus->bus_no = bus->guest_handle = busNo;
-	sprintf(bus->name, "%d", (int) bus->bus_no);
+	sprintf(bus->name, "%d", (int)bus->bus_no);
 	bus->device_count = deviceCount;
 	bus->device =
-	    (struct device_info **) ((char *) bus + sizeof(struct bus_info));
+	    (struct device_info **)((char *)bus + sizeof(struct bus_info));
 	bus->bus_inst_uuid = msg->cmd.create_bus.bus_inst_uuid;
 	bus->bus_channel_bytes = 0;
 	bus->bus_channel = NULL;
@@ -373,7 +373,7 @@ create_device(struct controlvm_message *msg, char *buf)
 	dev->bus_no = busNo;
 	dev->dev_no = devNo;
 	sema_init(&dev->interrupt_callback_lock, 1);	/* unlocked */
-	sprintf(dev->devid, "vbus%u:dev%u", (unsigned) busNo, (unsigned) devNo);
+	sprintf(dev->devid, "vbus%u:dev%u", (unsigned)busNo, (unsigned)devNo);
 	/* map the channel memory for the device. */
 	if (msg->hdr.flags.test_message)
 		dev->chanptr = (void __iomem *)__va(dev->channel_addr);
@@ -955,7 +955,7 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 	msg.cmd.create_device.channel_addr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
 		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
-		     chan_bytes, (unsigned int) MIN_IO_CHANNEL_SIZE);
+		     chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
 		POSTCODE_LINUX_4(VHBA_CREATE_FAILURE_PC, chan_bytes,
 				 MIN_IO_CHANNEL_SIZE, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -1014,7 +1014,7 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 	msg.cmd.create_device.channel_addr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
 		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
-		     chan_bytes, (unsigned int) MIN_IO_CHANNEL_SIZE);
+		     chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
 		POSTCODE_LINUX_4(VNIC_CREATE_FAILURE_PC, chan_bytes,
 				 MIN_IO_CHANNEL_SIZE, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -1225,14 +1225,14 @@ find_dev(u32 busNo, u32 devNo)
 			if (devNo >= bus->device_count) {
 				LOGERR("%s bad busNo, devNo=%d,%d",
 				       __func__,
-				       (int) (busNo), (int) (devNo));
+				       (int)(busNo), (int)(devNo));
 				goto Away;
 			}
 			dev = bus->device[devNo];
 			if (!dev)
 				LOGERR("%s bad busNo, devNo=%d,%d",
 				       __func__,
-				       (int) (busNo), (int) (devNo));
+				       (int)(busNo), (int)(devNo));
 			goto Away;
 		}
 	}
@@ -1396,8 +1396,8 @@ uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 
 	dev = find_dev(bus_no, dev_no);
 	if (!dev) {
-		LOGERR("%s busNo=%d, devNo=%d", __func__, (int) (bus_no),
-		       (int) (dev_no));
+		LOGERR("%s busNo=%d, devNo=%d", __func__, (int)(bus_no),
+		       (int)(dev_no));
 		return;
 	}
 	down(&Lock_Polling_Device_Channels);
@@ -1421,8 +1421,8 @@ uislib_disable_channel_interrupts(u32 bus_no, u32 dev_no)
 
 	dev = find_dev(bus_no, dev_no);
 	if (!dev) {
-		LOGERR("%s busNo=%d, devNo=%d", __func__, (int) (bus_no),
-		       (int) (dev_no));
+		LOGERR("%s busNo=%d, devNo=%d", __func__, (int)(bus_no),
+		       (int)(dev_no));
 		return;
 	}
 	down(&Lock_Polling_Device_Channels);
@@ -1478,21 +1478,21 @@ uislib_mod_init(void)
 	LOGINF("MONITORAPIS");
 
 	LOGINF("sizeof(struct uiscmdrsp):%lu bytes\n",
-	       (ulong) sizeof(struct uiscmdrsp));
+	       (ulong)sizeof(struct uiscmdrsp));
 	LOGINF("sizeof(struct phys_info):%lu\n",
-	       (ulong) sizeof(struct phys_info));
+	       (ulong)sizeof(struct phys_info));
 	LOGINF("sizeof(uiscmdrsp_scsi):%lu\n",
-	       (ulong) sizeof(struct uiscmdrsp_scsi));
+	       (ulong)sizeof(struct uiscmdrsp_scsi));
 	LOGINF("sizeof(uiscmdrsp_net):%lu\n",
-	       (ulong) sizeof(struct uiscmdrsp_net));
+	       (ulong)sizeof(struct uiscmdrsp_net));
 	LOGINF("sizeof(CONTROLVM_MESSAGE):%lu bytes\n",
-	       (ulong) sizeof(struct controlvm_message));
+	       (ulong)sizeof(struct controlvm_message));
 	LOGINF("sizeof(struct spar_controlvm_channel_protocol):%lu bytes\n",
-	       (ulong) sizeof(struct spar_controlvm_channel_protocol));
+	       (ulong)sizeof(struct spar_controlvm_channel_protocol));
 	LOGINF("sizeof(CHANNEL_HEADER):%lu bytes\n",
-	       (ulong) sizeof(struct channel_header));
+	       (ulong)sizeof(struct channel_header));
 	LOGINF("sizeof(struct spar_io_channel_protocol):%lu bytes\n",
-	       (ulong) sizeof(struct spar_io_channel_protocol));
+	       (ulong)sizeof(struct spar_io_channel_protocol));
 	LOGINF("SIZEOF_CMDRSP:%lu bytes\n", SIZEOF_CMDRSP);
 	LOGINF("SIZEOF_PROTOCOL:%lu bytes\n", SIZEOF_PROTOCOL);
 
