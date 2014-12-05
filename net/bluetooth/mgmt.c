@@ -3912,6 +3912,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 	hci_discovery_filter_clear(hdev);
 
 	hdev->discovery.type = cp->type;
+	hdev->discovery.report_invalid_rssi = false;
 
 	hci_req_init(&req, hdev);
 
@@ -7022,8 +7023,15 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	memset(buf, 0, sizeof(buf));
 
-	/* Reset invalid RSSI to 0 to keep backwards API compliance */
-	if (rssi == HCI_RSSI_INVALID)
+	/* In case of device discovery with BR/EDR devices (pre 1.2), the
+	 * RSSI value was reported as 0 when not available. This behavior
+	 * is kept when using device discovery. This is required for full
+	 * backwards compatibility with the API.
+	 *
+	 * However when using service discovery, the value 127 will be
+	 * returned when the RSSI is not available.
+	 */
+	if (rssi == HCI_RSSI_INVALID && !hdev->discovery.report_invalid_rssi)
 		rssi = 0;
 
 	bacpy(&ev->addr.bdaddr, bdaddr);
