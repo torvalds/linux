@@ -66,15 +66,11 @@ static int si2168_cmd_execute(struct i2c_client *client, struct si2168_cmd *cmd)
 		}
 	}
 
-	ret = 0;
+	mutex_unlock(&dev->i2c_mutex);
+	return 0;
 
 err_mutex_unlock:
 	mutex_unlock(&dev->i2c_mutex);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
