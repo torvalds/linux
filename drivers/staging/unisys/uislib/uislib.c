@@ -128,28 +128,22 @@ init_msg_header(struct controlvm_message *msg, u32 id, uint rsp, uint svr)
 	msg->hdr.flags.server = svr;
 }
 
-static __iomem void *
-init_vbus_channel(u64 channelAddr, u32 channelBytes)
+static __iomem void *init_vbus_channel(u64 ch_addr, u32 ch_bytes)
 {
-	void __iomem *rc = NULL;
-	void __iomem *pChan = uislib_ioremap_cache(channelAddr, channelBytes);
+	void __iomem *ch = uislib_ioremap_cache(ch_addr, ch_bytes);
 
-	if (!pChan) {
+	if (!ch) {
 		LOGERR("CONTROLVM_BUS_CREATE error: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
-		       (unsigned long long)channelAddr,
-		       (unsigned long long)channelBytes);
-		rc = NULL;
-		goto Away;
+		       (unsigned long long)ch_addr,
+		       (unsigned long long)ch_bytes);
+		return NULL;
 	}
-	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(pChan)) {
+	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(ch)) {
 		ERRDRV("%s channel cannot be used", __func__);
-		uislib_iounmap(pChan);
-		rc = NULL;
-		goto Away;
+		uislib_iounmap(ch);
+		return NULL;
 	}
-	rc = pChan;
-Away:
-	return rc;
+	return ch;
 }
 
 static int
