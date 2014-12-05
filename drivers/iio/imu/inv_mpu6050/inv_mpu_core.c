@@ -23,6 +23,7 @@
 #include <linux/kfifo.h>
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
+#include <linux/i2c-mux.h>
 #include "inv_mpu_iio.h"
 
 /*
@@ -52,6 +53,7 @@ static const struct inv_mpu6050_reg_map reg_set_6050 = {
 	.int_enable             = INV_MPU6050_REG_INT_ENABLE,
 	.pwr_mgmt_1             = INV_MPU6050_REG_PWR_MGMT_1,
 	.pwr_mgmt_2             = INV_MPU6050_REG_PWR_MGMT_2,
+	.int_pin_cfg		= INV_MPU6050_REG_INT_PIN_CFG,
 };
 
 static const struct inv_mpu6050_chip_config chip_config_6050 = {
@@ -75,6 +77,83 @@ static const struct inv_mpu6050_hw hw_info[INV_NUM_PARTS] = {
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 d)
 {
 	return i2c_smbus_write_i2c_block_data(st->client, reg, 1, &d);
+}
+
+/*
+ * The i2c read/write needs to happen in unlocked mode. As the parent
+ * adapter is common. If we use locked versions, it will fail as
+ * the mux adapter will lock the parent i2c adapter, while calling
+ * select/deselect functions.
+ */
+static int inv_mpu6050_write_reg_unlocked(struct inv_mpu6050_state *st,
+					  u8 reg, u8 d)
+{
+	int ret;
+	u8 buf[2];
+	struct i2c_msg msg[1] = {
+		{
+			.addr = st->client->addr,
+			.flags = 0,
+			.len = sizeof(buf),
+			.buf = buf,
+		}
+	};
+
+	buf[0] = reg;
+	buf[1] = d;
+	ret = __i2c_transfer(st->client->adapter, msg, 1);
+	if (ret != 1)
+		return ret;
+
+	return 0;
+}
+
+static int inv_mpu6050_select_bypass(struct i2c_adapter *adap, void *mux_priv,
+				     u32 chan_id)
+{
+	struct iio_dev *indio_dev = mux_priv;
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	int ret = 0;
+
+	/* Use the same mutex which was used everywhere to protect power-op */
+	mutex_lock(&indio_dev->mlock);
+	if (!st->powerup_count) {
+		ret = inv_mpu6050_write_reg_unlocked(st, st->reg->pwr_mgmt_1,
+						     0);
+		if (ret)
+			goto write_error;
+
+		msleep(INV_MPU6050_REG_UP_TIME);
+	}
+	if (!ret) {
+		st->powerup_count++;
+		ret = inv_mpu6050_write_reg_unlocked(st, st->reg->int_pin_cfg,
+						     st->client->irq |
+						     INV_MPU6050_BIT_BYPASS_EN);
+	}
+write_error:
+	mutex_unlock(&indio_dev->mlock);
+
+	return ret;
+}
+
+static int inv_mpu6050_deselect_bypass(struct i2c_adapter *adap,
+				       void *mux_priv, u32 chan_id)
+{
+	struct iio_dev *indio_dev = mux_priv;
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+
+	mutex_lock(&indio_dev->mlock);
+	/* It doesn't really mattter, if any of the calls fails */
+	inv_mpu6050_write_reg_unlocked(st, st->reg->int_pin_cfg,
+				       st->client->irq);
+	st->powerup_count--;
+	if (!st->powerup_count)
+		inv_mpu6050_write_reg_unlocked(st, st->reg->pwr_mgmt_1,
+					       INV_MPU6050_BIT_SLEEP);
+	mutex_unlock(&indio_dev->mlock);
+
+	return 0;
 }
 
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
@@ -133,13 +212,22 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask)
 
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 {
-	int result;
+	int result = 0;
 
-	if (power_on)
-		result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1, 0);
-	else
-		result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1,
-						INV_MPU6050_BIT_SLEEP);
+	if (power_on) {
+		/* Already under indio-dev->mlock mutex */
+		if (!st->powerup_count)
+			result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1,
+						       0);
+		if (!result)
+			st->powerup_count++;
+	} else {
+		st->powerup_count--;
+		if (!st->powerup_count)
+			result = inv_mpu6050_write_reg(st, st->reg->pwr_mgmt_1,
+						       INV_MPU6050_BIT_SLEEP);
+	}
+
 	if (result)
 		return result;
 
@@ -673,6 +761,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	st = iio_priv(indio_dev);
 	st->client = client;
+	st->powerup_count = 0;
 	pdata = dev_get_platdata(&client->dev);
 	if (pdata)
 		st->plat_data = *pdata;
@@ -720,8 +809,21 @@ static int inv_mpu_probe(struct i2c_client *client,
 		goto out_remove_trigger;
 	}
 
+	st->mux_adapter = i2c_add_mux_adapter(client->adapter,
+					      &client->dev,
+					      indio_dev,
+					      0, 0, 0,
+					      inv_mpu6050_select_bypass,
+					      inv_mpu6050_deselect_bypass);
+	if (!st->mux_adapter) {
+		result = -ENODEV;
+		goto out_unreg_device;
+	}
+
 	return 0;
 
+out_unreg_device:
+	iio_device_unregister(indio_dev);
 out_remove_trigger:
 	inv_mpu6050_remove_trigger(st);
 out_unreg_ring:
@@ -734,6 +836,7 @@ static int inv_mpu_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
+	i2c_del_mux_adapter(st->mux_adapter);
 	iio_device_unregister(indio_dev);
 	inv_mpu6050_remove_trigger(st);
 	iio_triggered_buffer_cleanup(indio_dev);
