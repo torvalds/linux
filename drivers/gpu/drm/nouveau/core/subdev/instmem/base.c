@@ -31,7 +31,7 @@
 void
 _nouveau_instobj_dtor(struct nouveau_object *object)
 {
-	struct nouveau_instmem *imem = (void *)object->engine;
+	struct nouveau_instmem *imem = nouveau_instmem(object);
 	struct nouveau_instobj *iobj = (void *)object;
 
 	mutex_lock(&nv_subdev(imem)->mutex);
@@ -47,7 +47,7 @@ nouveau_instobj_create_(struct nouveau_object *parent,
 			struct nouveau_oclass *oclass,
 			int length, void **pobject)
 {
-	struct nouveau_instmem *imem = (void *)engine;
+	struct nouveau_instmem *imem = nouveau_instmem(parent);
 	struct nouveau_instobj *iobj;
 	int ret;
 
@@ -72,10 +72,9 @@ nouveau_instmem_alloc(struct nouveau_instmem *imem,
 		      struct nouveau_object *parent, u32 size, u32 align,
 		      struct nouveau_object **pobject)
 {
-	struct nouveau_object *engine = nv_object(imem);
-	struct nouveau_instmem_impl *impl = (void *)engine->oclass;
+	struct nouveau_instmem_impl *impl = (void *)imem->base.object.oclass;
 	struct nouveau_instobj_args args = { .size = size, .align = align };
-	return nouveau_object_ctor(parent, engine, impl->instobj, &args,
+	return nouveau_object_ctor(parent, parent->engine, impl->instobj, &args,
 				   sizeof(args), pobject);
 }
 

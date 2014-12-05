@@ -31,21 +31,23 @@
 static u32
 nv04_instobj_rd32(struct nouveau_object *object, u64 addr)
 {
+	struct nv04_instmem_priv *priv = (void *)nouveau_instmem(object);
 	struct nv04_instobj_priv *node = (void *)object;
-	return nv_ro32(object->engine, node->mem->offset + addr);
+	return nv_ro32(priv, node->mem->offset + addr);
 }
 
 static void
 nv04_instobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
+	struct nv04_instmem_priv *priv = (void *)nouveau_instmem(object);
 	struct nv04_instobj_priv *node = (void *)object;
-	nv_wo32(object->engine, node->mem->offset + addr, data);
+	nv_wo32(priv, node->mem->offset + addr, data);
 }
 
 static void
 nv04_instobj_dtor(struct nouveau_object *object)
 {
-	struct nv04_instmem_priv *priv = (void *)object->engine;
+	struct nv04_instmem_priv *priv = (void *)nouveau_instmem(object);
 	struct nv04_instobj_priv *node = (void *)object;
 	nouveau_mm_free(&priv->heap, &node->mem);
 	nouveau_instobj_destroy(&node->base);
@@ -56,7 +58,7 @@ nv04_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
 		  struct nouveau_object **pobject)
 {
-	struct nv04_instmem_priv *priv = (void *)engine;
+	struct nv04_instmem_priv *priv = (void *)nouveau_instmem(parent);
 	struct nv04_instobj_priv *node;
 	struct nouveau_instobj_args *args = data;
 	int ret;

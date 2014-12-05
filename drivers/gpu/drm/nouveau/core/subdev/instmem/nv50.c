@@ -45,7 +45,7 @@ struct nv50_instobj_priv {
 static u32
 nv50_instobj_rd32(struct nouveau_object *object, u64 offset)
 {
-	struct nv50_instmem_priv *priv = (void *)object->engine;
+	struct nv50_instmem_priv *priv = (void *)nouveau_instmem(object);
 	struct nv50_instobj_priv *node = (void *)object;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
@@ -65,7 +65,7 @@ nv50_instobj_rd32(struct nouveau_object *object, u64 offset)
 static void
 nv50_instobj_wr32(struct nouveau_object *object, u64 offset, u32 data)
 {
-	struct nv50_instmem_priv *priv = (void *)object->engine;
+	struct nv50_instmem_priv *priv = (void *)nouveau_instmem(object);
 	struct nv50_instobj_priv *node = (void *)object;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
