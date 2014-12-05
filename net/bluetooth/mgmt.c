@@ -6821,6 +6821,15 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			return;
 	}
 
+	/* When using service discovery with a RSSI threshold, then check
+	 * if such a RSSI threshold is specified. If a RSSI threshold has
+	 * been specified, then all results with a RSSI smaller than the
+	 * RSSI threshold will be dropped.
+	 */
+	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
+	    rssi < hdev->discovery.rssi)
+		return;
+
 	/* Make sure that the buffer is big enough. The 5 extra bytes
 	 * are for the potential CoD field.
 	 */
