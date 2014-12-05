@@ -363,16 +363,28 @@ static void hystart_update(struct sock *sk, u32 delay)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
 
-	if (!(ca->found & hystart_detect)) {
+	if (ca->found & hystart_detect)
+		return;
+
+	if (hystart_detect & HYSTART_ACK_TRAIN) {
 		u32 now = bictcp_clock();
 
 		/* first detection parameter - ack-train detection */
 		if ((s32)(now - ca->last_ack) <= hystart_ack_delta) {
 			ca->last_ack = now;
-			if ((s32)(now - ca->round_start) > ca->delay_min >> 4)
+			if ((s32)(now - ca->round_start) > ca->delay_min >> 4) {
 				ca->found |= HYSTART_ACK_TRAIN;
+				NET_INC_STATS_BH(sock_net(sk),
+						 LINUX_MIB_TCPHYSTARTTRAINDETECT);
+				NET_ADD_STATS_BH(sock_net(sk),
+						 LINUX_MIB_TCPHYSTARTTRAINCWND,
+						 tp->snd_cwnd);
+				tp->snd_ssthresh = tp->snd_cwnd;
+			}
 		}
+	}
 
+	if (hystart_detect & HYSTART_DELAY) {
 		/* obtain the minimum delay of more than sampling packets */
 		if (ca->sample_cnt < HYSTART_MIN_SAMPLES) {
 			if (ca->curr_rtt == 0 || ca->curr_rtt > delay)
@@ -381,15 +393,16 @@ static void hystart_update(struct sock *sk, u32 delay)
 			ca->sample_cnt++;
 		} else {
 			if (ca->curr_rtt > ca->delay_min +
-			    HYSTART_DELAY_THRESH(ca->delay_min>>4))
+			    HYSTART_DELAY_THRESH(ca->delay_min>>4)) {
 				ca->found |= HYSTART_DELAY;
+				NET_INC_STATS_BH(sock_net(sk),
+						 LINUX_MIB_TCPHYSTARTDELAYDETECT);
+				NET_ADD_STATS_BH(sock_net(sk),
+						 LINUX_MIB_TCPHYSTARTDELAYCWND,
+						 tp->snd_cwnd);
+				tp->snd_ssthresh = tp->snd_cwnd;
+			}
 		}
-		/*
-		 * Either one of two conditions are met,
-		 * we exit from slow start immediately.
-		 */
-		if (ca->found & hystart_detect)
-			tp->snd_ssthresh = tp->snd_cwnd;
 	}
 }
 
