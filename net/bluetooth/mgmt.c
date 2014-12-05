@@ -1486,6 +1486,12 @@ static void cmd_complete_rsp(struct pending_cmd *cmd, void *data)
 	cmd_status_rsp(cmd, data);
 }
 
+static void generic_cmd_complete(struct pending_cmd *cmd, u8 status)
+{
+	cmd_complete(cmd->sk, cmd->index, cmd->opcode, status, cmd->param,
+		     cmd->param_len);
+}
+
 static u8 mgmt_bredr_support(struct hci_dev *hdev)
 {
 	if (!lmp_bredr_capable(hdev))
@@ -2871,6 +2877,8 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		err = -ENOMEM;
 		goto failed;
 	}
+
+	cmd->cmd_complete = generic_cmd_complete;
 
 	err = hci_disconnect(conn, HCI_ERROR_REMOTE_USER_TERM);
 	if (err < 0)
@@ -6396,15 +6404,9 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 
 static void disconnect_rsp(struct pending_cmd *cmd, void *data)
 {
-	struct mgmt_cp_disconnect *cp = cmd->param;
 	struct sock **sk = data;
-	struct mgmt_rp_disconnect rp;
 
-	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
-	rp.addr.type = cp->addr.type;
-
-	cmd_complete(cmd->sk, cmd->index, MGMT_OP_DISCONNECT, 0, &rp,
-		     sizeof(rp));
+	cmd->cmd_complete(cmd, 0);
 
 	*sk = cmd->sk;
 	sock_hold(*sk);
@@ -6486,7 +6488,6 @@ void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 {
 	u8 bdaddr_type = link_to_bdaddr(link_type, addr_type);
 	struct mgmt_cp_disconnect *cp;
-	struct mgmt_rp_disconnect rp;
 	struct pending_cmd *cmd;
 
 	mgmt_pending_foreach(MGMT_OP_UNPAIR_DEVICE, hdev, unpair_device_rsp,
@@ -6504,12 +6505,7 @@ void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (cp->addr.type != bdaddr_type)
 		return;
 
-	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = bdaddr_type;
-
-	cmd_complete(cmd->sk, cmd->index, MGMT_OP_DISCONNECT,
-		     mgmt_status(status), &rp, sizeof(rp));
-
+	cmd->cmd_complete(cmd, mgmt_status(status));
 	mgmt_pending_remove(cmd);
 }
 
