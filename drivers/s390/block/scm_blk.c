@@ -121,7 +121,8 @@ static void scm_request_done(struct scm_request *scmrq)
 	u64 aidaw = msb->data_addr;
 	unsigned long flags;
 
-	if ((msb->flags & MSB_FLAG_IDA) && aidaw)
+	if ((msb->flags & MSB_FLAG_IDA) && aidaw &&
+	    IS_ALIGNED(aidaw, PAGE_SIZE))
 		mempool_free(virt_to_page(aidaw), aidaw_pool);
 
 	spin_lock_irqsave(&list_lock, flags);
@@ -134,26 +135,47 @@ static bool scm_permit_request(struct scm_blk_dev *bdev, struct request *req)
 	return rq_data_dir(req) != WRITE || bdev->state != SCM_WR_PROHIBIT;
 }
 
-struct aidaw *scm_aidaw_alloc(void)
+static inline struct aidaw *scm_aidaw_alloc(void)
 {
 	struct page *page = mempool_alloc(aidaw_pool, GFP_ATOMIC);
 
 	return page ? page_address(page) : NULL;
 }
 
+static inline unsigned long scm_aidaw_bytes(struct aidaw *aidaw)
+{
+	unsigned long _aidaw = (unsigned long) aidaw;
+	unsigned long bytes = ALIGN(_aidaw, PAGE_SIZE) - _aidaw;
+
+	return (bytes / sizeof(*aidaw)) * PAGE_SIZE;
+}
+
+struct aidaw *scm_aidaw_fetch(struct scm_request *scmrq, unsigned int bytes)
+{
+	struct aidaw *aidaw;
+
+	if (scm_aidaw_bytes(scmrq->next_aidaw) >= bytes)
+		return scmrq->next_aidaw;
+
+	aidaw = scm_aidaw_alloc();
+	if (aidaw)
+		memset(aidaw, 0, PAGE_SIZE);
+	return aidaw;
+}
+
 static int scm_request_prepare(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
 	struct scm_device *scmdev = bdev->gendisk->private_data;
-	struct aidaw *aidaw = scm_aidaw_alloc();
 	struct msb *msb = &scmrq->aob->msb[0];
 	struct req_iterator iter;
+	struct aidaw *aidaw;
 	struct bio_vec bv;
 
+	aidaw = scm_aidaw_fetch(scmrq, blk_rq_bytes(scmrq->request));
 	if (!aidaw)
 		return -ENOMEM;
 
-	memset(aidaw, 0, PAGE_SIZE);
 	msb->bs = MSB_BS_4K;
 	scmrq->aob->request.msb_count = 1;
 	msb->scm_addr = scmdev->address +
@@ -188,6 +210,8 @@ static inline void scm_request_init(struct scm_blk_dev *bdev,
 	scmrq->bdev = bdev;
 	scmrq->retries = 4;
 	scmrq->error = 0;
+	/* We don't use all msbs - place aidaws at the end of the aob page. */
+	scmrq->next_aidaw = (void *) &aob->msb[1];
 	scm_request_cluster_init(scmrq);
 }
 

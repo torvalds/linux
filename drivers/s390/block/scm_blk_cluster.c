@@ -131,16 +131,9 @@ static int scm_prepare_cluster_request(struct scm_request *scmrq)
 		scmrq->cluster.state = CLUSTER_READ;
 		/* fall through */
 	case CLUSTER_READ:
-		aidaw = scm_aidaw_alloc();
-		if (!aidaw)
-			return -ENOMEM;
-
-		memset(aidaw, 0, PAGE_SIZE);
-		scmrq->aob->request.msb_count = 1;
 		msb->bs = MSB_BS_4K;
 		msb->oc = MSB_OC_READ;
 		msb->flags = MSB_FLAG_IDA;
-		msb->data_addr = (u64) aidaw;
 		msb->blk_count = write_cluster_size;
 
 		addr = scmdev->address + ((u64) blk_rq_pos(req) << 9);
@@ -151,6 +144,12 @@ static int scm_prepare_cluster_request(struct scm_request *scmrq)
 			       CLUSTER_SIZE))
 			msb->blk_count = 2 * write_cluster_size;
 
+		aidaw = scm_aidaw_fetch(scmrq, msb->blk_count * PAGE_SIZE);
+		if (!aidaw)
+			return -ENOMEM;
+
+		scmrq->aob->request.msb_count = 1;
+		msb->data_addr = (u64) aidaw;
 		for (i = 0; i < msb->blk_count; i++) {
 			aidaw->data_addr = (u64) scmrq->cluster.buf[i];
 			aidaw++;
