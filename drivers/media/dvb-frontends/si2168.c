@@ -346,7 +346,7 @@ static int si2168_init(struct dvb_frontend *fe)
 	struct i2c_client *client = fe->demodulator_priv;
 	struct si2168_dev *dev = i2c_get_clientdata(client);
 	int ret, len, remaining;
-	const struct firmware *fw = NULL;
+	const struct firmware *fw;
 	u8 *fw_file;
 	struct si2168_cmd cmd;
 	unsigned int chip_id;
@@ -483,7 +483,6 @@ static int si2168_init(struct dvb_frontend *fe)
 	}
 
 	release_firmware(fw);
-	fw = NULL;
 
 	memcpy(cmd.args, "\x01\x01", 2);
 	cmd.wlen = 2;
