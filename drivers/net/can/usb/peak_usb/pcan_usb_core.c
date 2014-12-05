@@ -856,6 +856,7 @@ static int peak_usb_probe(struct usb_interface *intf,
 			  const struct usb_device_id *id)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	const u16 usb_id_product = le16_to_cpu(usb_dev->descriptor.idProduct);
 	struct peak_usb_adapter *peak_usb_adapter, **pp;
 	int i, err = -ENOMEM;
 
@@ -863,7 +864,7 @@ static int peak_usb_probe(struct usb_interface *intf,
 
 	/* get corresponding PCAN-USB adapter */
 	for (pp = peak_usb_adapters_list; *pp; pp++)
-		if ((*pp)->device_id == usb_dev->descriptor.idProduct)
+		if ((*pp)->device_id == usb_id_product)
 			break;
 
 	peak_usb_adapter = *pp;
