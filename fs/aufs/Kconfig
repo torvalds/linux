@@ -87,6 +87,14 @@ config AUFS_INO_T_64
 	/* typedef unsigned long/int __kernel_ino_t */
 	/* alpha and s390x are int */
 
+config AUFS_XATTR
+	bool "support for XATTR/EA (including Security Labels)"
+	help
+	If your branch fs supports XATTR/EA and you want to make them
+	available in aufs too, then enable this opsion and specify the
+	branch attributes for EA.
+	See detail in aufs.5.
+
 config AUFS_FHSM
 	bool "File-based Hierarchical Storage Management"
 	help

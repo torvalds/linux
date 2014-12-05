@@ -108,6 +108,12 @@ typedef int16_t aufs_bindex_t;
 #define AUFS_BRATTR_COO_ALL	"coo_all"
 #define AUFS_BRATTR_FHSM	"fhsm"
 #define AUFS_BRATTR_UNPIN	"unpin"
+#define AUFS_BRATTR_ICEX	"icex"
+#define AUFS_BRATTR_ICEX_SEC	"icexsec"
+#define AUFS_BRATTR_ICEX_SYS	"icexsys"
+#define AUFS_BRATTR_ICEX_TR	"icextr"
+#define AUFS_BRATTR_ICEX_USR	"icexusr"
+#define AUFS_BRATTR_ICEX_OTH	"icexoth"
 #define AUFS_BRRATTR_WH		"wh"
 #define AUFS_BRWATTR_NLWH	"nolwh"
 #define AUFS_BRWATTR_MOO	"moo"
@@ -125,27 +131,59 @@ typedef int16_t aufs_bindex_t;
 #define AuBrAttr_UNPIN		(1 << 6)	/* rename-able top dir of
 						   branch */
 
-#define AuBrRAttr_WH		(1 << 7)	/* whiteout-able */
+/* ignore error in copying XATTR */
+#define AuBrAttr_ICEX_SEC	(1 << 7)
+#define AuBrAttr_ICEX_SYS	(1 << 8)
+#define AuBrAttr_ICEX_TR	(1 << 9)
+#define AuBrAttr_ICEX_USR	(1 << 10)
+#define AuBrAttr_ICEX_OTH	(1 << 11)
+#define AuBrAttr_ICEX		(AuBrAttr_ICEX_SEC	\
+				 | AuBrAttr_ICEX_SYS	\
+				 | AuBrAttr_ICEX_TR	\
+				 | AuBrAttr_ICEX_USR	\
+				 | AuBrAttr_ICEX_OTH)
+
+#define AuBrRAttr_WH		(1 << 12)	/* whiteout-able */
 #define AuBrRAttr_Mask		AuBrRAttr_WH
 
-#define AuBrWAttr_NoLinkWH	(1 << 8)	/* un-hardlinkable whiteouts */
-#define AuBrWAttr_MOO		(1 << 9)	/* move-up on open */
+#define AuBrWAttr_NoLinkWH	(1 << 13)	/* un-hardlinkable whiteouts */
+#define AuBrWAttr_MOO		(1 << 14)	/* move-up on open */
 #define AuBrWAttr_Mask		(AuBrWAttr_NoLinkWH | AuBrWAttr_MOO)
 
 #define AuBrAttr_CMOO_Mask	(AuBrAttr_COO_Mask | AuBrWAttr_MOO)
 
+/* #warning test userspace */
 #ifdef __KERNEL__
 #ifndef CONFIG_AUFS_FHSM
 #undef AuBrAttr_FHSM
 #define AuBrAttr_FHSM		0
 #endif
+#ifndef CONFIG_AUFS_XATTR
+#undef	AuBrAttr_ICEX
+#define AuBrAttr_ICEX		0
+#undef	AuBrAttr_ICEX_SEC
+#define AuBrAttr_ICEX_SEC	0
+#undef	AuBrAttr_ICEX_SYS
+#define AuBrAttr_ICEX_SYS	0
+#undef	AuBrAttr_ICEX_TR
+#define AuBrAttr_ICEX_TR	0
+#undef	AuBrAttr_ICEX_USR
+#define AuBrAttr_ICEX_USR	0
+#undef	AuBrAttr_ICEX_OTH
+#define AuBrAttr_ICEX_OTH	0
+#endif
 #endif
 
 /* the longest combination */
-#define AuBrPermStrSz	sizeof(AUFS_BRPERM_RW		\
-			       "+" AUFS_BRATTR_COO_REG	\
-			       "+" AUFS_BRATTR_FHSM	\
-			       "+" AUFS_BRATTR_UNPIN	\
+/* AUFS_BRATTR_ICEX and AUFS_BRATTR_ICEX_TR don't affect here */
+#define AuBrPermStrSz	sizeof(AUFS_BRPERM_RW			\
+			       "+" AUFS_BRATTR_COO_REG		\
+			       "+" AUFS_BRATTR_FHSM		\
+			       "+" AUFS_BRATTR_UNPIN		\
+			       "+" AUFS_BRATTR_ICEX_SEC	\
+			       "+" AUFS_BRATTR_ICEX_SYS	\
+			       "+" AUFS_BRATTR_ICEX_USR	\
+			       "+" AUFS_BRATTR_ICEX_OTH	\
 			       "+" AUFS_BRWATTR_NLWH)
 
 typedef struct {
