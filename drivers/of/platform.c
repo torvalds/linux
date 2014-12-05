@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_iommu.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -164,6 +165,9 @@ static void of_dma_configure(struct device *dev)
 {
 	u64 dma_addr, paddr, size;
 	int ret;
+	bool coherent;
+	unsigned long offset;
+	struct iommu_ops *iommu;
 
 	/*
 	 * Set default dma-mask to 32 bit. Drivers are expected to setup
@@ -178,28 +182,30 @@ static void of_dma_configure(struct device *dev)
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
 
-	/*
-	 * if dma-coherent property exist, call arch hook to setup
-	 * dma coherent operations.
-	 */
-	if (of_dma_is_coherent(dev->of_node)) {
-		set_arch_dma_coherent_ops(dev);
-		dev_dbg(dev, "device is dma coherent\n");
-	}
-
-	/*
-	 * if dma-ranges property doesn't exist - just return else
-	 * setup the dma offset
-	 */
 	ret = of_dma_get_range(dev->of_node, &dma_addr, &paddr, &size);
 	if (ret < 0) {
-		dev_dbg(dev, "no dma range information to setup\n");
-		return;
+		dma_addr = offset = 0;
+		size = dev->coherent_dma_mask;
+	} else {
+		offset = PFN_DOWN(paddr - dma_addr);
+		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
 	}
+	dev->dma_pfn_offset = offset;
 
-	/* DMA ranges found. Calculate and set dma_pfn_offset */
-	dev->dma_pfn_offset = PFN_DOWN(paddr - dma_addr);
-	dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
+	coherent = of_dma_is_coherent(dev->of_node);
+	dev_dbg(dev, "device is%sdma coherent\n",
+		coherent ? " " : " not ");
+
+	iommu = of_iommu_configure(dev);
+	dev_dbg(dev, "device is%sbehind an iommu\n",
+		iommu ? " " : " not ");
+
+	arch_setup_dma_ops(dev, dma_addr, size, iommu, coherent);
+}
+
+static void of_dma_deconfigure(struct device *dev)
+{
+	arch_teardown_dma_ops(dev);
 }
 
 /**
@@ -228,16 +234,12 @@ static struct platform_device *of_platform_device_create_pdata(
 	if (!dev)
 		goto err_clear_flag;
 
-	of_dma_configure(&dev->dev);
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
-
-	/* We do not fill the DMA ops for platform devices by default.
-	 * This is currently the responsibility of the platform code
-	 * to do such, possibly using a device notifier
-	 */
+	of_dma_configure(&dev->dev);
 
 	if (of_device_add(dev) != 0) {
+		of_dma_deconfigure(&dev->dev);
 		platform_device_put(dev);
 		goto err_clear_flag;
 	}
