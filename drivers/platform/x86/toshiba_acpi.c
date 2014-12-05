@@ -1658,6 +1658,43 @@ static void toshiba_acpi_report_hotkey(struct toshiba_acpi_dev *dev,
 		pr_info("Unknown key %x\n", scancode);
 }
 
+static void toshiba_acpi_process_hotkeys(struct toshiba_acpi_dev *dev)
+{
+	u32 hci_result, value;
+	int retries = 3;
+	int scancode;
+
+	if (dev->info_supported) {
+		scancode = toshiba_acpi_query_hotkey(dev);
+		if (scancode < 0)
+			pr_err("Failed to query hotkey event\n");
+		else if (scancode != 0)
+			toshiba_acpi_report_hotkey(dev, scancode);
+	} else if (dev->system_event_supported) {
+		do {
+			hci_result = hci_read1(dev, HCI_SYSTEM_EVENT, &value);
+			switch (hci_result) {
+			case TOS_SUCCESS:
+				toshiba_acpi_report_hotkey(dev, (int)value);
+				break;
+			case TOS_NOT_SUPPORTED:
+				/*
+				 * This is a workaround for an unresolved
+				 * issue on some machines where system events
+				 * sporadically become disabled.
+				 */
+				hci_result =
+					hci_write1(dev, HCI_SYSTEM_EVENT, 1);
+				pr_notice("Re-enabled hotkeys\n");
+				/* fall through */
+			default:
+				retries--;
+				break;
+			}
+		} while (retries && hci_result != TOS_FIFO_EMPTY);
+	}
+}
+
 static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 {
 	acpi_handle ec_handle;
@@ -1972,41 +2009,21 @@ error:
 static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
-	u32 hci_result, value;
-	int retries = 3;
-	int scancode;
 
-	if (event != 0x80)
-		return;
-
-	if (dev->info_supported) {
-		scancode = toshiba_acpi_query_hotkey(dev);
-		if (scancode < 0)
-			pr_err("Failed to query hotkey event\n");
-		else if (scancode != 0)
-			toshiba_acpi_report_hotkey(dev, scancode);
-	} else if (dev->system_event_supported) {
-		do {
-			hci_result = hci_read1(dev, HCI_SYSTEM_EVENT, &value);
-			switch (hci_result) {
-			case TOS_SUCCESS:
-				toshiba_acpi_report_hotkey(dev, (int)value);
-				break;
-			case TOS_NOT_SUPPORTED:
-				/*
-				 * This is a workaround for an unresolved
-				 * issue on some machines where system events
-				 * sporadically become disabled.
-				 */
-				hci_result =
-					hci_write1(dev, HCI_SYSTEM_EVENT, 1);
-				pr_notice("Re-enabled hotkeys\n");
-				/* fall through */
-			default:
-				retries--;
-				break;
-			}
-		} while (retries && hci_result != TOS_FIFO_EMPTY);
+	switch (event) {
+	case 0x80: /* Hotkeys and some system events */
+		toshiba_acpi_process_hotkeys(dev);
+		break;
+	case 0x81: /* Unknown */
+	case 0x82: /* Unknown */
+	case 0x83: /* Unknown */
+	case 0x8c: /* Unknown */
+	case 0x8e: /* Unknown */
+	case 0x8f: /* Unknown */
+	case 0x90: /* Unknown */
+	default:
+		pr_info("Unknown event received %x\n", event);
+		break;
 	}
 }
 
