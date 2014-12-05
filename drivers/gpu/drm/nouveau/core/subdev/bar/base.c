@@ -42,7 +42,7 @@ nouveau_barobj_ctor(struct nouveau_object *parent,
 		    struct nouveau_object **pobject)
 {
 	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_bar *bar = (void *)engine;
+	struct nouveau_bar *bar = nouveau_bar(device);
 	struct nouveau_mem *mem = data;
 	struct nouveau_barobj *barobj;
 	int ret;
@@ -69,7 +69,7 @@ nouveau_barobj_ctor(struct nouveau_object *parent,
 static void
 nouveau_barobj_dtor(struct nouveau_object *object)
 {
-	struct nouveau_bar *bar = (void *)object->engine;
+	struct nouveau_bar *bar = nouveau_bar(object);
 	struct nouveau_barobj *barobj = (void *)object;
 	if (barobj->vma.node) {
 		if (barobj->iomem)
@@ -109,9 +109,9 @@ int
 nouveau_bar_alloc(struct nouveau_bar *bar, struct nouveau_object *parent,
 		  struct nouveau_mem *mem, struct nouveau_object **pobject)
 {
-	struct nouveau_object *engine = nv_object(bar);
 	struct nouveau_object *gpuobj;
-	int ret = nouveau_object_ctor(parent, engine, &nouveau_barobj_oclass,
+	int ret = nouveau_object_ctor(parent, parent->engine,
+				      &nouveau_barobj_oclass,
 				      mem, 0, &gpuobj);
 	if (ret == 0)
 		*pobject = gpuobj;
