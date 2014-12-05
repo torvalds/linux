@@ -8953,8 +8953,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	intel_update_fbc(dev);
 
 	if (work->flip_queued_req)
-		i915_gem_request_unreference(work->flip_queued_req);
-	work->flip_queued_req  = NULL;
+		i915_gem_request_assign(&work->flip_queued_req, NULL);
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_frontbuffer_flip_complete(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
@@ -9452,10 +9451,9 @@ static void intel_mmio_flip_work_func(struct work_struct *work)
 	intel_do_mmio_flip(crtc);
 	if (mmio_flip->req) {
 		mutex_lock(&crtc->base.dev->struct_mutex);
-		i915_gem_request_unreference(mmio_flip->req);
+		i915_gem_request_assign(&mmio_flip->req, NULL);
 		mutex_unlock(&crtc->base.dev->struct_mutex);
 	}
-	mmio_flip->req = NULL;
 }
 
 static int intel_queue_mmio_flip(struct drm_device *dev,
