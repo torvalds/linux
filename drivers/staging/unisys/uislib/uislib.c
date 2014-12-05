@@ -58,8 +58,8 @@
 /* global function pointers that act as callback functions into virtpcimod */
 int (*virt_control_chan_func)(struct guest_msgs *);
 
-static int ProcReadBufferValid;
-static char *ProcReadBuffer;	/* Note this MUST be global,
+static int debug_buf_valid;
+static char *debug_buf;	/* Note this MUST be global,
 					 * because the contents must */
 static unsigned int chipset_inited;
 
@@ -70,24 +70,24 @@ static unsigned int chipset_inited;
 		UIS_THREAD_WAIT;	\
 	} while (1)
 
-static struct bus_info *BusListHead;
-static rwlock_t BusListLock;
-static int BusListCount;	/* number of buses in the list */
-static int MaxBusCount;		/* maximum number of buses expected */
-static u64 PhysicalDataChan;
-static int PlatformNumber;
+static struct bus_info *bus_list;
+static rwlock_t bus_list_lock;
+static int bus_list_count;	/* number of buses in the list */
+static int max_bus_count;		/* maximum number of buses expected */
+static u64 phys_data_chan;
+static int platform_no;
 
-static struct uisthread_info Incoming_ThreadInfo;
-static BOOL Incoming_Thread_Started = FALSE;
-static LIST_HEAD(List_Polling_Device_Channels);
+static struct uisthread_info incoming_ti;
+static BOOL incoming_started = FALSE;
+static LIST_HEAD(poll_dev_chan);
 static unsigned long long tot_moved_to_tail_cnt;
 static unsigned long long tot_wait_cnt;
 static unsigned long long tot_wakeup_cnt;
 static unsigned long long tot_schedule_cnt;
 static int en_smart_wakeup = 1;
-static DEFINE_SEMAPHORE(Lock_Polling_Device_Channels);	/* unlocked */
-static DECLARE_WAIT_QUEUE_HEAD(Wakeup_Polling_Device_Channels);
-static int Go_Polling_Device_Channels;
+static DEFINE_SEMAPHORE(poll_dev_lock);	/* unlocked */
+static DECLARE_WAIT_QUEUE_HEAD(poll_dev_wake_q);
+static int poll_dev_start;
 
 #define CALLHOME_PROC_ENTRY_FN "callhome"
 #define CALLHOME_THROTTLED_PROC_ENTRY_FN "callhome_throttled"
@@ -159,10 +159,10 @@ create_bus(struct controlvm_message *msg, char *buf)
 	struct bus_info *tmp, *bus;
 	size_t size;
 
-	if (MaxBusCount == BusListCount) {
+	if (max_bus_count == bus_list_count) {
 		LOGERR("CONTROLVM_BUS_CREATE Failed: max buses:%d already created\n",
-		       MaxBusCount);
-		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, MaxBusCount,
+		       max_bus_count);
+		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, max_bus_count,
 				 POSTCODE_SEVERITY_ERR);
 		return CONTROLVM_RESP_ERROR_MAX_BUSES;
 	}
@@ -205,12 +205,12 @@ create_bus(struct controlvm_message *msg, char *buf)
 	bus->bus_channel = NULL;
 
 	/* add bus to our bus list - but check for duplicates first */
-	read_lock(&BusListLock);
-	for (tmp = BusListHead; tmp; tmp = tmp->next) {
+	read_lock(&bus_list_lock);
+	for (tmp = bus_list; tmp; tmp = tmp->next) {
 		if (tmp->bus_no == bus->bus_no)
 			break;
 	}
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 	if (tmp) {
 		/* found a bus already in the list with same busNo -
 		 * reject add
@@ -257,15 +257,15 @@ create_bus(struct controlvm_message *msg, char *buf)
 	}
 
 	/* add bus at the head of our list */
-	write_lock(&BusListLock);
-	if (!BusListHead) {
-		BusListHead = bus;
+	write_lock(&bus_list_lock);
+	if (!bus_list) {
+		bus_list = bus;
 	} else {
-		bus->next = BusListHead;
-		BusListHead = bus;
+		bus->next = bus_list;
+		bus_list = bus;
 	}
-	BusListCount++;
-	write_unlock(&BusListLock);
+	bus_list_count++;
+	write_unlock(&bus_list_lock);
 
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus->bus_no,
 			 POSTCODE_SEVERITY_INFO);
@@ -282,9 +282,9 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 
 	busNo = msg->cmd.destroy_bus.bus_no;
 
-	read_lock(&BusListLock);
+	read_lock(&bus_list_lock);
 
-	bus = BusListHead;
+	bus = bus_list;
 	while (bus) {
 		if (bus->bus_no == busNo)
 			break;
@@ -295,7 +295,7 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	if (!bus) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: failed to find bus %d.\n",
 		       busNo);
-		read_unlock(&BusListLock);
+		read_unlock(&bus_list_lock);
 		return CONTROLVM_RESP_ERROR_ALREADY_DONE;
 	}
 
@@ -304,11 +304,11 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 		if (bus->device[i] != NULL) {
 			LOGERR("CONTROLVM_BUS_DESTROY Failed: device %i attached to bus %d.",
 			       i, busNo);
-			read_unlock(&BusListLock);
+			read_unlock(&bus_list_lock);
 			return CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED;
 		}
 	}
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 
 	if (msg->hdr.flags.server)
 		goto remove;
@@ -328,13 +328,13 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 
 	/* finally, remove the bus from the list */
 remove:
-	write_lock(&BusListLock);
+	write_lock(&bus_list_lock);
 	if (prev)	/* not at head */
 		prev->next = bus->next;
 	else
-		BusListHead = bus->next;
-	BusListCount--;
-	write_unlock(&BusListLock);
+		bus_list = bus->next;
+	bus_list_count--;
+	write_unlock(&bus_list_lock);
 
 	if (bus->bus_channel) {
 		uislib_iounmap(bus->bus_channel);
@@ -411,8 +411,8 @@ create_device(struct controlvm_message *msg, char *buf)
 	dev->instance_uuid = msg->cmd.create_device.dev_inst_uuid;
 	dev->channel_bytes = msg->cmd.create_device.channel_bytes;
 
-	read_lock(&BusListLock);
-	for (bus = BusListHead; bus; bus = bus->next) {
+	read_lock(&bus_list_lock);
+	for (bus = bus_list; bus; bus = bus->next) {
 		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
@@ -422,7 +422,7 @@ create_device(struct controlvm_message *msg, char *buf)
 				POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC,
 						 devNo, busNo,
 						 POSTCODE_SEVERITY_ERR);
-				read_unlock(&BusListLock);
+				read_unlock(&bus_list_lock);
 				goto Away;
 			}
 			/* make sure this device is not already set */
@@ -433,10 +433,10 @@ create_device(struct controlvm_message *msg, char *buf)
 						 devNo, busNo,
 						 POSTCODE_SEVERITY_ERR);
 				result = CONTROLVM_RESP_ERROR_ALREADY_DONE;
-				read_unlock(&BusListLock);
+				read_unlock(&bus_list_lock);
 				goto Away;
 			}
-			read_unlock(&BusListLock);
+			read_unlock(&bus_list_lock);
 			/* the msg is bound for virtpci; send
 			 * guest_msgs struct to callback
 			 */
@@ -527,7 +527,7 @@ create_device(struct controlvm_message *msg, char *buf)
 			return CONTROLVM_RESP_SUCCESS;
 		}
 	}
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 
 	LOGERR("CONTROLVM_DEVICE_CREATE Failed: failed to find bus %d.", busNo);
 	POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
@@ -556,8 +556,8 @@ pause_device(struct controlvm_message *msg)
 	busNo = msg->cmd.device_change_state.bus_no;
 	devNo = msg->cmd.device_change_state.dev_no;
 
-	read_lock(&BusListLock);
-	for (bus = BusListHead; bus; bus = bus->next) {
+	read_lock(&bus_list_lock);
+	for (bus = bus_list; bus; bus = bus->next) {
 		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
@@ -582,7 +582,7 @@ pause_device(struct controlvm_message *msg)
 		       busNo);
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 	if (retval == CONTROLVM_RESP_SUCCESS) {
 		/* the msg is bound for virtpci; send
 		 * guest_msgs struct to callback
@@ -624,8 +624,8 @@ resume_device(struct controlvm_message *msg)
 	busNo = msg->cmd.device_change_state.bus_no;
 	devNo = msg->cmd.device_change_state.dev_no;
 
-	read_lock(&BusListLock);
-	for (bus = BusListHead; bus; bus = bus->next) {
+	read_lock(&bus_list_lock);
+	for (bus = bus_list; bus; bus = bus->next) {
 		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
@@ -651,7 +651,7 @@ resume_device(struct controlvm_message *msg)
 		       busNo);
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 	/* the msg is bound for virtpci; send
 	 * guest_msgs struct to callback
 	 */
@@ -693,9 +693,9 @@ destroy_device(struct controlvm_message *msg, char *buf)
 	busNo = msg->cmd.destroy_device.bus_no;
 	devNo = msg->cmd.destroy_device.bus_no;
 
-	read_lock(&BusListLock);
+	read_lock(&bus_list_lock);
 	LOGINF("destroy_device called for busNo=%u, devNo=%u", busNo, devNo);
-	for (bus = BusListHead; bus; bus = bus->next) {
+	for (bus = bus_list; bus; bus = bus->next) {
 		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
@@ -721,7 +721,7 @@ destroy_device(struct controlvm_message *msg, char *buf)
 		       busNo);
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 	if (retval == CONTROLVM_RESP_SUCCESS) {
 		/* the msg is bound for virtpci; send
 		 * guest_msgs struct to callback
@@ -774,9 +774,9 @@ init_chipset(struct controlvm_message *msg, char *buf)
 {
 	POSTCODE_LINUX_2(CHIPSET_INIT_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 
-	MaxBusCount = msg->cmd.init_chipset.bus_count;
-	PlatformNumber = msg->cmd.init_chipset.platform_number;
-	PhysicalDataChan = 0;
+	max_bus_count = msg->cmd.init_chipset.bus_count;
+	platform_no = msg->cmd.init_chipset.platform_number;
+	phys_data_chan = 0;
 
 	/* We need to make sure we have our functions registered
 	* before processing messages.  If we are a test vehicle the
@@ -1127,8 +1127,8 @@ info_debugfs_read_helper(char **buff, int *buff_len)
 	if (PLINE("\nBuses:\n") < 0)
 		goto err_done;
 
-	read_lock(&BusListLock);
-	for (bus = BusListHead; bus; bus = bus->next) {
+	read_lock(&bus_list_lock);
+	for (bus = bus_list; bus; bus = bus->next) {
 		if (PLINE("    bus=0x%p, busNo=%d, deviceCount=%d\n",
 			  bus, bus->bus_no, bus->device_count) < 0)
 			goto err_done_unlock;
@@ -1152,7 +1152,7 @@ info_debugfs_read_helper(char **buff, int *buff_len)
 			}
 		}
 	}
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 
 	if (PLINE("UisUtils_Registered_Services: %d\n",
 		  atomic_read(&uisutils_registered_services)) < 0)
@@ -1171,7 +1171,7 @@ info_debugfs_read_helper(char **buff, int *buff_len)
 	return tot;
 
 err_done_unlock:
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 err_done:
 	return -1;
 }
@@ -1185,29 +1185,29 @@ info_debugfs_read(struct file *file, char __user *buf,
 	int remaining_bytes = PROC_READ_BUFFER_SIZE;
 
 /* *start = buf; */
-	if (ProcReadBuffer == NULL) {
-		DBGINF("ProcReadBuffer == NULL; allocating buffer.\n.");
-		ProcReadBuffer = vmalloc(PROC_READ_BUFFER_SIZE);
+	if (debug_buf == NULL) {
+		DBGINF("debug_buf == NULL; allocating buffer.\n.");
+		debug_buf = vmalloc(PROC_READ_BUFFER_SIZE);
 
-		if (ProcReadBuffer == NULL) {
+		if (debug_buf == NULL) {
 			LOGERR("failed to allocate buffer to provide proc data.\n");
 			return -ENOMEM;
 		}
 	}
 
-	temp = ProcReadBuffer;
+	temp = debug_buf;
 
-	if ((*offset == 0) || (!ProcReadBufferValid)) {
+	if ((*offset == 0) || (!debug_buf_valid)) {
 		DBGINF("calling info_debugfs_read_helper.\n");
 		/* if the read fails, then -1 will be returned */
 		totalBytes = info_debugfs_read_helper(&temp, &remaining_bytes);
-		ProcReadBufferValid = 1;
+		debug_buf_valid = 1;
 	} else {
-		totalBytes = strlen(ProcReadBuffer);
+		totalBytes = strlen(debug_buf);
 	}
 
 	return simple_read_from_buffer(buf, len, offset,
-				       ProcReadBuffer, totalBytes);
+				       debug_buf, totalBytes);
 }
 
 static struct device_info *
@@ -1216,8 +1216,8 @@ find_dev(u32 busNo, u32 devNo)
 	struct bus_info *bus;
 	struct device_info *dev = NULL;
 
-	read_lock(&BusListLock);
-	for (bus = BusListHead; bus; bus = bus->next) {
+	read_lock(&bus_list_lock);
+	for (bus = bus_list; bus; bus = bus->next) {
 		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
@@ -1235,7 +1235,7 @@ find_dev(u32 busNo, u32 devNo)
 		}
 	}
 Away:
-	read_unlock(&BusListLock);
+	read_unlock(&bus_list_lock);
 	return dev;
 }
 
@@ -1269,7 +1269,7 @@ Process_Incoming(void *v)
 	UIS_DAEMONIZE("dev_incoming");
 	for (i = 0; i < 16; i++) {
 		old_cycles = get_cycles();
-		wait_event_timeout(Wakeup_Polling_Device_Channels,
+		wait_event_timeout(poll_dev_wake_q,
 				   0, POLLJIFFIES_NORMAL);
 		cur_cycles = get_cycles();
 		if (wait_cycles == 0) {
@@ -1282,15 +1282,15 @@ Process_Incoming(void *v)
 	LOGINF("wait_cycles=%llu", wait_cycles);
 	cycles_before_wait = wait_cycles;
 	idle_cycles = 0;
-	Go_Polling_Device_Channels = 0;
+	poll_dev_start = 0;
 	while (1) {
 		struct list_head *lelt, *tmp;
 		struct device_info *dev = NULL;
 
 		/* poll each channel for input */
-		down(&Lock_Polling_Device_Channels);
+		down(&poll_dev_lock);
 		new_tail = NULL;
-		list_for_each_safe(lelt, tmp, &List_Polling_Device_Channels) {
+		list_for_each_safe(lelt, tmp, &poll_dev_chan) {
 			int rc = 0;
 
 			dev = list_entry(lelt, struct device_info,
@@ -1312,7 +1312,7 @@ Process_Incoming(void *v)
 					if (!
 					    (list_is_last
 					     (lelt,
-					      &List_Polling_Device_Channels))) {
+					      &poll_dev_chan))) {
 						new_tail = lelt;
 						dev->moved_to_tail_cnt++;
 					} else {
@@ -1320,14 +1320,14 @@ Process_Incoming(void *v)
 					}
 				}
 			}
-			if (Incoming_ThreadInfo.should_stop)
+			if (incoming_ti.should_stop)
 				break;
 		}
 		if (new_tail != NULL) {
 			tot_moved_to_tail_cnt++;
-			list_move_tail(new_tail, &List_Polling_Device_Channels);
+			list_move_tail(new_tail, &poll_dev_chan);
 		}
-		up(&Lock_Polling_Device_Channels);
+		up(&poll_dev_lock);
 		cur_cycles = get_cycles();
 		delta_cycles = cur_cycles - old_cycles;
 		old_cycles = cur_cycles;
@@ -1337,24 +1337,24 @@ Process_Incoming(void *v)
 		* - there is no input waiting on any of the channels
 		* - we have received a signal to stop this thread
 		*/
-		if (Incoming_ThreadInfo.should_stop)
+		if (incoming_ti.should_stop)
 			break;
 		if (en_smart_wakeup == 0xFF) {
 			LOGINF("en_smart_wakeup set to 0xff, to force exiting process_incoming");
 			break;
 		}
 		/* wait for POLLJIFFIES_NORMAL jiffies, or until
-		* someone wakes up Wakeup_Polling_Device_Channels,
+		* someone wakes up poll_dev_wake_q,
 		* whichever comes first only do a wait when we have
 		* been idle for cycles_before_wait cycles.
 		*/
 		if (idle_cycles > cycles_before_wait) {
-			Go_Polling_Device_Channels = 0;
+			poll_dev_start = 0;
 			tot_wait_cnt++;
-			wait_event_timeout(Wakeup_Polling_Device_Channels,
-					   Go_Polling_Device_Channels,
+			wait_event_timeout(poll_dev_wake_q,
+					   poll_dev_start,
 					   POLLJIFFIES_NORMAL);
-			Go_Polling_Device_Channels = 1;
+			poll_dev_start = 1;
 		} else {
 			tot_schedule_cnt++;
 			schedule();
@@ -1362,20 +1362,20 @@ Process_Incoming(void *v)
 		}
 	}
 	DBGINF("exiting.\n");
-	complete_and_exit(&Incoming_ThreadInfo.has_stopped, 0);
+	complete_and_exit(&incoming_ti.has_stopped, 0);
 }
 
 static BOOL
 Initialize_incoming_thread(void)
 {
-	if (Incoming_Thread_Started)
+	if (incoming_started)
 		return TRUE;
-	if (!uisthread_start(&Incoming_ThreadInfo,
+	if (!uisthread_start(&incoming_ti,
 			     &Process_Incoming, NULL, "dev_incoming")) {
 		LOGERR("uisthread_start Initialize_incoming_thread ****FAILED");
 		return FALSE;
 	}
-	Incoming_Thread_Started = TRUE;
+	incoming_started = TRUE;
 	return TRUE;
 }
 
@@ -1398,14 +1398,14 @@ uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 		       (int)(dev_no));
 		return;
 	}
-	down(&Lock_Polling_Device_Channels);
+	down(&poll_dev_lock);
 	Initialize_incoming_thread();
 	dev->interrupt = interrupt;
 	dev->interrupt_context = interrupt_context;
 	dev->polling = TRUE;
 	list_add_tail(&dev->list_polling_device_channels,
-		      &List_Polling_Device_Channels);
-	up(&Lock_Polling_Device_Channels);
+		      &poll_dev_chan);
+	up(&poll_dev_lock);
 }
 EXPORT_SYMBOL_GPL(uislib_enable_channel_interrupts);
 
@@ -1423,20 +1423,20 @@ uislib_disable_channel_interrupts(u32 bus_no, u32 dev_no)
 		       (int)(dev_no));
 		return;
 	}
-	down(&Lock_Polling_Device_Channels);
+	down(&poll_dev_lock);
 	list_del(&dev->list_polling_device_channels);
 	dev->polling = FALSE;
 	dev->interrupt = NULL;
-	up(&Lock_Polling_Device_Channels);
+	up(&poll_dev_lock);
 }
 EXPORT_SYMBOL_GPL(uislib_disable_channel_interrupts);
 
 static void
 do_wakeup_polling_device_channels(struct work_struct *dummy)
 {
-	if (!Go_Polling_Device_Channels) {
-		Go_Polling_Device_Channels = 1;
-		wake_up(&Wakeup_Polling_Device_Channels);
+	if (!poll_dev_start) {
+		poll_dev_start = 1;
+		wake_up(&poll_dev_wake_q);
 	}
 }
 
@@ -1451,7 +1451,7 @@ uislib_force_channel_interrupt(u32 bus_no, u32 dev_no)
 {
 	if (en_smart_wakeup == 0)
 		return;
-	if (Go_Polling_Device_Channels)
+	if (poll_dev_start)
 		return;
 	/* The point of using schedule_work() instead of just doing
 	 * the work inline is to force a slight delay before waking up
@@ -1494,10 +1494,10 @@ uislib_mod_init(void)
 	LOGINF("SIZEOF_PROTOCOL:%lu bytes\n", SIZEOF_PROTOCOL);
 
 	/* initialize global pointers to NULL */
-	BusListHead = NULL;
-	BusListCount = 0;
-	MaxBusCount = 0;
-	rwlock_init(&BusListLock);
+	bus_list = NULL;
+	bus_list_count = 0;
+	max_bus_count = 0;
+	rwlock_init(&bus_list_lock);
 	virt_control_chan_func = NULL;
 
 	/* Issue VMCALL_GET_CONTROLVM_ADDR to get CtrlChanPhysAddr and
@@ -1512,7 +1512,7 @@ uislib_mod_init(void)
 
 		platformnumber_debugfs_read = debugfs_create_u32(
 			PLATFORMNUMBER_DEBUGFS_ENTRY_FN, 0444, dir_debugfs,
-			&PlatformNumber);
+			&platform_no);
 
 		cycles_before_wait_debugfs_read = debugfs_create_u64(
 			CYCLES_BEFORE_WAIT_DEBUGFS_ENTRY_FN, 0666, dir_debugfs,
@@ -1530,9 +1530,9 @@ uislib_mod_init(void)
 static void __exit
 uislib_mod_exit(void)
 {
-	if (ProcReadBuffer) {
-		vfree(ProcReadBuffer);
-		ProcReadBuffer = NULL;
+	if (debug_buf) {
+		vfree(debug_buf);
+		debug_buf = NULL;
 	}
 
 	debugfs_remove(info_debugfs_entry);
