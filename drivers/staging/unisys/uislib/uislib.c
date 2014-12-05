@@ -192,8 +192,10 @@ create_bus(struct controlvm_message *msg, char *buf)
 		bus->guest_handle = 0;
 		bus->bus_no = busNo;
 		bus->local_vnic = 1;
-	} else
-		bus->bus_no = bus->guest_handle = busNo;
+	} else {
+		bus->bus_no = busNo;
+		bus->guest_handle = busNo;
+	}
 	sprintf(bus->name, "%d", (int)bus->bus_no);
 	bus->device_count = deviceCount;
 	bus->device =
@@ -220,8 +222,8 @@ create_bus(struct controlvm_message *msg, char *buf)
 		kfree(bus);
 		return CONTROLVM_RESP_ERROR_ALREADY_DONE;
 	}
-	if ((msg->cmd.create_bus.channel_addr != 0)
-	    && (msg->cmd.create_bus.channel_bytes != 0)) {
+	if ((msg->cmd.create_bus.channel_addr != 0) &&
+	    (msg->cmd.create_bus.channel_bytes != 0)) {
 		bus->bus_channel_bytes = msg->cmd.create_bus.channel_bytes;
 		bus->bus_channel =
 		    init_vbus_channel(msg->cmd.create_bus.channel_addr,
@@ -256,9 +258,9 @@ create_bus(struct controlvm_message *msg, char *buf)
 
 	/* add bus at the head of our list */
 	write_lock(&BusListLock);
-	if (!BusListHead)
+	if (!BusListHead) {
 		BusListHead = bus;
-	else {
+	} else {
 		bus->next = BusListHead;
 		BusListHead = bus;
 	}
