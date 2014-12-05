@@ -1234,8 +1234,7 @@ static struct device_info *find_dev(u32 bus_no, u32 dev_no)
  *    less-busy ones.
  *
  */
-static int
-Process_Incoming(void *v)
+static int process_incoming(void *v)
 {
 	unsigned long long cur_cycles, old_cycles, idle_cycles, delta_cycles;
 	struct list_head *new_tail = NULL;
@@ -1346,7 +1345,7 @@ Initialize_incoming_thread(void)
 	if (incoming_started)
 		return TRUE;
 	if (!uisthread_start(&incoming_ti,
-			     &Process_Incoming, NULL, "dev_incoming")) {
+			     &process_incoming, NULL, "dev_incoming")) {
 		LOGERR("uisthread_start Initialize_incoming_thread ****FAILED");
 		return FALSE;
 	}
@@ -1355,7 +1354,7 @@ Initialize_incoming_thread(void)
 }
 
 /*  Add a new device/channel to the list being processed by
- *  Process_Incoming().
+ *  process_incoming().
  *  <interrupt> - indicates the function to call periodically.
  *  <interrupt_context> - indicates the data to pass to the <interrupt>
  *                        function.
@@ -1385,7 +1384,7 @@ uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 EXPORT_SYMBOL_GPL(uislib_enable_channel_interrupts);
 
 /*  Remove a device/channel from the list being processed by
- *  Process_Incoming().
+ *  process_incoming().
  */
 void
 uislib_disable_channel_interrupts(u32 bus_no, u32 dev_no)
@@ -1418,7 +1417,7 @@ do_wakeup_polling_device_channels(struct work_struct *dummy)
 static DECLARE_WORK(Work_wakeup_polling_device_channels,
 		    do_wakeup_polling_device_channels);
 
-/*  Call this function when you want to send a hint to Process_Incoming() that
+/*  Call this function when you want to send a hint to process_incoming() that
  *  your device might have more requests.
  */
 void
@@ -1430,7 +1429,7 @@ uislib_force_channel_interrupt(u32 bus_no, u32 dev_no)
 		return;
 	/* The point of using schedule_work() instead of just doing
 	 * the work inline is to force a slight delay before waking up
-	 * the Process_Incoming() thread.
+	 * the process_incoming() thread.
 	 */
 	tot_wakeup_cnt++;
 	schedule_work(&Work_wakeup_polling_device_channels);
