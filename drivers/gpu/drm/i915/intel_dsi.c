@@ -111,6 +111,14 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 	enum port port;
 	u32 temp;
 
+	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
+		temp = I915_READ(VLV_CHICKEN_3);
+		temp &= ~PIXEL_OVERLAP_CNT_MASK |
+					intel_dsi->pixel_overlap <<
+					PIXEL_OVERLAP_CNT_SHIFT;
+		I915_WRITE(VLV_CHICKEN_3, temp);
+	}
+
 	for_each_dsi_port(port, intel_dsi->ports) {
 		temp = I915_READ(MIPI_PORT_CTRL(port));
 		temp &= ~LANE_CONFIGURATION_MASK;

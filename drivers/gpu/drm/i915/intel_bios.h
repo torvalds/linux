@@ -818,7 +818,8 @@ struct mipi_config {
 #define DUAL_LINK_PIXEL_ALT	2
 	u16 dual_link:2;
 	u16 lane_cnt:2;
-	u16 rsvd3:12;
+	u16 pixel_overlap:3;
+	u16 rsvd3:9;
 
 	u16 rsvd4;
 

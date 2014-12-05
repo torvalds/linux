@@ -288,6 +288,7 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
 	intel_dsi->pixel_format = mipi_config->videomode_color_format << 7;
 	intel_dsi->dual_link = mipi_config->dual_link;
+	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
 
 	if (intel_dsi->dual_link)
 		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
@@ -309,6 +310,20 @@ static bool generic_init(struct intel_dsi_device *dsi)
 		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
 
 	pclk = mode->clock;
+
+	/* In dual link mode each port needs half of pixel clock */
+	if (intel_dsi->dual_link) {
+		pclk = pclk / 2;
+
+		/* we can enable pixel_overlap if needed by panel. In this
+		 * case we need to increase the pixelclock for extra pixels
+		 */
+		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
+			pclk += DIV_ROUND_UP(mode->vtotal *
+						intel_dsi->pixel_overlap *
+						60, 1000);
+		}
+	}
 
 	/* Burst Mode Ratio
 	 * Target ddr frequency from VBT / non burst ddr freq
@@ -504,6 +519,12 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	DRM_DEBUG_KMS("Clockstop %s\n", intel_dsi->clock_stop ?
 						"disabled" : "enabled");
 	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
+	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
+		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
+	else if (intel_dsi->dual_link == DSI_DUAL_LINK_PIXEL_ALT)
+		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
+	else
+		DRM_DEBUG_KMS("Dual link: NONE\n");
 	DRM_DEBUG_KMS("Pixel Format %d\n", intel_dsi->pixel_format);
 	DRM_DEBUG_KMS("TLPX %d\n", intel_dsi->escape_clk_div);
 	DRM_DEBUG_KMS("LP RX Timeout 0x%x\n", intel_dsi->lp_rx_timeout);

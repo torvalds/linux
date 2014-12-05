@@ -6030,6 +6030,10 @@ enum punit_power_well {
 #define GEN8_PMINTR_REDIRECT_TO_NON_DISP	(1<<31)
 #define VLV_PWRDWNUPCTL				0xA294
 
+#define VLV_CHICKEN_3				(VLV_DISPLAY_BASE + 0x7040C)
+#define  PIXEL_OVERLAP_CNT_MASK			(3 << 30)
+#define  PIXEL_OVERLAP_CNT_SHIFT		30
+
 #define GEN6_PMISR				0x44020
 #define GEN6_PMIMR				0x44024 /* rps_lock */
 #define GEN6_PMIIR				0x44028

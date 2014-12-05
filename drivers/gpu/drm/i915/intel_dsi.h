@@ -28,6 +28,11 @@
 #include <drm/drm_crtc.h>
 #include "intel_drv.h"
 
+/* Dual Link support */
+#define DSI_DUAL_LINK_NONE		0
+#define DSI_DUAL_LINK_FRONT_BACK	1
+#define DSI_DUAL_LINK_PIXEL_ALT		2
+
 struct intel_dsi_device {
 	unsigned int panel_id;
 	const char *name;
@@ -105,6 +110,7 @@ struct intel_dsi {
 
 	u8 escape_clk_div;
 	u8 dual_link;
+	u8 pixel_overlap;
 	u32 port_bits;
 	u32 bw_timer;
 	u32 dphy_reg;
