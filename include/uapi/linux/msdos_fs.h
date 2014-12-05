@@ -134,7 +134,7 @@ struct fat_boot_sector {
 			__u8	vol_id[4];	/* volume ID */
 			__u8	vol_label[11];	/* volume label */
 			__u8	fs_type[8];		/* file system type */
-			/* other fiealds are not added here */
+			/* other fields are not added here */
 		} fat16;
 
 		struct {
@@ -157,7 +157,7 @@ struct fat_boot_sector {
 			__u8	vol_id[4];	/* volume ID */
 			__u8	vol_label[11];	/* volume label */
 			__u8	fs_type[8];		/* file system type */
-			/* other fiealds are not added here */
+			/* other fields are not added here */
 		} fat32;
 	};
 };
