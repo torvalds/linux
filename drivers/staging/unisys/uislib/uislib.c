@@ -1202,8 +1202,9 @@ info_debugfs_read(struct file *file, char __user *buf,
 		/* if the read fails, then -1 will be returned */
 		totalBytes = info_debugfs_read_helper(&temp, &remaining_bytes);
 		ProcReadBufferValid = 1;
-	} else
+	} else {
 		totalBytes = strlen(ProcReadBuffer);
+	}
 
 	return simple_read_from_buffer(buf, len, offset,
 				       ProcReadBuffer, totalBytes);
