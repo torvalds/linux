@@ -36,23 +36,14 @@ static BOOL registered = FALSE;
 static int visorchipset_open(struct inode *inode, struct file *file);
 static int visorchipset_release(struct inode *inode, struct file *file);
 static int visorchipset_mmap(struct file *file, struct vm_area_struct *vma);
-#ifdef HAVE_UNLOCKED_IOCTL
 long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-#else
-int visorchipset_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg);
-#endif
 
 static const struct file_operations visorchipset_fops = {
 	.owner = THIS_MODULE,
 	.open = visorchipset_open,
 	.read = NULL,
 	.write = NULL,
-#ifdef HAVE_UNLOCKED_IOCTL
 	.unlocked_ioctl = visorchipset_ioctl,
-#else
-	.ioctl = visorchipset_ioctl,
-#endif
 	.release = visorchipset_release,
 	.mmap = visorchipset_mmap,
 };
@@ -178,14 +169,7 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-#ifdef HAVE_UNLOCKED_IOCTL
-long
-visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-#else
-int
-visorchipset_ioctl(struct inode *inode, struct file *file,
-		   unsigned int cmd, unsigned long arg)
-#endif
+long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int rc = SUCCESS;
 	s64 adjustment;
