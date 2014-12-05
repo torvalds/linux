@@ -112,46 +112,43 @@ uisctrl_register_req_handler_ex(uuid_le switch_uuid,
 						u32 client_str_len, u64 bytes),
 			struct ultra_vbus_deviceinfo *chipset_driver_info)
 {
-	struct req_handler_info *pReqHandlerInfo;
-	int rc = 0;		/* assume failure */
+	struct req_handler_info *req_handler;
 
 	LOGINF("type=%pUL, controlfunc=0x%p.\n",
 	       &switch_uuid, controlfunc);
 	if (!controlfunc) {
 		LOGERR("%pUL: controlfunc must be supplied\n", &switch_uuid);
-		goto Away;
+		return 0;
 	}
 	if (!server_channel_ok) {
 		LOGERR("%pUL: Server_Channel_Ok must be supplied\n",
 				&switch_uuid);
-		goto Away;
+		return 0;
 	}
 	if (!server_channel_init) {
 		LOGERR("%pUL: Server_Channel_Init must be supplied\n",
 				&switch_uuid);
-		goto Away;
+		return 0;
 	}
-	pReqHandlerInfo = req_handler_add(switch_uuid,
-					switch_type_name,
-					controlfunc,
-					min_channel_bytes,
-					server_channel_ok, server_channel_init);
-	if (!pReqHandlerInfo) {
+	req_handler = req_handler_add(switch_uuid,
+				      switch_type_name,
+				      controlfunc,
+				      min_channel_bytes,
+				      server_channel_ok, server_channel_init);
+	if (!req_handler) {
 		LOGERR("failed to add %pUL to server list\n", &switch_uuid);
-		goto Away;
+		return 0;
 	}
 
 	atomic_inc(&uisutils_registered_services);
-	rc = 1;			/* success */
-Away:
-	if (rc) {
-		if (chipset_driver_info)
-			bus_device_info_init(chipset_driver_info, "chipset",
-					     "uislib", VERSION, NULL);
-	} else {
-		LOGERR("failed to register type %pUL.\n", &switch_uuid);
+	if (chipset_driver_info) {
+		bus_device_info_init(chipset_driver_info, "chipset",
+				     "uislib", VERSION, NULL);
+		return 1;
 	}
-	return rc;
+
+	LOGERR("failed to register type %pUL.\n", &switch_uuid);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(uisctrl_register_req_handler_ex);
 
