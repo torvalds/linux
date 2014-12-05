@@ -147,9 +147,6 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 	struct mwifiex_sta_node *node;
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
-	node = mwifiex_get_sta_entry(priv, ra);
-	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
 		ra_list = mwifiex_wmm_allocate_ralist_node(adapter, ra);
@@ -170,10 +167,13 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 				ra_list->is_11n_enabled = IS_11N_ENABLED(priv);
 			}
 		} else {
+			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+			node = mwifiex_get_sta_entry(priv, ra);
 			ra_list->is_11n_enabled =
 				      mwifiex_is_sta_11n_enabled(priv, node);
 			if (ra_list->is_11n_enabled)
 				ra_list->max_amsdu = node->max_amsdu;
+			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		}
 
 		dev_dbg(adapter->dev, "data: ralist %p: is_11n_enabled=%d\n",
