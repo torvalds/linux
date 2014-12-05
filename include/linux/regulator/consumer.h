@@ -101,6 +101,8 @@ struct regmap;
  *                      Data passed is "struct pre_voltage_change_data"
  * ABORT_VOLTAGE_CHANGE Regulator voltage change failed for some reason.
  *                      Data passed is old voltage cast to (void *).
+ * PRE_DISABLE    Regulator is about to be disabled
+ * ABORT_DISABLE  Regulator disable failed for some reason
  *
  * NOTE: These events can be OR'ed together when passed into handler.
  */
@@ -115,6 +117,8 @@ struct regmap;
 #define REGULATOR_EVENT_DISABLE 		0x80
 #define REGULATOR_EVENT_PRE_VOLTAGE_CHANGE	0x100
 #define REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE	0x200
+#define REGULATOR_EVENT_PRE_DISABLE		0x400
+#define REGULATOR_EVENT_ABORT_DISABLE		0x800
 
 /**
  * struct pre_voltage_change_data - Data sent with PRE_VOLTAGE_CHANGE event

@@ -162,34 +162,41 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 
 	config->enable_gpio = of_get_named_gpio(np, "enable-gpio", 0);
 
-	/* Fetch GPIOs. */
-	config->nr_gpios = of_gpio_count(np);
+	/* Fetch GPIOs. - optional property*/
+	ret = of_gpio_count(np);
+	if ((ret < 0) && (ret != -ENOENT))
+		return ERR_PTR(ret);
 
-	config->gpios = devm_kzalloc(dev,
-				sizeof(struct gpio) * config->nr_gpios,
-				GFP_KERNEL);
-	if (!config->gpios)
-		return ERR_PTR(-ENOMEM);
+	if (ret > 0) {
+		config->nr_gpios = ret;
+		config->gpios = devm_kzalloc(dev,
+					sizeof(struct gpio) * config->nr_gpios,
+					GFP_KERNEL);
+		if (!config->gpios)
+			return ERR_PTR(-ENOMEM);
 
-	proplen = of_property_count_u32_elems(np, "gpios-states");
-	/* optional property */
-	if (proplen < 0)
-		proplen = 0;
+		proplen = of_property_count_u32_elems(np, "gpios-states");
+		/* optional property */
+		if (proplen < 0)
+			proplen = 0;
 
-	if (proplen > 0 && proplen != config->nr_gpios) {
-		dev_warn(dev, "gpios <-> gpios-states mismatch\n");
-		proplen = 0;
-	}
+		if (proplen > 0 && proplen != config->nr_gpios) {
+			dev_warn(dev, "gpios <-> gpios-states mismatch\n");
+			proplen = 0;
+		}
 
-	for (i = 0; i < config->nr_gpios; i++) {
-		gpio = of_get_named_gpio(np, "gpios", i);
-		if (gpio < 0)
-			break;
-		config->gpios[i].gpio = gpio;
-		if (proplen > 0) {
-			of_property_read_u32_index(np, "gpios-states", i, &ret);
-			if (ret)
-				config->gpios[i].flags = GPIOF_OUT_INIT_HIGH;
+		for (i = 0; i < config->nr_gpios; i++) {
+			gpio = of_get_named_gpio(np, "gpios", i);
+			if (gpio < 0)
+				break;
+			config->gpios[i].gpio = gpio;
+			if (proplen > 0) {
+				of_property_read_u32_index(np, "gpios-states",
+							   i, &ret);
+				if (ret)
+					config->gpios[i].flags =
+							   GPIOF_OUT_INIT_HIGH;
+			}
 		}
 	}
 
@@ -261,13 +268,23 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	drvdata->gpios = kmemdup(config->gpios,
-				 config->nr_gpios * sizeof(struct gpio),
-				 GFP_KERNEL);
-	if (drvdata->gpios == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate gpio data\n");
-		ret = -ENOMEM;
-		goto err_name;
+	if (config->nr_gpios != 0) {
+		drvdata->gpios = kmemdup(config->gpios,
+					 config->nr_gpios * sizeof(struct gpio),
+					 GFP_KERNEL);
+		if (drvdata->gpios == NULL) {
+			dev_err(&pdev->dev, "Failed to allocate gpio data\n");
+			ret = -ENOMEM;
+			goto err_name;
+		}
+
+		drvdata->nr_gpios = config->nr_gpios;
+		ret = gpio_request_array(drvdata->gpios, drvdata->nr_gpios);
+		if (ret) {
+			dev_err(&pdev->dev,
+			"Could not obtain regulator setting GPIOs: %d\n", ret);
+			goto err_memstate;
+		}
 	}
 
 	drvdata->states = kmemdup(config->states,
@@ -301,14 +318,6 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 		goto err_memgpio;
 	}
 
-	drvdata->nr_gpios = config->nr_gpios;
-	ret = gpio_request_array(drvdata->gpios, drvdata->nr_gpios);
-	if (ret) {
-		dev_err(&pdev->dev,
-		   "Could not obtain regulator setting GPIOs: %d\n", ret);
-		goto err_memstate;
-	}
-
 	/* build initial state from gpio init data. */
 	state = 0;
 	for (ptr = 0; ptr < drvdata->nr_gpios; ptr++) {
@@ -322,8 +331,10 @@ static int gpio_regulator_probe(struct platform_device *pdev)
 	cfg.driver_data = drvdata;
 	cfg.of_node = np;
 
-	if (config->enable_gpio >= 0)
+	if (gpio_is_valid(config->enable_gpio)) {
 		cfg.ena_gpio = config->enable_gpio;
+		cfg.ena_gpio_initialized = true;
+	}
 	cfg.ena_gpio_invert = !config->enable_high;
 	if (config->enabled_at_boot) {
 		if (config->enable_high)

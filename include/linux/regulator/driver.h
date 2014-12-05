@@ -301,6 +301,9 @@ struct regulator_desc {
  *           NULL).
  * @regmap: regmap to use for core regmap helpers if dev_get_regulator() is
  *          insufficient.
+ * @ena_gpio_initialized: GPIO controlling regulator enable was properly
+ *                        initialized, meaning that >= 0 is a valid gpio
+ *                        identifier and < 0 is a non existent gpio.
  * @ena_gpio: GPIO controlling regulator enable.
  * @ena_gpio_invert: Sense for GPIO enable control.
  * @ena_gpio_flags: Flags to use when calling gpio_request_one()
@@ -312,6 +315,7 @@ struct regulator_config {
 	struct device_node *of_node;
 	struct regmap *regmap;
 
+	bool ena_gpio_initialized;
 	int ena_gpio;
 	unsigned int ena_gpio_invert:1;
 	unsigned int ena_gpio_flags;

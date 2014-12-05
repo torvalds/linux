@@ -260,6 +260,8 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 			ret = arizona_ldo1_of_get_pdata(arizona, &config);
 			if (ret < 0)
 				return ret;
+
+			config.ena_gpio_initialized = true;
 		}
 	}
 
