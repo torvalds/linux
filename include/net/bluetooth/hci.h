@@ -412,6 +412,7 @@ enum {
 
 /* The core spec defines 127 as the "not available" value */
 #define HCI_TX_POWER_INVALID	127
+#define HCI_RSSI_INVALID	127
 
 #define HCI_ROLE_MASTER		0x00
 #define HCI_ROLE_SLAVE		0x01
