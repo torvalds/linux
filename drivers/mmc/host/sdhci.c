@@ -3409,9 +3409,9 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
 
-	if (host->version >= SDHCI_SPEC_300) {
-		init_waitqueue_head(&host->buf_ready_int);
+	init_waitqueue_head(&host->buf_ready_int);
 
+	if (host->version >= SDHCI_SPEC_300) {
 		/* Initialize re-tuning timer */
 		init_timer(&host->tuning_timer);
 		host->tuning_timer.data = (unsigned long)host;
