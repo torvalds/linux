@@ -1381,7 +1381,6 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-	struct input_dev *input = wacom_wac->input;
 	unsigned touch_max = wacom_wac->features.touch_max;
 
 	switch (usage->hid) {
@@ -1400,8 +1399,6 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 					ABS_MT_POSITION_Y, 4);
 		break;
 	case HID_DG_CONTACTID:
-		input_mt_init_slots(input, wacom_wac->features.touch_max,
-			INPUT_MT_DIRECT);
 		break;
 	case HID_DG_INRANGE:
 		break;
