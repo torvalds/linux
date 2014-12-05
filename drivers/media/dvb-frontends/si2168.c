@@ -155,10 +155,10 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	u8 bandwidth, delivery_system;
 
 	dev_dbg(&client->dev,
-			"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%u, stream_id=%d\n",
-			c->delivery_system, c->modulation,
-			c->frequency, c->bandwidth_hz, c->symbol_rate,
-			c->inversion, c->stream_id);
+			"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%u stream_id=%u\n",
+			c->delivery_system, c->modulation, c->frequency,
+			c->bandwidth_hz, c->symbol_rate, c->inversion,
+			c->stream_id);
 
 	if (!dev->active) {
 		ret = -EAGAIN;
