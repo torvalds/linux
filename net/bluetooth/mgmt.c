@@ -3835,10 +3835,7 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status)
 		cmd = mgmt_pending_find(MGMT_OP_START_SERVICE_DISCOVERY, hdev);
 
 	if (cmd) {
-		u8 type = hdev->discovery.type;
-
-		cmd_complete(cmd->sk, hdev->id, cmd->opcode,
-			     mgmt_status(status), &type, sizeof(type));
+		cmd->cmd_complete(cmd, mgmt_status(status));
 		mgmt_pending_remove(cmd);
 	}
 
@@ -3901,11 +3898,13 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_START_DISCOVERY, hdev, NULL, 0);
+	cmd = mgmt_pending_add(sk, MGMT_OP_START_DISCOVERY, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
+
+	cmd->cmd_complete = generic_cmd_complete;
 
 	/* Clear the discovery filter first to free any previously
 	 * allocated memory for the UUID list.
@@ -3934,6 +3933,11 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 failed:
 	hci_dev_unlock(hdev);
 	return err;
+}
+
+static void service_discovery_cmd_complete(struct pending_cmd *cmd, u8 status)
+{
+	cmd_complete(cmd->sk, cmd->index, cmd->opcode, status, cmd->param, 1);
 }
 
 static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
@@ -3991,11 +3995,13 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_START_SERVICE_DISCOVERY,
-			       hdev, NULL, 0);
+			       hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
+
+	cmd->cmd_complete = service_discovery_cmd_complete;
 
 	/* Clear the discovery filter first to free any previously
 	 * allocated memory for the UUID list.
@@ -4052,10 +4058,7 @@ static void stop_discovery_complete(struct hci_dev *hdev, u8 status)
 
 	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
 	if (cmd) {
-		u8 type = hdev->discovery.type;
-
-		cmd_complete(cmd->sk, hdev->id, cmd->opcode,
-			     mgmt_status(status), &type, sizeof(type));
+		cmd->cmd_complete(cmd, mgmt_status(status));
 		mgmt_pending_remove(cmd);
 	}
 
@@ -4091,11 +4094,13 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_STOP_DISCOVERY, hdev, NULL, 0);
+	cmd = mgmt_pending_add(sk, MGMT_OP_STOP_DISCOVERY, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto unlock;
 	}
+
+	cmd->cmd_complete = generic_cmd_complete;
 
 	hci_req_init(&req, hdev);
 
