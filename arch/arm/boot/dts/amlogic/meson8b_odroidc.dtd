@@ -566,7 +566,7 @@ void root_func(){
                 #address-cells = <1>;
                 #size-cells = <0>;
                 use_pio = <0>;
-                master_i2c_speed = <300000>;
+                master_i2c_speed = <100000>;
         };
 
 //$$ DEVICE="I2C_B"
@@ -585,7 +585,7 @@ void root_func(){
                 #address-cells = <1>;
                 #size-cells = <0>;
                 use_pio = <0>;
-                master_i2c_speed = <300000>;
+                master_i2c_speed = <100000>;
         };
 
 //$$ DEVICE="I2C_C"
@@ -1057,8 +1057,8 @@ void root_func(){
 //$$ L2 PROP_U32 2 = "amlogic,setmask"
 //$$ L2 PROP_STR 4 = "amlogic,pins"
                 b_uart_pins:b_uart{
-                        amlogic,setmask=<4 0x03c0>;
-                        amlogic,pins="GPIOX_16", "GPIOX_17", "GPIOX_18", "GPIOX_19";
+                        amlogic,setmask=<4 0x0300>;
+                        amlogic,pins="GPIOX_16", "GPIOX_17";
                 };
 
 //$$ MATCH "Nand_pin_0_match" = "&nand_input_state"
