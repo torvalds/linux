@@ -1354,10 +1354,7 @@ static int kxcjk1013_resume(struct device *dev)
 	int ret = 0;
 
 	mutex_lock(&data->mutex);
-	/* Check, if the suspend occured while active */
-	if (data->dready_trigger_on || data->motion_trigger_on ||
-							data->ev_enable_state)
-		ret = kxcjk1013_set_mode(data, OPERATION);
+	ret = kxcjk1013_set_mode(data, OPERATION);
 	mutex_unlock(&data->mutex);
 
 	return ret;
