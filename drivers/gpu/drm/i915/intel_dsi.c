@@ -281,9 +281,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	enum port port;
 	u32 temp;
 
 	DRM_DEBUG_KMS("\n");
@@ -295,23 +294,24 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 		msleep(2);
 	}
 
-	/* Panel commands can be sent when clock is in LP11 */
-	I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
+	for_each_dsi_port(port, intel_dsi->ports) {
+		/* Panel commands can be sent when clock is in LP11 */
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x0);
 
-	temp = I915_READ(MIPI_CTRL(port));
-	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
-	I915_WRITE(MIPI_CTRL(port), temp |
-		   intel_dsi->escape_clk_div <<
-		   ESCAPE_CLOCK_DIVIDER_SHIFT);
+		temp = I915_READ(MIPI_CTRL(port));
+		temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
+		I915_WRITE(MIPI_CTRL(port), temp |
+			   intel_dsi->escape_clk_div <<
+			   ESCAPE_CLOCK_DIVIDER_SHIFT);
 
-	I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
+		I915_WRITE(MIPI_EOT_DISABLE(port), CLOCKSTOP);
 
-	temp = I915_READ(MIPI_DSI_FUNC_PRG(port));
-	temp &= ~VID_MODE_FORMAT_MASK;
-	I915_WRITE(MIPI_DSI_FUNC_PRG(port), temp);
+		temp = I915_READ(MIPI_DSI_FUNC_PRG(port));
+		temp &= ~VID_MODE_FORMAT_MASK;
+		I915_WRITE(MIPI_DSI_FUNC_PRG(port), temp);
 
-	I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
-
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x1);
+	}
 	/* if disable packets are sent before sending shutdown packet then in
 	 * some next enable sequence send turn on packet error is observed */
 	if (intel_dsi->dev.dev_ops->disable)
@@ -323,31 +323,42 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
+	for_each_dsi_port(port, intel_dsi->ports) {
 
-	I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY | ULPS_STATE_ENTER);
-	usleep_range(2000, 2500);
+		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
+							ULPS_STATE_ENTER);
+		usleep_range(2000, 2500);
 
-	I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY | ULPS_STATE_EXIT);
-	usleep_range(2000, 2500);
+		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
+							ULPS_STATE_EXIT);
+		usleep_range(2000, 2500);
 
-	I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY | ULPS_STATE_ENTER);
-	usleep_range(2000, 2500);
+		I915_WRITE(MIPI_DEVICE_READY(port), DEVICE_READY |
+							ULPS_STATE_ENTER);
+		usleep_range(2000, 2500);
 
-	if (wait_for(((I915_READ(MIPI_PORT_CTRL(port)) & AFE_LATCHOUT)
-		      == 0x00000), 30))
-		DRM_ERROR("DSI LP not going Low\n");
+		/* Wait till Clock lanes are in LP-00 state for MIPI Port A
+		 * only. MIPI Port C has no similar bit for checking
+		 */
+		if (wait_for(((I915_READ(MIPI_PORT_CTRL(PORT_A)) & AFE_LATCHOUT)
+							== 0x00000), 30))
+			DRM_ERROR("DSI LP not going Low\n");
 
-	val = I915_READ(MIPI_PORT_CTRL(port));
-	I915_WRITE(MIPI_PORT_CTRL(port), val & ~LP_OUTPUT_HOLD);
-	usleep_range(1000, 1500);
+		val = I915_READ(MIPI_PORT_CTRL(port));
+		/* Disable MIPI PHY transparent latch
+		 * Common bit for both MIPI Port A & MIPI Port C
+		 */
+		I915_WRITE(MIPI_PORT_CTRL(PORT_A), val & ~LP_OUTPUT_HOLD);
+		usleep_range(1000, 1500);
 
-	I915_WRITE(MIPI_DEVICE_READY(port), 0x00);
-	usleep_range(2000, 2500);
+		I915_WRITE(MIPI_DEVICE_READY(port), 0x00);
+		usleep_range(2000, 2500);
+	}
 
 	vlv_disable_dsi_pll(encoder);
 }
