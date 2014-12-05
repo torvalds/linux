@@ -1492,6 +1492,12 @@ static void generic_cmd_complete(struct pending_cmd *cmd, u8 status)
 		     cmd->param_len);
 }
 
+static void addr_cmd_complete(struct pending_cmd *cmd, u8 status)
+{
+	cmd_complete(cmd->sk, cmd->index, cmd->opcode, status, cmd->param,
+		     sizeof(struct mgmt_addr_info));
+}
+
 static u8 mgmt_bredr_support(struct hci_dev *hdev)
 {
 	if (!lmp_bredr_capable(hdev))
@@ -3032,6 +3038,8 @@ static int pin_code_reply(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
+	cmd->cmd_complete = addr_cmd_complete;
+
 	bacpy(&reply.bdaddr, &cp->addr.bdaddr);
 	reply.pin_len = cp->pin_len;
 	memcpy(reply.pin_code, cp->pin_code, sizeof(reply.pin_code));
@@ -3362,6 +3370,8 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 		err = -ENOMEM;
 		goto done;
 	}
+
+	cmd->cmd_complete = addr_cmd_complete;
 
 	/* Continue with pairing via HCI */
 	if (hci_op == HCI_OP_USER_PASSKEY_REPLY) {
@@ -6544,18 +6554,12 @@ void mgmt_pin_code_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				  u8 status)
 {
 	struct pending_cmd *cmd;
-	struct mgmt_rp_pin_code_reply rp;
 
 	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_REPLY, hdev);
 	if (!cmd)
 		return;
 
-	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = BDADDR_BREDR;
-
-	cmd_complete(cmd->sk, hdev->id, MGMT_OP_PIN_CODE_REPLY,
-		     mgmt_status(status), &rp, sizeof(rp));
-
+	cmd->cmd_complete(cmd, mgmt_status(status));
 	mgmt_pending_remove(cmd);
 }
 
@@ -6563,18 +6567,12 @@ void mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				      u8 status)
 {
 	struct pending_cmd *cmd;
-	struct mgmt_rp_pin_code_reply rp;
 
 	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_NEG_REPLY, hdev);
 	if (!cmd)
 		return;
 
-	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = BDADDR_BREDR;
-
-	cmd_complete(cmd->sk, hdev->id, MGMT_OP_PIN_CODE_NEG_REPLY,
-		     mgmt_status(status), &rp, sizeof(rp));
-
+	cmd->cmd_complete(cmd, mgmt_status(status));
 	mgmt_pending_remove(cmd);
 }
 
@@ -6614,21 +6612,15 @@ static int user_pairing_resp_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 				      u8 opcode)
 {
 	struct pending_cmd *cmd;
-	struct mgmt_rp_user_confirm_reply rp;
-	int err;
 
 	cmd = mgmt_pending_find(opcode, hdev);
 	if (!cmd)
 		return -ENOENT;
 
-	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = link_to_bdaddr(link_type, addr_type);
-	err = cmd_complete(cmd->sk, hdev->id, opcode, mgmt_status(status),
-			   &rp, sizeof(rp));
-
+	cmd->cmd_complete(cmd, mgmt_status(status));
 	mgmt_pending_remove(cmd);
 
-	return err;
+	return 0;
 }
 
 int mgmt_user_confirm_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
