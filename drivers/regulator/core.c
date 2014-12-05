@@ -828,7 +828,7 @@ static void print_constraints(struct regulator_dev *rdev)
 	if (!count)
 		sprintf(buf, "no parameters");
 
-	rdev_info(rdev, "%s\n", buf);
+	rdev_dbg(rdev, "%s\n", buf);
 
 	if ((constraints->min_uV != constraints->max_uV) &&
 	    !(constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE))
@@ -1713,6 +1713,8 @@ static void regulator_ena_gpio_free(struct regulator_dev *rdev)
 				gpiod_put(pin->gpiod);
 				list_del(&pin->list);
 				kfree(pin);
+				rdev->ena_pin = NULL;
+				return;
 			} else {
 				pin->request_count--;
 			}
