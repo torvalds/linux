@@ -178,10 +178,9 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 	}
 
-	err = -ENOBUFS;
 	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
-	if (fnew == NULL)
-		goto errout;
+	if (!fnew)
+		return -ENOBUFS;
 
 	tcf_exts_init(&fnew->exts, TCA_BASIC_ACT, TCA_BASIC_POLICE);
 	err = -EINVAL;
