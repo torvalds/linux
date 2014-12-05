@@ -502,19 +502,20 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			    struct ww_acquire_ctx *ticket,
 			    struct list_head *head, int ring)
 {
-	struct radeon_cs_reloc *lobj;
-	struct radeon_bo *bo;
+	struct radeon_bo_list *lobj;
+	struct list_head duplicates;
 	int r;
 	u64 bytes_moved = 0, initial_bytes_moved;
 	u64 bytes_moved_threshold = radeon_bo_get_threshold_for_moves(rdev);
 
-	r = ttm_eu_reserve_buffers(ticket, head, true);
+	INIT_LIST_HEAD(&duplicates);
+	r = ttm_eu_reserve_buffers(ticket, head, true, &duplicates);
 	if (unlikely(r != 0)) {
 		return r;
 	}
 
 	list_for_each_entry(lobj, head, tv.head) {
-		bo = lobj->robj;
+		struct radeon_bo *bo = lobj->robj;
 		if (!bo->pin_count) {
 			u32 domain = lobj->prefered_domains;
 			u32 allowed = lobj->allowed_domains;
@@ -562,6 +563,12 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 		lobj->gpu_offset = radeon_bo_gpu_offset(bo);
 		lobj->tiling_flags = bo->tiling_flags;
 	}
+
+	list_for_each_entry(lobj, &duplicates, tv.head) {
+		lobj->gpu_offset = radeon_bo_gpu_offset(lobj->robj);
+		lobj->tiling_flags = lobj->robj->tiling_flags;
+	}
+
 	return 0;
 }
 

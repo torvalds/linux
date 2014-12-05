@@ -548,7 +548,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 				    struct radeon_bo_va *bo_va)
 {
 	struct ttm_validate_buffer tv, *entry;
-	struct radeon_cs_reloc *vm_bos;
+	struct radeon_bo_list *vm_bos;
 	struct ww_acquire_ctx ticket;
 	struct list_head list;
 	unsigned domain;
@@ -564,7 +564,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 	if (!vm_bos)
 		return;
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true);
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
 	if (r)
 		goto error_free;
 
