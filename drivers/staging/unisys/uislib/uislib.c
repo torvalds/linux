@@ -1414,7 +1414,7 @@ do_wakeup_polling_device_channels(struct work_struct *dummy)
 	}
 }
 
-static DECLARE_WORK(Work_wakeup_polling_device_channels,
+static DECLARE_WORK(work_wakeup_polling_device_channels,
 		    do_wakeup_polling_device_channels);
 
 /*  Call this function when you want to send a hint to process_incoming() that
@@ -1432,7 +1432,7 @@ uislib_force_channel_interrupt(u32 bus_no, u32 dev_no)
 	 * the process_incoming() thread.
 	 */
 	tot_wakeup_cnt++;
-	schedule_work(&Work_wakeup_polling_device_channels);
+	schedule_work(&work_wakeup_polling_device_channels);
 }
 EXPORT_SYMBOL_GPL(uislib_force_channel_interrupt);
 
