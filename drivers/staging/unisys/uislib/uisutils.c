@@ -261,8 +261,8 @@ dolist: if (skb_shinfo(skb)->frag_list) {
 }
 EXPORT_SYMBOL_GPL(uisutil_copy_fragsinfo_from_skb);
 
-static LIST_HEAD(ReqHandlerInfo_list);	/* list of struct req_handler_info */
-static DEFINE_SPINLOCK(ReqHandlerInfo_list_lock);
+static LIST_HEAD(req_handler_info_list); /* list of struct req_handler_info */
+static DEFINE_SPINLOCK(req_handler_info_list_lock);
 
 struct req_handler_info *
 req_handler_add(uuid_le switch_uuid,
@@ -286,9 +286,9 @@ req_handler_add(uuid_le switch_uuid,
 	if (switch_type_name)
 		strncpy(rc->switch_type_name, switch_type_name,
 			sizeof(rc->switch_type_name) - 1);
-	spin_lock(&ReqHandlerInfo_list_lock);
-	list_add_tail(&(rc->list_link), &ReqHandlerInfo_list);
-	spin_unlock(&ReqHandlerInfo_list_lock);
+	spin_lock(&req_handler_info_list_lock);
+	list_add_tail(&(rc->list_link), &req_handler_info_list);
+	spin_unlock(&req_handler_info_list_lock);
 
 	return rc;
 }
@@ -299,15 +299,15 @@ req_handler_find(uuid_le switch_uuid)
 	struct list_head *lelt, *tmp;
 	struct req_handler_info *entry = NULL;
 
-	spin_lock(&ReqHandlerInfo_list_lock);
-	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
+	spin_lock(&req_handler_info_list_lock);
+	list_for_each_safe(lelt, tmp, &req_handler_info_list) {
 		entry = list_entry(lelt, struct req_handler_info, list_link);
 		if (uuid_le_cmp(entry->switch_uuid, switch_uuid) == 0) {
-			spin_unlock(&ReqHandlerInfo_list_lock);
+			spin_unlock(&req_handler_info_list_lock);
 			return entry;
 		}
 	}
-	spin_unlock(&ReqHandlerInfo_list_lock);
+	spin_unlock(&req_handler_info_list_lock);
 	return NULL;
 }
 
@@ -318,8 +318,8 @@ req_handler_del(uuid_le switch_uuid)
 	struct req_handler_info *entry = NULL;
 	int rc = -1;
 
-	spin_lock(&ReqHandlerInfo_list_lock);
-	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
+	spin_lock(&req_handler_info_list_lock);
+	list_for_each_safe(lelt, tmp, &req_handler_info_list) {
 		entry = list_entry(lelt, struct req_handler_info, list_link);
 		if (uuid_le_cmp(entry->switch_uuid, switch_uuid) == 0) {
 			list_del(lelt);
@@ -327,6 +327,6 @@ req_handler_del(uuid_le switch_uuid)
 			rc++;
 		}
 	}
-	spin_unlock(&ReqHandlerInfo_list_lock);
+	spin_unlock(&req_handler_info_list_lock);
 	return rc;
 }
