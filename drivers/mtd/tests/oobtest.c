@@ -141,6 +141,31 @@ static size_t memcmpshow(loff_t addr, const void *cs, const void *ct, size_t cou
 	return bitflips;
 }
 
+/*
+ * Compare with 0xff and show the address, offset and data bytes at
+ * comparison failure. Return number of bitflips encountered.
+ */
+static size_t memffshow(loff_t addr, loff_t offset, const void *cs,
+			size_t count)
+{
+	const unsigned char *su1;
+	int res;
+	size_t i = 0;
+	size_t bitflips = 0;
+
+	for (su1 = cs; 0 < count; ++su1, count--, i++) {
+		res = *su1 ^ 0xff;
+		if (res) {
+			pr_info("error @addr[0x%lx:0x%lx] 0x%x -> 0xff diff 0x%x\n",
+				(unsigned long)addr, (unsigned long)offset + i,
+				*su1, res);
+			bitflips += hweight8(res);
+		}
+	}
+
+	return bitflips;
+}
+
 static int verify_eraseblock(int ebnum)
 {
 	int i;
@@ -203,6 +228,15 @@ static int verify_eraseblock(int ebnum)
 			bitflips = memcmpshow(addr, readbuf + use_offset,
 					      writebuf + (use_len_max * i) + use_offset,
 					      use_len);
+
+			/* verify pre-offset area for 0xff */
+			bitflips += memffshow(addr, 0, readbuf, use_offset);
+
+			/* verify post-(use_offset + use_len) area for 0xff */
+			k = use_offset + use_len;
+			bitflips += memffshow(addr, k, readbuf + k,
+					      mtd->ecclayout->oobavail - k);
+
 			if (bitflips > bitflip_limit) {
 				pr_err("error: verify failed at %#llx\n",
 						(long long)addr);
@@ -212,34 +246,8 @@ static int verify_eraseblock(int ebnum)
 					return -1;
 				}
 			} else if (bitflips) {
-				pr_info("ignoring error as within bitflip_limit\n");
+				pr_info("ignoring errors as within bitflip limit\n");
 			}
-
-			for (k = 0; k < use_offset; ++k)
-				if (readbuf[k] != 0xff) {
-					pr_err("error: verify 0xff "
-					       "failed at %#llx\n",
-					       (long long)addr);
-					errcnt += 1;
-					if (errcnt > 1000) {
-						pr_err("error: too "
-						       "many errors\n");
-						return -1;
-					}
-				}
-			for (k = use_offset + use_len;
-			     k < mtd->ecclayout->oobavail; ++k)
-				if (readbuf[k] != 0xff) {
-					pr_err("error: verify 0xff "
-					       "failed at %#llx\n",
-					       (long long)addr);
-					errcnt += 1;
-					if (errcnt > 1000) {
-						pr_err("error: too "
-						       "many errors\n");
-						return -1;
-					}
-				}
 		}
 		if (vary_offset)
 			do_vary_offset();
