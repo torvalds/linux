@@ -47,6 +47,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "rockchip,rk3066-smp";
 		rockchip,pmu = <&pmu>;
 
 		cpu0: cpu@500 {
