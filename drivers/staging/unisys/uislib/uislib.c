@@ -774,15 +774,14 @@ init_chipset(struct controlvm_message *msg, char *buf)
 	return CONTROLVM_RESP_SUCCESS;
 }
 
-static int
-delete_bus_glue(u32 busNo)
+static int delete_bus_glue(u32 bus_no)
 {
 	struct controlvm_message msg;
 
 	init_msg_header(&msg, CONTROLVM_BUS_DESTROY, 0, 0);
-	msg.cmd.destroy_bus.bus_no = busNo;
+	msg.cmd.destroy_bus.bus_no = bus_no;
 	if (destroy_bus(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("destroy_bus failed. busNo=0x%x\n", busNo);
+		LOGERR("destroy_bus failed. bus_no=0x%x\n", bus_no);
 		return 0;
 	}
 	return 1;
