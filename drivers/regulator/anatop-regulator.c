@@ -189,16 +189,17 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 val;
 
-	initdata = of_get_regulator_init_data(dev, np);
 	sreg = devm_kzalloc(dev, sizeof(*sreg), GFP_KERNEL);
 	if (!sreg)
 		return -ENOMEM;
-	sreg->initdata = initdata;
 	sreg->name = of_get_property(np, "regulator-name", NULL);
 	rdesc = &sreg->rdesc;
 	rdesc->name = sreg->name;
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->owner = THIS_MODULE;
+
+	initdata = of_get_regulator_init_data(dev, np, rdesc);
+	sreg->initdata = initdata;
 
 	anatop_np = of_get_parent(np);
 	if (!anatop_np)

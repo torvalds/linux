@@ -5,6 +5,10 @@ Required properties:
 - compatible: "active-semi,act8846" or "active-semi,act8865"
 - reg: I2C slave address
 
+Optional properties:
+- system-power-controller: Telling whether or not this pmic is controlling
+  the system power. See Documentation/devicetree/bindings/power/power-controller.txt .
+
 Any standard regulator properties can be used to configure the single regulator.
 
 The valid names for regulators are:

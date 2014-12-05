@@ -179,7 +179,8 @@ static const struct regulator_init_data arizona_ldo1_default = {
 };
 
 static int arizona_ldo1_of_get_pdata(struct arizona *arizona,
-				     struct regulator_config *config)
+				     struct regulator_config *config,
+				     const struct regulator_desc *desc)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
 	struct arizona_ldo1 *ldo1 = config->driver_data;
@@ -194,7 +195,8 @@ static int arizona_ldo1_of_get_pdata(struct arizona *arizona,
 	if (init_node) {
 		config->of_node = init_node;
 
-		init_data = of_get_regulator_init_data(arizona->dev, init_node);
+		init_data = of_get_regulator_init_data(arizona->dev, init_node,
+						       desc);
 
 		if (init_data) {
 			init_data->consumer_supplies = &ldo1->supply;
@@ -257,7 +259,7 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(arizona->dev)) {
-			ret = arizona_ldo1_of_get_pdata(arizona, &config);
+			ret = arizona_ldo1_of_get_pdata(arizona, &config, desc);
 			if (ret < 0)
 				return ret;
 
