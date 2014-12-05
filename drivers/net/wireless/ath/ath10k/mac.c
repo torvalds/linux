@@ -3991,29 +3991,6 @@ static int ath10k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return ret;
 }
 
-static int ath10k_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
-{
-	struct ath10k *ar = hw->priv;
-	struct ath10k_vif *arvif;
-	int ret = 0;
-
-	mutex_lock(&ar->conf_mutex);
-	list_for_each_entry(arvif, &ar->arvifs, list) {
-		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev %d fragmentation threshold %d\n",
-			   arvif->vdev_id, value);
-
-		ret = ath10k_mac_set_frag(arvif, value);
-		if (ret) {
-			ath10k_warn(ar, "failed to set fragmentation threshold for vdev %d: %d\n",
-				    arvif->vdev_id, ret);
-			break;
-		}
-	}
-	mutex_unlock(&ar->conf_mutex);
-
-	return ret;
-}
-
 static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 u32 queues, bool drop)
 {
@@ -4657,7 +4634,6 @@ static const struct ieee80211_ops ath10k_ops = {
 	.remain_on_channel		= ath10k_remain_on_channel,
 	.cancel_remain_on_channel	= ath10k_cancel_remain_on_channel,
 	.set_rts_threshold		= ath10k_set_rts_threshold,
-	.set_frag_threshold		= ath10k_set_frag_threshold,
 	.flush				= ath10k_flush,
 	.tx_last_beacon			= ath10k_tx_last_beacon,
 	.set_antenna			= ath10k_set_antenna,
