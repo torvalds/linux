@@ -393,7 +393,7 @@ static void hystart_update(struct sock *sk, u32 delay)
 			ca->sample_cnt++;
 		} else {
 			if (ca->curr_rtt > ca->delay_min +
-			    HYSTART_DELAY_THRESH(ca->delay_min>>4)) {
+			    HYSTART_DELAY_THRESH(ca->delay_min >> 3)) {
 				ca->found |= HYSTART_DELAY;
 				NET_INC_STATS_BH(sock_net(sk),
 						 LINUX_MIB_TCPHYSTARTDELAYDETECT);
