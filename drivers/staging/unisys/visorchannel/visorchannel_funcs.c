@@ -33,9 +33,10 @@ struct VISORCHANNEL_Tag {
 	struct channel_header chan_hdr;
 	uuid_le guid;
 	ulong size;
-	BOOL needs_lock;
-	spinlock_t insert_lock;
-	spinlock_t remove_lock;
+	BOOL needs_lock;	/* channel creator knows if more than one
+				 * thread will be inserting or removing */
+	spinlock_t insert_lock; /* protect head writes in chan_hdr */
+	spinlock_t remove_lock;	/* protect tail writes in chan_hdr */
 
 	struct {
 		struct signal_queue_header req_queue;
