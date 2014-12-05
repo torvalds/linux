@@ -65,8 +65,8 @@ nv_printk_(struct nouveau_object *object, int level, const char *fmt, ...)
 		char obuf[64], *ofmt = "";
 
 		if (object->engine) {
-			snprintf(obuf, sizeof(obuf), "[0x%08x][%p]",
-				 nv_hclass(object), object);
+			snprintf(obuf, sizeof(obuf), "[0x%08x]",
+				 nv_hclass(object));
 			ofmt = obuf;
 			subdev = object->engine;
 			device = object->engine;
