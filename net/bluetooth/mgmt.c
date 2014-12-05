@@ -135,6 +135,7 @@ struct pending_cmd {
 	u16 opcode;
 	int index;
 	void *param;
+	size_t param_len;
 	struct sock *sk;
 	void *user_data;
 	void (*cmd_complete)(struct pending_cmd *cmd, u8 status);
@@ -1205,14 +1206,13 @@ static struct pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
 	cmd->opcode = opcode;
 	cmd->index = hdev->id;
 
-	cmd->param = kmalloc(len, GFP_KERNEL);
+	cmd->param = kmemdup(data, len, GFP_KERNEL);
 	if (!cmd->param) {
 		kfree(cmd);
 		return NULL;
 	}
 
-	if (data)
-		memcpy(cmd->param, data, len);
+	cmd->param_len = len;
 
 	cmd->sk = sk;
 	sock_hold(sk);
