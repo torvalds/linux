@@ -1187,31 +1187,29 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				       debug_buf, total_bytes);
 }
 
-static struct device_info *
-find_dev(u32 busNo, u32 devNo)
+static struct device_info *find_dev(u32 bus_no, u32 dev_no)
 {
 	struct bus_info *bus;
 	struct device_info *dev = NULL;
 
 	read_lock(&bus_list_lock);
 	for (bus = bus_list; bus; bus = bus->next) {
-		if (bus->bus_no == busNo) {
+		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->device_count) {
-				LOGERR("%s bad busNo, devNo=%d,%d",
+			if (dev_no >= bus->device_count) {
+				LOGERR("%s bad bus_no, dev_no=%d,%d",
 				       __func__,
-				       (int)(busNo), (int)(devNo));
-				goto Away;
+				       (int)bus_no, (int)dev_no);
+				break;
 			}
-			dev = bus->device[devNo];
+			dev = bus->device[dev_no];
 			if (!dev)
-				LOGERR("%s bad busNo, devNo=%d,%d",
+				LOGERR("%s bad bus_no, dev_no=%d,%d",
 				       __func__,
-				       (int)(busNo), (int)(devNo));
-			goto Away;
+				       (int)bus_no, (int)dev_no);
+			break;
 		}
 	}
-Away:
 	read_unlock(&bus_list_lock);
 	return dev;
 }
