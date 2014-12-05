@@ -547,14 +547,13 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 }
 EXPORT_SYMBOL_GPL(mmc_switch);
 
-int mmc_send_tuning(struct mmc_card *card)
+int mmc_send_tuning(struct mmc_host *host)
 {
 	struct mmc_request mrq = {NULL};
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
-	struct mmc_host *mmc = card->host;
-	struct mmc_ios *ios = &mmc->ios;
+	struct mmc_ios *ios = &host->ios;
 	const u8 *tuning_block_pattern;
 	int size, err = 0;
 	u8 *data_buf;
@@ -596,7 +595,7 @@ int mmc_send_tuning(struct mmc_card *card)
 	data.sg_len = 1;
 	sg_init_one(&sg, data_buf, size);
 
-	mmc_wait_for_req(mmc, &mrq);
+	mmc_wait_for_req(host, &mrq);
 
 	if (cmd.error) {
 		err = cmd.error;
