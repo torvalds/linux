@@ -1611,10 +1611,12 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
 	if (ddc_node) {
 		hdmi->ddc = of_find_i2c_adapter_by_node(ddc_node);
-		if (!hdmi->ddc)
-			dev_dbg(hdmi->dev, "failed to read ddc node\n");
-
 		of_node_put(ddc_node);
+		if (!hdmi->ddc) {
+			dev_dbg(hdmi->dev, "failed to read ddc node\n");
+			return -EPROBE_DEFER;
+		}
+
 	} else {
 		dev_dbg(hdmi->dev, "no ddc property found\n");
 	}
