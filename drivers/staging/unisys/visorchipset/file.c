@@ -121,7 +121,7 @@ visorchipset_release(struct inode *inode, struct file *file)
 static int
 visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	ulong physAddr = 0;
+	ulong physaddr = 0;
 	ulong offset = vma->vm_pgoff << PAGE_SHIFT;
 	GUEST_PHYSICAL_ADDRESS addr = 0;
 
@@ -146,10 +146,10 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 			ERRDRV("%s control channel address is 0", __func__);
 			return -ENXIO;
 		}
-		physAddr = (ulong) (addr);
-		DEBUGDRV("mapping physical address = 0x%lx", physAddr);
+		physaddr = (ulong)addr;
+		DEBUGDRV("mapping physical address = 0x%lx", physaddr);
 		if (remap_pfn_range(vma, vma->vm_start,
-				    physAddr >> PAGE_SHIFT,
+				    physaddr >> PAGE_SHIFT,
 				    vma->vm_end - vma->vm_start,
 				    /*pgprot_noncached */
 				    (vma->vm_page_prot))) {
