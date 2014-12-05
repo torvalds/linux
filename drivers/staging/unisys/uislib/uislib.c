@@ -875,7 +875,6 @@ uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_add_bus);
 
-
 int
 uislib_client_inject_del_bus(u32 bus_no)
 {
@@ -920,7 +919,6 @@ uislib_client_inject_resume_vhba(u32 bus_no, u32 dev_no)
 		return rc;
 	}
 	return 0;
-
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vhba);
 
@@ -1073,7 +1071,6 @@ uislib_client_inject_resume_vnic(u32 bus_no, u32 dev_no)
 		return -1;
 	}
 	return 0;
-
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vnic);
 
@@ -1132,11 +1129,9 @@ info_debugfs_read_helper(char **buff, int *buff_len)
 
 	read_lock(&BusListLock);
 	for (bus = BusListHead; bus; bus = bus->next) {
-
 		if (PLINE("    bus=0x%p, busNo=%d, deviceCount=%d\n",
 			  bus, bus->bus_no, bus->device_count) < 0)
 			goto err_done_unlock;
-
 
 		if (PLINE("        Devices:\n") < 0)
 			goto err_done_unlock;
@@ -1322,7 +1317,6 @@ Process_Incoming(void *v)
 					} else
 						dev->last_on_list_cnt++;
 				}
-
 			}
 			if (Incoming_ThreadInfo.should_stop)
 				break;
@@ -1473,7 +1467,6 @@ EXPORT_SYMBOL_GPL(uislib_force_channel_interrupt);
 static int __init
 uislib_mod_init(void)
 {
-
 	if (!unisys_spar_platform)
 		return -ENODEV;
 
