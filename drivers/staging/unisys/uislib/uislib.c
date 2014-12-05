@@ -361,7 +361,7 @@ create_device(struct controlvm_message *msg, char *buf)
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, devNo, busNo,
 			 POSTCODE_SEVERITY_INFO);
 
-	dev = kzalloc(sizeof(struct device_info), GFP_ATOMIC);
+	dev = kzalloc(sizeof(*dev), GFP_ATOMIC);
 	if (!dev) {
 		LOGERR("CONTROLVM_DEVICE_CREATE Failed: kmalloc for dev failed.\n");
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
@@ -377,9 +377,9 @@ create_device(struct controlvm_message *msg, char *buf)
 	sema_init(&dev->interrupt_callback_lock, 1);	/* unlocked */
 	sprintf(dev->devid, "vbus%u:dev%u", (unsigned)busNo, (unsigned)devNo);
 	/* map the channel memory for the device. */
-	if (msg->hdr.flags.test_message)
+	if (msg->hdr.flags.test_message) {
 		dev->chanptr = (void __iomem *)__va(dev->channel_addr);
-	else {
+	} else {
 		pReqHandler = req_handler_find(dev->channel_uuid);
 		if (pReqHandler)
 			/* generic service handler registered for this
