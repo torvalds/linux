@@ -1424,10 +1424,13 @@ static const struct samsung_i2s_dai_data samsung_dai_type_sec = {
 static struct platform_device_id samsung_i2s_driver_ids[] = {
 	{
 		.name           = "samsung-i2s",
-		.driver_data    = (kernel_ulong_t)&samsung_dai_type_pri,
+		.driver_data	= (kernel_ulong_t)&i2sv3_dai_type,
 	}, {
 		.name           = "samsung-i2s-sec",
 		.driver_data    = (kernel_ulong_t)&samsung_dai_type_sec,
+	}, {
+		.name		= "samsung-i2sv4",
+		.driver_data	= (kernel_ulong_t)&i2sv5_dai_type,
 	},
 	{},
 };
