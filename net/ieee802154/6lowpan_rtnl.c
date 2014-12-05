@@ -439,7 +439,6 @@ static void lowpan_set_lockdep_class_one(struct net_device *dev,
 			  &lowpan_netdev_xmit_lock_key);
 }
 
-
 static int lowpan_dev_init(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, lowpan_set_lockdep_class_one, NULL);
