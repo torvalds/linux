@@ -1340,13 +1340,13 @@ static int process_incoming(void *v)
 }
 
 static BOOL
-Initialize_incoming_thread(void)
+initialize_incoming_thread(void)
 {
 	if (incoming_started)
 		return TRUE;
 	if (!uisthread_start(&incoming_ti,
 			     &process_incoming, NULL, "dev_incoming")) {
-		LOGERR("uisthread_start Initialize_incoming_thread ****FAILED");
+		LOGERR("uisthread_start initialize_incoming_thread ****FAILED");
 		return FALSE;
 	}
 	incoming_started = TRUE;
@@ -1373,7 +1373,7 @@ uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 		return;
 	}
 	down(&poll_dev_lock);
-	Initialize_incoming_thread();
+	initialize_incoming_thread();
 	dev->interrupt = interrupt;
 	dev->interrupt_context = interrupt_context;
 	dev->polling = TRUE;
