@@ -885,7 +885,7 @@ static int logical_ring_alloc_request(struct intel_engine_cs *ring,
 	if (ring->outstanding_lazy_request)
 		return 0;
 
-	request = kmalloc(sizeof(*request), GFP_KERNEL);
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL)
 		return -ENOMEM;
 
