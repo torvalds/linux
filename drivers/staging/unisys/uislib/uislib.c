@@ -41,7 +41,6 @@
 
 #include "sparstop.h"
 #include "visorchipset.h"
-#include "chanstub.h"
 #include "version.h"
 #include "guestlinuxdebug.h"
 
