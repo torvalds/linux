@@ -75,6 +75,9 @@ struct discovery_state {
 	u32			last_adv_flags;
 	u8			last_adv_data[HCI_MAX_AD_LENGTH];
 	u8			last_adv_data_len;
+	s8			rssi;
+	u16			uuid_count;
+	u8			(*uuids)[16];
 };
 
 struct hci_conn_hash {
@@ -503,6 +506,7 @@ static inline void discovery_init(struct hci_dev *hdev)
 	INIT_LIST_HEAD(&hdev->discovery.all);
 	INIT_LIST_HEAD(&hdev->discovery.unknown);
 	INIT_LIST_HEAD(&hdev->discovery.resolve);
+	hdev->discovery.rssi = HCI_RSSI_INVALID;
 }
 
 bool hci_discovery_active(struct hci_dev *hdev);

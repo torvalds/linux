@@ -3867,6 +3867,8 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	hdev->discovery.type = cp->type;
+	hdev->discovery.rssi = HCI_RSSI_INVALID;
+	hdev->discovery.uuid_count = 0;
 
 	hci_req_init(&req, hdev);
 
