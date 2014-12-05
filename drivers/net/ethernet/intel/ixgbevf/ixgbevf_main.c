@@ -3737,6 +3737,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ixgbe_hw *hw = NULL;
 	const struct ixgbevf_info *ii = ixgbevf_info_tbl[ent->driver_data];
 	int err, pci_using_dac;
+	bool disable_dev = false;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -3771,7 +3772,6 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
-	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);
 
 	adapter->netdev = netdev;
@@ -3860,6 +3860,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_register;
 
+	pci_set_drvdata(pdev, netdev);
 	netif_carrier_off(netdev);
 
 	ixgbevf_init_last_counter_stats(adapter);
@@ -3889,12 +3890,13 @@ err_sw_init:
 	ixgbevf_reset_interrupt_capability(adapter);
 	iounmap(adapter->io_addr);
 err_ioremap:
+	disable_dev = !test_and_set_bit(__IXGBEVF_DISABLED, &adapter->state);
 	free_netdev(netdev);
 err_alloc_etherdev:
 	pci_release_regions(pdev);
 err_pci_reg:
 err_dma:
-	if (!test_and_set_bit(__IXGBEVF_DISABLED, &adapter->state))
+	if (!adapter || disable_dev)
 		pci_disable_device(pdev);
 	return err;
 }
@@ -3911,7 +3913,13 @@ err_dma:
 static void ixgbevf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	struct ixgbevf_adapter *adapter;
+	bool disable_dev;
+
+	if (!netdev)
+		return;
+
+	adapter = netdev_priv(netdev);
 
 	set_bit(__IXGBEVF_REMOVING, &adapter->state);
 
@@ -3931,9 +3939,10 @@ static void ixgbevf_remove(struct pci_dev *pdev)
 
 	hw_dbg(&adapter->hw, "Remove complete\n");
 
+	disable_dev = !test_and_set_bit(__IXGBEVF_DISABLED, &adapter->state);
 	free_netdev(netdev);
 
-	if (!test_and_set_bit(__IXGBEVF_DISABLED, &adapter->state))
+	if (disable_dev)
 		pci_disable_device(pdev);
 }
 
