@@ -149,7 +149,7 @@ static __iomem void *init_vbus_channel(u64 ch_addr, u32 ch_bytes)
 static int
 create_bus(struct controlvm_message *msg, char *buf)
 {
-	u32 busNo, deviceCount;
+	u32 bus_no, dev_count;
 	struct bus_info *tmp, *bus;
 	size_t size;
 
@@ -161,19 +161,19 @@ create_bus(struct controlvm_message *msg, char *buf)
 		return CONTROLVM_RESP_ERROR_MAX_BUSES;
 	}
 
-	busNo = msg->cmd.create_bus.bus_no;
-	deviceCount = msg->cmd.create_bus.dev_count;
+	bus_no = msg->cmd.create_bus.bus_no;
+	dev_count = msg->cmd.create_bus.dev_count;
 
-	POSTCODE_LINUX_4(BUS_CREATE_ENTRY_PC, busNo, deviceCount,
+	POSTCODE_LINUX_4(BUS_CREATE_ENTRY_PC, bus_no, dev_count,
 			 POSTCODE_SEVERITY_INFO);
 
 	size =
 	    sizeof(struct bus_info) +
-	    (deviceCount * sizeof(struct device_info *));
+	    (dev_count * sizeof(struct device_info *));
 	bus = kzalloc(size, GFP_ATOMIC);
 	if (!bus) {
 		LOGERR("CONTROLVM_BUS_CREATE Failed: kmalloc for bus failed.\n");
-		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
+		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
 	}
@@ -184,14 +184,14 @@ create_bus(struct controlvm_message *msg, char *buf)
 	if (msg->hdr.flags.test_message) {
 		/* This implies we're the IOVM so set guest handle to 0... */
 		bus->guest_handle = 0;
-		bus->bus_no = busNo;
+		bus->bus_no = bus_no;
 		bus->local_vnic = 1;
 	} else {
-		bus->bus_no = busNo;
-		bus->guest_handle = busNo;
+		bus->bus_no = bus_no;
+		bus->guest_handle = bus_no;
 	}
 	sprintf(bus->name, "%d", (int)bus->bus_no);
-	bus->device_count = deviceCount;
+	bus->device_count = dev_count;
 	bus->device =
 	    (struct device_info **)((char *)bus + sizeof(struct bus_info));
 	bus->bus_inst_uuid = msg->cmd.create_bus.bus_inst_uuid;
@@ -206,7 +206,7 @@ create_bus(struct controlvm_message *msg, char *buf)
 	}
 	read_unlock(&bus_list_lock);
 	if (tmp) {
-		/* found a bus already in the list with same busNo -
+		/* found a bus already in the list with same bus_no -
 		 * reject add
 		 */
 		LOGERR("CONTROLVM_BUS_CREATE Failed: bus %d already exists.\n",
@@ -228,9 +228,9 @@ create_bus(struct controlvm_message *msg, char *buf)
 		struct guest_msgs cmd;
 
 		cmd.msgtype = GUEST_ADD_VBUS;
-		cmd.add_vbus.bus_no = busNo;
+		cmd.add_vbus.bus_no = bus_no;
 		cmd.add_vbus.chanptr = bus->bus_channel;
-		cmd.add_vbus.dev_count = deviceCount;
+		cmd.add_vbus.dev_count = dev_count;
 		cmd.add_vbus.bus_uuid = msg->cmd.create_bus.bus_data_type_uuid;
 		cmd.add_vbus.instance_uuid = msg->cmd.create_bus.bus_inst_uuid;
 		if (!virt_control_chan_func) {
