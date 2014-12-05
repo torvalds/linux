@@ -20,7 +20,7 @@ Supported chips:
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp432.html
   * Texas Instruments TMP435
     Prefix: 'tmp435'
-    Addresses scanned: I2C 0x4c
+    Addresses scanned: I2C 0x37, 0x48 - 0x4f
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp435.html
 
 Authors:

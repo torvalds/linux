@@ -44,7 +44,8 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x37, 0x48, 0x49, 0x4a, 0x4c, 0x4d,
+	0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { tmp401, tmp411, tmp431, tmp432, tmp435 };
 
@@ -679,18 +680,16 @@ static int tmp401_detect(struct i2c_client *client,
 		kind = tmp411;
 		break;
 	case TMP431_DEVICE_ID:
-		if (client->addr == 0x4e)
+		if (client->addr != 0x4c && client->addr != 0x4d)
 			return -ENODEV;
 		kind = tmp431;
 		break;
 	case TMP432_DEVICE_ID:
-		if (client->addr == 0x4e)
+		if (client->addr != 0x4c && client->addr != 0x4d)
 			return -ENODEV;
 		kind = tmp432;
 		break;
 	case TMP435_DEVICE_ID:
-		if (client->addr != 0x4c)
-			return -ENODEV;
 		kind = tmp435;
 		break;
 	default:
