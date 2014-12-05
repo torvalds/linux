@@ -2052,17 +2052,6 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 	case DISCOVERY_STOPPED:
 		hci_update_background_scan(hdev);
 
-		/* Reset RSSI and UUID filters to ensure Start Discovery
-		 * and Start Service Discovery operate properly no matter
-		 * which one started the previous discovery.
-		 *
-		 * While the Start Discovery and Start Service Discovery
-		 * operations will set proper values for RSSI and UUID
-		 * count, it is important to actually free the allocated
-		 * list of UUIDs here.
-		 */
-		hci_discovery_filter_clear(hdev);
-
 		if (old_state != DISCOVERY_STARTING)
 			mgmt_discovering(hdev, 0);
 		break;
@@ -5678,6 +5667,15 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	/* If discovery is active don't interfere with it */
 	if (hdev->discovery.state != DISCOVERY_STOPPED)
 		return;
+
+	/* Reset RSSI and UUID filters when starting background scanning
+	 * since these filters are meant for service discovery only.
+	 *
+	 * The Start Discovery and Start Service Discovery operations
+	 * ensure to set proper values for RSSI threshold and UUID
+	 * filter list. So it is safe to just reset them here.
+	 */
+	hci_discovery_filter_clear(hdev);
 
 	hci_req_init(&req, hdev);
 
