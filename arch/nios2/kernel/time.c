@@ -109,6 +109,10 @@ static void __init nios2_time_init(struct device_node *timer)
 {
 	int irq;
 	unsigned int ctrl;
+	static int initialized;
+
+	if (initialized)
+		return;
 
 	timer_membase = of_iomap(timer, 0);
 	if (!timer_membase)
@@ -134,6 +138,8 @@ static void __init nios2_time_init(struct device_node *timer)
 	ctrl = ALTERA_TIMER_CONTROL_ITO_MSK | ALTERA_TIMER_CONTROL_CONT_MSK |
 		ALTERA_TIMER_CONTROL_START_MSK;
 	outw(ctrl, timer_membase + ALTERA_TIMER_CONTROL_REG);
+
+	initialized = 1;
 }
 
 void read_persistent_clock(struct timespec *ts)
