@@ -64,11 +64,13 @@ nv_printk_(struct nouveau_object *object, int level, const char *fmt, ...)
 		struct nouveau_object *subdev;
 		char obuf[64], *ofmt = "";
 
-		subdev = object;
-		while (subdev && !nv_iclass(subdev, NV_SUBDEV_CLASS))
-			subdev = subdev->parent;
-		if (!subdev)
+		if (object->engine == NULL) {
+			subdev = object;
+			while (subdev && !nv_iclass(subdev, NV_SUBDEV_CLASS))
+				subdev = subdev->parent;
+		} else {
 			subdev = object->engine;
+		}
 
 		device = subdev;
 		if (device->parent)

@@ -512,9 +512,10 @@ struct nouveau_device *
 nv_device(void *obj)
 {
 	struct nouveau_object *device = nv_object(obj);
-	while (device && device->parent)
-		device = device->parent;
-	if (!nv_iclass(device, NV_ENGINE_CLASS)) {
+	if (device->engine == NULL) {
+		while (device && device->parent)
+			device = device->parent;
+	} else {
 		device = nv_object(obj)->engine;
 		if (device && device->parent)
 			device = device->parent;
