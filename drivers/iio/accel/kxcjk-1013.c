@@ -376,6 +376,7 @@ static int kxcjk1013_get_startup_times(struct kxcjk1013_data *data)
 
 static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 {
+#ifdef CONFIG_PM
 	int ret;
 
 	if (on)
@@ -389,6 +390,7 @@ static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 			"Failed: kxcjk1013_set_power_state for %d\n", on);
 		return ret;
 	}
+#endif
 
 	return 0;
 }
