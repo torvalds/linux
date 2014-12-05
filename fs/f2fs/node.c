@@ -147,7 +147,7 @@ static void __set_nat_cache_dirty(struct f2fs_nm_info *nm_i,
 
 	if (get_nat_flag(ne, IS_DIRTY))
 		return;
-retry:
+
 	head = radix_tree_lookup(&nm_i->nat_set_root, set);
 	if (!head) {
 		head = f2fs_kmem_cache_alloc(nat_entry_set_slab, GFP_ATOMIC);
@@ -156,11 +156,7 @@ retry:
 		INIT_LIST_HEAD(&head->set_list);
 		head->set = set;
 		head->entry_cnt = 0;
-
-		if (radix_tree_insert(&nm_i->nat_set_root, set, head)) {
-			kmem_cache_free(nat_entry_set_slab, head);
-			goto retry;
-		}
+		f2fs_radix_tree_insert(&nm_i->nat_set_root, set, head);
 	}
 	list_move_tail(&ne->list, &head->entry_list);
 	nm_i->dirty_nat_cnt++;
@@ -238,13 +234,8 @@ static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
 {
 	struct nat_entry *new;
 
-	new = kmem_cache_alloc(nat_entry_slab, GFP_ATOMIC);
-	if (!new)
-		return NULL;
-	if (radix_tree_insert(&nm_i->nat_root, nid, new)) {
-		kmem_cache_free(nat_entry_slab, new);
-		return NULL;
-	}
+	new = f2fs_kmem_cache_alloc(nat_entry_slab, GFP_ATOMIC);
+	f2fs_radix_tree_insert(&nm_i->nat_root, nid, new);
 	memset(new, 0, sizeof(struct nat_entry));
 	nat_set_nid(new, nid);
 	nat_reset_flag(new);
@@ -257,15 +248,11 @@ static void cache_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid,
 						struct f2fs_nat_entry *ne)
 {
 	struct nat_entry *e;
-retry:
+
 	down_write(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, nid);
 	if (!e) {
 		e = grab_nat_entry(nm_i, nid);
-		if (!e) {
-			up_write(&nm_i->nat_tree_lock);
-			goto retry;
-		}
 		node_info_from_raw_nat(&e->ni, ne);
 	}
 	up_write(&nm_i->nat_tree_lock);
@@ -276,15 +263,11 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
-retry:
+
 	down_write(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, ni->nid);
 	if (!e) {
 		e = grab_nat_entry(nm_i, ni->nid);
-		if (!e) {
-			up_write(&nm_i->nat_tree_lock);
-			goto retry;
-		}
 		e->ni = *ni;
 		f2fs_bug_on(sbi, ni->blk_addr == NEW_ADDR);
 	} else if (new_blkaddr == NEW_ADDR) {
@@ -1833,19 +1816,13 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 		nid_t nid = le32_to_cpu(nid_in_journal(sum, i));
 
 		raw_ne = nat_in_journal(sum, i);
-retry:
+
 		down_write(&nm_i->nat_tree_lock);
 		ne = __lookup_nat_cache(nm_i, nid);
-		if (ne)
-			goto found;
-
-		ne = grab_nat_entry(nm_i, nid);
 		if (!ne) {
-			up_write(&nm_i->nat_tree_lock);
-			goto retry;
+			ne = grab_nat_entry(nm_i, nid);
+			node_info_from_raw_nat(&ne->ni, &raw_ne);
 		}
-		node_info_from_raw_nat(&ne->ni, &raw_ne);
-found:
 		__set_nat_cache_dirty(nm_i, ne);
 		up_write(&nm_i->nat_tree_lock);
 	}
