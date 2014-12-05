@@ -80,6 +80,7 @@ enum {
 	PL,
 	DTU,
 	DTUS,
+	DTUSX,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,

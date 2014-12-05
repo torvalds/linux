@@ -1847,6 +1847,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case DTUS:
+	case DTUSX:
 		sync = wacom_dtus_irq(wacom_wac);
 		break;
 
@@ -2211,6 +2212,7 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case DTUS:
+	case DTUSX:
 	case PL:
 	case DTU:
 		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
@@ -2722,6 +2724,10 @@ static const struct wacom_features wacom_features_0xFB =
 	{ "Wacom DTU1031", 22096, 13960, 511, 0,
 	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
+static const struct wacom_features wacom_features_0x32F =
+	{ "Wacom DTU1031X", 22472, 12728, 511, 0,
+	  DTUSX, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x57 =
 	{ "Wacom DTK2241", 95640, 54060, 2047, 63,
 	  DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES,
@@ -3057,6 +3063,7 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x315) },
 	{ USB_DEVICE_WACOM(0x317) },
 	{ USB_DEVICE_WACOM(0x323) },
+	{ USB_DEVICE_WACOM(0x32F) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },
