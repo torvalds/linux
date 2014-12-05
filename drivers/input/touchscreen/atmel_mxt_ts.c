@@ -1073,9 +1073,8 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	input_mt_slot(input_dev, id);
 
 	if (active) {
-		dev_dbg(dev,
-			"[%u] status:%02X x:%u y:%u a:%02X p:%02X v:%02X\n",
-			id, status, x, y, major, pressure, orientation);
+		dev_dbg(dev, "[%u] type:%u x:%u y:%u a:%02X p:%02X v:%02X\n",
+			id, type, x, y, major, pressure, orientation);
 
 		input_mt_report_slot_state(input_dev, tool, 1);
 		input_report_abs(input_dev, ABS_MT_POSITION_X, x);
@@ -1087,8 +1086,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 		input_report_key(input_dev, BTN_STYLUS, eraser);
 		input_report_key(input_dev, BTN_STYLUS2, barrel);
 	} else {
-		dev_dbg(dev,
-			"[%u] status:%02X\n", id, status);
+		dev_dbg(dev, "[%u] release\n", id);
 
 		/* close out slot */
 		input_mt_report_slot_state(input_dev, 0, 0);
