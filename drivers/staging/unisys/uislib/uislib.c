@@ -787,17 +787,16 @@ static int delete_bus_glue(u32 bus_no)
 	return 1;
 }
 
-static int
-delete_device_glue(u32 busNo, u32 devNo)
+static int delete_device_glue(u32 bus_no, u32 dev_no)
 {
 	struct controlvm_message msg;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_DESTROY, 0, 0);
-	msg.cmd.destroy_device.bus_no = busNo;
-	msg.cmd.destroy_device.dev_no = devNo;
+	msg.cmd.destroy_device.bus_no = bus_no;
+	msg.cmd.destroy_device.dev_no = dev_no;
 	if (destroy_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("destroy_device failed. busNo=0x%x devNo=0x%x\n", busNo,
-		       devNo);
+		LOGERR("destroy_device failed. bus_no=0x%x dev_no=0x%x\n",
+		       bus_no, dev_no);
 		return 0;
 	}
 	return 1;
