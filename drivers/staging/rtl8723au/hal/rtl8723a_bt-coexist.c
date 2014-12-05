@@ -9145,7 +9145,7 @@ u32 BTDM_BtTxRxCounterL(struct rtw_adapter *padapter)
 	u32	counters = 0;
 
 	counters = pHalData->bt_coexist.halCoex8723.lowPriorityTx+
-		pHalData->bt_coexist.halCoex8723.lowPriorityRx ;
+		pHalData->bt_coexist.halCoex8723.lowPriorityRx;
 	return counters;
 }
 
