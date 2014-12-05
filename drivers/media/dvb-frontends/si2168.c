@@ -348,7 +348,6 @@ static int si2168_init(struct dvb_frontend *fe)
 	int ret, len, remaining;
 	const struct firmware *fw = NULL;
 	u8 *fw_file;
-	const unsigned int i2c_wr_max = 8;
 	struct si2168_cmd cmd;
 	unsigned int chip_id;
 
@@ -459,31 +458,28 @@ static int si2168_init(struct dvb_frontend *fe)
 			cmd.wlen = len;
 			cmd.rlen = 1;
 			ret = si2168_cmd_execute(client, &cmd);
-			if (ret) {
-				dev_err(&client->dev,
-						"firmware download failed=%d\n",
-						ret);
-				goto err_release_firmware;
-			}
+			if (ret)
+				break;
 		}
-	} else {
+	} else if (fw->size % 8 == 0) {
 		/* firmware is in the old format */
-		for (remaining = fw->size; remaining > 0; remaining -= i2c_wr_max) {
-			len = remaining;
-			if (len > i2c_wr_max)
-				len = i2c_wr_max;
-
+		for (remaining = fw->size; remaining > 0; remaining -= 8) {
+			len = 8;
 			memcpy(cmd.args, &fw->data[fw->size - remaining], len);
 			cmd.wlen = len;
 			cmd.rlen = 1;
 			ret = si2168_cmd_execute(client, &cmd);
-			if (ret) {
-				dev_err(&client->dev,
-						"firmware download failed=%d\n",
-						ret);
-				goto err_release_firmware;
-			}
+			if (ret)
+				break;
 		}
+	} else {
+		/* bad or unknown firmware format */
+		ret = -EINVAL;
+	}
+
+	if (ret) {
+		dev_err(&client->dev, "firmware download failed %d\n", ret);
+		goto err_release_firmware;
 	}
 
 	release_firmware(fw);
