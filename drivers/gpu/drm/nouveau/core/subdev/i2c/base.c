@@ -117,8 +117,8 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 			 const struct nouveau_i2c_func *func,
 			 int size, void **pobject)
 {
-	struct nouveau_device *device = nv_device(engine);
-	struct nouveau_i2c *i2c = (void *)engine;
+	struct nouveau_device *device = nv_device(parent);
+	struct nouveau_i2c *i2c = nouveau_i2c(parent);
 	struct nouveau_i2c_port *port;
 	int ret;
 
@@ -494,7 +494,7 @@ nouveau_i2c_create_port(struct nouveau_i2c *i2c, int index, u8 type,
 		oclass = impl->pad_x;
 	}
 
-	ret = nouveau_object_ctor(nv_object(i2c), nv_object(i2c), oclass,
+	ret = nouveau_object_ctor(nv_object(i2c), NULL, oclass,
 				  NULL, pad, &parent);
 	if (ret < 0)
 		return;
@@ -503,7 +503,7 @@ nouveau_i2c_create_port(struct nouveau_i2c *i2c, int index, u8 type,
 	do {
 		ret = -EINVAL;
 		if (oclass->handle == type) {
-			ret = nouveau_object_ctor(parent, nv_object(i2c),
+			ret = nouveau_object_ctor(parent, NULL,
 						  oclass, info, index,
 						 &object);
 		}
@@ -603,7 +603,7 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 			do {
 				if (oclass->handle != info.type)
 					continue;
-				ret = nouveau_object_ctor(parent, *pobject,
+				ret = nouveau_object_ctor(parent, NULL,
 							  oclass, NULL,
 							  index++, &object);
 			} while (ret && (++oclass)->handle);

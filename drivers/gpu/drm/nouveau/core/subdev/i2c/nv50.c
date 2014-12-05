@@ -27,7 +27,7 @@
 void
 nv50_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
 {
-	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	if (state) port->state |= 0x01;
 	else	   port->state &= 0xfe;
@@ -37,7 +37,7 @@ nv50_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
 void
 nv50_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
 {
-	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	if (state) port->state |= 0x02;
 	else	   port->state &= 0xfd;
@@ -47,7 +47,7 @@ nv50_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
 int
 nv50_i2c_sense_scl(struct nouveau_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000001);
 }
@@ -55,7 +55,7 @@ nv50_i2c_sense_scl(struct nouveau_i2c_port *base)
 int
 nv50_i2c_sense_sda(struct nouveau_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000002);
 }
@@ -102,7 +102,7 @@ nv50_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 int
 nv50_i2c_port_init(struct nouveau_object *object)
 {
-	struct nv50_i2c_priv *priv = (void *)object->engine;
+	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(object);
 	struct nv50_i2c_port *port = (void *)object;
 	nv_wr32(priv, port->addr, port->state);
 	return nouveau_i2c_port_init(&port->base);

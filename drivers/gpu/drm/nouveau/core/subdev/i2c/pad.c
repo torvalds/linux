@@ -48,7 +48,7 @@ nvkm_i2c_pad_create_(struct nouveau_object *parent,
 		     struct nouveau_oclass *oclass, int index,
 		     int size, void **pobject)
 {
-	struct nouveau_i2c *i2c = (void *)engine;
+	struct nouveau_i2c *i2c = nouveau_i2c(parent);
 	struct nouveau_i2c_port *port;
 	struct nvkm_i2c_pad *pad;
 	int ret;

@@ -38,7 +38,7 @@ struct nv4e_i2c_port {
 static void
 nv4e_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
 {
-	struct nv4e_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv4e_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
 	nv_mask(priv, port->addr, 0x2f, state ? 0x21 : 0x01);
 }
@@ -46,7 +46,7 @@ nv4e_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
 static void
 nv4e_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
 {
-	struct nv4e_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv4e_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
 	nv_mask(priv, port->addr, 0x1f, state ? 0x11 : 0x01);
 }
@@ -54,7 +54,7 @@ nv4e_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
 static int
 nv4e_i2c_sense_scl(struct nouveau_i2c_port *base)
 {
-	struct nv4e_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv4e_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00040000);
 }
@@ -62,7 +62,7 @@ nv4e_i2c_sense_scl(struct nouveau_i2c_port *base)
 static int
 nv4e_i2c_sense_sda(struct nouveau_i2c_port *base)
 {
-	struct nv4e_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv4e_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv4e_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00080000);
 }

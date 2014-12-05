@@ -27,7 +27,7 @@
 static int
 nvd0_i2c_sense_scl(struct nouveau_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000010);
 }
@@ -35,7 +35,7 @@ nvd0_i2c_sense_scl(struct nouveau_i2c_port *base)
 static int
 nvd0_i2c_sense_sda(struct nouveau_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000020);
 }

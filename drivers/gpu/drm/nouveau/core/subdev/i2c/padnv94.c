@@ -32,7 +32,7 @@ struct nv94_i2c_pad {
 static int
 nv94_i2c_pad_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nouveau_i2c *i2c = (void *)object->engine;
+	struct nouveau_i2c *i2c = (void *)nouveau_i2c(object);
 	struct nv94_i2c_pad *pad = (void *)object;
 	nv_mask(i2c, 0x00e50c + pad->addr, 0x00000001, 0x00000001);
 	return nvkm_i2c_pad_fini(&pad->base, suspend);
@@ -41,7 +41,7 @@ nv94_i2c_pad_fini(struct nouveau_object *object, bool suspend)
 static int
 nv94_i2c_pad_init(struct nouveau_object *object)
 {
-	struct nouveau_i2c *i2c = (void *)object->engine;
+	struct nouveau_i2c *i2c = (void *)nouveau_i2c(object);
 	struct nv94_i2c_pad *pad = (void *)object;
 
 	switch (nv_oclass(pad->base.next)->handle) {

@@ -39,7 +39,7 @@ struct nv04_i2c_port {
 static void
 nv04_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
 {
-	struct nv04_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv04_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
 	u8 val = nv_rdvgac(priv, 0, port->drive);
 	if (state) val |= 0x20;
@@ -50,7 +50,7 @@ nv04_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
 static void
 nv04_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
 {
-	struct nv04_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv04_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
 	u8 val = nv_rdvgac(priv, 0, port->drive);
 	if (state) val |= 0x10;
@@ -61,7 +61,7 @@ nv04_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
 static int
 nv04_i2c_sense_scl(struct nouveau_i2c_port *base)
 {
-	struct nv04_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv04_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
 	return !!(nv_rdvgac(priv, 0, port->sense) & 0x04);
 }
@@ -69,7 +69,7 @@ nv04_i2c_sense_scl(struct nouveau_i2c_port *base)
 static int
 nv04_i2c_sense_sda(struct nouveau_i2c_port *base)
 {
-	struct nv04_i2c_priv *priv = (void *)nv_object(base)->engine;
+	struct nv04_i2c_priv *priv = (void *)nouveau_i2c(base);
 	struct nv04_i2c_port *port = (void *)base;
 	return !!(nv_rdvgac(priv, 0, port->sense) & 0x08);
 }
