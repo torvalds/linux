@@ -972,6 +972,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct i2s_dai *i2s = to_info(dai);
 	struct i2s_dai *other = i2s->pri_dai ? : i2s->sec_dai;
+	int ret;
 
 	if (other && other->clk) { /* If this is probe on secondary */
 		samsung_asoc_init_dma_data(dai, &other->sec_dai->dma_playback,
@@ -989,9 +990,14 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 	if (IS_ERR(i2s->clk)) {
 		dev_err(&i2s->pdev->dev, "failed to get i2s_clock\n");
 		iounmap(i2s->addr);
-		return -ENOENT;
+		return PTR_ERR(i2s->clk);
 	}
-	clk_prepare_enable(i2s->clk);
+
+	ret = clk_prepare_enable(i2s->clk);
+	if (ret != 0) {
+		dev_err(&i2s->pdev->dev, "failed to enable clock: %d\n", ret);
+		return ret;
+	}
 
 	samsung_asoc_init_dma_data(dai, &i2s->dma_playback, &i2s->dma_capture);
 
