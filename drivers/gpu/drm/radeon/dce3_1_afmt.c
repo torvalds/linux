@@ -254,7 +254,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 		return;
 	}
 
-	r600_hdmi_update_avi_infoframe(encoder, buffer, sizeof(buffer));
+	radeon_update_avi_infoframe(encoder, buffer, sizeof(buffer));
 	r600_hdmi_update_ACR(encoder, mode->clock);
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */

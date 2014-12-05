@@ -39,6 +39,8 @@ struct radeon_audio_basic_funcs
 		u32 offset, u32 reg, u32 v);
 	void (*enable)(struct radeon_device *rdev,
 		struct r600_audio_pin *pin, u8 enable_mask);
+	void (*update_avi_infoframe)(struct radeon_device *rdev, u32 offset,
+		unsigned char *buffer, size_t size);
 };
 
 struct radeon_audio_funcs
@@ -72,5 +74,7 @@ void radeon_audio_enable(struct radeon_device *rdev,
 	struct r600_audio_pin *pin, u8 enable_mask);
 void radeon_audio_fini(struct radeon_device *rdev);
 void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock);
+void radeon_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
+	size_t size);
 
 #endif

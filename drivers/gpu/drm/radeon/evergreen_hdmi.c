@@ -195,18 +195,12 @@ void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder,
 }
 
 /*
- * build a HDMI Video Info Frame
+ * build a AVI Info Frame
  */
-static void evergreen_hdmi_update_avi_infoframe(struct drm_encoder *encoder,
-						void *buffer, size_t size)
+void evergreen_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
+    unsigned char *buffer, size_t size)
 {
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset = dig->afmt->offset;
 	uint8_t *frame = buffer + 3;
-	uint8_t *header = buffer;
 
 	WREG32(AFMT_AVI_INFO0 + offset,
 		frame[0x0] | (frame[0x1] << 8) | (frame[0x2] << 16) | (frame[0x3] << 24));
@@ -215,7 +209,7 @@ static void evergreen_hdmi_update_avi_infoframe(struct drm_encoder *encoder,
 	WREG32(AFMT_AVI_INFO2 + offset,
 		frame[0x8] | (frame[0x9] << 8) | (frame[0xA] << 16) | (frame[0xB] << 24));
 	WREG32(AFMT_AVI_INFO3 + offset,
-		frame[0xC] | (frame[0xD] << 8) | (header[1] << 24));
+		frame[0xC] | (frame[0xD] << 8) | (buffer[1] << 24));
 }
 
 void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
@@ -431,7 +425,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 		return;
 	}
 
-	evergreen_hdmi_update_avi_infoframe(encoder, buffer, sizeof(buffer));
+	radeon_update_avi_infoframe(encoder, buffer, sizeof(buffer));
 
 	WREG32_OR(HDMI_INFOFRAME_CONTROL0 + offset,
 		  HDMI_AVI_INFO_SEND | /* enable AVI info frames */

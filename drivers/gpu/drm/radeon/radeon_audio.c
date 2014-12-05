@@ -74,6 +74,10 @@ void dce6_hdmi_audio_set_dto(struct radeon_device *rdev,
 	struct radeon_crtc *crtc, unsigned int clock);
 void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 	struct radeon_crtc *crtc, unsigned int clock);
+void r600_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
+	unsigned char *buffer, size_t size);
+void evergreen_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
+	unsigned char *buffer, size_t size);
 
 static const u32 pin_offsets[7] =
 {
@@ -101,24 +105,28 @@ static struct radeon_audio_basic_funcs r600_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
 	.enable = r600_audio_enable,
+	.update_avi_infoframe = r600_update_avi_infoframe,
 };
 
 static struct radeon_audio_basic_funcs dce32_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
 	.enable = r600_audio_enable,
+	.update_avi_infoframe = r600_update_avi_infoframe,
 };
 
 static struct radeon_audio_basic_funcs dce4_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
 	.enable = dce4_audio_enable,
+	.update_avi_infoframe = evergreen_update_avi_infoframe,
 };
 
 static struct radeon_audio_basic_funcs dce6_funcs = {
 	.endpoint_rreg = dce6_endpoint_rreg,
 	.endpoint_wreg = dce6_endpoint_wreg,
 	.enable = dce6_audio_enable,
+	.update_avi_infoframe = evergreen_update_avi_infoframe,
 };
 
 static struct radeon_audio_funcs r600_hdmi_funcs = {
@@ -435,4 +443,16 @@ void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock)
 
 	if (radeon_encoder->audio && radeon_encoder->audio->set_dto)
 		radeon_encoder->audio->set_dto(rdev, crtc, clock);
+}
+
+void radeon_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
+	size_t size)
+{
+    struct radeon_device *rdev = encoder->dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	if (dig && dig->afmt && rdev->audio.funcs->update_avi_infoframe)
+		rdev->audio.funcs->update_avi_infoframe(rdev, dig->afmt->offset,
+			buffer, size);
 }
