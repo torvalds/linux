@@ -231,9 +231,6 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
-		return;
-
 	new_val = dev_priv->pm_irq_mask;
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
@@ -247,12 +244,24 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
+		return;
+
 	snb_update_pm_irq(dev_priv, mask, mask);
+}
+
+static void __gen6_disable_pm_irq(struct drm_i915_private *dev_priv,
+				  uint32_t mask)
+{
+	snb_update_pm_irq(dev_priv, mask, 0);
 }
 
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 {
-	snb_update_pm_irq(dev_priv, mask, 0);
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
+		return;
+
+	__gen6_disable_pm_irq(dev_priv, mask);
 }
 
 void gen6_reset_rps_interrupts(struct drm_device *dev)
@@ -289,16 +298,20 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 
 	cancel_work_sync(&dev_priv->rps.work);
 
+	spin_lock_irq(&dev_priv->irq_lock);
+
 	I915_WRITE(GEN6_PMINTRMSK, INTEL_INFO(dev_priv)->gen >= 8 ?
 		   ~GEN8_PMINTR_REDIRECT_TO_NON_DISP : ~0);
+
+	__gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
 				~dev_priv->pm_rps_events);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir = 0;
-	spin_unlock_irq(&dev_priv->irq_lock);
-
 	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
+	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
+
+	dev_priv->rps.pm_iir = 0;
+
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 /**
@@ -1339,10 +1352,8 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
-		      GT_RENDER_CS_MASTER_ERROR_INTERRUPT)) {
-		i915_handle_error(dev, false, "GT error interrupt 0x%08x",
-				  gt_iir);
-	}
+		      GT_RENDER_CS_MASTER_ERROR_INTERRUPT))
+		DRM_DEBUG("Command parser error, gt_iir 0x%08x\n", gt_iir);
 
 	if (gt_iir & GT_PARITY_ERROR(dev))
 		ivybridge_parity_error_irq_handler(dev, gt_iir);
@@ -1623,7 +1634,7 @@ static void display_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe,
 
 	if (!pipe_crc->entries) {
 		spin_unlock(&pipe_crc->lock);
-		DRM_ERROR("spurious interrupt\n");
+		DRM_DEBUG_KMS("spurious interrupt\n");
 		return;
 	}
 
@@ -1731,11 +1742,8 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
 			notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
 
-		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
-			i915_handle_error(dev_priv->dev, false,
-					  "VEBOX CS error interrupt 0x%08x",
-					  pm_iir);
-		}
+		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
+			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
 	}
 }
 
@@ -2428,6 +2436,9 @@ static void i915_error_work_func(struct work_struct *work)
 		 * simulated reset via debugs, so get an RPM reference.
 		 */
 		intel_runtime_pm_get(dev_priv);
+
+		intel_prepare_reset(dev);
+
 		/*
 		 * All state reset _must_ be completed before we update the
 		 * reset counter, for otherwise waiters might miss the reset
@@ -2436,7 +2447,7 @@ static void i915_error_work_func(struct work_struct *work)
 		 */
 		ret = i915_reset(dev);
 
-		intel_display_handle_reset(dev);
+		intel_finish_reset(dev);
 
 		intel_runtime_pm_put(dev_priv);
 
@@ -3746,9 +3757,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		 */
 		spin_lock(&dev_priv->irq_lock);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false,
-					  "Command parser error, iir 0x%08x",
-					  iir);
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
@@ -3929,9 +3938,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		 */
 		spin_lock(&dev_priv->irq_lock);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false,
-					  "Command parser error, iir 0x%08x",
-					  iir);
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);
@@ -4154,9 +4161,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		 */
 		spin_lock(&dev_priv->irq_lock);
 		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			i915_handle_error(dev, false,
-					  "Command parser error, iir 0x%08x",
-					  iir);
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
 		for_each_pipe(dev_priv, pipe) {
 			int reg = PIPESTAT(pipe);

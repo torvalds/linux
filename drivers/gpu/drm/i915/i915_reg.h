@@ -78,11 +78,12 @@
 
 
 /* Graphics reset regs */
-#define I965_GDRST 0xc0 /* PCI config register */
+#define I915_GDRST 0xc0 /* PCI config register */
 #define  GRDOM_FULL	(0<<2)
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
 #define  GRDOM_MASK	(3<<2)
+#define  GRDOM_RESET_STATUS (1<<1)
 #define  GRDOM_RESET_ENABLE (1<<0)
 
 #define ILK_GDSR 0x2ca4 /* MCHBAR offset */

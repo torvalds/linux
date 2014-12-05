@@ -2765,24 +2765,9 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 }
 
-void intel_display_handle_reset(struct drm_device *dev)
+static void intel_complete_page_flips(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-
-	/*
-	 * Flips in the rings have been nuked by the reset,
-	 * so complete all pending flips so that user space
-	 * will get its events and not get stuck.
-	 *
-	 * Also update the base address of all primary
-	 * planes to the the last fb to make sure we're
-	 * showing the correct fb after a reset.
-	 *
-	 * Need to make two loops over the crtcs so that we
-	 * don't try to grab a crtc mutex before the
-	 * pending_flip_queue really got woken up.
-	 */
 
 	for_each_crtc(dev, crtc) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2791,6 +2776,12 @@ void intel_display_handle_reset(struct drm_device *dev)
 		intel_prepare_page_flip(dev, plane);
 		intel_finish_page_flip_plane(dev, plane);
 	}
+}
+
+static void intel_update_primary_planes(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
 
 	for_each_crtc(dev, crtc) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2808,6 +2799,79 @@ void intel_display_handle_reset(struct drm_device *dev)
 							       crtc->y);
 		drm_modeset_unlock(&crtc->mutex);
 	}
+}
+
+void intel_prepare_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc;
+
+	/* no reset support for gen2 */
+	if (IS_GEN2(dev))
+		return;
+
+	/* reset doesn't touch the display */
+	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+		return;
+
+	drm_modeset_lock_all(dev);
+
+	/*
+	 * Disabling the crtcs gracefully seems nicer. Also the
+	 * g33 docs say we should at least disable all the planes.
+	 */
+	for_each_intel_crtc(dev, crtc) {
+		if (crtc->active)
+			dev_priv->display.crtc_disable(&crtc->base);
+	}
+}
+
+void intel_finish_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	/*
+	 * Flips in the rings will be nuked by the reset,
+	 * so complete all pending flips so that user space
+	 * will get its events and not get stuck.
+	 */
+	intel_complete_page_flips(dev);
+
+	/* no reset support for gen2 */
+	if (IS_GEN2(dev))
+		return;
+
+	/* reset doesn't touch the display */
+	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev)) {
+		/*
+		 * Flips in the rings have been nuked by the reset,
+		 * so update the base address of all primary
+		 * planes to the the last fb to make sure we're
+		 * showing the correct fb after a reset.
+		 */
+		intel_update_primary_planes(dev);
+		return;
+	}
+
+	/*
+	 * The display has been reset as well,
+	 * so need a full re-initialization.
+	 */
+	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_runtime_pm_enable_interrupts(dev_priv);
+
+	intel_modeset_init_hw(dev);
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (dev_priv->display.hpd_irq_setup)
+		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	intel_modeset_setup_hw_state(dev, true);
+
+	intel_hpd_init(dev_priv);
+
+	drm_modeset_unlock_all(dev);
 }
 
 static int
@@ -10089,6 +10153,48 @@ static bool check_encoder_cloning(struct intel_crtc *crtc)
 	return true;
 }
 
+static bool check_digital_port_conflicts(struct drm_device *dev)
+{
+	struct intel_connector *connector;
+	unsigned int used_ports = 0;
+
+	/*
+	 * Walk the connector list instead of the encoder
+	 * list to detect the problem on ddi platforms
+	 * where there's just one encoder per digital port.
+	 */
+	list_for_each_entry(connector,
+			    &dev->mode_config.connector_list, base.head) {
+		struct intel_encoder *encoder = connector->new_encoder;
+
+		if (!encoder)
+			continue;
+
+		WARN_ON(!encoder->new_crtc);
+
+		switch (encoder->type) {
+			unsigned int port_mask;
+		case INTEL_OUTPUT_UNKNOWN:
+			if (WARN_ON(!HAS_DDI(dev)))
+				break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+		case INTEL_OUTPUT_HDMI:
+		case INTEL_OUTPUT_EDP:
+			port_mask = 1 << enc_to_dig_port(&encoder->base)->port;
+
+			/* the same port mustn't appear more than once */
+			if (used_ports & port_mask)
+				return false;
+
+			used_ports |= port_mask;
+		default:
+			break;
+		}
+	}
+
+	return true;
+}
+
 static struct intel_crtc_config *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
@@ -10102,6 +10208,11 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 	if (!check_encoder_cloning(to_intel_crtc(crtc))) {
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!check_digital_port_conflicts(dev)) {
+		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -10907,7 +11018,6 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	}
 	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
 			       "[modeset]");
-	to_intel_crtc(crtc)->new_config = pipe_config;
 
 out:
 	return pipe_config;
@@ -10932,6 +11042,9 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	*saved_mode = crtc->mode;
+
+	if (modeset_pipes)
+		to_intel_crtc(crtc)->new_config = pipe_config;
 
 	/*
 	 * See if the config requires any additional preparation, e.g.
@@ -11466,12 +11579,12 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		ret = PTR_ERR(pipe_config);
 		goto fail;
 	} else if (pipe_config) {
-		if (to_intel_crtc(set->crtc)->new_config->has_audio !=
+		if (pipe_config->has_audio !=
 		    to_intel_crtc(set->crtc)->config.has_audio)
 			config->mode_changed = true;
 
 		/* Force mode sets for any infoframe stuff */
-		if (to_intel_crtc(set->crtc)->new_config->has_infoframe ||
+		if (pipe_config->has_infoframe ||
 		    to_intel_crtc(set->crtc)->config.has_infoframe)
 			config->mode_changed = true;
 	}

@@ -2574,11 +2574,13 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 	list_del(&request->list);
 	i915_gem_request_remove_from_client(request);
 
-	if (i915.enable_execlists && ctx) {
-		struct intel_engine_cs *ring = request->ring;
+	if (ctx) {
+		if (i915.enable_execlists) {
+			struct intel_engine_cs *ring = request->ring;
 
-		if (ctx != ring->default_context)
-			intel_lr_context_unpin(ring, ctx);
+			if (ctx != ring->default_context)
+				intel_lr_context_unpin(ring, ctx);
+		}
 		i915_gem_context_unreference(ctx);
 	}
 	kfree(request);
@@ -4263,7 +4265,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -4318,6 +4320,9 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_pin *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
