@@ -1900,6 +1900,8 @@ static int wm5102_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5102);
 
+	mutex_init(&arizona->dac_comp_lock);
+
 	wm5102->core.arizona = arizona;
 	wm5102->core.num_inputs = 6;
 
