@@ -504,7 +504,7 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	dev_dbg(&client->dev, "firmware version: %c.%c.%d\n",
+	dev_info(&client->dev, "firmware version: %c.%c.%d\n",
 			cmd.args[6], cmd.args[7], cmd.args[8]);
 
 	/* set ts mode */
