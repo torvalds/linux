@@ -114,14 +114,14 @@ void scm_blk_dev_cluster_setup(struct scm_blk_dev *bdev)
 	blk_queue_io_opt(bdev->rq, CLUSTER_SIZE);
 }
 
-static void scm_prepare_cluster_request(struct scm_request *scmrq)
+static int scm_prepare_cluster_request(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
 	struct scm_device *scmdev = bdev->gendisk->private_data;
 	struct request *req = scmrq->request;
-	struct aidaw *aidaw = scmrq->aidaw;
 	struct msb *msb = &scmrq->aob->msb[0];
 	struct req_iterator iter;
+	struct aidaw *aidaw;
 	struct bio_vec bv;
 	int i = 0;
 	u64 addr;
@@ -131,6 +131,11 @@ static void scm_prepare_cluster_request(struct scm_request *scmrq)
 		scmrq->cluster.state = CLUSTER_READ;
 		/* fall through */
 	case CLUSTER_READ:
+		aidaw = scm_aidaw_alloc();
+		if (!aidaw)
+			return -ENOMEM;
+
+		memset(aidaw, 0, PAGE_SIZE);
 		scmrq->aob->request.msb_count = 1;
 		msb->bs = MSB_BS_4K;
 		msb->oc = MSB_OC_READ;
@@ -153,6 +158,7 @@ static void scm_prepare_cluster_request(struct scm_request *scmrq)
 
 		break;
 	case CLUSTER_WRITE:
+		aidaw = (void *) msb->data_addr;
 		msb->oc = MSB_OC_WRITE;
 
 		for (addr = msb->scm_addr;
@@ -173,6 +179,7 @@ static void scm_prepare_cluster_request(struct scm_request *scmrq)
 		}
 		break;
 	}
+	return 0;
 }
 
 bool scm_need_cluster_request(struct scm_request *scmrq)
@@ -186,9 +193,13 @@ bool scm_need_cluster_request(struct scm_request *scmrq)
 /* Called with queue lock held. */
 void scm_initiate_cluster_request(struct scm_request *scmrq)
 {
-	scm_prepare_cluster_request(scmrq);
+	if (scm_prepare_cluster_request(scmrq))
+		goto requeue;
 	if (eadm_start_aob(scmrq->aob))
-		scm_request_requeue(scmrq);
+		goto requeue;
+	return;
+requeue:
+	scm_request_requeue(scmrq);
 }
 
 bool scm_test_cluster_request(struct scm_request *scmrq)

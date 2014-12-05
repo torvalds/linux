@@ -10,6 +10,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
@@ -20,6 +21,7 @@
 
 debug_info_t *scm_debug;
 static int scm_major;
+static mempool_t *aidaw_pool;
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_requests);
 static unsigned int nr_requests = 64;
@@ -36,7 +38,6 @@ static void __scm_free_rq(struct scm_request *scmrq)
 	struct aob_rq_header *aobrq = to_aobrq(scmrq);
 
 	free_page((unsigned long) scmrq->aob);
-	free_page((unsigned long) scmrq->aidaw);
 	__scm_free_rq_cluster(scmrq);
 	kfree(aobrq);
 }
@@ -53,6 +54,8 @@ static void scm_free_rqs(void)
 		__scm_free_rq(scmrq);
 	}
 	spin_unlock_irq(&list_lock);
+
+	mempool_destroy(aidaw_pool);
 }
 
 static int __scm_alloc_rq(void)
@@ -65,9 +68,8 @@ static int __scm_alloc_rq(void)
 		return -ENOMEM;
 
 	scmrq = (void *) aobrq->data;
-	scmrq->aidaw = (void *) get_zeroed_page(GFP_DMA);
 	scmrq->aob = (void *) get_zeroed_page(GFP_DMA);
-	if (!scmrq->aob || !scmrq->aidaw) {
+	if (!scmrq->aob) {
 		__scm_free_rq(scmrq);
 		return -ENOMEM;
 	}
@@ -88,6 +90,10 @@ static int __scm_alloc_rq(void)
 static int scm_alloc_rqs(unsigned int nrqs)
 {
 	int ret = 0;
+
+	aidaw_pool = mempool_create_page_pool(max(nrqs/8, 1U), 0);
+	if (!aidaw_pool)
+		return -ENOMEM;
 
 	while (nrqs-- && !ret)
 		ret = __scm_alloc_rq();
@@ -111,7 +117,12 @@ out:
 
 static void scm_request_done(struct scm_request *scmrq)
 {
+	struct msb *msb = &scmrq->aob->msb[0];
+	u64 aidaw = msb->data_addr;
 	unsigned long flags;
+
+	if ((msb->flags & MSB_FLAG_IDA) && aidaw)
+		mempool_free(virt_to_page(aidaw), aidaw_pool);
 
 	spin_lock_irqsave(&list_lock, flags);
 	list_add(&scmrq->list, &inactive_requests);
@@ -123,15 +134,26 @@ static bool scm_permit_request(struct scm_blk_dev *bdev, struct request *req)
 	return rq_data_dir(req) != WRITE || bdev->state != SCM_WR_PROHIBIT;
 }
 
-static void scm_request_prepare(struct scm_request *scmrq)
+struct aidaw *scm_aidaw_alloc(void)
+{
+	struct page *page = mempool_alloc(aidaw_pool, GFP_ATOMIC);
+
+	return page ? page_address(page) : NULL;
+}
+
+static int scm_request_prepare(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
 	struct scm_device *scmdev = bdev->gendisk->private_data;
-	struct aidaw *aidaw = scmrq->aidaw;
+	struct aidaw *aidaw = scm_aidaw_alloc();
 	struct msb *msb = &scmrq->aob->msb[0];
 	struct req_iterator iter;
 	struct bio_vec bv;
 
+	if (!aidaw)
+		return -ENOMEM;
+
+	memset(aidaw, 0, PAGE_SIZE);
 	msb->bs = MSB_BS_4K;
 	scmrq->aob->request.msb_count = 1;
 	msb->scm_addr = scmdev->address +
@@ -147,6 +169,8 @@ static void scm_request_prepare(struct scm_request *scmrq)
 		aidaw->data_addr = (u64) page_address(bv.bv_page);
 		aidaw++;
 	}
+
+	return 0;
 }
 
 static inline void scm_request_init(struct scm_blk_dev *bdev,
@@ -157,7 +181,6 @@ static inline void scm_request_init(struct scm_blk_dev *bdev,
 	struct aob *aob = scmrq->aob;
 
 	memset(aob, 0, sizeof(*aob));
-	memset(scmrq->aidaw, 0, PAGE_SIZE);
 	aobrq->scmdev = bdev->scmdev;
 	aob->request.cmd_code = ARQB_CMD_MOVE;
 	aob->request.data = (u64) aobrq;
@@ -236,7 +259,15 @@ static void scm_blk_request(struct request_queue *rq)
 			scm_initiate_cluster_request(scmrq);
 			return;
 		}
-		scm_request_prepare(scmrq);
+
+		if (scm_request_prepare(scmrq)) {
+			SCM_LOG(5, "no aidaw");
+			scm_release_cluster(scmrq);
+			scm_request_done(scmrq);
+			scm_ensure_queue_restart(bdev);
+			return;
+		}
+
 		atomic_inc(&bdev->queued_reqs);
 		blk_start_request(req);
 
