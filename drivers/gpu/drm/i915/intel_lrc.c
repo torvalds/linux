@@ -880,6 +880,7 @@ static int logical_ring_alloc_request(struct intel_engine_cs *ring,
 				      struct intel_context *ctx)
 {
 	struct drm_i915_gem_request *request;
+	struct drm_i915_private *dev_private = ring->dev->dev_private;
 	int ret;
 
 	if (ring->outstanding_lazy_request)
@@ -899,6 +900,7 @@ static int logical_ring_alloc_request(struct intel_engine_cs *ring,
 
 	kref_init(&request->ref);
 	request->ring = ring;
+	request->uniq = dev_private->request_uniq++;
 
 	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
 	if (ret) {
