@@ -110,6 +110,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 			mwifiex_11n_del_rx_reorder_tbl_by_ta(priv, deauth_mac);
 			mwifiex_del_tx_ba_stream_tbl_by_ra(priv, deauth_mac);
 		}
+		mwifiex_wmm_del_peer_ra_list(priv, deauth_mac);
 		mwifiex_del_sta_entry(priv, deauth_mac);
 		break;
 	case EVENT_UAP_BSS_IDLE:

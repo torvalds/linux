@@ -611,6 +611,32 @@ mwifiex_wmm_get_queue_raptr(struct mwifiex_private *priv, u8 tid,
 }
 
 /*
+ * This function deletes RA list nodes for given mac for all TIDs.
+ * Function also decrements TX pending count accordingly.
+ */
+void
+mwifiex_wmm_del_peer_ra_list(struct mwifiex_private *priv, const u8 *ra_addr)
+{
+	struct mwifiex_ra_list_tbl *ra_list;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+
+	for (i = 0; i < MAX_NUM_TID; ++i) {
+		ra_list = mwifiex_wmm_get_ralist_node(priv, i, ra_addr);
+
+		if (!ra_list)
+			continue;
+		mwifiex_wmm_del_pkts_in_ralist_node(priv, ra_list);
+		atomic_sub(ra_list->total_pkt_count, &priv->wmm.tx_pkts_queued);
+		list_del(&ra_list->list);
+		kfree(ra_list);
+	}
+	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+}
+
+/*
  * This function checks if a particular RA list node exists in a given TID
  * table index.
  */
