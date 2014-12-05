@@ -858,7 +858,7 @@ static int cc2520_probe(struct spi_device *spi)
 	pinctrl = devm_pinctrl_get_select_default(&spi->dev);
 	if (IS_ERR(pinctrl))
 		dev_warn(&spi->dev,
-			 "pinctrl pins are not configured");
+			 "pinctrl pins are not configured\n");
 
 	pdata = cc2520_get_platform_data(spi);
 	if (!pdata) {
