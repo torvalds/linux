@@ -12,25 +12,20 @@
  * Copyright (C) 2010, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  */
 
-#include <linux/component.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/hdmi.h>
-#include <linux/regmap.h>
-#include <linux/mfd/syscon.h>
-#include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/of_device.h>
 
+#include <drm/drm_of.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder_slave.h>
-#include <video/imx-ipu-v3.h>
 
 #include "imx-hdmi.h"
-#include "imx-drm.h"
 
 #define HDMI_EDID_LEN		512
 
@@ -52,11 +47,6 @@ enum hdmi_datamap {
 	YCbCr422_8B = 0x16,
 	YCbCr422_10B = 0x14,
 	YCbCr422_12B = 0x12,
-};
-
-enum imx_hdmi_devtype {
-	IMX6Q_HDMI,
-	IMX6DL_HDMI,
 };
 
 static const u16 csc_coeff_default[3][4] = {
@@ -113,7 +103,8 @@ struct hdmi_data_info {
 
 struct imx_hdmi {
 	struct drm_connector connector;
-	struct drm_encoder encoder;
+	struct drm_encoder *encoder;
+	struct drm_bridge *bridge;
 
 	enum imx_hdmi_devtype dev_type;
 	struct device *dev;
@@ -121,6 +112,7 @@ struct imx_hdmi {
 	struct clk *iahb_clk;
 
 	struct hdmi_data_info hdmi_data;
+	const struct imx_hdmi_plat_data *plat_data;
 	int vic;
 
 	u8 edid[HDMI_EDID_LEN];
@@ -136,13 +128,6 @@ struct imx_hdmi {
 	unsigned int sample_rate;
 	int ratio;
 };
-
-static void imx_hdmi_set_ipu_di_mux(struct imx_hdmi *hdmi, int ipu_di)
-{
-	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
-			   IMX6Q_GPR3_HDMI_MUX_CTL_MASK,
-			   ipu_di << IMX6Q_GPR3_HDMI_MUX_CTL_SHIFT);
-}
 
 static inline void hdmi_writeb(struct imx_hdmi *hdmi, u8 val, int offset)
 {
@@ -1371,6 +1356,50 @@ static void imx_hdmi_poweroff(struct imx_hdmi *hdmi)
 	imx_hdmi_phy_disable(hdmi);
 }
 
+static void imx_hdmi_bridge_mode_set(struct drm_bridge *bridge,
+				     struct drm_display_mode *mode,
+				     struct drm_display_mode *adjusted_mode)
+{
+	struct imx_hdmi *hdmi = bridge->driver_private;
+
+	imx_hdmi_setup(hdmi, mode);
+
+	/* Store the display mode for plugin/DKMS poweron events */
+	memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
+}
+
+static bool imx_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
+				       const struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted_mode)
+{
+	return true;
+}
+
+static void imx_hdmi_bridge_disable(struct drm_bridge *bridge)
+{
+	struct imx_hdmi *hdmi = bridge->driver_private;
+
+	imx_hdmi_poweroff(hdmi);
+}
+
+static void imx_hdmi_bridge_enable(struct drm_bridge *bridge)
+{
+	struct imx_hdmi *hdmi = bridge->driver_private;
+
+	imx_hdmi_poweron(hdmi);
+}
+
+static void imx_hdmi_bridge_destroy(struct drm_bridge *bridge)
+{
+	drm_bridge_cleanup(bridge);
+	kfree(bridge);
+}
+
+static void imx_hdmi_bridge_nop(struct drm_bridge *bridge)
+{
+	/* do nothing */
+}
+
 static enum drm_connector_status imx_hdmi_connector_detect(struct drm_connector
 							*connector, bool force)
 {
@@ -1412,83 +1441,35 @@ static struct drm_encoder *imx_hdmi_connector_best_encoder(struct drm_connector
 	struct imx_hdmi *hdmi = container_of(connector, struct imx_hdmi,
 					     connector);
 
-	return &hdmi->encoder;
+	return hdmi->encoder;
 }
 
-static void imx_hdmi_encoder_mode_set(struct drm_encoder *encoder,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+static void imx_hdmi_connector_destroy(struct drm_connector *connector)
 {
-	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
-
-	imx_hdmi_setup(hdmi, mode);
-
-	/* Store the display mode for plugin/DKMS poweron events */
-	memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
 }
-
-static bool imx_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
-static void imx_hdmi_encoder_disable(struct drm_encoder *encoder)
-{
-}
-
-static void imx_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
-
-	if (mode)
-		imx_hdmi_poweroff(hdmi);
-	else
-		imx_hdmi_poweron(hdmi);
-}
-
-static void imx_hdmi_encoder_prepare(struct drm_encoder *encoder)
-{
-	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
-
-	imx_hdmi_poweroff(hdmi);
-	imx_drm_panel_format(encoder, V4L2_PIX_FMT_RGB24);
-}
-
-static void imx_hdmi_encoder_commit(struct drm_encoder *encoder)
-{
-	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
-	int mux = imx_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
-
-	imx_hdmi_set_ipu_di_mux(hdmi, mux);
-
-	imx_hdmi_poweron(hdmi);
-}
-
-static struct drm_encoder_funcs imx_hdmi_encoder_funcs = {
-	.destroy = imx_drm_encoder_destroy,
-};
-
-static struct drm_encoder_helper_funcs imx_hdmi_encoder_helper_funcs = {
-	.dpms = imx_hdmi_encoder_dpms,
-	.prepare = imx_hdmi_encoder_prepare,
-	.commit = imx_hdmi_encoder_commit,
-	.mode_set = imx_hdmi_encoder_mode_set,
-	.mode_fixup = imx_hdmi_encoder_mode_fixup,
-	.disable = imx_hdmi_encoder_disable,
-};
 
 static struct drm_connector_funcs imx_hdmi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_hdmi_connector_detect,
-	.destroy = imx_drm_connector_destroy,
+	.destroy = imx_hdmi_connector_destroy,
 };
 
 static struct drm_connector_helper_funcs imx_hdmi_connector_helper_funcs = {
 	.get_modes = imx_hdmi_connector_get_modes,
 	.best_encoder = imx_hdmi_connector_best_encoder,
+};
+
+struct drm_bridge_funcs imx_hdmi_bridge_funcs = {
+	.enable = imx_hdmi_bridge_enable,
+	.disable = imx_hdmi_bridge_disable,
+	.pre_enable = imx_hdmi_bridge_nop,
+	.post_disable = imx_hdmi_bridge_nop,
+	.mode_set = imx_hdmi_bridge_mode_set,
+	.mode_fixup = imx_hdmi_bridge_mode_fixup,
+	.destroy = imx_hdmi_bridge_destroy,
 };
 
 static irqreturn_t imx_hdmi_hardirq(int irq, void *dev_id)
@@ -1539,74 +1520,61 @@ static irqreturn_t imx_hdmi_irq(int irq, void *dev_id)
 
 static int imx_hdmi_register(struct drm_device *drm, struct imx_hdmi *hdmi)
 {
+	struct drm_encoder *encoder = hdmi->encoder;
+	struct drm_bridge *bridge;
 	int ret;
 
-	ret = imx_drm_encoder_parse_of(drm, &hdmi->encoder,
-				       hdmi->dev->of_node);
-	if (ret)
-		return ret;
+	bridge = devm_kzalloc(drm->dev, sizeof(*bridge), GFP_KERNEL);
+	if (!bridge) {
+		DRM_ERROR("Failed to allocate drm bridge\n");
+		return -ENOMEM;
+	}
 
+	hdmi->bridge = bridge;
+	bridge->driver_private = hdmi;
+
+	ret = drm_bridge_init(drm, bridge, &imx_hdmi_bridge_funcs);
+	if (ret) {
+		DRM_ERROR("Failed to initialize bridge with drm\n");
+		return -EINVAL;
+	}
+
+	encoder->bridge = bridge;
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
-
-	drm_encoder_helper_add(&hdmi->encoder, &imx_hdmi_encoder_helper_funcs);
-	drm_encoder_init(drm, &hdmi->encoder, &imx_hdmi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
 
 	drm_connector_helper_add(&hdmi->connector,
 				 &imx_hdmi_connector_helper_funcs);
 	drm_connector_init(drm, &hdmi->connector, &imx_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 
-	hdmi->connector.encoder = &hdmi->encoder;
+	hdmi->connector.encoder = encoder;
 
-	drm_mode_connector_attach_encoder(&hdmi->connector, &hdmi->encoder);
+	drm_mode_connector_attach_encoder(&hdmi->connector, encoder);
 
 	return 0;
 }
 
-static struct platform_device_id imx_hdmi_devtype[] = {
-	{
-		.name = "imx6q-hdmi",
-		.driver_data = IMX6Q_HDMI,
-	}, {
-		.name = "imx6dl-hdmi",
-		.driver_data = IMX6DL_HDMI,
-	}, { /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(platform, imx_hdmi_devtype);
-
-static const struct of_device_id imx_hdmi_dt_ids[] = {
-{ .compatible = "fsl,imx6q-hdmi", .data = &imx_hdmi_devtype[IMX6Q_HDMI], },
-{ .compatible = "fsl,imx6dl-hdmi", .data = &imx_hdmi_devtype[IMX6DL_HDMI], },
-{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, imx_hdmi_dt_ids);
-
-static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
+int imx_hdmi_bind(struct device *dev, struct device *master,
+		 void *data, struct drm_encoder *encoder,
+		 struct resource *iores, int irq,
+		 const struct dw_hdmi_plat_data *plat_data)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	const struct of_device_id *of_id =
-				of_match_device(imx_hdmi_dt_ids, dev);
 	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
 	struct device_node *ddc_node;
 	struct imx_hdmi *hdmi;
-	struct resource *iores;
-	int ret, irq;
+	int ret;
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
 
+	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
+	hdmi->dev_type = plat_data->dev_type;
 	hdmi->sample_rate = 48000;
 	hdmi->ratio = 100;
-
-	if (of_id) {
-		const struct platform_device_id *device_id = of_id->data;
-
-		hdmi->dev_type = device_id->driver_data;
-	}
+	hdmi->encoder = encoder;
 
 	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
 	if (ddc_node) {
@@ -1621,24 +1589,15 @@ static int imx_hdmi_bind(struct device *dev, struct device *master, void *data)
 		dev_dbg(hdmi->dev, "no ddc property found\n");
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
 	ret = devm_request_threaded_irq(dev, irq, imx_hdmi_hardirq,
 					imx_hdmi_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
 	if (ret)
 		return ret;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hdmi->regs = devm_ioremap_resource(dev, iores);
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
-
-	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "gpr");
-	if (IS_ERR(hdmi->regmap))
-		return PTR_ERR(hdmi->regmap);
 
 	hdmi->isfr_clk = devm_clk_get(hdmi->dev, "isfr");
 	if (IS_ERR(hdmi->isfr_clk)) {
@@ -1713,9 +1672,9 @@ err_isfr:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(imx_hdmi_bind);
 
-static void imx_hdmi_unbind(struct device *dev, struct device *master,
-	void *data)
+void imx_hdmi_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct imx_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1723,41 +1682,17 @@ static void imx_hdmi_unbind(struct device *dev, struct device *master,
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
-	hdmi->encoder.funcs->destroy(&hdmi->encoder);
+	hdmi->encoder->funcs->destroy(hdmi->encoder);
 
 	clk_disable_unprepare(hdmi->iahb_clk);
 	clk_disable_unprepare(hdmi->isfr_clk);
 	i2c_put_adapter(hdmi->ddc);
 }
-
-static const struct component_ops hdmi_ops = {
-	.bind	= imx_hdmi_bind,
-	.unbind	= imx_hdmi_unbind,
-};
-
-static int imx_hdmi_platform_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &hdmi_ops);
-}
-
-static int imx_hdmi_platform_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &hdmi_ops);
-	return 0;
-}
-
-static struct platform_driver imx_hdmi_driver = {
-	.probe  = imx_hdmi_platform_probe,
-	.remove = imx_hdmi_platform_remove,
-	.driver = {
-		.name = "imx-hdmi",
-		.of_match_table = imx_hdmi_dt_ids,
-	},
-};
-
-module_platform_driver(imx_hdmi_driver);
+EXPORT_SYMBOL_GPL(imx_hdmi_unbind);
 
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
+MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com>");
+MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
 MODULE_DESCRIPTION("i.MX6 HDMI transmitter driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:imx-hdmi");

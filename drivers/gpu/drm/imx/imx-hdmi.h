@@ -1029,4 +1029,19 @@ enum {
 	HDMI_A_VIDPOLCFG_HSYNCPOL_ACTIVE_HIGH = 0x2,
 	HDMI_A_VIDPOLCFG_HSYNCPOL_ACTIVE_LOW = 0x0,
 };
+
+enum imx_hdmi_devtype {
+	IMX6Q_HDMI,
+	IMX6DL_HDMI,
+};
+
+struct imx_hdmi_plat_data {
+	enum imx_hdmi_devtype dev_type;
+};
+
+int imx_hdmi_bind(struct device *dev, struct device *master,
+		  void *data, struct drm_encoder *encoder,
+		  struct resource *iores, int irq,
+		  const struct imx_hdmi_plat_data *plat_data);
+void imx_hdmi_unbind(struct device *dev, struct device *master, void *data);
 #endif /* __IMX_HDMI_H__ */
