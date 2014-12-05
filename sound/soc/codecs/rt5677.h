@@ -306,10 +306,10 @@
 #define RT5677_R_MUTE_SFT			7
 #define RT5677_VOL_R_MUTE			(0x1 << 6)
 #define RT5677_VOL_R_SFT			6
-#define RT5677_L_VOL_MASK			(0x3f << 8)
-#define RT5677_L_VOL_SFT			8
-#define RT5677_R_VOL_MASK			(0x3f)
-#define RT5677_R_VOL_SFT			0
+#define RT5677_L_VOL_MASK			(0x7f << 9)
+#define RT5677_L_VOL_SFT			9
+#define RT5677_R_VOL_MASK			(0x7f << 1)
+#define RT5677_R_VOL_SFT			1
 
 /* LOUT1 Control (0x01) */
 #define RT5677_LOUT1_L_MUTE			(0x1 << 15)
@@ -447,16 +447,16 @@
 #define RT5677_SEL_DAC2_R_SRC_SFT		0
 
 /* Stereo1 ADC Digital Volume Control (0x1c) */
-#define RT5677_STO1_ADC_L_VOL_MASK		(0x7f << 8)
-#define RT5677_STO1_ADC_L_VOL_SFT		8
-#define RT5677_STO1_ADC_R_VOL_MASK		(0x7f)
-#define RT5677_STO1_ADC_R_VOL_SFT		0
+#define RT5677_STO1_ADC_L_VOL_MASK		(0x3f << 9)
+#define RT5677_STO1_ADC_L_VOL_SFT		9
+#define RT5677_STO1_ADC_R_VOL_MASK		(0x3f << 1)
+#define RT5677_STO1_ADC_R_VOL_SFT		1
 
 /* Mono ADC Digital Volume Control (0x1d) */
-#define RT5677_MONO_ADC_L_VOL_MASK		(0x7f << 8)
-#define RT5677_MONO_ADC_L_VOL_SFT		8
-#define RT5677_MONO_ADC_R_VOL_MASK		(0x7f)
-#define RT5677_MONO_ADC_R_VOL_SFT		0
+#define RT5677_MONO_ADC_L_VOL_MASK		(0x3f << 9)
+#define RT5677_MONO_ADC_L_VOL_SFT		9
+#define RT5677_MONO_ADC_R_VOL_MASK		(0x3f << 1)
+#define RT5677_MONO_ADC_R_VOL_SFT		1
 
 /* Stereo 1/2 ADC Boost Gain Control (0x1e) */
 #define RT5677_STO1_ADC_L_BST_MASK		(0x3 << 14)
