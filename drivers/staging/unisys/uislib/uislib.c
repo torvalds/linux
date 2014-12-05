@@ -661,33 +661,33 @@ static int resume_device(struct controlvm_message *msg)
 	return retval;
 }
 
-static int
-destroy_device(struct controlvm_message *msg, char *buf)
+static int destroy_device(struct controlvm_message *msg, char *buf)
 {
-	u32 busNo, devNo;
+	u32 bus_no, dev_no;
 	struct bus_info *bus;
 	struct device_info *dev;
 	struct guest_msgs cmd;
 	int retval = CONTROLVM_RESP_SUCCESS;
 
-	busNo = msg->cmd.destroy_device.bus_no;
-	devNo = msg->cmd.destroy_device.bus_no;
+	bus_no = msg->cmd.destroy_device.bus_no;
+	dev_no = msg->cmd.destroy_device.bus_no;
 
 	read_lock(&bus_list_lock);
-	LOGINF("destroy_device called for busNo=%u, devNo=%u", busNo, devNo);
+	LOGINF("destroy_device called for bus_no=%u, dev_no=%u", bus_no,
+	       dev_no);
 	for (bus = bus_list; bus; bus = bus->next) {
-		if (bus->bus_no == busNo) {
+		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->device_count) {
-				LOGERR("CONTROLVM_DEVICE_DESTORY Failed: device(%d) >= deviceCount(%d).",
-				       devNo, bus->device_count);
+			if (dev_no >= bus->device_count) {
+				LOGERR("CONTROLVM_DEVICE_DESTROY Failed: device(%d) >= device_count(%d).",
+				       dev_no, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
-				dev = bus->device[devNo];
+				dev = bus->device[dev_no];
 				if (!dev) {
 					LOGERR("CONTROLVM_DEVICE_DESTROY Failed: device %d does not exist.",
-					       devNo);
+					       dev_no);
 					retval =
 					     CONTROLVM_RESP_ERROR_ALREADY_DONE;
 				}
@@ -698,7 +698,7 @@ destroy_device(struct controlvm_message *msg, char *buf)
 
 	if (!bus) {
 		LOGERR("CONTROLVM_DEVICE_DESTROY Failed: bus %d does not exist",
-		       busNo);
+		       bus_no);
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
 	read_unlock(&bus_list_lock);
@@ -706,12 +706,12 @@ destroy_device(struct controlvm_message *msg, char *buf)
 		/* the msg is bound for virtpci; send
 		 * guest_msgs struct to callback
 		 */
-		if (!uuid_le_cmp(dev->channel_uuid,
-				 spar_vhba_channel_protocol_uuid)) {
+		if (uuid_le_cmp(dev->channel_uuid,
+				spar_vhba_channel_protocol_uuid) == 0) {
 			cmd.msgtype = GUEST_DEL_VHBA;
 			cmd.del_vhba.chanptr = dev->chanptr;
-		} else if (!uuid_le_cmp(dev->channel_uuid,
-					spar_vnic_channel_protocol_uuid)) {
+		} else if (uuid_le_cmp(dev->channel_uuid,
+				       spar_vnic_channel_protocol_uuid) == 0) {
 			cmd.msgtype = GUEST_DEL_VNIC;
 			cmd.del_vnic.chanptr = dev->chanptr;
 		} else {
@@ -720,7 +720,7 @@ destroy_device(struct controlvm_message *msg, char *buf)
 			    CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
 		if (!virt_control_chan_func) {
-			LOGERR("CONTROLVM_DEVICE_DESTORY Failed: virtpci callback not registered.");
+			LOGERR("CONTROLVM_DEVICE_DESTROY Failed: virtpci callback not registered.");
 			return
 			    CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
@@ -736,7 +736,7 @@ destroy_device(struct controlvm_message *msg, char *buf)
  */
 		if (dev->polling) {
 			LOGINF("calling uislib_disable_channel_interrupts");
-			uislib_disable_channel_interrupts(busNo, devNo);
+			uislib_disable_channel_interrupts(bus_no, dev_no);
 		}
 		/* unmap the channel memory for the device. */
 		if (!msg->hdr.flags.test_message) {
@@ -744,7 +744,7 @@ destroy_device(struct controlvm_message *msg, char *buf)
 			uislib_iounmap(dev->chanptr);
 		}
 		kfree(dev);
-		bus->device[devNo] = NULL;
+		bus->device[dev_no] = NULL;
 	}
 	return retval;
 }
