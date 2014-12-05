@@ -114,7 +114,7 @@ static unsigned long long cycles_before_wait, wait_cycles;
 /*****************************************************/
 
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-			      size_t len, loff_t *offset);
+				 size_t len, loff_t *offset);
 static const struct file_operations debugfs_info_fops = {
 	.read = info_debugfs_read,
 };
@@ -136,8 +136,8 @@ init_vbus_channel(u64 channelAddr, u32 channelBytes)
 
 	if (!pChan) {
 		LOGERR("CONTROLVM_BUS_CREATE error: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
-		     (unsigned long long)channelAddr,
-		     (unsigned long long)channelBytes);
+		       (unsigned long long)channelAddr,
+		       (unsigned long long)channelBytes);
 		rc = NULL;
 		goto Away;
 	}
@@ -161,7 +161,7 @@ create_bus(struct controlvm_message *msg, char *buf)
 
 	if (MaxBusCount == BusListCount) {
 		LOGERR("CONTROLVM_BUS_CREATE Failed: max buses:%d already created\n",
-		     MaxBusCount);
+		       MaxBusCount);
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, MaxBusCount,
 				 POSTCODE_SEVERITY_ERR);
 		return CONTROLVM_RESP_ERROR_MAX_BUSES;
@@ -301,7 +301,7 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	for (i = 0; i < bus->device_count; i++) {
 		if (bus->device[i] != NULL) {
 			LOGERR("CONTROLVM_BUS_DESTROY Failed: device %i attached to bus %d.",
-			     i, busNo);
+			       i, busNo);
 			read_unlock(&BusListLock);
 			return CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED;
 		}
@@ -386,8 +386,8 @@ create_device(struct controlvm_message *msg, char *buf)
 			minSize = pReqHandler->min_channel_bytes;
 		if (minSize > msg->cmd.create_device.channel_bytes) {
 			LOGERR("CONTROLVM_DEVICE_CREATE Failed: channel size is too small, channel size:0x%lx, required size:0x%lx",
-			     (ulong) msg->cmd.create_device.channel_bytes,
-			     (ulong) minSize);
+			       (ulong) msg->cmd.create_device.channel_bytes,
+			       (ulong) minSize);
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 					 POSTCODE_SEVERITY_ERR);
 			result = CONTROLVM_RESP_ERROR_CHANNEL_SIZE_TOO_SMALL;
@@ -398,8 +398,8 @@ create_device(struct controlvm_message *msg, char *buf)
 					 msg->cmd.create_device.channel_bytes);
 		if (!dev->chanptr) {
 			LOGERR("CONTROLVM_DEVICE_CREATE Failed: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
-			     dev->channel_addr,
-			     msg->cmd.create_device.channel_bytes);
+			       dev->channel_addr,
+			       msg->cmd.create_device.channel_bytes);
 			result = CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 					 POSTCODE_SEVERITY_ERR);
@@ -415,7 +415,7 @@ create_device(struct controlvm_message *msg, char *buf)
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_CREATE Failed: device (%d) >= deviceCount (%d).",
-				     devNo, bus->device_count);
+				       devNo, bus->device_count);
 				result = CONTROLVM_RESP_ERROR_MAX_DEVICES;
 				POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC,
 						 devNo, busNo,
@@ -426,7 +426,7 @@ create_device(struct controlvm_message *msg, char *buf)
 			/* make sure this device is not already set */
 			if (bus->device[devNo]) {
 				LOGERR("CONTROLVM_DEVICE_CREATE Failed: device %d is already exists.",
-				     devNo);
+				       devNo);
 				POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC,
 						 devNo, busNo,
 						 POSTCODE_SEVERITY_ERR);
@@ -442,7 +442,7 @@ create_device(struct controlvm_message *msg, char *buf)
 				struct guest_msgs cmd;
 
 				if (!uuid_le_cmp(dev->channel_uuid,
-				     spar_vhba_channel_protocol_uuid)) {
+				    spar_vhba_channel_protocol_uuid)) {
 					wait_for_valid_guid(&((
 						struct channel_header
 							__iomem *) (dev->
@@ -451,7 +451,7 @@ create_device(struct controlvm_message *msg, char *buf)
 					if (!SPAR_VHBA_CHANNEL_OK_CLIENT
 					    (dev->chanptr)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed:[CLIENT]VHBA dev %d chan invalid.",
-						     devNo);
+						       devNo);
 						POSTCODE_LINUX_4
 						    (DEVICE_CREATE_FAILURE_PC,
 						     devNo, busNo,
@@ -477,7 +477,7 @@ create_device(struct controlvm_message *msg, char *buf)
 					if (!SPAR_VNIC_CHANNEL_OK_CLIENT
 					    (dev->chanptr)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed: VNIC[CLIENT] dev %d chan invalid.",
-						     devNo);
+						       devNo);
 						POSTCODE_LINUX_4
 						    (DEVICE_CREATE_FAILURE_PC,
 						     devNo, busNo,
@@ -560,14 +560,14 @@ pause_device(struct controlvm_message *msg)
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device(%d) >= deviceCount(%d).",
-				     devNo, bus->device_count);
+				       devNo, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
 				dev = bus->device[devNo];
 				if (!dev) {
 					LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device %d does not exist.",
-					     devNo);
+					       devNo);
 					retval =
 					  CONTROLVM_RESP_ERROR_ALREADY_DONE;
 				}
@@ -577,7 +577,7 @@ pause_device(struct controlvm_message *msg)
 	}
 	if (!bus) {
 		LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: bus %d does not exist",
-		     busNo);
+		       busNo);
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
 	read_unlock(&BusListLock);
@@ -586,7 +586,7 @@ pause_device(struct controlvm_message *msg)
 		 * guest_msgs struct to callback
 		 */
 		if (!uuid_le_cmp(dev->channel_uuid,
-				spar_vhba_channel_protocol_uuid)) {
+				 spar_vhba_channel_protocol_uuid)) {
 			cmd.msgtype = GUEST_PAUSE_VHBA;
 			cmd.pause_vhba.chanptr = dev->chanptr;
 		} else if (!uuid_le_cmp(dev->channel_uuid,
@@ -628,14 +628,14 @@ resume_device(struct controlvm_message *msg)
 			/* make sure the device number is valid */
 			if (devNo >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: device(%d) >= deviceCount(%d).",
-				     devNo, bus->device_count);
+				       devNo, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
 				dev = bus->device[devNo];
 				if (!dev) {
 					LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: device %d does not exist.",
-					     devNo);
+					       devNo);
 					retval =
 					  CONTROLVM_RESP_ERROR_ALREADY_DONE;
 				}
@@ -646,7 +646,7 @@ resume_device(struct controlvm_message *msg)
 
 	if (!bus) {
 		LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: bus %d does not exist",
-		     busNo);
+		       busNo);
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
 	}
 	read_unlock(&BusListLock);
@@ -955,7 +955,7 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 	msg.cmd.create_device.channel_addr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
 		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
-		     chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
+		       chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
 		POSTCODE_LINUX_4(VHBA_CREATE_FAILURE_PC, chan_bytes,
 				 MIN_IO_CHANNEL_SIZE, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -1014,7 +1014,7 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 	msg.cmd.create_device.channel_addr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
 		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
-		     chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
+		       chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
 		POSTCODE_LINUX_4(VNIC_CREATE_FAILURE_PC, chan_bytes,
 				 MIN_IO_CHANNEL_SIZE, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -1181,7 +1181,7 @@ err_done:
 
 static ssize_t
 info_debugfs_read(struct file *file, char __user *buf,
-		size_t len, loff_t *offset)
+		  size_t len, loff_t *offset)
 {
 	char *temp;
 	int totalBytes = 0;
