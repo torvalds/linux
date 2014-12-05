@@ -405,7 +405,7 @@ int af_alg_cmsg_send(struct msghdr *msg, struct af_alg_control *con)
 		if (cmsg->cmsg_level != SOL_ALG)
 			continue;
 
-		switch(cmsg->cmsg_type) {
+		switch (cmsg->cmsg_type) {
 		case ALG_SET_IV:
 			if (cmsg->cmsg_len < CMSG_LEN(sizeof(*con->iv)))
 				return -EINVAL;
