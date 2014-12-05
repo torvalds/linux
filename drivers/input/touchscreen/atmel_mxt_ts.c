@@ -1028,21 +1028,20 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			break;
 
 		case MXT_T100_TYPE_ACTIVE_STYLUS:
-			if (message[6] & MXT_T107_STYLUS_HOVER) {
-				/* stylus detected, position available */
-				active = true;
-				tool = MT_TOOL_PEN;
-				major = MXT_TOUCH_MAJOR_DEFAULT;
-				eraser = message[6] & MXT_T107_STYLUS_BUTTON0;
-				barrel = message[6] & MXT_T107_STYLUS_BUTTON1;
+			/* stylus in range, but position unavailable */
+			if (!(message[6] & MXT_T107_STYLUS_HOVER))
+				break;
 
-				if (message[6] & MXT_T107_STYLUS_TIPSWITCH) {
-					if (data->stylus_aux_pressure)
-						pressure = message[data->stylus_aux_pressure];
-				} else {
-					hover = true;
-				}
-			}
+			active = true;
+			tool = MT_TOOL_PEN;
+			major = MXT_TOUCH_MAJOR_DEFAULT;
+			eraser = message[6] & MXT_T107_STYLUS_BUTTON0;
+			barrel = message[6] & MXT_T107_STYLUS_BUTTON1;
+
+			if (!(message[6] & MXT_T107_STYLUS_TIPSWITCH))
+				hover = true;
+			else if (data->stylus_aux_pressure)
+				pressure = message[data->stylus_aux_pressure];
 
 			break;
 
