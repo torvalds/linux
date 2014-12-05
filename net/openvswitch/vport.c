@@ -600,7 +600,7 @@ int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
 	fl.saddr = tun_key->ipv4_src;
 	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
 	fl.flowi4_mark = skb_mark;
-	fl.flowi4_proto = IPPROTO_GRE;
+	fl.flowi4_proto = ipproto;
 
 	rt = ip_route_output_key(net, &fl);
 	if (IS_ERR(rt))
