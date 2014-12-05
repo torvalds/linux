@@ -226,7 +226,7 @@ EXPORT_SYMBOL_GPL(spar_signalqueue_empty);
 
 unsigned long long
 uisqueue_interlocked_or(unsigned long long __iomem *tgt,
-		       unsigned long long set)
+			unsigned long long set)
 {
 	unsigned long long i;
 	unsigned long long j;
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(uisqueue_interlocked_or);
 
 unsigned long long
 uisqueue_interlocked_and(unsigned long long __iomem *tgt,
-			unsigned long long set)
+			 unsigned long long set)
 {
 	unsigned long long i;
 	unsigned long long j;
@@ -294,7 +294,7 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 				     char oktowait, u8 *channel_id)
 {
 	while (!do_locked_client_insert(queueinfo, whichqueue, cmdrsp,
-					(spinlock_t *) insertlock,
+					(spinlock_t *)insertlock,
 					issue_irq_if_empty,
 					irq_handle, channel_id)) {
 		if (oktowait != OK_TO_WAIT) {
