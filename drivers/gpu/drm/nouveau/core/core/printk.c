@@ -60,20 +60,25 @@ nv_printk_(struct nouveau_object *object, int level, const char *fmt, ...)
 	}
 
 	if (object && !nv_iclass(object, NV_CLIENT_CLASS)) {
-		struct nouveau_object *device = object;
-		struct nouveau_object *subdev = object;
+		struct nouveau_object *device;
+		struct nouveau_object *subdev;
 		char obuf[64], *ofmt = "";
 
-		if (object->engine) {
+		subdev = object;
+		while (subdev && !nv_iclass(subdev, NV_SUBDEV_CLASS))
+			subdev = subdev->parent;
+		if (!subdev)
+			subdev = object->engine;
+
+		device = subdev;
+		if (device->parent)
+			device = device->parent;
+
+		if (object != subdev) {
 			snprintf(obuf, sizeof(obuf), "[0x%08x]",
 				 nv_hclass(object));
 			ofmt = obuf;
-			subdev = object->engine;
-			device = object->engine;
 		}
-
-		if (subdev->parent)
-			device = subdev->parent;
 
 		if (level > nv_subdev(subdev)->debug)
 			return;
