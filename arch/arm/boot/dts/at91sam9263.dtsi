@@ -294,7 +294,7 @@
 						reg = <17>;
 					};
 
-					ac91_clk: ac97_clk {
+					ac97_clk: ac97_clk {
 						#clock-cells = <0>;
 						reg = <18>;
 					};
