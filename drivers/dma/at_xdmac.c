@@ -562,6 +562,7 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct scatterlist	*sg;
 	int			i;
 	u32			cfg;
+	unsigned int		xfer_size = 0;
 
 	if (!sgl)
 		return NULL;
@@ -619,15 +620,15 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			| (i == sg_len - 1 ? 0 : AT_XDMAC_MBR_UBC_NDE)	/* descriptor fetch */
 			| len / (1 << at_xdmac_get_dwidth(cfg));	/* microblock length */
 		dev_dbg(chan2dev(chan),
-			 "%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x\n",
-			 __func__, desc->lld.mbr_sa, desc->lld.mbr_da, desc->lld.mbr_ubc);
+			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
+			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);
 
 		/* Chain lld. */
 		if (prev) {
 			prev->lld.mbr_nda = desc->tx_dma_desc.phys;
 			dev_dbg(chan2dev(chan),
-				 "%s: chain lld: prev=0x%p, mbr_nda=0x%08x\n",
-				 __func__, prev, prev->lld.mbr_nda);
+				 "%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
+				 __func__, prev, &prev->lld.mbr_nda);
 		}
 
 		prev = desc;
@@ -637,12 +638,13 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
 			 __func__, desc, first);
 		list_add_tail(&desc->desc_node, &first->descs_list);
+		xfer_size += len;
 	}
 
 	spin_unlock_bh(&atchan->lock);
 
 	first->tx_dma_desc.flags = flags;
-	first->xfer_size = sg_len;
+	first->xfer_size = xfer_size;
 	first->direction = direction;
 
 	return &first->tx_dma_desc;
@@ -660,8 +662,8 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	int			i;
 	u32			cfg;
 
-	dev_dbg(chan2dev(chan), "%s: buf_addr=0x%08x, buf_len=%d, period_len=%d, dir=%s, flags=0x%lx\n",
-		__func__, buf_addr, buf_len, period_len,
+	dev_dbg(chan2dev(chan), "%s: buf_addr=%pad, buf_len=%zd, period_len=%zd, dir=%s, flags=0x%lx\n",
+		__func__, &buf_addr, buf_len, period_len,
 		direction == DMA_MEM_TO_DEV ? "mem2per" : "per2mem", flags);
 
 	if (!is_slave_direction(direction)) {
@@ -688,8 +690,8 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		}
 		spin_unlock_bh(&atchan->lock);
 		dev_dbg(chan2dev(chan),
-			"%s: desc=0x%p, tx_dma_desc.phys=0x%08x\n",
-			__func__, desc, desc->tx_dma_desc.phys);
+			"%s: desc=0x%p, tx_dma_desc.phys=%pad\n",
+			__func__, desc, &desc->tx_dma_desc.phys);
 
 		if (direction == DMA_DEV_TO_MEM) {
 			desc->lld.mbr_sa = atchan->per_src_addr;
@@ -699,7 +701,7 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 			desc->lld.mbr_sa = buf_addr + i * period_len;
 			desc->lld.mbr_da = atchan->per_dst_addr;
 			cfg = atchan->cfg[AT_XDMAC_MEM_TO_DEV_CFG];
-		};
+		}
 		desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV1
 			| AT_XDMAC_MBR_UBC_NDEN
 			| AT_XDMAC_MBR_UBC_NSEN
@@ -707,15 +709,15 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 			| period_len >> at_xdmac_get_dwidth(cfg);
 
 		dev_dbg(chan2dev(chan),
-			 "%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x\n",
-			 __func__, desc->lld.mbr_sa, desc->lld.mbr_da, desc->lld.mbr_ubc);
+			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
+			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);
 
 		/* Chain lld. */
 		if (prev) {
 			prev->lld.mbr_nda = desc->tx_dma_desc.phys;
 			dev_dbg(chan2dev(chan),
-				 "%s: chain lld: prev=0x%p, mbr_nda=0x%08x\n",
-				 __func__, prev, prev->lld.mbr_nda);
+				 "%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
+				 __func__, prev, &prev->lld.mbr_nda);
 		}
 
 		prev = desc;
@@ -729,8 +731,8 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 
 	prev->lld.mbr_nda = first->tx_dma_desc.phys;
 	dev_dbg(chan2dev(chan),
-		"%s: chain lld: prev=0x%p, mbr_nda=0x%08x\n",
-		__func__, prev, prev->lld.mbr_nda);
+		"%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
+		__func__, prev, &prev->lld.mbr_nda);
 	first->tx_dma_desc.flags = flags;
 	first->xfer_size = buf_len;
 	first->direction = direction;
@@ -762,8 +764,8 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
 					| AT_XDMAC_CC_TYPE_MEM_TRAN;
 
-	dev_dbg(chan2dev(chan), "%s: src=0x%08x, dest=0x%08x, len=%d, flags=0x%lx\n",
-		__func__, src, dest, len, flags);
+	dev_dbg(chan2dev(chan), "%s: src=%pad, dest=%pad, len=%zd, flags=0x%lx\n",
+		__func__, &src, &dest, len, flags);
 
 	if (unlikely(!len))
 		return NULL;
@@ -791,7 +793,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	while (remaining_size) {
 		struct at_xdmac_desc	*desc = NULL;
 
-		dev_dbg(chan2dev(chan), "%s: remaining_size=%u\n", __func__, remaining_size);
+		dev_dbg(chan2dev(chan), "%s: remaining_size=%zu\n", __func__, remaining_size);
 
 		spin_lock_bh(&atchan->lock);
 		desc = at_xdmac_get_desc(atchan);
@@ -812,7 +814,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		else
 			xfer_size = remaining_size;
 
-		dev_dbg(chan2dev(chan), "%s: xfer_size=%u\n", __func__, xfer_size);
+		dev_dbg(chan2dev(chan), "%s: xfer_size=%zu\n", __func__, xfer_size);
 
 		/* Check remaining length and change data width if needed. */
 		if (!((src_addr | dst_addr | xfer_size) & 7)) {
@@ -843,8 +845,8 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		desc->lld.mbr_cfg = chan_cc;
 
 		dev_dbg(chan2dev(chan),
-			 "%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
-			 __func__, desc->lld.mbr_sa, desc->lld.mbr_da, desc->lld.mbr_ubc, desc->lld.mbr_cfg);
+			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
+			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc, desc->lld.mbr_cfg);
 
 		/* Chain lld. */
 		if (prev) {
@@ -879,7 +881,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	struct list_head	*descs_list;
 	enum dma_status		ret;
 	int			residue;
-	u32			cur_nda;
+	u32			cur_nda, mask, value;
 	u8			dwidth = at_xdmac_get_dwidth(atchan->cfg[AT_XDMAC_CUR_CFG]);
 
 	ret = dma_cookie_status(chan, cookie, txstate);
@@ -899,14 +901,22 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	 */
 	if (!desc->active_xfer) {
 		dma_set_residue(txstate, desc->xfer_size);
+		spin_unlock_bh(&atchan->lock);
 		return ret;
 	}
 
 	residue = desc->xfer_size;
-	/* Flush FIFO. */
-	at_xdmac_write(atxdmac, AT_XDMAC_GSWF, atchan->mask);
-	while (!(at_xdmac_chan_read(atchan, AT_XDMAC_CIS) & AT_XDMAC_CIS_FIS))
-		cpu_relax();
+	/*
+	 * Flush FIFO: only relevant when the transfer is source peripheral
+	 * synchronized.
+	 */
+	mask = AT_XDMAC_CC_TYPE | AT_XDMAC_CC_DSYNC;
+	value = AT_XDMAC_CC_TYPE_PER_TRAN | AT_XDMAC_CC_DSYNC_PER2MEM;
+	if ((atchan->cfg[AT_XDMAC_CUR_CFG] & mask) == value) {
+		at_xdmac_write(atxdmac, AT_XDMAC_GSWF, atchan->mask);
+		while (!(at_xdmac_chan_read(atchan, AT_XDMAC_CIS) & AT_XDMAC_CIS_FIS))
+			cpu_relax();
+	}
 
 	cur_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
 	/*
@@ -927,8 +937,8 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	dma_set_residue(txstate, residue);
 
 	dev_dbg(chan2dev(chan),
-		 "%s: desc=0x%p, tx_dma_desc.phys=0x%08x, tx_status=%d, cookie=%d, residue=%d\n",
-		 __func__, desc, desc->tx_dma_desc.phys, ret, cookie, residue);
+		 "%s: desc=0x%p, tx_dma_desc.phys=%pad, tx_status=%d, cookie=%d, residue=%d\n",
+		 __func__, desc, &desc->tx_dma_desc.phys, ret, cookie, residue);
 
 	return ret;
 }
@@ -1384,6 +1394,11 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_MEMCPY, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_SLAVE, atxdmac->dma.cap_mask);
+	/*
+	 * Without DMA_PRIVATE the driver is not able to allocate more than
+	 * one channel, second allocation fails in private_candidate.
+	 */
+	dma_cap_set(DMA_PRIVATE, atxdmac->dma.cap_mask);
 	atxdmac->dma.dev				= &pdev->dev;
 	atxdmac->dma.device_alloc_chan_resources	= at_xdmac_alloc_chan_resources;
 	atxdmac->dma.device_free_chan_resources		= at_xdmac_free_chan_resources;
@@ -1393,7 +1408,6 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	atxdmac->dma.device_prep_dma_memcpy		= at_xdmac_prep_dma_memcpy;
 	atxdmac->dma.device_prep_slave_sg		= at_xdmac_prep_slave_sg;
 	atxdmac->dma.device_control			= at_xdmac_control;
-	atxdmac->dma.chancnt				= nr_channels;
 	atxdmac->dma.device_slave_caps			= at_xdmac_device_slave_caps;
 
 	/* Disable all chans and interrupts. */

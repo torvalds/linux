@@ -22,7 +22,7 @@ dma1: dma-controller@f0004000 {
 	compatible = "atmel,sama5d4-dma";
 	reg = <0xf0004000 0x200>;
 	interrupts = <50 4 0>;
-	#dma-cells = <2>;
+	#dma-cells = <1>;
 };
 
 
