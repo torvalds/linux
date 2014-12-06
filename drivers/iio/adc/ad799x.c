@@ -193,10 +193,8 @@ static int ad7997_8_update_scan_mode(struct iio_dev *indio_dev,
 		return i2c_smbus_write_word_swapped(st->client, AD7998_CONF_REG,
 			st->config | (*scan_mask << AD799X_CHANNEL_SHIFT));
 	default:
-		break;
+		return 0;
 	}
-
-	return 0;
 }
 
 static int ad799x_scan_direct(struct ad799x_state *st, unsigned ch)
