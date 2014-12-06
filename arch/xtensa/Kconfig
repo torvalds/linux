@@ -319,8 +319,8 @@ config XTENSA_PLATFORM_S6105
 
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"
+	select ETHOC if ETHERNET
 	select SERIAL_CONSOLE
-	select ETHOC
 	select XTENSA_CALIBRATE_CCOUNT
 	help
 	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
@@ -367,7 +367,7 @@ config BUILTIN_DTB
 config BLK_DEV_SIMDISK
 	tristate "Host file-based simulated block device support"
 	default n
-	depends on XTENSA_PLATFORM_ISS
+	depends on XTENSA_PLATFORM_ISS && BLOCK
 	help
 	  Create block devices that map to files in the host file system.
 	  Device binding to host file may be changed at runtime via proc

@@ -816,7 +816,7 @@ static void cxgbi_inform_iscsi_conn_closing(struct cxgbi_sock *csk)
 		read_lock_bh(&csk->callback_lock);
 		if (csk->user_data)
 			iscsi_conn_failure(csk->user_data,
-					ISCSI_ERR_CONN_FAILED);
+					ISCSI_ERR_TCP_CONN_CLOSE);
 		read_unlock_bh(&csk->callback_lock);
 	}
 }
@@ -905,18 +905,16 @@ void cxgbi_sock_rcv_abort_rpl(struct cxgbi_sock *csk)
 {
 	cxgbi_sock_get(csk);
 	spin_lock_bh(&csk->lock);
+
+	cxgbi_sock_set_flag(csk, CTPF_ABORT_RPL_RCVD);
 	if (cxgbi_sock_flag(csk, CTPF_ABORT_RPL_PENDING)) {
-		if (!cxgbi_sock_flag(csk, CTPF_ABORT_RPL_RCVD))
-			cxgbi_sock_set_flag(csk, CTPF_ABORT_RPL_RCVD);
-		else {
-			cxgbi_sock_clear_flag(csk, CTPF_ABORT_RPL_RCVD);
-			cxgbi_sock_clear_flag(csk, CTPF_ABORT_RPL_PENDING);
-			if (cxgbi_sock_flag(csk, CTPF_ABORT_REQ_RCVD))
-				pr_err("csk 0x%p,%u,0x%lx,%u,ABT_RPL_RSS.\n",
-					csk, csk->state, csk->flags, csk->tid);
-			cxgbi_sock_closed(csk);
-		}
+		cxgbi_sock_clear_flag(csk, CTPF_ABORT_RPL_PENDING);
+		if (cxgbi_sock_flag(csk, CTPF_ABORT_REQ_RCVD))
+			pr_err("csk 0x%p,%u,0x%lx,%u,ABT_RPL_RSS.\n",
+			       csk, csk->state, csk->flags, csk->tid);
+		cxgbi_sock_closed(csk);
 	}
+
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
 }

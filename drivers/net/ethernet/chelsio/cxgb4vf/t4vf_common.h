@@ -134,11 +134,13 @@ struct dev_params {
  */
 struct sge_params {
 	u32 sge_control;		/* padding, boundaries, lengths, etc. */
+	u32 sge_control2;		/* T5: more of the same */
 	u32 sge_host_page_size;		/* RDMA page sizes */
 	u32 sge_queues_per_page;	/* RDMA queues/page */
 	u32 sge_user_mode_limits;	/* limits for BAR2 user mode accesses */
 	u32 sge_fl_buffer_size[16];	/* free list buffer sizes */
 	u32 sge_ingress_rx_threshold;	/* RX counter interrupt threshold[4] */
+	u32 sge_congestion_control;     /* congestion thresholds, etc. */
 	u32 sge_timer_value_0_and_1;	/* interrupt coalescing timer values */
 	u32 sge_timer_value_2_and_3;
 	u32 sge_timer_value_4_and_5;

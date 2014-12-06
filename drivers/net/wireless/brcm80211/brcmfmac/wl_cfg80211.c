@@ -299,6 +299,7 @@ static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
 	primary_offset = ch->center_freq1 - ch->chan->center_freq;
 	switch (ch->width) {
 	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_20_NOHT:
 		ch_inf.bw = BRCMU_CHAN_BW_20;
 		WARN_ON(primary_offset != 0);
 		break;
@@ -323,6 +324,10 @@ static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
 				ch_inf.sb = BRCMU_CHAN_SB_LU;
 		}
 		break;
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
 	default:
 		WARN_ON_ONCE(1);
 	}
@@ -333,6 +338,7 @@ static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
 	case IEEE80211_BAND_5GHZ:
 		ch_inf.band = BRCMU_CHAN_BAND_5G;
 		break;
+	case IEEE80211_BAND_60GHZ:
 	default:
 		WARN_ON_ONCE(1);
 	}

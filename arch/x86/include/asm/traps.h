@@ -39,6 +39,7 @@ asmlinkage void simd_coprocessor_error(void);
 
 #ifdef CONFIG_TRACING
 asmlinkage void trace_page_fault(void);
+#define trace_stack_segment stack_segment
 #define trace_divide_error divide_error
 #define trace_bounds bounds
 #define trace_invalid_op invalid_op
