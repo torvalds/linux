@@ -184,6 +184,17 @@ skip_fw_download:
 	if (ret)
 		goto err;
 
+	/* query firmware version */
+	memcpy(cmd.args, "\x11", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 10;
+	ret = si2157_cmd_execute(client, &cmd);
+	if (ret)
+		goto err;
+
+	dev_info(&client->dev, "firmware version: %c.%c.%d\n",
+			cmd.args[6], cmd.args[7], cmd.args[8]);
+
 	dev->fw_loaded = true;
 
 warm:
