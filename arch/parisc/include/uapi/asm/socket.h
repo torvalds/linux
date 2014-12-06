@@ -81,4 +81,7 @@
 
 #define SO_INCOMING_CPU		0x402A
 
+#define SO_ATTACH_BPF		0x402B
+#define SO_DETACH_BPF		SO_DETACH_FILTER
+
 #endif /* _UAPI_ASM_SOCKET_H */

@@ -381,6 +381,7 @@ int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog);
 void bpf_prog_destroy(struct bpf_prog *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
+int sk_attach_bpf(u32 ufd, struct sock *sk);
 int sk_detach_filter(struct sock *sk);
 
 int bpf_check_classic(const struct sock_filter *filter, unsigned int flen);

@@ -44,6 +44,7 @@
 #include <linux/ratelimit.h>
 #include <linux/seccomp.h>
 #include <linux/if_vlan.h>
+#include <linux/bpf.h>
 
 /**
  *	sk_filter - run a packet through a socket filter
@@ -813,8 +814,12 @@ static void bpf_release_orig_filter(struct bpf_prog *fp)
 
 static void __bpf_prog_release(struct bpf_prog *prog)
 {
-	bpf_release_orig_filter(prog);
-	bpf_prog_free(prog);
+	if (prog->aux->prog_type == BPF_PROG_TYPE_SOCKET_FILTER) {
+		bpf_prog_put(prog);
+	} else {
+		bpf_release_orig_filter(prog);
+		bpf_prog_free(prog);
+	}
 }
 
 static void __sk_filter_release(struct sk_filter *fp)
@@ -1088,6 +1093,94 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(sk_attach_filter);
 
+#ifdef CONFIG_BPF_SYSCALL
+int sk_attach_bpf(u32 ufd, struct sock *sk)
+{
+	struct sk_filter *fp, *old_fp;
+	struct bpf_prog *prog;
+
+	if (sock_flag(sk, SOCK_FILTER_LOCKED))
+		return -EPERM;
+
+	prog = bpf_prog_get(ufd);
+	if (!prog)
+		return -EINVAL;
+
+	if (prog->aux->prog_type != BPF_PROG_TYPE_SOCKET_FILTER) {
+		/* valid fd, but invalid program type */
+		bpf_prog_put(prog);
+		return -EINVAL;
+	}
+
+	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	if (!fp) {
+		bpf_prog_put(prog);
+		return -ENOMEM;
+	}
+	fp->prog = prog;
+
+	atomic_set(&fp->refcnt, 0);
+
+	if (!sk_filter_charge(sk, fp)) {
+		__sk_filter_release(fp);
+		return -ENOMEM;
+	}
+
+	old_fp = rcu_dereference_protected(sk->sk_filter,
+					   sock_owned_by_user(sk));
+	rcu_assign_pointer(sk->sk_filter, fp);
+
+	if (old_fp)
+		sk_filter_uncharge(sk, old_fp);
+
+	return 0;
+}
+
+/* allow socket filters to call
+ * bpf_map_lookup_elem(), bpf_map_update_elem(), bpf_map_delete_elem()
+ */
+static const struct bpf_func_proto *sock_filter_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_map_lookup_elem:
+		return &bpf_map_lookup_elem_proto;
+	case BPF_FUNC_map_update_elem:
+		return &bpf_map_update_elem_proto;
+	case BPF_FUNC_map_delete_elem:
+		return &bpf_map_delete_elem_proto;
+	default:
+		return NULL;
+	}
+}
+
+static bool sock_filter_is_valid_access(int off, int size, enum bpf_access_type type)
+{
+	/* skb fields cannot be accessed yet */
+	return false;
+}
+
+static struct bpf_verifier_ops sock_filter_ops = {
+	.get_func_proto = sock_filter_func_proto,
+	.is_valid_access = sock_filter_is_valid_access,
+};
+
+static struct bpf_prog_type_list tl = {
+	.ops = &sock_filter_ops,
+	.type = BPF_PROG_TYPE_SOCKET_FILTER,
+};
+
+static int __init register_sock_filter_ops(void)
+{
+	bpf_register_prog_type(&tl);
+	return 0;
+}
+late_initcall(register_sock_filter_ops);
+#else
+int sk_attach_bpf(u32 ufd, struct sock *sk)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 int sk_detach_filter(struct sock *sk)
 {
 	int ret = -ENOENT;
