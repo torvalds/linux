@@ -856,7 +856,6 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc = hw->priv;
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
-	dev_set_drvdata(sc->dev, sc);
 	sc->mem = pcim_iomap_table(pdev)[0];
 	sc->driver_data = id->driver_data;
 
