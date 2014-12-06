@@ -128,7 +128,8 @@ static int si2157_init(struct dvb_frontend *fe)
 	case SI2157_A30:
 	case SI2147_A30:
 	case SI2146_A10:
-		goto skip_fw_download;
+		fw_file = NULL;
+		break;
 	default:
 		dev_err(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
 				cmd.args[2], cmd.args[1],
@@ -137,9 +138,11 @@ static int si2157_init(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	/* cold state - try to download firmware */
-	dev_info(&client->dev, "found a '%s' in cold state\n",
-			si2157_ops.info.name);
+	dev_info(&client->dev, "found a 'Silicon Labs Si21%d-%c%c%c'\n",
+			cmd.args[2], cmd.args[1], cmd.args[3], cmd.args[4]);
+
+	if (fw_file == NULL)
+		goto skip_fw_download;
 
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &client->dev);
