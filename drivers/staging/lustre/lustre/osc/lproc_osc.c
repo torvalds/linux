@@ -53,8 +53,9 @@ static int osc_active_seq_show(struct seq_file *m, void *v)
 	return rc;
 }
 
-static ssize_t osc_active_seq_write(struct file *file, const char *buffer,
-				    size_t count, loff_t *off)
+static ssize_t osc_active_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	int val, rc;
@@ -88,7 +89,8 @@ static int osc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t osc_max_rpcs_in_flight_seq_write(struct file *file,
-			const char *buffer, size_t count, loff_t *off)
+			const char __user *buffer,
+			size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
@@ -130,8 +132,9 @@ static int osc_max_dirty_mb_seq_show(struct seq_file *m, void *v)
 	return lprocfs_seq_read_frac_helper(m, val, mult);
 }
 
-static ssize_t osc_max_dirty_mb_seq_write(struct file *file, const char *buffer,
-				      size_t count, loff_t *off)
+static ssize_t osc_max_dirty_mb_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
@@ -233,8 +236,9 @@ static int osc_cur_grant_bytes_seq_show(struct seq_file *m, void *v)
 	return rc;
 }
 
-static ssize_t osc_cur_grant_bytes_seq_write(struct file *file, const char *buffer,
-				  size_t count, loff_t *off)
+static ssize_t osc_cur_grant_bytes_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &obd->u.cli;
@@ -290,7 +294,8 @@ static int osc_grant_shrink_interval_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t osc_grant_shrink_interval_seq_write(struct file *file,
-				const char *buffer, size_t count, loff_t *off)
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int val, rc;
@@ -322,8 +327,9 @@ static int osc_checksum_seq_show(struct seq_file *m, void *v)
 			obd->u.cli.cl_checksum ? 1 : 0);
 }
 
-static ssize_t osc_checksum_seq_write(struct file *file, const char *buffer,
-			   size_t count, loff_t *off)
+static ssize_t osc_checksum_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int val, rc;
@@ -362,7 +368,8 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static ssize_t osc_checksum_type_seq_write(struct file *file, const char *buffer,
+static ssize_t osc_checksum_type_seq_write(struct file *file,
+				const char __user *buffer,
 				size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
@@ -401,8 +408,9 @@ static int osc_resend_count_seq_show(struct seq_file *m, void *v)
 	return seq_printf(m, "%u\n", atomic_read(&obd->u.cli.cl_resends));
 }
 
-static ssize_t osc_resend_count_seq_write(struct file *file, const char *buffer,
-			       size_t count, loff_t *off)
+static ssize_t osc_resend_count_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int val, rc;
@@ -428,8 +436,9 @@ static int osc_contention_seconds_seq_show(struct seq_file *m, void *v)
 	return seq_printf(m, "%u\n", od->od_contention_time);
 }
 
-static ssize_t osc_contention_seconds_seq_write(struct file *file, const char *buffer,
-				     size_t count, loff_t *off)
+static ssize_t osc_contention_seconds_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct osc_device *od  = obd2osc_dev(obd);
@@ -447,8 +456,9 @@ static int osc_lockless_truncate_seq_show(struct seq_file *m, void *v)
 	return seq_printf(m, "%u\n", od->od_lockless_truncate);
 }
 
-static ssize_t osc_lockless_truncate_seq_write(struct file *file, const char *buffer,
-				    size_t count, loff_t *off)
+static ssize_t osc_lockless_truncate_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct osc_device *od  = obd2osc_dev(obd);
@@ -472,7 +482,8 @@ static int osc_obd_max_pages_per_rpc_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t osc_obd_max_pages_per_rpc_seq_write(struct file *file,
-				const char *buffer, size_t count, loff_t *off)
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
@@ -664,8 +675,9 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 }
 #undef pct
 
-static ssize_t osc_rpc_stats_seq_write(struct file *file, const char *buf,
-				       size_t len, loff_t *off)
+static ssize_t osc_rpc_stats_seq_write(struct file *file,
+				const char __user *buf,
+				size_t len, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	struct obd_device *dev = seq->private;
@@ -702,8 +714,9 @@ static int osc_stats_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static ssize_t osc_stats_seq_write(struct file *file, const char *buf,
-				   size_t len, loff_t *off)
+static ssize_t osc_stats_seq_write(struct file *file,
+				const char __user *buf,
+				size_t len, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	struct obd_device *dev = seq->private;

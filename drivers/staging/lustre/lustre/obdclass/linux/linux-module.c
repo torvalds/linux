@@ -272,8 +272,9 @@ static int obd_proc_jobid_var_seq_show(struct seq_file *m, void *v)
 	return seq_printf(m, "%s\n", obd_jobid_var);
 }
 
-static ssize_t obd_proc_jobid_var_seq_write(struct file *file, const char *buffer,
-					size_t count, loff_t *off)
+static ssize_t obd_proc_jobid_var_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	if (!count || count > JOBSTATS_JOBID_VAR_MAX_LEN)
 		return -EINVAL;

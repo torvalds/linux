@@ -284,8 +284,9 @@ ptlrpc_lprocfs_req_history_max_seq_show(struct seq_file *m, void *n)
 }
 
 static ssize_t
-ptlrpc_lprocfs_req_history_max_seq_write(struct file *file, const char *buffer,
-					 size_t count, loff_t *off)
+ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
 	int			    bufpages;
@@ -329,8 +330,9 @@ ptlrpc_lprocfs_threads_min_seq_show(struct seq_file *m, void *n)
 }
 
 static ssize_t
-ptlrpc_lprocfs_threads_min_seq_write(struct file *file, const char *buffer,
-				     size_t count, loff_t *off)
+ptlrpc_lprocfs_threads_min_seq_write(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
 	int	val;
@@ -381,8 +383,9 @@ ptlrpc_lprocfs_threads_max_seq_show(struct seq_file *m, void *n)
 }
 
 static ssize_t
-ptlrpc_lprocfs_threads_max_seq_write(struct file *file, const char *buffer,
-				     size_t count, loff_t *off)
+ptlrpc_lprocfs_threads_max_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
 	int	val;
@@ -1025,7 +1028,7 @@ static int ptlrpc_lprocfs_hp_ratio_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t ptlrpc_lprocfs_hp_ratio_seq_write(struct file *file,
-					     const char *buffer,
+					     const char __user *buffer,
 					     size_t count,
 					     loff_t *off)
 {
@@ -1175,7 +1178,7 @@ EXPORT_SYMBOL(ptlrpc_lprocfs_unregister_obd);
 
 #define BUFLEN (UUID_MAX + 5)
 
-int lprocfs_wr_evict_client(struct file *file, const char *buffer,
+int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
@@ -1223,7 +1226,7 @@ EXPORT_SYMBOL(lprocfs_wr_evict_client);
 
 #undef BUFLEN
 
-int lprocfs_wr_ping(struct file *file, const char *buffer,
+int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 		    size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
@@ -1251,7 +1254,7 @@ EXPORT_SYMBOL(lprocfs_wr_ping);
  * The connection UUID is a node's primary NID. For example,
  * "echo connection=192.168.0.1@tcp0::instance > .../import".
  */
-int lprocfs_wr_import(struct file *file, const char *buffer,
+int lprocfs_wr_import(struct file *file, const char __user *buffer,
 		      size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
@@ -1329,7 +1332,7 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 }
 EXPORT_SYMBOL(lprocfs_rd_pinger_recov);
 
-int lprocfs_wr_pinger_recov(struct file *file, const char *buffer,
+int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 		      size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;

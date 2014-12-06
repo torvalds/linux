@@ -697,8 +697,8 @@ LPROC_SEQ_FOPS_RO(lprocfs_grant_plan);
 LDLM_POOL_PROC_READER_SEQ_SHOW(recalc_period, int);
 LDLM_POOL_PROC_WRITER(recalc_period, int);
 static ssize_t lprocfs_recalc_period_seq_write(struct file *file,
-					       const char *buf, size_t len,
-					       loff_t *off)
+					       const char __user *buf,
+					       size_t len, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 

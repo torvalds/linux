@@ -87,12 +87,24 @@ fld_proc_hash_seq_show(struct seq_file *m, void *unused)
 }
 
 static ssize_t
-fld_proc_hash_seq_write(struct file *file, const char *buffer,
-			size_t count, loff_t *off)
+fld_proc_hash_seq_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct lu_client_fld *fld;
 	struct lu_fld_hash *hash = NULL;
+	char *name;
 	int i;
+
+	if (count > 80)
+		return -ENAMETOOLONG;
+
+	name = kmalloc(count, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	if (copy_from_user(name, buffer, count) != 0)
+		return -EFAULT;
 
 	fld = ((struct seq_file *)file->private_data)->private;
 	LASSERT(fld != NULL);
@@ -101,7 +113,7 @@ fld_proc_hash_seq_write(struct file *file, const char *buffer,
 		if (count != strlen(fld_hash[i].fh_name))
 			continue;
 
-		if (!strncmp(fld_hash[i].fh_name, buffer, count)) {
+		if (!strncmp(fld_hash[i].fh_name, name, count)) {
 			hash = &fld_hash[i];
 			break;
 		}
@@ -116,6 +128,7 @@ fld_proc_hash_seq_write(struct file *file, const char *buffer,
 		       fld->lcf_name, hash->fh_name);
 	}
 
+	kfree(name);
 	return count;
 }
 
