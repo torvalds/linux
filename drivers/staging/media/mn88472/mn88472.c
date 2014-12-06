@@ -61,7 +61,10 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 	switch (c->delivery_system) {
 	case SYS_DVBT:
 	case SYS_DVBT2:
-		if (c->bandwidth_hz <= 6000000) {
+		if (c->bandwidth_hz <= 5000000) {
+			memcpy(bw_val, "\xe5\x99\x9a\x1b\xa9\x1b\xa9", 7);
+			bw_val2 = 0x03;
+		} else if (c->bandwidth_hz <= 6000000) {
 			/* IF 3570000 Hz, BW 6000000 Hz */
 			memcpy(bw_val, "\xbf\x55\x55\x15\x6b\x15\x6b", 7);
 			bw_val2 = 0x02;
