@@ -38,6 +38,12 @@ static int ipvlan_port_create(struct net_device *dev)
 		netdev_err(dev, "Master is either lo or non-ether device\n");
 		return -EINVAL;
 	}
+
+	if (netif_is_macvlan_port(dev)) {
+		netdev_err(dev, "Master is a macvlan port.\n");
+		return -EBUSY;
+	}
+
 	port = kzalloc(sizeof(struct ipvl_port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
