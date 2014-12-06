@@ -414,17 +414,15 @@ static int si2168_init(struct dvb_frontend *fe)
 		fw_file = SI2168_B40_FIRMWARE;
 		break;
 	default:
-		dev_err(&client->dev,
-				"unknown chip version Si21%d-%c%c%c\n",
+		dev_err(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
 				cmd.args[2], cmd.args[1],
 				cmd.args[3], cmd.args[4]);
 		ret = -EINVAL;
 		goto err;
 	}
 
-	/* cold state - try to download firmware */
-	dev_info(&client->dev, "found a '%s' in cold state\n",
-			si2168_ops.info.name);
+	dev_info(&client->dev, "found a 'Silicon Labs Si21%d-%c%c%c'\n",
+			cmd.args[2], cmd.args[1], cmd.args[3], cmd.args[4]);
 
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &client->dev);
@@ -512,13 +510,11 @@ static int si2168_init(struct dvb_frontend *fe)
 		goto err;
 
 	dev->fw_loaded = true;
-
-	dev_info(&client->dev, "found a '%s' in warm state\n",
-			si2168_ops.info.name);
 warm:
 	dev->active = true;
 
 	return 0;
+
 err_release_firmware:
 	release_firmware(fw);
 err:
