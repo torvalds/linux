@@ -136,6 +136,30 @@ struct ad799x_state {
 	unsigned int			transfer_size;
 };
 
+static int ad799x_write_config(struct ad799x_state *st, u16 val)
+{
+	switch (st->id) {
+	case ad7997:
+	case ad7998:
+		return i2c_smbus_write_word_swapped(st->client, AD7998_CONF_REG,
+			val);
+	default:
+		return i2c_smbus_write_byte_data(st->client, AD7998_CONF_REG,
+			val);
+	}
+}
+
+static int ad799x_read_config(struct ad799x_state *st)
+{
+	switch (st->id) {
+	case ad7997:
+	case ad7998:
+		return i2c_smbus_read_word_swapped(st->client, AD7998_CONF_REG);
+	default:
+		return i2c_smbus_read_byte_data(st->client, AD7998_CONF_REG);
+	}
+}
+
 /**
  * ad799x_trigger_handler() bh of trigger launched polling to ring buffer
  *
