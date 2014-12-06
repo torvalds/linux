@@ -15,17 +15,16 @@
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
+#include <linux/bitops.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 #include <linux/iio/dac/ad5504.h>
 
-#define AD5505_BITS			12
-#define AD5504_RES_MASK			((1 << (AD5505_BITS)) - 1)
-
-#define AD5504_CMD_READ			(1 << 15)
-#define AD5504_CMD_WRITE		(0 << 15)
+#define AD5504_RES_MASK			GENMASK(11, 0)
+#define AD5504_CMD_READ			BIT(15)
+#define AD5504_CMD_WRITE		0
 #define AD5504_ADDR(addr)		((addr) << 12)
 
 /* Registers */
@@ -42,7 +41,7 @@
 
 /**
  * struct ad5446_state - driver instance specific data
- * @us:			spi_device
+ * @spi:			spi_device
  * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
  * @pwr_down_mask	power down mask
