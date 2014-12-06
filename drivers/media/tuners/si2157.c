@@ -65,15 +65,11 @@ static int si2157_cmd_execute(struct si2157_dev *dev, struct si2157_cmd *cmd)
 		}
 	}
 
-	ret = 0;
+	mutex_unlock(&dev->i2c_mutex);
+	return 0;
 
 err_mutex_unlock:
 	mutex_unlock(&dev->i2c_mutex);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
 	dev_dbg(&dev->client->dev, "failed=%d\n", ret);
 	return ret;
 }
