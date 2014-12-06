@@ -3646,6 +3646,16 @@ static inline bool netif_is_macvlan_port(struct net_device *dev)
 	return dev->priv_flags & IFF_MACVLAN_PORT;
 }
 
+static inline bool netif_is_ipvlan(struct net_device *dev)
+{
+	return dev->priv_flags & IFF_IPVLAN_SLAVE;
+}
+
+static inline bool netif_is_ipvlan_port(struct net_device *dev)
+{
+	return dev->priv_flags & IFF_IPVLAN_MASTER;
+}
+
 static inline bool netif_is_bond_master(struct net_device *dev)
 {
 	return dev->flags & IFF_MASTER && dev->priv_flags & IFF_BONDING;

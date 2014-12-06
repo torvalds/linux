@@ -446,11 +446,11 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	if (!phy_dev)
 		return -ENODEV;
 
-	if (ipvlan_dev_slave(phy_dev)) {
+	if (netif_is_ipvlan(phy_dev)) {
 		struct ipvl_dev *tmp = netdev_priv(phy_dev);
 
 		phy_dev = tmp->phy_dev;
-	} else if (!ipvlan_dev_master(phy_dev)) {
+	} else if (!netif_is_ipvlan_port(phy_dev)) {
 		err = ipvlan_port_create(phy_dev);
 		if (err < 0)
 			return err;
@@ -560,7 +560,7 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	struct ipvl_port *port;
 	LIST_HEAD(lst_kill);
 
-	if (!ipvlan_dev_master(dev))
+	if (!netif_is_ipvlan_port(dev))
 		return NOTIFY_DONE;
 
 	port = ipvlan_port_get_rtnl(dev);
@@ -651,7 +651,7 @@ static int ipvlan_addr6_event(struct notifier_block *unused,
 	struct net_device *dev = (struct net_device *)if6->idev->dev;
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 
-	if (!ipvlan_dev_slave(dev))
+	if (!netif_is_ipvlan(dev))
 		return NOTIFY_DONE;
 
 	if (!ipvlan || !ipvlan->port)
@@ -723,7 +723,7 @@ static int ipvlan_addr4_event(struct notifier_block *unused,
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct in_addr ip4_addr;
 
-	if (!ipvlan_dev_slave(dev))
+	if (!netif_is_ipvlan(dev))
 		return NOTIFY_DONE;
 
 	if (!ipvlan || !ipvlan->port)

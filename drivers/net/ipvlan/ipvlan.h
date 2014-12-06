@@ -107,16 +107,6 @@ static inline struct ipvl_port *ipvlan_port_get_rtnl(const struct net_device *d)
 	return rtnl_dereference(d->rx_handler_data);
 }
 
-static inline bool ipvlan_dev_master(struct net_device *d)
-{
-	return d->priv_flags & IFF_IPVLAN_MASTER;
-}
-
-static inline bool ipvlan_dev_slave(struct net_device *d)
-{
-	return d->priv_flags & IFF_IPVLAN_SLAVE;
-}
-
 void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev);
 void ipvlan_set_port_mode(struct ipvl_port *port, u32 nval);
 void ipvlan_init_secret(void);
