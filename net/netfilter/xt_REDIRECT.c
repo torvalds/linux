@@ -26,8 +26,7 @@
 #include <net/checksum.h>
 #include <net/protocol.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/ipv4/nf_nat_redirect.h>
-#include <net/netfilter/ipv6/nf_nat_redirect.h>
+#include <net/netfilter/nf_nat_redirect.h>
 
 static unsigned int
 redirect_tg6(struct sk_buff *skb, const struct xt_action_param *par)

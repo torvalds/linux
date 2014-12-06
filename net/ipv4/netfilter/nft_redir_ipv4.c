@@ -14,7 +14,7 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/ipv4/nf_nat_redirect.h>
+#include <net/netfilter/nf_nat_redirect.h>
 #include <net/netfilter/nft_redir.h>
 
 static void nft_redir_ipv4_eval(const struct nft_expr *expr,

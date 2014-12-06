@@ -104,12 +104,6 @@ config NF_NAT_MASQUERADE_IPV4
 	  This is the kernel functionality to provide NAT in the masquerade
 	  flavour (automatic source address selection).
 
-config NF_NAT_REDIRECT_IPV4
-	tristate "IPv4 redirect support"
-	help
-	  This is the kernel functionality to provide NAT in the redirect
-	  flavour (redirect packets to local machine).
-
 config NFT_MASQ_IPV4
 	tristate "IPv4 masquerading support for nf_tables"
 	depends on NF_TABLES_IPV4
@@ -123,7 +117,7 @@ config NFT_REDIR_IPV4
 	tristate "IPv4 redirect support for nf_tables"
 	depends on NF_TABLES_IPV4
 	depends on NFT_REDIR
-	select NF_NAT_REDIRECT_IPV4
+	select NF_NAT_REDIRECT
 	help
 	  This is the expression that provides IPv4 redirect support for
 	  nf_tables.

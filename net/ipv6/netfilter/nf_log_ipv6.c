@@ -422,6 +422,6 @@ module_init(nf_log_ipv6_init);
 module_exit(nf_log_ipv6_exit);
 
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
-MODULE_DESCRIPTION("Netfilter IPv4 packet logging");
+MODULE_DESCRIPTION("Netfilter IPv6 packet logging");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NF_LOGGER(AF_INET6, 0);

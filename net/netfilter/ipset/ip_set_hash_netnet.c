@@ -46,6 +46,7 @@ struct hash_netnet4_elem {
 		__be64 ipcmp;
 	};
 	u8 nomatch;
+	u8 padding;
 	union {
 		u8 cidr[2];
 		u16 ccmp;
@@ -271,6 +272,7 @@ hash_netnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 struct hash_netnet6_elem {
 	union nf_inet_addr ip[2];
 	u8 nomatch;
+	u8 padding;
 	union {
 		u8 cidr[2];
 		u16 ccmp;
