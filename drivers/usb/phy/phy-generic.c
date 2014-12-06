@@ -59,16 +59,8 @@ static int nop_set_suspend(struct usb_phy *x, int suspend)
 
 static void nop_reset_set(struct usb_phy_generic *nop, int asserted)
 {
-	int value;
-
-	if (!gpio_is_valid(nop->gpio_reset))
-		return;
-
-	value = asserted;
-	if (nop->reset_active_low)
-		value = !value;
-
-	gpio_set_value_cansleep(nop->gpio_reset, value);
+	if (nop->gpiod_reset)
+		gpiod_set_value(nop->gpiod_reset, asserted);
 
 	if (!asserted)
 		usleep_range(10000, 20000);
@@ -143,35 +135,38 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 		struct usb_phy_generic_platform_data *pdata)
 {
 	enum usb_phy_type type = USB_PHY_TYPE_USB2;
-	int err;
+	int err = 0;
 
 	u32 clk_rate = 0;
 	bool needs_vcc = false;
 
-	nop->reset_active_low = true;	/* default behaviour */
-
 	if (dev->of_node) {
 		struct device_node *node = dev->of_node;
-		enum of_gpio_flags flags = 0;
 
 		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
 			clk_rate = 0;
 
 		needs_vcc = of_property_read_bool(node, "vcc-supply");
-		nop->gpio_reset = of_get_named_gpio_flags(node, "reset-gpios",
-								0, &flags);
-		if (nop->gpio_reset == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		nop->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
-
+		nop->gpiod_reset = devm_gpiod_get(dev, "reset-gpios");
+		err = PTR_ERR(nop->gpiod_reset);
 	} else if (pdata) {
 		type = pdata->type;
 		clk_rate = pdata->clk_rate;
 		needs_vcc = pdata->needs_vcc;
-		nop->gpio_reset = pdata->gpio_reset;
-	} else {
-		nop->gpio_reset = -1;
+		if (gpio_is_valid(gpio->gpio_reset)) {
+			err = devm_gpio_request_one(dev, pdata->gpio_reset, 0,
+						    dev_name(dev));
+			if (!err)
+				nop->gpiod_reset =
+					gpio_to_desc(pdata->gpio_reset);
+		}
+	}
+
+	if (err == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	if (err) {
+		dev_err(dev, "Error requesting RESET GPIO\n");
+		return err;
 	}
 
 	nop->phy.otg = devm_kzalloc(dev, sizeof(*nop->phy.otg),
@@ -199,24 +194,6 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 					PTR_ERR(nop->vcc));
 		if (needs_vcc)
 			return -EPROBE_DEFER;
-	}
-
-	if (gpio_is_valid(nop->gpio_reset)) {
-		unsigned long gpio_flags;
-
-		/* Assert RESET */
-		if (nop->reset_active_low)
-			gpio_flags = GPIOF_OUT_INIT_LOW;
-		else
-			gpio_flags = GPIOF_OUT_INIT_HIGH;
-
-		err = devm_gpio_request_one(dev, nop->gpio_reset,
-						gpio_flags, dev_name(dev));
-		if (err) {
-			dev_err(dev, "Error requesting RESET GPIO %d\n",
-					nop->gpio_reset);
-			return err;
-		}
 	}
 
 	nop->dev		= dev;

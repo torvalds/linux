@@ -2,14 +2,14 @@
 #define _PHY_GENERIC_H_
 
 #include <linux/usb/usb_phy_generic.h>
+#include <linux/gpio/consumer.h>
 
 struct usb_phy_generic {
 	struct usb_phy phy;
 	struct device *dev;
 	struct clk *clk;
 	struct regulator *vcc;
-	int gpio_reset;
-	bool reset_active_low;
+	struct gpio_desc *gpiod_reset;
 };
 
 int usb_gen_phy_init(struct usb_phy *phy);
