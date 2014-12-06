@@ -868,6 +868,8 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			mn88472_config.i2c_wr_max = 22,
 			strlcpy(info.type, "mn88472", I2C_NAME_SIZE);
 			mn88472_config.xtal = 20500000;
+			mn88472_config.ts_mode = SERIAL_TS_MODE;
+			mn88472_config.ts_clock = VARIABLE_TS_CLOCK;
 			info.addr = 0x18;
 			info.platform_data = &mn88472_config;
 			request_module(info.type);

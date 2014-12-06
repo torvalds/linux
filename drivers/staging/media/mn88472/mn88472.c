@@ -178,8 +178,32 @@ static int mn88472_set_frontend(struct dvb_frontend *fe)
 
 	ret = regmap_write(dev->regmap[0], 0x46, 0x00);
 	ret = regmap_write(dev->regmap[0], 0xae, 0x00);
-	ret = regmap_write(dev->regmap[2], 0x08, 0x1d);
-	ret = regmap_write(dev->regmap[0], 0xd9, 0xe3);
+
+	switch (dev->ts_mode) {
+	case SERIAL_TS_MODE:
+		ret = regmap_write(dev->regmap[2], 0x08, 0x1d);
+		break;
+	case PARALLEL_TS_MODE:
+		ret = regmap_write(dev->regmap[2], 0x08, 0x00);
+		break;
+	default:
+		dev_dbg(&client->dev, "ts_mode error: %d\n", dev->ts_mode);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	switch (dev->ts_clock) {
+	case VARIABLE_TS_CLOCK:
+		ret = regmap_write(dev->regmap[0], 0xd9, 0xe3);
+		break;
+	case FIXED_TS_CLOCK:
+		ret = regmap_write(dev->regmap[0], 0xd9, 0xe1);
+		break;
+	default:
+		dev_dbg(&client->dev, "ts_clock error: %d\n", dev->ts_clock);
+		ret = -EINVAL;
+		goto err;
+	}
 
 	/* Reset demod */
 	ret = regmap_write(dev->regmap[2], 0xf8, 0x9f);
@@ -439,6 +463,8 @@ static int mn88472_probe(struct i2c_client *client,
 
 	dev->i2c_wr_max = config->i2c_wr_max;
 	dev->xtal = config->xtal;
+	dev->ts_mode = config->ts_mode;
+	dev->ts_clock = config->ts_clock;
 	dev->client[0] = client;
 	dev->regmap[0] = regmap_init_i2c(dev->client[0], &regmap_config);
 	if (IS_ERR(dev->regmap[0])) {
