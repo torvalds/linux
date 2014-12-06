@@ -364,7 +364,15 @@ static int ad799x_read_event_config(struct iio_dev *indio_dev,
 				    enum iio_event_type type,
 				    enum iio_event_direction dir)
 {
-	return 1;
+	struct ad799x_state *st = iio_priv(indio_dev);
+
+	if (!(st->config & AD7998_ALERT_EN))
+		return 0;
+
+	if ((st->config >> AD799X_CHANNEL_SHIFT) & BIT(chan->scan_index))
+		return 1;
+
+	return 0;
 }
 
 static unsigned int ad799x_threshold_reg(const struct iio_chan_spec *chan,
