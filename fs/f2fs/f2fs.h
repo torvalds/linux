@@ -462,6 +462,7 @@ enum count_type {
 	F2FS_DIRTY_DENTS,
 	F2FS_DIRTY_NODES,
 	F2FS_DIRTY_META,
+	F2FS_INMEM_PAGES,
 	NR_COUNT_TYPE,
 };
 
@@ -1498,7 +1499,7 @@ struct f2fs_stat_info {
 	int ndirty_node, ndirty_dent, ndirty_dirs, ndirty_meta;
 	int nats, sits, fnids;
 	int total_count, utilization;
-	int bg_gc, inline_inode, inline_dir;
+	int bg_gc, inline_inode, inline_dir, inmem_pages;
 	unsigned int valid_count, valid_node_count, valid_inode_count;
 	unsigned int bimodal, avg_vblocks;
 	int util_free, util_valid, util_invalid;
