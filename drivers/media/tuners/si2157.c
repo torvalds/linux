@@ -353,7 +353,7 @@ static int si2157_probe(struct i2c_client *client,
 	cmd.rlen = 1;
 	ret = si2157_cmd_execute(client, &cmd);
 	if (ret)
-		goto err;
+		goto err_kfree;
 
 	memcpy(&fe->ops.tuner_ops, &si2157_ops, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = client;
@@ -363,9 +363,11 @@ static int si2157_probe(struct i2c_client *client,
 			"Si2146" : "Si2147/2148/2157/2158");
 
 	return 0;
+
+err_kfree:
+	kfree(dev);
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
-	kfree(dev);
 	return ret;
 }
 
