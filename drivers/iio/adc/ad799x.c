@@ -107,7 +107,7 @@ enum {
  * @info:		pointer to iio_info struct
  */
 struct ad799x_chip_config {
-	struct iio_chan_spec		channel[9];
+	const struct iio_chan_spec	channel[9];
 	u16				default_config;
 	const struct iio_info		*info;
 };
