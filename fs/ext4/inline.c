@@ -811,8 +811,11 @@ static int ext4_da_convert_inline_data_to_extent(struct address_space *mapping,
 	ret = __block_write_begin(page, 0, inline_size,
 				  ext4_da_get_block_prep);
 	if (ret) {
+		up_read(&EXT4_I(inode)->xattr_sem);
+		unlock_page(page);
+		page_cache_release(page);
 		ext4_truncate_failed_write(inode);
-		goto out;
+		return ret;
 	}
 
 	SetPageDirty(page);
