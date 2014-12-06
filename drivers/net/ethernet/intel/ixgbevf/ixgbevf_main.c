@@ -1794,7 +1794,8 @@ static int ixgbevf_configure_dcb(struct ixgbevf_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	unsigned int def_q = 0;
 	unsigned int num_tcs = 0;
-	unsigned int num_rx_queues = 1;
+	unsigned int num_rx_queues = adapter->num_rx_queues;
+	unsigned int num_tx_queues = adapter->num_tx_queues;
 	int err;
 
 	spin_lock_bh(&adapter->mbx_lock);
@@ -1808,6 +1809,9 @@ static int ixgbevf_configure_dcb(struct ixgbevf_adapter *adapter)
 		return err;
 
 	if (num_tcs > 1) {
+		/* we need only one Tx queue */
+		num_tx_queues = 1;
+
 		/* update default Tx ring register index */
 		adapter->tx_ring[0]->reg_idx = def_q;
 
@@ -1816,7 +1820,8 @@ static int ixgbevf_configure_dcb(struct ixgbevf_adapter *adapter)
 	}
 
 	/* if we have a bad config abort request queue reset */
-	if (adapter->num_rx_queues != num_rx_queues) {
+	if ((adapter->num_rx_queues != num_rx_queues) ||
+	    (adapter->num_tx_queues != num_tx_queues)) {
 		/* force mailbox timeout to prevent further messages */
 		hw->mbx.timeout = 0;
 
@@ -2181,8 +2186,19 @@ static void ixgbevf_set_num_queues(struct ixgbevf_adapter *adapter)
 		return;
 
 	/* we need as many queues as traffic classes */
-	if (num_tcs > 1)
+	if (num_tcs > 1) {
 		adapter->num_rx_queues = num_tcs;
+	} else {
+		u16 rss = min_t(u16, num_online_cpus(), IXGBEVF_MAX_RSS_QUEUES);
+
+		switch (hw->api_version) {
+		case ixgbe_mbox_api_11:
+			adapter->num_rx_queues = rss;
+			adapter->num_tx_queues = rss;
+		default:
+			break;
+		}
+	}
 }
 
 /**
