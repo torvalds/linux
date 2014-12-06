@@ -208,7 +208,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int ad7997_8_update_scan_mode(struct iio_dev *indio_dev,
+static int ad799x_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {
 	struct ad799x_state *st = iio_priv(indio_dev);
@@ -221,10 +221,14 @@ static int ad7997_8_update_scan_mode(struct iio_dev *indio_dev,
 	st->transfer_size = bitmap_weight(scan_mask, indio_dev->masklength) * 2;
 
 	switch (st->id) {
+	case ad7992:
+	case ad7993:
+	case ad7994:
 	case ad7997:
 	case ad7998:
-		return i2c_smbus_write_word_swapped(st->client, AD7998_CONF_REG,
-			st->config | (*scan_mask << AD799X_CHANNEL_SHIFT));
+		st->config &= ~(GENMASK(7, 0) << AD799X_CHANNEL_SHIFT);
+		st->config |= (*scan_mask << AD799X_CHANNEL_SHIFT);
+		return ad799x_write_config(st, st->config);
 	default:
 		return 0;
 	}
@@ -483,7 +487,7 @@ static const struct iio_info ad7991_info = {
 static const struct iio_info ad7993_4_7_8_noirq_info = {
 	.read_raw = &ad799x_read_raw,
 	.driver_module = THIS_MODULE,
-	.update_scan_mode = ad7997_8_update_scan_mode,
+	.update_scan_mode = ad799x_update_scan_mode,
 };
 
 static const struct iio_info ad7993_4_7_8_irq_info = {
@@ -493,7 +497,7 @@ static const struct iio_info ad7993_4_7_8_irq_info = {
 	.read_event_value = &ad799x_read_event_value,
 	.write_event_value = &ad799x_write_event_value,
 	.driver_module = THIS_MODULE,
-	.update_scan_mode = ad7997_8_update_scan_mode,
+	.update_scan_mode = ad799x_update_scan_mode,
 };
 
 static const struct iio_event_spec ad799x_events[] = {
