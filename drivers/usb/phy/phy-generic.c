@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/usb_phy_generic.h>
 #include <linux/slab.h>
@@ -38,6 +39,9 @@
 #include <linux/delay.h>
 
 #include "phy-generic.h"
+
+#define VBUS_IRQ_FLAGS \
+	(IRQF_SHARED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)
 
 struct platform_device *usb_phy_generic_register(void)
 {
@@ -64,6 +68,73 @@ static void nop_reset_set(struct usb_phy_generic *nop, int asserted)
 
 	if (!asserted)
 		usleep_range(10000, 20000);
+}
+
+/* interface to regulator framework */
+static void nop_set_vbus_draw(struct usb_phy_generic *nop, unsigned mA)
+{
+	struct regulator *vbus_draw = nop->vbus_draw;
+	int enabled;
+	int ret;
+
+	if (!vbus_draw)
+		return;
+
+	enabled = nop->vbus_draw_enabled;
+	if (mA) {
+		regulator_set_current_limit(vbus_draw, 0, 1000 * mA);
+		if (!enabled) {
+			ret = regulator_enable(vbus_draw);
+			if (ret < 0)
+				return;
+			nop->vbus_draw_enabled = 1;
+		}
+	} else {
+		if (enabled) {
+			ret = regulator_disable(vbus_draw);
+			if (ret < 0)
+				return;
+			nop->vbus_draw_enabled = 0;
+		}
+	}
+	nop->mA = mA;
+}
+
+
+static irqreturn_t nop_gpio_vbus_thread(int irq, void *data)
+{
+	struct usb_phy_generic *nop = data;
+	struct usb_otg *otg = nop->phy.otg;
+	int vbus, status;
+
+	vbus = gpiod_get_value(nop->gpiod_vbus);
+	if ((vbus ^ nop->vbus) == 0)
+		return IRQ_HANDLED;
+	nop->vbus = vbus;
+
+	if (vbus) {
+		status = USB_EVENT_VBUS;
+		otg->state = OTG_STATE_B_PERIPHERAL;
+		nop->phy.last_event = status;
+		usb_gadget_vbus_connect(otg->gadget);
+
+		/* drawing a "unit load" is *always* OK, except for OTG */
+		nop_set_vbus_draw(nop, 100);
+
+		atomic_notifier_call_chain(&nop->phy.notifier, status,
+					   otg->gadget);
+	} else {
+		nop_set_vbus_draw(nop, 0);
+
+		usb_gadget_vbus_disconnect(otg->gadget);
+		status = USB_EVENT_NONE;
+		otg->state = OTG_STATE_B_IDLE;
+		nop->phy.last_event = status;
+
+		atomic_notifier_call_chain(&nop->phy.notifier, status,
+					   otg->gadget);
+	}
+	return IRQ_HANDLED;
 }
 
 int usb_gen_phy_init(struct usb_phy *phy)
@@ -149,17 +220,23 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 		needs_vcc = of_property_read_bool(node, "vcc-supply");
 		nop->gpiod_reset = devm_gpiod_get(dev, "reset-gpios");
 		err = PTR_ERR(nop->gpiod_reset);
+		if (!err) {
+			nop->gpiod_vbus = devm_gpiod_get(dev,
+							 "vbus-detect-gpio");
+			err = PTR_ERR(nop->gpiod_vbus);
+		}
 	} else if (pdata) {
 		type = pdata->type;
 		clk_rate = pdata->clk_rate;
 		needs_vcc = pdata->needs_vcc;
-		if (gpio_is_valid(gpio->gpio_reset)) {
+		if (gpio_is_valid(pdata->gpio_reset)) {
 			err = devm_gpio_request_one(dev, pdata->gpio_reset, 0,
 						    dev_name(dev));
 			if (!err)
 				nop->gpiod_reset =
 					gpio_to_desc(pdata->gpio_reset);
 		}
+		nop->gpiod_vbus = pdata->gpiod_vbus;
 	}
 
 	if (err == -EPROBE_DEFER)
@@ -224,6 +301,18 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	err = usb_phy_gen_create_phy(dev, nop, dev_get_platdata(&pdev->dev));
 	if (err)
 		return err;
+	if (nop->gpiod_vbus) {
+		err = devm_request_threaded_irq(&pdev->dev,
+						gpiod_to_irq(nop->gpiod_vbus),
+						NULL, nop_gpio_vbus_thread,
+						VBUS_IRQ_FLAGS, "vbus_detect",
+						nop);
+		if (err) {
+			dev_err(&pdev->dev, "can't request irq %i, err: %d\n",
+				gpiod_to_irq(nop->gpiod_vbus), err);
+			return err;
+		}
+	}
 
 	nop->phy.init		= usb_gen_phy_init;
 	nop->phy.shutdown	= usb_gen_phy_shutdown;
