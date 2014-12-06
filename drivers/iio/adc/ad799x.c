@@ -595,7 +595,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL_WITH_EVENTS(1, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(3),
 			},
-			.default_config = AD7998_ALERT_EN,
+			.default_config = AD7998_ALERT_EN | AD7998_BUSY_ALERT,
 			.info = &ad7993_4_7_8_irq_info,
 		},
 	},
@@ -619,7 +619,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL_WITH_EVENTS(3, 10),
 				IIO_CHAN_SOFT_TIMESTAMP(4),
 			},
-			.default_config = AD7998_ALERT_EN,
+			.default_config = AD7998_ALERT_EN | AD7998_BUSY_ALERT,
 			.info = &ad7993_4_7_8_irq_info,
 		},
 	},
@@ -643,7 +643,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL_WITH_EVENTS(3, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(4),
 			},
-			.default_config = AD7998_ALERT_EN,
+			.default_config = AD7998_ALERT_EN | AD7998_BUSY_ALERT,
 			.info = &ad7993_4_7_8_irq_info,
 		},
 	},
@@ -675,7 +675,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(7, 10),
 				IIO_CHAN_SOFT_TIMESTAMP(8),
 			},
-			.default_config = AD7998_ALERT_EN,
+			.default_config = AD7998_ALERT_EN | AD7998_BUSY_ALERT,
 			.info = &ad7993_4_7_8_irq_info,
 		},
 	},
@@ -707,7 +707,7 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 				AD799X_CHANNEL(7, 12),
 				IIO_CHAN_SOFT_TIMESTAMP(8),
 			},
-			.default_config = AD7998_ALERT_EN,
+			.default_config = AD7998_ALERT_EN | AD7998_BUSY_ALERT,
 			.info = &ad7993_4_7_8_irq_info,
 		},
 	},
@@ -735,7 +735,6 @@ static int ad799x_probe(struct i2c_client *client,
 		st->chip_config = &chip_info->irq_config;
 	else
 		st->chip_config = &chip_info->noirq_config;
-	st->config = st->chip_config->default_config;
 
 	/* TODO: Add pdata options for filtering and bit delay */
 
@@ -763,6 +762,14 @@ static int ad799x_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_config->channel;
 	indio_dev->num_channels = chip_info->num_channels;
+
+	ret = ad799x_write_config(st, st->chip_config->default_config);
+	if (ret < 0)
+		goto error_disable_reg;
+	ret = ad799x_read_config(st);
+	if (ret < 0)
+		goto error_disable_reg;
+	st->config = ret;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 		&ad799x_trigger_handler, NULL);
