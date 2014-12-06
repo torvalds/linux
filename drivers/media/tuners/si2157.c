@@ -81,7 +81,7 @@ static int si2157_init(struct dvb_frontend *fe)
 	struct si2157_dev *dev = i2c_get_clientdata(client);
 	int ret, len, remaining;
 	struct si2157_cmd cmd;
-	const struct firmware *fw = NULL;
+	const struct firmware *fw;
 	u8 *fw_file;
 	unsigned int chip_id;
 
@@ -154,7 +154,7 @@ static int si2157_init(struct dvb_frontend *fe)
 		dev_err(&client->dev, "firmware file '%s' is invalid\n",
 				fw_file);
 		ret = -EINVAL;
-		goto fw_release_exit;
+		goto err_release_firmware;
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
@@ -169,12 +169,11 @@ static int si2157_init(struct dvb_frontend *fe)
 		if (ret) {
 			dev_err(&client->dev, "firmware download failed %d\n",
 					ret);
-			goto fw_release_exit;
+			goto err_release_firmware;
 		}
 	}
 
 	release_firmware(fw);
-	fw = NULL;
 
 skip_fw_download:
 	/* reboot the tuner with new firmware? */
@@ -191,7 +190,7 @@ warm:
 	dev->active = true;
 	return 0;
 
-fw_release_exit:
+err_release_firmware:
 	release_firmware(fw);
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
