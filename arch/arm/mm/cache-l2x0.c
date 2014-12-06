@@ -1,5 +1,5 @@
 /*
- * arch/arm/mm/cache-l2x0.c - L210/L220 cache controller support
+ * arch/arm/mm/cache-l2x0.c - L210/L220/L310 cache controller support
  *
  * Copyright (C) 2007 ARM Limited
  *
