@@ -383,12 +383,12 @@ static int si2157_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id si2157_id[] = {
-	{"si2157", 0},
-	{"si2146", 1},
+static const struct i2c_device_id si2157_id_table[] = {
+	{"si2157", SI2157_CHIPTYPE_SI2157},
+	{"si2146", SI2157_CHIPTYPE_SI2146},
 	{}
 };
-MODULE_DEVICE_TABLE(i2c, si2157_id);
+MODULE_DEVICE_TABLE(i2c, si2157_id_table);
 
 static struct i2c_driver si2157_driver = {
 	.driver = {
@@ -397,7 +397,7 @@ static struct i2c_driver si2157_driver = {
 	},
 	.probe		= si2157_probe,
 	.remove		= si2157_remove,
-	.id_table	= si2157_id,
+	.id_table	= si2157_id_table,
 };
 
 module_i2c_driver(si2157_driver);
