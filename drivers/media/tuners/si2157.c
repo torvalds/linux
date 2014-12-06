@@ -82,7 +82,7 @@ static int si2157_init(struct dvb_frontend *fe)
 	int ret, len, remaining;
 	struct si2157_cmd cmd;
 	const struct firmware *fw;
-	u8 *fw_file;
+	const char *fw_name;
 	unsigned int chip_id;
 
 	dev_dbg(&client->dev, "\n");
@@ -123,12 +123,12 @@ static int si2157_init(struct dvb_frontend *fe)
 	switch (chip_id) {
 	case SI2158_A20:
 	case SI2148_A20:
-		fw_file = SI2158_A20_FIRMWARE;
+		fw_name = SI2158_A20_FIRMWARE;
 		break;
 	case SI2157_A30:
 	case SI2147_A30:
 	case SI2146_A10:
-		fw_file = NULL;
+		fw_name = NULL;
 		break;
 	default:
 		dev_err(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
@@ -141,27 +141,27 @@ static int si2157_init(struct dvb_frontend *fe)
 	dev_info(&client->dev, "found a 'Silicon Labs Si21%d-%c%c%c'\n",
 			cmd.args[2], cmd.args[1], cmd.args[3], cmd.args[4]);
 
-	if (fw_file == NULL)
+	if (fw_name == NULL)
 		goto skip_fw_download;
 
 	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_file, &client->dev);
+	ret = request_firmware(&fw, fw_name, &client->dev);
 	if (ret) {
 		dev_err(&client->dev, "firmware file '%s' not found\n",
-				fw_file);
+				fw_name);
 		goto err;
 	}
 
 	/* firmware should be n chunks of 17 bytes */
 	if (fw->size % 17 != 0) {
 		dev_err(&client->dev, "firmware file '%s' is invalid\n",
-				fw_file);
+				fw_name);
 		ret = -EINVAL;
 		goto err_release_firmware;
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
-			fw_file);
+			fw_name);
 
 	for (remaining = fw->size; remaining > 0; remaining -= 17) {
 		len = fw->data[fw->size - remaining];
