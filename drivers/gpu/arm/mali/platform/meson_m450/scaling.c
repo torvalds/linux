@@ -227,7 +227,7 @@ static void mali_decide_next_status(struct mali_gpu_utilization_data *data, int*
 
 	*pp_change_flag = 0;
 	change_mode = 0;
-	utilization = data->utilization_gpu;
+	utilization = 255;
 
 	mali_up_limit = (scaling_mode ==  MALI_TURBO_MODE) ?
 				pmali_plat->turbo_clock : pmali_plat->scale_info.maxclk;
@@ -345,7 +345,7 @@ void set_mali_schel_mode(u32 mode)
 	MALI_DEBUG_ASSERT(mode < MALI_SCALING_MODE_MAX);
 	if (mode >= MALI_SCALING_MODE_MAX)
 		return;
-	scaling_mode = mode;
+	scaling_mode = MALI_TURBO_MODE;
 
 	/* set default performance range. */
 	pmali_plat->scale_info.minclk = pmali_plat->cfg_min_clock;

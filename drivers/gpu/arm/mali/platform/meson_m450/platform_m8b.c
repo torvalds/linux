@@ -33,9 +33,9 @@
  */
 
 #define CFG_PP 2
-#define CFG_CLOCK 3
-#define CFG_MIN_PP 1
-#define CFG_MIN_CLOCK 0
+#define CFG_CLOCK 4
+#define CFG_MIN_PP 2
+#define CFG_MIN_CLOCK 4
 
 /* fclk is 2550Mhz. */
 #define FCLK_DEV3 (6 << 9)		/*	850   Mhz  */
@@ -79,8 +79,8 @@ static mali_plat_info_t mali_plat_data = {
 	.cfg_min_clock = CFG_MIN_CLOCK,
 
 	.sc_mpp = 2, /* number of pp used most of time.*/
-	.bst_gpu = 210, /* threshold for boosting gpu. */
-	.bst_pp = 160, /* threshold for boosting PP. */
+	.bst_gpu = 1, /* threshold for boosting gpu. */
+	.bst_pp = 1, /* threshold for boosting PP. */
 
 	.clk = mali_dvfs_clk, /* clock source table. */
 	.clk_sample = mali_dvfs_clk_sample, /* freqency table for show. */
