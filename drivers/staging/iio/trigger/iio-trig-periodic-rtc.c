@@ -106,8 +106,7 @@ static const struct attribute_group *iio_trig_prtc_attr_groups[] = {
 
 static void iio_prtc_trigger_poll(void *private_data)
 {
-	/* Timestamp is not provided currently */
-	iio_trigger_poll(private_data, 0);
+	iio_trigger_poll(private_data);
 }
 
 static const struct iio_trigger_ops iio_prtc_trigger_ops = {
