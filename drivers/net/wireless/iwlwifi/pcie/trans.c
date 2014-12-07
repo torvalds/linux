@@ -443,9 +443,24 @@ static int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 	return ret;
 }
 
-static void iwl_pcie_apm_stop(struct iwl_trans *trans)
+static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 {
 	IWL_DEBUG_INFO(trans, "Stop card, put in low power state\n");
+
+	if (op_mode_leave) {
+		if (!test_bit(STATUS_DEVICE_ENABLED, &trans->status))
+			iwl_pcie_apm_init(trans);
+
+		/* inform ME that we are leaving */
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000)
+			iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
+					  APMG_PCIDEV_STT_VAL_WAKE_ME);
+		else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+			iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+				    CSR_HW_IF_CONFIG_REG_PREPARE |
+				    CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+		mdelay(5);
+	}
 
 	clear_bit(STATUS_DEVICE_ENABLED, &trans->status);
 
@@ -1010,7 +1025,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
-	iwl_pcie_apm_stop(trans);
+	iwl_pcie_apm_stop(trans, false);
 
 	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
 	 * Clean again the interrupt here
@@ -1187,7 +1202,7 @@ static void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans)
 	iwl_disable_interrupts(trans);
 	spin_unlock(&trans_pcie->irq_lock);
 
-	iwl_pcie_apm_stop(trans);
+	iwl_pcie_apm_stop(trans, true);
 
 	spin_lock(&trans_pcie->irq_lock);
 	iwl_disable_interrupts(trans);
