@@ -386,7 +386,7 @@ set_page(struct tda998x_priv *priv, uint16_t reg)
 		};
 		int ret = i2c_master_send(client, buf, sizeof(buf));
 		if (ret < 0) {
-			dev_err(&client->dev, "setpage %04x err %d\n",
+			dev_err(&client->dev, "%s %04x err %d\n", __func__,
 					reg, ret);
 			return ret;
 		}
