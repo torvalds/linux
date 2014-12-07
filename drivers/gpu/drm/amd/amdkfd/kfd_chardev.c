@@ -432,6 +432,48 @@ out:
 	return err;
 }
 
+static int kfd_ioctl_dbg_register(struct file *filep,
+				struct kfd_process *p, void *data)
+{
+	long status = -EFAULT;
+
+	return status;
+}
+
+static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
+				struct kfd_process *p, void *data)
+{
+	long status = -EFAULT;
+
+	return status;
+}
+
+/*
+ * Parse and generate variable size data structure for address watch.
+ * Total size of the buffer and # watch points is limited in order
+ * to prevent kernel abuse. (no bearing to the much smaller HW limitation
+ * which is enforced by dbgdev module)
+ * please also note that the watch address itself are not "copied from user",
+ * since it be set into the HW in user mode values.
+ *
+ */
+static int kfd_ioctl_dbg_address_watch(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	long status = -EFAULT;
+
+	return status;
+}
+
+/* Parse and generate fixed size data structure for wave control */
+static int kfd_ioctl_dbg_wave_control(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	long status = -EFAULT;
+
+	return status;
+}
+
 static int kfd_ioctl_get_clock_counters(struct file *filep,
 				struct kfd_process *p, void *data)
 {
@@ -612,6 +654,18 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_WAIT_EVENTS,
 			kfd_ioctl_wait_events, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_REGISTER,
+			kfd_ioctl_dbg_register, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_UNREGISTER,
+			kfd_ioctl_dbg_unrgesiter, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_ADDRESS_WATCH,
+			kfd_ioctl_dbg_address_watch, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_WAVE_CONTROL,
+			kfd_ioctl_dbg_wave_control, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
