@@ -2931,7 +2931,7 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(tfm_aes)) {
 		BT_ERR("Unable to create crypto context");
-		return ERR_PTR(PTR_ERR(tfm_aes));
+		return ERR_CAST(tfm_aes);
 	}
 
 create_chan:
