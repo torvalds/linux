@@ -1674,7 +1674,8 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	/* SMP over BR/EDR requires special treatment */
 	if (conn->hcon->type == ACL_LINK) {
 		/* We must have a BR/EDR SC link */
-		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags))
+		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags) &&
+		    !test_bit(HCI_FORCE_LESC, &hdev->dbg_flags))
 			return SMP_CROSS_TRANSP_NOT_ALLOWED;
 
 		set_bit(SMP_FLAG_SC, &smp->flags);
