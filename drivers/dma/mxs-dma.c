@@ -389,7 +389,7 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 			"%s: error in channel %d\n", __func__,
 			chan);
 		mxs_chan->status = DMA_ERROR;
-		mxs_dma_reset_chan(mxs_chan->chan);
+		mxs_dma_reset_chan(&mxs_chan->chan);
 	} else if (mxs_chan->status != DMA_COMPLETE) {
 		if (mxs_chan->flags & MXS_DMA_SG_LOOP) {
 			mxs_chan->status = DMA_IN_PROGRESS;
