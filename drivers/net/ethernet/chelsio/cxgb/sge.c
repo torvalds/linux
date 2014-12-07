@@ -301,7 +301,7 @@ unsigned int t1_sched_update_parms(struct sge *sge, unsigned int port,
 	struct sched_port *p = &s->p[port];
 	unsigned int max_avail_segs;
 
-	pr_debug("t1_sched_update_params mtu=%d speed=%d\n", mtu, speed);
+	pr_debug("%s mtu=%d speed=%d\n", __func__, mtu, speed);
 	if (speed)
 		p->speed = speed;
 	if (mtu)
