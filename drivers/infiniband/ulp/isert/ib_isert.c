@@ -1426,10 +1426,6 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 			break;
 
 		ret = iscsit_handle_logout_cmd(conn, cmd, (unsigned char *)hdr);
-		if (ret > 0)
-			wait_for_completion_timeout(&conn->conn_logout_comp,
-						    SECONDS_FOR_LOGOUT_COMP *
-						    HZ);
 		break;
 	case ISCSI_OP_TEXT:
 		cmd = isert_allocate_cmd(conn);
@@ -2922,15 +2918,14 @@ isert_immediate_queue(struct iscsi_conn *conn, struct iscsi_cmd *cmd, int state)
 static int
 isert_response_queue(struct iscsi_conn *conn, struct iscsi_cmd *cmd, int state)
 {
+	struct isert_conn *isert_conn = conn->context;
 	int ret;
 
 	switch (state) {
 	case ISTATE_SEND_LOGOUTRSP:
 		ret = isert_put_logout_rsp(cmd, conn);
-		if (!ret) {
-			pr_debug("Returning iSER Logout -EAGAIN\n");
-			ret = -EAGAIN;
-		}
+		if (!ret)
+			isert_conn->logout_posted = true;
 		break;
 	case ISTATE_SEND_NOPIN:
 		ret = isert_put_nopin(cmd, conn, true);
@@ -3236,6 +3231,18 @@ static void isert_release_work(struct work_struct *work)
 }
 
 static void
+isert_wait4logout(struct isert_conn *isert_conn)
+{
+	struct iscsi_conn *conn = isert_conn->conn;
+
+	if (isert_conn->logout_posted) {
+		pr_info("conn %p wait for conn_logout_comp\n", isert_conn);
+		wait_for_completion_timeout(&conn->conn_logout_comp,
+					    SECONDS_FOR_LOGOUT_COMP * HZ);
+	}
+}
+
+static void
 isert_wait4cmds(struct iscsi_conn *conn)
 {
 	if (conn->sess) {
@@ -3280,6 +3287,7 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 
 	isert_wait4cmds(conn);
 	isert_wait4flush(isert_conn);
+	isert_wait4logout(isert_conn);
 
 	INIT_WORK(&isert_conn->release_work, isert_release_work);
 	queue_work(isert_release_wq, &isert_conn->release_work);

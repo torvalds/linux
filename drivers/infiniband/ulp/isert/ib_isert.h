@@ -156,6 +156,7 @@ struct isert_conn {
 	spinlock_t		conn_lock;
 	struct work_struct	release_work;
 	struct ib_recv_wr       beacon;
+	bool                    logout_posted;
 };
 
 #define ISERT_MAX_CQ 64
