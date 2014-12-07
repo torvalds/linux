@@ -152,14 +152,10 @@ static void __init sun5i_a13_mbus_setup(struct device_node *node)
 }
 CLK_OF_DECLARE(sun5i_a13_mbus, "allwinner,sun5i-a13-mbus-clk", sun5i_a13_mbus_setup);
 
-struct mmc_phase_data {
-	u8	offset;
-};
-
 struct mmc_phase {
 	struct clk_hw		hw;
+	u8			offset;
 	void __iomem		*reg;
-	struct mmc_phase_data	*data;
 	spinlock_t		*lock;
 };
 
@@ -175,7 +171,7 @@ static int mmc_get_phase(struct clk_hw *hw)
 	u8 delay;
 
 	value = readl(phase->reg);
-	delay = (value >> phase->data->offset) & 0x3;
+	delay = (value >> phase->offset) & 0x3;
 
 	if (!delay)
 		return 180;
@@ -263,8 +259,8 @@ static int mmc_set_phase(struct clk_hw *hw, int degrees)
 
 	spin_lock_irqsave(phase->lock, flags);
 	value = readl(phase->reg);
-	value &= ~GENMASK(phase->data->offset + 3, phase->data->offset);
-	value |= delay << phase->data->offset;
+	value &= ~GENMASK(phase->offset + 3, phase->offset);
+	value |= delay << phase->offset;
 	writel(value, phase->reg);
 	spin_unlock_irqrestore(phase->lock, flags);
 
@@ -276,66 +272,77 @@ static const struct clk_ops mmc_clk_ops = {
 	.set_phase	= mmc_set_phase,
 };
 
-static void __init sun4i_a10_mmc_phase_setup(struct device_node *node,
-					     struct mmc_phase_data *data)
+static DEFINE_SPINLOCK(sun4i_a10_mmc_lock);
+
+static void __init sun4i_a10_mmc_setup(struct device_node *node)
 {
-	const char *parent_names[1] = { of_clk_get_parent_name(node, 0) };
-	struct clk_init_data init = {
-		.num_parents	= 1,
-		.parent_names	= parent_names,
-		.ops		= &mmc_clk_ops,
-	};
+	struct clk_onecell_data *clk_data;
+	const char *parent;
+	void __iomem *reg;
+	int i;
 
-	struct mmc_phase *phase;
-	struct clk *clk;
+	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (IS_ERR(reg)) {
+		pr_err("Couldn't map the %s clock registers\n", node->name);
+		return;
+	}
 
-	phase = kmalloc(sizeof(*phase), GFP_KERNEL);
-	if (!phase)
+	clk_data = kmalloc(sizeof(*clk_data), GFP_KERNEL);
+	if (!clk_data)
 		return;
 
-	phase->hw.init = &init;
+	clk_data->clks = kcalloc(3, sizeof(*clk_data->clks), GFP_KERNEL);
+	if (!clk_data->clks)
+		goto err_free_data;
 
-	phase->reg = of_iomap(node, 0);
-	if (!phase->reg)
-		goto err_free;
+	clk_data->clk_num = 3;
+	clk_data->clks[0] = sunxi_factors_register(node,
+						   &sun4i_a10_mod0_data,
+						   &sun4i_a10_mmc_lock, reg);
+	if (!clk_data->clks[0])
+		goto err_free_clks;
 
-	phase->data = data;
-	phase->lock = &sun4i_a10_mod0_lock;
+	parent = __clk_get_name(clk_data->clks[0]);
 
-	if (of_property_read_string(node, "clock-output-names", &init.name))
-		init.name = node->name;
+	for (i = 1; i < 3; i++) {
+		struct clk_init_data init = {
+			.num_parents	= 1,
+			.parent_names	= &parent,
+			.ops		= &mmc_clk_ops,
+		};
+		struct mmc_phase *phase;
 
-	clk = clk_register(NULL, &phase->hw);
-	if (IS_ERR(clk))
-		goto err_unmap;
+		phase = kmalloc(sizeof(*phase), GFP_KERNEL);
+		if (!phase)
+			continue;
 
-	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		phase->hw.init = &init;
+		phase->reg = reg;
+		phase->lock = &sun4i_a10_mmc_lock;
+
+		if (i == 1)
+			phase->offset = 8;
+		else
+			phase->offset = 20;
+
+		if (of_property_read_string_index(node, "clock-output-names",
+						  i, &init.name))
+			init.name = node->name;
+
+		clk_data->clks[i] = clk_register(NULL, &phase->hw);
+		if (IS_ERR(clk_data->clks[i])) {
+			kfree(phase);
+			continue;
+		}
+	}
+
+	of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
 
 	return;
 
-err_unmap:
-	iounmap(phase->reg);
-err_free:
-	kfree(phase);
+err_free_clks:
+	kfree(clk_data->clks);
+err_free_data:
+	kfree(clk_data);
 }
-
-
-static struct mmc_phase_data mmc_output_clk = {
-	.offset	= 8,
-};
-
-static struct mmc_phase_data mmc_sample_clk = {
-	.offset	= 20,
-};
-
-static void __init sun4i_a10_mmc_output_setup(struct device_node *node)
-{
-	sun4i_a10_mmc_phase_setup(node, &mmc_output_clk);
-}
-CLK_OF_DECLARE(sun4i_a10_mmc_output, "allwinner,sun4i-a10-mmc-output-clk", sun4i_a10_mmc_output_setup);
-
-static void __init sun4i_a10_mmc_sample_setup(struct device_node *node)
-{
-	sun4i_a10_mmc_phase_setup(node, &mmc_sample_clk);
-}
-CLK_OF_DECLARE(sun4i_a10_mmc_sample, "allwinner,sun4i-a10-mmc-sample-clk", sun4i_a10_mmc_sample_setup);
+CLK_OF_DECLARE(sun4i_a10_mmc, "allwinner,sun4i-a10-mmc-clk", sun4i_a10_mmc_setup);
