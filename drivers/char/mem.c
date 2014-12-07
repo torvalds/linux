@@ -341,7 +341,6 @@ static int mmap_mem(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-#ifdef CONFIG_DEVKMEM
 static int mmap_kmem(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long pfn;
@@ -362,9 +361,7 @@ static int mmap_kmem(struct file *file, struct vm_area_struct *vma)
 	vma->vm_pgoff = pfn;
 	return mmap_mem(file, vma);
 }
-#endif
 
-#ifdef CONFIG_DEVKMEM
 /*
  * This function reads the *virtual* memory as seen by the kernel.
  */
@@ -544,7 +541,6 @@ static ssize_t write_kmem(struct file *file, const char __user *buf,
 	*ppos = p;
 	return virtr + wrote ? : err;
 }
-#endif
 
 #ifdef CONFIG_DEVPORT
 static ssize_t read_port(struct file *file, char __user *buf,
@@ -724,8 +720,7 @@ static const struct file_operations __maybe_unused mem_fops = {
 	.get_unmapped_area = get_unmapped_area_mem,
 };
 
-#ifdef CONFIG_DEVKMEM
-static const struct file_operations kmem_fops = {
+static const struct file_operations __maybe_unused kmem_fops = {
 	.llseek		= memory_lseek,
 	.read		= read_kmem,
 	.write		= write_kmem,
@@ -733,7 +728,6 @@ static const struct file_operations kmem_fops = {
 	.open		= open_kmem,
 	.get_unmapped_area = get_unmapped_area_mem,
 };
-#endif
 
 static const struct file_operations null_fops = {
 	.llseek		= null_lseek,
