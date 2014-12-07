@@ -629,9 +629,11 @@ void iser_conn_release(struct iser_conn *iser_conn)
 	mutex_unlock(&ig.connlist_mutex);
 
 	mutex_lock(&iser_conn->state_mutex);
-	if (iser_conn->state != ISER_CONN_DOWN)
+	if (iser_conn->state != ISER_CONN_DOWN) {
 		iser_warn("iser conn %p state %d, expected state down.\n",
 			  iser_conn, iser_conn->state);
+		iser_conn->state = ISER_CONN_DOWN;
+	}
 	/*
 	 * In case we never got to bind stage, we still need to
 	 * release IB resources (which is safe to call more than once).
@@ -867,20 +869,21 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_ADDR_CHANGE:
-		iser_disconnected_handler(cma_id);
+	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
+		iser_cleanup_handler(cma_id, false);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		/*
 		 * we *must* destroy the device as we cannot rely
 		 * on iscsid to be around to initiate error handling.
-		 * also implicitly destroy the cma_id.
+		 * also if we are not in state DOWN implicitly destroy
+		 * the cma_id.
 		 */
 		iser_cleanup_handler(cma_id, true);
-		iser_conn->ib_conn.cma_id = NULL;
-		ret = 1;
-		break;
-	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
-		iser_cleanup_handler(cma_id, false);
+		if (iser_conn->state != ISER_CONN_DOWN) {
+			iser_conn->ib_conn.cma_id = NULL;
+			ret = 1;
+		}
 		break;
 	default:
 		iser_err("Unexpected RDMA CM event (%d)\n", event->event);
