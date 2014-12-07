@@ -2265,7 +2265,7 @@ static int __init dmfe_init_module(void)
 
 static void __exit dmfe_cleanup_module(void)
 {
-	DMFE_DBUG(0, "dmfe_clean_module() ", debug);
+	DMFE_DBUG(0, "dmfe_cleanup_module() ", debug);
 	pci_unregister_driver(&dmfe_driver);
 }
 
