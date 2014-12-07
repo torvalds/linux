@@ -12302,28 +12302,6 @@ static bool has_edp_a(struct drm_device *dev)
 	return true;
 }
 
-const char *intel_output_name(int output)
-{
-	static const char *names[] = {
-		[INTEL_OUTPUT_UNUSED] = "Unused",
-		[INTEL_OUTPUT_ANALOG] = "Analog",
-		[INTEL_OUTPUT_DVO] = "DVO",
-		[INTEL_OUTPUT_SDVO] = "SDVO",
-		[INTEL_OUTPUT_LVDS] = "LVDS",
-		[INTEL_OUTPUT_TVOUT] = "TV",
-		[INTEL_OUTPUT_HDMI] = "HDMI",
-		[INTEL_OUTPUT_DISPLAYPORT] = "DisplayPort",
-		[INTEL_OUTPUT_EDP] = "eDP",
-		[INTEL_OUTPUT_DSI] = "DSI",
-		[INTEL_OUTPUT_UNKNOWN] = "Unknown",
-	};
-
-	if (output < 0 || output >= ARRAY_SIZE(names) || !names[output])
-		return "Invalid";
-
-	return names[output];
-}
-
 static bool intel_crt_present(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
