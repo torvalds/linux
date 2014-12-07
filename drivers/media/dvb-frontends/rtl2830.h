@@ -24,6 +24,37 @@
 #include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
+struct rtl2830_platform_data {
+	/*
+	 * Clock frequency.
+	 * Hz
+	 * 4000000, 16000000, 25000000, 28800000
+	 */
+	u32 clk;
+
+	/*
+	 * Spectrum inversion.
+	 */
+	bool spec_inv;
+
+	/*
+	 */
+	u8 vtop;
+
+	/*
+	 */
+	u8 krf;
+
+	/*
+	 */
+	u8 agc_targ_val;
+
+	/*
+	 */
+	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
+	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
+};
+
 struct rtl2830_config {
 	/*
 	 * Demodulator I2C address.

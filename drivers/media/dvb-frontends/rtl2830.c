@@ -767,6 +767,173 @@ static struct dvb_frontend_ops rtl2830_ops = {
 	.read_signal_strength = rtl2830_read_signal_strength,
 };
 
+/*
+ * I2C gate/repeater logic
+ * We must use unlocked i2c_transfer() here because I2C lock is already taken
+ * by tuner driver. Gate is closed automatically after single I2C xfer.
+ */
+static int rtl2830_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
+{
+	struct i2c_client *client = mux_priv;
+	struct rtl2830_priv *priv = i2c_get_clientdata(client);
+	struct i2c_msg select_reg_page_msg[1] = {
+		{
+			.addr = priv->cfg.i2c_addr,
+			.flags = 0,
+			.len = 2,
+			.buf = "\x00\x01",
+		}
+	};
+	struct i2c_msg gate_open_msg[1] = {
+		{
+			.addr = priv->cfg.i2c_addr,
+			.flags = 0,
+			.len = 2,
+			.buf = "\x01\x08",
+		}
+	};
+	int ret;
+
+	/* select register page */
+	ret = __i2c_transfer(adap, select_reg_page_msg, 1);
+	if (ret != 1) {
+		dev_warn(&client->dev, "i2c write failed %d\n", ret);
+		if (ret >= 0)
+			ret = -EREMOTEIO;
+		goto err;
+	}
+
+	priv->page = 1;
+
+	/* open tuner I2C repeater for 1 xfer, closes automatically */
+	ret = __i2c_transfer(adap, gate_open_msg, 1);
+	if (ret != 1) {
+		dev_warn(&client->dev, "i2c write failed %d\n", ret);
+		if (ret >= 0)
+			ret = -EREMOTEIO;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	dev_dbg(&client->dev, "%s: failed=%d\n", __func__, ret);
+	return ret;
+}
+
+static struct dvb_frontend *rtl2830_get_dvb_frontend(struct i2c_client *client)
+{
+	struct rtl2830_priv *priv = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &priv->fe;
+}
+
+static struct i2c_adapter *rtl2830_get_i2c_adapter(struct i2c_client *client)
+{
+	struct rtl2830_priv *priv = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return priv->adapter;
+}
+
+static int rtl2830_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct rtl2830_platform_data *pdata = client->dev.platform_data;
+	struct i2c_adapter *i2c = client->adapter;
+	struct rtl2830_priv *priv;
+	int ret;
+	u8 u8tmp;
+
+	dev_dbg(&client->dev, "\n");
+
+	if (pdata == NULL) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* allocate memory for the internal state */
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (priv == NULL) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	/* setup the state */
+	i2c_set_clientdata(client, priv);
+	priv->i2c = i2c;
+	priv->sleeping = true;
+	priv->cfg.i2c_addr = client->addr;
+	priv->cfg.xtal = pdata->clk;
+	priv->cfg.spec_inv = pdata->spec_inv;
+	priv->cfg.vtop = pdata->vtop;
+	priv->cfg.krf = pdata->krf;
+	priv->cfg.agc_targ_val = pdata->agc_targ_val;
+
+	/* check if the demod is there */
+	ret = rtl2830_rd_reg(priv, 0x000, &u8tmp);
+	if (ret)
+		goto err_kfree;
+
+	/* create muxed i2c adapter for tuner */
+	priv->adapter = i2c_add_mux_adapter(client->adapter, &client->dev,
+			client, 0, 0, 0, rtl2830_select, NULL);
+	if (priv->adapter == NULL) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
+
+	/* create dvb frontend */
+	memcpy(&priv->fe.ops, &rtl2830_ops, sizeof(priv->fe.ops));
+	priv->fe.ops.release = NULL;
+	priv->fe.demodulator_priv = priv;
+
+	/* setup callbacks */
+	pdata->get_dvb_frontend = rtl2830_get_dvb_frontend;
+	pdata->get_i2c_adapter = rtl2830_get_i2c_adapter;
+
+	dev_info(&client->dev, "Realtek RTL2830 successfully attached\n");
+	return 0;
+
+err_kfree:
+	kfree(priv);
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int rtl2830_remove(struct i2c_client *client)
+{
+	struct rtl2830_priv *priv = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	i2c_del_mux_adapter(priv->adapter);
+	kfree(priv);
+	return 0;
+}
+
+static const struct i2c_device_id rtl2830_id_table[] = {
+	{"rtl2830", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, rtl2830_id_table);
+
+static struct i2c_driver rtl2830_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "rtl2830",
+	},
+	.probe		= rtl2830_probe,
+	.remove		= rtl2830_remove,
+	.id_table	= rtl2830_id_table,
+};
+
+module_i2c_driver(rtl2830_driver);
+
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Realtek RTL2830 DVB-T demodulator driver");
 MODULE_LICENSE("GPL");

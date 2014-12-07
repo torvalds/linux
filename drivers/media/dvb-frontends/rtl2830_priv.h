@@ -24,8 +24,10 @@
 #include "dvb_frontend.h"
 #include "dvb_math.h"
 #include "rtl2830.h"
+#include <linux/i2c-mux.h>
 
 struct rtl2830_priv {
+	struct i2c_adapter *adapter;
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
 	struct rtl2830_config cfg;
