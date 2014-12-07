@@ -56,21 +56,6 @@ enum r600_hdmi_iec_status_bits {
 	AUDIO_STATUS_LEVEL        = 0x80
 };
 
-static const struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
-    /*	     32kHz	  44.1kHz	48kHz    */
-    /* Clock      N     CTS      N     CTS      N     CTS */
-    {  25175,  4096,  25175, 28224, 125875,  6144,  25175 }, /*  25,20/1.001 MHz */
-    {  25200,  4096,  25200,  6272,  28000,  6144,  25200 }, /*  25.20       MHz */
-    {  27000,  4096,  27000,  6272,  30000,  6144,  27000 }, /*  27.00       MHz */
-    {  27027,  4096,  27027,  6272,  30030,  6144,  27027 }, /*  27.00*1.001 MHz */
-    {  54000,  4096,  54000,  6272,  60000,  6144,  54000 }, /*  54.00       MHz */
-    {  54054,  4096,  54054,  6272,  60060,  6144,  54054 }, /*  54.00*1.001 MHz */
-    {  74176,  4096,  74176,  5733,  75335,  6144,  74176 }, /*  74.25/1.001 MHz */
-    {  74250,  4096,  74250,  6272,  82500,  6144,  74250 }, /*  74.25       MHz */
-    { 148352,  4096, 148352,  5733, 150670,  6144, 148352 }, /* 148.50/1.001 MHz */
-    { 148500,  4096, 148500,  6272, 165000,  6144, 148500 }, /* 148.50       MHz */
-};
-
 static struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
 {
 	struct r600_audio_pin status;
@@ -189,97 +174,41 @@ struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev)
 	return &rdev->audio.pin[0];
 }
 
-/*
- * calculate CTS and N values if they are not found in the table
- */
-static void r600_hdmi_calc_cts(uint32_t clock, int *CTS, int *N, int freq)
-{
-	int n, cts;
-	unsigned long div, mul;
-
-	/* Safe, but overly large values */
-	n = 128 * freq;
-	cts = clock * 1000;
-
-	/* Smallest valid fraction */
-	div = gcd(n, cts);
-
-	n /= div;
-	cts /= div;
-
-	/*
-	 * The optimal N is 128*freq/1000. Calculate the closest larger
-	 * value that doesn't truncate any bits.
-	 */
-	mul = ((128*freq/1000) + (n-1))/n;
-
-	n *= mul;
-	cts *= mul;
-
-	/* Check that we are in spec (not always possible) */
-	if (n < (128*freq/1500))
-		printk(KERN_WARNING "Calculated ACR N value is too small. You may experience audio problems.\n");
-	if (n > (128*freq/300))
-		printk(KERN_WARNING "Calculated ACR N value is too large. You may experience audio problems.\n");
-
-	*N = n;
-	*CTS = cts;
-
-	DRM_DEBUG("Calculated ACR timing N=%d CTS=%d for frequency %d\n",
-		  *N, *CTS, freq);
-}
-
-struct radeon_hdmi_acr r600_hdmi_acr(uint32_t clock)
-{
-	struct radeon_hdmi_acr res;
-	u8 i;
-
-	/* Precalculated values for common clocks */
-	for (i = 0; i < ARRAY_SIZE(r600_hdmi_predefined_acr); i++) {
-		if (r600_hdmi_predefined_acr[i].clock == clock)
-			return r600_hdmi_predefined_acr[i];
-	}
-
-	/* And odd clocks get manually calculated */
-	r600_hdmi_calc_cts(clock, &res.cts_32khz, &res.n_32khz, 32000);
-	r600_hdmi_calc_cts(clock, &res.cts_44_1khz, &res.n_44_1khz, 44100);
-	r600_hdmi_calc_cts(clock, &res.cts_48khz, &res.n_48khz, 48000);
-
-	return res;
-}
-
-/*
- * update the N and CTS parameters for a given pixel clock rate
- */
-void r600_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock)
+void r600_hdmi_update_acr(struct drm_encoder *encoder, long offset,
+	const struct radeon_hdmi_acr *acr)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_hdmi_acr acr = r600_hdmi_acr(clock);
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset = dig->afmt->offset;
+
+	/* DCE 3.0 uses register that's normally for CRC_CONTROL */
+	uint32_t acr_ctl = ASIC_IS_DCE3(rdev) ? DCE3_HDMI0_ACR_PACKET_CONTROL :
+				       HDMI0_ACR_PACKET_CONTROL;
+	WREG32_P(acr_ctl + offset,
+		HDMI0_ACR_SOURCE |		/* select SW CTS value */
+		HDMI0_ACR_AUTO_SEND,	/* allow hw to sent ACR packets when required */
+		~(HDMI0_ACR_SOURCE |
+		HDMI0_ACR_AUTO_SEND));
 
 	WREG32_P(HDMI0_ACR_32_0 + offset,
-		 HDMI0_ACR_CTS_32(acr.cts_32khz),
-		 ~HDMI0_ACR_CTS_32_MASK);
+		HDMI0_ACR_CTS_32(acr->cts_32khz),
+		~HDMI0_ACR_CTS_32_MASK);
 	WREG32_P(HDMI0_ACR_32_1 + offset,
-		 HDMI0_ACR_N_32(acr.n_32khz),
-		 ~HDMI0_ACR_N_32_MASK);
+		HDMI0_ACR_N_32(acr->n_32khz),
+		~HDMI0_ACR_N_32_MASK);
 
 	WREG32_P(HDMI0_ACR_44_0 + offset,
-		 HDMI0_ACR_CTS_44(acr.cts_44_1khz),
-		 ~HDMI0_ACR_CTS_44_MASK);
+		HDMI0_ACR_CTS_44(acr->cts_44_1khz),
+		~HDMI0_ACR_CTS_44_MASK);
 	WREG32_P(HDMI0_ACR_44_1 + offset,
-		 HDMI0_ACR_N_44(acr.n_44_1khz),
-		 ~HDMI0_ACR_N_44_MASK);
+		HDMI0_ACR_N_44(acr->n_44_1khz),
+		~HDMI0_ACR_N_44_MASK);
 
 	WREG32_P(HDMI0_ACR_48_0 + offset,
-		 HDMI0_ACR_CTS_48(acr.cts_48khz),
-		 ~HDMI0_ACR_CTS_48_MASK);
+		HDMI0_ACR_CTS_48(acr->cts_48khz),
+		~HDMI0_ACR_CTS_48_MASK);
 	WREG32_P(HDMI0_ACR_48_1 + offset,
-		 HDMI0_ACR_N_48(acr.n_48khz),
-		 ~HDMI0_ACR_N_48_MASK);
+		HDMI0_ACR_N_48(acr->n_48khz),
+		~HDMI0_ACR_N_48_MASK);
 }
 
 /*
@@ -412,7 +341,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
 	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
-	uint32_t acr_ctl;
 	ssize_t err;
 
 	if (!dig || !dig->afmt)
@@ -438,15 +366,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		   HDMI0_AUDIO_DELAY_EN_MASK |
 		   HDMI0_AUDIO_PACKETS_PER_LINE_MASK |
 		   HDMI0_60958_CS_UPDATE));
-
-	/* DCE 3.0 uses register that's normally for CRC_CONTROL */
-	acr_ctl = ASIC_IS_DCE3(rdev) ? DCE3_HDMI0_ACR_PACKET_CONTROL :
-				       HDMI0_ACR_PACKET_CONTROL;
-	WREG32_P(acr_ctl + offset,
-		 HDMI0_ACR_SOURCE | /* select SW CTS value - XXX verify that hw CTS works on all families */
-		 HDMI0_ACR_AUTO_SEND, /* allow hw to sent ACR packets when required */
-		 ~(HDMI0_ACR_SOURCE |
-		   HDMI0_ACR_AUTO_SEND));
 
 	WREG32_OR(HDMI0_VBI_PACKET_CONTROL + offset,
 		  HDMI0_NULL_SEND | /* send null packets when required */
@@ -493,7 +412,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		     HDMI0_GENERIC0_LINE_MASK |
 		     HDMI0_GENERIC1_LINE_MASK));
 
-	r600_hdmi_update_ACR(encoder, mode->clock);
+	radeon_audio_update_acr(encoder, mode->clock);
 
 	WREG32_P(HDMI0_60958_0 + offset,
 		 HDMI0_60958_CS_CHANNEL_NUMBER_L(1),

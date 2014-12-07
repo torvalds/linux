@@ -64,26 +64,34 @@ void dce4_audio_enable(struct radeon_device *rdev,
 	WREG32(AZ_HOT_PLUG_CONTROL, tmp);
 }
 
-/*
- * update the N and CTS parameters for a given pixel clock rate
- */
-static void evergreen_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock)
+void evergreen_hdmi_update_acr(struct drm_encoder *encoder, long offset,
+	const struct radeon_hdmi_acr *acr)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_hdmi_acr acr = r600_hdmi_acr(clock);
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset = dig->afmt->offset;
+	int bpc = 8;
 
-	WREG32(HDMI_ACR_32_0 + offset, HDMI_ACR_CTS_32(acr.cts_32khz));
-	WREG32(HDMI_ACR_32_1 + offset, acr.n_32khz);
+	if (encoder->crtc) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+		bpc = radeon_crtc->bpc;
+	}
 
-	WREG32(HDMI_ACR_44_0 + offset, HDMI_ACR_CTS_44(acr.cts_44_1khz));
-	WREG32(HDMI_ACR_44_1 + offset, acr.n_44_1khz);
+	if (bpc > 8)
+		WREG32(HDMI_ACR_PACKET_CONTROL + offset,
+			HDMI_ACR_AUTO_SEND);	/* allow hw to sent ACR packets when required */
+	else
+		WREG32(HDMI_ACR_PACKET_CONTROL + offset,
+			HDMI_ACR_SOURCE |		/* select SW CTS value */
+			HDMI_ACR_AUTO_SEND);	/* allow hw to sent ACR packets when required */
 
-	WREG32(HDMI_ACR_48_0 + offset, HDMI_ACR_CTS_48(acr.cts_48khz));
-	WREG32(HDMI_ACR_48_1 + offset, acr.n_48khz);
+	WREG32(HDMI_ACR_32_0 + offset, HDMI_ACR_CTS_32(acr->cts_32khz));
+	WREG32(HDMI_ACR_32_1 + offset, acr->n_32khz);
+
+	WREG32(HDMI_ACR_44_0 + offset, HDMI_ACR_CTS_44(acr->cts_44_1khz));
+	WREG32(HDMI_ACR_44_1 + offset, acr->n_44_1khz);
+
+	WREG32(HDMI_ACR_48_0 + offset, HDMI_ACR_CTS_48(acr->cts_48khz));
+	WREG32(HDMI_ACR_48_1 + offset, acr->n_48khz);
 }
 
 void dce4_afmt_write_latency_fields(struct drm_encoder *encoder,
@@ -378,15 +386,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	/* fglrx clears sth in AFMT_AUDIO_PACKET_CONTROL2 here */
 
-	if (bpc > 8)
-		WREG32(HDMI_ACR_PACKET_CONTROL + offset,
-		       HDMI_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
-	else
-		WREG32(HDMI_ACR_PACKET_CONTROL + offset,
-		       HDMI_ACR_SOURCE | /* select SW CTS value */
-		       HDMI_ACR_AUTO_SEND); /* allow hw to sent ACR packets when required */
-
-	evergreen_hdmi_update_ACR(encoder, mode->clock);
+	radeon_audio_update_acr(encoder, mode->clock);
 
 	WREG32(AFMT_60958_0 + offset,
 	       AFMT_60958_CS_CHANNEL_NUMBER_L(1));

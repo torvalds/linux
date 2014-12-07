@@ -22,6 +22,7 @@
  * Authors: Slava Grigorev <slava.grigorev@amd.com>
  */
 
+#include <linux/gcd.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include "radeon.h"
@@ -78,6 +79,12 @@ void r600_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
 	unsigned char *buffer, size_t size);
 void evergreen_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
 	unsigned char *buffer, size_t size);
+void r600_hdmi_update_acr(struct drm_encoder *encoder, long offset,
+	const struct radeon_hdmi_acr *acr);
+void dce3_2_hdmi_update_acr(struct drm_encoder *encoder, long offset,
+	const struct radeon_hdmi_acr *acr);
+void evergreen_hdmi_update_acr(struct drm_encoder *encoder, long offset,
+	const struct radeon_hdmi_acr *acr);
 
 static const u32 pin_offsets[7] =
 {
@@ -132,6 +139,7 @@ static struct radeon_audio_basic_funcs dce6_funcs = {
 static struct radeon_audio_funcs r600_hdmi_funcs = {
 	.get_pin = r600_audio_get_pin,
 	.set_dto = r600_hdmi_audio_set_dto,
+	.update_acr = r600_hdmi_update_acr,
 };
 
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
@@ -139,6 +147,7 @@ static struct radeon_audio_funcs dce32_hdmi_funcs = {
 	.write_sad_regs = dce3_2_afmt_write_sad_regs,
 	.write_speaker_allocation = dce3_2_afmt_hdmi_write_speaker_allocation,
 	.set_dto = dce3_2_audio_set_dto,
+	.update_acr = dce3_2_hdmi_update_acr,
 };
 
 static struct radeon_audio_funcs dce32_dp_funcs = {
@@ -154,6 +163,7 @@ static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.write_speaker_allocation = dce4_afmt_hdmi_write_speaker_allocation,
 	.write_latency_fields = dce4_afmt_write_latency_fields,
 	.set_dto = dce4_hdmi_audio_set_dto,
+	.update_acr = evergreen_hdmi_update_acr,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
@@ -171,6 +181,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.write_speaker_allocation = dce6_afmt_hdmi_write_speaker_allocation,
 	.write_latency_fields = dce6_afmt_write_latency_fields,
 	.set_dto = dce6_hdmi_audio_set_dto,
+	.update_acr = evergreen_hdmi_update_acr,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
@@ -455,4 +466,93 @@ void radeon_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
 	if (dig && dig->afmt && rdev->audio.funcs->update_avi_infoframe)
 		rdev->audio.funcs->update_avi_infoframe(rdev, dig->afmt->offset,
 			buffer, size);
+}
+
+/*
+ * calculate CTS and N values if they are not found in the table
+ */
+static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq)
+{
+	int n, cts;
+	unsigned long div, mul;
+
+	/* Safe, but overly large values */
+	n = 128 * freq;
+	cts = clock * 1000;
+
+	/* Smallest valid fraction */
+	div = gcd(n, cts);
+
+	n /= div;
+	cts /= div;
+
+	/*
+	 * The optimal N is 128*freq/1000. Calculate the closest larger
+	 * value that doesn't truncate any bits.
+	 */
+	mul = ((128*freq/1000) + (n-1))/n;
+
+	n *= mul;
+	cts *= mul;
+
+	/* Check that we are in spec (not always possible) */
+	if (n < (128*freq/1500))
+		printk(KERN_WARNING "Calculated ACR N value is too small. You may experience audio problems.\n");
+	if (n > (128*freq/300))
+		printk(KERN_WARNING "Calculated ACR N value is too large. You may experience audio problems.\n");
+
+	*N = n;
+	*CTS = cts;
+
+	DRM_DEBUG("Calculated ACR timing N=%d CTS=%d for frequency %d\n",
+		*N, *CTS, freq);
+}
+
+static const struct radeon_hdmi_acr* radeon_audio_acr(unsigned int clock)
+{
+	static struct radeon_hdmi_acr res;
+	u8 i;
+
+	static const struct radeon_hdmi_acr hdmi_predefined_acr[] = {
+		/*       32kHz    44.1kHz   48kHz    */
+		/* Clock      N     CTS      N     CTS      N     CTS */
+		{  25175,  4096,  25175, 28224, 125875,  6144,  25175 }, /*  25,20/1.001 MHz */
+		{  25200,  4096,  25200,  6272,  28000,  6144,  25200 }, /*  25.20       MHz */
+		{  27000,  4096,  27000,  6272,  30000,  6144,  27000 }, /*  27.00       MHz */
+		{  27027,  4096,  27027,  6272,  30030,  6144,  27027 }, /*  27.00*1.001 MHz */
+		{  54000,  4096,  54000,  6272,  60000,  6144,  54000 }, /*  54.00       MHz */
+		{  54054,  4096,  54054,  6272,  60060,  6144,  54054 }, /*  54.00*1.001 MHz */
+		{  74176,  4096,  74176,  5733,  75335,  6144,  74176 }, /*  74.25/1.001 MHz */
+		{  74250,  4096,  74250,  6272,  82500,  6144,  74250 }, /*  74.25       MHz */
+		{ 148352,  4096, 148352,  5733, 150670,  6144, 148352 }, /* 148.50/1.001 MHz */
+		{ 148500,  4096, 148500,  6272, 165000,  6144, 148500 }, /* 148.50       MHz */
+	};
+
+	/* Precalculated values for common clocks */
+	for (i = 0; i < ARRAY_SIZE(hdmi_predefined_acr); i++)
+		if (hdmi_predefined_acr[i].clock == clock)
+			return &hdmi_predefined_acr[i];
+
+	/* And odd clocks get manually calculated */
+	radeon_audio_calc_cts(clock, &res.cts_32khz, &res.n_32khz, 32000);
+	radeon_audio_calc_cts(clock, &res.cts_44_1khz, &res.n_44_1khz, 44100);
+	radeon_audio_calc_cts(clock, &res.cts_48khz, &res.n_48khz, 48000);
+
+	return &res;
+}
+
+/*
+ * update the N and CTS parameters for a given pixel clock rate
+ */
+void radeon_audio_update_acr(struct drm_encoder *encoder, unsigned int clock)
+{
+    const struct radeon_hdmi_acr *acr = radeon_audio_acr(clock);
+    struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+    struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	if (radeon_encoder->audio && radeon_encoder->audio->update_acr)
+		radeon_encoder->audio->update_acr(encoder, dig->afmt->offset, acr);
 }
