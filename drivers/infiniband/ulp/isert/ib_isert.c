@@ -1976,8 +1976,7 @@ isert_cq_comp_err(struct isert_conn *isert_conn, struct ib_wc *wc)
 		isert_info("conn %p completing conn_wait_comp_err\n",
 			   isert_conn);
 		complete(&isert_conn->conn_wait_comp_err);
-	} else
-	if (is_isert_tx_desc(isert_conn, (void *)wc->wr_id)) {
+	} else if (is_isert_tx_desc(isert_conn, (void *)(uintptr_t)wc->wr_id)) {
 		struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
 		struct isert_cmd *isert_cmd;
 		struct iser_tx_desc *desc;
