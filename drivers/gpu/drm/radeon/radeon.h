@@ -1967,6 +1967,10 @@ struct radeon_asic {
 		bool (*vblank_too_short)(struct radeon_device *rdev);
 		void (*powergate_uvd)(struct radeon_device *rdev, bool gate);
 		void (*enable_bapm)(struct radeon_device *rdev, bool enable);
+		void (*fan_ctrl_set_mode)(struct radeon_device *rdev, u32 mode);
+		u32 (*fan_ctrl_get_mode)(struct radeon_device *rdev);
+		int (*set_fan_speed_percent)(struct radeon_device *rdev, u32 speed);
+		int (*get_fan_speed_percent)(struct radeon_device *rdev, u32 *speed);
 	} dpm;
 	/* pageflipping */
 	struct {
