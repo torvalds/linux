@@ -164,18 +164,42 @@ iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
 	return 0;
 }
 
-int iser_initialize_task_headers(struct iscsi_task *task,
-						struct iser_tx_desc *tx_desc)
+/**
+ * iser_initialize_task_headers() - Initialize task headers
+ * @task:       iscsi task
+ * @tx_desc:    iser tx descriptor
+ *
+ * Notes:
+ * This routine may race with iser teardown flow for scsi
+ * error handling TMFs. So for TMF we should acquire the
+ * state mutex to avoid dereferencing the IB device which
+ * may have already been terminated.
+ */
+int
+iser_initialize_task_headers(struct iscsi_task *task,
+			     struct iser_tx_desc *tx_desc)
 {
-	struct iser_conn       *iser_conn   = task->conn->dd_data;
+	struct iser_conn *iser_conn = task->conn->dd_data;
 	struct iser_device *device = iser_conn->ib_conn.device;
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	u64 dma_addr;
+	const bool mgmt_task = !task->sc && !in_interrupt();
+	int ret = 0;
+
+	if (unlikely(mgmt_task))
+		mutex_lock(&iser_conn->state_mutex);
+
+	if (unlikely(iser_conn->state != ISER_CONN_UP)) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	dma_addr = ib_dma_map_single(device->ib_device, (void *)tx_desc,
 				ISER_HEADERS_LEN, DMA_TO_DEVICE);
-	if (ib_dma_mapping_error(device->ib_device, dma_addr))
-		return -ENOMEM;
+	if (ib_dma_mapping_error(device->ib_device, dma_addr)) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	tx_desc->dma_addr = dma_addr;
 	tx_desc->tx_sg[0].addr   = tx_desc->dma_addr;
@@ -183,7 +207,11 @@ int iser_initialize_task_headers(struct iscsi_task *task,
 	tx_desc->tx_sg[0].lkey   = device->mr->lkey;
 
 	iser_task->iser_conn = iser_conn;
-	return 0;
+out:
+	if (unlikely(mgmt_task))
+		mutex_unlock(&iser_conn->state_mutex);
+
+	return ret;
 }
 
 /**
@@ -199,9 +227,14 @@ static int
 iscsi_iser_task_init(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
+	int ret;
 
-	if (iser_initialize_task_headers(task, &iser_task->desc))
-			return -ENOMEM;
+	ret = iser_initialize_task_headers(task, &iser_task->desc);
+	if (ret) {
+		iser_err("Failed to init task %p, err = %d\n",
+			 iser_task, ret);
+		return ret;
+	}
 
 	/* mgmt task */
 	if (!task->sc)
