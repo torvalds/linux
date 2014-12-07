@@ -369,7 +369,7 @@ static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
 	return 0;
 }
 
-static inline bool iser_signal_comp(int sig_count)
+static inline bool iser_signal_comp(u8 sig_count)
 {
 	return ((sig_count % ISER_SIGNAL_CMD_COUNT) == 0);
 }
@@ -388,7 +388,7 @@ int iser_send_command(struct iscsi_conn *conn,
 	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
 	struct scsi_cmnd *sc  =  task->sc;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
-	static unsigned sig_count;
+	u8 sig_count = ++iser_conn->ib_conn.sig_count;
 
 	edtl = ntohl(hdr->data_length);
 
@@ -435,7 +435,7 @@ int iser_send_command(struct iscsi_conn *conn,
 	iser_task->status = ISER_TASK_STATUS_STARTED;
 
 	err = iser_post_send(&iser_conn->ib_conn, tx_desc,
-			     iser_signal_comp(++sig_count));
+			     iser_signal_comp(sig_count));
 	if (!err)
 		return 0;
 
