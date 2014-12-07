@@ -242,20 +242,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8188e;
 }
 
-u8 GetEEPROMSize8188E(struct adapter *padapter)
-{
-	u8 size = 0;
-	u32	cr;
-
-	cr = usb_read16(padapter, REG_9346CR);
-	/*  6: EEPROM used is 93C46, 4: boot from E-Fuse. */
-	size = (cr & BOOT_FROM_EEPROM) ? 6 : 4;
-
-	MSG_88E("EEPROM type is %s\n", size == 4 ? "E-FUSE" : "93C46");
-
-	return size;
-}
-
 /*  */
 /*  */
 /*  LLT R/W/Init function */
