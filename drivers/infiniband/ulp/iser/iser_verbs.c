@@ -1009,7 +1009,6 @@ int iser_reg_page_vec(struct ib_conn *ib_conn,
 	mem_reg->rkey  = mem->fmr->rkey;
 	mem_reg->len   = page_vec->length * SIZE_4K;
 	mem_reg->va    = io_addr;
-	mem_reg->is_mr = 1;
 	mem_reg->mem_h = (void *)mem;
 
 	mem_reg->va   += page_vec->offset;
@@ -1036,7 +1035,7 @@ void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
 	int ret;
 
-	if (!reg->is_mr)
+	if (!reg->mem_h)
 		return;
 
 	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n",reg->mem_h);
@@ -1056,11 +1055,10 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct fast_reg_descriptor *desc = reg->mem_h;
 
-	if (!reg->is_mr)
+	if (!desc)
 		return;
 
 	reg->mem_h = NULL;
-	reg->is_mr = 0;
 	spin_lock_bh(&ib_conn->lock);
 	list_add_tail(&desc->list, &ib_conn->fastreg.pool);
 	spin_unlock_bh(&ib_conn->lock);

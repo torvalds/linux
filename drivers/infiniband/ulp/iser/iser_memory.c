@@ -408,7 +408,6 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 		regd_buf->reg.rkey = device->mr->rkey;
 		regd_buf->reg.len  = ib_sg_dma_len(ibdev, &sg[0]);
 		regd_buf->reg.va   = ib_sg_dma_address(ibdev, &sg[0]);
-		regd_buf->reg.is_mr = 0;
 
 		iser_dbg("PHYSICAL Mem.register: lkey: 0x%08X rkey: 0x%08X  "
 			 "va: 0x%08lX sz: %ld]\n",
@@ -769,15 +768,11 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 		regd_buf->reg.rkey = desc->pi_ctx->sig_mr->rkey;
 		regd_buf->reg.va = sig_sge.addr;
 		regd_buf->reg.len = sig_sge.length;
-		regd_buf->reg.is_mr = 1;
 	} else {
-		if (desc) {
+		if (desc)
 			regd_buf->reg.rkey = desc->data_mr->rkey;
-			regd_buf->reg.is_mr = 1;
-		} else {
+		else
 			regd_buf->reg.rkey = device->mr->rkey;
-			regd_buf->reg.is_mr = 0;
-		}
 
 		regd_buf->reg.lkey = data_sge.lkey;
 		regd_buf->reg.va = data_sge.addr;

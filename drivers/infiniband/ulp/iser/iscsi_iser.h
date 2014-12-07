@@ -252,7 +252,6 @@ struct iscsi_endpoint;
  * @va:           MR start address (buffer va)
  * @len:          MR length
  * @mem_h:        pointer to registration context (FMR/Fastreg)
- * @is_mr:        indicates weather we registered the buffer
  */
 struct iser_mem_reg {
 	u32  lkey;
@@ -260,7 +259,6 @@ struct iser_mem_reg {
 	u64  va;
 	u64  len;
 	void *mem_h;
-	int  is_mr;
 };
 
 /**
