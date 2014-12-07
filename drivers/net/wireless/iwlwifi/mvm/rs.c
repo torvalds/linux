@@ -1318,6 +1318,13 @@ static void rs_set_stay_in_table(struct iwl_mvm *mvm, u8 is_legacy,
 	lq_sta->visited_columns = 0;
 }
 
+static inline int rs_get_max_rate_from_mask(unsigned long rate_mask)
+{
+	if (rate_mask)
+		return find_last_bit(&rate_mask, BITS_PER_LONG);
+	return IWL_RATE_INVALID;
+}
+
 static int rs_get_max_allowed_rate(struct iwl_lq_sta *lq_sta,
 				   const struct rs_tx_column *column)
 {
@@ -1613,8 +1620,12 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 			continue;
 
 		max_rate = rs_get_max_allowed_rate(lq_sta, next_col);
-		if (WARN_ON_ONCE(max_rate == IWL_RATE_INVALID))
+		if (max_rate == IWL_RATE_INVALID) {
+			IWL_DEBUG_RATE(mvm,
+				       "Skip column %d: no rate is allowed in this column\n",
+				       next_col_id);
 			continue;
+		}
 
 		max_expected_tpt = expected_tpt_tbl[max_rate];
 		if (tpt >= max_expected_tpt) {
@@ -2765,12 +2776,12 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (IWL_MVM_RS_DISABLE_MIMO)
 		lq_sta->active_mimo2_rate = 0;
 
-	lq_sta->max_legacy_rate_idx = find_last_bit(&lq_sta->active_legacy_rate,
-						    BITS_PER_LONG);
-	lq_sta->max_siso_rate_idx = find_last_bit(&lq_sta->active_siso_rate,
-						  BITS_PER_LONG);
-	lq_sta->max_mimo2_rate_idx = find_last_bit(&lq_sta->active_mimo2_rate,
-						   BITS_PER_LONG);
+	lq_sta->max_legacy_rate_idx =
+		rs_get_max_rate_from_mask(lq_sta->active_legacy_rate);
+	lq_sta->max_siso_rate_idx =
+		rs_get_max_rate_from_mask(lq_sta->active_siso_rate);
+	lq_sta->max_mimo2_rate_idx =
+		rs_get_max_rate_from_mask(lq_sta->active_mimo2_rate);
 
 	IWL_DEBUG_RATE(mvm,
 		       "RATE MASK: LEGACY=%lX SISO=%lX MIMO2=%lX VHT=%d LDPC=%d STBC%d\n",
