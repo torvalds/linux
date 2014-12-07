@@ -104,8 +104,13 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		return -1;
 	}
 
-	device->comps_used = min(ISER_MAX_CQ,
+	device->comps_used = min_t(int, num_online_cpus(),
 				 device->ib_device->num_comp_vectors);
+
+	device->comps = kcalloc(device->comps_used, sizeof(*device->comps),
+				GFP_KERNEL);
+	if (!device->comps)
+		goto comps_err;
 
 	max_cqe = min(ISER_MAX_CQ_LEN, dev_attr->max_cqe);
 
@@ -165,6 +170,8 @@ cq_err:
 	}
 	ib_dealloc_pd(device->pd);
 pd_err:
+	kfree(device->comps);
+comps_err:
 	iser_err("failed to allocate an IB resource\n");
 	return -1;
 }
@@ -189,6 +196,9 @@ static void iser_free_device_ib_res(struct iser_device *device)
 	(void)ib_unregister_event_handler(&device->event_handler);
 	(void)ib_dereg_mr(device->mr);
 	(void)ib_dealloc_pd(device->pd);
+
+	kfree(device->comps);
+	device->comps = NULL;
 
 	device->mr = NULL;
 	device->pd = NULL;

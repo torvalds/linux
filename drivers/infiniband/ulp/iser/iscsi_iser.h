@@ -326,8 +326,6 @@ struct iser_rx_desc {
 	char		             pad[ISER_RX_PAD_SIZE];
 } __attribute__((packed));
 
-#define ISER_MAX_CQ 4
-
 struct iser_conn;
 struct ib_conn;
 struct iscsi_iser_task;
@@ -378,7 +376,7 @@ struct iser_device {
 	struct list_head             ig_list;
 	int                          refcount;
 	int			     comps_used;
-	struct iser_comp	     comps[ISER_MAX_CQ];
+	struct iser_comp	     *comps;
 	int                          (*iser_alloc_rdma_reg_res)(struct ib_conn *ib_conn,
 								unsigned cmds_max);
 	void                         (*iser_free_rdma_reg_res)(struct ib_conn *ib_conn);
