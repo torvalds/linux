@@ -1869,22 +1869,14 @@ isert_do_control_comp(struct work_struct *work)
 	switch (cmd->i_state) {
 	case ISTATE_SEND_TASKMGTRSP:
 		iscsit_tmr_post_handler(cmd, cmd->conn);
-		cmd->i_state = ISTATE_SENT_STATUS;
-		isert_completion_put(&isert_cmd->tx_desc, isert_cmd,
-				     ib_dev, false);
-		break;
-	case ISTATE_SEND_REJECT:
+	case ISTATE_SEND_REJECT:   /* FALLTHRU */
+	case ISTATE_SEND_TEXTRSP:  /* FALLTHRU */
 		cmd->i_state = ISTATE_SENT_STATUS;
 		isert_completion_put(&isert_cmd->tx_desc, isert_cmd,
 				     ib_dev, false);
 		break;
 	case ISTATE_SEND_LOGOUTRSP:
 		iscsit_logout_post_handler(cmd, cmd->conn);
-		break;
-	case ISTATE_SEND_TEXTRSP:
-		cmd->i_state = ISTATE_SENT_STATUS;
-		isert_completion_put(&isert_cmd->tx_desc, isert_cmd,
-				     ib_dev, false);
 		break;
 	default:
 		isert_err("Unknown i_state %d\n", cmd->i_state);
@@ -2459,6 +2451,21 @@ isert_map_fr_pagelist(struct ib_device *ib_dev,
 	return n_pages;
 }
 
+static inline void
+isert_inv_rkey(struct ib_send_wr *inv_wr, struct ib_mr *mr)
+{
+	u32 rkey;
+
+	memset(inv_wr, 0, sizeof(*inv_wr));
+	inv_wr->wr_id = ISER_FASTREG_LI_WRID;
+	inv_wr->opcode = IB_WR_LOCAL_INV;
+	inv_wr->ex.invalidate_rkey = mr->rkey;
+
+	/* Bump the key */
+	rkey = ib_inc_rkey(mr->rkey);
+	ib_update_fast_reg_key(mr, rkey);
+}
+
 static int
 isert_fast_reg_mr(struct isert_conn *isert_conn,
 		  struct fast_reg_descriptor *fr_desc,
@@ -2473,7 +2480,6 @@ isert_fast_reg_mr(struct isert_conn *isert_conn,
 	struct ib_send_wr *bad_wr, *wr = NULL;
 	int ret, pagelist_len;
 	u32 page_off;
-	u8 key;
 
 	if (mem->dma_nents == 1) {
 		sge->lkey = isert_conn->conn_mr->lkey;
@@ -2502,15 +2508,9 @@ isert_fast_reg_mr(struct isert_conn *isert_conn,
 	pagelist_len = isert_map_fr_pagelist(ib_dev, mem->sg, mem->nents,
 					     &frpl->page_list[0]);
 
-	if (!(fr_desc->ind & ISERT_DATA_KEY_VALID)) {
-		memset(&inv_wr, 0, sizeof(inv_wr));
-		inv_wr.wr_id = ISER_FASTREG_LI_WRID;
-		inv_wr.opcode = IB_WR_LOCAL_INV;
-		inv_wr.ex.invalidate_rkey = mr->rkey;
+	if (!(fr_desc->ind & ind)) {
+		isert_inv_rkey(&inv_wr, mr);
 		wr = &inv_wr;
-		/* Bump the key */
-		key = (u8)(mr->rkey & 0x000000FF);
-		ib_update_fast_reg_key(mr, ++key);
 	}
 
 	/* Prepare FASTREG WR */
@@ -2614,7 +2614,6 @@ isert_reg_sig_mr(struct isert_conn *isert_conn,
 	struct pi_context *pi_ctx = fr_desc->pi_ctx;
 	struct ib_sig_attrs sig_attrs;
 	int ret;
-	u32 key;
 
 	memset(&sig_attrs, 0, sizeof(sig_attrs));
 	ret = isert_set_sig_attrs(se_cmd, &sig_attrs);
@@ -2624,14 +2623,8 @@ isert_reg_sig_mr(struct isert_conn *isert_conn,
 	sig_attrs.check_mask = isert_set_prot_checks(se_cmd->prot_checks);
 
 	if (!(fr_desc->ind & ISERT_SIG_KEY_VALID)) {
-		memset(&inv_wr, 0, sizeof(inv_wr));
-		inv_wr.opcode = IB_WR_LOCAL_INV;
-		inv_wr.wr_id = ISER_FASTREG_LI_WRID;
-		inv_wr.ex.invalidate_rkey = pi_ctx->sig_mr->rkey;
+		isert_inv_rkey(&inv_wr, pi_ctx->sig_mr);
 		wr = &inv_wr;
-		/* Bump the key */
-		key = (u8)(pi_ctx->sig_mr->rkey & 0x000000FF);
-		ib_update_fast_reg_key(pi_ctx->sig_mr, ++key);
 	}
 
 	memset(&sig_wr, 0, sizeof(sig_wr));
