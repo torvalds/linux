@@ -127,22 +127,6 @@ exit:
 	return ret;
 }
 
-u8 rtl8188e_set_rssi_cmd(struct adapter *adapt, u8 *param)
-{
-	u8 res = _SUCCESS;
-	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
-
-	if (haldata->fw_ractrl) {
-		;
-	} else {
-		DBG_88E("==>%s fw dont support RA\n", __func__);
-		res = _FAIL;
-	}
-
-
-	return res;
-}
-
 u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
 {
 	u8 buf[3];
