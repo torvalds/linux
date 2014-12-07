@@ -437,6 +437,7 @@ struct fast_reg_descriptor {
  * @cma_id:              rdma_cm connection maneger handle
  * @qp:                  Connection Queue-pair
  * @post_recv_buf_count: post receive counter
+ * @sig_count:           send work request signal count
  * @rx_wr:               receive work request for batch posts
  * @device:              reference to iser device
  * @comp:                iser completion context
@@ -457,6 +458,7 @@ struct ib_conn {
 	struct rdma_cm_id           *cma_id;
 	struct ib_qp	            *qp;
 	int                          post_recv_buf_count;
+	u8                           sig_count;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
 	struct iser_device          *device;
 	struct iser_comp	    *comp;
