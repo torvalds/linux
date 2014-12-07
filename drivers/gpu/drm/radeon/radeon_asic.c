@@ -2118,6 +2118,10 @@ static struct radeon_asic ci_asic = {
 		.force_performance_level = &ci_dpm_force_performance_level,
 		.vblank_too_short = &ci_dpm_vblank_too_short,
 		.powergate_uvd = &ci_dpm_powergate_uvd,
+		.fan_ctrl_set_mode = &ci_fan_ctrl_set_mode,
+		.fan_ctrl_get_mode = &ci_fan_ctrl_get_mode,
+		.get_fan_speed_percent = &ci_fan_ctrl_get_fan_speed_percent,
+		.set_fan_speed_percent = &ci_fan_ctrl_set_fan_speed_percent,
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,

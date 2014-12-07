@@ -861,6 +861,13 @@ int ci_dpm_force_performance_level(struct radeon_device *rdev,
 bool ci_dpm_vblank_too_short(struct radeon_device *rdev);
 void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
 
+int ci_fan_ctrl_get_fan_speed_percent(struct radeon_device *rdev,
+						 u32 *speed);
+int ci_fan_ctrl_set_fan_speed_percent(struct radeon_device *rdev,
+						 u32 speed);
+u32 ci_fan_ctrl_get_mode(struct radeon_device *rdev);
+void ci_fan_ctrl_set_mode(struct radeon_device *rdev, u32 mode);
+
 int kv_dpm_init(struct radeon_device *rdev);
 int kv_dpm_enable(struct radeon_device *rdev);
 int kv_dpm_late_enable(struct radeon_device *rdev);
