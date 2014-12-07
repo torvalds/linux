@@ -89,6 +89,7 @@ struct virtio_pci_device {
 				      const char *name,
 				      u16 msix_vec);
 	void (*del_vq)(struct virtio_pci_vq_info *info);
+	u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
 };
 
 /* Constants for MSI-X */
@@ -271,6 +272,15 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 	return vp_vring_interrupt(irq, opaque);
 }
 
+static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
+{
+	/* Setup the vector used for configuration events */
+	iowrite16(vector, vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
+	/* Verify we had enough resources to assign the vector */
+	/* Will also flush the write out to device */
+	return ioread16(vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
+}
+
 static void vp_free_vectors(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
@@ -290,10 +300,7 @@ static void vp_free_vectors(struct virtio_device *vdev)
 
 	if (vp_dev->msix_enabled) {
 		/* Disable the vector used for configuration */
-		iowrite16(VIRTIO_MSI_NO_VECTOR,
-			  vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
-		/* Flush the write out to device */
-		ioread16(vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
+		vp_dev->config_vector(vp_dev, VIRTIO_MSI_NO_VECTOR);
 
 		pci_disable_msix(vp_dev->pci_dev);
 		vp_dev->msix_enabled = 0;
@@ -357,9 +364,8 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 		goto error;
 	++vp_dev->msix_used_vectors;
 
-	iowrite16(v, vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
+	v = vp_dev->config_vector(vp_dev, v);
 	/* Verify we had enough resources to assign the vector */
-	v = ioread16(vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
 	if (v == VIRTIO_MSI_NO_VECTOR) {
 		err = -EBUSY;
 		goto error;
@@ -770,6 +776,7 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 	vp_dev->vdev.id.device = pci_dev->subsystem_device;
 
+	vp_dev->config_vector = vp_config_vector;
 	vp_dev->setup_vq = setup_vq;
 	vp_dev->del_vq = del_vq;
 
