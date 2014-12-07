@@ -1230,7 +1230,7 @@ static void iser_handle_wc(struct ib_wc *wc)
 	struct iser_rx_desc *rx_desc;
 
 	ib_conn = wc->qp->qp_context;
-	if (wc->status == IB_WC_SUCCESS) {
+	if (likely(wc->status == IB_WC_SUCCESS)) {
 		if (wc->opcode == IB_WC_RECV) {
 			rx_desc = (struct iser_rx_desc *)(uintptr_t)wc->wr_id;
 			iser_rcv_completion(rx_desc, wc->byte_len,
