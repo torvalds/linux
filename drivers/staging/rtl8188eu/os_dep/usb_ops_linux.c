@@ -615,33 +615,6 @@ int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 	return ret;
 }
 
-int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata)
-{
-	u8 request;
-	u8 requesttype;
-	u16 wvalue;
-	u16 index;
-	u16 len;
-	u8 buf[VENDOR_CMD_MAX_DATA_LEN] = {0};
-	int ret;
-
-
-	request = 0x05;
-	requesttype = 0x00;/* write_out */
-	index = 0;/* n/a */
-
-	wvalue = (u16)(addr&0x0000ffff);
-	len = length;
-	 memcpy(buf, pdata, len);
-
-	ret = usbctrl_vendorreq(adapter, request, wvalue, index, buf, len, requesttype);
-
-
-	return RTW_STATUS_CODE(ret);
-}
-
-
-
 static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 {
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)purb->context;
