@@ -494,7 +494,11 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	return ret;
 
 out_err:
+	mutex_lock(&ig.connlist_mutex);
+	ib_conn->comp->active_qps--;
+	mutex_unlock(&ig.connlist_mutex);
 	iser_err("unable to alloc mem or create resource, err %d\n", ret);
+
 	return ret;
 }
 
