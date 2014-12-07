@@ -73,30 +73,27 @@
 
 #define iser_dbg(fmt, arg...)				 \
 	do {						 \
-		if (iser_debug_level > 2)		 \
+		if (unlikely(iser_debug_level > 2))	 \
 			printk(KERN_DEBUG PFX "%s: " fmt,\
 				__func__ , ## arg);	 \
 	} while (0)
 
 #define iser_warn(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 0)		\
+		if (unlikely(iser_debug_level > 0))	\
 			pr_warn(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_info(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 1)		\
+		if (unlikely(iser_debug_level > 1))	\
 			pr_info(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
 
-#define iser_err(fmt, arg...)				\
-	do {						\
-		printk(KERN_ERR PFX "%s: " fmt,		\
-		       __func__ , ## arg);		\
-	} while (0)
+#define iser_err(fmt, arg...) \
+	pr_err(PFX "%s: " fmt, __func__ , ## arg)
 
 #define SHIFT_4K	12
 #define SIZE_4K	(1ULL << SHIFT_4K)
