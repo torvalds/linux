@@ -3791,7 +3791,7 @@ static bool trigger_discovery(struct hci_request *req, u8 *status)
 
 		/* All active scans will be done with either a resolvable
 		 * private address (when privacy feature has been enabled)
-		 * or unresolvable private address.
+		 * or non-resolvable private address.
 		 */
 		err = hci_update_random_address(req, true, &own_addr_type);
 		if (err < 0) {

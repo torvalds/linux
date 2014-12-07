@@ -3959,17 +3959,29 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	}
 
 	/* In case of required privacy without resolvable private address,
-	 * use an unresolvable private address. This is useful for active
+	 * use an non-resolvable private address. This is useful for active
 	 * scanning and non-connectable advertising.
 	 */
 	if (require_privacy) {
-		bdaddr_t urpa;
+		bdaddr_t nrpa;
 
-		get_random_bytes(&urpa, 6);
-		urpa.b[5] &= 0x3f;	/* Clear two most significant bits */
+		while (true) {
+			/* The non-resolvable private address is generated
+			 * from random six bytes with the two most significant
+			 * bits cleared.
+			 */
+			get_random_bytes(&nrpa, 6);
+			nrpa.b[5] &= 0x3f;
+
+			/* The non-resolvable private address shall not be
+			 * equal to the public address.
+			 */
+			if (bacmp(&hdev->bdaddr, &nrpa))
+				break;
+		}
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
-		set_random_addr(req, &urpa);
+		set_random_addr(req, &nrpa);
 		return 0;
 	}
 
@@ -5625,7 +5637,7 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	u8 filter_policy;
 
 	/* Set require_privacy to false since no SCAN_REQ are send
-	 * during passive scanning. Not using an unresolvable address
+	 * during passive scanning. Not using an non-resolvable address
 	 * here is important so that peer devices using direct
 	 * advertising with our address will be correctly reported
 	 * by the controller.
