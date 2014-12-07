@@ -1099,7 +1099,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	od->ddev.device_issue_pending = omap_dma_issue_pending;
 	od->ddev.device_prep_slave_sg = omap_dma_prep_slave_sg;
 	od->ddev.device_prep_dma_cyclic = omap_dma_prep_dma_cyclic;
-	od->ddev.device_config = omap_dma_config;
+	od->ddev.device_config = omap_dma_slave_config;
 	od->ddev.device_pause = omap_dma_pause;
 	od->ddev.device_resume = omap_dma_resume;
 	od->ddev.device_terminate_all = omap_dma_terminate_all;
