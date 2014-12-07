@@ -4,6 +4,33 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
+#define DRV_NAME	"isert"
+#define PFX		DRV_NAME ": "
+
+#define isert_dbg(fmt, arg...)				 \
+	do {						 \
+		if (unlikely(isert_debug_level > 2))	 \
+			printk(KERN_DEBUG PFX "%s: " fmt,\
+				__func__ , ## arg);	 \
+	} while (0)
+
+#define isert_warn(fmt, arg...)				\
+	do {						\
+		if (unlikely(isert_debug_level > 0))	\
+			pr_warn(PFX "%s: " fmt,         \
+				__func__ , ## arg);	\
+	} while (0)
+
+#define isert_info(fmt, arg...)				\
+	do {						\
+		if (unlikely(isert_debug_level > 1))	\
+			pr_info(PFX "%s: " fmt,         \
+				__func__ , ## arg);	\
+	} while (0)
+
+#define isert_err(fmt, arg...) \
+	pr_err(PFX "%s: " fmt, __func__ , ## arg)
+
 #define ISERT_RDMA_LISTEN_BACKLOG	10
 #define ISCSI_ISER_SG_TABLESIZE		256
 #define ISER_FASTREG_LI_WRID		0xffffffffffffffffULL
