@@ -681,8 +681,10 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 
 		/* post an indication that all flush errors were consumed */
 		err = ib_post_send(ib_conn->qp, &ib_conn->beacon, &bad_wr);
-		if (err)
+		if (err) {
 			iser_err("conn %p failed to post beacon", ib_conn);
+			return 1;
+		}
 
 		wait_for_completion(&ib_conn->flush_comp);
 	}
