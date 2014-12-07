@@ -927,9 +927,8 @@ start_int_fifo(usb_fifo *fifo)
 	fifo->active = 1;	/* must be marked active */
 	errcode = usb_submit_urb(fifo->urb, GFP_KERNEL);
 	if (errcode) {
-		printk(KERN_ERR
-		       "HFC-S USB: submit URB error(start_int_info): status:%i\n",
-		       errcode);
+		printk(KERN_ERR "HFC-S USB: submit URB error(%s): status:%i\n",
+		       __func__, errcode);
 		fifo->active = 0;
 		fifo->skbuff = NULL;
 	}
