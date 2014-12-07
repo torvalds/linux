@@ -4172,8 +4172,8 @@ static const struct opcode opcode_map_0f_38[256] = {
 	/* 0x80 - 0xef */
 	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
 	/* 0xf0 - 0xf1 */
-	GP(EmulateOnUD | ModRM | Prefix, &three_byte_0f_38_f0),
-	GP(EmulateOnUD | ModRM | Prefix, &three_byte_0f_38_f1),
+	GP(EmulateOnUD | ModRM, &three_byte_0f_38_f0),
+	GP(EmulateOnUD | ModRM, &three_byte_0f_38_f1),
 	/* 0xf2 - 0xff */
 	N, N, X4(N), X8(N)
 };
