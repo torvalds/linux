@@ -1077,7 +1077,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 	sge.length = ISER_RX_LOGIN_SIZE;
 	sge.lkey   = ib_conn->device->mr->lkey;
 
-	rx_wr.wr_id   = (unsigned long)iser_conn->login_resp_buf;
+	rx_wr.wr_id   = (uintptr_t)iser_conn->login_resp_buf;
 	rx_wr.sg_list = &sge;
 	rx_wr.num_sge = 1;
 	rx_wr.next    = NULL;
@@ -1101,7 +1101,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 
 	for (rx_wr = ib_conn->rx_wr, i = 0; i < count; i++, rx_wr++) {
 		rx_desc		= &iser_conn->rx_descs[my_rx_head];
-		rx_wr->wr_id	= (unsigned long)rx_desc;
+		rx_wr->wr_id	= (uintptr_t)rx_desc;
 		rx_wr->sg_list	= &rx_desc->rx_sg;
 		rx_wr->num_sge	= 1;
 		rx_wr->next	= rx_wr + 1;
@@ -1138,7 +1138,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 				      DMA_TO_DEVICE);
 
 	send_wr.next	   = NULL;
-	send_wr.wr_id	   = (unsigned long)tx_desc;
+	send_wr.wr_id	   = (uintptr_t)tx_desc;
 	send_wr.sg_list	   = tx_desc->tx_sg;
 	send_wr.num_sge	   = tx_desc->num_sge;
 	send_wr.opcode	   = IB_WR_SEND;
@@ -1188,6 +1188,7 @@ static void
 iser_handle_comp_error(struct ib_conn *ib_conn,
 		       struct ib_wc *wc)
 {
+	void *wr_id = (void *)(uintptr_t)wc->wr_id;
 	struct iser_conn *iser_conn = container_of(ib_conn, struct iser_conn,
 						   ib_conn);
 
@@ -1196,8 +1197,8 @@ iser_handle_comp_error(struct ib_conn *ib_conn,
 			iscsi_conn_failure(iser_conn->iscsi_conn,
 					   ISCSI_ERR_CONN_FAILED);
 
-	if (is_iser_tx_desc(iser_conn, (void *)wc->wr_id)) {
-		struct iser_tx_desc *desc = (struct iser_tx_desc *)wc->wr_id;
+	if (is_iser_tx_desc(iser_conn, wr_id)) {
+		struct iser_tx_desc *desc = wr_id;
 
 		if (desc->type == ISCSI_TX_DATAOUT)
 			kmem_cache_free(ig.desc_cache, desc);
@@ -1223,12 +1224,12 @@ static void iser_handle_wc(struct ib_wc *wc)
 	ib_conn = wc->qp->qp_context;
 	if (wc->status == IB_WC_SUCCESS) {
 		if (wc->opcode == IB_WC_RECV) {
-			rx_desc = (struct iser_rx_desc *)wc->wr_id;
+			rx_desc = (struct iser_rx_desc *)(uintptr_t)wc->wr_id;
 			iser_rcv_completion(rx_desc, wc->byte_len,
 					    ib_conn);
 		} else
 		if (wc->opcode == IB_WC_SEND) {
-			tx_desc = (struct iser_tx_desc *)wc->wr_id;
+			tx_desc = (struct iser_tx_desc *)(uintptr_t)wc->wr_id;
 			iser_snd_completion(tx_desc, ib_conn);
 		} else {
 			iser_err("Unknown wc opcode %d\n", wc->opcode);

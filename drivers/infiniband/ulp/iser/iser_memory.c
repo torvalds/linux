@@ -73,7 +73,6 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 
 	if (cmd_dir == ISER_DIR_OUT) {
 		/* copy the unaligned sg the buffer which is used for RDMA */
-		int i;
 		char *p, *from;
 
 		sgl = (struct scatterlist *)data->buf;
