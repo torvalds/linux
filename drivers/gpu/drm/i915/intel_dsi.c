@@ -177,7 +177,12 @@ static void intel_dsi_device_ready(struct intel_encoder *encoder)
 		usleep_range(2500, 3000);
 
 		val = I915_READ(MIPI_PORT_CTRL(port));
-		I915_WRITE(MIPI_PORT_CTRL(port), val | LP_OUTPUT_HOLD);
+
+		/* Enable MIPI PHY transparent latch
+		 * Common bit for both MIPI Port A & MIPI Port C
+		 * No similar bit in MIPI Port C reg
+		 */
+		I915_WRITE(MIPI_PORT_CTRL(PORT_A), val | LP_OUTPUT_HOLD);
 		usleep_range(1000, 1500);
 
 		I915_WRITE(MIPI_DEVICE_READY(port), ULPS_STATE_EXIT);
