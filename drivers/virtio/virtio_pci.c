@@ -81,6 +81,8 @@ struct virtio_pci_device {
 
 	/* Whether we have vector per vq */
 	bool per_vq_vectors;
+
+	void (*del_vq)(struct virtio_pci_vq_info *info);
 };
 
 /* Constants for MSI-X */
@@ -468,15 +470,11 @@ out_info:
 	return ERR_PTR(err);
 }
 
-static void vp_del_vq(struct virtqueue *vq)
+static void del_vq(struct virtio_pci_vq_info *info)
 {
+	struct virtqueue *vq = info->vq;
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
-	struct virtio_pci_vq_info *info = vp_dev->vqs[vq->index];
-	unsigned long flags, size;
-
-	spin_lock_irqsave(&vp_dev->lock, flags);
-	list_del(&info->node);
-	spin_unlock_irqrestore(&vp_dev->lock, flags);
+	unsigned long size;
 
 	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 
@@ -494,6 +492,19 @@ static void vp_del_vq(struct virtqueue *vq)
 
 	size = PAGE_ALIGN(vring_size(info->num, VIRTIO_PCI_VRING_ALIGN));
 	free_pages_exact(info->queue, size);
+}
+
+static void vp_del_vq(struct virtqueue *vq)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
+	struct virtio_pci_vq_info *info = vp_dev->vqs[vq->index];
+	unsigned long flags;
+
+	spin_lock_irqsave(&vp_dev->lock, flags);
+	list_del(&info->node);
+	spin_unlock_irqrestore(&vp_dev->lock, flags);
+
+	vp_dev->del_vq(info);
 	kfree(info);
 }
 
@@ -736,6 +747,8 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	 * the subsystem ids */
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 	vp_dev->vdev.id.device = pci_dev->subsystem_device;
+
+	vp_dev->del_vq = del_vq;
 
 	/* finally register the virtio device */
 	err = register_virtio_device(&vp_dev->vdev);
