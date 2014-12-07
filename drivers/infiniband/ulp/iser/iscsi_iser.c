@@ -569,6 +569,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct Scsi_Host *shost;
 	struct iser_conn *iser_conn = NULL;
 	struct ib_conn *ib_conn;
+	u16 max_cmds;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
 	if (!shost)
@@ -586,6 +587,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	 */
 	if (ep) {
 		iser_conn = ep->dd_data;
+		max_cmds = iser_conn->max_cmds;
 		ib_conn = &iser_conn->ib_conn;
 		if (ib_conn->pi_support) {
 			u32 sig_caps = ib_conn->device->dev_attr.sig_prot_cap;
@@ -596,16 +598,18 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			else
 				scsi_host_set_guard(shost, SHOST_DIX_GUARD_CRC);
 		}
+	} else {
+		max_cmds = ISER_DEF_XMIT_CMDS_MAX;
 	}
 
 	if (iscsi_host_add(shost, ep ?
 			   ib_conn->device->ib_device->dma_device : NULL))
 		goto free_host;
 
-	if (cmds_max > ISER_DEF_XMIT_CMDS_MAX) {
+	if (cmds_max > max_cmds) {
 		iser_info("cmds_max changed from %u to %u\n",
-			  cmds_max, ISER_DEF_XMIT_CMDS_MAX);
-		cmds_max = ISER_DEF_XMIT_CMDS_MAX;
+			  cmds_max, max_cmds);
+		cmds_max = max_cmds;
 	}
 
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,

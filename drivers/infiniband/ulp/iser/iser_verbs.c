@@ -76,7 +76,7 @@ static void iser_event_handler(struct ib_event_handler *handler,
 static int iser_create_device_ib_res(struct iser_device *device)
 {
 	struct ib_device_attr *dev_attr = &device->dev_attr;
-	int ret, i;
+	int ret, i, max_cqe;
 
 	ret = ib_query_device(device->ib_device, dev_attr);
 	if (ret) {
@@ -106,9 +106,12 @@ static int iser_create_device_ib_res(struct iser_device *device)
 
 	device->comps_used = min(ISER_MAX_CQ,
 				 device->ib_device->num_comp_vectors);
-	iser_info("using %d CQs, device %s supports %d vectors\n",
+
+	max_cqe = min(ISER_MAX_CQ_LEN, dev_attr->max_cqe);
+
+	iser_info("using %d CQs, device %s supports %d vectors max_cqe %d\n",
 		  device->comps_used, device->ib_device->name,
-		  device->ib_device->num_comp_vectors);
+		  device->ib_device->num_comp_vectors, max_cqe);
 
 	device->pd = ib_alloc_pd(device->ib_device);
 	if (IS_ERR(device->pd))
@@ -122,7 +125,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 					iser_cq_callback,
 					iser_cq_event_callback,
 					(void *)comp,
-					ISER_MAX_CQ_LEN, i);
+					max_cqe, i);
 		if (IS_ERR(comp->cq)) {
 			comp->cq = NULL;
 			goto cq_err;
@@ -425,7 +428,10 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
  */
 static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 {
+	struct iser_conn *iser_conn = container_of(ib_conn, struct iser_conn,
+						   ib_conn);
 	struct iser_device	*device;
+	struct ib_device_attr *dev_attr;
 	struct ib_qp_init_attr	init_attr;
 	int			ret = -ENOMEM;
 	int index, min_index = 0;
@@ -433,6 +439,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	BUG_ON(ib_conn->device == NULL);
 
 	device = ib_conn->device;
+	dev_attr = &device->dev_attr;
 
 	memset(&init_attr, 0, sizeof init_attr);
 
@@ -460,8 +467,20 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	if (ib_conn->pi_support) {
 		init_attr.cap.max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
 		init_attr.create_flags |= IB_QP_CREATE_SIGNATURE_EN;
+		iser_conn->max_cmds =
+			ISER_GET_MAX_XMIT_CMDS(ISER_QP_SIG_MAX_REQ_DTOS);
 	} else {
-		init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS + 1;
+		if (dev_attr->max_qp_wr > ISER_QP_MAX_REQ_DTOS) {
+			init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS + 1;
+			iser_conn->max_cmds =
+				ISER_GET_MAX_XMIT_CMDS(ISER_QP_MAX_REQ_DTOS);
+		} else {
+			init_attr.cap.max_send_wr = dev_attr->max_qp_wr;
+			iser_conn->max_cmds =
+				ISER_GET_MAX_XMIT_CMDS(dev_attr->max_qp_wr);
+			iser_dbg("device %s supports max_send_wr %d\n",
+				 device->ib_device->name, dev_attr->max_qp_wr);
+		}
 	}
 
 	ret = rdma_create_qp(ib_conn->cma_id, device->pd, &init_attr);

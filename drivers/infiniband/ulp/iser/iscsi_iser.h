@@ -144,6 +144,11 @@
 					ISER_MAX_TX_MISC_PDUS         + \
 					ISER_MAX_RX_MISC_PDUS)
 
+#define ISER_GET_MAX_XMIT_CMDS(send_wr) ((send_wr			\
+					 - ISER_MAX_TX_MISC_PDUS	\
+					 - ISER_MAX_RX_MISC_PDUS) /	\
+					 (1 + ISER_INFLIGHT_DATAOUTS))
+
 #define ISER_WC_BATCH_COUNT   16
 #define ISER_SIGNAL_CMD_COUNT 32
 
@@ -482,6 +487,7 @@ struct ib_conn {
  *                    to max number of post recvs
  * @qp_max_recv_dtos_mask: (qp_max_recv_dtos - 1)
  * @min_posted_rx:    (qp_max_recv_dtos >> 2)
+ * @max_cmds:         maximum cmds allowed for this connection
  * @name:             connection peer portal
  * @release_work:     deffered work for release job
  * @state_mutex:      protects iser onnection state
@@ -507,6 +513,7 @@ struct iser_conn {
 	unsigned		     qp_max_recv_dtos;
 	unsigned		     qp_max_recv_dtos_mask;
 	unsigned		     min_posted_rx;
+	u16                          max_cmds;
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct work_struct	     release_work;
 	struct mutex		     state_mutex;
