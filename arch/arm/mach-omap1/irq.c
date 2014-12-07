@@ -64,11 +64,6 @@ u32 omap_irq_flags;
 static unsigned int irq_bank_count;
 static struct omap_irq_bank *irq_banks;
 
-static inline unsigned int irq_bank_readl(int bank, int offset)
-{
-	return omap_readl(irq_banks[bank].base_reg + offset);
-}
-
 static inline void irq_bank_writel(unsigned long value, int bank, int offset)
 {
 	omap_writel(value, irq_banks[bank].base_reg + offset);
