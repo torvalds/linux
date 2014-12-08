@@ -95,8 +95,9 @@ static inline block_t get_max_meta_blks(struct f2fs_sb_info *sbi, int type)
 	case META_SIT:
 		return SIT_BLK_CNT(sbi);
 	case META_SSA:
+		return MAIN_BLKADDR(sbi);
 	case META_CP:
-		return 0;
+		return SM_I(sbi)->sit_info->sit_base_addr;
 	case META_POR:
 		return MAX_BLKADDR(sbi);
 	default:
@@ -141,11 +142,23 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 			prev_blk_addr = blk_addr;
 			break;
 		case META_SSA:
+			if (unlikely(blkno >= max_blks))
+				goto out;
+			if (unlikely(blkno < SM_I(sbi)->ssa_blkaddr))
+				goto out;
+			blk_addr = blkno;
+			break;
 		case META_CP:
+			if (unlikely(blkno >= max_blks))
+				goto out;
+			if (unlikely(blkno < __start_cp_addr(sbi)))
+				goto out;
+			blk_addr = blkno;
+			break;
 		case META_POR:
 			if (unlikely(blkno >= max_blks))
 				goto out;
-			if (unlikely(blkno < SEG0_BLKADDR(sbi)))
+			if (unlikely(blkno < MAIN_BLKADDR(sbi)))
 				goto out;
 			blk_addr = blkno;
 			break;
