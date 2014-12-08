@@ -2295,7 +2295,13 @@ int soc_dpcm_runtime_update(struct snd_soc_card *card)
 			fe->dai_link->name);
 
 		/* skip if FE doesn't have playback capability */
-		if (!fe->cpu_dai->driver->playback.channels_min)
+		if (!fe->cpu_dai->driver->playback.channels_min
+		    || !fe->codec_dai->driver->playback.channels_min)
+			goto capture;
+
+		/* skip if FE isn't currently playing */
+		if (!fe->cpu_dai->playback_active
+		    || !fe->codec_dai->playback_active)
 			goto capture;
 
 		paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_PLAYBACK, &list);
@@ -2325,7 +2331,13 @@ int soc_dpcm_runtime_update(struct snd_soc_card *card)
 		dpcm_path_put(&list);
 capture:
 		/* skip if FE doesn't have capture capability */
-		if (!fe->cpu_dai->driver->capture.channels_min)
+		if (!fe->cpu_dai->driver->capture.channels_min
+		    || !fe->codec_dai->driver->capture.channels_min)
+			continue;
+
+		/* skip if FE isn't currently capturing */
+		if (!fe->cpu_dai->capture_active
+		    || !fe->codec_dai->capture_active)
 			continue;
 
 		paths = dpcm_path_get(fe, SNDRV_PCM_STREAM_CAPTURE, &list);

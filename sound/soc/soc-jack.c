@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_report);
  *
  * @jack:  ASoC jack
  * @count: Number of zones
- * @zone:  Array of zones
+ * @zones:  Array of zones
  *
  * After this function has been called the zones specified in the
  * array will be associated with the jack.
