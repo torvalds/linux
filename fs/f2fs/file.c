@@ -138,6 +138,17 @@ static inline bool need_do_checkpoint(struct inode *inode)
 	return need_cp;
 }
 
+static bool need_inode_page_update(struct f2fs_sb_info *sbi, nid_t ino)
+{
+	struct page *i = find_get_page(NODE_MAPPING(sbi), ino);
+	bool ret = false;
+	/* But we need to avoid that there are some inode updates */
+	if ((i && PageDirty(i)) || need_inode_block_update(sbi, ino))
+		ret = true;
+	f2fs_put_page(i, 0);
+	return ret;
+}
+
 int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
@@ -168,19 +179,21 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		return ret;
 	}
 
+	/* if the inode is dirty, let's recover all the time */
+	if (!datasync && is_inode_flag_set(fi, FI_DIRTY_INODE)) {
+		update_inode_page(inode);
+		goto go_write;
+	}
+
 	/*
 	 * if there is no written data, don't waste time to write recovery info.
 	 */
 	if (!is_inode_flag_set(fi, FI_APPEND_WRITE) &&
 			!exist_written_data(sbi, ino, APPEND_INO)) {
-		struct page *i = find_get_page(NODE_MAPPING(sbi), ino);
 
-		/* But we need to avoid that there are some inode updates */
-		if ((i && PageDirty(i)) || need_inode_block_update(sbi, ino)) {
-			f2fs_put_page(i, 0);
+		/* it may call write_inode just prior to fsync */
+		if (need_inode_page_update(sbi, ino))
 			goto go_write;
-		}
-		f2fs_put_page(i, 0);
 
 		if (is_inode_flag_set(fi, FI_UPDATE_WRITE) ||
 				exist_written_data(sbi, ino, UPDATE_INO))
