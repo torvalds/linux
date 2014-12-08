@@ -230,6 +230,12 @@ static int sch_gpio_probe(struct platform_device *pdev)
 		sch->chip.ngpio = 30;
 		break;
 
+	case PCI_DEVICE_ID_INTEL_QUARK_X1000_ILB:
+		sch->core_base = 0;
+		sch->resume_base = 2;
+		sch->chip.ngpio = 8;
+		break;
+
 	default:
 		return -ENODEV;
 	}
