@@ -2751,10 +2751,16 @@ int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	if (!br_afspec)
 		goto nla_put_failure;
 
-	if (nla_put_u16(skb, IFLA_BRIDGE_FLAGS, BRIDGE_FLAGS_SELF) ||
-	    nla_put_u16(skb, IFLA_BRIDGE_MODE, mode)) {
+	if (nla_put_u16(skb, IFLA_BRIDGE_FLAGS, BRIDGE_FLAGS_SELF)) {
 		nla_nest_cancel(skb, br_afspec);
 		goto nla_put_failure;
+	}
+
+	if (mode != BRIDGE_MODE_UNDEF) {
+		if (nla_put_u16(skb, IFLA_BRIDGE_MODE, mode)) {
+			nla_nest_cancel(skb, br_afspec);
+			goto nla_put_failure;
+		}
 	}
 	nla_nest_end(skb, br_afspec);
 
