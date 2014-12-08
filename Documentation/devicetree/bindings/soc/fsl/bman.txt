@@ -96,7 +96,7 @@ The example below shows a BMan FBPR dynamic allocation memory node
 
 		bman_fbpr: bman-fbpr {
 			compatible = "fsl,bman-fbpr";
-			alloc-ranges = <0 0 0xf 0xffffffff>;
+			alloc-ranges = <0 0 0x10 0>;
 			size = <0 0x1000000>;
 			alignment = <0 0x1000000>;
 		};

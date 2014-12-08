@@ -113,13 +113,13 @@ The example below shows a QMan FQD and a PFDR dynamic allocation memory nodes
 
 		qman_fqd: qman-fqd {
 			compatible = "fsl,qman-fqd";
-			alloc-ranges = <0 0 0xf 0xffffffff>;
+			alloc-ranges = <0 0 0x10 0>;
 			size = <0 0x400000>;
 			alignment = <0 0x400000>;
 		};
 		qman_pfdr: qman-pfdr {
 			compatible = "fsl,qman-pfdr";
-			alloc-ranges = <0 0 0xf 0xffffffff>;
+			alloc-ranges = <0 0 0x10 0>;
 			size = <0 0x2000000>;
 			alignment = <0 0x2000000>;
 		};
