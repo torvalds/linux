@@ -50,7 +50,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42L73 if I2C
 	select SND_SOC_CS4265 if I2C
 	select SND_SOC_CS4270 if I2C
-	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_CS4271_I2C if I2C
+	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if I2C
@@ -337,7 +338,8 @@ config SND_SOC_CS42L51
 	tristate
 
 config SND_SOC_CS42L51_I2C
-	tristate
+	tristate "Cirrus Logic CS42L51 CODEC (I2C)"
+	depends on I2C
 	select SND_SOC_CS42L51
 
 config SND_SOC_CS42L52
@@ -371,8 +373,19 @@ config SND_SOC_CS4270_VD33_ERRATA
 	depends on SND_SOC_CS4270
 
 config SND_SOC_CS4271
-	tristate "Cirrus Logic CS4271 CODEC"
-	depends on SND_SOC_I2C_AND_SPI
+	tristate
+
+config SND_SOC_CS4271_I2C
+	tristate "Cirrus Logic CS4271 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_CS4271
+	select REGMAP_I2C
+
+config SND_SOC_CS4271_SPI
+	tristate "Cirrus Logic CS4271 CODEC (SPI)"
+	depends on SPI_MASTER
+	select SND_SOC_CS4271
+	select REGMAP_SPI
 
 config SND_SOC_CS42XX8
 	tristate
