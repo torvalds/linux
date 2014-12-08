@@ -37,21 +37,6 @@
 /***   Private data structures to represent thermal device tree data ***/
 
 /**
- * struct __thermal_trip - representation of a point in temperature domain
- * @np: pointer to struct device_node that this trip point was created from
- * @temperature: temperature value in miliCelsius
- * @hysteresis: relative hysteresis in miliCelsius
- * @type: trip point type
- */
-
-struct __thermal_trip {
-	struct device_node *np;
-	unsigned long int temperature;
-	unsigned long int hysteresis;
-	enum thermal_trip_type type;
-};
-
-/**
  * struct __thermal_bind_param - a match between trip and cooling device
  * @cooling_device: a pointer to identify the referred cooling device
  * @trip_id: the trip point index
@@ -88,7 +73,7 @@ struct __thermal_zone {
 
 	/* trip data */
 	int ntrips;
-	struct __thermal_trip *trips;
+	struct thermal_trip *trips;
 
 	/* cooling binding data */
 	int num_tbps;
@@ -538,7 +523,7 @@ EXPORT_SYMBOL_GPL(thermal_zone_of_sensor_unregister);
  */
 static int thermal_of_populate_bind_params(struct device_node *np,
 					   struct __thermal_bind_params *__tbp,
-					   struct __thermal_trip *trips,
+					   struct thermal_trip *trips,
 					   int ntrips)
 {
 	struct of_phandle_args cooling_spec;
@@ -641,7 +626,7 @@ static int thermal_of_get_trip_type(struct device_node *np,
  * Return: 0 on success, proper error code otherwise
  */
 static int thermal_of_populate_trip(struct device_node *np,
-				    struct __thermal_trip *trip)
+				    struct thermal_trip *trip)
 {
 	int prop;
 	int ret;
