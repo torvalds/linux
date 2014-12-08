@@ -1,7 +1,7 @@
 /*
  * Freescale ASRC Memory to Memory (M2M) driver
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -538,7 +538,7 @@ static long fsl_asrc_ioctl_config_pair(struct fsl_asrc_pair *pair,
 	index = config.pair;
 
 	pair->config = &config;
-	ret = fsl_asrc_config_pair(pair);
+	ret = fsl_asrc_config_pair(pair, false, false);
 	if (ret) {
 		pair_err("failed to config pair: %ld\n", ret);
 		return ret;

@@ -236,7 +236,7 @@ static int fsl_asrc_set_ideal_ratio(struct fsl_asrc_pair *pair,
  * of struct asrc_config which includes in/output sample rate, width, channel
  * and clock settings.
  */
-static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
+static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair, bool p2p_in, bool p2p_out)
 {
 	struct asrc_config *config = pair->config;
 	struct fsl_asrc *asrc_priv = pair->asrc_priv;
@@ -303,11 +303,17 @@ static int fsl_asrc_config_pair(struct fsl_asrc_pair *pair)
 
 	clk = asrc_priv->asrck_clk[clk_index[OUT]];
 
-	/* Use fixed output rate for Ideal Ratio mode (INCLK_NONE) */
-	if (ideal)
-		div[OUT] = clk_get_rate(clk) / IDEAL_RATIO_RATE;
-	else
+	/*
+	 * When P2P mode, output rate should align with the out samplerate.
+	 * if set too high output rate, there will be lots of Overload.
+	 * When M2M mode, output rate should also need to align with the out
+	 * samplerate, but M2M must use less time to achieve good performance.
+	 */
+	if (p2p_out)
 		div[OUT] = clk_get_rate(clk) / outrate;
+	else
+		div[OUT] = clk_get_rate(clk) / IDEAL_RATIO_RATE;
+
 
 	if (div[OUT] == 0) {
 		pair_err("failed to support output sample rate %dHz by asrck_%x\n",
@@ -484,17 +490,24 @@ static int fsl_asrc_dai_hw_params(struct snd_pcm_substream *substream,
 		config.output_word_width  = word_width;
 		config.input_sample_rate  = rate;
 		config.output_sample_rate = asrc_priv->asrc_rate;
+
+		ret = fsl_asrc_config_pair(pair, false, true);
+		if (ret) {
+			dev_err(dai->dev, "fail to config asrc pair\n");
+			return ret;
+		}
+
 	} else {
 		config.input_word_width   = word_width;
 		config.output_word_width  = width;
 		config.input_sample_rate  = asrc_priv->asrc_rate;
 		config.output_sample_rate = rate;
-	}
 
-	ret = fsl_asrc_config_pair(pair);
-	if (ret) {
-		dev_err(dai->dev, "fail to config asrc pair\n");
-		return ret;
+		ret = fsl_asrc_config_pair(pair, true, false);
+		if (ret) {
+			dev_err(dai->dev, "fail to config asrc pair\n");
+			return ret;
+		}
 	}
 
 	return 0;
