@@ -258,12 +258,6 @@ static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 	return 0;
 }
 
-static int stac9766_codec_suspend(struct snd_soc_codec *codec)
-{
-	stac9766_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int stac9766_codec_resume(struct snd_soc_codec *codec)
 {
 	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
@@ -273,7 +267,7 @@ static int stac9766_codec_resume(struct snd_soc_codec *codec)
 	/* give the codec an AC97 warm reset to start the link */
 reset:
 	if (reset > 5) {
-		printk(KERN_ERR "stac9766 failed to resume");
+		dev_err(codec->dev, "Failed to resume\n");
 		return -EIO;
 	}
 	ac97->bus->ops->warm_reset(ac97);
@@ -283,7 +277,6 @@ reset:
 		reset++;
 		goto reset;
 	}
-	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
@@ -351,14 +344,9 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 	stac9766_reset(codec, 0);
 	ret = stac9766_reset(codec, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "Failed to reset STAC9766: AC97 link error\n");
+		dev_err(codec->dev, "Failed to reset: AC97 link error\n");
 		goto codec_err;
 	}
-
-	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	snd_soc_add_codec_controls(codec, stac9766_snd_ac97_controls,
-			     ARRAY_SIZE(stac9766_snd_ac97_controls));
 
 	return 0;
 
@@ -376,12 +364,14 @@ static int stac9766_codec_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
+	.controls = stac9766_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(stac9766_snd_ac97_controls),
 	.write = stac9766_ac97_write,
 	.read = stac9766_ac97_read,
 	.set_bias_level = stac9766_set_bias_level,
+	.suspend_bias_off = true,
 	.probe = stac9766_codec_probe,
 	.remove = stac9766_codec_remove,
-	.suspend = stac9766_codec_suspend,
 	.resume = stac9766_codec_resume,
 	.reg_cache_size = ARRAY_SIZE(stac9766_reg),
 	.reg_word_size = sizeof(u16),
