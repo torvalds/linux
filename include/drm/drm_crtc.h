@@ -137,6 +137,14 @@ struct drm_display_info {
 	u8 cea_rev;
 };
 
+/* data corresponds to displayid vend/prod/serial */
+struct drm_tile_group {
+	struct kref refcount;
+	struct drm_device *dev;
+	int id;
+	u8 group_data[8];
+};
+
 struct drm_framebuffer_funcs {
 	/* note: use drm_framebuffer_remove() */
 	void (*destroy)(struct drm_framebuffer *framebuffer);
@@ -599,6 +607,15 @@ struct drm_encoder {
  * @bad_edid_counter: track sinks that give us an EDID with invalid checksum
  * @debugfs_entry: debugfs directory for this connector
  * @state: current atomic state for this connector
+ * @has_tile: is this connector connected to a tiled monitor
+ * @tile_group: tile group for the connected monitor
+ * @tile_is_single_monitor: whether the tile is one monitor housing
+ * @num_h_tile: number of horizontal tiles in the tile group
+ * @num_v_tile: number of vertical tiles in the tile group
+ * @tile_h_loc: horizontal location of this tile
+ * @tile_v_loc: vertical location of this tile
+ * @tile_h_size: horizontal size of this tile.
+ * @tile_v_size: vertical size of this tile.
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -634,6 +651,8 @@ struct drm_connector {
 
 	struct drm_property_blob *path_blob_ptr;
 
+	struct drm_property_blob *tile_blob_ptr;
+
 	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
 
 	/* requested DPMS state */
@@ -661,6 +680,15 @@ struct drm_connector {
 	struct dentry *debugfs_entry;
 
 	struct drm_connector_state *state;
+
+	/* DisplayID bits */
+	bool has_tile;
+	struct drm_tile_group *tile_group;
+	bool tile_is_single_monitor;
+
+	uint8_t num_h_tile, num_v_tile;
+	uint8_t tile_h_loc, tile_v_loc;
+	uint16_t tile_h_size, tile_v_size;
 };
 
 /**
@@ -978,6 +1006,7 @@ struct drm_mode_config {
 	struct drm_modeset_acquire_ctx *acquire_ctx; /* for legacy _lock_all() / _unlock_all() */
 	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
+	struct idr tile_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
 
 	struct mutex fb_lock; /* proctects global and per-file fb lists */
@@ -1021,6 +1050,7 @@ struct drm_mode_config {
 	struct drm_property *edid_property;
 	struct drm_property *dpms_property;
 	struct drm_property *path_property;
+	struct drm_property *tile_property;
 	struct drm_property *plane_type_property;
 	struct drm_property *rotation_property;
 
@@ -1190,6 +1220,7 @@ extern void drm_mode_config_cleanup(struct drm_device *dev);
 
 extern int drm_mode_connector_set_path_property(struct drm_connector *connector,
 						const char *path);
+int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						   const struct edid *edid);
 
@@ -1326,6 +1357,13 @@ extern void drm_set_preferred_mode(struct drm_connector *connector,
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
 extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);
 extern bool drm_edid_is_valid(struct edid *edid);
+
+extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
+							 char topology[8]);
+extern struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
+					       char topology[8]);
+extern void drm_mode_put_tile_group(struct drm_device *dev,
+				   struct drm_tile_group *tg);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,
 					   bool rb);

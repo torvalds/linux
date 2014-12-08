@@ -2412,6 +2412,10 @@ void intel_crt_init(struct drm_device *dev)
 !Edrivers/gpu/drm/drm_plane_helper.c
 !Pdrivers/gpu/drm/drm_plane_helper.c overview
     </sect2>
+    <sect2>
+	  <title>Tile group</title>
+!Pdrivers/gpu/drm/drm_crtc.c Tile group
+    </sect2>
   </sect1>
 
   <!-- Internals: kms properties -->
@@ -2547,7 +2551,7 @@ void intel_crt_init(struct drm_device *dev)
 	</tr>
 	<tr>
 	<td rowspan="23" valign="top" >DRM</td>
-	<td rowspan="3" valign="top" >Generic</td>
+	<td rowspan="4" valign="top" >Generic</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
 	<td valign="top" >0</td>
@@ -2567,6 +2571,13 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >0</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >Contains topology path to a connector.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“TILE”</td>
+	<td valign="top" >BLOB | IMMUTABLE</td>
+	<td valign="top" >0</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >Contains tiling information for a connector.</td>
 	</tr>
 	<tr>
 	<td rowspan="1" valign="top" >Plane</td>

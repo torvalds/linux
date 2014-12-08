@@ -92,6 +92,8 @@ struct drm_dp_mst_port {
 	struct drm_dp_vcpi vcpi;
 	struct drm_connector *connector;
 	struct drm_dp_mst_topology_mgr *mgr;
+
+	struct edid *cached_edid; /* for DP logical ports - make tiling work */
 };
 
 /**
@@ -474,7 +476,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 int drm_dp_mst_hpd_irq(struct drm_dp_mst_topology_mgr *mgr, u8 *esi, bool *handled);
 
 
-enum drm_connector_status drm_dp_mst_detect_port(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
+enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
 struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
