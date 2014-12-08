@@ -36,6 +36,7 @@
  *
  */
 
+#include <linux/etherdevice.h>
 #include "device.h"
 #include "rxtx.h"
 #include "card.h"
@@ -392,8 +393,8 @@ static int vnt_fill_ieee80211_rts(struct vnt_usb_send_context *tx_context,
 	rts->frame_control =
 		cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS);
 
-	memcpy(rts->ra, hdr->addr1, ETH_ALEN);
-	memcpy(rts->ta, hdr->addr2, ETH_ALEN);
+	ether_addr_copy(rts->ra, hdr->addr1);
+	ether_addr_copy(rts->ta, hdr->addr2);
 
 	return 0;
 }
