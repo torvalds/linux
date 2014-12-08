@@ -48,9 +48,6 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 {
 	u32 defr8 = DEFR8_CODE | DEFR8_DEFE8;
 
-	if (!rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_DEFR8))
-		return;
-
 	/* The DEFR8 register for the first group also controls RGB output
 	 * routing to DPAD0
 	 */
@@ -69,7 +66,8 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	rcar_du_group_write(rgrp, DEFR4, DEFR4_CODE);
 	rcar_du_group_write(rgrp, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
 
-	rcar_du_group_setup_defr8(rgrp);
+	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS))
+		rcar_du_group_setup_defr8(rgrp);
 
 	/* Use DS1PR and DS2PR to configure planes priorities and connects the
 	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
@@ -148,6 +146,9 @@ void rcar_du_group_restart(struct rcar_du_group *rgrp)
 static int rcar_du_set_dpad0_routing(struct rcar_du_device *rcdu)
 {
 	int ret;
+
+	if (!rcar_du_has(rcdu, RCAR_DU_FEATURE_EXT_CTRL_REGS))
+		return 0;
 
 	/* RGB output routing to DPAD0 is configured in the DEFR8 register of
 	 * the first group. As this function can be called with the DU0 and DU1
