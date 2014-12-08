@@ -2813,7 +2813,7 @@ out:
 
 static inline int scrub_calc_parity_bitmap_len(int nsectors)
 {
-	return DIV_ROUND_UP(nsectors, BITS_PER_LONG) * (BITS_PER_LONG / 8);
+	return DIV_ROUND_UP(nsectors, BITS_PER_LONG) * sizeof(long);
 }
 
 static void scrub_parity_get(struct scrub_parity *sparity)
