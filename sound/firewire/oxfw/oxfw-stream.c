@@ -282,6 +282,10 @@ int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
 	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
 	if (err < 0)
 		goto end;
+	if (rate == 0)
+		rate = formation.rate;
+	if (pcm_channels == 0)
+		pcm_channels = formation.pcm;
 
 	if ((formation.rate != rate) || (formation.pcm != pcm_channels)) {
 		if (opposite != NULL) {

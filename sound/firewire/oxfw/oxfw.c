@@ -138,6 +138,7 @@ static int oxfw_probe(struct fw_unit *unit,
 	mutex_init(&oxfw->mutex);
 	oxfw->unit = unit;
 	oxfw->device_info = (const struct device_info *)id->driver_data;
+	spin_lock_init(&oxfw->lock);
 
 	err = snd_oxfw_stream_discover(oxfw);
 	if (err < 0)
@@ -158,6 +159,10 @@ static int oxfw_probe(struct fw_unit *unit,
 	}
 
 	snd_oxfw_proc_init(oxfw);
+
+	err = snd_oxfw_create_midi(oxfw);
+	if (err < 0)
+		goto error;
 
 	err = snd_oxfw_stream_init_simplex(oxfw, &oxfw->rx_stream);
 	if (err < 0)
