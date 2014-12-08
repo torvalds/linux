@@ -470,12 +470,12 @@ void hwrng_unregister(struct hwrng *rng)
 		}
 	}
 	if (list_empty(&rng_list)) {
+		mutex_unlock(&rng_mutex);
 		unregister_miscdev();
 		if (hwrng_fill)
 			kthread_stop(hwrng_fill);
-	}
-
-	mutex_unlock(&rng_mutex);
+	} else
+		mutex_unlock(&rng_mutex);
 }
 EXPORT_SYMBOL_GPL(hwrng_unregister);
 
