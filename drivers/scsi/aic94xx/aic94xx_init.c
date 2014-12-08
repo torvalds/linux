@@ -83,6 +83,7 @@ static struct scsi_host_template aic94xx_sht = {
 	.eh_bus_reset_handler	= sas_eh_bus_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+	.use_blk_tags		= 1,
 };
 
 static int asd_map_memio(struct asd_ha_struct *asd_ha)

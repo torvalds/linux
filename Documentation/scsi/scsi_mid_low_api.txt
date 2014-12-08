@@ -271,9 +271,9 @@ init_this_scsi_driver() ----+
                       slave_destroy() ***
 ------------------------------------------------------------
 
-The mid level invokes scsi_adjust_queue_depth() with tagged queuing off and
-"cmd_per_lun" for that host as the queue length. These settings can be
-overridden by a slave_configure() supplied by the LLD.
+The mid level invokes scsi_adjust_queue_depth() with "cmd_per_lun" for that
+host as the queue length. These settings can be overridden by a
+slave_configure() supplied by the LLD.
 
 *** For scsi devices that the mid level tries to scan but do not
     respond, a slave_alloc(), slave_destroy() pair is called.
@@ -366,13 +366,11 @@ is initialized. The functions below are listed alphabetically and their
 names all start with "scsi_".
 
 Summary:
-   scsi_activate_tcq - turn on tag command queueing
    scsi_add_device - creates new scsi device (lu) instance
    scsi_add_host - perform sysfs registration and set up transport class
    scsi_adjust_queue_depth - change the queue depth on a SCSI device
    scsi_bios_ptable - return copy of block device's partition table
    scsi_block_requests - prevent further commands being queued to given host
-   scsi_deactivate_tcq - turn off tag command queueing
    scsi_host_alloc - return a new scsi_host instance whose refcount==1
    scsi_host_get - increments Scsi_Host instance's refcount
    scsi_host_put - decrements Scsi_Host instance's refcount (free if 0)
@@ -388,24 +386,6 @@ Summary:
 
 
 Details:
-
-/**
- * scsi_activate_tcq - turn on tag command queueing ("ordered" task attribute)
- * @sdev:       device to turn on TCQ for
- * @depth:      queue depth
- *
- *      Returns nothing
- *
- *      Might block: no
- *
- *      Notes: Eventually, it is hoped depth would be the maximum depth
- *      the device could cope with and the real queue depth
- *      would be adjustable from 0 to depth.
- *
- *      Defined (inline) in: include/scsi/scsi_tcq.h
- **/
-void scsi_activate_tcq(struct scsi_device *sdev, int depth)
-
 
 /**
  * scsi_add_device - creates new scsi device (lu) instance
@@ -458,9 +438,6 @@ int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
 /**
  * scsi_adjust_queue_depth - allow LLD to change queue depth on a SCSI device
  * @sdev:       pointer to SCSI device to change queue depth on
- * @tagged:     0 - no tagged queuing
- *              MSG_SIMPLE_TAG - simple tagged queuing
- *              MSG_ORDERED_TAG - ordered tagged queuing
  * @tags        Number of tags allowed if tagged queuing enabled,
  *              or number of commands the LLD can queue up
  *              in non-tagged mode (as per cmd_per_lun).
@@ -471,15 +448,12 @@ int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
  *
  *      Notes: Can be invoked any time on a SCSI device controlled by this
  *      LLD. [Specifically during and after slave_configure() and prior to
- *      slave_destroy().] Can safely be invoked from interrupt code. Actual
- *      queue depth change may be delayed until the next command is being
- *      processed. See also scsi_activate_tcq() and scsi_deactivate_tcq().
+ *      slave_destroy().] Can safely be invoked from interrupt code.
  *
  *      Defined in: drivers/scsi/scsi.c [see source code for more notes]
  *
  **/
-void scsi_adjust_queue_depth(struct scsi_device * sdev, int tagged, 
-                             int tags)
+void scsi_adjust_queue_depth(struct scsi_device *sdev, int tags)
 
 
 /**
@@ -512,20 +486,6 @@ unsigned char *scsi_bios_ptable(struct block_device *dev)
  *      Defined in: drivers/scsi/scsi_lib.c
 **/
 void scsi_block_requests(struct Scsi_Host * shost)
-
-
-/**
- * scsi_deactivate_tcq - turn off tag command queueing
- * @sdev:       device to turn off TCQ for
- * @depth:      queue depth (stored in sdev)
- *
- *      Returns nothing
- *
- *      Might block: no
- *
- *      Defined (inline) in: include/scsi/scsi_tcq.h
- **/
-void scsi_deactivate_tcq(struct scsi_device *sdev, int depth)
 
 
 /**

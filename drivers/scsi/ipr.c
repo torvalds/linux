@@ -4344,7 +4344,7 @@ static int ipr_change_queue_depth(struct scsi_device *sdev, int qdepth,
 		qdepth = IPR_MAX_CMD_PER_ATA_LUN;
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 
@@ -4364,24 +4364,10 @@ static int ipr_change_queue_type(struct scsi_device *sdev, int tag_type)
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
-
-	if (res) {
-		if (ipr_is_gscsi(res) && sdev->tagged_supported) {
-			/*
-			 * We don't bother quiescing the device here since the
-			 * adapter firmware does it for us.
-			 */
-			scsi_set_tag_type(sdev, tag_type);
-
-			if (tag_type)
-				scsi_activate_tcq(sdev, sdev->queue_depth);
-			else
-				scsi_deactivate_tcq(sdev, sdev->queue_depth);
-		} else
-			tag_type = 0;
-	} else
+	if (res && ipr_is_gscsi(res))
+		tag_type = scsi_change_queue_type(sdev, tag_type);
+	else
 		tag_type = 0;
-
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	return tag_type;
 }
@@ -4765,10 +4751,10 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
 		if (ap) {
-			scsi_adjust_queue_depth(sdev, 0, IPR_MAX_CMD_PER_ATA_LUN);
+			scsi_adjust_queue_depth(sdev, IPR_MAX_CMD_PER_ATA_LUN);
 			ata_sas_slave_configure(sdev, ap);
-		} else
-			scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
+		}
+
 		if (ioa_cfg->sis64)
 			sdev_printk(KERN_INFO, sdev, "Resource path: %s\n",
 				    ipr_format_res_path(ioa_cfg,
@@ -5673,35 +5659,6 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
- * ipr_get_task_attributes - Translate SPI Q-Tag to task attributes
- * @scsi_cmd:	scsi command struct
- *
- * Return value:
- * 	task attributes
- **/
-static u8 ipr_get_task_attributes(struct scsi_cmnd *scsi_cmd)
-{
-	u8 tag[2];
-	u8 rc = IPR_FLAGS_LO_UNTAGGED_TASK;
-
-	if (scsi_populate_tag_msg(scsi_cmd, tag)) {
-		switch (tag[0]) {
-		case MSG_SIMPLE_TAG:
-			rc = IPR_FLAGS_LO_SIMPLE_TASK;
-			break;
-		case MSG_HEAD_TAG:
-			rc = IPR_FLAGS_LO_HEAD_OF_Q_TASK;
-			break;
-		case MSG_ORDERED_TAG:
-			rc = IPR_FLAGS_LO_ORDERED_TASK;
-			break;
-		};
-	}
-
-	return rc;
-}
-
-/**
  * ipr_erp_done - Process completion of ERP for a device
  * @ipr_cmd:		ipr command struct
  *
@@ -6236,7 +6193,10 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_DELAY_AFTER_RST;
 		}
 		ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_ALIGNED_BFR;
-		ioarcb->cmd_pkt.flags_lo |= ipr_get_task_attributes(scsi_cmd);
+		if (scsi_cmd->flags & SCMD_TAGGED)
+			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_SIMPLE_TASK;
+		else
+			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_UNTAGGED_TASK;
 	}
 
 	if (scsi_cmd->cmnd[0] >= 0xC0 &&
@@ -6357,6 +6317,7 @@ static struct scsi_host_template driver_template = {
 	.sdev_attrs = ipr_dev_attrs,
 	.proc_name = IPR_NAME,
 	.no_write_same = 1,
+	.use_blk_tags = 1,
 };
 
 /**

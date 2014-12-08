@@ -422,6 +422,11 @@ struct scsi_host_template {
 	unsigned char present;
 
 	/*
+	 * Let the block layer assigns tags to all commands.
+	 */
+	unsigned use_blk_tags:1;
+
+	/*
 	 * This specifies the mode that a LLD supports.
 	 */
 	unsigned supported_mode:2;
@@ -450,11 +455,6 @@ struct scsi_host_template {
 	 * True if the low-level driver performs its own reset-settle delays.
 	 */
 	unsigned skip_settle_delay:1;
-
-	/*
-	 * True if we are using ordered write support.
-	 */
-	unsigned ordered_tag:1;
 
 	/* True if the controller does not support WRITE SAME */
 	unsigned no_write_same:1;
@@ -638,6 +638,14 @@ struct Scsi_Host {
 	short unsigned int sg_prot_tablesize;
 	unsigned int max_sectors;
 	unsigned long dma_boundary;
+	/*
+	 * In scsi-mq mode, the number of hardware queues supported by the LLD.
+	 *
+	 * Note: it is assumed that each hardware queue has a queue depth of
+	 * can_queue. In other words, the total queue depth per host
+	 * is nr_hw_queues * can_queue.
+	 */
+	unsigned nr_hw_queues;
 	/* 
 	 * Used to assign serial numbers to the cmds.
 	 * Protected by the host lock.
@@ -647,7 +655,6 @@ struct Scsi_Host {
 	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;
 	unsigned use_clustering:1;
-	unsigned use_blk_tcq:1;
 
 	/*
 	 * Host has requested that no further requests come through for the
@@ -661,11 +668,6 @@ struct Scsi_Host {
 	 * the spec ;).
 	 */
 	unsigned reverse_ordering:1;
-
-	/*
-	 * Ordered write support
-	 */
-	unsigned ordered_tag:1;
 
 	/* Task mgmt function in progress */
 	unsigned tmf_in_progress:1;

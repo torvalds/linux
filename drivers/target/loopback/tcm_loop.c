@@ -121,45 +121,18 @@ static int tcm_loop_change_queue_depth(
 {
 	switch (reason) {
 	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		scsi_track_queue_full(sdev, depth);
 		break;
 	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 	return sdev->queue_depth;
-}
-
-static int tcm_loop_change_queue_type(struct scsi_device *sdev, int tag)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag);
-
-		if (tag)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag = 0;
-
-	return tag;
-}
-
-/*
- * Locate the SAM Task Attr from struct scsi_cmnd *
- */
-static int tcm_loop_sam_attr(struct scsi_cmnd *sc, int tag)
-{
-	if (sc->device->tagged_supported &&
-	    sc->device->ordered_tags && tag >= 0)
-		return MSG_ORDERED_TAG;
-
-	return MSG_SIMPLE_TAG;
 }
 
 static void tcm_loop_submission_work(struct work_struct *work)
@@ -220,7 +193,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 
 	rc = target_submit_cmd_map_sgls(se_cmd, tl_nexus->se_sess, sc->cmnd,
 			&tl_cmd->tl_sense_buf[0], tl_cmd->sc->device->lun,
-			transfer_length, tcm_loop_sam_attr(sc, tl_cmd->sc_cmd_tag),
+			transfer_length, MSG_SIMPLE_TAG,
 			sc->sc_data_direction, 0,
 			scsi_sglist(sc), scsi_sg_count(sc),
 			sgl_bidi, sgl_bidi_count,
@@ -431,27 +404,13 @@ static int tcm_loop_slave_alloc(struct scsi_device *sd)
 	return 0;
 }
 
-static int tcm_loop_slave_configure(struct scsi_device *sd)
-{
-	if (sd->tagged_supported) {
-		scsi_activate_tcq(sd, sd->queue_depth);
-		scsi_adjust_queue_depth(sd, MSG_SIMPLE_TAG,
-					sd->host->cmd_per_lun);
-	} else {
-		scsi_adjust_queue_depth(sd, 0,
-					sd->host->cmd_per_lun);
-	}
-
-	return 0;
-}
-
 static struct scsi_host_template tcm_loop_driver_template = {
 	.show_info		= tcm_loop_show_info,
 	.proc_name		= "tcm_loopback",
 	.name			= "TCM_Loopback",
 	.queuecommand		= tcm_loop_queuecommand,
 	.change_queue_depth	= tcm_loop_change_queue_depth,
-	.change_queue_type	= tcm_loop_change_queue_type,
+	.change_queue_type	= scsi_change_queue_type,
 	.eh_abort_handler = tcm_loop_abort_task,
 	.eh_device_reset_handler = tcm_loop_device_reset,
 	.eh_target_reset_handler = tcm_loop_target_reset,
@@ -462,8 +421,8 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.max_sectors		= 0xFFFF,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.slave_alloc		= tcm_loop_slave_alloc,
-	.slave_configure	= tcm_loop_slave_configure,
 	.module			= THIS_MODULE,
+	.use_blk_tags		= 1,
 };
 
 static int tcm_loop_driver_probe(struct device *dev)

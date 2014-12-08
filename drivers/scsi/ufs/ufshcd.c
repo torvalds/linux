@@ -2713,7 +2713,7 @@ static void ufshcd_set_queue_depth(struct scsi_device *sdev)
 
 	dev_dbg(hba->dev, "%s: activate tcq with queue depth %d\n",
 			__func__, lun_qdepth);
-	scsi_activate_tcq(sdev, lun_qdepth);
+	scsi_adjust_queue_depth(sdev, lun_qdepth);
 }
 
 /*
@@ -2783,11 +2783,9 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 	struct ufs_hba *hba;
 
 	hba = shost_priv(sdev->host);
-	sdev->tagged_supported = 1;
 
 	/* Mode sense(6) is not supported by UFS, so use Mode sense(10) */
 	sdev->use_10_for_ms = 1;
-	scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
 
 	/* allow SCSI layer to restart the device in case of errors */
 	sdev->allow_restart = 1;
@@ -2823,9 +2821,7 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev,
 	switch (reason) {
 	case SCSI_QDEPTH_DEFAULT:
 	case SCSI_QDEPTH_RAMP_UP:
-		if (!sdev->tagged_supported)
-			depth = 1;
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		scsi_track_queue_full(sdev, depth);
@@ -2860,7 +2856,6 @@ static void ufshcd_slave_destroy(struct scsi_device *sdev)
 	struct ufs_hba *hba;
 
 	hba = shost_priv(sdev->host);
-	scsi_deactivate_tcq(sdev, hba->nutrs);
 	/* Drop the reference as it won't be needed anymore */
 	if (ufshcd_scsi_to_upiu_lun(sdev->lun) == UFS_UPIU_UFS_DEVICE_WLUN) {
 		unsigned long flags;
@@ -4239,6 +4234,7 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.cmd_per_lun		= UFSHCD_CMD_PER_LUN,
 	.can_queue		= UFSHCD_CAN_QUEUE,
 	.max_host_blocked	= 1,
+	.use_blk_tags		= 1,
 };
 
 static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
@@ -4731,11 +4727,11 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 				     START_STOP_TIMEOUT, 0, NULL, REQ_PM);
 	if (ret) {
 		sdev_printk(KERN_WARNING, sdp,
-			  "START_STOP failed for power mode: %d\n", pwr_mode);
-		scsi_show_result(ret);
+			    "START_STOP failed for power mode: %d, result %x\n",
+			    pwr_mode, ret);
 		if (driver_byte(ret) & DRIVER_SENSE) {
-			scsi_show_sense_hdr(&sshdr);
-			scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
+			scsi_show_sense_hdr(sdp, NULL, &sshdr);
+			scsi_show_extd_sense(sdp, NULL, sshdr.asc, sshdr.ascq);
 		}
 	}
 

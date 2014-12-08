@@ -2607,7 +2607,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
  *	host byte of the result field to, if zero DID_ABORTED is
  *	used.
  *
- * Returns : 0 - success, -1 on failure.
+ * Returns : SUCCESS - success, FAILED on failure.
  *
  * XXX - there is no way to abort the command that is currently
  *	 connected, you have to wait for it to complete.  If this is
@@ -2623,8 +2623,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 	Scsi_Cmnd *tmp, **prev;
 	unsigned long flags;
 
-	printk(KERN_NOTICE "scsi%d: aborting command\n", HOSTNO);
-	scsi_print_command(cmd);
+	scmd_printk(KERN_NOTICE, cmd, "aborting command\n");
 
 	NCR5380_print_status(instance);
 

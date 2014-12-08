@@ -1210,7 +1210,7 @@ ips_slave_configure(struct scsi_device * SDptr)
 		min = ha->max_cmds / 2;
 		if (ha->enq->ucLogDriveCount <= 2)
 			min = ha->max_cmds - 1;
-		scsi_adjust_queue_depth(SDptr, MSG_ORDERED_TAG, min);
+		scsi_adjust_queue_depth(SDptr, min);
 	}
 
 	SDptr->skip_ms_page_8 = 1;

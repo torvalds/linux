@@ -925,6 +925,7 @@ struct scsi_host_template aic79xx_driver_template = {
 	.slave_configure	= ahd_linux_slave_configure,
 	.target_alloc		= ahd_linux_target_alloc,
 	.target_destroy		= ahd_linux_target_destroy,
+	.use_blk_tags		= 1,
 };
 
 /******************************** Bus DMA *************************************/
@@ -1468,12 +1469,9 @@ ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 
 	switch ((dev->flags & (AHD_DEV_Q_BASIC|AHD_DEV_Q_TAGGED))) {
 	case AHD_DEV_Q_BASIC:
-		scsi_set_tag_type(sdev, MSG_SIMPLE_TASK);
-		scsi_activate_tcq(sdev, dev->openings + dev->active);
-		break;
 	case AHD_DEV_Q_TAGGED:
-		scsi_set_tag_type(sdev, MSG_ORDERED_TASK);
-		scsi_activate_tcq(sdev, dev->openings + dev->active);
+		scsi_adjust_queue_depth(sdev,
+				dev->openings + dev->active);
 		break;
 	default:
 		/*
@@ -1482,7 +1480,7 @@ ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 		 * serially on the controller/device.  This should
 		 * remove some latency.
 		 */
-		scsi_deactivate_tcq(sdev, 1);
+		scsi_adjust_queue_depth(sdev, 1);
 		break;
 	}
 }
@@ -1619,15 +1617,6 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	}
 
 	if ((dev->flags & (AHD_DEV_Q_TAGGED|AHD_DEV_Q_BASIC)) != 0) {
-		int	msg_bytes;
-		uint8_t tag_msgs[2];
-
-		msg_bytes = scsi_populate_tag_msg(cmd, tag_msgs);
-		if (msg_bytes && tag_msgs[0] != MSG_SIMPLE_TASK) {
-			hscb->control |= tag_msgs[0];
-			if (tag_msgs[0] == MSG_ORDERED_TASK)
-				dev->commands_since_idle_or_otag = 0;
-		} else
 		if (dev->commands_since_idle_or_otag == AHD_OTAG_THRESH
 		 && (dev->flags & AHD_DEV_Q_TAGGED) != 0) {
 			hscb->control |= MSG_ORDERED_TASK;

@@ -462,9 +462,9 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			depth = 256;
 		else if (depth < 2)
 			depth = 2;
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
+		scsi_adjust_queue_depth(sdev, depth);
 	} else
-		scsi_adjust_queue_depth(sdev, 0, 1);
+		scsi_adjust_queue_depth(sdev, 1);
 
 	return 0;
 }
@@ -504,9 +504,9 @@ static int aac_change_queue_depth(struct scsi_device *sdev, int depth,
 			depth = 256;
 		else if (depth < 2)
 			depth = 2;
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
+		scsi_adjust_queue_depth(sdev, depth);
 	} else
-		scsi_adjust_queue_depth(sdev, 0, 1);
+		scsi_adjust_queue_depth(sdev, 1);
 	return sdev->queue_depth;
 }
 
@@ -555,7 +555,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 		AAC_DRIVERNAME,
 		host->host_no, sdev_channel(dev), sdev_id(dev), dev->lun);
 	switch (cmd->cmnd[0]) {
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		if (!(aac->raw_io_interface) ||
 		    !(aac->raw_io_64) ||
 		    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))

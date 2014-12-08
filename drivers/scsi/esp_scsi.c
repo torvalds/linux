@@ -663,7 +663,7 @@ static struct esp_cmd_entry *find_and_prep_issuable_command(struct esp *esp)
 			return ent;
 		}
 
-		if (!scsi_populate_tag_msg(cmd, &ent->tag[0])) {
+		if (!spi_populate_tag_msg(&ent->tag[0], cmd)) {
 			ent->tag[0] = 0;
 			ent->tag[1] = 0;
 		}
@@ -2402,28 +2402,14 @@ static int esp_slave_configure(struct scsi_device *dev)
 {
 	struct esp *esp = shost_priv(dev->host);
 	struct esp_target_data *tp = &esp->target[dev->id];
-	int goal_tags, queue_depth;
-
-	goal_tags = 0;
 
 	if (dev->tagged_supported) {
 		/* XXX make this configurable somehow XXX */
-		goal_tags = ESP_DEFAULT_TAGS;
+		int goal_tags = min(ESP_DEFAULT_TAGS, ESP_MAX_TAG);
 
-		if (goal_tags > ESP_MAX_TAG)
-			goal_tags = ESP_MAX_TAG;
+		scsi_adjust_queue_depth(dev, goal_tags);
 	}
 
-	queue_depth = goal_tags;
-	if (queue_depth < dev->host->cmd_per_lun)
-		queue_depth = dev->host->cmd_per_lun;
-
-	if (goal_tags) {
-		scsi_set_tag_type(dev, MSG_ORDERED_TAG);
-		scsi_activate_tcq(dev, queue_depth);
-	} else {
-		scsi_deactivate_tcq(dev, queue_depth);
-	}
 	tp->flags |= ESP_TGT_DISCONNECT;
 
 	if (!spi_initial_dv(dev->sdev_target))
@@ -2631,6 +2617,7 @@ struct scsi_host_template scsi_esp_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0xffff,
 	.skip_settle_delay	= 1,
+	.use_blk_tags		= 1,
 };
 EXPORT_SYMBOL(scsi_esp_template);
 

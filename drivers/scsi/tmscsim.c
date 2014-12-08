@@ -243,7 +243,6 @@
 #include <scsi/scsicam.h>
 #include <scsi/scsi_tcq.h>
 
-
 #define DC390_BANNER "Tekram DC390/AM53C974"
 #define DC390_VERSION "2.1d 2004-05-27"
 
@@ -508,7 +507,6 @@ dc390_StartSCSI( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_sr
     struct scsi_cmnd *scmd = pSRB->pcmd;
     struct scsi_device *sdev = scmd->device;
     u8 cmd, disc_allowed, try_sync_nego;
-    char tag[2];
 
     pSRB->ScsiPhase = SCSI_NOP0;
 
@@ -560,11 +558,11 @@ dc390_StartSCSI( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_sr
     cmd = SEL_W_ATN;
     DC390_write8 (ScsiFifo, IDENTIFY(disc_allowed, pDCB->TargetLUN));
     /* Change 99/05/31: Don't use tags when not disconnecting (BUSY) */
-    if ((pDCB->SyncMode & EN_TAG_QUEUEING) && disc_allowed && scsi_populate_tag_msg(scmd, tag)) {
-	DC390_write8(ScsiFifo, tag[0]);
-	pDCB->TagMask |= 1 << tag[1];
-	pSRB->TagNumber = tag[1];
-	DC390_write8(ScsiFifo, tag[1]);
+    if ((pDCB->SyncMode & EN_TAG_QUEUEING) && disc_allowed && (scmd->flags & SCMD_TAGGED)) {
+	DC390_write8(ScsiFifo, MSG_SIMPLE_TAG);
+	pDCB->TagMask |= 1 << scmd->request->tag;
+	pSRB->TagNumber = scmd->request->tag;
+	DC390_write8(ScsiFifo, scmd->request->tag);
 	DEBUG1(printk(KERN_INFO "DC390: Select w/DisCn for SRB %p, block tag %02x\n", pSRB, tag[1]));
 	cmd = SEL_W_ATN3;
     } else {
@@ -2187,9 +2185,16 @@ static int dc390_slave_configure(struct scsi_device *sdev)
 	struct dc390_dcb *dcb = (struct dc390_dcb *)sdev->hostdata;
 
 	acb->scan_devices = 0;
+
+	/*
+	 * XXX: Note that while this driver used to called scsi_activate_tcq,
+	 * it never actually set a tag type, so emulate the old behavior.
+	 */
+	scsi_set_tag_type(sdev, 0);
+
 	if (sdev->tagged_supported && (dcb->DevMode & TAG_QUEUEING_)) {
 		dcb->SyncMode |= EN_TAG_QUEUEING;
-		scsi_activate_tcq(sdev, acb->TagMaxNum);
+		scsi_adjust_queue_depth(sdev, acb->TagMaxNum);
 	}
 
 	return 0;
@@ -2211,6 +2216,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0x4000, /* 8MiB = 16 * 1024 * 512 */
+	.use_blk_tags		= 1,
 };
 
 /***********************************************************************

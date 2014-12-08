@@ -128,8 +128,10 @@ enum scsi_timeouts {
 #define MOVE_MEDIUM           0xa5
 #define EXCHANGE_MEDIUM       0xa6
 #define READ_12               0xa8
+#define SERVICE_ACTION_OUT_12 0xa9
 #define WRITE_12              0xaa
-#define READ_MEDIA_SERIAL_NUMBER 0xab
+#define READ_MEDIA_SERIAL_NUMBER 0xab /* Obsolete with SPC-2 */
+#define SERVICE_ACTION_IN_12  0xab
 #define WRITE_VERIFY_12       0xae
 #define VERIFY_12	      0xaf
 #define SEARCH_HIGH_12        0xb0
@@ -151,7 +153,9 @@ enum scsi_timeouts {
 #define VERIFY_16	      0x8f
 #define SYNCHRONIZE_CACHE_16  0x91
 #define WRITE_SAME_16	      0x93
-#define SERVICE_ACTION_IN     0x9e
+#define SERVICE_ACTION_BIDIRECTIONAL 0x9d
+#define SERVICE_ACTION_IN_16  0x9e
+#define SERVICE_ACTION_OUT_16 0x9f
 /* values for service action in */
 #define	SAI_READ_CAPACITY_16  0x10
 #define SAI_GET_LBA_STATUS    0x12
@@ -165,8 +169,8 @@ enum scsi_timeouts {
 #define MI_REPORT_ALIASES     0x0b
 #define MI_REPORT_SUPPORTED_OPERATION_CODES 0x0c
 #define MI_REPORT_SUPPORTED_TASK_MANAGEMENT_FUNCTIONS 0x0d
-#define MI_REPORT_PRIORITY   0x0e
-#define MI_REPORT_TIMESTAMP  0x0f
+#define MI_REPORT_PRIORITY    0x0e
+#define MI_REPORT_TIMESTAMP   0x0f
 #define MI_MANAGEMENT_PROTOCOL_IN 0x10
 /* value for MI_REPORT_TARGET_PGS ext header */
 #define MI_EXT_HDR_PARAM_FMT  0x20
