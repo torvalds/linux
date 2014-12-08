@@ -1,7 +1,7 @@
 * STMicroelectronics SAS. ST21NFCA NFC Controller
 
 Required properties:
-- compatible: Should be "st,st21nfca_i2c".
+- compatible: Should be "st,st21nfca-i2c".
 - clock-frequency: I²C work frequency.
 - reg: address on the bus
 - interrupt-parent: phandle for the interrupt gpio controller
@@ -20,7 +20,7 @@ Example (for ARM-based BeagleBoard xM with ST21NFCA on I2C2):
 
 	st21nfca: st21nfca@1 {
 
-		compatible = "st,st21nfca_i2c";
+		compatible = "st,st21nfca-i2c";
 
 		reg = <0x01>;
 		clock-frequency = <400000>;
