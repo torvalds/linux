@@ -369,8 +369,9 @@ int fsl_asrc_process_buffer(struct fsl_asrc_pair *pair,
 		spin_unlock_irqrestore(&m2m->lock, lock_flags);
 		return -EFAULT;
 	}
-	fsl_asrc_read_last_FIFO(pair);
 	spin_unlock_irqrestore(&m2m->lock, lock_flags);
+
+	fsl_asrc_read_last_FIFO(pair);
 
 	/* Update final lengths after getting last FIFO */
 	pbuf->input_buffer_length = m2m->dma_block[IN].length;
@@ -485,6 +486,7 @@ static long fsl_asrc_ioctl_req_pair(struct fsl_asrc_pair *pair,
 	struct fsl_asrc_m2m *m2m = pair->private;
 	struct device *dev = &asrc_priv->pdev->dev;
 	struct asrc_req req;
+	unsigned long lock_flags;
 	long ret;
 
 	ret = copy_from_user(&req, user, sizeof(req));
@@ -499,7 +501,9 @@ static long fsl_asrc_ioctl_req_pair(struct fsl_asrc_pair *pair,
 		return ret;
 	}
 
+	spin_lock_irqsave(&m2m->lock, lock_flags);
 	m2m->pair_hold = 1;
+	spin_unlock_irqrestore(&m2m->lock, lock_flags);
 	pair->channels = req.chn_num;
 
 	req.index = pair->index;
@@ -570,9 +574,6 @@ static long fsl_asrc_ioctl_config_pair(struct fsl_asrc_pair *pair,
 		pair_err("failed to request output task DMA channel\n");
 		return  -EBUSY;
 	}
-
-	init_completion(&m2m->complete[IN]);
-	init_completion(&m2m->complete[OUT]);
 
 	ret = copy_to_user(user, &config, sizeof(config));
 	if (ret) {
@@ -824,6 +825,9 @@ static int fsl_asrc_open(struct inode *inode, struct file *file)
 	pair->private = m2m;
 	pair->asrc_priv = asrc_priv;
 
+	init_completion(&m2m->complete[IN]);
+	init_completion(&m2m->complete[OUT]);
+
 	spin_lock_init(&m2m->lock);
 
 	file->private_data = pair;
@@ -846,9 +850,11 @@ static int fsl_asrc_close(struct inode *inode, struct file *file)
 		goto out;
 
 	/* Make sure we have clear the pointer */
+	spin_lock_irqsave(&asrc_priv->lock, lock_flags);
 	for (i = 0; i < ASRC_PAIR_MAX_NUM; i++)
 		if (asrc_priv->pair[i] == pair)
 			asrc_priv->pair[i] = NULL;
+	spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
 
 	if (m2m->asrc_active) {
 		m2m->asrc_active = 0;
@@ -861,8 +867,8 @@ static int fsl_asrc_close(struct inode *inode, struct file *file)
 		fsl_asrc_output_dma_callback((void *)pair);
 	}
 
+	spin_lock_irqsave(&m2m->lock, lock_flags);
 	if (m2m->pair_hold) {
-		spin_lock_irqsave(&m2m->lock, lock_flags);
 		m2m->pair_hold = 0;
 		spin_unlock_irqrestore(&m2m->lock, lock_flags);
 
@@ -875,10 +881,13 @@ static int fsl_asrc_close(struct inode *inode, struct file *file)
 		kfree(m2m->dma_block[OUT].dma_vaddr);
 
 		fsl_asrc_release_pair(pair);
-	}
+	} else
+		spin_unlock_irqrestore(&m2m->lock, lock_flags);
 
+	spin_lock_irqsave(&asrc_priv->lock, lock_flags);
 	kfree(m2m);
 	kfree(pair);
+	spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
 	file->private_data = NULL;
 
 out:
@@ -920,22 +929,29 @@ static void fsl_asrc_m2m_suspend(struct fsl_asrc *asrc_priv)
 {
 	struct fsl_asrc_pair *pair;
 	struct fsl_asrc_m2m *m2m;
+	unsigned long lock_flags;
 	int i;
 
 	for (i = 0; i < ASRC_PAIR_MAX_NUM; i++) {
+		spin_lock_irqsave(&asrc_priv->lock, lock_flags);
 		pair = asrc_priv->pair[i];
-		if (!pair || !pair->private)
+		if (!pair || !pair->private) {
+			spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
 			continue;
-
+		}
 		m2m = pair->private;
 
 		if (!completion_done(&m2m->complete[IN])) {
-			dmaengine_terminate_all(pair->dma_chan[IN]);
+			if (pair->dma_chan[IN])
+				dmaengine_terminate_all(pair->dma_chan[IN]);
 			fsl_asrc_input_dma_callback((void *)pair);
 		}
 		if (!completion_done(&m2m->complete[OUT])) {
-			dmaengine_terminate_all(pair->dma_chan[OUT]);
+			if (pair->dma_chan[OUT])
+				dmaengine_terminate_all(pair->dma_chan[OUT]);
 			fsl_asrc_output_dma_callback((void *)pair);
 		}
+
+		spin_unlock_irqrestore(&asrc_priv->lock, lock_flags);
 	}
 }
