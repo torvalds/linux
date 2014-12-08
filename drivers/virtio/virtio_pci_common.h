@@ -1,5 +1,5 @@
-#ifndef _DRIVERS_VIRTIO_VIRTIO_PCI_H
-#define _DRIVERS_VIRTIO_VIRTIO_PCI_H
+#ifndef _DRIVERS_VIRTIO_VIRTIO_PCI_COMMON_H
+#define _DRIVERS_VIRTIO_VIRTIO_PCI_COMMON_H
 /*
  * Virtio PCI driver - APIs for common functionality for all device versions
  *

@@ -17,7 +17,7 @@
  *
  */
 
-#include "virtio_pci_legacy.c"
+#include "virtio_pci_common.h"
 
 /* wait for pending irq handlers */
 void vp_synchronize_vectors(struct virtio_device *vdev)

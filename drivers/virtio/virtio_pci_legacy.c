@@ -17,7 +17,7 @@
  *
  */
 
-#include "virtio_pci.h"
+#include "virtio_pci_common.h"
 
 /* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
 static const struct pci_device_id virtio_pci_id_table[] = {
