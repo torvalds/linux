@@ -265,6 +265,15 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	plat_dat = dev_get_platdata(&pdev->dev);
 
+	if (!plat_dat)
+		plat_dat = devm_kzalloc(&pdev->dev,
+					sizeof(struct plat_stmmacenet_data),
+					GFP_KERNEL);
+	if (!plat_dat) {
+		pr_err("%s: ERROR: no memory", __func__);
+		return  -ENOMEM;
+	}
+
 	/* Set default value for multicast hash bins */
 	plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
 
@@ -272,15 +281,6 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	plat_dat->unicast_filter_entries = 1;
 
 	if (pdev->dev.of_node) {
-		if (!plat_dat)
-			plat_dat = devm_kzalloc(&pdev->dev,
-					sizeof(struct plat_stmmacenet_data),
-					GFP_KERNEL);
-		if (!plat_dat) {
-			pr_err("%s: ERROR: no memory", __func__);
-			return  -ENOMEM;
-		}
-
 		ret = stmmac_probe_config_dt(pdev, plat_dat, &mac);
 		if (ret) {
 			pr_err("%s: main dt probe failed", __func__);

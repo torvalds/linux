@@ -427,7 +427,7 @@ header-y += virtio_net.h
 header-y += virtio_pci.h
 header-y += virtio_ring.h
 header-y += virtio_rng.h
-header=y += vm_sockets.h
+header-y += vm_sockets.h
 header-y += vt.h
 header-y += wait.h
 header-y += wanrouter.h

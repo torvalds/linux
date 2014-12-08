@@ -241,7 +241,6 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 		resv = reloc->robj->tbo.resv;
 		r = radeon_sync_resv(p->rdev, &p->ib.sync, resv,
 				     reloc->tv.shared);
-
 		if (r)
 			return r;
 	}
