@@ -220,32 +220,40 @@ DO_ERROR(X86_TRAP_OLD_MF, SIGFPE, "coprocessor segment overrun",
 		coprocessor_segment_overrun)
 DO_ERROR(X86_TRAP_TS, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(X86_TRAP_NP, SIGBUS, "segment not present", segment_not_present)
-#ifdef CONFIG_X86_32
 DO_ERROR(X86_TRAP_SS, SIGBUS, "stack segment", stack_segment)
-#endif
 DO_ERROR_INFO(X86_TRAP_AC, SIGBUS, "alignment check", alignment_check,
 		BUS_ADRALN, 0)
 
 #ifdef CONFIG_X86_64
 /* Runs on IST stack */
-dotraplinkage void do_stack_segment(struct pt_regs *regs, long error_code)
-{
-	enum ctx_state prev_state;
-
-	prev_state = exception_enter();
-	if (notify_die(DIE_TRAP, "stack segment", regs, error_code,
-		       X86_TRAP_SS, SIGBUS) != NOTIFY_STOP) {
-		preempt_conditional_sti(regs);
-		do_trap(X86_TRAP_SS, SIGBUS, "stack segment", regs, error_code, NULL);
-		preempt_conditional_cli(regs);
-	}
-	exception_exit(prev_state);
-}
-
 dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 {
 	static const char str[] = "double fault";
 	struct task_struct *tsk = current;
+
+#ifdef CONFIG_X86_ESPFIX64
+	extern unsigned char native_irq_return_iret[];
+
+	/*
+	 * If IRET takes a non-IST fault on the espfix64 stack, then we
+	 * end up promoting it to a doublefault.  In that case, modify
+	 * the stack to make it look like we just entered the #GP
+	 * handler from user space, similar to bad_iret.
+	 */
+	if (((long)regs->sp >> PGDIR_SHIFT) == ESPFIX_PGD_ENTRY &&
+		regs->cs == __KERNEL_CS &&
+		regs->ip == (unsigned long)native_irq_return_iret)
+	{
+		struct pt_regs *normal_regs = task_pt_regs(current);
+
+		/* Fake a #GP(0) from userspace. */
+		memmove(&normal_regs->ip, (void *)regs->sp, 5*8);
+		normal_regs->orig_ax = 0;  /* Missing (lost) #GP error code */
+		regs->ip = (unsigned long)general_protection;
+		regs->sp = (unsigned long)&normal_regs->orig_ax;
+		return;
+	}
+#endif
 
 	exception_enter();
 	/* Return not checked because double check cannot be ignored */
@@ -372,6 +380,35 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 	if (eregs != regs)
 		*regs = *eregs;
 	return regs;
+}
+
+struct bad_iret_stack {
+	void *error_entry_ret;
+	struct pt_regs regs;
+};
+
+asmlinkage __visible
+struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
+{
+	/*
+	 * This is called from entry_64.S early in handling a fault
+	 * caused by a bad iret to user mode.  To handle the fault
+	 * correctly, we want move our stack frame to task_pt_regs
+	 * and we want to pretend that the exception came from the
+	 * iret target.
+	 */
+	struct bad_iret_stack *new_stack =
+		container_of(task_pt_regs(current),
+			     struct bad_iret_stack, regs);
+
+	/* Copy the IRET target to the new stack. */
+	memmove(&new_stack->regs.ip, (void *)s->regs.sp, 5*8);
+
+	/* Copy the remainder of the stack from the current stack. */
+	memmove(new_stack, s, offsetof(struct bad_iret_stack, regs.ip));
+
+	BUG_ON(!user_mode_vm(&new_stack->regs));
+	return new_stack;
 }
 #endif
 
@@ -745,7 +782,7 @@ void __init trap_init(void)
 	set_intr_gate(X86_TRAP_OLD_MF, &coprocessor_segment_overrun);
 	set_intr_gate(X86_TRAP_TS, &invalid_TSS);
 	set_intr_gate(X86_TRAP_NP, &segment_not_present);
-	set_intr_gate_ist(X86_TRAP_SS, &stack_segment, STACKFAULT_STACK);
+	set_intr_gate(X86_TRAP_SS, stack_segment);
 	set_intr_gate(X86_TRAP_GP, &general_protection);
 	set_intr_gate(X86_TRAP_SPURIOUS, &spurious_interrupt_bug);
 	set_intr_gate(X86_TRAP_MF, &coprocessor_error);
