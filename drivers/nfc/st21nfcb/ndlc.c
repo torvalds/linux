@@ -297,6 +297,5 @@ void ndlc_remove(struct llt_ndlc *ndlc)
 	skb_queue_purge(&ndlc->send_q);
 
 	st21nfcb_nci_remove(ndlc->ndev);
-	kfree(ndlc);
 }
 EXPORT_SYMBOL(ndlc_remove);
