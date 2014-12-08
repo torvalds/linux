@@ -839,6 +839,8 @@ static void drm_dp_put_mst_branch_device(struct drm_dp_mst_branch *mstb)
 
 static void drm_dp_port_teardown_pdt(struct drm_dp_mst_port *port, int old_pdt)
 {
+	struct drm_dp_mst_branch *mstb;
+
 	switch (old_pdt) {
 	case DP_PEER_DEVICE_DP_LEGACY_CONV:
 	case DP_PEER_DEVICE_SST_SINK:
@@ -846,8 +848,9 @@ static void drm_dp_port_teardown_pdt(struct drm_dp_mst_port *port, int old_pdt)
 		drm_dp_mst_unregister_i2c_bus(&port->aux);
 		break;
 	case DP_PEER_DEVICE_MST_BRANCHING:
-		drm_dp_put_mst_branch_device(port->mstb);
+		mstb = port->mstb;
 		port->mstb = NULL;
+		drm_dp_put_mst_branch_device(mstb);
 		break;
 	}
 }
