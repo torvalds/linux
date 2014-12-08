@@ -376,10 +376,11 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
 	select PINCTRL
-	select PINCTRL_AT91 if USE_OF
+	select PINCTRL_AT91
+	select USE_OF
 	help
 	  This enables support for systems based on Atmel
-	  AT91RM9200 and AT91SAM9* processors.
+	  AT91RM9200, AT91SAM9 and SAMA5 processors.
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"

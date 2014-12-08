@@ -15,22 +15,9 @@ config HAVE_AT91_DBGU1
 config HAVE_AT91_DBGU2
 	bool
 
-config AT91_USE_OLD_CLK
-	bool
-
 config COMMON_CLK_AT91
 	bool
-	default USE_OF && !AT91_USE_OLD_CLK
 	select COMMON_CLK
-
-config OLD_CLK_AT91
-	bool
-	default AT91_USE_OLD_CLK
-
-config OLD_IRQ_AT91
-	bool
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
 
 config HAVE_AT91_SMD
 	bool
@@ -40,20 +27,22 @@ config HAVE_AT91_H32MX
 
 config SOC_AT91SAM9
 	bool
-	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
+	select ATMEL_AIC_IRQ
+	select COMMON_CLK_AT91
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
-	select MEMORY if USE_OF
-	select ATMEL_SDRAMC if USE_OF
+	select MEMORY
+	select ATMEL_SDRAMC
 
 config SOC_SAMA5
 	bool
 	select ATMEL_AIC5_IRQ
+	select COMMON_CLK_AT91
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
-	select USE_OF
 	select MEMORY
 	select ATMEL_SDRAMC
+	select PHYLIB if NETDEVICES
 
 menu "Atmel AT91 System-on-Chip"
 
@@ -108,7 +97,8 @@ endif
 if SOC_SAM_V4_V5
 config SOC_AT91RM9200
 	bool "AT91RM9200"
-	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
+	select ATMEL_AIC_IRQ
+	select COMMON_CLK_AT91
 	select CPU_ARM920T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
@@ -184,37 +174,11 @@ config SOC_AT91SAM9N12
 # ----------------------------------------------------------
 endif # SOC_SAM_V4_V5
 
-
-if SOC_SAM_V4_V5
-source arch/arm/mach-at91/Kconfig.non_dt
-endif
-
-comment "Generic Board Type"
-
 config MACH_AT91RM9200_DT
-	bool "Atmel AT91RM9200 Evaluation Kits with device-tree support"
-	depends on SOC_AT91RM9200
-	select USE_OF
-	help
-	  Select this if you want to experiment device-tree with
-	  an Atmel RM9200 Evaluation Kit.
+	def_bool SOC_AT91RM9200
 
 config MACH_AT91SAM9_DT
-	bool "Atmel AT91SAM Evaluation Kits with device-tree support"
-	depends on SOC_AT91SAM9
-	select USE_OF
-	help
-	  Select this if you want to experiment device-tree with
-	  an Atmel Evaluation Kit.
-
-config MACH_SAMA5_DT
-	bool "Atmel SAMA5 Evaluation Kits with device-tree support"
-	depends on SOC_SAMA5
-	select USE_OF
-	select PHYLIB if NETDEVICES
-	help
-	  Select this if you want to experiment device-tree with
-	  an Atmel Evaluation Kit.
+	def_bool SOC_AT91SAM9
 
 # ----------------------------------------------------------
 
@@ -237,7 +201,7 @@ config AT91_TIMER_HZ
        int "Kernel HZ (jiffies per second)"
        range 32 1024
        depends on ARCH_AT91
-       default "128" if ARCH_AT91RM9200
+       default "128" if SOC_AT91RM9200
        default "100"
        help
 	  On AT91rm9200 chips where you're using a system clock derived

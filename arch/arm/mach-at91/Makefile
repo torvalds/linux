@@ -2,10 +2,8 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= gpio.o setup.o sysirq_mask.o
+obj-y		:= setup.o sysirq_mask.o
 
-obj-$(CONFIG_OLD_IRQ_AT91)	+= irq.o
-obj-$(CONFIG_OLD_CLK_AT91)	+= clock.o
 obj-$(CONFIG_SOC_AT91SAM9)	+= sam9_smc.o
 
 # CPU-specific support
@@ -20,61 +18,12 @@ obj-$(CONFIG_SOC_AT91SAM9RL)	+= at91sam9rl.o
 obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
 obj-$(CONFIG_SOC_SAMA5D4)	+= sama5d4.o
 
-obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9260)	+= at91sam9260_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9261)	+= at91sam9261_devices.o
-obj-$(CONFIG_ARCH_AT91SAM9263)	+= at91sam9263_devices.o
-
-# AT91RM9200 board-specific support
-obj-$(CONFIG_MACH_ONEARM)	+= board-1arm.o
-obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-rm9200ek.o
-obj-$(CONFIG_MACH_CSB337)	+= board-csb337.o
-obj-$(CONFIG_MACH_CSB637)	+= board-csb637.o
-obj-$(CONFIG_MACH_CARMEVA)	+= board-carmeva.o
-obj-$(CONFIG_MACH_KB9200)	+= board-kb9202.o
-obj-$(CONFIG_MACH_ATEB9200)	+= board-eb9200.o
-obj-$(CONFIG_MACH_KAFA)		+= board-kafa.o
-obj-$(CONFIG_MACH_PICOTUX2XX)	+= board-picotux200.o
-obj-$(CONFIG_MACH_ECBAT91)	+= board-ecbat91.o
-obj-$(CONFIG_MACH_YL9200)	+= board-yl-9200.o
-obj-$(CONFIG_MACH_CPUAT91)	+= board-cpuat91.o
-obj-$(CONFIG_MACH_ECO920)	+= board-eco920.o
-
-# AT91SAM9260 board-specific support
-obj-$(CONFIG_MACH_AT91SAM9260EK) += board-sam9260ek.o
-obj-$(CONFIG_MACH_CAM60)	+= board-cam60.o
-obj-$(CONFIG_MACH_SAM9_L9260)	+= board-sam9-l9260.o
-obj-$(CONFIG_MACH_AFEB9260)	+= board-afeb-9260v1.o
-obj-$(CONFIG_MACH_CPU9260)	+= board-cpu9krea.o
-obj-$(CONFIG_MACH_FLEXIBITY)	+= board-flexibity.o
-
-# AT91SAM9261 board-specific support
-obj-$(CONFIG_MACH_AT91SAM9261EK) += board-sam9261ek.o
-obj-$(CONFIG_MACH_AT91SAM9G10EK) += board-sam9261ek.o
-
-# AT91SAM9263 board-specific support
-obj-$(CONFIG_MACH_AT91SAM9263EK) += board-sam9263ek.o
-
-# AT91SAM9G20 board-specific support
-obj-$(CONFIG_MACH_AT91SAM9G20EK) += board-sam9g20ek.o
-obj-$(CONFIG_MACH_CPU9G20)	+= board-cpu9krea.o
-obj-$(CONFIG_MACH_STAMP9G20)	+= board-stamp9g20.o
-obj-$(CONFIG_MACH_PORTUXG20)	+= board-stamp9g20.o
-obj-$(CONFIG_MACH_PCONTROL_G20)	+= board-pcontrol-g20.o board-stamp9g20.o
-obj-$(CONFIG_MACH_GSIA18S)	+= board-gsia18s.o board-stamp9g20.o
-
-# AT91SAM9260/AT91SAM9G20 board-specific support
-obj-$(CONFIG_MACH_SNAPPER_9260)	+= board-snapper9260.o
-
 # AT91SAM board with device-tree
 obj-$(CONFIG_MACH_AT91RM9200_DT) += board-dt-rm9200.o
 obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
 
 # SAMA5 board with device-tree
-obj-$(CONFIG_MACH_SAMA5_DT) += board-dt-sama5.o
-
-# Drivers
-obj-y				+= leds.o
+obj-$(CONFIG_SOC_SAMA5)		+= board-dt-sama5.o
 
 # Power Management
 obj-$(CONFIG_PM)		+= pm.o

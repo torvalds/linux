@@ -1110,7 +1110,7 @@ config RTC_DRV_AT91RM9200
 
 config RTC_DRV_AT91SAM9
 	tristate "AT91SAM9 RTT as RTC"
-	depends on ARCH_AT91 && !ARCH_AT91RM9200
+	depends on ARCH_AT91
 	select MFD_SYSCON
 	help
 	  Some AT91SAM9 SoCs provide an RTT (Real Time Timer) block which
@@ -1126,7 +1126,6 @@ config RTC_DRV_AT91SAM9_RTT
 	int
 	range 0 1
 	default 0
-	prompt "RTT module Number" if ARCH_AT91SAM9263
 	depends on RTC_DRV_AT91SAM9
 	help
 	  This option is only relevant for legacy board support and
@@ -1138,8 +1137,7 @@ config RTC_DRV_AT91SAM9_RTT
 
 config RTC_DRV_AT91SAM9_GPBR
 	int
-	range 0 3 if !ARCH_AT91SAM9263
-	range 0 15 if ARCH_AT91SAM9263
+	range 0 3
 	default 0
 	prompt "Backup Register Number"
 	depends on RTC_DRV_AT91SAM9
