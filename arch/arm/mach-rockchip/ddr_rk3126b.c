@@ -1032,7 +1032,7 @@ static void __sramfunc ddr_set_dll_bypass(uint32 freq)
 	uint32 phase;
 	if (freq < 350) {
 		phase = 3;
-	} else if (freq < 600) {
+	} else if (freq < 666) {
 		phase = 2;
 	} else
 		phase = 1;
@@ -1521,7 +1521,7 @@ static void __sramfunc ddr_update_odt(void)
 	pPHY_Reg->PHY_REG22 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*clk drv*/
 
 	pPHY_Reg->PHY_REG25 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS0 drv*/
-	pPHY_Reg->PHY_REG36 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS1 drv*/
+	pPHY_Reg->PHY_REG26 = PHY_DRV_ODT_SET(PHY_RON_44ohm);	/*DQS1 drv*/
 	dsb();
 }
 
