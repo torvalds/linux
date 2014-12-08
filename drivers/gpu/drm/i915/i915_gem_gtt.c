@@ -132,7 +132,7 @@ static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		WARN_ON(1);
+		MISSING_CASE(level);
 	}
 
 	return pte;
@@ -156,7 +156,7 @@ static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		WARN_ON(1);
+		MISSING_CASE(level);
 	}
 
 	return pte;
@@ -1146,7 +1146,7 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	else if (INTEL_INFO(dev)->gen >= 8)
 		gen8_ppgtt_enable(dev);
 	else
-		WARN_ON(1);
+		MISSING_CASE(INTEL_INFO(dev)->gen);
 
 	if (ppgtt) {
 		for_each_ring(ring, dev_priv, i) {

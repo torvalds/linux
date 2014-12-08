@@ -58,7 +58,19 @@
 #define DRIVER_DATE		"20141205"
 
 #undef WARN_ON
-#define WARN_ON(x)		WARN(x, "WARN_ON(" #x ")")
+/* Many gcc seem to no see through this and fall over :( */
+#if 0
+#define WARN_ON(x) ({ \
+	bool __i915_warn_cond = (x); \
+	if (__builtin_constant_p(__i915_warn_cond)) \
+		BUILD_BUG_ON(__i915_warn_cond); \
+	WARN(__i915_warn_cond, "WARN_ON(" #x ")"); })
+#else
+#define WARN_ON(x) WARN((x), "WARN_ON(" #x ")")
+#endif
+
+#define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
+			     (long) (x), __func__);
 
 enum pipe {
 	INVALID_PIPE = -1,

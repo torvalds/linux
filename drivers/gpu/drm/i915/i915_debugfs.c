@@ -2347,7 +2347,7 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 	case POWER_DOMAIN_INIT:
 		return "INIT";
 	default:
-		WARN_ON(1);
+		MISSING_CASE(domain);
 		return "?";
 	}
 }

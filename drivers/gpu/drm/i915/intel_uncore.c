@@ -1202,7 +1202,7 @@ void intel_uncore_init(struct drm_device *dev)
 
 	switch (INTEL_INFO(dev)->gen) {
 	default:
-		WARN_ON(1);
+		MISSING_CASE(INTEL_INFO(dev)->gen);
 		return;
 	case 9:
 		ASSIGN_WRITE_MMIO_VFUNCS(gen9);
@@ -1300,7 +1300,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 		reg->val = I915_READ8(reg->offset);
 		break;
 	default:
-		WARN_ON(1);
+		MISSING_CASE(entry->size);
 		ret = -EINVAL;
 		goto out;
 	}
