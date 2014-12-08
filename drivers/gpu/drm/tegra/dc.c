@@ -134,6 +134,9 @@ static bool tegra_dc_format_is_yuv(unsigned int format, bool *planar)
 		return true;
 	}
 
+	if (planar)
+		*planar = false;
+
 	return false;
 }
 
