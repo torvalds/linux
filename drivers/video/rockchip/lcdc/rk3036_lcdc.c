@@ -180,8 +180,8 @@ static int rk3036_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 {
 	int win0_top = 0;
 	u32 mask, val;
-	enum data_format win0_format = lcdc_dev->driver.win[0]->format;
-	enum data_format win1_format = lcdc_dev->driver.win[1]->format;
+	enum data_format win0_format = lcdc_dev->driver.win[0]->area[0].format;
+	enum data_format win1_format = lcdc_dev->driver.win[1]->area[0].format;
 
 	int win0_alpha_en = ((win0_format == ARGB888) ||
 				(win0_format == ABGR888)) ? 1 : 0;
@@ -252,8 +252,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 		if (win->id == 0) {
 			mask = m_WIN0_EN | m_WIN0_FORMAT | m_WIN0_RB_SWAP;
 			val = v_WIN0_EN(win->state) |
-			      v_WIN0_FORMAT(win->fmt_cfg) |
-			      v_WIN0_RB_SWAP(win->swap_rb);
+			      v_WIN0_FORMAT(win->area[0].fmt_cfg) |
+			      v_WIN0_RB_SWAP(win->area[0].swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
@@ -282,8 +282,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 		} else if (win->id == 1) {
 			mask = m_WIN1_EN | m_WIN1_FORMAT | m_WIN1_RB_SWAP;
 			val = v_WIN1_EN(win->state) |
-			      v_WIN1_FORMAT(win->fmt_cfg) |
-			      v_WIN1_RB_SWAP(win->swap_rb);
+			      v_WIN1_FORMAT(win->area[0].fmt_cfg) |
+			      v_WIN1_RB_SWAP(win->area[0].swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			lcdc_writel(lcdc_dev, WIN1_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
@@ -823,35 +823,35 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	win->scale_yrgb_x = calscale(win->area[0].xact, win->post_cfg.xsize);
 	win->scale_yrgb_y = calscale(win->area[0].yact, win->post_cfg.ysize);
 
-	switch (win->format) {
+	switch (win->area[0].format) {
 	case ARGB888:
-		win->fmt_cfg = VOP_FORMAT_ARGB888;
-		win->swap_rb = 0;
+		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
+		win->area[0].swap_rb = 0;
 		break;
 	case XBGR888:
-		win->fmt_cfg = VOP_FORMAT_ARGB888;
-		win->swap_rb = 1;
+		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
+		win->area[0].swap_rb = 1;
 		break;
 	case ABGR888:
-		win->fmt_cfg = VOP_FORMAT_ARGB888;
-		win->swap_rb = 1;
+		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
+		win->area[0].swap_rb = 1;
 		break;
 	case RGB888:
-		win->fmt_cfg = VOP_FORMAT_RGB888;
-		win->swap_rb = 0;
+		win->area[0].fmt_cfg = VOP_FORMAT_RGB888;
+		win->area[0].swap_rb = 0;
 		break;
 	case RGB565:
-		win->fmt_cfg = VOP_FORMAT_RGB565;
-		win->swap_rb = 0;
+		win->area[0].fmt_cfg = VOP_FORMAT_RGB565;
+		win->area[0].swap_rb = 0;
 		break;
 	case YUV444:
 		if (win_id == 0) {
-			win->fmt_cfg = VOP_FORMAT_YCBCR444;
+			win->area[0].fmt_cfg = VOP_FORMAT_YCBCR444;
 			win->scale_cbcr_x = calscale(win->area[0].xact,
 						     win->post_cfg.xsize);
 			win->scale_cbcr_y = calscale(win->area[0].yact,
 						     win->post_cfg.ysize);
-			win->swap_rb = 0;
+			win->area[0].swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n",
@@ -860,12 +860,12 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		break;
 	case YUV422:
 		if (win_id == 0) {
-			win->fmt_cfg = VOP_FORMAT_YCBCR422;
+			win->area[0].fmt_cfg = VOP_FORMAT_YCBCR422;
 			win->scale_cbcr_x = calscale((win->area[0].xact / 2),
 						     win->post_cfg.xsize);
 			win->scale_cbcr_y = calscale(win->area[0].yact,
 						     win->post_cfg.ysize);
-			win->swap_rb = 0;
+			win->area[0].swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n",
@@ -874,12 +874,12 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		break;
 	case YUV420:
 		if (win_id == 0) {
-			win->fmt_cfg = VOP_FORMAT_YCBCR420;
+			win->area[0].fmt_cfg = VOP_FORMAT_YCBCR420;
 			win->scale_cbcr_x = calscale(win->area[0].xact / 2,
 						     win->post_cfg.xsize);
 			win->scale_cbcr_y = calscale(win->area[0].yact / 2,
 						     win->post_cfg.ysize);
-			win->swap_rb = 0;
+			win->area[0].swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n",
@@ -896,7 +896,7 @@ static int rk3036_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	DBG(2, "lcdc%d>>%s\n"
 		">>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d\n"
 		">>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n", lcdc_dev->id,
-		__func__, get_format_string(win->format, fmt),
+		__func__, get_format_string(win->area[0].format, fmt),
 		win->area[0].xact, win->area[0].yact, win->post_cfg.xsize,
 		win->post_cfg.ysize, win->area[0].xvir, win->area[0].yvir,
 		win->post_cfg.xpos, win->post_cfg.ypos);
@@ -1487,7 +1487,7 @@ static ssize_t rk3036_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	}
 
 	size = snprintf(buf, PAGE_SIZE, "win%d: %s\n", win_id,
-			get_format_string(win->format, fmt));
+			get_format_string(win->area[0].format, fmt));
 	size += snprintf(buf + size, PAGE_SIZE - size,
 			 "	xact %d yact %d xvir %d yvir %d\n",
 		win->area[0].xact, win->area[0].yact,

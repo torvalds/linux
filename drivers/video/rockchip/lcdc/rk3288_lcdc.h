@@ -891,10 +891,10 @@
 
 #define HWC_MST 			(0x0158)
 #define HWC_DSP_ST 			(0x015c)
-#define v_HWC_DSP_XST3(x)		(((x)&0x1fff)<<0)
-#define v_HWC_DSP_YST3(x)		(((x)&0x1fff)<<16)
-#define m_HWC_DSP_XST3			(0x1fff<<0)
-#define m_HWC_DSP_YST3			(0x1fff<<16)
+#define v_HWC_DSP_XST(x)		(((x)&0x1fff)<<0)
+#define v_HWC_DSP_YST(x)		(((x)&0x1fff)<<16)
+#define m_HWC_DSP_XST			(0x1fff<<0)
+#define m_HWC_DSP_YST			(0x1fff<<16)
 
 #define HWC_SRC_ALPHA_CTRL		(0x0160)
 #define v_HWC_SRC_ALPHA_EN(x)		(((x)&1)<<0)
@@ -1350,8 +1350,8 @@ struct alpha_config{
 
 struct lcdc_cabc_mode {
 	u32 pixel_num;			/* pixel precent number */
-	char stage_up;			/* up stride */
-	char stage_down;		/* down stride */
+	u16 stage_up;			/* up stride */
+	u16 stage_down;		/* down stride */
 };
 
 static inline void lcdc_writel(struct lcdc_device *lcdc_dev,u32 offset,u32 v)

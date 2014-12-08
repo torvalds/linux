@@ -233,7 +233,8 @@ static ssize_t set_dump_info(struct device *dev, struct device_attribute *attr,
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
 			win_data = &front_regs->reg_win_data[i];
 			if (dump_win(rk_fb, &win_data->reg_area_data[j],
-				     win_data->data_format, i, j, is_img))
+				     win_data->reg_area_data[i].data_format,i,
+				     j, is_img))
 				continue;
 		}
 	}

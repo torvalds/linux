@@ -285,8 +285,8 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 {
 	int win0_top = 0;
 	u32 mask, val;
-	enum data_format win0_format = lcdc_dev->driver.win[0]->format;
-	enum data_format win1_format = lcdc_dev->driver.win[1]->format;
+	enum data_format win0_format = lcdc_dev->driver.win[0]->area[0].format;
+	enum data_format win1_format = lcdc_dev->driver.win[1]->area[0].format;
 
 	int win0_alpha_en = ((win0_format == ARGB888) ||
 				(win0_format == ABGR888)) ? 1 : 0;
@@ -367,7 +367,7 @@ static void lcdc_layer_csc_mode(struct lcdc_device *lcdc_dev,
 	struct rk_screen *screen = dev_drv->cur_screen;
 
 	if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
-		switch (win->fmt_cfg) {
+		switch (win->area[0].fmt_cfg) {
 		case VOP_FORMAT_ARGB888:
 		case VOP_FORMAT_RGB888:
 		case VOP_FORMAT_RGB565:
@@ -389,7 +389,7 @@ static void lcdc_layer_csc_mode(struct lcdc_device *lcdc_dev,
 				     v_WIN1_CSC_MODE(win->csc_mode));
 		}
 	} else if (dev_drv->overlay_mode == VOP_RGB_DOMAIN) {
-		switch (win->fmt_cfg) {
+		switch (win->area[0].fmt_cfg) {
 		case VOP_FORMAT_YCBCR420:
 			if (win->id  == 0) {
 				win->csc_mode = VOP_Y2R_CSC_MPEG;
@@ -418,8 +418,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 		if (win->id == 0) {
 			mask = m_WIN0_EN | m_WIN0_FORMAT | m_WIN0_RB_SWAP;
 			val = v_WIN0_EN(win->state) |
-				v_WIN0_FORMAT(win->fmt_cfg) |
-				v_WIN0_RB_SWAP(win->swap_rb);
+				v_WIN0_FORMAT(win->area[0].fmt_cfg) |
+				v_WIN0_RB_SWAP(win->area[0].swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
@@ -449,8 +449,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 		} else if (win->id == 1) {
 			mask = m_WIN1_EN | m_WIN1_FORMAT | m_WIN1_RB_SWAP;
 			val = v_WIN1_EN(win->state) |
-					v_WIN1_FORMAT(win->fmt_cfg) |
-					v_WIN1_RB_SWAP(win->swap_rb);
+					v_WIN1_FORMAT(win->area[0].fmt_cfg) |
+					v_WIN1_RB_SWAP(win->area[0].swap_rb);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			/* rk312x unsupport win1 scale */
 			if (lcdc_dev->soc_type == VOP_RK3036) {
@@ -1482,35 +1482,35 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	win->scale_yrgb_x = CalScale(win->area[0].xact, win->area[0].xsize);
 	win->scale_yrgb_y = CalScale(win->area[0].yact, win->area[0].ysize);
 
-	switch (win->format) {
+	switch (win->area[0].format) {
 	case ARGB888:
-		win->fmt_cfg = VOP_FORMAT_ARGB888;
-		win->swap_rb = 0;
+		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
+		win->area[0].swap_rb = 0;
 		break;
 	case XBGR888:
-		win->fmt_cfg = VOP_FORMAT_ARGB888;
-		win->swap_rb = 1;
+		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
+		win->area[0].swap_rb = 1;
 		break;
 	case ABGR888:
-		win->fmt_cfg = VOP_FORMAT_ARGB888;
-		win->swap_rb = 1;
+		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
+		win->area[0].swap_rb = 1;
 		break;
 	case RGB888:
-		win->fmt_cfg = VOP_FORMAT_RGB888;
-		win->swap_rb = 0;
+		win->area[0].fmt_cfg = VOP_FORMAT_RGB888;
+		win->area[0].swap_rb = 0;
 		break;
 	case RGB565:
-		win->fmt_cfg = VOP_FORMAT_RGB565;
-		win->swap_rb = 0;
+		win->area[0].fmt_cfg = VOP_FORMAT_RGB565;
+		win->area[0].swap_rb = 0;
 		break;
 	case YUV444:
 		if (win_id == 0) {
-			win->fmt_cfg = VOP_FORMAT_YCBCR444;
+			win->area[0].fmt_cfg = VOP_FORMAT_YCBCR444;
 			win->scale_cbcr_x =
 			    CalScale(win->area[0].xact, win->area[0].xsize);
 			win->scale_cbcr_y =
 			    CalScale(win->area[0].yact, win->area[0].ysize);
-			win->swap_rb = 0;
+			win->area[0].swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n", __func__);
@@ -1518,12 +1518,12 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		break;
 	case YUV422:
 		if (win_id == 0) {
-			win->fmt_cfg = VOP_FORMAT_YCBCR422;
+			win->area[0].fmt_cfg = VOP_FORMAT_YCBCR422;
 			win->scale_cbcr_x = CalScale((win->area[0].xact / 2),
 					    win->area[0].xsize);
 			win->scale_cbcr_y =
 			    CalScale(win->area[0].yact, win->area[0].ysize);
-			win->swap_rb = 0;
+			win->area[0].swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n", __func__);
@@ -1531,12 +1531,12 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 		break;
 	case YUV420:
 		if (win_id == 0) {
-			win->fmt_cfg = VOP_FORMAT_YCBCR420;
+			win->area[0].fmt_cfg = VOP_FORMAT_YCBCR420;
 			win->scale_cbcr_x =
 			    CalScale(win->area[0].xact / 2, win->area[0].xsize);
 			win->scale_cbcr_y =
 			    CalScale(win->area[0].yact / 2, win->area[0].ysize);
-			win->swap_rb = 0;
+			win->area[0].swap_rb = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n", __func__);
@@ -1552,7 +1552,7 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	DBG(1,
 	    "lcdc%d>>%s\n>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d\n"
 	    ">>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n", lcdc_dev->id, __func__,
-	    get_format_string(win->format, fmt), win->area[0].xact,
+	    get_format_string(win->area[0].format, fmt), win->area[0].xact,
 	    win->area[0].yact, win->area[0].xsize, win->area[0].ysize,
 	    win->area[0].xvir, win->area[0].yvir, win->area[0].xpos,
 	    win->area[0].ypos);
