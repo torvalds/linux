@@ -140,6 +140,8 @@ end:
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
+	unsigned int source, rate;
+	bool internal;
 	int err;
 
 	err = snd_dice_stream_lock_try(dice);
@@ -149,6 +151,39 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	err = init_hw_info(dice, substream);
 	if (err < 0)
 		goto err_locked;
+
+	err = snd_dice_transaction_get_clock_source(dice, &source);
+	if (err < 0)
+		goto err_locked;
+	switch (source) {
+	case CLOCK_SOURCE_AES1:
+	case CLOCK_SOURCE_AES2:
+	case CLOCK_SOURCE_AES3:
+	case CLOCK_SOURCE_AES4:
+	case CLOCK_SOURCE_AES_ANY:
+	case CLOCK_SOURCE_ADAT:
+	case CLOCK_SOURCE_TDIF:
+	case CLOCK_SOURCE_WC:
+		internal = false;
+		break;
+	default:
+		internal = true;
+		break;
+	}
+
+	/*
+	 * When source of clock is not internal, available sampling rate is
+	 * limited at current sampling rate.
+	 */
+	if (!internal) {
+		err = snd_dice_transaction_get_rate(dice, &rate);
+		if (err < 0)
+			goto err_locked;
+		substream->runtime->hw.rate_min = rate;
+		substream->runtime->hw.rate_max = rate;
+	}
+
+	snd_pcm_set_sync(substream);
 end:
 	return err;
 err_locked:

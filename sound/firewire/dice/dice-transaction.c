@@ -137,11 +137,6 @@ int snd_dice_transaction_get_clock_source(struct snd_dice *dice,
 
 	return err;
 }
-int snd_dice_transaction_set_clock_source(struct snd_dice *dice,
-					  unsigned int source)
-{
-	return set_clock_info(dice, UINT_MAX, source);
-}
 
 int snd_dice_transaction_get_rate(struct snd_dice *dice, unsigned int *rate)
 {
