@@ -254,6 +254,13 @@ static int bt_get(struct blk_mq_alloc_data *data,
 		if (tag != -1)
 			break;
 
+		/*
+		 * We're out of tags on this hardware queue, kick any
+		 * pending IO submits before going to sleep waiting for
+		 * some to complete.
+		 */
+		blk_mq_run_hw_queue(hctx, false);
+
 		blk_mq_put_ctx(data->ctx);
 
 		io_schedule();
