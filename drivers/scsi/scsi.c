@@ -661,30 +661,18 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 }
 
 /**
- * scsi_adjust_queue_depth - Let low level drivers change a device's queue depth
+ * scsi_change_queue_depth - change a device's queue depth
  * @sdev: SCSI Device in question
- * @tags: Number of tags allowed if tagged queueing enabled,
- *        or number of commands the low level driver can
- *        queue up in non-tagged mode (as per cmd_per_lun).
+ * @depth: number of commands allowed to be queued to the driver
  *
- * Returns:	Nothing
- *
- * Lock Status:	None held on entry
- *
- * Notes:	Low level drivers may call this at any time and we will do
- * 		the right thing depending on whether or not the device is
- * 		currently active and whether or not it even has the
- * 		command blocks built yet.
+ * Sets the device queue depth and returns the new value.
  */
-void scsi_adjust_queue_depth(struct scsi_device *sdev, int tags)
+int scsi_change_queue_depth(struct scsi_device *sdev, int depth)
 {
 	unsigned long flags;
 
-	/*
-	 * refuse to set tagged depth to an unworkable size
-	 */
-	if (tags <= 0)
-		return;
+	if (depth <= 0)
+		goto out;
 
 	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 
@@ -699,15 +687,17 @@ void scsi_adjust_queue_depth(struct scsi_device *sdev, int tags)
 	 */
 	if (!shost_use_blk_mq(sdev->host) && !sdev->host->bqt) {
 		if (blk_queue_tagged(sdev->request_queue) &&
-		    blk_queue_resize_tags(sdev->request_queue, tags) != 0)
-			goto out;
+		    blk_queue_resize_tags(sdev->request_queue, depth) != 0)
+			goto out_unlock;
 	}
 
-	sdev->queue_depth = tags;
- out:
+	sdev->queue_depth = depth;
+out_unlock:
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
+out:
+	return sdev->queue_depth;
 }
-EXPORT_SYMBOL(scsi_adjust_queue_depth);
+EXPORT_SYMBOL(scsi_change_queue_depth);
 
 /**
  * scsi_track_queue_full - track QUEUE_FULL events to adjust queue depth
@@ -752,12 +742,11 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 	if (sdev->last_queue_full_depth < 8) {
 		/* Drop back to untagged */
 		scsi_set_tag_type(sdev, 0);
-		scsi_adjust_queue_depth(sdev, sdev->host->cmd_per_lun);
+		scsi_change_queue_depth(sdev, sdev->host->cmd_per_lun);
 		return -1;
 	}
 
-	scsi_adjust_queue_depth(sdev, depth);
-	return depth;
+	return scsi_change_queue_depth(sdev, depth);
 }
 EXPORT_SYMBOL(scsi_track_queue_full);
 

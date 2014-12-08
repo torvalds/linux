@@ -1053,9 +1053,15 @@ _scsih_scsi_lookup_find_by_lun(struct MPT3SAS_ADAPTER *ioc, int id,
 	return found;
 }
 
-
-static void
-_scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
+/**
+ * _scsih_change_queue_depth - setting device queue depth
+ * @sdev: scsi device struct
+ * @qdepth: requested queue depth
+ *
+ * Returns queue depth.
+ */
+static int
+_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth;
@@ -1090,36 +1096,7 @@ _scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
 		max_depth = 1;
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	scsi_adjust_queue_depth(sdev, qdepth);
-}
-
-/**
- * _scsih_change_queue_depth - setting device queue depth
- * @sdev: scsi device struct
- * @qdepth: requested queue depth
- * @reason: SCSI_QDEPTH_DEFAULT/SCSI_QDEPTH_QFULL/SCSI_QDEPTH_RAMP_UP
- * (see include/scsi/scsi_host.h for definition)
- *
- * Returns queue depth.
- */
-static int
-_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	if (reason == SCSI_QDEPTH_DEFAULT || reason == SCSI_QDEPTH_RAMP_UP)
-		_scsih_adjust_queue_depth(sdev, qdepth);
-	else if (reason == SCSI_QDEPTH_QFULL)
-		scsi_track_queue_full(sdev, qdepth);
-	else
-		return -EOPNOTSUPP;
-
-	if (sdev->inquiry_len > 7)
-		sdev_printk(KERN_INFO, sdev, "qdepth(%d), tagged(%d), " \
-		"simple(%d), scsi_level(%d), cmd_que(%d)\n",
-		sdev->queue_depth, sdev->tagged_supported, sdev->simple_tags,
-		sdev->scsi_level,
-		(sdev->inquiry[7] & 2) >> 1);
-
-	return sdev->queue_depth;
+	return scsi_change_queue_depth(sdev, qdepth);
 }
 
 /**
@@ -1739,7 +1716,7 @@ _scsih_slave_configure(struct scsi_device *sdev)
 			 raid_device->num_pds, ds);
 
 
-		_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
+		_scsih_change_queue_depth(sdev, qdepth);
 
 /* raid transport support */
 		_scsih_set_level(sdev, raid_device->volume_type);
@@ -1805,7 +1782,7 @@ _scsih_slave_configure(struct scsi_device *sdev)
 		_scsih_display_sata_capabilities(ioc, handle, sdev);
 
 
-	_scsih_change_queue_depth(sdev, qdepth, SCSI_QDEPTH_DEFAULT);
+	_scsih_change_queue_depth(sdev, qdepth);
 
 	if (ssp_target) {
 		sas_read_port_mode_page(sdev);
@@ -7266,6 +7243,7 @@ static struct scsi_host_template scsih_driver_template = {
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= mpt3sas_host_attrs,
 	.sdev_attrs			= mpt3sas_dev_attrs,
+	.track_queue_depth		= 1,
 };
 
 /**

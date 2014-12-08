@@ -48,6 +48,7 @@
 #include <linux/bitmap.h>
 #include <linux/atomic.h>
 #include <linux/jiffies.h>
+#include <linux/percpu-defs.h>
 #include <linux/percpu.h>
 #include <asm/div64.h>
 #include "hpsa_cmd.h"
@@ -103,7 +104,6 @@ static const struct pci_device_id hpsa_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1922},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1923},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1924},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1925},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1926},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1928},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSH,     0x103C, 0x1929},
@@ -149,6 +149,7 @@ static struct board_type products[] = {
 	{0x3249103C, "Smart Array P812", &SA5_access},
 	{0x324A103C, "Smart Array P712m", &SA5_access},
 	{0x324B103C, "Smart Array P711m", &SA5_access},
+	{0x3233103C, "HP StorageWorks 1210m", &SA5_access}, /* alias of 333f */
 	{0x3350103C, "Smart Array P222", &SA5_access},
 	{0x3351103C, "Smart Array P420", &SA5_access},
 	{0x3352103C, "Smart Array P421", &SA5_access},
@@ -193,12 +194,13 @@ static int number_of_controllers;
 
 static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id);
 static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id);
-static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg);
+static int hpsa_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 static void lock_and_start_io(struct ctlr_info *h);
 static void start_io(struct ctlr_info *h, unsigned long *flags);
 
 #ifdef CONFIG_COMPAT
-static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void *arg);
+static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd,
+	void __user *arg);
 #endif
 
 static void cmd_free(struct ctlr_info *h, struct CommandList *c);
@@ -214,8 +216,6 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static void hpsa_scan_start(struct Scsi_Host *);
 static int hpsa_scan_finished(struct Scsi_Host *sh,
 	unsigned long elapsed_time);
-static int hpsa_change_queue_depth(struct scsi_device *sdev,
-	int qdepth, int reason);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_eh_abort_handler(struct scsi_cmnd *scsicmd);
@@ -274,12 +274,12 @@ static int check_for_unit_attention(struct ctlr_info *h,
 			"detected, command retried\n", h->ctlr);
 		break;
 	case LUN_FAILED:
-		dev_warn(&h->pdev->dev, HPSA "%d: LUN failure "
-			"detected, action required\n", h->ctlr);
+		dev_warn(&h->pdev->dev,
+			HPSA "%d: LUN failure detected\n", h->ctlr);
 		break;
 	case REPORT_LUNS_CHANGED:
-		dev_warn(&h->pdev->dev, HPSA "%d: report LUN data "
-			"changed, action required\n", h->ctlr);
+		dev_warn(&h->pdev->dev,
+			HPSA "%d: report LUN data changed\n", h->ctlr);
 	/*
 	 * Note: this REPORT_LUNS_CHANGED condition only occurs on the external
 	 * target (array) devices.
@@ -392,7 +392,8 @@ static ssize_t host_show_commands_outstanding(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ctlr_info *h = shost_to_hba(shost);
 
-	return snprintf(buf, 20, "%d\n", h->commands_outstanding);
+	return snprintf(buf, 20, "%d\n",
+			atomic_read(&h->commands_outstanding));
 }
 
 static ssize_t host_show_transport_mode(struct device *dev,
@@ -670,7 +671,7 @@ static struct scsi_host_template hpsa_driver_template = {
 	.queuecommand		= hpsa_scsi_queue_command,
 	.scan_start		= hpsa_scan_start,
 	.scan_finished		= hpsa_scan_finished,
-	.change_queue_depth	= hpsa_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.this_id		= -1,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_abort_handler	= hpsa_eh_abort_handler,
@@ -698,7 +699,6 @@ static inline u32 next_command(struct ctlr_info *h, u8 q)
 {
 	u32 a;
 	struct reply_queue_buffer *rq = &h->reply_queue[q];
-	unsigned long flags;
 
 	if (h->transMethod & CFGTBL_Trans_io_accel1)
 		return h->access.command_completed(h, q);
@@ -709,9 +709,7 @@ static inline u32 next_command(struct ctlr_info *h, u8 q)
 	if ((rq->head[rq->current_entry] & 1) == rq->wraparound) {
 		a = rq->head[rq->current_entry];
 		rq->current_entry++;
-		spin_lock_irqsave(&h->lock, flags);
-		h->commands_outstanding--;
-		spin_unlock_irqrestore(&h->lock, flags);
+		atomic_dec(&h->commands_outstanding);
 	} else {
 		a = FIFO_EMPTY;
 	}
@@ -1500,22 +1498,22 @@ static int hpsa_map_sg_chain_block(struct ctlr_info *h,
 {
 	struct SGDescriptor *chain_sg, *chain_block;
 	u64 temp64;
+	u32 chain_len;
 
 	chain_sg = &c->SG[h->max_cmd_sg_entries - 1];
 	chain_block = h->cmd_sg_list[c->cmdindex];
-	chain_sg->Ext = HPSA_SG_CHAIN;
-	chain_sg->Len = sizeof(*chain_sg) *
+	chain_sg->Ext = cpu_to_le32(HPSA_SG_CHAIN);
+	chain_len = sizeof(*chain_sg) *
 		(c->Header.SGTotal - h->max_cmd_sg_entries);
-	temp64 = pci_map_single(h->pdev, chain_block, chain_sg->Len,
+	chain_sg->Len = cpu_to_le32(chain_len);
+	temp64 = pci_map_single(h->pdev, chain_block, chain_len,
 				PCI_DMA_TODEVICE);
 	if (dma_mapping_error(&h->pdev->dev, temp64)) {
 		/* prevent subsequent unmapping */
-		chain_sg->Addr.lower = 0;
-		chain_sg->Addr.upper = 0;
+		chain_sg->Addr = cpu_to_le64(0);
 		return -1;
 	}
-	chain_sg->Addr.lower = (u32) (temp64 & 0x0FFFFFFFFULL);
-	chain_sg->Addr.upper = (u32) ((temp64 >> 32) & 0x0FFFFFFFFULL);
+	chain_sg->Addr = cpu_to_le64(temp64);
 	return 0;
 }
 
@@ -1523,15 +1521,13 @@ static void hpsa_unmap_sg_chain_block(struct ctlr_info *h,
 	struct CommandList *c)
 {
 	struct SGDescriptor *chain_sg;
-	union u64bit temp64;
 
-	if (c->Header.SGTotal <= h->max_cmd_sg_entries)
+	if (le16_to_cpu(c->Header.SGTotal) <= h->max_cmd_sg_entries)
 		return;
 
 	chain_sg = &c->SG[h->max_cmd_sg_entries - 1];
-	temp64.val32.lower = chain_sg->Addr.lower;
-	temp64.val32.upper = chain_sg->Addr.upper;
-	pci_unmap_single(h->pdev, temp64.val, chain_sg->Len, PCI_DMA_TODEVICE);
+	pci_unmap_single(h->pdev, le64_to_cpu(chain_sg->Addr),
+			le32_to_cpu(chain_sg->Len), PCI_DMA_TODEVICE);
 }
 
 
@@ -1732,8 +1728,7 @@ static void complete_scsi_command(struct CommandList *cp)
 		struct io_accel1_cmd *c = &h->ioaccel_cmd_pool[cp->cmdindex];
 		cp->Header.SGList = cp->Header.SGTotal = scsi_sg_count(cmd);
 		cp->Request.CDBLen = c->io_flags & IOACCEL1_IOFLAGS_CDBLEN_MASK;
-		cp->Header.Tag.lower = c->Tag.lower;
-		cp->Header.Tag.upper = c->Tag.upper;
+		cp->Header.tag = c->tag;
 		memcpy(cp->Header.LUN.LunAddrBytes, c->CISS_LUN, 8);
 		memcpy(cp->Request.CDB, c->CDB, cp->Request.CDBLen);
 
@@ -1763,72 +1758,13 @@ static void complete_scsi_command(struct CommandList *cp)
 			/* Get addition sense code qualifier */
 			ascq = ei->SenseInfo[13];
 		}
-
 		if (ei->ScsiStatus == SAM_STAT_CHECK_CONDITION) {
-			if (check_for_unit_attention(h, cp))
-				break;
-			if (sense_key == ILLEGAL_REQUEST) {
-				/*
-				 * SCSI REPORT_LUNS is commonly unsupported on
-				 * Smart Array.  Suppress noisy complaint.
-				 */
-				if (cp->Request.CDB[0] == REPORT_LUNS)
-					break;
-
-				/* If ASC/ASCQ indicate Logical Unit
-				 * Not Supported condition,
-				 */
-				if ((asc == 0x25) && (ascq == 0x0)) {
-					dev_warn(&h->pdev->dev, "cp %p "
-						"has check condition\n", cp);
-					break;
-				}
-			}
-
-			if (sense_key == NOT_READY) {
-				/* If Sense is Not Ready, Logical Unit
-				 * Not ready, Manual Intervention
-				 * required
-				 */
-				if ((asc == 0x04) && (ascq == 0x03)) {
-					dev_warn(&h->pdev->dev, "cp %p "
-						"has check condition: unit "
-						"not ready, manual "
-						"intervention required\n", cp);
-					break;
-				}
-			}
 			if (sense_key == ABORTED_COMMAND) {
-				/* Aborted command is retryable */
-				dev_warn(&h->pdev->dev, "cp %p "
-					"has check condition: aborted command: "
-					"ASC: 0x%x, ASCQ: 0x%x\n",
-					cp, asc, ascq);
 				cmd->result |= DID_SOFT_ERROR << 16;
 				break;
 			}
-			/* Must be some other type of check condition */
-			dev_dbg(&h->pdev->dev, "cp %p has check condition: "
-					"unknown type: "
-					"Sense: 0x%x, ASC: 0x%x, ASCQ: 0x%x, "
-					"Returning result: 0x%x, "
-					"cmd=[%02x %02x %02x %02x %02x "
-					"%02x %02x %02x %02x %02x %02x "
-					"%02x %02x %02x %02x %02x]\n",
-					cp, sense_key, asc, ascq,
-					cmd->result,
-					cmd->cmnd[0], cmd->cmnd[1],
-					cmd->cmnd[2], cmd->cmnd[3],
-					cmd->cmnd[4], cmd->cmnd[5],
-					cmd->cmnd[6], cmd->cmnd[7],
-					cmd->cmnd[8], cmd->cmnd[9],
-					cmd->cmnd[10], cmd->cmnd[11],
-					cmd->cmnd[12], cmd->cmnd[13],
-					cmd->cmnd[14], cmd->cmnd[15]);
 			break;
 		}
-
-
 		/* Problem was not a check condition
 		 * Pass it up to the upper layers...
 		 */
@@ -1934,14 +1870,11 @@ static void hpsa_pci_unmap(struct pci_dev *pdev,
 	struct CommandList *c, int sg_used, int data_direction)
 {
 	int i;
-	union u64bit addr64;
 
-	for (i = 0; i < sg_used; i++) {
-		addr64.val32.lower = c->SG[i].Addr.lower;
-		addr64.val32.upper = c->SG[i].Addr.upper;
-		pci_unmap_single(pdev, (dma_addr_t) addr64.val, c->SG[i].Len,
-			data_direction);
-	}
+	for (i = 0; i < sg_used; i++)
+		pci_unmap_single(pdev, (dma_addr_t) le64_to_cpu(c->SG[i].Addr),
+				le32_to_cpu(c->SG[i].Len),
+				data_direction);
 }
 
 static int hpsa_map_one(struct pci_dev *pdev,
@@ -1954,25 +1887,22 @@ static int hpsa_map_one(struct pci_dev *pdev,
 
 	if (buflen == 0 || data_direction == PCI_DMA_NONE) {
 		cp->Header.SGList = 0;
-		cp->Header.SGTotal = 0;
+		cp->Header.SGTotal = cpu_to_le16(0);
 		return 0;
 	}
 
-	addr64 = (u64) pci_map_single(pdev, buf, buflen, data_direction);
+	addr64 = pci_map_single(pdev, buf, buflen, data_direction);
 	if (dma_mapping_error(&pdev->dev, addr64)) {
 		/* Prevent subsequent unmap of something never mapped */
 		cp->Header.SGList = 0;
-		cp->Header.SGTotal = 0;
+		cp->Header.SGTotal = cpu_to_le16(0);
 		return -1;
 	}
-	cp->SG[0].Addr.lower =
-	  (u32) (addr64 & (u64) 0x00000000FFFFFFFF);
-	cp->SG[0].Addr.upper =
-	  (u32) ((addr64 >> 32) & (u64) 0x00000000FFFFFFFF);
-	cp->SG[0].Len = buflen;
-	cp->SG[0].Ext = HPSA_SG_LAST; /* we are not chaining */
-	cp->Header.SGList = (u8) 1;   /* no. SGs contig in this cmd */
-	cp->Header.SGTotal = (u16) 1; /* total sgs in this cmd list */
+	cp->SG[0].Addr = cpu_to_le64(addr64);
+	cp->SG[0].Len = cpu_to_le32(buflen);
+	cp->SG[0].Ext = cpu_to_le32(HPSA_SG_LAST); /* we are not chaining */
+	cp->Header.SGList = 1;   /* no. SGs contig in this cmd */
+	cp->Header.SGTotal = cpu_to_le16(1); /* total sgs in cmd list */
 	return 0;
 }
 
@@ -2830,8 +2760,8 @@ static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
 	if (d == NULL)
 		return 0; /* no match */
 
-	it_nexus = cpu_to_le32((u32) d->ioaccel_handle);
-	scsi_nexus = cpu_to_le32((u32) c2a->scsi_nexus);
+	it_nexus = cpu_to_le32(d->ioaccel_handle);
+	scsi_nexus = cpu_to_le32(c2a->scsi_nexus);
 	find = c2a->scsi_nexus;
 
 	if (h->raid_offload_debug > 0)
@@ -2891,7 +2821,7 @@ static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
  * Returns 0 on success, -1 otherwise.
  */
 static int hpsa_gather_lun_info(struct ctlr_info *h,
-	int reportlunsize,
+	int reportphyslunsize, int reportloglunsize,
 	struct ReportLUNdata *physdev, u32 *nphysicals, int *physical_mode,
 	struct ReportLUNdata *logdev, u32 *nlogicals)
 {
@@ -2905,7 +2835,7 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 		*physical_mode = HPSA_REPORT_PHYS_EXTENDED;
 		physical_entry_size = 24;
 	}
-	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportlunsize,
+	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportphyslunsize,
 							*physical_mode)) {
 		dev_err(&h->pdev->dev, "report physical LUNs failed.\n");
 		return -1;
@@ -2918,7 +2848,7 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 			*nphysicals - HPSA_MAX_PHYS_LUN);
 		*nphysicals = HPSA_MAX_PHYS_LUN;
 	}
-	if (hpsa_scsi_do_report_log_luns(h, logdev, reportlunsize)) {
+	if (hpsa_scsi_do_report_log_luns(h, logdev, reportloglunsize)) {
 		dev_err(&h->pdev->dev, "report logical LUNs failed.\n");
 		return -1;
 	}
@@ -2941,8 +2871,8 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 	return 0;
 }
 
-u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position, int i,
-	int nphysicals, int nlogicals,
+static u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position,
+	int i, int nphysicals, int nlogicals,
 	struct ReportExtendedLUNdata *physdev_list,
 	struct ReportLUNdata *logdev_list)
 {
@@ -3011,15 +2941,14 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	u32 ndev_allocated = 0;
 	struct hpsa_scsi_dev_t **currentsd, *this_device, *tmpdevice;
 	int ncurrent = 0;
-	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 24;
 	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
 	int rescan_hba_mode;
 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
-	physdev_list = kzalloc(reportlunsize, GFP_KERNEL);
-	logdev_list = kzalloc(reportlunsize, GFP_KERNEL);
+	physdev_list = kzalloc(sizeof(*physdev_list), GFP_KERNEL);
+	logdev_list = kzalloc(sizeof(*logdev_list), GFP_KERNEL);
 	tmpdevice = kzalloc(sizeof(*tmpdevice), GFP_KERNEL);
 
 	if (!currentsd || !physdev_list || !logdev_list || !tmpdevice) {
@@ -3039,7 +2968,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 
 	h->hba_mode_enabled = rescan_hba_mode;
 
-	if (hpsa_gather_lun_info(h, reportlunsize,
+	if (hpsa_gather_lun_info(h,
+			sizeof(*physdev_list), sizeof(*logdev_list),
 			(struct ReportLUNdata *) physdev_list, &nphysicals,
 			&physical_mode, logdev_list, &nlogicals))
 		goto out;
@@ -3210,19 +3140,19 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 		}
 		addr64 = (u64) sg_dma_address(sg);
 		len  = sg_dma_len(sg);
-		curr_sg->Addr.lower = (u32) (addr64 & 0x0FFFFFFFFULL);
-		curr_sg->Addr.upper = (u32) ((addr64 >> 32) & 0x0FFFFFFFFULL);
-		curr_sg->Len = len;
-		curr_sg->Ext = (i < scsi_sg_count(cmd) - 1) ? 0 : HPSA_SG_LAST;
+		curr_sg->Addr = cpu_to_le64(addr64);
+		curr_sg->Len = cpu_to_le32(len);
+		curr_sg->Ext = cpu_to_le32(0);
 		curr_sg++;
 	}
+	(--curr_sg)->Ext = cpu_to_le32(HPSA_SG_LAST);
 
 	if (use_sg + chained > h->maxSG)
 		h->maxSG = use_sg + chained;
 
 	if (chained) {
 		cp->Header.SGList = h->max_cmd_sg_entries;
-		cp->Header.SGTotal = (u16) (use_sg + 1);
+		cp->Header.SGTotal = cpu_to_le16(use_sg + 1);
 		if (hpsa_map_sg_chain_block(h, cp)) {
 			scsi_dma_unmap(cmd);
 			return -1;
@@ -3233,7 +3163,7 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 sglist_finished:
 
 	cp->Header.SGList = (u8) use_sg;   /* no. SGs contig in this cmd */
-	cp->Header.SGTotal = (u16) use_sg; /* total sgs in this cmd list */
+	cp->Header.SGTotal = cpu_to_le16(use_sg); /* total sgs in this cmd list */
 	return 0;
 }
 
@@ -3325,17 +3255,12 @@ static int hpsa_scsi_ioaccel1_queue_command(struct ctlr_info *h,
 			addr64 = (u64) sg_dma_address(sg);
 			len  = sg_dma_len(sg);
 			total_len += len;
-			curr_sg->Addr.lower = (u32) (addr64 & 0x0FFFFFFFFULL);
-			curr_sg->Addr.upper =
-				(u32) ((addr64 >> 32) & 0x0FFFFFFFFULL);
-			curr_sg->Len = len;
-
-			if (i == (scsi_sg_count(cmd) - 1))
-				curr_sg->Ext = HPSA_SG_LAST;
-			else
-				curr_sg->Ext = 0;  /* we are not chaining */
+			curr_sg->Addr = cpu_to_le64(addr64);
+			curr_sg->Len = cpu_to_le32(len);
+			curr_sg->Ext = cpu_to_le32(0);
 			curr_sg++;
 		}
+		(--curr_sg)->Ext = cpu_to_le32(HPSA_SG_LAST);
 
 		switch (cmd->sc_data_direction) {
 		case DMA_TO_DEVICE:
@@ -3592,7 +3517,7 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 	cp->data_len = cpu_to_le32(total_len);
 	cp->err_ptr = cpu_to_le64(c->busaddr +
 			offsetof(struct io_accel2_cmd, error_data));
-	cp->err_len = cpu_to_le32((u32) sizeof(cp->error_data));
+	cp->err_len = cpu_to_le32(sizeof(cp->error_data));
 
 	enqueue_cmd_and_start_io(h, c);
 	return 0;
@@ -3809,11 +3734,6 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		offload_to_mirror =
 			(offload_to_mirror >= map->layout_map_count - 1)
 			? 0 : offload_to_mirror + 1;
-		/* FIXME: remove after debug/dev */
-		BUG_ON(offload_to_mirror >= map->layout_map_count);
-		dev_warn(&h->pdev->dev,
-			"DEBUG: Using physical disk map index %d from mirror group %d\n",
-			map_index, offload_to_mirror);
 		dev->offload_to_mirror = offload_to_mirror;
 		/* Avoid direct use of dev->offload_to_mirror within this
 		 * function since multiple threads might simultaneously
@@ -3959,8 +3879,11 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 						dev->scsi3addr);
 }
 
-static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
-	void (*done)(struct scsi_cmnd *))
+/*
+ * Running in struct Scsi_Host->host_lock less mode using LLD internal
+ * struct ctlr_info *h->lock w/ spin_lock_irqsave() protection.
+ */
+static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 {
 	struct ctlr_info *h;
 	struct hpsa_scsi_dev_t *dev;
@@ -3973,14 +3896,14 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	dev = cmd->device->hostdata;
 	if (!dev) {
 		cmd->result = DID_NO_CONNECT << 16;
-		done(cmd);
+		cmd->scsi_done(cmd);
 		return 0;
 	}
 	memcpy(scsi3addr, dev->scsi3addr, sizeof(scsi3addr));
 
 	if (unlikely(lockup_detected(h))) {
 		cmd->result = DID_ERROR << 16;
-		done(cmd);
+		cmd->scsi_done(cmd);
 		return 0;
 	}
 	c = cmd_alloc(h);
@@ -3990,9 +3913,6 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	}
 
 	/* Fill in the command list header */
-
-	cmd->scsi_done = done;    /* save this for use by completion code */
-
 	/* save c in case we have to abort it  */
 	cmd->host_scribble = (unsigned char *) c;
 
@@ -4026,8 +3946,8 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 
 	c->Header.ReplyQueue = 0;  /* unused in simple mode */
 	memcpy(&c->Header.LUN.LunAddrBytes[0], &scsi3addr[0], 8);
-	c->Header.Tag.lower = (c->cmdindex << DIRECT_LOOKUP_SHIFT);
-	c->Header.Tag.lower |= DIRECT_LOOKUP_BIT;
+	c->Header.tag = cpu_to_le64((c->cmdindex << DIRECT_LOOKUP_SHIFT) |
+					DIRECT_LOOKUP_BIT);
 
 	/* Fill in the request block... */
 
@@ -4036,17 +3956,18 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	BUG_ON(cmd->cmd_len > sizeof(c->Request.CDB));
 	c->Request.CDBLen = cmd->cmd_len;
 	memcpy(c->Request.CDB, cmd->cmnd, cmd->cmd_len);
-	c->Request.Type.Type = TYPE_CMD;
-	c->Request.Type.Attribute = ATTR_SIMPLE;
 	switch (cmd->sc_data_direction) {
 	case DMA_TO_DEVICE:
-		c->Request.Type.Direction = XFER_WRITE;
+		c->Request.type_attr_dir =
+			TYPE_ATTR_DIR(TYPE_CMD, ATTR_SIMPLE, XFER_WRITE);
 		break;
 	case DMA_FROM_DEVICE:
-		c->Request.Type.Direction = XFER_READ;
+		c->Request.type_attr_dir =
+			TYPE_ATTR_DIR(TYPE_CMD, ATTR_SIMPLE, XFER_READ);
 		break;
 	case DMA_NONE:
-		c->Request.Type.Direction = XFER_NONE;
+		c->Request.type_attr_dir =
+			TYPE_ATTR_DIR(TYPE_CMD, ATTR_SIMPLE, XFER_NONE);
 		break;
 	case DMA_BIDIRECTIONAL:
 		/* This can happen if a buggy application does a scsi passthru
@@ -4054,7 +3975,8 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 		 * ../scsi/scsi_ioctl.c:scsi_ioctl_send_command() )
 		 */
 
-		c->Request.Type.Direction = XFER_RSVD;
+		c->Request.type_attr_dir =
+			TYPE_ATTR_DIR(TYPE_CMD, ATTR_SIMPLE, XFER_RSVD);
 		/* This is technically wrong, and hpsa controllers should
 		 * reject it with CMD_INVALID, which is the most correct
 		 * response, but non-fibre backends appear to let it
@@ -4080,8 +4002,6 @@ static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	/* the cmd'll come back via intr handler in complete_scsi_command()  */
 	return 0;
 }
-
-static DEF_SCSI_QCMD(hpsa_scsi_queue_command)
 
 static int do_not_scan_if_controller_locked_up(struct ctlr_info *h)
 {
@@ -4150,23 +4070,6 @@ static int hpsa_scan_finished(struct Scsi_Host *sh,
 	finished = h->scan_finished;
 	spin_unlock_irqrestore(&h->scan_lock, flags);
 	return finished;
-}
-
-static int hpsa_change_queue_depth(struct scsi_device *sdev,
-	int qdepth, int reason)
-{
-	struct ctlr_info *h = sdev_to_hba(sdev);
-
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -ENOTSUPP;
-
-	if (qdepth < 1)
-		qdepth = 1;
-	else
-		if (qdepth > h->nr_cmds)
-			qdepth = h->nr_cmds;
-	scsi_adjust_queue_depth(sdev, qdepth);
-	return sdev->queue_depth;
 }
 
 static void hpsa_unregister_scsi(struct ctlr_info *h)
@@ -4329,8 +4232,8 @@ static void hpsa_get_tag(struct ctlr_info *h,
 	if (c->cmd_type == CMD_IOACCEL1) {
 		struct io_accel1_cmd *cm1 = (struct io_accel1_cmd *)
 			&h->ioaccel_cmd_pool[c->cmdindex];
-		*tagupper = cm1->Tag.upper;
-		*taglower = cm1->Tag.lower;
+		*tagupper = (u32) (cm1->tag >> 32);
+		*taglower = (u32) (cm1->tag & 0x0ffffffffULL);
 		return;
 	}
 	if (c->cmd_type == CMD_IOACCEL2) {
@@ -4341,10 +4244,9 @@ static void hpsa_get_tag(struct ctlr_info *h,
 		*taglower = cm2->Tag;
 		return;
 	}
-	*tagupper = c->Header.Tag.upper;
-	*taglower = c->Header.Tag.lower;
+	*tagupper = (u32) (c->Header.tag >> 32);
+	*taglower = (u32) (c->Header.tag & 0x0ffffffffULL);
 }
-
 
 static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 	struct CommandList *abort, int swizzle)
@@ -4410,7 +4312,7 @@ static struct CommandList *hpsa_find_cmd_in_queue(struct ctlr_info *h,
 	struct CommandList *c = NULL;	/* ptr into cmpQ */
 
 	if (!find)
-		return 0;
+		return NULL;
 	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(c, queue_head, list) {
 		if (c->scsi_cmd == NULL) /* e.g.: passthru ioctl */
@@ -4432,7 +4334,7 @@ static struct CommandList *hpsa_find_cmd_in_queue_by_tag(struct ctlr_info *h,
 
 	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(c, queue_head, list) {
-		if (memcmp(&c->Header.Tag, tag, 8) != 0)
+		if (memcmp(&c->Header.tag, tag, 8) != 0)
 			continue;
 		spin_unlock_irqrestore(&h->lock, flags);
 		return c;
@@ -4686,19 +4588,32 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	int i;
 	union u64bit temp64;
 	dma_addr_t cmd_dma_handle, err_dma_handle;
-	unsigned long flags;
+	int loopcount;
 
-	spin_lock_irqsave(&h->lock, flags);
+	/* There is some *extremely* small but non-zero chance that that
+	 * multiple threads could get in here, and one thread could
+	 * be scanning through the list of bits looking for a free
+	 * one, but the free ones are always behind him, and other
+	 * threads sneak in behind him and eat them before he can
+	 * get to them, so that while there is always a free one, a
+	 * very unlucky thread might be starved anyway, never able to
+	 * beat the other threads.  In reality, this happens so
+	 * infrequently as to be indistinguishable from never.
+	 */
+
+	loopcount = 0;
 	do {
 		i = find_first_zero_bit(h->cmd_pool_bits, h->nr_cmds);
-		if (i == h->nr_cmds) {
-			spin_unlock_irqrestore(&h->lock, flags);
-			return NULL;
-		}
-	} while (test_and_set_bit
-		 (i & (BITS_PER_LONG - 1),
-		  h->cmd_pool_bits + (i / BITS_PER_LONG)) != 0);
-	spin_unlock_irqrestore(&h->lock, flags);
+		if (i == h->nr_cmds)
+			i = 0;
+		loopcount++;
+	} while (test_and_set_bit(i & (BITS_PER_LONG - 1),
+		  h->cmd_pool_bits + (i / BITS_PER_LONG)) != 0 &&
+		loopcount < 10);
+
+	/* Thread got starved?  We do not expect this to ever happen. */
+	if (loopcount >= 10)
+		return NULL;
 
 	c = h->cmd_pool + i;
 	memset(c, 0, sizeof(*c));
@@ -4714,9 +4629,8 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (u32) cmd_dma_handle;
 	temp64.val = (u64) err_dma_handle;
-	c->ErrDesc.Addr.lower = temp64.val32.lower;
-	c->ErrDesc.Addr.upper = temp64.val32.upper;
-	c->ErrDesc.Len = sizeof(*c->err_info);
+	c->ErrDesc.Addr = cpu_to_le64(err_dma_handle);
+	c->ErrDesc.Len = cpu_to_le32(sizeof(*c->err_info));
 
 	c->h = h;
 	return c;
@@ -4729,7 +4643,6 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 static struct CommandList *cmd_special_alloc(struct ctlr_info *h)
 {
 	struct CommandList *c;
-	union u64bit temp64;
 	dma_addr_t cmd_dma_handle, err_dma_handle;
 
 	c = pci_zalloc_consistent(h->pdev, sizeof(*c), &cmd_dma_handle);
@@ -4750,10 +4663,8 @@ static struct CommandList *cmd_special_alloc(struct ctlr_info *h)
 
 	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (u32) cmd_dma_handle;
-	temp64.val = (u64) err_dma_handle;
-	c->ErrDesc.Addr.lower = temp64.val32.lower;
-	c->ErrDesc.Addr.upper = temp64.val32.upper;
-	c->ErrDesc.Len = sizeof(*c->err_info);
+	c->ErrDesc.Addr = cpu_to_le64(err_dma_handle);
+	c->ErrDesc.Len = cpu_to_le32(sizeof(*c->err_info));
 
 	c->h = h;
 	return c;
@@ -4762,30 +4673,25 @@ static struct CommandList *cmd_special_alloc(struct ctlr_info *h)
 static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 {
 	int i;
-	unsigned long flags;
 
 	i = c - h->cmd_pool;
-	spin_lock_irqsave(&h->lock, flags);
 	clear_bit(i & (BITS_PER_LONG - 1),
 		  h->cmd_pool_bits + (i / BITS_PER_LONG));
-	spin_unlock_irqrestore(&h->lock, flags);
 }
 
 static void cmd_special_free(struct ctlr_info *h, struct CommandList *c)
 {
-	union u64bit temp64;
-
-	temp64.val32.lower = c->ErrDesc.Addr.lower;
-	temp64.val32.upper = c->ErrDesc.Addr.upper;
 	pci_free_consistent(h->pdev, sizeof(*c->err_info),
-			    c->err_info, (dma_addr_t) temp64.val);
+			    c->err_info,
+			    (dma_addr_t) le64_to_cpu(c->ErrDesc.Addr));
 	pci_free_consistent(h->pdev, sizeof(*c),
 			    c, (dma_addr_t) (c->busaddr & DIRECT_LOOKUP_MASK));
 }
 
 #ifdef CONFIG_COMPAT
 
-static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
+static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd,
+	void __user *arg)
 {
 	IOCTL32_Command_struct __user *arg32 =
 	    (IOCTL32_Command_struct __user *) arg;
@@ -4810,7 +4716,7 @@ static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
 	if (err)
 		return -EFAULT;
 
-	err = hpsa_ioctl(dev, CCISS_PASSTHRU, (void *)p);
+	err = hpsa_ioctl(dev, CCISS_PASSTHRU, p);
 	if (err)
 		return err;
 	err |= copy_in_user(&arg32->error_info, &p->error_info,
@@ -4821,7 +4727,7 @@ static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
 }
 
 static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
-	int cmd, void *arg)
+	int cmd, void __user *arg)
 {
 	BIG_IOCTL32_Command_struct __user *arg32 =
 	    (BIG_IOCTL32_Command_struct __user *) arg;
@@ -4848,7 +4754,7 @@ static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	if (err)
 		return -EFAULT;
 
-	err = hpsa_ioctl(dev, CCISS_BIG_PASSTHRU, (void *)p);
+	err = hpsa_ioctl(dev, CCISS_BIG_PASSTHRU, p);
 	if (err)
 		return err;
 	err |= copy_in_user(&arg32->error_info, &p->error_info,
@@ -4858,7 +4764,7 @@ static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	return err;
 }
 
-static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void *arg)
+static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 {
 	switch (cmd) {
 	case CCISS_GETPCIINFO:
@@ -4932,7 +4838,7 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	IOCTL_Command_struct iocommand;
 	struct CommandList *c;
 	char *buff = NULL;
-	union u64bit temp64;
+	u64 temp64;
 	int rc = 0;
 
 	if (!argp)
@@ -4971,14 +4877,14 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	c->Header.ReplyQueue = 0; /* unused in simple mode */
 	if (iocommand.buf_size > 0) {	/* buffer to fill */
 		c->Header.SGList = 1;
-		c->Header.SGTotal = 1;
+		c->Header.SGTotal = cpu_to_le16(1);
 	} else	{ /* no buffers to fill */
 		c->Header.SGList = 0;
-		c->Header.SGTotal = 0;
+		c->Header.SGTotal = cpu_to_le16(0);
 	}
 	memcpy(&c->Header.LUN, &iocommand.LUN_info, sizeof(c->Header.LUN));
 	/* use the kernel address the cmd block for tag */
-	c->Header.Tag.lower = c->busaddr;
+	c->Header.tag = c->busaddr;
 
 	/* Fill in Request block */
 	memcpy(&c->Request, &iocommand.Request,
@@ -4986,19 +4892,17 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 
 	/* Fill in the scatter gather information */
 	if (iocommand.buf_size > 0) {
-		temp64.val = pci_map_single(h->pdev, buff,
+		temp64 = pci_map_single(h->pdev, buff,
 			iocommand.buf_size, PCI_DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(&h->pdev->dev, temp64.val)) {
-			c->SG[0].Addr.lower = 0;
-			c->SG[0].Addr.upper = 0;
-			c->SG[0].Len = 0;
+		if (dma_mapping_error(&h->pdev->dev, (dma_addr_t) temp64)) {
+			c->SG[0].Addr = cpu_to_le64(0);
+			c->SG[0].Len = cpu_to_le32(0);
 			rc = -ENOMEM;
 			goto out;
 		}
-		c->SG[0].Addr.lower = temp64.val32.lower;
-		c->SG[0].Addr.upper = temp64.val32.upper;
-		c->SG[0].Len = iocommand.buf_size;
-		c->SG[0].Ext = HPSA_SG_LAST; /* we are not chaining*/
+		c->SG[0].Addr = cpu_to_le64(temp64);
+		c->SG[0].Len = cpu_to_le32(iocommand.buf_size);
+		c->SG[0].Ext = cpu_to_le32(HPSA_SG_LAST); /* not chaining */
 	}
 	hpsa_scsi_do_simple_cmd_core_if_no_lockup(h, c);
 	if (iocommand.buf_size > 0)
@@ -5033,7 +4937,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	struct CommandList *c;
 	unsigned char **buff = NULL;
 	int *buff_size = NULL;
-	union u64bit temp64;
+	u64 temp64;
 	BYTE sg_used = 0;
 	int status = 0;
 	int i;
@@ -5107,29 +5011,30 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	}
 	c->cmd_type = CMD_IOCTL_PEND;
 	c->Header.ReplyQueue = 0;
-	c->Header.SGList = c->Header.SGTotal = sg_used;
+	c->Header.SGList = (u8) sg_used;
+	c->Header.SGTotal = cpu_to_le16(sg_used);
 	memcpy(&c->Header.LUN, &ioc->LUN_info, sizeof(c->Header.LUN));
-	c->Header.Tag.lower = c->busaddr;
+	c->Header.tag = c->busaddr;
 	memcpy(&c->Request, &ioc->Request, sizeof(c->Request));
 	if (ioc->buf_size > 0) {
 		int i;
 		for (i = 0; i < sg_used; i++) {
-			temp64.val = pci_map_single(h->pdev, buff[i],
+			temp64 = pci_map_single(h->pdev, buff[i],
 				    buff_size[i], PCI_DMA_BIDIRECTIONAL);
-			if (dma_mapping_error(&h->pdev->dev, temp64.val)) {
-				c->SG[i].Addr.lower = 0;
-				c->SG[i].Addr.upper = 0;
-				c->SG[i].Len = 0;
+			if (dma_mapping_error(&h->pdev->dev,
+							(dma_addr_t) temp64)) {
+				c->SG[i].Addr = cpu_to_le64(0);
+				c->SG[i].Len = cpu_to_le32(0);
 				hpsa_pci_unmap(h->pdev, c, i,
 					PCI_DMA_BIDIRECTIONAL);
 				status = -ENOMEM;
 				goto cleanup0;
 			}
-			c->SG[i].Addr.lower = temp64.val32.lower;
-			c->SG[i].Addr.upper = temp64.val32.upper;
-			c->SG[i].Len = buff_size[i];
-			c->SG[i].Ext = i < sg_used - 1 ? 0 : HPSA_SG_LAST;
+			c->SG[i].Addr = cpu_to_le64(temp64);
+			c->SG[i].Len = cpu_to_le32(buff_size[i]);
+			c->SG[i].Ext = cpu_to_le32(0);
 		}
+		c->SG[--i].Ext = cpu_to_le32(HPSA_SG_LAST);
 	}
 	hpsa_scsi_do_simple_cmd_core_if_no_lockup(h, c);
 	if (sg_used)
@@ -5206,7 +5111,7 @@ static void decrement_passthru_count(struct ctlr_info *h)
 /*
  * ioctl
  */
-static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg)
+static int hpsa_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 {
 	struct ctlr_info *h;
 	void __user *argp = (void __user *)arg;
@@ -5268,20 +5173,20 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 {
 	int pci_dir = XFER_NONE;
 	struct CommandList *a; /* for commands to be aborted */
+	u32 tupper, tlower;
 
 	c->cmd_type = CMD_IOCTL_PEND;
 	c->Header.ReplyQueue = 0;
 	if (buff != NULL && size > 0) {
 		c->Header.SGList = 1;
-		c->Header.SGTotal = 1;
+		c->Header.SGTotal = cpu_to_le16(1);
 	} else {
 		c->Header.SGList = 0;
-		c->Header.SGTotal = 0;
+		c->Header.SGTotal = cpu_to_le16(0);
 	}
-	c->Header.Tag.lower = c->busaddr;
+	c->Header.tag = c->busaddr;
 	memcpy(c->Header.LUN.LunAddrBytes, scsi3addr, 8);
 
-	c->Request.Type.Type = cmd_type;
 	if (cmd_type == TYPE_CMD) {
 		switch (cmd) {
 		case HPSA_INQUIRY:
@@ -5291,8 +5196,8 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 				c->Request.CDB[2] = (page_code & 0xff);
 			}
 			c->Request.CDBLen = 6;
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_READ;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_READ);
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = HPSA_INQUIRY;
 			c->Request.CDB[4] = size & 0xFF;
@@ -5303,8 +5208,8 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			   mode = 00 target = 0.  Nothing to write.
 			 */
 			c->Request.CDBLen = 12;
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_READ;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_READ);
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = cmd;
 			c->Request.CDB[6] = (size >> 24) & 0xFF; /* MSB */
@@ -5314,8 +5219,9 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			break;
 		case HPSA_CACHE_FLUSH:
 			c->Request.CDBLen = 12;
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.type_attr_dir =
+					TYPE_ATTR_DIR(cmd_type,
+						ATTR_SIMPLE, XFER_WRITE);
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = BMIC_WRITE;
 			c->Request.CDB[6] = BMIC_CACHE_FLUSH;
@@ -5324,14 +5230,14 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			break;
 		case TEST_UNIT_READY:
 			c->Request.CDBLen = 6;
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_NONE;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_NONE);
 			c->Request.Timeout = 0;
 			break;
 		case HPSA_GET_RAID_MAP:
 			c->Request.CDBLen = 12;
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_READ;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_READ);
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = HPSA_CISS_READ;
 			c->Request.CDB[1] = cmd;
@@ -5342,8 +5248,8 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			break;
 		case BMIC_SENSE_CONTROLLER_PARAMETERS:
 			c->Request.CDBLen = 10;
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_READ;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_READ);
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = BMIC_READ;
 			c->Request.CDB[6] = BMIC_SENSE_CONTROLLER_PARAMETERS;
@@ -5360,9 +5266,8 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 
 		case  HPSA_DEVICE_RESET_MSG:
 			c->Request.CDBLen = 16;
-			c->Request.Type.Type =  1; /* It is a MSG not a CMD */
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_NONE;
+			c->Request.type_attr_dir =
+				TYPE_ATTR_DIR(cmd_type, ATTR_SIMPLE, XFER_NONE);
 			c->Request.Timeout = 0; /* Don't time out */
 			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
 			c->Request.CDB[0] =  cmd;
@@ -5376,27 +5281,28 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			break;
 		case  HPSA_ABORT_MSG:
 			a = buff;       /* point to command to be aborted */
-			dev_dbg(&h->pdev->dev, "Abort Tag:0x%08x:%08x using request Tag:0x%08x:%08x\n",
-				a->Header.Tag.upper, a->Header.Tag.lower,
-				c->Header.Tag.upper, c->Header.Tag.lower);
+			dev_dbg(&h->pdev->dev, "Abort Tag:0x%016llx using request Tag:0x%016llx",
+				a->Header.tag, c->Header.tag);
+			tlower = (u32) (a->Header.tag >> 32);
+			tupper = (u32) (a->Header.tag & 0x0ffffffffULL);
 			c->Request.CDBLen = 16;
-			c->Request.Type.Type = TYPE_MSG;
-			c->Request.Type.Attribute = ATTR_SIMPLE;
-			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.type_attr_dir =
+					TYPE_ATTR_DIR(cmd_type,
+						ATTR_SIMPLE, XFER_WRITE);
 			c->Request.Timeout = 0; /* Don't time out */
 			c->Request.CDB[0] = HPSA_TASK_MANAGEMENT;
 			c->Request.CDB[1] = HPSA_TMF_ABORT_TASK;
 			c->Request.CDB[2] = 0x00; /* reserved */
 			c->Request.CDB[3] = 0x00; /* reserved */
 			/* Tag to abort goes in CDB[4]-CDB[11] */
-			c->Request.CDB[4] = a->Header.Tag.lower & 0xFF;
-			c->Request.CDB[5] = (a->Header.Tag.lower >> 8) & 0xFF;
-			c->Request.CDB[6] = (a->Header.Tag.lower >> 16) & 0xFF;
-			c->Request.CDB[7] = (a->Header.Tag.lower >> 24) & 0xFF;
-			c->Request.CDB[8] = a->Header.Tag.upper & 0xFF;
-			c->Request.CDB[9] = (a->Header.Tag.upper >> 8) & 0xFF;
-			c->Request.CDB[10] = (a->Header.Tag.upper >> 16) & 0xFF;
-			c->Request.CDB[11] = (a->Header.Tag.upper >> 24) & 0xFF;
+			c->Request.CDB[4] = tlower & 0xFF;
+			c->Request.CDB[5] = (tlower >> 8) & 0xFF;
+			c->Request.CDB[6] = (tlower >> 16) & 0xFF;
+			c->Request.CDB[7] = (tlower >> 24) & 0xFF;
+			c->Request.CDB[8] = tupper & 0xFF;
+			c->Request.CDB[9] = (tupper >> 8) & 0xFF;
+			c->Request.CDB[10] = (tupper >> 16) & 0xFF;
+			c->Request.CDB[11] = (tupper >> 24) & 0xFF;
 			c->Request.CDB[12] = 0x00; /* reserved */
 			c->Request.CDB[13] = 0x00; /* reserved */
 			c->Request.CDB[14] = 0x00; /* reserved */
@@ -5412,7 +5318,7 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 		BUG();
 	}
 
-	switch (c->Request.Type.Direction) {
+	switch (GET_DIR(c->Request.type_attr_dir)) {
 	case XFER_READ:
 		pci_dir = PCI_DMA_FROMDEVICE;
 		break;
@@ -5467,15 +5373,9 @@ static void start_io(struct ctlr_info *h, unsigned long *flags)
 
 		/* Put job onto the completed Q */
 		addQ(&h->cmpQ, c);
-
-		/* Must increment commands_outstanding before unlocking
-		 * and submitting to avoid race checking for fifo full
-		 * condition.
-		 */
-		h->commands_outstanding++;
-
-		/* Tell the controller execute command */
+		atomic_inc(&h->commands_outstanding);
 		spin_unlock_irqrestore(&h->lock, *flags);
+		/* Tell the controller execute command */
 		h->access.submit_command(h, c);
 		spin_lock_irqsave(&h->lock, *flags);
 	}
@@ -5521,6 +5421,7 @@ static inline void finish_cmd(struct CommandList *c)
 	unsigned long flags;
 	int io_may_be_stalled = 0;
 	struct ctlr_info *h = c->h;
+	int count;
 
 	spin_lock_irqsave(&h->lock, flags);
 	removeQ(c);
@@ -5541,11 +5442,10 @@ static inline void finish_cmd(struct CommandList *c)
 	 * want to get in a cycle where we call start_io every time
 	 * through here.
 	 */
-	if (unlikely(h->fifo_recently_full) &&
-		h->commands_outstanding < 5)
-		io_may_be_stalled = 1;
-
+	count = atomic_read(&h->commands_outstanding);
 	spin_unlock_irqrestore(&h->lock, flags);
+	if (unlikely(h->fifo_recently_full) && count < 5)
+		io_may_be_stalled = 1;
 
 	dial_up_lockup_detection_on_fw_flash_complete(c->h, c);
 	if (likely(c->cmd_type == CMD_IOACCEL1 || c->cmd_type == CMD_SCSI
@@ -5765,22 +5665,20 @@ static int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 
 	cmd->CommandHeader.ReplyQueue = 0;
 	cmd->CommandHeader.SGList = 0;
-	cmd->CommandHeader.SGTotal = 0;
-	cmd->CommandHeader.Tag.lower = paddr32;
-	cmd->CommandHeader.Tag.upper = 0;
+	cmd->CommandHeader.SGTotal = cpu_to_le16(0);
+	cmd->CommandHeader.tag = paddr32;
 	memset(&cmd->CommandHeader.LUN.LunAddrBytes, 0, 8);
 
 	cmd->Request.CDBLen = 16;
-	cmd->Request.Type.Type = TYPE_MSG;
-	cmd->Request.Type.Attribute = ATTR_HEADOFQUEUE;
-	cmd->Request.Type.Direction = XFER_NONE;
+	cmd->Request.type_attr_dir =
+			TYPE_ATTR_DIR(TYPE_MSG, ATTR_HEADOFQUEUE, XFER_NONE);
 	cmd->Request.Timeout = 0; /* Don't time out */
 	cmd->Request.CDB[0] = opcode;
 	cmd->Request.CDB[1] = type;
 	memset(&cmd->Request.CDB[2], 0, 14); /* rest of the CDB is reserved */
-	cmd->ErrorDescriptor.Addr.lower = paddr32 + sizeof(*cmd);
-	cmd->ErrorDescriptor.Addr.upper = 0;
-	cmd->ErrorDescriptor.Len = sizeof(struct ErrorInfo);
+	cmd->ErrorDescriptor.Addr =
+			cpu_to_le64((paddr32 + sizeof(*cmd)));
+	cmd->ErrorDescriptor.Len = cpu_to_le32(sizeof(struct ErrorInfo));
 
 	writel(paddr32, vaddr + SA5_REQUEST_PORT_OFFSET);
 
@@ -5818,7 +5716,7 @@ static int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 #define hpsa_noop(p) hpsa_message(p, 3, 0)
 
 static int hpsa_controller_hard_reset(struct pci_dev *pdev,
-	void * __iomem vaddr, u32 use_doorbell)
+	void __iomem *vaddr, u32 use_doorbell)
 {
 	u16 pmcsr;
 	int pos;
@@ -6056,7 +5954,7 @@ unmap_vaddr:
  *   the io functions.
  *   This is for debug only.
  */
-static void print_cfg_table(struct device *dev, struct CfgTable *tb)
+static void print_cfg_table(struct device *dev, struct CfgTable __iomem *tb)
 {
 #ifdef HPSA_DEBUG
 	int i;
@@ -6323,11 +6221,11 @@ static void hpsa_find_board_params(struct ctlr_info *h)
 	h->max_cmd_sg_entries = 31;
 	if (h->maxsgentries > 512) {
 		h->max_cmd_sg_entries = 32;
-		h->chainsize = h->maxsgentries - h->max_cmd_sg_entries + 1;
+		h->chainsize = h->maxsgentries - h->max_cmd_sg_entries;
 		h->maxsgentries--; /* save one for chain pointer */
 	} else {
-		h->maxsgentries = 31; /* default to traditional values */
 		h->chainsize = 0;
+		h->maxsgentries = 31; /* default to traditional values */
 	}
 
 	/* Find out what task management functions are supported and cache */
@@ -6456,15 +6354,15 @@ static int hpsa_pci_init(struct ctlr_info *h)
 		return err;
 	}
 
-	/* Enable bus mastering (pci_disable_device may disable this) */
-	pci_set_master(h->pdev);
-
 	err = pci_request_regions(h->pdev, HPSA);
 	if (err) {
 		dev_err(&h->pdev->dev,
 			"cannot obtain PCI resources, aborting\n");
 		return err;
 	}
+
+	pci_set_master(h->pdev);
+
 	hpsa_interrupt_mode(h);
 	err = hpsa_pci_find_memory_BAR(h->pdev, &h->paddr);
 	if (err)
@@ -6544,7 +6442,9 @@ static int hpsa_init_reset_devices(struct pci_dev *pdev)
 		dev_warn(&pdev->dev, "failed to enable device.\n");
 		return -ENODEV;
 	}
+
 	pci_set_master(pdev);
+
 	/* Reset the controller with a PCI power-cycle or via doorbell */
 	rc = hpsa_kdump_hard_reset_controller(pdev);
 
@@ -7431,13 +7331,12 @@ static void hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 			cp->host_context_flags = IOACCEL1_HCFLAGS_CISS_FORMAT;
 			cp->timeout_sec = 0;
 			cp->ReplyQueue = 0;
-			cp->Tag.lower = (i << DIRECT_LOOKUP_SHIFT) |
-						DIRECT_LOOKUP_BIT;
-			cp->Tag.upper = 0;
-			cp->host_addr.lower =
-				(u32) (h->ioaccel_cmd_pool_dhandle +
+			cp->tag =
+				cpu_to_le64((i << DIRECT_LOOKUP_SHIFT) |
+						DIRECT_LOOKUP_BIT);
+			cp->host_addr =
+				cpu_to_le64(h->ioaccel_cmd_pool_dhandle +
 					(i * sizeof(struct io_accel1_cmd)));
-			cp->host_addr.upper = 0;
 		}
 	} else if (trans_support & CFGTBL_Trans_io_accel2) {
 		u64 cfg_offset, cfg_base_addr_index;
@@ -7711,7 +7610,7 @@ static void __attribute__((unused)) verify_offsets(void)
 	VERIFY_OFFSET(timeout_sec, 0x62);
 	VERIFY_OFFSET(ReplyQueue, 0x64);
 	VERIFY_OFFSET(reserved9, 0x65);
-	VERIFY_OFFSET(Tag, 0x68);
+	VERIFY_OFFSET(tag, 0x68);
 	VERIFY_OFFSET(host_addr, 0x70);
 	VERIFY_OFFSET(CISS_LUN, 0x78);
 	VERIFY_OFFSET(SG, 0x78 + 8);

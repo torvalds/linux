@@ -175,7 +175,7 @@ STATIC void NCR_700_chip_reset(struct Scsi_Host *host);
 STATIC int NCR_700_slave_alloc(struct scsi_device *SDpnt);
 STATIC int NCR_700_slave_configure(struct scsi_device *SDpnt);
 STATIC void NCR_700_slave_destroy(struct scsi_device *SDpnt);
-static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth, int reason);
+static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth);
 static int NCR_700_change_queue_type(struct scsi_device *SDpnt, int depth);
 
 STATIC struct device_attribute *NCR_700_dev_attrs[];
@@ -904,7 +904,7 @@ process_message(struct Scsi_Host *host,	struct NCR_700_Host_Parameters *hostdata
 			hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
 
 			SCp->device->tagged_supported = 0;
-			scsi_adjust_queue_depth(SCp->device, host->cmd_per_lun);
+			scsi_change_queue_depth(SCp->device, host->cmd_per_lun);
 			scsi_set_tag_type(SCp->device, 0);
 		} else {
 			shost_printk(KERN_WARNING, host,
@@ -2052,7 +2052,7 @@ NCR_700_slave_configure(struct scsi_device *SDp)
 
 	/* to do here: allocate memory; build a queue_full list */
 	if(SDp->tagged_supported) {
-		scsi_adjust_queue_depth(SDp, NCR_700_DEFAULT_TAGS);
+		scsi_change_queue_depth(SDp, NCR_700_DEFAULT_TAGS);
 		NCR_700_set_tag_neg_state(SDp, NCR_700_START_TAG_NEGOTIATION);
 	}
 
@@ -2075,16 +2075,11 @@ NCR_700_slave_destroy(struct scsi_device *SDp)
 }
 
 static int
-NCR_700_change_queue_depth(struct scsi_device *SDp, int depth, int reason)
+NCR_700_change_queue_depth(struct scsi_device *SDp, int depth)
 {
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
 	if (depth > NCR_700_MAX_TAGS)
 		depth = NCR_700_MAX_TAGS;
-
-	scsi_adjust_queue_depth(SDp, depth);
-	return depth;
+	return scsi_change_queue_depth(SDp, depth);
 }
 
 static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
@@ -2105,12 +2100,12 @@ static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
 	if (!tag_type) {
 		/* shift back to the default unqueued number of commands
 		 * (the user can still raise this) */
-		scsi_adjust_queue_depth(SDp, SDp->host->cmd_per_lun);
+		scsi_change_queue_depth(SDp, SDp->host->cmd_per_lun);
 		hostdata->tag_negotiated &= ~(1 << sdev_id(SDp));
 	} else {
 		/* Here, we cleared the negotiation flag above, so this
 		 * will force the driver to renegotiate */
-		scsi_adjust_queue_depth(SDp, SDp->queue_depth);
+		scsi_change_queue_depth(SDp, SDp->queue_depth);
 		if (change_tag)
 			NCR_700_set_tag_neg_state(SDp, NCR_700_START_TAG_NEGOTIATION);
 	}

@@ -2713,7 +2713,7 @@ static void ufshcd_set_queue_depth(struct scsi_device *sdev)
 
 	dev_dbg(hba->dev, "%s: activate tcq with queue depth %d\n",
 			__func__, lun_qdepth);
-	scsi_adjust_queue_depth(sdev, lun_qdepth);
+	scsi_change_queue_depth(sdev, lun_qdepth);
 }
 
 /*
@@ -2805,32 +2805,16 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
  * ufshcd_change_queue_depth - change queue depth
  * @sdev: pointer to SCSI device
  * @depth: required depth to set
- * @reason: reason for changing the depth
  *
- * Change queue depth according to the reason and make sure
- * the max. limits are not crossed.
+ * Change queue depth and make sure the max. limits are not crossed.
  */
-static int ufshcd_change_queue_depth(struct scsi_device *sdev,
-		int depth, int reason)
+static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
 {
 	struct ufs_hba *hba = shost_priv(sdev->host);
 
 	if (depth > hba->nutrs)
 		depth = hba->nutrs;
-
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return depth;
+	return scsi_change_queue_depth(sdev, depth);
 }
 
 /**
@@ -4235,6 +4219,7 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.can_queue		= UFSHCD_CAN_QUEUE,
 	.max_host_blocked	= 1,
 	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,

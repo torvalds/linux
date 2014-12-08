@@ -149,7 +149,7 @@ scsi_add_host()  ---->
 scsi_scan_host()  -------+
                          |
                     slave_alloc()
-                    slave_configure() -->  scsi_adjust_queue_depth()
+                    slave_configure() -->  scsi_change_queue_depth()
                          |
                     slave_alloc()
                     slave_configure()
@@ -159,7 +159,7 @@ scsi_scan_host()  -------+
 ------------------------------------------------------------
 
 If the LLD wants to adjust the default queue settings, it can invoke
-scsi_adjust_queue_depth() in its slave_configure() routine.
+scsi_change_queue_depth() in its slave_configure() routine.
 
 *** For scsi devices that the mid level tries to scan but do not
     respond, a slave_alloc(), slave_destroy() pair is called.
@@ -203,7 +203,7 @@ LLD                   mid level                    LLD
 scsi_add_device()  ------+
                          |
                     slave_alloc()
-                    slave_configure()   [--> scsi_adjust_queue_depth()]
+                    slave_configure()   [--> scsi_change_queue_depth()]
 ------------------------------------------------------------
 
 In a similar fashion, an LLD may become aware that a SCSI device has been
@@ -261,7 +261,7 @@ init_this_scsi_driver() ----+
                             |                scsi_register()
                             |
                       slave_alloc()
-                      slave_configure()  -->  scsi_adjust_queue_depth()
+                      slave_configure()  -->  scsi_change_queue_depth()
                       slave_alloc()   ***
                       slave_destroy() ***
                             |
@@ -271,7 +271,7 @@ init_this_scsi_driver() ----+
                       slave_destroy() ***
 ------------------------------------------------------------
 
-The mid level invokes scsi_adjust_queue_depth() with "cmd_per_lun" for that
+The mid level invokes scsi_change_queue_depth() with "cmd_per_lun" for that
 host as the queue length. These settings can be overridden by a
 slave_configure() supplied by the LLD.
 
@@ -368,7 +368,7 @@ names all start with "scsi_".
 Summary:
    scsi_add_device - creates new scsi device (lu) instance
    scsi_add_host - perform sysfs registration and set up transport class
-   scsi_adjust_queue_depth - change the queue depth on a SCSI device
+   scsi_change_queue_depth - change the queue depth on a SCSI device
    scsi_bios_ptable - return copy of block device's partition table
    scsi_block_requests - prevent further commands being queued to given host
    scsi_host_alloc - return a new scsi_host instance whose refcount==1
@@ -436,7 +436,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
 
 
 /**
- * scsi_adjust_queue_depth - allow LLD to change queue depth on a SCSI device
+ * scsi_change_queue_depth - allow LLD to change queue depth on a SCSI device
  * @sdev:       pointer to SCSI device to change queue depth on
  * @tags        Number of tags allowed if tagged queuing enabled,
  *              or number of commands the LLD can queue up
@@ -453,7 +453,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
  *      Defined in: drivers/scsi/scsi.c [see source code for more notes]
  *
  **/
-void scsi_adjust_queue_depth(struct scsi_device *sdev, int tags)
+int scsi_change_queue_depth(struct scsi_device *sdev, int tags)
 
 
 /**
@@ -1214,7 +1214,7 @@ of interest:
                    for disk firmware uploads.
     cmd_per_lun  - maximum number of commands that can be queued on devices
                    controlled by the host. Overridden by LLD calls to
-                   scsi_adjust_queue_depth().
+                   scsi_change_queue_depth().
     unchecked_isa_dma - 1=>only use bottom 16 MB of ram (ISA DMA addressing
                    restriction), 0=>can use full 32 bit (or better) DMA
                    address space
@@ -1254,7 +1254,7 @@ struct scsi_cmnd
 Instances of this structure convey SCSI commands to the LLD and responses
 back to the mid level. The SCSI mid level will ensure that no more SCSI
 commands become queued against the LLD than are indicated by
-scsi_adjust_queue_depth() (or struct Scsi_Host::cmd_per_lun). There will
+scsi_change_queue_depth() (or struct Scsi_Host::cmd_per_lun). There will
 be at least one instance of struct scsi_cmnd available for each SCSI device.
 Members of interest:
     cmnd         - array containing SCSI command

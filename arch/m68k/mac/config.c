@@ -278,7 +278,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "IIfx",
 		.adb_type	= MAC_ADB_IOP,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_IIFX,
 		.scc_type	= MAC_SCC_IOP,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_IOP,
@@ -329,7 +329,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "Color Classic",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_CCL,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -338,7 +338,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "Color Classic II",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_CCL,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -526,7 +526,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "Performa 520",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_CCL,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -535,7 +535,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "Performa 550",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_CCL,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -567,7 +567,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "TV",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_CCL,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -712,7 +712,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook 190",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_QUADRA,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_LATE,
 		.ide_type	= MAC_IDE_BABOON,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
@@ -722,7 +722,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook 520",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_QUADRA,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_LATE,
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
@@ -740,7 +740,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook Duo 210",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_DUO,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -749,7 +749,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook Duo 230",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_DUO,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -758,7 +758,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook Duo 250",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_DUO,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -767,7 +767,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook Duo 270c",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_DUO,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -776,7 +776,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook Duo 280",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_DUO,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -785,7 +785,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook Duo 280c",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_IICI,
-		.scsi_type	= MAC_SCSI_OLD,
+		.scsi_type	= MAC_SCSI_DUO,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -929,6 +929,70 @@ static struct platform_device swim_pdev = {
 	.resource	= &swim_rsrc,
 };
 
+static const struct resource mac_scsi_iifx_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MAC_SCSI,
+		.end   = IRQ_MAC_SCSI,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x50008000,
+		.end   = 0x50009FFF,
+	},
+};
+
+static const struct resource mac_scsi_duo_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_MEM,
+		.start = 0xFEE02000,
+		.end   = 0xFEE03FFF,
+	},
+};
+
+static const struct resource mac_scsi_old_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MAC_SCSI,
+		.end   = IRQ_MAC_SCSI,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x50010000,
+		.end   = 0x50011FFF,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x50006000,
+		.end   = 0x50007FFF,
+	},
+};
+
+static const struct resource mac_scsi_late_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MAC_SCSI,
+		.end   = IRQ_MAC_SCSI,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x50010000,
+		.end   = 0x50011FFF,
+	},
+};
+
+static const struct resource mac_scsi_ccl_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MAC_SCSI,
+		.end   = IRQ_MAC_SCSI,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x50F10000,
+		.end   = 0x50F11FFF,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x50F06000,
+		.end   = 0x50F07FFF,
+	},
+};
+
 static struct platform_device esp_0_pdev = {
 	.name		= "mac_esp",
 	.id		= 0,
@@ -999,6 +1063,60 @@ int __init mac_platform_init(void)
 		if ((macintosh_config->ident == MAC_MODEL_Q900) ||
 		    (macintosh_config->ident == MAC_MODEL_Q950))
 			platform_device_register(&esp_1_pdev);
+		break;
+	case MAC_SCSI_IIFX:
+		/* Addresses from The Guide to Mac Family Hardware.
+		 * $5000 8000 - $5000 9FFF: SCSI DMA
+		 * $5000 C000 - $5000 DFFF: Alternate SCSI (DMA)
+		 * $5000 E000 - $5000 FFFF: Alternate SCSI (Hsk)
+		 * The SCSI DMA custom IC embeds the 53C80 core. mac_scsi does
+		 * not make use of its DMA or hardware handshaking logic.
+		 */
+		platform_device_register_simple("mac_scsi", 0,
+			mac_scsi_iifx_rsrc, ARRAY_SIZE(mac_scsi_iifx_rsrc));
+		break;
+	case MAC_SCSI_DUO:
+		/* Addresses from the Duo Dock II Developer Note.
+		 * $FEE0 2000 - $FEE0 3FFF: normal mode
+		 * $FEE0 4000 - $FEE0 5FFF: pseudo DMA without /DRQ
+		 * $FEE0 6000 - $FEE0 7FFF: pseudo DMA with /DRQ
+		 * The NetBSD code indicates that both 5380 chips share
+		 * an IRQ (?) which would need careful handling (see mac_esp).
+		 */
+		platform_device_register_simple("mac_scsi", 1,
+			mac_scsi_duo_rsrc, ARRAY_SIZE(mac_scsi_duo_rsrc));
+		/* fall through */
+	case MAC_SCSI_OLD:
+		/* Addresses from Developer Notes for Duo System,
+		 * PowerBook 180 & 160, 140 & 170, Macintosh IIsi
+		 * and also from The Guide to Mac Family Hardware for
+		 * SE/30, II, IIx, IIcx, IIci.
+		 * $5000 6000 - $5000 7FFF: pseudo-DMA with /DRQ
+		 * $5001 0000 - $5001 1FFF: normal mode
+		 * $5001 2000 - $5001 3FFF: pseudo-DMA without /DRQ
+		 * GMFH says that $5000 0000 - $50FF FFFF "wraps
+		 * $5000 0000 - $5001 FFFF eight times" (!)
+		 * mess.org says IIci and Color Classic do not alias
+		 * I/O address space.
+		 */
+		platform_device_register_simple("mac_scsi", 0,
+			mac_scsi_old_rsrc, ARRAY_SIZE(mac_scsi_old_rsrc));
+		break;
+	case MAC_SCSI_LATE:
+		/* PDMA logic in 68040 PowerBooks is somehow different to
+		 * '030 models. It's probably more like Quadras (see mac_esp).
+		 */
+		platform_device_register_simple("mac_scsi", 0,
+			mac_scsi_late_rsrc, ARRAY_SIZE(mac_scsi_late_rsrc));
+		break;
+	case MAC_SCSI_CCL:
+		/* Addresses from the Color Classic Developer Note.
+		 * $50F0 6000 - $50F0 7FFF: SCSI handshake
+		 * $50F1 0000 - $50F1 1FFF: SCSI
+		 * $50F1 2000 - $50F1 3FFF: SCSI DMA
+		 */
+		platform_device_register_simple("mac_scsi", 0,
+			mac_scsi_ccl_rsrc, ARRAY_SIZE(mac_scsi_ccl_rsrc));
 		break;
 	}
 

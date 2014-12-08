@@ -13,15 +13,11 @@
 #include <asm/ecard.h>
 #include <asm/io.h>
 
-#include "../scsi.h"
 #include <scsi/scsi_host.h>
 
 #include <scsi/scsicam.h>
 
-#define AUTOSENSE
 #define PSEUDO_DMA
-
-#define CUMANASCSI_PUBLIC_RELEASE 1
 
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 #define NCR5380_local_declare()		struct Scsi_Host *_instance
@@ -30,6 +26,7 @@
 #define NCR5380_write(reg, value)	cumanascsi_write(_instance, reg, value)
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
+#define NCR5380_info			cumanascsi_info
 
 #define NCR5380_implementation_fields	\
 	unsigned ctrl;			\
@@ -40,11 +37,6 @@
 
 void cumanascsi_setup(char *str, int *ints)
 {
-}
-
-const char *cumanascsi_info(struct Scsi_Host *spnt)
-{
-	return "";
 }
 
 #define CTRL	0x16fc
@@ -266,14 +258,6 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 		    host->host_no, host->irq, ret);
 		goto out_unmap;
 	}
-
-	printk("scsi%d: at port 0x%08lx irq %d",
-		host->host_no, host->io_port, host->irq);
-	printk(" options CAN_QUEUE=%d CMD_PER_LUN=%d release=%d",
-		host->can_queue, host->cmd_per_lun, CUMANASCSI_PUBLIC_RELEASE);
-	printk("\nscsi%d:", host->host_no);
-	NCR5380_print_options(host);
-	printk("\n");
 
 	ret = scsi_add_host(host, &ec->dev);
 	if (ret)

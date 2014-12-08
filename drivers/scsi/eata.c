@@ -952,12 +952,12 @@ static int eata2x_slave_configure(struct scsi_device *dev)
 		} else {
 			tag_suffix = ", no tags";
 		}
-		scsi_adjust_queue_depth(dev, tqd);
+		scsi_change_queue_depth(dev, tqd);
 	} else if (TLDEV(dev->type) && linked_comm) {
-		scsi_adjust_queue_depth(dev, tqd);
+		scsi_change_queue_depth(dev, tqd);
 		tag_suffix = ", untagged";
 	} else {
-		scsi_adjust_queue_depth(dev, utqd);
+		scsi_change_queue_depth(dev, utqd);
 		tag_suffix = "";
 	}
 

@@ -852,43 +852,7 @@ prep_out:
 	return rc;
 }
 
-static struct mvs_task_list *mvs_task_alloc_list(int *num, gfp_t gfp_flags)
-{
-	struct mvs_task_list *first = NULL;
-
-	for (; *num > 0; --*num) {
-		struct mvs_task_list *mvs_list = kmem_cache_zalloc(mvs_task_list_cache, gfp_flags);
-
-		if (!mvs_list)
-			break;
-
-		INIT_LIST_HEAD(&mvs_list->list);
-		if (!first)
-			first = mvs_list;
-		else
-			list_add_tail(&mvs_list->list, &first->list);
-
-	}
-
-	return first;
-}
-
-static inline void mvs_task_free_list(struct mvs_task_list *mvs_list)
-{
-	LIST_HEAD(list);
-	struct list_head *pos, *a;
-	struct mvs_task_list *mlist = NULL;
-
-	__list_add(&list, mvs_list->list.prev, &mvs_list->list);
-
-	list_for_each_safe(pos, a, &list) {
-		list_del_init(pos);
-		mlist = list_entry(pos, struct mvs_task_list, list);
-		kmem_cache_free(mvs_task_list_cache, mlist);
-	}
-}
-
-static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
+static int mvs_task_exec(struct sas_task *task, gfp_t gfp_flags,
 				struct completion *completion, int is_tmf,
 				struct mvs_tmf_task *tmf)
 {
@@ -912,74 +876,9 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 	return rc;
 }
 
-static int mvs_collector_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
-				struct completion *completion, int is_tmf,
-				struct mvs_tmf_task *tmf)
+int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	struct domain_device *dev = task->dev;
-	struct mvs_prv_info *mpi = dev->port->ha->lldd_ha;
-	struct mvs_info *mvi = NULL;
-	struct sas_task *t = task;
-	struct mvs_task_list *mvs_list = NULL, *a;
-	LIST_HEAD(q);
-	int pass[2] = {0};
-	u32 rc = 0;
-	u32 n = num;
-	unsigned long flags = 0;
-
-	mvs_list = mvs_task_alloc_list(&n, gfp_flags);
-	if (n) {
-		printk(KERN_ERR "%s: mvs alloc list failed.\n", __func__);
-		rc = -ENOMEM;
-		goto free_list;
-	}
-
-	__list_add(&q, mvs_list->list.prev, &mvs_list->list);
-
-	list_for_each_entry(a, &q, list) {
-		a->task = t;
-		t = list_entry(t->list.next, struct sas_task, list);
-	}
-
-	list_for_each_entry(a, &q , list) {
-
-		t = a->task;
-		mvi = ((struct mvs_device *)t->dev->lldd_dev)->mvi_info;
-
-		spin_lock_irqsave(&mvi->lock, flags);
-		rc = mvs_task_prep(t, mvi, is_tmf, tmf, &pass[mvi->id]);
-		if (rc)
-			dev_printk(KERN_ERR, mvi->dev, "mvsas exec failed[%d]!\n", rc);
-		spin_unlock_irqrestore(&mvi->lock, flags);
-	}
-
-	if (likely(pass[0]))
-			MVS_CHIP_DISP->start_delivery(mpi->mvi[0],
-				(mpi->mvi[0]->tx_prod - 1) & (MVS_CHIP_SLOT_SZ - 1));
-
-	if (likely(pass[1]))
-			MVS_CHIP_DISP->start_delivery(mpi->mvi[1],
-				(mpi->mvi[1]->tx_prod - 1) & (MVS_CHIP_SLOT_SZ - 1));
-
-	list_del_init(&q);
-
-free_list:
-	if (mvs_list)
-		mvs_task_free_list(mvs_list);
-
-	return rc;
-}
-
-int mvs_queue_command(struct sas_task *task, const int num,
-			gfp_t gfp_flags)
-{
-	struct mvs_device *mvi_dev = task->dev->lldd_dev;
-	struct sas_ha_struct *sas = mvi_dev->mvi_info->sas;
-
-	if (sas->lldd_max_execute_num < 2)
-		return mvs_task_exec(task, num, gfp_flags, NULL, 0, NULL);
-	else
-		return mvs_collector_task_exec(task, num, gfp_flags, NULL, 0, NULL);
+	return mvs_task_exec(task, gfp_flags, NULL, 0, NULL);
 }
 
 static void mvs_slot_free(struct mvs_info *mvi, u32 rx_desc)
@@ -1411,7 +1310,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		task->slow_task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
-		res = mvs_task_exec(task, 1, GFP_KERNEL, NULL, 1, tmf);
+		res = mvs_task_exec(task, GFP_KERNEL, NULL, 1, tmf);
 
 		if (res) {
 			del_timer(&task->slow_task->timer);

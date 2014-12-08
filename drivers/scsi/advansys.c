@@ -7706,7 +7706,7 @@ advansys_narrow_slave_configure(struct scsi_device *sdev, ASC_DVC_VAR *asc_dvc)
 				asc_dvc->cfg->can_tagged_qng |= tid_bit;
 				asc_dvc->use_tagged_qng |= tid_bit;
 			}
-			scsi_adjust_queue_depth(sdev, 
+			scsi_change_queue_depth(sdev, 
 						asc_dvc->max_dvc_qng[sdev->id]);
 		}
 	} else {
@@ -7847,10 +7847,8 @@ advansys_wide_slave_configure(struct scsi_device *sdev, ADV_DVC_VAR *adv_dvc)
 		}
 	}
 
-	if ((adv_dvc->tagqng_able & tidmask) && sdev->tagged_supported) {
-		scsi_adjust_queue_depth(sdev,
-					adv_dvc->max_dvc_qng);
-	}
+	if ((adv_dvc->tagqng_able & tidmask) && sdev->tagged_supported)
+		scsi_change_queue_depth(sdev, adv_dvc->max_dvc_qng);
 }
 
 /*

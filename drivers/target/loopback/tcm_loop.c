@@ -110,31 +110,6 @@ static struct device_driver tcm_loop_driverfs = {
  */
 struct device *tcm_loop_primary;
 
-/*
- * Copied from drivers/scsi/libfc/fc_fcp.c:fc_change_queue_depth() and
- * drivers/scsi/libiscsi.c:iscsi_change_queue_depth()
- */
-static int tcm_loop_change_queue_depth(
-	struct scsi_device *sdev,
-	int depth,
-	int reason)
-{
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, depth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-	return sdev->queue_depth;
-}
-
 static void tcm_loop_submission_work(struct work_struct *work)
 {
 	struct tcm_loop_cmd *tl_cmd =
@@ -409,7 +384,7 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.proc_name		= "tcm_loopback",
 	.name			= "TCM_Loopback",
 	.queuecommand		= tcm_loop_queuecommand,
-	.change_queue_depth	= tcm_loop_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.change_queue_type	= scsi_change_queue_type,
 	.eh_abort_handler = tcm_loop_abort_task,
 	.eh_device_reset_handler = tcm_loop_device_reset,
@@ -423,6 +398,7 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.slave_alloc		= tcm_loop_slave_alloc,
 	.module			= THIS_MODULE,
 	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static int tcm_loop_driver_probe(struct device *dev)
