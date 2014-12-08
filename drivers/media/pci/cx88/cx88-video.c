@@ -440,6 +440,7 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 
 	*num_planes = 1;
 	sizes[0] = (dev->fmt->depth * core->width * core->height) >> 3;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -449,17 +450,12 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct cx88_core *core = dev->core;
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
-	int rc;
 
 	buf->bpl = core->width * dev->fmt->depth >> 3;
 
 	if (vb2_plane_size(vb, 0) < core->height * buf->bpl)
 		return -EINVAL;
 	vb2_set_plane_payload(vb, 0, core->height * buf->bpl);
-
-	rc = dma_map_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
-	if (!rc)
-		return -EIO;
 
 	switch (core->field) {
 	case V4L2_FIELD_TOP:
@@ -505,14 +501,11 @@ static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
-	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	struct cx88_riscmem *risc = &buf->risc;
 
 	if (risc->cpu)
 		pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
 	memset(risc, 0, sizeof(*risc));
-
-	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }
 
 static void buffer_queue(struct vb2_buffer *vb)
@@ -1345,6 +1338,12 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		err = -EIO;
 		goto fail_core;
 	}
+	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
+	if (IS_ERR(dev->alloc_ctx)) {
+		err = PTR_ERR(dev->alloc_ctx);
+		goto fail_core;
+	}
+
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);
@@ -1549,6 +1548,7 @@ fail_unreg:
 	free_irq(pci_dev->irq, dev);
 	mutex_unlock(&core->lock);
 fail_core:
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	core->v4ldev = NULL;
 	cx88_core_put(core,dev->pci);
 fail_free:
@@ -1582,6 +1582,7 @@ static void cx8800_finidev(struct pci_dev *pci_dev)
 
 	/* free memory */
 	cx88_core_put(core,dev->pci);
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	kfree(dev);
 }
 

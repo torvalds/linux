@@ -647,6 +647,7 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 	dev->ts_packet_size  = 188 * 4;
 	dev->ts_packet_count  = 32;
 	sizes[0] = dev->ts_packet_size * dev->ts_packet_count;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -662,14 +663,11 @@ static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct cx8802_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
-	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	struct cx88_riscmem *risc = &buf->risc;
 
 	if (risc->cpu)
 		pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
 	memset(risc, 0, sizeof(*risc));
-
-	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }
 
 static void buffer_queue(struct vb2_buffer *vb)

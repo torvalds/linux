@@ -235,10 +235,6 @@ int cx8802_buf_prepare(struct vb2_queue *q, struct cx8802_dev *dev,
 		return -EINVAL;
 	vb2_set_plane_payload(&buf->vb, 0, size);
 
-	rc = dma_map_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
-	if (!rc)
-		return -EIO;
-
 	rc = cx88_risc_databuffer(dev->pci, risc, sgt->sgl,
 			     dev->ts_packet_size, dev->ts_packet_count, 0);
 	if (rc) {
@@ -733,6 +729,11 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 	if (NULL == dev)
 		goto fail_core;
 	dev->pci = pci_dev;
+	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
+	if (IS_ERR(dev->alloc_ctx)) {
+		err = PTR_ERR(dev->alloc_ctx);
+		goto fail_core;
+	}
 	dev->core = core;
 
 	/* Maintain a reference so cx88-video can query the 8802 device. */
@@ -752,6 +753,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 	return 0;
 
  fail_free:
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	kfree(dev);
  fail_core:
 	core->dvbdev = NULL;
@@ -798,6 +800,7 @@ static void cx8802_remove(struct pci_dev *pci_dev)
 	/* common */
 	cx8802_fini_common(dev);
 	cx88_core_put(dev->core,dev->pci);
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	kfree(dev);
 }
 
