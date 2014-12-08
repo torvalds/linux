@@ -1409,6 +1409,27 @@ static void topctrl_flush(struct bcm_sysport_priv *priv)
 	topctrl_writel(priv, 0, TX_FLUSH_CNTL);
 }
 
+static int bcm_sysport_change_mac(struct net_device *dev, void *p)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+
+	/* interface is disabled, changes to MAC will be reflected on next
+	 * open call
+	 */
+	if (!netif_running(dev))
+		return 0;
+
+	umac_set_hw_addr(priv, dev->dev_addr);
+
+	return 0;
+}
+
 static void bcm_sysport_netif_start(struct net_device *dev)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -1628,6 +1649,7 @@ static const struct net_device_ops bcm_sysport_netdev_ops = {
 	.ndo_stop		= bcm_sysport_stop,
 	.ndo_set_features	= bcm_sysport_set_features,
 	.ndo_set_rx_mode	= bcm_sysport_set_rx_mode,
+	.ndo_set_mac_address	= bcm_sysport_change_mac,
 };
 
 #define REV_FMT	"v%2x.%02x"
