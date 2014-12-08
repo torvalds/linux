@@ -38,6 +38,11 @@ are located at offsets 0xbf8 and 0xbfc
 	Value type:	<prop-encoded-array>
 	Definition:	Standard property. The error interrupt
 
+- fsl,qman-portals
+	Usage:		Required
+	Value type:	<phandle>
+	Definition:	Phandle to this QMan instance's portals
+
 - fsl,liodn
 	Usage:		See pamu.txt
 	Value type:	<prop-encoded-array>
@@ -127,6 +132,10 @@ The example below shows a QMan FQD and a PFDR dynamic allocation memory nodes
 
 The example below shows a (P4080) QMan CCSR-space node
 
+	qportals: qman-portals@ff4200000 {
+		...
+	};
+
 	clockgen: global-utilities@e1000 {
 		...
 		sysclk: sysclk {
@@ -154,6 +163,7 @@ The example below shows a (P4080) QMan CCSR-space node
 		reg = <0x318000 0x1000>;
 		interrupts = <16 2 1 3>
 		fsl,liodn = <0x16>;
+		fsl,qman-portals = <&qportals>;
 		memory-region = <&qman_fqd &qman_pfdr>;
 		clocks = <&platform_pll 1>;
 	};
