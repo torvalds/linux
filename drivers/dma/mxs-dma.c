@@ -281,7 +281,7 @@ static void mxs_dma_disable_chan(struct dma_chan *chan)
 	mxs_chan->status = DMA_COMPLETE;
 }
 
-static void mxs_dma_pause_chan(struct dma_chan *chan)
+static int mxs_dma_pause_chan(struct dma_chan *chan)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
@@ -296,9 +296,10 @@ static void mxs_dma_pause_chan(struct dma_chan *chan)
 			mxs_dma->base + HW_APBHX_CHANNEL_CTRL + STMP_OFFSET_REG_SET);
 
 	mxs_chan->status = DMA_PAUSED;
+	return 0;
 }
 
-static void mxs_dma_resume_chan(struct dma_chan *chan)
+static int mxs_dma_resume_chan(struct dma_chan *chan)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
@@ -313,6 +314,7 @@ static void mxs_dma_resume_chan(struct dma_chan *chan)
 			mxs_dma->base + HW_APBHX_CHANNEL_CTRL + STMP_OFFSET_REG_CLR);
 
 	mxs_chan->status = DMA_IN_PROGRESS;
+	return 0;
 }
 
 static dma_cookie_t mxs_dma_tx_submit(struct dma_async_tx_descriptor *tx)
