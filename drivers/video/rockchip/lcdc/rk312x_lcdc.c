@@ -258,7 +258,7 @@ static void rk_lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	for (reg = 0; reg < 0xe0; reg += 4) {
-		val = lcdc_readl(lcdc_dev, reg);
+		val = lcdc_readl_backup(lcdc_dev, reg);
 		if (reg == WIN0_ACT_INFO) {
 			win0->area[0].xact = (val & m_ACT_WIDTH)+1;
 			win0->area[0].yact = ((val & m_ACT_HEIGHT)>>16)+1;
@@ -1057,7 +1057,8 @@ static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 		if (dev_drv->output_color == COLOR_RGB) {
 			/* bypass */
 			bcsh_ctrl = lcdc_readl(lcdc_dev, BCSH_CTRL);
-			if ((bcsh_ctrl&m_BCSH_EN) == 1)/*bcsh enabled*/
+			if (((bcsh_ctrl&m_BCSH_EN) == 1) ||
+				(dev_drv->bcsh.enable == 1))/*bcsh enabled*/
 				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
 				     	m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
 				     	v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
@@ -2008,7 +2009,6 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	}
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
-		rk312x_lcdc_select_bcsh(dev_drv,  lcdc_dev);
 		if (open) {
 			lcdc_msk_reg(lcdc_dev,
 				     BCSH_CTRL, m_BCSH_EN | m_BCSH_OUT_MODE,
@@ -2018,11 +2018,14 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 				    v_BCSH_CONTRAST(0x80) |
 				    v_BCSH_SAT_CON(0x80));
 			lcdc_writel(lcdc_dev, BCSH_H, v_BCSH_COS_HUE(0x80));
+			dev_drv->bcsh.enable = 1;
 		} else {
 			mask = m_BCSH_EN;
 			val = v_BCSH_EN(0);
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL, mask, val);
+			dev_drv->bcsh.enable = 0;
 		}
+		rk312x_lcdc_select_bcsh(dev_drv,  lcdc_dev);
 		lcdc_cfg_done(lcdc_dev);
 	}
 
