@@ -127,15 +127,12 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int mioa701_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	unsigned short reg;
 
 	/* Prepare GPIO8 for rear speaker amplifier */
-	reg = codec->driver->read(codec, AC97_GPIO_CFG);
-	codec->driver->write(codec, AC97_GPIO_CFG, reg | 0x0100);
+	snd_soc_update_bits(codec, AC97_GPIO_CFG, 0x100, 0x100);
 
 	/* Prepare MIC input */
-	reg = codec->driver->read(codec, AC97_3D_CONTROL);
-	codec->driver->write(codec, AC97_3D_CONTROL, reg | 0xc000);
+	snd_soc_update_bits(codec, AC97_3D_CONTROL, 0xc000, 0xc000);
 
 	return 0;
 }

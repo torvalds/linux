@@ -1486,7 +1486,6 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 {
 	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
 
 	wm8993->hubs_data.hp_startup_mode = 1;
 	wm8993->hubs_data.dcs_codes_l = -2;
@@ -1518,10 +1517,6 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 				      wm8993->pdata.micbias1_lvl,
 				      wm8993->pdata.micbias2_lvl);
 
-	ret = wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	if (ret != 0)
-		return ret;
-
 	snd_soc_add_codec_controls(codec, wm8993_snd_controls,
 			     ARRAY_SIZE(wm8993_snd_controls));
 	if (wm8993->pdata.num_retune_configs != 0) {
@@ -1548,12 +1543,6 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 
 	return 0;
 
-}
-
-static int wm8993_remove(struct snd_soc_codec *codec)
-{
-	wm8993_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1629,7 +1618,6 @@ static const struct regmap_config wm8993_regmap = {
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8993 = {
 	.probe = 	wm8993_probe,
-	.remove = 	wm8993_remove,
 	.suspend =	wm8993_suspend,
 	.resume =	wm8993_resume,
 	.set_bias_level = wm8993_set_bias_level,

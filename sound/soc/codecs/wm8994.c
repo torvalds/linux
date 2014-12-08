@@ -4391,8 +4391,6 @@ static int wm8994_codec_remove(struct snd_soc_codec *codec)
 	struct wm8994 *control = wm8994->wm8994;
 	int i;
 
-	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
 		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FLL1_LOCK + i,
 				&wm8994->fll_locked[i]);
@@ -4456,6 +4454,8 @@ static int wm8994_probe(struct platform_device *pdev)
 	if (wm8994 == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8994);
+
+	mutex_init(&wm8994->fw_lock);
 
 	wm8994->wm8994 = dev_get_drvdata(pdev->dev.parent);
 

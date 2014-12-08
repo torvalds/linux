@@ -465,6 +465,7 @@ static void mc_bp_resume(void)
 
 	if (uci->valid && uci->mc)
 		microcode_ops->apply_microcode(cpu);
+#ifdef CONFIG_X86_64
 	else if (!uci->mc)
 		/*
 		 * We might resume and not have applied late microcode but still
@@ -473,6 +474,7 @@ static void mc_bp_resume(void)
 		 * applying patches early on the APs.
 		 */
 		load_ucode_ap();
+#endif
 }
 
 static struct syscore_ops mc_syscore_ops = {

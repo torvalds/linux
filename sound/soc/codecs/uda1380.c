@@ -693,18 +693,6 @@ static struct snd_soc_dai_driver uda1380_dai[] = {
 },
 };
 
-static int uda1380_suspend(struct snd_soc_codec *codec)
-{
-	uda1380_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int uda1380_resume(struct snd_soc_codec *codec)
-{
-	uda1380_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int uda1380_probe(struct snd_soc_codec *codec)
 {
 	struct uda1380_platform_data *pdata =codec->dev->platform_data;
@@ -739,8 +727,6 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 
 	INIT_WORK(&uda1380->work, uda1380_flush_work);
 
-	/* power on device */
-	uda1380_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	/* set clock input */
 	switch (pdata->dac_clk) {
 	case UDA1380_DAC_CLK_SYSCLK:
@@ -766,8 +752,6 @@ static int uda1380_remove(struct snd_soc_codec *codec)
 {
 	struct uda1380_platform_data *pdata =codec->dev->platform_data;
 
-	uda1380_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	gpio_free(pdata->gpio_reset);
 	gpio_free(pdata->gpio_power);
 
@@ -777,11 +761,11 @@ static int uda1380_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 	.probe =	uda1380_probe,
 	.remove =	uda1380_remove,
-	.suspend =	uda1380_suspend,
-	.resume =	uda1380_resume,
 	.read =		uda1380_read_reg_cache,
 	.write =	uda1380_write,
 	.set_bias_level = uda1380_set_bias_level,
+	.suspend_bias_off = true,
+
 	.reg_cache_size = ARRAY_SIZE(uda1380_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = uda1380_reg,

@@ -598,6 +598,7 @@ struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
 
 	return pool;
 }
+EXPORT_SYMBOL(devm_gen_pool_create);
 
 /**
  * dev_get_gen_pool - Obtain the gen_pool (if any) for a device

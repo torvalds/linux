@@ -153,15 +153,17 @@ static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 static int cs42l51_pdn_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(w->codec, CS42L51_POWER_CTL1,
+		snd_soc_update_bits(codec, CS42L51_POWER_CTL1,
 				    CS42L51_POWER_CTL1_PDN,
 				    CS42L51_POWER_CTL1_PDN);
 		break;
 	default:
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(w->codec, CS42L51_POWER_CTL1,
+		snd_soc_update_bits(codec, CS42L51_POWER_CTL1,
 				    CS42L51_POWER_CTL1_PDN, 0);
 		break;
 	}

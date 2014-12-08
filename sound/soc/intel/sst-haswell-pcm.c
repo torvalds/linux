@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <sound/core.h>
@@ -73,6 +74,13 @@ static const u32 volume_map[] = {
 #define HSW_PCM_PERIODS_MAX	64
 #define HSW_PCM_PERIODS_MIN	2
 
+#define HSW_PCM_DAI_ID_SYSTEM	0
+#define HSW_PCM_DAI_ID_OFFLOAD0	1
+#define HSW_PCM_DAI_ID_OFFLOAD1	2
+#define HSW_PCM_DAI_ID_LOOPBACK	3
+#define HSW_PCM_DAI_ID_CAPTURE	4
+
+
 static const struct snd_pcm_hardware hsw_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -89,22 +97,39 @@ static const struct snd_pcm_hardware hsw_pcm_hardware = {
 	.buffer_bytes_max	= HSW_PCM_PERIODS_MAX * PAGE_SIZE,
 };
 
+struct hsw_pcm_module_map {
+	int dai_id;
+	enum sst_hsw_module_id mod_id;
+};
+
 /* private data for each PCM DSP stream */
 struct hsw_pcm_data {
 	int dai_id;
 	struct sst_hsw_stream *stream;
+	struct sst_module_runtime *runtime;
+	struct sst_module_runtime_context context;
+	struct snd_pcm *hsw_pcm;
 	u32 volume[2];
 	struct snd_pcm_substream *substream;
 	struct snd_compr_stream *cstream;
 	unsigned int wpos;
 	struct mutex mutex;
 	bool allocated;
+	int persistent_offset;
+};
+
+enum hsw_pm_state {
+	HSW_PM_STATE_D3 = 0,
+	HSW_PM_STATE_D0 = 1,
 };
 
 /* private data for the driver */
 struct hsw_priv_data {
 	/* runtime DSP */
 	struct sst_hsw *hsw;
+	struct device *dev;
+	enum hsw_pm_state pm_state;
+	struct snd_soc_card *soc_card;
 
 	/* page tables */
 	struct snd_dma_buffer dmab[HSW_PCM_COUNT][2];
@@ -138,21 +163,25 @@ static inline unsigned int hsw_ipc_to_mixer(u32 value)
 static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
-	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
+	struct hsw_priv_data *pdata =
+		snd_soc_platform_get_drvdata(platform);
 	struct hsw_pcm_data *pcm_data = &pdata->pcm[mc->reg];
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
 
 	mutex_lock(&pcm_data->mutex);
+	pm_runtime_get_sync(pdata->dev);
 
 	if (!pcm_data->stream) {
 		pcm_data->volume[0] =
 			hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
 		pcm_data->volume[1] =
 			hsw_mixer_to_ipc(ucontrol->value.integer.value[1]);
+		pm_runtime_mark_last_busy(pdata->dev);
+		pm_runtime_put_autosuspend(pdata->dev);
 		mutex_unlock(&pcm_data->mutex);
 		return 0;
 	}
@@ -160,7 +189,8 @@ static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.integer.value[0] ==
 		ucontrol->value.integer.value[1]) {
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
-		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0, 2, volume);
+		/* apply volume value to all channels */
+		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0, SST_HSW_CHANNELS_ALL, volume);
 	} else {
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
 		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0, 0, volume);
@@ -168,6 +198,8 @@ static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0, 1, volume);
 	}
 
+	pm_runtime_mark_last_busy(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 	mutex_unlock(&pcm_data->mutex);
 	return 0;
 }
@@ -175,21 +207,25 @@ static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
-	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
+	struct hsw_priv_data *pdata =
+		snd_soc_platform_get_drvdata(platform);
 	struct hsw_pcm_data *pcm_data = &pdata->pcm[mc->reg];
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
 
 	mutex_lock(&pcm_data->mutex);
+	pm_runtime_get_sync(pdata->dev);
 
 	if (!pcm_data->stream) {
 		ucontrol->value.integer.value[0] =
 			hsw_ipc_to_mixer(pcm_data->volume[0]);
 		ucontrol->value.integer.value[1] =
 			hsw_ipc_to_mixer(pcm_data->volume[1]);
+		pm_runtime_mark_last_busy(pdata->dev);
+		pm_runtime_put_autosuspend(pdata->dev);
 		mutex_unlock(&pcm_data->mutex);
 		return 0;
 	}
@@ -198,6 +234,9 @@ static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[0] = hsw_ipc_to_mixer(volume);
 	sst_hsw_stream_get_volume(hsw, pcm_data->stream, 0, 1, &volume);
 	ucontrol->value.integer.value[1] = hsw_ipc_to_mixer(volume);
+
+	pm_runtime_mark_last_busy(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 	mutex_unlock(&pcm_data->mutex);
 
 	return 0;
@@ -206,16 +245,18 @@ static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 static int hsw_volume_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
-	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
+
+	pm_runtime_get_sync(pdata->dev);
 
 	if (ucontrol->value.integer.value[0] ==
 		ucontrol->value.integer.value[1]) {
 
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
-		sst_hsw_mixer_set_volume(hsw, 0, 2, volume);
+		sst_hsw_mixer_set_volume(hsw, 0, SST_HSW_CHANNELS_ALL, volume);
 
 	} else {
 		volume = hsw_mixer_to_ipc(ucontrol->value.integer.value[0]);
@@ -225,23 +266,28 @@ static int hsw_volume_put(struct snd_kcontrol *kcontrol,
 		sst_hsw_mixer_set_volume(hsw, 0, 1, volume);
 	}
 
+	pm_runtime_mark_last_busy(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 	return 0;
 }
 
 static int hsw_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
-	struct hsw_priv_data *pdata = snd_soc_component_get_drvdata(cmpnt);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
 	struct sst_hsw *hsw = pdata->hsw;
 	unsigned int volume = 0;
 
+	pm_runtime_get_sync(pdata->dev);
 	sst_hsw_mixer_get_volume(hsw, 0, 0, &volume);
 	ucontrol->value.integer.value[0] = hsw_ipc_to_mixer(volume);
 
 	sst_hsw_mixer_get_volume(hsw, 0, 1, &volume);
 	ucontrol->value.integer.value[1] = hsw_ipc_to_mixer(volume);
 
+	pm_runtime_mark_last_busy(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 	return 0;
 }
 
@@ -252,23 +298,19 @@ static const DECLARE_TLV_DB_SCALE(hsw_vol_tlv, -9000, 300, 1);
 static const struct snd_kcontrol_new hsw_volume_controls[] = {
 	/* Global DSP volume */
 	SOC_DOUBLE_EXT_TLV("Master Playback Volume", 0, 0, 8,
-		ARRAY_SIZE(volume_map) -1, 0,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_volume_get, hsw_volume_put, hsw_vol_tlv),
 	/* Offload 0 volume */
 	SOC_DOUBLE_EXT_TLV("Media0 Playback Volume", 1, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 	/* Offload 1 volume */
 	SOC_DOUBLE_EXT_TLV("Media1 Playback Volume", 2, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
-		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
-	/* Loopback volume */
-	SOC_DOUBLE_EXT_TLV("Loopback Capture Volume", 3, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 	/* Mic Capture volume */
-	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 4, 0, 8,
-		ARRAY_SIZE(volume_map), 0,
+	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 0, 0, 8,
+		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 };
 
@@ -354,8 +396,14 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 	/* DSP stream type depends on DAI ID */
 	switch (rtd->cpu_dai->id) {
 	case 0:
-		stream_type = SST_HSW_STREAM_TYPE_SYSTEM;
-		module_id = SST_HSW_MODULE_PCM_SYSTEM;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			stream_type = SST_HSW_STREAM_TYPE_SYSTEM;
+			module_id = SST_HSW_MODULE_PCM_SYSTEM;
+		}
+		else {
+			stream_type = SST_HSW_STREAM_TYPE_CAPTURE;
+			module_id = SST_HSW_MODULE_PCM_CAPTURE;
+		}
 		break;
 	case 1:
 	case 2:
@@ -367,10 +415,6 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		stream_type = SST_HSW_STREAM_TYPE_LOOPBACK;
 		path_id = SST_HSW_STREAM_PATH_SSP0_OUT;
 		module_id = SST_HSW_MODULE_PCM_REFERENCE;
-		break;
-	case 4:
-		stream_type = SST_HSW_STREAM_TYPE_CAPTURE;
-		module_id = SST_HSW_MODULE_PCM_CAPTURE;
 		break;
 	default:
 		dev_err(rtd->dev, "error: invalid DAI ID %d\n",
@@ -421,13 +465,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* we only support stereo atm */
 	channels = params_channels(params);
-	if (channels != 2) {
-		dev_err(rtd->dev, "error: invalid channels %d\n", channels);
-		return -EINVAL;
-	}
-
 	map = create_channel_map(SST_HSW_CHANNEL_CONFIG_STEREO);
 	sst_hsw_stream_set_map_config(hsw, pcm_data->stream,
 			map, SST_HSW_CHANNEL_CONFIG_STEREO);
@@ -478,35 +516,23 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	/* we use hardcoded memory offsets atm, will be updated for new FW */
-	if (stream_type == SST_HSW_STREAM_TYPE_CAPTURE) {
-		sst_hsw_stream_set_module_info(hsw, pcm_data->stream,
-			SST_HSW_MODULE_PCM_CAPTURE, module_data->entry);
-		sst_hsw_stream_set_pmemory_info(hsw, pcm_data->stream,
-			0x449400, 0x4000);
-		sst_hsw_stream_set_smemory_info(hsw, pcm_data->stream,
-			0x400000, 0);
-	} else { /* stream_type == SST_HSW_STREAM_TYPE_SYSTEM */
-		sst_hsw_stream_set_module_info(hsw, pcm_data->stream,
-			SST_HSW_MODULE_PCM_SYSTEM, module_data->entry);
-
-		sst_hsw_stream_set_pmemory_info(hsw, pcm_data->stream,
-			module_data->offset, module_data->size);
-		sst_hsw_stream_set_pmemory_info(hsw, pcm_data->stream,
-			0x44d400, 0x3800);
-
-		sst_hsw_stream_set_smemory_info(hsw, pcm_data->stream,
-			module_data->offset, module_data->size);
-		sst_hsw_stream_set_smemory_info(hsw, pcm_data->stream,
-			0x400000, 0);
-	}
+	sst_hsw_stream_set_module_info(hsw, pcm_data->stream,
+		pcm_data->runtime);
 
 	ret = sst_hsw_stream_commit(hsw, pcm_data->stream);
 	if (ret < 0) {
 		dev_err(rtd->dev, "error: failed to commit stream %d\n", ret);
 		return ret;
 	}
-	pcm_data->allocated = true;
+
+	if (!pcm_data->allocated) {
+		/* Set previous saved volume */
+		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
+				0, pcm_data->volume[0]);
+		sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
+				1, pcm_data->volume[1]);
+		pcm_data->allocated = true;
+	}
 
 	ret = sst_hsw_stream_pause(hsw, pcm_data->stream, 1);
 	if (ret < 0)
@@ -558,7 +584,7 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 	pos = frames_to_bytes(runtime,
 		(runtime->control->appl_ptr % runtime->buffer_size));
 
-	dev_dbg(rtd->dev, "PCM: App pointer %d bytes\n", pos);
+	dev_vdbg(rtd->dev, "PCM: App pointer %d bytes\n", pos);
 
 	/* let alsa know we have play a period */
 	snd_pcm_period_elapsed(substream);
@@ -580,7 +606,7 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_pcm_substream *substream)
 	offset = bytes_to_frames(runtime, position);
 	ppos = sst_hsw_get_dsp_presentation_position(hsw, pcm_data->stream);
 
-	dev_dbg(rtd->dev, "PCM: DMA pointer %du bytes, pos %llu\n",
+	dev_vdbg(rtd->dev, "PCM: DMA pointer %du bytes, pos %llu\n",
 		position, ppos);
 	return offset;
 }
@@ -596,6 +622,7 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 	pcm_data = &pdata->pcm[rtd->cpu_dai->id];
 
 	mutex_lock(&pcm_data->mutex);
+	pm_runtime_get_sync(pdata->dev);
 
 	snd_soc_pcm_set_drvdata(rtd, pcm_data);
 	pcm_data->substream = substream;
@@ -606,15 +633,11 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 		hsw_notify_pointer, pcm_data);
 	if (pcm_data->stream == NULL) {
 		dev_err(rtd->dev, "error: failed to create stream\n");
+		pm_runtime_mark_last_busy(pdata->dev);
+		pm_runtime_put_autosuspend(pdata->dev);
 		mutex_unlock(&pcm_data->mutex);
 		return -EINVAL;
 	}
-
-	/* Set previous saved volume */
-	sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
-			0, pcm_data->volume[0]);
-	sst_hsw_stream_set_volume(hsw, pcm_data->stream, 0,
-			1, pcm_data->volume[1]);
 
 	mutex_unlock(&pcm_data->mutex);
 	return 0;
@@ -645,6 +668,8 @@ static int hsw_pcm_close(struct snd_pcm_substream *substream)
 	pcm_data->stream = NULL;
 
 out:
+	pm_runtime_mark_last_busy(pdata->dev);
+	pm_runtime_put_autosuspend(pdata->dev);
 	mutex_unlock(&pcm_data->mutex);
 	return ret;
 }
@@ -660,6 +685,56 @@ static struct snd_pcm_ops hsw_pcm_ops = {
 	.page		= snd_pcm_sgbuf_ops_page,
 };
 
+/* static mappings between PCMs and modules - may be dynamic in future */
+static struct hsw_pcm_module_map mod_map[] = {
+	{HSW_PCM_DAI_ID_SYSTEM, SST_HSW_MODULE_PCM_SYSTEM},
+	{HSW_PCM_DAI_ID_OFFLOAD0, SST_HSW_MODULE_PCM},
+	{HSW_PCM_DAI_ID_OFFLOAD1, SST_HSW_MODULE_PCM},
+	{HSW_PCM_DAI_ID_LOOPBACK, SST_HSW_MODULE_PCM_REFERENCE},
+	{HSW_PCM_DAI_ID_CAPTURE, SST_HSW_MODULE_PCM_CAPTURE},
+};
+
+static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
+{
+	struct sst_hsw *hsw = pdata->hsw;
+	struct hsw_pcm_data *pcm_data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
+		pcm_data = &pdata->pcm[i];
+
+		/* create new runtime module, use same offset if recreated */
+		pcm_data->runtime = sst_hsw_runtime_module_create(hsw,
+			mod_map[i].mod_id, pcm_data->persistent_offset);
+		if (pcm_data->runtime == NULL)
+			goto err;
+		pcm_data->persistent_offset =
+			pcm_data->runtime->persistent_offset;
+	}
+
+	return 0;
+
+err:
+	for (--i; i >= 0; i--) {
+		pcm_data = &pdata->pcm[i];
+		sst_hsw_runtime_module_free(pcm_data->runtime);
+	}
+
+	return -ENODEV;
+}
+
+static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
+{
+	struct hsw_pcm_data *pcm_data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
+		pcm_data = &pdata->pcm[i];
+
+		sst_hsw_runtime_module_free(pcm_data->runtime);
+	}
+}
+
 static void hsw_pcm_free(struct snd_pcm *pcm)
 {
 	snd_pcm_lib_preallocate_free_for_all(pcm);
@@ -670,6 +745,7 @@ static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_pcm *pcm = rtd->pcm;
 	struct snd_soc_platform *platform = rtd->platform;
 	struct sst_pdata *pdata = dev_get_platdata(platform->dev);
+	struct hsw_priv_data *priv_data = dev_get_drvdata(platform->dev);
 	struct device *dev = pdata->dma_dev;
 	int ret = 0;
 
@@ -686,6 +762,7 @@ static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			return ret;
 		}
 	}
+	priv_data->pcm[rtd->cpu_dai->id].hsw_pcm = pcm;
 
 	return ret;
 }
@@ -696,6 +773,7 @@ static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_driver hsw_dais[] = {
 	{
 		.name  = "System Pin",
+		.id = HSW_PCM_DAI_ID_SYSTEM,
 		.playback = {
 			.stream_name = "System Playback",
 			.channels_min = 2,
@@ -703,10 +781,18 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 			.rates = SNDRV_PCM_RATE_48000,
 			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
+		.capture = {
+			.stream_name = "Analog Capture",
+			.channels_min = 2,
+			.channels_max = 4,
+			.rates = SNDRV_PCM_RATE_48000,
+			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
+		},
 	},
 	{
 		/* PCM */
 		.name  = "Offload0 Pin",
+		.id = HSW_PCM_DAI_ID_OFFLOAD0,
 		.playback = {
 			.stream_name = "Offload0 Playback",
 			.channels_min = 2,
@@ -718,6 +804,7 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 	{
 		/* PCM */
 		.name  = "Offload1 Pin",
+		.id = HSW_PCM_DAI_ID_OFFLOAD1,
 		.playback = {
 			.stream_name = "Offload1 Playback",
 			.channels_min = 2,
@@ -728,18 +815,9 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 	},
 	{
 		.name  = "Loopback Pin",
+		.id = HSW_PCM_DAI_ID_LOOPBACK,
 		.capture = {
 			.stream_name = "Loopback Capture",
-			.channels_min = 2,
-			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_48000,
-			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
-		},
-	},
-	{
-		.name  = "Capture Pin",
-		.capture = {
-			.stream_name = "Analog Capture",
 			.channels_min = 2,
 			.channels_max = 2,
 			.rates = SNDRV_PCM_RATE_48000,
@@ -776,8 +854,19 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 {
 	struct hsw_priv_data *priv_data = snd_soc_platform_get_drvdata(platform);
 	struct sst_pdata *pdata = dev_get_platdata(platform->dev);
-	struct device *dma_dev = pdata->dma_dev;
+	struct device *dma_dev, *dev;
 	int i, ret = 0;
+
+	if (!pdata)
+		return -ENODEV;
+
+	dev = platform->dev;
+	dma_dev = pdata->dma_dev;
+
+	priv_data->hsw = pdata->dsp;
+	priv_data->dev = platform->dev;
+	priv_data->pm_state = HSW_PM_STATE_D0;
+	priv_data->soc_card = platform->component.card;
 
 	/* allocate DSP buffer page tables */
 	for (i = 0; i < ARRAY_SIZE(hsw_dais); i++) {
@@ -801,6 +890,16 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 		}
 	}
 
+	/* allocate runtime modules */
+	hsw_pcm_create_modules(priv_data);
+
+	/* enable runtime PM with auto suspend */
+	pm_runtime_set_autosuspend_delay(platform->dev,
+		SST_RUNTIME_SUSPEND_DELAY);
+	pm_runtime_use_autosuspend(platform->dev);
+	pm_runtime_enable(platform->dev);
+	pm_runtime_idle(platform->dev);
+
 	return 0;
 
 err:
@@ -818,6 +917,9 @@ static int hsw_pcm_remove(struct snd_soc_platform *platform)
 	struct hsw_priv_data *priv_data =
 		snd_soc_platform_get_drvdata(platform);
 	int i;
+
+	pm_runtime_disable(platform->dev);
+	hsw_pcm_free_modules(priv_data);
 
 	for (i = 0; i < ARRAY_SIZE(hsw_dais); i++) {
 		if (hsw_dais[i].playback.channels_min)
@@ -896,10 +998,181 @@ static int hsw_pcm_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+
+static int hsw_pcm_runtime_idle(struct device *dev)
+{
+	return 0;
+}
+
+static int hsw_pcm_runtime_suspend(struct device *dev)
+{
+	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
+	struct sst_hsw *hsw = pdata->hsw;
+
+	if (pdata->pm_state == HSW_PM_STATE_D3)
+		return 0;
+
+	sst_hsw_dsp_runtime_suspend(hsw);
+	sst_hsw_dsp_runtime_sleep(hsw);
+	pdata->pm_state = HSW_PM_STATE_D3;
+
+	return 0;
+}
+
+static int hsw_pcm_runtime_resume(struct device *dev)
+{
+	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
+	struct sst_hsw *hsw = pdata->hsw;
+	int ret;
+
+	if (pdata->pm_state == HSW_PM_STATE_D0)
+		return 0;
+
+	ret = sst_hsw_dsp_load(hsw);
+	if (ret < 0) {
+		dev_err(dev, "failed to reload %d\n", ret);
+		return ret;
+	}
+
+	ret = hsw_pcm_create_modules(pdata);
+	if (ret < 0) {
+		dev_err(dev, "failed to create modules %d\n", ret);
+		return ret;
+	}
+
+	ret = sst_hsw_dsp_runtime_resume(hsw);
+	if (ret < 0)
+		return ret;
+	else if (ret == 1) /* no action required */
+		return 0;
+
+	pdata->pm_state = HSW_PM_STATE_D0;
+	return ret;
+}
+
+#else
+#define hsw_pcm_runtime_idle		NULL
+#define hsw_pcm_runtime_suspend		NULL
+#define hsw_pcm_runtime_resume		NULL
+#endif
+
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PM_RUNTIME)
+
+static void hsw_pcm_complete(struct device *dev)
+{
+	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
+	struct sst_hsw *hsw = pdata->hsw;
+	struct hsw_pcm_data *pcm_data;
+	int i, err;
+
+	if (pdata->pm_state == HSW_PM_STATE_D0)
+		return;
+
+	err = sst_hsw_dsp_load(hsw);
+	if (err < 0) {
+		dev_err(dev, "failed to reload %d\n", err);
+		return;
+	}
+
+	err = hsw_pcm_create_modules(pdata);
+	if (err < 0) {
+		dev_err(dev, "failed to create modules %d\n", err);
+		return;
+	}
+
+	for (i = 0; i < HSW_PCM_DAI_ID_CAPTURE + 1; i++) {
+		pcm_data = &pdata->pcm[i];
+
+		if (!pcm_data->substream)
+			continue;
+
+		err = sst_module_runtime_restore(pcm_data->runtime,
+			&pcm_data->context);
+		if (err < 0)
+			dev_err(dev, "failed to restore context for PCM %d\n", i);
+	}
+
+	snd_soc_resume(pdata->soc_card->dev);
+
+	err = sst_hsw_dsp_runtime_resume(hsw);
+	if (err < 0)
+		return;
+	else if (err == 1) /* no action required */
+		return;
+
+	pdata->pm_state = HSW_PM_STATE_D0;
+	return;
+}
+
+static int hsw_pcm_prepare(struct device *dev)
+{
+	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
+	struct sst_hsw *hsw = pdata->hsw;
+	struct hsw_pcm_data *pcm_data;
+	int i, err;
+
+	if (pdata->pm_state == HSW_PM_STATE_D3)
+		return 0;
+	/* suspend all active streams */
+	for (i = 0; i < HSW_PCM_DAI_ID_CAPTURE + 1; i++) {
+		pcm_data = &pdata->pcm[i];
+
+		if (!pcm_data->substream)
+			continue;
+		dev_dbg(dev, "suspending pcm %d\n", i);
+		snd_pcm_suspend_all(pcm_data->hsw_pcm);
+
+		/* We need to wait until the DSP FW stops the streams */
+		msleep(2);
+	}
+
+	snd_soc_suspend(pdata->soc_card->dev);
+	snd_soc_poweroff(pdata->soc_card->dev);
+
+	/* enter D3 state and stall */
+	sst_hsw_dsp_runtime_suspend(hsw);
+
+	/* preserve persistent memory */
+	for (i = 0; i < HSW_PCM_DAI_ID_CAPTURE + 1; i++) {
+		pcm_data = &pdata->pcm[i];
+
+		if (!pcm_data->substream)
+			continue;
+
+		dev_dbg(dev, "saving context pcm %d\n", i);
+		err = sst_module_runtime_save(pcm_data->runtime,
+			&pcm_data->context);
+		if (err < 0)
+			dev_err(dev, "failed to save context for PCM %d\n", i);
+	}
+
+	/* put the DSP to sleep */
+	sst_hsw_dsp_runtime_sleep(hsw);
+	pdata->pm_state = HSW_PM_STATE_D3;
+
+	return 0;
+}
+
+#else
+#define hsw_pcm_prepare		NULL
+#define hsw_pcm_complete	NULL
+#endif
+
+static const struct dev_pm_ops hsw_pcm_pm = {
+	.runtime_idle = hsw_pcm_runtime_idle,
+	.runtime_suspend = hsw_pcm_runtime_suspend,
+	.runtime_resume = hsw_pcm_runtime_resume,
+	.prepare = hsw_pcm_prepare,
+	.complete = hsw_pcm_complete,
+};
+
 static struct platform_driver hsw_pcm_driver = {
 	.driver = {
 		.name = "haswell-pcm-audio",
 		.owner = THIS_MODULE,
+		.pm = &hsw_pcm_pm,
+
 	},
 
 	.probe = hsw_pcm_dev_probe,

@@ -773,7 +773,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 
 	saif->dev = &pdev->dev;
 	ret = devm_request_irq(&pdev->dev, saif->irq, mxs_saif_irq, 0,
-			       "mxs-saif", saif);
+			       dev_name(&pdev->dev), saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ret;

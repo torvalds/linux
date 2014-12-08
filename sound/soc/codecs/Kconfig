@@ -50,7 +50,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42L73 if I2C
 	select SND_SOC_CS4265 if I2C
 	select SND_SOC_CS4270 if I2C
-	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_CS4271_I2C if I2C
+	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if I2C
@@ -85,7 +86,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5645 if I2C
 	select SND_SOC_RT5651 if I2C
 	select SND_SOC_RT5670 if I2C
-	select SND_SOC_RT5677 if I2C
+	select SND_SOC_RT5677 if I2C && SPI_MASTER
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIRF_AUDIO_CODEC
@@ -101,6 +102,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TAS2552 if I2C
 	select SND_SOC_TAS5086 if I2C
+	select SND_SOC_TFA9879 if I2C
 	select SND_SOC_TLV320AIC23_I2C if I2C
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
@@ -109,6 +111,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
+	select SND_SOC_TS3A227E if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_TWL6040 if TWL6040_CORE
 	select SND_SOC_UDA134X
@@ -223,6 +226,7 @@ config SND_SOC_AD193X_I2C
 	select SND_SOC_AD193X
 
 config SND_SOC_AD1980
+	select REGMAP_AC97
 	tristate
 
 config SND_SOC_AD73311
@@ -336,7 +340,8 @@ config SND_SOC_CS42L51
 	tristate
 
 config SND_SOC_CS42L51_I2C
-	tristate
+	tristate "Cirrus Logic CS42L51 CODEC (I2C)"
+	depends on I2C
 	select SND_SOC_CS42L51
 
 config SND_SOC_CS42L52
@@ -370,8 +375,19 @@ config SND_SOC_CS4270_VD33_ERRATA
 	depends on SND_SOC_CS4270
 
 config SND_SOC_CS4271
-	tristate "Cirrus Logic CS4271 CODEC"
-	depends on SND_SOC_I2C_AND_SPI
+	tristate
+
+config SND_SOC_CS4271_I2C
+	tristate "Cirrus Logic CS4271 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_CS4271
+	select REGMAP_I2C
+
+config SND_SOC_CS4271_SPI
+	tristate "Cirrus Logic CS4271 CODEC (SPI)"
+	depends on SPI_MASTER
+	select SND_SOC_CS4271
+	select REGMAP_SPI
 
 config SND_SOC_CS42XX8
 	tristate
@@ -487,7 +503,8 @@ config SND_SOC_RT286
 	depends on I2C
 
 config SND_SOC_RT5631
-	tristate
+	tristate "Realtek ALC5631/RT5631 CODEC"
+	depends on I2C
 
 config SND_SOC_RT5640
 	tristate
@@ -503,6 +520,10 @@ config SND_SOC_RT5670
 
 config SND_SOC_RT5677
 	tristate
+
+config SND_SOC_RT5677_SPI
+	tristate
+	default SND_SOC_RT5677
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
@@ -577,15 +598,21 @@ config SND_SOC_TAS5086
 	tristate "Texas Instruments TAS5086 speaker amplifier"
 	depends on I2C
 
+config SND_SOC_TFA9879
+	tristate "NXP Semiconductors TFA9879 amplifier"
+	depends on I2C
+
 config SND_SOC_TLV320AIC23
 	tristate
 
 config SND_SOC_TLV320AIC23_I2C
-	tristate
+	tristate "Texas Instruments TLV320AIC23 audio CODEC - I2C"
+	depends on I2C
 	select SND_SOC_TLV320AIC23
 
 config SND_SOC_TLV320AIC23_SPI
-	tristate
+	tristate "Texas Instruments TLV320AIC23 audio CODEC - SPI"
+	depends on SPI_MASTER
 	select SND_SOC_TLV320AIC23
 
 config SND_SOC_TLV320AIC26
@@ -606,6 +633,10 @@ config SND_SOC_TLV320AIC3X
 
 config SND_SOC_TLV320DAC33
 	tristate
+
+config SND_SOC_TS3A227E
+	tristate "TI Headset/Mic detect and keypress chip"
+	depends on I2C
 
 config SND_SOC_TWL4030
 	select MFD_TWL4030_AUDIO

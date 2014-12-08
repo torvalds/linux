@@ -206,7 +206,6 @@ struct snd_soc_dai_driver {
 	/* DAI description */
 	const char *name;
 	unsigned int id;
-	int ac97_control;
 	unsigned int base;
 
 	/* DAI driver callbacks */
@@ -216,6 +215,8 @@ struct snd_soc_dai_driver {
 	int (*resume)(struct snd_soc_dai *dai);
 	/* compress dai */
 	bool compress_dai;
+	/* DAI is also used for the control bus */
+	bool bus_control;
 
 	/* ops */
 	const struct snd_soc_dai_ops *ops;
@@ -241,7 +242,6 @@ struct snd_soc_dai {
 	const char *name;
 	int id;
 	struct device *dev;
-	void *ac97_pdata;	/* platform_data for the ac97 codec */
 
 	/* driver ops */
 	struct snd_soc_dai_driver *driver;
@@ -268,15 +268,12 @@ struct snd_soc_dai {
 	unsigned int sample_bits;
 
 	/* parent platform/codec */
-	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
 	struct snd_soc_component *component;
 
 	/* CODEC TDM slot masks and params (for fixup) */
 	unsigned int tx_mask;
 	unsigned int rx_mask;
-
-	struct snd_soc_card *card;
 
 	struct list_head list;
 };
