@@ -88,3 +88,7 @@ obj-$(CONFIG_ACPI_PROCESSOR_AGGREGATOR) += acpi_pad.o
 obj-$(CONFIG_ACPI_APEI)		+= apei/
 
 obj-$(CONFIG_ACPI_EXTLOG)	+= acpi_extlog.o
+
+obj-$(CONFIG_PMIC_OPREGION)	+= pmic/intel_pmic.o
+obj-$(CONFIG_CRC_PMIC_OPREGION) += pmic/intel_pmic_crc.o
+obj-$(CONFIG_XPOWER_PMIC_OPREGION) += pmic/intel_pmic_xpower.o

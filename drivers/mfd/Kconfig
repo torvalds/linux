@@ -74,7 +74,8 @@ config MFD_AXP20X
 	select REGMAP_IRQ
 	depends on I2C=y
 	help
-	  If you say Y here you get support for the X-Powers AXP202 and AXP209.
+	  If you say Y here you get support for the X-Powers AXP202, AXP209 and
+	  AXP288 power management IC (PMIC).
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
