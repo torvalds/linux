@@ -610,13 +610,6 @@ static inline int detach_process_native_dedicated(struct cxl_context *ctx)
 	return 0;
 }
 
-/*
- * TODO: handle case when this is called inside a rcu_read_lock() which may
- * happen when we unbind the driver (ie. cxl_context_detach_all()) .  Terminate
- * & remove use a mutex lock and schedule which will not good with lock held.
- * May need to write do_process_element_cmd() that handles outstanding page
- * faults synchronously.
- */
 static inline int detach_process_native_afu_directed(struct cxl_context *ctx)
 {
 	if (!ctx->pe_inserted)
