@@ -483,6 +483,7 @@
 		//pinctrl-names = "default", "sleep";
 		//pinctrl-0 = <&i2s0_mclk &i2s0_sclk &i2s0_lrckrx &i2s0_lrcktx &i2s0_sdi &i2s0_sdo>;
 		//pinctrl-1 = <&i2s0_gpio>;
+		status = "disabled";
 	};
 
 	i2s1: i2s@10200000 {
@@ -495,7 +496,6 @@
 		dmas = <&pdma 14>, <&pdma 15>;
 		//#dma-cells = <2>;
 		dma-names = "tx", "rx";
-		status = "disabled";
 	};
 
 	spdif: spdif@10204000 {
@@ -972,7 +972,7 @@
 		dais {
 			dai0 {
 				audio-codec = <&codec>;
-				i2s-controller = <&i2s0>;
+				i2s-controller = <&i2s1>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
@@ -982,7 +982,7 @@
 			};
 			dai1 {
 				audio-codec = <&codec>;
-				i2s-controller = <&i2s0>;
+				i2s-controller = <&i2s1>;
 				format = "i2s";
 				//continuous-clock;
 				//bitclock-inversion;
