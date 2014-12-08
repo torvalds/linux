@@ -118,7 +118,6 @@ static const struct reg_default wm8903_reg_defaults[] = {
 struct wm8903_priv {
 	struct wm8903_platform_data *pdata;
 	struct device *dev;
-	struct snd_soc_codec *codec;
 	struct regmap *regmap;
 
 	int sysclk;
@@ -1759,20 +1758,11 @@ static struct snd_soc_dai_driver wm8903_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8903_suspend(struct snd_soc_codec *codec)
-{
-	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static int wm8903_resume(struct snd_soc_codec *codec)
 {
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_sync(wm8903->regmap);
-
-	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
@@ -1891,33 +1881,12 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 }
 #endif
 
-static int wm8903_probe(struct snd_soc_codec *codec)
-{
-	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-
-	wm8903->codec = codec;
-
-	/* power on device */
-	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-/* power down chip */
-static int wm8903_remove(struct snd_soc_codec *codec)
-{
-	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
-	.probe =	wm8903_probe,
-	.remove =	wm8903_remove,
-	.suspend =	wm8903_suspend,
 	.resume =	wm8903_resume,
 	.set_bias_level = wm8903_set_bias_level,
 	.seq_notifier = wm8903_seq_notifier,
+	.suspend_bias_off = true,
+
 	.controls = wm8903_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8903_snd_controls),
 	.dapm_widgets = wm8903_dapm_widgets,
