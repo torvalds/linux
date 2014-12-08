@@ -41,6 +41,16 @@ static inline struct sharp_panel *to_sharp_panel(struct drm_panel *panel)
 	return container_of(panel, struct sharp_panel, base);
 }
 
+static void sharp_wait_frames(struct sharp_panel *sharp, unsigned int frames)
+{
+	unsigned int refresh = drm_mode_vrefresh(sharp->mode);
+
+	if (WARN_ON(frames > refresh))
+		return;
+
+	msleep(1000 / (refresh / frames));
+}
+
 static int sharp_panel_write(struct sharp_panel *sharp, u16 offset, u8 value)
 {
 	u8 payload[3] = { offset >> 8, offset & 0xff, value };
@@ -237,6 +247,9 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 	}
 
 	sharp->prepared = true;
+
+	/* wait for 6 frames before continuing */
+	sharp_wait_frames(sharp, 6);
 
 	return 0;
 
