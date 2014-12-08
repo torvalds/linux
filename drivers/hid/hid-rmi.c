@@ -632,17 +632,6 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	has_rel = !!(buf[0] & BIT(3));
 	has_gestures = !!(buf[0] & BIT(5));
 
-	if (has_gestures) {
-		/* query 8 to find out if query 10 exists */
-		ret = rmi_read(hdev, data->f11.query_base_addr + 8, buf);
-		if (ret) {
-			hid_err(hdev, "can not read gesture information: %d.\n",
-				ret);
-			return ret;
-		}
-		has_query10 = !!(buf[0] & BIT(2));
-	}
-
 	/*
 	 * At least 4 queries are guaranteed to be present in F11
 	 * +1 for query 5 which is present since absolute events are
@@ -653,8 +642,19 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	if (has_rel)
 		++query_offset; /* query 6 is present */
 
-	if (has_gestures)
+	if (has_gestures) {
+		/* query 8 to find out if query 10 exists */
+		ret = rmi_read(hdev,
+			data->f11.query_base_addr + query_offset + 1, buf);
+		if (ret) {
+			hid_err(hdev, "can not read gesture information: %d.\n",
+				ret);
+			return ret;
+		}
+		has_query10 = !!(buf[0] & BIT(2));
+
 		query_offset += 2; /* query 7 and 8 are present */
+	}
 
 	if (has_query9)
 		++query_offset;
