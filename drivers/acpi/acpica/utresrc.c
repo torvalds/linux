@@ -263,7 +263,7 @@ const char *acpi_gbl_bpb_decode[] = {
 /* UART serial bus stop bits */
 
 const char *acpi_gbl_sb_decode[] = {
-	"StopBitsNone",
+	"StopBitsZero",
 	"StopBitsOne",
 	"StopBitsOnePlusHalf",
 	"StopBitsTwo"

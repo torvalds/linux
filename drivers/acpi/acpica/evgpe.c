@@ -134,7 +134,7 @@ acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 	/* Enable the requested GPE */
 
-	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE);
+	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE_SAVE);
 	return_ACPI_STATUS(status);
 }
 
@@ -213,7 +213,7 @@ acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
 		if (ACPI_SUCCESS(status)) {
 			status =
 			    acpi_hw_low_set_gpe(gpe_event_info,
-						ACPI_GPE_DISABLE);
+						ACPI_GPE_DISABLE_SAVE);
 		}
 
 		if (ACPI_FAILURE(status)) {
@@ -616,8 +616,11 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info = context;
+	acpi_cpu_flags flags;
 
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 	(void)acpi_ev_finish_gpe(gpe_event_info);
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
 	ACPI_FREE(gpe_event_info);
 	return;
@@ -655,7 +658,7 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info * gpe_event_info)
 
 	/*
 	 * Enable this GPE, conditionally. This means that the GPE will
-	 * only be physically enabled if the enable_for_run bit is set
+	 * only be physically enabled if the enable_mask bit is set
 	 * in the event_info.
 	 */
 	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_CONDITIONAL_ENABLE);
