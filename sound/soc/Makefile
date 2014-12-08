@@ -5,6 +5,10 @@ ifneq ($(CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM),)
 snd-soc-core-objs += soc-generic-dmaengine-pcm.o
 endif
 
+ifneq ($(CONFIG_SND_SOC_AC97_BUS),)
+snd-soc-core-objs += soc-ac97.o
+endif
+
 obj-$(CONFIG_SND_SOC)	+= snd-soc-core.o
 obj-$(CONFIG_SND_SOC)	+= codecs/
 obj-$(CONFIG_SND_SOC)	+= generic/

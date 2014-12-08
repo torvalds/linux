@@ -369,8 +369,6 @@ struct snd_soc_jack_gpio;
 
 typedef int (*hw_write_t)(void *,const char* ,int);
 
-extern struct snd_ac97_bus_ops *soc_ac97_ops;
-
 enum snd_soc_pcm_subclass {
 	SND_SOC_PCM_CLASS_PCM	= 0,
 	SND_SOC_PCM_CLASS_BE	= 1,
@@ -499,13 +497,27 @@ int snd_soc_update_bits_locked(struct snd_soc_codec *codec,
 int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
-int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
-	struct snd_ac97_bus_ops *ops, int num);
-void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
+#ifdef CONFIG_SND_SOC_AC97_BUS
+struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec);
+void snd_soc_free_ac97_codec(struct snd_ac97 *ac97);
 
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 		struct platform_device *pdev);
+
+extern struct snd_ac97_bus_ops *soc_ac97_ops;
+#else
+static inline int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
+	struct platform_device *pdev)
+{
+	return 0;
+}
+
+static inline int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
+{
+	return 0;
+}
+#endif
 
 /*
  *Controls
@@ -778,11 +790,8 @@ struct snd_soc_codec {
 	struct list_head card_list;
 
 	/* runtime */
-	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
 	unsigned int suspended:1; /* Codec is in suspend PM state */
-	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
-	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int cache_init:1; /* codec cache has been initialized */
 
 	/* codec IO */
@@ -1274,6 +1283,45 @@ int snd_soc_component_update_bits_async(struct snd_soc_component *component,
 void snd_soc_component_async_complete(struct snd_soc_component *component);
 int snd_soc_component_test_bits(struct snd_soc_component *component,
 	unsigned int reg, unsigned int mask, unsigned int value);
+
+#ifdef CONFIG_REGMAP
+
+void snd_soc_component_init_regmap(struct snd_soc_component *component,
+	struct regmap *regmap);
+void snd_soc_component_exit_regmap(struct snd_soc_component *component);
+
+/**
+ * snd_soc_codec_init_regmap() - Initialize regmap instance for the CODEC
+ * @codec: The CODEC for which to initialize the regmap instance
+ * @regmap: The regmap instance that should be used by the CODEC
+ *
+ * This function allows deferred assignment of the regmap instance that is
+ * associated with the CODEC. Only use this if the regmap instance is not yet
+ * ready when the CODEC is registered. The function must also be called before
+ * the first IO attempt of the CODEC.
+ */
+static inline void snd_soc_codec_init_regmap(struct snd_soc_codec *codec,
+	struct regmap *regmap)
+{
+	snd_soc_component_init_regmap(&codec->component, regmap);
+}
+
+/**
+ * snd_soc_codec_exit_regmap() - De-initialize regmap instance for the CODEC
+ * @codec: The CODEC for which to de-initialize the regmap instance
+ *
+ * Calls regmap_exit() on the regmap instance associated to the CODEC and
+ * removes the regmap instance from the CODEC.
+ *
+ * This function should only be used if snd_soc_codec_init_regmap() was used to
+ * initialize the regmap instance.
+ */
+static inline void snd_soc_codec_exit_regmap(struct snd_soc_codec *codec)
+{
+	snd_soc_component_exit_regmap(&codec->component);
+}
+
+#endif
 
 /* device driver data */
 
