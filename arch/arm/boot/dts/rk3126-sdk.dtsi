@@ -24,3 +24,36 @@
 		<&clk_tsp &clk_gpll>, <&clk_nandc &clk_gpll>,
 		<&clk_mac_pll &clk_cpll>;
 };
+
+&i2s0 {
+	status = "okay";
+};
+
+&i2s1 {
+	status = "disabled";
+};
+
+&rockchip_audio {
+	dais {
+		dai0 {
+			audio-codec = <&codec>;
+			i2s-controller = <&i2s0>;
+			format = "i2s";
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			//bitclock-master;
+			//frame-master;
+		};
+		dai1 {
+			audio-codec = <&codec>;
+			i2s-controller = <&i2s0>;
+			format = "i2s";
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			//bitclock-master;
+			//frame-master;
+		};
+	};
+};
