@@ -46,8 +46,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->valid_count = valid_user_blocks(sbi);
 	si->valid_node_count = valid_node_count(sbi);
 	si->valid_inode_count = valid_inode_count(sbi);
-	si->inline_inode = sbi->inline_inode;
-	si->inline_dir = sbi->inline_dir;
+	si->inline_inode = atomic_read(&sbi->inline_inode);
+	si->inline_dir = atomic_read(&sbi->inline_dir);
 	si->utilization = utilization(sbi);
 
 	si->free_segs = free_segments(sbi);
@@ -328,6 +328,9 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 				le32_to_cpu(raw_super->secs_per_zone);
 	si->sbi = sbi;
 	sbi->stat_info = si;
+
+	atomic_set(&sbi->inline_inode, 0);
+	atomic_set(&sbi->inline_dir, 0);
 
 	mutex_lock(&f2fs_stat_mutex);
 	list_add_tail(&si->stat_list, &f2fs_stat_list);
