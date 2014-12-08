@@ -21,6 +21,7 @@
 #include <drm/drm_plane_helper.h>
 
 struct tegra_dc_soc_info {
+	bool supports_border_color;
 	bool supports_interlacing;
 	bool supports_cursor;
 	bool supports_block_linear;
@@ -1036,6 +1037,9 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	/* program display mode */
 	tegra_dc_set_timings(dc, mode);
 
+	if (dc->soc->supports_border_color)
+		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
+
 	/* interlacing isn't supported yet, so disable it */
 	if (dc->soc->supports_interlacing) {
 		value = tegra_dc_readl(dc, DC_DISP_INTERLACE_CONTROL);
@@ -1578,6 +1582,7 @@ static const struct host1x_client_ops dc_client_ops = {
 };
 
 static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
+	.supports_border_color = true,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
@@ -1586,6 +1591,7 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
+	.supports_border_color = true,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
@@ -1594,6 +1600,7 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 };
 
 static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
+	.supports_border_color = true,
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
@@ -1602,6 +1609,7 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
+	.supports_border_color = false,
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
