@@ -261,6 +261,14 @@ static int bt_get(struct blk_mq_alloc_data *data,
 		 */
 		blk_mq_run_hw_queue(hctx, false);
 
+		/*
+		 * Retry tag allocation after running the hardware queue,
+		 * as running the queue may also have found completions.
+		 */
+		tag = __bt_get(hctx, bt, last_tag);
+		if (tag != -1)
+			break;
+
 		blk_mq_put_ctx(data->ctx);
 
 		io_schedule();
