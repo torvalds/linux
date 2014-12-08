@@ -724,10 +724,10 @@ static int wa_add(struct drm_i915_private *dev_priv,
 	}
 
 #define WA_SET_BIT_MASKED(addr, mask) \
-	WA_REG(addr, (mask) & 0xffff, _MASKED_BIT_ENABLE(mask))
+	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
 
 #define WA_CLR_BIT_MASKED(addr, mask) \
-	WA_REG(addr, (mask) & 0xffff, _MASKED_BIT_DISABLE(mask))
+	WA_REG(addr, (mask), _MASKED_BIT_DISABLE(mask))
 
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	WA_REG(addr, mask, _MASKED_FIELD(mask, value))
