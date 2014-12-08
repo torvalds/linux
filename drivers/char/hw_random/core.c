@@ -60,6 +60,7 @@ static DEFINE_MUTEX(rng_mutex);
 static DEFINE_MUTEX(reading_mutex);
 static int data_avail;
 static u8 *rng_buffer, *rng_fillbuf;
+static DECLARE_WAIT_QUEUE_HEAD(rng_done);
 static unsigned short current_quality;
 static unsigned short default_quality; /* = 0; default to "off" */
 
@@ -98,6 +99,11 @@ static inline void cleanup_rng(struct kref *kref)
 
 	if (rng->cleanup)
 		rng->cleanup(rng);
+
+	/* cleanup_done should be updated after cleanup finishes */
+	smp_wmb();
+	rng->cleanup_done = true;
+	wake_up_all(&rng_done);
 }
 
 static void set_current_rng(struct hwrng *rng)
@@ -494,6 +500,8 @@ int hwrng_register(struct hwrng *rng)
 		add_early_randomness(rng);
 	}
 
+	rng->cleanup_done = false;
+
 out_unlock:
 	mutex_unlock(&rng_mutex);
 out:
@@ -525,6 +533,10 @@ void hwrng_unregister(struct hwrng *rng)
 			kthread_stop(hwrng_fill);
 	} else
 		mutex_unlock(&rng_mutex);
+
+	/* Just in case rng is reading right now, wait. */
+	wait_event(rng_done, rng->cleanup_done &&
+		   atomic_read(&rng->ref.refcount) == 0);
 }
 EXPORT_SYMBOL_GPL(hwrng_unregister);
 

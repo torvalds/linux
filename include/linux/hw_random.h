@@ -46,6 +46,7 @@ struct hwrng {
 	/* internal. */
 	struct list_head list;
 	struct kref ref;
+	bool cleanup_done;
 };
 
 /** Register a new Hardware Random Number Generator driver. */
