@@ -49,6 +49,39 @@ struct snd_oxfw {
 	s16 volume_max;
 };
 
+/*
+ * AV/C Stream Format Information Specification 1.1 Working Draft
+ * (Apr 2005, 1394TA)
+ */
+int avc_stream_set_format(struct fw_unit *unit, enum avc_general_plug_dir dir,
+			  unsigned int pid, u8 *format, unsigned int len);
+int avc_stream_get_format(struct fw_unit *unit,
+			  enum avc_general_plug_dir dir, unsigned int pid,
+			  u8 *buf, unsigned int *len, unsigned int eid);
+static inline int
+avc_stream_get_format_single(struct fw_unit *unit,
+			     enum avc_general_plug_dir dir, unsigned int pid,
+			     u8 *buf, unsigned int *len)
+{
+	return avc_stream_get_format(unit, dir, pid, buf, len, 0xff);
+}
+static inline int
+avc_stream_get_format_list(struct fw_unit *unit,
+			   enum avc_general_plug_dir dir, unsigned int pid,
+			   u8 *buf, unsigned int *len,
+			   unsigned int eid)
+{
+	return avc_stream_get_format(unit, dir, pid, buf, len, eid);
+}
+
+/*
+ * AV/C Digital Interface Command Set General Specification 4.2
+ * (Sep 2004, 1394TA)
+ */
+int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
+				enum avc_general_plug_dir dir,
+				unsigned short pid);
+
 int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw);
 int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw);
