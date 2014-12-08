@@ -323,7 +323,7 @@ int fsl_asrc_process_buffer_pre(struct completion *complete,
 		return -ETIME;
 	} else if (signal_pending(current)) {
 		pr_err("%sput task forcibly aborted\n", DIR_STR(dir));
-		return -ERESTARTSYS;
+		return -EBUSY;
 	}
 
 	init_completion(complete);
