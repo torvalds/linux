@@ -330,6 +330,7 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 
 		sgl = list_entry(ctx->tsgl.prev, struct skcipher_sg_list, list);
 		sg = sgl->sg;
+		sg_unmark_end(sg + sgl->cur);
 		do {
 			i = sgl->cur;
 			plen = min_t(int, len, PAGE_SIZE);
@@ -354,6 +355,9 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			size -= plen;
 			sgl->cur++;
 		} while (len && sgl->cur < MAX_SGL_ENTS);
+
+		if (!size)
+			sg_mark_end(sg + sgl->cur - 1);
 
 		ctx->merge = plen & (PAGE_SIZE - 1);
 	}
@@ -401,6 +405,10 @@ static ssize_t skcipher_sendpage(struct socket *sock, struct page *page,
 	ctx->merge = 0;
 	sgl = list_entry(ctx->tsgl.prev, struct skcipher_sg_list, list);
 
+	if (sgl->cur)
+		sg_unmark_end(sgl->sg + sgl->cur - 1);
+
+	sg_mark_end(sgl->sg + sgl->cur);
 	get_page(page);
 	sg_set_page(sgl->sg + sgl->cur, page, size, offset);
 	sgl->cur++;
