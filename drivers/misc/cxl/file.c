@@ -77,7 +77,7 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 		goto err_put_afu;
 	}
 
-	if ((rc = cxl_context_init(ctx, afu, master)))
+	if ((rc = cxl_context_init(ctx, afu, master, inode->i_mapping)))
 		goto err_put_afu;
 
 	pr_devel("afu_open pe: %i\n", ctx->pe);
@@ -112,6 +112,10 @@ static int afu_release(struct inode *inode, struct file *file)
 	pr_devel("%s: closing cxl file descriptor. pe: %i\n",
 		 __func__, ctx->pe);
 	cxl_context_detach(ctx);
+
+	mutex_lock(&ctx->mapping_lock);
+	ctx->mapping = NULL;
+	mutex_unlock(&ctx->mapping_lock);
 
 	put_device(&ctx->afu->dev);
 

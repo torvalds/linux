@@ -34,7 +34,8 @@ struct cxl_context *cxl_context_alloc(void)
 /*
  * Initialises a CXL context.
  */
-int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
+int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
+		     struct address_space *mapping)
 {
 	int i;
 
@@ -42,6 +43,8 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 	ctx->afu = afu;
 	ctx->master = master;
 	ctx->pid = NULL; /* Set in start work ioctl */
+	mutex_init(&ctx->mapping_lock);
+	ctx->mapping = mapping;
 
 	/*
 	 * Allocate the segment table before we put it in the IDR so that we
@@ -147,6 +150,12 @@ static void __detach_context(struct cxl_context *ctx)
 	afu_release_irqs(ctx);
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 	wake_up_all(&ctx->wq);
+
+	/* Release Problem State Area mapping */
+	mutex_lock(&ctx->mapping_lock);
+	if (ctx->mapping)
+		unmap_mapping_range(ctx->mapping, 0, 0, 1);
+	mutex_unlock(&ctx->mapping_lock);
 }
 
 /*
