@@ -985,8 +985,8 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 		state->flags = 0;
 		switch (cx->type) {
 			case ACPI_STATE_C1:
-			if (cx->entry_method == ACPI_CSTATE_FFH)
-				state->flags |= CPUIDLE_FLAG_TIME_VALID;
+			if (cx->entry_method != ACPI_CSTATE_FFH)
+				state->flags |= CPUIDLE_FLAG_TIME_INVALID;
 
 			state->enter = acpi_idle_enter_c1;
 			state->enter_dead = acpi_idle_play_dead;
@@ -994,14 +994,12 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 			break;
 
 			case ACPI_STATE_C2:
-			state->flags |= CPUIDLE_FLAG_TIME_VALID;
 			state->enter = acpi_idle_enter_simple;
 			state->enter_dead = acpi_idle_play_dead;
 			drv->safe_state_index = count;
 			break;
 
 			case ACPI_STATE_C3:
-			state->flags |= CPUIDLE_FLAG_TIME_VALID;
 			state->enter = pr->flags.bm_check ?
 					acpi_idle_enter_bm :
 					acpi_idle_enter_simple;

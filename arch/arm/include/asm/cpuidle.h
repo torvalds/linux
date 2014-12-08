@@ -15,7 +15,6 @@ static inline int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
 	.exit_latency           = 1,\
 	.target_residency       = 1,\
 	.power_usage		= p,\
-	.flags                  = CPUIDLE_FLAG_TIME_VALID,\
 	.name                   = "WFI",\
 	.desc                   = "ARM WFI",\
 }
