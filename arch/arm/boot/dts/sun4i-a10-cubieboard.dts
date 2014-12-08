@@ -148,6 +148,12 @@
 			pinctrl-0 = <&i2c1_pins_a>;
 			status = "okay";
 		};
+
+		spi0: spi@01c05000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins_a>;
+			status = "okay";
+		};
 	};
 
 	leds {
