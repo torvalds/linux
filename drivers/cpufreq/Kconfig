@@ -63,7 +63,6 @@ config CPU_FREQ_DEFAULT_GOV_PERFORMANCE
 
 config CPU_FREQ_DEFAULT_GOV_POWERSAVE
 	bool "powersave"
-	depends on EXPERT
 	select CPU_FREQ_GOV_POWERSAVE
 	help
 	  Use the CPUFreq governor 'powersave' as default. This sets
@@ -183,6 +182,8 @@ config CPU_FREQ_GOV_CONSERVATIVE
 
 	  If in doubt, say N.
 
+comment "CPU frequency scaling drivers"
+
 config CPUFREQ_DT
 	tristate "Generic DT based cpufreq driver"
 	depends on HAVE_CLK && OF
@@ -196,19 +197,19 @@ config CPUFREQ_DT
 
 	  If in doubt, say N.
 
-menu "x86 CPU frequency scaling drivers"
-depends on X86
+if X86
 source "drivers/cpufreq/Kconfig.x86"
-endmenu
+endif
 
-menu "ARM CPU frequency scaling drivers"
-depends on ARM || ARM64
+if ARM || ARM64
 source "drivers/cpufreq/Kconfig.arm"
-endmenu
+endif
 
-menu "AVR32 CPU frequency scaling drivers"
-depends on AVR32
+if PPC32 || PPC64
+source "drivers/cpufreq/Kconfig.powerpc"
+endif
 
+if AVR32
 config AVR32_AT32AP_CPUFREQ
 	bool "CPU frequency driver for AT32AP"
 	depends on PLATFORM_AT32AP
@@ -216,12 +217,9 @@ config AVR32_AT32AP_CPUFREQ
 	help
 	  This enables the CPU frequency driver for AT32AP processors.
 	  If in doubt, say N.
+endif
 
-endmenu
-
-menu "CPUFreq processor drivers"
-depends on IA64
-
+if IA64
 config IA64_ACPI_CPUFREQ
 	tristate "ACPI Processor P-States driver"
 	depends on ACPI_PROCESSOR
@@ -232,12 +230,9 @@ config IA64_ACPI_CPUFREQ
 	For details, take a look at <file:Documentation/cpu-freq/>.
 
 	If in doubt, say N.
+endif
 
-endmenu
-
-menu "MIPS CPUFreq processor drivers"
-depends on MIPS
-
+if MIPS
 config LOONGSON2_CPUFREQ
 	tristate "Loongson2 CPUFreq Driver"
 	help
@@ -250,15 +245,18 @@ config LOONGSON2_CPUFREQ
 
 	  If in doubt, say N.
 
-endmenu
+config LOONGSON1_CPUFREQ
+	tristate "Loongson1 CPUFreq Driver"
+	help
+	  This option adds a CPUFreq driver for loongson1 processors which
+	  support software configurable cpu frequency.
 
-menu "PowerPC CPU frequency scaling drivers"
-depends on PPC32 || PPC64
-source "drivers/cpufreq/Kconfig.powerpc"
-endmenu
+	  For details, take a look at <file:Documentation/cpu-freq/>.
 
-menu "SPARC CPU frequency scaling drivers"
-depends on SPARC64
+	  If in doubt, say N.
+endif
+
+if SPARC64
 config SPARC_US3_CPUFREQ
 	tristate "UltraSPARC-III CPU Frequency driver"
 	help
@@ -276,10 +274,9 @@ config SPARC_US2E_CPUFREQ
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.
-endmenu
+endif
 
-menu "SH CPU Frequency scaling"
-depends on SUPERH
+if SUPERH
 config SH_CPU_FREQ
 	tristate "SuperH CPU Frequency driver"
 	help
@@ -293,7 +290,7 @@ config SH_CPU_FREQ
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If unsure, say N.
-endmenu
+endif
 
 endif
 endmenu

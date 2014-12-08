@@ -247,3 +247,11 @@ config ARM_TEGRA_CPUFREQ
 	default y
 	help
 	  This adds the CPUFreq driver support for TEGRA SOCs.
+
+config ARM_PXA2xx_CPUFREQ
+	tristate "Intel PXA2xx CPUfreq driver"
+	depends on PXA27x || PXA25x
+	help
+	  This add the CPUFreq driver support for Intel PXA2xx SOCs.
+
+	  If in doubt, say N.
