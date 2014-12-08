@@ -181,9 +181,10 @@ const char *ll_eopcode2str(__u32 opcode)
 	return ll_eopcode_table[opcode].opname;
 }
 #if defined (CONFIG_PROC_FS)
-void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
-			     char *name, struct proc_dir_entry **procroot_ret,
-			     struct lprocfs_stats **stats_ret)
+static void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
+				    char *name,
+				    struct proc_dir_entry **procroot_ret,
+				    struct lprocfs_stats **stats_ret)
 {
 	struct proc_dir_entry *svc_procroot;
 	struct lprocfs_stats *svc_stats;
