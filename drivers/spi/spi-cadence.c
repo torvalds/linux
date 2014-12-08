@@ -521,6 +521,17 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		goto clk_dis_apb;
 	}
 
+	ret = of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+	if (ret < 0)
+		master->num_chipselect = CDNS_SPI_DEFAULT_NUM_CS;
+	else
+		master->num_chipselect = num_cs;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "is-decoded-cs",
+				   &xspi->is_decoded_cs);
+	if (ret < 0)
+		xspi->is_decoded_cs = 0;
+
 	/* SPI controller initializations */
 	cdns_spi_init_hw(xspi);
 
@@ -538,19 +549,6 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "request_irq failed\n");
 		goto remove_master;
 	}
-
-	ret = of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
-
-	if (ret < 0)
-		master->num_chipselect = CDNS_SPI_DEFAULT_NUM_CS;
-	else
-		master->num_chipselect = num_cs;
-
-	ret = of_property_read_u32(pdev->dev.of_node, "is-decoded-cs",
-				   &xspi->is_decoded_cs);
-
-	if (ret < 0)
-		xspi->is_decoded_cs = 0;
 
 	master->prepare_transfer_hardware = cdns_prepare_transfer_hardware;
 	master->prepare_message = cdns_prepare_message;
