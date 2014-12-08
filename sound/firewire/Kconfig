@@ -20,9 +20,6 @@ config SND_DICE
 	  Say Y here to include support for many DACs based on the DICE
 	  chip family (DICE-II/Jr/Mini) which TC Applied Technologies produces.
 
-	  At the moment, this driver supports playback only.  If you
-	  want to use devices that support capturing, use FFADO instead.
-
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-dice.
 
