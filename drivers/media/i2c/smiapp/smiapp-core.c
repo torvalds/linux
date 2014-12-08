@@ -2458,8 +2458,6 @@ static int smiapp_identify_module(struct v4l2_subdev *subdev)
 		minfo->name, minfo->manufacturer_id, minfo->model_id,
 		minfo->revision_number_major);
 
-	strlcpy(subdev->name, sensor->minfo.name, sizeof(subdev->name));
-
 	return 0;
 }
 
