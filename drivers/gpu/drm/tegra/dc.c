@@ -41,6 +41,22 @@ static inline struct tegra_plane *to_tegra_plane(struct drm_plane *plane)
 	return container_of(plane, struct tegra_plane, base);
 }
 
+struct tegra_dc_state {
+	struct drm_crtc_state base;
+
+	struct clk *clk;
+	unsigned long pclk;
+	unsigned int div;
+};
+
+static inline struct tegra_dc_state *to_dc_state(struct drm_crtc_state *state)
+{
+	if (state)
+		return container_of(state, struct tegra_dc_state, base);
+
+	return NULL;
+}
+
 static void tegra_dc_window_commit(struct tegra_dc *dc, unsigned int index)
 {
 	u32 value = WIN_A_ACT_REQ << index;
@@ -1004,13 +1020,48 @@ static void tegra_dc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
+static void tegra_crtc_reset(struct drm_crtc *crtc)
+{
+	struct tegra_dc_state *state;
+
+	kfree(crtc->state);
+	crtc->state = NULL;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state)
+		crtc->state = &state->base;
+}
+
+static struct drm_crtc_state *
+tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
+{
+	struct tegra_dc_state *state = to_dc_state(crtc->state);
+	struct tegra_dc_state *copy;
+
+	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (!copy)
+		return NULL;
+
+	copy->base.mode_changed = false;
+	copy->base.planes_changed = false;
+	copy->base.event = NULL;
+
+	return &copy->base;
+}
+
+static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
+					    struct drm_crtc_state *state)
+{
+	kfree(state);
+}
+
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.page_flip = tegra_dc_page_flip,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = tegra_dc_destroy,
-	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.reset = tegra_crtc_reset,
+	.atomic_duplicate_state = tegra_crtc_atomic_duplicate_state,
+	.atomic_destroy_state = tegra_crtc_atomic_destroy_state,
 };
 
 static void tegra_dc_stop(struct tegra_dc *dc)
@@ -1144,6 +1195,20 @@ int tegra_dc_setup_clock(struct tegra_dc *dc, struct clk *parent,
 
 	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
 	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
+
+	return 0;
+}
+
+int tegra_dc_state_setup_clock(struct tegra_dc *dc,
+			       struct drm_crtc_state *crtc_state,
+			       struct clk *clk, unsigned long pclk,
+			       unsigned int div)
+{
+	struct tegra_dc_state *state = to_dc_state(crtc_state);
+
+	state->clk = clk;
+	state->pclk = pclk;
+	state->div = div;
 
 	return 0;
 }

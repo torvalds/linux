@@ -180,6 +180,10 @@ void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file);
 void tegra_dc_commit(struct tegra_dc *dc);
 int tegra_dc_setup_clock(struct tegra_dc *dc, struct clk *parent,
 			 unsigned long pclk, unsigned int div);
+int tegra_dc_state_setup_clock(struct tegra_dc *dc,
+			       struct drm_crtc_state *crtc_state,
+			       struct clk *clk, unsigned long pclk,
+			       unsigned int div);
 
 struct tegra_output {
 	struct device_node *of_node;
