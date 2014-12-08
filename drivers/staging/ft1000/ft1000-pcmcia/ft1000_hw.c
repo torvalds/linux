@@ -172,11 +172,11 @@ u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index)
 	spin_lock_irqsave(&info->dpram_lock, flags);
 	ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR, offset);
 	/* check if we want to read upper or lower 32-bit word */
-	if (Index) {
+	if (Index)
 		data = ft1000_read_reg(dev, FT1000_REG_MAG_DPDATAL);
-	} else {
+	else
 		data = ft1000_read_reg(dev, FT1000_REG_MAG_DPDATAH);
-	}
+
 	spin_unlock_irqrestore(&info->dpram_lock, flags);
 
 	return data;
