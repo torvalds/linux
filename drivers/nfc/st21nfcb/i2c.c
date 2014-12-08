@@ -373,6 +373,7 @@ static int st21nfcb_nci_i2c_remove(struct i2c_client *client)
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_st21nfcb_i2c_match[] = {
+	{ .compatible = "st,st21nfcb-i2c", },
 	{ .compatible = "st,st21nfcb_i2c", },
 	{}
 };
