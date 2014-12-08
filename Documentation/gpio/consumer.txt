@@ -219,6 +219,24 @@ part of the IRQ interface, e.g. IRQF_TRIGGER_FALLING, as are system wakeup
 capabilities.
 
 
+GPIOs and ACPI
+==============
+
+On ACPI systems, GPIOs are described by GpioIo()/GpioInt() resources listed by
+the _CRS configuration objects of devices.  Those resources do not provide
+connection IDs (names) for GPIOs, so it is necessary to use an additional
+mechanism for this purpose.
+
+Systems compliant with ACPI 5.1 or newer may provide a _DSD configuration object
+which, among other things, may be used to provide connection IDs for specific
+GPIOs described by the GpioIo()/GpioInt() resources in _CRS.  If that is the
+case, it will be handled by the GPIO subsystem automatically.  However, if the
+_DSD is not present, the mappings between GpioIo()/GpioInt() resources and GPIO
+connection IDs need to be provided by device drivers.
+
+For details refer to Documentation/acpi/gpio-properties.txt
+
+
 Interacting With the Legacy GPIO Subsystem
 ==========================================
 Many kernel subsystems still handle GPIOs using the legacy integer-based

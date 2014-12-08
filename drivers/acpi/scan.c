@@ -124,17 +124,56 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	if (list_empty(&acpi_dev->pnp.ids))
 		return 0;
 
-	len = snprintf(modalias, size, "acpi:");
-	size -= len;
+	/*
+	 * If the device has PRP0001 we expose DT compatible modalias
+	 * instead in form of of:NnameTCcompatible.
+	 */
+	if (acpi_dev->data.of_compatible) {
+		struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+		const union acpi_object *of_compatible, *obj;
+		int i, nval;
+		char *c;
 
-	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
-		count = snprintf(&modalias[len], size, "%s:", id->id);
-		if (count < 0)
-			return -EINVAL;
-		if (count >= size)
-			return -ENOMEM;
-		len += count;
-		size -= count;
+		acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
+		/* DT strings are all in lower case */
+		for (c = buf.pointer; *c != '\0'; c++)
+			*c = tolower(*c);
+
+		len = snprintf(modalias, size, "of:N%sT", (char *)buf.pointer);
+		ACPI_FREE(buf.pointer);
+
+		of_compatible = acpi_dev->data.of_compatible;
+		if (of_compatible->type == ACPI_TYPE_PACKAGE) {
+			nval = of_compatible->package.count;
+			obj = of_compatible->package.elements;
+		} else { /* Must be ACPI_TYPE_STRING. */
+			nval = 1;
+			obj = of_compatible;
+		}
+		for (i = 0; i < nval; i++, obj++) {
+			count = snprintf(&modalias[len], size, "C%s",
+					 obj->string.pointer);
+			if (count < 0)
+				return -EINVAL;
+			if (count >= size)
+				return -ENOMEM;
+
+			len += count;
+			size -= count;
+		}
+	} else {
+		len = snprintf(modalias, size, "acpi:");
+		size -= len;
+
+		list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
+			count = snprintf(&modalias[len], size, "%s:", id->id);
+			if (count < 0)
+				return -EINVAL;
+			if (count >= size)
+				return -ENOMEM;
+			len += count;
+			size -= count;
+		}
 	}
 
 	modalias[len] = '\0';
@@ -902,6 +941,51 @@ int acpi_match_device_ids(struct acpi_device *device,
 }
 EXPORT_SYMBOL(acpi_match_device_ids);
 
+/* Performs match against special "PRP0001" shoehorn ACPI ID */
+static bool acpi_of_driver_match_device(struct device *dev,
+					const struct device_driver *drv)
+{
+	const union acpi_object *of_compatible, *obj;
+	struct acpi_device *adev;
+	int i, nval;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return false;
+
+	of_compatible = adev->data.of_compatible;
+	if (!drv->of_match_table || !of_compatible)
+		return false;
+
+	if (of_compatible->type == ACPI_TYPE_PACKAGE) {
+		nval = of_compatible->package.count;
+		obj = of_compatible->package.elements;
+	} else { /* Must be ACPI_TYPE_STRING. */
+		nval = 1;
+		obj = of_compatible;
+	}
+	/* Now we can look for the driver DT compatible strings */
+	for (i = 0; i < nval; i++, obj++) {
+		const struct of_device_id *id;
+
+		for (id = drv->of_match_table; id->compatible[0]; id++)
+			if (!strcasecmp(obj->string.pointer, id->compatible))
+				return true;
+	}
+
+	return false;
+}
+
+bool acpi_driver_match_device(struct device *dev,
+			      const struct device_driver *drv)
+{
+	if (!drv->acpi_match_table)
+		return acpi_of_driver_match_device(dev, drv);
+
+	return !!acpi_match_device(drv->acpi_match_table, dev);
+}
+EXPORT_SYMBOL_GPL(acpi_driver_match_device);
+
 static void acpi_free_power_resources_lists(struct acpi_device *device)
 {
 	int i;
@@ -922,6 +1006,7 @@ static void acpi_device_release(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
+	acpi_free_properties(acpi_dev);
 	acpi_free_pnp_ids(&acpi_dev->pnp);
 	acpi_free_power_resources_lists(acpi_dev);
 	kfree(acpi_dev);
@@ -1302,6 +1387,26 @@ int acpi_device_add(struct acpi_device *device,
  err_detach:
 	acpi_detach_data(device->handle, acpi_scan_drop_device);
 	return result;
+}
+
+struct acpi_device *acpi_get_next_child(struct device *dev,
+					struct acpi_device *child)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct list_head *head, *next;
+
+	if (!adev)
+		return NULL;
+
+	head = &adev->children;
+	if (list_empty(head))
+		return NULL;
+
+	if (!child)
+		return list_first_entry(head, struct acpi_device, node);
+
+	next = child->node.next;
+	return next == head ? NULL : list_entry(next, struct acpi_device, node);
 }
 
 /* --------------------------------------------------------------------------
@@ -1923,9 +2028,11 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
+	device->fwnode.type = FWNODE_ACPI;
 	acpi_set_device_status(device, sta);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
+	acpi_init_properties(device);
 	acpi_bus_get_flags(device);
 	device->flags.match_driver = false;
 	device->flags.initialized = true;

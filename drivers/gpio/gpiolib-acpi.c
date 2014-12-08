@@ -287,9 +287,45 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 	}
 }
 
+int acpi_dev_add_driver_gpios(struct acpi_device *adev,
+			      const struct acpi_gpio_mapping *gpios)
+{
+	if (adev && gpios) {
+		adev->driver_gpios = gpios;
+		return 0;
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_add_driver_gpios);
+
+static bool acpi_get_driver_gpio_data(struct acpi_device *adev,
+				      const char *name, int index,
+				      struct acpi_reference_args *args)
+{
+	const struct acpi_gpio_mapping *gm;
+
+	if (!adev->driver_gpios)
+		return false;
+
+	for (gm = adev->driver_gpios; gm->name; gm++)
+		if (!strcmp(name, gm->name) && gm->data && index < gm->size) {
+			const struct acpi_gpio_params *par = gm->data + index;
+
+			args->adev = adev;
+			args->args[0] = par->crs_entry_index;
+			args->args[1] = par->line_index;
+			args->args[2] = par->active_low;
+			args->nargs = 3;
+			return true;
+		}
+
+	return false;
+}
+
 struct acpi_gpio_lookup {
 	struct acpi_gpio_info info;
 	int index;
+	int pin_index;
 	struct gpio_desc *desc;
 	int n;
 };
@@ -303,13 +339,24 @@ static int acpi_find_gpio(struct acpi_resource *ares, void *data)
 
 	if (lookup->n++ == lookup->index && !lookup->desc) {
 		const struct acpi_resource_gpio *agpio = &ares->data.gpio;
+		int pin_index = lookup->pin_index;
+
+		if (pin_index >= agpio->pin_table_length)
+			return 1;
 
 		lookup->desc = acpi_get_gpiod(agpio->resource_source.string_ptr,
-					      agpio->pin_table[0]);
+					      agpio->pin_table[pin_index]);
 		lookup->info.gpioint =
 			agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
-		lookup->info.active_low =
-			agpio->polarity == ACPI_ACTIVE_LOW;
+
+		/*
+		 * ActiveLow is only specified for GpioInt resource. If
+		 * GpioIo is used then the only way to set the flag is
+		 * to use _DSD "gpios" property.
+		 */
+		if (lookup->info.gpioint)
+			lookup->info.active_low =
+				agpio->polarity == ACPI_ACTIVE_LOW;
 	}
 
 	return 1;
@@ -317,14 +364,19 @@ static int acpi_find_gpio(struct acpi_resource *ares, void *data)
 
 /**
  * acpi_get_gpiod_by_index() - get a GPIO descriptor from device resources
- * @dev: pointer to a device to get GPIO from
+ * @adev: pointer to a ACPI device to get GPIO from
+ * @propname: Property name of the GPIO (optional)
  * @index: index of GpioIo/GpioInt resource (starting from %0)
  * @info: info pointer to fill in (optional)
  *
- * Function goes through ACPI resources for @dev and based on @index looks
+ * Function goes through ACPI resources for @adev and based on @index looks
  * up a GpioIo/GpioInt resource, translates it to the Linux GPIO descriptor,
  * and returns it. @index matches GpioIo/GpioInt resources only so if there
  * are total %3 GPIO resources, the index goes from %0 to %2.
+ *
+ * If @propname is specified the GPIO is looked using device property. In
+ * that case @index is used to select the GPIO entry in the property value
+ * (in case of multiple).
  *
  * If the GPIO cannot be translated or there is an error an ERR_PTR is
  * returned.
@@ -332,24 +384,58 @@ static int acpi_find_gpio(struct acpi_resource *ares, void *data)
  * Note: if the GPIO resource has multiple entries in the pin list, this
  * function only returns the first.
  */
-struct gpio_desc *acpi_get_gpiod_by_index(struct device *dev, int index,
+struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
+					  const char *propname, int index,
 					  struct acpi_gpio_info *info)
 {
 	struct acpi_gpio_lookup lookup;
 	struct list_head resource_list;
-	struct acpi_device *adev;
-	acpi_handle handle;
+	bool active_low = false;
 	int ret;
 
-	if (!dev)
-		return ERR_PTR(-EINVAL);
-
-	handle = ACPI_HANDLE(dev);
-	if (!handle || acpi_bus_get_device(handle, &adev))
+	if (!adev)
 		return ERR_PTR(-ENODEV);
 
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.index = index;
+
+	if (propname) {
+		struct acpi_reference_args args;
+
+		dev_dbg(&adev->dev, "GPIO: looking up %s\n", propname);
+
+		memset(&args, 0, sizeof(args));
+		ret = acpi_dev_get_property_reference(adev, propname,
+						      index, &args);
+		if (ret) {
+			bool found = acpi_get_driver_gpio_data(adev, propname,
+							       index, &args);
+			if (!found)
+				return ERR_PTR(ret);
+		}
+
+		/*
+		 * The property was found and resolved so need to
+		 * lookup the GPIO based on returned args instead.
+		 */
+		adev = args.adev;
+		if (args.nargs >= 2) {
+			lookup.index = args.args[0];
+			lookup.pin_index = args.args[1];
+			/*
+			 * 3rd argument, if present is used to
+			 * specify active_low.
+			 */
+			if (args.nargs >= 3)
+				active_low = !!args.args[2];
+		}
+
+		dev_dbg(&adev->dev, "GPIO: _DSD returned %s %zd %llu %llu %llu\n",
+			dev_name(&adev->dev), args.nargs,
+			args.args[0], args.args[1], args.args[2]);
+	} else {
+		dev_dbg(&adev->dev, "GPIO: looking up %d in _CRS\n", index);
+	}
 
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list, acpi_find_gpio,
@@ -359,8 +445,11 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct device *dev, int index,
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	if (lookup.desc && info)
+	if (lookup.desc && info) {
 		*info = lookup.info;
+		if (active_low)
+			info->active_low = active_low;
+	}
 
 	return lookup.desc ? lookup.desc : ERR_PTR(-ENOENT);
 }
