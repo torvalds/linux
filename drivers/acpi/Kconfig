@@ -360,15 +360,14 @@ config ACPI_BGRT
 config ACPI_REDUCED_HARDWARE_ONLY
 	bool "Hardware-reduced ACPI support only" if EXPERT
 	def_bool n
-	depends on ACPI
 	help
-	This config item changes the way the ACPI code is built.  When this
-	option is selected, the kernel will use a specialized version of
-	ACPICA that ONLY supports the ACPI "reduced hardware" mode.  The
-	resulting kernel will be smaller but it will also be restricted to
-	running in ACPI reduced hardware mode ONLY.
+	  This config item changes the way the ACPI code is built.  When this
+	  option is selected, the kernel will use a specialized version of
+	  ACPICA that ONLY supports the ACPI "reduced hardware" mode.  The
+	  resulting kernel will be smaller but it will also be restricted to
+	  running in ACPI reduced hardware mode ONLY.
 
-	If you are unsure what to do, do not enable this option.
+	  If you are unsure what to do, do not enable this option.
 
 source "drivers/acpi/apei/Kconfig"
 
