@@ -1166,11 +1166,6 @@ static int set_sys_pll(struct clk *clk,  unsigned long dst)
 	cpu_clk_cntl = sys_pll_settings[idx][1];
 	latency.d32 =  sys_pll_settings[idx][2];
 
-	printk(KERN_DEBUG"CTS_CPU_CLK %4ld --> %4ld (MHz)\n",
-									clk->rate / 1000000, dst / 1000000);
-	pr_debug("CTS_CPU_CLK old_cntl=0x%x new_cntl=0x%x, latency: %x\n", 
-									curr_cntl, cpu_clk_cntl, latency.d32);
-
 	if (cpu_clk_cntl != curr_cntl) {
 SETPLL:
 		aml_set_reg32_bits(P_HHI_SYS_CPU_CLK_CNTL1,latency.b.ext_div_n,20,10);
