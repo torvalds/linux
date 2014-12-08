@@ -169,65 +169,11 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_dice *dice = substream->private_data;
-	unsigned int mode, rate, channels, i;
-	int err;
-
-	mutex_lock(&dice->mutex);
-	snd_dice_stream_stop(dice);
-	mutex_unlock(&dice->mutex);
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
-
-	rate = params_rate(hw_params);
-	err = snd_dice_transaction_set_rate(dice, rate);
-	if (err < 0)
-		return err;
-
-	if (snd_dice_stream_get_rate_mode(dice, rate, &mode) < 0)
-		return err;
-
-	/*
-	 * At 176.4/192.0 kHz, Dice has a quirk to transfer two PCM frames in
-	 * one data block of AMDTP packet. Thus sampling transfer frequency is
-	 * a half of PCM sampling frequency, i.e. PCM frames at 192.0 kHz are
-	 * transferred on AMDTP packets at 96 kHz. Two successive samples of a
-	 * channel are stored consecutively in the packet. This quirk is called
-	 * as 'Dual Wire'.
-	 * For this quirk, blocking mode is required and PCM buffer size should
-	 * be aligned to SYT_INTERVAL.
-	 */
-	channels = params_channels(hw_params);
-	if (mode > 1) {
-		if (channels > AMDTP_MAX_CHANNELS_FOR_PCM / 2) {
-			err = -ENOSYS;
-			return err;
-		}
-
-		rate /= 2;
-		channels *= 2;
-		dice->rx_stream.double_pcm_frames = true;
-	} else {
-		dice->rx_stream.double_pcm_frames = false;
-	}
-
-	amdtp_stream_set_parameters(&dice->rx_stream, rate, channels,
-				    dice->rx_midi_ports[mode]);
-	if (mode > 1) {
-		channels /= 2;
-
-		for (i = 0; i < channels; i++) {
-			dice->rx_stream.pcm_positions[i] = i * 2;
-			dice->rx_stream.pcm_positions[i + channels] = i * 2 + 1;
-		}
-	}
-
 	amdtp_stream_set_pcm_format(&dice->rx_stream,
 				    params_format(hw_params));
 
-	return 0;
+	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
+						params_buffer_bytes(hw_params));
 }
 
 static int playback_hw_free(struct snd_pcm_substream *substream)
@@ -247,21 +193,12 @@ static int playback_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&dice->mutex);
-
-	if (amdtp_streaming_error(&dice->rx_stream))
-		snd_dice_stream_stop_packets(dice);
-
-	err = snd_dice_stream_start(dice);
-	if (err < 0) {
-		mutex_unlock(&dice->mutex);
-		return err;
-	}
-
+	err = snd_dice_stream_start(dice, substream->runtime->rate);
 	mutex_unlock(&dice->mutex);
+	if (err >= 0)
+		amdtp_stream_pcm_prepare(&dice->rx_stream);
 
-	amdtp_stream_pcm_prepare(&dice->rx_stream);
-
-	return 0;
+	return err;
 }
 
 static int playback_trigger(struct snd_pcm_substream *substream, int cmd)

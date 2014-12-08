@@ -160,9 +160,7 @@ extern const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT];
 int snd_dice_stream_get_rate_mode(struct snd_dice *dice,
 				  unsigned int rate, unsigned int *mode);
 
-int snd_dice_stream_start_packets(struct snd_dice *dice);
-int snd_dice_stream_start(struct snd_dice *dice);
-void snd_dice_stream_stop_packets(struct snd_dice *dice);
+int snd_dice_stream_start(struct snd_dice *dice, unsigned int rate);
 void snd_dice_stream_stop(struct snd_dice *dice);
 int snd_dice_stream_init(struct snd_dice *dice);
 void snd_dice_stream_destroy(struct snd_dice *dice);
