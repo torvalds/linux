@@ -365,9 +365,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	radeon_audio_set_dto(encoder, mode->clock);
 	radeon_audio_set_vbi_packet(encoder);
-
-	WREG32(AFMT_AUDIO_CRC_CONTROL + offset, 0x1000);
-
 	radeon_hdmi_set_color_depth(encoder);
 
 	WREG32(HDMI_INFOFRAME_CONTROL0 + offset,

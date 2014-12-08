@@ -227,9 +227,6 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 
 	radeon_audio_set_dto(encoder, mode->clock);
 	radeon_audio_set_vbi_packet(encoder);
-
-	WREG32(HDMI0_AUDIO_CRC_CONTROL + offset, 0x1000);
-
 	radeon_hdmi_set_color_depth(encoder);
 
 	if (ASIC_IS_DCE32(rdev)) {
