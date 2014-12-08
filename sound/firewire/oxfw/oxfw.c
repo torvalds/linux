@@ -109,8 +109,10 @@ static void oxfw_card_free(struct snd_card *card)
 	struct snd_oxfw *oxfw = card->private_data;
 	unsigned int i;
 
-	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++)
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		kfree(oxfw->tx_stream_formats[i]);
 		kfree(oxfw->rx_stream_formats[i]);
+	}
 
 	mutex_destroy(&oxfw->mutex);
 }
@@ -157,13 +159,20 @@ static int oxfw_probe(struct fw_unit *unit,
 
 	snd_oxfw_proc_init(oxfw);
 
-	err = snd_oxfw_stream_init_simplex(oxfw);
+	err = snd_oxfw_stream_init_simplex(oxfw, &oxfw->rx_stream);
 	if (err < 0)
 		goto error;
+	if (oxfw->has_output) {
+		err = snd_oxfw_stream_init_simplex(oxfw, &oxfw->tx_stream);
+		if (err < 0)
+			goto error;
+	}
 
 	err = snd_card_register(card);
 	if (err < 0) {
-		snd_oxfw_stream_destroy_simplex(oxfw);
+		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
+		if (oxfw->has_output)
+			snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
 		goto error;
 	}
 	dev_set_drvdata(&unit->device, oxfw);
@@ -181,7 +190,11 @@ static void oxfw_bus_reset(struct fw_unit *unit)
 	fcp_bus_reset(oxfw->unit);
 
 	mutex_lock(&oxfw->mutex);
-	snd_oxfw_stream_update_simplex(oxfw);
+
+	snd_oxfw_stream_update_simplex(oxfw, &oxfw->rx_stream);
+	if (oxfw->has_output)
+		snd_oxfw_stream_update_simplex(oxfw, &oxfw->tx_stream);
+
 	mutex_unlock(&oxfw->mutex);
 }
 
@@ -191,7 +204,9 @@ static void oxfw_remove(struct fw_unit *unit)
 
 	snd_card_disconnect(oxfw->card);
 
-	snd_oxfw_stream_destroy_simplex(oxfw);
+	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
+	if (oxfw->has_output)
+		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
 
 	snd_card_free_when_closed(oxfw->card);
 }

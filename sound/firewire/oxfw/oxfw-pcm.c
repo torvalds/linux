@@ -177,7 +177,7 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_oxfw *oxfw = substream->private_data;
 
 	mutex_lock(&oxfw->mutex);
-	snd_oxfw_stream_stop_simplex(oxfw);
+	snd_oxfw_stream_stop_simplex(oxfw, &oxfw->rx_stream);
 	mutex_unlock(&oxfw->mutex);
 
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
@@ -190,8 +190,8 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&oxfw->mutex);
-	err = snd_oxfw_stream_start_simplex(oxfw, runtime->rate,
-					    runtime->channels);
+	err = snd_oxfw_stream_start_simplex(oxfw, &oxfw->rx_stream,
+					    runtime->rate, runtime->channels);
 	mutex_unlock(&oxfw->mutex);
 	if (err < 0)
 		goto end;

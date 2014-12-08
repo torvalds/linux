@@ -44,10 +44,16 @@ struct snd_oxfw {
 	const struct device_info *device_info;
 	struct mutex mutex;
 
+	bool has_output;
+	u8 *tx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	u8 *rx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
 	bool assumed;
+	struct cmp_connection out_conn;
 	struct cmp_connection in_conn;
+	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
+	unsigned int capture_substreams;
+	unsigned int playback_substreams;
 
 	bool mute;
 	s16 volume[6];
@@ -88,12 +94,17 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 				enum avc_general_plug_dir dir,
 				unsigned short pid);
 
-int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw);
-int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw, unsigned int rate,
-				  unsigned int pcm_channels);
-void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw);
-void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw);
-void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw);
+int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
+				 struct amdtp_stream *stream);
+int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
+				  struct amdtp_stream *stream,
+				  unsigned int rate, unsigned int pcm_channels);
+void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
+				  struct amdtp_stream *stream);
+void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
+				     struct amdtp_stream *stream);
+void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw,
+				    struct amdtp_stream *stream);
 
 struct snd_oxfw_stream_formation {
 	unsigned int rate;
@@ -105,6 +116,7 @@ int snd_oxfw_stream_parse_format(u8 *format,
 int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
 				enum avc_general_plug_dir dir,
 				struct snd_oxfw_stream_formation *formation);
+
 int snd_oxfw_stream_discover(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw);

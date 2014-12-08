@@ -44,6 +44,35 @@ static void proc_read_formation(struct snd_info_entry *entry,
 			    formation.rate, formation.pcm, formation.midi);
 	}
 
+	if (!oxfw->has_output)
+		return;
+
+	/* Show output. */
+	err = snd_oxfw_stream_get_current_formation(oxfw,
+						    AVC_GENERAL_PLUG_DIR_OUT,
+						    &curr);
+	if (err < 0)
+		return;
+
+	snd_iprintf(buffer, "Output Stream from device:\n");
+	snd_iprintf(buffer, "\tRate\tPCM\tMIDI\n");
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		format = oxfw->tx_stream_formats[i];
+		if (format == NULL)
+			continue;
+
+		err = snd_oxfw_stream_parse_format(format, &formation);
+		if (err < 0)
+			continue;
+
+		if (memcmp(&formation, &curr, sizeof(curr)) == 0)
+			flag = '*';
+		else
+			flag = ' ';
+
+		snd_iprintf(buffer, "%c\t%d\t%d\t%d\n", flag,
+			    formation.rate, formation.pcm, formation.midi);
+	}
 }
 
 static void add_node(struct snd_oxfw *oxfw, struct snd_info_entry *root,

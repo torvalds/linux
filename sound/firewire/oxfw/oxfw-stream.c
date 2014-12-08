@@ -39,6 +39,22 @@ static const unsigned int avc_stream_rate_table[] = {
 	[5] = 0x07,
 };
 
+static int set_rate(struct snd_oxfw *oxfw, unsigned int rate)
+{
+	int err;
+
+	err = avc_general_set_sig_fmt(oxfw->unit, rate,
+				      AVC_GENERAL_PLUG_DIR_IN, 0);
+	if (err < 0)
+		goto end;
+
+	if (oxfw->has_output)
+		err = avc_general_set_sig_fmt(oxfw->unit, rate,
+					      AVC_GENERAL_PLUG_DIR_OUT, 0);
+end:
+	return err;
+}
+
 static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 			     unsigned int rate, unsigned int pcm_channels)
 {
@@ -47,8 +63,13 @@ static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 	enum avc_general_plug_dir dir;
 	unsigned int i, err, len;
 
-	formats = oxfw->rx_stream_formats;
-	dir = AVC_GENERAL_PLUG_DIR_IN;
+	if (s == &oxfw->tx_stream) {
+		formats = oxfw->tx_stream_formats;
+		dir = AVC_GENERAL_PLUG_DIR_OUT;
+	} else {
+		formats = oxfw->rx_stream_formats;
+		dir = AVC_GENERAL_PLUG_DIR_IN;
+	}
 
 	/* Seek stream format for requirements. */
 	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
@@ -64,8 +85,7 @@ static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 
 	/* If assumed, just change rate. */
 	if (oxfw->assumed)
-		return avc_general_set_sig_fmt(oxfw->unit, rate,
-					       AVC_GENERAL_PLUG_DIR_IN, 0);
+		return set_rate(oxfw, rate);
 
 	/* Calculate format length. */
 	len = 5 + formats[i][4] * 2;
@@ -80,47 +100,35 @@ static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 	return 0;
 }
 
-int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw)
+static void stop_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 {
-	int err;
+	amdtp_stream_pcm_abort(stream);
+	amdtp_stream_stop(stream);
 
-	err = cmp_connection_init(&oxfw->in_conn, oxfw->unit,
-				  CMP_INPUT, 0);
-	if (err < 0)
-		goto end;
-
-	err = amdtp_stream_init(&oxfw->rx_stream, oxfw->unit,
-				AMDTP_OUT_STREAM, CIP_NONBLOCKING);
-	if (err < 0) {
-		amdtp_stream_destroy(&oxfw->rx_stream);
-		cmp_connection_destroy(&oxfw->in_conn);
-	}
-end:
-	return err;
+	if (stream == &oxfw->tx_stream)
+		cmp_connection_break(&oxfw->out_conn);
+	else
+		cmp_connection_break(&oxfw->in_conn);
 }
 
-static void stop_stream(struct snd_oxfw *oxfw)
-{
-	amdtp_stream_pcm_abort(&oxfw->rx_stream);
-	amdtp_stream_stop(&oxfw->rx_stream);
-	cmp_connection_break(&oxfw->in_conn);
-}
-
-static int start_stream(struct snd_oxfw *oxfw, unsigned int rate,
-			unsigned int pcm_channels)
+static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream,
+			unsigned int rate, unsigned int pcm_channels)
 {
 	u8 **formats;
 	struct cmp_connection *conn;
 	struct snd_oxfw_stream_formation formation;
 	unsigned int i, midi_ports;
-	struct amdtp_stream *stream;
 	int err;
 
-	stream = &oxfw->rx_stream;
-	formats = oxfw->rx_stream_formats;
-	conn = &oxfw->in_conn;
+	if (stream == &oxfw->rx_stream) {
+		formats = oxfw->rx_stream_formats;
+		conn = &oxfw->in_conn;
+	} else {
+		formats = oxfw->tx_stream_formats;
+		conn = &oxfw->out_conn;
+	}
 
-	/* Get stream formation */
+	/* Get stream format */
 	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
 		if (formats[i] == NULL)
 			break;
@@ -164,67 +172,196 @@ static int start_stream(struct snd_oxfw *oxfw, unsigned int rate,
 	/* Wait first packet */
 	err = amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT);
 	if (err < 0)
-		stop_stream(oxfw);
+		stop_stream(oxfw, stream);
 end:
 	return err;
 }
 
-int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw, unsigned int rate,
-				  unsigned int pcm_channels)
+static int check_connection_used_by_others(struct snd_oxfw *oxfw,
+					   struct amdtp_stream *stream)
 {
+	struct cmp_connection *conn;
+	bool used;
+	int err;
+
+	if (stream == &oxfw->tx_stream)
+		conn = &oxfw->out_conn;
+	else
+		conn = &oxfw->in_conn;
+
+	err = cmp_connection_check_used(conn, &used);
+	if ((err >= 0) && used && !amdtp_stream_running(stream)) {
+		dev_err(&oxfw->unit->device,
+			"Connection established by others: %cPCR[%d]\n",
+			(conn->direction == CMP_OUTPUT) ? 'o' : 'i',
+			conn->pcr_index);
+		err = -EBUSY;
+	}
+
+	return err;
+}
+
+int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
+				 struct amdtp_stream *stream)
+{
+	struct cmp_connection *conn;
+	enum cmp_direction c_dir;
+	enum amdtp_stream_direction s_dir;
+	int err;
+
+	if (stream == &oxfw->tx_stream) {
+		conn = &oxfw->out_conn;
+		c_dir = CMP_OUTPUT;
+		s_dir = AMDTP_IN_STREAM;
+	} else {
+		conn = &oxfw->in_conn;
+		c_dir = CMP_INPUT;
+		s_dir = AMDTP_OUT_STREAM;
+	}
+
+	err = cmp_connection_init(conn, oxfw->unit, c_dir, 0);
+	if (err < 0)
+		goto end;
+
+	err = amdtp_stream_init(stream, oxfw->unit, s_dir, CIP_NONBLOCKING);
+	if (err < 0) {
+		amdtp_stream_destroy(stream);
+		cmp_connection_destroy(conn);
+		goto end;
+	}
+
+	/* OXFW starts to transmit packets with non-zero dbc. */
+	if (stream == &oxfw->tx_stream)
+		oxfw->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
+end:
+	return err;
+}
+
+int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
+				  struct amdtp_stream *stream,
+				  unsigned int rate, unsigned int pcm_channels)
+{
+	struct amdtp_stream *opposite;
 	struct snd_oxfw_stream_formation formation;
+	enum avc_general_plug_dir dir;
+	unsigned int substreams, opposite_substreams;
 	int err = 0;
 
-	/* packet queueing error */
-	if (amdtp_streaming_error(&oxfw->rx_stream))
-		stop_stream(oxfw);
+	if (stream == &oxfw->tx_stream) {
+		substreams = oxfw->capture_substreams;
+		opposite = &oxfw->rx_stream;
+		opposite_substreams = oxfw->playback_substreams;
+		dir = AVC_GENERAL_PLUG_DIR_OUT;
+	} else {
+		substreams = oxfw->playback_substreams;
+		opposite_substreams = oxfw->capture_substreams;
 
-	err = snd_oxfw_stream_get_current_formation(oxfw,
-						    AVC_GENERAL_PLUG_DIR_IN,
-						    &formation);
+		if (oxfw->has_output)
+			opposite = &oxfw->rx_stream;
+		else
+			opposite = NULL;
+
+		dir = AVC_GENERAL_PLUG_DIR_IN;
+	}
+
+	if (substreams == 0)
+		goto end;
+
+	/*
+	 * Considering JACK/FFADO streaming:
+	 * TODO: This can be removed hwdep functionality becomes popular.
+	 */
+	err = check_connection_used_by_others(oxfw, stream);
+	if (err < 0)
+		goto end;
+
+	/* packet queueing error */
+	if (amdtp_streaming_error(stream))
+		stop_stream(oxfw, stream);
+
+	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
 	if (err < 0)
 		goto end;
 
 	if ((formation.rate != rate) || (formation.pcm != pcm_channels)) {
-		stop_stream(oxfw);
+		if (opposite != NULL) {
+			err = check_connection_used_by_others(oxfw, opposite);
+			if (err < 0)
+				goto end;
+			stop_stream(oxfw, opposite);
+		}
+		stop_stream(oxfw, stream);
 
-		/* arrange sampling rate */
-		err = set_stream_format(oxfw, &oxfw->rx_stream, rate,
-					pcm_channels);
+		err = set_stream_format(oxfw, stream, rate, pcm_channels);
 		if (err < 0) {
 			dev_err(&oxfw->unit->device,
 				"fail to set stream format: %d\n", err);
 			goto end;
 		}
+
+		/* Start opposite stream if needed. */
+		if (opposite && !amdtp_stream_running(opposite) &&
+		    (opposite_substreams > 0)) {
+			err = start_stream(oxfw, opposite, rate, 0);
+			if (err < 0) {
+				dev_err(&oxfw->unit->device,
+					"fail to restart stream: %d\n", err);
+				goto end;
+			}
+		}
 	}
 
-	err = start_stream(oxfw, rate, pcm_channels);
-	if (err < 0)
-		dev_err(&oxfw->unit->device,
-			"fail to start stream: %d\n", err);
+	/* Start requested stream. */
+	if (!amdtp_stream_running(stream)) {
+		err = start_stream(oxfw, stream, rate, pcm_channels);
+		if (err < 0)
+			dev_err(&oxfw->unit->device,
+				"fail to start stream: %d\n", err);
+	}
 end:
 	return err;
 }
 
-void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw)
+void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
+				  struct amdtp_stream *stream)
 {
-	stop_stream(oxfw);
+	if (((stream == &oxfw->tx_stream) && (oxfw->capture_substreams > 0)) ||
+	    ((stream == &oxfw->rx_stream) && (oxfw->playback_substreams > 0)))
+		return;
+
+	stop_stream(oxfw, stream);
 }
 
-void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw)
+void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
+				     struct amdtp_stream *stream)
 {
-	stop_stream(oxfw);
+	struct cmp_connection *conn;
 
-	amdtp_stream_destroy(&oxfw->rx_stream);
-	cmp_connection_destroy(&oxfw->in_conn);
-}
-
-void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw)
-{
-	if (cmp_connection_update(&oxfw->in_conn) < 0)
-		stop_stream(oxfw);
+	if (stream == &oxfw->tx_stream)
+		conn = &oxfw->out_conn;
 	else
-		amdtp_stream_update(&oxfw->rx_stream);
+		conn = &oxfw->in_conn;
+
+	stop_stream(oxfw, stream);
+
+	amdtp_stream_destroy(stream);
+	cmp_connection_destroy(conn);
+}
+
+void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw,
+				    struct amdtp_stream *stream)
+{
+	struct cmp_connection *conn;
+
+	if (stream == &oxfw->tx_stream)
+		conn = &oxfw->out_conn;
+	else
+		conn = &oxfw->in_conn;
+
+	if (cmp_connection_update(conn) < 0)
+		stop_stream(oxfw, stream);
+	else
+		amdtp_stream_update(stream);
 }
 
 int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
@@ -408,7 +545,10 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	formats = oxfw->rx_stream_formats;
+	if (dir == AVC_GENERAL_PLUG_DIR_OUT)
+		formats = oxfw->tx_stream_formats;
+	else
+		formats = oxfw->rx_stream_formats;
 
 	/* get first entry */
 	len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
@@ -481,9 +621,17 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 		"fail to get info for isoc/external in/out plugs: %d\n",
 			err);
 		goto end;
-	} else if (plugs[0] == 0) {
+	} else if ((plugs[0] == 0) && (plugs[1] == 0)) {
 		err = -ENOSYS;
 		goto end;
+	}
+
+	/* use oPCR[0] if exists */
+	if (plugs[1] > 0) {
+		err = fill_stream_formats(oxfw, AVC_GENERAL_PLUG_DIR_OUT, 0);
+		if (err < 0)
+			goto end;
+		oxfw->has_output = true;
 	}
 
 	/* use iPCR[0] if exists */
