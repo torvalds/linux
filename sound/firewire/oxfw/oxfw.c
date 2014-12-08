@@ -101,6 +101,8 @@ static int oxfw_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
+	snd_oxfw_proc_init(oxfw);
+
 	err = snd_oxfw_stream_init_simplex(oxfw);
 	if (err < 0)
 		goto error;

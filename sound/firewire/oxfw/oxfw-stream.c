@@ -108,6 +108,33 @@ void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw)
 		amdtp_stream_update(&oxfw->rx_stream);
 }
 
+int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
+				enum avc_general_plug_dir dir,
+				struct snd_oxfw_stream_formation *formation)
+{
+	u8 *format;
+	unsigned int len;
+	int err;
+
+	len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;
+	format = kmalloc(len, GFP_KERNEL);
+	if (format == NULL)
+		return -ENOMEM;
+
+	err = avc_stream_get_format_single(oxfw->unit, dir, 0, format, &len);
+	if (err < 0)
+		goto end;
+	if (len < 3) {
+		err = -EIO;
+		goto end;
+	}
+
+	err = snd_oxfw_stream_parse_format(format, formation);
+end:
+	kfree(format);
+	return err;
+}
+
 /*
  * See Table 6.16 - AM824 Stream Format
  *     Figure 6.19 - format_information field for AM824 Compound

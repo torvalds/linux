@@ -18,6 +18,7 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/info.h>
 
 #include "../lib.h"
 #include "../fcp.h"
@@ -108,3 +109,5 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw);
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_mixer(struct snd_oxfw *oxfw);
+
+void snd_oxfw_proc_init(struct snd_oxfw *oxfw);
