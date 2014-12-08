@@ -116,6 +116,8 @@ static int sharp_panel_unprepare(struct drm_panel *panel)
 	if (!sharp->prepared)
 		return 0;
 
+	sharp_wait_frames(sharp, 4);
+
 	err = mipi_dsi_dcs_set_display_off(sharp->link1);
 	if (err < 0)
 		dev_err(panel->dev, "failed to set display off: %d\n", err);
@@ -180,15 +182,13 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 	if (err < 0)
 		return err;
 
-	usleep_range(10000, 20000);
-
-	err = mipi_dsi_dcs_soft_reset(sharp->link1);
-	if (err < 0) {
-		dev_err(panel->dev, "soft reset failed: %d\n", err);
-		goto poweroff;
-	}
-
-	msleep(120);
+	/*
+	 * According to the datasheet, the panel needs around 10 ms to fully
+	 * power up. At least another 120 ms is required before exiting sleep
+	 * mode to make sure the panel is ready. Throw in another 20 ms for
+	 * good measure.
+	 */
+	msleep(150);
 
 	err = mipi_dsi_dcs_exit_sleep_mode(sharp->link1);
 	if (err < 0) {
