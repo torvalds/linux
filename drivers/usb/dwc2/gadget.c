@@ -3410,8 +3410,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 {
 	struct device *dev = hsotg->dev;
 	struct s3c_hsotg_plat *plat = dev->platform_data;
-	struct phy *phy;
-	struct usb_phy *uphy;
 	struct s3c_hsotg_ep *eps;
 	int epnum;
 	int ret;
@@ -3421,30 +3419,23 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	hsotg->phyif = GUSBCFG_PHYIF16;
 
 	/*
-	 * Attempt to find a generic PHY, then look for an old style
-	 * USB PHY, finally fall back to pdata
+	 * If platform probe couldn't find a generic PHY or an old style
+	 * USB PHY, fall back to pdata
 	 */
-	phy = devm_phy_get(dev, "usb2-phy");
-	if (IS_ERR(phy)) {
-		uphy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-		if (IS_ERR(uphy)) {
-			/* Fallback for pdata */
-			plat = dev_get_platdata(dev);
-			if (!plat) {
-				dev_err(dev,
-				"no platform data or transceiver defined\n");
-				return -EPROBE_DEFER;
-			}
-			hsotg->plat = plat;
-		} else
-			hsotg->uphy = uphy;
-	} else {
-		hsotg->phy = phy;
+	if (IS_ERR_OR_NULL(hsotg->phy) && IS_ERR_OR_NULL(hsotg->uphy)) {
+		plat = dev_get_platdata(dev);
+		if (!plat) {
+			dev_err(dev,
+			"no platform data or transceiver defined\n");
+			return -EPROBE_DEFER;
+		}
+		hsotg->plat = plat;
+	} else if (hsotg->phy) {
 		/*
 		 * If using the generic PHY framework, check if the PHY bus
 		 * width is 8-bit and set the phyif appropriately.
 		 */
-		if (phy_get_bus_width(phy) == 8)
+		if (phy_get_bus_width(hsotg->phy) == 8)
 			hsotg->phyif = GUSBCFG_PHYIF8;
 	}
 
