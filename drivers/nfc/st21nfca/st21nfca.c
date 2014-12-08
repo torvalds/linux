@@ -845,8 +845,6 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
 	default:
 		return 1;
 	}
-	kfree_skb(skb);
-	return 0;
 }
 
 static struct nfc_hci_ops st21nfca_hci_ops = {
