@@ -636,12 +636,6 @@ err:
 	return -EIO;
 }
 
-static int wm9712_soc_suspend(struct snd_soc_codec *codec)
-{
-	wm9712_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int wm9712_soc_resume(struct snd_soc_codec *codec)
 {
 	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
@@ -686,8 +680,6 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 	/* set alc mux to none */
 	ac97_write(codec, AC97_VIDEO, ac97_read(codec, AC97_VIDEO) | 0x3000);
 
-	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 
 reset_err:
@@ -706,11 +698,11 @@ static int wm9712_soc_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm9712 = {
 	.probe = 	wm9712_soc_probe,
 	.remove = 	wm9712_soc_remove,
-	.suspend =	wm9712_soc_suspend,
 	.resume =	wm9712_soc_resume,
 	.read = ac97_read,
 	.write = ac97_write,
 	.set_bias_level = wm9712_set_bias_level,
+	.suspend_bias_off = true,
 	.reg_cache_size = ARRAY_SIZE(wm9712_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_step = 2,
