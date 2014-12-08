@@ -1,15 +1,18 @@
 #ifndef _DRIVERS_VIRTIO_VIRTIO_PCI_H
 #define _DRIVERS_VIRTIO_VIRTIO_PCI_H
 /*
- * Virtio PCI driver
+ * Virtio PCI driver - APIs for common functionality for all device versions
  *
  * This module allows virtio devices to be used over a virtual PCI device.
  * This can be used with QEMU based VMMs like KVM or Xen.
  *
  * Copyright IBM Corp. 2007
+ * Copyright Red Hat, Inc. 2014
  *
  * Authors:
  *  Anthony Liguori  <aliguori@us.ibm.com>
+ *  Rusty Russell <rusty@rustcorp.com.au>
+ *  Michael S. Tsirkin <mst@redhat.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
