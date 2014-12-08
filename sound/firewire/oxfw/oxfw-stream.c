@@ -7,8 +7,10 @@
  */
 
 #include "oxfw.h"
+#include <linux/delay.h>
 
 #define AVC_GENERIC_FRAME_MAXIMUM_BYTES	512
+#define CALLBACK_TIMEOUT	200
 
 /*
  * According to datasheet of Oxford Semiconductor:
@@ -37,6 +39,47 @@ static const unsigned int avc_stream_rate_table[] = {
 	[5] = 0x07,
 };
 
+static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
+			     unsigned int rate, unsigned int pcm_channels)
+{
+	u8 **formats;
+	struct snd_oxfw_stream_formation formation;
+	enum avc_general_plug_dir dir;
+	unsigned int i, err, len;
+
+	formats = oxfw->rx_stream_formats;
+	dir = AVC_GENERAL_PLUG_DIR_IN;
+
+	/* Seek stream format for requirements. */
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		err = snd_oxfw_stream_parse_format(formats[i], &formation);
+		if (err < 0)
+			return err;
+
+		if ((formation.rate == rate) && (formation.pcm == pcm_channels))
+			break;
+	}
+	if (i == SND_OXFW_STREAM_FORMAT_ENTRIES)
+		return -EINVAL;
+
+	/* If assumed, just change rate. */
+	if (oxfw->assumed)
+		return avc_general_set_sig_fmt(oxfw->unit, rate,
+					       AVC_GENERAL_PLUG_DIR_IN, 0);
+
+	/* Calculate format length. */
+	len = 5 + formats[i][4] * 2;
+
+	err = avc_stream_set_format(oxfw->unit, dir, 0, formats[i], len);
+	if (err < 0)
+		return err;
+
+	/* Some requests just after changing format causes freezing. */
+	msleep(100);
+
+	return 0;
+}
+
 int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw)
 {
 	int err;
@@ -63,26 +106,102 @@ static void stop_stream(struct snd_oxfw *oxfw)
 	cmp_connection_break(&oxfw->in_conn);
 }
 
-int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw)
+static int start_stream(struct snd_oxfw *oxfw, unsigned int rate,
+			unsigned int pcm_channels)
 {
+	u8 **formats;
+	struct cmp_connection *conn;
+	struct snd_oxfw_stream_formation formation;
+	unsigned int i, midi_ports;
+	struct amdtp_stream *stream;
+	int err;
+
+	stream = &oxfw->rx_stream;
+	formats = oxfw->rx_stream_formats;
+	conn = &oxfw->in_conn;
+
+	/* Get stream formation */
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		if (formats[i] == NULL)
+			break;
+
+		err = snd_oxfw_stream_parse_format(formats[i], &formation);
+		if (err < 0)
+			goto end;
+		if (rate != formation.rate)
+			continue;
+		if (pcm_channels == 0 ||  pcm_channels == formation.pcm)
+			break;
+	}
+	if (i == SND_OXFW_STREAM_FORMAT_ENTRIES) {
+		err = -EINVAL;
+		goto end;
+	}
+
+	pcm_channels = formation.pcm;
+	midi_ports = DIV_ROUND_UP(formation.midi, 8);
+
+	/* The stream should have one pcm channels at least */
+	if (pcm_channels == 0) {
+		err = -EINVAL;
+		goto end;
+	}
+	amdtp_stream_set_parameters(stream, rate, pcm_channels, midi_ports);
+
+	err = cmp_connection_establish(conn,
+				       amdtp_stream_get_max_payload(stream));
+	if (err < 0)
+		goto end;
+
+	err = amdtp_stream_start(stream,
+				 conn->resources.channel,
+				 conn->speed);
+	if (err < 0) {
+		cmp_connection_break(conn);
+		goto end;
+	}
+
+	/* Wait first packet */
+	err = amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT);
+	if (err < 0)
+		stop_stream(oxfw);
+end:
+	return err;
+}
+
+int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw, unsigned int rate,
+				  unsigned int pcm_channels)
+{
+	struct snd_oxfw_stream_formation formation;
 	int err = 0;
 
+	/* packet queueing error */
 	if (amdtp_streaming_error(&oxfw->rx_stream))
 		stop_stream(oxfw);
 
-	if (amdtp_stream_running(&oxfw->rx_stream))
-		goto end;
-
-	err = cmp_connection_establish(&oxfw->in_conn,
-			amdtp_stream_get_max_payload(&oxfw->rx_stream));
+	err = snd_oxfw_stream_get_current_formation(oxfw,
+						    AVC_GENERAL_PLUG_DIR_IN,
+						    &formation);
 	if (err < 0)
 		goto end;
 
-	err = amdtp_stream_start(&oxfw->rx_stream,
-				 oxfw->in_conn.resources.channel,
-				 oxfw->in_conn.speed);
-	if (err < 0)
+	if ((formation.rate != rate) || (formation.pcm != pcm_channels)) {
 		stop_stream(oxfw);
+
+		/* arrange sampling rate */
+		err = set_stream_format(oxfw, &oxfw->rx_stream, rate,
+					pcm_channels);
+		if (err < 0) {
+			dev_err(&oxfw->unit->device,
+				"fail to set stream format: %d\n", err);
+			goto end;
+		}
+	}
+
+	err = start_stream(oxfw, rate, pcm_channels);
+	if (err < 0)
+		dev_err(&oxfw->unit->device,
+			"fail to start stream: %d\n", err);
 end:
 	return err;
 }

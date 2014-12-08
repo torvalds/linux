@@ -89,7 +89,8 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 				unsigned short pid);
 
 int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw);
-int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw);
+int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw, unsigned int rate,
+				  unsigned int pcm_channels);
 void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw);
