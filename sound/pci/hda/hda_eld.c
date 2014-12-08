@@ -371,7 +371,7 @@ error:
 	return ret;
 }
 
-/**
+/*
  * SNDRV_PCM_RATE_* and AC_PAR_PCM values don't match, print correct rates with
  * hdmi-specific routine.
  */

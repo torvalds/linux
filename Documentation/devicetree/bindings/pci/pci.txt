@@ -7,3 +7,14 @@ And for the interrupt mapping part:
 
 Open Firmware Recommended Practice: Interrupt Mapping
 http://www.openfirmware.org/1275/practice/imap/imap0_9d.pdf
+
+Additionally to the properties specified in the above standards a host bridge
+driver implementation may support the following properties:
+
+- linux,pci-domain:
+   If present this property assigns a fixed PCI domain number to a host bridge,
+   otherwise an unstable (across boots) unique number will be assigned.
+   It is required to either not set this property at all or set it for all
+   host bridges in the system, otherwise potentially conflicting domain numbers
+   may be assigned to root buses behind different host bridges.  The domain
+   number for each host bridge in the system must be unique.

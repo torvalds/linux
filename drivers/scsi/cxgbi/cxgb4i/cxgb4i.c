@@ -828,6 +828,8 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 	if (status == CPL_ERR_RTX_NEG_ADVICE)
 		goto rel_skb;
 
+	module_put(THIS_MODULE);
+
 	if (status && status != CPL_ERR_TCAM_FULL &&
 	    status != CPL_ERR_CONN_EXIST &&
 	    status != CPL_ERR_ARP_MISS)

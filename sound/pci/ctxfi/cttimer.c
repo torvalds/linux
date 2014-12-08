@@ -421,12 +421,12 @@ struct ct_timer *ct_timer_new(struct ct_atc *atc)
 	atimer->atc = atc;
 	hw = atc->hw;
 	if (!use_system_timer && hw->set_timer_irq) {
-		snd_printd(KERN_INFO "ctxfi: Use xfi-native timer\n");
+		dev_info(atc->card->dev, "Use xfi-native timer\n");
 		atimer->ops = &ct_xfitimer_ops;
 		hw->irq_callback_data = atimer;
 		hw->irq_callback = ct_timer_interrupt;
 	} else {
-		snd_printd(KERN_INFO "ctxfi: Use system timer\n");
+		dev_info(atc->card->dev, "Use system timer\n");
 		atimer->ops = &ct_systimer_ops;
 	}
 	return atimer;

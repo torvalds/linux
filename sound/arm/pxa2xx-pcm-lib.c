@@ -200,9 +200,7 @@ void pxa2xx_pcm_dma_irq(int dma_ch, void *dev_id)
 	} else {
 		printk(KERN_ERR "DMA error on channel %d (DCSR=%#x)\n",
 			dma_ch, dcsr);
-		snd_pcm_stream_lock(substream);
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock(substream);
+		snd_pcm_stop_xrun(substream);
 	}
 }
 EXPORT_SYMBOL(pxa2xx_pcm_dma_irq);

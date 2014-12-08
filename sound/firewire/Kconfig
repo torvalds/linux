@@ -13,12 +13,12 @@ config SND_FIREWIRE_LIB
 	select SND_RAWMIDI
 
 config SND_DICE
-	tristate "DICE-based DACs (EXPERIMENTAL)"
+	tristate "DICE-based DACs support"
 	select SND_HWDEP
 	select SND_FIREWIRE_LIB
 	help
 	  Say Y here to include support for many DACs based on the DICE
-	  chip family (DICE-II/Jr/Mini) from TC Applied Technologies.
+	  chip family (DICE-II/Jr/Mini) which TC Applied Technologies produces.
 
 	  At the moment, this driver supports playback only.  If you
 	  want to use devices that support capturing, use FFADO instead.
@@ -26,15 +26,17 @@ config SND_DICE
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-dice.
 
-config SND_FIREWIRE_SPEAKERS
-	tristate "FireWire speakers"
+config SND_OXFW
+	tristate "Oxford Semiconductor FW970/971 chipset support"
 	select SND_FIREWIRE_LIB
 	help
-	  Say Y here to include support for the Griffin FireWave Surround
-	  and the LaCie FireWire Speakers.
+	  Say Y here to include support for FireWire devices based on
+	  Oxford Semiconductor FW970/971 chipset.
+	   * Griffin Firewave
+	   * LaCie Firewire Speakers
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called snd-firewire-speakers.
+	  will be called snd-oxfw.
 
 config SND_ISIGHT
 	tristate "Apple iSight microphone"
