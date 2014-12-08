@@ -39,8 +39,6 @@ struct radeon_audio_basic_funcs
 		u32 offset, u32 reg, u32 v);
 	void (*enable)(struct radeon_device *rdev,
 		struct r600_audio_pin *pin, u8 enable_mask);
-	void (*update_avi_infoframe)(struct radeon_device *rdev, u32 offset,
-		unsigned char *buffer, size_t size);
 };
 
 struct radeon_audio_funcs
@@ -59,6 +57,8 @@ struct radeon_audio_funcs
 		const struct radeon_hdmi_acr *acr);
 	void (*set_vbi_packet)(struct drm_encoder *encoder, u32 offset);
 	void (*set_color_depth)(struct drm_encoder *encoder, u32 offset, int bpc);
+	void (*set_avi_packet)(struct radeon_device *rdev, u32 offset,
+		unsigned char *buffer, size_t size);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -78,8 +78,8 @@ void radeon_audio_enable(struct radeon_device *rdev,
 	struct r600_audio_pin *pin, u8 enable_mask);
 void radeon_audio_fini(struct radeon_device *rdev);
 void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock);
-void radeon_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
-	size_t size);
+int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
+	struct drm_display_mode *mode);
 void radeon_audio_update_acr(struct drm_encoder *encoder, unsigned int clock);
 void radeon_audio_set_vbi_packet(struct drm_encoder *encoder);
 void radeon_hdmi_set_color_depth(struct drm_encoder *encoder);

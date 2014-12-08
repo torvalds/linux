@@ -75,9 +75,9 @@ void dce6_hdmi_audio_set_dto(struct radeon_device *rdev,
 	struct radeon_crtc *crtc, unsigned int clock);
 void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 	struct radeon_crtc *crtc, unsigned int clock);
-void r600_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
+void r600_set_avi_packet(struct radeon_device *rdev, u32 offset,
 	unsigned char *buffer, size_t size);
-void evergreen_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
+void evergreen_set_avi_packet(struct radeon_device *rdev, u32 offset,
 	unsigned char *buffer, size_t size);
 void r600_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 	const struct radeon_hdmi_acr *acr);
@@ -116,28 +116,24 @@ static struct radeon_audio_basic_funcs r600_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
 	.enable = r600_audio_enable,
-	.update_avi_infoframe = r600_update_avi_infoframe,
 };
 
 static struct radeon_audio_basic_funcs dce32_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
 	.enable = r600_audio_enable,
-	.update_avi_infoframe = r600_update_avi_infoframe,
 };
 
 static struct radeon_audio_basic_funcs dce4_funcs = {
 	.endpoint_rreg = radeon_audio_rreg,
 	.endpoint_wreg = radeon_audio_wreg,
 	.enable = dce4_audio_enable,
-	.update_avi_infoframe = evergreen_update_avi_infoframe,
 };
 
 static struct radeon_audio_basic_funcs dce6_funcs = {
 	.endpoint_rreg = dce6_endpoint_rreg,
 	.endpoint_wreg = dce6_endpoint_wreg,
 	.enable = dce6_audio_enable,
-	.update_avi_infoframe = evergreen_update_avi_infoframe,
 };
 
 static struct radeon_audio_funcs r600_hdmi_funcs = {
@@ -145,6 +141,7 @@ static struct radeon_audio_funcs r600_hdmi_funcs = {
 	.set_dto = r600_hdmi_audio_set_dto,
 	.update_acr = r600_hdmi_update_acr,
 	.set_vbi_packet = r600_set_vbi_packet,
+	.set_avi_packet = r600_set_avi_packet,
 };
 
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
@@ -154,6 +151,7 @@ static struct radeon_audio_funcs dce32_hdmi_funcs = {
 	.set_dto = dce3_2_audio_set_dto,
 	.update_acr = dce3_2_hdmi_update_acr,
 	.set_vbi_packet = r600_set_vbi_packet,
+	.set_avi_packet = r600_set_avi_packet,
 };
 
 static struct radeon_audio_funcs dce32_dp_funcs = {
@@ -161,6 +159,7 @@ static struct radeon_audio_funcs dce32_dp_funcs = {
 	.write_sad_regs = dce3_2_afmt_write_sad_regs,
 	.write_speaker_allocation = dce3_2_afmt_dp_write_speaker_allocation,
 	.set_dto = dce3_2_audio_set_dto,
+	.set_avi_packet = r600_set_avi_packet,
 };
 
 static struct radeon_audio_funcs dce4_hdmi_funcs = {
@@ -172,6 +171,7 @@ static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.update_acr = evergreen_hdmi_update_acr,
 	.set_vbi_packet = dce4_set_vbi_packet,
 	.set_color_depth = dce4_hdmi_set_color_depth,
+	.set_avi_packet = evergreen_set_avi_packet,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
@@ -180,6 +180,7 @@ static struct radeon_audio_funcs dce4_dp_funcs = {
 	.write_speaker_allocation = dce4_afmt_dp_write_speaker_allocation,
 	.write_latency_fields = dce4_afmt_write_latency_fields,
 	.set_dto = dce4_dp_audio_set_dto,
+	.set_avi_packet = evergreen_set_avi_packet,
 };
 
 static struct radeon_audio_funcs dce6_hdmi_funcs = {
@@ -192,6 +193,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.update_acr = evergreen_hdmi_update_acr,
 	.set_vbi_packet = dce4_set_vbi_packet,
 	.set_color_depth = dce4_hdmi_set_color_depth,
+	.set_avi_packet = evergreen_set_avi_packet,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
@@ -201,6 +203,7 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.write_speaker_allocation = dce6_afmt_dp_write_speaker_allocation,
 	.write_latency_fields = dce6_afmt_write_latency_fields,
 	.set_dto = dce6_dp_audio_set_dto,
+	.set_avi_packet = evergreen_set_avi_packet,
 };
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -466,16 +469,34 @@ void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock)
 		radeon_encoder->audio->set_dto(rdev, crtc, clock);
 }
 
-void radeon_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
-	size_t size)
+int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
+	struct drm_display_mode *mode)
 {
     struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
+	struct hdmi_avi_infoframe frame;
+	int err;
 
-	if (dig && dig->afmt && rdev->audio.funcs->update_avi_infoframe)
-		rdev->audio.funcs->update_avi_infoframe(rdev, dig->afmt->offset,
-			buffer, size);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	if (err < 0) {
+		DRM_ERROR("failed to setup AVI infoframe: %d\n", err);
+		return err;
+	}
+
+	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		DRM_ERROR("failed to pack AVI infoframe: %d\n", err);
+		return err;
+	}
+
+	if (dig && dig->afmt &&
+		radeon_encoder->audio && radeon_encoder->audio->set_avi_packet)
+		radeon_encoder->audio->set_avi_packet(rdev, dig->afmt->offset,
+			buffer, sizeof(buffer));
+
+	return 0;
 }
 
 /*

@@ -208,10 +208,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
-	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
-	ssize_t err;
 
 	if (!dig || !dig->afmt)
 		return;
@@ -250,31 +247,18 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	}
 
 	/* TODO: HDMI0_AUDIO_INFO_UPDATE */
-	WREG32(HDMI0_INFOFRAME_CONTROL0 + offset,
-	       HDMI0_AVI_INFO_SEND | /* enable AVI info frames */
-	       HDMI0_AVI_INFO_CONT | /* send AVI info frames every frame/field */
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
 	       HDMI0_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
 	       HDMI0_AUDIO_INFO_CONT); /* send audio info frames every frame/field */
 
-	WREG32(HDMI0_INFOFRAME_CONTROL1 + offset,
-	       HDMI0_AVI_INFO_LINE(2) | /* anything other than 0 */
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL1 + offset,
 	       HDMI0_AUDIO_INFO_LINE(2)); /* anything other than 0 */
 
 	WREG32(HDMI0_GC + offset, 0); /* unset HDMI0_GC_AVMUTE */
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
-	if (err < 0) {
-		DRM_ERROR("failed to setup AVI infoframe: %zd\n", err);
+	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
 		return;
-	}
 
-	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));
-	if (err < 0) {
-		DRM_ERROR("failed to pack AVI infoframe: %zd\n", err);
-		return;
-	}
-
-	radeon_update_avi_infoframe(encoder, buffer, sizeof(buffer));
 	radeon_audio_update_acr(encoder, mode->clock);
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */

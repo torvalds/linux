@@ -205,7 +205,7 @@ void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder,
 /*
  * build a AVI Info Frame
  */
-void evergreen_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
+void evergreen_set_avi_packet(struct radeon_device *rdev, u32 offset,
     unsigned char *buffer, size_t size)
 {
 	uint8_t *frame = buffer + 3;
@@ -218,6 +218,14 @@ void evergreen_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
 		frame[0x8] | (frame[0x9] << 8) | (frame[0xA] << 16) | (frame[0xB] << 24));
 	WREG32(AFMT_AVI_INFO3 + offset,
 		frame[0xC] | (frame[0xD] << 8) | (buffer[1] << 24));
+
+	WREG32_OR(HDMI_INFOFRAME_CONTROL0 + offset,
+		HDMI_AVI_INFO_SEND |	/* enable AVI info frames */
+		HDMI_AVI_INFO_CONT);	/* required for audio info values to be updated */
+
+	WREG32_P(HDMI_INFOFRAME_CONTROL1 + offset,
+		HDMI_AVI_INFO_LINE(2),	/* anything other than 0 */
+		~HDMI_AVI_INFO_LINE_MASK);
 }
 
 void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
@@ -346,10 +354,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
-	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
-	ssize_t err;
 
 	if (!dig || !dig->afmt)
 		return;
@@ -415,27 +420,8 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	radeon_audio_write_sad_regs(encoder);
 	radeon_audio_write_latency_fields(encoder, mode);
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
-	if (err < 0) {
-		DRM_ERROR("failed to setup AVI infoframe: %zd\n", err);
+	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
 		return;
-	}
-
-	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));
-	if (err < 0) {
-		DRM_ERROR("failed to pack AVI infoframe: %zd\n", err);
-		return;
-	}
-
-	radeon_update_avi_infoframe(encoder, buffer, sizeof(buffer));
-
-	WREG32_OR(HDMI_INFOFRAME_CONTROL0 + offset,
-		  HDMI_AVI_INFO_SEND | /* enable AVI info frames */
-		  HDMI_AVI_INFO_CONT); /* required for audio info values to be updated */
-
-	WREG32_P(HDMI_INFOFRAME_CONTROL1 + offset,
-		 HDMI_AVI_INFO_LINE(2), /* anything other than 0 */
-		 ~HDMI_AVI_INFO_LINE_MASK);
 
 	WREG32_OR(AFMT_AUDIO_PACKET_CONTROL + offset,
 		  AFMT_AUDIO_SAMPLE_SEND); /* send audio packets */

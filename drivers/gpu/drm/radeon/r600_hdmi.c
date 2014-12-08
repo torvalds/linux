@@ -214,7 +214,7 @@ void r600_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 /*
  * build a HDMI Video Info Frame
  */
-void r600_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
+void r600_set_avi_packet(struct radeon_device *rdev, u32 offset,
     unsigned char *buffer, size_t size)
 {
 	uint8_t *frame = buffer + 3;
@@ -227,6 +227,13 @@ void r600_update_avi_infoframe(struct radeon_device *rdev, u32 offset,
 		frame[0x8] | (frame[0x9] << 8) | (frame[0xA] << 16) | (frame[0xB] << 24));
 	WREG32(HDMI0_AVI_INFO3 + offset,
 		frame[0xC] | (frame[0xD] << 8) | (buffer[1] << 24));
+
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
+		HDMI0_AVI_INFO_SEND |	/* enable AVI info frames */
+		HDMI0_AVI_INFO_CONT);	/* send AVI info frames every frame/field */
+
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL1 + offset,
+		HDMI0_AVI_INFO_LINE(2));	/* anything other than 0 */
 }
 
 /*
@@ -349,10 +356,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
-	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
-	ssize_t err;
 
 	if (!dig || !dig->afmt)
 		return;
@@ -381,33 +385,18 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		   HDMI0_60958_CS_UPDATE));
 
 	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
-		  HDMI0_AVI_INFO_SEND | /* enable AVI info frames */
-		  HDMI0_AVI_INFO_CONT | /* send AVI info frames every frame/field */
 		  HDMI0_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
 		  HDMI0_AUDIO_INFO_UPDATE); /* required for audio info values to be updated */
 
 	WREG32_P(HDMI0_INFOFRAME_CONTROL1 + offset,
-		 HDMI0_AVI_INFO_LINE(2) | /* anything other than 0 */
 		 HDMI0_AUDIO_INFO_LINE(2), /* anything other than 0 */
-		 ~(HDMI0_AVI_INFO_LINE_MASK |
-		   HDMI0_AUDIO_INFO_LINE_MASK));
+		 ~HDMI0_AUDIO_INFO_LINE_MASK);
 
 	WREG32_AND(HDMI0_GC + offset,
 		   ~HDMI0_GC_AVMUTE); /* unset HDMI0_GC_AVMUTE */
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
-	if (err < 0) {
-		DRM_ERROR("failed to setup AVI infoframe: %zd\n", err);
+	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
 		return;
-	}
-
-	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));
-	if (err < 0) {
-		DRM_ERROR("failed to pack AVI infoframe: %zd\n", err);
-		return;
-	}
-
-	radeon_update_avi_infoframe(encoder, buffer, sizeof(buffer));
 
 	/* fglrx duplicates INFOFRAME_CONTROL0 & INFOFRAME_CONTROL1 ops here */
 
