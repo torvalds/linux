@@ -523,7 +523,6 @@ static void buffer_queue(struct vb2_buffer *vb)
 
 	if (list_empty(&q->active)) {
 		list_add_tail(&buf->list, &q->active);
-		start_video_dma(dev, q, buf);
 		buf->count    = q->count++;
 		dprintk(2,"[%p/%d] buffer_queue - first active\n",
 			buf, buf->vb.v4l2_buf.index);
