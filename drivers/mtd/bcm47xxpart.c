@@ -94,8 +94,12 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	int last_trx_part = -1;
 	int possible_nvram_sizes[] = { 0x8000, 0xF000, 0x10000, };
 
-	if (blocksize <= 0x10000)
-		blocksize = 0x10000;
+	/*
+	 * Some really old flashes (like AT45DB*) had smaller erasesize-s, but
+	 * partitions were aligned to at least 0x1000 anyway.
+	 */
+	if (blocksize < 0x1000)
+		blocksize = 0x1000;
 
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
