@@ -41,8 +41,14 @@ typedef struct bmpinfoheader {
 	unsigned int colorsimportant;
 }__attribute__((packed)) BITMAPINFOHEADER;
 
+#define BMP_RLE8_ESCAPE		0
+#define BMP_RLE8_EOL		0
+#define BMP_RLE8_EOBMP		1
+#define BMP_RLE8_DELTA		2
+
 #define range(x, min, max) ((x) < (min)) ? (min) : (((x) > (max)) ? (max) : (x))
 
-int datatobmp(void *__iomem *vaddr,int width, int height, u8 data_format,
-	      void *data, void (*fn)(void *, void *, int));
+int bmpencoder(void *__iomem *vaddr,int width, int height, u8 data_format,
+	       void *data, void (*fn)(void *, void *, int));
+int bmpdecoder(void *bmp_addr, void *dst, int *width, int *height, int *bits);
 #endif /* _BMP_HELPER_H_ */

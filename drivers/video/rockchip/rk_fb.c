@@ -31,6 +31,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/regulator/consumer.h>
 
+#include "bmp_helper.h"
+
 #if defined(CONFIG_RK_HDMI)
 #include "hdmi/rk_hdmi.h"
 #endif
@@ -65,6 +67,16 @@ int (*video_data_to_mirroring) (struct fb_info *info, u32 yuv_phy[2]);
 EXPORT_SYMBOL(video_data_to_mirroring);
 #endif
 
+static uint32_t kernel_logo_addr;
+static int __init kernel_logo_setup(char *str)
+{
+       if(str) {
+               sscanf(str, "%x", &kernel_logo_addr);
+       }
+
+       return 0;
+}
+early_param("kernel_logo", kernel_logo_setup);
 static struct rk_fb_trsm_ops *trsm_lvds_ops;
 static struct rk_fb_trsm_ops *trsm_edp_ops;
 static struct rk_fb_trsm_ops *trsm_mipi_ops;
@@ -214,6 +226,9 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 		switch (bits_per_pixel) {
 		case 32:
 			fb_data_fmt = ARGB888;
+			break;
+		case 24:
+			fb_data_fmt = RGB888;
 			break;
 		case 16:
 			fb_data_fmt = RGB565;
@@ -4162,15 +4177,40 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		dev_drv->uboot_logo = support_uboot_display();
-#if !defined(CONFIG_LOGO)
-		if (support_uboot_display()) {
-			/*
-			if (dev_drv->iommu_enabled)
-				rk_fb_copy_from_loader(main_fbi);
-			*/
+
+		if (kernel_logo_addr) {
+			struct rk_lcdc_win *win = dev_drv->win[0];
+			char *addr = phys_to_virt(kernel_logo_addr);
+			int width, height, bits;
+
+			bmpdecoder(addr, main_fbi->screen_base,
+				   &width, &height, &bits);
+			win->area[0].format = rk_fb_data_fmt(0, bits);
+			win->area[0].y_vir_stride = width * bits >> 5;
+			win->area[0].xpos = (main_fbi->var.xres - width) >> 1;
+			win->area[0].ypos = (main_fbi->var.yres - height) >> 1;;
+			win->area[0].xsize = width;
+			win->area[0].ysize = height;
+			win->area[0].xact = width;
+			win->area[0].yact = height;
+			win->area[0].xvir = win->area[0].y_vir_stride;
+			win->area[0].yvir = height;
+			win->area[0].smem_start = main_fbi->fix.smem_start;
+			win->area[0].y_offset = 0;
+
+			win->area_num = 1;
+			win->alpha_mode = 4;
+			win->alpha_en = 0;
+			win->g_alpha_val = 0;
+
+			win->state = 1;
+			dev_drv->ops->set_par(dev_drv, 0);
+			dev_drv->ops->pan_display(dev_drv, 0);
+			dev_drv->ops->cfg_done(dev_drv);
+
 			return 0;
 		}
-#else
+#if defined(CONFIG_LOGO)
 		main_fbi->fbops->fb_set_par(main_fbi);
 #if  defined(CONFIG_LOGO_LINUX_BMP)
 		if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {

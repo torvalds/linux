@@ -166,7 +166,8 @@ static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
 	set_fs(KERNEL_DS);
 
 	if (is_bmp)
-		datatobmp(vaddr, width, height, data_format, filp, fill_buffer);
+		bmpencoder(vaddr, width, height,
+			   data_format, filp, fill_buffer);
 	else
 		fill_buffer(filp, vaddr, width * height * 4);
 
