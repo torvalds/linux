@@ -21,19 +21,25 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "intel_drv.h"
-#include "i915_drv.h"
-
-/* FBC, or Frame Buffer Compression, is a technique employed to compress the
- * framebuffer contents in-memory, aiming at reducing the required bandwidth
- * during in-memory transfers and, therefore, reduce the power packet.
+/**
+ * DOC: Frame Buffer Compression (FBC)
+ *
+ * FBC tries to save memory bandwidth (and so power consumption) by
+ * compressing the amount of memory used by the display. It is total
+ * transparent to user space and completely handled in the kernel.
  *
  * The benefits of FBC are mostly visible with solid backgrounds and
- * variation-less patterns.
+ * variation-less patterns. It comes from keeping the memory footprint small
+ * and having fewer memory pages opened and accessed for refreshing the display.
  *
- * FBC-related functionality can be enabled by the means of the
- * i915.i915_fbc_enable parameter
+ * i915 is responsible to reserve stolen memory for FBC and configure its
+ * offset on proper registers. The hardware takes care of all
+ * compress/decompress. However there are many known cases where we have to
+ * forcibly disable it to allow proper screen updates.
  */
+
+#include "intel_drv.h"
+#include "i915_drv.h"
 
 static void i8xx_fbc_disable(struct drm_device *dev)
 {
@@ -318,6 +324,14 @@ static void gen7_fbc_enable(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
 }
 
+/**
+ * intel_fbc_enabled - Is FBC enabled?
+ * @dev: the drm_device
+ *
+ * This function is used to verify the current state of FBC.
+ * FIXME: This should be tracked in the plane config eventually
+ *        instead of queried at runtime for most callers.
+ */
 bool intel_fbc_enabled(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -429,6 +443,12 @@ static void intel_fbc_enable(struct drm_crtc *crtc)
 	schedule_delayed_work(&work->work, msecs_to_jiffies(50));
 }
 
+/**
+ * intel_fbc_disable - disable FBC
+ * @dev: the drm_device
+ *
+ * This function disables FBC.
+ */
 void intel_fbc_disable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -643,6 +663,12 @@ out_disable:
 	i915_gem_stolen_cleanup_compression(dev);
 }
 
+/**
+ * intel_fbc_init - Initialize FBC
+ * @dev_priv: the i915 device
+ *
+ * This function might be called during PM init process.
+ */
 void intel_fbc_init(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_FBC(dev_priv)) {
