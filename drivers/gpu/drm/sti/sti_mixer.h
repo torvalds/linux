@@ -23,6 +23,7 @@
  * @id: id of the mixer
  * @drm_crtc: crtc object link to the mixer
  * @pending_event: set if a flip event is pending on crtc
+ * @enabled: to know if the mixer is active or not
  */
 struct sti_mixer {
 	struct device *dev;
@@ -30,6 +31,7 @@ struct sti_mixer {
 	int id;
 	struct drm_crtc	drm_crtc;
 	struct drm_pending_vblank_event *pending_event;
+	bool enabled;
 };
 
 const char *sti_mixer_to_str(struct sti_mixer *mixer);

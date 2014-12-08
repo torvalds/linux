@@ -16,6 +16,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
+#include "sti_drm_crtc.h"
+
 /* glue registers */
 #define TVO_CSC_MAIN_M0                  0x000
 #define TVO_CSC_MAIN_M1                  0x004
@@ -96,7 +98,7 @@
 
 #define TVO_SYNC_HD_DCS_SHIFT            8
 
-#define ENCODER_MAIN_CRTC_MASK           BIT(0)
+#define ENCODER_CRTC_MASK                (BIT(0) | BIT(1))
 
 /* enum listing the supported output data format */
 enum sti_tvout_video_out_type {
@@ -404,7 +406,7 @@ static void sti_hda_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_hda_start(tvout, true);
+	tvout_hda_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
 }
 
 static void sti_hda_encoder_disable(struct drm_encoder *encoder)
@@ -441,7 +443,7 @@ static struct drm_encoder *sti_tvout_create_hda_encoder(struct drm_device *dev,
 
 	drm_encoder = (struct drm_encoder *) encoder;
 
-	drm_encoder->possible_crtcs = ENCODER_MAIN_CRTC_MASK;
+	drm_encoder->possible_crtcs = ENCODER_CRTC_MASK;
 	drm_encoder->possible_clones = 1 << 0;
 
 	drm_encoder_init(dev, drm_encoder,
@@ -456,7 +458,7 @@ static void sti_hdmi_encoder_commit(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	tvout_hdmi_start(tvout, true);
+	tvout_hdmi_start(tvout, sti_drm_crtc_is_main(encoder->crtc));
 }
 
 static void sti_hdmi_encoder_disable(struct drm_encoder *encoder)
@@ -490,7 +492,7 @@ static struct drm_encoder *sti_tvout_create_hdmi_encoder(struct drm_device *dev,
 
 	drm_encoder = (struct drm_encoder *) encoder;
 
-	drm_encoder->possible_crtcs = ENCODER_MAIN_CRTC_MASK;
+	drm_encoder->possible_crtcs = ENCODER_CRTC_MASK;
 	drm_encoder->possible_clones = 1 << 1;
 
 	drm_encoder_init(dev, drm_encoder,

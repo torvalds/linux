@@ -28,7 +28,7 @@ static void sti_drm_crtc_prepare(struct drm_crtc *crtc)
 	struct device *dev = mixer->dev;
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 
-	compo->enable = true;
+	mixer->enabled = true;
 
 	/* Prepare and enable the compo IP clock */
 	if (mixer->id == STI_MIXER_MAIN) {
@@ -200,7 +200,7 @@ static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 	struct sti_layer *layer;
 
-	if (!compo->enable)
+	if (!mixer->enabled)
 		return;
 
 	DRM_DEBUG_KMS("CRTC:%d (%s)\n", crtc->base.id, sti_mixer_to_str(mixer));
@@ -237,7 +237,7 @@ static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 		clk_disable_unprepare(compo->clk_compo_aux);
 	}
 
-	compo->enable = false;
+	mixer->enabled = false;
 }
 
 static struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
@@ -399,6 +399,7 @@ bool sti_drm_crtc_is_main(struct drm_crtc *crtc)
 
 	return false;
 }
+EXPORT_SYMBOL(sti_drm_crtc_is_main);
 
 int sti_drm_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
 		struct drm_plane *primary, struct drm_plane *cursor)

@@ -83,6 +83,8 @@ struct sti_gdp_node_list {
  *
  * @layer:		layer structure
  * @clk_pix:            pixel clock for the current gdp
+ * @clk_main_parent:    gdp parent clock if main path used
+ * @clk_aux_parent:     gdp parent clock if aux path used
  * @vtg_field_nb:       callback for VTG FIELD (top or bottom) notification
  * @is_curr_top:        true if the current node processed is the top field
  * @node_list:		array of node list
@@ -90,6 +92,8 @@ struct sti_gdp_node_list {
 struct sti_gdp {
 	struct sti_layer layer;
 	struct clk *clk_pix;
+	struct clk *clk_main_parent;
+	struct clk *clk_aux_parent;
 	struct notifier_block vtg_field_nb;
 	bool is_curr_top;
 	struct sti_gdp_node_list node_list[GDP_NODE_NB_BANK];
@@ -307,6 +311,17 @@ static int sti_gdp_prepare_layer(struct sti_layer *layer, bool first_prepare)
 
 		/* Set and enable gdp clock */
 		if (gdp->clk_pix) {
+			struct clk *clkp;
+			/* According to the mixer used, the gdp pixel clock
+			 * should have a different parent clock. */
+			if (layer->mixer_id == STI_MIXER_MAIN)
+				clkp = gdp->clk_main_parent;
+			else
+				clkp = gdp->clk_aux_parent;
+
+			if (clkp)
+				clk_set_parent(gdp->clk_pix, clkp);
+
 			res = clk_set_rate(gdp->clk_pix, rate);
 			if (res < 0) {
 				DRM_ERROR("Cannot set rate (%dHz) for gdp\n",
@@ -521,6 +536,14 @@ static void sti_gdp_init(struct sti_layer *layer)
 		gdp->clk_pix = devm_clk_get(layer->dev, clk_name);
 		if (IS_ERR(gdp->clk_pix))
 			DRM_ERROR("Cannot get %s clock\n", clk_name);
+
+		gdp->clk_main_parent = devm_clk_get(layer->dev, "main_parent");
+		if (IS_ERR(gdp->clk_main_parent))
+			DRM_ERROR("Cannot get main_parent clock\n");
+
+		gdp->clk_aux_parent = devm_clk_get(layer->dev, "aux_parent");
+		if (IS_ERR(gdp->clk_aux_parent))
+			DRM_ERROR("Cannot get aux_parent clock\n");
 	}
 }
 
