@@ -1359,7 +1359,12 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	u32 residue;
 
-	if (sdmac->flags & IMX_DMA_SG_LOOP)
+	/*
+	 * For uart rx data may not receive fully, use old chn_real_count to
+	 * know the real rx count.
+	 */
+	if ((sdmac->flags & IMX_DMA_SG_LOOP) &&
+		(sdmac->peripheral_type != IMX_DMATYPE_UART))
 		residue = (sdmac->num_bd - sdmac->buf_tail) * sdmac->period_len;
 	else
 		residue = sdmac->chn_count - sdmac->chn_real_count;
