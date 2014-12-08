@@ -41,18 +41,6 @@ struct rk_ehci_hcd {
 };
 #define EHCI_PRINT(x...)   printk(KERN_INFO "EHCI: " x)
 
-static struct rkehci_pdata_id rkehci_pdata[] = {
-	{
-	 .name = "rk3188-reserved",
-	 .pdata = NULL,
-	 },
-	{
-	 .name = "rk3288-ehci",
-	 .pdata = &rkehci_pdata_rk3288,
-	 },
-	{},
-};
-
 static void rk_ehci_hcd_enable(struct work_struct *work)
 {
 	struct rk_ehci_hcd *rk_ehci;
@@ -263,7 +251,7 @@ static DEVICE_ATTR(test_sq, S_IWUSR, NULL, test_sq_store);
 static struct of_device_id rk_ehci_of_match[] = {
 	{
 	 .compatible = "rockchip,rk3288_rk_ehci_host",
-	 .data = &rkehci_pdata[RK3288_USB_CTLR],
+	 .data = &rkehci_pdata_rk3288,
 	 },
 	{},
 };
@@ -279,21 +267,19 @@ static int ehci_rk_probe(struct platform_device *pdev)
 	struct rkehci_platform_data *pldata;
 	int ret;
 	struct device_node *node = pdev->dev.of_node;
-	struct rkehci_pdata_id *p;
 	struct rk_ehci_hcd *rk_ehci;
 	const struct of_device_id *match =
 	    of_match_device(of_match_ptr(rk_ehci_of_match), &pdev->dev);
 
 	dev_dbg(&pdev->dev, "ehci_rk probe!\n");
 
-	if (match) {
-		p = (struct rkehci_pdata_id *)match->data;
+	if (match && match->data) {
+		dev->platform_data = (void *)match->data;
 	} else {
 		dev_err(dev, "ehci_rk match failed\n");
 		return -EINVAL;
 	}
 
-	dev->platform_data = p->pdata;
 	pldata = dev->platform_data;
 	pldata->dev = dev;
 

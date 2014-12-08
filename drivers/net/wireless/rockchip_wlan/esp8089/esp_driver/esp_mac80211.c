@@ -24,6 +24,7 @@
 #include "esp_debug.h"
 #include "esp_wl.h"
 #include "esp_utils.h"
+#include <linux/rfkill-wlan.h>
 
 #define ESP_IEEE80211_DBG esp_dbg
 
@@ -2194,14 +2195,25 @@ esp_pub_init_mac80211(struct esp_pub *epub)
 int
 esp_register_mac80211(struct esp_pub *epub)
 {
-        int ret = 0;
+	int ret = 0;
+	u8 mac[ETH_ALEN];
 #ifdef P2P_CONCURRENT
 	u8 *wlan_addr;
 	u8 *p2p_addr;
 	int idx;
 #endif
 
-        esp_pub_init_mac80211(epub);
+	esp_pub_init_mac80211(epub);
+
+	printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", epub->mac_addr[0], epub->mac_addr[1],
+          epub->mac_addr[2], epub->mac_addr[3], epub->mac_addr[4], epub->mac_addr[5]);
+	
+	if (!rockchip_wifi_mac_addr(mac)) 
+	{
+		printk("=========> get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
+                mac[2], mac[3], mac[4], mac[5]);
+		memcpy(epub->mac_addr, mac, ETH_ALEN);
+	}
 
 #ifdef P2P_CONCURRENT
 	epub->hw->wiphy->addresses = (struct mac_address *)esp_mac_addr;

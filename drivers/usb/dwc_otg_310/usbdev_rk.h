@@ -137,16 +137,6 @@ enum {
 	RK3126_USB_CTLR,
 };
 
-struct usb20otg_pdata_id {
-	char name[32];
-	struct dwc_otg_platform_data *pdata;
-};
-
-struct usb20host_pdata_id {
-	char name[32];
-	struct dwc_otg_platform_data *pdata;
-};
-
 struct rkehci_pdata_id {
 	char name[32];
 	struct rkehci_platform_data *pdata;

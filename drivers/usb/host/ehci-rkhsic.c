@@ -212,11 +212,11 @@ static DEVICE_ATTR(hsic_debug_ehci, S_IRUGO, hsic_debug_show, NULL);
 static struct of_device_id rk_hsic_of_match[] = {
 	{
 	 .compatible = "rockchip,rk3188_rk_hsic_host",
-	 .data = &rkhsic_pdata[RK3188_USB_CTLR],
+	 .data = &rkhsic_pdata_rk3188,
 	 },
 	{
 	 .compatible = "rockchip,rk3288_rk_hsic_host",
-	 .data = &rkhsic_pdata[RK3288_USB_CTLR],
+	 .data = &rkhsic_pdata_rk3288,
 	 },
 	{},
 };
@@ -234,20 +234,18 @@ static int ehci_rkhsic_probe(struct platform_device *pdev)
 	int retval = 0;
 	static u64 usb_dmamask = 0xffffffffUL;
 	struct device_node *node = pdev->dev.of_node;
-	struct rkehci_pdata_id *p;
 	const struct of_device_id *match =
 	    of_match_device(of_match_ptr(rk_hsic_of_match), &pdev->dev);
 
 	dev_dbg(&pdev->dev, "ehci_rkhsic proble\n");
 
-	if (match) {
-		p = (struct rkehci_pdata_id *)match->data;
+	if (match && match->data) {
+		dev->platform_data  = match->data;
 	} else {
 		dev_err(dev, "ehci_rkhsic match failed\n");
 		return -EINVAL;
 	}
 
-	dev->platform_data = p->pdata;
 	pldata = dev->platform_data;
 	pldata->dev = dev;
 
