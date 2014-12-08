@@ -64,7 +64,7 @@ struct map_groups {
 	int		 refcnt;
 };
 
-struct map_groups *map_groups__new(void);
+struct map_groups *map_groups__new(struct machine *machine);
 void map_groups__delete(struct map_groups *mg);
 bool map_groups__empty(struct map_groups *mg);
 
@@ -150,7 +150,7 @@ void maps__remove(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);
 struct map *maps__first(struct rb_root *maps);
 struct map *maps__next(struct map *map);
-void map_groups__init(struct map_groups *mg);
+void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);
 int map_groups__clone(struct map_groups *mg,
 		      struct map_groups *parent, enum map_type type);

@@ -754,8 +754,8 @@ int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain ||
 	    sort__has_parent) {
-		return machine__resolve_callchain(al->machine, evsel, al->thread,
-						  sample, parent, al, max_stack);
+		return thread__resolve_callchain(al->thread, evsel, sample,
+						 parent, al, max_stack);
 	}
 	return 0;
 }
@@ -807,4 +807,23 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 
 out:
 	return 1;
+}
+
+char *callchain_list__sym_name(struct callchain_list *cl,
+			       char *bf, size_t bfsize, bool show_dso)
+{
+	int printed;
+
+	if (cl->ms.sym) {
+		printed = scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
+	} else
+		printed = scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
+
+	if (show_dso)
+		scnprintf(bf + printed, bfsize - printed, " %s",
+			  cl->ms.map ?
+			  cl->ms.map->dso->short_name :
+			  "unknown");
+
+	return bf;
 }

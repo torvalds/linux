@@ -546,6 +546,35 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
+static int decompress_kmodule(struct dso *dso, const char *name,
+			      enum dso_binary_type type)
+{
+	int fd;
+	const char *ext = strrchr(name, '.');
+	char tmpbuf[] = "/tmp/perf-kmod-XXXXXX";
+
+	if ((type != DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP &&
+	     type != DSO_BINARY_TYPE__GUEST_KMODULE_COMP) ||
+	    type != dso->symtab_type)
+		return -1;
+
+	if (!ext || !is_supported_compression(ext + 1))
+		return -1;
+
+	fd = mkstemp(tmpbuf);
+	if (fd < 0)
+		return -1;
+
+	if (!decompress_to_file(ext + 1, name, fd)) {
+		close(fd);
+		fd = -1;
+	}
+
+	unlink(tmpbuf);
+
+	return fd;
+}
+
 bool symsrc__possibly_runtime(struct symsrc *ss)
 {
 	return ss->dynsym || ss->opdsec;
@@ -571,7 +600,11 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	Elf *elf;
 	int fd;
 
-	fd = open(name, O_RDONLY);
+	if (dso__needs_decompress(dso))
+		fd = decompress_kmodule(dso, name, type);
+	else
+		fd = open(name, O_RDONLY);
+
 	if (fd < 0)
 		return -1;
 

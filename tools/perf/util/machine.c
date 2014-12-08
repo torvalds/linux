@@ -21,7 +21,7 @@ static void dsos__init(struct dsos *dsos)
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 {
-	map_groups__init(&machine->kmaps);
+	map_groups__init(&machine->kmaps, machine);
 	RB_CLEAR_NODE(&machine->rb_node);
 	dsos__init(&machine->user_dsos);
 	dsos__init(&machine->kernel_dsos);
@@ -32,7 +32,6 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 
 	machine->vdso_info = NULL;
 
-	machine->kmaps.machine = machine;
 	machine->pid = pid;
 
 	machine->symbol_filter = NULL;
@@ -319,7 +318,7 @@ static void machine__update_thread_pid(struct machine *machine,
 		goto out_err;
 
 	if (!leader->mg)
-		leader->mg = map_groups__new();
+		leader->mg = map_groups__new(machine);
 
 	if (!leader->mg)
 		goto out_err;
@@ -465,6 +464,7 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 {
 	struct map *map;
 	struct dso *dso = __dsos__findnew(&machine->kernel_dsos, filename);
+	bool compressed;
 
 	if (dso == NULL)
 		return NULL;
@@ -477,6 +477,11 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
+
+	/* _KMODULE_COMP should be next to _KMODULE */
+	if (is_kernel_module(filename, &compressed) && compressed)
+		dso->symtab_type++;
+
 	map_groups__insert(&machine->kmaps, map);
 	return map;
 }
@@ -862,8 +867,14 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 			struct map *map;
 			char *long_name;
 
-			if (dot == NULL || strcmp(dot, ".ko"))
+			if (dot == NULL)
 				continue;
+
+			/* On some system, modules are compressed like .ko.gz */
+			if (is_supported_compression(dot + 1) &&
+			    is_kmodule_extension(dot - 2))
+				dot -= 3;
+
 			snprintf(dso_name, sizeof(dso_name), "[%.*s]",
 				 (int)(dot - dent->d_name), dent->d_name);
 
@@ -1045,6 +1056,11 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			dot = strrchr(name, '.');
 			if (dot == NULL)
 				goto out_problem;
+			/* On some system, modules are compressed like .ko.gz */
+			if (is_supported_compression(dot + 1))
+				dot -= 3;
+			if (!is_kmodule_extension(dot + 1))
+				goto out_problem;
 			snprintf(short_module_name, sizeof(short_module_name),
 					"[%.*s]", (int)(dot - name), name);
 			strxfrchar(short_module_name, '-', '_');
@@ -1069,14 +1085,29 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		 * Should be there already, from the build-id table in
 		 * the header.
 		 */
-		struct dso *kernel = __dsos__findnew(&machine->kernel_dsos,
-						     kmmap_prefix);
+		struct dso *kernel = NULL;
+		struct dso *dso;
+
+		list_for_each_entry(dso, &machine->kernel_dsos.head, node) {
+			if (is_kernel_module(dso->long_name, NULL))
+				continue;
+
+			kernel = dso;
+			break;
+		}
+
+		if (kernel == NULL)
+			kernel = __dsos__findnew(&machine->kernel_dsos,
+						 kmmap_prefix);
 		if (kernel == NULL)
 			goto out_problem;
 
 		kernel->kernel = kernel_type;
 		if (__machine__create_kernel_maps(machine, kernel) < 0)
 			goto out_problem;
+
+		if (strstr(dso->long_name, "vmlinux"))
+			dso__set_short_name(dso, "[kernel.vmlinux]", false);
 
 		machine__set_kernel_mmap_len(machine, event);
 
@@ -1290,7 +1321,7 @@ static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 	return 0;
 }
 
-static void ip__resolve_ams(struct machine *machine, struct thread *thread,
+static void ip__resolve_ams(struct thread *thread,
 			    struct addr_map_symbol *ams,
 			    u64 ip)
 {
@@ -1304,7 +1335,7 @@ static void ip__resolve_ams(struct machine *machine, struct thread *thread,
 	 * Thus, we have to try consecutively until we find a match
 	 * or else, the symbol is unknown
 	 */
-	thread__find_cpumode_addr_location(thread, machine, MAP__FUNCTION, ip, &al);
+	thread__find_cpumode_addr_location(thread, MAP__FUNCTION, ip, &al);
 
 	ams->addr = ip;
 	ams->al_addr = al.addr;
@@ -1312,23 +1343,21 @@ static void ip__resolve_ams(struct machine *machine, struct thread *thread,
 	ams->map = al.map;
 }
 
-static void ip__resolve_data(struct machine *machine, struct thread *thread,
+static void ip__resolve_data(struct thread *thread,
 			     u8 m, struct addr_map_symbol *ams, u64 addr)
 {
 	struct addr_location al;
 
 	memset(&al, 0, sizeof(al));
 
-	thread__find_addr_location(thread, machine, m, MAP__VARIABLE, addr,
-				   &al);
+	thread__find_addr_location(thread, m, MAP__VARIABLE, addr, &al);
 	if (al.map == NULL) {
 		/*
 		 * some shared data regions have execute bit set which puts
 		 * their mapping in the MAP__FUNCTION type array.
 		 * Check there as a fallback option before dropping the sample.
 		 */
-		thread__find_addr_location(thread, machine, m, MAP__FUNCTION, addr,
-					   &al);
+		thread__find_addr_location(thread, m, MAP__FUNCTION, addr, &al);
 	}
 
 	ams->addr = addr;
@@ -1345,12 +1374,39 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 	if (!mi)
 		return NULL;
 
-	ip__resolve_ams(al->machine, al->thread, &mi->iaddr, sample->ip);
-	ip__resolve_data(al->machine, al->thread, al->cpumode,
-			 &mi->daddr, sample->addr);
+	ip__resolve_ams(al->thread, &mi->iaddr, sample->ip);
+	ip__resolve_data(al->thread, al->cpumode, &mi->daddr, sample->addr);
 	mi->data_src.val = sample->data_src;
 
 	return mi;
+}
+
+static int add_callchain_ip(struct thread *thread,
+			    struct symbol **parent,
+			    struct addr_location *root_al,
+			    int cpumode,
+			    u64 ip)
+{
+	struct addr_location al;
+
+	al.filtered = 0;
+	al.sym = NULL;
+	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
+				   ip, &al);
+	if (al.sym != NULL) {
+		if (sort__has_parent && !*parent &&
+		    symbol__match_regex(al.sym, &parent_regex))
+			*parent = al.sym;
+		else if (have_ignore_callees && root_al &&
+		  symbol__match_regex(al.sym, &ignore_callees_regex)) {
+			/* Treat this symbol as the root,
+			   forgetting its callees. */
+			*root_al = al;
+			callchain_cursor_reset(&callchain_cursor);
+		}
+	}
+
+	return callchain_cursor_append(&callchain_cursor, al.addr, al.map, al.sym);
 }
 
 struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
@@ -1364,15 +1420,14 @@ struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
 		return NULL;
 
 	for (i = 0; i < bs->nr; i++) {
-		ip__resolve_ams(al->machine, al->thread, &bi[i].to, bs->entries[i].to);
-		ip__resolve_ams(al->machine, al->thread, &bi[i].from, bs->entries[i].from);
+		ip__resolve_ams(al->thread, &bi[i].to, bs->entries[i].to);
+		ip__resolve_ams(al->thread, &bi[i].from, bs->entries[i].from);
 		bi[i].flags = bs->entries[i].flags;
 	}
 	return bi;
 }
 
-static int machine__resolve_callchain_sample(struct machine *machine,
-					     struct thread *thread,
+static int thread__resolve_callchain_sample(struct thread *thread,
 					     struct ip_callchain *chain,
 					     struct symbol **parent,
 					     struct addr_location *root_al,
@@ -1396,11 +1451,10 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 	 * Based on DWARF debug information, some architectures skip
 	 * a callchain entry saved by the kernel.
 	 */
-	skip_idx = arch_skip_callchain_idx(machine, thread, chain);
+	skip_idx = arch_skip_callchain_idx(thread, chain);
 
 	for (i = 0; i < chain_nr; i++) {
 		u64 ip;
-		struct addr_location al;
 
 		if (callchain_param.order == ORDER_CALLEE)
 			j = i;
@@ -1437,24 +1491,10 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 			continue;
 		}
 
-		al.filtered = 0;
-		thread__find_addr_location(thread, machine, cpumode,
-					   MAP__FUNCTION, ip, &al);
-		if (al.sym != NULL) {
-			if (sort__has_parent && !*parent &&
-			    symbol__match_regex(al.sym, &parent_regex))
-				*parent = al.sym;
-			else if (have_ignore_callees && root_al &&
-			  symbol__match_regex(al.sym, &ignore_callees_regex)) {
-				/* Treat this symbol as the root,
-				   forgetting its callees. */
-				*root_al = al;
-				callchain_cursor_reset(&callchain_cursor);
-			}
-		}
-
-		err = callchain_cursor_append(&callchain_cursor,
-					      ip, al.map, al.sym);
+		err = add_callchain_ip(thread, parent, root_al,
+				       cpumode, ip);
+		if (err == -EINVAL)
+			break;
 		if (err)
 			return err;
 	}
@@ -1469,19 +1509,15 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 				       entry->map, entry->sym);
 }
 
-int machine__resolve_callchain(struct machine *machine,
-			       struct perf_evsel *evsel,
-			       struct thread *thread,
-			       struct perf_sample *sample,
-			       struct symbol **parent,
-			       struct addr_location *root_al,
-			       int max_stack)
+int thread__resolve_callchain(struct thread *thread,
+			      struct perf_evsel *evsel,
+			      struct perf_sample *sample,
+			      struct symbol **parent,
+			      struct addr_location *root_al,
+			      int max_stack)
 {
-	int ret;
-
-	ret = machine__resolve_callchain_sample(machine, thread,
-						sample->callchain, parent,
-						root_al, max_stack);
+	int ret = thread__resolve_callchain_sample(thread, sample->callchain,
+						   parent, root_al, max_stack);
 	if (ret)
 		return ret;
 
@@ -1495,7 +1531,7 @@ int machine__resolve_callchain(struct machine *machine,
 	    (!sample->user_stack.size))
 		return 0;
 
-	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
+	return unwind__get_entries(unwind_entry, &callchain_cursor,
 				   thread, sample, max_stack);
 
 }

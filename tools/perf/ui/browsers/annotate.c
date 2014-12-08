@@ -27,6 +27,7 @@ static struct annotate_browser_opt {
 	bool hide_src_code,
 	     use_offset,
 	     jump_arrows,
+	     show_linenr,
 	     show_nr_jumps;
 } annotate_browser__opts = {
 	.use_offset	= true,
@@ -128,7 +129,11 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	if (!*dl->line)
 		slsmg_write_nstring(" ", width - pcnt_width);
 	else if (dl->offset == -1) {
-		printed = scnprintf(bf, sizeof(bf), "%*s  ",
+		if (dl->line_nr && annotate_browser__opts.show_linenr)
+			printed = scnprintf(bf, sizeof(bf), "%-*d ",
+					ab->addr_width + 1, dl->line_nr);
+		else
+			printed = scnprintf(bf, sizeof(bf), "%*s  ",
 				    ab->addr_width, " ");
 		slsmg_write_nstring(bf, printed);
 		slsmg_write_nstring(dl->line, width - printed - pcnt_width + 1);
@@ -733,6 +738,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"o             Toggle disassembler output/simplified view\n"
 		"s             Toggle source code view\n"
 		"/             Search string\n"
+		"k             Toggle line numbers\n"
 		"r             Run available scripts\n"
 		"?             Search string backwards\n");
 			continue;
@@ -741,6 +747,10 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				script_browse(NULL);
 				continue;
 			}
+		case 'k':
+			annotate_browser__opts.show_linenr =
+				!annotate_browser__opts.show_linenr;
+			break;
 		case 'H':
 			nd = browser->curr_hot;
 			break;
@@ -984,6 +994,7 @@ static struct annotate_config {
 } annotate__configs[] = {
 	ANNOTATE_CFG(hide_src_code),
 	ANNOTATE_CFG(jump_arrows),
+	ANNOTATE_CFG(show_linenr),
 	ANNOTATE_CFG(show_nr_jumps),
 	ANNOTATE_CFG(use_offset),
 };

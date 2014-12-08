@@ -1846,7 +1846,7 @@ static int trace__pgfault(struct trace *trace,
 	if (trace->summary_only)
 		return 0;
 
-	thread__find_addr_location(thread, trace->host, cpumode, MAP__FUNCTION,
+	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
 			      sample->ip, &al);
 
 	trace__fprintf_entry_head(trace, thread, 0, sample->time, trace->output);
@@ -1859,11 +1859,11 @@ static int trace__pgfault(struct trace *trace,
 
 	fprintf(trace->output, "] => ");
 
-	thread__find_addr_location(thread, trace->host, cpumode, MAP__VARIABLE,
+	thread__find_addr_location(thread, cpumode, MAP__VARIABLE,
 				   sample->addr, &al);
 
 	if (!al.map) {
-		thread__find_addr_location(thread, trace->host, cpumode,
+		thread__find_addr_location(thread, cpumode,
 					   MAP__FUNCTION, sample->addr, &al);
 
 		if (al.map)
