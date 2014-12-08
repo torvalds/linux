@@ -866,7 +866,7 @@ static const struct snd_kcontrol_new max98095_right_ADC_mixer_controls[] = {
 static int max98095_mic_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -896,7 +896,7 @@ static int max98095_mic_event(struct snd_soc_dapm_widget *w,
 static int max98095_line_pga(struct snd_soc_dapm_widget *w,
 			     int event, u8 channel)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	u8 *state;
 
@@ -944,7 +944,7 @@ static int max98095_pga_in2_event(struct snd_soc_dapm_widget *w,
 static int max98095_lineout_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -2319,9 +2319,6 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	snd_soc_write(codec, M98095_097_PWR_SYS, M98095_PWRSV);
 
-	/* initialize registers cache to hardware default */
-	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	snd_soc_write(codec, M98095_048_MIX_DAC_LR,
 		M98095_DAI1L_TO_DACL|M98095_DAI1R_TO_DACR);
 
@@ -2360,8 +2357,6 @@ static int max98095_remove(struct snd_soc_codec *codec)
 {
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *client = to_i2c_client(codec->dev);
-
-	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	if (max98095->headphone_jack || max98095->mic_jack)
 		max98095_jack_detect_disable(codec);

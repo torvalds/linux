@@ -16,6 +16,8 @@ Optional properties:
 
 - clock-names: Should be "mclk"
 
+- maxim,dmic-freq: Frequency at which to clock DMIC
+
 Pins on the device (for linking into audio routes):
 
   * MIC1
