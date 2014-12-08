@@ -15,25 +15,12 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
+
 #include <video/omapdss.h>
 
 #include "dss.h"
 #include "hdmi.h"
-
-#define HDMI_DEFAULT_REGN 16
-#define HDMI_DEFAULT_REGM2 1
-
-struct hdmi_pll_features {
-	bool sys_reset;
-	/* this is a hack, need to replace it with a better computation of M2 */
-	bool bound_dcofreq;
-	unsigned long fint_min, fint_max;
-	u16 regm_max;
-	unsigned long dcofreq_low_min, dcofreq_low_max;
-	unsigned long dcofreq_high_min, dcofreq_high_max;
-};
-
-static const struct hdmi_pll_features *pll_feat;
 
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s)
 {
@@ -51,228 +38,189 @@ void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s)
 	DUMPPLL(PLLCTRL_CFG4);
 }
 
-void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin, int phy)
+void hdmi_pll_compute(struct hdmi_pll_data *pll,
+	unsigned long target_tmds, struct dss_pll_clock_info *pi)
 {
-	struct hdmi_pll_info *pi = &pll->info;
-	unsigned long refclk;
-	u32 mf;
+	unsigned long fint, clkdco, clkout;
+	unsigned long target_bitclk, target_clkdco;
+	unsigned long min_dco;
+	unsigned n, m, mf, m2, sd;
+	unsigned long clkin;
+	const struct dss_pll_hw *hw = pll->pll.hw;
 
-	/* use our funky units */
-	clkin /= 10000;
+	clkin = clk_get_rate(pll->pll.clkin);
 
-	/*
-	 * Input clock is predivided by N + 1
-	 * out put of which is reference clk
-	 */
+	DSSDBG("clkin %lu, target tmds %lu\n", clkin, target_tmds);
 
-	pi->regn = HDMI_DEFAULT_REGN;
+	target_bitclk = target_tmds * 10;
 
-	refclk = clkin / pi->regn;
+	/* Fint */
+	n = DIV_ROUND_UP(clkin, hw->fint_max);
+	fint = clkin / n;
 
-	/* temorary hack to make sure DCO freq isn't calculated too low */
-	if (pll_feat->bound_dcofreq && phy <= 65000)
-		pi->regm2 = 3;
+	/* adjust m2 so that the clkdco will be high enough */
+	min_dco = roundup(hw->clkdco_min, fint);
+	m2 = DIV_ROUND_UP(min_dco, target_bitclk);
+	if (m2 == 0)
+		m2 = 1;
+
+	target_clkdco = target_bitclk * m2;
+	m = target_clkdco / fint;
+
+	clkdco = fint * m;
+
+	/* adjust clkdco with fractional mf */
+	if (WARN_ON(target_clkdco - clkdco > fint))
+		mf = 0;
 	else
-		pi->regm2 = HDMI_DEFAULT_REGM2;
+		mf = (u32)div_u64(262144ull * (target_clkdco - clkdco), fint);
 
-	/*
-	 * multiplier is pixel_clk/ref_clk
-	 * Multiplying by 100 to avoid fractional part removal
-	 */
-	pi->regm = phy * pi->regm2 / refclk;
+	if (mf > 0)
+		clkdco += (u32)div_u64((u64)mf * fint, 262144);
 
-	/*
-	 * fractional multiplier is remainder of the difference between
-	 * multiplier and actual phy(required pixel clock thus should be
-	 * multiplied by 2^18(262144) divided by the reference clock
-	 */
-	mf = (phy - pi->regm / pi->regm2 * refclk) * 262144;
-	pi->regmf = pi->regm2 * mf / refclk;
+	clkout = clkdco / m2;
 
-	/*
-	 * Dcofreq should be set to 1 if required pixel clock
-	 * is greater than 1000MHz
-	 */
-	pi->dcofreq = phy > 1000 * 100;
-	pi->regsd = ((pi->regm * clkin / 10) / (pi->regn * 250) + 5) / 10;
+	/* sigma-delta */
+	sd = DIV_ROUND_UP(fint * m, 250000000);
 
-	/* Set the reference clock to sysclk reference */
-	pi->refsel = HDMI_REFSEL_SYSCLK;
+	DSSDBG("N = %u, M = %u, M.f = %u, M2 = %u, SD = %u\n",
+		n, m, mf, m2, sd);
+	DSSDBG("Fint %lu, clkdco %lu, clkout %lu\n", fint, clkdco, clkout);
 
-	DSSDBG("M = %d Mf = %d\n", pi->regm, pi->regmf);
-	DSSDBG("range = %d sd = %d\n", pi->dcofreq, pi->regsd);
+	pi->n = n;
+	pi->m = m;
+	pi->mf = mf;
+	pi->mX[0] = m2;
+	pi->sd = sd;
+
+	pi->fint = fint;
+	pi->clkdco = clkdco;
+	pi->clkout[0] = clkout;
 }
 
-
-static int hdmi_pll_config(struct hdmi_pll_data *pll)
+static int hdmi_pll_enable(struct dss_pll *dsspll)
 {
-	u32 r;
-	struct hdmi_pll_info *fmt = &pll->info;
-
-	/* PLL start always use manual mode */
-	REG_FLD_MOD(pll->base, PLLCTRL_PLL_CONTROL, 0x0, 0, 0);
-
-	r = hdmi_read_reg(pll->base, PLLCTRL_CFG1);
-	r = FLD_MOD(r, fmt->regm, 20, 9);	/* CFG1_PLL_REGM */
-	r = FLD_MOD(r, fmt->regn - 1, 8, 1);	/* CFG1_PLL_REGN */
-	hdmi_write_reg(pll->base, PLLCTRL_CFG1, r);
-
-	r = hdmi_read_reg(pll->base, PLLCTRL_CFG2);
-
-	r = FLD_MOD(r, 0x0, 12, 12);	/* PLL_HIGHFREQ divide by 2 */
-	r = FLD_MOD(r, 0x1, 13, 13);	/* PLL_REFEN */
-	r = FLD_MOD(r, 0x0, 14, 14);	/* PHY_CLKINEN de-assert during locking */
-	r = FLD_MOD(r, fmt->refsel, 22, 21);	/* REFSEL */
-
-	if (fmt->dcofreq)
-		r = FLD_MOD(r, 0x4, 3, 1);	/* 1000MHz and 2000MHz */
-	else
-		r = FLD_MOD(r, 0x2, 3, 1);	/* 500MHz and 1000MHz */
-
-	hdmi_write_reg(pll->base, PLLCTRL_CFG2, r);
-
-	REG_FLD_MOD(pll->base, PLLCTRL_CFG3, fmt->regsd, 17, 10);
-
-	r = hdmi_read_reg(pll->base, PLLCTRL_CFG4);
-	r = FLD_MOD(r, fmt->regm2, 24, 18);
-	r = FLD_MOD(r, fmt->regmf, 17, 0);
-	hdmi_write_reg(pll->base, PLLCTRL_CFG4, r);
-
-	/* go now */
-	REG_FLD_MOD(pll->base, PLLCTRL_PLL_GO, 0x1, 0, 0);
-
-	/* wait for bit change */
-	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_GO,
-			0, 0, 0) != 0) {
-		DSSERR("PLL GO bit not clearing\n");
-		return -ETIMEDOUT;
-	}
-
-	/* Wait till the lock bit is set in PLL status */
-	if (hdmi_wait_for_bit_change(pll->base,
-			PLLCTRL_PLL_STATUS, 1, 1, 1) != 1) {
-		DSSERR("cannot lock PLL\n");
-		DSSERR("CFG1 0x%x\n",
-			hdmi_read_reg(pll->base, PLLCTRL_CFG1));
-		DSSERR("CFG2 0x%x\n",
-			hdmi_read_reg(pll->base, PLLCTRL_CFG2));
-		DSSERR("CFG4 0x%x\n",
-			hdmi_read_reg(pll->base, PLLCTRL_CFG4));
-		return -ETIMEDOUT;
-	}
-
-	DSSDBG("PLL locked!\n");
-
-	return 0;
-}
-
-static int hdmi_pll_reset(struct hdmi_pll_data *pll)
-{
-	/* SYSRESET  controlled by power FSM */
-	REG_FLD_MOD(pll->base, PLLCTRL_PLL_CONTROL, pll_feat->sys_reset, 3, 3);
-
-	/* READ 0x0 reset is in progress */
-	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_STATUS, 0, 0, 1)
-			!= 1) {
-		DSSERR("Failed to sysreset PLL\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
-{
+	struct hdmi_pll_data *pll = container_of(dsspll, struct hdmi_pll_data, pll);
+	struct hdmi_wp_data *wp = pll->wp;
 	u16 r = 0;
-
-	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
-	if (r)
-		return r;
 
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
 	if (r)
 		return r;
 
-	r = hdmi_pll_reset(pll);
-	if (r)
-		return r;
-
-	r = hdmi_pll_config(pll);
-	if (r)
-		return r;
-
 	return 0;
 }
 
-void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
+static void hdmi_pll_disable(struct dss_pll *dsspll)
 {
+	struct hdmi_pll_data *pll = container_of(dsspll, struct hdmi_pll_data, pll);
+	struct hdmi_wp_data *wp = pll->wp;
+
 	hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
 }
 
-static const struct hdmi_pll_features omap44xx_pll_feats = {
-	.sys_reset		=	false,
-	.bound_dcofreq		=	false,
-	.fint_min		=	500000,
-	.fint_max		=	2500000,
-	.regm_max		=	4095,
-	.dcofreq_low_min	=	500000000,
-	.dcofreq_low_max	=	1000000000,
-	.dcofreq_high_min	=	1000000000,
-	.dcofreq_high_max	=	2000000000,
+static const struct dss_pll_ops dsi_pll_ops = {
+	.enable = hdmi_pll_enable,
+	.disable = hdmi_pll_disable,
+	.set_config = dss_pll_write_config_type_b,
 };
 
-static const struct hdmi_pll_features omap54xx_pll_feats = {
-	.sys_reset		=	true,
-	.bound_dcofreq		=	true,
-	.fint_min		=	620000,
-	.fint_max		=	2500000,
-	.regm_max		=	2046,
-	.dcofreq_low_min	=	750000000,
-	.dcofreq_low_max	=	1500000000,
-	.dcofreq_high_min	=	1250000000,
-	.dcofreq_high_max	=	2500000000UL,
+static const struct dss_pll_hw dss_omap4_hdmi_pll_hw = {
+	.n_max = 255,
+	.m_min = 20,
+	.m_max = 4095,
+	.mX_max = 127,
+	.fint_min = 500000,
+	.fint_max = 2500000,
+	.clkdco_max = 1800000000,
+
+	.clkdco_min = 500000000,
+	.clkdco_low = 1000000000,
+	.clkdco_max = 2000000000,
+
+	.n_msb = 8,
+	.n_lsb = 1,
+	.m_msb = 20,
+	.m_lsb = 9,
+
+	.mX_msb[0] = 24,
+	.mX_lsb[0] = 18,
+
+	.has_selfreqdco = true,
 };
 
-static int hdmi_pll_init_features(struct platform_device *pdev)
+static const struct dss_pll_hw dss_omap5_hdmi_pll_hw = {
+	.n_max = 255,
+	.m_min = 20,
+	.m_max = 2045,
+	.mX_max = 127,
+	.fint_min = 620000,
+	.fint_max = 2500000,
+	.clkdco_max = 1800000000,
+
+	.clkdco_min = 750000000,
+	.clkdco_low = 1500000000,
+	.clkdco_max = 2500000000UL,
+
+	.n_msb = 8,
+	.n_lsb = 1,
+	.m_msb = 20,
+	.m_lsb = 9,
+
+	.mX_msb[0] = 24,
+	.mX_lsb[0] = 18,
+
+	.has_selfreqdco = true,
+	.has_refsel = true,
+};
+
+static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data *hpll)
 {
-	struct hdmi_pll_features *dst;
-	const struct hdmi_pll_features *src;
+	struct dss_pll *pll = &hpll->pll;
+	struct clk *clk;
+	int r;
 
-	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
-	if (!dst) {
-		dev_err(&pdev->dev, "Failed to allocate HDMI PHY Features\n");
-		return -ENOMEM;
+	clk = devm_clk_get(&pdev->dev, "sys_clk");
+	if (IS_ERR(clk)) {
+		DSSERR("can't get sys_clk\n");
+		return PTR_ERR(clk);
 	}
+
+	pll->name = "hdmi";
+	pll->base = hpll->base;
+	pll->clkin = clk;
 
 	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP4430_ES1:
 	case OMAPDSS_VER_OMAP4430_ES2:
 	case OMAPDSS_VER_OMAP4:
-		src = &omap44xx_pll_feats;
+		pll->hw = &dss_omap4_hdmi_pll_hw;
 		break;
 
 	case OMAPDSS_VER_OMAP5:
-		src = &omap54xx_pll_feats;
+		pll->hw = &dss_omap5_hdmi_pll_hw;
 		break;
 
 	default:
 		return -ENODEV;
 	}
 
-	memcpy(dst, src, sizeof(*dst));
-	pll_feat = dst;
+	pll->ops = &dsi_pll_ops;
+
+	r = dss_pll_register(pll);
+	if (r)
+		return r;
 
 	return 0;
 }
 
-int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll)
+int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
+	struct hdmi_wp_data *wp)
 {
 	int r;
 	struct resource *res;
 
-	r = hdmi_pll_init_features(pdev);
-	if (r)
-		return r;
+	pll->wp = wp;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");
 	if (!res) {
@@ -286,5 +234,18 @@ int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll)
 		return PTR_ERR(pll->base);
 	}
 
+	r = dsi_init_pll_data(pdev, pll);
+	if (r) {
+		DSSERR("failed to init HDMI PLL\n");
+		return r;
+	}
+
 	return 0;
+}
+
+void hdmi_pll_uninit(struct hdmi_pll_data *hpll)
+{
+	struct dss_pll *pll = &hpll->pll;
+
+	dss_pll_unregister(pll);
 }

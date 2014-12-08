@@ -101,13 +101,6 @@ enum hdmi_core_hdmi_dvi {
 	HDMI_HDMI = 1
 };
 
-enum hdmi_clk_refsel {
-	HDMI_REFSEL_PCLK = 0,
-	HDMI_REFSEL_REF1 = 1,
-	HDMI_REFSEL_REF2 = 2,
-	HDMI_REFSEL_SYSCLK = 3
-};
-
 enum hdmi_packing_mode {
 	HDMI_PACK_10b_RGB_YUV444 = 0,
 	HDMI_PACK_24b_RGB_YUV444_YUV422 = 1,
@@ -160,7 +153,8 @@ enum hdmi_audio_blk_strt_end_sig {
 
 enum hdmi_core_audio_layout {
 	HDMI_AUDIO_LAYOUT_2CH = 0,
-	HDMI_AUDIO_LAYOUT_8CH = 1
+	HDMI_AUDIO_LAYOUT_8CH = 1,
+	HDMI_AUDIO_LAYOUT_6CH = 2
 };
 
 enum hdmi_core_cts_mode {
@@ -189,17 +183,6 @@ struct hdmi_config {
 	struct omap_video_timings timings;
 	struct hdmi_avi_infoframe infoframe;
 	enum hdmi_core_hdmi_dvi hdmi_dvi_mode;
-};
-
-/* HDMI PLL structure */
-struct hdmi_pll_info {
-	u16 regn;
-	u16 regm;
-	u32 regmf;
-	u16 regm2;
-	u16 regsd;
-	u16 dcofreq;
-	enum hdmi_clk_refsel refsel;
 };
 
 struct hdmi_audio_format {
@@ -249,12 +232,15 @@ struct hdmi_core_audio_config {
 
 struct hdmi_wp_data {
 	void __iomem *base;
+	phys_addr_t phys_base;
 };
 
 struct hdmi_pll_data {
+	struct dss_pll pll;
+
 	void __iomem *base;
 
-	struct hdmi_pll_info info;
+	struct hdmi_wp_data *wp;
 };
 
 struct hdmi_phy_data {
@@ -316,16 +302,19 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 		struct omap_video_timings *timings, struct hdmi_config *param);
 int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
+phys_addr_t hdmi_wp_get_audio_dma_addr(struct hdmi_wp_data *wp);
 
 /* HDMI PLL funcs */
-int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
-void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
-void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin, int phy);
-int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll);
+void hdmi_pll_compute(struct hdmi_pll_data *pll,
+	unsigned long target_tmds, struct dss_pll_clock_info *pi);
+int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
+	struct hdmi_wp_data *wp);
+void hdmi_pll_uninit(struct hdmi_pll_data *hpll);
 
 /* HDMI PHY funcs */
-int hdmi_phy_configure(struct hdmi_phy_data *phy, struct hdmi_config *cfg);
+int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
+	unsigned long lfbitclk);
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s);
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
 int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
@@ -334,7 +323,7 @@ int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
 int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
 	struct hdmi_phy_data *phy);
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
+/* Audio funcs */
 int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts);
 int hdmi_wp_audio_enable(struct hdmi_wp_data *wp, bool enable);
 int hdmi_wp_audio_core_req_enable(struct hdmi_wp_data *wp, bool enable);
@@ -342,9 +331,33 @@ void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
 		struct hdmi_audio_format *aud_fmt);
 void hdmi_wp_audio_config_dma(struct hdmi_wp_data *wp,
 		struct hdmi_audio_dma *aud_dma);
-static inline bool hdmi_mode_has_audio(int mode)
+static inline bool hdmi_mode_has_audio(struct hdmi_config *cfg)
 {
-	return mode == HDMI_HDMI ? true : false;
+	return cfg->hdmi_dvi_mode == HDMI_HDMI ? true : false;
 }
-#endif
+
+/* HDMI DRV data */
+struct omap_hdmi {
+	struct mutex lock;
+	struct platform_device *pdev;
+
+	struct hdmi_wp_data	wp;
+	struct hdmi_pll_data	pll;
+	struct hdmi_phy_data	phy;
+	struct hdmi_core_data	core;
+
+	struct hdmi_config cfg;
+
+	struct regulator *vdda_reg;
+
+	bool core_enabled;
+	bool display_enabled;
+
+	struct omap_dss_device output;
+
+	struct platform_device *audio_pdev;
+	void (*audio_abort_cb)(struct device *dev);
+	int wp_idlemode;
+};
+
 #endif

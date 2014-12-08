@@ -1,8 +1,40 @@
 Simple Framebuffer
 
-A simple frame-buffer describes a raw memory region that may be rendered to,
-with the assumption that the display hardware has already been set up to scan
-out from that buffer.
+A simple frame-buffer describes a frame-buffer setup by firmware or
+the bootloader, with the assumption that the display hardware has already
+been set up to scan out from the memory pointed to by the reg property.
+
+Since simplefb nodes represent runtime information they must be sub-nodes of
+the chosen node (*). Simplefb nodes must be named "framebuffer@<address>".
+
+If the devicetree contains nodes for the display hardware used by a simplefb,
+then the simplefb node must contain a property called "display", which
+contains a phandle pointing to the primary display hw node, so that the OS
+knows which simplefb to disable when handing over control to a driver for the
+real hardware. The bindings for the hw nodes must specify which node is
+considered the primary node.
+
+It is advised to add display# aliases to help the OS determine how to number
+things. If display# aliases are used, then if the simplefb node contains a
+"display" property then the /aliases/display# path must point to the display
+hw node the "display" property points to, otherwise it must point directly
+to the simplefb node.
+
+If a simplefb node represents the preferred console for user interaction,
+then the chosen node's stdout-path property should point to it, or to the
+primary display hw node, as with display# aliases. If display aliases are
+used then it should be set to the alias instead.
+
+It is advised that devicetree files contain pre-filled, disabled framebuffer
+nodes, so that the firmware only needs to update the mode information and
+enable them. This way if e.g. later on support for more display clocks get
+added, the simplefb nodes will already contain this info and the firmware
+does not need to be updated.
+
+If pre-filled framebuffer nodes are used, the firmware may need extra
+information to find the right node. In that case an extra platform specific
+compatible and platform specific properties should be used and documented,
+see e.g. simple-framebuffer-sunxi.txt .
 
 Required properties:
 - compatible: "simple-framebuffer"
@@ -14,13 +46,41 @@ Required properties:
   - r5g6b5 (16-bit pixels, d[15:11]=r, d[10:5]=g, d[4:0]=b).
   - a8b8g8r8 (32-bit pixels, d[31:24]=a, d[23:16]=b, d[15:8]=g, d[7:0]=r).
 
+Optional properties:
+- clocks : List of clocks used by the framebuffer. Clocks listed here
+           are expected to already be configured correctly. The OS must
+           ensure these clocks are not modified or disabled while the
+           simple framebuffer remains active.
+- display : phandle pointing to the primary display hardware node
+
 Example:
 
-	framebuffer {
+aliases {
+	display0 = &lcdc0;
+}
+
+chosen {
+	framebuffer0: framebuffer@1d385000 {
 		compatible = "simple-framebuffer";
 		reg = <0x1d385000 (1600 * 1200 * 2)>;
 		width = <1600>;
 		height = <1200>;
 		stride = <(1600 * 2)>;
 		format = "r5g6b5";
+		clocks = <&ahb_gates 36>, <&ahb_gates 43>, <&ahb_gates 44>;
+		display = <&lcdc0>;
 	};
+	stdout-path = "display0";
+};
+
+soc@01c00000 {
+	lcdc0: lcdc@1c0c000 {
+		compatible = "allwinner,sun4i-a10-lcdc";
+		...
+	};
+};
+
+
+*) Older devicetree files may have a compatible = "simple-framebuffer" node
+in a different place, operating systems must first enumerate any compatible
+nodes found under chosen and then check for other compatible nodes.
