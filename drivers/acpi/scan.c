@@ -36,12 +36,20 @@ bool acpi_force_hot_remove;
 
 static const char *dummy_hid = "device";
 
+static LIST_HEAD(acpi_dep_list);
+static DEFINE_MUTEX(acpi_dep_list_lock);
 static LIST_HEAD(acpi_bus_id_list);
 static DEFINE_MUTEX(acpi_scan_lock);
 static LIST_HEAD(acpi_scan_handlers_list);
 DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 static DEFINE_MUTEX(acpi_hp_context_lock);
+
+struct acpi_dep_data {
+	struct list_head node;
+	acpi_handle master;
+	acpi_handle slave;
+};
 
 struct acpi_device_bus_id{
 	char bus_id[15];
@@ -2193,6 +2201,59 @@ static void acpi_scan_init_hotplug(struct acpi_device *adev)
 	}
 }
 
+static void acpi_device_dep_initialize(struct acpi_device *adev)
+{
+	struct acpi_dep_data *dep;
+	struct acpi_handle_list dep_devices;
+	acpi_status status;
+	int i;
+
+	if (!acpi_has_method(adev->handle, "_DEP"))
+		return;
+
+	status = acpi_evaluate_reference(adev->handle, "_DEP", NULL,
+					&dep_devices);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&adev->dev, "Failed to evaluate _DEP.\n");
+		return;
+	}
+
+	for (i = 0; i < dep_devices.count; i++) {
+		struct acpi_device_info *info;
+		int skip;
+
+		status = acpi_get_object_info(dep_devices.handles[i], &info);
+		if (ACPI_FAILURE(status)) {
+			dev_err(&adev->dev, "Error reading device info\n");
+			continue;
+		}
+
+		/*
+		 * Skip the dependency of Windows System Power
+		 * Management Controller
+		 */
+		skip = info->valid & ACPI_VALID_HID &&
+			!strcmp(info->hardware_id.string, "INT3396");
+
+		kfree(info);
+
+		if (skip)
+			continue;
+
+		dep = kzalloc(sizeof(struct acpi_dep_data), GFP_KERNEL);
+		if (!dep)
+			return;
+
+		dep->master = dep_devices.handles[i];
+		dep->slave  = adev->handle;
+		adev->dep_unmet++;
+
+		mutex_lock(&acpi_dep_list_lock);
+		list_add_tail(&dep->node , &acpi_dep_list);
+		mutex_unlock(&acpi_dep_list_lock);
+	}
+}
+
 static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 				      void *not_used, void **return_value)
 {
@@ -2219,6 +2280,7 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 		return AE_CTRL_DEPTH;
 
 	acpi_scan_init_hotplug(device);
+	acpi_device_dep_initialize(device);
 
  out:
 	if (!*return_value)
@@ -2338,6 +2400,29 @@ static void acpi_bus_attach(struct acpi_device *device)
 	if (device->handler && device->handler->hotplug.notify_online)
 		device->handler->hotplug.notify_online(device);
 }
+
+void acpi_walk_dep_device_list(acpi_handle handle)
+{
+	struct acpi_dep_data *dep, *tmp;
+	struct acpi_device *adev;
+
+	mutex_lock(&acpi_dep_list_lock);
+	list_for_each_entry_safe(dep, tmp, &acpi_dep_list, node) {
+		if (dep->master == handle) {
+			acpi_bus_get_device(dep->slave, &adev);
+			if (!adev)
+				continue;
+
+			adev->dep_unmet--;
+			if (!adev->dep_unmet)
+				acpi_bus_attach(adev);
+			list_del(&dep->node);
+			kfree(dep);
+		}
+	}
+	mutex_unlock(&acpi_dep_list_lock);
+}
+EXPORT_SYMBOL_GPL(acpi_walk_dep_device_list);
 
 /**
  * acpi_bus_scan - Add ACPI device node objects in a given namespace scope.

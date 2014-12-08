@@ -372,6 +372,7 @@ struct acpi_device {
 	void *driver_data;
 	struct device dev;
 	unsigned int physical_node_count;
+	unsigned int dep_unmet;
 	struct list_head physical_node_list;
 	struct mutex physical_node_lock;
 	void (*remove)(struct acpi_device *);

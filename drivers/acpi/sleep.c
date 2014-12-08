@@ -630,6 +630,7 @@ static int acpi_freeze_begin(void)
 static int acpi_freeze_prepare(void)
 {
 	acpi_enable_all_wakeup_gpes();
+	acpi_os_wait_events_complete();
 	enable_irq_wake(acpi_gbl_FADT.sci_interrupt);
 	return 0;
 }
@@ -825,6 +826,7 @@ static void acpi_power_off_prepare(void)
 	/* Prepare to power off the system */
 	acpi_sleep_prepare(ACPI_STATE_S5);
 	acpi_disable_all_gpes();
+	acpi_os_wait_events_complete();
 }
 
 static void acpi_power_off(void)
