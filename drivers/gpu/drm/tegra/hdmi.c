@@ -1081,6 +1081,27 @@ static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
 	}
 }
 
+static int
+tegra_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state)
+{
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_dc *dc = to_tegra_dc(conn_state->crtc);
+	unsigned long pclk = crtc_state->mode.clock * 1000;
+	struct tegra_hdmi *hdmi = to_hdmi(output);
+	int err;
+
+	err = tegra_dc_state_setup_clock(dc, crtc_state, hdmi->clk_parent,
+					 pclk, 0);
+	if (err < 0) {
+		dev_err(output->dev, "failed to setup CRTC state: %d\n", err);
+		return err;
+	}
+
+	return err;
+}
+
 static const struct drm_encoder_helper_funcs tegra_hdmi_encoder_helper_funcs = {
 	.dpms = tegra_hdmi_encoder_dpms,
 	.mode_fixup = tegra_hdmi_encoder_mode_fixup,
@@ -1088,6 +1109,7 @@ static const struct drm_encoder_helper_funcs tegra_hdmi_encoder_helper_funcs = {
 	.commit = tegra_hdmi_encoder_commit,
 	.mode_set = tegra_hdmi_encoder_mode_set,
 	.disable = tegra_hdmi_encoder_disable,
+	.atomic_check = tegra_hdmi_encoder_atomic_check,
 };
 
 static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
