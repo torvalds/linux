@@ -297,10 +297,13 @@ struct thermal_genl_event {
  *
  * Optional:
  * @get_trend: a pointer to a function that reads the sensor temperature trend.
+ * @set_emul_temp: a pointer to a function that sets sensor emulated
+ *		   temperature.
  */
 struct thermal_zone_of_device_ops {
 	int (*get_temp)(void *, long *);
 	int (*get_trend)(void *, long *);
+	int (*set_emul_temp)(void *, unsigned long);
 };
 
 /**
