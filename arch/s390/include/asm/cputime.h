@@ -94,7 +94,7 @@ static inline cputime_t secs_to_cputime(const unsigned int s)
 static inline cputime_t timespec_to_cputime(const struct timespec *value)
 {
 	unsigned long long ret = value->tv_sec * CPUTIME_PER_SEC;
-	return (__force cputime_t)(ret + (value->tv_nsec * CPUTIME_PER_USEC) / NSEC_PER_USEC);
+	return (__force cputime_t)(ret + __div(value->tv_nsec * CPUTIME_PER_USEC, NSEC_PER_USEC));
 }
 
 static inline void cputime_to_timespec(const cputime_t cputime,
