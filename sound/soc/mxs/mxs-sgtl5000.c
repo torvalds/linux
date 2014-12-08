@@ -49,13 +49,6 @@ static int mxs_sgtl5000_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* Sgtl5000 sysclk should be >= 8MHz and <= 27M */
-	if (mclk < 8000000 || mclk > 27000000) {
-		dev_err(codec_dai->dev, "Invalid mclk frequency: %u.%03uMHz\n",
-			mclk / 1000000, mclk / 1000 % 1000);
-		return -EINVAL;
-	}
-
 	/* Set SGTL5000's SYSCLK (provided by SAIF MCLK) */
 	ret = snd_soc_dai_set_sysclk(codec_dai, SGTL5000_SYSCLK, mclk, 0);
 	if (ret) {
