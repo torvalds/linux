@@ -768,7 +768,7 @@ EXPORT_SYMBOL_GPL(of_init_opp_table);
  */
 void of_free_opp_table(struct device *dev)
 {
-	struct device_opp *dev_opp = find_device_opp(dev);
+	struct device_opp *dev_opp;
 	struct dev_pm_opp *opp, *tmp;
 
 	/* Check for existing list for 'dev' */
