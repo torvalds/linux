@@ -24,7 +24,7 @@
 struct msm_framebuffer {
 	struct drm_framebuffer base;
 	const struct msm_format *format;
-	struct drm_gem_object *planes[3];
+	struct drm_gem_object *planes[MAX_PLANE];
 };
 #define to_msm_framebuffer(x) container_of(x, struct msm_framebuffer, base)
 

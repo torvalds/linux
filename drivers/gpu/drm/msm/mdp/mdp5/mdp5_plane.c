@@ -18,8 +18,6 @@
 
 #include "mdp5_kms.h"
 
-#define MAX_PLANE	4
-
 struct mdp5_plane {
 	struct drm_plane base;
 	const char *name;

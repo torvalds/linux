@@ -23,6 +23,8 @@
 
 #include "msm_drv.h"
 
+#define MAX_PLANE	4
+
 /* As there are different display controller blocks depending on the
  * snapdragon version, the kms support is split out and the appropriate
  * implementation is loaded at runtime.  The kms module is responsible
