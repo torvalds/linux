@@ -1004,7 +1004,7 @@ intel_post_enable_primary(struct drm_crtc *crtc)
 	hsw_enable_ips(intel_crtc);
 
 	mutex_lock(&dev->struct_mutex);
-	intel_update_fbc(dev);
+	intel_fbc_update(dev);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -1017,7 +1017,7 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 
 	mutex_lock(&dev->struct_mutex);
 	if (dev_priv->fbc.plane == intel_crtc->plane)
-		intel_disable_fbc(dev);
+		intel_fbc_disable(dev);
 	mutex_unlock(&dev->struct_mutex);
 
 	/*

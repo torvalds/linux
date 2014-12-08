@@ -1063,6 +1063,13 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 }
 #endif
 
+/* intel_fbc.c */
+bool intel_fbc_enabled(struct drm_device *dev);
+void intel_fbc_update(struct drm_device *dev);
+void intel_fbc_init(struct drm_i915_private *dev_priv);
+void intel_fbc_disable(struct drm_device *dev);
+void bdw_fbc_sw_flush(struct drm_device *dev, u32 value);
+
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
@@ -1169,8 +1176,6 @@ void intel_update_sprite_watermarks(struct drm_plane *plane,
 				    bool enabled, bool scaled);
 void intel_init_pm(struct drm_device *dev);
 void intel_pm_setup(struct drm_device *dev);
-bool intel_fbc_enabled(struct drm_device *dev);
-void intel_update_fbc(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_teardown(void);
 void intel_init_gt_powersave(struct drm_device *dev);
