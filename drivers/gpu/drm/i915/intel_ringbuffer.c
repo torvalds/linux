@@ -729,6 +729,9 @@ static int wa_add(struct drm_i915_private *dev_priv,
 #define WA_CLR_BIT_MASKED(addr, mask) \
 	WA_REG(addr, _MASKED_BIT_DISABLE(mask), (mask) & 0xffff)
 
+#define WA_SET_FIELD_MASKED(addr, mask, value) \
+	WA_REG(addr, _MASKED_FIELD(mask, value), mask)
+
 #define WA_SET_BIT(addr, mask) WA_REG(addr, I915_READ(addr) | (mask), mask)
 #define WA_CLR_BIT(addr, mask) WA_REG(addr, I915_READ(addr) & ~(mask), mask)
 
@@ -773,8 +776,9 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * disable bit, which we don't touch here, but it's good
 	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
-	WA_SET_BIT_MASKED(GEN7_GT_MODE,
-			  GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
+			    GEN6_WIZ_HASHING_MASK,
+			    GEN6_WIZ_HASHING_16x4);
 
 	return 0;
 }
