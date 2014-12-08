@@ -1259,7 +1259,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ARCH_OMAP2PLUS
 
-#if defined(CONFIG_PM_RUNTIME)
+#if defined(CONFIG_PM)
 static void omap_gpio_restore_context(struct gpio_bank *bank);
 
 static int omap_gpio_runtime_suspend(struct device *dev)
@@ -1440,7 +1440,7 @@ static int omap_gpio_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 void omap2_gpio_prepare_for_idle(int pwr_mode)
 {
@@ -1468,7 +1468,7 @@ void omap2_gpio_resume_after_idle(void)
 	}
 }
 
-#if defined(CONFIG_PM_RUNTIME)
+#if defined(CONFIG_PM)
 static void omap_gpio_init_context(struct gpio_bank *p)
 {
 	struct omap_gpio_reg_offs *regs = p->regs;
@@ -1525,7 +1525,7 @@ static void omap_gpio_restore_context(struct gpio_bank *bank)
 	writel_relaxed(bank->context.irqenable2,
 				bank->base + bank->regs->irqenable2);
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 #else
 #define omap_gpio_runtime_suspend NULL
 #define omap_gpio_runtime_resume NULL

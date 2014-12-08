@@ -609,7 +609,7 @@ static int apds990x_detect(struct apds990x_chip *chip)
 	return ret;
 }
 
-#if defined(CONFIG_PM) || defined(CONFIG_PM_RUNTIME)
+#ifdef CONFIG_PM
 static int apds990x_chip_on(struct apds990x_chip *chip)
 {
 	int err	 = regulator_bulk_enable(ARRAY_SIZE(chip->regs),
@@ -1237,7 +1237,7 @@ static int apds990x_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int apds990x_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);

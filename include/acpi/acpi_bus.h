@@ -545,6 +545,7 @@ acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 				 void (*work_func)(struct work_struct *work));
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
+int acpi_pm_device_run_wake(struct device *, bool);
 #else
 static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
 					       struct device *dev,
@@ -564,11 +565,6 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3_COLD) ?
 		m : ACPI_STATE_D0;
 }
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
-int acpi_pm_device_run_wake(struct device *, bool);
-#else
 static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
 {
 	return -ENODEV;

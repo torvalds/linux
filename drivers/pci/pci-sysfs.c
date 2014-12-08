@@ -385,7 +385,7 @@ static ssize_t dev_bus_rescan_store(struct device *dev,
 }
 static DEVICE_ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, dev_bus_rescan_store);
 
-#if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
+#if defined(CONFIG_PM) && defined(CONFIG_ACPI)
 static ssize_t d3cold_allowed_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
@@ -566,7 +566,7 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_enable.attr,
 	&dev_attr_broken_parity_status.attr,
 	&dev_attr_msi_bus.attr,
-#if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
+#if defined(CONFIG_PM) && defined(CONFIG_ACPI)
 	&dev_attr_d3cold_allowed.attr,
 #endif
 #ifdef CONFIG_OF

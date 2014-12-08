@@ -3051,7 +3051,7 @@ static int dma40_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops dma40_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(dma40_suspend, dma40_resume)
-	SET_PM_RUNTIME_PM_OPS(dma40_runtime_suspend,
+	SET_RUNTIME_PM_OPS(dma40_runtime_suspend,
 				dma40_runtime_resume,
 				NULL)
 };

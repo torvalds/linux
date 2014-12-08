@@ -867,7 +867,7 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 		gpadc->cal_data[ADC_INPUT_VBAT].offset);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int ab8500_gpadc_runtime_suspend(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);

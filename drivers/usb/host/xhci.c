@@ -4029,7 +4029,7 @@ static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 	return ret;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 /* BESL to HIRD Encoding array for USB2 LPM */
 static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
@@ -4244,24 +4244,8 @@ int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
-#else
-
-int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
-				struct usb_device *udev, int enable)
-{
-	return 0;
-}
-
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PM_RUNTIME */
-
 /*---------------------- USB 3.0 Link PM functions ------------------------*/
 
-#ifdef CONFIG_PM
 /* Service interval in nanoseconds = 2^(bInterval - 1) * 125us * 1000ns / 1us */
 static unsigned long long xhci_service_interval_to_ns(
 		struct usb_endpoint_descriptor *desc)
@@ -4691,6 +4675,17 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 	return 0;
 }
 #else /* CONFIG_PM */
+
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+				struct usb_device *udev, int enable)
+{
+	return 0;
+}
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return 0;
+}
 
 int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
 			struct usb_device *udev, enum usb3_link_state state)

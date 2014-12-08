@@ -256,10 +256,6 @@ void pm_clk_destroy(struct device *dev)
 	}
 }
 
-#endif /* CONFIG_PM */
-
-#ifdef CONFIG_PM_RUNTIME
-
 /**
  * pm_clk_suspend - Disable clocks in a device's PM clock list.
  * @dev: Device to disable the clocks for.
@@ -373,68 +369,7 @@ static int pm_clk_notify(struct notifier_block *nb,
 	return 0;
 }
 
-#else /* !CONFIG_PM_RUNTIME */
-
-#ifdef CONFIG_PM
-
-/**
- * pm_clk_suspend - Disable clocks in a device's PM clock list.
- * @dev: Device to disable the clocks for.
- */
-int pm_clk_suspend(struct device *dev)
-{
-	struct pm_subsys_data *psd = dev_to_psd(dev);
-	struct pm_clock_entry *ce;
-	unsigned long flags;
-
-	dev_dbg(dev, "%s()\n", __func__);
-
-	/* If there is no driver, the clocks are already disabled. */
-	if (!psd || !dev->driver)
-		return 0;
-
-	spin_lock_irqsave(&psd->lock, flags);
-
-	list_for_each_entry_reverse(ce, &psd->clock_list, node) {
-		if (ce->status < PCE_STATUS_ERROR) {
-			if (ce->status == PCE_STATUS_ENABLED)
-				clk_disable(ce->clk);
-			ce->status = PCE_STATUS_ACQUIRED;
-		}
-	}
-
-	spin_unlock_irqrestore(&psd->lock, flags);
-
-	return 0;
-}
-
-/**
- * pm_clk_resume - Enable clocks in a device's PM clock list.
- * @dev: Device to enable the clocks for.
- */
-int pm_clk_resume(struct device *dev)
-{
-	struct pm_subsys_data *psd = dev_to_psd(dev);
-	struct pm_clock_entry *ce;
-	unsigned long flags;
-
-	dev_dbg(dev, "%s()\n", __func__);
-
-	/* If there is no driver, the clocks should remain disabled. */
-	if (!psd || !dev->driver)
-		return 0;
-
-	spin_lock_irqsave(&psd->lock, flags);
-
-	list_for_each_entry(ce, &psd->clock_list, node)
-		__pm_clk_enable(dev, ce);
-
-	spin_unlock_irqrestore(&psd->lock, flags);
-
-	return 0;
-}
-
-#endif /* CONFIG_PM */
+#else /* !CONFIG_PM */
 
 /**
  * enable_clock - Enable a device clock.
@@ -514,7 +449,7 @@ static int pm_clk_notify(struct notifier_block *nb,
 	return 0;
 }
 
-#endif /* !CONFIG_PM_RUNTIME */
+#endif /* !CONFIG_PM */
 
 /**
  * pm_clk_add_notifier - Add bus type notifier for power management clocks.

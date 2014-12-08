@@ -135,7 +135,7 @@ static int tmio_mmc_remove(struct platform_device *pdev)
 
 static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tmio_mmc_suspend, tmio_mmc_resume)
-	SET_PM_RUNTIME_PM_OPS(tmio_mmc_host_runtime_suspend,
+	SET_RUNTIME_PM_OPS(tmio_mmc_host_runtime_suspend,
 			tmio_mmc_host_runtime_resume,
 			NULL)
 };
