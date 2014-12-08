@@ -261,16 +261,7 @@ static int tegra_sor_attach(struct tegra_sor *sor)
 
 static int tegra_sor_wakeup(struct tegra_sor *sor)
 {
-	struct tegra_dc *dc = to_tegra_dc(sor->output.encoder.crtc);
 	unsigned long value, timeout;
-
-	/* enable display controller outputs */
-	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
-	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-
-	tegra_dc_commit(dc);
 
 	timeout = jiffies + msecs_to_jiffies(250);
 
@@ -1112,18 +1103,6 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 		goto unlock;
 	}
 
-	/* start display controller in continuous mode */
-	value = tegra_dc_readl(dc, DC_CMD_STATE_ACCESS);
-	value |= WRITE_MUX;
-	tegra_dc_writel(dc, value, DC_CMD_STATE_ACCESS);
-
-	tegra_dc_writel(dc, VSYNC_H_POSITION(1), DC_DISP_DISP_TIMING_OPTIONS);
-	tegra_dc_writel(dc, DISP_CTRL_MODE_C_DISPLAY, DC_CMD_DISPLAY_COMMAND);
-
-	value = tegra_dc_readl(dc, DC_CMD_STATE_ACCESS);
-	value &= ~WRITE_MUX;
-	tegra_dc_writel(dc, value, DC_CMD_STATE_ACCESS);
-
 	/*
 	 * configure panel (24bpp, vsync-, hsync-, DP-A protocol, complete
 	 * raster, associate with display controller)
@@ -1198,11 +1177,13 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 		goto unlock;
 	}
 
+	tegra_sor_update(sor);
+
 	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
 	value |= SOR_ENABLE;
 	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
-	tegra_sor_update(sor);
+	tegra_dc_commit(dc);
 
 	err = tegra_sor_attach(sor);
 	if (err < 0) {

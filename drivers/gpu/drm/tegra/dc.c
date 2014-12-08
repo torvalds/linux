@@ -1236,6 +1236,18 @@ static void tegra_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		value &= ~INTERLACE_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_INTERLACE_CONTROL);
 	}
+
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	value |= DISP_CTRL_MODE_C_DISPLAY;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+
+	tegra_dc_commit(dc);
 }
 
 static void tegra_crtc_prepare(struct drm_crtc *crtc)

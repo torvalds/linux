@@ -168,16 +168,6 @@ static void tegra_rgb_encoder_mode_set(struct drm_encoder *encoder,
 	value = SC0_H_QUALIFIER_NONE | SC1_H_QUALIFIER_NONE;
 	tegra_dc_writel(rgb->dc, value, DC_DISP_SHIFT_CLOCK_OPTIONS);
 
-	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_COMMAND);
-	value &= ~DISP_CTRL_MODE_MASK;
-	value |= DISP_CTRL_MODE_C_DISPLAY;
-	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_COMMAND);
-
-	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_POWER_CONTROL);
-	value |= PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		 PW4_ENABLE | PM0_ENABLE | PM1_ENABLE;
-	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
-
 	tegra_dc_commit(rgb->dc);
 
 	if (output->panel)
@@ -193,6 +183,7 @@ static void tegra_rgb_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_disable(output->panel);
 
 	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
+	tegra_dc_commit(rgb->dc);
 
 	if (output->panel)
 		drm_panel_unprepare(output->panel);
