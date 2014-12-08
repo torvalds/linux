@@ -24,6 +24,22 @@
 
 #include "dvb_usb.h"
 
+#include "rtl2830.h"
+#include "rtl2832.h"
+#include "rtl2832_sdr.h"
+#include "mn88472.h"
+#include "mn88473.h"
+
+#include "qt1010.h"
+#include "mt2060.h"
+#include "mxl5005s.h"
+#include "fc0012.h"
+#include "fc0013.h"
+#include "e4000.h"
+#include "fc2580.h"
+#include "tua9001.h"
+#include "r820t.h"
+
 /*
  * USB commands
  * (usb_control_msg() index parameter)
@@ -64,6 +80,7 @@ struct rtl28xxu_priv {
 	#define SLAVE_DEMOD_MN88472        1
 	#define SLAVE_DEMOD_MN88473        2
 	unsigned int slave_demod:2;
+	struct rtl2830_platform_data rtl2830_platform_data;
 };
 
 enum rtl28xxu_chip_id {
