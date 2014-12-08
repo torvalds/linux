@@ -662,7 +662,8 @@ static int cl_env_store_init(void) {
 	return cl_env_hash != NULL ? 0 :-ENOMEM;
 }
 
-static void cl_env_store_fini(void) {
+static void cl_env_store_fini(void)
+{
 	cfs_hash_putref(cl_env_hash);
 }
 
