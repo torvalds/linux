@@ -232,7 +232,6 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 
 static int asoc_simple_card_parse_daifmt(struct device_node *node,
 					 struct simple_card_data *priv,
-					 struct device_node *cpu,
 					 struct device_node *codec,
 					 char *prefix, int idx)
 {
@@ -309,7 +308,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	}
 
 	ret = asoc_simple_card_parse_daifmt(node, priv,
-					    cpu, codec, prefix, idx);
+					    codec, prefix, idx);
 	if (ret < 0)
 		goto dai_link_of_err;
 

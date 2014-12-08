@@ -385,7 +385,6 @@ static int adau1781_codec_probe(struct snd_soc_codec *codec)
 {
 	struct adau1781_platform_data *pdata = dev_get_platdata(codec->dev);
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
-	const char *firmware;
 	int ret;
 
 	ret = adau17x1_add_widgets(codec);
@@ -422,24 +421,9 @@ static int adau1781_codec_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
-	switch (adau->type) {
-	case ADAU1381:
-		firmware = ADAU1381_FIRMWARE;
-		break;
-	case ADAU1781:
-		firmware = ADAU1781_FIRMWARE;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	ret = adau17x1_add_routes(codec);
 	if (ret < 0)
 		return ret;
-
-	ret = adau17x1_load_firmware(adau, codec->dev, firmware);
-	if (ret)
-		dev_warn(codec->dev, "Failed to load firmware\n");
 
 	return 0;
 }
@@ -488,6 +472,7 @@ const struct regmap_config adau1781_regmap_config = {
 	.num_reg_defaults	= ARRAY_SIZE(adau1781_reg_defaults),
 	.readable_reg		= adau1781_readable_register,
 	.volatile_reg		= adau17x1_volatile_register,
+	.precious_reg		= adau17x1_precious_register,
 	.cache_type		= REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL_GPL(adau1781_regmap_config);
@@ -495,9 +480,21 @@ EXPORT_SYMBOL_GPL(adau1781_regmap_config);
 int adau1781_probe(struct device *dev, struct regmap *regmap,
 	enum adau17x1_type type, void (*switch_mode)(struct device *dev))
 {
+	const char *firmware_name;
 	int ret;
 
-	ret = adau17x1_probe(dev, regmap, type, switch_mode);
+	switch (type) {
+	case ADAU1381:
+		firmware_name = ADAU1381_FIRMWARE;
+		break;
+	case ADAU1781:
+		firmware_name = ADAU1781_FIRMWARE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = adau17x1_probe(dev, regmap, type, switch_mode, firmware_name);
 	if (ret)
 		return ret;
 
