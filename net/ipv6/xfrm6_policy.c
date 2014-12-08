@@ -134,8 +134,14 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	u16 offset = sizeof(*hdr);
 	struct ipv6_opt_hdr *exthdr;
 	const unsigned char *nh = skb_network_header(skb);
-	u8 nexthdr = nh[IP6CB(skb)->nhoff];
+	u16 nhoff = IP6CB(skb)->nhoff;
 	int oif = 0;
+	u8 nexthdr;
+
+	if (!nhoff)
+		nhoff = offsetof(struct ipv6hdr, nexthdr);
+
+	nexthdr = nh[nhoff];
 
 	if (skb_dst(skb))
 		oif = skb_dst(skb)->dev->ifindex;
