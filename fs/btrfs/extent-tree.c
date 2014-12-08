@@ -1889,8 +1889,8 @@ static int btrfs_issue_discard(struct block_device *bdev,
 	return blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_NOFS, 0);
 }
 
-static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
-				u64 num_bytes, u64 *actual_bytes)
+int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
+			 u64 num_bytes, u64 *actual_bytes)
 {
 	int ret;
 	u64 discarded_bytes = 0;
@@ -9696,12 +9696,6 @@ out:
 int btrfs_error_unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 {
 	return unpin_extent_range(root, start, end, false);
-}
-
-int btrfs_error_discard_extent(struct btrfs_root *root, u64 bytenr,
-			       u64 num_bytes, u64 *actual_bytes)
-{
-	return btrfs_discard_extent(root, bytenr, num_bytes, actual_bytes);
 }
 
 int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
