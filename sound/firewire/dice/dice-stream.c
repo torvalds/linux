@@ -218,6 +218,8 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 			"fail to get sampling rate\n");
 		goto end;
 	}
+	if (rate == 0)
+		rate = curr_rate;
 	if (rate != curr_rate)
 		stop_stream(dice, master);
 

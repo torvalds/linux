@@ -32,6 +32,7 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/rawmidi.h>
 
 #include "../amdtp.h"
 #include "../iso-resources.h"
@@ -182,5 +183,7 @@ int snd_dice_create_pcm(struct snd_dice *dice);
 int snd_dice_create_hwdep(struct snd_dice *dice);
 
 void snd_dice_create_proc(struct snd_dice *dice);
+
+int snd_dice_create_midi(struct snd_dice *dice);
 
 #endif
