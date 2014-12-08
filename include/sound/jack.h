@@ -105,6 +105,13 @@ static inline void snd_jack_set_parent(struct snd_jack *jack,
 {
 }
 
+static inline int snd_jack_set_key(struct snd_jack *jack,
+				   enum snd_jack_types type,
+				   int keytype)
+{
+	return 0;
+}
+
 static inline void snd_jack_report(struct snd_jack *jack, int status)
 {
 }
