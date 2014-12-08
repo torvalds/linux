@@ -1277,15 +1277,8 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm9081_remove(struct snd_soc_codec *codec)
-{
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.probe = 	wm9081_probe,
-	.remove = 	wm9081_remove,
 
 	.set_sysclk = wm9081_set_sysclk,
 	.set_bias_level = wm9081_set_bias_level,
