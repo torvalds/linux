@@ -1043,6 +1043,7 @@ static void record_gp_stall_check_time(struct rcu_state *rsp)
 	j1 = rcu_jiffies_till_stall_check();
 	ACCESS_ONCE(rsp->jiffies_stall) = j + j1;
 	rsp->jiffies_resched = j + j1 / 2;
+	rsp->n_force_qs_gpstart = ACCESS_ONCE(rsp->n_force_qs);
 }
 
 /*

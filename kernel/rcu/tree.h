@@ -492,6 +492,8 @@ struct rcu_state {
 						/*  for CPU stalls. */
 	unsigned long jiffies_resched;		/* Time at which to resched */
 						/*  a reluctant CPU. */
+	unsigned long n_force_qs_gpstart;	/* Snapshot of n_force_qs at */
+						/*  GP start. */
 	unsigned long gp_max;			/* Maximum GP duration in */
 						/*  jiffies. */
 	const char *name;			/* Name of structure. */
