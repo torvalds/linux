@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/bitops.h>
+#include <linux/pm.h>
 
 #ifdef CONFIG_ARM
 #include <asm/bug.h>
@@ -94,6 +95,7 @@ struct brcmstb_gisb_arb_device {
 	struct list_head next;
 	u32 valid_mask;
 	const char *master_names[sizeof(u32) * BITS_PER_BYTE];
+	u32 saved_timeout;
 };
 
 static LIST_HEAD(brcmstb_gisb_arb_device_list);
@@ -226,12 +228,6 @@ static int brcmstb_bus_error_handler(unsigned long addr, unsigned int fsr,
 
 	return ret;
 }
-
-void __init brcmstb_hook_fault_code(void)
-{
-	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
-			"imprecise external abort");
-}
 #endif
 
 static irqreturn_t brcmstb_gisb_timeout_handler(int irq, void *dev_id)
@@ -346,17 +342,56 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 
 	list_add_tail(&gdev->next, &brcmstb_gisb_arb_device_list);
 
+#ifdef CONFIG_ARM
+	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
+			"imprecise external abort");
+#endif
+
 	dev_info(&pdev->dev, "registered mem: %p, irqs: %d, %d\n",
 			gdev->base, timeout_irq, tea_irq);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int brcmstb_gisb_arb_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct brcmstb_gisb_arb_device *gdev = platform_get_drvdata(pdev);
+
+	gdev->saved_timeout = gisb_read(gdev, ARB_TIMER);
+
+	return 0;
+}
+
+/* Make sure we provide the same timeout value that was configured before, and
+ * do this before the GISB timeout interrupt handler has any chance to run.
+ */
+static int brcmstb_gisb_arb_resume_noirq(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct brcmstb_gisb_arb_device *gdev = platform_get_drvdata(pdev);
+
+	gisb_write(gdev, gdev->saved_timeout, ARB_TIMER);
+
+	return 0;
+}
+#else
+#define brcmstb_gisb_arb_suspend       NULL
+#define brcmstb_gisb_arb_resume_noirq  NULL
+#endif
+
+static const struct dev_pm_ops brcmstb_gisb_arb_pm_ops = {
+	.suspend	= brcmstb_gisb_arb_suspend,
+	.resume_noirq	= brcmstb_gisb_arb_resume_noirq,
+};
+
 static struct platform_driver brcmstb_gisb_arb_driver = {
 	.driver = {
 		.name	= "brcm-gisb-arb",
 		.owner	= THIS_MODULE,
 		.of_match_table = brcmstb_gisb_arb_of_match,
+		.pm	= &brcmstb_gisb_arb_pm_ops,
 	},
 };
 
