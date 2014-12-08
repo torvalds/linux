@@ -661,8 +661,6 @@ err_out:
 
 static int mxs_dma_terminate_all(struct dma_chan *chan)
 {
-	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-
 	mxs_dma_reset_chan(chan);
 	mxs_dma_disable_chan(chan);
 
