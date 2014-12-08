@@ -31,6 +31,12 @@ config SND_OXFW
 	  Oxford Semiconductor FW970/971 chipset.
 	   * Griffin Firewave
 	   * LaCie Firewire Speakers
+	   * Behringer F-Control Audio 202
+	   * Mackie(Loud) Onyx-i series (former models)
+	   * Mackie(Loud) Onyx Satellite
+	   * Mackie(Loud) Tapco Link.Firewire
+	   * Mackie(Loud) d.2 pro/d.4 pro
+	   * Mackie(Loud) U.420/U.420d
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxfw.
