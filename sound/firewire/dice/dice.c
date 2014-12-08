@@ -30,7 +30,6 @@ static int dice_interface_check(struct fw_unit *unit)
 	int key, val, vendor = -1, model = -1, err;
 	unsigned int category, i;
 	__be32 *pointers, value;
-	__be32 tx_data[4];
 	__be32 version;
 
 	pointers = kmalloc_array(ARRAY_SIZE(min_values), sizeof(__be32),
@@ -85,16 +84,6 @@ static int dice_interface_check(struct fw_unit *unit)
 		}
 	}
 
-	/* We support playback only. Let capture devices be handled by FFADO. */
-	err = snd_fw_transaction(unit, TCODE_READ_BLOCK_REQUEST,
-				 DICE_PRIVATE_SPACE +
-				 be32_to_cpu(pointers[2]) * 4,
-				 tx_data, sizeof(tx_data), 0);
-	if (err < 0 || (tx_data[0] && tx_data[3])) {
-		err = -ENODEV;
-		goto end;
-	}
-
 	/*
 	 * Check that the implemented DICE driver specification major version
 	 * number matches.
@@ -142,6 +131,8 @@ static int dice_read_mode_params(struct snd_dice *dice, unsigned int mode)
 	int err;
 
 	if (highest_supported_mode_rate(dice, mode, &rate) < 0) {
+		dice->tx_channels[mode] = 0;
+		dice->tx_midi_ports[mode] = 0;
 		dice->rx_channels[mode] = 0;
 		dice->rx_midi_ports[mode] = 0;
 		return 0;
@@ -150,6 +141,14 @@ static int dice_read_mode_params(struct snd_dice *dice, unsigned int mode)
 	err = snd_dice_transaction_set_rate(dice, rate);
 	if (err < 0)
 		return err;
+
+	err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
+					   values, sizeof(values));
+	if (err < 0)
+		return err;
+
+	dice->tx_channels[mode]   = be32_to_cpu(values[0]);
+	dice->tx_midi_ports[mode] = be32_to_cpu(values[1]);
 
 	err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
 					   values, sizeof(values));
@@ -280,13 +279,13 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	snd_dice_create_proc(dice);
 
-	err = snd_dice_stream_init(dice);
+	err = snd_dice_stream_init_duplex(dice);
 	if (err < 0)
 		goto error;
 
 	err = snd_card_register(card);
 	if (err < 0) {
-		snd_dice_stream_destroy(dice);
+		snd_dice_stream_destroy_duplex(dice);
 		goto error;
 	}
 
@@ -304,7 +303,7 @@ static void dice_remove(struct fw_unit *unit)
 
 	snd_card_disconnect(dice->card);
 
-	snd_dice_stream_destroy(dice);
+	snd_dice_stream_destroy_duplex(dice);
 
 	snd_card_free_when_closed(dice->card);
 }
@@ -317,7 +316,7 @@ static void dice_bus_reset(struct fw_unit *unit)
 	snd_dice_transaction_reinit(dice);
 
 	mutex_lock(&dice->mutex);
-	snd_dice_stream_update(dice);
+	snd_dice_stream_update_duplex(dice);
 	mutex_unlock(&dice->mutex);
 }
 

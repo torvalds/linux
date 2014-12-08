@@ -52,18 +52,28 @@ struct snd_dice {
 	unsigned int rsrv_offset;
 
 	unsigned int clock_caps;
+	unsigned int tx_channels[3];
 	unsigned int rx_channels[3];
+	unsigned int tx_midi_ports[3];
 	unsigned int rx_midi_ports[3];
+
 	struct fw_address_handler notification_handler;
 	int owner_generation;
+	u32 notification_bits;
+
+	/* For uapi */
 	int dev_lock_count; /* > 0 driver, < 0 userspace */
 	bool dev_lock_changed;
+	wait_queue_head_t hwdep_wait;
+
+	/* For streaming */
+	struct fw_iso_resources tx_resources;
+	struct fw_iso_resources rx_resources;
+	struct amdtp_stream tx_stream;
+	struct amdtp_stream rx_stream;
 	bool global_enabled;
 	struct completion clock_accepted;
-	wait_queue_head_t hwdep_wait;
-	u32 notification_bits;
-	struct fw_iso_resources rx_resources;
-	struct amdtp_stream rx_stream;
+	unsigned int substreams_counter;
 };
 
 enum snd_dice_addr_type {
@@ -160,11 +170,11 @@ extern const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT];
 int snd_dice_stream_get_rate_mode(struct snd_dice *dice,
 				  unsigned int rate, unsigned int *mode);
 
-int snd_dice_stream_start(struct snd_dice *dice, unsigned int rate);
-void snd_dice_stream_stop(struct snd_dice *dice);
-int snd_dice_stream_init(struct snd_dice *dice);
-void snd_dice_stream_destroy(struct snd_dice *dice);
-void snd_dice_stream_update(struct snd_dice *dice);
+int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate);
+void snd_dice_stream_stop_duplex(struct snd_dice *dice);
+int snd_dice_stream_init_duplex(struct snd_dice *dice);
+void snd_dice_stream_destroy_duplex(struct snd_dice *dice);
+void snd_dice_stream_update_duplex(struct snd_dice *dice);
 
 int snd_dice_stream_lock_try(struct snd_dice *dice);
 void snd_dice_stream_lock_release(struct snd_dice *dice);
