@@ -785,7 +785,6 @@ struct snd_soc_codec {
 	struct device *dev;
 	const struct snd_soc_codec_driver *driver;
 
-	struct mutex mutex;
 	struct list_head list;
 	struct list_head card_list;
 

@@ -1185,13 +1185,13 @@ static void arizona_wm5102_set_dac_comp(struct snd_soc_codec *codec,
 		{ 0x80, 0x0 },
 	};
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 
 	dac_comp[1].def = arizona->dac_comp_coeff;
 	if (rate >= 176400)
 		dac_comp[2].def = arizona->dac_comp_enabled;
 
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	regmap_multi_reg_write(arizona->regmap,
 			       dac_comp,
