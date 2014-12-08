@@ -185,6 +185,7 @@ static int alloc_spa(struct cxl_afu *afu)
 
 static void release_spa(struct cxl_afu *afu)
 {
+	cxl_p1n_write(afu, CXL_PSL_SPAP_An, 0);
 	free_pages((unsigned long) afu->spa, afu->spa_order);
 }
 
