@@ -1664,6 +1664,10 @@ int dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 		if (!snd_soc_dpcm_can_be_free_stop(fe, be, stream))
 				continue;
 
+		/* do not free hw if this BE is used by other FE */
+		if (be->dpcm[stream].users > 1)
+			continue;
+
 		if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_PARAMS) &&
 		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_PREPARE) &&
 		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_FREE) &&
