@@ -267,7 +267,7 @@ static void atmel_ssc_shutdown(struct snd_pcm_substream *substream,
 	if (!ssc_p->dir_mask) {
 		if (ssc_p->initialized) {
 			/* Shutdown the SSC clock. */
-			pr_debug("atmel_ssc_dau: Stopping clock\n");
+			pr_debug("atmel_ssc_dai: Stopping clock\n");
 			clk_disable(ssc_p->ssc->clk);
 
 			free_irq(ssc_p->ssc->irq, ssc_p);
