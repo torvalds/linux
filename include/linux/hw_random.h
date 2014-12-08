@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/kref.h>
 
 /**
  * struct hwrng - Hardware Random Number Generator driver
@@ -44,6 +45,7 @@ struct hwrng {
 
 	/* internal. */
 	struct list_head list;
+	struct kref ref;
 };
 
 /** Register a new Hardware Random Number Generator driver. */
