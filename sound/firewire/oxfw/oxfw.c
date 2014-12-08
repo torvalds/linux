@@ -25,14 +25,34 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("snd-firewire-speakers");
 
-static u32 oxfw_read_firmware_version(struct fw_unit *unit)
+static int name_card(struct snd_oxfw *oxfw)
 {
-	__be32 data;
+	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
+	const char *d, *v, *m;
+	u32 firmware;
 	int err;
 
-	err = snd_fw_transaction(unit, TCODE_READ_QUADLET_REQUEST,
-				 OXFORD_FIRMWARE_ID_ADDRESS, &data, 4, 0);
-	return err >= 0 ? be32_to_cpu(data) : 0;
+	err = snd_fw_transaction(oxfw->unit, TCODE_READ_QUADLET_REQUEST,
+				 OXFORD_FIRMWARE_ID_ADDRESS, &firmware, 4, 0);
+	if (err < 0)
+		goto end;
+	be32_to_cpus(&firmware);
+
+	d = oxfw->device_info->driver_name;
+	v = oxfw->device_info->vendor_name;
+	m = oxfw->device_info->model_name;
+
+	strcpy(oxfw->card->driver, d);
+	strcpy(oxfw->card->mixername, m);
+	strcpy(oxfw->card->shortname, m);
+
+	snprintf(oxfw->card->longname, sizeof(oxfw->card->longname),
+		 "%s %s (OXFW%x %04x), GUID %08x%08x at %s, S%d",
+		 v, m, firmware >> 20, firmware & 0xffff,
+		 fw_dev->config_rom[3], fw_dev->config_rom[4],
+		 dev_name(&oxfw->unit->device), 100 << fw_dev->max_speed);
+end:
+	return err;
 }
 
 static void oxfw_card_free(struct snd_card *card)
@@ -45,10 +65,8 @@ static void oxfw_card_free(struct snd_card *card)
 static int oxfw_probe(struct fw_unit *unit,
 		       const struct ieee1394_device_id *id)
 {
-	struct fw_device *fw_dev = fw_parent_device(unit);
 	struct snd_card *card;
 	struct snd_oxfw *oxfw;
-	u32 firmware;
 	int err;
 
 	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE,
@@ -63,16 +81,9 @@ static int oxfw_probe(struct fw_unit *unit,
 	oxfw->unit = unit;
 	oxfw->device_info = (const struct device_info *)id->driver_data;
 
-	strcpy(card->driver, oxfw->device_info->driver_name);
-	strcpy(card->shortname, oxfw->device_info->short_name);
-	firmware = oxfw_read_firmware_version(unit);
-	snprintf(card->longname, sizeof(card->longname),
-		 "%s (OXFW%x %04x), GUID %08x%08x at %s, S%d",
-		 oxfw->device_info->long_name,
-		 firmware >> 20, firmware & 0xffff,
-		 fw_dev->config_rom[3], fw_dev->config_rom[4],
-		 dev_name(&unit->device), 100 << fw_dev->max_speed);
-	strcpy(card->mixername, "OXFW");
+	err = name_card(oxfw);
+	if (err < 0)
+		goto error;
 
 	err = snd_oxfw_create_pcm(oxfw);
 	if (err < 0)
@@ -123,8 +134,8 @@ static void oxfw_remove(struct fw_unit *unit)
 
 static const struct device_info griffin_firewave = {
 	.driver_name = "FireWave",
-	.short_name  = "FireWave",
-	.long_name   = "Griffin FireWave Surround",
+	.vendor_name = "Griffin",
+	.model_name = "FireWave",
 	.pcm_constraints = firewave_constraints,
 	.mixer_channels = 6,
 	.mute_fb_id   = 0x01,
@@ -133,8 +144,8 @@ static const struct device_info griffin_firewave = {
 
 static const struct device_info lacie_speakers = {
 	.driver_name = "FWSpeakers",
-	.short_name  = "FireWire Speakers",
-	.long_name   = "LaCie FireWire Speakers",
+	.vendor_name = "LaCie",
+	.model_name = "FireWire Speakers",
 	.pcm_constraints = lacie_speakers_constraints,
 	.mixer_channels = 1,
 	.mute_fb_id   = 0x01,

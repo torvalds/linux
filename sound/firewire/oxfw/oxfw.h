@@ -28,8 +28,8 @@
 
 struct device_info {
 	const char *driver_name;
-	const char *short_name;
-	const char *long_name;
+	const char *vendor_name;
+	const char *model_name;
 	int (*pcm_constraints)(struct snd_pcm_runtime *runtime);
 	unsigned int mixer_channels;
 	u8 mute_fb_id;
