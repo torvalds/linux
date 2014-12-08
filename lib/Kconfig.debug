@@ -1257,7 +1257,7 @@ config RCU_CPU_STALL_TIMEOUT
 config RCU_CPU_STALL_INFO
 	bool "Print additional diagnostics on RCU CPU stall"
 	depends on (TREE_RCU || PREEMPT_RCU) && DEBUG_KERNEL
-	default n
+	default y
 	help
 	  For each stalled CPU that is aware of the current RCU grace
 	  period, print out additional per-CPU diagnostic information
