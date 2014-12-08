@@ -53,6 +53,18 @@ static void tegra_dc_cursor_commit(struct tegra_dc *dc)
 	tegra_dc_writel(dc, CURSOR_ACT_REQ, DC_CMD_STATE_CONTROL);
 }
 
+/*
+ * Double-buffered registers have two copies: ASSEMBLY and ACTIVE. When the
+ * *_ACT_REQ bits are set the ASSEMBLY copy is latched into the ACTIVE copy.
+ * Latching happens mmediately if the display controller is in STOP mode or
+ * on the next frame boundary otherwise.
+ *
+ * Triple-buffered registers have three copies: ASSEMBLY, ARM and ACTIVE. The
+ * ASSEMBLY copy is latched into the ARM copy immediately after *_UPDATE bits
+ * are written. When the *_ACT_REQ bits are written, the ARM copy is latched
+ * into the ACTIVE copy, either immediately if the display controller is in
+ * STOP mode, or at the next frame boundary otherwise.
+ */
 static void tegra_dc_commit(struct tegra_dc *dc)
 {
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
