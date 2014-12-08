@@ -73,6 +73,7 @@ struct perf_evsel {
 	char			*name;
 	double			scale;
 	const char		*unit;
+	bool			snapshot;
 	struct event_format	*tp_format;
 	union {
 		void		*priv;
@@ -91,6 +92,7 @@ struct perf_evsel {
 	bool			immediate;
 	bool			system_wide;
 	bool			tracking;
+	bool			per_pkg;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
@@ -109,6 +111,12 @@ struct target;
 struct thread_map;
 struct perf_evlist;
 struct record_opts;
+
+void perf_counts_values__scale(struct perf_counts_values *count,
+			       bool scale, s8 *pscaled);
+
+void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
+				struct perf_counts_values *count);
 
 int perf_evsel__object_config(size_t object_size,
 			      int (*init)(struct perf_evsel *evsel),
@@ -226,6 +234,13 @@ static inline bool perf_evsel__match2(struct perf_evsel *e1,
 	 (b) &&					\
 	 (a)->attr.type == (b)->attr.type &&	\
 	 (a)->attr.config == (b)->attr.config)
+
+typedef int (perf_evsel__read_cb_t)(struct perf_evsel *evsel,
+				    int cpu, int thread,
+				    struct perf_counts_values *count);
+
+int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
+			perf_evsel__read_cb_t cb);
 
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale);
