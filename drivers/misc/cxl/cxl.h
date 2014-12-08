@@ -351,7 +351,7 @@ struct cxl_afu {
 	struct device *chardev_s, *chardev_m, *chardev_d;
 	struct idr contexts_idr;
 	struct dentry *debugfs;
-	spinlock_t contexts_lock;
+	struct mutex contexts_lock;
 	struct mutex spa_mutex;
 	spinlock_t afu_cntl_lock;
 
