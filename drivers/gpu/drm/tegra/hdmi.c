@@ -31,7 +31,7 @@ struct tegra_hdmi_config {
 	unsigned int num_tmds;
 
 	unsigned long fuse_override_offset;
-	unsigned long fuse_override_value;
+	u32 fuse_override_value;
 
 	bool has_sor_io_peak_current;
 };
@@ -85,16 +85,16 @@ enum {
 	HDA,
 };
 
-static inline unsigned long tegra_hdmi_readl(struct tegra_hdmi *hdmi,
-					     unsigned long reg)
+static inline u32 tegra_hdmi_readl(struct tegra_hdmi *hdmi,
+				   unsigned long offset)
 {
-	return readl(hdmi->regs + (reg << 2));
+	return readl(hdmi->regs + (offset << 2));
 }
 
-static inline void tegra_hdmi_writel(struct tegra_hdmi *hdmi, unsigned long val,
-				     unsigned long reg)
+static inline void tegra_hdmi_writel(struct tegra_hdmi *hdmi, u32 value,
+				     unsigned long offset)
 {
-	writel(val, hdmi->regs + (reg << 2));
+	writel(value, hdmi->regs + (offset << 2));
 }
 
 struct tegra_hdmi_audio_config {
@@ -455,8 +455,8 @@ static void tegra_hdmi_setup_audio_fs_tables(struct tegra_hdmi *hdmi)
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
 		unsigned int f = freqs[i];
 		unsigned int eight_half;
-		unsigned long value;
 		unsigned int delta;
+		u32 value;
 
 		if (f > 96000)
 			delta = 2;
@@ -477,7 +477,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi, unsigned int pclk)
 	struct device_node *node = hdmi->dev->of_node;
 	const struct tegra_hdmi_audio_config *config;
 	unsigned int offset = 0;
-	unsigned long value;
+	u32 value;
 
 	switch (hdmi->audio_source) {
 	case HDA:
@@ -571,9 +571,9 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi, unsigned int pclk)
 	return 0;
 }
 
-static inline unsigned long tegra_hdmi_subpack(const u8 *ptr, size_t size)
+static inline u32 tegra_hdmi_subpack(const u8 *ptr, size_t size)
 {
-	unsigned long value = 0;
+	u32 value = 0;
 	size_t i;
 
 	for (i = size; i > 0; i--)
@@ -587,8 +587,8 @@ static void tegra_hdmi_write_infopack(struct tegra_hdmi *hdmi, const void *data,
 {
 	const u8 *ptr = data;
 	unsigned long offset;
-	unsigned long value;
 	size_t i, j;
+	u32 value;
 
 	switch (ptr[0]) {
 	case HDMI_INFOFRAME_TYPE_AVI:
@@ -707,9 +707,9 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 {
 	struct hdmi_vendor_infoframe frame;
-	unsigned long value;
 	u8 buffer[10];
 	ssize_t err;
+	u32 value;
 
 	if (!hdmi->stereo) {
 		value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
@@ -738,7 +738,7 @@ static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 static void tegra_hdmi_setup_tmds(struct tegra_hdmi *hdmi,
 				  const struct tmds_config *tmds)
 {
-	unsigned long value;
+	u32 value;
 
 	tegra_hdmi_writel(hdmi, tmds->pll0, HDMI_NV_PDISP_SOR_PLL0);
 	tegra_hdmi_writel(hdmi, tmds->pll1, HDMI_NV_PDISP_SOR_PLL1);
@@ -776,8 +776,8 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 	struct device_node *node = hdmi->dev->of_node;
 	unsigned int pulse_start, div82, pclk;
-	unsigned long value;
 	int retries = 1000;
+	u32 value;
 	int err;
 
 	if (hdmi->enabled)
@@ -1011,7 +1011,7 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 {
 	struct tegra_dc *dc = to_tegra_dc(output->encoder.crtc);
 	struct tegra_hdmi *hdmi = to_hdmi(output);
-	unsigned long value;
+	u32 value;
 
 	if (!hdmi->enabled)
 		return 0;
@@ -1117,8 +1117,8 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 		return err;
 
 #define DUMP_REG(name)						\
-	seq_printf(s, "%-56s %#05x %08lx\n", #name, name,	\
-		tegra_hdmi_readl(hdmi, name))
+	seq_printf(s, "%-56s %#05x %08x\n", #name, name,	\
+		   tegra_hdmi_readl(hdmi, name))
 
 	DUMP_REG(HDMI_CTXSW);
 	DUMP_REG(HDMI_NV_PDISP_SOR_STATE0);
