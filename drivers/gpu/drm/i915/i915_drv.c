@@ -692,10 +692,11 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 		}
 
-		intel_dp_mst_resume(dev);
 		drm_modeset_lock_all(dev);
 		intel_modeset_setup_hw_state(dev, true);
 		drm_modeset_unlock_all(dev);
+
+		intel_dp_mst_resume(dev);
 
 		/*
 		 * ... but also need to make sure that hotplug processing
