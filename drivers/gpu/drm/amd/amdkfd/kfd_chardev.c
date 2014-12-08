@@ -102,15 +102,26 @@ struct device *kfd_chardev(void)
 static int kfd_open(struct inode *inode, struct file *filep)
 {
 	struct kfd_process *process;
+	bool is_32bit_user_mode;
 
 	if (iminor(inode) != 0)
 		return -ENODEV;
+
+	is_32bit_user_mode = is_compat_task();
+
+	if (is_32bit_user_mode == true) {
+		dev_warn(kfd_device,
+			"Process %d (32-bit) failed to open /dev/kfd\n"
+			"32-bit processes are not supported by amdkfd\n",
+			current->pid);
+		return -EPERM;
+	}
 
 	process = kfd_create_process(current);
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	process->is_32bit_user_mode = is_compat_task();
+	process->is_32bit_user_mode = is_32bit_user_mode;
 
 	dev_dbg(kfd_device, "process %d opened, compat mode (32 bit) - %d\n",
 		process->pasid, process->is_32bit_user_mode);
