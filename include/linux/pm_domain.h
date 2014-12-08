@@ -17,6 +17,9 @@
 #include <linux/notifier.h>
 #include <linux/cpuidle.h>
 
+/* Defines used for the flags field in the struct generic_pm_domain */
+#define GENPD_FLAG_PM_CLK	(1U << 0) /* PM domain uses PM clk */
+
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
 	GPD_STATE_WAIT_MASTER,	/* PM domain's master is being waited for */
@@ -76,6 +79,7 @@ struct generic_pm_domain {
 			  struct device *dev);
 	void (*detach_dev)(struct generic_pm_domain *domain,
 			   struct device *dev);
+	unsigned int flags;		/* Bit field of configs for genpd */
 };
 
 static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
@@ -98,6 +102,11 @@ struct gpd_timing_data {
 	s64 effective_constraint_ns;
 	bool constraint_changed;
 	bool cached_stop_ok;
+};
+
+struct pm_domain_data {
+	struct list_head list_node;
+	struct device *dev;
 };
 
 struct generic_pm_domain_data {
