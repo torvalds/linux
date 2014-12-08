@@ -26,6 +26,7 @@ config SND_DICE
 config SND_OXFW
 	tristate "Oxford Semiconductor FW970/971 chipset support"
 	select SND_FIREWIRE_LIB
+	select SND_HWDEP
 	help
 	  Say Y here to include support for FireWire devices based on
 	  Oxford Semiconductor FW970/971 chipset.

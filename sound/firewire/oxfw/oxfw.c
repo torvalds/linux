@@ -139,6 +139,7 @@ static int oxfw_probe(struct fw_unit *unit,
 	oxfw->unit = unit;
 	oxfw->device_info = (const struct device_info *)id->driver_data;
 	spin_lock_init(&oxfw->lock);
+	init_waitqueue_head(&oxfw->hwdep_wait);
 
 	err = snd_oxfw_stream_discover(oxfw);
 	if (err < 0)
@@ -161,6 +162,10 @@ static int oxfw_probe(struct fw_unit *unit,
 	snd_oxfw_proc_init(oxfw);
 
 	err = snd_oxfw_create_midi(oxfw);
+	if (err < 0)
+		goto error;
+
+	err = snd_oxfw_create_hwdep(oxfw);
 	if (err < 0)
 		goto error;
 

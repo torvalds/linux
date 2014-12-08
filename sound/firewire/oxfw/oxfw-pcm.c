@@ -192,9 +192,13 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	struct snd_oxfw *oxfw = substream->private_data;
 	int err;
 
-	err = init_hw_params(oxfw, substream);
+	err = snd_oxfw_stream_lock_try(oxfw);
 	if (err < 0)
 		goto end;
+
+	err = init_hw_params(oxfw, substream);
+	if (err < 0)
+		goto err_locked;
 
 	/*
 	 * When any PCM streams are already running, the available sampling
@@ -210,10 +214,16 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 end:
 	return err;
+err_locked:
+	snd_oxfw_stream_lock_release(oxfw);
+	return err;
 }
 
 static int pcm_close(struct snd_pcm_substream *substream)
 {
+	struct snd_oxfw *oxfw = substream->private_data;
+
+	snd_oxfw_stream_lock_release(oxfw);
 	return 0;
 }
 

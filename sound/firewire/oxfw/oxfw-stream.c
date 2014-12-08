@@ -644,3 +644,42 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 end:
 	return err;
 }
+
+void snd_oxfw_stream_lock_changed(struct snd_oxfw *oxfw)
+{
+	oxfw->dev_lock_changed = true;
+	wake_up(&oxfw->hwdep_wait);
+}
+
+int snd_oxfw_stream_lock_try(struct snd_oxfw *oxfw)
+{
+	int err;
+
+	spin_lock_irq(&oxfw->lock);
+
+	/* user land lock this */
+	if (oxfw->dev_lock_count < 0) {
+		err = -EBUSY;
+		goto end;
+	}
+
+	/* this is the first time */
+	if (oxfw->dev_lock_count++ == 0)
+		snd_oxfw_stream_lock_changed(oxfw);
+	err = 0;
+end:
+	spin_unlock_irq(&oxfw->lock);
+	return err;
+}
+
+void snd_oxfw_stream_lock_release(struct snd_oxfw *oxfw)
+{
+	spin_lock_irq(&oxfw->lock);
+
+	if (WARN_ON(oxfw->dev_lock_count <= 0))
+		goto end;
+	if (--oxfw->dev_lock_count == 0)
+		snd_oxfw_stream_lock_changed(oxfw);
+end:
+	spin_unlock_irq(&oxfw->lock);
+}
