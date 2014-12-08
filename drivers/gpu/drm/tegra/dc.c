@@ -54,6 +54,26 @@ static void tegra_dc_cursor_commit(struct tegra_dc *dc)
 }
 
 /*
+ * Reads the active copy of a register. This takes the dc->lock spinlock to
+ * prevent races with the VBLANK processing which also needs access to the
+ * active copy of some registers.
+ */
+static u32 tegra_dc_readl_active(struct tegra_dc *dc, unsigned long offset)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&dc->lock, flags);
+
+	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
+	value = tegra_dc_readl(dc, offset);
+	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
+	return value;
+}
+
+/*
  * Double-buffered registers have two copies: ASSEMBLY and ACTIVE. When the
  * *_ACT_REQ bits are set the ASSEMBLY copy is latched into the ACTIVE copy.
  * Latching happens mmediately if the display controller is in STOP mode or
@@ -935,12 +955,47 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.destroy = tegra_dc_destroy,
 };
 
+static void tegra_dc_stop(struct tegra_dc *dc)
+{
+	u32 value;
+
+	/* stop the display controller */
+	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
+	value &= ~DISP_CTRL_MODE_MASK;
+	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+
+	tegra_dc_commit(dc);
+}
+
+static bool tegra_dc_idle(struct tegra_dc *dc)
+{
+	u32 value;
+
+	value = tegra_dc_readl_active(dc, DC_CMD_DISPLAY_COMMAND);
+
+	return (value & DISP_CTRL_MODE_MASK) == 0;
+}
+
+static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
+{
+	timeout = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_before(jiffies, timeout)) {
+		if (tegra_dc_idle(dc))
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	dev_dbg(dc->dev, "timeout waiting for DC to become idle\n");
+	return -ETIMEDOUT;
+}
+
 static void tegra_crtc_disable(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct drm_device *drm = crtc->dev;
 	struct drm_plane *plane;
-	u32 value;
 
 	drm_for_each_legacy_plane(plane, &drm->mode_config.plane_list) {
 		if (plane->crtc == crtc) {
@@ -954,10 +1009,15 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 		}
 	}
 
-	/* stop the display controller */
-	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
-	value &= ~DISP_CTRL_MODE_MASK;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_COMMAND);
+	if (!tegra_dc_idle(dc)) {
+		tegra_dc_stop(dc);
+
+		/*
+		 * Ignore the return value, there isn't anything useful to do
+		 * in case this fails.
+		 */
+		tegra_dc_wait_idle(dc, 100);
+	}
 
 	drm_crtc_vblank_off(crtc);
 	tegra_dc_commit(dc);
