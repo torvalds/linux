@@ -6,10 +6,17 @@ Required SoC Specific Properties:
    - samsung,s3c6410-i2s: for 8/16/24bit stereo I2S.
    - samsung,s5pv210-i2s: for 8/16/24bit multichannel(5.1) I2S with
      secondary fifo, s/w reset control and internal mux for root clk src.
-   - samsung,exynos5420-i2s: for 8/16/24bit multichannel(7.1) I2S with
-     secondary fifo, s/w reset control, internal mux for root clk src and
-     TDM support. TDM (Time division multiplexing) is to allow transfer of
-     multiple channel audio data on single data line.
+   - samsung,exynos5420-i2s: for 8/16/24bit multichannel(5.1) I2S for
+     playback, sterio channel capture, secondary fifo using internal
+     or external dma, s/w reset control, internal mux for root clk src
+     and 7.1 channel TDM support for playback. TDM (Time division multiplexing)
+     is to allow transfer of multiple channel audio data on single data line.
+   - samsung,exynos7-i2s: with all the available features of exynos5 i2s,
+     exynos7 I2S has 7.1 channel TDM support for capture, secondary fifo
+     with only external dma and more no.of root clk sampling frequencies.
+   - samsung,exynos7-i2s1: I2S1 on previous samsung platforms supports
+     stereo channels. exynos7 i2s1 upgraded to 5.1 multichannel with
+     slightly modified bit offsets.
 
 - reg: physical base address of the controller and length of memory mapped
   region.
