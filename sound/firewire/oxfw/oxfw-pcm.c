@@ -7,117 +7,152 @@
 
 #include "oxfw.h"
 
-static int firewave_rate_constraint(struct snd_pcm_hw_params *params,
-				    struct snd_pcm_hw_rule *rule)
+static int hw_rule_rate(struct snd_pcm_hw_params *params,
+			struct snd_pcm_hw_rule *rule)
 {
-	static unsigned int stereo_rates[] = { 48000, 96000 };
-	struct snd_interval *channels =
-			hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-	struct snd_interval *rate =
-			hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-
-	/* two channels work only at 48/96 kHz */
-	if (snd_interval_max(channels) < 6)
-		return snd_interval_list(rate, 2, stereo_rates, 0);
-	return 0;
-}
-
-static int firewave_channels_constraint(struct snd_pcm_hw_params *params,
-					struct snd_pcm_hw_rule *rule)
-{
-	static const struct snd_interval all_channels = { .min = 6, .max = 6 };
-	struct snd_interval *rate =
-			hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval *channels =
-			hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-
-	/* 32/44.1 kHz work only with all six channels */
-	if (snd_interval_max(rate) < 48000)
-		return snd_interval_refine(channels, &all_channels);
-	return 0;
-}
-
-int firewave_constraints(struct snd_pcm_runtime *runtime)
-{
-	static unsigned int channels_list[] = { 2, 6 };
-	static struct snd_pcm_hw_constraint_list channels_list_constraint = {
-		.count = 2,
-		.list = channels_list,
+	u8 **formats = rule->private;
+	struct snd_interval *r =
+		hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	const struct snd_interval *c =
+		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval t = {
+		.min = UINT_MAX, .max = 0, .integer = 1
 	};
-	int err;
+	struct snd_oxfw_stream_formation formation;
+	unsigned int i, err;
 
-	runtime->hw.rates = SNDRV_PCM_RATE_32000 |
-			    SNDRV_PCM_RATE_44100 |
-			    SNDRV_PCM_RATE_48000 |
-			    SNDRV_PCM_RATE_96000;
-	runtime->hw.channels_max = 6;
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		if (formats[i] == NULL)
+			continue;
 
-	err = snd_pcm_hw_constraint_list(runtime, 0,
-					 SNDRV_PCM_HW_PARAM_CHANNELS,
-					 &channels_list_constraint);
-	if (err < 0)
-		return err;
-	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				  firewave_rate_constraint, NULL,
-				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-	if (err < 0)
-		return err;
-	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				  firewave_channels_constraint, NULL,
-				  SNDRV_PCM_HW_PARAM_RATE, -1);
-	if (err < 0)
-		return err;
+		err = snd_oxfw_stream_parse_format(formats[i], &formation);
+		if (err < 0)
+			continue;
+		if (!snd_interval_test(c, formation.pcm))
+			continue;
 
-	return 0;
+		t.min = min(t.min, formation.rate);
+		t.max = max(t.max, formation.rate);
+
+	}
+	return snd_interval_refine(r, &t);
 }
 
-int lacie_speakers_constraints(struct snd_pcm_runtime *runtime)
+static int hw_rule_channels(struct snd_pcm_hw_params *params,
+			    struct snd_pcm_hw_rule *rule)
 {
-	runtime->hw.rates = SNDRV_PCM_RATE_32000 |
-			    SNDRV_PCM_RATE_44100 |
-			    SNDRV_PCM_RATE_48000 |
-			    SNDRV_PCM_RATE_88200 |
-			    SNDRV_PCM_RATE_96000;
+	u8 **formats = rule->private;
+	struct snd_interval *c =
+		hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	const struct snd_interval *r =
+		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_oxfw_stream_formation formation;
+	unsigned int i, j, err;
+	unsigned int count, list[SND_OXFW_STREAM_FORMAT_ENTRIES] = {0};
 
-	return 0;
+	count = 0;
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		if (formats[i] == NULL)
+			break;
+
+		err = snd_oxfw_stream_parse_format(formats[i], &formation);
+		if (err < 0)
+			continue;
+		if (!snd_interval_test(r, formation.rate))
+			continue;
+		if (list[count] == formation.pcm)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(list); j++) {
+			if (list[j] == formation.pcm)
+				break;
+		}
+		if (j == ARRAY_SIZE(list)) {
+			list[count] = formation.pcm;
+			if (++count == ARRAY_SIZE(list))
+				break;
+		}
+	}
+
+	return snd_interval_list(c, count, list, 0);
+}
+
+static void limit_channels_and_rates(struct snd_pcm_hardware *hw, u8 **formats)
+{
+	struct snd_oxfw_stream_formation formation;
+	unsigned int i, err;
+
+	hw->channels_min = UINT_MAX;
+	hw->channels_max = 0;
+
+	hw->rate_min = UINT_MAX;
+	hw->rate_max = 0;
+	hw->rates = 0;
+
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		if (formats[i] == NULL)
+			break;
+
+		err = snd_oxfw_stream_parse_format(formats[i], &formation);
+		if (err < 0)
+			continue;
+
+		hw->channels_min = min(hw->channels_min, formation.pcm);
+		hw->channels_max = max(hw->channels_max, formation.pcm);
+
+		hw->rate_min = min(hw->rate_min, formation.rate);
+		hw->rate_max = max(hw->rate_max, formation.rate);
+		hw->rates |= snd_pcm_rate_to_rate_bit(formation.rate);
+	}
+}
+
+static void limit_period_and_buffer(struct snd_pcm_hardware *hw)
+{
+	hw->periods_min = 2;		/* SNDRV_PCM_INFO_BATCH */
+	hw->periods_max = UINT_MAX;
+
+	hw->period_bytes_min = 4 * hw->channels_max;	/* bytes for a frame */
+
+	/* Just to prevent from allocating much pages. */
+	hw->period_bytes_max = hw->period_bytes_min * 2048;
+	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
 }
 
 static int pcm_open(struct snd_pcm_substream *substream)
 {
-	static const struct snd_pcm_hardware hardware = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_BATCH |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_BLOCK_TRANSFER,
-		.formats = AMDTP_OUT_PCM_FORMAT_BITS,
-		.channels_min = 2,
-		.channels_max = 2,
-		.buffer_bytes_max = 4 * 1024 * 1024,
-		.period_bytes_min = 1,
-		.period_bytes_max = UINT_MAX,
-		.periods_min = 1,
-		.periods_max = UINT_MAX,
-	};
 	struct snd_oxfw *oxfw = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	bool used;
+	u8 **formats;
 	int err;
 
-	err = cmp_connection_check_used(&oxfw->in_conn, &used);
-	if ((err < 0) || used)
-		goto end;
+	formats = oxfw->rx_stream_formats;
 
-	runtime->hw = hardware;
+	runtime->hw.info = SNDRV_PCM_INFO_BATCH |
+			   SNDRV_PCM_INFO_BLOCK_TRANSFER |
+			   SNDRV_PCM_INFO_INTERLEAVED |
+			   SNDRV_PCM_INFO_MMAP |
+			   SNDRV_PCM_INFO_MMAP_VALID;
 
-	err = oxfw->device_info->pcm_constraints(runtime);
+	limit_channels_and_rates(&runtime->hw, formats);
+	limit_period_and_buffer(&runtime->hw);
+
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				  hw_rule_channels, formats,
+				  SNDRV_PCM_HW_PARAM_RATE, -1);
 	if (err < 0)
 		goto end;
-	err = snd_pcm_limit_hw_rates(runtime);
+
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				  hw_rule_rate, formats,
+				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 	if (err < 0)
 		goto end;
 
 	err = amdtp_stream_add_pcm_hw_constraints(&oxfw->rx_stream, runtime);
+	if (err < 0)
+		goto end;
+
+	snd_pcm_set_sync(substream);
 end:
 	return err;
 }

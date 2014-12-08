@@ -30,19 +30,24 @@ struct device_info {
 	const char *driver_name;
 	const char *vendor_name;
 	const char *model_name;
-	int (*pcm_constraints)(struct snd_pcm_runtime *runtime);
 	unsigned int mixer_channels;
 	u8 mute_fb_id;
 	u8 volume_fb_id;
 };
 
+/* This is an arbitrary number for convinience. */
+#define	SND_OXFW_STREAM_FORMAT_ENTRIES	10
 struct snd_oxfw {
 	struct snd_card *card;
 	struct fw_unit *unit;
 	const struct device_info *device_info;
 	struct mutex mutex;
+
+	u8 *rx_stream_formats[SND_OXFW_STREAM_FORMAT_ENTRIES];
+	bool assumed;
 	struct cmp_connection in_conn;
 	struct amdtp_stream rx_stream;
+
 	bool mute;
 	s16 volume[6];
 	s16 volume_min;
@@ -88,8 +93,18 @@ void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw);
 
-int firewave_constraints(struct snd_pcm_runtime *runtime);
-int lacie_speakers_constraints(struct snd_pcm_runtime *runtime);
+struct snd_oxfw_stream_formation {
+	unsigned int rate;
+	unsigned int pcm;
+	unsigned int midi;
+};
+int snd_oxfw_stream_parse_format(u8 *format,
+				 struct snd_oxfw_stream_formation *formation);
+int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
+				enum avc_general_plug_dir dir,
+				struct snd_oxfw_stream_formation *formation);
+int snd_oxfw_stream_discover(struct snd_oxfw *oxfw);
+
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw);
 
 int snd_oxfw_create_mixer(struct snd_oxfw *oxfw);

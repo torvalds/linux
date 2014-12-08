@@ -58,6 +58,10 @@ end:
 static void oxfw_card_free(struct snd_card *card)
 {
 	struct snd_oxfw *oxfw = card->private_data;
+	unsigned int i;
+
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++)
+		kfree(oxfw->rx_stream_formats[i]);
 
 	mutex_destroy(&oxfw->mutex);
 }
@@ -80,6 +84,10 @@ static int oxfw_probe(struct fw_unit *unit,
 	mutex_init(&oxfw->mutex);
 	oxfw->unit = unit;
 	oxfw->device_info = (const struct device_info *)id->driver_data;
+
+	err = snd_oxfw_stream_discover(oxfw);
+	if (err < 0)
+		goto error;
 
 	err = name_card(oxfw);
 	if (err < 0)
@@ -136,7 +144,6 @@ static const struct device_info griffin_firewave = {
 	.driver_name = "FireWave",
 	.vendor_name = "Griffin",
 	.model_name = "FireWave",
-	.pcm_constraints = firewave_constraints,
 	.mixer_channels = 6,
 	.mute_fb_id   = 0x01,
 	.volume_fb_id = 0x02,
@@ -146,7 +153,6 @@ static const struct device_info lacie_speakers = {
 	.driver_name = "FWSpeakers",
 	.vendor_name = "LaCie",
 	.model_name = "FireWire Speakers",
-	.pcm_constraints = lacie_speakers_constraints,
 	.mixer_channels = 1,
 	.mute_fb_id   = 0x01,
 	.volume_fb_id = 0x01,
