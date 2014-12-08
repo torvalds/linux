@@ -880,6 +880,9 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	case KVM_CAP_MIPS_FPU:
 		vcpu->arch.fpu_enabled = true;
 		break;
+	case KVM_CAP_MIPS_MSA:
+		vcpu->arch.msa_enabled = true;
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -1070,6 +1073,21 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_MIPS_FPU:
 		r = !!cpu_has_fpu;
+		break;
+	case KVM_CAP_MIPS_MSA:
+		/*
+		 * We don't support MSA vector partitioning yet:
+		 * 1) It would require explicit support which can't be tested
+		 *    yet due to lack of support in current hardware.
+		 * 2) It extends the state that would need to be saved/restored
+		 *    by e.g. QEMU for migration.
+		 *
+		 * When vector partitioning hardware becomes available, support
+		 * could be added by requiring a flag when enabling
+		 * KVM_CAP_MIPS_MSA capability to indicate that userland knows
+		 * to save/restore the appropriate extra state.
+		 */
+		r = cpu_has_msa && !(boot_cpu_data.msa_id & MSA_IR_WRPF);
 		break;
 	default:
 		r = 0;
