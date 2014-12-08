@@ -256,8 +256,8 @@
 #define DIDSR_LCDS_LVDS0(n)	(2 << (8 + (n) * 2))
 #define DIDSR_LCDS_LVDS1(n)	(3 << (8 + (n) * 2))
 #define DIDSR_LCDS_MASK(n)	(3 << (8 + (n) * 2))
-#define DIDSR_PCDS_CLK(n, clk)	(clk << ((n) * 2))
-#define DIDSR_PCDS_MASK(n)	(3 << ((n) * 2))
+#define DIDSR_PDCS_CLK(n, clk)	(clk << ((n) * 2))
+#define DIDSR_PDCS_MASK(n)	(3 << ((n) * 2))
 
 /* -----------------------------------------------------------------------------
  * Display Timing Generation Registers

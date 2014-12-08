@@ -74,33 +74,71 @@ static int rcar_du_crtc_get(struct rcar_du_crtc *rcrtc)
 	if (ret < 0)
 		return ret;
 
+	ret = clk_prepare_enable(rcrtc->extclock);
+	if (ret < 0)
+		goto error_clock;
+
 	ret = rcar_du_group_get(rcrtc->group);
 	if (ret < 0)
-		clk_disable_unprepare(rcrtc->clock);
+		goto error_group;
 
+	return 0;
+
+error_group:
+	clk_disable_unprepare(rcrtc->extclock);
+error_clock:
+	clk_disable_unprepare(rcrtc->clock);
 	return ret;
 }
 
 static void rcar_du_crtc_put(struct rcar_du_crtc *rcrtc)
 {
 	rcar_du_group_put(rcrtc->group);
+
+	clk_disable_unprepare(rcrtc->extclock);
 	clk_disable_unprepare(rcrtc->clock);
 }
 
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
 	const struct drm_display_mode *mode = &rcrtc->crtc.mode;
+	unsigned long mode_clock = mode->clock * 1000;
 	unsigned long clk;
 	u32 value;
+	u32 escr;
 	u32 div;
 
-	/* Dot clock */
+	/* Compute the clock divisor and select the internal or external dot
+	 * clock based on the requested frequency.
+	 */
 	clk = clk_get_rate(rcrtc->clock);
-	div = DIV_ROUND_CLOSEST(clk, mode->clock * 1000);
+	div = DIV_ROUND_CLOSEST(clk, mode_clock);
 	div = clamp(div, 1U, 64U) - 1;
+	escr = div | ESCR_DCLKSEL_CLKS;
+
+	if (rcrtc->extclock) {
+		unsigned long extclk;
+		unsigned long extrate;
+		unsigned long rate;
+		u32 extdiv;
+
+		extclk = clk_get_rate(rcrtc->extclock);
+		extdiv = DIV_ROUND_CLOSEST(extclk, mode_clock);
+		extdiv = clamp(extdiv, 1U, 64U) - 1;
+
+		rate = clk / (div + 1);
+		extrate = extclk / (extdiv + 1);
+
+		if (abs((long)extrate - (long)mode_clock) <
+		    abs((long)rate - (long)mode_clock)) {
+			dev_dbg(rcrtc->group->dev->dev,
+				"crtc%u: using external clock\n", rcrtc->index);
+			escr = extdiv | ESCR_DCLKSEL_DCLKIN;
+		}
+	}
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? ESCR2 : ESCR,
-			    ESCR_DCLKSEL_CLKS | div);
+			    escr);
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? OTAR2 : OTAR, 0);
 
 	/* Signal polarities */
@@ -543,12 +581,13 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	struct rcar_du_crtc *rcrtc = &rcdu->crtcs[index];
 	struct drm_crtc *crtc = &rcrtc->crtc;
 	unsigned int irqflags;
-	char clk_name[5];
+	struct clk *clk;
+	char clk_name[9];
 	char *name;
 	int irq;
 	int ret;
 
-	/* Get the CRTC clock. */
+	/* Get the CRTC clock and the optional external clock. */
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_CRTC_IRQ_CLOCK)) {
 		sprintf(clk_name, "du.%u", index);
 		name = clk_name;
@@ -560,6 +599,15 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	if (IS_ERR(rcrtc->clock)) {
 		dev_err(rcdu->dev, "no clock for CRTC %u\n", index);
 		return PTR_ERR(rcrtc->clock);
+	}
+
+	sprintf(clk_name, "dclkin.%u", index);
+	clk = devm_clk_get(rcdu->dev, clk_name);
+	if (!IS_ERR(clk)) {
+		rcrtc->extclock = clk;
+	} else if (PTR_ERR(rcrtc->clock) == -EPROBE_DEFER) {
+		dev_info(rcdu->dev, "can't get external clock %u\n", index);
+		return -EPROBE_DEFER;
 	}
 
 	rcrtc->group = rgrp;

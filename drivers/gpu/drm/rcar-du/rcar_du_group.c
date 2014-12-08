@@ -66,8 +66,20 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	rcar_du_group_write(rgrp, DEFR4, DEFR4_CODE);
 	rcar_du_group_write(rgrp, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
 
-	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS))
+	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS)) {
 		rcar_du_group_setup_defr8(rgrp);
+
+		/* Configure input dot clock routing. We currently hardcode the
+		 * configuration to routing DOTCLKINn to DUn.
+		 */
+		rcar_du_group_write(rgrp, DIDSR, DIDSR_CODE |
+				    DIDSR_LCDS_DCLKIN(2) |
+				    DIDSR_LCDS_DCLKIN(1) |
+				    DIDSR_LCDS_DCLKIN(0) |
+				    DIDSR_PDCS_CLK(2, 0) |
+				    DIDSR_PDCS_CLK(1, 0) |
+				    DIDSR_PDCS_CLK(0, 0));
+	}
 
 	/* Use DS1PR and DS2PR to configure planes priorities and connects the
 	 * superposition 0 to DU0 pins. DU1 pins will be configured dynamically.
