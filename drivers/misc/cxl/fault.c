@@ -180,6 +180,12 @@ void cxl_handle_fault(struct work_struct *fault_work)
 		return;
 	}
 
+	/* Early return if the context is being / has been detached */
+	if (ctx->status == CLOSED) {
+		cxl_ack_ae(ctx);
+		return;
+	}
+
 	pr_devel("CXL BOTTOM HALF handling fault for afu pe: %i. "
 		"DSISR: %#llx DAR: %#llx\n", ctx->pe, dsisr, dar);
 
