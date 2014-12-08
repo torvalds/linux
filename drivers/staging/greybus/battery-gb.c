@@ -35,9 +35,12 @@ struct gb_battery {
 #define	GB_BATTERY_TYPE_TECHNOLOGY		0x02
 #define	GB_BATTERY_TYPE_STATUS			0x03
 #define	GB_BATTERY_TYPE_MAX_VOLTAGE		0x04
-#define	GB_BATTERY_TYPE_CAPACITY		0x05
+#define	GB_BATTERY_TYPE_PERCENT_CAPACITY	0x05
 #define	GB_BATTERY_TYPE_TEMPERATURE		0x06
 #define	GB_BATTERY_TYPE_VOLTAGE			0x07
+#define	GB_BATTERY_TYPE_CURRENT			0x08
+#define GB_BATTERY_TYPE_CAPACITY		0x09	// TODO - POWER_SUPPLY_PROP_CURRENT_MAX
+#define GB_BATTERY_TYPE_SHUTDOWN_TEMP		0x0a	// TODO - POWER_SUPPLY_PROP_TEMP_ALERT_MAX
 
 struct gb_battery_proto_version_response {
 	__u8	major;
@@ -211,13 +214,14 @@ static int get_max_voltage(struct gb_battery *gb)
 	return max_voltage;
 }
 
-static int get_capacity(struct gb_battery *gb)
+static int get_percent_capacity(struct gb_battery *gb)
 {
 	struct gb_battery_capacity_response capacity_response;
 	u32 capacity;
 	int retval;
 
-	retval = gb_operation_sync(gb->connection, GB_BATTERY_TYPE_CAPACITY,
+	retval = gb_operation_sync(gb->connection,
+				   GB_BATTERY_TYPE_PERCENT_CAPACITY,
 				   NULL, 0, &capacity_response,
 				   sizeof(capacity_response));
 	if (retval)
@@ -279,7 +283,7 @@ static int get_property(struct power_supply *b,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		val->intval = get_capacity(gb);
+		val->intval = get_percent_capacity(gb);
 		break;
 
 	case POWER_SUPPLY_PROP_TEMP:
