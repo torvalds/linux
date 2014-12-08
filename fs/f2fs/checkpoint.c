@@ -72,21 +72,6 @@ out:
 	return page;
 }
 
-struct page *get_meta_page_ra(struct f2fs_sb_info *sbi, pgoff_t index)
-{
-	bool readahead = false;
-	struct page *page;
-
-	page = find_get_page(META_MAPPING(sbi), index);
-	if (!page || (page && !PageUptodate(page)))
-		readahead = true;
-	f2fs_put_page(page, 0);
-
-	if (readahead)
-		ra_meta_pages(sbi, index, MAX_BIO_BLOCKS(sbi), META_POR);
-	return get_meta_page(sbi, index);
-}
-
 static inline bool is_valid_blkaddr(struct f2fs_sb_info *sbi,
 						block_t blkaddr, int type)
 {
@@ -179,6 +164,20 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 out:
 	f2fs_submit_merged_bio(sbi, META, READ);
 	return blkno - start;
+}
+
+void ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index)
+{
+	struct page *page;
+	bool readahead = false;
+
+	page = find_get_page(META_MAPPING(sbi), index);
+	if (!page || (page && !PageUptodate(page)))
+		readahead = true;
+	f2fs_put_page(page, 0);
+
+	if (readahead)
+		ra_meta_pages(sbi, index, MAX_BIO_BLOCKS(sbi), META_POR);
 }
 
 static int f2fs_write_meta_page(struct page *page,
