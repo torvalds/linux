@@ -87,6 +87,8 @@ void evergreen_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 	const struct radeon_hdmi_acr *acr);
 void r600_set_vbi_packet(struct drm_encoder *encoder, u32 offset);
 void dce4_set_vbi_packet(struct drm_encoder *encoder, u32 offset);
+void dce4_hdmi_set_color_depth(struct drm_encoder *encoder,
+	u32 offset, int bpc);
 
 static const u32 pin_offsets[7] =
 {
@@ -169,6 +171,7 @@ static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.set_dto = dce4_hdmi_audio_set_dto,
 	.update_acr = evergreen_hdmi_update_acr,
 	.set_vbi_packet = dce4_set_vbi_packet,
+	.set_color_depth = dce4_hdmi_set_color_depth,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
@@ -188,6 +191,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.set_dto = dce6_hdmi_audio_set_dto,
 	.update_acr = evergreen_hdmi_update_acr,
 	.set_vbi_packet = dce4_set_vbi_packet,
+	.set_color_depth = dce4_hdmi_set_color_depth,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
@@ -573,4 +577,22 @@ void radeon_audio_set_vbi_packet(struct drm_encoder *encoder)
 
 	if (radeon_encoder->audio && radeon_encoder->audio->set_vbi_packet)
 		radeon_encoder->audio->set_vbi_packet(encoder, dig->afmt->offset);
+}
+
+void radeon_hdmi_set_color_depth(struct drm_encoder *encoder)
+{
+	int bpc = 8;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	if (encoder->crtc) {
+		struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+		bpc = radeon_crtc->bpc;
+	}
+
+	if (radeon_encoder->audio && radeon_encoder->audio->set_color_depth)
+		radeon_encoder->audio->set_color_depth(encoder, dig->afmt->offset, bpc);
 }

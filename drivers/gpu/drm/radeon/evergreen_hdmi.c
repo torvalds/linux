@@ -300,45 +300,12 @@ void dce4_set_vbi_packet(struct drm_encoder *encoder, u32 offset)
 		HDMI_GC_CONT);		/* send general control packets every frame */
 }
 
-/*
- * update the info frames with the data from the current display mode
- */
-void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode)
+void dce4_hdmi_set_color_depth(struct drm_encoder *encoder, u32 offset, int bpc)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
-	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
-	struct hdmi_avi_infoframe frame;
-	uint32_t offset;
-	ssize_t err;
 	uint32_t val;
-	int bpc = 8;
-
-	if (!dig || !dig->afmt)
-		return;
-
-	/* Silent, r600_hdmi_enable will raise WARN for us */
-	if (!dig->afmt->enabled)
-		return;
-	offset = dig->afmt->offset;
-
-	/* hdmi deep color mode general control packets setup, if bpc > 8 */
-	if (encoder->crtc) {
-		struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
-		bpc = radeon_crtc->bpc;
-	}
-
-	/* disable audio prior to setting up hw */
-	dig->afmt->pin = radeon_audio_get_pin(encoder);
-	radeon_audio_enable(rdev, dig->afmt->pin, 0);
-
-	radeon_audio_set_dto(encoder, mode->clock);
-	radeon_audio_set_vbi_packet(encoder);
-
-	WREG32(AFMT_AUDIO_CRC_CONTROL + offset, 0x1000);
 
 	val = RREG32(HDMI_CONTROL + offset);
 	val &= ~HDMI_DEEP_COLOR_ENABLE;
@@ -368,6 +335,40 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	}
 
 	WREG32(HDMI_CONTROL + offset, val);
+}
+
+/*
+ * update the info frames with the data from the current display mode
+ */
+void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
+	struct hdmi_avi_infoframe frame;
+	uint32_t offset;
+	ssize_t err;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	/* Silent, r600_hdmi_enable will raise WARN for us */
+	if (!dig->afmt->enabled)
+		return;
+	offset = dig->afmt->offset;
+
+	/* disable audio prior to setting up hw */
+	dig->afmt->pin = radeon_audio_get_pin(encoder);
+	radeon_audio_enable(rdev, dig->afmt->pin, 0);
+
+	radeon_audio_set_dto(encoder, mode->clock);
+	radeon_audio_set_vbi_packet(encoder);
+
+	WREG32(AFMT_AUDIO_CRC_CONTROL + offset, 0x1000);
+
+	radeon_hdmi_set_color_depth(encoder);
 
 	WREG32(HDMI_INFOFRAME_CONTROL0 + offset,
 	       HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */

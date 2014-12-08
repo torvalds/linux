@@ -368,6 +368,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	radeon_audio_set_dto(encoder, mode->clock);
 	radeon_audio_set_vbi_packet(encoder);
+	radeon_hdmi_set_color_depth(encoder);
 
 	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		 HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */

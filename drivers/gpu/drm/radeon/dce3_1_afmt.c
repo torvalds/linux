@@ -230,6 +230,8 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 
 	WREG32(HDMI0_AUDIO_CRC_CONTROL + offset, 0x1000);
 
+	radeon_hdmi_set_color_depth(encoder);
+
 	if (ASIC_IS_DCE32(rdev)) {
 		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
