@@ -1320,6 +1320,27 @@ unlock:
 	mutex_unlock(&sor->lock);
 }
 
+static int
+tegra_sor_encoder_atomic_check(struct drm_encoder *encoder,
+			       struct drm_crtc_state *crtc_state,
+			       struct drm_connector_state *conn_state)
+{
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_dc *dc = to_tegra_dc(conn_state->crtc);
+	unsigned long pclk = crtc_state->mode.clock * 1000;
+	struct tegra_sor *sor = to_sor(output);
+	int err;
+
+	err = tegra_dc_state_setup_clock(dc, crtc_state, sor->clk_parent,
+					 pclk, 0);
+	if (err < 0) {
+		dev_err(output->dev, "failed to setup CRTC state: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs tegra_sor_encoder_helper_funcs = {
 	.dpms = tegra_sor_encoder_dpms,
 	.mode_fixup = tegra_sor_encoder_mode_fixup,
@@ -1327,6 +1348,7 @@ static const struct drm_encoder_helper_funcs tegra_sor_encoder_helper_funcs = {
 	.commit = tegra_sor_encoder_commit,
 	.mode_set = tegra_sor_encoder_mode_set,
 	.disable = tegra_sor_encoder_disable,
+	.atomic_check = tegra_sor_encoder_atomic_check,
 };
 
 static int tegra_sor_init(struct host1x_client *client)
