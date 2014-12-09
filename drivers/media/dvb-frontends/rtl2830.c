@@ -596,22 +596,11 @@ static int rtl2830_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
-	int ret;
-	u8 buf[2];
 
-	if (dev->sleeping)
-		return 0;
-
-	ret = rtl2830_rd_regs(client, 0x34e, buf, 2);
-	if (ret)
-		goto err;
-
-	*ber = buf[0] << 8 | buf[1];
+	*ber = (dev->post_bit_error - dev->post_bit_error_prev);
+	dev->post_bit_error_prev = dev->post_bit_error;
 
 	return 0;
-err:
-	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return ret;
 }
 
 static int rtl2830_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
