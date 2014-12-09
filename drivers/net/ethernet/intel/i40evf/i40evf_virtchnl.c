@@ -715,15 +715,9 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		}
 		return;
 	}
-	if (v_opcode != adapter->current_op) {
-		dev_err(&adapter->pdev->dev, "%s: Pending op is %d, received %d\n",
-			__func__, adapter->current_op, v_opcode);
-		/* We're probably completely screwed at this point, but clear
-		 * the current op and try to carry on....
-		 */
-		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
-		return;
-	}
+	if (v_opcode != adapter->current_op)
+		dev_info(&adapter->pdev->dev, "Pending op is %d, received %d\n",
+			 adapter->current_op, v_opcode);
 	if (v_retval) {
 		dev_err(&adapter->pdev->dev, "%s: PF returned error %d to our request %d\n",
 			__func__, v_retval, v_opcode);
@@ -775,8 +769,8 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		adapter->aq_pending &= ~(I40EVF_FLAG_AQ_MAP_VECTORS);
 		break;
 	default:
-		dev_warn(&adapter->pdev->dev, "%s: Received unexpected message %d from PF\n",
-			 __func__, v_opcode);
+		dev_info(&adapter->pdev->dev, "Received unexpected message %d from PF\n",
+			 v_opcode);
 		break;
 	} /* switch v_opcode */
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;

@@ -36,7 +36,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710/X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "1.0.5"
+#define DRV_VERSION "1.0.6"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2014 Intel Corporation.";
@@ -2045,6 +2045,8 @@ static void i40evf_init_task(struct work_struct *work)
 	case __I40EVF_INIT_VERSION_CHECK:
 		if (!i40evf_asq_done(hw)) {
 			dev_err(&pdev->dev, "Admin queue command never completed\n");
+			i40evf_shutdown_adminq(hw);
+			adapter->state = __I40EVF_STARTUP;
 			goto err;
 		}
 
@@ -2078,8 +2080,11 @@ static void i40evf_init_task(struct work_struct *work)
 				goto err;
 		}
 		err = i40evf_get_vf_config(adapter);
-		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
-			goto restart;
+		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
+			dev_info(&pdev->dev, "Resending VF config request\n");
+			err = i40evf_send_vf_config_msg(adapter);
+			goto err;
+		}
 		if (err) {
 			dev_err(&pdev->dev, "Unable to get VF config (%d)\n",
 				err);

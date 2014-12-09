@@ -482,6 +482,8 @@ struct i40e_hw {
 	u32 debug_mask;
 };
 
+#define i40e_is_vf(_hw)	((_hw)->mac.type == I40E_MAC_VF)
+
 struct i40e_driver_version {
 	u8 major_version;
 	u8 minor_version;

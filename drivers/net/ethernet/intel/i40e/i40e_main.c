@@ -38,8 +38,8 @@ static const char i40e_driver_string[] =
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 1
-#define DRV_VERSION_MINOR 1
-#define DRV_VERSION_BUILD 23
+#define DRV_VERSION_MINOR 2
+#define DRV_VERSION_BUILD 2
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -4870,9 +4870,11 @@ int i40e_vsi_open(struct i40e_vsi *vsi)
 			goto err_set_queues;
 
 	} else if (vsi->type == I40E_VSI_FDIR) {
-		snprintf(int_name, sizeof(int_name) - 1, "%s-fdir",
-			 dev_driver_string(&pf->pdev->dev));
+		snprintf(int_name, sizeof(int_name) - 1, "%s-%s-fdir",
+			 dev_driver_string(&pf->pdev->dev),
+			 dev_name(&pf->pdev->dev));
 		err = i40e_vsi_request_irq(vsi, int_name);
+
 	} else {
 		err = -EINVAL;
 		goto err_setup_rx;
@@ -5450,8 +5452,6 @@ static void i40e_vsi_link_event(struct i40e_vsi *vsi, bool link_up)
 		break;
 
 	case I40E_VSI_SRIOV:
-		break;
-
 	case I40E_VSI_VMDQ2:
 	case I40E_VSI_CTRL:
 	case I40E_VSI_MIRROR:
@@ -5887,6 +5887,9 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 	ret = i40e_add_veb(veb, ctl_vsi);
 	if (ret)
 		goto end_reconstitute;
+
+	/* Enable LB mode for the main VSI now that it is on a VEB */
+	i40e_enable_pf_switch_lb(pf);
 
 	/* create the remaining VSIs attached to this VEB */
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
@@ -7797,6 +7800,10 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		ctxt.uplink_seid = vsi->uplink_seid;
 		ctxt.connection_type = 0x1;     /* regular data port */
 		ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+		ctxt.info.valid_sections |=
+				cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+		ctxt.info.switch_id =
+				cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 		i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, true);
 		break;
 
@@ -8182,7 +8189,15 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 		else if ((vsi->flags & I40E_VSI_FLAG_VEB_OWNER) == 0)
 			veb = i40e_veb_setup(pf, 0, vsi->uplink_seid, vsi->seid,
 					     vsi->tc_config.enabled_tc);
-
+		if (veb) {
+			if (vsi->seid != pf->vsi[pf->lan_vsi]->seid) {
+				dev_info(&vsi->back->pdev->dev,
+					 "%s: New VSI creation error, uplink seid of LAN VSI expected.\n",
+					 __func__);
+				return NULL;
+			}
+			i40e_enable_pf_switch_lb(pf);
+		}
 		for (i = 0; i < I40E_MAX_VEB && !veb; i++) {
 			if (pf->veb[i] && pf->veb[i]->seid == vsi->uplink_seid)
 				veb = pf->veb[i];
@@ -9143,9 +9158,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->aq.arq_buf_size = I40E_MAX_AQ_BUF_SIZE;
 	hw->aq.asq_buf_size = I40E_MAX_AQ_BUF_SIZE;
 	pf->adminq_work_limit = I40E_AQ_WORK_LIMIT;
+
 	snprintf(pf->misc_int_name, sizeof(pf->misc_int_name) - 1,
-		 "%s-pf%d:misc",
-		 dev_driver_string(&pf->pdev->dev), pf->hw.pf_id);
+		 "%s-%s:misc",
+		 dev_driver_string(&pf->pdev->dev), dev_name(&pdev->dev));
 
 	err = i40e_init_shared_code(hw);
 	if (err) {

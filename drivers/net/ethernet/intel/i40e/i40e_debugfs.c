@@ -773,7 +773,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 {
 	struct i40e_tx_desc *txd;
 	union i40e_rx_desc *rxd;
-	struct i40e_ring ring;
+	struct i40e_ring *ring;
 	struct i40e_vsi *vsi;
 	int i;
 
@@ -792,29 +792,32 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 			 vsi_seid);
 		return;
 	}
-	if (is_rx_ring)
-		ring = *vsi->rx_rings[ring_id];
-	else
-		ring = *vsi->tx_rings[ring_id];
+
+	ring = kmemdup(is_rx_ring
+		       ? vsi->rx_rings[ring_id] : vsi->tx_rings[ring_id],
+		       sizeof(*ring), GFP_KERNEL);
+	if (!ring)
+		return;
+
 	if (cnt == 2) {
 		dev_info(&pf->pdev->dev, "vsi = %02i %s ring = %02i\n",
 			 vsi_seid, is_rx_ring ? "rx" : "tx", ring_id);
-		for (i = 0; i < ring.count; i++) {
+		for (i = 0; i < ring->count; i++) {
 			if (!is_rx_ring) {
-				txd = I40E_TX_DESC(&ring, i);
+				txd = I40E_TX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
 					 "   d[%03i] = 0x%016llx 0x%016llx\n",
 					 i, txd->buffer_addr,
 					 txd->cmd_type_offset_bsz);
 			} else if (sizeof(union i40e_rx_desc) ==
 				   sizeof(union i40e_16byte_rx_desc)) {
-				rxd = I40E_RX_DESC(&ring, i);
+				rxd = I40E_RX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
 					 "   d[%03i] = 0x%016llx 0x%016llx\n",
 					 i, rxd->read.pkt_addr,
 					 rxd->read.hdr_addr);
 			} else {
-				rxd = I40E_RX_DESC(&ring, i);
+				rxd = I40E_RX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
 					 "   d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
 					 i, rxd->read.pkt_addr,
@@ -823,26 +826,26 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 			}
 		}
 	} else if (cnt == 3) {
-		if (desc_n >= ring.count || desc_n < 0) {
+		if (desc_n >= ring->count || desc_n < 0) {
 			dev_info(&pf->pdev->dev,
 				 "descriptor %d not found\n", desc_n);
 			return;
 		}
 		if (!is_rx_ring) {
-			txd = I40E_TX_DESC(&ring, desc_n);
+			txd = I40E_TX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
 				 "vsi = %02i tx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
 				 txd->buffer_addr, txd->cmd_type_offset_bsz);
 		} else if (sizeof(union i40e_rx_desc) ==
 			   sizeof(union i40e_16byte_rx_desc)) {
-			rxd = I40E_RX_DESC(&ring, desc_n);
+			rxd = I40E_RX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
 				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
 				 rxd->read.pkt_addr, rxd->read.hdr_addr);
 		} else {
-			rxd = I40E_RX_DESC(&ring, desc_n);
+			rxd = I40E_RX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
 				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
@@ -852,6 +855,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 	} else {
 		dev_info(&pf->pdev->dev, "dump desc rx/tx <vsi_seid> <ring_id> [<desc_n>]\n");
 	}
+	kfree(ring);
 }
 
 /**
@@ -1493,7 +1497,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[11],
-			     "%hx %hx %hx %hx %x %x %x %x %x %x",
+			     "%hi %hi %hi %hi %i %i %i %i %i %i",
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,
@@ -1541,7 +1545,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[20],
-			     "%hx %hx %hx %hx %x %x %x %x %x %x %hd",
+			     "%hi %hi %hi %hi %i %i %i %i %i %i %hi",
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,

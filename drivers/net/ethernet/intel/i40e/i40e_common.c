@@ -550,7 +550,7 @@ struct i40e_rx_ptype_decoded i40e_ptype_lookup[] = {
 i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 {
 	i40e_status status = 0;
-	u32 reg;
+	u32 port, ari, func_rid;
 
 	i40e_set_mac_type(hw);
 
@@ -563,18 +563,17 @@ i40e_status i40e_init_shared_code(struct i40e_hw *hw)
 
 	hw->phy.get_link_info = true;
 
-	/* Determine port number */
-	reg = rd32(hw, I40E_PFGEN_PORTNUM);
-	reg = ((reg & I40E_PFGEN_PORTNUM_PORT_NUM_MASK) >>
-	       I40E_PFGEN_PORTNUM_PORT_NUM_SHIFT);
-	hw->port = (u8)reg;
-
-	/* Determine the PF number based on the PCI fn */
-	reg = rd32(hw, I40E_GLPCI_CAPSUP);
-	if (reg & I40E_GLPCI_CAPSUP_ARI_EN_MASK)
-		hw->pf_id = (u8)((hw->bus.device << 3) | hw->bus.func);
+	/* Determine port number and PF number*/
+	port = (rd32(hw, I40E_PFGEN_PORTNUM) & I40E_PFGEN_PORTNUM_PORT_NUM_MASK)
+					   >> I40E_PFGEN_PORTNUM_PORT_NUM_SHIFT;
+	hw->port = (u8)port;
+	ari = (rd32(hw, I40E_GLPCI_CAPSUP) & I40E_GLPCI_CAPSUP_ARI_EN_MASK) >>
+						 I40E_GLPCI_CAPSUP_ARI_EN_SHIFT;
+	func_rid = rd32(hw, I40E_PF_FUNC_RID);
+	if (ari)
+		hw->pf_id = (u8)(func_rid & 0xff);
 	else
-		hw->pf_id = (u8)hw->bus.func;
+		hw->pf_id = (u8)(func_rid & 0x7);
 
 	status = i40e_init_nvm(hw);
 	return status;
@@ -791,7 +790,7 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 }
 
 #define I40E_PF_RESET_WAIT_COUNT_A0	200
-#define I40E_PF_RESET_WAIT_COUNT	100
+#define I40E_PF_RESET_WAIT_COUNT	110
 /**
  * i40e_pf_reset - Reset the PF
  * @hw: pointer to the hardware structure
