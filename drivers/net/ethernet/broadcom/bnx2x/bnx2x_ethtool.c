@@ -3358,11 +3358,17 @@ static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 	return T_ETH_INDIRECTION_TABLE_SIZE;
 }
 
-static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
+static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+			  u8 *hfunc)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 	size_t i;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!indir)
+		return 0;
 
 	/* Get the current configuration of the RSS indirection table */
 	bnx2x_get_rss_ind_table(&bp->rss_conf_obj, ind_table);
@@ -3383,10 +3389,20 @@ static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 }
 
 static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
-			  const u8 *key)
+			  const u8 *key, const u8 hfunc)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
+
+	/* We require at least one supported parameter to be changed and no
+	 * change in any of the unsupported parameters
+	 */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+
+	if (!indir)
+		return 0;
 
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
 		/*
