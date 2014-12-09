@@ -42,6 +42,8 @@
 #define CLK_FLG_MAX_I2S_22579_2KHZ 	(1<<2)
 #define CLK_FLG_MAX_I2S_24576KHZ 	(1<<3)
 #define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
+//uart 1m\3m
+#define CLK_FLG_UART_1_3M			(1<<5)
 
 
 
@@ -1081,6 +1083,7 @@ static const struct pll_clk_set cpll_clks[] = {
 	_PLL_SET_CLKS(552000, 1,  23, 1),
 	_PLL_SET_CLKS(600000, 1,  25, 1),
 	_PLL_SET_CLKS(742500, 8,  495, 2),
+	_PLL_SET_CLKS(768000, 1,  32, 1),
 	_PLL_SET_CLKS(798000, 4,  133, 1),
 	_PLL_SET_CLKS(1188000,2,  99,	1),
 	_PLL_SET_CLKS(     0, 4,  133, 1),
@@ -1784,8 +1787,6 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 		parent = clk->parents[UART_SRC_FRAC];
 	}
 
-
-	
 	CRU_PRINTK_DBG(" %s set rate=%lu parent %s(old %s)\n",
 		clk->name,rate,parent->name,clk->parent->name);
 
@@ -3303,11 +3304,10 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 	clk_set_rate_nolock(&clk_spi1, clk_spi1.parent->rate);
 
 	// uart
-	#if 0 
-	clk_set_parent_nolock(&clk_uart_pll, &codec_pll_clk);
-	#else
-	clk_set_parent_nolock(&clk_uart_pll, &general_pll_clk);
-	#endif
+	if(rk30_clock_flags&CLK_FLG_UART_1_3M)
+		clk_set_parent_nolock(&clk_uart_pll, &codec_pll_clk);
+	else
+		clk_set_parent_nolock(&clk_uart_pll, &general_pll_clk);
 	//mac	
 	if(!(gpll_rate%(50*MHZ)))
 		clk_set_parent_nolock(&clk_mac_pll_div, &general_pll_clk);

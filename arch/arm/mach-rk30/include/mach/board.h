@@ -114,6 +114,7 @@ enum _codec_pll {
 	codec_pll_552mhz = 552000000, /* for HDMI */
 	codec_pll_600mhz = 600000000,
 	codec_pll_742_5khz = 742500000,
+	codec_pll_768mhz = 768000000,
 	codec_pll_798mhz = 798000000,
 	codec_pll_1188mhz = 1188000000,
 };
@@ -125,6 +126,8 @@ enum _codec_pll {
 #define CLK_FLG_MAX_I2S_22579_2KHZ 	(1<<2)
 #define CLK_FLG_MAX_I2S_24576KHZ 	(1<<3)
 #define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
+//uart 1m\3m
+#define CLK_FLG_UART_1_3M			(1<<5)
 
 
 
@@ -136,8 +139,14 @@ enum _codec_pll {
 
 #else
 
+
 #define RK30_CLOCKS_DEFAULT_FLAGS (CLK_FLG_MAX_I2S_12288KHZ/*|CLK_FLG_EXT_27MHZ*/)
+
+#if (RK30_CLOCKS_DEFAULT_FLAGS&CLK_FLG_UART_1_3M)
+#define codec_pll_default codec_pll_768mhz
+#else
 #define codec_pll_default codec_pll_798mhz
+#endif
 #define periph_pll_default periph_pll_297mhz
 
 #endif
