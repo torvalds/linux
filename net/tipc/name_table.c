@@ -979,7 +979,7 @@ static void tipc_purge_publications(struct name_seq *seq)
 	}
 	hlist_del_init_rcu(&seq->ns_list);
 	kfree(seq->sseqs);
-	spin_lock_bh(&seq->lock);
+	spin_unlock_bh(&seq->lock);
 
 	kfree_rcu(seq, rcu);
 }
