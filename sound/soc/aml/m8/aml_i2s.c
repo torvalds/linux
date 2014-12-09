@@ -81,22 +81,22 @@ EXPORT_SYMBOL(aml_i2s_alsa_write_addr);
  *	 them against real values for AML
  */
 static const struct snd_pcm_hardware aml_i2s_hardware = {
-	.info			= SNDRV_PCM_INFO_NONINTERLEAVED|
+	.info			= SNDRV_PCM_INFO_INTERLEAVED|
 							SNDRV_PCM_INFO_BLOCK_TRANSFER|
 							SNDRV_PCM_INFO_PAUSE,
 
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE|SNDRV_PCM_FMTBIT_S24_LE|SNDRV_PCM_FMTBIT_S32_LE,
 
 	.period_bytes_min	= 64,
-	.period_bytes_max	= 32 * 1024,
+	.period_bytes_max	= 32 * 1024*2,
 	.periods_min		= 2,
 	.periods_max		= 1024,
-	.buffer_bytes_max	= 32 * 1024*2,
+	.buffer_bytes_max	= 128 * 1024*2*2,
 
 	.rate_min = 8000,
 	.rate_max = 48000,
-	.channels_min = 1,
-	.channels_max = 2,
+	.channels_min = 2,
+	.channels_max = 8,
 	.fifo_size = 0,
 };
 
@@ -116,8 +116,8 @@ static const struct snd_pcm_hardware aml_i2s_capture = {
 
 	.rate_min = 8000,
 	.rate_max = 48000,
-	.channels_min = 1,
-	.channels_max = 2,
+	.channels_min = 2,
+	.channels_max = 8,
 	.fifo_size = 0,
 };
 
@@ -598,49 +598,123 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 		    snd_pcm_uframes_t pos,
 		    void __user *buf, snd_pcm_uframes_t count, struct snd_pcm_substream *substream)
 {
-	int i;
-	unsigned char __user *ubuf = (unsigned char __user *) buf;
-	int datasize = frames_to_bytes(runtime, count);
-	int pos_offset = frames_to_bytes(runtime, pos);
-	unsigned char *hwbuf = runtime->dma_area;
-	int to_copy = datasize;
+    int res = 0;
+    int n;
+    int i = 0, j = 0;
+    int  align = runtime->channels * 32 / runtime->byte_align;
+    char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, pos);
+    struct aml_runtime_data *prtd = runtime->private_data;
+    struct snd_dma_buffer *buffer = &substream->dma_buffer;
+    struct aml_audio_buffer *tmp_buf = buffer->private_data;
+    void *ubuf = tmp_buf->buffer_start;
+    audio_stream_t *s = &prtd->s;
+    if(s->device_type == AML_AUDIO_I2SOUT){
+        aml_i2s_alsa_write_addr = frames_to_bytes(runtime, pos);
+    }
+    n = frames_to_bytes(runtime, count);
+    if(aml_i2s_playback_enable == 0 && s->device_type == AML_AUDIO_I2SOUT)
+        return res;
+    res = copy_from_user(ubuf, buf, n);
+    if (res) return -EFAULT;
+    if(access_ok(VERIFY_READ, buf, frames_to_bytes(runtime, count)))
+    {
+      if(runtime->format == SNDRV_PCM_FORMAT_S16_LE ){
+        int16_t * tfrom, *to, *left, *right;
+        tfrom = (int16_t*)ubuf;
+        to = (int16_t*)hwbuf;
 
-	/* Distance between starting byte for each block */
-	int blockgap = runtime->channels * 32;
+        left = to;
+		right = to + 16;
+		if (pos % align) {
+		    printk("audio data unligned: pos=%d, n=%d, align=%d\n", (int)pos, n, align);
+		}
+		for (j = 0; j < n; j += 64) {
+		    for (i = 0; i < 16; i++) {
+	          *left++ = (*tfrom++) ;
+	          *right++ = (*tfrom++);
+		    }
+		    left += 16;
+		    right += 16;
+		 }
+      }else if(runtime->format == SNDRV_PCM_FORMAT_S24_LE && I2S_MODE == AIU_I2S_MODE_PCM24){
+        int32_t *tfrom, *to, *left, *right;
+        tfrom = (int32_t*)ubuf;
+        to = (int32_t*) hwbuf;
 
-	/* FIXME: here I would have thought that we should convert the 'pos'
-	 * hardware offset into the right block number as follows. However,
-	 * that results in the sound output being choppy and partially
-	 * repeated. Instead, just using simple bytes arithmetic seems to
-	 * land us in the right place for the correct audible output,
-	 * but how does it happen? This isn't considering the channels, is it?
-	 * Is it somehow related to the pointer being read?
-	 */
-#if 0
-	int blockno = pos_offset / 32;
+        left = to;
+        right = to + 8;
 
-	hwbuf += blockno * blockgap;
-	hwbuf += channel * 32;
-#else
-	hwbuf += pos_offset;
-	if (channel == 1) hwbuf += 32;
-#endif
+        if(pos % align){
+          printk("audio data unaligned: pos=%d, n=%d, align=%d\n", (int)pos, n, align);
+        }
+        for(j=0; j< n; j+= 64){
+          for(i=0; i<8; i++){
+            *left++  =  (*tfrom ++);
+            *right++  = (*tfrom ++);
+          }
+          left += 8;
+          right += 8;
+        }
 
-	if (runtime->channels == 1) {
-		if (copy_from_user(hwbuf, buf, datasize))
-			return -EFAULT;
-		return 0;
+      }else if(runtime->format == SNDRV_PCM_FORMAT_S32_LE /*&& I2S_MODE == AIU_I2S_MODE_PCM32*/){
+        int32_t *tfrom, *to, *left, *right;
+        tfrom = (int32_t*)ubuf;
+        to = (int32_t*) hwbuf;
+
+        left = to;
+        right = to + 8;
+
+        if(pos % align){
+          printk("audio data unaligned: pos=%d, n=%d, align=%d\n", (int)pos, n, align);
+        }
+
+		if(runtime->channels == 8){
+			int32_t *lf, *cf, *rf, *ls, *rs, *lef, *sbl, *sbr;
+			lf  = to;
+			cf  = to + 8*1;
+			rf  = to + 8*2;
+			ls  = to + 8*3;
+			rs  = to + 8*4;
+			lef = to + 8*5;
+			sbl = to + 8*6;
+			sbr = to + 8*7;
+			for (j = 0; j < n; j += 256) {
+		    	for (i = 0; i < 8; i++) {
+	         		*lf++  = (*tfrom ++)>>8;
+	          		*cf++  = (*tfrom ++)>>8;
+					*rf++  = (*tfrom ++)>>8;
+					*ls++  = (*tfrom ++)>>8;
+					*rs++  = (*tfrom ++)>>8;
+					*lef++ = (*tfrom ++)>>8;
+					*sbl++ = (*tfrom ++)>>8;
+					*sbr++ = (*tfrom ++)>>8;
+		    	}
+		    	lf  += 7*8;
+		    	cf  += 7*8;
+				rf  += 7*8;
+				ls  += 7*8;
+				rs  += 7*8;
+				lef += 7*8;
+				sbl += 7*8;
+				sbr += 7*8;
+		 	}
+		}
+		else {
+        for(j=0; j< n; j+= 64){
+          for(i=0; i<8; i++){
+            *left++  =  (*tfrom ++)>>8;
+            *right++  = (*tfrom ++)>>8;
+          }
+          left += 8;
+          right += 8;
+        }
+      	}
+      }
+
+	}else{
+	  res = -EFAULT;
 	}
-
-	for (i = 0; i < datasize; i += 32) {
-		int copysize = min(32, to_copy);
-		if (copy_from_user(hwbuf, ubuf + i, copysize))
-			return -EFAULT;
-		to_copy -= copysize;
-		hwbuf += blockgap;
-	}
-
-	return 0;
+    return res;
 }
 
 static unsigned int aml_get_in_wr_ptr(void){
@@ -724,22 +798,15 @@ static int aml_i2s_copy(struct snd_pcm_substream *substream, int channel,
 int aml_i2s_silence(struct snd_pcm_substream *substream, int channel,
 		       snd_pcm_uframes_t pos, snd_pcm_uframes_t count)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int i;
-	int datasize = frames_to_bytes(runtime, count);
-	int pos_offset = frames_to_bytes(runtime, pos);
-	char *hwbuf = runtime->dma_area;
-	int to_copy = datasize;
-	int blockgap = runtime->channels * 32;
+		char* ppos;
+		int n;
+		struct snd_pcm_runtime *runtime = substream->runtime;
+        ALSA_TRACE();
 
-	/* FIXME: same blocking consideration as copy_playback */
-	hwbuf += pos_offset;
-
-	for (i = 0; i < to_copy; i += 32) {
-		memset(hwbuf, 0, 32);
-		hwbuf += blockgap;
-	}
-	return 0;
+		n = frames_to_bytes(runtime, count);
+		ppos = runtime->dma_area + frames_to_bytes(runtime, pos);
+		memset(ppos, 0, n);
+		return 0;
 }
 
 static struct snd_pcm_ops aml_i2s_ops = {

@@ -18,7 +18,7 @@ struct dummy_codec_private {
 };
 
 #define DUMMY_CODEC_RATES		(SNDRV_PCM_RATE_8000_192000)
-#define DUMMY_CODEC_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE)
+#define DUMMY_CODEC_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |SNDRV_PCM_FMTBIT_S32_LE)
 
 
 static int dummy_codec_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -73,7 +73,7 @@ struct snd_soc_dai_driver dummy_codec_dai[] = {
 		.playback = {
 			.stream_name = "HIFI Playback",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = DUMMY_CODEC_RATES,
 			.formats = DUMMY_CODEC_FORMATS,
 		},

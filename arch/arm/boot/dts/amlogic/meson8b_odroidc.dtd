@@ -1410,12 +1410,23 @@ void root_func(){
                         amlogic,pins="GPIOAO_7";
                 };
 
+//$$ MATCH "Audio_pin_0_match" = "&audio_spdif_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 1 = "amlogic,pins"
+        audio_spdif_pins:audio_pin1{
+            amlogic,setmask=<10 0x8>;       /*spdif_out*/
+            amlogic,clrmask=<10 0x80002000>;    /*spdif_out*/
+            amlogic,pins ="GPIOAO_6";        /*spdif_out*/
+        };
+
 //$$ MATCH "Audio_pin_0_match" = "&audio_pins"
 //$$ L2 PROP_U32 4 = "amlogic,setmask"
 //$$ L2 PROP_U32 10 = "amlogic,clrmask"
 //$$ L2 PROP_STR 6 = "amlogic,pins"
         audio_pins:audio_pin{
-            amlogic,setmask=<10 0x78000000>;
+            amlogic,setmask=<10 0x78000008>;
+            amlogic,clrmask=<10 0x80002000>;
             amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11";
         };
 
