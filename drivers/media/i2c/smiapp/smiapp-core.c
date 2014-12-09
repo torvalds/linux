@@ -527,6 +527,7 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 12);
 	if (rval)
 		return rval;
+
 	sensor->pixel_array->ctrl_handler.lock = &sensor->mutex;
 
 	sensor->analog_gain = v4l2_ctrl_new_std(
@@ -585,8 +586,7 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 		dev_err(&client->dev,
 			"pixel array controls initialization failed (%d)\n",
 			sensor->pixel_array->ctrl_handler.error);
-		rval = sensor->pixel_array->ctrl_handler.error;
-		goto error;
+		return sensor->pixel_array->ctrl_handler.error;
 	}
 
 	sensor->pixel_array->sd.ctrl_handler =
@@ -596,7 +596,8 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 
 	rval = v4l2_ctrl_handler_init(&sensor->src->ctrl_handler, 0);
 	if (rval)
-		goto error;
+		return rval;
+
 	sensor->src->ctrl_handler.lock = &sensor->mutex;
 
 	for (max = 0; sensor->platform_data->op_sys_clock[max + 1]; max++);
@@ -614,20 +615,12 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 		dev_err(&client->dev,
 			"src controls initialization failed (%d)\n",
 			sensor->src->ctrl_handler.error);
-		rval = sensor->src->ctrl_handler.error;
-		goto error;
+		return sensor->src->ctrl_handler.error;
 	}
 
-	sensor->src->sd.ctrl_handler =
-		&sensor->src->ctrl_handler;
+	sensor->src->sd.ctrl_handler = &sensor->src->ctrl_handler;
 
 	return 0;
-
-error:
-	v4l2_ctrl_handler_free(&sensor->pixel_array->ctrl_handler);
-	v4l2_ctrl_handler_free(&sensor->src->ctrl_handler);
-
-	return rval;
 }
 
 static void smiapp_free_controls(struct smiapp_sensor *sensor)
