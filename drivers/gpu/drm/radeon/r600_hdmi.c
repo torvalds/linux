@@ -347,6 +347,48 @@ void r600_set_vbi_packet(struct drm_encoder *encoder, u32 offset)
 		HDMI0_GC_CONT);		/* send general control packets every frame */
 }
 
+void r600_set_audio_packet(struct drm_encoder *encoder, u32 offset)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
+		HDMI0_AUDIO_SAMPLE_SEND |			/* send audio packets */
+		HDMI0_AUDIO_DELAY_EN(1) |			/* default audio delay */
+		HDMI0_AUDIO_PACKETS_PER_LINE(3) |	/* should be suffient for all audio modes and small enough for all hblanks */
+		HDMI0_60958_CS_UPDATE,				/* allow 60958 channel status fields to be updated */
+		~(HDMI0_AUDIO_SAMPLE_SEND |
+		HDMI0_AUDIO_DELAY_EN_MASK |
+		HDMI0_AUDIO_PACKETS_PER_LINE_MASK |
+		HDMI0_60958_CS_UPDATE));
+
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
+		HDMI0_AUDIO_INFO_SEND |		/* enable audio info frames (frames won't be set until audio is enabled) */
+		HDMI0_AUDIO_INFO_UPDATE);	/* required for audio info values to be updated */
+
+	WREG32_P(HDMI0_INFOFRAME_CONTROL1 + offset,
+		HDMI0_AUDIO_INFO_LINE(2),	/* anything other than 0 */
+		~HDMI0_AUDIO_INFO_LINE_MASK);
+
+	WREG32_AND(HDMI0_GENERIC_PACKET_CONTROL + offset,
+		~(HDMI0_GENERIC0_SEND |
+		HDMI0_GENERIC0_CONT |
+		HDMI0_GENERIC0_UPDATE |
+		HDMI0_GENERIC1_SEND |
+		HDMI0_GENERIC1_CONT |
+		HDMI0_GENERIC0_LINE_MASK |
+		HDMI0_GENERIC1_LINE_MASK));
+
+	WREG32_P(HDMI0_60958_0 + offset,
+		HDMI0_60958_CS_CHANNEL_NUMBER_L(1),
+		~(HDMI0_60958_CS_CHANNEL_NUMBER_L_MASK |
+		HDMI0_60958_CS_CLOCK_ACCURACY_MASK));
+
+	WREG32_P(HDMI0_60958_1 + offset,
+		HDMI0_60958_CS_CHANNEL_NUMBER_R(2),
+		~HDMI0_60958_CS_CHANNEL_NUMBER_R_MASK);
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -374,51 +416,14 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	radeon_audio_set_vbi_packet(encoder);
 	radeon_hdmi_set_color_depth(encoder);
 
-	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
-		 HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */
-		 HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
-		 HDMI0_AUDIO_PACKETS_PER_LINE(3) | /* should be suffient for all audio modes and small enough for all hblanks */
-		 HDMI0_60958_CS_UPDATE, /* allow 60958 channel status fields to be updated */
-		 ~(HDMI0_AUDIO_SAMPLE_SEND |
-		   HDMI0_AUDIO_DELAY_EN_MASK |
-		   HDMI0_AUDIO_PACKETS_PER_LINE_MASK |
-		   HDMI0_60958_CS_UPDATE));
-
-	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
-		  HDMI0_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
-		  HDMI0_AUDIO_INFO_UPDATE); /* required for audio info values to be updated */
-
-	WREG32_P(HDMI0_INFOFRAME_CONTROL1 + offset,
-		 HDMI0_AUDIO_INFO_LINE(2), /* anything other than 0 */
-		 ~HDMI0_AUDIO_INFO_LINE_MASK);
-
 	WREG32_AND(HDMI0_GC + offset,
 		   ~HDMI0_GC_AVMUTE); /* unset HDMI0_GC_AVMUTE */
 
+	radeon_audio_update_acr(encoder, mode->clock);
+	radeon_audio_set_audio_packet(encoder);
+
 	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
 		return;
-
-	/* fglrx duplicates INFOFRAME_CONTROL0 & INFOFRAME_CONTROL1 ops here */
-
-	WREG32_AND(HDMI0_GENERIC_PACKET_CONTROL + offset,
-		   ~(HDMI0_GENERIC0_SEND |
-		     HDMI0_GENERIC0_CONT |
-		     HDMI0_GENERIC0_UPDATE |
-		     HDMI0_GENERIC1_SEND |
-		     HDMI0_GENERIC1_CONT |
-		     HDMI0_GENERIC0_LINE_MASK |
-		     HDMI0_GENERIC1_LINE_MASK));
-
-	radeon_audio_update_acr(encoder, mode->clock);
-
-	WREG32_P(HDMI0_60958_0 + offset,
-		 HDMI0_60958_CS_CHANNEL_NUMBER_L(1),
-		 ~(HDMI0_60958_CS_CHANNEL_NUMBER_L_MASK |
-		   HDMI0_60958_CS_CLOCK_ACCURACY_MASK));
-
-	WREG32_P(HDMI0_60958_1 + offset,
-		 HDMI0_60958_CS_CHANNEL_NUMBER_R(2),
-		 ~HDMI0_60958_CS_CHANNEL_NUMBER_R_MASK);
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(HDMI0_RAMP_CONTROL0 + offset, 0x00FFFFFF);

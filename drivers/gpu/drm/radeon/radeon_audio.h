@@ -59,6 +59,7 @@ struct radeon_audio_funcs
 	void (*set_color_depth)(struct drm_encoder *encoder, u32 offset, int bpc);
 	void (*set_avi_packet)(struct radeon_device *rdev, u32 offset,
 		unsigned char *buffer, size_t size);
+	void (*set_audio_packet)(struct drm_encoder *encoder, u32 offset);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -83,5 +84,6 @@ int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 void radeon_audio_update_acr(struct drm_encoder *encoder, unsigned int clock);
 void radeon_audio_set_vbi_packet(struct drm_encoder *encoder);
 void radeon_hdmi_set_color_depth(struct drm_encoder *encoder);
+void radeon_audio_set_audio_packet(struct drm_encoder *encoder);
 
 #endif

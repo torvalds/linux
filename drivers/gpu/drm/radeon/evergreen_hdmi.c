@@ -345,6 +345,47 @@ void dce4_hdmi_set_color_depth(struct drm_encoder *encoder, u32 offset, int bpc)
 	WREG32(HDMI_CONTROL + offset, val);
 }
 
+void dce4_set_audio_packet(struct drm_encoder *encoder, u32 offset)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	WREG32(HDMI_INFOFRAME_CONTROL0 + offset,
+		HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
+		HDMI_AUDIO_INFO_CONT); /* required for audio info values to be updated */
+
+	WREG32(AFMT_INFOFRAME_CONTROL0 + offset,
+		AFMT_AUDIO_INFO_UPDATE); /* required for audio info values to be updated */
+
+	WREG32(HDMI_INFOFRAME_CONTROL1 + offset,
+		HDMI_AUDIO_INFO_LINE(2)); /* anything other than 0 */
+
+	WREG32(HDMI_AUDIO_PACKET_CONTROL + offset,
+		HDMI_AUDIO_DELAY_EN(1) | /* set the default audio delay */
+		HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
+
+	WREG32(AFMT_60958_0 + offset,
+		AFMT_60958_CS_CHANNEL_NUMBER_L(1));
+
+	WREG32(AFMT_60958_1 + offset,
+		AFMT_60958_CS_CHANNEL_NUMBER_R(2));
+
+	WREG32(AFMT_60958_2 + offset,
+		AFMT_60958_CS_CHANNEL_NUMBER_2(3) |
+		AFMT_60958_CS_CHANNEL_NUMBER_3(4) |
+		AFMT_60958_CS_CHANNEL_NUMBER_4(5) |
+		AFMT_60958_CS_CHANNEL_NUMBER_5(6) |
+		AFMT_60958_CS_CHANNEL_NUMBER_6(7) |
+		AFMT_60958_CS_CHANNEL_NUMBER_7(8));
+
+	WREG32(AFMT_AUDIO_PACKET_CONTROL2 + offset,
+		AFMT_AUDIO_CHANNEL_ENABLE(0xff));
+
+	/* allow 60958 channel status and send audio packets fields to be updated */
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
+		AFMT_AUDIO_SAMPLE_SEND | AFMT_RESET_FIFO_WHEN_AUDIO_DIS | AFMT_60958_CS_UPDATE);
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -372,49 +413,11 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	radeon_audio_set_vbi_packet(encoder);
 	radeon_hdmi_set_color_depth(encoder);
 
-	WREG32(HDMI_INFOFRAME_CONTROL0 + offset,
-	       HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
-	       HDMI_AUDIO_INFO_CONT); /* required for audio info values to be updated */
-
-	WREG32(AFMT_INFOFRAME_CONTROL0 + offset,
-	       AFMT_AUDIO_INFO_UPDATE); /* required for audio info values to be updated */
-
-	WREG32(HDMI_INFOFRAME_CONTROL1 + offset,
-	       HDMI_AUDIO_INFO_LINE(2)); /* anything other than 0 */
-
 	WREG32(HDMI_GC + offset, 0); /* unset HDMI_GC_AVMUTE */
 
-	WREG32(HDMI_AUDIO_PACKET_CONTROL + offset,
-	       HDMI_AUDIO_DELAY_EN(1) | /* set the default audio delay */
-	       HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
-
-	WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
-	       AFMT_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
-
-	/* fglrx clears sth in AFMT_AUDIO_PACKET_CONTROL2 here */
-
 	radeon_audio_update_acr(encoder, mode->clock);
-
-	WREG32(AFMT_60958_0 + offset,
-	       AFMT_60958_CS_CHANNEL_NUMBER_L(1));
-
-	WREG32(AFMT_60958_1 + offset,
-	       AFMT_60958_CS_CHANNEL_NUMBER_R(2));
-
-	WREG32(AFMT_60958_2 + offset,
-	       AFMT_60958_CS_CHANNEL_NUMBER_2(3) |
-	       AFMT_60958_CS_CHANNEL_NUMBER_3(4) |
-	       AFMT_60958_CS_CHANNEL_NUMBER_4(5) |
-	       AFMT_60958_CS_CHANNEL_NUMBER_5(6) |
-	       AFMT_60958_CS_CHANNEL_NUMBER_6(7) |
-	       AFMT_60958_CS_CHANNEL_NUMBER_7(8));
-
 	radeon_audio_write_speaker_allocation(encoder);
-
-	WREG32(AFMT_AUDIO_PACKET_CONTROL2 + offset,
-	       AFMT_AUDIO_CHANNEL_ENABLE(0xff));
-
-	/* fglrx sets 0x40 in 0x5f80 here */
+	radeon_audio_set_audio_packet(encoder);
 
 	radeon_audio_select_pin(encoder);
 	radeon_audio_write_sad_regs(encoder);
@@ -422,9 +425,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
 		return;
-
-	WREG32_OR(AFMT_AUDIO_PACKET_CONTROL + offset,
-		  AFMT_AUDIO_SAMPLE_SEND); /* send audio packets */
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(AFMT_RAMP_CONTROL0 + offset, 0x00FFFFFF);

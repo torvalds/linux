@@ -199,6 +199,27 @@ void dce3_2_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 		~HDMI0_ACR_N_48_MASK);
 }
 
+void dce3_2_set_audio_packet(struct drm_encoder *encoder, u32 offset)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
+		HDMI0_AUDIO_DELAY_EN(1) |			/* default audio delay */
+		HDMI0_AUDIO_PACKETS_PER_LINE(3));	/* should be suffient for all audio modes and small enough for all hblanks */
+
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
+		AFMT_AUDIO_SAMPLE_SEND |			/* send audio packets */
+		AFMT_60958_CS_UPDATE);				/* allow 60958 channel status fields to be updated */
+
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
+		HDMI0_AUDIO_INFO_SEND |				/* enable audio info frames (frames won't be set until audio is enabled) */
+		HDMI0_AUDIO_INFO_CONT);				/* send audio info frames every frame/field */
+
+	WREG32_OR(HDMI0_INFOFRAME_CONTROL1 + offset,
+		HDMI0_AUDIO_INFO_LINE(2));			/* anything other than 0 */
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -226,40 +247,15 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	radeon_audio_set_vbi_packet(encoder);
 	radeon_hdmi_set_color_depth(encoder);
 
-	if (ASIC_IS_DCE32(rdev)) {
-		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
-		       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
-		       HDMI0_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
-		WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
-		       AFMT_AUDIO_SAMPLE_SEND | /* send audio packets */
-		       AFMT_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
-	} else {
-		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
-		       HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */
-		       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
-		       HDMI0_AUDIO_PACKETS_PER_LINE(3) | /* should be suffient for all audio modes and small enough for all hblanks */
-		       HDMI0_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
-	}
-
-	if (ASIC_IS_DCE32(rdev)) {
-		radeon_audio_write_speaker_allocation(encoder);
-		radeon_audio_write_sad_regs(encoder);
-	}
-
-	/* TODO: HDMI0_AUDIO_INFO_UPDATE */
-	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
-	       HDMI0_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
-	       HDMI0_AUDIO_INFO_CONT); /* send audio info frames every frame/field */
-
-	WREG32_OR(HDMI0_INFOFRAME_CONTROL1 + offset,
-	       HDMI0_AUDIO_INFO_LINE(2)); /* anything other than 0 */
-
 	WREG32(HDMI0_GC + offset, 0); /* unset HDMI0_GC_AVMUTE */
+
+	radeon_audio_update_acr(encoder, mode->clock);
+	radeon_audio_write_speaker_allocation(encoder);
+	radeon_audio_set_audio_packet(encoder);
+	radeon_audio_write_sad_regs(encoder);
 
 	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
 		return;
-
-	radeon_audio_update_acr(encoder, mode->clock);
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(HDMI0_RAMP_CONTROL0 + offset, 0x00FFFFFF);
