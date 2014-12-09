@@ -2458,10 +2458,6 @@ static int mxt_read_t100_config(struct mxt_data *data)
 	if (range_x == 0)
 		range_x = 1023;
 
-	/* Handle default values */
-	if (range_x == 0)
-		range_x = 1023;
-
 	if (range_y == 0)
 		range_y = 1023;
 
