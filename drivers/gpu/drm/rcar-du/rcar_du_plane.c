@@ -130,6 +130,8 @@ void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 	if (plane->format->planes == 2) {
 		index = (index + 1) % 8;
 
+		rcar_du_plane_write(rgrp, index, PnMWR, plane->pitch);
+
 		rcar_du_plane_write(rgrp, index, PnSPXR, plane->src_x);
 		rcar_du_plane_write(rgrp, index, PnSPYR, plane->src_y *
 				    (plane->format->bpp == 16 ? 2 : 1) / 2);
