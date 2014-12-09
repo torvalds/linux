@@ -65,6 +65,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
+void dm_table_presuspend_undo_targets(struct dm_table *t);
 void dm_table_postsuspend_targets(struct dm_table *t);
 int dm_table_resume_targets(struct dm_table *t);
 int dm_table_any_congested(struct dm_table *t, int bdi_bits);
@@ -127,6 +128,15 @@ int dm_deleting_md(struct mapped_device *md);
  * Is this mapped_device suspended?
  */
 int dm_suspended_md(struct mapped_device *md);
+
+/*
+ * Internal suspend and resume methods.
+ */
+int dm_suspended_internally_md(struct mapped_device *md);
+void dm_internal_suspend_fast(struct mapped_device *md);
+void dm_internal_resume_fast(struct mapped_device *md);
+void dm_internal_suspend_noflush(struct mapped_device *md);
+void dm_internal_resume(struct mapped_device *md);
 
 /*
  * Test if the device is scheduled for deferred remove.
