@@ -166,7 +166,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
 
 	/*
-	 * If the vblank interrupt was already disbled update the count
+	 * If the vblank interrupt was already disabled update the count
 	 * and timestamp to maintain the appearance that the counter
 	 * has been ticking all along until this time. This makes the
 	 * count account for the entire time between drm_vblank_on() and
