@@ -2858,7 +2858,7 @@ i915_pipe_crc_read(struct file *filep, char __user *user_buf, size_t count,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[info->pipe];
 	char buf[PIPE_CRC_BUFFER_LEN];
-	int head, tail, n_entries, n;
+	int n_entries;
 	ssize_t bytes_read;
 
 	/*
@@ -2890,17 +2890,20 @@ i915_pipe_crc_read(struct file *filep, char __user *user_buf, size_t count,
 	}
 
 	/* We now have one or more entries to read */
-	head = pipe_crc->head;
-	tail = pipe_crc->tail;
-	n_entries = min((size_t)CIRC_CNT(head, tail, INTEL_PIPE_CRC_ENTRIES_NR),
-			count / PIPE_CRC_LINE_LEN);
-	spin_unlock_irq(&pipe_crc->lock);
+	n_entries = count / PIPE_CRC_LINE_LEN;
 
 	bytes_read = 0;
-	n = 0;
-	do {
-		struct intel_pipe_crc_entry *entry = &pipe_crc->entries[tail];
+	while (n_entries > 0) {
+		struct intel_pipe_crc_entry *entry =
+			&pipe_crc->entries[pipe_crc->tail];
 		int ret;
+
+		if (CIRC_CNT(pipe_crc->head, pipe_crc->tail,
+			     INTEL_PIPE_CRC_ENTRIES_NR) < 1)
+			break;
+
+		BUILD_BUG_ON_NOT_POWER_OF_2(INTEL_PIPE_CRC_ENTRIES_NR);
+		pipe_crc->tail = (pipe_crc->tail + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
 
 		bytes_read += snprintf(buf, PIPE_CRC_BUFFER_LEN,
 				       "%8u %8x %8x %8x %8x %8x\n",
@@ -2908,18 +2911,18 @@ i915_pipe_crc_read(struct file *filep, char __user *user_buf, size_t count,
 				       entry->crc[1], entry->crc[2],
 				       entry->crc[3], entry->crc[4]);
 
-		ret = copy_to_user(user_buf + n * PIPE_CRC_LINE_LEN,
-				   buf, PIPE_CRC_LINE_LEN);
+		spin_unlock_irq(&pipe_crc->lock);
+
+		ret = copy_to_user(user_buf, buf, PIPE_CRC_LINE_LEN);
 		if (ret == PIPE_CRC_LINE_LEN)
 			return -EFAULT;
 
-		BUILD_BUG_ON_NOT_POWER_OF_2(INTEL_PIPE_CRC_ENTRIES_NR);
-		tail = (tail + 1) & (INTEL_PIPE_CRC_ENTRIES_NR - 1);
-		n++;
-	} while (--n_entries);
+		user_buf += PIPE_CRC_LINE_LEN;
+		n_entries--;
 
-	spin_lock_irq(&pipe_crc->lock);
-	pipe_crc->tail = tail;
+		spin_lock_irq(&pipe_crc->lock);
+	}
+
 	spin_unlock_irq(&pipe_crc->lock);
 
 	return bytes_read;
@@ -3458,6 +3461,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		spin_lock_irq(&pipe_crc->lock);
 		entries = pipe_crc->entries;
 		pipe_crc->entries = NULL;
+		pipe_crc->head = 0;
+		pipe_crc->tail = 0;
 		spin_unlock_irq(&pipe_crc->lock);
 
 		kfree(entries);
