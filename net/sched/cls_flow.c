@@ -638,7 +638,7 @@ static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, nest);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 

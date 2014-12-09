@@ -177,7 +177,6 @@ static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long 
 			   struct sk_buff *skb, struct tcmsg *t)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
 	t->tcm_handle = head->handle;
@@ -198,7 +197,7 @@ static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long 
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 

@@ -489,11 +489,10 @@ static int tcindex_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 {
 	struct tcindex_data *p = rtnl_dereference(tp->root);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) fh;
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
-	pr_debug("tcindex_dump(tp %p,fh 0x%lx,skb %p,t %p),p %p,r %p,b %p\n",
-		 tp, fh, skb, t, p, r, b);
+	pr_debug("tcindex_dump(tp %p,fh 0x%lx,skb %p,t %p),p %p,r %p\n",
+		 tp, fh, skb, t, p, r);
 	pr_debug("p->perfect %p p->h %p\n", p->perfect, p->h);
 
 	nest = nla_nest_start(skb, TCA_OPTIONS);
@@ -543,7 +542,7 @@ static int tcindex_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
