@@ -464,9 +464,11 @@ static void imx_enable_ms(struct uart_port *port)
 	mod_timer(&sport->timer, jiffies);
 }
 
+static void imx_dma_tx(struct imx_port *sport);
 static inline void imx_transmit_buffer(struct imx_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
+	unsigned long temp;
 
 	if (sport->port.x_char) {
 		/* Send next char */
@@ -479,6 +481,22 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port)) {
 		imx_stop_tx(&sport->port);
 		return;
+	}
+
+	if (sport->dma_is_enabled) {
+		/*
+		 * We've just sent a X-char Ensure the TX DMA is enabled
+		 * and the TX IRQ is disabled.
+		 **/
+		temp = readl(sport->port.membase + UCR1);
+		temp &= ~UCR1_TXMPTYEN;
+		if (sport->dma_is_txing) {
+			temp |= UCR1_TDMAEN;
+			writel(temp, sport->port.membase + UCR1);
+		} else {
+			writel(temp, sport->port.membase + UCR1);
+			imx_dma_tx(sport);
+		}
 	}
 
 	while (!uart_circ_empty(xmit) &&
@@ -497,7 +515,6 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		imx_stop_tx(&sport->port);
 }
 
-static void imx_dma_tx(struct imx_port *sport);
 static void dma_tx_callback(void *data)
 {
 	struct imx_port *sport = data;
@@ -630,7 +647,16 @@ static void imx_start_tx(struct uart_port *port)
 	}
 
 	if (sport->dma_is_enabled) {
-		/* FIXME: port->x_char must be transmitted if != 0 */
+		if (sport->port.x_char) {
+			/* We have X-char to send, so enable TX IRQ and
+			 * disable TX DMA to let TX interrupt to send X-char */
+			temp = readl(sport->port.membase + UCR1);
+			temp &= ~UCR1_TDMAEN;
+			temp |= UCR1_TXMPTYEN;
+			writel(temp, sport->port.membase + UCR1);
+			return;
+		}
+
 		if (!uart_circ_empty(&port->state->xmit) &&
 		    !uart_tx_stopped(port))
 			imx_dma_tx(sport);
