@@ -158,7 +158,7 @@ restart:
 			return -1;
 		}
 		last_tag = tag + 1;
-	} while (test_and_set_bit_lock(tag, &bm->word));
+	} while (test_and_set_bit(tag, &bm->word));
 
 	return tag;
 }
@@ -357,11 +357,10 @@ static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 	struct bt_wait_state *bs;
 	int wait_cnt;
 
-	/*
-	 * The unlock memory barrier need to order access to req in free
-	 * path and clearing tag bit
-	 */
-	clear_bit_unlock(TAG_TO_BIT(bt, tag), &bt->map[index].word);
+	clear_bit(TAG_TO_BIT(bt, tag), &bt->map[index].word);
+
+	/* Ensure that the wait list checks occur after clear_bit(). */
+	smp_mb();
 
 	bs = bt_wake_ptr(bt);
 	if (!bs)
