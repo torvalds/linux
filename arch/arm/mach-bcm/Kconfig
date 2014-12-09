@@ -5,8 +5,56 @@ menuconfig ARCH_BCM
 
 if ARCH_BCM
 
+comment "IPROC architected SoCs"
+
+config ARCH_BCM_IPROC
+	bool
+	select ARM_GIC
+	select CACHE_L2X0
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select ARM_GLOBAL_TIMER
+
+	select CLKSRC_MMIO
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select PINCTRL
+	help
+	  This enables support for systems based on Broadcom IPROC architected SoCs.
+	  The IPROC complex contains one or more ARM CPUs along with common
+	  core periperals. Application specific SoCs are created by adding a
+	  uArchitecture containing peripherals outside of the IPROC complex.
+	  Currently supported SoCs are Cygnus.
+
+config ARCH_BCM_CYGNUS
+	bool "Broadcom Cygnus Support" if ARCH_MULTI_V7
+	select ARCH_BCM_IPROC
+	help
+	  Enable support for the Cygnus family,
+	  which includes the following variants:
+	  BCM11300, BCM11320, BCM11350, BCM11360,
+	  BCM58300, BCM58302, BCM58303, BCM58305.
+
+config ARCH_BCM_5301X
+	bool "Broadcom BCM470X / BCM5301X ARM SoC" if ARCH_MULTI_V7
+	select ARCH_BCM_IPROC
+	help
+	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
+
+	  This is a network SoC line mostly used in home routers and
+	  wifi access points, it's internal name is Northstar.
+	  This inclused the following SoC: BCM53010, BCM53011, BCM53012,
+	  BCM53014, BCM53015, BCM53016, BCM53017, BCM53018, BCM4707,
+	  BCM4708 and BCM4709.
+
+	  Do not confuse this with the BCM4760 which is a totally
+	  different SoC or with the older BCM47XX and BCM53XX based
+	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
+
+comment "KONA architected SoCs"
+
 config ARCH_BCM_MOBILE
-	bool "Broadcom Mobile SoC Support" if ARCH_MULTI_V7
+	bool
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
@@ -15,16 +63,13 @@ config ARCH_BCM_MOBILE
 	select TICK_ONESHOT
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
+	select ARCH_BCM_MOBILE_SMP if SMP
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
 
-if ARCH_BCM_MOBILE
-
-menu "Broadcom Mobile SoC Selection"
-
 config ARCH_BCM_281XX
 	bool "Broadcom BCM281XX SoC family"
-	default y
+	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help
 	  Enable support for the BCM281XX family, which includes
@@ -33,7 +78,7 @@ config ARCH_BCM_281XX
 
 config ARCH_BCM_21664
 	bool "Broadcom BCM21664 SoC family"
-	default y
+	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help
 	  Enable support for the BCM21664 family, which includes
@@ -41,19 +86,18 @@ config ARCH_BCM_21664
 
 config ARCH_BCM_MOBILE_L2_CACHE
 	bool "Broadcom mobile SoC level 2 cache support"
-	depends on (ARCH_BCM_281XX || ARCH_BCM_21664)
+	depends on ARCH_BCM_MOBILE
 	default y
 	select CACHE_L2X0
 	select ARCH_BCM_MOBILE_SMC
 
 config ARCH_BCM_MOBILE_SMC
 	bool
-	depends on ARCH_BCM_281XX || ARCH_BCM_21664
+	depends on ARCH_BCM_MOBILE
 
 config ARCH_BCM_MOBILE_SMP
-	bool "Broadcom mobile SoC SMP support"
-	depends on (ARCH_BCM_281XX || ARCH_BCM_21664) && SMP
-	default y
+	bool
+	depends on ARCH_BCM_MOBILE
 	select HAVE_ARM_SCU
 	select ARM_ERRATA_764369
 	help
@@ -61,9 +105,7 @@ config ARCH_BCM_MOBILE_SMP
 	  Provided as an option so SMP support for SoCs of this type
 	  can be disabled for an SMP-enabled kernel.
 
-endmenu
-
-endif
+comment "Other Architectures"
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family" if ARCH_MULTI_V6
@@ -77,27 +119,6 @@ config ARCH_BCM2835
 	help
 	  This enables support for the Broadcom BCM2835 SoC. This SoC is
 	  used in the Raspberry Pi and Roku 2 devices.
-
-config ARCH_BCM_5301X
-	bool "Broadcom BCM470X / BCM5301X ARM SoC" if ARCH_MULTI_V7
-	select ARM_GIC
-	select CACHE_L2X0
-	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
-	select ARM_GLOBAL_TIMER
-	select CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
-	help
-	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
-
-	  This is a network SoC line mostly used in home routers and
-	  wifi access points, it's internal name is Northstar.
-	  This inclused the following SoC: BCM53010, BCM53011, BCM53012,
-	  BCM53014, BCM53015, BCM53016, BCM53017, BCM53018, BCM4707,
-	  BCM4708 and BCM4709.
-
-	  Do not confuse this with the BCM4760 which is a totally
-	  different SoC or with the older BCM47XX and BCM53XX based
-	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
 
 config ARCH_BCM_63XX
 	bool "Broadcom BCM63xx DSL SoC" if ARCH_MULTI_V7
@@ -118,10 +139,7 @@ config ARCH_BCM_63XX
 
 config ARCH_BRCMSTB
 	bool "Broadcom BCM7XXX based boards" if ARCH_MULTI_V7
-	depends on MMU
 	select ARM_GIC
-	select MIGHT_HAVE_PCI
-	select HAVE_SMP
 	select HAVE_ARM_ARCH_TIMER
 	select BRCMSTB_GISB_ARB
 	select BRCMSTB_L2_IRQ

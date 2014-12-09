@@ -88,7 +88,7 @@ struct imx6_pm_base {
 };
 
 struct imx6_pm_socdata {
-	u32 cpu_type;
+	u32 ddr_type;
 	const char *mmdc_compat;
 	const char *src_compat;
 	const char *iomuxc_compat;
@@ -138,7 +138,6 @@ static const u32 imx6sx_mmdc_io_offset[] __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
-	.cpu_type = MXC_CPU_IMX6Q,
 	.mmdc_compat = "fsl,imx6q-mmdc",
 	.src_compat = "fsl,imx6q-src",
 	.iomuxc_compat = "fsl,imx6q-iomuxc",
@@ -148,7 +147,6 @@ static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6dl_pm_data __initconst = {
-	.cpu_type = MXC_CPU_IMX6DL,
 	.mmdc_compat = "fsl,imx6q-mmdc",
 	.src_compat = "fsl,imx6q-src",
 	.iomuxc_compat = "fsl,imx6dl-iomuxc",
@@ -158,7 +156,6 @@ static const struct imx6_pm_socdata imx6dl_pm_data __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6sl_pm_data __initconst = {
-	.cpu_type = MXC_CPU_IMX6SL,
 	.mmdc_compat = "fsl,imx6sl-mmdc",
 	.src_compat = "fsl,imx6sl-src",
 	.iomuxc_compat = "fsl,imx6sl-iomuxc",
@@ -168,7 +165,6 @@ static const struct imx6_pm_socdata imx6sl_pm_data __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6sx_pm_data __initconst = {
-	.cpu_type = MXC_CPU_IMX6SX,
 	.mmdc_compat = "fsl,imx6sx-mmdc",
 	.src_compat = "fsl,imx6sx-src",
 	.iomuxc_compat = "fsl,imx6sx-iomuxc",
@@ -187,7 +183,7 @@ static const struct imx6_pm_socdata imx6sx_pm_data __initconst = {
 struct imx6_cpu_pm_info {
 	phys_addr_t pbase; /* The physical address of pm_info. */
 	phys_addr_t resume_addr; /* The physical resume address for asm code */
-	u32 cpu_type;
+	u32 ddr_type;
 	u32 pm_info_size; /* Size of pm_info. */
 	struct imx6_pm_base mmdc_base;
 	struct imx6_pm_base src_base;
@@ -521,7 +517,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		goto pl310_cache_map_failed;
 	}
 
-	pm_info->cpu_type = socdata->cpu_type;
+	pm_info->ddr_type = imx_mmdc_get_ddr_type();
 	pm_info->mmdc_io_num = socdata->mmdc_io_num;
 	mmdc_offset_array = socdata->mmdc_io_offset;
 

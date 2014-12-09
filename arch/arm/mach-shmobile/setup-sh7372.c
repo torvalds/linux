@@ -56,6 +56,7 @@ static struct map_desc sh7372_io_desc[] __initdata = {
 
 void __init sh7372_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(sh7372_io_desc, ARRAY_SIZE(sh7372_io_desc));
 }
 
@@ -1008,6 +1009,7 @@ DT_MACHINE_START(SH7372_DT, "Generic SH7372 (Flattened Device Tree)")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= sh7372_add_standard_devices_dt,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= sh7372_boards_compat_dt,
 MACHINE_END
 

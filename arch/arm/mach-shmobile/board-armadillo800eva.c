@@ -1229,8 +1229,15 @@ static void __init eva_init(void)
 	static struct pm_domain_device domain_devices[] __initdata = {
 		{ "A4LC", &lcdc0_device },
 		{ "A4LC", &hdmi_lcdc_device },
+		{ "A4MP", &hdmi_device },
+		{ "A4MP", &fsi_device },
+		{ "A4R",  &ceu0_device },
+		{ "A4S",  &sh_eth_device },
+		{ "A3SP", &pwm_device },
+		{ "A3SP", &sdhi0_device },
+		{ "A3SP", &sh_mmcif_device },
 	};
-	struct platform_device *usb = NULL;
+	struct platform_device *usb = NULL, *sdhi1 = NULL;
 
 	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
 				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
@@ -1299,6 +1306,7 @@ static void __init eva_init(void)
 
 		platform_device_register(&vcc_sdhi1);
 		platform_device_register(&sdhi1_device);
+		sdhi1 = &sdhi1_device;
 	}
 
 
@@ -1319,6 +1327,8 @@ static void __init eva_init(void)
 				       ARRAY_SIZE(domain_devices));
 	if (usb)
 		rmobile_add_device_to_domain("A3SP", usb);
+	if (sdhi1)
+		rmobile_add_device_to_domain("A3SP", sdhi1);
 
 	r8a7740_pm_init();
 }

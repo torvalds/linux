@@ -38,6 +38,18 @@
 
 /* needed by omap3_core_dpll_m2_set_rate() */
 struct clk *sdrc_ick_p, *arm_fck_p;
+
+/**
+ * omap3_dpll4_set_rate - set rate for omap3 per-dpll
+ * @hw: clock to change
+ * @rate: target rate for clock
+ * @parent_rate: rate of the parent clock
+ *
+ * Check if the current SoC supports the per-dpll reprogram operation
+ * or not, and then do the rate change if supported. Returns -EINVAL
+ * if not supported, 0 for success, and potential error codes from the
+ * clock rate change.
+ */
 int omap3_dpll4_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate)
 {
@@ -46,12 +58,36 @@ int omap3_dpll4_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * on 3430ES1 prevents us from changing DPLL multipliers or dividers
 	 * on DPLL4.
 	 */
-	if (omap_rev() == OMAP3430_REV_ES1_0) {
+	if (ti_clk_features.flags & TI_CLK_DPLL4_DENY_REPROGRAM) {
 		pr_err("clock: DPLL4 cannot change rate due to silicon 'Limitation 2.5' on 3430ES1.\n");
 		return -EINVAL;
 	}
 
 	return omap3_noncore_dpll_set_rate(hw, rate, parent_rate);
+}
+
+/**
+ * omap3_dpll4_set_rate_and_parent - set rate and parent for omap3 per-dpll
+ * @hw: clock to change
+ * @rate: target rate for clock
+ * @parent_rate: rate of the parent clock
+ * @index: parent index, 0 - reference clock, 1 - bypass clock
+ *
+ * Check if the current SoC support the per-dpll reprogram operation
+ * or not, and then do the rate + parent change if supported. Returns
+ * -EINVAL if not supported, 0 for success, and potential error codes
+ * from the clock rate change.
+ */
+int omap3_dpll4_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate, u8 index)
+{
+	if (ti_clk_features.flags & TI_CLK_DPLL4_DENY_REPROGRAM) {
+		pr_err("clock: DPLL4 cannot change rate due to silicon 'Limitation 2.5' on 3430ES1.\n");
+		return -EINVAL;
+	}
+
+	return omap3_noncore_dpll_set_rate_and_parent(hw, rate, parent_rate,
+						      index);
 }
 
 void __init omap3_clk_lock_dpll5(void)

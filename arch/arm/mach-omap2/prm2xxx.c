@@ -106,7 +106,7 @@ static int omap2xxx_pwrst_to_common_pwrst(u8 omap2xxx_pwrst)
  * Set the DPLL reset bit, which should reboot the SoC.  This is the
  * recommended way to restart the SoC.  No return value.
  */
-void omap2xxx_prm_dpll_reset(void)
+static void omap2xxx_prm_dpll_reset(void)
 {
 	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, WKUP_MOD,
 				   OMAP2_RM_RSTCTRL);
@@ -212,6 +212,10 @@ struct pwrdm_ops omap2_pwrdm_operations = {
 
 static struct prm_ll_data omap2xxx_prm_ll_data = {
 	.read_reset_sources = &omap2xxx_prm_read_reset_sources,
+	.assert_hardreset = &omap2_prm_assert_hardreset,
+	.deassert_hardreset = &omap2_prm_deassert_hardreset,
+	.is_hardreset_asserted = &omap2_prm_is_hardreset_asserted,
+	.reset_system = &omap2xxx_prm_dpll_reset,
 };
 
 int __init omap2xxx_prm_init(void)

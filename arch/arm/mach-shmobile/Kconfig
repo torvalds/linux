@@ -1,5 +1,6 @@
 config ARCH_SHMOBILE
 	bool
+	select ZONE_DMA if ARM_LPAE
 
 config PM_RCAR
 	bool
@@ -18,6 +19,7 @@ config ARCH_RCAR_GEN2
 	select PM_RCAR if PM || SMP
 	select RENESAS_IRQC
 	select SYS_SUPPORTS_SH_CMT
+	select PCI_DOMAINS if PCI
 
 config ARCH_RMOBILE
 	bool

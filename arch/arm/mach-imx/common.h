@@ -115,6 +115,7 @@ void imx_anatop_post_resume(void);
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6q_set_int_mem_clk_lpm(bool enable);
 void imx6sl_set_wait_clk(bool enter);
+int imx_mmdc_get_ddr_type(void);
 
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
@@ -156,5 +157,6 @@ static inline void imx_init_l2cache(void) {}
 #endif
 
 extern struct smp_operations imx_smp_ops;
+extern struct smp_operations ls1021a_smp_ops;
 
 #endif

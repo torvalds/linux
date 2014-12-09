@@ -67,6 +67,7 @@ static struct map_desc r8a7740_io_desc[] __initdata = {
 
 void __init r8a7740_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(r8a7740_io_desc, ARRAY_SIZE(r8a7740_io_desc));
 }
 
@@ -742,6 +743,12 @@ static void r8a7740_i2c_workaround(struct platform_device *pdev)
 void __init r8a7740_add_standard_devices(void)
 {
 	static struct pm_domain_device domain_devices[] __initdata = {
+		{ "A4R",  &tmu0_device },
+		{ "A4R",  &i2c0_device },
+		{ "A4S",  &irqpin0_device },
+		{ "A4S",  &irqpin1_device },
+		{ "A4S",  &irqpin2_device },
+		{ "A4S",  &irqpin3_device },
 		{ "A3SP", &scif0_device },
 		{ "A3SP", &scif1_device },
 		{ "A3SP", &scif2_device },
@@ -752,6 +759,11 @@ void __init r8a7740_add_standard_devices(void)
 		{ "A3SP", &scif7_device },
 		{ "A3SP", &scif8_device },
 		{ "A3SP", &i2c1_device },
+		{ "A3SP", &ipmmu_device },
+		{ "A3SP", &dma0_device },
+		{ "A3SP", &dma1_device },
+		{ "A3SP", &dma2_device },
+		{ "A3SP", &usb_dma_device },
 	};
 
 	/* I2C work-around */

@@ -66,6 +66,7 @@ static struct map_desc r8a7779_io_desc[] __initdata = {
 
 void __init r8a7779_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
 }
 

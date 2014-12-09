@@ -35,6 +35,7 @@ cpu-y				:= platsmp.o headsmp.o
 
 # Shared SoC family objects
 obj-$(CONFIG_ARCH_RCAR_GEN2)	+= setup-rcar-gen2.o platsmp-apmu.o $(cpu-y)
+CFLAGS_setup-rcar-gen2.o	+= -march=armv7-a
 
 # SMP objects
 smp-y				:= $(cpu-y)

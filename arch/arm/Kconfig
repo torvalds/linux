@@ -320,24 +320,6 @@ config ARCH_MULTIPLATFORM
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARCH_INTEGRATOR
-	bool "ARM Ltd. Integrator family"
-	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT if MMU
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select COMMON_CLK_VERSATILE
-	select GENERIC_CLOCKEVENTS
-	select HAVE_TCM
-	select ICST
-	select MULTI_IRQ_HANDLER
-	select PLAT_VERSATILE
-	select SPARSE_IRQ
-	select USE_OF
-	select VERSATILE_FPGA_IRQ
-	help
-	  Support for ARM's Integrator platform.
-
 config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -856,6 +838,8 @@ config ARCH_VIRT
 # plat- suffix) or along side the corresponding mach-* source.
 #
 source "arch/arm/mach-mvebu/Kconfig"
+
+source "arch/arm/mach-asm9260/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
 

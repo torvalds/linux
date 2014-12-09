@@ -126,6 +126,18 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
  */
 void exynos_cpu_power_down(int cpu)
 {
+	if (cpu == 0 && (of_machine_is_compatible("samsung,exynos5420") ||
+		of_machine_is_compatible("samsung,exynos5800"))) {
+		/*
+		 * Bypass power down for CPU0 during suspend. Check for
+		 * the SYS_PWR_REG value to decide if we are suspending
+		 * the system.
+		 */
+		int val = pmu_raw_readl(EXYNOS5_ARM_CORE0_SYS_PWR_REG);
+
+		if (!(val & S5P_CORE_LOCAL_PWR_EN))
+			return;
+	}
 	pmu_raw_writel(0, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
 }
 
@@ -204,6 +216,26 @@ static inline void __iomem *cpu_boot_reg(int cpu)
 }
 
 /*
+ * Set wake up by local power mode and execute software reset for given core.
+ *
+ * Currently this is needed only when booting secondary CPU on Exynos3250.
+ */
+static void exynos_core_restart(u32 core_id)
+{
+	u32 val;
+
+	if (!of_machine_is_compatible("samsung,exynos3250"))
+		return;
+
+	val = pmu_raw_readl(EXYNOS_ARM_CORE_STATUS(core_id));
+	val |= S5P_CORE_WAKEUP_FROM_LOCAL_CFG;
+	pmu_raw_writel(val, EXYNOS_ARM_CORE_STATUS(core_id));
+
+	pr_info("CPU%u: Software reset\n", core_id);
+	pmu_raw_writel(EXYNOS_CORE_PO_RESET(core_id), EXYNOS_SWRESET);
+}
+
+/*
  * Write pen_release in a way that is guaranteed to be visible to all
  * observers, irrespective of whether they're taking part in coherency
  * or not.  This is necessary for the hotplug code to work reliably.
@@ -279,6 +311,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 			return -ETIMEDOUT;
 		}
 	}
+
+	exynos_core_restart(core_id);
+
 	/*
 	 * Send the secondary CPU a soft interrupt, thereby causing
 	 * the boot monitor to read the system wide flags register,

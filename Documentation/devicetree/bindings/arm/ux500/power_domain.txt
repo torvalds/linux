@@ -1,0 +1,35 @@
+* ST-Ericsson UX500 PM Domains
+
+UX500 supports multiple PM domains which are used to gate power to one or
+more peripherals on the SOC.
+
+The implementation of PM domains for UX500 are based upon the generic PM domain
+and use the corresponding DT bindings.
+
+==PM domain providers==
+
+Required properties:
+ - compatible: Must be "stericsson,ux500-pm-domains".
+ - #power-domain-cells : Number of cells in a power domain specifier, must be 1.
+
+Example:
+	pm_domains: pm_domains0 {
+		compatible = "stericsson,ux500-pm-domains";
+		#power-domain-cells = <1>;
+	};
+
+==PM domain consumers==
+
+Required properties:
+ - power-domains: A phandle and PM domain specifier. Below are the list of
+		valid specifiers:
+
+		Index	Specifier
+		-----	---------
+		0	DOMAIN_VAPE
+
+Example:
+	sdi0_per1@80126000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		power-domains = <&pm_domains DOMAIN_VAPE>
+	};
