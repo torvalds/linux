@@ -248,8 +248,8 @@ static int bt_get(struct blk_mq_alloc_data *data,
 	if (!(data->gfp & __GFP_WAIT))
 		return -1;
 
-	bs = bt_wait_ptr(bt, hctx);
 	do {
+		bs = bt_wait_ptr(bt, hctx);
 		prepare_to_wait(&bs->wait, &wait, TASK_UNINTERRUPTIBLE);
 
 		tag = __bt_get(hctx, bt, last_tag);
@@ -285,8 +285,6 @@ static int bt_get(struct blk_mq_alloc_data *data,
 			hctx = data->hctx;
 			bt = &hctx->tags->bitmap_tags;
 		}
-		finish_wait(&bs->wait, &wait);
-		bs = bt_wait_ptr(bt, hctx);
 	} while (1);
 
 	finish_wait(&bs->wait, &wait);
