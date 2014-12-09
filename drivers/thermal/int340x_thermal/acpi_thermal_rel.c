@@ -131,6 +131,8 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 			pr_warn("Failed to get target ACPI device\n");
 	}
 
+	result = 0;
+
 	*trtp = trts;
 	/* don't count bad entries */
 	*trt_count -= nr_bad_entries;
