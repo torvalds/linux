@@ -2462,6 +2462,10 @@ static void i40evf_remove(struct pci_dev *pdev)
 		list_del(&f->list);
 		kfree(f);
 	}
+	list_for_each_entry_safe(f, ftmp, &adapter->vlan_filter_list, list) {
+		list_del(&f->list);
+		kfree(f);
+	}
 
 	free_netdev(netdev);
 
