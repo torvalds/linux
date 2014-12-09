@@ -10,12 +10,12 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/slab.h>
-#include <linux/export.h>
-#include <linux/device.h>
-#include <trace/events/regmap.h>
 #include <linux/bsearch.h>
+#include <linux/device.h>
+#include <linux/export.h>
+#include <linux/slab.h>
 #include <linux/sort.h>
+#include <trace/events/regmap.h>
 
 #include "internal.h"
 
@@ -36,6 +36,23 @@ static int regcache_hw_init(struct regmap *map)
 	if (!map->num_reg_defaults_raw)
 		return -EINVAL;
 
+	/* calculate the size of reg_defaults */
+	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++)
+		if (!regmap_volatile(map, i * map->reg_stride))
+			count++;
+
+	/* all registers are volatile, so just bypass */
+	if (!count) {
+		map->cache_bypass = true;
+		return 0;
+	}
+
+	map->num_reg_defaults = count;
+	map->reg_defaults = kmalloc_array(count, sizeof(struct reg_default),
+					  GFP_KERNEL);
+	if (!map->reg_defaults)
+		return -ENOMEM;
+
 	if (!map->reg_defaults_raw) {
 		u32 cache_bypass = map->cache_bypass;
 		dev_warn(map->dev, "No cache defaults, reading back from HW\n");
@@ -43,40 +60,25 @@ static int regcache_hw_init(struct regmap *map)
 		/* Bypass the cache access till data read from HW*/
 		map->cache_bypass = 1;
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
-		if (!tmp_buf)
-			return -EINVAL;
+		if (!tmp_buf) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
 		ret = regmap_raw_read(map, 0, tmp_buf,
 				      map->num_reg_defaults_raw);
 		map->cache_bypass = cache_bypass;
-		if (ret < 0) {
-			kfree(tmp_buf);
-			return ret;
-		}
+		if (ret < 0)
+			goto err_cache_free;
+
 		map->reg_defaults_raw = tmp_buf;
 		map->cache_free = 1;
 	}
 
-	/* calculate the size of reg_defaults */
-	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++) {
-		val = regcache_get_val(map, map->reg_defaults_raw, i);
-		if (regmap_volatile(map, i * map->reg_stride))
-			continue;
-		count++;
-	}
-
-	map->reg_defaults = kmalloc(count * sizeof(struct reg_default),
-				      GFP_KERNEL);
-	if (!map->reg_defaults) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
 	/* fill the reg_defaults */
-	map->num_reg_defaults = count;
 	for (i = 0, j = 0; i < map->num_reg_defaults_raw; i++) {
-		val = regcache_get_val(map, map->reg_defaults_raw, i);
 		if (regmap_volatile(map, i * map->reg_stride))
 			continue;
+		val = regcache_get_val(map, map->reg_defaults_raw, i);
 		map->reg_defaults[j].reg = i * map->reg_stride;
 		map->reg_defaults[j].def = val;
 		j++;
@@ -84,9 +86,10 @@ static int regcache_hw_init(struct regmap *map)
 
 	return 0;
 
+err_cache_free:
+	kfree(tmp_buf);
 err_free:
-	if (map->cache_free)
-		kfree(map->reg_defaults_raw);
+	kfree(map->reg_defaults);
 
 	return ret;
 }
@@ -150,6 +153,8 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		ret = regcache_hw_init(map);
 		if (ret < 0)
 			return ret;
+		if (map->cache_bypass)
+			return 0;
 	}
 
 	if (!map->max_register)
