@@ -1813,10 +1813,8 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 			MXT_INFO_CHECKSUM_SIZE;
 	config_mem_size = data->mem_size - cfg_start_ofs;
 	config_mem = kzalloc(config_mem_size, GFP_KERNEL);
-	if (!config_mem) {
-		dev_err(dev, "Failed to allocate memory\n");
+	if (!config_mem)
 		return -ENOMEM;
-	}
 
 	ret = mxt_prepare_cfg_mem(data, cfg, data_pos, cfg_start_ofs,
 				  config_mem, config_mem_size);
@@ -2036,10 +2034,8 @@ static int mxt_parse_object_table(struct mxt_data *data,
 
 	data->msg_buf = kcalloc(data->max_reportid,
 				data->T5_msg_size, GFP_KERNEL);
-	if (!data->msg_buf) {
-		dev_err(&client->dev, "Failed to allocate message buffer\n");
+	if (!data->msg_buf)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -2061,10 +2057,8 @@ static int mxt_read_info_block(struct mxt_data *data)
 	/* Read 7-byte ID information block starting at address 0 */
 	size = sizeof(struct mxt_info);
 	id_buf = kzalloc(size, GFP_KERNEL);
-	if (!id_buf) {
-		dev_err(&client->dev, "Failed to allocate memory\n");
+	if (!id_buf)
 		return -ENOMEM;
-	}
 
 	error = __mxt_read_reg(client, 0, size, id_buf);
 	if (error) {
@@ -2079,7 +2073,6 @@ static int mxt_read_info_block(struct mxt_data *data)
 
 	buf = krealloc(id_buf, size, GFP_KERNEL);
 	if (!buf) {
-		dev_err(&client->dev, "Failed to allocate memory\n");
 		error = -ENOMEM;
 		goto err_free_mem;
 	}
@@ -2280,10 +2273,8 @@ static int mxt_initialize_t9_input_device(struct mxt_data *data)
 		dev_warn(dev, "Failed to initialize T9 resolution\n");
 
 	input_dev = input_allocate_device();
-	if (!input_dev) {
-		dev_err(dev, "Failed to allocate memory\n");
+	if (!input_dev)
 		return -ENOMEM;
-	}
 
 	input_dev->name = "Atmel maXTouch Touchscreen";
 	input_dev->phys = data->phys;
@@ -2504,10 +2495,8 @@ static int mxt_initialize_t100_input_device(struct mxt_data *data)
 	mxt_read_t107_stylus_config(data);
 
 	input_dev = input_allocate_device();
-	if (!data || !input_dev) {
-		dev_err(dev, "Failed to allocate memory\n");
+	if (!data || !input_dev)
 		return -ENOMEM;
-	}
 
 	if (data->pdata->input_name)
 		input_dev->name = data->pdata->input_name;
@@ -3017,10 +3006,8 @@ static int mxt_update_file_name(struct device *dev, char **file_name,
 	}
 
 	file_name_tmp = krealloc(*file_name, count + 1, GFP_KERNEL);
-	if (!file_name_tmp) {
-		dev_warn(dev, "no memory\n");
+	if (!file_name_tmp)
 		return -ENOMEM;
-	}
 
 	*file_name = file_name_tmp;
 	memcpy(*file_name, buf, count);
@@ -3409,10 +3396,8 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&client->dev, "Failed to allocate memory\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	snprintf(data->phys, sizeof(data->phys), "i2c-%u-%04x/input0",
 		 client->adapter->nr, client->addr);
