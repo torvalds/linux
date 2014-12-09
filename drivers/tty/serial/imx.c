@@ -621,9 +621,6 @@ static void imx_start_tx(struct uart_port *port)
 			imx_dma_tx(sport);
 		return;
 	}
-
-	if (readl(sport->port.membase + uts_reg(sport)) & UTS_TXEMPTY)
-		imx_transmit_buffer(sport);
 }
 
 static irqreturn_t imx_rtsint(int irq, void *dev_id)
