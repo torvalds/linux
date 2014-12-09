@@ -581,10 +581,9 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct regulator *reg_vmmc;
 	struct mxs_ssp *ssp;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	if (!iores || irq_err < 0)
-		return -EINVAL;
+	if (irq_err < 0)
+		return irq_err;
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
 	if (!mmc)
@@ -593,6 +592,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
 	ssp->dev = &pdev->dev;
+	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ssp->base = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(ssp->base)) {
 		ret = PTR_ERR(ssp->base);
@@ -619,7 +619,9 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ssp->clk);
 		goto out_mmc_free;
 	}
-	clk_prepare_enable(ssp->clk);
+	ret = clk_prepare_enable(ssp->clk);
+	if (ret)
+		goto out_mmc_free;
 
 	ret = mxs_mmc_reset(host);
 	if (ret) {
@@ -660,7 +662,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mmc);
 
 	ret = devm_request_irq(&pdev->dev, irq_err, mxs_mmc_irq_handler, 0,
-			       DRIVER_NAME, host);
+			       dev_name(&pdev->dev), host);
 	if (ret)
 		goto out_free_dma;
 
@@ -702,7 +704,7 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mxs_mmc_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
@@ -719,15 +721,11 @@ static int mxs_mmc_resume(struct device *dev)
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
 
-	clk_prepare_enable(ssp->clk);
-	return 0;
+	return clk_prepare_enable(ssp->clk);
 }
-
-static const struct dev_pm_ops mxs_mmc_pm_ops = {
-	.suspend	= mxs_mmc_suspend,
-	.resume		= mxs_mmc_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(mxs_mmc_pm_ops, mxs_mmc_suspend, mxs_mmc_resume);
 
 static struct platform_driver mxs_mmc_driver = {
 	.probe		= mxs_mmc_probe,
@@ -735,9 +733,7 @@ static struct platform_driver mxs_mmc_driver = {
 	.id_table	= mxs_ssp_ids,
 	.driver		= {
 		.name	= DRIVER_NAME,
-#ifdef CONFIG_PM
 		.pm	= &mxs_mmc_pm_ops,
-#endif
 		.of_match_table = mxs_mmc_dt_ids,
 	},
 };

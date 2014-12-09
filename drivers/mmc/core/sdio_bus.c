@@ -26,6 +26,8 @@
 #include "sdio_cis.h"
 #include "sdio_bus.h"
 
+#define to_sdio_driver(d)	container_of(d, struct sdio_driver, drv)
+
 /* show configuration fields */
 #define sdio_config_attr(field, format_string)				\
 static ssize_t								\
@@ -196,8 +198,6 @@ static int sdio_bus_remove(struct device *dev)
 	return ret;
 }
 
-#ifdef CONFIG_PM
-
 static const struct dev_pm_ops sdio_bus_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_generic_suspend, pm_generic_resume)
 	SET_RUNTIME_PM_OPS(
@@ -207,14 +207,6 @@ static const struct dev_pm_ops sdio_bus_pm_ops = {
 	)
 };
 
-#define SDIO_PM_OPS_PTR	(&sdio_bus_pm_ops)
-
-#else /* !CONFIG_PM */
-
-#define SDIO_PM_OPS_PTR	NULL
-
-#endif /* !CONFIG_PM */
-
 static struct bus_type sdio_bus_type = {
 	.name		= "sdio",
 	.dev_groups	= sdio_dev_groups,
@@ -222,7 +214,7 @@ static struct bus_type sdio_bus_type = {
 	.uevent		= sdio_bus_uevent,
 	.probe		= sdio_bus_probe,
 	.remove		= sdio_bus_remove,
-	.pm		= SDIO_PM_OPS_PTR,
+	.pm		= &sdio_bus_pm_ops,
 };
 
 int sdio_register_bus(void)
@@ -295,7 +287,7 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 static void sdio_acpi_set_handle(struct sdio_func *func)
 {
 	struct mmc_host *host = func->card->host;
-	u64 addr = (host->slotno << 16) | func->num;
+	u64 addr = ((u64)host->slotno << 16) | func->num;
 
 	acpi_preset_companion(&func->dev, ACPI_COMPANION(host->parent), addr);
 }

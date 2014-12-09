@@ -19,6 +19,7 @@
 
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/i2c-omap.h>
 
@@ -33,7 +34,6 @@
 #include "cm2_7xx.h"
 #include "prm7xx.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 #include "soc.h"
 
@@ -1301,7 +1301,7 @@ static struct omap_hwmod_opt_clk mmc1_opt_clks[] = {
 };
 
 /* mmc1 dev_attr */
-static struct omap_mmc_dev_attr mmc1_dev_attr = {
+static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
 	.flags	= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 

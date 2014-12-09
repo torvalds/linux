@@ -25,6 +25,7 @@
 #define NUM_PINS(x)			(x + 2)
 
 #define SDMMC_CLKSEL			0x09C
+#define SDMMC_CLKSEL64			0x0A8
 #define SDMMC_CLKSEL_CCLK_SAMPLE(x)	(((x) & 7) << 0)
 #define SDMMC_CLKSEL_CCLK_DRIVE(x)	(((x) & 7) << 16)
 #define SDMMC_CLKSEL_CCLK_DIVIDER(x)	(((x) & 7) << 24)
@@ -65,6 +66,8 @@ enum dw_mci_exynos_type {
 	DW_MCI_TYPE_EXYNOS5250,
 	DW_MCI_TYPE_EXYNOS5420,
 	DW_MCI_TYPE_EXYNOS5420_SMU,
+	DW_MCI_TYPE_EXYNOS7,
+	DW_MCI_TYPE_EXYNOS7_SMU,
 };
 
 /* Exynos implementation specific driver private data */
@@ -95,6 +98,12 @@ static struct dw_mci_exynos_compatible {
 	}, {
 		.compatible	= "samsung,exynos5420-dw-mshc-smu",
 		.ctrl_type	= DW_MCI_TYPE_EXYNOS5420_SMU,
+	}, {
+		.compatible	= "samsung,exynos7-dw-mshc",
+		.ctrl_type	= DW_MCI_TYPE_EXYNOS7,
+	}, {
+		.compatible	= "samsung,exynos7-dw-mshc-smu",
+		.ctrl_type	= DW_MCI_TYPE_EXYNOS7_SMU,
 	},
 };
 
@@ -102,7 +111,8 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 
-	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420_SMU) {
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420_SMU ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
 		mci_writel(host, MPSBEGIN0, 0);
 		mci_writel(host, MPSEND0, DWMCI_BLOCK_NUM);
 		mci_writel(host, MPSCTRL0, DWMCI_MPSCTRL_SECURE_WRITE_BIT |
@@ -153,11 +163,22 @@ static int dw_mci_exynos_resume(struct device *dev)
 static int dw_mci_exynos_resume_noirq(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 	u32 clksel;
 
-	clksel = mci_readl(host, CLKSEL);
-	if (clksel & SDMMC_CLKSEL_WAKEUP_INT)
-		mci_writel(host, CLKSEL, clksel);
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		clksel = mci_readl(host, CLKSEL64);
+	else
+		clksel = mci_readl(host, CLKSEL);
+
+	if (clksel & SDMMC_CLKSEL_WAKEUP_INT) {
+		if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+			priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+			mci_writel(host, CLKSEL64, clksel);
+		else
+			mci_writel(host, CLKSEL, clksel);
+	}
 
 	return 0;
 }
@@ -169,6 +190,7 @@ static int dw_mci_exynos_resume_noirq(struct device *dev)
 
 static void dw_mci_exynos_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 	/*
 	 * Exynos4412 and Exynos5250 extends the use of CMD register with the
 	 * use of bit 29 (which is reserved on standard MSHC controllers) for
@@ -176,8 +198,14 @@ static void dw_mci_exynos_prepare_command(struct dw_mci *host, u32 *cmdr)
 	 * HOLD register should be bypassed in case there is no phase shift
 	 * applied on CMD/DATA that is sent to the card.
 	 */
-	if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
-		*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
+		if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL64)))
+			*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+	 } else {
+		if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
+			*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+	}
 }
 
 static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
@@ -188,12 +216,20 @@ static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	u8 div = priv->ciu_div + 1;
 
 	if (ios->timing == MMC_TIMING_MMC_DDR52) {
-		mci_writel(host, CLKSEL, priv->ddr_timing);
+		if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+			priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+			mci_writel(host, CLKSEL64, priv->ddr_timing);
+		else
+			mci_writel(host, CLKSEL, priv->ddr_timing);
 		/* Should be double rate for DDR mode */
 		if (ios->bus_width == MMC_BUS_WIDTH_8)
 			wanted <<= 1;
 	} else {
-		mci_writel(host, CLKSEL, priv->sdr_timing);
+		if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+			priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+			mci_writel(host, CLKSEL64, priv->sdr_timing);
+		else
+			mci_writel(host, CLKSEL, priv->sdr_timing);
 	}
 
 	/* Don't care if wanted clock is zero */
@@ -265,26 +301,51 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 
 static inline u8 dw_mci_exynos_get_clksmpl(struct dw_mci *host)
 {
-	return SDMMC_CLKSEL_CCLK_SAMPLE(mci_readl(host, CLKSEL));
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		return SDMMC_CLKSEL_CCLK_SAMPLE(mci_readl(host, CLKSEL64));
+	else
+		return SDMMC_CLKSEL_CCLK_SAMPLE(mci_readl(host, CLKSEL));
 }
 
 static inline void dw_mci_exynos_set_clksmpl(struct dw_mci *host, u8 sample)
 {
 	u32 clksel;
-	clksel = mci_readl(host, CLKSEL);
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		clksel = mci_readl(host, CLKSEL64);
+	else
+		clksel = mci_readl(host, CLKSEL);
 	clksel = (clksel & ~0x7) | SDMMC_CLKSEL_CCLK_SAMPLE(sample);
-	mci_writel(host, CLKSEL, clksel);
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		mci_writel(host, CLKSEL64, clksel);
+	else
+		mci_writel(host, CLKSEL, clksel);
 }
 
 static inline u8 dw_mci_exynos_move_next_clksmpl(struct dw_mci *host)
 {
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 	u32 clksel;
 	u8 sample;
 
-	clksel = mci_readl(host, CLKSEL);
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		clksel = mci_readl(host, CLKSEL64);
+	else
+		clksel = mci_readl(host, CLKSEL);
 	sample = (clksel + 1) & 0x7;
 	clksel = (clksel & ~0x7) | sample;
-	mci_writel(host, CLKSEL, clksel);
+	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
+		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
+		mci_writel(host, CLKSEL64, clksel);
+	else
+		mci_writel(host, CLKSEL, clksel);
 	return sample;
 }
 
@@ -410,6 +471,10 @@ static const struct of_device_id dw_mci_exynos_match[] = {
 	{ .compatible = "samsung,exynos5420-dw-mshc",
 			.data = &exynos_drv_data, },
 	{ .compatible = "samsung,exynos5420-dw-mshc-smu",
+			.data = &exynos_drv_data, },
+	{ .compatible = "samsung,exynos7-dw-mshc",
+			.data = &exynos_drv_data, },
+	{ .compatible = "samsung,exynos7-dw-mshc-smu",
 			.data = &exynos_drv_data, },
 	{},
 };

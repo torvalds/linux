@@ -100,6 +100,12 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_BROKEN_DDR50			(1<<7)
 /* Stop command (CMD12) can set Transfer Complete when not using MMC_RSP_BUSY */
 #define SDHCI_QUIRK2_STOP_WITH_TC			(1<<8)
+/* Controller does not support 64-bit DMA */
+#define SDHCI_QUIRK2_BROKEN_64_BIT_DMA			(1<<9)
+/* need clear transfer mode register before send cmd */
+#define SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD	(1<<10)
+/* Capability register bit-63 indicates HS400 support */
+#define SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400		(1<<11)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
@@ -130,6 +136,7 @@ struct sdhci_host {
 #define SDHCI_SDIO_IRQ_ENABLED	(1<<9)	/* SDIO irq enabled */
 #define SDHCI_SDR104_NEEDS_TUNING (1<<10)	/* SDR104/HS200 needs tuning */
 #define SDHCI_USING_RETUNING_TIMER (1<<11)	/* Host is using a retuning timer for the card */
+#define SDHCI_USE_64_BIT_DMA	(1<<12)	/* Use 64-bit DMA */
 
 	unsigned int version;	/* SDHCI spec. version */
 
@@ -155,11 +162,18 @@ struct sdhci_host {
 
 	int sg_count;		/* Mapped sg entries */
 
-	u8 *adma_desc;		/* ADMA descriptor table */
-	u8 *align_buffer;	/* Bounce buffer */
+	void *adma_table;	/* ADMA descriptor table */
+	void *align_buffer;	/* Bounce buffer */
+
+	size_t adma_table_sz;	/* ADMA descriptor table size */
+	size_t align_buffer_sz;	/* Bounce buffer size */
 
 	dma_addr_t adma_addr;	/* Mapped ADMA descr. table */
 	dma_addr_t align_addr;	/* Mapped bounce buffer */
+
+	unsigned int desc_sz;	/* ADMA descriptor size */
+	unsigned int align_sz;	/* ADMA alignment */
+	unsigned int align_mask;	/* ADMA alignment mask */
 
 	struct tasklet_struct finish_tasklet;	/* Tasklet structures */
 

@@ -736,8 +736,15 @@ static void mmci_post_request(struct mmc_host *mmc, struct mmc_request *mrq,
 			chan = host->dma_tx_channel;
 		dmaengine_terminate_all(chan);
 
+		if (host->dma_desc_current == next->dma_desc)
+			host->dma_desc_current = NULL;
+
+		if (host->dma_current == next->dma_chan)
+			host->dma_current = NULL;
+
 		next->dma_desc = NULL;
 		next->dma_chan = NULL;
+		data->host_cookie = 0;
 	}
 }
 

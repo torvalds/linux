@@ -22,6 +22,7 @@
 
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/i2c-omap.h>
 
@@ -39,7 +40,6 @@
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 
 /* Base offset for all OMAP4 interrupts external to MPUSS */
@@ -1952,7 +1952,7 @@ static struct omap_hwmod_dma_info omap44xx_mmc1_sdma_reqs[] = {
 };
 
 /* mmc1 dev_attr */
-static struct omap_mmc_dev_attr mmc1_dev_attr = {
+static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
 	.flags	= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 

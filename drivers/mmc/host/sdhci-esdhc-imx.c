@@ -65,8 +65,6 @@
 /* NOTE: the minimum valid tuning start tap for mx6sl is 1 */
 #define ESDHC_TUNING_START_TAP		0x1
 
-#define ESDHC_TUNING_BLOCK_PATTERN_LEN	64
-
 /* pinctrl state */
 #define ESDHC_PINCTRL_STATE_100MHZ	"state_100mhz"
 #define ESDHC_PINCTRL_STATE_200MHZ	"state_200mhz"
@@ -692,8 +690,6 @@ static void esdhc_prepare_tuning(struct sdhci_host *host, u32 val)
 	/* FIXME: delay a bit for card to be ready for next tuning due to errors */
 	mdelay(1);
 
-	/* This is balanced by the runtime put in sdhci_tasklet_finish */
-	pm_runtime_get_sync(host->mmc->parent);
 	reg = readl(host->ioaddr + ESDHC_MIX_CTRL);
 	reg |= ESDHC_MIX_CTRL_EXE_TUNE | ESDHC_MIX_CTRL_SMPCLK_SEL |
 			ESDHC_MIX_CTRL_FBCLK_SEL;
@@ -702,54 +698,6 @@ static void esdhc_prepare_tuning(struct sdhci_host *host, u32 val)
 	dev_dbg(mmc_dev(host->mmc),
 		"tunning with delay 0x%x ESDHC_TUNE_CTRL_STATUS 0x%x\n",
 			val, readl(host->ioaddr + ESDHC_TUNE_CTRL_STATUS));
-}
-
-static void esdhc_request_done(struct mmc_request *mrq)
-{
-	complete(&mrq->completion);
-}
-
-static int esdhc_send_tuning_cmd(struct sdhci_host *host, u32 opcode,
-				 struct scatterlist *sg)
-{
-	struct mmc_command cmd = {0};
-	struct mmc_request mrq = {NULL};
-	struct mmc_data data = {0};
-
-	cmd.opcode = opcode;
-	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	data.blksz = ESDHC_TUNING_BLOCK_PATTERN_LEN;
-	data.blocks = 1;
-	data.flags = MMC_DATA_READ;
-	data.sg = sg;
-	data.sg_len = 1;
-
-	mrq.cmd = &cmd;
-	mrq.cmd->mrq = &mrq;
-	mrq.data = &data;
-	mrq.data->mrq = &mrq;
-	mrq.cmd->data = mrq.data;
-
-	mrq.done = esdhc_request_done;
-	init_completion(&(mrq.completion));
-
-	spin_lock_irq(&host->lock);
-	host->mrq = &mrq;
-
-	sdhci_send_command(host, mrq.cmd);
-
-	spin_unlock_irq(&host->lock);
-
-	wait_for_completion(&mrq.completion);
-
-	if (cmd.error)
-		return cmd.error;
-	if (data.error)
-		return data.error;
-
-	return 0;
 }
 
 static void esdhc_post_tuning(struct sdhci_host *host)
@@ -763,21 +711,13 @@ static void esdhc_post_tuning(struct sdhci_host *host)
 
 static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 {
-	struct scatterlist sg;
-	char *tuning_pattern;
 	int min, max, avg, ret;
-
-	tuning_pattern = kmalloc(ESDHC_TUNING_BLOCK_PATTERN_LEN, GFP_KERNEL);
-	if (!tuning_pattern)
-		return -ENOMEM;
-
-	sg_init_one(&sg, tuning_pattern, ESDHC_TUNING_BLOCK_PATTERN_LEN);
 
 	/* find the mininum delay first which can pass tuning */
 	min = ESDHC_TUNE_CTRL_MIN;
 	while (min < ESDHC_TUNE_CTRL_MAX) {
 		esdhc_prepare_tuning(host, min);
-		if (!esdhc_send_tuning_cmd(host, opcode, &sg))
+		if (!mmc_send_tuning(host->mmc))
 			break;
 		min += ESDHC_TUNE_CTRL_STEP;
 	}
@@ -786,7 +726,7 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	max = min + ESDHC_TUNE_CTRL_STEP;
 	while (max < ESDHC_TUNE_CTRL_MAX) {
 		esdhc_prepare_tuning(host, max);
-		if (esdhc_send_tuning_cmd(host, opcode, &sg)) {
+		if (mmc_send_tuning(host->mmc)) {
 			max -= ESDHC_TUNE_CTRL_STEP;
 			break;
 		}
@@ -796,10 +736,8 @@ static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 	/* use average delay to get the best timing */
 	avg = (min + max) / 2;
 	esdhc_prepare_tuning(host, avg);
-	ret = esdhc_send_tuning_cmd(host, opcode, &sg);
+	ret = mmc_send_tuning(host->mmc);
 	esdhc_post_tuning(host);
-
-	kfree(tuning_pattern);
 
 	dev_dbg(mmc_dev(host->mmc), "tunning %s at 0x%x ret %d\n",
 		ret ? "failed" : "passed", avg, ret);
@@ -1031,11 +969,8 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	imx_data->pins_default = pinctrl_lookup_state(imx_data->pinctrl,
 						PINCTRL_STATE_DEFAULT);
-	if (IS_ERR(imx_data->pins_default)) {
-		err = PTR_ERR(imx_data->pins_default);
-		dev_err(mmc_dev(host->mmc), "could not get default state\n");
-		goto disable_clk;
-	}
+	if (IS_ERR(imx_data->pins_default))
+		dev_warn(mmc_dev(host->mmc), "could not get default state\n");
 
 	host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
@@ -1123,7 +1058,8 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	}
 
 	/* sdr50 and sdr104 needs work on 1.8v signal voltage */
-	if ((boarddata->support_vsel) && esdhc_is_usdhc(imx_data)) {
+	if ((boarddata->support_vsel) && esdhc_is_usdhc(imx_data) &&
+	    !IS_ERR(imx_data->pins_default)) {
 		imx_data->pins_100mhz = pinctrl_lookup_state(imx_data->pinctrl,
 						ESDHC_PINCTRL_STATE_100MHZ);
 		imx_data->pins_200mhz = pinctrl_lookup_state(imx_data->pinctrl,
