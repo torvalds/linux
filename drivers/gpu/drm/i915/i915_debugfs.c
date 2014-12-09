@@ -3410,13 +3410,15 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 
 	/* none -> real source transition */
 	if (source) {
+		struct intel_pipe_crc_entry *entries;
+
 		DRM_DEBUG_DRIVER("collecting CRCs for pipe %c, %s\n",
 				 pipe_name(pipe), pipe_crc_source_name(source));
 
-		pipe_crc->entries = kzalloc(sizeof(*pipe_crc->entries) *
-					    INTEL_PIPE_CRC_ENTRIES_NR,
-					    GFP_KERNEL);
-		if (!pipe_crc->entries)
+		entries = kzalloc(sizeof(*pipe_crc->entries) *
+				  INTEL_PIPE_CRC_ENTRIES_NR,
+				  GFP_KERNEL);
+		if (!entries)
 			return -ENOMEM;
 
 		/*
@@ -3428,6 +3430,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		hsw_disable_ips(crtc);
 
 		spin_lock_irq(&pipe_crc->lock);
+		pipe_crc->entries = entries;
 		pipe_crc->head = 0;
 		pipe_crc->tail = 0;
 		spin_unlock_irq(&pipe_crc->lock);
