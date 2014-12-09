@@ -236,8 +236,10 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
     audio_out_buf_ready = 1;
 }
 
-void audio_set_958outbuf(u32 addr, u32 size,int flag)
+void audio_set_958outbuf(u32 addr, u32 size, int channels, int flag)
 {
+	u8 chanmask;
+
     if (ENABLE_IEC958) {
         WRITE_MPEG_REG(AIU_MEM_IEC958_START_PTR, addr & 0xffffffc0);
 	  	if(READ_MPEG_REG(AIU_MEM_IEC958_START_PTR) == READ_MPEG_REG(AIU_MEM_I2S_START_PTR)){
@@ -250,7 +252,8 @@ void audio_set_958outbuf(u32 addr, u32 size,int flag)
         }else{
           WRITE_MPEG_REG(AIU_MEM_IEC958_END_PTR, (addr & 0xffffffc0) + (size & 0xffffffc0) - 1);    // this is for RAW mode
         }
-        WRITE_MPEG_REG_BITS(AIU_MEM_IEC958_MASKS, 0x303, 0, 16);
+		chanmask = (1 << channels) - 1;
+        WRITE_MPEG_REG_BITS(AIU_MEM_IEC958_MASKS, chanmask << 8 | chanmask, 0, 16);
 
         WRITE_MPEG_REG_BITS(AIU_MEM_IEC958_CONTROL, 1, 0, 1);
         WRITE_MPEG_REG_BITS(AIU_MEM_IEC958_CONTROL, 0, 0, 1);
