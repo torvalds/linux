@@ -60,6 +60,22 @@ struct gnttab_free_callback {
 	u16 count;
 };
 
+struct gntab_unmap_queue_data;
+
+typedef void (*gnttab_unmap_refs_done)(int result, struct gntab_unmap_queue_data *data);
+
+struct gntab_unmap_queue_data
+{
+	struct delayed_work	gnttab_work;
+	void *data;
+	gnttab_unmap_refs_done	done;
+	struct gnttab_unmap_grant_ref *unmap_ops;
+	struct gnttab_unmap_grant_ref *kunmap_ops;
+	struct page **pages;
+	unsigned int count;
+	unsigned int age;
+};
+
 int gnttab_init(void);
 int gnttab_suspend(void);
 int gnttab_resume(void);
@@ -174,6 +190,8 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count);
+void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
+
 
 /* Perform a batch of grant map/copy operations. Retry every batch slot
  * for which the hypervisor returns GNTST_eagain. This is typically due

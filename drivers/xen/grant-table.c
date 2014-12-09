@@ -42,6 +42,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
+#include <linux/workqueue.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -818,6 +819,49 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	return clear_foreign_p2m_mapping(unmap_ops, kunmap_ops, pages, count);
 }
 EXPORT_SYMBOL_GPL(gnttab_unmap_refs);
+
+#define GNTTAB_UNMAP_REFS_DELAY 5
+
+static void __gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
+
+static void gnttab_unmap_work(struct work_struct *work)
+{
+	struct gntab_unmap_queue_data
+		*unmap_data = container_of(work, 
+					   struct gntab_unmap_queue_data,
+					   gnttab_work.work);
+	if (unmap_data->age != UINT_MAX)
+		unmap_data->age++;
+	__gnttab_unmap_refs_async(unmap_data);
+}
+
+static void __gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item)
+{
+	int ret;
+	int pc;
+
+	for (pc = 0; pc < item->count; pc++) {
+		if (page_count(item->pages[pc]) > 1) {
+			unsigned long delay = GNTTAB_UNMAP_REFS_DELAY * (item->age + 1);
+			schedule_delayed_work(&item->gnttab_work,
+					      msecs_to_jiffies(delay));
+			return;
+		}
+	}
+
+	ret = gnttab_unmap_refs(item->unmap_ops, item->kunmap_ops,
+				item->pages, item->count);
+	item->done(ret, item);
+}
+
+void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item)
+{
+	INIT_DELAYED_WORK(&item->gnttab_work, gnttab_unmap_work);
+	item->age = 0;
+
+	__gnttab_unmap_refs_async(item);
+}
+EXPORT_SYMBOL_GPL(gnttab_unmap_refs_async);
 
 static int gnttab_map_frames_v1(xen_pfn_t *frames, unsigned int nr_gframes)
 {
