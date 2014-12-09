@@ -20,7 +20,9 @@
 
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/of_platform.h>
 #include <asm/opal.h>
+#include <asm/machdep.h>
 
 static DEFINE_MUTEX(opal_sensor_mutex);
 
@@ -64,3 +66,21 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(opal_get_sensor_data);
+
+static __init int opal_sensor_init(void)
+{
+	struct platform_device *pdev;
+	struct device_node *sensor;
+
+	sensor = of_find_node_by_path("/ibm,opal/sensors");
+	if (!sensor) {
+		pr_err("Opal node 'sensors' not found\n");
+		return -ENODEV;
+	}
+
+	pdev = of_platform_device_create(sensor, "opal-sensor", NULL);
+	of_node_put(sensor);
+
+	return PTR_ERR_OR_ZERO(pdev);
+}
+machine_subsys_initcall(powernv, opal_sensor_init);

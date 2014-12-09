@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/regulator/driver.h>
 #include "pmbus.h"
 
 enum chips { ltc2974, ltc2977, ltc2978, ltc3880, ltc3883, ltm4676 };
@@ -374,6 +375,19 @@ static const struct i2c_device_id ltc2978_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc2978_id);
 
+#if IS_ENABLED(CONFIG_SENSORS_LTC2978_REGULATOR)
+static const struct regulator_desc ltc2978_reg_desc[] = {
+	PMBUS_REGULATOR("vout", 0),
+	PMBUS_REGULATOR("vout", 1),
+	PMBUS_REGULATOR("vout", 2),
+	PMBUS_REGULATOR("vout", 3),
+	PMBUS_REGULATOR("vout", 4),
+	PMBUS_REGULATOR("vout", 5),
+	PMBUS_REGULATOR("vout", 6),
+	PMBUS_REGULATOR("vout", 7),
+};
+#endif /* CONFIG_SENSORS_LTC2978_REGULATOR */
+
 static int ltc2978_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -487,13 +501,36 @@ static int ltc2978_probe(struct i2c_client *client,
 	default:
 		return -ENODEV;
 	}
+
+#if IS_ENABLED(CONFIG_SENSORS_LTC2978_REGULATOR)
+	info->num_regulators = info->pages;
+	info->reg_desc = ltc2978_reg_desc;
+	if (info->num_regulators > ARRAY_SIZE(ltc2978_reg_desc)) {
+		dev_err(&client->dev, "num_regulators too large!");
+		info->num_regulators = ARRAY_SIZE(ltc2978_reg_desc);
+	}
+#endif
+
 	return pmbus_do_probe(client, id, info);
 }
 
-/* This is the driver that will be inserted */
+#ifdef CONFIG_OF
+static const struct of_device_id ltc2978_of_match[] = {
+	{ .compatible = "lltc,ltc2974" },
+	{ .compatible = "lltc,ltc2977" },
+	{ .compatible = "lltc,ltc2978" },
+	{ .compatible = "lltc,ltc3880" },
+	{ .compatible = "lltc,ltc3883" },
+	{ .compatible = "lltc,ltm4676" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ltc2978_of_match);
+#endif
+
 static struct i2c_driver ltc2978_driver = {
 	.driver = {
 		   .name = "ltc2978",
+		   .of_match_table = of_match_ptr(ltc2978_of_match),
 		   },
 	.probe = ltc2978_probe,
 	.remove = pmbus_do_remove,
