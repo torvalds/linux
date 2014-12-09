@@ -34,6 +34,7 @@
 #define DSYSR_SCM_INT_NONE	(0 << 4)
 #define DSYSR_SCM_INT_SYNC	(2 << 4)
 #define DSYSR_SCM_INT_VIDEO	(3 << 4)
+#define DSYSR_SCM_MASK		(3 << 4)
 
 #define DSMR			0x00004
 #define DSMR_VSPM		(1 << 28)

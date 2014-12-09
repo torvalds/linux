@@ -155,12 +155,15 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 					mode->hsync_start - 1);
 	rcar_du_crtc_write(rcrtc, HCR,  mode->htotal - 1);
 
-	rcar_du_crtc_write(rcrtc, VDSR, mode->vtotal - mode->vsync_end - 2);
-	rcar_du_crtc_write(rcrtc, VDER, mode->vtotal - mode->vsync_end +
-					mode->vdisplay - 2);
-	rcar_du_crtc_write(rcrtc, VSPR, mode->vtotal - mode->vsync_end +
-					mode->vsync_start - 1);
-	rcar_du_crtc_write(rcrtc, VCR,  mode->vtotal - 1);
+	rcar_du_crtc_write(rcrtc, VDSR, mode->crtc_vtotal -
+					mode->crtc_vsync_end - 2);
+	rcar_du_crtc_write(rcrtc, VDER, mode->crtc_vtotal -
+					mode->crtc_vsync_end +
+					mode->crtc_vdisplay - 2);
+	rcar_du_crtc_write(rcrtc, VSPR, mode->crtc_vtotal -
+					mode->crtc_vsync_end +
+					mode->crtc_vsync_start - 1);
+	rcar_du_crtc_write(rcrtc, VCR,  mode->crtc_vtotal - 1);
 
 	rcar_du_crtc_write(rcrtc, DESR,  mode->htotal - mode->hsync_start);
 	rcar_du_crtc_write(rcrtc, DEWR,  mode->hdisplay);
@@ -256,6 +259,7 @@ void rcar_du_crtc_update_planes(struct drm_crtc *crtc)
 static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 {
 	struct drm_crtc *crtc = &rcrtc->crtc;
+	bool interlaced;
 	unsigned int i;
 
 	if (rcrtc->started)
@@ -291,7 +295,10 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	 * sync mode (with the HSYNC and VSYNC signals configured as outputs and
 	 * actively driven).
 	 */
-	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK, DSYSR_TVM_MASTER);
+	interlaced = rcrtc->crtc.mode.flags & DRM_MODE_FLAG_INTERLACE;
+	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK | DSYSR_SCM_MASK,
+			     (interlaced ? DSYSR_SCM_INT_VIDEO : 0) |
+			     DSYSR_TVM_MASTER);
 
 	rcar_du_group_start_stop(rcrtc->group, true);
 
@@ -528,7 +535,7 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 	status = rcar_du_crtc_read(rcrtc, DSSR);
 	rcar_du_crtc_write(rcrtc, DSRCR, status & DSRCR_MASK);
 
-	if (status & DSSR_VBK) {
+	if (status & DSSR_FRM) {
 		drm_handle_vblank(rcrtc->crtc.dev, rcrtc->index);
 		rcar_du_crtc_finish_page_flip(rcrtc);
 		ret = IRQ_HANDLED;
