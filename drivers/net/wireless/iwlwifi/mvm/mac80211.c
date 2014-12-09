@@ -815,7 +815,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	/* Make room for the SMEM, if it exists */
 	if (smem_len)
-		file_len += sizeof(*dump_data) + smem_len;
+		file_len += sizeof(*dump_data) +
+			sizeof(struct iwl_fw_error_dump_mem) + smem_len;
 
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
@@ -868,11 +869,16 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 				 sram_len);
 
 	if (smem_len) {
+		struct iwl_fw_error_dump_mem *dump_mem;
+
 		dump_data = iwl_fw_error_next_data(dump_data);
-		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SMEM);
-		dump_data->len = cpu_to_le32(smem_len);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+		dump_data->len = cpu_to_le32(smem_len + sizeof(*dump_mem));
+		dump_mem = (void *)dump_data->data;
+		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SMEM);
+		dump_mem->offset = cpu_to_le32(mvm->cfg->smem_offset);
 		iwl_trans_read_mem_bytes(mvm->trans, mvm->cfg->smem_offset,
-					 dump_data->data, smem_len);
+					 dump_mem->data, smem_len);
 	}
 
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans);

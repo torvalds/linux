@@ -82,7 +82,7 @@
  * @IWL_FW_ERROR_DUMP_PRPH: range of periphery registers - there can be several
  *	sections like this in a single file.
  * @IWL_FW_ERROR_DUMP_FH_REGS: range of FH registers
- * @IWL_FW_ERROR_DUMP_SMEM:
+ * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
  */
 enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_SRAM = 0,
@@ -94,7 +94,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_PRPH = 6,
 	IWL_FW_ERROR_DUMP_TXF = 7,
 	IWL_FW_ERROR_DUMP_FH_REGS = 8,
-	IWL_FW_ERROR_DUMP_SMEM = 9,
+	IWL_FW_ERROR_DUMP_MEM = 9,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -180,6 +180,23 @@ struct iwl_fw_error_dump_fw_mon {
 struct iwl_fw_error_dump_prph {
 	__le32 prph_start;
 	__le32 data[];
+};
+
+enum iwl_fw_error_dump_mem_type {
+	IWL_FW_ERROR_DUMP_MEM_SRAM,
+	IWL_FW_ERROR_DUMP_MEM_SMEM,
+};
+
+/**
+ * struct iwl_fw_error_dump_mem - chunk of memory
+ * @type: %enum iwl_fw_error_dump_mem_type
+ * @offset: the offset from which the memory was read
+ * @data: the content of the memory
+ */
+struct iwl_fw_error_dump_mem {
+	__le32 type;
+	__le32 offset;
+	u8 data[];
 };
 
 /**
