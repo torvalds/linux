@@ -699,18 +699,7 @@ static struct pci_driver toshsd_driver = {
 	.driver.pm = &toshsd_pm_ops,
 };
 
-static int __init toshsd_drv_init(void)
-{
-	return pci_register_driver(&toshsd_driver);
-}
-
-static void __exit toshsd_drv_exit(void)
-{
-	pci_unregister_driver(&toshsd_driver);
-}
-
-module_init(toshsd_drv_init);
-module_exit(toshsd_drv_exit);
+module_pci_driver(toshsd_driver);
 
 MODULE_AUTHOR("Ondrej Zary, Richard Betts");
 MODULE_DESCRIPTION("Toshiba PCI Secure Digital Host Controller Interface driver");
