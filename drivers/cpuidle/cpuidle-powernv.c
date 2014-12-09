@@ -208,7 +208,8 @@ static int powernv_add_idle_states(void)
 			nr_idle_states++;
 		}
 
-		if (flags & OPAL_PM_SLEEP_ENABLED) {
+		if (flags & OPAL_PM_SLEEP_ENABLED ||
+			flags & OPAL_PM_SLEEP_ENABLED_ER1) {
 			/* Add FASTSLEEP state */
 			strcpy(powernv_states[nr_idle_states].name, "FastSleep");
 			strcpy(powernv_states[nr_idle_states].desc, "FastSleep");

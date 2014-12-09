@@ -158,6 +158,43 @@ opal_tracepoint_return:
 	blr
 #endif
 
+/*
+ * Make opal call in realmode. This is a generic function to be called
+ * from realmode. It handles endianness.
+ *
+ * r13 - paca pointer
+ * r1  - stack pointer
+ * r0  - opal token
+ */
+_GLOBAL(opal_call_realmode)
+	mflr	r12
+	std	r12,PPC_LR_STKOFF(r1)
+	ld	r2,PACATOC(r13)
+	/* Set opal return address */
+	LOAD_REG_ADDR(r12,return_from_opal_call)
+	mtlr	r12
+
+	mfmsr	r12
+#ifdef __LITTLE_ENDIAN__
+	/* Handle endian-ness */
+	li	r11,MSR_LE
+	andc	r12,r12,r11
+#endif
+	mtspr	SPRN_HSRR1,r12
+	LOAD_REG_ADDR(r11,opal)
+	ld	r12,8(r11)
+	ld	r2,0(r11)
+	mtspr	SPRN_HSRR0,r12
+	hrfid
+
+return_from_opal_call:
+#ifdef __LITTLE_ENDIAN__
+	FIXUP_ENDIAN
+#endif
+	ld	r12,PPC_LR_STKOFF(r1)
+	mtlr	r12
+	blr
+
 OPAL_CALL(opal_invalid_call,			OPAL_INVALID_CALL);
 OPAL_CALL(opal_console_write,			OPAL_CONSOLE_WRITE);
 OPAL_CALL(opal_console_read,			OPAL_CONSOLE_READ);

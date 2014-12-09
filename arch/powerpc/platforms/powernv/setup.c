@@ -36,6 +36,9 @@
 #include <asm/opal.h>
 #include <asm/kexec.h>
 #include <asm/smp.h>
+#include <asm/cputhreads.h>
+#include <asm/cpuidle.h>
+#include <asm/code-patching.h>
 
 #include "powernv.h"
 
@@ -290,10 +293,45 @@ static void __init pnv_setup_machdep_rtas(void)
 
 static u32 supported_cpuidle_states;
 
+static void pnv_alloc_idle_core_states(void)
+{
+	int i, j;
+	int nr_cores = cpu_nr_cores();
+	u32 *core_idle_state;
+
+	/*
+	 * core_idle_state - First 8 bits track the idle state of each thread
+	 * of the core. The 8th bit is the lock bit. Initially all thread bits
+	 * are set. They are cleared when the thread enters deep idle state
+	 * like sleep and winkle. Initially the lock bit is cleared.
+	 * The lock bit has 2 purposes
+	 * a. While the first thread is restoring core state, it prevents
+	 * other threads in the core from switching to process context.
+	 * b. While the last thread in the core is saving the core state, it
+	 * prevents a different thread from waking up.
+	 */
+	for (i = 0; i < nr_cores; i++) {
+		int first_cpu = i * threads_per_core;
+		int node = cpu_to_node(first_cpu);
+
+		core_idle_state = kmalloc_node(sizeof(u32), GFP_KERNEL, node);
+		*core_idle_state = PNV_CORE_IDLE_THREAD_BITS;
+
+		for (j = 0; j < threads_per_core; j++) {
+			int cpu = first_cpu + j;
+
+			paca[cpu].core_idle_state_ptr = core_idle_state;
+			paca[cpu].thread_idle_state = PNV_THREAD_RUNNING;
+			paca[cpu].thread_mask = 1 << j;
+		}
+	}
+}
+
 u32 pnv_get_supported_cpuidle_states(void)
 {
 	return supported_cpuidle_states;
 }
+EXPORT_SYMBOL_GPL(pnv_get_supported_cpuidle_states);
 
 static int __init pnv_init_idle_states(void)
 {
@@ -330,12 +368,19 @@ static int __init pnv_init_idle_states(void)
 		flags = be32_to_cpu(idle_state_flags[i]);
 		supported_cpuidle_states |= flags;
 	}
-
+	if (!(supported_cpuidle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
+		patch_instruction(
+			(unsigned int *)pnv_fastsleep_workaround_at_entry,
+			PPC_INST_NOP);
+		patch_instruction(
+			(unsigned int *)pnv_fastsleep_workaround_at_exit,
+			PPC_INST_NOP);
+	}
+	pnv_alloc_idle_core_states();
 	return 0;
 }
 
 subsys_initcall(pnv_init_idle_states);
-
 
 static int __init pnv_probe(void)
 {
