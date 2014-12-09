@@ -1872,6 +1872,8 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 		phy_dev = of_phy_connect(ndev, fep->phy_node,
 					 &fec_enet_adjust_link, 0,
 					 fep->phy_interface);
+		if (!phy_dev)
+			return -ENODEV;
 	} else {
 		/* check for attached phy */
 		for (phy_id = 0; (phy_id < PHY_MAX_ADDR); phy_id++) {
