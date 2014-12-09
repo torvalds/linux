@@ -102,9 +102,7 @@ system_reset_pSeries:
 #ifdef CONFIG_PPC_P7_NAP
 BEGIN_FTR_SECTION
 	/* Running native on arch 2.06 or later, check if we are
-	 * waking up from nap. We only handle no state loss and
-	 * supervisor state loss. We do -not- handle hypervisor
-	 * state loss at this time.
+	 * waking up from nap/sleep/winkle.
 	 */
 	mfspr	r13,SPRN_SRR1
 	rlwinm.	r13,r13,47-31,30,31
@@ -112,7 +110,16 @@ BEGIN_FTR_SECTION
 
 	cmpwi	cr3,r13,2
 
+	/*
+	 * Check if last bit of HSPGR0 is set. This indicates whether we are
+	 * waking up from winkle.
+	 */
 	GET_PACA(r13)
+	clrldi	r5,r13,63
+	clrrdi	r13,r13,1
+	cmpwi	cr4,r5,1
+	mtspr	SPRN_HSPRG0,r13
+
 	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
 	cmpwi   cr2,r0,PNV_THREAD_NAP
 	bgt     cr2,8f				/* Either sleep or Winkle */

@@ -41,6 +41,7 @@
 #include <asm/code-patching.h>
 
 #include "powernv.h"
+#include "subcore.h"
 
 static void __init pnv_setup_arch(void)
 {
@@ -293,6 +294,72 @@ static void __init pnv_setup_machdep_rtas(void)
 
 static u32 supported_cpuidle_states;
 
+int pnv_save_sprs_for_winkle(void)
+{
+	int cpu;
+	int rc;
+
+	/*
+	 * hid0, hid1, hid4, hid5, hmeer and lpcr values are symmetric accross
+	 * all cpus at boot. Get these reg values of current cpu and use the
+	 * same accross all cpus.
+	 */
+	uint64_t lpcr_val = mfspr(SPRN_LPCR);
+	uint64_t hid0_val = mfspr(SPRN_HID0);
+	uint64_t hid1_val = mfspr(SPRN_HID1);
+	uint64_t hid4_val = mfspr(SPRN_HID4);
+	uint64_t hid5_val = mfspr(SPRN_HID5);
+	uint64_t hmeer_val = mfspr(SPRN_HMEER);
+
+	for_each_possible_cpu(cpu) {
+		uint64_t pir = get_hard_smp_processor_id(cpu);
+		uint64_t hsprg0_val = (uint64_t)&paca[cpu];
+
+		/*
+		 * HSPRG0 is used to store the cpu's pointer to paca. Hence last
+		 * 3 bits are guaranteed to be 0. Program slw to restore HSPRG0
+		 * with 63rd bit set, so that when a thread wakes up at 0x100 we
+		 * can use this bit to distinguish between fastsleep and
+		 * deep winkle.
+		 */
+		hsprg0_val |= 1;
+
+		rc = opal_slw_set_reg(pir, SPRN_HSPRG0, hsprg0_val);
+		if (rc != 0)
+			return rc;
+
+		rc = opal_slw_set_reg(pir, SPRN_LPCR, lpcr_val);
+		if (rc != 0)
+			return rc;
+
+		/* HIDs are per core registers */
+		if (cpu_thread_in_core(cpu) == 0) {
+
+			rc = opal_slw_set_reg(pir, SPRN_HMEER, hmeer_val);
+			if (rc != 0)
+				return rc;
+
+			rc = opal_slw_set_reg(pir, SPRN_HID0, hid0_val);
+			if (rc != 0)
+				return rc;
+
+			rc = opal_slw_set_reg(pir, SPRN_HID1, hid1_val);
+			if (rc != 0)
+				return rc;
+
+			rc = opal_slw_set_reg(pir, SPRN_HID4, hid4_val);
+			if (rc != 0)
+				return rc;
+
+			rc = opal_slw_set_reg(pir, SPRN_HID5, hid5_val);
+			if (rc != 0)
+				return rc;
+		}
+	}
+
+	return 0;
+}
+
 static void pnv_alloc_idle_core_states(void)
 {
 	int i, j;
@@ -325,6 +392,11 @@ static void pnv_alloc_idle_core_states(void)
 			paca[cpu].thread_mask = 1 << j;
 		}
 	}
+
+	update_subcore_sibling_mask();
+
+	if (supported_cpuidle_states & OPAL_PM_WINKLE_ENABLED)
+		pnv_save_sprs_for_winkle();
 }
 
 u32 pnv_get_supported_cpuidle_states(void)

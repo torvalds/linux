@@ -373,6 +373,7 @@
 #define SPRN_DBAT7L	0x23F	/* Data BAT 7 Lower Register */
 #define SPRN_DBAT7U	0x23E	/* Data BAT 7 Upper Register */
 #define SPRN_PPR	0x380	/* SMT Thread status Register */
+#define SPRN_TSCR	0x399	/* Thread Switch Control Register */
 
 #define SPRN_DEC	0x016		/* Decrement Register */
 #define SPRN_DER	0x095		/* Debug Enable Regsiter */
@@ -730,6 +731,7 @@
 #define SPRN_BESCR	806	/* Branch event status and control register */
 #define   BESCR_GE	0x8000000000000000ULL /* Global Enable */
 #define SPRN_WORT	895	/* Workload optimization register - thread */
+#define SPRN_WORC	863	/* Workload optimization register - core */
 
 #define SPRN_PMC1	787
 #define SPRN_PMC2	788

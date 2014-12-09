@@ -158,6 +158,8 @@ struct paca_struct {
 	u8 thread_idle_state;		/* PNV_THREAD_RUNNING/NAP/SLEEP	*/
 	/* Mask to indicate thread id in core */
 	u8 thread_mask;
+	/* Mask to denote subcore sibling threads */
+	u8 subcore_sibling_mask;
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64

@@ -19,8 +19,23 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/opal.h>
 #include <asm/cpuidle.h>
+#include <asm/mmu-hash64.h>
 
 #undef DEBUG
+
+/*
+ * Use unused space in the interrupt stack to save and restore
+ * registers for winkle support.
+ */
+#define _SDR1	GPR3
+#define _RPR	GPR4
+#define _SPURR	GPR5
+#define _PURR	GPR6
+#define _TSCR	GPR7
+#define _DSCR	GPR8
+#define _AMOR	GPR9
+#define _WORT	GPR10
+#define _WORC	GPR11
 
 /* Idle state entry routines */
 
@@ -124,8 +139,8 @@ power7_enter_nap_mode:
 	stb	r4,HSTATE_HWTHREAD_STATE(r13)
 #endif
 	stb	r3,PACA_THREAD_IDLE_STATE(r13)
-	cmpwi	cr1,r3,PNV_THREAD_SLEEP
-	bge	cr1,2f
+	cmpwi	cr3,r3,PNV_THREAD_SLEEP
+	bge	cr3,2f
 	IDLE_STATE_ENTER_SEQ(PPC_NAP)
 	/* No return */
 2:
@@ -154,7 +169,8 @@ pnv_fastsleep_workaround_at_entry:
 	bne-	lwarx_loop1
 	isync
 
-common_enter: /* common code for all the threads entering sleep */
+common_enter: /* common code for all the threads entering sleep or winkle */
+	bgt	cr3,enter_winkle
 	IDLE_STATE_ENTER_SEQ(PPC_SLEEP)
 
 fastsleep_workaround_at_entry:
@@ -175,6 +191,30 @@ fastsleep_workaround_at_entry:
 	stw	r0,0(r14)
 	b	common_enter
 
+enter_winkle:
+	/*
+	 * Note all register i.e per-core, per-subcore or per-thread is saved
+	 * here since any thread in the core might wake up first
+	 */
+	mfspr	r3,SPRN_SDR1
+	std	r3,_SDR1(r1)
+	mfspr	r3,SPRN_RPR
+	std	r3,_RPR(r1)
+	mfspr	r3,SPRN_SPURR
+	std	r3,_SPURR(r1)
+	mfspr	r3,SPRN_PURR
+	std	r3,_PURR(r1)
+	mfspr	r3,SPRN_TSCR
+	std	r3,_TSCR(r1)
+	mfspr	r3,SPRN_DSCR
+	std	r3,_DSCR(r1)
+	mfspr	r3,SPRN_AMOR
+	std	r3,_AMOR(r1)
+	mfspr	r3,SPRN_WORT
+	std	r3,_WORT(r1)
+	mfspr	r3,SPRN_WORC
+	std	r3,_WORC(r1)
+	IDLE_STATE_ENTER_SEQ(PPC_WINKLE)
 
 _GLOBAL(power7_idle)
 	/* Now check if user or arch enabled NAP mode */
@@ -193,6 +233,12 @@ _GLOBAL(power7_nap)
 
 _GLOBAL(power7_sleep)
 	li	r3,PNV_THREAD_SLEEP
+	li	r4,1
+	b	power7_powersave_common
+	/* No return */
+
+_GLOBAL(power7_winkle)
+	li	r3,3
 	li	r4,1
 	b	power7_powersave_common
 	/* No return */
@@ -250,11 +296,23 @@ lwarx_loop2:
 	bne	core_idle_lock_held
 
 	cmpwi	cr2,r15,0
+	lbz	r4,PACA_SUBCORE_SIBLING_MASK(r13)
+	and	r4,r4,r15
+	cmpwi	cr1,r4,0	/* Check if first in subcore */
+
+	/*
+	 * At this stage
+	 * cr1 - 0b0100 if first thread to wakeup in subcore
+	 * cr2 - 0b0100 if first thread to wakeup in core
+	 * cr3-  0b0010 if waking up from sleep or winkle
+	 * cr4 - 0b0100 if waking up from winkle
+	 */
+
 	or	r15,r15,r7		/* Set thread bit */
 
-	beq	cr2,first_thread
+	beq	cr1,first_thread_in_subcore
 
-	/* Not first thread in core to wake up */
+	/* Not first thread in subcore to wake up */
 	stwcx.	r15,0,r14
 	bne-	lwarx_loop2
 	isync
@@ -269,12 +327,35 @@ core_idle_lock_loop:
 	HMT_MEDIUM
 	b	lwarx_loop2
 
-first_thread:
-	/* First thread in core to wakeup */
+first_thread_in_subcore:
+	/* First thread in subcore to wakeup */
 	ori	r15,r15,PNV_CORE_IDLE_LOCK_BIT
 	stwcx.	r15,0,r14
 	bne-	lwarx_loop2
 	isync
+
+	/*
+	 * If waking up from sleep, subcore state is not lost. Hence
+	 * skip subcore state restore
+	 */
+	bne	cr4,subcore_state_restored
+
+	/* Restore per-subcore state */
+	ld      r4,_SDR1(r1)
+	mtspr   SPRN_SDR1,r4
+	ld      r4,_RPR(r1)
+	mtspr   SPRN_RPR,r4
+	ld	r4,_AMOR(r1)
+	mtspr	SPRN_AMOR,r4
+
+subcore_state_restored:
+	/*
+	 * Check if the thread is also the first thread in the core. If not,
+	 * skip to clear_lock.
+	 */
+	bne	cr2,clear_lock
+
+first_thread_in_core:
 
 	/*
 	 * First thread in the core waking up from fastsleep. It needs to
@@ -296,12 +377,62 @@ timebase_resync:
 	bl	opal_call_realmode;
 	/* TODO: Check r3 for failure */
 
+	/*
+	 * If waking up from sleep, per core state is not lost, skip to
+	 * clear_lock.
+	 */
+	bne	cr4,clear_lock
+
+	/* Restore per core state */
+	ld	r4,_TSCR(r1)
+	mtspr	SPRN_TSCR,r4
+	ld	r4,_WORC(r1)
+	mtspr	SPRN_WORC,r4
+
 clear_lock:
 	andi.	r15,r15,PNV_CORE_IDLE_THREAD_BITS
 	lwsync
 	stw	r15,0(r14)
 
 common_exit:
+	/*
+	 * Common to all threads.
+	 *
+	 * If waking up from sleep, hypervisor state is not lost. Hence
+	 * skip hypervisor state restore.
+	 */
+	bne	cr4,hypervisor_state_restored
+
+	/* Waking up from winkle */
+
+	/* Restore per thread state */
+	bl	__restore_cpu_power8
+
+	/* Restore SLB  from PACA */
+	ld	r8,PACA_SLBSHADOWPTR(r13)
+
+	.rept	SLB_NUM_BOLTED
+	li	r3, SLBSHADOW_SAVEAREA
+	LDX_BE	r5, r8, r3
+	addi	r3, r3, 8
+	LDX_BE	r6, r8, r3
+	andis.	r7,r5,SLB_ESID_V@h
+	beq	1f
+	slbmte	r6,r5
+1:	addi	r8,r8,16
+	.endr
+
+	ld	r4,_SPURR(r1)
+	mtspr	SPRN_SPURR,r4
+	ld	r4,_PURR(r1)
+	mtspr	SPRN_PURR,r4
+	ld	r4,_DSCR(r1)
+	mtspr	SPRN_DSCR,r4
+	ld	r4,_WORT(r1)
+	mtspr	SPRN_WORT,r4
+
+hypervisor_state_restored:
+
 	li	r5,PNV_THREAD_RUNNING
 	stb     r5,PACA_THREAD_IDLE_STATE(r13)
 
