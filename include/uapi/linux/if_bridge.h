@@ -105,7 +105,7 @@ struct __fdb_entry {
 
 #define BRIDGE_MODE_VEB		0	/* Default loopback mode */
 #define BRIDGE_MODE_VEPA	1	/* 802.1Qbg defined VEPA mode */
-#define BRIDGE_MODE_SWDEV	2	/* Full switch device offload */
+#define BRIDGE_MODE_UNDEF	0xFFFF  /* mode undefined */
 
 /* Bridge management nested attributes
  * [IFLA_AF_SPEC] = {

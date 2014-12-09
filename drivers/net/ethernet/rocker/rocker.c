@@ -3717,27 +3717,11 @@ static int rocker_port_bridge_setlink(struct net_device *dev,
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	struct nlattr *protinfo;
-	struct nlattr *afspec;
 	struct nlattr *attr;
-	u16 mode;
 	int err;
 
 	protinfo = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg),
 				   IFLA_PROTINFO);
-	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
-
-	if (afspec) {
-		attr = nla_find_nested(afspec, IFLA_BRIDGE_MODE);
-		if (attr) {
-			if (nla_len(attr) < sizeof(mode))
-				return -EINVAL;
-
-			mode = nla_get_u16(attr);
-			if (mode != BRIDGE_MODE_SWDEV)
-				return -EINVAL;
-		}
-	}
-
 	if (protinfo) {
 		attr = nla_find_nested(protinfo, IFLA_BRPORT_LEARNING);
 		if (attr) {
@@ -3772,7 +3756,7 @@ static int rocker_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				      u32 filter_mask)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
-	u16 mode = BRIDGE_MODE_SWDEV;
+	u16 mode = BRIDGE_MODE_UNDEF;
 	u32 mask = BR_LEARNING | BR_LEARNING_SYNC;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode,
