@@ -172,7 +172,7 @@
 	pinctrl-names = "default";
 
 	phy-handle = <&phy0>;
-	status = "ok";
+	status = "okay";
 
 	phy0: ethernet-phy@0 {
 		reg = <0>;
@@ -193,7 +193,7 @@
 };
 
 &cmt1 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c0 {
