@@ -277,16 +277,16 @@ int sst_acpi_probe(struct platform_device *pdev)
 	dev_dbg(dev, "ACPI device id: %x\n", dev_id);
 
 	plat_dev = platform_device_register_data(dev, mach->pdata->platform, -1, NULL, 0);
-	if (plat_dev == NULL) {
+	if (IS_ERR(plat_dev)) {
 		dev_err(dev, "Failed to create machine device: %s\n", mach->pdata->platform);
-		return -ENODEV;
+		return PTR_ERR(plat_dev);
 	}
 
 	/* Create platform device for sst machine driver */
 	mdev = platform_device_register_data(dev, mach->machine, -1, NULL, 0);
-	if (mdev == NULL) {
+	if (IS_ERR(mdev)) {
 		dev_err(dev, "Failed to create machine device: %s\n", mach->machine);
-		return -ENODEV;
+		return PTR_ERR(mdev);
 	}
 
 	ret = sst_alloc_drv_context(&ctx, dev, dev_id);
