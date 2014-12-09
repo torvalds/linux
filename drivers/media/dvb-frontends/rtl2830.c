@@ -544,52 +544,14 @@ err:
 
 static int rtl2830_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	struct i2c_client *client = fe->demodulator_priv;
-	struct rtl2830_dev *dev = i2c_get_clientdata(client);
-	int ret, hierarchy, constellation;
-	u8 buf[2], tmp;
-	u16 tmp16;
-#define CONSTELLATION_NUM 3
-#define HIERARCHY_NUM 4
-	static const u32 snr_constant[CONSTELLATION_NUM][HIERARCHY_NUM] = {
-		{70705899, 70705899, 70705899, 70705899},
-		{82433173, 82433173, 87483115, 94445660},
-		{92888734, 92888734, 95487525, 99770748},
-	};
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	if (dev->sleeping)
-		return 0;
-
-	/* reports SNR in resolution of 0.1 dB */
-
-	ret = rtl2830_rd_reg(client, 0x33c, &tmp);
-	if (ret)
-		goto err;
-
-	constellation = (tmp >> 2) & 0x03; /* [3:2] */
-	if (constellation > CONSTELLATION_NUM - 1)
-		goto err;
-
-	hierarchy = (tmp >> 4) & 0x07; /* [6:4] */
-	if (hierarchy > HIERARCHY_NUM - 1)
-		goto err;
-
-	ret = rtl2830_rd_regs(client, 0x40c, buf, 2);
-	if (ret)
-		goto err;
-
-	tmp16 = buf[0] << 8 | buf[1];
-
-	if (tmp16)
-		*snr = (snr_constant[constellation][hierarchy] -
-				intlog10(tmp16)) / ((1 << 24) / 100);
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
+		*snr = div_s64(c->cnr.stat[0].svalue, 100);
 	else
 		*snr = 0;
 
 	return 0;
-err:
-	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return ret;
 }
 
 static int rtl2830_read_ber(struct dvb_frontend *fe, u32 *ber)

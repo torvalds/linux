@@ -22,6 +22,7 @@
 #include "dvb_math.h"
 #include "rtl2830.h"
 #include <linux/i2c-mux.h>
+#include <linux/math64.h>
 
 struct rtl2830_dev {
 	struct rtl2830_platform_data *pdata;
