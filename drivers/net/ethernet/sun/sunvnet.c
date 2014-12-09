@@ -15,12 +15,14 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/mutex.h>
+#include <linux/highmem.h>
 #include <linux/if_vlan.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <linux/icmpv6.h>
 #endif
 
+#include <net/ip.h>
 #include <net/icmp.h>
 #include <net/route.h>
 
@@ -51,6 +53,8 @@ static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
 
 /* Ordered from largest major to lowest */
 static struct vio_version vnet_versions[] = {
+	{ .major = 1, .minor = 8 },
+	{ .major = 1, .minor = 7 },
 	{ .major = 1, .minor = 6 },
 	{ .major = 1, .minor = 0 },
 };
@@ -73,13 +77,19 @@ static int vnet_handle_unknown(struct vnet_port *port, void *arg)
 	return -ECONNRESET;
 }
 
+static int vnet_port_alloc_tx_ring(struct vnet_port *port);
+
 static int vnet_send_attr(struct vio_driver_state *vio)
 {
 	struct vnet_port *port = to_vnet_port(vio);
 	struct net_device *dev = port->vp->dev;
 	struct vio_net_attr_info pkt;
 	int framelen = ETH_FRAME_LEN;
-	int i;
+	int i, err;
+
+	err = vnet_port_alloc_tx_ring(to_vnet_port(vio));
+	if (err)
+		return err;
 
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.tag.type = VIO_TYPE_CTRL;
@@ -110,8 +120,15 @@ static int vnet_send_attr(struct vio_driver_state *vio)
 		pkt.mtu = framelen + VLAN_HLEN;
 	}
 
-	pkt.plnk_updt = PHYSLINK_UPDATE_NONE;
 	pkt.cflags = 0;
+	if (vio_version_after_eq(vio, 1, 7) && port->tso) {
+		pkt.cflags |= VNET_LSO_IPV4_CAPAB;
+		if (!port->tsolen)
+			port->tsolen = VNET_MAXTSO;
+		pkt.ipv4_lso_maxlen = port->tsolen;
+	}
+
+	pkt.plnk_updt = PHYSLINK_UPDATE_NONE;
 
 	viodbg(HS, "SEND NET ATTR xmode[0x%x] atype[0x%x] addr[%llx] "
 	       "ackfreq[%u] plnk_updt[0x%02x] opts[0x%02x] mtu[%llu] "
@@ -164,6 +181,26 @@ static int handle_attr_info(struct vio_driver_state *vio,
 		localmtu = ETH_FRAME_LEN + VLAN_HLEN;
 	}
 	port->rmtu = localmtu;
+
+	/* LSO negotiation */
+	if (vio_version_after_eq(vio, 1, 7))
+		port->tso &= !!(pkt->cflags & VNET_LSO_IPV4_CAPAB);
+	else
+		port->tso = false;
+	if (port->tso) {
+		if (!port->tsolen)
+			port->tsolen = VNET_MAXTSO;
+		port->tsolen = min(port->tsolen, pkt->ipv4_lso_maxlen);
+		if (port->tsolen < VNET_MINTSO) {
+			port->tso = false;
+			port->tsolen = 0;
+			pkt->cflags &= ~VNET_LSO_IPV4_CAPAB;
+		}
+		pkt->ipv4_lso_maxlen = port->tsolen;
+	} else {
+		pkt->cflags &= ~VNET_LSO_IPV4_CAPAB;
+		pkt->ipv4_lso_maxlen = 0;
+	}
 
 	/* for version >= 1.6, ACK packet mode we support */
 	if (vio_version_after_eq(vio, 1, 6)) {
@@ -276,10 +313,42 @@ static struct sk_buff *alloc_and_align_skb(struct net_device *dev,
 	return skb;
 }
 
-static int vnet_rx_one(struct vnet_port *port, unsigned int len,
-		       struct ldc_trans_cookie *cookies, int ncookies)
+static inline void vnet_fullcsum(struct sk_buff *skb)
+{
+	struct iphdr *iph = ip_hdr(skb);
+	int offset = skb_transport_offset(skb);
+
+	if (skb->protocol != htons(ETH_P_IP))
+		return;
+	if (iph->protocol != IPPROTO_TCP &&
+	    iph->protocol != IPPROTO_UDP)
+		return;
+	skb->ip_summed = CHECKSUM_NONE;
+	skb->csum_level = 1;
+	skb->csum = 0;
+	if (iph->protocol == IPPROTO_TCP) {
+		struct tcphdr *ptcp = tcp_hdr(skb);
+
+		ptcp->check = 0;
+		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		ptcp->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
+						skb->len - offset, IPPROTO_TCP,
+						skb->csum);
+	} else if (iph->protocol == IPPROTO_UDP) {
+		struct udphdr *pudp = udp_hdr(skb);
+
+		pudp->check = 0;
+		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		pudp->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
+						skb->len - offset, IPPROTO_UDP,
+						skb->csum);
+	}
+}
+
+static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 {
 	struct net_device *dev = port->vp->dev;
+	unsigned int len = desc->size;
 	unsigned int copy_len;
 	struct sk_buff *skb;
 	int err;
@@ -301,7 +370,7 @@ static int vnet_rx_one(struct vnet_port *port, unsigned int len,
 	skb_put(skb, copy_len);
 	err = ldc_copy(port->vio.lp, LDC_COPY_IN,
 		       skb->data, copy_len, 0,
-		       cookies, ncookies);
+		       desc->cookies, desc->ncookies);
 	if (unlikely(err < 0)) {
 		dev->stats.rx_frame_errors++;
 		goto out_free_skb;
@@ -310,6 +379,30 @@ static int vnet_rx_one(struct vnet_port *port, unsigned int len,
 	skb_pull(skb, VNET_PACKET_SKIP);
 	skb_trim(skb, len);
 	skb->protocol = eth_type_trans(skb, dev);
+
+	if (vio_version_after_eq(&port->vio, 1, 8)) {
+		struct vio_net_dext *dext = vio_net_ext(desc);
+
+		if (dext->flags & VNET_PKT_HCK_IPV4_HDRCKSUM) {
+			if (skb->protocol == ETH_P_IP) {
+				struct iphdr *iph = (struct iphdr *)skb->data;
+
+				iph->check = 0;
+				ip_send_check(iph);
+			}
+		}
+		if ((dext->flags & VNET_PKT_HCK_FULLCKSUM) &&
+		    skb->ip_summed == CHECKSUM_NONE)
+			vnet_fullcsum(skb);
+		if (dext->flags & VNET_PKT_HCK_IPV4_HDRCKSUM_OK) {
+			skb->ip_summed = CHECKSUM_PARTIAL;
+			skb->csum_level = 0;
+			if (dext->flags & VNET_PKT_HCK_FULLCKSUM_OK)
+				skb->csum_level = 1;
+		}
+	}
+
+	skb->ip_summed = port->switch_port ? CHECKSUM_NONE : CHECKSUM_PARTIAL;
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
@@ -445,7 +538,7 @@ static int vnet_walk_rx_one(struct vnet_port *port,
 	       desc->cookies[0].cookie_addr,
 	       desc->cookies[0].cookie_size);
 
-	err = vnet_rx_one(port, desc->size, desc->cookies, desc->ncookies);
+	err = vnet_rx_one(port, desc);
 	if (err == -ECONNRESET)
 		return err;
 	desc->hdr.state = VIO_DESC_DONE;
@@ -655,6 +748,8 @@ ldc_ctrl:
 
 		if (event == LDC_EVENT_RESET) {
 			port->rmtu = 0;
+			port->tso = true;
+			port->tsolen = 0;
 			vio_port_up(vio);
 		}
 		port->rx_event = 0;
@@ -915,11 +1010,54 @@ static void vnet_clean_timer_expire(unsigned long port0)
 		del_timer(&port->clean_timer);
 }
 
-static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, void **pstart,
-					     int *plen)
+static inline int vnet_skb_map(struct ldc_channel *lp, struct sk_buff *skb,
+			       struct ldc_trans_cookie *cookies, int ncookies,
+			       unsigned int map_perm)
+{
+	int i, nc, err, blen;
+
+	/* header */
+	blen = skb_headlen(skb);
+	if (blen < ETH_ZLEN)
+		blen = ETH_ZLEN;
+	blen += VNET_PACKET_SKIP;
+	blen += 8 - (blen & 7);
+
+	err = ldc_map_single(lp, skb->data-VNET_PACKET_SKIP, blen, cookies,
+			     ncookies, map_perm);
+	if (err < 0)
+		return err;
+	nc = err;
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+		u8 *vaddr;
+
+		if (nc < ncookies) {
+			vaddr = kmap_atomic(skb_frag_page(f));
+			blen = skb_frag_size(f);
+			blen += 8 - (blen & 7);
+			err = ldc_map_single(lp, vaddr + f->page_offset,
+					     blen, cookies + nc, ncookies - nc,
+					     map_perm);
+			kunmap_atomic(vaddr);
+		} else {
+			err = -EMSGSIZE;
+		}
+
+		if (err < 0) {
+			ldc_unmap(lp, cookies, nc);
+			return err;
+		}
+		nc += err;
+	}
+	return nc;
+}
+
+static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 {
 	struct sk_buff *nskb;
-	int len, pad;
+	int i, len, pad, docopy;
 
 	len = skb->len;
 	pad = 0;
@@ -929,25 +1067,77 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, void **pstart,
 	}
 	len += VNET_PACKET_SKIP;
 	pad += 8 - (len & 7);
-	len += 8 - (len & 7);
 
+	/* make sure we have enough cookies and alignment in every frag */
+	docopy = skb_shinfo(skb)->nr_frags >= ncookies;
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+
+		docopy |= f->page_offset & 7;
+	}
 	if (((unsigned long)skb->data & 7) != VNET_PACKET_SKIP ||
 	    skb_tailroom(skb) < pad ||
-	    skb_headroom(skb) < VNET_PACKET_SKIP) {
-		nskb = alloc_and_align_skb(skb->dev, skb->len);
+	    skb_headroom(skb) < VNET_PACKET_SKIP || docopy) {
+		int start = 0, offset;
+		__wsum csum;
+
+		len = skb->len > ETH_ZLEN ? skb->len : ETH_ZLEN;
+		nskb = alloc_and_align_skb(skb->dev, len);
+		if (nskb == NULL) {
+			dev_kfree_skb(skb);
+			return NULL;
+		}
 		skb_reserve(nskb, VNET_PACKET_SKIP);
-		if (skb_copy_bits(skb, 0, nskb->data, skb->len)) {
+
+		nskb->protocol = skb->protocol;
+		offset = skb_mac_header(skb) - skb->data;
+		skb_set_mac_header(nskb, offset);
+		offset = skb_network_header(skb) - skb->data;
+		skb_set_network_header(nskb, offset);
+		offset = skb_transport_header(skb) - skb->data;
+		skb_set_transport_header(nskb, offset);
+
+		offset = 0;
+		nskb->csum_offset = skb->csum_offset;
+		nskb->ip_summed = skb->ip_summed;
+
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			start = skb_checksum_start_offset(skb);
+		if (start) {
+			struct iphdr *iph = ip_hdr(nskb);
+			int offset = start + nskb->csum_offset;
+
+			if (skb_copy_bits(skb, 0, nskb->data, start)) {
+				dev_kfree_skb(nskb);
+				dev_kfree_skb(skb);
+				return NULL;
+			}
+			*(__sum16 *)(skb->data + offset) = 0;
+			csum = skb_copy_and_csum_bits(skb, start,
+						      nskb->data + start,
+						      skb->len - start, 0);
+			if (iph->protocol == IPPROTO_TCP ||
+			    iph->protocol == IPPROTO_UDP) {
+				csum = csum_tcpudp_magic(iph->saddr, iph->daddr,
+							 skb->len - start,
+							 iph->protocol, csum);
+			}
+			*(__sum16 *)(nskb->data + offset) = csum;
+
+			nskb->ip_summed = CHECKSUM_NONE;
+		} else if (skb_copy_bits(skb, 0, nskb->data, skb->len)) {
 			dev_kfree_skb(nskb);
 			dev_kfree_skb(skb);
 			return NULL;
 		}
 		(void)skb_put(nskb, skb->len);
+		if (skb_is_gso(skb)) {
+			skb_shinfo(nskb)->gso_size = skb_shinfo(skb)->gso_size;
+			skb_shinfo(nskb)->gso_type = skb_shinfo(skb)->gso_type;
+		}
 		dev_kfree_skb(skb);
 		skb = nskb;
 	}
-
-	*pstart = skb->data - VNET_PACKET_SKIP;
-	*plen = len;
 	return skb;
 }
 
@@ -963,6 +1153,111 @@ vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return port->q_index;
 }
 
+static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev);
+
+static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb)
+{
+	struct net_device *dev = port->vp->dev;
+	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
+	struct sk_buff *segs;
+	int maclen, datalen;
+	int status;
+	int gso_size, gso_type, gso_segs;
+	int hlen = skb_transport_header(skb) - skb_mac_header(skb);
+	int proto = IPPROTO_IP;
+
+	if (skb->protocol == htons(ETH_P_IP))
+		proto = ip_hdr(skb)->protocol;
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		proto = ipv6_hdr(skb)->nexthdr;
+
+	if (proto == IPPROTO_TCP)
+		hlen += tcp_hdr(skb)->doff * 4;
+	else if (proto == IPPROTO_UDP)
+		hlen += sizeof(struct udphdr);
+	else {
+		pr_err("vnet_handle_offloads GSO with unknown transport "
+		       "protocol %d tproto %d\n", skb->protocol, proto);
+		hlen = 128; /* XXX */
+	}
+	datalen = port->tsolen - hlen;
+
+	gso_size = skb_shinfo(skb)->gso_size;
+	gso_type = skb_shinfo(skb)->gso_type;
+	gso_segs = skb_shinfo(skb)->gso_segs;
+
+	if (port->tso && gso_size < datalen)
+		gso_segs = DIV_ROUND_UP(skb->len - hlen, datalen);
+
+	if (unlikely(vnet_tx_dring_avail(dr) < gso_segs)) {
+		struct netdev_queue *txq;
+
+		txq  = netdev_get_tx_queue(dev, port->q_index);
+		netif_tx_stop_queue(txq);
+		if (vnet_tx_dring_avail(dr) < skb_shinfo(skb)->gso_segs)
+			return NETDEV_TX_BUSY;
+		netif_tx_wake_queue(txq);
+	}
+
+	maclen = skb_network_header(skb) - skb_mac_header(skb);
+	skb_pull(skb, maclen);
+
+	if (port->tso && gso_size < datalen) {
+		/* segment to TSO size */
+		skb_shinfo(skb)->gso_size = datalen;
+		skb_shinfo(skb)->gso_segs = gso_segs;
+
+		segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO);
+
+		/* restore gso_size & gso_segs */
+		skb_shinfo(skb)->gso_size = gso_size;
+		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len - hlen,
+							 gso_size);
+	} else
+		segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO);
+	if (IS_ERR(segs)) {
+		dev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
+
+	skb_push(skb, maclen);
+	skb_reset_mac_header(skb);
+
+	status = 0;
+	while (segs) {
+		struct sk_buff *curr = segs;
+
+		segs = segs->next;
+		curr->next = NULL;
+		if (port->tso && curr->len > dev->mtu) {
+			skb_shinfo(curr)->gso_size = gso_size;
+			skb_shinfo(curr)->gso_type = gso_type;
+			skb_shinfo(curr)->gso_segs =
+				DIV_ROUND_UP(curr->len - hlen, gso_size);
+		} else
+			skb_shinfo(curr)->gso_size = 0;
+
+		skb_push(curr, maclen);
+		skb_reset_mac_header(curr);
+		memcpy(skb_mac_header(curr), skb_mac_header(skb),
+		       maclen);
+		curr->csum_start = skb_transport_header(curr) - curr->head;
+		if (ip_hdr(curr)->protocol == IPPROTO_TCP)
+			curr->csum_offset = offsetof(struct tcphdr, check);
+		else if (ip_hdr(curr)->protocol == IPPROTO_UDP)
+			curr->csum_offset = offsetof(struct udphdr, check);
+
+		if (!(status & NETDEV_TX_MASK))
+			status = vnet_start_xmit(curr, dev);
+		if (status & NETDEV_TX_MASK)
+			dev_kfree_skb_any(curr);
+	}
+
+	if (!(status & NETDEV_TX_MASK))
+		dev_kfree_skb_any(skb);
+	return status;
+}
+
 static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vnet *vp = netdev_priv(dev);
@@ -972,14 +1267,8 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int len;
 	struct sk_buff *freeskbs = NULL;
 	int i, err, txi;
-	void *start = NULL;
-	int nlen = 0;
 	unsigned pending = 0;
 	struct netdev_queue *txq;
-
-	skb = vnet_skb_shape(skb, &start, &nlen);
-	if (unlikely(!skb))
-		goto out_dropped;
 
 	rcu_read_lock();
 	port = __tx_port_find(vp, skb);
@@ -988,7 +1277,13 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out_dropped;
 	}
 
-	if (skb->len > port->rmtu) {
+	if (skb_is_gso(skb) && skb->len > port->tsolen) {
+		err = vnet_handle_offloads(port, skb);
+		rcu_read_unlock();
+		return err;
+	}
+
+	if (!skb_is_gso(skb) && skb->len > port->rmtu) {
 		unsigned long localmtu = port->rmtu - ETH_HLEN;
 
 		if (vio_version_after_eq(&port->vio, 1, 3))
@@ -1020,6 +1315,16 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out_dropped;
 	}
 
+	skb = vnet_skb_shape(skb, 2);
+
+	if (unlikely(!skb)) {
+		rcu_read_unlock();
+		goto out_dropped;
+	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		vnet_fullcsum(skb);
+
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	i = skb_get_queue_mapping(skb);
 	txq = netdev_get_tx_queue(dev, i);
@@ -1047,16 +1352,15 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (len < ETH_ZLEN)
 		len = ETH_ZLEN;
 
-	port->tx_bufs[txi].skb = skb;
-	skb = NULL;
-
-	err = ldc_map_single(port->vio.lp, start, nlen,
-			     port->tx_bufs[txi].cookies, VNET_MAXCOOKIES,
-			     (LDC_MAP_SHADOW | LDC_MAP_DIRECT | LDC_MAP_RW));
+	err = vnet_skb_map(port->vio.lp, skb, port->tx_bufs[txi].cookies, 2,
+			   (LDC_MAP_SHADOW | LDC_MAP_DIRECT | LDC_MAP_RW));
 	if (err < 0) {
 		netdev_info(dev, "tx buffer map error %d\n", err);
 		goto out_dropped;
 	}
+
+	port->tx_bufs[txi].skb = skb;
+	skb = NULL;
 	port->tx_bufs[txi].ncookies = err;
 
 	/* We don't rely on the ACKs to free the skb in vnet_start_xmit(),
@@ -1072,6 +1376,21 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	d->ncookies = port->tx_bufs[txi].ncookies;
 	for (i = 0; i < d->ncookies; i++)
 		d->cookies[i] = port->tx_bufs[txi].cookies[i];
+	if (vio_version_after_eq(&port->vio, 1, 7)) {
+		struct vio_net_dext *dext = vio_net_ext(d);
+
+		memset(dext, 0, sizeof(*dext));
+		if (skb_is_gso(port->tx_bufs[txi].skb)) {
+			dext->ipv4_lso_mss = skb_shinfo(port->tx_bufs[txi].skb)
+					     ->gso_size;
+			dext->flags |= VNET_PKT_IPV4_LSO;
+		}
+		if (vio_version_after_eq(&port->vio, 1, 8) &&
+		    !port->switch_port) {
+			dext->flags |= VNET_PKT_HCK_IPV4_HDRCKSUM_OK;
+			dext->flags |= VNET_PKT_HCK_FULLCKSUM_OK;
+		}
+	}
 
 	/* This has to be a non-SMP write barrier because we are writing
 	 * to memory which is shared with the peer LDOM.
@@ -1361,18 +1680,20 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 	}
 }
 
-static int vnet_port_alloc_tx_bufs(struct vnet_port *port)
+static int vnet_port_alloc_tx_ring(struct vnet_port *port)
 {
 	struct vio_dring_state *dr;
-	unsigned long len;
+	unsigned long len, elen;
 	int i, err, ncookies;
 	void *dring;
 
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 
-	len = (VNET_TX_RING_SIZE *
-	       (sizeof(struct vio_net_desc) +
-		(sizeof(struct ldc_trans_cookie) * 2)));
+	elen = sizeof(struct vio_net_desc) +
+	       sizeof(struct ldc_trans_cookie) * 2;
+	if (vio_version_after_eq(&port->vio, 1, 7))
+		elen += sizeof(struct vio_net_dext);
+	len = VNET_TX_RING_SIZE * elen;
 
 	ncookies = VIO_MAX_RING_COOKIES;
 	dring = ldc_alloc_exp_dring(port->vio.lp, len,
@@ -1386,8 +1707,7 @@ static int vnet_port_alloc_tx_bufs(struct vnet_port *port)
 	}
 
 	dr->base = dring;
-	dr->entry_size = (sizeof(struct vio_net_desc) +
-			  (sizeof(struct ldc_trans_cookie) * 2));
+	dr->entry_size = elen;
 	dr->num_entries = VNET_TX_RING_SIZE;
 	dr->prod = dr->cons = 0;
 	port->start_cons  = true; /* need an initial trigger */
@@ -1470,6 +1790,10 @@ static struct vnet *vnet_new(const u64 *local_mac)
 	dev->netdev_ops = &vnet_ops;
 	dev->ethtool_ops = &vnet_ethtool_ops;
 	dev->watchdog_timeo = VNET_TX_TIMEOUT;
+
+	dev->hw_features = NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE |
+			   NETIF_F_HW_CSUM | NETIF_F_SG;
+	dev->features = dev->hw_features;
 
 	err = register_netdev(dev);
 	if (err) {
@@ -1640,10 +1964,6 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	netif_napi_add(port->vp->dev, &port->napi, vnet_poll, NAPI_POLL_WEIGHT);
 
-	err = vnet_port_alloc_tx_bufs(port);
-	if (err)
-		goto err_out_free_ldc;
-
 	INIT_HLIST_NODE(&port->hash);
 	INIT_LIST_HEAD(&port->list);
 
@@ -1651,6 +1971,8 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (mdesc_get_property(hp, vdev->mp, "switch-port", NULL) != NULL)
 		switch_port = 1;
 	port->switch_port = switch_port;
+	port->tso = true;
+	port->tsolen = 0;
 
 	spin_lock_irqsave(&vp->lock, flags);
 	if (switch_port)
@@ -1676,10 +1998,6 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	mdesc_release(hp);
 
 	return 0;
-
-err_out_free_ldc:
-	netif_napi_del(&port->napi);
-	vio_ldc_free(&port->vio);
 
 err_out_free_port:
 	kfree(port);
