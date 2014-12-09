@@ -14,6 +14,8 @@
 enum {
 	AXP202_ID = 0,
 	AXP209_ID,
+	AXP288_ID,
+	NR_AXP20X_VARIANTS,
 };
 
 #define AXP20X_DATACACHE(m)		(0x04 + (m))
@@ -49,11 +51,13 @@ enum {
 #define AXP20X_IRQ3_EN			0x42
 #define AXP20X_IRQ4_EN			0x43
 #define AXP20X_IRQ5_EN			0x44
+#define AXP20X_IRQ6_EN			0x45
 #define AXP20X_IRQ1_STATE		0x48
 #define AXP20X_IRQ2_STATE		0x49
 #define AXP20X_IRQ3_STATE		0x4a
 #define AXP20X_IRQ4_STATE		0x4b
 #define AXP20X_IRQ5_STATE		0x4c
+#define AXP20X_IRQ6_STATE		0x4d
 
 /* ADC */
 #define AXP20X_ACIN_V_ADC_H		0x56
@@ -116,6 +120,15 @@ enum {
 #define AXP20X_CC_CTRL			0xb8
 #define AXP20X_FG_RES			0xb9
 
+/* AXP288 specific registers */
+#define AXP288_PMIC_ADC_H               0x56
+#define AXP288_PMIC_ADC_L               0x57
+#define AXP288_ADC_TS_PIN_CTRL          0x84
+
+#define AXP288_PMIC_ADC_EN              0x84
+#define AXP288_FG_TUNE5			0xed
+
+
 /* Regulators IDs */
 enum {
 	AXP20X_LDO1 = 0,
@@ -169,12 +182,58 @@ enum {
 	AXP20X_IRQ_GPIO0_INPUT,
 };
 
+enum axp288_irqs {
+	AXP288_IRQ_VBUS_FALL     = 2,
+	AXP288_IRQ_VBUS_RISE,
+	AXP288_IRQ_OV,
+	AXP288_IRQ_FALLING_ALT,
+	AXP288_IRQ_RISING_ALT,
+	AXP288_IRQ_OV_ALT,
+	AXP288_IRQ_DONE          = 10,
+	AXP288_IRQ_CHARGING,
+	AXP288_IRQ_SAFE_QUIT,
+	AXP288_IRQ_SAFE_ENTER,
+	AXP288_IRQ_ABSENT,
+	AXP288_IRQ_APPEND,
+	AXP288_IRQ_QWBTU,
+	AXP288_IRQ_WBTU,
+	AXP288_IRQ_QWBTO,
+	AXP288_IRQ_WBTO,
+	AXP288_IRQ_QCBTU,
+	AXP288_IRQ_CBTU,
+	AXP288_IRQ_QCBTO,
+	AXP288_IRQ_CBTO,
+	AXP288_IRQ_WL2,
+	AXP288_IRQ_WL1,
+	AXP288_IRQ_GPADC,
+	AXP288_IRQ_OT            = 31,
+	AXP288_IRQ_GPIO0,
+	AXP288_IRQ_GPIO1,
+	AXP288_IRQ_POKO,
+	AXP288_IRQ_POKL,
+	AXP288_IRQ_POKS,
+	AXP288_IRQ_POKN,
+	AXP288_IRQ_POKP,
+	AXP288_IRQ_TIMER,
+	AXP288_IRQ_MV_CHNG,
+	AXP288_IRQ_BC_USB_CHNG,
+};
+
+#define AXP288_TS_ADC_H		0x58
+#define AXP288_TS_ADC_L		0x59
+#define AXP288_GP_ADC_H		0x5a
+#define AXP288_GP_ADC_L		0x5b
+
 struct axp20x_dev {
 	struct device			*dev;
 	struct i2c_client		*i2c_client;
 	struct regmap			*regmap;
 	struct regmap_irq_chip_data	*regmap_irqc;
 	long				variant;
+	int                             nr_cells;
+	struct mfd_cell                 *cells;
+	const struct regmap_config	*regmap_cfg;
+	const struct regmap_irq_chip	*regmap_irq_chip;
 };
 
 #endif /* __LINUX_MFD_AXP20X_H */

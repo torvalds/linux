@@ -647,8 +647,8 @@ static int rtsx_usb_probe(struct usb_interface *intf,
 	/* initialize USB SG transfer timer */
 	setup_timer(&ucr->sg_timer, rtsx_usb_sg_timed_out, (unsigned long) ucr);
 
-	ret = mfd_add_devices(&intf->dev, usb_dev->devnum, rtsx_usb_cells,
-			ARRAY_SIZE(rtsx_usb_cells), NULL, 0, NULL);
+	ret = mfd_add_hotplug_devices(&intf->dev, rtsx_usb_cells,
+				      ARRAY_SIZE(rtsx_usb_cells));
 	if (ret)
 		goto out_init_fail;
 

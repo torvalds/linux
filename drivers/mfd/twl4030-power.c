@@ -831,6 +831,9 @@ static struct twl4030_power_data osc_off_idle = {
 
 static struct of_device_id twl4030_power_of_match[] = {
 	{
+		.compatible = "ti,twl4030-power",
+	},
+	{
 		.compatible = "ti,twl4030-power-reset",
 		.data = &omap3_reset,
 	},
