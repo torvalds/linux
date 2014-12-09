@@ -11,8 +11,9 @@
 
 #include "image.h"
 
-#define ARM_EXIT_KEEP(x)
-#define ARM_EXIT_DISCARD(x)	x
+/* .exit.text needed in case of alternative patching */
+#define ARM_EXIT_KEEP(x)	x
+#define ARM_EXIT_DISCARD(x)
 
 OUTPUT_ARCH(aarch64)
 ENTRY(_text)
@@ -31,6 +32,22 @@ jiffies = jiffies_64;
 	VMLINUX_SYMBOL(__hyp_text_start) = .;		\
 	*(.hyp.text)					\
 	VMLINUX_SYMBOL(__hyp_text_end) = .;
+
+/*
+ * The size of the PE/COFF section that covers the kernel image, which
+ * runs from stext to _edata, must be a round multiple of the PE/COFF
+ * FileAlignment, which we set to its minimum value of 0x200. 'stext'
+ * itself is 4 KB aligned, so padding out _edata to a 0x200 aligned
+ * boundary should be sufficient.
+ */
+PECOFF_FILE_ALIGNMENT = 0x200;
+
+#ifdef CONFIG_EFI
+#define PECOFF_EDATA_PADDING	\
+	.pecoff_edata_padding : { BYTE(0); . = ALIGN(PECOFF_FILE_ALIGNMENT); }
+#else
+#define PECOFF_EDATA_PADDING
+#endif
 
 SECTIONS
 {
@@ -100,9 +117,21 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 
+	. = ALIGN(4);
+	.altinstructions : {
+		__alt_instructions = .;
+		*(.altinstructions)
+		__alt_instructions_end = .;
+	}
+	.altinstr_replacement : {
+		*(.altinstr_replacement)
+	}
+
+	. = ALIGN(PAGE_SIZE);
 	_data = .;
 	_sdata = .;
 	RW_DATA_SECTION(64, PAGE_SIZE, THREAD_SIZE)
+	PECOFF_EDATA_PADDING
 	_edata = .;
 
 	BSS_SECTION(0, 0, 0)

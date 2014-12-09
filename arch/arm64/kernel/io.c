@@ -25,12 +25,26 @@
  */
 void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 {
-	unsigned char *t = to;
-	while (count) {
-		count--;
-		*t = readb(from);
-		t++;
+	while (count && (!IS_ALIGNED((unsigned long)from, 8) ||
+			 !IS_ALIGNED((unsigned long)to, 8))) {
+		*(u8 *)to = __raw_readb(from);
 		from++;
+		to++;
+		count--;
+	}
+
+	while (count >= 8) {
+		*(u64 *)to = __raw_readq(from);
+		from += 8;
+		to += 8;
+		count -= 8;
+	}
+
+	while (count) {
+		*(u8 *)to = __raw_readb(from);
+		from++;
+		to++;
+		count--;
 	}
 }
 EXPORT_SYMBOL(__memcpy_fromio);
@@ -40,12 +54,26 @@ EXPORT_SYMBOL(__memcpy_fromio);
  */
 void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 {
-	const unsigned char *f = from;
-	while (count) {
-		count--;
-		writeb(*f, to);
-		f++;
+	while (count && (!IS_ALIGNED((unsigned long)to, 8) ||
+			 !IS_ALIGNED((unsigned long)from, 8))) {
+		__raw_writeb(*(volatile u8 *)from, to);
+		from++;
 		to++;
+		count--;
+	}
+
+	while (count >= 8) {
+		__raw_writeq(*(volatile u64 *)from, to);
+		from += 8;
+		to += 8;
+		count -= 8;
+	}
+
+	while (count) {
+		__raw_writeb(*(volatile u8 *)from, to);
+		from++;
+		to++;
+		count--;
 	}
 }
 EXPORT_SYMBOL(__memcpy_toio);
@@ -55,10 +83,28 @@ EXPORT_SYMBOL(__memcpy_toio);
  */
 void __memset_io(volatile void __iomem *dst, int c, size_t count)
 {
-	while (count) {
-		count--;
-		writeb(c, dst);
+	u64 qc = (u8)c;
+
+	qc |= qc << 8;
+	qc |= qc << 16;
+	qc |= qc << 32;
+
+	while (count && !IS_ALIGNED((unsigned long)dst, 8)) {
+		__raw_writeb(c, dst);
 		dst++;
+		count--;
+	}
+
+	while (count >= 8) {
+		__raw_writeq(qc, dst);
+		dst += 8;
+		count -= 8;
+	}
+
+	while (count) {
+		__raw_writeb(c, dst);
+		dst++;
+		count--;
 	}
 }
 EXPORT_SYMBOL(__memset_io);

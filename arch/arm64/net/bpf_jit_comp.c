@@ -60,7 +60,7 @@ struct jit_ctx {
 	const struct bpf_prog *prog;
 	int idx;
 	int tmp_used;
-	int body_offset;
+	int epilogue_offset;
 	int *offset;
 	u32 *image;
 };
@@ -130,8 +130,8 @@ static void jit_fill_hole(void *area, unsigned int size)
 
 static inline int epilogue_offset(const struct jit_ctx *ctx)
 {
-	int to = ctx->offset[ctx->prog->len - 1];
-	int from = ctx->idx - ctx->body_offset;
+	int to = ctx->epilogue_offset;
+	int from = ctx->idx;
 
 	return to - from;
 }
@@ -463,6 +463,8 @@ emit_cond_jmp:
 	}
 	/* function return */
 	case BPF_JMP | BPF_EXIT:
+		/* Optimization: when last instruction is EXIT,
+		   simply fallthrough to epilogue. */
 		if (i == ctx->prog->len - 1)
 			break;
 		jmp_offset = epilogue_offset(ctx);
@@ -685,11 +687,13 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 
 	/* 1. Initial fake pass to compute ctx->idx. */
 
-	/* Fake pass to fill in ctx->offset. */
+	/* Fake pass to fill in ctx->offset and ctx->tmp_used. */
 	if (build_body(&ctx))
 		goto out;
 
 	build_prologue(&ctx);
+
+	ctx.epilogue_offset = ctx.idx;
 	build_epilogue(&ctx);
 
 	/* Now we know the actual image size. */
@@ -706,7 +710,6 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 
 	build_prologue(&ctx);
 
-	ctx.body_offset = ctx.idx;
 	if (build_body(&ctx)) {
 		bpf_jit_binary_free(header);
 		goto out;

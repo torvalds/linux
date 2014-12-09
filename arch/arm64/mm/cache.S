@@ -17,9 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
+#include <asm/cpufeature.h>
+#include <asm/alternative-asm.h>
 
 #include "proc-macros.S"
 
@@ -138,9 +141,12 @@ USER(9f, ic	ivau, x4	)		// invalidate I line PoU
 	add	x4, x4, x2
 	cmp	x4, x1
 	b.lo	1b
-9:						// ignore any faulting cache operation
 	dsb	ish
 	isb
+	mov	x0, #0
+	ret
+9:
+	mov	x0, #-EFAULT
 	ret
 ENDPROC(flush_icache_range)
 ENDPROC(__flush_cache_user_range)
@@ -210,7 +216,7 @@ __dma_clean_range:
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x0, x0, x3
-1:	dc	cvac, x0			// clean D / U line
+1:	alternative_insn "dc cvac, x0", "dc civac, x0", ARM64_WORKAROUND_CLEAN_CACHE
 	add	x0, x0, x2
 	cmp	x0, x1
 	b.lo	1b
