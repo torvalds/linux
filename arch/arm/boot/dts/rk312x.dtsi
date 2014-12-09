@@ -967,7 +967,7 @@
 		clocks = <&clk_gates5 14>;
 		clock-names = "g_pclk_acodec";
 	};
-	rockchip-audio {
+	rockchip_audio: audio-rk312x {
 		compatible = "audio-rk312x";
 		dais {
 			dai0 {

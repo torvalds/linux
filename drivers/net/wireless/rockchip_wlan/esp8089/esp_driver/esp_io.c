@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2009 - 2014 Espressif System.
+ *   IO interface 
+ *    - sdio/spi common i/f driver
+ *    - target sdio hal
+ */
+
 #include <linux/mmc/sdio_func.h>
 #include "esp_sif.h"
 #include "slc_host_register.h"
@@ -14,16 +21,14 @@ int esp_common_read(struct esp_pub *epub, u8 *buf, u32 len, int sync, bool norou
 		return sif_lldesc_read_sync(epub, buf, len);
 #endif
 #ifdef ESP_USE_SPI
-		//return sif_spi_read_sync(epub, buf, len, NOT_CHECK_IDLE);
-		return sif_spi_read_sync(epub, buf, len, NOT_DUMMYMODE,0);
+		return sif_spi_read_sync(epub, buf, len, NOT_DUMMYMODE);
 #endif
 	} else {
 #ifdef ESP_USE_SDIO
 		return sif_lldesc_read_raw(epub, buf, len, noround);
 #endif
 #ifdef ESP_USE_SPI
-		//return sif_spi_read_nosync(epub, buf, len, NOT_CHECK_IDLE, noround);
-		return sif_spi_read_nosync(epub, buf, len, NOT_DUMMYMODE, noround,0);
+		return sif_spi_read_nosync(epub, buf, len, NOT_DUMMYMODE, noround);
 #endif
 	}
 }
@@ -36,16 +41,14 @@ int esp_common_write(struct esp_pub *epub, u8 *buf, u32 len, int sync)
 		return sif_lldesc_write_sync(epub, buf, len);
 #endif
 #ifdef ESP_USE_SPI
-		//return sif_spi_write_sync(epub, buf, len, NOT_CHECK_IDLE);
-		return sif_spi_write_sync(epub, buf, len, NOT_DUMMYMODE,0);
+		return sif_spi_write_sync(epub, buf, len, NOT_DUMMYMODE);
 #endif
 	} else {
 #ifdef ESP_USE_SDIO
 		return sif_lldesc_write_raw(epub, buf, len);
 #endif
 #ifdef ESP_USE_SPI
-		//return sif_spi_write_nosync(epub, buf, len, NOT_CHECK_IDLE);
-		return sif_spi_write_nosync(epub, buf, len, NOT_DUMMYMODE,0);
+		return sif_spi_write_nosync(epub, buf, len, NOT_DUMMYMODE);
 #endif
 	}
 }
@@ -58,14 +61,14 @@ int esp_common_read_with_addr(struct esp_pub *epub, u32 addr, u8 *buf, u32 len, 
 		return sif_io_sync(epub, addr, buf, len, SIF_FROM_DEVICE | SIF_SYNC | SIF_BYTE_BASIS | SIF_INC_ADDR);
 #endif
 #ifdef ESP_USE_SPI
-		return sif_spi_epub_read_mix_sync(epub, addr, buf, len, NOT_DUMMYMODE,0);
+		return sif_spi_epub_read_mix_sync(epub, addr, buf, len, NOT_DUMMYMODE);
 #endif
 	} else {
 #ifdef ESP_USE_SDIO
 		return sif_io_raw(epub, addr, buf, len, SIF_FROM_DEVICE | SIF_BYTE_BASIS | SIF_INC_ADDR);
 #endif
 #ifdef ESP_USE_SPI
-		return sif_spi_epub_read_mix_nosync(epub, addr, buf, len, NOT_DUMMYMODE,0);
+		return sif_spi_epub_read_mix_nosync(epub, addr, buf, len, NOT_DUMMYMODE);
 #endif
 	}
 
@@ -79,14 +82,14 @@ int esp_common_write_with_addr(struct esp_pub *epub, u32 addr, u8 *buf, u32 len,
 		return sif_io_sync(epub, addr, buf, len, SIF_TO_DEVICE | SIF_SYNC | SIF_BYTE_BASIS | SIF_INC_ADDR);
 #endif
 #ifdef ESP_USE_SPI
-		return sif_spi_epub_write_mix_sync(epub, addr, buf, len, NOT_DUMMYMODE,0);
+		return sif_spi_epub_write_mix_sync(epub, addr, buf, len, NOT_DUMMYMODE);
 #endif
 	} else {
 #ifdef ESP_USE_SDIO
 		return sif_io_raw(epub, addr, buf, len, SIF_TO_DEVICE | SIF_BYTE_BASIS | SIF_INC_ADDR);
 #endif
 #ifdef ESP_USE_SPI
-		return sif_spi_epub_write_mix_nosync(epub, addr, buf, len, NOT_DUMMYMODE,0);
+		return sif_spi_epub_write_mix_nosync(epub, addr, buf, len, NOT_DUMMYMODE);
 #endif
 	}
 }
@@ -95,23 +98,23 @@ int esp_common_readbyte_with_addr(struct esp_pub *epub, u32 addr, u8 *buf, int s
 {
 	if(sync){
 #ifdef ESP_USE_SDIO
-	int res;
-	sif_lock_bus(epub);
-	*buf = sdio_io_readb(epub, addr, &res);
-	sif_unlock_bus(epub);
-	return res;
+		int res;
+		sif_lock_bus(epub);
+		*buf = sdio_io_readb(epub, addr, &res);
+		sif_unlock_bus(epub);
+		return res;
 #endif
 #ifdef ESP_USE_SPI
-	return sif_spi_epub_read_mix_sync(epub, addr, buf, 1, NOT_DUMMYMODE,0);
+		return sif_spi_epub_read_mix_sync(epub, addr, buf, 1, NOT_DUMMYMODE);
 #endif
 	} else {
 #ifdef ESP_USE_SDIO
-	int res;
-	*buf = sdio_io_readb(epub, addr, &res);
-	return res;
+		int res;
+		*buf = sdio_io_readb(epub, addr, &res);
+		return res;
 #endif
 #ifdef ESP_USE_SPI
-	return sif_spi_epub_read_mix_nosync(epub, addr, buf, 1, NOT_DUMMYMODE,0);
+		return sif_spi_epub_read_mix_nosync(epub, addr, buf, 1, NOT_DUMMYMODE);
 #endif
 	}
 
@@ -130,7 +133,7 @@ int esp_common_writebyte_with_addr(struct esp_pub *epub, u32 addr, u8 buf, int s
 		return res;
 #endif
 #ifdef ESP_USE_SPI
-		return sif_spi_epub_write_mix_sync(epub, addr, &buf, 1, NOT_DUMMYMODE,0 );
+		return sif_spi_epub_write_mix_sync(epub, addr, &buf, 1, NOT_DUMMYMODE);
 #endif
 	} else {
 #ifdef ESP_USE_SDIO
@@ -139,9 +142,107 @@ int esp_common_writebyte_with_addr(struct esp_pub *epub, u32 addr, u8 buf, int s
 		return res;
 #endif
 #ifdef ESP_USE_SPI
-		return sif_spi_epub_write_mix_nosync(epub, addr, &buf, 1, NOT_DUMMYMODE,0);
+		return sif_spi_epub_write_mix_nosync(epub, addr, &buf, 1, NOT_DUMMYMODE);
 #endif
 	}
+}
+
+int sif_read_reg_window(struct esp_pub *epub, unsigned int reg_addr, u8 *value)
+{
+        u8 *p_tbuf = NULL;
+	int ret = 0;
+	int retry = 20;
+
+	reg_addr >>= 2;
+	if(reg_addr > 0x1f)
+		return -1;
+        
+	p_tbuf = kzalloc(4, GFP_KERNEL);
+	if(p_tbuf == NULL)
+                return -ENOMEM;
+
+	p_tbuf[0] = 0x80 | (reg_addr & 0x1f);
+
+	ret = esp_common_write_with_addr(epub, SLC_HOST_WIN_CMD, p_tbuf, 1, ESP_SIF_NOSYNC);
+
+	if(ret == 0)
+	{
+		do{
+			if(retry < 20)
+				mdelay(10);
+			retry --;
+			ret = esp_common_read_with_addr(epub, SLC_HOST_STATE_W0, p_tbuf, 4, ESP_SIF_NOSYNC);
+		}while(retry >0 && ret != 0);
+	}
+
+	if(ret ==0)
+		memcpy(value,p_tbuf,4);
+
+	kfree(p_tbuf);
+	return ret;
+}
+
+int sif_write_reg_window(struct esp_pub *epub, unsigned int reg_addr,u8 *value)
+{
+        u8 *p_tbuf = NULL;
+	int ret = 0;
+
+	reg_addr >>= 2;
+	if(reg_addr > 0x1f)
+		return -1;
+	
+	p_tbuf = kzalloc(8, GFP_KERNEL);
+	if(p_tbuf == NULL)
+                return -ENOMEM;
+    	memcpy(p_tbuf,value,4);
+    	p_tbuf[4] = 0xc0 |(reg_addr & 0x1f);
+
+    	ret = esp_common_write_with_addr(epub, SLC_HOST_CONF_W5, p_tbuf, 5, ESP_SIF_NOSYNC);
+
+	kfree(p_tbuf);
+    	return ret;
+}
+
+int sif_ack_target_read_err(struct esp_pub *epub)
+{
+	u32 value[1];
+	int ret;
+
+	ret = sif_read_reg_window(epub, SLC_RX_LINK, (u8 *)value);
+	if(ret)
+		return ret;
+	value[0] |= SLC_RXLINK_START;
+	ret = sif_write_reg_window(epub, SLC_RX_LINK, (u8 *)value);
+	return ret;
+}
+
+int sif_had_io_enable(struct esp_pub *epub)
+{
+        u32 *p_tbuf = NULL;
+	int ret;
+	
+	p_tbuf = kzalloc(sizeof(u32), GFP_KERNEL);
+	if(p_tbuf == NULL)
+                return -ENOMEM;
+
+	*p_tbuf = SLC_TXEOF_ENA | (0x4 << SLC_FIFO_MAP_ENA_S) | SLC_TX_DUMMY_MODE | SLC_HDA_MAP_128K | (0xFE << SLC_TX_PUSH_IDLE_NUM_S);
+	ret = sif_write_reg_window(epub, SLC_BRIDGE_CONF, (u8 *)p_tbuf);
+
+	if(ret)
+		goto _err;
+	
+	*p_tbuf = 0x30;
+	ret = esp_common_write_with_addr((epub), SLC_HOST_CONF_W4 + 1, (u8 *)p_tbuf, 1,  ESP_SIF_NOSYNC);
+
+	if(ret)
+		goto _err;
+	//set w3 0
+	*p_tbuf = 0x1;
+	ret = esp_common_write_with_addr((epub), SLC_HOST_CONF_W3, (u8 *)p_tbuf, 1,  ESP_SIF_NOSYNC);
+
+_err:
+	kfree(p_tbuf);
+	return ret;
 }
 
 typedef enum _SDIO_INTR_MODE {
@@ -278,135 +379,6 @@ int sif_get_gpio_input(struct esp_pub *epub, u16 *mask, u16 *value)
 }
 #endif
 
-void sif_raw_dummy_read(struct esp_pub *epub ,int ext_gpio)
-{
-#if 0 
-	int retry = 0;
-        u32 *p_tbuf = NULL;
-	static u32 read_err_cnt = 0;
-	static u32 write_err_cnt = 0;
-	static u32 unknow_err_cnt = 0;
-	static u32 check_cnt = 0;
-	int ext_cnt = 0;  
-	int dummy_time = 0;
-#ifdef ESP_USE_SPI    
-    int read_err = 0;
-    int write_err = 0;
-    int sleep_time = 0;
-#endif
- 
-    return ;
-	if (atomic_read(&epub->ps.state) == ESP_PM_ON ||ext_gpio == 1 ) {
-
-
-//	if (atomic_read(&epub->ps.state) == ESP_PM_ON ) {
-    atomic_set(&epub->ps.state, ESP_PM_OFF);
-        } else {
-		return ;
-	}
-
-	p_tbuf = kzalloc(sizeof(u32), GFP_KERNEL);
-	ESSERT(p_tbuf != NULL);
-	//*p_tbuf = 0;
-		
-    //	*p_tbuf = 0x010001ff;
-
-    *p_tbuf = 0x01;
-
-
-#ifdef ESP_USE_SPI
-    write_err = sif_spi_epub_write_mix_nosync(epub, SLC_HOST_CONF_W4+3, (u8 *)p_tbuf, 1, DUMMYMODE,0);
-    if(write_err == -4)
-    {
-        sleep_time ++;
-    }
-#else
-    esp_common_write_with_addr(epub, SLC_HOST_CONF_W4+3, (u8 *)p_tbuf, 1, ESP_SIF_NOSYNC);
-#endif
-        do {
-        dummy_time++;
-		*p_tbuf = 0xffffffff;
-		udelay(20);
-#ifdef ESP_USE_SPI
-        read_err = sif_spi_epub_read_mix_nosync(epub, SLC_HOST_CONF_W4, (u8 *)p_tbuf, sizeof(u32), DUMMYMODE,0);
-        if(read_err == -4 || read_err == -5)
-        {
-            sleep_time ++;
-        }
-#else
-		esp_common_read_with_addr(epub, SLC_HOST_CONF_W4, (u8 *)p_tbuf, sizeof(u32), ESP_SIF_NOSYNC);
-#endif
-        if(dummy_time > 10)
-            esp_dbg(ESP_DBG_ERROR, "w4 = %x,dummy time = %d\n",p_tbuf[0],dummy_time);
-
-		if(*p_tbuf == 0x020001ff){
-#ifdef ESP_USE_SPI
-#if 0
-			if(--ext_cnt >= 0){
-				mdelay(2);
-				esp_common_write_with_addr(epub, SLC_HOST_CONF_W4, (u8 *)p_tbuf, sizeof(u32), ESP_SIF_NOSYNC);
-				retry = -1;
-				continue;
-			}
-#endif
-#endif
-			break;
-		}
-		
-		if(*p_tbuf == 0x010001ff){
-			if(retry < 5)
-				continue;
-		}else if(*p_tbuf == 0x000001ff){
-			write_err_cnt++;
-			ext_cnt = 5;
-		}else if(*p_tbuf == 0xffffffff){
-			read_err_cnt++;
-		//	write_err_cnt++;
-			ext_cnt = 5;
-		}else {
-			unknow_err_cnt++;
-			ext_cnt = 5;
-		}
-
-	//	*p_tbuf = 0x010001ff;
-     	*p_tbuf = 0x01;
-		udelay(20);
-#ifdef ESP_USE_SPI
-        write_err = sif_spi_epub_write_mix_nosync(epub, SLC_HOST_CONF_W4+3, (u8 *)p_tbuf, 1, DUMMYMODE,0);
-        if(write_err == -4)
-        {
-            sleep_time ++;
-        }
-#else
-        esp_common_write_with_addr(epub, SLC_HOST_CONF_W4+3, (u8 *)p_tbuf, 1, ESP_SIF_NOSYNC);
-#endif
-        } while (retry++ < 1000);
-	
-	kfree(p_tbuf);
-
-	if(read_err_cnt || write_err_cnt || unknow_err_cnt){
-		if((check_cnt & 0xf) == 0)
-			//esp_dbg(ESP_DBG_ERROR, "==============sdio err===============\n,read:%u, write:%u, unknow:%u\n", read_err_cnt,write_err_cnt,unknow_err_cnt);
-			esp_dbg(ESP_DBG_ERROR, "r%u,w%u,u%u\n", read_err_cnt,write_err_cnt,unknow_err_cnt);
-		check_cnt++;
-	}
-#ifdef ESP_USE_SPI
-    if(sleep_time >2)
-    {
-        esp_dbg(ESP_DBG_ERROR, "spierr sleep_time = %d,read_err = %d,write_err = %d\n", sleep_time,read_err,write_err);
-    }
-#endif
-
-   //     if (retry > 1) {
- //               esp_dbg(ESP_DBG_ERROR, "=========%s tried %d times===========\n", __func__, retry - 1);
-                //if (retry>=100)
-                //        ESSERT(0);
-     //   }
-#else
-	return;
-#endif /* disable dummy read func */
-}
-
 void check_target_id(struct esp_pub *epub)
 {
 	u32 date;
@@ -491,11 +463,6 @@ _err:
 	return 0x600;
 }
 
-
-#ifdef SIF_CHECK_FIRST_INTR
-static bool first_intr_checked = false;
-#endif //SIF_CHECK_FIRST_INTR
-
 #ifdef ESP_USE_SDIO
 void sif_dsr(struct sdio_func *func)
 {
@@ -504,13 +471,11 @@ void sif_dsr(struct sdio_func *func)
 void sif_dsr(struct spi_device *spi)
 {
         struct esp_spi_ctrl *sctrl = spi_get_drvdata(spi);
-        char buf[4];
+        u32 buf[1];
 #endif
-#ifdef SIF_DSR_WAR
         static int dsr_cnt = 0, real_intr_cnt = 0, bogus_intr_cnt = 0;
         struct slc_host_regs *regs = &(sctrl->slc_regs);
        esp_dbg(ESP_DBG_TRACE, " %s enter %d \n", __func__, dsr_cnt++);
-#endif /* SIF_DSR_WAR */
 
 #ifdef ESP_USE_SPI
 
@@ -522,10 +487,10 @@ void sif_dsr(struct spi_device *spi)
 
        if(sctrl->epub->enable_int  == 1)
        {
-           sif_spi_epub_read_mix_sync(sctrl->epub, 0x3, buf, 512, NOT_DUMMYMODE,1);
-           buf[0]=buf[0]|(1<<2);
-           buf[2]=buf[2]& 0xfd;
-           sif_spi_epub_write_mix_sync(sctrl->epub, 0x3, buf, 512, NOT_DUMMYMODE,1);
+           sif_read_reg_window(sctrl->epub, SLC_INT_ENA, (u8 *)buf);
+           buf[0] &= ~(SLC_RX_EOF_INT_ENA);
+           buf[0] |= SLC_FRHOST_BIT2_INT_ENA;
+           sif_write_reg_window(sctrl->epub, SLC_INT_ENA, (u8 *)buf);
 
            sctrl->epub->enable_int = 0;
         }
@@ -540,23 +505,14 @@ void sif_dsr(struct spi_device *spi)
         sif_lock_bus(sctrl->epub);
 
 
-#ifdef SIF_DSR_WAR
         do {
                 int ret =0;
-#ifdef SIF_CHECK_FIRST_INTR 
-                if (likely(first_intr_checked)) {
-                        esp_dsr(sctrl->epub);
-                        break;
-                } 
-#endif //SIF_CHECK_FIRST_INTR
-          
-                memset(regs, 0x0, sizeof(struct slc_host_regs));
-              
-             ret = esp_common_read_with_addr(sctrl->epub, REG_SLC_HOST_BASE + 8, (u8 *)regs, sizeof(struct slc_host_regs), ESP_SIF_NOSYNC);
-                if ( (regs->intr_status & SLC_HOST_RX_ST) && (regs->intr_raw & SLC_HOST_RX_ST) && (ret == 0) ) {
-#ifdef SIF_CHECK_FIRST_INTR 
-                	first_intr_checked = true;
-#endif //SIF_CHECK_FIRST_INTR
+
+		memset(regs, 0x0, sizeof(struct slc_host_regs));
+
+		ret = esp_common_read_with_addr(sctrl->epub, REG_SLC_HOST_BASE + 8, (u8 *)regs, sizeof(struct slc_host_regs), ESP_SIF_NOSYNC);
+
+                if ( (regs->intr_raw & SLC_HOST_RX_ST) && (ret == 0) ) {
                         esp_dbg(ESP_DBG_TRACE, "%s eal intr cnt: %d", __func__, ++real_intr_cnt);
         	
 			esp_dsr(sctrl->epub);
@@ -575,10 +531,6 @@ void sif_dsr(struct spi_device *spi)
 #endif /* SIF_DEBUG_DUMP_DSR */
 
         } while (0);
-
-#else
-       	esp_dsr(sctrl->epub);
-#endif /* SIF_DSR_WAR */
 
 #ifdef ESP_USE_SDIO
         sdio_claim_host(func);
@@ -604,7 +556,6 @@ void sif_disable_target_interrupt(struct esp_pub *epub)
 #ifdef HOST_RESET_BUG
 	mdelay(10);
 #endif
-	sif_raw_dummy_read(epub,0);
 	memset(EPUB_TO_CTRL(epub)->dma_buffer, 0x00, sizeof(u32));
 	esp_common_write_with_addr(epub, SLC_HOST_INT_ENA, EPUB_TO_CTRL(epub)->dma_buffer, sizeof(u32), ESP_SIF_NOSYNC);
 #ifdef HOST_RESET_BUG
@@ -616,7 +567,6 @@ void sif_disable_target_interrupt(struct esp_pub *epub)
 	mdelay(1);	
 
 	sif_lock_bus(epub);
-	sif_raw_dummy_read(epub,0);
 	sif_interrupt_target(epub, 7);
 	sif_unlock_bus(epub);
 _exit:

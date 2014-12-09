@@ -166,7 +166,8 @@ static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
 	set_fs(KERNEL_DS);
 
 	if (is_bmp)
-		datatobmp(vaddr, width, height, data_format, filp, fill_buffer);
+		bmpencoder(vaddr, width, height,
+			   data_format, filp, fill_buffer);
 	else
 		fill_buffer(filp, vaddr, width * height * 4);
 
@@ -233,7 +234,8 @@ static ssize_t set_dump_info(struct device *dev, struct device_attribute *attr,
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
 			win_data = &front_regs->reg_win_data[i];
 			if (dump_win(rk_fb, &win_data->reg_area_data[j],
-				     win_data->data_format, i, j, is_img))
+				     win_data->reg_area_data[i].data_format,i,
+				     j, is_img))
 				continue;
 		}
 	}

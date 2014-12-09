@@ -39,6 +39,7 @@
 #include "sram.h"
 #include "pm.h"
 #include "pm-rk312x.c"
+#include <linux/rockchip/cpu.h>
 #define RK312X_DEVICE(name) \
 	{ \
 		.virtual	= (unsigned long) RK_##name##_VIRT, \
@@ -256,7 +257,8 @@ static int rk312x_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 			rk312x_pmu_set_idle_request(IDLE_REQ_GPU, true);
 		} else if (pd == PD_VIO) {
 			SAVE_QOS(rga_qos, VIO_RGA);
-			SAVE_QOS(ebc_qos, VIO_EBC);
+			if (!soc_is_rk3126b())
+				SAVE_QOS(ebc_qos, VIO_EBC);
 			SAVE_QOS(iep_qos, VIO_IEP);
 			SAVE_QOS(lcdc0_qos, VIO_LCDC0);
 			SAVE_QOS(vip0_qos, VIO_VIP0);
@@ -276,7 +278,8 @@ static int rk312x_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 		} else if (pd == PD_VIO) {
 			rk312x_pmu_set_idle_request(IDLE_REQ_VIO, false);
 			RESTORE_QOS(rga_qos, VIO_RGA);
-			RESTORE_QOS(ebc_qos, VIO_EBC);
+			if (!soc_is_rk3126b())
+				RESTORE_QOS(ebc_qos, VIO_EBC);
 			RESTORE_QOS(iep_qos, VIO_IEP);
 			RESTORE_QOS(lcdc0_qos, VIO_LCDC0);
 			RESTORE_QOS(vip0_qos, VIO_VIP0);
@@ -484,8 +487,9 @@ static int __init rk312x_ddr_init(void)
 		ddr_round_rate = _ddr_round_rate;
 		ddr_set_auto_self_refresh = _ddr_set_auto_self_refresh;
 		ddr_bandwidth_get = _ddr_bandwidth_get;
-		ddr_init(DDR3_DEFAULT, 300);
-		}
+		ddr_init(DDR3_DEFAULT, 0);
+	}
+
 	return 0;
 }
 arch_initcall_sync(rk312x_ddr_init);

@@ -24,12 +24,18 @@ void *get_gl_mem_p(void)
 
 static inline int esp_clz(u32 x)
 {
-	return __builtin_clz(x);
+	if (x == 0x0)
+		return 32;
+	else
+		return __builtin_clz(x);
 }
 
 static inline int esp_ctz(u32 x)
 {
-	return __builtin_ctz(x);
+	if (x == 0x0)
+		return 32;
+	else
+		return __builtin_ctz(x);
 }
 
 static inline int esp_popcount(u32 x)
@@ -40,10 +46,9 @@ static inline int esp_popcount(u32 x)
 	while (x) {
 		if (x&0x1)
 			i++;
-		x = x>>1;
+		x = (x>>1);
 	}
 	return i;
-	//return __builtin_popcount(x);
 }
 
 /* bit_no value must be 0 */
@@ -52,7 +57,7 @@ static int get_next_empty_num(u32* bit_map, int bit_map_size, int bit_no)
 	int i, x, offset;
 	int sum;
 
-	i = (bit_no&0x111111e0)>>5;
+	i = (bit_no&0xffffffe0)>>5;
 	offset = (bit_no&0x0000001f);
 
 	x = esp_ctz(bit_map[i] >> offset);
@@ -86,7 +91,7 @@ static inline int get_prev_empty_num(u32* bit_map, int bit_map_size, int bit_no)
 	int i, x, offset;
 	int sum;
 
-	i = (bit_no&0x111111e0)>>5;
+	i = (bit_no&0xffffffe0)>>5;
 	offset = (bit_no&0x0000001f);
 
 	x = esp_clz(bit_map[i] << (32 - offset));
@@ -120,7 +125,7 @@ static int find_1st_empty_pos(u32* bit_map, int bit_map_size, int start_bit_no)
 	int i, x, offset;
 	int pos;
 
-	i = (start_bit_no&0x111111e0)>>5;  /* integer div 32 */
+	i = (start_bit_no&0xffffffe0)>>5;  /* integer div 32 */
 	offset = (start_bit_no&0x0000001f); /* mod 32 */
 
 	if (esp_popcount((u32)(bit_map[i]>>offset)) < 32 - offset) {
@@ -158,12 +163,12 @@ static void set_next_full(u32 *bit_map, int bit_map_size, int start_bit_no, int 
 {
 	int i, offset;
 
-	i = (start_bit_no&0x111111e0)>>5;  /* integer div 32 */
+	i = (start_bit_no&0xffffffe0)>>5;  /* integer div 32 */
 	offset = (start_bit_no&0x0000001f); /* mod 32 */
 
 	if (bit_count > 32 - offset) {
 		bit_map[i] |= ~((1<<offset) - 1);
-		bit_count -= (bit_count - (32 - offset));
+		bit_count = bit_count - (32 - offset);
 		while (bit_count > 0) {
 			i++;
 			if (bit_count >= 32) {
@@ -183,12 +188,12 @@ static void set_next_empty(u32 *bit_map, int bit_map_size, int start_bit_no, int
 {
 	int i, offset;
 
-	i = (start_bit_no&0x111111e0)>>5;  /* integer div 32 */
+	i = (start_bit_no&0xffffffe0)>>5;  /* integer div 32 */
 	offset = (start_bit_no&0x0000001f); /* mod 32 */
 
 	if (bit_count > 32 - offset) {
 		bit_map[i] &= ((1<<offset) - 1);
-		bit_count -= (bit_count - (32 - offset));
+		bit_count = bit_count - (32 - offset);
 		while (bit_count > 0) {
 			i++;
 			if (bit_count >= 32) {
@@ -211,7 +216,7 @@ static inline int bin_roundup(int n, unsigned int div) /*div must be 2^n */
 
 	x = esp_ctz(div);
 
-	if (__builtin_popcount(div) > 1)
+	if (esp_popcount(div) > 1)
 		return -EINVAL;
 	
 	return  (n & ((1<<x)-1) ? ((n>>x) + 1)<<x : n);
@@ -234,7 +239,7 @@ static int set_access(struct esp_mem_mgmt_per *mmp, void *point, int bit_count)
 		}
 	}
 
-	if (i == 128)
+	if (i == DEFAULT_MAX_ACCESSES_PER)
 		return -ERANGE;
 	return 0;
 }
@@ -274,10 +279,13 @@ static inline void *_esp_malloc(size_t size)
 				empty_num = get_next_empty_num(gl_mm.large_mmp.bit_map, LARGE_BIT_MAP_SIZE, pos);
 				if ((empty_num<<LARGE_PIECE_SIZE_SHIFT) >= size) {
 					roundup_size = bin_roundup(size, LARGE_PIECE_SIZE);
-					logd("large roundup_size [%d]\n", roundup_size);
-					set_next_full(gl_mm.large_mmp.bit_map, LARGE_BIT_MAP_SIZE, pos, roundup_size>>LARGE_PIECE_SIZE_SHIFT);
+					logd("large roundup_size [%d], pieces [%d]\n", roundup_size, roundup_size>>LARGE_PIECE_SIZE_SHIFT);
 					p = (void *)((pos<<LARGE_PIECE_SIZE_SHIFT) + (u8 *)gl_mm.large_mmp.start_p);
-					set_access(&gl_mm.large_mmp, p, roundup_size>>LARGE_PIECE_SIZE_SHIFT);
+					if (set_access(&gl_mm.large_mmp, p, roundup_size>>LARGE_PIECE_SIZE_SHIFT) != 0) {
+						spin_unlock_irqrestore(&gl_mm.large_mmp.spin_lock, gl_mm.large_mmp.lock_flags);
+						return NULL;
+					}
+					set_next_full(gl_mm.large_mmp.bit_map, LARGE_BIT_MAP_SIZE, pos, roundup_size>>LARGE_PIECE_SIZE_SHIFT);
 					spin_unlock_irqrestore(&gl_mm.large_mmp.spin_lock, gl_mm.large_mmp.lock_flags);
 					return p;
 				} else {
@@ -299,10 +307,13 @@ static inline void *_esp_malloc(size_t size)
 				empty_num = get_next_empty_num(gl_mm.little_mmp.bit_map, LITTLE_BIT_MAP_SIZE, pos);
 				if ((empty_num<<LITTLE_PIECE_SIZE_SHIFT) >= size) {
 					roundup_size = bin_roundup(size, LITTLE_PIECE_SIZE);
-					logd("little roundup_size [%d]\n", roundup_size);
-					set_next_full(gl_mm.little_mmp.bit_map, LITTLE_BIT_MAP_SIZE, pos, roundup_size>>LITTLE_PIECE_SIZE_SHIFT);
+					logd("little roundup_size [%d], pieces [%d]\n", roundup_size, roundup_size>>LITTLE_PIECE_SIZE_SHIFT);
 					p = (void *)((pos<<LITTLE_PIECE_SIZE_SHIFT) + (u8 *)gl_mm.little_mmp.start_p);
-					set_access(&gl_mm.little_mmp, p, roundup_size>>LITTLE_PIECE_SIZE_SHIFT);
+					if (set_access(&gl_mm.little_mmp, p, roundup_size>>LITTLE_PIECE_SIZE_SHIFT) != 0) {
+						spin_unlock_irqrestore(&gl_mm.little_mmp.spin_lock, gl_mm.little_mmp.lock_flags);
+						return NULL;
+					}
+					set_next_full(gl_mm.little_mmp.bit_map, LITTLE_BIT_MAP_SIZE, pos, roundup_size>>LITTLE_PIECE_SIZE_SHIFT);
 					spin_unlock_irqrestore(&gl_mm.little_mmp.spin_lock, gl_mm.little_mmp.lock_flags);
 					return p;
 				} else {
@@ -462,10 +473,11 @@ void esp_mm_deinit(void)
 int esp_slab_init(void)
 {
 	int err = 0;
-	if (esp_pre_malloc() ==  NULL)
+	if (esp_pre_malloc() ==  NULL) {
 		err = -ENOMEM;
+		return err;
+	}
 
-	/*TODO:other mem mgr list , but i have no time to do this*/
 	err = esp_mm_init();
 		
 	return err;
@@ -474,7 +486,6 @@ int esp_slab_init(void)
 void esp_slab_deinit(void)
 {
 	esp_pre_free();
-	/*TODO:other mem mgr list , but i have no time to do this*/
 	esp_mm_init();
 }
 

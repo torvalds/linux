@@ -45,7 +45,7 @@
 		compatible = "gpio-leds";
 		power {
 			label = "standby";
-			gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 	};

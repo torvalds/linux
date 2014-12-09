@@ -1,9 +1,9 @@
-
 /*
- * Copyright (c) 2011 Espressif System.
+ * Copyright (c) 2011-2014 Espressif System.
  *
- *     MAC80211 support module
+ * test mode    
  */
+
 #ifdef TEST_MODE
 
 #include <linux/kernel.h>
@@ -27,9 +27,12 @@
 #include "esp_wl.h"
 #include "testmode.h"
 #include "esp_path.h"
+#include "esp_file.h"
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
     #include <net/regulatory.h>
 #endif
+
+static int queue_flag = 0;
 
 static u32 connected_nl;
 static struct genl_info info_copy;
@@ -80,7 +83,10 @@ void inc_loopback_id()
 
 static void sip_send_test_cmd(struct esp_sip *sip, struct sk_buff *skb)
 {
-        skb_queue_tail(&sip->epub->txq, skb);
+	if (queue_flag == 0)
+        	skb_queue_tail(&sip->epub->txq, skb);
+	else
+        	skb_queue_head(&sip->epub->txq, skb);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
         if(sif_get_ate_config() == 0){
@@ -150,6 +156,15 @@ static int esp_test_echo(struct sk_buff *skb_2,
 	
         /*get echo info*/
         echo_info = nla_data(info->attrs[TEST_ATTR_STR]);
+
+	if (strncmp(echo_info, "queue_head", 10) == 0) {
+        	esp_dbg(ESP_DBG_ERROR, "echo : change to queue head");
+		queue_flag = 1;
+	}
+	if (strncmp(echo_info, "queue_tail", 10) == 0) {
+        	esp_dbg(ESP_DBG_ERROR, "echo : change to queue head");
+		queue_flag = 0;
+	}
 
         res=esp_test_cmd_reply(info, TEST_CMD_ECHO, echo_info);
         return res;
@@ -1100,26 +1115,26 @@ void esp_stability_test(char *filename,struct esp_pub *epub)
                         sprintf(test_res_str, "error, count = %d !!!\n", count);
 
                         printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-                        android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif
+
+                        esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+
                         goto _out;
                     }
                 }
 
             }
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-            android_request_init_conf();
-#endif
+
+            request_init_conf();
+
             if(sif_get_ate_config() == 0)
             {
 
                 sprintf(test_res_str, "ok, count = %d !!!\n", count);
 
                 printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-                android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif
+
+                esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+
                 goto _out;
             }
 
@@ -1129,9 +1144,9 @@ void esp_stability_test(char *filename,struct esp_pub *epub)
                 sprintf(test_res_str, "error, count = %d !!!\n", count);
 
                 printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-                android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif
+
+                esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+
                 goto _out;
             }
 
@@ -1140,9 +1155,8 @@ void esp_stability_test(char *filename,struct esp_pub *epub)
 
     sprintf(test_res_str, "ok, count = %d !!!\n", count);
     printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-    android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif
+
+    esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
 
 _out:
     kfree(rx_buf);
@@ -1198,9 +1212,9 @@ void esp_rate_test(char *filename,struct esp_pub *epub)
     sprintf(test_res_str, "ok,rw_time=%lu,read_time=%lu,write_time=%lu !!!\n",test_time_rw,test_time_read,test_time_write);
 
     printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-    android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif  
+
+    esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+
     kfree(tx_buf);
     kfree(rx_buf);
 }
@@ -1274,9 +1288,9 @@ void esp_resp_test(char *filename,struct esp_pub *epub)
                             sprintf(test_res_str, "error, count = %d !!!\n", count);
 
                             printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-                            android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif
+
+                            esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+
                             goto _out;
                         }
                     }
@@ -1300,9 +1314,9 @@ void esp_resp_test(char *filename,struct esp_pub *epub)
                         sprintf(test_res_str, "error, count = %d !!!\n", count);
 
                         printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-                        android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif
+
+                        esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+
                         goto _out;
                     }
                 }
@@ -1317,9 +1331,8 @@ void esp_resp_test(char *filename,struct esp_pub *epub)
               spi_resp->max_dataW_resp_size,spi_resp->max_dataR_resp_size,spi_resp->max_block_dataW_resp_size,spi_resp->max_block_dataR_resp_size,spi_resp->max_cmd_resp_size);
 
     printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-    android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif
+
+    esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
 
 _out:
     kfree(rx_buf);
@@ -1377,9 +1390,9 @@ void esp_noisefloor_test(char *filename,struct esp_pub *epub)
     }
 
     printk("%s\n", test_res_str);
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-    android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
-#endif 
+
+    esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+
     kfree(res_buf);
     kfree(tx_buf);
     kfree(rx_buf);
@@ -1387,7 +1400,6 @@ void esp_noisefloor_test(char *filename,struct esp_pub *epub)
 
 void esp_test_init(struct esp_pub *epub)
 {
-    char *buf =  kzalloc(64, GFP_KERNEL);   
     char filename[256];
 
     if (mod_eagle_path_get() == NULL)
@@ -1395,46 +1407,9 @@ void esp_test_init(struct esp_pub *epub)
     else
         sprintf(filename, "%s/%s", mod_eagle_path_get(), "test_results");
 
-    esp_common_read_with_addr((epub), 0x3d, buf, 64, ESP_SIF_SYNC);
-    buf[3]=0x91;
-    esp_common_write_with_addr((epub), 0x3d, buf, 64, ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x3d, buf, 64, ESP_SIF_SYNC);
-
-    esp_common_read_with_addr((epub), 0x3c, buf, 64, ESP_SIF_SYNC);
-    buf[0]=0x3f;
-    esp_common_write_with_addr((epub), 0x3c, buf, 64,  ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x3c, buf, 64,  ESP_SIF_SYNC);
-
-    esp_common_read_with_addr((epub), 0x3d, buf, 64,  ESP_SIF_SYNC);
-    buf[0]=0x34;
-    esp_common_write_with_addr((epub), 0x3d, buf, 64,  ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x3d, buf, 64,  ESP_SIF_SYNC);
-
-    esp_common_read_with_addr((epub), 0x3e, buf, 64,  ESP_SIF_SYNC);
-    buf[0]=0xfe;
-    esp_common_write_with_addr((epub), 0x3e, buf, 64,  ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x3e, buf, 64,  ESP_SIF_SYNC);
-
-    esp_common_read_with_addr((epub), 0x3f, buf, 64,  ESP_SIF_SYNC);
-    buf[0]=0x00;
-    esp_common_write_with_addr((epub), 0x3f, buf, 64,  ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x3f, buf, 64,  ESP_SIF_SYNC);
-
-    esp_common_read_with_addr((epub), 0x3d, buf, 64,  ESP_SIF_SYNC);
-    buf[3]=0xd1;
-    esp_common_write_with_addr((epub), 0x3d, buf, 64,  ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x3d, buf, 64,  ESP_SIF_SYNC);
-
-    esp_common_read_with_addr((epub), 0x29, buf, 64, ESP_SIF_SYNC);
-    buf[0]=0x30;
-    esp_common_write_with_addr((epub), 0x29, buf, 64,  ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x29, buf, 64,  ESP_SIF_SYNC);
-
-//set w3 0
-    esp_common_read_with_addr((epub), 0x24, buf, 64,  ESP_SIF_SYNC); 
-    buf[0]=0x1;
-    esp_common_write_with_addr((epub), 0x24, buf, 64,  ESP_SIF_SYNC);
-    esp_common_read_with_addr((epub), 0x24, buf, 64,  ESP_SIF_SYNC);
+    sif_lock_bus(epub);
+    sif_had_io_enable(epub);
+    sif_unlock_bus(epub);
 
     if(sif_get_ate_config() == 2){
         esp_stability_test(filename,epub);
@@ -1450,7 +1425,6 @@ void esp_test_init(struct esp_pub *epub)
     else if(sif_get_ate_config() == 6){
         esp_noisefloor_test(filename,epub);
     }
-    kfree(buf);
 }
 
 #endif  //ifdef TEST_MODE

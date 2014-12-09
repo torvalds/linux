@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2010 -2013 Espressif System.
+ * Copyright (c) 2010 -2014 Espressif System.
  *
+ * power save control of system
  */
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>

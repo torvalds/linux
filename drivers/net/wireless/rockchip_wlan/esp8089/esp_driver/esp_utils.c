@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Espressif System.
+ * Copyright (c) 2009 - 2014 Espressif System.
  */
 
 #include "linux/types.h"
@@ -20,8 +20,7 @@
 /*
  * Convert IEEE channel number to MHz frequency.
  */
-u32
-esp_ieee2mhz(u8 chan)
+u32 esp_ieee2mhz(u8 chan)
 {
         if (chan == 14)
                 return 2484;
@@ -30,6 +29,7 @@ esp_ieee2mhz(u8 chan)
                 return 2407 + chan*5;
         else
                 return 2512 + ((chan-15)*20);
+	//TODO, add 5GHz
 }
 enum {
         ESP_RATE_1_LONG = 0x0,
@@ -71,7 +71,7 @@ static u8 esp_rate_table[20] = {
         ESP_RATE_36,
         ESP_RATE_48,
         ESP_RATE_54,
-        /*        ESP_RATE_MCS0,
+        /*      ESP_RATE_MCS0,
                 ESP_RATE_MCS1,
                 ESP_RATE_MCS2,
                 ESP_RATE_MCS3,
@@ -86,17 +86,17 @@ s8 esp_wmac_rate2idx(u8 rate)
 {
         int i;
 
-        for (i = 0; i < 20; i++) {
-                if (rate == esp_rate_table[i])
-                        return i;
-        }
-
         if (rate == ESP_RATE_2_LONG)
                 return 1;
         if (rate == ESP_RATE_5_LONG)
                 return 2;
         if (rate == ESP_RATE_11_LONG)
                 return 3;
+        
+	for (i = 0; i < 20; i++) {
+                if (rate == esp_rate_table[i])
+                        return i;
+        }
 
         esp_dbg(ESP_DBG_ERROR,"%s unknown rate 0x%02x \n", __func__, rate);
 

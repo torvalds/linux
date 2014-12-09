@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2010 - 2012 Espressif System.
+ * Copyright (c) 2010 - 2014 Espressif System.
+ *
+ * main routine
  */
 
 #include <linux/netdevice.h>
@@ -16,12 +18,8 @@
 #include "esp_sip.h"
 #include "esp_sif.h"
 #include "esp_debug.h"
-#ifdef ANDROID
-#include "esp_android.h"
-#endif /* ANDROID */
+#include "esp_file.h"
 #include "esp_wl.h"
-#include "slc_host_register.h"
-#include "esp_android.h"
 
 struct completion *gl_bootup_cplx = NULL;
 
@@ -29,11 +27,11 @@ struct completion *gl_bootup_cplx = NULL;
 static int esp_download_fw(struct esp_pub * epub);
 #endif /* !FGPA_DEBUG */
 
-static bool modparam_no_txampdu = false;
-static bool modparam_no_rxampdu = false;
-module_param_named(no_txampdu, modparam_no_txampdu, bool, 0444);
+static int modparam_no_txampdu = 0;
+static int modparam_no_rxampdu = 0;
+module_param_named(no_txampdu, modparam_no_txampdu, int, 0444);
 MODULE_PARM_DESC(no_txampdu, "Disable tx ampdu.");
-module_param_named(no_rxampdu, modparam_no_rxampdu, bool, 0444);
+module_param_named(no_rxampdu, modparam_no_rxampdu, int, 0444);
 MODULE_PARM_DESC(no_rxampdu, "Disable rx ampdu.");
 
 static char *modparam_eagle_path = "";
@@ -79,17 +77,15 @@ int esp_pub_init_all(struct esp_pub *epub)
 
 		esp_dump_var("esp_msg_level", NULL, &esp_msg_level, ESP_U32);
 
-#if defined(ANDROID) && defined (ESP_ANDROID_LOGGER)
+#ifdef ESP_ANDROID_LOGGER
 		esp_dump_var("log_off", NULL, &log_off, ESP_U32);
 #endif /* ESP_ANDROID_LOGGER */
-
-		ret = sip_prepare_boot(epub->sip);
-		if (ret)
-			return ret;
 	} else {
 		atomic_set(&epub->sip->state, SIP_PREPARE_BOOT);
 		atomic_set(&epub->sip->tx_credits, 0);
     }
+
+	epub->sip->to_host_seq = 0;
 
 #ifdef TEST_MODE
     if(sif_get_ate_config() != 0 &&  sif_get_ate_config() != 1 && sif_get_ate_config() !=6 )
@@ -123,14 +119,11 @@ int esp_pub_init_all(struct esp_pub *epub)
 
         esp_dbg(ESP_DBG_TRACE, "download firmware OK \n");
 #else
-#ifndef SDIO_TEST
         sip_send_bootup(epub->sip);
-#endif /* !SDIO_TEST */
-
 #endif /* FPGA_DEBUG */
 
 	gl_bootup_cplx = &complete;
-    epub->wait_reset = 0;
+	epub->wait_reset = 0;
 	sif_enable_irq(epub);
 	
 	if(epub->sdio_state == ESP_SDIO_STATE_SECOND_INIT || sif_get_ate_config() == 1){
@@ -153,37 +146,6 @@ int esp_pub_init_all(struct esp_pub *epub)
         return ret;
 }
 
-#if 0
-void esp_ps_config(struct esp_pub *epub, struct esp_ps *ps, bool on)
-{
-        unsigned long time = jiffies - ps->last_config_time;
-        u32 time_msec = jiffies_to_msecs(time);
-
-        ps->last_config_time = jiffies;
-
-        if (on && (atomic_read(&ps->state) == ESP_PM_TURNING_ON || atomic_read(&ps->state) == ESP_PM_ON)) {
-                esp_dbg(ESP_DBG_PS, "%s same state\n", __func__);
-                return;
-        }
-
-	ps->nulldata_pm_on = false;
-
-        esp_dbg(ESP_DBG_PS, "%s PS %s, dtim %u maxslp %u period %u\n", __func__, on?"ON":"OFF", ps->dtim_period, ps->max_sleep_period, time_msec);
-
-        //NB: turn on ps may need additional check, make sure don't hurt iperf downlink since pkt may be sparse during rx
-
-        if (on) {
-                esp_dbg(ESP_DBG_PS, "%s ps state %d => turning ON\n", __func__, atomic_read(&ps->state));
-                atomic_set(&ps->state, ESP_PM_TURNING_ON);
-        } else {
-                esp_dbg(ESP_DBG_PS, "%s ps state %d => turning OFF\n", __func__, atomic_read(&ps->state));
-                atomic_set(&ps->state, ESP_PM_TURNING_OFF);
-        }
-
-        sip_send_ps_config(epub, ps);
-}
-#endif
-
 void
 esp_dsr(struct esp_pub *epub)
 {
@@ -205,6 +167,7 @@ struct esp_fw_blk_hdr {
 
 #define ESP_FW_NAME1 "eagle_fw1.bin"
 #define ESP_FW_NAME2 "eagle_fw2.bin"
+#define ESP_FW_NAME3 "eagle_fw3.bin"
 
 #ifndef FPGA_DEBUG
 static int esp_download_fw(struct esp_pub * epub)
@@ -222,24 +185,19 @@ static int esp_download_fw(struct esp_pub * epub)
 
 #ifndef HAS_FW
 
-char * esp_fw_name = epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT ? ESP_FW_NAME1 : ESP_FW_NAME2;
-
-#ifdef ANDROID
-        ret = android_request_firmware(&fw_entry, esp_fw_name, epub->dev);
-#else
-        ret = request_firmware(&fw_entry, esp_fw_name, epub->dev);
-#endif //ANDROID
+        if(sif_get_ate_config() == 1) {
+		char * esp_fw_name = ESP_FW_NAME3;
+	} else {
+		char * esp_fw_name = epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT ? ESP_FW_NAME1 : ESP_FW_NAME2;
+	}
+        ret = esp_request_firmware(&fw_entry, esp_fw_name, epub->dev);
 
         if (ret)
                 return ret;
 
         fw_buf = kmemdup(fw_entry->data, fw_entry->size, GFP_KERNEL);
 
-#ifdef ANDROID
-        android_release_firmware(fw_entry);
-#else
-        release_firmware(fw_entry);
-#endif //ANDROID
+        esp_release_firmware(fw_entry);
 
         if (fw_buf == NULL) {
                 return -ENOMEM;

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2010 -2014 Espressif System.
+ *
+ *   file operation in kernel space
+ *
+ */
+
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/kernel.h>
@@ -7,15 +14,14 @@
 #include <linux/netdevice.h>
 #include <linux/aio.h>
 
-#include "esp_android.h"
+#include "esp_file.h"
 #include "esp_debug.h"
 #include "esp_sif.h"
 
-#ifdef ANDROID
 #include "esp_path.h"
 #include "esp_conf.h"
 
-int android_readwrite_file(const char *filename, char *rbuf, const char *wbuf, size_t length)
+int esp_readwrite_file(const char *filename, char *rbuf, const char *wbuf, size_t length)
 {
         int ret = 0;
         struct file *filp = (struct file *)-ENOENT;
@@ -24,7 +30,7 @@ int android_readwrite_file(const char *filename, char *rbuf, const char *wbuf, s
         set_fs(KERNEL_DS);
         do {
                 int mode = (wbuf) ? O_RDWR | O_CREAT : O_RDONLY;
-                filp = filp_open(filename, mode, S_IRUSR);
+                filp = filp_open(filename, mode, (S_IRUSR | S_IWUSR));
                 if (IS_ERR(filp) || !filp->f_op) {
                         esp_dbg(ESP_DBG_ERROR, "%s: file %s filp_open error\n", __FUNCTION__, filename);
                         ret = -ENOENT;
@@ -48,13 +54,13 @@ int android_readwrite_file(const char *filename, char *rbuf, const char *wbuf, s
                 if (wbuf) {
                         if ( (ret=filp->f_op->write(filp, wbuf, length, &filp->f_pos)) < 0) {
                                 esp_dbg(ESP_DBG_ERROR, "%s: Write %u bytes to file %s error %d\n", __FUNCTION__,
-                                        length, filename, ret);
+                                        (unsigned int)length, filename, ret);
                                 break;
                         }
                 } else {
                         if ( (ret=filp->f_op->read(filp, rbuf, length, &filp->f_pos)) < 0) {
                                 esp_dbg(ESP_DBG_ERROR, "%s: Read %u bytes from file %s error %d\n", __FUNCTION__,
-                                        length, filename, ret);
+                                        (unsigned int)length, filename, ret);
                                 break;
                         }
                 }
@@ -68,7 +74,7 @@ int android_readwrite_file(const char *filename, char *rbuf, const char *wbuf, s
         return ret;
 }
 
-int android_request_firmware(const struct firmware **firmware_p, const char *name,
+int esp_request_firmware(const struct firmware **firmware_p, const char *name,
                              struct device *device)
 {
         int ret = 0;
@@ -89,7 +95,7 @@ int android_request_firmware(const struct firmware **firmware_p, const char *nam
         do {
                 size_t length, bufsize, bmisize;
 
-                if ( (ret=android_readwrite_file(filename, NULL, NULL, 0)) < 0) {
+                if ( (ret=esp_readwrite_file(filename, NULL, NULL, 0)) < 0) {
                         break;
                 } else {
                         length = ret;
@@ -106,8 +112,8 @@ int android_request_firmware(const struct firmware **firmware_p, const char *nam
                         break;
                 }
 
-                if ( (ret=android_readwrite_file(filename, (char*)firmware->data, NULL, length)) != length) {
-                        esp_dbg(ESP_DBG_ERROR, "%s: file read error, ret %d request %d\n", __FUNCTION__, ret, length);
+                if ( (ret=esp_readwrite_file(filename, (char*)firmware->data, NULL, length)) != length) {
+                        esp_dbg(ESP_DBG_ERROR, "%s: file read error, ret %d request %d\n", __FUNCTION__, ret, (unsigned int)length);
                         ret = -1;
                         break;
                 }
@@ -129,7 +135,7 @@ int android_request_firmware(const struct firmware **firmware_p, const char *nam
         return ret;
 }
 
-void android_release_firmware(const struct firmware *firmware)
+void esp_release_firmware(const struct firmware *firmware)
 {
         if (firmware) {
                 if (firmware->data)
@@ -139,6 +145,7 @@ void android_release_firmware(const struct firmware *firmware)
         }
 }
 
+#ifdef ESP_ANDROID_LOGGER
 int logger_write( const unsigned char prio,
                   const char __kernel * const tag,
                   const char __kernel * const fmt,
@@ -210,7 +217,7 @@ out_free_message:
         }
         return ret;
 }
-
+#endif
 
 
 struct esp_init_table_elem esp_init_table[MAX_ATTR_NUM] = {
@@ -271,7 +278,7 @@ void show_esp_init_table(struct esp_init_table_elem *econf)
 				esp_init_table[i].value);
 }
 	
-int android_request_init_conf(void)
+int request_init_conf(void)
 {
 
 	u8 *conf_buf;
@@ -291,7 +298,7 @@ int android_request_init_conf(void)
 	else
         	sprintf(filename, "%s/%s", mod_eagle_path_get(), INIT_CONF_FILE);
 
-	if ((ret=android_readwrite_file(filename, NULL, NULL, 0)) < 0 || ret > MAX_BUF_LEN) {
+	if ((ret=esp_readwrite_file(filename, NULL, NULL, 0)) < 0 || ret > MAX_BUF_LEN) {
 		esp_dbg(ESP_DBG_ERROR, "%s: file read length error, ret %d\n", __FUNCTION__, ret);
 		return ret;
 	} else {
@@ -305,7 +312,7 @@ int android_request_init_conf(void)
 	}
 
 #ifdef INIT_DATA_CONF
-	if ((ret=android_readwrite_file(filename, conf_buf, NULL, length)) != length) {
+	if ((ret=esp_readwrite_file(filename, conf_buf, NULL, length)) != length) {
 		esp_dbg(ESP_DBG_ERROR, "%s: file read error, ret %d request %d\n", __FUNCTION__, ret, length);
 		goto failed;
 	}
@@ -401,15 +408,3 @@ void fix_init_data(u8 *init_data_buf, int buf_size)
         }
 
 }
-
-void show_init_buf(u8 *buf, int size)
-{
-	int i = 0;
-	
-	for (i = 0; i < size; i++)
-			printk(KERN_ERR "offset[%d] [0x%02x]", i, buf[i]);
-	printk(KERN_ERR "\n");
-		
-}
-
-#endif //ANDROID

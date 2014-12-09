@@ -312,22 +312,23 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 				break;
 			case WIN0_CTRL0:
 				win0->state = val & m_WIN0_EN;
-				win0->fmt_cfg = (val & m_WIN0_DATA_FMT) >> 1;
+				win0->area[0].fmt_cfg =
+					(val & m_WIN0_DATA_FMT) >> 1;
 				win0->fmt_10 = (val & m_WIN0_FMT_10) >> 4;
-				win0->format = win0->fmt_cfg;
+				win0->area[0].format = win0->area[0].fmt_cfg;
 				break;
 			case WIN0_VIR:
 				win0->area[0].y_vir_stride =
 					val & m_WIN0_VIR_STRIDE;
 				win0->area[0].uv_vir_stride =
 					(val & m_WIN0_VIR_STRIDE_UV) >> 16;
-				if (win0->format == ARGB888)
+				if (win0->area[0].format == ARGB888)
 					win0->area[0].xvir =
 						win0->area[0].y_vir_stride;
-				else if (win0->format == RGB888)
+				else if (win0->area[0].format == RGB888)
 					win0->area[0].xvir =
 						win0->area[0].y_vir_stride * 4 / 3;
-				else if (win0->format == RGB565)
+				else if (win0->area[0].format == RGB565)
 					win0->area[0].xvir =
 						2 * win0->area[0].y_vir_stride;
 				else /* YUV */
@@ -376,6 +377,7 @@ static int rk3288_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 	/*backup reg config at uboot*/
 	lcdc_read_reg_defalut_cfg(lcdc_dev);
+	v = 0;
 #ifndef CONFIG_RK_FPGA
 	if (lcdc_dev->pwr18 == true) {
 		v = 0x00010001;	/*bit14: 1,1.8v;0,3.3v*/
@@ -580,7 +582,8 @@ static int rk3288_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv,int win_id)
 	u32 mask, val;
 	int ppixel_alpha,global_alpha;
 	u32 src_alpha_ctl,dst_alpha_ctl;
-	ppixel_alpha = ((win->format == ARGB888)||(win->format == ABGR888)) ? 1 : 0;
+	ppixel_alpha = ((win->area[0].format == ARGB888) ||
+			(win->area[0].format == ABGR888)) ? 1 : 0;
 	global_alpha = (win->g_alpha_val == 0) ? 0 : 1; 
 	alpha_config.src_global_alpha_val = win->g_alpha_val;
 	win->alpha_mode = AB_SRC_OVER;
@@ -765,10 +768,11 @@ static int rk3288_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 	if(win->state == 1){
 		mask =  m_WIN0_EN | m_WIN0_DATA_FMT | m_WIN0_FMT_10 |
 			m_WIN0_LB_MODE | m_WIN0_RB_SWAP;
-		val  =  v_WIN0_EN(win->state) | v_WIN0_DATA_FMT(win->fmt_cfg) |
+		val  =  v_WIN0_EN(win->state) |
+			v_WIN0_DATA_FMT(win->area[0].fmt_cfg) |
 			v_WIN0_FMT_10(win->fmt_10) | 
 			v_WIN0_LB_MODE(win->win_lb_mode) | 
-			v_WIN0_RB_SWAP(win->swap_rb);
+			v_WIN0_RB_SWAP(win->area[0].swap_rb);
 		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0+off, mask,val);	
 	
 		mask =	m_WIN0_BIC_COE_SEL |
@@ -850,8 +854,9 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 	
 	if(win->state == 1){
 		mask =  m_WIN2_EN | m_WIN2_DATA_FMT | m_WIN2_RB_SWAP;
-		val  =  v_WIN2_EN(1) | v_WIN2_DATA_FMT(win->fmt_cfg) |
-			v_WIN2_RB_SWAP(win->swap_rb);	
+		val  =  v_WIN2_EN(1) |
+			v_WIN2_DATA_FMT(win->area[0].fmt_cfg) |
+			v_WIN2_RB_SWAP(win->area[0].swap_rb);
 		lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
 		/*area 0*/
 		if(win->area[0].state == 1){
@@ -1206,7 +1211,8 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	rk3288_lcdc_set_dclk(dev_drv);
-	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
+	if (screen->type != SCREEN_HDMI && dev_drv->trsm_ops &&
+	    dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
 	if (screen->init)
 		screen->init();
@@ -1597,8 +1603,7 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 	yrgb_srcH = srcH;
 	yrgb_dstW = dstW;
 	yrgb_dstH = dstH;
-	if ((yrgb_dstW >= yrgb_srcW*8) || (yrgb_dstH >= yrgb_srcH*8) ||
-		(yrgb_dstW*8 <= yrgb_srcW) || (yrgb_dstH*8 <= yrgb_srcH)) {
+	if ((yrgb_dstW*8 <= yrgb_srcW) || (yrgb_dstH*8 <= yrgb_srcH)) {
 		pr_err("ERROR: yrgb scale exceed 8,"
 		       "srcW=%d,srcH=%d,dstW=%d,dstH=%d\n",
 		       yrgb_srcW,yrgb_srcH,yrgb_dstW,yrgb_dstH);
@@ -1620,7 +1625,7 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
     	}
 
 	/*cbcr scl mode*/
-	switch (win->format) {
+	switch (win->area[0].format) {
 	case YUV422:
 	case YUV422_A:	
 		cbcr_srcW = srcW/2;
@@ -1654,8 +1659,7 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		break;
 	}		
 	if (yuv_fmt) {
-		if ((cbcr_dstW >= cbcr_srcW*8) || (cbcr_dstH >= cbcr_srcH*8) ||
-			(cbcr_dstW*8 <= cbcr_srcW)||(cbcr_dstH*8 <= cbcr_srcH)) {
+		if ((cbcr_dstW*8 <= cbcr_srcW) || (cbcr_dstH*8 <= cbcr_srcH)) {
 			pr_err("ERROR: cbcr scale exceed 8,"
 		       "srcW=%d,srcH=%d,dstW=%d,dstH=%d\n",
 		       cbcr_srcW,cbcr_srcH,cbcr_dstW,cbcr_dstH);
@@ -1686,14 +1690,17 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		win->cbr_hor_scl_mode,win->cbr_ver_scl_mode);
 
     /*line buffer mode*/
-    	if((win->format == YUV422) || (win->format == YUV420) || (win->format == YUV422_A) || (win->format == YUV420_A)){
-        	if(win->cbr_hor_scl_mode == SCALE_DOWN){
+	if ((win->area[0].format == YUV422) ||
+	    (win->area[0].format == YUV420) ||
+	    (win->area[0].format == YUV422_A) ||
+	    (win->area[0].format == YUV420_A)) {
+		if (win->cbr_hor_scl_mode == SCALE_DOWN) {
             		if ((cbcr_dstW > 3840) || (cbcr_dstW == 0)) {
                 		pr_err("ERROR cbcr_dstW = %d\n",cbcr_dstW);                
-            		}else if(cbcr_dstW > 2560){
+			} else if (cbcr_dstW > 2560) {
                 		win->win_lb_mode = LB_RGB_3840X2;
-            		}else if(cbcr_dstW > 1920){
-                		if(win->yrgb_hor_scl_mode == SCALE_DOWN){
+			} else if (cbcr_dstW > 1920) {
+				if (win->yrgb_hor_scl_mode == SCALE_DOWN) {
                     			if(yrgb_dstW > 3840){
                         			pr_err("ERROR yrgb_dst_width exceeds 3840\n");
 		                    	}else if(yrgb_dstW > 2560){
@@ -1703,13 +1710,13 @@ static int rk3288_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		                    	}else{
 		                        	pr_err("ERROR never run here!yrgb_dstW<1920 ==> cbcr_dstW>1920\n");
 		                    	}
-		        	}
-            		}else if(cbcr_dstW > 1280){
+				}
+			} else if (cbcr_dstW > 1280) {
                 		win->win_lb_mode = LB_YUV_3840X5;
-            		}else{
+			} else {
                 		win->win_lb_mode = LB_YUV_2560X8;
             		}            
-        	} else { /*SCALE_UP or SCALE_NONE*/
+		} else { /*SCALE_UP or SCALE_NONE*/
             		if ((cbcr_srcW > 3840) || (cbcr_srcW == 0)) {
                 		pr_err("ERROR cbcr_srcW = %d\n",cbcr_srcW);
             		}else if(cbcr_srcW > 2560){                
@@ -1989,7 +1996,7 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 			struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	u32 xact,yact,xvir, yvir,xpos, ypos;
-	u8 fmt_cfg = 0;
+	u8 fmt_cfg = 0, swap_rb;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin + screen->mode.hsync_len;
@@ -1998,55 +2005,55 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on)){
 		rk3288_lcdc_cal_scl_fac(win);/*fac,lb,gt2,gt4*/
-		switch (win->format){
+		switch (win->area[0].format) {
 		case ARGB888:
 			fmt_cfg = 0;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case XBGR888:
 		case ABGR888:
 			fmt_cfg = 0;
-			win->swap_rb = 1;
+			swap_rb = 1;
 			win->fmt_10 = 0;
 			break;
 		case RGB888:
 			fmt_cfg = 1;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case RGB565:
 			fmt_cfg = 2;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case YUV422:
 			fmt_cfg = 5;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case YUV420:	
 			fmt_cfg = 4;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case YUV444:	
 			fmt_cfg = 6;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 		case YUV422_A:
 			fmt_cfg = 5;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 1;
 			break;
 		case YUV420_A:	
 			fmt_cfg = 4;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 1;
 			break;
 		case YUV444_A:	
 			fmt_cfg = 6;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 1;
 			break;
 		default:
@@ -2054,7 +2061,8 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 				__func__);
 			break;
 		}
-		win->fmt_cfg = fmt_cfg;
+		win->area[0].fmt_cfg = fmt_cfg;
+		win->area[0].swap_rb = swap_rb;
 		win->area[0].dsp_stx = xpos;
 		win->area[0].dsp_sty = ypos;
 		xact = win->area[0].xact;
@@ -2067,7 +2075,7 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 
 	DBG(1, "lcdc%d>>%s\n>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d\n"
 		">>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n", lcdc_dev->id,
-		__func__, get_format_string(win->format, fmt), xact,
+		__func__, get_format_string(win->area[0].format, fmt), xact,
 		yact, win->area[0].xsize, win->area[0].ysize, xvir, yvir, xpos, ypos);
 	return 0;
 
@@ -2076,66 +2084,66 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 static int win1_set_par(struct lcdc_device *lcdc_dev,
 			struct rk_screen *screen, struct rk_lcdc_win *win)
 {
-	u32 xact,yact,xvir, yvir,xpos, ypos;
-	u8 fmt_cfg = 0;
+	u32 xact, yact, xvir, yvir, xpos, ypos;
+	u8 fmt_cfg = 0, swap_rb;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin + screen->mode.hsync_len;
 	ypos = win->area[0].ypos + screen->mode.upper_margin + screen->mode.vsync_len;
 
 	spin_lock(&lcdc_dev->reg_lock);
-	if(likely(lcdc_dev->clk_on)){
+	if (likely(lcdc_dev->clk_on)) {
 		rk3288_lcdc_cal_scl_fac(win);/*fac,lb,gt2,gt4*/
-		switch (win->format){
+		switch (win->area[0].format) {
 		case ARGB888:
 			fmt_cfg = 0;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case XBGR888:
 		case ABGR888:
 			fmt_cfg = 0;
-			win->swap_rb = 1;
+			swap_rb = 1;
 			win->fmt_10 = 0;
 			break;
 		case RGB888:
 			fmt_cfg = 1;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case RGB565:
 			fmt_cfg = 2;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case YUV422:
 			fmt_cfg = 5;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case YUV420:
 			fmt_cfg = 4;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case YUV444:
 			fmt_cfg = 6;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
 		case YUV422_A:
 			fmt_cfg = 5;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 1;
 			break;
 		case YUV420_A:	
 			fmt_cfg = 4;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 1;
 			break;
 		case YUV444_A:	
 			fmt_cfg = 6;
-			win->swap_rb = 0;
+			swap_rb = 0;
 			win->fmt_10 = 1;
 			break;			
 		default:
@@ -2143,7 +2151,8 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 				__func__);
 			break;
 		}
-		win->fmt_cfg = fmt_cfg;
+		win->area[0].fmt_cfg = fmt_cfg;
+		win->area[0].swap_rb = swap_rb;
 		win->area[0].dsp_stx = xpos;
 		win->area[0].dsp_sty = ypos;
 		xact = win->area[0].xact;
@@ -2156,7 +2165,7 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 
 	DBG(1, "lcdc%d>>%s\n>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d\n"
 		">>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n", lcdc_dev->id,
-		__func__, get_format_string(win->format, fmt), xact,
+		__func__, get_format_string(win->area[0].format, fmt), xact,
 		yact, win->area[0].xsize, win->area[0].ysize, xvir, yvir, xpos, ypos);
 	return 0;
 
@@ -2166,28 +2175,28 @@ static int win2_set_par(struct lcdc_device *lcdc_dev,
 			struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	int i;
-	u8 fmt_cfg;
+	u8 fmt_cfg, swap_rb;
 
 	spin_lock(&lcdc_dev->reg_lock);
-	if(likely(lcdc_dev->clk_on)){
-		for(i=0;i<win->area_num;i++){
-			switch (win->format){
+	if (likely(lcdc_dev->clk_on)) {
+		for (i = 0; i < win->area_num; i++) {
+			switch (win->area[i].format) {
 			case ARGB888:
 				fmt_cfg = 0;
-				win->swap_rb = 0;
+				swap_rb = 0;
 				break;
 			case XBGR888:
 			case ABGR888:
 				fmt_cfg = 0;
-				win->swap_rb = 1;
+				swap_rb = 1;
 				break;
 			case RGB888:
 				fmt_cfg = 1;
-				win->swap_rb = 0;
+				swap_rb = 0;
 				break;
 			case RGB565:
 				fmt_cfg = 2;
-				win->swap_rb = 0;		
+				swap_rb = 0;
 				break;
 			default:
 				dev_err(lcdc_dev->driver.dev, 
@@ -2195,7 +2204,8 @@ static int win2_set_par(struct lcdc_device *lcdc_dev,
 					__func__);
 				break;
 			}			
-			win->fmt_cfg = fmt_cfg;
+			win->area[i].fmt_cfg = fmt_cfg;
+			win->area[i].swap_rb = swap_rb;
 			win->area[i].dsp_stx = win->area[i].xpos + 
 				screen->mode.left_margin +
 				screen->mode.hsync_len;
@@ -2222,28 +2232,28 @@ static int win3_set_par(struct lcdc_device *lcdc_dev,
 
 {
 	int i;
-	u8 fmt_cfg;
+	u8 fmt_cfg, swap_rb;
 
 	spin_lock(&lcdc_dev->reg_lock);
-	if(likely(lcdc_dev->clk_on)){
-		for(i=0;i<win->area_num;i++){
-			switch (win->format){
+	if (likely(lcdc_dev->clk_on)) {
+		for (i = 0; i < win->area_num; i++) {
+			switch (win->area[i].format) {
 			case ARGB888:
 				fmt_cfg = 0;
-				win->swap_rb = 0;
+				swap_rb = 0;
 				break;
 			case XBGR888:
 			case ABGR888:
 				fmt_cfg = 0;
-				win->swap_rb = 1;
+				swap_rb = 1;
 				break;
 			case RGB888:
 				fmt_cfg = 1;
-				win->swap_rb = 0;
+				swap_rb = 0;
 				break;
 			case RGB565:
 				fmt_cfg = 2;
-				win->swap_rb = 0;		
+				swap_rb = 0;
 				break;
 			default:
 				dev_err(lcdc_dev->driver.dev, 
@@ -2251,7 +2261,8 @@ static int win3_set_par(struct lcdc_device *lcdc_dev,
 					__func__);
 				break;
 			}			
-			win->fmt_cfg = fmt_cfg;
+			win->area[i].fmt_cfg = fmt_cfg;
+			win->area[i].swap_rb = swap_rb;
 			win->area[i].dsp_stx = win->area[i].xpos + 
 				screen->mode.left_margin +
 				screen->mode.hsync_len;

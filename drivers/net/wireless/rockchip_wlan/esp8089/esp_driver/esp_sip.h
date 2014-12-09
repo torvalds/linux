@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2009- 2012 Espressif System.
+ *  Copyright (c) 2009- 2014 Espressif System.
  *
  *    Serial Interconnctor Protocol
  */
@@ -8,6 +8,8 @@
 #define _ESP_SIP_H
 
 #include "sip2_common.h"
+
+#define SIP_CTRL_CREDIT_RESERVE      2
 
 #define SIP_PKT_MAX_LEN (1024*16)
 
@@ -24,17 +26,17 @@ struct sip_pkt {
         u8 * buf_begin;
         u32  buf_len;
         u8 * buf;
-        u32  payload_len;
-#if 0
-        union {
-                struct sip_tx_pkt_info tx;
-                struct sip_rx_pkt_info rx;
-        } info;
-#endif
-        void *context;
-        int status;
-        //void (* completion)(struct esp_sip *sip, struct sip_pkt *pkt);
 };
+
+typedef enum RECALC_CREDIT_STATE {
+	RECALC_CREDIT_DISABLE = 0,
+	RECALC_CREDIT_ENABLE = 1,
+} RECALC_CREDIT_STATE;
+
+typedef enum ENQUEUE_PRIOR {
+	ENQUEUE_PRIOR_TAIL = 0,
+	ENQUEUE_PRIOR_HEAD,
+} ENQUEUE_PRIOR;
 
 typedef enum SIP_STATE {
         SIP_INIT = 0,
@@ -62,9 +64,10 @@ struct esp_sip {
         u32 txseq;
 	u32 txdataseq;
 
+        u8 to_host_seq;
+
         atomic_t state;
         spinlock_t lock;
-        int boot_credits;
         atomic_t tx_credits;
 
         atomic_t tx_ask_credit_update;
@@ -73,17 +76,10 @@ struct esp_sip {
         u8 * tx_aggr_buf;
         u8 * tx_aggr_write_ptr;  /* update after insertion of each pkt */
         u8 * tx_aggr_lastpkt_ptr;
-#if 0
-        u8 * rx_aggr_buf;
-        u8 * rx_aggr_write_ptr;
-        u8 * rx_aggr_lastpkt_ptr;
-#endif
 
 	struct mutex rx_mtx; 
         struct sk_buff_head rxq;
-#ifndef RX_SYNC
         struct work_struct rx_process_work;
-#endif/* RX_SYNC */
 
         u16 tx_blksz;
         u16 rx_blksz;
@@ -94,6 +90,9 @@ struct esp_sip {
         bool support_bgscan;
         u8 credit_to_reserve;
 	
+	atomic_t credit_status;
+	struct timer_list credit_timer;
+
 	atomic_t noise_floor;
 
         u32 tx_tot_len; /* total len for one transaction */
@@ -115,16 +114,10 @@ struct esp_sip {
 int sip_rx(struct esp_pub * epub);
 //int sip_download_fw(struct esp_sip *sip, u32 load_addr, u32 boot_addr);
 
-/* tx must pad as 4-byte aligned */
-int sip_tx(struct esp_pub * epub, struct sip_pkt *pkt);
-
-int sip_get_raw_credits(struct esp_sip *);
 
 int sip_write_memory(struct esp_sip *, u32 addr, u8* buf, u16 len);
 
 void sip_credit_process(struct esp_pub *, u8 credits);
-
-int sip_prepare_boot(struct esp_sip *sip);
 
 int sip_send_cmd(struct esp_sip *sip, int cid, u32 cmdlen, void * cmd);
 
@@ -148,9 +141,7 @@ bool sip_tx_data_may_resume(struct esp_sip *sip);
 void sip_tx_data_pkt_enqueue(struct esp_pub *epub, struct sk_buff *skb);
 void sip_rx_data_pkt_enqueue(struct esp_pub *epub, struct sk_buff *skb);
 
-int sip_cmd_enqueue(struct esp_sip *sip, struct sk_buff *skb);
-
-void sip_dump_pending_data(struct esp_pub *epub);
+int sip_cmd_enqueue(struct esp_sip *sip, struct sk_buff *skb, int prior);
 
 int sip_poll_bootup_event(struct esp_sip *sip);
 

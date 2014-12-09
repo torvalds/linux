@@ -9,6 +9,10 @@
 #include "esp_mem.h"
 #include "esp_log.h"
 
+#ifdef ESP_SPI
+static u8 *gl_lspi_buf;
+#endif
+
 static u8 *gl_tx_aggr_buf;
 
 static struct esp_skb_elem gl_sip_skb_arr[SIP_SKB_ARR_NUM];
@@ -84,7 +88,7 @@ EXPORT_SYMBOL(esp_pre_sip_skb_show);
 struct sk_buff *esp_get_sip_skb(int size)
 {
 	int i;
-	int retry = 10;
+	int retry = 100;
 
 	do {
 		if (size <= SIP_SKB_SIZE_8K) {
@@ -116,7 +120,7 @@ struct sk_buff *esp_get_sip_skb(int size)
 			break;
 		}
 
-		mdelay(1);
+		mdelay(1);         /* maybe in multi core cpu */
 	} while (--retry > 0);
 
 	if (retry <= 0)
@@ -151,7 +155,7 @@ void esp_put_sip_skb(struct sk_buff **skb)
 }
 EXPORT_SYMBOL(esp_put_sip_skb);
 
-void *esp_pre_alloc_tx_aggr_buf(void)
+u8 *esp_pre_alloc_tx_aggr_buf(void)
 {
 	int po;
 
@@ -197,22 +201,74 @@ void esp_put_tx_aggr_buf(u8 **p)
 }
 EXPORT_SYMBOL(esp_put_tx_aggr_buf);
 
+#ifdef ESP_SPI
+u8 *esp_pre_alloc_lspi_buf(void)
+{
+	gl_lspi_buf = (u8 *)kmalloc(LSPI_BUF_SIZE, GFP_KERNEL);
+
+	if (gl_lspi_buf == NULL) {
+                loge("%s no mem for gl_rlspi_buf! \n", __func__);
+		return NULL;
+	}
+
+	return gl_lspi_buf;
+}
+
+void esp_pre_free_lspi_buf(void)
+{
+	if (!gl_lspi_buf) {
+                loge("%s need not free gl_lspi_buf! \n", __func__);
+		return;
+	}
+
+	kfree(gl_lspi_buf);
+	gl_lspi_buf = NULL;
+}
+
+u8 *esp_get_lspi_buf(void)
+{
+	if (!gl_lspi_buf) {
+                loge(KERN_ERR "%s gl_lspi_buf is NULL failed! \n", __func__);
+		return NULL;
+	}
+
+	return gl_lspi_buf;
+}
+EXPORT_SYMBOL(esp_get_lspi_buf);
+
+void esp_put_lspi_buf(u8 **p)
+{
+	*p = NULL; /*input point which return by get~() , then set it null */
+}
+EXPORT_SYMBOL(esp_put_lspi_buf);
+
+#endif /* ESP_SPI */
 
 int esp_indi_pre_mem_init()
 {
 	int err = 0;
-	
+
+#ifdef ESP_SPI
+	if (esp_pre_alloc_lspi_buf() == NULL)
+		err = -ENOMEM;
+#endif	
 	if (esp_pre_alloc_tx_aggr_buf() == NULL)
 		err = -ENOMEM;
 
 	if (esp_pre_alloc_sip_skb_arr() != 0)
 		err = -ENOMEM;
 
+	if (err)
+		esp_indi_pre_mem_deinit();    /* release the mem , as protect assigned atomic */
+
 	return err;
 }
 
 void esp_indi_pre_mem_deinit()
 {
+#ifdef ESP_SPI
+	esp_pre_free_lspi_buf();
+#endif
 	esp_pre_free_tx_aggr_buf();
 	esp_pre_free_sip_skb_arr();
 }

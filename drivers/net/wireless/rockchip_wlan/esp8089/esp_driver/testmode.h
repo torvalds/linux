@@ -40,6 +40,24 @@ enum {
 #define TEST_ATTR_MAX (__TEST_ATTR_MAX - 1)
 #define TEST_ATTR_PARA(i) (TEST_ATTR_PARA0+(i))
 
+enum {
+	RD_REG = 0,
+	WR_REG,
+	SET_SENSE,
+	SET_TX_RATE,
+	SET_TX_FREQ,
+	TKIP_MIC_ERROR,
+	RIFS_CTRL,
+	BACKOFF,
+	SET_RXSENSE,
+	CONFIGURE_TRC,
+	RDPER,
+	RDRSSI,
+	DBGTRC,
+	WRMEM,
+	RDMEM
+};
+
 u32 get_loopback_num(void);
 u32 get_loopback_id(void);
 void inc_loopback_id(void);

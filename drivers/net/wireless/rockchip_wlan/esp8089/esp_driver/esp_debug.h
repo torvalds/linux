@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2011 Espressif System.
+ * Copyright (c) 2011-2014 Espressif System.
  *
+ * esp debug
  */
 
 #ifndef _DEBUG_H_
@@ -55,8 +56,8 @@ extern unsigned int esp_msg_level;
 extern bool log_off;
 #endif /* ESP_ANDROID_LOGGER */
 
-#if defined(ANDROID) && defined(ESP_ANDROID_LOGGER)
-#include "esp_android.h"
+#ifdef ESP_ANDROID_LOGGER
+#include "esp_file.h"
 #define esp_dbg(mask, fmt, args...) do {                  \
         if (esp_msg_level & mask)   			  \
 	{						  \
@@ -71,7 +72,7 @@ extern bool log_off;
         if (esp_msg_level & mask)                         \
             printk(fmt, ##args);                          \
     } while (0)
-#endif /* ANDROID && ESP_ANDROID_LOGGER */
+#endif /* ESP_ANDROID_LOGGER */
 
 void show_buf(u8 *buf, u32 len);
 

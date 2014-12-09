@@ -1,8 +1,9 @@
 /*
- * Copyright (c) 2011 Espressif System.
+ * Copyright (c) 2011-2014 Espressif System.
  *
  *     MAC80211 support module
  */
+
 #include <linux/etherdevice.h>
 #include <linux/workqueue.h>
 #include <linux/nl80211.h>
@@ -23,6 +24,7 @@
 #include "esp_debug.h"
 #include "esp_wl.h"
 #include "esp_utils.h"
+#include <linux/rfkill-wlan.h>
 
 #define ESP_IEEE80211_DBG esp_dbg
 
@@ -527,7 +529,7 @@ static int esp_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
         ESP_IEEE80211_DBG(ESP_DBG_TRACE, "%s enter 0x%08x\n", __func__, changed);
 
-        if (changed&IEEE80211_CONF_CHANGE_CHANNEL) {
+        if (changed & (IEEE80211_CONF_CHANGE_CHANNEL | IEEE80211_CONF_CHANGE_IDLE)) {
                 sip_send_config(epub, &hw->conf);
     	}
 #else
@@ -1033,7 +1035,7 @@ static int esp_node_detach(struct ieee80211_hw *hw, u8 ifidx, const u8 *addr)
 #endif
 {
     struct esp_pub *epub = (struct esp_pub *)hw->priv;
-	u8 map;
+	u32 map;
 	int i;
     struct esp_node *node = NULL;
 
@@ -1065,7 +1067,7 @@ static int esp_node_detach(struct ieee80211_hw *hw, u8 ifidx, const u8 *addr)
 struct esp_node * esp_get_node_by_addr(struct esp_pub * epub, const u8 *addr)
 {
 	int i;
-	u8 map;
+	u32 map;
 	struct esp_node *node = NULL;
 	if(addr == NULL)
 		return NULL;
@@ -1087,6 +1089,27 @@ struct esp_node * esp_get_node_by_addr(struct esp_pub * epub, const u8 *addr)
 			node = epub->enodes[i];
 			break;
 		}
+	}
+
+	spin_unlock_bh(&epub->tx_ampdu_lock);
+	return node;
+}
+
+struct esp_node * esp_get_node_by_index(struct esp_pub * epub, u8 index)
+{
+	u32 map;
+	struct esp_node *node = NULL;
+
+	if (epub == NULL)
+		return NULL;
+
+	spin_lock_bh(&epub->tx_ampdu_lock);
+	map = epub->enodes_map;
+	if (map & BIT(index)) {
+		node = epub->enodes[index];
+	} else {
+		spin_unlock_bh(&epub->tx_ampdu_lock);
+		return NULL;
 	}
 
 	spin_unlock_bh(&epub->tx_ampdu_lock);
@@ -2172,14 +2195,25 @@ esp_pub_init_mac80211(struct esp_pub *epub)
 int
 esp_register_mac80211(struct esp_pub *epub)
 {
-        int ret = 0;
+	int ret = 0;
+	u8 mac[ETH_ALEN];
 #ifdef P2P_CONCURRENT
 	u8 *wlan_addr;
 	u8 *p2p_addr;
 	int idx;
 #endif
 
-        esp_pub_init_mac80211(epub);
+	esp_pub_init_mac80211(epub);
+
+	printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", epub->mac_addr[0], epub->mac_addr[1],
+          epub->mac_addr[2], epub->mac_addr[3], epub->mac_addr[4], epub->mac_addr[5]);
+	
+	if (!rockchip_wifi_mac_addr(mac)) 
+	{
+		printk("=========> get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
+                mac[2], mac[3], mac[4], mac[5]);
+		memcpy(epub->mac_addr, mac, ETH_ALEN);
+	}
 
 #ifdef P2P_CONCURRENT
 	epub->hw->wiphy->addresses = (struct mac_address *)esp_mac_addr;

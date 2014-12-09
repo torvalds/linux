@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2009 - 2012 Espressif System.
+ * Copyright (c) 2009 - 2014 Espressif System.
+ * 
+ * SIP ctrl packet parse and pack
  */
 
 #include <net/mac80211.h>
@@ -13,27 +15,17 @@
 #include "esp_ctrl.h"
 #include "esp_sif.h"
 #include "esp_debug.h"
-#include "slc_host_register.h"
 #include "esp_wmac.h"
 #include "esp_utils.h"
 #include "esp_wl.h"
-#ifdef ANDROID
-#include "esp_android.h"
+#include "esp_file.h"
 #include "esp_path.h"
-#endif /* ANDROID */
 #ifdef TEST_MODE
 #include "testmode.h"
 #endif /* TEST_MODE */
 #include "esp_version.h"
 
 extern struct completion *gl_bootup_cplx; 
-
-#ifdef ESP_RX_COPYBACK_TEST
-static void sip_show_copyback_buf(void)
-{
-        //show_buf(copyback_buf, copyback_offset);
-}
-#endif /* ESP_RX_COPYBACK_TEST */
 
 static void esp_tx_ba_session_op(struct esp_sip *sip, struct esp_node *node, trc_ampdu_state_t state, u8 tid )
 {
@@ -88,6 +80,52 @@ static void esp_tx_ba_session_op(struct esp_sip *sip, struct esp_node *node, trc
         }
 }
 
+int sip_parse_event_debug(struct esp_pub *epub, const u8 *src, u8 *dst)
+{
+	struct sip_evt_debug* debug_evt =  (struct sip_evt_debug *)(src + SIP_CTRL_HDR_LEN);
+
+	switch (debug_evt->results[0]) {
+		case RDRSSI: {
+			u32 mask = debug_evt->results[1];
+			u8 *p = (u8 *)&debug_evt->results[2];
+			u8 index;
+			struct esp_node *enode;
+
+			while (mask != 0) {
+				index = ffs(mask) - 1;
+				if (index >= ESP_PUB_MAX_STA)
+					break;
+				enode = esp_get_node_by_index(epub, index);
+				if (enode == NULL) {
+					esp_dbg(ESP_DBG_ERROR, "trc mask dismatch");
+				} else {
+                 			dst += sprintf(dst, "%02x:%02x:%02x:%02x:%02x:%02x 0x%x 0x%x\n", 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+						enode->sta->addr[0], enode->sta->addr[1], enode->sta->addr[2],
+						enode->sta->addr[3], enode->sta->addr[4], enode->sta->addr[5],
+#else
+						enode->addr[0], enode->addr[1], enode->addr[2],
+						enode->addr[3], enode->addr[4], enode->addr[5],
+#endif
+						*p, *(p+1));
+						p += 2;
+				}
+				mask &= ~(1<<index);
+			};
+                 	dst += sprintf(dst, "%c", '\0');
+					break;
+		}
+		default: {
+			int i;
+        		for(i = 1; i < debug_evt->len; i++)
+                 		dst += sprintf(dst, "0x%x%s", debug_evt->results[i], i == debug_evt->len -1 ? "":" " );
+			break;
+		}
+	}
+
+	return 0;
+}
+
 int sip_parse_events(struct esp_sip *sip, u8 *buf)
 {
         struct sip_hdr *hdr = (struct sip_hdr *)buf;
@@ -117,8 +155,8 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
 		break;
         }
 	case SIP_EVT_RESETTING:{
-        sip->epub->wait_reset = 1;                       
-        if (gl_bootup_cplx)	
+        	sip->epub->wait_reset = 1;                       
+        	if (gl_bootup_cplx)	
 			complete(gl_bootup_cplx);
 		break;
 	}
@@ -151,7 +189,7 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
                 break;
         }
 
-		case SIP_EVT_ROC: {
+	case SIP_EVT_ROC: {
                 struct sip_evt_roc* report = (struct sip_evt_roc *)(buf + SIP_CTRL_HDR_LEN);
                 esp_rocdone_process(sip->epub->hw, report);
                 break;
@@ -172,7 +210,6 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
 
                 //how about totlen % 256 == 0??
                 if (hdr->hdr.len < 256) {
-                        //sip_show_copyback_buf();
                         kfree(copyback_buf);
                 }
         }
@@ -191,12 +228,9 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
         }
 
         case SIP_EVT_DEBUG: {
-                u8 check_str[100];
-                int i;
-                char * ptr_str = (char *)& check_str;
-                struct sip_evt_debug* debug_evt =  (struct sip_evt_debug *)(buf + SIP_CTRL_HDR_LEN);
-                for(i = 0; i < debug_evt->len; i++)
-                        ptr_str += sprintf(ptr_str, "0x%x%s", debug_evt->results[i], i == debug_evt->len -1 ? "":" " );
+                u8 check_str[640];
+		sip_parse_event_debug(sip->epub, buf, check_str);
+		esp_dbg(ESP_DBG_TRACE, "%s", check_str);
                 esp_test_cmd_event(TEST_CMD_DEBUG, (char *)&check_str);
                 break;
         }
@@ -229,16 +263,14 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
 		sprintf(test_res_str, "esp_host:%llx\nesp_target: %.*s", DRIVER_VER, *len, p);
 		
                 esp_dbg(ESP_SHOW, "%s\n", test_res_str);
-#ifdef ANDROID
 		if(*len && sip->epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT){
         		char filename[256];
 			if (mod_eagle_path_get() == NULL)
         			sprintf(filename, "%s/%s", FWPATH, "test_results");
 			else
         			sprintf(filename, "%s/%s", mod_eagle_path_get(), "test_results");
-			android_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
+			esp_readwrite_file(filename, NULL, test_res_str, strlen(test_res_str));
 		}
-#endif
                 break;
         }
         case SIP_EVT_TRC_AMPDU: {
@@ -254,42 +286,38 @@ int sip_parse_events(struct esp_sip *sip, u8 *buf)
 		node = esp_get_node_by_addr(sip->epub, ep->addr);
 		if(node == NULL)
 			break;
-#if 0
-                esp_tx_ba_session_op(sip, node, ep->state, ep->tid);
-#else
                 for (i = 0; i < 8; i++) {
                         if (ep->tid & (1<<i)) {
                                 esp_tx_ba_session_op(sip, node, ep->state, i);
                         }
                 }
-#endif
                 break;
         }
 
-	    case SIP_EVT_EP: {
-				 char *ep = (char *)(buf + SIP_CTRL_HDR_LEN);
-				 static int counter = 0;
-				 
-				 esp_dbg(ESP_ATE, "%s EVT_EP \n\n", __func__);
-				 if (counter++ < 2) {
-					 esp_dbg(ESP_ATE, "ATE: %s \n", ep);
-				 }
+	case SIP_EVT_EP: {
+		char *ep = (char *)(buf + SIP_CTRL_HDR_LEN);
+		static int counter = 0;
 
-				 esp_test_ate_done_cb(ep);
+		esp_dbg(ESP_ATE, "%s EVT_EP \n\n", __func__);
+		if (counter++ < 2) {
+			esp_dbg(ESP_ATE, "ATE: %s \n", ep);
+		}
 
-				 break;
-			 }
+		esp_test_ate_done_cb(ep);
+
+		break;
+	}
 	case SIP_EVT_INIT_EP: {
-				 char *ep = (char *)(buf + SIP_CTRL_HDR_LEN);
-				 esp_dbg(ESP_ATE, "Phy Init: %s \n", ep);
-				 break;
-			      }
+		char *ep = (char *)(buf + SIP_CTRL_HDR_LEN);
+		esp_dbg(ESP_ATE, "Phy Init: %s \n", ep);
+		break;
+	}
 
 	case SIP_EVT_NOISEFLOOR:{
-				        struct sip_evt_noisefloor *ep = (struct sip_evt_noisefloor *)(buf + SIP_CTRL_HDR_LEN);	                                      
-					atomic_set(&sip->noise_floor, ep->noise_floor);
-					break;
-				}
+		struct sip_evt_noisefloor *ep = (struct sip_evt_noisefloor *)(buf + SIP_CTRL_HDR_LEN);	                                      
+		atomic_set(&sip->noise_floor, ep->noise_floor);
+		break;
+	}
         default:
                 break;
         }
@@ -310,11 +338,8 @@ void sip_send_chip_init(struct esp_sip *sip)
         const struct firmware *fw_entry;
         u8 * esp_init_data = NULL;
         int ret = 0;
-  #ifdef ANDROID
-        ret = android_request_firmware(&fw_entry, ESP_INIT_NAME, sip->epub->dev);
-  #else
-        ret = request_firmware(&fw_entry, ESP_INIT_NAME, sip->epub->dev);
-  #endif /* ANDROID */
+
+        ret = esp_request_firmware(&fw_entry, ESP_INIT_NAME, sip->epub->dev);
         
         if (ret) {
                 esp_dbg(ESP_DBG_ERROR, "%s =============ERROR! NO INIT DATA!!=================\n", __func__);
@@ -324,11 +349,7 @@ void sip_send_chip_init(struct esp_sip *sip)
 
 	size = fw_entry->size;
 
-  #ifdef ANDROID
-        android_release_firmware(fw_entry);
-  #else
-        release_firmware(fw_entry);
-  #endif /* ANDROID */
+        esp_release_firmware(fw_entry);
 
         if (esp_init_data == NULL) {
                 esp_dbg(ESP_DBG_ERROR, "%s =============ERROR! NO MEMORY!!=================\n", __func__);
@@ -339,11 +360,8 @@ void sip_send_chip_init(struct esp_sip *sip)
 
 #endif /* !HAS_INIT_DATA */
 
-#ifdef ANDROID
-	//show_init_buf(esp_init_data,size); 
 	fix_init_data(esp_init_data, size);
-	//show_init_buf(esp_init_data,size);
-#endif
+
 	atomic_sub(1, &sip->tx_credits);
 	
 	sip_send_cmd(sip, SIP_CMD_INIT, size, (void *)esp_init_data);
@@ -373,7 +391,7 @@ int sip_send_config(struct esp_pub *epub, struct ieee80211_conf * conf)
         configcmd->center_freq= conf->channel->center_freq;
 #endif
 		configcmd->duration= 0;
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 int  sip_send_bss_info_update(struct esp_pub *epub, struct esp_vif *evif, u8 *bssid, int assoc)
@@ -397,7 +415,7 @@ int  sip_send_bss_info_update(struct esp_pub *epub, struct esp_vif *evif, u8 *bs
 		bsscmd->isassoc= assoc;
 		bsscmd->beacon_int = evif->beacon_interval;
         memcpy(bsscmd->bssid, bssid, ETH_ALEN);
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 int  sip_send_wmm_params(struct esp_pub *epub, u8 aci, const struct ieee80211_tx_queue_params *params)
@@ -416,7 +434,7 @@ int  sip_send_wmm_params(struct esp_pub *epub, u8 aci, const struct ieee80211_tx
         bsscmd->ecw_min = 32 - __builtin_clz(params->cw_min);
         bsscmd->ecw_max= 32 -__builtin_clz(params->cw_max);
 
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 int sip_send_ampdu_action(struct esp_pub *epub, u8 action_num, const u8 * addr, u16 tid, u16 ssn, u8 buf_size)
@@ -453,7 +471,7 @@ int sip_send_ampdu_action(struct esp_pub *epub, u8 action_num, const u8 * addr, 
                 break;
         }
 
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 #ifdef HW_SCAN
@@ -515,7 +533,7 @@ int sip_send_scan(struct esp_pub *epub)
 
         }
         
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 #endif
 
@@ -531,7 +549,7 @@ int sip_send_suspend_config(struct esp_pub *epub, u8 suspend)
 
         cmd = (struct sip_cmd_suspend *)(skb->data + sizeof(struct sip_hdr));
 	cmd->suspend = suspend;
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 int sip_send_ps_config(struct esp_pub *epub, struct esp_ps *ps)
@@ -552,7 +570,7 @@ int sip_send_ps_config(struct esp_pub *epub, struct esp_ps *ps)
         pscmd->dtim_period = ps->dtim_period;
         pscmd->max_sleep_period = ps->max_sleep_period;
 
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 void sip_scandone_process(struct esp_sip *sip, struct sip_evt_scan_report *scan_report)
@@ -612,7 +630,7 @@ int sip_send_setkey(struct esp_pub *epub, u8 bssid_no, u8 *peer_addr, struct iee
         } else {
                 setkeycmd->flags=0;
         }
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 #ifdef FPGA_LOOPBACK
@@ -660,7 +678,7 @@ int sip_send_loopback_mblk(struct esp_sip *sip, int txpacket_len, int rxpacket_l
                 }
         }
 
-        ret = sip_cmd_enqueue(sip, skb);
+        ret = sip_cmd_enqueue(sip, skb, ENQUEUE_PRIOR_TAIL);
         if (ret <0)
                 return ret;
 
@@ -680,7 +698,7 @@ int sip_send_roc(struct esp_pub *epub, u16 center_freq, u16 duration)
         configcmd = (struct sip_cmd_config *)(skb->data + sizeof(struct sip_hdr));
         configcmd->center_freq= center_freq;
         configcmd->duration= duration;
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
@@ -745,7 +763,18 @@ int sip_send_set_sta(struct esp_pub *epub, u8 ifidx, u8 set, struct esp_node *no
         }   
     }   
 #endif
-        return sip_cmd_enqueue(epub->sip, skb);
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
+}
+
+int sip_send_recalc_credit(struct esp_pub *epub)
+{
+	struct sk_buff *skb = NULL;
+
+	skb = sip_alloc_ctrl_skbuf(epub->sip, 0 + sizeof(struct sip_hdr), SIP_CMD_RECALC_CREDIT);
+	if (!skb)
+		return -ENOMEM;
+	
+        return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_HEAD);
 }
 
 int sip_cmd(struct esp_pub *epub, enum sip_cmd_id cmd_id, u8 *cmd_buf, u8 cmd_len)
@@ -758,5 +787,5 @@ int sip_cmd(struct esp_pub *epub, enum sip_cmd_id cmd_id, u8 *cmd_buf, u8 cmd_le
 
 	memcpy(skb->data + sizeof(struct sip_hdr), cmd_buf, cmd_len);
 
-	return sip_cmd_enqueue(epub->sip, skb);
+	return sip_cmd_enqueue(epub->sip, skb, ENQUEUE_PRIOR_TAIL);
 }

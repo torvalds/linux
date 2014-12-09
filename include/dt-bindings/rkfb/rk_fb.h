@@ -17,6 +17,7 @@
 #define OUT_CCIR656         6
 #define OUT_S888            8
 #define OUT_S888DUMY        12
+#define OUT_YUV_420	    14
 #define OUT_P16BPP4         24
 #define OUT_D888_P666       0x21	//18bit screen,connect to lcdc D2~D7, D10~D15, D18~D23
 #define OUT_D888_P565       0x22
@@ -57,7 +58,8 @@
 #define FB0_WIN0_FB1_WIN2_FB2_WIN1	120
 #define FB0_WIN0_FB1_WIN1_FB2_WIN2	210
 #define FB0_WIN1_FB1_WIN0_FB2_WIN2	201
-#define FB0_WIN0_FB1_WIN1_FB2_WIN2_FB3_WIN3	3210
+#define FB0_WIN0_FB1_WIN1_FB2_WIN2_FB3_WIN3	    3210
+#define FB0_WIN0_FB1_WIN1_FB2_WIN2_FB3_WIN3_FB4_HWC 43210
 
 #define DISPLAY_POLICY_SDK	0
 #define DISPLAY_POLICY_BOX	1

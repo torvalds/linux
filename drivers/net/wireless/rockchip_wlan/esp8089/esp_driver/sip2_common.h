@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010 - 2012 Espressif System.
+ *  Copyright (c) 2010 - 2014 Espressif System.
  *
  *   Common definitions of Serial Interconnctor Protocol
  *
@@ -56,6 +56,7 @@ enum sip_cmd_id {
         SIP_CMD_PS,
         SIP_CMD_ATE,
         SIP_CMD_SUSPEND,
+	SIP_CMD_RECALC_CREDIT,
         SIP_CMD_MAX,
 };
 
@@ -453,7 +454,7 @@ struct sip_cmd_debug {
 
 struct sip_evt_debug {
         u16    len;
-        u32    results[8];
+        u32    results[12];
         u16    pad;
 } __packed;
 
