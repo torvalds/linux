@@ -1,0 +1,36 @@
+NVIDIA Tegra Memory Controller device tree bindings
+===================================================
+
+Required properties:
+- compatible: Should be "nvidia,tegra<chip>-mc"
+- reg: Physical base address and length of the controller's registers.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+  - mc: the module's clock input
+- interrupts: The interrupt outputs from the controller.
+- #iommu-cells: Should be 1. The single cell of the IOMMU specifier defines
+  the SWGROUP of the master.
+
+This device implements an IOMMU that complies with the generic IOMMU binding.
+See ../iommu/iommu.txt for details.
+
+Example:
+--------
+
+	mc: memory-controller@0,70019000 {
+		compatible = "nvidia,tegra124-mc";
+		reg = <0x0 0x70019000 0x0 0x1000>;
+		clocks = <&tegra_car TEGRA124_CLK_MC>;
+		clock-names = "mc";
+
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+
+		#iommu-cells = <1>;
+	};
+
+	sdhci@0,700b0000 {
+		compatible = "nvidia,tegra124-sdhci";
+		...
+		iommus = <&mc TEGRA_SWGROUP_SDMMC1A>;
+	};

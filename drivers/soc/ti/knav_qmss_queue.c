@@ -785,7 +785,7 @@ void *knav_pool_create(const char *name,
 		dev_err(kdev->dev, "out of descs in region(%d) for pool(%s)\n",
 			region_id, name);
 		ret = -ENOMEM;
-		goto err;
+		goto err_unlock;
 	}
 
 	/* Region maintains a sorted (by region offset) list of pools
@@ -815,15 +815,16 @@ void *knav_pool_create(const char *name,
 		dev_err(kdev->dev, "pool(%s) create failed: fragmented desc pool in region(%d)\n",
 			name, region_id);
 		ret = -ENOMEM;
-		goto err;
+		goto err_unlock;
 	}
 
 	mutex_unlock(&knav_dev_lock);
 	kdesc_fill_pool(pool);
 	return pool;
 
-err:
+err_unlock:
 	mutex_unlock(&knav_dev_lock);
+err:
 	kfree(pool->name);
 	devm_kfree(kdev->dev, pool);
 	return ERR_PTR(ret);
@@ -1305,14 +1306,14 @@ static void knav_free_queue_ranges(struct knav_device *kdev)
 static void knav_queue_free_regions(struct knav_device *kdev)
 {
 	struct knav_region *region;
-	struct knav_pool *pool;
+	struct knav_pool *pool, *tmp;
 	unsigned size;
 
 	for (;;) {
 		region = first_region(kdev);
 		if (!region)
 			break;
-		list_for_each_entry(pool, &region->pools, region_inst)
+		list_for_each_entry_safe(pool, tmp, &region->pools, region_inst)
 			knav_pool_destroy(pool);
 
 		size = region->virt_end - region->virt_start;
@@ -1639,7 +1640,7 @@ static int knav_queue_init_queues(struct knav_device *kdev)
 	size = (1 << kdev->inst_shift) * kdev->num_queues_in_use;
 	kdev->instances = devm_kzalloc(kdev->dev, size, GFP_KERNEL);
 	if (!kdev->instances)
-		return -1;
+		return -ENOMEM;
 
 	for_each_queue_range(kdev, range) {
 		if (range->ops && range->ops->init_range)

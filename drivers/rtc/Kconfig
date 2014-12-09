@@ -1109,16 +1109,18 @@ config RTC_DRV_AT91RM9200
 	  this is powered by the backup power supply.
 
 config RTC_DRV_AT91SAM9
-	tristate "AT91SAM9x/AT91CAP9 RTT as RTC"
+	tristate "AT91SAM9 RTT as RTC"
 	depends on ARCH_AT91
+	select MFD_SYSCON
 	help
-	  RTC driver for the Atmel AT91SAM9x and AT91CAP9 internal RTT
-	  (Real Time Timer). These timers are powered by the backup power
-	  supply (such as a small coin cell battery), but do not need to
-	  be used as RTCs.
-
-	  (On AT91SAM9rl and AT91SAM9G45 chips you probably want to use the
-	  dedicated RTC module and leave the RTT available for other uses.)
+	  Some AT91SAM9 SoCs provide an RTT (Real Time Timer) block which
+	  can be used as an RTC thanks to the backup power supply (e.g. a
+	  small coin cell battery) which keeps this block and the GPBR
+	  (General Purpose Backup Registers) block powered when the device
+	  is shutdown.
+	  Some AT91SAM9 SoCs provide a real RTC block, on those ones you'd
+	  probably want to use the real RTC block instead of the "RTT as an
+	  RTC" driver.
 
 config RTC_DRV_AT91SAM9_RTT
 	int
@@ -1126,6 +1128,9 @@ config RTC_DRV_AT91SAM9_RTT
 	default 0
 	depends on RTC_DRV_AT91SAM9
 	help
+	  This option is only relevant for legacy board support and
+	  won't be used when booting a DT board.
+
 	  More than one RTT module is available. You can choose which
 	  one will be used as an RTC. The default of zero is normally
 	  OK to use, though some systems use that for non-RTC purposes.
@@ -1137,6 +1142,9 @@ config RTC_DRV_AT91SAM9_GPBR
 	prompt "Backup Register Number"
 	depends on RTC_DRV_AT91SAM9
 	help
+	  This option is only relevant for legacy board support and
+	  won't be used when booting a DT board.
+
 	  The RTC driver needs to use one of the General Purpose Backup
 	  Registers (GPBRs) as well as the RTT. You can choose which one
 	  will be used. The default of zero is normally OK to use, but
