@@ -287,6 +287,7 @@ bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		      struct kvm_exit_mmio *mmio);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
+#define vgic_initialized(k)	(!!((k)->arch.vgic.nr_cpus))
 #define vgic_ready(k)		((k)->arch.vgic.ready)
 
 int vgic_v2_probe(struct device_node *vgic_node,
@@ -367,6 +368,11 @@ static inline bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 static inline int irqchip_in_kernel(struct kvm *kvm)
 {
 	return 0;
+}
+
+static inline bool vgic_initialized(struct kvm *kvm)
+{
+	return true;
 }
 
 static inline bool vgic_ready(struct kvm *kvm)
