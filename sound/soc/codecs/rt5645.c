@@ -2113,6 +2113,10 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec,
 	int gpio_state, jack_type = 0;
 	unsigned int val;
 
+	if (!gpio_is_valid(rt5645->pdata.hp_det_gpio)) {
+		dev_err(codec->dev, "invalid gpio\n");
+		return -EINVAL;
+	}
 	gpio_state = gpio_get_value(rt5645->pdata.hp_det_gpio);
 
 	dev_dbg(codec->dev, "gpio = %d(%d)\n", rt5645->pdata.hp_det_gpio,
