@@ -386,6 +386,18 @@ void dce4_set_audio_packet(struct drm_encoder *encoder, u32 offset)
 		AFMT_AUDIO_SAMPLE_SEND | AFMT_RESET_FIFO_WHEN_AUDIO_DIS | AFMT_60958_CS_UPDATE);
 }
 
+
+void dce4_set_mute(struct drm_encoder *encoder, u32 offset, bool mute)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (mute)
+		WREG32_OR(HDMI_GC + offset, HDMI_GC_AVMUTE);
+	else
+		WREG32_AND(HDMI_GC + offset, ~HDMI_GC_AVMUTE);
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -412,13 +424,10 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	radeon_audio_set_dto(encoder, mode->clock);
 	radeon_audio_set_vbi_packet(encoder);
 	radeon_hdmi_set_color_depth(encoder);
-
-	WREG32(HDMI_GC + offset, 0); /* unset HDMI_GC_AVMUTE */
-
+	radeon_audio_set_mute(encoder, false);
 	radeon_audio_update_acr(encoder, mode->clock);
 	radeon_audio_write_speaker_allocation(encoder);
 	radeon_audio_set_audio_packet(encoder);
-
 	radeon_audio_select_pin(encoder);
 	radeon_audio_write_sad_regs(encoder);
 	radeon_audio_write_latency_fields(encoder, mode);

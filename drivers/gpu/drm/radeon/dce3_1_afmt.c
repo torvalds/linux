@@ -220,6 +220,17 @@ void dce3_2_set_audio_packet(struct drm_encoder *encoder, u32 offset)
 		HDMI0_AUDIO_INFO_LINE(2));			/* anything other than 0 */
 }
 
+void dce3_2_set_mute(struct drm_encoder *encoder, u32 offset, bool mute)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (mute)
+		WREG32_OR(HDMI0_GC + offset, HDMI0_GC_AVMUTE);
+	else
+		WREG32_AND(HDMI0_GC + offset, ~HDMI0_GC_AVMUTE);
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -246,9 +257,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	radeon_audio_set_dto(encoder, mode->clock);
 	radeon_audio_set_vbi_packet(encoder);
 	radeon_hdmi_set_color_depth(encoder);
-
-	WREG32(HDMI0_GC + offset, 0); /* unset HDMI0_GC_AVMUTE */
-
+	radeon_audio_set_mute(encoder, false);
 	radeon_audio_update_acr(encoder, mode->clock);
 	radeon_audio_write_speaker_allocation(encoder);
 	radeon_audio_set_audio_packet(encoder);

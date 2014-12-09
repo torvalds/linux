@@ -92,6 +92,9 @@ void dce4_hdmi_set_color_depth(struct drm_encoder *encoder,
 void r600_set_audio_packet(struct drm_encoder *encoder, u32 offset);
 void dce3_2_set_audio_packet(struct drm_encoder *encoder, u32 offset);
 void dce4_set_audio_packet(struct drm_encoder *encoder, u32 offset);
+void r600_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
+void dce3_2_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
+void dce4_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
 
 static const u32 pin_offsets[7] =
 {
@@ -146,6 +149,7 @@ static struct radeon_audio_funcs r600_hdmi_funcs = {
 	.set_vbi_packet = r600_set_vbi_packet,
 	.set_avi_packet = r600_set_avi_packet,
 	.set_audio_packet = r600_set_audio_packet,
+	.set_mute = r600_set_mute,
 };
 
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
@@ -157,6 +161,7 @@ static struct radeon_audio_funcs dce32_hdmi_funcs = {
 	.set_vbi_packet = r600_set_vbi_packet,
 	.set_avi_packet = r600_set_avi_packet,
 	.set_audio_packet = dce3_2_set_audio_packet,
+	.set_mute = dce3_2_set_mute,
 };
 
 static struct radeon_audio_funcs dce32_dp_funcs = {
@@ -178,6 +183,7 @@ static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.set_color_depth = dce4_hdmi_set_color_depth,
 	.set_avi_packet = evergreen_set_avi_packet,
 	.set_audio_packet = dce4_set_audio_packet,
+	.set_mute = dce4_set_mute,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
@@ -201,6 +207,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.set_color_depth = dce4_hdmi_set_color_depth,
 	.set_avi_packet = evergreen_set_avi_packet,
 	.set_audio_packet = dce4_set_audio_packet,
+	.set_mute = dce4_set_mute,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
@@ -635,4 +642,16 @@ void radeon_audio_set_audio_packet(struct drm_encoder *encoder)
 
 	if (radeon_encoder->audio && radeon_encoder->audio->set_audio_packet)
 		radeon_encoder->audio->set_audio_packet(encoder, dig->afmt->offset);
+}
+
+void radeon_audio_set_mute(struct drm_encoder *encoder, bool mute)
+{
+    struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+    struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	if (radeon_encoder->audio && radeon_encoder->audio->set_mute)
+		radeon_encoder->audio->set_mute(encoder, dig->afmt->offset, mute);
 }

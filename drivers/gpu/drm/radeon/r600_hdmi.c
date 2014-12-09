@@ -389,6 +389,17 @@ void r600_set_audio_packet(struct drm_encoder *encoder, u32 offset)
 		~HDMI0_60958_CS_CHANNEL_NUMBER_R_MASK);
 }
 
+void r600_set_mute(struct drm_encoder *encoder, u32 offset, bool mute)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (mute)
+		WREG32_OR(HDMI0_GC + offset, HDMI0_GC_AVMUTE);
+	else
+		WREG32_AND(HDMI0_GC + offset, ~HDMI0_GC_AVMUTE);
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -415,10 +426,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	radeon_audio_set_dto(encoder, mode->clock);
 	radeon_audio_set_vbi_packet(encoder);
 	radeon_hdmi_set_color_depth(encoder);
-
-	WREG32_AND(HDMI0_GC + offset,
-		   ~HDMI0_GC_AVMUTE); /* unset HDMI0_GC_AVMUTE */
-
+	radeon_audio_set_mute(encoder, false);
 	radeon_audio_update_acr(encoder, mode->clock);
 	radeon_audio_set_audio_packet(encoder);
 
