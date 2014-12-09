@@ -1142,7 +1142,8 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	iwl_trans_suspend(mvm->trans);
-	if (iwl_mvm_is_d0i3_supported(mvm)) {
+	if (wowlan->any) {
+		/* 'any' trigger means d0i3 usage */
 		mutex_lock(&mvm->d0i3_suspend_mutex);
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
@@ -1876,8 +1877,10 @@ int iwl_mvm_resume(struct ieee80211_hw *hw)
 
 	iwl_trans_resume(mvm->trans);
 
-	if (iwl_mvm_is_d0i3_supported(mvm))
+	if (mvm->hw->wiphy->wowlan_config->any) {
+		/* 'any' trigger means d0i3 usage */
 		return 0;
+	}
 
 	return __iwl_mvm_resume(mvm, false);
 }

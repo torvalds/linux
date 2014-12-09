@@ -462,15 +462,17 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    device_can_wakeup(mvm->trans->dev)) {
 		mvm->wowlan.flags = WIPHY_WOWLAN_ANY;
 		hw->wiphy->wowlan = &mvm->wowlan;
-	} else if (mvm->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
+	}
+
+	if (mvm->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
 	    mvm->trans->ops->d3_suspend &&
 	    mvm->trans->ops->d3_resume &&
 	    device_can_wakeup(mvm->trans->dev)) {
-		mvm->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-				    WIPHY_WOWLAN_DISCONNECT |
-				    WIPHY_WOWLAN_EAP_IDENTITY_REQ |
-				    WIPHY_WOWLAN_RFKILL_RELEASE |
-				    WIPHY_WOWLAN_NET_DETECT;
+		mvm->wowlan.flags |= WIPHY_WOWLAN_MAGIC_PKT |
+				     WIPHY_WOWLAN_DISCONNECT |
+				     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
+				     WIPHY_WOWLAN_RFKILL_RELEASE |
+				     WIPHY_WOWLAN_NET_DETECT;
 		if (!iwlwifi_mod_params.sw_crypto)
 			mvm->wowlan.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 					     WIPHY_WOWLAN_GTK_REKEY_FAILURE |
