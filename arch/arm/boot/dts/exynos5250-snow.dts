@@ -6,10 +6,13 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/maxim,max77686.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 #include "exynos5250.dtsi"
 
 / {
@@ -25,76 +28,7 @@
 	};
 
 	chosen {
-	};
-
-	rtc@101E0000 {
-		status = "okay";
-	};
-
-	pinctrl@11400000 {
-		ec_irq: ec-irq {
-			samsung,pins = "gpx1-6";
-			samsung,pin-function = <0>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		sd3_clk: sd3-clk {
-			samsung,pin-drv = <0>;
-		};
-
-		sd3_cmd: sd3-cmd {
-			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
-		};
-
-		sd3_bus4: sd3-bus-width4 {
-			samsung,pin-drv = <0>;
-		};
-
-		max98095_en: max98095-en {
-			samsung,pins = "gpx1-7";
-			samsung,pin-function = <0>;
-			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
-		};
-
-		tps65090_irq: tps65090-irq {
-			samsung,pins = "gpx2-6";
-			samsung,pin-function = <0>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		usb3_vbus_en: usb3-vbus-en {
-			samsung,pins = "gpx2-7";
-			samsung,pin-function = <1>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		hdmi_hpd_irq: hdmi-hpd-irq {
-			samsung,pins = "gpx3-7";
-			samsung,pin-function = <0>;
-			samsung,pin-pud = <1>;
-			samsung,pin-drv = <0>;
-		};
-	};
-
-	pinctrl@13400000 {
-		arb_their_claim: arb-their-claim {
-			samsung,pins = "gpe0-4";
-			samsung,pin-function = <0>;
-			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
-		};
-
-		arb_our_claim: arb-our-claim {
-			samsung,pins = "gpf0-3";
-			samsung,pin-function = <1>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
+		bootargs = "console=tty1";
 	};
 
 	gpio-keys {
@@ -102,14 +36,14 @@
 
 		power {
 			label = "Power";
-			gpios = <&gpx1 3 1>;
-			linux,code = <116>; /* KEY_POWER */
+			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
 			gpio-key,wakeup;
 		};
 
 		lid-switch {
 			label = "Lid";
-			gpios = <&gpx3 5 1>;
+			gpios = <&gpx3 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
@@ -130,8 +64,8 @@
 
 		i2c-parent = <&{/i2c@12CA0000}>;
 
-		our-claim-gpio = <&gpf0 3 1>;
-		their-claim-gpios = <&gpe0 4 1>;
+		our-claim-gpio = <&gpf0 3 GPIO_ACTIVE_LOW>;
+		their-claim-gpios = <&gpe0 4 GPIO_ACTIVE_LOW>;
 		slew-delay-us = <10>;
 		wait-retry-us = <3000>;
 		wait-free-us = <50000>;
@@ -154,7 +88,7 @@
 			cros_ec: embedded-controller {
 				compatible = "google,cros-ec-i2c";
 				reg = <0x1e>;
-				interrupts = <6 0>;
+				interrupts = <6 IRQ_TYPE_NONE>;
 				interrupt-parent = <&gpx1>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&ec_irq>;
@@ -241,13 +175,6 @@
 	};
 
 	i2c@12CD0000 {
-		max98095: codec@11 {
-			compatible = "maxim,max98095";
-			reg = <0x11>;
-			pinctrl-0 = <&max98095_en>;
-			pinctrl-names = "default";
-		};
-
 		ptn3460: lvds-bridge@20 {
 			compatible = "nxp,ptn3460";
 			reg = <0x20>;
@@ -256,10 +183,6 @@
 			edid-emulation = <5>;
 			panel = <&panel>;
 		};
-	};
-
-	i2s0: i2s@03830000 {
-		status = "okay";
 	};
 
 	sound {
@@ -275,18 +198,10 @@
 		regulator-name = "P5.0V_USB3CON";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpx2 7 0>;
+		gpio = <&gpx2 7 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb3_vbus_en>;
 		enable-active-high;
-	};
-
-	phy@12100000 {
-		vbus-supply = <&usb3_vbus_reg>;
-	};
-
-	usb@12110000 {
-		samsung,vbus-gpio = <&gpx1 1 0>;
 	};
 
 	fixed-rate-clocks {
@@ -294,18 +209,6 @@
 			compatible = "samsung,clock-xxti";
 			clock-frequency = <24000000>;
 		};
-	};
-
-	hdmi {
-		hpd-gpio = <&gpx3 7 0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdmi_hpd_irq>;
-		phy = <&hdmiphy>;
-		ddc = <&i2c_2>;
-		hdmi-en-supply = <&tps65090_fet7>;
-		vdd-supply = <&ldo8_reg>;
-		vdd_osc-supply = <&ldo10_reg>;
-		vdd_pll-supply = <&ldo8_reg>;
 	};
 
 	backlight: backlight {
@@ -319,30 +222,46 @@
 		pinctrl-names = "default";
 	};
 
-	fimd@14400000 {
-		status = "okay";
-		samsung,invert-vclk;
-	};
-
 	panel: panel {
 		compatible = "auo,b116xw03";
 		power-supply = <&fet6>;
 		backlight = <&backlight>;
 	};
+};
 
-	dp-controller@145B0000 {
-		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <&dp_hpd>;
-		samsung,color-space = <0>;
-		samsung,dynamic-range = <0>;
-		samsung,ycbcr-coeff = <0>;
-		samsung,color-depth = <1>;
-		samsung,link-rate = <0x0a>;
-		samsung,lane-count = <2>;
-		samsung,hpd-gpio = <&gpx0 7 0>;
-		bridge = <&ptn3460>;
-	};
+&dp {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dp_hpd>;
+	samsung,color-space = <0>;
+	samsung,dynamic-range = <0>;
+	samsung,ycbcr-coeff = <0>;
+	samsung,color-depth = <1>;
+	samsung,link-rate = <0x0a>;
+	samsung,lane-count = <2>;
+	samsung,hpd-gpio = <&gpx0 7 GPIO_ACTIVE_HIGH>;
+	bridge = <&ptn3460>;
+};
+
+&ehci {
+	samsung,vbus-gpio = <&gpx1 1 GPIO_ACTIVE_HIGH>;
+};
+
+&fimd {
+	status = "okay";
+	samsung,invert-vclk;
+};
+
+&hdmi {
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_hpd_irq>;
+	phy = <&hdmiphy>;
+	ddc = <&i2c_2>;
+	hdmi-en-supply = <&tps65090_fet7>;
+	vdd-supply = <&ldo8_reg>;
+	vdd_osc-supply = <&ldo10_reg>;
+	vdd_pll-supply = <&ldo8_reg>;
 };
 
 &i2c_0 {
@@ -350,10 +269,10 @@
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
 
-	max77686@09 {
+	max77686: max77686@09 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx3>;
-		interrupts = <2 0>;
+		interrupts = <2 IRQ_TYPE_NONE>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max77686_irq>;
 		wakeup-source;
@@ -503,7 +422,7 @@
 	trackpad {
 		reg = <0x67>;
 		compatible = "cypress,cyapa";
-		interrupts = <2 0>;
+		interrupts = <2 IRQ_TYPE_NONE>;
 		interrupt-parent = <&gpx1>;
 		wakeup-source;
 	};
@@ -550,6 +469,13 @@
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
+
+	max98095: codec@11 {
+		compatible = "maxim,max98095";
+		reg = <0x11>;
+		pinctrl-0 = <&max98095_en>;
+		pinctrl-names = "default";
+	};
 };
 
 &i2c_8 {
@@ -561,6 +487,10 @@
 		compatible = "samsung,exynos4212-hdmiphy";
 		reg = <0x38>;
 	};
+};
+
+&i2s0 {
+	status = "okay";
 };
 
 &mmc_0 {
@@ -587,7 +517,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
 	bus-width = <4>;
-	wp-gpios = <&gpc2 1 0>;
+	wp-gpios = <&gpc2 1 GPIO_ACTIVE_HIGH>;
 	cap-sd-highspeed;
 };
 
@@ -610,12 +540,82 @@
 };
 
 &pinctrl_0 {
+	ec_irq: ec-irq {
+		samsung,pins = "gpx1-6";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
+	max98095_en: max98095-en {
+		samsung,pins = "gpx1-7";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <0>;
+	};
+
+	tps65090_irq: tps65090-irq {
+		samsung,pins = "gpx2-6";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
+	usb3_vbus_en: usb3-vbus-en {
+		samsung,pins = "gpx2-7";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
 	max77686_irq: max77686-irq {
 		samsung,pins = "gpx3-2";
 		samsung,pin-function = <0>;
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
+
+	hdmi_hpd_irq: hdmi-hpd-irq {
+		samsung,pins = "gpx3-7";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+&pinctrl_1 {
+	arb_their_claim: arb-their-claim {
+		samsung,pins = "gpe0-4";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <0>;
+	};
+
+	arb_our_claim: arb-our-claim {
+		samsung,pins = "gpf0-3";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&max77686 MAX77686_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
+};
+
+&sd3_bus4 {
+	samsung,pin-drv = <0>;
+};
+
+&sd3_clk {
+	samsung,pin-drv = <0>;
+};
+
+&sd3_cmd {
+	samsung,pin-pud = <3>;
+	samsung,pin-drv = <0>;
 };
 
 &spi_1 {
@@ -626,6 +626,10 @@
 
 &usbdrd_dwc3 {
 	dr_mode = "host";
+};
+
+&usbdrd_phy {
+	vbus-supply = <&usb3_vbus_reg>;
 };
 
 #include "cros-ec-keyboard.dtsi"

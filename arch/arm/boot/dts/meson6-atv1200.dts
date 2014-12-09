@@ -50,7 +50,7 @@
 
 / {
 	model = "Geniatech ATV1200";
-	compatible = "geniatech,atv1200";
+	compatible = "geniatech,atv1200", "amlogic,meson6";
 
 	aliases {
 		serial0 = &uart_AO;

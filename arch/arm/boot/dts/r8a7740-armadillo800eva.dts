@@ -78,7 +78,7 @@
 		regulator-boot-on;
 	};
 
-	gpio-keys {
+	keyboard {
 		compatible = "gpio-keys";
 
 		power-key {
@@ -297,5 +297,9 @@
 	pinctrl-0 = <&fsia_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&tmu0 {
 	status = "okay";
 };

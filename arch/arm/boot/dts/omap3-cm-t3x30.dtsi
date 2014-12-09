@@ -10,6 +10,14 @@
 			cpu0-supply = <&vcc>;
 		};
 	};
+
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "cm-t35";
+
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
+	};
 };
 
 &omap3_pmx_core {
@@ -59,12 +67,22 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			};
+		};
 	};
 };
 
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
 #include <dt-bindings/input/input.h>
+
+&venc {
+	vdda-supply = <&vdac>;
+};
 
 &mmc1 {
 	vmmc-supply = <&vmmc1>;

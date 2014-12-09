@@ -44,7 +44,6 @@ static void __init ape6evm_add_standard_devices(void)
 	clk_put(parent);
 	clk_put(mp);
 
-	r8a73a4_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 

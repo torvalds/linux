@@ -9,6 +9,34 @@
  * kind, whether express or implied.
  */
 
+/*
+ * SSI-AK4643
+ *
+ * SW1: 1: AK4643
+ *      2: CN22
+ *      3: ADV7511
+ *
+ * This command is required when Playback/Capture
+ *
+ *	amixer set "LINEOUT Mixer DACL" on
+ *	amixer set "DVC Out" 100%
+ *	amixer set "DVC In" 100%
+ *
+ * You can use Mute
+ *
+ *	amixer set "DVC Out Mute" on
+ *	amixer set "DVC In Mute" on
+ *
+ * You can use Volume Ramp
+ *
+ *	amixer set "DVC Out Ramp Up Rate"   "0.125 dB/64 steps"
+ *	amixer set "DVC Out Ramp Down Rate" "0.125 dB/512 steps"
+ *	amixer set "DVC Out Ramp" on
+ *	aplay xxx.wav &
+ *	amixer set "DVC Out"  80%  // Volume Down
+ *	amixer set "DVC Out" 100%  // Volume Up
+ */
+
 /dts-v1/;
 #include "r8a7790.dtsi"
 #include <dt-bindings/gpio/gpio.h>
@@ -19,8 +47,8 @@
 	compatible = "renesas,lager", "renesas,r8a7790";
 
 	aliases {
-		serial6 = &scif0;
-		serial7 = &scif1;
+		serial6 = &scifa0;
+		serial7 = &scifa1;
 	};
 
 	chosen {
@@ -43,7 +71,7 @@
 		#size-cells = <1>;
 	};
 
-	gpio_keys {
+	keyboard {
 		compatible = "gpio-keys";
 
 		button@1 {
@@ -146,6 +174,23 @@
 			  1800000 0>;
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "left_j";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&ak4643>;
+			system-clock-frequency = <11289600>;
+		};
+	};
+
 	vga-encoder {
 		compatible = "adi,adv7123";
 
@@ -207,9 +252,9 @@
 		renesas,function = "du";
 	};
 
-	scif0_pins: serial0 {
-		renesas,groups = "scif0_data";
-		renesas,function = "scif0";
+	scifa0_pins: serial0 {
+		renesas,groups = "scifa0_data";
+		renesas,function = "scifa0";
 	};
 
 	ether_pins: ether {
@@ -222,9 +267,9 @@
 		renesas,function = "intc";
 	};
 
-	scif1_pins: serial1 {
-		renesas,groups = "scif1_data";
-		renesas,function = "scif1";
+	scifa1_pins: serial1 {
+		renesas,groups = "scifa1_data";
+		renesas,function = "scifa1";
 	};
 
 	sdhi0_pins: sd0 {
@@ -268,6 +313,11 @@
 		renesas,function = "iic3";
 	};
 
+	hsusb_pins: hsusb {
+		renesas,groups = "usb0_ovc_vbus";
+		renesas,function = "usb0";
+	};
+
 	usb0_pins: usb0 {
 		renesas,groups = "usb0";
 		renesas,function = "usb0";
@@ -286,6 +336,16 @@
 	vin1_pins: vin {
 		renesas,groups = "vin1_data8", "vin1_clk";
 		renesas,function = "vin1";
+	};
+
+	sound_pins: sound {
+		renesas,groups = "ssi0129_ctrl", "ssi0_data", "ssi1_data";
+		renesas,function = "ssi";
+	};
+
+	sound_clk_pins: sound_clk {
+		renesas,groups = "audio_clk_a";
+		renesas,function = "audio_clk";
 	};
 };
 
@@ -356,15 +416,15 @@
 	};
 };
 
-&scif0 {
-	pinctrl-0 = <&scif0_pins>;
+&scifa0 {
+	pinctrl-0 = <&scifa0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
 };
 
-&scif1 {
-	pinctrl-0 = <&scif1_pins>;
+&scifa1 {
+	pinctrl-0 = <&scifa1_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
@@ -424,6 +484,14 @@
 	pinctrl-0 = <&iic2_pins>;
 	pinctrl-names = "default";
 
+	clock-frequency = <100000>;
+
+	ak4643: sound-codec@12 {
+		compatible = "asahi-kasei,ak4643";
+		#sound-dai-cells = <0>;
+		reg = <0x12>;
+	};
+
 	composite-in@20 {
 		compatible = "adi,adv7180";
 		reg = <0x20>;
@@ -466,10 +534,27 @@
 	pinctrl-names = "default";
 };
 
+&xhci {
+	status = "okay";
+	pinctrl-0 = <&usb2_pins>;
+	pinctrl-names = "default";
+};
+
 &pci2 {
 	status = "okay";
 	pinctrl-0 = <&usb2_pins>;
 	pinctrl-names = "default";
+};
+
+&hsusb {
+	status = "okay";
+	pinctrl-0 = <&hsusb_pins>;
+	pinctrl-names = "default";
+	renesas,enable-gpio = <&gpio5 18 GPIO_ACTIVE_HIGH>;
+};
+
+&usbphy {
+	status = "okay";
 };
 
 /* composite video input */
@@ -488,4 +573,24 @@
 			bus-width = <8>;
 		};
 	};
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	#sound-dai-cells = <0>;
+
+	status = "okay";
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi0 &src2 &dvc0>;
+			capture  = <&ssi1 &src3 &dvc1>;
+		};
+	};
+};
+
+&ssi1 {
+	shared-pin;
 };

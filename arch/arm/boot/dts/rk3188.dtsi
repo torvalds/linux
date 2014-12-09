@@ -26,11 +26,24 @@
 		#size-cells = <0>;
 		enable-method = "rockchip,rk3066-smp";
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0x0>;
+			operating-points = <
+				/* kHz    uV */
+				1608000 1350000
+				1416000 1250000
+				1200000 1150000
+				1008000 1075000
+				 816000  975000
+				 600000  950000
+				 504000  925000
+				 312000  875000
+			>;
+			clock-latency = <40000>;
+			clocks = <&cru ARMCLK>;
 		};
 		cpu@1 {
 			device_type = "cpu";
@@ -65,6 +78,21 @@
 		};
 	};
 
+	i2s0: i2s@1011a000 {
+		compatible = "rockchip,rk3188-i2s", "rockchip,rk3066-i2s";
+		reg = <0x1011a000 0x2000>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_bus>;
+		dmas = <&dmac1_s 6>, <&dmac1_s 7>;
+		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
+		status = "disabled";
+	};
+
 	cru: clock-controller@20000000 {
 		compatible = "rockchip,rk3188-cru";
 		reg = <0x20000000 0x1000>;
@@ -83,7 +111,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		gpio0: gpio0@0x2000a000 {
+		gpio0: gpio0@2000a000 {
 			compatible = "rockchip,rk3188-gpio-bank0";
 			reg = <0x2000a000 0x100>;
 			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
@@ -96,7 +124,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		gpio1: gpio1@0x2003c000 {
+		gpio1: gpio1@2003c000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x2003c000 0x100>;
 			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
@@ -393,6 +421,17 @@
 						<RK_GPIO3 18 RK_FUNC_1 &pcfg_pull_none>,
 						<RK_GPIO3 19 RK_FUNC_1 &pcfg_pull_none>,
 						<RK_GPIO3 20 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2s0 {
+			i2s0_bus: i2s0-bus {
+				rockchip,pins = <RK_GPIO1 16 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 17 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 18 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 19 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 20 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 21 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 	};

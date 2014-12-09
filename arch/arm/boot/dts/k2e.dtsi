@@ -85,6 +85,51 @@
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x240>;
 		};
+
+		pcie@21020000 {
+			compatible = "ti,keystone-pcie","snps,dw-pcie";
+			clocks = <&clkpcie1>;
+			clock-names = "pcie";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			reg =  <0x21021000 0x2000>, <0x21020000 0x1000>, <0x02620128 4>;
+			ranges = <0x81000000 0 0 0x23260000 0x4000 0x4000
+				0x82000000 0 0x60000000 0x60000000 0 0x10000000>;
+
+			device_type = "pci";
+			num-lanes = <2>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc1 0>, /* INT A */
+					<0 0 0 2 &pcie_intc1 1>, /* INT B */
+					<0 0 0 3 &pcie_intc1 2>, /* INT C */
+					<0 0 0 4 &pcie_intc1 3>; /* INT D */
+
+			pcie_msi_intc1: msi-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 377 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 378 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 379 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 380 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 381 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 382 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 383 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 384 IRQ_TYPE_EDGE_RISING>;
+			};
+
+			pcie_intc1: legacy-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 373 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 374 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 375 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 376 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
 	};
 };
 

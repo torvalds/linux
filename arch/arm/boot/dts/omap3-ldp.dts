@@ -102,8 +102,9 @@
 
 	nand@0,0 {
 		linux,mtd-name= "micron,nand";
-		reg = <0 0 0>;
+		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
 		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
 		ti,nand-ecc-opt = "bch8";
 
 		gpmc,sync-clk-ps = <0>;

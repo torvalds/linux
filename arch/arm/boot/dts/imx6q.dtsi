@@ -308,3 +308,7 @@
 		};
 	};
 };
+
+&vpu {
+	compatible = "fsl,imx6q-vpu", "cnm,coda960";
+};
