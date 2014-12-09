@@ -1394,8 +1394,6 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 	if (gpmc_nand_data->elm_of_node == NULL)
 		gpmc_nand_data->elm_of_node =
 					of_parse_phandle(child, "elm_id", 0);
-	if (gpmc_nand_data->elm_of_node == NULL)
-		pr_warn("%s: ti,elm-id property not found\n", __func__);
 
 	/* select ecc-scheme for NAND */
 	if (of_property_read_string(child, "ti,nand-ecc-opt", &s)) {
