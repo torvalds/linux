@@ -356,7 +356,6 @@ static void xgbe_unmap_skb(struct xgbe_prv_data *pdata,
 
 	rdata->tso_header = 0;
 	rdata->len = 0;
-	rdata->interrupt = 0;
 	rdata->mapped_as_page = 0;
 
 	if (rdata->state_saved) {
@@ -481,7 +480,11 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		}
 	}
 
-	/* Save the skb address in the last entry */
+	/* Save the skb address in the last entry. We always have some data
+	 * that has been mapped so rdata is always advanced past the last
+	 * piece of mapped data - use the entry pointed to by cur_index - 1.
+	 */
+	rdata = XGBE_GET_DESC_DATA(ring, cur_index - 1);
 	rdata->skb = skb;
 
 	/* Save the number of descriptor entries used */
