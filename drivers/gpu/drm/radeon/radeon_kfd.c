@@ -72,7 +72,7 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 
-static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
+static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
 static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
@@ -92,7 +92,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.init_memory = kgd_init_memory,
 	.init_pipeline = kgd_init_pipeline,
 	.hqd_load = kgd_hqd_load,
-	.hqd_is_occupies = kgd_hqd_is_occupies,
+	.hqd_is_occupied = kgd_hqd_is_occupied,
 	.hqd_destroy = kgd_hqd_destroy,
 	.get_fw_version = get_fw_version
 };
@@ -529,7 +529,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	return 0;
 }
 
-static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
+static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id)
 {
 	uint32_t act;
