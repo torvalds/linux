@@ -396,7 +396,7 @@ static irqreturn_t xgbe_dma_isr(int irq, void *data)
 	 */
 	if (napi_schedule_prep(&channel->napi)) {
 		/* Disable Tx and Rx interrupts */
-		disable_irq(channel->dma_irq);
+		disable_irq_nosync(channel->dma_irq);
 
 		/* Turn on polling */
 		__napi_schedule(&channel->napi);
