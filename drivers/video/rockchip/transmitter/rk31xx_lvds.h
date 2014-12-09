@@ -17,6 +17,13 @@
 #define v_MIPIPHY_LANE0_EN(x)   (BITS_MASK(x, 1, 8) | BITS_EN(1, 8))
 #define v_MIPIDPI_FORCEX_EN(x)  (BITS_MASK(x, 1, 9) | BITS_EN(1, 9))
 
+/* RK3368_GRF_SOC_CON7 */
+#define v_RK3368_LVDS_OUTPUT_FORMAT(x) (BITS_MASK(x, 3, 13) | BITS_EN(3, 13))
+#define v_RK3368_LVDS_MSBSEL(x)        (BITS_MASK(x, 1, 11) | BITS_EN(1, 11))
+#define v_RK3368_LVDSMODE_EN(x)        (BITS_MASK(x, 1, 12) | BITS_EN(1, 12))
+#define v_RK3368_MIPIPHY_TTL_EN(x)     (BITS_MASK(x, 1, 15) | BITS_EN(1, 15))
+#define v_RK3368_MIPIPHY_LANE0_EN(x)   (BITS_MASK(x, 1, 5) | BITS_EN(1, 5))
+#define v_RK3368_MIPIDPI_FORCEX_EN(x)  (BITS_MASK(x, 1, 6) | BITS_EN(1, 6))
 enum {
         LVDS_DATA_FROM_LCDC = 0,
         LVDS_DATA_FORM_EBC,
@@ -98,8 +105,18 @@ enum {
 #define v_LANE1_EN(x)           BITS_MASK(x, 1, 6)
 #define v_LANE0_EN(x)           BITS_MASK(x, 1, 7)
 
+enum {
+	LVDS_SOC_RK312X,
+	LVDS_SOC_RK3368
+};
+
+struct rk_lvds_drvdata  {
+	u8 soc_type;
+	u32 reversed;
+};
 
 struct rk_lvds_device {
+	struct rk_lvds_drvdata *data;
 	struct device 		*dev;
 	void __iomem  		*regbase;
 	void __iomem		*ctrl_reg;

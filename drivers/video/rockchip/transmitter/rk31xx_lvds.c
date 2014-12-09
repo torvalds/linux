@@ -52,10 +52,12 @@ static int rk31xx_lvds_clk_init(struct rk_lvds_device *lvds)
 		return PTR_ERR(lvds->ctrl_pclk);
 	}
 
-	lvds->ctrl_hclk = devm_clk_get(lvds->dev, "hclk_vio_h2p");
-	if (IS_ERR(lvds->ctrl_hclk)) {
-		dev_err(lvds->dev, "get ctrl hclk failed\n");
-		return PTR_ERR(lvds->ctrl_hclk);
+	if (lvds->data->soc_type == LVDS_SOC_RK312X) {
+		lvds->ctrl_hclk = devm_clk_get(lvds->dev, "hclk_vio_h2p");
+		if (IS_ERR(lvds->ctrl_hclk)) {
+			dev_err(lvds->dev, "get ctrl hclk failed\n");
+			return PTR_ERR(lvds->ctrl_hclk);
+		}
 	}
 
 	return 0;	
@@ -66,7 +68,8 @@ static int rk31xx_lvds_clk_enable(struct rk_lvds_device *lvds)
 	if (!lvds->clk_on) {
 		clk_prepare_enable(lvds->pclk);
 		clk_prepare_enable(lvds->ctrl_pclk);
-		clk_prepare_enable(lvds->ctrl_hclk);
+		if (lvds->data->soc_type == LVDS_SOC_RK312X)
+			clk_prepare_enable(lvds->ctrl_hclk);
 		lvds->clk_on = true;
 	}
 
@@ -77,7 +80,8 @@ static int rk31xx_lvds_clk_disable(struct rk_lvds_device *lvds)
 {
 	if (lvds->clk_on) {
 		clk_disable_unprepare(lvds->pclk);
-		clk_disable_unprepare(lvds->ctrl_hclk);
+		if (lvds->data->soc_type == LVDS_SOC_RK312X)
+			clk_disable_unprepare(lvds->ctrl_hclk);
 		clk_disable_unprepare(lvds->ctrl_pclk);
 		lvds->clk_on = false;
 	}
@@ -145,6 +149,7 @@ static int rk31xx_lvds_disable(void)
 	rk31xx_lvds_clk_disable(lvds);
 
 #if !defined(CONFIG_RK_FPGA)
+#ifdef CONFIG_PINCTRL
         if (lvds->screen.type == SCREEN_RGB) {
                 if (lvds->dev->pins) {
                         pinctrl_select_state(lvds->dev->pins->p,
@@ -154,6 +159,7 @@ static int rk31xx_lvds_disable(void)
                                              lvds->pins->sleep_state);
                 }
         }
+#endif
 #endif
         lvds->sys_state = false;
 	return 0;
@@ -168,14 +174,32 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
         /* if LVDS transmitter source from VOP, vop_dclk need get invert
          * set iomux in dts pinctrl
          */
-	val = 0;
-	val |= v_LVDSMODE_EN(1) | v_MIPIPHY_TTL_EN(0);  /* enable lvds mode */
-	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
-	val |= v_LVDS_OUTPUT_FORMAT(screen->lvds_format); /* config lvds_format */
-	val |= v_LVDS_MSBSEL(LVDS_MSB_D7);      /* LSB receive mode */
-        val |= v_MIPIPHY_LANE0_EN(1) | v_MIPIDPI_FORCEX_EN(1);
-	grf_writel(val, RK312X_GRF_LVDS_CON0);
-
+	if (lvds->data->soc_type == LVDS_SOC_RK3368) {
+		/* enable lvds mode */
+		val |= v_RK3368_LVDSMODE_EN(1) | v_RK3368_MIPIPHY_TTL_EN(0);
+		/* config data source */
+		/*val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC); */
+		/* config lvds_format */
+		val |= v_RK3368_LVDS_OUTPUT_FORMAT(screen->lvds_format);
+		/* LSB receive mode */
+		val |= v_RK3368_LVDS_MSBSEL(LVDS_MSB_D7);
+		val |= v_RK3368_MIPIPHY_LANE0_EN(1) |
+		       v_RK3368_MIPIDPI_FORCEX_EN(1);
+		/*rk3368  RK3368_GRF_SOC_CON7 = 0X0041C*/
+		grf_writel(val, 0x0041C);
+	} else {
+		/* enable lvds mode */
+		val |= v_LVDSMODE_EN(1) | v_MIPIPHY_TTL_EN(0);
+		/* config data source */
+		val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);
+		/* config lvds_format */
+		val |= v_LVDS_OUTPUT_FORMAT(screen->lvds_format);
+		/* LSB receive mode */
+		val |= v_LVDS_MSBSEL(LVDS_MSB_D7);
+		val |= v_MIPIPHY_LANE0_EN(1) | v_MIPIDPI_FORCEX_EN(1);
+		/*rk312x  RK312X_GRF_LVDS_CON0 = 0X00150*/
+		grf_writel(val, 0X00150);
+	}
 	/* digital internal disable */
 	lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(0));
 
@@ -223,8 +247,10 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
         grf_writel(0x77771111, 0x00e8); /* RK312X_GRF_GPIO2C_IOMUX2 */
         grf_writel(0x700c1004, RK312X_GRF_GPIO2D_IOMUX);
 #else
+#ifdef CONFIG_PINCTRL
         if (lvds->pins && !IS_ERR(lvds->pins->default_state))
                 pinctrl_select_state(lvds->pins->p, lvds->pins->default_state);
+#endif
 #endif
 
 	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);  /* enable lvds mode */
@@ -287,12 +313,34 @@ static struct rk_fb_trsm_ops trsm_lvds_ops = {
 	.dsp_pwr_on = rk31xx_lvds_pwr_on,
 	.dsp_pwr_off = rk31xx_lvds_pwr_off,
 };
+#if defined(CONFIG_OF)
+static struct rk_lvds_drvdata rk31xx_lvds_drvdata = {
+	.soc_type =  LVDS_SOC_RK312X,
+};
+
+static struct rk_lvds_drvdata rk3368_lvds_drvdata = {
+	.soc_type =  LVDS_SOC_RK3368,
+};
+
+
+static const struct of_device_id rk31xx_lvds_dt_ids[] = {
+	{.compatible = "rockchip,rk31xx-lvds",
+	 .data = (void *)&rk31xx_lvds_drvdata,},
+	{.compatible = "rockchip,rk3368-lvds",
+	 .data = (void *)&rk3368_lvds_drvdata,},
+	{}
+};
+
+/*MODULE_DEVICE_TABLE(of, rk31xx_lvds_dt_ids);*/
+
+#endif
 
 static int rk31xx_lvds_probe(struct platform_device *pdev)
 {
         struct rk_lvds_device *lvds;
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
         int ret = 0;
 
 	if (!np) {
@@ -306,6 +354,10 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	lvds->dev = &pdev->dev;
+	match = of_match_node(rk31xx_lvds_dt_ids, np);
+	lvds->data = (struct rk_lvds_drvdata *)match->data;
+	dev_info(lvds->dev, "%s,type=%d\n",
+		 __func__, lvds->data->soc_type);
 
 	rk_fb_get_prmry_screen(&lvds->screen);
         if ((lvds->screen.type != SCREEN_RGB) && 
@@ -318,6 +370,7 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, lvds);
 	dev_set_name(lvds->dev, "rk31xx-lvds");
 
+#ifdef CONFIG_PINCTRL
         if (lvds->dev->pins == NULL && lvds->screen.type == SCREEN_RGB) {
                 lvds->pins = devm_kzalloc(lvds->dev, sizeof(*(lvds->pins)),
                                           GFP_KERNEL);
@@ -344,6 +397,7 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
                 }
         }
 
+#endif
         /* lvds regs on MIPIPHY_REG */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mipi_lvds_phy");
 	lvds->regbase = devm_ioremap_resource(&pdev->dev, res);
@@ -390,12 +444,6 @@ static void rk31xx_lvds_shutdown(struct platform_device *pdev)
 	return;
 }
 
-#if defined(CONFIG_OF)
-static const struct of_device_id rk31xx_lvds_dt_ids[] = {
-	{.compatible = "rockchip,rk31xx-lvds",},
-        {}
-};
-#endif
 
 static struct platform_driver rk31xx_lvds_driver = {
 	.driver		= {

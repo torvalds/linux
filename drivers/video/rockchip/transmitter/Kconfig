@@ -17,8 +17,10 @@ config RK32_LVDS
 	depends on RK_TRSM
 
 config RK31XX_LVDS
-        bool "RK312x/RK3190 lvds transmitter support"
-        depends on RK_TRSM
+	bool "RK312x/RK3190/3368 lvds transmitter support"
+	depends on RK_TRSM
+	help
+		If use LVDS or RGB output interface,selete this module.
 
 config RK610_LVDS
 	bool "RK610(Jetta) lvds transmitter support"
