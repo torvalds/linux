@@ -490,7 +490,7 @@ smb2_mid_entry_alloc(const struct smb2_hdr *smb_buffer,
 		return temp;
 	else {
 		memset(temp, 0, sizeof(struct mid_q_entry));
-		temp->mid = smb_buffer->MessageId;	/* always LE */
+		temp->mid = le64_to_cpu(smb_buffer->MessageId);
 		temp->pid = current->pid;
 		temp->command = smb_buffer->Command;	/* Always LE */
 		temp->when_alloc = jiffies;
