@@ -1696,7 +1696,7 @@ int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
 {
 	int vcpu_id;
 
-	if (likely(vgic_initialized(kvm))) {
+	if (likely(vgic_ready(kvm))) {
 		vcpu_id = vgic_update_irq_pending(kvm, cpuid, irq_num, level);
 		if (vcpu_id >= 0)
 			/* kick the specified vcpu */
@@ -1888,7 +1888,7 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 
 	mutex_lock(&kvm->lock);
 
-	if (vgic_initialized(kvm))
+	if (vgic_ready(kvm))
 		goto out;
 
 	if (IS_VGIC_ADDR_UNDEF(kvm->arch.vgic.vgic_dist_base) ||
@@ -2282,7 +2282,7 @@ static int vgic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 
 		mutex_lock(&dev->kvm->lock);
 
-		if (vgic_initialized(dev->kvm) || dev->kvm->arch.vgic.nr_irqs)
+		if (vgic_ready(dev->kvm) || dev->kvm->arch.vgic.nr_irqs)
 			ret = -EBUSY;
 		else
 			dev->kvm->arch.vgic.nr_irqs = val;

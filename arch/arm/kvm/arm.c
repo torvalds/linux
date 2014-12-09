@@ -431,7 +431,7 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 	 * Map the VGIC hardware resources before running a vcpu the first
 	 * time on this VM.
 	 */
-	if (unlikely(!vgic_initialized(vcpu->kvm))) {
+	if (unlikely(!vgic_ready(vcpu->kvm))) {
 		ret = kvm_vgic_map_resources(vcpu->kvm);
 		if (ret)
 			return ret;
