@@ -822,7 +822,7 @@ static int i40e_get_eeprom(struct net_device *netdev,
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_hw *hw = &np->vsi->back->hw;
 	struct i40e_pf *pf = np->vsi->back;
-	int ret_val = 0, len;
+	int ret_val = 0, len, offset;
 	u8 *eeprom_buff;
 	u16 i, sectors;
 	bool last;
@@ -835,19 +835,21 @@ static int i40e_get_eeprom(struct net_device *netdev,
 	/* check for NVMUpdate access method */
 	magic = hw->vendor_id | (hw->device_id << 16);
 	if (eeprom->magic && eeprom->magic != magic) {
+		struct i40e_nvm_access *cmd;
 		int errno;
 
 		/* make sure it is the right magic for NVMUpdate */
 		if ((eeprom->magic >> 16) != hw->device_id)
 			return -EINVAL;
 
-		ret_val = i40e_nvmupd_command(hw,
-					      (struct i40e_nvm_access *)eeprom,
-					      bytes, &errno);
+		cmd = (struct i40e_nvm_access *)eeprom;
+		ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
 		if (ret_val)
 			dev_info(&pf->pdev->dev,
-				 "NVMUpdate read failed err=%d status=0x%x\n",
-				 ret_val, hw->aq.asq_last_status);
+				 "NVMUpdate read failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
+				 ret_val, hw->aq.asq_last_status, errno,
+				 (u8)(cmd->config & I40E_NVM_MOD_PNT_MASK),
+				 cmd->offset, cmd->data_size);
 
 		return errno;
 	}
@@ -876,20 +878,29 @@ static int i40e_get_eeprom(struct net_device *netdev,
 			len = eeprom->len - (I40E_NVM_SECTOR_SIZE * i);
 			last = true;
 		}
-		ret_val = i40e_aq_read_nvm(hw, 0x0,
-				eeprom->offset + (I40E_NVM_SECTOR_SIZE * i),
-				len,
+		offset = eeprom->offset + (I40E_NVM_SECTOR_SIZE * i),
+		ret_val = i40e_aq_read_nvm(hw, 0x0, offset, len,
 				(u8 *)eeprom_buff + (I40E_NVM_SECTOR_SIZE * i),
 				last, NULL);
-		if (ret_val) {
+		if (ret_val && hw->aq.asq_last_status == I40E_AQ_RC_EPERM) {
 			dev_info(&pf->pdev->dev,
-				 "read NVM failed err=%d status=0x%x\n",
-				 ret_val, hw->aq.asq_last_status);
-			goto release_nvm;
+				 "read NVM failed, invalid offset 0x%x\n",
+				 offset);
+			break;
+		} else if (ret_val &&
+			   hw->aq.asq_last_status == I40E_AQ_RC_EACCES) {
+			dev_info(&pf->pdev->dev,
+				 "read NVM failed, access, offset 0x%x\n",
+				 offset);
+			break;
+		} else if (ret_val) {
+			dev_info(&pf->pdev->dev,
+				 "read NVM failed offset %d err=%d status=0x%x\n",
+				 offset, ret_val, hw->aq.asq_last_status);
+			break;
 		}
 	}
 
-release_nvm:
 	i40e_release_nvm(hw);
 	memcpy(bytes, (u8 *)eeprom_buff, eeprom->len);
 free_buff:
@@ -917,6 +928,7 @@ static int i40e_set_eeprom(struct net_device *netdev,
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_hw *hw = &np->vsi->back->hw;
 	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_nvm_access *cmd;
 	int ret_val = 0;
 	int errno;
 	u32 magic;
@@ -934,12 +946,14 @@ static int i40e_set_eeprom(struct net_device *netdev,
 	    test_bit(__I40E_RESET_INTR_RECEIVED, &pf->state))
 		return -EBUSY;
 
-	ret_val = i40e_nvmupd_command(hw, (struct i40e_nvm_access *)eeprom,
-				      bytes, &errno);
-	if (ret_val)
+	cmd = (struct i40e_nvm_access *)eeprom;
+	ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
+	if (ret_val && hw->aq.asq_last_status != I40E_AQ_RC_EBUSY)
 		dev_info(&pf->pdev->dev,
-			 "NVMUpdate write failed err=%d status=0x%x\n",
-			 ret_val, hw->aq.asq_last_status);
+			 "NVMUpdate write failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
+			 ret_val, hw->aq.asq_last_status, errno,
+			 (u8)(cmd->config & I40E_NVM_MOD_PNT_MASK),
+			 cmd->offset, cmd->data_size);
 
 	return errno;
 }
@@ -1392,6 +1406,9 @@ static int i40e_eeprom_test(struct net_device *netdev, u64 *data)
 
 	netif_info(pf, hw, netdev, "eeprom test\n");
 	*data = i40e_diag_eeprom_test(&pf->hw);
+
+	/* forcebly clear the NVM Update state machine */
+	pf->hw.nvmupd_state = I40E_NVMUPD_STATE_INIT;
 
 	return *data;
 }
