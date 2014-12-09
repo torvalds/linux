@@ -2453,6 +2453,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	}
 
 	trans_pcie->inta_mask = CSR_INI_SET_MASK;
+	trans->d0i3_mode = IWL_D0I3_MODE_ON_SUSPEND;
 
 	return trans;
 

@@ -1030,7 +1030,8 @@ static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
 out:
 	rcu_read_unlock();
 }
-static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
+
+int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
@@ -1244,7 +1245,7 @@ out:
 	return ret;
 }
 
-static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
+int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
