@@ -313,10 +313,6 @@ static irqreturn_t i40evf_msix_aq(int irq, void *data)
 	val = val | I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
 	wr32(hw, I40E_VFINT_DYN_CTL01, val);
 
-	/* re-enable interrupt causes */
-	wr32(hw, I40E_VFINT_ICR0_ENA1, ena_mask);
-	wr32(hw, I40E_VFINT_DYN_CTL01, I40E_VFINT_DYN_CTL01_INTENA_MASK);
-
 	/* schedule work on the private workqueue */
 	schedule_work(&adapter->adminq_task);
 
@@ -1620,12 +1616,12 @@ static void i40evf_adminq_task(struct work_struct *work)
 	u16 pending;
 
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED)
-		return;
+		goto out;
 
 	event.buf_len = I40EVF_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf)
-		return;
+		goto out;
 
 	v_msg = (struct i40e_virtchnl_msg *)&event.desc;
 	do {
@@ -1675,10 +1671,10 @@ static void i40evf_adminq_task(struct work_struct *work)
 	if (oldval != val)
 		wr32(hw, hw->aq.asq.len, val);
 
+	kfree(event.msg_buf);
+out:
 	/* re-enable Admin queue interrupt cause */
 	i40evf_misc_irq_enable(adapter);
-
-	kfree(event.msg_buf);
 }
 
 /**
