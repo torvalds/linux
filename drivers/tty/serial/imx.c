@@ -731,6 +731,9 @@ static int start_rx_dma(struct imx_port *sport);
 static void imx_dma_rxint(struct imx_port *sport)
 {
 	unsigned long temp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sport->port.lock, flags);
 
 	temp = readl(sport->port.membase + USR2);
 	if ((temp & USR2_RDR) && !sport->dma_is_rxing) {
@@ -744,6 +747,8 @@ static void imx_dma_rxint(struct imx_port *sport)
 		/* tell the DMA to receive the data. */
 		start_rx_dma(sport);
 	}
+
+	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
 static irqreturn_t imx_int(int irq, void *dev_id)
@@ -873,6 +878,9 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 static void imx_rx_dma_done(struct imx_port *sport)
 {
 	unsigned long temp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sport->port.lock, flags);
 
 	/* Enable this interrupt when the RXFIFO is empty. */
 	temp = readl(sport->port.membase + UCR1);
@@ -884,6 +892,8 @@ static void imx_rx_dma_done(struct imx_port *sport)
 	/* Is the shutdown waiting for us? */
 	if (waitqueue_active(&sport->dma_wait))
 		wake_up(&sport->dma_wait);
+
+	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
 /*
@@ -1194,9 +1204,11 @@ static void imx_shutdown(struct uart_port *port)
 			dmaengine_terminate_all(sport->dma_chan_tx);
 			dmaengine_terminate_all(sport->dma_chan_rx);
 		}
+		spin_lock_irqsave(&sport->port.lock, flags);
 		imx_stop_tx(port);
 		imx_stop_rx(port);
 		imx_disable_dma(sport);
+		spin_unlock_irqrestore(&sport->port.lock, flags);
 		imx_uart_dma_exit(sport);
 	}
 
