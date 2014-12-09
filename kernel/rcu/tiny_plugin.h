@@ -147,7 +147,7 @@ static void check_cpu_stall(struct rcu_ctrlblk *rcp)
 	js = ACCESS_ONCE(rcp->jiffies_stall);
 	if (*rcp->curtail && ULONG_CMP_GE(j, js)) {
 		pr_err("INFO: %s stall on CPU (%lu ticks this GP) idle=%llx (t=%lu jiffies q=%ld)\n",
-		       rcp->name, rcp->ticks_this_gp, rcu_dynticks_nesting,
+		       rcp->name, rcp->ticks_this_gp, DYNTICK_TASK_EXIT_IDLE,
 		       jiffies - rcp->gp_start, rcp->qlen);
 		dump_stack();
 	}
