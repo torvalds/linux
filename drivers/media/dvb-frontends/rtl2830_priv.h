@@ -26,6 +26,15 @@
 #include "rtl2830.h"
 #include <linux/i2c-mux.h>
 
+struct rtl2830_config {
+	u8 i2c_addr;
+	u32 xtal;
+	bool spec_inv;
+	u8 vtop;
+	u8 krf;
+	u8 agc_targ_val;
+};
+
 struct rtl2830_priv {
 	struct i2c_adapter *adapter;
 	struct i2c_adapter *i2c;

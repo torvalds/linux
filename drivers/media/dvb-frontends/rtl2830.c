@@ -631,104 +631,6 @@ err:
 	return ret;
 }
 
-static struct dvb_frontend_ops rtl2830_ops;
-
-static u32 rtl2830_tuner_i2c_func(struct i2c_adapter *adapter)
-{
-	return I2C_FUNC_I2C;
-}
-
-static int rtl2830_tuner_i2c_xfer(struct i2c_adapter *i2c_adap,
-	struct i2c_msg msg[], int num)
-{
-	struct rtl2830_priv *priv = i2c_get_adapdata(i2c_adap);
-	int ret;
-
-	/* open i2c-gate */
-	ret = rtl2830_wr_reg_mask(priv, 0x101, 0x08, 0x08);
-	if (ret)
-		goto err;
-
-	ret = i2c_transfer(priv->i2c, msg, num);
-	if (ret < 0)
-		dev_warn(&priv->i2c->dev, "%s: tuner i2c failed=%d\n",
-			KBUILD_MODNAME, ret);
-
-	return ret;
-err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
-
-static struct i2c_algorithm rtl2830_tuner_i2c_algo = {
-	.master_xfer   = rtl2830_tuner_i2c_xfer,
-	.functionality = rtl2830_tuner_i2c_func,
-};
-
-struct i2c_adapter *rtl2830_get_tuner_i2c_adapter(struct dvb_frontend *fe)
-{
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-	return &priv->tuner_i2c_adapter;
-}
-EXPORT_SYMBOL(rtl2830_get_tuner_i2c_adapter);
-
-static void rtl2830_release(struct dvb_frontend *fe)
-{
-	struct rtl2830_priv *priv = fe->demodulator_priv;
-
-	i2c_del_adapter(&priv->tuner_i2c_adapter);
-	kfree(priv);
-}
-
-struct dvb_frontend *rtl2830_attach(const struct rtl2830_config *cfg,
-	struct i2c_adapter *i2c)
-{
-	struct rtl2830_priv *priv = NULL;
-	int ret = 0;
-	u8 tmp;
-
-	/* allocate memory for the internal state */
-	priv = kzalloc(sizeof(struct rtl2830_priv), GFP_KERNEL);
-	if (priv == NULL)
-		goto err;
-
-	/* setup the priv */
-	priv->i2c = i2c;
-	memcpy(&priv->cfg, cfg, sizeof(struct rtl2830_config));
-
-	/* check if the demod is there */
-	ret = rtl2830_rd_reg(priv, 0x000, &tmp);
-	if (ret)
-		goto err;
-
-	/* create dvb_frontend */
-	memcpy(&priv->fe.ops, &rtl2830_ops, sizeof(struct dvb_frontend_ops));
-	priv->fe.demodulator_priv = priv;
-
-	/* create tuner i2c adapter */
-	strlcpy(priv->tuner_i2c_adapter.name, "RTL2830 tuner I2C adapter",
-		sizeof(priv->tuner_i2c_adapter.name));
-	priv->tuner_i2c_adapter.algo = &rtl2830_tuner_i2c_algo;
-	priv->tuner_i2c_adapter.algo_data = NULL;
-	priv->tuner_i2c_adapter.dev.parent = &i2c->dev;
-	i2c_set_adapdata(&priv->tuner_i2c_adapter, priv);
-	if (i2c_add_adapter(&priv->tuner_i2c_adapter) < 0) {
-		dev_err(&i2c->dev,
-				"%s: tuner i2c bus could not be initialized\n",
-				KBUILD_MODNAME);
-		goto err;
-	}
-
-	priv->sleeping = true;
-
-	return &priv->fe;
-err:
-	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
-	kfree(priv);
-	return NULL;
-}
-EXPORT_SYMBOL(rtl2830_attach);
-
 static struct dvb_frontend_ops rtl2830_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
@@ -749,8 +651,6 @@ static struct dvb_frontend_ops rtl2830_ops = {
 			FE_CAN_RECOVER |
 			FE_CAN_MUTE_TS
 	},
-
-	.release = rtl2830_release,
 
 	.init = rtl2830_init,
 	.sleep = rtl2830_sleep,
@@ -888,7 +788,6 @@ static int rtl2830_probe(struct i2c_client *client,
 
 	/* create dvb frontend */
 	memcpy(&priv->fe.ops, &rtl2830_ops, sizeof(priv->fe.ops));
-	priv->fe.ops.release = NULL;
 	priv->fe.demodulator_priv = priv;
 
 	/* setup callbacks */
