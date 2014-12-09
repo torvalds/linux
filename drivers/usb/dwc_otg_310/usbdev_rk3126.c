@@ -382,6 +382,8 @@ struct dwc_otg_platform_data usb20host_pdata_rk3126 = {
 };
 #endif
 
+struct dwc_otg_platform_data usb20ohci_pdata_rk3126;
+
 #ifdef CONFIG_OF
 static const struct of_device_id rk_usb_control_id_table[] = {
 	{
