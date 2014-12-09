@@ -891,8 +891,16 @@ static void spi_pump_messages(struct kthread_work *work)
 	bool was_busy = false;
 	int ret;
 
-	/* Lock queue and check for queue work */
+	/* Lock queue */
 	spin_lock_irqsave(&master->queue_lock, flags);
+
+	/* Make sure we are not already running a message */
+	if (master->cur_msg) {
+		spin_unlock_irqrestore(&master->queue_lock, flags);
+		return;
+	}
+
+	/* Check if the queue is idle */
 	if (list_empty(&master->queue) || !master->running) {
 		if (!master->busy) {
 			spin_unlock_irqrestore(&master->queue_lock, flags);
@@ -916,11 +924,6 @@ static void spi_pump_messages(struct kthread_work *work)
 		return;
 	}
 
-	/* Make sure we are not already running a message */
-	if (master->cur_msg) {
-		spin_unlock_irqrestore(&master->queue_lock, flags);
-		return;
-	}
 	/* Extract head of queue */
 	master->cur_msg =
 		list_first_entry(&master->queue, struct spi_message, queue);
