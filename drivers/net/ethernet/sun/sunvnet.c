@@ -1317,10 +1317,8 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb = vnet_skb_shape(skb, 2);
 
-	if (unlikely(!skb)) {
-		rcu_read_unlock();
+	if (unlikely(!skb))
 		goto out_dropped;
-	}
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		vnet_fullcsum(skb);
