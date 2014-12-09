@@ -289,19 +289,49 @@ struct thermal_genl_event {
 	enum events event;
 };
 
+/**
+ * struct thermal_zone_of_device_ops - scallbacks for handling DT based zones
+ *
+ * Mandatory:
+ * @get_temp: a pointer to a function that reads the sensor temperature.
+ *
+ * Optional:
+ * @get_trend: a pointer to a function that reads the sensor temperature trend.
+ * @set_emul_temp: a pointer to a function that sets sensor emulated
+ *		   temperature.
+ */
+struct thermal_zone_of_device_ops {
+	int (*get_temp)(void *, long *);
+	int (*get_trend)(void *, long *);
+	int (*set_emul_temp)(void *, unsigned long);
+};
+
+/**
+ * struct thermal_trip - representation of a point in temperature domain
+ * @np: pointer to struct device_node that this trip point was created from
+ * @temperature: temperature value in miliCelsius
+ * @hysteresis: relative hysteresis in miliCelsius
+ * @type: trip point type
+ */
+
+struct thermal_trip {
+	struct device_node *np;
+	unsigned long int temperature;
+	unsigned long int hysteresis;
+	enum thermal_trip_type type;
+};
+
 /* Function declarations */
 #ifdef CONFIG_THERMAL_OF
 struct thermal_zone_device *
-thermal_zone_of_sensor_register(struct device *dev, int id,
-				void *data, int (*get_temp)(void *, long *),
-				int (*get_trend)(void *, long *));
+thermal_zone_of_sensor_register(struct device *dev, int id, void *data,
+				const struct thermal_zone_of_device_ops *ops);
 void thermal_zone_of_sensor_unregister(struct device *dev,
 				       struct thermal_zone_device *tz);
 #else
 static inline struct thermal_zone_device *
-thermal_zone_of_sensor_register(struct device *dev, int id,
-				void *data, int (*get_temp)(void *, long *),
-				int (*get_trend)(void *, long *))
+thermal_zone_of_sensor_register(struct device *dev, int id, void *data,
+				const struct thermal_zone_of_device_ops *ops)
 {
 	return NULL;
 }

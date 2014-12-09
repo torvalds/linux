@@ -158,6 +158,10 @@ ATTRIBUTE_GROUPS(tmp102);
 #define TMP102_CONFIG  (TMP102_CONF_TM | TMP102_CONF_EM | TMP102_CONF_CR1)
 #define TMP102_CONFIG_RD_ONLY (TMP102_CONF_R0 | TMP102_CONF_R1 | TMP102_CONF_AL)
 
+static const struct thermal_zone_of_device_ops tmp102_of_thermal_ops = {
+	.get_temp = tmp102_read_temp,
+};
+
 static int tmp102_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
@@ -215,7 +219,7 @@ static int tmp102_probe(struct i2c_client *client,
 	}
 	tmp102->hwmon_dev = hwmon_dev;
 	tmp102->tz = thermal_zone_of_sensor_register(hwmon_dev, 0, hwmon_dev,
-						     tmp102_read_temp, NULL);
+						     &tmp102_of_thermal_ops);
 	if (IS_ERR(tmp102->tz))
 		tmp102->tz = NULL;
 
