@@ -3100,6 +3100,12 @@ static int vlv_pipe_crc_ctl_reg(struct drm_device *dev,
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_C_VLV;
 		need_stable_symbols = true;
 		break;
+	case INTEL_PIPE_CRC_SOURCE_DP_D:
+		if (!IS_CHERRYVIEW(dev))
+			return -EINVAL;
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_D_VLV;
+		need_stable_symbols = true;
+		break;
 	case INTEL_PIPE_CRC_SOURCE_NONE:
 		*val = 0;
 		break;
