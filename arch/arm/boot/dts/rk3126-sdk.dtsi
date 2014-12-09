@@ -26,34 +26,7 @@
 };
 
 &i2s0 {
+	/* sdi: 0: from io, 1: from acodec */
+	sdi_source = <1>;
 	status = "okay";
-};
-
-&i2s1 {
-	status = "disabled";
-};
-
-&rockchip_audio {
-	dais {
-		dai0 {
-			audio-codec = <&codec>;
-			i2s-controller = <&i2s0>;
-			format = "i2s";
-			//continuous-clock;
-			//bitclock-inversion;
-			//frame-inversion;
-			//bitclock-master;
-			//frame-master;
-		};
-		dai1 {
-			audio-codec = <&codec>;
-			i2s-controller = <&i2s0>;
-			format = "i2s";
-			//continuous-clock;
-			//bitclock-inversion;
-			//frame-inversion;
-			//bitclock-master;
-			//frame-master;
-		};
-	};
 };

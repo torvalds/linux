@@ -25,6 +25,9 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/cru.h>
+#include <linux/rockchip/grf.h>
 #include <linux/slab.h>
 #include <asm/dma.h>
 #include <sound/core.h>
@@ -533,6 +536,31 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s() Can not read property: id\n", __FUNCTION__);
 		ret = -ENOMEM;
 		goto err;
+	}
+
+	if (soc_is_rk3126b()) {
+		int sdi_src = 0;
+
+		/* rk3126b has no i2s1 controller(i2s_8ch) */
+		if (1 == pdev->id) {
+			pr_info("rk3126b has no i2s1 controller\n");
+			ret = -ENODEV;
+			goto err;
+		}
+
+		ret = of_property_read_u32(node, "sdi_source",
+					   &sdi_src);
+		if (ret < 0)
+			sdi_src = 0;
+
+		if (1 == sdi_src) {
+			int val;
+
+			/*GRF_SOC_CON*/
+			val = readl_relaxed(RK_GRF_VIRT + 0x0140);
+			val = val | 0x04000400;
+			writel_relaxed(val, RK_GRF_VIRT + 0x0140);
+		}
 	}
 
 	if(pdev->id >= MAX_I2S) {
