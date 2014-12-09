@@ -723,6 +723,71 @@ err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 }
 
+static int rtl2830_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	int ret;
+	u8 u8tmp;
+
+	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+
+	/* enable / disable PID filter */
+	if (onoff)
+		u8tmp = 0x80;
+	else
+		u8tmp = 0x00;
+
+	ret = rtl2830_wr_reg_mask(client, 0x061, u8tmp, 0x80);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int rtl2830_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid, int onoff)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+	int ret;
+	u8 buf[4];
+
+	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
+		index, pid, onoff);
+
+	/* skip invalid PIDs (0x2000) */
+	if (pid > 0x1fff || index > 32)
+		return 0;
+
+	if (onoff)
+		set_bit(index, &dev->filters);
+	else
+		clear_bit(index, &dev->filters);
+
+	/* enable / disable PIDs */
+	buf[0] = (dev->filters >>  0) & 0xff;
+	buf[1] = (dev->filters >>  8) & 0xff;
+	buf[2] = (dev->filters >> 16) & 0xff;
+	buf[3] = (dev->filters >> 24) & 0xff;
+	ret = rtl2830_wr_regs(client, 0x062, buf, 4);
+	if (ret)
+		goto err;
+
+	/* add PID */
+	buf[0] = (pid >> 8) & 0xff;
+	buf[1] = (pid >> 0) & 0xff;
+	ret = rtl2830_wr_regs(client, 0x066 + 2 * index, buf, 2);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
 /*
  * I2C gate/repeater logic
  * We must use unlocked i2c_transfer() here because I2C lock is already taken
@@ -843,6 +908,8 @@ static int rtl2830_probe(struct i2c_client *client,
 	/* setup callbacks */
 	pdata->get_dvb_frontend = rtl2830_get_dvb_frontend;
 	pdata->get_i2c_adapter = rtl2830_get_i2c_adapter;
+	pdata->pid_filter = rtl2830_pid_filter;
+	pdata->pid_filter_ctrl = rtl2830_pid_filter_ctrl;
 
 	dev_info(&client->dev, "Realtek RTL2830 successfully attached\n");
 

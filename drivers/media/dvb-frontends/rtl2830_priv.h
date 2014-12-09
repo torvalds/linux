@@ -31,6 +31,7 @@ struct rtl2830_dev {
 	struct dvb_frontend fe;
 	bool sleeping;
 	u8 page; /* active register page */
+	unsigned long filters;
 	struct delayed_work stat_work;
 	fe_status_t fe_status;
 	u64 post_bit_error_prev; /* for old DVBv3 read_ber() calculation */
