@@ -30,6 +30,7 @@ struct rtl2830_dev {
 	struct i2c_adapter *adapter;
 	struct dvb_frontend fe;
 	bool sleeping;
+	struct mutex i2c_mutex;
 	u8 page; /* active register page */
 	unsigned long filters;
 	struct delayed_work stat_work;

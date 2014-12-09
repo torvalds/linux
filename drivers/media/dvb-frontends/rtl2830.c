@@ -43,7 +43,7 @@ static int rtl2830_wr(struct i2c_client *client, u8 reg, const u8 *val, int len)
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
 
-	ret = i2c_transfer(client->adapter, msg, 1);
+	ret = __i2c_transfer(client->adapter, msg, 1);
 	if (ret == 1) {
 		ret = 0;
 	} else {
@@ -73,7 +73,7 @@ static int rtl2830_rd(struct i2c_client *client, u8 reg, u8 *val, int len)
 		}
 	};
 
-	ret = i2c_transfer(client->adapter, msg, 2);
+	ret = __i2c_transfer(client->adapter, msg, 2);
 	if (ret == 2) {
 		ret = 0;
 	} else {
@@ -93,16 +93,23 @@ static int rtl2830_wr_regs(struct i2c_client *client, u16 reg, const u8 *val, in
 	u8 reg2 = (reg >> 0) & 0xff;
 	u8 page = (reg >> 8) & 0xff;
 
+	mutex_lock(&dev->i2c_mutex);
+
 	/* switch bank if needed */
 	if (page != dev->page) {
 		ret = rtl2830_wr(client, 0x00, &page, 1);
 		if (ret)
-			return ret;
+			goto err_mutex_unlock;
 
 		dev->page = page;
 	}
 
-	return rtl2830_wr(client, reg2, val, len);
+	ret = rtl2830_wr(client, reg2, val, len);
+
+err_mutex_unlock:
+	mutex_unlock(&dev->i2c_mutex);
+
+	return ret;
 }
 
 /* read multiple registers */
@@ -113,16 +120,23 @@ static int rtl2830_rd_regs(struct i2c_client *client, u16 reg, u8 *val, int len)
 	u8 reg2 = (reg >> 0) & 0xff;
 	u8 page = (reg >> 8) & 0xff;
 
+	mutex_lock(&dev->i2c_mutex);
+
 	/* switch bank if needed */
 	if (page != dev->page) {
 		ret = rtl2830_wr(client, 0x00, &page, 1);
 		if (ret)
-			return ret;
+			goto err_mutex_unlock;
 
 		dev->page = page;
 	}
 
-	return rtl2830_rd(client, reg2, val, len);
+	ret = rtl2830_rd(client, reg2, val, len);
+
+err_mutex_unlock:
+	mutex_unlock(&dev->i2c_mutex);
+
+	return ret;
 }
 
 /* read single register */
@@ -815,6 +829,10 @@ static int rtl2830_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 	};
 	int ret;
 
+	dev_dbg(&client->dev, "\n");
+
+	mutex_lock(&dev->i2c_mutex);
+
 	/* select register page */
 	ret = __i2c_transfer(client->adapter, select_reg_page_msg, 1);
 	if (ret != 1) {
@@ -839,6 +857,18 @@ static int rtl2830_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
+}
+
+static int rtl2830_deselect(struct i2c_adapter *adap, void *mux_priv, u32 chan)
+{
+	struct i2c_client *client = mux_priv;
+	struct rtl2830_dev *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	mutex_unlock(&dev->i2c_mutex);
+
+	return 0;
 }
 
 static struct dvb_frontend *rtl2830_get_dvb_frontend(struct i2c_client *client)
@@ -886,6 +916,7 @@ static int rtl2830_probe(struct i2c_client *client,
 	dev->client = client;
 	dev->pdata = client->dev.platform_data;
 	dev->sleeping = true;
+	mutex_init(&dev->i2c_mutex);
 	INIT_DELAYED_WORK(&dev->stat_work, rtl2830_stat_work);
 
 	/* check if the demod is there */
@@ -895,7 +926,7 @@ static int rtl2830_probe(struct i2c_client *client,
 
 	/* create muxed i2c adapter for tuner */
 	dev->adapter = i2c_add_mux_adapter(client->adapter, &client->dev,
-			client, 0, 0, 0, rtl2830_select, NULL);
+			client, 0, 0, 0, rtl2830_select, rtl2830_deselect);
 	if (dev->adapter == NULL) {
 		ret = -ENODEV;
 		goto err_kfree;
