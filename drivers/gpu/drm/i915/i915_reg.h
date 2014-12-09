@@ -2789,7 +2789,8 @@ enum punit_power_well {
 #define   DC_BALANCE_RESET			(1 << 25)
 #define PORT_DFT2_G4X		(dev_priv->info.display_mmio_offset + 0x61154)
 #define   DC_BALANCE_RESET_VLV			(1 << 31)
-#define   PIPE_SCRAMBLE_RESET_MASK		(0x3 << 0)
+#define   PIPE_SCRAMBLE_RESET_MASK		((1 << 14) | (0x3 << 0))
+#define   PIPE_C_SCRAMBLE_RESET			(1 << 14) /* chv */
 #define   PIPE_B_SCRAMBLE_RESET			(1 << 1)
 #define   PIPE_A_SCRAMBLE_RESET			(1 << 0)
 

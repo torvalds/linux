@@ -3120,11 +3120,19 @@ static int vlv_pipe_crc_ctl_reg(struct drm_device *dev,
 		uint32_t tmp = I915_READ(PORT_DFT2_G4X);
 
 		tmp |= DC_BALANCE_RESET_VLV;
-		if (pipe == PIPE_A)
+		switch (pipe) {
+		case PIPE_A:
 			tmp |= PIPE_A_SCRAMBLE_RESET;
-		else
+			break;
+		case PIPE_B:
 			tmp |= PIPE_B_SCRAMBLE_RESET;
-
+			break;
+		case PIPE_C:
+			tmp |= PIPE_C_SCRAMBLE_RESET;
+			break;
+		default:
+			return -EINVAL;
+		}
 		I915_WRITE(PORT_DFT2_G4X, tmp);
 	}
 
@@ -3213,10 +3221,19 @@ static void vlv_undo_pipe_scramble_reset(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp = I915_READ(PORT_DFT2_G4X);
 
-	if (pipe == PIPE_A)
+	switch (pipe) {
+	case PIPE_A:
 		tmp &= ~PIPE_A_SCRAMBLE_RESET;
-	else
+		break;
+	case PIPE_B:
 		tmp &= ~PIPE_B_SCRAMBLE_RESET;
+		break;
+	case PIPE_C:
+		tmp &= ~PIPE_C_SCRAMBLE_RESET;
+		break;
+	default:
+		return;
+	}
 	if (!(tmp & PIPE_SCRAMBLE_RESET_MASK))
 		tmp &= ~DC_BALANCE_RESET_VLV;
 	I915_WRITE(PORT_DFT2_G4X, tmp);
