@@ -2262,8 +2262,6 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 	return 0;
 }
 
-static void mxt_start(struct mxt_data *data);
-static void mxt_stop(struct mxt_data *data);
 static int mxt_input_open(struct input_dev *dev);
 static void mxt_input_close(struct input_dev *dev);
 
