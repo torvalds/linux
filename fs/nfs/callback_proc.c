@@ -49,7 +49,7 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 		goto out_iput;
 	res->size = i_size_read(inode);
 	res->change_attr = delegation->change_attr;
-	if (nfsi->npages != 0)
+	if (nfsi->nrequests != 0)
 		res->change_attr++;
 	res->ctime = inode->i_ctime;
 	res->mtime = inode->i_mtime;

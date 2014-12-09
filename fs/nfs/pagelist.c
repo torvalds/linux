@@ -258,6 +258,7 @@ bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
 static inline void
 nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 {
+	struct inode *inode;
 	WARN_ON_ONCE(prev == req);
 
 	if (!prev) {
@@ -276,12 +277,16 @@ nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 		 * nfs_page_group_destroy is called */
 		kref_get(&req->wb_head->wb_kref);
 
-		/* grab extra ref if head request has extra ref from
-		 * the write/commit path to handle handoff between write
-		 * and commit lists */
+		/* grab extra ref and bump the request count if head request
+		 * has extra ref from the write/commit path to handle handoff
+		 * between write and commit lists. */
 		if (test_bit(PG_INODE_REF, &prev->wb_head->wb_flags)) {
+			inode = page_file_mapping(req->wb_page)->host;
 			set_bit(PG_INODE_REF, &req->wb_flags);
 			kref_get(&req->wb_kref);
+			spin_lock(&inode->i_lock);
+			NFS_I(inode)->nrequests++;
+			spin_unlock(&inode->i_lock);
 		}
 	}
 }

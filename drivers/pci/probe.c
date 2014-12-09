@@ -407,15 +407,16 @@ static void pci_read_bridge_mmio_pref(struct pci_bus *child)
 {
 	struct pci_dev *dev = child->self;
 	u16 mem_base_lo, mem_limit_lo;
-	unsigned long base, limit;
+	u64 base64, limit64;
+	dma_addr_t base, limit;
 	struct pci_bus_region region;
 	struct resource *res;
 
 	res = child->resource[2];
 	pci_read_config_word(dev, PCI_PREF_MEMORY_BASE, &mem_base_lo);
 	pci_read_config_word(dev, PCI_PREF_MEMORY_LIMIT, &mem_limit_lo);
-	base = ((unsigned long) mem_base_lo & PCI_PREF_RANGE_MASK) << 16;
-	limit = ((unsigned long) mem_limit_lo & PCI_PREF_RANGE_MASK) << 16;
+	base64 = (mem_base_lo & PCI_PREF_RANGE_MASK) << 16;
+	limit64 = (mem_limit_lo & PCI_PREF_RANGE_MASK) << 16;
 
 	if ((mem_base_lo & PCI_PREF_RANGE_TYPE_MASK) == PCI_PREF_RANGE_TYPE_64) {
 		u32 mem_base_hi, mem_limit_hi;
@@ -429,17 +430,20 @@ static void pci_read_bridge_mmio_pref(struct pci_bus *child)
 		 * this, just assume they are not being used.
 		 */
 		if (mem_base_hi <= mem_limit_hi) {
-#if BITS_PER_LONG == 64
-			base |= ((unsigned long) mem_base_hi) << 32;
-			limit |= ((unsigned long) mem_limit_hi) << 32;
-#else
-			if (mem_base_hi || mem_limit_hi) {
-				dev_err(&dev->dev, "can't handle 64-bit address space for bridge\n");
-				return;
-			}
-#endif
+			base64 |= (u64) mem_base_hi << 32;
+			limit64 |= (u64) mem_limit_hi << 32;
 		}
 	}
+
+	base = (dma_addr_t) base64;
+	limit = (dma_addr_t) limit64;
+
+	if (base != base64) {
+		dev_err(&dev->dev, "can't handle bridge window above 4GB (bus address %#010llx)\n",
+			(unsigned long long) base64);
+		return;
+	}
+
 	if (base <= limit) {
 		res->flags = (mem_base_lo & PCI_PREF_RANGE_TYPE_MASK) |
 					 IORESOURCE_MEM | IORESOURCE_PREFETCH;
@@ -1323,7 +1327,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 			~hpp->pci_exp_devctl_and, hpp->pci_exp_devctl_or);
 
 	/* Initialize Link Control Register */
-	if (dev->subordinate)
+	if (pcie_cap_has_lnkctl(dev))
 		pcie_capability_clear_and_set_word(dev, PCI_EXP_LNKCTL,
 			~hpp->pci_exp_lnkctl_and, hpp->pci_exp_lnkctl_or);
 

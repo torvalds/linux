@@ -239,6 +239,9 @@ struct rpc_xprt {
 	struct net		*xprt_net;
 	const char		*servername;
 	const char		*address_strings[RPC_DISPLAY_MAX];
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+	struct dentry		*debugfs;		/* debugfs directory */
+#endif
 };
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)

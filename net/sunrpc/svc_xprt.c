@@ -15,6 +15,7 @@
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/xprt.h>
 #include <linux/module.h>
+#include <trace/events/sunrpc.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -773,35 +774,43 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 
 	err = svc_alloc_arg(rqstp);
 	if (err)
-		return err;
+		goto out;
 
 	try_to_freeze();
 	cond_resched();
+	err = -EINTR;
 	if (signalled() || kthread_should_stop())
-		return -EINTR;
+		goto out;
 
 	xprt = svc_get_next_xprt(rqstp, timeout);
-	if (IS_ERR(xprt))
-		return PTR_ERR(xprt);
+	if (IS_ERR(xprt)) {
+		err = PTR_ERR(xprt);
+		goto out;
+	}
 
 	len = svc_handle_xprt(rqstp, xprt);
 
 	/* No data, incomplete (TCP) read, or accept() */
+	err = -EAGAIN;
 	if (len <= 0)
-		goto out;
+		goto out_release;
 
 	clear_bit(XPT_OLD, &xprt->xpt_flags);
 
 	rqstp->rq_secure = xprt->xpt_ops->xpo_secure_port(rqstp);
 	rqstp->rq_chandle.defer = svc_defer;
+	rqstp->rq_xid = svc_getu32(&rqstp->rq_arg.head[0]);
 
 	if (serv->sv_stats)
 		serv->sv_stats->netcnt++;
+	trace_svc_recv(rqstp, len);
 	return len;
-out:
+out_release:
 	rqstp->rq_res.len = 0;
 	svc_xprt_release(rqstp);
-	return -EAGAIN;
+out:
+	trace_svc_recv(rqstp, err);
+	return err;
 }
 EXPORT_SYMBOL_GPL(svc_recv);
 
@@ -821,12 +830,12 @@ EXPORT_SYMBOL_GPL(svc_drop);
 int svc_send(struct svc_rqst *rqstp)
 {
 	struct svc_xprt	*xprt;
-	int		len;
+	int		len = -EFAULT;
 	struct xdr_buf	*xb;
 
 	xprt = rqstp->rq_xprt;
 	if (!xprt)
-		return -EFAULT;
+		goto out;
 
 	/* release the receive skb before sending the reply */
 	rqstp->rq_xprt->xpt_ops->xpo_release_rqst(rqstp);
@@ -849,7 +858,9 @@ int svc_send(struct svc_rqst *rqstp)
 	svc_xprt_release(rqstp);
 
 	if (len == -ECONNREFUSED || len == -ENOTCONN || len == -EAGAIN)
-		return 0;
+		len = 0;
+out:
+	trace_svc_send(rqstp, len);
 	return len;
 }
 

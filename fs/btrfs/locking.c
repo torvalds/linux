@@ -128,6 +128,26 @@ again:
 }
 
 /*
+ * take a spinning read lock.
+ * returns 1 if we get the read lock and 0 if we don't
+ * this won't wait for blocking writers
+ */
+int btrfs_tree_read_lock_atomic(struct extent_buffer *eb)
+{
+	if (atomic_read(&eb->blocking_writers))
+		return 0;
+
+	read_lock(&eb->lock);
+	if (atomic_read(&eb->blocking_writers)) {
+		read_unlock(&eb->lock);
+		return 0;
+	}
+	atomic_inc(&eb->read_locks);
+	atomic_inc(&eb->spinning_readers);
+	return 1;
+}
+
+/*
  * returns 1 if we get the read lock and 0 if we don't
  * this won't wait for blocking writers
  */
@@ -158,9 +178,7 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 	    atomic_read(&eb->blocking_readers))
 		return 0;
 
-	if (!write_trylock(&eb->lock))
-		return 0;
-
+	write_lock(&eb->lock);
 	if (atomic_read(&eb->blocking_writers) ||
 	    atomic_read(&eb->blocking_readers)) {
 		write_unlock(&eb->lock);

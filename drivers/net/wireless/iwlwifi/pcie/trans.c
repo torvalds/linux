@@ -1894,8 +1894,7 @@ static u32 iwl_trans_pcie_dump_prph(struct iwl_trans *trans,
 		int reg;
 		__le32 *val;
 
-		prph_len += sizeof(*data) + sizeof(*prph) +
-			num_bytes_in_chunk;
+		prph_len += sizeof(**data) + sizeof(*prph) + num_bytes_in_chunk;
 
 		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PRPH);
 		(*data)->len = cpu_to_le32(sizeof(*prph) +
