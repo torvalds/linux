@@ -32,6 +32,8 @@ struct rtl2830_dev {
 	u8 page; /* active register page */
 	struct delayed_work stat_work;
 	fe_status_t fe_status;
+	u64 post_bit_error;
+	u64 post_bit_count;
 };
 
 struct rtl2830_reg_val_mask {
