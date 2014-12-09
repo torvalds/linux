@@ -707,6 +707,7 @@
 	dcic_id = <1>;
 	dcic_mux = "dcic-lvds";
 	status = "okay";
+	nand-on-flash-bbt;
 };
 
 &vadc {
