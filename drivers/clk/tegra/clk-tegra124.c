@@ -136,7 +136,6 @@ static unsigned long osc_freq;
 static unsigned long pll_ref_freq;
 
 static DEFINE_SPINLOCK(pll_d_lock);
-static DEFINE_SPINLOCK(pll_d2_lock);
 static DEFINE_SPINLOCK(pll_e_lock);
 static DEFINE_SPINLOCK(pll_re_lock);
 static DEFINE_SPINLOCK(pll_u_lock);
@@ -152,11 +151,6 @@ static unsigned long tegra124_input_freq[] = {
 	[9] = 48000000,
 	[12] = 260000000,
 };
-
-static const char *mux_plld_out0_plld2_out0[] = {
-	"pll_d_out0", "pll_d2_out0",
-};
-#define mux_plld_out0_plld2_out0_idx NULL
 
 static const char *mux_pllmcp_clkm[] = {
 	"pll_m", "pll_c", "pll_p", "clk_m", "pll_m_ud", "pll_c2", "pll_c3",
@@ -791,7 +785,6 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_sbc2] = { .dt_id = TEGRA124_CLK_SBC2, .present = true },
 	[tegra_clk_sbc3] = { .dt_id = TEGRA124_CLK_SBC3, .present = true },
 	[tegra_clk_i2c5] = { .dt_id = TEGRA124_CLK_I2C5, .present = true },
-	[tegra_clk_dsia] = { .dt_id = TEGRA124_CLK_DSIA, .present = true },
 	[tegra_clk_mipi] = { .dt_id = TEGRA124_CLK_MIPI, .present = true },
 	[tegra_clk_hdmi] = { .dt_id = TEGRA124_CLK_HDMI, .present = true },
 	[tegra_clk_csi] = { .dt_id = TEGRA124_CLK_CSI, .present = true },
@@ -817,7 +810,6 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_soc_therm] = { .dt_id = TEGRA124_CLK_SOC_THERM, .present = true },
 	[tegra_clk_dtv] = { .dt_id = TEGRA124_CLK_DTV, .present = true },
 	[tegra_clk_i2cslow] = { .dt_id = TEGRA124_CLK_I2CSLOW, .present = true },
-	[tegra_clk_dsib] = { .dt_id = TEGRA124_CLK_DSIB, .present = true },
 	[tegra_clk_tsec] = { .dt_id = TEGRA124_CLK_TSEC, .present = true },
 	[tegra_clk_xusb_host] = { .dt_id = TEGRA124_CLK_XUSB_HOST, .present = true },
 	[tegra_clk_msenc] = { .dt_id = TEGRA124_CLK_MSENC, .present = true },
@@ -957,8 +949,6 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_clk_out_1_mux] = { .dt_id = TEGRA124_CLK_CLK_OUT_1_MUX, .present = true },
 	[tegra_clk_clk_out_2_mux] = { .dt_id = TEGRA124_CLK_CLK_OUT_2_MUX, .present = true },
 	[tegra_clk_clk_out_3_mux] = { .dt_id = TEGRA124_CLK_CLK_OUT_3_MUX, .present = true },
-	[tegra_clk_dsia_mux] = { .dt_id = TEGRA124_CLK_DSIA_MUX, .present = true },
-	[tegra_clk_dsib_mux] = { .dt_id = TEGRA124_CLK_DSIB_MUX, .present = true },
 };
 
 static struct tegra_devclk devclks[] __initdata = {
@@ -1120,17 +1110,17 @@ static __init void tegra124_periph_clk_init(void __iomem *clk_base,
 					1, 2);
 	clks[TEGRA124_CLK_XUSB_SS_DIV2] = clk;
 
-	/* dsia mux */
-	clk = clk_register_mux(NULL, "dsia_mux", mux_plld_out0_plld2_out0,
-			       ARRAY_SIZE(mux_plld_out0_plld2_out0), 0,
-			       clk_base + PLLD_BASE, 25, 1, 0, &pll_d_lock);
-	clks[TEGRA124_CLK_DSIA_MUX] = clk;
+	clk = clk_register_gate(NULL, "plld_dsi", "plld_out0", 0,
+				clk_base + PLLD_MISC, 30, 0, &pll_d_lock);
+	clks[TEGRA124_CLK_PLLD_DSI] = clk;
 
-	/* dsib mux */
-	clk = clk_register_mux(NULL, "dsib_mux", mux_plld_out0_plld2_out0,
-			       ARRAY_SIZE(mux_plld_out0_plld2_out0), 0,
-			       clk_base + PLLD2_BASE, 25, 1, 0, &pll_d2_lock);
-	clks[TEGRA124_CLK_DSIB_MUX] = clk;
+	clk = tegra_clk_register_periph_gate("dsia", "plld_dsi", 0, clk_base,
+					     0, 48, periph_clk_enb_refcnt);
+	clks[TEGRA124_CLK_DSIA] = clk;
+
+	clk = tegra_clk_register_periph_gate("dsib", "plld_dsi", 0, clk_base,
+					     0, 82, periph_clk_enb_refcnt);
+	clks[TEGRA124_CLK_DSIB] = clk;
 
 	/* emc mux */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
@@ -1457,6 +1447,7 @@ static void __init tegra132_clock_apply_init_table(void)
 static void __init tegra124_132_clock_init_pre(struct device_node *np)
 {
 	struct device_node *node;
+	u32 plld_base;
 
 	clk_base = of_iomap(np, 0);
 	if (!clk_base) {
@@ -1492,6 +1483,11 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 	tegra124_periph_clk_init(clk_base, pmc_base);
 	tegra_audio_clk_init(clk_base, pmc_base, tegra124_clks, &pll_a_params);
 	tegra_pmc_clk_init(pmc_base, tegra124_clks);
+
+	/* For Tegra124 & Tegra132, PLLD is the only source for DSIA & DSIB */
+	plld_base = clk_readl(clk_base + PLLD_BASE);
+	plld_base &= ~BIT(25);
+	clk_writel(plld_base, clk_base + PLLD_BASE);
 }
 
 /**
