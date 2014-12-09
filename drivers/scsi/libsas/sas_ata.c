@@ -171,7 +171,6 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
-	list_del_init(&task->list);
 	sas_free_task(task);
 }
 
@@ -244,12 +243,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
 
-	if (sas_ha->lldd_max_execute_num < 2)
-		ret = i->dft->lldd_execute_task(task, 1, GFP_ATOMIC);
-	else
-		ret = sas_queue_up(task);
-
-	/* Examine */
+	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
 		SAS_DPRINTK("lldd_execute_task returned: %d\n", ret);
 
@@ -485,7 +479,6 @@ static void sas_ata_internal_abort(struct sas_task *task)
 
 	return;
  out:
-	list_del_init(&task->list);
 	sas_free_task(task);
 }
 

@@ -1,4 +1,4 @@
-/* esp_scsi.h: Defines and structures for the ESP drier.
+/* esp_scsi.h: Defines and structures for the ESP driver.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
  */
@@ -25,6 +25,7 @@
 #define ESP_CTEST	0x0aUL		/* wo  Chip test register      0x28  */
 #define ESP_CFG2	0x0bUL		/* rw  Second cfg register     0x2c  */
 #define ESP_CFG3	0x0cUL		/* rw  Third cfg register      0x30  */
+#define ESP_CFG4	0x0dUL		/* rw  Fourth cfg register     0x34  */
 #define ESP_TCHI	0x0eUL		/* rw  High bits transf count  0x38  */
 #define ESP_UID		ESP_TCHI	/* ro  Unique ID code          0x38  */
 #define FAS_RLO		ESP_TCHI	/* rw  HME extended counter    0x38  */
@@ -75,6 +76,18 @@
 #define ESP_CONFIG3_EWIDE     0x40     /* Enable Wide-SCSI     (hme)         */
 #define ESP_CONFIG3_IMS       0x80     /* ID msg chk'ng        (esp/fas236)  */
 #define ESP_CONFIG3_OBPUSH    0x80     /* Push odd-byte to dma (hme)         */
+
+/* ESP config register 4 read-write, found only on am53c974 chips */
+#define ESP_CONFIG4_RADE      0x04     /* Active negation */
+#define ESP_CONFIG4_RAE       0x08     /* Active negation on REQ and ACK */
+#define ESP_CONFIG4_PWD       0x20     /* Reduced power feature */
+#define ESP_CONFIG4_GE0       0x40     /* Glitch eater bit 0 */
+#define ESP_CONFIG4_GE1       0x80     /* Glitch eater bit 1 */
+
+#define ESP_CONFIG_GE_12NS    (0)
+#define ESP_CONFIG_GE_25NS    (ESP_CONFIG_GE1)
+#define ESP_CONFIG_GE_35NS    (ESP_CONFIG_GE0)
+#define ESP_CONFIG_GE_0NS     (ESP_CONFIG_GE0 | ESP_CONFIG_GE1)
 
 /* ESP command register read-write */
 /* Group 1 commands:  These may be sent at any point in time to the ESP
@@ -254,6 +267,7 @@ enum esp_rev {
 	FAS100A    = 0x04,
 	FAST       = 0x05,
 	FASHME     = 0x06,
+	PCSCSI     = 0x07,  /* AM53c974 */
 };
 
 struct esp_cmd_entry {
@@ -269,6 +283,7 @@ struct esp_cmd_entry {
 #define ESP_CMD_FLAG_WRITE	0x01 /* DMA is a write */
 #define ESP_CMD_FLAG_ABORT	0x02 /* being aborted */
 #define ESP_CMD_FLAG_AUTOSENSE	0x04 /* Doing automatic REQUEST_SENSE */
+#define ESP_CMD_FLAG_RESIDUAL	0x08 /* AM53c974 BLAST residual */
 
 	u8			tag[2];
 	u8			orig_tag[2];
@@ -283,7 +298,6 @@ struct esp_cmd_entry {
 	struct completion	*eh_done;
 };
 
-/* XXX make this configurable somehow XXX */
 #define ESP_DEFAULT_TAGS	16
 
 #define ESP_MAX_TARGET		16
@@ -445,7 +459,7 @@ struct esp {
 	u8			prev_soff;
 	u8			prev_stp;
 	u8			prev_cfg3;
-	u8			__pad;
+	u8			num_tags;
 
 	struct list_head	esp_cmd_pool;
 
@@ -466,6 +480,7 @@ struct esp {
 	u8			bursts;
 	u8			config1;
 	u8			config2;
+	u8			config4;
 
 	u8			scsi_id;
 	u32			scsi_id_mask;
@@ -479,6 +494,7 @@ struct esp {
 #define ESP_FLAG_WIDE_CAPABLE	0x00000008
 #define ESP_FLAG_QUICKIRQ_CHECK	0x00000010
 #define ESP_FLAG_DISABLE_SYNC	0x00000020
+#define ESP_FLAG_USE_FIFO	0x00000040
 
 	u8			select_state;
 #define ESP_SELECT_NONE		0x00 /* Not selecting */

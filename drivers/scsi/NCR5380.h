@@ -7,8 +7,6 @@
  * 	drew@colorado.edu
  *      +1 (303) 666-5836
  *
- * DISTRIBUTION RELEASE 7
- *
  * For more information, please consult 
  *
  * NCR 5380 Family
@@ -25,13 +23,7 @@
 #define NCR5380_H
 
 #include <linux/interrupt.h>
-
-#ifdef AUTOSENSE
 #include <scsi/scsi_eh.h>
-#endif
-
-#define NCR5380_PUBLIC_RELEASE 7
-#define NCR53C400_PUBLIC_RELEASE 2
 
 #define NDEBUG_ARBITRATION	0x1
 #define NDEBUG_AUTOSENSE	0x2
@@ -224,33 +216,44 @@
 #define DISCONNECT_LONG		2
 
 /* 
- * These are "special" values for the tag parameter passed to NCR5380_select.
+ * "Special" value for the (unsigned char) command tag, to indicate
+ * I_T_L nexus instead of I_T_L_Q.
  */
 
-#define TAG_NEXT	-1	/* Use next free tag */
-#define TAG_NONE	-2	/* 
-				 * Establish I_T_L nexus instead of I_T_L_Q
-				 * even on SCSI-II devices.
-				 */
+#define TAG_NONE	0xff
 
 /*
  * These are "special" values for the irq and dma_channel fields of the 
  * Scsi_Host structure
  */
 
-#define SCSI_IRQ_NONE	255
 #define DMA_NONE	255
 #define IRQ_AUTO	254
 #define DMA_AUTO	254
 #define PORT_AUTO	0xffff	/* autoprobe io port for 53c400a */
+
+#ifndef NO_IRQ
+#define NO_IRQ		0
+#endif
 
 #define FLAG_HAS_LAST_BYTE_SENT		1	/* NCR53c81 or better */
 #define FLAG_CHECK_LAST_BYTE_SENT	2	/* Only test once */
 #define FLAG_NCR53C400			4	/* NCR53c400 */
 #define FLAG_NO_PSEUDO_DMA		8	/* Inhibit DMA */
 #define FLAG_DTC3181E			16	/* DTC3181E */
+#define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
+#define FLAG_TAGGED_QUEUING		64	/* as X3T9.2 spelled it */
 
 #ifndef ASM
+
+#ifdef SUPPORT_TAGS
+struct tag_alloc {
+	DECLARE_BITMAP(allocated, MAX_TAGS);
+	int nr_allocated;
+	int queue_size;
+};
+#endif
+
 struct NCR5380_hostdata {
 	NCR5380_implementation_fields;		/* implementation specific */
 	struct Scsi_Host *host;			/* Host backpointer */
@@ -263,9 +266,9 @@ struct NCR5380_hostdata {
 	volatile int dma_len;			/* requested length of DMA */
 #endif
 	volatile unsigned char last_message;	/* last message OUT */
-	volatile Scsi_Cmnd *connected;		/* currently connected command */
-	volatile Scsi_Cmnd *issue_queue;	/* waiting to be issued */
-	volatile Scsi_Cmnd *disconnected_queue;	/* waiting for reconnect */
+	volatile struct scsi_cmnd *connected;	/* currently connected command */
+	volatile struct scsi_cmnd *issue_queue;	/* waiting to be issued */
+	volatile struct scsi_cmnd *disconnected_queue;	/* waiting for reconnect */
 	volatile int restart_select;		/* we have disconnected,
 						   used to restart 
 						   NCR5380_select() */
@@ -273,19 +276,21 @@ struct NCR5380_hostdata {
 	int flags;
 	unsigned long time_expires;		/* in jiffies, set prior to sleeping */
 	int select_time;			/* timer in select for target response */
-	volatile Scsi_Cmnd *selecting;
+	volatile struct scsi_cmnd *selecting;
 	struct delayed_work coroutine;		/* our co-routine */
-#ifdef NCR5380_STATS
-	unsigned timebase;			/* Base for time calcs */
-	long time_read[8];			/* time to do reads */
-	long time_write[8];			/* time to do writes */
-	unsigned long bytes_read[8];		/* bytes read */
-	unsigned long bytes_write[8];		/* bytes written */
-	unsigned pendingr;
-	unsigned pendingw;
-#endif
-#ifdef AUTOSENSE
 	struct scsi_eh_save ses;
+	char info[256];
+	int read_overruns;                /* number of bytes to cut from a
+	                                   * transfer to handle chip overruns */
+	int retain_dma_intr;
+	struct work_struct main_task;
+	volatile int main_running;
+#ifdef SUPPORT_TAGS
+	struct tag_alloc TagAlloc[8][8];	/* 8 targets and 8 LUNs */
+#endif
+#ifdef PSEUDO_DMA
+	unsigned spin_max_r;
+	unsigned spin_max_w;
 #endif
 };
 
@@ -296,7 +301,8 @@ struct NCR5380_hostdata {
 #endif
 
 #define dprintk(flg, fmt, ...) \
-	do { if ((NDEBUG) & (flg)) pr_debug(fmt, ## __VA_ARGS__); } while (0)
+	do { if ((NDEBUG) & (flg)) \
+		printk(KERN_DEBUG fmt, ## __VA_ARGS__); } while (0)
 
 #if NDEBUG
 #define NCR5380_dprint(flg, arg) \
@@ -320,17 +326,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance);
 static irqreturn_t NCR5380_intr(int irq, void *dev_id);
 #endif
 static void NCR5380_main(struct work_struct *work);
-static void __maybe_unused NCR5380_print_options(struct Scsi_Host *instance);
-static int NCR5380_abort(Scsi_Cmnd * cmd);
-static int NCR5380_bus_reset(Scsi_Cmnd * cmd);
-static int NCR5380_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
-static int __maybe_unused NCR5380_show_info(struct seq_file *,
-	struct Scsi_Host *);
-static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
-	char *buffer, int length);
-
+static const char *NCR5380_info(struct Scsi_Host *instance);
 static void NCR5380_reselect(struct Scsi_Host *instance);
-static int NCR5380_select(struct Scsi_Host *instance, Scsi_Cmnd * cmd, int tag);
+static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd);
 #if defined(PSEUDO_DMA) || defined(REAL_DMA) || defined(REAL_DMA_POLL)
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 #endif

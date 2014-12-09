@@ -2160,60 +2160,10 @@ int fc_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, FC_FCP_DFLT_QUEUE_DEPTH);
-	else
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev),
-					FC_FCP_DFLT_QUEUE_DEPTH);
-
+	scsi_change_queue_depth(sdev, FC_FCP_DFLT_QUEUE_DEPTH);
 	return 0;
 }
 EXPORT_SYMBOL(fc_slave_alloc);
-
-/**
- * fc_change_queue_depth() - Change a device's queue depth
- * @sdev:   The SCSI device whose queue depth is to change
- * @qdepth: The new queue depth
- * @reason: The resason for the change
- */
-int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		scsi_track_queue_full(sdev, qdepth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-	return sdev->queue_depth;
-}
-EXPORT_SYMBOL(fc_change_queue_depth);
-
-/**
- * fc_change_queue_type() - Change a device's queue type
- * @sdev:     The SCSI device whose queue depth is to change
- * @tag_type: Identifier for queue type
- */
-int fc_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
-}
-EXPORT_SYMBOL(fc_change_queue_type);
 
 /**
  * fc_fcp_destory() - Tear down the FCP layer for a given local port

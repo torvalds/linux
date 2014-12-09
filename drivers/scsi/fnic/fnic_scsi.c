@@ -325,13 +325,11 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 	struct fc_rport_libfc_priv *rp = rport->dd_data;
 	struct host_sg_desc *desc;
 	struct misc_stats *misc_stats = &fnic->fnic_stats.misc_stats;
-	u8 pri_tag = 0;
 	unsigned int i;
 	unsigned long intr_flags;
 	int flags;
 	u8 exch_flags;
 	struct scsi_lun fc_lun;
-	char msg[2];
 
 	if (sg_count) {
 		/* For each SGE, create a device desc entry */
@@ -356,12 +354,6 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 					      PCI_DMA_FROMDEVICE);
 
 	int_to_scsilun(sc->device->lun, &fc_lun);
-
-	pri_tag = FCPIO_ICMND_PTA_SIMPLE;
-	msg[0] = MSG_SIMPLE_TAG;
-	scsi_populate_tag_msg(sc, msg);
-	if (msg[0] == MSG_ORDERED_TAG)
-		pri_tag = FCPIO_ICMND_PTA_ORDERED;
 
 	/* Enqueue the descriptor in the Copy WQ */
 	spin_lock_irqsave(&fnic->wq_copy_lock[0], intr_flags);
@@ -394,7 +386,8 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 					 io_req->sgl_list_pa,
 					 io_req->sense_buf_pa,
 					 0, /* scsi cmd ref, always 0 */
-					 pri_tag, /* scsi pri and tag */
+					 FCPIO_ICMND_PTA_SIMPLE,
+					 	/* scsi pri and tag */
 					 flags,	/* command flags */
 					 sc->cmnd, sc->cmd_len,
 					 scsi_bufflen(sc),
@@ -428,8 +421,10 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	int ret;
 	u64 cmd_trace;
 	int sg_count = 0;
-	unsigned long flags;
+	unsigned long flags = 0;
 	unsigned long ptr;
+	struct fc_rport_priv *rdata;
+	spinlock_t *io_lock = NULL;
 
 	if (unlikely(fnic_chk_state_flags_locked(fnic, FNIC_FLAGS_IO_BLOCKED)))
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -439,6 +434,16 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	if (ret) {
 		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
 		sc->result = ret;
+		done(sc);
+		return 0;
+	}
+
+	rdata = lp->tt.rport_lookup(lp, rport->port_id);
+	if (!rdata || (rdata->rp_state == RPORT_ST_DELETE)) {
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+			"returning IO as rport is removed\n");
+		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+		sc->result = DID_NO_CONNECT;
 		done(sc);
 		return 0;
 	}
@@ -505,6 +510,13 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 		}
 	}
 
+	/*
+	* Will acquire lock defore setting to IO initialized.
+	*/
+
+	io_lock = fnic_io_lock_hash(fnic, sc);
+	spin_lock_irqsave(io_lock, flags);
+
 	/* initialize rest of io_req */
 	io_req->port_id = rport->port_id;
 	io_req->start_time = jiffies;
@@ -521,11 +533,9 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 		 * In case another thread cancelled the request,
 		 * refetch the pointer under the lock.
 		 */
-		spinlock_t *io_lock = fnic_io_lock_hash(fnic, sc);
 		FNIC_TRACE(fnic_queuecommand, sc->device->host->host_no,
 			  sc->request->tag, sc, 0, 0, 0,
 			  (((u64)CMD_FLAGS(sc) << 32) | CMD_STATE(sc)));
-		spin_lock_irqsave(io_lock, flags);
 		io_req = (struct fnic_io_req *)CMD_SP(sc);
 		CMD_SP(sc) = NULL;
 		CMD_STATE(sc) = FNIC_IOREQ_CMD_COMPLETE;
@@ -534,6 +544,10 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 			fnic_release_ioreq_buf(fnic, io_req, sc);
 			mempool_free(io_req, fnic->io_req_pool);
 		}
+		atomic_dec(&fnic->in_flight);
+		/* acquire host lock before returning to SCSI */
+		spin_lock(lp->host->host_lock);
+		return ret;
 	} else {
 		atomic64_inc(&fnic_stats->io_stats.active_ios);
 		atomic64_inc(&fnic_stats->io_stats.num_ios);
@@ -555,6 +569,11 @@ out:
 		  sc->request->tag, sc, io_req,
 		  sg_count, cmd_trace,
 		  (((u64)CMD_FLAGS(sc) >> 32) | CMD_STATE(sc)));
+
+	/* if only we issued IO, will we have the io lock */
+	if (CMD_FLAGS(sc) & FNIC_IO_INITIALIZED)
+		spin_unlock_irqrestore(io_lock, flags);
+
 	atomic_dec(&fnic->in_flight);
 	/* acquire host lock before returning to SCSI */
 	spin_lock(lp->host->host_lock);

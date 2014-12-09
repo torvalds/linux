@@ -13,94 +13,10 @@
  *	(Unix and Linux consulting and custom programming)
  *	drew@colorado.edu
  *      +1 (303) 440-4894
- *
- * ALPHA RELEASE 1.
- *
- * For more information, please consult
- *
- * NCR 5380 Family
- * SCSI Protocol Controller
- * Databook
- *
- * NCR Microelectronics
- * 1635 Aeroplaza Drive
- * Colorado Springs, CO 80916
- * 1+ (719) 578-3400
- * 1+ (800) 334-5454
  */
 
 #ifndef SUN3_SCSI_H
 #define SUN3_SCSI_H
-
-#define SUN3SCSI_PUBLIC_RELEASE 1
-
-/*
- * Int: level 2 autovector
- * IO: type 1, base 0x00140000, 5 bits phys space: A<4..0>
- */
-#define IRQ_SUN3_SCSI 2
-#define IOBASE_SUN3_SCSI 0x00140000
-
-#define IOBASE_SUN3_VMESCSI 0xff200000
-
-static int sun3scsi_abort(struct scsi_cmnd *);
-static int sun3scsi_detect (struct scsi_host_template *);
-static const char *sun3scsi_info (struct Scsi_Host *);
-static int sun3scsi_bus_reset(struct scsi_cmnd *);
-static int sun3scsi_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
-static int sun3scsi_release (struct Scsi_Host *);
-
-#ifndef CMD_PER_LUN
-#define CMD_PER_LUN 2
-#endif
-
-#ifndef CAN_QUEUE
-#define CAN_QUEUE 16
-#endif
-
-#ifndef SG_TABLESIZE
-#define SG_TABLESIZE SG_NONE
-#endif
-
-#ifndef MAX_TAGS
-#define MAX_TAGS 32
-#endif
-
-#ifndef USE_TAGGED_QUEUING
-#define	USE_TAGGED_QUEUING 1
-#endif
-
-#include <scsi/scsicam.h>
-
-#ifdef SUN3_SCSI_VME
-#define SUN3_SCSI_NAME "Sun3 NCR5380 VME SCSI"
-#else
-#define SUN3_SCSI_NAME "Sun3 NCR5380 SCSI"
-#endif
-
-#define NCR5380_implementation_fields \
-    int port, ctrl
-
-#define NCR5380_local_declare() \
-        struct Scsi_Host *_instance
-
-#define NCR5380_setup(instance) \
-        _instance = instance
-
-#define NCR5380_read(reg) sun3scsi_read(reg)
-#define NCR5380_write(reg, value) sun3scsi_write(reg, value)
-
-#define NCR5380_intr sun3scsi_intr
-#define NCR5380_queue_command sun3scsi_queue_command
-#define NCR5380_bus_reset sun3scsi_bus_reset
-#define NCR5380_abort sun3scsi_abort
-#define NCR5380_show_info sun3scsi_show_info
-#define NCR5380_dma_xfer_len(i, cmd, phase) \
-        sun3scsi_dma_xfer_len(cmd->SCp.this_residual,cmd,((phase) & SR_IO) ? 0 : 1)
-
-#define NCR5380_dma_write_setup(instance, data, count) sun3scsi_dma_setup(data, count, 1)
-#define NCR5380_dma_read_setup(instance, data, count) sun3scsi_dma_setup(data, count, 0)
-#define NCR5380_dma_residual sun3scsi_dma_residual
 
 /* additional registers - mainly DMA control regs */
 /* these start at regbase + 8 -- directly after the NCR regs */

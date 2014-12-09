@@ -2049,6 +2049,8 @@ static int blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
  */
 int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 {
+	BUILD_BUG_ON(BLK_MQ_MAX_DEPTH > 1 << BLK_MQ_UNIQUE_TAG_BITS);
+
 	if (!set->nr_hw_queues)
 		return -EINVAL;
 	if (!set->queue_depth)

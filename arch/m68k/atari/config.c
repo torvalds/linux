@@ -858,6 +858,24 @@ static struct platform_device *atari_netusbee_devices[] __initdata = {
 };
 #endif /* CONFIG_ATARI_ETHERNEC */
 
+#ifdef CONFIG_ATARI_SCSI
+static const struct resource atari_scsi_st_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MFP_FSCSI,
+		.end   = IRQ_MFP_FSCSI,
+	},
+};
+
+static const struct resource atari_scsi_tt_rsrc[] __initconst = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_TT_MFP_SCSI,
+		.end   = IRQ_TT_MFP_SCSI,
+	},
+};
+#endif
+
 int __init atari_platform_init(void)
 {
 	int rv = 0;
@@ -890,6 +908,15 @@ int __init atari_platform_init(void)
 		}
 		iounmap(enec_virt);
 	}
+#endif
+
+#ifdef CONFIG_ATARI_SCSI
+	if (ATARIHW_PRESENT(ST_SCSI))
+		platform_device_register_simple("atari_scsi", -1,
+			atari_scsi_st_rsrc, ARRAY_SIZE(atari_scsi_st_rsrc));
+	else if (ATARIHW_PRESENT(TT_SCSI))
+		platform_device_register_simple("atari_scsi", -1,
+			atari_scsi_tt_rsrc, ARRAY_SIZE(atari_scsi_tt_rsrc));
 #endif
 
 	return rv;
