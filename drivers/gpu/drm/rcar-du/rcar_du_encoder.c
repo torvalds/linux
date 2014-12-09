@@ -46,6 +46,9 @@ static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
 
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc, mode);
 }

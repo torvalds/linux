@@ -37,6 +37,9 @@ static void rcar_du_hdmienc_dpms(struct drm_encoder *encoder, int mode)
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
 	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
 
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
 	if (hdmienc->dpms == mode)
 		return;
 

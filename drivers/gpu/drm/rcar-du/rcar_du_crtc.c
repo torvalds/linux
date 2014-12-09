@@ -347,6 +347,9 @@ static void rcar_du_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
 	if (rcrtc->dpms == mode)
 		return;
 
