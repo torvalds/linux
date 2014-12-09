@@ -2703,12 +2703,6 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
 		pll->flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 
-	rval = smiapp_get_mbus_formats(sensor);
-	if (rval) {
-		rval = -ENODEV;
-		goto out_cleanup;
-	}
-
 	for (i = 0; i < SMIAPP_SUBDEVS; i++) {
 		struct {
 			struct smiapp_subdev *ssd;
@@ -2777,6 +2771,12 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 	rval = smiapp_init_controls(sensor);
 	if (rval < 0)
 		goto out_cleanup;
+
+	rval = smiapp_get_mbus_formats(sensor);
+	if (rval) {
+		rval = -ENODEV;
+		goto out_cleanup;
+	}
 
 	rval = smiapp_init_late_controls(sensor);
 	if (rval) {
