@@ -325,6 +325,16 @@ void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu)
 	kfree_skb(skb);
 }
 
+static void ip6_datagram_prepare_pktinfo_errqueue(struct sk_buff *skb)
+{
+	int ifindex = skb->dev ? skb->dev->ifindex : -1;
+
+	if (skb->protocol == htons(ETH_P_IPV6))
+		IP6CB(skb)->iif = ifindex;
+	else
+		PKTINFO_SKB_CB(skb)->ipi_ifindex = ifindex;
+}
+
 /*
  *	Handle MSG_ERRQUEUE
  */
@@ -388,8 +398,12 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
 		sin->sin6_port = 0;
-		if (np->rxopt.all)
+		if (np->rxopt.all) {
+			if (serr->ee.ee_origin != SO_EE_ORIGIN_ICMP &&
+			    serr->ee.ee_origin != SO_EE_ORIGIN_ICMP6)
+				ip6_datagram_prepare_pktinfo_errqueue(skb);
 			ip6_datagram_recv_common_ctl(sk, msg, skb);
+		}
 		if (skb->protocol == htons(ETH_P_IPV6)) {
 			sin->sin6_addr = ipv6_hdr(skb)->saddr;
 			if (np->rxopt.all)
@@ -491,7 +505,10 @@ void ip6_datagram_recv_common_ctl(struct sock *sk, struct msghdr *msg,
 			ipv6_addr_set_v4mapped(ip_hdr(skb)->daddr,
 					       &src_info.ipi6_addr);
 		}
-		put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO, sizeof(src_info), &src_info);
+
+		if (src_info.ipi6_ifindex >= 0)
+			put_cmsg(msg, SOL_IPV6, IPV6_PKTINFO,
+				 sizeof(src_info), &src_info);
 	}
 }
 

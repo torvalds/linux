@@ -399,6 +399,22 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 		kfree_skb(skb);
 }
 
+static bool ipv4_pktinfo_prepare_errqueue(const struct sock *sk,
+					  const struct sk_buff *skb,
+					  int ee_origin)
+{
+	struct in_pktinfo *info = PKTINFO_SKB_CB(skb);
+
+	if ((ee_origin != SO_EE_ORIGIN_TIMESTAMPING) ||
+	    (!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG)) ||
+	    (!skb->dev))
+		return false;
+
+	info->ipi_spec_dst.s_addr = ip_hdr(skb)->saddr;
+	info->ipi_ifindex = skb->dev->ifindex;
+	return true;
+}
+
 /*
  *	Handle MSG_ERRQUEUE
  */
@@ -413,6 +429,8 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	} errhdr;
 	int err;
 	int copied;
+
+	WARN_ON_ONCE(sk->sk_family == AF_INET6);
 
 	err = -EAGAIN;
 	skb = sock_dequeue_err_skb(sk);
@@ -444,7 +462,9 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	memcpy(&errhdr.ee, &serr->ee, sizeof(struct sock_extended_err));
 	sin = &errhdr.offender;
 	sin->sin_family = AF_UNSPEC;
-	if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP) {
+
+	if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP ||
+	    ipv4_pktinfo_prepare_errqueue(sk, skb, serr->ee.ee_origin)) {
 		struct inet_sock *inet = inet_sk(sk);
 
 		sin->sin_family = AF_INET;
@@ -1049,7 +1069,7 @@ e_inval:
 }
 
 /**
- * ipv4_pktinfo_prepare - transfert some info from rtable to skb
+ * ipv4_pktinfo_prepare - transfer some info from rtable to skb
  * @sk: socket
  * @skb: buffer
  *
