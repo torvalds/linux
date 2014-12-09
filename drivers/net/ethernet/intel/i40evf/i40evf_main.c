@@ -1385,11 +1385,14 @@ static void i40evf_watchdog_task(struct work_struct *work)
 
 	if (adapter->state == __I40EVF_RUNNING)
 		i40evf_request_stats(adapter);
-
-	i40evf_irq_enable(adapter, true);
-	i40evf_fire_sw_int(adapter, 0xFF);
-
 watchdog_done:
+	if (adapter->state == __I40EVF_RUNNING) {
+		i40evf_irq_enable_queues(adapter, ~0);
+		i40evf_fire_sw_int(adapter, 0xFF);
+	} else {
+		i40evf_fire_sw_int(adapter, 0x1);
+	}
+
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 restart_watchdog:
 	if (adapter->state == __I40EVF_REMOVE)
