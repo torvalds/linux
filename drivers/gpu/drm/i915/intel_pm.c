@@ -2668,7 +2668,8 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
 		struct intel_plane *intel_plane = to_intel_plane(plane);
 
-		if (intel_plane->pipe == pipe)
+		if (intel_plane->pipe == pipe &&
+			plane->type == DRM_PLANE_TYPE_OVERLAY)
 			p->plane[i++] = intel_plane->wm;
 	}
 }
