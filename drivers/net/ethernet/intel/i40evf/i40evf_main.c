@@ -1336,8 +1336,13 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	/* Process admin queue tasks. After init, everything gets done
 	 * here so we don't race on the admin queue.
 	 */
-	if (adapter->aq_pending)
+	if (adapter->aq_pending) {
+		if (!i40evf_asq_done(hw)) {
+			dev_dbg(&adapter->pdev->dev, "Admin queue timeout\n");
+			i40evf_send_api_ver(adapter);
+		}
 		goto watchdog_done;
+	}
 
 	if (adapter->aq_required & I40EVF_FLAG_AQ_MAP_VECTORS) {
 		i40evf_map_queues(adapter);
