@@ -398,8 +398,10 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
 	enum intel_display_power_domain power_domain;
-	u32 port_ctl, func;
+	u32 dpi_enabled, func;
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
@@ -409,13 +411,23 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		return false;
 
 	/* XXX: this only works for one DSI output */
-	for_each_dsi_port(port, (1 << PORT_A) | (1 << PORT_C)) {
-		port_ctl = I915_READ(MIPI_PORT_CTRL(port));
+	for_each_dsi_port(port, intel_dsi->ports) {
 		func = I915_READ(MIPI_DSI_FUNC_PRG(port));
+		dpi_enabled = I915_READ(MIPI_PORT_CTRL(port)) &
+							DPI_ENABLE;
 
-		if ((port_ctl & DPI_ENABLE) || (func & CMD_MODE_DATA_WIDTH_MASK)) {
+		/* Due to some hardware limitations on BYT, MIPI Port C DPI
+		 * Enable bit does not get set. To check whether DSI Port C
+		 * was enabled in BIOS, check the Pipe B enable bit
+		 */
+		if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+		    (port == PORT_C))
+			dpi_enabled = I915_READ(PIPECONF(PIPE_B)) &
+							PIPECONF_ENABLE;
+
+		if (dpi_enabled || (func & CMD_MODE_DATA_WIDTH_MASK)) {
 			if (I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY) {
-				*pipe = port == PORT_A ? PIPE_A : PIPE_C;
+				*pipe = port == PORT_A ? PIPE_A : PIPE_B;
 				return true;
 			}
 		}
