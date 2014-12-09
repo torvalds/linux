@@ -794,7 +794,7 @@ static void atmel_tx_dma(struct uart_port *port)
 			return;
 		}
 
-		dma_sync_sg_for_device(port->dev, sg, 1, DMA_MEM_TO_DEV);
+		dma_sync_sg_for_device(port->dev, sg, 1, DMA_TO_DEVICE);
 
 		atmel_port->desc_tx = desc;
 		desc->callback = atmel_complete_tx_dma;
@@ -927,7 +927,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	dma_sync_sg_for_cpu(port->dev,
 			    &atmel_port->sg_rx,
 			    1,
-			    DMA_DEV_TO_MEM);
+			    DMA_FROM_DEVICE);
 
 	/*
 	 * ring->head points to the end of data already written by the DMA.
@@ -974,7 +974,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	dma_sync_sg_for_device(port->dev,
 			       &atmel_port->sg_rx,
 			       1,
-			       DMA_DEV_TO_MEM);
+			       DMA_FROM_DEVICE);
 
 	/*
 	 * Drop the lock here since it might end up calling
