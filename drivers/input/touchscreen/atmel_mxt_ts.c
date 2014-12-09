@@ -2489,8 +2489,10 @@ static int mxt_initialize_t100_input_device(struct mxt_data *data)
 	int error;
 
 	error = mxt_read_t100_config(data);
-	if (error)
-		dev_warn(dev, "Failed to initialize T9 resolution\n");
+	if (error) {
+		dev_err(dev, "Failed to read T100 config\n");
+		return error;
+	}
 
 	mxt_read_t107_stylus_config(data);
 
