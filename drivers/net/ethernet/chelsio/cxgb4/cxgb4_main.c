@@ -3805,6 +3805,22 @@ u64 cxgb4_read_sge_timestamp(struct net_device *dev)
 }
 EXPORT_SYMBOL(cxgb4_read_sge_timestamp);
 
+int cxgb4_bar2_sge_qregs(struct net_device *dev,
+			 unsigned int qid,
+			 enum cxgb4_bar2_qtype qtype,
+			 u64 *pbar2_qoffset,
+			 unsigned int *pbar2_qid)
+{
+	return t4_bar2_sge_qregs(netdev2adap(dev),
+				 qid,
+				 (qtype == CXGB4_BAR2_QTYPE_EGRESS
+				  ? T4_BAR2_QTYPE_EGRESS
+				  : T4_BAR2_QTYPE_INGRESS),
+				 pbar2_qoffset,
+				 pbar2_qid);
+}
+EXPORT_SYMBOL(cxgb4_bar2_sge_qregs);
+
 static struct pci_driver cxgb4_driver;
 
 static void check_neigh_update(struct neighbour *neigh)
@@ -3987,31 +4003,18 @@ static void process_db_drop(struct work_struct *work)
 		u32 dropped_db = t4_read_reg(adap, 0x010ac);
 		u16 qid = (dropped_db >> 15) & 0x1ffff;
 		u16 pidx_inc = dropped_db & 0x1fff;
-		unsigned int s_qpp;
-		unsigned short udb_density;
-		unsigned long qpshift;
-		int page;
-		u32 udb;
+		u64 bar2_qoffset;
+		unsigned int bar2_qid;
+		int ret;
 
-		dev_warn(adap->pdev_dev,
-			 "Dropped DB 0x%x qid %d bar2 %d coalesce %d pidx %d\n",
-			 dropped_db, qid,
-			 (dropped_db >> 14) & 1,
-			 (dropped_db >> 13) & 1,
-			 pidx_inc);
-
-		drain_db_fifo(adap, 1);
-
-		s_qpp = QUEUESPERPAGEPF1 * adap->fn;
-		udb_density = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adap,
-				SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
-		qpshift = PAGE_SHIFT - ilog2(udb_density);
-		udb = qid << qpshift;
-		udb &= PAGE_MASK;
-		page = udb / PAGE_SIZE;
-		udb += (qid - (page * udb_density)) * 128;
-
-		writel(PIDX(pidx_inc),  adap->bar2 + udb + 8);
+		ret = t4_bar2_sge_qregs(adap, qid, T4_BAR2_QTYPE_EGRESS,
+					&bar2_qoffset, &bar2_qid);
+		if (ret)
+			dev_err(adap->pdev_dev, "doorbell drop recovery: "
+				"qid=%d, pidx_inc=%d\n", qid, pidx_inc);
+		else
+			writel(PIDX_T5(pidx_inc) | QID(bar2_qid),
+			       adap->bar2 + bar2_qoffset + SGE_UDB_KDOORBELL);
 
 		/* Re-enable BAR2 WC */
 		t4_set_reg_field(adap, 0x10b0, 1<<15, 1<<15);
@@ -4069,12 +4072,8 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.adapter_type = adap->params.chip;
 	lli.iscsi_iolen = MAXRXDATA_GET(t4_read_reg(adap, TP_PARA_REG2));
 	lli.cclk_ps = 1000000000 / adap->params.vpd.cclk;
-	lli.udb_density = 1 << QUEUESPERPAGEPF0_GET(
-			t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF) >>
-			(adap->fn * 4));
-	lli.ucq_density = 1 << QUEUESPERPAGEPF0_GET(
-			t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF) >>
-			(adap->fn * 4));
+	lli.udb_density = 1 << adap->params.sge.eq_qpp;
+	lli.ucq_density = 1 << adap->params.sge.iq_qpp;
 	lli.filt_mode = adap->params.tp.vlan_pri_map;
 	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
 	for (i = 0; i < NCHAN; i++)
@@ -5926,6 +5925,7 @@ static int adap_init0(struct adapter *adap)
 		t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
 			     adap->params.b_wnd);
 	}
+	t4_init_sge_params(adap);
 	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;

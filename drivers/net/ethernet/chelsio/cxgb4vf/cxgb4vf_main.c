@@ -2095,7 +2095,6 @@ static int adap_init0(struct adapter *adapter)
 	unsigned int ethqsets;
 	int err;
 	u32 param, val = 0;
-	unsigned int chipid;
 
 	/*
 	 * Wait for the device to become ready before proceeding ...
@@ -2121,17 +2120,6 @@ static int adap_init0(struct adapter *adapter)
 	if (err < 0) {
 		dev_err(adapter->pdev_dev, "FW reset failed: err=%d\n", err);
 		return err;
-	}
-
-	adapter->params.chip = 0;
-	switch (adapter->pdev->device >> 12) {
-	case CHELSIO_T4:
-		adapter->params.chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
-		break;
-	case CHELSIO_T5:
-		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
-		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
-		break;
 	}
 
 	/*
@@ -2594,6 +2582,27 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		goto err_free_adapter;
 	}
 
+	/* Wait for the device to become ready before proceeding ...
+	 */
+	err = t4vf_prep_adapter(adapter);
+	if (err) {
+		dev_err(adapter->pdev_dev, "device didn't become ready:"
+			" err=%d\n", err);
+		goto err_unmap_bar0;
+	}
+
+	/* For T5 and later we want to use the new BAR-based User Doorbells,
+	 * so we need to map BAR2 here ...
+	 */
+	if (!is_t4(adapter->params.chip)) {
+		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
+					   pci_resource_len(pdev, 2));
+		if (!adapter->bar2) {
+			dev_err(adapter->pdev_dev, "cannot map BAR2 doorbells\n");
+			err = -ENOMEM;
+			goto err_unmap_bar0;
+		}
+	}
 	/*
 	 * Initialize adapter level features.
 	 */
@@ -2786,6 +2795,10 @@ err_free_dev:
 	}
 
 err_unmap_bar:
+	if (!is_t4(adapter->params.chip))
+		iounmap(adapter->bar2);
+
+err_unmap_bar0:
 	iounmap(adapter->regs);
 
 err_free_adapter:
@@ -2856,6 +2869,8 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 			free_netdev(netdev);
 		}
 		iounmap(adapter->regs);
+		if (!is_t4(adapter->params.chip))
+			iounmap(adapter->bar2);
 		kfree(adapter);
 	}
 
