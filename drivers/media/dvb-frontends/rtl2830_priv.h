@@ -35,7 +35,7 @@ struct rtl2830_config {
 	u8 agc_targ_val;
 };
 
-struct rtl2830_priv {
+struct rtl2830_dev {
 	struct i2c_adapter *adapter;
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
