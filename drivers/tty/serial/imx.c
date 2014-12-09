@@ -495,6 +495,7 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		imx_stop_tx(&sport->port);
 }
 
+static void imx_dma_tx(struct imx_port *sport);
 static void dma_tx_callback(void *data)
 {
 	struct imx_port *sport = data;
@@ -524,6 +525,11 @@ static void dma_tx_callback(void *data)
 		dev_dbg(sport->port.dev, "exit in %s.\n", __func__);
 		return;
 	}
+
+	spin_lock_irqsave(&sport->port.lock, flags);
+	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&sport->port))
+		imx_dma_tx(sport);
+	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
 static void imx_dma_tx(struct imx_port *sport)
