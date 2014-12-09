@@ -355,7 +355,7 @@
 
 	phy-handle = <&phy1>;
 	renesas,ether-link-active-low;
-	status = "ok";
+	status = "okay";
 
 	phy1: ethernet-phy@1 {
 		reg = <1>;
@@ -366,7 +366,7 @@
 };
 
 &cmt0 {
-	status = "ok";
+	status = "okay";
 };
 
 &mmcif1 {
@@ -470,17 +470,17 @@
 };
 
 &iic0	{
-	status = "ok";
+	status = "okay";
 };
 
 &iic1	{
-	status = "ok";
+	status = "okay";
 	pinctrl-0 = <&iic1_pins>;
 	pinctrl-names = "default";
 };
 
 &iic2	{
-	status = "ok";
+	status = "okay";
 	pinctrl-0 = <&iic2_pins>;
 	pinctrl-names = "default";
 
@@ -562,7 +562,7 @@
 	pinctrl-0 = <&vin1_pins>;
 	pinctrl-names = "default";
 
-	status = "ok";
+	status = "okay";
 
 	port {
 		#address-cells = <1>;
