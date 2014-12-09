@@ -72,14 +72,14 @@ void smiapp_replace_limit(struct smiapp_sensor *sensor,
 		.val = _val,		\
 	}
 
-#define smiapp_call_quirk(_sensor, _quirk, ...)				\
-	(_sensor->minfo.quirk &&					\
-	 _sensor->minfo.quirk->_quirk ?					\
-	 _sensor->minfo.quirk->_quirk(_sensor, ##__VA_ARGS__) : 0)
+#define smiapp_call_quirk(sensor, _quirk, ...)				\
+	((sensor)->minfo.quirk &&					\
+	 (sensor)->minfo.quirk->_quirk ?				\
+	 (sensor)->minfo.quirk->_quirk(sensor, ##__VA_ARGS__) : 0)
 
-#define smiapp_needs_quirk(_sensor, _quirk)		\
-	(_sensor->minfo.quirk ?				\
-	 _sensor->minfo.quirk->flags & _quirk : 0)
+#define smiapp_needs_quirk(sensor, _quirk)		\
+	((sensor)->minfo.quirk ?			\
+	 (sensor)->minfo.quirk->flags & _quirk : 0)
 
 extern const struct smiapp_quirk smiapp_jt8ev1_quirk;
 extern const struct smiapp_quirk smiapp_imx125es_quirk;
