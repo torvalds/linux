@@ -3444,7 +3444,7 @@ void drm_fb_release(struct drm_file *priv)
 
 	/*
 	 * When the file gets released that means no one else can access the fb
-	 * list any more, so no need to grab fpriv->fbs_lock. And we need to to
+	 * list any more, so no need to grab fpriv->fbs_lock. And we need to
 	 * avoid upsetting lockdep since the universal cursor code adds a
 	 * framebuffer while holding mutex locks.
 	 *
