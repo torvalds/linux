@@ -623,6 +623,18 @@ config MFD_RTSX_PCI
 	  types of memory cards, such as Memory Stick, Memory Stick Pro,
 	  Secure Digital and MultiMediaCard.
 
+config MFD_RT5033
+	tristate "Richtek RT5033 Power Management IC"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  This driver provides for the Richtek RT5033 Power Management IC,
+	  which includes the I2C driver and the Core APIs. This driver provides
+	  common support for accessing the device. The device supports multiple
+	  sub-devices like charger, fuel gauge, flash LED, current source,
+	  LDO and Buck.
+
 config MFD_RTSX_USB
 	tristate "Realtek USB card reader"
 	depends on USB
