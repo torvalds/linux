@@ -1110,7 +1110,7 @@ config RTC_DRV_AT91RM9200
 
 config RTC_DRV_AT91SAM9
 	tristate "AT91SAM9x/AT91CAP9 RTT as RTC"
-	depends on ARCH_AT91 && !(ARCH_AT91RM9200 || ARCH_AT91X40)
+	depends on ARCH_AT91
 	help
 	  RTC driver for the Atmel AT91SAM9x and AT91CAP9 internal RTT
 	  (Real Time Timer). These timers are powered by the backup power
@@ -1124,7 +1124,6 @@ config RTC_DRV_AT91SAM9_RTT
 	int
 	range 0 1
 	default 0
-	prompt "RTT module Number" if ARCH_AT91SAM9263
 	depends on RTC_DRV_AT91SAM9
 	help
 	  More than one RTT module is available. You can choose which
@@ -1133,8 +1132,7 @@ config RTC_DRV_AT91SAM9_RTT
 
 config RTC_DRV_AT91SAM9_GPBR
 	int
-	range 0 3 if !ARCH_AT91SAM9263
-	range 0 15 if ARCH_AT91SAM9263
+	range 0 3
 	default 0
 	prompt "Backup Register Number"
 	depends on RTC_DRV_AT91SAM9

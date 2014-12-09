@@ -262,35 +262,3 @@ static void __init at91sam926x_pit_dt_init(struct device_node *node)
 }
 CLOCKSOURCE_OF_DECLARE(at91sam926x_pit, "atmel,at91sam9260-pit",
 		       at91sam926x_pit_dt_init);
-
-static void __iomem *pit_base_addr;
-
-void __init at91sam926x_pit_init(int irq)
-{
-	struct pit_data *data;
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		panic(pr_fmt("Unable to allocate memory\n"));
-
-	data->base = pit_base_addr;
-
-	data->mck = clk_get(NULL, "mck");
-	if (IS_ERR(data->mck))
-		panic(pr_fmt("Unable to get mck clk\n"));
-
-	data->irq = irq;
-
-	at91sam926x_pit_common_init(data);
-}
-
-void __init at91sam926x_ioremap_pit(u32 addr)
-{
-	if (of_have_populated_dt())
-		return;
-
-	pit_base_addr = ioremap(addr, 16);
-
-	if (!pit_base_addr)
-		panic(pr_fmt("Impossible to ioremap PIT\n"));
-}
