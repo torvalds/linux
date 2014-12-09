@@ -435,12 +435,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
 		return;
 
-	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
-	WREG32(AFMT_RAMP_CONTROL0 + offset, 0x00FFFFFF);
-	WREG32(AFMT_RAMP_CONTROL1 + offset, 0x007FFFFF);
-	WREG32(AFMT_RAMP_CONTROL2 + offset, 0x00000001);
-	WREG32(AFMT_RAMP_CONTROL3 + offset, 0x00000001);
-
 	/* enable audio after to setting up hw */
 	radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
 }
