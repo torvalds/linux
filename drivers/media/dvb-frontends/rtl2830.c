@@ -246,6 +246,8 @@ static int rtl2830_init(struct dvb_frontend *fe)
 		goto err;
 
 	/* init stats here in order signal app which stats are supported */
+	c->strength.len = 1;
+	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->cnr.len = 1;
 	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	/* start statistics polling */
@@ -692,6 +694,28 @@ static void rtl2830_stat_work(struct work_struct *work)
 	u16 u16tmp;
 
 	dev_dbg(&client->dev, "\n");
+
+	/* signal strength */
+	if (dev->fe_status & FE_HAS_SIGNAL) {
+		struct {signed int x:14; } s;
+
+		/* read IF AGC */
+		ret = rtl2830_rd_regs(client, 0x359, buf, 2);
+		if (ret)
+			goto err;
+
+		u16tmp = buf[0] << 8 | buf[1] << 0;
+		u16tmp &= 0x3fff; /* [13:0] */
+		tmp = s.x = u16tmp; /* 14-bit bin to 2 complement */
+		u16tmp = clamp_val(-4 * tmp + 32767, 0x0000, 0xffff);
+
+		dev_dbg(&client->dev, "IF AGC=%d\n", tmp);
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = u16tmp;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
 
 	/* CNR */
 	if (dev->fe_status & FE_HAS_VITERBI) {
