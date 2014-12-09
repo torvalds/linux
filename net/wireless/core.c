@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
+#include <net/rtnetlink.h>
 #include "nl80211.h"
 #include "core.h"
 #include "sysfs.h"
@@ -937,6 +938,10 @@ void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 EXPORT_SYMBOL(cfg80211_stop_iface);
 
+static const struct rtnl_link_ops wireless_link_ops = {
+	.kind = "wlan",
+};
+
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					 unsigned long state, void *ptr)
 {
@@ -954,6 +959,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	switch (state) {
 	case NETDEV_POST_INIT:
 		SET_NETDEV_DEVTYPE(dev, &wiphy_type);
+		dev->rtnl_link_ops = &wireless_link_ops;
 		break;
 	case NETDEV_REGISTER:
 		/*
