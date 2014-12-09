@@ -581,7 +581,8 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 		rdata->id = i;
 		rdata->initdata = of_get_regulator_init_data(
-						&pdev->dev, reg_np);
+						&pdev->dev, reg_np,
+						&regulators[i]);
 		rdata->reg_node = reg_np;
 		rdata++;
 		rmode->id = i;
@@ -950,6 +951,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 		config.of_node = pdata->regulators[i].reg_node;
 		config.ena_gpio = -EINVAL;
 		config.ena_gpio_flags = 0;
+		config.ena_gpio_initialized = true;
 		if (gpio_is_valid(pdata->regulators[i].ext_control_gpio))
 			s5m8767_regulator_config_ext_control(s5m8767,
 					&pdata->regulators[i], &config);

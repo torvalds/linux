@@ -298,7 +298,7 @@ static struct regulator_ops s2mpa01_buck_ops = {
 	.enable_mask	= S2MPA01_ENABLE_MASK			\
 }
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	regulator_desc_ldo(1, STEP_25_MV),
 	regulator_desc_ldo(2, STEP_50_MV),
 	regulator_desc_ldo(3, STEP_50_MV),
