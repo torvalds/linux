@@ -1776,7 +1776,7 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	sk = &tsk->sk;
 
 	/* Queue message */
-	bh_lock_sock(sk);
+	spin_lock_bh(&sk->sk_lock.slock);
 
 	if (!sock_owned_by_user(sk)) {
 		rc = filter_rcv(sk, buf);
@@ -1787,7 +1787,7 @@ int tipc_sk_rcv(struct sk_buff *buf)
 		if (sk_add_backlog(sk, buf, limit))
 			rc = -TIPC_ERR_OVERLOAD;
 	}
-	bh_unlock_sock(sk);
+	spin_unlock_bh(&sk->sk_lock.slock);
 	tipc_sk_put(tsk);
 	if (likely(!rc))
 		return 0;
@@ -2673,7 +2673,7 @@ static int tipc_ioctl(struct socket *sk, unsigned int cmd, unsigned long arg)
 	case SIOCGETLINKNAME:
 		if (copy_from_user(&lnr, argp, sizeof(lnr)))
 			return -EFAULT;
-		if (!tipc_node_get_linkname(lnr.bearer_id, lnr.peer,
+		if (!tipc_node_get_linkname(lnr.bearer_id & 0xffff, lnr.peer,
 					    lnr.linkname, TIPC_MAX_LINK_NAME)) {
 			if (copy_to_user(argp, &lnr, sizeof(lnr)))
 				return -EFAULT;

@@ -966,6 +966,7 @@ static struct platform_driver omap_venchw_driver = {
 		.owner  = THIS_MODULE,
 		.pm	= &venc_pm_ops,
 		.of_match_table = venc_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

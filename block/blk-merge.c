@@ -97,18 +97,22 @@ void blk_recalc_rq_segments(struct request *rq)
 
 void blk_recount_segments(struct request_queue *q, struct bio *bio)
 {
-	bool no_sg_merge = !!test_bit(QUEUE_FLAG_NO_SG_MERGE,
-			&q->queue_flags);
+	unsigned short seg_cnt;
 
-	if (no_sg_merge && !bio_flagged(bio, BIO_CLONED) &&
-			bio->bi_vcnt < queue_max_segments(q))
-		bio->bi_phys_segments = bio->bi_vcnt;
+	/* estimate segment number by bi_vcnt for non-cloned bio */
+	if (bio_flagged(bio, BIO_CLONED))
+		seg_cnt = bio_segments(bio);
+	else
+		seg_cnt = bio->bi_vcnt;
+
+	if (test_bit(QUEUE_FLAG_NO_SG_MERGE, &q->queue_flags) &&
+			(seg_cnt < queue_max_segments(q)))
+		bio->bi_phys_segments = seg_cnt;
 	else {
 		struct bio *nxt = bio->bi_next;
 
 		bio->bi_next = NULL;
-		bio->bi_phys_segments = __blk_recalc_rq_segments(q, bio,
-				no_sg_merge);
+		bio->bi_phys_segments = __blk_recalc_rq_segments(q, bio, false);
 		bio->bi_next = nxt;
 	}
 

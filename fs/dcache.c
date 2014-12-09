@@ -777,6 +777,7 @@ restart:
 			struct dentry *parent = lock_parent(dentry);
 			if (likely(!dentry->d_lockref.count)) {
 				__dentry_kill(dentry);
+				dput(parent);
 				goto restart;
 			}
 			if (parent)

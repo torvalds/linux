@@ -599,7 +599,7 @@
 			compatible = "apm,xgene-enet";
 			status = "disabled";
 			reg = <0x0 0x17020000 0x0 0xd100>,
-			      <0x0 0X17030000 0x0 0X400>,
+			      <0x0 0X17030000 0x0 0Xc300>,
 			      <0x0 0X10000000 0x0 0X200>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
 			interrupts = <0x0 0x3c 0x4>;
@@ -624,9 +624,9 @@
 		sgenet0: ethernet@1f210000 {
 			compatible = "apm,xgene-enet";
 			status = "disabled";
-			reg = <0x0 0x1f210000 0x0 0x10000>,
-			      <0x0 0x1f200000 0x0 0X10000>,
-			      <0x0 0x1B000000 0x0 0X20000>;
+			reg = <0x0 0x1f210000 0x0 0xd100>,
+			      <0x0 0x1f200000 0x0 0Xc300>,
+			      <0x0 0x1B000000 0x0 0X200>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
 			interrupts = <0x0 0xA0 0x4>;
 			dma-coherent;
@@ -639,7 +639,7 @@
 			compatible = "apm,xgene-enet";
 			status = "disabled";
 			reg = <0x0 0x1f610000 0x0 0xd100>,
-			      <0x0 0x1f600000 0x0 0X400>,
+			      <0x0 0x1f600000 0x0 0Xc300>,
 			      <0x0 0x18000000 0x0 0X200>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
 			interrupts = <0x0 0x60 0x4>;

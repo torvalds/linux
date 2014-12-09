@@ -65,17 +65,18 @@ bl_resolve_deviceid(struct nfs_server *server, struct pnfs_block_volume *b,
 
 	dprintk("%s CREATING PIPEFS MESSAGE\n", __func__);
 
+	mutex_lock(&nn->bl_mutex);
 	bl_pipe_msg.bl_wq = &nn->bl_wq;
 
 	b->simple.len += 4;	/* single volume */
 	if (b->simple.len > PAGE_SIZE)
-		return -EIO;
+		goto out_unlock;
 
 	memset(msg, 0, sizeof(*msg));
 	msg->len = sizeof(*bl_msg) + b->simple.len;
 	msg->data = kzalloc(msg->len, gfp_mask);
 	if (!msg->data)
-		goto out;
+		goto out_free_data;
 
 	bl_msg = msg->data;
 	bl_msg->type = BL_DEVICE_MOUNT,
@@ -87,7 +88,7 @@ bl_resolve_deviceid(struct nfs_server *server, struct pnfs_block_volume *b,
 	rc = rpc_queue_upcall(nn->bl_device_pipe, msg);
 	if (rc < 0) {
 		remove_wait_queue(&nn->bl_wq, &wq);
-		goto out;
+		goto out_free_data;
 	}
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -97,12 +98,14 @@ bl_resolve_deviceid(struct nfs_server *server, struct pnfs_block_volume *b,
 	if (reply->status != BL_DEVICE_REQUEST_PROC) {
 		printk(KERN_WARNING "%s failed to decode device: %d\n",
 			__func__, reply->status);
-		goto out;
+		goto out_free_data;
 	}
 
 	dev = MKDEV(reply->major, reply->minor);
-out:
+out_free_data:
 	kfree(msg->data);
+out_unlock:
+	mutex_unlock(&nn->bl_mutex);
 	return dev;
 }
 
@@ -232,6 +235,7 @@ static int nfs4blocklayout_net_init(struct net *net)
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 	struct dentry *dentry;
 
+	mutex_init(&nn->bl_mutex);
 	init_waitqueue_head(&nn->bl_wq);
 	nn->bl_device_pipe = rpc_mkpipe_data(&bl_upcall_ops, 0);
 	if (IS_ERR(nn->bl_device_pipe))

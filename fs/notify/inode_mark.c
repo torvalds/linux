@@ -194,6 +194,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	int ret = 0;
+	int cmp;
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
 
@@ -219,11 +220,8 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 			goto out;
 		}
 
-		if (mark->group->priority < lmark->group->priority)
-			continue;
-
-		if ((mark->group->priority == lmark->group->priority) &&
-		    (mark->group < lmark->group))
+		cmp = fsnotify_compare_groups(lmark->group, mark->group);
+		if (cmp < 0)
 			continue;
 
 		hlist_add_before_rcu(&mark->i.i_list, &lmark->i.i_list);
@@ -288,20 +286,25 @@ void fsnotify_unmount_inodes(struct list_head *list)
 		spin_unlock(&inode->i_lock);
 
 		/* In case the dropping of a reference would nuke next_i. */
-		if ((&next_i->i_sb_list != list) &&
-		    atomic_read(&next_i->i_count)) {
+		while (&next_i->i_sb_list != list) {
 			spin_lock(&next_i->i_lock);
-			if (!(next_i->i_state & (I_FREEING | I_WILL_FREE))) {
+			if (!(next_i->i_state & (I_FREEING | I_WILL_FREE)) &&
+						atomic_read(&next_i->i_count)) {
 				__iget(next_i);
 				need_iput = next_i;
+				spin_unlock(&next_i->i_lock);
+				break;
 			}
 			spin_unlock(&next_i->i_lock);
+			next_i = list_entry(next_i->i_sb_list.next,
+						struct inode, i_sb_list);
 		}
 
 		/*
-		 * We can safely drop inode_sb_list_lock here because we hold
-		 * references on both inode and next_i.  Also no new inodes
-		 * will be added since the umount has begun.
+		 * We can safely drop inode_sb_list_lock here because either
+		 * we actually hold references on both inode and next_i or
+		 * end of list.  Also no new inodes will be added since the
+		 * umount has begun.
 		 */
 		spin_unlock(&inode_sb_list_lock);
 

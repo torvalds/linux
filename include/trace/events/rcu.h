@@ -660,18 +660,18 @@ TRACE_EVENT(rcu_torture_read,
 /*
  * Tracepoint for _rcu_barrier() execution.  The string "s" describes
  * the _rcu_barrier phase:
- *	"Begin": rcu_barrier_callback() started.
- *	"Check": rcu_barrier_callback() checking for piggybacking.
- *	"EarlyExit": rcu_barrier_callback() piggybacked, thus early exit.
- *	"Inc1": rcu_barrier_callback() piggyback check counter incremented.
- *	"Offline": rcu_barrier_callback() found offline CPU
- *	"OnlineNoCB": rcu_barrier_callback() found online no-CBs CPU.
- *	"OnlineQ": rcu_barrier_callback() found online CPU with callbacks.
- *	"OnlineNQ": rcu_barrier_callback() found online CPU, no callbacks.
+ *	"Begin": _rcu_barrier() started.
+ *	"Check": _rcu_barrier() checking for piggybacking.
+ *	"EarlyExit": _rcu_barrier() piggybacked, thus early exit.
+ *	"Inc1": _rcu_barrier() piggyback check counter incremented.
+ *	"OfflineNoCB": _rcu_barrier() found callback on never-online CPU
+ *	"OnlineNoCB": _rcu_barrier() found online no-CBs CPU.
+ *	"OnlineQ": _rcu_barrier() found online CPU with callbacks.
+ *	"OnlineNQ": _rcu_barrier() found online CPU, no callbacks.
  *	"IRQ": An rcu_barrier_callback() callback posted on remote CPU.
  *	"CB": An rcu_barrier_callback() invoked a callback, not the last.
  *	"LastCB": An rcu_barrier_callback() invoked the last callback.
- *	"Inc2": rcu_barrier_callback() piggyback check counter incremented.
+ *	"Inc2": _rcu_barrier() piggyback check counter incremented.
  * The "cpu" argument is the CPU or -1 if meaningless, the "cnt" argument
  * is the count of remaining callbacks, and "done" is the piggybacking count.
  */
