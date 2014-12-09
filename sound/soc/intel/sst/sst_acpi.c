@@ -245,7 +245,7 @@ static struct sst_machines *sst_acpi_find_machine(
 	return NULL;
 }
 
-int sst_acpi_probe(struct platform_device *pdev)
+static int sst_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret = 0;
@@ -332,7 +332,7 @@ do_sst_cleanup:
 * This function is called by OS when a device is unloaded
 * This frees the interrupt etc
 */
-int sst_acpi_remove(struct platform_device *pdev)
+static int sst_acpi_remove(struct platform_device *pdev)
 {
 	struct intel_sst_drv *ctx;
 
