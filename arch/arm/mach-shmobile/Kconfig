@@ -36,7 +36,6 @@ menuconfig ARCH_SHMOBILE_MULTI
 	select NO_IOPORT_MAP
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_HAS_OPP
 
 if ARCH_SHMOBILE_MULTI
 
@@ -72,11 +71,6 @@ config ARCH_R8A7794
 	select ARCH_RCAR_GEN2
 
 comment "Renesas ARM SoCs Board Type"
-
-config MACH_KOELSCH
-	bool "Koelsch board"
-	depends on ARCH_R8A7791
-	select MICREL_PHY if SH_ETH
 
 config MACH_LAGER
 	bool "Lager board"
@@ -139,14 +133,6 @@ config ARCH_R8A7779
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
-	select ARCH_RCAR_GEN2
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select MIGHT_HAVE_PCI
-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-
-config ARCH_R8A7791
-	bool "R-Car M2-W (R8A77910)"
 	select ARCH_RCAR_GEN2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
@@ -226,12 +212,6 @@ config MACH_LAGER
 	select USE_OF
 	select MICREL_PHY if SH_ETH
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
-
-config MACH_KOELSCH
-	bool "Koelsch board"
-	depends on ARCH_R8A7791
-	select USE_OF
-	select MICREL_PHY if SH_ETH
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"

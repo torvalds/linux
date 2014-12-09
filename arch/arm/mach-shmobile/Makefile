@@ -19,8 +19,8 @@ obj-$(CONFIG_ARCH_EMEV2)	+= setup-emev2.o
 obj-$(CONFIG_ARCH_R7S72100)	+= setup-r7s72100.o
 
 # Clock objects
-obj-y				+= clock.o
 ifndef CONFIG_COMMON_CLK
+obj-y				+= clock.o
 obj-$(CONFIG_ARCH_SH7372)	+= clock-sh7372.o
 obj-$(CONFIG_ARCH_SH73A0)	+= clock-sh73a0.o
 obj-$(CONFIG_ARCH_R8A73A4)	+= clock-r8a73a4.o
@@ -28,7 +28,6 @@ obj-$(CONFIG_ARCH_R8A7740)	+= clock-r8a7740.o
 obj-$(CONFIG_ARCH_R8A7778)	+= clock-r8a7778.o
 obj-$(CONFIG_ARCH_R8A7779)	+= clock-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= clock-r8a7790.o
-obj-$(CONFIG_ARCH_R8A7791)	+= clock-r8a7791.o
 endif
 
 # CPU reset vector handling objects
@@ -57,7 +56,6 @@ obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o sleep-sh7372.o
 
 # Board objects
 ifdef CONFIG_ARCH_SHMOBILE_MULTI
-obj-$(CONFIG_MACH_KOELSCH)	+= board-koelsch-reference.o
 obj-$(CONFIG_MACH_LAGER)	+= board-lager-reference.o
 obj-$(CONFIG_MACH_MARZEN)	+= board-marzen-reference.o
 else
@@ -69,7 +67,6 @@ obj-$(CONFIG_MACH_BOCKW_REFERENCE)	+= board-bockw-reference.o
 obj-$(CONFIG_MACH_MARZEN)	+= board-marzen.o
 obj-$(CONFIG_MACH_LAGER)	+= board-lager.o
 obj-$(CONFIG_MACH_ARMADILLO800EVA)	+= board-armadillo800eva.o
-obj-$(CONFIG_MACH_KOELSCH)	+= board-koelsch.o
 obj-$(CONFIG_MACH_KZM9G)	+= board-kzm9g.o
 obj-$(CONFIG_MACH_KZM9G_REFERENCE)	+= board-kzm9g-reference.o
 endif

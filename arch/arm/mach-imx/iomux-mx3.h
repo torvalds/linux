@@ -144,7 +144,7 @@ void mxc_iomux_set_gpr(enum iomux_gp_func, bool en);
  * It is called by the setup functions and should not be called directly anymore.
  * It is here visible for backward compatibility
  */
-int mxc_iomux_mode(unsigned int pin_mode);
+void mxc_iomux_mode(unsigned int pin_mode);
 
 #define IOMUX_PADNUM_MASK	0x1ff
 #define IOMUX_GPIONUM_SHIFT	9
