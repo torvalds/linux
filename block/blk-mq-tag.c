@@ -137,6 +137,7 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 static int __bt_get_word(struct blk_align_bitmap *bm, unsigned int last_tag)
 {
 	int tag, org_last_tag, end;
+	bool wrap = last_tag != 0;
 
 	org_last_tag = last_tag;
 	end = bm->depth;
@@ -148,8 +149,9 @@ restart:
 			 * We started with an offset, start from 0 to
 			 * exhaust the map.
 			 */
-			if (org_last_tag && last_tag) {
-				end = last_tag;
+			if (wrap) {
+				wrap = false;
+				end = org_last_tag;
 				last_tag = 0;
 				goto restart;
 			}
