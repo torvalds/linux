@@ -71,7 +71,7 @@ enum greybus_class_type {
 struct greybus_descriptor_module {
 	__le16	vendor;
 	__le16	product;
-	__le16	version;
+	__le16	version;	// TODO - remove after Dec demo.
 	__u8	vendor_stringid;
 	__u8	product_stringid;
 	__le64	unique_id;
