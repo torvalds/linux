@@ -85,8 +85,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 	default:
 		spin_unlock_bh(&sdata->mib_lock);
 		pr_debug("invalid dest mode\n");
-		kfree_skb(skb);
-		return NET_RX_DROP;
+		goto fail;
 	}
 
 	spin_unlock_bh(&sdata->mib_lock);

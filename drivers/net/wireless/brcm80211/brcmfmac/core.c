@@ -836,7 +836,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	return ifp;
 }
 
-void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
+static void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 {
 	struct brcmf_if *ifp;
 
@@ -867,6 +867,38 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	} else {
 		kfree(ifp);
 	}
+}
+
+void brcmf_remove_interface(struct brcmf_pub *drvr, u32 bssidx)
+{
+	if (drvr->iflist[bssidx]) {
+		brcmf_fws_del_interface(drvr->iflist[bssidx]);
+		brcmf_del_if(drvr, bssidx);
+	}
+}
+
+int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
+{
+	int ifidx;
+	int bsscfgidx;
+	bool available;
+	int highest;
+
+	available = false;
+	bsscfgidx = 2;
+	highest = 2;
+	for (ifidx = 0; ifidx < BRCMF_MAX_IFS; ifidx++) {
+		if (drvr->iflist[ifidx]) {
+			if (drvr->iflist[ifidx]->bssidx == bsscfgidx)
+				bsscfgidx = highest + 1;
+			else if (drvr->iflist[ifidx]->bssidx > highest)
+				highest = drvr->iflist[ifidx]->bssidx;
+		} else {
+			available = true;
+		}
+	}
+
+	return available ? bsscfgidx : -ENOMEM;
 }
 
 int brcmf_attach(struct device *dev)
@@ -1033,10 +1065,7 @@ void brcmf_detach(struct device *dev)
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-		if (drvr->iflist[i]) {
-			brcmf_fws_del_interface(drvr->iflist[i]);
-			brcmf_del_if(drvr, i);
-		}
+		brcmf_remove_interface(drvr, i);
 
 	brcmf_cfg80211_detach(drvr->config);
 

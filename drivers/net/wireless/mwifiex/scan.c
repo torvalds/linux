@@ -1623,7 +1623,7 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 
 	if (*bytes_left >= sizeof(beacon_size)) {
 		/* Extract & convert beacon size from command buffer */
-		memcpy(&beacon_size, *bss_info, sizeof(beacon_size));
+		beacon_size = le16_to_cpu(*(__le16 *)(*bss_info));
 		*bytes_left -= sizeof(beacon_size);
 		*bss_info += sizeof(beacon_size);
 	}

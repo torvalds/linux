@@ -67,6 +67,36 @@ static struct kernel_param_ops mtu_max_ops = {
 module_param_cb(mtu_max, &mtu_max_ops, &mtu_max, S_IRUGO);
 MODULE_PARM_DESC(mtu_max, " Max MTU value.");
 
+static uint rx_ring_order = WIL_RX_RING_SIZE_ORDER_DEFAULT;
+static uint tx_ring_order = WIL_TX_RING_SIZE_ORDER_DEFAULT;
+
+static int ring_order_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	uint x;
+
+	ret = kstrtouint(val, 0, &x);
+	if (ret)
+		return ret;
+
+	if ((x < WIL_RING_SIZE_ORDER_MIN) || (x > WIL_RING_SIZE_ORDER_MAX))
+		return -EINVAL;
+
+	*((uint *)kp->arg) = x;
+
+	return 0;
+}
+
+static struct kernel_param_ops ring_order_ops = {
+	.set = ring_order_set,
+	.get = param_get_uint,
+};
+
+module_param_cb(rx_ring_order, &ring_order_ops, &rx_ring_order, S_IRUGO);
+MODULE_PARM_DESC(rx_ring_order, " Rx ring order; size = 1 << order");
+module_param_cb(tx_ring_order, &ring_order_ops, &tx_ring_order, S_IRUGO);
+MODULE_PARM_DESC(tx_ring_order, " Tx ring order; size = 1 << order");
+
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
 
@@ -104,7 +134,7 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 }
 
 static void wil_disconnect_cid(struct wil6210_priv *wil, int cid,
-			       bool from_event)
+			       u16 reason_code, bool from_event)
 {
 	uint i;
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -117,8 +147,7 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid,
 	sta->data_port_open = false;
 	if (sta->status != wil_sta_unused) {
 		if (!from_event)
-			wmi_disconnect_sta(wil, sta->addr,
-					   WLAN_REASON_DEAUTH_LEAVING);
+			wmi_disconnect_sta(wil, sta->addr, reason_code);
 
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_AP:
@@ -152,7 +181,7 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid,
 }
 
 static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
-				bool from_event)
+				u16 reason_code, bool from_event)
 {
 	int cid = -ENOENT;
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -167,10 +196,10 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	}
 
 	if (cid >= 0) /* disconnect 1 peer */
-		wil_disconnect_cid(wil, cid, from_event);
+		wil_disconnect_cid(wil, cid, reason_code, from_event);
 	else /* disconnect all */
 		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
-			wil_disconnect_cid(wil, cid, from_event);
+			wil_disconnect_cid(wil, cid, reason_code, from_event);
 
 	/* link state */
 	switch (wdev->iftype) {
@@ -179,8 +208,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 		wil_link_off(wil);
 		if (test_bit(wil_status_fwconnected, &wil->status)) {
 			clear_bit(wil_status_fwconnected, &wil->status);
-			cfg80211_disconnected(ndev,
-					      WLAN_STATUS_UNSPECIFIED_FAILURE,
+			cfg80211_disconnected(ndev, reason_code,
 					      NULL, 0, GFP_KERNEL);
 		} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
 			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
@@ -200,7 +228,7 @@ static void wil_disconnect_worker(struct work_struct *work)
 			struct wil6210_priv, disconnect_worker);
 
 	mutex_lock(&wil->mutex);
-	_wil6210_disconnect(wil, NULL, false);
+	_wil6210_disconnect(wil, NULL, WLAN_REASON_UNSPECIFIED, false);
 	mutex_unlock(&wil->mutex);
 }
 
@@ -222,6 +250,7 @@ static void wil_scan_timer_fn(ulong x)
 
 	clear_bit(wil_status_fwready, &wil->status);
 	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
+	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
 }
 
@@ -333,7 +362,7 @@ static void wil_connect_worker(struct work_struct *work)
 
 	wil_dbg_wmi(wil, "Configure for connection CID %d\n", cid);
 
-	rc = wil_vring_init_tx(wil, ringid, WIL6210_TX_RING_SIZE, cid, 0);
+	rc = wil_vring_init_tx(wil, ringid, 1 << tx_ring_order, cid, 0);
 	wil->pending_connect_cid = -1;
 	if (rc == 0) {
 		wil->sta[cid].status = wil_sta_connected;
@@ -392,18 +421,19 @@ int wil_priv_init(struct wil6210_priv *wil)
  * wil6210_disconnect - disconnect one connection
  * @wil: driver context
  * @bssid: peer to disconnect, NULL to disconnect all
+ * @reason_code: Reason code for the Disassociation frame
  * @from_event: whether is invoked from FW event handler
  *
  * Disconnect and release associated resources. If invoked not from the
  * FW event handler, issue WMI command(s) to trigger MAC disconnect.
  */
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
-			bool from_event)
+			u16 reason_code, bool from_event)
 {
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	del_timer_sync(&wil->connect_timer);
-	_wil6210_disconnect(wil, bssid, from_event);
+	_wil6210_disconnect(wil, bssid, reason_code, from_event);
 }
 
 void wil_priv_deinit(struct wil6210_priv *wil)
@@ -415,7 +445,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(wil, NULL, false);
+	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	mutex_unlock(&wil->mutex);
 	wmi_event_flush(wil);
 	destroy_workqueue(wil->wmi_wq_conn);
@@ -462,6 +492,9 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
 
 	wil_halt_cpu(wil);
+
+	/* Clear Fw Download notification */
+	C(RGF_USER_USAGE_6, BIT(0));
 
 	if (is_sparrow) {
 		S(RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
@@ -600,7 +633,7 @@ int wil_reset(struct wil6210_priv *wil)
 	WARN_ON(test_bit(wil_status_napi_en, &wil->status));
 
 	cancel_work_sync(&wil->disconnect_worker);
-	wil6210_disconnect(wil, NULL, false);
+	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 
 	wil->status = 0; /* prevent NAPI from being scheduled */
 
@@ -705,7 +738,7 @@ int __wil_up(struct wil6210_priv *wil)
 		return rc;
 
 	/* Rx VRING. After MAC and beacon */
-	rc = wil_rx_init(wil);
+	rc = wil_rx_init(wil, 1 << rx_ring_order);
 	if (rc)
 		return rc;
 

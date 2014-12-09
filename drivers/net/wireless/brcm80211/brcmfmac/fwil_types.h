@@ -519,4 +519,10 @@ struct brcmf_fil_wowl_pattern_le {
 	/* u8 pattern[] - Pattern follows the mask is at 'patternoffset' */
 };
 
+struct brcmf_mbss_ssid_le {
+	__le32	bsscfgidx;
+	__le32	SSID_len;
+	unsigned char SSID[32];
+};
+
 #endif /* FWIL_TYPES_H_ */

@@ -1113,6 +1113,40 @@ static inline u8 get_rate_idx(u32 rate, enum ieee80211_band band)
 	return rate_idx;
 }
 
+/* If keys are configured, HW decrypts all frames
+ * with protected bit set. Mark such frames as decrypted.
+ */
+static void ath10k_wmi_handle_wep_reauth(struct ath10k *ar,
+					 struct sk_buff *skb,
+					 struct ieee80211_rx_status *status)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	unsigned int hdrlen;
+	bool peer_key;
+	u8 *addr, keyidx;
+
+	if (!ieee80211_is_auth(hdr->frame_control) ||
+	    !ieee80211_has_protected(hdr->frame_control))
+		return;
+
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	if (skb->len < (hdrlen + IEEE80211_WEP_IV_LEN))
+		return;
+
+	keyidx = skb->data[hdrlen + (IEEE80211_WEP_IV_LEN - 1)] >> WEP_KEYID_SHIFT;
+	addr = ieee80211_get_SA(hdr);
+
+	spin_lock_bh(&ar->data_lock);
+	peer_key = ath10k_mac_is_peer_wep_key_set(ar, addr, keyidx);
+	spin_unlock_bh(&ar->data_lock);
+
+	if (peer_key) {
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac wep key present for peer %pM\n", addr);
+		status->flag |= RX_FLAG_DECRYPTED;
+	}
+}
+
 static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_mgmt_rx_event_v1 *ev_v1;
@@ -1166,8 +1200,11 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (rx_status & WMI_RX_STATUS_ERR_CRC)
-		status->flag |= RX_FLAG_FAILED_FCS_CRC;
+	if (rx_status & WMI_RX_STATUS_ERR_CRC) {
+		dev_kfree_skb(skb);
+		return 0;
+	}
+
 	if (rx_status & WMI_RX_STATUS_ERR_MIC)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
@@ -1199,6 +1236,8 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
+
+	ath10k_wmi_handle_wep_reauth(ar, skb, status);
 
 	/* FW delivers WEP Shared Auth frame with Protected Bit set and
 	 * encrypted payload. However in case of PMF it delivers decrypted
@@ -2261,7 +2300,7 @@ static void ath10k_wmi_event_debug_print(struct ath10k *ar,
 	/* the last byte is always reserved for the null character */
 	buf[i] = '\0';
 
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi event debug print '%s'\n", buf);
+	ath10k_dbg(ar, ATH10K_DBG_WMI_PRINT, "wmi print '%s'\n", buf);
 }
 
 static void ath10k_wmi_event_pdev_qvit(struct ath10k *ar, struct sk_buff *skb)
@@ -2418,6 +2457,7 @@ static int ath10k_wmi_main_pull_svc_rdy_ev(struct sk_buff *skb,
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
+	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
 
 	n = min_t(size_t, __le32_to_cpu(arg->num_mem_reqs),
 		  ARRAY_SIZE(arg->mem_reqs));
@@ -2452,6 +2492,7 @@ static int ath10k_wmi_10x_pull_svc_rdy_ev(struct sk_buff *skb,
 	arg->eeprom_rd = ev->hal_reg_capabilities.eeprom_rd;
 	arg->num_mem_reqs = ev->num_mem_reqs;
 	arg->service_map = ev->wmi_service_bitmap;
+	arg->service_map_len = sizeof(ev->wmi_service_bitmap);
 
 	n = min_t(size_t, __le32_to_cpu(arg->num_mem_reqs),
 		  ARRAY_SIZE(arg->mem_reqs));
@@ -2470,15 +2511,18 @@ static void ath10k_wmi_event_service_ready(struct ath10k *ar,
 {
 	struct wmi_svc_rdy_ev_arg arg = {};
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
-	DECLARE_BITMAP(svc_bmap, WMI_SERVICE_MAX) = {};
 	int ret;
+
+	memset(&ar->wmi.svc_map, 0, sizeof(ar->wmi.svc_map));
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		ret = ath10k_wmi_10x_pull_svc_rdy_ev(skb, &arg);
-		wmi_10x_svc_map(arg.service_map, svc_bmap);
+		wmi_10x_svc_map(arg.service_map, ar->wmi.svc_map,
+				arg.service_map_len);
 	} else {
 		ret = ath10k_wmi_main_pull_svc_rdy_ev(skb, &arg);
-		wmi_main_svc_map(arg.service_map, svc_bmap);
+		wmi_main_svc_map(arg.service_map, ar->wmi.svc_map,
+				 arg.service_map_len);
 	}
 
 	if (ret) {
@@ -2500,9 +2544,8 @@ static void ath10k_wmi_event_service_ready(struct ath10k *ar,
 	ar->num_rf_chains = __le32_to_cpu(arg.num_rf_chains);
 	ar->ath_common.regulatory.current_rd = __le32_to_cpu(arg.eeprom_rd);
 
-	ath10k_debug_read_service_map(ar, svc_bmap, sizeof(svc_bmap));
 	ath10k_dbg_dump(ar, ATH10K_DBG_WMI, NULL, "wmi svc: ",
-			arg.service_map, sizeof(arg.service_map));
+			arg.service_map, arg.service_map_len);
 
 	/* only manually set fw features when not using FW IE format */
 	if (ar->fw_api == 1 && ar->fw_version_build > 636)
@@ -3142,7 +3185,7 @@ static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 	u32 len, val;
 
 	config.num_vdevs = __cpu_to_le32(TARGET_NUM_VDEVS);
-	config.num_peers = __cpu_to_le32(TARGET_NUM_PEERS + TARGET_NUM_VDEVS);
+	config.num_peers = __cpu_to_le32(TARGET_NUM_PEERS);
 	config.num_offload_peers = __cpu_to_le32(TARGET_NUM_OFFLOAD_PEERS);
 
 	config.num_offload_reorder_bufs =

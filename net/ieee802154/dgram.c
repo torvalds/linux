@@ -154,7 +154,6 @@ static int dgram_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		return put_user(amount, (int __user *)arg);
 	}
-
 	}
 
 	return -ENOIOCTLCMD;

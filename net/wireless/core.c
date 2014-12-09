@@ -546,6 +546,20 @@ int wiphy_register(struct wiphy *wiphy)
 		     !rdev->ops->tdls_cancel_channel_switch)))
 		return -EINVAL;
 
+	/*
+	 * if a wiphy has unsupported modes for regulatory channel enforcement,
+	 * opt-out of enforcement checking
+	 */
+	if (wiphy->interface_modes & ~(BIT(NL80211_IFTYPE_STATION) |
+				       BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				       BIT(NL80211_IFTYPE_AP) |
+				       BIT(NL80211_IFTYPE_P2P_GO) |
+				       BIT(NL80211_IFTYPE_ADHOC) |
+				       BIT(NL80211_IFTYPE_P2P_DEVICE) |
+				       BIT(NL80211_IFTYPE_AP_VLAN) |
+				       BIT(NL80211_IFTYPE_MONITOR)))
+		wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
+
 	if (WARN_ON(wiphy->coalesce &&
 		    (!wiphy->coalesce->n_rules ||
 		     !wiphy->coalesce->n_patterns) &&

@@ -158,6 +158,12 @@ struct rs_tx_column {
 	allow_column_func_t checks[MAX_COLUMN_CHECKS];
 };
 
+static bool rs_ant_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			 struct iwl_scale_tbl_info *tbl)
+{
+	return iwl_mvm_bt_coex_is_ant_avail(mvm, tbl->rate.ant);
+}
+
 static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct iwl_scale_tbl_info *tbl)
 {
@@ -218,6 +224,9 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
 		},
+		.checks = {
+			rs_ant_allow,
+		},
 	},
 	[RS_COLUMN_LEGACY_ANT_B] = {
 		.mode = RS_LEGACY,
@@ -230,6 +239,9 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
+		},
+		.checks = {
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A] = {
@@ -246,6 +258,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_B] = {
@@ -262,6 +275,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A_SGI] = {
@@ -279,6 +293,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 			rs_sgi_allow,
 		},
 	},
@@ -297,6 +312,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 			rs_sgi_allow,
 		},
 	},
@@ -506,7 +522,7 @@ static inline void rs_dump_rate(struct iwl_mvm *mvm, const struct rs_rate *rate,
 				const char *prefix)
 {
 	IWL_DEBUG_RATE(mvm,
-		       "%s: (%s: %d) ANT: %s BW: %d SGI: %d LDPC: %d STBC %d\n",
+		       "%s: (%s: %d) ANT: %s BW: %d SGI: %d LDPC: %d STBC: %d\n",
 		       prefix, rs_pretty_lq_type(rate->type),
 		       rate->index, rs_pretty_ant(rate->ant),
 		       rate->bw, rate->sgi, rate->ldpc, rate->stbc);
@@ -816,7 +832,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 
 		if (nss == 1) {
 			rate->type = LQ_VHT_SISO;
-			WARN_ON_ONCE(num_of_ant != 1);
+			WARN_ON_ONCE(!rate->stbc && num_of_ant != 1);
 		} else if (nss == 2) {
 			rate->type = LQ_VHT_MIMO2;
 			WARN_ON_ONCE(num_of_ant != 2);
@@ -1110,10 +1126,11 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	if (time_after(jiffies,
 		       (unsigned long)(lq_sta->last_tx + RS_IDLE_TIMEOUT))) {
-		int tid;
+		int t;
+
 		IWL_DEBUG_RATE(mvm, "Tx idle for too long. reinit rs\n");
-		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
-			ieee80211_stop_tx_ba_session(sta, tid);
+		for (t = 0; t < IWL_MAX_TID_COUNT; t++)
+			ieee80211_stop_tx_ba_session(sta, t);
 
 		iwl_mvm_rs_rate_init(mvm, sta, info->band, false);
 		return;
@@ -1154,16 +1171,15 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		/* Rate did match, so reset the missed_rate_counter */
 		lq_sta->missed_rate_counter = 0;
 
-	/* Figure out if rate scale algorithm is in active or search table */
-	if (rs_rate_match(&rate,
-			  &(lq_sta->lq_info[lq_sta->active_tbl].rate))) {
+	if (!lq_sta->search_better_tbl) {
 		curr_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		other_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
-	} else if (rs_rate_match(&rate,
-			 &lq_sta->lq_info[1 - lq_sta->active_tbl].rate)) {
+	} else {
 		curr_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
 		other_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
-	} else {
+	}
+
+	if (WARN_ON_ONCE(!rs_rate_match(&rate, &curr_tbl->rate))) {
 		IWL_DEBUG_RATE(mvm,
 			       "Neither active nor search matches tx rate\n");
 		tmp_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
@@ -1188,6 +1204,13 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 * first index into rate scale table.
 	 */
 	if (info->flags & IEEE80211_TX_STAT_AMPDU) {
+		/* ampdu_ack_len = 0 marks no BA was received. In this case
+		 * treat it as a single frame loss as we don't want the success
+		 * ratio to dip too quickly because a BA wasn't received
+		 */
+		if (info->status.ampdu_ack_len == 0)
+			info->status.ampdu_len = 1;
+
 		ucode_rate = le32_to_cpu(table->rs_table[0]);
 		rs_rate_from_ucode_rate(ucode_rate, info->band, &rate);
 		rs_collect_tx_data(lq_sta, curr_tbl, rate.index,

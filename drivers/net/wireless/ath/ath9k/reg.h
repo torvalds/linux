@@ -1724,6 +1724,8 @@ enum {
 #define AR_TPC_CTS_S           8
 #define AR_TPC_CHIRP           0x003f0000
 #define AR_TPC_CHIRP_S         16
+#define AR_TPC_RPT	       0x3f000000
+#define AR_TPC_RPT_S	       24
 
 #define AR_QUIET1          0x80fc
 #define AR_QUIET1_NEXT_QUIET_S         0

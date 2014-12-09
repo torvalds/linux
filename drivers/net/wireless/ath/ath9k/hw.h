@@ -217,8 +217,8 @@
 #define AH_WOW_BEACON_MISS		BIT(3)
 
 enum ath_hw_txq_subtype {
-	ATH_TXQ_AC_BE = 0,
-	ATH_TXQ_AC_BK = 1,
+	ATH_TXQ_AC_BK = 0,
+	ATH_TXQ_AC_BE = 1,
 	ATH_TXQ_AC_VI = 2,
 	ATH_TXQ_AC_VO = 3,
 };
@@ -940,6 +940,10 @@ struct ath_hw {
 	const struct firmware *eeprom_blob;
 
 	struct ath_dynack dynack;
+
+	bool tpc_enabled;
+	u8 tx_power[Ar5416RateSize];
+	u8 tx_power_stbc[Ar5416RateSize];
 };
 
 struct ath_bus_ops {
@@ -1080,6 +1084,8 @@ int ar9003_paprd_init_table(struct ath_hw *ah);
 bool ar9003_paprd_is_done(struct ath_hw *ah);
 bool ar9003_is_paprd_enabled(struct ath_hw *ah);
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
+void ar9003_hw_init_rate_txpower(struct ath_hw *ah, u8 *rate_array,
+				 struct ath9k_channel *chan);
 
 /* Hardware family op attach helpers */
 int ar5008_hw_attach_phy_ops(struct ath_hw *ah);

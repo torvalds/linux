@@ -1,5 +1,5 @@
 /*
- * Netlink inteface for IEEE 802.15.4 stack
+ * Netlink interface for IEEE 802.15.4 stack
  *
  * Copyright 2007, 2008 Siemens AG
  *
@@ -346,7 +346,6 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	else
 		page = 0;
 
-
 	if (addr.short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST)) {
 		ieee802154_nl_start_confirm(dev, IEEE802154_NO_SHORT_ADDRESS);
 		dev_put(dev);
@@ -396,7 +395,6 @@ int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 		page = nla_get_u8(info->attrs[IEEE802154_ATTR_PAGE]);
 	else
 		page = 0;
-
 
 	ret = ieee802154_mlme_ops(dev)->scan_req(dev, type, channels,
 						 page, duration);
@@ -547,8 +545,6 @@ out:
 	dev_put(dev);
 	return rc;
 }
-
-
 
 static int
 ieee802154_llsec_parse_key_id(struct genl_info *info,
@@ -765,8 +761,6 @@ out:
 	return rc;
 }
 
-
-
 struct llsec_dump_data {
 	struct sk_buff *skb;
 	int s_idx, s_idx2;
@@ -842,8 +836,6 @@ ieee802154_nl_llsec_change(struct sk_buff *skb, struct genl_info *info,
 	dev_put(dev);
 	return rc;
 }
-
-
 
 static int
 ieee802154_llsec_parse_key(struct genl_info *info,
@@ -989,8 +981,6 @@ int ieee802154_llsec_dump_keys(struct sk_buff *skb, struct netlink_callback *cb)
 	return ieee802154_llsec_dump_table(skb, cb, llsec_iter_keys);
 }
 
-
-
 static int
 llsec_parse_dev(struct genl_info *info,
 		struct ieee802154_llsec_device *dev)
@@ -1121,8 +1111,6 @@ int ieee802154_llsec_dump_devs(struct sk_buff *skb, struct netlink_callback *cb)
 	return ieee802154_llsec_dump_table(skb, cb, llsec_iter_devs);
 }
 
-
-
 static int llsec_add_devkey(struct net_device *dev, struct genl_info *info)
 {
 	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
@@ -1236,8 +1224,6 @@ int ieee802154_llsec_dump_devkeys(struct sk_buff *skb,
 {
 	return ieee802154_llsec_dump_table(skb, cb, llsec_iter_devkeys);
 }
-
-
 
 static int
 llsec_parse_seclevel(struct genl_info *info,

@@ -534,6 +534,8 @@ struct iwl_trans_ops {
 			      u32 value);
 	void (*ref)(struct iwl_trans *trans);
 	void (*unref)(struct iwl_trans *trans);
+	void (*suspend)(struct iwl_trans *trans);
+	void (*resume)(struct iwl_trans *trans);
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans);
 };
@@ -572,6 +574,9 @@ enum iwl_trans_state {
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
  *	start of the 802.11 header in the @rx_mpdu_cmd
  * @dflt_pwr_limit: default power limit fetched from the platform (ACPI)
+ * @dbg_dest_tlv: points to the destination TLV for debug
+ * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
+ * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -602,6 +607,10 @@ struct iwl_trans {
 #endif
 
 	u64 dflt_pwr_limit;
+
+	const struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
+	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
+	u8 dbg_dest_reg_num;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -700,6 +709,18 @@ static inline void iwl_trans_unref(struct iwl_trans *trans)
 {
 	if (trans->ops->unref)
 		trans->ops->unref(trans);
+}
+
+static inline void iwl_trans_suspend(struct iwl_trans *trans)
+{
+	if (trans->ops->suspend)
+		trans->ops->suspend(trans);
+}
+
+static inline void iwl_trans_resume(struct iwl_trans *trans)
+{
+	if (trans->ops->resume)
+		trans->ops->resume(trans);
 }
 
 static inline struct iwl_trans_dump_data *

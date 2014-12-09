@@ -512,15 +512,12 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (!ah || test_bit(ATH_OP_INVALID, &common->op_flags))
 		return IRQ_NONE;
 
-	/* shared irq, not for us */
-
-	if (!ath9k_hw_intrpend(ah))
+	if (!AR_SREV_9100(ah) && test_bit(ATH_OP_HW_RESET, &common->op_flags))
 		return IRQ_NONE;
 
-	if (test_bit(ATH_OP_HW_RESET, &common->op_flags)) {
-		ath9k_hw_kill_interrupts(ah);
-		return IRQ_HANDLED;
-	}
+	/* shared irq, not for us */
+	if (!ath9k_hw_intrpend(ah))
+		return IRQ_NONE;
 
 	/*
 	 * Figure out the reason(s) for the interrupt.  Note
@@ -531,6 +528,9 @@ irqreturn_t ath_isr(int irq, void *dev)
 	ath9k_hw_getisr(ah, &status, &sync_cause); /* NB: clears ISR too */
 	ath9k_debug_sync_cause(sc, sync_cause);
 	status &= ah->imask;	/* discard unasked-for bits */
+
+	if (AR_SREV_9100(ah) && test_bit(ATH_OP_HW_RESET, &common->op_flags))
+		return IRQ_HANDLED;
 
 	/*
 	 * If there are no status bits set, then this interrupt was not
@@ -613,6 +613,7 @@ int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int r;
 
+	ath9k_hw_kill_interrupts(sc->sc_ah);
 	set_bit(ATH_OP_HW_RESET, &common->op_flags);
 
 	ath9k_ps_wakeup(sc);
@@ -633,6 +634,7 @@ void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type)
 #ifdef CONFIG_ATH9K_DEBUGFS
 	RESET_STAT_INC(sc, type);
 #endif
+	ath9k_hw_kill_interrupts(sc->sc_ah);
 	set_bit(ATH_OP_HW_RESET, &common->op_flags);
 	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 }
@@ -887,6 +889,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 						    &sc->cur_chan->chandef);
 
 	ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
+
+	set_bit(ATH_OP_INVALID, &common->op_flags);
+
 	ath9k_hw_phy_disable(ah);
 
 	ath9k_hw_configpcipowersave(ah, true);
@@ -895,7 +900,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	ath9k_ps_restore(sc);
 
-	set_bit(ATH_OP_INVALID, &common->op_flags);
 	sc->ps_idle = prev_idle;
 
 	mutex_unlock(&sc->mutex);

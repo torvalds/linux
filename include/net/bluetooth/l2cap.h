@@ -141,6 +141,7 @@ struct l2cap_conninfo {
 #define L2CAP_FC_ATT		0x10
 #define L2CAP_FC_SIG_LE		0x20
 #define L2CAP_FC_SMP_LE		0x40
+#define L2CAP_FC_SMP_BREDR	0x80
 
 /* L2CAP Control Field bit masks */
 #define L2CAP_CTRL_SAR			0xC000
@@ -255,6 +256,7 @@ struct l2cap_conn_rsp {
 #define L2CAP_CID_ATT		0x0004
 #define L2CAP_CID_LE_SIGNALING	0x0005
 #define L2CAP_CID_SMP		0x0006
+#define L2CAP_CID_SMP_BREDR	0x0007
 #define L2CAP_CID_DYN_START	0x0040
 #define L2CAP_CID_DYN_END	0xffff
 #define L2CAP_CID_LE_DYN_END	0x007f
@@ -619,8 +621,8 @@ struct l2cap_conn {
 	unsigned int		mtu;
 
 	__u32			feat_mask;
-	__u8			fixed_chan_mask;
-	bool			hs_enabled;
+	__u8			remote_fixed_chan;
+	__u8			local_fixed_chan;
 
 	__u8			info_state;
 	__u8			info_ident;

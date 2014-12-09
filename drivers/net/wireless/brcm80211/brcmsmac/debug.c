@@ -30,6 +30,7 @@
 #include "main.h"
 #include "debug.h"
 #include "brcms_trace_events.h"
+#include "phy/phy_int.h"
 
 static struct dentry *root_folder;
 
@@ -74,20 +75,33 @@ static
 int brcms_debugfs_hardware_read(struct seq_file *s, void *data)
 {
 	struct brcms_pub *drvr = s->private;
+	struct brcms_hardware *hw = drvr->wlc->hw;
+	struct bcma_device *core = hw->d11core;
+	struct bcma_bus *bus = core->bus;
+	char boardrev[10];
 
-	seq_printf(s, "board vendor: %x\n"
-		   "board type: %x\n"
-		   "board revision: %x\n"
-		   "board flags: %x\n"
-		   "board flags2: %x\n"
-		   "firmware revision: %x\n",
-		   drvr->wlc->hw->d11core->bus->boardinfo.vendor,
-		   drvr->wlc->hw->d11core->bus->boardinfo.type,
-		   drvr->wlc->hw->boardrev,
-		   drvr->wlc->hw->boardflags,
-		   drvr->wlc->hw->boardflags2,
-		   drvr->wlc->ucode_rev);
-
+	seq_printf(s, "chipnum 0x%x\n"
+		   "chiprev 0x%x\n"
+		   "chippackage 0x%x\n"
+		   "corerev 0x%x\n"
+		   "boardid 0x%x\n"
+		   "boardvendor 0x%x\n"
+		   "boardrev %s\n"
+		   "boardflags 0x%x\n"
+		   "boardflags2 0x%x\n"
+		   "ucoderev 0x%x\n"
+		   "radiorev 0x%x\n"
+		   "phytype 0x%x\n"
+		   "phyrev 0x%x\n"
+		   "anarev 0x%x\n"
+		   "nvramrev %d\n",
+		   bus->chipinfo.id, bus->chipinfo.rev, bus->chipinfo.pkg,
+		   core->id.rev, bus->boardinfo.type, bus->boardinfo.vendor,
+		   brcmu_boardrev_str(hw->boardrev, boardrev),
+		   drvr->wlc->hw->boardflags, drvr->wlc->hw->boardflags2,
+		   drvr->wlc->ucode_rev, hw->band->radiorev,
+		   hw->band->phytype, hw->band->phyrev, hw->band->pi->ana_rev,
+		   hw->sromrev);
 	return 0;
 }
 

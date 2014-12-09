@@ -60,7 +60,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	rcu_read_unlock();
 
 	/* assume HW handles this */
-	if (tx->rate.flags & IEEE80211_TX_RC_MCS)
+	if (tx->rate.flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
 		return 0;
 
 	/* uh huh? */

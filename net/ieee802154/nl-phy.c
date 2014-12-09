@@ -1,5 +1,5 @@
 /*
- * Netlink inteface for IEEE 802.15.4 stack
+ * Netlink interface for IEEE 802.15.4 stack
  *
  * Copyright 2007, 2008 Siemens AG
  *
@@ -93,7 +93,6 @@ int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info)
 	name = nla_data(info->attrs[IEEE802154_ATTR_PHY_NAME]);
 	if (name[nla_len(info->attrs[IEEE802154_ATTR_PHY_NAME]) - 1] != '\0')
 		return -EINVAL; /* phy name should be null-terminated */
-
 
 	phy = wpan_phy_find(name);
 	if (!phy)

@@ -510,11 +510,9 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	if (ret)
 		goto err;
 
-	if (ndev) {
-		ret = register_netdevice(ndev);
-		if (ret < 0)
-			goto err;
-	}
+	ret = register_netdevice(ndev);
+	if (ret < 0)
+		goto err;
 
 	mutex_lock(&local->iflist_mtx);
 	list_add_tail_rcu(&sdata->list, &local->interfaces);

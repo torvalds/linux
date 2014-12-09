@@ -2043,13 +2043,14 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		data.pscan_mode		= info->pscan_mode;
 		memcpy(data.dev_class, info->dev_class, 3);
 		data.clock_offset	= info->clock_offset;
-		data.rssi		= 0x00;
+		data.rssi		= HCI_RSSI_INVALID;
 		data.ssp_mode		= 0x00;
 
 		flags = hci_inquiry_cache_update(hdev, &data, false);
 
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
-				  info->dev_class, 0, flags, NULL, 0, NULL, 0);
+				  info->dev_class, HCI_RSSI_INVALID,
+				  flags, NULL, 0, NULL, 0);
 	}
 
 	hci_dev_unlock(hdev);
@@ -3191,6 +3192,38 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static void conn_set_key(struct hci_conn *conn, u8 key_type, u8 pin_len)
+{
+	if (key_type == HCI_LK_CHANGED_COMBINATION)
+		return;
+
+	conn->pin_length = pin_len;
+	conn->key_type = key_type;
+
+	switch (key_type) {
+	case HCI_LK_LOCAL_UNIT:
+	case HCI_LK_REMOTE_UNIT:
+	case HCI_LK_DEBUG_COMBINATION:
+		return;
+	case HCI_LK_COMBINATION:
+		if (pin_len == 16)
+			conn->pending_sec_level = BT_SECURITY_HIGH;
+		else
+			conn->pending_sec_level = BT_SECURITY_MEDIUM;
+		break;
+	case HCI_LK_UNAUTH_COMBINATION_P192:
+	case HCI_LK_UNAUTH_COMBINATION_P256:
+		conn->pending_sec_level = BT_SECURITY_MEDIUM;
+		break;
+	case HCI_LK_AUTH_COMBINATION_P192:
+		conn->pending_sec_level = BT_SECURITY_HIGH;
+		break;
+	case HCI_LK_AUTH_COMBINATION_P256:
+		conn->pending_sec_level = BT_SECURITY_FIPS;
+		break;
+	}
+}
+
 static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_link_key_req *ev = (void *) skb->data;
@@ -3217,6 +3250,8 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
+		clear_bit(HCI_CONN_NEW_LINK_KEY, &conn->flags);
+
 		if ((key->type == HCI_LK_UNAUTH_COMBINATION_P192 ||
 		     key->type == HCI_LK_UNAUTH_COMBINATION_P256) &&
 		    conn->auth_type != 0xff && (conn->auth_type & 0x01)) {
@@ -3232,8 +3267,7 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			goto not_found;
 		}
 
-		conn->key_type = key->type;
-		conn->pin_length = key->pin_len;
+		conn_set_key(conn, key->type, key->pin_len);
 	}
 
 	bacpy(&cp.bdaddr, &ev->bdaddr);
@@ -3263,16 +3297,15 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn) {
-		hci_conn_hold(conn);
-		conn->disc_timeout = HCI_DISCONN_TIMEOUT;
-		pin_len = conn->pin_length;
+	if (!conn)
+		goto unlock;
 
-		if (ev->key_type != HCI_LK_CHANGED_COMBINATION)
-			conn->key_type = ev->key_type;
+	hci_conn_hold(conn);
+	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+	hci_conn_drop(conn);
 
-		hci_conn_drop(conn);
-	}
+	set_bit(HCI_CONN_NEW_LINK_KEY, &conn->flags);
+	conn_set_key(conn, ev->key_type, conn->pin_length);
 
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
@@ -3281,6 +3314,12 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			        ev->key_type, pin_len, &persistent);
 	if (!key)
 		goto unlock;
+
+	/* Update connection information since adding the key will have
+	 * fixed up the type in the case of changed combination keys.
+	 */
+	if (ev->key_type == HCI_LK_CHANGED_COMBINATION)
+		conn_set_key(conn, key->type, key->pin_len);
 
 	mgmt_new_link_key(hdev, key, persistent);
 
@@ -3291,14 +3330,15 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 */
 	if (key->type == HCI_LK_DEBUG_COMBINATION &&
 	    !test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags)) {
-		list_del(&key->list);
-		kfree(key);
-	} else if (conn) {
-		if (persistent)
-			clear_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
-		else
-			set_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
+		list_del_rcu(&key->list);
+		kfree_rcu(key, rcu);
+		goto unlock;
 	}
+
+	if (persistent)
+		clear_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
+	else
+		set_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -3734,7 +3774,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		cp.authentication = conn->auth_type;
 
-		if (hci_find_remote_oob_data(hdev, &conn->dst) &&
+		if (hci_find_remote_oob_data(hdev, &conn->dst, BDADDR_BREDR) &&
 		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))
 			cp.oob_data = 0x01;
 		else
@@ -3989,9 +4029,9 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
 
-	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
+	data = hci_find_remote_oob_data(hdev, &ev->bdaddr, BDADDR_BREDR);
 	if (data) {
-		if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+		if (bredr_sc_enabled(hdev)) {
 			struct hci_cp_remote_oob_ext_data_reply cp;
 
 			bacpy(&cp.bdaddr, &ev->bdaddr);
@@ -4386,13 +4426,40 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 }
 
 static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
-			       u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
+			       u8 bdaddr_type, bdaddr_t *direct_addr,
+			       u8 direct_addr_type, s8 rssi, u8 *data, u8 len)
 {
 	struct discovery_state *d = &hdev->discovery;
 	struct smp_irk *irk;
 	struct hci_conn *conn;
 	bool match;
 	u32 flags;
+
+	/* If the direct address is present, then this report is from
+	 * a LE Direct Advertising Report event. In that case it is
+	 * important to see if the address is matching the local
+	 * controller address.
+	 */
+	if (direct_addr) {
+		/* Only resolvable random addresses are valid for these
+		 * kind of reports and others can be ignored.
+		 */
+		if (!hci_bdaddr_is_rpa(direct_addr, direct_addr_type))
+			return;
+
+		/* If the controller is not using resolvable random
+		 * addresses, then this report can be ignored.
+		 */
+		if (!test_bit(HCI_PRIVACY, &hdev->dev_flags))
+			return;
+
+		/* If the local IRK of the controller does not match
+		 * with the resolvable random address provided, then
+		 * this report can be ignored.
+		 */
+		if (!smp_irk_matches(hdev, hdev->irk, direct_addr))
+			return;
+	}
 
 	/* Check if we need to convert to identity address */
 	irk = hci_get_irk(hdev, bdaddr, bdaddr_type);
@@ -4530,7 +4597,8 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		rssi = ev->data[ev->length];
 		process_adv_report(hdev, ev->evt_type, &ev->bdaddr,
-				   ev->bdaddr_type, rssi, ev->data, ev->length);
+				   ev->bdaddr_type, NULL, 0, rssi,
+				   ev->data, ev->length);
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}
@@ -4554,9 +4622,19 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn == NULL)
 		goto not_found;
 
-	ltk = hci_find_ltk(hdev, ev->ediv, ev->rand, conn->role);
-	if (ltk == NULL)
+	ltk = hci_find_ltk(hdev, &conn->dst, conn->dst_type, conn->role);
+	if (!ltk)
 		goto not_found;
+
+	if (smp_ltk_is_sc(ltk)) {
+		/* With SC both EDiv and Rand are set to zero */
+		if (ev->ediv || ev->rand)
+			goto not_found;
+	} else {
+		/* For non-SC keys check that EDiv and Rand match */
+		if (ev->ediv != ltk->ediv || ev->rand != ltk->rand)
+			goto not_found;
+	}
 
 	memcpy(cp.ltk, ltk->val, sizeof(ltk->val));
 	cp.handle = cpu_to_le16(conn->handle);
@@ -4661,6 +4739,27 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_PARAM_REQ_REPLY, sizeof(cp), &cp);
 }
 
+static void hci_le_direct_adv_report_evt(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	u8 num_reports = skb->data[0];
+	void *ptr = &skb->data[1];
+
+	hci_dev_lock(hdev);
+
+	while (num_reports--) {
+		struct hci_ev_le_direct_adv_info *ev = ptr;
+
+		process_adv_report(hdev, ev->evt_type, &ev->bdaddr,
+				   ev->bdaddr_type, &ev->direct_addr,
+				   ev->direct_addr_type, ev->rssi, NULL, 0);
+
+		ptr += sizeof(*ev);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_meta *le_ev = (void *) skb->data;
@@ -4686,6 +4785,10 @@ static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_REMOTE_CONN_PARAM_REQ:
 		hci_le_remote_conn_param_req_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LE_DIRECT_ADV_REPORT:
+		hci_le_direct_adv_report_evt(hdev, skb);
 		break;
 
 	default:

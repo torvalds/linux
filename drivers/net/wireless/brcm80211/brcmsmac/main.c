@@ -445,18 +445,18 @@ static void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 	kfree(wlc->protection);
 	kfree(wlc->stf);
 	kfree(wlc->bandstate[0]);
-	kfree(wlc->corestate->macstat_snapshot);
+	if (wlc->corestate)
+		kfree(wlc->corestate->macstat_snapshot);
 	kfree(wlc->corestate);
-	kfree(wlc->hw->bandstate[0]);
+	if (wlc->hw)
+		kfree(wlc->hw->bandstate[0]);
 	kfree(wlc->hw);
 	if (wlc->beacon)
 		dev_kfree_skb_any(wlc->beacon);
 	if (wlc->probe_resp)
 		dev_kfree_skb_any(wlc->probe_resp);
 
-	/* free the wlc */
 	kfree(wlc);
-	wlc = NULL;
 }
 
 static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit)

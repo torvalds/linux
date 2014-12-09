@@ -42,37 +42,27 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 {
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	int status;
-	unsigned int i;
 	unsigned int pipe =
 	    (requesttype == USB_VENDOR_REQUEST_IN) ?
 	    usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
+	unsigned long expire = jiffies + msecs_to_jiffies(timeout);
 
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return -ENODEV;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+	do {
 		status = usb_control_msg(usb_dev, pipe, request, requesttype,
 					 value, offset, buffer, buffer_length,
-					 timeout);
+					 timeout / 2);
 		if (status >= 0)
 			return 0;
 
-		/*
-		 * Check for errors
-		 * -ENODEV: Device has disappeared, no point continuing.
-		 * All other errors: Try again.
-		 */
-		else if (status == -ENODEV) {
+		if (status == -ENODEV) {
+			/* Device has disappeared. */
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 			break;
 		}
-	}
-
-	/* If the port is powered down, we get a -EPROTO error, and this
-	 * leads to a endless loop. So just say that the device is gone.
-	 */
-	if (status == -EPROTO)
-		clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
+	} while (time_before(jiffies, expire));
 
 	rt2x00_err(rt2x00dev,
 		   "Vendor Request 0x%02x failed for offset 0x%04x with error %d\n",
@@ -154,7 +144,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return -ENODEV;
 
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
 		rt2x00usb_register_read_lock(rt2x00dev, offset, reg);
 		if (!rt2x00_get_field32(*reg, field))
 			return 1;

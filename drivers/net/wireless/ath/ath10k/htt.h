@@ -126,6 +126,7 @@ enum htt_data_tx_ext_tid {
  *                  (HL hosts manage queues on the host )
  *       more_in_batch: only for HL hosts. indicates if more packets are
  *                      pending. this allows target to wait and aggregate
+ *       freq: 0 means home channel of given vdev. intended for offchannel
  */
 struct htt_data_tx_desc {
 	u8 flags0; /* %HTT_DATA_TX_DESC_FLAGS0_ */
@@ -133,7 +134,8 @@ struct htt_data_tx_desc {
 	__le16 len;
 	__le16 id;
 	__le32 frags_paddr;
-	__le32 peerid;
+	__le16 peerid;
+	__le16 freq;
 	u8 prefetch[0]; /* start of frame, for FW classification engine */
 } __packed;
 
@@ -155,6 +157,9 @@ enum htt_rx_ring_flags {
 	HTT_RX_RING_FLAGS_NULL_RX      = 1 << 14,
 	HTT_RX_RING_FLAGS_PHY_DATA_RX  = 1 << 15
 };
+
+#define HTT_RX_RING_SIZE_MIN 128
+#define HTT_RX_RING_SIZE_MAX 2048
 
 struct htt_rx_ring_setup_ring {
 	__le32 fw_idx_shadow_reg_paddr;

@@ -532,10 +532,14 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ah->reg_ops.read = ath9k_ioread32;
 	ah->reg_ops.write = ath9k_iowrite32;
 	ah->reg_ops.rmw = ath9k_reg_rmw;
-	sc->sc_ah = ah;
 	pCap = &ah->caps;
 
 	common = ath9k_hw_common(ah);
+
+	/* Will be cleared in ath9k_start() */
+	set_bit(ATH_OP_INVALID, &common->op_flags);
+
+	sc->sc_ah = ah;
 	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
 	sc->tx99_power = MAX_RATE_POWER + 1;
 	init_waitqueue_head(&sc->tx_wait);
@@ -895,9 +899,6 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 	ah = sc->sc_ah;
 	common = ath9k_hw_common(ah);
 	ath9k_set_hw_capab(sc, hw);
-
-	/* Will be cleared in ath9k_start() */
-	set_bit(ATH_OP_INVALID, &common->op_flags);
 
 	/* Initialize regulatory */
 	error = ath_regd_init(&common->regulatory, sc->hw->wiphy,

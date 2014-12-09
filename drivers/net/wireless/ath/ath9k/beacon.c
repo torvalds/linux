@@ -78,7 +78,7 @@ static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 	struct ath_tx_info info;
 	struct ieee80211_supported_band *sband;
 	u8 chainmask = ah->txchainmask;
-	u8 rate = 0;
+	u8 i, rate = 0;
 
 	sband = &common->sbands[sc->cur_chandef.chan->band];
 	rate = sband->bitrates[rateidx].hw_value;
@@ -88,7 +88,8 @@ static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 	memset(&info, 0, sizeof(info));
 	info.pkt_len = skb->len + FCS_LEN;
 	info.type = ATH9K_PKT_TYPE_BEACON;
-	info.txpower = MAX_RATE_POWER;
+	for (i = 0; i < 4; i++)
+		info.txpower[i] = MAX_RATE_POWER;
 	info.keyix = ATH9K_TXKEYIX_INVALID;
 	info.keytype = ATH9K_KEY_TYPE_CLEAR;
 	info.flags = ATH9K_TXDESC_NOACK | ATH9K_TXDESC_CLRDMASK;

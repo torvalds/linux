@@ -2104,6 +2104,7 @@ static int b44_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		bp->flags &= ~B44_FLAG_WOL_ENABLE;
 	spin_unlock_irq(&bp->lock);
 
+	device_set_wakeup_enable(bp->sdev->dev, wol->wolopts & WAKE_MAGIC);
 	return 0;
 }
 
@@ -2452,6 +2453,7 @@ static int b44_init_one(struct ssb_device *sdev,
 		}
 	}
 
+	device_set_wakeup_capable(sdev->dev, true);
 	netdev_info(dev, "%s %pM\n", DRV_DESCRIPTION, dev->dev_addr);
 
 	return 0;

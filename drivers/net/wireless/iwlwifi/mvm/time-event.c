@@ -191,6 +191,35 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 	return true;
 }
 
+static void
+iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
+			     struct iwl_mvm_time_event_data *te_data,
+			     struct iwl_time_event_notif *notif)
+{
+	if (!le32_to_cpu(notif->status)) {
+		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
+		iwl_mvm_te_clear_data(mvm, te_data);
+		return;
+	}
+
+	switch (te_data->vif->type) {
+	case NL80211_IFTYPE_AP:
+		iwl_mvm_csa_noa_start(mvm);
+		break;
+	case NL80211_IFTYPE_STATION:
+		iwl_mvm_csa_client_absent(mvm, te_data->vif);
+		ieee80211_chswitch_done(te_data->vif, true);
+		break;
+	default:
+		/* should never happen */
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	/* we don't need it anymore */
+	iwl_mvm_te_clear_data(mvm, te_data);
+}
+
 /*
  * Handles a FW notification for an event that is known to the driver.
  *
@@ -252,14 +281,8 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
 			iwl_mvm_ref(mvm, IWL_MVM_REF_ROC);
 			ieee80211_ready_on_channel(mvm->hw);
-		} else if (te_data->vif->type == NL80211_IFTYPE_AP) {
-			if (le32_to_cpu(notif->status))
-				iwl_mvm_csa_noa_start(mvm);
-			else
-				IWL_DEBUG_TE(mvm, "CSA NOA failed to start\n");
-
-			/* we don't need it anymore */
-			iwl_mvm_te_clear_data(mvm, te_data);
+		} else if (te_data->id == TE_CHANNEL_SWITCH_PERIOD) {
+			iwl_mvm_te_handle_notify_csa(mvm, te_data, notif);
 		}
 	} else {
 		IWL_WARN(mvm, "Got TE with unknown action\n");
@@ -549,18 +572,11 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 	}
 }
 
-/*
- * Explicit request to remove a time event. The removal of a time event needs to
- * be synchronized with the flow of a time event's end notification, which also
- * removes the time event from the op mode data structures.
- */
-void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
-			       struct iwl_mvm_vif *mvmvif,
-			       struct iwl_mvm_time_event_data *te_data)
+static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
+					struct iwl_mvm_time_event_data *te_data,
+					u32 *uid)
 {
-	struct iwl_time_event_cmd time_cmd = {};
-	u32 id, uid;
-	int ret;
+	u32 id;
 
 	/*
 	 * It is possible that by the time we got to this point the time
@@ -569,7 +585,7 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	spin_lock_bh(&mvm->time_event_lock);
 
 	/* Save time event uid before clearing its data */
-	uid = te_data->uid;
+	*uid = te_data->uid;
 	id = te_data->id;
 
 	/*
@@ -584,9 +600,58 @@ void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	 * send a removal command.
 	 */
 	if (id == TE_MAX) {
-		IWL_DEBUG_TE(mvm, "TE 0x%x has already ended\n", uid);
-		return;
+		IWL_DEBUG_TE(mvm, "TE 0x%x has already ended\n", *uid);
+		return false;
 	}
+
+	return true;
+}
+
+/*
+ * Explicit request to remove a aux roc time event. The removal of a time
+ * event needs to be synchronized with the flow of a time event's end
+ * notification, which also removes the time event from the op mode
+ * data structures.
+ */
+static void iwl_mvm_remove_aux_roc_te(struct iwl_mvm *mvm,
+				      struct iwl_mvm_vif *mvmvif,
+				      struct iwl_mvm_time_event_data *te_data)
+{
+	struct iwl_hs20_roc_req aux_cmd = {};
+	u32 uid;
+	int ret;
+
+	if (!__iwl_mvm_remove_time_event(mvm, te_data, &uid))
+		return;
+
+	aux_cmd.event_unique_id = cpu_to_le32(uid);
+	aux_cmd.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE);
+	aux_cmd.id_and_color =
+		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
+	IWL_DEBUG_TE(mvm, "Removing BSS AUX ROC TE 0x%x\n",
+		     le32_to_cpu(aux_cmd.event_unique_id));
+	ret = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0,
+				   sizeof(aux_cmd), &aux_cmd);
+
+	if (WARN_ON(ret))
+		return;
+}
+
+/*
+ * Explicit request to remove a time event. The removal of a time event needs to
+ * be synchronized with the flow of a time event's end notification, which also
+ * removes the time event from the op mode data structures.
+ */
+void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
+			       struct iwl_mvm_vif *mvmvif,
+			       struct iwl_mvm_time_event_data *te_data)
+{
+	struct iwl_time_event_cmd time_cmd = {};
+	u32 uid;
+	int ret;
+
+	if (!__iwl_mvm_remove_time_event(mvm, te_data, &uid))
+		return;
 
 	/* When we remove a TE, the UID is to be set in the id field */
 	time_cmd.id = cpu_to_le32(uid);
@@ -666,12 +731,16 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }
 
-void iwl_mvm_stop_p2p_roc(struct iwl_mvm *mvm)
+void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_vif *mvmvif;
 	struct iwl_mvm_time_event_data *te_data;
+	bool is_p2p = false;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	mvmvif = NULL;
+	spin_lock_bh(&mvm->time_event_lock);
 
 	/*
 	 * Iterate over the list of time events and find the time event that is
@@ -680,22 +749,41 @@ void iwl_mvm_stop_p2p_roc(struct iwl_mvm *mvm)
 	 * event at any given time and this time event coresponds to a ROC
 	 * request
 	 */
-	mvmvif = NULL;
-	spin_lock_bh(&mvm->time_event_lock);
 	list_for_each_entry(te_data, &mvm->time_event_list, list) {
-		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE &&
+		    te_data->running) {
 			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
-			break;
+			is_p2p = true;
+			goto remove_te;
 		}
 	}
+
+	/*
+	 * Iterate over the list of aux roc time events and find the time
+	 * event that is associated with a BSS interface.
+	 * This assumes that a BSS interface can have only a single time
+	 * event at any given time and this time event coresponds to a ROC
+	 * request
+	 */
+	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {
+		if (te_data->running) {
+			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
+			goto remove_te;
+		}
+	}
+
+remove_te:
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	if (!mvmvif) {
-		IWL_WARN(mvm, "P2P_DEVICE no remain on channel event\n");
+		IWL_WARN(mvm, "No remain on channel event\n");
 		return;
 	}
 
-	iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
+	if (is_p2p)
+		iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
+	else
+		iwl_mvm_remove_aux_roc_te(mvm, mvmvif, te_data);
 
 	iwl_mvm_roc_finished(mvm);
 }

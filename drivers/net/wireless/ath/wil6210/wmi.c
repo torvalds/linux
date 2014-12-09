@@ -478,15 +478,15 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 			       void *d, int len)
 {
 	struct wmi_disconnect_event *evt = d;
+	u16 reason_code = le16_to_cpu(evt->protocol_reason_status);
 
-	wil_dbg_wmi(wil, "Disconnect %pM reason %d proto %d wmi\n",
-		    evt->bssid,
-		    evt->protocol_reason_status, evt->disconnect_reason);
+	wil_dbg_wmi(wil, "Disconnect %pM reason [proto %d wmi %d]\n",
+		    evt->bssid, reason_code, evt->disconnect_reason);
 
 	wil->sinfo_gen++;
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(wil, evt->bssid, true);
+	wil6210_disconnect(wil, evt->bssid, reason_code, true);
 	mutex_unlock(&wil->mutex);
 }
 

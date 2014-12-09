@@ -218,4 +218,6 @@ void brcmu_dbg_hex_dump(const void *data, size_t size, const char *fmt, ...)
 }
 #endif
 
+char *brcmu_boardrev_str(u32 brev, char *buf);
+
 #endif				/* _BRCMU_UTILS_H_ */

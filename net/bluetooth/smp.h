@@ -50,10 +50,13 @@ struct smp_cmd_pairing {
 #define SMP_DIST_ENC_KEY	0x01
 #define SMP_DIST_ID_KEY		0x02
 #define SMP_DIST_SIGN		0x04
+#define SMP_DIST_LINK_KEY	0x08
 
 #define SMP_AUTH_NONE		0x00
 #define SMP_AUTH_BONDING	0x01
 #define SMP_AUTH_MITM		0x04
+#define SMP_AUTH_SC		0x08
+#define SMP_AUTH_KEYPRESS	0x10
 
 #define SMP_CMD_PAIRING_CONFIRM	0x03
 struct smp_cmd_pairing_confirm {
@@ -102,7 +105,23 @@ struct smp_cmd_security_req {
 	__u8	auth_req;
 } __packed;
 
-#define SMP_CMD_MAX		0x0b
+#define SMP_CMD_PUBLIC_KEY	0x0c
+struct smp_cmd_public_key {
+	__u8	x[32];
+	__u8	y[32];
+} __packed;
+
+#define SMP_CMD_DHKEY_CHECK	0x0d
+struct smp_cmd_dhkey_check {
+	__u8	e[16];
+} __packed;
+
+#define SMP_CMD_KEYPRESS_NOTIFY	0x0e
+struct smp_cmd_keypress_notify {
+	__u8	value;
+} __packed;
+
+#define SMP_CMD_MAX		0x0e
 
 #define SMP_PASSKEY_ENTRY_FAILED	0x01
 #define SMP_OOB_NOT_AVAIL		0x02
@@ -114,6 +133,10 @@ struct smp_cmd_security_req {
 #define SMP_UNSPECIFIED			0x08
 #define SMP_REPEATED_ATTEMPTS		0x09
 #define SMP_INVALID_PARAMS		0x0a
+#define SMP_DHKEY_CHECK_FAILED		0x0b
+#define SMP_NUMERIC_COMP_FAILED		0x0c
+#define SMP_BREDR_PAIRING_IN_PROGRESS	0x0d
+#define SMP_CROSS_TRANSP_NOT_ALLOWED	0x0e
 
 #define SMP_MIN_ENC_KEY_SIZE		7
 #define SMP_MAX_ENC_KEY_SIZE		16
@@ -123,12 +146,29 @@ enum {
 	SMP_STK,
 	SMP_LTK,
 	SMP_LTK_SLAVE,
+	SMP_LTK_P256,
+	SMP_LTK_P256_DEBUG,
 };
+
+static inline bool smp_ltk_is_sc(struct smp_ltk *key)
+{
+	switch (key->type) {
+	case SMP_LTK_P256:
+	case SMP_LTK_P256_DEBUG:
+		return true;
+	}
+
+	return false;
+}
 
 static inline u8 smp_ltk_sec_level(struct smp_ltk *key)
 {
-	if (key->authenticated)
-		return BT_SECURITY_HIGH;
+	if (key->authenticated) {
+		if (smp_ltk_is_sc(key))
+			return BT_SECURITY_FIPS;
+		else
+			return BT_SECURITY_HIGH;
+	}
 
 	return BT_SECURITY_MEDIUM;
 }
@@ -145,8 +185,9 @@ bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level,
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
-bool smp_irk_matches(struct hci_dev *hdev, u8 irk[16], bdaddr_t *bdaddr);
-int smp_generate_rpa(struct hci_dev *hdev, u8 irk[16], bdaddr_t *rpa);
+bool smp_irk_matches(struct hci_dev *hdev, const u8 irk[16],
+		     const bdaddr_t *bdaddr);
+int smp_generate_rpa(struct hci_dev *hdev, const u8 irk[16], bdaddr_t *rpa);
 
 int smp_register(struct hci_dev *hdev);
 void smp_unregister(struct hci_dev *hdev);

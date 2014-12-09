@@ -936,7 +936,11 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 	if (scan_rx_ant & ~mvm->fw->valid_rx_ant)
 		return -EINVAL;
 
-	mvm->scan_rx_ant = scan_rx_ant;
+	if (mvm->scan_rx_ant != scan_rx_ant) {
+		mvm->scan_rx_ant = scan_rx_ant;
+		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+			iwl_mvm_config_scan(mvm);
+	}
 
 	return count;
 }
@@ -1194,13 +1198,7 @@ static ssize_t iwl_dbgfs_netdetect_write(struct iwl_mvm *mvm, char *buf,
 		kfree(mvm->nd_config->match_sets);
 		kfree(mvm->nd_config);
 		mvm->nd_config = NULL;
-		kfree(mvm->nd_ies);
-		mvm->nd_ies = NULL;
 	}
-
-	mvm->nd_ies = kzalloc(sizeof(*mvm->nd_ies), GFP_KERNEL);
-	if (!mvm->nd_ies)
-		return -ENOMEM;
 
 	mvm->nd_config = kzalloc(sizeof(*mvm->nd_config) +
 				 (11 * sizeof(struct ieee80211_channel *)),
@@ -1258,8 +1256,6 @@ out_free:
 		kfree(mvm->nd_config->match_sets);
 	kfree(mvm->nd_config);
 	mvm->nd_config = NULL;
-	kfree(mvm->nd_ies);
-	mvm->nd_ies = NULL;
 out:
 	return ret;
 }
@@ -1343,6 +1339,7 @@ static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
 	PRINT_MVM_REF(IWL_MVM_REF_NMI);
 	PRINT_MVM_REF(IWL_MVM_REF_TM_CMD);
 	PRINT_MVM_REF(IWL_MVM_REF_EXIT_WORK);
+	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_CSA);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }

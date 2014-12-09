@@ -10,6 +10,7 @@ menuconfig BT
 	select CRYPTO
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AES
+	select CRYPTO_CMAC
 	select CRYPTO_ECB
 	select CRYPTO_SHA256
 	help

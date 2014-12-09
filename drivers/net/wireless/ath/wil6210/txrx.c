@@ -210,8 +210,6 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 	struct vring_rx_desc dd, *d = &dd;
 	volatile struct vring_rx_desc *_d = &vring->va[i].rx;
 	dma_addr_t pa;
-
-	/* TODO align */
 	struct sk_buff *skb = dev_alloc_skb(sz + headroom);
 
 	if (unlikely(!skb))
@@ -596,7 +594,7 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 	wil_rx_refill(wil, v->size);
 }
 
-int wil_rx_init(struct wil6210_priv *wil)
+int wil_rx_init(struct wil6210_priv *wil, u16 size)
 {
 	struct vring *vring = &wil->vring_rx;
 	int rc;
@@ -608,7 +606,7 @@ int wil_rx_init(struct wil6210_priv *wil)
 		return -EINVAL;
 	}
 
-	vring->size = WIL6210_RX_RING_SIZE;
+	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
 		return rc;
@@ -928,8 +926,9 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	wil_dbg_txrx(wil, "%s()\n", __func__);
 
 	if (avail < 1 + nr_frags) {
-		wil_err(wil, "Tx ring full. No space for %d fragments\n",
-			1 + nr_frags);
+		wil_err_ratelimited(wil,
+				    "Tx ring full. No space for %d fragments\n",
+				    1 + nr_frags);
 		return -ENOMEM;
 	}
 	_d = &vring->va[i].tx;

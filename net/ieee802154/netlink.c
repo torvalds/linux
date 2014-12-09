@@ -1,5 +1,5 @@
 /*
- * Netlink inteface for IEEE 802.15.4 stack
+ * Netlink interface for IEEE 802.15.4 stack
  *
  * Copyright 2007, 2008 Siemens AG
  *
@@ -73,7 +73,7 @@ out:
 }
 
 struct sk_buff *ieee802154_nl_new_reply(struct genl_info *info,
-		int flags, u8 req)
+					int flags, u8 req)
 {
 	void *hdr;
 	struct sk_buff *msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
@@ -146,7 +146,6 @@ static const struct genl_multicast_group ieee802154_mcgrps[] = {
 	[IEEE802154_COORD_MCGRP] = { .name = IEEE802154_MCAST_COORD_NAME, },
 	[IEEE802154_BEACON_MCGRP] = { .name = IEEE802154_MCAST_BEACON_NAME, },
 };
-
 
 int __init ieee802154_nl_init(void)
 {

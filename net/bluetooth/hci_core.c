@@ -274,15 +274,13 @@ static const struct file_operations inquiry_cache_fops = {
 static int link_keys_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
-	struct list_head *p, *n;
+	struct link_key *key;
 
-	hci_dev_lock(hdev);
-	list_for_each_safe(p, n, &hdev->link_keys) {
-		struct link_key *key = list_entry(p, struct link_key, list);
+	rcu_read_lock();
+	list_for_each_entry_rcu(key, &hdev->link_keys, list)
 		seq_printf(f, "%pMR %u %*phN %u\n", &key->bdaddr, key->type,
 			   HCI_LINK_KEY_SIZE, key->val, key->pin_len);
-	}
-	hci_dev_unlock(hdev);
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -405,6 +403,49 @@ static const struct file_operations force_sc_support_fops = {
 	.open		= simple_open,
 	.read		= force_sc_support_read,
 	.write		= force_sc_support_write,
+	.llseek		= default_llseek,
+};
+
+static ssize_t force_lesc_support_read(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_FORCE_LESC, &hdev->dbg_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_lesc_support_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+	bool enable;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	if (enable == test_bit(HCI_FORCE_LESC, &hdev->dbg_flags))
+		return -EALREADY;
+
+	change_bit(HCI_FORCE_LESC, &hdev->dbg_flags);
+
+	return count;
+}
+
+static const struct file_operations force_lesc_support_fops = {
+	.open		= simple_open,
+	.read		= force_lesc_support_read,
+	.write		= force_lesc_support_write,
 	.llseek		= default_llseek,
 };
 
@@ -1128,6 +1169,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	err = hci_req_run(&req, hci_req_sync_complete);
 	if (err < 0) {
 		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
 		return ERR_PTR(err);
 	}
 
@@ -1196,6 +1238,7 @@ static int __hci_req_sync(struct hci_dev *hdev,
 		hdev->req_status = 0;
 
 		remove_wait_queue(&hdev->req_wait_q, &wait);
+		set_current_state(TASK_RUNNING);
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
@@ -1692,6 +1735,28 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 						 * Parameter Request
 						 */
 
+		/* If the controller supports Extended Scanner Filter
+		 * Policies, enable the correspondig event.
+		 */
+		if (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY)
+			events[1] |= 0x04;	/* LE Direct Advertising
+						 * Report
+						 */
+
+		/* If the controller supports the LE Read Local P-256
+		 * Public Key command, enable the corresponding event.
+		 */
+		if (hdev->commands[34] & 0x02)
+			events[0] |= 0x80;	/* LE Read Local P-256
+						 * Public Key Complete
+						 */
+
+		/* If the controller supports the LE Generate DHKey
+		 * command, enable the corresponding event.
+		 */
+		if (hdev->commands[34] & 0x04)
+			events[1] |= 0x01;	/* LE Generate DHKey Complete */
+
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 
@@ -1734,9 +1799,7 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
 
 	/* Enable Secure Connections if supported and configured */
-	if ((lmp_sc_capable(hdev) ||
-	     test_bit(HCI_FORCE_SC, &hdev->dbg_flags)) &&
-	    test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+	if (bredr_sc_enabled(hdev)) {
 		u8 support = 0x01;
 		hci_req_add(req, HCI_OP_WRITE_SC_SUPPORT,
 			    sizeof(support), &support);
@@ -1819,6 +1882,10 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &force_sc_support_fops);
 		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
 				    hdev, &sc_only_mode_fops);
+		if (lmp_le_capable(hdev))
+			debugfs_create_file("force_lesc_support", 0644,
+					    hdev->debugfs, hdev,
+					    &force_lesc_support_fops);
 	}
 
 	if (lmp_sniff_capable(hdev)) {
@@ -2115,7 +2182,7 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	BT_DBG("cache %p, %pMR", cache, &data->bdaddr);
 
-	hci_remove_remote_oob_data(hdev, &data->bdaddr);
+	hci_remove_remote_oob_data(hdev, &data->bdaddr, BDADDR_BREDR);
 
 	if (!data->ssp_mode)
 		flags |= MGMT_DEV_FOUND_LEGACY_PAIRING;
@@ -3099,15 +3166,11 @@ void hci_uuids_clear(struct hci_dev *hdev)
 
 void hci_link_keys_clear(struct hci_dev *hdev)
 {
-	struct list_head *p, *n;
+	struct link_key *key;
 
-	list_for_each_safe(p, n, &hdev->link_keys) {
-		struct link_key *key;
-
-		key = list_entry(p, struct link_key, list);
-
-		list_del(p);
-		kfree(key);
+	list_for_each_entry_rcu(key, &hdev->link_keys, list) {
+		list_del_rcu(&key->list);
+		kfree_rcu(key, rcu);
 	}
 }
 
@@ -3135,9 +3198,14 @@ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	struct link_key *k;
 
-	list_for_each_entry(k, &hdev->link_keys, list)
-		if (bacmp(bdaddr, &k->bdaddr) == 0)
+	rcu_read_lock();
+	list_for_each_entry_rcu(k, &hdev->link_keys, list) {
+		if (bacmp(bdaddr, &k->bdaddr) == 0) {
+			rcu_read_unlock();
 			return k;
+		}
+	}
+	rcu_read_unlock();
 
 	return NULL;
 }
@@ -3159,6 +3227,10 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 
 	/* Security mode 3 case */
 	if (!conn)
+		return true;
+
+	/* BR/EDR key derived using SC from an LE link */
+	if (conn->type == LE_LINK)
 		return true;
 
 	/* Neither local nor remote side had no-bonding as requirement */
@@ -3186,37 +3258,17 @@ static u8 ltk_role(u8 type)
 	return HCI_ROLE_SLAVE;
 }
 
-struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
-			     u8 role)
+struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			     u8 addr_type, u8 role)
 {
 	struct smp_ltk *k;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(k, &hdev->long_term_keys, list) {
-		if (k->ediv != ediv || k->rand != rand)
+		if (addr_type != k->bdaddr_type || bacmp(bdaddr, &k->bdaddr))
 			continue;
 
-		if (ltk_role(k->type) != role)
-			continue;
-
-		rcu_read_unlock();
-		return k;
-	}
-	rcu_read_unlock();
-
-	return NULL;
-}
-
-struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 addr_type, u8 role)
-{
-	struct smp_ltk *k;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(k, &hdev->long_term_keys, list) {
-		if (addr_type == k->bdaddr_type &&
-		    bacmp(bdaddr, &k->bdaddr) == 0 &&
-		    ltk_role(k->type) == role) {
+		if (smp_ltk_is_sc(k) || ltk_role(k->type) == role) {
 			rcu_read_unlock();
 			return k;
 		}
@@ -3288,7 +3340,7 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
 			return NULL;
-		list_add(&key->list, &hdev->link_keys);
+		list_add_rcu(&key->list, &hdev->link_keys);
 	}
 
 	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
@@ -3326,7 +3378,7 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	struct smp_ltk *key, *old_key;
 	u8 role = ltk_role(type);
 
-	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type, role);
+	old_key = hci_find_ltk(hdev, bdaddr, addr_type, role);
 	if (old_key)
 		key = old_key;
 	else {
@@ -3381,8 +3433,8 @@ int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
-	list_del(&key->list);
-	kfree(key);
+	list_del_rcu(&key->list);
+	kfree_rcu(key, rcu);
 
 	return 0;
 }
@@ -3441,26 +3493,31 @@ static void hci_cmd_timeout(struct work_struct *work)
 }
 
 struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
-					  bdaddr_t *bdaddr)
+					  bdaddr_t *bdaddr, u8 bdaddr_type)
 {
 	struct oob_data *data;
 
-	list_for_each_entry(data, &hdev->remote_oob_data, list)
-		if (bacmp(bdaddr, &data->bdaddr) == 0)
-			return data;
+	list_for_each_entry(data, &hdev->remote_oob_data, list) {
+		if (bacmp(bdaddr, &data->bdaddr) != 0)
+			continue;
+		if (data->bdaddr_type != bdaddr_type)
+			continue;
+		return data;
+	}
 
 	return NULL;
 }
 
-int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			       u8 bdaddr_type)
 {
 	struct oob_data *data;
 
-	data = hci_find_remote_oob_data(hdev, bdaddr);
+	data = hci_find_remote_oob_data(hdev, bdaddr, bdaddr_type);
 	if (!data)
 		return -ENOENT;
 
-	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
+	BT_DBG("%s removing %pMR (%u)", hdev->name, bdaddr, bdaddr_type);
 
 	list_del(&data->list);
 	kfree(data);
@@ -3479,52 +3536,37 @@ void hci_remote_oob_data_clear(struct hci_dev *hdev)
 }
 
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 *hash, u8 *rand)
+			    u8 bdaddr_type, u8 *hash192, u8 *rand192,
+			    u8 *hash256, u8 *rand256)
 {
 	struct oob_data *data;
 
-	data = hci_find_remote_oob_data(hdev, bdaddr);
+	data = hci_find_remote_oob_data(hdev, bdaddr, bdaddr_type);
 	if (!data) {
 		data = kmalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
 
 		bacpy(&data->bdaddr, bdaddr);
+		data->bdaddr_type = bdaddr_type;
 		list_add(&data->list, &hdev->remote_oob_data);
 	}
 
-	memcpy(data->hash192, hash, sizeof(data->hash192));
-	memcpy(data->rand192, rand, sizeof(data->rand192));
-
-	memset(data->hash256, 0, sizeof(data->hash256));
-	memset(data->rand256, 0, sizeof(data->rand256));
-
-	BT_DBG("%s for %pMR", hdev->name, bdaddr);
-
-	return 0;
-}
-
-int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				u8 *hash192, u8 *rand192,
-				u8 *hash256, u8 *rand256)
-{
-	struct oob_data *data;
-
-	data = hci_find_remote_oob_data(hdev, bdaddr);
-	if (!data) {
-		data = kmalloc(sizeof(*data), GFP_KERNEL);
-		if (!data)
-			return -ENOMEM;
-
-		bacpy(&data->bdaddr, bdaddr);
-		list_add(&data->list, &hdev->remote_oob_data);
+	if (hash192 && rand192) {
+		memcpy(data->hash192, hash192, sizeof(data->hash192));
+		memcpy(data->rand192, rand192, sizeof(data->rand192));
+	} else {
+		memset(data->hash192, 0, sizeof(data->hash192));
+		memset(data->rand192, 0, sizeof(data->rand192));
 	}
 
-	memcpy(data->hash192, hash192, sizeof(data->hash192));
-	memcpy(data->rand192, rand192, sizeof(data->rand192));
-
-	memcpy(data->hash256, hash256, sizeof(data->hash256));
-	memcpy(data->rand256, rand256, sizeof(data->rand256));
+	if (hash256 && rand256) {
+		memcpy(data->hash256, hash256, sizeof(data->hash256));
+		memcpy(data->rand256, rand256, sizeof(data->rand256));
+	} else {
+		memset(data->hash256, 0, sizeof(data->hash256));
+		memset(data->rand256, 0, sizeof(data->rand256));
+	}
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
@@ -4224,6 +4266,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_remote_oob_data_clear(hdev);
 	hci_bdaddr_list_clear(&hdev->le_white_list);
 	hci_conn_params_clear_all(hdev);
+	hci_discovery_filter_clear(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
@@ -5596,6 +5639,19 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	 */
 	filter_policy = update_white_list(req);
 
+	/* When the controller is using random resolvable addresses and
+	 * with that having LE privacy enabled, then controllers with
+	 * Extended Scanner Filter Policies support can now enable support
+	 * for handling directed advertising.
+	 *
+	 * So instead of using filter polices 0x00 (no whitelist)
+	 * and 0x01 (whitelist enabled) use the new filter policies
+	 * 0x02 (no whitelist) and 0x03 (whitelist enabled).
+	 */
+	if (test_bit(HCI_PRIVACY, &hdev->dev_flags) &&
+	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
+		filter_policy |= 0x02;
+
 	memset(&param_cp, 0, sizeof(param_cp));
 	param_cp.type = LE_SCAN_PASSIVE;
 	param_cp.interval = cpu_to_le16(hdev->le_scan_interval);
@@ -5646,6 +5702,15 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	/* If discovery is active don't interfere with it */
 	if (hdev->discovery.state != DISCOVERY_STOPPED)
 		return;
+
+	/* Reset RSSI and UUID filters when starting background scanning
+	 * since these filters are meant for service discovery only.
+	 *
+	 * The Start Discovery and Start Service Discovery operations
+	 * ensure to set proper values for RSSI threshold and UUID
+	 * filter list. So it is safe to just reset them here.
+	 */
+	hci_discovery_filter_clear(hdev);
 
 	hci_req_init(&req, hdev);
 

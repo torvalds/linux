@@ -149,7 +149,7 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 	u8 category, action_code;
 	struct ieee80211_hdr *ieee_hdr = (void *)payload;
 
-	stype =  (cpu_to_le16(ieee_hdr->frame_control) & IEEE80211_FCTL_STYPE);
+	stype = (le16_to_cpu(ieee_hdr->frame_control) & IEEE80211_FCTL_STYPE);
 
 	switch (stype) {
 	case IEEE80211_STYPE_ACTION:

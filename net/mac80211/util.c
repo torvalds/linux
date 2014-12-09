@@ -1339,6 +1339,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 	int ext_rates_len;
 	int shift;
 	u32 rate_flags;
+	bool have_80mhz = false;
 
 	*offset = 0;
 
@@ -1467,7 +1468,15 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 		*offset = noffset;
 	}
 
-	if (sband->vht_cap.vht_supported) {
+	/* Check if any channel in this sband supports at least 80 MHz */
+	for (i = 0; i < sband->n_channels; i++) {
+		if (!(sband->channels[i].flags & IEEE80211_CHAN_NO_80MHZ)) {
+			have_80mhz = true;
+			break;
+		}
+	}
+
+	if (sband->vht_cap.vht_supported && have_80mhz) {
 		if (end - pos < 2 + sizeof(struct ieee80211_vht_cap))
 			goto out_err;
 		pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,

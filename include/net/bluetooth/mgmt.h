@@ -184,6 +184,9 @@ struct mgmt_cp_load_link_keys {
 
 #define MGMT_LTK_UNAUTHENTICATED	0x00
 #define MGMT_LTK_AUTHENTICATED		0x01
+#define MGMT_LTK_P256_UNAUTH		0x02
+#define MGMT_LTK_P256_AUTH		0x03
+#define MGMT_LTK_P256_DEBUG		0x04
 
 struct mgmt_ltk_info {
 	struct mgmt_addr_info addr;
@@ -494,6 +497,15 @@ struct mgmt_cp_set_public_address {
 	bdaddr_t bdaddr;
 } __packed;
 #define MGMT_SET_PUBLIC_ADDRESS_SIZE	6
+
+#define MGMT_OP_START_SERVICE_DISCOVERY	0x003A
+struct mgmt_cp_start_service_discovery {
+	__u8 type;
+	__s8 rssi;
+	__le16 uuid_count;
+	__u8 uuids[0][16];
+} __packed;
+#define MGMT_START_SERVICE_DISCOVERY_SIZE 4
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {

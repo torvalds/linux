@@ -175,7 +175,8 @@ char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 			      char *name, u8 *mac_addr);
-void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
+void brcmf_remove_interface(struct brcmf_pub *drvr, u32 bssidx);
+int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr);
 void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state);
 void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp, u8 ifidx,

@@ -34,6 +34,7 @@
 #include <linux/firmware.h>
 #include <linux/ctype.h>
 #include <linux/of.h>
+#include <linux/idr.h>
 
 #include "decl.h"
 #include "ioctl.h"
@@ -578,6 +579,9 @@ struct mwifiex_private {
 	u8 check_tdls_tx;
 	struct timer_list auto_tdls_timer;
 	bool auto_tdls_timer_active;
+	struct idr ack_status_frames;
+	/* spin lock for ack status */
+	spinlock_t ack_status_lock;
 };
 
 enum mwifiex_ba_status {
@@ -971,6 +975,8 @@ int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 int mwifiex_process_sta_event(struct mwifiex_private *);
 int mwifiex_process_uap_event(struct mwifiex_private *);
 void mwifiex_delete_all_station_list(struct mwifiex_private *priv);
+void mwifiex_wmm_del_peer_ra_list(struct mwifiex_private *priv,
+				  const u8 *ra_addr);
 void *mwifiex_process_sta_txpd(struct mwifiex_private *, struct sk_buff *skb);
 void *mwifiex_process_uap_txpd(struct mwifiex_private *, struct sk_buff *skb);
 int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta);
@@ -1334,6 +1340,13 @@ void mwifiex_check_auto_tdls(unsigned long context);
 void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
 void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
+
+void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
+				   void *event_body);
+
+struct sk_buff *
+mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
+				struct sk_buff *skb, u8 flag, u64 *cookie);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

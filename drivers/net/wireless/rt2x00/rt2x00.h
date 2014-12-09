@@ -1019,9 +1019,12 @@ struct rt2x00_bar_list_entry {
  * Register defines.
  * Some registers require multiple attempts before success,
  * in those cases REGISTER_BUSY_COUNT attempts should be
- * taken with a REGISTER_BUSY_DELAY interval.
+ * taken with a REGISTER_BUSY_DELAY interval. Due to USB
+ * bus delays, we do not have to loop so many times to wait
+ * for valid register value on that bus.
  */
 #define REGISTER_BUSY_COUNT	100
+#define REGISTER_USB_BUSY_COUNT 20
 #define REGISTER_BUSY_DELAY	100
 
 /*

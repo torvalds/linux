@@ -446,7 +446,8 @@ static void rate_fixup_ratelist(struct ieee80211_vif *vif,
 	 *
 	 * XXX: Should this check all retry rates?
 	 */
-	if (!(rates[0].flags & IEEE80211_TX_RC_MCS)) {
+	if (!(rates[0].flags &
+	      (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))) {
 		u32 basic_rates = vif->bss_conf.basic_rates;
 		s8 baserate = basic_rates ? ffs(basic_rates) - 1 : 0;
 

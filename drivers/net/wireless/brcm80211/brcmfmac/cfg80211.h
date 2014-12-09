@@ -183,6 +183,7 @@ struct vif_saved_ie {
  * @pm_block: power-management blocked.
  * @list: linked list.
  * @mgmt_rx_reg: registered rx mgmt frame types.
+ * @mbss: Multiple BSS type, set if not first AP (not relevant for P2P).
  */
 struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
@@ -194,6 +195,7 @@ struct brcmf_cfg80211_vif {
 	struct vif_saved_ie saved_ie;
 	struct list_head list;
 	u16 mgmt_rx_reg;
+	bool mbss;
 };
 
 /* association inform */
