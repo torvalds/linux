@@ -471,6 +471,8 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 	if (sport->port.x_char) {
 		/* Send next char */
 		writel(sport->port.x_char, sport->port.membase + URTX0);
+		sport->port.icount.tx++;
+		sport->port.x_char = 0;
 		return;
 	}
 
