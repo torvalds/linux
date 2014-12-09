@@ -162,10 +162,12 @@
 /*
  * PCI-defined configuration space registers
  */
-#define PCI_DEVICE_ID_AMD_15H_M30H_NB_F1 0x141b
-#define PCI_DEVICE_ID_AMD_15H_M30H_NB_F2 0x141c
 #define PCI_DEVICE_ID_AMD_15H_NB_F1	0x1601
 #define PCI_DEVICE_ID_AMD_15H_NB_F2	0x1602
+#define PCI_DEVICE_ID_AMD_15H_M30H_NB_F1 0x141b
+#define PCI_DEVICE_ID_AMD_15H_M30H_NB_F2 0x141c
+#define PCI_DEVICE_ID_AMD_15H_M60H_NB_F1 0x1571
+#define PCI_DEVICE_ID_AMD_15H_M60H_NB_F2 0x1572
 #define PCI_DEVICE_ID_AMD_16H_NB_F1	0x1531
 #define PCI_DEVICE_ID_AMD_16H_NB_F2	0x1532
 #define PCI_DEVICE_ID_AMD_16H_M30H_NB_F1 0x1581
@@ -220,6 +222,8 @@
 #define DCSM1				0x160
 
 #define csrow_enabled(i, dct, pvt)	((pvt)->csels[(dct)].csbases[(i)] & DCSB_CS_ENABLE)
+
+#define DRAM_CONTROL			0x78
 
 #define DBAM0				0x80
 #define DBAM1				0x180
@@ -301,6 +305,7 @@ enum amd_families {
 	F10_CPUS,
 	F15_CPUS,
 	F15_M30H_CPUS,
+	F15_M60H_CPUS,
 	F16_CPUS,
 	F16_M30H_CPUS,
 	NUM_FAMILIES,
@@ -379,6 +384,9 @@ struct amd64_pvt {
 
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
+
+	/* cache the dram_type */
+	enum mem_type dram_type;
 };
 
 enum err_codes {
@@ -480,7 +488,8 @@ struct low_ops {
 	int (*early_channel_count)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
 					 struct err_info *);
-	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct, unsigned cs_mode);
+	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct,
+					 unsigned cs_mode, int cs_mask_nr);
 };
 
 struct amd64_family_type {
