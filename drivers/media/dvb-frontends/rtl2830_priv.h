@@ -25,10 +25,13 @@
 
 struct rtl2830_dev {
 	struct rtl2830_platform_data *pdata;
+	struct i2c_client *client;
 	struct i2c_adapter *adapter;
 	struct dvb_frontend fe;
 	bool sleeping;
 	u8 page; /* active register page */
+	struct delayed_work stat_work;
+	fe_status_t fe_status;
 };
 
 struct rtl2830_reg_val_mask {
