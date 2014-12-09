@@ -230,7 +230,7 @@ void commit_inmem_pages(struct inode *inode, bool abort)
 	bool submit_bio = false;
 	struct f2fs_io_info fio = {
 		.type = DATA,
-		.rw = WRITE_SYNC,
+		.rw = WRITE_SYNC | REQ_PRIO,
 	};
 
 	/*

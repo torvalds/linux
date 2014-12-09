@@ -814,6 +814,11 @@ static int f2fs_write_data_page(struct page *page,
 write:
 	if (unlikely(sbi->por_doing))
 		goto redirty_out;
+	if (f2fs_is_drop_cache(inode))
+		goto out;
+	if (f2fs_is_volatile_file(inode) && !wbc->for_reclaim &&
+			available_free_memory(sbi, BASE_CHECK))
+		goto redirty_out;
 
 	/* Dentry blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode)) {
@@ -1109,7 +1114,7 @@ static void f2fs_invalidate_data_page(struct page *page, unsigned int offset,
 	if (offset % PAGE_CACHE_SIZE || length != PAGE_CACHE_SIZE)
 		return;
 
-	if (f2fs_is_atomic_file(inode) || f2fs_is_volatile_file(inode))
+	if (f2fs_is_atomic_file(inode))
 		invalidate_inmem_page(inode, page);
 
 	if (PageDirty(page))
@@ -1132,7 +1137,7 @@ static int f2fs_set_data_page_dirty(struct page *page)
 
 	SetPageUptodate(page);
 
-	if (f2fs_is_atomic_file(inode) || f2fs_is_volatile_file(inode)) {
+	if (f2fs_is_atomic_file(inode)) {
 		register_inmem_page(inode, page);
 		return 1;
 	}

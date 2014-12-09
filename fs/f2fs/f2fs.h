@@ -201,6 +201,8 @@ static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
 #define F2FS_IOC_START_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 1)
 #define F2FS_IOC_COMMIT_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 2)
 #define F2FS_IOC_START_VOLATILE_WRITE	_IO(F2FS_IOCTL_MAGIC, 3)
+#define F2FS_IOC_RELEASE_VOLATILE_WRITE	_IO(F2FS_IOCTL_MAGIC, 4)
+#define F2FS_IOC_ABORT_VOLATILE_WRITE	_IO(F2FS_IOCTL_MAGIC, 5)
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -1113,6 +1115,7 @@ enum {
 	FI_NEED_IPU,		/* used for ipu per file */
 	FI_ATOMIC_FILE,		/* indicate atomic file */
 	FI_VOLATILE_FILE,	/* indicate volatile file */
+	FI_DROP_CACHE,		/* drop dirty page cache */
 	FI_DATA_EXIST,		/* indicate data exists */
 };
 
@@ -1218,6 +1221,11 @@ static inline bool f2fs_is_atomic_file(struct inode *inode)
 static inline bool f2fs_is_volatile_file(struct inode *inode)
 {
 	return is_inode_flag_set(F2FS_I(inode), FI_VOLATILE_FILE);
+}
+
+static inline bool f2fs_is_drop_cache(struct inode *inode)
+{
+	return is_inode_flag_set(F2FS_I(inode), FI_DROP_CACHE);
 }
 
 static inline void *inline_data_addr(struct page *page)

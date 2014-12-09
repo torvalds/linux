@@ -836,6 +836,19 @@ static long f2fs_fallocate(struct file *file, int mode,
 	return ret;
 }
 
+static int f2fs_release_file(struct inode *inode, struct file *filp)
+{
+	/* some remained atomic pages should discarded */
+	if (f2fs_is_atomic_file(inode))
+		commit_inmem_pages(inode, true);
+	if (f2fs_is_volatile_file(inode)) {
+		set_inode_flag(F2FS_I(inode), FI_DROP_CACHE);
+		filemap_fdatawrite(inode->i_mapping);
+		clear_inode_flag(F2FS_I(inode), FI_DROP_CACHE);
+	}
+	return 0;
+}
+
 #define F2FS_REG_FLMASK		(~(FS_DIRSYNC_FL | FS_TOPDIR_FL))
 #define F2FS_OTHER_FLMASK	(FS_NODUMP_FL | FS_NOATIME_FL)
 
@@ -909,24 +922,18 @@ out:
 static int f2fs_ioc_start_atomic_write(struct file *filp)
 {
 	struct inode *inode = file_inode(filp);
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
-	f2fs_balance_fs(sbi);
+	f2fs_balance_fs(F2FS_I_SB(inode));
+
+	if (f2fs_is_atomic_file(inode))
+		return 0;
 
 	set_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
 
 	return f2fs_convert_inline_inode(inode);
-}
-
-static int f2fs_release_file(struct inode *inode, struct file *filp)
-{
-	/* some remained atomic pages should discarded */
-	if (f2fs_is_atomic_file(inode) || f2fs_is_volatile_file(inode))
-		commit_inmem_pages(inode, true);
-	return 0;
 }
 
 static int f2fs_ioc_commit_atomic_write(struct file *filp)
@@ -949,6 +956,7 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 
 	ret = f2fs_sync_file(filp, 0, LONG_MAX, 0);
 	mnt_drop_write_file(filp);
+	clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
 	return ret;
 }
 
@@ -959,9 +967,54 @@ static int f2fs_ioc_start_volatile_write(struct file *filp)
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
+	if (f2fs_is_volatile_file(inode))
+		return 0;
+
 	set_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
 
 	return f2fs_convert_inline_inode(inode);
+}
+
+static int f2fs_ioc_release_volatile_write(struct file *filp)
+{
+	struct inode *inode = file_inode(filp);
+
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
+	if (!f2fs_is_volatile_file(inode))
+		return 0;
+
+	punch_hole(inode, 0, F2FS_BLKSIZE);
+	return 0;
+}
+
+static int f2fs_ioc_abort_volatile_write(struct file *filp)
+{
+	struct inode *inode = file_inode(filp);
+	int ret;
+
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
+	ret = mnt_want_write_file(filp);
+	if (ret)
+		return ret;
+
+	f2fs_balance_fs(F2FS_I_SB(inode));
+
+	if (f2fs_is_atomic_file(inode)) {
+		commit_inmem_pages(inode, false);
+		clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
+	}
+
+	if (f2fs_is_volatile_file(inode)) {
+		clear_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
+		filemap_fdatawrite(inode->i_mapping);
+		set_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
+	}
+	mnt_drop_write_file(filp);
+	return ret;
 }
 
 static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
@@ -1007,6 +1060,10 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_commit_atomic_write(filp);
 	case F2FS_IOC_START_VOLATILE_WRITE:
 		return f2fs_ioc_start_volatile_write(filp);
+	case F2FS_IOC_RELEASE_VOLATILE_WRITE:
+		return f2fs_ioc_release_volatile_write(filp);
+	case F2FS_IOC_ABORT_VOLATILE_WRITE:
+		return f2fs_ioc_abort_volatile_write(filp);
 	case FITRIM:
 		return f2fs_ioc_fitrim(filp, arg);
 	default:
