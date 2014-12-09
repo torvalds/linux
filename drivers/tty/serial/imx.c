@@ -946,8 +946,21 @@ static void dma_rx_callback(void *data)
 		tty_flip_buffer_push(port);
 
 		start_rx_dma(sport);
-	} else
+	} else if (readl(sport->port.membase + USR2) & USR2_RDR) {
+		/*
+		 * start rx_dma directly once data in RXFIFO, more efficient
+		 * than before:
+		 *	1. call imx_rx_dma_done to stop dma if no data received
+		 *	2. wait next  RDR interrupt to start dma transfer.
+		 */
+		start_rx_dma(sport);
+	} else {
+		/*
+		 * stop dma to prevent too many IDLE event trigged if no data
+		 * in RXFIFO
+		 */
 		imx_rx_dma_done(sport);
+	}
 }
 
 static int start_rx_dma(struct imx_port *sport)
