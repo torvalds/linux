@@ -947,30 +947,6 @@ static int i40evf_up_complete(struct i40evf_adapter *adapter)
 }
 
 /**
- * i40evf_clean_all_rx_rings - Free Rx Buffers for all queues
- * @adapter: board private structure
- **/
-static void i40evf_clean_all_rx_rings(struct i40evf_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_active_queues; i++)
-		i40evf_clean_rx_ring(adapter->rx_rings[i]);
-}
-
-/**
- * i40evf_clean_all_tx_rings - Free Tx Buffers for all queues
- * @adapter: board private structure
- **/
-static void i40evf_clean_all_tx_rings(struct i40evf_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_active_queues; i++)
-		i40evf_clean_tx_ring(adapter->tx_rings[i]);
-}
-
-/**
  * i40e_down - Shutdown the connection processing
  * @adapter: board private structure
  **/
@@ -1008,9 +984,6 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	i40evf_napi_disable_all(adapter);
 
 	netif_carrier_off(netdev);
-
-	i40evf_clean_all_tx_rings(adapter);
-	i40evf_clean_all_rx_rings(adapter);
 }
 
 /**
