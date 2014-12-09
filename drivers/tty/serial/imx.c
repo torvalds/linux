@@ -516,7 +516,8 @@ static void dma_tx_callback(void *data)
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
-	uart_write_wakeup(&sport->port);
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(&sport->port);
 
 	if (waitqueue_active(&sport->dma_wait)) {
 		wake_up(&sport->dma_wait);
