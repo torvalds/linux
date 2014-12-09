@@ -8,7 +8,7 @@ static void usb20otg_hw_init(void)
 {
 	/* Turn off differential receiver in suspend mode */
 	writel(UOC_HIWORD_UPDATE(0, 1, 2),
-		   RK_GRF_VIRT + RK312X_GRF_USBPHY1_CON6);
+		   RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON6);
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
 	if (gpio_is_valid(control_usb->otg_gpios->gpio)) {
@@ -216,12 +216,12 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3126 = {
 #ifdef CONFIG_USB20_HOST
 static void usb20host_hw_init(void)
 {
-	/* Switch to DWC HOST */
-	writel(UOC_HIWORD_UPDATE(1, 1, 3),
-		   RK_GRF_VIRT + RK312X_GRF_SOC_CON2);
 	/* Turn off differential receiver in suspend mode */
 	writel(UOC_HIWORD_UPDATE(0, 1, 2),
-		   RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON6);
+		   RK_GRF_VIRT + RK312X_GRF_USBPHY1_CON6);
+	/* Set disconnect detection trigger point to 600mv */
+	writel(UOC_HIWORD_UPDATE(1, 0xf, 11),
+		   RK_GRF_VIRT + RK312X_GRF_USBPHY1_CON7);
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
 	if (gpio_is_valid(control_usb->host_gpios->gpio)) {
