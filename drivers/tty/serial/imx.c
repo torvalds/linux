@@ -1250,10 +1250,17 @@ static void imx_shutdown(struct uart_port *port)
 static void imx_flush_buffer(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
+	struct scatterlist *sgl = &sport->tx_sgl[0];
 
-	if (sport->dma_is_enabled) {
-		sport->tx_bytes = 0;
-		dmaengine_terminate_all(sport->dma_chan_tx);
+	if (!sport->dma_chan_tx)
+		return;
+
+	sport->tx_bytes = 0;
+	dmaengine_terminate_all(sport->dma_chan_tx);
+	if (sport->dma_is_txing) {
+		dma_unmap_sg(sport->port.dev, sgl, sport->dma_tx_nents,
+			     DMA_TO_DEVICE);
+		sport->dma_is_txing = false;
 	}
 }
 
