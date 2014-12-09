@@ -2504,6 +2504,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	struct bcmgenet_hw_params *params;
 	u32 reg;
 	u8 major;
+	u16 gphy_rev;
 
 	if (GENET_IS_V4(priv)) {
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v3plus;
@@ -2552,8 +2553,29 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	 * to pass this information to the PHY driver. The PHY driver expects
 	 * to find the PHY major revision in bits 15:8 while the GENET register
 	 * stores that information in bits 7:0, account for that.
+	 *
+	 * On newer chips, starting with PHY revision G0, a new scheme is
+	 * deployed similar to the Starfighter 2 switch with GPHY major
+	 * revision in bits 15:8 and patch level in bits 7:0. Major revision 0
+	 * is reserved as well as special value 0x01ff, we have a small
+	 * heuristic to check for the new GPHY revision and re-arrange things
+	 * so the GPHY driver is happy.
 	 */
-	priv->gphy_rev = (reg & 0xffff) << 8;
+	gphy_rev = reg & 0xffff;
+
+	/* This is the good old scheme, just GPHY major, no minor nor patch */
+	if ((gphy_rev & 0xf0) != 0)
+		priv->gphy_rev = gphy_rev << 8;
+
+	/* This is the new scheme, GPHY major rolls over with 0x10 = rev G0 */
+	else if ((gphy_rev & 0xff00) != 0)
+		priv->gphy_rev = gphy_rev;
+
+	/* This is reserved so should require special treatment */
+	else if (gphy_rev == 0 || gphy_rev == 0x01ff) {
+		pr_warn("Invalid GPHY revision detected: 0x%04x\n", gphy_rev);
+		return;
+	}
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!(params->flags & GENET_HAS_40BITS))
