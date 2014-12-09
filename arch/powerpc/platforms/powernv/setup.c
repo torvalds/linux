@@ -288,6 +288,55 @@ static void __init pnv_setup_machdep_rtas(void)
 }
 #endif /* CONFIG_PPC_POWERNV_RTAS */
 
+static u32 supported_cpuidle_states;
+
+u32 pnv_get_supported_cpuidle_states(void)
+{
+	return supported_cpuidle_states;
+}
+
+static int __init pnv_init_idle_states(void)
+{
+	struct device_node *power_mgt;
+	int dt_idle_states;
+	const __be32 *idle_state_flags;
+	u32 len_flags, flags;
+	int i;
+
+	supported_cpuidle_states = 0;
+
+	if (cpuidle_disable != IDLE_NO_OVERRIDE)
+		return 0;
+
+	if (!firmware_has_feature(FW_FEATURE_OPALv3))
+		return 0;
+
+	power_mgt = of_find_node_by_path("/ibm,opal/power-mgt");
+	if (!power_mgt) {
+		pr_warn("opal: PowerMgmt Node not found\n");
+		return 0;
+	}
+
+	idle_state_flags = of_get_property(power_mgt,
+			"ibm,cpu-idle-state-flags", &len_flags);
+	if (!idle_state_flags) {
+		pr_warn("DT-PowerMgmt: missing ibm,cpu-idle-state-flags\n");
+		return 0;
+	}
+
+	dt_idle_states = len_flags / sizeof(u32);
+
+	for (i = 0; i < dt_idle_states; i++) {
+		flags = be32_to_cpu(idle_state_flags[i]);
+		supported_cpuidle_states |= flags;
+	}
+
+	return 0;
+}
+
+subsys_initcall(pnv_init_idle_states);
+
+
 static int __init pnv_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
