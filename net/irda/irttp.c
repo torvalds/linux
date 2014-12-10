@@ -71,11 +71,13 @@ static void irttp_status_indication(void *instance,
 				    LINK_STATUS link, LOCK_STATUS lock);
 
 /* Information for parsing parameters in IrTTP */
-static pi_minor_info_t pi_minor_call_table[] = {
+static const pi_minor_info_t pi_minor_call_table[] = {
 	{ NULL, 0 },                                             /* 0x00 */
 	{ irttp_param_max_sdu_size, PV_INTEGER | PV_BIG_ENDIAN } /* 0x01 */
 };
-static pi_major_info_t pi_major_call_table[] = { { pi_minor_call_table, 2 } };
+static const pi_major_info_t pi_major_call_table[] = {
+	{ pi_minor_call_table, 2 }
+};
 static pi_param_info_t param_info = { pi_major_call_table, 1, 0x0f, 4 };
 
 /************************ GLOBAL PROCEDURES ************************/

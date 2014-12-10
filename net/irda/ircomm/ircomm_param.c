@@ -61,12 +61,12 @@ static int ircomm_param_dte(void *instance, irda_param_t *param, int get);
 static int ircomm_param_dce(void *instance, irda_param_t *param, int get);
 static int ircomm_param_poll(void *instance, irda_param_t *param, int get);
 
-static pi_minor_info_t pi_minor_call_table_common[] = {
+static const pi_minor_info_t pi_minor_call_table_common[] = {
 	{ ircomm_param_service_type, PV_INT_8_BITS },
 	{ ircomm_param_port_type,    PV_INT_8_BITS },
 	{ ircomm_param_port_name,    PV_STRING }
 };
-static pi_minor_info_t pi_minor_call_table_non_raw[] = {
+static const pi_minor_info_t pi_minor_call_table_non_raw[] = {
 	{ ircomm_param_data_rate,    PV_INT_32_BITS | PV_BIG_ENDIAN },
 	{ ircomm_param_data_format,  PV_INT_8_BITS },
 	{ ircomm_param_flow_control, PV_INT_8_BITS },
@@ -74,13 +74,13 @@ static pi_minor_info_t pi_minor_call_table_non_raw[] = {
 	{ ircomm_param_enq_ack,      PV_INT_16_BITS },
 	{ ircomm_param_line_status,  PV_INT_8_BITS }
 };
-static pi_minor_info_t pi_minor_call_table_9_wire[] = {
+static const pi_minor_info_t pi_minor_call_table_9_wire[] = {
 	{ ircomm_param_dte,          PV_INT_8_BITS },
 	{ ircomm_param_dce,          PV_INT_8_BITS },
 	{ ircomm_param_poll,         PV_NO_VALUE },
 };
 
-static pi_major_info_t pi_major_call_table[] = {
+static const pi_major_info_t pi_major_call_table[] = {
 	{ pi_minor_call_table_common,  3 },
 	{ pi_minor_call_table_non_raw, 6 },
 	{ pi_minor_call_table_9_wire,  3 }

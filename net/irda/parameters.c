@@ -52,7 +52,7 @@ static int irda_insert_no_value(void *self, __u8 *buf, int len, __u8 pi,
 static int irda_param_unpack(__u8 *buf, char *fmt, ...);
 
 /* Parameter value call table. Must match PV_TYPE */
-static PV_HANDLER pv_extract_table[] = {
+static const PV_HANDLER pv_extract_table[] = {
 	irda_extract_integer, /* Handler for any length integers */
 	irda_extract_integer, /* Handler for 8  bits integers */
 	irda_extract_integer, /* Handler for 16 bits integers */
@@ -62,7 +62,7 @@ static PV_HANDLER pv_extract_table[] = {
 	irda_extract_no_value /* Handler for no value parameters */
 };
 
-static PV_HANDLER pv_insert_table[] = {
+static const PV_HANDLER pv_insert_table[] = {
 	irda_insert_integer, /* Handler for any length integers */
 	irda_insert_integer, /* Handler for 8  bits integers */
 	irda_insert_integer, /* Handler for 16 bits integers */
@@ -449,7 +449,7 @@ static int irda_param_unpack(__u8 *buf, char *fmt, ...)
 int irda_param_insert(void *self, __u8 pi, __u8 *buf, int len,
 		      pi_param_info_t *info)
 {
-	pi_minor_info_t *pi_minor_info;
+	const pi_minor_info_t *pi_minor_info;
 	__u8 pi_minor;
 	__u8 pi_major;
 	int type;
@@ -504,7 +504,7 @@ EXPORT_SYMBOL(irda_param_insert);
 static int irda_param_extract(void *self, __u8 *buf, int len,
 			      pi_param_info_t *info)
 {
-	pi_minor_info_t *pi_minor_info;
+	const pi_minor_info_t *pi_minor_info;
 	__u8 pi_minor;
 	__u8 pi_major;
 	int type;

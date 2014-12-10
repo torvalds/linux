@@ -122,7 +122,7 @@ static __u32 max_line_capacities[10][4] = {
 	{ 800000, 400000, 160000, 80000 }, /* 16000000 bps */
 };
 
-static pi_minor_info_t pi_minor_call_table_type_0[] = {
+static const pi_minor_info_t pi_minor_call_table_type_0[] = {
 	{ NULL, 0 },
 /* 01 */{ irlap_param_baud_rate,       PV_INTEGER | PV_LITTLE_ENDIAN },
 	{ NULL, 0 },
@@ -134,7 +134,7 @@ static pi_minor_info_t pi_minor_call_table_type_0[] = {
 /* 08 */{ irlap_param_link_disconnect, PV_INT_8_BITS }
 };
 
-static pi_minor_info_t pi_minor_call_table_type_1[] = {
+static const pi_minor_info_t pi_minor_call_table_type_1[] = {
 	{ NULL, 0 },
 	{ NULL, 0 },
 /* 82 */{ irlap_param_max_turn_time,   PV_INT_8_BITS },
@@ -144,7 +144,7 @@ static pi_minor_info_t pi_minor_call_table_type_1[] = {
 /* 86 */{ irlap_param_min_turn_time,   PV_INT_8_BITS },
 };
 
-static pi_major_info_t pi_major_call_table[] = {
+static const pi_major_info_t pi_major_call_table[] = {
 	{ pi_minor_call_table_type_0, 9 },
 	{ pi_minor_call_table_type_1, 7 },
 };
