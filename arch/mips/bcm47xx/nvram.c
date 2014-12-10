@@ -175,7 +175,7 @@ static int nvram_init(void)
 int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 {
 	char *var, *value, *end, *eq;
-	int err;
+	int data_left, err;
 
 	if (!name)
 		return -EINVAL;
@@ -191,7 +191,9 @@ int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 	end = nvram_buf + sizeof(nvram_buf) - 2;
 	end[0] = end[1] = '\0';
 	for (; *var; var = value + strlen(value) + 1) {
-		eq = strchr(var, '=');
+		data_left = end - var;
+
+		eq = strnchr(var, data_left, '=');
 		if (!eq)
 			break;
 		value = eq + 1;
