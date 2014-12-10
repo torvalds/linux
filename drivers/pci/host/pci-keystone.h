@@ -55,4 +55,4 @@ void ks_dw_pcie_msi_set_irq(struct pcie_port *pp, int irq);
 void ks_dw_pcie_msi_clear_irq(struct pcie_port *pp, int irq);
 void ks_dw_pcie_v3_65_scan_bus(struct pcie_port *pp);
 int ks_dw_pcie_msi_host_init(struct pcie_port *pp,
-		struct msi_chip *chip);
+		struct msi_controller *chip);

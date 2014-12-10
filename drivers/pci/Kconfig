@@ -4,6 +4,7 @@
 config PCI_MSI
 	bool "Message Signaled Interrupts (MSI and MSI-X)"
 	depends on PCI
+	select GENERIC_MSI_IRQ
 	help
 	   This allows device drivers to enable MSI (Message Signaled
 	   Interrupts).  Message Signaled Interrupts enable a device to
@@ -15,6 +16,11 @@ config PCI_MSI
 	   entire system.
 
 	   If you don't know what to do here, say Y.
+
+config PCI_MSI_IRQ_DOMAIN
+	bool
+	depends on PCI_MSI
+	select GENERIC_MSI_IRQ_DOMAIN
 
 config PCI_DEBUG
 	bool "PCI Debugging"

@@ -279,7 +279,7 @@ static int axon_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 		irq_set_msi_desc(virq, entry);
 		msg.data = virq;
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 
 	return 0;
@@ -301,9 +301,9 @@ static void axon_msi_teardown_msi_irqs(struct pci_dev *dev)
 }
 
 static struct irq_chip msic_irq_chip = {
-	.irq_mask	= mask_msi_irq,
-	.irq_unmask	= unmask_msi_irq,
-	.irq_shutdown	= mask_msi_irq,
+	.irq_mask	= pci_msi_mask_irq,
+	.irq_unmask	= pci_msi_unmask_irq,
+	.irq_shutdown	= pci_msi_mask_irq,
 	.name		= "AXON-MSI",
 };
 

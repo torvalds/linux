@@ -151,3 +151,74 @@ used and no descriptor gets allocated it is very important to make sure
 that the driver using the simple domain call irq_create_mapping()
 before any irq_find_mapping() since the latter will actually work
 for the static IRQ assignment case.
+
+==== Hierarchy IRQ domain ====
+On some architectures, there may be multiple interrupt controllers
+involved in delivering an interrupt from the device to the target CPU.
+Let's look at a typical interrupt delivering path on x86 platforms:
+
+Device --> IOAPIC -> Interrupt remapping Controller -> Local APIC -> CPU
+
+There are three interrupt controllers involved:
+1) IOAPIC controller
+2) Interrupt remapping controller
+3) Local APIC controller
+
+To support such a hardware topology and make software architecture match
+hardware architecture, an irq_domain data structure is built for each
+interrupt controller and those irq_domains are organized into hierarchy.
+When building irq_domain hierarchy, the irq_domain near to the device is
+child and the irq_domain near to CPU is parent. So a hierarchy structure
+as below will be built for the example above.
+	CPU Vector irq_domain (root irq_domain to manage CPU vectors)
+		^
+		|
+	Interrupt Remapping irq_domain (manage irq_remapping entries)
+		^
+		|
+	IOAPIC irq_domain (manage IOAPIC delivery entries/pins)
+
+There are four major interfaces to use hierarchy irq_domain:
+1) irq_domain_alloc_irqs(): allocate IRQ descriptors and interrupt
+   controller related resources to deliver these interrupts.
+2) irq_domain_free_irqs(): free IRQ descriptors and interrupt controller
+   related resources associated with these interrupts.
+3) irq_domain_activate_irq(): activate interrupt controller hardware to
+   deliver the interrupt.
+3) irq_domain_deactivate_irq(): deactivate interrupt controller hardware
+   to stop delivering the interrupt.
+
+Following changes are needed to support hierarchy irq_domain.
+1) a new field 'parent' is added to struct irq_domain; it's used to
+   maintain irq_domain hierarchy information.
+2) a new field 'parent_data' is added to struct irq_data; it's used to
+   build hierarchy irq_data to match hierarchy irq_domains. The irq_data
+   is used to store irq_domain pointer and hardware irq number.
+3) new callbacks are added to struct irq_domain_ops to support hierarchy
+   irq_domain operations.
+
+With support of hierarchy irq_domain and hierarchy irq_data ready, an
+irq_domain structure is built for each interrupt controller, and an
+irq_data structure is allocated for each irq_domain associated with an
+IRQ. Now we could go one step further to support stacked(hierarchy)
+irq_chip. That is, an irq_chip is associated with each irq_data along
+the hierarchy. A child irq_chip may implement a required action by
+itself or by cooperating with its parent irq_chip.
+
+With stacked irq_chip, interrupt controller driver only needs to deal
+with the hardware managed by itself and may ask for services from its
+parent irq_chip when needed. So we could achieve a much cleaner
+software architecture.
+
+For an interrupt controller driver to support hierarchy irq_domain, it
+needs to:
+1) Implement irq_domain_ops.alloc and irq_domain_ops.free
+2) Optionally implement irq_domain_ops.activate and
+   irq_domain_ops.deactivate.
+3) Optionally implement an irq_chip to manage the interrupt controller
+   hardware.
+4) No need to implement irq_domain_ops.map and irq_domain_ops.unmap,
+   they are unused with hierarchy irq_domain.
+
+Hierarchy irq_domain may also be used to support other architectures,
+such as ARM, ARM64 etc.

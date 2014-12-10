@@ -335,7 +335,8 @@ static int xilinx_pcie_assign_msi(struct xilinx_pcie_port *port)
  * @chip: MSI Chip descriptor
  * @irq: MSI IRQ to destroy
  */
-static void xilinx_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
+static void xilinx_msi_teardown_irq(struct msi_controller *chip,
+				    unsigned int irq)
 {
 	xilinx_pcie_destroy_msi(irq);
 }
@@ -348,7 +349,7 @@ static void xilinx_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
  *
  * Return: '0' on success and error value on failure
  */
-static int xilinx_pcie_msi_setup_irq(struct msi_chip *chip,
+static int xilinx_pcie_msi_setup_irq(struct msi_controller *chip,
 				     struct pci_dev *pdev,
 				     struct msi_desc *desc)
 {
@@ -374,13 +375,13 @@ static int xilinx_pcie_msi_setup_irq(struct msi_chip *chip,
 	msg.address_lo = msg_addr;
 	msg.data = irq;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 
 	return 0;
 }
 
 /* MSI Chip Descriptor */
-static struct msi_chip xilinx_pcie_msi_chip = {
+static struct msi_controller xilinx_pcie_msi_chip = {
 	.setup_irq = xilinx_pcie_msi_setup_irq,
 	.teardown_irq = xilinx_msi_teardown_irq,
 };
@@ -388,10 +389,10 @@ static struct msi_chip xilinx_pcie_msi_chip = {
 /* HW Interrupt Chip Descriptor */
 static struct irq_chip xilinx_msi_irq_chip = {
 	.name = "Xilinx PCIe MSI",
-	.irq_enable = unmask_msi_irq,
-	.irq_disable = mask_msi_irq,
-	.irq_mask = mask_msi_irq,
-	.irq_unmask = unmask_msi_irq,
+	.irq_enable = pci_msi_unmask_irq,
+	.irq_disable = pci_msi_mask_irq,
+	.irq_mask = pci_msi_mask_irq,
+	.irq_unmask = pci_msi_unmask_irq,
 };
 
 /**
@@ -429,20 +430,6 @@ static void xilinx_pcie_enable_msi(struct xilinx_pcie_port *port)
 	msg_addr = virt_to_phys((void *)port->msi_pages);
 	pcie_write(port, 0x0, XILINX_PCIE_REG_MSIBASE1);
 	pcie_write(port, msg_addr, XILINX_PCIE_REG_MSIBASE2);
-}
-
-/**
- * xilinx_pcie_add_bus - Add MSI chip info to PCIe bus
- * @bus: PCIe bus
- */
-static void xilinx_pcie_add_bus(struct pci_bus *bus)
-{
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		struct xilinx_pcie_port *port = sys_to_pcie(bus->sysdata);
-
-		xilinx_pcie_msi_chip.dev = port->dev;
-		bus->msi = &xilinx_pcie_msi_chip;
-	}
 }
 
 /* INTx Functions */
@@ -924,10 +911,14 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 		.private_data	= (void **)&port,
 		.setup		= xilinx_pcie_setup,
 		.map_irq	= of_irq_parse_and_map_pci,
-		.add_bus	= xilinx_pcie_add_bus,
 		.scan		= xilinx_pcie_scan_bus,
 		.ops		= &xilinx_pcie_ops,
 	};
+
+#ifdef CONFIG_PCI_MSI
+	xilinx_pcie_msi_chip.dev = port->dev;
+	hw.msi_ctrl = &xilinx_pcie_msi_chip;
+#endif
 	pci_common_init_dev(dev, &hw);
 
 	return 0;
