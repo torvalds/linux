@@ -1095,10 +1095,6 @@ static void tegra_crtc_commit(struct drm_crtc *crtc)
 	tegra_dc_commit(dc);
 }
 
-static void tegra_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.disable = tegra_crtc_disable,
 	.mode_fixup = tegra_crtc_mode_fixup,
@@ -1106,7 +1102,6 @@ static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.mode_set_base = tegra_crtc_mode_set_base,
 	.prepare = tegra_crtc_prepare,
 	.commit = tegra_crtc_commit,
-	.load_lut = tegra_crtc_load_lut,
 };
 
 static irqreturn_t tegra_dc_irq(int irq, void *data)
