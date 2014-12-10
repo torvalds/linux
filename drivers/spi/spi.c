@@ -875,8 +875,9 @@ void spi_finalize_current_transfer(struct spi_master *master)
 EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
 
 /**
- * spi_pump_messages - kthread work function which processes spi message queue
- * @work: pointer to kthread work struct contained in the master struct
+ * __spi_pump_messages - function which processes spi message queue
+ * @master: master to process queue for
+ * @in_kthread: true if we are in the context of the message pump thread
  *
  * This function checks if there is any spi message in the queue that
  * needs processing and if so call out to the driver to initialize hardware
@@ -886,10 +887,8 @@ EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
  * inside spi_sync(); the queue extraction handling at the top of the
  * function should deal with this safely.
  */
-static void spi_pump_messages(struct kthread_work *work)
+static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 {
-	struct spi_master *master =
-		container_of(work, struct spi_master, pump_messages);
 	unsigned long flags;
 	bool was_busy = false;
 	int ret;
@@ -916,6 +915,15 @@ static void spi_pump_messages(struct kthread_work *work)
 			spin_unlock_irqrestore(&master->queue_lock, flags);
 			return;
 		}
+
+		/* Only do teardown in the thread */
+		if (!in_kthread) {
+			queue_kthread_work(&master->kworker,
+					   &master->pump_messages);
+			spin_unlock_irqrestore(&master->queue_lock, flags);
+			return;
+		}
+
 		master->busy = false;
 		master->idling = true;
 		spin_unlock_irqrestore(&master->queue_lock, flags);
@@ -1002,6 +1010,18 @@ static void spi_pump_messages(struct kthread_work *work)
 			"failed to transfer one message from queue\n");
 		return;
 	}
+}
+
+/**
+ * spi_pump_messages - kthread work function which processes spi message queue
+ * @work: pointer to kthread work struct contained in the master struct
+ */
+static void spi_pump_messages(struct kthread_work *work)
+{
+	struct spi_master *master =
+		container_of(work, struct spi_master, pump_messages);
+
+	__spi_pump_messages(master, true);
 }
 
 static int spi_init_queue(struct spi_master *master)
@@ -2163,7 +2183,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 		 * can.
 		 */
 		if (master->transfer == spi_queued_transfer)
-			spi_pump_messages(&master->pump_messages);
+			__spi_pump_messages(master, false);
 
 		wait_for_completion(&done);
 		status = message->status;
