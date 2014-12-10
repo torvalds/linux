@@ -1308,15 +1308,16 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error)
 		goto setval_error;
 
+	/*
+	 * The dhcp_enabled flag is only for IPv4. In the case the host only
+	 * injects an IPv6 address, the flag is true, but we still need to
+	 * proceed to parse and pass the IPv6 information to the
+	 * disto-specific script hv_set_ifconfig.
+	 */
 	if (new_val->dhcp_enabled) {
 		error = kvp_write_file(file, "BOOTPROTO", "", "dhcp");
 		if (error)
 			goto setval_error;
-
-		/*
-		 * We are done!.
-		 */
-		goto setval_done;
 
 	} else {
 		error = kvp_write_file(file, "BOOTPROTO", "", "none");
@@ -1345,7 +1346,6 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error)
 		goto setval_error;
 
-setval_done:
 	fclose(file);
 
 	/*
