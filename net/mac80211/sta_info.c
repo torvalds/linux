@@ -1243,9 +1243,10 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	 * ends the poll/service period.
 	 */
 	info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
-		       IEEE80211_TX_CTL_PS_RESPONSE |
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	info->control.flags |= IEEE80211_TX_CTRL_PS_RESPONSE;
 
 	if (call_driver)
 		drv_allow_buffered_frames(local, sta, BIT(tid), 1,
@@ -1395,8 +1396,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * STA may still remain is PS mode after this frame
 			 * exchange.
 			 */
-			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
-				       IEEE80211_TX_CTL_PS_RESPONSE;
+			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER;
+			info->control.flags |= IEEE80211_TX_CTRL_PS_RESPONSE;
 
 			/*
 			 * Use MoreData flag to indicate whether there are
