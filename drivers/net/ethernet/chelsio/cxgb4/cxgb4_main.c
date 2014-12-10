@@ -3815,7 +3815,7 @@ int cxgb4_bar2_sge_qregs(struct net_device *dev,
 			 u64 *pbar2_qoffset,
 			 unsigned int *pbar2_qid)
 {
-	return t4_bar2_sge_qregs(netdev2adap(dev),
+	return cxgb4_t4_bar2_sge_qregs(netdev2adap(dev),
 				 qid,
 				 (qtype == CXGB4_BAR2_QTYPE_EGRESS
 				  ? T4_BAR2_QTYPE_EGRESS
@@ -4011,7 +4011,7 @@ static void process_db_drop(struct work_struct *work)
 		unsigned int bar2_qid;
 		int ret;
 
-		ret = t4_bar2_sge_qregs(adap, qid, T4_BAR2_QTYPE_EGRESS,
+		ret = cxgb4_t4_bar2_sge_qregs(adap, qid, T4_BAR2_QTYPE_EGRESS,
 					&bar2_qoffset, &bar2_qid);
 		if (ret)
 			dev_err(adap->pdev_dev, "doorbell drop recovery: "

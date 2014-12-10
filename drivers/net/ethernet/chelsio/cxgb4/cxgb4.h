@@ -1007,7 +1007,7 @@ int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 int t4_prep_adapter(struct adapter *adapter);
 
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
-int t4_bar2_sge_qregs(struct adapter *adapter,
+int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 		      unsigned int qid,
 		      enum t4_bar2_qtype qtype,
 		      u64 *pbar2_qoffset,

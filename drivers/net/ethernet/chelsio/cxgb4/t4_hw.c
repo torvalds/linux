@@ -4031,7 +4031,7 @@ int t4_prep_adapter(struct adapter *adapter)
 }
 
 /**
- *	t4_bar2_sge_qregs - return BAR2 SGE Queue register information
+ *	cxgb4_t4_bar2_sge_qregs - return BAR2 SGE Queue register information
  *	@adapter: the adapter
  *	@qid: the Queue ID
  *	@qtype: the Ingress or Egress type for @qid
@@ -4055,7 +4055,7 @@ int t4_prep_adapter(struct adapter *adapter)
  *	Write Combining Doorbell Buffer. If the BAR2 Queue ID is not 0,
  *	then these "Inferred Queue ID" register may not be used.
  */
-int t4_bar2_sge_qregs(struct adapter *adapter,
+int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 		      unsigned int qid,
 		      enum t4_bar2_qtype qtype,
 		      u64 *pbar2_qoffset,
