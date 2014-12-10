@@ -122,11 +122,12 @@ static struct memtype *memtype_rb_exact_match(struct rb_root *root,
 
 static int memtype_rb_check_conflict(struct rb_root *root,
 				u64 start, u64 end,
-				unsigned long reqtype, unsigned long *newtype)
+				enum page_cache_mode reqtype,
+				enum page_cache_mode *newtype)
 {
 	struct rb_node *node;
 	struct memtype *match;
-	int found_type = reqtype;
+	enum page_cache_mode found_type = reqtype;
 
 	match = memtype_rb_lowest_match(&memtype_rbroot, start, end);
 	if (match == NULL)
@@ -187,7 +188,8 @@ static void memtype_rb_insert(struct rb_root *root, struct memtype *newdata)
 	rb_insert_augmented(&newdata->rb, root, &memtype_rb_augment_cb);
 }
 
-int rbt_memtype_check_insert(struct memtype *new, unsigned long *ret_type)
+int rbt_memtype_check_insert(struct memtype *new,
+			     enum page_cache_mode *ret_type)
 {
 	int err = 0;
 
