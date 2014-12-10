@@ -3433,6 +3433,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		hsw_disable_ips(crtc);
 
 		spin_lock_irq(&pipe_crc->lock);
+		kfree(pipe_crc->entries);
 		pipe_crc->entries = entries;
 		pipe_crc->head = 0;
 		pipe_crc->tail = 0;
