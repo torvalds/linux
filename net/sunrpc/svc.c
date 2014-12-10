@@ -28,6 +28,8 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/bc_xprt.h>
 
+#include <trace/events/sunrpc.h>
+
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
 
 static void svc_unregister(const struct svc_serv *serv, struct net *net);
@@ -1040,7 +1042,7 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 /*
  * dprintk the given error with the address of the client that caused it.
  */
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static __printf(2, 3)
 void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 {
@@ -1314,24 +1316,25 @@ svc_process(struct svc_rqst *rqstp)
 	rqstp->rq_res.tail[0].iov_base = NULL;
 	rqstp->rq_res.tail[0].iov_len = 0;
 
-	rqstp->rq_xid = svc_getu32(argv);
-
 	dir  = svc_getnl(argv);
 	if (dir != 0) {
 		/* direction != CALL */
 		svc_printk(rqstp, "bad direction %d, dropping request\n", dir);
 		serv->sv_stats->rpcbadfmt++;
-		svc_drop(rqstp);
-		return 0;
+		goto out_drop;
 	}
 
 	/* Returns 1 for send, 0 for drop */
-	if (svc_process_common(rqstp, argv, resv))
-		return svc_send(rqstp);
-	else {
-		svc_drop(rqstp);
-		return 0;
+	if (likely(svc_process_common(rqstp, argv, resv))) {
+		int ret = svc_send(rqstp);
+
+		trace_svc_process(rqstp, ret);
+		return ret;
 	}
+out_drop:
+	trace_svc_process(rqstp, 0);
+	svc_drop(rqstp);
+	return 0;
 }
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)

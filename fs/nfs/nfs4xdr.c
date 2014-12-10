@@ -141,13 +141,15 @@ static int nfs4_stat_to_errno(int);
 				XDR_QUADLEN(NFS4_VERIFIER_SIZE) + \
 				XDR_QUADLEN(NFS4_SETCLIENTID_NAMELEN) + \
 				1 /* sc_prog */ + \
-				XDR_QUADLEN(RPCBIND_MAXNETIDLEN) + \
-				XDR_QUADLEN(RPCBIND_MAXUADDRLEN) + \
+				1 + XDR_QUADLEN(RPCBIND_MAXNETIDLEN) + \
+				1 + XDR_QUADLEN(RPCBIND_MAXUADDRLEN) + \
 				1) /* sc_cb_ident */
 #define decode_setclientid_maxsz \
 				(op_decode_hdr_maxsz + \
-				2 + \
-				1024) /* large value for CLID_INUSE */
+				2 /* clientid */ + \
+				XDR_QUADLEN(NFS4_VERIFIER_SIZE) + \
+				1 + XDR_QUADLEN(RPCBIND_MAXNETIDLEN) + \
+				1 + XDR_QUADLEN(RPCBIND_MAXUADDRLEN))
 #define encode_setclientid_confirm_maxsz \
 				(op_encode_hdr_maxsz + \
 				3 + (NFS4_VERIFIER_SIZE >> 2))
@@ -7394,6 +7396,8 @@ struct rpc_procinfo	nfs4_procedures[] = {
 #endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 	PROC(SEEK,		enc_seek,		dec_seek),
+	PROC(ALLOCATE,		enc_allocate,		dec_allocate),
+	PROC(DEALLOCATE,	enc_deallocate,		dec_deallocate),
 #endif /* CONFIG_NFS_V4_2 */
 };
 

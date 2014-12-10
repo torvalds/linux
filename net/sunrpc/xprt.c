@@ -49,13 +49,15 @@
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/bc_xprt.h>
 
+#include <trace/events/sunrpc.h>
+
 #include "sunrpc.h"
 
 /*
  * Local variables
  */
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_XPRT
 #endif
 
@@ -772,11 +774,14 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 	struct rpc_rqst *entry;
 
 	list_for_each_entry(entry, &xprt->recv, rq_list)
-		if (entry->rq_xid == xid)
+		if (entry->rq_xid == xid) {
+			trace_xprt_lookup_rqst(xprt, xid, 0);
 			return entry;
+		}
 
 	dprintk("RPC:       xprt_lookup_rqst did not find xid %08x\n",
 			ntohl(xid));
+	trace_xprt_lookup_rqst(xprt, xid, -ENOENT);
 	xprt->stat.bad_xids++;
 	return NULL;
 }
@@ -810,6 +815,7 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 
 	dprintk("RPC: %5u xid %08x complete (%d bytes received)\n",
 			task->tk_pid, ntohl(req->rq_xid), copied);
+	trace_xprt_complete_rqst(xprt, req->rq_xid, copied);
 
 	xprt->stat.recvs++;
 	req->rq_rtt = ktime_sub(ktime_get(), req->rq_xtime);
@@ -926,6 +932,7 @@ void xprt_transmit(struct rpc_task *task)
 
 	req->rq_xtime = ktime_get();
 	status = xprt->ops->send_request(task);
+	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
 		task->tk_status = status;
 		return;
@@ -1296,6 +1303,7 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
  */
 struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 {
+	int err;
 	struct rpc_xprt	*xprt;
 	struct xprt_class *t;
 
@@ -1336,6 +1344,12 @@ found:
 		return ERR_PTR(-ENOMEM);
 	}
 
+	err = rpc_xprt_debugfs_register(xprt);
+	if (err) {
+		xprt_destroy(xprt);
+		return ERR_PTR(err);
+	}
+
 	dprintk("RPC:       created transport %p with %u slots\n", xprt,
 			xprt->max_reqs);
 out:
@@ -1352,6 +1366,7 @@ static void xprt_destroy(struct rpc_xprt *xprt)
 	dprintk("RPC:       destroying transport %p\n", xprt);
 	del_timer_sync(&xprt->timer);
 
+	rpc_xprt_debugfs_unregister(xprt);
 	rpc_destroy_wait_queue(&xprt->binding);
 	rpc_destroy_wait_queue(&xprt->pending);
 	rpc_destroy_wait_queue(&xprt->sending);

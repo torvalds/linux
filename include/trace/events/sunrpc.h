@@ -6,6 +6,8 @@
 
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/xprtsock.h>
 #include <net/tcp_states.h>
 #include <linux/net.h>
 #include <linux/tracepoint.h>
@@ -305,6 +307,164 @@ DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_error);
 DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
+
+DECLARE_EVENT_CLASS(rpc_xprt_event,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+
+	TP_ARGS(xprt, xid, status),
+
+	TP_STRUCT__entry(
+		__field(__be32, xid)
+		__field(int, status)
+		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
+	),
+
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->status = status;
+		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
+	),
+
+	TP_printk("peer=[%s]:%s xid=0x%x status=%d", __get_str(addr),
+			__get_str(port), be32_to_cpu(__entry->xid),
+			__entry->status)
+);
+
+DEFINE_EVENT(rpc_xprt_event, xprt_lookup_rqst,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
+
+DEFINE_EVENT(rpc_xprt_event, xprt_transmit,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
+
+DEFINE_EVENT(rpc_xprt_event, xprt_complete_rqst,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
+
+TRACE_EVENT(xs_tcp_data_ready,
+	TP_PROTO(struct rpc_xprt *xprt, int err, unsigned int total),
+
+	TP_ARGS(xprt, err, total),
+
+	TP_STRUCT__entry(
+		__field(int, err)
+		__field(unsigned int, total)
+		__string(addr, xprt ? xprt->address_strings[RPC_DISPLAY_ADDR] :
+				"(null)")
+		__string(port, xprt ? xprt->address_strings[RPC_DISPLAY_PORT] :
+				"(null)")
+	),
+
+	TP_fast_assign(
+		__entry->err = err;
+		__entry->total = total;
+		__assign_str(addr, xprt ?
+			xprt->address_strings[RPC_DISPLAY_ADDR] : "(null)");
+		__assign_str(port, xprt ?
+			xprt->address_strings[RPC_DISPLAY_PORT] : "(null)");
+	),
+
+	TP_printk("peer=[%s]:%s err=%d total=%u", __get_str(addr),
+			__get_str(port), __entry->err, __entry->total)
+);
+
+#define rpc_show_sock_xprt_flags(flags) \
+	__print_flags(flags, "|", \
+		{ TCP_RCV_LAST_FRAG, "TCP_RCV_LAST_FRAG" }, \
+		{ TCP_RCV_COPY_FRAGHDR, "TCP_RCV_COPY_FRAGHDR" }, \
+		{ TCP_RCV_COPY_XID, "TCP_RCV_COPY_XID" }, \
+		{ TCP_RCV_COPY_DATA, "TCP_RCV_COPY_DATA" }, \
+		{ TCP_RCV_READ_CALLDIR, "TCP_RCV_READ_CALLDIR" }, \
+		{ TCP_RCV_COPY_CALLDIR, "TCP_RCV_COPY_CALLDIR" }, \
+		{ TCP_RPC_REPLY, "TCP_RPC_REPLY" })
+
+TRACE_EVENT(xs_tcp_data_recv,
+	TP_PROTO(struct sock_xprt *xs),
+
+	TP_ARGS(xs),
+
+	TP_STRUCT__entry(
+		__string(addr, xs->xprt.address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xs->xprt.address_strings[RPC_DISPLAY_PORT])
+		__field(__be32, xid)
+		__field(unsigned long, flags)
+		__field(unsigned long, copied)
+		__field(unsigned int, reclen)
+		__field(unsigned long, offset)
+	),
+
+	TP_fast_assign(
+		__assign_str(addr, xs->xprt.address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xs->xprt.address_strings[RPC_DISPLAY_PORT]);
+		__entry->xid = xs->tcp_xid;
+		__entry->flags = xs->tcp_flags;
+		__entry->copied = xs->tcp_copied;
+		__entry->reclen = xs->tcp_reclen;
+		__entry->offset = xs->tcp_offset;
+	),
+
+	TP_printk("peer=[%s]:%s xid=0x%x flags=%s copied=%lu reclen=%u offset=%lu",
+			__get_str(addr), __get_str(port), be32_to_cpu(__entry->xid),
+			rpc_show_sock_xprt_flags(__entry->flags),
+			__entry->copied, __entry->reclen, __entry->offset)
+);
+
+TRACE_EVENT(svc_recv,
+	TP_PROTO(struct svc_rqst *rqst, int status),
+
+	TP_ARGS(rqst, status),
+
+	TP_STRUCT__entry(
+		__field(struct sockaddr *, addr)
+		__field(__be32, xid)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
+		__entry->xid = status > 0 ? rqst->rq_xid : 0;
+		__entry->status = status;
+	),
+
+	TP_printk("addr=%pIScp xid=0x%x status=%d", __entry->addr,
+			be32_to_cpu(__entry->xid), __entry->status)
+);
+
+DECLARE_EVENT_CLASS(svc_rqst_status,
+
+	TP_PROTO(struct svc_rqst *rqst, int status),
+
+	TP_ARGS(rqst, status),
+
+	TP_STRUCT__entry(
+		__field(struct sockaddr *, addr)
+		__field(__be32, xid)
+		__field(int, dropme)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
+		__entry->xid = rqst->rq_xid;
+		__entry->dropme = (int)rqst->rq_dropme;
+		__entry->status = status;
+	),
+
+	TP_printk("addr=%pIScp rq_xid=0x%x dropme=%d status=%d",
+		__entry->addr, be32_to_cpu(__entry->xid), __entry->dropme,
+		__entry->status)
+);
+
+DEFINE_EVENT(svc_rqst_status, svc_process,
+	TP_PROTO(struct svc_rqst *rqst, int status),
+	TP_ARGS(rqst, status));
+
+DEFINE_EVENT(svc_rqst_status, svc_send,
+	TP_PROTO(struct svc_rqst *rqst, int status),
+	TP_ARGS(rqst, status));
 
 #endif /* _TRACE_SUNRPC_H */
 

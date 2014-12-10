@@ -812,7 +812,7 @@ static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
 
 	/* Optimize common case that writes from 0 to end of file */
 	end = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
-	if (end != NFS_I(inode)->npages) {
+	if (end != inode->i_mapping->nrpages) {
 		rcu_read_lock();
 		end = page_cache_next_hole(mapping, idx + 1, ULONG_MAX);
 		rcu_read_unlock();
