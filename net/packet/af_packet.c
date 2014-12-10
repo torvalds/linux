@@ -2408,10 +2408,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	unsigned short gso_type = 0;
 	int hlen, tlen;
 	int extra_len = 0;
-	struct iov_iter from;
 	ssize_t n;
-
-	iov_iter_init(&from, WRITE, msg->msg_iov, msg->msg_iovlen, len);
 
 	/*
 	 *	Get and verify the address.
@@ -2451,7 +2448,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		len -= vnet_hdr_len;
 
 		err = -EFAULT;
-		n = copy_from_iter(&vnet_hdr, vnet_hdr_len, &from);
+		n = copy_from_iter(&vnet_hdr, vnet_hdr_len, &msg->msg_iter);
 		if (n != vnet_hdr_len)
 			goto out_unlock;
 
@@ -2522,7 +2519,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	/* Returns -EFAULT on error */
-	err = skb_copy_datagram_from_iter(skb, offset, &from, len);
+	err = skb_copy_datagram_from_iter(skb, offset, &msg->msg_iter, len);
 	if (err)
 		goto out_free;
 

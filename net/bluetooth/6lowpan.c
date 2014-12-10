@@ -537,11 +537,11 @@ static int send_pkt(struct l2cap_chan *chan, struct sk_buff *skb,
 	 */
 	chan->data = skb;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.msg_iov = (struct iovec *) &iv;
-	msg.msg_iovlen = 1;
 	iv.iov_base = skb->data;
 	iv.iov_len = skb->len;
+
+	memset(&msg, 0, sizeof(msg));
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iv, 1, skb->len);
 
 	err = l2cap_chan_send(chan, &msg, skb->len);
 	if (err > 0) {
@@ -1050,7 +1050,6 @@ static const struct l2cap_ops bt_6lowpan_chan_ops = {
 	.suspend		= chan_suspend_cb,
 	.get_sndtimeo		= chan_get_sndtimeo_cb,
 	.alloc_skb		= chan_alloc_skb_cb,
-	.memcpy_fromiovec	= l2cap_chan_no_memcpy_fromiovec,
 
 	.teardown		= l2cap_chan_no_teardown,
 	.defer			= l2cap_chan_no_defer,

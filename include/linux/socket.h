@@ -47,8 +47,7 @@ struct linger {
 struct msghdr {
 	void		*msg_name;	/* ptr to socket address structure */
 	int		msg_namelen;	/* size of socket address structure */
-	struct iovec	*msg_iov;	/* scatter/gather array */
-	__kernel_size_t	msg_iovlen;	/* # elements in msg_iov */
+	struct iov_iter	msg_iter;	/* data */
 	void		*msg_control;	/* ancillary data */
 	__kernel_size_t	msg_controllen;	/* ancillary data buffer length */
 	unsigned int	msg_flags;	/* flags on received message */

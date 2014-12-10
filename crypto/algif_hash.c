@@ -42,7 +42,7 @@ static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
 	struct alg_sock *ask = alg_sk(sk);
 	struct hash_ctx *ctx = ask->private;
 	unsigned long iovlen;
-	struct iovec *iov;
+	const struct iovec *iov;
 	long copied = 0;
 	int err;
 
@@ -58,7 +58,7 @@ static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
 
 	ctx->more = 0;
 
-	for (iov = msg->msg_iov, iovlen = msg->msg_iovlen; iovlen > 0;
+	for (iov = msg->msg_iter.iov, iovlen = msg->msg_iter.nr_segs; iovlen > 0;
 	     iovlen--, iov++) {
 		unsigned long seglen = iov->iov_len;
 		char __user *from = iov->iov_base;

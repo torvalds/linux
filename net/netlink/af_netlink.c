@@ -2305,7 +2305,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	}
 
 	if (netlink_tx_is_mmaped(sk) &&
-	    msg->msg_iov->iov_base == NULL) {
+	    msg->msg_iter.iov->iov_base == NULL) {
 		err = netlink_mmap_sendmsg(sk, msg, dst_portid, dst_group,
 					   siocb);
 		goto out;

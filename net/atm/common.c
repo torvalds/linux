@@ -577,9 +577,6 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 	struct atm_vcc *vcc;
 	struct sk_buff *skb;
 	int eff, error;
-	struct iov_iter from;
-
-	iov_iter_init(&from, WRITE, m->msg_iov, m->msg_iovlen, size);
 
 	lock_sock(sk);
 	if (sock->state != SS_CONNECTED) {
@@ -634,7 +631,7 @@ int vcc_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *m,
 		goto out;
 	skb->dev = NULL; /* for paths shared with net_device interfaces */
 	ATM_SKB(skb)->atm_options = vcc->atm_options;
-	if (copy_from_iter(skb_put(skb, size), size, &from) != size) {
+	if (copy_from_iter(skb_put(skb, size), size, &m->msg_iter) != size) {
 		kfree_skb(skb);
 		error = -EFAULT;
 		goto out;

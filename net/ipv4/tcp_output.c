@@ -3073,7 +3073,7 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 	syn_data->ip_summed = CHECKSUM_PARTIAL;
 	memcpy(syn_data->cb, syn->cb, sizeof(syn->cb));
 	if (unlikely(memcpy_fromiovecend(skb_put(syn_data, space),
-					 fo->data->msg_iov, 0, space))) {
+					 fo->data->msg_iter.iov, 0, space))) {
 		kfree_skb(syn_data);
 		goto fallback;
 	}

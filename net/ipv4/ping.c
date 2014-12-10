@@ -811,7 +811,8 @@ back_from_confirm:
 	pfh.icmph.checksum = 0;
 	pfh.icmph.un.echo.id = inet->inet_sport;
 	pfh.icmph.un.echo.sequence = user_icmph.un.echo.sequence;
-	pfh.iov = msg->msg_iov;
+	/* XXX: stripping const */
+	pfh.iov = (struct iovec *)msg->msg_iter.iov;
 	pfh.wcheck = 0;
 	pfh.family = AF_INET;
 

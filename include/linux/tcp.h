@@ -162,7 +162,7 @@ struct tcp_sock {
 	struct {
 		struct sk_buff_head	prequeue;
 		struct task_struct	*task;
-		struct iovec		*iov;
+		struct msghdr		*msg;
 		int			memory;
 		int			len;
 	} ucopy;

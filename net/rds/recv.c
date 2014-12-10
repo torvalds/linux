@@ -404,7 +404,6 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	int ret = 0, nonblock = msg_flags & MSG_DONTWAIT;
 	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
 	struct rds_incoming *inc = NULL;
-	struct iov_iter to;
 
 	/* udp_recvmsg()->sock_recvtimeo() gets away without locking too.. */
 	timeo = sock_rcvtimeo(sk, nonblock);
@@ -415,6 +414,7 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		goto out;
 
 	while (1) {
+		struct iov_iter save;
 		/* If there are pending notifications, do those - and nothing else */
 		if (!list_empty(&rs->rs_notify_queue)) {
 			ret = rds_notify_queue_get(rs, msg);
@@ -450,8 +450,8 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		rdsdebug("copying inc %p from %pI4:%u to user\n", inc,
 			 &inc->i_conn->c_faddr,
 			 ntohs(inc->i_hdr.h_sport));
-		iov_iter_init(&to, READ, msg->msg_iov, msg->msg_iovlen, size);
-		ret = inc->i_conn->c_trans->inc_copy_to_user(inc, &to);
+		save = msg->msg_iter;
+		ret = inc->i_conn->c_trans->inc_copy_to_user(inc, &msg->msg_iter);
 		if (ret < 0)
 			break;
 
@@ -464,6 +464,7 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 			rds_inc_put(inc);
 			inc = NULL;
 			rds_stats_inc(s_recv_deliver_raced);
+			msg->msg_iter = save;
 			continue;
 		}
 

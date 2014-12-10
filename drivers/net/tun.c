@@ -1449,13 +1449,11 @@ static int tun_sendmsg(struct kiocb *iocb, struct socket *sock,
 	int ret;
 	struct tun_file *tfile = container_of(sock, struct tun_file, socket);
 	struct tun_struct *tun = __tun_get(tfile);
-	struct iov_iter from;
 
 	if (!tun)
 		return -EBADFD;
 
-	iov_iter_init(&from, WRITE, m->msg_iov, m->msg_iovlen, total_len);
-	ret = tun_get_user(tun, tfile, m->msg_control, &from,
+	ret = tun_get_user(tun, tfile, m->msg_control, &m->msg_iter,
 			   m->msg_flags & MSG_DONTWAIT);
 	tun_put(tun);
 	return ret;
@@ -1467,7 +1465,6 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct tun_file *tfile = container_of(sock, struct tun_file, socket);
 	struct tun_struct *tun = __tun_get(tfile);
-	struct iov_iter to;
 	int ret;
 
 	if (!tun)
@@ -1482,8 +1479,7 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 					 SOL_PACKET, TUN_TX_TIMESTAMP);
 		goto out;
 	}
-	iov_iter_init(&to, READ, m->msg_iov, m->msg_iovlen, total_len);
-	ret = tun_do_read(tun, tfile, &to, flags & MSG_DONTWAIT);
+	ret = tun_do_read(tun, tfile, &m->msg_iter, flags & MSG_DONTWAIT);
 	if (ret > total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;
