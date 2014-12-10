@@ -1861,7 +1861,7 @@ static int em_pusha(struct x86_emulate_ctxt *ctxt)
 
 static int em_pushf(struct x86_emulate_ctxt *ctxt)
 {
-	ctxt->src.val =  (unsigned long)ctxt->eflags;
+	ctxt->src.val = (unsigned long)ctxt->eflags & ~EFLG_VM;
 	return em_push(ctxt);
 }
 
