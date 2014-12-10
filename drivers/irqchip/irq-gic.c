@@ -406,7 +406,7 @@ static void __init gic_dist_init(struct gic_chip_data *gic)
 	for (i = 0; i < gic_irqs; i += 32) {
 		writel_relaxed(0xffffffff, base + GIC_DIST_IGROUP + i * 4 / 32);
 	}
-	dsb();
+	dsb(sy);
 	writel_relaxed(3, base + GIC_DIST_CTRL);
 #else
 	writel_relaxed(1, base + GIC_DIST_CTRL);
