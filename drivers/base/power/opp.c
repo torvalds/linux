@@ -518,7 +518,8 @@ static void kfree_device_rcu(struct rcu_head *head)
 	kfree_rcu(device_opp, rcu_head);
 }
 
-void __dev_pm_opp_remove(struct device_opp *dev_opp, struct dev_pm_opp *opp)
+static void __dev_pm_opp_remove(struct device_opp *dev_opp,
+				struct dev_pm_opp *opp)
 {
 	/*
 	 * Notify the changes in the availability of the operable
