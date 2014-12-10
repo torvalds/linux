@@ -1107,15 +1107,6 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 
-	/*
-	 * Now rat on any tasks that got kicked up to the root rcu_node
-	 * due to CPU offlining.
-	 */
-	rnp = rcu_get_root(rsp);
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	ndetected += rcu_print_task_stall(rnp);
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-
 	print_cpu_stall_info_end();
 	for_each_possible_cpu(cpu)
 		totqlen += per_cpu_ptr(rsp->rda, cpu)->qlen;
