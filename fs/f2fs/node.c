@@ -57,8 +57,6 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 	} else if (type == INO_ENTRIES) {
 		int i;
 
-		if (sbi->sb->s_bdi->dirty_exceeded)
-			return false;
 		for (i = 0; i <= UPDATE_INO; i++)
 			mem_size += (sbi->im[i].ino_num *
 				sizeof(struct ino_entry)) >> PAGE_CACHE_SHIFT;
