@@ -1303,15 +1303,15 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 	if (header->ram_code_start + header->ram_code_size > fw->size)
 		goto err_firmware;
 	switch (header->version_major) {
-		case 1:
-			sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1;
-			break;
-		case 2:
-			sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2;
-			break;
-		default:
-			dev_err(sdma->dev, "unknown firmware version\n");
-			goto err_firmware;
+	case 1:
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1;
+		break;
+	case 2:
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2;
+		break;
+	default:
+		dev_err(sdma->dev, "unknown firmware version\n");
+		goto err_firmware;
 	}
 
 	addr = (void *)header + header->script_addrs_start;
