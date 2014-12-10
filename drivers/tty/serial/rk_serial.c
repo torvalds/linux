@@ -327,7 +327,7 @@ static inline void serial_out(struct uart_rk_port *up, int offset, unsigned char
 	dwapb_save_out_value(up, offset, value);
 	__raw_writel(value, up->port.membase + (offset << 2));
 	if (offset != UART_TX)
-		dsb();
+		dsb(sy);
 	dwapb_check_clear_ier(up, offset);
 }
 
