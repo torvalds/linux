@@ -325,6 +325,7 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	struct thermal_cooling_device *cdev;
 	struct acpi_fan *fan;
 	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	char *name;
 
 	fan = devm_kzalloc(&pdev->dev, sizeof(*fan), GFP_KERNEL);
 	if (!fan) {
@@ -346,7 +347,12 @@ static int acpi_fan_probe(struct platform_device *pdev)
 		}
 	}
 
-	cdev = thermal_cooling_device_register("Fan", device,
+	if (!strncmp(pdev->name, "PNP0C0B", strlen("PNP0C0B")))
+		name = "Fan";
+	else
+		name = acpi_device_bid(device);
+
+	cdev = thermal_cooling_device_register(name, device,
 						&fan_cooling_ops);
 	if (IS_ERR(cdev)) {
 		result = PTR_ERR(cdev);
