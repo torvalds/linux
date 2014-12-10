@@ -118,13 +118,10 @@ static void __exit_signal(struct task_struct *tsk)
 	}
 
 	/*
-	 * Accumulate here the counters for all threads but the group leader
-	 * as they die, so they can be added into the process-wide totals
-	 * when those are taken.  The group leader stays around as a zombie as
-	 * long as there are other threads.  When it gets reaped, the exit.c
-	 * code will add its counts into these totals.  We won't ever get here
-	 * for the group leader, since it will have been the last reference on
-	 * the signal_struct.
+	 * Accumulate here the counters for all threads as they die. We could
+	 * skip the group leader because it is the last user of signal_struct,
+	 * but we want to avoid the race with thread_group_cputime() which can
+	 * see the empty ->thread_head list.
 	 */
 	task_cputime(tsk, &utime, &stime);
 	write_seqlock(&sig->stats_lock);
