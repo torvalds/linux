@@ -369,14 +369,21 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 		dp->proc_iops = &proc_file_inode_operations;
 	} else {
 		WARN_ON(1);
+		proc_free_inum(dp->low_ino);
 		return -EINVAL;
 	}
 
 	spin_lock(&proc_subdir_lock);
 	dp->parent = dir;
-	if (pde_subdir_insert(dir, dp) == false)
+	if (pde_subdir_insert(dir, dp) == false) {
 		WARN(1, "proc_dir_entry '%s/%s' already registered\n",
 		     dir->name, dp->name);
+		spin_unlock(&proc_subdir_lock);
+		if (S_ISDIR(dp->mode))
+			dir->nlink--;
+		proc_free_inum(dp->low_ino);
+		return -EEXIST;
+	}
 	spin_unlock(&proc_subdir_lock);
 
 	return 0;
