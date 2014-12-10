@@ -352,6 +352,7 @@ static const struct hda_model_fixup ad1986a_fixup_models[] = {
 	{ .id = AD1986A_FIXUP_LAPTOP, .name = "laptop" },
 	{ .id = AD1986A_FIXUP_LAPTOP_IMIC, .name = "laptop-imic" },
 	{ .id = AD1986A_FIXUP_LAPTOP_IMIC, .name = "laptop-eapd" }, /* alias */
+	{ .id = AD1986A_FIXUP_EAPD, .name = "eapd" },
 	{}
 };
 
