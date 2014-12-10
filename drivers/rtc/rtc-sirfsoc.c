@@ -209,12 +209,37 @@ static int sirfsoc_rtc_ioctl(struct device *dev, unsigned int cmd,
 	}
 }
 
+static int sirfsoc_rtc_alarm_irq_enable(struct device *dev,
+		unsigned int enabled)
+{
+	unsigned long rtc_status_reg = 0x0;
+	struct sirfsoc_rtc_drv *rtcdrv;
+
+	rtcdrv = dev_get_drvdata(dev);
+
+	local_irq_disable();
+
+	rtc_status_reg = sirfsoc_rtc_iobrg_readl(
+				rtcdrv->rtc_base + RTC_STATUS);
+	if (enabled)
+		rtc_status_reg |= SIRFSOC_RTC_AL0E;
+	else
+		rtc_status_reg &= ~SIRFSOC_RTC_AL0E;
+
+	sirfsoc_rtc_iobrg_writel(rtc_status_reg, rtcdrv->rtc_base + RTC_STATUS);
+	local_irq_enable();
+
+	return 0;
+
+}
+
 static const struct rtc_class_ops sirfsoc_rtc_ops = {
 	.read_time = sirfsoc_rtc_read_time,
 	.set_time = sirfsoc_rtc_set_time,
 	.read_alarm = sirfsoc_rtc_read_alarm,
 	.set_alarm = sirfsoc_rtc_set_alarm,
-	.ioctl = sirfsoc_rtc_ioctl
+	.ioctl = sirfsoc_rtc_ioctl,
+	.alarm_irq_enable = sirfsoc_rtc_alarm_irq_enable
 };
 
 static irqreturn_t sirfsoc_rtc_irq_handler(int irq, void *pdata)
