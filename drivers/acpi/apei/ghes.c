@@ -128,7 +128,7 @@ static DEFINE_SPINLOCK(ghes_ioremap_lock_irq);
 static struct gen_pool *ghes_estatus_pool;
 static unsigned long ghes_estatus_pool_size_request;
 
-struct ghes_estatus_cache *ghes_estatus_caches[GHES_ESTATUS_CACHES_SIZE];
+static struct ghes_estatus_cache *ghes_estatus_caches[GHES_ESTATUS_CACHES_SIZE];
 static atomic_t ghes_estatus_cache_alloced;
 
 static int ghes_ioremap_init(void)
@@ -738,20 +738,6 @@ static LIST_HEAD(ghes_nmi);
 
 static int ghes_panic_timeout	__read_mostly = 30;
 
-static struct llist_node *llist_nodes_reverse(struct llist_node *llnode)
-{
-	struct llist_node *next, *tail = NULL;
-
-	while (llnode) {
-		next = llnode->next;
-		llnode->next = tail;
-		tail = llnode;
-		llnode = next;
-	}
-
-	return tail;
-}
-
 static void ghes_proc_in_irq(struct irq_work *irq_work)
 {
 	struct llist_node *llnode, *next;
@@ -765,7 +751,7 @@ static void ghes_proc_in_irq(struct irq_work *irq_work)
 	 * Because the time order of estatus in list is reversed,
 	 * revert it back to proper order.
 	 */
-	llnode = llist_nodes_reverse(llnode);
+	llnode = llist_reverse_order(llnode);
 	while (llnode) {
 		next = llnode->next;
 		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
@@ -798,7 +784,7 @@ static void ghes_print_queued_estatus(void)
 	 * Because the time order of estatus in list is reversed,
 	 * revert it back to proper order.
 	 */
-	llnode = llist_nodes_reverse(llnode);
+	llnode = llist_reverse_order(llnode);
 	while (llnode) {
 		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
 					   llnode);
