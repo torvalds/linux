@@ -342,7 +342,7 @@ static int omap_rtc_timer;
 #define	OMAP_RTC_DATA_AM3352_IDX	1
 #define	OMAP_RTC_DATA_DA830_IDX		2
 
-static struct platform_device_id omap_rtc_devtype[] = {
+static const struct platform_device_id omap_rtc_devtype[] = {
 	{
 		.name	= DRIVER_NAME,
 	},
