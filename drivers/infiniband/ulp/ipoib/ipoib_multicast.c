@@ -648,7 +648,7 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	return 0;
 }
 
-int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
+int ipoib_mcast_stop_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -659,8 +659,7 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	cancel_delayed_work(&priv->mcast_task);
 	mutex_unlock(&mcast_mutex);
 
-	if (flush)
-		flush_workqueue(priv->wq);
+	flush_workqueue(priv->wq);
 
 	return 0;
 }
@@ -838,8 +837,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 
 	ipoib_dbg_mcast(priv, "restarting multicast task\n");
 
-	ipoib_mcast_stop_thread(dev, 0);
-
 	local_irq_save(flags);
 	netif_addr_lock(dev);
 	spin_lock(&priv->lock);
@@ -936,13 +933,10 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	 * We have to cancel outside of the spinlock, but we have to
 	 * take the rtnl lock or else we race with the removal of
 	 * entries from the remove list in mcast_dev_flush as part
-	 * of ipoib_stop() which will call mcast_stop_thread with
-	 * flush == 1 while holding the rtnl lock, and the
-	 * flush_workqueue won't complete until this restart_mcast_task
-	 * completes.  So do like the carrier on task and attempt to
-	 * take the rtnl lock, but if we can't before the ADMIN_UP flag
-	 * goes away, then just return and know that the remove list will
-	 * get flushed later by mcast_stop_thread.
+	 * of ipoib_stop().  We detect the drop of the ADMIN_UP flag
+	 * to signal that we have hit this particular race, and we
+	 * return since we know we don't need to do anything else
+	 * anyway.
 	 */
 	while (!rtnl_trylock()) {
 		if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
@@ -954,6 +948,9 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		ipoib_mcast_leave(mcast->dev, mcast);
 		ipoib_mcast_free(mcast);
 	}
+	/*
+	 * Restart our join task if needed
+	 */
 	ipoib_mcast_start_thread(dev);
 	rtnl_unlock();
 }

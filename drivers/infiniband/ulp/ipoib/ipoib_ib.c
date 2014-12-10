@@ -747,7 +747,7 @@ int ipoib_ib_dev_down(struct net_device *dev, int flush)
 	clear_bit(IPOIB_FLAG_OPER_UP, &priv->flags);
 	netif_carrier_off(dev);
 
-	ipoib_mcast_stop_thread(dev, flush);
+	ipoib_mcast_stop_thread(dev);
 	ipoib_mcast_dev_flush(dev);
 
 	ipoib_flush_paths(dev);
@@ -1097,7 +1097,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	 */
 	ipoib_flush_paths(dev);
 
-	ipoib_mcast_stop_thread(dev, 1);
+	ipoib_mcast_stop_thread(dev);
 	ipoib_mcast_dev_flush(dev);
 
 	ipoib_transport_dev_cleanup(dev);
