@@ -3157,21 +3157,6 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
 }
 #endif
 
-#ifdef CONFIG_DEBUG_VM
-bool mem_cgroup_bad_page_check(struct page *page)
-{
-	if (mem_cgroup_disabled())
-		return false;
-
-	return page->mem_cgroup != NULL;
-}
-
-void mem_cgroup_print_bad_page(struct page *page)
-{
-	pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
-}
-#endif
-
 static DEFINE_MUTEX(memcg_limit_mutex);
 
 static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
