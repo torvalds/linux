@@ -11,6 +11,27 @@
 #include <symbol/kallsyms.h>
 #include "debug.h"
 
+#ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
+extern char *cplus_demangle(const char *, int);
+
+static inline char *bfd_demangle(void __maybe_unused *v, const char *c, int i)
+{
+	return cplus_demangle(c, i);
+}
+#else
+#ifdef NO_DEMANGLE
+static inline char *bfd_demangle(void __maybe_unused *v,
+				 const char __maybe_unused *c,
+				 int __maybe_unused i)
+{
+	return NULL;
+}
+#else
+#define PACKAGE 'perf'
+#include <bfd.h>
+#endif
+#endif
+
 #ifndef HAVE_ELF_GETPHDRNUM_SUPPORT
 static int elf_getphdrnum(Elf *elf, size_t *dst)
 {
@@ -546,6 +567,35 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
+static int decompress_kmodule(struct dso *dso, const char *name,
+			      enum dso_binary_type type)
+{
+	int fd;
+	const char *ext = strrchr(name, '.');
+	char tmpbuf[] = "/tmp/perf-kmod-XXXXXX";
+
+	if ((type != DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP &&
+	     type != DSO_BINARY_TYPE__GUEST_KMODULE_COMP) ||
+	    type != dso->symtab_type)
+		return -1;
+
+	if (!ext || !is_supported_compression(ext + 1))
+		return -1;
+
+	fd = mkstemp(tmpbuf);
+	if (fd < 0)
+		return -1;
+
+	if (!decompress_to_file(ext + 1, name, fd)) {
+		close(fd);
+		fd = -1;
+	}
+
+	unlink(tmpbuf);
+
+	return fd;
+}
+
 bool symsrc__possibly_runtime(struct symsrc *ss)
 {
 	return ss->dynsym || ss->opdsec;
@@ -571,7 +621,11 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	Elf *elf;
 	int fd;
 
-	fd = open(name, O_RDONLY);
+	if (dso__needs_decompress(dso))
+		fd = decompress_kmodule(dso, name, type);
+	else
+		fd = open(name, O_RDONLY);
+
 	if (fd < 0)
 		return -1;
 
