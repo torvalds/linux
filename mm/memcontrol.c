@@ -5333,8 +5333,6 @@ static void __mem_cgroup_clear_mc(void)
 
 static void mem_cgroup_clear_mc(void)
 {
-	struct mem_cgroup *from = mc.from;
-
 	/*
 	 * we must clear moving_task before waking up waiters at the end of
 	 * task migration.
@@ -5345,8 +5343,6 @@ static void mem_cgroup_clear_mc(void)
 	mc.from = NULL;
 	mc.to = NULL;
 	spin_unlock(&mc.lock);
-
-	atomic_dec(&from->moving_account);
 }
 
 static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
@@ -5379,15 +5375,6 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 			VM_BUG_ON(mc.precharge);
 			VM_BUG_ON(mc.moved_charge);
 			VM_BUG_ON(mc.moved_swap);
-
-			/*
-			 * Signal mem_cgroup_begin_page_stat() to take
-			 * the memcg's move_lock while we're moving
-			 * its pages to another memcg.  Then wait for
-			 * already started RCU-only updates to finish.
-			 */
-			atomic_inc(&from->moving_account);
-			synchronize_rcu();
 
 			spin_lock(&mc.lock);
 			mc.from = from;
@@ -5520,6 +5507,13 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 	struct vm_area_struct *vma;
 
 	lru_add_drain_all();
+	/*
+	 * Signal mem_cgroup_begin_page_stat() to take the memcg's
+	 * move_lock while we're moving its pages to another memcg.
+	 * Then wait for already started RCU-only updates to finish.
+	 */
+	atomic_inc(&mc.from->moving_account);
+	synchronize_rcu();
 retry:
 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		/*
@@ -5552,6 +5546,7 @@ retry:
 			break;
 	}
 	up_read(&mm->mmap_sem);
+	atomic_dec(&mc.from->moving_account);
 }
 
 static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
