@@ -506,6 +506,16 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 			goto out;
 	}
 
+	/*
+	 * We can't shrink if we won't have enough room for SCHED_DEADLINE
+	 * tasks.
+	 */
+	ret = -EBUSY;
+	if (is_cpu_exclusive(cur) &&
+	    !cpuset_cpumask_can_shrink(cur->cpus_allowed,
+				       trial->cpus_allowed))
+		goto out;
+
 	ret = 0;
 out:
 	rcu_read_unlock();
@@ -1429,17 +1439,8 @@ static int cpuset_can_attach(struct cgroup_subsys_state *css,
 		goto out_unlock;
 
 	cgroup_taskset_for_each(task, tset) {
-		/*
-		 * Kthreads which disallow setaffinity shouldn't be moved
-		 * to a new cpuset; we don't want to change their cpu
-		 * affinity and isolating such threads by their set of
-		 * allowed nodes is unnecessary.  Thus, cpusets are not
-		 * applicable for such threads.  This prevents checking for
-		 * success of set_cpus_allowed_ptr() on all attached tasks
-		 * before cpus_allowed may be changed.
-		 */
-		ret = -EINVAL;
-		if (task->flags & PF_NO_SETAFFINITY)
+		ret = task_can_attach(task, cs->cpus_allowed);
+		if (ret)
 			goto out_unlock;
 		ret = security_task_setscheduler(task);
 		if (ret)

@@ -97,16 +97,19 @@ static inline long __trace_sched_switch_state(struct task_struct *p)
 	long state = p->state;
 
 #ifdef CONFIG_PREEMPT
+#ifdef CONFIG_SCHED_DEBUG
+	BUG_ON(p != current);
+#endif /* CONFIG_SCHED_DEBUG */
 	/*
 	 * For all intents and purposes a preempted task is a running task.
 	 */
-	if (task_preempt_count(p) & PREEMPT_ACTIVE)
+	if (preempt_count() & PREEMPT_ACTIVE)
 		state = TASK_RUNNING | TASK_STATE_MAX;
-#endif
+#endif /* CONFIG_PREEMPT */
 
 	return state;
 }
-#endif
+#endif /* CREATE_TRACE_POINTS */
 
 /*
  * Tracepoint for task switches, performed by the scheduler:
