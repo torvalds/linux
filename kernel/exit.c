@@ -473,8 +473,7 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
 	struct pid_namespace *pid_ns = task_active_pid_ns(father);
 	struct task_struct *thread;
 
-	thread = father;
-	while_each_thread(father, thread) {
+	for_each_thread(father, thread) {
 		if (thread->flags & PF_EXITING)
 			continue;
 		if (unlikely(pid_ns->child_reaper == father))
@@ -511,11 +510,10 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
 				break;
 			if (!reaper->signal->is_child_subreaper)
 				continue;
-			thread = reaper;
-			do {
+			for_each_thread(reaper, thread) {
 				if (!(thread->flags & PF_EXITING))
 					return thread;
-			} while_each_thread(reaper, thread);
+			}
 		}
 	}
 
