@@ -346,7 +346,10 @@ static int snvs_rtc_resume(struct device *dev)
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(snvs_rtc_pm_ops, snvs_rtc_suspend, snvs_rtc_resume);
+static const struct dev_pm_ops snvs_rtc_pm_ops = {
+	.suspend_noirq = snvs_rtc_suspend,
+	.resume_noirq = snvs_rtc_resume,
+};
 
 static const struct of_device_id snvs_dt_ids[] = {
 	{ .compatible = "fsl,sec-v4.0-mon-rtc-lp", },
