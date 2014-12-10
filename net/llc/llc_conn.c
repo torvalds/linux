@@ -454,7 +454,7 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
 				       struct sk_buff *skb)
 {
 	int rc = 0;
-	llc_conn_action_t *next_action;
+	const llc_conn_action_t *next_action;
 
 	for (next_action = trans->ev_actions;
 	     next_action && *next_action; next_action++) {
