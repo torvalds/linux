@@ -293,7 +293,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	l_ptr->next_out_no = 1;
 	__skb_queue_head_init(&l_ptr->outqueue);
 	__skb_queue_head_init(&l_ptr->deferred_queue);
-	__skb_queue_head_init(&l_ptr->waiting_sks);
+	skb_queue_head_init(&l_ptr->waiting_sks);
 
 	link_reset_statistics(l_ptr);
 
@@ -358,7 +358,7 @@ static bool link_schedule_user(struct tipc_link *link, u32 oport,
 		return false;
 	TIPC_SKB_CB(buf)->chain_sz = chain_sz;
 	TIPC_SKB_CB(buf)->chain_imp = imp;
-	__skb_queue_tail(&link->waiting_sks, buf);
+	skb_queue_tail(&link->waiting_sks, buf);
 	link->stats.link_congs++;
 	return true;
 }
@@ -378,8 +378,8 @@ static void link_prepare_wakeup(struct tipc_link *link)
 		if (pend_qsz >= link->queue_limit[TIPC_SKB_CB(skb)->chain_imp])
 			break;
 		pend_qsz += TIPC_SKB_CB(skb)->chain_sz;
-		__skb_unlink(skb, &link->waiting_sks);
-		__skb_queue_tail(&link->owner->waiting_sks, skb);
+		skb_unlink(skb, &link->waiting_sks);
+		skb_queue_tail(&link->owner->waiting_sks, skb);
 	}
 }
 
