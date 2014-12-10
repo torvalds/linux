@@ -110,7 +110,15 @@ static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 	vc = (byte >> MIPI_VIRTUAL_CHANNEL_SHIFT) & 0x3;
 	seq_port = (byte >> MIPI_PORT_SHIFT) & 0x3;
 
-	port = intel_dsi_seq_port_to_port(seq_port);
+	/* For DSI single link on Port A & C, the seq_port value which is
+	 * parsed from Sequence Block#53 of VBT has been set to 0
+	 * Now, read/write of packets for the DSI single link on Port A and
+	 * Port C will based on the DVO port from VBT block 2.
+	 */
+	if (intel_dsi->ports == (1 << PORT_C))
+		port = PORT_C;
+	else
+		port = intel_dsi_seq_port_to_port(seq_port);
 	/* LP or HS mode */
 	intel_dsi->hs = mode;
 
