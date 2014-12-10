@@ -1583,7 +1583,7 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	total_objects += dev->mode_config.num_encoder;
 	total_objects += dev->mode_config.num_bridge;
 
-	group->id_list = kzalloc(total_objects * sizeof(uint32_t), GFP_KERNEL);
+	group->id_list = kcalloc(total_objects, sizeof(uint32_t), GFP_KERNEL);
 	if (!group->id_list)
 		return -ENOMEM;
 
@@ -3400,7 +3400,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			ret = -EINVAL;
 			goto out_err1;
 		}
-		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+		clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
 			ret = -ENOMEM;
 			goto out_err1;
@@ -3501,7 +3501,8 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	property->dev = dev;
 
 	if (num_values) {
-		property->values = kzalloc(sizeof(uint64_t)*num_values, GFP_KERNEL);
+		property->values = kcalloc(num_values, sizeof(uint64_t),
+					   GFP_KERNEL);
 		if (!property->values)
 			goto fail;
 	}
@@ -4468,7 +4469,8 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 {
 	crtc->gamma_size = gamma_size;
 
-	crtc->gamma_store = kzalloc(gamma_size * sizeof(uint16_t) * 3, GFP_KERNEL);
+	crtc->gamma_store = kcalloc(gamma_size, sizeof(uint16_t) * 3,
+				    GFP_KERNEL);
 	if (!crtc->gamma_store) {
 		crtc->gamma_size = 0;
 		return -ENOMEM;
