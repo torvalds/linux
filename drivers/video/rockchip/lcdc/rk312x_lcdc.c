@@ -615,7 +615,6 @@ static int rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
 			lcdc_dev->iommu_status = 1;
 			rockchip_iovmm_activate(dev_drv->dev);
-			rk312x_lcdc_mmu_en(dev_drv);
 		}
 	}
 	#endif
