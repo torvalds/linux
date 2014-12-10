@@ -1824,7 +1824,7 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 		pool->process_bio = process_bio_read_only;
 		pool->process_discard = process_discard;
 		pool->process_prepared_mapping = process_prepared_mapping;
-		pool->process_prepared_discard = process_prepared_discard_passdown;
+		pool->process_prepared_discard = process_prepared_discard;
 
 		if (!pool->pf.error_if_no_space && no_space_timeout)
 			queue_delayed_work(pool->wq, &pool->no_space_timeout, no_space_timeout);
