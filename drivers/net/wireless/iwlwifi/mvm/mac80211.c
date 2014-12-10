@@ -778,14 +778,19 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	unsigned long flags;
 	int reg_val;
 	u32 smem_len = mvm->cfg->smem_len;
+	u32 sram2_len = mvm->cfg->dccm2_len;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* W/A for 8000 HW family A-step */
-	if (mvm->cfg->smem_len &&
-	    mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP)
-		smem_len = 0x38000;
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP) {
+		if (smem_len)
+			smem_len = 0x38000;
+
+		if (sram2_len)
+			sram2_len = 0x10000;
+	}
 
 	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
@@ -819,6 +824,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	/* Make room for the SMEM, if it exists */
 	if (smem_len)
 		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + smem_len;
+
+	/* Make room for the secondary SRAM, if it exists */
+	if (sram2_len)
+		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
 
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
@@ -882,6 +891,17 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		dump_mem->offset = cpu_to_le32(mvm->cfg->smem_offset);
 		iwl_trans_read_mem_bytes(mvm->trans, mvm->cfg->smem_offset,
 					 dump_mem->data, smem_len);
+	}
+
+	if (sram2_len) {
+		dump_data = iwl_fw_error_next_data(dump_data);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+		dump_data->len = cpu_to_le32(sram2_len + sizeof(*dump_mem));
+		dump_mem = (void *)dump_data->data;
+		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
+		dump_mem->offset = cpu_to_le32(mvm->cfg->dccm2_offset);
+		iwl_trans_read_mem_bytes(mvm->trans, mvm->cfg->dccm2_offset,
+					 dump_mem->data, sram2_len);
 	}
 
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans);

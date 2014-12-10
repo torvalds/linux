@@ -84,6 +84,8 @@
 /* Memory offsets and lengths */
 #define IWL8260_DCCM_OFFSET		0x800000
 #define IWL8260_DCCM_LEN		0x18000
+#define IWL8260_DCCM2_OFFSET		0x880000
+#define IWL8260_DCCM2_LEN		0x8000
 #define IWL8260_SMEM_OFFSET		0x400000
 #define IWL8260_SMEM_LEN		0x68000
 
@@ -134,6 +136,8 @@ static const struct iwl_ht_params iwl8000_ht_params = {
 	.non_shared_ant = ANT_A,				\
 	.dccm_offset = IWL8260_DCCM_OFFSET,			\
 	.dccm_len = IWL8260_DCCM_LEN,				\
+	.dccm2_offset = IWL8260_DCCM2_OFFSET,			\
+	.dccm2_len = IWL8260_DCCM2_LEN,				\
 	.smem_offset = IWL8260_SMEM_OFFSET,			\
 	.smem_len = IWL8260_SMEM_LEN
 
