@@ -4289,7 +4289,7 @@ void drbd_bcast_event(struct drbd_device *device, const struct sib_info *sib)
 	if (nla_put_status_info(msg, device, sib))
 		goto nla_put_failure;
 	genlmsg_end(msg, d_out);
-	err = drbd_genl_multicast_events(msg, 0);
+	err = drbd_genl_multicast_events(msg, GFP_NOWAIT);
 	/* msg has been consumed or freed in netlink_broadcast() */
 	if (err && err != -ESRCH)
 		goto failed;
@@ -4351,7 +4351,7 @@ void notify_resource_state(struct sk_buff *skb,
 		goto nla_put_failure;
 	genlmsg_end(skb, dh);
 	if (multicast) {
-		err = drbd_genl_multicast_events(skb, 0);
+		err = drbd_genl_multicast_events(skb, GFP_NOWAIT);
 		/* skb has been consumed or freed in netlink_broadcast() */
 		if (err && err != -ESRCH)
 			goto failed;
@@ -4400,7 +4400,7 @@ void notify_device_state(struct sk_buff *skb,
 	device_statistics_to_skb(skb, &device_statistics, !capable(CAP_SYS_ADMIN));
 	genlmsg_end(skb, dh);
 	if (multicast) {
-		err = drbd_genl_multicast_events(skb, 0);
+		err = drbd_genl_multicast_events(skb, GFP_NOWAIT);
 		/* skb has been consumed or freed in netlink_broadcast() */
 		if (err && err != -ESRCH)
 			goto failed;
@@ -4449,7 +4449,7 @@ void notify_connection_state(struct sk_buff *skb,
 	connection_statistics_to_skb(skb, &connection_statistics, !capable(CAP_SYS_ADMIN));
 	genlmsg_end(skb, dh);
 	if (multicast) {
-		err = drbd_genl_multicast_events(skb, 0);
+		err = drbd_genl_multicast_events(skb, GFP_NOWAIT);
 		/* skb has been consumed or freed in netlink_broadcast() */
 		if (err && err != -ESRCH)
 			goto failed;
@@ -4499,7 +4499,7 @@ void notify_peer_device_state(struct sk_buff *skb,
 	peer_device_statistics_to_skb(skb, &peer_device_statistics, !capable(CAP_SYS_ADMIN));
 	genlmsg_end(skb, dh);
 	if (multicast) {
-		err = drbd_genl_multicast_events(skb, 0);
+		err = drbd_genl_multicast_events(skb, GFP_NOWAIT);
 		/* skb has been consumed or freed in netlink_broadcast() */
 		if (err && err != -ESRCH)
 			goto failed;
@@ -4545,7 +4545,7 @@ void notify_helper(enum drbd_notification_type type,
 	    drbd_helper_info_to_skb(skb, &helper_info, true))
 		goto unlock_fail;
 	genlmsg_end(skb, dh);
-	err = drbd_genl_multicast_events(skb, 0);
+	err = drbd_genl_multicast_events(skb, GFP_NOWAIT);
 	skb = NULL;
 	/* skb has been consumed or freed in netlink_broadcast() */
 	if (err && err != -ESRCH)
