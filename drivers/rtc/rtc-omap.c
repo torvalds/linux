@@ -106,6 +106,7 @@ struct omap_rtc_device_type {
 	bool has_32kclk_en;
 	bool has_kicker;
 	bool has_irqwakeen;
+	bool has_power_up_reset;
 };
 
 struct omap_rtc {
@@ -346,6 +347,7 @@ static struct rtc_class_ops omap_rtc_ops = {
 };
 
 static const struct omap_rtc_device_type omap_rtc_default_type = {
+	.has_power_up_reset = true,
 };
 
 static const struct omap_rtc_device_type omap_rtc_am3352_type = {
@@ -391,7 +393,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 {
 	struct omap_rtc		*rtc;
 	struct resource		*res;
-	u8			reg, new_ctrl;
+	u8			reg, mask, new_ctrl;
 	const struct platform_device_id *id_entry;
 	const struct of_device_id *of_id;
 	int ret;
@@ -448,12 +450,17 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 
 	/* clear old status */
 	reg = rtc_read(rtc, OMAP_RTC_STATUS_REG);
-	if (reg & (u8) OMAP_RTC_STATUS_POWER_UP) {
-		dev_info(&pdev->dev, "RTC power up reset detected\n");
-		rtc_write(rtc, OMAP_RTC_STATUS_REG, OMAP_RTC_STATUS_POWER_UP);
+
+	mask = OMAP_RTC_STATUS_ALARM;
+
+	if (rtc->type->has_power_up_reset) {
+		mask |= OMAP_RTC_STATUS_POWER_UP;
+		if (reg & OMAP_RTC_STATUS_POWER_UP)
+			dev_info(&pdev->dev, "RTC power up reset detected\n");
 	}
-	if (reg & (u8) OMAP_RTC_STATUS_ALARM)
-		rtc_write(rtc, OMAP_RTC_STATUS_REG, OMAP_RTC_STATUS_ALARM);
+
+	if (reg & mask)
+		rtc_write(rtc, OMAP_RTC_STATUS_REG, reg & mask);
 
 	/* On boards with split power, RTC_ON_NOFF won't reset the RTC */
 	reg = rtc_read(rtc, OMAP_RTC_CTRL_REG);
