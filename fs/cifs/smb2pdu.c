@@ -1359,7 +1359,7 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 	char *ret_data = NULL;
 
 	fsctl_input.CompressionState =
-			__constant_cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+			cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SET_COMPRESSION, true /* is_fsctl */,
