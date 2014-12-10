@@ -121,22 +121,22 @@ For example, consider the following sequence of events:
 The set of accesses as seen by the memory system in the middle can be arranged
 in 24 different combinations:
 
-	STORE A=3,	STORE B=4,	x=LOAD A->3,	y=LOAD B->4
-	STORE A=3,	STORE B=4,	y=LOAD B->4,	x=LOAD A->3
-	STORE A=3,	x=LOAD A->3,	STORE B=4,	y=LOAD B->4
-	STORE A=3,	x=LOAD A->3,	y=LOAD B->2,	STORE B=4
-	STORE A=3,	y=LOAD B->2,	STORE B=4,	x=LOAD A->3
-	STORE A=3,	y=LOAD B->2,	x=LOAD A->3,	STORE B=4
-	STORE B=4,	STORE A=3,	x=LOAD A->3,	y=LOAD B->4
+	STORE A=3,	STORE B=4,	y=LOAD A->3,	x=LOAD B->4
+	STORE A=3,	STORE B=4,	x=LOAD B->4,	y=LOAD A->3
+	STORE A=3,	y=LOAD A->3,	STORE B=4,	x=LOAD B->4
+	STORE A=3,	y=LOAD A->3,	x=LOAD B->2,	STORE B=4
+	STORE A=3,	x=LOAD B->2,	STORE B=4,	y=LOAD A->3
+	STORE A=3,	x=LOAD B->2,	y=LOAD A->3,	STORE B=4
+	STORE B=4,	STORE A=3,	y=LOAD A->3,	x=LOAD B->4
 	STORE B=4, ...
 	...
 
 and can thus result in four different combinations of values:
 
-	x == 1, y == 2
-	x == 1, y == 4
-	x == 3, y == 2
-	x == 3, y == 4
+	x == 2, y == 1
+	x == 2, y == 3
+	x == 4, y == 1
+	x == 4, y == 3
 
 
 Furthermore, the stores committed by a CPU to the memory system may not be
@@ -693,6 +693,24 @@ one, perhaps as follows:
 Please note once again that the stores to 'b' differ.  If they were
 identical, as noted earlier, the compiler could pull this store outside
 of the 'if' statement.
+
+You must also be careful not to rely too much on boolean short-circuit
+evaluation.  Consider this example:
+
+	q = ACCESS_ONCE(a);
+	if (a || 1 > 0)
+		ACCESS_ONCE(b) = 1;
+
+Because the second condition is always true, the compiler can transform
+this example as following, defeating control dependency:
+
+	q = ACCESS_ONCE(a);
+	ACCESS_ONCE(b) = 1;
+
+This example underscores the need to ensure that the compiler cannot
+out-guess your code.  More generally, although ACCESS_ONCE() does force
+the compiler to actually emit code for a given load, it does not force
+the compiler to use the results.
 
 Finally, control dependencies do -not- provide transitivity.  This is
 demonstrated by two related examples, with the initial values of

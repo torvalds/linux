@@ -1275,7 +1275,17 @@ struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 			local_irq_restore(*flags);
 			break;
 		}
-
+		/*
+		 * This sighand can be already freed and even reused, but
+		 * we rely on SLAB_DESTROY_BY_RCU and sighand_ctor() which
+		 * initializes ->siglock: this slab can't go away, it has
+		 * the same object type, ->siglock can't be reinitialized.
+		 *
+		 * We need to ensure that tsk->sighand is still the same
+		 * after we take the lock, we can race with de_thread() or
+		 * __exit_signal(). In the latter case the next iteration
+		 * must see ->sighand == NULL.
+		 */
 		spin_lock(&sighand->siglock);
 		if (likely(sighand == tsk->sighand)) {
 			rcu_read_unlock();
@@ -1331,23 +1341,21 @@ int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
 	int error = -ESRCH;
 	struct task_struct *p;
 
-	rcu_read_lock();
-retry:
-	p = pid_task(pid, PIDTYPE_PID);
-	if (p) {
-		error = group_send_sig_info(sig, info, p);
-		if (unlikely(error == -ESRCH))
-			/*
-			 * The task was unhashed in between, try again.
-			 * If it is dead, pid_task() will return NULL,
-			 * if we race with de_thread() it will find the
-			 * new leader.
-			 */
-			goto retry;
-	}
-	rcu_read_unlock();
+	for (;;) {
+		rcu_read_lock();
+		p = pid_task(pid, PIDTYPE_PID);
+		if (p)
+			error = group_send_sig_info(sig, info, p);
+		rcu_read_unlock();
+		if (likely(!p || error != -ESRCH))
+			return error;
 
-	return error;
+		/*
+		 * The task was unhashed in between, try again.  If it
+		 * is dead, pid_task() will return NULL, if we race with
+		 * de_thread() it will find the new leader.
+		 */
+	}
 }
 
 int kill_proc_info(int sig, struct siginfo *info, pid_t pid)
