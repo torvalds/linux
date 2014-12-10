@@ -1,7 +1,8 @@
 /*
- * Set up the VMAs to tell the VM about the vDSO.
  * Copyright 2007 Andi Kleen, SUSE Labs.
  * Subject to the GPL, v.2
+ *
+ * This contains most of the x86 vDSO kernel-side code.
  */
 #include <linux/mm.h>
 #include <linux/err.h>
@@ -10,17 +11,17 @@
 #include <linux/init.h>
 #include <linux/random.h>
 #include <linux/elf.h>
-#include <asm/vsyscall.h>
+#include <linux/cpu.h>
 #include <asm/vgtod.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
+#include <asm/vvar.h>
 #include <asm/page.h>
 #include <asm/hpet.h>
+#include <asm/desc.h>
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
-
-extern unsigned short vdso_sync_cpuid;
 #endif
 
 void __init init_vdso_image(const struct vdso_image *image)
@@ -37,20 +38,6 @@ void __init init_vdso_image(const struct vdso_image *image)
 			   (struct alt_instr *)(image->data + image->alt +
 						image->alt_len));
 }
-
-#if defined(CONFIG_X86_64)
-static int __init init_vdso(void)
-{
-	init_vdso_image(&vdso_image_64);
-
-#ifdef CONFIG_X86_X32_ABI
-	init_vdso_image(&vdso_image_x32);
-#endif
-
-	return 0;
-}
-subsys_initcall(init_vdso);
-#endif
 
 struct linux_binprm;
 
@@ -238,3 +225,63 @@ static __init int vdso_setup(char *s)
 }
 __setup("vdso=", vdso_setup);
 #endif
+
+#ifdef CONFIG_X86_64
+static void vgetcpu_cpu_init(void *arg)
+{
+	int cpu = smp_processor_id();
+	struct desc_struct d = { };
+	unsigned long node = 0;
+#ifdef CONFIG_NUMA
+	node = cpu_to_node(cpu);
+#endif
+	if (cpu_has(&cpu_data(cpu), X86_FEATURE_RDTSCP))
+		write_rdtscp_aux((node << 12) | cpu);
+
+	/*
+	 * Store cpu number in limit so that it can be loaded
+	 * quickly in user space in vgetcpu. (12 bits for the CPU
+	 * and 8 bits for the node)
+	 */
+	d.limit0 = cpu | ((node & 0xf) << 12);
+	d.limit = node >> 4;
+	d.type = 5;		/* RO data, expand down, accessed */
+	d.dpl = 3;		/* Visible to user code */
+	d.s = 1;		/* Not a system segment */
+	d.p = 1;		/* Present */
+	d.d = 1;		/* 32-bit */
+
+	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
+}
+
+static int
+vgetcpu_cpu_notifier(struct notifier_block *n, unsigned long action, void *arg)
+{
+	long cpu = (long)arg;
+
+	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
+		smp_call_function_single(cpu, vgetcpu_cpu_init, NULL, 1);
+
+	return NOTIFY_DONE;
+}
+
+static int __init init_vdso(void)
+{
+	init_vdso_image(&vdso_image_64);
+
+#ifdef CONFIG_X86_X32_ABI
+	init_vdso_image(&vdso_image_x32);
+#endif
+
+	cpu_notifier_register_begin();
+
+	on_each_cpu(vgetcpu_cpu_init, NULL, 1);
+	/* notifier priority > KVM */
+	__hotcpu_notifier(vgetcpu_cpu_notifier, 30);
+
+	cpu_notifier_register_done();
+
+	return 0;
+}
+subsys_initcall(init_vdso);
+#endif /* CONFIG_X86_64 */
