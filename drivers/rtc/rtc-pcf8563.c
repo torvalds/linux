@@ -42,6 +42,13 @@
 
 #define PCF8563_REG_CLKO	0x0D /* clock out */
 #define PCF8563_REG_TMRC	0x0E /* timer control */
+#define PCF8563_TMRC_ENABLE	BIT(7)
+#define PCF8563_TMRC_4096	0
+#define PCF8563_TMRC_64		1
+#define PCF8563_TMRC_1		2
+#define PCF8563_TMRC_1_60	3
+#define PCF8563_TMRC_MASK	3
+
 #define PCF8563_REG_TMR		0x0F /* timer */
 
 #define PCF8563_SC_LV		0x80 /* low voltage */
@@ -406,6 +413,7 @@ static int pcf8563_probe(struct i2c_client *client,
 {
 	struct pcf8563 *pcf8563;
 	int err;
+	unsigned char buf;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -422,6 +430,14 @@ static int pcf8563_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, pcf8563);
 	pcf8563->client = client;
 	device_set_wakeup_capable(&client->dev, 1);
+
+	/* Set timer to lowest frequency to save power (ref Haoyu datasheet) */
+	buf = PCF8563_TMRC_1_60;
+	err = pcf8563_write_block_data(client, PCF8563_REG_TMRC, 1, &buf);
+	if (err < 0) {
+		dev_err(&client->dev, "%s: write error\n", __func__);
+		return err;
+	}
 
 	pcf8563->rtc = devm_rtc_device_register(&client->dev,
 				pcf8563_driver.driver.name,
