@@ -30,7 +30,6 @@
  *      MACbIsRegBitsOff - Test if All test Bits Off
  *      MACbIsIntDisable - Test if MAC interrupt disable
  *      MACvSetShortRetryLimit - Set 802.11 Short Retry limit
- *      MACvGetShortRetryLimit - Get 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
  *      MACvSetLoopbackMode - Set MAC Loopback Mode
  *      MACvSaveContext - Save Context of MAC Registers
@@ -146,24 +145,6 @@ void MACvSetShortRetryLimit(void __iomem *dwIoBase, unsigned char byRetryLimit)
 	VNSvOutPortB(dwIoBase + MAC_REG_SRT, byRetryLimit);
 }
 
-/*
- * Description:
- *      Get 802.11 Short Retry Limit
- *
- * Parameters:
- *  In:
- *      dwIoBase        - Base Address for MAC
- *  Out:
- *      pbyRetryLimit   - Retry Limit Get
- *
- * Return Value: none
- *
- */
-void MACvGetShortRetryLimit(void __iomem *dwIoBase, unsigned char *pbyRetryLimit)
-{
-	// get SRT
-	VNSvInPortB(dwIoBase + MAC_REG_SRT, pbyRetryLimit);
-}
 
 /*
  * Description:
