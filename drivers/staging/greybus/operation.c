@@ -396,6 +396,8 @@ static int gb_operation_status_map(u8 status)
 		return -EINVAL;
 	case GB_OP_RETRY:
 		return -EAGAIN;
+	case GB_OP_NONEXISTENT:
+		return -ENODEV;
 	case GB_OP_MALFUNCTION:
 		return -EILSEQ;
 	case GB_OP_UNKNOWN_ERROR:
@@ -431,6 +433,8 @@ static u8 gb_operation_errno_map(int errno)
 		return GB_OP_RETRY;
 	case -EILSEQ:
 		return GB_OP_MALFUNCTION;
+	case -ENODEV:
+		return GB_OP_NONEXISTENT;
 	case -EIO:
 	default:
 		return GB_OP_UNKNOWN_ERROR;
