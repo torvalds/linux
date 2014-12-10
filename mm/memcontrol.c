@@ -2273,6 +2273,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
 		page_counter_uncharge(&old->memory, stock->nr_pages);
 		if (do_swap_account)
 			page_counter_uncharge(&old->memsw, stock->nr_pages);
+		css_put_many(&old->css, stock->nr_pages);
 		stock->nr_pages = 0;
 	}
 	stock->cached = NULL;
@@ -2530,6 +2531,7 @@ bypass:
 	return -EINTR;
 
 done_restock:
+	css_get_many(&memcg->css, batch);
 	if (batch > nr_pages)
 		refill_stock(memcg, batch - nr_pages);
 done:
@@ -2544,6 +2546,8 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
 	page_counter_uncharge(&memcg->memory, nr_pages);
 	if (do_swap_account)
 		page_counter_uncharge(&memcg->memsw, nr_pages);
+
+	css_put_many(&memcg->css, nr_pages);
 }
 
 /*
@@ -2739,6 +2743,7 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
 		page_counter_charge(&memcg->memory, nr_pages);
 		if (do_swap_account)
 			page_counter_charge(&memcg->memsw, nr_pages);
+		css_get_many(&memcg->css, nr_pages);
 		ret = 0;
 	} else if (ret)
 		page_counter_uncharge(&memcg->kmem, nr_pages);
@@ -2754,8 +2759,10 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg,
 		page_counter_uncharge(&memcg->memsw, nr_pages);
 
 	/* Not down to 0 */
-	if (page_counter_uncharge(&memcg->kmem, nr_pages))
+	if (page_counter_uncharge(&memcg->kmem, nr_pages)) {
+		css_put_many(&memcg->css, nr_pages);
 		return;
+	}
 
 	/*
 	 * Releases a reference taken in kmem_cgroup_css_offline in case
@@ -2767,6 +2774,8 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg,
 	 */
 	if (memcg_kmem_test_and_clear_dead(memcg))
 		css_put(&memcg->css);
+
+	css_put_many(&memcg->css, nr_pages);
 }
 
 /*
@@ -3394,10 +3403,13 @@ static int mem_cgroup_move_parent(struct page *page,
 	ret = mem_cgroup_move_account(page, nr_pages,
 				pc, child, parent);
 	if (!ret) {
+		if (!mem_cgroup_is_root(parent))
+			css_get_many(&parent->css, nr_pages);
 		/* Take charge off the local counters */
 		page_counter_cancel(&child->memory, nr_pages);
 		if (do_swap_account)
 			page_counter_cancel(&child->memsw, nr_pages);
+		css_put_many(&child->css, nr_pages);
 	}
 
 	if (nr_pages > 1)
@@ -5767,7 +5779,6 @@ static void __mem_cgroup_clear_mc(void)
 {
 	struct mem_cgroup *from = mc.from;
 	struct mem_cgroup *to = mc.to;
-	int i;
 
 	/* we must uncharge all the leftover precharges from mc.to */
 	if (mc.precharge) {
@@ -5795,8 +5806,7 @@ static void __mem_cgroup_clear_mc(void)
 		if (!mem_cgroup_is_root(mc.to))
 			page_counter_uncharge(&mc.to->memory, mc.moved_swap);
 
-		for (i = 0; i < mc.moved_swap; i++)
-			css_put(&mc.from->css);
+		css_put_many(&mc.from->css, mc.moved_swap);
 
 		/* we've already done css_get(mc.to) */
 		mc.moved_swap = 0;
@@ -6343,6 +6353,9 @@ static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
 	__this_cpu_add(memcg->stat->nr_page_events, nr_anon + nr_file);
 	memcg_check_events(memcg, dummy_page);
 	local_irq_restore(flags);
+
+	if (!mem_cgroup_is_root(memcg))
+		css_put_many(&memcg->css, max(nr_mem, nr_memsw));
 }
 
 static void uncharge_list(struct list_head *page_list)
