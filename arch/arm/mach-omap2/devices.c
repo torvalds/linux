@@ -411,3 +411,29 @@ static int __init omap2_init_devices(void)
 	return 0;
 }
 omap_arch_initcall(omap2_init_devices);
+
+static int __init omap_gpmc_init(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+	char *oh_name = "gpmc";
+
+	/*
+	 * if the board boots up with a populated DT, do not
+	 * manually add the device from this initcall
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	pdev = omap_device_build("omap-gpmc", -1, oh, NULL, 0);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
+
+	return PTR_RET(pdev);
+}
+omap_postcore_initcall(omap_gpmc_init);

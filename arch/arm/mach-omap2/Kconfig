@@ -79,7 +79,9 @@ config ARCH_OMAP2PLUS
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select MACH_OMAP_GENERIC
+	select MEMORY
 	select OMAP_DM_TIMER
+	select OMAP_GPMC
 	select PINCTRL
 	select SOC_BUS
 	select TI_PRIV_EDMA
@@ -235,12 +237,6 @@ config MACH_TOUCHBOOK
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_OMAP_3430SDP
-	bool "OMAP 3430 SDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_NOKIA_N810
        bool
 
@@ -281,16 +277,6 @@ config MACH_SBC3530
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-
-config MACH_TI8168EVM
-	bool "TI8168 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
-
-config MACH_TI8148EVM
-	bool "TI8148 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"

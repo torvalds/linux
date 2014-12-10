@@ -41,6 +41,14 @@ config TI_EMIF
 	  parameters and other settings during frequency, voltage and
 	  temperature changes
 
+config OMAP_GPMC
+	bool
+	help
+	  This driver is for the General Purpose Memory Controller (GPMC)
+	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
+	  interfacing to a variety of asynchronous as well as synchronous
+	  memory drives like NOR, NAND, OneNAND, SRAM.
+
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
 	default y

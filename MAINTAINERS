@@ -6702,6 +6702,14 @@ L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	sound/soc/omap/
 
+OMAP GENERAL PURPOSE MEMORY CONTROLLER SUPPORT
+M:	Roger Quadros <rogerq@ti.com>
+M:	Tony Lindgren <tony@atomide.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/memory/omap-gpmc.c
+F:	arch/arm/mach-omap2/*gpmc*
+
 OMAP FRAMEBUFFER SUPPORT
 M:	Tomi Valkeinen <tomi.valkeinen@ti.com>
 L:	linux-fbdev@vger.kernel.org
