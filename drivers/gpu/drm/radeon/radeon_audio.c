@@ -97,6 +97,8 @@ void dce3_2_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
 void dce4_set_mute(struct drm_encoder *encoder, u32 offset, bool mute);
 static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
+void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
+void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable);
 
 static const u32 pin_offsets[7] =
 {
@@ -153,6 +155,7 @@ static struct radeon_audio_funcs r600_hdmi_funcs = {
 	.set_audio_packet = r600_set_audio_packet,
 	.set_mute = r600_set_mute,
 	.mode_set = radeon_audio_hdmi_mode_set,
+	.dpms = r600_hdmi_enable,
 };
 
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
@@ -166,6 +169,7 @@ static struct radeon_audio_funcs dce32_hdmi_funcs = {
 	.set_audio_packet = dce3_2_set_audio_packet,
 	.set_mute = dce3_2_set_mute,
 	.mode_set = radeon_audio_hdmi_mode_set,
+	.dpms = r600_hdmi_enable,
 };
 
 static struct radeon_audio_funcs dce32_dp_funcs = {
@@ -189,6 +193,7 @@ static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.set_audio_packet = dce4_set_audio_packet,
 	.set_mute = dce4_set_mute,
 	.mode_set = radeon_audio_hdmi_mode_set,
+	.dpms = evergreen_hdmi_enable,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
@@ -214,6 +219,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.set_audio_packet = dce4_set_audio_packet,
 	.set_mute = dce4_set_mute,
 	.mode_set = radeon_audio_hdmi_mode_set,
+	.dpms = evergreen_hdmi_enable,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
@@ -704,4 +710,12 @@ void radeon_audio_mode_set(struct drm_encoder *encoder,
 
 	if (radeon_encoder->audio && radeon_encoder->audio->mode_set)
 		radeon_encoder->audio->mode_set(encoder, mode);
+}
+
+void radeon_audio_dpms(struct drm_encoder *encoder, int mode)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+
+	if (radeon_encoder->audio && radeon_encoder->audio->dpms)
+		radeon_encoder->audio->dpms(encoder, mode == DRM_MODE_DPMS_ON);
 }

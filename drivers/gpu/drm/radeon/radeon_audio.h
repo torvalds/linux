@@ -63,6 +63,7 @@ struct radeon_audio_funcs
 	void (*set_mute)(struct drm_encoder *encoder, u32 offset, bool mute);
 	void (*mode_set)(struct drm_encoder *encoder,
 		struct drm_display_mode *mode);
+	void (*dpms)(struct drm_encoder *encoder, bool mode);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -78,5 +79,6 @@ void radeon_audio_enable(struct radeon_device *rdev,
 void radeon_audio_fini(struct radeon_device *rdev);
 void radeon_audio_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
+void radeon_audio_dpms(struct drm_encoder *encoder, int mode);
 
 #endif
