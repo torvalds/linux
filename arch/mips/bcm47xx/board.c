@@ -330,9 +330,8 @@ void __init bcm47xx_board_detect(void)
 	err = bcm47xx_nvram_getenv("boardtype", buf, sizeof(buf));
 
 	/* init of nvram failed, probably too early now */
-	if (err == -ENXIO) {
+	if (err == -ENXIO)
 		return;
-	}
 
 	board_detected = bcm47xx_board_get_nvram();
 	bcm47xx_board.board = board_detected->board;

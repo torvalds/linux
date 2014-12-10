@@ -18,8 +18,10 @@
 #include <linux/mtd/mtd.h>
 #include <linux/bcm47xx_nvram.h>
 
-#define NVRAM_MAGIC		0x48534C46	/* 'FLSH' */
-#define NVRAM_SPACE		0x8000
+#define NVRAM_MAGIC			0x48534C46	/* 'FLSH' */
+#define NVRAM_SPACE			0x8000
+#define NVRAM_MAX_GPIO_ENTRIES		32
+#define NVRAM_MAX_GPIO_VALUE_LEN	30
 
 #define FLASH_MIN		0x00020000	/* Minimum flash size */
 
@@ -97,8 +99,8 @@ found:
 		pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
 		       header->len, NVRAM_SPACE);
 
-	src = (u32 *) header;
-	dst = (u32 *) nvram_buf;
+	src = (u32 *)header;
+	dst = (u32 *)nvram_buf;
 	for (i = 0; i < sizeof(struct nvram_header); i += 4)
 		*dst++ = __raw_readl(src++);
 	for (; i < header->len && i < NVRAM_SPACE && i < size; i += 4)
@@ -189,7 +191,8 @@ int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 	/* Look for name=value and return value */
 	var = &nvram_buf[sizeof(struct nvram_header)];
 	end = nvram_buf + sizeof(nvram_buf) - 2;
-	end[0] = end[1] = '\0';
+	end[0] = '\0';
+	end[1] = '\0';
 	for (; *var; var = value + strlen(value) + 1) {
 		data_left = end - var;
 
@@ -197,11 +200,10 @@ int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 		if (!eq)
 			break;
 		value = eq + 1;
-		if ((eq - var) == strlen(name) &&
-			strncmp(var, name, (eq - var)) == 0) {
+		if (eq - var == strlen(name) &&
+		    strncmp(var, name, eq - var) == 0)
 			return snprintf(val, val_len, "%s", value);
 		}
-	}
 	return -ENOENT;
 }
 EXPORT_SYMBOL(bcm47xx_nvram_getenv);
@@ -209,10 +211,11 @@ EXPORT_SYMBOL(bcm47xx_nvram_getenv);
 int bcm47xx_nvram_gpio_pin(const char *name)
 {
 	int i, err;
-	char nvram_var[10];
-	char buf[30];
+	char nvram_var[] = "gpioXX";
+	char buf[NVRAM_MAX_GPIO_VALUE_LEN];
 
-	for (i = 0; i < 32; i++) {
+	/* TODO: Optimize it to don't call getenv so many times */
+	for (i = 0; i < NVRAM_MAX_GPIO_ENTRIES; i++) {
 		err = snprintf(nvram_var, sizeof(nvram_var), "gpio%i", i);
 		if (err <= 0)
 			continue;

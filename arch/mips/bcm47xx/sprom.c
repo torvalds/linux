@@ -780,8 +780,8 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
 		bcm47xx_fill_sprom_path_r4589(sprom, prefix, fallback);
 		break;
 	default:
-		pr_warn("Unsupported SPROM revision %d detected. Will extract"
-			" v1\n", sprom->revision);
+		pr_warn("Unsupported SPROM revision %d detected. Will extract v1\n",
+			sprom->revision);
 		sprom->revision = 1;
 		bcm47xx_fill_sprom_r1234589(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_r12389(sprom, prefix, fallback);
@@ -828,7 +828,7 @@ static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 		bcm47xx_fill_sprom(out, prefix, false);
 		return 0;
 	} else {
-		pr_warn("bcm47xx: unable to fill SPROM for given bustype.\n");
+		pr_warn("Unable to fill SPROM for given bustype.\n");
 		return -EINVAL;
 	}
 }
@@ -893,7 +893,7 @@ static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 		}
 		return 0;
 	default:
-		pr_warn("bcm47xx: unable to fill SPROM for given bustype.\n");
+		pr_warn("Unable to fill SPROM for given bustype.\n");
 		return -EINVAL;
 	}
 }
