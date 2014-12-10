@@ -41,22 +41,14 @@ static int proc_match(unsigned int len, const char *name, struct proc_dir_entry 
 
 static struct proc_dir_entry *pde_subdir_first(struct proc_dir_entry *dir)
 {
-	struct rb_node *node = rb_first(&dir->subdir);
-
-	if (node == NULL)
-		return NULL;
-
-	return rb_entry(node, struct proc_dir_entry, subdir_node);
+	return rb_entry_safe(rb_first(&dir->subdir), struct proc_dir_entry,
+			     subdir_node);
 }
 
 static struct proc_dir_entry *pde_subdir_next(struct proc_dir_entry *dir)
 {
-	struct rb_node *node = rb_next(&dir->subdir_node);
-
-	if (node == NULL)
-		return NULL;
-
-	return rb_entry(node, struct proc_dir_entry, subdir_node);
+	return rb_entry_safe(rb_next(&dir->subdir_node), struct proc_dir_entry,
+			     subdir_node);
 }
 
 static struct proc_dir_entry *pde_subdir_find(struct proc_dir_entry *dir,
