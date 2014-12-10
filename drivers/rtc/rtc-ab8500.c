@@ -504,6 +504,8 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	rtc->uie_unsupported = 1;
+
 	return 0;
 }
 
