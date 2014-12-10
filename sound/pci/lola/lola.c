@@ -719,7 +719,7 @@ static int lola_probe(struct pci_dev *pci,
 	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		dev_err(card->dev, "Error creating card!\n");
+		dev_err(&pci->dev, "Error creating card!\n");
 		return err;
 	}
 
