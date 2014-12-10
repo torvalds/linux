@@ -2082,12 +2082,12 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	mutex_init(&sbi->s_alloc_mutex);
 
 	if (!udf_parse_options((char *)options, &uopt, false))
-		goto error_out;
+		goto parse_options_failure;
 
 	if (uopt.flags & (1 << UDF_FLAG_UTF8) &&
 	    uopt.flags & (1 << UDF_FLAG_NLS_MAP)) {
 		udf_err(sb, "utf8 cannot be combined with iocharset\n");
-		goto error_out;
+		goto parse_options_failure;
 	}
 #ifdef CONFIG_UDF_NLS
 	if ((uopt.flags & (1 << UDF_FLAG_NLS_MAP)) && !uopt.nls_map) {
@@ -2237,8 +2237,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	return 0;
 
 error_out:
-	if (sbi->s_vat_inode)
-		iput(sbi->s_vat_inode);
+	iput(sbi->s_vat_inode);
+parse_options_failure:
 #ifdef CONFIG_UDF_NLS
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		unload_nls(sbi->s_nls_map);
@@ -2291,8 +2291,7 @@ static void udf_put_super(struct super_block *sb)
 
 	sbi = UDF_SB(sb);
 
-	if (sbi->s_vat_inode)
-		iput(sbi->s_vat_inode);
+	iput(sbi->s_vat_inode);
 #ifdef CONFIG_UDF_NLS
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		unload_nls(sbi->s_nls_map);
