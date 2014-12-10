@@ -237,9 +237,6 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	/*
 	 * Starting 8000B - FW name format has changed. This overwrites the
 	 * previous name and uses the new format.
-	 *
-	 * TODO:
-	 * Once there is only one supported step for 8000 family - delete this!
 	 */
 	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
 		char rev_step[2] = {
@@ -249,13 +246,6 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		/* A-step doesn't have an indication */
 		if (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_A_STEP)
 			rev_step[0] = 0;
-
-		/*
-		 * If hw_rev wasn't set yet - default as B-step. If it IS A-step
-		 * we'll reload that FW later instead.
-		 */
-		if (drv->trans->hw_rev == 0)
-			rev_step[0] = 'B';
 
 		snprintf(drv->firmware_name, sizeof(drv->firmware_name),
 			 "%s%s-%s.ucode", name_pre, rev_step, tag);
@@ -1069,7 +1059,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	u32 api_ver;
 	int i;
 	bool load_module = false;
-	u32 hw_rev = drv->trans->hw_rev;
 
 	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =
@@ -1262,50 +1251,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				op->name, err);
 #endif
 	}
-
-	/*
-	 * We may have loaded the wrong FW file in 8000 HW family if it is an
-	 * A-step card, and if drv->trans->hw_rev wasn't properly read when
-	 * the FW file had been loaded. (This might happen in SDIO.) In such a
-	 * case - unload and reload the correct file.
-	 *
-	 * TODO:
-	 * Once there is only one supported step for 8000 family - delete this!
-	 */
-	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_A_STEP &&
-	    drv->trans->hw_rev != hw_rev) {
-		char firmware_name[32];
-
-		/* Free previous FW resources */
-		if (drv->op_mode)
-			_iwl_op_mode_stop(drv);
-		iwl_dealloc_ucode(drv);
-
-		/* Build name of correct-step FW */
-		snprintf(firmware_name, sizeof(firmware_name),
-			 strrchr(drv->firmware_name, '-'));
-		snprintf(drv->firmware_name, sizeof(drv->firmware_name),
-			 "%s%s", drv->cfg->fw_name_pre, firmware_name);
-
-		/* Clear data before loading correct FW */
-		list_del(&drv->list);
-
-		/* Request correct FW file this time */
-		IWL_DEBUG_INFO(drv, "attempting to load A-step FW %s\n",
-			       drv->firmware_name);
-		err = request_firmware(&ucode_raw, drv->firmware_name,
-				       drv->trans->dev);
-		if (err) {
-			IWL_ERR(drv, "Failed swapping FW!\n");
-			goto out_unbind;
-		}
-
-		/* Redo callback function - this time with right FW */
-		iwl_req_fw_callback(ucode_raw, context);
-	}
-
-	kfree(pieces);
 	return;
 
  try_again:
