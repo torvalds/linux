@@ -71,13 +71,13 @@ static struct bc_timer bc_timer;
 static inline void rk_timer_disable(void __iomem *base)
 {
 	writel_relaxed(TIMER_DISABLE, base + TIMER_CONTROL_REG);
-	dsb();
+	dsb(sy);
 }
 
 static inline void rk_timer_enable(void __iomem *base, u32 flags)
 {
 	writel_relaxed(TIMER_ENABLE | flags, base + TIMER_CONTROL_REG);
-	dsb();
+	dsb(sy);
 }
 
 static inline u32 rk_timer_read_current_value(void __iomem *base)
@@ -102,7 +102,7 @@ static inline int rk_timer_do_set_next_event(unsigned long cycles, void __iomem 
 	rk_timer_disable(base);
 	writel_relaxed(cycles, base + TIMER_LOAD_COUNT0);
 	writel_relaxed(0, base + TIMER_LOAD_COUNT1);
-	dsb();
+	dsb(sy);
 	rk_timer_enable(base, TIMER_MODE_USER_DEFINED_COUNT | TIMER_INT_UNMASK);
 	return 0;
 }
@@ -125,7 +125,7 @@ static inline void rk_timer_do_set_mode(enum clock_event_mode mode, void __iomem
 	case CLOCK_EVT_MODE_PERIODIC:
 		rk_timer_disable(base);
 		writel_relaxed(24000000 / HZ - 1, base + TIMER_LOAD_COUNT0);
-		dsb();
+		dsb(sy);
 		rk_timer_enable(base, TIMER_MODE_FREE_RUNNING | TIMER_INT_UNMASK);
 	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -156,7 +156,7 @@ static inline irqreturn_t rk_timer_interrupt(void __iomem *base, struct clock_ev
 	if (ce->mode == CLOCK_EVT_MODE_ONESHOT) {
 		writel_relaxed(TIMER_DISABLE, base + TIMER_CONTROL_REG);
 	}
-	dsb();
+	dsb(sy);
 
 	ce->event_handler(ce);
 
@@ -286,7 +286,7 @@ static void __init rk_timer_init_clocksource(struct device_node *np)
 	rk_timer_disable(base);
 	writel_relaxed(0xFFFFFFFF, base + TIMER_LOAD_COUNT0);
 	writel_relaxed(0xFFFFFFFF, base + TIMER_LOAD_COUNT1);
-	dsb();
+	dsb(sy);
 	rk_timer_enable(base, TIMER_MODE_FREE_RUNNING | TIMER_INT_MASK);
 	clocksource_register_hz(cs, 24000000);
 }
