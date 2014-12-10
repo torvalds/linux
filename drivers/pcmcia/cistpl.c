@@ -168,9 +168,12 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	} else {
 		u_int inc = 1, card_offset, flags;
 
-		if (addr > CISTPL_MAX_CIS_SIZE)
+		if (addr > CISTPL_MAX_CIS_SIZE) {
 			dev_dbg(&s->dev,
 				"attempt to read CIS mem at addr %#x", addr);
+			memset(ptr, 0xff, len);
+			return -1;
+		}
 
 		flags = MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0);
 		if (attr) {
