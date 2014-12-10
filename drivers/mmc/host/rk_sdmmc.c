@@ -1684,12 +1684,12 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 	*/
 	mci_writel(slot->host, PWREN, 0x0);
 	mci_writel(slot->host, RST_N, 0x0);
-	dsb();
+	dsb(sy);
 	udelay(10); /* 10us for bad quality eMMc. */
 
 	mci_writel(slot->host, PWREN, 0x1);
 	mci_writel(slot->host, RST_N, 0x1);
-	dsb();
+	dsb(sy);
 	usleep_range(500, 1000); /* at least 500(> 200us) */
 }
 
