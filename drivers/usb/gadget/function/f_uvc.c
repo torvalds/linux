@@ -509,6 +509,9 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 		break;
 	}
 
+	if (!uvc_control_desc || !uvc_streaming_cls)
+		return ERR_PTR(-ENODEV);
+
 	/* Descriptors layout
 	 *
 	 * uvc_iad
@@ -700,10 +703,27 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 
 	/* Copy descriptors */
 	f->fs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_FULL);
-	if (gadget_is_dualspeed(cdev->gadget))
+	if (IS_ERR(f->fs_descriptors)) {
+		ret = PTR_ERR(f->fs_descriptors);
+		f->fs_descriptors = NULL;
+		goto error;
+	}
+	if (gadget_is_dualspeed(cdev->gadget)) {
 		f->hs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_HIGH);
-	if (gadget_is_superspeed(c->cdev->gadget))
+		if (IS_ERR(f->hs_descriptors)) {
+			ret = PTR_ERR(f->hs_descriptors);
+			f->hs_descriptors = NULL;
+			goto error;
+		}
+	}
+	if (gadget_is_superspeed(c->cdev->gadget)) {
 		f->ss_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_SUPER);
+		if (IS_ERR(f->ss_descriptors)) {
+			ret = PTR_ERR(f->ss_descriptors);
+			f->ss_descriptors = NULL;
+			goto error;
+		}
+	}
 
 	/* Preallocate control endpoint request. */
 	uvc->control_req = usb_ep_alloc_request(cdev->gadget->ep0, GFP_KERNEL);
