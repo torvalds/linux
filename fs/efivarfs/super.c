@@ -236,6 +236,7 @@ static void efivarfs_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type efivarfs_type = {
+	.owner   = THIS_MODULE,
 	.name    = "efivarfs",
 	.mount   = efivarfs_mount,
 	.kill_sb = efivarfs_kill_sb,
@@ -244,12 +245,17 @@ static struct file_system_type efivarfs_type = {
 static __init int efivarfs_init(void)
 {
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
+		return -ENODEV;
 
 	if (!efivars_kobject())
-		return 0;
+		return -ENODEV;
 
 	return register_filesystem(&efivarfs_type);
+}
+
+static __exit void efivarfs_exit(void)
+{
+	unregister_filesystem(&efivarfs_type);
 }
 
 MODULE_AUTHOR("Matthew Garrett, Jeremy Kerr");
@@ -258,3 +264,4 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_FS("efivarfs");
 
 module_init(efivarfs_init);
+module_exit(efivarfs_exit);
