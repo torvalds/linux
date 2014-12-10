@@ -28,6 +28,7 @@
 #define PCF8563_REG_ST2		0x01
 #define PCF8563_BIT_AIE		(1 << 1)
 #define PCF8563_BIT_AF		(1 << 3)
+#define PCF8563_BITS_ST2_N	(7 << 5)
 
 #define PCF8563_REG_SC		0x02 /* datetime */
 #define PCF8563_REG_MN		0x03
@@ -130,7 +131,7 @@ static int pcf8563_set_alarm_mode(struct i2c_client *client, bool on)
 	else
 		buf &= ~PCF8563_BIT_AIE;
 
-	buf &= ~PCF8563_BIT_AF;
+	buf &= ~(PCF8563_BIT_AF | PCF8563_BITS_ST2_N);
 
 	err = pcf8563_write_block_data(client, PCF8563_REG_ST2, 1, &buf);
 	if (err < 0) {
