@@ -234,6 +234,15 @@ static void bcd2tm(struct rtc_time *tm)
 	tm->tm_year = bcd2bin(tm->tm_year) + 100;
 }
 
+static void omap_rtc_read_time_raw(struct omap_rtc *rtc, struct rtc_time *tm)
+{
+	tm->tm_sec = rtc_read(rtc, OMAP_RTC_SECONDS_REG);
+	tm->tm_min = rtc_read(rtc, OMAP_RTC_MINUTES_REG);
+	tm->tm_hour = rtc_read(rtc, OMAP_RTC_HOURS_REG);
+	tm->tm_mday = rtc_read(rtc, OMAP_RTC_DAYS_REG);
+	tm->tm_mon = rtc_read(rtc, OMAP_RTC_MONTHS_REG);
+	tm->tm_year = rtc_read(rtc, OMAP_RTC_YEARS_REG);
+}
 
 static int omap_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -242,14 +251,7 @@ static int omap_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* we don't report wday/yday/isdst ... */
 	local_irq_disable();
 	rtc_wait_not_busy(rtc);
-
-	tm->tm_sec = rtc_read(rtc, OMAP_RTC_SECONDS_REG);
-	tm->tm_min = rtc_read(rtc, OMAP_RTC_MINUTES_REG);
-	tm->tm_hour = rtc_read(rtc, OMAP_RTC_HOURS_REG);
-	tm->tm_mday = rtc_read(rtc, OMAP_RTC_DAYS_REG);
-	tm->tm_mon = rtc_read(rtc, OMAP_RTC_MONTHS_REG);
-	tm->tm_year = rtc_read(rtc, OMAP_RTC_YEARS_REG);
-
+	omap_rtc_read_time_raw(rtc, tm);
 	local_irq_enable();
 
 	bcd2tm(tm);
