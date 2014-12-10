@@ -21,7 +21,9 @@
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <asm/cputype.h>
+#ifdef CONFIG_CACHE_L2X0
 #include <asm/hardware/cache-l2x0.h>
+#endif
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/pmu.h>
 #include "cpu_axi.h"
@@ -110,6 +112,7 @@ static int __init rockchip_cpu_axi_init(void)
 }
 early_initcall(rockchip_cpu_axi_init);
 
+#ifdef CONFIG_CACHE_L2X0
 static int __init rockchip_pl330_l2_cache_init(void)
 {
 	struct device_node *np;
@@ -149,6 +152,7 @@ static int __init rockchip_pl330_l2_cache_init(void)
 	return 0;
 }
 early_initcall(rockchip_pl330_l2_cache_init);
+#endif
 
 struct gen_pool *rockchip_sram_pool = NULL;
 struct pie_chunk *rockchip_pie_chunk = NULL;

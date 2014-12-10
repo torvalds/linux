@@ -11,6 +11,7 @@
 #include <asm/io.h>
 #include "pm.h"
 
+#ifdef CONFIG_ARM
 /*************************dump reg********************************************/
 
 void rkpm_ddr_reg_offset_dump(void __iomem * base_addr,u32 _offset)
@@ -567,6 +568,7 @@ void __init rockchip_suspend_init(void)
     suspend_set_ops(&rockchip_suspend_ops);
     return;
 }
+#endif /* CONFIG_ARM */
 
 static enum rockchip_pm_policy pm_policy;
 static BLOCKING_NOTIFIER_HEAD(policy_notifier_list);

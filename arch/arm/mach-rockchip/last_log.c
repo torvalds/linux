@@ -85,7 +85,8 @@ static int __init rk_last_log_init(void)
 
 	log_buf = last_log_vmap(virt_to_phys(buf), 1 << LOG_BUF_PAGE_ORDER);
 	if (!log_buf) {
-		pr_err("failed to map %d pages at 0x%08x\n", 1 << LOG_BUF_PAGE_ORDER, virt_to_phys(buf));
+		pr_err("failed to map %d pages at 0x%08llx\n", 1 << LOG_BUF_PAGE_ORDER,
+		       (unsigned long long)virt_to_phys(buf));
 		return 0;
 	}
 
@@ -100,7 +101,7 @@ static int __init rk_last_log_init(void)
 	memcpy(log_buf, early_log_buf, early_log_size);
 	memset(log_buf + early_log_size, 0, LOG_BUF_LEN - early_log_size);
 
-	pr_info("0x%08x map to 0x%p and copy to 0x%p, size 0x%x early 0x%x (version 3.0)\n", virt_to_phys(buf), log_buf, last_log_buf, LOG_BUF_LEN, early_log_size);
+	pr_info("0x%08llx map to 0x%p and copy to 0x%p, size 0x%x early 0x%zx (version 3.0)\n", (unsigned long long)virt_to_phys(buf), log_buf, last_log_buf, LOG_BUF_LEN, early_log_size);
 
 	entry = proc_create("last_kmsg", S_IRUSR, NULL, &last_log_fops);
 	if (!entry) {

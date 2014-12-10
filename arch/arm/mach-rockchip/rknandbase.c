@@ -141,7 +141,11 @@ EXPORT_SYMBOL(rk_nand_get_device);
 
 unsigned long rknand_dma_flush_dcache(unsigned long ptr,int size,int dir)
 {
+#ifdef CONFIG_ARM64
+	__flush_dcache_area((void *)ptr, size + 63);
+#else
      __cpuc_flush_dcache_area((void*)ptr, size + 63);
+#endif
     return ((unsigned long )virt_to_phys((void *)ptr));
 }
 EXPORT_SYMBOL(rknand_dma_flush_dcache);
