@@ -379,6 +379,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	u8			reg, new_ctrl;
 	const struct platform_device_id *id_entry;
 	const struct of_device_id *of_id;
+	int ret;
 
 	of_id = of_match_device(omap_rtc_of_match, &pdev->dev);
 	if (of_id)
@@ -391,16 +392,12 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	}
 
 	omap_rtc_timer = platform_get_irq(pdev, 0);
-	if (omap_rtc_timer <= 0) {
-		pr_debug("%s: no update irq?\n", pdev->name);
+	if (omap_rtc_timer <= 0)
 		return -ENOENT;
-	}
 
 	omap_rtc_alarm = platform_get_irq(pdev, 1);
-	if (omap_rtc_alarm <= 0) {
-		pr_debug("%s: no alarm irq?\n", pdev->name);
+	if (omap_rtc_alarm <= 0)
 		return -ENOENT;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rtc_base = devm_ioremap_resource(&pdev->dev, res);
@@ -421,9 +418,8 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 			&omap_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
-		pr_debug("%s: can't register RTC device, err %ld\n",
-			pdev->name, PTR_ERR(rtc));
-		goto fail0;
+		ret = PTR_ERR(rtc);
+		goto err;
 	}
 	platform_set_drvdata(pdev, rtc);
 
@@ -451,18 +447,16 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 		rtc_write(OMAP_RTC_STATUS_ALARM, OMAP_RTC_STATUS_REG);
 
 	/* handle periodic and alarm irqs */
-	if (devm_request_irq(&pdev->dev, omap_rtc_timer, rtc_irq, 0,
-			dev_name(&rtc->dev), rtc)) {
-		pr_debug("%s: RTC timer interrupt IRQ%d already claimed\n",
-			pdev->name, omap_rtc_timer);
-		goto fail0;
-	}
-	if ((omap_rtc_timer != omap_rtc_alarm) &&
-		(devm_request_irq(&pdev->dev, omap_rtc_alarm, rtc_irq, 0,
-			dev_name(&rtc->dev), rtc))) {
-		pr_debug("%s: RTC alarm interrupt IRQ%d already claimed\n",
-			pdev->name, omap_rtc_alarm);
-		goto fail0;
+	ret = devm_request_irq(&pdev->dev, omap_rtc_timer, rtc_irq, 0,
+			dev_name(&rtc->dev), rtc);
+	if (ret)
+		goto err;
+
+	if (omap_rtc_timer != omap_rtc_alarm) {
+		ret = devm_request_irq(&pdev->dev, omap_rtc_alarm, rtc_irq, 0,
+				dev_name(&rtc->dev), rtc);
+		if (ret)
+			goto err;
 	}
 
 	/* On boards with split power, RTC_ON_NOFF won't reset the RTC */
@@ -496,13 +490,14 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail0:
+err:
 	device_init_wakeup(&pdev->dev, false);
 	if (id_entry->driver_data & OMAP_RTC_HAS_KICKER)
 		rtc_writel(0, OMAP_RTC_KICK0_REG);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return -EIO;
+
+	return ret;
 }
 
 static int __exit omap_rtc_remove(struct platform_device *pdev)
