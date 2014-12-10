@@ -41,6 +41,7 @@
 #define ISL12057_REG_RTC_DW	0x03	/* Day of the Week */
 #define ISL12057_REG_RTC_DT	0x04	/* Date */
 #define ISL12057_REG_RTC_MO	0x05	/* Month */
+#define ISL12057_REG_RTC_MO_CEN	BIT(7)	/* Century bit */
 #define ISL12057_REG_RTC_YR	0x06	/* Year */
 #define ISL12057_RTC_SEC_LEN	7
 
@@ -99,24 +100,35 @@ static void isl12057_rtc_regs_to_tm(struct rtc_time *tm, u8 *regs)
 	tm->tm_wday = bcd2bin(regs[ISL12057_REG_RTC_DW]) - 1; /* starts at 1 */
 	tm->tm_mon  = bcd2bin(regs[ISL12057_REG_RTC_MO] & 0x1f) - 1; /* ditto */
 	tm->tm_year = bcd2bin(regs[ISL12057_REG_RTC_YR]) + 100;
+
+	/* Check if years register has overflown from 99 to 00 */
+	if (regs[ISL12057_REG_RTC_MO] & ISL12057_REG_RTC_MO_CEN)
+		tm->tm_year += 100;
 }
 
 static int isl12057_rtc_tm_to_regs(u8 *regs, struct rtc_time *tm)
 {
+	u8 century_bit;
+
 	/*
 	 * The clock has an 8 bit wide bcd-coded register for the year.
+	 * It also has a century bit encoded in MO flag which provides
+	 * information about overflow of year register from 99 to 00.
 	 * tm_year is an offset from 1900 and we are interested in the
-	 * 2000-2099 range, so any value less than 100 is invalid.
+	 * 2000-2199 range, so any value less than 100 or larger than
+	 * 299 is invalid.
 	 */
-	if (tm->tm_year < 100)
+	if (tm->tm_year < 100 || tm->tm_year > 299)
 		return -EINVAL;
+
+	century_bit = (tm->tm_year > 199) ? ISL12057_REG_RTC_MO_CEN : 0;
 
 	regs[ISL12057_REG_RTC_SC] = bin2bcd(tm->tm_sec);
 	regs[ISL12057_REG_RTC_MN] = bin2bcd(tm->tm_min);
 	regs[ISL12057_REG_RTC_HR] = bin2bcd(tm->tm_hour); /* 24-hour format */
 	regs[ISL12057_REG_RTC_DT] = bin2bcd(tm->tm_mday);
-	regs[ISL12057_REG_RTC_MO] = bin2bcd(tm->tm_mon + 1);
-	regs[ISL12057_REG_RTC_YR] = bin2bcd(tm->tm_year - 100);
+	regs[ISL12057_REG_RTC_MO] = bin2bcd(tm->tm_mon + 1) | century_bit;
+	regs[ISL12057_REG_RTC_YR] = bin2bcd(tm->tm_year % 100);
 	regs[ISL12057_REG_RTC_DW] = bin2bcd(tm->tm_wday + 1);
 
 	return 0;
