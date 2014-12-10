@@ -1,9 +1,8 @@
-#include <linux/mm.h>
-#include <linux/page_cgroup.h>
+#include <linux/swap_cgroup.h>
 #include <linux/vmalloc.h>
-#include <linux/swapops.h>
+#include <linux/mm.h>
 
-#ifdef CONFIG_MEMCG_SWAP
+#include <linux/swapops.h> /* depends on mm.h include */
 
 static DEFINE_MUTEX(swap_cgroup_mutex);
 struct swap_cgroup_ctrl {
@@ -207,5 +206,3 @@ void swap_cgroup_swapoff(int type)
 		vfree(map);
 	}
 }
-
-#endif
