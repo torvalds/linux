@@ -1350,7 +1350,6 @@ static struct ixgbe_mac_operations mac_ops_X550 = {
 	.get_san_mac_addr	= &ixgbe_get_san_mac_addr_generic,
 	.get_wwn_prefix		= &ixgbe_get_wwn_prefix_generic,
 	.setup_link		= &ixgbe_setup_mac_link_X540,
-	.set_rxpba		= &ixgbe_set_rxpba_generic,
 	.get_link_capabilities	= &ixgbe_get_copper_link_capabilities_generic,
 	.setup_sfp		= NULL,
 };
