@@ -31,7 +31,7 @@ static int generic_get_cmd(struct usb_audio_control *con, u8 cmd);
  */
 #define F_AUDIO_AC_INTERFACE	0
 #define F_AUDIO_AS_INTERFACE	1
-#define F_AUDIO_NUM_INTERFACES	2
+#define F_AUDIO_NUM_INTERFACES	1
 
 /* B.3.1  Standard AC Interface Descriptor */
 static struct usb_interface_descriptor ac_interface_desc = {
@@ -42,14 +42,18 @@ static struct usb_interface_descriptor ac_interface_desc = {
 	.bInterfaceSubClass =	USB_SUBCLASS_AUDIOCONTROL,
 };
 
-DECLARE_UAC_AC_HEADER_DESCRIPTOR(2);
+/*
+ * The number of AudioStreaming and MIDIStreaming interfaces
+ * in the Audio Interface Collection
+ */
+DECLARE_UAC_AC_HEADER_DESCRIPTOR(1);
 
 #define UAC_DT_AC_HEADER_LENGTH	UAC_DT_AC_HEADER_SIZE(F_AUDIO_NUM_INTERFACES)
 /* 1 input terminal, 1 output terminal and 1 feature unit */
 #define UAC_DT_TOTAL_LENGTH (UAC_DT_AC_HEADER_LENGTH + UAC_DT_INPUT_TERMINAL_SIZE \
 	+ UAC_DT_OUTPUT_TERMINAL_SIZE + UAC_DT_FEATURE_UNIT_SIZE(0))
 /* B.3.2  Class-Specific AC Interface Descriptor */
-static struct uac1_ac_header_descriptor_2 ac_header_desc = {
+static struct uac1_ac_header_descriptor_1 ac_header_desc = {
 	.bLength =		UAC_DT_AC_HEADER_LENGTH,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_HEADER,
@@ -57,8 +61,8 @@ static struct uac1_ac_header_descriptor_2 ac_header_desc = {
 	.wTotalLength =		__constant_cpu_to_le16(UAC_DT_TOTAL_LENGTH),
 	.bInCollection =	F_AUDIO_NUM_INTERFACES,
 	.baInterfaceNr = {
-		[0] =		F_AUDIO_AC_INTERFACE,
-		[1] =		F_AUDIO_AS_INTERFACE,
+	/* Interface number of the first AudioStream interface */
+		[0] =		1,
 	}
 };
 
