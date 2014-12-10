@@ -1793,12 +1793,14 @@ static int dvb_register(struct cx23885_tsport *port)
 					client_tuner->dev.driver == NULL) {
 				module_put(client_demod->dev.driver->owner);
 				i2c_unregister_device(client_demod);
+				port->i2c_client_demod = NULL;
 				goto frontend_detach;
 			}
 			if (!try_module_get(client_tuner->dev.driver->owner)) {
 				i2c_unregister_device(client_tuner);
 				module_put(client_demod->dev.driver->owner);
 				i2c_unregister_device(client_demod);
+				port->i2c_client_demod = NULL;
 				goto frontend_detach;
 			}
 			port->i2c_client_tuner = client_tuner;
@@ -1843,12 +1845,14 @@ static int dvb_register(struct cx23885_tsport *port)
 				client_tuner->dev.driver == NULL) {
 			module_put(client_demod->dev.driver->owner);
 			i2c_unregister_device(client_demod);
+			port->i2c_client_demod = NULL;
 			goto frontend_detach;
 		}
 		if (!try_module_get(client_tuner->dev.driver->owner)) {
 			i2c_unregister_device(client_tuner);
 			module_put(client_demod->dev.driver->owner);
 			i2c_unregister_device(client_demod);
+			port->i2c_client_demod = NULL;
 			goto frontend_detach;
 		}
 		port->i2c_client_tuner = client_tuner;
@@ -1989,6 +1993,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				client_tuner->dev.driver == NULL) {
 			module_put(client_demod->dev.driver->owner);
 			i2c_unregister_device(client_demod);
+			port->i2c_client_demod = NULL;
 			goto frontend_detach;
 		}
 		if (!try_module_get(client_tuner->dev.driver->owner)) {
