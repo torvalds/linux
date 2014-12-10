@@ -343,6 +343,8 @@ struct bufdesc_ex {
 #define FLAG_RX_CSUM_ENABLED	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 #define FLAG_RX_CSUM_ERROR	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 
+#define FEC0_MII_BUS_SHARE_TRUE	1
+
 /* Interrupt events/masks. */
 #define FEC_ENET_HBERR  ((uint)0x80000000)      /* Heartbeat error */
 #define FEC_ENET_BABR   ((uint)0x40000000)      /* Babbling receiver */
@@ -366,6 +368,8 @@ struct bufdesc_ex {
 
 #define FEC_DEFAULT_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII | FEC_ENET_TS_TIMER)
 #define FEC_RX_DISABLED_IMASK (FEC_DEFAULT_IMASK & (~FEC_ENET_RXF))
+
+#define FEC_ENET_ETHEREN	((uint)0x00000002)
 
 /* ENET interrupt coalescing macro define */
 #define FEC_ITR_CLK_SEL		(0x1 << 30)
@@ -514,6 +518,7 @@ struct fec_enet_private {
 	struct	mii_bus *mii_bus;
 	struct	phy_device *phy_dev;
 	int	mii_timeout;
+	int	mii_bus_share;
 	uint	phy_speed;
 	phy_interface_t	phy_interface;
 	struct device_node *phy_node;
