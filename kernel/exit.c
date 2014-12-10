@@ -495,18 +495,16 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
 
 	if (father->signal->has_child_subreaper) {
 		struct task_struct *reaper;
-
 		/*
-		 * Find the first ancestor marked as child_subreaper.
-		 * Note that the code below checks same_thread_group(reaper,
-		 * pid_ns->child_reaper).  This is what we need to DTRT in a
-		 * PID namespace. However we still need the check above, see
-		 * http://marc.info/?l=linux-kernel&m=131385460420380
+		 * Find the first ->is_child_subreaper ancestor in our pid_ns.
+		 * We start from father to ensure we can not look into another
+		 * namespace, this is safe because all its threads are dead.
 		 */
 		for (reaper = father;
-		     reaper != &init_task;
+		     !same_thread_group(reaper, pid_ns->child_reaper);
 		     reaper = reaper->real_parent) {
-			if (same_thread_group(reaper, pid_ns->child_reaper))
+			/* call_usermodehelper() descendants need this check */
+			if (reaper == &init_task)
 				break;
 			if (!reaper->signal->is_child_subreaper)
 				continue;
