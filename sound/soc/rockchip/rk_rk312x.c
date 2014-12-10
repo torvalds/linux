@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/rockchip/cpu.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -245,6 +246,7 @@ static struct snd_soc_card rockchip_rk312x_snd_card = {
 static int rockchip_rk312x_audio_probe(struct platform_device *pdev)
 {
 	int ret;
+
 	struct snd_soc_card *card = &rockchip_rk312x_snd_card;
 
 	card->dev = &pdev->dev;
@@ -252,6 +254,19 @@ static int rockchip_rk312x_audio_probe(struct platform_device *pdev)
 	if (ret) {
 		DBG("%s() get sound card info failed:%d\n", __func__, ret);
 		return ret;
+	}
+
+	/* rk3126b workaround remap cpu dai node */
+	if (soc_is_rk3126b()) {
+		int i;
+		struct device_node *cpu_dai_node;
+
+		cpu_dai_node = of_find_node_by_name(NULL, "i2s0");
+
+		for (i = 0; i < card->num_links; i++) {
+			card->dai_link[i].cpu_of_node = cpu_dai_node;
+			card->dai_link[i].platform_of_node = cpu_dai_node;
+		}
 	}
 
 	ret = snd_soc_register_card(card);

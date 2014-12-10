@@ -69,7 +69,7 @@ extern struct dwc_otg_platform_data usb20host_pdata_rk3036;
 /* rk3126 platform data */
 extern struct dwc_otg_platform_data usb20otg_pdata_rk3126;
 extern struct dwc_otg_platform_data usb20host_pdata_rk3126;
-
+extern struct dwc_otg_platform_data usb20ohci_pdata_rk3126;
 
 struct dwc_otg_platform_data {
 	void *privdata;

@@ -470,7 +470,7 @@
 		status = "disabled";
 	};
 
-	i2s0: i2s@10220000 {
+	i2s0: i2s0@10220000 {
 		compatible = "rockchip-i2s";
 		reg = <0x10220000 0x1000>;
 		i2s-id = <0>;
@@ -486,7 +486,7 @@
 		status = "disabled";
 	};
 
-	i2s1: i2s@10200000 {
+	i2s1: i2s1@10200000 {
 		compatible = "rockchip-i2s";
 		reg = <0x10200000 0x1000>;
 		i2s-id = <1>;

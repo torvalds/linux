@@ -96,13 +96,19 @@
                         |RKPM_CTR_PWR_DMNS
                         |RKPM_CTR_GTCLKS
                         |RKPM_CTR_PLLS
+                        //|RKPM_CTR_ARMOFF_LPMD
+                        |RKPM_CTR_DDR
                         |RKPM_CTR_IDLESRAM_MD
                         |RKPM_CTR_DDR
-                        |RKPM_CTR_VOLTS
-                        |RKPM_CTR_VOL_PWM1
-                        |RKPM_CTR_VOL_PWM2
+                        //|RKPM_CTR_BUS_IDLE
+			//|RKPM_CTR_VOLTS
+			//|RKPM_CTR_VOL_PWM1
+			//|RKPM_CTR_VOL_PWM2
                         )
                 >;
+               rockchip,pmic-suspend_gpios = <
+                       0
+                        >;
         };
 
 };

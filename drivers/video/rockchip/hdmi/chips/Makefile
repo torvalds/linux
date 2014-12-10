@@ -10,4 +10,4 @@ obj-$(CONFIG_HDMI_RK610) += rk610/
 obj-$(CONFIG_HDMI_CAT66121) += cat66121/
 obj-$(CONFIG_HDMI_RK616) += rk616/
 obj-$(CONFIG_HDMI_RK3036) += rk3036/
-obj-y += rk3288/
+obj-$(CONFIG_HDMI_RK3288) += rk3288/

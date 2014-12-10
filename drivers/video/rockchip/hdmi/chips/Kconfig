@@ -48,6 +48,12 @@ if HDMI_RK616
 source "drivers/video/rockchip/hdmi/chips/rk616/Kconfig"
 endif
 
+config  HDMI_RK3288
+        bool "RK3288 HDMI support"
+		default y
+        help
+           Support rk3288 hdmi if you say y here
+
 config  HDMI_RK3036
         bool "RK3036 HDMI support"
 		default y

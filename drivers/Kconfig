@@ -168,6 +168,8 @@ source "drivers/ipack/Kconfig"
 
 source "drivers/reset/Kconfig"
 
+source "drivers/phy/Kconfig"
+
 source "drivers/gator/Kconfig"
 
 source "drivers/headset_observe/Kconfig"

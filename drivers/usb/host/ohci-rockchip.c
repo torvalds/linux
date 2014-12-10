@@ -16,18 +16,6 @@
 #include <linux/of_platform.h>
 #include "../dwc_otg_310/usbdev_rk.h"
 
-static struct rkehci_pdata_id rkohci_pdata[] = {
-	{
-	 .name = "rk3188-reserved",
-	 .pdata = NULL,
-	 },
-	{
-	 .name = "rk3288-ohci",
-	 .pdata = &rkohci_pdata_rk3288,
-	 },
-	{},
-};
-
 static int ohci_rk_init(struct usb_hcd *hcd)
 {
 	dev_dbg(hcd->self.controller, "starting OHCI controller\n");
@@ -102,8 +90,8 @@ static const struct hc_driver ohci_rk_hc_driver = {
 
 static struct of_device_id rk_ohci_of_match[] = {
 	{
-	 .compatible = "rockchip,rk3288_rk_ohci_host",
-	 .data = &rkohci_pdata[RK3288_USB_CTLR],
+	 .compatible = "rockchip,rk3126_ohci",
+	 .data = &usb20ohci_pdata_rk3126,
 	 },
 	{},
 };
@@ -123,32 +111,24 @@ static int ohci_hcd_rk_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = -ENODEV;
 	int irq;
-	struct rkehci_platform_data *pldata;
-	struct device_node *node = pdev->dev.of_node;
-	struct rkehci_pdata_id *p;
-	const struct of_device_id *match =
-	    of_match_device(of_match_ptr(rk_ohci_of_match), &pdev->dev);
+	struct dwc_otg_platform_data *pldata;
+	const struct of_device_id *match;
 
 	dev_dbg(&pdev->dev, "ohci_hcd_rk_probe\n");
 
 	if (usb_disabled())
 		return -ENODEV;
 
+	match = of_match_device(of_match_ptr(rk_ohci_of_match), &pdev->dev);
 	if (match) {
-		p = (struct rkehci_pdata_id *)match->data;
+		pldata = (struct dwc_otg_platform_data *)match->data;
 	} else {
 		dev_err(dev, "ohci_rk match failed\n");
 		return -EINVAL;
 	}
 
-	dev->platform_data = p->pdata;
-	pldata = dev->platform_data;
 	pldata->dev = dev;
-
-	if (!node) {
-		dev_err(dev, "device node not found\n");
-		return -EINVAL;
-	}
+	dev->platform_data = pldata;
 
 	if (pldata->hw_init)
 		pldata->hw_init();
@@ -157,9 +137,6 @@ static int ohci_hcd_rk_probe(struct platform_device *pdev)
 		pldata->clock_init(pldata);
 		pldata->clock_enable(pldata, 1);
 	}
-
-	if (pldata->soft_reset)
-		pldata->soft_reset();
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
