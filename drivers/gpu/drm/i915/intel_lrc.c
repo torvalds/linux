@@ -474,13 +474,13 @@ static bool execlists_check_remove_request(struct intel_engine_cs *ring,
 }
 
 /**
- * intel_execlists_handle_ctx_events() - handle Context Switch interrupts
+ * intel_lrc_irq_handler() - handle Context Switch interrupts
  * @ring: Engine Command Streamer to handle.
  *
  * Check the unread Context Status Buffers and manage the submission of new
  * contexts to the ELSP accordingly.
  */
-void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring)
+void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	u32 status_pointer;
