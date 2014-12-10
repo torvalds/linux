@@ -413,6 +413,7 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	struct device_opp *dev_opp = NULL;
 	struct dev_pm_opp *opp, *new_opp;
 	struct list_head *head;
+	int ret;
 
 	/* allocate new OPP node */
 	new_opp = kzalloc(sizeof(*new_opp), GFP_KERNEL);
@@ -435,9 +436,8 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	if (IS_ERR(dev_opp)) {
 		dev_opp = add_device_opp(dev);
 		if (!dev_opp) {
-			mutex_unlock(&dev_opp_list_lock);
-			kfree(new_opp);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto free_opp;
 		}
 
 		head = &dev_opp->opp_list;
@@ -458,15 +458,13 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 
 	/* Duplicate OPPs ? */
 	if (new_opp->rate == opp->rate) {
-		int ret = opp->available && new_opp->u_volt == opp->u_volt ?
+		ret = opp->available && new_opp->u_volt == opp->u_volt ?
 			0 : -EEXIST;
 
 		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
 			 __func__, opp->rate, opp->u_volt, opp->available,
 			 new_opp->rate, new_opp->u_volt, new_opp->available);
-		mutex_unlock(&dev_opp_list_lock);
-		kfree(new_opp);
-		return ret;
+		goto free_opp;
 	}
 
 list_add:
@@ -480,6 +478,11 @@ list_add:
 	 */
 	srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_ADD, new_opp);
 	return 0;
+
+free_opp:
+	mutex_unlock(&dev_opp_list_lock);
+	kfree(new_opp);
+	return ret;
 }
 
 /**
