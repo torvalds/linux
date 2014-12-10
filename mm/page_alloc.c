@@ -6416,7 +6416,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 	 */
 
 	lru_add_drain_all();
-	drain_all_pages(NULL);
+	drain_all_pages(cc.zone);
 
 	order = 0;
 	outer_start = start;
