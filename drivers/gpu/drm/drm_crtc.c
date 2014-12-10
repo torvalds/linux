@@ -1613,7 +1613,8 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	struct drm_bridge *bridge;
 	int ret;
 
-	if ((ret = drm_mode_group_init(dev, group)))
+	ret = drm_mode_group_init(dev, group);
+	if (ret)
 		return ret;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
