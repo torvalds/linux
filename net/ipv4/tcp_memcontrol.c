@@ -9,13 +9,13 @@
 int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	/*
-	 * The root cgroup does not use res_counters, but rather,
+	 * The root cgroup does not use page_counters, but rather,
 	 * rely on the data already collected by the network
 	 * subsystem
 	 */
-	struct res_counter *res_parent = NULL;
-	struct cg_proto *cg_proto, *parent_cg;
 	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
+	struct page_counter *counter_parent = NULL;
+	struct cg_proto *cg_proto, *parent_cg;
 
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
@@ -29,9 +29,9 @@ int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 
 	parent_cg = tcp_prot.proto_cgroup(parent);
 	if (parent_cg)
-		res_parent = &parent_cg->memory_allocated;
+		counter_parent = &parent_cg->memory_allocated;
 
-	res_counter_init(&cg_proto->memory_allocated, res_parent);
+	page_counter_init(&cg_proto->memory_allocated, counter_parent);
 	percpu_counter_init(&cg_proto->sockets_allocated, 0, GFP_KERNEL);
 
 	return 0;
@@ -50,7 +50,7 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
 }
 EXPORT_SYMBOL(tcp_destroy_cgroup);
 
-static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
+static int tcp_update_limit(struct mem_cgroup *memcg, unsigned long nr_pages)
 {
 	struct cg_proto *cg_proto;
 	int i;
@@ -60,20 +60,17 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 	if (!cg_proto)
 		return -EINVAL;
 
-	if (val > RES_COUNTER_MAX)
-		val = RES_COUNTER_MAX;
-
-	ret = res_counter_set_limit(&cg_proto->memory_allocated, val);
+	ret = page_counter_limit(&cg_proto->memory_allocated, nr_pages);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < 3; i++)
-		cg_proto->sysctl_mem[i] = min_t(long, val >> PAGE_SHIFT,
+		cg_proto->sysctl_mem[i] = min_t(long, nr_pages,
 						sysctl_tcp_mem[i]);
 
-	if (val == RES_COUNTER_MAX)
+	if (nr_pages == PAGE_COUNTER_MAX)
 		clear_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);
-	else if (val != RES_COUNTER_MAX) {
+	else {
 		/*
 		 * The active bit needs to be written after the static_key
 		 * update. This is what guarantees that the socket activation
@@ -102,11 +99,20 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 	return 0;
 }
 
+enum {
+	RES_USAGE,
+	RES_LIMIT,
+	RES_MAX_USAGE,
+	RES_FAILCNT,
+};
+
+static DEFINE_MUTEX(tcp_limit_mutex);
+
 static ssize_t tcp_cgroup_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-	unsigned long long val;
+	unsigned long nr_pages;
 	int ret = 0;
 
 	buf = strstrip(buf);
@@ -114,10 +120,12 @@ static ssize_t tcp_cgroup_write(struct kernfs_open_file *of,
 	switch (of_cft(of)->private) {
 	case RES_LIMIT:
 		/* see memcontrol.c */
-		ret = res_counter_memparse_write_strategy(buf, &val);
+		ret = page_counter_memparse(buf, &nr_pages);
 		if (ret)
 			break;
-		ret = tcp_update_limit(memcg, val);
+		mutex_lock(&tcp_limit_mutex);
+		ret = tcp_update_limit(memcg, nr_pages);
+		mutex_unlock(&tcp_limit_mutex);
 		break;
 	default:
 		ret = -EINVAL;
@@ -126,43 +134,36 @@ static ssize_t tcp_cgroup_write(struct kernfs_open_file *of,
 	return ret ?: nbytes;
 }
 
-static u64 tcp_read_stat(struct mem_cgroup *memcg, int type, u64 default_val)
-{
-	struct cg_proto *cg_proto;
-
-	cg_proto = tcp_prot.proto_cgroup(memcg);
-	if (!cg_proto)
-		return default_val;
-
-	return res_counter_read_u64(&cg_proto->memory_allocated, type);
-}
-
-static u64 tcp_read_usage(struct mem_cgroup *memcg)
-{
-	struct cg_proto *cg_proto;
-
-	cg_proto = tcp_prot.proto_cgroup(memcg);
-	if (!cg_proto)
-		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
-
-	return res_counter_read_u64(&cg_proto->memory_allocated, RES_USAGE);
-}
-
 static u64 tcp_cgroup_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	struct cg_proto *cg_proto = tcp_prot.proto_cgroup(memcg);
 	u64 val;
 
 	switch (cft->private) {
 	case RES_LIMIT:
-		val = tcp_read_stat(memcg, RES_LIMIT, RES_COUNTER_MAX);
+		if (!cg_proto)
+			return PAGE_COUNTER_MAX;
+		val = cg_proto->memory_allocated.limit;
+		val *= PAGE_SIZE;
 		break;
 	case RES_USAGE:
-		val = tcp_read_usage(memcg);
+		if (!cg_proto)
+			val = atomic_long_read(&tcp_memory_allocated);
+		else
+			val = page_counter_read(&cg_proto->memory_allocated);
+		val *= PAGE_SIZE;
 		break;
 	case RES_FAILCNT:
+		if (!cg_proto)
+			return 0;
+		val = cg_proto->memory_allocated.failcnt;
+		break;
 	case RES_MAX_USAGE:
-		val = tcp_read_stat(memcg, cft->private, 0);
+		if (!cg_proto)
+			return 0;
+		val = cg_proto->memory_allocated.watermark;
+		val *= PAGE_SIZE;
 		break;
 	default:
 		BUG();
@@ -183,10 +184,10 @@ static ssize_t tcp_cgroup_reset(struct kernfs_open_file *of,
 
 	switch (of_cft(of)->private) {
 	case RES_MAX_USAGE:
-		res_counter_reset_max(&cg_proto->memory_allocated);
+		page_counter_reset_watermark(&cg_proto->memory_allocated);
 		break;
 	case RES_FAILCNT:
-		res_counter_reset_failcnt(&cg_proto->memory_allocated);
+		cg_proto->memory_allocated.failcnt = 0;
 		break;
 	}
 
