@@ -750,14 +750,11 @@ MODULE_DEVICE_TABLE(of, sh_mobile_i2c_dt_ids);
 static int sh_mobile_i2c_request_dma_chan(struct device *dev, enum dma_transfer_direction dir,
 					  dma_addr_t port_addr, struct dma_chan **chan_ptr)
 {
-	dma_cap_mask_t mask;
 	struct dma_chan *chan;
 	struct dma_slave_config cfg;
 	char *chan_name = dir == DMA_MEM_TO_DEV ? "tx" : "rx";
 	int ret;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
 	*chan_ptr = NULL;
 
 	chan = dma_request_slave_channel_reason(dev, chan_name);
