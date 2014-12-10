@@ -1025,7 +1025,7 @@ MODULE_PARM_DESC(copybreak, "Receive copy threshold");
 
 /**
  *	get_packet - return the next ingress packet buffer
- *	@pdev: the PCI device that received the packet
+ *	@adapter: the adapter that received the packet
  *	@fl: the SGE free list holding the packet
  *	@len: the actual packet length, excluding any SGE padding
  *
@@ -1037,14 +1037,15 @@ MODULE_PARM_DESC(copybreak, "Receive copy threshold");
  *	threshold and the packet is too big to copy, or (b) the packet should
  *	be copied but there is no memory for the copy.
  */
-static inline struct sk_buff *get_packet(struct pci_dev *pdev,
+static inline struct sk_buff *get_packet(struct adapter *adapter,
 					 struct freelQ *fl, unsigned int len)
 {
-	struct sk_buff *skb;
 	const struct freelQ_ce *ce = &fl->centries[fl->cidx];
+	struct pci_dev *pdev = adapter->pdev;
+	struct sk_buff *skb;
 
 	if (len < copybreak) {
-		skb = netdev_alloc_skb_ip_align(NULL, len);
+		skb = napi_alloc_skb(&adapter->napi, len);
 		if (!skb)
 			goto use_orig_buf;
 
@@ -1357,7 +1358,7 @@ static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 	struct sge_port_stats *st;
 	struct net_device *dev;
 
-	skb = get_packet(adapter->pdev, fl, len - sge->rx_pkt_pad);
+	skb = get_packet(adapter, fl, len - sge->rx_pkt_pad);
 	if (unlikely(!skb)) {
 		sge->stats.rx_drops++;
 		return;
