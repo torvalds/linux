@@ -85,6 +85,7 @@ fail:
 	printk(KERN_CRIT "allocation of page_cgroup failed.\n");
 	printk(KERN_CRIT "please try 'cgroup_disable=memory' boot option\n");
 	panic("Out of memory");
+	return;
 }
 
 #else /* CONFIG_FLAT_NODE_MEM_MAP */
@@ -312,6 +313,7 @@ void __init page_cgroup_init(void)
 oom:
 	printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
 	panic("Out of memory");
+	return;
 }
 
 void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
