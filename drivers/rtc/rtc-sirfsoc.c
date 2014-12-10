@@ -47,6 +47,7 @@ struct sirfsoc_rtc_drv {
 	unsigned		irq_wake;
 	/* Overflow for every 8 years extra time */
 	u32			overflow_rtc;
+	spinlock_t		lock;
 #ifdef CONFIG_PM
 	u32		saved_counter;
 	u32		saved_overflow_rtc;
@@ -61,7 +62,7 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 
 	rtcdrv = dev_get_drvdata(dev);
 
-	local_irq_disable();
+	spin_lock_irq(&rtcdrv->lock);
 
 	rtc_count = sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_CN);
 
@@ -84,7 +85,8 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 	if (sirfsoc_rtc_iobrg_readl(
 			rtcdrv->rtc_base + RTC_STATUS) & SIRFSOC_RTC_AL0E)
 		alrm->enabled = 1;
-	local_irq_enable();
+
+	spin_unlock_irq(&rtcdrv->lock);
 
 	return 0;
 }
@@ -99,7 +101,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 	if (alrm->enabled) {
 		rtc_tm_to_time(&(alrm->time), &rtc_alarm);
 
-		local_irq_disable();
+		spin_lock_irq(&rtcdrv->lock);
 
 		rtc_status_reg = sirfsoc_rtc_iobrg_readl(
 				rtcdrv->rtc_base + RTC_STATUS);
@@ -123,14 +125,15 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 		rtc_status_reg |= SIRFSOC_RTC_AL0E;
 		sirfsoc_rtc_iobrg_writel(
 			rtc_status_reg, rtcdrv->rtc_base + RTC_STATUS);
-		local_irq_enable();
+
+		spin_unlock_irq(&rtcdrv->lock);
 	} else {
 		/*
 		 * if this function was called with enabled=0
 		 * then it could mean that the application is
 		 * trying to cancel an ongoing alarm
 		 */
-		local_irq_disable();
+		spin_lock_irq(&rtcdrv->lock);
 
 		rtc_status_reg = sirfsoc_rtc_iobrg_readl(
 				rtcdrv->rtc_base + RTC_STATUS);
@@ -146,7 +149,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 					rtcdrv->rtc_base + RTC_STATUS);
 		}
 
-		local_irq_enable();
+		spin_unlock_irq(&rtcdrv->lock);
 	}
 
 	return 0;
@@ -217,7 +220,7 @@ static int sirfsoc_rtc_alarm_irq_enable(struct device *dev,
 
 	rtcdrv = dev_get_drvdata(dev);
 
-	local_irq_disable();
+	spin_lock_irq(&rtcdrv->lock);
 
 	rtc_status_reg = sirfsoc_rtc_iobrg_readl(
 				rtcdrv->rtc_base + RTC_STATUS);
@@ -227,7 +230,8 @@ static int sirfsoc_rtc_alarm_irq_enable(struct device *dev,
 		rtc_status_reg &= ~SIRFSOC_RTC_AL0E;
 
 	sirfsoc_rtc_iobrg_writel(rtc_status_reg, rtcdrv->rtc_base + RTC_STATUS);
-	local_irq_enable();
+
+	spin_unlock_irq(&rtcdrv->lock);
 
 	return 0;
 
@@ -248,6 +252,8 @@ static irqreturn_t sirfsoc_rtc_irq_handler(int irq, void *pdata)
 	unsigned long rtc_status_reg = 0x0;
 	unsigned long events = 0x0;
 
+	spin_lock(&rtcdrv->lock);
+
 	rtc_status_reg = sirfsoc_rtc_iobrg_readl(rtcdrv->rtc_base + RTC_STATUS);
 	/* this bit will be set ONLY if an alarm was active
 	 * and it expired NOW
@@ -265,6 +271,9 @@ static irqreturn_t sirfsoc_rtc_irq_handler(int irq, void *pdata)
 		rtc_status_reg &= ~(SIRFSOC_RTC_AL0E);
 	}
 	sirfsoc_rtc_iobrg_writel(rtc_status_reg, rtcdrv->rtc_base + RTC_STATUS);
+
+	spin_unlock(&rtcdrv->lock);
+
 	/* this should wake up any apps polling/waiting on the read
 	 * after setting the alarm
 	 */
@@ -291,6 +300,8 @@ static int sirfsoc_rtc_probe(struct platform_device *pdev)
 		sizeof(struct sirfsoc_rtc_drv), GFP_KERNEL);
 	if (rtcdrv == NULL)
 		return -ENOMEM;
+
+	spin_lock_init(&rtcdrv->lock);
 
 	err = of_property_read_u32(np, "reg", &rtcdrv->rtc_base);
 	if (err) {
