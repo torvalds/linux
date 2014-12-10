@@ -1010,8 +1010,8 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	 * Check thread_group_leader() to exclude the traced sub-threads.
 	 */
 	if (state == EXIT_DEAD && thread_group_leader(p)) {
-		struct signal_struct *psig;
-		struct signal_struct *sig;
+		struct signal_struct *sig = p->signal;
+		struct signal_struct *psig = current->signal;
 		unsigned long maxrss;
 		cputime_t tgutime, tgstime;
 
@@ -1023,21 +1023,20 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		 * accumulate in the parent's signal_struct c* fields.
 		 *
 		 * We don't bother to take a lock here to protect these
-		 * p->signal fields, because they are only touched by
-		 * __exit_signal, which runs with tasklist_lock
-		 * write-locked anyway, and so is excluded here.  We do
-		 * need to protect the access to parent->signal fields,
-		 * as other threads in the parent group can be right
-		 * here reaping other children at the same time.
+		 * p->signal fields because the whole thread group is dead
+		 * and nobody can change them.
+		 *
+		 * psig->stats_lock also protects us from our sub-theads
+		 * which can reap other children at the same time. Until
+		 * we change k_getrusage()-like users to rely on this lock
+		 * we have to take ->siglock as well.
 		 *
 		 * We use thread_group_cputime_adjusted() to get times for
 		 * the thread group, which consolidates times for all threads
 		 * in the group including the group leader.
 		 */
 		thread_group_cputime_adjusted(p, &tgutime, &tgstime);
-		spin_lock_irq(&p->real_parent->sighand->siglock);
-		psig = p->real_parent->signal;
-		sig = p->signal;
+		spin_lock_irq(&current->sighand->siglock);
 		write_seqlock(&psig->stats_lock);
 		psig->cutime += tgutime + sig->cutime;
 		psig->cstime += tgstime + sig->cstime;
@@ -1062,7 +1061,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		task_io_accounting_add(&psig->ioac, &p->ioac);
 		task_io_accounting_add(&psig->ioac, &sig->ioac);
 		write_sequnlock(&psig->stats_lock);
-		spin_unlock_irq(&p->real_parent->sighand->siglock);
+		spin_unlock_irq(&current->sighand->siglock);
 	}
 
 	/*
