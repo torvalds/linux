@@ -1208,9 +1208,8 @@ static void __init validate_hv(void)
 	 * We use a struct cpumask for this, so it must be big enough.
 	 */
 	if ((smp_height * smp_width) > nr_cpu_ids)
-		early_panic("Hypervisor %d x %d grid too big for Linux"
-			    " NR_CPUS %d\n", smp_height, smp_width,
-			    nr_cpu_ids);
+		early_panic("Hypervisor %d x %d grid too big for Linux NR_CPUS %d\n",
+			    smp_height, smp_width, nr_cpu_ids);
 #endif
 
 	/*
@@ -1265,10 +1264,9 @@ static void __init validate_va(void)
 
 	/* Kernel PCs must have their high bit set; see intvec.S. */
 	if ((long)VMALLOC_START >= 0)
-		early_panic(
-			"Linux VMALLOC region below the 2GB line (%#lx)!\n"
-			"Reconfigure the kernel with smaller VMALLOC_RESERVE.\n",
-			VMALLOC_START);
+		early_panic("Linux VMALLOC region below the 2GB line (%#lx)!\n"
+			    "Reconfigure the kernel with smaller VMALLOC_RESERVE\n",
+			    VMALLOC_START);
 #endif
 }
 
