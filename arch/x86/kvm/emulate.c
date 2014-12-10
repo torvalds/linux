@@ -4801,18 +4801,18 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 				goto done;
 		}
 
+		/* Instruction can only be executed in protected mode */
+		if ((ctxt->d & Prot) && ctxt->mode < X86EMUL_MODE_PROT16) {
+			rc = emulate_ud(ctxt);
+			goto done;
+		}
+
 		/* Privileged instruction can be executed only in CPL=0 */
 		if ((ctxt->d & Priv) && ops->cpl(ctxt)) {
 			if (ctxt->d & PrivUD)
 				rc = emulate_ud(ctxt);
 			else
 				rc = emulate_gp(ctxt, 0);
-			goto done;
-		}
-
-		/* Instruction can only be executed in protected mode */
-		if ((ctxt->d & Prot) && ctxt->mode < X86EMUL_MODE_PROT16) {
-			rc = emulate_ud(ctxt);
 			goto done;
 		}
 
