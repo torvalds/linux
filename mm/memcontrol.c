@@ -369,7 +369,6 @@ struct mem_cgroup {
 /* internal only representation about the status of kmem accounting. */
 enum {
 	KMEM_ACCOUNTED_ACTIVE, /* accounted by this cgroup itself */
-	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
 };
 
 #ifdef CONFIG_MEMCG_KMEM
@@ -383,22 +382,6 @@ static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
 }
 
-static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
-{
-	/*
-	 * Our caller must use css_get() first, because memcg_uncharge_kmem()
-	 * will call css_put() if it sees the memcg is dead.
-	 */
-	smp_wmb();
-	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
-		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
-}
-
-static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
-{
-	return test_and_clear_bit(KMEM_ACCOUNTED_DEAD,
-				  &memcg->kmem_account_flags);
-}
 #endif
 
 /* Stuffs for move charges at task migration. */
@@ -2758,22 +2741,7 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg,
 	if (do_swap_account)
 		page_counter_uncharge(&memcg->memsw, nr_pages);
 
-	/* Not down to 0 */
-	if (page_counter_uncharge(&memcg->kmem, nr_pages)) {
-		css_put_many(&memcg->css, nr_pages);
-		return;
-	}
-
-	/*
-	 * Releases a reference taken in kmem_cgroup_css_offline in case
-	 * this last uncharge is racing with the offlining code or it is
-	 * outliving the memcg existence.
-	 *
-	 * The memory barrier imposed by test&clear is paired with the
-	 * explicit one in memcg_kmem_mark_dead().
-	 */
-	if (memcg_kmem_test_and_clear_dead(memcg))
-		css_put(&memcg->css);
+	page_counter_uncharge(&memcg->kmem, nr_pages);
 
 	css_put_many(&memcg->css, nr_pages);
 }
@@ -4757,40 +4725,6 @@ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
 {
 	mem_cgroup_sockets_destroy(memcg);
 }
-
-static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
-{
-	if (!memcg_kmem_is_active(memcg))
-		return;
-
-	/*
-	 * kmem charges can outlive the cgroup. In the case of slab
-	 * pages, for instance, a page contain objects from various
-	 * processes. As we prevent from taking a reference for every
-	 * such allocation we have to be careful when doing uncharge
-	 * (see memcg_uncharge_kmem) and here during offlining.
-	 *
-	 * The idea is that that only the _last_ uncharge which sees
-	 * the dead memcg will drop the last reference. An additional
-	 * reference is taken here before the group is marked dead
-	 * which is then paired with css_put during uncharge resp. here.
-	 *
-	 * Although this might sound strange as this path is called from
-	 * css_offline() when the referencemight have dropped down to 0 and
-	 * shouldn't be incremented anymore (css_tryget_online() would
-	 * fail) we do not have other options because of the kmem
-	 * allocations lifetime.
-	 */
-	css_get(&memcg->css);
-
-	memcg_kmem_mark_dead(memcg);
-
-	if (page_counter_read(&memcg->kmem))
-		return;
-
-	if (memcg_kmem_test_and_clear_dead(memcg))
-		css_put(&memcg->css);
-}
 #else
 static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
@@ -4798,10 +4732,6 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 }
 
 static void memcg_destroy_kmem(struct mem_cgroup *memcg)
-{
-}
-
-static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
 {
 }
 #endif
@@ -5406,8 +5336,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 		schedule_work(&event->remove);
 	}
 	spin_unlock(&memcg->event_list_lock);
-
-	kmem_cgroup_css_offline(memcg);
 
 	/*
 	 * This requires that offlining is serialized.  Right now that is

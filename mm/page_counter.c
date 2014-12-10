@@ -16,19 +16,14 @@
  * page_counter_cancel - take pages out of the local counter
  * @counter: counter
  * @nr_pages: number of pages to cancel
- *
- * Returns whether there are remaining pages in the counter.
  */
-int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
+void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
 {
 	long new;
 
 	new = atomic_long_sub_return(nr_pages, &counter->count);
-
 	/* More uncharges than charges? */
 	WARN_ON_ONCE(new < 0);
-
-	return new > 0;
 }
 
 /**
@@ -117,23 +112,13 @@ failed:
  * page_counter_uncharge - hierarchically uncharge pages
  * @counter: counter
  * @nr_pages: number of pages to uncharge
- *
- * Returns whether there are remaining charges in @counter.
  */
-int page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages)
+void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages)
 {
 	struct page_counter *c;
-	int ret = 1;
 
-	for (c = counter; c; c = c->parent) {
-		int remainder;
-
-		remainder = page_counter_cancel(c, nr_pages);
-		if (c == counter && !remainder)
-			ret = 0;
-	}
-
-	return ret;
+	for (c = counter; c; c = c->parent)
+		page_counter_cancel(c, nr_pages);
 }
 
 /**
