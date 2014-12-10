@@ -782,6 +782,7 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * workaround for for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
+	/* WaForceEnableNonCoherent:bdw */
 	/* WaHdcDisableFetchWhenMasked:bdw */
 	/* WaDisableFenceDestinationToSLM:bdw (GT3 pre-production) */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
