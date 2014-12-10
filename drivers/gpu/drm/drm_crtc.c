@@ -61,8 +61,8 @@ static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 /*
  * Global properties
  */
-static const struct drm_prop_enum_list drm_dpms_enum_list[] =
-{	{ DRM_MODE_DPMS_ON, "On" },
+static const struct drm_prop_enum_list drm_dpms_enum_list[] = {
+	{ DRM_MODE_DPMS_ON, "On" },
 	{ DRM_MODE_DPMS_STANDBY, "Standby" },
 	{ DRM_MODE_DPMS_SUSPEND, "Suspend" },
 	{ DRM_MODE_DPMS_OFF, "Off" }
@@ -70,8 +70,7 @@ static const struct drm_prop_enum_list drm_dpms_enum_list[] =
 
 DRM_ENUM_NAME_FN(drm_get_dpms_name, drm_dpms_enum_list)
 
-static const struct drm_prop_enum_list drm_plane_type_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_plane_type_enum_list[] = {
 	{ DRM_PLANE_TYPE_OVERLAY, "Overlay" },
 	{ DRM_PLANE_TYPE_PRIMARY, "Primary" },
 	{ DRM_PLANE_TYPE_CURSOR, "Cursor" },
@@ -80,8 +79,7 @@ static const struct drm_prop_enum_list drm_plane_type_enum_list[] =
 /*
  * Optional properties
  */
-static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] = {
 	{ DRM_MODE_SCALE_NONE, "None" },
 	{ DRM_MODE_SCALE_FULLSCREEN, "Full" },
 	{ DRM_MODE_SCALE_CENTER, "Center" },
@@ -97,8 +95,7 @@ static const struct drm_prop_enum_list drm_aspect_ratio_enum_list[] = {
 /*
  * Non-global properties, but "required" for certain connectors.
  */
-static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Automatic, "Automatic" }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_DVID,      "DVI-D"     }, /* DVI-I  */
 	{ DRM_MODE_SUBCONNECTOR_DVIA,      "DVI-A"     }, /* DVI-I  */
@@ -106,8 +103,7 @@ static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] =
 
 DRM_ENUM_NAME_FN(drm_get_dvi_i_select_name, drm_dvi_i_select_enum_list)
 
-static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_DVID,      "DVI-D"     }, /* DVI-I  */
 	{ DRM_MODE_SUBCONNECTOR_DVIA,      "DVI-A"     }, /* DVI-I  */
@@ -116,8 +112,7 @@ static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] =
 DRM_ENUM_NAME_FN(drm_get_dvi_i_subconnector_name,
 		 drm_dvi_i_subconnector_enum_list)
 
-static const struct drm_prop_enum_list drm_tv_select_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_tv_select_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Automatic, "Automatic" }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
@@ -127,8 +122,7 @@ static const struct drm_prop_enum_list drm_tv_select_enum_list[] =
 
 DRM_ENUM_NAME_FN(drm_get_tv_select_name, drm_tv_select_enum_list)
 
-static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
@@ -154,8 +148,8 @@ struct drm_conn_prop_enum_list {
 /*
  * Connector and encoder types.
  */
-static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
-{	{ DRM_MODE_CONNECTOR_Unknown, "Unknown" },
+static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
+	{ DRM_MODE_CONNECTOR_Unknown, "Unknown" },
 	{ DRM_MODE_CONNECTOR_VGA, "VGA" },
 	{ DRM_MODE_CONNECTOR_DVII, "DVI-I" },
 	{ DRM_MODE_CONNECTOR_DVID, "DVI-D" },
@@ -174,8 +168,8 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_DSI, "DSI" },
 };
 
-static const struct drm_prop_enum_list drm_encoder_enum_list[] =
-{	{ DRM_MODE_ENCODER_NONE, "None" },
+static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
+	{ DRM_MODE_ENCODER_NONE, "None" },
 	{ DRM_MODE_ENCODER_DAC, "DAC" },
 	{ DRM_MODE_ENCODER_TMDS, "TMDS" },
 	{ DRM_MODE_ENCODER_LVDS, "LVDS" },
@@ -185,8 +179,7 @@ static const struct drm_prop_enum_list drm_encoder_enum_list[] =
 	{ DRM_MODE_ENCODER_DPMST, "DP MST" },
 };
 
-static const struct drm_prop_enum_list drm_subpixel_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_subpixel_enum_list[] = {
 	{ SubPixelUnknown, "Unknown" },
 	{ SubPixelHorizontalRGB, "Horizontal RGB" },
 	{ SubPixelHorizontalBGR, "Horizontal BGR" },
@@ -1137,6 +1130,7 @@ EXPORT_SYMBOL(drm_encoder_init);
 void drm_encoder_cleanup(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
+
 	drm_modeset_lock_all(dev);
 	drm_mode_object_put(dev, &encoder->base);
 	kfree(encoder->name);
@@ -2519,7 +2513,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
  *
  * This is a little helper to wrap internal calls to the ->set_config driver
  * interface. The only thing it adds is correct refcounting dance.
- * 
+ *
  * Returns:
  * Zero on success, negative errno on failure.
  */
@@ -2958,6 +2952,7 @@ int drm_mode_cursor2_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_cursor2 *req = data;
+
 	return drm_mode_cursor_common(dev, req, file_priv);
 }
 
@@ -4047,7 +4042,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 
 	if (out_resp->length == blob->length) {
 		blob_ptr = (void __user *)(unsigned long)out_resp->data;
-		if (copy_to_user(blob_ptr, blob->data, blob->length)){
+		if (copy_to_user(blob_ptr, blob->data, blob->length)) {
 			ret = -EFAULT;
 			goto done;
 		}
@@ -4149,6 +4144,7 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		return true;
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_SIGNED_RANGE)) {
 		int64_t svalue = U642I64(value);
+
 		if (svalue < U642I64(property->values[0]) ||
 				svalue > U642I64(property->values[1]))
 			return false;
@@ -4156,6 +4152,7 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
 		int i;
 		uint64_t valid_mask = 0;
+
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);
@@ -4164,6 +4161,7 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		return true;
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
 		struct drm_mode_object *obj;
+
 		/* a zero value for an object property translates to null: */
 		if (value == 0)
 			return true;
