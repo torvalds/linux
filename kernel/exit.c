@@ -571,6 +571,8 @@ static void forget_original_parent(struct task_struct *father)
 
 	/* Can drop and reacquire tasklist_lock */
 	reaper = find_child_reaper(father);
+	if (list_empty(&father->children))
+		goto unlock;
 
 	reaper = find_new_reaper(father, reaper);
 	list_for_each_entry(p, &father->children, sibling) {
@@ -591,6 +593,7 @@ static void forget_original_parent(struct task_struct *father)
 			reparent_leader(father, p, &dead_children);
 	}
 	list_splice_tail_init(&father->children, &reaper->children);
+ unlock:
 	write_unlock_irq(&tasklist_lock);
 
 	list_for_each_entry_safe(p, n, &dead_children, ptrace_entry) {
