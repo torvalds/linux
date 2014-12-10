@@ -164,17 +164,32 @@ static int isl12057_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct isl12057_rtc_data *data = dev_get_drvdata(dev);
 	u8 regs[ISL12057_RTC_SEC_LEN];
+	unsigned int sr;
 	int ret;
 
 	mutex_lock(&data->lock);
+	ret = regmap_read(data->regmap, ISL12057_REG_SR, &sr);
+	if (ret) {
+		dev_err(dev, "%s: unable to read oscillator status flag\n",
+			__func__);
+		goto out;
+	} else {
+		if (sr & ISL12057_REG_SR_OSF) {
+			ret = -ENODATA;
+			goto out;
+		}
+	}
+
 	ret = regmap_bulk_read(data->regmap, ISL12057_REG_RTC_SC, regs,
 			       ISL12057_RTC_SEC_LEN);
+	if (ret)
+		dev_err(dev, "%s: unable to read RTC time\n", __func__);
+
+out:
 	mutex_unlock(&data->lock);
 
-	if (ret) {
-		dev_err(dev, "%s: RTC read failed\n", __func__);
+	if (ret)
 		return ret;
-	}
 
 	isl12057_rtc_regs_to_tm(tm, regs);
 
@@ -194,10 +209,22 @@ static int isl12057_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	mutex_lock(&data->lock);
 	ret = regmap_bulk_write(data->regmap, ISL12057_REG_RTC_SC, regs,
 				ISL12057_RTC_SEC_LEN);
-	mutex_unlock(&data->lock);
+	if (ret) {
+		dev_err(dev, "%s: writing RTC time failed\n", __func__);
+		goto out;
+	}
 
-	if (ret)
-		dev_err(dev, "%s: RTC write failed\n", __func__);
+	/*
+	 * Now that RTC time has been updated, let's clear oscillator
+	 * failure flag, if needed.
+	 */
+	ret = regmap_update_bits(data->regmap, ISL12057_REG_SR,
+				 ISL12057_REG_SR_OSF, 0);
+	if (ret < 0)
+		dev_err(dev, "Unable to clear oscillator failure bit\n");
+
+out:
+	mutex_unlock(&data->lock);
 
 	return ret;
 }
@@ -216,14 +243,6 @@ static int isl12057_check_rtc_status(struct device *dev, struct regmap *regmap)
 				 ISL12057_REG_INT_EOSC, 0);
 	if (ret < 0) {
 		dev_err(dev, "Unable to enable oscillator\n");
-		return ret;
-	}
-
-	/* Clear oscillator failure bit if needed */
-	ret = regmap_update_bits(regmap, ISL12057_REG_SR,
-				 ISL12057_REG_SR_OSF, 0);
-	if (ret < 0) {
-		dev_err(dev, "Unable to clear oscillator failure bit\n");
 		return ret;
 	}
 
