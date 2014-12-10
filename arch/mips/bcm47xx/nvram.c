@@ -91,7 +91,6 @@ static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 	return -ENXIO;
 
 found:
-
 	if (header->len > size)
 		pr_err("The nvram size accoridng to the header seems to be bigger than the partition on flash\n");
 	if (header->len > NVRAM_SPACE)
@@ -101,10 +100,9 @@ found:
 	src = (u32 *) header;
 	dst = (u32 *) nvram_buf;
 	for (i = 0; i < sizeof(struct nvram_header); i += 4)
-		*dst++ = *src++;
+		*dst++ = __raw_readl(src++);
 	for (; i < header->len && i < NVRAM_SPACE && i < size; i += 4)
-		*dst++ = le32_to_cpu(*src++);
-	memset(dst, 0x0, NVRAM_SPACE - i);
+		*dst++ = readl(src++);
 
 	return 0;
 }
@@ -165,7 +163,6 @@ static int nvram_init(void)
 			err = mtd_read(mtd, from, len, &bytes_read, dst);
 			if (err)
 				return err;
-			memset(dst + bytes_read, 0x0, NVRAM_SPACE - bytes_read);
 
 			return 0;
 		}
