@@ -120,4 +120,15 @@ static inline void arch_exit_mmap(struct mm_struct *mm)
 {
 }
 
+static inline void arch_unmap(struct mm_struct *mm,
+			struct vm_area_struct *vma,
+			unsigned long start, unsigned long end)
+{
+}
+
+static inline void arch_bprm_mm_init(struct mm_struct *mm,
+				     struct vm_area_struct *vma)
+{
+}
+
 #endif /* __S390_MMU_CONTEXT_H */
