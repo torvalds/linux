@@ -98,9 +98,15 @@ enum {
 
 	IPOIB_MCAST_FLAG_FOUND	  = 0,	/* used in set_multicast_list */
 	IPOIB_MCAST_FLAG_SENDONLY = 1,
-	IPOIB_MCAST_FLAG_BUSY	  = 2,	/* joining or already joined */
+	/*
+	 * For IPOIB_MCAST_FLAG_BUSY
+	 * When set, in flight join and mcast->mc is unreliable
+	 * When clear and mcast->mc IS_ERR_OR_NULL, need to restart or
+	 *   haven't started yet
+	 * When clear and mcast->mc is valid pointer, join was successful
+	 */
+	IPOIB_MCAST_FLAG_BUSY	  = 2,
 	IPOIB_MCAST_FLAG_ATTACHED = 3,
-	IPOIB_MCAST_JOIN_STARTED  = 4,
 
 	MAX_SEND_CQE		  = 16,
 	IPOIB_CM_COPYBREAK	  = 256,
