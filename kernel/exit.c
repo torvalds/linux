@@ -459,6 +459,17 @@ static void exit_mm(struct task_struct *tsk)
 	clear_thread_flag(TIF_MEMDIE);
 }
 
+static struct task_struct *find_alive_thread(struct task_struct *p)
+{
+	struct task_struct *t;
+
+	for_each_thread(p, t) {
+		if (!(t->flags & PF_EXITING))
+			return t;
+	}
+	return NULL;
+}
+
 static struct task_struct *find_child_reaper(struct task_struct *father)
 	__releases(&tasklist_lock)
 	__acquires(&tasklist_lock)
@@ -469,9 +480,8 @@ static struct task_struct *find_child_reaper(struct task_struct *father)
 	if (likely(reaper != father))
 		return reaper;
 
-	for_each_thread(father, reaper) {
-		if (reaper->flags & PF_EXITING)
-			continue;
+	reaper = find_alive_thread(father);
+	if (reaper) {
 		pid_ns->child_reaper = reaper;
 		return reaper;
 	}
@@ -497,16 +507,13 @@ static struct task_struct *find_child_reaper(struct task_struct *father)
 static struct task_struct *find_new_reaper(struct task_struct *father,
 					   struct task_struct *child_reaper)
 {
-	struct task_struct *thread;
+	struct task_struct *thread, *reaper;
 
-	for_each_thread(father, thread) {
-		if (thread->flags & PF_EXITING)
-			continue;
+	thread = find_alive_thread(father);
+	if (thread)
 		return thread;
-	}
 
 	if (father->signal->has_child_subreaper) {
-		struct task_struct *reaper;
 		/*
 		 * Find the first ->is_child_subreaper ancestor in our pid_ns.
 		 * We start from father to ensure we can not look into another
@@ -520,10 +527,9 @@ static struct task_struct *find_new_reaper(struct task_struct *father,
 				break;
 			if (!reaper->signal->is_child_subreaper)
 				continue;
-			for_each_thread(reaper, thread) {
-				if (!(thread->flags & PF_EXITING))
-					return thread;
-			}
+			thread = find_alive_thread(reaper);
+			if (thread)
+				return thread;
 		}
 	}
 
