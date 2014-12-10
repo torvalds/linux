@@ -1386,7 +1386,7 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 	if (!s)
 		return -EINVAL;
 
-	if (s->functions) {
+	if (s->functions || !(s->state & SOCKET_PRESENT)) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
