@@ -102,19 +102,11 @@
 #define	KICK0_VALUE			0x83e70b13
 #define	KICK1_VALUE			0x95a4f1e0
 
-#define	OMAP_RTC_HAS_KICKER		BIT(0)
-
-/*
- * Few RTC IP revisions has special WAKE-EN Register to enable Wakeup
- * generation for event Alarm.
- */
-#define	OMAP_RTC_HAS_IRQWAKEEN		BIT(1)
-
-/*
- * Some RTC IP revisions (like those in AM335x and DRA7x) need
- * the 32KHz clock to be explicitly enabled.
- */
-#define OMAP_RTC_HAS_32KCLK_EN		BIT(2)
+struct omap_rtc_device_type {
+	bool has_32kclk_en;
+	bool has_kicker;
+	bool has_irqwakeen;
+};
 
 struct omap_rtc {
 	struct rtc_device *rtc;
@@ -122,7 +114,7 @@ struct omap_rtc {
 	int irq_alarm;
 	int irq_timer;
 	u8 interrupts_reg;
-	unsigned long flags;
+	const struct omap_rtc_device_type *type;
 };
 
 static inline u8 rtc_read(struct omap_rtc *rtc, unsigned int reg)
@@ -190,7 +182,7 @@ static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	local_irq_disable();
 	rtc_wait_not_busy(rtc);
 	reg = rtc_read(rtc, OMAP_RTC_INTERRUPTS_REG);
-	if (rtc->flags & OMAP_RTC_HAS_IRQWAKEEN)
+	if (rtc->type->has_irqwakeen)
 		irqwake_reg = rtc_read(rtc, OMAP_RTC_IRQWAKEEN);
 
 	if (enabled) {
@@ -202,7 +194,7 @@ static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	}
 	rtc_wait_not_busy(rtc);
 	rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, reg);
-	if (rtc->flags & OMAP_RTC_HAS_IRQWAKEEN)
+	if (rtc->type->has_irqwakeen)
 		rtc_write(rtc, OMAP_RTC_IRQWAKEEN, irqwake_reg);
 	local_irq_enable();
 
@@ -326,7 +318,7 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	rtc_write(rtc, OMAP_RTC_ALARM_SECONDS_REG, alm->time.tm_sec);
 
 	reg = rtc_read(rtc, OMAP_RTC_INTERRUPTS_REG);
-	if (rtc->flags & OMAP_RTC_HAS_IRQWAKEEN)
+	if (rtc->type->has_irqwakeen)
 		irqwake_reg = rtc_read(rtc, OMAP_RTC_IRQWAKEEN);
 
 	if (alm->enabled) {
@@ -337,7 +329,7 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 		irqwake_reg &= ~OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
 	}
 	rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, reg);
-	if (rtc->flags & OMAP_RTC_HAS_IRQWAKEEN)
+	if (rtc->type->has_irqwakeen)
 		rtc_write(rtc, OMAP_RTC_IRQWAKEEN, irqwake_reg);
 
 	local_irq_enable();
@@ -353,34 +345,45 @@ static struct rtc_class_ops omap_rtc_ops = {
 	.alarm_irq_enable = omap_rtc_alarm_irq_enable,
 };
 
-#define	OMAP_RTC_DATA_AM3352_IDX	1
-#define	OMAP_RTC_DATA_DA830_IDX		2
+static const struct omap_rtc_device_type omap_rtc_default_type = {
+};
 
-static const struct platform_device_id omap_rtc_devtype[] = {
+static const struct omap_rtc_device_type omap_rtc_am3352_type = {
+	.has_32kclk_en	= true,
+	.has_kicker	= true,
+	.has_irqwakeen	= true,
+};
+
+static const struct omap_rtc_device_type omap_rtc_da830_type = {
+	.has_kicker	= true,
+};
+
+static const struct platform_device_id omap_rtc_id_table[] = {
 	{
 		.name	= "omap_rtc",
-	},
-	[OMAP_RTC_DATA_AM3352_IDX] = {
+		.driver_data = (kernel_ulong_t)&omap_rtc_default_type,
+	}, {
 		.name	= "am3352-rtc",
-		.driver_data = OMAP_RTC_HAS_KICKER | OMAP_RTC_HAS_IRQWAKEEN |
-			       OMAP_RTC_HAS_32KCLK_EN,
-	},
-	[OMAP_RTC_DATA_DA830_IDX] = {
+		.driver_data = (kernel_ulong_t)&omap_rtc_am3352_type,
+	}, {
 		.name	= "da830-rtc",
-		.driver_data = OMAP_RTC_HAS_KICKER,
-	},
-	{},
+		.driver_data = (kernel_ulong_t)&omap_rtc_da830_type,
+	}, {
+		/* sentinel */
+	}
 };
-MODULE_DEVICE_TABLE(platform, omap_rtc_devtype);
+MODULE_DEVICE_TABLE(platform, omap_rtc_id_table);
 
 static const struct of_device_id omap_rtc_of_match[] = {
-	{	.compatible	= "ti,da830-rtc",
-		.data		= &omap_rtc_devtype[OMAP_RTC_DATA_DA830_IDX],
-	},
-	{	.compatible	= "ti,am3352-rtc",
-		.data		= &omap_rtc_devtype[OMAP_RTC_DATA_AM3352_IDX],
-	},
-	{},
+	{
+		.compatible	= "ti,am3352-rtc",
+		.data		= &omap_rtc_am3352_type,
+	}, {
+		.compatible	= "ti,da830-rtc",
+		.data		= &omap_rtc_da830_type,
+	}, {
+		/* sentinel */
+	}
 };
 MODULE_DEVICE_TABLE(of, omap_rtc_of_match);
 
@@ -398,16 +401,12 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	of_id = of_match_device(omap_rtc_of_match, &pdev->dev);
-	if (of_id)
-		pdev->id_entry = of_id->data;
-
-	id_entry = platform_get_device_id(pdev);
-	if (!id_entry) {
-		dev_err(&pdev->dev, "no matching device entry\n");
-		return -ENODEV;
+	if (of_id) {
+		rtc->type = of_id->data;
+	} else {
+		id_entry = platform_get_device_id(pdev);
+		rtc->type = (void *)id_entry->driver_data;
 	}
-
-	rtc->flags = id_entry->driver_data;
 
 	rtc->irq_timer = platform_get_irq(pdev, 0);
 	if (rtc->irq_timer <= 0)
@@ -428,7 +427,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	if (rtc->flags & OMAP_RTC_HAS_KICKER) {
+	if (rtc->type->has_kicker) {
 		rtc_writel(rtc, OMAP_RTC_KICK0_REG, KICK0_VALUE);
 		rtc_writel(rtc, OMAP_RTC_KICK1_REG, KICK1_VALUE);
 	}
@@ -441,7 +440,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	rtc_writel(rtc, OMAP_RTC_INTERRUPTS_REG, 0);
 
 	/* enable RTC functional clock */
-	if (rtc->flags & OMAP_RTC_HAS_32KCLK_EN) {
+	if (rtc->type->has_32kclk_en) {
 		reg = rtc_read(rtc, OMAP_RTC_OSC_REG);
 		rtc_writel(rtc, OMAP_RTC_OSC_REG,
 				reg | OMAP_RTC_OSC_32KCLK_EN);
@@ -511,7 +510,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 
 err:
 	device_init_wakeup(&pdev->dev, false);
-	if (rtc->flags & OMAP_RTC_HAS_KICKER)
+	if (rtc->type->has_kicker)
 		rtc_writel(rtc, OMAP_RTC_KICK0_REG, 0);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -528,7 +527,7 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	/* leave rtc running, but disable irqs */
 	rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, 0);
 
-	if (rtc->flags & OMAP_RTC_HAS_KICKER)
+	if (rtc->type->has_kicker)
 		rtc_writel(rtc, OMAP_RTC_KICK0_REG, 0);
 
 	/* Disable the clock/module */
@@ -594,7 +593,7 @@ static struct platform_driver omap_rtc_driver = {
 		.pm	= &omap_rtc_pm_ops,
 		.of_match_table = omap_rtc_of_match,
 	},
-	.id_table	= omap_rtc_devtype,
+	.id_table	= omap_rtc_id_table,
 };
 
 module_platform_driver_probe(omap_rtc_driver, omap_rtc_probe);
