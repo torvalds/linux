@@ -946,7 +946,7 @@ sub sanitise_line {
 sub get_quoted_string {
 	my ($line, $rawline) = @_;
 
-	return "" if ($line !~ m/(\"[X]+\")/g);
+	return "" if ($line !~ m/(\"[X\t]+\")/g);
 	return substr($rawline, $-[0], $+[0] - $-[0]);
 }
 
@@ -1847,6 +1847,7 @@ sub process {
 	my $non_utf8_charset = 0;
 
 	my $last_blank_line = 0;
+	my $last_coalesced_string_linenr = -1;
 
 	our @report = ();
 	our $cnt_lines = 0;
@@ -2411,33 +2412,6 @@ sub process {
 		{
 			WARN("LONG_LINE",
 			     "line over $max_line_length characters\n" . $herecurr);
-		}
-
-# Check for user-visible strings broken across lines, which breaks the ability
-# to grep for the string.  Make exceptions when the previous string ends in a
-# newline (multiple lines in one string constant) or '\t', '\r', ';', or '{'
-# (common in inline assembly) or is a octal \123 or hexadecimal \xaf value
-		if ($line =~ /^\+\s*"/ &&
-		    $prevline =~ /"\s*$/ &&
-		    $prevrawline !~ /(?:\\(?:[ntr]|[0-7]{1,3}|x[0-9a-fA-F]{1,2})|;\s*|\{\s*)"\s*$/) {
-			WARN("SPLIT_STRING",
-			     "quoted string split across lines\n" . $hereprev);
-		}
-
-# check for missing a space in a string concatination
-		if ($prevrawline =~ /[^\\]\w"$/ && $rawline =~ /^\+[\t ]+"\w/) {
-			WARN('MISSING_SPACE',
-			     "break quoted strings at a space character\n" . $hereprev);
-		}
-
-# check for spaces before a quoted newline
-		if ($rawline =~ /^.*\".*\s\\n/) {
-			if (WARN("QUOTED_WHITESPACE_BEFORE_NEWLINE",
-				 "unnecessary whitespace before a quoted newline\n" . $herecurr) &&
-			    $fix) {
-				$fixed[$fixlinenr] =~ s/^(\+.*\".*)\s+\\n/$1\\n/;
-			}
-
 		}
 
 # check for adding lines without a newline.
@@ -4458,6 +4432,55 @@ sub process {
 			     "Use of volatile is usually wrong: see Documentation/volatile-considered-harmful.txt\n" . $herecurr);
 		}
 
+# Check for user-visible strings broken across lines, which breaks the ability
+# to grep for the string.  Make exceptions when the previous string ends in a
+# newline (multiple lines in one string constant) or '\t', '\r', ';', or '{'
+# (common in inline assembly) or is a octal \123 or hexadecimal \xaf value
+		if ($line =~ /^\+\s*"[X\t]*"/ &&
+		    $prevline =~ /"\s*$/ &&
+		    $prevrawline !~ /(?:\\(?:[ntr]|[0-7]{1,3}|x[0-9a-fA-F]{1,2})|;\s*|\{\s*)"\s*$/) {
+			if (WARN("SPLIT_STRING",
+				 "quoted string split across lines\n" . $hereprev) &&
+				     $fix &&
+				     $prevrawline =~ /^\+.*"\s*$/ &&
+				     $last_coalesced_string_linenr != $linenr - 1) {
+				my $extracted_string = get_quoted_string($line, $rawline);
+				my $comma_close = "";
+				if ($rawline =~ /\Q$extracted_string\E(\s*\)\s*;\s*$|\s*,\s*)/) {
+					$comma_close = $1;
+				}
+
+				fix_delete_line($fixlinenr - 1, $prevrawline);
+				fix_delete_line($fixlinenr, $rawline);
+				my $fixedline = $prevrawline;
+				$fixedline =~ s/"\s*$//;
+				$fixedline .= substr($extracted_string, 1) . trim($comma_close);
+				fix_insert_line($fixlinenr - 1, $fixedline);
+				$fixedline = $rawline;
+				$fixedline =~ s/\Q$extracted_string\E\Q$comma_close\E//;
+				if ($fixedline !~ /\+\s*$/) {
+					fix_insert_line($fixlinenr, $fixedline);
+				}
+				$last_coalesced_string_linenr = $linenr;
+			}
+		}
+
+# check for missing a space in a string concatenation
+		if ($prevrawline =~ /[^\\]\w"$/ && $rawline =~ /^\+[\t ]+"\w/) {
+			WARN('MISSING_SPACE',
+			     "break quoted strings at a space character\n" . $hereprev);
+		}
+
+# check for spaces before a quoted newline
+		if ($rawline =~ /^.*\".*\s\\n/) {
+			if (WARN("QUOTED_WHITESPACE_BEFORE_NEWLINE",
+				 "unnecessary whitespace before a quoted newline\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/^(\+.*\".*)\s+\\n/$1\\n/;
+			}
+
+		}
+
 # concatenated string without spaces between elements
 		if ($line =~ /"X+"[A-Z_]+/ || $line =~ /[A-Z_]+"X+"/) {
 			CHK("CONCATENATED_STRING",
@@ -4468,6 +4491,24 @@ sub process {
 		if ($line =~ /"X*"\s*"/) {
 			WARN("STRING_FRAGMENTS",
 			     "Consecutive strings are generally better as a single string\n" . $herecurr);
+		}
+
+# check for %L{u,d,i} in strings
+		my $string;
+		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
+			$string = substr($rawline, $-[1], $+[1] - $-[1]);
+			$string =~ s/%%/__/g;
+			if ($string =~ /(?<!%)%L[udi]/) {
+				WARN("PRINTF_L",
+				     "\%Ld/%Lu are not-standard C, use %lld/%llu\n" . $herecurr);
+				last;
+			}
+		}
+
+# check for line continuations in quoted strings with odd counts of "
+		if ($rawline =~ /\\$/ && $rawline =~ tr/"/"/ % 2) {
+			WARN("LINE_CONTINUATIONS",
+			     "Avoid line continuations in quoted strings\n" . $herecurr);
 		}
 
 # warn about #if 0
@@ -4752,12 +4793,6 @@ sub process {
 			    $fix) {
 				$fixed[$fixlinenr] =~ s/\bsizeof\s+((?:\*\s*|)$Lval|$Type(?:\s+$Lval|))/"sizeof(" . trim($1) . ")"/ex;
 			}
-		}
-
-# check for line continuations in quoted strings with odd counts of "
-		if ($rawline =~ /\\$/ && $rawline =~ tr/"/"/ % 2) {
-			WARN("LINE_CONTINUATIONS",
-			     "Avoid line continuations in quoted strings\n" . $herecurr);
 		}
 
 # check for struct spinlock declarations
@@ -5167,18 +5202,6 @@ sub process {
 		if ($line =~ /\+\s*#\s*define\s+((?:__)?ARCH_(?:HAS|HAVE)\w*)\b/) {
 			ERROR("DEFINE_ARCH_HAS",
 			      "#define of '$1' is wrong - use Kconfig variables or standard guards instead\n" . $herecurr);
-		}
-
-# check for %L{u,d,i} in strings
-		my $string;
-		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
-			$string = substr($rawline, $-[1], $+[1] - $-[1]);
-			$string =~ s/%%/__/g;
-			if ($string =~ /(?<!%)%L[udi]/) {
-				WARN("PRINTF_L",
-				     "\%Ld/%Lu are not-standard C, use %lld/%llu\n" . $herecurr);
-				last;
-			}
 		}
 
 # whine mightly about in_atomic
