@@ -361,6 +361,14 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 	struct i2c_client *client = to_i2c_client(dev);
 	unsigned char buf[4];
 	int err;
+	unsigned long alarm_time;
+
+	/* The alarm has no seconds, round up to nearest minute */
+	if (tm->time.tm_sec) {
+		rtc_tm_to_time(&tm->time, &alarm_time);
+		alarm_time += 60-tm->time.tm_sec;
+		rtc_time_to_tm(alarm_time, &tm->time);
+	}
 
 	dev_dbg(dev, "%s, min=%d hour=%d wday=%d mday=%d "
 		"enabled=%d pending=%d\n", __func__,
@@ -434,6 +442,9 @@ static int pcf8563_probe(struct i2c_client *client,
 		}
 
 	}
+
+	/* the pcf8563 alarm only supports a minute accuracy */
+	pcf8563->rtc->uie_unsupported = 1;
 
 	return 0;
 }
