@@ -2030,11 +2030,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	props_count = connector->properties.count;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		if (connector->encoder_ids[i] != 0) {
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
+		if (connector->encoder_ids[i] != 0)
 			encoders_count++;
-		}
-	}
 
 	if (out_resp->count_modes == 0) {
 		connector->funcs->fill_modes(connector,
