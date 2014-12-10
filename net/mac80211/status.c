@@ -664,13 +664,15 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 	struct ieee80211_supported_band *sband;
 	int retry_count;
 	int rates_idx;
-	bool acked;
+	bool acked, noack_success;
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
 
 	sband = hw->wiphy->bands[info->band];
 
 	acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
+	noack_success = !!(info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED);
+
 	if (pubsta) {
 		struct sta_info *sta;
 
@@ -696,7 +698,7 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 		rate_control_tx_status_noskb(local, sband, sta, info);
 	}
 
-	if (acked) {
+	if (acked || noack_success) {
 		    local->dot11TransmittedFrameCount++;
 		    if (!pubsta)
 			    local->dot11MulticastTransmittedFrameCount++;
@@ -856,7 +858,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * Fragments are passed to low-level drivers as separate skbs, so these
 	 * are actually fragments, not frames. Update frame counters only for
 	 * the first fragment of the frame. */
-	if (info->flags & IEEE80211_TX_STAT_ACK) {
+	if ((info->flags & IEEE80211_TX_STAT_ACK) ||
+	    (info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED)) {
 		if (ieee80211_is_first_frag(hdr->seq_ctrl)) {
 			local->dot11TransmittedFrameCount++;
 			if (is_multicast_ether_addr(hdr->addr1))
