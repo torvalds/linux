@@ -487,12 +487,12 @@ static int _pll_clk_set_rate_3188(struct pll_clk_set *clk_set,
 	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
 	//pll power down
 	cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
-	dsb();
-	dsb();
-	dsb();
-	dsb();
-	dsb();
-	dsb();
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
 	cru_writel(clk_set->pllcon0, pll->reg + RK3188_PLL_CON(0));
 	cru_writel(clk_set->pllcon1, pll->reg + RK3188_PLL_CON(1));
 
@@ -697,12 +697,12 @@ CHANGE_APLL:
 
 	/* PLL power down */
 	cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
-	dsb();
-	dsb();
-	dsb();
-	dsb();
-	dsb();
-	dsb();
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
+	dsb(sy);
 	cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
 	cru_writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
 

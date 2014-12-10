@@ -121,7 +121,7 @@ static inline void rk3288_cru_set_soft_reset(u32 idx, bool on)
 	void __iomem *reg = RK_CRU_VIRT + RK3288_CRU_SOFTRSTS_CON(idx >> 4);
 	u32 val = on ? 0x10001U << (idx & 0xf) : 0x10000U << (idx & 0xf);
 	writel_relaxed(val, reg);
-	dsb();
+	dsb(sy);
 }
 
 #define RK3036_CRU_MODE_CON 0x0040

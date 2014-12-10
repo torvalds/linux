@@ -36,7 +36,7 @@ u32 cru_readl(u32 offset)
 void cru_writel(u32 val, u32 offset)
 {
 	writel(val, rk_cru_base + (offset));
-	dsb();
+	dsb(sy);
 }
 
 u32 grf_readl(u32 offset)
