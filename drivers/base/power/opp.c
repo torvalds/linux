@@ -597,7 +597,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 static int opp_set_availability(struct device *dev, unsigned long freq,
 		bool availability_req)
 {
-	struct device_opp *tmp_dev_opp, *dev_opp = ERR_PTR(-ENODEV);
+	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
 	int r = 0;
 
@@ -611,12 +611,7 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 	mutex_lock(&dev_opp_list_lock);
 
 	/* Find the device_opp */
-	list_for_each_entry(tmp_dev_opp, &dev_opp_list, node) {
-		if (dev == tmp_dev_opp->dev) {
-			dev_opp = tmp_dev_opp;
-			break;
-		}
-	}
+	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		r = PTR_ERR(dev_opp);
 		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
