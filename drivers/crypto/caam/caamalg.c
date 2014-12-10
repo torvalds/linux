@@ -4434,8 +4434,10 @@ authencesn:
 			kfree(t_alg);
 		} else {
 			list_add_tail(&t_alg->entry, &alg_list);
+#ifdef DEBUG
 			dev_info(ctrldev, "%s\n",
 				 t_alg->crypto_alg.cra_driver_name);
+#endif
 
 			if (driver_algs[i].type == CRYPTO_ALG_TYPE_AEAD &&
 			    !memcmp(driver_algs[i].name, "authenc", 7) &&
