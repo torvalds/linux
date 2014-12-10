@@ -725,6 +725,8 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 	WARN_ON(crtc->state && !crtc->funcs->atomic_destroy_state);
 	if (crtc->state && crtc->funcs->atomic_destroy_state)
 		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
+
+	memset(crtc, 0, sizeof(*crtc));
 }
 EXPORT_SYMBOL(drm_crtc_cleanup);
 
@@ -927,6 +929,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	if (connector->state && connector->funcs->atomic_destroy_state)
 		connector->funcs->atomic_destroy_state(connector,
 						       connector->state);
+
+	memset(connector, 0, sizeof(*connector));
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
 
@@ -1068,6 +1072,8 @@ void drm_bridge_cleanup(struct drm_bridge *bridge)
 	list_del(&bridge->head);
 	dev->mode_config.num_bridge--;
 	drm_modeset_unlock_all(dev);
+
+	memset(bridge, 0, sizeof(*bridge));
 }
 EXPORT_SYMBOL(drm_bridge_cleanup);
 
@@ -1134,10 +1140,11 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	drm_modeset_lock_all(dev);
 	drm_mode_object_put(dev, &encoder->base);
 	kfree(encoder->name);
-	encoder->name = NULL;
 	list_del(&encoder->head);
 	dev->mode_config.num_encoder--;
 	drm_modeset_unlock_all(dev);
+
+	memset(encoder, 0, sizeof(*encoder));
 }
 EXPORT_SYMBOL(drm_encoder_cleanup);
 
@@ -1257,6 +1264,8 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
+
+	memset(plane, 0, sizeof(*plane));
 }
 EXPORT_SYMBOL(drm_plane_cleanup);
 
