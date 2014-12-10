@@ -61,6 +61,8 @@ struct radeon_audio_funcs
 		unsigned char *buffer, size_t size);
 	void (*set_audio_packet)(struct drm_encoder *encoder, u32 offset);
 	void (*set_mute)(struct drm_encoder *encoder, u32 offset, bool mute);
+	void (*mode_set)(struct drm_encoder *encoder,
+		struct drm_display_mode *mode);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -70,22 +72,11 @@ u32 radeon_audio_endpoint_rreg(struct radeon_device *rdev,
 	u32 offset, u32 reg);
 void radeon_audio_endpoint_wreg(struct radeon_device *rdev,
 	u32 offset,	u32 reg, u32 v);
-void radeon_audio_write_sad_regs(struct drm_encoder *encoder);
-void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder);
-void radeon_audio_write_latency_fields(struct drm_encoder *encoder,
-	struct drm_display_mode *mode);
 struct r600_audio_pin *radeon_audio_get_pin(struct drm_encoder *encoder);
-void radeon_audio_select_pin(struct drm_encoder *encoder);
 void radeon_audio_enable(struct radeon_device *rdev,
 	struct r600_audio_pin *pin, u8 enable_mask);
 void radeon_audio_fini(struct radeon_device *rdev);
-void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock);
-int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
+void radeon_audio_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
-void radeon_audio_update_acr(struct drm_encoder *encoder, unsigned int clock);
-void radeon_audio_set_vbi_packet(struct drm_encoder *encoder);
-void radeon_hdmi_set_color_depth(struct drm_encoder *encoder);
-void radeon_audio_set_audio_packet(struct drm_encoder *encoder);
-void radeon_audio_set_mute(struct drm_encoder *encoder, bool mute);
 
 #endif

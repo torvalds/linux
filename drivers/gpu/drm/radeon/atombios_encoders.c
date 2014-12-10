@@ -27,6 +27,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
+#include "radeon_audio.h"
 #include "atom.h"
 #include <linux/backlight.h>
 
@@ -2174,8 +2175,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
 		if (rdev->asic->display.hdmi_enable)
 			radeon_hdmi_enable(rdev, encoder, true);
-		if (rdev->asic->display.hdmi_setmode)
-			radeon_hdmi_setmode(rdev, encoder, adjusted_mode);
+		radeon_audio_mode_set(encoder, adjusted_mode);
 	}
 }
 

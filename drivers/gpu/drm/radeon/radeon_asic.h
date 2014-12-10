@@ -399,7 +399,6 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
-void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
 u32 r600_get_xclk(struct radeon_device *rdev);
 uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
@@ -468,8 +467,6 @@ struct radeon_fence *rv770_copy_dma(struct radeon_device *rdev,
 u32 rv770_get_xclk(struct radeon_device *rdev);
 int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int rv770_get_temp(struct radeon_device *rdev);
-/* hdmi */
-void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 /* rv7xx pm */
 int rv770_dpm_init(struct radeon_device *rdev);
 int rv770_dpm_enable(struct radeon_device *rdev);
@@ -540,7 +537,6 @@ struct radeon_fence *evergreen_copy_dma(struct radeon_device *rdev,
 					unsigned num_gpu_pages,
 					struct reservation_object *resv);
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable);
-void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 int evergreen_get_temp(struct radeon_device *rdev);
 int sumo_get_temp(struct radeon_device *rdev);
 int tn_get_temp(struct radeon_device *rdev);

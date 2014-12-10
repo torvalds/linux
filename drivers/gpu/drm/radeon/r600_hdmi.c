@@ -400,43 +400,6 @@ void r600_set_mute(struct drm_encoder *encoder, u32 offset, bool mute)
 		WREG32_AND(HDMI0_GC + offset, ~HDMI0_GC_AVMUTE);
 }
 
-/*
- * update the info frames with the data from the current display mode
- */
-void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset;
-
-	if (!dig || !dig->afmt)
-		return;
-
-	/* Silent, r600_hdmi_enable will raise WARN for us */
-	if (!dig->afmt->enabled)
-		return;
-	offset = dig->afmt->offset;
-
-	/* disable audio prior to setting up hw */
-	dig->afmt->pin = radeon_audio_get_pin(encoder);
-	radeon_audio_enable(rdev, dig->afmt->pin, 0);
-
-	radeon_audio_set_dto(encoder, mode->clock);
-	radeon_audio_set_vbi_packet(encoder);
-	radeon_hdmi_set_color_depth(encoder);
-	radeon_audio_set_mute(encoder, false);
-	radeon_audio_update_acr(encoder, mode->clock);
-	radeon_audio_set_audio_packet(encoder);
-
-	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
-		return;
-
-	/* enable audio after to setting up hw */
-	radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
-}
-
 /**
  * r600_hdmi_update_audio_settings - Update audio infoframe
  *

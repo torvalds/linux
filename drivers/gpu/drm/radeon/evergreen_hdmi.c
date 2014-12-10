@@ -398,47 +398,6 @@ void dce4_set_mute(struct drm_encoder *encoder, u32 offset, bool mute)
 		WREG32_AND(HDMI_GC + offset, ~HDMI_GC_AVMUTE);
 }
 
-/*
- * update the info frames with the data from the current display mode
- */
-void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset;
-
-	if (!dig || !dig->afmt)
-		return;
-
-	/* Silent, r600_hdmi_enable will raise WARN for us */
-	if (!dig->afmt->enabled)
-		return;
-	offset = dig->afmt->offset;
-
-	/* disable audio prior to setting up hw */
-	dig->afmt->pin = radeon_audio_get_pin(encoder);
-	radeon_audio_enable(rdev, dig->afmt->pin, 0);
-
-	radeon_audio_set_dto(encoder, mode->clock);
-	radeon_audio_set_vbi_packet(encoder);
-	radeon_hdmi_set_color_depth(encoder);
-	radeon_audio_set_mute(encoder, false);
-	radeon_audio_update_acr(encoder, mode->clock);
-	radeon_audio_write_speaker_allocation(encoder);
-	radeon_audio_set_audio_packet(encoder);
-	radeon_audio_select_pin(encoder);
-	radeon_audio_write_sad_regs(encoder);
-	radeon_audio_write_latency_fields(encoder, mode);
-
-	if (radeon_audio_set_avi_packet(encoder, mode) < 0)
-		return;
-
-	/* enable audio after to setting up hw */
-	radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
-}
-
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
