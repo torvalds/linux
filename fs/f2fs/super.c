@@ -51,8 +51,10 @@ enum {
 	Opt_disable_ext_identify,
 	Opt_inline_xattr,
 	Opt_inline_data,
+	Opt_inline_dentry,
 	Opt_flush_merge,
 	Opt_nobarrier,
+	Opt_fastboot,
 	Opt_err,
 };
 
@@ -69,8 +71,10 @@ static match_table_t f2fs_tokens = {
 	{Opt_disable_ext_identify, "disable_ext_identify"},
 	{Opt_inline_xattr, "inline_xattr"},
 	{Opt_inline_data, "inline_data"},
+	{Opt_inline_dentry, "inline_dentry"},
 	{Opt_flush_merge, "flush_merge"},
 	{Opt_nobarrier, "nobarrier"},
+	{Opt_fastboot, "fastboot"},
 	{Opt_err, NULL},
 };
 
@@ -340,11 +344,17 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_inline_data:
 			set_opt(sbi, INLINE_DATA);
 			break;
+		case Opt_inline_dentry:
+			set_opt(sbi, INLINE_DENTRY);
+			break;
 		case Opt_flush_merge:
 			set_opt(sbi, FLUSH_MERGE);
 			break;
 		case Opt_nobarrier:
 			set_opt(sbi, NOBARRIER);
+			break;
+		case Opt_fastboot:
+			set_opt(sbi, FASTBOOT);
 			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
@@ -373,6 +383,7 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	fi->i_advise = 0;
 	rwlock_init(&fi->ext.ext_lock);
 	init_rwsem(&fi->i_sem);
+	INIT_RADIX_TREE(&fi->inmem_root, GFP_NOFS);
 	INIT_LIST_HEAD(&fi->inmem_pages);
 	mutex_init(&fi->inmem_lock);
 
@@ -473,9 +484,9 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	trace_f2fs_sync_fs(sb, sync);
 
 	if (sync) {
-		struct cp_control cpc = {
-			.reason = CP_SYNC,
-		};
+		struct cp_control cpc;
+
+		cpc.reason = test_opt(sbi, FASTBOOT) ? CP_UMOUNT : CP_SYNC;
 		mutex_lock(&sbi->gc_mutex);
 		write_checkpoint(sbi, &cpc);
 		mutex_unlock(&sbi->gc_mutex);
@@ -562,10 +573,14 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",disable_ext_identify");
 	if (test_opt(sbi, INLINE_DATA))
 		seq_puts(seq, ",inline_data");
+	if (test_opt(sbi, INLINE_DENTRY))
+		seq_puts(seq, ",inline_dentry");
 	if (!f2fs_readonly(sbi->sb) && test_opt(sbi, FLUSH_MERGE))
 		seq_puts(seq, ",flush_merge");
 	if (test_opt(sbi, NOBARRIER))
 		seq_puts(seq, ",nobarrier");
+	if (test_opt(sbi, FASTBOOT))
+		seq_puts(seq, ",fastboot");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
 	return 0;
@@ -654,7 +669,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 			f2fs_sync_fs(sb, 1);
 			need_restart_gc = true;
 		}
-	} else if (test_opt(sbi, BG_GC) && !sbi->gc_thread) {
+	} else if (!sbi->gc_thread) {
 		err = start_gc_thread(sbi);
 		if (err)
 			goto restore_opts;
@@ -667,7 +682,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 */
 	if ((*flags & MS_RDONLY) || !test_opt(sbi, FLUSH_MERGE)) {
 		destroy_flush_cmd_control(sbi);
-	} else if (test_opt(sbi, FLUSH_MERGE) && !SM_I(sbi)->cmd_control_info) {
+	} else if (!SM_I(sbi)->cmd_control_info) {
 		err = create_flush_cmd_control(sbi);
 		if (err)
 			goto restore_gc;
@@ -922,7 +937,7 @@ retry:
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
-	struct f2fs_super_block *raw_super;
+	struct f2fs_super_block *raw_super = NULL;
 	struct buffer_head *raw_super_buf;
 	struct inode *root;
 	long err = -EINVAL;
@@ -1123,7 +1138,7 @@ try_onemore:
 	 * If filesystem is not mounted as read-only then
 	 * do start the gc_thread.
 	 */
-	if (!f2fs_readonly(sb)) {
+	if (test_opt(sbi, BG_GC) && !f2fs_readonly(sb)) {
 		/* After POR, we can run background GC thread.*/
 		err = start_gc_thread(sbi);
 		if (err)

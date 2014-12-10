@@ -657,10 +657,7 @@ static inline void set_to_next_sit(struct sit_info *sit_i, unsigned int start)
 {
 	unsigned int block_off = SIT_BLOCK_OFFSET(start);
 
-	if (f2fs_test_bit(block_off, sit_i->sit_bitmap))
-		f2fs_clear_bit(block_off, sit_i->sit_bitmap);
-	else
-		f2fs_set_bit(block_off, sit_i->sit_bitmap);
+	f2fs_change_bit(block_off, sit_i->sit_bitmap);
 }
 
 static inline unsigned long long get_mtime(struct f2fs_sb_info *sbi)
@@ -714,6 +711,9 @@ static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
  */
 static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
 {
+	if (sbi->sb->s_bdi->dirty_exceeded)
+		return 0;
+
 	if (type == DATA)
 		return sbi->blocks_per_seg;
 	else if (type == NODE)

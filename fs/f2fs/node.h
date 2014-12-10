@@ -106,7 +106,8 @@ static inline void raw_nat_from_node_info(struct f2fs_nat_entry *raw_ne,
 enum mem_type {
 	FREE_NIDS,	/* indicates the free nid list */
 	NAT_ENTRIES,	/* indicates the cached nat entry */
-	DIRTY_DENTS	/* indicates dirty dentry pages */
+	DIRTY_DENTS,	/* indicates dirty dentry pages */
+	INO_ENTRIES,	/* indicates inode entries */
 };
 
 struct nat_entry_set {
@@ -192,10 +193,7 @@ static inline void set_to_next_nat(struct f2fs_nm_info *nm_i, nid_t start_nid)
 {
 	unsigned int block_off = NAT_BLOCK_OFFSET(start_nid);
 
-	if (f2fs_test_bit(block_off, nm_i->nat_bitmap))
-		f2fs_clear_bit(block_off, nm_i->nat_bitmap);
-	else
-		f2fs_set_bit(block_off, nm_i->nat_bitmap);
+	f2fs_change_bit(block_off, nm_i->nat_bitmap);
 }
 
 static inline void fill_node_footer(struct page *page, nid_t nid,
