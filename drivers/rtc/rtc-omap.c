@@ -5,6 +5,7 @@
  * Author: George G. Davis <gdavis@mvista.com> or <source@mvista.com>
  *
  * Copyright (C) 2006 David Brownell (new RTC framework)
+ * Copyright (C) 2014 Johan Hovold <johan@kernel.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
