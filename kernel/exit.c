@@ -973,8 +973,7 @@ static int wait_noreap_copyout(struct wait_opts *wo, struct task_struct *p,
  */
 static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 {
-	unsigned long state;
-	int retval, status, traced;
+	int state, retval, status;
 	pid_t pid = task_pid_vnr(p);
 	uid_t uid = from_kuid_munged(current_user_ns(), task_uid(p));
 	struct siginfo __user *infop;
@@ -999,19 +998,18 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		}
 		return wait_noreap_copyout(wo, p, pid, uid, why, status);
 	}
-
-	traced = ptrace_reparented(p);
 	/*
 	 * Move the task's state to DEAD/TRACE, only one thread can do this.
 	 */
-	state = traced && thread_group_leader(p) ? EXIT_TRACE : EXIT_DEAD;
+	state = (ptrace_reparented(p) && thread_group_leader(p)) ?
+		EXIT_TRACE : EXIT_DEAD;
 	if (cmpxchg(&p->exit_state, EXIT_ZOMBIE, state) != EXIT_ZOMBIE)
 		return 0;
+
 	/*
-	 * It can be ptraced but not reparented, check
-	 * thread_group_leader() to filter out sub-threads.
+	 * Check thread_group_leader() to exclude the traced sub-threads.
 	 */
-	if (likely(!traced) && thread_group_leader(p)) {
+	if (state == EXIT_DEAD && thread_group_leader(p)) {
 		struct signal_struct *psig;
 		struct signal_struct *sig;
 		unsigned long maxrss;
