@@ -1763,43 +1763,41 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	rk_disp_pwr_enable(dev_drv);
 	dev_drv->suspend_flag = 0;
 
-	if (lcdc_dev->atv_layer_cnt) {
-		rk312x_lcdc_clk_enable(lcdc_dev);
-		rk312x_lcdc_reg_restore(lcdc_dev);
+	rk312x_lcdc_clk_enable(lcdc_dev);
+	rk312x_lcdc_reg_restore(lcdc_dev);
 
-		/* config for the FRC mode of dither down */
-		if (dev_drv->cur_screen &&
-		    dev_drv->cur_screen->face != OUT_P888) {
-			lcdc_writel(lcdc_dev, FRC_LOWER01_0, 0x12844821);
-			lcdc_writel(lcdc_dev, FRC_LOWER01_1, 0x21488412);
-			lcdc_writel(lcdc_dev, FRC_LOWER10_0, 0x55aaaa55);
-			lcdc_writel(lcdc_dev, FRC_LOWER10_1, 0x55aaaa55);
-			lcdc_writel(lcdc_dev, FRC_LOWER11_0, 0xdeb77deb);
-			lcdc_writel(lcdc_dev, FRC_LOWER11_1, 0xed7bb7de);
-		}
-
-		/* set screen lut */
-		if (dev_drv->cur_screen && dev_drv->cur_screen->dsp_lut)
-			rk312x_lcdc_set_lut(dev_drv);
-		/*set hwc lut*/
-		rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
-
-		spin_lock(&lcdc_dev->reg_lock);
-
-		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_OUT_ZERO,
-			     v_DSP_OUT_ZERO(0));
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
-			     v_LCDC_STANDBY(0));
-		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN, v_BLANK_EN(0));
-		lcdc_cfg_done(lcdc_dev);
-
-		if (dev_drv->iommu_enabled) {
-			if (dev_drv->mmu_dev)
-				rockchip_iovmm_activate(dev_drv->dev);
-		}
-
-		spin_unlock(&lcdc_dev->reg_lock);
+	/* config for the FRC mode of dither down */
+	if (dev_drv->cur_screen &&
+			dev_drv->cur_screen->face != OUT_P888) {
+		lcdc_writel(lcdc_dev, FRC_LOWER01_0, 0x12844821);
+		lcdc_writel(lcdc_dev, FRC_LOWER01_1, 0x21488412);
+		lcdc_writel(lcdc_dev, FRC_LOWER10_0, 0x55aaaa55);
+		lcdc_writel(lcdc_dev, FRC_LOWER10_1, 0x55aaaa55);
+		lcdc_writel(lcdc_dev, FRC_LOWER11_0, 0xdeb77deb);
+		lcdc_writel(lcdc_dev, FRC_LOWER11_1, 0xed7bb7de);
 	}
+
+	/* set screen lut */
+	if (dev_drv->cur_screen && dev_drv->cur_screen->dsp_lut)
+		rk312x_lcdc_set_lut(dev_drv);
+	/*set hwc lut*/
+	rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
+
+	spin_lock(&lcdc_dev->reg_lock);
+
+	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_OUT_ZERO,
+			v_DSP_OUT_ZERO(0));
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
+			v_LCDC_STANDBY(0));
+	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLANK_EN, v_BLANK_EN(0));
+	lcdc_cfg_done(lcdc_dev);
+
+	if (dev_drv->iommu_enabled) {
+		if (dev_drv->mmu_dev)
+			rockchip_iovmm_activate(dev_drv->dev);
+	}
+
+	spin_unlock(&lcdc_dev->reg_lock);
 
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
