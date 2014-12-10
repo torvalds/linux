@@ -177,7 +177,7 @@ static ssize_t _name##_show(struct device *dev,			\
 	}							\
 	ret = sprintf(buf, _fmt, _expr);			\
 e_free:								\
-	kfree(page);						\
+	kmem_cache_free(hv_page_cache, page);			\
 	return ret;						\
 }								\
 static DEVICE_ATTR_RO(_name)
