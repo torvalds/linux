@@ -169,6 +169,10 @@
 			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 		};
 	};
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &nand {
