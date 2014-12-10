@@ -1173,8 +1173,8 @@ static int pxa168_eth_open(struct net_device *dev)
 	pep->rx_used_desc_q = 0;
 	pep->rx_curr_desc_q = 0;
 	netif_carrier_off(dev);
-	eth_port_start(dev);
 	napi_enable(&pep->napi);
+	eth_port_start(dev);
 	return 0;
 out_free_rx_skb:
 	rxq_deinit(dev);

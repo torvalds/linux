@@ -8119,10 +8119,11 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 	case SFP_EEPROM_CON_TYPE_VAL_LC:
 	case SFP_EEPROM_CON_TYPE_VAL_RJ45:
 		check_limiting_mode = 1;
-		if ((val[SFP_EEPROM_10G_COMP_CODE_ADDR] &
+		if (((val[SFP_EEPROM_10G_COMP_CODE_ADDR] &
 		     (SFP_EEPROM_10G_COMP_CODE_SR_MASK |
 		      SFP_EEPROM_10G_COMP_CODE_LR_MASK |
-		      SFP_EEPROM_10G_COMP_CODE_LRM_MASK)) == 0) {
+		       SFP_EEPROM_10G_COMP_CODE_LRM_MASK)) == 0) &&
+		    (val[SFP_EEPROM_1G_COMP_CODE_ADDR] != 0)) {
 			DP(NETIF_MSG_LINK, "1G SFP module detected\n");
 			phy->media_type = ETH_PHY_SFP_1G_FIBER;
 			if (phy->req_line_speed != SPEED_1000) {

@@ -473,17 +473,12 @@ static void xennet_make_frags(struct sk_buff *skb, struct netfront_queue *queue,
 		len = skb_frag_size(frag);
 		offset = frag->page_offset;
 
-		/* Data must not cross a page boundary. */
-		BUG_ON(len + offset > PAGE_SIZE<<compound_order(page));
-
 		/* Skip unused frames from start of page */
 		page += offset >> PAGE_SHIFT;
 		offset &= ~PAGE_MASK;
 
 		while (len > 0) {
 			unsigned long bytes;
-
-			BUG_ON(offset >= PAGE_SIZE);
 
 			bytes = PAGE_SIZE - offset;
 			if (bytes > len)
@@ -609,6 +604,9 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				    slots, skb->len);
 		if (skb_linearize(skb))
 			goto drop;
+		data = skb->data;
+		offset = offset_in_page(data);
+		len = skb_headlen(skb);
 	}
 
 	spin_lock_irqsave(&queue->tx_lock, flags);

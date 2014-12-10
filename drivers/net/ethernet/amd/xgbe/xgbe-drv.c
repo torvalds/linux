@@ -1839,7 +1839,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	spin_lock_irqsave(&ring->lock, flags);
 
 	while ((processed < XGBE_TX_DESC_MAX_PROC) &&
-	       (ring->dirty < ring->cur)) {
+	       (ring->dirty != ring->cur)) {
 		rdata = XGBE_GET_DESC_DATA(ring, ring->dirty);
 		rdesc = rdata->rdesc;
 

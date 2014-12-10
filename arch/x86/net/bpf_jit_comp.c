@@ -178,7 +178,7 @@ static void jit_fill_hole(void *area, unsigned int size)
 }
 
 struct jit_context {
-	unsigned int cleanup_addr; /* epilogue code offset */
+	int cleanup_addr; /* epilogue code offset */
 	bool seen_ld_abs;
 };
 
@@ -192,6 +192,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 	struct bpf_insn *insn = bpf_prog->insnsi;
 	int insn_cnt = bpf_prog->len;
 	bool seen_ld_abs = ctx->seen_ld_abs | (oldproglen == 0);
+	bool seen_exit = false;
 	u8 temp[BPF_MAX_INSN_SIZE + BPF_INSN_SAFETY];
 	int i;
 	int proglen = 0;
@@ -854,10 +855,11 @@ common_load:
 			goto common_load;
 
 		case BPF_JMP | BPF_EXIT:
-			if (i != insn_cnt - 1) {
+			if (seen_exit) {
 				jmp_offset = ctx->cleanup_addr - addrs[i];
 				goto emit_jmp;
 			}
+			seen_exit = true;
 			/* update cleanup_addr */
 			ctx->cleanup_addr = proglen;
 			/* mov rbx, qword ptr [rbp-X] */

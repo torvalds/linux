@@ -4450,6 +4450,7 @@ static void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 	 * vdd might still be enabled do to the delayed vdd off.
 	 * Make sure vdd is actually turned off here.
 	 */
+	cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 	pps_lock(intel_dp);
 	edp_panel_vdd_off_sync(intel_dp);
 	pps_unlock(intel_dp);

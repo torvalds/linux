@@ -225,7 +225,12 @@ static int bond_changelink(struct net_device *bond_dev,
 
 		bond_option_arp_ip_targets_clear(bond);
 		nla_for_each_nested(attr, data[IFLA_BOND_ARP_IP_TARGET], rem) {
-			__be32 target = nla_get_be32(attr);
+			__be32 target;
+
+			if (nla_len(attr) < sizeof(target))
+				return -EINVAL;
+
+			target = nla_get_be32(attr);
 
 			bond_opt_initval(&newval, (__force u64)target);
 			err = __bond_opt_set(bond, BOND_OPT_ARP_TARGETS,
