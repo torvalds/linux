@@ -348,9 +348,9 @@
 		num-cs = <2>;
 		clocks =<&clk_spi0>, <&clk_gates6 4>;
 		clock-names = "spi","pclk_spi0";
-		//dmas = <&pdma1 11>, <&pdma1 12>;
-		//#dma-cells = <2>;
-		//dma-names = "tx", "rx";
+		dmas = <&pdma1 11>, <&pdma1 12>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -366,9 +366,9 @@
 		num-cs = <1>;
 		clocks = <&clk_spi1>, <&clk_gates6 5>;
 		clock-names = "spi","pclk_spi1";
-		//dmas = <&pdma1 13>, <&pdma1 14>;
-		//#dma-cells = <2>;
-		//dma-names = "tx", "rx";
+		dmas = <&pdma1 13>, <&pdma1 14>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -384,9 +384,9 @@
 		num-cs = <2>;
 		clocks = <&clk_spi2>, <&clk_gates6 6>;
 		clock-names = "spi","pclk_spi2";
-		//dmas = <&pdma1 15>, <&pdma1 16>;
-		//#dma-cells = <2>;
-		//dma-names = "tx", "rx";
+		dmas = <&pdma1 15>, <&pdma1 16>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
