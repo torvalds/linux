@@ -824,7 +824,7 @@ static void *memtype_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	if (*pos == 0) {
 		++*pos;
-		seq_printf(seq, "PAT memtype list:\n");
+		seq_puts(seq, "PAT memtype list:\n");
 	}
 
 	return memtype_get_idx(*pos);

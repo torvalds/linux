@@ -52,7 +52,16 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		/* Stop flush ipis for the previous mm */
 		cpumask_clear_cpu(cpu, mm_cpumask(prev));
 
-		/* Load the LDT, if the LDT is different: */
+		/*
+		 * Load the LDT, if the LDT is different.
+		 *
+		 * It's possible leave_mm(prev) has been called.  If so,
+		 * then prev->context.ldt could be out of sync with the
+		 * LDT descriptor or the LDT register.  This can only happen
+		 * if prev->context.ldt is non-null, since we never free
+		 * an LDT.  But LDTs can't be shared across mms, so
+		 * prev->context.ldt won't be equal to next->context.ldt.
+		 */
 		if (unlikely(prev->context.ldt != next->context.ldt))
 			load_LDT_nolock(&next->context);
 	}
