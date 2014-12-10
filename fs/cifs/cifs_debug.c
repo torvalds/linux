@@ -34,27 +34,9 @@
 void
 cifs_dump_mem(char *label, void *data, int length)
 {
-	int i, j;
-	int *intptr = data;
-	char *charptr = data;
-	char buf[10], line[80];
-
-	printk(KERN_DEBUG "%s: dump of %d bytes of data at 0x%p\n",
-		label, length, data);
-	for (i = 0; i < length; i += 16) {
-		line[0] = 0;
-		for (j = 0; (j < 4) && (i + j * 4 < length); j++) {
-			sprintf(buf, " %08x", intptr[i / 4 + j]);
-			strcat(line, buf);
-		}
-		buf[0] = ' ';
-		buf[2] = 0;
-		for (j = 0; (j < 16) && (i + j < length); j++) {
-			buf[1] = isprint(charptr[i + j]) ? charptr[i + j] : '.';
-			strcat(line, buf);
-		}
-		printk(KERN_DEBUG "%s\n", line);
-	}
+	pr_debug("%s: dump of %d bytes of data at 0x%p\n", label, length, data);
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 4,
+		       data, length, true);
 }
 
 #ifdef CONFIG_CIFS_DEBUG
@@ -68,7 +50,7 @@ void cifs_vfs_err(const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_ERR "CIFS VFS: %pV", &vaf);
+	pr_err("CIFS VFS: %pV", &vaf);
 
 	va_end(args);
 }
@@ -274,6 +256,7 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	char c;
+	bool bv;
 	int rc;
 	struct list_head *tmp1, *tmp2, *tmp3;
 	struct TCP_Server_Info *server;
@@ -284,7 +267,7 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 	if (rc)
 		return rc;
 
-	if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
+	if (strtobool(&c, &bv) == 0) {
 #ifdef CONFIG_CIFS_STATS2
 		atomic_set(&totBufAllocCount, 0);
 		atomic_set(&totSmBufAllocCount, 0);
@@ -451,15 +434,14 @@ static ssize_t cifsFYI_proc_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
 	char c;
+	bool bv;
 	int rc;
 
 	rc = get_user(c, buffer);
 	if (rc)
 		return rc;
-	if (c == '0' || c == 'n' || c == 'N')
-		cifsFYI = 0;
-	else if (c == '1' || c == 'y' || c == 'Y')
-		cifsFYI = 1;
+	if (strtobool(&c, &bv) == 0)
+		cifsFYI = bv;
 	else if ((c > '1') && (c <= '9'))
 		cifsFYI = (int) (c - '0'); /* see cifs_debug.h for meanings */
 
@@ -490,15 +472,18 @@ static ssize_t cifs_linux_ext_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	char c;
+	bool bv;
 	int rc;
 
 	rc = get_user(c, buffer);
 	if (rc)
 		return rc;
-	if (c == '0' || c == 'n' || c == 'N')
-		linuxExtEnabled = 0;
-	else if (c == '1' || c == 'y' || c == 'Y')
-		linuxExtEnabled = 1;
+
+	rc = strtobool(&c, &bv);
+	if (rc)
+		return rc;
+
+	linuxExtEnabled = bv;
 
 	return count;
 }
@@ -527,15 +512,18 @@ static ssize_t cifs_lookup_cache_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *ppos)
 {
 	char c;
+	bool bv;
 	int rc;
 
 	rc = get_user(c, buffer);
 	if (rc)
 		return rc;
-	if (c == '0' || c == 'n' || c == 'N')
-		lookupCacheEnabled = 0;
-	else if (c == '1' || c == 'y' || c == 'Y')
-		lookupCacheEnabled = 1;
+
+	rc = strtobool(&c, &bv);
+	if (rc)
+		return rc;
+
+	lookupCacheEnabled = bv;
 
 	return count;
 }
@@ -564,15 +552,18 @@ static ssize_t traceSMB_proc_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
 	char c;
+	bool bv;
 	int rc;
 
 	rc = get_user(c, buffer);
 	if (rc)
 		return rc;
-	if (c == '0' || c == 'n' || c == 'N')
-		traceSMB = 0;
-	else if (c == '1' || c == 'y' || c == 'Y')
-		traceSMB = 1;
+
+	rc = strtobool(&c, &bv);
+	if (rc)
+		return rc;
+
+	traceSMB = bv;
 
 	return count;
 }
@@ -630,6 +621,7 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 	unsigned int flags;
 	char flags_string[12];
 	char c;
+	bool bv;
 
 	if ((count < 1) || (count > 11))
 		return -EINVAL;
@@ -642,11 +634,8 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 	if (count < 3) {
 		/* single char or single char followed by null */
 		c = flags_string[0];
-		if (c == '0' || c == 'n' || c == 'N') {
-			global_secflags = CIFSSEC_DEF; /* default */
-			return count;
-		} else if (c == '1' || c == 'y' || c == 'Y') {
-			global_secflags = CIFSSEC_MAX;
+		if (strtobool(&c, &bv) == 0) {
+			global_secflags = bv ? CIFSSEC_MAX : CIFSSEC_DEF;
 			return count;
 		} else if (!isdigit(c)) {
 			cifs_dbg(VFS, "Invalid SecurityFlags: %s\n",
