@@ -536,7 +536,7 @@ static inline void rk_cru_set_soft_reset(u32 idx, bool on , u32 RK_CRU_SOFTRST_C
 		val = on ? 0x10001U << 8 : 0x10000U << 8;
 	}
 	writel_relaxed(val, reg);
-	dsb();
+	dsb(sy);
 }
 
 static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
