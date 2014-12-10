@@ -9,7 +9,6 @@ struct nouveau_sgdma_be {
 	 * nouve_bo.c works properly, otherwise have to move them here
 	 */
 	struct ttm_dma_tt ttm;
-	struct drm_device *dev;
 	struct nouveau_mem *node;
 };
 
@@ -101,7 +100,6 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 	if (!nvbe)
 		return NULL;
 
-	nvbe->dev = drm->dev;
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA)
 		nvbe->ttm.ttm.func = &nv04_sgdma_backend;
 	else
