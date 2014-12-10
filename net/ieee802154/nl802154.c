@@ -209,7 +209,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_TX_POWER] = { .type = NLA_S8, },
 
-	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U8, },
+	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U32, },
+	[NL802154_ATTR_CCA_OPT] = { .type = NLA_U32, },
 
 	[NL802154_ATTR_SUPPORTED_CHANNEL] = { .type = NLA_U32, },
 
@@ -290,9 +291,15 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 		goto nla_put_failure;
 
 	/* cca mode */
-	if (nla_put_u8(msg, NL802154_ATTR_CCA_MODE,
-		       rdev->wpan_phy.cca.mode))
+	if (nla_put_u32(msg, NL802154_ATTR_CCA_MODE,
+			rdev->wpan_phy.cca.mode))
 		goto nla_put_failure;
+
+	if (rdev->wpan_phy.cca.mode == NL802154_CCA_ENERGY_CARRIER) {
+		if (nla_put_u32(msg, NL802154_ATTR_CCA_OPT,
+				rdev->wpan_phy.cca.opt))
+			goto nla_put_failure;
+	}
 
 	if (nla_put_s8(msg, NL802154_ATTR_TX_POWER,
 		       rdev->wpan_phy.transmit_power))
@@ -622,6 +629,31 @@ static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 	return rdev_set_channel(rdev, page, channel);
 }
 
+static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct wpan_phy_cca cca;
+
+	if (!info->attrs[NL802154_ATTR_CCA_MODE])
+		return -EINVAL;
+
+	cca.mode = nla_get_u32(info->attrs[NL802154_ATTR_CCA_MODE]);
+	/* checking 802.15.4 constraints */
+	if (cca.mode < NL802154_CCA_ENERGY || cca.mode > NL802154_CCA_ATTR_MAX)
+		return -EINVAL;
+
+	if (cca.mode == NL802154_CCA_ENERGY_CARRIER) {
+		if (!info->attrs[NL802154_ATTR_CCA_OPT])
+			return -EINVAL;
+
+		cca.opt = nla_get_u32(info->attrs[NL802154_ATTR_CCA_OPT]);
+		if (cca.opt > NL802154_CCA_OPT_ATTR_MAX)
+			return -EINVAL;
+	}
+
+	return rdev_set_cca_mode(rdev, &cca);
+}
+
 static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
@@ -889,6 +921,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_CHANNEL,
 		.doit = nl802154_set_channel,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_CCA_MODE,
+		.doit = nl802154_set_cca_mode,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
