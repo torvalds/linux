@@ -123,6 +123,11 @@ static inline u8 rtc_read(struct omap_rtc *rtc, unsigned int reg)
 	return readb(rtc->base + reg);
 }
 
+static inline u32 rtc_readl(struct omap_rtc *rtc, unsigned int reg)
+{
+	return readl(rtc->base + reg);
+}
+
 static inline void rtc_write(struct omap_rtc *rtc, unsigned int reg, u8 val)
 {
 	writeb(val, rtc->base + reg);
