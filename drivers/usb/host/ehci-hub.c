@@ -285,12 +285,6 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 				t2 |= PORT_WKOC_E | PORT_WKCONN_E;
 		}
 
-#ifdef CONFIG_USB_EHCI_RK
-		/* RK3288 do not support OHCI controller, so clear PORT_OWNER
-		 * here, otherwise EHCI can't be used anymore. wlf@20140325 */
-		t2 &= ~PORT_OWNER;
-#endif
-
 		if (t1 != t2) {
 			ehci_vdbg (ehci, "port %d, %08x -> %08x\n",
 				port + 1, t1, t2);
@@ -1059,12 +1053,6 @@ static int ehci_hub_control (
 				ehci_dbg (ehci,
 					"port %d low speed --> companion\n",
 					wIndex + 1);
-#ifdef CONFIG_USB_EHCI_RK
-				/* RK3288 do not support OHCI controller, so can't set PORT_OWNER
-				 * here, otherwise EHCI can't be used anymore. wlf@20140325 */
-				retval = -ENODEV;
-				break;
-#endif
 				temp |= PORT_OWNER;
 			} else {
 				ehci_vdbg (ehci, "port %d reset\n", wIndex + 1);
