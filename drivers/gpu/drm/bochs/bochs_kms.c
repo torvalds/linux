@@ -18,10 +18,6 @@ MODULE_PARM_DESC(defy, "default y resolution");
 
 /* ---------------------------------------------------------------------- */
 
-static void bochs_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static void bochs_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	switch (mode) {
@@ -144,7 +140,6 @@ static const struct drm_crtc_helper_funcs bochs_helper_funcs = {
 	.mode_set_base = bochs_crtc_mode_set_base,
 	.prepare = bochs_crtc_prepare,
 	.commit = bochs_crtc_commit,
-	.load_lut = bochs_crtc_load_lut,
 };
 
 static void bochs_crtc_init(struct drm_device *dev)
