@@ -102,9 +102,12 @@ static DEFINE_SPINLOCK(free_entries_lock);
 /* Global disable flag - will be set in case of an error */
 static u32 global_disable __read_mostly;
 
+/* Early initialization disable flag, set at the end of dma_debug_init */
+static bool dma_debug_initialized __read_mostly;
+
 static inline bool dma_debug_disabled(void)
 {
-	return global_disable;
+	return global_disable || !dma_debug_initialized;
 }
 
 /* Global error count */
@@ -999,7 +1002,10 @@ void dma_debug_init(u32 num_entries)
 {
 	int i;
 
-	if (dma_debug_disabled())
+	/* Do not use dma_debug_initialized here, since we really want to be
+	 * called to set dma_debug_initialized
+	 */
+	if (global_disable)
 		return;
 
 	for (i = 0; i < HASH_SIZE; ++i) {
@@ -1025,6 +1031,8 @@ void dma_debug_init(u32 num_entries)
 	}
 
 	nr_total_entries = num_free_entries;
+
+	dma_debug_initialized = true;
 
 	pr_info("DMA-API: debugging enabled by kernel config\n");
 }
