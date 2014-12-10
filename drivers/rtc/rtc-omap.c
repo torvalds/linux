@@ -39,8 +39,6 @@
  * the SoC). See the BOARD-SPECIFIC CUSTOMIZATION comment.
  */
 
-#define	DRIVER_NAME			"omap_rtc"
-
 /* RTC registers */
 #define OMAP_RTC_SECONDS_REG		0x00
 #define OMAP_RTC_MINUTES_REG		0x04
@@ -360,7 +358,7 @@ static struct rtc_class_ops omap_rtc_ops = {
 
 static const struct platform_device_id omap_rtc_devtype[] = {
 	{
-		.name	= DRIVER_NAME,
+		.name	= "omap_rtc",
 	},
 	[OMAP_RTC_DATA_AM3352_IDX] = {
 		.name	= "am3352-rtc",
@@ -587,12 +585,11 @@ static void omap_rtc_shutdown(struct platform_device *pdev)
 	rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, 0);
 }
 
-MODULE_ALIAS("platform:omap_rtc");
 static struct platform_driver omap_rtc_driver = {
 	.remove		= __exit_p(omap_rtc_remove),
 	.shutdown	= omap_rtc_shutdown,
 	.driver		= {
-		.name	= DRIVER_NAME,
+		.name	= "omap_rtc",
 		.owner	= THIS_MODULE,
 		.pm	= &omap_rtc_pm_ops,
 		.of_match_table = omap_rtc_of_match,
@@ -602,5 +599,6 @@ static struct platform_driver omap_rtc_driver = {
 
 module_platform_driver_probe(omap_rtc_driver, omap_rtc_probe);
 
+MODULE_ALIAS("platform:omap_rtc");
 MODULE_AUTHOR("George G. Davis (and others)");
 MODULE_LICENSE("GPL");
