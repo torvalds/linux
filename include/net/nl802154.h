@@ -119,4 +119,47 @@ enum nl802154_iftype {
 	NL802154_IFTYPE_MAX = NUM_NL802154_IFTYPES - 1
 };
 
+/**
+ * enum nl802154_cca_modes - cca modes
+ *
+ * @__NL802154_CCA_INVALID: cca mode number 0 is reserved
+ * @NL802154_CCA_ENERGY: Energy above threshold
+ * @NL802154_CCA_CARRIER: Carrier sense only
+ * @NL802154_CCA_ENERGY_CARRIER: Carrier sense with energy above threshold
+ * @NL802154_CCA_ALOHA: CCA shall always report an idle medium
+ * @NL802154_CCA_UWB_SHR: UWB preamble sense based on the SHR of a frame
+ * @NL802154_CCA_UWB_MULTIPEXED: UWB preamble sense based on the packet with
+ *	the multiplexed preamble
+ * @__NL802154_CCA_ATTR_AFTER_LAST: Internal
+ * @NL802154_CCA_ATTR_MAX: Maximum CCA attribute number
+ */
+enum nl802154_cca_modes {
+	__NL802154_CCA_INVALID,
+	NL802154_CCA_ENERGY,
+	NL802154_CCA_CARRIER,
+	NL802154_CCA_ENERGY_CARRIER,
+	NL802154_CCA_ALOHA,
+	NL802154_CCA_UWB_SHR,
+	NL802154_CCA_UWB_MULTIPEXED,
+
+	/* keep last */
+	__NL802154_CCA_ATTR_AFTER_LAST,
+	NL802154_CCA_ATTR_MAX = __NL802154_CCA_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl802154_cca_opts - additional options for cca modes
+ *
+ * @NL802154_CCA_OPT_ENERGY_CARRIER_OR: NL802154_CCA_ENERGY_CARRIER with OR
+ * @NL802154_CCA_OPT_ENERGY_CARRIER_AND: NL802154_CCA_ENERGY_CARRIER with AND
+ */
+enum nl802154_cca_opts {
+	NL802154_CCA_OPT_ENERGY_CARRIER_AND,
+	NL802154_CCA_OPT_ENERGY_CARRIER_OR,
+
+	/* keep last */
+	__NL802154_CCA_OPT_ATTR_AFTER_LAST,
+	NL802154_CCA_OPT_ATTR_MAX = __NL802154_CCA_OPT_ATTR_AFTER_LAST - 1
+};
+
 #endif /* __NL802154_H */
