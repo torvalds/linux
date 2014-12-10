@@ -1146,11 +1146,37 @@ at86rf230_set_lbt(struct ieee802154_hw *hw, bool on)
 }
 
 static int
-at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode)
+at86rf230_set_cca_mode(struct ieee802154_hw *hw,
+		       const struct wpan_phy_cca *cca)
 {
 	struct at86rf230_local *lp = hw->priv;
+	u8 val;
 
-	return at86rf230_write_subreg(lp, SR_CCA_MODE, mode);
+	/* mapping 802.15.4 to driver spec */
+	switch (cca->mode) {
+	case NL802154_CCA_ENERGY:
+		val = 1;
+		break;
+	case NL802154_CCA_CARRIER:
+		val = 2;
+		break;
+	case NL802154_CCA_ENERGY_CARRIER:
+		switch (cca->opt) {
+		case NL802154_CCA_OPT_ENERGY_CARRIER_AND:
+			val = 3;
+			break;
+		case NL802154_CCA_OPT_ENERGY_CARRIER_OR:
+			val = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return at86rf230_write_subreg(lp, SR_CCA_MODE, val);
 }
 
 static int

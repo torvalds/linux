@@ -56,6 +56,11 @@ struct cfg802154_ops {
 				struct wpan_dev *wpan_dev, bool mode);
 };
 
+struct wpan_phy_cca {
+	enum nl802154_cca_modes mode;
+	enum nl802154_cca_opts opt;
+};
+
 struct wpan_phy {
 	struct mutex pib_lock;
 
@@ -76,7 +81,7 @@ struct wpan_phy {
 	u8 current_page;
 	u32 channels_supported[IEEE802154_MAX_PAGE + 1];
 	s8 transmit_power;
-	u8 cca_mode;
+	struct wpan_phy_cca cca;
 
 	__le64 perm_extended_addr;
 

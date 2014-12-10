@@ -291,7 +291,7 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 
 	/* cca mode */
 	if (nla_put_u8(msg, NL802154_ATTR_CCA_MODE,
-		       rdev->wpan_phy.cca_mode))
+		       rdev->wpan_phy.cca.mode))
 		goto nla_put_failure;
 
 	if (nla_put_s8(msg, NL802154_ATTR_TX_POWER,
