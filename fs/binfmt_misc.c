@@ -308,7 +308,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 
 	err = -ENOMEM;
 	memsize = sizeof(Node) + count + 8;
-	e = kmalloc(memsize, GFP_USER);
+	e = kmalloc(memsize, GFP_KERNEL);
 	if (!e)
 		goto out;
 
@@ -416,7 +416,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 
 			if (e->mask) {
 				int i;
-				char *masked = kmalloc(e->size, GFP_USER);
+				char *masked = kmalloc(e->size, GFP_KERNEL);
 
 				print_hex_dump_bytes(
 					KBUILD_MODNAME ": register:  mask[decoded]: ",
