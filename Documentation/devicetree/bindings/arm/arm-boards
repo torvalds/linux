@@ -23,7 +23,7 @@ Required nodes:
     range of 0x200 bytes.
 
 - syscon: the root node of the Integrator platforms must have a
-  system controller node pointong to the control registers,
+  system controller node pointing to the control registers,
   with the compatible string
   "arm,integrator-ap-syscon"
   "arm,integrator-cp-syscon"
