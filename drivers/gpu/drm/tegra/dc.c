@@ -895,15 +895,9 @@ static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 }
 
-static void drm_crtc_clear(struct drm_crtc *crtc)
-{
-	memset(crtc, 0, sizeof(*crtc));
-}
-
 static void tegra_dc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);
-	drm_crtc_clear(crtc);
 }
 
 static const struct drm_crtc_funcs tegra_crtc_funcs = {

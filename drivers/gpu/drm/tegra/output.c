@@ -98,16 +98,10 @@ tegra_connector_detect(struct drm_connector *connector, bool force)
 	return status;
 }
 
-static void drm_connector_clear(struct drm_connector *connector)
-{
-	memset(connector, 0, sizeof(*connector));
-}
-
 static void tegra_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	drm_connector_clear(connector);
 }
 
 static const struct drm_connector_funcs connector_funcs = {
@@ -117,15 +111,9 @@ static const struct drm_connector_funcs connector_funcs = {
 	.destroy = tegra_connector_destroy,
 };
 
-static void drm_encoder_clear(struct drm_encoder *encoder)
-{
-	memset(encoder, 0, sizeof(*encoder));
-}
-
 static void tegra_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
-	drm_encoder_clear(encoder);
 }
 
 static const struct drm_encoder_funcs encoder_funcs = {
