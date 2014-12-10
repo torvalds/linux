@@ -655,7 +655,7 @@ void ipoib_reap_ah(struct work_struct *work)
 	__ipoib_reap_ah(dev);
 
 	if (!test_bit(IPOIB_STOP_REAPER, &priv->flags))
-		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+		queue_delayed_work(priv->wq, &priv->ah_reap_task,
 				   round_jiffies_relative(HZ));
 }
 
@@ -696,7 +696,7 @@ int ipoib_ib_dev_open(struct net_device *dev, int flush)
 	}
 
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
-	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+	queue_delayed_work(priv->wq, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
 
 	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
@@ -881,7 +881,7 @@ timeout:
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
 	cancel_delayed_work(&priv->ah_reap_task);
 	if (flush)
-		flush_workqueue(ipoib_workqueue);
+		flush_workqueue(priv->wq);
 
 	begin = jiffies;
 

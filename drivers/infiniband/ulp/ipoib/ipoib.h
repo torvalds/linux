@@ -323,6 +323,7 @@ struct ipoib_dev_priv {
 	struct list_head multicast_list;
 	struct rb_root multicast_tree;
 
+	struct workqueue_struct *wq;
 	struct delayed_work mcast_task;
 	struct work_struct carrier_on_task;
 	struct work_struct flush_light;
