@@ -4464,6 +4464,12 @@ sub process {
 			    "Concatenated strings should use spaces between elements\n" . $herecurr);
 		}
 
+# uncoalesced string fragments
+		if ($line =~ /"X*"\s*"/) {
+			WARN("STRING_FRAGMENTS",
+			     "Consecutive strings are generally better as a single string\n" . $herecurr);
+		}
+
 # warn about #if 0
 		if ($line =~ /^.\s*\#\s*if\s+0\b/) {
 			CHK("REDUNDANT_CODE",
