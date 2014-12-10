@@ -191,11 +191,11 @@ static int  rk_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 	conf |= (prescale << DW_PWM_PRESCALE);
 	barrier();
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_HRC,dc);//0x1900);// dc);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_LRC, pv);//0x5dc0);//pv);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
 	
        spin_unlock_irqrestore(lock, flags);	
@@ -229,11 +229,11 @@ static void rk_pwm_resume_v1(struct pwm_chip *chip, struct pwm_device *pwm)
 	int 	off =  PWM_RESET;
 
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_HRC,pc->pwm_duty);//0x1900);// dc);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_LRC, pc->pwm_period);//0x5dc0);//pv);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,pc->pwm_count);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,pc->pwm_ctrl);
 }
 /* config for rockchip,pwm*/
@@ -300,11 +300,11 @@ static int  rk_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 	conf |= (prescale << RK_PWM_PRESCALE);	
 	barrier();
 	//rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
-	//dsb();
+	//dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,dc);//0x1900);// dc);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD,pv);//0x5dc0);//pv);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
        spin_unlock_irqrestore(lock, flags);	
 
@@ -342,7 +342,7 @@ static void rk_pwm_resume_v2(struct pwm_chip *chip, struct pwm_device *pwm)
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,    pc->pwm_duty);//0x1900);// dc);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD, pc->pwm_period);//0x5dc0);//pv);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,pc->pwm_count);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,pc->pwm_ctrl);
 }
 
@@ -417,11 +417,11 @@ static int  rk_pwm_config_v3(struct pwm_chip *chip, struct pwm_device *pwm,
 	barrier();
 //	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL,off);
 	
-//	dsb();
+//	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,dc);   //   2    0x1900);// dc);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD,pv);   // 4 0x5dc0);//pv);
 	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CNTR,0);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL,on|conf);
 
        spin_unlock_irqrestore(lock, flags);	
@@ -456,7 +456,7 @@ static void rk_pwm_resume_v3(struct pwm_chip *chip, struct pwm_device *pwm)
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,    pc->pwm_duty);//0x1900);// dc);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD, pc->pwm_period);//0x5dc0);//pv);
 	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CNTR,pc->pwm_count);
-	dsb();
+	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, VOP_REG_CTRL,pc->pwm_ctrl);
 }
 
