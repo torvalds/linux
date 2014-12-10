@@ -458,14 +458,36 @@ static const struct ehci_driver_overrides rk_overrides __initdata = {
 	.extra_priv_size = sizeof(struct rk_ehci_hcd),
 };
 
+static void rk32_ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	u32	*status_reg = &ehci->regs->port_status[--portnum];
+	u32	portsc;
+
+	portsc = ehci_readl(ehci, status_reg);
+	portsc &= ~(PORT_OWNER | PORT_RWC_BITS);
+
+	ehci_writel(ehci, portsc, status_reg);
+}
+
 static int __init ehci_rk_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
 
 	ehci_init_driver(&rk_ehci_hc_driver, &rk_overrides);
+
+	/*
+	 * Work-around: RK3288 do not support OHCI controller, so our
+	 * vendor-spec ehci driver has to prevent handing off this port to
+	 * OHCI by standard ehci-hub driver, put PORT_OWNER back to 0 manually.
+	 */
+	if (cpu_is_rk3288())
+		rk_ehci_hc_driver.relinquish_port = rk32_ehci_relinquish_port;
+
 	return platform_driver_register(&rk_ehci_driver);
 }
+
 module_init(ehci_rk_init);
 
 static void __exit ehci_rk_cleanup(void)
