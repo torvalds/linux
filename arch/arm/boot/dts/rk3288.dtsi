@@ -1104,6 +1104,7 @@
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates13 5>, <&clk_gates7 6>;
 		clock-names = "clk_usbphy3", "hclk_usb3";
+		status = "disabled";
 	};
 
 	hsic: hsic@ff5c0000 {
