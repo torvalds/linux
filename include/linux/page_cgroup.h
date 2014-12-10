@@ -1,59 +1,6 @@
 #ifndef __LINUX_PAGE_CGROUP_H
 #define __LINUX_PAGE_CGROUP_H
 
-struct pglist_data;
-
-#ifdef CONFIG_MEMCG
-struct mem_cgroup;
-
-/*
- * Page Cgroup can be considered as an extended mem_map.
- * A page_cgroup page is associated with every page descriptor. The
- * page_cgroup helps us identify information about the cgroup
- * All page cgroups are allocated at boot or memory hotplug event,
- * then the page cgroup for pfn always exists.
- */
-struct page_cgroup {
-	struct mem_cgroup *mem_cgroup;
-};
-
-extern void pgdat_page_cgroup_init(struct pglist_data *pgdat);
-
-#ifdef CONFIG_SPARSEMEM
-static inline void page_cgroup_init_flatmem(void)
-{
-}
-extern void page_cgroup_init(void);
-#else
-extern void page_cgroup_init_flatmem(void);
-static inline void page_cgroup_init(void)
-{
-}
-#endif
-
-struct page_cgroup *lookup_page_cgroup(struct page *page);
-
-#else /* !CONFIG_MEMCG */
-struct page_cgroup;
-
-static inline void pgdat_page_cgroup_init(struct pglist_data *pgdat)
-{
-}
-
-static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
-{
-	return NULL;
-}
-
-static inline void page_cgroup_init(void)
-{
-}
-
-static inline void page_cgroup_init_flatmem(void)
-{
-}
-#endif /* CONFIG_MEMCG */
-
 #include <linux/swap.h>
 
 #ifdef CONFIG_MEMCG_SWAP

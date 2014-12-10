@@ -25,7 +25,6 @@
 #include <linux/jump_label.h>
 
 struct mem_cgroup;
-struct page_cgroup;
 struct page;
 struct mm_struct;
 struct kmem_cache;
@@ -466,8 +465,6 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
  * memcg_kmem_uncharge_pages: uncharge pages from memcg
  * @page: pointer to struct page being freed
  * @order: allocation order.
- *
- * there is no need to specify memcg here, since it is embedded in page_cgroup
  */
 static inline void
 memcg_kmem_uncharge_pages(struct page *page, int order)
@@ -484,8 +481,7 @@ memcg_kmem_uncharge_pages(struct page *page, int order)
  *
  * Needs to be called after memcg_kmem_newpage_charge, regardless of success or
  * failure of the allocation. if @page is NULL, this function will revert the
- * charges. Otherwise, it will commit the memcg given by @memcg to the
- * corresponding page_cgroup.
+ * charges. Otherwise, it will commit @page to @memcg.
  */
 static inline void
 memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)

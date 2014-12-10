@@ -1274,7 +1274,6 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct zone *zone)
 {
 	struct mem_cgroup_per_zone *mz;
 	struct mem_cgroup *memcg;
-	struct page_cgroup *pc;
 	struct lruvec *lruvec;
 
 	if (mem_cgroup_disabled()) {
@@ -1282,8 +1281,7 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct zone *zone)
 		goto out;
 	}
 
-	pc = lookup_page_cgroup(page);
-	memcg = pc->mem_cgroup;
+	memcg = page->mem_cgroup;
 	/*
 	 * Swapcache readahead pages are added to the LRU - and
 	 * possibly migrated - before they are charged.
@@ -2020,16 +2018,13 @@ struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
 					      unsigned long *flags)
 {
 	struct mem_cgroup *memcg;
-	struct page_cgroup *pc;
 
 	rcu_read_lock();
 
 	if (mem_cgroup_disabled())
 		return NULL;
-
-	pc = lookup_page_cgroup(page);
 again:
-	memcg = pc->mem_cgroup;
+	memcg = page->mem_cgroup;
 	if (unlikely(!memcg))
 		return NULL;
 
@@ -2038,7 +2033,7 @@ again:
 		return memcg;
 
 	spin_lock_irqsave(&memcg->move_lock, *flags);
-	if (memcg != pc->mem_cgroup) {
+	if (memcg != page->mem_cgroup) {
 		spin_unlock_irqrestore(&memcg->move_lock, *flags);
 		goto again;
 	}
@@ -2405,15 +2400,12 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
 struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 {
 	struct mem_cgroup *memcg;
-	struct page_cgroup *pc;
 	unsigned short id;
 	swp_entry_t ent;
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 
-	pc = lookup_page_cgroup(page);
-	memcg = pc->mem_cgroup;
-
+	memcg = page->mem_cgroup;
 	if (memcg) {
 		if (!css_tryget_online(&memcg->css))
 			memcg = NULL;
@@ -2463,10 +2455,9 @@ static void unlock_page_lru(struct page *page, int isolated)
 static void commit_charge(struct page *page, struct mem_cgroup *memcg,
 			  bool lrucare)
 {
-	struct page_cgroup *pc = lookup_page_cgroup(page);
 	int isolated;
 
-	VM_BUG_ON_PAGE(pc->mem_cgroup, page);
+	VM_BUG_ON_PAGE(page->mem_cgroup, page);
 
 	/*
 	 * In some cases, SwapCache and FUSE(splice_buf->radixtree), the page
@@ -2477,7 +2468,7 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
 
 	/*
 	 * Nobody should be changing or seriously looking at
-	 * pc->mem_cgroup at this point:
+	 * page->mem_cgroup at this point:
 	 *
 	 * - the page is uncharged
 	 *
@@ -2489,7 +2480,7 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
 	 * - a page cache insertion, a swapin fault, or a migration
 	 *   have the page locked
 	 */
-	pc->mem_cgroup = memcg;
+	page->mem_cgroup = memcg;
 
 	if (lrucare)
 		unlock_page_lru(page, isolated);
@@ -2972,8 +2963,6 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
 void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
 			      int order)
 {
-	struct page_cgroup *pc;
-
 	VM_BUG_ON(mem_cgroup_is_root(memcg));
 
 	/* The page allocation failed. Revert */
@@ -2981,14 +2970,12 @@ void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
 		memcg_uncharge_kmem(memcg, 1 << order);
 		return;
 	}
-	pc = lookup_page_cgroup(page);
-	pc->mem_cgroup = memcg;
+	page->mem_cgroup = memcg;
 }
 
 void __memcg_kmem_uncharge_pages(struct page *page, int order)
 {
-	struct page_cgroup *pc = lookup_page_cgroup(page);
-	struct mem_cgroup *memcg = pc->mem_cgroup;
+	struct mem_cgroup *memcg = page->mem_cgroup;
 
 	if (!memcg)
 		return;
@@ -2996,7 +2983,7 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
 	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
 
 	memcg_uncharge_kmem(memcg, 1 << order);
-	pc->mem_cgroup = NULL;
+	page->mem_cgroup = NULL;
 }
 #else
 static inline void memcg_unregister_all_caches(struct mem_cgroup *memcg)
@@ -3014,16 +3001,15 @@ static inline void memcg_unregister_all_caches(struct mem_cgroup *memcg)
  */
 void mem_cgroup_split_huge_fixup(struct page *head)
 {
-	struct page_cgroup *pc = lookup_page_cgroup(head);
 	int i;
 
 	if (mem_cgroup_disabled())
 		return;
 
 	for (i = 1; i < HPAGE_PMD_NR; i++)
-		pc[i].mem_cgroup = pc[0].mem_cgroup;
+		head[i].mem_cgroup = head->mem_cgroup;
 
-	__this_cpu_sub(pc[0].mem_cgroup->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
+	__this_cpu_sub(head->mem_cgroup->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
 		       HPAGE_PMD_NR);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -3032,7 +3018,6 @@ void mem_cgroup_split_huge_fixup(struct page *head)
  * mem_cgroup_move_account - move account of the page
  * @page: the page
  * @nr_pages: number of regular pages (>1 for huge pages)
- * @pc:	page_cgroup of the page.
  * @from: mem_cgroup which the page is moved from.
  * @to:	mem_cgroup which the page is moved to. @from != @to.
  *
@@ -3045,7 +3030,6 @@ void mem_cgroup_split_huge_fixup(struct page *head)
  */
 static int mem_cgroup_move_account(struct page *page,
 				   unsigned int nr_pages,
-				   struct page_cgroup *pc,
 				   struct mem_cgroup *from,
 				   struct mem_cgroup *to)
 {
@@ -3065,7 +3049,7 @@ static int mem_cgroup_move_account(struct page *page,
 		goto out;
 
 	/*
-	 * Prevent mem_cgroup_migrate() from looking at pc->mem_cgroup
+	 * Prevent mem_cgroup_migrate() from looking at page->mem_cgroup
 	 * of its source page while we change it: page migration takes
 	 * both pages off the LRU, but page cache replacement doesn't.
 	 */
@@ -3073,7 +3057,7 @@ static int mem_cgroup_move_account(struct page *page,
 		goto out;
 
 	ret = -EINVAL;
-	if (pc->mem_cgroup != from)
+	if (page->mem_cgroup != from)
 		goto out_unlock;
 
 	spin_lock_irqsave(&from->move_lock, flags);
@@ -3093,13 +3077,13 @@ static int mem_cgroup_move_account(struct page *page,
 	}
 
 	/*
-	 * It is safe to change pc->mem_cgroup here because the page
+	 * It is safe to change page->mem_cgroup here because the page
 	 * is referenced, charged, and isolated - we can't race with
 	 * uncharging, charging, migration, or LRU putback.
 	 */
 
 	/* caller should have done css_get */
-	pc->mem_cgroup = to;
+	page->mem_cgroup = to;
 	spin_unlock_irqrestore(&from->move_lock, flags);
 
 	ret = 0;
@@ -3174,36 +3158,17 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
 #endif
 
 #ifdef CONFIG_DEBUG_VM
-static struct page_cgroup *lookup_page_cgroup_used(struct page *page)
-{
-	struct page_cgroup *pc;
-
-	pc = lookup_page_cgroup(page);
-	/*
-	 * Can be NULL while feeding pages into the page allocator for
-	 * the first time, i.e. during boot or memory hotplug;
-	 * or when mem_cgroup_disabled().
-	 */
-	if (likely(pc) && pc->mem_cgroup)
-		return pc;
-	return NULL;
-}
-
 bool mem_cgroup_bad_page_check(struct page *page)
 {
 	if (mem_cgroup_disabled())
 		return false;
 
-	return lookup_page_cgroup_used(page) != NULL;
+	return page->mem_cgroup != NULL;
 }
 
 void mem_cgroup_print_bad_page(struct page *page)
 {
-	struct page_cgroup *pc;
-
-	pc = lookup_page_cgroup_used(page);
-	if (pc)
-		pr_alert("pc:%p pc->mem_cgroup:%p\n", pc, pc->mem_cgroup);
+	pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
 }
 #endif
 
@@ -5123,7 +5088,6 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
 		unsigned long addr, pte_t ptent, union mc_target *target)
 {
 	struct page *page = NULL;
-	struct page_cgroup *pc;
 	enum mc_target_type ret = MC_TARGET_NONE;
 	swp_entry_t ent = { .val = 0 };
 
@@ -5137,13 +5101,12 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
 	if (!page && !ent.val)
 		return ret;
 	if (page) {
-		pc = lookup_page_cgroup(page);
 		/*
 		 * Do only loose check w/o serialization.
-		 * mem_cgroup_move_account() checks the pc is valid or
+		 * mem_cgroup_move_account() checks the page is valid or
 		 * not under LRU exclusion.
 		 */
-		if (pc->mem_cgroup == mc.from) {
+		if (page->mem_cgroup == mc.from) {
 			ret = MC_TARGET_PAGE;
 			if (target)
 				target->page = page;
@@ -5171,15 +5134,13 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
 		unsigned long addr, pmd_t pmd, union mc_target *target)
 {
 	struct page *page = NULL;
-	struct page_cgroup *pc;
 	enum mc_target_type ret = MC_TARGET_NONE;
 
 	page = pmd_page(pmd);
 	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
 	if (!move_anon())
 		return ret;
-	pc = lookup_page_cgroup(page);
-	if (pc->mem_cgroup == mc.from) {
+	if (page->mem_cgroup == mc.from) {
 		ret = MC_TARGET_PAGE;
 		if (target) {
 			get_page(page);
@@ -5378,7 +5339,6 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 	enum mc_target_type target_type;
 	union mc_target target;
 	struct page *page;
-	struct page_cgroup *pc;
 
 	/*
 	 * We don't take compound_lock() here but no race with splitting thp
@@ -5399,9 +5359,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 		if (target_type == MC_TARGET_PAGE) {
 			page = target.page;
 			if (!isolate_lru_page(page)) {
-				pc = lookup_page_cgroup(page);
 				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
-							pc, mc.from, mc.to)) {
+							     mc.from, mc.to)) {
 					mc.precharge -= HPAGE_PMD_NR;
 					mc.moved_charge += HPAGE_PMD_NR;
 				}
@@ -5429,9 +5388,7 @@ retry:
 			page = target.page;
 			if (isolate_lru_page(page))
 				goto put;
-			pc = lookup_page_cgroup(page);
-			if (!mem_cgroup_move_account(page, 1, pc,
-						     mc.from, mc.to)) {
+			if (!mem_cgroup_move_account(page, 1, mc.from, mc.to)) {
 				mc.precharge--;
 				/* we uncharge from mc.from later. */
 				mc.moved_charge++;
@@ -5619,7 +5576,6 @@ static void __init enable_swap_cgroup(void)
 void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 {
 	struct mem_cgroup *memcg;
-	struct page_cgroup *pc;
 	unsigned short oldid;
 
 	VM_BUG_ON_PAGE(PageLRU(page), page);
@@ -5628,8 +5584,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	if (!do_swap_account)
 		return;
 
-	pc = lookup_page_cgroup(page);
-	memcg = pc->mem_cgroup;
+	memcg = page->mem_cgroup;
 
 	/* Readahead page, never charged */
 	if (!memcg)
@@ -5639,7 +5594,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	VM_BUG_ON_PAGE(oldid, page);
 	mem_cgroup_swap_statistics(memcg, true);
 
-	pc->mem_cgroup = NULL;
+	page->mem_cgroup = NULL;
 
 	if (!mem_cgroup_is_root(memcg))
 		page_counter_uncharge(&memcg->memory, 1);
@@ -5706,7 +5661,6 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 		goto out;
 
 	if (PageSwapCache(page)) {
-		struct page_cgroup *pc = lookup_page_cgroup(page);
 		/*
 		 * Every swap fault against a single page tries to charge the
 		 * page, bail as early as possible.  shmem_unuse() encounters
@@ -5714,7 +5668,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 		 * the page lock, which serializes swap cache removal, which
 		 * in turn serializes uncharging.
 		 */
-		if (pc->mem_cgroup)
+		if (page->mem_cgroup)
 			goto out;
 	}
 
@@ -5867,7 +5821,6 @@ static void uncharge_list(struct list_head *page_list)
 	next = page_list->next;
 	do {
 		unsigned int nr_pages = 1;
-		struct page_cgroup *pc;
 
 		page = list_entry(next, struct page, lru);
 		next = page->lru.next;
@@ -5875,23 +5828,22 @@ static void uncharge_list(struct list_head *page_list)
 		VM_BUG_ON_PAGE(PageLRU(page), page);
 		VM_BUG_ON_PAGE(page_count(page), page);
 
-		pc = lookup_page_cgroup(page);
-		if (!pc->mem_cgroup)
+		if (!page->mem_cgroup)
 			continue;
 
 		/*
 		 * Nobody should be changing or seriously looking at
-		 * pc->mem_cgroup at this point, we have fully
+		 * page->mem_cgroup at this point, we have fully
 		 * exclusive access to the page.
 		 */
 
-		if (memcg != pc->mem_cgroup) {
+		if (memcg != page->mem_cgroup) {
 			if (memcg) {
 				uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
 					       nr_huge, page);
 				pgpgout = nr_anon = nr_file = nr_huge = 0;
 			}
-			memcg = pc->mem_cgroup;
+			memcg = page->mem_cgroup;
 		}
 
 		if (PageTransHuge(page)) {
@@ -5905,7 +5857,7 @@ static void uncharge_list(struct list_head *page_list)
 		else
 			nr_file += nr_pages;
 
-		pc->mem_cgroup = NULL;
+		page->mem_cgroup = NULL;
 
 		pgpgout++;
 	} while (next != page_list);
@@ -5924,14 +5876,11 @@ static void uncharge_list(struct list_head *page_list)
  */
 void mem_cgroup_uncharge(struct page *page)
 {
-	struct page_cgroup *pc;
-
 	if (mem_cgroup_disabled())
 		return;
 
 	/* Don't touch page->lru of any random page, pre-check: */
-	pc = lookup_page_cgroup(page);
-	if (!pc->mem_cgroup)
+	if (!page->mem_cgroup)
 		return;
 
 	INIT_LIST_HEAD(&page->lru);
@@ -5968,7 +5917,6 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
 			bool lrucare)
 {
 	struct mem_cgroup *memcg;
-	struct page_cgroup *pc;
 	int isolated;
 
 	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
@@ -5983,8 +5931,7 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
 		return;
 
 	/* Page cache replacement: new page already charged? */
-	pc = lookup_page_cgroup(newpage);
-	if (pc->mem_cgroup)
+	if (newpage->mem_cgroup)
 		return;
 
 	/*
@@ -5993,15 +5940,14 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
 	 * uncharged page when the PFN walker finds a page that
 	 * reclaim just put back on the LRU but has not released yet.
 	 */
-	pc = lookup_page_cgroup(oldpage);
-	memcg = pc->mem_cgroup;
+	memcg = oldpage->mem_cgroup;
 	if (!memcg)
 		return;
 
 	if (lrucare)
 		lock_page_lru(oldpage, &isolated);
 
-	pc->mem_cgroup = NULL;
+	oldpage->mem_cgroup = NULL;
 
 	if (lrucare)
 		unlock_page_lru(oldpage, isolated);
