@@ -2330,7 +2330,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	int classzone_idx, int migratetype, enum migrate_mode mode,
 	int *contended_compaction, bool *deferred_compaction)
 {
-	struct zone *last_compact_zone = NULL;
 	unsigned long compact_result;
 	struct page *page;
 
@@ -2341,8 +2340,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	compact_result = try_to_compact_pages(zonelist, order, gfp_mask,
 						nodemask, mode,
 						contended_compaction,
-						alloc_flags, classzone_idx,
-						&last_compact_zone);
+						alloc_flags, classzone_idx);
 	current->flags &= ~PF_MEMALLOC;
 
 	switch (compact_result) {
@@ -2378,14 +2376,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 		count_vm_event(COMPACTSUCCESS);
 		return page;
 	}
-
-	/*
-	 * last_compact_zone is where try_to_compact_pages thought allocation
-	 * should succeed, so it did not defer compaction. But here we know
-	 * that it didn't succeed, so we do the defer.
-	 */
-	if (last_compact_zone && mode != MIGRATE_ASYNC)
-		defer_compaction(last_compact_zone, order);
 
 	/*
 	 * It's bad if compaction run occurs and fails. The most likely reason
