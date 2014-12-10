@@ -393,6 +393,10 @@ __writeq (unsigned long val, volatile void __iomem *addr)
 #define writew(v,a)	__writew((v), (a))
 #define writel(v,a)	__writel((v), (a))
 #define writeq(v,a)	__writeq((v), (a))
+#define writeb_relaxed(v,a)	__writeb((v), (a))
+#define writew_relaxed(v,a)	__writew((v), (a))
+#define writel_relaxed(v,a)	__writel((v), (a))
+#define writeq_relaxed(v,a)	__writeq((v), (a))
 #define __raw_writeb	writeb
 #define __raw_writew	writew
 #define __raw_writel	writel
