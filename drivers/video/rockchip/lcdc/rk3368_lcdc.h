@@ -1852,7 +1852,7 @@ static inline void  lcdc_msk_reg(struct lcdc_device *lcdc_dev,
 static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev)
 {
 	writel_relaxed(0x01, lcdc_dev->regs + REG_CFG_DONE);
-	dsb();
+	dsb(sy);
 }
 
 #define CUBIC_PRECISE  0
