@@ -42,81 +42,89 @@ struct spicc {
 	struct spi_device	*spi;
 	struct class cls;
 
-
 	struct spicc_regs __iomem *regs;
 #ifdef CONFIG_OF
 	struct pinctrl *pinctrl;
 #else
 	pinmux_set_t pinctrl;
 #endif
+
+    int     cur_speed;
+    u8      cur_mode;
+    u8      cur_bits_per_word;
 };
 
-static bool spicc_dbgf = 1;
+#if defined CONFIG_AMLOGIC_SPICC_MASTER_DEBUG
+    const bool spicc_dbgf = 1;
+#else
+    const bool spicc_dbgf = 0;
+#endif
+
 #define spicc_dbg(fmt, args...)  { if(spicc_dbgf) \
 					printk("[spicc]: " fmt, ## args); }
 
-
 static void spicc_dump(struct spicc *spicc)
 {
-	spicc_dbg("rxdata(0x%8x)    = 0x%x\n", &spicc->regs->rxdata, spicc->regs->rxdata);
-	spicc_dbg("txdata(0x%8x)    = 0x%x\n", &spicc->regs->txdata, spicc->regs->txdata);
-	spicc_dbg("conreg(0x%8x)    = 0x%x\n", &spicc->regs->conreg, *((volatile unsigned int *)(&spicc->regs->conreg)));
-	spicc_dbg("intreg(0x%8x)    = 0x%x\n", &spicc->regs->intreg, *((volatile unsigned int *)(&spicc->regs->intreg)));
-	spicc_dbg("dmareg(0x%8x)    = 0x%x\n", &spicc->regs->dmareg, *((volatile unsigned int *)(&spicc->regs->dmareg)));
-	spicc_dbg("statreg(0x%8x)   = 0x%x\n", &spicc->regs->statreg, *((volatile unsigned int *)(&spicc->regs->statreg)));
-	spicc_dbg("periodreg(0x%8x) = 0x%x\n", &spicc->regs->periodreg, spicc->regs->periodreg);
-	spicc_dbg("testreg(0x%8x)   = 0x%x\n", &spicc->regs->testreg, spicc->regs->testreg);
+	spicc_dbg("rxdata(0x%p)    = 0x%x\n", &spicc->regs->rxdata, spicc->regs->rxdata);
+	spicc_dbg("txdata(0x%p)    = 0x%x\n", &spicc->regs->txdata, spicc->regs->txdata);
+	spicc_dbg("conreg(0x%p)    = 0x%x\n", &spicc->regs->conreg, *((volatile unsigned int *)(&spicc->regs->conreg)));
+	spicc_dbg("intreg(0x%p)    = 0x%x\n", &spicc->regs->intreg, *((volatile unsigned int *)(&spicc->regs->intreg)));
+	spicc_dbg("dmareg(0x%p)    = 0x%x\n", &spicc->regs->dmareg, *((volatile unsigned int *)(&spicc->regs->dmareg)));
+	spicc_dbg("statreg(0x%p)   = 0x%x\n", &spicc->regs->statreg, *((volatile unsigned int *)(&spicc->regs->statreg)));
+	spicc_dbg("periodreg(0x%p) = 0x%x\n", &spicc->regs->periodreg, spicc->regs->periodreg);
+	spicc_dbg("testreg(0x%p)   = 0x%x\n", &spicc->regs->testreg, spicc->regs->testreg);
 }
 
 static void spicc_chip_select(struct spicc *spicc, bool select)
 {
-  u8 chip_select = spicc->spi->chip_select;
-  int cs_gpio = spicc->spi->cs_gpio;
-  bool ss_pol = (spicc->spi->mode & SPI_CS_HIGH) ? 1 : 0;
+    u8 chip_select = spicc->spi->chip_select;
+    int cs_gpio = spicc->spi->cs_gpio;
+    bool ss_pol = (spicc->spi->mode & SPI_CS_HIGH) ? 1 : 0;
 
-  if (spicc->spi->mode & SPI_NO_CS) return;
-  if (cs_gpio > 0) {
-    amlogic_gpio_direction_output(cs_gpio, ss_pol ? select : !select, "spicc_cs");
-  }
-  else if (chip_select < spicc->master->num_chipselect) {
-  	cs_gpio = spicc->master->cs_gpios[chip_select];
-	  if ((cs_gpio = spicc->master->cs_gpios[chip_select]) > 0) {
-	    amlogic_gpio_direction_output(cs_gpio, ss_pol ? select : !select, "spicc_cs");
-	  }
-	  else {
-	    spicc->regs->conreg.chip_select = chip_select;
-	    spicc->regs->conreg.ss_pol = ss_pol;
-	    spicc->regs->conreg.ss_ctl = ss_pol;
-	  }
-  }
+    if (spicc->spi->mode & SPI_NO_CS) return;
+
+    if (cs_gpio > 0) {
+        amlogic_gpio_direction_output(cs_gpio, ss_pol ? select : !select, "spicc_cs");
+    }
+    else if (chip_select < spicc->master->num_chipselect) {
+        cs_gpio = spicc->master->cs_gpios[chip_select];
+        if ((cs_gpio = spicc->master->cs_gpios[chip_select]) > 0) {
+            amlogic_gpio_direction_output(cs_gpio, ss_pol ? select : !select, "spicc_cs");
+        }
+        else {
+            spicc->regs->conreg.chip_select = chip_select;
+            spicc->regs->conreg.ss_pol = ss_pol;
+            spicc->regs->conreg.ss_ctl = ss_pol;
+        }
+    }
 }
-
 
 static void spicc_set_mode(struct spicc *spicc, u8 mode) 
 {    
-  spicc->regs->conreg.clk_pha = (mode & SPI_CPHA) ? 1:0;
-  spicc->regs->conreg.clk_pol = (mode & SPI_CPOL) ? 1:0;
-  spicc->regs->conreg.drctl = 0; //data ready, 0-ignore, 1-falling edge, 2-rising edge
-  spicc_dbg("mode = 0x%x\n", mode);
+    spicc->regs->conreg.clk_pha = (mode & SPI_CPHA) ? 1:0;
+    spicc->regs->conreg.clk_pol = (mode & SPI_CPOL) ? 1:0;
+    spicc->regs->conreg.drctl = 0; //data ready, 0-ignore, 1-falling edge, 2-rising edge
+    spicc->cur_mode = mode;
+    spicc_dbg("mode = 0x%x\n", mode);
 }
-
 
 static void spicc_set_clk(struct spicc *spicc, int speed) 
 {	
-	struct clk *sys_clk = clk_get_sys("clk81", NULL);
-	unsigned sys_clk_rate = clk_get_rate(sys_clk);
-	unsigned div, mid_speed;
+    struct clk *sys_clk = clk_get_sys("clk81", NULL);
+    unsigned sys_clk_rate = clk_get_rate(sys_clk);
+    unsigned div, mid_speed;
   
-  // actually, speed = sys_clk_rate / 2^(conreg.data_rate_div+2)
-  mid_speed = (sys_clk_rate * 3) >> 4;
-  for(div=0; div<7; div++) {
-    if (speed >= mid_speed) break;    
-    mid_speed >>= 1;
-  }
-  spicc->regs->conreg.data_rate_div = div;
-  spicc_dbg("sys_clk_rate=%d, speed=%d, div=%d\n", sys_clk_rate, speed, div);
+    // actually, speed = sys_clk_rate / 2^(conreg.data_rate_div+2)
+    mid_speed = (sys_clk_rate * 3) >> 4;
+    for(div=0; div<7; div++) {
+        if (speed >= mid_speed) break;
+        mid_speed >>= 1;
+    }
+    spicc->regs->conreg.data_rate_div = div;
+    spicc->cur_speed = speed;
+    spicc_dbg("sys_clk_rate = %d, speed = %d, div = %d, actually speed = %d\n",
+        sys_clk_rate, speed, div, sys_clk_rate / (2^(div+2)));
 }
-
 
 static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 {
@@ -147,75 +155,150 @@ static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 	return 0;
 }
 
-/* mode: SPICC_DMA_MODE/SPICC_PIO_MODE
- */
+/*
+    mode: SPICC_DMA_MODE/SPICC_PIO_MODE
+*/
 static void spicc_hw_init(struct spicc *spicc)
 {
-	spicc_clk_gate_on();
-	udelay(10);
-  spicc->regs->testreg |= 1<<24; //clock free enable
-  spicc->regs->conreg.enable = 0; // disable SPICC
-  spicc->regs->conreg.mode = 1; // 0-slave, 1-master
-  spicc->regs->conreg.xch = 0;
-  spicc->regs->conreg.smc = SPICC_PIO;
-  spicc->regs->conreg.bits_per_word = 7; // default bits width 8
-  spicc_set_mode(spicc, SPI_MODE_0); // default mode 0
-  spicc_set_clk(spicc, 3000000); // default speed 3M
-  spicc->regs->conreg.ss_ctl = 1;
-  spicc_dump(spicc);
+    // SPICC clock enable
+    spicc_clk_gate_on();
+    udelay(10);
+
+    // clock free enable
+    spicc->regs->testreg |= 1<<24;
+
+    // SPICC module enable bit.
+    // 0 : disable, 1 : enable
+    spicc->regs->conreg.enable = 0;
+
+    // Mode of the SPI module
+    // 0 : slave, 1 : master
+    spicc->regs->conreg.mode = 1;
+
+    // Setting XCH will issue a burst when SMC is 0, and this bit will be self cleared
+    // after burst is finished.
+    spicc->regs->conreg.xch = 0;
+
+    // Start mode control
+    // 0 : burst will start when XCH is set to 1
+    // 1 : burst will start when TXFIFO is not empty(DMA mode)
+    spicc->regs->conreg.smc = SPICC_PIO;
+
+    // bit number of one word/package
+    // default bits width 8
+    spicc->cur_bits_per_word = 8;
+    spicc->regs->conreg.bits_per_word = spicc->cur_bits_per_word -1; 
+
+    // SPI Mode Setup
+    // SPI_MODE_0 : SPI_CPOL = 0, SPI_CPHA = 0
+    // SPI_MODE_1 : SPI_CPOL = 0, SPI_CPHA = 1
+    // SPI_MODE_2 : SPI_CPOL = 1, SPI_CPHA = 0
+    // SPI_MODE_3 : SPI_CPOL = 1, SPI_CPHA = 1
+    spicc_set_mode(spicc, SPI_MODE_0); // default mode 0
+    spicc->cur_mode = SPI_MODE_0;
+
+    // SPI Clock Setup. Default clock speed 3Mhz
+    spicc_set_clk(spicc, 3000000);
+    spicc->cur_speed = 3000000;
+
+    // Chip Selection output control in one burst of master mode
+    // 0 : output 0 between each SPI transition
+    // 1 : output 1 between each SPI transition
+    spicc->regs->conreg.ss_ctl = 1;
+
+    // Chip Selection polarity
+    // 0 : Low active, 1 : High active
+    spicc->regs->conreg.ss_pol = 0;
+
+    // Debug Message (Register Dump)
+    spicc_dump(spicc);
 }
 
-
 //setting clock and pinmux here
-static int spicc_setup(struct spi_device	*spi)
+static int spicc_setup(struct spi_device *spi)
 {
+	struct spicc *spicc;
+
+    if(!(spicc = spi_master_get_devdata(spi->master)))   return 0;
+
+	if (spi->bits_per_word != 8 && spi->bits_per_word != 16 && spi->bits_per_word != 32) {
+		dev_err(&spi->dev, "setup: %dbits/wrd not supported!\n", spi->bits_per_word);
+		return  -EINVAL;
+	}
+
+    if((spicc->cur_bits_per_word != spi->bits_per_word) ||
+       (spicc->cur_mode          != spi->mode)          ||
+       (spicc->cur_speed         != spi->max_speed_hz)) {
+
+        spicc_clk_gate_on();    udelay(10);
+
+        spicc->regs->conreg.enable = 0; // disable spicc
+
+        spicc_set_clk(spicc, spi->max_speed_hz);
+        spicc_set_mode(spicc, spi->mode);
+
+        spicc->cur_bits_per_word = spi->bits_per_word;
+        spicc->regs->conreg.bits_per_word = spicc->cur_bits_per_word -1;
+
+        spicc->regs->conreg.enable = 1; // enable spicc
+
+        spicc_clk_gate_off();
+        dev_info(&spi->dev, "%s : spi->bits_per_word = %d, spi->max_spped_hz = %d, spi->chip_select = %d, spi->mode = 0x%02X\n"
+                , __func__
+                , spi->bits_per_word
+                , spi->max_speed_hz
+                , spi->chip_select
+                , spi->mode);
+    }
+
     return 0;
 }
 
 static void spicc_cleanup(struct spi_device *spi)
 {
-	if (spi->modalias)
-		kfree(spi->modalias);
+    if (spi->modalias)
+        kfree(spi->modalias);
 }
 
 static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 {
-	struct spi_device *spi = m->spi;
-	struct spi_transfer *t;
-  int ret = 0;
+    struct spi_device *spi = m->spi;
+    struct spi_transfer *t;
+    int ret = 0;
 
-  // re-set to prevent others from disable the SPICC clk gate
-  spicc_clk_gate_on();
-  if (spicc->spi != spi) {
-    spicc->spi = spi;
-    spicc_set_clk(spicc, spi->max_speed_hz);	    
-	  spicc_set_mode(spicc, spi->mode);
-	}
-  spicc_chip_select(spicc, 1); // select
-  spicc->regs->conreg.enable = 1; // enable spicc
-  
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-  	if((spi->max_speed_hz != t->speed_hz) && t->speed_hz) {
-  	  spicc_set_clk(spicc, t->speed_hz);	    
-  	}  
-		if (spicc_hw_xfer(spicc,(u8 *)t->tx_buf, (u8 *)t->rx_buf, t->len) < 0) {
-			goto spicc_handle_end;
-		}
-		m->actual_length += t->len;
-		if (t->delay_usecs) {
-			udelay(t->delay_usecs);
-		}
-	}
+    // re-set to prevent others from disable the SPICC clk gate
+    spicc_clk_gate_on();
+    if (spicc->spi != spi) {
+        spicc->spi = spi;
+        spicc_set_clk(spicc, spi->max_speed_hz);
+        spicc_set_mode(spicc, spi->mode);
+    }
+
+    spicc_chip_select(spicc, 1); // select
+    spicc->regs->conreg.enable = 1; // enable spicc
+
+    list_for_each_entry(t, &m->transfers, transfer_list) {
+        if((spi->max_speed_hz != t->speed_hz) && t->speed_hz) {
+            spicc_set_clk(spicc, t->speed_hz);
+        }
+        if (spicc_hw_xfer(spicc,(u8 *)t->tx_buf, (u8 *)t->rx_buf, t->len) < 0) {
+            goto spicc_handle_end;
+        }
+        m->actual_length += t->len;
+        if (t->delay_usecs) {
+            udelay(t->delay_usecs);
+        }
+    }
 
 spicc_handle_end:
-  spicc->regs->conreg.enable = 0; // disable spicc
-  spicc_chip_select(spicc, 0); // unselect
-  spicc_clk_gate_off();
+    spicc->regs->conreg.enable = 0; // disable spicc
+    spicc_chip_select(spicc, 0); // unselect
+    spicc_clk_gate_off();
 
-  m->status = ret;
-  if(m->context) {
-    m->complete(m->context);
-  }
+    m->status = ret;
+    if(m->context) {
+        m->complete(m->context);
+    }
 }
 
 static int spicc_transfer(struct spi_device *spi, struct spi_message *m)
@@ -251,54 +334,56 @@ static void spicc_work(struct work_struct *work)
 	spin_unlock_irqrestore(&spicc->lock, flags);
 }
 
-
 static ssize_t store_test(struct class *class, struct class_attribute *attr,	const char *buf, size_t count)
 {
 	struct spicc *spicc = container_of(class, struct spicc, cls);
 	unsigned int i, cs_gpio, speed, mode, num;
 	u8 wbuf[4]={0}, rbuf[128]={0};
 	unsigned long flags;
-//	unsigned char cs_gpio_name[20];
 
 	if (buf[0] == 'h') {
 		printk("SPI device test help\n");
 		printk("You can test the SPI device even without its driver through this sysfs node\n");
-		printk("echo cs_gpio speed num [wdata1 wdata2 wdata3 wdata4] >test\n");
+		printk("echo cs_gpio speed mode num [wdata1 wdata2 wdata3 wdata4] >test\n");
 		return count;
 	}
-    
-	i = sscanf(buf, "%d%d%d%d%x%x%x%x", &cs_gpio, &speed, &mode, &num, 
+
+	i = sscanf(buf, "%d%d%d%d%x%x%x%x", &cs_gpio, &speed, &mode, &num,
 		(unsigned int *)&wbuf[0], (unsigned int *)&wbuf[1], (unsigned int *)&wbuf[2], (unsigned int *)&wbuf[3]);
+
 	printk("cs_gpio=%d, speed=%d, mode=%d, num=%d\n", cs_gpio, speed, mode, num);
+
 	if ((i<(num+4)) || (!cs_gpio) || (!speed) || (num > sizeof(wbuf))) {
-		printk("invalid data\n");
-		return -EINVAL;
+		printk("invalid data\n");   return -EINVAL;
 	}
 
-	spin_lock_irqsave(&spicc->lock, flags);	
+	spin_lock_irqsave(&spicc->lock, flags);
 	amlogic_gpio_request(cs_gpio, "spicc_cs");
 	amlogic_gpio_direction_output(cs_gpio, 0, "spicc_cs");
-  spicc_clk_gate_on();
- 	spicc_set_clk(spicc, speed);	    
-	spicc_set_mode(spicc, mode);
-  spicc->regs->conreg.enable = 1; // enable spicc
-//	spicc_dump(spicc);
-	
+
+    spicc_clk_gate_on();
+    spicc_set_clk(spicc, speed);
+    spicc_set_mode(spicc, mode);
+    spicc->regs->conreg.enable = 1; // enable spicc
+
+	spicc_dump(spicc);
+
 	spicc_hw_xfer(spicc, wbuf, rbuf, num);
 	printk("read back data: ");
 	for (i=0; i<num; i++) {
 		printk("0x%x, ", rbuf[i]);
 	}
 	printk("\n");
-	
+
 	spicc->regs->conreg.enable = 0; // disable spicc
 	spicc_clk_gate_off();
 	amlogic_gpio_direction_input(cs_gpio, "spicc_cs");
 	amlogic_gpio_free(cs_gpio, "spicc_cs");
 	spin_unlock_irqrestore(&spicc->lock, flags);
-    
+
 	return count;
 }
+
 static struct class_attribute spicc_class_attrs[] = {
     __ATTR(test,  S_IWUSR, NULL,    store_test),
     __ATTR_NULL
@@ -349,17 +434,17 @@ static int spicc_probe(struct platform_device *pdev)
 		ret = of_property_read_string_index(pdev->dev.of_node, "cs_gpios", i, &prop_name);
 		if(ret || IS_ERR(prop_name) || ((gpio = amlogic_gpio_name_map_num(prop_name)) < 0)) {
 			dev_err(&pdev->dev, "match cs_gpios[%d](%s) failed!\n", i, prop_name);
-      kzfree(pdata->cs_gpios);
+            kzfree(pdata->cs_gpios);
 			return -ENODEV;
 		}
 		else {
-   		*(pdata->cs_gpios+i) = gpio;
+            *(pdata->cs_gpios+i) = gpio;
  			dev_info(&pdev->dev, "cs_gpios[%d] = %s(%d)\n", i, prop_name, gpio);
 		}
 	} 	
- 	
-  pdata->regs = (struct spicc_regs __iomem *)of_iomap(pdev->dev.of_node, 0);
-	dev_info(&pdev->dev, "regs = %x\n", pdata->regs);
+
+    pdata->regs = (struct spicc_regs __iomem *)of_iomap(pdev->dev.of_node, 0);
+	dev_info(&pdev->dev, "regs = %p\n", pdata->regs);
 #else
 	pdata = (struct spicc_platform_data *)pdev->dev.platform_data
 	BUG_ON(!pdata);	
@@ -368,29 +453,33 @@ static int spicc_probe(struct platform_device *pdev)
 		gpio = pdata->cs_gpios[i];
 		if (amlogic_gpio_request(gpio, "spicc_cs")) {
 			dev_err(&pdev->dev, "request chipselect gpio(%d) failed!\n", i);
-      kzfree(pdata->cs_gpios);
+            kzfree(pdata->cs_gpios);
 			return -ENODEV;
 		}
 		amlogic_gpio_direction_output(gpio, 1, "spicc_cs");
 	}
-	
+
 	master = spi_alloc_master(&pdev->dev, sizeof *spicc);
 	if (master == NULL) {
 		dev_err(&pdev->dev, "allocate spi master failed!\n");
 		return -ENOMEM;
 	}
-  master->bus_num = pdata->device_id;
-  master->num_chipselect = pdata->num_chipselect;
-  master->cs_gpios = pdata->cs_gpios;
+
+    master->dev.of_node = pdev->dev.of_node;
+
+    master->bus_num = pdev->id = pdata->device_id;
+    master->num_chipselect = pdata->num_chipselect;
+    master->cs_gpios = pdata->cs_gpios;
+
+	master->bits_per_word_mask = BIT(32 - 1) | BIT(16 - 1) | BIT(8 - 1);
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+
 	master->setup = spicc_setup;
 	master->transfer = spicc_transfer;
 	master->cleanup = spicc_cleanup;
-	ret = spi_register_master(master);
-	if (ret < 0) {
-			dev_err(&pdev->dev, "register spi master failed! (%d)\n", ret);
-			goto err;
-	}
-	
+
 	spicc = spi_master_get_devdata(master);
 	spicc->master = master;	
 	spicc->regs = pdata->regs;
@@ -407,16 +496,23 @@ static int spicc_probe(struct platform_device *pdev)
 		
 	spicc_hw_init(spicc);
 
-  /*setup class*/
-  spicc->cls.name = kzalloc(10, GFP_KERNEL);
-  sprintf((char*)spicc->cls.name, "spicc%d", master->bus_num);
-  spicc->cls.class_attrs = spicc_class_attrs;
-  if ((ret = class_register(&spicc->cls)) < 0) {
-		dev_err(&pdev->dev, "register class failed! (%d)\n", ret);
+    /*setup class*/
+    spicc->cls.name = kzalloc(10, GFP_KERNEL);
+    sprintf((char*)spicc->cls.name, "spicc%d", master->bus_num);
+    spicc->cls.class_attrs = spicc_class_attrs;
+    if ((ret = class_register(&spicc->cls)) < 0) {
+        dev_err(&pdev->dev, "register class failed! (%d)\n", ret);
+    }
+
+	ret = spi_register_master(master);
+
+	if (ret < 0) {
+        dev_err(&pdev->dev, "register spi master failed! (%d)\n", ret);
+        goto err;
 	}
-	
-	dev_info(&pdev->dev, "SPICC init ok \n");
-	return ret;
+
+    dev_info(&pdev->dev, "SPICC init ok \n");
+    return ret;
 err:
 	spi_master_put(master);
 	return ret;
@@ -429,6 +525,7 @@ static int spicc_remove(struct platform_device *pdev)
 	spicc = (struct spicc *)dev_get_drvdata(&pdev->dev);
 	spi_unregister_master(spicc->master);
 	destroy_workqueue(spicc->wq);
+
 #ifdef CONFIG_OF
 	if(spicc->pinctrl) {
 		devm_pinctrl_put(spicc->pinctrl);
@@ -449,24 +546,24 @@ static const struct of_device_id spicc_of_match[]={
 #endif
 
 static struct platform_driver spicc_driver = { 
-	.probe = spicc_probe, 
-	.remove = spicc_remove, 
+	.probe = spicc_probe,
+	.remove = spicc_remove,
 	.driver = {
-			.name = "spicc", 
-      .of_match_table = spicc_of_match,
-			.owner = THIS_MODULE, 
-		}, 
+        .name = "spicc",
+        .of_match_table = spicc_of_match,
+        .owner = THIS_MODULE,
+    },
 };
 
-static int __init spicc_init(void) 
-{	
+static int __init spicc_init(void)
+{
 	return platform_driver_register(&spicc_driver);
 }
 
-static void __exit spicc_exit(void) 
-{	
+static void __exit spicc_exit(void)
+{
 	platform_driver_unregister(&spicc_driver);
-} 
+}
 
 subsys_initcall(spicc_init);
 module_exit(spicc_exit);

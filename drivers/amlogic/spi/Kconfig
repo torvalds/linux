@@ -13,4 +13,11 @@ config AMLOGIC_SPICC_MASTER
 		This is amlogic SPICC hardware bus master.
 		This driver can also be built as a module.
 	  
+config AMLOGIC_SPICC_MASTER_DEBUG
+    depends on AMLOGIC_SPICC_MASTER
+
+    bool "AMLOGIC SPICC Enable Debug Message"
+    default n
+    help
+        Say "yes" to enable debug messaging.
 endmenu
