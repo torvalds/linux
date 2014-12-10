@@ -39,21 +39,15 @@ int nilfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	struct the_nilfs *nilfs;
 	struct inode *inode = file->f_mapping->host;
-	int err;
-
-	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (err)
-		return err;
-	mutex_lock(&inode->i_mutex);
+	int err = 0;
 
 	if (nilfs_inode_dirty(inode)) {
 		if (datasync)
 			err = nilfs_construct_dsync_segment(inode->i_sb, inode,
-							    0, LLONG_MAX);
+							    start, end);
 		else
 			err = nilfs_construct_segment(inode->i_sb);
 	}
-	mutex_unlock(&inode->i_mutex);
 
 	nilfs = inode->i_sb->s_fs_info;
 	if (!err)
