@@ -23,6 +23,7 @@
 #include "enic.h"
 #include "enic_dev.h"
 #include "enic_clsf.h"
+#include "vnic_rss.h"
 
 struct enic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -416,6 +417,40 @@ static int enic_set_tunable(struct net_device *dev,
 	return ret;
 }
 
+static u32 enic_get_rxfh_key_size(struct net_device *netdev)
+{
+	return ENIC_RSS_LEN;
+}
+
+static int enic_get_rxfh(struct net_device *netdev, u32 *indir, u8 *hkey,
+			 u8 *hfunc)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	if (hkey)
+		memcpy(hkey, enic->rss_key, ENIC_RSS_LEN);
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
+	return 0;
+}
+
+static int enic_set_rxfh(struct net_device *netdev, const u32 *indir,
+			 const u8 *hkey, const u8 hfunc)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	if ((hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP) ||
+	    indir)
+		return -EINVAL;
+
+	if (hkey)
+		memcpy(enic->rss_key, hkey, ENIC_RSS_LEN);
+
+	return __enic_set_rsskey(enic);
+}
+
 static const struct ethtool_ops enic_ethtool_ops = {
 	.get_settings = enic_get_settings,
 	.get_drvinfo = enic_get_drvinfo,
@@ -430,6 +465,9 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.get_rxnfc = enic_get_rxnfc,
 	.get_tunable = enic_get_tunable,
 	.set_tunable = enic_set_tunable,
+	.get_rxfh_key_size = enic_get_rxfh_key_size,
+	.get_rxfh = enic_get_rxfh,
+	.set_rxfh = enic_set_rxfh,
 };
 
 void enic_set_ethtool_ops(struct net_device *netdev)
