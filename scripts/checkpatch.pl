@@ -3844,9 +3844,27 @@ sub process {
 # ie: &(foo->bar) should be &foo->bar and *(foo->bar) should be *foo->bar
 
 		while ($line =~ /(?:[^&]&\s*|\*)\(\s*($Ident\s*(?:$Member\s*)+)\s*\)/g) {
-			CHK("UNNECESSARY_PARENTHESES",
-			    "Unnecessary parentheses around $1\n" . $herecurr);
-		    }
+			my $var = $1;
+			if (CHK("UNNECESSARY_PARENTHESES",
+				"Unnecessary parentheses around $var\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\(\s*\Q$var\E\s*\)/$var/;
+			}
+		}
+
+# check for unnecessary parentheses around function pointer uses
+# ie: (foo->bar)(); should be foo->bar();
+# but not "if (foo->bar) (" to avoid some false positives
+		if ($line =~ /(\bif\s*|)(\(\s*$Ident\s*(?:$Member\s*)+\))[ \t]*\(/ && $1 !~ /^if/) {
+			my $var = $2;
+			if (CHK("UNNECESSARY_PARENTHESES",
+				"Unnecessary parentheses around function pointer $var\n" . $herecurr) &&
+			    $fix) {
+				my $var2 = deparenthesize($var);
+				$var2 =~ s/\s//g;
+				$fixed[$fixlinenr] =~ s/\Q$var\E/$var2/;
+			}
+		}
 
 #goto labels aren't indented, allow a single space however
 		if ($line=~/^.\s+[A-Za-z\d_]+:(?![0-9]+)/ and
