@@ -1638,7 +1638,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 				   0, &card);
 
 		if (err < 0) {
-			dev_err(card->dev, "cannot allocate the card %d\n", i);
+			dev_err(&pci->dev, "cannot allocate the card %d\n", i);
 			pcxhr_free(mgr);
 			return err;
 		}
