@@ -1174,8 +1174,8 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->base.properties = &plane->properties;
 	plane->dev = dev;
 	plane->funcs = funcs;
-	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
-				      GFP_KERNEL);
+	plane->format_types = kmalloc_array(format_count, sizeof(uint32_t),
+					    GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
@@ -2705,9 +2705,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		connector_set = kmalloc(crtc_req->count_connectors *
-					sizeof(struct drm_connector *),
-					GFP_KERNEL);
+		connector_set = kmalloc_array(crtc_req->count_connectors,
+					      sizeof(struct drm_connector *),
+					      GFP_KERNEL);
 		if (!connector_set) {
 			ret = -ENOMEM;
 			goto out;
