@@ -30,6 +30,66 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+/**
+ * DOC: Global GTT views
+ *
+ * Background and previous state
+ *
+ * Historically objects could exists (be bound) in global GTT space only as
+ * singular instances with a view representing all of the object's backing pages
+ * in a linear fashion. This view will be called a normal view.
+ *
+ * To support multiple views of the same object, where the number of mapped
+ * pages is not equal to the backing store, or where the layout of the pages
+ * is not linear, concept of a GGTT view was added.
+ *
+ * One example of an alternative view is a stereo display driven by a single
+ * image. In this case we would have a framebuffer looking like this
+ * (2x2 pages):
+ *
+ *    12
+ *    34
+ *
+ * Above would represent a normal GGTT view as normally mapped for GPU or CPU
+ * rendering. In contrast, fed to the display engine would be an alternative
+ * view which could look something like this:
+ *
+ *   1212
+ *   3434
+ *
+ * In this example both the size and layout of pages in the alternative view is
+ * different from the normal view.
+ *
+ * Implementation and usage
+ *
+ * GGTT views are implemented using VMAs and are distinguished via enum
+ * i915_ggtt_view_type and struct i915_ggtt_view.
+ *
+ * A new flavour of core GEM functions which work with GGTT bound objects were
+ * added with the _view suffix. They take the struct i915_ggtt_view parameter
+ * encapsulating all metadata required to implement a view.
+ *
+ * As a helper for callers which are only interested in the normal view,
+ * globally const i915_ggtt_view_normal singleton instance exists. All old core
+ * GEM API functions, the ones not taking the view parameter, are operating on,
+ * or with the normal GGTT view.
+ *
+ * Code wanting to add or use a new GGTT view needs to:
+ *
+ * 1. Add a new enum with a suitable name.
+ * 2. Extend the metadata in the i915_ggtt_view structure if required.
+ * 3. Add support to i915_get_vma_pages().
+ *
+ * New views are required to build a scatter-gather table from within the
+ * i915_get_vma_pages function. This table is stored in the vma.ggtt_view and
+ * exists for the lifetime of an VMA.
+ *
+ * Core API is designed to have copy semantics which means that passed in
+ * struct i915_ggtt_view does not need to be persistent (left around after
+ * calling the core API functions).
+ *
+ */
+
 const struct i915_ggtt_view i915_ggtt_view_normal;
 
 static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv);
