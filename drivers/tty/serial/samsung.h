@@ -88,6 +88,7 @@ struct s3c24xx_uart_port {
 
 	unsigned int			tx_in_progress;
 	unsigned int			tx_mode;
+	unsigned int			rx_mode;
 
 	struct s3c24xx_uart_info	*info;
 	struct clk			*clk;
