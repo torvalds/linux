@@ -25,7 +25,7 @@
 #include <linux/if_vlan.h>
 #include <net/llc_pdu.h>
 #include <linux/kernel.h>
-#include <linux/hash.h>
+#include <linux/jhash.h>
 #include <linux/jiffies.h>
 #include <linux/llc.h>
 #include <linux/module.h>
@@ -366,7 +366,7 @@ static u32 flow_hash(const struct sw_flow_key *key, int key_start,
 	/* Make sure number of hash bytes are multiple of u32. */
 	BUILD_BUG_ON(sizeof(long) % sizeof(u32));
 
-	return arch_fast_hash2(hash_key, hash_u32s, 0);
+	return jhash2(hash_key, hash_u32s, 0);
 }
 
 static int flow_key_start(const struct sw_flow_key *key)
