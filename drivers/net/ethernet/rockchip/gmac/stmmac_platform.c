@@ -36,7 +36,7 @@
 #include <linux/regulator/consumer.h>
 
 #define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
-#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(sy); } while (0)
 
 //RK3288_GRF_SOC_CON1
 //RK3128_GRF_MAC_CON1
