@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
+#include <linux/syslog.h>
 
 #include "internal.h"
 
@@ -120,6 +121,18 @@ static const struct seq_operations pstore_ftrace_seq_ops = {
 	.show	= pstore_ftrace_seq_show,
 };
 
+static int pstore_check_syslog_permissions(struct pstore_private *ps)
+{
+	switch (ps->type) {
+	case PSTORE_TYPE_DMESG:
+	case PSTORE_TYPE_CONSOLE:
+		return check_syslog_permissions(SYSLOG_ACTION_READ_ALL,
+			SYSLOG_FROM_READER);
+	default:
+		return 0;
+	}
+}
+
 static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 						size_t count, loff_t *ppos)
 {
@@ -137,6 +150,10 @@ static int pstore_file_open(struct inode *inode, struct file *file)
 	struct seq_file *sf;
 	int err;
 	const struct seq_operations *sops = NULL;
+
+	err = pstore_check_syslog_permissions(ps);
+	if (err)
+		return err;
 
 	if (ps->type == PSTORE_TYPE_FTRACE)
 		sops = &pstore_ftrace_seq_ops;
@@ -174,6 +191,11 @@ static const struct file_operations pstore_file_operations = {
 static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct pstore_private *p = dentry->d_inode->i_private;
+	int err;
+
+	err = pstore_check_syslog_permissions(p);
+	if (err)
+		return err;
 
 	if (p->psi->erase)
 		p->psi->erase(p->type, p->id, p->count,
