@@ -3129,7 +3129,7 @@ static int __init netlink_proto_init(void)
 		.head_offset = offsetof(struct netlink_sock, node),
 		.key_offset = offsetof(struct netlink_sock, portid),
 		.key_len = sizeof(u32), /* portid */
-		.hashfn = arch_fast_hash,
+		.hashfn = jhash,
 		.max_shift = 16, /* 64K */
 		.grow_decision = rht_grow_above_75,
 		.shrink_decision = rht_shrink_below_30,
