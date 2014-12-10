@@ -396,6 +396,7 @@ static int pcf8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
 
 static int pcf8563_irq_enable(struct device *dev, unsigned int enabled)
 {
+	dev_dbg(dev, "%s: en=%d\n", __func__, enabled);
 	return pcf8563_set_alarm_mode(to_i2c_client(dev), !!enabled);
 }
 
@@ -414,6 +415,7 @@ static int pcf8563_probe(struct i2c_client *client,
 	struct pcf8563 *pcf8563;
 	int err;
 	unsigned char buf;
+	unsigned char alm_pending;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -438,6 +440,14 @@ static int pcf8563_probe(struct i2c_client *client,
 		dev_err(&client->dev, "%s: write error\n", __func__);
 		return err;
 	}
+
+	err = pcf8563_get_alarm_mode(client, NULL, &alm_pending);
+	if (err < 0) {
+		dev_err(&client->dev, "%s: read error\n", __func__);
+		return err;
+	}
+	if (alm_pending)
+		pcf8563_set_alarm_mode(client, 0);
 
 	pcf8563->rtc = devm_rtc_device_register(&client->dev,
 				pcf8563_driver.driver.name,
