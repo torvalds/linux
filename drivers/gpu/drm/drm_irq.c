@@ -1383,7 +1383,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	unsigned int seq;
 	int ret;
 
-	e = kzalloc(sizeof *e, GFP_KERNEL);
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL) {
 		ret = -ENOMEM;
 		goto err_put;
@@ -1392,7 +1392,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	e->pipe = pipe;
 	e->base.pid = current->pid;
 	e->event.base.type = DRM_EVENT_VBLANK;
-	e->event.base.length = sizeof e->event;
+	e->event.base.length = sizeof(e->event);
 	e->event.user_data = vblwait->request.signal;
 	e->base.event = &e->event.base;
 	e->base.file_priv = file_priv;
@@ -1412,12 +1412,12 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 		goto err_unlock;
 	}
 
-	if (file_priv->event_space < sizeof e->event) {
+	if (file_priv->event_space < sizeof(e->event)) {
 		ret = -EBUSY;
 		goto err_unlock;
 	}
 
-	file_priv->event_space -= sizeof e->event;
+	file_priv->event_space -= sizeof(e->event);
 	seq = drm_vblank_count_and_time(dev, pipe, &now);
 
 	if ((vblwait->request.type & _DRM_VBLANK_NEXTONMISS) &&

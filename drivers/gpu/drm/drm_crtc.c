@@ -4684,23 +4684,23 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		ret = -ENOMEM;
 		spin_lock_irqsave(&dev->event_lock, flags);
-		if (file_priv->event_space < sizeof e->event) {
+		if (file_priv->event_space < sizeof(e->event)) {
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 			goto out;
 		}
-		file_priv->event_space -= sizeof e->event;
+		file_priv->event_space -= sizeof(e->event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 
-		e = kzalloc(sizeof *e, GFP_KERNEL);
+		e = kzalloc(sizeof(*e), GFP_KERNEL);
 		if (e == NULL) {
 			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
+			file_priv->event_space += sizeof(e->event);
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 			goto out;
 		}
 
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
-		e->event.base.length = sizeof e->event;
+		e->event.base.length = sizeof(e->event);
 		e->event.user_data = page_flip->user_data;
 		e->base.event = &e->event.base;
 		e->base.file_priv = file_priv;
@@ -4713,7 +4713,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
+			file_priv->event_space += sizeof(e->event);
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 			kfree(e);
 		}
