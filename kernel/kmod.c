@@ -223,7 +223,6 @@ static void umh_complete(struct subprocess_info *sub_info)
 static int ____call_usermodehelper(void *data)
 {
 	struct subprocess_info *sub_info = data;
-	int wait = sub_info->wait & ~UMH_KILLABLE;
 	struct cred *new;
 	int retval;
 
@@ -267,7 +266,7 @@ static int ____call_usermodehelper(void *data)
 out:
 	sub_info->retval = retval;
 	/* wait_for_helper() will call umh_complete if UHM_WAIT_PROC. */
-	if (wait != UMH_WAIT_PROC)
+	if (!(sub_info->wait & UMH_WAIT_PROC))
 		umh_complete(sub_info);
 	if (!retval)
 		return 0;
@@ -323,18 +322,13 @@ static void __call_usermodehelper(struct work_struct *work)
 {
 	struct subprocess_info *sub_info =
 		container_of(work, struct subprocess_info, work);
-	int wait = sub_info->wait & ~UMH_KILLABLE;
 	pid_t pid;
 
-	/* CLONE_VFORK: wait until the usermode helper has execve'd
-	 * successfully We need the data structures to stay around
-	 * until that is done.  */
-	if (wait == UMH_WAIT_PROC)
+	if (sub_info->wait & UMH_WAIT_PROC)
 		pid = kernel_thread(wait_for_helper, sub_info,
 				    CLONE_FS | CLONE_FILES | SIGCHLD);
 	else {
-		pid = kernel_thread(call_helper, sub_info,
-				    CLONE_VFORK | SIGCHLD);
+		pid = kernel_thread(call_helper, sub_info, SIGCHLD);
 		/* Worker thread stopped blocking khelper thread. */
 		kmod_thread_locker = NULL;
 	}
