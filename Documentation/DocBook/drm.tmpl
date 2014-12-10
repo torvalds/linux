@@ -1947,10 +1947,16 @@ void intel_crt_init(struct drm_device *dev)
             and then retrieves a list of modes by calling the connector
             <methodname>get_modes</methodname> helper operation.
           </para>
+         <para>
+            If the helper operation returns no mode, and if the connector status
+            is connector_status_connected, standard VESA DMT modes up to
+            1024x768 are automatically added to the modes list by a call to
+            <function>drm_add_modes_noedid</function>.
+          </para>
           <para>
-            The function filters out modes larger than
+            The function then filters out modes larger than
             <parameter>max_width</parameter> and <parameter>max_height</parameter>
-            if specified. It then calls the optional connector
+            if specified. It finally calls the optional connector
             <methodname>mode_valid</methodname> helper operation for each mode in
             the probed list to check whether the mode is valid for the connector.
           </para>
@@ -2090,10 +2096,18 @@ void intel_crt_init(struct drm_device *dev)
           <synopsis>int (*get_modes)(struct drm_connector *connector);</synopsis>
           <para>
             Fill the connector's <structfield>probed_modes</structfield> list
-            by parsing EDID data with <function>drm_add_edid_modes</function> or
-            calling <function>drm_mode_probed_add</function> directly for every
+            by parsing EDID data with <function>drm_add_edid_modes</function>,
+            adding standard VESA DMT modes with <function>drm_add_modes_noedid</function>,
+            or calling <function>drm_mode_probed_add</function> directly for every
             supported mode and return the number of modes it has detected. This
             operation is mandatory.
+          </para>
+          <para>
+            Note that the caller function will automatically add standard VESA
+            DMT modes up to 1024x768 if the <methodname>get_modes</methodname>
+            helper operation returns no mode and if the connector status is
+            connector_status_connected. There is no need to call
+            <function>drm_add_edid_modes</function> manually in that case.
           </para>
           <para>
             When adding modes manually the driver creates each mode with a call to
@@ -2292,7 +2306,7 @@ void intel_crt_init(struct drm_device *dev)
             <function>drm_helper_probe_single_connector_modes</function>.
           </para>
           <para>
-            When parsing EDID data, <function>drm_add_edid_modes</function> fill the
+            When parsing EDID data, <function>drm_add_edid_modes</function> fills the
             connector <structfield>display_info</structfield>
             <structfield>width_mm</structfield> and
             <structfield>height_mm</structfield> fields. When creating modes
