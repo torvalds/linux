@@ -529,15 +529,7 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
 static void reparent_leader(struct task_struct *father, struct task_struct *p,
 				struct list_head *dead)
 {
-	list_move_tail(&p->sibling, &p->real_parent->children);
-
-	if (p->exit_state == EXIT_DEAD)
-		return;
-	/*
-	 * If this is a threaded reparent there is no need to
-	 * notify anyone anything has happened.
-	 */
-	if (same_thread_group(p->real_parent, father))
+	if (unlikely(p->exit_state == EXIT_DEAD))
 		return;
 
 	/* We don't want people slaying init. */
@@ -568,7 +560,7 @@ static void forget_original_parent(struct task_struct *father)
 	exit_ptrace(father);
 	reaper = find_new_reaper(father);
 
-	list_for_each_entry_safe(p, n, &father->children, sibling) {
+	list_for_each_entry(p, &father->children, sibling) {
 		for_each_thread(p, t) {
 			t->real_parent = reaper;
 			BUG_ON((!t->ptrace) != (t->parent == father));
@@ -578,11 +570,15 @@ static void forget_original_parent(struct task_struct *father)
 				group_send_sig_info(t->pdeath_signal,
 						    SEND_SIG_NOINFO, t);
 		}
-		reparent_leader(father, p, &dead_children);
+		/*
+		 * If this is a threaded reparent there is no need to
+		 * notify anyone anything has happened.
+		 */
+		if (!same_thread_group(reaper, father))
+			reparent_leader(father, p, &dead_children);
 	}
+	list_splice_tail_init(&father->children, &reaper->children);
 	write_unlock_irq(&tasklist_lock);
-
-	BUG_ON(!list_empty(&father->children));
 
 	list_for_each_entry_safe(p, n, &dead_children, ptrace_entry) {
 		list_del_init(&p->ptrace_entry);
