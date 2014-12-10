@@ -605,7 +605,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 
 	INFO(cdev, "uvc_function_bind\n");
 
-	opts = to_f_uvc_opts(f->fi);
+	opts = fi_to_f_uvc_opts(f->fi);
 	/* Sanity check the streaming endpoint module parameters.
 	 */
 	opts->streaming_interval = clamp(opts->streaming_interval, 1U, 16U);
@@ -766,7 +766,7 @@ error:
 
 static void uvc_free_inst(struct usb_function_instance *f)
 {
-	struct f_uvc_opts *opts = to_f_uvc_opts(f);
+	struct f_uvc_opts *opts = fi_to_f_uvc_opts(f);
 
 	kfree(opts);
 }
@@ -818,7 +818,7 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 
 	uvc->state = UVC_STATE_DISCONNECTED;
-	opts = to_f_uvc_opts(fi);
+	opts = fi_to_f_uvc_opts(fi);
 
 	uvc->desc.fs_control = opts->fs_control;
 	uvc->desc.ss_control = opts->ss_control;

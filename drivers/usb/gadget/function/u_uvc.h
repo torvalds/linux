@@ -18,7 +18,7 @@
 
 #include <linux/usb/composite.h>
 
-#define to_f_uvc_opts(f)	container_of(f, struct f_uvc_opts, func_inst)
+#define fi_to_f_uvc_opts(f)	container_of(f, struct f_uvc_opts, func_inst)
 
 struct f_uvc_opts {
 	struct usb_function_instance			func_inst;
