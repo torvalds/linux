@@ -458,6 +458,7 @@ struct rk_lcdc_drv_ops {
 	int (*set_overscan) (struct rk_lcdc_driver *dev_drv,
 			     struct overscan *overscan);
 	int (*dsp_black) (struct rk_lcdc_driver *dev_drv, int enable);
+	int (*backlight_close)(struct rk_lcdc_driver *dev_drv, int enable);
 };
 
 struct rk_fb_area_par {

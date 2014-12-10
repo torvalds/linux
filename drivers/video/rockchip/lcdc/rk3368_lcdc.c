@@ -40,7 +40,7 @@
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
 #endif
-#define CONFIG_RK_FPGA 1
+/*#define CONFIG_RK_FPGA 1*/
 
 static int dbg_thresd;
 module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
@@ -331,7 +331,7 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	for (reg = 0; reg < FRC_LOWER11_1; reg += 4) {
-		val = lcdc_readl(lcdc_dev, reg);
+		val = lcdc_readl_backup(lcdc_dev, reg);
 		switch (reg) {
 		case WIN0_ACT_INFO:
 			win0->area[0].xact = (val & m_WIN0_ACT_WIDTH) + 1;
@@ -1396,7 +1396,6 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
 			lcdc_dev->iommu_status = 1;
 			rockchip_iovmm_activate(dev_drv->dev);
-			rk312x_lcdc_mmu_en(dev_drv);
 		}
 	}
 #endif
@@ -1606,7 +1605,8 @@ static void rk3368_lcdc_bcsh_path_sel(struct rk_lcdc_driver *dev_drv)
 		/* bypass  --need check,if bcsh close? */
 		if (dev_drv->output_color == COLOR_RGB) {
 			bcsh_ctrl = lcdc_readl(lcdc_dev, BCSH_CTRL);
-			if ((bcsh_ctrl & m_BCSH_EN) == 1)/*bcsh enabled */
+			if (((bcsh_ctrl & m_BCSH_EN) == 1) ||
+			    (dev_drv->bcsh.enable == 1))/*bcsh enabled */
 				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
 					     m_BCSH_R2Y_EN |
 					     m_BCSH_Y2R_EN,
@@ -1888,15 +1888,13 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-#ifndef CONFIG_RK_FPGA
+#if 0/*ndef CONFIG_RK_FPGA*/
 	int sys_status =
 	    (dev_drv->id == 0) ? SYS_STATUS_LCDC0 : SYS_STATUS_LCDC1;
 #endif
 	/*enable clk,when first layer open */
 	if ((open) && (!lcdc_dev->atv_layer_cnt)) {
-#ifndef CONFIG_RK_FPGA
-		rockchip_set_system_status(sys_status);
-#endif
+		/*rockchip_set_system_status(sys_status);*/
 		rk3368_lcdc_pre_init(dev_drv);
 		rk3368_lcdc_clk_enable(lcdc_dev);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
@@ -2516,6 +2514,44 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 	return 0;
 }
 
+static int dsp_x_pos(int mirror_en, struct rk_screen *screen,
+		     struct rk_lcdc_win_area *area)
+{
+	int pos;
+
+	if (screen->x_mirror && mirror_en)
+		pr_err("not support both win and global mirror\n");
+
+	if ((!mirror_en) && (!screen->x_mirror))
+		pos = area->xpos + screen->mode.left_margin +
+			screen->mode.hsync_len;
+	else
+		pos = screen->mode.xres - area->xpos -
+			area->xsize + screen->mode.left_margin +
+			screen->mode.hsync_len;
+
+	return pos;
+}
+
+static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
+		     struct rk_lcdc_win_area *area)
+{
+	int pos;
+
+	if (screen->y_mirror && mirror_en)
+		pr_err("not support both win and global mirror\n");
+
+	if ((!mirror_en) && (!screen->y_mirror))
+		pos = area->ypos + screen->mode.upper_margin +
+			screen->mode.vsync_len;
+	else
+		pos = screen->mode.yres - area->ypos -
+			area->ysize + screen->mode.upper_margin +
+			screen->mode.vsync_len;
+
+	return pos;
+}
+
 static int win_0_1_set_par(struct lcdc_device *lcdc_dev,
 			   struct rk_screen *screen, struct rk_lcdc_win *win)
 {
@@ -2523,19 +2559,9 @@ static int win_0_1_set_par(struct lcdc_device *lcdc_dev,
 	u8 fmt_cfg = 0, swap_rb;
 	char fmt[9] = "NULL";
 
-	if (!win->mirror_en) {
-		xpos = win->area[0].xpos + screen->mode.left_margin +
-		    screen->mode.hsync_len;
-		ypos = win->area[0].ypos + screen->mode.upper_margin +
-		    screen->mode.vsync_len;
-	} else {
-		xpos = screen->mode.xres - win->area[0].xpos -
-			win->area[0].xsize +
-			screen->mode.left_margin + screen->mode.hsync_len;
-		ypos = screen->mode.yres - win->area[0].ypos -
-			win->area[0].ysize + screen->mode.upper_margin +
-			screen->mode.vsync_len;
-	}
+	xpos = dsp_x_pos(win->mirror_en, screen, &win->area[0]);
+	ypos = dsp_y_pos(win->mirror_en, screen, &win->area[0]);
+
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		rk3368_lcdc_cal_scl_fac(win);	/*fac,lb,gt2,gt4 */
@@ -2627,6 +2653,8 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 	u8 fmt_cfg, swap_rb;
 	char fmt[9] = "NULL";
 
+	if (win->mirror_en)
+		pr_err("win[%d] not support y mirror\n", win->id);
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		DBG(2, "lcdc[%d]:win[%d]>>\n>\n", lcdc_dev->id, win->id);
@@ -2656,19 +2684,12 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 			}
 			win->area[i].fmt_cfg = fmt_cfg;
 			win->area[i].swap_rb = swap_rb;
-			win->area[i].dsp_stx = win->area[i].xpos +
-			    screen->mode.left_margin + screen->mode.hsync_len;
-			if (screen->y_mirror == 1) {
-				win->area[i].dsp_sty = screen->mode.yres -
-				    win->area[i].ypos -
-				    win->area[i].ysize +
-				    screen->mode.upper_margin +
-				    screen->mode.vsync_len;
-			} else {
-				win->area[i].dsp_sty = win->area[i].ypos +
-				    screen->mode.upper_margin +
-				    screen->mode.vsync_len;
-			}
+			win->area[i].dsp_stx =
+					dsp_x_pos(win->mirror_en, screen,
+						  &win->area[i]);
+			win->area[i].dsp_sty =
+					dsp_y_pos(win->mirror_en, screen,
+						  &win->area[i]);
 
 			DBG(2, "fmt:%s:xsize:%d>>ysize:%d>>xpos:%d>>ypos:%d\n",
 			    get_format_string(win->area[i].format, fmt),
@@ -2844,7 +2865,7 @@ static int rk3368_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 
 	for (reg = MMU_DTE_ADDR; reg <= MMU_AUTO_GATING; reg += 4)
-		lcdc_readl(lcdc_dev, reg);
+		lcdc_readl_backup(lcdc_dev, reg);
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
 		dev_drv->trsm_ops->disable();
 
@@ -3993,16 +4014,18 @@ static int rk3368_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
-		rk3368_lcdc_bcsh_path_sel(dev_drv);
 		if (open) {
 			lcdc_writel(lcdc_dev, BCSH_COLOR_BAR, 0x1);
 			lcdc_writel(lcdc_dev, BCSH_BCS, 0xd0010000);
 			lcdc_writel(lcdc_dev, BCSH_H, 0x01000000);
+			dev_drv->bcsh.enable = 1;
 		} else {
 			mask = m_BCSH_EN;
 			val = v_BCSH_EN(0);
 			lcdc_msk_reg(lcdc_dev, BCSH_COLOR_BAR, mask, val);
+			dev_drv->bcsh.enable = 0;
 		}
+		rk3368_lcdc_bcsh_path_sel(dev_drv);
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -4044,15 +4067,7 @@ static int rk3368_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 
-	rk3368_lcdc_get_backlight_device(dev_drv);
-
 	if (enable) {
-		/* close the backlight */
-		if (lcdc_dev->backlight) {
-			lcdc_dev->backlight->props.power = FB_BLANK_POWERDOWN;
-			backlight_update_status(lcdc_dev->backlight);
-		}
-#if 1
 		spin_lock(&lcdc_dev->reg_lock);
 		if (likely(lcdc_dev->clk_on)) {
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLACK_EN,
@@ -4060,11 +4075,7 @@ static int rk3368_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 			lcdc_cfg_done(lcdc_dev);
 		}
 		spin_unlock(&lcdc_dev->reg_lock);
-#endif
-		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
-			dev_drv->trsm_ops->disable();
 	} else {
-#if 1
 		spin_lock(&lcdc_dev->reg_lock);
 		if (likely(lcdc_dev->clk_on)) {
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_BLACK_EN,
@@ -4073,7 +4084,29 @@ static int rk3368_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 			lcdc_cfg_done(lcdc_dev);
 		}
 		spin_unlock(&lcdc_dev->reg_lock);
-#endif
+	}
+
+	return 0;
+}
+
+
+static int rk3368_lcdc_backlight_close(struct rk_lcdc_driver *dev_drv,
+				       int enable)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+
+	rk3368_lcdc_get_backlight_device(dev_drv);
+
+	if (enable) {
+		/* close the backlight */
+		if (lcdc_dev->backlight) {
+			lcdc_dev->backlight->props.power = FB_BLANK_POWERDOWN;
+			backlight_update_status(lcdc_dev->backlight);
+		}
+		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+			dev_drv->trsm_ops->disable();
+	} else {
 		if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 			dev_drv->trsm_ops->enable();
 		msleep(100);
@@ -4121,6 +4154,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.cfg_done = rk3368_lcdc_config_done,
 	.set_irq_to_cpu = rk3368_lcdc_set_irq_to_cpu,
 	.dsp_black = rk3368_lcdc_dsp_black,
+	.backlight_close = rk3368_lcdc_backlight_close,
 	.mmu_en    = rk3368_lcdc_mmu_en,
 };
 
