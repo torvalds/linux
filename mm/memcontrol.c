@@ -1447,32 +1447,6 @@ int mem_cgroup_swappiness(struct mem_cgroup *memcg)
 }
 
 /*
- * memcg->moving_account is used for checking possibility that some thread is
- * calling move_account(). When a thread on CPU-A starts moving pages under
- * a memcg, other threads should check memcg->moving_account under
- * rcu_read_lock(), like this:
- *
- *         CPU-A                                    CPU-B
- *                                              rcu_read_lock()
- *         memcg->moving_account+1              if (memcg->mocing_account)
- *                                                   take heavy locks.
- *         synchronize_rcu()                    update something.
- *                                              rcu_read_unlock()
- *         start move here.
- */
-
-static void mem_cgroup_start_move(struct mem_cgroup *memcg)
-{
-	atomic_inc(&memcg->moving_account);
-	synchronize_rcu();
-}
-
-static void mem_cgroup_end_move(struct mem_cgroup *memcg)
-{
-	atomic_dec(&memcg->moving_account);
-}
-
-/*
  * A routine for checking "mem" is under move_account() or not.
  *
  * Checking a cgroup is mc.from or mc.to or under hierarchy of
@@ -5431,7 +5405,8 @@ static void mem_cgroup_clear_mc(void)
 	mc.from = NULL;
 	mc.to = NULL;
 	spin_unlock(&mc.lock);
-	mem_cgroup_end_move(from);
+
+	atomic_dec(&from->moving_account);
 }
 
 static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
@@ -5464,7 +5439,16 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 			VM_BUG_ON(mc.precharge);
 			VM_BUG_ON(mc.moved_charge);
 			VM_BUG_ON(mc.moved_swap);
-			mem_cgroup_start_move(from);
+
+			/*
+			 * Signal mem_cgroup_begin_page_stat() to take
+			 * the memcg's move_lock while we're moving
+			 * its pages to another memcg.  Then wait for
+			 * already started RCU-only updates to finish.
+			 */
+			atomic_inc(&from->moving_account);
+			synchronize_rcu();
+
 			spin_lock(&mc.lock);
 			mc.from = from;
 			mc.to = memcg;
