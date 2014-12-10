@@ -1053,7 +1053,7 @@ static void nvme_abort_req(struct request *req)
 		dev_warn(nvmeq->q_dmadev,
 				"Could not abort I/O %d QID %d",
 				req->tag, nvmeq->qid);
-		blk_mq_free_request(req);
+		blk_mq_free_request(abort_req);
 	}
 }
 
