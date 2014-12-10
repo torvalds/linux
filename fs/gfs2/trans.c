@@ -89,14 +89,17 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 {
 	struct gfs2_trans *tr = current->journal_info;
 	s64 nbuf;
+	int alloced = tr->tr_alloced;
+
 	BUG_ON(!tr);
 	current->journal_info = NULL;
 
 	if (!tr->tr_touched) {
 		gfs2_log_release(sdp, tr->tr_reserved);
-		if (tr->tr_alloced)
+		if (alloced) {
 			kfree(tr);
-		sb_end_intwrite(sdp->sd_vfs);
+			sb_end_intwrite(sdp->sd_vfs);
+		}
 		return;
 	}
 
@@ -109,13 +112,14 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		gfs2_print_trans(tr);
 
 	gfs2_log_commit(sdp, tr);
-	if (tr->tr_alloced && !tr->tr_attached)
+	if (alloced && !tr->tr_attached)
 			kfree(tr);
 	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
 		gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
-	sb_end_intwrite(sdp->sd_vfs);
+	if (alloced)
+		sb_end_intwrite(sdp->sd_vfs);
 }
 
 static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
@@ -192,6 +196,7 @@ static void meta_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
 	struct gfs2_meta_header *mh;
 	struct gfs2_trans *tr;
+	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
 
 	tr = current->journal_info;
 	tr->tr_touched = 1;
@@ -204,6 +209,10 @@ static void meta_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 		pr_err("Attempting to add uninitialised block to journal (inplace block=%lld)\n",
 		       (unsigned long long)bd->bd_bh->b_blocknr);
 		BUG();
+	}
+	if (unlikely(state == SFS_FROZEN)) {
+		printk(KERN_INFO "GFS2:adding buf while frozen\n");
+		gfs2_assert_withdraw(sdp, 0);
 	}
 	gfs2_pin(sdp, bd->bd_bh);
 	mh->__pad0 = cpu_to_be64(0);
