@@ -106,6 +106,11 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 		nvbe->ttm.ttm.func = &nv50_sgdma_backend;
 
 	if (ttm_dma_tt_init(&nvbe->ttm, bdev, size, page_flags, dummy_read_page))
+		/*
+		 * A failing ttm_dma_tt_init() will call ttm_tt_destroy()
+		 * and thus our nouveau_sgdma_destroy() hook, so we don't need
+		 * to free nvbe here.
+		 */
 		return NULL;
 	return &nvbe->ttm.ttm;
 }
