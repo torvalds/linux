@@ -3257,7 +3257,7 @@ exit:
     return err;
 }
 
-static int __exit rk_camera_remove(struct platform_device *pdev)
+static int rk_camera_remove(struct platform_device *pdev)
 {
     struct rk_camera_dev *pcdev = platform_get_drvdata(pdev);
     struct resource *res;
