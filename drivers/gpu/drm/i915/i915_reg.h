@@ -85,6 +85,7 @@
 #define   I915_GC_RENDER_CLOCK_166_MHZ	(0 << 0)
 #define   I915_GC_RENDER_CLOCK_200_MHZ	(1 << 0)
 #define   I915_GC_RENDER_CLOCK_333_MHZ	(4 << 0)
+#define GCDGMBUS 0xcc
 #define PCI_LBPC 0xf4 /* legacy/combination backlight modes, also called LBB */
 
 
