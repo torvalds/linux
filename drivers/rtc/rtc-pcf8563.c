@@ -118,22 +118,21 @@ static int pcf8563_write_block_data(struct i2c_client *client,
 
 static int pcf8563_set_alarm_mode(struct i2c_client *client, bool on)
 {
-	unsigned char buf[2];
+	unsigned char buf;
 	int err;
 
-	err = pcf8563_read_block_data(client, PCF8563_REG_ST2, 1, buf + 1);
+	err = pcf8563_read_block_data(client, PCF8563_REG_ST2, 1, &buf);
 	if (err < 0)
 		return err;
 
 	if (on)
-		buf[1] |= PCF8563_BIT_AIE;
+		buf |= PCF8563_BIT_AIE;
 	else
-		buf[1] &= ~PCF8563_BIT_AIE;
+		buf &= ~PCF8563_BIT_AIE;
 
-	buf[1] &= ~PCF8563_BIT_AF;
-	buf[0] = PCF8563_REG_ST2;
+	buf &= ~PCF8563_BIT_AF;
 
-	err = pcf8563_write_block_data(client, PCF8563_REG_ST2, 1, buf + 1);
+	err = pcf8563_write_block_data(client, PCF8563_REG_ST2, 1, &buf);
 	if (err < 0) {
 		dev_err(&client->dev, "%s: write error\n", __func__);
 		return -EIO;
