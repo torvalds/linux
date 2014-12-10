@@ -109,7 +109,20 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define GEN8_PPAT_ELLC_OVERRIDE		(0<<2)
 #define GEN8_PPAT(i, x)			((uint64_t) (x) << ((i) * 8))
 
+enum i915_ggtt_view_type {
+	I915_GGTT_VIEW_NORMAL = 0,
+};
+
+struct i915_ggtt_view {
+	enum i915_ggtt_view_type type;
+
+	struct sg_table *pages;
+};
+
+extern const struct i915_ggtt_view i915_ggtt_view_normal;
+
 enum i915_cache_level;
+
 /**
  * A VMA represents a GEM BO that is bound into an address space. Therefore, a
  * VMA's presence cannot be guaranteed before binding, or after unbinding the
@@ -128,6 +141,15 @@ struct i915_vma {
 #define LOCAL_BIND	(1<<1)
 #define PTE_READ_ONLY	(1<<2)
 	unsigned int bound : 4;
+
+	/**
+	 * Support different GGTT views into the same object.
+	 * This means there can be multiple VMA mappings per object and per VM.
+	 * i915_ggtt_view_type is used to distinguish between those entries.
+	 * The default one of zero (I915_GGTT_VIEW_NORMAL) is default and also
+	 * assumed in GEM functions which take no ggtt view parameter.
+	 */
+	struct i915_ggtt_view ggtt_view;
 
 	/** This object's place on the active/inactive lists */
 	struct list_head mm_list;

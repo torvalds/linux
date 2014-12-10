@@ -30,6 +30,8 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+const struct i915_ggtt_view i915_ggtt_view_normal;
+
 static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv);
 static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
 
@@ -1341,9 +1343,12 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 		/* The bind_vma code tries to be smart about tracking mappings.
 		 * Unfortunately above, we've just wiped out the mappings
 		 * without telling our object about it. So we need to fake it.
+		 *
+		 * Bind is not expected to fail since this is only called on
+		 * resume and assumption is all requirements exist already.
 		 */
 		vma->bound &= ~GLOBAL_BIND;
-		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
+		WARN_ON(i915_vma_bind(vma, obj->cache_level, GLOBAL_BIND));
 	}
 
 
@@ -1538,7 +1543,7 @@ static void i915_ggtt_bind_vma(struct i915_vma *vma,
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
-	intel_gtt_insert_sg_entries(vma->obj->pages, entry, flags);
+	intel_gtt_insert_sg_entries(vma->ggtt_view.pages, entry, flags);
 	vma->bound = GLOBAL_BIND;
 }
 
@@ -1588,7 +1593,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
 		if (!(vma->bound & GLOBAL_BIND) ||
 		    (cache_level != obj->cache_level)) {
-			vma->vm->insert_entries(vma->vm, obj->pages,
+			vma->vm->insert_entries(vma->vm, vma->ggtt_view.pages,
 						vma->node.start,
 						cache_level, flags);
 			vma->bound |= GLOBAL_BIND;
@@ -1600,7 +1605,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	     (cache_level != obj->cache_level))) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
-					    vma->obj->pages,
+					    vma->ggtt_view.pages,
 					    vma->node.start,
 					    cache_level, flags);
 		vma->bound |= LOCAL_BIND;
@@ -2165,7 +2170,8 @@ int i915_gem_gtt_init(struct drm_device *dev)
 }
 
 static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
-					      struct i915_address_space *vm)
+					      struct i915_address_space *vm,
+					      const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 	if (vma == NULL)
@@ -2176,6 +2182,7 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->exec_list);
 	vma->vm = vm;
 	vma->obj = obj;
+	vma->ggtt_view = *view;
 
 	switch (INTEL_INFO(vm->dev)->gen) {
 	case 9:
@@ -2210,14 +2217,59 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 }
 
 struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
+i915_gem_obj_lookup_or_create_vma_view(struct drm_i915_gem_object *obj,
+				       struct i915_address_space *vm,
+				       const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	vma = i915_gem_obj_to_vma_view(obj, vm, view);
 	if (!vma)
-		vma = __i915_gem_vma_create(obj, vm);
+		vma = __i915_gem_vma_create(obj, vm, view);
 
 	return vma;
+}
+
+static inline
+int i915_get_vma_pages(struct i915_vma *vma)
+{
+	if (vma->ggtt_view.pages)
+		return 0;
+
+	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
+		vma->ggtt_view.pages = vma->obj->pages;
+	else
+		WARN_ONCE(1, "GGTT view %u not implemented!\n",
+			  vma->ggtt_view.type);
+
+	if (!vma->ggtt_view.pages) {
+		DRM_ERROR("Failed to get pages for VMA view type %u!\n",
+			  vma->ggtt_view.type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * i915_vma_bind - Sets up PTEs for an VMA in it's corresponding address space.
+ * @vma: VMA to map
+ * @cache_level: mapping cache level
+ * @flags: flags like global or local mapping
+ *
+ * DMA addresses are taken from the scatter-gather table of this object (or of
+ * this VMA in case of non-default GGTT views) and PTE entries set up.
+ * Note that DMA addresses are also the only part of the SG table we care about.
+ */
+int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
+		  u32 flags)
+{
+	int ret = i915_get_vma_pages(vma);
+
+	if (ret)
+		return ret;
+
+	vma->bind_vma(vma, cache_level, flags);
+
+	return 0;
 }

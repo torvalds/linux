@@ -590,9 +590,14 @@ static int do_switch(struct intel_engine_cs *ring,
 		goto unpin_out;
 
 	vma = i915_gem_obj_to_ggtt(to->legacy_hw_ctx.rcs_state);
-	if (!(vma->bound & GLOBAL_BIND))
-		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level,
-				GLOBAL_BIND);
+	if (!(vma->bound & GLOBAL_BIND)) {
+		ret = i915_vma_bind(vma,
+				    to->legacy_hw_ctx.rcs_state->cache_level,
+				    GLOBAL_BIND);
+		/* This shouldn't ever fail. */
+		if (WARN_ONCE(ret, "GGTT context bind failed!"))
+			goto unpin_out;
+	}
 
 	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
 		hw_flags |= MI_RESTORE_INHIBIT;

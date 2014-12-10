@@ -2297,17 +2297,14 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 static void
 i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-	struct i915_address_space *vm;
 	struct i915_vma *vma;
 
 	BUG_ON(obj->base.write_domain & ~I915_GEM_GPU_DOMAINS);
 	BUG_ON(!obj->active);
 
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-		vma = i915_gem_obj_to_vma(obj, vm);
-		if (vma && !list_empty(&vma->mm_list))
-			list_move_tail(&vma->mm_list, &vm->inactive_list);
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		if (!list_empty(&vma->mm_list))
+			list_move_tail(&vma->mm_list, &vma->vm->inactive_list);
 	}
 
 	intel_fb_obj_flush(obj, true);
@@ -3062,10 +3059,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 	 * cause memory corruption through use-after-free.
 	 */
 
-	/* Throw away the active reference before moving to the unbound list */
-	i915_gem_object_retire(obj);
-
-	if (i915_is_ggtt(vma->vm)) {
+	if (i915_is_ggtt(vma->vm) &&
+	    vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
 		i915_gem_object_finish_gtt(obj);
 
 		/* release the fence reg _after_ flushing */
@@ -3079,8 +3074,15 @@ int i915_vma_unbind(struct i915_vma *vma)
 	vma->unbind_vma(vma);
 
 	list_del_init(&vma->mm_list);
-	if (i915_is_ggtt(vma->vm))
-		obj->map_and_fenceable = false;
+	if (i915_is_ggtt(vma->vm)) {
+		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
+			obj->map_and_fenceable = false;
+		} else if (vma->ggtt_view.pages) {
+			sg_free_table(vma->ggtt_view.pages);
+			kfree(vma->ggtt_view.pages);
+			vma->ggtt_view.pages = NULL;
+		}
+	}
 
 	drm_mm_remove_node(&vma->node);
 	i915_gem_vma_destroy(vma);
@@ -3088,6 +3090,10 @@ int i915_vma_unbind(struct i915_vma *vma)
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
 	if (list_empty(&obj->vma_list)) {
+		/* Throw away the active reference before
+		 * moving to the unbound list. */
+		i915_gem_object_retire(obj);
+
 		i915_gem_gtt_finish_object(obj);
 		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 	}
@@ -3498,7 +3504,8 @@ static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 			   struct i915_address_space *vm,
 			   unsigned alignment,
-			   uint64_t flags)
+			   uint64_t flags,
+			   const struct i915_ggtt_view *view)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3548,7 +3555,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
+	vma = i915_gem_obj_lookup_or_create_vma_view(obj, vm, view);
 	if (IS_ERR(vma))
 		goto err_unpin;
 
@@ -3578,15 +3585,19 @@ search_free:
 	if (ret)
 		goto err_remove_node;
 
+	trace_i915_vma_bind(vma, flags);
+	ret = i915_vma_bind(vma, obj->cache_level,
+			    flags & PIN_GLOBAL ? GLOBAL_BIND : 0);
+	if (ret)
+		goto err_finish_gtt;
+
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &vm->inactive_list);
 
-	trace_i915_vma_bind(vma, flags);
-	vma->bind_vma(vma, obj->cache_level,
-		      flags & PIN_GLOBAL ? GLOBAL_BIND : 0);
-
 	return vma;
 
+err_finish_gtt:
+	i915_gem_gtt_finish_object(obj);
 err_remove_node:
 	drm_mm_remove_node(&vma->node);
 err_free_vma:
@@ -3789,9 +3800,12 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		}
 
 		list_for_each_entry(vma, &obj->vma_list, vma_link)
-			if (drm_mm_node_allocated(&vma->node))
-				vma->bind_vma(vma, cache_level,
-						vma->bound & GLOBAL_BIND);
+			if (drm_mm_node_allocated(&vma->node)) {
+				ret = i915_vma_bind(vma, cache_level,
+						    vma->bound & GLOBAL_BIND);
+				if (ret)
+					return ret;
+			}
 	}
 
 	list_for_each_entry(vma, &obj->vma_list, vma_link)
@@ -4144,10 +4158,11 @@ i915_vma_misplaced(struct i915_vma *vma, uint32_t alignment, uint64_t flags)
 }
 
 int
-i915_gem_object_pin(struct drm_i915_gem_object *obj,
-		    struct i915_address_space *vm,
-		    uint32_t alignment,
-		    uint64_t flags)
+i915_gem_object_pin_view(struct drm_i915_gem_object *obj,
+			 struct i915_address_space *vm,
+			 uint32_t alignment,
+			 uint64_t flags,
+			 const struct i915_ggtt_view *view)
 {
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	struct i915_vma *vma;
@@ -4163,7 +4178,7 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	if (WARN_ON((flags & (PIN_MAPPABLE | PIN_GLOBAL)) == PIN_MAPPABLE))
 		return -EINVAL;
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	vma = i915_gem_obj_to_vma_view(obj, vm, view);
 	if (vma) {
 		if (WARN_ON(vma->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
 			return -EBUSY;
@@ -4173,7 +4188,8 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 			     "bo is already pinned with incorrect alignment:"
 			     " offset=%lx, req.alignment=%x, req.map_and_fenceable=%d,"
 			     " obj->map_and_fenceable=%d\n",
-			     i915_gem_obj_offset(obj, vm), alignment,
+			     i915_gem_obj_offset_view(obj, vm, view->type),
+			     alignment,
 			     !!(flags & PIN_MAPPABLE),
 			     obj->map_and_fenceable);
 			ret = i915_vma_unbind(vma);
@@ -4186,13 +4202,17 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 
 	bound = vma ? vma->bound : 0;
 	if (vma == NULL || !drm_mm_node_allocated(&vma->node)) {
-		vma = i915_gem_object_bind_to_vm(obj, vm, alignment, flags);
+		vma = i915_gem_object_bind_to_vm(obj, vm, alignment,
+						 flags, view);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 	}
 
-	if (flags & PIN_GLOBAL && !(vma->bound & GLOBAL_BIND))
-		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
+	if (flags & PIN_GLOBAL && !(vma->bound & GLOBAL_BIND)) {
+		ret = i915_vma_bind(vma, obj->cache_level, GLOBAL_BIND);
+		if (ret)
+			return ret;
+	}
 
 	if ((bound ^ vma->bound) & GLOBAL_BIND) {
 		bool mappable, fenceable;
@@ -4528,12 +4548,13 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	intel_runtime_pm_put(dev_priv);
 }
 
-struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-				     struct i915_address_space *vm)
+struct i915_vma *i915_gem_obj_to_vma_view(struct drm_i915_gem_object *obj,
+					  struct i915_address_space *vm,
+					  const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 	list_for_each_entry(vma, &obj->vma_list, vma_link)
-		if (vma->vm == vm)
+		if (vma->vm == vm && vma->ggtt_view.type == view->type)
 			return vma;
 
 	return NULL;
@@ -5145,8 +5166,9 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 }
 
 /* All the new VM stuff */
-unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
-				  struct i915_address_space *vm)
+unsigned long i915_gem_obj_offset_view(struct drm_i915_gem_object *o,
+				       struct i915_address_space *vm,
+				       enum i915_ggtt_view_type view)
 {
 	struct drm_i915_private *dev_priv = o->base.dev->dev_private;
 	struct i915_vma *vma;
@@ -5154,7 +5176,7 @@ unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
 	WARN_ON(vm == &dev_priv->mm.aliasing_ppgtt->base);
 
 	list_for_each_entry(vma, &o->vma_list, vma_link) {
-		if (vma->vm == vm)
+		if (vma->vm == vm && vma->ggtt_view.type == view)
 			return vma->node.start;
 
 	}
@@ -5163,13 +5185,16 @@ unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
 	return -1;
 }
 
-bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
-			struct i915_address_space *vm)
+bool i915_gem_obj_bound_view(struct drm_i915_gem_object *o,
+			     struct i915_address_space *vm,
+			     enum i915_ggtt_view_type view)
 {
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &o->vma_list, vma_link)
-		if (vma->vm == vm && drm_mm_node_allocated(&vma->node))
+		if (vma->vm == vm &&
+		    vma->ggtt_view.type == view &&
+		    drm_mm_node_allocated(&vma->node))
 			return true;
 
 	return false;
@@ -5304,10 +5329,10 @@ struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(obj);
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (vma->vm == ggtt)
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
+		if (vma->vm == ggtt &&
+		    vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
 			return vma;
-	}
 
 	return NULL;
 }

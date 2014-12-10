@@ -2530,10 +2530,23 @@ void i915_gem_vma_destroy(struct i915_vma *vma);
 #define PIN_GLOBAL 0x4
 #define PIN_OFFSET_BIAS 0x8
 #define PIN_OFFSET_MASK (~4095)
+int __must_check i915_gem_object_pin_view(struct drm_i915_gem_object *obj,
+					  struct i915_address_space *vm,
+					  uint32_t alignment,
+					  uint64_t flags,
+					  const struct i915_ggtt_view *view);
+static inline
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm,
 				     uint32_t alignment,
-				     uint64_t flags);
+				     uint64_t flags)
+{
+	return i915_gem_object_pin_view(obj, vm, alignment, flags,
+						&i915_ggtt_view_normal);
+}
+
+int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
+		  u32 flags);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
@@ -2695,18 +2708,51 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 
 void i915_gem_restore_fences(struct drm_device *dev);
 
+unsigned long i915_gem_obj_offset_view(struct drm_i915_gem_object *o,
+				       struct i915_address_space *vm,
+				       enum i915_ggtt_view_type view);
+static inline
 unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
-				  struct i915_address_space *vm);
+				  struct i915_address_space *vm)
+{
+	return i915_gem_obj_offset_view(o, vm, I915_GGTT_VIEW_NORMAL);
+}
 bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o);
+bool i915_gem_obj_bound_view(struct drm_i915_gem_object *o,
+			     struct i915_address_space *vm,
+			     enum i915_ggtt_view_type view);
+static inline
 bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
-			struct i915_address_space *vm);
+			struct i915_address_space *vm)
+{
+	return i915_gem_obj_bound_view(o, vm, I915_GGTT_VIEW_NORMAL);
+}
+
 unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 				struct i915_address_space *vm);
+struct i915_vma *i915_gem_obj_to_vma_view(struct drm_i915_gem_object *obj,
+					  struct i915_address_space *vm,
+					  const struct i915_ggtt_view *view);
+static inline
 struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-				     struct i915_address_space *vm);
+				     struct i915_address_space *vm)
+{
+	return i915_gem_obj_to_vma_view(obj, vm, &i915_ggtt_view_normal);
+}
+
+struct i915_vma *
+i915_gem_obj_lookup_or_create_vma_view(struct drm_i915_gem_object *obj,
+				       struct i915_address_space *vm,
+				       const struct i915_ggtt_view *view);
+
+static inline
 struct i915_vma *
 i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm);
+				  struct i915_address_space *vm)
+{
+	return i915_gem_obj_lookup_or_create_vma_view(obj, vm,
+						&i915_ggtt_view_normal);
+}
 
 struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj);
 static inline bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj) {
