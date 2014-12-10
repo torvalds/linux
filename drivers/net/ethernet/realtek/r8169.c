@@ -7260,7 +7260,7 @@ static struct sk_buff *rtl8169_try_rx_copy(void *data,
 	data = rtl8169_align(data);
 	dma_sync_single_for_cpu(d, addr, pkt_size, DMA_FROM_DEVICE);
 	prefetch(data);
-	skb = netdev_alloc_skb_ip_align(tp->dev, pkt_size);
+	skb = napi_alloc_skb(&tp->napi, pkt_size);
 	if (skb)
 		memcpy(skb->data, data, pkt_size);
 	dma_sync_single_for_device(d, addr, pkt_size, DMA_FROM_DEVICE);

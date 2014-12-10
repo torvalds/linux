@@ -1015,7 +1015,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		 */
 		if ((bp->dev->mtu > ETH_MAX_PACKET_SIZE) &&
 		    (len <= RX_COPY_THRESH)) {
-			skb = netdev_alloc_skb_ip_align(bp->dev, len);
+			skb = napi_alloc_skb(&fp->napi, len);
 			if (skb == NULL) {
 				DP(NETIF_MSG_RX_ERR | NETIF_MSG_RX_STATUS,
 				   "ERROR  packet dropped because of alloc failure\n");
