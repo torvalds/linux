@@ -5,10 +5,16 @@ Required properties:
 	- "ti,da830-rtc"  - for RTC IP used similar to that on DA8xx SoC family.
 	- "ti,am3352-rtc" - for RTC IP used similar to that on AM335x SoC family.
 			    This RTC IP has special WAKE-EN Register to enable
-			    Wakeup generation for event Alarm.
+			    Wakeup generation for event Alarm. It can also be
+			    used to control an external PMIC via the
+			    pmic_power_en pin.
 - reg: Address range of rtc register set
 - interrupts: rtc timer, alarm interrupts in order
 - interrupt-parent: phandle for the interrupt controller
+
+Optional properties:
+- ti,system-power-controller: whether the rtc is controlling the system power
+  through pmic_power_en
 
 Example:
 
@@ -18,4 +24,5 @@ rtc@1c23000 {
 	interrupts = <19
 		      19>;
 	interrupt-parent = <&intc>;
+	ti,system-power-controller;
 };
