@@ -875,8 +875,8 @@ static int __nvme_submit_admin_cmd(struct nvme_dev *dev, struct nvme_command *cm
 	struct request *req;
 
 	req = blk_mq_alloc_request(dev->admin_q, WRITE, GFP_KERNEL, false);
-	if (!req)
-		return -ENOMEM;
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 	res = nvme_submit_sync_cmd(req, cmd, result, timeout);
 	blk_mq_free_request(req);
 	return res;
@@ -896,8 +896,8 @@ int nvme_submit_io_cmd(struct nvme_dev *dev, struct nvme_ns *ns,
 
 	req = blk_mq_alloc_request(ns->queue, WRITE, (GFP_KERNEL|__GFP_WAIT),
 									false);
-	if (!req)
-		return -ENOMEM;
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 	res = nvme_submit_sync_cmd(req, cmd, result, NVME_IO_TIMEOUT);
 	blk_mq_free_request(req);
 	return res;
@@ -1691,8 +1691,8 @@ static int nvme_user_cmd(struct nvme_dev *dev, struct nvme_ns *ns,
 
 		req = blk_mq_alloc_request(ns->queue, WRITE,
 						(GFP_KERNEL|__GFP_WAIT), false);
-		if (!req)
-			status = -ENOMEM;
+		if (IS_ERR(req))
+			status = PTR_ERR(req);
 		else {
 			status = nvme_submit_sync_cmd(req, &c, &cmd.result,
 								timeout);
