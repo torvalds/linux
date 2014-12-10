@@ -135,6 +135,4 @@ static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 size_t csum_and_copy_to_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
 size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
 
-int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
-			int offset, int len);
 #endif
