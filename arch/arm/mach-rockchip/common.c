@@ -102,7 +102,7 @@ static int __init rockchip_cpu_axi_init(void)
 				iounmap(base);
 		}
 	}
-	dsb();
+	dsb(sy);
 
 #undef MAP
 
