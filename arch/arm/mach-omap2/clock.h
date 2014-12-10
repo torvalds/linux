@@ -270,8 +270,6 @@ extern const struct clksel_rate div31_1to31_rates[];
 
 extern void __iomem *clk_memmaps[];
 
-extern int am33xx_clk_init(void);
-
 extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 
