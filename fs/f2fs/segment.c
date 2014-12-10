@@ -240,33 +240,38 @@ void commit_inmem_pages(struct inode *inode, bool abort)
 	 * Otherwise, f2fs_gc in f2fs_balance_fs can wait forever until this
 	 * inode becomes free by iget_locked in f2fs_iget.
 	 */
-	if (!abort)
+	if (!abort) {
 		f2fs_balance_fs(sbi);
-
-	f2fs_lock_op(sbi);
+		f2fs_lock_op(sbi);
+	}
 
 	mutex_lock(&fi->inmem_lock);
 	list_for_each_entry_safe(cur, tmp, &fi->inmem_pages, list) {
-		lock_page(cur->page);
-		if (!abort && cur->page->mapping == inode->i_mapping) {
-			f2fs_wait_on_page_writeback(cur->page, DATA);
-			if (clear_page_dirty_for_io(cur->page))
-				inode_dec_dirty_pages(inode);
-			do_write_data_page(cur->page, &fio);
-			submit_bio = true;
+		if (!abort) {
+			lock_page(cur->page);
+			if (cur->page->mapping == inode->i_mapping) {
+				f2fs_wait_on_page_writeback(cur->page, DATA);
+				if (clear_page_dirty_for_io(cur->page))
+					inode_dec_dirty_pages(inode);
+				do_write_data_page(cur->page, &fio);
+				submit_bio = true;
+			}
+			f2fs_put_page(cur->page, 1);
+		} else {
+			put_page(cur->page);
 		}
 		radix_tree_delete(&fi->inmem_root, cur->page->index);
-		f2fs_put_page(cur->page, 1);
 		list_del(&cur->list);
 		kmem_cache_free(inmem_entry_slab, cur);
 		dec_page_count(F2FS_I_SB(inode), F2FS_INMEM_PAGES);
 	}
-	if (submit_bio)
-		f2fs_submit_merged_bio(sbi, DATA, WRITE);
 	mutex_unlock(&fi->inmem_lock);
 
-	filemap_fdatawait_range(inode->i_mapping, 0, LLONG_MAX);
-	f2fs_unlock_op(sbi);
+	if (!abort) {
+		f2fs_unlock_op(sbi);
+		if (submit_bio)
+			f2fs_submit_merged_bio(sbi, DATA, WRITE);
+	}
 }
 
 /*
