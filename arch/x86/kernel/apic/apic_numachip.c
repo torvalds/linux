@@ -40,7 +40,7 @@ static unsigned int get_apic_id(unsigned long x)
 	unsigned int id;
 
 	rdmsrl(MSR_FAM10H_NODE_ID, value);
-	id = ((x >> 24) & 0xffU) | ((value << 2) & 0x3f00U);
+	id = ((x >> 24) & 0xffU) | ((value << 2) & 0xff00U);
 
 	return id;
 }
@@ -145,7 +145,7 @@ static void numachip_send_IPI_all(int vector)
 
 static void numachip_send_IPI_self(int vector)
 {
-	__default_send_IPI_shortcut(APIC_DEST_SELF, vector, APIC_DEST_PHYSICAL);
+	apic_write(APIC_SELF_IPI, vector);
 }
 
 static int __init numachip_probe(void)
@@ -153,20 +153,8 @@ static int __init numachip_probe(void)
 	return apic == &apic_numachip;
 }
 
-static void __init map_csrs(void)
-{
-	printk(KERN_INFO "NumaChip: Mapping local CSR space (%016llx - %016llx)\n",
-		NUMACHIP_LCSR_BASE, NUMACHIP_LCSR_BASE + NUMACHIP_LCSR_SIZE - 1);
-	init_extra_mapping_uc(NUMACHIP_LCSR_BASE, NUMACHIP_LCSR_SIZE);
-
-	printk(KERN_INFO "NumaChip: Mapping global CSR space (%016llx - %016llx)\n",
-		NUMACHIP_GCSR_BASE, NUMACHIP_GCSR_BASE + NUMACHIP_GCSR_SIZE - 1);
-	init_extra_mapping_uc(NUMACHIP_GCSR_BASE, NUMACHIP_GCSR_SIZE);
-}
-
 static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 {
-
 	if (c->phys_proc_id != node) {
 		c->phys_proc_id = node;
 		per_cpu(cpu_llc_id, smp_processor_id()) = node;
@@ -175,18 +163,14 @@ static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 
 static int __init numachip_system_init(void)
 {
-	unsigned int val;
-
 	if (!numachip_system)
 		return 0;
 
+	init_extra_mapping_uc(NUMACHIP_LCSR_BASE, NUMACHIP_LCSR_SIZE);
+	init_extra_mapping_uc(NUMACHIP_GCSR_BASE, NUMACHIP_GCSR_SIZE);
+
 	x86_cpuinit.fixup_cpu_id = fixup_cpu_id;
 	x86_init.pci.arch_init = pci_numachip_init;
-
-	map_csrs();
-
-	val = read_lcsr(CSR_G0_NODE_IDS);
-	printk(KERN_INFO "NumaChip: Local NodeID = %08x\n", val);
 
 	return 0;
 }
