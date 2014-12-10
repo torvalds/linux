@@ -1441,6 +1441,8 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 			IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET |
 			IEEE802154_HW_AFILT | IEEE802154_HW_PROMISCUOUS;
 
+	lp->hw->phy->cca.mode = NL802154_CCA_ENERGY;
+
 	switch (part) {
 	case 2:
 		chip = "at86rf230";
