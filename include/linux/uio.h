@@ -137,7 +137,4 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum, struct io
 
 int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
 			int offset, int len);
-int memcpy_toiovecend(const struct iovec *v, unsigned char *kdata,
-		      int offset, int len);
-
 #endif
