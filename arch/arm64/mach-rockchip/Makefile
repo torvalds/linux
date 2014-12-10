@@ -1,0 +1,9 @@
+obj-y += ../../arm/mach-rockchip/common.o
+obj-y += ../../arm/mach-rockchip/cpu.o
+obj-y += ../../arm/mach-rockchip/efuse.o
+obj-y += ../../arm/mach-rockchip/pvtm.o
+obj-y += ../../arm/mach-rockchip/rk_system_status.o
+obj-$(CONFIG_PM) += ../../arm/mach-rockchip/rockchip_pm.o
+obj-$(CONFIG_RK_LAST_LOG) += ../../arm/mach-rockchip/last_log.o
+obj-$(CONFIG_DVFS) += ../../arm/mach-rockchip/dvfs.o
+obj-$(CONFIG_BLOCK_RKNAND) += ../../arm/mach-rockchip/rknandbase.o

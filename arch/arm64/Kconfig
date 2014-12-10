@@ -136,6 +136,8 @@ config ARCH_ROCKCHIP
 	select PINCTRL_RK3368
 	select ARCH_REQUIRE_GPIOLIB
 
+source "arch/arm64/mach-rockchip/Kconfig"
+
 config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
 	select ARCH_REQUIRE_GPIOLIB
