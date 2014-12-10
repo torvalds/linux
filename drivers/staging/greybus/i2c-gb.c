@@ -276,6 +276,14 @@ static void gb_i2c_transfer_response(struct i2c_msg *msgs, u32 msg_count,
 	}
 }
 
+/*
+ * Some i2c transfer operations return results that are expected.
+ */
+static bool gb_i2c_expected_transfer_error(int errno)
+{
+	return errno == -EAGAIN || errno == -ENODEV;
+}
+
 static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 					struct i2c_msg *msgs, u32 msg_count)
 {
@@ -294,7 +302,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 		response = operation->response->payload;
 		gb_i2c_transfer_response(msgs, msg_count, response);
 		ret = msg_count;
-	} else if (ret != -EAGAIN) {
+	} else if (!gb_i2c_expected_transfer_error(ret)) {
 		pr_err("transfer operation failed (%d)\n", ret);
 	}
 	gb_operation_destroy(operation);
