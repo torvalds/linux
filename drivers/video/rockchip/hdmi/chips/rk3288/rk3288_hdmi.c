@@ -36,7 +36,7 @@
 #define grf_writel(v, offset)				\
 do {							\
 	writel_relaxed(v, RK_GRF_VIRT + offset);	\
-	dsb();						\
+	dsb(sy);						\
 } while (0)
 #define HDMI_PD_ON		(1 << 0)
 #define HDMI_PCLK_ON		(1 << 1)
