@@ -82,5 +82,5 @@
 };
 
 &rtc {
-	ti,system-power-controller;
+	system-power-controller;
 };

@@ -13,7 +13,7 @@ Required properties:
 - interrupt-parent: phandle for the interrupt controller
 
 Optional properties:
-- ti,system-power-controller: whether the rtc is controlling the system power
+- system-power-controller: whether the rtc is controlling the system power
   through pmic_power_en
 
 Example:
@@ -24,5 +24,5 @@ rtc@1c23000 {
 	interrupts = <19
 		      19>;
 	interrupt-parent = <&intc>;
-	ti,system-power-controller;
+	system-power-controller;
 };

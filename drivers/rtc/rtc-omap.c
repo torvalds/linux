@@ -502,7 +502,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 		rtc->type = of_id->data;
 		rtc->is_pmic_controller = rtc->type->has_pmic_mode &&
 				of_property_read_bool(pdev->dev.of_node,
-						"ti,system-power-controller");
+						"system-power-controller");
 	} else {
 		id_entry = platform_get_device_id(pdev);
 		rtc->type = (void *)id_entry->driver_data;
