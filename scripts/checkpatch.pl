@@ -3563,14 +3563,33 @@ sub process {
 						}
 					}
 
-				# , must have a space on the right.
+				# , must not have a space before and must have a space on the right.
 				} elsif ($op eq ',') {
+					my $rtrim_before = 0;
+					my $space_after = 0;
+					if ($ctx =~ /Wx./) {
+						if (ERROR("SPACING",
+							  "space prohibited before that '$op' $at\n" . $hereptr)) {
+							$line_fixed = 1;
+							$rtrim_before = 1;
+						}
+					}
 					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/) {
 						if (ERROR("SPACING",
 							  "space required after that '$op' $at\n" . $hereptr)) {
-							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]) . " ";
 							$line_fixed = 1;
 							$last_after = $n;
+							$space_after = 1;
+						}
+					}
+					if ($rtrim_before || $space_after) {
+						if ($rtrim_before) {
+							$good = rtrim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
+						} else {
+							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]);
+						}
+						if ($space_after) {
+							$good .= " ";
 						}
 					}
 
