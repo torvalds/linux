@@ -707,15 +707,21 @@
 		rockchip,usb-mode = <0>;
 	};
 
-	usb1: usb@101c0000 {
-		compatible = "rockchip,rk3126_usb20_host";
-		reg = <0x101c0000 0x40000>;
+	ehci: usb@101c0000 {
+		compatible = "rockchip,rk3126_ehci";
+		reg = <0x101c0000 0x20000>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates1 6>, <&clk_gates10 14>;
-		clock-names = "clk_usbphy1", "hclk_usb1";
+		clocks = <&clk_gates1 6>, <&clk_gates7 3>, <&clk_gates10 14>;
+		clock-names = "clk_usbphy1", "hclk_hoct0_3126","hclk_host0_3126b";
 		resets = <&reset RK3128_RST_USBOTG1>, <&reset RK3128_RST_UTMI1>,
 				<&reset RK3128_RST_OTGC1>;
 		reset-names = "host_ahb", "host_phy", "host_controller";
+	};
+
+	ohci: usb@101e0000 {
+		compatible = "rockchip,rk3126_ohci";
+		reg = <0x101e0000 0x20000>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	fb: fb{

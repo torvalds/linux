@@ -68,11 +68,7 @@ static void rk_ehci_hcd_enable(struct work_struct *work)
 		}
 
 		EHCI_PRINT("%s, disable host controller\n", __func__);
-		usb_remove_hcd(hcd);
 
-		/* reset cru and reinitialize EHCI controller */
-		pldata->soft_reset(pldata, RST_RECNT);
-		usb_add_hcd(hcd, hcd->irq, IRQF_DISABLED | IRQF_SHARED);
 		if (pldata->phy_suspend)
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 		/* do not disable EHCI clk, otherwise RK3288
@@ -252,6 +248,10 @@ static struct of_device_id rk_ehci_of_match[] = {
 	{
 	 .compatible = "rockchip,rk3288_rk_ehci_host",
 	 .data = &rkehci_pdata_rk3288,
+	 },
+	{
+	 .compatible = "rockchip,rk3126_ehci",
+	 .data = &usb20ehci_pdata_rk3126,
 	 },
 	{},
 };

@@ -213,7 +213,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3126 = {
 };
 #endif
 
-#ifdef CONFIG_USB20_HOST
+#if defined(CONFIG_USB20_HOST) || defined(CONFIG_USB_EHCI_RK)
 static void usb20host_hw_init(void)
 {
 	/* Turn off differential receiver in suspend mode */
@@ -379,6 +379,115 @@ struct dwc_otg_platform_data usb20host_pdata_rk3126 = {
 	.clock_enable = usb20host_clock_enable,
 	.get_status = usb20host_get_status,
 	.power_enable = usb20host_power_enable,
+};
+#endif
+
+#ifdef CONFIG_USB_EHCI_RK
+static void usb20ehci_phy_suspend(void *pdata, int suspend)
+{
+	struct rkehci_platform_data *usbpdata = pdata;
+
+	if (suspend) {
+		/* enable soft control */
+		writel(UOC_HIWORD_UPDATE(0x1d5, 0x1ff, 0),
+		       RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
+		usbpdata->phy_status = 1;
+	} else {
+		/* exit suspend */
+		writel(UOC_HIWORD_UPDATE(0x0, 0x1, 0),
+		       RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
+		usbpdata->phy_status = 0;
+	}
+}
+
+static void usb20ehci_soft_reset(void *pdata, enum rkusb_rst_flag rst_type)
+{
+	struct rkehci_platform_data *usbpdata = pdata;
+	struct reset_control *rst_host_h, *rst_host_p, *rst_host_c;
+
+	rst_host_h = devm_reset_control_get(usbpdata->dev, "host_ahb");
+	rst_host_p = devm_reset_control_get(usbpdata->dev, "host_phy");
+	rst_host_c = devm_reset_control_get(usbpdata->dev, "host_controller");
+	if (IS_ERR(rst_host_h) || IS_ERR(rst_host_p) || IS_ERR(rst_host_c)) {
+		dev_err(usbpdata->dev, "Fail to get reset control from dts\n");
+		return;
+	}
+
+	switch(rst_type) {
+	case RST_POR:
+		/* PHY reset */
+		writel(UOC_HIWORD_UPDATE(0x1, 0x3, 0),
+			   RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
+		reset_control_assert(rst_host_p);
+		udelay(15);
+		writel(UOC_HIWORD_UPDATE(0x2, 0x3, 0),
+			   RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
+
+		udelay(1500);
+		reset_control_deassert(rst_host_p);
+
+		/* Controller reset */
+		reset_control_assert(rst_host_c);
+		reset_control_assert(rst_host_h);
+
+		udelay(5);
+
+		reset_control_deassert(rst_host_c);
+		reset_control_deassert(rst_host_h);
+		break;
+
+	default:
+		break;
+	}
+}
+
+static void usb20ehci_clock_init(void *pdata)
+{
+	struct rkehci_platform_data *usbpdata = pdata;
+	struct clk *ahbclk, *phyclk;
+
+	if (soc_is_rk3126b())
+		ahbclk = devm_clk_get(usbpdata->dev, "hclk_hoct0_3126b");
+	else
+		ahbclk = devm_clk_get(usbpdata->dev, "hclk_hoct0_3126");
+	if (IS_ERR(ahbclk)) {
+		dev_err(usbpdata->dev, "Failed to get hclk_usb1\n");
+		return;
+	}
+
+	phyclk = devm_clk_get(usbpdata->dev, "clk_usbphy1");
+	if (IS_ERR(phyclk)) {
+		dev_err(usbpdata->dev, "Failed to get clk_usbphy1\n");
+		return;
+	}
+
+	usbpdata->phyclk = phyclk;
+	usbpdata->ahbclk = ahbclk;
+}
+
+static void usb20ehci_clock_enable(void *pdata, int enable)
+{
+	struct rkehci_platform_data *usbpdata = pdata;
+
+	if (enable) {
+		clk_prepare_enable(usbpdata->ahbclk);
+		clk_prepare_enable(usbpdata->phyclk);
+	} else {
+		clk_disable_unprepare(usbpdata->ahbclk);
+		clk_disable_unprepare(usbpdata->phyclk);
+	}
+}
+
+struct rkehci_platform_data usb20ehci_pdata_rk3126 = {
+	.phyclk = NULL,
+	.ahbclk = NULL,
+	.phy_status = 0,
+	.hw_init = usb20host_hw_init,
+	.phy_suspend = usb20ehci_phy_suspend,
+	.soft_reset = usb20ehci_soft_reset,
+	.clock_init = usb20ehci_clock_init,
+	.clock_enable = usb20ehci_clock_enable,
+	.get_status = usb20host_get_status,
 };
 #endif
 
