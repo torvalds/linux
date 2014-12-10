@@ -400,7 +400,6 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	mutex_lock(&dev_opp_list_lock);
 
 	/* populate the opp table */
-	new_opp->dev_opp = dev_opp;
 	new_opp->rate = freq;
 	new_opp->u_volt = u_volt;
 	new_opp->available = true;
@@ -460,6 +459,7 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	}
 
 list_add:
+	new_opp->dev_opp = dev_opp;
 	list_add_rcu(&new_opp->node, head);
 	mutex_unlock(&dev_opp_list_lock);
 
@@ -768,7 +768,7 @@ EXPORT_SYMBOL_GPL(of_init_opp_table);
  */
 void of_free_opp_table(struct device *dev)
 {
-	struct device_opp *dev_opp = find_device_opp(dev);
+	struct device_opp *dev_opp;
 	struct dev_pm_opp *opp, *tmp;
 
 	/* Check for existing list for 'dev' */
