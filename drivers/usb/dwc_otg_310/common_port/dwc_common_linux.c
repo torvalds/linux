@@ -594,7 +594,7 @@ uint64_t DWC_READ_REG64(volatile uint64_t *reg)
 void DWC_WRITE_REG32(volatile uint32_t *reg, uint32_t value)
 {
 	writel_relaxed(value, reg);
-	dsb();
+	dsb(sy);
 }
 
 #if 0
@@ -606,7 +606,7 @@ void DWC_WRITE_REG64(volatile uint64_t *reg, uint64_t value)
 void DWC_MODIFY_REG32(volatile uint32_t *reg, uint32_t clear_mask, uint32_t set_mask)
 {
 	writel_relaxed((readl_relaxed(reg) & ~clear_mask) | set_mask, reg);
-	dsb();
+	dsb(sy);
 }
 
 #if 0
