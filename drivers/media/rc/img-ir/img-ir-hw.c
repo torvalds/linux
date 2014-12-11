@@ -45,6 +45,9 @@ static struct img_ir_decoder *img_ir_decoders[] = {
 #ifdef CONFIG_IR_IMG_RC5
 	&img_ir_rc5,
 #endif
+#ifdef CONFIG_IR_IMG_RC6
+	&img_ir_rc6,
+#endif
 	NULL
 };
 

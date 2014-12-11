@@ -188,6 +188,7 @@ extern struct img_ir_decoder img_ir_sony;
 extern struct img_ir_decoder img_ir_sharp;
 extern struct img_ir_decoder img_ir_sanyo;
 extern struct img_ir_decoder img_ir_rc5;
+extern struct img_ir_decoder img_ir_rc6;
 
 /**
  * struct img_ir_reg_timings - Reg values for decoder timings at clock rate.
