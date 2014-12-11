@@ -555,6 +555,9 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	 */
 	if (!p->phy) {
 		p->phy = ds->slave_mii_bus->phy_map[p->port];
+		if (!p->phy)
+			return;
+
 		phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
 				   p->phy_interface);
 	} else {
