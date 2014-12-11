@@ -703,7 +703,7 @@ EXPORT_SYMBOL_GPL(compat_dccp_getsockopt);
 
 static int dccp_msghdr_parse(struct msghdr *msg, struct sk_buff *skb)
 {
-	struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg);
+	struct cmsghdr *cmsg;
 
 	/*
 	 * Assign an (opaque) qpolicy priority value to skb->priority.
@@ -717,8 +717,7 @@ static int dccp_msghdr_parse(struct msghdr *msg, struct sk_buff *skb)
 	 */
 	skb->priority = 0;
 
-	for (; cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-
+	for_each_cmsghdr(cmsg, msg) {
 		if (!CMSG_OK(msg, cmsg))
 			return -EINVAL;
 

@@ -103,6 +103,10 @@ struct cmsghdr {
 			     (cmsg)->cmsg_len <= (unsigned long) \
 			     ((mhdr)->msg_controllen - \
 			      ((char *)(cmsg) - (char *)(mhdr)->msg_control)))
+#define for_each_cmsghdr(cmsg, msg) \
+	for (cmsg = CMSG_FIRSTHDR(msg); \
+	     cmsg; \
+	     cmsg = CMSG_NXTHDR(msg, cmsg))
 
 /*
  *	Get the next cmsg header
