@@ -297,6 +297,8 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		kfree(uobj);
 	}
 
+	put_pid(context->tgid);
+
 	return context->device->dealloc_ucontext(context);
 }
 

@@ -38,6 +38,7 @@
 #include <linux/workqueue.h>
 
 struct ib_ucontext;
+struct ib_umem_odp;
 
 struct ib_umem {
 	struct ib_ucontext     *context;
@@ -50,6 +51,7 @@ struct ib_umem {
 	struct pid             *pid;
 	struct mm_struct       *mm;
 	unsigned long		diff;
+	struct ib_umem_odp     *odp_data;
 	struct sg_table sg_head;
 	int             nmap;
 	int             npages;

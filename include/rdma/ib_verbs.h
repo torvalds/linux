@@ -1151,6 +1151,8 @@ struct ib_ucontext {
 	struct list_head	xrcd_list;
 	struct list_head	rule_list;
 	int			closing;
+
+	struct pid             *tgid;
 };
 
 struct ib_uobject {

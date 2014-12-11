@@ -39,6 +39,7 @@
 #include <linux/hugetlb.h>
 #include <linux/dma-attrs.h>
 #include <linux/slab.h>
+#include <rdma/ib_umem_odp.h>
 
 #include "uverbs.h"
 
@@ -69,6 +70,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 
 /**
  * ib_umem_get - Pin and DMA map userspace memory.
+ *
+ * If access flags indicate ODP memory, avoid pinning. Instead, stores
+ * the mm for future page fault handling.
+ *
  * @context: userspace context to pin memory for
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
@@ -116,6 +121,17 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	umem->writable  = !!(access &
 		(IB_ACCESS_LOCAL_WRITE   | IB_ACCESS_REMOTE_WRITE |
 		 IB_ACCESS_REMOTE_ATOMIC | IB_ACCESS_MW_BIND));
+
+	if (access & IB_ACCESS_ON_DEMAND) {
+		ret = ib_umem_odp_get(context, umem);
+		if (ret) {
+			kfree(umem);
+			return ERR_PTR(ret);
+		}
+		return umem;
+	}
+
+	umem->odp_data = NULL;
 
 	/* We assume the memory is from hugetlb until proved otherwise */
 	umem->hugetlb   = 1;
@@ -237,6 +253,11 @@ void ib_umem_release(struct ib_umem *umem)
 	struct task_struct *task;
 	unsigned long diff;
 
+	if (umem->odp_data) {
+		ib_umem_odp_release(umem);
+		return;
+	}
+
 	__ib_umem_release(umem->context->device, umem, 1);
 
 	task = get_pid_task(umem->pid, PIDTYPE_PID);
@@ -284,6 +305,9 @@ int ib_umem_page_count(struct ib_umem *umem)
 	int i;
 	int n;
 	struct scatterlist *sg;
+
+	if (umem->odp_data)
+		return ib_umem_num_pages(umem);
 
 	shift = ilog2(umem->page_size);
 
