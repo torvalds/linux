@@ -3576,9 +3576,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			dev_drv->ops->dsp_black(dev_drv, 1);
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 0);
-	} else if ((rk_fb->disp_mode == NO_DUAL) && (enable)) {
-		if (dev_drv->ops->dsp_black)
-			dev_drv->ops->dsp_black(dev_drv, 1);
 	}
 
 	if (!enable) {
@@ -3587,8 +3584,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			return 0;
 
 		/* if used one lcdc to dual disp, no need to close win */
-		if ((rk_fb->disp_mode == ONE_DUAL) ||
-		    (rk_fb->disp_mode == NO_DUAL)) {
+		if (rk_fb->disp_mode == ONE_DUAL) {
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->ops->load_screen(dev_drv, 1);
 
@@ -3650,8 +3646,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					info->var.activate |= FB_ACTIVATE_FORCE;
 					if (rk_fb->disp_mode == DUAL) {
 						rk_fb_update_ext_info(info, pmy_info, 1);
-					} else if ((rk_fb->disp_mode == ONE_DUAL) ||
-						   (rk_fb->disp_mode == NO_DUAL)) {
+					} else if (rk_fb->disp_mode == ONE_DUAL) {
 						info->var.grayscale &= 0xff;
 						info->var.grayscale |=
 							(dev_drv->cur_screen->xsize << 8) +
