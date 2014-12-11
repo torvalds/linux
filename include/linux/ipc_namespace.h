@@ -6,6 +6,7 @@
 #include <linux/rwsem.h>
 #include <linux/notifier.h>
 #include <linux/nsproxy.h>
+#include <linux/ns_common.h>
 
 /*
  * ipc namespace events
@@ -68,7 +69,7 @@ struct ipc_namespace {
 	/* user_ns which owns the ipc ns */
 	struct user_namespace *user_ns;
 
-	unsigned int	proc_inum;
+	struct ns_common ns;
 };
 
 extern struct ipc_namespace init_ipc_ns;
