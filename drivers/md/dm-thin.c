@@ -1127,6 +1127,24 @@ static void schedule_external_copy(struct thin_c *tc, dm_block_t virt_block,
 		schedule_zero(tc, virt_block, data_dest, cell, bio);
 }
 
+static void set_pool_mode(struct pool *pool, enum pool_mode new_mode);
+
+static void check_for_space(struct pool *pool)
+{
+	int r;
+	dm_block_t nr_free;
+
+	if (get_pool_mode(pool) != PM_OUT_OF_DATA_SPACE)
+		return;
+
+	r = dm_pool_get_free_block_count(pool->pmd, &nr_free);
+	if (r)
+		return;
+
+	if (nr_free)
+		set_pool_mode(pool, PM_WRITE);
+}
+
 /*
  * A non-zero return indicates read_only or fail_io mode.
  * Many callers don't care about the return value.
@@ -1141,6 +1159,8 @@ static int commit(struct pool *pool)
 	r = dm_pool_commit_metadata(pool->pmd);
 	if (r)
 		metadata_operation_failed(pool, "dm_pool_commit_metadata", r);
+	else
+		check_for_space(pool);
 
 	return r;
 }
@@ -1158,8 +1178,6 @@ static void check_low_water_mark(struct pool *pool, dm_block_t free_blocks)
 		dm_table_event(pool->ti->table);
 	}
 }
-
-static void set_pool_mode(struct pool *pool, enum pool_mode new_mode);
 
 static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 {
