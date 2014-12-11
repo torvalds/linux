@@ -683,22 +683,22 @@ static const struct panel_desc giantplus_gpg482739qs5 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
-static const struct drm_display_mode hannstar_hsd070pww1_mode = {
-	.clock = 71100,
-	.hdisplay = 1280,
-	.hsync_start = 1280 + 1,
-	.hsync_end = 1280 + 1 + 158,
-	.htotal = 1280 + 1 + 158 + 1,
-	.vdisplay = 800,
-	.vsync_start = 800 + 1,
-	.vsync_end = 800 + 1 + 21,
-	.vtotal = 800 + 1 + 21 + 1,
-	.vrefresh = 60,
+static const struct display_timing hannstar_hsd070pww1_timing = {
+	.pixelclock = { 64300000, 71100000, 82000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 1, 1, 10 },
+	.hback_porch = { 1, 1, 10 },
+	.hsync_len = { 52, 158, 661 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 1, 1, 10 },
+	.vback_porch = { 1, 1, 10 },
+	.vsync_len = { 1, 21, 203 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
 static const struct panel_desc hannstar_hsd070pww1 = {
-	.modes = &hannstar_hsd070pww1_mode,
-	.num_modes = 1,
+	.timings = &hannstar_hsd070pww1_timing,
+	.num_timings = 1,
 	.bpc = 6,
 	.size = {
 		.width = 151,
