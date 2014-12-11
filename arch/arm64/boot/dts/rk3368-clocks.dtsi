@@ -689,14 +689,6 @@
 							<CLKOPS_RATE_RK3288_USB480M>;
 						#clock-init-cells = <1>;
 					};
-
-					clk4x_ddr: clk4x_ddr_mux {
-						compatible = "rockchip,rk3188-mux-con";
-						rockchip,bits = <4 1>;
-						clocks = <&clk_dpll>, <&clk_gpll>;
-						clock-output-names = "clk4x_ddr";
-						#clock-cells = <0>;
-					};
 				};
 
 				clk_sel_con14: sel-con@0138 {
@@ -709,7 +701,7 @@
 						compatible = "rockchip,rk3188-div-con";
 						rockchip,bits = <0 5>;
 						clocks = <&clk_gpu_core>;
-						clock-output-names = "clk_gpu_core";
+						clock-output-names = "clk_gpu";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 						rockchip,clkops-idx = <CLKOPS_RATE_RK3368_MUX_DIV_NPLL>;
@@ -722,7 +714,7 @@
 						compatible = "rockchip,rk3188-mux-con";
 						rockchip,bits = <6 2>;
 						clocks = <&clk_cpll>, <&clk_gpll>, <&usbphy_480m>, <&clk_npll>;
-						clock-output-names = "clk_gpu_core";
+						clock-output-names = "clk_gpu";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -1018,9 +1010,18 @@
 
 					clk_vip: clk_vip_mux {
 						compatible = "rockchip,rk3188-mux-con";
-						rockchip,bits = <14 2>;
-						clocks = <&clk_cpll>, <&xin24m>, <&clk_gpll>, <&xin24m>;
+						rockchip,bits = <14 1>;
+						clocks = <&clk_vip_pll>, <&xin24m>;
 						clock-output-names = "clk_vip";
+						#clock-cells = <0>;
+						#clock-init-cells = <1>;
+					};
+
+					clk_vip_pll: clk_vip_pll_mux {
+						compatible = "rockchip,rk3188-mux-con";
+						rockchip,bits = <15 1>;
+						clocks = <&clk_cpll>, <&clk_gpll>;
+						clock-output-names = "clk_vip_pll";
 						#clock-cells = <0>;
 						#clock-init-cells = <1>;
 					};
@@ -1102,6 +1103,8 @@
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
 					};
+
+					/* 7:6 reserved */
 
 					clk_saradc: clk_saradc_div {
 						compatible = "rockchip,rk3188-div-con";
@@ -1374,8 +1377,6 @@
                                                 #clock-cells = <0>;
 						#clock-init-cells = <1>;
                                         };
-
-					/* 14:13 reserved */
 				};
 
 				clk_sel_con36: sel-con@0190 {
@@ -2037,7 +2038,7 @@
                                                 <&aclk_vio0>,	<&dclk_vop0>,
                                                 <&xin24m>,	<&aclk_rga_pre>,
 
-						<&clk_rga>,	<&clk_vip>,
+						<&clk_rga>,	<&clk_vip_pll>,
 						<&aclk_vepu>,	<&aclk_vdpu>,
 
 						<&dummy>,	<&clk_isp>,
@@ -2050,11 +2051,11 @@
                                                 "aclk_vio0",	"dclk_vop0",
                                                 "clk_vop0_pwm",	"aclk_rga_pre",
 
-						"clk_rga",	"clk_vip",
+						"clk_rga",	"clk_vip_pll",
 						"aclk_vepu",	"aclk_vdpu",
 
 						"reserved",	"clk_isp", /* bit8: hclk_vpu */
-						"reserved",	"clk_gpu_core",
+						"reserved",	"clk_gpu",
 
 						"clk_hdmi_cec",	"clk_hdmi_hdcp",
 						"clk_dsiphy_24m",	"reserved";
