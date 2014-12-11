@@ -484,10 +484,16 @@ static char *hidpp_get_device_name(struct hidpp_device *hidpp)
 	if (!name)
 		return NULL;
 
-	while (index < __name_length)
-		index += hidpp_devicenametype_get_device_name(hidpp,
+	while (index < __name_length) {
+		ret = hidpp_devicenametype_get_device_name(hidpp,
 			feature_index, index, name + index,
 			__name_length - index);
+		if (ret <= 0) {
+			kfree(name);
+			return NULL;
+		}
+		index += ret;
+	}
 
 	return name;
 }
