@@ -390,6 +390,9 @@ struct mlx5_ib_dev {
 	struct mlx5_mr_cache		cache;
 	struct timer_list		delay_timer;
 	int				fill_delay;
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	struct ib_odp_caps	odp_caps;
+#endif
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -558,6 +561,15 @@ int mlx5_mr_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift
 void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context);
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+int mlx5_ib_internal_query_odp_caps(struct mlx5_ib_dev *dev);
+#else
+static inline int mlx5_ib_internal_query_odp_caps(struct mlx5_ib_dev *dev)
+{
+	return 0;
+}
+#endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
 static inline void init_query_mad(struct ib_smp *mad)
 {
