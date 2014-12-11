@@ -3004,9 +3004,8 @@ static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
 		    skl_ddb_entry_size(&cur_ddb->pipe[pipe])) {
 			skl_wm_flush_pipe(dev_priv, pipe, 2);
 			intel_wait_for_vblank(dev, pipe);
+			reallocated[pipe] = true;
 		}
-
-		reallocated[pipe] = true;
 	}
 
 	/*
