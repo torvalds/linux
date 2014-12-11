@@ -145,6 +145,7 @@ struct wacom_features {
 	int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
+	int last_slot_field;
 };
 
 struct wacom_shared {
