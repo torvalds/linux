@@ -38,6 +38,16 @@ config INFINIBAND_USER_MEM
 	depends on INFINIBAND_USER_ACCESS != n
 	default y
 
+config INFINIBAND_ON_DEMAND_PAGING
+	bool "InfiniBand on-demand paging support"
+	depends on INFINIBAND_USER_MEM
+	default y
+	---help---
+	  On demand paging support for the InfiniBand subsystem.
+	  Together with driver support this allows registration of
+	  memory regions without pinning their pages, fetching the
+	  pages on demand instead.
+
 config INFINIBAND_ADDR_TRANS
 	bool
 	depends on INFINIBAND

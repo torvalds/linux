@@ -953,6 +953,18 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 		goto err_free;
 	}
 
+	if (cmd.access_flags & IB_ACCESS_ON_DEMAND) {
+		struct ib_device_attr attr;
+
+		ret = ib_query_device(pd->device, &attr);
+		if (ret || !(attr.device_cap_flags &
+				IB_DEVICE_ON_DEMAND_PAGING)) {
+			pr_debug("ODP support not available\n");
+			ret = -EINVAL;
+			goto err_put;
+		}
+	}
+
 	mr = pd->device->reg_user_mr(pd, cmd.start, cmd.length, cmd.hca_va,
 				     cmd.access_flags, &udata);
 	if (IS_ERR(mr)) {
@@ -3288,6 +3300,19 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	memset(&resp, 0, sizeof(resp));
 	copy_query_dev_fields(file, &resp.base, &attr);
 	resp.comp_mask = 0;
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	if (cmd.comp_mask & IB_USER_VERBS_EX_QUERY_DEVICE_ODP) {
+		resp.odp_caps.general_caps = attr.odp_caps.general_caps;
+		resp.odp_caps.per_transport_caps.rc_odp_caps =
+			attr.odp_caps.per_transport_caps.rc_odp_caps;
+		resp.odp_caps.per_transport_caps.uc_odp_caps =
+			attr.odp_caps.per_transport_caps.uc_odp_caps;
+		resp.odp_caps.per_transport_caps.ud_odp_caps =
+			attr.odp_caps.per_transport_caps.ud_odp_caps;
+		resp.comp_mask |= IB_USER_VERBS_EX_QUERY_DEVICE_ODP;
+	}
+#endif
 
 	err = ib_copy_to_udata(ucore, &resp, sizeof(resp));
 	if (err)
