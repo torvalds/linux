@@ -275,6 +275,23 @@ void nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node);
 bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
 
+/* pnfs_nfs.c */
+void pnfs_generic_clear_request_commit(struct nfs_page *req,
+				       struct nfs_commit_info *cinfo);
+void pnfs_generic_commit_release(void *calldata);
+void pnfs_generic_prepare_to_resend_writes(struct nfs_commit_data *data);
+void pnfs_generic_rw_release(void *data);
+void pnfs_generic_recover_commit_reqs(struct list_head *dst,
+				      struct nfs_commit_info *cinfo);
+int pnfs_generic_commit_pagelist(struct inode *inode,
+				 struct list_head *mds_pages,
+				 int how,
+				 struct nfs_commit_info *cinfo,
+				 int (*initiate_commit)(struct nfs_commit_data *data,
+							int how));
+int pnfs_generic_scan_commit_lists(struct nfs_commit_info *cinfo, int max);
+void pnfs_generic_write_commit_done(struct rpc_task *task, void *data);
+
 static inline struct nfs4_deviceid_node *
 nfs4_get_deviceid(struct nfs4_deviceid_node *d)
 {
@@ -315,6 +332,12 @@ pnfs_get_ds_info(struct inode *inode)
 	if (ld == NULL || ld->get_ds_info == NULL)
 		return NULL;
 	return ld->get_ds_info(inode);
+}
+
+static inline void
+pnfs_generic_mark_devid_invalid(struct nfs4_deviceid_node *node)
+{
+	set_bit(NFS_DEVICEID_INVALID, &node->flags);
 }
 
 static inline bool

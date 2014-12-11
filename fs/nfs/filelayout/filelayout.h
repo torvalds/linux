@@ -119,17 +119,6 @@ FILELAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg)
 	return &FILELAYOUT_LSEG(lseg)->dsaddr->id_node;
 }
 
-static inline void
-filelayout_mark_devid_invalid(struct nfs4_deviceid_node *node)
-{
-	u32 *p = (u32 *)&node->deviceid;
-
-	printk(KERN_WARNING "NFS: Deviceid [%x%x%x%x] marked out of use.\n",
-		p[0], p[1], p[2], p[3]);
-
-	set_bit(NFS_DEVICEID_INVALID, &node->flags);
-}
-
 static inline bool
 filelayout_test_devid_invalid(struct nfs4_deviceid_node *node)
 {

@@ -708,7 +708,7 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 	if (ds == NULL) {
 		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
-		filelayout_mark_devid_invalid(devid);
+		pnfs_generic_mark_devid_invalid(devid);
 		goto out;
 	}
 	smp_rmb();
