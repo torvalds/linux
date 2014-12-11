@@ -826,7 +826,7 @@ no_timer:
 	__unset_cpu_idle(vcpu);
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
-	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
+	hrtimer_cancel(&vcpu->arch.ckc_timer);
 	return 0;
 }
 
@@ -846,10 +846,20 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
+	u64 now, sltime;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
-	kvm_s390_vcpu_wakeup(vcpu);
+	now = get_tod_clock_fast() + vcpu->arch.sie_block->epoch;
+	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
 
+	/*
+	 * If the monotonic clock runs faster than the tod clock we might be
+	 * woken up too early and have to go back to sleep to avoid deadlocks.
+	 */
+	if (vcpu->arch.sie_block->ckc > now &&
+	    hrtimer_forward_now(timer, ns_to_ktime(sltime)))
+		return HRTIMER_RESTART;
+	kvm_s390_vcpu_wakeup(vcpu);
 	return HRTIMER_NORESTART;
 }
 
