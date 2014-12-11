@@ -4557,6 +4557,15 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 		return;
 	}
 
+	/* Warn user if link speed on NPAR enabled partition is not at
+	 * least 10GB
+	 */
+	if (vsi->back->hw.func_caps.npar_enable &&
+	    (vsi->back->hw.phy.link_info.link_speed == I40E_LINK_SPEED_1GB ||
+	     vsi->back->hw.phy.link_info.link_speed == I40E_LINK_SPEED_100MB))
+		netdev_warn(vsi->netdev,
+			    "The partition detected link speed that is less than 10Gbps\n");
+
 	switch (vsi->back->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
 		strlcpy(speed, "40 Gbps", SPEED_SIZE);
