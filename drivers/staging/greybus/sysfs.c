@@ -32,7 +32,6 @@ static DEVICE_ATTR_RO(module_##field)
 
 gb_module_attr(vendor, x);
 gb_module_attr(product, x);
-gb_module_attr(version, x);
 gb_module_attr(unique_id, llX);
 gb_module_attr(vendor_string, s);
 gb_module_attr(product_string, s);
@@ -40,7 +39,6 @@ gb_module_attr(product_string, s);
 static struct attribute *module_attrs[] = {
 	&dev_attr_module_vendor.attr,
 	&dev_attr_module_product.attr,
-	&dev_attr_module_version.attr,
 	&dev_attr_module_unique_id.attr,
 	&dev_attr_module_vendor_string.attr,
 	&dev_attr_module_product_string.attr,

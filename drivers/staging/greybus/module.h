@@ -23,7 +23,6 @@ struct gb_module {
 	/* Information taken from the manifest module descriptor */
 	u16 vendor;
 	u16 product;
-	u16 version;
 	char *vendor_string;
 	char *product_string;
 	u64 unique_id;

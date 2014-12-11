@@ -273,7 +273,6 @@ static bool gb_manifest_parse_module(struct gb_module *gmod,
 
 	gmod->vendor = le16_to_cpu(desc_module->vendor);
 	gmod->product = le16_to_cpu(desc_module->product);
-	gmod->version = le16_to_cpu(desc_module->version);
 	gmod->unique_id = le64_to_cpu(desc_module->unique_id);
 
 	/* Release the module descriptor, now that we're done with it */
