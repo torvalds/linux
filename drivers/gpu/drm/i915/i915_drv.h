@@ -2965,6 +2965,7 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
 		    struct drm_i915_gem_object *shadow_batch_obj,
 		    u32 batch_start_offset,
+		    u32 batch_len,
 		    bool is_master);
 
 /* i915_suspend.c */

@@ -1421,6 +1421,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				      batch_obj,
 				      shadow_batch_obj,
 				      args->batch_start_offset,
+				      args->batch_len,
 				      file->is_master);
 		i915_gem_object_ggtt_unpin(shadow_batch_obj);
 
