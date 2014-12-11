@@ -159,6 +159,10 @@ static void s5p_mfc_watchdog_worker(struct work_struct *work)
 	}
 	clear_bit(0, &dev->hw_lock);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
+
+	/* De-init MFC */
+	s5p_mfc_deinit_hw(dev);
+
 	/* Double check if there is at least one instance running.
 	 * If no instance is in memory than no firmware should be present */
 	if (dev->num_inst > 0) {
@@ -220,11 +224,14 @@ static void s5p_mfc_handle_frame_copy_time(struct s5p_mfc_ctx *ctx)
 	size_t dec_y_addr;
 	unsigned int frame_type;
 
-	dec_y_addr = s5p_mfc_hw_call(dev->mfc_ops, get_dec_y_adr, dev);
+	/* Make sure we actually have a new frame before continuing. */
 	frame_type = s5p_mfc_hw_call(dev->mfc_ops, get_dec_frame_type, dev);
+	if (frame_type == S5P_FIMV_DECODE_FRAME_SKIPPED)
+		return;
+	dec_y_addr = s5p_mfc_hw_call(dev->mfc_ops, get_dec_y_adr, dev);
 
 	/* Copy timestamp / timecode from decoded src to dst and set
-	   appropriate flags */
+	   appropriate flags. */
 	src_buf = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);
 	list_for_each_entry(dst_buf, &ctx->dst_queue, list) {
 		if (vb2_dma_contig_plane_dma_addr(dst_buf->b, 0) == dec_y_addr) {
@@ -250,6 +257,11 @@ static void s5p_mfc_handle_frame_copy_time(struct s5p_mfc_ctx *ctx)
 				dst_buf->b->v4l2_buf.flags |=
 						V4L2_BUF_FLAG_BFRAME;
 				break;
+			default:
+				/* Don't know how to handle
+				   S5P_FIMV_DECODE_FRAME_OTHER_FRAME. */
+				mfc_debug(2, "Unexpected frame type: %d\n",
+						frame_type);
 			}
 			break;
 		}
@@ -334,8 +346,7 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		ctx->state = MFCINST_RES_CHANGE_INIT;
 		s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
 		wake_up_ctx(ctx, reason, err);
-		if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-			BUG();
+		WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 		s5p_mfc_clock_off();
 		s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 		return;
@@ -407,8 +418,7 @@ leave_handle_frame:
 		clear_work_bit(ctx);
 	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
 	wake_up_ctx(ctx, reason, err);
-	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-		BUG();
+	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 	s5p_mfc_clock_off();
 	/* if suspending, wake up device and do not try_run again*/
 	if (test_bit(0, &dev->enter_suspend))
@@ -455,8 +465,7 @@ static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 			break;
 		}
 	}
-	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-		BUG();
+	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
 	s5p_mfc_clock_off();
 	wake_up_dev(dev, reason, err);
@@ -510,8 +519,7 @@ static void s5p_mfc_handle_seq_done(struct s5p_mfc_ctx *ctx,
 	}
 	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
 	clear_work_bit(ctx);
-	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-		BUG();
+	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 	s5p_mfc_clock_off();
 	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 	wake_up_ctx(ctx, reason, err);
@@ -549,16 +557,14 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 		} else {
 			ctx->dpb_flush_flag = 0;
 		}
-		if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-			BUG();
+		WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 
 		s5p_mfc_clock_off();
 
 		wake_up(&ctx->queue);
 		s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 	} else {
-		if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-			BUG();
+		WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 
 		s5p_mfc_clock_off();
 
@@ -635,8 +641,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 				mfc_err("post_frame_start() failed\n");
 			s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
 			wake_up_ctx(ctx, reason, err);
-			if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-				BUG();
+			WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 			s5p_mfc_clock_off();
 			s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 		} else {
@@ -815,7 +820,7 @@ static int s5p_mfc_open(struct file *file)
 		ret = -ENOENT;
 		goto err_queue_init;
 	}
-	q->mem_ops = (struct vb2_mem_ops *)&vb2_dma_contig_memops;
+	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -837,7 +842,7 @@ static int s5p_mfc_open(struct file *file)
 		ret = -ENOENT;
 		goto err_queue_init;
 	}
-	q->mem_ops = (struct vb2_mem_ops *)&vb2_dma_contig_memops;
+	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -1284,11 +1289,17 @@ static int s5p_mfc_suspend(struct device *dev)
 			m_dev->int_cond, msecs_to_jiffies(MFC_INT_TIMEOUT));
 		if (ret == 0) {
 			mfc_err("Waiting for hardware to finish timed out\n");
+			clear_bit(0, &m_dev->enter_suspend);
 			return -EIO;
 		}
 	}
 
-	return s5p_mfc_sleep(m_dev);
+	ret = s5p_mfc_sleep(m_dev);
+	if (ret) {
+		clear_bit(0, &m_dev->enter_suspend);
+		clear_bit(0, &m_dev->hw_lock);
+	}
+	return ret;
 }
 
 static int s5p_mfc_resume(struct device *dev)

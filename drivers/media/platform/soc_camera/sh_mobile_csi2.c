@@ -59,28 +59,28 @@ static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
 	switch (pdata->type) {
 	case SH_CSI2C:
 		switch (mf->code) {
-		case V4L2_MBUS_FMT_UYVY8_2X8:		/* YUV422 */
-		case V4L2_MBUS_FMT_YUYV8_1_5X8:		/* YUV420 */
-		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
-		case V4L2_MBUS_FMT_SBGGR8_1X8:
-		case V4L2_MBUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_UYVY8_2X8:		/* YUV422 */
+		case MEDIA_BUS_FMT_YUYV8_1_5X8:		/* YUV420 */
+		case MEDIA_BUS_FMT_Y8_1X8:		/* RAW8 */
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
 			break;
 		default:
 			/* All MIPI CSI-2 devices must support one of primary formats */
-			mf->code = V4L2_MBUS_FMT_YUYV8_2X8;
+			mf->code = MEDIA_BUS_FMT_YUYV8_2X8;
 		}
 		break;
 	case SH_CSI2I:
 		switch (mf->code) {
-		case V4L2_MBUS_FMT_Y8_1X8:		/* RAW8 */
-		case V4L2_MBUS_FMT_SBGGR8_1X8:
-		case V4L2_MBUS_FMT_SGRBG8_1X8:
-		case V4L2_MBUS_FMT_SBGGR10_1X10:	/* RAW10 */
-		case V4L2_MBUS_FMT_SBGGR12_1X12:	/* RAW12 */
+		case MEDIA_BUS_FMT_Y8_1X8:		/* RAW8 */
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_SBGGR10_1X10:	/* RAW10 */
+		case MEDIA_BUS_FMT_SBGGR12_1X12:	/* RAW12 */
 			break;
 		default:
 			/* All MIPI CSI-2 devices must support one of primary formats */
-			mf->code = V4L2_MBUS_FMT_SBGGR8_1X8;
+			mf->code = MEDIA_BUS_FMT_SBGGR8_1X8;
 		}
 		break;
 	}
@@ -104,21 +104,21 @@ static int sh_csi2_s_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		tmp |= 0x1e;	/* YUV422 8 bit */
 		break;
-	case V4L2_MBUS_FMT_YUYV8_1_5X8:
+	case MEDIA_BUS_FMT_YUYV8_1_5X8:
 		tmp |= 0x18;	/* YUV420 8 bit */
 		break;
-	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE:
 		tmp |= 0x21;	/* RGB555 */
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		tmp |= 0x22;	/* RGB565 */
 		break;
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
-	case V4L2_MBUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
 		tmp |= 0x2a;	/* RAW8 */
 		break;
 	default:

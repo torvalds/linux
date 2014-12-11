@@ -289,10 +289,10 @@ static void ccp2_lcx_config(struct isp_ccp2_device *ccp2,
 	u32 val, format;
 
 	switch (config->format) {
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
 		format = ISPCCP2_LCx_CTRL_FORMAT_RAW8_DPCM10_VP;
 		break;
-	case V4L2_MBUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
 	default:
 		format = ISPCCP2_LCx_CTRL_FORMAT_RAW10_VP;	/* RAW10+VP */
 		break;
@@ -438,7 +438,7 @@ static void ccp2_mem_configure(struct isp_ccp2_device *ccp2,
 	u32 val, hwords;
 
 	if (sink_pixcode != source_pixcode &&
-	    sink_pixcode == V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8)
+	    sink_pixcode == MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8)
 		dpcm_decompress = 1;
 
 	ccp2_pwr_cfg(ccp2);
@@ -604,8 +604,8 @@ void omap3isp_ccp2_isr(struct isp_ccp2_device *ccp2)
  */
 
 static const unsigned int ccp2_fmts[] = {
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
 };
 
 /*
@@ -643,8 +643,8 @@ static void ccp2_try_format(struct isp_ccp2_device *ccp2,
 
 	switch (pad) {
 	case CCP2_PAD_SINK:
-		if (fmt->code != V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8)
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		if (fmt->code != MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8)
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 		if (ccp2->input == CCP2_INPUT_SENSOR) {
 			fmt->width = clamp_t(u32, fmt->width,
@@ -671,7 +671,7 @@ static void ccp2_try_format(struct isp_ccp2_device *ccp2,
 		 */
 		format = __ccp2_get_format(ccp2, fh, CCP2_PAD_SINK, which);
 		memcpy(fmt, format, sizeof(*fmt));
-		fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 		break;
 	}
 
@@ -808,7 +808,7 @@ static int ccp2_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = CCP2_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
 	ccp2_set_format(sd, fh, &format);

@@ -996,7 +996,7 @@ static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 	for (line = 0; line < lines; line++) {
 		while (offset && offset >= sg_dma_len(sg)) {
 			offset -= sg_dma_len(sg);
-			sg++;
+			sg = sg_next(sg);
 		}
 		if (bpl <= sg_dma_len(sg) - offset) {
 			/* fits into current chunk */
@@ -1014,14 +1014,14 @@ static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 			*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 			todo -= (sg_dma_len(sg) - offset);
 			offset = 0;
-			sg++;
+			sg = sg_next(sg);
 			while (todo > sg_dma_len(sg)) {
 				*(rp++) = cpu_to_le32(RISC_WRITE |
 						sg_dma_len(sg));
 				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 				todo -= sg_dma_len(sg);
-				sg++;
+				sg = sg_next(sg);
 			}
 			*(rp++) = cpu_to_le32(RISC_WRITE | RISC_EOL | todo);
 			*(rp++) = cpu_to_le32(sg_dma_address(sg));
@@ -1101,7 +1101,7 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 	for (line = 0; line < lines; line++) {
 		while (offset && offset >= sg_dma_len(sg)) {
 			offset -= sg_dma_len(sg);
-			sg++;
+			sg = sg_next(sg);
 		}
 
 		if (lpi && line > 0 && !(line % lpi))
@@ -1125,14 +1125,14 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 			*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 			todo -= (sg_dma_len(sg) - offset);
 			offset = 0;
-			sg++;
+			sg = sg_next(sg);
 			while (todo > sg_dma_len(sg)) {
 				*(rp++) = cpu_to_le32(RISC_WRITE |
 						sg_dma_len(sg));
 				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 				todo -= sg_dma_len(sg);
-				sg++;
+				sg = sg_next(sg);
 			}
 			*(rp++) = cpu_to_le32(RISC_WRITE | RISC_EOL | todo);
 			*(rp++) = cpu_to_le32(sg_dma_address(sg));

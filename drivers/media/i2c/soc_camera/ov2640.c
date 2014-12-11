@@ -302,7 +302,7 @@ struct ov2640_win_size {
 struct ov2640_priv {
 	struct v4l2_subdev		subdev;
 	struct v4l2_ctrl_handler	hdl;
-	enum v4l2_mbus_pixelcode	cfmt_code;
+	u32	cfmt_code;
 	struct v4l2_clk			*clk;
 	const struct ov2640_win_size	*win;
 };
@@ -623,11 +623,11 @@ static const struct regval_list ov2640_rgb565_le_regs[] = {
 	ENDMARKER,
 };
 
-static enum v4l2_mbus_pixelcode ov2640_codes[] = {
-	V4L2_MBUS_FMT_YUYV8_2X8,
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_RGB565_2X8_BE,
-	V4L2_MBUS_FMT_RGB565_2X8_LE,
+static u32 ov2640_codes[] = {
+	MEDIA_BUS_FMT_YUYV8_2X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_RGB565_2X8_BE,
+	MEDIA_BUS_FMT_RGB565_2X8_LE,
 };
 
 /*
@@ -785,7 +785,7 @@ static const struct ov2640_win_size *ov2640_select_win(u32 *width, u32 *height)
 }
 
 static int ov2640_set_params(struct i2c_client *client, u32 *width, u32 *height,
-			     enum v4l2_mbus_pixelcode code)
+			     u32 code)
 {
 	struct ov2640_priv       *priv = to_ov2640(client);
 	const struct regval_list *selected_cfmt_regs;
@@ -797,20 +797,20 @@ static int ov2640_set_params(struct i2c_client *client, u32 *width, u32 *height,
 	/* select format */
 	priv->cfmt_code = 0;
 	switch (code) {
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		dev_dbg(&client->dev, "%s: Selected cfmt RGB565 BE", __func__);
 		selected_cfmt_regs = ov2640_rgb565_be_regs;
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		dev_dbg(&client->dev, "%s: Selected cfmt RGB565 LE", __func__);
 		selected_cfmt_regs = ov2640_rgb565_le_regs;
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		dev_dbg(&client->dev, "%s: Selected cfmt YUYV (YUV422)", __func__);
 		selected_cfmt_regs = ov2640_yuyv_regs;
 		break;
 	default:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		dev_dbg(&client->dev, "%s: Selected cfmt UYVY", __func__);
 		selected_cfmt_regs = ov2640_uyvy_regs;
 	}
@@ -869,7 +869,7 @@ static int ov2640_g_fmt(struct v4l2_subdev *sd,
 	if (!priv->win) {
 		u32 width = W_SVGA, height = H_SVGA;
 		priv->win = ov2640_select_win(&width, &height);
-		priv->cfmt_code = V4L2_MBUS_FMT_UYVY8_2X8;
+		priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
 	mf->width	= priv->win->width;
@@ -877,13 +877,13 @@ static int ov2640_g_fmt(struct v4l2_subdev *sd,
 	mf->code	= priv->cfmt_code;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
 	mf->field	= V4L2_FIELD_NONE;
@@ -899,14 +899,14 @@ static int ov2640_s_fmt(struct v4l2_subdev *sd,
 
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
 
@@ -926,14 +926,14 @@ static int ov2640_try_fmt(struct v4l2_subdev *sd,
 	mf->field	= V4L2_FIELD_NONE;
 
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
 
@@ -941,7 +941,7 @@ static int ov2640_try_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov2640_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	if (index >= ARRAY_SIZE(ov2640_codes))
 		return -EINVAL;

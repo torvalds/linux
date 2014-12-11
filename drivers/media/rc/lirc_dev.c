@@ -518,8 +518,7 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 
 	WARN_ON(mutex_lock_killable(&lirc_dev_lock));
 
-	if (ir->d.rdev)
-		rc_close(ir->d.rdev);
+	rc_close(ir->d.rdev);
 
 	ir->open--;
 	if (ir->attached) {

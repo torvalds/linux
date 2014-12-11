@@ -88,12 +88,14 @@ static struct xc5000_config hauppauge_xc5000a_config = {
 	.i2c_address      = 0x61,
 	.if_khz           = 6000,
 	.chip_id          = XC5000A,
+	.output_amp       = 0x8f,
 };
 
 static struct xc5000_config hauppauge_xc5000c_config = {
 	.i2c_address      = 0x61,
 	.if_khz           = 6000,
 	.chip_id          = XC5000C,
+	.output_amp       = 0x8f,
 };
 
 static struct mxl5007t_config mxl5007t_hvr950q_config = {

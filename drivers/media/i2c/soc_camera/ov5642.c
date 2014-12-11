@@ -602,7 +602,7 @@ static struct regval_list ov5642_default_regs_finalise[] = {
 };
 
 struct ov5642_datafmt {
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	enum v4l2_colorspace		colorspace;
 };
 
@@ -618,7 +618,7 @@ struct ov5642 {
 };
 
 static const struct ov5642_datafmt ov5642_colour_fmts[] = {
-	{V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG},
 };
 
 static struct ov5642 *to_ov5642(const struct i2c_client *client)
@@ -628,7 +628,7 @@ static struct ov5642 *to_ov5642(const struct i2c_client *client)
 
 /* Find a data format by a pixel code in an array */
 static const struct ov5642_datafmt
-			*ov5642_find_datafmt(enum v4l2_mbus_pixelcode code)
+			*ov5642_find_datafmt(u32 code)
 {
 	int i;
 
@@ -840,7 +840,7 @@ static int ov5642_g_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov5642_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	if (index >= ARRAY_SIZE(ov5642_colour_fmts))
 		return -EINVAL;

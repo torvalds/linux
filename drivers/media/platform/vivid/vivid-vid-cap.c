@@ -288,8 +288,8 @@ const struct vb2_ops vivid_vid_cap_qops = {
 	.buf_queue		= vid_cap_buf_queue,
 	.start_streaming	= vid_cap_start_streaming,
 	.stop_streaming		= vid_cap_stop_streaming,
-	.wait_prepare		= vivid_unlock,
-	.wait_finish		= vivid_lock,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /*
@@ -443,12 +443,12 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 			break;
 		if (bt->standards & V4L2_DV_BT_STD_CEA861) {
 			if (bt->width == 720 && bt->height <= 576)
-				v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SMPTE170M);
+				v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 			else
-				v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_REC709);
+				v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_709);
 			v4l2_ctrl_s_ctrl(dev->real_rgb_range_cap, 1);
 		} else {
-			v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SRGB);
+			v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_SRGB);
 			v4l2_ctrl_s_ctrl(dev->real_rgb_range_cap, 0);
 		}
 		tpg_s_rgb_range(&dev->tpg, v4l2_ctrl_g_ctrl(dev->rgb_range_cap));
@@ -498,6 +498,20 @@ static unsigned vivid_colorspace_cap(struct vivid_dev *dev)
 	return dev->colorspace_out;
 }
 
+static unsigned vivid_ycbcr_enc_cap(struct vivid_dev *dev)
+{
+	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+		return tpg_g_ycbcr_enc(&dev->tpg);
+	return dev->ycbcr_enc_out;
+}
+
+static unsigned vivid_quantization_cap(struct vivid_dev *dev)
+{
+	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+		return tpg_g_quantization(&dev->tpg);
+	return dev->quantization_out;
+}
+
 int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
@@ -510,6 +524,8 @@ int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 	mp->field        = dev->field_cap;
 	mp->pixelformat  = dev->fmt_cap->fourcc;
 	mp->colorspace   = vivid_colorspace_cap(dev);
+	mp->ycbcr_enc    = vivid_ycbcr_enc_cap(dev);
+	mp->quantization = vivid_quantization_cap(dev);
 	mp->num_planes = dev->fmt_cap->planes;
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = tpg_g_bytesperline(&dev->tpg, p);
@@ -595,6 +611,8 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
 	mp->colorspace = vivid_colorspace_cap(dev);
+	mp->ycbcr_enc = vivid_ycbcr_enc_cap(dev);
+	mp->quantization = vivid_quantization_cap(dev);
 	memset(mp->reserved, 0, sizeof(mp->reserved));
 	return 0;
 }
@@ -1307,20 +1325,20 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 	if (dev->colorspace) {
 		switch (dev->input_type[i]) {
 		case WEBCAM:
-			v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SRGB);
+			v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_SRGB);
 			break;
 		case TV:
 		case SVID:
-			v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SMPTE170M);
+			v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 			break;
 		case HDMI:
 			if (bt->standards & V4L2_DV_BT_STD_CEA861) {
 				if (dev->src_rect.width == 720 && dev->src_rect.height <= 576)
-					v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SMPTE170M);
+					v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 				else
-					v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_REC709);
+					v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_709);
 			} else {
-				v4l2_ctrl_s_ctrl(dev->colorspace, V4L2_COLORSPACE_SRGB);
+				v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_SRGB);
 			}
 			break;
 		}

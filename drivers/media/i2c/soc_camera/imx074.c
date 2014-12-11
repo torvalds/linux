@@ -71,7 +71,7 @@
 
 /* IMX074 has only one fixed colorspace per pixelcode */
 struct imx074_datafmt {
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	enum v4l2_colorspace		colorspace;
 };
 
@@ -82,7 +82,7 @@ struct imx074 {
 };
 
 static const struct imx074_datafmt imx074_colour_fmts[] = {
-	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
 static struct imx074 *to_imx074(const struct i2c_client *client)
@@ -91,7 +91,7 @@ static struct imx074 *to_imx074(const struct i2c_client *client)
 }
 
 /* Find a data format by a pixel code in an array */
-static const struct imx074_datafmt *imx074_find_datafmt(enum v4l2_mbus_pixelcode code)
+static const struct imx074_datafmt *imx074_find_datafmt(u32 code)
 {
 	int i;
 
@@ -236,7 +236,7 @@ static int imx074_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 }
 
 static int imx074_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	if ((unsigned int)index >= ARRAY_SIZE(imx074_colour_fmts))
 		return -EINVAL;

@@ -54,7 +54,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CBCR,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 	}, {
 		.name		= "YUV 4:2:2 packed, CbYCrY",
 		.pixelformat	= V4L2_PIX_FMT_UYVY,
@@ -64,7 +64,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CBCR,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_UYVY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 	}, {
 		.name		= "YUV 4:2:2 packed, CrYCbY",
 		.pixelformat	= V4L2_PIX_FMT_VYUY,
@@ -74,7 +74,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CRCB,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_VYUY8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 	}, {
 		.name		= "YUV 4:2:2 packed, YCrYCb",
 		.pixelformat	= V4L2_PIX_FMT_YVYU,
@@ -84,7 +84,7 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CRCB,
 		.num_planes	= 1,
 		.num_comp	= 1,
-		.mbus_code	= V4L2_MBUS_FMT_YVYU8_2X8,
+		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 	}, {
 		.name		= "YUV 4:4:4 planar, YCbYCr",
 		.pixelformat	= V4L2_PIX_FMT_YUV32,
@@ -319,21 +319,22 @@ int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f)
 	return 0;
 }
 
-static u32 get_plane_info(struct gsc_frame *frm, u32 addr, u32 *index)
+static int get_plane_info(struct gsc_frame *frm, u32 addr, u32 *index, u32 *ret_addr)
 {
 	if (frm->addr.y == addr) {
 		*index = 0;
-		return frm->addr.y;
+		*ret_addr = frm->addr.y;
 	} else if (frm->addr.cb == addr) {
 		*index = 1;
-		return frm->addr.cb;
+		*ret_addr = frm->addr.cb;
 	} else if (frm->addr.cr == addr) {
 		*index = 2;
-		return frm->addr.cr;
+		*ret_addr = frm->addr.cr;
 	} else {
 		pr_err("Plane address is wrong");
 		return -EINVAL;
 	}
+	return 0;
 }
 
 void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm)
@@ -352,9 +353,11 @@ void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm)
 		u32 t_min, t_max;
 
 		t_min = min3(frm->addr.y, frm->addr.cb, frm->addr.cr);
-		low_addr = get_plane_info(frm, t_min, &low_plane);
+		if (get_plane_info(frm, t_min, &low_plane, &low_addr))
+			return;
 		t_max = max3(frm->addr.y, frm->addr.cb, frm->addr.cr);
-		high_addr = get_plane_info(frm, t_max, &high_plane);
+		if (get_plane_info(frm, t_max, &high_plane, &high_addr))
+			return;
 
 		mid_plane = 3 - (low_plane + high_plane);
 		if (mid_plane == 0)

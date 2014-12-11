@@ -308,14 +308,16 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x09\x10\xe3\x18", 6);
+	memcpy(cmd.args, "\x14\x00\x09\x10\xe3\x08", 6);
+	cmd.args[5] |= s->ts_clock_inv ? 0x00 : 0x10;
 	cmd.wlen = 6;
 	cmd.rlen = 4;
 	ret = si2168_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x08\x10\xd7\x15", 6);
+	memcpy(cmd.args, "\x14\x00\x08\x10\xd7\x05", 6);
+	cmd.args[5] |= s->ts_clock_inv ? 0x00 : 0x10;
 	cmd.wlen = 6;
 	cmd.rlen = 4;
 	ret = si2168_cmd_execute(s, &cmd);
@@ -453,27 +455,45 @@ static int si2168_init(struct dvb_frontend *fe)
 			dev_err(&s->client->dev,
 					"firmware file '%s' not found\n",
 					fw_file);
-			goto err;
+			goto error_fw_release;
 		}
 	}
 
 	dev_info(&s->client->dev, "downloading firmware from file '%s'\n",
 			fw_file);
 
-	for (remaining = fw->size; remaining > 0; remaining -= i2c_wr_max) {
-		len = remaining;
-		if (len > i2c_wr_max)
-			len = i2c_wr_max;
+	if ((fw->size % 17 == 0) && (fw->data[0] > 5)) {
+		/* firmware is in the new format */
+		for (remaining = fw->size; remaining > 0; remaining -= 17) {
+			len = fw->data[fw->size - remaining];
+			memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
+			cmd.wlen = len;
+			cmd.rlen = 1;
+			ret = si2168_cmd_execute(s, &cmd);
+			if (ret) {
+				dev_err(&s->client->dev,
+						"firmware download failed=%d\n",
+						ret);
+				goto error_fw_release;
+			}
+		}
+	} else {
+		/* firmware is in the old format */
+		for (remaining = fw->size; remaining > 0; remaining -= i2c_wr_max) {
+			len = remaining;
+			if (len > i2c_wr_max)
+				len = i2c_wr_max;
 
-		memcpy(cmd.args, &fw->data[fw->size - remaining], len);
-		cmd.wlen = len;
-		cmd.rlen = 1;
-		ret = si2168_cmd_execute(s, &cmd);
-		if (ret) {
-			dev_err(&s->client->dev,
-					"firmware download failed=%d\n",
-					ret);
-			goto err;
+			memcpy(cmd.args, &fw->data[fw->size - remaining], len);
+			cmd.wlen = len;
+			cmd.rlen = 1;
+			ret = si2168_cmd_execute(s, &cmd);
+			if (ret) {
+				dev_err(&s->client->dev,
+						"firmware download failed=%d\n",
+						ret);
+				goto error_fw_release;
+			}
 		}
 	}
 
@@ -487,6 +507,17 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	/* query firmware version */
+	memcpy(cmd.args, "\x11", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 10;
+	ret = si2168_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
+
+	dev_dbg(&s->client->dev, "firmware version: %c.%c.%d\n",
+			cmd.args[6], cmd.args[7], cmd.args[8]);
+
 	/* set ts mode */
 	memcpy(cmd.args, "\x14\x00\x01\x10\x10\x00", 6);
 	cmd.args[4] |= s->ts_mode;
@@ -498,17 +529,16 @@ static int si2168_init(struct dvb_frontend *fe)
 
 	s->fw_loaded = true;
 
-warm:
 	dev_info(&s->client->dev, "found a '%s' in warm state\n",
 			si2168_ops.info.name);
-
+warm:
 	s->active = true;
 
 	return 0;
-err:
-	if (fw)
-		release_firmware(fw);
 
+error_fw_release:
+	release_firmware(fw);
+err:
 	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
@@ -670,6 +700,7 @@ static int si2168_probe(struct i2c_client *client,
 	*config->i2c_adapter = s->adapter;
 	*config->fe = &s->fe;
 	s->ts_mode = config->ts_mode;
+	s->ts_clock_inv = config->ts_clock_inv;
 	s->fw_loaded = false;
 
 	i2c_set_clientdata(client, s);

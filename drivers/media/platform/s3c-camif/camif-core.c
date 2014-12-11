@@ -256,8 +256,7 @@ static void camif_unregister_sensor(struct camif_dev *camif)
 	v4l2_device_unregister_subdev(sd);
 	camif->sensor.sd = NULL;
 	i2c_unregister_device(client);
-	if (adapter)
-		i2c_put_adapter(adapter);
+	i2c_put_adapter(adapter);
 }
 
 static int camif_create_media_links(struct camif_dev *camif)

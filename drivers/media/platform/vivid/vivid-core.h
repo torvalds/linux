@@ -116,6 +116,17 @@ enum vivid_signal_mode {
 	CUSTOM_DV_TIMINGS,
 };
 
+enum vivid_colorspace {
+	VIVID_CS_170M,
+	VIVID_CS_709,
+	VIVID_CS_SRGB,
+	VIVID_CS_ADOBERGB,
+	VIVID_CS_2020,
+	VIVID_CS_240M,
+	VIVID_CS_SYS_M,
+	VIVID_CS_SYS_BG,
+};
+
 #define VIVID_INVALID_SIGNAL(mode) \
 	((mode) == NO_SIGNAL || (mode) == NO_LOCK || (mode) == OUT_OF_RANGE)
 
@@ -318,6 +329,8 @@ struct vivid_dev {
 	v4l2_std_id			std_out;
 	struct v4l2_dv_timings		dv_timings_out;
 	u32				colorspace_out;
+	u32				ycbcr_enc_out;
+	u32				quantization_out;
 	u32				service_set_out;
 	u32				bytesperline_out[2];
 	unsigned			tv_field_out;
@@ -513,8 +526,5 @@ static inline bool vivid_is_hdmi_out(const struct vivid_dev *dev)
 {
 	return dev->output_type[dev->output] == HDMI;
 }
-
-void vivid_lock(struct vb2_queue *vq);
-void vivid_unlock(struct vb2_queue *vq);
 
 #endif

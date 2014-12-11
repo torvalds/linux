@@ -67,28 +67,6 @@ static int __init omap3_l3_init(void)
 }
 omap_postcore_initcall(omap3_l3_init);
 
-#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
-
-static struct resource omap2cam_resources[] = {
-	{
-		.start		= OMAP24XX_CAMERA_BASE,
-		.end		= OMAP24XX_CAMERA_BASE + 0xfff,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= 24 + OMAP_INTC_START,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device omap2cam_device = {
-	.name		= "omap24xxcam",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap2cam_resources),
-	.resource	= omap2cam_resources,
-};
-#endif
-
 #if defined(CONFIG_IOMMU_API)
 
 #include <linux/platform_data/iommu-omap.h>
@@ -210,14 +188,6 @@ int omap3_init_camera(struct isp_platform_data *pdata)
 }
 
 #endif
-
-static inline void omap_init_camera(void)
-{
-#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
-	if (cpu_is_omap24xx())
-		platform_device_register(&omap2cam_device);
-#endif
-}
 
 #if defined(CONFIG_OMAP2PLUS_MBOX) || defined(CONFIG_OMAP2PLUS_MBOX_MODULE)
 static inline void __init omap_init_mbox(void)
@@ -397,7 +367,6 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_audio();
-	omap_init_camera();
 	/* If dtb is there, the devices will be created dynamically */
 	if (!of_have_populated_dt()) {
 		omap_init_mbox();

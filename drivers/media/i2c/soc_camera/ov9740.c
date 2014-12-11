@@ -392,8 +392,8 @@ static const struct ov9740_reg ov9740_defaults[] = {
 	{ OV9740_ISP_CTRL19,		0x02 },
 };
 
-static enum v4l2_mbus_pixelcode ov9740_codes[] = {
-	V4L2_MBUS_FMT_YUYV8_2X8,
+static u32 ov9740_codes[] = {
+	MEDIA_BUS_FMT_YUYV8_2X8,
 };
 
 /* read a register */
@@ -674,13 +674,13 @@ static int ov9740_s_fmt(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9740_priv *priv = to_ov9740(sd);
 	enum v4l2_colorspace cspace;
-	enum v4l2_mbus_pixelcode code = mf->code;
+	u32 code = mf->code;
 	int ret;
 
 	ov9740_res_roundup(&mf->width, &mf->height);
 
 	switch (code) {
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		cspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
@@ -710,14 +710,14 @@ static int ov9740_try_fmt(struct v4l2_subdev *sd,
 	ov9740_res_roundup(&mf->width, &mf->height);
 
 	mf->field = V4L2_FIELD_NONE;
-	mf->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	mf->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
 
 	return 0;
 }
 
 static int ov9740_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	if (index >= ARRAY_SIZE(ov9740_codes))
 		return -EINVAL;

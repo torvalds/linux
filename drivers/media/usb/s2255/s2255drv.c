@@ -558,27 +558,30 @@ static void s2255_fwchunk_complete(struct urb *urb)
 
 }
 
-static int s2255_got_frame(struct s2255_vc *vc, int jpgsize)
+static void s2255_got_frame(struct s2255_vc *vc, int jpgsize)
 {
 	struct s2255_buffer *buf;
 	struct s2255_dev *dev = to_s2255_dev(vc->vdev.v4l2_dev);
 	unsigned long flags = 0;
-	int rc = 0;
+
 	spin_lock_irqsave(&vc->qlock, flags);
 	if (list_empty(&vc->buf_list)) {
 		dprintk(dev, 1, "No active queue to serve\n");
-		rc = -1;
-		goto unlock;
+		spin_unlock_irqrestore(&vc->qlock, flags);
+		return;
 	}
 	buf = list_entry(vc->buf_list.next,
 			 struct s2255_buffer, list);
 	list_del(&buf->list);
 	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	s2255_fillbuff(vc, buf, jpgsize);
-	dprintk(dev, 2, "%s: [buf] [%p]\n", __func__, buf);
-unlock:
+	buf->vb.v4l2_buf.field = vc->field;
+	buf->vb.v4l2_buf.sequence = vc->frame_count;
 	spin_unlock_irqrestore(&vc->qlock, flags);
-	return rc;
+
+	s2255_fillbuff(vc, buf, jpgsize);
+	/* tell v4l buffer was filled */
+	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+	dprintk(dev, 2, "%s: [buf] [%p]\n", __func__, buf);
 }
 
 static const struct s2255_fmt *format_by_fourcc(int fourcc)
@@ -649,11 +652,6 @@ static void s2255_fillbuff(struct s2255_vc *vc,
 	}
 	dprintk(dev, 2, "s2255fill at : Buffer 0x%08lx size= %d\n",
 		(unsigned long)vbuf, pos);
-	/* tell v4l buffer was filled */
-	buf->vb.v4l2_buf.field = vc->field;
-	buf->vb.v4l2_buf.sequence = vc->frame_count;
-	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
 }
 
 
@@ -1976,8 +1974,7 @@ static int s2255_release_sys_buffers(struct s2255_vc *vc)
 {
 	unsigned long i;
 	for (i = 0; i < SYS_FRAMES; i++) {
-		if (vc->buffer.frame[i].lpvbits)
-			vfree(vc->buffer.frame[i].lpvbits);
+		vfree(vc->buffer.frame[i].lpvbits);
 		vc->buffer.frame[i].lpvbits = NULL;
 	}
 	return 0;

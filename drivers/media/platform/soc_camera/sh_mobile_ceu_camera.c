@@ -149,7 +149,7 @@ struct sh_mobile_ceu_cam {
 	/* Camera cropping rectangle */
 	struct v4l2_rect rect;
 	const struct soc_mbus_pixelfmt *extra_fmt;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 };
 
 static struct sh_mobile_ceu_buffer *to_ceu_vb(struct vb2_buffer *vb)
@@ -861,16 +861,16 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd)
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
 		switch (cam->code) {
-		case V4L2_MBUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_2X8:
 			value = 0x00000000; /* Cb0, Y0, Cr0, Y1 */
 			break;
-		case V4L2_MBUS_FMT_VYUY8_2X8:
+		case MEDIA_BUS_FMT_VYUY8_2X8:
 			value = 0x00000100; /* Cr0, Y0, Cb0, Y1 */
 			break;
-		case V4L2_MBUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_2X8:
 			value = 0x00000200; /* Y0, Cb0, Y1, Cr0 */
 			break;
-		case V4L2_MBUS_FMT_YVYU8_2X8:
+		case MEDIA_BUS_FMT_YVYU8_2X8:
 			value = 0x00000300; /* Y0, Cr0, Y1, Cb0 */
 			break;
 		default:
@@ -1048,7 +1048,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 	int ret, k, n;
 	int formats = 0;
 	struct sh_mobile_ceu_cam *cam;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	const struct soc_mbus_pixelfmt *fmt;
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
@@ -1141,10 +1141,10 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		cam->extra_fmt = NULL;
 
 	switch (code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
-	case V4L2_MBUS_FMT_VYUY8_2X8:
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		if (cam->extra_fmt)
 			break;
 

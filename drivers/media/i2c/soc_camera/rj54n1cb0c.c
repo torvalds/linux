@@ -111,13 +111,13 @@
 
 /* RJ54N1CB0C has only one fixed colorspace per pixelcode */
 struct rj54n1_datafmt {
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	enum v4l2_colorspace		colorspace;
 };
 
 /* Find a data format by a pixel code in an array */
 static const struct rj54n1_datafmt *rj54n1_find_datafmt(
-	enum v4l2_mbus_pixelcode code, const struct rj54n1_datafmt *fmt,
+	u32 code, const struct rj54n1_datafmt *fmt,
 	int n)
 {
 	int i;
@@ -129,15 +129,15 @@ static const struct rj54n1_datafmt *rj54n1_find_datafmt(
 }
 
 static const struct rj54n1_datafmt rj54n1_colour_fmts[] = {
-	{V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_RGB565_2X8_BE, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE, V4L2_COLORSPACE_SRGB},
-	{V4L2_MBUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG},
+	{MEDIA_BUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_RGB565_2X8_BE, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_LE, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_BE, V4L2_COLORSPACE_SRGB},
+	{MEDIA_BUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB},
 };
 
 struct rj54n1_clock_div {
@@ -486,7 +486,7 @@ static int reg_write_multiple(struct i2c_client *client,
 }
 
 static int rj54n1_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	if (index >= ARRAY_SIZE(rj54n1_colour_fmts))
 		return -EINVAL;
@@ -965,11 +965,11 @@ static int rj54n1_try_fmt(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	const struct rj54n1_datafmt *fmt;
-	int align = mf->code == V4L2_MBUS_FMT_SBGGR10_1X10 ||
-		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE ||
-		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE ||
-		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE ||
-		mf->code == V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE;
+	int align = mf->code == MEDIA_BUS_FMT_SBGGR10_1X10 ||
+		mf->code == MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE ||
+		mf->code == MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_BE ||
+		mf->code == MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE ||
+		mf->code == MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_LE;
 
 	dev_dbg(&client->dev, "%s: code = %d, width = %u, height = %u\n",
 		__func__, mf->code, mf->width, mf->height);
@@ -1025,55 +1025,55 @@ static int rj54n1_s_fmt(struct v4l2_subdev *sd,
 
 	/* RA_SEL_UL is only relevant for raw modes, ignored otherwise. */
 	switch (mf->code) {
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
 		break;
-	case V4L2_MBUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0x11);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
 		break;
-	case V4L2_MBUS_FMT_RGB565_2X8_BE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 0x11);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
 		break;
-	case V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_LE:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_LE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
 		if (!ret)
 			ret = reg_write(client, RJ54N1_RA_SEL_UL, 0);
 		break;
-	case V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_LE:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 8, 8);
 		if (!ret)
 			ret = reg_write(client, RJ54N1_RA_SEL_UL, 8);
 		break;
-	case V4L2_MBUS_FMT_SBGGR10_2X8_PADLO_BE:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADLO_BE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
 		if (!ret)
 			ret = reg_write(client, RJ54N1_RA_SEL_UL, 0);
 		break;
-	case V4L2_MBUS_FMT_SBGGR10_2X8_PADHI_BE:
+	case MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_BE:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 4);
 		if (!ret)
 			ret = reg_set(client, RJ54N1_BYTE_SWAP, 0, 8);
 		if (!ret)
 			ret = reg_write(client, RJ54N1_RA_SEL_UL, 8);
 		break;
-	case V4L2_MBUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		ret = reg_write(client, RJ54N1_OUT_SEL, 5);
 		break;
 	default:
@@ -1083,7 +1083,7 @@ static int rj54n1_s_fmt(struct v4l2_subdev *sd,
 	/* Special case: a raw mode with 10 bits of data per clock tick */
 	if (!ret)
 		ret = reg_set(client, RJ54N1_OCLK_SEL_EN,
-			      (mf->code == V4L2_MBUS_FMT_SBGGR10_1X10) << 1, 2);
+			      (mf->code == MEDIA_BUS_FMT_SBGGR10_1X10) << 1, 2);
 
 	if (ret < 0)
 		return ret;

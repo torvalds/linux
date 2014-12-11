@@ -850,6 +850,7 @@ ARM/Amlogic MesonX SoC support
 M:	Carlo Caione <carlo@caione.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	drivers/media/rc/meson-ir.c
 N:	meson[x68]
 
 ARM/ATMEL AT91RM9200 AND AT91SAM ARM ARCHITECTURES
@@ -2511,6 +2512,13 @@ F:	Documentation/filesystems/coda.txt
 F:	fs/coda/
 F:	include/linux/coda*.h
 F:	include/uapi/linux/coda*.h
+
+CODA V4L2 MEM2MEM DRIVER
+M:	Philipp Zabel <p.zabel@pengutronix.de>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/coda.txt
+F:	drivers/media/platform/coda/
 
 COMMON CLK FRAMEWORK
 M:	Mike Turquette <mturquette@linaro.org>
@@ -4746,6 +4754,12 @@ F:	net/mac802154/
 F:	drivers/net/ieee802154/
 F:	Documentation/networking/ieee802154.txt
 
+IGORPLUG-USB IR RECEIVER
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/igorplugusb.c
+
 IGUANAWORKS USB IR TRANSCEIVER
 M:	Sean Young <sean@mess.org>
 L:	linux-media@vger.kernel.org
@@ -4802,6 +4816,11 @@ L:	linux-ima-user@lists.sourceforge.net
 L:	linux-security-module@vger.kernel.org
 S:	Supported
 F:	security/integrity/ima/
+
+IMGTEC IR DECODER DRIVER
+M:	James Hogan <james.hogan@imgtec.com>
+S:	Maintained
+F:	drivers/media/rc/img-ir/
 
 IMS TWINTURBO FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
@@ -6150,6 +6169,28 @@ T:	git git://openfabrics.org/~eli/connect-ib.git
 S:	Supported
 F:	include/linux/mlx5/
 F:	drivers/infiniband/hw/mlx5/
+
+MN88472 MEDIA DRIVER
+M:	Antti Palosaari <crope@iki.fi>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://palosaari.fi/linux/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/anttip/media_tree.git
+S:	Maintained
+F:	drivers/staging/media/mn88472/
+F:	drivers/media/dvb-frontends/mn88472.h
+
+MN88473 MEDIA DRIVER
+M:	Antti Palosaari <crope@iki.fi>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://palosaari.fi/linux/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/anttip/media_tree.git
+S:	Maintained
+F:	drivers/staging/media/mn88473/
+F:	drivers/media/dvb-frontends/mn88473.h
 
 MODULE SUPPORT
 M:	Rusty Russell <rusty@rustcorp.com.au>

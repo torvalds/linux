@@ -112,7 +112,7 @@ MODULE_PARM_DESC(debug, "Enable module debug trace. Set to 1 to enable.");
 #define REG_TERM		0xFFFF
 
 struct noon010_format {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	enum v4l2_colorspace colorspace;
 	u16 ispctl1_reg;
 };
@@ -175,23 +175,23 @@ static const struct noon010_frmsize noon010_sizes[] = {
 /* Supported pixel formats. */
 static const struct noon010_format noon010_formats[] = {
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x03,
 	}, {
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
+		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x02,
 	}, {
-		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
+		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0,
 	}, {
-		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x01,
 	}, {
-		.code		= V4L2_MBUS_FMT_RGB565_2X8_BE,
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x40,
 	},

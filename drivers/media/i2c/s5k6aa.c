@@ -191,7 +191,7 @@ struct s5k6aa_regval {
 };
 
 struct s5k6aa_pixfmt {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 colorspace;
 	/* REG_P_FMT(x) register value */
 	u16 reg_p_fmt;
@@ -285,10 +285,10 @@ static struct s5k6aa_regval s5k6aa_analog_config[] = {
 
 /* TODO: Add RGB888 and Bayer format */
 static const struct s5k6aa_pixfmt s5k6aa_formats[] = {
-	{ V4L2_MBUS_FMT_YUYV8_2X8,	V4L2_COLORSPACE_JPEG,	5 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8,	V4L2_COLORSPACE_JPEG,	5 },
 	/* range 16-240 */
-	{ V4L2_MBUS_FMT_YUYV8_2X8,	V4L2_COLORSPACE_REC709,	6 },
-	{ V4L2_MBUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
+	{ MEDIA_BUS_FMT_YUYV8_2X8,	V4L2_COLORSPACE_REC709,	6 },
+	{ MEDIA_BUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
 };
 
 static const struct s5k6aa_interval s5k6aa_intervals[] = {

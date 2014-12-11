@@ -139,7 +139,7 @@ static int sru_s_stream(struct v4l2_subdev *subdev, int enable)
 	input = &sru->entity.formats[SRU_PAD_SINK];
 	output = &sru->entity.formats[SRU_PAD_SOURCE];
 
-	if (input->code == V4L2_MBUS_FMT_ARGB8888_1X32)
+	if (input->code == MEDIA_BUS_FMT_ARGB8888_1X32)
 		ctrl0 = VI6_SRU_CTRL0_PARAM2 | VI6_SRU_CTRL0_PARAM3
 		      | VI6_SRU_CTRL0_PARAM4;
 	else
@@ -170,8 +170,8 @@ static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
-		V4L2_MBUS_FMT_ARGB8888_1X32,
-		V4L2_MBUS_FMT_AYUV8_1X32,
+		MEDIA_BUS_FMT_ARGB8888_1X32,
+		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 	struct v4l2_mbus_framefmt *format;
 
@@ -248,9 +248,9 @@ static void sru_try_format(struct vsp1_sru *sru, struct v4l2_subdev_fh *fh,
 	switch (pad) {
 	case SRU_PAD_SINK:
 		/* Default to YUV if the requested format is not supported. */
-		if (fmt->code != V4L2_MBUS_FMT_ARGB8888_1X32 &&
-		    fmt->code != V4L2_MBUS_FMT_AYUV8_1X32)
-			fmt->code = V4L2_MBUS_FMT_AYUV8_1X32;
+		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
+			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
 
 		fmt->width = clamp(fmt->width, SRU_MIN_SIZE, SRU_MAX_SIZE);
 		fmt->height = clamp(fmt->height, SRU_MIN_SIZE, SRU_MAX_SIZE);

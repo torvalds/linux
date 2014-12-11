@@ -2,8 +2,7 @@ config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
 	depends on VIDEO_DEV && PCI && I2C && RC_CORE
 	select I2C_ALGOBIT
-	select VIDEO_BTCX
-	select VIDEOBUF_DMA_SG
+	select VIDEOBUF2_DMA_SG
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_WM8775 if MEDIA_SUBDRV_AUTOSELECT
@@ -45,7 +44,7 @@ config VIDEO_CX88_BLACKBIRD
 config VIDEO_CX88_DVB
 	tristate "DVB/ATSC Support for cx2388x based TV cards"
 	depends on VIDEO_CX88 && DVB_CORE
-	select VIDEOBUF_DVB
+	select VIDEOBUF2_DVB
 	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT

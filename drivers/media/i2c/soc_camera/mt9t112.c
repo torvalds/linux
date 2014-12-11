@@ -77,7 +77,7 @@
 			struct
 ************************************************************************/
 struct mt9t112_format {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	enum v4l2_colorspace colorspace;
 	u16 fmt;
 	u16 order;
@@ -103,32 +103,32 @@ struct mt9t112_priv {
 
 static const struct mt9t112_format mt9t112_cfmts[] = {
 	{
-		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 0,
 	}, {
-		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
+		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 1,
 	}, {
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 2,
 	}, {
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
+		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.fmt		= 1,
 		.order		= 3,
 	}, {
-		.code		= V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
+		.code		= MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.fmt		= 8,
 		.order		= 2,
 	}, {
-		.code		= V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.fmt		= 4,
 		.order		= 2,
@@ -840,7 +840,7 @@ static int mt9t112_s_stream(struct v4l2_subdev *sd, int enable)
 
 static int mt9t112_set_params(struct mt9t112_priv *priv,
 			      const struct v4l2_rect *rect,
-			      enum v4l2_mbus_pixelcode code)
+			      u32 code)
 {
 	int i;
 
@@ -953,7 +953,7 @@ static int mt9t112_try_fmt(struct v4l2_subdev *sd,
 			break;
 
 	if (i == priv->num_formats) {
-		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	} else {
 		mf->colorspace	= mt9t112_cfmts[i].colorspace;
@@ -967,7 +967,7 @@ static int mt9t112_try_fmt(struct v4l2_subdev *sd,
 }
 
 static int mt9t112_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   enum v4l2_mbus_pixelcode *code)
+			   u32 *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
@@ -1101,7 +1101,7 @@ static int mt9t112_probe(struct i2c_client *client,
 
 	/* Cannot fail: using the default supported pixel code */
 	if (!ret)
-		mt9t112_set_params(priv, &rect, V4L2_MBUS_FMT_UYVY8_2X8);
+		mt9t112_set_params(priv, &rect, MEDIA_BUS_FMT_UYVY8_2X8);
 	else
 		v4l2_clk_put(priv->clk);
 

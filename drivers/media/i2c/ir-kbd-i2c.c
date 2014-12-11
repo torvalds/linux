@@ -464,8 +464,7 @@ static int ir_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister device */
-	if (ir->rc)
-		rc_unregister_device(ir->rc);
+	rc_unregister_device(ir->rc);
 
 	/* free memory */
 	return 0;

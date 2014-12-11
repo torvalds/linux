@@ -49,7 +49,7 @@
 struct bcap_format {
 	char *desc;
 	u32 pixelformat;
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	int bpp; /* bits per pixel */
 	int dlen; /* data length for ppi in bits */
 };
@@ -116,35 +116,35 @@ static const struct bcap_format bcap_formats[] = {
 	{
 		.desc        = "YCbCr 4:2:2 Interleaved UYVY",
 		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.mbus_code   = V4L2_MBUS_FMT_UYVY8_2X8,
+		.mbus_code   = MEDIA_BUS_FMT_UYVY8_2X8,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
 	{
 		.desc        = "YCbCr 4:2:2 Interleaved YUYV",
 		.pixelformat = V4L2_PIX_FMT_YUYV,
-		.mbus_code   = V4L2_MBUS_FMT_YUYV8_2X8,
+		.mbus_code   = MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
 	{
 		.desc        = "YCbCr 4:2:2 Interleaved UYVY",
 		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.mbus_code   = V4L2_MBUS_FMT_UYVY8_1X16,
+		.mbus_code   = MEDIA_BUS_FMT_UYVY8_1X16,
 		.bpp         = 16,
 		.dlen        = 16,
 	},
 	{
 		.desc        = "RGB 565",
 		.pixelformat = V4L2_PIX_FMT_RGB565,
-		.mbus_code   = V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.mbus_code   = MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
 	{
 		.desc        = "RGB 444",
 		.pixelformat = V4L2_PIX_FMT_RGB444,
-		.mbus_code   = V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
+		.mbus_code   = MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE,
 		.bpp         = 16,
 		.dlen        = 8,
 	},
@@ -161,7 +161,7 @@ static struct bcap_buffer *to_bcap_vb(struct vb2_buffer *vb)
 
 static int bcap_init_sensor_formats(struct bcap_device *bcap_dev)
 {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	struct bcap_format *sf;
 	unsigned int num_formats = 0;
 	int i, j;
@@ -349,18 +349,6 @@ static void bcap_buffer_cleanup(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&bcap_dev->lock, flags);
 }
 
-static void bcap_lock(struct vb2_queue *vq)
-{
-	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
-	mutex_lock(&bcap_dev->mutex);
-}
-
-static void bcap_unlock(struct vb2_queue *vq)
-{
-	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
-	mutex_unlock(&bcap_dev->mutex);
-}
-
 static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
@@ -457,8 +445,8 @@ static struct vb2_ops bcap_video_qops = {
 	.buf_prepare            = bcap_buffer_prepare,
 	.buf_cleanup            = bcap_buffer_cleanup,
 	.buf_queue              = bcap_buffer_queue,
-	.wait_prepare           = bcap_unlock,
-	.wait_finish            = bcap_lock,
+	.wait_prepare           = vb2_ops_wait_prepare,
+	.wait_finish            = vb2_ops_wait_finish,
 	.start_streaming        = bcap_start_streaming,
 	.stop_streaming         = bcap_stop_streaming,
 };
@@ -841,7 +829,8 @@ static int bcap_querycap(struct file *file, void  *priv,
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	strlcpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
 	strlcpy(cap->bus_info, "Blackfin Platform", sizeof(cap->bus_info));
 	strlcpy(cap->card, bcap_dev->cfg->card_name, sizeof(cap->card));
@@ -995,6 +984,7 @@ static int bcap_probe(struct platform_device *pdev)
 	q->ops = &bcap_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->lock = &bcap_dev->mutex;
 
 	ret = vb2_queue_init(q);
 	if (ret)

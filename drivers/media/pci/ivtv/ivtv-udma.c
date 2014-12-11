@@ -76,7 +76,7 @@ void ivtv_udma_fill_sg_array (struct ivtv_user_dma *dma, u32 buffer_offset, u32 
 	int i;
 	struct scatterlist *sg;
 
-	for (i = 0, sg = dma->SGlist; i < dma->SG_length; i++, sg++) {
+	for (i = 0, sg = dma->SGlist; i < dma->SG_length; i++, sg = sg_next(sg)) {
 		dma->SGarray[i].size = cpu_to_le32(sg_dma_len(sg));
 		dma->SGarray[i].src = cpu_to_le32(sg_dma_address(sg));
 		dma->SGarray[i].dst = cpu_to_le32(buffer_offset);

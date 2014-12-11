@@ -287,6 +287,14 @@ input/output interface to linux-media@vger.kernel.org on 19 Oct 2009.
 	    <entry>0x00000004</entry>
 	    <entry>This input supports setting the TV standard by using VIDIOC_S_STD.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_IN_CAP_NATIVE_SIZE</constant></entry>
+	    <entry>0x00000008</entry>
+	    <entry>This input supports setting the native size using
+	    the <constant>V4L2_SEL_TGT_NATIVE_SIZE</constant>
+	    selection target, see <xref
+	    linkend="v4l2-selections-common"/>.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

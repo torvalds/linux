@@ -883,7 +883,6 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
 	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
 	unsigned int size;
-	int ret;
 
 	if (dma->sgl->offset) {
 		pr_err("The buffer is not page-aligned\n");
@@ -896,21 +895,8 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 	vb2_set_plane_payload(vb2, 0, size);
 	vb2->v4l2_buf.field = dev->field;
 
-	ret = dma_map_sg(&dev->pci->dev, dma->sgl, dma->nents, DMA_FROM_DEVICE);
-	if (!ret)
-		return -EIO;
 	return saa7134_pgtable_build(dev->pci, &dmaq->pt, dma->sgl, dma->nents,
 				    saa7134_buffer_startpage(buf));
-}
-
-static void buffer_finish(struct vb2_buffer *vb2)
-{
-	struct saa7134_dmaqueue *dmaq = vb2->vb2_queue->drv_priv;
-	struct saa7134_dev *dev = dmaq->dev;
-	struct saa7134_buf *buf = container_of(vb2, struct saa7134_buf, vb2);
-	struct sg_table *dma = vb2_dma_sg_plane_desc(&buf->vb2, 0);
-
-	dma_unmap_sg(&dev->pci->dev, dma->sgl, dma->nents, DMA_FROM_DEVICE);
 }
 
 static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
@@ -932,6 +918,7 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 	*nbuffers = saa7134_buffer_count(size, *nbuffers);
 	*nplanes = 1;
 	sizes[0] = size;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -1004,7 +991,6 @@ static struct vb2_ops vb2_qops = {
 	.queue_setup	= queue_setup,
 	.buf_init	= buffer_init,
 	.buf_prepare	= buffer_prepare,
-	.buf_finish	= buffer_finish,
 	.buf_queue	= saa7134_vb2_buffer_queue,
 	.wait_prepare	= vb2_ops_wait_prepare,
 	.wait_finish	= vb2_ops_wait_finish,

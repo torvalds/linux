@@ -331,6 +331,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 	struct uvc_format_desc *fmtdesc;
 	struct uvc_frame *frame;
 	const unsigned char *start = buffer;
+	unsigned int width_multiplier = 1;
 	unsigned int interval;
 	unsigned int i, n;
 	__u8 ftype;
@@ -366,6 +367,20 @@ static int uvc_parse_format(struct uvc_device *dev,
 		}
 
 		format->bpp = buffer[21];
+
+		/* Some devices report a format that doesn't match what they
+		 * really send.
+		 */
+		if (dev->quirks & UVC_QUIRK_FORCE_Y8) {
+			if (format->fcc == V4L2_PIX_FMT_YUYV) {
+				strlcpy(format->name, "Greyscale 8-bit (Y8  )",
+					sizeof(format->name));
+				format->fcc = V4L2_PIX_FMT_GREY;
+				format->bpp = 8;
+				width_multiplier = 2;
+			}
+		}
+
 		if (buffer[2] == UVC_VS_FORMAT_UNCOMPRESSED) {
 			ftype = UVC_VS_FRAME_UNCOMPRESSED;
 		} else {
@@ -474,7 +489,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		frame->bFrameIndex = buffer[3];
 		frame->bmCapabilities = buffer[4];
-		frame->wWidth = get_unaligned_le16(&buffer[5]);
+		frame->wWidth = get_unaligned_le16(&buffer[5])
+			      * width_multiplier;
 		frame->wHeight = get_unaligned_le16(&buffer[7]);
 		frame->dwMinBitRate = get_unaligned_le32(&buffer[9]);
 		frame->dwMaxBitRate = get_unaligned_le32(&buffer[13]);
@@ -1623,11 +1639,11 @@ static void uvc_delete(struct uvc_device *dev)
 {
 	struct list_head *p, *n;
 
-	usb_put_intf(dev->intf);
-	usb_put_dev(dev->udev);
-
 	uvc_status_cleanup(dev);
 	uvc_ctrl_cleanup_device(dev);
+
+	usb_put_intf(dev->intf);
+	usb_put_dev(dev->udev);
 
 	if (dev->vdev.dev)
 		v4l2_device_unregister(&dev->vdev);
@@ -1718,6 +1734,11 @@ static int uvc_register_video(struct uvc_device *dev,
 	struct video_device *vdev;
 	int ret;
 
+	/* Initialize the video buffers queue. */
+	ret = uvc_queue_init(&stream->queue, stream->type, !uvc_no_drop_param);
+	if (ret)
+		return ret;
+
 	/* Initialize the streaming interface with default streaming
 	 * parameters.
 	 */
@@ -1744,6 +1765,7 @@ static int uvc_register_video(struct uvc_device *dev,
 	 */
 	vdev->v4l2_dev = &dev->vdev;
 	vdev->fops = &uvc_fops;
+	vdev->ioctl_ops = &uvc_ioctl_ops;
 	vdev->release = uvc_release;
 	vdev->prio = &stream->chain->prio;
 	if (stream->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
@@ -1991,14 +2013,13 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 {
 	struct uvc_device *dev = usb_get_intfdata(intf);
 	struct uvc_streaming *stream;
+	int ret = 0;
 
 	uvc_trace(UVC_TRACE_SUSPEND, "Resuming interface %u\n",
 		intf->cur_altsetting->desc.bInterfaceNumber);
 
 	if (intf->cur_altsetting->desc.bInterfaceSubClass ==
 	    UVC_SC_VIDEOCONTROL) {
-		int ret = 0;
-
 		if (reset) {
 			ret = uvc_ctrl_restore_values(dev);
 			if (ret < 0)
@@ -2014,8 +2035,13 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 	}
 
 	list_for_each_entry(stream, &dev->streams, list) {
-		if (stream->intf == intf)
-			return uvc_video_resume(stream, reset);
+		if (stream->intf == intf) {
+			ret = uvc_video_resume(stream, reset);
+			if (ret < 0)
+				uvc_queue_streamoff(&stream->queue,
+						    stream->queue.queue.type);
+			return ret;
+		}
 	}
 
 	uvc_trace(UVC_TRACE_SUSPEND, "Resume: video streaming USB interface "
@@ -2504,6 +2530,15 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_PROBE_MINMAX
 				| UVC_QUIRK_IGNORE_SELECTOR_UNIT },
+	/* Oculus VR Positional Tracker DK2 */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x2833,
+	  .idProduct		= 0x0201,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_FORCE_Y8 },
 	/* Generic USB Video Class */
 	{ USB_INTERFACE_INFO(USB_CLASS_VIDEO, 1, 0) },
 	{}

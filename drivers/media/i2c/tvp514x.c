@@ -756,12 +756,12 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
  */
 static int
 tvp514x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					enum v4l2_mbus_pixelcode *code)
+					u32 *code)
 {
 	if (index)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_YUYV10_2X10;
+	*code = MEDIA_BUS_FMT_YUYV10_2X10;
 	return 0;
 }
 
@@ -784,7 +784,7 @@ tvp514x_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 	/* Calculate height and width based on current standard */
 	current_std = decoder->current_std;
 
-	f->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	f->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	f->width = decoder->std_list[current_std].width;
 	f->height = decoder->std_list[current_std].height;
 	f->field = V4L2_FIELD_INTERLACED;
@@ -942,7 +942,7 @@ static int tvp514x_enum_mbus_code(struct v4l2_subdev *sd,
 	if (index != 0)
 		return -EINVAL;
 
-	code->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	code->code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	return 0;
 }
@@ -967,7 +967,7 @@ static int tvp514x_get_pad_format(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	format->format.code = V4L2_MBUS_FMT_YUYV8_2X8;
+	format->format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 	format->format.width = tvp514x_std_list[decoder->current_std].width;
 	format->format.height = tvp514x_std_list[decoder->current_std].height;
 	format->format.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -991,7 +991,7 @@ static int tvp514x_set_pad_format(struct v4l2_subdev *sd,
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 
 	if (fmt->format.field != V4L2_FIELD_INTERLACED ||
-	    fmt->format.code != V4L2_MBUS_FMT_YUYV8_2X8 ||
+	    fmt->format.code != MEDIA_BUS_FMT_YUYV8_2X8 ||
 	    fmt->format.colorspace != V4L2_COLORSPACE_SMPTE170M ||
 	    fmt->format.width != tvp514x_std_list[decoder->current_std].width ||
 	    fmt->format.height != tvp514x_std_list[decoder->current_std].height)

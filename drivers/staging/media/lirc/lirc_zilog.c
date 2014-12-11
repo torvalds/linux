@@ -199,7 +199,7 @@ static void release_ir_device(struct kref *ref)
 		lirc_unregister_driver(ir->l.minor);
 		ir->l.minor = MAX_IRCTL_DEVICES;
 	}
-	if (ir->rbuf.fifo_initialized)
+	if (kfifo_initialized(&ir->rbuf.fifo))
 		lirc_buffer_free(&ir->rbuf);
 	list_del(&ir->list);
 	kfree(ir);
@@ -730,11 +730,9 @@ static int send_boot_data(struct IR_tx *tx)
 static void fw_unload_locked(void)
 {
 	if (tx_data) {
-		if (tx_data->code_sets)
-			vfree(tx_data->code_sets);
+		vfree(tx_data->code_sets);
 
-		if (tx_data->datap)
-			vfree(tx_data->datap);
+		vfree(tx_data->datap);
 
 		vfree(tx_data);
 		tx_data = NULL;

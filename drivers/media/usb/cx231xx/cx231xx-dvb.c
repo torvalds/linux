@@ -19,11 +19,10 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx231xx.h"
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 
-#include "cx231xx.h"
 #include <media/v4l2-common.h>
 #include <media/videobuf-vmalloc.h>
 
@@ -45,11 +44,6 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages [dvb]");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
-#define dprintk(level, fmt, arg...) do {			\
-if (debug >= level) 						\
-	printk(KERN_DEBUG "%s/2-dvb: " fmt, dev->name, ## arg);	\
-} while (0)
 
 #define CX231XX_DVB_NUM_BUFS 5
 #define CX231XX_DVB_MAX_PACKETSIZE 564
@@ -197,9 +191,11 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 		break;
 	}
 	if (packet < 0) {
-		dprintk(1, "URB status %d [%s].\n", status, errmsg);
+		dev_dbg(dev->dev,
+			"URB status %d [%s].\n", status, errmsg);
 	} else {
-		dprintk(1, "URB packet %d, status %d [%s].\n",
+		dev_dbg(dev->dev,
+			"URB packet %d, status %d [%s].\n",
 			packet, status, errmsg);
 	}
 }
@@ -265,12 +261,8 @@ static int start_streaming(struct cx231xx_dvb *dvb)
 	struct cx231xx *dev = dvb->adapter.priv;
 
 	if (dev->USE_ISO) {
-		cx231xx_info("DVB transfer mode is ISO.\n");
-		mutex_lock(&dev->i2c_lock);
-		cx231xx_enable_i2c_port_3(dev, false);
+		dev_dbg(dev->dev, "DVB transfer mode is ISO.\n");
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 4);
-		cx231xx_enable_i2c_port_3(dev, true);
-		mutex_unlock(&dev->i2c_lock);
 		rc = cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 		if (rc < 0)
 			return rc;
@@ -280,7 +272,7 @@ static int start_streaming(struct cx231xx_dvb *dvb)
 					dev->ts1_mode.max_pkt_size,
 					dvb_isoc_copy);
 	} else {
-		cx231xx_info("DVB transfer mode is BULK.\n");
+		dev_dbg(dev->dev, "DVB transfer mode is BULK.\n");
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
 		rc = cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 		if (rc < 0)
@@ -378,24 +370,24 @@ static int attach_xc5000(u8 addr, struct cx231xx *dev)
 	struct xc5000_config cfg;
 
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.i2c_adap = &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap;
+	cfg.i2c_adap = cx231xx_get_i2c_adap(dev, dev->board.tuner_i2c_master);
 	cfg.i2c_addr = addr;
 
 	if (!dev->dvb->frontend) {
-		printk(KERN_ERR "%s/2: dvb frontend not attached. "
+		dev_err(dev->dev, "%s/2: dvb frontend not attached. "
 		       "Can't attach xc5000\n", dev->name);
 		return -EINVAL;
 	}
 
 	fe = dvb_attach(xc5000_attach, dev->dvb->frontend, &cfg);
 	if (!fe) {
-		printk(KERN_ERR "%s/2: xc5000 attach failed\n", dev->name);
+		dev_err(dev->dev, "%s/2: xc5000 attach failed\n", dev->name);
 		dvb_frontend_detach(dev->dvb->frontend);
 		dev->dvb->frontend = NULL;
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO "%s/2: xc5000 attached\n", dev->name);
+	dev_info(dev->dev, "%s/2: xc5000 attached\n", dev->name);
 
 	return 0;
 }
@@ -434,16 +426,17 @@ int cx231xx_reset_analog_tuner(struct cx231xx *dev)
 
 		if (dops->init != NULL && !dev->xc_fw_load_done) {
 
-			cx231xx_info("Reloading firmware for XC5000\n");
+			dev_dbg(dev->dev,
+				"Reloading firmware for XC5000\n");
 			status = dops->init(dev->dvb->frontend);
 			if (status == 0) {
 				dev->xc_fw_load_done = 1;
-				cx231xx_info
-				    ("XC5000 firmware download completed\n");
+				dev_dbg(dev->dev,
+					"XC5000 firmware download completed\n");
 			} else {
 				dev->xc_fw_load_done = 0;
-				cx231xx_info
-				    ("XC5000 firmware download failed !!!\n");
+				dev_dbg(dev->dev,
+					"XC5000 firmware download failed !!!\n");
 			}
 		}
 
@@ -466,7 +459,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	result = dvb_register_adapter(&dvb->adapter, dev->name, module, device,
 				      adapter_nr);
 	if (result < 0) {
-		printk(KERN_WARNING
+		dev_warn(dev->dev,
 		       "%s: dvb_register_adapter failed (errno = %d)\n",
 		       dev->name, result);
 		goto fail_adapter;
@@ -480,7 +473,7 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		printk(KERN_WARNING
+		dev_warn(dev->dev,
 		       "%s: dvb_register_frontend failed (errno = %d)\n",
 		       dev->name, result);
 		goto fail_frontend;
@@ -498,7 +491,8 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_dmx_init failed (errno = %d)\n",
+		dev_warn(dev->dev,
+			 "%s: dvb_dmx_init failed (errno = %d)\n",
 		       dev->name, result);
 		goto fail_dmx;
 	}
@@ -508,15 +502,16 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_dmxdev_init failed (errno = %d)\n",
-		       dev->name, result);
+		dev_warn(dev->dev,
+			 "%s: dvb_dmxdev_init failed (errno = %d)\n",
+			 dev->name, result);
 		goto fail_dmxdev;
 	}
 
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_WARNING
+		dev_warn(dev->dev,
 		       "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
 		       dev->name, result);
 		goto fail_fe_hw;
@@ -525,17 +520,17 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		printk(KERN_WARNING
-		       "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
-		       dev->name, result);
+		dev_warn(dev->dev,
+			 "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+			 dev->name, result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_WARNING
-		       "%s: connect_frontend failed (errno = %d)\n", dev->name,
-		       result);
+		dev_warn(dev->dev,
+			 "%s: connect_frontend failed (errno = %d)\n",
+			 dev->name, result);
 		goto fail_fe_conn;
 	}
 
@@ -583,6 +578,8 @@ static int dvb_init(struct cx231xx *dev)
 {
 	int result = 0;
 	struct cx231xx_dvb *dvb;
+	struct i2c_adapter *tuner_i2c;
+	struct i2c_adapter *demod_i2c;
 
 	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
@@ -592,13 +589,16 @@ static int dvb_init(struct cx231xx *dev)
 	dvb = kzalloc(sizeof(struct cx231xx_dvb), GFP_KERNEL);
 
 	if (dvb == NULL) {
-		printk(KERN_INFO "cx231xx_dvb: memory allocation failed\n");
+		dev_info(dev->dev,
+			 "cx231xx_dvb: memory allocation failed\n");
 		return -ENOMEM;
 	}
 	dev->dvb = dvb;
 	dev->cx231xx_set_analog_freq = cx231xx_set_analog_freq;
 	dev->cx231xx_reset_analog_tuner = cx231xx_reset_analog_tuner;
 
+	tuner_i2c = cx231xx_get_i2c_adap(dev, dev->board.tuner_i2c_master);
+	demod_i2c = cx231xx_get_i2c_adap(dev, dev->board.demod_i2c_master);
 	mutex_lock(&dev->lock);
 	cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 	cx231xx_demod_reset(dev);
@@ -609,11 +609,11 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1432_attach,
 					&dvico_s5h1432_config,
-					&dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
+					demod_i2c);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach s5h1432 front end\n");
+			dev_err(dev->dev,
+				"Failed to attach s5h1432 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -622,7 +622,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(xc5000_attach, dev->dvb->frontend,
-			       &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			       tuner_i2c,
 			       &cnxt_rde250_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -634,11 +634,11 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1411_attach,
 					       &xc5000_s5h1411_config,
-					       &dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
+					       demod_i2c);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach s5h1411 front end\n");
+			dev_err(dev->dev,
+				"Failed to attach s5h1411 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -647,7 +647,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(xc5000_attach, dev->dvb->frontend,
-			       &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			       tuner_i2c,
 			       &cnxt_rdu250_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -657,11 +657,11 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1432_attach,
 					&dvico_s5h1432_config,
-					&dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
+					demod_i2c);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach s5h1432 front end\n");
+			dev_err(dev->dev,
+				"Failed to attach s5h1432 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -670,7 +670,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(tda18271_attach, dev->dvb->frontend,
-			       0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			       0x60, tuner_i2c,
 			       &cnxt_rde253s_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -681,11 +681,11 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(s5h1411_attach,
 					       &tda18271_s5h1411_config,
-					       &dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
+					       demod_i2c);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach s5h1411 front end\n");
+			dev_err(dev->dev,
+				"Failed to attach s5h1411 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -694,7 +694,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		if (!dvb_attach(tda18271_attach, dev->dvb->frontend,
-			       0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			       0x60, tuner_i2c,
 			       &cnxt_rde253s_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
@@ -702,16 +702,17 @@ static int dvb_init(struct cx231xx *dev)
 		break;
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 
-		printk(KERN_INFO "%s: looking for tuner / demod on i2c bus: %d\n",
-		       __func__, i2c_adapter_id(&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap));
+		dev_info(dev->dev,
+			 "%s: looking for tuner / demod on i2c bus: %d\n",
+		       __func__, i2c_adapter_id(tuner_i2c));
 
 		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
 						&hcw_lgdt3305_config,
-						&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap);
+						tuner_i2c);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach LG3305 front end\n");
+			dev_err(dev->dev,
+				"Failed to attach LG3305 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -720,7 +721,7 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		dvb_attach(tda18271_attach, dev->dvb->frontend,
-			   0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			   0x60, tuner_i2c,
 			   &hcw_tda18271_config);
 		break;
 
@@ -728,12 +729,12 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(si2165_attach,
 			&hauppauge_930C_HD_1113xx_si2165_config,
-			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap
+			tuner_i2c
 			);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach SI2165 front end\n");
+			dev_err(dev->dev,
+				"Failed to attach SI2165 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -745,7 +746,7 @@ static int dvb_init(struct cx231xx *dev)
 
 		dvb_attach(tda18271_attach, dev->dvb->frontend,
 			0x60,
-			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			tuner_i2c,
 			&hcw_tda18271_config);
 
 		dev->cx231xx_reset_analog_tuner = NULL;
@@ -761,12 +762,12 @@ static int dvb_init(struct cx231xx *dev)
 
 		dev->dvb->frontend = dvb_attach(si2165_attach,
 			&pctv_quatro_stick_1114xx_si2165_config,
-			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap
+			tuner_i2c
 			);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach SI2165 front end\n");
+			dev_err(dev->dev,
+				"Failed to attach SI2165 front end\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -786,7 +787,7 @@ static int dvb_init(struct cx231xx *dev)
 		request_module("si2157");
 
 		client = i2c_new_device(
-			&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			tuner_i2c,
 			&info);
 		if (client == NULL || client->dev.driver == NULL) {
 			dvb_frontend_detach(dev->dvb->frontend);
@@ -810,16 +811,17 @@ static int dvb_init(struct cx231xx *dev)
 	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 	case CX231XX_BOARD_KWORLD_UB430_USB_HYBRID:
 
-		printk(KERN_INFO "%s: looking for demod on i2c bus: %d\n",
-		       __func__, i2c_adapter_id(&dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap));
+		dev_info(dev->dev,
+			 "%s: looking for demod on i2c bus: %d\n",
+			 __func__, i2c_adapter_id(tuner_i2c));
 
 		dev->dvb->frontend = dvb_attach(mb86a20s_attach,
 						&pv_mb86a20s_config,
-						&dev->i2c_bus[dev->board.demod_i2c_master].i2c_adap);
+						demod_i2c);
 
 		if (dev->dvb->frontend == NULL) {
-			printk(DRIVER_NAME
-			       ": Failed to attach mb86a20s demod\n");
+			dev_err(dev->dev,
+				"Failed to attach mb86a20s demod\n");
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -828,30 +830,31 @@ static int dvb_init(struct cx231xx *dev)
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
 		dvb_attach(tda18271_attach, dev->dvb->frontend,
-			   0x60, &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+			   0x60, tuner_i2c,
 			   &pv_tda18271_config);
 		break;
 
 	default:
-		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"
-		       " isn't supported yet\n", dev->name);
+		dev_err(dev->dev,
+			"%s/2: The frontend of your DVB/ATSC card isn't supported yet\n",
+			dev->name);
 		break;
 	}
 	if (NULL == dvb->frontend) {
-		printk(KERN_ERR
+		dev_err(dev->dev,
 		       "%s/2: frontend initialization failed\n", dev->name);
 		result = -EINVAL;
 		goto out_free;
 	}
 
 	/* register everything */
-	result = register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);
+	result = register_dvb(dvb, THIS_MODULE, dev, dev->dev);
 
 	if (result < 0)
 		goto out_free;
 
 
-	printk(KERN_INFO "Successfully loaded cx231xx-dvb\n");
+	dev_info(dev->dev, "Successfully loaded cx231xx-dvb\n");
 
 ret:
 	cx231xx_set_mode(dev, CX231XX_SUSPEND);

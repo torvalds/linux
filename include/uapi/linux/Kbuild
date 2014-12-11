@@ -243,6 +243,7 @@ header-y += map_to_7segment.h
 header-y += matroxfb.h
 header-y += mdio.h
 header-y += media.h
+header-y += media-bus-format.h
 header-y += mei.h
 header-y += memfd.h
 header-y += mempolicy.h

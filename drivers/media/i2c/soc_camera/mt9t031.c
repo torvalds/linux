@@ -345,7 +345,7 @@ static int mt9t031_g_fmt(struct v4l2_subdev *sd,
 
 	mf->width	= mt9t031->rect.width / mt9t031->xskip;
 	mf->height	= mt9t031->rect.height / mt9t031->yskip;
-	mf->code	= V4L2_MBUS_FMT_SBGGR10_1X10;
+	mf->code	= MEDIA_BUS_FMT_SBGGR10_1X10;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 	mf->field	= V4L2_FIELD_NONE;
 
@@ -367,7 +367,7 @@ static int mt9t031_s_fmt(struct v4l2_subdev *sd,
 	xskip = mt9t031_skip(&rect.width, mf->width, MT9T031_MAX_WIDTH);
 	yskip = mt9t031_skip(&rect.height, mf->height, MT9T031_MAX_HEIGHT);
 
-	mf->code	= V4L2_MBUS_FMT_SBGGR10_1X10;
+	mf->code	= MEDIA_BUS_FMT_SBGGR10_1X10;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 
 	/* mt9t031_set_params() doesn't change width and height */
@@ -385,7 +385,7 @@ static int mt9t031_try_fmt(struct v4l2_subdev *sd,
 		&mf->width, MT9T031_MIN_WIDTH, MT9T031_MAX_WIDTH, 1,
 		&mf->height, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT, 1, 0);
 
-	mf->code	= V4L2_MBUS_FMT_SBGGR10_1X10;
+	mf->code	= MEDIA_BUS_FMT_SBGGR10_1X10;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 
 	return 0;
@@ -673,12 +673,12 @@ static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
 };
 
 static int mt9t031_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			    enum v4l2_mbus_pixelcode *code)
+			    u32 *code)
 {
 	if (index)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_SBGGR10_1X10;
+	*code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	return 0;
 }
 

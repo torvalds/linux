@@ -272,16 +272,16 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 
 	/* input interface */
 	switch (icd->current_fmt->code) {
-	case V4L2_MBUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		/* BT.601/BT.1358 16bit YCbCr422 */
 		vnmc |= VNMC_INF_YUV16;
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
 		vnmc |= priv->pdata_flags & RCAR_VIN_BT656 ?
 			VNMC_INF_YUV8_BT656 : VNMC_INF_YUV8_BT601;
 		break;
-	case V4L2_MBUS_FMT_YUYV10_2X10:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
 		vnmc |= priv->pdata_flags & RCAR_VIN_BT656 ?
 			VNMC_INF_YUV10_BT656 : VNMC_INF_YUV10_BT601;
@@ -921,7 +921,7 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 	int ret, k, n;
 	int formats = 0;
 	struct rcar_vin_cam *cam;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	const struct soc_mbus_pixelfmt *fmt;
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
@@ -1010,9 +1010,9 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 		cam->extra_fmt = NULL;
 
 	switch (code) {
-	case V4L2_MBUS_FMT_YUYV8_1X16:
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YUYV10_2X10:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
 		if (cam->extra_fmt)
 			break;
 

@@ -1306,16 +1306,15 @@ static struct resource dm365_v4l2_disp_resources[] = {
 	},
 };
 
-static int dm365_vpbe_setup_pinmux(enum v4l2_mbus_pixelcode if_type,
-			    int field)
+static int dm365_vpbe_setup_pinmux(u32 if_type, int field)
 {
 	switch (if_type) {
-	case V4L2_MBUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
 		davinci_cfg_reg(DM365_VOUT_FIELD_G81);
 		davinci_cfg_reg(DM365_VOUT_COUTL_EN);
 		davinci_cfg_reg(DM365_VOUT_COUTH_EN);
 		break;
-	case V4L2_MBUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		if (field)
 			davinci_cfg_reg(DM365_VOUT_FIELD);
 		else

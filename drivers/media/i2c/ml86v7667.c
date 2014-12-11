@@ -192,12 +192,12 @@ static int ml86v7667_g_input_status(struct v4l2_subdev *sd, u32 *status)
 }
 
 static int ml86v7667_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				   enum v4l2_mbus_pixelcode *code)
+				   u32 *code)
 {
 	if (index > 0)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_YUYV8_2X8;
+	*code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	return 0;
 }
@@ -207,7 +207,7 @@ static int ml86v7667_mbus_fmt(struct v4l2_subdev *sd,
 {
 	struct ml86v7667_priv *priv = to_ml86v7667(sd);
 
-	fmt->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	fmt->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	/* The top field is always transferred first by the chip */
 	fmt->field = V4L2_FIELD_INTERLACED_TB;

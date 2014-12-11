@@ -36,6 +36,34 @@
  * the driver.
  */
 
+static inline struct uvc_streaming *
+uvc_queue_to_stream(struct uvc_video_queue *queue)
+{
+	return container_of(queue, struct uvc_streaming, queue);
+}
+
+/*
+ * Return all queued buffers to videobuf2 in the requested state.
+ *
+ * This function must be called with the queue spinlock held.
+ */
+static void uvc_queue_return_buffers(struct uvc_video_queue *queue,
+			       enum uvc_buffer_state state)
+{
+	enum vb2_buffer_state vb2_state = state == UVC_BUF_STATE_ERROR
+					? VB2_BUF_STATE_ERROR
+					: VB2_BUF_STATE_QUEUED;
+
+	while (!list_empty(&queue->irqqueue)) {
+		struct uvc_buffer *buf = list_first_entry(&queue->irqqueue,
+							  struct uvc_buffer,
+							  queue);
+		list_del(&buf->queue);
+		buf->state = state;
+		vb2_buffer_done(&buf->buf, vb2_state);
+	}
+}
+
 /* -----------------------------------------------------------------------------
  * videobuf2 queue operations
  */
@@ -45,8 +73,7 @@ static int uvc_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
-	struct uvc_streaming *stream =
-			container_of(queue, struct uvc_streaming, queue);
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
 
 	/* Make sure the image size is large enough. */
 	if (fmt && fmt->fmt.pix.sizeimage < stream->ctrl.dwMaxVideoFrameSize)
@@ -109,8 +136,7 @@ static void uvc_buffer_queue(struct vb2_buffer *vb)
 static void uvc_buffer_finish(struct vb2_buffer *vb)
 {
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vb->vb2_queue);
-	struct uvc_streaming *stream =
-			container_of(queue, struct uvc_streaming, queue);
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
 	struct uvc_buffer *buf = container_of(vb, struct uvc_buffer, buf);
 
 	if (vb->state == VB2_BUF_STATE_DONE)
@@ -131,6 +157,39 @@ static void uvc_wait_finish(struct vb2_queue *vq)
 	mutex_lock(&queue->mutex);
 }
 
+static int uvc_start_streaming(struct vb2_queue *vq, unsigned int count)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
+	unsigned long flags;
+	int ret;
+
+	queue->buf_used = 0;
+
+	ret = uvc_video_enable(stream, 1);
+	if (ret == 0)
+		return 0;
+
+	spin_lock_irqsave(&queue->irqlock, flags);
+	uvc_queue_return_buffers(queue, UVC_BUF_STATE_QUEUED);
+	spin_unlock_irqrestore(&queue->irqlock, flags);
+
+	return ret;
+}
+
+static void uvc_stop_streaming(struct vb2_queue *vq)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
+	unsigned long flags;
+
+	uvc_video_enable(stream, 0);
+
+	spin_lock_irqsave(&queue->irqlock, flags);
+	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);
+	spin_unlock_irqrestore(&queue->irqlock, flags);
+}
+
 static struct vb2_ops uvc_queue_qops = {
 	.queue_setup = uvc_queue_setup,
 	.buf_prepare = uvc_buffer_prepare,
@@ -138,6 +197,8 @@ static struct vb2_ops uvc_queue_qops = {
 	.buf_finish = uvc_buffer_finish,
 	.wait_prepare = uvc_wait_prepare,
 	.wait_finish = uvc_wait_finish,
+	.start_streaming = uvc_start_streaming,
+	.stop_streaming = uvc_stop_streaming,
 };
 
 int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
@@ -165,12 +226,19 @@ int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
 	return 0;
 }
 
+void uvc_queue_release(struct uvc_video_queue *queue)
+{
+	mutex_lock(&queue->mutex);
+	vb2_queue_release(&queue->queue);
+	mutex_unlock(&queue->mutex);
+}
+
 /* -----------------------------------------------------------------------------
  * V4L2 queue operations
  */
 
-int uvc_alloc_buffers(struct uvc_video_queue *queue,
-		      struct v4l2_requestbuffers *rb)
+int uvc_request_buffers(struct uvc_video_queue *queue,
+			struct v4l2_requestbuffers *rb)
 {
 	int ret;
 
@@ -179,13 +247,6 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue,
 	mutex_unlock(&queue->mutex);
 
 	return ret ? ret : rb->count;
-}
-
-void uvc_free_buffers(struct uvc_video_queue *queue)
-{
-	mutex_lock(&queue->mutex);
-	vb2_queue_release(&queue->queue);
-	mutex_unlock(&queue->mutex);
 }
 
 int uvc_query_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
@@ -229,6 +290,28 @@ int uvc_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
 
 	mutex_lock(&queue->mutex);
 	ret = vb2_dqbuf(&queue->queue, buf, nonblocking);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
+}
+
+int uvc_queue_streamon(struct uvc_video_queue *queue, enum v4l2_buf_type type)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_streamon(&queue->queue, type);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
+}
+
+int uvc_queue_streamoff(struct uvc_video_queue *queue, enum v4l2_buf_type type)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_streamoff(&queue->queue, type);
 	mutex_unlock(&queue->mutex);
 
 	return ret;
@@ -289,49 +372,6 @@ int uvc_queue_allocated(struct uvc_video_queue *queue)
 }
 
 /*
- * Enable or disable the video buffers queue.
- *
- * The queue must be enabled before starting video acquisition and must be
- * disabled after stopping it. This ensures that the video buffers queue
- * state can be properly initialized before buffers are accessed from the
- * interrupt handler.
- *
- * Enabling the video queue returns -EBUSY if the queue is already enabled.
- *
- * Disabling the video queue cancels the queue and removes all buffers from
- * the main queue.
- *
- * This function can't be called from interrupt context. Use
- * uvc_queue_cancel() instead.
- */
-int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
-{
-	unsigned long flags;
-	int ret;
-
-	mutex_lock(&queue->mutex);
-	if (enable) {
-		ret = vb2_streamon(&queue->queue, queue->queue.type);
-		if (ret < 0)
-			goto done;
-
-		queue->buf_used = 0;
-	} else {
-		ret = vb2_streamoff(&queue->queue, queue->queue.type);
-		if (ret < 0)
-			goto done;
-
-		spin_lock_irqsave(&queue->irqlock, flags);
-		INIT_LIST_HEAD(&queue->irqqueue);
-		spin_unlock_irqrestore(&queue->irqlock, flags);
-	}
-
-done:
-	mutex_unlock(&queue->mutex);
-	return ret;
-}
-
-/*
  * Cancel the video buffers queue.
  *
  * Cancelling the queue marks all buffers on the irq queue as erroneous,
@@ -345,17 +385,10 @@ done:
  */
 void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 {
-	struct uvc_buffer *buf;
 	unsigned long flags;
 
 	spin_lock_irqsave(&queue->irqlock, flags);
-	while (!list_empty(&queue->irqqueue)) {
-		buf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
-				       queue);
-		list_del(&buf->queue);
-		buf->state = UVC_BUF_STATE_ERROR;
-		vb2_buffer_done(&buf->buf, VB2_BUF_STATE_ERROR);
-	}
+	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);
 	/* This must be protected by the irqlock spinlock to avoid race
 	 * conditions between uvc_buffer_queue and the disconnection event that
 	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not

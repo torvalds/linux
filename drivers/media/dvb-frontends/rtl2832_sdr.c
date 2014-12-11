@@ -1013,6 +1013,10 @@ static int rtl2832_sdr_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (s->d->props->power_ctrl)
 		s->d->props->power_ctrl(s->d, 1);
 
+	/* enable ADC */
+	if (s->d->props->frontend_ctrl)
+		s->d->props->frontend_ctrl(s->fe, 1);
+
 	set_bit(POWER_ON, &s->flags);
 
 	ret = rtl2832_sdr_set_tuner(s);
@@ -1063,6 +1067,10 @@ static void rtl2832_sdr_stop_streaming(struct vb2_queue *vq)
 	rtl2832_sdr_unset_tuner(s);
 
 	clear_bit(POWER_ON, &s->flags);
+
+	/* disable ADC */
+	if (s->d->props->frontend_ctrl)
+		s->d->props->frontend_ctrl(s->fe, 0);
 
 	if (s->d->props->power_ctrl)
 		s->d->props->power_ctrl(s->d, 0);

@@ -209,8 +209,8 @@ const struct vb2_ops vivid_vid_out_qops = {
 	.buf_queue		= vid_out_buf_queue,
 	.start_streaming	= vid_out_start_streaming,
 	.stop_streaming		= vid_out_stop_streaming,
-	.wait_prepare		= vivid_unlock,
-	.wait_finish		= vivid_lock,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /*
@@ -259,6 +259,8 @@ void vivid_update_format_out(struct vivid_dev *dev)
 		}
 		break;
 	}
+	dev->ycbcr_enc_out = V4L2_YCBCR_ENC_DEFAULT;
+	dev->quantization_out = V4L2_QUANTIZATION_DEFAULT;
 	dev->compose_out = dev->sink_rect;
 	dev->compose_bounds_out = dev->sink_rect;
 	dev->crop_out = dev->compose_out;
@@ -318,6 +320,8 @@ int vivid_g_fmt_vid_out(struct file *file, void *priv,
 	mp->field        = dev->field_out;
 	mp->pixelformat  = dev->fmt_out->fourcc;
 	mp->colorspace   = dev->colorspace_out;
+	mp->ycbcr_enc    = dev->ycbcr_enc_out;
+	mp->quantization = dev->quantization_out;
 	mp->num_planes = dev->fmt_out->planes;
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = dev->bytesperline_out[p];
@@ -394,16 +398,23 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 		pfmt[p].sizeimage = pfmt[p].bytesperline * mp->height;
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
-	if (vivid_is_svid_out(dev))
+	mp->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	mp->quantization = V4L2_QUANTIZATION_DEFAULT;
+	if (vivid_is_svid_out(dev)) {
 		mp->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	else if (dev->dvi_d_out || !(bt->standards & V4L2_DV_BT_STD_CEA861))
+	} else if (dev->dvi_d_out || !(bt->standards & V4L2_DV_BT_STD_CEA861)) {
 		mp->colorspace = V4L2_COLORSPACE_SRGB;
-	else if (bt->width == 720 && bt->height <= 576)
+		if (dev->dvi_d_out)
+			mp->quantization = V4L2_QUANTIZATION_LIM_RANGE;
+	} else if (bt->width == 720 && bt->height <= 576) {
 		mp->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	else if (mp->colorspace != V4L2_COLORSPACE_SMPTE170M &&
-		 mp->colorspace != V4L2_COLORSPACE_REC709 &&
-		 mp->colorspace != V4L2_COLORSPACE_SRGB)
+	} else if (mp->colorspace != V4L2_COLORSPACE_SMPTE170M &&
+		   mp->colorspace != V4L2_COLORSPACE_REC709 &&
+		   mp->colorspace != V4L2_COLORSPACE_ADOBERGB &&
+		   mp->colorspace != V4L2_COLORSPACE_BT2020 &&
+		   mp->colorspace != V4L2_COLORSPACE_SRGB) {
 		mp->colorspace = V4L2_COLORSPACE_REC709;
+	}
 	memset(mp->reserved, 0, sizeof(mp->reserved));
 	return 0;
 }
@@ -522,6 +533,8 @@ int vivid_s_fmt_vid_out(struct file *file, void *priv,
 
 set_colorspace:
 	dev->colorspace_out = mp->colorspace;
+	dev->ycbcr_enc_out = mp->ycbcr_enc;
+	dev->quantization_out = mp->quantization;
 	if (dev->loop_video) {
 		vivid_send_source_change(dev, SVID);
 		vivid_send_source_change(dev, HDMI);

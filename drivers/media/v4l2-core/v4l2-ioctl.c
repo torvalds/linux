@@ -257,7 +257,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pr_cont(", width=%u, height=%u, "
 			"pixelformat=%c%c%c%c, field=%s, "
 			"bytesperline=%u, sizeimage=%u, colorspace=%d, "
-			"flags %u\n",
+			"flags %x, ycbcr_enc=%u, quantization=%u\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -265,21 +265,24 @@ static void v4l_print_format(const void *arg, bool write_only)
 			(pix->pixelformat >> 24) & 0xff,
 			prt_names(pix->field, v4l2_field_names),
 			pix->bytesperline, pix->sizeimage,
-			pix->colorspace, pix->flags);
+			pix->colorspace, pix->flags, pix->ycbcr_enc,
+			pix->quantization);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		mp = &p->fmt.pix_mp;
 		pr_cont(", width=%u, height=%u, "
 			"format=%c%c%c%c, field=%s, "
-			"colorspace=%d, num_planes=%u\n",
+			"colorspace=%d, num_planes=%u, flags=%x, "
+			"ycbcr_enc=%u, quantization=%u\n",
 			mp->width, mp->height,
 			(mp->pixelformat & 0xff),
 			(mp->pixelformat >>  8) & 0xff,
 			(mp->pixelformat >> 16) & 0xff,
 			(mp->pixelformat >> 24) & 0xff,
 			prt_names(mp->field, v4l2_field_names),
-			mp->colorspace, mp->num_planes);
+			mp->colorspace, mp->num_planes, mp->flags,
+			mp->ycbcr_enc, mp->quantization);
 		for (i = 0; i < mp->num_planes; i++)
 			printk(KERN_DEBUG "plane %u: bytesperline=%u sizeimage=%u\n", i,
 					mp->plane_fmt[i].bytesperline,
@@ -1040,7 +1043,7 @@ static int v4l_g_priority(const struct v4l2_ioctl_ops *ops,
 	if (ops->vidioc_g_priority)
 		return ops->vidioc_g_priority(file, fh, arg);
 	vfd = video_devdata(file);
-	*p = v4l2_prio_max(&vfd->v4l2_dev->prio);
+	*p = v4l2_prio_max(vfd->prio);
 	return 0;
 }
 
@@ -1055,7 +1058,7 @@ static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
 		return ops->vidioc_s_priority(file, fh, *p);
 	vfd = video_devdata(file);
 	vfh = file->private_data;
-	return v4l2_prio_change(&vfd->v4l2_dev->prio, &vfh->prio, *p);
+	return v4l2_prio_change(vfd->prio, &vfh->prio, *p);
 }
 
 static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,

@@ -195,20 +195,6 @@ static const u8 vivid_hdmi_edid[256] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd7
 };
 
-void vivid_lock(struct vb2_queue *vq)
-{
-	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_lock(&dev->mutex);
-}
-
-void vivid_unlock(struct vb2_queue *vq)
-{
-	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_unlock(&dev->mutex);
-}
-
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
@@ -586,7 +572,7 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
-/* Not yet	.vidioc_expbuf		= vb2_ioctl_expbuf,*/
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 
@@ -1018,6 +1004,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1036,6 +1023,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1054,6 +1042,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1072,6 +1061,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1089,6 +1079,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 8;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
