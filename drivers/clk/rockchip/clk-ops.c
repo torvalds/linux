@@ -783,6 +783,43 @@ const struct clk_ops clkops_rate_3368_auto_parent = {
 	.determine_rate = clk_3368_mux_div_determine_rate,
 };
 
+#define RK3368_LIMIT_NPLL (1250*MHZ)
+
+static long clk_3368_dclk_lcdc_determine_rate(struct clk_hw *hw,
+					      unsigned long rate,
+					      unsigned long *best_parent_rate,
+					      struct clk **best_parent_p)
+{
+	struct clk *npll = clk_get(NULL, "clk_npll");
+	unsigned long div, prate, best;
+
+	*best_parent_p = npll;
+
+	div = RK3368_LIMIT_NPLL/rate;
+	/* div should be even */
+	if (div % 2)
+		div = div - 1;
+
+	prate = div * rate;
+	*best_parent_rate = clk_round_rate(npll, prate);
+	best = (*best_parent_rate)/div;
+
+	return best;
+}
+
+static long clk_3368_dclk_lcdc_round_rate(struct clk_hw *hw, unsigned long rate,
+					  unsigned long *prate)
+{
+	return clk_3368_dclk_lcdc_determine_rate(hw, rate, prate, NULL);
+}
+
+const struct clk_ops clkops_rate_3368_dclk_lcdc = {
+	.determine_rate = clk_3368_dclk_lcdc_determine_rate,
+	.set_rate	= clk_divider_set_rate,
+	.round_rate	= clk_3368_dclk_lcdc_round_rate,
+	.recalc_rate	= clk_divider_recalc_rate,
+};
+
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
 	{.index = CLKOPS_RATE_EVENDIV,		.clk_ops = &clkops_rate_evendiv},
@@ -799,6 +836,7 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_RK3368_MUX_DIV_NPLL,   .clk_ops = &clkops_rate_3368_auto_parent},
+	{.index = CLKOPS_RATE_RK3368_DCLK_LCDC, .clk_ops = &clkops_rate_3368_dclk_lcdc},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},

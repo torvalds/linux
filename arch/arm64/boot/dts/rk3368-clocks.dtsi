@@ -946,8 +946,10 @@
 						clock-output-names = "dclk_vop0";
 						rockchip,div-type = <CLK_DIVIDER_PLUS_ONE>;
 						#clock-cells = <0>;
-						rockchip,clkops-idx = <CLKOPS_RATE_MUX_DIV>;
-						rockchip,flags = <CLK_SET_RATE_NO_REPARENT>;
+						rockchip,clkops-idx =
+							<CLKOPS_RATE_RK3368_DCLK_LCDC>;
+						rockchip,flags = <CLK_SET_RATE_PARENT>;
+
 					};
 
 					dclk_vop0: dclk_vop0_mux {
