@@ -447,4 +447,6 @@ extern u32 bcma_chipco_pll_read(struct bcma_drv_cc *cc, u32 offset);
 #define  BCMA_DMA_TRANSLATION_DMA64_CMT	0x80000000 /* Client Mode Translation for 64-bit DMA */
 extern u32 bcma_core_dma_translation(struct bcma_device *core);
 
+extern unsigned int bcma_core_irq(struct bcma_device *core, int num);
+
 #endif /* LINUX_BCMA_H_ */

@@ -1363,7 +1363,7 @@ static ssize_t show_cmd_log(struct device *d,
 	if (!priv->cmdlog)
 		return 0;
 	for (i = (priv->cmdlog_pos + 1) % priv->cmdlog_len;
-	     (i != priv->cmdlog_pos) && (PAGE_SIZE - len);
+	     (i != priv->cmdlog_pos) && (len < PAGE_SIZE);
 	     i = (i + 1) % priv->cmdlog_len) {
 		len +=
 		    snprintf(buf + len, PAGE_SIZE - len,

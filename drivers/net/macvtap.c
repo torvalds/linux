@@ -15,6 +15,7 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/fs.h>
+#include <linux/uio.h>
 
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
@@ -656,12 +657,12 @@ static void macvtap_skb_to_vnet_hdr(struct macvtap_queue *q,
 
 /* Get packet from user space buffer */
 static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
-				const struct iovec *iv, unsigned long total_len,
-				size_t count, int noblock)
+				struct iov_iter *from, int noblock)
 {
 	int good_linear = SKB_MAX_HEAD(NET_IP_ALIGN);
 	struct sk_buff *skb;
 	struct macvlan_dev *vlan;
+	unsigned long total_len = iov_iter_count(from);
 	unsigned long len = total_len;
 	int err;
 	struct virtio_net_hdr vnet_hdr = { 0 };
@@ -669,6 +670,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	int copylen = 0;
 	bool zerocopy = false;
 	size_t linear;
+	ssize_t n;
 
 	if (q->flags & IFF_VNET_HDR) {
 		vnet_hdr_len = q->vnet_hdr_sz;
@@ -678,10 +680,11 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 			goto err;
 		len -= vnet_hdr_len;
 
-		err = memcpy_fromiovecend((void *)&vnet_hdr, iv, 0,
-					   sizeof(vnet_hdr));
-		if (err < 0)
+		err = -EFAULT;
+		n = copy_from_iter(&vnet_hdr, sizeof(vnet_hdr), from);
+		if (n != sizeof(vnet_hdr))
 			goto err;
+		iov_iter_advance(from, vnet_hdr_len - sizeof(vnet_hdr));
 		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
 		     macvtap16_to_cpu(q, vnet_hdr.csum_start) +
 		     macvtap16_to_cpu(q, vnet_hdr.csum_offset) + 2 >
@@ -698,18 +701,17 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	if (unlikely(len < ETH_HLEN))
 		goto err;
 
-	err = -EMSGSIZE;
-	if (unlikely(count > UIO_MAXIOV))
-		goto err;
-
 	if (m && m->msg_control && sock_flag(&q->sk, SOCK_ZEROCOPY)) {
+		struct iov_iter i;
+
 		copylen = vnet_hdr.hdr_len ?
 			macvtap16_to_cpu(q, vnet_hdr.hdr_len) : GOODCOPY_LEN;
 		if (copylen > good_linear)
 			copylen = good_linear;
 		linear = copylen;
-		if (iov_pages(iv, vnet_hdr_len + copylen, count)
-		    <= MAX_SKB_FRAGS)
+		i = *from;
+		iov_iter_advance(&i, copylen);
+		if (iov_iter_npages(&i, INT_MAX) <= MAX_SKB_FRAGS)
 			zerocopy = true;
 	}
 
@@ -727,10 +729,9 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		goto err;
 
 	if (zerocopy)
-		err = zerocopy_sg_from_iovec(skb, iv, vnet_hdr_len, count);
+		err = zerocopy_sg_from_iter(skb, from);
 	else {
-		err = skb_copy_datagram_from_iovec(skb, 0, iv, vnet_hdr_len,
-						   len);
+		err = skb_copy_datagram_from_iter(skb, 0, from, len);
 		if (!err && m && m->msg_control) {
 			struct ubuf_info *uarg = m->msg_control;
 			uarg->callback(uarg, false);
@@ -783,46 +784,42 @@ err:
 	return err;
 }
 
-static ssize_t macvtap_aio_write(struct kiocb *iocb, const struct iovec *iv,
-				 unsigned long count, loff_t pos)
+static ssize_t macvtap_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	ssize_t result = -ENOLINK;
 	struct macvtap_queue *q = file->private_data;
 
-	result = macvtap_get_user(q, NULL, iv, iov_length(iv, count), count,
-				  file->f_flags & O_NONBLOCK);
-	return result;
+	return macvtap_get_user(q, NULL, from, file->f_flags & O_NONBLOCK);
 }
 
 /* Put packet to the user space buffer */
 static ssize_t macvtap_put_user(struct macvtap_queue *q,
 				const struct sk_buff *skb,
-				const struct iovec *iv, int len)
+				struct iov_iter *iter)
 {
 	int ret;
 	int vnet_hdr_len = 0;
 	int vlan_offset = 0;
-	int copied, total;
+	int total;
 
 	if (q->flags & IFF_VNET_HDR) {
 		struct virtio_net_hdr vnet_hdr;
 		vnet_hdr_len = q->vnet_hdr_sz;
-		if ((len -= vnet_hdr_len) < 0)
+		if (iov_iter_count(iter) < vnet_hdr_len)
 			return -EINVAL;
 
 		macvtap_skb_to_vnet_hdr(q, skb, &vnet_hdr);
 
-		if (memcpy_toiovecend(iv, (void *)&vnet_hdr, 0, sizeof(vnet_hdr)))
+		if (copy_to_iter(&vnet_hdr, sizeof(vnet_hdr), iter) !=
+		    sizeof(vnet_hdr))
 			return -EFAULT;
+
+		iov_iter_advance(iter, vnet_hdr_len - sizeof(vnet_hdr));
 	}
-	total = copied = vnet_hdr_len;
+	total = vnet_hdr_len;
 	total += skb->len;
 
-	if (!vlan_tx_tag_present(skb))
-		len = min_t(int, skb->len, len);
-	else {
-		int copy;
+	if (vlan_tx_tag_present(skb)) {
 		struct {
 			__be16 h_vlan_proto;
 			__be16 h_vlan_TCI;
@@ -831,86 +828,77 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		veth.h_vlan_TCI = htons(vlan_tx_tag_get(skb));
 
 		vlan_offset = offsetof(struct vlan_ethhdr, h_vlan_proto);
-		len = min_t(int, skb->len + VLAN_HLEN, len);
 		total += VLAN_HLEN;
 
-		copy = min_t(int, vlan_offset, len);
-		ret = skb_copy_datagram_const_iovec(skb, 0, iv, copied, copy);
-		len -= copy;
-		copied += copy;
-		if (ret || !len)
+		ret = skb_copy_datagram_iter(skb, 0, iter, vlan_offset);
+		if (ret || !iov_iter_count(iter))
 			goto done;
 
-		copy = min_t(int, sizeof(veth), len);
-		ret = memcpy_toiovecend(iv, (void *)&veth, copied, copy);
-		len -= copy;
-		copied += copy;
-		if (ret || !len)
+		ret = copy_to_iter(&veth, sizeof(veth), iter);
+		if (ret != sizeof(veth) || !iov_iter_count(iter))
 			goto done;
 	}
 
-	ret = skb_copy_datagram_const_iovec(skb, vlan_offset, iv, copied, len);
+	ret = skb_copy_datagram_iter(skb, vlan_offset, iter,
+				     skb->len - vlan_offset);
 
 done:
 	return ret ? ret : total;
 }
 
 static ssize_t macvtap_do_read(struct macvtap_queue *q,
-			       const struct iovec *iv, unsigned long len,
+			       struct iov_iter *to,
 			       int noblock)
 {
 	DEFINE_WAIT(wait);
 	struct sk_buff *skb;
 	ssize_t ret = 0;
 
-	while (len) {
+	if (!iov_iter_count(to))
+		return 0;
+
+	while (1) {
 		if (!noblock)
 			prepare_to_wait(sk_sleep(&q->sk), &wait,
 					TASK_INTERRUPTIBLE);
 
 		/* Read frames from the queue */
 		skb = skb_dequeue(&q->sk.sk_receive_queue);
-		if (!skb) {
-			if (noblock) {
-				ret = -EAGAIN;
-				break;
-			}
-			if (signal_pending(current)) {
-				ret = -ERESTARTSYS;
-				break;
-			}
-			/* Nothing to read, let's sleep */
-			schedule();
-			continue;
+		if (skb)
+			break;
+		if (noblock) {
+			ret = -EAGAIN;
+			break;
 		}
-		ret = macvtap_put_user(q, skb, iv, len);
-		kfree_skb(skb);
-		break;
+		if (signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+		/* Nothing to read, let's sleep */
+		schedule();
 	}
-
+	if (skb) {
+		ret = macvtap_put_user(q, skb, to);
+		if (unlikely(ret < 0))
+			kfree_skb(skb);
+		else
+			consume_skb(skb);
+	}
 	if (!noblock)
 		finish_wait(sk_sleep(&q->sk), &wait);
 	return ret;
 }
 
-static ssize_t macvtap_aio_read(struct kiocb *iocb, const struct iovec *iv,
-				unsigned long count, loff_t pos)
+static ssize_t macvtap_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct macvtap_queue *q = file->private_data;
-	ssize_t len, ret = 0;
+	ssize_t len = iov_iter_count(to), ret;
 
-	len = iov_length(iv, count);
-	if (len < 0) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = macvtap_do_read(q, iv, len, file->f_flags & O_NONBLOCK);
+	ret = macvtap_do_read(q, to, file->f_flags & O_NONBLOCK);
 	ret = min_t(ssize_t, ret, len);
 	if (ret > 0)
 		iocb->ki_pos = ret;
-out:
 	return ret;
 }
 
@@ -1109,8 +1097,10 @@ static const struct file_operations macvtap_fops = {
 	.owner		= THIS_MODULE,
 	.open		= macvtap_open,
 	.release	= macvtap_release,
-	.aio_read	= macvtap_aio_read,
-	.aio_write	= macvtap_aio_write,
+	.read		= new_sync_read,
+	.write		= new_sync_write,
+	.read_iter	= macvtap_read_iter,
+	.write_iter	= macvtap_write_iter,
 	.poll		= macvtap_poll,
 	.llseek		= no_llseek,
 	.unlocked_ioctl	= macvtap_ioctl,
@@ -1123,8 +1113,7 @@ static int macvtap_sendmsg(struct kiocb *iocb, struct socket *sock,
 			   struct msghdr *m, size_t total_len)
 {
 	struct macvtap_queue *q = container_of(sock, struct macvtap_queue, sock);
-	return macvtap_get_user(q, m, m->msg_iov, total_len, m->msg_iovlen,
-			    m->msg_flags & MSG_DONTWAIT);
+	return macvtap_get_user(q, m, &m->msg_iter, m->msg_flags & MSG_DONTWAIT);
 }
 
 static int macvtap_recvmsg(struct kiocb *iocb, struct socket *sock,
@@ -1135,8 +1124,7 @@ static int macvtap_recvmsg(struct kiocb *iocb, struct socket *sock,
 	int ret;
 	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC))
 		return -EINVAL;
-	ret = macvtap_do_read(q, m->msg_iov, total_len,
-			  flags & MSG_DONTWAIT);
+	ret = macvtap_do_read(q, &m->msg_iter, flags & MSG_DONTWAIT);
 	if (ret > total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;

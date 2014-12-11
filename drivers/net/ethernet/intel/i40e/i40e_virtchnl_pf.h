@@ -126,5 +126,6 @@ int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable);
 
 void i40e_vc_notify_link_state(struct i40e_pf *pf);
 void i40e_vc_notify_reset(struct i40e_pf *pf);
+void i40e_enable_pf_switch_lb(struct i40e_pf *pf);
 
 #endif /* _I40E_VIRTCHNL_PF_H_ */

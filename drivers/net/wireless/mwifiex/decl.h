@@ -76,6 +76,8 @@
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)
 #define MWIFIEX_BUF_FLAG_BRIDGED_PKT	   BIT(1)
 #define MWIFIEX_BUF_FLAG_TDLS_PKT	   BIT(2)
+#define MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS   BIT(3)
+#define MWIFIEX_BUF_FLAG_ACTION_TX_STATUS  BIT(4)
 
 #define MWIFIEX_BRIDGED_PKTS_THR_HIGH      1024
 #define MWIFIEX_BRIDGED_PKTS_THR_LOW        128
@@ -84,6 +86,11 @@
 #define MWIFIEX_TDLS_ENABLE_LINK              0x01
 #define MWIFIEX_TDLS_CREATE_LINK              0x02
 #define MWIFIEX_TDLS_CONFIG_LINK              0x03
+
+#define MWIFIEX_TDLS_RSSI_HIGH		50
+#define MWIFIEX_TDLS_RSSI_LOW		55
+#define MWIFIEX_TDLS_MAX_FAIL_COUNT      4
+#define MWIFIEX_AUTO_TDLS_IDLE_TIME     10
 
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
@@ -154,6 +161,8 @@ struct mwifiex_txinfo {
 	u8 bss_num;
 	u8 bss_type;
 	u32 pkt_len;
+	u8 ack_frame_id;
+	u64 cookie;
 };
 
 enum mwifiex_wmm_ac_e {
@@ -184,5 +193,15 @@ struct mwifiex_arp_eth_header {
 	u8 ar_sip[4];
 	u8 ar_tha[ETH_ALEN];
 	u8 ar_tip[4];
+} __packed;
+
+struct mwifiex_chan_stats {
+	u8 chan_num;
+	u8 bandcfg;
+	u8 flags;
+	s8 noise;
+	u16 total_bss;
+	u16 cca_scan_dur;
+	u16 cca_busy_dur;
 } __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

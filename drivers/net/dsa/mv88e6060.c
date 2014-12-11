@@ -69,8 +69,11 @@ static char *mv88e6060_probe(struct device *host_dev, int sw_addr)
 
 	ret = mdiobus_read(bus, sw_addr + REG_PORT(0), 0x03);
 	if (ret >= 0) {
-		ret &= 0xfff0;
 		if (ret == 0x0600)
+			return "Marvell 88E6060 (A0)";
+		if (ret == 0x0601 || ret == 0x0602)
+			return "Marvell 88E6060 (B0)";
+		if ((ret & 0xfff0) == 0x0600)
 			return "Marvell 88E6060";
 	}
 

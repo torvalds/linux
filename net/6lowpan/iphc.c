@@ -15,9 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /* Jon's code is based on 6lowpan implementation for Contiki which is:
@@ -171,37 +168,6 @@ static int uncompress_context_based_src_addr(struct sk_buff *skb,
 	return 0;
 }
 
-static int skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr,
-		       struct net_device *dev, skb_delivery_cb deliver_skb)
-{
-	struct sk_buff *new;
-	int stat;
-
-	new = skb_copy_expand(skb, sizeof(struct ipv6hdr), skb_tailroom(skb),
-			      GFP_ATOMIC);
-	kfree_skb(skb);
-
-	if (!new)
-		return -ENOMEM;
-
-	skb_push(new, sizeof(struct ipv6hdr));
-	skb_reset_network_header(new);
-	skb_copy_to_linear_data(new, hdr, sizeof(struct ipv6hdr));
-
-	new->protocol = htons(ETH_P_IPV6);
-	new->pkt_type = PACKET_HOST;
-	new->dev = dev;
-
-	raw_dump_table(__func__, "raw skb data dump before receiving",
-		       new->data, new->len);
-
-	stat = deliver_skb(new, dev);
-
-	kfree_skb(new);
-
-	return stat;
-}
-
 /* Uncompress function for multicast destination address,
  * when M bit is set.
  */
@@ -332,10 +298,12 @@ err:
 /* TTL uncompression values */
 static const u8 lowpan_ttl_values[] = { 0, 1, 64, 255 };
 
-int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
-			const u8 *saddr, const u8 saddr_type, const u8 saddr_len,
-			const u8 *daddr, const u8 daddr_type, const u8 daddr_len,
-			u8 iphc0, u8 iphc1, skb_delivery_cb deliver_skb)
+int
+lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
+			 const u8 *saddr, const u8 saddr_type,
+			 const u8 saddr_len, const u8 *daddr,
+			 const u8 daddr_type, const u8 daddr_len,
+			 u8 iphc0, u8 iphc1)
 {
 	struct ipv6hdr hdr = {};
 	u8 tmp, num_context = 0;
@@ -348,7 +316,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	if (iphc1 & LOWPAN_IPHC_CID) {
 		pr_debug("CID flag is set, increase header with one\n");
 		if (lowpan_fetch_skb(skb, &num_context, sizeof(num_context)))
-			goto drop;
+			return -EINVAL;
 	}
 
 	hdr.version = 6;
@@ -360,7 +328,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	 */
 	case 0: /* 00b */
 		if (lowpan_fetch_skb(skb, &tmp, sizeof(tmp)))
-			goto drop;
+			return -EINVAL;
 
 		memcpy(&hdr.flow_lbl, &skb->data[0], 3);
 		skb_pull(skb, 3);
@@ -373,7 +341,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	 */
 	case 2: /* 10b */
 		if (lowpan_fetch_skb(skb, &tmp, sizeof(tmp)))
-			goto drop;
+			return -EINVAL;
 
 		hdr.priority = ((tmp >> 2) & 0x0f);
 		hdr.flow_lbl[0] = ((tmp << 6) & 0xC0) | ((tmp >> 2) & 0x30);
@@ -383,7 +351,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	 */
 	case 1: /* 01b */
 		if (lowpan_fetch_skb(skb, &tmp, sizeof(tmp)))
-			goto drop;
+			return -EINVAL;
 
 		hdr.flow_lbl[0] = (skb->data[0] & 0x0F) | ((tmp >> 2) & 0x30);
 		memcpy(&hdr.flow_lbl[1], &skb->data[0], 2);
@@ -400,7 +368,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	if ((iphc0 & LOWPAN_IPHC_NH_C) == 0) {
 		/* Next header is carried inline */
 		if (lowpan_fetch_skb(skb, &hdr.nexthdr, sizeof(hdr.nexthdr)))
-			goto drop;
+			return -EINVAL;
 
 		pr_debug("NH flag is set, next header carried inline: %02x\n",
 			 hdr.nexthdr);
@@ -412,7 +380,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		if (lowpan_fetch_skb(skb, &hdr.hop_limit,
 				     sizeof(hdr.hop_limit)))
-			goto drop;
+			return -EINVAL;
 	}
 
 	/* Extract SAM to the tmp variable */
@@ -431,7 +399,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 
 	/* Check on error of previous branch */
 	if (err)
-		goto drop;
+		return -EINVAL;
 
 	/* Extract DAM to the tmp variable */
 	tmp = ((iphc1 & LOWPAN_IPHC_DAM_11) >> LOWPAN_IPHC_DAM_BIT) & 0x03;
@@ -446,7 +414,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 								tmp);
 
 			if (err)
-				goto drop;
+				return -EINVAL;
 		}
 	} else {
 		err = uncompress_addr(skb, &hdr.daddr, tmp, daddr,
@@ -454,28 +422,23 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 		pr_debug("dest: stateless compression mode %d dest %pI6c\n",
 			 tmp, &hdr.daddr);
 		if (err)
-			goto drop;
+			return -EINVAL;
 	}
 
 	/* UDP data uncompression */
 	if (iphc0 & LOWPAN_IPHC_NH_C) {
 		struct udphdr uh;
-		struct sk_buff *new;
+		const int needed = sizeof(struct udphdr) + sizeof(hdr);
 
 		if (uncompress_udp_header(skb, &uh))
-			goto drop;
+			return -EINVAL;
 
 		/* replace the compressed UDP head by the uncompressed UDP
 		 * header
 		 */
-		new = skb_copy_expand(skb, sizeof(struct udphdr),
-				      skb_tailroom(skb), GFP_ATOMIC);
-		kfree_skb(skb);
-
-		if (!new)
-			return -ENOMEM;
-
-		skb = new;
+		err = skb_cow(skb, needed);
+		if (unlikely(err))
+			return err;
 
 		skb_push(skb, sizeof(struct udphdr));
 		skb_reset_transport_header(skb);
@@ -485,6 +448,10 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 			       (u8 *)&uh, sizeof(uh));
 
 		hdr.nexthdr = UIP_PROTO_UDP;
+	} else {
+		err = skb_cow(skb, sizeof(hdr));
+		if (unlikely(err))
+			return err;
 	}
 
 	hdr.payload_len = htons(skb->len);
@@ -497,15 +464,15 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 		hdr.version, ntohs(hdr.payload_len), hdr.nexthdr,
 		hdr.hop_limit, &hdr.daddr);
 
+	skb_push(skb, sizeof(hdr));
+	skb_reset_network_header(skb);
+	skb_copy_to_linear_data(skb, &hdr, sizeof(hdr));
+
 	raw_dump_table(__func__, "raw header dump", (u8 *)&hdr, sizeof(hdr));
 
-	return skb_deliver(skb, &hdr, dev, deliver_skb);
-
-drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(lowpan_process_data);
+EXPORT_SYMBOL_GPL(lowpan_header_decompress);
 
 static u8 lowpan_compress_addr_64(u8 **hc_ptr, u8 shift,
 				  const struct in6_addr *ipaddr,
@@ -535,8 +502,16 @@ static u8 lowpan_compress_addr_64(u8 **hc_ptr, u8 shift,
 
 static void compress_udp_header(u8 **hc_ptr, struct sk_buff *skb)
 {
-	struct udphdr *uh = udp_hdr(skb);
+	struct udphdr *uh;
 	u8 tmp;
+
+	/* In the case of RAW sockets the transport header is not set by
+	 * the ip6 stack so we must set it ourselves
+	 */
+	if (skb->transport_header == skb->network_header)
+		skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+
+	uh = udp_hdr(skb);
 
 	if (((ntohs(uh->source) & LOWPAN_NHC_UDP_4BIT_MASK) ==
 	     LOWPAN_NHC_UDP_4BIT_PORT) &&

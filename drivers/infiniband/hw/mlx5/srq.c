@@ -141,7 +141,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	return 0;
 
 err_in:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_umem:
 	ib_umem_release(srq->umem);
@@ -209,7 +209,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	return 0;
 
 err_in:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_buf:
 	mlx5_buf_free(dev->mdev, &srq->buf);
@@ -306,7 +306,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	in->ctx.pd = cpu_to_be32(to_mpd(pd)->pdn);
 	in->ctx.db_record = cpu_to_be64(srq->db.dma);
 	err = mlx5_core_create_srq(dev->mdev, &srq->msrq, in, inlen);
-	mlx5_vfree(in);
+	kvfree(in);
 	if (err) {
 		mlx5_ib_dbg(dev, "create SRQ failed, err %d\n", err);
 		goto err_usr_kern_srq;

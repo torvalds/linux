@@ -1551,15 +1551,11 @@ void fm10k_down(struct fm10k_intfc *interface)
 static int fm10k_sw_init(struct fm10k_intfc *interface,
 			 const struct pci_device_id *ent)
 {
-	static const u32 seed[FM10K_RSSRK_SIZE] = { 0xda565a6d, 0xc20e5b25,
-						    0x3d256741, 0xb08fa343,
-						    0xcb2bcad0, 0xb4307bae,
-						    0xa32dcb77, 0x0cf23080,
-						    0x3bb7426a, 0xfa01acbe };
 	const struct fm10k_info *fi = fm10k_info_tbl[ent->driver_data];
 	struct fm10k_hw *hw = &interface->hw;
 	struct pci_dev *pdev = interface->pdev;
 	struct net_device *netdev = interface->netdev;
+	u32 rss_key[FM10K_RSSRK_SIZE];
 	unsigned int rss;
 	int err;
 
@@ -1673,8 +1669,8 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	/* initialize vxlan_port list */
 	INIT_LIST_HEAD(&interface->vxlan_port);
 
-	/* initialize RSS key */
-	memcpy(interface->rssrk, seed, sizeof(seed));
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
+	memcpy(interface->rssrk, rss_key, sizeof(rss_key));
 
 	/* Start off interface as being down */
 	set_bit(__FM10K_DOWN, &interface->state);

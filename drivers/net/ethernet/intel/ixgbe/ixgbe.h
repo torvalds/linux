@@ -300,16 +300,17 @@ enum ixgbe_ring_f_enum {
 	RING_F_ARRAY_SIZE      /* must be last in enum set */
 };
 
-#define IXGBE_MAX_RSS_INDICES  16
-#define IXGBE_MAX_VMDQ_INDICES 64
-#define IXGBE_MAX_FDIR_INDICES 63	/* based on q_vector limit */
-#define IXGBE_MAX_FCOE_INDICES  8
-#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
-#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
-#define IXGBE_MAX_L2A_QUEUES 4
-#define IXGBE_BAD_L2A_QUEUE 3
-#define IXGBE_MAX_MACVLANS	31
-#define IXGBE_MAX_DCBMACVLANS	8
+#define IXGBE_MAX_RSS_INDICES		16
+#define IXGBE_MAX_RSS_INDICES_X550	64
+#define IXGBE_MAX_VMDQ_INDICES		64
+#define IXGBE_MAX_FDIR_INDICES		63	/* based on q_vector limit */
+#define IXGBE_MAX_FCOE_INDICES		8
+#define MAX_RX_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
+#define MAX_TX_QUEUES			(IXGBE_MAX_FDIR_INDICES + 1)
+#define IXGBE_MAX_L2A_QUEUES		4
+#define IXGBE_BAD_L2A_QUEUE		3
+#define IXGBE_MAX_MACVLANS		31
+#define IXGBE_MAX_DCBMACVLANS		8
 
 struct ixgbe_ring_feature {
 	u16 limit;	/* upper limit on feature indices */
@@ -553,11 +554,6 @@ static inline u16 ixgbe_desc_unused(struct ixgbe_ring *ring)
 	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - 1;
 }
 
-static inline void ixgbe_write_tail(struct ixgbe_ring *ring, u32 value)
-{
-	writel(value, ring->tail);
-}
-
 #define IXGBE_RX_DESC(R, i)	    \
 	(&(((union ixgbe_adv_rx_desc *)((R)->desc))[i]))
 #define IXGBE_TX_DESC(R, i)	    \
@@ -769,6 +765,21 @@ struct ixgbe_adapter {
 	unsigned long fwd_bitmask; /* Bitmask indicating in use pools */
 };
 
+static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
+{
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		return IXGBE_MAX_RSS_INDICES;
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+		return IXGBE_MAX_RSS_INDICES_X550;
+	default:
+		return 0;
+	}
+}
+
 struct ixgbe_fdir_filter {
 	struct hlist_node fdir_node;
 	union ixgbe_atr_input filter;
@@ -804,11 +815,15 @@ enum ixgbe_boards {
 	board_82598,
 	board_82599,
 	board_X540,
+	board_X550,
+	board_X550EM_x,
 };
 
 extern struct ixgbe_info ixgbe_82598_info;
 extern struct ixgbe_info ixgbe_82599_info;
 extern struct ixgbe_info ixgbe_X540_info;
+extern struct ixgbe_info ixgbe_X550_info;
+extern struct ixgbe_info ixgbe_X550EM_x_info;
 #ifdef CONFIG_IXGBE_DCB
 extern const struct dcbnl_rtnl_ops dcbnl_ops;
 #endif

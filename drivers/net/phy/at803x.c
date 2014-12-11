@@ -352,19 +352,7 @@ static struct phy_driver at803x_driver[] = {
 	},
 } };
 
-static int __init atheros_init(void)
-{
-	return phy_drivers_register(at803x_driver,
-				    ARRAY_SIZE(at803x_driver));
-}
-
-static void __exit atheros_exit(void)
-{
-	phy_drivers_unregister(at803x_driver, ARRAY_SIZE(at803x_driver));
-}
-
-module_init(atheros_init);
-module_exit(atheros_exit);
+module_phy_driver(at803x_driver);
 
 static struct mdio_device_id __maybe_unused atheros_tbl[] = {
 	{ ATH8030_PHY_ID, 0xffffffef },

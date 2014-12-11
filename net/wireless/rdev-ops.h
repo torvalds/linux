@@ -178,11 +178,12 @@ static inline int rdev_add_station(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_del_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, u8 *mac)
+				   struct net_device *dev,
+				   struct station_del_parameters *params)
 {
 	int ret;
-	trace_rdev_del_station(&rdev->wiphy, dev, mac);
-	ret = rdev->ops->del_station(&rdev->wiphy, dev, mac);
+	trace_rdev_del_station(&rdev->wiphy, dev, params);
+	ret = rdev->ops->del_station(&rdev->wiphy, dev, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -263,6 +264,18 @@ static inline int rdev_get_mpath(struct cfg80211_registered_device *rdev,
 
 }
 
+static inline int rdev_get_mpp(struct cfg80211_registered_device *rdev,
+			       struct net_device *dev, u8 *dst, u8 *mpp,
+			       struct mpath_info *pinfo)
+{
+	int ret;
+
+	trace_rdev_get_mpp(&rdev->wiphy, dev, dst, mpp);
+	ret = rdev->ops->get_mpp(&rdev->wiphy, dev, dst, mpp, pinfo);
+	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
+	return ret;
+}
+
 static inline int rdev_dump_mpath(struct cfg80211_registered_device *rdev,
 				  struct net_device *dev, int idx, u8 *dst,
 				  u8 *next_hop, struct mpath_info *pinfo)
@@ -271,7 +284,20 @@ static inline int rdev_dump_mpath(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_dump_mpath(&rdev->wiphy, dev, idx, dst, next_hop);
 	ret = rdev->ops->dump_mpath(&rdev->wiphy, dev, idx, dst, next_hop,
-				     pinfo);
+				    pinfo);
+	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
+	return ret;
+}
+
+static inline int rdev_dump_mpp(struct cfg80211_registered_device *rdev,
+				struct net_device *dev, int idx, u8 *dst,
+				u8 *mpp, struct mpath_info *pinfo)
+
+{
+	int ret;
+
+	trace_rdev_dump_mpp(&rdev->wiphy, dev, idx, dst, mpp);
+	ret = rdev->ops->dump_mpp(&rdev->wiphy, dev, idx, dst, mpp, pinfo);
 	trace_rdev_return_int_mpath_info(&rdev->wiphy, ret, pinfo);
 	return ret;
 }
@@ -318,6 +344,27 @@ static inline int rdev_leave_mesh(struct cfg80211_registered_device *rdev,
 	int ret;
 	trace_rdev_leave_mesh(&rdev->wiphy, dev);
 	ret = rdev->ops->leave_mesh(&rdev->wiphy, dev);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_join_ocb(struct cfg80211_registered_device *rdev,
+				struct net_device *dev,
+				struct ocb_setup *setup)
+{
+	int ret;
+	trace_rdev_join_ocb(&rdev->wiphy, dev, setup);
+	ret = rdev->ops->join_ocb(&rdev->wiphy, dev, setup);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline int rdev_leave_ocb(struct cfg80211_registered_device *rdev,
+				 struct net_device *dev)
+{
+	int ret;
+	trace_rdev_leave_ocb(&rdev->wiphy, dev);
+	ret = rdev->ops->leave_ocb(&rdev->wiphy, dev);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -944,6 +991,30 @@ rdev_del_tx_ts(struct cfg80211_registered_device *rdev,
 	trace_rdev_return_int(&rdev->wiphy, ret);
 
 	return ret;
+}
+
+static inline int
+rdev_tdls_channel_switch(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev, const u8 *addr,
+			 u8 oper_class, struct cfg80211_chan_def *chandef)
+{
+	int ret;
+
+	trace_rdev_tdls_channel_switch(&rdev->wiphy, dev, addr, oper_class,
+				       chandef);
+	ret = rdev->ops->tdls_channel_switch(&rdev->wiphy, dev, addr,
+					     oper_class, chandef);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
+static inline void
+rdev_tdls_cancel_channel_switch(struct cfg80211_registered_device *rdev,
+				struct net_device *dev, const u8 *addr)
+{
+	trace_rdev_tdls_cancel_channel_switch(&rdev->wiphy, dev, addr);
+	rdev->ops->tdls_cancel_channel_switch(&rdev->wiphy, dev, addr);
+	trace_rdev_return_void(&rdev->wiphy);
 }
 
 #endif /* __CFG80211_RDEV_OPS */

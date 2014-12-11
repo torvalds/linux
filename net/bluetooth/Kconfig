@@ -10,6 +10,7 @@ menuconfig BT
 	select CRYPTO
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AES
+	select CRYPTO_CMAC
 	select CRYPTO_ECB
 	select CRYPTO_SHA256
 	help
@@ -39,11 +40,10 @@ menuconfig BT
 	  to Bluetooth kernel modules are provided in the BlueZ packages.  For
 	  more information, see <http://www.bluez.org/>.
 
-config BT_6LOWPAN
-	tristate "Bluetooth 6LoWPAN support"
-	depends on BT && 6LOWPAN
-	help
-	  IPv6 compression over Bluetooth Low Energy.
+config BT_BREDR
+	bool "Bluetooth Classic (BR/EDR) features"
+	depends on BT
+	default y
 
 source "net/bluetooth/rfcomm/Kconfig"
 
@@ -52,5 +52,16 @@ source "net/bluetooth/bnep/Kconfig"
 source "net/bluetooth/cmtp/Kconfig"
 
 source "net/bluetooth/hidp/Kconfig"
+
+config BT_LE
+	bool "Bluetooth Low Energy (LE) features"
+	depends on BT
+	default y
+
+config BT_6LOWPAN
+	tristate "Bluetooth 6LoWPAN support"
+	depends on BT_LE && 6LOWPAN
+	help
+	  IPv6 compression over Bluetooth Low Energy.
 
 source "drivers/bluetooth/Kconfig"

@@ -734,3 +734,40 @@ bool iwl_mvm_is_idle(struct iwl_mvm *mvm)
 
 	return idle;
 }
+
+struct iwl_bss_iter_data {
+	struct ieee80211_vif *vif;
+	bool error;
+};
+
+static void iwl_mvm_bss_iface_iterator(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_bss_iter_data *data = _data;
+
+	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+		return;
+
+	if (data->vif) {
+		data->error = true;
+		return;
+	}
+
+	data->vif = vif;
+}
+
+struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
+{
+	struct iwl_bss_iter_data bss_iter_data = {};
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_bss_iface_iterator, &bss_iter_data);
+
+	if (bss_iter_data.error) {
+		IWL_ERR(mvm, "More than one managed interface active!\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return bss_iter_data.vif;
+}

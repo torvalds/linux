@@ -99,7 +99,7 @@ static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
 
 static void ath9k_tx99_deinit(struct ath_softc *sc)
 {
-	ath_reset(sc);
+	ath_reset(sc, NULL);
 
 	ath9k_ps_wakeup(sc);
 	ath9k_tx99_stop(sc);
@@ -127,7 +127,7 @@ static int ath9k_tx99_init(struct ath_softc *sc)
 	memset(&txctl, 0, sizeof(txctl));
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
 
-	ath_reset(sc);
+	ath_reset(sc, NULL);
 
 	ath9k_ps_wakeup(sc);
 

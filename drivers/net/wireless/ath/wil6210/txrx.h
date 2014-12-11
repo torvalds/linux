@@ -21,8 +21,8 @@
 #define BUF_HW_OWNED    (0)
 
 /* size of max. Tx/Rx buffers, as supported by FW */
-#define RX_BUF_LEN      (2242)
-#define TX_BUF_LEN      (2242)
+#define TXRX_BUF_LEN_DEFAULT (2242)
+
 /* how many bytes to reserve for rtap header? */
 #define WIL6210_RTAP_SIZE (128)
 

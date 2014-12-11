@@ -191,7 +191,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		 * (1) if any success probabilitiy >= 95%, out of those rates
 		 * choose the maximum throughput rate as max_prob_rate
 		 * (2) if all success probabilities < 95%, the rate with
-		 * highest success probability is choosen as max_prob_rate */
+		 * highest success probability is chosen as max_prob_rate */
 		if (mrs->probability >= MINSTREL_FRAC(95, 100)) {
 			if (mrs->cur_tp >= mi->r[tmp_prob_rate].stats.cur_tp)
 				tmp_prob_rate = i;
@@ -223,11 +223,10 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 static void
 minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		   struct ieee80211_sta *sta, void *priv_sta,
-		   struct sk_buff *skb)
+		   struct ieee80211_tx_info *info)
 {
 	struct minstrel_priv *mp = priv;
 	struct minstrel_sta_info *mi = priv_sta;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *ar = info->status.rates;
 	int i, ndx;
 	int success;
@@ -674,7 +673,7 @@ static u32 minstrel_get_expected_throughput(void *priv_sta)
 
 const struct rate_control_ops mac80211_minstrel = {
 	.name = "minstrel",
-	.tx_status = minstrel_tx_status,
+	.tx_status_noskb = minstrel_tx_status,
 	.get_rate = minstrel_get_rate,
 	.rate_init = minstrel_rate_init,
 	.alloc = minstrel_alloc,

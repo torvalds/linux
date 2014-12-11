@@ -61,6 +61,7 @@
 #include <net/neighbour.h>
 #include <net/netevent.h>
 #include <net/addrconf.h>
+#include <net/bonding.h>
 #include <asm/uaccess.h>
 
 #include "cxgb4.h"
@@ -68,9 +69,8 @@
 #include "t4_msg.h"
 #include "t4fw_api.h"
 #include "cxgb4_dcb.h"
+#include "cxgb4_debugfs.h"
 #include "l2t.h"
-
-#include <../drivers/net/bonding/bonding.h>
 
 #ifdef DRV_VERSION
 #undef DRV_VERSION
@@ -141,7 +141,7 @@ static unsigned int pfvfres_pmask(struct adapter *adapter,
 	 * Give PF's access to all of the ports.
 	 */
 	if (vf == 0)
-		return FW_PFVF_CMD_PMASK_MASK;
+		return FW_PFVF_CMD_PMASK_M;
 
 	/*
 	 * For VFs, we'll assign them access to the ports based purely on the
@@ -210,114 +210,25 @@ struct filter_entry {
 			 NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP |\
 			 NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
 
-#define CH_DEVICE(devid, data) { PCI_VDEVICE(CHELSIO, devid), (data) }
+/* Macros needed to support the PCI Device ID Table ...
+ */
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
+	static struct pci_device_id cxgb4_pci_tbl[] = {
+#define CH_PCI_DEVICE_ID_FUNCTION 0x4
 
-static const struct pci_device_id cxgb4_pci_tbl[] = {
-	CH_DEVICE(0xa000, 0),  /* PE10K */
-	CH_DEVICE(0x4001, -1),
-	CH_DEVICE(0x4002, -1),
-	CH_DEVICE(0x4003, -1),
-	CH_DEVICE(0x4004, -1),
-	CH_DEVICE(0x4005, -1),
-	CH_DEVICE(0x4006, -1),
-	CH_DEVICE(0x4007, -1),
-	CH_DEVICE(0x4008, -1),
-	CH_DEVICE(0x4009, -1),
-	CH_DEVICE(0x400a, -1),
-	CH_DEVICE(0x400d, -1),
-	CH_DEVICE(0x400e, -1),
-	CH_DEVICE(0x4080, -1),
-	CH_DEVICE(0x4081, -1),
-	CH_DEVICE(0x4082, -1),
-	CH_DEVICE(0x4083, -1),
-	CH_DEVICE(0x4084, -1),
-	CH_DEVICE(0x4085, -1),
-	CH_DEVICE(0x4086, -1),
-	CH_DEVICE(0x4087, -1),
-	CH_DEVICE(0x4088, -1),
-	CH_DEVICE(0x4401, 4),
-	CH_DEVICE(0x4402, 4),
-	CH_DEVICE(0x4403, 4),
-	CH_DEVICE(0x4404, 4),
-	CH_DEVICE(0x4405, 4),
-	CH_DEVICE(0x4406, 4),
-	CH_DEVICE(0x4407, 4),
-	CH_DEVICE(0x4408, 4),
-	CH_DEVICE(0x4409, 4),
-	CH_DEVICE(0x440a, 4),
-	CH_DEVICE(0x440d, 4),
-	CH_DEVICE(0x440e, 4),
-	CH_DEVICE(0x4480, 4),
-	CH_DEVICE(0x4481, 4),
-	CH_DEVICE(0x4482, 4),
-	CH_DEVICE(0x4483, 4),
-	CH_DEVICE(0x4484, 4),
-	CH_DEVICE(0x4485, 4),
-	CH_DEVICE(0x4486, 4),
-	CH_DEVICE(0x4487, 4),
-	CH_DEVICE(0x4488, 4),
-	CH_DEVICE(0x5001, 4),
-	CH_DEVICE(0x5002, 4),
-	CH_DEVICE(0x5003, 4),
-	CH_DEVICE(0x5004, 4),
-	CH_DEVICE(0x5005, 4),
-	CH_DEVICE(0x5006, 4),
-	CH_DEVICE(0x5007, 4),
-	CH_DEVICE(0x5008, 4),
-	CH_DEVICE(0x5009, 4),
-	CH_DEVICE(0x500A, 4),
-	CH_DEVICE(0x500B, 4),
-	CH_DEVICE(0x500C, 4),
-	CH_DEVICE(0x500D, 4),
-	CH_DEVICE(0x500E, 4),
-	CH_DEVICE(0x500F, 4),
-	CH_DEVICE(0x5010, 4),
-	CH_DEVICE(0x5011, 4),
-	CH_DEVICE(0x5012, 4),
-	CH_DEVICE(0x5013, 4),
-	CH_DEVICE(0x5014, 4),
-	CH_DEVICE(0x5015, 4),
-	CH_DEVICE(0x5080, 4),
-	CH_DEVICE(0x5081, 4),
-	CH_DEVICE(0x5082, 4),
-	CH_DEVICE(0x5083, 4),
-	CH_DEVICE(0x5084, 4),
-	CH_DEVICE(0x5085, 4),
-	CH_DEVICE(0x5086, 4),
-	CH_DEVICE(0x5087, 4),
-	CH_DEVICE(0x5088, 4),
-	CH_DEVICE(0x5401, 4),
-	CH_DEVICE(0x5402, 4),
-	CH_DEVICE(0x5403, 4),
-	CH_DEVICE(0x5404, 4),
-	CH_DEVICE(0x5405, 4),
-	CH_DEVICE(0x5406, 4),
-	CH_DEVICE(0x5407, 4),
-	CH_DEVICE(0x5408, 4),
-	CH_DEVICE(0x5409, 4),
-	CH_DEVICE(0x540A, 4),
-	CH_DEVICE(0x540B, 4),
-	CH_DEVICE(0x540C, 4),
-	CH_DEVICE(0x540D, 4),
-	CH_DEVICE(0x540E, 4),
-	CH_DEVICE(0x540F, 4),
-	CH_DEVICE(0x5410, 4),
-	CH_DEVICE(0x5411, 4),
-	CH_DEVICE(0x5412, 4),
-	CH_DEVICE(0x5413, 4),
-	CH_DEVICE(0x5414, 4),
-	CH_DEVICE(0x5415, 4),
-	CH_DEVICE(0x5480, 4),
-	CH_DEVICE(0x5481, 4),
-	CH_DEVICE(0x5482, 4),
-	CH_DEVICE(0x5483, 4),
-	CH_DEVICE(0x5484, 4),
-	CH_DEVICE(0x5485, 4),
-	CH_DEVICE(0x5486, 4),
-	CH_DEVICE(0x5487, 4),
-	CH_DEVICE(0x5488, 4),
-	{ 0, }
-};
+/* Include PCI Device IDs for both PF4 and PF0-3 so our PCI probe() routine is
+ * called for both.
+ */
+#define CH_PCI_DEVICE_ID_FUNCTION2 0x0
+
+#define CH_PCI_ID_TABLE_ENTRY(devid) \
+		{PCI_VDEVICE(CHELSIO, (devid)), 4}
+
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_END \
+		{ 0, } \
+	}
+
+#include "t4_pci_id_tbl.h"
 
 #define FW4_FNAME "cxgb4/t4fw.bin"
 #define FW5_FNAME "cxgb4/t5fw.bin"
@@ -512,9 +423,10 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 		u32 name, value;
 		int err;
 
-		name = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH) |
-			FW_PARAMS_PARAM_YZ(txq->q.cntxt_id));
+		name = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			FW_PARAMS_PARAM_X_V(
+				FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH) |
+			FW_PARAMS_PARAM_YZ_V(txq->q.cntxt_id));
 		value = enable ? i : 0xffffffff;
 
 		/* Since we can be called while atomic (from "interrupt
@@ -709,7 +621,7 @@ EXPORT_SYMBOL(cxgb4_dcb_enabled);
 /* Handle a Data Center Bridging update message from the firmware. */
 static void dcb_rpl(struct adapter *adap, const struct fw_port_cmd *pcmd)
 {
-	int port = FW_PORT_CMD_PORTID_GET(ntohl(pcmd->op_to_portid));
+	int port = FW_PORT_CMD_PORTID_G(ntohl(pcmd->op_to_portid));
 	struct net_device *dev = adap->port[port];
 	int old_dcb_enabled = cxgb4_dcb_enabled(dev);
 	int new_dcb_enabled;
@@ -832,17 +744,17 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 		const struct fw_port_cmd *pcmd = (const void *)p->data;
-		unsigned int cmd = FW_CMD_OP_GET(ntohl(pcmd->op_to_portid));
+		unsigned int cmd = FW_CMD_OP_G(ntohl(pcmd->op_to_portid));
 		unsigned int action =
-			FW_PORT_CMD_ACTION_GET(ntohl(pcmd->action_to_len16));
+			FW_PORT_CMD_ACTION_G(ntohl(pcmd->action_to_len16));
 
 		if (cmd == FW_PORT_CMD &&
 		    action == FW_PORT_ACTION_GET_PORT_INFO) {
-			int port = FW_PORT_CMD_PORTID_GET(
+			int port = FW_PORT_CMD_PORTID_G(
 					be32_to_cpu(pcmd->op_to_portid));
 			struct net_device *dev = q->adap->port[port];
 			int state_input = ((pcmd->u.info.dcbxdis_pkd &
-					    FW_PORT_CMD_DCBXDIS)
+					    FW_PORT_CMD_DCBXDIS_F)
 					   ? CXGB4_DCB_INPUT_FW_DISABLED
 					   : CXGB4_DCB_INPUT_FW_ENABLED);
 
@@ -1287,7 +1199,7 @@ void *t4_alloc_mem(size_t size)
 /*
  * Free memory allocated through alloc_mem().
  */
-static void t4_free_mem(void *addr)
+void t4_free_mem(void *addr)
 {
 	if (is_vmalloc_addr(addr))
 		vfree(addr);
@@ -1339,52 +1251,52 @@ static int set_filter_wr(struct adapter *adapter, int fidx)
 	 * filter specification structure but for now it's easiest to simply
 	 * put this fairly direct code in line ...
 	 */
-	fwr->op_pkd = htonl(FW_WR_OP(FW_FILTER_WR));
-	fwr->len16_pkd = htonl(FW_WR_LEN16(sizeof(*fwr)/16));
+	fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
+	fwr->len16_pkd = htonl(FW_WR_LEN16_V(sizeof(*fwr)/16));
 	fwr->tid_to_iq =
-		htonl(V_FW_FILTER_WR_TID(ftid) |
-		      V_FW_FILTER_WR_RQTYPE(f->fs.type) |
-		      V_FW_FILTER_WR_NOREPLY(0) |
-		      V_FW_FILTER_WR_IQ(f->fs.iq));
+		htonl(FW_FILTER_WR_TID_V(ftid) |
+		      FW_FILTER_WR_RQTYPE_V(f->fs.type) |
+		      FW_FILTER_WR_NOREPLY_V(0) |
+		      FW_FILTER_WR_IQ_V(f->fs.iq));
 	fwr->del_filter_to_l2tix =
-		htonl(V_FW_FILTER_WR_RPTTID(f->fs.rpttid) |
-		      V_FW_FILTER_WR_DROP(f->fs.action == FILTER_DROP) |
-		      V_FW_FILTER_WR_DIRSTEER(f->fs.dirsteer) |
-		      V_FW_FILTER_WR_MASKHASH(f->fs.maskhash) |
-		      V_FW_FILTER_WR_DIRSTEERHASH(f->fs.dirsteerhash) |
-		      V_FW_FILTER_WR_LPBK(f->fs.action == FILTER_SWITCH) |
-		      V_FW_FILTER_WR_DMAC(f->fs.newdmac) |
-		      V_FW_FILTER_WR_SMAC(f->fs.newsmac) |
-		      V_FW_FILTER_WR_INSVLAN(f->fs.newvlan == VLAN_INSERT ||
+		htonl(FW_FILTER_WR_RPTTID_V(f->fs.rpttid) |
+		      FW_FILTER_WR_DROP_V(f->fs.action == FILTER_DROP) |
+		      FW_FILTER_WR_DIRSTEER_V(f->fs.dirsteer) |
+		      FW_FILTER_WR_MASKHASH_V(f->fs.maskhash) |
+		      FW_FILTER_WR_DIRSTEERHASH_V(f->fs.dirsteerhash) |
+		      FW_FILTER_WR_LPBK_V(f->fs.action == FILTER_SWITCH) |
+		      FW_FILTER_WR_DMAC_V(f->fs.newdmac) |
+		      FW_FILTER_WR_SMAC_V(f->fs.newsmac) |
+		      FW_FILTER_WR_INSVLAN_V(f->fs.newvlan == VLAN_INSERT ||
 					     f->fs.newvlan == VLAN_REWRITE) |
-		      V_FW_FILTER_WR_RMVLAN(f->fs.newvlan == VLAN_REMOVE ||
+		      FW_FILTER_WR_RMVLAN_V(f->fs.newvlan == VLAN_REMOVE ||
 					    f->fs.newvlan == VLAN_REWRITE) |
-		      V_FW_FILTER_WR_HITCNTS(f->fs.hitcnts) |
-		      V_FW_FILTER_WR_TXCHAN(f->fs.eport) |
-		      V_FW_FILTER_WR_PRIO(f->fs.prio) |
-		      V_FW_FILTER_WR_L2TIX(f->l2t ? f->l2t->idx : 0));
+		      FW_FILTER_WR_HITCNTS_V(f->fs.hitcnts) |
+		      FW_FILTER_WR_TXCHAN_V(f->fs.eport) |
+		      FW_FILTER_WR_PRIO_V(f->fs.prio) |
+		      FW_FILTER_WR_L2TIX_V(f->l2t ? f->l2t->idx : 0));
 	fwr->ethtype = htons(f->fs.val.ethtype);
 	fwr->ethtypem = htons(f->fs.mask.ethtype);
 	fwr->frag_to_ovlan_vldm =
-		(V_FW_FILTER_WR_FRAG(f->fs.val.frag) |
-		 V_FW_FILTER_WR_FRAGM(f->fs.mask.frag) |
-		 V_FW_FILTER_WR_IVLAN_VLD(f->fs.val.ivlan_vld) |
-		 V_FW_FILTER_WR_OVLAN_VLD(f->fs.val.ovlan_vld) |
-		 V_FW_FILTER_WR_IVLAN_VLDM(f->fs.mask.ivlan_vld) |
-		 V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.ovlan_vld));
+		(FW_FILTER_WR_FRAG_V(f->fs.val.frag) |
+		 FW_FILTER_WR_FRAGM_V(f->fs.mask.frag) |
+		 FW_FILTER_WR_IVLAN_VLD_V(f->fs.val.ivlan_vld) |
+		 FW_FILTER_WR_OVLAN_VLD_V(f->fs.val.ovlan_vld) |
+		 FW_FILTER_WR_IVLAN_VLDM_V(f->fs.mask.ivlan_vld) |
+		 FW_FILTER_WR_OVLAN_VLDM_V(f->fs.mask.ovlan_vld));
 	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq =
-		htons(V_FW_FILTER_WR_RX_CHAN(0) |
-		      V_FW_FILTER_WR_RX_RPL_IQ(adapter->sge.fw_evtq.abs_id));
+		htons(FW_FILTER_WR_RX_CHAN_V(0) |
+		      FW_FILTER_WR_RX_RPL_IQ_V(adapter->sge.fw_evtq.abs_id));
 	fwr->maci_to_matchtypem =
-		htonl(V_FW_FILTER_WR_MACI(f->fs.val.macidx) |
-		      V_FW_FILTER_WR_MACIM(f->fs.mask.macidx) |
-		      V_FW_FILTER_WR_FCOE(f->fs.val.fcoe) |
-		      V_FW_FILTER_WR_FCOEM(f->fs.mask.fcoe) |
-		      V_FW_FILTER_WR_PORT(f->fs.val.iport) |
-		      V_FW_FILTER_WR_PORTM(f->fs.mask.iport) |
-		      V_FW_FILTER_WR_MATCHTYPE(f->fs.val.matchtype) |
-		      V_FW_FILTER_WR_MATCHTYPEM(f->fs.mask.matchtype));
+		htonl(FW_FILTER_WR_MACI_V(f->fs.val.macidx) |
+		      FW_FILTER_WR_MACIM_V(f->fs.mask.macidx) |
+		      FW_FILTER_WR_FCOE_V(f->fs.val.fcoe) |
+		      FW_FILTER_WR_FCOEM_V(f->fs.mask.fcoe) |
+		      FW_FILTER_WR_PORT_V(f->fs.val.iport) |
+		      FW_FILTER_WR_PORTM_V(f->fs.mask.iport) |
+		      FW_FILTER_WR_MATCHTYPE_V(f->fs.val.matchtype) |
+		      FW_FILTER_WR_MATCHTYPEM_V(f->fs.mask.matchtype));
 	fwr->ptcl = f->fs.val.proto;
 	fwr->ptclm = f->fs.mask.proto;
 	fwr->ttyp = f->fs.val.tos;
@@ -1615,14 +1527,14 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	if (adapter->params.fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			"%u.%u.%u.%u, TP %u.%u.%u.%u",
-			FW_HDR_FW_VER_MAJOR_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MINOR_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MICRO_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_BUILD_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MAJOR_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_MINOR_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_MICRO_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_BUILD_GET(adapter->params.tp_vers));
+			FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MINOR_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MICRO_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_BUILD_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MAJOR_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -2721,9 +2633,10 @@ static int set_rspq_intr_params(struct sge_rspq *q,
 		new_idx = closest_thres(&adap->sge, cnt);
 		if (q->desc && q->pktcnt_idx != new_idx) {
 			/* the queue has already been created, update it */
-			v = FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			    FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
-			    FW_PARAMS_PARAM_YZ(q->cntxt_id);
+			v = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			    FW_PARAMS_PARAM_X_V(
+					FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
+			    FW_PARAMS_PARAM_YZ_V(q->cntxt_id);
 			err = t4_set_params(adap, adap->fn, adap->fn, 0, 1, &v,
 					    &new_idx);
 			if (err)
@@ -2937,7 +2850,7 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	int ret;
 	const struct firmware *fw;
 	struct adapter *adap = netdev2adap(netdev);
-	unsigned int mbox = FW_PCIE_FW_MASTER_MASK + 1;
+	unsigned int mbox = PCIE_FW_MASTER_M + 1;
 
 	ef->data[sizeof(ef->data) - 1] = '\0';
 	ret = request_firmware(&fw, ef->data, adap->pdev_dev);
@@ -3014,20 +2927,34 @@ static u32 get_rss_table_size(struct net_device *dev)
 	return pi->rss_size;
 }
 
-static int get_rss_table(struct net_device *dev, u32 *p, u8 *key)
+static int get_rss_table(struct net_device *dev, u32 *p, u8 *key, u8 *hfunc)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	unsigned int n = pi->rss_size;
 
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!p)
+		return 0;
 	while (n--)
 		p[n] = pi->rss[n];
 	return 0;
 }
 
-static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key)
+static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
+			 const u8 hfunc)
 {
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
+
+	/* We require at least one supported parameter to be changed and no
+	 * change in any of the unsupported parameters
+	 */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!p)
+		return 0;
 
 	for (i = 0; i < pi->rss_size; i++)
 		pi->rss[i] = p[i];
@@ -3048,45 +2975,45 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		info->data = 0;
 		switch (info->flow_type) {
 		case TCP_V4_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case UDP_V4_FLOW:
-			if ((v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN) &&
-			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN))
+			if ((v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F) &&
+			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case SCTP_V4_FLOW:
 		case AH_ESP_V4_FLOW:
 		case IPV4_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case TCP_V6_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case UDP_V6_FLOW:
-			if ((v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN) &&
-			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN))
+			if ((v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F) &&
+			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
 				info->data = RXH_IP_SRC | RXH_IP_DST |
 					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case SCTP_V6_FLOW:
 		case AH_ESP_V6_FLOW:
 		case IPV6_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+			if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
 				info->data = RXH_IP_SRC | RXH_IP_DST;
 			break;
 		}
@@ -3131,102 +3058,14 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.flash_device      = set_flash,
 };
 
-/*
- * debugfs support
- */
-static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
-			loff_t *ppos)
-{
-	loff_t pos = *ppos;
-	loff_t avail = file_inode(file)->i_size;
-	unsigned int mem = (uintptr_t)file->private_data & 3;
-	struct adapter *adap = file->private_data - mem;
-	__be32 *data;
-	int ret;
-
-	if (pos < 0)
-		return -EINVAL;
-	if (pos >= avail)
-		return 0;
-	if (count > avail - pos)
-		count = avail - pos;
-
-	data = t4_alloc_mem(count);
-	if (!data)
-		return -ENOMEM;
-
-	spin_lock(&adap->win0_lock);
-	ret = t4_memory_rw(adap, 0, mem, pos, count, data, T4_MEMORY_READ);
-	spin_unlock(&adap->win0_lock);
-	if (ret) {
-		t4_free_mem(data);
-		return ret;
-	}
-	ret = copy_to_user(buf, data, count);
-
-	t4_free_mem(data);
-	if (ret)
-		return -EFAULT;
-
-	*ppos = pos + count;
-	return count;
-}
-
-static const struct file_operations mem_debugfs_fops = {
-	.owner   = THIS_MODULE,
-	.open    = simple_open,
-	.read    = mem_read,
-	.llseek  = default_llseek,
-};
-
-static void add_debugfs_mem(struct adapter *adap, const char *name,
-			    unsigned int idx, unsigned int size_mb)
-{
-	struct dentry *de;
-
-	de = debugfs_create_file(name, S_IRUSR, adap->debugfs_root,
-				 (void *)adap + idx, &mem_debugfs_fops);
-	if (de && de->d_inode)
-		de->d_inode->i_size = size_mb << 20;
-}
-
 static int setup_debugfs(struct adapter *adap)
 {
-	int i;
-	u32 size;
-
 	if (IS_ERR_OR_NULL(adap->debugfs_root))
 		return -1;
 
-	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE);
-	if (i & EDRAM0_ENABLE) {
-		size = t4_read_reg(adap, MA_EDRAM0_BAR);
-		add_debugfs_mem(adap, "edc0", MEM_EDC0,	EDRAM_SIZE_GET(size));
-	}
-	if (i & EDRAM1_ENABLE) {
-		size = t4_read_reg(adap, MA_EDRAM1_BAR);
-		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM_SIZE_GET(size));
-	}
-	if (is_t4(adap->params.chip)) {
-		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
-		if (i & EXT_MEM_ENABLE)
-			add_debugfs_mem(adap, "mc", MEM_MC,
-					EXT_MEM_SIZE_GET(size));
-	} else {
-		if (i & EXT_MEM_ENABLE) {
-			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
-			add_debugfs_mem(adap, "mc0", MEM_MC0,
-					EXT_MEM_SIZE_GET(size));
-		}
-		if (i & EXT_MEM1_ENABLE) {
-			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR);
-			add_debugfs_mem(adap, "mc1", MEM_MC1,
-					EXT_MEM_SIZE_GET(size));
-		}
-	}
-	if (adap->l2t)
-		debugfs_create_file("l2t", S_IRUSR, adap->debugfs_root, adap,
-				    &t4_l2t_fops);
+#ifdef CONFIG_DEBUG_FS
+	t4_setup_debugfs(adap);
+#endif
 	return 0;
 }
 
@@ -3508,9 +3347,9 @@ int cxgb4_clip_get(const struct net_device *dev,
 
 	adap = netdev2adap(dev);
 	memset(&c, 0, sizeof(c));
-	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
-			FW_CMD_REQUEST | FW_CMD_WRITE);
-	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
+	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
+			FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
+	c.alloc_to_len16 = htonl(FW_CLIP_CMD_ALLOC_F | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
@@ -3525,9 +3364,9 @@ int cxgb4_clip_release(const struct net_device *dev,
 
 	adap = netdev2adap(dev);
 	memset(&c, 0, sizeof(c));
-	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
-			FW_CMD_REQUEST | FW_CMD_READ);
-	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
+	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
+			FW_CMD_REQUEST_F | FW_CMD_READ_F);
+	c.alloc_to_len16 = htonl(FW_CLIP_CMD_FREE_F | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
@@ -3568,7 +3407,7 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 	req->local_ip = sip;
 	req->peer_ip = htonl(0);
 	chan = rxq_to_chan(&adap->sge, queue);
-	req->opt0 = cpu_to_be64(TX_CHAN(chan));
+	req->opt0 = cpu_to_be64(TX_CHAN_V(chan));
 	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
 				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
 	ret = t4_mgmt_tx(adap, skb);
@@ -3611,7 +3450,7 @@ int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
 	req->peer_ip_hi = cpu_to_be64(0);
 	req->peer_ip_lo = cpu_to_be64(0);
 	chan = rxq_to_chan(&adap->sge, queue);
-	req->opt0 = cpu_to_be64(TX_CHAN(chan));
+	req->opt0 = cpu_to_be64(TX_CHAN_V(chan));
 	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
 				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
 	ret = t4_mgmt_tx(adap, skb);
@@ -3893,7 +3732,7 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 {
 	struct adapter *adap;
 	u32 offset, memtype, memaddr;
-	u32 edc0_size, edc1_size, mc0_size, mc1_size;
+	u32 edc0_size, edc1_size, mc0_size, mc1_size, size;
 	u32 edc0_end, edc1_end, mc0_end, mc1_end;
 	int ret;
 
@@ -3907,9 +3746,12 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 	 * and EDC1.  Some cards will have neither MC0 nor MC1, most cards have
 	 * MC0, and some have both MC0 and MC1.
 	 */
-	edc0_size = EDRAM_SIZE_GET(t4_read_reg(adap, MA_EDRAM0_BAR)) << 20;
-	edc1_size = EDRAM_SIZE_GET(t4_read_reg(adap, MA_EDRAM1_BAR)) << 20;
-	mc0_size = EXT_MEM_SIZE_GET(t4_read_reg(adap, MA_EXT_MEMORY_BAR)) << 20;
+	size = t4_read_reg(adap, MA_EDRAM0_BAR_A);
+	edc0_size = EDRAM0_SIZE_G(size) << 20;
+	size = t4_read_reg(adap, MA_EDRAM1_BAR_A);
+	edc1_size = EDRAM1_SIZE_G(size) << 20;
+	size = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
+	mc0_size = EXT_MEM0_SIZE_G(size) << 20;
 
 	edc0_end = edc0_size;
 	edc1_end = edc0_end + edc1_size;
@@ -3929,9 +3771,8 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 			/* T4 only has a single memory channel */
 			goto err;
 		} else {
-			mc1_size = EXT_MEM_SIZE_GET(
-					t4_read_reg(adap,
-						    MA_EXT_MEMORY1_BAR)) << 20;
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			mc1_size = EXT_MEM1_SIZE_G(size) << 20;
 			mc1_end = mc0_end + mc1_size;
 			if (offset < mc1_end) {
 				memtype = MEM_MC1;
@@ -3967,6 +3808,22 @@ u64 cxgb4_read_sge_timestamp(struct net_device *dev)
 	return ((u64)hi << 32) | (u64)lo;
 }
 EXPORT_SYMBOL(cxgb4_read_sge_timestamp);
+
+int cxgb4_bar2_sge_qregs(struct net_device *dev,
+			 unsigned int qid,
+			 enum cxgb4_bar2_qtype qtype,
+			 u64 *pbar2_qoffset,
+			 unsigned int *pbar2_qid)
+{
+	return cxgb4_t4_bar2_sge_qregs(netdev2adap(dev),
+				 qid,
+				 (qtype == CXGB4_BAR2_QTYPE_EGRESS
+				  ? T4_BAR2_QTYPE_EGRESS
+				  : T4_BAR2_QTYPE_INGRESS),
+				 pbar2_qoffset,
+				 pbar2_qid);
+}
+EXPORT_SYMBOL(cxgb4_bar2_sge_qregs);
 
 static struct pci_driver cxgb4_driver;
 
@@ -4150,31 +4007,18 @@ static void process_db_drop(struct work_struct *work)
 		u32 dropped_db = t4_read_reg(adap, 0x010ac);
 		u16 qid = (dropped_db >> 15) & 0x1ffff;
 		u16 pidx_inc = dropped_db & 0x1fff;
-		unsigned int s_qpp;
-		unsigned short udb_density;
-		unsigned long qpshift;
-		int page;
-		u32 udb;
+		u64 bar2_qoffset;
+		unsigned int bar2_qid;
+		int ret;
 
-		dev_warn(adap->pdev_dev,
-			 "Dropped DB 0x%x qid %d bar2 %d coalesce %d pidx %d\n",
-			 dropped_db, qid,
-			 (dropped_db >> 14) & 1,
-			 (dropped_db >> 13) & 1,
-			 pidx_inc);
-
-		drain_db_fifo(adap, 1);
-
-		s_qpp = QUEUESPERPAGEPF1 * adap->fn;
-		udb_density = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adap,
-				SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
-		qpshift = PAGE_SHIFT - ilog2(udb_density);
-		udb = qid << qpshift;
-		udb &= PAGE_MASK;
-		page = udb / PAGE_SIZE;
-		udb += (qid - (page * udb_density)) * 128;
-
-		writel(PIDX(pidx_inc),  adap->bar2 + udb + 8);
+		ret = cxgb4_t4_bar2_sge_qregs(adap, qid, T4_BAR2_QTYPE_EGRESS,
+					&bar2_qoffset, &bar2_qid);
+		if (ret)
+			dev_err(adap->pdev_dev, "doorbell drop recovery: "
+				"qid=%d, pidx_inc=%d\n", qid, pidx_inc);
+		else
+			writel(PIDX_T5(pidx_inc) | QID(bar2_qid),
+			       adap->bar2 + bar2_qoffset + SGE_UDB_KDOORBELL);
 
 		/* Re-enable BAR2 WC */
 		t4_set_reg_field(adap, 0x10b0, 1<<15, 1<<15);
@@ -4232,12 +4076,8 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.adapter_type = adap->params.chip;
 	lli.iscsi_iolen = MAXRXDATA_GET(t4_read_reg(adap, TP_PARA_REG2));
 	lli.cclk_ps = 1000000000 / adap->params.vpd.cclk;
-	lli.udb_density = 1 << QUEUESPERPAGEPF0_GET(
-			t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF) >>
-			(adap->fn * 4));
-	lli.ucq_density = 1 << QUEUESPERPAGEPF0_GET(
-			t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF) >>
-			(adap->fn * 4));
+	lli.udb_density = 1 << adap->params.sge.eq_qpp;
+	lli.ucq_density = 1 << adap->params.sge.iq_qpp;
 	lli.filt_mode = adap->params.tp.vlan_pri_map;
 	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
 	for (i = 0; i < NCHAN; i++)
@@ -4399,8 +4239,7 @@ static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
 	if (cxgb4_netdev(event_dev)) {
 		switch (event) {
 		case NETDEV_UP:
-			ret = cxgb4_clip_get(event_dev,
-				(const struct in6_addr *)ifa->addr.s6_addr);
+			ret = cxgb4_clip_get(event_dev, &ifa->addr);
 			if (ret < 0) {
 				rcu_read_unlock();
 				return ret;
@@ -4408,8 +4247,7 @@ static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
 			ret = NOTIFY_OK;
 			break;
 		case NETDEV_DOWN:
-			cxgb4_clip_release(event_dev,
-				(const struct in6_addr *)ifa->addr.s6_addr);
+			cxgb4_clip_release(event_dev, &ifa->addr);
 			ret = NOTIFY_OK;
 			break;
 		default:
@@ -4478,8 +4316,7 @@ static int update_dev_clip(struct net_device *root_dev, struct net_device *dev)
 
 	read_lock_bh(&idev->lock);
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
-		ret = cxgb4_clip_get(dev,
-				(const struct in6_addr *)ifa->addr.s6_addr);
+		ret = cxgb4_clip_get(dev, &ifa->addr);
 		if (ret < 0)
 			break;
 	}
@@ -4960,14 +4797,14 @@ static u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
 	 */
 	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
 	ldst_cmd.op_to_addrspace =
-		htonl(FW_CMD_OP(FW_LDST_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_READ |
-		      FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_PCIE));
+		htonl(FW_CMD_OP_V(FW_LDST_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_READ_F |
+		      FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_FUNC_PCIE));
 	ldst_cmd.cycles_to_len16 = htonl(FW_LEN16(ldst_cmd));
-	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS(1);
+	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS_V(1);
 	ldst_cmd.u.pcie.ctrl_to_fn =
-		(FW_LDST_CMD_LC | FW_LDST_CMD_FN(adap->fn));
+		(FW_LDST_CMD_LC_F | FW_LDST_CMD_FN_V(adap->fn));
 	ldst_cmd.u.pcie.r = reg;
 	ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd, sizeof(ldst_cmd),
 			 &ldst_cmd);
@@ -5054,8 +4891,8 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 
 	/* get device capabilities */
 	memset(c, 0, sizeof(*c));
-	c->op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-			       FW_CMD_REQUEST | FW_CMD_READ);
+	c->op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+			       FW_CMD_REQUEST_F | FW_CMD_READ_F);
 	c->cfvalid_to_len16 = htonl(FW_LEN16(*c));
 	ret = t4_wr_mbox(adap, adap->fn, c, sizeof(*c), c);
 	if (ret < 0)
@@ -5071,16 +4908,16 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 		dev_err(adap->pdev_dev, "virtualization ACLs not supported");
 		return ret;
 	}
-	c->op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-			       FW_CMD_REQUEST | FW_CMD_WRITE);
+	c->op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+			       FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
 	ret = t4_wr_mbox(adap, adap->fn, c, sizeof(*c), NULL);
 	if (ret < 0)
 		return ret;
 
 	ret = t4_config_glbl_rss(adap, adap->fn,
 				 FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
-				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
-				 FW_RSS_GLB_CONFIG_CMD_TNLALLLKP);
+				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F |
+				 FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F);
 	if (ret < 0)
 		return ret;
 
@@ -5241,8 +5078,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		if (cf->size >= FLASH_CFG_MAX_SIZE)
 			ret = -ENOMEM;
 		else {
-			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-			     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_CF));
 			ret = t4_query_params(adapter, adapter->mbox,
 					      adapter->fn, 0, 1, params, val);
 			if (ret == 0) {
@@ -5260,8 +5097,8 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 				size_t size = cf->size & ~0x3;
 				__be32 *data = (__be32 *)cf->data;
 
-				mtype = FW_PARAMS_PARAM_Y_GET(val[0]);
-				maddr = FW_PARAMS_PARAM_Z_GET(val[0]) << 16;
+				mtype = FW_PARAMS_PARAM_Y_G(val[0]);
+				maddr = FW_PARAMS_PARAM_Z_G(val[0]) << 16;
 
 				spin_lock(&adapter->win0_lock);
 				ret = t4_memory_rw(adapter, 0, mtype, maddr,
@@ -5298,13 +5135,13 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
 	caps_cmd.op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_READ);
+		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 =
-		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
-		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
-		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
+		htonl(FW_CAPS_CONFIG_CMD_CFVALID_F |
+		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF_V(mtype) |
+		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF_V(maddr >> 16) |
 		      FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
@@ -5318,9 +5155,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	if (ret == -ENOENT) {
 		memset(&caps_cmd, 0, sizeof(caps_cmd));
 		caps_cmd.op_to_write =
-			htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-					FW_CMD_REQUEST |
-					FW_CMD_READ);
+			htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+					FW_CMD_REQUEST_F |
+					FW_CMD_READ_F);
 		caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 		ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd,
 				sizeof(caps_cmd), &caps_cmd);
@@ -5343,9 +5180,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * And now tell the firmware to use the configuration we just loaded.
 	 */
 	caps_cmd.op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_WRITE);
+		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_WRITE_F);
 	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 NULL);
@@ -5416,8 +5253,8 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 * Get device capabilities and select which we'll be using.
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
-	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-				     FW_CMD_REQUEST | FW_CMD_READ);
+	caps_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+				     FW_CMD_REQUEST_F | FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
@@ -5433,8 +5270,8 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 		dev_err(adapter->pdev_dev, "virtualization ACLs not supported");
 		goto bye;
 	}
-	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-			      FW_CMD_REQUEST | FW_CMD_WRITE);
+	caps_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+			      FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 NULL);
 	if (ret < 0)
@@ -5456,10 +5293,10 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	adapter->flags |= RSS_TNLALLLOOKUP;
 	ret = t4_config_glbl_rss(adapter, adapter->mbox,
 				 FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
-				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
-				 FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ |
+				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F |
+				 FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_F |
 				 ((adapter->flags & RSS_TNLALLLOOKUP) ?
-					FW_RSS_GLB_CONFIG_CMD_TNLALLLKP : 0));
+					FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F : 0));
 	if (ret < 0)
 		goto bye;
 
@@ -5470,7 +5307,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 			  PFRES_NEQ, PFRES_NETHCTRL,
 			  PFRES_NIQFLINT, PFRES_NIQ,
 			  PFRES_TC, PFRES_NVI,
-			  FW_PFVF_CMD_CMASK_MASK,
+			  FW_PFVF_CMD_CMASK_M,
 			  pfvfres_pmask(adapter, adapter->fn, 0),
 			  PFRES_NEXACTF,
 			  PFRES_R_CAPS, PFRES_WX_CAPS);
@@ -5515,7 +5352,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 						  VFRES_NEQ, VFRES_NETHCTRL,
 						  VFRES_NIQFLINT, VFRES_NIQ,
 						  VFRES_TC, VFRES_NVI,
-						  FW_PFVF_CMD_CMASK_MASK,
+						  FW_PFVF_CMD_CMASK_M,
 						  pfvfres_pmask(
 						  adapter, pf, vf),
 						  VFRES_NEXACTF,
@@ -5687,14 +5524,8 @@ static int adap_init0(struct adapter *adap)
 	struct fw_caps_config_cmd caps_cmd;
 	int reset = 1;
 
-	/*
-	 * Contact FW, advertising Master capability (and potentially forcing
-	 * ourselves as the Master PF if our module parameter force_init is
-	 * set).
-	 */
-	ret = t4_fw_hello(adap, adap->mbox, adap->fn,
-			  force_init ? MASTER_MUST : MASTER_MAY,
-			  &state);
+	/* Contact FW, advertising Master capability */
+	ret = t4_fw_hello(adap, adap->mbox, adap->mbox, MASTER_MAY, &state);
 	if (ret < 0) {
 		dev_err(adap->pdev_dev, "could not connect to FW, error %d\n",
 			ret);
@@ -5702,8 +5533,6 @@ static int adap_init0(struct adapter *adap)
 	}
 	if (ret == adap->mbox)
 		adap->flags |= MASTER_PF;
-	if (force_init && state == DEV_STATE_INIT)
-		state = DEV_STATE_UNINIT;
 
 	/*
 	 * If we're the Master PF Driver and the device is uninitialized,
@@ -5779,8 +5608,8 @@ static int adap_init0(struct adapter *adap)
 	 * and portvec ...
 	 */
 	v =
-	    FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-	    FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_PORTVEC);
+	    FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+	    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PORTVEC);
 	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1, &v, &port_vec);
 	if (ret < 0)
 		goto bye;
@@ -5802,7 +5631,6 @@ static int adap_init0(struct adapter *adap)
 	} else {
 		dev_info(adap->pdev_dev, "Coming up as MASTER: "\
 			 "Initializing adapter\n");
-
 		/*
 		 * If the firmware doesn't support Configuration
 		 * Files warn user and exit,
@@ -5817,8 +5645,9 @@ static int adap_init0(struct adapter *adap)
 			 * Find out whether we're dealing with a version of
 			 * the firmware which has configuration file support.
 			 */
-			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-				     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+				     FW_PARAMS_PARAM_X_V(
+					     FW_PARAMS_PARAM_DEV_CF));
 			ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
 					      params, val);
 
@@ -5878,14 +5707,14 @@ static int adap_init0(struct adapter *adap)
 	 * Grab some of our basic fundamental operating parameters.
 	 */
 #define FW_PARAM_DEV(param) \
-	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) | \
-	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_##param))
+	(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) | \
+	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_##param))
 
 #define FW_PARAM_PFVF(param) \
-	FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) | \
-	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_##param)|  \
-	FW_PARAMS_PARAM_Y(0) | \
-	FW_PARAMS_PARAM_Z(0)
+	FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) | \
+	FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_##param)|  \
+	FW_PARAMS_PARAM_Y_V(0) | \
+	FW_PARAMS_PARAM_Z_V(0)
 
 	params[0] = FW_PARAM_PFVF(EQ_START);
 	params[1] = FW_PARAM_PFVF(L2T_START);
@@ -5945,8 +5774,8 @@ static int adap_init0(struct adapter *adap)
 	 * to manage.
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
-	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-				     FW_CMD_REQUEST | FW_CMD_READ);
+	caps_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+				     FW_CMD_REQUEST_F | FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adap, adap->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
@@ -6092,6 +5921,7 @@ static int adap_init0(struct adapter *adap)
 		t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
 			     adap->params.b_wnd);
 	}
+	t4_init_sge_params(adap);
 	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;

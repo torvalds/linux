@@ -1512,7 +1512,7 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 2, "brstchng");
 	if (qports->entry_length != sizeof(struct qeth_sbp_port_entry)) {
-		QETH_CARD_TEXT_(card, 2, "BPsz%.8d", qports->entry_length);
+		QETH_CARD_TEXT_(card, 2, "BPsz%04x", qports->entry_length);
 		return;
 	}
 	extrasize = sizeof(struct qeth_sbp_port_entry) * qports->num_entries;

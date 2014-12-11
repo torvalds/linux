@@ -306,8 +306,8 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg,
 
 			_debug("- range %u-%u%s",
 			       offset, to, msg->msg_flags ? " [more]" : "");
-			msg->msg_iov = (struct iovec *) iov;
-			msg->msg_iovlen = 1;
+			iov_iter_init(&msg->msg_iter, WRITE,
+				      (struct iovec *) iov, 1, to - offset);
 
 			/* have to change the state *before* sending the last
 			 * packet as RxRPC might give us the reply before it
@@ -384,8 +384,8 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 
 	msg.msg_name		= NULL;
 	msg.msg_namelen		= 0;
-	msg.msg_iov		= (struct iovec *) iov;
-	msg.msg_iovlen		= 1;
+	iov_iter_init(&msg.msg_iter, WRITE, (struct iovec *)iov, 1,
+		      call->request_size);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= (call->send_pages ? MSG_MORE : 0);
@@ -778,8 +778,7 @@ void afs_send_empty_reply(struct afs_call *call)
 	iov[0].iov_len		= 0;
 	msg.msg_name		= NULL;
 	msg.msg_namelen		= 0;
-	msg.msg_iov		= iov;
-	msg.msg_iovlen		= 0;
+	iov_iter_init(&msg.msg_iter, WRITE, iov, 0, 0);	/* WTF? */
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= 0;
@@ -815,8 +814,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	iov[0].iov_len		= len;
 	msg.msg_name		= NULL;
 	msg.msg_namelen		= 0;
-	msg.msg_iov		= iov;
-	msg.msg_iovlen		= 1;
+	iov_iter_init(&msg.msg_iter, WRITE, iov, 1, len);
 	msg.msg_control		= NULL;
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= 0;

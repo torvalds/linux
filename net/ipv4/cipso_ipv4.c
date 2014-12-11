@@ -50,7 +50,7 @@
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <linux/atomic.h>
-#include <asm/bug.h>
+#include <linux/bug.h>
 #include <asm/unaligned.h>
 
 /* List of available DOI definitions */
@@ -72,6 +72,7 @@ struct cipso_v4_map_cache_bkt {
 	u32 size;
 	struct list_head list;
 };
+
 struct cipso_v4_map_cache_entry {
 	u32 hash;
 	unsigned char *key;
@@ -82,7 +83,8 @@ struct cipso_v4_map_cache_entry {
 	u32 activity;
 	struct list_head list;
 };
-static struct cipso_v4_map_cache_bkt *cipso_v4_cache = NULL;
+
+static struct cipso_v4_map_cache_bkt *cipso_v4_cache;
 
 /* Restricted bitmap (tag #1) flags */
 int cipso_v4_rbm_optfmt = 0;
@@ -539,7 +541,7 @@ doi_add_return:
 
 /**
  * cipso_v4_doi_free - Frees a DOI definition
- * @entry: the entry's RCU field
+ * @doi_def: the DOI definition
  *
  * Description:
  * This function frees all of the memory associated with a DOI definition.

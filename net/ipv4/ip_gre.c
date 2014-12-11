@@ -789,7 +789,7 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u16(skb, IFLA_GRE_ENCAP_DPORT,
 			t->encap.dport) ||
 	    nla_put_u16(skb, IFLA_GRE_ENCAP_FLAGS,
-			t->encap.dport))
+			t->encap.flags))
 		goto nla_put_failure;
 
 	return 0;

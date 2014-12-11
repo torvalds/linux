@@ -1026,12 +1026,12 @@ mwifiex_drv_get_driver_version(struct mwifiex_adapter *adapter, char *version,
 			       int max_len)
 {
 	union {
-		u32 l;
+		__le32 l;
 		u8 c[4];
 	} ver;
 	char fw_ver[32];
 
-	ver.l = adapter->fw_release_number;
+	ver.l = cpu_to_le32(adapter->fw_release_number);
 	sprintf(fw_ver, "%u.%u.%u.p%u", ver.c[2], ver.c[1], ver.c[0], ver.c[3]);
 
 	snprintf(version, max_len, driver_version, fw_ver);

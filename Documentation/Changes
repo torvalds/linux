@@ -383,7 +383,7 @@ o  <http://www.iptables.org/downloads.html>
 
 Ip-route2
 ---------
-o  <ftp://ftp.tux.org/pub/net/ip-routing/iproute2-2.2.4-now-ss991023.tar.gz>
+o  <https://www.kernel.org/pub/linux/utils/net/iproute2/>
 
 OProfile
 --------

@@ -17,12 +17,12 @@
 
 #include <linux/module.h>
 #include <linux/debugfs.h>
-#include <linux/version.h>
-#include <linux/vermagic.h>
 #include <linux/vmalloc.h>
+#include <linux/utsname.h>
 
 #include "core.h"
 #include "debug.h"
+#include "hif.h"
 
 /* ms */
 #define ATH10K_DEBUG_HTT_STATS_INTERVAL 1000
@@ -106,34 +106,37 @@ struct ath10k_dump_file_data {
 	u8 data[0];
 } __packed;
 
-int ath10k_info(struct ath10k *ar, const char *fmt, ...)
+void ath10k_info(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = dev_info(ar->dev, "%pV", &vaf);
+	dev_info(ar->dev, "%pV", &vaf);
 	trace_ath10k_log_info(ar, &vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_print_driver_info(struct ath10k *ar)
 {
-	ath10k_info(ar, "%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d\n",
+	ath10k_info(ar, "%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d wmi %d.%d.%d.%d cal %s max_sta %d\n",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
 		    ar->hw->wiphy->fw_version,
 		    ar->fw_api,
 		    ar->htt.target_version_major,
-		    ar->htt.target_version_minor);
+		    ar->htt.target_version_minor,
+		    ar->fw_version_major,
+		    ar->fw_version_minor,
+		    ar->fw_version_release,
+		    ar->fw_version_build,
+		    ath10k_cal_mode_str(ar->cal_mode),
+		    ar->max_num_stations);
 	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d testmode %d\n",
 		    config_enabled(CONFIG_ATH10K_DEBUG),
 		    config_enabled(CONFIG_ATH10K_DEBUGFS),
@@ -143,25 +146,22 @@ void ath10k_print_driver_info(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_print_driver_info);
 
-int ath10k_err(struct ath10k *ar, const char *fmt, ...)
+void ath10k_err(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
 	};
 	va_list args;
-	int ret;
 
 	va_start(args, fmt);
 	vaf.va = &args;
-	ret = dev_err(ar->dev, "%pV", &vaf);
+	dev_err(ar->dev, "%pV", &vaf);
 	trace_ath10k_log_err(ar, &vaf);
 	va_end(args);
-
-	return ret;
 }
 EXPORT_SYMBOL(ath10k_err);
 
-int ath10k_warn(struct ath10k *ar, const char *fmt, ...)
+void ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
@@ -174,19 +174,10 @@ int ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 	trace_ath10k_log_warn(ar, &vaf);
 
 	va_end(args);
-
-	return 0;
 }
 EXPORT_SYMBOL(ath10k_warn);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
-
-void ath10k_debug_read_service_map(struct ath10k *ar,
-				   void *service_map,
-				   size_t map_size)
-{
-	memcpy(ar->debug.wmi_service_bitmap, service_map, map_size);
-}
 
 static ssize_t ath10k_read_wmi_services(struct file *file,
 					char __user *user_buf,
@@ -209,8 +200,9 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 	if (len > buf_len)
 		len = buf_len;
 
+	spin_lock_bh(&ar->data_lock);
 	for (i = 0; i < WMI_SERVICE_MAX; i++) {
-		enabled = test_bit(i, ar->debug.wmi_service_bitmap);
+		enabled = test_bit(i, ar->wmi.svc_map);
 		name = wmi_service_name(i);
 
 		if (!name) {
@@ -226,6 +218,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 				 "%-40s %s\n",
 				 name, enabled ? "enabled" : "-");
 	}
+	spin_unlock_bh(&ar->data_lock);
 
 	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 
@@ -242,169 +235,182 @@ static const struct file_operations fops_wmi_services = {
 	.llseek = default_llseek,
 };
 
-void ath10k_debug_read_target_stats(struct ath10k *ar,
-				    struct wmi_stats_event *ev)
+static void ath10k_debug_fw_stats_pdevs_free(struct list_head *head)
 {
-	u8 *tmp = ev->data;
-	struct ath10k_target_stats *stats;
-	int num_pdev_stats, num_vdev_stats, num_peer_stats;
-	struct wmi_pdev_stats_10x *ps;
-	int i;
+	struct ath10k_fw_stats_pdev *i, *tmp;
 
-	spin_lock_bh(&ar->data_lock);
-
-	stats = &ar->debug.target_stats;
-
-	num_pdev_stats = __le32_to_cpu(ev->num_pdev_stats); /* 0 or 1 */
-	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats); /* 0 or max vdevs */
-	num_peer_stats = __le32_to_cpu(ev->num_peer_stats); /* 0 or max peers */
-
-	if (num_pdev_stats) {
-		ps = (struct wmi_pdev_stats_10x *)tmp;
-
-		stats->ch_noise_floor = __le32_to_cpu(ps->chan_nf);
-		stats->tx_frame_count = __le32_to_cpu(ps->tx_frame_count);
-		stats->rx_frame_count = __le32_to_cpu(ps->rx_frame_count);
-		stats->rx_clear_count = __le32_to_cpu(ps->rx_clear_count);
-		stats->cycle_count = __le32_to_cpu(ps->cycle_count);
-		stats->phy_err_count = __le32_to_cpu(ps->phy_err_count);
-		stats->chan_tx_power = __le32_to_cpu(ps->chan_tx_pwr);
-
-		stats->comp_queued = __le32_to_cpu(ps->wal.tx.comp_queued);
-		stats->comp_delivered =
-			__le32_to_cpu(ps->wal.tx.comp_delivered);
-		stats->msdu_enqued = __le32_to_cpu(ps->wal.tx.msdu_enqued);
-		stats->mpdu_enqued = __le32_to_cpu(ps->wal.tx.mpdu_enqued);
-		stats->wmm_drop = __le32_to_cpu(ps->wal.tx.wmm_drop);
-		stats->local_enqued = __le32_to_cpu(ps->wal.tx.local_enqued);
-		stats->local_freed = __le32_to_cpu(ps->wal.tx.local_freed);
-		stats->hw_queued = __le32_to_cpu(ps->wal.tx.hw_queued);
-		stats->hw_reaped = __le32_to_cpu(ps->wal.tx.hw_reaped);
-		stats->underrun = __le32_to_cpu(ps->wal.tx.underrun);
-		stats->tx_abort = __le32_to_cpu(ps->wal.tx.tx_abort);
-		stats->mpdus_requed = __le32_to_cpu(ps->wal.tx.mpdus_requed);
-		stats->tx_ko = __le32_to_cpu(ps->wal.tx.tx_ko);
-		stats->data_rc = __le32_to_cpu(ps->wal.tx.data_rc);
-		stats->self_triggers = __le32_to_cpu(ps->wal.tx.self_triggers);
-		stats->sw_retry_failure =
-			__le32_to_cpu(ps->wal.tx.sw_retry_failure);
-		stats->illgl_rate_phy_err =
-			__le32_to_cpu(ps->wal.tx.illgl_rate_phy_err);
-		stats->pdev_cont_xretry =
-			__le32_to_cpu(ps->wal.tx.pdev_cont_xretry);
-		stats->pdev_tx_timeout =
-			__le32_to_cpu(ps->wal.tx.pdev_tx_timeout);
-		stats->pdev_resets = __le32_to_cpu(ps->wal.tx.pdev_resets);
-		stats->phy_underrun = __le32_to_cpu(ps->wal.tx.phy_underrun);
-		stats->txop_ovf = __le32_to_cpu(ps->wal.tx.txop_ovf);
-
-		stats->mid_ppdu_route_change =
-			__le32_to_cpu(ps->wal.rx.mid_ppdu_route_change);
-		stats->status_rcvd = __le32_to_cpu(ps->wal.rx.status_rcvd);
-		stats->r0_frags = __le32_to_cpu(ps->wal.rx.r0_frags);
-		stats->r1_frags = __le32_to_cpu(ps->wal.rx.r1_frags);
-		stats->r2_frags = __le32_to_cpu(ps->wal.rx.r2_frags);
-		stats->r3_frags = __le32_to_cpu(ps->wal.rx.r3_frags);
-		stats->htt_msdus = __le32_to_cpu(ps->wal.rx.htt_msdus);
-		stats->htt_mpdus = __le32_to_cpu(ps->wal.rx.htt_mpdus);
-		stats->loc_msdus = __le32_to_cpu(ps->wal.rx.loc_msdus);
-		stats->loc_mpdus = __le32_to_cpu(ps->wal.rx.loc_mpdus);
-		stats->oversize_amsdu =
-			__le32_to_cpu(ps->wal.rx.oversize_amsdu);
-		stats->phy_errs = __le32_to_cpu(ps->wal.rx.phy_errs);
-		stats->phy_err_drop = __le32_to_cpu(ps->wal.rx.phy_err_drop);
-		stats->mpdu_errs = __le32_to_cpu(ps->wal.rx.mpdu_errs);
-
-		if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
-			     ar->fw_features)) {
-			stats->ack_rx_bad = __le32_to_cpu(ps->ack_rx_bad);
-			stats->rts_bad = __le32_to_cpu(ps->rts_bad);
-			stats->rts_good = __le32_to_cpu(ps->rts_good);
-			stats->fcs_bad = __le32_to_cpu(ps->fcs_bad);
-			stats->no_beacons = __le32_to_cpu(ps->no_beacons);
-			stats->mib_int_count = __le32_to_cpu(ps->mib_int_count);
-			tmp += sizeof(struct wmi_pdev_stats_10x);
-		} else {
-			tmp += sizeof(struct wmi_pdev_stats_old);
-		}
+	list_for_each_entry_safe(i, tmp, head, list) {
+		list_del(&i->list);
+		kfree(i);
 	}
-
-	/* 0 or max vdevs */
-	/* Currently firmware does not support VDEV stats */
-	if (num_vdev_stats) {
-		struct wmi_vdev_stats *vdev_stats;
-
-		for (i = 0; i < num_vdev_stats; i++) {
-			vdev_stats = (struct wmi_vdev_stats *)tmp;
-			tmp += sizeof(struct wmi_vdev_stats);
-		}
-	}
-
-	if (num_peer_stats) {
-		struct wmi_peer_stats_10x *peer_stats;
-		struct ath10k_peer_stat *s;
-
-		stats->peers = num_peer_stats;
-
-		for (i = 0; i < num_peer_stats; i++) {
-			peer_stats = (struct wmi_peer_stats_10x *)tmp;
-			s = &stats->peer_stat[i];
-
-			memcpy(s->peer_macaddr, &peer_stats->peer_macaddr.addr,
-			       ETH_ALEN);
-			s->peer_rssi = __le32_to_cpu(peer_stats->peer_rssi);
-			s->peer_tx_rate =
-				__le32_to_cpu(peer_stats->peer_tx_rate);
-			if (test_bit(ATH10K_FW_FEATURE_WMI_10X,
-				     ar->fw_features)) {
-				s->peer_rx_rate =
-					__le32_to_cpu(peer_stats->peer_rx_rate);
-				tmp += sizeof(struct wmi_peer_stats_10x);
-
-			} else {
-				tmp += sizeof(struct wmi_peer_stats_old);
-			}
-		}
-	}
-
-	spin_unlock_bh(&ar->data_lock);
-	complete(&ar->debug.event_stats_compl);
 }
 
-static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos)
+static void ath10k_debug_fw_stats_peers_free(struct list_head *head)
 {
-	struct ath10k *ar = file->private_data;
-	struct ath10k_target_stats *fw_stats;
-	char *buf = NULL;
-	unsigned int len = 0, buf_len = 8000;
-	ssize_t ret_cnt = 0;
-	long left;
-	int i;
+	struct ath10k_fw_stats_peer *i, *tmp;
+
+	list_for_each_entry_safe(i, tmp, head, list) {
+		list_del(&i->list);
+		kfree(i);
+	}
+}
+
+static void ath10k_debug_fw_stats_reset(struct ath10k *ar)
+{
+	spin_lock_bh(&ar->data_lock);
+	ar->debug.fw_stats_done = false;
+	ath10k_debug_fw_stats_pdevs_free(&ar->debug.fw_stats.pdevs);
+	ath10k_debug_fw_stats_peers_free(&ar->debug.fw_stats.peers);
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static size_t ath10k_debug_fw_stats_num_peers(struct list_head *head)
+{
+	struct ath10k_fw_stats_peer *i;
+	size_t num = 0;
+
+	list_for_each_entry(i, head, list)
+		++num;
+
+	return num;
+}
+
+void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct ath10k_fw_stats stats = {};
+	bool is_start, is_started, is_end;
+	size_t num_peers;
 	int ret;
 
-	fw_stats = &ar->debug.target_stats;
-
-	mutex_lock(&ar->conf_mutex);
-
-	if (ar->state != ATH10K_STATE_ON)
-		goto exit;
-
-	buf = kzalloc(buf_len, GFP_KERNEL);
-	if (!buf)
-		goto exit;
-
-	ret = ath10k_wmi_request_stats(ar, WMI_REQUEST_PEER_STAT);
-	if (ret) {
-		ath10k_warn(ar, "could not request stats (%d)\n", ret);
-		goto exit;
-	}
-
-	left = wait_for_completion_timeout(&ar->debug.event_stats_compl, 1*HZ);
-	if (left <= 0)
-		goto exit;
+	INIT_LIST_HEAD(&stats.pdevs);
+	INIT_LIST_HEAD(&stats.peers);
 
 	spin_lock_bh(&ar->data_lock);
+	ret = ath10k_wmi_pull_fw_stats(ar, skb, &stats);
+	if (ret) {
+		ath10k_warn(ar, "failed to pull fw stats: %d\n", ret);
+		goto unlock;
+	}
+
+	/* Stat data may exceed htc-wmi buffer limit. In such case firmware
+	 * splits the stats data and delivers it in a ping-pong fashion of
+	 * request cmd-update event.
+	 *
+	 * However there is no explicit end-of-data. Instead start-of-data is
+	 * used as an implicit one. This works as follows:
+	 *  a) discard stat update events until one with pdev stats is
+	 *     delivered - this skips session started at end of (b)
+	 *  b) consume stat update events until another one with pdev stats is
+	 *     delivered which is treated as end-of-data and is itself discarded
+	 */
+
+	if (ar->debug.fw_stats_done) {
+		ath10k_warn(ar, "received unsolicited stats update event\n");
+		goto free;
+	}
+
+	num_peers = ath10k_debug_fw_stats_num_peers(&ar->debug.fw_stats.peers);
+	is_start = (list_empty(&ar->debug.fw_stats.pdevs) &&
+		    !list_empty(&stats.pdevs));
+	is_end = (!list_empty(&ar->debug.fw_stats.pdevs) &&
+		  !list_empty(&stats.pdevs));
+
+	if (is_start)
+		list_splice_tail_init(&stats.pdevs, &ar->debug.fw_stats.pdevs);
+
+	if (is_end)
+		ar->debug.fw_stats_done = true;
+
+	is_started = !list_empty(&ar->debug.fw_stats.pdevs);
+
+	if (is_started && !is_end) {
+		if (num_peers >= ATH10K_MAX_NUM_PEER_IDS) {
+			/* Although this is unlikely impose a sane limit to
+			 * prevent firmware from DoS-ing the host.
+			 */
+			ath10k_warn(ar, "dropping fw peer stats\n");
+			goto free;
+		}
+
+		list_splice_tail_init(&stats.peers, &ar->debug.fw_stats.peers);
+	}
+
+	complete(&ar->debug.fw_stats_complete);
+
+free:
+	/* In some cases lists have been spliced and cleared. Free up
+	 * resources if that is not the case.
+	 */
+	ath10k_debug_fw_stats_pdevs_free(&stats.pdevs);
+	ath10k_debug_fw_stats_peers_free(&stats.peers);
+
+unlock:
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static int ath10k_debug_fw_stats_request(struct ath10k *ar)
+{
+	unsigned long timeout;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	timeout = jiffies + msecs_to_jiffies(1*HZ);
+
+	ath10k_debug_fw_stats_reset(ar);
+
+	for (;;) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+
+		reinit_completion(&ar->debug.fw_stats_complete);
+
+		ret = ath10k_wmi_request_stats(ar, WMI_REQUEST_PEER_STAT);
+		if (ret) {
+			ath10k_warn(ar, "could not request stats (%d)\n", ret);
+			return ret;
+		}
+
+		ret = wait_for_completion_timeout(&ar->debug.fw_stats_complete,
+						  1*HZ);
+		if (ret <= 0)
+			return -ETIMEDOUT;
+
+		spin_lock_bh(&ar->data_lock);
+		if (ar->debug.fw_stats_done) {
+			spin_unlock_bh(&ar->data_lock);
+			break;
+		}
+		spin_unlock_bh(&ar->data_lock);
+	}
+
+	return 0;
+}
+
+/* FIXME: How to calculate the buffer size sanely? */
+#define ATH10K_FW_STATS_BUF_SIZE (1024*1024)
+
+static void ath10k_fw_stats_fill(struct ath10k *ar,
+				 struct ath10k_fw_stats *fw_stats,
+				 char *buf)
+{
+	unsigned int len = 0;
+	unsigned int buf_len = ATH10K_FW_STATS_BUF_SIZE;
+	const struct ath10k_fw_stats_pdev *pdev;
+	const struct ath10k_fw_stats_peer *peer;
+	size_t num_peers;
+
+	spin_lock_bh(&ar->data_lock);
+
+	pdev = list_first_entry_or_null(&fw_stats->pdevs,
+					struct ath10k_fw_stats_pdev, list);
+	if (!pdev) {
+		ath10k_warn(ar, "failed to get pdev stats\n");
+		goto unlock;
+	}
+
+	num_peers = ath10k_debug_fw_stats_num_peers(&fw_stats->peers);
+
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s\n",
 			 "ath10k PDEV stats");
@@ -412,29 +418,29 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 				 "=================");
 
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Channel noise floor", fw_stats->ch_noise_floor);
+			 "Channel noise floor", pdev->ch_noise_floor);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "Channel TX power", fw_stats->chan_tx_power);
+			 "Channel TX power", pdev->chan_tx_power);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "TX frame count", fw_stats->tx_frame_count);
+			 "TX frame count", pdev->tx_frame_count);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "RX frame count", fw_stats->rx_frame_count);
+			 "RX frame count", pdev->rx_frame_count);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "RX clear count", fw_stats->rx_clear_count);
+			 "RX clear count", pdev->rx_clear_count);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "Cycle count", fw_stats->cycle_count);
+			 "Cycle count", pdev->cycle_count);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "PHY error count", fw_stats->phy_err_count);
+			 "PHY error count", pdev->phy_err_count);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "RTS bad count", fw_stats->rts_bad);
+			 "RTS bad count", pdev->rts_bad);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "RTS good count", fw_stats->rts_good);
+			 "RTS good count", pdev->rts_good);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "FCS bad count", fw_stats->fcs_bad);
+			 "FCS bad count", pdev->fcs_bad);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "No beacon count", fw_stats->no_beacons);
+			 "No beacon count", pdev->no_beacons);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10u\n",
-			 "MIB int count", fw_stats->mib_int_count);
+			 "MIB int count", pdev->mib_int_count);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s\n",
@@ -443,51 +449,51 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 				 "=================");
 
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "HTT cookies queued", fw_stats->comp_queued);
+			 "HTT cookies queued", pdev->comp_queued);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "HTT cookies disp.", fw_stats->comp_delivered);
+			 "HTT cookies disp.", pdev->comp_delivered);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MSDU queued", fw_stats->msdu_enqued);
+			 "MSDU queued", pdev->msdu_enqued);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MPDU queued", fw_stats->mpdu_enqued);
+			 "MPDU queued", pdev->mpdu_enqued);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MSDUs dropped", fw_stats->wmm_drop);
+			 "MSDUs dropped", pdev->wmm_drop);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Local enqued", fw_stats->local_enqued);
+			 "Local enqued", pdev->local_enqued);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Local freed", fw_stats->local_freed);
+			 "Local freed", pdev->local_freed);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "HW queued", fw_stats->hw_queued);
+			 "HW queued", pdev->hw_queued);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "PPDUs reaped", fw_stats->hw_reaped);
+			 "PPDUs reaped", pdev->hw_reaped);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Num underruns", fw_stats->underrun);
+			 "Num underruns", pdev->underrun);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "PPDUs cleaned", fw_stats->tx_abort);
+			 "PPDUs cleaned", pdev->tx_abort);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MPDUs requed", fw_stats->mpdus_requed);
+			 "MPDUs requed", pdev->mpdus_requed);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Excessive retries", fw_stats->tx_ko);
+			 "Excessive retries", pdev->tx_ko);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "HW rate", fw_stats->data_rc);
+			 "HW rate", pdev->data_rc);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Sched self tiggers", fw_stats->self_triggers);
+			 "Sched self tiggers", pdev->self_triggers);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "Dropped due to SW retries",
-			 fw_stats->sw_retry_failure);
+			 pdev->sw_retry_failure);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "Illegal rate phy errors",
-			 fw_stats->illgl_rate_phy_err);
+			 pdev->illgl_rate_phy_err);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Pdev continous xretry", fw_stats->pdev_cont_xretry);
+			 "Pdev continous xretry", pdev->pdev_cont_xretry);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "TX timeout", fw_stats->pdev_tx_timeout);
+			 "TX timeout", pdev->pdev_tx_timeout);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "PDEV resets", fw_stats->pdev_resets);
+			 "PDEV resets", pdev->pdev_resets);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "PHY underrun", fw_stats->phy_underrun);
+			 "PHY underrun", pdev->phy_underrun);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MPDU is more than txop limit", fw_stats->txop_ovf);
+			 "MPDU is more than txop limit", pdev->txop_ovf);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s\n",
@@ -497,70 +503,161 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "Mid PPDU route change",
-			 fw_stats->mid_ppdu_route_change);
+			 pdev->mid_ppdu_route_change);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Tot. number of statuses", fw_stats->status_rcvd);
+			 "Tot. number of statuses", pdev->status_rcvd);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Extra frags on rings 0", fw_stats->r0_frags);
+			 "Extra frags on rings 0", pdev->r0_frags);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Extra frags on rings 1", fw_stats->r1_frags);
+			 "Extra frags on rings 1", pdev->r1_frags);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Extra frags on rings 2", fw_stats->r2_frags);
+			 "Extra frags on rings 2", pdev->r2_frags);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Extra frags on rings 3", fw_stats->r3_frags);
+			 "Extra frags on rings 3", pdev->r3_frags);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MSDUs delivered to HTT", fw_stats->htt_msdus);
+			 "MSDUs delivered to HTT", pdev->htt_msdus);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MPDUs delivered to HTT", fw_stats->htt_mpdus);
+			 "MPDUs delivered to HTT", pdev->htt_mpdus);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MSDUs delivered to stack", fw_stats->loc_msdus);
+			 "MSDUs delivered to stack", pdev->loc_msdus);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MPDUs delivered to stack", fw_stats->loc_mpdus);
+			 "MPDUs delivered to stack", pdev->loc_mpdus);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "Oversized AMSUs", fw_stats->oversize_amsdu);
+			 "Oversized AMSUs", pdev->oversize_amsdu);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "PHY errors", fw_stats->phy_errs);
+			 "PHY errors", pdev->phy_errs);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "PHY errors drops", fw_stats->phy_err_drop);
+			 "PHY errors drops", pdev->phy_err_drop);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
-			 "MPDU errors (FCS, MIC, ENC)", fw_stats->mpdu_errs);
+			 "MPDU errors (FCS, MIC, ENC)", pdev->mpdu_errs);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
-	len += scnprintf(buf + len, buf_len - len, "%30s (%d)\n",
-			 "ath10k PEER stats", fw_stats->peers);
+	len += scnprintf(buf + len, buf_len - len, "%30s (%zu)\n",
+			 "ath10k PEER stats", num_peers);
 	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
 				 "=================");
 
-	for (i = 0; i < fw_stats->peers; i++) {
+	list_for_each_entry(peer, &fw_stats->peers, list) {
 		len += scnprintf(buf + len, buf_len - len, "%30s %pM\n",
-				 "Peer MAC address",
-				 fw_stats->peer_stat[i].peer_macaddr);
+				 "Peer MAC address", peer->peer_macaddr);
 		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
-				 "Peer RSSI", fw_stats->peer_stat[i].peer_rssi);
+				 "Peer RSSI", peer->peer_rssi);
 		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
-				 "Peer TX rate",
-				 fw_stats->peer_stat[i].peer_tx_rate);
+				 "Peer TX rate", peer->peer_tx_rate);
 		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
-				 "Peer RX rate",
-				 fw_stats->peer_stat[i].peer_rx_rate);
+				 "Peer RX rate", peer->peer_rx_rate);
 		len += scnprintf(buf + len, buf_len - len, "\n");
 	}
+
+unlock:
 	spin_unlock_bh(&ar->data_lock);
 
-	if (len > buf_len)
-		len = buf_len;
+	if (len >= buf_len)
+		buf[len - 1] = 0;
+	else
+		buf[len] = 0;
+}
 
-	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+static int ath10k_fw_stats_open(struct inode *inode, struct file *file)
+{
+	struct ath10k *ar = inode->i_private;
+	void *buf = NULL;
+	int ret;
 
-exit:
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto err_unlock;
+	}
+
+	buf = vmalloc(ATH10K_FW_STATS_BUF_SIZE);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err_unlock;
+	}
+
+	ret = ath10k_debug_fw_stats_request(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to request fw stats: %d\n", ret);
+		goto err_free;
+	}
+
+	ath10k_fw_stats_fill(ar, &ar->debug.fw_stats, buf);
+	file->private_data = buf;
+
 	mutex_unlock(&ar->conf_mutex);
-	kfree(buf);
-	return ret_cnt;
+	return 0;
+
+err_free:
+	vfree(buf);
+
+err_unlock:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static int ath10k_fw_stats_release(struct inode *inode, struct file *file)
+{
+	vfree(file->private_data);
+
+	return 0;
+}
+
+static ssize_t ath10k_fw_stats_read(struct file *file, char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	const char *buf = file->private_data;
+	unsigned int len = strlen(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
 static const struct file_operations fops_fw_stats = {
-	.read = ath10k_read_fw_stats,
+	.open = ath10k_fw_stats_open,
+	.release = ath10k_fw_stats_release,
+	.read = ath10k_fw_stats_read,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath10k_debug_fw_reset_stats_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	int ret, len, buf_len;
+	char *buf;
+
+	buf_len = 500;
+	buf = kmalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	spin_lock_bh(&ar->data_lock);
+
+	len = 0;
+	len += scnprintf(buf + len, buf_len - len,
+			 "fw_crash_counter\t\t%d\n", ar->stats.fw_crash_counter);
+	len += scnprintf(buf + len, buf_len - len,
+			 "fw_warm_reset_counter\t\t%d\n",
+			 ar->stats.fw_warm_reset_counter);
+	len += scnprintf(buf + len, buf_len - len,
+			 "fw_cold_reset_counter\t\t%d\n",
+			 ar->stats.fw_cold_reset_counter);
+
+	spin_unlock_bh(&ar->data_lock);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	kfree(buf);
+
+	return ret;
+}
+
+static const struct file_operations fops_fw_reset_stats = {
 	.open = simple_open,
+	.read = ath10k_debug_fw_reset_stats_read,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -593,7 +690,8 @@ static ssize_t ath10k_read_simulate_fw_crash(struct file *file,
 		"To simulate firmware crash write one of the keywords to this file:\n"
 		"`soft` - this will send WMI_FORCE_FW_HANG_ASSERT to firmware if FW supports that command.\n"
 		"`hard` - this will send to firmware command with illegal parameters causing firmware crash.\n"
-		"`assert` - this will send special illegal parameter to firmware to cause assert failure and crash.\n";
+		"`assert` - this will send special illegal parameter to firmware to cause assert failure and crash.\n"
+		"`hw-restart` - this will simply queue hw restart without fw/hw actually crashing.\n";
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
@@ -646,6 +744,10 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 	} else if (!strcmp(buf, "assert")) {
 		ath10k_info(ar, "simulating firmware assert crash\n");
 		ret = ath10k_debug_fw_assert(ar);
+	} else if (!strcmp(buf, "hw-restart")) {
+		ath10k_info(ar, "user requested hw restart\n");
+		queue_work(ar->workqueue, &ar->restart_work);
+		ret = 0;
 	} else {
 		ret = -EINVAL;
 		goto exit;
@@ -759,8 +861,8 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar)
 	strlcpy(dump_data->fw_ver, ar->hw->wiphy->fw_version,
 		sizeof(dump_data->fw_ver));
 
-	dump_data->kernel_ver_code = cpu_to_le32(LINUX_VERSION_CODE);
-	strlcpy(dump_data->kernel_ver, VERMAGIC_STRING,
+	dump_data->kernel_ver_code = 0;
+	strlcpy(dump_data->kernel_ver, init_utsname()->release,
 		sizeof(dump_data->kernel_ver));
 
 	dump_data->tv_sec = cpu_to_le64(crash_data->timestamp.tv_sec);
@@ -818,6 +920,236 @@ static const struct file_operations fops_fw_crash_dump = {
 	.open = ath10k_fw_crash_dump_open,
 	.read = ath10k_fw_crash_dump_read,
 	.release = ath10k_fw_crash_dump_release,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath10k_reg_addr_read(struct file *file,
+				    char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 buf[32];
+	unsigned int len = 0;
+	u32 reg_addr;
+
+	mutex_lock(&ar->conf_mutex);
+	reg_addr = ar->debug.reg_addr;
+	mutex_unlock(&ar->conf_mutex);
+
+	len += scnprintf(buf + len, sizeof(buf) - len, "0x%x\n", reg_addr);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath10k_reg_addr_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 reg_addr;
+	int ret;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &reg_addr);
+	if (ret)
+		return ret;
+
+	if (!IS_ALIGNED(reg_addr, 4))
+		return -EFAULT;
+
+	mutex_lock(&ar->conf_mutex);
+	ar->debug.reg_addr = reg_addr;
+	mutex_unlock(&ar->conf_mutex);
+
+	return count;
+}
+
+static const struct file_operations fops_reg_addr = {
+	.read = ath10k_reg_addr_read,
+	.write = ath10k_reg_addr_write,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath10k_reg_value_read(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 buf[48];
+	unsigned int len;
+	u32 reg_addr, reg_val;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	reg_addr = ar->debug.reg_addr;
+
+	reg_val = ath10k_hif_read32(ar, reg_addr);
+	len = scnprintf(buf, sizeof(buf), "0x%08x:0x%08x\n", reg_addr, reg_val);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath10k_reg_value_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 reg_addr, reg_val;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	reg_addr = ar->debug.reg_addr;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &reg_val);
+	if (ret)
+		goto exit;
+
+	ath10k_hif_write32(ar, reg_addr, reg_val);
+
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static const struct file_operations fops_reg_value = {
+	.read = ath10k_reg_value_read,
+	.write = ath10k_reg_value_write,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath10k_mem_value_read(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 *buf;
+	int ret;
+
+	if (*ppos < 0)
+		return -EINVAL;
+
+	if (!count)
+		return 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	buf = vmalloc(count);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	ret = ath10k_hif_diag_read(ar, *ppos, buf, count);
+	if (ret) {
+		ath10k_warn(ar, "failed to read address 0x%08x via diagnose window fnrom debugfs: %d\n",
+			    (u32)(*ppos), ret);
+		goto exit;
+	}
+
+	ret = copy_to_user(user_buf, buf, count);
+	if (ret) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	count -= ret;
+	*ppos += count;
+	ret = count;
+
+exit:
+	vfree(buf);
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath10k_mem_value_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u8 *buf;
+	int ret;
+
+	if (*ppos < 0)
+		return -EINVAL;
+
+	if (!count)
+		return 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	buf = vmalloc(count);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	ret = copy_from_user(buf, user_buf, count);
+	if (ret) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	ret = ath10k_hif_diag_write(ar, *ppos, buf, count);
+	if (ret) {
+		ath10k_warn(ar, "failed to write address 0x%08x via diagnose window from debugfs: %d\n",
+			    (u32)(*ppos), ret);
+		goto exit;
+	}
+
+	*ppos += count;
+	ret = count;
+
+exit:
+	vfree(buf);
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static const struct file_operations fops_mem_value = {
+	.read = ath10k_mem_value_read,
+	.write = ath10k_mem_value_write,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1029,10 +1361,248 @@ exit:
 	return ret;
 }
 
+/* TODO:  Would be nice to always support ethtool stats, would need to
+ * move the stats storage out of ath10k_debug, or always have ath10k_debug
+ * struct available..
+ */
+
+/* This generally cooresponds to the debugfs fw_stats file */
+static const char ath10k_gstrings_stats[][ETH_GSTRING_LEN] = {
+	"tx_pkts_nic",
+	"tx_bytes_nic",
+	"rx_pkts_nic",
+	"rx_bytes_nic",
+	"d_noise_floor",
+	"d_cycle_count",
+	"d_phy_error",
+	"d_rts_bad",
+	"d_rts_good",
+	"d_tx_power", /* in .5 dbM I think */
+	"d_rx_crc_err", /* fcs_bad */
+	"d_no_beacon",
+	"d_tx_mpdus_queued",
+	"d_tx_msdu_queued",
+	"d_tx_msdu_dropped",
+	"d_local_enqued",
+	"d_local_freed",
+	"d_tx_ppdu_hw_queued",
+	"d_tx_ppdu_reaped",
+	"d_tx_fifo_underrun",
+	"d_tx_ppdu_abort",
+	"d_tx_mpdu_requed",
+	"d_tx_excessive_retries",
+	"d_tx_hw_rate",
+	"d_tx_dropped_sw_retries",
+	"d_tx_illegal_rate",
+	"d_tx_continuous_xretries",
+	"d_tx_timeout",
+	"d_tx_mpdu_txop_limit",
+	"d_pdev_resets",
+	"d_rx_mid_ppdu_route_change",
+	"d_rx_status",
+	"d_rx_extra_frags_ring0",
+	"d_rx_extra_frags_ring1",
+	"d_rx_extra_frags_ring2",
+	"d_rx_extra_frags_ring3",
+	"d_rx_msdu_htt",
+	"d_rx_mpdu_htt",
+	"d_rx_msdu_stack",
+	"d_rx_mpdu_stack",
+	"d_rx_phy_err",
+	"d_rx_phy_err_drops",
+	"d_rx_mpdu_errors", /* FCS, MIC, ENC */
+	"d_fw_crash_count",
+	"d_fw_warm_reset_count",
+	"d_fw_cold_reset_count",
+};
+
+#define ATH10K_SSTATS_LEN ARRAY_SIZE(ath10k_gstrings_stats)
+
+void ath10k_debug_get_et_strings(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 u32 sset, u8 *data)
+{
+	if (sset == ETH_SS_STATS)
+		memcpy(data, *ath10k_gstrings_stats,
+		       sizeof(ath10k_gstrings_stats));
+}
+
+int ath10k_debug_get_et_sset_count(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif, int sset)
+{
+	if (sset == ETH_SS_STATS)
+		return ATH10K_SSTATS_LEN;
+
+	return 0;
+}
+
+void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ethtool_stats *stats, u64 *data)
+{
+	struct ath10k *ar = hw->priv;
+	static const struct ath10k_fw_stats_pdev zero_stats = {};
+	const struct ath10k_fw_stats_pdev *pdev_stats;
+	int i = 0, ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state == ATH10K_STATE_ON) {
+		ret = ath10k_debug_fw_stats_request(ar);
+		if (ret) {
+			/* just print a warning and try to use older results */
+			ath10k_warn(ar,
+				    "failed to get fw stats for ethtool: %d\n",
+				    ret);
+		}
+	}
+
+	pdev_stats = list_first_entry_or_null(&ar->debug.fw_stats.pdevs,
+					      struct ath10k_fw_stats_pdev,
+					      list);
+	if (!pdev_stats) {
+		/* no results available so just return zeroes */
+		pdev_stats = &zero_stats;
+	}
+
+	spin_lock_bh(&ar->data_lock);
+
+	data[i++] = pdev_stats->hw_reaped; /* ppdu reaped */
+	data[i++] = 0; /* tx bytes */
+	data[i++] = pdev_stats->htt_mpdus;
+	data[i++] = 0; /* rx bytes */
+	data[i++] = pdev_stats->ch_noise_floor;
+	data[i++] = pdev_stats->cycle_count;
+	data[i++] = pdev_stats->phy_err_count;
+	data[i++] = pdev_stats->rts_bad;
+	data[i++] = pdev_stats->rts_good;
+	data[i++] = pdev_stats->chan_tx_power;
+	data[i++] = pdev_stats->fcs_bad;
+	data[i++] = pdev_stats->no_beacons;
+	data[i++] = pdev_stats->mpdu_enqued;
+	data[i++] = pdev_stats->msdu_enqued;
+	data[i++] = pdev_stats->wmm_drop;
+	data[i++] = pdev_stats->local_enqued;
+	data[i++] = pdev_stats->local_freed;
+	data[i++] = pdev_stats->hw_queued;
+	data[i++] = pdev_stats->hw_reaped;
+	data[i++] = pdev_stats->underrun;
+	data[i++] = pdev_stats->tx_abort;
+	data[i++] = pdev_stats->mpdus_requed;
+	data[i++] = pdev_stats->tx_ko;
+	data[i++] = pdev_stats->data_rc;
+	data[i++] = pdev_stats->sw_retry_failure;
+	data[i++] = pdev_stats->illgl_rate_phy_err;
+	data[i++] = pdev_stats->pdev_cont_xretry;
+	data[i++] = pdev_stats->pdev_tx_timeout;
+	data[i++] = pdev_stats->txop_ovf;
+	data[i++] = pdev_stats->pdev_resets;
+	data[i++] = pdev_stats->mid_ppdu_route_change;
+	data[i++] = pdev_stats->status_rcvd;
+	data[i++] = pdev_stats->r0_frags;
+	data[i++] = pdev_stats->r1_frags;
+	data[i++] = pdev_stats->r2_frags;
+	data[i++] = pdev_stats->r3_frags;
+	data[i++] = pdev_stats->htt_msdus;
+	data[i++] = pdev_stats->htt_mpdus;
+	data[i++] = pdev_stats->loc_msdus;
+	data[i++] = pdev_stats->loc_mpdus;
+	data[i++] = pdev_stats->phy_errs;
+	data[i++] = pdev_stats->phy_err_drop;
+	data[i++] = pdev_stats->mpdu_errs;
+	data[i++] = ar->stats.fw_crash_counter;
+	data[i++] = ar->stats.fw_warm_reset_counter;
+	data[i++] = ar->stats.fw_cold_reset_counter;
+
+	spin_unlock_bh(&ar->data_lock);
+
+	mutex_unlock(&ar->conf_mutex);
+
+	WARN_ON(i != ATH10K_SSTATS_LEN);
+}
+
 static const struct file_operations fops_fw_dbglog = {
 	.read = ath10k_read_fw_dbglog,
 	.write = ath10k_write_fw_dbglog,
 	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
+{
+	struct ath10k *ar = inode->i_private;
+	void *buf;
+	u32 hi_addr;
+	__le32 addr;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_UTF) {
+		ret = -ENETDOWN;
+		goto err;
+	}
+
+	buf = vmalloc(QCA988X_CAL_DATA_LEN);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	hi_addr = host_interest_item_address(HI_ITEM(hi_board_data));
+
+	ret = ath10k_hif_diag_read(ar, hi_addr, &addr, sizeof(addr));
+	if (ret) {
+		ath10k_warn(ar, "failed to read hi_board_data address: %d\n", ret);
+		goto err_vfree;
+	}
+
+	ret = ath10k_hif_diag_read(ar, le32_to_cpu(addr), buf,
+				   QCA988X_CAL_DATA_LEN);
+	if (ret) {
+		ath10k_warn(ar, "failed to read calibration data: %d\n", ret);
+		goto err_vfree;
+	}
+
+	file->private_data = buf;
+
+	mutex_unlock(&ar->conf_mutex);
+
+	return 0;
+
+err_vfree:
+	vfree(buf);
+
+err:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath10k_debug_cal_data_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	void *buf = file->private_data;
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       buf, QCA988X_CAL_DATA_LEN);
+}
+
+static int ath10k_debug_cal_data_release(struct inode *inode,
+					 struct file *file)
+{
+	vfree(file->private_data);
+
+	return 0;
+}
+
+static const struct file_operations fops_cal_data = {
+	.open = ath10k_debug_cal_data_open,
+	.read = ath10k_debug_cal_data_read,
+	.release = ath10k_debug_cal_data_release,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1057,7 +1627,22 @@ int ath10k_debug_start(struct ath10k *ar)
 				    ret);
 	}
 
-	return 0;
+	if (ar->debug.pktlog_filter) {
+		ret = ath10k_wmi_pdev_pktlog_enable(ar,
+						    ar->debug.pktlog_filter);
+		if (ret)
+			/* not serious */
+			ath10k_warn(ar,
+				    "failed to enable pktlog filter %x: %d\n",
+				    ar->debug.pktlog_filter, ret);
+	} else {
+		ret = ath10k_wmi_pdev_pktlog_disable(ar);
+		if (ret)
+			/* not serious */
+			ath10k_warn(ar, "failed to disable pktlog: %d\n", ret);
+	}
+
+	return ret;
 }
 
 void ath10k_debug_stop(struct ath10k *ar)
@@ -1072,6 +1657,8 @@ void ath10k_debug_stop(struct ath10k *ar)
 
 	ar->debug.htt_max_amsdu = 0;
 	ar->debug.htt_max_ampdu = 0;
+
+	ath10k_wmi_pdev_pktlog_disable(ar);
 }
 
 static ssize_t ath10k_write_simulate_radar(struct file *file,
@@ -1154,11 +1741,77 @@ static const struct file_operations fops_dfs_stats = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_write_pktlog_filter(struct file *file,
+					  const char __user *ubuf,
+					  size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 filter;
+	int ret;
+
+	if (kstrtouint_from_user(ubuf, count, 0, &filter))
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ar->debug.pktlog_filter = filter;
+		ret = count;
+		goto out;
+	}
+
+	if (filter && (filter != ar->debug.pktlog_filter)) {
+		ret = ath10k_wmi_pdev_pktlog_enable(ar, filter);
+		if (ret) {
+			ath10k_warn(ar, "failed to enable pktlog filter %x: %d\n",
+				    ar->debug.pktlog_filter, ret);
+			goto out;
+		}
+	} else {
+		ret = ath10k_wmi_pdev_pktlog_disable(ar);
+		if (ret) {
+			ath10k_warn(ar, "failed to disable pktlog: %d\n", ret);
+			goto out;
+		}
+	}
+
+	ar->debug.pktlog_filter = filter;
+	ret = count;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static ssize_t ath10k_read_pktlog_filter(struct file *file, char __user *ubuf,
+					 size_t count, loff_t *ppos)
+{
+	char buf[32];
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%08x\n",
+			ar->debug.pktlog_filter);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_pktlog_filter = {
+	.read = ath10k_read_pktlog_filter,
+	.write = ath10k_write_pktlog_filter,
+	.open = simple_open
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
 	if (!ar->debug.fw_crash_data)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ar->debug.fw_stats.pdevs);
+	INIT_LIST_HEAD(&ar->debug.fw_stats.peers);
 
 	return 0;
 }
@@ -1167,6 +1820,8 @@ void ath10k_debug_destroy(struct ath10k *ar)
 {
 	vfree(ar->debug.fw_crash_data);
 	ar->debug.fw_crash_data = NULL;
+
+	ath10k_debug_fw_stats_reset(ar);
 }
 
 int ath10k_debug_register(struct ath10k *ar)
@@ -1183,10 +1838,13 @@ int ath10k_debug_register(struct ath10k *ar)
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
 			  ath10k_debug_htt_stats_dwork);
 
-	init_completion(&ar->debug.event_stats_compl);
+	init_completion(&ar->debug.fw_stats_complete);
 
 	debugfs_create_file("fw_stats", S_IRUSR, ar->debug.debugfs_phy, ar,
 			    &fops_fw_stats);
+
+	debugfs_create_file("fw_reset_stats", S_IRUSR, ar->debug.debugfs_phy,
+			    ar, &fops_fw_reset_stats);
 
 	debugfs_create_file("wmi_services", S_IRUSR, ar->debug.debugfs_phy, ar,
 			    &fops_wmi_services);
@@ -1196,6 +1854,15 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("fw_crash_dump", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_fw_crash_dump);
+
+	debugfs_create_file("reg_addr", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_reg_addr);
+
+	debugfs_create_file("reg_value", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_reg_value);
+
+	debugfs_create_file("mem_value", S_IRUSR | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_mem_value);
 
 	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_chip_id);
@@ -1210,6 +1877,9 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("fw_dbglog", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_fw_dbglog);
 
+	debugfs_create_file("cal_data", S_IRUSR, ar->debug.debugfs_phy,
+			    ar, &fops_cal_data);
+
 	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
 				    ar->debug.debugfs_phy, ar,
@@ -1223,6 +1893,9 @@ int ath10k_debug_register(struct ath10k *ar)
 				    ar->debug.debugfs_phy, ar,
 				    &fops_dfs_stats);
 	}
+
+	debugfs_create_file("pktlog_filter", S_IRUGO | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_pktlog_filter);
 
 	return 0;
 }
@@ -1260,11 +1933,26 @@ void ath10k_dbg_dump(struct ath10k *ar,
 		     const char *msg, const char *prefix,
 		     const void *buf, size_t len)
 {
+	char linebuf[256];
+	unsigned int linebuflen;
+	const void *ptr;
+
 	if (ath10k_debug_mask & mask) {
 		if (msg)
 			ath10k_dbg(ar, mask, "%s\n", msg);
 
-		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
+		for (ptr = buf; (ptr - buf) < len; ptr += 16) {
+			linebuflen = 0;
+			linebuflen += scnprintf(linebuf + linebuflen,
+						sizeof(linebuf) - linebuflen,
+						"%s%08x: ",
+						(prefix ? prefix : ""),
+						(unsigned int)(ptr - buf));
+			hex_dump_to_buffer(ptr, len - (ptr - buf), 16, 1,
+					   linebuf + linebuflen,
+					   sizeof(linebuf) - linebuflen, true);
+			dev_printk(KERN_DEBUG, ar->dev, "%s\n", linebuf);
+		}
 	}
 
 	/* tracing code doesn't like null strings :/ */

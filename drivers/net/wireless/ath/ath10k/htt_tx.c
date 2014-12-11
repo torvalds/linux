@@ -92,7 +92,6 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 
 	spin_lock_init(&htt->tx_lock);
-	init_waitqueue_head(&htt->empty_tx_wq);
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, htt->ar->fw_features))
 		htt->max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
@@ -555,14 +554,18 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->htt.txbuf->cmd_tx.len = __cpu_to_le16(msdu->len);
 	skb_cb->htt.txbuf->cmd_tx.id = __cpu_to_le16(msdu_id);
 	skb_cb->htt.txbuf->cmd_tx.frags_paddr = __cpu_to_le32(frags_paddr);
-	skb_cb->htt.txbuf->cmd_tx.peerid = __cpu_to_le32(HTT_INVALID_PEERID);
+	skb_cb->htt.txbuf->cmd_tx.peerid = __cpu_to_le16(HTT_INVALID_PEERID);
+	skb_cb->htt.txbuf->cmd_tx.freq = __cpu_to_le16(skb_cb->htt.freq);
 
+	trace_ath10k_htt_tx(ar, msdu_id, msdu->len, vdev_id, tid);
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt tx flags0 %hhu flags1 %hu len %d id %hu frags_paddr %08x, msdu_paddr %08x vdev %hhu tid %hhu\n",
+		   "htt tx flags0 %hhu flags1 %hu len %d id %hu frags_paddr %08x, msdu_paddr %08x vdev %hhu tid %hhu freq %hu\n",
 		   flags0, flags1, msdu->len, msdu_id, frags_paddr,
-		   (u32)skb_cb->paddr, vdev_id, tid);
+		   (u32)skb_cb->paddr, vdev_id, tid, skb_cb->htt.freq);
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt tx msdu: ",
 			msdu->data, msdu->len);
+	trace_ath10k_tx_hdr(ar, msdu->data, msdu->len);
+	trace_ath10k_tx_payload(ar, msdu->data, msdu->len);
 
 	sg_items[0].transfer_id = 0;
 	sg_items[0].transfer_context = NULL;

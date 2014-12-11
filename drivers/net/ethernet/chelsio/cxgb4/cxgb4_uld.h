@@ -52,10 +52,10 @@ enum {
 };
 
 #define INIT_TP_WR(w, tid) do { \
-	(w)->wr.wr_hi = htonl(FW_WR_OP(FW_TP_WR) | \
-			      FW_WR_IMMDLEN(sizeof(*w) - sizeof(w->wr))); \
-	(w)->wr.wr_mid = htonl(FW_WR_LEN16(DIV_ROUND_UP(sizeof(*w), 16)) | \
-			       FW_WR_FLOWID(tid)); \
+	(w)->wr.wr_hi = htonl(FW_WR_OP_V(FW_TP_WR) | \
+			      FW_WR_IMMDLEN_V(sizeof(*w) - sizeof(w->wr))); \
+	(w)->wr.wr_mid = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*w), 16)) | \
+			       FW_WR_FLOWID_V(tid)); \
 	(w)->wr.wr_lo = cpu_to_be64(0); \
 } while (0)
 
@@ -65,9 +65,10 @@ enum {
 } while (0)
 
 #define INIT_ULPTX_WR(w, wrlen, atomic, tid) do { \
-	(w)->wr.wr_hi = htonl(FW_WR_OP(FW_ULPTX_WR) | FW_WR_ATOMIC(atomic)); \
-	(w)->wr.wr_mid = htonl(FW_WR_LEN16(DIV_ROUND_UP(wrlen, 16)) | \
-			       FW_WR_FLOWID(tid)); \
+	(w)->wr.wr_hi = htonl(FW_WR_OP_V(FW_ULPTX_WR) | \
+			      FW_WR_ATOMIC_V(atomic)); \
+	(w)->wr.wr_mid = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(wrlen, 16)) | \
+			       FW_WR_FLOWID_V(tid)); \
 	(w)->wr.wr_lo = cpu_to_be64(0); \
 } while (0)
 
@@ -303,5 +304,12 @@ void cxgb4_disable_db_coalescing(struct net_device *dev);
 void cxgb4_enable_db_coalescing(struct net_device *dev);
 int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte);
 u64 cxgb4_read_sge_timestamp(struct net_device *dev);
+
+enum cxgb4_bar2_qtype { CXGB4_BAR2_QTYPE_EGRESS, CXGB4_BAR2_QTYPE_INGRESS };
+int cxgb4_bar2_sge_qregs(struct net_device *dev,
+			 unsigned int qid,
+			 enum cxgb4_bar2_qtype qtype,
+			 u64 *pbar2_qoffset,
+			 unsigned int *pbar2_qid);
 
 #endif  /* !__CXGB4_OFLD_H */

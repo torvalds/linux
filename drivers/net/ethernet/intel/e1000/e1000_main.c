@@ -3136,12 +3136,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	 * packets may get corrupted during padding by HW.
 	 * To WA this issue, pad all small packets manually.
 	 */
-	if (skb->len < ETH_ZLEN) {
-		if (skb_pad(skb, ETH_ZLEN - skb->len))
-			return NETDEV_TX_OK;
-		skb->len = ETH_ZLEN;
-		skb_set_tail_pointer(skb, ETH_ZLEN);
-	}
+	if (eth_skb_pad(skb))
+		return NETDEV_TX_OK;
 
 	mss = skb_shinfo(skb)->gso_size;
 	/* The controller does a simple calculation to
@@ -4104,7 +4100,7 @@ static bool e1000_tbi_should_accept(struct e1000_adapter *adapter,
 static struct sk_buff *e1000_alloc_rx_skb(struct e1000_adapter *adapter,
 					  unsigned int bufsz)
 {
-	struct sk_buff *skb = netdev_alloc_skb_ip_align(adapter->netdev, bufsz);
+	struct sk_buff *skb = napi_alloc_skb(&adapter->napi, bufsz);
 
 	if (unlikely(!skb))
 		adapter->alloc_rx_buff_failed++;

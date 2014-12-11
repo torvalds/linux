@@ -458,6 +458,6 @@ void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
 		". Dropping fragment.\n";
 
 	if (PTR_ERR(q) == -ENOBUFS)
-		LIMIT_NETDEBUG(KERN_WARNING "%s%s", prefix, msg);
+		net_dbg_ratelimited("%s%s", prefix, msg);
 }
 EXPORT_SYMBOL(inet_frag_maybe_warn_overflow);

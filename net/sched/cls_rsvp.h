@@ -271,10 +271,6 @@ static unsigned long rsvp_get(struct tcf_proto *tp, u32 handle)
 	return 0;
 }
 
-static void rsvp_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int rsvp_init(struct tcf_proto *tp)
 {
 	struct rsvp_head *data;
@@ -657,7 +653,6 @@ static int rsvp_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 {
 	struct rsvp_filter *f = (struct rsvp_filter *)fh;
 	struct rsvp_session *s;
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 	struct tc_rsvp_pinfo pinfo;
 
@@ -698,7 +693,7 @@ static int rsvp_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -708,7 +703,6 @@ static struct tcf_proto_ops RSVP_OPS __read_mostly = {
 	.init		=	rsvp_init,
 	.destroy	=	rsvp_destroy,
 	.get		=	rsvp_get,
-	.put		=	rsvp_put,
 	.change		=	rsvp_change,
 	.delete		=	rsvp_delete,
 	.walk		=	rsvp_walk,

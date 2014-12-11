@@ -9,6 +9,9 @@
  * (at your option) any later version.
  */
 
+#include <linux/ctype.h>
+#include <linux/device.h>
+#include <linux/hwmon.h>
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -17,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
+#include <linux/sysfs.h>
 #include "dsa_priv.h"
 
 char dsa_driver_version[] = "0.1";
@@ -71,6 +75,104 @@ dsa_switch_probe(struct device *host_dev, int sw_addr, char **_name)
 	return ret;
 }
 
+/* hwmon support ************************************************************/
+
+#ifdef CONFIG_NET_DSA_HWMON
+
+static ssize_t temp1_input_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	int temp, ret;
+
+	ret = ds->drv->get_temp(ds, &temp);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", temp * 1000);
+}
+static DEVICE_ATTR_RO(temp1_input);
+
+static ssize_t temp1_max_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	int temp, ret;
+
+	ret = ds->drv->get_temp_limit(ds, &temp);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", temp * 1000);
+}
+
+static ssize_t temp1_max_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	int temp, ret;
+
+	ret = kstrtoint(buf, 0, &temp);
+	if (ret < 0)
+		return ret;
+
+	ret = ds->drv->set_temp_limit(ds, DIV_ROUND_CLOSEST(temp, 1000));
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR(temp1_max, S_IRUGO, temp1_max_show, temp1_max_store);
+
+static ssize_t temp1_max_alarm_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	bool alarm;
+	int ret;
+
+	ret = ds->drv->get_temp_alarm(ds, &alarm);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", alarm);
+}
+static DEVICE_ATTR_RO(temp1_max_alarm);
+
+static struct attribute *dsa_hwmon_attrs[] = {
+	&dev_attr_temp1_input.attr,	/* 0 */
+	&dev_attr_temp1_max.attr,	/* 1 */
+	&dev_attr_temp1_max_alarm.attr,	/* 2 */
+	NULL
+};
+
+static umode_t dsa_hwmon_attrs_visible(struct kobject *kobj,
+				       struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct dsa_switch *ds = dev_get_drvdata(dev);
+	struct dsa_switch_driver *drv = ds->drv;
+	umode_t mode = attr->mode;
+
+	if (index == 1) {
+		if (!drv->get_temp_limit)
+			mode = 0;
+		else if (drv->set_temp_limit)
+			mode |= S_IWUSR;
+	} else if (index == 2 && !drv->get_temp_alarm) {
+		mode = 0;
+	}
+	return mode;
+}
+
+static const struct attribute_group dsa_hwmon_group = {
+	.attrs = dsa_hwmon_attrs,
+	.is_visible = dsa_hwmon_attrs_visible,
+};
+__ATTRIBUTE_GROUPS(dsa_hwmon);
+
+#endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
 static struct dsa_switch *
@@ -90,12 +192,12 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 */
 	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
 	if (drv == NULL) {
-		printk(KERN_ERR "%s[%d]: could not detect attached switch\n",
-		       dst->master_netdev->name, index);
+		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
+			   index);
 		return ERR_PTR(-EINVAL);
 	}
-	printk(KERN_INFO "%s[%d]: detected a %s switch\n",
-		dst->master_netdev->name, index, name);
+	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
+		    index, name);
 
 
 	/*
@@ -123,7 +225,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 		if (!strcmp(name, "cpu")) {
 			if (dst->cpu_switch != -1) {
-				printk(KERN_ERR "multiple cpu ports?!\n");
+				netdev_err(dst->master_netdev,
+					   "multiple cpu ports?!\n");
 				ret = -EINVAL;
 				goto out;
 			}
@@ -218,15 +321,38 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 		slave_dev = dsa_slave_create(ds, parent, i, pd->port_names[i]);
 		if (slave_dev == NULL) {
-			printk(KERN_ERR "%s[%d]: can't create dsa "
-			       "slave device for port %d(%s)\n",
-			       dst->master_netdev->name,
-			       index, i, pd->port_names[i]);
+			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s)\n",
+				   index, i, pd->port_names[i]);
 			continue;
 		}
 
 		ds->ports[i] = slave_dev;
 	}
+
+#ifdef CONFIG_NET_DSA_HWMON
+	/* If the switch provides a temperature sensor,
+	 * register with hardware monitoring subsystem.
+	 * Treat registration error as non-fatal and ignore it.
+	 */
+	if (drv->get_temp) {
+		const char *netname = netdev_name(dst->master_netdev);
+		char hname[IFNAMSIZ + 1];
+		int i, j;
+
+		/* Create valid hwmon 'name' attribute */
+		for (i = j = 0; i < IFNAMSIZ && netname[i]; i++) {
+			if (isalnum(netname[i]))
+				hname[j++] = netname[i];
+		}
+		hname[j] = '\0';
+		scnprintf(ds->hwmon_name, sizeof(ds->hwmon_name), "%s_dsa%d",
+			  hname, index);
+		ds->hwmon_dev = hwmon_device_register_with_groups(NULL,
+					ds->hwmon_name, ds, dsa_hwmon_groups);
+		if (IS_ERR(ds->hwmon_dev))
+			ds->hwmon_dev = NULL;
+	}
+#endif /* CONFIG_NET_DSA_HWMON */
 
 	return ds;
 
@@ -239,6 +365,10 @@ out:
 
 static void dsa_switch_destroy(struct dsa_switch *ds)
 {
+#ifdef CONFIG_NET_DSA_HWMON
+	if (ds->hwmon_dev)
+		hwmon_device_unregister(ds->hwmon_dev);
+#endif
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -396,7 +526,8 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 
 	/* First time routing table allocation */
 	if (!cd->rtable) {
-		cd->rtable = kmalloc(pd->nr_chips * sizeof(s8), GFP_KERNEL);
+		cd->rtable = kmalloc_array(pd->nr_chips, sizeof(s8),
+					   GFP_KERNEL);
 		if (!cd->rtable)
 			return -ENOMEM;
 
@@ -447,6 +578,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 	const char *port_name;
 	int chip_index, port_index;
 	const unsigned int *sw_addr, *port_reg;
+	u32 eeprom_len;
 	int ret;
 
 	mdio = of_parse_phandle(np, "dsa,mii-bus", 0);
@@ -475,8 +607,8 @@ static int dsa_of_probe(struct platform_device *pdev)
 	if (pd->nr_chips > DSA_MAX_SWITCHES)
 		pd->nr_chips = DSA_MAX_SWITCHES;
 
-	pd->chip = kzalloc(pd->nr_chips * sizeof(struct dsa_chip_data),
-			GFP_KERNEL);
+	pd->chip = kcalloc(pd->nr_chips, sizeof(struct dsa_chip_data),
+			   GFP_KERNEL);
 	if (!pd->chip) {
 		ret = -ENOMEM;
 		goto out_free;
@@ -497,6 +629,9 @@ static int dsa_of_probe(struct platform_device *pdev)
 		cd->sw_addr = be32_to_cpup(sw_addr);
 		if (cd->sw_addr > PHY_MAX_ADDR)
 			continue;
+
+		if (!of_property_read_u32(np, "eeprom-length", &eeprom_len))
+			cd->eeprom_len = eeprom_len;
 
 		for_each_available_child_of_node(child, port) {
 			port_reg = of_get_property(port, "reg", NULL);
@@ -566,15 +701,13 @@ static inline void dsa_of_remove(struct platform_device *pdev)
 
 static int dsa_probe(struct platform_device *pdev)
 {
-	static int dsa_version_printed;
 	struct dsa_platform_data *pd = pdev->dev.platform_data;
 	struct net_device *dev;
 	struct dsa_switch_tree *dst;
 	int i, ret;
 
-	if (!dsa_version_printed++)
-		printk(KERN_NOTICE "Distributed Switch Architecture "
-			"driver version %s\n", dsa_driver_version);
+	pr_notice_once("Distributed Switch Architecture driver version %s\n",
+		       dsa_driver_version);
 
 	if (pdev->dev.of_node) {
 		ret = dsa_of_probe(pdev);
@@ -618,9 +751,8 @@ static int dsa_probe(struct platform_device *pdev)
 
 		ds = dsa_switch_setup(dst, i, &pdev->dev, pd->chip[i].host_dev);
 		if (IS_ERR(ds)) {
-			printk(KERN_ERR "%s[%d]: couldn't create dsa switch "
-				"instance (error %ld)\n", dev->name, i,
-				PTR_ERR(ds));
+			netdev_err(dev, "[%d]: couldn't create dsa switch instance (error %ld)\n",
+				   i, PTR_ERR(ds));
 			continue;
 		}
 

@@ -111,10 +111,6 @@ static unsigned long fw_get(struct tcf_proto *tp, u32 handle)
 	return 0;
 }
 
-static void fw_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int fw_init(struct tcf_proto *tp)
 {
 	return 0;
@@ -360,7 +356,6 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f = (struct fw_filter *)fh;
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
 	if (f == NULL)
@@ -401,7 +396,7 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -411,7 +406,6 @@ static struct tcf_proto_ops cls_fw_ops __read_mostly = {
 	.init		=	fw_init,
 	.destroy	=	fw_destroy,
 	.get		=	fw_get,
-	.put		=	fw_put,
 	.change		=	fw_change,
 	.delete		=	fw_delete,
 	.walk		=	fw_walk,

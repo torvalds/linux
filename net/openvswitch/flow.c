@@ -32,6 +32,7 @@
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/mpls.h>
 #include <linux/sctp.h>
 #include <linux/smp.h>
 #include <linux/tcp.h>
@@ -42,6 +43,7 @@
 #include <net/ip.h>
 #include <net/ip_tunnels.h>
 #include <net/ipv6.h>
+#include <net/mpls.h>
 #include <net/ndisc.h>
 
 #include "datapath.h"
@@ -64,7 +66,7 @@ u64 ovs_flow_used_time(unsigned long flow_jiffies)
 #define TCP_FLAGS_BE16(tp) (*(__be16 *)&tcp_flag_word(tp) & htons(0x0FFF))
 
 void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
-			   struct sk_buff *skb)
+			   const struct sk_buff *skb)
 {
 	struct flow_stats *stats;
 	int node = numa_node_id();
@@ -480,6 +482,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 		return -ENOMEM;
 
 	skb_reset_network_header(skb);
+	skb_reset_mac_len(skb);
 	__skb_push(skb, skb->data - skb_mac_header(skb));
 
 	/* Network layer. */
@@ -584,6 +587,33 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 			memset(&key->ip, 0, sizeof(key->ip));
 			memset(&key->ipv4, 0, sizeof(key->ipv4));
 		}
+	} else if (eth_p_mpls(key->eth.type)) {
+		size_t stack_len = MPLS_HLEN;
+
+		/* In the presence of an MPLS label stack the end of the L2
+		 * header and the beginning of the L3 header differ.
+		 *
+		 * Advance network_header to the beginning of the L3
+		 * header. mac_len corresponds to the end of the L2 header.
+		 */
+		while (1) {
+			__be32 lse;
+
+			error = check_header(skb, skb->mac_len + stack_len);
+			if (unlikely(error))
+				return 0;
+
+			memcpy(&lse, skb_network_header(skb), MPLS_HLEN);
+
+			if (stack_len == MPLS_HLEN)
+				memcpy(&key->mpls.top_lse, &lse, MPLS_HLEN);
+
+			skb_set_network_header(skb, skb->mac_len + stack_len);
+			if (lse & htonl(MPLS_LS_S_MASK))
+				break;
+
+			stack_len += MPLS_HLEN;
+		}
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		int nh_len;             /* IPv6 Header + Extensions */
 
@@ -649,7 +679,7 @@ int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 	return key_extract(skb, key);
 }
 
-int ovs_flow_key_extract(struct ovs_tunnel_info *tun_info,
+int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
 	/* Extract metadata from packet. */
@@ -682,12 +712,12 @@ int ovs_flow_key_extract(struct ovs_tunnel_info *tun_info,
 
 int ovs_flow_key_extract_userspace(const struct nlattr *attr,
 				   struct sk_buff *skb,
-				   struct sw_flow_key *key)
+				   struct sw_flow_key *key, bool log)
 {
 	int err;
 
 	/* Extract metadata from netlink attributes. */
-	err = ovs_nla_get_flow_metadata(attr, key);
+	err = ovs_nla_get_flow_metadata(attr, key, log);
 	if (err)
 		return err;
 

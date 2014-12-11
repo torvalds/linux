@@ -1671,10 +1671,8 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	    fcoe->realdev->features & NETIF_F_HW_VLAN_CTAG_TX) {
 		/* must set skb->dev before calling vlan_put_tag */
 		skb->dev = fcoe->realdev;
-		skb = __vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-					     vlan_dev_vlan_id(fcoe->netdev));
-		if (!skb)
-			return -ENOMEM;
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       vlan_dev_vlan_id(fcoe->netdev));
 	} else
 		skb->dev = fcoe->netdev;
 

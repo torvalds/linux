@@ -1185,4 +1185,14 @@ static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
 #define nla_for_each_nested(pos, nla, rem) \
 	nla_for_each_attr(pos, nla_data(nla), nla_len(nla), rem)
 
+/**
+ * nla_is_last - Test if attribute is last in stream
+ * @nla: attribute to test
+ * @rem: bytes remaining in stream
+ */
+static inline bool nla_is_last(const struct nlattr *nla, int rem)
+{
+	return nla->nla_len == rem;
+}
+
 #endif

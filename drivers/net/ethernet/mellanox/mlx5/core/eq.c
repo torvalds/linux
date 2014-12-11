@@ -225,8 +225,8 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
 		case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
 			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
-			mlx5_core_dbg(dev, "event %s(%d) arrived\n",
-				      eqe_type_str(eqe->type), eqe->type);
+			mlx5_core_dbg(dev, "event %s(%d) arrived on resource 0x%x\n",
+				      eqe_type_str(eqe->type), eqe->type, rsn);
 			mlx5_rsc_event(dev, rsn, eqe->type);
 			break;
 
@@ -390,7 +390,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	 */
 	eq_update_ci(eq, 1);
 
-	mlx5_vfree(in);
+	kvfree(in);
 	return 0;
 
 err_irq:
@@ -400,7 +400,7 @@ err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
 
 err_in:
-	mlx5_vfree(in);
+	kvfree(in);
 
 err_buf:
 	mlx5_buf_free(dev, &eq->buf);

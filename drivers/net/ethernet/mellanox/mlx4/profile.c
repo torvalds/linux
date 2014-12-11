@@ -126,8 +126,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	profile[MLX4_RES_AUXC].num    = request->num_qp;
 	profile[MLX4_RES_SRQ].num     = request->num_srq;
 	profile[MLX4_RES_CQ].num      = request->num_cq;
-	profile[MLX4_RES_EQ].num      = mlx4_is_mfunc(dev) ?
-					dev->phys_caps.num_phys_eqs :
+	profile[MLX4_RES_EQ].num = mlx4_is_mfunc(dev) ? dev->phys_caps.num_phys_eqs :
 					min_t(unsigned, dev_cap->max_eqs, MAX_MSIX);
 	profile[MLX4_RES_DMPT].num    = request->num_mpt;
 	profile[MLX4_RES_CMPT].num    = MLX4_NUM_CMPTS;
@@ -216,10 +215,18 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 			init_hca->log_num_cqs = profile[i].log_num;
 			break;
 		case MLX4_RES_EQ:
-			dev->caps.num_eqs     = roundup_pow_of_two(min_t(unsigned, dev_cap->max_eqs,
-									 MAX_MSIX));
-			init_hca->eqc_base    = profile[i].start;
-			init_hca->log_num_eqs = ilog2(dev->caps.num_eqs);
+			if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+				init_hca->log_num_eqs = 0x1f;
+				init_hca->eqc_base    = profile[i].start;
+				init_hca->num_sys_eqs = dev_cap->num_sys_eqs;
+			} else {
+				dev->caps.num_eqs     = roundup_pow_of_two(
+								min_t(unsigned,
+								      dev_cap->max_eqs,
+								      MAX_MSIX));
+				init_hca->eqc_base    = profile[i].start;
+				init_hca->log_num_eqs = ilog2(dev->caps.num_eqs);
+			}
 			break;
 		case MLX4_RES_DMPT:
 			dev->caps.num_mpts	= profile[i].num;

@@ -43,6 +43,26 @@ struct mlx4_mod_stat_cfg {
 	u8 log_pg_sz_m;
 };
 
+struct mlx4_port_cap {
+	u8  supported_port_types;
+	u8  suggested_type;
+	u8  default_sense;
+	u8  log_max_macs;
+	u8  log_max_vlans;
+	int ib_mtu;
+	int max_port_width;
+	int max_vl;
+	int max_gids;
+	int max_pkeys;
+	u64 def_mac;
+	u16 eth_mtu;
+	int trans_type;
+	int vendor_oui;
+	u16 wavelength;
+	u64 trans_code;
+	u8 dmfs_optimized_state;
+};
+
 struct mlx4_dev_cap {
 	int max_srq_sz;
 	int max_qp_sz;
@@ -56,6 +76,7 @@ struct mlx4_dev_cap {
 	int max_mpts;
 	int reserved_eqs;
 	int max_eqs;
+	int num_sys_eqs;
 	int reserved_mtts;
 	int max_mrw_sz;
 	int reserved_mrws;
@@ -66,17 +87,6 @@ struct mlx4_dev_cap {
 	int local_ca_ack_delay;
 	int num_ports;
 	u32 max_msg_sz;
-	int ib_mtu[MLX4_MAX_PORTS + 1];
-	int max_port_width[MLX4_MAX_PORTS + 1];
-	int max_vl[MLX4_MAX_PORTS + 1];
-	int max_gids[MLX4_MAX_PORTS + 1];
-	int max_pkeys[MLX4_MAX_PORTS + 1];
-	u64 def_mac[MLX4_MAX_PORTS + 1];
-	u16 eth_mtu[MLX4_MAX_PORTS + 1];
-	int trans_type[MLX4_MAX_PORTS + 1];
-	int vendor_oui[MLX4_MAX_PORTS + 1];
-	u16 wavelength[MLX4_MAX_PORTS + 1];
-	u64 trans_code[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
 	int fs_log_max_ucast_qp_range_size;
 	int fs_max_num_qp_per_entry;
@@ -114,12 +124,10 @@ struct mlx4_dev_cap {
 	u64 max_icm_sz;
 	int max_gso_sz;
 	int max_rss_tbl_sz;
-	u8  supported_port_types[MLX4_MAX_PORTS + 1];
-	u8  suggested_type[MLX4_MAX_PORTS + 1];
-	u8  default_sense[MLX4_MAX_PORTS + 1];
-	u8  log_max_macs[MLX4_MAX_PORTS + 1];
-	u8  log_max_vlans[MLX4_MAX_PORTS + 1];
 	u32 max_counters;
+	u32 dmfs_high_rate_qpn_base;
+	u32 dmfs_high_rate_qpn_range;
+	struct mlx4_port_cap port_cap[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_func_cap {
@@ -143,6 +151,17 @@ struct mlx4_func_cap {
 	u8	port_flags;
 	u8	flags1;
 	u64	phys_port_id;
+	u32	extra_flags;
+};
+
+struct mlx4_func {
+	int	bus;
+	int	device;
+	int	function;
+	int	physical_function;
+	int	rsvd_eqs;
+	int	max_eq;
+	int	rsvd_uars;
 };
 
 struct mlx4_adapter {
@@ -170,6 +189,7 @@ struct mlx4_init_hca_param {
 	u8  log_num_srqs;
 	u8  log_num_cqs;
 	u8  log_num_eqs;
+	u16 num_sys_eqs;
 	u8  log_rd_per_qp;
 	u8  log_mc_table_sz;
 	u8  log_mpt_sz;
@@ -177,6 +197,7 @@ struct mlx4_init_hca_param {
 	u8  mw_enabled;  /* Enable memory windows */
 	u8  uar_page_sz; /* log pg sz in 4k chunks */
 	u8  steering_mode; /* for QUERY_HCA */
+	u8  dmfs_high_steer_mode; /* for QUERY_HCA */
 	u64 dev_cap_enabled;
 	u16 cqe_size; /* For use only when CQE stride feature enabled */
 	u16 eqe_size; /* For use only when EQE stride feature enabled */
@@ -204,13 +225,15 @@ struct mlx4_set_ib_param {
 };
 
 int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap);
-int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
+int mlx4_QUERY_PORT(struct mlx4_dev *dev, int port, struct mlx4_port_cap *port_cap);
+int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 			struct mlx4_func_cap *func_cap);
 int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,
 				struct mlx4_cmd_mailbox *inbox,
 				struct mlx4_cmd_mailbox *outbox,
 				struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_FUNC(struct mlx4_dev *dev, struct mlx4_func *func, int slave);
 int mlx4_MAP_FA(struct mlx4_dev *dev, struct mlx4_icm *icm);
 int mlx4_UNMAP_FA(struct mlx4_dev *dev);
 int mlx4_RUN_FW(struct mlx4_dev *dev);

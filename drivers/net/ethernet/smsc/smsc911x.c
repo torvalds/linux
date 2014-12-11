@@ -59,6 +59,8 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_net.h>
+#include <linux/pm_runtime.h>
+
 #include "smsc911x.h"
 
 #define SMSC_CHIPNAME		"smsc911x"
@@ -2338,6 +2340,9 @@ static int smsc911x_drv_remove(struct platform_device *pdev)
 
 	free_netdev(dev);
 
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	return 0;
 }
 
@@ -2491,6 +2496,9 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	if (pdata->config.shift)
 		pdata->ops = &shifted_smsc911x_ops;
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	retval = smsc911x_init(dev);
 	if (retval < 0)
 		goto out_disable_resources;
@@ -2572,6 +2580,8 @@ out_unregister_netdev_5:
 out_free_irq:
 	free_irq(dev->irq, dev);
 out_disable_resources:
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	(void)smsc911x_disable_resources(pdev);
 out_enable_resources_fail:
 	smsc911x_free_resources(pdev);

@@ -109,19 +109,12 @@ static void __cls_bpf_delete_prog(struct rcu_head *rcu)
 
 static int cls_bpf_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct cls_bpf_head *head = rtnl_dereference(tp->root);
-	struct cls_bpf_prog *prog, *todel = (struct cls_bpf_prog *) arg;
+	struct cls_bpf_prog *prog = (struct cls_bpf_prog *) arg;
 
-	list_for_each_entry(prog, &head->plist, link) {
-		if (prog == todel) {
-			list_del_rcu(&prog->link);
-			tcf_unbind_filter(tp, &prog->res);
-			call_rcu(&prog->rcu, __cls_bpf_delete_prog);
-			return 0;
-		}
-	}
-
-	return -ENOENT;
+	list_del_rcu(&prog->link);
+	tcf_unbind_filter(tp, &prog->res);
+	call_rcu(&prog->rcu, __cls_bpf_delete_prog);
+	return 0;
 }
 
 static void cls_bpf_destroy(struct tcf_proto *tp)
@@ -148,7 +141,7 @@ static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
 	if (head == NULL)
 		return 0UL;
 
-	list_for_each_entry_rcu(prog, &head->plist, link) {
+	list_for_each_entry(prog, &head->plist, link) {
 		if (prog->handle == handle) {
 			ret = (unsigned long) prog;
 			break;
@@ -156,10 +149,6 @@ static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
 	}
 
 	return ret;
-}
-
-static void cls_bpf_put(struct tcf_proto *tp, unsigned long f)
-{
 }
 
 static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
@@ -344,7 +333,7 @@ static void cls_bpf_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *prog;
 
-	list_for_each_entry_rcu(prog, &head->plist, link) {
+	list_for_each_entry(prog, &head->plist, link) {
 		if (arg->count < arg->skip)
 			goto skip;
 		if (arg->fn(tp, (unsigned long) prog, arg) < 0) {
@@ -363,7 +352,6 @@ static struct tcf_proto_ops cls_bpf_ops __read_mostly = {
 	.init		=	cls_bpf_init,
 	.destroy	=	cls_bpf_destroy,
 	.get		=	cls_bpf_get,
-	.put		=	cls_bpf_put,
 	.change		=	cls_bpf_change,
 	.delete		=	cls_bpf_delete,
 	.walk		=	cls_bpf_walk,

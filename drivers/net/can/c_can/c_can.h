@@ -169,6 +169,28 @@ enum c_can_dev_id {
 	BOSCH_D_CAN,
 };
 
+struct raminit_bits {
+	u8 start;
+	u8 done;
+};
+
+struct c_can_driver_data {
+	enum c_can_dev_id id;
+
+	/* RAMINIT register description. Optional. */
+	const struct raminit_bits *raminit_bits; /* Array of START/DONE bit positions */
+	u8 raminit_num;		/* Number of CAN instances on the SoC */
+	bool raminit_pulse;	/* If set, sets and clears START bit (pulse) */
+};
+
+/* Out of band RAMINIT register access via syscon regmap */
+struct c_can_raminit {
+	struct regmap *syscon;	/* for raminit ctrl. reg. access */
+	unsigned int reg;	/* register index within syscon */
+	struct raminit_bits bits;
+	bool needs_pulse;
+};
+
 /* c_can private data structure */
 struct c_can_priv {
 	struct can_priv can;	/* must be the first member */
@@ -186,8 +208,7 @@ struct c_can_priv {
 	const u16 *regs;
 	void *priv;		/* for board-specific data */
 	enum c_can_dev_id type;
-	u32 __iomem *raminit_ctrlreg;
-	int instance;
+	struct c_can_raminit raminit_sys;	/* RAMINIT via syscon regmap */
 	void (*raminit) (const struct c_can_priv *priv, bool enable);
 	u32 comm_rcv_high;
 	u32 rxmasked;

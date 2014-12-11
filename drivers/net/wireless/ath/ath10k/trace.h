@@ -20,6 +20,15 @@
 #include <linux/tracepoint.h>
 #include "core.h"
 
+#if !defined(_TRACE_H_)
+static inline u32 ath10k_frm_hdr_len(const void *buf)
+{
+	const struct ieee80211_hdr *hdr = buf;
+
+	return ieee80211_hdrlen(hdr->frame_control);
+}
+#endif
+
 #define _TRACE_H_
 
 /* create empty functions when tracing is disabled */
@@ -138,7 +147,8 @@ TRACE_EVENT(ath10k_log_dbg_dump,
 );
 
 TRACE_EVENT(ath10k_wmi_cmd,
-	TP_PROTO(struct ath10k *ar, int id, void *buf, size_t buf_len, int ret),
+	TP_PROTO(struct ath10k *ar, int id, const void *buf, size_t buf_len,
+		 int ret),
 
 	TP_ARGS(ar, id, buf, buf_len, ret),
 
@@ -171,7 +181,7 @@ TRACE_EVENT(ath10k_wmi_cmd,
 );
 
 TRACE_EVENT(ath10k_wmi_event,
-	TP_PROTO(struct ath10k *ar, int id, void *buf, size_t buf_len),
+	TP_PROTO(struct ath10k *ar, int id, const void *buf, size_t buf_len),
 
 	TP_ARGS(ar, id, buf, buf_len),
 
@@ -201,7 +211,7 @@ TRACE_EVENT(ath10k_wmi_event,
 );
 
 TRACE_EVENT(ath10k_htt_stats,
-	TP_PROTO(struct ath10k *ar, void *buf, size_t buf_len),
+	TP_PROTO(struct ath10k *ar, const void *buf, size_t buf_len),
 
 	TP_ARGS(ar, buf, buf_len),
 
@@ -228,7 +238,7 @@ TRACE_EVENT(ath10k_htt_stats,
 );
 
 TRACE_EVENT(ath10k_wmi_dbglog,
-	TP_PROTO(struct ath10k *ar, void *buf, size_t buf_len),
+	TP_PROTO(struct ath10k *ar, const void *buf, size_t buf_len),
 
 	TP_ARGS(ar, buf, buf_len),
 
@@ -252,6 +262,195 @@ TRACE_EVENT(ath10k_wmi_dbglog,
 		__get_str(device),
 		__entry->buf_len
 	)
+);
+
+TRACE_EVENT(ath10k_htt_pktlog,
+	    TP_PROTO(struct ath10k *ar, const void *buf, u16 buf_len),
+
+	TP_ARGS(ar, buf, buf_len),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(u16, buf_len)
+		__dynamic_array(u8, pktlog, buf_len)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->buf_len = buf_len;
+		memcpy(__get_dynamic_array(pktlog), buf, buf_len);
+	),
+
+	TP_printk(
+		"%s %s size %hu",
+		__get_str(driver),
+		__get_str(device),
+		__entry->buf_len
+	 )
+);
+
+TRACE_EVENT(ath10k_htt_tx,
+	    TP_PROTO(struct ath10k *ar, u16 msdu_id, u16 msdu_len,
+		     u8 vdev_id, u8 tid),
+
+	TP_ARGS(ar, msdu_id, msdu_len, vdev_id, tid),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(u16, msdu_id)
+		__field(u16, msdu_len)
+		__field(u8, vdev_id)
+		__field(u8, tid)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->msdu_id = msdu_id;
+		__entry->msdu_len = msdu_len;
+		__entry->vdev_id = vdev_id;
+		__entry->tid = tid;
+	),
+
+	TP_printk(
+		"%s %s msdu_id %d msdu_len %d vdev_id %d tid %d",
+		__get_str(driver),
+		__get_str(device),
+		__entry->msdu_id,
+		__entry->msdu_len,
+		__entry->vdev_id,
+		__entry->tid
+	 )
+);
+
+TRACE_EVENT(ath10k_txrx_tx_unref,
+	    TP_PROTO(struct ath10k *ar, u16 msdu_id),
+
+	TP_ARGS(ar, msdu_id),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(u16, msdu_id)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->msdu_id = msdu_id;
+	),
+
+	TP_printk(
+		"%s %s msdu_id %d",
+		__get_str(driver),
+		__get_str(device),
+		__entry->msdu_id
+	 )
+);
+
+DECLARE_EVENT_CLASS(ath10k_hdr_event,
+		    TP_PROTO(struct ath10k *ar, const void *data, size_t len),
+
+	TP_ARGS(ar, data, len),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(size_t, len)
+		__dynamic_array(u8, data, ath10k_frm_hdr_len(data))
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->len = ath10k_frm_hdr_len(data);
+		memcpy(__get_dynamic_array(data), data, __entry->len);
+	),
+
+	TP_printk(
+		"%s %s len %zu\n",
+		__get_str(driver),
+		__get_str(device),
+		__entry->len
+	)
+);
+
+DECLARE_EVENT_CLASS(ath10k_payload_event,
+		    TP_PROTO(struct ath10k *ar, const void *data, size_t len),
+
+	TP_ARGS(ar, data, len),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(size_t, len)
+		__dynamic_array(u8, payload, (len - ath10k_frm_hdr_len(data)))
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->len = len - ath10k_frm_hdr_len(data);
+		memcpy(__get_dynamic_array(payload),
+		       data + ath10k_frm_hdr_len(data), __entry->len);
+	),
+
+	TP_printk(
+		"%s %s len %zu\n",
+		__get_str(driver),
+		__get_str(device),
+		__entry->len
+	)
+);
+
+DEFINE_EVENT(ath10k_hdr_event, ath10k_tx_hdr,
+	     TP_PROTO(struct ath10k *ar, const void *data, size_t len),
+	     TP_ARGS(ar, data, len)
+);
+
+DEFINE_EVENT(ath10k_payload_event, ath10k_tx_payload,
+	     TP_PROTO(struct ath10k *ar, const void *data, size_t len),
+	     TP_ARGS(ar, data, len)
+);
+
+DEFINE_EVENT(ath10k_hdr_event, ath10k_rx_hdr,
+	     TP_PROTO(struct ath10k *ar, const void *data, size_t len),
+	     TP_ARGS(ar, data, len)
+);
+
+DEFINE_EVENT(ath10k_payload_event, ath10k_rx_payload,
+	     TP_PROTO(struct ath10k *ar, const void *data, size_t len),
+	     TP_ARGS(ar, data, len)
+);
+
+TRACE_EVENT(ath10k_htt_rx_desc,
+	    TP_PROTO(struct ath10k *ar, const void *data, size_t len),
+
+	TP_ARGS(ar, data, len),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(u16, len)
+		__dynamic_array(u8, rxdesc, len)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->len = len;
+		memcpy(__get_dynamic_array(rxdesc), data, len);
+	),
+
+	TP_printk(
+		"%s %s rxdesc len %d",
+		__get_str(driver),
+		__get_str(device),
+		__entry->len
+	 )
 );
 
 #endif /* _TRACE_H_ || TRACE_HEADER_MULTI_READ*/

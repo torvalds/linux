@@ -159,6 +159,9 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 					    sizeof(*in), reg_mr_callback,
 					    mr, &mr->out);
 		if (err) {
+			spin_lock_irq(&ent->lock);
+			ent->pending--;
+			spin_unlock_irq(&ent->lock);
 			mlx5_ib_warn(dev, "create mkey failed %d\n", err);
 			kfree(mr);
 			break;
@@ -853,14 +856,14 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 		goto err_2;
 	}
 	mr->umem = umem;
-	mlx5_vfree(in);
+	kvfree(in);
 
 	mlx5_ib_dbg(dev, "mkey = 0x%x\n", mr->mmr.key);
 
 	return mr;
 
 err_2:
-	mlx5_vfree(in);
+	kvfree(in);
 
 err_1:
 	kfree(mr);

@@ -819,8 +819,7 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 			used = len;
 
 		if (!(flags & MSG_TRUNC)) {
-			int rc = skb_copy_datagram_iovec(skb, offset,
-							 msg->msg_iov, used);
+			int rc = skb_copy_datagram_msg(skb, offset, msg, used);
 			if (rc) {
 				/* Exception. Bailout! */
 				if (!copied)
@@ -922,7 +921,7 @@ static int llc_ui_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb->dev      = llc->dev;
 	skb->protocol = llc_proto_type(addr->sllc_arphrd);
 	skb_reserve(skb, hdrlen);
-	rc = memcpy_fromiovec(skb_put(skb, copied), msg->msg_iov, copied);
+	rc = memcpy_from_msg(skb_put(skb, copied), msg, copied);
 	if (rc)
 		goto out;
 	if (sk->sk_type == SOCK_DGRAM || addr->sllc_ua) {

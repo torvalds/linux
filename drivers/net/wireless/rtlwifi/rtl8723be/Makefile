@@ -1,6 +1,3 @@
-obj-m := rtl8723be.o
-
-
 rtl8723be-objs :=		\
 		dm.o		\
 		fw.o		\

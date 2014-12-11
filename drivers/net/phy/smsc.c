@@ -250,23 +250,11 @@ static struct phy_driver smsc_phy_driver[] = {
 	.driver		= { .owner = THIS_MODULE, }
 } };
 
-static int __init smsc_init(void)
-{
-	return phy_drivers_register(smsc_phy_driver,
-		ARRAY_SIZE(smsc_phy_driver));
-}
-
-static void __exit smsc_exit(void)
-{
-	phy_drivers_unregister(smsc_phy_driver, ARRAY_SIZE(smsc_phy_driver));
-}
+module_phy_driver(smsc_phy_driver);
 
 MODULE_DESCRIPTION("SMSC PHY driver");
 MODULE_AUTHOR("Herbert Valerio Riedel");
 MODULE_LICENSE("GPL");
-
-module_init(smsc_init);
-module_exit(smsc_exit);
 
 static struct mdio_device_id __maybe_unused smsc_tbl[] = {
 	{ 0x0007c0a0, 0xfffffff0 },

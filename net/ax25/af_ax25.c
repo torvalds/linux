@@ -1549,7 +1549,7 @@ static int ax25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_reserve(skb, size - len);
 
 	/* User data follows immediately after the AX.25 data */
-	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+	if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 		err = -EFAULT;
 		kfree_skb(skb);
 		goto out;
@@ -1634,7 +1634,7 @@ static int ax25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		msg->msg_flags |= MSG_TRUNC;
 	}
 
-	skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	skb_copy_datagram_msg(skb, 0, msg, copied);
 
 	if (msg->msg_name) {
 		ax25_digi digi;

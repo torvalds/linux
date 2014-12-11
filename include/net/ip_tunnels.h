@@ -117,6 +117,22 @@ struct ip_tunnel_net {
 	struct hlist_head tunnels[IP_TNL_HASH_SIZE];
 };
 
+struct ip_tunnel_encap_ops {
+	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
+	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			    u8 *protocol, struct flowi4 *fl4);
+};
+
+#define MAX_IPTUN_ENCAP_OPS 8
+
+extern const struct ip_tunnel_encap_ops __rcu *
+		iptun_encaps[MAX_IPTUN_ENCAP_OPS];
+
+int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+
 #ifdef CONFIG_INET
 
 int ip_tunnel_init(struct net_device *dev);

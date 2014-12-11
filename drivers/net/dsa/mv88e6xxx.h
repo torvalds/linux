@@ -37,6 +37,17 @@ struct mv88e6xxx_priv_state {
 	 */
 	struct mutex	stats_mutex;
 
+	/* This mutex serializes phy access for chips with
+	 * indirect phy addressing. It is unused for chips
+	 * with direct phy access.
+	 */
+	struct mutex	phy_mutex;
+
+	/* This mutex serializes eeprom access for chips with
+	 * eeprom support.
+	 */
+	struct mutex eeprom_mutex;
+
 	int		id; /* switch product id */
 };
 
@@ -67,9 +78,14 @@ void mv88e6xxx_get_strings(struct dsa_switch *ds,
 void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 				 int nr_stats, struct mv88e6xxx_hw_stat *stats,
 				 int port, uint64_t *data);
+int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port);
+void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
+			struct ethtool_regs *regs, void *_p);
+int  mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
 extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
+extern struct dsa_switch_driver mv88e6352_switch_driver;
 extern struct dsa_switch_driver mv88e6171_switch_driver;
 
 #define REG_READ(addr, reg)						\

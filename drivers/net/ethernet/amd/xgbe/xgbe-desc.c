@@ -117,7 +117,7 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-static void xgbe_unmap_skb(struct xgbe_prv_data *, struct xgbe_ring_data *);
+static void xgbe_unmap_rdata(struct xgbe_prv_data *, struct xgbe_ring_data *);
 
 static void xgbe_free_ring(struct xgbe_prv_data *pdata,
 			   struct xgbe_ring *ring)
@@ -131,11 +131,33 @@ static void xgbe_free_ring(struct xgbe_prv_data *pdata,
 	if (ring->rdata) {
 		for (i = 0; i < ring->rdesc_count; i++) {
 			rdata = XGBE_GET_DESC_DATA(ring, i);
-			xgbe_unmap_skb(pdata, rdata);
+			xgbe_unmap_rdata(pdata, rdata);
 		}
 
 		kfree(ring->rdata);
 		ring->rdata = NULL;
+	}
+
+	if (ring->rx_hdr_pa.pages) {
+		dma_unmap_page(pdata->dev, ring->rx_hdr_pa.pages_dma,
+			       ring->rx_hdr_pa.pages_len, DMA_FROM_DEVICE);
+		put_page(ring->rx_hdr_pa.pages);
+
+		ring->rx_hdr_pa.pages = NULL;
+		ring->rx_hdr_pa.pages_len = 0;
+		ring->rx_hdr_pa.pages_offset = 0;
+		ring->rx_hdr_pa.pages_dma = 0;
+	}
+
+	if (ring->rx_buf_pa.pages) {
+		dma_unmap_page(pdata->dev, ring->rx_buf_pa.pages_dma,
+			       ring->rx_buf_pa.pages_len, DMA_FROM_DEVICE);
+		put_page(ring->rx_buf_pa.pages);
+
+		ring->rx_buf_pa.pages = NULL;
+		ring->rx_buf_pa.pages_len = 0;
+		ring->rx_buf_pa.pages_offset = 0;
+		ring->rx_buf_pa.pages_dma = 0;
 	}
 
 	if (ring->rdesc) {
@@ -233,6 +255,96 @@ err_ring:
 	return ret;
 }
 
+static int xgbe_alloc_pages(struct xgbe_prv_data *pdata,
+			    struct xgbe_page_alloc *pa, gfp_t gfp, int order)
+{
+	struct page *pages = NULL;
+	dma_addr_t pages_dma;
+	int ret;
+
+	/* Try to obtain pages, decreasing order if necessary */
+	gfp |= __GFP_COLD | __GFP_COMP;
+	while (order >= 0) {
+		pages = alloc_pages(gfp, order);
+		if (pages)
+			break;
+
+		order--;
+	}
+	if (!pages)
+		return -ENOMEM;
+
+	/* Map the pages */
+	pages_dma = dma_map_page(pdata->dev, pages, 0,
+				 PAGE_SIZE << order, DMA_FROM_DEVICE);
+	ret = dma_mapping_error(pdata->dev, pages_dma);
+	if (ret) {
+		put_page(pages);
+		return ret;
+	}
+
+	pa->pages = pages;
+	pa->pages_len = PAGE_SIZE << order;
+	pa->pages_offset = 0;
+	pa->pages_dma = pages_dma;
+
+	return 0;
+}
+
+static void xgbe_set_buffer_data(struct xgbe_buffer_data *bd,
+				 struct xgbe_page_alloc *pa,
+				 unsigned int len)
+{
+	get_page(pa->pages);
+	bd->pa = *pa;
+
+	bd->dma = pa->pages_dma + pa->pages_offset;
+	bd->dma_len = len;
+
+	pa->pages_offset += len;
+	if ((pa->pages_offset + len) > pa->pages_len) {
+		/* This data descriptor is responsible for unmapping page(s) */
+		bd->pa_unmap = *pa;
+
+		/* Get a new allocation next time */
+		pa->pages = NULL;
+		pa->pages_len = 0;
+		pa->pages_offset = 0;
+		pa->pages_dma = 0;
+	}
+}
+
+static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
+			      struct xgbe_ring *ring,
+			      struct xgbe_ring_data *rdata)
+{
+	int order, ret;
+
+	if (!ring->rx_hdr_pa.pages) {
+		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, GFP_ATOMIC, 0);
+		if (ret)
+			return ret;
+	}
+
+	if (!ring->rx_buf_pa.pages) {
+		order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
+		ret = xgbe_alloc_pages(pdata, &ring->rx_buf_pa, GFP_ATOMIC,
+				       order);
+		if (ret)
+			return ret;
+	}
+
+	/* Set up the header page info */
+	xgbe_set_buffer_data(&rdata->rx.hdr, &ring->rx_hdr_pa,
+			     XGBE_SKB_ALLOC_SIZE);
+
+	/* Set up the buffer page info */
+	xgbe_set_buffer_data(&rdata->rx.buf, &ring->rx_buf_pa,
+			     pdata->rx_buf_size);
+
+	return 0;
+}
+
 static void xgbe_wrapper_tx_descriptor_init(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
@@ -266,7 +378,7 @@ static void xgbe_wrapper_tx_descriptor_init(struct xgbe_prv_data *pdata)
 
 		ring->cur = 0;
 		ring->dirty = 0;
-		ring->tx.queue_stopped = 0;
+		memset(&ring->tx, 0, sizeof(ring->tx));
 
 		hw_if->tx_desc_init(channel);
 	}
@@ -281,8 +393,7 @@ static void xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
 	struct xgbe_ring *ring;
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_ring_data *rdata;
-	dma_addr_t rdesc_dma, skb_dma;
-	struct sk_buff *skb = NULL;
+	dma_addr_t rdesc_dma;
 	unsigned int i, j;
 
 	DBGPR("-->xgbe_wrapper_rx_descriptor_init\n");
@@ -302,22 +413,8 @@ static void xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
 			rdata->rdesc = rdesc;
 			rdata->rdesc_dma = rdesc_dma;
 
-			/* Allocate skb & assign to each rdesc */
-			skb = dev_alloc_skb(pdata->rx_buf_size);
-			if (skb == NULL)
+			if (xgbe_map_rx_buffer(pdata, ring, rdata))
 				break;
-			skb_dma = dma_map_single(pdata->dev, skb->data,
-						 pdata->rx_buf_size,
-						 DMA_FROM_DEVICE);
-			if (dma_mapping_error(pdata->dev, skb_dma)) {
-				netdev_alert(pdata->netdev,
-					     "failed to do the dma map\n");
-				dev_kfree_skb_any(skb);
-				break;
-			}
-			rdata->skb = skb;
-			rdata->skb_dma = skb_dma;
-			rdata->skb_dma_len = pdata->rx_buf_size;
 
 			rdesc++;
 			rdesc_dma += sizeof(struct xgbe_ring_desc);
@@ -325,8 +422,7 @@ static void xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
 
 		ring->cur = 0;
 		ring->dirty = 0;
-		ring->rx.realloc_index = 0;
-		ring->rx.realloc_threshold = 0;
+		memset(&ring->rx, 0, sizeof(ring->rx));
 
 		hw_if->rx_desc_init(channel);
 	}
@@ -334,8 +430,8 @@ static void xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_wrapper_rx_descriptor_init\n");
 }
 
-static void xgbe_unmap_skb(struct xgbe_prv_data *pdata,
-			   struct xgbe_ring_data *rdata)
+static void xgbe_unmap_rdata(struct xgbe_prv_data *pdata,
+			     struct xgbe_ring_data *rdata)
 {
 	if (rdata->skb_dma) {
 		if (rdata->mapped_as_page) {
@@ -354,9 +450,29 @@ static void xgbe_unmap_skb(struct xgbe_prv_data *pdata,
 		rdata->skb = NULL;
 	}
 
-	rdata->tso_header = 0;
-	rdata->len = 0;
-	rdata->interrupt = 0;
+	if (rdata->rx.hdr.pa.pages)
+		put_page(rdata->rx.hdr.pa.pages);
+
+	if (rdata->rx.hdr.pa_unmap.pages) {
+		dma_unmap_page(pdata->dev, rdata->rx.hdr.pa_unmap.pages_dma,
+			       rdata->rx.hdr.pa_unmap.pages_len,
+			       DMA_FROM_DEVICE);
+		put_page(rdata->rx.hdr.pa_unmap.pages);
+	}
+
+	if (rdata->rx.buf.pa.pages)
+		put_page(rdata->rx.buf.pa.pages);
+
+	if (rdata->rx.buf.pa_unmap.pages) {
+		dma_unmap_page(pdata->dev, rdata->rx.buf.pa_unmap.pages_dma,
+			       rdata->rx.buf.pa_unmap.pages_len,
+			       DMA_FROM_DEVICE);
+		put_page(rdata->rx.buf.pa_unmap.pages);
+	}
+
+	memset(&rdata->tx, 0, sizeof(rdata->tx));
+	memset(&rdata->rx, 0, sizeof(rdata->rx));
+
 	rdata->mapped_as_page = 0;
 
 	if (rdata->state_saved) {
@@ -414,7 +530,6 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		}
 		rdata->skb_dma = skb_dma;
 		rdata->skb_dma_len = packet->header_len;
-		rdata->tso_header = 1;
 
 		offset = packet->header_len;
 
@@ -481,7 +596,11 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		}
 	}
 
-	/* Save the skb address in the last entry */
+	/* Save the skb address in the last entry. We always have some data
+	 * that has been mapped so rdata is always advanced past the last
+	 * piece of mapped data - use the entry pointed to by cur_index - 1.
+	 */
+	rdata = XGBE_GET_DESC_DATA(ring, cur_index - 1);
 	rdata->skb = skb;
 
 	/* Save the number of descriptor entries used */
@@ -494,7 +613,7 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 err_out:
 	while (start_index < cur_index) {
 		rdata = XGBE_GET_DESC_DATA(ring, start_index++);
-		xgbe_unmap_skb(pdata, rdata);
+		xgbe_unmap_rdata(pdata, rdata);
 	}
 
 	DBGPR("<--xgbe_map_tx_skb: count=0\n");
@@ -502,40 +621,25 @@ err_out:
 	return 0;
 }
 
-static void xgbe_realloc_skb(struct xgbe_channel *channel)
+static void xgbe_realloc_rx_buffer(struct xgbe_channel *channel)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_ring *ring = channel->rx_ring;
 	struct xgbe_ring_data *rdata;
-	struct sk_buff *skb = NULL;
-	dma_addr_t skb_dma;
 	int i;
 
-	DBGPR("-->xgbe_realloc_skb: rx_ring->rx.realloc_index = %u\n",
+	DBGPR("-->xgbe_realloc_rx_buffer: rx_ring->rx.realloc_index = %u\n",
 	      ring->rx.realloc_index);
 
 	for (i = 0; i < ring->dirty; i++) {
 		rdata = XGBE_GET_DESC_DATA(ring, ring->rx.realloc_index);
 
 		/* Reset rdata values */
-		xgbe_unmap_skb(pdata, rdata);
+		xgbe_unmap_rdata(pdata, rdata);
 
-		/* Allocate skb & assign to each rdesc */
-		skb = dev_alloc_skb(pdata->rx_buf_size);
-		if (skb == NULL)
+		if (xgbe_map_rx_buffer(pdata, ring, rdata))
 			break;
-		skb_dma = dma_map_single(pdata->dev, skb->data,
-					 pdata->rx_buf_size, DMA_FROM_DEVICE);
-		if (dma_mapping_error(pdata->dev, skb_dma)) {
-			netdev_alert(pdata->netdev,
-				     "failed to do the dma map\n");
-			dev_kfree_skb_any(skb);
-			break;
-		}
-		rdata->skb = skb;
-		rdata->skb_dma = skb_dma;
-		rdata->skb_dma_len = pdata->rx_buf_size;
 
 		hw_if->rx_desc_reset(rdata);
 
@@ -543,7 +647,7 @@ static void xgbe_realloc_skb(struct xgbe_channel *channel)
 	}
 	ring->dirty = 0;
 
-	DBGPR("<--xgbe_realloc_skb\n");
+	DBGPR("<--xgbe_realloc_rx_buffer\n");
 }
 
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *desc_if)
@@ -553,8 +657,8 @@ void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *desc_if)
 	desc_if->alloc_ring_resources = xgbe_alloc_ring_resources;
 	desc_if->free_ring_resources = xgbe_free_ring_resources;
 	desc_if->map_tx_skb = xgbe_map_tx_skb;
-	desc_if->realloc_skb = xgbe_realloc_skb;
-	desc_if->unmap_skb = xgbe_unmap_skb;
+	desc_if->realloc_rx_buffer = xgbe_realloc_rx_buffer;
+	desc_if->unmap_rdata = xgbe_unmap_rdata;
 	desc_if->wrapper_tx_desc_init = xgbe_wrapper_tx_descriptor_init;
 	desc_if->wrapper_rx_desc_init = xgbe_wrapper_rx_descriptor_init;
 

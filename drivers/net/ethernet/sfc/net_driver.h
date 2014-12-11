@@ -913,13 +913,6 @@ struct vfdi_status;
  * @vf_count: Number of VFs intended to be enabled.
  * @vf_init_count: Number of VFs that have been fully initialised.
  * @vi_scale: log2 number of vnics per VF.
- * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
- * @vfdi_status: Common VFDI status page to be dmad to VF address space.
- * @local_addr_list: List of local addresses. Protected by %local_lock.
- * @local_page_list: List of DMA addressable pages used to broadcast
- *	%local_addr_list. Protected by %local_lock.
- * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
- * @peer_work: Work item to broadcast peer addresses to VMs.
  * @ptp_data: PTP state data
  * @vpd_sn: Serial number read from VPD
  * @monitor_work: Hardware monitor workitem
@@ -1060,17 +1053,10 @@ struct efx_nic {
 	wait_queue_head_t flush_wq;
 
 #ifdef CONFIG_SFC_SRIOV
-	struct efx_channel *vfdi_channel;
 	struct efx_vf *vf;
 	unsigned vf_count;
 	unsigned vf_init_count;
 	unsigned vi_scale;
-	unsigned vf_buftbl_base;
-	struct efx_buffer vfdi_status;
-	struct list_head local_addr_list;
-	struct list_head local_page_list;
-	struct mutex local_lock;
-	struct work_struct peer_work;
 #endif
 
 	struct efx_ptp_data *ptp_data;
@@ -1344,6 +1330,11 @@ struct efx_nic_type {
 	int (*ptp_set_ts_sync_events)(struct efx_nic *efx, bool en, bool temp);
 	int (*ptp_set_ts_config)(struct efx_nic *efx,
 				 struct hwtstamp_config *init);
+	int (*sriov_init)(struct efx_nic *efx);
+	void (*sriov_fini)(struct efx_nic *efx);
+	void (*sriov_mac_address_changed)(struct efx_nic *efx);
+	bool (*sriov_wanted)(struct efx_nic *efx);
+	void (*sriov_reset)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;

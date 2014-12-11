@@ -773,7 +773,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 {
 	struct i40e_tx_desc *txd;
 	union i40e_rx_desc *rxd;
-	struct i40e_ring ring;
+	struct i40e_ring *ring;
 	struct i40e_vsi *vsi;
 	int i;
 
@@ -792,29 +792,32 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 			 vsi_seid);
 		return;
 	}
-	if (is_rx_ring)
-		ring = *vsi->rx_rings[ring_id];
-	else
-		ring = *vsi->tx_rings[ring_id];
+
+	ring = kmemdup(is_rx_ring
+		       ? vsi->rx_rings[ring_id] : vsi->tx_rings[ring_id],
+		       sizeof(*ring), GFP_KERNEL);
+	if (!ring)
+		return;
+
 	if (cnt == 2) {
 		dev_info(&pf->pdev->dev, "vsi = %02i %s ring = %02i\n",
 			 vsi_seid, is_rx_ring ? "rx" : "tx", ring_id);
-		for (i = 0; i < ring.count; i++) {
+		for (i = 0; i < ring->count; i++) {
 			if (!is_rx_ring) {
-				txd = I40E_TX_DESC(&ring, i);
+				txd = I40E_TX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
 					 "   d[%03i] = 0x%016llx 0x%016llx\n",
 					 i, txd->buffer_addr,
 					 txd->cmd_type_offset_bsz);
 			} else if (sizeof(union i40e_rx_desc) ==
 				   sizeof(union i40e_16byte_rx_desc)) {
-				rxd = I40E_RX_DESC(&ring, i);
+				rxd = I40E_RX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
 					 "   d[%03i] = 0x%016llx 0x%016llx\n",
 					 i, rxd->read.pkt_addr,
 					 rxd->read.hdr_addr);
 			} else {
-				rxd = I40E_RX_DESC(&ring, i);
+				rxd = I40E_RX_DESC(ring, i);
 				dev_info(&pf->pdev->dev,
 					 "   d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
 					 i, rxd->read.pkt_addr,
@@ -823,26 +826,26 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 			}
 		}
 	} else if (cnt == 3) {
-		if (desc_n >= ring.count || desc_n < 0) {
+		if (desc_n >= ring->count || desc_n < 0) {
 			dev_info(&pf->pdev->dev,
 				 "descriptor %d not found\n", desc_n);
 			return;
 		}
 		if (!is_rx_ring) {
-			txd = I40E_TX_DESC(&ring, desc_n);
+			txd = I40E_TX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
 				 "vsi = %02i tx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
 				 txd->buffer_addr, txd->cmd_type_offset_bsz);
 		} else if (sizeof(union i40e_rx_desc) ==
 			   sizeof(union i40e_16byte_rx_desc)) {
-			rxd = I40E_RX_DESC(&ring, desc_n);
+			rxd = I40E_RX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
 				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
 				 rxd->read.pkt_addr, rxd->read.hdr_addr);
 		} else {
-			rxd = I40E_RX_DESC(&ring, desc_n);
+			rxd = I40E_RX_DESC(ring, desc_n);
 			dev_info(&pf->pdev->dev,
 				 "vsi = %02i rx ring = %02i d[%03i] = 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
 				 vsi_seid, ring_id, desc_n,
@@ -852,6 +855,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 	} else {
 		dev_info(&pf->pdev->dev, "dump desc rx/tx <vsi_seid> <ring_id> [<desc_n>]\n");
 	}
+	kfree(ring);
 }
 
 /**
@@ -892,90 +896,6 @@ static void i40e_dbg_dump_eth_stats(struct i40e_pf *pf,
 	dev_info(&pf->pdev->dev,
 		 "    tx_discards = \t%lld \ttx_errors = \t\t%lld\n",
 		 estats->tx_discards, estats->tx_errors);
-}
-
-/**
- * i40e_dbg_dump_stats - handles dump stats write into command datum
- * @pf: the i40e_pf created in command write
- * @stats: the stats structure to be dumped
- **/
-static void i40e_dbg_dump_stats(struct i40e_pf *pf,
-				struct i40e_hw_port_stats *stats)
-{
-	int i;
-
-	dev_info(&pf->pdev->dev, "  stats:\n");
-	dev_info(&pf->pdev->dev,
-		 "    crc_errors = \t\t%lld \tillegal_bytes = \t%lld \terror_bytes = \t\t%lld\n",
-		 stats->crc_errors, stats->illegal_bytes, stats->error_bytes);
-	dev_info(&pf->pdev->dev,
-		 "    mac_local_faults = \t%lld \tmac_remote_faults = \t%lld \trx_length_errors = \t%lld\n",
-		 stats->mac_local_faults, stats->mac_remote_faults,
-		 stats->rx_length_errors);
-	dev_info(&pf->pdev->dev,
-		 "    link_xon_rx = \t\t%lld \tlink_xoff_rx = \t\t%lld \tlink_xon_tx = \t\t%lld\n",
-		 stats->link_xon_rx, stats->link_xoff_rx, stats->link_xon_tx);
-	dev_info(&pf->pdev->dev,
-		 "    link_xoff_tx = \t\t%lld \trx_size_64 = \t\t%lld \trx_size_127 = \t\t%lld\n",
-		 stats->link_xoff_tx, stats->rx_size_64, stats->rx_size_127);
-	dev_info(&pf->pdev->dev,
-		 "    rx_size_255 = \t\t%lld \trx_size_511 = \t\t%lld \trx_size_1023 = \t\t%lld\n",
-		 stats->rx_size_255, stats->rx_size_511, stats->rx_size_1023);
-	dev_info(&pf->pdev->dev,
-		 "    rx_size_big = \t\t%lld \trx_undersize = \t\t%lld \trx_jabber = \t\t%lld\n",
-		 stats->rx_size_big, stats->rx_undersize, stats->rx_jabber);
-	dev_info(&pf->pdev->dev,
-		 "    rx_fragments = \t\t%lld \trx_oversize = \t\t%lld \ttx_size_64 = \t\t%lld\n",
-		 stats->rx_fragments, stats->rx_oversize, stats->tx_size_64);
-	dev_info(&pf->pdev->dev,
-		 "    tx_size_127 = \t\t%lld \ttx_size_255 = \t\t%lld \ttx_size_511 = \t\t%lld\n",
-		 stats->tx_size_127, stats->tx_size_255, stats->tx_size_511);
-	dev_info(&pf->pdev->dev,
-		 "    tx_size_1023 = \t\t%lld \ttx_size_big = \t\t%lld \tmac_short_packet_dropped = \t%lld\n",
-		 stats->tx_size_1023, stats->tx_size_big,
-		 stats->mac_short_packet_dropped);
-	for (i = 0; i < 8; i += 4) {
-		dev_info(&pf->pdev->dev,
-			 "    priority_xon_rx[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld\n",
-			 i, stats->priority_xon_rx[i],
-			 i+1, stats->priority_xon_rx[i+1],
-			 i+2, stats->priority_xon_rx[i+2],
-			 i+3, stats->priority_xon_rx[i+3]);
-	}
-	for (i = 0; i < 8; i += 4) {
-		dev_info(&pf->pdev->dev,
-			 "    priority_xoff_rx[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld\n",
-			 i, stats->priority_xoff_rx[i],
-			 i+1, stats->priority_xoff_rx[i+1],
-			 i+2, stats->priority_xoff_rx[i+2],
-			 i+3, stats->priority_xoff_rx[i+3]);
-	}
-	for (i = 0; i < 8; i += 4) {
-		dev_info(&pf->pdev->dev,
-			 "    priority_xon_tx[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld\n",
-			 i, stats->priority_xon_tx[i],
-			 i+1, stats->priority_xon_tx[i+1],
-			 i+2, stats->priority_xon_tx[i+2],
-			 i+3, stats->priority_xon_rx[i+3]);
-	}
-	for (i = 0; i < 8; i += 4) {
-		dev_info(&pf->pdev->dev,
-			 "    priority_xoff_tx[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld\n",
-			 i, stats->priority_xoff_tx[i],
-			 i+1, stats->priority_xoff_tx[i+1],
-			 i+2, stats->priority_xoff_tx[i+2],
-			 i+3, stats->priority_xoff_tx[i+3]);
-	}
-	for (i = 0; i < 8; i += 4) {
-		dev_info(&pf->pdev->dev,
-			 "    priority_xon_2_xoff[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld \t[%d] = \t%lld\n",
-			 i, stats->priority_xon_2_xoff[i],
-			 i+1, stats->priority_xon_2_xoff[i+1],
-			 i+2, stats->priority_xon_2_xoff[i+2],
-			 i+3, stats->priority_xon_2_xoff[i+3]);
-	}
-
-	i40e_dbg_dump_eth_stats(pf, &stats->eth);
 }
 
 /**
@@ -1342,11 +1262,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 					 "dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
 				dev_info(&pf->pdev->dev, "dump desc aq\n");
 			}
-		} else if (strncmp(&cmd_buf[5], "stats", 5) == 0) {
-			dev_info(&pf->pdev->dev, "pf stats:\n");
-			i40e_dbg_dump_stats(pf, &pf->stats);
-			dev_info(&pf->pdev->dev, "pf stats_offsets:\n");
-			i40e_dbg_dump_stats(pf, &pf->stats_offsets);
 		} else if (strncmp(&cmd_buf[5], "reset stats", 11) == 0) {
 			dev_info(&pf->pdev->dev,
 				 "core reset count: %d\n", pf->corer_count);
@@ -1401,6 +1316,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			kfree(bw_data);
 			bw_data = NULL;
 
+			dev_info(&pf->pdev->dev,
+				 "port dcbx_mode=%d\n", cfg->dcbx_mode);
 			dev_info(&pf->pdev->dev,
 				 "port ets_cfg: willing=%d cbs=%d, maxtcs=%d\n",
 				 cfg->etscfg.willing, cfg->etscfg.cbs,
@@ -1464,8 +1381,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		} else {
 			dev_info(&pf->pdev->dev,
 				 "dump desc tx <vsi_seid> <ring_id> [<desc_n>], dump desc rx <vsi_seid> <ring_id> [<desc_n>],\n");
-			dev_info(&pf->pdev->dev, "dump switch, dump vsi [seid] or\n");
-			dev_info(&pf->pdev->dev, "dump stats\n");
+			dev_info(&pf->pdev->dev, "dump switch\n");
+			dev_info(&pf->pdev->dev, "dump vsi [seid]\n");
 			dev_info(&pf->pdev->dev, "dump reset stats\n");
 			dev_info(&pf->pdev->dev, "dump port\n");
 			dev_info(&pf->pdev->dev,
@@ -1580,7 +1497,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[11],
-			     "%hx %hx %hx %hx %x %x %x %x %x %x",
+			     "%hi %hi %hi %hi %i %i %i %i %i %i",
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,
@@ -1628,7 +1545,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[20],
-			     "%hx %hx %hx %hx %x %x %x %x %x %x %hd",
+			     "%hi %hi %hi %hi %i %i %i %i %i %i %hi",
 			     &desc->flags,
 			     &desc->opcode, &desc->datalen, &desc->retval,
 			     &desc->cookie_high, &desc->cookie_low,

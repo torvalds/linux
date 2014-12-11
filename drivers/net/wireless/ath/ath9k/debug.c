@@ -828,13 +828,14 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 
 	i = 0;
 	ath_for_each_chanctx(sc, ctx) {
-		if (!ctx->assigned || list_empty(&ctx->vifs))
+		if (list_empty(&ctx->vifs))
 			continue;
 		ath9k_calculate_iter_data(sc, ctx, &iter_data);
 
 		len += scnprintf(buf + len, sizeof(buf) - len,
-			"VIF-COUNTS: CTX %i AP: %i STA: %i MESH: %i WDS: %i",
-			i++, iter_data.naps, iter_data.nstations,
+			"VIFS: CTX %i(%i) AP: %i STA: %i MESH: %i WDS: %i",
+			i++, (int)(ctx->assigned), iter_data.naps,
+			iter_data.nstations,
 			iter_data.nmeshes, iter_data.nwds);
 		len += scnprintf(buf + len, sizeof(buf) - len,
 			" ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
@@ -852,36 +853,31 @@ static ssize_t read_file_reset(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
+	static const char * const reset_cause[__RESET_TYPE_MAX] = {
+		[RESET_TYPE_BB_HANG] = "Baseband Hang",
+		[RESET_TYPE_BB_WATCHDOG] = "Baseband Watchdog",
+		[RESET_TYPE_FATAL_INT] = "Fatal HW Error",
+		[RESET_TYPE_TX_ERROR] = "TX HW error",
+		[RESET_TYPE_TX_GTT] = "Transmit timeout",
+		[RESET_TYPE_TX_HANG] = "TX Path Hang",
+		[RESET_TYPE_PLL_HANG] = "PLL RX Hang",
+		[RESET_TYPE_MAC_HANG] = "MAC Hang",
+		[RESET_TYPE_BEACON_STUCK] = "Stuck Beacon",
+		[RESET_TYPE_MCI] = "MCI Reset",
+		[RESET_TYPE_CALIBRATION] = "Calibration error",
+	};
 	char buf[512];
 	unsigned int len = 0;
+	int i;
 
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "Baseband Hang",
-			 sc->debug.stats.reset[RESET_TYPE_BB_HANG]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "Baseband Watchdog",
-			 sc->debug.stats.reset[RESET_TYPE_BB_WATCHDOG]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "Fatal HW Error",
-			 sc->debug.stats.reset[RESET_TYPE_FATAL_INT]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "TX HW error",
-			 sc->debug.stats.reset[RESET_TYPE_TX_ERROR]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "TX Path Hang",
-			 sc->debug.stats.reset[RESET_TYPE_TX_HANG]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "PLL RX Hang",
-			 sc->debug.stats.reset[RESET_TYPE_PLL_HANG]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "MAC Hang",
-			 sc->debug.stats.reset[RESET_TYPE_MAC_HANG]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "Stuck Beacon",
-			 sc->debug.stats.reset[RESET_TYPE_BEACON_STUCK]);
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "%17s: %2d\n", "MCI Reset",
-			 sc->debug.stats.reset[RESET_TYPE_MCI]);
+	for (i = 0; i < ARRAY_SIZE(reset_cause); i++) {
+		if (!reset_cause[i])
+		    continue;
+
+		len += scnprintf(buf + len, sizeof(buf) - len,
+				 "%17s: %2d\n", reset_cause[i],
+				 sc->debug.stats.reset[i]);
+	}
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1315,7 +1311,7 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 
 void ath9k_deinit_debug(struct ath_softc *sc)
 {
-	ath9k_spectral_deinit_debug(sc);
+	ath9k_cmn_spectral_deinit_debug(&sc->spec_priv);
 }
 
 int ath9k_init_debug(struct ath_hw *ah)
@@ -1335,7 +1331,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	ath9k_dfs_init_debug(sc);
 	ath9k_tx99_init_debug(sc);
-	ath9k_spectral_init_debug(sc);
+	ath9k_cmn_spectral_init_debug(&sc->spec_priv, sc->debug.debugfs_phy);
 
 	debugfs_create_file("dma", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_dma);

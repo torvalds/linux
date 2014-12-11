@@ -91,21 +91,37 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 	 * already synchronized, no need in locking */
 	state->link_state = !!(qport_context->link_up & MLX4_EN_LINK_UP_MASK);
 	switch (qport_context->link_speed & MLX4_EN_SPEED_MASK) {
+	case MLX4_EN_100M_SPEED:
+		state->link_speed = SPEED_100;
+		break;
 	case MLX4_EN_1G_SPEED:
-		state->link_speed = 1000;
+		state->link_speed = SPEED_1000;
 		break;
 	case MLX4_EN_10G_SPEED_XAUI:
 	case MLX4_EN_10G_SPEED_XFI:
-		state->link_speed = 10000;
+		state->link_speed = SPEED_10000;
+		break;
+	case MLX4_EN_20G_SPEED:
+		state->link_speed = SPEED_20000;
 		break;
 	case MLX4_EN_40G_SPEED:
-		state->link_speed = 40000;
+		state->link_speed = SPEED_40000;
+		break;
+	case MLX4_EN_56G_SPEED:
+		state->link_speed = SPEED_56000;
 		break;
 	default:
 		state->link_speed = -1;
 		break;
 	}
-	state->transciver = qport_context->transceiver;
+
+	state->transceiver = qport_context->transceiver;
+
+	state->flags = 0; /* Reset and recalculate the port flags */
+	state->flags |= (qport_context->link_up & MLX4_EN_ANC_MASK) ?
+		MLX4_EN_PORT_ANC : 0;
+	state->flags |= (qport_context->autoneg & MLX4_EN_AUTONEG_MASK) ?
+		MLX4_EN_PORT_ANE : 0;
 
 out:
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
@@ -139,11 +155,13 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	stats->rx_bytes = 0;
 	priv->port_stats.rx_chksum_good = 0;
 	priv->port_stats.rx_chksum_none = 0;
+	priv->port_stats.rx_chksum_complete = 0;
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		stats->rx_packets += priv->rx_ring[i]->packets;
 		stats->rx_bytes += priv->rx_ring[i]->bytes;
 		priv->port_stats.rx_chksum_good += priv->rx_ring[i]->csum_ok;
 		priv->port_stats.rx_chksum_none += priv->rx_ring[i]->csum_none;
+		priv->port_stats.rx_chksum_complete += priv->rx_ring[i]->csum_complete;
 	}
 	stats->tx_packets = 0;
 	stats->tx_bytes = 0;

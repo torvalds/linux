@@ -56,8 +56,6 @@
 #include <net/net_namespace.h>
 
 #define CAN_RAW_VERSION CAN_VERSION
-static __initconst const char banner[] =
-	KERN_INFO "can: raw protocol (rev " CAN_RAW_VERSION ")\n";
 
 MODULE_DESCRIPTION("PF_CAN raw protocol");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -703,7 +701,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct socket *sock,
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = dev->ifindex;
 
-	err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
+	err = memcpy_from_msg(skb_put(skb, size), msg, size);
 	if (err < 0)
 		goto free_skb;
 
@@ -750,7 +748,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct socket *sock,
 	else
 		size = skb->len;
 
-	err = memcpy_toiovec(msg->msg_iov, skb->data, size);
+	err = memcpy_to_msg(msg, skb->data, size);
 	if (err < 0) {
 		skb_free_datagram(sk, skb);
 		return err;
@@ -810,7 +808,7 @@ static __init int raw_module_init(void)
 {
 	int err;
 
-	printk(banner);
+	pr_info("can: raw protocol (rev " CAN_RAW_VERSION ")\n");
 
 	err = can_proto_register(&raw_can_proto);
 	if (err < 0)

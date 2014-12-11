@@ -29,6 +29,7 @@
 #include <linux/jhash.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/rculist.h>
 #include <net/route.h>
@@ -44,6 +45,8 @@
 
 #include "datapath.h"
 #include "vport.h"
+
+static struct vport_ops ovs_gre_vport_ops;
 
 /* Returns the least-significant 32 bits of a __be64. */
 static __be32 be64_get_low32(__be64 x)
@@ -105,7 +108,7 @@ static int gre_rcv(struct sk_buff *skb,
 		return PACKET_REJECT;
 
 	key = key_to_tunnel_id(tpi->key, tpi->seq);
-	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb), key,
+	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb), 0, 0, key,
 			       filter_tnl_flags(tpi->flags), NULL, 0);
 
 	ovs_vport_receive(vport, skb, &tun_info);
@@ -172,14 +175,10 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 			goto err_free_rt;
 	}
 
-	if (vlan_tx_tag_present(skb)) {
-		if (unlikely(!__vlan_put_tag(skb,
-					     skb->vlan_proto,
-					     vlan_tx_tag_get(skb)))) {
-			err = -ENOMEM;
-			goto err_free_rt;
-		}
-		skb->vlan_tci = 0;
+	skb = vlan_hwaccel_push_inside(skb);
+	if (unlikely(!skb)) {
+		err = -ENOMEM;
+		goto err_free_rt;
 	}
 
 	/* Push Tunnel header. */
@@ -281,10 +280,38 @@ static void gre_tnl_destroy(struct vport *vport)
 	gre_exit();
 }
 
-const struct vport_ops ovs_gre_vport_ops = {
+static int gre_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
+				   struct ovs_tunnel_info *egress_tun_info)
+{
+	return ovs_tunnel_get_egress_info(egress_tun_info,
+					  ovs_dp_get_net(vport->dp),
+					  OVS_CB(skb)->egress_tun_info,
+					  IPPROTO_GRE, skb->mark, 0, 0);
+}
+
+static struct vport_ops ovs_gre_vport_ops = {
 	.type		= OVS_VPORT_TYPE_GRE,
 	.create		= gre_create,
 	.destroy	= gre_tnl_destroy,
 	.get_name	= gre_get_name,
 	.send		= gre_tnl_send,
+	.get_egress_tun_info	= gre_get_egress_tun_info,
+	.owner		= THIS_MODULE,
 };
+
+static int __init ovs_gre_tnl_init(void)
+{
+	return ovs_vport_ops_register(&ovs_gre_vport_ops);
+}
+
+static void __exit ovs_gre_tnl_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_gre_vport_ops);
+}
+
+module_init(ovs_gre_tnl_init);
+module_exit(ovs_gre_tnl_exit);
+
+MODULE_DESCRIPTION("OVS: GRE switching port");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("vport-type-3");

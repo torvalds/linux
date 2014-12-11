@@ -21,6 +21,7 @@
 #define ID_6085		0x04a0
 #define ID_6095		0x0950
 #define ID_6131		0x1060
+#define ID_6131_B2	0x1066
 
 static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 {
@@ -32,12 +33,15 @@ static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
-		ret &= 0xfff0;
-		if (ret == ID_6085)
+		int ret_masked = ret & 0xfff0;
+
+		if (ret_masked == ID_6085)
 			return "Marvell 88E6085";
-		if (ret == ID_6095)
+		if (ret_masked == ID_6095)
 			return "Marvell 88E6095/88E6095F";
-		if (ret == ID_6131)
+		if (ret == ID_6131_B2)
+			return "Marvell 88E6131 (B2)";
+		if (ret_masked == ID_6131)
 			return "Marvell 88E6131";
 	}
 

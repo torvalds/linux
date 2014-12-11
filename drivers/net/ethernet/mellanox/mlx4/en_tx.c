@@ -46,7 +46,7 @@
 #include "mlx4_en.h"
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
-			   struct mlx4_en_tx_ring **pring, int qpn, u32 size,
+			   struct mlx4_en_tx_ring **pring, u32 size,
 			   u16 stride, int node, int queue_index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -112,11 +112,17 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	       ring, ring->buf, ring->size, ring->buf_size,
 	       (unsigned long long) ring->wqres.buf.direct.map);
 
-	ring->qpn = qpn;
+	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &ring->qpn,
+				    MLX4_RESERVE_ETH_BF_QP);
+	if (err) {
+		en_err(priv, "failed reserving qp for TX ring\n");
+		goto err_map;
+	}
+
 	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
-		goto err_map;
+		goto err_reserve;
 	}
 	ring->qp.event = mlx4_en_sqp_event;
 
@@ -143,6 +149,8 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	*pring = ring;
 	return 0;
 
+err_reserve:
+	mlx4_qp_release_range(mdev->dev, ring->qpn, 1);
 err_map:
 	mlx4_en_unmap_buffer(&ring->wqres.buf);
 err_hwq_res:
@@ -479,8 +487,8 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_cq *cq = container_of(mcq, struct mlx4_en_cq, mcq);
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
 
-	if (priv->port_up)
-		napi_schedule(&cq->napi);
+	if (likely(priv->port_up))
+		napi_schedule_irqoff(&cq->napi);
 	else
 		mlx4_en_arm_cq(priv, cq);
 }

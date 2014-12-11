@@ -1030,10 +1030,10 @@ static int set_rxq_intr_params(struct adapter *adapter, struct sge_rspq *rspq,
 
 		pktcnt_idx = closest_thres(&adapter->sge, cnt);
 		if (rspq->desc && rspq->pktcnt_idx != pktcnt_idx) {
-			v = FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			    FW_PARAMS_PARAM_X(
+			v = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			    FW_PARAMS_PARAM_X_V(
 					FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
-			    FW_PARAMS_PARAM_YZ(rspq->cntxt_id);
+			    FW_PARAMS_PARAM_YZ_V(rspq->cntxt_id);
 			err = t4vf_set_params(adapter, 1, &v, &pktcnt_idx);
 			if (err)
 				return err;
@@ -1230,14 +1230,14 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u.%u.%u, TP %u.%u.%u.%u",
-		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MINOR_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MICRO_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_BUILD_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_MINOR_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_MICRO_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_BUILD_GET(adapter->params.dev.tprev));
+		 FW_HDR_FW_VER_MAJOR_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MINOR_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MICRO_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_BUILD_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MAJOR_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_MINOR_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_MICRO_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_BUILD_G(adapter->params.dev.tprev));
 }
 
 /*
@@ -2095,7 +2095,6 @@ static int adap_init0(struct adapter *adapter)
 	unsigned int ethqsets;
 	int err;
 	u32 param, val = 0;
-	unsigned int chipid;
 
 	/*
 	 * Wait for the device to become ready before proceeding ...
@@ -2121,17 +2120,6 @@ static int adap_init0(struct adapter *adapter)
 	if (err < 0) {
 		dev_err(adapter->pdev_dev, "FW reset failed: err=%d\n", err);
 		return err;
-	}
-
-	adapter->params.chip = 0;
-	switch (adapter->pdev->device >> 12) {
-	case CHELSIO_T4:
-		adapter->params.chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
-		break;
-	case CHELSIO_T5:
-		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
-		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
-		break;
 	}
 
 	/*
@@ -2184,8 +2172,8 @@ static int adap_init0(struct adapter *adapter)
 	 * firmware won't understand this and we'll just get
 	 * unencapsulated messages ...
 	 */
-	param = FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) |
-		FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP);
+	param = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+		FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP);
 	val = 1;
 	(void) t4vf_set_params(adapter, 1, &param, &val);
 
@@ -2594,6 +2582,27 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		goto err_free_adapter;
 	}
 
+	/* Wait for the device to become ready before proceeding ...
+	 */
+	err = t4vf_prep_adapter(adapter);
+	if (err) {
+		dev_err(adapter->pdev_dev, "device didn't become ready:"
+			" err=%d\n", err);
+		goto err_unmap_bar0;
+	}
+
+	/* For T5 and later we want to use the new BAR-based User Doorbells,
+	 * so we need to map BAR2 here ...
+	 */
+	if (!is_t4(adapter->params.chip)) {
+		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
+					   pci_resource_len(pdev, 2));
+		if (!adapter->bar2) {
+			dev_err(adapter->pdev_dev, "cannot map BAR2 doorbells\n");
+			err = -ENOMEM;
+			goto err_unmap_bar0;
+		}
+	}
 	/*
 	 * Initialize adapter level features.
 	 */
@@ -2786,6 +2795,10 @@ err_free_dev:
 	}
 
 err_unmap_bar:
+	if (!is_t4(adapter->params.chip))
+		iounmap(adapter->bar2);
+
+err_unmap_bar0:
 	iounmap(adapter->regs);
 
 err_free_adapter:
@@ -2856,6 +2869,8 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 			free_netdev(netdev);
 		}
 		iounmap(adapter->regs);
+		if (!is_t4(adapter->params.chip))
+			iounmap(adapter->bar2);
 		kfree(adapter);
 	}
 
@@ -2908,67 +2923,18 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-/*
- * PCI Device registration data structures.
+/* Macros needed to support the PCI Device ID Table ...
  */
-#define CH_DEVICE(devid) \
-	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
+	static struct pci_device_id cxgb4vf_pci_tbl[] = {
+#define CH_PCI_DEVICE_ID_FUNCTION	0x8
 
-static const struct pci_device_id cxgb4vf_pci_tbl[] = {
-	CH_DEVICE(0xb000),	/* PE10K FPGA */
-	CH_DEVICE(0x4801),	/* T420-cr */
-	CH_DEVICE(0x4802),	/* T422-cr */
-	CH_DEVICE(0x4803),	/* T440-cr */
-	CH_DEVICE(0x4804),	/* T420-bch */
-	CH_DEVICE(0x4805),	/* T440-bch */
-	CH_DEVICE(0x4806),	/* T460-ch */
-	CH_DEVICE(0x4807),	/* T420-so */
-	CH_DEVICE(0x4808),	/* T420-cx */
-	CH_DEVICE(0x4809),	/* T420-bt */
-	CH_DEVICE(0x480a),	/* T404-bt */
-	CH_DEVICE(0x480d),	/* T480-cr */
-	CH_DEVICE(0x480e),	/* T440-lp-cr */
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4881),
-	CH_DEVICE(0x4882),
-	CH_DEVICE(0x4883),
-	CH_DEVICE(0x4884),
-	CH_DEVICE(0x4885),
-	CH_DEVICE(0x4886),
-	CH_DEVICE(0x4887),
-	CH_DEVICE(0x4888),
-	CH_DEVICE(0x5801),	/* T520-cr */
-	CH_DEVICE(0x5802),	/* T522-cr */
-	CH_DEVICE(0x5803),	/* T540-cr */
-	CH_DEVICE(0x5804),	/* T520-bch */
-	CH_DEVICE(0x5805),	/* T540-bch */
-	CH_DEVICE(0x5806),	/* T540-ch */
-	CH_DEVICE(0x5807),	/* T520-so */
-	CH_DEVICE(0x5808),	/* T520-cx */
-	CH_DEVICE(0x5809),	/* T520-bt */
-	CH_DEVICE(0x580a),	/* T504-bt */
-	CH_DEVICE(0x580b),	/* T520-sr */
-	CH_DEVICE(0x580c),	/* T504-bt */
-	CH_DEVICE(0x580d),	/* T580-cr */
-	CH_DEVICE(0x580e),	/* T540-lp-cr */
-	CH_DEVICE(0x580f),	/* Amsterdam */
-	CH_DEVICE(0x5810),	/* T580-lp-cr */
-	CH_DEVICE(0x5811),	/* T520-lp-cr */
-	CH_DEVICE(0x5812),	/* T560-cr */
-	CH_DEVICE(0x5813),	/* T580-cr */
-	CH_DEVICE(0x5814),	/* T580-so-cr */
-	CH_DEVICE(0x5815),	/* T502-bt */
-	CH_DEVICE(0x5880),
-	CH_DEVICE(0x5881),
-	CH_DEVICE(0x5882),
-	CH_DEVICE(0x5883),
-	CH_DEVICE(0x5884),
-	CH_DEVICE(0x5885),
-	CH_DEVICE(0x5886),
-	CH_DEVICE(0x5887),
-	CH_DEVICE(0x5888),
-	{ 0, }
-};
+#define CH_PCI_ID_TABLE_ENTRY(devid) \
+		{ PCI_VDEVICE(CHELSIO, (devid)), 0 }
+
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_END { 0, } }
+
+#include "../cxgb4/t4_pci_id_tbl.h"
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");

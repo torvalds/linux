@@ -7,7 +7,6 @@ generic-y += device.h
 generic-y += div64.h
 generic-y += emergency-restart.h
 generic-y += exec.h
-generic-y += hash.h
 generic-y += hw_irq.h
 generic-y += irq_regs.h
 generic-y += irq_work.h

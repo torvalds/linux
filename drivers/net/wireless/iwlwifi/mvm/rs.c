@@ -158,6 +158,12 @@ struct rs_tx_column {
 	allow_column_func_t checks[MAX_COLUMN_CHECKS];
 };
 
+static bool rs_ant_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			 struct iwl_scale_tbl_info *tbl)
+{
+	return iwl_mvm_bt_coex_is_ant_avail(mvm, tbl->rate.ant);
+}
+
 static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct iwl_scale_tbl_info *tbl)
 {
@@ -218,6 +224,9 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
 		},
+		.checks = {
+			rs_ant_allow,
+		},
 	},
 	[RS_COLUMN_LEGACY_ANT_B] = {
 		.mode = RS_LEGACY,
@@ -230,6 +239,9 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
+		},
+		.checks = {
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A] = {
@@ -246,6 +258,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_B] = {
@@ -262,6 +275,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A_SGI] = {
@@ -279,6 +293,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 			rs_sgi_allow,
 		},
 	},
@@ -297,6 +312,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 			rs_sgi_allow,
 		},
 	},
@@ -505,10 +521,11 @@ static const char *rs_pretty_lq_type(enum iwl_table_type type)
 static inline void rs_dump_rate(struct iwl_mvm *mvm, const struct rs_rate *rate,
 				const char *prefix)
 {
-	IWL_DEBUG_RATE(mvm, "%s: (%s: %d) ANT: %s BW: %d SGI: %d LDPC: %d\n",
+	IWL_DEBUG_RATE(mvm,
+		       "%s: (%s: %d) ANT: %s BW: %d SGI: %d LDPC: %d STBC: %d\n",
 		       prefix, rs_pretty_lq_type(rate->type),
 		       rate->index, rs_pretty_ant(rate->ant),
-		       rate->bw, rate->sgi, rate->ldpc);
+		       rate->bw, rate->sgi, rate->ldpc, rate->stbc);
 }
 
 static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
@@ -741,6 +758,12 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "Invalid rate->type %d\n", rate->type);
 	}
 
+	if (is_siso(rate) && rate->stbc) {
+		/* To enable STBC we need to set both a flag and ANT_AB */
+		ucode_rate |= RATE_MCS_ANT_AB_MSK;
+		ucode_rate |= RATE_MCS_VHT_STBC_MSK;
+	}
+
 	ucode_rate |= rate->bw;
 	if (rate->sgi)
 		ucode_rate |= RATE_MCS_SGI_MSK;
@@ -785,6 +808,8 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 		rate->sgi = true;
 	if (ucode_rate & RATE_MCS_LDPC_MSK)
 		rate->ldpc = true;
+	if (ucode_rate & RATE_MCS_VHT_STBC_MSK)
+		rate->stbc = true;
 
 	rate->bw = ucode_rate & RATE_MCS_CHAN_WIDTH_MSK;
 
@@ -794,7 +819,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 
 		if (nss == 1) {
 			rate->type = LQ_HT_SISO;
-			WARN_ON_ONCE(num_of_ant != 1);
+			WARN_ON_ONCE(!rate->stbc && num_of_ant != 1);
 		} else if (nss == 2) {
 			rate->type = LQ_HT_MIMO2;
 			WARN_ON_ONCE(num_of_ant != 2);
@@ -807,7 +832,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 
 		if (nss == 1) {
 			rate->type = LQ_VHT_SISO;
-			WARN_ON_ONCE(num_of_ant != 1);
+			WARN_ON_ONCE(!rate->stbc && num_of_ant != 1);
 		} else if (nss == 2) {
 			rate->type = LQ_VHT_MIMO2;
 			WARN_ON_ONCE(num_of_ant != 2);
@@ -992,7 +1017,15 @@ static void rs_get_lower_rate_down_column(struct iwl_lq_sta *lq_sta,
 static inline bool rs_rate_match(struct rs_rate *a,
 				 struct rs_rate *b)
 {
-	return (a->type == b->type) && (a->ant == b->ant) && (a->sgi == b->sgi);
+	bool ant_match;
+
+	if (a->stbc)
+		ant_match = (b->ant == ANT_A || b->ant == ANT_B);
+	else
+		ant_match = (a->ant == b->ant);
+
+	return (a->type == b->type) && (a->bw == b->bw) && (a->sgi == b->sgi)
+		&& ant_match;
 }
 
 static u32 rs_ch_width_from_mac_flags(enum mac80211_rate_control_flags flags)
@@ -1093,10 +1126,11 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	if (time_after(jiffies,
 		       (unsigned long)(lq_sta->last_tx + RS_IDLE_TIMEOUT))) {
-		int tid;
+		int t;
+
 		IWL_DEBUG_RATE(mvm, "Tx idle for too long. reinit rs\n");
-		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
-			ieee80211_stop_tx_ba_session(sta, tid);
+		for (t = 0; t < IWL_MAX_TID_COUNT; t++)
+			ieee80211_stop_tx_ba_session(sta, t);
 
 		iwl_mvm_rs_rate_init(mvm, sta, info->band, false);
 		return;
@@ -1137,16 +1171,15 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		/* Rate did match, so reset the missed_rate_counter */
 		lq_sta->missed_rate_counter = 0;
 
-	/* Figure out if rate scale algorithm is in active or search table */
-	if (rs_rate_match(&rate,
-			  &(lq_sta->lq_info[lq_sta->active_tbl].rate))) {
+	if (!lq_sta->search_better_tbl) {
 		curr_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		other_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
-	} else if (rs_rate_match(&rate,
-			 &lq_sta->lq_info[1 - lq_sta->active_tbl].rate)) {
+	} else {
 		curr_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
 		other_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
-	} else {
+	}
+
+	if (WARN_ON_ONCE(!rs_rate_match(&rate, &curr_tbl->rate))) {
 		IWL_DEBUG_RATE(mvm,
 			       "Neither active nor search matches tx rate\n");
 		tmp_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
@@ -1171,6 +1204,13 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	 * first index into rate scale table.
 	 */
 	if (info->flags & IEEE80211_TX_STAT_AMPDU) {
+		/* ampdu_ack_len = 0 marks no BA was received. In this case
+		 * treat it as a single frame loss as we don't want the success
+		 * ratio to dip too quickly because a BA wasn't received
+		 */
+		if (info->status.ampdu_ack_len == 0)
+			info->status.ampdu_len = 1;
+
 		ucode_rate = le32_to_cpu(table->rs_table[0]);
 		rs_rate_from_ucode_rate(ucode_rate, info->band, &rate);
 		rs_collect_tx_data(lq_sta, curr_tbl, rate.index,
@@ -1225,7 +1265,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	IWL_DEBUG_RATE(mvm, "reduced txpower: %d\n", reduced_txp);
 done:
 	/* See if there's a better rate or modulation mode to try. */
-	if (sta && sta->supp_rates[info->band])
+	if (sta->supp_rates[info->band])
 		rs_rate_scale_perform(mvm, sta, lq_sta, tid);
 }
 
@@ -1623,6 +1663,8 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 		else
 			rate->type = LQ_LEGACY_G;
 
+		rate->bw = RATE_MCS_CHAN_WIDTH_20;
+		rate->ldpc = false;
 		rate_mask = lq_sta->active_legacy_rate;
 	} else if (column->mode == RS_SISO) {
 		rate->type = lq_sta->is_vht ? LQ_VHT_SISO : LQ_HT_SISO;
@@ -1634,8 +1676,11 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 		WARN_ON_ONCE("Bad column mode");
 	}
 
-	rate->bw = rs_bw_from_sta_bw(sta);
-	rate->ldpc = lq_sta->ldpc;
+	if (column->mode != RS_LEGACY) {
+		rate->bw = rs_bw_from_sta_bw(sta);
+		rate->ldpc = lq_sta->ldpc;
+	}
+
 	search_tbl->column = col_id;
 	rs_set_expected_tpt_table(lq_sta, search_tbl);
 
@@ -1752,6 +1797,29 @@ out:
 	}
 
 	return action;
+}
+
+static bool rs_stbc_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			  struct iwl_lq_sta *lq_sta)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct ieee80211_vif *vif = mvmsta->vif;
+	bool sta_ps_disabled = (vif->type == NL80211_IFTYPE_STATION &&
+				!vif->bss_conf.ps);
+
+	/* Our chip supports Tx STBC and the peer is an HT/VHT STA which
+	 * supports STBC of at least 1*SS
+	 */
+	if (!lq_sta->stbc)
+		return false;
+
+	if (!mvm->ps_disabled && !sta_ps_disabled)
+		return false;
+
+	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
+		return false;
+
+	return true;
 }
 
 static void rs_get_adjacent_txp(struct iwl_mvm *mvm, int index,
@@ -2675,6 +2743,11 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		if (mvm->cfg->ht_params->ldpc &&
 		    (ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING))
 			lq_sta->ldpc = true;
+
+		if (mvm->cfg->ht_params->stbc &&
+		    (num_of_ant(mvm->fw->valid_tx_ant) > 1) &&
+		    (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC))
+			lq_sta->stbc = true;
 	} else {
 		rs_vht_set_enabled_rates(sta, vht_cap, lq_sta);
 		lq_sta->is_vht = true;
@@ -2682,7 +2755,15 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		if (mvm->cfg->ht_params->ldpc &&
 		    (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))
 			lq_sta->ldpc = true;
+
+		if (mvm->cfg->ht_params->stbc &&
+		    (num_of_ant(mvm->fw->valid_tx_ant) > 1) &&
+		    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))
+			lq_sta->stbc = true;
 	}
+
+	if (IWL_MVM_RS_DISABLE_MIMO)
+		lq_sta->active_mimo2_rate = 0;
 
 	lq_sta->max_legacy_rate_idx = find_last_bit(&lq_sta->active_legacy_rate,
 						    BITS_PER_LONG);
@@ -2692,11 +2773,11 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 						   BITS_PER_LONG);
 
 	IWL_DEBUG_RATE(mvm,
-		       "RATE MASK: LEGACY=%lX SISO=%lX MIMO2=%lX VHT=%d LDPC=%d\n",
+		       "RATE MASK: LEGACY=%lX SISO=%lX MIMO2=%lX VHT=%d LDPC=%d STBC%d\n",
 		       lq_sta->active_legacy_rate,
 		       lq_sta->active_siso_rate,
 		       lq_sta->active_mimo2_rate,
-		       lq_sta->is_vht, lq_sta->ldpc);
+		       lq_sta->is_vht, lq_sta->ldpc, lq_sta->stbc);
 	IWL_DEBUG_RATE(mvm, "MAX RATE: LEGACY=%d SISO=%d MIMO2=%d\n",
 		       lq_sta->max_legacy_rate_idx,
 		       lq_sta->max_siso_rate_idx,
@@ -2820,6 +2901,7 @@ static void rs_fill_rates_for_column(struct iwl_mvm *mvm,
  * rate[15] 0x800D Legacy | ANT: B Rate: 6 Mbps
  */
 static void rs_build_rates_table(struct iwl_mvm *mvm,
+				 struct ieee80211_sta *sta,
 				 struct iwl_lq_sta *lq_sta,
 				 const struct rs_rate *initial_rate)
 {
@@ -2832,6 +2914,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	memcpy(&rate, initial_rate, sizeof(rate));
 
 	valid_tx_ant = mvm->fw->valid_tx_ant;
+	rate.stbc = rs_stbc_allow(mvm, sta, lq_sta);
 
 	if (is_siso(&rate)) {
 		num_rates = RS_INITIAL_SISO_NUM_RATES;
@@ -2903,7 +2986,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(!sta || !initial_rate))
 		return;
 
-	rs_build_rates_table(mvm, lq_sta, initial_rate);
+	rs_build_rates_table(mvm, sta, lq_sta, initial_rate);
 
 	if (num_of_ant(initial_rate->ant) == 1)
 		lq_cmd->single_stream_ant_msk = initial_rate->ant;

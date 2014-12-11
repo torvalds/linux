@@ -102,8 +102,6 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 #undef EVENT_PRIO_ANT
 
-#define BT_ANTENNA_COUPLING_THRESHOLD		(30)
-
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
@@ -288,11 +286,6 @@ static const __le64 iwl_ci_mask[][3] = {
 		cpu_to_le64(0x0ULL),
 		cpu_to_le64(0x0ULL)
 	},
-};
-
-static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x2e402280),
-	cpu_to_le32(0x7711a751),
 };
 
 struct corunning_block_luts {
@@ -593,7 +586,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 	}
 
 	bt_cmd->max_kill = 5;
-	bt_cmd->bt4_antenna_isolation_thr = BT_ANTENNA_COUPLING_THRESHOLD;
+	bt_cmd->bt4_antenna_isolation_thr =
+		IWL_MVM_BT_COEX_ANTENNA_COUPLING_THRS;
 	bt_cmd->bt4_antenna_isolation = iwlwifi_mod_params.ant_coupling;
 	bt_cmd->bt4_tx_tx_delta_freq_thr = 15;
 	bt_cmd->bt4_tx_rx_max_freq0 = 15;
@@ -618,7 +612,9 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 					    BT_VALID_ANT_ISOLATION_THRS |
 					    BT_VALID_TXTX_DELTA_FREQ_THRS |
 					    BT_VALID_TXRX_MAX_FREQ_0 |
-					    BT_VALID_SYNC_TO_SCO);
+					    BT_VALID_SYNC_TO_SCO |
+					    BT_VALID_TTC |
+					    BT_VALID_RRC);
 
 	if (IWL_MVM_BT_COEX_SYNC2SCO)
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_SYNC2SCO);
@@ -633,6 +629,12 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_MPLUT);
 		bt_cmd->valid_bit_msk |= cpu_to_le32(BT_VALID_MULTI_PRIO_LUT);
 	}
+
+	if (IWL_MVM_BT_COEX_TTC)
+		bt_cmd->flags |= cpu_to_le32(BT_COEX_TTC);
+
+	if (IWL_MVM_BT_COEX_RRC)
+		bt_cmd->flags |= cpu_to_le32(BT_COEX_RRC);
 
 	if (mvm->cfg->bt_shared_single_ant)
 		memcpy(&bt_cmd->decision_lut, iwl_single_shared_ant,
@@ -649,8 +651,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 
 	memcpy(&bt_cmd->bt_prio_boost, iwl_bt_prio_boost,
 	       sizeof(iwl_bt_prio_boost));
-	memcpy(&bt_cmd->bt4_multiprio_lut, iwl_bt_mprio_lut,
-	       sizeof(iwl_bt_mprio_lut));
+	bt_cmd->bt4_multiprio_lut[0] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG0);
+	bt_cmd->bt4_multiprio_lut[1] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG1);
 
 send_cmd:
 	memset(&mvm->last_bt_notif_old, 0, sizeof(mvm->last_bt_notif_old));
@@ -828,6 +830,9 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	/* relax SMPS contraints for next association */
 	if (!vif->bss_conf.assoc)
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	if (data->notif->rrc_enabled & BIT(mvmvif->phy_ctxt->id))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -1160,6 +1165,12 @@ bool iwl_mvm_bt_coex_is_mimo_allowed_old(struct iwl_mvm *mvm,
 	 */
 	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
 	return lut_type != BT_COEX_LOOSE_LUT;
+}
+
+bool iwl_mvm_bt_coex_is_ant_avail_old(struct iwl_mvm *mvm, u8 ant)
+{
+	u32 ag = le32_to_cpu(mvm->last_bt_notif_old.bt_activity_grading);
+	return ag < BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_shared_ant_avail_old(struct iwl_mvm *mvm)

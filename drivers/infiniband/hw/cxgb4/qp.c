@@ -271,9 +271,9 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
-			FW_WR_OP(FW_RI_RES_WR) |
+			FW_WR_OP_V(FW_RI_RES_WR) |
 			V_FW_RI_RES_WR_NRES(2) |
-			FW_WR_COMPL(1));
+			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
 	res_wr->cookie = (unsigned long) &wr_wait;
 	res = res_wr->res;
@@ -1082,10 +1082,10 @@ static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof *wqe);
-	wqe->op_compl = cpu_to_be32(FW_WR_OP(FW_RI_INIT_WR));
+	wqe->op_compl = cpu_to_be32(FW_WR_OP_V(FW_RI_INIT_WR));
 	wqe->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(qhp->ep->hwtid) |
-		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
+		FW_WR_FLOWID_V(qhp->ep->hwtid) |
+		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 
 	wqe->u.terminate.type = FW_RI_TYPE_TERMINATE;
 	wqe->u.terminate.immdlen = cpu_to_be32(sizeof *term);
@@ -1204,11 +1204,11 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof *wqe);
 	wqe->op_compl = cpu_to_be32(
-		FW_WR_OP(FW_RI_INIT_WR) |
-		FW_WR_COMPL(1));
+		FW_WR_OP_V(FW_RI_INIT_WR) |
+		FW_WR_COMPL_F);
 	wqe->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(ep->hwtid) |
-		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
+		FW_WR_FLOWID_V(ep->hwtid) |
+		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 	wqe->cookie = (unsigned long) &ep->com.wr_wait;
 
 	wqe->u.fini.type = FW_RI_TYPE_FINI;
@@ -1273,11 +1273,11 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof *wqe);
 	wqe->op_compl = cpu_to_be32(
-		FW_WR_OP(FW_RI_INIT_WR) |
-		FW_WR_COMPL(1));
+		FW_WR_OP_V(FW_RI_INIT_WR) |
+		FW_WR_COMPL_F);
 	wqe->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(qhp->ep->hwtid) |
-		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
+		FW_WR_FLOWID_V(qhp->ep->hwtid) |
+		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 
 	wqe->cookie = (unsigned long) &qhp->ep->com.wr_wait;
 

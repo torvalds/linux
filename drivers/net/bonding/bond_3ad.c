@@ -29,8 +29,8 @@
 #include <linux/if_bonding.h>
 #include <linux/pkt_sched.h>
 #include <net/net_namespace.h>
-#include "bonding.h"
-#include "bond_3ad.h"
+#include <net/bonding.h>
+#include <net/bond_3ad.h>
 
 /* General definitions */
 #define AD_SHORT_TIMEOUT           1
@@ -79,15 +79,21 @@
  * --------------------------------------------------------------
  * 16		  6		  1		  0
  */
-#define  AD_DUPLEX_KEY_BITS    0x1
-#define  AD_SPEED_KEY_BITS     0x3E
-#define  AD_USER_KEY_BITS      0xFFC0
+#define  AD_DUPLEX_KEY_MASKS    0x1
+#define  AD_SPEED_KEY_MASKS     0x3E
+#define  AD_USER_KEY_MASKS      0xFFC0
 
-#define     AD_LINK_SPEED_BITMASK_1MBPS       0x1
-#define     AD_LINK_SPEED_BITMASK_10MBPS      0x2
-#define     AD_LINK_SPEED_BITMASK_100MBPS     0x4
-#define     AD_LINK_SPEED_BITMASK_1000MBPS    0x8
-#define     AD_LINK_SPEED_BITMASK_10000MBPS   0x10
+enum ad_link_speed_type {
+	AD_LINK_SPEED_1MBPS = 1,
+	AD_LINK_SPEED_10MBPS,
+	AD_LINK_SPEED_100MBPS,
+	AD_LINK_SPEED_1000MBPS,
+	AD_LINK_SPEED_2500MBPS,
+	AD_LINK_SPEED_10000MBPS,
+	AD_LINK_SPEED_20000MBPS,
+	AD_LINK_SPEED_40000MBPS,
+	AD_LINK_SPEED_56000MBPS
+};
 
 /* compare MAC addresses */
 #define MAC_ADDRESS_EQUAL(A, B)	\
@@ -240,12 +246,16 @@ static inline int __check_agg_selection_timer(struct port *port)
  * __get_link_speed - get a port's speed
  * @port: the port we're looking at
  *
- * Return @port's speed in 802.3ad bitmask format. i.e. one of:
+ * Return @port's speed in 802.3ad enum format. i.e. one of:
  *     0,
- *     %AD_LINK_SPEED_BITMASK_10MBPS,
- *     %AD_LINK_SPEED_BITMASK_100MBPS,
- *     %AD_LINK_SPEED_BITMASK_1000MBPS,
- *     %AD_LINK_SPEED_BITMASK_10000MBPS
+ *     %AD_LINK_SPEED_10MBPS,
+ *     %AD_LINK_SPEED_100MBPS,
+ *     %AD_LINK_SPEED_1000MBPS,
+ *     %AD_LINK_SPEED_2500MBPS,
+ *     %AD_LINK_SPEED_10000MBPS
+ *     %AD_LINK_SPEED_20000MBPS
+ *     %AD_LINK_SPEED_40000MBPS
+ *     %AD_LINK_SPEED_56000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -262,19 +272,35 @@ static u16 __get_link_speed(struct port *port)
 	else {
 		switch (slave->speed) {
 		case SPEED_10:
-			speed = AD_LINK_SPEED_BITMASK_10MBPS;
+			speed = AD_LINK_SPEED_10MBPS;
 			break;
 
 		case SPEED_100:
-			speed = AD_LINK_SPEED_BITMASK_100MBPS;
+			speed = AD_LINK_SPEED_100MBPS;
 			break;
 
 		case SPEED_1000:
-			speed = AD_LINK_SPEED_BITMASK_1000MBPS;
+			speed = AD_LINK_SPEED_1000MBPS;
+			break;
+
+		case SPEED_2500:
+			speed = AD_LINK_SPEED_2500MBPS;
 			break;
 
 		case SPEED_10000:
-			speed = AD_LINK_SPEED_BITMASK_10000MBPS;
+			speed = AD_LINK_SPEED_10000MBPS;
+			break;
+
+		case SPEED_20000:
+			speed = AD_LINK_SPEED_20000MBPS;
+			break;
+
+		case SPEED_40000:
+			speed = AD_LINK_SPEED_40000MBPS;
+			break;
+
+		case SPEED_56000:
+			speed = AD_LINK_SPEED_56000MBPS;
 			break;
 
 		default:
@@ -625,20 +651,32 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 
 	if (aggregator->num_of_ports) {
 		switch (__get_link_speed(aggregator->lag_ports)) {
-		case AD_LINK_SPEED_BITMASK_1MBPS:
+		case AD_LINK_SPEED_1MBPS:
 			bandwidth = aggregator->num_of_ports;
 			break;
-		case AD_LINK_SPEED_BITMASK_10MBPS:
+		case AD_LINK_SPEED_10MBPS:
 			bandwidth = aggregator->num_of_ports * 10;
 			break;
-		case AD_LINK_SPEED_BITMASK_100MBPS:
+		case AD_LINK_SPEED_100MBPS:
 			bandwidth = aggregator->num_of_ports * 100;
 			break;
-		case AD_LINK_SPEED_BITMASK_1000MBPS:
+		case AD_LINK_SPEED_1000MBPS:
 			bandwidth = aggregator->num_of_ports * 1000;
 			break;
-		case AD_LINK_SPEED_BITMASK_10000MBPS:
+		case AD_LINK_SPEED_2500MBPS:
+			bandwidth = aggregator->num_of_ports * 2500;
+			break;
+		case AD_LINK_SPEED_10000MBPS:
 			bandwidth = aggregator->num_of_ports * 10000;
+			break;
+		case AD_LINK_SPEED_20000MBPS:
+			bandwidth = aggregator->num_of_ports * 20000;
+			break;
+		case AD_LINK_SPEED_40000MBPS:
+			bandwidth = aggregator->num_of_ports * 40000;
+			break;
+		case AD_LINK_SPEED_56000MBPS:
+			bandwidth = aggregator->num_of_ports * 56000;
 			break;
 		default:
 			bandwidth = 0; /* to silence the compiler */
@@ -1011,7 +1049,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			 port->sm_rx_state);
 		switch (port->sm_rx_state) {
 		case AD_RX_INITIALIZE:
-			if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_BITS))
+			if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS))
 				port->sm_vars &= ~AD_PORT_LACP_ENABLED;
 			else
 				port->sm_vars |= AD_PORT_LACP_ENABLED;
@@ -1318,7 +1356,7 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 			/* update the new aggregator's parameters
 			 * if port was responsed from the end-user
 			 */
-			if (port->actor_oper_port_key & AD_DUPLEX_KEY_BITS)
+			if (port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS)
 				/* if port is full duplex */
 				port->aggregator->is_individual = false;
 			else
@@ -1846,7 +1884,7 @@ void bond_3ad_bind_slave(struct slave *slave)
 		/* if the port is not full duplex, then the port should be not
 		 * lacp Enabled
 		 */
-		if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_BITS))
+		if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS))
 			port->sm_vars &= ~AD_PORT_LACP_ENABLED;
 		/* actor system is the bond's system */
 		port->actor_system = BOND_AD_INFO(bond).system.sys_mac_addr;
@@ -2214,7 +2252,7 @@ void bond_3ad_adapter_speed_changed(struct slave *slave)
 
 	spin_lock_bh(&slave->bond->mode_lock);
 
-	port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
+	port->actor_admin_port_key &= ~AD_SPEED_KEY_MASKS;
 	port->actor_oper_port_key = port->actor_admin_port_key |=
 		(__get_link_speed(port) << 1);
 	netdev_dbg(slave->bond->dev, "Port %d changed speed\n", port->actor_port_number);
@@ -2247,7 +2285,7 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave)
 
 	spin_lock_bh(&slave->bond->mode_lock);
 
-	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
+	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_MASKS;
 	port->actor_oper_port_key = port->actor_admin_port_key |=
 		__get_duplex(port);
 	netdev_dbg(slave->bond->dev, "Port %d changed duplex\n", port->actor_port_number);
@@ -2289,18 +2327,18 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	 */
 	if (link == BOND_LINK_UP) {
 		port->is_enabled = true;
-		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
+		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_MASKS;
 		port->actor_oper_port_key = port->actor_admin_port_key |=
 			__get_duplex(port);
-		port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
+		port->actor_admin_port_key &= ~AD_SPEED_KEY_MASKS;
 		port->actor_oper_port_key = port->actor_admin_port_key |=
 			(__get_link_speed(port) << 1);
 	} else {
 		/* link has failed */
 		port->is_enabled = false;
-		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
+		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_MASKS;
 		port->actor_oper_port_key = (port->actor_admin_port_key &=
-					     ~AD_SPEED_KEY_BITS);
+					     ~AD_SPEED_KEY_MASKS);
 	}
 	netdev_dbg(slave->bond->dev, "Port %d changed link status to %s\n",
 		   port->actor_port_number,

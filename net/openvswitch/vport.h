@@ -45,18 +45,28 @@ void ovs_vport_exit(void);
 struct vport *ovs_vport_add(const struct vport_parms *);
 void ovs_vport_del(struct vport *);
 
-struct vport *ovs_vport_locate(struct net *net, const char *name);
+struct vport *ovs_vport_locate(const struct net *net, const char *name);
 
 void ovs_vport_get_stats(struct vport *, struct ovs_vport_stats *);
 
 int ovs_vport_set_options(struct vport *, struct nlattr *options);
 int ovs_vport_get_options(const struct vport *, struct sk_buff *);
 
-int ovs_vport_set_upcall_portids(struct vport *, struct nlattr *pids);
+int ovs_vport_set_upcall_portids(struct vport *, const struct nlattr *pids);
 int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
 
 int ovs_vport_send(struct vport *, struct sk_buff *);
+
+int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
+			       struct net *net,
+			       const struct ovs_tunnel_info *tun_info,
+			       u8 ipproto,
+			       u32 skb_mark,
+			       __be16 tp_src,
+			       __be16 tp_dst);
+int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
+				  struct ovs_tunnel_info *info);
 
 /* The following definitions are for implementers of vport devices: */
 
@@ -146,6 +156,8 @@ struct vport_parms {
  * @get_name: Get the device's name.
  * @send: Send a packet on the device.  Returns the length of the packet sent,
  * zero for dropped packets or negative for error.
+ * @get_egress_tun_info: Get the egress tunnel 5-tuple and other info for
+ * a packet.
  */
 struct vport_ops {
 	enum ovs_vport_type type;
@@ -161,6 +173,11 @@ struct vport_ops {
 	const char *(*get_name)(const struct vport *);
 
 	int (*send)(struct vport *, struct sk_buff *);
+	int (*get_egress_tun_info)(struct vport *, struct sk_buff *,
+				   struct ovs_tunnel_info *);
+
+	struct module *owner;
+	struct list_head list;
 };
 
 enum vport_err_type {
@@ -207,15 +224,7 @@ static inline struct vport *vport_from_priv(void *priv)
 }
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,
-		       struct ovs_tunnel_info *);
-
-/* List of statically compiled vport implementations.  Don't forget to also
- * add yours to the list at the top of vport.c. */
-extern const struct vport_ops ovs_netdev_vport_ops;
-extern const struct vport_ops ovs_internal_vport_ops;
-extern const struct vport_ops ovs_gre_vport_ops;
-extern const struct vport_ops ovs_vxlan_vport_ops;
-extern const struct vport_ops ovs_geneve_vport_ops;
+		       const struct ovs_tunnel_info *);
 
 static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)
@@ -223,5 +232,8 @@ static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
 }
+
+int ovs_vport_ops_register(struct vport_ops *ops);
+void ovs_vport_ops_unregister(struct vport_ops *ops);
 
 #endif /* vport.h */

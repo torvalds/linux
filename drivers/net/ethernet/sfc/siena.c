@@ -251,6 +251,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	nic_data = kzalloc(sizeof(struct siena_nic_data), GFP_KERNEL);
 	if (!nic_data)
 		return -ENOMEM;
+	nic_data->efx = efx;
 	efx->nic_data = nic_data;
 
 	if (efx_farch_fpga_ver(efx) != 0) {
@@ -306,7 +307,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	efx_sriov_probe(efx);
+	efx_siena_sriov_probe(efx);
 	efx_ptp_defer_probe_with_channel(efx);
 
 	return 0;
@@ -996,6 +997,11 @@ const struct efx_nic_type siena_a0_nic_type = {
 #endif
 	.ptp_write_host_time = siena_ptp_write_host_time,
 	.ptp_set_ts_config = siena_ptp_set_ts_config,
+	.sriov_init = efx_siena_sriov_init,
+	.sriov_fini = efx_siena_sriov_fini,
+	.sriov_mac_address_changed = efx_siena_sriov_mac_address_changed,
+	.sriov_wanted = efx_siena_sriov_wanted,
+	.sriov_reset = efx_siena_sriov_reset,
 
 	.revision = EFX_REV_SIENA_A0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,

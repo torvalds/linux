@@ -343,7 +343,6 @@ static void handle_tx(struct vhost_net *net)
 		.msg_namelen = 0,
 		.msg_control = NULL,
 		.msg_controllen = 0,
-		.msg_iov = vq->iov,
 		.msg_flags = MSG_DONTWAIT,
 	};
 	size_t len, total_len = 0;
@@ -397,8 +396,8 @@ static void handle_tx(struct vhost_net *net)
 		}
 		/* Skip header. TODO: support TSO. */
 		s = move_iovec_hdr(vq->iov, nvq->hdr, hdr_size, out);
-		msg.msg_iovlen = out;
 		len = iov_length(vq->iov, out);
+		iov_iter_init(&msg.msg_iter, WRITE, vq->iov, out, len);
 		/* Sanity check */
 		if (!len) {
 			vq_err(vq, "Unexpected header len for TX: "
@@ -568,7 +567,6 @@ static void handle_rx(struct vhost_net *net)
 		.msg_namelen = 0,
 		.msg_control = NULL, /* FIXME: get and handle RX aux data. */
 		.msg_controllen = 0,
-		.msg_iov = vq->iov,
 		.msg_flags = MSG_DONTWAIT,
 	};
 	struct virtio_net_hdr_mrg_rxbuf hdr = {
@@ -606,7 +604,7 @@ static void handle_rx(struct vhost_net *net)
 			break;
 		/* On overrun, truncate and discard */
 		if (unlikely(headcount > UIO_MAXIOV)) {
-			msg.msg_iovlen = 1;
+			iov_iter_init(&msg.msg_iter, READ, vq->iov, 1, 1);
 			err = sock->ops->recvmsg(NULL, sock, &msg,
 						 1, MSG_DONTWAIT | MSG_TRUNC);
 			pr_debug("Discarded rx packet: len %zd\n", sock_len);
@@ -632,7 +630,7 @@ static void handle_rx(struct vhost_net *net)
 			/* Copy the header for use in VIRTIO_NET_F_MRG_RXBUF:
 			 * needed because recvmsg can modify msg_iov. */
 			copy_iovec_hdr(vq->iov, nvq->hdr, sock_hlen, in);
-		msg.msg_iovlen = in;
+		iov_iter_init(&msg.msg_iter, READ, vq->iov, in, sock_len);
 		err = sock->ops->recvmsg(NULL, sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
 		/* Userspace might have consumed the packet meanwhile:

@@ -1029,7 +1029,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			goto out_sleep;
 	}
 
-	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
+	skb = ieee80211_probereq_get(wl->hw, wl->vif->addr, ssid, ssid_len,
 				     req->ie_len);
 	if (!skb) {
 		ret = -ENOMEM;

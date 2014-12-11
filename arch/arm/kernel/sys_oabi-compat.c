@@ -400,7 +400,7 @@ asmlinkage long sys_oabi_sendto(int fd, void __user *buff,
 	return sys_sendto(fd, buff, len, flags, addr, addrlen);
 }
 
-asmlinkage long sys_oabi_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
+asmlinkage long sys_oabi_sendmsg(int fd, struct user_msghdr __user *msg, unsigned flags)
 {
 	struct sockaddr __user *addr;
 	int msg_namelen;
@@ -446,7 +446,7 @@ asmlinkage long sys_oabi_socketcall(int call, unsigned long __user *args)
 		break;
 	case SYS_SENDMSG:
 		if (copy_from_user(a, args, 3 * sizeof(long)) == 0)
-			r = sys_oabi_sendmsg(a[0], (struct msghdr __user *)a[1], a[2]);
+			r = sys_oabi_sendmsg(a[0], (struct user_msghdr __user *)a[1], a[2]);
 		break;
 	default:
 		r = sys_socketcall(call, args);

@@ -15,14 +15,6 @@ openvswitch-y := \
 	vport-internal_dev.o \
 	vport-netdev.o
 
-ifneq ($(CONFIG_OPENVSWITCH_GENEVE),)
-openvswitch-y += vport-geneve.o
-endif
-
-ifneq ($(CONFIG_OPENVSWITCH_VXLAN),)
-openvswitch-y += vport-vxlan.o
-endif
-
-ifneq ($(CONFIG_OPENVSWITCH_GRE),)
-openvswitch-y += vport-gre.o
-endif
+obj-$(CONFIG_OPENVSWITCH_GENEVE)+= vport-geneve.o
+obj-$(CONFIG_OPENVSWITCH_VXLAN)	+= vport-vxlan.o
+obj-$(CONFIG_OPENVSWITCH_GRE)	+= vport-gre.o

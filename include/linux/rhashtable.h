@@ -65,7 +65,10 @@ struct rhashtable_params {
 						 size_t new_size);
 	bool			(*shrink_decision)(const struct rhashtable *ht,
 						   size_t new_size);
-	int			(*mutex_is_held)(void);
+#ifdef CONFIG_PROVE_LOCKING
+	int			(*mutex_is_held)(void *parent);
+	void			*parent;
+#endif
 };
 
 /**
@@ -96,16 +99,16 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params);
 u32 rhashtable_hashfn(const struct rhashtable *ht, const void *key, u32 len);
 u32 rhashtable_obj_hashfn(const struct rhashtable *ht, void *ptr);
 
-void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node, gfp_t);
-bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node, gfp_t);
+void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node);
+bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node);
 void rhashtable_remove_pprev(struct rhashtable *ht, struct rhash_head *obj,
-			     struct rhash_head __rcu **pprev, gfp_t flags);
+			     struct rhash_head __rcu **pprev);
 
 bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size);
 bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size);
 
-int rhashtable_expand(struct rhashtable *ht, gfp_t flags);
-int rhashtable_shrink(struct rhashtable *ht, gfp_t flags);
+int rhashtable_expand(struct rhashtable *ht);
+int rhashtable_shrink(struct rhashtable *ht);
 
 void *rhashtable_lookup(const struct rhashtable *ht, const void *key);
 void *rhashtable_lookup_compare(const struct rhashtable *ht, u32 hash,

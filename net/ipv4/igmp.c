@@ -112,17 +112,17 @@
 #ifdef CONFIG_IP_MULTICAST
 /* Parameter names and values are taken from igmp-v2-06 draft */
 
-#define IGMP_V1_Router_Present_Timeout		(400*HZ)
-#define IGMP_V2_Router_Present_Timeout		(400*HZ)
-#define IGMP_V2_Unsolicited_Report_Interval	(10*HZ)
-#define IGMP_V3_Unsolicited_Report_Interval	(1*HZ)
-#define IGMP_Query_Response_Interval		(10*HZ)
-#define IGMP_Query_Robustness_Variable		2
+#define IGMP_V1_ROUTER_PRESENT_TIMEOUT		(400*HZ)
+#define IGMP_V2_ROUTER_PRESENT_TIMEOUT		(400*HZ)
+#define IGMP_V2_UNSOLICITED_REPORT_INTERVAL	(10*HZ)
+#define IGMP_V3_UNSOLICITED_REPORT_INTERVAL	(1*HZ)
+#define IGMP_QUERY_RESPONSE_INTERVAL		(10*HZ)
+#define IGMP_QUERY_ROBUSTNESS_VARIABLE		2
 
 
-#define IGMP_Initial_Report_Delay		(1)
+#define IGMP_INITIAL_REPORT_DELAY		(1)
 
-/* IGMP_Initial_Report_Delay is not from IGMP specs!
+/* IGMP_INITIAL_REPORT_DELAY is not from IGMP specs!
  * IGMP specs require to report membership immediately after
  * joining a group, but we delay the first report by a
  * small interval. It seems more natural and still does not
@@ -878,15 +878,15 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		if (ih->code == 0) {
 			/* Alas, old v1 router presents here. */
 
-			max_delay = IGMP_Query_Response_Interval;
+			max_delay = IGMP_QUERY_RESPONSE_INTERVAL;
 			in_dev->mr_v1_seen = jiffies +
-				IGMP_V1_Router_Present_Timeout;
+				IGMP_V1_ROUTER_PRESENT_TIMEOUT;
 			group = 0;
 		} else {
 			/* v2 router present */
 			max_delay = ih->code*(HZ/IGMP_TIMER_SCALE);
 			in_dev->mr_v2_seen = jiffies +
-				IGMP_V2_Router_Present_Timeout;
+				IGMP_V2_ROUTER_PRESENT_TIMEOUT;
 		}
 		/* cancel the interface change timer */
 		in_dev->mr_ifc_count = 0;
@@ -898,7 +898,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		return true;	/* ignore bogus packet; freed by caller */
 	} else if (IGMP_V1_SEEN(in_dev)) {
 		/* This is a v3 query with v1 queriers present */
-		max_delay = IGMP_Query_Response_Interval;
+		max_delay = IGMP_QUERY_RESPONSE_INTERVAL;
 		group = 0;
 	} else if (IGMP_V2_SEEN(in_dev)) {
 		/* this is a v3 query with v2 queriers present;
@@ -1217,7 +1217,7 @@ static void igmp_group_added(struct ip_mc_list *im)
 		return;
 	if (IGMP_V1_SEEN(in_dev) || IGMP_V2_SEEN(in_dev)) {
 		spin_lock_bh(&im->lock);
-		igmp_start_timer(im, IGMP_Initial_Report_Delay);
+		igmp_start_timer(im, IGMP_INITIAL_REPORT_DELAY);
 		spin_unlock_bh(&im->lock);
 		return;
 	}
@@ -1540,7 +1540,7 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 int sysctl_igmp_max_memberships __read_mostly = IP_MAX_MEMBERSHIPS;
 int sysctl_igmp_max_msf __read_mostly = IP_MAX_MSF;
 #ifdef CONFIG_IP_MULTICAST
-int sysctl_igmp_qrv __read_mostly = IGMP_Query_Robustness_Variable;
+int sysctl_igmp_qrv __read_mostly = IGMP_QUERY_ROBUSTNESS_VARIABLE;
 #endif
 
 static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
@@ -2686,11 +2686,7 @@ static int igmp_mcf_seq_show(struct seq_file *seq, void *v)
 	struct igmp_mcf_iter_state *state = igmp_mcf_seq_private(seq);
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq,
-			   "%3s %6s "
-			   "%10s %10s %6s %6s\n", "Idx",
-			   "Device", "MCA",
-			   "SRC", "INC", "EXC");
+		seq_puts(seq, "Idx Device        MCA        SRC    INC    EXC\n");
 	} else {
 		seq_printf(seq,
 			   "%3d %6.6s 0x%08x "

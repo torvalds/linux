@@ -316,7 +316,7 @@ static int pcan_usb_get_serial(struct peak_usb_device *dev, u32 *serial_number)
 	if (err) {
 		netdev_err(dev->netdev, "getting serial failure: %d\n", err);
 	} else if (serial_number) {
-		u32 tmp32;
+		__le32 tmp32;
 
 		memcpy(&tmp32, args, 4);
 		*serial_number = le32_to_cpu(tmp32);
@@ -347,7 +347,7 @@ static int pcan_usb_get_device_id(struct peak_usb_device *dev, u32 *device_id)
  */
 static int pcan_usb_update_ts(struct pcan_usb_msg_context *mc)
 {
-	u16 tmp16;
+	__le16 tmp16;
 
 	if ((mc->ptr+2) > mc->end)
 		return -EINVAL;
@@ -371,7 +371,7 @@ static int pcan_usb_decode_ts(struct pcan_usb_msg_context *mc, u8 first_packet)
 {
 	/* only 1st packet supplies a word timestamp */
 	if (first_packet) {
-		u16 tmp16;
+		__le16 tmp16;
 
 		if ((mc->ptr + 2) > mc->end)
 			return -EINVAL;
@@ -614,7 +614,7 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 		return -ENOMEM;
 
 	if (status_len & PCAN_USB_STATUSLEN_EXT_ID) {
-		u32 tmp32;
+		__le32 tmp32;
 
 		if ((mc->ptr + 4) > mc->end)
 			goto decode_failed;
@@ -622,9 +622,9 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 		memcpy(&tmp32, mc->ptr, 4);
 		mc->ptr += 4;
 
-		cf->can_id = le32_to_cpu(tmp32 >> 3) | CAN_EFF_FLAG;
+		cf->can_id = (le32_to_cpu(tmp32) >> 3) | CAN_EFF_FLAG;
 	} else {
-		u16 tmp16;
+		__le16 tmp16;
 
 		if ((mc->ptr + 2) > mc->end)
 			goto decode_failed;
@@ -632,7 +632,7 @@ static int pcan_usb_decode_data(struct pcan_usb_msg_context *mc, u8 status_len)
 		memcpy(&tmp16, mc->ptr, 2);
 		mc->ptr += 2;
 
-		cf->can_id = le16_to_cpu(tmp16 >> 5);
+		cf->can_id = le16_to_cpu(tmp16) >> 5;
 	}
 
 	cf->can_dlc = get_can_dlc(rec_len);

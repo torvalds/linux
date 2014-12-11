@@ -941,6 +941,7 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 }
 
 static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
 				      struct ieee80211_channel_switch *ch_switch)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);

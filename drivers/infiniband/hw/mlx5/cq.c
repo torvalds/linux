@@ -805,14 +805,14 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
 		}
 
 
-	mlx5_vfree(cqb);
+	kvfree(cqb);
 	return &cq->ibcq;
 
 err_cmd:
 	mlx5_core_destroy_cq(dev->mdev, &cq->mcq);
 
 err_cqb:
-	mlx5_vfree(cqb);
+	kvfree(cqb);
 	if (context)
 		destroy_cq_user(cq, context);
 	else
@@ -1159,11 +1159,11 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	}
 	mutex_unlock(&cq->resize_mutex);
 
-	mlx5_vfree(in);
+	kvfree(in);
 	return 0;
 
 ex_alloc:
-	mlx5_vfree(in);
+	kvfree(in);
 
 ex_resize:
 	if (udata)

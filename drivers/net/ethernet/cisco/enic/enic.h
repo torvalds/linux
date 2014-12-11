@@ -187,6 +187,7 @@ struct enic {
 	unsigned int cq_count;
 	struct enic_rfs_flw_tbl rfs_h;
 	u32 rx_copybreak;
+	u8 rss_key[ENIC_RSS_LEN];
 };
 
 static inline struct device *enic_get_dev(struct enic *enic)
@@ -246,5 +247,6 @@ int enic_sriov_enabled(struct enic *enic);
 int enic_is_valid_vf(struct enic *enic, int vf);
 int enic_is_dynamic(struct enic *enic);
 void enic_set_ethtool_ops(struct net_device *netdev);
+int __enic_set_rsskey(struct enic *enic);
 
 #endif /* _ENIC_H_ */

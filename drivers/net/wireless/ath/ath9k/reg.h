@@ -892,10 +892,21 @@
 	(AR_SREV_9330((_ah)) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_12))
 
+#ifdef CONFIG_ATH9K_PCOEM
+#define AR_SREV_9462(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462))
 #define AR_SREV_9485(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485))
+#define AR_SREV_9565(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565))
+#else
+#define AR_SREV_9462(_ah) 0
+#define AR_SREV_9485(_ah) 0
+#define AR_SREV_9565(_ah) 0
+#endif
+
 #define AR_SREV_9485_11_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485) && \
+	(AR_SREV_9485(_ah) && \
 	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9485_11))
 #define AR_SREV_9485_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9485))
@@ -915,34 +926,30 @@
     (AR_SREV_9285_12_OR_LATER(_ah) && \
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
-#define AR_SREV_9462(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462))
 #define AR_SREV_9462_20(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	(AR_SREV_9462(_ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_20))
 #define AR_SREV_9462_21(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	(AR_SREV_9462(_ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9462_21))
 #define AR_SREV_9462_20_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	(AR_SREV_9462(_ah) && \
 	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_20))
 #define AR_SREV_9462_21_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462) && \
+	(AR_SREV_9462(_ah) && \
 	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9462_21))
 
-#define AR_SREV_9565(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565))
 #define AR_SREV_9565_10(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	(AR_SREV_9565(_ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9565_10))
 #define AR_SREV_9565_101(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	(AR_SREV_9565(_ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9565_101))
 #define AR_SREV_9565_11(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	(AR_SREV_9565(_ah) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9565_11))
 #define AR_SREV_9565_11_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565) && \
+	(AR_SREV_9565(_ah) && \
 	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9565_11))
 
 #define AR_SREV_9550(_ah) \
@@ -1598,6 +1605,7 @@ enum {
 
 #define AR_RESET_TSF        0x8020
 #define AR_RESET_TSF_ONCE   0x01000000
+#define AR_RESET_TSF2_ONCE  0x02000000
 
 #define AR_MAX_CFP_DUR      0x8038
 #define AR_CFP_VAL          0x0000FFFF
@@ -1716,6 +1724,8 @@ enum {
 #define AR_TPC_CTS_S           8
 #define AR_TPC_CHIRP           0x003f0000
 #define AR_TPC_CHIRP_S         16
+#define AR_TPC_RPT	       0x3f000000
+#define AR_TPC_RPT_S	       24
 
 #define AR_QUIET1          0x80fc
 #define AR_QUIET1_NEXT_QUIET_S         0
@@ -1959,6 +1969,8 @@ enum {
 #define AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET		0x80000000
 #define AR_MAC_PCU_GEN_TIMER_TSF_SEL			0x83d8
 
+#define AR_DIRECT_CONNECT                              0x83a0
+#define AR_DC_AP_STA_EN                                0x00000001
 
 #define AR_AES_MUTE_MASK0       0x805c
 #define AR_AES_MUTE_MASK0_FC    0x0000FFFF

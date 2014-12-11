@@ -326,6 +326,7 @@ struct mlx4_en_rx_ring {
 #endif
 	unsigned long csum_ok;
 	unsigned long csum_none;
+	unsigned long csum_complete;
 	int hwtstamp_rx_filter;
 	cpumask_var_t affinity_mask;
 };
@@ -375,7 +376,6 @@ struct mlx4_en_port_profile {
 };
 
 struct mlx4_en_profile {
-	int rss_xor;
 	int udp_rss;
 	u8 rss_mask;
 	u32 active_ports;
@@ -421,10 +421,16 @@ struct mlx4_en_rss_map {
 	enum mlx4_qp_state indir_state;
 };
 
+enum mlx4_en_port_flag {
+	MLX4_EN_PORT_ANC = 1<<0, /* Auto-negotiation complete */
+	MLX4_EN_PORT_ANE = 1<<1, /* Auto-negotiation enabled */
+};
+
 struct mlx4_en_port_state {
 	int link_state;
 	int link_speed;
-	int transciver;
+	int transceiver;
+	u32 flags;
 };
 
 struct mlx4_en_pkt_stats {
@@ -443,6 +449,7 @@ struct mlx4_en_port_stats {
 	unsigned long rx_alloc_failed;
 	unsigned long rx_chksum_good;
 	unsigned long rx_chksum_none;
+	unsigned long rx_chksum_complete;
 	unsigned long tx_chksum_offload;
 #define NUM_PORT_STATS		9
 };
@@ -475,7 +482,6 @@ struct mlx4_en_frag_info {
 	u16 frag_size;
 	u16 frag_prefix_size;
 	u16 frag_stride;
-	u16 frag_align;
 };
 
 #ifdef CONFIG_MLX4_EN_DCB
@@ -502,7 +508,8 @@ enum {
 	MLX4_EN_FLAG_ENABLE_HW_LOOPBACK	= (1 << 2),
 	/* whether we need to drop packets that hardware loopback-ed */
 	MLX4_EN_FLAG_RX_FILTER_NEEDED	= (1 << 3),
-	MLX4_EN_FLAG_FORCE_PROMISC	= (1 << 4)
+	MLX4_EN_FLAG_FORCE_PROMISC	= (1 << 4),
+	MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP	= (1 << 5),
 };
 
 #define MLX4_EN_MAC_HASH_SIZE (1 << BITS_PER_BYTE)
@@ -610,6 +617,8 @@ struct mlx4_en_priv {
 	__be16 vxlan_port;
 
 	u32 pflags;
+	u8 rss_key[MLX4_EN_RSS_KEY_SIZE];
+	u8 rss_hash_fn;
 };
 
 enum mlx4_en_wol {
@@ -769,7 +778,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring,
-			   int qpn, u32 size, u16 stride,
+			   u32 size, u16 stride,
 			   int node, int queue_index);
 void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring **pring);
@@ -829,6 +838,13 @@ void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv);
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
 void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
+#define DEV_FEATURE_CHANGED(dev, new_features, feature) \
+	((dev->features & feature) ^ (new_features & feature))
+
+int mlx4_en_reset_config(struct net_device *dev,
+			 struct hwtstamp_config ts_config,
+			 netdev_features_t new_features);
+
 /*
  * Functions for time stamping
  */
@@ -838,9 +854,6 @@ void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
 			    u64 timestamp);
 void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev);
 void mlx4_en_remove_timestamp(struct mlx4_en_dev *mdev);
-int mlx4_en_timestamp_config(struct net_device *dev,
-			     int tx_type,
-			     int rx_filter);
 
 /* Globals
  */

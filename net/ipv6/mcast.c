@@ -2824,11 +2824,7 @@ static int igmp6_mcf_seq_show(struct seq_file *seq, void *v)
 	struct igmp6_mcf_iter_state *state = igmp6_mcf_seq_private(seq);
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq,
-			   "%3s %6s "
-			   "%32s %32s %6s %6s\n", "Idx",
-			   "Device", "Multicast Address",
-			   "Source Address", "INC", "EXC");
+		seq_puts(seq, "Idx Device                Multicast Address                   Source Address    INC    EXC\n");
 	} else {
 		seq_printf(seq,
 			   "%3d %6.6s %pi6 %pi6 %6lu %6lu\n",

@@ -71,6 +71,7 @@
 #include <net/rtnetlink.h>
 #include <net/sock.h>
 #include <linux/seq_file.h>
+#include <linux/uio.h>
 
 #include <asm/uaccess.h>
 
@@ -837,7 +838,7 @@ drop:
 	skb_tx_error(skb);
 	kfree_skb(skb);
 	rcu_read_unlock();
-	return NETDEV_TX_OK;
+	return NET_XMIT_DROP;
 }
 
 static void tun_net_mclist(struct net_device *dev)
@@ -1030,28 +1031,29 @@ static struct sk_buff *tun_alloc_skb(struct tun_file *tfile,
 
 /* Get packet from user space buffer */
 static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
-			    void *msg_control, const struct iovec *iv,
-			    size_t total_len, size_t count, int noblock)
+			    void *msg_control, struct iov_iter *from,
+			    int noblock)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
+	size_t total_len = iov_iter_count(from);
 	size_t len = total_len, align = NET_SKB_PAD, linear;
 	struct virtio_net_hdr gso = { 0 };
 	int good_linear;
-	int offset = 0;
 	int copylen;
 	bool zerocopy = false;
 	int err;
 	u32 rxhash;
+	ssize_t n;
 
 	if (!(tun->flags & IFF_NO_PI)) {
 		if (len < sizeof(pi))
 			return -EINVAL;
 		len -= sizeof(pi);
 
-		if (memcpy_fromiovecend((void *)&pi, iv, 0, sizeof(pi)))
+		n = copy_from_iter(&pi, sizeof(pi), from);
+		if (n != sizeof(pi))
 			return -EFAULT;
-		offset += sizeof(pi);
 	}
 
 	if (tun->flags & IFF_VNET_HDR) {
@@ -1059,7 +1061,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			return -EINVAL;
 		len -= tun->vnet_hdr_sz;
 
-		if (memcpy_fromiovecend((void *)&gso, iv, offset, sizeof(gso)))
+		n = copy_from_iter(&gso, sizeof(gso), from);
+		if (n != sizeof(gso))
 			return -EFAULT;
 
 		if ((gso.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
@@ -1068,7 +1071,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 		if (tun16_to_cpu(tun, gso.hdr_len) > len)
 			return -EINVAL;
-		offset += tun->vnet_hdr_sz;
+		iov_iter_advance(from, tun->vnet_hdr_sz - sizeof(gso));
 	}
 
 	if ((tun->flags & TUN_TYPE_MASK) == IFF_TAP) {
@@ -1081,6 +1084,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	good_linear = SKB_MAX_HEAD(align);
 
 	if (msg_control) {
+		struct iov_iter i = *from;
+
 		/* There are 256 bytes to be copied in skb, so there is
 		 * enough room for skb expand head in case it is used.
 		 * The rest of the buffer is mapped from userspace.
@@ -1089,7 +1094,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		if (copylen > good_linear)
 			copylen = good_linear;
 		linear = copylen;
-		if (iov_pages(iv, offset + copylen, count) <= MAX_SKB_FRAGS)
+		iov_iter_advance(&i, copylen);
+		if (iov_iter_npages(&i, INT_MAX) <= MAX_SKB_FRAGS)
 			zerocopy = true;
 	}
 
@@ -1109,9 +1115,9 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	if (zerocopy)
-		err = zerocopy_sg_from_iovec(skb, iv, offset, count);
+		err = zerocopy_sg_from_iter(skb, from);
 	else {
-		err = skb_copy_datagram_from_iovec(skb, 0, iv, offset, len);
+		err = skb_copy_datagram_from_iter(skb, 0, from, len);
 		if (!err && msg_control) {
 			struct ubuf_info *uarg = msg_control;
 			uarg->callback(uarg, false);
@@ -1225,8 +1231,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	return total_len;
 }
 
-static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
-			      unsigned long count, loff_t pos)
+static ssize_t tun_chr_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct tun_struct *tun = tun_get(file);
@@ -1236,10 +1241,7 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 	if (!tun)
 		return -EBADFD;
 
-	tun_debug(KERN_INFO, tun, "tun_chr_write %ld\n", count);
-
-	result = tun_get_user(tun, tfile, NULL, iv, iov_length(iv, count),
-			      count, file->f_flags & O_NONBLOCK);
+	result = tun_get_user(tun, tfile, NULL, from, file->f_flags & O_NONBLOCK);
 
 	tun_put(tun);
 	return result;
@@ -1249,11 +1251,11 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 static ssize_t tun_put_user(struct tun_struct *tun,
 			    struct tun_file *tfile,
 			    struct sk_buff *skb,
-			    const struct iovec *iv, int len)
+			    struct iov_iter *iter)
 {
 	struct tun_pi pi = { 0, skb->protocol };
-	ssize_t total = 0;
-	int vlan_offset = 0, copied;
+	ssize_t total;
+	int vlan_offset = 0;
 	int vlan_hlen = 0;
 	int vnet_hdr_sz = 0;
 
@@ -1263,23 +1265,25 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 	if (tun->flags & IFF_VNET_HDR)
 		vnet_hdr_sz = tun->vnet_hdr_sz;
 
+	total = skb->len + vlan_hlen + vnet_hdr_sz;
+
 	if (!(tun->flags & IFF_NO_PI)) {
-		if ((len -= sizeof(pi)) < 0)
+		if (iov_iter_count(iter) < sizeof(pi))
 			return -EINVAL;
 
-		if (len < skb->len + vlan_hlen + vnet_hdr_sz) {
+		total += sizeof(pi);
+		if (iov_iter_count(iter) < total) {
 			/* Packet will be striped */
 			pi.flags |= TUN_PKT_STRIP;
 		}
 
-		if (memcpy_toiovecend(iv, (void *) &pi, 0, sizeof(pi)))
+		if (copy_to_iter(&pi, sizeof(pi), iter) != sizeof(pi))
 			return -EFAULT;
-		total += sizeof(pi);
 	}
 
 	if (vnet_hdr_sz) {
 		struct virtio_net_hdr gso = { 0 }; /* no info leak */
-		if ((len -= vnet_hdr_sz) < 0)
+		if (iov_iter_count(iter) < vnet_hdr_sz)
 			return -EINVAL;
 
 		if (skb_is_gso(skb)) {
@@ -1318,17 +1322,14 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 			gso.flags = VIRTIO_NET_HDR_F_DATA_VALID;
 		} /* else everything is zero */
 
-		if (unlikely(memcpy_toiovecend(iv, (void *)&gso, total,
-					       sizeof(gso))))
+		if (copy_to_iter(&gso, sizeof(gso), iter) != sizeof(gso))
 			return -EFAULT;
-		total += vnet_hdr_sz;
+
+		iov_iter_advance(iter, vnet_hdr_sz - sizeof(gso));
 	}
 
-	copied = total;
-	len = min_t(int, skb->len + vlan_hlen, len);
-	total += skb->len + vlan_hlen;
 	if (vlan_hlen) {
-		int copy, ret;
+		int ret;
 		struct {
 			__be16 h_vlan_proto;
 			__be16 h_vlan_TCI;
@@ -1339,41 +1340,36 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 
 		vlan_offset = offsetof(struct vlan_ethhdr, h_vlan_proto);
 
-		copy = min_t(int, vlan_offset, len);
-		ret = skb_copy_datagram_const_iovec(skb, 0, iv, copied, copy);
-		len -= copy;
-		copied += copy;
-		if (ret || !len)
+		ret = skb_copy_datagram_iter(skb, 0, iter, vlan_offset);
+		if (ret || !iov_iter_count(iter))
 			goto done;
 
-		copy = min_t(int, sizeof(veth), len);
-		ret = memcpy_toiovecend(iv, (void *)&veth, copied, copy);
-		len -= copy;
-		copied += copy;
-		if (ret || !len)
+		ret = copy_to_iter(&veth, sizeof(veth), iter);
+		if (ret != sizeof(veth) || !iov_iter_count(iter))
 			goto done;
 	}
 
-	skb_copy_datagram_const_iovec(skb, vlan_offset, iv, copied, len);
+	skb_copy_datagram_iter(skb, vlan_offset, iter, skb->len - vlan_offset);
 
 done:
 	tun->dev->stats.tx_packets++;
-	tun->dev->stats.tx_bytes += len;
+	tun->dev->stats.tx_bytes += skb->len + vlan_hlen;
 
 	return total;
 }
 
 static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
-			   const struct iovec *iv, ssize_t len, int noblock)
+			   struct iov_iter *to,
+			   int noblock)
 {
 	struct sk_buff *skb;
-	ssize_t ret = 0;
+	ssize_t ret;
 	int peeked, err, off = 0;
 
 	tun_debug(KERN_INFO, tun, "tun_do_read\n");
 
-	if (!len)
-		return ret;
+	if (!iov_iter_count(to))
+		return 0;
 
 	if (tun->dev->reg_state != NETREG_REGISTERED)
 		return -EIO;
@@ -1381,37 +1377,31 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 	/* Read frames from queue */
 	skb = __skb_recv_datagram(tfile->socket.sk, noblock ? MSG_DONTWAIT : 0,
 				  &peeked, &off, &err);
-	if (skb) {
-		ret = tun_put_user(tun, tfile, skb, iv, len);
+	if (!skb)
+		return 0;
+
+	ret = tun_put_user(tun, tfile, skb, to);
+	if (unlikely(ret < 0))
 		kfree_skb(skb);
-	} else
-		ret = err;
+	else
+		consume_skb(skb);
 
 	return ret;
 }
 
-static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
-			    unsigned long count, loff_t pos)
+static ssize_t tun_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun = __tun_get(tfile);
-	ssize_t len, ret;
+	ssize_t len = iov_iter_count(to), ret;
 
 	if (!tun)
 		return -EBADFD;
-	len = iov_length(iv, count);
-	if (len < 0) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = tun_do_read(tun, tfile, iv, len,
-			  file->f_flags & O_NONBLOCK);
+	ret = tun_do_read(tun, tfile, to, file->f_flags & O_NONBLOCK);
 	ret = min_t(ssize_t, ret, len);
 	if (ret > 0)
 		iocb->ki_pos = ret;
-out:
 	tun_put(tun);
 	return ret;
 }
@@ -1481,8 +1471,9 @@ static int tun_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (!tun)
 		return -EBADFD;
-	ret = tun_get_user(tun, tfile, m->msg_control, m->msg_iov, total_len,
-			   m->msg_iovlen, m->msg_flags & MSG_DONTWAIT);
+
+	ret = tun_get_user(tun, tfile, m->msg_control, &m->msg_iter,
+			   m->msg_flags & MSG_DONTWAIT);
 	tun_put(tun);
 	return ret;
 }
@@ -1507,8 +1498,7 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 					 SOL_PACKET, TUN_TX_TIMESTAMP);
 		goto out;
 	}
-	ret = tun_do_read(tun, tfile, m->msg_iov, total_len,
-			  flags & MSG_DONTWAIT);
+	ret = tun_do_read(tun, tfile, &m->msg_iter, flags & MSG_DONTWAIT);
 	if (ret > total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;
@@ -2219,10 +2209,10 @@ static void tun_chr_show_fdinfo(struct seq_file *m, struct file *f)
 static const struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
 	.llseek = no_llseek,
-	.read  = do_sync_read,
-	.aio_read  = tun_chr_aio_read,
-	.write = do_sync_write,
-	.aio_write = tun_chr_aio_write,
+	.read  = new_sync_read,
+	.write = new_sync_write,
+	.read_iter  = tun_chr_read_iter,
+	.write_iter = tun_chr_write_iter,
 	.poll	= tun_chr_poll,
 	.unlocked_ioctl	= tun_chr_ioctl,
 #ifdef CONFIG_COMPAT

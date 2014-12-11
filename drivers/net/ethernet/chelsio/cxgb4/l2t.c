@@ -435,9 +435,9 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 
 	if (tp->vnic_shift >= 0) {
 		u32 viid = cxgb4_port_viid(dev);
-		u32 vf = FW_VIID_VIN_GET(viid);
-		u32 pf = FW_VIID_PFN_GET(viid);
-		u32 vld = FW_VIID_VIVLD_GET(viid);
+		u32 vf = FW_VIID_VIN_G(viid);
+		u32 pf = FW_VIID_PFN_G(viid);
+		u32 vld = FW_VIID_VIVLD_G(viid);
 
 		ntuple |= (u64)(V_FT_VNID_ID_VF(vf) |
 				V_FT_VNID_ID_PF(pf) |

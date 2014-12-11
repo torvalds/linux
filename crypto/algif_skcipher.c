@@ -298,9 +298,9 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			len = min_t(unsigned long, len,
 				    PAGE_SIZE - sg->offset - sg->length);
 
-			err = memcpy_fromiovec(page_address(sg_page(sg)) +
-					       sg->offset + sg->length,
-					       msg->msg_iov, len);
+			err = memcpy_from_msg(page_address(sg_page(sg)) +
+					      sg->offset + sg->length,
+					      msg, len);
 			if (err)
 				goto unlock;
 
@@ -337,8 +337,8 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			if (!sg_page(sg + i))
 				goto unlock;
 
-			err = memcpy_fromiovec(page_address(sg_page(sg + i)),
-					       msg->msg_iov, plen);
+			err = memcpy_from_msg(page_address(sg_page(sg + i)),
+					      msg, plen);
 			if (err) {
 				__free_page(sg_page(sg + i));
 				sg_assign_page(sg + i, NULL);
@@ -429,13 +429,13 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 	struct skcipher_sg_list *sgl;
 	struct scatterlist *sg;
 	unsigned long iovlen;
-	struct iovec *iov;
+	const struct iovec *iov;
 	int err = -EAGAIN;
 	int used;
 	long copied = 0;
 
 	lock_sock(sk);
-	for (iov = msg->msg_iov, iovlen = msg->msg_iovlen; iovlen > 0;
+	for (iov = msg->msg_iter.iov, iovlen = msg->msg_iter.nr_segs; iovlen > 0;
 	     iovlen--, iov++) {
 		unsigned long seglen = iov->iov_len;
 		char __user *from = iov->iov_base;

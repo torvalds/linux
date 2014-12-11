@@ -91,7 +91,7 @@ struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
  * @*headbuf: in:  NULL for first frag, otherwise value returned from prev call
  *            out: set when successful non-complete reassembly, otherwise NULL
  * @*buf:     in:  the buffer to append. Always defined
- *            out: head buf after sucessful complete reassembly, otherwise NULL
+ *            out: head buf after successful complete reassembly, otherwise NULL
  * Returns 1 when reassembly complete, otherwise 0
  */
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
@@ -162,15 +162,16 @@ err:
 /**
  * tipc_msg_build - create buffer chain containing specified header and data
  * @mhdr: Message header, to be prepended to data
- * @iov: User data
+ * @m: User message
  * @offset: Posision in iov to start copying from
  * @dsz: Total length of user data
  * @pktmax: Max packet size that can be used
- * @chain: Buffer or chain of buffers to be returned to caller
+ * @list: Buffer or chain of buffers to be returned to caller
+ *
  * Returns message data size or errno: -ENOMEM, -EFAULT
  */
-int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
-		   int offset, int dsz, int pktmax , struct sk_buff **chain)
+int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
+		   int dsz, int pktmax, struct sk_buff_head *list)
 {
 	int mhsz = msg_hdr_sz(mhdr);
 	int msz = mhsz + dsz;
@@ -179,22 +180,22 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 	int pktrem = pktmax;
 	int drem = dsz;
 	struct tipc_msg pkthdr;
-	struct sk_buff *buf, *prev;
+	struct sk_buff *skb;
 	char *pktpos;
 	int rc;
-	uint chain_sz = 0;
+
 	msg_set_size(mhdr, msz);
 
 	/* No fragmentation needed? */
 	if (likely(msz <= pktmax)) {
-		buf = tipc_buf_acquire(msz);
-		*chain = buf;
-		if (unlikely(!buf))
+		skb = tipc_buf_acquire(msz);
+		if (unlikely(!skb))
 			return -ENOMEM;
-		skb_copy_to_linear_data(buf, mhdr, mhsz);
-		pktpos = buf->data + mhsz;
-		TIPC_SKB_CB(buf)->chain_sz = 1;
-		if (!dsz || !memcpy_fromiovecend(pktpos, iov, offset, dsz))
+		__skb_queue_tail(list, skb);
+		skb_copy_to_linear_data(skb, mhdr, mhsz);
+		pktpos = skb->data + mhsz;
+		if (!dsz || !memcpy_fromiovecend(pktpos, m->msg_iter.iov, offset,
+						 dsz))
 			return dsz;
 		rc = -EFAULT;
 		goto error;
@@ -207,15 +208,15 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 	msg_set_fragm_no(&pkthdr, pktno);
 
 	/* Prepare first fragment */
-	*chain = buf = tipc_buf_acquire(pktmax);
-	if (!buf)
+	skb = tipc_buf_acquire(pktmax);
+	if (!skb)
 		return -ENOMEM;
-	chain_sz = 1;
-	pktpos = buf->data;
-	skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
+	__skb_queue_tail(list, skb);
+	pktpos = skb->data;
+	skb_copy_to_linear_data(skb, &pkthdr, INT_H_SIZE);
 	pktpos += INT_H_SIZE;
 	pktrem -= INT_H_SIZE;
-	skb_copy_to_linear_data_offset(buf, INT_H_SIZE, mhdr, mhsz);
+	skb_copy_to_linear_data_offset(skb, INT_H_SIZE, mhdr, mhsz);
 	pktpos += mhsz;
 	pktrem -= mhsz;
 
@@ -223,7 +224,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 		if (drem < pktrem)
 			pktrem = drem;
 
-		if (memcpy_fromiovecend(pktpos, iov, offset, pktrem)) {
+		if (memcpy_fromiovecend(pktpos, m->msg_iter.iov, offset, pktrem)) {
 			rc = -EFAULT;
 			goto error;
 		}
@@ -238,43 +239,41 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct iovec const *iov,
 			pktsz = drem + INT_H_SIZE;
 		else
 			pktsz = pktmax;
-		prev = buf;
-		buf = tipc_buf_acquire(pktsz);
-		if (!buf) {
+		skb = tipc_buf_acquire(pktsz);
+		if (!skb) {
 			rc = -ENOMEM;
 			goto error;
 		}
-		chain_sz++;
-		prev->next = buf;
+		__skb_queue_tail(list, skb);
 		msg_set_type(&pkthdr, FRAGMENT);
 		msg_set_size(&pkthdr, pktsz);
 		msg_set_fragm_no(&pkthdr, ++pktno);
-		skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
-		pktpos = buf->data + INT_H_SIZE;
+		skb_copy_to_linear_data(skb, &pkthdr, INT_H_SIZE);
+		pktpos = skb->data + INT_H_SIZE;
 		pktrem = pktsz - INT_H_SIZE;
 
 	} while (1);
-	TIPC_SKB_CB(*chain)->chain_sz = chain_sz;
-	msg_set_type(buf_msg(buf), LAST_FRAGMENT);
+	msg_set_type(buf_msg(skb), LAST_FRAGMENT);
 	return dsz;
 error:
-	kfree_skb_list(*chain);
-	*chain = NULL;
+	__skb_queue_purge(list);
+	__skb_queue_head_init(list);
 	return rc;
 }
 
 /**
  * tipc_msg_bundle(): Append contents of a buffer to tail of an existing one
- * @bbuf: the existing buffer ("bundle")
- * @buf:  buffer to be appended
+ * @list: the buffer chain of the existing buffer ("bundle")
+ * @skb:  buffer to be appended
  * @mtu:  max allowable size for the bundle buffer
  * Consumes buffer if successful
  * Returns true if bundling could be performed, otherwise false
  */
-bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu)
+bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu)
 {
-	struct tipc_msg *bmsg = buf_msg(bbuf);
-	struct tipc_msg *msg = buf_msg(buf);
+	struct sk_buff *bskb = skb_peek_tail(list);
+	struct tipc_msg *bmsg = buf_msg(bskb);
+	struct tipc_msg *msg = buf_msg(skb);
 	unsigned int bsz = msg_size(bmsg);
 	unsigned int msz = msg_size(msg);
 	u32 start = align(bsz);
@@ -289,35 +288,36 @@ bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu)
 		return false;
 	if (likely(msg_user(bmsg) != MSG_BUNDLER))
 		return false;
-	if (likely(msg_type(bmsg) != BUNDLE_OPEN))
+	if (likely(!TIPC_SKB_CB(bskb)->bundling))
 		return false;
-	if (unlikely(skb_tailroom(bbuf) < (pad + msz)))
+	if (unlikely(skb_tailroom(bskb) < (pad + msz)))
 		return false;
 	if (unlikely(max < (start + msz)))
 		return false;
 
-	skb_put(bbuf, pad + msz);
-	skb_copy_to_linear_data_offset(bbuf, start, buf->data, msz);
+	skb_put(bskb, pad + msz);
+	skb_copy_to_linear_data_offset(bskb, start, skb->data, msz);
 	msg_set_size(bmsg, start + msz);
 	msg_set_msgcnt(bmsg, msg_msgcnt(bmsg) + 1);
-	bbuf->next = buf->next;
-	kfree_skb(buf);
+	kfree_skb(skb);
 	return true;
 }
 
 /**
  * tipc_msg_make_bundle(): Create bundle buf and append message to its tail
- * @buf:  buffer to be appended and replaced
- * @mtu:  max allowable size for the bundle buffer, inclusive header
+ * @list: the buffer chain
+ * @skb: buffer to be appended and replaced
+ * @mtu: max allowable size for the bundle buffer, inclusive header
  * @dnode: destination node for message. (Not always present in header)
  * Replaces buffer if successful
- * Returns true if sucess, otherwise false
+ * Returns true if success, otherwise false
  */
-bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode)
+bool tipc_msg_make_bundle(struct sk_buff_head *list, struct sk_buff *skb,
+			  u32 mtu, u32 dnode)
 {
-	struct sk_buff *bbuf;
+	struct sk_buff *bskb;
 	struct tipc_msg *bmsg;
-	struct tipc_msg *msg = buf_msg(*buf);
+	struct tipc_msg *msg = buf_msg(skb);
 	u32 msz = msg_size(msg);
 	u32 max = mtu - INT_H_SIZE;
 
@@ -330,20 +330,19 @@ bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode)
 	if (msz > (max / 2))
 		return false;
 
-	bbuf = tipc_buf_acquire(max);
-	if (!bbuf)
+	bskb = tipc_buf_acquire(max);
+	if (!bskb)
 		return false;
 
-	skb_trim(bbuf, INT_H_SIZE);
-	bmsg = buf_msg(bbuf);
-	tipc_msg_init(bmsg, MSG_BUNDLER, BUNDLE_OPEN, INT_H_SIZE, dnode);
+	skb_trim(bskb, INT_H_SIZE);
+	bmsg = buf_msg(bskb);
+	tipc_msg_init(bmsg, MSG_BUNDLER, 0, INT_H_SIZE, dnode);
 	msg_set_seqno(bmsg, msg_seqno(msg));
 	msg_set_ack(bmsg, msg_ack(msg));
 	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));
-	bbuf->next = (*buf)->next;
-	tipc_msg_bundle(bbuf, *buf, mtu);
-	*buf = bbuf;
-	return true;
+	TIPC_SKB_CB(bskb)->bundling = true;
+	__skb_queue_tail(list, bskb);
+	return tipc_msg_bundle(list, skb, mtu);
 }
 
 /**
@@ -429,22 +428,23 @@ int tipc_msg_eval(struct sk_buff *buf, u32 *dnode)
 /* tipc_msg_reassemble() - clone a buffer chain of fragments and
  *                         reassemble the clones into one message
  */
-struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain)
+struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list)
 {
-	struct sk_buff *buf = chain;
-	struct sk_buff *frag = buf;
+	struct sk_buff *skb;
+	struct sk_buff *frag = NULL;
 	struct sk_buff *head = NULL;
 	int hdr_sz;
 
 	/* Copy header if single buffer */
-	if (!buf->next) {
-		hdr_sz = skb_headroom(buf) + msg_hdr_sz(buf_msg(buf));
-		return __pskb_copy(buf, hdr_sz, GFP_ATOMIC);
+	if (skb_queue_len(list) == 1) {
+		skb = skb_peek(list);
+		hdr_sz = skb_headroom(skb) + msg_hdr_sz(buf_msg(skb));
+		return __pskb_copy(skb, hdr_sz, GFP_ATOMIC);
 	}
 
 	/* Clone all fragments and reassemble */
-	while (buf) {
-		frag = skb_clone(buf, GFP_ATOMIC);
+	skb_queue_walk(list, skb) {
+		frag = skb_clone(skb, GFP_ATOMIC);
 		if (!frag)
 			goto error;
 		frag->next = NULL;
@@ -452,7 +452,6 @@ struct sk_buff *tipc_msg_reassemble(struct sk_buff *chain)
 			break;
 		if (!head)
 			goto error;
-		buf = buf->next;
 	}
 	return frag;
 error:

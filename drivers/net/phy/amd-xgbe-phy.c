@@ -992,7 +992,8 @@ static int amd_xgbe_phy_soft_reset(struct phy_device *phydev)
 	if (ret & MDIO_CTRL1_RESET)
 		return -ETIMEDOUT;
 
-	return 0;
+	/* Make sure the XPCS and SerDes are in compatible states */
+	return amd_xgbe_phy_xgmii_mode(phydev);
 }
 
 static int amd_xgbe_phy_config_init(struct phy_device *phydev)
@@ -1467,20 +1468,7 @@ static struct phy_driver amd_xgbe_phy_driver[] = {
 	},
 };
 
-static int __init amd_xgbe_phy_init(void)
-{
-	return phy_drivers_register(amd_xgbe_phy_driver,
-				    ARRAY_SIZE(amd_xgbe_phy_driver));
-}
-
-static void __exit amd_xgbe_phy_exit(void)
-{
-	phy_drivers_unregister(amd_xgbe_phy_driver,
-			       ARRAY_SIZE(amd_xgbe_phy_driver));
-}
-
-module_init(amd_xgbe_phy_init);
-module_exit(amd_xgbe_phy_exit);
+module_phy_driver(amd_xgbe_phy_driver);
 
 static struct mdio_device_id __maybe_unused amd_xgbe_phy_ids[] = {
 	{ XGBE_PHY_ID, XGBE_PHY_MASK },

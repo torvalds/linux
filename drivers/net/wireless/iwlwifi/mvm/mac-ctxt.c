@@ -83,9 +83,13 @@ struct iwl_mvm_mac_iface_iterator_data {
 	struct ieee80211_vif *vif;
 	unsigned long available_mac_ids[BITS_TO_LONGS(NUM_MAC_INDEX_DRIVER)];
 	unsigned long available_tsf_ids[BITS_TO_LONGS(NUM_TSF_IDS)];
-	u32 used_hw_queues;
 	enum iwl_tsf_id preferred_tsf;
 	bool found_vif;
+};
+
+struct iwl_mvm_hw_queues_iface_iterator_data {
+	struct ieee80211_vif *exclude_vif;
+	unsigned long used_hw_queues;
 };
 
 static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
@@ -197,8 +201,7 @@ static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
 /*
  * Get the mask of the queues used by the vif
  */
-u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif)
+u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif)
 {
 	u32 qmask = 0, ac;
 
@@ -214,6 +217,54 @@ u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 	return qmask;
 }
 
+static void iwl_mvm_iface_hw_queues_iter(void *_data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_hw_queues_iface_iterator_data *data = _data;
+
+	/* exclude the given vif */
+	if (vif == data->exclude_vif)
+		return;
+
+	data->used_hw_queues |= iwl_mvm_mac_get_queues_mask(vif);
+}
+
+static void iwl_mvm_mac_sta_hw_queues_iter(void *_data,
+					   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_hw_queues_iface_iterator_data *data = _data;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	/* Mark the queues used by the sta */
+	data->used_hw_queues |= mvmsta->tfd_queue_msk;
+}
+
+unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *exclude_vif)
+{
+	struct iwl_mvm_hw_queues_iface_iterator_data data = {
+		.exclude_vif = exclude_vif,
+		.used_hw_queues =
+			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
+			BIT(mvm->aux_queue) |
+			BIT(IWL_MVM_CMD_QUEUE),
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* mark all VIF used hw queues */
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		iwl_mvm_iface_hw_queues_iter, &data);
+
+	/* don't assign the same hw queues as TDLS stations */
+	ieee80211_iterate_stations_atomic(mvm->hw,
+					  iwl_mvm_mac_sta_hw_queues_iter,
+					  &data);
+
+	return data.used_hw_queues;
+}
+
 static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 				       struct ieee80211_vif *vif)
 {
@@ -225,9 +276,6 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 		data->found_vif = true;
 		return;
 	}
-
-	/* Mark the queues used by the vif */
-	data->used_hw_queues |= iwl_mvm_mac_get_queues_mask(data->mvm, vif);
 
 	/* Mark MAC IDs as used by clearing the available bit, and
 	 * (below) mark TSFs as used if their existing use is not
@@ -275,10 +323,6 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.available_tsf_ids = { (1 << NUM_TSF_IDS) - 1 },
 		/* no preference yet */
 		.preferred_tsf = NUM_TSF_IDS,
-		.used_hw_queues =
-			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
-			BIT(mvm->aux_queue) |
-			BIT(IWL_MVM_CMD_QUEUE),
 		.found_vif = false,
 	};
 	u32 ac;
@@ -316,6 +360,8 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_mac_iface_iterator, &data);
+
+	used_hw_queues = iwl_mvm_get_used_hw_queues(mvm, vif);
 
 	/*
 	 * In the case we're getting here during resume, it's similar to
@@ -365,8 +411,6 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 		return 0;
 	}
-
-	used_hw_queues = data.used_hw_queues;
 
 	/* Find available queues, and allocate them to the ACs */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
@@ -1219,17 +1263,25 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 }
 
 static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
-				   struct ieee80211_vif *csa_vif, u32 gp2)
+				   struct ieee80211_vif *csa_vif, u32 gp2,
+				   bool tx_success)
 {
 	struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(csa_vif);
+
+	/* Don't start to countdown from a failed beacon */
+	if (!tx_success && !mvmvif->csa_countdown)
+		return;
+
+	mvmvif->csa_countdown = true;
 
 	if (!ieee80211_csa_is_complete(csa_vif)) {
 		int c = ieee80211_csa_update_counter(csa_vif);
 
 		iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
 		if (csa_vif->p2p &&
-		    !iwl_mvm_te_scheduled(&mvmvif->time_event_data) && gp2) {
+		    !iwl_mvm_te_scheduled(&mvmvif->time_event_data) && gp2 &&
+		    tx_success) {
 			u32 rel_time = (c + 1) *
 				       csa_vif->bss_conf.beacon_int -
 				       IWL_MVM_CHANNEL_SWITCH_TIME_GO;
@@ -1252,38 +1304,30 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 			    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_extended_beacon_notif *beacon = (void *)pkt->data;
 	struct iwl_mvm_tx_resp *beacon_notify_hdr;
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
-	u64 tsf;
+	u16 status;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_CAPA_EXTENDED_BEACON) {
-		struct iwl_extended_beacon_notif *beacon = (void *)pkt->data;
+	beacon_notify_hdr = &beacon->beacon_notify_hdr;
+	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
 
-		beacon_notify_hdr = &beacon->beacon_notify_hdr;
-		tsf = le64_to_cpu(beacon->tsf);
-		mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
-	} else {
-		struct iwl_beacon_notif *beacon = (void *)pkt->data;
-
-		beacon_notify_hdr = &beacon->beacon_notify_hdr;
-		tsf = le64_to_cpu(beacon->tsf);
-	}
-
+	status = le16_to_cpu(beacon_notify_hdr->status.status) & TX_STATUS_MSK;
 	IWL_DEBUG_RX(mvm,
 		     "beacon status %#x retries:%d tsf:0x%16llX gp2:0x%X rate:%d\n",
-		     le16_to_cpu(beacon_notify_hdr->status.status) &
-								TX_STATUS_MSK,
-		     beacon_notify_hdr->failure_frame, tsf,
+		     status, beacon_notify_hdr->failure_frame,
+		     le64_to_cpu(beacon->tsf),
 		     mvm->ap_last_beacon_gp2,
 		     le32_to_cpu(beacon_notify_hdr->initial_rate));
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
 	if (unlikely(csa_vif && csa_vif->csa_active))
-		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2);
+		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2,
+				       (status == TX_STATUS_SUCCESS));
 
 	tx_blocked_vif = rcu_dereference_protected(mvm->csa_tx_blocked_vif,
 						lockdep_is_held(&mvm->mutex));

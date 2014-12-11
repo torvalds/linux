@@ -383,8 +383,16 @@ tcp_orphan_retries - INTEGER
 	may consume significant resources. Cf. tcp_max_orphans.
 
 tcp_reordering - INTEGER
-	Maximal reordering of packets in a TCP stream.
+	Initial reordering level of packets in a TCP stream.
+	TCP stack can then dynamically adjust flow reordering level
+	between this initial value and tcp_max_reordering
 	Default: 3
+
+tcp_max_reordering - INTEGER
+	Maximal reordering level of packets in a TCP stream.
+	300 is a fairly conservative value, but you might increase it
+	if paths are using per packet load balancing (like bonding rr mode)
+	Default: 300
 
 tcp_retrans_collapse - BOOLEAN
 	Bug-to-bug compatibility with some broken printers.
@@ -1465,6 +1473,19 @@ suppress_frag_ndisc - INTEGER
 	with IPv6 Neighbor Discovery) behavior:
 	1 - (default) discard fragmented neighbor discovery packets
 	0 - allow fragmented neighbor discovery packets
+
+optimistic_dad - BOOLEAN
+	Whether to perform Optimistic Duplicate Address Detection (RFC 4429).
+		0: disabled (default)
+		1: enabled
+
+use_optimistic - BOOLEAN
+	If enabled, do not classify optimistic addresses as deprecated during
+	source address selection.  Preferred addresses will still be chosen
+	before optimistic addresses, subject to other ranking in the source
+	address selection algorithm.
+		0: disabled (default)
+		1: enabled
 
 icmp/*:
 ratelimit - INTEGER

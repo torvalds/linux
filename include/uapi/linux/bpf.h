@@ -82,7 +82,7 @@ enum bpf_cmd {
 
 	/* create or update key/value pair in a given map
 	 * err = bpf(BPF_MAP_UPDATE_ELEM, union bpf_attr *attr, u32 size)
-	 * Using attr->map_fd, attr->key, attr->value
+	 * Using attr->map_fd, attr->key, attr->value, attr->flags
 	 * returns zero or negative error
 	 */
 	BPF_MAP_UPDATE_ELEM,
@@ -111,11 +111,19 @@ enum bpf_cmd {
 
 enum bpf_map_type {
 	BPF_MAP_TYPE_UNSPEC,
+	BPF_MAP_TYPE_HASH,
+	BPF_MAP_TYPE_ARRAY,
 };
 
 enum bpf_prog_type {
 	BPF_PROG_TYPE_UNSPEC,
+	BPF_PROG_TYPE_SOCKET_FILTER,
 };
+
+/* flags for BPF_MAP_UPDATE_ELEM command */
+#define BPF_ANY		0 /* create new element or update existing */
+#define BPF_NOEXIST	1 /* create new element if it didn't exist */
+#define BPF_EXIST	2 /* update existing element */
 
 union bpf_attr {
 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
@@ -132,6 +140,7 @@ union bpf_attr {
 			__aligned_u64 value;
 			__aligned_u64 next_key;
 		};
+		__u64		flags;
 	};
 
 	struct { /* anonymous struct used by BPF_PROG_LOAD command */
@@ -150,6 +159,9 @@ union bpf_attr {
  */
 enum bpf_func_id {
 	BPF_FUNC_unspec,
+	BPF_FUNC_map_lookup_elem, /* void *map_lookup_elem(&map, &key) */
+	BPF_FUNC_map_update_elem, /* int map_update_elem(&map, &key, &value, flags) */
+	BPF_FUNC_map_delete_elem, /* int map_delete_elem(&map, &key) */
 	__BPF_FUNC_MAX_ID,
 };
 

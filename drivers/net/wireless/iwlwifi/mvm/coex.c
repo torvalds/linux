@@ -72,8 +72,6 @@
 #include "mvm.h"
 #include "iwl-debug.h"
 
-#define BT_ANTENNA_COUPLING_THRESHOLD		(30)
-
 const u32 iwl_bt_ctl_kill_msk[BT_KILL_MSK_MAX] = {
 	[BT_KILL_MSK_DEFAULT] = 0xfffffc00,
 	[BT_KILL_MSK_NEVER] = 0xffffffff,
@@ -300,11 +298,6 @@ static const __le64 iwl_ci_mask[][3] = {
 		cpu_to_le64(0x0ULL),
 		cpu_to_le64(0x0ULL)
 	},
-};
-
-static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x2e402280),
-	cpu_to_le32(0x7711a751),
 };
 
 struct corunning_block_luts {
@@ -605,7 +598,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	bt_cmd->max_kill = cpu_to_le32(5);
 	bt_cmd->bt4_antenna_isolation_thr =
-				cpu_to_le32(BT_ANTENNA_COUPLING_THRESHOLD);
+		cpu_to_le32(IWL_MVM_BT_COEX_ANTENNA_COUPLING_THRS);
 	bt_cmd->bt4_tx_tx_delta_freq_thr = cpu_to_le32(15);
 	bt_cmd->bt4_tx_rx_max_freq0 = cpu_to_le32(15);
 	bt_cmd->override_primary_lut = cpu_to_le32(BT_COEX_INVALID_LUT);
@@ -638,8 +631,8 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	memcpy(&bt_cmd->mplut_prio_boost, iwl_bt_prio_boost,
 	       sizeof(iwl_bt_prio_boost));
-	memcpy(&bt_cmd->multiprio_lut, iwl_bt_mprio_lut,
-	       sizeof(iwl_bt_mprio_lut));
+	bt_cmd->multiprio_lut[0] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG0);
+	bt_cmd->multiprio_lut[1] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG1);
 
 send_cmd:
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
@@ -1142,6 +1135,22 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	 */
 	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
 	return lut_type != BT_COEX_LOOSE_LUT;
+}
+
+bool iwl_mvm_bt_coex_is_ant_avail(struct iwl_mvm *mvm, u8 ant)
+{
+	/* there is no other antenna, shared antenna is always available */
+	if (mvm->cfg->bt_shared_single_ant)
+		return true;
+
+	if (ant & mvm->cfg->non_shared_ant)
+		return true;
+
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
+		return iwl_mvm_bt_coex_is_shared_ant_avail_old(mvm);
+
+	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+		BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm)

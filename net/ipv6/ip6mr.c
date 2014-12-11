@@ -2094,7 +2094,7 @@ static void ip6_mr_forward(struct net *net, struct mr6_table *mrt,
 	if (ipv6_addr_any(&cache->mf6c_origin) && true_vifi >= 0) {
 		struct mfc6_cache *cache_proxy;
 
-		/* For an (*,G) entry, we only check that the incomming
+		/* For an (*,G) entry, we only check that the incoming
 		 * interface is part of the static tree.
 		 */
 		cache_proxy = ip6mr_cache_find_any_parent(mrt, vif);
