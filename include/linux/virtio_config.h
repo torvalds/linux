@@ -305,7 +305,10 @@ static inline void virtio_cread_bytes(struct virtio_device *vdev,
 				      unsigned int offset,
 				      void *buf, size_t len)
 {
-	vdev->config->get(vdev, offset, buf, len);
+	int i;
+
+	for (i = 0; i < len; i++)
+		vdev->config->get(vdev, offset + i, buf + i, 1);
 }
 
 static inline void virtio_cwrite8(struct virtio_device *vdev,
