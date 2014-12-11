@@ -1080,10 +1080,10 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		goto disable_clk;
 
 	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 
