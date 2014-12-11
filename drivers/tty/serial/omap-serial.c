@@ -63,7 +63,7 @@
 #define UART_ERRATA_i202_MDR1_ACCESS	BIT(0)
 #define UART_ERRATA_i291_DMA_FORCEIDLE	BIT(1)
 
-#define DEFAULT_CLK_SPEED 48000000 /* 48Mhz*/
+#define DEFAULT_CLK_SPEED 48000000 /* 48Mhz */
 
 /* SCR register bitmasks */
 #define OMAP_UART_SCR_RX_TRIG_GRANU1_MASK		(1 << 7)
@@ -93,7 +93,7 @@
 /* WER = 0x7F
  * Enable module level wakeup in WER reg
  */
-#define OMAP_UART_WER_MOD_WKUP	0X7F
+#define OMAP_UART_WER_MOD_WKUP	0x7F
 
 /* Enable XON/XOFF flow control on output */
 #define OMAP_UART_SW_TX		0x08
@@ -114,7 +114,7 @@ struct uart_omap_dma {
 	dma_addr_t		tx_buf_dma_phys;
 	unsigned int		uart_base;
 	/*
-	 * Buffer for rx dma.It is not required for tx because the buffer
+	 * Buffer for rx dma. It is not required for tx because the buffer
 	 * comes from port structure.
 	 */
 	unsigned char		*rx_buf;
@@ -151,7 +151,7 @@ struct uart_omap_port {
 	int			use_dma;
 	/*
 	 * Some bits in registers are cleared on a read, so they must
-	 * be saved whenever the register is read but the bits will not
+	 * be saved whenever the register is read, but the bits will not
 	 * be immediately processed.
 	 */
 	unsigned int		lsr_break_flag;
