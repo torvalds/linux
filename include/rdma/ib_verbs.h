@@ -1662,7 +1662,10 @@ static inline int ib_copy_from_udata(void *dest, struct ib_udata *udata, size_t 
 
 static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len)
 {
-	return copy_to_user(udata->outbuf, src, len) ? -EFAULT : 0;
+	size_t copy_sz;
+
+	copy_sz = min_t(size_t, len, udata->outlen);
+	return copy_to_user(udata->outbuf, src, copy_sz) ? -EFAULT : 0;
 }
 
 /**
