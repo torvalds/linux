@@ -1207,6 +1207,35 @@ static struct platform_device bfin_display_device = {
 };
 #endif
 
+#if defined(CONFIG_FB_BF609_NL8048) \
+	|| defined(CONFIG_FB_BF609_NL8048_MODULE)
+static struct resource nl8048_resources[] = {
+	{
+		.start = EPPI2_STAT,
+		.end = EPPI2_STAT,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = CH_EPPI2_CH0,
+		.end = CH_EPPI2_CH0,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = IRQ_EPPI2_STAT,
+		.end = IRQ_EPPI2_STAT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+static struct platform_device bfin_fb_device = {
+	.name = "bf609_nl8048",
+	.num_resources = ARRAY_SIZE(nl8048_resources),
+	.resource = nl8048_resources,
+	.dev = {
+		.platform_data = (void *)GPIO_PC15,
+	},
+};
+#endif
+
 #if defined(CONFIG_BFIN_CRC)
 #define BFIN_CRC_NAME "bfin-crc"
 
@@ -2107,7 +2136,7 @@ static struct pinctrl_map __initdata bfin_pinmux_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin-rotary",  "pinctrl-adi2.0", NULL, "rotary"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_can.0",  "pinctrl-adi2.0", NULL, "can0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("physmap-flash.0",  "pinctrl-adi2.0", NULL, "smc0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.2",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.0",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
 	PIN_MAP_MUX_GROUP("bfin_display.0", "8bit",  "pinctrl-adi2.0", "ppi2_8bgrp", "ppi2"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_display.0",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
 	PIN_MAP_MUX_GROUP("bfin_display.0", "16bit",  "pinctrl-adi2.0", "ppi2_16bgrp", "ppi2"),
