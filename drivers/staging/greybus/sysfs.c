@@ -20,37 +20,37 @@
 #include "kernel_ver.h"
 
 /* Module fields */
-#define gb_module_attr(field, type)					\
-static ssize_t module_##field##_show(struct device *dev,		\
+#define gb_ib_attr(field, type)					\
+static ssize_t field##_show(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     char *buf)				\
 {									\
 	struct gb_interface_block *gb_ib = to_gb_interface_block(dev);	\
 	return sprintf(buf, "%"#type"\n", gb_ib->field);		\
 }									\
-static DEVICE_ATTR_RO(module_##field)
+static DEVICE_ATTR_RO(field)
 
-gb_module_attr(vendor, x);
-gb_module_attr(product, x);
-gb_module_attr(unique_id, llX);
-gb_module_attr(vendor_string, s);
-gb_module_attr(product_string, s);
+gb_ib_attr(vendor, x);
+gb_ib_attr(product, x);
+gb_ib_attr(unique_id, llX);
+gb_ib_attr(vendor_string, s);
+gb_ib_attr(product_string, s);
 
-static struct attribute *module_attrs[] = {
-	&dev_attr_module_vendor.attr,
-	&dev_attr_module_product.attr,
-	&dev_attr_module_unique_id.attr,
-	&dev_attr_module_vendor_string.attr,
-	&dev_attr_module_product_string.attr,
+static struct attribute *interface_block_attrs[] = {
+	&dev_attr_vendor.attr,
+	&dev_attr_product.attr,
+	&dev_attr_unique_id.attr,
+	&dev_attr_vendor_string.attr,
+	&dev_attr_product_string.attr,
 	NULL,
 };
 
-static struct attribute_group module_attr_grp = {
-	.attrs =	module_attrs,
+static struct attribute_group interface_block_attr_grp = {
+	.attrs =	interface_block_attrs,
 };
 
-const struct attribute_group *greybus_module_groups[] = {
-	&module_attr_grp,
+const struct attribute_group *greybus_interface_block_groups[] = {
+	&interface_block_attr_grp,
 	NULL,
 };
 

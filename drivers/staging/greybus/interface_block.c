@@ -101,7 +101,7 @@ static struct gb_interface_block *gb_ib_create(struct greybus_host_device *hd,
 	gb_ib->dev.parent = hd->parent;
 	gb_ib->dev.bus = &greybus_bus_type;
 	gb_ib->dev.type = &greybus_interface_block_type;
-	gb_ib->dev.groups = greybus_module_groups;
+	gb_ib->dev.groups = greybus_interface_block_groups;
 	gb_ib->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&gb_ib->dev);
 	dev_set_name(&gb_ib->dev, "%d", module_id);

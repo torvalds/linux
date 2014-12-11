@@ -167,7 +167,7 @@ int gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
 
 extern struct bus_type greybus_bus_type;
-extern const struct attribute_group *greybus_module_groups[];
+extern const struct attribute_group *greybus_interface_block_groups[];
 
 int gb_uart_device_init(struct gb_connection *connection);
 void gb_uart_device_exit(struct gb_connection *connection);
