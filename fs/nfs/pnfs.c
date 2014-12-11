@@ -910,7 +910,9 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 			pnfs_layout_io_set_failed(lo, range->iomode);
 		}
 		return NULL;
-	}
+	} else
+		pnfs_layout_clear_fail_bit(lo,
+				pnfs_iomode_to_fail_bit(range->iomode));
 
 	return lseg;
 }
@@ -930,6 +932,13 @@ static void pnfs_clear_layoutcommit(struct inode *inode,
 	}
 }
 
+void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo)
+{
+	clear_bit_unlock(NFS_LAYOUT_RETURN, &lo->plh_flags);
+	smp_mb__after_atomic();
+	wake_up_bit(&lo->plh_flags, NFS_LAYOUT_RETURN);
+}
+
 static int
 pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 		       enum pnfs_iomode iomode, bool sync)
@@ -943,6 +952,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, nfs4_stateid stateid,
 		status = -ENOMEM;
 		spin_lock(&ino->i_lock);
 		lo->plh_block_lgets--;
+		pnfs_clear_layoutreturn_waitbit(lo);
 		rpc_wake_up(&NFS_SERVER(ino)->roc_rpcwaitq);
 		spin_unlock(&ino->i_lock);
 		pnfs_put_layout_hdr(lo);
@@ -1418,6 +1428,15 @@ static bool pnfs_prepare_to_retry_layoutget(struct pnfs_layout_hdr *lo)
 				   TASK_UNINTERRUPTIBLE);
 }
 
+static void pnfs_clear_first_layoutget(struct pnfs_layout_hdr *lo)
+{
+	unsigned long *bitlock = &lo->plh_flags;
+
+	clear_bit_unlock(NFS_LAYOUT_FIRST_LAYOUTGET, bitlock);
+	smp_mb__after_atomic();
+	wake_up_bit(bitlock, NFS_LAYOUT_FIRST_LAYOUTGET);
+}
+
 /*
  * Layout segment is retreived from the server if not cached.
  * The appropriate layout segment is referenced and returned to the caller.
@@ -1499,6 +1518,8 @@ lookup_again:
 		spin_unlock(&ino->i_lock);
 		dprintk("%s wait for layoutreturn\n", __func__);
 		if (pnfs_prepare_to_retry_layoutget(lo)) {
+			if (first)
+				pnfs_clear_first_layoutget(lo);
 			pnfs_put_layout_hdr(lo);
 			dprintk("%s retrying\n", __func__);
 			goto lookup_again;
@@ -1533,13 +1554,8 @@ lookup_again:
 	pnfs_clear_retry_layoutget(lo);
 	atomic_dec(&lo->plh_outstanding);
 out_put_layout_hdr:
-	if (first) {
-		unsigned long *bitlock = &lo->plh_flags;
-
-		clear_bit_unlock(NFS_LAYOUT_FIRST_LAYOUTGET, bitlock);
-		smp_mb__after_atomic();
-		wake_up_bit(bitlock, NFS_LAYOUT_FIRST_LAYOUTGET);
-	}
+	if (first)
+		pnfs_clear_first_layoutget(lo);
 	pnfs_put_layout_hdr(lo);
 out:
 	dprintk("%s: inode %s/%llu pNFS layout segment %s for "

@@ -278,6 +278,7 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       u64 count,
 					       enum pnfs_iomode iomode,
 					       gfp_t gfp_flags);
+void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo);
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
 int pnfs_read_done_resend_to_mds(struct nfs_pgio_header *);

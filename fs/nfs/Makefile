@@ -33,3 +33,4 @@ nfsv4-$(CONFIG_NFS_V4_2)	+= nfs42proc.o
 obj-$(CONFIG_PNFS_FILE_LAYOUT) += filelayout/
 obj-$(CONFIG_PNFS_OBJLAYOUT) += objlayout/
 obj-$(CONFIG_PNFS_BLOCK) += blocklayout/
+obj-$(CONFIG_PNFS_FLEXFILE_LAYOUT) += flexfilelayout/
