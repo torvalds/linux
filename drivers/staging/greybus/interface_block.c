@@ -39,33 +39,34 @@ ATTRIBUTE_GROUPS(interface_block);
 /* XXX This could be per-host device */
 static DEFINE_SPINLOCK(gb_modules_lock);
 
-static int gb_module_match_one_id(struct gb_interface_block *gb_ib,
-				const struct greybus_module_id *id)
+static int gb_ib_match_one_id(struct gb_interface_block *gb_ib,
+			      const struct greybus_interface_block_id *id)
 {
-	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
+	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
 	    (id->vendor != gb_ib->vendor))
 		return 0;
 
-	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_PRODUCT) &&
+	if ((id->match_flags & GREYBUS_ID_MATCH_PRODUCT) &&
 	    (id->product != gb_ib->product))
 		return 0;
 
-	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
+	if ((id->match_flags & GREYBUS_ID_MATCH_SERIAL) &&
 	    (id->unique_id != gb_ib->unique_id))
 		return 0;
 
 	return 1;
 }
 
-const struct greybus_module_id *gb_ib_match_id(struct gb_interface_block *gb_ib,
-				const struct greybus_module_id *id)
+const struct greybus_interface_block_id *
+gb_ib_match_id(struct gb_interface_block *gb_ib,
+	       const struct greybus_interface_block_id *id)
 {
 	if (id == NULL)
 		return NULL;
 
 	for (; id->vendor || id->product || id->unique_id ||
 			id->driver_info; id++) {
-		if (gb_module_match_one_id(gb_ib, id))
+		if (gb_ib_match_one_id(gb_ib, id))
 			return id;
 	}
 

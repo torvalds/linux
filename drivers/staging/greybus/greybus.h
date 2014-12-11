@@ -119,13 +119,13 @@ struct greybus_driver {
 	const char *name;
 
 	int (*probe)(struct gb_interface_block *gb_ib,
-		     const struct greybus_module_id *id);
+		     const struct greybus_interface_block_id *id);
 	void (*disconnect)(struct gb_interface_block *gb_ib);
 
 	int (*suspend)(struct gb_interface_block *gb_ib, pm_message_t message);
 	int (*resume)(struct gb_interface_block *gb_ib);
 
-	const struct greybus_module_id *id_table;
+	const struct greybus_interface_block_id *id_table;
 
 	struct device_driver driver;
 };
