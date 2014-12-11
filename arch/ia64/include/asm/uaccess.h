@@ -197,7 +197,7 @@ extern void __get_user_unknown (void);
 		      case 8: __get_user_size(__gu_val, __gu_ptr, 8, __gu_err); break;	\
 		      default: __get_user_unknown(); break;				\
 		}									\
-	(x) = (__typeof__(*(__gu_ptr))) __gu_val;					\
+	(x) = (__force __typeof__(*(__gu_ptr))) __gu_val;				\
 	__gu_err;									\
 })
 
