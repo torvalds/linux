@@ -140,12 +140,16 @@ static u64 umem_dma_to_mtt(dma_addr_t umem_dma)
  * dev - mlx5_ib device
  * umem - umem to use to fill the pages
  * page_shift - determines the page size used in the resulting array
+ * offset - offset into the umem to start from,
+ *          only implemented for ODP umems
+ * num_pages - total number of pages to fill
  * pas - bus addresses array to fill
  * access_flags - access flags to set on all present pages.
 		  use enum mlx5_ib_mtt_access_flags for this.
  */
-void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
-			  int page_shift, __be64 *pas, int access_flags)
+void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
+			    int page_shift, size_t offset, size_t num_pages,
+			    __be64 *pas, int access_flags)
 {
 	unsigned long umem_page_shift = ilog2(umem->page_size);
 	int shift = page_shift - umem_page_shift;
@@ -160,13 +164,11 @@ void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	const bool odp = umem->odp_data != NULL;
 
 	if (odp) {
-		int num_pages = ib_umem_num_pages(umem);
-
 		WARN_ON(shift != 0);
 		WARN_ON(access_flags != (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE));
 
 		for (i = 0; i < num_pages; ++i) {
-			dma_addr_t pa = umem->odp_data->dma_list[i];
+			dma_addr_t pa = umem->odp_data->dma_list[offset + i];
 
 			pas[i] = cpu_to_be64(umem_dma_to_mtt(pa));
 		}
@@ -194,6 +196,13 @@ void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	}
 }
 
+void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
+			  int page_shift, __be64 *pas, int access_flags)
+{
+	return __mlx5_ib_populate_pas(dev, umem, page_shift, 0,
+				      ib_umem_num_pages(umem), pas,
+				      access_flags);
+}
 int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 {
 	u64 page_size;

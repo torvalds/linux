@@ -44,9 +44,13 @@ enum {
 	MAX_PENDING_REG_MR = 8,
 };
 
-enum {
-	MLX5_UMR_ALIGN	= 2048
-};
+#define MLX5_UMR_ALIGN 2048
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+static __be64 mlx5_ib_update_mtt_emergency_buffer[
+		MLX5_UMR_MTT_MIN_CHUNK_SIZE/sizeof(__be64)]
+	__aligned(MLX5_UMR_ALIGN);
+static DEFINE_MUTEX(mlx5_ib_update_mtt_emergency_buffer_mutex);
+#endif
 
 static int order2idx(struct mlx5_ib_dev *dev, int order)
 {
@@ -821,6 +825,128 @@ free_mr:
 
 	return mr;
 }
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
+		       int zap)
+{
+	struct mlx5_ib_dev *dev = mr->dev;
+	struct device *ddev = dev->ib_dev.dma_device;
+	struct umr_common *umrc = &dev->umrc;
+	struct mlx5_ib_umr_context umr_context;
+	struct ib_umem *umem = mr->umem;
+	int size;
+	__be64 *pas;
+	dma_addr_t dma;
+	struct ib_send_wr wr, *bad;
+	struct mlx5_umr_wr *umrwr = (struct mlx5_umr_wr *)&wr.wr.fast_reg;
+	struct ib_sge sg;
+	int err = 0;
+	const int page_index_alignment = MLX5_UMR_MTT_ALIGNMENT / sizeof(u64);
+	const int page_index_mask = page_index_alignment - 1;
+	size_t pages_mapped = 0;
+	size_t pages_to_map = 0;
+	size_t pages_iter = 0;
+	int use_emergency_buf = 0;
+
+	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes,
+	 * so we need to align the offset and length accordingly */
+	if (start_page_index & page_index_mask) {
+		npages += start_page_index & page_index_mask;
+		start_page_index &= ~page_index_mask;
+	}
+
+	pages_to_map = ALIGN(npages, page_index_alignment);
+
+	if (start_page_index + pages_to_map > MLX5_MAX_UMR_PAGES)
+		return -EINVAL;
+
+	size = sizeof(u64) * pages_to_map;
+	size = min_t(int, PAGE_SIZE, size);
+	/* We allocate with GFP_ATOMIC to avoid recursion into page-reclaim
+	 * code, when we are called from an invalidation. The pas buffer must
+	 * be 2k-aligned for Connect-IB. */
+	pas = (__be64 *)get_zeroed_page(GFP_ATOMIC);
+	if (!pas) {
+		mlx5_ib_warn(dev, "unable to allocate memory during MTT update, falling back to slower chunked mechanism.\n");
+		pas = mlx5_ib_update_mtt_emergency_buffer;
+		size = MLX5_UMR_MTT_MIN_CHUNK_SIZE;
+		use_emergency_buf = 1;
+		mutex_lock(&mlx5_ib_update_mtt_emergency_buffer_mutex);
+		memset(pas, 0, size);
+	}
+	pages_iter = size / sizeof(u64);
+	dma = dma_map_single(ddev, pas, size, DMA_TO_DEVICE);
+	if (dma_mapping_error(ddev, dma)) {
+		mlx5_ib_err(dev, "unable to map DMA during MTT update.\n");
+		err = -ENOMEM;
+		goto free_pas;
+	}
+
+	for (pages_mapped = 0;
+	     pages_mapped < pages_to_map && !err;
+	     pages_mapped += pages_iter, start_page_index += pages_iter) {
+		dma_sync_single_for_cpu(ddev, dma, size, DMA_TO_DEVICE);
+
+		npages = min_t(size_t,
+			       pages_iter,
+			       ib_umem_num_pages(umem) - start_page_index);
+
+		if (!zap) {
+			__mlx5_ib_populate_pas(dev, umem, PAGE_SHIFT,
+					       start_page_index, npages, pas,
+					       MLX5_IB_MTT_PRESENT);
+			/* Clear padding after the pages brought from the
+			 * umem. */
+			memset(pas + npages, 0, size - npages * sizeof(u64));
+		}
+
+		dma_sync_single_for_device(ddev, dma, size, DMA_TO_DEVICE);
+
+		memset(&wr, 0, sizeof(wr));
+		wr.wr_id = (u64)(unsigned long)&umr_context;
+
+		sg.addr = dma;
+		sg.length = ALIGN(npages * sizeof(u64),
+				MLX5_UMR_MTT_ALIGNMENT);
+		sg.lkey = dev->umrc.mr->lkey;
+
+		wr.send_flags = MLX5_IB_SEND_UMR_FAIL_IF_FREE |
+				MLX5_IB_SEND_UMR_UPDATE_MTT;
+		wr.sg_list = &sg;
+		wr.num_sge = 1;
+		wr.opcode = MLX5_IB_WR_UMR;
+		umrwr->npages = sg.length / sizeof(u64);
+		umrwr->page_shift = PAGE_SHIFT;
+		umrwr->mkey = mr->mmr.key;
+		umrwr->target.offset = start_page_index;
+
+		mlx5_ib_init_umr_context(&umr_context);
+		down(&umrc->sem);
+		err = ib_post_send(umrc->qp, &wr, &bad);
+		if (err) {
+			mlx5_ib_err(dev, "UMR post send failed, err %d\n", err);
+		} else {
+			wait_for_completion(&umr_context.done);
+			if (umr_context.status != IB_WC_SUCCESS) {
+				mlx5_ib_err(dev, "UMR completion failed, code %d\n",
+					    umr_context.status);
+				err = -EFAULT;
+			}
+		}
+		up(&umrc->sem);
+	}
+	dma_unmap_single(ddev, dma, size, DMA_TO_DEVICE);
+
+free_pas:
+	if (!use_emergency_buf)
+		free_page((unsigned long)pas);
+	else
+		mutex_unlock(&mlx5_ib_update_mtt_emergency_buffer_mutex);
+
+	return err;
+}
+#endif
 
 static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 				     u64 length, struct ib_umem *umem,
