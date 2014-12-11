@@ -47,6 +47,7 @@
 #define CDNS_SPI_CR_CPHA_MASK		0x00000004 /* Clock Phase Control */
 #define CDNS_SPI_CR_CPOL_MASK		0x00000002 /* Clock Polarity Control */
 #define CDNS_SPI_CR_SSCTRL_MASK		0x00003C00 /* Slave Select Mask */
+#define CDNS_SPI_CR_PERI_SEL_MASK	0x00000200 /* Peripheral Select Decode */
 #define CDNS_SPI_CR_BAUD_DIV_MASK	0x00000038 /* Baud Rate Divisor Mask */
 #define CDNS_SPI_CR_MSTREN_MASK		0x00000001 /* Master Enable Mask */
 #define CDNS_SPI_CR_MANSTRTEN_MASK	0x00008000 /* Manual TX Enable Mask */
@@ -148,6 +149,11 @@ static inline void cdns_spi_write(struct cdns_spi *xspi, u32 offset, u32 val)
  */
 static void cdns_spi_init_hw(struct cdns_spi *xspi)
 {
+	u32 ctrl_reg = CDNS_SPI_CR_DEFAULT_MASK;
+
+	if (xspi->is_decoded_cs)
+		ctrl_reg |= CDNS_SPI_CR_PERI_SEL_MASK;
+
 	cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
 		       CDNS_SPI_ER_DISABLE_MASK);
 	cdns_spi_write(xspi, CDNS_SPI_IDR_OFFSET,
@@ -160,8 +166,7 @@ static void cdns_spi_init_hw(struct cdns_spi *xspi)
 
 	cdns_spi_write(xspi, CDNS_SPI_ISR_OFFSET,
 		       CDNS_SPI_IXR_ALL_MASK);
-	cdns_spi_write(xspi, CDNS_SPI_CR_OFFSET,
-		       CDNS_SPI_CR_DEFAULT_MASK);
+	cdns_spi_write(xspi, CDNS_SPI_CR_OFFSET, ctrl_reg);
 	cdns_spi_write(xspi, CDNS_SPI_ER_OFFSET,
 		       CDNS_SPI_ER_ENABLE_MASK);
 }
@@ -516,6 +521,17 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		goto clk_dis_apb;
 	}
 
+	ret = of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
+	if (ret < 0)
+		master->num_chipselect = CDNS_SPI_DEFAULT_NUM_CS;
+	else
+		master->num_chipselect = num_cs;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "is-decoded-cs",
+				   &xspi->is_decoded_cs);
+	if (ret < 0)
+		xspi->is_decoded_cs = 0;
+
 	/* SPI controller initializations */
 	cdns_spi_init_hw(xspi);
 
@@ -533,19 +549,6 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "request_irq failed\n");
 		goto remove_master;
 	}
-
-	ret = of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs);
-
-	if (ret < 0)
-		master->num_chipselect = CDNS_SPI_DEFAULT_NUM_CS;
-	else
-		master->num_chipselect = num_cs;
-
-	ret = of_property_read_u32(pdev->dev.of_node, "is-decoded-cs",
-				   &xspi->is_decoded_cs);
-
-	if (ret < 0)
-		xspi->is_decoded_cs = 0;
 
 	master->prepare_transfer_hardware = cdns_prepare_transfer_hardware;
 	master->prepare_message = cdns_prepare_message;

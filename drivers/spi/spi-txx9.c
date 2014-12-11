@@ -402,8 +402,7 @@ exit_busy:
 exit:
 	if (c->workqueue)
 		destroy_workqueue(c->workqueue);
-	if (c->clk)
-		clk_disable(c->clk);
+	clk_disable(c->clk);
 	spi_master_put(master);
 	return ret;
 }
