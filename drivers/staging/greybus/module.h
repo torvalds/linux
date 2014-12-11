@@ -28,8 +28,6 @@ struct gb_module {
 	u64 unique_id;
 
 	struct greybus_host_device *hd;
-
-	struct gb_tty *gb_tty;
 };
 #define to_gb_module(d) container_of(d, struct gb_module, dev)
 

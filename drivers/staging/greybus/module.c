@@ -132,8 +132,6 @@ void gb_module_destroy(struct gb_module *gmod)
 	list_del(&gmod->links);
 	spin_unlock_irq(&gb_modules_lock);
 
-	/* XXX Do something with gmod->gb_tty */
-
 	gb_interface_destroy(gmod);
 
 	kfree(gmod->product_string);
