@@ -573,6 +573,20 @@ out:
 	return result;
 }
 
+static void
+nfs_direct_write_scan_commit_list(struct inode *inode,
+				  struct list_head *list,
+				  struct nfs_commit_info *cinfo)
+{
+	spin_lock(cinfo->lock);
+#ifdef CONFIG_NFS_V4_1
+	if (cinfo->ds != NULL && cinfo->ds->nwritten != 0)
+		NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
+#endif
+	nfs_scan_commit_list(&cinfo->mds->list, list, cinfo, 0);
+	spin_unlock(cinfo->lock);
+}
+
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_pageio_descriptor desc;
@@ -582,10 +596,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	LIST_HEAD(failed);
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	pnfs_recover_commit_reqs(dreq->inode, &reqs, &cinfo);
-	spin_lock(cinfo.lock);
-	nfs_scan_commit_list(&cinfo.mds->list, &reqs, &cinfo, 0);
-	spin_unlock(cinfo.lock);
+	nfs_direct_write_scan_commit_list(dreq->inode, &reqs, &cinfo);
 
 	dreq->count = 0;
 	get_dreq(dreq);

@@ -375,15 +375,6 @@ pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
 		return NFS_SERVER(inode)->pnfs_curr_ld->scan_commit_lists(cinfo, max);
 }
 
-static inline void
-pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
-			 struct nfs_commit_info *cinfo)
-{
-	if (cinfo->ds == NULL || cinfo->ds->nwritten == 0)
-		return;
-	NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
-}
-
 static inline struct nfs_page *
 pnfs_search_commit_reqs(struct inode *inode, struct nfs_commit_info *cinfo,
 			struct page *page)
@@ -552,12 +543,6 @@ pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
 		       int max)
 {
 	return 0;
-}
-
-static inline void
-pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
-			 struct nfs_commit_info *cinfo)
-{
 }
 
 static inline struct nfs_page *
