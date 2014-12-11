@@ -147,7 +147,7 @@ static inline int bad_user_access_length(void)
 		}						\
 	} else							\
 		_err = -EFAULT;					\
-	x = (typeof(*(ptr)))_val;				\
+	x = (__force typeof(*(ptr)))_val;			\
 	_err;							\
 })
 
