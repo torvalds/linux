@@ -3083,7 +3083,9 @@ static void hci_power_on(struct work_struct *work)
 
 	err = hci_dev_do_open(hdev);
 	if (err < 0) {
+		hci_dev_lock(hdev);
 		mgmt_set_powered_failed(hdev, err);
+		hci_dev_unlock(hdev);
 		return;
 	}
 

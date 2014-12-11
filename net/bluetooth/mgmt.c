@@ -2199,12 +2199,14 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
 
+	hci_dev_lock(hdev);
+
 	if (status) {
 		u8 mgmt_err = mgmt_status(status);
 
 		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, cmd_status_rsp,
 				     &mgmt_err);
-		return;
+		goto unlock;
 	}
 
 	mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, settings_rsp, &match);
@@ -2222,17 +2224,16 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status)
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		struct hci_request req;
 
-		hci_dev_lock(hdev);
-
 		hci_req_init(&req, hdev);
 		update_adv_data(&req);
 		update_scan_rsp_data(&req);
 		hci_req_run(&req, NULL);
 
 		hci_update_background_scan(hdev);
-
-		hci_dev_unlock(hdev);
 	}
+
+unlock:
+	hci_dev_unlock(hdev);
 }
 
 static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
@@ -4279,12 +4280,14 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
 
+	hci_dev_lock(hdev);
+
 	if (status) {
 		u8 mgmt_err = mgmt_status(status);
 
 		mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev,
 				     cmd_status_rsp, &mgmt_err);
-		return;
+		goto unlock;
 	}
 
 	if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
@@ -4299,6 +4302,9 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status)
 
 	if (match.sk)
 		sock_put(match.sk);
+
+unlock:
+	hci_dev_unlock(hdev);
 }
 
 static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
