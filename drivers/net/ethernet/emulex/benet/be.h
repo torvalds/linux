@@ -522,6 +522,7 @@ struct be_adapter {
 	u8 hba_port_num;
 	u16 pvid;
 	__be16 vxlan_port;
+	int vxlan_port_count;
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;

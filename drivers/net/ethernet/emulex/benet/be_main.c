@@ -3124,6 +3124,8 @@ static void be_mac_clear(struct be_adapter *adapter)
 #ifdef CONFIG_BE2NET_VXLAN
 static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
+
 	if (adapter->flags & BE_FLAGS_VXLAN_OFFLOADS)
 		be_cmd_manage_iface(adapter, adapter->if_handle,
 				    OP_CONVERT_TUNNEL_TO_NORMAL);
@@ -3133,6 +3135,9 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 
 	adapter->flags &= ~BE_FLAGS_VXLAN_OFFLOADS;
 	adapter->vxlan_port = 0;
+
+	netdev->hw_enc_features = 0;
+	netdev->hw_features &= ~(NETIF_F_GSO_UDP_TUNNEL);
 }
 #endif
 
@@ -4371,6 +4376,19 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 }
 
 #ifdef CONFIG_BE2NET_VXLAN
+/* VxLAN offload Notes:
+ *
+ * The stack defines tunnel offload flags (hw_enc_features) for IP and doesn't
+ * distinguish various types of transports (VxLAN, GRE, NVGRE ..). So, offload
+ * is expected to work across all types of IP tunnels once exported. Skyhawk
+ * supports offloads for either VxLAN or NVGRE, exclusively. So we export VxLAN
+ * offloads in hw_enc_features only when a VxLAN port is added. Note this only
+ * ensures that other tunnels work fine while VxLAN offloads are not enabled.
+ *
+ * Skyhawk supports VxLAN offloads only for one UDP dport. So, if the stack
+ * adds more than one port, disable offloads and don't re-enable them again
+ * until after all the tunnels are removed.
+ */
 static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 			      __be16 port)
 {
@@ -4382,12 +4400,15 @@ static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 		return;
 
 	if (adapter->flags & BE_FLAGS_VXLAN_OFFLOADS) {
-		dev_warn(dev, "Cannot add UDP port %d for VxLAN offloads\n",
-			 be16_to_cpu(port));
 		dev_info(dev,
 			 "Only one UDP port supported for VxLAN offloads\n");
-		return;
+		dev_info(dev, "Disabling VxLAN offloads\n");
+		adapter->vxlan_port_count++;
+		goto err;
 	}
+
+	if (adapter->vxlan_port_count++ >= 1)
+		return;
 
 	status = be_cmd_manage_iface(adapter, adapter->if_handle,
 				     OP_CONVERT_NORMAL_TO_TUNNEL);
@@ -4403,6 +4424,11 @@ static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 	}
 	adapter->flags |= BE_FLAGS_VXLAN_OFFLOADS;
 	adapter->vxlan_port = port;
+
+	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+				   NETIF_F_TSO | NETIF_F_TSO6 |
+				   NETIF_F_GSO_UDP_TUNNEL;
+	netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
 
 	dev_info(dev, "Enabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));
@@ -4420,13 +4446,15 @@ static void be_del_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 		return;
 
 	if (adapter->vxlan_port != port)
-		return;
+		goto done;
 
 	be_disable_vxlan_offloads(adapter);
 
 	dev_info(&adapter->pdev->dev,
 		 "Disabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));
+done:
+	adapter->vxlan_port_count--;
 }
 
 static bool be_gso_check(struct sk_buff *skb, struct net_device *dev)
@@ -4470,12 +4498,6 @@ static void be_netdev_init(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (skyhawk_chip(adapter)) {
-		netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-					   NETIF_F_TSO | NETIF_F_TSO6 |
-					   NETIF_F_GSO_UDP_TUNNEL;
-		netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
-	}
 	netdev->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
 		NETIF_F_HW_VLAN_CTAG_TX;
