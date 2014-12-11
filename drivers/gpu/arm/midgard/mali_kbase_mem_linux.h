@@ -25,14 +25,6 @@
 #ifndef _KBASE_MEM_LINUX_H_
 #define _KBASE_MEM_LINUX_H_
 
-/* This define is used by the gator kernel module compile to select which DDK
- * API calling convention to use. If not defined (legacy DDK) gator assumes
- * version 1. The version to DDK release mapping is:
- *     Version 1 API: DDK versions r1px, r2px
- *     Version 2 API: DDK versions r3px and newer
- **/
-#define MALI_DDK_GATOR_API_VERSION 2
-
 /** A HWC dump mapping */
 typedef struct kbase_hwc_dma_mapping {
 	void       *cpu_va;
@@ -40,12 +32,12 @@ typedef struct kbase_hwc_dma_mapping {
 	size_t      size;
 } kbase_hwc_dma_mapping;
 
-struct kbase_va_region * kbase_mem_alloc(kbase_context * kctx, u64 va_pages, u64 commit_pages, u64 extent, u64 * flags, u64 * gpu_va, u16 * va_alignment);
-mali_error kbase_mem_query(kbase_context *kctx, mali_addr64 gpu_addr, int query, u64 * const pages);
-int kbase_mem_import(kbase_context *kctx, base_mem_import_type type, int handle, mali_addr64 * gpu_va, u64 * va_pages, u64 * flags);
-u64 kbase_mem_alias(kbase_context *kctx, u64* flags, u64 stride, u64 nents, struct base_mem_aliasing_info* ai, u64 * num_pages);
-mali_error kbase_mem_flags_change(kbase_context *kctx, mali_addr64 gpu_addr, unsigned int flags, unsigned int mask);
-int kbase_mem_commit(kbase_context * kctx, mali_addr64 gpu_addr, u64 new_pages, base_backing_threshold_status * failure_reason);
+struct kbase_va_region * kbase_mem_alloc(struct kbase_context * kctx, u64 va_pages, u64 commit_pages, u64 extent, u64 * flags, u64 * gpu_va, u16 * va_alignment);
+mali_error kbase_mem_query(struct kbase_context *kctx, mali_addr64 gpu_addr, int query, u64 * const pages);
+int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type, int handle, mali_addr64 * gpu_va, u64 * va_pages, u64 * flags);
+u64 kbase_mem_alias(struct kbase_context *kctx, u64* flags, u64 stride, u64 nents, struct base_mem_aliasing_info* ai, u64 * num_pages);
+mali_error kbase_mem_flags_change(struct kbase_context *kctx, mali_addr64 gpu_addr, unsigned int flags, unsigned int mask);
+int kbase_mem_commit(struct kbase_context * kctx, mali_addr64 gpu_addr, u64 new_pages, enum base_backing_threshold_status * failure_reason);
 int kbase_mmap(struct file *file, struct vm_area_struct *vma);
 
 /** @brief Allocate memory from kernel space and map it onto the GPU
@@ -55,13 +47,13 @@ int kbase_mmap(struct file *file, struct vm_area_struct *vma);
  * @param handle An opaque structure used to contain the state needed to free the memory
  * @return the VA for kernel space and GPU MMU
  */
-void *kbase_va_alloc(kbase_context *kctx, u32 size, kbase_hwc_dma_mapping *handle);
+void *kbase_va_alloc(struct kbase_context *kctx, u32 size, struct kbase_hwc_dma_mapping *handle);
 
 /** @brief Free/unmap memory allocated by kbase_va_alloc
  *
  * @param kctx   The context used for the allocation/mapping
  * @param handle An opaque structure returned by the kbase_va_alloc function.
  */
-void kbase_va_free(kbase_context *kctx, kbase_hwc_dma_mapping *handle);
+void kbase_va_free(struct kbase_context *kctx, struct kbase_hwc_dma_mapping *handle);
 
 #endif				/* _KBASE_MEM_LINUX_H_ */

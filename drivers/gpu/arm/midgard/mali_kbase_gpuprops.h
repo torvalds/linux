@@ -35,20 +35,20 @@ struct kbase_device;
  *
  * Set up Kbase GPU properties with information from the GPU registers
  *
- * @param kbdev		The kbase_device structure for the device
+ * @param kbdev		The struct kbase_device structure for the device
  */
 void kbase_gpuprops_set(struct kbase_device *kbdev);
 
 /**
  * @brief Provide GPU properties to userside through UKU call.
  *
- * Fill the kbase_uk_gpuprops with values from GPU configuration registers.
+ * Fill the struct kbase_uk_gpuprops with values from GPU configuration registers.
  *
- * @param kctx		The kbase_context structure
- * @param kbase_props	A copy of the kbase_uk_gpuprops structure from userspace
+ * @param kctx		The struct kbase_context structure
+ * @param kbase_props	A copy of the struct kbase_uk_gpuprops structure from userspace
  *
  * @return MALI_ERROR_NONE on success. Any other value indicates failure.
  */
-mali_error kbase_gpuprops_uk_get_props(kbase_context *kctx, kbase_uk_gpuprops * const kbase_props);
+mali_error kbase_gpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_gpuprops * const kbase_props);
 
 #endif				/* _KBASE_GPUPROPS_H_ */

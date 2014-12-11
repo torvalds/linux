@@ -30,9 +30,9 @@ typedef enum
 } kbase_trace_timeline_code;
 
 /** Initialize Timeline DebugFS entries */
-mali_error kbasep_trace_timeline_debugfs_init(kbase_device *kbdev);
+mali_error kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 /** Terminate Timeline DebugFS entries */
-void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
+void kbasep_trace_timeline_debugfs_term(struct kbase_device *kbdev);
 
 /* mali_timeline.h defines kernel tracepoints used by the KBASE_TIMELINE
  * functions.
@@ -64,7 +64,6 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		                         atom_id);                         \
 	} while (0)
 
-
 /* Trace number of atoms submitted to job slot js
  *
  * NOTE: This uses a different tracepoint to the head/next/soft-stop actions,
@@ -84,7 +83,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 	} while (0)
 
 
-/* Trace atoms present in JSn_NEXT */
+/* Trace atoms present in JS_NEXT */
 #define KBASE_TIMELINE_JOB_START_NEXT(kctx, js, count)                             \
 	do                                                                          \
 	{                                                                           \
@@ -96,7 +95,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		                                    js, count);                     \
 	} while (0)
 
-/* Trace atoms present in JSn_HEAD */
+/* Trace atoms present in JS_HEAD */
 #define KBASE_TIMELINE_JOB_START_HEAD(kctx, js, count)                             \
 	do                                                                          \
 	{                                                                           \
@@ -116,7 +115,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		getnstimeofday(&ts);                                                \
 		trace_mali_timeline_gpu_slot_action(ts.tv_sec, ts.tv_nsec,          \
 		                                    SW_SET_GPU_SLOT_STOPPING,       \
-		                                    (kctx)?(int)kctx->timeline.owner_tgid:0, \
+		                                    (kctx) ? (int)kctx->timeline.owner_tgid : 0, \
 		                                    js, count);                     \
 	} while (0)
 
@@ -163,7 +162,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		trace_mali_timeline_gpu_power_active(ts.tv_sec, ts.tv_nsec,         \
 				                             SW_SET_GPU_POWER_L2_ACTIVE,    \
 				                             hweight64(bitmap));            \
-	}while(0)
+	} while (0)
 
 /* Trace state of L2 cache*/
 #define KBASE_TIMELINE_POWERING_L2(kbdev)                                   \
@@ -174,7 +173,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		trace_mali_timeline_l2_power_active(ts.tv_sec, ts.tv_nsec,	        \
 		                                    SW_FLOW_GPU_POWER_L2_POWERING,  \
 		                                    1);                             \
-	}while(0)
+	} while (0)
 
 #define KBASE_TIMELINE_POWERED_L2(kbdev)                                    \
 	do                                                                      \
@@ -184,7 +183,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		trace_mali_timeline_l2_power_active(ts.tv_sec, ts.tv_nsec,          \
 		                                    SW_FLOW_GPU_POWER_L2_ACTIVE,    \
 		                                     1);                            \
-	}while(0)
+	} while (0)
 
 /* Trace kbase_pm_send_event message send */
 #define KBASE_TIMELINE_PM_SEND_EVENT(kbdev, event_type, pm_event_id) \
@@ -209,7 +208,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 	} while (0)
 
 
-/* Trace atom_id starting in JSn_HEAD */
+/* Trace atom_id starting in JS_HEAD */
 #define KBASE_TIMELINE_JOB_START(kctx, js, _consumerof_atom_number)     \
 	do                                                                  \
 	{                                                                   \
@@ -221,7 +220,7 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		                              js, _consumerof_atom_number);     \
 	} while (0)
 
-/* Trace atom_id stopping on JSn_HEAD */
+/* Trace atom_id stopping on JS_HEAD */
 #define KBASE_TIMELINE_JOB_STOP(kctx, js, _producerof_atom_number_completed) \
 	do                                                                  \
 	{                                                                   \
@@ -245,6 +244,17 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
 		                                  1);     \
 	} while (0)
 
+/* Trace number of contexts active */
+#define KBASE_TIMELINE_CONTEXT_ACTIVE(kbdev, count)                           \
+	do                                                                    \
+	{                                                                     \
+		struct timespec ts;                                           \
+		getnstimeofday(&ts);                                          \
+		trace_mali_timeline_context_active(ts.tv_sec, ts.tv_nsec,     \
+		                                   count);                    \
+	} while (0)
+
+
 /* NOTE: kbase_timeline_pm_cores_func() is in mali_kbase_pm_policy.c */
 
 /**
@@ -252,15 +262,15 @@ void kbasep_trace_timeline_debugfs_term(kbase_device *kbdev);
  *
  * The caller must be holding kbasep_js_device_data::runpool_irq::lock
  */
-void kbase_timeline_job_slot_submit(kbase_device *kbdev, kbase_context *kctx,
-                                    kbase_jd_atom *katom, int js);
+void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_context *kctx,
+                                    struct kbase_jd_atom *katom, int js);
 
 /**
  * Trace that an atom has done on a job slot
  *
  * 'Done' in this sense can occur either because:
- * - the atom in JSn_HEAD finished
- * - the atom in JSn_NEXT was evicted
+ * - the atom in JS_HEAD finished
+ * - the atom in JS_NEXT was evicted
  *
  * Whether the atom finished or was evicted is passed in @a done_code
  *
@@ -271,26 +281,26 @@ void kbase_timeline_job_slot_submit(kbase_device *kbdev, kbase_context *kctx,
  *
  * The caller must be holding kbasep_js_device_data::runpool_irq::lock
  */
-void kbase_timeline_job_slot_done(kbase_device *kbdev, kbase_context *kctx,
-                                  kbase_jd_atom *katom, int js,
+void kbase_timeline_job_slot_done(struct kbase_device *kbdev, struct kbase_context *kctx,
+                                  struct kbase_jd_atom *katom, int js,
                                   kbasep_js_atom_done_code done_code);
 
 
 /** Trace a pm event starting */
-void kbase_timeline_pm_send_event(kbase_device *kbdev,
-                                  kbase_timeline_pm_event event_sent);
+void kbase_timeline_pm_send_event(struct kbase_device *kbdev,
+                                  enum kbase_timeline_pm_event event_sent);
 
 /** Trace a pm event finishing */
-void kbase_timeline_pm_check_handle_event(kbase_device *kbdev, kbase_timeline_pm_event event);
+void kbase_timeline_pm_check_handle_event(struct kbase_device *kbdev, enum kbase_timeline_pm_event event);
 
 /** Check whether a pm event was present, and if so trace finishing it */
-void kbase_timeline_pm_handle_event(kbase_device *kbdev, kbase_timeline_pm_event event);
+void kbase_timeline_pm_handle_event(struct kbase_device *kbdev, enum kbase_timeline_pm_event event);
 
 /** Trace L2 power-up start */
-void kbase_timeline_pm_l2_transition_start(kbase_device *kbdev);
+void kbase_timeline_pm_l2_transition_start(struct kbase_device *kbdev);
 
 /** Trace L2 power-up done */
-void kbase_timeline_pm_l2_transition_done(kbase_device *kbdev);
+void kbase_timeline_pm_l2_transition_done(struct kbase_device *kbdev);
 
 #else
 
@@ -328,37 +338,39 @@ void kbase_timeline_pm_l2_transition_done(kbase_device *kbdev);
 
 #define KBASE_TIMELINE_PM_CHECKTRANS(kbdev, trace_code) CSTD_NOP()
 
-static INLINE void kbase_timeline_job_slot_submit(kbase_device *kbdev, kbase_context *kctx,
-                                    kbase_jd_atom *katom, int js)
+#define KBASE_TIMELINE_CONTEXT_ACTIVE(kbdev, count) CSTD_NOP()
+
+static INLINE void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_context *kctx,
+                                    struct kbase_jd_atom *katom, int js)
 {
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 }
 
-static INLINE void kbase_timeline_job_slot_done(kbase_device *kbdev, kbase_context *kctx,
-                                    kbase_jd_atom *katom, int js,
+static INLINE void kbase_timeline_job_slot_done(struct kbase_device *kbdev, struct kbase_context *kctx,
+                                    struct kbase_jd_atom *katom, int js,
                                     kbasep_js_atom_done_code done_code)
 {
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 }
 
-static INLINE void kbase_timeline_pm_send_event(kbase_device *kbdev, kbase_timeline_pm_event event_sent)
+static INLINE void kbase_timeline_pm_send_event(struct kbase_device *kbdev, enum kbase_timeline_pm_event event_sent)
 {
 }
 
-static INLINE void kbase_timeline_pm_check_handle_event(kbase_device *kbdev, kbase_timeline_pm_event event)
+static INLINE void kbase_timeline_pm_check_handle_event(struct kbase_device *kbdev, enum kbase_timeline_pm_event event)
 {
 }
 
-static INLINE void kbase_timeline_pm_handle_event(kbase_device *kbdev, kbase_timeline_pm_event event)
+static INLINE void kbase_timeline_pm_handle_event(struct kbase_device *kbdev, enum kbase_timeline_pm_event event)
 {
 }
 
-static INLINE void kbase_timeline_pm_l2_transition_start(kbase_device *kbdev)
+static INLINE void kbase_timeline_pm_l2_transition_start(struct kbase_device *kbdev)
 {
 
 }
 
-static INLINE void kbase_timeline_pm_l2_transition_done(kbase_device *kbdev)
+static INLINE void kbase_timeline_pm_l2_transition_done(struct kbase_device *kbdev)
 {
 
 }

@@ -77,8 +77,8 @@ int kbase_get_vexpress_cpu_clock_speed(u32 *cpu_clock)
 		u32 pa_divide = 0;
 		u32 pb_divide = 0;
 		u32 pc_divide = 0;
-		void *volatile pSysCfgReg = 0;
-		void *volatile pSCCReg = 0;
+		void __iomem *pSysCfgReg = NULL;
+		void __iomem *pSCCReg = NULL;
 
 		/* Init the value case something goes wrong */
 		*cpu_clock = 0;
@@ -162,7 +162,7 @@ int kbase_get_vexpress_cpu_clock_speed(u32 *cpu_clock)
 		raw_spin_unlock(&syscfg_lock);
 		/* Convert result expressed in Hz to Mhz units. */
 		*cpu_clock /= HZ_IN_MHZ;
-		if(!result)
+		if (!result)
 		{
 			cpu_clock_speed = *cpu_clock;
 		}

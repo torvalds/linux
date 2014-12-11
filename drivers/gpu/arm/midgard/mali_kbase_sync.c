@@ -35,7 +35,7 @@ struct mali_sync_timeline {
 
 struct mali_sync_pt {
 	struct sync_pt pt;
-	u32 order;
+	int order;
 	int result;
 };
 
@@ -63,7 +63,6 @@ static struct sync_pt *timeline_dup(struct sync_pt *pt)
 	new_mpt->result = mpt->result;
 
 	return new_pt;
-
 }
 
 static int timeline_has_signaled(struct sync_pt *pt)
@@ -72,12 +71,10 @@ static int timeline_has_signaled(struct sync_pt *pt)
 	struct mali_sync_timeline *mtl = to_mali_sync_timeline(pt->parent);
 	int result = mpt->result;
 
-	long diff = atomic_read(&mtl->signalled) - mpt->order;
+	int diff = atomic_read(&mtl->signalled) - mpt->order;
 
 	if (diff >= 0)
-	{
 		return result < 0 ?  result : 1;
-	}
 	else
 		return 0;
 }
@@ -87,7 +84,7 @@ static int timeline_compare(struct sync_pt *a, struct sync_pt *b)
 	struct mali_sync_pt *ma = container_of(a, struct mali_sync_pt, pt);
 	struct mali_sync_pt *mb = container_of(b, struct mali_sync_pt, pt);
 
-	long diff = ma->order - mb->order;
+	int diff = ma->order - mb->order;
 
 	if (diff < 0)
 		return -1;
@@ -97,16 +94,18 @@ static int timeline_compare(struct sync_pt *a, struct sync_pt *b)
 		return 1;
 }
 
-static void timeline_value_str(struct sync_timeline *timeline, char * str,
+static void timeline_value_str(struct sync_timeline *timeline, char *str,
 			       int size)
 {
 	struct mali_sync_timeline *mtl = to_mali_sync_timeline(timeline);
+
 	snprintf(str, size, "%d", atomic_read(&mtl->signalled));
 }
 
 static void pt_value_str(struct sync_pt *pt, char *str, int size)
 {
 	struct mali_sync_pt *mpt = to_mali_sync_pt(pt);
+
 	snprintf(str, size, "%d(%d)", mpt->order, mpt->result);
 }
 
@@ -117,10 +116,6 @@ static struct sync_timeline_ops mali_timeline_ops = {
 	.compare = timeline_compare,
 	.timeline_value_str = timeline_value_str,
 	.pt_value_str       = pt_value_str,
-#if 0
-	.free_pt = timeline_free_pt,
-	.release_obj = timeline_release_obj
-#endif
 };
 
 int kbase_sync_timeline_is_ours(struct sync_timeline *timeline)
@@ -171,7 +166,6 @@ void kbase_sync_signal_pt(struct sync_pt *pt, int result)
 	mpt->result = result;
 
 	do {
-
 		signalled = atomic_read(&mtl->signalled);
 
 		diff = signalled - mpt->order;

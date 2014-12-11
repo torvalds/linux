@@ -30,7 +30,7 @@
 #define GATOR_JOB_SLOT_STOP  2
 #define GATOR_JOB_SLOT_SOFT_STOPPED  3
 
-void kbase_trace_mali_job_slots_event(u32 event, const kbase_context *kctx, u8 atom_id);
+void kbase_trace_mali_job_slots_event(u32 event, const struct kbase_context *kctx, u8 atom_id);
 void kbase_trace_mali_pm_status(u32 event, u64 value);
 void kbase_trace_mali_pm_power_off(u32 event, u64 value);
 void kbase_trace_mali_pm_power_on(u32 event, u64 value);

@@ -67,7 +67,7 @@ int mali_dvfs_clk_set(struct dvfs_node *node,unsigned long rate)
 	}
 	return ret;
 }
-static int kbase_platform_power_clock_init(kbase_device *kbdev)
+static int kbase_platform_power_clock_init(struct kbase_device *kbdev)
 {
 	/*struct device *dev = kbdev->dev;*/
 	struct rk_context *platform;
@@ -926,7 +926,7 @@ mali_error kbase_platform_init(struct kbase_device *kbdev)
 	return MALI_ERROR_FUNCTION_FAILED;
 }
 
-void kbase_platform_term(kbase_device *kbdev)
+void kbase_platform_term(struct kbase_device *kbdev)
 {
 	struct rk_context *platform;
 

@@ -28,7 +28,7 @@
 /**
  * @brief Issue Cache Clean & Invalidate command to hardware
  */
-static void kbasep_instr_hwcnt_cacheclean(kbase_device *kbdev)
+static void kbasep_instr_hwcnt_cacheclean(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	unsigned long pm_flags;
@@ -41,7 +41,7 @@ static void kbasep_instr_hwcnt_cacheclean(kbase_device *kbdev)
 	while (kbdev->hwcnt.state == KBASE_INSTR_STATE_RESETTING) {
 		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 		wait_event(kbdev->hwcnt.cache_clean_wait,
-		           kbdev->hwcnt.state != KBASE_INSTR_STATE_RESETTING);
+				kbdev->hwcnt.state != KBASE_INSTR_STATE_RESETTING);
 		spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 	}
 	KBASE_DEBUG_ASSERT(kbdev->hwcnt.state == KBASE_INSTR_STATE_REQUEST_CLEAN);
@@ -60,11 +60,11 @@ static void kbasep_instr_hwcnt_cacheclean(kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 }
 
-STATIC mali_error kbase_instr_hwcnt_enable_internal(kbase_device *kbdev, kbase_context *kctx, kbase_uk_hwcnt_setup *setup)
+STATIC mali_error kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_uk_hwcnt_setup *setup)
 {
 	unsigned long flags, pm_flags;
 	mali_error err = MALI_ERROR_FUNCTION_FAILED;
-	kbasep_js_device_data *js_devdata;
+	struct kbasep_js_device_data *js_devdata;
 	u32 irq_mask;
 	int ret;
 	u64 shader_cores_needed;
@@ -159,7 +159,7 @@ STATIC mali_error kbase_instr_hwcnt_enable_internal(kbase_device *kbdev, kbase_c
 	/* If HW has PRLAM-8186 we can now re-enable the tiler HW counters dump */
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8186))
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN), setup->tiler_bm, kctx);
-	
+
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 
 	if (kbdev->hwcnt.state == KBASE_INSTR_STATE_RESETTING) {
@@ -191,10 +191,11 @@ STATIC mali_error kbase_instr_hwcnt_enable_internal(kbase_device *kbdev, kbase_c
  *
  * Note: will wait for a cache clean to complete
  */
-mali_error kbase_instr_hwcnt_enable(kbase_context *kctx, kbase_uk_hwcnt_setup *setup)
+mali_error kbase_instr_hwcnt_enable(struct kbase_context *kctx, struct kbase_uk_hwcnt_setup *setup)
 {
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 	mali_bool access_allowed;
+
 	kbdev = kctx->kbdev;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
@@ -212,12 +213,12 @@ KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_enable)
  *
  * Note: might sleep, waiting for an ongoing dump to complete
  */
-mali_error kbase_instr_hwcnt_disable(kbase_context *kctx)
+mali_error kbase_instr_hwcnt_disable(struct kbase_context *kctx)
 {
 	unsigned long flags, pm_flags;
 	mali_error err = MALI_ERROR_FUNCTION_FAILED;
 	u32 irq_mask;
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	kbdev = kctx->kbdev;
@@ -245,7 +246,6 @@ mali_error kbase_instr_hwcnt_disable(kbase_context *kctx)
 
 		/* Ongoing dump/setup - wait for its completion */
 		wait_event(kbdev->hwcnt.wait, kbdev->hwcnt.triggered != 0);
-
 	}
 
 	kbdev->hwcnt.state = KBASE_INSTR_STATE_DISABLED;
@@ -287,10 +287,10 @@ KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_disable)
 /**
  * @brief Configure HW counters collection
  */
-mali_error kbase_instr_hwcnt_setup(kbase_context *kctx, kbase_uk_hwcnt_setup *setup)
+mali_error kbase_instr_hwcnt_setup(struct kbase_context *kctx, struct kbase_uk_hwcnt_setup *setup)
 {
 	mali_error err = MALI_ERROR_FUNCTION_FAILED;
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 
@@ -320,11 +320,11 @@ mali_error kbase_instr_hwcnt_setup(kbase_context *kctx, kbase_uk_hwcnt_setup *se
  * Notes:
  * - does not sleep
  */
-mali_error kbase_instr_hwcnt_dump_irq(kbase_context *kctx)
+mali_error kbase_instr_hwcnt_dump_irq(struct kbase_context *kctx)
 {
 	unsigned long flags;
 	mali_error err = MALI_ERROR_FUNCTION_FAILED;
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	kbdev = kctx->kbdev;
@@ -373,11 +373,11 @@ KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_dump_irq)
  * - success will be set to MALI_TRUE if the dump succeeded or
  *   MALI_FALSE on failure
  */
-mali_bool kbase_instr_hwcnt_dump_complete(kbase_context *kctx, mali_bool * const success)
+mali_bool kbase_instr_hwcnt_dump_complete(struct kbase_context *kctx, mali_bool * const success)
 {
 	unsigned long flags;
 	mali_bool complete = MALI_FALSE;
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	kbdev = kctx->kbdev;
@@ -404,11 +404,11 @@ KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_dump_complete)
 /**
  * @brief Issue Dump command to hardware and wait for completion
  */
-mali_error kbase_instr_hwcnt_dump(kbase_context *kctx)
+mali_error kbase_instr_hwcnt_dump(struct kbase_context *kctx)
 {
 	unsigned long flags;
 	mali_error err = MALI_ERROR_FUNCTION_FAILED;
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	kbdev = kctx->kbdev;
@@ -450,11 +450,11 @@ KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_dump)
 /**
  * @brief Clear the HW counters
  */
-mali_error kbase_instr_hwcnt_clear(kbase_context *kctx)
+mali_error kbase_instr_hwcnt_clear(struct kbase_context *kctx)
 {
 	unsigned long flags;
 	mali_error err = MALI_ERROR_FUNCTION_FAILED;
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 	kbdev = kctx->kbdev;
@@ -490,18 +490,18 @@ KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_clear)
  */
 void kbasep_cache_clean_worker(struct work_struct *data)
 {
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 	unsigned long flags;
 
-	kbdev = container_of(data, kbase_device, hwcnt.cache_clean_work);
+	kbdev = container_of(data, struct kbase_device, hwcnt.cache_clean_work);
 
 	mutex_lock(&kbdev->cacheclean_lock);
 	kbasep_instr_hwcnt_cacheclean(kbdev);
 
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 	/* Wait for our condition, and any reset to complete */
-	while (kbdev->hwcnt.state == KBASE_INSTR_STATE_RESETTING
-		   || kbdev->hwcnt.state == KBASE_INSTR_STATE_CLEANING) {
+	while (kbdev->hwcnt.state == KBASE_INSTR_STATE_RESETTING ||
+			kbdev->hwcnt.state == KBASE_INSTR_STATE_CLEANING) {
 		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 		wait_event(kbdev->hwcnt.cache_clean_wait,
 		           (kbdev->hwcnt.state != KBASE_INSTR_STATE_RESETTING
@@ -522,9 +522,10 @@ void kbasep_cache_clean_worker(struct work_struct *data)
 /**
  * @brief Dump complete interrupt received
  */
-void kbase_instr_hwcnt_sample_done(kbase_device *kbdev)
+void kbase_instr_hwcnt_sample_done(struct kbase_device *kbdev)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 
 	if (kbdev->hwcnt.state == KBASE_INSTR_STATE_FAULT) {
@@ -547,7 +548,7 @@ void kbase_instr_hwcnt_sample_done(kbase_device *kbdev)
 /**
  * @brief Cache clean interrupt received
  */
-void kbase_clean_caches_done(kbase_device *kbdev)
+void kbase_clean_caches_done(struct kbase_device *kbdev)
 {
 	u32 irq_mask;
 
@@ -580,9 +581,10 @@ void kbase_clean_caches_done(kbase_device *kbdev)
  * It's assumed that there's only one privileged context
  * Safe to do this without lock when doing an OS suspend, because it only
  * changes in response to user-space IOCTLs */
-void kbase_instr_hwcnt_suspend(kbase_device *kbdev)
+void kbase_instr_hwcnt_suspend(struct kbase_device *kbdev)
 {
-	kbase_context *kctx;
+	struct kbase_context *kctx;
+
 	KBASE_DEBUG_ASSERT(kbdev);
 	KBASE_DEBUG_ASSERT(!kbdev->hwcnt.suspended_kctx);
 
@@ -592,23 +594,22 @@ void kbase_instr_hwcnt_suspend(kbase_device *kbdev)
 	/* Relevant state was saved into hwcnt.suspended_state when enabling the
 	 * counters */
 
-	if (kctx)
-	{
+	if (kctx) {
 		KBASE_DEBUG_ASSERT(kctx->jctx.sched_info.ctx.flags & KBASE_CTX_FLAG_PRIVILEGED);
 		kbase_instr_hwcnt_disable(kctx);
 	}
 }
 
-void kbase_instr_hwcnt_resume(kbase_device *kbdev)
+void kbase_instr_hwcnt_resume(struct kbase_device *kbdev)
 {
-	kbase_context *kctx;
+	struct kbase_context *kctx;
+
 	KBASE_DEBUG_ASSERT(kbdev);
 
 	kctx = kbdev->hwcnt.suspended_kctx;
 	kbdev->hwcnt.suspended_kctx = NULL;
 
-	if (kctx)
-	{
+	if (kctx) {
 		mali_error err;
 		err = kbase_instr_hwcnt_enable_internal(kbdev, kctx, &kbdev->hwcnt.suspended_state);
 		WARN(err != MALI_ERROR_NONE,

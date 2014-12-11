@@ -160,7 +160,7 @@ int kbase_get_vexpress_cpu_clock_speed(u32 *cpu_clock)
 		raw_spin_unlock(&syscfg_lock);
 		/* Convert result expressed in Hz to Mhz units. */
 		*cpu_clock /= HZ_IN_MHZ;
-		if(!result)
+		if (!result)
 		{
 			cpu_clock_speed = *cpu_clock;
 		}

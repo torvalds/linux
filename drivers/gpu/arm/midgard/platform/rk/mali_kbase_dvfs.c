@@ -73,7 +73,7 @@ unsigned int MALI_DVFS_STEP = ARRAY_SIZE(mali_dvfs_infotbl);
 static struct cpufreq_frequency_table *mali_freq_table = NULL;
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 typedef struct _mali_dvfs_status_type {
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 	int step;
 	int utilisation;
 	u32 temperature;
@@ -244,7 +244,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 		} else if ((dvfs_status->utilisation > mali_dvfs_infotbl[dvfs_status->step].max_threshold) &&
 				   (dvfs_status->step < MALI_DVFS_STEP-1) && fps < fps_limit) {
 			level_up_time++;
-			if (level_up_time == MALI_DVFS_TIME_INTERVAL) {
+			if (level_up_time == MALI_DVFS_UP_TIME_INTERVAL) {
 				/*
 				printk("up,utilisation=%d,current clock=%d,fps = %d,temperature = %d",
 						dvfs_status->utilisation, mali_dvfs_infotbl[dvfs_status->step].clock,
@@ -261,7 +261,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 		} else if ((dvfs_status->step > 0) &&
 					(dvfs_status->utilisation < mali_dvfs_infotbl[dvfs_status->step].min_threshold)) {
 			level_down_time++;
-			if (level_down_time==MALI_DVFS_TIME_INTERVAL) {
+			if (level_down_time==MALI_DVFS_DOWN_TIME_INTERVAL) {
 				/*
 				printk("down,utilisation=%d,current clock=%d,fps = %d,temperature = %d",
 						dvfs_status->utilisation,
@@ -312,7 +312,7 @@ int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,
 	platform = (struct rk_context *)kbdev->platform_context;
 
 	spin_lock_irqsave(&mali_dvfs_spinlock, flags);
-	if (platform->time_tick < MALI_DVFS_TIME_INTERVAL) {
+	if (platform->time_tick < MALI_DVFS_UP_TIME_INTERVAL) {
 		platform->time_tick++;
 		platform->time_busy += kbdev->pm.metrics.time_busy;
 		platform->time_idle += kbdev->pm.metrics.time_idle;
@@ -322,7 +322,7 @@ int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,
 		platform->time_tick = 0;
 	}
 
-	if ((platform->time_tick == MALI_DVFS_TIME_INTERVAL) &&
+	if ((platform->time_tick == MALI_DVFS_UP_TIME_INTERVAL) &&
 		(platform->time_idle + platform->time_busy > 0))
 		platform->utilisation = (100 * platform->time_busy) /
 								(platform->time_idle + platform->time_busy);
@@ -615,7 +615,7 @@ void mali_dvfs_freq_under_unlock(void)
 	printk(KERN_DEBUG " mali clock Under Lock Unset\n");
 }
 
-void kbase_platform_dvfs_set_clock(kbase_device *kbdev, int freq)
+void kbase_platform_dvfs_set_clock(struct kbase_device *kbdev, int freq)
 {
 	struct rk_context *platform;
 
@@ -645,7 +645,7 @@ int kbase_platform_dvfs_get_level(int freq)
 	}
 	return -1;
 }
-void kbase_platform_dvfs_set_level(kbase_device *kbdev, int level)
+void kbase_platform_dvfs_set_level(struct kbase_device *kbdev, int level)
 {
 	static int prev_level = -1;
 

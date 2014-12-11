@@ -42,14 +42,23 @@
  * @{
  */
 
-#if MALI_CUSTOMER_RELEASE == 0
+#if !MALI_CUSTOMER_RELEASE
 /* This flag is set for internal builds so we can run tests without credentials. */
 #define KBASE_HWCNT_DUMP_BYPASS_ROOT 1
 #else
 #define KBASE_HWCNT_DUMP_BYPASS_ROOT 0
 #endif
 
+/* Enable power management API, note that KBASE_PM_EN==0 is not supported */
+#define KBASE_PM_EN 1
+/* Enable GPU reset API, note that KBASE_GPU_RESET_EN==0 is not supported */
+#define KBASE_GPU_RESET_EN 1
+/* Enable HW MMU backend, note that KBASE_MMU_HW_BACKEND==0 is not supported */
+#define KBASE_MMU_HW_BACKEND 1
+
+
 #include <linux/rbtree.h>
+
 
 /**
  * Device wide configuration
@@ -62,35 +71,6 @@ enum {
 	 * Default value: NA
 	 * */
 	KBASE_CONFIG_ATTR_INVALID,
-
-	/**
-	 * Maximum frequency GPU will be clocked at. Given in kHz.
-	 * This must be specified as there is no default value.
-	 *
-	 * Attached value: number in kHz
-	 * Default value: NA
-	 */
-	KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX,
-
-	/**
-	 * Minimum frequency GPU will be clocked at. Given in kHz.
-	 * This must be specified as there is no default value.
-	 *
-	 * Attached value: number in kHz
-	 * Default value: NA
-	 */
-	KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MIN,
-
-	/**
-	 * Irq throttle. It is the minimum desired time in between two
-	 * consecutive gpu interrupts (given in 'us'). The irq throttle
-	 * gpu register will be configured after this, taking into
-	 * account the configured max frequency.
-	 *
-	 * Attached value: number in micro seconds
-	 * Default value: see DEFAULT_IRQ_THROTTLE_TIME_US
-	 */
-	KBASE_CONFIG_ATTR_GPU_IRQ_THROTTLE_TIME_US,
 
 	/*** Begin Job Scheduling Configs ***/
 	/**
@@ -262,9 +242,9 @@ enum {
 	 * often used by the OS.
 	 *
 	 * This value controls affects the actual time defined by the following
-	 * config values:
-	 * - @ref KBASE_CONFIG_ATTR_JS_CFS_CTX_RUNTIME_INIT_SLICES
-	 * - @ref KBASE_CONFIG_ATTR_JS_CFS_CTX_RUNTIME_MIN_SLICES
+	 * defaults:
+	 * - @ref DEFAULT_JS_CFS_CTX_RUNTIME_INIT_SLICES
+	 * - @ref DEFAULT_JS_CFS_CTX_RUNTIME_MIN_SLICES
 	 *
 	 * This value is supported by the following scheduling policies:
 	 * - The Completely Fair Share (CFS) policy
@@ -274,56 +254,13 @@ enum {
 	 * Default value: @ref DEFAULT_JS_CTX_TIMESLICE_NS
 	 *
 	 * @note a value of zero models a "Round Robin" scheduling policy, and
-	 * disables @ref KBASE_CONFIG_ATTR_JS_CFS_CTX_RUNTIME_INIT_SLICES
+	 * disables @ref DEFAULT_JS_CFS_CTX_RUNTIME_INIT_SLICES
 	 * (initially causing LIFO scheduling) and
-	 * @ref KBASE_CONFIG_ATTR_JS_CFS_CTX_RUNTIME_MIN_SLICES (allowing
+	 * @ref DEFAULT_JS_CFS_CTX_RUNTIME_MIN_SLICES (allowing
 	 * not-run-often contexts to get scheduled in quickly, but to only use
 	 * a single timeslice when they get scheduled in).
 	 */
 	KBASE_CONFIG_ATTR_JS_CTX_TIMESLICE_NS,
-
-	/**
-	 * Job Scheduler initial runtime of a context for the CFS Policy, in time-slices.
-	 *
-	 * This value is relative to that of the least-run context, and defines
-	 * where in the CFS queue a new context is added. A value of 1 means 'after
-	 * the least-run context has used its timeslice'. Therefore, when all
-	 * contexts consistently use the same amount of time, a value of 1 models a
-	 * FIFO. A value of 0 would model a LIFO.
-	 *
-	 * The value is represented in "numbers of time slices". Multiply this
-	 * value by that defined in @ref KBASE_CONFIG_ATTR_JS_CTX_TIMESLICE_NS to get
-	 * the time value for this in nanoseconds.
-	 *
-	 * Attached value: unsigned 32-bit kbasep_js_device_data::cfs_ctx_runtime_init_slices<br>
-	 * Default value: @ref DEFAULT_JS_CFS_CTX_RUNTIME_INIT_SLICES
-	 */
-	KBASE_CONFIG_ATTR_JS_CFS_CTX_RUNTIME_INIT_SLICES,
-
-	/**
-	 * Job Scheduler minimum runtime value of a context for CFS, in time_slices
-	 * relative to that of the least-run context.
-	 *
-	 * This is a measure of how much preferrential treatment is given to a
-	 * context that is not run very often.
-	 *
-	 * Specficially, this value defines how many timeslices such a context is
-	 * (initially) allowed to use at once. Such contexts (e.g. 'interactive'
-	 * processes) will appear near the front of the CFS queue, and can initially
-	 * use more time than contexts that run continuously (e.g. 'batch'
-	 * processes).
-	 *
-	 * This limit \b prevents a "stored-up timeslices" DoS attack, where a ctx
-	 * not run for a long time attacks the system by using a very large initial
-	 * number of timeslices when it finally does run.
-	 *
-	 * Attached value: unsigned 32-bit kbasep_js_device_data::cfs_ctx_runtime_min_slices<br>
-	 * Default value: @ref DEFAULT_JS_CFS_CTX_RUNTIME_MIN_SLICES
-	 *
-	 * @note A value of zero allows not-run-often contexts to get scheduled in
-	 * quickly, but to only use a single timeslice when they get scheduled in.
-	 */
-	KBASE_CONFIG_ATTR_JS_CFS_CTX_RUNTIME_MIN_SLICES,
 
 	/**
 	 * Job Scheduler minimum number of scheduling ticks before non-CL jobs
@@ -400,30 +337,6 @@ enum {
 	KBASE_CONFIG_ATTR_POWER_MANAGEMENT_CALLBACKS,
 
 	/**
-	 * Boolean indicating whether the driver is configured to be secure at
-	 * a potential loss of performance.
-	 *
-	 * This currently affects only r0p0-15dev0 HW and earlier.
-	 *
-	 * On r0p0-15dev0 HW and earlier, there are tradeoffs between security and
-	 * performance:
-	 *
-	 * - When this is set to MALI_TRUE, the driver remains fully secure,
-	 * but potentially loses performance compared with setting this to
-	 * MALI_FALSE.
-	 * - When set to MALI_FALSE, the driver is open to certain security
-	 * attacks.
-	 *
-	 * From r0p0-00rel0 and onwards, there is no security loss by setting
-	 * this to MALI_FALSE, and no performance loss by setting it to
-	 * MALI_TRUE.
-	 *
-	 * Attached value: mali_bool value
-	 * Default value: @ref DEFAULT_SECURE_BUT_LOSS_OF_PERFORMANCE
-	 */
-	KBASE_CONFIG_ATTR_SECURE_BUT_LOSS_OF_PERFORMANCE,
-
-	/**
 	 * A pointer to a function that calculates the CPU clock
 	 * speed of the platform in MHz - see
 	 * @ref kbase_cpuprops_clock_speed_function for the function
@@ -442,8 +355,8 @@ enum {
 	 * prototype.
 	 *
 	 * Attached value: A @ref kbase_gpuprops_clock_speed_function.
-	 * Default Value:  NULL (in which case the driver assumes a current
-	 *                 GPU frequency specified by KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX)
+	 * Default Value:  NULL (in which case the driver assumes maximum
+	 *                 GPU frequency stored in gpu_freq_khz_max)
 	 */
 	KBASE_CONFIG_ATTR_GPU_SPEED_FUNC,
 
@@ -454,32 +367,6 @@ enum {
 	 * Default value: See @ref kbase_platform_funcs_conf
 	 */
 	KBASE_CONFIG_ATTR_PLATFORM_FUNCS,
-
-	/**
-	 * Limit ARID width on the AXI bus.
-	 *
-	 * Attached value: u32 register value
-	 *    KBASE_AID_32 - use the full 32 IDs (5 ID bits)
-	 *    KBASE_AID_16 - use 16 IDs (4 ID bits)
-	 *    KBASE_AID_8  - use 8 IDs (3 ID bits)
-	 *    KBASE_AID_4  - use 4 IDs (2 ID bits)
-	 * Default value: KBASE_AID_32 (no limit). Note hardware implementation
-	 * may limit to a lower value.
-	 */
-	KBASE_CONFIG_ATTR_ARID_LIMIT,
-
-	/**
-	 * Limit AWID width on the AXI bus.
-	 *
-	 * Attached value: u32 register value
-	 *    KBASE_AID_32 - use the full 32 IDs (5 ID bits)
-	 *    KBASE_AID_16 - use 16 IDs (4 ID bits)
-	 *    KBASE_AID_8  - use 8 IDs (3 ID bits)
-	 *    KBASE_AID_4  - use 4 IDs (2 ID bits)
-	 * Default value: KBASE_AID_32 (no limit). Note hardware implementation
-	 * may limit to a lower value.
-	 */
-	KBASE_CONFIG_ATTR_AWID_LIMIT,
 
 	/**
 	 * Rate at which dvfs data should be collected.
@@ -522,6 +409,12 @@ enum {
 	 */
 	KBASE_CONFIG_ATTR_PM_POWEROFF_TICK_GPU,
 
+	/** Power model for IPA
+	 *
+	 * Attached value: pointer to @ref mali_pa_model_ops
+	 */
+	KBASE_CONFIG_ATTR_POWER_MODEL_CALLBACKS,
+
 	/**
 	 * End of attribute list indicator.
 	 * The configuration loader will stop processing any more elements
@@ -530,31 +423,6 @@ enum {
 	 * Default value: NA
 	 */
 	KBASE_CONFIG_ATTR_END = 0x1FFFUL
-};
-
-enum {
-	/**
-	 * Use unrestricted Address ID width on the AXI bus.
-	 */
-	KBASE_AID_32 = 0x0,
-
-	/**
-	 * Restrict GPU to a half of maximum Address ID count.
-	 * This will reduce performance, but reduce bus load due to GPU.
-	 */
-	KBASE_AID_16 = 0x3,
-
-	/**
-	 * Restrict GPU to a quarter of maximum Address ID count.
-	 * This will reduce performance, but reduce bus load due to GPU.
-	 */
-	KBASE_AID_8  = 0x2,
-
-	/**
-	 * Restrict GPU to an eighth of maximum Address ID count.
-	 * This will reduce performance, but reduce bus load due to GPU.
-	 */
-	KBASE_AID_4  = 0x1
 };
 
 /*
@@ -567,7 +435,7 @@ typedef struct kbase_attribute {
 	uintptr_t data;
 } kbase_attribute;
 
-/* Forward declaration of kbase_device */
+/* Forward declaration of struct kbase_device */
 struct kbase_device;
 
 /*
@@ -578,18 +446,18 @@ struct kbase_device;
 typedef struct kbase_platform_funcs_conf {
 	/**
 	 * Function pointer for platform specific initialization or NULL if no initialization function is required.
-	 * This function will be called \em before any other callbacks listed in the kbase_attribute struct (such as
+	 * This function will be called \em before any other callbacks listed in the struct kbase_attribute struct (such as
 	 * Power Management callbacks).
 	 * The platform specific private pointer kbase_device::platform_context can be accessed (and possibly initialized) in here.
 	 */
 	mali_bool(*platform_init_func) (struct kbase_device *kbdev);
 	/**
 	 * Function pointer for platform specific termination or NULL if no termination function is required.
-	 * This function will be called \em after any other callbacks listed in the kbase_attribute struct (such as
+	 * This function will be called \em after any other callbacks listed in the struct kbase_attribute struct (such as
 	 * Power Management callbacks).
 	 * The platform specific private pointer kbase_device::platform_context can be accessed (and possibly terminated) in here.
 	 */
-	void (*platform_term_func) (struct kbase_device *kbdev);
+	void (*platform_term_func)(struct kbase_device *kbdev);
 
 } kbase_platform_funcs_conf;
 
@@ -606,7 +474,7 @@ typedef struct kbase_pm_callback_conf {
 	 * The platform specific private pointer kbase_device::platform_context can be accessed and modified in here. It is the
 	 * platform \em callbacks responsiblity to initialize and terminate this pointer if used (see @ref kbase_platform_funcs_conf).
 	 */
-	void (*power_off_callback) (struct kbase_device *kbdev);
+	void (*power_off_callback)(struct kbase_device *kbdev);
 
 	/** Callback for when the GPU is about to become active and power must be supplied.
 	 *
@@ -620,7 +488,7 @@ typedef struct kbase_pm_callback_conf {
 	 *
 	 * @return 1 if the GPU state may have been lost, 0 otherwise.
 	 */
-	int (*power_on_callback) (struct kbase_device *kbdev);
+	int (*power_on_callback)(struct kbase_device *kbdev);
 
 	/** Callback for when the system is requesting a suspend and GPU power
 	 * must be switched off.
@@ -635,7 +503,7 @@ typedef struct kbase_pm_callback_conf {
 	 * callbacks responsibility to initialize and terminate this pointer if
 	 * used (see @ref kbase_platform_funcs_conf).
 	 */
-	void (*power_suspend_callback) (struct kbase_device *kbdev);
+	void (*power_suspend_callback)(struct kbase_device *kbdev);
 
 	/** Callback for when the system is resuming from a suspend and GPU
 	 * power must be switched on.
@@ -650,7 +518,7 @@ typedef struct kbase_pm_callback_conf {
 	 * callbacks responsibility to initialize and terminate this pointer if
 	 * used (see @ref kbase_platform_funcs_conf).
 	 */
-	void (*power_resume_callback) (struct kbase_device *kbdev);
+	void (*power_resume_callback)(struct kbase_device *kbdev);
 
 	/** Callback for handling runtime power management initialization.
 	 *
@@ -669,7 +537,7 @@ typedef struct kbase_pm_callback_conf {
 	 * should no longer be called by the OS on completion of this function.
 	 * Note: for linux the kernel must have CONFIG_PM_RUNTIME enabled to use this feature.
 	 */
-	void (*power_runtime_term_callback) (struct kbase_device *kbdev);
+	void (*power_runtime_term_callback)(struct kbase_device *kbdev);
 
 	/** Callback for runtime power-off power management callback
 	 *
@@ -678,14 +546,14 @@ typedef struct kbase_pm_callback_conf {
 	 *
 	 * @return 0 on success, else OS error code.
 	 */
-	void (*power_runtime_off_callback) (struct kbase_device *kbdev);
+	void (*power_runtime_off_callback)(struct kbase_device *kbdev);
 
 	/** Callback for runtime power-on power management callback
 	 *
 	 * For linux this callback will be called by the kernel runtime_resume callback.
 	 * Note: for linux the kernel must have CONFIG_PM_RUNTIME enabled to use this feature.
 	 */
-	int (*power_runtime_on_callback) (struct kbase_device *kbdev);
+	int (*power_runtime_on_callback)(struct kbase_device *kbdev);
 
 } kbase_pm_callback_conf;
 
@@ -706,14 +574,14 @@ typedef int (*kbase_cpuprops_clock_speed_function) (u32 *clock_speed);
  *                          If the system timer is not available then this function is required
  *                          for the OpenCL queue profiling to return correct timing information.
  *
- * @return 0 on success, 1 on error. When an error is returned the caller assumes a current
- * GPU speed as specified by KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX.
+ * @return 0 on success, 1 on error. When an error is returned the caller assumes maximum
+ * GPU speed stored in gpu_freq_khz_max.
  */
 typedef int (*kbase_gpuprops_clock_speed_function) (u32 *clock_speed);
 
 #ifdef CONFIG_OF
 typedef struct kbase_platform_config {
-	const kbase_attribute *attributes;
+	const struct kbase_attribute *attributes;
 	u32 midgard_type;
 } kbase_platform_config;
 #else
@@ -730,15 +598,16 @@ typedef struct kbase_io_memory_region {
  * @brief Specifies I/O related resources like IRQs and memory region for I/O operations.
  */
 typedef struct kbase_io_resources {
-	u32 job_irq_number;
-	u32 mmu_irq_number;
-	u32 gpu_irq_number;
-	kbase_io_memory_region io_memory_region;
+
+	u32                      job_irq_number;
+	u32                      mmu_irq_number;
+	u32                      gpu_irq_number;
+	struct kbase_io_memory_region io_memory_region;
 } kbase_io_resources;
 
 typedef struct kbase_platform_config {
-	const kbase_attribute *attributes;
-	const kbase_io_resources *io_resources;
+	const struct kbase_attribute *attributes;
+	const struct kbase_io_resources *io_resources;
 	u32 midgard_type;
 } kbase_platform_config;
 
@@ -764,7 +633,7 @@ const char *kbasep_midgard_type_to_string(u32 midgard_type);
  *
  * @return  Pointer to the first attribute matching id or NULL if none is found.
  */
-const kbase_attribute *kbasep_get_next_attribute(const kbase_attribute *attributes, int attribute_id);
+const struct kbase_attribute *kbasep_get_next_attribute(const struct kbase_attribute *attributes, int attribute_id);
 
 /**
  * @brief Gets the value of a single config attribute.
@@ -778,28 +647,27 @@ const kbase_attribute *kbasep_get_next_attribute(const kbase_attribute *attribut
  *
  * @return Value of attribute with the given id
  */
-uintptr_t kbasep_get_config_value(struct kbase_device *kbdev, const kbase_attribute *attributes, int attribute_id);
+uintptr_t kbasep_get_config_value(struct kbase_device *kbdev, const struct kbase_attribute *attributes, int attribute_id);
 
 /**
  * @brief Validates configuration attributes
  *
  * Function checks validity of given configuration attributes. It will fail on any attribute with unknown id, attribute
- * with invalid value or attribute list that is not correctly terminated. It will also fail if
- * KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MIN or KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX are not specified.
+ * with invalid value or attribute list that is not correctly terminated.
  *
  * @param[in]  kbdev       Kbase device pointer
  * @param[in]  attributes  Array of attributes to validate
  *
  * @return   MALI_TRUE if no errors have been found in the config. MALI_FALSE otherwise.
  */
-mali_bool kbasep_validate_configuration_attributes(struct kbase_device *kbdev, const kbase_attribute *attributes);
+mali_bool kbasep_validate_configuration_attributes(struct kbase_device *kbdev, const struct kbase_attribute *attributes);
 
 /**
  * @brief Gets the pointer to platform config.
  *
  * @return Pointer to the platform config
  */
-kbase_platform_config *kbase_get_platform_config(void);
+struct kbase_platform_config *kbase_get_platform_config(void);
 
 /**
  * @brief Gets the count of attributes in array
@@ -810,7 +678,7 @@ kbase_platform_config *kbase_get_platform_config(void);
  *
  * @return  Number of attributes in the array including end of list indicator.
  */
-int kbasep_get_config_attribute_count(const kbase_attribute *attributes);
+int kbasep_get_config_attribute_count(const struct kbase_attribute *attributes);
 
 /**
  * @brief Platform specific call to initialize hardware

@@ -184,8 +184,9 @@
 #define L3_PWRACTIVE_LO         0x270	/* (RO) Level 3 cache active bitmap, low word */
 #define L3_PWRACTIVE_HI         0x274	/* (RO) Level 3 cache active bitmap, high word */
 
-#define SHADER_CONFIG           0xF04	/* (RW) Shader core configuration settings (Mali-T60x additional register) */
-#define L2_MMU_CONFIG           0xF0C	/* (RW) Configuration of the L2 cache and MMU (Mali-T60x additional register) */
+#define SHADER_CONFIG           0xF04	/* (RW) Shader core configuration settings (Implementation specific register) */
+#define TILER_CONFIG            0xF08   /* (RW) Tiler core configuration settings (Implementation specific register) */
+#define L2_MMU_CONFIG           0xF0C	/* (RW) Configuration of the L2 cache and MMU (Implementation specific register) */
 
 #define JOB_CONTROL_BASE        0x1000
 
@@ -217,25 +218,25 @@
 
 #define JOB_SLOT_REG(n, r)      (JOB_CONTROL_REG(JOB_SLOT0 + ((n) << 7)) + (r))
 
-#define JSn_HEAD_LO             0x00	/* (RO) Job queue head pointer for job slot n, low word */
-#define JSn_HEAD_HI             0x04	/* (RO) Job queue head pointer for job slot n, high word */
-#define JSn_TAIL_LO             0x08	/* (RO) Job queue tail pointer for job slot n, low word */
-#define JSn_TAIL_HI             0x0C	/* (RO) Job queue tail pointer for job slot n, high word */
-#define JSn_AFFINITY_LO         0x10	/* (RO) Core affinity mask for job slot n, low word */
-#define JSn_AFFINITY_HI         0x14	/* (RO) Core affinity mask for job slot n, high word */
-#define JSn_CONFIG              0x18	/* (RO) Configuration settings for job slot n */
+#define JS_HEAD_LO             0x00	/* (RO) Job queue head pointer for job slot n, low word */
+#define JS_HEAD_HI             0x04	/* (RO) Job queue head pointer for job slot n, high word */
+#define JS_TAIL_LO             0x08	/* (RO) Job queue tail pointer for job slot n, low word */
+#define JS_TAIL_HI             0x0C	/* (RO) Job queue tail pointer for job slot n, high word */
+#define JS_AFFINITY_LO         0x10	/* (RO) Core affinity mask for job slot n, low word */
+#define JS_AFFINITY_HI         0x14	/* (RO) Core affinity mask for job slot n, high word */
+#define JS_CONFIG              0x18	/* (RO) Configuration settings for job slot n */
 
-#define JSn_COMMAND             0x20	/* (WO) Command register for job slot n */
-#define JSn_STATUS              0x24	/* (RO) Status register for job slot n */
+#define JS_COMMAND             0x20	/* (WO) Command register for job slot n */
+#define JS_STATUS              0x24	/* (RO) Status register for job slot n */
 
-#define JSn_HEAD_NEXT_LO        0x40	/* (RW) Next job queue head pointer for job slot n, low word */
-#define JSn_HEAD_NEXT_HI        0x44	/* (RW) Next job queue head pointer for job slot n, high word */
+#define JS_HEAD_NEXT_LO        0x40	/* (RW) Next job queue head pointer for job slot n, low word */
+#define JS_HEAD_NEXT_HI        0x44	/* (RW) Next job queue head pointer for job slot n, high word */
 
-#define JSn_AFFINITY_NEXT_LO    0x50	/* (RW) Next core affinity mask for job slot n, low word */
-#define JSn_AFFINITY_NEXT_HI    0x54	/* (RW) Next core affinity mask for job slot n, high word */
-#define JSn_CONFIG_NEXT         0x58	/* (RW) Next configuration settings for job slot n */
+#define JS_AFFINITY_NEXT_LO    0x50	/* (RW) Next core affinity mask for job slot n, low word */
+#define JS_AFFINITY_NEXT_HI    0x54	/* (RW) Next core affinity mask for job slot n, high word */
+#define JS_CONFIG_NEXT         0x58	/* (RW) Next configuration settings for job slot n */
 
-#define JSn_COMMAND_NEXT        0x60	/* (RW) Next command register for job slot n */
+#define JS_COMMAND_NEXT        0x60	/* (RW) Next command register for job slot n */
 
 #define MEMORY_MANAGEMENT_BASE  0x2000
 #define MMU_REG(r)              (MEMORY_MANAGEMENT_BASE + (r))
@@ -264,17 +265,17 @@
 
 #define MMU_AS_REG(n, r)        (MMU_REG(MMU_AS0 + ((n) << 6)) + (r))
 
-#define ASn_TRANSTAB_LO         0x00	/* (RW) Translation Table Base Address for address space n, low word */
-#define ASn_TRANSTAB_HI         0x04	/* (RW) Translation Table Base Address for address space n, high word */
-#define ASn_MEMATTR_LO          0x08	/* (RW) Memory attributes for address space n, low word. */
-#define ASn_MEMATTR_HI          0x0C	/* (RW) Memory attributes for address space n, high word. */
-#define ASn_LOCKADDR_LO         0x10	/* (RW) Lock region address for address space n, low word */
-#define ASn_LOCKADDR_HI         0x14	/* (RW) Lock region address for address space n, high word */
-#define ASn_COMMAND             0x18	/* (WO) MMU command register for address space n */
-#define ASn_FAULTSTATUS         0x1C	/* (RO) MMU fault status register for address space n */
-#define ASn_FAULTADDRESS_LO     0x20	/* (RO) Fault Address for address space n, low word */
-#define ASn_FAULTADDRESS_HI     0x24	/* (RO) Fault Address for address space n, high word */
-#define ASn_STATUS              0x28	/* (RO) Status flags for address space n */
+#define AS_TRANSTAB_LO         0x00	/* (RW) Translation Table Base Address for address space n, low word */
+#define AS_TRANSTAB_HI         0x04	/* (RW) Translation Table Base Address for address space n, high word */
+#define AS_MEMATTR_LO          0x08	/* (RW) Memory attributes for address space n, low word. */
+#define AS_MEMATTR_HI          0x0C	/* (RW) Memory attributes for address space n, high word. */
+#define AS_LOCKADDR_LO         0x10	/* (RW) Lock region address for address space n, low word */
+#define AS_LOCKADDR_HI         0x14	/* (RW) Lock region address for address space n, high word */
+#define AS_COMMAND             0x18	/* (WO) MMU command register for address space n */
+#define AS_FAULTSTATUS         0x1C	/* (RO) MMU fault status register for address space n */
+#define AS_FAULTADDRESS_LO     0x20	/* (RO) Fault Address for address space n, low word */
+#define AS_FAULTADDRESS_HI     0x24	/* (RO) Fault Address for address space n, high word */
+#define AS_STATUS              0x28	/* (RO) Status flags for address space n */
 
 /* End Register Offsets */
 
@@ -292,100 +293,102 @@
 /*
  * Begin MMU TRANSTAB register values
  */
-#define ASn_TRANSTAB_ADDR_SPACE_MASK   0xfffff000
-#define ASn_TRANSTAB_ADRMODE_UNMAPPED  (0u << 0)
-#define ASn_TRANSTAB_ADRMODE_IDENTITY  (1u << 1)
-#define ASn_TRANSTAB_ADRMODE_TABLE     (3u << 0)
-#define ASn_TRANSTAB_READ_INNER        (1u << 2)
-#define ASn_TRANSTAB_SHARE_OUTER       (1u << 4)
+#define AS_TRANSTAB_ADDR_SPACE_MASK   0xfffff000
+#define AS_TRANSTAB_ADRMODE_UNMAPPED  (0u << 0)
+#define AS_TRANSTAB_ADRMODE_IDENTITY  (1u << 1)
+#define AS_TRANSTAB_ADRMODE_TABLE     (3u << 0)
+#define AS_TRANSTAB_READ_INNER        (1u << 2)
+#define AS_TRANSTAB_SHARE_OUTER       (1u << 4)
 
 #define MMU_TRANSTAB_ADRMODE_MASK      0x00000003
 
 /*
  * Begin MMU STATUS register values
  */
-#define ASn_STATUS_FLUSH_ACTIVE 0x01
+#define AS_STATUS_AS_ACTIVE 0x01
 
-#define ASn_FAULTSTATUS_ACCESS_TYPE_MASK    (0x3<<8)
-#define ASn_FAULTSTATUS_ACCESS_TYPE_EX      (0x1<<8)
-#define ASn_FAULTSTATUS_ACCESS_TYPE_READ    (0x2<<8)
-#define ASn_FAULTSTATUS_ACCESS_TYPE_WRITE   (0x3<<8)
+#define AS_FAULTSTATUS_ACCESS_TYPE_MASK    (0x3<<8)
+#define AS_FAULTSTATUS_ACCESS_TYPE_EX      (0x1<<8)
+#define AS_FAULTSTATUS_ACCESS_TYPE_READ    (0x2<<8)
+#define AS_FAULTSTATUS_ACCESS_TYPE_WRITE   (0x3<<8)
 
 /*
  * Begin Command Values
  */
 
-/* JSn_COMMAND register commands */
-#define JSn_COMMAND_NOP         0x00	/* NOP Operation. Writing this value is ignored */
-#define JSn_COMMAND_START       0x01	/* Start processing a job chain. Writing this value is ignored */
-#define JSn_COMMAND_SOFT_STOP   0x02	/* Gently stop processing a job chain */
-#define JSn_COMMAND_HARD_STOP   0x03	/* Rudely stop processing a job chain */
-#define JSn_COMMAND_SOFT_STOP_0 0x04	/* Execute SOFT_STOP if JOB_CHAIN_FLAG is 0 */
-#define JSn_COMMAND_HARD_STOP_0 0x05	/* Execute HARD_STOP if JOB_CHAIN_FLAG is 0 */
-#define JSn_COMMAND_SOFT_STOP_1 0x06	/* Execute SOFT_STOP if JOB_CHAIN_FLAG is 1 */
-#define JSn_COMMAND_HARD_STOP_1 0x07	/* Execute HARD_STOP if JOB_CHAIN_FLAG is 1 */
+/* JS_COMMAND register commands */
+#define JS_COMMAND_NOP         0x00	/* NOP Operation. Writing this value is ignored */
+#define JS_COMMAND_START       0x01	/* Start processing a job chain. Writing this value is ignored */
+#define JS_COMMAND_SOFT_STOP   0x02	/* Gently stop processing a job chain */
+#define JS_COMMAND_HARD_STOP   0x03	/* Rudely stop processing a job chain */
+#define JS_COMMAND_SOFT_STOP_0 0x04	/* Execute SOFT_STOP if JOB_CHAIN_FLAG is 0 */
+#define JS_COMMAND_HARD_STOP_0 0x05	/* Execute HARD_STOP if JOB_CHAIN_FLAG is 0 */
+#define JS_COMMAND_SOFT_STOP_1 0x06	/* Execute SOFT_STOP if JOB_CHAIN_FLAG is 1 */
+#define JS_COMMAND_HARD_STOP_1 0x07	/* Execute HARD_STOP if JOB_CHAIN_FLAG is 1 */
 
-/* ASn_COMMAND register commands */
-#define ASn_COMMAND_NOP         0x00	/* NOP Operation */
-#define ASn_COMMAND_UPDATE      0x01	/* Broadcasts the values in ASn_TRANSTAB and ASn_MEMATTR to all MMUs */
-#define ASn_COMMAND_LOCK        0x02	/* Issue a lock region command to all MMUs */
-#define ASn_COMMAND_UNLOCK      0x03	/* Issue a flush region command to all MMUs */
-#define ASn_COMMAND_FLUSH       0x04	/* Flush all L2 caches then issue a flush region command to all MMUs
+#define JS_COMMAND_MASK        0x07    /* Mask of bits currently in use by the HW */
+
+/* AS_COMMAND register commands */
+#define AS_COMMAND_NOP         0x00	/* NOP Operation */
+#define AS_COMMAND_UPDATE      0x01	/* Broadcasts the values in AS_TRANSTAB and ASn_MEMATTR to all MMUs */
+#define AS_COMMAND_LOCK        0x02	/* Issue a lock region command to all MMUs */
+#define AS_COMMAND_UNLOCK      0x03	/* Issue a flush region command to all MMUs */
+#define AS_COMMAND_FLUSH       0x04	/* Flush all L2 caches then issue a flush region command to all MMUs
 					   (deprecated - only for use with T60x) */
-#define ASn_COMMAND_FLUSH_PT    0x04	/* Flush all L2 caches then issue a flush region command to all MMUs */
-#define ASn_COMMAND_FLUSH_MEM   0x05	/* Wait for memory accesses to complete, flush all the L1s cache then
+#define AS_COMMAND_FLUSH_PT    0x04	/* Flush all L2 caches then issue a flush region command to all MMUs */
+#define AS_COMMAND_FLUSH_MEM   0x05	/* Wait for memory accesses to complete, flush all the L1s cache then
 					   flush all L2 caches then issue a flush region command to all MMUs */
 
-/* Possible values of JSn_CONFIG and JSn_CONFIG_NEXT registers */
-#define JSn_CONFIG_START_FLUSH_NO_ACTION        (0u << 0)
-#define JSn_CONFIG_START_FLUSH_CLEAN            (1u << 8)
-#define JSn_CONFIG_START_FLUSH_CLEAN_INVALIDATE (3u << 8)
-#define JSn_CONFIG_START_MMU                    (1u << 10)
-#define JSn_CONFIG_JOB_CHAIN_FLAG               (1u << 11)
-#define JSn_CONFIG_END_FLUSH_NO_ACTION          JSn_CONFIG_START_FLUSH_NO_ACTION
-#define JSn_CONFIG_END_FLUSH_CLEAN              (1u << 12)
-#define JSn_CONFIG_END_FLUSH_CLEAN_INVALIDATE   (3u << 12)
-#define JSn_CONFIG_THREAD_PRI(n)                ((n) << 16)
+/* Possible values of JS_CONFIG and JS_CONFIG_NEXT registers */
+#define JS_CONFIG_START_FLUSH_NO_ACTION        (0u << 0)
+#define JS_CONFIG_START_FLUSH_CLEAN            (1u << 8)
+#define JS_CONFIG_START_FLUSH_CLEAN_INVALIDATE (3u << 8)
+#define JS_CONFIG_START_MMU                    (1u << 10)
+#define JS_CONFIG_JOB_CHAIN_FLAG               (1u << 11)
+#define JS_CONFIG_END_FLUSH_NO_ACTION          JS_CONFIG_START_FLUSH_NO_ACTION
+#define JS_CONFIG_END_FLUSH_CLEAN              (1u << 12)
+#define JS_CONFIG_END_FLUSH_CLEAN_INVALIDATE   (3u << 12)
+#define JS_CONFIG_THREAD_PRI(n)                ((n) << 16)
 
-/* JSn_STATUS register values */
+/* JS_STATUS register values */
 
 /* NOTE: Please keep this values in sync with enum base_jd_event_code in mali_base_kernel.h.
  * The values are separated to avoid dependency of userspace and kernel code.
  */
 
 /* Group of values representing the job status insead a particular fault */
-#define JSn_STATUS_NO_EXCEPTION_BASE   0x00
-#define JSn_STATUS_INTERRUPTED         (JSn_STATUS_NO_EXCEPTION_BASE + 0x02)	/* 0x02 means INTERRUPTED */
-#define JSn_STATUS_STOPPED             (JSn_STATUS_NO_EXCEPTION_BASE + 0x03)	/* 0x03 means STOPPED */
-#define JSn_STATUS_TERMINATED          (JSn_STATUS_NO_EXCEPTION_BASE + 0x04)	/* 0x04 means TERMINATED */
+#define JS_STATUS_NO_EXCEPTION_BASE   0x00
+#define JS_STATUS_INTERRUPTED         (JS_STATUS_NO_EXCEPTION_BASE + 0x02)	/* 0x02 means INTERRUPTED */
+#define JS_STATUS_STOPPED             (JS_STATUS_NO_EXCEPTION_BASE + 0x03)	/* 0x03 means STOPPED */
+#define JS_STATUS_TERMINATED          (JS_STATUS_NO_EXCEPTION_BASE + 0x04)	/* 0x04 means TERMINATED */
 
 /* General fault values */
-#define JSn_STATUS_FAULT_BASE          0x40
-#define JSn_STATUS_CONFIG_FAULT        (JSn_STATUS_FAULT_BASE)	/* 0x40 means CONFIG FAULT */
-#define JSn_STATUS_POWER_FAULT         (JSn_STATUS_FAULT_BASE + 0x01)	/* 0x41 means POWER FAULT */
-#define JSn_STATUS_READ_FAULT          (JSn_STATUS_FAULT_BASE + 0x02)	/* 0x42 means READ FAULT */
-#define JSn_STATUS_WRITE_FAULT         (JSn_STATUS_FAULT_BASE + 0x03)	/* 0x43 means WRITE FAULT */
-#define JSn_STATUS_AFFINITY_FAULT      (JSn_STATUS_FAULT_BASE + 0x04)	/* 0x44 means AFFINITY FAULT */
-#define JSn_STATUS_BUS_FAULT           (JSn_STATUS_FAULT_BASE + 0x08)	/* 0x48 means BUS FAULT */
+#define JS_STATUS_FAULT_BASE          0x40
+#define JS_STATUS_CONFIG_FAULT        (JS_STATUS_FAULT_BASE)	/* 0x40 means CONFIG FAULT */
+#define JS_STATUS_POWER_FAULT         (JS_STATUS_FAULT_BASE + 0x01)	/* 0x41 means POWER FAULT */
+#define JS_STATUS_READ_FAULT          (JS_STATUS_FAULT_BASE + 0x02)	/* 0x42 means READ FAULT */
+#define JS_STATUS_WRITE_FAULT         (JS_STATUS_FAULT_BASE + 0x03)	/* 0x43 means WRITE FAULT */
+#define JS_STATUS_AFFINITY_FAULT      (JS_STATUS_FAULT_BASE + 0x04)	/* 0x44 means AFFINITY FAULT */
+#define JS_STATUS_BUS_FAULT           (JS_STATUS_FAULT_BASE + 0x08)	/* 0x48 means BUS FAULT */
 
 /* Instruction or data faults */
-#define JSn_STATUS_INSTRUCTION_FAULT_BASE  0x50
-#define JSn_STATUS_INSTR_INVALID_PC        (JSn_STATUS_INSTRUCTION_FAULT_BASE)	/* 0x50 means INSTR INVALID PC */
-#define JSn_STATUS_INSTR_INVALID_ENC       (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x01)	/* 0x51 means INSTR INVALID ENC */
-#define JSn_STATUS_INSTR_TYPE_MISMATCH     (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x02)	/* 0x52 means INSTR TYPE MISMATCH */
-#define JSn_STATUS_INSTR_OPERAND_FAULT     (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x03)	/* 0x53 means INSTR OPERAND FAULT */
-#define JSn_STATUS_INSTR_TLS_FAULT         (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x04)	/* 0x54 means INSTR TLS FAULT */
-#define JSn_STATUS_INSTR_BARRIER_FAULT     (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x05)	/* 0x55 means INSTR BARRIER FAULT */
-#define JSn_STATUS_INSTR_ALIGN_FAULT       (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x06)	/* 0x56 means INSTR ALIGN FAULT */
+#define JS_STATUS_INSTRUCTION_FAULT_BASE  0x50
+#define JS_STATUS_INSTR_INVALID_PC        (JS_STATUS_INSTRUCTION_FAULT_BASE)	/* 0x50 means INSTR INVALID PC */
+#define JS_STATUS_INSTR_INVALID_ENC       (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x01)	/* 0x51 means INSTR INVALID ENC */
+#define JS_STATUS_INSTR_TYPE_MISMATCH     (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x02)	/* 0x52 means INSTR TYPE MISMATCH */
+#define JS_STATUS_INSTR_OPERAND_FAULT     (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x03)	/* 0x53 means INSTR OPERAND FAULT */
+#define JS_STATUS_INSTR_TLS_FAULT         (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x04)	/* 0x54 means INSTR TLS FAULT */
+#define JS_STATUS_INSTR_BARRIER_FAULT     (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x05)	/* 0x55 means INSTR BARRIER FAULT */
+#define JS_STATUS_INSTR_ALIGN_FAULT       (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x06)	/* 0x56 means INSTR ALIGN FAULT */
 /* NOTE: No fault with 0x57 code defined in spec. */
-#define JSn_STATUS_DATA_INVALID_FAULT      (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x08)	/* 0x58 means DATA INVALID FAULT */
-#define JSn_STATUS_TILE_RANGE_FAULT        (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x09)	/* 0x59 means TILE RANGE FAULT */
-#define JSn_STATUS_ADDRESS_RANGE_FAULT     (JSn_STATUS_INSTRUCTION_FAULT_BASE + 0x0A)	/* 0x5A means ADDRESS RANGE FAULT */
+#define JS_STATUS_DATA_INVALID_FAULT      (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x08)	/* 0x58 means DATA INVALID FAULT */
+#define JS_STATUS_TILE_RANGE_FAULT        (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x09)	/* 0x59 means TILE RANGE FAULT */
+#define JS_STATUS_ADDRESS_RANGE_FAULT     (JS_STATUS_INSTRUCTION_FAULT_BASE + 0x0A)	/* 0x5A means ADDRESS RANGE FAULT */
 
 /* Other faults */
-#define JSn_STATUS_MEMORY_FAULT_BASE   0x60
-#define JSn_STATUS_OUT_OF_MEMORY       (JSn_STATUS_MEMORY_FAULT_BASE)	/* 0x60 means OUT OF MEMORY */
-#define JSn_STATUS_UNKNOWN             0x7F	/* 0x7F means UNKNOWN */
+#define JS_STATUS_MEMORY_FAULT_BASE   0x60
+#define JS_STATUS_OUT_OF_MEMORY       (JS_STATUS_MEMORY_FAULT_BASE)	/* 0x60 means OUT OF MEMORY */
+#define JS_STATUS_UNKNOWN             0x7F	/* 0x7F means UNKNOWN */
 
 /* GPU_COMMAND values */
 #define GPU_COMMAND_NOP                0x00	/* No operation, nothing happens */
@@ -411,19 +414,19 @@
 
 /* AS<n>_MEMATTR values: */
 /* Use GPU implementation-defined  caching policy. */
-#define ASn_MEMATTR_IMPL_DEF_CACHE_POLICY 0x48
+#define AS_MEMATTR_IMPL_DEF_CACHE_POLICY 0x48
 /* The attribute set to force all resources to be cached. */
-#define ASn_MEMATTR_FORCE_TO_CACHE_ALL    0x4F
+#define AS_MEMATTR_FORCE_TO_CACHE_ALL    0x4F
 /* Inner write-alloc cache setup, no outer caching */
-#define ASn_MEMATTR_WRITE_ALLOC           0x4D
+#define AS_MEMATTR_WRITE_ALLOC           0x4D
 /* symbol for default MEMATTR to use */
-#define ASn_MEMATTR_INDEX_DEFAULT               0
+#define AS_MEMATTR_INDEX_DEFAULT               0
 /* HW implementation defined caching */
-#define ASn_MEMATTR_INDEX_IMPL_DEF_CACHE_POLICY 0
+#define AS_MEMATTR_INDEX_IMPL_DEF_CACHE_POLICY 0
 /* Force cache on */
-#define ASn_MEMATTR_INDEX_FORCE_TO_CACHE_ALL    1
+#define AS_MEMATTR_INDEX_FORCE_TO_CACHE_ALL    1
 /* Write-alloc inner */
-#define ASn_MEMATTR_INDEX_WRITE_ALLOC           2
+#define AS_MEMATTR_INDEX_WRITE_ALLOC           2
 
 /* GPU_ID register */
 #define GPU_ID_VERSION_STATUS_SHIFT       0
@@ -440,6 +443,12 @@
 #define GPU_ID_PI_T62X                    0x0620
 #define GPU_ID_PI_T76X                    0x0750
 #define GPU_ID_PI_T72X                    0x0720
+#ifdef MALI_INCLUDE_TFRX
+#define GPU_ID_PI_TFRX                    0x0880
+#endif /* MALI_INCLUDE_TFRX */
+#ifdef MALI_INCLUDE_TF2X
+#define GPU_ID_PI_TF2X                    0x0860
+#endif /* MALI_INCLUDE_TF2X */
 
 /* Values for GPU_ID_VERSION_STATUS field for PRODUCT_ID GPU_ID_PI_T60X */
 #define GPU_ID_S_15DEV0                   0x1
@@ -456,15 +465,15 @@
 
 /* JS<n>_FEATURES register */
 
-#define JSn_FEATURE_NULL_JOB              (1u << 1)
-#define JSn_FEATURE_SET_VALUE_JOB         (1u << 2)
-#define JSn_FEATURE_CACHE_FLUSH_JOB       (1u << 3)
-#define JSn_FEATURE_COMPUTE_JOB           (1u << 4)
-#define JSn_FEATURE_VERTEX_JOB            (1u << 5)
-#define JSn_FEATURE_GEOMETRY_JOB          (1u << 6)
-#define JSn_FEATURE_TILER_JOB             (1u << 7)
-#define JSn_FEATURE_FUSED_JOB             (1u << 8)
-#define JSn_FEATURE_FRAGMENT_JOB          (1u << 9)
+#define JS_FEATURE_NULL_JOB              (1u << 1)
+#define JS_FEATURE_SET_VALUE_JOB         (1u << 2)
+#define JS_FEATURE_CACHE_FLUSH_JOB       (1u << 3)
+#define JS_FEATURE_COMPUTE_JOB           (1u << 4)
+#define JS_FEATURE_VERTEX_JOB            (1u << 5)
+#define JS_FEATURE_GEOMETRY_JOB          (1u << 6)
+#define JS_FEATURE_TILER_JOB             (1u << 7)
+#define JS_FEATURE_FUSED_JOB             (1u << 8)
+#define JS_FEATURE_FRAGMENT_JOB          (1u << 9)
 
 /* End JS<n>_FEATURES register */
 
@@ -508,5 +517,12 @@
 #define SC_LS_PAUSEBUFFER_DISABLE   (1ul << 16)
 #define SC_ENABLE_TEXGRD_FLAGS      (1ul << 25)
 /* End SHADER_CONFIG register */
+
+/* TILER_CONFIG register */
+
+#define TC_CLOCK_GATE_OVERRIDE      (1ul << 0)
+
+/* End TILER_CONFIG register */
+
 
 #endif				/* _MIDGARD_REGMAP_H_ */

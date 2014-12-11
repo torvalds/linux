@@ -50,10 +50,10 @@ typedef struct kbasep_debug_assert_cb {
  * @brief Private macro containing the format of the trace to display before every message
  * @sa KBASE_DEBUG_SKIP_TRACE, KBASE_DEBUG_SKIP_FUNCTION_NAME
  */
-#if KBASE_DEBUG_SKIP_TRACE == 0
+#if !KBASE_DEBUG_SKIP_TRACE
 #define KBASEP_DEBUG_PRINT_TRACE \
 		"In file: " __FILE__ " line: " CSTD_STR2(__LINE__)
-#if KBASE_DEBUG_SKIP_FUNCTION_NAME == 0
+#if !KBASE_DEBUG_SKIP_FUNCTION_NAME
 #define KBASEP_DEBUG_PRINT_FUNCTION CSTD_FUNC
 #else
 #define KBASEP_DEBUG_PRINT_FUNCTION ""
@@ -113,7 +113,7 @@ typedef struct kbasep_debug_assert_cb {
 	 */
 #define KBASE_DEBUG_ASSERT_MSG(expr, ...) \
 		do { \
-			if (MALI_FALSE == (expr)) { \
+			if (!(expr)) { \
 				KBASEP_DEBUG_ASSERT_OUT(KBASEP_DEBUG_PRINT_TRACE, KBASEP_DEBUG_PRINT_FUNCTION, __VA_ARGS__);\
 				KBASE_CALL_ASSERT_HOOK();\
 				BUG();\

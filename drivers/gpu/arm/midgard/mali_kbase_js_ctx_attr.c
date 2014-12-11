@@ -17,6 +17,7 @@
 
 
 #include <mali_kbase.h>
+#include <mali_kbase_config.h>
 
 /*
  * Private functions follow
@@ -37,10 +38,10 @@
  * or similar is called sometime later.
  * @return MALI_FALSE indicates no change in ctx attributes state of the runpool.
  */
-STATIC mali_bool kbasep_js_ctx_attr_runpool_retain_attr(kbase_device *kbdev, kbase_context *kctx, kbasep_js_ctx_attr attribute)
+STATIC mali_bool kbasep_js_ctx_attr_runpool_retain_attr(struct kbase_device *kbdev, struct kbase_context *kctx, enum kbasep_js_ctx_attr attribute)
 {
-	kbasep_js_device_data *js_devdata;
-	kbasep_js_kctx_info *js_kctx_info;
+	struct kbasep_js_device_data *js_devdata;
+	struct kbasep_js_kctx_info *js_kctx_info;
 	mali_bool runpool_state_changed = MALI_FALSE;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -83,10 +84,10 @@ STATIC mali_bool kbasep_js_ctx_attr_runpool_retain_attr(kbase_device *kbdev, kba
  * or similar is called sometime later.
  * @return MALI_FALSE indicates no change in ctx attributes state of the runpool.
  */
-STATIC mali_bool kbasep_js_ctx_attr_runpool_release_attr(kbase_device *kbdev, kbase_context *kctx, kbasep_js_ctx_attr attribute)
+STATIC mali_bool kbasep_js_ctx_attr_runpool_release_attr(struct kbase_device *kbdev, struct kbase_context *kctx, enum kbasep_js_ctx_attr attribute)
 {
-	kbasep_js_device_data *js_devdata;
-	kbasep_js_kctx_info *js_kctx_info;
+	struct kbasep_js_device_data *js_devdata;
+	struct kbasep_js_kctx_info *js_kctx_info;
 	mali_bool runpool_state_changed = MALI_FALSE;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -125,9 +126,9 @@ STATIC mali_bool kbasep_js_ctx_attr_runpool_release_attr(kbase_device *kbdev, kb
  * This may allow the scheduler to submit more jobs than previously.
  * @return MALI_FALSE indicates no change in ctx attributes state of the runpool.
  */
-STATIC mali_bool kbasep_js_ctx_attr_ctx_retain_attr(kbase_device *kbdev, kbase_context *kctx, kbasep_js_ctx_attr attribute)
+STATIC mali_bool kbasep_js_ctx_attr_ctx_retain_attr(struct kbase_device *kbdev, struct kbase_context *kctx, enum kbasep_js_ctx_attr attribute)
 {
-	kbasep_js_kctx_info *js_kctx_info;
+	struct kbasep_js_kctx_info *js_kctx_info;
 	mali_bool runpool_state_changed = MALI_FALSE;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -162,9 +163,9 @@ STATIC mali_bool kbasep_js_ctx_attr_ctx_retain_attr(kbase_device *kbdev, kbase_c
  * This may allow the scheduler to submit more jobs than previously.
  * @return MALI_FALSE indicates no change in ctx attributes state of the runpool.
  */
-STATIC mali_bool kbasep_js_ctx_attr_ctx_release_attr(kbase_device *kbdev, kbase_context *kctx, kbasep_js_ctx_attr attribute)
+STATIC mali_bool kbasep_js_ctx_attr_ctx_release_attr(struct kbase_device *kbdev, struct kbase_context *kctx, enum kbasep_js_ctx_attr attribute)
 {
-	kbasep_js_kctx_info *js_kctx_info;
+	struct kbasep_js_kctx_info *js_kctx_info;
 	mali_bool runpool_state_changed = MALI_FALSE;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -192,9 +193,9 @@ STATIC mali_bool kbasep_js_ctx_attr_ctx_release_attr(kbase_device *kbdev, kbase_
  * More commonly used public functions
  */
 
-void kbasep_js_ctx_attr_set_initial_attrs(kbase_device *kbdev, kbase_context *kctx)
+void kbasep_js_ctx_attr_set_initial_attrs(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
-	kbasep_js_kctx_info *js_kctx_info;
+	struct kbasep_js_kctx_info *js_kctx_info;
 	mali_bool runpool_state_changed = MALI_FALSE;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -224,16 +225,16 @@ void kbasep_js_ctx_attr_set_initial_attrs(kbase_device *kbdev, kbase_context *kc
 	CSTD_UNUSED(runpool_state_changed);
 }
 
-void kbasep_js_ctx_attr_runpool_retain_ctx(kbase_device *kbdev, kbase_context *kctx)
+void kbasep_js_ctx_attr_runpool_retain_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
 	mali_bool runpool_state_changed;
 	int i;
 
 	/* Retain any existing attributes */
 	for (i = 0; i < KBASEP_JS_CTX_ATTR_COUNT; ++i) {
-		if (kbasep_js_ctx_attr_is_attr_on_ctx(kctx, (kbasep_js_ctx_attr) i) != MALI_FALSE) {
+		if (kbasep_js_ctx_attr_is_attr_on_ctx(kctx, (enum kbasep_js_ctx_attr) i) != MALI_FALSE) {
 			/* The context is being scheduled in, so update the runpool with the new attributes */
-			runpool_state_changed = kbasep_js_ctx_attr_runpool_retain_attr(kbdev, kctx, (kbasep_js_ctx_attr) i);
+			runpool_state_changed = kbasep_js_ctx_attr_runpool_retain_attr(kbdev, kctx, (enum kbasep_js_ctx_attr) i);
 
 			/* We don't need to know about state changed, because retaining a
 			 * context occurs on scheduling it, and that itself will also try
@@ -243,23 +244,23 @@ void kbasep_js_ctx_attr_runpool_retain_ctx(kbase_device *kbdev, kbase_context *k
 	}
 }
 
-mali_bool kbasep_js_ctx_attr_runpool_release_ctx(kbase_device *kbdev, kbase_context *kctx)
+mali_bool kbasep_js_ctx_attr_runpool_release_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
 	mali_bool runpool_state_changed = MALI_FALSE;
 	int i;
 
 	/* Release any existing attributes */
 	for (i = 0; i < KBASEP_JS_CTX_ATTR_COUNT; ++i) {
-		if (kbasep_js_ctx_attr_is_attr_on_ctx(kctx, (kbasep_js_ctx_attr) i) != MALI_FALSE) {
+		if (kbasep_js_ctx_attr_is_attr_on_ctx(kctx, (enum kbasep_js_ctx_attr) i) != MALI_FALSE) {
 			/* The context is being scheduled out, so update the runpool on the removed attributes */
-			runpool_state_changed |= kbasep_js_ctx_attr_runpool_release_attr(kbdev, kctx, (kbasep_js_ctx_attr) i);
+			runpool_state_changed |= kbasep_js_ctx_attr_runpool_release_attr(kbdev, kctx, (enum kbasep_js_ctx_attr) i);
 		}
 	}
 
 	return runpool_state_changed;
 }
 
-void kbasep_js_ctx_attr_ctx_retain_atom(kbase_device *kbdev, kbase_context *kctx, kbase_jd_atom *katom)
+void kbasep_js_ctx_attr_ctx_retain_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
 	mali_bool runpool_state_changed = MALI_FALSE;
 	base_jd_core_req core_req;
@@ -283,7 +284,7 @@ void kbasep_js_ctx_attr_ctx_retain_atom(kbase_device *kbdev, kbase_context *kctx
 	CSTD_UNUSED(runpool_state_changed);
 }
 
-mali_bool kbasep_js_ctx_attr_ctx_release_atom(kbase_device *kbdev, kbase_context *kctx, kbasep_js_atom_retained_state *katom_retained_state)
+mali_bool kbasep_js_ctx_attr_ctx_release_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbasep_js_atom_retained_state *katom_retained_state)
 {
 	mali_bool runpool_state_changed = MALI_FALSE;
 	base_jd_core_req core_req;
@@ -296,6 +297,7 @@ mali_bool kbasep_js_ctx_attr_ctx_release_atom(kbase_device *kbdev, kbase_context
 		return MALI_FALSE;
 
 	if (core_req & BASE_JD_REQ_ONLY_COMPUTE) {
+#if KBASE_PM_EN
 		unsigned long flags;
 		int device_nr = (core_req & BASE_JD_REQ_SPECIFIC_COHERENT_GROUP) ? katom_retained_state->device_nr : 0;
 		KBASE_DEBUG_ASSERT(device_nr < 2);
@@ -304,16 +306,17 @@ mali_bool kbasep_js_ctx_attr_ctx_release_atom(kbase_device *kbdev, kbase_context
 		kbasep_pm_record_job_status(kbdev);
 		kbdev->pm.metrics.active_cl_ctx[device_nr]--;
 		spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
-
+#endif
 		runpool_state_changed |= kbasep_js_ctx_attr_ctx_release_attr(kbdev, kctx, KBASEP_JS_CTX_ATTR_COMPUTE);
 	} else {
+#if KBASE_PM_EN
 		unsigned long flags;
 
 		spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
 		kbasep_pm_record_job_status(kbdev);
 		kbdev->pm.metrics.active_gl_ctx--;
 		spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
-
+#endif
 		runpool_state_changed |= kbasep_js_ctx_attr_ctx_release_attr(kbdev, kctx, KBASEP_JS_CTX_ATTR_NON_COMPUTE);
 	}
 

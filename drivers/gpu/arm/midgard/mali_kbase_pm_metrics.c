@@ -24,7 +24,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
-
+#if KBASE_PM_EN
 /* When VSync is being hit aim for utilisation between 70-90% */
 #define KBASE_PM_VSYNC_MIN_UTILISATION          70
 #define KBASE_PM_VSYNC_MAX_UTILISATION          90
@@ -37,15 +37,16 @@
    Exceeding this will cause overflow */
 #define KBASE_PM_TIME_SHIFT			8
 
+#ifdef CONFIG_MALI_MIDGARD_DVFS
 static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 {
 	unsigned long flags;
-	kbase_pm_dvfs_action action;
-	kbasep_pm_metrics_data *metrics;
+	enum kbase_pm_dvfs_action action;
+	struct kbasep_pm_metrics_data *metrics;
 
 	KBASE_DEBUG_ASSERT(timer != NULL);
 
-	metrics = container_of(timer, kbasep_pm_metrics_data, timer);
+	metrics = container_of(timer, struct kbasep_pm_metrics_data, timer);
 	action = kbase_pm_get_dvfs_action(metrics->kbdev);
 
 	spin_lock_irqsave(&metrics->lock, flags);
@@ -59,11 +60,10 @@ static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 
 	return HRTIMER_NORESTART;
 }
+#endif /* CONFIG_MALI_MIDGARD_DVFS */
 
-mali_error kbasep_pm_metrics_init(kbase_device *kbdev)
+mali_error kbasep_pm_metrics_init(struct kbase_device *kbdev)
 {
-	static bool timer_inited = false;
-
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	kbdev->pm.metrics.kbdev = kbdev;
@@ -77,7 +77,6 @@ mali_error kbasep_pm_metrics_init(kbase_device *kbdev)
 	kbdev->pm.metrics.time_busy = 0;
 	kbdev->pm.metrics.time_idle = 0;
 	kbdev->pm.metrics.gpu_active = MALI_TRUE;
-	kbdev->pm.metrics.timer_active = MALI_TRUE;
 	kbdev->pm.metrics.active_cl_ctx[0] = 0;
 	kbdev->pm.metrics.active_cl_ctx[1] = 0;
 	kbdev->pm.metrics.active_gl_ctx = 0;
@@ -87,13 +86,13 @@ mali_error kbasep_pm_metrics_init(kbase_device *kbdev)
 
 	spin_lock_init(&kbdev->pm.metrics.lock);
 
-	if (!timer_inited) {
-		hrtimer_init(&kbdev->pm.metrics.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		timer_inited = true;
-	}
+#ifdef CONFIG_MALI_MIDGARD_DVFS
+	kbdev->pm.metrics.timer_active = MALI_TRUE;
+	hrtimer_init(&kbdev->pm.metrics.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	kbdev->pm.metrics.timer.function = dvfs_callback;
 
 	hrtimer_start(&kbdev->pm.metrics.timer, HR_TIMER_DELAY_MSEC(kbdev->pm.platform_dvfs_frequency), HRTIMER_MODE_REL);
+#endif /* CONFIG_MALI_MIDGARD_DVFS */
 
 	kbase_pm_register_vsync_callback(kbdev);
 
@@ -102,8 +101,9 @@ mali_error kbasep_pm_metrics_init(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbasep_pm_metrics_init)
 
-void kbasep_pm_metrics_term(kbase_device *kbdev)
+void kbasep_pm_metrics_term(struct kbase_device *kbdev)
 {
+#ifdef CONFIG_MALI_MIDGARD_DVFS
 	unsigned long flags;
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -112,6 +112,7 @@ void kbasep_pm_metrics_term(kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
 
 	hrtimer_cancel(&kbdev->pm.metrics.timer);
+#endif /* CONFIG_MALI_MIDGARD_DVFS */
 
 	kbase_pm_unregister_vsync_callback(kbdev);
 }
@@ -119,7 +120,7 @@ void kbasep_pm_metrics_term(kbase_device *kbdev)
 KBASE_EXPORT_TEST_API(kbasep_pm_metrics_term)
 
 /*caller needs to hold kbdev->pm.metrics.lock before calling this function*/
-void kbasep_pm_record_job_status(kbase_device *kbdev)
+void kbasep_pm_record_job_status(struct kbase_device *kbdev)
 {
 	ktime_t now;
 	ktime_t diff;
@@ -140,7 +141,7 @@ void kbasep_pm_record_job_status(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbasep_pm_record_job_status)
 
-void kbasep_pm_record_gpu_idle(kbase_device *kbdev)
+void kbasep_pm_record_gpu_idle(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 
@@ -159,7 +160,7 @@ void kbasep_pm_record_gpu_idle(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbasep_pm_record_gpu_idle)
 
-void kbasep_pm_record_gpu_active(kbase_device *kbdev)
+void kbasep_pm_record_gpu_active(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	ktime_t now;
@@ -184,7 +185,7 @@ void kbasep_pm_record_gpu_active(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbasep_pm_record_gpu_active)
 
-void kbase_pm_report_vsync(kbase_device *kbdev, int buffer_updated)
+void kbase_pm_report_vsync(struct kbase_device *kbdev, int buffer_updated)
 {
 	unsigned long flags;
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -197,11 +198,8 @@ void kbase_pm_report_vsync(kbase_device *kbdev, int buffer_updated)
 KBASE_EXPORT_TEST_API(kbase_pm_report_vsync)
 
 /*caller needs to hold kbdev->pm.metrics.lock before calling this function*/
-int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev, int *util_gl_share, int util_cl_share[2])
+static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev, ktime_t now)
 {
-	int utilisation = 0;
-	int busy;
-	ktime_t now = ktime_get();
 	ktime_t diff;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -214,11 +212,52 @@ int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev, int *util_gl_share, int u
 		kbdev->pm.metrics.busy_cl[0] += ns_time * kbdev->pm.metrics.active_cl_ctx[0];
 		kbdev->pm.metrics.busy_cl[1] += ns_time * kbdev->pm.metrics.active_cl_ctx[1];
 		kbdev->pm.metrics.busy_gl += ns_time * kbdev->pm.metrics.active_gl_ctx;
-		kbdev->pm.metrics.time_period_start = now;
 	} else {
 		kbdev->pm.metrics.time_idle += (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
-		kbdev->pm.metrics.time_period_start = now;
 	}
+}
+
+/*caller needs to hold kbdev->pm.metrics.lock before calling this function*/
+static void kbase_pm_get_dvfs_utilisation_reset(struct kbase_device *kbdev, ktime_t now)
+{
+	kbdev->pm.metrics.time_period_start = now;
+	kbdev->pm.metrics.time_idle = 0;
+	kbdev->pm.metrics.time_busy = 0;
+	kbdev->pm.metrics.busy_cl[0] = 0;
+	kbdev->pm.metrics.busy_cl[1] = 0;
+	kbdev->pm.metrics.busy_gl = 0;
+}
+
+void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev, unsigned long *total, unsigned long *busy, bool reset)
+{
+	ktime_t now = ktime_get();
+	unsigned long tmp, flags;
+
+	spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
+	kbase_pm_get_dvfs_utilisation_calc(kbdev, now);
+
+	tmp = kbdev->pm.metrics.busy_gl;
+	tmp += kbdev->pm.metrics.busy_cl[0];
+	tmp += kbdev->pm.metrics.busy_cl[1];
+
+	*busy = tmp;
+	*total = tmp + kbdev->pm.metrics.time_idle;
+
+	if (reset)
+		kbase_pm_get_dvfs_utilisation_reset(kbdev, now);
+	spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
+}
+
+#ifdef CONFIG_MALI_MIDGARD_DVFS
+
+/*caller needs to hold kbdev->pm.metrics.lock before calling this function*/
+int kbase_pm_get_dvfs_utilisation_old(struct kbase_device *kbdev, int *util_gl_share, int util_cl_share[2])
+{
+	int utilisation;
+	int busy;
+	ktime_t now = ktime_get();
+
+	kbase_pm_get_dvfs_utilisation_calc(kbdev, now);
 
 	if (kbdev->pm.metrics.time_idle + kbdev->pm.metrics.time_busy == 0) {
 		/* No data - so we return NOP */
@@ -260,30 +299,25 @@ int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev, int *util_gl_share, int u
 	}
 
 out:
-
-	kbdev->pm.metrics.time_idle = 0;
-	kbdev->pm.metrics.time_busy = 0;
-	kbdev->pm.metrics.busy_cl[0] = 0;
-	kbdev->pm.metrics.busy_cl[1] = 0;
-	kbdev->pm.metrics.busy_gl = 0;
+	kbase_pm_get_dvfs_utilisation_reset(kbdev, now);
 
 	return utilisation;
 }
 
-kbase_pm_dvfs_action kbase_pm_get_dvfs_action(kbase_device *kbdev)
+enum kbase_pm_dvfs_action kbase_pm_get_dvfs_action(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	int utilisation, util_gl_share;
 	int util_cl_share[2];
-	kbase_pm_dvfs_action action;
+	enum kbase_pm_dvfs_action action;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
 
-	utilisation = kbase_pm_get_dvfs_utilisation(kbdev, &util_gl_share, util_cl_share);
+	utilisation = kbase_pm_get_dvfs_utilisation_old(kbdev, &util_gl_share, util_cl_share);
 
-	if (utilisation < 0 || util_gl_share < 0 || util_cl_share < 0) {
+	if (utilisation < 0 || util_gl_share < 0 || util_cl_share[0] < 0 || util_cl_share[1] < 0) {
 		action = KBASE_PM_DVFS_NOP;
 		utilisation = 0;
 		util_gl_share = 0;
@@ -329,7 +363,7 @@ out:
 }
 KBASE_EXPORT_TEST_API(kbase_pm_get_dvfs_action)
 
-mali_bool kbase_pm_metrics_is_active(kbase_device *kbdev)
+mali_bool kbase_pm_metrics_is_active(struct kbase_device *kbdev)
 {
 	mali_bool isactive;
 	unsigned long flags;
@@ -343,3 +377,7 @@ mali_bool kbase_pm_metrics_is_active(kbase_device *kbdev)
 	return isactive;
 }
 KBASE_EXPORT_TEST_API(kbase_pm_metrics_is_active)
+
+#endif /* CONFIG_MALI_MIDGARD_DVFS */
+
+#endif  /* KBASE_PM_EN */

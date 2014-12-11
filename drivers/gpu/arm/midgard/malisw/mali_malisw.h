@@ -77,7 +77,11 @@
 #define MALI_IMPORT CSTD_LINK_IMPORT
 #define MALI_EXPORT CSTD_LINK_EXPORT
 #define MALI_IMPL   CSTD_LINK_IMPL
+#if defined(CONFIG_MALI_DEBUG) || !MALI_CUSTOMER_RELEASE
+#define MALI_LOCAL  CSTD_LINK_EXPORT
+#else
 #define MALI_LOCAL  CSTD_LINK_LOCAL
+#endif
 
 /** @brief Decorate exported function prototypes.
  *

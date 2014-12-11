@@ -25,12 +25,13 @@
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 
+#if KBASE_PM_EN
 static u64 always_on_get_core_mask(struct kbase_device *kbdev)
 {
 	return kbdev->shader_present_bitmap;
 }
 
-static mali_bool always_on_get_core_active (struct kbase_device *kbdev)
+static mali_bool always_on_get_core_active(struct kbase_device *kbdev)
 {
 	return MALI_TRUE;
 }
@@ -45,11 +46,11 @@ static void always_on_term(struct kbase_device *kbdev)
 	CSTD_UNUSED(kbdev);
 }
 
-/** The @ref kbase_pm_policy structure for the demand power policy.
+/** The @ref struct kbase_pm_policy structure for the demand power policy.
  *
  * This is the static structure that defines the demand power policy's callback and name.
  */
-const kbase_pm_policy kbase_pm_always_on_policy_ops = {
+const struct kbase_pm_policy kbase_pm_always_on_policy_ops = {
 	"always_on",			/* name */
 	always_on_init,			/* init */
 	always_on_term,			/* term */
@@ -60,3 +61,4 @@ const kbase_pm_policy kbase_pm_always_on_policy_ops = {
 };
 
 KBASE_EXPORT_TEST_API(kbase_pm_always_on_policy_ops)
+#endif  /* KBASE_PM_EN */

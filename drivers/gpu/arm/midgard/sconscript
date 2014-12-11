@@ -39,6 +39,8 @@ kbase_src = [Glob('#kernel/drivers/gpu/arm/midgard/*.c'),
              Glob('#kernel/drivers/gpu/arm/midgard/*.h'),
              ]
 
+kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*.c')]
+
 if Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock') and env['unit'] == '1':
 	kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock/*.c')]
 	mock_test = 1
@@ -103,12 +105,10 @@ patterns = ['*.mod.c', '*.o', '*.ko', '*.a', '.*.cmd', 'modules.order', '.tmp_ve
 
 for p in patterns:
 	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/%s' % p))
-	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/%s' % p))
 	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/config/%s' % p))
-	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/%s' % p))
 	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock/%s' % p))
 	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/platform/%s/%s' % ((env['platform_config']), p) ))
-
+	Clean(cmd, Glob('#kernel/drivers/gpu/arm/midgard/internal/*/%s' % p))
 env.ProgTarget('kbase', cmd)
 
 env.AppendUnique(BASE=['cutils_list'])

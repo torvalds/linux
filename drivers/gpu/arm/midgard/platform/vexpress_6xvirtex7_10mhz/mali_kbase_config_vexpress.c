@@ -27,9 +27,6 @@
  * and config_attributes_hw_issue_8408[]. Settings are not shared for
  * JS_HARD_STOP_TICKS_SS and JS_RESET_TICKS_SS.
  */
-#define KBASE_VE_GPU_FREQ_KHZ_MAX               10000
-#define KBASE_VE_GPU_FREQ_KHZ_MIN               10000
-
 #define KBASE_VE_JS_SCHEDULING_TICK_NS_DEBUG    15000000u      /* 15ms, an agressive tick for testing purposes. This will reduce performance significantly */
 #define KBASE_VE_JS_SOFT_STOP_TICKS_DEBUG       1	/* between 15ms and 30ms before soft-stop a job */
 #define KBASE_VE_JS_SOFT_STOP_TICKS_CL_DEBUG    1	/* between 15ms and 30ms before soft-stop a CL job */
@@ -56,14 +53,13 @@
 
 #define KBASE_VE_JS_RESET_TIMEOUT_MS            3000	/* 3s before cancelling stuck jobs */
 #define KBASE_VE_JS_CTX_TIMESLICE_NS            1000000	/* 1ms - an agressive timeslice for testing purposes (causes lots of scheduling out for >4 ctxs) */
-#define KBASE_VE_SECURE_BUT_LOSS_OF_PERFORMANCE	((uintptr_t)MALI_FALSE)	/* By default we prefer performance over security on r0p0-15dev0 and KBASE_CONFIG_ATTR_ earlier */
 #define KBASE_VE_POWER_MANAGEMENT_CALLBACKS     ((uintptr_t)&pm_callbacks)
 #define KBASE_VE_CPU_SPEED_FUNC                 ((uintptr_t)&kbase_get_vexpress_cpu_clock_speed)
 
 #define HARD_RESET_AT_POWER_OFF 0
 
 #ifndef CONFIG_OF
-static kbase_io_resources io_resources = {
+static struct kbase_io_resources io_resources = {
 	.job_irq_number = 75,
 	.mmu_irq_number = 76,
 	.gpu_irq_number = 77,
@@ -73,13 +69,13 @@ static kbase_io_resources io_resources = {
 };
 #endif
 
-static int pm_callback_power_on(kbase_device *kbdev)
+static int pm_callback_power_on(struct kbase_device *kbdev)
 {
 	/* Nothing is needed on VExpress, but we may have destroyed GPU state (if the below HARD_RESET code is active) */
 	return 1;
 }
 
-static void pm_callback_power_off(kbase_device *kbdev)
+static void pm_callback_power_off(struct kbase_device *kbdev)
 {
 #if HARD_RESET_AT_POWER_OFF
 	/* Cause a GPU hard reset to test whether we have actually idled the GPU
@@ -94,7 +90,7 @@ static void pm_callback_power_off(kbase_device *kbdev)
 #endif
 }
 
-static kbase_pm_callback_conf pm_callbacks = {
+static struct kbase_pm_callback_conf pm_callbacks = {
 	.power_on_callback = pm_callback_power_on,
 	.power_off_callback = pm_callback_power_off,
 	.power_suspend_callback  = NULL,
@@ -102,15 +98,7 @@ static kbase_pm_callback_conf pm_callbacks = {
 };
 
 /* Please keep table config_attributes in sync with config_attributes_hw_issue_8408 */
-static kbase_attribute config_attributes[] = {
-	{
-	 KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX,
-	 KBASE_VE_GPU_FREQ_KHZ_MAX},
-
-	{
-	 KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MIN,
-	 KBASE_VE_GPU_FREQ_KHZ_MIN},
-
+static struct kbase_attribute config_attributes[] = {
 #ifdef CONFIG_MALI_DEBUG
 /* Use more aggressive scheduling timeouts in debug builds for testing purposes */
 	{
@@ -203,14 +191,6 @@ static kbase_attribute config_attributes[] = {
 	 KBASE_VE_CPU_SPEED_FUNC},
 
 	{
-	 KBASE_CONFIG_ATTR_SECURE_BUT_LOSS_OF_PERFORMANCE,
-	 KBASE_VE_SECURE_BUT_LOSS_OF_PERFORMANCE},
-
-	{
-	 KBASE_CONFIG_ATTR_GPU_IRQ_THROTTLE_TIME_US,
-	 20},
-
-	{
 	 KBASE_CONFIG_ATTR_END,
 	 0}
 };
@@ -219,15 +199,7 @@ static kbase_attribute config_attributes[] = {
  * JS_HARD_STOP_TICKS_SS, JS_RESET_TICKS_SS that
  * are needed for BASE_HW_ISSUE_8408.
  */
-kbase_attribute config_attributes_hw_issue_8408[] = {
-	{
-	 KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX,
-	 KBASE_VE_GPU_FREQ_KHZ_MAX},
-
-	{
-	 KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MIN,
-	 KBASE_VE_GPU_FREQ_KHZ_MIN},
-
+struct kbase_attribute config_attributes_hw_issue_8408[] = {
 #ifdef CONFIG_MALI_DEBUG
 /* Use more aggressive scheduling timeouts in debug builds for testing purposes */
 	{
@@ -296,22 +268,18 @@ kbase_attribute config_attributes_hw_issue_8408[] = {
 	 KBASE_VE_CPU_SPEED_FUNC},
 
 	{
-	 KBASE_CONFIG_ATTR_SECURE_BUT_LOSS_OF_PERFORMANCE,
-	 KBASE_VE_SECURE_BUT_LOSS_OF_PERFORMANCE},
-
-	{
 	 KBASE_CONFIG_ATTR_END,
 	 0}
 };
 
-static kbase_platform_config versatile_platform_config = {
+static struct kbase_platform_config versatile_platform_config = {
 	.attributes = config_attributes,
 #ifndef CONFIG_OF
 	.io_resources = &io_resources
 #endif
 };
 
-kbase_platform_config *kbase_get_platform_config(void)
+struct kbase_platform_config *kbase_get_platform_config(void)
 {
 	return &versatile_platform_config;
 }

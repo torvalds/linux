@@ -19,8 +19,8 @@
 #define KBASE_PM_DVFS_FREQUENCY                 100
 
 #define MALI_DVFS_KEEP_STAY_CNT 10
-#define MALI_DVFS_TIME_INTERVAL 2
-
+#define MALI_DVFS_UP_TIME_INTERVAL 1
+#define MALI_DVFS_DOWN_TIME_INTERVAL 2
 #define MALI_DVFS_CURRENT_FREQ 0
 #if 0
 #define MALI_DVFS_BL_CONFIG_FREQ 500
@@ -41,7 +41,7 @@ extern unsigned int MALI_DVFS_STEP;
 #define CONFIG_MALI_MIDGARD_FREQ_LOCK
 #endif
 
-void kbase_platform_dvfs_set_clock(kbase_device *kbdev, int freq);
+void kbase_platform_dvfs_set_clock(struct kbase_device *kbdev, int freq);
 void kbase_platform_dvfs_set_level(struct kbase_device *kbdev, int level);
 int kbase_platform_dvfs_get_level(int freq);
 

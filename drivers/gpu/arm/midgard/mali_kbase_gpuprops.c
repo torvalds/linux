@@ -41,7 +41,7 @@
 #define KBASE_UBFX32(value, offset, size) \
 	(((u32)(value) >> (u32)(offset)) & (u32)((1ULL << (u32)(size)) - 1))
 
-mali_error kbase_gpuprops_uk_get_props(kbase_context *kctx, kbase_uk_gpuprops * const kbase_props)
+mali_error kbase_gpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_gpuprops * const kbase_props)
 {
 	kbase_gpuprops_clock_speed_function get_gpu_speed_mhz;
 	u32 gpu_speed_mhz;
@@ -52,7 +52,7 @@ mali_error kbase_gpuprops_uk_get_props(kbase_context *kctx, kbase_uk_gpuprops * 
 
 	/* Current GPU speed is requested from the system integrator via the KBASE_CONFIG_ATTR_GPU_SPEED_FUNC function.
 	 * If that function fails, or the function is not provided by the system integrator, we report the maximum
-	 * GPU speed as specified by KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX.
+	 * GPU speed as specified by GPU_FREQ_KHZ_MAX.
 	 */
 	get_gpu_speed_mhz = (kbase_gpuprops_clock_speed_function) kbasep_get_config_value(kctx->kbdev, kctx->kbdev->config_attributes, KBASE_CONFIG_ATTR_GPU_SPEED_FUNC);
 	if (get_gpu_speed_mhz != NULL) {
@@ -76,7 +76,7 @@ mali_error kbase_gpuprops_uk_get_props(kbase_context *kctx, kbase_uk_gpuprops * 
 	return MALI_ERROR_NONE;
 }
 
-STATIC void kbase_gpuprops_dump_registers(kbase_device *kbdev, kbase_gpuprops_regdump *regdump)
+STATIC void kbase_gpuprops_dump_registers(struct kbase_device *kbdev, struct kbase_gpuprops_regdump *regdump)
 {
 	int i;
 
@@ -195,11 +195,11 @@ STATIC void kbase_gpuprops_construct_coherent_groups(base_gpu_props * const prop
  * Only the raw properties are filled in this function
  *
  * @param gpu_props  The base_gpu_props structure
- * @param kbdev      The kbase_device structure for the device
+ * @param kbdev      The struct kbase_device structure for the device
  */
-static void kbase_gpuprops_get_props(base_gpu_props * const gpu_props, kbase_device *kbdev)
+static void kbase_gpuprops_get_props(base_gpu_props * const gpu_props, struct kbase_device *kbdev)
 {
-	kbase_gpuprops_regdump regdump;
+	struct kbase_gpuprops_regdump regdump;
 	int i;
 
 	KBASE_DEBUG_ASSERT(NULL != kbdev);
@@ -207,7 +207,6 @@ static void kbase_gpuprops_get_props(base_gpu_props * const gpu_props, kbase_dev
 
 	/* Dump relevant registers */
 	kbase_gpuprops_dump_registers(kbdev, &regdump);
-
 	gpu_props->raw_props.gpu_id = regdump.gpu_id;
 	gpu_props->raw_props.tiler_features = regdump.tiler_features;
 	gpu_props->raw_props.mem_features = regdump.mem_features;
@@ -240,9 +239,9 @@ static void kbase_gpuprops_get_props(base_gpu_props * const gpu_props, kbase_dev
  * Fill the base_gpu_props structure with values derived from the GPU configuration registers
  *
  * @param gpu_props  The base_gpu_props structure
- * @param kbdev      The kbase_device structure for the device
+ * @param kbdev      The struct kbase_device structure for the device
  */
-static void kbase_gpuprops_calculate_props(base_gpu_props * const gpu_props, kbase_device *kbdev)
+static void kbase_gpuprops_calculate_props(base_gpu_props * const gpu_props, struct kbase_device *kbdev)
 {
 	int i;
 
@@ -300,7 +299,7 @@ static void kbase_gpuprops_calculate_props(base_gpu_props * const gpu_props, kba
 	kbase_gpuprops_construct_coherent_groups(gpu_props);
 }
 
-void kbase_gpuprops_set(kbase_device *kbdev)
+void kbase_gpuprops_set(struct kbase_device *kbdev)
 {
 	kbase_gpu_props *gpu_props;
 	struct midg_raw_gpu_props *raw;

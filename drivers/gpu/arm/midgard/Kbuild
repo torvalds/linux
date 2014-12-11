@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012,2014 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r4p1-00rel0"
+MALI_RELEASE_NAME ?= "r5p0-02dev0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -78,6 +78,7 @@ SRC := \
 	mali_kbase_mem.c \
 	mali_kbase_mmu.c \
 	mali_kbase_jd.c \
+	mali_kbase_jd_debugfs.c \
 	mali_kbase_jm.c \
 	mali_kbase_cpuprops.c \
 	mali_kbase_gpuprops.c \
@@ -102,7 +103,6 @@ SRC := \
 	mali_kbase_10969_workaround.c \
 	mali_kbase_hw.c \
 	mali_kbase_utility.c \
-	mali_kbase_mem_lowlevel.c \
 	mali_kbase_debug.c \
 	mali_kbase_trace_timeline.c \
 	mali_kbase_mem_linux.c \
@@ -110,16 +110,20 @@ SRC := \
 	mali_kbase_sync.c \
 	mali_kbase_sync_user.c \
 	mali_kbase_replay.c \
+	mali_kbase_mem_profile_debugfs.c \
+	mali_kbase_mmu_hw_direct.c \
+	mali_kbase_disjoint_events.c \
+	mali_kbase_gator_api.c
 
 ifeq ($(CONFIG_DEBUG_FS),y)
-SRC += mali_kbase_gpu_memory_debugfs.c
+	SRC += mali_kbase_gpu_memory_debugfs.c
 endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 SRC += \
-     mali_kbase_pm_ca_random.c \
-     mali_kbase_pm_demand_always_powered.c \
-     mali_kbase_pm_fast_start.c
+	mali_kbase_pm_ca_random.c \
+	mali_kbase_pm_demand_always_powered.c \
+	mali_kbase_pm_fast_start.c
 endif
 
 # Job Scheduler Policy: Completely Fair Scheduler
@@ -169,43 +173,62 @@ ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
 	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS),y)
 		SRC += platform/vexpress/mali_kbase_config_vexpress.c \
 		platform/vexpress/mali_kbase_cpu_vexpress.c
+		ccflags-y += -I$(src)/platform/vexpress
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_RTSM_VE),y)
 		SRC += platform/rtsm_ve/mali_kbase_config_vexpress.c
+		ccflags-y += -I$(src)/platform/rtsm_ve
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_JUNO),y)
 		SRC += platform/juno/mali_kbase_config_vexpress.c
+		ccflags-y += -I$(src)/platform/juno
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_JUNO_SOC),y)
+		SRC += platform/juno_soc/mali_kbase_config_vexpress.c
+		ccflags-y += -I$(src)/platform/juno_soc
+	endif
+
+	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_1XV7_A57),y)
+		SRC += platform/vexpress_1xv7_a57/mali_kbase_config_vexpress.c
+		ccflags-y += -I$(src)/platform/vexpress_1xv7_a57
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_VIRTEX7_40MHZ),y)
 		SRC += platform/vexpress_virtex7_40mhz/mali_kbase_config_vexpress.c \
 		platform/vexpress_virtex7_40mhz/mali_kbase_cpu_vexpress.c
+		ccflags-y += -I$(src)/platform/vexpress_virtex7_40mhz
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_6XVIRTEX7_10MHZ),y)
 		SRC += platform/vexpress_6xvirtex7_10mhz/mali_kbase_config_vexpress.c \
 		platform/vexpress_6xvirtex7_10mhz/mali_kbase_cpu_vexpress.c
+		ccflags-y += -I$(src)/platform/vexpress_6xvirtex7_10mhz
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_GOLDFISH),y)
 		SRC += platform/goldfish/mali_kbase_config_goldfish.c
+		ccflags-y += -I$(src)/platform/goldfish
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_PBX),y)
 		SRC += platform/pbx/mali_kbase_config_pbx.c
+		ccflags-y += -I$(src)/platform/pbx
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_PANDA),y)
 		SRC += platform/panda/mali_kbase_config_panda.c
+		ccflags-y += -I$(src)/platform/panda
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
-	ifeq ($(CONFIG_MALI_MIDGARD),m)
 	# remove begin and end quotes from the Kconfig string type
 	platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
 	MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
+	ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
+	ifeq ($(CONFIG_MALI_MIDGARD),m)
 	include  $(src)/platform/$(platform_name)/Kbuild
 	else ifeq ($(CONFIG_MALI_MIDGARD),y)
 	obj-$(CONFIG_MALI_MIDGARD) += platform/
@@ -214,10 +237,11 @@ ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
 endif # CONFIG_MALI_PLATFORM_FAKE=y
 
 ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
-ifeq ($(CONFIG_MALI_MIDGARD),m)
 # remove begin and end quotes from the Kconfig string type
 platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
 MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
+ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
+ifeq ($(CONFIG_MALI_MIDGARD),m)
 include  $(src)/platform/$(platform_name)/Kbuild
 else ifeq ($(CONFIG_MALI_MIDGARD),y)
 obj-$(CONFIG_MALI_MIDGARD) += platform/
@@ -230,4 +254,12 @@ obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
 # Tell the Linux build system to enable building of our .c files
 mali_kbase-y := $(SRC:.c=.o)
 
+mali_kbase-$(CONFIG_MALI_DEVFREQ) += mali_kbase_devfreq.o
+mali_kbase-$(CONFIG_MALI_POWER_ACTOR) += mali_kbase_power_actor.o
 
+ifneq ($(wildcard $(src)/internal/Kbuild),)
+ifeq ($(MALI_CUSTOMER_RELEASE),0)
+include  $(src)/internal/Kbuild
+mali_kbase-y += $(INTERNAL:.c=.o)
+endif
+endif

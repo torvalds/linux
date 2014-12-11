@@ -22,7 +22,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
-
+#if KBASE_PM_EN
 static void fixed_init(struct kbase_device *kbdev)
 {
 	kbdev->pm.ca_in_transition = MALI_FALSE;
@@ -38,18 +38,18 @@ static u64 fixed_get_core_mask(struct kbase_device *kbdev)
 	return kbdev->shader_present_bitmap;
 }
 
-static void fixed_update_core_status (struct kbase_device *kbdev, u64 cores_ready, u64 cores_transitioning)
+static void fixed_update_core_status(struct kbase_device *kbdev, u64 cores_ready, u64 cores_transitioning)
 {
 	CSTD_UNUSED(kbdev);
 	CSTD_UNUSED(cores_ready);
 	CSTD_UNUSED(cores_transitioning);
 }
 
-/** The @ref kbase_pm_policy structure for the fixed power policy.
+/** The @ref struct kbase_pm_policy structure for the fixed power policy.
  *
  * This is the static structure that defines the fixed power policy's callback and name.
  */
-const kbase_pm_ca_policy kbase_pm_ca_fixed_policy_ops = {
+const struct kbase_pm_ca_policy kbase_pm_ca_fixed_policy_ops = {
 	"fixed",			/* name */
 	fixed_init,			/* init */
 	fixed_term,			/* term */
@@ -60,3 +60,4 @@ const kbase_pm_ca_policy kbase_pm_ca_fixed_policy_ops = {
 };
 
 KBASE_EXPORT_TEST_API(kbase_pm_ca_fixed_policy_ops)
+#endif  /* KBASE_PM_EN */

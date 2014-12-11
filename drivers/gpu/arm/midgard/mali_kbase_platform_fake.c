@@ -41,16 +41,16 @@ static struct platform_device *mali_device;
 
 #ifndef CONFIG_OF
 /**
- * @brief Convert data in kbase_io_resources struct to Linux-specific resources
+ * @brief Convert data in struct kbase_io_resources struct to Linux-specific resources
  *
- * Function converts data in kbase_io_resources struct to an array of Linux resource structures. Note that function
+ * Function converts data in struct kbase_io_resources struct to an array of Linux resource structures. Note that function
  * assumes that size of linux_resource array is at least PLATFORM_CONFIG_RESOURCE_COUNT.
  * Resources are put in fixed order: I/O memory region, job IRQ, MMU IRQ, GPU IRQ.
  *
  * @param[in]  io_resource      Input IO resource data
  * @param[out] linux_resources  Pointer to output array of Linux resource structures
  */
-static void kbasep_config_parse_io_resources(const kbase_io_resources *io_resources, struct resource *const linux_resources)
+static void kbasep_config_parse_io_resources(const struct kbase_io_resources *io_resources, struct resource *const linux_resources)
 {
 	if (!io_resources || !linux_resources) {
 		pr_err("%s: couldn't find proper resources\n", __func__);
@@ -60,23 +60,25 @@ static void kbasep_config_parse_io_resources(const kbase_io_resources *io_resour
 	memset(linux_resources, 0, PLATFORM_CONFIG_RESOURCE_COUNT * sizeof(struct resource));
 
 	linux_resources[0].start = io_resources->io_memory_region.start;
-	linux_resources[0].end = io_resources->io_memory_region.end;
+	linux_resources[0].end   = io_resources->io_memory_region.end;
 	linux_resources[0].flags = IORESOURCE_MEM;
-
-	linux_resources[1].start = linux_resources[1].end = io_resources->job_irq_number;
+	linux_resources[1].start = io_resources->job_irq_number;
+	linux_resources[1].end   = io_resources->job_irq_number;
 	linux_resources[1].flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL;
 
-	linux_resources[2].start = linux_resources[2].end = io_resources->mmu_irq_number;
+	linux_resources[2].start = io_resources->mmu_irq_number;
+	linux_resources[2].end   = io_resources->mmu_irq_number;
 	linux_resources[2].flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL;
 
-	linux_resources[3].start = linux_resources[3].end = io_resources->gpu_irq_number;
+	linux_resources[3].start = io_resources->gpu_irq_number;
+	linux_resources[3].end   = io_resources->gpu_irq_number;
 	linux_resources[3].flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL;
 }
 #endif /* CONFIG_OF */
 
 int kbase_platform_fake_register(void)
 {
-	kbase_platform_config *config;
+	struct kbase_platform_config *config;
 	int attribute_count;
 #ifndef CONFIG_OF
 	struct resource resources[PLATFORM_CONFIG_RESOURCE_COUNT];
@@ -84,8 +86,7 @@ int kbase_platform_fake_register(void)
 	int err;
 
 	config = kbase_get_platform_config(); /* declared in midgard/mali_kbase_config.h but defined in platform folder */
-	if (config == NULL)
-	{
+	if (config == NULL) {
 		pr_err("%s: couldn't get platform config\n", __func__);
 		return -ENODEV;
 	}
@@ -128,14 +129,13 @@ int kbase_platform_fake_register(void)
 
 	return 0;
 }
+EXPORT_SYMBOL(kbase_platform_fake_register);
 
 void kbase_platform_fake_unregister(void)
 {
 	if (mali_device)
 		platform_device_unregister(mali_device);
 }
-
-EXPORT_SYMBOL(kbase_platform_fake_register);
 EXPORT_SYMBOL(kbase_platform_fake_unregister);
 
 #endif /* CONFIG_MALI_PLATFORM_FAKE */

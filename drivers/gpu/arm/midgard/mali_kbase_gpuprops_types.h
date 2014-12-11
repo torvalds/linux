@@ -39,27 +39,20 @@ typedef struct kbase_gpuprops_regdump {
 	u32 mmu_features;
 	u32 as_present;
 	u32 js_present;
-
-	u32 js_features[MIDG_MAX_JOB_SLOTS];
-
-	u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
-
-	u32 shader_present_lo;
-	u32 shader_present_hi;
-
-	u32 tiler_present_lo;
-	u32 tiler_present_hi;
-
-	u32 l2_present_lo;
-	u32 l2_present_hi;
-
-	u32 l3_present_lo;
-	u32 l3_present_hi;
-
 	u32 thread_max_threads;
 	u32 thread_max_workgroup_size;
 	u32 thread_max_barrier_size;
 	u32 thread_features;
+	u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
+	u32 js_features[MIDG_MAX_JOB_SLOTS];
+	u32 shader_present_lo;
+	u32 shader_present_hi;
+	u32 tiler_present_lo;
+	u32 tiler_present_hi;
+	u32 l2_present_lo;
+	u32 l2_present_hi;
+	u32 l3_present_lo;
+	u32 l3_present_hi;
 } kbase_gpuprops_regdump;
 
 typedef struct kbase_gpu_cache_props {
@@ -85,11 +78,11 @@ typedef struct mali_kbase_gpu_props {
 	u8 num_address_spaces;
 	u8 num_job_slots;
 
-	kbase_gpu_cache_props l2_props;
-	kbase_gpu_cache_props l3_props;
+	struct kbase_gpu_cache_props l2_props;
+	struct kbase_gpu_cache_props l3_props;
 
-	kbase_gpu_mem_props mem;
-	kbase_gpu_mmu_props mmu;
+	struct kbase_gpu_mem_props mem;
+	struct kbase_gpu_mmu_props mmu;
 
 	/**
 	 * Implementation specific irq throttle value (us), should be adjusted during integration.

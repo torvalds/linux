@@ -44,13 +44,13 @@ int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed);
 /**
  * @brief Provides CPU properties data.
  *
- * Fill the kbase_uk_cpuprops with values from CPU configuration.
+ * Fill the struct kbase_uk_cpuprops with values from CPU configuration.
  *
  * @param kctx         The kbase context
- * @param kbase_props  A copy of the kbase_uk_cpuprops structure from userspace
+ * @param kbase_props  A copy of the struct kbase_uk_cpuprops structure from userspace
  *
  * @return MALI_ERROR_NONE on success. Any other value indicates failure.
  */
-mali_error kbase_cpuprops_uk_get_props(kbase_context *kctx, struct kbase_uk_cpuprops * const kbase_props);
+mali_error kbase_cpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_cpuprops * const kbase_props);
 
 #endif /*_KBASE_CPUPROPS_H_*/

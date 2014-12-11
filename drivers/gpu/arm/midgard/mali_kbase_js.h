@@ -55,11 +55,11 @@
 /**
  * @brief Initialize the Job Scheduler
  *
- * The kbasep_js_device_data sub-structure of \a kbdev must be zero
+ * The struct kbasep_js_device_data sub-structure of \a kbdev must be zero
  * initialized before passing to the kbasep_js_devdata_init() function. This is
  * to give efficient error path code.
  */
-mali_error kbasep_js_devdata_init(kbase_device * const kbdev);
+mali_error kbasep_js_devdata_init(struct kbase_device * const kbdev);
 
 /**
  * @brief Halt the Job Scheduler.
@@ -68,7 +68,7 @@ mali_error kbasep_js_devdata_init(kbase_device * const kbdev);
  * sub-structure was never initialized/failed initialization, to give efficient
  * error-path code.
  *
- * For this to work, the kbasep_js_device_data sub-structure of \a kbdev must
+ * For this to work, the struct kbasep_js_device_data sub-structure of \a kbdev must
  * be zero initialized before passing to the kbasep_js_devdata_init()
  * function. This is to give efficient error path code.
  *
@@ -76,7 +76,7 @@ mali_error kbasep_js_devdata_init(kbase_device * const kbdev);
  * structures registered with this scheduler.
  *
  */
-void kbasep_js_devdata_halt(kbase_device *kbdev);
+void kbasep_js_devdata_halt(struct kbase_device *kbdev);
 
 /**
  * @brief Terminate the Job Scheduler
@@ -85,44 +85,44 @@ void kbasep_js_devdata_halt(kbase_device *kbdev);
  * sub-structure was never initialized/failed initialization, to give efficient
  * error-path code.
  *
- * For this to work, the kbasep_js_device_data sub-structure of \a kbdev must
+ * For this to work, the struct kbasep_js_device_data sub-structure of \a kbdev must
  * be zero initialized before passing to the kbasep_js_devdata_init()
  * function. This is to give efficient error path code.
  *
  * It is a Programming Error to call this whilst there are still kbase_context
  * structures registered with this scheduler.
  */
-void kbasep_js_devdata_term(kbase_device *kbdev);
+void kbasep_js_devdata_term(struct kbase_device *kbdev);
 
 /**
- * @brief Initialize the Scheduling Component of a kbase_context on the Job Scheduler.
+ * @brief Initialize the Scheduling Component of a struct kbase_context on the Job Scheduler.
  *
- * This effectively registers a kbase_context with a Job Scheduler.
+ * This effectively registers a struct kbase_context with a Job Scheduler.
  *
- * It does not register any jobs owned by the kbase_context with the scheduler.
+ * It does not register any jobs owned by the struct kbase_context with the scheduler.
  * Those must be separately registered by kbasep_js_add_job().
  *
- * The kbase_context must be zero intitialized before passing to the
+ * The struct kbase_context must be zero intitialized before passing to the
  * kbase_js_init() function. This is to give efficient error path code.
  */
-mali_error kbasep_js_kctx_init(kbase_context * const kctx);
+mali_error kbasep_js_kctx_init(struct kbase_context * const kctx);
 
 /**
- * @brief Terminate the Scheduling Component of a kbase_context on the Job Scheduler
+ * @brief Terminate the Scheduling Component of a struct kbase_context on the Job Scheduler
  *
- * This effectively de-registers a kbase_context from its Job Scheduler
+ * This effectively de-registers a struct kbase_context from its Job Scheduler
  *
- * It is safe to call this on a kbase_context that has never had or failed
+ * It is safe to call this on a struct kbase_context that has never had or failed
  * initialization of its jctx.sched_info member, to give efficient error-path
  * code.
  *
- * For this to work, the kbase_context must be zero intitialized before passing
+ * For this to work, the struct kbase_context must be zero intitialized before passing
  * to the kbase_js_init() function.
  *
  * It is a Programming Error to call this whilst there are still jobs
  * registered with this context.
  */
-void kbasep_js_kctx_term(kbase_context *kctx);
+void kbasep_js_kctx_term(struct kbase_context *kctx);
 
 /**
  * @brief Add a job chain to the Job Scheduler, and take necessary actions to
@@ -165,7 +165,7 @@ void kbasep_js_kctx_term(kbase_context *kctx);
  * so no further action is required from the caller. This is \b always returned
  * when the context is currently scheduled.
  */
-mali_bool kbasep_js_add_job(kbase_context *kctx, kbase_jd_atom *atom);
+mali_bool kbasep_js_add_job(struct kbase_context *kctx, struct kbase_jd_atom *atom);
 
 /**
  * @brief Remove a job chain from the Job Scheduler, except for its 'retained state'.
@@ -195,7 +195,7 @@ mali_bool kbasep_js_add_job(kbase_context *kctx, kbase_jd_atom *atom);
  * - it must hold kbasep_js_kctx_info::ctx::jsctx_mutex.
  *
  */
-void kbasep_js_remove_job(kbase_device *kbdev, kbase_context *kctx, kbase_jd_atom *atom);
+void kbasep_js_remove_job(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *atom);
 
 /**
  * @brief Completely remove a job chain from the Job Scheduler, in the case
@@ -220,7 +220,7 @@ void kbasep_js_remove_job(kbase_device *kbdev, kbase_context *kctx, kbase_jd_ato
  * - it must \em not hold kbasep_js_device_data::runpool_mutex (as this could be
  * obtained internally)
  */
-void kbasep_js_remove_cancelled_job(kbase_device *kbdev, kbase_context *kctx, kbase_jd_atom *katom);
+void kbasep_js_remove_cancelled_job(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);
 
 /**
  * @brief Refcount a context as being busy, preventing it from being scheduled
@@ -235,7 +235,7 @@ void kbasep_js_remove_cancelled_job(kbase_device *kbdev, kbase_context *kctx, kb
  * @return value != MALI_FALSE if the retain succeeded, and the context will not be scheduled out.
  * @return MALI_FALSE if the retain failed (because the context is being/has been scheduled out).
  */
-mali_bool kbasep_js_runpool_retain_ctx(kbase_device *kbdev, kbase_context *kctx);
+mali_bool kbasep_js_runpool_retain_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * @brief Refcount a context as being busy, preventing it from being scheduled
@@ -249,7 +249,7 @@ mali_bool kbasep_js_runpool_retain_ctx(kbase_device *kbdev, kbase_context *kctx)
  * @return value != MALI_FALSE if the retain succeeded, and the context will not be scheduled out.
  * @return MALI_FALSE if the retain failed (because the context is being/has been scheduled out).
  */
-mali_bool kbasep_js_runpool_retain_ctx_nolock(kbase_device *kbdev, kbase_context *kctx);
+mali_bool kbasep_js_runpool_retain_ctx_nolock(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * @brief Lookup a context in the Run Pool based upon its current address space
@@ -265,10 +265,10 @@ mali_bool kbasep_js_runpool_retain_ctx_nolock(kbase_device *kbdev, kbase_context
  * - it must \em not hold the kbasep_js_device_data::runpoool_irq::lock, because
  * it will be used internally.
  *
- * @return a valid kbase_context on success, which has been refcounted as being busy.
+ * @return a valid struct kbase_context on success, which has been refcounted as being busy.
  * @return NULL on failure, indicating that no context was found in \a as_nr
  */
-kbase_context *kbasep_js_runpool_lookup_ctx(kbase_device *kbdev, int as_nr);
+struct kbase_context *kbasep_js_runpool_lookup_ctx(struct kbase_device *kbdev, int as_nr);
 
 /**
  * @brief Handling the requeuing/killing of a context that was evicted from the
@@ -294,7 +294,7 @@ kbase_context *kbasep_js_runpool_lookup_ctx(kbase_device *kbdev, int as_nr);
  * - it must \em not hold kbasep_jd_device_data::queue_mutex (as this will be
  * obtained internally)
  */
-void kbasep_js_runpool_requeue_or_kill_ctx(kbase_device *kbdev, kbase_context *kctx, mali_bool has_pm_ref);
+void kbasep_js_runpool_requeue_or_kill_ctx(struct kbase_device *kbdev, struct kbase_context *kctx, mali_bool has_pm_ref);
 
 /**
  * @brief Release a refcount of a context being busy, allowing it to be
@@ -345,7 +345,7 @@ void kbasep_js_runpool_requeue_or_kill_ctx(kbase_device *kbdev, kbase_context *k
  * obtained internally)
  *
  */
-void kbasep_js_runpool_release_ctx(kbase_device *kbdev, kbase_context *kctx);
+void kbasep_js_runpool_release_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * @brief Variant of kbasep_js_runpool_release_ctx() that handles additional
@@ -363,7 +363,7 @@ void kbasep_js_runpool_release_ctx(kbase_device *kbdev, kbase_context *kctx);
  * The locking conditions of this function are the same as those for
  * kbasep_js_runpool_release_ctx()
  */
-void kbasep_js_runpool_release_ctx_and_katom_retained_state(kbase_device *kbdev, kbase_context *kctx, kbasep_js_atom_retained_state *katom_retained_state);
+void kbasep_js_runpool_release_ctx_and_katom_retained_state(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbasep_js_atom_retained_state *katom_retained_state);
 
 /**
  * @brief Try to submit the next job on a \b particular slot whilst in IRQ
@@ -387,7 +387,7 @@ void kbasep_js_runpool_release_ctx_and_katom_retained_state(kbase_device *kbdev,
  * full of jobs in the HEAD and NEXT registers, or we were able to get enough
  * jobs from the Run Pool to fill the GPU's HEAD and NEXT registers.
  */
-mali_bool kbasep_js_try_run_next_job_on_slot_irq_nolock(kbase_device *kbdev, int js, s8 *submit_count);
+mali_bool kbasep_js_try_run_next_job_on_slot_irq_nolock(struct kbase_device *kbdev, int js, s8 *submit_count);
 
 /**
  * @brief Try to submit the next job on a particular slot, outside of IRQ context
@@ -415,7 +415,7 @@ mali_bool kbasep_js_try_run_next_job_on_slot_irq_nolock(kbase_device *kbdev, int
  * kbasep_js_kctx_info::ctx::jsctx_mutex locks.
  *
  */
-void kbasep_js_try_run_next_job_on_slot_nolock(kbase_device *kbdev, int js);
+void kbasep_js_try_run_next_job_on_slot_nolock(struct kbase_device *kbdev, int js);
 
 /**
  * @brief Try to submit the next job for each slot in the system, outside of IRQ context
@@ -431,7 +431,7 @@ void kbasep_js_try_run_next_job_on_slot_nolock(kbase_device *kbdev, int js);
  * kbasep_js_kctx_info::ctx::jsctx_mutex locks.
  *
  */
-void kbasep_js_try_run_next_job_nolock(kbase_device *kbdev);
+void kbasep_js_try_run_next_job_nolock(struct kbase_device *kbdev);
 
 /**
  * @brief Try to schedule the next context onto the Run Pool
@@ -474,7 +474,7 @@ void kbasep_js_try_run_next_job_nolock(kbase_device *kbdev);
  * be used internally.
  *
  */
-void kbasep_js_try_schedule_head_ctx(kbase_device *kbdev);
+void kbasep_js_try_schedule_head_ctx(struct kbase_device *kbdev);
 
 /**
  * @brief Schedule in a privileged context
@@ -496,7 +496,7 @@ void kbasep_js_try_schedule_head_ctx(kbase_device *kbdev);
  * be used internally.
  *
  */
-void kbasep_js_schedule_privileged_ctx(kbase_device *kbdev, kbase_context *kctx);
+void kbasep_js_schedule_privileged_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * @brief Release a privileged context, allowing it to be scheduled out.
@@ -512,7 +512,7 @@ void kbasep_js_schedule_privileged_ctx(kbase_device *kbdev, kbase_context *kctx)
  * - it must \em not hold the kbase_device::as[n].transaction_mutex (as this will be obtained internally)
  *
  */
-void kbasep_js_release_privileged_ctx(kbase_device *kbdev, kbase_context *kctx);
+void kbasep_js_release_privileged_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * @brief Handle the Job Scheduler component for the IRQ of a job finishing
@@ -531,7 +531,7 @@ void kbasep_js_release_privileged_ctx(kbase_device *kbdev, kbase_context *kctx);
  * Normally, the time calculated from end_timestamp is rounded up to the
  * minimum time precision. Therefore, to ensure the job is recorded as not
  * spending any time, then set end_timestamp to NULL. For example, this is necessary when
- * evicting jobs from JSn_HEAD_NEXT (because they didn't actually run).
+ * evicting jobs from JS_HEAD_NEXT (because they didn't actually run).
  *
  * NOTE: It's possible to move the steps (2) and (3) (inc calculating job's time
  * used) into the worker (outside of IRQ context), but this may allow a context
@@ -542,7 +542,7 @@ void kbasep_js_release_privileged_ctx(kbase_device *kbdev, kbase_context *kctx);
  * The following locking conditions are made on the caller:
  * - it must hold kbasep_js_device_data::runpoool_irq::lock
  */
-void kbasep_js_job_done_slot_irq(kbase_jd_atom *katom, int slot_nr,
+void kbasep_js_job_done_slot_irq(struct kbase_jd_atom *katom, int slot_nr,
                                  ktime_t *end_timestamp,
                                  kbasep_js_atom_done_code done_code);
 
@@ -553,7 +553,7 @@ void kbasep_js_job_done_slot_irq(kbase_jd_atom *katom, int slot_nr,
  * - kbasep_js_device_data::runpool_mutex
  * - kbasep_js_device_data::runpool_irq::lock
  */
-void kbase_js_try_run_jobs(kbase_device *kbdev);
+void kbase_js_try_run_jobs(struct kbase_device *kbdev);
 
 /**
  * @brief Try to submit the next job on a specfic slot
@@ -566,7 +566,7 @@ void kbase_js_try_run_jobs(kbase_device *kbdev);
  * will be obtained internally)
  *
  */
-void kbase_js_try_run_jobs_on_slot(kbase_device *kbdev, int js);
+void kbase_js_try_run_jobs_on_slot(struct kbase_device *kbdev, int js);
 
 /**
  * @brief Handle releasing cores for power management and affinity management,
@@ -575,7 +575,7 @@ void kbase_js_try_run_jobs_on_slot(kbase_device *kbdev, int js);
  * This must only be called on an atom that is not currently running, and has
  * not been re-queued onto the context (and so does not need locking)
  *
- * This function enters at the following @ref kbase_atom_coreref_state states:
+ * This function enters at the following @ref enum kbase_atom_coreref_state states:
  * - NO_CORES_REQUESTED
  * - WAITING_FOR_REQUESTED_CORES
  * - RECHECK_AFFINITY
@@ -591,7 +591,7 @@ void kbase_js_try_run_jobs_on_slot(kbase_device *kbdev, int js);
  * @note The corresponding kbasep_js_job_check_ref_cores() is private to the
  * Job Scheduler, and is called automatically when running the next job.
  */
-void kbasep_js_job_check_deref_cores(kbase_device *kbdev, struct kbase_jd_atom *katom);
+void kbasep_js_job_check_deref_cores(struct kbase_device *kbdev, struct kbase_jd_atom *katom);
 
 /**
  * @brief Suspend the job scheduler during a Power Management Suspend event.
@@ -614,7 +614,7 @@ void kbasep_js_job_check_deref_cores(kbase_device *kbdev, struct kbase_jd_atom *
  * function is guaranteed to complete in a finite time whenever the Job
  * Scheduling Policy implements Job Timeouts (such as those done by CFS).
  */
-void kbasep_js_suspend(kbase_device *kbdev);
+void kbasep_js_suspend(struct kbase_device *kbdev);
 
 /**
  * @brief Resume the Job Scheduler after a Power Management Resume event.
@@ -623,7 +623,7 @@ void kbasep_js_suspend(kbase_device *kbdev);
  * - Schedules contexts back into the runpool
  * - Resumes running atoms on the GPU
  */
-void kbasep_js_resume(kbase_device *kbdev);
+void kbasep_js_resume(struct kbase_device *kbdev);
 
 
 /*
@@ -640,7 +640,7 @@ void kbasep_js_resume(kbase_device *kbdev);
  *
  * The caller must hold kbasep_js_device_data::runpool_irq::lock.
  */
-static INLINE mali_bool kbasep_js_is_submit_allowed(kbasep_js_device_data *js_devdata, kbase_context *kctx)
+static INLINE mali_bool kbasep_js_is_submit_allowed(struct kbasep_js_device_data *js_devdata, struct kbase_context *kctx)
 {
 	u16 test_bit;
 
@@ -661,7 +661,7 @@ static INLINE mali_bool kbasep_js_is_submit_allowed(kbasep_js_device_data *js_de
  *
  * The caller must hold kbasep_js_device_data::runpool_irq::lock.
  */
-static INLINE void kbasep_js_set_submit_allowed(kbasep_js_device_data *js_devdata, kbase_context *kctx)
+static INLINE void kbasep_js_set_submit_allowed(struct kbasep_js_device_data *js_devdata, struct kbase_context *kctx)
 {
 	u16 set_bit;
 
@@ -684,7 +684,7 @@ static INLINE void kbasep_js_set_submit_allowed(kbasep_js_device_data *js_devdat
  *
  * The caller must hold kbasep_js_device_data::runpool_irq::lock.
  */
-static INLINE void kbasep_js_clear_submit_allowed(kbasep_js_device_data *js_devdata, kbase_context *kctx)
+static INLINE void kbasep_js_clear_submit_allowed(struct kbasep_js_device_data *js_devdata, struct kbase_context *kctx)
 {
 	u16 clear_bit;
 	u16 clear_mask;
@@ -704,7 +704,7 @@ static INLINE void kbasep_js_clear_submit_allowed(kbasep_js_device_data *js_devd
 /**
  * @brief Manage the 'retry_submit_on_slot' part of a kbase_jd_atom
  */
-static INLINE void kbasep_js_clear_job_retry_submit(kbase_jd_atom *atom)
+static INLINE void kbasep_js_clear_job_retry_submit(struct kbase_jd_atom *atom)
 {
 	atom->retry_submit_on_slot = KBASEP_JS_RETRY_SUBMIT_SLOT_INVALID;
 }
@@ -722,7 +722,7 @@ static INLINE void kbasep_js_clear_job_retry_submit(kbase_jd_atom *atom)
  * submitted on some other slot, then call kbasep_js_clear_job_retry_submit()
  * first to silence the ASSERT.
  */
-static INLINE void kbasep_js_set_job_retry_submit_slot(kbase_jd_atom *atom, int js)
+static INLINE void kbasep_js_set_job_retry_submit_slot(struct kbase_jd_atom *atom, int js)
 {
 	KBASE_DEBUG_ASSERT(0 <= js && js <= BASE_JM_MAX_NR_SLOTS);
 	KBASE_DEBUG_ASSERT(atom->retry_submit_on_slot == KBASEP_JS_RETRY_SUBMIT_SLOT_INVALID
@@ -736,7 +736,7 @@ static INLINE void kbasep_js_set_job_retry_submit_slot(kbase_jd_atom *atom, int 
  * atom-related work to be done on releasing with
  * kbasep_js_runpool_release_ctx_and_katom_retained_state()
  */
-static INLINE void kbasep_js_atom_retained_state_init_invalid(kbasep_js_atom_retained_state *retained_state)
+static INLINE void kbasep_js_atom_retained_state_init_invalid(struct kbasep_js_atom_retained_state *retained_state)
 {
 	retained_state->event_code = BASE_JD_EVENT_NOT_STARTED;
 	retained_state->core_req = KBASEP_JS_ATOM_RETAINED_STATE_CORE_REQ_INVALID;
@@ -747,7 +747,7 @@ static INLINE void kbasep_js_atom_retained_state_init_invalid(kbasep_js_atom_ret
  * Copy atom state that can be made available after jd_done_nolock() is called
  * on that atom.
  */
-static INLINE void kbasep_js_atom_retained_state_copy(kbasep_js_atom_retained_state *retained_state, const kbase_jd_atom *katom)
+static INLINE void kbasep_js_atom_retained_state_copy(struct kbasep_js_atom_retained_state *retained_state, const struct kbase_jd_atom *katom)
 {
 	retained_state->event_code = katom->event_code;
 	retained_state->core_req = katom->core_req;
@@ -766,27 +766,27 @@ static INLINE void kbasep_js_atom_retained_state_copy(kbasep_js_atom_retained_st
  * @return    MALI_FALSE if the atom has not finished
  * @return    !=MALI_FALSE if the atom has finished
  */
-static INLINE mali_bool kbasep_js_has_atom_finished(const kbasep_js_atom_retained_state *katom_retained_state)
+static INLINE mali_bool kbasep_js_has_atom_finished(const struct kbasep_js_atom_retained_state *katom_retained_state)
 {
 	return (mali_bool) (katom_retained_state->event_code != BASE_JD_EVENT_STOPPED && katom_retained_state->event_code != BASE_JD_EVENT_REMOVED_FROM_NEXT);
 }
 
 /**
- * @brief Determine whether a kbasep_js_atom_retained_state is valid
+ * @brief Determine whether a struct kbasep_js_atom_retained_state is valid
  *
- * An invalid kbasep_js_atom_retained_state is allowed, and indicates that the
+ * An invalid struct kbasep_js_atom_retained_state is allowed, and indicates that the
  * code should just ignore it.
  *
  * @param[in] katom_retained_state the atom's retained state to check
  * @return    MALI_FALSE if the retained state is invalid, and can be ignored
  * @return    !=MALI_FALSE if the retained state is valid
  */
-static INLINE mali_bool kbasep_js_atom_retained_state_is_valid(const kbasep_js_atom_retained_state *katom_retained_state)
+static INLINE mali_bool kbasep_js_atom_retained_state_is_valid(const struct kbasep_js_atom_retained_state *katom_retained_state)
 {
 	return (mali_bool) (katom_retained_state->core_req != KBASEP_JS_ATOM_RETAINED_STATE_CORE_REQ_INVALID);
 }
 
-static INLINE mali_bool kbasep_js_get_atom_retry_submit_slot(const kbasep_js_atom_retained_state *katom_retained_state, int *res)
+static INLINE mali_bool kbasep_js_get_atom_retry_submit_slot(const struct kbasep_js_atom_retained_state *katom_retained_state, int *res)
 {
 	int js = katom_retained_state->retry_submit_on_slot;
 	*res = js;
@@ -803,10 +803,10 @@ static INLINE mali_bool kbasep_js_get_atom_retry_submit_slot(const kbasep_js_ato
  * @return current refcount of the context if it is scheduled in. The refcount
  * is not guarenteed to be kept constant.
  */
-static INLINE int kbasep_js_debug_check_ctx_refcount(kbase_device *kbdev, kbase_context *kctx)
+static INLINE int kbasep_js_debug_check_ctx_refcount(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
 	unsigned long flags;
-	kbasep_js_device_data *js_devdata;
+	struct kbasep_js_device_data *js_devdata;
 	int result = -1;
 	int as_nr;
 
@@ -837,16 +837,16 @@ static INLINE int kbasep_js_debug_check_ctx_refcount(kbase_device *kbdev, kbase_
  * - it must \em not hold the kbasep_js_device_data::runpoool_irq::lock, because
  * it will be used internally.
  *
- * @return a valid kbase_context on success, with a refcount that is guarenteed
+ * @return a valid struct kbase_context on success, with a refcount that is guarenteed
  * to be non-zero and unmodified by this function.
  * @return NULL on failure, indicating that no context was found in \a as_nr
  */
-static INLINE kbase_context *kbasep_js_runpool_lookup_ctx_noretain(kbase_device *kbdev, int as_nr)
+static INLINE struct kbase_context *kbasep_js_runpool_lookup_ctx_noretain(struct kbase_device *kbdev, int as_nr)
 {
 	unsigned long flags;
-	kbasep_js_device_data *js_devdata;
-	kbase_context *found_kctx;
-	kbasep_js_per_as_data *js_per_as_data;
+	struct kbasep_js_device_data *js_devdata;
+	struct kbase_context *found_kctx;
+	struct kbasep_js_per_as_data *js_per_as_data;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 	KBASE_DEBUG_ASSERT(0 <= as_nr && as_nr < BASE_MAX_NR_AS);
@@ -871,7 +871,7 @@ static INLINE kbase_context *kbasep_js_runpool_lookup_ctx_noretain(kbase_device 
  * e.g.: when you need the number of cycles to guarantee you won't wait for
  * longer than 'us' time (you might have a shorter wait).
  */
-static INLINE u32 kbasep_js_convert_us_to_gpu_ticks_min_freq(kbase_device *kbdev, u32 us)
+static INLINE u32 kbasep_js_convert_us_to_gpu_ticks_min_freq(struct kbase_device *kbdev, u32 us)
 {
 	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_min;
 	KBASE_DEBUG_ASSERT(0 != gpu_freq);
@@ -886,7 +886,7 @@ static INLINE u32 kbasep_js_convert_us_to_gpu_ticks_min_freq(kbase_device *kbdev
  * e.g.: When you need the number of cycles to guarantee you'll wait at least
  * 'us' amount of time (but you might wait longer).
  */
-static INLINE u32 kbasep_js_convert_us_to_gpu_ticks_max_freq(kbase_device *kbdev, u32 us)
+static INLINE u32 kbasep_js_convert_us_to_gpu_ticks_max_freq(struct kbase_device *kbdev, u32 us)
 {
 	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_max;
 	KBASE_DEBUG_ASSERT(0 != gpu_freq);
@@ -902,7 +902,7 @@ static INLINE u32 kbasep_js_convert_us_to_gpu_ticks_max_freq(kbase_device *kbdev
  * take (you guarantee that you won't wait any longer than this, but it may
  * be shorter).
  */
-static INLINE u32 kbasep_js_convert_gpu_ticks_to_us_min_freq(kbase_device *kbdev, u32 ticks)
+static INLINE u32 kbasep_js_convert_gpu_ticks_to_us_min_freq(struct kbase_device *kbdev, u32 ticks)
 {
 	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_min;
 	KBASE_DEBUG_ASSERT(0 != gpu_freq);
@@ -917,7 +917,7 @@ static INLINE u32 kbasep_js_convert_gpu_ticks_to_us_min_freq(kbase_device *kbdev
  * e.g.: When you need to know the best-case wait for 'tick' cycles (you
  * guarantee to be waiting for at least this long, but it may be longer).
  */
-static INLINE u32 kbasep_js_convert_gpu_ticks_to_us_max_freq(kbase_device *kbdev, u32 ticks)
+static INLINE u32 kbasep_js_convert_gpu_ticks_to_us_max_freq(struct kbase_device *kbdev, u32 ticks)
 {
 	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_max;
 	KBASE_DEBUG_ASSERT(0 != gpu_freq);

@@ -380,7 +380,7 @@
  * @{
  *
  * <b>Refer to @ref page_kbase_js_policy for an overview and detailed operation of
- * the Job Scheduler Policy and its use from the Job Scheduler Core.</b>
+ * the Job Scheduler Policy and its use from the Job Scheduler Core</b>.
  */
 
 /**
@@ -391,31 +391,31 @@ union kbasep_js_policy;
 /**
  * @brief Initialize the Job Scheduler Policy
  */
-mali_error kbasep_js_policy_init(kbase_device *kbdev);
+mali_error kbasep_js_policy_init(struct kbase_device *kbdev);
 
 /**
  * @brief Terminate the Job Scheduler Policy
  */
-void kbasep_js_policy_term(kbasep_js_policy *js_policy);
+void kbasep_js_policy_term(union kbasep_js_policy *js_policy);
 
 /**
  * @addtogroup kbase_js_policy_ctx Job Scheduler Policy, Context Management API
  * @{
  *
  * <b>Refer to @ref page_kbase_js_policy for an overview and detailed operation of
- * the Job Scheduler Policy and its use from the Job Scheduler Core.</b>
+ * the Job Scheduler Policy and its use from the Job Scheduler Core</b>.
  */
 
 /**
  * @brief Job Scheduler Policy Ctx Info structure
  *
- * This structure is embedded in the kbase_context structure. It is used to:
+ * This structure is embedded in the struct kbase_context structure. It is used to:
  * - track information needed for the policy to schedule the context (e.g. time
  * used, OS priority etc.)
- * - link together kbase_contexts into a queue, so that a kbase_context can be
+ * - link together kbase_contexts into a queue, so that a struct kbase_context can be
  * obtained as the container of the policy ctx info. This allows the API to
  * return what "the next context" should be.
- * - obtain other information already stored in the kbase_context for
+ * - obtain other information already stored in the struct kbase_context for
  * scheduling purposes (e.g process ID to get the priority of the originating
  * process)
  */
@@ -424,16 +424,16 @@ union kbasep_js_policy_ctx_info;
 /**
  * @brief Initialize a ctx for use with the Job Scheduler Policy
  *
- * This effectively initializes the kbasep_js_policy_ctx_info structure within
- * the kbase_context (itself located within the kctx->jctx.sched_info structure).
+ * This effectively initializes the union kbasep_js_policy_ctx_info structure within
+ * the struct kbase_context (itself located within the kctx->jctx.sched_info structure).
  */
-mali_error kbasep_js_policy_init_ctx(kbase_device *kbdev, kbase_context *kctx);
+mali_error kbasep_js_policy_init_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * @brief Terminate resources associated with using a ctx in the Job Scheduler
  * Policy.
  */
-void kbasep_js_policy_term_ctx(kbasep_js_policy *js_policy, kbase_context *kctx);
+void kbasep_js_policy_term_ctx(union kbasep_js_policy *js_policy, struct kbase_context *kctx);
 
 /**
  * @brief Enqueue a context onto the Job Scheduler Policy Queue
@@ -449,7 +449,7 @@ void kbasep_js_policy_term_ctx(kbasep_js_policy *js_policy, kbase_context *kctx)
  * The caller will be holding kbasep_js_kctx_info::ctx::jsctx_mutex.
  * The caller will be holding kbasep_js_device_data::queue_mutex.
  */
-void kbasep_js_policy_enqueue_ctx(kbasep_js_policy *js_policy, kbase_context *kctx);
+void kbasep_js_policy_enqueue_ctx(union kbasep_js_policy *js_policy, struct kbase_context *kctx);
 
 /**
  * @brief Dequeue a context from the Head of the Job Scheduler Policy Queue
@@ -460,7 +460,7 @@ void kbasep_js_policy_enqueue_ctx(kbasep_js_policy *js_policy, kbase_context *kc
  * the kctx dequeued.
  * @return MALI_FALSE if no contexts were available.
  */
-mali_bool kbasep_js_policy_dequeue_head_ctx(kbasep_js_policy *js_policy, kbase_context ** const kctx_ptr);
+mali_bool kbasep_js_policy_dequeue_head_ctx(union kbasep_js_policy *js_policy, struct kbase_context ** const kctx_ptr);
 
 /**
  * @brief Evict a context from the Job Scheduler Policy Queue
@@ -482,7 +482,7 @@ mali_bool kbasep_js_policy_dequeue_head_ctx(kbasep_js_policy *js_policy, kbase_c
  * @return MALI_TRUE if the context was evicted from the Policy Queue
  * @return MALI_FALSE if the context was not found in the Policy Queue
  */
-mali_bool kbasep_js_policy_try_evict_ctx(kbasep_js_policy *js_policy, kbase_context *kctx);
+mali_bool kbasep_js_policy_try_evict_ctx(union kbasep_js_policy *js_policy, struct kbase_context *kctx);
 
 /**
  * @brief Call a function on all jobs belonging to a non-queued, non-running
@@ -509,7 +509,7 @@ mali_bool kbasep_js_policy_try_evict_ctx(kbasep_js_policy *js_policy, kbase_cont
  * The locking conditions on the caller are as follows:
  * - it will be holding kbasep_js_kctx_info::ctx::jsctx_mutex.
  */
-void kbasep_js_policy_foreach_ctx_job(kbasep_js_policy *js_policy, kbase_context *kctx,
+void kbasep_js_policy_foreach_ctx_job(union kbasep_js_policy *js_policy, struct kbase_context *kctx,
 	kbasep_js_policy_ctx_job_cb callback, mali_bool detach_jobs);
 
 /**
@@ -537,7 +537,7 @@ void kbasep_js_policy_foreach_ctx_job(kbasep_js_policy *js_policy, kbase_context
  *
  * Due to a spinlock being held, this function must not call any APIs that sleep.
  */
-void kbasep_js_policy_runpool_add_ctx(kbasep_js_policy *js_policy, kbase_context *kctx);
+void kbasep_js_policy_runpool_add_ctx(union kbasep_js_policy *js_policy, struct kbase_context *kctx);
 
 /**
  * @brief Remove a context from the Job Scheduler Policy's Run Pool
@@ -554,7 +554,7 @@ void kbasep_js_policy_runpool_add_ctx(kbasep_js_policy *js_policy, kbase_context
  *
  * Due to a spinlock being held, this function must not call any APIs that sleep.
  */
-void kbasep_js_policy_runpool_remove_ctx(kbasep_js_policy *js_policy, kbase_context *kctx);
+void kbasep_js_policy_runpool_remove_ctx(union kbasep_js_policy *js_policy, struct kbase_context *kctx);
 
 /**
  * @brief Indicate whether a context should be removed from the Run Pool
@@ -564,7 +564,7 @@ void kbasep_js_policy_runpool_remove_ctx(kbasep_js_policy *js_policy, kbase_cont
  *
  * @note This API is called from IRQ context.
  */
-mali_bool kbasep_js_policy_should_remove_ctx(kbasep_js_policy *js_policy, kbase_context *kctx);
+mali_bool kbasep_js_policy_should_remove_ctx(union kbasep_js_policy *js_policy, struct kbase_context *kctx);
 
 /**
  * @brief Synchronize with any timers acting upon the runpool
@@ -580,7 +580,7 @@ mali_bool kbasep_js_policy_should_remove_ctx(kbasep_js_policy *js_policy, kbase_
  * - it will be holding kbasep_js_kctx_info::ctx::jsctx_mutex.
  * - it will be holding kbasep_js_device_data::runpool_mutex.
  */
-void kbasep_js_policy_runpool_timers_sync(kbasep_js_policy *js_policy);
+void kbasep_js_policy_runpool_timers_sync(union kbasep_js_policy *js_policy);
 
 
 /**
@@ -598,7 +598,7 @@ void kbasep_js_policy_runpool_timers_sync(kbasep_js_policy *js_policy);
  * cannot be held). Therefore, this function should only be seen as a heuristic
  * guide as to whether \a new_ctx is higher priority than \a current_ctx
  */
-mali_bool kbasep_js_policy_ctx_has_priority(kbasep_js_policy *js_policy, kbase_context *current_ctx, kbase_context *new_ctx);
+mali_bool kbasep_js_policy_ctx_has_priority(union kbasep_js_policy *js_policy, struct kbase_context *current_ctx, struct kbase_context *new_ctx);
 
 	  /** @} *//* end group kbase_js_policy_ctx */
 
@@ -607,19 +607,19 @@ mali_bool kbasep_js_policy_ctx_has_priority(kbasep_js_policy *js_policy, kbase_c
  * @{
  *
  * <b>Refer to @ref page_kbase_js_policy for an overview and detailed operation of
- * the Job Scheduler Policy and its use from the Job Scheduler Core.</b>
+ * the Job Scheduler Policy and its use from the Job Scheduler Core</b>.
  */
 
 /**
  * @brief Job Scheduler Policy Job Info structure
  *
- * This structure is embedded in the kbase_jd_atom structure. It is used to:
+ * This structure is embedded in the struct kbase_jd_atom structure. It is used to:
  * - track information needed for the policy to schedule the job (e.g. time
  * used, OS priority etc.)
- * - link together jobs into a queue/buffer, so that a kbase_jd_atom can be
+ * - link together jobs into a queue/buffer, so that a struct kbase_jd_atom can be
  * obtained as the container of the policy job info. This allows the API to
  * return what "the next job" should be.
- * - obtain other information already stored in the kbase_context for
+ * - obtain other information already stored in the struct kbase_context for
  * scheduling purposes (e.g user-side relative priority)
  */
 union kbasep_js_policy_job_info;
@@ -627,7 +627,7 @@ union kbasep_js_policy_job_info;
 /**
  * @brief Initialize a job for use with the Job Scheduler Policy
  *
- * This function initializes the kbasep_js_policy_job_info structure within the
+ * This function initializes the union kbasep_js_policy_job_info structure within the
  * kbase_jd_atom. It will only initialize/allocate resources that are specific
  * to the job.
  *
@@ -647,7 +647,7 @@ union kbasep_js_policy_job_info;
  *
  * @return MALI_ERROR_NONE if initialization was correct.
  */
-mali_error kbasep_js_policy_init_job(const kbasep_js_policy *js_policy, const kbase_context *kctx, kbase_jd_atom *katom);
+mali_error kbasep_js_policy_init_job(const union kbasep_js_policy *js_policy, const struct kbase_context *kctx, struct kbase_jd_atom *katom);
 
 /**
  * @brief Register context/policy-wide information for a job on the Job Scheduler Policy.
@@ -668,7 +668,7 @@ mali_error kbasep_js_policy_init_job(const kbasep_js_policy *js_policy, const kb
  * The caller has the following conditions on locking:
  * - kbasep_js_kctx_info::ctx::jsctx_mutex will be held.
  */
-void kbasep_js_policy_register_job(kbasep_js_policy *js_policy, kbase_context *kctx, kbase_jd_atom *katom);
+void kbasep_js_policy_register_job(union kbasep_js_policy *js_policy, struct kbase_context *kctx, struct kbase_jd_atom *katom);
 
 /**
  * @brief De-register context/policy-wide information for a on the Job Scheduler Policy.
@@ -680,7 +680,7 @@ void kbasep_js_policy_register_job(kbasep_js_policy *js_policy, kbase_context *k
  * The caller has the following conditions on locking:
  * - kbasep_js_kctx_info::ctx::jsctx_mutex will be held.
  */
-void kbasep_js_policy_deregister_job(kbasep_js_policy *js_policy, kbase_context *kctx, kbase_jd_atom *katom);
+void kbasep_js_policy_deregister_job(union kbasep_js_policy *js_policy, struct kbase_context *kctx, struct kbase_jd_atom *katom);
 
 /**
  * @brief Dequeue a Job for a job slot from the Job Scheduler Policy Run Pool
@@ -709,7 +709,7 @@ void kbasep_js_policy_deregister_job(kbasep_js_policy *js_policy, kbase_context 
  * - kbasep_js_device_data::runpool_mutex will be held.
  * - kbasep_js_kctx_info::ctx::jsctx_mutex. will be held
  */
-mali_bool kbasep_js_policy_dequeue_job(kbase_device *kbdev, int job_slot_idx, kbase_jd_atom ** const katom_ptr);
+mali_bool kbasep_js_policy_dequeue_job(struct kbase_device *kbdev, int job_slot_idx, struct kbase_jd_atom ** const katom_ptr);
 
 /**
  * @brief Requeue a Job back into the the Job Scheduler Policy Run Pool
@@ -723,13 +723,13 @@ mali_bool kbasep_js_policy_dequeue_job(kbase_device *kbdev, int job_slot_idx, kb
  * - kbasep_js_device_data::runpool_mutex will be held.
  * - kbasep_js_kctx_info::ctx::jsctx_mutex will be held.
  */
-void kbasep_js_policy_enqueue_job(kbasep_js_policy *js_policy, kbase_jd_atom *katom);
+void kbasep_js_policy_enqueue_job(union kbasep_js_policy *js_policy, struct kbase_jd_atom *katom);
 
 /**
  * @brief Log the result of a job: the time spent on a job/context, and whether
  * the job failed or not.
  *
- * Since a kbase_jd_atom contains a pointer to the kbase_context owning it,
+ * Since a struct kbase_jd_atom contains a pointer to the struct kbase_context owning it,
  * then this can also be used to log time on either/both the job and the
  * containing context.
  *
@@ -756,7 +756,7 @@ void kbasep_js_policy_enqueue_job(kbasep_js_policy *js_policy, kbase_jd_atom *ka
  * @param katom         job dispatch atom
  * @param time_spent_us the time spent by the job, in microseconds (10^-6 seconds).
  */
-void kbasep_js_policy_log_job_result(kbasep_js_policy *js_policy, kbase_jd_atom *katom, u64 time_spent_us);
+void kbasep_js_policy_log_job_result(union kbasep_js_policy *js_policy, struct kbase_jd_atom *katom, u64 time_spent_us);
 
 	  /** @} *//* end group kbase_js_policy_job */
 
