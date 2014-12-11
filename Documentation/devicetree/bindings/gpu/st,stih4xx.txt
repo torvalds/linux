@@ -83,6 +83,22 @@ sti-hda:
   - clock-names: names of the clocks listed in clocks property in the same
     order.
 
+sti-hqvdp:
+  must be a child of sti-display-subsystem
+  Required properties:
+  - compatible: "st,stih<chip>-hqvdp"
+  - reg: Physical base address of the IP registers and length of memory mapped region.
+  - clocks: from common clock binding: handle hardware IP needed clocks, the
+    number of clocks may depend of the SoC type.
+    See ../clocks/clock-bindings.txt for details.
+  - clock-names: names of the clocks listed in clocks property in the same
+    order.
+  - resets: resets to be used by the device
+    See ../reset/reset.txt for details.
+  - reset-names: names of the resets listed in resets property in the same
+    order.
+  - st,vtg: phandle on vtg main device node.
+
 Example:
 
 / {
@@ -183,6 +199,16 @@ Example:
 				clocks          = <&clockgen_c_vcc CLK_S_PIX_HD>, <&clockgen_c_vcc CLK_S_HDDAC>;
 			};
 		};
+
+		sti-hqvdp@9c000000 {
+				compatible	= "st,stih407-hqvdp";
+				reg		= <0x9C00000 0x100000>;
+				clock-names	= "hqvdp", "pix_main";
+				clocks		= <&clk_s_c0_flexgen CLK_MAIN_DISP>, <&clk_s_d2_flexgen CLK_PIX_MAIN_DISP>;
+				reset-names     = "hqvdp";
+				resets          = <&softreset STIH407_HDQVDP_SOFTRESET>;
+				st,vtg		= <&vtg_main>;
+			};
 	};
 	...
 };

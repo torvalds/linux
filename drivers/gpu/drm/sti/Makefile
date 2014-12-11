@@ -19,4 +19,5 @@ obj-$(CONFIG_DRM_STI) = \
 	sti_hda.o \
 	sti_tvout.o \
 	sticompositor.o \
+	sti_hqvdp.o \
 	sti_drm_drv.o

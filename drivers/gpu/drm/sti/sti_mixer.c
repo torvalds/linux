@@ -123,6 +123,7 @@ int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer)
 		layer_id = GAM_DEPTH_GDP3_ID;
 		break;
 	case STI_VID_0:
+	case STI_HQVDP_0:
 		layer_id = GAM_DEPTH_VID0_ID;
 		break;
 	case STI_VID_1:
@@ -189,6 +190,7 @@ static u32 sti_mixer_get_layer_mask(struct sti_layer *layer)
 	case STI_GDP_3:
 		return GAM_CTL_GDP3_MASK;
 	case STI_VID_0:
+	case STI_HQVDP_0:
 		return GAM_CTL_VID0_MASK;
 	case STI_VID_1:
 		return GAM_CTL_VID1_MASK;

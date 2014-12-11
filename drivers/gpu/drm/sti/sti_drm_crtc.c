@@ -148,7 +148,8 @@ sti_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	w = crtc->primary->fb->width - x;
 	h = crtc->primary->fb->height - y;
 
-	return sti_layer_prepare(layer, crtc->primary->fb, &crtc->mode,
+	return sti_layer_prepare(layer, crtc,
+			crtc->primary->fb, &crtc->mode,
 			mixer->id, 0, 0, w, h, x, y, w, h);
 }
 
@@ -175,7 +176,8 @@ static int sti_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	w = crtc->primary->fb->width - crtc->x;
 	h = crtc->primary->fb->height - crtc->y;
 
-	ret = sti_layer_prepare(layer, crtc->primary->fb, &crtc->mode,
+	ret = sti_layer_prepare(layer, crtc,
+				crtc->primary->fb, &crtc->mode,
 				mixer->id, 0, 0, w, h,
 				crtc->x, crtc->y, w, h);
 	if (ret) {

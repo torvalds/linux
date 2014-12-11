@@ -13,6 +13,7 @@
 #include "sti_compositor.h"
 #include "sti_cursor.h"
 #include "sti_gdp.h"
+#include "sti_hqvdp.h"
 #include "sti_layer.h"
 #include "sti_vid.h"
 
@@ -33,6 +34,8 @@ const char *sti_layer_to_str(struct sti_layer *layer)
 		return "VID1";
 	case STI_CURSOR:
 		return "CURSOR";
+	case STI_HQVDP_0:
+		return "HQVDP0";
 	default:
 		return "<UNKNOWN LAYER>";
 	}
@@ -54,6 +57,9 @@ struct sti_layer *sti_layer_create(struct device *dev, int desc,
 	case STI_CUR:
 		layer = sti_cursor_create(dev);
 		break;
+	case STI_VDP:
+		layer = sti_hqvdp_create(dev);
+		break;
 	}
 
 	if (!layer) {
@@ -72,7 +78,9 @@ struct sti_layer *sti_layer_create(struct device *dev, int desc,
 	return layer;
 }
 
-int sti_layer_prepare(struct sti_layer *layer, struct drm_framebuffer *fb,
+int sti_layer_prepare(struct sti_layer *layer,
+		      struct drm_crtc *crtc,
+		      struct drm_framebuffer *fb,
 		      struct drm_display_mode *mode, int mixer_id,
 		      int dest_x, int dest_y, int dest_w, int dest_h,
 		      int src_x, int src_y, int src_w, int src_h)
@@ -92,6 +100,7 @@ int sti_layer_prepare(struct sti_layer *layer, struct drm_framebuffer *fb,
 		return 1;
 	}
 
+	layer->crtc = crtc;
 	layer->fb = fb;
 	layer->mode = mode;
 	layer->mixer_id = mixer_id;

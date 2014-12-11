@@ -122,6 +122,7 @@ static int sti_compositor_bind(struct device *dev, struct device *master,
 				plane++;
 				break;
 			case STI_BCK:
+			case STI_VDP:
 				break;
 			}
 
