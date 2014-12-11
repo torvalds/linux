@@ -886,61 +886,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (field32 & (1 << 21))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_80_VFS;
 
-	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
-		for (i = 1; i <= dev_cap->num_ports; ++i) {
-			MLX4_GET(field, outbox, QUERY_DEV_CAP_VL_PORT_OFFSET);
-			dev_cap->max_vl[i]	   = field >> 4;
-			MLX4_GET(field, outbox, QUERY_DEV_CAP_MTU_WIDTH_OFFSET);
-			dev_cap->ib_mtu[i]	   = field >> 4;
-			dev_cap->max_port_width[i] = field & 0xf;
-			MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_GID_OFFSET);
-			dev_cap->max_gids[i]	   = 1 << (field & 0xf);
-			MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_PKEY_OFFSET);
-			dev_cap->max_pkeys[i]	   = 1 << (field & 0xf);
-		}
-	} else {
-#define QUERY_PORT_SUPPORTED_TYPE_OFFSET	0x00
-#define QUERY_PORT_MTU_OFFSET			0x01
-#define QUERY_PORT_ETH_MTU_OFFSET		0x02
-#define QUERY_PORT_WIDTH_OFFSET			0x06
-#define QUERY_PORT_MAX_GID_PKEY_OFFSET		0x07
-#define QUERY_PORT_MAX_MACVLAN_OFFSET		0x0a
-#define QUERY_PORT_MAX_VL_OFFSET		0x0b
-#define QUERY_PORT_MAC_OFFSET			0x10
-#define QUERY_PORT_TRANS_VENDOR_OFFSET		0x18
-#define QUERY_PORT_WAVELENGTH_OFFSET		0x1c
-#define QUERY_PORT_TRANS_CODE_OFFSET		0x20
-
-		for (i = 1; i <= dev_cap->num_ports; ++i) {
-			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
-					   MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
-			if (err)
-				goto out;
-
-			MLX4_GET(field, outbox, QUERY_PORT_SUPPORTED_TYPE_OFFSET);
-			dev_cap->supported_port_types[i] = field & 3;
-			dev_cap->suggested_type[i] = (field >> 3) & 1;
-			dev_cap->default_sense[i] = (field >> 4) & 1;
-			MLX4_GET(field, outbox, QUERY_PORT_MTU_OFFSET);
-			dev_cap->ib_mtu[i]	   = field & 0xf;
-			MLX4_GET(field, outbox, QUERY_PORT_WIDTH_OFFSET);
-			dev_cap->max_port_width[i] = field & 0xf;
-			MLX4_GET(field, outbox, QUERY_PORT_MAX_GID_PKEY_OFFSET);
-			dev_cap->max_gids[i]	   = 1 << (field >> 4);
-			dev_cap->max_pkeys[i]	   = 1 << (field & 0xf);
-			MLX4_GET(field, outbox, QUERY_PORT_MAX_VL_OFFSET);
-			dev_cap->max_vl[i]	   = field & 0xf;
-			MLX4_GET(field, outbox, QUERY_PORT_MAX_MACVLAN_OFFSET);
-			dev_cap->log_max_macs[i]  = field & 0xf;
-			dev_cap->log_max_vlans[i] = field >> 4;
-			MLX4_GET(dev_cap->eth_mtu[i], outbox, QUERY_PORT_ETH_MTU_OFFSET);
-			MLX4_GET(dev_cap->def_mac[i], outbox, QUERY_PORT_MAC_OFFSET);
-			MLX4_GET(field32, outbox, QUERY_PORT_TRANS_VENDOR_OFFSET);
-			dev_cap->trans_type[i] = field32 >> 24;
-			dev_cap->vendor_oui[i] = field32 & 0xffffff;
-			MLX4_GET(dev_cap->wavelength[i], outbox, QUERY_PORT_WAVELENGTH_OFFSET);
-			MLX4_GET(dev_cap->trans_code[i], outbox, QUERY_PORT_TRANS_CODE_OFFSET);
-		}
+	for (i = 1; i <= dev_cap->num_ports; i++) {
+		err = mlx4_QUERY_PORT(dev, i, dev_cap->port_cap + i);
+		if (err)
+			goto out;
 	}
 
 	mlx4_dbg(dev, "Base MM extensions: flags %08x, rsvd L_Key %08x\n",
@@ -977,8 +926,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	mlx4_dbg(dev, "Max CQEs: %d, max WQEs: %d, max SRQ WQEs: %d\n",
 		 dev_cap->max_cq_sz, dev_cap->max_qp_sz, dev_cap->max_srq_sz);
 	mlx4_dbg(dev, "Local CA ACK delay: %d, max MTU: %d, port width cap: %d\n",
-		 dev_cap->local_ca_ack_delay, 128 << dev_cap->ib_mtu[1],
-		 dev_cap->max_port_width[1]);
+		 dev_cap->local_ca_ack_delay, 128 << dev_cap->port_cap[1].ib_mtu,
+		 dev_cap->port_cap[1].max_port_width);
 	mlx4_dbg(dev, "Max SQ desc size: %d, max SQ S/G: %d\n",
 		 dev_cap->max_sq_desc_sz, dev_cap->max_sq_sg);
 	mlx4_dbg(dev, "Max RQ desc size: %d, max RQ S/G: %d\n",
@@ -989,6 +938,84 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 	dump_dev_cap_flags(dev, dev_cap->flags);
 	dump_dev_cap_flags2(dev, dev_cap->flags2);
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
+int mlx4_QUERY_PORT(struct mlx4_dev *dev, int port, struct mlx4_port_cap *port_cap)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	u32 *outbox;
+	u8 field;
+	u32 field32;
+	int err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
+
+	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
+		err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
+				   MLX4_CMD_TIME_CLASS_A,
+				   MLX4_CMD_NATIVE);
+
+		if (err)
+			goto out;
+
+		MLX4_GET(field, outbox, QUERY_DEV_CAP_VL_PORT_OFFSET);
+		port_cap->max_vl	   = field >> 4;
+		MLX4_GET(field, outbox, QUERY_DEV_CAP_MTU_WIDTH_OFFSET);
+		port_cap->ib_mtu	   = field >> 4;
+		port_cap->max_port_width = field & 0xf;
+		MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_GID_OFFSET);
+		port_cap->max_gids	   = 1 << (field & 0xf);
+		MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_PKEY_OFFSET);
+		port_cap->max_pkeys	   = 1 << (field & 0xf);
+	} else {
+#define QUERY_PORT_SUPPORTED_TYPE_OFFSET	0x00
+#define QUERY_PORT_MTU_OFFSET			0x01
+#define QUERY_PORT_ETH_MTU_OFFSET		0x02
+#define QUERY_PORT_WIDTH_OFFSET			0x06
+#define QUERY_PORT_MAX_GID_PKEY_OFFSET		0x07
+#define QUERY_PORT_MAX_MACVLAN_OFFSET		0x0a
+#define QUERY_PORT_MAX_VL_OFFSET		0x0b
+#define QUERY_PORT_MAC_OFFSET			0x10
+#define QUERY_PORT_TRANS_VENDOR_OFFSET		0x18
+#define QUERY_PORT_WAVELENGTH_OFFSET		0x1c
+#define QUERY_PORT_TRANS_CODE_OFFSET		0x20
+
+		err = mlx4_cmd_box(dev, 0, mailbox->dma, port, 0, MLX4_CMD_QUERY_PORT,
+				   MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+		if (err)
+			goto out;
+
+		MLX4_GET(field, outbox, QUERY_PORT_SUPPORTED_TYPE_OFFSET);
+		port_cap->supported_port_types = field & 3;
+		port_cap->suggested_type = (field >> 3) & 1;
+		port_cap->default_sense = (field >> 4) & 1;
+		MLX4_GET(field, outbox, QUERY_PORT_MTU_OFFSET);
+		port_cap->ib_mtu	   = field & 0xf;
+		MLX4_GET(field, outbox, QUERY_PORT_WIDTH_OFFSET);
+		port_cap->max_port_width = field & 0xf;
+		MLX4_GET(field, outbox, QUERY_PORT_MAX_GID_PKEY_OFFSET);
+		port_cap->max_gids	   = 1 << (field >> 4);
+		port_cap->max_pkeys	   = 1 << (field & 0xf);
+		MLX4_GET(field, outbox, QUERY_PORT_MAX_VL_OFFSET);
+		port_cap->max_vl	   = field & 0xf;
+		MLX4_GET(field, outbox, QUERY_PORT_MAX_MACVLAN_OFFSET);
+		port_cap->log_max_macs  = field & 0xf;
+		port_cap->log_max_vlans = field >> 4;
+		MLX4_GET(port_cap->eth_mtu, outbox, QUERY_PORT_ETH_MTU_OFFSET);
+		MLX4_GET(port_cap->def_mac, outbox, QUERY_PORT_MAC_OFFSET);
+		MLX4_GET(field32, outbox, QUERY_PORT_TRANS_VENDOR_OFFSET);
+		port_cap->trans_type = field32 >> 24;
+		port_cap->vendor_oui = field32 & 0xffffff;
+		MLX4_GET(port_cap->wavelength, outbox, QUERY_PORT_WAVELENGTH_OFFSET);
+		MLX4_GET(port_cap->trans_code, outbox, QUERY_PORT_TRANS_CODE_OFFSET);
+	}
 
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
