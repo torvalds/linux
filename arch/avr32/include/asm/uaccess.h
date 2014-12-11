@@ -191,7 +191,7 @@ extern int __put_user_bad(void);
 	default: __gu_err = __get_user_bad(); break;			\
 	}								\
 									\
-	x = (typeof(*(ptr)))__gu_val;					\
+	x = (__force typeof(*(ptr)))__gu_val;				\
 	__gu_err;							\
 })
 
@@ -222,7 +222,7 @@ extern int __put_user_bad(void);
 	} else {							\
 		__gu_err = -EFAULT;					\
 	}								\
-	x = (typeof(*(ptr)))__gu_val;					\
+	x = (__force typeof(*(ptr)))__gu_val;				\
 	__gu_err;							\
 })
 
