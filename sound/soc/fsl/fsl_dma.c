@@ -151,14 +151,7 @@ static const struct snd_pcm_hardware fsl_dma_hardware = {
  */
 static void fsl_dma_abort_stream(struct snd_pcm_substream *substream)
 {
-	unsigned long flags;
-
-	snd_pcm_stream_lock_irqsave(substream, flags);
-
-	if (snd_pcm_running(substream))
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-
-	snd_pcm_stream_unlock_irqrestore(substream, flags);
+	snd_pcm_stop_xrun(substream);
 }
 
 /**

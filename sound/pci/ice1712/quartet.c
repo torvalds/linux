@@ -46,7 +46,7 @@ struct qtet_kcontrol_private {
 	unsigned int bit;
 	void (*set_register)(struct snd_ice1712 *ice, unsigned int val);
 	unsigned int (*get_register)(struct snd_ice1712 *ice);
-	unsigned char * const texts[2];
+	const char * const texts[2];
 };
 
 enum {
@@ -554,17 +554,7 @@ static int qtet_ain12_enum_info(struct snd_kcontrol *kcontrol,
 {
 	static const char * const texts[3] =
 		{"Line In 1/2", "Mic", "Mic + Low-cut"};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = ARRAY_SIZE(texts);
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-			texts[uinfo->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
 }
 
 static int qtet_ain12_sw_get(struct snd_kcontrol *kcontrol,
@@ -706,17 +696,8 @@ static int qtet_enum_info(struct snd_kcontrol *kcontrol,
 {
 	struct qtet_kcontrol_private private =
 		qtet_privates[kcontrol->private_value];
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = ARRAY_SIZE(private.texts);
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-			private.texts[uinfo->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(private.texts),
+				 private.texts);
 }
 
 static int qtet_sw_get(struct snd_kcontrol *kcontrol,
@@ -852,11 +833,8 @@ static int qtet_add_controls(struct snd_ice1712 *ice)
 	if (err < 0)
 		return err;
 	/* only capture SPDIF over AK4113 */
-	err = snd_ak4113_build(spec->ak4113,
+	return snd_ak4113_build(spec->ak4113,
 			ice->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
-	if (err < 0)
-		return err;
-	return 0;
 }
 
 static inline int qtet_is_spdif_master(struct snd_ice1712 *ice)

@@ -554,17 +554,21 @@ struct hpi_pci {
 	struct pci_dev *pci_dev;
 };
 
+/** Adapter specification resource */
+struct hpi_adapter_specification {
+	u32 type;
+	u8 modules[4];
+};
+
 struct hpi_resource {
 	union {
 		const struct hpi_pci *pci;
 		const char *net_if;
+		struct hpi_adapter_specification adapter_spec;
+		const void *sw_if;
 	} r;
-#ifndef HPI64BIT		/* keep structure size constant */
-	u32 pad_to64;
-#endif
 	u16 bus_type;		/* HPI_BUS_PNPISA, _PCI, _USB etc */
 	u16 padding;
-
 };
 
 /** Format info used inside struct hpi_message
@@ -582,7 +586,7 @@ struct hpi_msg_format {
 struct hpi_msg_data {
 	struct hpi_msg_format format;
 	u8 *pb_data;
-#ifndef HPI64BIT
+#ifndef CONFIG_64BIT
 	u32 padding;
 #endif
 	u32 data_size;
@@ -595,7 +599,7 @@ struct hpi_data_legacy32 {
 	u32 data_size;
 };
 
-#ifdef HPI64BIT
+#ifdef CONFIG_64BIT
 /* Compatibility version of struct hpi_data*/
 struct hpi_data_compat32 {
 	struct hpi_msg_format format;
@@ -682,8 +686,8 @@ union hpi_adapterx_msg {
 		u16 value;
 	} test_assert;
 	struct {
-		u32 yes;
-	} irq_query;
+		u32 message;
+	} irq;
 	u32 pad[3];
 };
 

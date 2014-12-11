@@ -513,10 +513,15 @@ static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
 	u32 width = snd_pcm_format_width(params_format(params));
 	u32 channels = params_channels(params);
 	u32 pins = DIV_ROUND_UP(channels, esai_priv->slots);
+	u32 slot_width = width;
 	u32 bclk, mask, val;
 	int ret;
 
-	bclk = params_rate(params) * esai_priv->slot_width * esai_priv->slots;
+	/* Override slot_width if being specifially set */
+	if (esai_priv->slot_width)
+		slot_width = esai_priv->slot_width;
+
+	bclk = params_rate(params) * slot_width * esai_priv->slots;
 
 	ret = fsl_esai_set_bclk(dai, tx, bclk);
 	if (ret)
@@ -538,7 +543,7 @@ static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_xFCR(tx), mask, val);
 
 	mask = ESAI_xCR_xSWS_MASK | (tx ? ESAI_xCR_PADC : 0);
-	val = ESAI_xCR_xSWS(esai_priv->slot_width, width) | (tx ? ESAI_xCR_PADC : 0);
+	val = ESAI_xCR_xSWS(slot_width, width) | (tx ? ESAI_xCR_PADC : 0);
 
 	regmap_update_bits(esai_priv->regmap, REG_ESAI_xCR(tx), mask, val);
 
@@ -779,9 +784,6 @@ static int fsl_esai_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to claim irq %u\n", irq);
 		return ret;
 	}
-
-	/* Set a default slot size */
-	esai_priv->slot_width = 32;
 
 	/* Set a default slot number */
 	esai_priv->slots = 2;

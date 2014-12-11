@@ -911,12 +911,13 @@ static int aic31xx_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	}
 	aic31xx->p_div = i;
 
-	for (i = 0; aic31xx_divs[i].mclk_p != freq/aic31xx->p_div; i++) {
-		if (i == ARRAY_SIZE(aic31xx_divs)) {
-			dev_err(aic31xx->dev, "%s: Unsupported frequency %d\n",
-				__func__, freq);
-			return -EINVAL;
-		}
+	for (i = 0; i < ARRAY_SIZE(aic31xx_divs) &&
+		     aic31xx_divs[i].mclk_p != freq/aic31xx->p_div; i++)
+		;
+	if (i == ARRAY_SIZE(aic31xx_divs)) {
+		dev_err(aic31xx->dev, "%s: Unsupported frequency %d\n",
+			__func__, freq);
+		return -EINVAL;
 	}
 
 	/* set clock on MCLK, BCLK, or GPIO1 as PLL input */
@@ -1056,18 +1057,6 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int aic31xx_suspend(struct snd_soc_codec *codec)
-{
-	aic31xx_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int aic31xx_resume(struct snd_soc_codec *codec)
-{
-	aic31xx_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int aic31xx_codec_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
@@ -1110,8 +1099,6 @@ static int aic31xx_codec_remove(struct snd_soc_codec *codec)
 {
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
 	int i;
-	/* power down chip */
-	aic31xx_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++)
 		regulator_unregister_notifier(aic31xx->supplies[i].consumer,
@@ -1123,9 +1110,9 @@ static int aic31xx_codec_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
 	.probe			= aic31xx_codec_probe,
 	.remove			= aic31xx_codec_remove,
-	.suspend		= aic31xx_suspend,
-	.resume			= aic31xx_resume,
 	.set_bias_level		= aic31xx_set_bias_level,
+	.suspend_bias_off	= true,
+
 	.controls		= aic31xx_snd_controls,
 	.num_controls		= ARRAY_SIZE(aic31xx_snd_controls),
 	.dapm_widgets		= aic31xx_dapm_widgets,

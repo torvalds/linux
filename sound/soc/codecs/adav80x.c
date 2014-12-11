@@ -212,7 +212,7 @@ static const struct snd_soc_dapm_widget adav80x_dapm_widgets[] = {
 static int adav80x_dapm_sysclk_check(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = source->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 	const char *clk;
 
@@ -236,7 +236,7 @@ static int adav80x_dapm_sysclk_check(struct snd_soc_dapm_widget *source,
 static int adav80x_dapm_pll_check(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = source->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	struct adav80x *adav80x = snd_soc_codec_get_drvdata(codec);
 
 	return adav80x->pll_src == ADAV80X_PLL_SRC_XTAL;

@@ -1,6 +1,6 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on PLAT_SAMSUNG
+	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
 	depends on S3C64XX_PL080 || !ARCH_S3C64XX
 	depends on S3C24XX_DMAC || !ARCH_S3C24XX
 	select SND_SOC_GENERIC_DMAENGINE_PCM
@@ -239,3 +239,9 @@ config SND_SOC_ODROIDX2
 	select SND_SAMSUNG_I2S
 	help
 	  Say Y here to enable audio support for the Odroid-X2/U3.
+
+config SND_SOC_ARNDALE_RT5631_ALC5631
+        tristate "Audio support for RT5631(ALC5631) on Arndale Board"
+        depends on SND_SOC_SAMSUNG
+        select SND_SAMSUNG_I2S
+        select SND_SOC_RT5631

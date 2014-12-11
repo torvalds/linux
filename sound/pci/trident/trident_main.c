@@ -3702,8 +3702,7 @@ static int snd_trident_free(struct snd_trident *trident)
 		free_irq(trident->irq, trident);
 	if (trident->tlb.buffer.area) {
 		outl(0, TRID_REG(trident, NX_TLBC));
-		if (trident->tlb.memhdr)
-			snd_util_memhdr_free(trident->tlb.memhdr);
+		snd_util_memhdr_free(trident->tlb.memhdr);
 		if (trident->tlb.silent_page.area)
 			snd_dma_free_pages(&trident->tlb.silent_page);
 		vfree(trident->tlb.shadow_entries);

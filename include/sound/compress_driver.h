@@ -42,12 +42,11 @@ struct snd_compr_ops;
  * @buffer_size: size of the above buffer
  * @fragment_size: size of buffer fragment in bytes
  * @fragments: number of such fragments
- * @hw_pointer: offset of last location in buffer where DSP copied data
- * @app_pointer: offset of last location in buffer where app wrote data
  * @total_bytes_available: cumulative number of bytes made available in
  *	the ring buffer
  * @total_bytes_transferred: cumulative bytes transferred by offload DSP
  * @sleep: poll sleep
+ * @private_data: driver private data pointer
  */
 struct snd_compr_runtime {
 	snd_pcm_state_t state;
@@ -94,6 +93,8 @@ struct snd_compr_stream {
  * This can be called in during stream creation only to set codec params
  * and the stream properties
  * @get_params: retrieve the codec parameters, mandatory
+ * @set_metadata: Set the metadata values for a stream
+ * @get_metadata: retreives the requested metadata values from stream
  * @trigger: Trigger operations like start, pause, resume, drain, stop.
  * This callback is mandatory
  * @pointer: Retrieve current h/w pointer information. Mandatory

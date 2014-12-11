@@ -52,7 +52,7 @@ extern const unsigned int snd_bebob_rate_table[SND_BEBOB_STRM_FMT_ENTRIES];
 #define SND_BEBOB_CLOCK_INTERNAL	"Internal"
 struct snd_bebob_clock_spec {
 	unsigned int num;
-	char *const *labels;
+	const char *const *labels;
 	int (*get)(struct snd_bebob *bebob, unsigned int *id);
 };
 struct snd_bebob_rate_spec {
@@ -61,7 +61,7 @@ struct snd_bebob_rate_spec {
 };
 struct snd_bebob_meter_spec {
 	unsigned int num;
-	char *const *labels;
+	const char *const *labels;
 	int (*get)(struct snd_bebob *bebob, u32 *target, unsigned int size);
 };
 struct snd_bebob_spec {

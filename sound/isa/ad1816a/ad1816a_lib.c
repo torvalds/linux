@@ -731,18 +731,12 @@ int snd_ad1816a_timer(struct snd_ad1816a *chip, int device,
 
 static int snd_ad1816a_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[8] = {
+	static const char * const texts[8] = {
 		"Line", "Mix", "CD", "Synth", "Video",
 		"Mic", "Phone",
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 2;
-	uinfo->value.enumerated.items = 7;
-	if (uinfo->value.enumerated.item > 6)
-		uinfo->value.enumerated.item = 6;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 2, 7, texts);
 }
 
 static int snd_ad1816a_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)

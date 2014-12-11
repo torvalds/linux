@@ -32,7 +32,6 @@
 #include "cs4265.h"
 
 struct cs4265_private {
-	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
 	u8 format;
@@ -598,7 +597,6 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 			       GFP_KERNEL);
 	if (cs4265 == NULL)
 		return -ENOMEM;
-	cs4265->dev = &i2c_client->dev;
 
 	cs4265->regmap = devm_regmap_init_i2c(i2c_client, &cs4265_regmap);
 	if (IS_ERR(cs4265->regmap)) {

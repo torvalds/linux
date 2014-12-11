@@ -757,18 +757,12 @@ static int snd_p16v_volume_put(struct snd_kcontrol *kcontrol,
 static int snd_p16v_capture_source_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[8] = {
+	static const char * const texts[8] = {
 		"SPDIF", "I2S", "SRC48", "SRCMulti_SPDIF", "SRCMulti_I2S",
 		"CDIF", "FX", "AC97"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 8;
-	if (uinfo->value.enumerated.item > 7)
-                uinfo->value.enumerated.item = 7;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 8, texts);
 }
 
 static int snd_p16v_capture_source_get(struct snd_kcontrol *kcontrol,
@@ -805,15 +799,9 @@ static int snd_p16v_capture_source_put(struct snd_kcontrol *kcontrol,
 static int snd_p16v_capture_channel_info(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[4] = { "0", "1", "2", "3",  };
+	static const char * const texts[4] = { "0", "1", "2", "3", };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item > 3)
-                uinfo->value.enumerated.item = 3;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 4, texts);
 }
 
 static int snd_p16v_capture_channel_get(struct snd_kcontrol *kcontrol,

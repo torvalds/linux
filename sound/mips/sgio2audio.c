@@ -201,17 +201,10 @@ static int sgio2audio_gain_put(struct snd_kcontrol *kcontrol,
 static int sgio2audio_source_info(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_info *uinfo)
 {
-	static const char *texts[3] = {
+	static const char * const texts[3] = {
 		"Cam Mic", "Mic", "Line"
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item >= 3)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int sgio2audio_source_get(struct snd_kcontrol *kcontrol,

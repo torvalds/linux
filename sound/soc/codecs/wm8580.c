@@ -882,8 +882,6 @@ static int wm8580_probe(struct snd_soc_codec *codec)
 		goto err_regulator_enable;
 	}
 
-	wm8580_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 
 err_regulator_enable:
@@ -896,8 +894,6 @@ err_regulator_get:
 static int wm8580_remove(struct snd_soc_codec *codec)
 {
 	struct wm8580_priv *wm8580 = snd_soc_codec_get_drvdata(codec);
-
-	wm8580_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
 

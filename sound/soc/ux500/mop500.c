@@ -63,12 +63,8 @@ static void mop500_of_node_put(void)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		if (mop500_dai_links[i].cpu_of_node)
-			of_node_put((struct device_node *)
-				mop500_dai_links[i].cpu_of_node);
-		if (mop500_dai_links[i].codec_of_node)
-			of_node_put((struct device_node *)
-				mop500_dai_links[i].codec_of_node);
+		of_node_put(mop500_dai_links[i].cpu_of_node);
+		of_node_put(mop500_dai_links[i].codec_of_node);
 	}
 }
 

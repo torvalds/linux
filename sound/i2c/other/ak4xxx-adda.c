@@ -465,17 +465,10 @@ static int snd_akm4xxx_stereo_volume_put(struct snd_kcontrol *kcontrol,
 static int snd_akm4xxx_deemphasis_info(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[4] = {
+	static const char * const texts[4] = {
 		"44.1kHz", "Off", "48kHz", "32kHz",
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item >= 4)
-		uinfo->value.enumerated.item = 3;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 4, texts);
 }
 
 static int snd_akm4xxx_deemphasis_get(struct snd_kcontrol *kcontrol,
@@ -570,22 +563,13 @@ static int ak4xxx_capture_source_info(struct snd_kcontrol *kcontrol,
 {
 	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int mixer_ch = AK_GET_SHIFT(kcontrol->private_value);
-	const char **input_names;
-	unsigned int num_names, idx;
+	unsigned int num_names;
 
 	num_names = ak4xxx_capture_num_inputs(ak, mixer_ch);
 	if (!num_names)
 		return -EINVAL;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = num_names;
-	idx = uinfo->value.enumerated.item;
-	if (idx >= num_names)
-		return -EINVAL;
-	input_names = ak->adc_info[mixer_ch].input_names;
-	strlcpy(uinfo->value.enumerated.name, input_names[idx],
-		sizeof(uinfo->value.enumerated.name));
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, num_names,
+				 ak->adc_info[mixer_ch].input_names);
 }
 
 static int ak4xxx_capture_source_get(struct snd_kcontrol *kcontrol,

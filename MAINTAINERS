@@ -6682,6 +6682,12 @@ S:	Supported
 F:	drivers/gpu/drm/i2c/tda998x_drv.c
 F:	include/drm/i2c/tda998x.h
 
+NXP TFA9879 DRIVER
+M:	Peter Rosin <peda@axentia.se>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	sound/soc/codecs/tfa9879*
+
 OMAP SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org

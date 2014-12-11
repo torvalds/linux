@@ -777,8 +777,7 @@ static void snd_emu10k1_ctl_private_free(struct snd_kcontrol *kctl)
 	kctl->private_value = 0;
 	list_del(&ctl->list);
 	kfree(ctl);
-	if (kctl->tlv.p)
-		kfree(kctl->tlv.p);
+	kfree(kctl->tlv.p);
 }
 
 static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,

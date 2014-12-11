@@ -203,13 +203,14 @@ static const struct snd_soc_dapm_route wm9705_audio_map[] = {
 /* We use a register cache to enhance read performance. */
 static unsigned int ac97_read(struct snd_soc_codec *codec, unsigned int reg)
 {
+	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache = codec->reg_cache;
 
 	switch (reg) {
 	case AC97_RESET:
 	case AC97_VENDOR_ID1:
 	case AC97_VENDOR_ID2:
-		return soc_ac97_ops->read(codec->ac97, reg);
+		return soc_ac97_ops->read(ac97, reg);
 	default:
 		reg = reg >> 1;
 
@@ -223,9 +224,10 @@ static unsigned int ac97_read(struct snd_soc_codec *codec, unsigned int reg)
 static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val)
 {
+	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache = codec->reg_cache;
 
-	soc_ac97_ops->write(codec->ac97, reg, val);
+	soc_ac97_ops->write(ac97, reg, val);
 	reg = reg >> 1;
 	if (reg < (ARRAY_SIZE(wm9705_reg)))
 		cache[reg] = val;
@@ -263,7 +265,6 @@ static const struct snd_soc_dai_ops wm9705_dai_ops = {
 static struct snd_soc_dai_driver wm9705_dai[] = {
 	{
 		.name = "wm9705-hifi",
-		.ac97_control = 1,
 		.playback = {
 			.stream_name = "HiFi Playback",
 			.channels_min = 1,
@@ -294,11 +295,15 @@ static struct snd_soc_dai_driver wm9705_dai[] = {
 
 static int wm9705_reset(struct snd_soc_codec *codec)
 {
+	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
+
 	if (soc_ac97_ops->reset) {
-		soc_ac97_ops->reset(codec->ac97);
+		soc_ac97_ops->reset(ac97);
 		if (ac97_read(codec, 0) == wm9705_reg[0])
 			return 0; /* Success */
 	}
+
+	dev_err(codec->dev, "Failed to reset: AC97 link error\n");
 
 	return -EIO;
 }
@@ -306,24 +311,25 @@ static int wm9705_reset(struct snd_soc_codec *codec)
 #ifdef CONFIG_PM
 static int wm9705_soc_suspend(struct snd_soc_codec *codec)
 {
-	soc_ac97_ops->write(codec->ac97, AC97_POWERDOWN, 0xffff);
+	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
+
+	soc_ac97_ops->write(ac97, AC97_POWERDOWN, 0xffff);
 
 	return 0;
 }
 
 static int wm9705_soc_resume(struct snd_soc_codec *codec)
 {
+	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 	u16 *cache = codec->reg_cache;
 
 	ret = wm9705_reset(codec);
-	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	for (i = 2; i < ARRAY_SIZE(wm9705_reg) << 1; i += 2) {
-		soc_ac97_ops->write(codec->ac97, i, cache[i>>1]);
+		soc_ac97_ops->write(ac97, i, cache[i>>1]);
 	}
 
 	return 0;
@@ -335,31 +341,34 @@ static int wm9705_soc_resume(struct snd_soc_codec *codec)
 
 static int wm9705_soc_probe(struct snd_soc_codec *codec)
 {
+	struct snd_ac97 *ac97;
 	int ret = 0;
 
-	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
-	if (ret < 0) {
-		printk(KERN_ERR "wm9705: failed to register AC97 codec\n");
+	ac97 = snd_soc_new_ac97_codec(codec);
+	if (IS_ERR(ac97)) {
+		ret = PTR_ERR(ac97);
+		dev_err(codec->dev, "Failed to register AC97 codec\n");
 		return ret;
 	}
+
+	snd_soc_codec_set_drvdata(codec, ac97);
 
 	ret = wm9705_reset(codec);
 	if (ret)
 		goto reset_err;
 
-	snd_soc_add_codec_controls(codec, wm9705_snd_ac97_controls,
-				ARRAY_SIZE(wm9705_snd_ac97_controls));
-
 	return 0;
 
 reset_err:
-	snd_soc_free_ac97_codec(codec);
+	snd_soc_free_ac97_codec(ac97);
 	return ret;
 }
 
 static int wm9705_soc_remove(struct snd_soc_codec *codec)
 {
-	snd_soc_free_ac97_codec(codec);
+	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
+
+	snd_soc_free_ac97_codec(ac97);
 	return 0;
 }
 
@@ -374,6 +383,9 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9705 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_step = 2,
 	.reg_cache_default = wm9705_reg,
+
+	.controls = wm9705_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(wm9705_snd_ac97_controls),
 	.dapm_widgets = wm9705_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9705_dapm_widgets),
 	.dapm_routes = wm9705_audio_map,
