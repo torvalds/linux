@@ -75,14 +75,14 @@ static int rk32_edp_pre_init(void)
 
 	val = 0x80008000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x0d0); /*select 24m*/
-	dsb();
+	dsb(sy);
 	val = 0x80008000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x01d0); /*reset edp*/
-	dsb();
+	dsb(sy);
 	udelay(1);
 	val = 0x80000000;
 	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
-	dsb();
+	dsb(sy);
 	udelay(1);
 	return 0;
 }
