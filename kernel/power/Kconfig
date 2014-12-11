@@ -94,6 +94,7 @@ config PM_STD_PARTITION
 config PM_SLEEP
 	def_bool y
 	depends on SUSPEND || HIBERNATE_CALLBACKS
+	select PM_RUNTIME
 
 config PM_SLEEP_SMP
 	def_bool y
@@ -131,7 +132,6 @@ config PM_WAKELOCKS_GC
 
 config PM_RUNTIME
 	bool "Run-time PM core functionality"
-	depends on !IA64_HP_SIM
 	---help---
 	  Enable functionality allowing I/O devices to be put into energy-saving
 	  (low power) states at run time (or autosuspended) after a specified
@@ -298,14 +298,9 @@ config PM_GENERIC_DOMAINS_SLEEP
 	def_bool y
 	depends on PM_SLEEP && PM_GENERIC_DOMAINS
 
-config PM_GENERIC_DOMAINS_RUNTIME
-	def_bool y
-	depends on PM_RUNTIME && PM_GENERIC_DOMAINS
-
 config PM_GENERIC_DOMAINS_OF
 	def_bool y
 	depends on PM_GENERIC_DOMAINS && OF
 
 config CPU_PM
 	bool
-	depends on SUSPEND || CPU_IDLE

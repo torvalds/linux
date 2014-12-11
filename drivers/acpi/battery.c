@@ -1180,6 +1180,10 @@ static int acpi_battery_add(struct acpi_device *device)
 
 	if (!device)
 		return -EINVAL;
+
+	if (device->dep_unmet)
+		return -EPROBE_DEFER;
+
 	battery = kzalloc(sizeof(struct acpi_battery), GFP_KERNEL);
 	if (!battery)
 		return -ENOMEM;

@@ -222,7 +222,6 @@ config CPU_SHX3
 config ARCH_SHMOBILE
 	bool
 	select ARCH_SUSPEND_POSSIBLE
-	select PM
 	select PM_RUNTIME
 
 config CPU_HAS_PMU

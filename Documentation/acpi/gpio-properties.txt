@@ -1,0 +1,96 @@
+_DSD Device Properties Related to GPIO
+--------------------------------------
+
+With the release of ACPI 5.1 and the _DSD configuration objecte names
+can finally be given to GPIOs (and other things as well) returned by
+_CRS.  Previously, we were only able to use an integer index to find
+the corresponding GPIO, which is pretty error prone (it depends on
+the _CRS output ordering, for example).
+
+With _DSD we can now query GPIOs using a name instead of an integer
+index, like the ASL example below shows:
+
+  // Bluetooth device with reset and shutdown GPIOs
+  Device (BTH)
+  {
+      Name (_HID, ...)
+
+      Name (_CRS, ResourceTemplate ()
+      {
+          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionInputOnly,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionInputOnly,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {27, 31}
+      })
+
+      Name (_DSD, Package ()
+      {
+          ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+          Package ()
+	  {
+              Package () {"reset-gpio", Package() {^BTH, 1, 1, 0 }},
+              Package () {"shutdown-gpio", Package() {^BTH, 0, 0, 0 }},
+          }
+      })
+  }
+
+The format of the supported GPIO property is:
+
+  Package () { "name", Package () { ref, index, pin, active_low }}
+
+  ref - The device that has _CRS containing GpioIo()/GpioInt() resources,
+        typically this is the device itself (BTH in our case).
+  index - Index of the GpioIo()/GpioInt() resource in _CRS starting from zero.
+  pin - Pin in the GpioIo()/GpioInt() resource. Typically this is zero.
+  active_low - If 1 the GPIO is marked as active_low.
+
+Since ACPI GpioIo() resource does not have a field saying whether it is
+active low or high, the "active_low" argument can be used here.  Setting
+it to 1 marks the GPIO as active low.
+
+In our Bluetooth example the "reset-gpio" refers to the second GpioIo()
+resource, second pin in that resource with the GPIO number of 31.
+
+ACPI GPIO Mappings Provided by Drivers
+--------------------------------------
+
+There are systems in which the ACPI tables do not contain _DSD but provide _CRS
+with GpioIo()/GpioInt() resources and device drivers still need to work with
+them.
+
+In those cases ACPI device identification objects, _HID, _CID, _CLS, _SUB, _HRV,
+available to the driver can be used to identify the device and that is supposed
+to be sufficient to determine the meaning and purpose of all of the GPIO lines
+listed by the GpioIo()/GpioInt() resources returned by _CRS.  In other words,
+the driver is supposed to know what to use the GpioIo()/GpioInt() resources for
+once it has identified the device.  Having done that, it can simply assign names
+to the GPIO lines it is going to use and provide the GPIO subsystem with a
+mapping between those names and the ACPI GPIO resources corresponding to them.
+
+To do that, the driver needs to define a mapping table as a NULL-terminated
+array of struct acpi_gpio_mapping objects that each contain a name, a pointer
+to an array of line data (struct acpi_gpio_params) objects and the size of that
+array.  Each struct acpi_gpio_params object consists of three fields,
+crs_entry_index, line_index, active_low, representing the index of the target
+GpioIo()/GpioInt() resource in _CRS starting from zero, the index of the target
+line in that resource starting from zero, and the active-low flag for that line,
+respectively, in analogy with the _DSD GPIO property format specified above.
+
+For the example Bluetooth device discussed previously the data structures in
+question would look like this:
+
+static const struct acpi_gpio_params reset_gpio = { 1, 1, false };
+static const struct acpi_gpio_params shutdown_gpio = { 0, 0, false };
+
+static const struct acpi_gpio_mapping bluetooth_acpi_gpios[] = {
+  { "reset-gpio", &reset_gpio, 1 },
+  { "shutdown-gpio", &shutdown_gpio, 1 },
+  { },
+};
+
+Next, the mapping table needs to be passed as the second argument to
+acpi_dev_add_driver_gpios() that will register it with the ACPI device object
+pointed to by its first argument.  That should be done in the driver's .probe()
+routine.  On removal, the driver should unregister its GPIO mapping table by
+calling acpi_dev_remove_driver_gpios() on the ACPI device object where that
+table was previously registered.

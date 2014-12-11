@@ -334,10 +334,10 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 
 static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 {
-	acpi_status status = 0;
+	acpi_status status;
 	u64 count;
 	int current_count;
-	int i;
+	int i, ret = 0;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *cst;
 
@@ -358,7 +358,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	/* There must be at least 2 elements */
 	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
 		printk(KERN_ERR PREFIX "not enough elements in _CST\n");
-		status = -EFAULT;
+		ret = -EFAULT;
 		goto end;
 	}
 
@@ -367,7 +367,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	/* Validate number of power states. */
 	if (count < 1 || count != cst->package.count - 1) {
 		printk(KERN_ERR PREFIX "count given by _CST is not valid\n");
-		status = -EFAULT;
+		ret = -EFAULT;
 		goto end;
 	}
 
@@ -489,12 +489,12 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* Validate number of power states discovered */
 	if (current_count < 2)
-		status = -EFAULT;
+		ret = -EFAULT;
 
       end:
 	kfree(buffer.pointer);
 
-	return status;
+	return ret;
 }
 
 static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
@@ -985,8 +985,8 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 		state->flags = 0;
 		switch (cx->type) {
 			case ACPI_STATE_C1:
-			if (cx->entry_method == ACPI_CSTATE_FFH)
-				state->flags |= CPUIDLE_FLAG_TIME_VALID;
+			if (cx->entry_method != ACPI_CSTATE_FFH)
+				state->flags |= CPUIDLE_FLAG_TIME_INVALID;
 
 			state->enter = acpi_idle_enter_c1;
 			state->enter_dead = acpi_idle_play_dead;
@@ -994,14 +994,12 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 			break;
 
 			case ACPI_STATE_C2:
-			state->flags |= CPUIDLE_FLAG_TIME_VALID;
 			state->enter = acpi_idle_enter_simple;
 			state->enter_dead = acpi_idle_play_dead;
 			drv->safe_state_index = count;
 			break;
 
 			case ACPI_STATE_C3:
-			state->flags |= CPUIDLE_FLAG_TIME_VALID;
 			state->enter = pr->flags.bm_check ?
 					acpi_idle_enter_bm :
 					acpi_idle_enter_simple;
@@ -1111,7 +1109,7 @@ static int acpi_processor_registered;
 
 int acpi_processor_power_init(struct acpi_processor *pr)
 {
-	acpi_status status = 0;
+	acpi_status status;
 	int retval;
 	struct cpuidle_device *dev;
 	static int first_run;

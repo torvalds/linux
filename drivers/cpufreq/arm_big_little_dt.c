@@ -82,6 +82,7 @@ static struct cpufreq_arm_bL_ops dt_bL_ops = {
 	.name	= "dt-bl",
 	.get_transition_latency = dt_get_transition_latency,
 	.init_opp_table = dt_init_opp_table,
+	.free_opp_table = of_free_opp_table,
 };
 
 static int generic_bL_probe(struct platform_device *pdev)

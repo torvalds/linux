@@ -430,7 +430,7 @@ static int sdhci_acpi_resume(struct device *dev)
 
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int sdhci_acpi_runtime_suspend(struct device *dev)
 {

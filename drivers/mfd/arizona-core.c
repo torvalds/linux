@@ -330,7 +330,7 @@ err_fll:
 		return err;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int arizona_runtime_resume(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
@@ -1024,7 +1024,7 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_irq;
 	}
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	regulator_disable(arizona->dcvdd);
 #endif
 
