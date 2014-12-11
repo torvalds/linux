@@ -806,7 +806,7 @@ perm_error:
 	eeh_pe_dev_traverse(pe, eeh_report_failure, NULL);
 
 	/* Mark the PE to be removed permanently */
-	pe->freeze_count = EEH_MAX_ALLOWED_FREEZES + 1;
+	eeh_pe_state_mark(pe, EEH_PE_REMOVED);
 
 	/*
 	 * Shut down the device drivers for good. We mark

@@ -526,8 +526,7 @@ static void *__eeh_pe_state_mark(void *data, void *flag)
 	struct pci_dev *pdev;
 
 	/* Keep the state of permanently removed PE intact */
-	if ((pe->freeze_count > EEH_MAX_ALLOWED_FREEZES) &&
-	    (state & (EEH_PE_ISOLATED | EEH_PE_RECOVERING)))
+	if (pe->state & EEH_PE_REMOVED)
 		return NULL;
 
 	pe->state |= state;
@@ -600,8 +599,7 @@ static void *__eeh_pe_state_clear(void *data, void *flag)
 	struct pci_dev *pdev;
 
 	/* Keep the state of permanently removed PE intact */
-	if ((pe->freeze_count > EEH_MAX_ALLOWED_FREEZES) &&
-	    (state & EEH_PE_ISOLATED))
+	if (pe->state & EEH_PE_REMOVED)
 		return NULL;
 
 	pe->state &= ~state;
