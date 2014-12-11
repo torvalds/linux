@@ -53,3 +53,10 @@ KernelVersion:	3.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The protocol id of a Greybus connection.
+
+What:		/sys/bus/greybus/device/.../device_id
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The device id of a Greybus interface.
