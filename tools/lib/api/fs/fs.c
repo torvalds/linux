@@ -184,3 +184,16 @@ int filename__read_int(const char *filename, int *value)
 	close(fd);
 	return err;
 }
+
+int sysctl__read_int(const char *sysctl, int *value)
+{
+	char path[PATH_MAX];
+	const char *procfs = procfs__mountpoint();
+
+	if (!procfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/sys/%s", procfs, sysctl);
+
+	return filename__read_int(path, value);
+}
