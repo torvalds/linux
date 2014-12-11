@@ -137,16 +137,7 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 
 static int get_max_rate(unsigned int *rate)
 {
-	char path[PATH_MAX];
-	const char *procfs = procfs__mountpoint();
-
-	if (!procfs)
-		return -1;
-
-	snprintf(path, PATH_MAX,
-		 "%s/sys/kernel/perf_event_max_sample_rate", procfs);
-
-	return filename__read_int(path, (int *) rate);
+	return sysctl__read_int("kernel/perf_event_max_sample_rate", (int *)rate);
 }
 
 static int record_opts__config_freq(struct record_opts *opts)
