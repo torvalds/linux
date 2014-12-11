@@ -7086,6 +7086,16 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/xgene-pci.txt
 F:	drivers/pci/host/pci-xgene.c
 
+PCI DRIVER FOR FREESCALE LAYERSCAPE
+M:	Minghuan Lian <minghuan.Lian@freescale.com>
+M:	Mingkai Hu <mingkai.hu@freescale.com>
+M:	Roy Zang <tie-fei.zang@freescale.com>
+L:	linuxppc-dev@lists.ozlabs.org
+L:	linux-pci@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	drivers/pci/host/*layerscape*
+
 PCI DRIVER FOR IMX6
 M:	Richard Zhu <r65037@freescale.com>
 M:	Lucas Stach <l.stach@pengutronix.de>
