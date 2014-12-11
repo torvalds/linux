@@ -48,13 +48,6 @@ enum {
 	MLX5_UMR_ALIGN	= 2048
 };
 
-static __be64 *mr_align(__be64 *ptr, int align)
-{
-	unsigned long mask = align - 1;
-
-	return (__be64 *)(((unsigned long)ptr + mask) & ~mask);
-}
-
 static int order2idx(struct mlx5_ib_dev *dev, int order)
 {
 	struct mlx5_mr_cache *cache = &dev->cache;
@@ -669,7 +662,7 @@ static int get_octo_len(u64 addr, u64 len, int page_size)
 
 static int use_umr(int order)
 {
-	return order <= 17;
+	return order <= MLX5_MAX_UMR_SHIFT;
 }
 
 static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
@@ -747,8 +740,9 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct ib_send_wr wr, *bad;
 	struct mlx5_ib_mr *mr;
 	struct ib_sge sg;
-	int size = sizeof(u64) * npages;
+	int size;
 	__be64 *mr_pas;
+	__be64 *pas;
 	dma_addr_t dma;
 	int err = 0;
 	int i;
@@ -768,17 +762,22 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	if (!mr)
 		return ERR_PTR(-EAGAIN);
 
+	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes.
+	 * To avoid copying garbage after the pas array, we allocate
+	 * a little more. */
+	size = ALIGN(sizeof(u64) * npages, MLX5_UMR_MTT_ALIGNMENT);
 	mr_pas = kmalloc(size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
 	if (!mr_pas) {
 		err = -ENOMEM;
 		goto free_mr;
 	}
 
-	mlx5_ib_populate_pas(dev, umem, page_shift,
-			     mr_align(mr_pas, MLX5_UMR_ALIGN), 1);
+	pas = PTR_ALIGN(mr_pas, MLX5_UMR_ALIGN);
+	mlx5_ib_populate_pas(dev, umem, page_shift, pas, MLX5_IB_MTT_PRESENT);
+	/* Clear padding after the actual pages. */
+	memset(pas + npages, 0, size - npages * sizeof(u64));
 
-	dma = dma_map_single(ddev, mr_align(mr_pas, MLX5_UMR_ALIGN), size,
-			     DMA_TO_DEVICE);
+	dma = dma_map_single(ddev, pas, size, DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, dma)) {
 		err = -ENOMEM;
 		goto free_pas;
@@ -833,6 +832,8 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 	struct mlx5_ib_mr *mr;
 	int inlen;
 	int err;
+	bool pg_cap = !!(dev->mdev->caps.gen.flags &
+			 MLX5_DEV_CAP_FLAG_ON_DMND_PG);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
@@ -844,8 +845,12 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 		err = -ENOMEM;
 		goto err_1;
 	}
-	mlx5_ib_populate_pas(dev, umem, page_shift, in->pas, 0);
+	mlx5_ib_populate_pas(dev, umem, page_shift, in->pas,
+			     pg_cap ? MLX5_IB_MTT_PRESENT : 0);
 
+	/* The MLX5_MKEY_INBOX_PG_ACCESS bit allows setting the access flags
+	 * in the page list submitted with the command. */
+	in->flags = pg_cap ? cpu_to_be32(MLX5_MKEY_INBOX_PG_ACCESS) : 0;
 	in->seg.flags = convert_access(access_flags) |
 		MLX5_ACCESS_MODE_MTT;
 	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);

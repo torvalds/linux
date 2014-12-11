@@ -268,6 +268,13 @@ struct mlx5_ib_xrcd {
 	u32			xrcdn;
 };
 
+enum mlx5_ib_mtt_access_flags {
+	MLX5_IB_MTT_READ  = (1 << 0),
+	MLX5_IB_MTT_WRITE = (1 << 1),
+};
+
+#define MLX5_IB_MTT_PRESENT (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE)
+
 struct mlx5_ib_mr {
 	struct ib_mr		ibmr;
 	struct mlx5_core_mr	mmr;
@@ -552,7 +559,7 @@ void mlx5_ib_cleanup_fmr(struct mlx5_ib_dev *dev);
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift,
 			int *ncont, int *order);
 void mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
-			  int page_shift, __be64 *pas, int umr);
+			  int page_shift, __be64 *pas, int access_flags);
 void mlx5_ib_copy_pas(u64 *old, u64 *new, int step, int num);
 int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
@@ -587,5 +594,8 @@ static inline u8 convert_access(int acc)
 	       (acc & IB_ACCESS_LOCAL_WRITE   ? MLX5_PERM_LOCAL_WRITE  : 0) |
 	       MLX5_PERM_LOCAL_READ;
 }
+
+#define MLX5_MAX_UMR_SHIFT 16
+#define MLX5_MAX_UMR_PAGES (1 << MLX5_MAX_UMR_SHIFT)
 
 #endif /* MLX5_IB_H */
