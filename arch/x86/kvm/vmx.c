@@ -8293,18 +8293,80 @@ static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu)
 		      ns_to_ktime(preemption_timeout), HRTIMER_MODE_REL);
 }
 
-static inline int nested_vmx_msr_check_common(struct vmx_msr_entry *e)
+static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
+				       unsigned long count_field,
+				       unsigned long addr_field,
+				       int maxphyaddr)
 {
-	if (e->index >> 8 == 0x8 || e->reserved != 0)
+	u64 count, addr;
+
+	if (vmcs12_read_any(vcpu, count_field, &count) ||
+	    vmcs12_read_any(vcpu, addr_field, &addr)) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	if (count == 0)
+		return 0;
+	if (!IS_ALIGNED(addr, 16) || addr >> maxphyaddr ||
+	    (addr + count * sizeof(struct vmx_msr_entry) - 1) >> maxphyaddr) {
+		pr_warn_ratelimited(
+			"nVMX: invalid MSR switch (0x%lx, %d, %llu, 0x%08llx)",
+			addr_field, maxphyaddr, count, addr);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int nested_vmx_check_msr_switch_controls(struct kvm_vcpu *vcpu,
+						struct vmcs12 *vmcs12)
+{
+	int maxphyaddr;
+
+	if (vmcs12->vm_exit_msr_load_count == 0 &&
+	    vmcs12->vm_exit_msr_store_count == 0 &&
+	    vmcs12->vm_entry_msr_load_count == 0)
+		return 0; /* Fast path */
+	maxphyaddr = cpuid_maxphyaddr(vcpu);
+	if (nested_vmx_check_msr_switch(vcpu, VM_EXIT_MSR_LOAD_COUNT,
+					VM_EXIT_MSR_LOAD_ADDR, maxphyaddr) ||
+	    nested_vmx_check_msr_switch(vcpu, VM_EXIT_MSR_STORE_COUNT,
+					VM_EXIT_MSR_STORE_ADDR, maxphyaddr) ||
+	    nested_vmx_check_msr_switch(vcpu, VM_ENTRY_MSR_LOAD_COUNT,
+					VM_ENTRY_MSR_LOAD_ADDR, maxphyaddr))
 		return -EINVAL;
 	return 0;
 }
 
-static inline int nested_vmx_load_msr_check(struct vmx_msr_entry *e)
+static int nested_vmx_msr_check_common(struct kvm_vcpu *vcpu,
+				       struct vmx_msr_entry *e)
+{
+	/* x2APIC MSR accesses are not allowed */
+	if (apic_x2apic_mode(vcpu->arch.apic) && e->index >> 8 == 0x8)
+		return -EINVAL;
+	if (e->index == MSR_IA32_UCODE_WRITE || /* SDM Table 35-2 */
+	    e->index == MSR_IA32_UCODE_REV)
+		return -EINVAL;
+	if (e->reserved != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static int nested_vmx_load_msr_check(struct kvm_vcpu *vcpu,
+				     struct vmx_msr_entry *e)
 {
 	if (e->index == MSR_FS_BASE ||
 	    e->index == MSR_GS_BASE ||
-		nested_vmx_msr_check_common(e))
+	    e->index == MSR_IA32_SMM_MONITOR_CTL || /* SMM is not supported */
+	    nested_vmx_msr_check_common(vcpu, e))
+		return -EINVAL;
+	return 0;
+}
+
+static int nested_vmx_store_msr_check(struct kvm_vcpu *vcpu,
+				      struct vmx_msr_entry *e)
+{
+	if (e->index == MSR_IA32_SMBASE || /* SMM is not supported */
+	    nested_vmx_msr_check_common(vcpu, e))
 		return -EINVAL;
 	return 0;
 }
@@ -8321,13 +8383,27 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 
 	msr.host_initiated = false;
 	for (i = 0; i < count; i++) {
-		kvm_read_guest(vcpu->kvm, gpa + i * sizeof(e), &e, sizeof(e));
-		if (nested_vmx_load_msr_check(&e))
+		if (kvm_read_guest(vcpu->kvm, gpa + i * sizeof(e),
+				   &e, sizeof(e))) {
+			pr_warn_ratelimited(
+				"%s cannot read MSR entry (%u, 0x%08llx)\n",
+				__func__, i, gpa + i * sizeof(e));
 			goto fail;
+		}
+		if (nested_vmx_load_msr_check(vcpu, &e)) {
+			pr_warn_ratelimited(
+				"%s check failed (%u, 0x%x, 0x%x)\n",
+				__func__, i, e.index, e.reserved);
+			goto fail;
+		}
 		msr.index = e.index;
 		msr.data = e.value;
-		if (kvm_set_msr(vcpu, &msr))
+		if (kvm_set_msr(vcpu, &msr)) {
+			pr_warn_ratelimited(
+				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
+				__func__, i, e.index, e.value);
 			goto fail;
+		}
 	}
 	return 0;
 fail:
@@ -8340,16 +8416,35 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	struct vmx_msr_entry e;
 
 	for (i = 0; i < count; i++) {
-		kvm_read_guest(vcpu->kvm, gpa + i * sizeof(e),
-				&e, 2 * sizeof(u32));
-		if (nested_vmx_msr_check_common(&e))
+		if (kvm_read_guest(vcpu->kvm,
+				   gpa + i * sizeof(e),
+				   &e, 2 * sizeof(u32))) {
+			pr_warn_ratelimited(
+				"%s cannot read MSR entry (%u, 0x%08llx)\n",
+				__func__, i, gpa + i * sizeof(e));
 			return -EINVAL;
-		if (kvm_get_msr(vcpu, e.index, &e.value))
+		}
+		if (nested_vmx_store_msr_check(vcpu, &e)) {
+			pr_warn_ratelimited(
+				"%s check failed (%u, 0x%x, 0x%x)\n",
+				__func__, i, e.index, e.reserved);
 			return -EINVAL;
-		kvm_write_guest(vcpu->kvm,
-				gpa + i * sizeof(e) +
+		}
+		if (kvm_get_msr(vcpu, e.index, &e.value)) {
+			pr_warn_ratelimited(
+				"%s cannot read MSR (%u, 0x%x)\n",
+				__func__, i, e.index);
+			return -EINVAL;
+		}
+		if (kvm_write_guest(vcpu->kvm,
+				    gpa + i * sizeof(e) +
 					offsetof(struct vmx_msr_entry, value),
-				&e.value, sizeof(e.value));
+				    &e.value, sizeof(e.value))) {
+			pr_warn_ratelimited(
+				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
+				__func__, i, e.index, e.value);
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
@@ -8694,6 +8789,11 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 
 	if (!nested_get_vmcs12_pages(vcpu, vmcs12)) {
 		/*TODO: Also verify bits beyond physical address width are 0*/
+		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		return 1;
+	}
+
+	if (nested_vmx_check_msr_switch_controls(vcpu, vmcs12)) {
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
