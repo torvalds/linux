@@ -527,6 +527,7 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 		if (copy_to_user(buffer + total,
 				 e->event, e->event->length)) {
 			total = -EFAULT;
+			e->destroy(e);
 			break;
 		}
 
