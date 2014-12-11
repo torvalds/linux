@@ -940,7 +940,7 @@ fec_restart(struct net_device *ndev)
 	}
 
 	/* Clear any outstanding interrupt. */
-	writel(0xffc00000, fep->hwp + FEC_IEVENT);
+	writel(0xffffffff, fep->hwp + FEC_IEVENT);
 
 	fec_enet_bd_init(ndev);
 
@@ -1075,7 +1075,10 @@ fec_restart(struct net_device *ndev)
 		fec_ptp_start_cyclecounter(ndev);
 
 	/* Enable interrupts we wish to service */
-	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
+	if (fep->link)
+		writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
+	else
+		writel(FEC_ENET_MII, fep->hwp + FEC_IMASK);
 
 	/* Init the interrupt coalescing */
 	fec_enet_itr_coal_init(ndev);
@@ -3331,6 +3334,12 @@ static int __maybe_unused fec_suspend(struct device *dev)
 
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
+
+	/* SOC supply clock to phy, when clock is disabled, phy link down
+	 * SOC control phy regulator, when regulator is disabled, phy link down
+	 */
+	if (fep->clk_enet_out || fep->reg_phy)
+		fep->link = 0;
 
 	return 0;
 }
