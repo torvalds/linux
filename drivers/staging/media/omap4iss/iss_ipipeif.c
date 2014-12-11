@@ -771,8 +771,6 @@ static int ipipeif_init_entities(struct iss_ipipeif_device *ipipeif)
 
 void omap4iss_ipipeif_unregister_entities(struct iss_ipipeif_device *ipipeif)
 {
-	media_entity_cleanup(&ipipeif->subdev.entity);
-
 	v4l2_device_unregister_subdev(&ipipeif->subdev);
 	omap4iss_video_unregister(&ipipeif->video_out);
 }
@@ -826,5 +824,7 @@ int omap4iss_ipipeif_init(struct iss_device *iss)
  */
 void omap4iss_ipipeif_cleanup(struct iss_device *iss)
 {
-	/* FIXME: are you sure there's nothing to do? */
+	struct iss_ipipeif_device *ipipeif = &iss->ipipeif;
+
+	media_entity_cleanup(&ipipeif->subdev.entity);
 }

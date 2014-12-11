@@ -516,8 +516,6 @@ static int ipipe_init_entities(struct iss_ipipe_device *ipipe)
 
 void omap4iss_ipipe_unregister_entities(struct iss_ipipe_device *ipipe)
 {
-	media_entity_cleanup(&ipipe->subdev.entity);
-
 	v4l2_device_unregister_subdev(&ipipe->subdev);
 }
 
@@ -566,5 +564,7 @@ int omap4iss_ipipe_init(struct iss_device *iss)
  */
 void omap4iss_ipipe_cleanup(struct iss_device *iss)
 {
-	/* FIXME: are you sure there's nothing to do? */
+	struct iss_ipipe_device *ipipe = &iss->ipipe;
+
+	media_entity_cleanup(&ipipe->subdev.entity);
 }

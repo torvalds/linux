@@ -815,8 +815,6 @@ static int resizer_init_entities(struct iss_resizer_device *resizer)
 
 void omap4iss_resizer_unregister_entities(struct iss_resizer_device *resizer)
 {
-	media_entity_cleanup(&resizer->subdev.entity);
-
 	v4l2_device_unregister_subdev(&resizer->subdev);
 	omap4iss_video_unregister(&resizer->video_out);
 }
@@ -870,5 +868,7 @@ int omap4iss_resizer_init(struct iss_device *iss)
  */
 void omap4iss_resizer_cleanup(struct iss_device *iss)
 {
-	/* FIXME: are you sure there's nothing to do? */
+	struct iss_resizer_device *resizer = &iss->resizer;
+
+	media_entity_cleanup(&resizer->subdev.entity);
 }
