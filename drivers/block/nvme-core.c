@@ -2493,6 +2493,7 @@ static void nvme_free_dev(struct kref *kref)
 
 	pci_dev_put(dev->pci_dev);
 	nvme_free_namespaces(dev);
+	nvme_release_instance(dev);
 	blk_mq_free_tag_set(&dev->tagset);
 	kfree(dev->queues);
 	kfree(dev->entry);
@@ -2780,7 +2781,6 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_dev_remove_admin(dev);
 	nvme_free_queues(dev, 0);
 	nvme_free_admin_tags(dev);
-	nvme_release_instance(dev);
 	nvme_release_prp_pools(dev);
 	kref_put(&dev->kref, nvme_free_dev);
 }
