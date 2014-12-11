@@ -180,6 +180,15 @@ enum {
 	MLX5_MKEY_MASK_FREE		= 1ull << 29,
 };
 
+enum {
+	MLX5_UMR_TRANSLATION_OFFSET_EN	= (1 << 4),
+
+	MLX5_UMR_CHECK_NOT_FREE		= (1 << 5),
+	MLX5_UMR_CHECK_FREE		= (2 << 5),
+
+	MLX5_UMR_INLINE			= (1 << 7),
+};
+
 enum mlx5_event {
 	MLX5_EVENT_TYPE_COMP		   = 0x0,
 
@@ -774,6 +783,10 @@ struct mlx5_query_eq_mbox_out {
 	struct mlx5_outbox_hdr	hdr;
 	u8			rsvd[8];
 	struct mlx5_eq_context	ctx;
+};
+
+enum {
+	MLX5_MKEY_STATUS_FREE = 1 << 6,
 };
 
 struct mlx5_mkey_seg {

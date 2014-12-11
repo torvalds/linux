@@ -37,6 +37,7 @@
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <rdma/ib_umem.h>
+#include <rdma/ib_verbs.h>
 #include "mlx5_ib.h"
 
 enum {
@@ -146,7 +147,7 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 		mr->order = ent->order;
 		mr->umred = 1;
 		mr->dev = dev;
-		in->seg.status = 1 << 6;
+		in->seg.status = MLX5_MKEY_STATUS_FREE;
 		in->seg.xlt_oct_size = cpu_to_be32((npages + 1) / 2);
 		in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 		in->seg.flags = MLX5_ACCESS_MODE_MTT | MLX5_PERM_UMR_EN;
@@ -678,6 +679,7 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct ib_mr *mr = dev->umrc.mr;
+	struct mlx5_umr_wr *umrwr = (struct mlx5_umr_wr *)&wr->wr.fast_reg;
 
 	sg->addr = dma;
 	sg->length = ALIGN(sizeof(u64) * n, 64);
@@ -692,21 +694,24 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 		wr->num_sge = 0;
 
 	wr->opcode = MLX5_IB_WR_UMR;
-	wr->wr.fast_reg.page_list_len = n;
-	wr->wr.fast_reg.page_shift = page_shift;
-	wr->wr.fast_reg.rkey = key;
-	wr->wr.fast_reg.iova_start = virt_addr;
-	wr->wr.fast_reg.length = len;
-	wr->wr.fast_reg.access_flags = access_flags;
-	wr->wr.fast_reg.page_list = (struct ib_fast_reg_page_list *)pd;
+
+	umrwr->npages = n;
+	umrwr->page_shift = page_shift;
+	umrwr->mkey = key;
+	umrwr->target.virt_addr = virt_addr;
+	umrwr->length = len;
+	umrwr->access_flags = access_flags;
+	umrwr->pd = pd;
 }
 
 static void prep_umr_unreg_wqe(struct mlx5_ib_dev *dev,
 			       struct ib_send_wr *wr, u32 key)
 {
-	wr->send_flags = MLX5_IB_SEND_UMR_UNREG;
+	struct mlx5_umr_wr *umrwr = (struct mlx5_umr_wr *)&wr->wr.fast_reg;
+
+	wr->send_flags = MLX5_IB_SEND_UMR_UNREG | MLX5_IB_SEND_UMR_FAIL_IF_FREE;
 	wr->opcode = MLX5_IB_WR_UMR;
-	wr->wr.fast_reg.rkey = key;
+	umrwr->mkey = key;
 }
 
 void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context)
@@ -1031,7 +1036,7 @@ struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
 		goto err_free;
 	}
 
-	in->seg.status = 1 << 6; /* free */
+	in->seg.status = MLX5_MKEY_STATUS_FREE;
 	in->seg.xlt_oct_size = cpu_to_be32(ndescs);
 	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
@@ -1146,7 +1151,7 @@ struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 		goto err_free;
 	}
 
-	in->seg.status = 1 << 6; /* free */
+	in->seg.status = MLX5_MKEY_STATUS_FREE;
 	in->seg.xlt_oct_size = cpu_to_be32((max_page_list_len + 1) / 2);
 	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	in->seg.flags = MLX5_PERM_UMR_EN | MLX5_ACCESS_MODE_MTT;

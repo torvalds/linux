@@ -111,6 +111,8 @@ struct mlx5_ib_pd {
  */
 
 #define MLX5_IB_SEND_UMR_UNREG	IB_SEND_RESERVED_START
+#define MLX5_IB_SEND_UMR_FAIL_IF_FREE (IB_SEND_RESERVED_START << 1)
+#define MLX5_IB_SEND_UMR_UPDATE_MTT (IB_SEND_RESERVED_START << 2)
 #define MLX5_IB_QPT_REG_UMR	IB_QPT_RESERVED1
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
 
@@ -204,6 +206,19 @@ struct mlx5_ib_cq_buf {
 enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK     = 1 << 0,
 	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 1,
+};
+
+struct mlx5_umr_wr {
+	union {
+		u64			virt_addr;
+		u64			offset;
+	} target;
+	struct ib_pd		       *pd;
+	unsigned int			page_shift;
+	unsigned int			npages;
+	u32				length;
+	int				access_flags;
+	u32				mkey;
 };
 
 struct mlx5_shared_mr_info {

@@ -70,15 +70,6 @@ static const u32 mlx5_ib_opcode[] = {
 	[MLX5_IB_WR_UMR]			= MLX5_OPCODE_UMR,
 };
 
-struct umr_wr {
-	u64				virt_addr;
-	struct ib_pd		       *pd;
-	unsigned int			page_shift;
-	unsigned int			npages;
-	u32				length;
-	int				access_flags;
-	u32				mkey;
-};
 
 static int is_qp0(enum ib_qp_type qp_type)
 {
@@ -1848,37 +1839,70 @@ static void set_frwr_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 	umr->mkey_mask = frwr_mkey_mask();
 }
 
+static __be64 get_umr_reg_mr_mask(void)
+{
+	u64 result;
+
+	result = MLX5_MKEY_MASK_LEN		|
+		 MLX5_MKEY_MASK_PAGE_SIZE	|
+		 MLX5_MKEY_MASK_START_ADDR	|
+		 MLX5_MKEY_MASK_PD		|
+		 MLX5_MKEY_MASK_LR		|
+		 MLX5_MKEY_MASK_LW		|
+		 MLX5_MKEY_MASK_KEY		|
+		 MLX5_MKEY_MASK_RR		|
+		 MLX5_MKEY_MASK_RW		|
+		 MLX5_MKEY_MASK_A		|
+		 MLX5_MKEY_MASK_FREE;
+
+	return cpu_to_be64(result);
+}
+
+static __be64 get_umr_unreg_mr_mask(void)
+{
+	u64 result;
+
+	result = MLX5_MKEY_MASK_FREE;
+
+	return cpu_to_be64(result);
+}
+
+static __be64 get_umr_update_mtt_mask(void)
+{
+	u64 result;
+
+	result = MLX5_MKEY_MASK_FREE;
+
+	return cpu_to_be64(result);
+}
+
 static void set_reg_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 				struct ib_send_wr *wr)
 {
-	struct umr_wr *umrwr = (struct umr_wr *)&wr->wr.fast_reg;
-	u64 mask;
+	struct mlx5_umr_wr *umrwr = (struct mlx5_umr_wr *)&wr->wr.fast_reg;
 
 	memset(umr, 0, sizeof(*umr));
 
+	if (wr->send_flags & MLX5_IB_SEND_UMR_FAIL_IF_FREE)
+		umr->flags = MLX5_UMR_CHECK_FREE; /* fail if free */
+	else
+		umr->flags = MLX5_UMR_CHECK_NOT_FREE; /* fail if not free */
+
 	if (!(wr->send_flags & MLX5_IB_SEND_UMR_UNREG)) {
-		umr->flags = 1 << 5; /* fail if not free */
 		umr->klm_octowords = get_klm_octo(umrwr->npages);
-		mask =  MLX5_MKEY_MASK_LEN		|
-			MLX5_MKEY_MASK_PAGE_SIZE	|
-			MLX5_MKEY_MASK_START_ADDR	|
-			MLX5_MKEY_MASK_PD		|
-			MLX5_MKEY_MASK_LR		|
-			MLX5_MKEY_MASK_LW		|
-			MLX5_MKEY_MASK_KEY		|
-			MLX5_MKEY_MASK_RR		|
-			MLX5_MKEY_MASK_RW		|
-			MLX5_MKEY_MASK_A		|
-			MLX5_MKEY_MASK_FREE;
-		umr->mkey_mask = cpu_to_be64(mask);
+		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_MTT) {
+			umr->mkey_mask = get_umr_update_mtt_mask();
+			umr->bsf_octowords = get_klm_octo(umrwr->target.offset);
+			umr->flags |= MLX5_UMR_TRANSLATION_OFFSET_EN;
+		} else {
+			umr->mkey_mask = get_umr_reg_mr_mask();
+		}
 	} else {
-		umr->flags = 2 << 5; /* fail if free */
-		mask = MLX5_MKEY_MASK_FREE;
-		umr->mkey_mask = cpu_to_be64(mask);
+		umr->mkey_mask = get_umr_unreg_mr_mask();
 	}
 
 	if (!wr->num_sge)
-		umr->flags |= (1 << 7); /* inline */
+		umr->flags |= MLX5_UMR_INLINE;
 }
 
 static u8 get_umr_flags(int acc)
@@ -1895,7 +1919,7 @@ static void set_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr,
 {
 	memset(seg, 0, sizeof(*seg));
 	if (li) {
-		seg->status = 1 << 6;
+		seg->status = MLX5_MKEY_STATUS_FREE;
 		return;
 	}
 
@@ -1912,19 +1936,23 @@ static void set_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr,
 
 static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr)
 {
+	struct mlx5_umr_wr *umrwr = (struct mlx5_umr_wr *)&wr->wr.fast_reg;
+
 	memset(seg, 0, sizeof(*seg));
 	if (wr->send_flags & MLX5_IB_SEND_UMR_UNREG) {
-		seg->status = 1 << 6;
+		seg->status = MLX5_MKEY_STATUS_FREE;
 		return;
 	}
 
-	seg->flags = convert_access(wr->wr.fast_reg.access_flags);
-	seg->flags_pd = cpu_to_be32(to_mpd((struct ib_pd *)wr->wr.fast_reg.page_list)->pdn);
-	seg->start_addr = cpu_to_be64(wr->wr.fast_reg.iova_start);
-	seg->len = cpu_to_be64(wr->wr.fast_reg.length);
-	seg->log2_page_size = wr->wr.fast_reg.page_shift;
+	seg->flags = convert_access(umrwr->access_flags);
+	if (!(wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_MTT)) {
+		seg->flags_pd = cpu_to_be32(to_mpd(umrwr->pd)->pdn);
+		seg->start_addr = cpu_to_be64(umrwr->target.virt_addr);
+	}
+	seg->len = cpu_to_be64(umrwr->length);
+	seg->log2_page_size = umrwr->page_shift;
 	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff00 |
-				       mlx5_mkey_variant(wr->wr.fast_reg.rkey));
+				       mlx5_mkey_variant(umrwr->mkey));
 }
 
 static void set_frwr_pages(struct mlx5_wqe_data_seg *dseg,
