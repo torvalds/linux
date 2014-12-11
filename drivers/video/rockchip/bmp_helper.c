@@ -344,6 +344,11 @@ int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
 
 	memcpy(&header, src, sizeof(header));
 	src += sizeof(header);
+
+	if (header.type != 0x4d42) {
+		pr_err("not bmp file type[%x], can't support\n", header.type);
+		return -1;
+	}
 	memcpy(&infoheader, src, sizeof(infoheader));
 	*width = infoheader.width;
 	*height = infoheader.height;

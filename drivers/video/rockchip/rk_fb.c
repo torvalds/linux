@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/fb.h>
 #include <linux/init.h>
+#include <linux/vmalloc.h>
 #include <asm/div64.h>
 #include <linux/uaccess.h>
 #include <linux/rk_fb.h>
@@ -67,16 +68,9 @@ int (*video_data_to_mirroring) (struct fb_info *info, u32 yuv_phy[2]);
 EXPORT_SYMBOL(video_data_to_mirroring);
 #endif
 
-static uint32_t kernel_logo_addr;
-static int __init kernel_logo_setup(char *str)
-{
-       if(str) {
-               sscanf(str, "%x", &kernel_logo_addr);
-       }
-
-       return 0;
-}
-early_param("kernel_logo", kernel_logo_setup);
+extern phys_addr_t uboot_logo_base;
+extern phys_addr_t uboot_logo_size;
+extern phys_addr_t uboot_logo_offset;
 static struct rk_fb_trsm_ops *trsm_lvds_ops;
 static struct rk_fb_trsm_ops *trsm_edp_ops;
 static struct rk_fb_trsm_ops *trsm_mipi_ops;
@@ -4178,17 +4172,50 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		dev_drv->uboot_logo = support_uboot_display();
 
-		if (kernel_logo_addr) {
+		if (uboot_logo_offset && uboot_logo_base) {
 			struct rk_lcdc_win *win = dev_drv->win[0];
-			char *addr = phys_to_virt(kernel_logo_addr);
 			int width, height, bits;
+			phys_addr_t start = uboot_logo_base + uboot_logo_offset;
+			unsigned int size = uboot_logo_size - uboot_logo_offset;
+			unsigned int nr_pages;
+			struct page **pages;
+			char *vaddr;
+			int i = 0;
 
-			bmpdecoder(addr, main_fbi->screen_base,
-				   &width, &height, &bits);
+			nr_pages = size >> PAGE_SHIFT;
+			pages = kzalloc(sizeof(struct page) * nr_pages,
+					GFP_KERNEL);
+			while (i < nr_pages) {
+				pages[i] = phys_to_page(start);
+				start += PAGE_SIZE;
+				i++;
+			}
+			vaddr = vmap(pages, nr_pages, VM_MAP,
+					pgprot_writecombine(PAGE_KERNEL));
+			if (!vaddr) {
+				pr_err("failed to vmap phy addr %x\n",
+					uboot_logo_base + uboot_logo_offset);
+				return -1;
+			}
+
+			if(bmpdecoder(vaddr, main_fbi->screen_base, &width,
+				      &height, &bits)) {
+				kfree(pages);
+				vunmap(vaddr);
+				return 0;
+			}
+			kfree(pages);
+			vunmap(vaddr);
+			if (width > main_fbi->var.xres ||
+			    height > main_fbi->var.yres) {
+				pr_err("ERROR: logo size out of screen range");
+				return 0;
+			}
+
 			win->area[0].format = rk_fb_data_fmt(0, bits);
 			win->area[0].y_vir_stride = width * bits >> 5;
 			win->area[0].xpos = (main_fbi->var.xres - width) >> 1;
-			win->area[0].ypos = (main_fbi->var.yres - height) >> 1;;
+			win->area[0].ypos = (main_fbi->var.yres - height) >> 1;
 			win->area[0].xsize = width;
 			win->area[0].ysize = height;
 			win->area[0].xact = width;
