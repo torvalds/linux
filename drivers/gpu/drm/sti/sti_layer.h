@@ -82,6 +82,7 @@ struct sti_layer_funcs {
  * @format:             format
  * @pitches:            pitch of 'planes' (eg: Y, U, V)
  * @offsets:            offset of 'planes'
+ * @vaddr:              virtual address of the input buffer
  * @paddr:              physical address of the input buffer
  */
 struct sti_layer {
@@ -102,6 +103,7 @@ struct sti_layer {
 	uint32_t format;
 	unsigned int pitches[4];
 	unsigned int offsets[4];
+	void *vaddr;
 	dma_addr_t paddr;
 };
 

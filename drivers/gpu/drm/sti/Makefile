@@ -3,6 +3,7 @@ sticompositor-y := \
 	sti_mixer.o \
 	sti_gdp.o \
 	sti_vid.o \
+	sti_cursor.o \
 	sti_compositor.o \
 	sti_drm_crtc.o \
 	sti_drm_plane.o

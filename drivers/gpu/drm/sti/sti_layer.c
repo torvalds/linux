@@ -11,6 +11,7 @@
 #include <drm/drm_fb_cma_helper.h>
 
 #include "sti_compositor.h"
+#include "sti_cursor.h"
 #include "sti_gdp.h"
 #include "sti_layer.h"
 #include "sti_vid.h"
@@ -49,6 +50,9 @@ struct sti_layer *sti_layer_create(struct device *dev, int desc,
 		break;
 	case STI_VID:
 		layer = sti_vid_create(dev);
+		break;
+	case STI_CUR:
+		layer = sti_cursor_create(dev);
 		break;
 	}
 
@@ -100,6 +104,7 @@ int sti_layer_prepare(struct sti_layer *layer, struct drm_framebuffer *fb,
 	layer->src_w = src_w;
 	layer->src_h = src_h;
 	layer->format = fb->pixel_format;
+	layer->vaddr = cma_obj->vaddr;
 	layer->paddr = cma_obj->paddr;
 	for (i = 0; i < 4; i++) {
 		layer->pitches[i] = fb->pitches[i];

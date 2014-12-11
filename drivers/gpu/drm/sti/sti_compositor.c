@@ -24,8 +24,9 @@
  * stiH407 compositor properties
  */
 struct sti_compositor_data stih407_compositor_data = {
-	.nb_subdev = 7,
+	.nb_subdev = 8,
 	.subdev_desc = {
+			{STI_CURSOR_SUBDEV, (int)STI_CURSOR, 0x000},
 			{STI_GPD_SUBDEV, (int)STI_GDP_0, 0x100},
 			{STI_GPD_SUBDEV, (int)STI_GDP_1, 0x200},
 			{STI_GPD_SUBDEV, (int)STI_GDP_2, 0x300},
@@ -68,11 +69,11 @@ static int sti_compositor_init_subdev(struct sti_compositor *compo,
 			break;
 		case STI_GPD_SUBDEV:
 		case STI_VID_SUBDEV:
+		case STI_CURSOR_SUBDEV:
 			compo->layer[layer_id++] =
 			    sti_layer_create(compo->dev, desc[i].id,
 					     compo->regs + desc[i].offset);
 			break;
-			/* case STI_CURSOR_SUBDEV : TODO */
 		default:
 			DRM_ERROR("Unknow subdev compoment type\n");
 			return 1;
@@ -125,11 +126,12 @@ static int sti_compositor_bind(struct device *dev, struct device *master,
 			}
 
 			/* The first planes are reserved for primary planes*/
-			if (crtc < compo->nb_mixers) {
+			if (crtc < compo->nb_mixers && primary) {
 				sti_drm_crtc_init(drm_dev, compo->mixer[crtc],
 						primary, cursor);
 				crtc++;
 				cursor = NULL;
+				primary = NULL;
 			}
 		}
 	}
