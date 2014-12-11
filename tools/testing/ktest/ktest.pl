@@ -684,11 +684,8 @@ sub set_value {
 	}
 	${$overrides}{$lvalue} = $prvalue;
     }
-    if ($rvalue =~ /^\s*$/) {
-	delete $opt{$lvalue};
-    } else {
-	$opt{$lvalue} = $prvalue;
-    }
+
+    $opt{$lvalue} = $prvalue;
 }
 
 sub set_eval {
@@ -2005,7 +2002,7 @@ sub get_version {
     # get the release name
     return if ($have_version);
     doprint "$make kernelrelease ... ";
-    $version = `$make kernelrelease | tail -1`;
+    $version = `$make -s kernelrelease | tail -1`;
     chomp($version);
     doprint "$version\n";
     $have_version = 1;
@@ -3571,7 +3568,9 @@ sub test_this_config {
     undef %configs;
     assign_configs \%configs, $output_config;
 
-    return $config if (!defined($configs{$config}));
+    if (!defined($configs{$config}) || $configs{$config} =~ /^#/) {
+	return $config;
+    }
 
     doprint "disabling config $config did not change .config\n";
 
@@ -3945,12 +3944,22 @@ for (my $i = 0, my $repeat = 1; $i <= $opt{"NUM_TESTS"}; $i += $repeat) {
     }
 }
 
+sub option_defined {
+    my ($option) = @_;
+
+    if (defined($opt{$option}) && $opt{$option} !~ /^\s*$/) {
+	return 1;
+    }
+
+    return 0;
+}
+
 sub __set_test_option {
     my ($name, $i) = @_;
 
     my $option = "$name\[$i\]";
 
-    if (defined($opt{$option})) {
+    if (option_defined($option)) {
 	return $opt{$option};
     }
 
@@ -3958,13 +3967,13 @@ sub __set_test_option {
 	if ($i >= $test &&
 	    $i < $test + $repeat_tests{$test}) {
 	    $option = "$name\[$test\]";
-	    if (defined($opt{$option})) {
+	    if (option_defined($option)) {
 		return $opt{$option};
 	    }
 	}
     }
 
-    if (defined($opt{$name})) {
+    if (option_defined($name)) {
 	return $opt{$name};
     }
 
@@ -4077,8 +4086,14 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     my $installme = "";
     $installme = " no_install" if ($no_install);
 
+    my $name = "";
+
+    if (defined($test_name)) {
+	$name = " ($test_name)";
+    }
+
     doprint "\n\n";
-    doprint "RUNNING TEST $i of $opt{NUM_TESTS} with option $test_type $run_type$installme\n\n";
+    doprint "RUNNING TEST $i of $opt{NUM_TESTS}$name with option $test_type $run_type$installme\n\n";
 
     if (defined($pre_test)) {
 	run_command $pre_test;
