@@ -168,6 +168,7 @@ then
 	touch $resdir/buildonly
 	exit 0
 fi
+echo "NOTE: $QEMU either did not run or was interactive" > $builddir/console.log
 echo $QEMU $qemu_args -m 512 -kernel $resdir/bzImage -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
 ( $QEMU $qemu_args -m 512 -kernel $resdir/bzImage -append "$qemu_append $boot_args"; echo $? > $resdir/qemu-retval ) &
 qemu_pid=$!
