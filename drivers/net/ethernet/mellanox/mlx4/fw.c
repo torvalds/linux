@@ -973,6 +973,10 @@ out:
 	return err;
 }
 
+#define DEV_CAP_EXT_2_FLAG_VLAN_CONTROL (1 << 26)
+#define DEV_CAP_EXT_2_FLAG_80_VFS	(1 << 21)
+#define DEV_CAP_EXT_2_FLAG_FSM		(1 << 20)
+
 int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_vhcr *vhcr,
 			       struct mlx4_cmd_mailbox *inbox,
@@ -982,7 +986,7 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	u64	flags;
 	int	err = 0;
 	u8	field;
-	u32	bmme_flags;
+	u32	bmme_flags, field32;
 	int	real_port;
 	int	slave_port;
 	int	first_port;
@@ -1052,6 +1056,12 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET);
 	field &= ~0x80;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET);
+
+	/* turn off host side virt features (VST, FSM, etc) for guests */
+	MLX4_GET(field32, outbox->buf, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
+	field32 &= ~(DEV_CAP_EXT_2_FLAG_VLAN_CONTROL | DEV_CAP_EXT_2_FLAG_80_VFS |
+		     DEV_CAP_EXT_2_FLAG_FSM);
+	MLX4_PUT(outbox->buf, field32, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
 
 	return 0;
 }
