@@ -1373,8 +1373,6 @@ static void hci_init1_req(struct hci_request *req, unsigned long opt)
 
 static void bredr_setup(struct hci_request *req)
 {
-	struct hci_dev *hdev = req->hdev;
-
 	__le16 param;
 	__u8 flt_type;
 
@@ -1403,14 +1401,6 @@ static void bredr_setup(struct hci_request *req)
 	/* Connection accept timeout ~20 secs */
 	param = cpu_to_le16(0x7d00);
 	hci_req_add(req, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
-
-	/* AVM Berlin (31), aka "BlueFRITZ!", reports version 1.2,
-	 * but it does not support page scan related HCI commands.
-	 */
-	if (hdev->manufacturer != 31 && hdev->hci_ver > BLUETOOTH_VER_1_1) {
-		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_ACTIVITY, 0, NULL);
-		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_TYPE, 0, NULL);
-	}
 }
 
 static void le_setup(struct hci_request *req)
@@ -1717,6 +1707,16 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
+
+	if (hdev->commands[8] & 0x01)
+		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_ACTIVITY, 0, NULL);
+
+	/* Some older Broadcom based Bluetooth 1.2 controllers do not
+	 * support the Read Page Scan Type command. Check support for
+	 * this command in the bit mask of supported commands.
+	 */
+	if (hdev->commands[13] & 0x01)
+		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_TYPE, 0, NULL);
 
 	if (lmp_le_capable(hdev)) {
 		u8 events[8];
