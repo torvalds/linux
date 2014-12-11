@@ -37,6 +37,7 @@
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <rdma/ib_umem.h>
+#include <rdma/ib_umem_odp.h>
 #include <rdma/ib_verbs.h>
 #include "mlx5_ib.h"
 
@@ -53,6 +54,18 @@ static DEFINE_MUTEX(mlx5_ib_update_mtt_emergency_buffer_mutex);
 #endif
 
 static int clean_mr(struct mlx5_ib_mr *mr);
+
+static int destroy_mkey(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
+{
+	int err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	/* Wait until all page fault handlers using the mr complete. */
+	synchronize_srcu(&dev->mr_srcu);
+#endif
+
+	return err;
+}
 
 static int order2idx(struct mlx5_ib_dev *dev, int order)
 {
@@ -191,7 +204,7 @@ static void remove_keys(struct mlx5_ib_dev *dev, int c, int num)
 		ent->cur--;
 		ent->size--;
 		spin_unlock_irq(&ent->lock);
-		err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
+		err = destroy_mkey(dev, mr);
 		if (err)
 			mlx5_ib_warn(dev, "failed destroy mkey\n");
 		else
@@ -482,7 +495,7 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 		ent->cur--;
 		ent->size--;
 		spin_unlock_irq(&ent->lock);
-		err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
+		err = destroy_mkey(dev, mr);
 		if (err)
 			mlx5_ib_warn(dev, "failed destroy mkey\n");
 		else
@@ -812,6 +825,8 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	mr->mmr.size = len;
 	mr->mmr.pd = to_mpd(pd)->pdn;
 
+	mr->live = 1;
+
 unmap_dma:
 	up(&umrc->sem);
 	dma_unmap_single(ddev, dma, size, DMA_TO_DEVICE);
@@ -997,6 +1012,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 		goto err_2;
 	}
 	mr->umem = umem;
+	mr->live = 1;
 	kvfree(in);
 
 	mlx5_ib_dbg(dev, "mkey = 0x%x\n", mr->mmr.key);
@@ -1074,10 +1090,47 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->ibmr.lkey = mr->mmr.key;
 	mr->ibmr.rkey = mr->mmr.key;
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	if (umem->odp_data) {
+		/*
+		 * This barrier prevents the compiler from moving the
+		 * setting of umem->odp_data->private to point to our
+		 * MR, before reg_umr finished, to ensure that the MR
+		 * initialization have finished before starting to
+		 * handle invalidations.
+		 */
+		smp_wmb();
+		mr->umem->odp_data->private = mr;
+		/*
+		 * Make sure we will see the new
+		 * umem->odp_data->private value in the invalidation
+		 * routines, before we can get page faults on the
+		 * MR. Page faults can happen once we put the MR in
+		 * the tree, below this line. Without the barrier,
+		 * there can be a fault handling and an invalidation
+		 * before umem->odp_data->private == mr is visible to
+		 * the invalidation handler.
+		 */
+		smp_wmb();
+	}
+#endif
+
 	return &mr->ibmr;
 
 error:
+	/*
+	 * Destroy the umem *before* destroying the MR, to ensure we
+	 * will not have any in-flight notifiers when destroying the
+	 * MR.
+	 *
+	 * As the MR is completely invalid to begin with, and this
+	 * error path is only taken if we can't push the mr entry into
+	 * the pagefault tree, this is safe.
+	 */
+
 	ib_umem_release(umem);
+	/* Kill the MR, and return an error code. */
+	clean_mr(mr);
 	return ERR_PTR(err);
 }
 
@@ -1121,7 +1174,7 @@ static int clean_mr(struct mlx5_ib_mr *mr)
 	int err;
 
 	if (!umred) {
-		err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
+		err = destroy_mkey(dev, mr);
 		if (err) {
 			mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
 				     mr->mmr.key, err);
@@ -1150,9 +1203,25 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 	struct ib_umem *umem = mr->umem;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	if (umem)
+	if (umem && umem->odp_data) {
+		/* Prevent new page faults from succeeding */
+		mr->live = 0;
 		/* Wait for all running page-fault handlers to finish. */
 		synchronize_srcu(&dev->mr_srcu);
+		/* Destroy all page mappings */
+		mlx5_ib_invalidate_range(umem, ib_umem_start(umem),
+					 ib_umem_end(umem));
+		/*
+		 * We kill the umem before the MR for ODP,
+		 * so that there will not be any invalidations in
+		 * flight, looking at the *mr struct.
+		 */
+		ib_umem_release(umem);
+		atomic_sub(npages, &dev->mdev->priv.reg_pages);
+
+		/* Avoid double-freeing the umem. */
+		umem = NULL;
+	}
 #endif
 
 	clean_mr(mr);
@@ -1269,7 +1338,7 @@ int mlx5_ib_destroy_mr(struct ib_mr *ibmr)
 		kfree(mr->sig);
 	}
 
-	err = mlx5_core_destroy_mkey(dev->mdev, &mr->mmr);
+	err = destroy_mkey(dev, mr);
 	if (err) {
 		mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
 			     mr->mmr.key, err);
