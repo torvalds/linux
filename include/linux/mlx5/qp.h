@@ -189,6 +189,9 @@ struct mlx5_wqe_ctrl_seg {
 	__be32			imm;
 };
 
+#define MLX5_WQE_CTRL_DS_MASK 0x3f
+#define MLX5_WQE_DS_UNITS 16
+
 struct mlx5_wqe_xrc_seg {
 	__be32			xrc_srqn;
 	u8			rsvd[12];
