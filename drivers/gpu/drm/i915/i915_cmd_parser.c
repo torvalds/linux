@@ -1050,10 +1050,17 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 	struct drm_i915_cmd_descriptor default_desc = { 0 };
 	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
 
+	ret = i915_gem_obj_ggtt_pin(shadow_batch_obj, 4096, 0);
+	if (ret) {
+		DRM_DEBUG_DRIVER("CMD: Failed to pin shadow batch\n");
+		return -1;
+	}
+
 	batch_base = copy_batch(shadow_batch_obj, batch_obj,
 				batch_start_offset, batch_len);
 	if (IS_ERR(batch_base)) {
 		DRM_DEBUG_DRIVER("CMD: Failed to copy batch\n");
+		i915_gem_object_ggtt_unpin(shadow_batch_obj);
 		return PTR_ERR(batch_base);
 	}
 
@@ -1124,6 +1131,7 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 	}
 
 	vunmap(batch_base);
+	i915_gem_object_ggtt_unpin(shadow_batch_obj);
 
 	return ret;
 }
