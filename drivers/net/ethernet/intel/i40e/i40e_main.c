@@ -4845,7 +4845,7 @@ static int i40e_open(struct net_device *netdev)
 int i40e_vsi_open(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	char int_name[IFNAMSIZ];
+	char int_name[IFNAMSIZ + 9];
 	int err;
 
 	/* allocate descriptors */
@@ -4879,7 +4879,7 @@ int i40e_vsi_open(struct i40e_vsi *vsi)
 			goto err_set_queues;
 
 	} else if (vsi->type == I40E_VSI_FDIR) {
-		snprintf(int_name, sizeof(int_name) - 1, "%s-%s-fdir",
+		snprintf(int_name, sizeof(int_name) - 1, "%s-%s:fdir",
 			 dev_driver_string(&pf->pdev->dev),
 			 dev_name(&pf->pdev->dev));
 		err = i40e_vsi_request_irq(vsi, int_name);
