@@ -1103,16 +1103,15 @@ static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 
+	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+
 	sdhci_remove_host(host, dead);
 
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-
-	if (!IS_ENABLED(CONFIG_PM)) {
-		clk_disable_unprepare(imx_data->clk_per);
-		clk_disable_unprepare(imx_data->clk_ipg);
-		clk_disable_unprepare(imx_data->clk_ahb);
-	}
+	clk_disable_unprepare(imx_data->clk_per);
+	clk_disable_unprepare(imx_data->clk_ipg);
+	clk_disable_unprepare(imx_data->clk_ahb);
 
 	sdhci_pltfm_free(pdev);
 
