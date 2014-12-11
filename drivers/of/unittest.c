@@ -17,6 +17,8 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
+#include <linux/of_platform.h>
 
 #include "of_private.h"
 
@@ -30,19 +32,22 @@ static struct device_node *nodes[NO_OF_NODES];
 static int last_node_index;
 static bool selftest_live_tree;
 
-#define selftest(result, fmt, ...) { \
-	if (!(result)) { \
+#define selftest(result, fmt, ...) ({ \
+	bool failed = !(result); \
+	if (failed) { \
 		selftest_results.failed++; \
 		pr_err("FAIL %s():%i " fmt, __func__, __LINE__, ##__VA_ARGS__); \
 	} else { \
 		selftest_results.passed++; \
 		pr_debug("pass %s():%i\n", __func__, __LINE__); \
 	} \
-}
+	failed; \
+})
 
 static void __init of_selftest_find_node_by_name(void)
 {
 	struct device_node *np;
+	const char *options;
 
 	np = of_find_node_by_path("/testcase-data");
 	selftest(np && !strcmp("/testcase-data", np->full_name),
@@ -82,6 +87,35 @@ static void __init of_selftest_find_node_by_name(void)
 
 	np = of_find_node_by_path("testcase-alias/missing-path");
 	selftest(!np, "non-existent alias with relative path returned node %s\n", np->full_name);
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("/testcase-data:testoption", &options);
+	selftest(np && !strcmp("testoption", options),
+		 "option path test failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("/testcase-data:testoption", NULL);
+	selftest(np, "NULL option path test failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("testcase-alias:testaliasoption",
+				       &options);
+	selftest(np && !strcmp("testaliasoption", options),
+		 "option alias path test failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("testcase-alias:testaliasoption", NULL);
+	selftest(np, "NULL option alias path test failed\n");
+	of_node_put(np);
+
+	options = "testoption";
+	np = of_find_node_opts_by_path("testcase-alias", &options);
+	selftest(np && !options, "option clearing test failed\n");
+	of_node_put(np);
+
+	options = "testoption";
+	np = of_find_node_opts_by_path("/", &options);
+	selftest(np && !options, "option clearing root node test failed\n");
 	of_node_put(np);
 }
 
@@ -148,21 +182,13 @@ static void __init of_selftest_dynamic(void)
 
 static int __init of_selftest_check_node_linkage(struct device_node *np)
 {
-	struct device_node *child, *allnext_index = np;
+	struct device_node *child;
 	int count = 0, rc;
 
 	for_each_child_of_node(np, child) {
 		if (child->parent != np) {
 			pr_err("Child node %s links to wrong parent %s\n",
 				 child->name, np->name);
-			return -EINVAL;
-		}
-
-		while (allnext_index && allnext_index != child)
-			allnext_index = allnext_index->allnext;
-		if (allnext_index != child) {
-			pr_err("Node %s is ordered differently in sibling and allnode lists\n",
-				 child->name);
 			return -EINVAL;
 		}
 
@@ -180,12 +206,12 @@ static void __init of_selftest_check_tree_linkage(void)
 	struct device_node *np;
 	int allnode_count = 0, child_count;
 
-	if (!of_allnodes)
+	if (!of_root)
 		return;
 
 	for_each_of_allnodes(np)
 		allnode_count++;
-	child_count = of_selftest_check_node_linkage(of_allnodes);
+	child_count = of_selftest_check_node_linkage(of_root);
 
 	selftest(child_count > 0, "Device node data structure is corrupted\n");
 	selftest(child_count == allnode_count, "allnodes list size (%i) doesn't match"
@@ -451,15 +477,15 @@ static void __init of_selftest_changeset(void)
 	struct property *ppadd, padd = { .name = "prop-add", .length = 0, .value = "" };
 	struct property *ppupdate, pupdate = { .name = "prop-update", .length = 5, .value = "abcd" };
 	struct property *ppremove;
-	struct device_node *n1, *n2, *n21, *nremove, *parent;
+	struct device_node *n1, *n2, *n21, *nremove, *parent, *np;
 	struct of_changeset chgset;
 
 	of_changeset_init(&chgset);
-	n1 = __of_node_alloc("/testcase-data/changeset/n1", GFP_KERNEL);
+	n1 = __of_node_dup(NULL, "/testcase-data/changeset/n1");
 	selftest(n1, "testcase setup failure\n");
-	n2 = __of_node_alloc("/testcase-data/changeset/n2", GFP_KERNEL);
+	n2 = __of_node_dup(NULL, "/testcase-data/changeset/n2");
 	selftest(n2, "testcase setup failure\n");
-	n21 = __of_node_alloc("/testcase-data/changeset/n2/n21", GFP_KERNEL);
+	n21 = __of_node_dup(NULL, "%s/%s", "/testcase-data/changeset/n2", "n21");
 	selftest(n21, "testcase setup failure %p\n", n21);
 	nremove = of_find_node_by_path("/testcase-data/changeset/node-remove");
 	selftest(nremove, "testcase setup failure\n");
@@ -486,6 +512,11 @@ static void __init of_selftest_changeset(void)
 	mutex_lock(&of_mutex);
 	selftest(!of_changeset_apply(&chgset), "apply failed\n");
 	mutex_unlock(&of_mutex);
+
+	/* Make sure node names are constructed correctly */
+	selftest((np = of_find_node_by_path("/testcase-data/changeset/n2/n21")),
+		 "'%s' not added\n", n21->full_name);
+	of_node_put(np);
 
 	mutex_lock(&of_mutex);
 	selftest(!of_changeset_revert(&chgset), "revert failed\n");
@@ -702,10 +733,13 @@ static void __init of_selftest_match_node(void)
 	}
 }
 
+struct device test_bus = {
+	.init_name = "unittest-bus",
+};
 static void __init of_selftest_platform_populate(void)
 {
-	int irq;
-	struct device_node *np, *child;
+	int irq, rc;
+	struct device_node *np, *child, *grandchild;
 	struct platform_device *pdev;
 	struct of_device_id match[] = {
 		{ .compatible = "test-device", },
@@ -730,20 +764,32 @@ static void __init of_selftest_platform_populate(void)
 	irq = platform_get_irq(pdev, 0);
 	selftest(irq < 0 && irq != -EPROBE_DEFER, "device parsing error failed - %d\n", irq);
 
-	np = of_find_node_by_path("/testcase-data/platform-tests");
-	if (!np) {
-		pr_err("No testcase data in device tree\n");
+	if (selftest(np = of_find_node_by_path("/testcase-data/platform-tests"),
+		     "No testcase data in device tree\n"));
 		return;
-	}
+
+	if (selftest(!(rc = device_register(&test_bus)),
+		     "testbus registration failed; rc=%i\n", rc));
+		return;
 
 	for_each_child_of_node(np, child) {
-		struct device_node *grandchild;
-		of_platform_populate(child, match, NULL, NULL);
+		of_platform_populate(child, match, NULL, &test_bus);
 		for_each_child_of_node(child, grandchild)
 			selftest(of_find_device_by_node(grandchild),
 				 "Could not create device for node '%s'\n",
 				 grandchild->name);
 	}
+
+	of_platform_depopulate(&test_bus);
+	for_each_child_of_node(np, child) {
+		for_each_child_of_node(child, grandchild)
+			selftest(!of_find_device_by_node(grandchild),
+				 "device didn't get destroyed '%s'\n",
+				 grandchild->name);
+	}
+
+	device_unregister(&test_bus);
+	of_node_put(np);
 }
 
 /**
@@ -775,33 +821,29 @@ static void update_node_properties(struct device_node *np,
  */
 static int attach_node_and_children(struct device_node *np)
 {
-	struct device_node *next, *root = np, *dup;
+	struct device_node *next, *dup, *child;
 
-	/* skip root node */
-	np = np->child;
-	/* storing a copy in temporary node */
-	dup = np;
+	dup = of_find_node_by_path(np->full_name);
+	if (dup) {
+		update_node_properties(np, dup);
+		return 0;
+	}
 
-	while (dup) {
+	/* Children of the root need to be remembered for removal */
+	if (np->parent == of_root) {
 		if (WARN_ON(last_node_index >= NO_OF_NODES))
 			return -EINVAL;
-		nodes[last_node_index++] = dup;
-		dup = dup->sibling;
+		nodes[last_node_index++] = np;
 	}
-	dup = NULL;
 
-	while (np) {
-		next = np->allnext;
-		dup = of_find_node_by_path(np->full_name);
-		if (dup)
-			update_node_properties(np, dup);
-		else {
-			np->child = NULL;
-			if (np->parent == root)
-				np->parent = of_allnodes;
-			of_attach_node(np);
-		}
-		np = next;
+	child = np->child;
+	np->child = NULL;
+	np->sibling = NULL;
+	of_attach_node(np);
+	while (child) {
+		next = child->sibling;
+		attach_node_and_children(child);
+		child = next;
 	}
 
 	return 0;
@@ -846,10 +888,10 @@ static int __init selftest_data_add(void)
 		return -EINVAL;
 	}
 
-	if (!of_allnodes) {
+	if (!of_root) {
 		/* enabling flag for removing nodes */
 		selftest_live_tree = true;
-		of_allnodes = selftest_data_node;
+		of_root = selftest_data_node;
 
 		for_each_of_allnodes(np)
 			__of_attach_node_sysfs(np);
@@ -859,7 +901,14 @@ static int __init selftest_data_add(void)
 	}
 
 	/* attach the sub-tree to live tree */
-	return attach_node_and_children(selftest_data_node);
+	np = selftest_data_node->child;
+	while (np) {
+		struct device_node *next = np->sibling;
+		np->parent = of_root;
+		attach_node_and_children(np);
+		np = next;
+	}
+	return 0;
 }
 
 /**
@@ -889,10 +938,10 @@ static void selftest_data_remove(void)
 		of_node_put(of_chosen);
 		of_aliases = NULL;
 		of_chosen = NULL;
-		for_each_child_of_node(of_allnodes, np)
+		for_each_child_of_node(of_root, np)
 			detach_node_and_children(np);
-		__of_detach_node_sysfs(of_allnodes);
-		of_allnodes = NULL;
+		__of_detach_node_sysfs(of_root);
+		of_root = NULL;
 		return;
 	}
 
@@ -914,6 +963,483 @@ static void selftest_data_remove(void)
 		}
 	}
 }
+
+#ifdef CONFIG_OF_OVERLAY
+
+static int selftest_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+
+	if (np == NULL) {
+		dev_err(dev, "No OF data for device\n");
+		return -EINVAL;
+
+	}
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	return 0;
+}
+
+static int selftest_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	return 0;
+}
+
+static struct of_device_id selftest_match[] = {
+	{ .compatible = "selftest", },
+	{},
+};
+
+static struct platform_driver selftest_driver = {
+	.probe			= selftest_probe,
+	.remove			= selftest_remove,
+	.driver = {
+		.name		= "selftest",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(selftest_match),
+	},
+};
+
+/* get the platform device instantiated at the path */
+static struct platform_device *of_path_to_platform_device(const char *path)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+
+	np = of_find_node_by_path(path);
+	if (np == NULL)
+		return NULL;
+
+	pdev = of_find_device_by_node(np);
+	of_node_put(np);
+
+	return pdev;
+}
+
+/* find out if a platform device exists at that path */
+static int of_path_platform_device_exists(const char *path)
+{
+	struct platform_device *pdev;
+
+	pdev = of_path_to_platform_device(path);
+	platform_device_put(pdev);
+	return pdev != NULL;
+}
+
+static const char *selftest_path(int nr)
+{
+	static char buf[256];
+
+	snprintf(buf, sizeof(buf) - 1,
+		"/testcase-data/overlay-node/test-bus/test-selftest%d", nr);
+	buf[sizeof(buf) - 1] = '\0';
+
+	return buf;
+}
+
+static const char *overlay_path(int nr)
+{
+	static char buf[256];
+
+	snprintf(buf, sizeof(buf) - 1,
+		"/testcase-data/overlay%d", nr);
+	buf[sizeof(buf) - 1] = '\0';
+
+	return buf;
+}
+
+static const char *bus_path = "/testcase-data/overlay-node/test-bus";
+
+static int of_selftest_apply_overlay(int selftest_nr, int overlay_nr,
+		int *overlay_id)
+{
+	struct device_node *np = NULL;
+	int ret, id = -1;
+
+	np = of_find_node_by_path(overlay_path(overlay_nr));
+	if (np == NULL) {
+		selftest(0, "could not find overlay node @\"%s\"\n",
+				overlay_path(overlay_nr));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = of_overlay_create(np);
+	if (ret < 0) {
+		selftest(0, "could not create overlay from \"%s\"\n",
+				overlay_path(overlay_nr));
+		goto out;
+	}
+	id = ret;
+
+	ret = 0;
+
+out:
+	of_node_put(np);
+
+	if (overlay_id)
+		*overlay_id = id;
+
+	return ret;
+}
+
+/* apply an overlay while checking before and after states */
+static int of_selftest_apply_overlay_check(int overlay_nr, int selftest_nr,
+		int before, int after)
+{
+	int ret;
+
+	/* selftest device must not be in before state */
+	if (of_path_platform_device_exists(selftest_path(selftest_nr))
+			!= before) {
+		selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
+				overlay_path(overlay_nr),
+				selftest_path(selftest_nr),
+				!before ? "enabled" : "disabled");
+		return -EINVAL;
+	}
+
+	ret = of_selftest_apply_overlay(overlay_nr, selftest_nr, NULL);
+	if (ret != 0) {
+		/* of_selftest_apply_overlay already called selftest() */
+		return ret;
+	}
+
+	/* selftest device must be to set to after state */
+	if (of_path_platform_device_exists(selftest_path(selftest_nr))
+			!= after) {
+		selftest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
+				overlay_path(overlay_nr),
+				selftest_path(selftest_nr),
+				!after ? "enabled" : "disabled");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* apply an overlay and then revert it while checking before, after states */
+static int of_selftest_apply_revert_overlay_check(int overlay_nr,
+		int selftest_nr, int before, int after)
+{
+	int ret, ov_id;
+
+	/* selftest device must be in before state */
+	if (of_path_platform_device_exists(selftest_path(selftest_nr))
+			!= before) {
+		selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
+				overlay_path(overlay_nr),
+				selftest_path(selftest_nr),
+				!before ? "enabled" : "disabled");
+		return -EINVAL;
+	}
+
+	/* apply the overlay */
+	ret = of_selftest_apply_overlay(overlay_nr, selftest_nr, &ov_id);
+	if (ret != 0) {
+		/* of_selftest_apply_overlay already called selftest() */
+		return ret;
+	}
+
+	/* selftest device must be in after state */
+	if (of_path_platform_device_exists(selftest_path(selftest_nr))
+			!= after) {
+		selftest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
+				overlay_path(overlay_nr),
+				selftest_path(selftest_nr),
+				!after ? "enabled" : "disabled");
+		return -EINVAL;
+	}
+
+	ret = of_overlay_destroy(ov_id);
+	if (ret != 0) {
+		selftest(0, "overlay @\"%s\" failed to be destroyed @\"%s\"\n",
+				overlay_path(overlay_nr),
+				selftest_path(selftest_nr));
+		return ret;
+	}
+
+	/* selftest device must be again in before state */
+	if (of_path_platform_device_exists(selftest_path(selftest_nr))
+			!= before) {
+		selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
+				overlay_path(overlay_nr),
+				selftest_path(selftest_nr),
+				!before ? "enabled" : "disabled");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* test activation of device */
+static void of_selftest_overlay_0(void)
+{
+	int ret;
+
+	/* device should enable */
+	ret = of_selftest_apply_overlay_check(0, 0, 0, 1);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 0);
+}
+
+/* test deactivation of device */
+static void of_selftest_overlay_1(void)
+{
+	int ret;
+
+	/* device should disable */
+	ret = of_selftest_apply_overlay_check(1, 1, 1, 0);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 1);
+}
+
+/* test activation of device */
+static void of_selftest_overlay_2(void)
+{
+	int ret;
+
+	/* device should enable */
+	ret = of_selftest_apply_overlay_check(2, 2, 0, 1);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 2);
+}
+
+/* test deactivation of device */
+static void of_selftest_overlay_3(void)
+{
+	int ret;
+
+	/* device should disable */
+	ret = of_selftest_apply_overlay_check(3, 3, 1, 0);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 3);
+}
+
+/* test activation of a full device node */
+static void of_selftest_overlay_4(void)
+{
+	int ret;
+
+	/* device should disable */
+	ret = of_selftest_apply_overlay_check(4, 4, 0, 1);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 4);
+}
+
+/* test overlay apply/revert sequence */
+static void of_selftest_overlay_5(void)
+{
+	int ret;
+
+	/* device should disable */
+	ret = of_selftest_apply_revert_overlay_check(5, 5, 0, 1);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 5);
+}
+
+/* test overlay application in sequence */
+static void of_selftest_overlay_6(void)
+{
+	struct device_node *np;
+	int ret, i, ov_id[2];
+	int overlay_nr = 6, selftest_nr = 6;
+	int before = 0, after = 1;
+
+	/* selftest device must be in before state */
+	for (i = 0; i < 2; i++) {
+		if (of_path_platform_device_exists(
+					selftest_path(selftest_nr + i))
+				!= before) {
+			selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
+					overlay_path(overlay_nr + i),
+					selftest_path(selftest_nr + i),
+					!before ? "enabled" : "disabled");
+			return;
+		}
+	}
+
+	/* apply the overlays */
+	for (i = 0; i < 2; i++) {
+
+		np = of_find_node_by_path(overlay_path(overlay_nr + i));
+		if (np == NULL) {
+			selftest(0, "could not find overlay node @\"%s\"\n",
+					overlay_path(overlay_nr + i));
+			return;
+		}
+
+		ret = of_overlay_create(np);
+		if (ret < 0)  {
+			selftest(0, "could not create overlay from \"%s\"\n",
+					overlay_path(overlay_nr + i));
+			return;
+		}
+		ov_id[i] = ret;
+	}
+
+	for (i = 0; i < 2; i++) {
+		/* selftest device must be in after state */
+		if (of_path_platform_device_exists(
+					selftest_path(selftest_nr + i))
+				!= after) {
+			selftest(0, "overlay @\"%s\" failed @\"%s\" %s\n",
+					overlay_path(overlay_nr + i),
+					selftest_path(selftest_nr + i),
+					!after ? "enabled" : "disabled");
+			return;
+		}
+	}
+
+	for (i = 1; i >= 0; i--) {
+		ret = of_overlay_destroy(ov_id[i]);
+		if (ret != 0) {
+			selftest(0, "overlay @\"%s\" failed destroy @\"%s\"\n",
+					overlay_path(overlay_nr + i),
+					selftest_path(selftest_nr + i));
+			return;
+		}
+	}
+
+	for (i = 0; i < 2; i++) {
+		/* selftest device must be again in before state */
+		if (of_path_platform_device_exists(
+					selftest_path(selftest_nr + i))
+				!= before) {
+			selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
+					overlay_path(overlay_nr + i),
+					selftest_path(selftest_nr + i),
+					!before ? "enabled" : "disabled");
+			return;
+		}
+	}
+
+	selftest(1, "overlay test %d passed\n", 6);
+}
+
+/* test overlay application in sequence */
+static void of_selftest_overlay_8(void)
+{
+	struct device_node *np;
+	int ret, i, ov_id[2];
+	int overlay_nr = 8, selftest_nr = 8;
+
+	/* we don't care about device state in this test */
+
+	/* apply the overlays */
+	for (i = 0; i < 2; i++) {
+
+		np = of_find_node_by_path(overlay_path(overlay_nr + i));
+		if (np == NULL) {
+			selftest(0, "could not find overlay node @\"%s\"\n",
+					overlay_path(overlay_nr + i));
+			return;
+		}
+
+		ret = of_overlay_create(np);
+		if (ret < 0)  {
+			selftest(0, "could not create overlay from \"%s\"\n",
+					overlay_path(overlay_nr + i));
+			return;
+		}
+		ov_id[i] = ret;
+	}
+
+	/* now try to remove first overlay (it should fail) */
+	ret = of_overlay_destroy(ov_id[0]);
+	if (ret == 0) {
+		selftest(0, "overlay @\"%s\" was destroyed @\"%s\"\n",
+				overlay_path(overlay_nr + 0),
+				selftest_path(selftest_nr));
+		return;
+	}
+
+	/* removing them in order should work */
+	for (i = 1; i >= 0; i--) {
+		ret = of_overlay_destroy(ov_id[i]);
+		if (ret != 0) {
+			selftest(0, "overlay @\"%s\" not destroyed @\"%s\"\n",
+					overlay_path(overlay_nr + i),
+					selftest_path(selftest_nr));
+			return;
+		}
+	}
+
+	selftest(1, "overlay test %d passed\n", 8);
+}
+
+static void __init of_selftest_overlay(void)
+{
+	struct device_node *bus_np = NULL;
+	int ret;
+
+	ret = platform_driver_register(&selftest_driver);
+	if (ret != 0) {
+		selftest(0, "could not register selftest driver\n");
+		goto out;
+	}
+
+	bus_np = of_find_node_by_path(bus_path);
+	if (bus_np == NULL) {
+		selftest(0, "could not find bus_path \"%s\"\n", bus_path);
+		goto out;
+	}
+
+	ret = of_platform_populate(bus_np, of_default_bus_match_table,
+			NULL, NULL);
+	if (ret != 0) {
+		selftest(0, "could not populate bus @ \"%s\"\n", bus_path);
+		goto out;
+	}
+
+	if (!of_path_platform_device_exists(selftest_path(100))) {
+		selftest(0, "could not find selftest0 @ \"%s\"\n",
+				selftest_path(100));
+		goto out;
+	}
+
+	if (of_path_platform_device_exists(selftest_path(101))) {
+		selftest(0, "selftest1 @ \"%s\" should not exist\n",
+				selftest_path(101));
+		goto out;
+	}
+
+	selftest(1, "basic infrastructure of overlays passed");
+
+	/* tests in sequence */
+	of_selftest_overlay_0();
+	of_selftest_overlay_1();
+	of_selftest_overlay_2();
+	of_selftest_overlay_3();
+	of_selftest_overlay_4();
+	of_selftest_overlay_5();
+	of_selftest_overlay_6();
+	of_selftest_overlay_8();
+
+out:
+	of_node_put(bus_np);
+}
+
+#else
+static inline void __init of_selftest_overlay(void) { }
+#endif
 
 static int __init of_selftest(void)
 {
@@ -947,6 +1473,7 @@ static int __init of_selftest(void)
 	of_selftest_parse_interrupts_extended();
 	of_selftest_match_node();
 	of_selftest_platform_populate();
+	of_selftest_overlay();
 
 	/* removing selftest data from live tree */
 	selftest_data_remove();

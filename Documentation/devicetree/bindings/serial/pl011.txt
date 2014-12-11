@@ -6,12 +6,34 @@ Required properties:
 - interrupts: exactly one interrupt specifier
 
 Optional properties:
-- pinctrl: When present, must have one state named "sleep"
-	   and one state named "default"
-- clocks:  When present, must refer to exactly one clock named
+- pinctrl: When present, must have one state named "default",
+	   and may contain a second name named "sleep". The former
+	   state sets up pins for ordinary operation whereas
+	   the latter state will put the associated pins to sleep
+	   when the UART is unused
+- clocks:  When present, the first clock listed must correspond to
+	   the clock named UARTCLK on the IP block, i.e. the clock
+	   to the external serial line, whereas the second clock
+	   must correspond to the PCLK clocking the internal logic
+	   of the block. Just listing one clock (the first one) is
+	   deprecated.
+- clocks-names: When present, the first clock listed must be named
+	   "uartclk" and the second clock listed must be named
 	   "apb_pclk"
 - dmas:	   When present, may have one or two dma channels.
 	   The first one must be named "rx", the second one
 	   must be named "tx".
 
 See also bindings/arm/primecell.txt
+
+Example:
+
+uart@80120000 {
+	compatible = "arm,pl011", "arm,primecell";
+	reg = <0x80120000 0x1000>;
+	interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+	dmas = <&dma 13 0 0x2>, <&dma 13 0 0x0>;
+	dma-names = "rx", "tx";
+	clocks = <&foo_clk>, <&bar_clk>;
+	clock-names = "uartclk", "apb_pclk";
+};

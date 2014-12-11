@@ -1009,9 +1009,9 @@ error_out:
  *		notifier_to_errno() to decode this value
  */
 static int nx842_OF_notifier(struct notifier_block *np, unsigned long action,
-			     void *update)
+			     void *data)
 {
-	struct of_prop_reconfig *upd = update;
+	struct of_reconfig_data *upd = data;
 	struct nx842_devdata *local_devdata;
 	struct device_node *node = NULL;
 

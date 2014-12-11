@@ -1006,6 +1006,7 @@ int __init platform_bus_init(void)
 	error =  bus_register(&platform_bus_type);
 	if (error)
 		device_unregister(&platform_bus);
+	of_platform_register_reconfig_notifier();
 	return error;
 }
 

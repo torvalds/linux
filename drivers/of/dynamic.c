@@ -77,18 +77,132 @@ int of_reconfig_notifier_unregister(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(of_reconfig_notifier_unregister);
 
-int of_reconfig_notify(unsigned long action, void *p)
+#ifdef DEBUG
+const char *action_names[] = {
+	[OF_RECONFIG_ATTACH_NODE] = "ATTACH_NODE",
+	[OF_RECONFIG_DETACH_NODE] = "DETACH_NODE",
+	[OF_RECONFIG_ADD_PROPERTY] = "ADD_PROPERTY",
+	[OF_RECONFIG_REMOVE_PROPERTY] = "REMOVE_PROPERTY",
+	[OF_RECONFIG_UPDATE_PROPERTY] = "UPDATE_PROPERTY",
+};
+#endif
+
+int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 {
 	int rc;
+#ifdef DEBUG
+	struct of_reconfig_data *pr = p;
 
+	switch (action) {
+	case OF_RECONFIG_ATTACH_NODE:
+	case OF_RECONFIG_DETACH_NODE:
+		pr_debug("of/notify %-15s %s\n", action_names[action],
+			pr->dn->full_name);
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+	case OF_RECONFIG_REMOVE_PROPERTY:
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		pr_debug("of/notify %-15s %s:%s\n", action_names[action],
+			pr->dn->full_name, pr->prop->name);
+		break;
+
+	}
+#endif
 	rc = blocking_notifier_call_chain(&of_reconfig_chain, action, p);
 	return notifier_to_errno(rc);
 }
 
+/*
+ * of_reconfig_get_state_change()	- Returns new state of device
+ * @action	- action of the of notifier
+ * @arg		- argument of the of notifier
+ *
+ * Returns the new state of a device based on the notifier used.
+ * Returns 0 on device going from enabled to disabled, 1 on device
+ * going from disabled to enabled and -1 on no change.
+ */
+int of_reconfig_get_state_change(unsigned long action, struct of_reconfig_data *pr)
+{
+	struct property *prop, *old_prop = NULL;
+	int is_status, status_state, old_status_state, prev_state, new_state;
+
+	/* figure out if a device should be created or destroyed */
+	switch (action) {
+	case OF_RECONFIG_ATTACH_NODE:
+	case OF_RECONFIG_DETACH_NODE:
+		prop = of_find_property(pr->dn, "status", NULL);
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		prop = pr->prop;
+		break;
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		prop = pr->prop;
+		old_prop = pr->old_prop;
+		break;
+	default:
+		return OF_RECONFIG_NO_CHANGE;
+	}
+
+	is_status = 0;
+	status_state = -1;
+	old_status_state = -1;
+	prev_state = -1;
+	new_state = -1;
+
+	if (prop && !strcmp(prop->name, "status")) {
+		is_status = 1;
+		status_state = !strcmp(prop->value, "okay") ||
+			       !strcmp(prop->value, "ok");
+		if (old_prop)
+			old_status_state = !strcmp(old_prop->value, "okay") ||
+					   !strcmp(old_prop->value, "ok");
+	}
+
+	switch (action) {
+	case OF_RECONFIG_ATTACH_NODE:
+		prev_state = 0;
+		/* -1 & 0 status either missing or okay */
+		new_state = status_state != 0;
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		/* -1 & 0 status either missing or okay */
+		prev_state = status_state != 0;
+		new_state = 0;
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+		if (is_status) {
+			/* no status property -> enabled (legacy) */
+			prev_state = 1;
+			new_state = status_state;
+		}
+		break;
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		if (is_status) {
+			prev_state = status_state;
+			/* no status property -> enabled (legacy) */
+			new_state = 1;
+		}
+		break;
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		if (is_status) {
+			prev_state = old_status_state != 0;
+			new_state = status_state != 0;
+		}
+		break;
+	}
+
+	if (prev_state == new_state)
+		return OF_RECONFIG_NO_CHANGE;
+
+	return new_state ? OF_RECONFIG_CHANGE_ADD : OF_RECONFIG_CHANGE_REMOVE;
+}
+EXPORT_SYMBOL_GPL(of_reconfig_get_state_change);
+
 int of_property_notify(int action, struct device_node *np,
 		       struct property *prop, struct property *oldprop)
 {
-	struct of_prop_reconfig pr;
+	struct of_reconfig_data pr;
 
 	/* only call notifiers if the node is attached */
 	if (!of_node_is_attached(np))
@@ -117,8 +231,6 @@ void __of_attach_node(struct device_node *np)
 
 	np->child = NULL;
 	np->sibling = np->parent->child;
-	np->allnext = np->parent->allnext;
-	np->parent->allnext = np;
 	np->parent->child = np;
 	of_node_clear_flag(np, OF_DETACHED);
 }
@@ -128,7 +240,11 @@ void __of_attach_node(struct device_node *np)
  */
 int of_attach_node(struct device_node *np)
 {
+	struct of_reconfig_data rd;
 	unsigned long flags;
+
+	memset(&rd, 0, sizeof(rd));
+	rd.dn = np;
 
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -138,7 +254,7 @@ int of_attach_node(struct device_node *np)
 	__of_attach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, np);
+	of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, &rd);
 
 	return 0;
 }
@@ -153,17 +269,6 @@ void __of_detach_node(struct device_node *np)
 	parent = np->parent;
 	if (WARN_ON(!parent))
 		return;
-
-	if (of_allnodes == np)
-		of_allnodes = np->allnext;
-	else {
-		struct device_node *prev;
-		for (prev = of_allnodes;
-		     prev->allnext != np;
-		     prev = prev->allnext)
-			;
-		prev->allnext = np->allnext;
-	}
 
 	if (parent->child == np)
 		parent->child = np->sibling;
@@ -187,8 +292,12 @@ void __of_detach_node(struct device_node *np)
  */
 int of_detach_node(struct device_node *np)
 {
+	struct of_reconfig_data rd;
 	unsigned long flags;
 	int rc = 0;
+
+	memset(&rd, 0, sizeof(rd));
+	rd.dn = np;
 
 	mutex_lock(&of_mutex);
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -198,7 +307,7 @@ int of_detach_node(struct device_node *np)
 	__of_detach_node_sysfs(np);
 	mutex_unlock(&of_mutex);
 
-	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, np);
+	of_reconfig_notify(OF_RECONFIG_DETACH_NODE, &rd);
 
 	return rc;
 }
@@ -285,36 +394,54 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 }
 
 /**
- * __of_node_alloc() - Create an empty device node dynamically.
- * @full_name:	Full name of the new device node
- * @allocflags:	Allocation flags (typically pass GFP_KERNEL)
+ * __of_node_dup() - Duplicate or create an empty device node dynamically.
+ * @fmt: Format string (plus vargs) for new full name of the device node
  *
- * Create an empty device tree node, suitable for further modification.
- * The node data are dynamically allocated and all the node flags
- * have the OF_DYNAMIC & OF_DETACHED bits set.
- * Returns the newly allocated node or NULL on out of memory error.
+ * Create an device tree node, either by duplicating an empty node or by allocating
+ * an empty one suitable for further modification.  The node data are
+ * dynamically allocated and all the node flags have the OF_DYNAMIC &
+ * OF_DETACHED bits set. Returns the newly allocated node or NULL on out of
+ * memory error.
  */
-struct device_node *__of_node_alloc(const char *full_name, gfp_t allocflags)
+struct device_node *__of_node_dup(const struct device_node *np, const char *fmt, ...)
 {
+	va_list vargs;
 	struct device_node *node;
 
-	node = kzalloc(sizeof(*node), allocflags);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return NULL;
+	va_start(vargs, fmt);
+	node->full_name = kvasprintf(GFP_KERNEL, fmt, vargs);
+	va_end(vargs);
+	if (!node->full_name) {
+		kfree(node);
+		return NULL;
+	}
 
-	node->full_name = kstrdup(full_name, allocflags);
 	of_node_set_flag(node, OF_DYNAMIC);
 	of_node_set_flag(node, OF_DETACHED);
-	if (!node->full_name)
-		goto err_free;
-
 	of_node_init(node);
 
+	/* Iterate over and duplicate all properties */
+	if (np) {
+		struct property *pp, *new_pp;
+		for_each_property_of_node(np, pp) {
+			new_pp = __of_prop_dup(pp, GFP_KERNEL);
+			if (!new_pp)
+				goto err_prop;
+			if (__of_add_property(node, new_pp)) {
+				kfree(new_pp->name);
+				kfree(new_pp->value);
+				kfree(new_pp);
+				goto err_prop;
+			}
+		}
+	}
 	return node;
 
- err_free:
-	kfree(node->full_name);
-	kfree(node);
+ err_prop:
+	of_node_put(node); /* Frees the node and properties */
 	return NULL;
 }
 
@@ -330,27 +457,15 @@ static void __of_changeset_entry_dump(struct of_changeset_entry *ce)
 {
 	switch (ce->action) {
 	case OF_RECONFIG_ADD_PROPERTY:
-		pr_debug("%p: %s %s/%s\n",
-			ce, "ADD_PROPERTY   ", ce->np->full_name,
-			ce->prop->name);
-		break;
 	case OF_RECONFIG_REMOVE_PROPERTY:
-		pr_debug("%p: %s %s/%s\n",
-			ce, "REMOVE_PROPERTY", ce->np->full_name,
-			ce->prop->name);
-		break;
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("%p: %s %s/%s\n",
-			ce, "UPDATE_PROPERTY", ce->np->full_name,
-			ce->prop->name);
+		pr_debug("of/cset<%p> %-15s %s/%s\n", ce, action_names[ce->action],
+			ce->np->full_name, ce->prop->name);
 		break;
 	case OF_RECONFIG_ATTACH_NODE:
-		pr_debug("%p: %s %s\n",
-			ce, "ATTACH_NODE    ", ce->np->full_name);
-		break;
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("%p: %s %s\n",
-			ce, "DETACH_NODE    ", ce->np->full_name);
+		pr_debug("of/cset<%p> %-15s %s\n", ce, action_names[ce->action],
+			ce->np->full_name);
 		break;
 	}
 }
@@ -388,6 +503,7 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 
 static void __of_changeset_entry_notify(struct of_changeset_entry *ce, bool revert)
 {
+	struct of_reconfig_data rd;
 	struct of_changeset_entry ce_inverted;
 	int ret;
 
@@ -399,7 +515,9 @@ static void __of_changeset_entry_notify(struct of_changeset_entry *ce, bool reve
 	switch (ce->action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		ret = of_reconfig_notify(ce->action, ce->np);
+		memset(&rd, 0, sizeof(rd));
+		rd.dn = ce->np;
+		ret = of_reconfig_notify(ce->action, &rd);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
