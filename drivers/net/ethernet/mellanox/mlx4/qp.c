@@ -42,6 +42,10 @@
 #include "mlx4.h"
 #include "icm.h"
 
+/* QP to support BF should have bits 6,7 cleared */
+#define MLX4_BF_QP_SKIP_MASK	0xc0
+#define MLX4_MAX_BF_QP_RANGE	0x40
+
 void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type)
 {
 	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
@@ -207,26 +211,45 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 EXPORT_SYMBOL_GPL(mlx4_qp_modify);
 
 int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
-				   int *base)
+			    int *base, u8 flags)
 {
+	u32 uid;
+	int bf_qp = !!(flags & (u8)MLX4_RESERVE_ETH_BF_QP);
+
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
 
-	*base = mlx4_bitmap_alloc_range(&qp_table->bitmap, cnt, align);
+	if (cnt > MLX4_MAX_BF_QP_RANGE && bf_qp)
+		return -ENOMEM;
+
+	uid = MLX4_QP_TABLE_ZONE_GENERAL;
+	if (flags & (u8)MLX4_RESERVE_A0_QP) {
+		if (bf_qp)
+			uid = MLX4_QP_TABLE_ZONE_RAW_ETH;
+		else
+			uid = MLX4_QP_TABLE_ZONE_RSS;
+	}
+
+	*base = mlx4_zone_alloc_entries(qp_table->zones, uid, cnt, align,
+					bf_qp ? MLX4_BF_QP_SKIP_MASK : 0, NULL);
 	if (*base == -1)
 		return -ENOMEM;
 
 	return 0;
 }
 
-int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base)
+int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
+			  int *base, u8 flags)
 {
 	u64 in_param = 0;
 	u64 out_param;
 	int err;
 
+	/* Turn off all unsupported QP allocation flags */
+	flags &= dev->caps.alloc_res_qp_mask;
+
 	if (mlx4_is_mfunc(dev)) {
-		set_param_l(&in_param, cnt);
+		set_param_l(&in_param, (((u32)flags) << 24) | (u32)cnt);
 		set_param_h(&in_param, align);
 		err = mlx4_cmd_imm(dev, in_param, &out_param,
 				   RES_QP, RES_OP_RESERVE,
@@ -238,7 +261,7 @@ int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base)
 		*base = get_param_l(&out_param);
 		return 0;
 	}
-	return __mlx4_qp_reserve_range(dev, cnt, align, base);
+	return __mlx4_qp_reserve_range(dev, cnt, align, base, flags);
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_reserve_range);
 
@@ -249,7 +272,7 @@ void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 
 	if (mlx4_is_qp_reserved(dev, (u32) base_qpn))
 		return;
-	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, MLX4_USE_RR);
+	mlx4_zone_free_entries_unique(qp_table->zones, base_qpn, cnt);
 }
 
 void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
@@ -459,28 +482,261 @@ static int mlx4_CONF_SPECIAL_QP(struct mlx4_dev *dev, u32 base_qpn)
 			MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 }
 
+#define MLX4_QP_TABLE_RSS_ETH_PRIORITY 2
+#define MLX4_QP_TABLE_RAW_ETH_PRIORITY 1
+#define MLX4_QP_TABLE_RAW_ETH_SIZE     256
+
+static int mlx4_create_zones(struct mlx4_dev *dev,
+			     u32 reserved_bottom_general,
+			     u32 reserved_top_general,
+			     u32 reserved_bottom_rss,
+			     u32 start_offset_rss,
+			     u32 max_table_offset)
+{
+	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
+	struct mlx4_bitmap (*bitmap)[MLX4_QP_TABLE_ZONE_NUM] = NULL;
+	int bitmap_initialized = 0;
+	u32 last_offset;
+	int k;
+	int err;
+
+	qp_table->zones = mlx4_zone_allocator_create(MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP);
+
+	if (NULL == qp_table->zones)
+		return -ENOMEM;
+
+	bitmap = kmalloc(sizeof(*bitmap), GFP_KERNEL);
+
+	if (NULL == bitmap) {
+		err = -ENOMEM;
+		goto free_zone;
+	}
+
+	err = mlx4_bitmap_init(*bitmap + MLX4_QP_TABLE_ZONE_GENERAL, dev->caps.num_qps,
+			       (1 << 23) - 1, reserved_bottom_general,
+			       reserved_top_general);
+
+	if (err)
+		goto free_bitmap;
+
+	++bitmap_initialized;
+
+	err = mlx4_zone_add_one(qp_table->zones, *bitmap + MLX4_QP_TABLE_ZONE_GENERAL,
+				MLX4_ZONE_FALLBACK_TO_HIGHER_PRIO |
+				MLX4_ZONE_USE_RR, 0,
+				0, qp_table->zones_uids + MLX4_QP_TABLE_ZONE_GENERAL);
+
+	if (err)
+		goto free_bitmap;
+
+	err = mlx4_bitmap_init(*bitmap + MLX4_QP_TABLE_ZONE_RSS,
+			       reserved_bottom_rss,
+			       reserved_bottom_rss - 1,
+			       dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW],
+			       reserved_bottom_rss - start_offset_rss);
+
+	if (err)
+		goto free_bitmap;
+
+	++bitmap_initialized;
+
+	err = mlx4_zone_add_one(qp_table->zones, *bitmap + MLX4_QP_TABLE_ZONE_RSS,
+				MLX4_ZONE_ALLOW_ALLOC_FROM_LOWER_PRIO |
+				MLX4_ZONE_ALLOW_ALLOC_FROM_EQ_PRIO |
+				MLX4_ZONE_USE_RR, MLX4_QP_TABLE_RSS_ETH_PRIORITY,
+				0, qp_table->zones_uids + MLX4_QP_TABLE_ZONE_RSS);
+
+	if (err)
+		goto free_bitmap;
+
+	last_offset = dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
+	/*  We have a single zone for the A0 steering QPs area of the FW. This area
+	 *  needs to be split into subareas. One set of subareas is for RSS QPs
+	 *  (in which qp number bits 6 and/or 7 are set); the other set of subareas
+	 *  is for RAW_ETH QPs, which require that both bits 6 and 7 are zero.
+	 *  Currently, the values returned by the FW (A0 steering area starting qp number
+	 *  and A0 steering area size) are such that there are only two subareas -- one
+	 *  for RSS and one for RAW_ETH.
+	 */
+	for (k = MLX4_QP_TABLE_ZONE_RSS + 1; k < sizeof(*bitmap)/sizeof((*bitmap)[0]);
+	     k++) {
+		int size;
+		u32 offset = start_offset_rss;
+		u32 bf_mask;
+		u32 requested_size;
+
+		/* Assuming MLX4_BF_QP_SKIP_MASK is consecutive ones, this calculates
+		 * a mask of all LSB bits set until (and not including) the first
+		 * set bit of  MLX4_BF_QP_SKIP_MASK. For example, if MLX4_BF_QP_SKIP_MASK
+		 * is 0xc0, bf_mask will be 0x3f.
+		 */
+		bf_mask = (MLX4_BF_QP_SKIP_MASK & ~(MLX4_BF_QP_SKIP_MASK - 1)) - 1;
+		requested_size = min((u32)MLX4_QP_TABLE_RAW_ETH_SIZE, bf_mask + 1);
+
+		if (((last_offset & MLX4_BF_QP_SKIP_MASK) &&
+		     ((int)(max_table_offset - last_offset)) >=
+		     roundup_pow_of_two(MLX4_BF_QP_SKIP_MASK)) ||
+		    (!(last_offset & MLX4_BF_QP_SKIP_MASK) &&
+		     !((last_offset + requested_size - 1) &
+		       MLX4_BF_QP_SKIP_MASK)))
+			size = requested_size;
+		else {
+			u32 candidate_offset =
+				(last_offset | MLX4_BF_QP_SKIP_MASK | bf_mask) + 1;
+
+			if (last_offset & MLX4_BF_QP_SKIP_MASK)
+				last_offset = candidate_offset;
+
+			/* From this point, the BF bits are 0 */
+
+			if (last_offset > max_table_offset) {
+				/* need to skip */
+				size = -1;
+			} else {
+				size = min3(max_table_offset - last_offset,
+					    bf_mask - (last_offset & bf_mask),
+					    requested_size);
+				if (size < requested_size) {
+					int candidate_size;
+
+					candidate_size = min3(
+						max_table_offset - candidate_offset,
+						bf_mask - (last_offset & bf_mask),
+						requested_size);
+
+					/*  We will not take this path if last_offset was
+					 *  already set above to candidate_offset
+					 */
+					if (candidate_size > size) {
+						last_offset = candidate_offset;
+						size = candidate_size;
+					}
+				}
+			}
+		}
+
+		if (size > 0) {
+			/* mlx4_bitmap_alloc_range will find a contiguous range of "size"
+			 * QPs in which both bits 6 and 7 are zero, because we pass it the
+			 * MLX4_BF_SKIP_MASK).
+			 */
+			offset = mlx4_bitmap_alloc_range(
+					*bitmap + MLX4_QP_TABLE_ZONE_RSS,
+					size, 1,
+					MLX4_BF_QP_SKIP_MASK);
+
+			if (offset == (u32)-1) {
+				err = -ENOMEM;
+				break;
+			}
+
+			last_offset = offset + size;
+
+			err = mlx4_bitmap_init(*bitmap + k, roundup_pow_of_two(size),
+					       roundup_pow_of_two(size) - 1, 0,
+					       roundup_pow_of_two(size) - size);
+		} else {
+			/* Add an empty bitmap, we'll allocate from different zones (since
+			 * at least one is reserved)
+			 */
+			err = mlx4_bitmap_init(*bitmap + k, 1,
+					       MLX4_QP_TABLE_RAW_ETH_SIZE - 1, 0,
+					       0);
+			mlx4_bitmap_alloc_range(*bitmap + k, 1, 1, 0);
+		}
+
+		if (err)
+			break;
+
+		++bitmap_initialized;
+
+		err = mlx4_zone_add_one(qp_table->zones, *bitmap + k,
+					MLX4_ZONE_ALLOW_ALLOC_FROM_LOWER_PRIO |
+					MLX4_ZONE_ALLOW_ALLOC_FROM_EQ_PRIO |
+					MLX4_ZONE_USE_RR, MLX4_QP_TABLE_RAW_ETH_PRIORITY,
+					offset, qp_table->zones_uids + k);
+
+		if (err)
+			break;
+	}
+
+	if (err)
+		goto free_bitmap;
+
+	qp_table->bitmap_gen = *bitmap;
+
+	return err;
+
+free_bitmap:
+	for (k = 0; k < bitmap_initialized; k++)
+		mlx4_bitmap_cleanup(*bitmap + k);
+	kfree(bitmap);
+free_zone:
+	mlx4_zone_allocator_destroy(qp_table->zones);
+	return err;
+}
+
+static void mlx4_cleanup_qp_zones(struct mlx4_dev *dev)
+{
+	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
+
+	if (qp_table->zones) {
+		int i;
+
+		for (i = 0;
+		     i < sizeof(qp_table->zones_uids)/sizeof(qp_table->zones_uids[0]);
+		     i++) {
+			struct mlx4_bitmap *bitmap =
+				mlx4_zone_get_bitmap(qp_table->zones,
+						     qp_table->zones_uids[i]);
+
+			mlx4_zone_remove_one(qp_table->zones, qp_table->zones_uids[i]);
+			if (NULL == bitmap)
+				continue;
+
+			mlx4_bitmap_cleanup(bitmap);
+		}
+		mlx4_zone_allocator_destroy(qp_table->zones);
+		kfree(qp_table->bitmap_gen);
+		qp_table->bitmap_gen = NULL;
+		qp_table->zones = NULL;
+	}
+}
+
 int mlx4_init_qp_table(struct mlx4_dev *dev)
 {
 	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
 	int err;
 	int reserved_from_top = 0;
+	int reserved_from_bot;
 	int k;
+	int fixed_reserved_from_bot_rv = 0;
+	int bottom_reserved_for_rss_bitmap;
+	u32 max_table_offset = dev->caps.dmfs_high_rate_qpn_base +
+			dev->caps.dmfs_high_rate_qpn_range;
 
 	spin_lock_init(&qp_table->lock);
 	INIT_RADIX_TREE(&dev->qp_table_tree, GFP_ATOMIC);
 	if (mlx4_is_slave(dev))
 		return 0;
 
-	/*
-	 * We reserve 2 extra QPs per port for the special QPs.  The
+	/* We reserve 2 extra QPs per port for the special QPs.  The
 	 * block of special QPs must be aligned to a multiple of 8, so
 	 * round up.
 	 *
 	 * We also reserve the MSB of the 24-bit QP number to indicate
 	 * that a QP is an XRC QP.
 	 */
-	dev->phys_caps.base_sqpn =
-		ALIGN(dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW], 8);
+	for (k = 0; k <= MLX4_QP_REGION_BOTTOM; k++)
+		fixed_reserved_from_bot_rv += dev->caps.reserved_qps_cnt[k];
+
+	if (fixed_reserved_from_bot_rv < max_table_offset)
+		fixed_reserved_from_bot_rv = max_table_offset;
+
+	/* We reserve at least 1 extra for bitmaps that we don't have enough space for*/
+	bottom_reserved_for_rss_bitmap =
+		roundup_pow_of_two(fixed_reserved_from_bot_rv + 1);
+	dev->phys_caps.base_sqpn = ALIGN(bottom_reserved_for_rss_bitmap, 8);
 
 	{
 		int sort[MLX4_NUM_QP_REGION];
@@ -490,8 +746,8 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 		for (i = 1; i < MLX4_NUM_QP_REGION; ++i)
 			sort[i] = i;
 
-		for (i = MLX4_NUM_QP_REGION; i > 0; --i) {
-			for (j = 2; j < i; ++j) {
+		for (i = MLX4_NUM_QP_REGION; i > MLX4_QP_REGION_BOTTOM; --i) {
+			for (j = MLX4_QP_REGION_BOTTOM + 2; j < i; ++j) {
 				if (dev->caps.reserved_qps_cnt[sort[j]] >
 				    dev->caps.reserved_qps_cnt[sort[j - 1]]) {
 					tmp             = sort[j];
@@ -501,13 +757,12 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 			}
 		}
 
-		for (i = 1; i < MLX4_NUM_QP_REGION; ++i) {
+		for (i = MLX4_QP_REGION_BOTTOM + 1; i < MLX4_NUM_QP_REGION; ++i) {
 			last_base -= dev->caps.reserved_qps_cnt[sort[i]];
 			dev->caps.reserved_qps_base[sort[i]] = last_base;
 			reserved_from_top +=
 				dev->caps.reserved_qps_cnt[sort[i]];
 		}
-
 	}
 
        /* Reserve 8 real SQPs in both native and SRIOV modes.
@@ -520,10 +775,17 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	* b. All the proxy SQPs (8 per function)
 	* c. All the tunnel QPs (8 per function)
 	*/
+	reserved_from_bot = mlx4_num_reserved_sqps(dev);
+	if (reserved_from_bot + reserved_from_top > dev->caps.num_qps) {
+		mlx4_err(dev, "Number of reserved QPs is higher than number of QPs\n");
+		return -EINVAL;
+	}
 
-	err = mlx4_bitmap_init(&qp_table->bitmap, dev->caps.num_qps,
-			       (1 << 23) - 1, mlx4_num_reserved_sqps(dev),
-			       reserved_from_top);
+	err = mlx4_create_zones(dev, reserved_from_bot, reserved_from_bot,
+				bottom_reserved_for_rss_bitmap,
+				fixed_reserved_from_bot_rv,
+				max_table_offset);
+
 	if (err)
 		return err;
 
@@ -559,7 +821,8 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	err = mlx4_CONF_SPECIAL_QP(dev, dev->phys_caps.base_sqpn);
 	if (err)
 		goto err_mem;
-	return 0;
+
+	return err;
 
 err_mem:
 	kfree(dev->caps.qp0_tunnel);
@@ -568,6 +831,7 @@ err_mem:
 	kfree(dev->caps.qp1_proxy);
 	dev->caps.qp0_tunnel = dev->caps.qp0_proxy =
 		dev->caps.qp1_tunnel = dev->caps.qp1_proxy = NULL;
+	mlx4_cleanup_qp_zones(dev);
 	return err;
 }
 
@@ -577,7 +841,8 @@ void mlx4_cleanup_qp_table(struct mlx4_dev *dev)
 		return;
 
 	mlx4_CONF_SPECIAL_QP(dev, 0);
-	mlx4_bitmap_cleanup(&mlx4_priv(dev)->qp_table.bitmap);
+
+	mlx4_cleanup_qp_zones(dev);
 }
 
 int mlx4_qp_query(struct mlx4_dev *dev, struct mlx4_qp *qp,

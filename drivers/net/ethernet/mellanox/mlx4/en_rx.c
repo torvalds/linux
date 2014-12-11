@@ -888,7 +888,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			gro_skb->ip_summed = ip_summed;
 
 			if (l2_tunnel && ip_summed == CHECKSUM_UNNECESSARY)
-				gro_skb->encapsulation = 1;
+				gro_skb->csum_level = 1;
+
 			if ((cqe->vlan_my_qpn &
 			    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) &&
 			    (dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
@@ -1130,7 +1131,8 @@ int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
 	int err;
 	u32 qpn;
 
-	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn);
+	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn,
+				    MLX4_RESERVE_A0_QP);
 	if (err) {
 		en_err(priv, "Failed reserving drop qpn\n");
 		return err;
@@ -1173,7 +1175,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	en_dbg(DRV, priv, "Configuring rss steering\n");
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
 				    priv->rx_ring_num,
-				    &rss_map->base_qpn);
+				    &rss_map->base_qpn, 0);
 	if (err) {
 		en_err(priv, "Failed reserving %d qps\n", priv->rx_ring_num);
 		return err;

@@ -117,6 +117,14 @@ enum {
 	MLX4_STEERING_MODE_DEVICE_MANAGED
 };
 
+enum {
+	MLX4_STEERING_DMFS_A0_DEFAULT,
+	MLX4_STEERING_DMFS_A0_DYNAMIC,
+	MLX4_STEERING_DMFS_A0_STATIC,
+	MLX4_STEERING_DMFS_A0_DISABLE,
+	MLX4_STEERING_DMFS_A0_NOT_SUPPORTED
+};
+
 static inline const char *mlx4_steering_mode_str(int steering_mode)
 {
 	switch (steering_mode) {
@@ -191,7 +199,26 @@ enum {
 	MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP	= 1LL <<  15,
 	MLX4_DEV_CAP_FLAG2_CONFIG_DEV		= 1LL <<  16,
 	MLX4_DEV_CAP_FLAG2_SYS_EQS		= 1LL <<  17,
-	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18
+	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18,
+	MLX4_DEV_CAP_FLAG2_FS_A0		= 1LL <<  19
+};
+
+enum {
+	MLX4_QUERY_FUNC_FLAGS_BF_RES_QP		= 1LL << 0,
+	MLX4_QUERY_FUNC_FLAGS_A0_RES_QP		= 1LL << 1
+};
+
+/* bit enums for an 8-bit flags field indicating special use
+ * QPs which require special handling in qp_reserve_range.
+ * Currently, this only includes QPs used by the ETH interface,
+ * where we expect to use blueflame.  These QPs must not have
+ * bits 6 and 7 set in their qp number.
+ *
+ * This enum may use only bits 0..7.
+ */
+enum {
+	MLX4_RESERVE_A0_QP	= 1 << 6,
+	MLX4_RESERVE_ETH_BF_QP	= 1 << 7,
 };
 
 enum {
@@ -207,7 +234,8 @@ enum {
 
 enum {
 	MLX4_FUNC_CAP_64B_EQE_CQE	= 1L << 0,
-	MLX4_FUNC_CAP_EQE_CQE_STRIDE	= 1L << 1
+	MLX4_FUNC_CAP_EQE_CQE_STRIDE	= 1L << 1,
+	MLX4_FUNC_CAP_DMFS_A0_STATIC	= 1L << 2
 };
 
 
@@ -333,6 +361,8 @@ enum {
 
 enum mlx4_qp_region {
 	MLX4_QP_REGION_FW = 0,
+	MLX4_QP_REGION_RSS_RAW_ETH,
+	MLX4_QP_REGION_BOTTOM = MLX4_QP_REGION_RSS_RAW_ETH,
 	MLX4_QP_REGION_ETH_ADDR,
 	MLX4_QP_REGION_FC_ADDR,
 	MLX4_QP_REGION_FC_EXCH,
@@ -462,6 +492,7 @@ struct mlx4_caps {
 	int			reserved_mcgs;
 	int			num_qp_per_mgm;
 	int			steering_mode;
+	int			dmfs_high_steer_mode;
 	int			fs_log_max_ucast_qp_range_size;
 	int			num_pds;
 	int			reserved_pds;
@@ -501,6 +532,9 @@ struct mlx4_caps {
 	u64			phys_port_id[MLX4_MAX_PORTS + 1];
 	int			tunnel_offload_mode;
 	u8			rx_checksum_flags_port[MLX4_MAX_PORTS + 1];
+	u8			alloc_res_qp_mask;
+	u32			dmfs_high_rate_qpn_base;
+	u32			dmfs_high_rate_qpn_range;
 };
 
 struct mlx4_buf_list {
@@ -621,6 +655,11 @@ struct mlx4_cq {
 
 	atomic_t		refcount;
 	struct completion	free;
+	struct {
+		struct list_head list;
+		void (*comp)(struct mlx4_cq *);
+		void		*priv;
+	} tasklet_ctx;
 };
 
 struct mlx4_qp {
@@ -869,7 +908,9 @@ static inline int mlx4_num_reserved_sqps(struct mlx4_dev *dev)
 static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)
 {
 	return (qpn < dev->phys_caps.base_sqpn + 8 +
-		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev));
+		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev) &&
+		qpn >= dev->phys_caps.base_sqpn) ||
+	       (qpn < dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW]);
 }
 
 static inline int mlx4_is_guest_proxy(struct mlx4_dev *dev, int slave, u32 qpn)
@@ -945,8 +986,8 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
 		  unsigned vector, int collapsed, int timestamp_en);
 void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq);
-
-int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base);
+int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
+			  int *base, u8 flags);
 void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt);
 
 int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp,

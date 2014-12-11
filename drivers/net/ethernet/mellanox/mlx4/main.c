@@ -105,7 +105,8 @@ MODULE_PARM_DESC(enable_64b_cqe_eqe,
 		 "Enable 64 byte CQEs/EQEs when the FW supports this (default: True)");
 
 #define PF_CONTEXT_BEHAVIOUR_MASK	(MLX4_FUNC_CAP_64B_EQE_CQE | \
-					 MLX4_FUNC_CAP_EQE_CQE_STRIDE)
+					 MLX4_FUNC_CAP_EQE_CQE_STRIDE | \
+					 MLX4_FUNC_CAP_DMFS_A0_STATIC)
 
 static char mlx4_version[] =
 	DRV_NAME ": Mellanox ConnectX core driver v"
@@ -254,6 +255,46 @@ static void mlx4_enable_cqe_eqe_stride(struct mlx4_dev *dev)
 	}
 }
 
+static int _mlx4_dev_port(struct mlx4_dev *dev, int port,
+			  struct mlx4_port_cap *port_cap)
+{
+	dev->caps.vl_cap[port]	    = port_cap->max_vl;
+	dev->caps.ib_mtu_cap[port]	    = port_cap->ib_mtu;
+	dev->phys_caps.gid_phys_table_len[port]  = port_cap->max_gids;
+	dev->phys_caps.pkey_phys_table_len[port] = port_cap->max_pkeys;
+	/* set gid and pkey table operating lengths by default
+	 * to non-sriov values
+	 */
+	dev->caps.gid_table_len[port]  = port_cap->max_gids;
+	dev->caps.pkey_table_len[port] = port_cap->max_pkeys;
+	dev->caps.port_width_cap[port] = port_cap->max_port_width;
+	dev->caps.eth_mtu_cap[port]    = port_cap->eth_mtu;
+	dev->caps.def_mac[port]        = port_cap->def_mac;
+	dev->caps.supported_type[port] = port_cap->supported_port_types;
+	dev->caps.suggested_type[port] = port_cap->suggested_type;
+	dev->caps.default_sense[port] = port_cap->default_sense;
+	dev->caps.trans_type[port]	    = port_cap->trans_type;
+	dev->caps.vendor_oui[port]     = port_cap->vendor_oui;
+	dev->caps.wavelength[port]     = port_cap->wavelength;
+	dev->caps.trans_code[port]     = port_cap->trans_code;
+
+	return 0;
+}
+
+static int mlx4_dev_port(struct mlx4_dev *dev, int port,
+			 struct mlx4_port_cap *port_cap)
+{
+	int err = 0;
+
+	err = mlx4_QUERY_PORT(dev, port, port_cap);
+
+	if (err)
+		mlx4_err(dev, "QUERY_PORT command failed.\n");
+
+	return err;
+}
+
+#define MLX4_A0_STEERING_TABLE_SIZE	256
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
@@ -289,24 +330,11 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 				      dev->caps.num_sys_eqs :
 				      MLX4_MAX_EQ_NUM;
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
-		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
-		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
-		dev->phys_caps.gid_phys_table_len[i]  = dev_cap->max_gids[i];
-		dev->phys_caps.pkey_phys_table_len[i] = dev_cap->max_pkeys[i];
-		/* set gid and pkey table operating lengths by default
-		 * to non-sriov values */
-		dev->caps.gid_table_len[i]  = dev_cap->max_gids[i];
-		dev->caps.pkey_table_len[i] = dev_cap->max_pkeys[i];
-		dev->caps.port_width_cap[i] = dev_cap->max_port_width[i];
-		dev->caps.eth_mtu_cap[i]    = dev_cap->eth_mtu[i];
-		dev->caps.def_mac[i]        = dev_cap->def_mac[i];
-		dev->caps.supported_type[i] = dev_cap->supported_port_types[i];
-		dev->caps.suggested_type[i] = dev_cap->suggested_type[i];
-		dev->caps.default_sense[i] = dev_cap->default_sense[i];
-		dev->caps.trans_type[i]	    = dev_cap->trans_type[i];
-		dev->caps.vendor_oui[i]     = dev_cap->vendor_oui[i];
-		dev->caps.wavelength[i]     = dev_cap->wavelength[i];
-		dev->caps.trans_code[i]     = dev_cap->trans_code[i];
+		err = _mlx4_dev_port(dev, i, dev_cap->port_cap + i);
+		if (err) {
+			mlx4_err(dev, "QUERY_PORT command failed, aborting\n");
+			return err;
+		}
 	}
 
 	dev->caps.uar_page_size	     = PAGE_SIZE;
@@ -415,13 +443,13 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev->caps.possible_type[i] = dev->caps.port_type[i];
 		}
 
-		if (dev->caps.log_num_macs > dev_cap->log_max_macs[i]) {
-			dev->caps.log_num_macs = dev_cap->log_max_macs[i];
+		if (dev->caps.log_num_macs > dev_cap->port_cap[i].log_max_macs) {
+			dev->caps.log_num_macs = dev_cap->port_cap[i].log_max_macs;
 			mlx4_warn(dev, "Requested number of MACs is too much for port %d, reducing to %d\n",
 				  i, 1 << dev->caps.log_num_macs);
 		}
-		if (dev->caps.log_num_vlans > dev_cap->log_max_vlans[i]) {
-			dev->caps.log_num_vlans = dev_cap->log_max_vlans[i];
+		if (dev->caps.log_num_vlans > dev_cap->port_cap[i].log_max_vlans) {
+			dev->caps.log_num_vlans = dev_cap->port_cap[i].log_max_vlans;
 			mlx4_warn(dev, "Requested number of VLANs is too much for port %d, reducing to %d\n",
 				  i, 1 << dev->caps.log_num_vlans);
 		}
@@ -436,6 +464,28 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		(1 << dev->caps.log_num_vlans) *
 		dev->caps.num_ports;
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_EXCH] = MLX4_NUM_FEXCH;
+
+	if (dev_cap->dmfs_high_rate_qpn_base > 0 &&
+	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FS_EN)
+		dev->caps.dmfs_high_rate_qpn_base = dev_cap->dmfs_high_rate_qpn_base;
+	else
+		dev->caps.dmfs_high_rate_qpn_base =
+			dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
+
+	if (dev_cap->dmfs_high_rate_qpn_range > 0 &&
+	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FS_EN) {
+		dev->caps.dmfs_high_rate_qpn_range = dev_cap->dmfs_high_rate_qpn_range;
+		dev->caps.dmfs_high_steer_mode = MLX4_STEERING_DMFS_A0_DEFAULT;
+		dev->caps.flags2 |= MLX4_DEV_CAP_FLAG2_FS_A0;
+	} else {
+		dev->caps.dmfs_high_steer_mode = MLX4_STEERING_DMFS_A0_NOT_SUPPORTED;
+		dev->caps.dmfs_high_rate_qpn_base =
+			dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
+		dev->caps.dmfs_high_rate_qpn_range = MLX4_A0_STEERING_TABLE_SIZE;
+	}
+
+	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_RSS_RAW_ETH] =
+		dev->caps.dmfs_high_rate_qpn_range;
 
 	dev->caps.reserved_qps = dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW] +
 		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_ETH_ADDR] +
@@ -466,8 +516,14 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	    mlx4_is_master(dev))
 		dev->caps.function_caps |= MLX4_FUNC_CAP_64B_EQE_CQE;
 
-	if (!mlx4_is_slave(dev))
+	if (!mlx4_is_slave(dev)) {
 		mlx4_enable_cqe_eqe_stride(dev);
+		dev->caps.alloc_res_qp_mask =
+			(dev->caps.bf_reg_size ? MLX4_RESERVE_ETH_BF_QP : 0) |
+			MLX4_RESERVE_A0_QP;
+	} else {
+		dev->caps.alloc_res_qp_mask = 0;
+	}
 
 	return 0;
 }
@@ -718,7 +774,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 
 	if ((func_cap.pf_context_behaviour | PF_CONTEXT_BEHAVIOUR_MASK) !=
 	    PF_CONTEXT_BEHAVIOUR_MASK) {
-		mlx4_err(dev, "Unknown pf context behaviour\n");
+		mlx4_err(dev, "Unknown pf context behaviour %x known flags %x\n",
+			 func_cap.pf_context_behaviour, PF_CONTEXT_BEHAVIOUR_MASK);
 		return -ENOSYS;
 	}
 
@@ -816,6 +873,13 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	mlx4_warn(dev, "Timestamping is not supported in slave mode\n");
 
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
+
+	if (func_cap.extra_flags & MLX4_QUERY_FUNC_FLAGS_BF_RES_QP &&
+	    dev->caps.bf_reg_size)
+		dev->caps.alloc_res_qp_mask |= MLX4_RESERVE_ETH_BF_QP;
+
+	if (func_cap.extra_flags & MLX4_QUERY_FUNC_FLAGS_A0_RES_QP)
+		dev->caps.alloc_res_qp_mask |= MLX4_RESERVE_A0_QP;
 
 	return 0;
 
@@ -1598,10 +1662,46 @@ static int choose_log_fs_mgm_entry_size(int qp_per_entry)
 	return (i <= MLX4_MAX_MGM_LOG_ENTRY_SIZE) ? i : -1;
 }
 
+static const char *dmfs_high_rate_steering_mode_str(int dmfs_high_steer_mode)
+{
+	switch (dmfs_high_steer_mode) {
+	case MLX4_STEERING_DMFS_A0_DEFAULT:
+		return "default performance";
+
+	case MLX4_STEERING_DMFS_A0_DYNAMIC:
+		return "dynamic hybrid mode";
+
+	case MLX4_STEERING_DMFS_A0_STATIC:
+		return "performance optimized for limited rule configuration (static)";
+
+	case MLX4_STEERING_DMFS_A0_DISABLE:
+		return "disabled performance optimized steering";
+
+	case MLX4_STEERING_DMFS_A0_NOT_SUPPORTED:
+		return "performance optimized steering not supported";
+
+	default:
+		return "Unrecognized mode";
+	}
+}
+
+#define MLX4_DMFS_A0_STEERING			(1UL << 2)
+
 static void choose_steering_mode(struct mlx4_dev *dev,
 				 struct mlx4_dev_cap *dev_cap)
 {
-	if (mlx4_log_num_mgm_entry_size == -1 &&
+	if (mlx4_log_num_mgm_entry_size <= 0) {
+		if ((-mlx4_log_num_mgm_entry_size) & MLX4_DMFS_A0_STEERING) {
+			if (dev->caps.dmfs_high_steer_mode ==
+			    MLX4_STEERING_DMFS_A0_NOT_SUPPORTED)
+				mlx4_err(dev, "DMFS high rate mode not supported\n");
+			else
+				dev->caps.dmfs_high_steer_mode =
+					MLX4_STEERING_DMFS_A0_STATIC;
+		}
+	}
+
+	if (mlx4_log_num_mgm_entry_size <= 0 &&
 	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN &&
 	    (!mlx4_is_mfunc(dev) ||
 	     (dev_cap->fs_max_num_qp_per_entry >= (dev->num_vfs + 1))) &&
@@ -1614,6 +1714,9 @@ static void choose_steering_mode(struct mlx4_dev *dev,
 		dev->caps.fs_log_max_ucast_qp_range_size =
 			dev_cap->fs_log_max_ucast_qp_range_size;
 	} else {
+		if (dev->caps.dmfs_high_steer_mode !=
+		    MLX4_STEERING_DMFS_A0_NOT_SUPPORTED)
+			dev->caps.dmfs_high_steer_mode = MLX4_STEERING_DMFS_A0_DISABLE;
 		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER &&
 		    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
 			dev->caps.steering_mode = MLX4_STEERING_MODE_B0;
@@ -1640,13 +1743,43 @@ static void choose_tunnel_offload_mode(struct mlx4_dev *dev,
 				       struct mlx4_dev_cap *dev_cap)
 {
 	if (dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED &&
-	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS)
+	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS &&
+	    dev->caps.dmfs_high_steer_mode != MLX4_STEERING_DMFS_A0_STATIC)
 		dev->caps.tunnel_offload_mode = MLX4_TUNNEL_OFFLOAD_MODE_VXLAN;
 	else
 		dev->caps.tunnel_offload_mode = MLX4_TUNNEL_OFFLOAD_MODE_NONE;
 
 	mlx4_dbg(dev, "Tunneling offload mode is: %s\n",  (dev->caps.tunnel_offload_mode
 		 == MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) ? "vxlan" : "none");
+}
+
+static int mlx4_validate_optimized_steering(struct mlx4_dev *dev)
+{
+	int i;
+	struct mlx4_port_cap port_cap;
+
+	if (dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_NOT_SUPPORTED)
+		return -EINVAL;
+
+	for (i = 1; i <= dev->caps.num_ports; i++) {
+		if (mlx4_dev_port(dev, i, &port_cap)) {
+			mlx4_err(dev,
+				 "QUERY_DEV_CAP command failed, can't veify DMFS high rate steering.\n");
+		} else if ((dev->caps.dmfs_high_steer_mode !=
+			    MLX4_STEERING_DMFS_A0_DEFAULT) &&
+			   (port_cap.dmfs_optimized_state ==
+			    !!(dev->caps.dmfs_high_steer_mode ==
+			    MLX4_STEERING_DMFS_A0_DISABLE))) {
+			mlx4_err(dev,
+				 "DMFS high rate steer mode differ, driver requested %s but %s in FW.\n",
+				 dmfs_high_rate_steering_mode_str(
+					dev->caps.dmfs_high_steer_mode),
+				 (port_cap.dmfs_optimized_state ?
+					"enabled" : "disabled"));
+		}
+	}
+
+	return 0;
 }
 
 static int mlx4_init_fw(struct mlx4_dev *dev)
@@ -1700,6 +1833,10 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 		choose_steering_mode(dev, &dev_cap);
 		choose_tunnel_offload_mode(dev, &dev_cap);
+
+		if (dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC &&
+		    mlx4_is_master(dev))
+			dev->caps.function_caps |= MLX4_FUNC_CAP_DMFS_A0_STATIC;
 
 		err = mlx4_get_phys_port_id(dev);
 		if (err)
@@ -1786,6 +1923,24 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 				dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
 				mlx4_err(dev, "Failed to map internal clock. Timestamping is not supported\n");
 			}
+		}
+
+		if (dev->caps.dmfs_high_steer_mode !=
+		    MLX4_STEERING_DMFS_A0_NOT_SUPPORTED) {
+			if (mlx4_validate_optimized_steering(dev))
+				mlx4_warn(dev, "Optimized steering validation failed\n");
+
+			if (dev->caps.dmfs_high_steer_mode ==
+			    MLX4_STEERING_DMFS_A0_DISABLE) {
+				dev->caps.dmfs_high_rate_qpn_base =
+					dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW];
+				dev->caps.dmfs_high_rate_qpn_range =
+					MLX4_A0_STEERING_TABLE_SIZE;
+			}
+
+			mlx4_dbg(dev, "DMFS high rate steer mode is: %s\n",
+				 dmfs_high_rate_steering_mode_str(
+					dev->caps.dmfs_high_steer_mode));
 		}
 	} else {
 		err = mlx4_init_slave(dev);
@@ -3159,10 +3314,11 @@ static int __init mlx4_verify_params(void)
 		port_type_array[0] = true;
 	}
 
-	if (mlx4_log_num_mgm_entry_size != -1 &&
-	    (mlx4_log_num_mgm_entry_size < MLX4_MIN_MGM_LOG_ENTRY_SIZE ||
-	     mlx4_log_num_mgm_entry_size > MLX4_MAX_MGM_LOG_ENTRY_SIZE)) {
-		pr_warn("mlx4_core: mlx4_log_num_mgm_entry_size (%d) not in legal range (-1 or %d..%d)\n",
+	if (mlx4_log_num_mgm_entry_size < -7 ||
+	    (mlx4_log_num_mgm_entry_size > 0 &&
+	     (mlx4_log_num_mgm_entry_size < MLX4_MIN_MGM_LOG_ENTRY_SIZE ||
+	      mlx4_log_num_mgm_entry_size > MLX4_MAX_MGM_LOG_ENTRY_SIZE))) {
+		pr_warn("mlx4_core: mlx4_log_num_mgm_entry_size (%d) not in legal range (-7..0 or %d..%d)\n",
 			mlx4_log_num_mgm_entry_size,
 			MLX4_MIN_MGM_LOG_ENTRY_SIZE,
 			MLX4_MAX_MGM_LOG_ENTRY_SIZE);

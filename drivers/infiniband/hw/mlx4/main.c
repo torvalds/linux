@@ -2227,7 +2227,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		ibdev->steer_qpn_count = MLX4_IB_UC_MAX_NUM_QPS;
 		err = mlx4_qp_reserve_range(dev, ibdev->steer_qpn_count,
 					    MLX4_IB_UC_STEER_QPN_ALIGN,
-					    &ibdev->steer_qpn_base);
+					    &ibdev->steer_qpn_base, 0);
 		if (err)
 			goto err_counter;
 
