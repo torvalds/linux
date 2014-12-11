@@ -2663,7 +2663,6 @@ void musb_host_cleanup(struct musb *musb)
 	if (musb->port_mode == MUSB_PORT_MODE_GADGET)
 		return;
 	usb_remove_hcd(musb->hcd);
-	musb->hcd = NULL;
 }
 
 void musb_host_free(struct musb *musb)
