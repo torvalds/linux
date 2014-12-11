@@ -95,3 +95,12 @@ define archhelp
   echo  '                  (distribution) /sbin/installkernel or'
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
 endef
+
+kernel.img: Image
+	$(Q)$(srctree)/mkkrnlimg $(objtree)/arch/arm64/boot/Image $(objtree)/kernel.img >/dev/null
+	@echo '  Image:  kernel.img is ready'
+
+LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
+%.img: %.dtb kernel.img $(LOGO)
+	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm64/boot/dts/$*.dtb $(LOGO)
+	@echo '  Image:  resource.img (with $*.dtb $(LOGO)) is ready'
