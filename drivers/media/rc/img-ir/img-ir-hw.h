@@ -138,10 +138,12 @@ struct img_ir_timing_regvals {
  *		RC_TYPE_UNKNOWN).
  * @scancode:	Scan code of received message (must be written by
  *		handler if IMG_IR_SCANCODE is returned).
+ * @toggle:	Toggle bit (defaults to 0).
  */
 struct img_ir_scancode_req {
 	enum rc_type protocol;
 	u32 scancode;
+	u8 toggle;
 };
 
 /**

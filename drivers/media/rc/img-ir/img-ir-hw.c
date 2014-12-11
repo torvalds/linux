@@ -809,6 +809,7 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 	struct img_ir_scancode_req request;
 
 	request.protocol = RC_TYPE_UNKNOWN;
+	request.toggle   = 0;
 
 	if (dec->scancode)
 		ret = dec->scancode(len, raw, hw->enabled_protocols, &request);
@@ -819,9 +820,10 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 	dev_dbg(priv->dev, "data (%u bits) = %#llx\n",
 		len, (unsigned long long)raw);
 	if (ret == IMG_IR_SCANCODE) {
-		dev_dbg(priv->dev, "decoded scan code %#x\n",
-			request.scancode);
-		rc_keydown(hw->rdev, request.protocol, request.scancode, 0);
+		dev_dbg(priv->dev, "decoded scan code %#x, toggle %u\n",
+			request.scancode, request.toggle);
+		rc_keydown(hw->rdev, request.protocol, request.scancode,
+			   request.toggle);
 		img_ir_end_repeat(priv);
 	} else if (ret == IMG_IR_REPEATCODE) {
 		if (hw->mode == IMG_IR_M_REPEATING) {
