@@ -1,0 +1,35 @@
+What:		/sys/bus/greybus/device/.../product
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Product ID of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/.../product_string
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Product ID string of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/.../unique_id
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Unique ID of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/.../vendor
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Vendor ID of a Greybus interface block.
+
+What:		/sys/bus/greybus/device/.../vendor_string
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		Vendor ID string of a Greybus interface block.
+
