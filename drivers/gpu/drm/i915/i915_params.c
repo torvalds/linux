@@ -35,7 +35,7 @@ struct i915_params i915 __read_mostly = {
 	.vbt_sdvo_panel_type = -1,
 	.enable_rc6 = -1,
 	.enable_fbc = -1,
-	.enable_execlists = 0,
+	.enable_execlists = -1,
 	.enable_hangcheck = true,
 	.enable_ppgtt = -1,
 	.enable_psr = 0,
@@ -122,7 +122,7 @@ MODULE_PARM_DESC(enable_ppgtt,
 module_param_named(enable_execlists, i915.enable_execlists, int, 0400);
 MODULE_PARM_DESC(enable_execlists,
 	"Override execlists usage. "
-	"(-1=auto, 0=disabled [default], 1=enabled)");
+	"(-1=auto [default], 0=disabled, 1=enabled)");
 
 module_param_named(enable_psr, i915.enable_psr, int, 0600);
 MODULE_PARM_DESC(enable_psr, "Enable PSR (default: false)");

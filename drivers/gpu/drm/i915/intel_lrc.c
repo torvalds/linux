@@ -212,8 +212,7 @@ static int intel_lr_context_pin(struct intel_engine_cs *ring,
  * @enable_execlists: value of i915.enable_execlists module parameter.
  *
  * Only certain platforms support Execlists (the prerequisites being
- * support for Logical Ring Contexts and Aliasing PPGTT or better),
- * and only when enabled via module parameter.
+ * support for Logical Ring Contexts and Aliasing PPGTT or better).
  *
  * Return: 1 if Execlists is supported and has to be enabled.
  */
