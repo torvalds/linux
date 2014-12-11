@@ -343,7 +343,6 @@ char *get_srcline(struct dso *dso, unsigned long addr, struct symbol *sym,
 		  bool show_sym);
 void free_srcline(char *srcline);
 
-int filename__read_int(const char *filename, int *value);
 int filename__read_str(const char *filename, char **buf, size_t *sizep);
 int perf_event_paranoid(void);
 
