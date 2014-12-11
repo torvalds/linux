@@ -489,6 +489,7 @@ static void ioat3_eh(struct ioat2_dma_chan *ioat)
 	struct ioat_chan_common *chan = &ioat->base;
 	struct pci_dev *pdev = to_pdev(chan);
 	struct ioat_dma_descriptor *hw;
+	struct dma_async_tx_descriptor *tx;
 	u64 phys_complete;
 	struct ioat_ring_ent *desc;
 	u32 err_handled = 0;
@@ -534,6 +535,16 @@ static void ioat3_eh(struct ioat2_dma_chan *ioat)
 		dev_err(to_dev(chan), "%s: fatal error (%x:%x)\n",
 			__func__, chanerr, err_handled);
 		BUG();
+	} else { /* cleanup the faulty descriptor */
+		tx = &desc->txd;
+		if (tx->cookie) {
+			dma_cookie_complete(tx);
+			dma_descriptor_unmap(tx);
+			if (tx->callback) {
+				tx->callback(tx->callback_param);
+				tx->callback = NULL;
+			}
+		}
 	}
 
 	writel(chanerr, chan->reg_base + IOAT_CHANERR_OFFSET);
