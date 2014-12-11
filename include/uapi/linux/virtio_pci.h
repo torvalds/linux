@@ -117,10 +117,11 @@ struct virtio_pci_cap {
 	__u8 cap_vndr;		/* Generic PCI field: PCI_CAP_ID_VNDR */
 	__u8 cap_next;		/* Generic PCI field: next ptr. */
 	__u8 cap_len;		/* Generic PCI field: capability length */
-	__u8 type_and_bar;	/* Upper 3 bits: bar.
-				 * Lower 3 is VIRTIO_PCI_CAP_*_CFG. */
+	__u8 cfg_type;		/* Identifies the structure. */
+	__u8 bar;		/* Where to find it. */
+	__u8 padding[3];	/* Pad to full dword. */
 	__le32 offset;		/* Offset within bar. */
-	__le32 length;		/* Length. */
+	__le32 length;		/* Length of the structure, in bytes. */
 };
 
 #define VIRTIO_PCI_CAP_BAR_SHIFT	5

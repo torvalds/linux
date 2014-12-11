@@ -505,7 +505,9 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	if (rc)
 		goto err_request_regions;
 
-	rc = virtio_pci_legacy_probe(vp_dev);
+	rc = virtio_pci_modern_probe(vp_dev);
+	if (rc == -ENODEV)
+		rc = virtio_pci_legacy_probe(vp_dev);
 	if (rc)
 		goto err_probe;
 
@@ -518,7 +520,10 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	return 0;
 
 err_register:
-	virtio_pci_legacy_remove(vp_dev);
+	if (vp_dev->ioaddr)
+	     virtio_pci_legacy_remove(vp_dev);
+	else
+	     virtio_pci_modern_remove(vp_dev);
 err_probe:
 	pci_release_regions(pci_dev);
 err_request_regions:
@@ -534,7 +539,10 @@ static void virtio_pci_remove(struct pci_dev *pci_dev)
 
 	unregister_virtio_device(&vp_dev->vdev);
 
-	virtio_pci_legacy_remove(pci_dev);
+	if (vp_dev->ioaddr)
+		virtio_pci_legacy_remove(vp_dev);
+	else
+		virtio_pci_modern_remove(vp_dev);
 
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
