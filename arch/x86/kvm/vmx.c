@@ -6143,6 +6143,13 @@ static void nested_vmx_failValid(struct kvm_vcpu *vcpu,
 	 */
 }
 
+static void nested_vmx_abort(struct kvm_vcpu *vcpu, u32 indicator)
+{
+	/* TODO: not to reset guest simply here. */
+	kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
+	pr_warn("kvm: nested vmx abort, indicator %d\n", indicator);
+}
+
 static enum hrtimer_restart vmx_preemption_timer_fn(struct hrtimer *timer)
 {
 	struct vcpu_vmx *vmx =
@@ -8286,6 +8293,67 @@ static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu)
 		      ns_to_ktime(preemption_timeout), HRTIMER_MODE_REL);
 }
 
+static inline int nested_vmx_msr_check_common(struct vmx_msr_entry *e)
+{
+	if (e->index >> 8 == 0x8 || e->reserved != 0)
+		return -EINVAL;
+	return 0;
+}
+
+static inline int nested_vmx_load_msr_check(struct vmx_msr_entry *e)
+{
+	if (e->index == MSR_FS_BASE ||
+	    e->index == MSR_GS_BASE ||
+		nested_vmx_msr_check_common(e))
+		return -EINVAL;
+	return 0;
+}
+
+/*
+ * Load guest's/host's msr at nested entry/exit.
+ * return 0 for success, entry index for failure.
+ */
+static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
+{
+	u32 i;
+	struct vmx_msr_entry e;
+	struct msr_data msr;
+
+	msr.host_initiated = false;
+	for (i = 0; i < count; i++) {
+		kvm_read_guest(vcpu->kvm, gpa + i * sizeof(e), &e, sizeof(e));
+		if (nested_vmx_load_msr_check(&e))
+			goto fail;
+		msr.index = e.index;
+		msr.data = e.value;
+		if (kvm_set_msr(vcpu, &msr))
+			goto fail;
+	}
+	return 0;
+fail:
+	return i + 1;
+}
+
+static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
+{
+	u32 i;
+	struct vmx_msr_entry e;
+
+	for (i = 0; i < count; i++) {
+		kvm_read_guest(vcpu->kvm, gpa + i * sizeof(e),
+				&e, 2 * sizeof(u32));
+		if (nested_vmx_msr_check_common(&e))
+			return -EINVAL;
+		if (kvm_get_msr(vcpu, e.index, &e.value))
+			return -EINVAL;
+		kvm_write_guest(vcpu->kvm,
+				gpa + i * sizeof(e) +
+					offsetof(struct vmx_msr_entry, value),
+				&e.value, sizeof(e.value));
+	}
+	return 0;
+}
+
 /*
  * prepare_vmcs02 is called when the L1 guest hypervisor runs its nested
  * L2 guest. L1 has a vmcs for L2 (vmcs12), and this function "merges" it
@@ -8582,6 +8650,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	int cpu;
 	struct loaded_vmcs *vmcs02;
 	bool ia32e;
+	u32 msr_entry_idx;
 
 	if (!nested_vmx_check_permission(vcpu) ||
 	    !nested_vmx_check_vmcs12(vcpu))
@@ -8625,15 +8694,6 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 
 	if (!nested_get_vmcs12_pages(vcpu, vmcs12)) {
 		/*TODO: Also verify bits beyond physical address width are 0*/
-		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
-		return 1;
-	}
-
-	if (vmcs12->vm_entry_msr_load_count > 0 ||
-	    vmcs12->vm_exit_msr_load_count > 0 ||
-	    vmcs12->vm_exit_msr_store_count > 0) {
-		pr_warn_ratelimited("%s: VMCS MSR_{LOAD,STORE} unsupported\n",
-				    __func__);
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
@@ -8739,9 +8799,20 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 
 	vmx_segment_cache_clear(vmx);
 
-	vmcs12->launch_state = 1;
-
 	prepare_vmcs02(vcpu, vmcs12);
+
+	msr_entry_idx = nested_vmx_load_msr(vcpu,
+					    vmcs12->vm_entry_msr_load_addr,
+					    vmcs12->vm_entry_msr_load_count);
+	if (msr_entry_idx) {
+		leave_guest_mode(vcpu);
+		vmx_load_vmcs01(vcpu);
+		nested_vmx_entry_failure(vcpu, vmcs12,
+				EXIT_REASON_MSR_LOAD_FAIL, msr_entry_idx);
+		return 1;
+	}
+
+	vmcs12->launch_state = 1;
 
 	if (vmcs12->guest_activity_state == GUEST_ACTIVITY_HLT)
 		return kvm_emulate_halt(vcpu);
@@ -9172,6 +9243,10 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 	kvm_set_dr(vcpu, 7, 0x400);
 	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
+
+	if (nested_vmx_load_msr(vcpu, vmcs12->vm_exit_msr_load_addr,
+				vmcs12->vm_exit_msr_load_count))
+		nested_vmx_abort(vcpu, VMX_ABORT_LOAD_HOST_MSR_FAIL);
 }
 
 /*
@@ -9192,6 +9267,10 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	leave_guest_mode(vcpu);
 	prepare_vmcs12(vcpu, vmcs12, exit_reason, exit_intr_info,
 		       exit_qualification);
+
+	if (nested_vmx_store_msr(vcpu, vmcs12->vm_exit_msr_store_addr,
+				 vmcs12->vm_exit_msr_store_count))
+		nested_vmx_abort(vcpu, VMX_ABORT_SAVE_GUEST_MSR_FAIL);
 
 	vmx_load_vmcs01(vcpu);
 
