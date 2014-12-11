@@ -23,13 +23,21 @@
 
 #define atomic_set(v, i) (((v)->counter) = (i))
 
+#ifdef CONFIG_ISA_ARCV2
+#define PREFETCHW	"	prefetchw   [%1]	\n"
+#else
+#define PREFETCHW
+#endif
+
 #define ATOMIC_OP(op, c_op, asm_op)					\
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\
 	unsigned int temp;						\
 									\
 	__asm__ __volatile__(						\
-	"1:	llock   %0, [%1]	\n"				\
+	"1:				\n"				\
+	PREFETCHW							\
+	"	llock   %0, [%1]	\n"				\
 	"	" #asm_op " %0, %0, %2	\n"				\
 	"	scond   %0, [%1]	\n"				\
 	"	bnz     1b		\n"				\
@@ -50,7 +58,9 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	smp_mb();							\
 									\
 	__asm__ __volatile__(						\
-	"1:	llock   %0, [%1]	\n"				\
+	"1:				\n"				\
+	PREFETCHW							\
+	"	llock   %0, [%1]	\n"				\
 	"	" #asm_op " %0, %0, %2	\n"				\
 	"	scond   %0, [%1]	\n"				\
 	"	bnz     1b		\n"				\
