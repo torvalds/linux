@@ -193,7 +193,12 @@ struct mlx5_wqe_ctrl_seg {
 };
 
 #define MLX5_WQE_CTRL_DS_MASK 0x3f
+#define MLX5_WQE_CTRL_QPN_MASK 0xffffff00
+#define MLX5_WQE_CTRL_QPN_SHIFT 8
 #define MLX5_WQE_DS_UNITS 16
+#define MLX5_WQE_CTRL_OPCODE_MASK 0xff
+#define MLX5_WQE_CTRL_WQE_INDEX_MASK 0x00ffff00
+#define MLX5_WQE_CTRL_WQE_INDEX_SHIFT 8
 
 struct mlx5_wqe_xrc_seg {
 	__be32			xrc_srqn;
@@ -297,6 +302,8 @@ struct mlx5_wqe_signature_seg {
 	u8	signature;
 	u8	rsvd1[11];
 };
+
+#define MLX5_WQE_INLINE_SEG_BYTE_COUNT_MASK 0x3ff
 
 struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
