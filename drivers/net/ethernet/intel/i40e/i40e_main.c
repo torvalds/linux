@@ -4533,7 +4533,8 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 				"DCBX offload is supported for this PF.\n");
 		}
 	} else {
-		dev_info(&pf->pdev->dev, "AQ Querying DCB configuration failed: %d\n",
+		dev_info(&pf->pdev->dev,
+			 "AQ Querying DCB configuration failed: aq_err %d\n",
 			 pf->hw.aq.asq_last_status);
 	}
 
@@ -6188,8 +6189,9 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 #ifdef CONFIG_I40E_DCB
 	ret = i40e_init_pf_dcb(pf);
 	if (ret) {
-		dev_info(&pf->pdev->dev, "init_pf_dcb failed: %d\n", ret);
-		goto end_core_reset;
+		dev_info(&pf->pdev->dev, "DCB init failed %d, disabled\n", ret);
+		pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
+		/* Continue without DCB enabled */
 	}
 #endif /* CONFIG_I40E_DCB */
 #ifdef I40E_FCOE
@@ -9269,7 +9271,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_I40E_DCB
 	err = i40e_init_pf_dcb(pf);
 	if (err) {
-		dev_info(&pdev->dev, "init_pf_dcb failed: %d\n", err);
+		dev_info(&pdev->dev, "DCB init failed %d, disabled\n", err);
 		pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
 		/* Continue without DCB enabled */
 	}
