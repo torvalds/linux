@@ -142,6 +142,17 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 {
 	int hscale, vscale;
 
+	if (!fb) {
+		*visible = false;
+		return 0;
+	}
+
+	/* crtc should only be NULL when disabling (i.e., !fb) */
+	if (WARN_ON(!crtc)) {
+		*visible = false;
+		return 0;
+	}
+
 	if (!crtc->enabled && !can_update_disabled) {
 		DRM_DEBUG_KMS("Cannot update plane of a disabled CRTC.\n");
 		return -EINVAL;
@@ -153,11 +164,6 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 	if (hscale < 0 || vscale < 0) {
 		DRM_DEBUG_KMS("Invalid scaling of plane\n");
 		return -ERANGE;
-	}
-
-	if (!fb) {
-		*visible = false;
-		return 0;
 	}
 
 	*visible = drm_rect_clip_scaled(src, dest, clip, hscale, vscale);
