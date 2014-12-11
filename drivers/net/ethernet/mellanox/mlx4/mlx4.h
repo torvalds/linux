@@ -245,6 +245,7 @@ struct mlx4_bitmap {
 	u32                     reserved_top;
 	u32			mask;
 	u32			avail;
+	u32			effective_len;
 	spinlock_t		lock;
 	unsigned long	       *table;
 };
@@ -1344,5 +1345,73 @@ int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave, int port);
 /* Returns the VF index of slave */
 int mlx4_get_vf_indx(struct mlx4_dev *dev, int slave);
 int mlx4_config_mad_demux(struct mlx4_dev *dev);
+
+enum mlx4_zone_flags {
+	MLX4_ZONE_ALLOW_ALLOC_FROM_LOWER_PRIO	= 1UL << 0,
+	MLX4_ZONE_ALLOW_ALLOC_FROM_EQ_PRIO	= 1UL << 1,
+	MLX4_ZONE_FALLBACK_TO_HIGHER_PRIO	= 1UL << 2,
+	MLX4_ZONE_USE_RR			= 1UL << 3,
+};
+
+enum mlx4_zone_alloc_flags {
+	/* No two objects could overlap between zones. UID
+	 * could be left unused. If this flag is given and
+	 * two overlapped zones are used, an object will be free'd
+	 * from the smallest possible matching zone.
+	 */
+	MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP	= 1UL << 0,
+};
+
+struct mlx4_zone_allocator;
+
+/* Create a new zone allocator */
+struct mlx4_zone_allocator *mlx4_zone_allocator_create(enum mlx4_zone_alloc_flags flags);
+
+/* Attach a mlx4_bitmap <bitmap> of priority <priority> to the zone allocator
+ * <zone_alloc>. Allocating an object from this zone adds an offset <offset>.
+ * Similarly, when searching for an object to free, this offset it taken into
+ * account. The use_rr mlx4_ib parameter for allocating objects from this <bitmap>
+ * is given through the MLX4_ZONE_USE_RR flag in <flags>.
+ * When an allocation fails, <zone_alloc> tries to allocate from other zones
+ * according to the policy set by <flags>. <puid> is the unique identifier
+ * received to this zone.
+ */
+int mlx4_zone_add_one(struct mlx4_zone_allocator *zone_alloc,
+		      struct mlx4_bitmap *bitmap,
+		      u32 flags,
+		      int priority,
+		      int offset,
+		      u32 *puid);
+
+/* Remove bitmap indicated by <uid> from <zone_alloc> */
+int mlx4_zone_remove_one(struct mlx4_zone_allocator *zone_alloc, u32 uid);
+
+/* Delete the zone allocator <zone_alloc. This function doesn't destroy
+ * the attached bitmaps.
+ */
+void mlx4_zone_allocator_destroy(struct mlx4_zone_allocator *zone_alloc);
+
+/* Allocate <count> objects with align <align> and skip_mask <skip_mask>
+ * from the mlx4_bitmap whose uid is <uid>. The bitmap which we actually
+ * allocated from is returned in <puid>. If the allocation fails, a negative
+ * number is returned. Otherwise, the offset of the first object is returned.
+ */
+u32 mlx4_zone_alloc_entries(struct mlx4_zone_allocator *zones, u32 uid, int count,
+			    int align, u32 skip_mask, u32 *puid);
+
+/* Free <count> objects, start from <obj> of the uid <uid> from zone_allocator
+ * <zones>.
+ */
+u32 mlx4_zone_free_entries(struct mlx4_zone_allocator *zones,
+			   u32 uid, u32 obj, u32 count);
+
+/* If <zones> was allocated with MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP, instead of
+ * specifying the uid when freeing an object, zone allocator could figure it by
+ * itself. Other parameters are similar to mlx4_zone_free.
+ */
+u32 mlx4_zone_free_entries_unique(struct mlx4_zone_allocator *zones, u32 obj, u32 count);
+
+/* Returns a pointer to mlx4_bitmap that was attached to <zones> with <uid> */
+struct mlx4_bitmap *mlx4_zone_get_bitmap(struct mlx4_zone_allocator *zones, u32 uid);
 
 #endif /* MLX4_H */
