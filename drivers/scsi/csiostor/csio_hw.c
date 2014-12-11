@@ -47,7 +47,6 @@
 #include "csio_lnode.h"
 #include "csio_rnode.h"
 
-int csio_force_master;
 int csio_dbg_level = 0xFEFF;
 unsigned int csio_port_mask = 0xf;
 
@@ -889,7 +888,6 @@ csio_do_hello(struct csio_hw *hw, enum csio_dev_state *state)
 {
 	struct csio_mb	*mbp;
 	int	rv = 0;
-	enum csio_dev_master master;
 	enum fw_retval retval;
 	uint8_t mpfn;
 	char state_str[16];
@@ -904,11 +902,9 @@ csio_do_hello(struct csio_hw *hw, enum csio_dev_state *state)
 		goto out;
 	}
 
-	master = csio_force_master ? CSIO_MASTER_MUST : CSIO_MASTER_MAY;
-
 retry:
 	csio_mb_hello(hw, mbp, CSIO_MB_DEFAULT_TMO, hw->pfn,
-		      hw->pfn, master, NULL);
+		      hw->pfn, CSIO_MASTER_MAY, NULL);
 
 	rv = csio_mb_issue(hw, mbp);
 	if (rv) {

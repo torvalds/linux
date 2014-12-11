@@ -5524,14 +5524,8 @@ static int adap_init0(struct adapter *adap)
 	struct fw_caps_config_cmd caps_cmd;
 	int reset = 1;
 
-	/*
-	 * Contact FW, advertising Master capability (and potentially forcing
-	 * ourselves as the Master PF if our module parameter force_init is
-	 * set).
-	 */
-	ret = t4_fw_hello(adap, adap->mbox, adap->fn,
-			  force_init ? MASTER_MUST : MASTER_MAY,
-			  &state);
+	/* Contact FW, advertising Master capability */
+	ret = t4_fw_hello(adap, adap->mbox, adap->mbox, MASTER_MAY, &state);
 	if (ret < 0) {
 		dev_err(adap->pdev_dev, "could not connect to FW, error %d\n",
 			ret);
@@ -5539,8 +5533,6 @@ static int adap_init0(struct adapter *adap)
 	}
 	if (ret == adap->mbox)
 		adap->flags |= MASTER_PF;
-	if (force_init && state == DEV_STATE_INIT)
-		state = DEV_STATE_UNINIT;
 
 	/*
 	 * If we're the Master PF Driver and the device is uninitialized,
