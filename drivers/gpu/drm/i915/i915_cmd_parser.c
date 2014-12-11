@@ -405,6 +405,7 @@ static const struct drm_i915_cmd_table hsw_blt_ring_cmds[] = {
 #define REG64(addr) (addr), (addr + sizeof(u32))
 
 static const u32 gen7_render_regs[] = {
+	REG64(GPGPU_THREADS_DISPATCHED),
 	REG64(HS_INVOCATION_COUNT),
 	REG64(DS_INVOCATION_COUNT),
 	REG64(IA_VERTICES_COUNT),
@@ -1153,6 +1154,7 @@ int i915_cmd_parser_get_version(void)
 	 *    hardware parsing enabled (so does not allow new use cases).
 	 * 2. Allow access to the MI_PREDICATE_SRC0 and
 	 *    MI_PREDICATE_SRC1 registers.
+	 * 3. Allow access to the GPGPU_THREADS_DISPATCHED register.
 	 */
-	return 2;
+	return 3;
 }
