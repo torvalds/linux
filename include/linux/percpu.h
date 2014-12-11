@@ -5,6 +5,7 @@
 #include <linux/preempt.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
+#include <linux/printk.h>
 #include <linux/pfn.h>
 #include <linux/init.h>
 
@@ -133,5 +134,8 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 #define alloc_percpu(type)						\
 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
 						__alignof__(type))
+
+/* To avoid include hell, as printk can not declare this, we declare it here */
+DECLARE_PER_CPU(printk_func_t, printk_func);
 
 #endif /* __LINUX_PERCPU_H */

@@ -1805,6 +1805,30 @@ asmlinkage int printk_emit(int facility, int level,
 }
 EXPORT_SYMBOL(printk_emit);
 
+int vprintk_default(const char *fmt, va_list args)
+{
+	int r;
+
+#ifdef CONFIG_KGDB_KDB
+	if (unlikely(kdb_trap_printk)) {
+		r = vkdb_printf(fmt, args);
+		return r;
+	}
+#endif
+	r = vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(vprintk_default);
+
+/*
+ * This allows printk to be diverted to another function per cpu.
+ * This is useful for calling printk functions from within NMI
+ * without worrying about race conditions that can lock up the
+ * box.
+ */
+DEFINE_PER_CPU(printk_func_t, printk_func) = vprintk_default;
+
 /**
  * printk - print a kernel message
  * @fmt: format string
@@ -1828,19 +1852,15 @@ EXPORT_SYMBOL(printk_emit);
  */
 asmlinkage __visible int printk(const char *fmt, ...)
 {
+	printk_func_t vprintk_func;
 	va_list args;
 	int r;
 
-#ifdef CONFIG_KGDB_KDB
-	if (unlikely(kdb_trap_printk)) {
-		va_start(args, fmt);
-		r = vkdb_printf(fmt, args);
-		va_end(args);
-		return r;
-	}
-#endif
 	va_start(args, fmt);
-	r = vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
+	preempt_disable();
+	vprintk_func = this_cpu_read(printk_func);
+	r = vprintk_func(fmt, args);
+	preempt_enable();
 	va_end(args);
 
 	return r;
@@ -1873,6 +1893,9 @@ static void call_console_drivers(int level, const char *text, size_t len) {}
 static size_t msg_print_text(const struct printk_log *msg, enum log_flags prev,
 			     bool syslog, char *buf, size_t size) { return 0; }
 static size_t cont_print_text(char *text, size_t size) { return 0; }
+
+/* Still needs to be defined for users */
+DEFINE_PER_CPU(printk_func_t, printk_func);
 
 #endif /* CONFIG_PRINTK */
 

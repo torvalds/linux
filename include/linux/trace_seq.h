@@ -1,7 +1,7 @@
 #ifndef _LINUX_TRACE_SEQ_H
 #define _LINUX_TRACE_SEQ_H
 
-#include <linux/fs.h>
+#include <linux/seq_buf.h>
 
 #include <asm/page.h>
 
@@ -12,17 +12,33 @@
 
 struct trace_seq {
 	unsigned char		buffer[PAGE_SIZE];
-	unsigned int		len;
-	unsigned int		readpos;
+	struct seq_buf		seq;
 	int			full;
 };
 
 static inline void
 trace_seq_init(struct trace_seq *s)
 {
-	s->len = 0;
-	s->readpos = 0;
+	seq_buf_init(&s->seq, s->buffer, PAGE_SIZE);
 	s->full = 0;
+}
+
+/**
+ * trace_seq_used - amount of actual data written to buffer
+ * @s: trace sequence descriptor
+ *
+ * Returns the amount of data written to the buffer.
+ *
+ * IMPORTANT!
+ *
+ * Use this instead of @s->seq.len if you need to pass the amount
+ * of data from the buffer to another buffer (userspace, or what not).
+ * The @s->seq.len on overflow is bigger than the buffer size and
+ * using it can cause access to undefined memory.
+ */
+static inline int trace_seq_used(struct trace_seq *s)
+{
+	return seq_buf_used(&s->seq);
 }
 
 /**
@@ -37,7 +53,7 @@ trace_seq_init(struct trace_seq *s)
 static inline unsigned char *
 trace_seq_buffer_ptr(struct trace_seq *s)
 {
-	return s->buffer + s->len;
+	return s->buffer + seq_buf_used(&s->seq);
 }
 
 /**
@@ -49,7 +65,7 @@ trace_seq_buffer_ptr(struct trace_seq *s)
  */
 static inline bool trace_seq_has_overflowed(struct trace_seq *s)
 {
-	return s->full || s->len > PAGE_SIZE - 1;
+	return s->full || seq_buf_has_overflowed(&s->seq);
 }
 
 /*
