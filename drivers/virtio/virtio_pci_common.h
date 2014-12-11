@@ -128,8 +128,8 @@ const char *vp_bus_name(struct virtio_device *vdev);
 int vp_set_vq_affinity(struct virtqueue *vq, int cpu);
 void virtio_pci_release_dev(struct device *);
 
-#ifdef CONFIG_PM_SLEEP
-extern const struct dev_pm_ops virtio_pci_pm_ops;
-#endif
+int virtio_pci_legacy_probe(struct pci_dev *pci_dev,
+			    const struct pci_device_id *id);
+void virtio_pci_legacy_remove(struct pci_dev *pci_dev);
 
 #endif
