@@ -896,7 +896,18 @@ static int vdc_port_remove(struct vio_dev *vdev)
 	struct vdc_port *port = dev_get_drvdata(&vdev->dev);
 
 	if (port) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&port->vio.lock, flags);
+		blk_stop_queue(port->disk->queue);
+		spin_unlock_irqrestore(&port->vio.lock, flags);
+
 		del_timer_sync(&port->vio.timer);
+
+		del_gendisk(port->disk);
+		blk_cleanup_queue(port->disk->queue);
+		put_disk(port->disk);
+		port->disk = NULL;
 
 		vdc_free_tx_ring(port);
 		vio_ldc_free(&port->vio);
