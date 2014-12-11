@@ -131,5 +131,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 		/* Keep list in LRU order */
 		list_move_tail(&obj->batch_pool_list, &pool->cache_list);
 
+	obj->madv = I915_MADV_WILLNEED;
+
 	return obj;
 }

@@ -37,6 +37,7 @@
 #define  __EXEC_OBJECT_HAS_FENCE (1<<30)
 #define  __EXEC_OBJECT_NEEDS_MAP (1<<29)
 #define  __EXEC_OBJECT_NEEDS_BIAS (1<<28)
+#define  __EXEC_OBJECT_PURGEABLE (1<<27)
 
 #define BATCH_OFFSET_BIAS (256*1024)
 
@@ -226,7 +227,12 @@ i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 		vma->pin_count--;
 
-	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
+	if (entry->flags & __EXEC_OBJECT_PURGEABLE)
+		obj->madv = I915_MADV_DONTNEED;
+
+	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE |
+			  __EXEC_OBJECT_HAS_PIN |
+			  __EXEC_OBJECT_PURGEABLE);
 }
 
 static void eb_destroy(struct eb_vmas *eb)
@@ -1436,6 +1442,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 			vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
 			vma->exec_entry = &shadow_exec_entry;
+			vma->exec_entry->flags = __EXEC_OBJECT_PURGEABLE;
 			drm_gem_object_reference(&shadow_batch_obj->base);
 			list_add_tail(&vma->exec_list, &eb->vmas);
 
