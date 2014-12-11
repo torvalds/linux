@@ -38,7 +38,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <linux/swapops.h>
-#include <linux/page_cgroup.h>
+#include <linux/swap_cgroup.h>
 
 static bool swap_count_continued(struct swap_info_struct *, pgoff_t,
 				 unsigned char);

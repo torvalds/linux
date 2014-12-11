@@ -267,18 +267,24 @@ comment "Default contiguous memory area size:"
 config CMA_SIZE_MBYTES
 	int "Size in Mega Bytes"
 	depends on !CMA_SIZE_SEL_PERCENTAGE
+	default 0 if X86
 	default 16
 	help
 	  Defines the size (in MiB) of the default memory area for Contiguous
-	  Memory Allocator.
+	  Memory Allocator.  If the size of 0 is selected, CMA is disabled by
+	  default, but it can be enabled by passing cma=size[MG] to the kernel.
+
 
 config CMA_SIZE_PERCENTAGE
 	int "Percentage of total memory"
 	depends on !CMA_SIZE_SEL_MBYTES
+	default 0 if X86
 	default 10
 	help
 	  Defines the size of the default memory area for Contiguous Memory
 	  Allocator as a percentage of the total memory in the system.
+	  If 0 percent is selected, CMA is disabled by default, but it can be
+	  enabled by passing cma=size[MG] to the kernel.
 
 choice
 	prompt "Selected region size"

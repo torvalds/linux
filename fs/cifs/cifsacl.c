@@ -38,7 +38,7 @@ static const struct cifs_sid sid_everyone = {
 	1, 1, {0, 0, 0, 0, 0, 1}, {0} };
 /* security id for Authenticated Users system group */
 static const struct cifs_sid sid_authusers = {
-	1, 1, {0, 0, 0, 0, 0, 5}, {__constant_cpu_to_le32(11)} };
+	1, 1, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(11)} };
 /* group users */
 static const struct cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {} };
 

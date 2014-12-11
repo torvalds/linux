@@ -33,10 +33,11 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *mask,
 			enum migrate_mode mode, int *contended,
-			struct zone **candidate_zone);
+			int alloc_flags, int classzone_idx);
 extern void compact_pgdat(pg_data_t *pgdat, int order);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
-extern unsigned long compaction_suitable(struct zone *zone, int order);
+extern unsigned long compaction_suitable(struct zone *zone, int order,
+					int alloc_flags, int classzone_idx);
 
 /* Do not skip compaction more than 64 times */
 #define COMPACT_MAX_DEFER_SHIFT 6
@@ -103,7 +104,7 @@ static inline bool compaction_restarting(struct zone *zone, int order)
 static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
 			enum migrate_mode mode, int *contended,
-			struct zone **candidate_zone)
+			int alloc_flags, int classzone_idx)
 {
 	return COMPACT_CONTINUE;
 }
@@ -116,7 +117,8 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
 {
 }
 
-static inline unsigned long compaction_suitable(struct zone *zone, int order)
+static inline unsigned long compaction_suitable(struct zone *zone, int order,
+					int alloc_flags, int classzone_idx)
 {
 	return COMPACT_SKIPPED;
 }

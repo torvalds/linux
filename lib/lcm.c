@@ -7,10 +7,8 @@
 unsigned long lcm(unsigned long a, unsigned long b)
 {
 	if (a && b)
-		return (a * b) / gcd(a, b);
-	else if (b)
-		return b;
-
-	return a;
+		return (a / gcd(a, b)) * b;
+	else
+		return 0;
 }
 EXPORT_SYMBOL_GPL(lcm);

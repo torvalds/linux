@@ -144,6 +144,12 @@ enum ocfs2_unlock_action {
 						     * before the upconvert
 						     * has completed */
 
+#define OCFS2_LOCK_NONBLOCK_FINISHED (0x00001000) /* NONBLOCK cluster
+						   * lock has already
+						   * returned, do not block
+						   * dc thread from
+						   * downconverting */
+
 struct ocfs2_lock_res_ops;
 
 typedef void (*ocfs2_lock_callback)(int status, unsigned long data);

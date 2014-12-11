@@ -25,7 +25,6 @@
 #include <linux/jump_label.h>
 
 struct mem_cgroup;
-struct page_cgroup;
 struct page;
 struct mm_struct;
 struct kmem_cache;
@@ -68,10 +67,9 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
 struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
 struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
 
-bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-				  struct mem_cgroup *memcg);
-bool task_in_mem_cgroup(struct task_struct *task,
-			const struct mem_cgroup *memcg);
+bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
+			      struct mem_cgroup *root);
+bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
 
 extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
 extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
@@ -79,15 +77,16 @@ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
 extern struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css);
 
-static inline
-bool mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *memcg)
+static inline bool mm_match_cgroup(struct mm_struct *mm,
+				   struct mem_cgroup *memcg)
 {
 	struct mem_cgroup *task_memcg;
-	bool match;
+	bool match = false;
 
 	rcu_read_lock();
 	task_memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-	match = __mem_cgroup_same_or_subtree(memcg, task_memcg);
+	if (task_memcg)
+		match = mem_cgroup_is_descendant(task_memcg, memcg);
 	rcu_read_unlock();
 	return match;
 }
@@ -141,8 +140,8 @@ static inline bool mem_cgroup_disabled(void)
 
 struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page, bool *locked,
 					      unsigned long *flags);
-void mem_cgroup_end_page_stat(struct mem_cgroup *memcg, bool locked,
-			      unsigned long flags);
+void mem_cgroup_end_page_stat(struct mem_cgroup *memcg, bool *locked,
+			      unsigned long *flags);
 void mem_cgroup_update_page_stat(struct mem_cgroup *memcg,
 				 enum mem_cgroup_stat_index idx, int val);
 
@@ -174,10 +173,6 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
 void mem_cgroup_split_huge_fixup(struct page *head);
 #endif
 
-#ifdef CONFIG_DEBUG_VM
-bool mem_cgroup_bad_page_check(struct page *page);
-void mem_cgroup_print_bad_page(struct page *page);
-#endif
 #else /* CONFIG_MEMCG */
 struct mem_cgroup;
 
@@ -297,7 +292,7 @@ static inline struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
 }
 
 static inline void mem_cgroup_end_page_stat(struct mem_cgroup *memcg,
-					bool locked, unsigned long flags)
+					bool *locked, unsigned long *flags)
 {
 }
 
@@ -346,19 +341,6 @@ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
 {
 }
 #endif /* CONFIG_MEMCG */
-
-#if !defined(CONFIG_MEMCG) || !defined(CONFIG_DEBUG_VM)
-static inline bool
-mem_cgroup_bad_page_check(struct page *page)
-{
-	return false;
-}
-
-static inline void
-mem_cgroup_print_bad_page(struct page *page)
-{
-}
-#endif
 
 enum {
 	UNDER_LIMIT,
@@ -447,9 +429,8 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
 	/*
 	 * __GFP_NOFAIL allocations will move on even if charging is not
 	 * possible. Therefore we don't even try, and have this allocation
-	 * unaccounted. We could in theory charge it with
-	 * res_counter_charge_nofail, but we hope those allocations are rare,
-	 * and won't be worth the trouble.
+	 * unaccounted. We could in theory charge it forcibly, but we hope
+	 * those allocations are rare, and won't be worth the trouble.
 	 */
 	if (gfp & __GFP_NOFAIL)
 		return true;
@@ -467,8 +448,6 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
  * memcg_kmem_uncharge_pages: uncharge pages from memcg
  * @page: pointer to struct page being freed
  * @order: allocation order.
- *
- * there is no need to specify memcg here, since it is embedded in page_cgroup
  */
 static inline void
 memcg_kmem_uncharge_pages(struct page *page, int order)
@@ -485,8 +464,7 @@ memcg_kmem_uncharge_pages(struct page *page, int order)
  *
  * Needs to be called after memcg_kmem_newpage_charge, regardless of success or
  * failure of the allocation. if @page is NULL, this function will revert the
- * charges. Otherwise, it will commit the memcg given by @memcg to the
- * corresponding page_cgroup.
+ * charges. Otherwise, it will commit @page to @memcg.
  */
 static inline void
 memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)

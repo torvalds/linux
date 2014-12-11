@@ -427,6 +427,7 @@ extern int panic_timeout;
 extern int panic_on_oops;
 extern int panic_on_unrecovered_nmi;
 extern int panic_on_io_nmi;
+extern int panic_on_warn;
 extern int sysctl_panic_on_stackoverflow;
 /*
  * Only to be used by arch init code. If the user over-wrote the default

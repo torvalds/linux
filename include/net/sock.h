@@ -54,8 +54,8 @@
 #include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/page_counter.h>
 #include <linux/memcontrol.h>
-#include <linux/res_counter.h>
 #include <linux/static_key.h>
 #include <linux/aio.h>
 #include <linux/sched.h>
@@ -1062,7 +1062,7 @@ enum cg_proto_flags {
 };
 
 struct cg_proto {
-	struct res_counter	memory_allocated;	/* Current allocated memory. */
+	struct page_counter	memory_allocated;	/* Current allocated memory. */
 	struct percpu_counter	sockets_allocated;	/* Current number of sockets. */
 	int			memory_pressure;
 	long			sysctl_mem[3];
@@ -1214,34 +1214,26 @@ static inline void memcg_memory_allocated_add(struct cg_proto *prot,
 					      unsigned long amt,
 					      int *parent_status)
 {
-	struct res_counter *fail;
-	int ret;
+	page_counter_charge(&prot->memory_allocated, amt);
 
-	ret = res_counter_charge_nofail(&prot->memory_allocated,
-					amt << PAGE_SHIFT, &fail);
-	if (ret < 0)
+	if (page_counter_read(&prot->memory_allocated) >
+	    prot->memory_allocated.limit)
 		*parent_status = OVER_LIMIT;
 }
 
 static inline void memcg_memory_allocated_sub(struct cg_proto *prot,
 					      unsigned long amt)
 {
-	res_counter_uncharge(&prot->memory_allocated, amt << PAGE_SHIFT);
-}
-
-static inline u64 memcg_memory_allocated_read(struct cg_proto *prot)
-{
-	u64 ret;
-	ret = res_counter_read_u64(&prot->memory_allocated, RES_USAGE);
-	return ret >> PAGE_SHIFT;
+	page_counter_uncharge(&prot->memory_allocated, amt);
 }
 
 static inline long
 sk_memory_allocated(const struct sock *sk)
 {
 	struct proto *prot = sk->sk_prot;
+
 	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
-		return memcg_memory_allocated_read(sk->sk_cgrp);
+		return page_counter_read(&sk->sk_cgrp->memory_allocated);
 
 	return atomic_long_read(prot->memory_allocated);
 }
@@ -1255,7 +1247,7 @@ sk_memory_allocated_add(struct sock *sk, int amt, int *parent_status)
 		memcg_memory_allocated_add(sk->sk_cgrp, amt, parent_status);
 		/* update the root cgroup regardless */
 		atomic_long_add_return(amt, prot->memory_allocated);
-		return memcg_memory_allocated_read(sk->sk_cgrp);
+		return page_counter_read(&sk->sk_cgrp->memory_allocated);
 	}
 
 	return atomic_long_add_return(amt, prot->memory_allocated);

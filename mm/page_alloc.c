@@ -48,7 +48,6 @@
 #include <linux/backing-dev.h>
 #include <linux/fault-inject.h>
 #include <linux/page-isolation.h>
-#include <linux/page_cgroup.h>
 #include <linux/debugobjects.h>
 #include <linux/kmemleak.h>
 #include <linux/compaction.h>
@@ -641,8 +640,10 @@ static inline int free_pages_check(struct page *page)
 		bad_reason = "PAGE_FLAGS_CHECK_AT_FREE flag(s) set";
 		bad_flags = PAGE_FLAGS_CHECK_AT_FREE;
 	}
-	if (unlikely(mem_cgroup_bad_page_check(page)))
-		bad_reason = "cgroup check failed";
+#ifdef CONFIG_MEMCG
+	if (unlikely(page->mem_cgroup))
+		bad_reason = "page still charged to cgroup";
+#endif
 	if (unlikely(bad_reason)) {
 		bad_page(page, bad_reason, bad_flags);
 		return 1;
@@ -740,6 +741,9 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 {
 	int i;
 	int bad = 0;
+
+	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM_BUG_ON_PAGE(PageHead(page) && compound_order(page) != order, page);
 
 	trace_mm_page_free(page, order);
 	kmemcheck_free_shadow(page, order);
@@ -898,8 +902,10 @@ static inline int check_new_page(struct page *page)
 		bad_reason = "PAGE_FLAGS_CHECK_AT_PREP flag set";
 		bad_flags = PAGE_FLAGS_CHECK_AT_PREP;
 	}
-	if (unlikely(mem_cgroup_bad_page_check(page)))
-		bad_reason = "cgroup check failed";
+#ifdef CONFIG_MEMCG
+	if (unlikely(page->mem_cgroup))
+		bad_reason = "page still charged to cgroup";
+#endif
 	if (unlikely(bad_reason)) {
 		bad_page(page, bad_reason, bad_flags);
 		return 1;
@@ -1267,7 +1273,31 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
 #endif
 
 /*
- * Drain pages of the indicated processor.
+ * Drain pcplists of the indicated processor and zone.
+ *
+ * The processor must either be the current processor and the
+ * thread pinned to the current processor or a processor that
+ * is not online.
+ */
+static void drain_pages_zone(unsigned int cpu, struct zone *zone)
+{
+	unsigned long flags;
+	struct per_cpu_pageset *pset;
+	struct per_cpu_pages *pcp;
+
+	local_irq_save(flags);
+	pset = per_cpu_ptr(zone->pageset, cpu);
+
+	pcp = &pset->pcp;
+	if (pcp->count) {
+		free_pcppages_bulk(zone, pcp->count, pcp);
+		pcp->count = 0;
+	}
+	local_irq_restore(flags);
+}
+
+/*
+ * Drain pcplists of all zones on the indicated processor.
  *
  * The processor must either be the current processor and the
  * thread pinned to the current processor or a processor that
@@ -1275,35 +1305,33 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
  */
 static void drain_pages(unsigned int cpu)
 {
-	unsigned long flags;
 	struct zone *zone;
 
 	for_each_populated_zone(zone) {
-		struct per_cpu_pageset *pset;
-		struct per_cpu_pages *pcp;
-
-		local_irq_save(flags);
-		pset = per_cpu_ptr(zone->pageset, cpu);
-
-		pcp = &pset->pcp;
-		if (pcp->count) {
-			free_pcppages_bulk(zone, pcp->count, pcp);
-			pcp->count = 0;
-		}
-		local_irq_restore(flags);
+		drain_pages_zone(cpu, zone);
 	}
 }
 
 /*
  * Spill all of this CPU's per-cpu pages back into the buddy allocator.
+ *
+ * The CPU has to be pinned. When zone parameter is non-NULL, spill just
+ * the single zone's pages.
  */
-void drain_local_pages(void *arg)
+void drain_local_pages(struct zone *zone)
 {
-	drain_pages(smp_processor_id());
+	int cpu = smp_processor_id();
+
+	if (zone)
+		drain_pages_zone(cpu, zone);
+	else
+		drain_pages(cpu);
 }
 
 /*
  * Spill all the per-cpu pages from all CPUs back into the buddy allocator.
+ *
+ * When zone parameter is non-NULL, spill just the single zone's pages.
  *
  * Note that this code is protected against sending an IPI to an offline
  * CPU but does not guarantee sending an IPI to newly hotplugged CPUs:
@@ -1311,11 +1339,9 @@ void drain_local_pages(void *arg)
  * nothing keeps CPUs from showing up after we populated the cpumask and
  * before the call to on_each_cpu_mask().
  */
-void drain_all_pages(void)
+void drain_all_pages(struct zone *zone)
 {
 	int cpu;
-	struct per_cpu_pageset *pcp;
-	struct zone *zone;
 
 	/*
 	 * Allocate in the BSS so we wont require allocation in
@@ -1330,20 +1356,31 @@ void drain_all_pages(void)
 	 * disables preemption as part of its processing
 	 */
 	for_each_online_cpu(cpu) {
+		struct per_cpu_pageset *pcp;
+		struct zone *z;
 		bool has_pcps = false;
-		for_each_populated_zone(zone) {
+
+		if (zone) {
 			pcp = per_cpu_ptr(zone->pageset, cpu);
-			if (pcp->pcp.count) {
+			if (pcp->pcp.count)
 				has_pcps = true;
-				break;
+		} else {
+			for_each_populated_zone(z) {
+				pcp = per_cpu_ptr(z->pageset, cpu);
+				if (pcp->pcp.count) {
+					has_pcps = true;
+					break;
+				}
 			}
 		}
+
 		if (has_pcps)
 			cpumask_set_cpu(cpu, &cpus_with_pcps);
 		else
 			cpumask_clear_cpu(cpu, &cpus_with_pcps);
 	}
-	on_each_cpu_mask(&cpus_with_pcps, drain_local_pages, NULL, 1);
+	on_each_cpu_mask(&cpus_with_pcps, (smp_call_func_t) drain_local_pages,
+								zone, 1);
 }
 
 #ifdef CONFIG_HIBERNATION
@@ -1705,7 +1742,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
 			unsigned long mark, int classzone_idx, int alloc_flags,
 			long free_pages)
 {
-	/* free_pages my go negative - that's OK */
+	/* free_pages may go negative - that's OK */
 	long min = mark;
 	int o;
 	long free_cma = 0;
@@ -2296,7 +2333,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	int classzone_idx, int migratetype, enum migrate_mode mode,
 	int *contended_compaction, bool *deferred_compaction)
 {
-	struct zone *last_compact_zone = NULL;
 	unsigned long compact_result;
 	struct page *page;
 
@@ -2307,7 +2343,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	compact_result = try_to_compact_pages(zonelist, order, gfp_mask,
 						nodemask, mode,
 						contended_compaction,
-						&last_compact_zone);
+						alloc_flags, classzone_idx);
 	current->flags &= ~PF_MEMALLOC;
 
 	switch (compact_result) {
@@ -2326,10 +2362,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	 */
 	count_vm_event(COMPACTSTALL);
 
-	/* Page migration frees to the PCP lists but we want merging */
-	drain_pages(get_cpu());
-	put_cpu();
-
 	page = get_page_from_freelist(gfp_mask, nodemask,
 			order, zonelist, high_zoneidx,
 			alloc_flags & ~ALLOC_NO_WATERMARKS,
@@ -2343,14 +2375,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 		count_vm_event(COMPACTSUCCESS);
 		return page;
 	}
-
-	/*
-	 * last_compact_zone is where try_to_compact_pages thought allocation
-	 * should succeed, so it did not defer compaction. But here we know
-	 * that it didn't succeed, so we do the defer.
-	 */
-	if (last_compact_zone && mode != MIGRATE_ASYNC)
-		defer_compaction(last_compact_zone, order);
 
 	/*
 	 * It's bad if compaction run occurs and fails. The most likely reason
@@ -2433,7 +2457,7 @@ retry:
 	 * pages are pinned on the per-cpu lists. Drain them and try again
 	 */
 	if (!page && !drained) {
-		drain_all_pages();
+		drain_all_pages(NULL);
 		drained = true;
 		goto retry;
 	}
@@ -3893,14 +3917,14 @@ void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
 	else
 		page_group_by_mobility_disabled = 0;
 
-	printk("Built %i zonelists in %s order, mobility grouping %s.  "
+	pr_info("Built %i zonelists in %s order, mobility grouping %s.  "
 		"Total pages: %ld\n",
 			nr_online_nodes,
 			zonelist_order_name[current_zonelist_order],
 			page_group_by_mobility_disabled ? "off" : "on",
 			vm_total_pages);
 #ifdef CONFIG_NUMA
-	printk("Policy zone: %s\n", zone_names[policy_zone]);
+	pr_info("Policy zone: %s\n", zone_names[policy_zone]);
 #endif
 }
 
@@ -4832,7 +4856,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 #endif
 	init_waitqueue_head(&pgdat->kswapd_wait);
 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
-	pgdat_page_cgroup_init(pgdat);
 
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
@@ -5334,33 +5357,33 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	find_zone_movable_pfns_for_nodes();
 
 	/* Print out the zone ranges */
-	printk("Zone ranges:\n");
+	pr_info("Zone ranges:\n");
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		if (i == ZONE_MOVABLE)
 			continue;
-		printk(KERN_CONT "  %-8s ", zone_names[i]);
+		pr_info("  %-8s ", zone_names[i]);
 		if (arch_zone_lowest_possible_pfn[i] ==
 				arch_zone_highest_possible_pfn[i])
-			printk(KERN_CONT "empty\n");
+			pr_cont("empty\n");
 		else
-			printk(KERN_CONT "[mem %0#10lx-%0#10lx]\n",
+			pr_cont("[mem %0#10lx-%0#10lx]\n",
 				arch_zone_lowest_possible_pfn[i] << PAGE_SHIFT,
 				(arch_zone_highest_possible_pfn[i]
 					<< PAGE_SHIFT) - 1);
 	}
 
 	/* Print out the PFNs ZONE_MOVABLE begins at in each node */
-	printk("Movable zone start for each node\n");
+	pr_info("Movable zone start for each node\n");
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		if (zone_movable_pfn[i])
-			printk("  Node %d: %#010lx\n", i,
+			pr_info("  Node %d: %#010lx\n", i,
 			       zone_movable_pfn[i] << PAGE_SHIFT);
 	}
 
 	/* Print out the early node map */
-	printk("Early memory node ranges\n");
+	pr_info("Early memory node ranges\n");
 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
-		printk("  node %3d: [mem %#010lx-%#010lx]\n", nid,
+		pr_info("  node %3d: [mem %#010lx-%#010lx]\n", nid,
 		       start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
 
 	/* Initialise every node */
@@ -5496,7 +5519,7 @@ void __init mem_init_print_info(const char *str)
 
 #undef	adj_init_size
 
-	printk("Memory: %luK/%luK available "
+	pr_info("Memory: %luK/%luK available "
 	       "(%luK kernel code, %luK rwdata, %luK rodata, "
 	       "%luK init, %luK bss, %luK reserved"
 #ifdef	CONFIG_HIGHMEM
@@ -6385,7 +6408,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 	 */
 
 	lru_add_drain_all();
-	drain_all_pages();
+	drain_all_pages(cc.zone);
 
 	order = 0;
 	outer_start = start;

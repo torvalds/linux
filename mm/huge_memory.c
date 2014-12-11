@@ -784,7 +784,6 @@ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
 	if (!pmd_none(*pmd))
 		return false;
 	entry = mk_pmd(zero_page, vma->vm_page_prot);
-	entry = pmd_wrprotect(entry);
 	entry = pmd_mkhuge(entry);
 	pgtable_trans_huge_deposit(mm, pmd, pgtable);
 	set_pmd_at(mm, haddr, pmd, entry);

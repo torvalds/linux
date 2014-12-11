@@ -311,7 +311,8 @@ static inline struct hstate *hstate_sizelog(int page_size_log)
 {
 	if (!page_size_log)
 		return &default_hstate;
-	return size_to_hstate(1 << page_size_log);
+
+	return size_to_hstate(1UL << page_size_log);
 }
 
 static inline struct hstate *hstate_vma(struct vm_area_struct *vma)

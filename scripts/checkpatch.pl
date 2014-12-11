@@ -7,10 +7,11 @@
 
 use strict;
 use POSIX;
+use File::Basename;
+use Cwd 'abs_path';
 
 my $P = $0;
-$P =~ s@(.*)/@@g;
-my $D = $1;
+my $D = dirname(abs_path($P));
 
 my $V = '0.32';
 
@@ -438,26 +439,29 @@ our $allowed_asm_includes = qr{(?x:
 
 # Load common spelling mistakes and build regular expression list.
 my $misspellings;
-my @spelling_list;
 my %spelling_fix;
-open(my $spelling, '<', $spelling_file)
-    or die "$P: Can't open $spelling_file for reading: $!\n";
-while (<$spelling>) {
-	my $line = $_;
 
-	$line =~ s/\s*\n?$//g;
-	$line =~ s/^\s*//g;
+if (open(my $spelling, '<', $spelling_file)) {
+	my @spelling_list;
+	while (<$spelling>) {
+		my $line = $_;
 
-	next if ($line =~ m/^\s*#/);
-	next if ($line =~ m/^\s*$/);
+		$line =~ s/\s*\n?$//g;
+		$line =~ s/^\s*//g;
 
-	my ($suspect, $fix) = split(/\|\|/, $line);
+		next if ($line =~ m/^\s*#/);
+		next if ($line =~ m/^\s*$/);
 
-	push(@spelling_list, $suspect);
-	$spelling_fix{$suspect} = $fix;
+		my ($suspect, $fix) = split(/\|\|/, $line);
+
+		push(@spelling_list, $suspect);
+		$spelling_fix{$suspect} = $fix;
+	}
+	close($spelling);
+	$misspellings = join("|", @spelling_list);
+} else {
+	warn "No typos will be found - file '$spelling_file': $!\n";
 }
-close($spelling);
-$misspellings = join("|", @spelling_list);
 
 sub build_types {
 	my $mods = "(?x:  \n" . join("|\n  ", @modifierList) . "\n)";
@@ -942,7 +946,7 @@ sub sanitise_line {
 sub get_quoted_string {
 	my ($line, $rawline) = @_;
 
-	return "" if ($line !~ m/(\"[X]+\")/g);
+	return "" if ($line !~ m/(\"[X\t]+\")/g);
 	return substr($rawline, $-[0], $+[0] - $-[0]);
 }
 
@@ -1843,6 +1847,7 @@ sub process {
 	my $non_utf8_charset = 0;
 
 	my $last_blank_line = 0;
+	my $last_coalesced_string_linenr = -1;
 
 	our @report = ();
 	our $cnt_lines = 0;
@@ -2078,6 +2083,12 @@ sub process {
 			$in_commit_log = 0;
 		}
 
+# Check if MAINTAINERS is being updated.  If so, there's probably no need to
+# emit the "does MAINTAINERS need updating?" message on file add/move/delete
+		if ($line =~ /^\s*MAINTAINERS\s*\|/) {
+			$reported_maintainer_file = 1;
+		}
+
 # Check signature styles
 		if (!$in_header_lines &&
 		    $line =~ /^(\s*)([a-z0-9_-]+by:|$signature_tags)(\s*)(.*)/i) {
@@ -2246,7 +2257,7 @@ sub process {
 		}
 
 # Check for various typo / spelling mistakes
-		if ($in_commit_log || $line =~ /^\+/) {
+		if (defined($misspellings) && ($in_commit_log || $line =~ /^\+/)) {
 			while ($rawline =~ /(?:^|[^a-z@])($misspellings)(?:$|[^a-z@])/gi) {
 				my $typo = $1;
 				my $typo_fix = $spelling_fix{lc($typo)};
@@ -2403,33 +2414,6 @@ sub process {
 			     "line over $max_line_length characters\n" . $herecurr);
 		}
 
-# Check for user-visible strings broken across lines, which breaks the ability
-# to grep for the string.  Make exceptions when the previous string ends in a
-# newline (multiple lines in one string constant) or '\t', '\r', ';', or '{'
-# (common in inline assembly) or is a octal \123 or hexadecimal \xaf value
-		if ($line =~ /^\+\s*"/ &&
-		    $prevline =~ /"\s*$/ &&
-		    $prevrawline !~ /(?:\\(?:[ntr]|[0-7]{1,3}|x[0-9a-fA-F]{1,2})|;\s*|\{\s*)"\s*$/) {
-			WARN("SPLIT_STRING",
-			     "quoted string split across lines\n" . $hereprev);
-		}
-
-# check for missing a space in a string concatination
-		if ($prevrawline =~ /[^\\]\w"$/ && $rawline =~ /^\+[\t ]+"\w/) {
-			WARN('MISSING_SPACE',
-			     "break quoted strings at a space character\n" . $hereprev);
-		}
-
-# check for spaces before a quoted newline
-		if ($rawline =~ /^.*\".*\s\\n/) {
-			if (WARN("QUOTED_WHITESPACE_BEFORE_NEWLINE",
-				 "unnecessary whitespace before a quoted newline\n" . $herecurr) &&
-			    $fix) {
-				$fixed[$fixlinenr] =~ s/^(\+.*\".*)\s+\\n/$1\\n/;
-			}
-
-		}
-
 # check for adding lines without a newline.
 		if ($line =~ /^\+/ && defined $lines[$linenr] && $lines[$linenr] =~ /^\\ No newline at end of file/) {
 			WARN("MISSING_EOF_NEWLINE",
@@ -2515,7 +2499,8 @@ sub process {
 			}
 		}
 
-		if ($line =~ /^\+.*\(\s*$Type\s*\)[ \t]+(?!$Assignment|$Arithmetic|{)/) {
+		if ($line =~ /^\+.*(\w+\s*)?\(\s*$Type\s*\)[ \t]+(?!$Assignment|$Arithmetic|[,;\({\[\<\>])/ &&
+		    (!defined($1) || $1 !~ /sizeof\s*/)) {
 			if (CHK("SPACING",
 				"No space is necessary after a cast\n" . $herecurr) &&
 			    $fix) {
@@ -3563,14 +3548,33 @@ sub process {
 						}
 					}
 
-				# , must have a space on the right.
+				# , must not have a space before and must have a space on the right.
 				} elsif ($op eq ',') {
+					my $rtrim_before = 0;
+					my $space_after = 0;
+					if ($ctx =~ /Wx./) {
+						if (ERROR("SPACING",
+							  "space prohibited before that '$op' $at\n" . $hereptr)) {
+							$line_fixed = 1;
+							$rtrim_before = 1;
+						}
+					}
 					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/) {
 						if (ERROR("SPACING",
 							  "space required after that '$op' $at\n" . $hereptr)) {
-							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]) . " ";
 							$line_fixed = 1;
 							$last_after = $n;
+							$space_after = 1;
+						}
+					}
+					if ($rtrim_before || $space_after) {
+						if ($rtrim_before) {
+							$good = rtrim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
+						} else {
+							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]);
+						}
+						if ($space_after) {
+							$good .= " ";
 						}
 					}
 
@@ -3814,9 +3818,27 @@ sub process {
 # ie: &(foo->bar) should be &foo->bar and *(foo->bar) should be *foo->bar
 
 		while ($line =~ /(?:[^&]&\s*|\*)\(\s*($Ident\s*(?:$Member\s*)+)\s*\)/g) {
-			CHK("UNNECESSARY_PARENTHESES",
-			    "Unnecessary parentheses around $1\n" . $herecurr);
-		    }
+			my $var = $1;
+			if (CHK("UNNECESSARY_PARENTHESES",
+				"Unnecessary parentheses around $var\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\(\s*\Q$var\E\s*\)/$var/;
+			}
+		}
+
+# check for unnecessary parentheses around function pointer uses
+# ie: (foo->bar)(); should be foo->bar();
+# but not "if (foo->bar) (" to avoid some false positives
+		if ($line =~ /(\bif\s*|)(\(\s*$Ident\s*(?:$Member\s*)+\))[ \t]*\(/ && $1 !~ /^if/) {
+			my $var = $2;
+			if (CHK("UNNECESSARY_PARENTHESES",
+				"Unnecessary parentheses around function pointer $var\n" . $herecurr) &&
+			    $fix) {
+				my $var2 = deparenthesize($var);
+				$var2 =~ s/\s//g;
+				$fixed[$fixlinenr] =~ s/\Q$var\E/$var2/;
+			}
+		}
 
 #goto labels aren't indented, allow a single space however
 		if ($line=~/^.\s+[A-Za-z\d_]+:(?![0-9]+)/ and
@@ -4056,7 +4078,9 @@ sub process {
 #Ignore Page<foo> variants
 			    $var !~ /^(?:Clear|Set|TestClear|TestSet|)Page[A-Z]/ &&
 #Ignore SI style variants like nS, mV and dB (ie: max_uV, regulator_min_uA_show)
-			    $var !~ /^(?:[a-z_]*?)_?[a-z][A-Z](?:_[a-z_]+)?$/) {
+			    $var !~ /^(?:[a-z_]*?)_?[a-z][A-Z](?:_[a-z_]+)?$/ &&
+#Ignore some three character SI units explicitly, like MiB and KHz
+			    $var !~ /^(?:[a-z_]*?)_?(?:[KMGT]iB|[KMGT]?Hz)(?:_[a-z_]+)?$/) {
 				while ($var =~ m{($Ident)}g) {
 					my $word = $1;
 					next if ($word !~ /[A-Z][a-z]|[a-z][A-Z]/);
@@ -4408,10 +4432,83 @@ sub process {
 			     "Use of volatile is usually wrong: see Documentation/volatile-considered-harmful.txt\n" . $herecurr);
 		}
 
+# Check for user-visible strings broken across lines, which breaks the ability
+# to grep for the string.  Make exceptions when the previous string ends in a
+# newline (multiple lines in one string constant) or '\t', '\r', ';', or '{'
+# (common in inline assembly) or is a octal \123 or hexadecimal \xaf value
+		if ($line =~ /^\+\s*"[X\t]*"/ &&
+		    $prevline =~ /"\s*$/ &&
+		    $prevrawline !~ /(?:\\(?:[ntr]|[0-7]{1,3}|x[0-9a-fA-F]{1,2})|;\s*|\{\s*)"\s*$/) {
+			if (WARN("SPLIT_STRING",
+				 "quoted string split across lines\n" . $hereprev) &&
+				     $fix &&
+				     $prevrawline =~ /^\+.*"\s*$/ &&
+				     $last_coalesced_string_linenr != $linenr - 1) {
+				my $extracted_string = get_quoted_string($line, $rawline);
+				my $comma_close = "";
+				if ($rawline =~ /\Q$extracted_string\E(\s*\)\s*;\s*$|\s*,\s*)/) {
+					$comma_close = $1;
+				}
+
+				fix_delete_line($fixlinenr - 1, $prevrawline);
+				fix_delete_line($fixlinenr, $rawline);
+				my $fixedline = $prevrawline;
+				$fixedline =~ s/"\s*$//;
+				$fixedline .= substr($extracted_string, 1) . trim($comma_close);
+				fix_insert_line($fixlinenr - 1, $fixedline);
+				$fixedline = $rawline;
+				$fixedline =~ s/\Q$extracted_string\E\Q$comma_close\E//;
+				if ($fixedline !~ /\+\s*$/) {
+					fix_insert_line($fixlinenr, $fixedline);
+				}
+				$last_coalesced_string_linenr = $linenr;
+			}
+		}
+
+# check for missing a space in a string concatenation
+		if ($prevrawline =~ /[^\\]\w"$/ && $rawline =~ /^\+[\t ]+"\w/) {
+			WARN('MISSING_SPACE',
+			     "break quoted strings at a space character\n" . $hereprev);
+		}
+
+# check for spaces before a quoted newline
+		if ($rawline =~ /^.*\".*\s\\n/) {
+			if (WARN("QUOTED_WHITESPACE_BEFORE_NEWLINE",
+				 "unnecessary whitespace before a quoted newline\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/^(\+.*\".*)\s+\\n/$1\\n/;
+			}
+
+		}
+
 # concatenated string without spaces between elements
 		if ($line =~ /"X+"[A-Z_]+/ || $line =~ /[A-Z_]+"X+"/) {
 			CHK("CONCATENATED_STRING",
 			    "Concatenated strings should use spaces between elements\n" . $herecurr);
+		}
+
+# uncoalesced string fragments
+		if ($line =~ /"X*"\s*"/) {
+			WARN("STRING_FRAGMENTS",
+			     "Consecutive strings are generally better as a single string\n" . $herecurr);
+		}
+
+# check for %L{u,d,i} in strings
+		my $string;
+		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
+			$string = substr($rawline, $-[1], $+[1] - $-[1]);
+			$string =~ s/%%/__/g;
+			if ($string =~ /(?<!%)%L[udi]/) {
+				WARN("PRINTF_L",
+				     "\%Ld/%Lu are not-standard C, use %lld/%llu\n" . $herecurr);
+				last;
+			}
+		}
+
+# check for line continuations in quoted strings with odd counts of "
+		if ($rawline =~ /\\$/ && $rawline =~ tr/"/"/ % 2) {
+			WARN("LINE_CONTINUATIONS",
+			     "Avoid line continuations in quoted strings\n" . $herecurr);
 		}
 
 # warn about #if 0
@@ -4426,7 +4523,7 @@ sub process {
 			my $expr = '\s*\(\s*' . quotemeta($1) . '\s*\)\s*;';
 			if ($line =~ /\b(kfree|usb_free_urb|debugfs_remove(?:_recursive)?)$expr/) {
 				WARN('NEEDLESS_IF',
-				     "$1(NULL) is safe this check is probably not required\n" . $hereprev);
+				     "$1(NULL) is safe and this check is probably not required\n" . $hereprev);
 			}
 		}
 
@@ -4455,6 +4552,28 @@ sub process {
 				 "Possible unnecessary $level\n" . $herecurr) &&
 			    $fix) {
 				$fixed[$fixlinenr] =~ s/\s*$level\s*//;
+			}
+		}
+
+# check for mask then right shift without a parentheses
+		if ($^V && $^V ge 5.10.0 &&
+		    $line =~ /$LvalOrFunc\s*\&\s*($LvalOrFunc)\s*>>/ &&
+		    $4 !~ /^\&/) { # $LvalOrFunc may be &foo, ignore if so
+			WARN("MASK_THEN_SHIFT",
+			     "Possible precedence defect with mask then right shift - may need parentheses\n" . $herecurr);
+		}
+
+# check for pointer comparisons to NULL
+		if ($^V && $^V ge 5.10.0) {
+			while ($line =~ /\b$LvalOrFunc\s*(==|\!=)\s*NULL\b/g) {
+				my $val = $1;
+				my $equal = "!";
+				$equal = "" if ($4 eq "!=");
+				if (CHK("COMPARISON_TO_NULL",
+					"Comparison to NULL could be written \"${equal}${val}\"\n" . $herecurr) &&
+					    $fix) {
+					$fixed[$fixlinenr] =~ s/\b\Q$val\E\s*(?:==|\!=)\s*NULL\b/$equal$val/;
+				}
 			}
 		}
 
@@ -4652,6 +4771,15 @@ sub process {
 			}
 		}
 
+# Check for __attribute__ weak, or __weak declarations (may have link issues)
+		if ($^V && $^V ge 5.10.0 &&
+		    $line =~ /(?:$Declare|$DeclareMisordered)\s*$Ident\s*$balanced_parens\s*(?:$Attribute)?\s*;/ &&
+		    ($line =~ /\b__attribute__\s*\(\s*\(.*\bweak\b/ ||
+		     $line =~ /\b__weak\b/)) {
+			ERROR("WEAK_DECLARATION",
+			      "Using weak declarations can have unintended link defects\n" . $herecurr);
+		}
+
 # check for sizeof(&)
 		if ($line =~ /\bsizeof\s*\(\s*\&/) {
 			WARN("SIZEOF_ADDRESS",
@@ -4665,12 +4793,6 @@ sub process {
 			    $fix) {
 				$fixed[$fixlinenr] =~ s/\bsizeof\s+((?:\*\s*|)$Lval|$Type(?:\s+$Lval|))/"sizeof(" . trim($1) . ")"/ex;
 			}
-		}
-
-# check for line continuations in quoted strings with odd counts of "
-		if ($rawline =~ /\\$/ && $rawline =~ tr/"/"/ % 2) {
-			WARN("LINE_CONTINUATIONS",
-			     "Avoid line continuations in quoted strings\n" . $herecurr);
 		}
 
 # check for struct spinlock declarations
@@ -4908,6 +5030,17 @@ sub process {
 			}
 		}
 
+# check for #defines like: 1 << <digit> that could be BIT(digit)
+		if ($line =~ /#\s*define\s+\w+\s+\(?\s*1\s*([ulUL]*)\s*\<\<\s*(?:\d+|$Ident)\s*\)?/) {
+			my $ull = "";
+			$ull = "_ULL" if (defined($1) && $1 =~ /ll/i);
+			if (CHK("BIT_MACRO",
+				"Prefer using the BIT$ull macro\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\(?\s*1\s*[ulUL]*\s*<<\s*(\d+|$Ident)\s*\)?/BIT${ull}($1)/;
+			}
+		}
+
 # check for case / default statements not preceded by break/fallthrough/switch
 		if ($line =~ /^.\s*(?:case\s+(?:$Ident|$Constant)\s*|default):/) {
 			my $has_break = 0;
@@ -5069,18 +5202,6 @@ sub process {
 		if ($line =~ /\+\s*#\s*define\s+((?:__)?ARCH_(?:HAS|HAVE)\w*)\b/) {
 			ERROR("DEFINE_ARCH_HAS",
 			      "#define of '$1' is wrong - use Kconfig variables or standard guards instead\n" . $herecurr);
-		}
-
-# check for %L{u,d,i} in strings
-		my $string;
-		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
-			$string = substr($rawline, $-[1], $+[1] - $-[1]);
-			$string =~ s/%%/__/g;
-			if ($string =~ /(?<!%)%L[udi]/) {
-				WARN("PRINTF_L",
-				     "\%Ld/%Lu are not-standard C, use %lld/%llu\n" . $herecurr);
-				last;
-			}
 		}
 
 # whine mightly about in_atomic

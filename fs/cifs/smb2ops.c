@@ -600,7 +600,7 @@ smb2_clone_range(const unsigned int xid,
 		goto cchunk_out;
 
 	/* For now array only one chunk long, will make more flexible later */
-	pcchunk->ChunkCount = __constant_cpu_to_le32(1);
+	pcchunk->ChunkCount = cpu_to_le32(1);
 	pcchunk->Reserved = 0;
 	pcchunk->Reserved2 = 0;
 

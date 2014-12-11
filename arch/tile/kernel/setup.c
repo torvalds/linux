@@ -534,11 +534,10 @@ static void __init setup_memory(void)
 			}
 		}
 		physpages -= dropped_pages;
-		pr_warning("Only using %ldMB memory;"
-		       " ignoring %ldMB.\n",
-		       physpages >> (20 - PAGE_SHIFT),
-		       dropped_pages >> (20 - PAGE_SHIFT));
-		pr_warning("Consider using a larger page size.\n");
+		pr_warn("Only using %ldMB memory - ignoring %ldMB\n",
+			physpages >> (20 - PAGE_SHIFT),
+			dropped_pages >> (20 - PAGE_SHIFT));
+		pr_warn("Consider using a larger page size\n");
 	}
 #endif
 
@@ -566,9 +565,8 @@ static void __init setup_memory(void)
 
 #ifndef __tilegx__
 	if (node_end_pfn[0] > MAXMEM_PFN) {
-		pr_warning("Only using %ldMB LOWMEM.\n",
-		       MAXMEM>>20);
-		pr_warning("Use a HIGHMEM enabled kernel.\n");
+		pr_warn("Only using %ldMB LOWMEM\n", MAXMEM >> 20);
+		pr_warn("Use a HIGHMEM enabled kernel\n");
 		max_low_pfn = MAXMEM_PFN;
 		max_pfn = MAXMEM_PFN;
 		node_end_pfn[0] = MAXMEM_PFN;
@@ -1112,8 +1110,8 @@ static void __init load_hv_initrd(void)
 	fd = hv_fs_findfile((HV_VirtAddr) initramfs_file);
 	if (fd == HV_ENOENT) {
 		if (set_initramfs_file) {
-			pr_warning("No such hvfs initramfs file '%s'\n",
-				   initramfs_file);
+			pr_warn("No such hvfs initramfs file '%s'\n",
+				initramfs_file);
 			return;
 		} else {
 			/* Try old backwards-compatible name. */
@@ -1126,8 +1124,8 @@ static void __init load_hv_initrd(void)
 	stat = hv_fs_fstat(fd);
 	BUG_ON(stat.size < 0);
 	if (stat.flags & HV_FS_ISDIR) {
-		pr_warning("Ignoring hvfs file '%s': it's a directory.\n",
-			   initramfs_file);
+		pr_warn("Ignoring hvfs file '%s': it's a directory\n",
+			initramfs_file);
 		return;
 	}
 	initrd = alloc_bootmem_pages(stat.size);
@@ -1185,9 +1183,8 @@ static void __init validate_hv(void)
 	HV_Topology topology = hv_inquire_topology();
 	BUG_ON(topology.coord.x != 0 || topology.coord.y != 0);
 	if (topology.width != 1 || topology.height != 1) {
-		pr_warning("Warning: booting UP kernel on %dx%d grid;"
-			   " will ignore all but first tile.\n",
-			   topology.width, topology.height);
+		pr_warn("Warning: booting UP kernel on %dx%d grid; will ignore all but first tile\n",
+			topology.width, topology.height);
 	}
 #endif
 
@@ -1208,9 +1205,8 @@ static void __init validate_hv(void)
 	 * We use a struct cpumask for this, so it must be big enough.
 	 */
 	if ((smp_height * smp_width) > nr_cpu_ids)
-		early_panic("Hypervisor %d x %d grid too big for Linux"
-			    " NR_CPUS %d\n", smp_height, smp_width,
-			    nr_cpu_ids);
+		early_panic("Hypervisor %d x %d grid too big for Linux NR_CPUS %d\n",
+			    smp_height, smp_width, nr_cpu_ids);
 #endif
 
 	/*
@@ -1265,10 +1261,9 @@ static void __init validate_va(void)
 
 	/* Kernel PCs must have their high bit set; see intvec.S. */
 	if ((long)VMALLOC_START >= 0)
-		early_panic(
-			"Linux VMALLOC region below the 2GB line (%#lx)!\n"
-			"Reconfigure the kernel with smaller VMALLOC_RESERVE.\n",
-			VMALLOC_START);
+		early_panic("Linux VMALLOC region below the 2GB line (%#lx)!\n"
+			    "Reconfigure the kernel with smaller VMALLOC_RESERVE\n",
+			    VMALLOC_START);
 #endif
 }
 
@@ -1395,7 +1390,7 @@ static void __init setup_cpu_maps(void)
 
 static int __init dataplane(char *str)
 {
-	pr_warning("WARNING: dataplane support disabled in this kernel\n");
+	pr_warn("WARNING: dataplane support disabled in this kernel\n");
 	return 0;
 }
 
@@ -1413,8 +1408,8 @@ void __init setup_arch(char **cmdline_p)
 	len = hv_get_command_line((HV_VirtAddr) boot_command_line,
 				  COMMAND_LINE_SIZE);
 	if (boot_command_line[0])
-		pr_warning("WARNING: ignoring dynamic command line \"%s\"\n",
-			   boot_command_line);
+		pr_warn("WARNING: ignoring dynamic command line \"%s\"\n",
+			boot_command_line);
 	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 #else
 	char *hv_cmdline;

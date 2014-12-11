@@ -111,7 +111,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		return -EINVAL;
 
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -247,7 +247,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	}
 
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
 	if (!buf) {
 		free_xid(xid);
 		return -ENOMEM;

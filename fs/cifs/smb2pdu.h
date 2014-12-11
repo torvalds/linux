@@ -85,7 +85,7 @@
 /* BB FIXME - analyze following length BB */
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
-#define SMB2_PROTO_NUMBER __constant_cpu_to_le32(0x424d53fe)
+#define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe)
 
 /*
  * SMB2 Header Definition
@@ -96,7 +96,7 @@
  *
  */
 
-#define SMB2_HEADER_STRUCTURE_SIZE __constant_cpu_to_le16(64)
+#define SMB2_HEADER_STRUCTURE_SIZE cpu_to_le16(64)
 
 struct smb2_hdr {
 	__be32 smb2_buf_length;	/* big endian on wire */
@@ -137,16 +137,16 @@ struct smb2_transform_hdr {
 } __packed;
 
 /* Encryption Algorithms */
-#define SMB2_ENCRYPTION_AES128_CCM	__constant_cpu_to_le16(0x0001)
+#define SMB2_ENCRYPTION_AES128_CCM	cpu_to_le16(0x0001)
 
 /*
  *	SMB2 flag definitions
  */
-#define SMB2_FLAGS_SERVER_TO_REDIR	__constant_cpu_to_le32(0x00000001)
-#define SMB2_FLAGS_ASYNC_COMMAND	__constant_cpu_to_le32(0x00000002)
-#define SMB2_FLAGS_RELATED_OPERATIONS	__constant_cpu_to_le32(0x00000004)
-#define SMB2_FLAGS_SIGNED		__constant_cpu_to_le32(0x00000008)
-#define SMB2_FLAGS_DFS_OPERATIONS	__constant_cpu_to_le32(0x10000000)
+#define SMB2_FLAGS_SERVER_TO_REDIR	cpu_to_le32(0x00000001)
+#define SMB2_FLAGS_ASYNC_COMMAND	cpu_to_le32(0x00000002)
+#define SMB2_FLAGS_RELATED_OPERATIONS	cpu_to_le32(0x00000004)
+#define SMB2_FLAGS_SIGNED		cpu_to_le32(0x00000008)
+#define SMB2_FLAGS_DFS_OPERATIONS	cpu_to_le32(0x10000000)
 
 /*
  *	Definitions for SMB2 Protocol Data Units (network frames)
@@ -157,7 +157,7 @@ struct smb2_transform_hdr {
  *
  */
 
-#define SMB2_ERROR_STRUCTURE_SIZE2 __constant_cpu_to_le16(9)
+#define SMB2_ERROR_STRUCTURE_SIZE2 cpu_to_le16(9)
 
 struct smb2_err_rsp {
 	struct smb2_hdr hdr;
@@ -502,12 +502,12 @@ struct create_context {
 #define SMB2_LEASE_HANDLE_CACHING_HE	0x02
 #define SMB2_LEASE_WRITE_CACHING_HE	0x04
 
-#define SMB2_LEASE_NONE			__constant_cpu_to_le32(0x00)
-#define SMB2_LEASE_READ_CACHING		__constant_cpu_to_le32(0x01)
-#define SMB2_LEASE_HANDLE_CACHING	__constant_cpu_to_le32(0x02)
-#define SMB2_LEASE_WRITE_CACHING	__constant_cpu_to_le32(0x04)
+#define SMB2_LEASE_NONE			cpu_to_le32(0x00)
+#define SMB2_LEASE_READ_CACHING		cpu_to_le32(0x01)
+#define SMB2_LEASE_HANDLE_CACHING	cpu_to_le32(0x02)
+#define SMB2_LEASE_WRITE_CACHING	cpu_to_le32(0x04)
 
-#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS __constant_cpu_to_le32(0x02)
+#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS cpu_to_le32(0x02)
 
 #define SMB2_LEASE_KEY_SIZE 16
 

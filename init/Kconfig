@@ -893,14 +893,6 @@ config ARCH_SUPPORTS_INT128
 config ARCH_WANT_NUMA_VARIABLE_LOCALITY
 	bool
 
-config NUMA_BALANCING_DEFAULT_ENABLED
-	bool "Automatically enable NUMA aware memory/task placement"
-	default y
-	depends on NUMA_BALANCING
-	help
-	  If set, automatic NUMA balancing will be enabled if running on a NUMA
-	  machine.
-
 config NUMA_BALANCING
 	bool "Memory placement aware NUMA scheduler"
 	depends on ARCH_SUPPORTS_NUMA_BALANCING
@@ -912,6 +904,14 @@ config NUMA_BALANCING
 	  it has references to the node the task is running on.
 
 	  This system will be inactive on UMA systems.
+
+config NUMA_BALANCING_DEFAULT_ENABLED
+	bool "Automatically enable NUMA aware memory/task placement"
+	default y
+	depends on NUMA_BALANCING
+	help
+	  If set, automatic NUMA balancing will be enabled if running on a NUMA
+	  machine.
 
 menuconfig CGROUPS
 	boolean "Control Group support"
@@ -972,31 +972,16 @@ config CGROUP_CPUACCT
 	  Provides a simple Resource Controller for monitoring the
 	  total CPU consumed by the tasks in a cgroup.
 
-config RESOURCE_COUNTERS
-	bool "Resource counters"
-	help
-	  This option enables controller independent resource accounting
-	  infrastructure that works with cgroups.
+config PAGE_COUNTER
+       bool
 
 config MEMCG
 	bool "Memory Resource Controller for Control Groups"
-	depends on RESOURCE_COUNTERS
+	select PAGE_COUNTER
 	select EVENTFD
 	help
 	  Provides a memory resource controller that manages both anonymous
 	  memory and page cache. (See Documentation/cgroups/memory.txt)
-
-	  Note that setting this option increases fixed memory overhead
-	  associated with each page of memory in the system. By this,
-	  8(16)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
-	  usage tracking struct at boot. Total amount of this is printed out
-	  at boot.
-
-	  Only enable when you're ok with these trade offs and really
-	  sure you need the memory resource controller. Even when you enable
-	  this, you can set "cgroup_disable=memory" at your boot option to
-	  disable memory resource controller and you can avoid overheads.
-	  (and lose benefits of memory resource controller)
 
 config MEMCG_SWAP
 	bool "Memory Resource Controller Swap Extension"
@@ -1048,7 +1033,8 @@ config MEMCG_KMEM
 
 config CGROUP_HUGETLB
 	bool "HugeTLB Resource Controller for Control Groups"
-	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
+	depends on HUGETLB_PAGE
+	select PAGE_COUNTER
 	default n
 	help
 	  Provides a cgroup Resource Controller for HugeTLB pages.
@@ -1293,6 +1279,22 @@ if BLK_DEV_INITRD
 source "usr/Kconfig"
 
 endif
+
+config INIT_FALLBACK
+	bool "Fall back to defaults if init= parameter is bad"
+	default y
+	help
+	  If enabled, the kernel will try the default init binaries if an
+	  explicit request from the init= parameter fails.
+
+	  This can have unexpected effects.  For example, booting
+	  with init=/sbin/kiosk_app will run /sbin/init or even /bin/sh
+	  if /sbin/kiosk_app cannot be executed.
+
+	  The default value of Y is consistent with historical behavior.
+	  Selecting N is likely to be more appropriate for most uses,
+	  especially on kiosks and on kernels that are intended to be
+	  run under the control of a script.
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"

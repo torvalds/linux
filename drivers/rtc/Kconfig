@@ -192,6 +192,14 @@ config RTC_DRV_DS1374
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1374.
 
+config RTC_DRV_DS1374_WDT
+	bool "Dallas/Maxim DS1374 watchdog timer"
+	depends on RTC_DRV_DS1374
+	help
+	  If you say Y here you will get support for the
+	  watchdog timer in the Dallas Semiconductor DS1374
+	  real-time clock chips.
+
 config RTC_DRV_DS1672
 	tristate "Dallas/Maxim DS1672"
 	help

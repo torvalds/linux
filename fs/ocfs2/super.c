@@ -1629,8 +1629,9 @@ static int __init ocfs2_init(void)
 
 	ocfs2_debugfs_root = debugfs_create_dir("ocfs2", NULL);
 	if (!ocfs2_debugfs_root) {
-		status = -EFAULT;
+		status = -ENOMEM;
 		mlog(ML_ERROR, "Unable to create ocfs2 debugfs root.\n");
+		goto out4;
 	}
 
 	ocfs2_set_locking_protocol();

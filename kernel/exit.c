@@ -118,13 +118,10 @@ static void __exit_signal(struct task_struct *tsk)
 	}
 
 	/*
-	 * Accumulate here the counters for all threads but the group leader
-	 * as they die, so they can be added into the process-wide totals
-	 * when those are taken.  The group leader stays around as a zombie as
-	 * long as there are other threads.  When it gets reaped, the exit.c
-	 * code will add its counts into these totals.  We won't ever get here
-	 * for the group leader, since it will have been the last reference on
-	 * the signal_struct.
+	 * Accumulate here the counters for all threads as they die. We could
+	 * skip the group leader because it is the last user of signal_struct,
+	 * but we want to avoid the race with thread_group_cputime() which can
+	 * see the empty ->thread_head list.
 	 */
 	task_cputime(tsk, &utime, &stime);
 	write_seqlock(&sig->stats_lock);
@@ -462,6 +459,44 @@ static void exit_mm(struct task_struct *tsk)
 	clear_thread_flag(TIF_MEMDIE);
 }
 
+static struct task_struct *find_alive_thread(struct task_struct *p)
+{
+	struct task_struct *t;
+
+	for_each_thread(p, t) {
+		if (!(t->flags & PF_EXITING))
+			return t;
+	}
+	return NULL;
+}
+
+static struct task_struct *find_child_reaper(struct task_struct *father)
+	__releases(&tasklist_lock)
+	__acquires(&tasklist_lock)
+{
+	struct pid_namespace *pid_ns = task_active_pid_ns(father);
+	struct task_struct *reaper = pid_ns->child_reaper;
+
+	if (likely(reaper != father))
+		return reaper;
+
+	reaper = find_alive_thread(father);
+	if (reaper) {
+		pid_ns->child_reaper = reaper;
+		return reaper;
+	}
+
+	write_unlock_irq(&tasklist_lock);
+	if (unlikely(pid_ns == &init_pid_ns)) {
+		panic("Attempted to kill init! exitcode=0x%08x\n",
+			father->signal->group_exit_code ?: father->exit_code);
+	}
+	zap_pid_ns_processes(pid_ns);
+	write_lock_irq(&tasklist_lock);
+
+	return father;
+}
+
 /*
  * When we die, we re-parent all our children, and try to:
  * 1. give them to another thread in our thread group, if such a member exists
@@ -469,58 +504,36 @@ static void exit_mm(struct task_struct *tsk)
  *    child_subreaper for its children (like a service manager)
  * 3. give it to the init process (PID 1) in our pid namespace
  */
-static struct task_struct *find_new_reaper(struct task_struct *father)
-	__releases(&tasklist_lock)
-	__acquires(&tasklist_lock)
+static struct task_struct *find_new_reaper(struct task_struct *father,
+					   struct task_struct *child_reaper)
 {
-	struct pid_namespace *pid_ns = task_active_pid_ns(father);
-	struct task_struct *thread;
+	struct task_struct *thread, *reaper;
 
-	thread = father;
-	while_each_thread(father, thread) {
-		if (thread->flags & PF_EXITING)
-			continue;
-		if (unlikely(pid_ns->child_reaper == father))
-			pid_ns->child_reaper = thread;
+	thread = find_alive_thread(father);
+	if (thread)
 		return thread;
-	}
 
-	if (unlikely(pid_ns->child_reaper == father)) {
-		write_unlock_irq(&tasklist_lock);
-		if (unlikely(pid_ns == &init_pid_ns)) {
-			panic("Attempted to kill init! exitcode=0x%08x\n",
-				father->signal->group_exit_code ?:
-					father->exit_code);
-		}
-
-		zap_pid_ns_processes(pid_ns);
-		write_lock_irq(&tasklist_lock);
-	} else if (father->signal->has_child_subreaper) {
-		struct task_struct *reaper;
-
+	if (father->signal->has_child_subreaper) {
 		/*
-		 * Find the first ancestor marked as child_subreaper.
-		 * Note that the code below checks same_thread_group(reaper,
-		 * pid_ns->child_reaper).  This is what we need to DTRT in a
-		 * PID namespace. However we still need the check above, see
-		 * http://marc.info/?l=linux-kernel&m=131385460420380
+		 * Find the first ->is_child_subreaper ancestor in our pid_ns.
+		 * We start from father to ensure we can not look into another
+		 * namespace, this is safe because all its threads are dead.
 		 */
-		for (reaper = father->real_parent;
-		     reaper != &init_task;
+		for (reaper = father;
+		     !same_thread_group(reaper, child_reaper);
 		     reaper = reaper->real_parent) {
-			if (same_thread_group(reaper, pid_ns->child_reaper))
+			/* call_usermodehelper() descendants need this check */
+			if (reaper == &init_task)
 				break;
 			if (!reaper->signal->is_child_subreaper)
 				continue;
-			thread = reaper;
-			do {
-				if (!(thread->flags & PF_EXITING))
-					return reaper;
-			} while_each_thread(reaper, thread);
+			thread = find_alive_thread(reaper);
+			if (thread)
+				return thread;
 		}
 	}
 
-	return pid_ns->child_reaper;
+	return child_reaper;
 }
 
 /*
@@ -529,15 +542,7 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
 static void reparent_leader(struct task_struct *father, struct task_struct *p,
 				struct list_head *dead)
 {
-	list_move_tail(&p->sibling, &p->real_parent->children);
-
-	if (p->exit_state == EXIT_DEAD)
-		return;
-	/*
-	 * If this is a threaded reparent there is no need to
-	 * notify anyone anything has happened.
-	 */
-	if (same_thread_group(p->real_parent, father))
+	if (unlikely(p->exit_state == EXIT_DEAD))
 		return;
 
 	/* We don't want people slaying init. */
@@ -548,49 +553,53 @@ static void reparent_leader(struct task_struct *father, struct task_struct *p,
 	    p->exit_state == EXIT_ZOMBIE && thread_group_empty(p)) {
 		if (do_notify_parent(p, p->exit_signal)) {
 			p->exit_state = EXIT_DEAD;
-			list_move_tail(&p->sibling, dead);
+			list_add(&p->ptrace_entry, dead);
 		}
 	}
 
 	kill_orphaned_pgrp(p, father);
 }
 
-static void forget_original_parent(struct task_struct *father)
+/*
+ * This does two things:
+ *
+ * A.  Make init inherit all the child processes
+ * B.  Check to see if any process groups have become orphaned
+ *	as a result of our exiting, and if they have any stopped
+ *	jobs, send them a SIGHUP and then a SIGCONT.  (POSIX 3.2.2.2)
+ */
+static void forget_original_parent(struct task_struct *father,
+					struct list_head *dead)
 {
-	struct task_struct *p, *n, *reaper;
-	LIST_HEAD(dead_children);
+	struct task_struct *p, *t, *reaper;
 
-	write_lock_irq(&tasklist_lock);
-	/*
-	 * Note that exit_ptrace() and find_new_reaper() might
-	 * drop tasklist_lock and reacquire it.
-	 */
-	exit_ptrace(father);
-	reaper = find_new_reaper(father);
+	if (unlikely(!list_empty(&father->ptraced)))
+		exit_ptrace(father, dead);
 
-	list_for_each_entry_safe(p, n, &father->children, sibling) {
-		struct task_struct *t = p;
+	/* Can drop and reacquire tasklist_lock */
+	reaper = find_child_reaper(father);
+	if (list_empty(&father->children))
+		return;
 
-		do {
+	reaper = find_new_reaper(father, reaper);
+	list_for_each_entry(p, &father->children, sibling) {
+		for_each_thread(p, t) {
 			t->real_parent = reaper;
-			if (t->parent == father) {
-				BUG_ON(t->ptrace);
+			BUG_ON((!t->ptrace) != (t->parent == father));
+			if (likely(!t->ptrace))
 				t->parent = t->real_parent;
-			}
 			if (t->pdeath_signal)
 				group_send_sig_info(t->pdeath_signal,
 						    SEND_SIG_NOINFO, t);
-		} while_each_thread(p, t);
-		reparent_leader(father, p, &dead_children);
+		}
+		/*
+		 * If this is a threaded reparent there is no need to
+		 * notify anyone anything has happened.
+		 */
+		if (!same_thread_group(reaper, father))
+			reparent_leader(father, p, dead);
 	}
-	write_unlock_irq(&tasklist_lock);
-
-	BUG_ON(!list_empty(&father->children));
-
-	list_for_each_entry_safe(p, n, &dead_children, sibling) {
-		list_del_init(&p->sibling);
-		release_task(p);
-	}
+	list_splice_tail_init(&father->children, &reaper->children);
 }
 
 /*
@@ -600,18 +609,12 @@ static void forget_original_parent(struct task_struct *father)
 static void exit_notify(struct task_struct *tsk, int group_dead)
 {
 	bool autoreap;
-
-	/*
-	 * This does two things:
-	 *
-	 * A.  Make init inherit all the child processes
-	 * B.  Check to see if any process groups have become orphaned
-	 *	as a result of our exiting, and if they have any stopped
-	 *	jobs, send them a SIGHUP and then a SIGCONT.  (POSIX 3.2.2.2)
-	 */
-	forget_original_parent(tsk);
+	struct task_struct *p, *n;
+	LIST_HEAD(dead);
 
 	write_lock_irq(&tasklist_lock);
+	forget_original_parent(tsk, &dead);
+
 	if (group_dead)
 		kill_orphaned_pgrp(tsk->group_leader, NULL);
 
@@ -629,15 +632,18 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	}
 
 	tsk->exit_state = autoreap ? EXIT_DEAD : EXIT_ZOMBIE;
+	if (tsk->exit_state == EXIT_DEAD)
+		list_add(&tsk->ptrace_entry, &dead);
 
 	/* mt-exec, de_thread() is waiting for group leader */
 	if (unlikely(tsk->signal->notify_count < 0))
 		wake_up_process(tsk->signal->group_exit_task);
 	write_unlock_irq(&tasklist_lock);
 
-	/* If the process is dead, release it - nobody will wait for it */
-	if (autoreap)
-		release_task(tsk);
+	list_for_each_entry_safe(p, n, &dead, ptrace_entry) {
+		list_del_init(&p->ptrace_entry);
+		release_task(p);
+	}
 }
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
@@ -982,8 +988,7 @@ static int wait_noreap_copyout(struct wait_opts *wo, struct task_struct *p,
  */
 static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 {
-	unsigned long state;
-	int retval, status, traced;
+	int state, retval, status;
 	pid_t pid = task_pid_vnr(p);
 	uid_t uid = from_kuid_munged(current_user_ns(), task_uid(p));
 	struct siginfo __user *infop;
@@ -1008,21 +1013,25 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		}
 		return wait_noreap_copyout(wo, p, pid, uid, why, status);
 	}
-
-	traced = ptrace_reparented(p);
 	/*
 	 * Move the task's state to DEAD/TRACE, only one thread can do this.
 	 */
-	state = traced && thread_group_leader(p) ? EXIT_TRACE : EXIT_DEAD;
+	state = (ptrace_reparented(p) && thread_group_leader(p)) ?
+		EXIT_TRACE : EXIT_DEAD;
 	if (cmpxchg(&p->exit_state, EXIT_ZOMBIE, state) != EXIT_ZOMBIE)
 		return 0;
 	/*
-	 * It can be ptraced but not reparented, check
-	 * thread_group_leader() to filter out sub-threads.
+	 * We own this thread, nobody else can reap it.
 	 */
-	if (likely(!traced) && thread_group_leader(p)) {
-		struct signal_struct *psig;
-		struct signal_struct *sig;
+	read_unlock(&tasklist_lock);
+	sched_annotate_sleep();
+
+	/*
+	 * Check thread_group_leader() to exclude the traced sub-threads.
+	 */
+	if (state == EXIT_DEAD && thread_group_leader(p)) {
+		struct signal_struct *sig = p->signal;
+		struct signal_struct *psig = current->signal;
 		unsigned long maxrss;
 		cputime_t tgutime, tgstime;
 
@@ -1034,21 +1043,20 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		 * accumulate in the parent's signal_struct c* fields.
 		 *
 		 * We don't bother to take a lock here to protect these
-		 * p->signal fields, because they are only touched by
-		 * __exit_signal, which runs with tasklist_lock
-		 * write-locked anyway, and so is excluded here.  We do
-		 * need to protect the access to parent->signal fields,
-		 * as other threads in the parent group can be right
-		 * here reaping other children at the same time.
+		 * p->signal fields because the whole thread group is dead
+		 * and nobody can change them.
+		 *
+		 * psig->stats_lock also protects us from our sub-theads
+		 * which can reap other children at the same time. Until
+		 * we change k_getrusage()-like users to rely on this lock
+		 * we have to take ->siglock as well.
 		 *
 		 * We use thread_group_cputime_adjusted() to get times for
 		 * the thread group, which consolidates times for all threads
 		 * in the group including the group leader.
 		 */
 		thread_group_cputime_adjusted(p, &tgutime, &tgstime);
-		spin_lock_irq(&p->real_parent->sighand->siglock);
-		psig = p->real_parent->signal;
-		sig = p->signal;
+		spin_lock_irq(&current->sighand->siglock);
 		write_seqlock(&psig->stats_lock);
 		psig->cutime += tgutime + sig->cutime;
 		psig->cstime += tgstime + sig->cstime;
@@ -1073,15 +1081,8 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		task_io_accounting_add(&psig->ioac, &p->ioac);
 		task_io_accounting_add(&psig->ioac, &sig->ioac);
 		write_sequnlock(&psig->stats_lock);
-		spin_unlock_irq(&p->real_parent->sighand->siglock);
+		spin_unlock_irq(&current->sighand->siglock);
 	}
-
-	/*
-	 * Now we are sure this task is interesting, and no other
-	 * thread can reap it because we its state == DEAD/TRACE.
-	 */
-	read_unlock(&tasklist_lock);
-	sched_annotate_sleep();
 
 	retval = wo->wo_rusage
 		? getrusage(p, RUSAGE_BOTH, wo->wo_rusage) : 0;
