@@ -176,7 +176,8 @@ static irqreturn_t toshsd_thread_irq(int irq, void *dev_id)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (!sg_miter_next(sg_miter))
-		return IRQ_HANDLED;
+		goto done;
+
 	buf = sg_miter->addr;
 
 	/* Ensure we dont read more than one block. The chip will interrupt us
@@ -198,6 +199,7 @@ static irqreturn_t toshsd_thread_irq(int irq, void *dev_id)
 	sg_miter->consumed = count;
 	sg_miter_stop(sg_miter);
 
+done:
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	return IRQ_HANDLED;
