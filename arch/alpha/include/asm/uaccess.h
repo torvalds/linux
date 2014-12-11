@@ -96,7 +96,7 @@ extern void __get_user_unknown(void);
 	  case 8: __get_user_64(ptr); break;			\
 	  default: __get_user_unknown(); break;			\
 	}							\
-	(x) = (__typeof__(*(ptr))) __gu_val;			\
+	(x) = (__force __typeof__(*(ptr))) __gu_val;		\
 	__gu_err;						\
 })
 
@@ -115,7 +115,7 @@ extern void __get_user_unknown(void);
 		  default: __get_user_unknown(); break;			\
 		}							\
 	}								\
-	(x) = (__typeof__(*(ptr))) __gu_val;				\
+	(x) = (__force __typeof__(*(ptr))) __gu_val;			\
 	__gu_err;							\
 })
 
