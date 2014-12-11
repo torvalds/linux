@@ -1140,6 +1140,8 @@ struct i40e_hw_port_stats {
 /* Checksum and Shadow RAM pointers */
 #define I40E_SR_NVM_CONTROL_WORD		0x00
 #define I40E_SR_EMP_MODULE_PTR			0x0F
+#define I40E_SR_PBA_FLAGS			0x15
+#define I40E_SR_PBA_BLOCK_PTR			0x16
 #define I40E_SR_NVM_IMAGE_VERSION		0x18
 #define I40E_SR_NVM_WAKE_ON_LAN			0x19
 #define I40E_SR_ALTERNATE_SAN_MAC_ADDRESS_PTR	0x27

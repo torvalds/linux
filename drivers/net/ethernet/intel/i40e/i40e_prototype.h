@@ -248,6 +248,8 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw);
 bool i40e_get_link_status(struct i40e_hw *hw);
 i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
 i40e_status i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
+i40e_status i40e_read_pba_string(struct i40e_hw *hw, u8 *pba_num,
+				 u32 pba_num_size);
 i40e_status i40e_validate_mac_addr(u8 *mac_addr);
 void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable);
 #ifdef I40E_FCOE
