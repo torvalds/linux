@@ -616,5 +616,10 @@ static int __init byt_gpio_init(void)
 {
 	return platform_driver_register(&byt_gpio_driver);
 }
-
 subsys_initcall(byt_gpio_init);
+
+static void __exit byt_gpio_exit(void)
+{
+	platform_driver_unregister(&byt_gpio_driver);
+}
+module_exit(byt_gpio_exit);

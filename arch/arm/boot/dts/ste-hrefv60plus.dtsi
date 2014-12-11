@@ -49,7 +49,7 @@
 				/* SD card detect GPIO pin, extend default state */
 				sdi0_default_mode: sdi0_default {
 					default_hrefv60_cfg1 {
-						ste,pins = "GPIO95_E8";
+						pins = "GPIO95_E8";
 						ste,config = <&gpio_in_pu>;
 					};
 				};
@@ -64,19 +64,19 @@
 				 */
 				ipgpio_hrefv60_mode: ipgpio_hrefv60 {
 					hrefv60_mux {
-						ste,function = "ipgpio";
-						ste,pins = "ipgpio0_c_1", "ipgpio1_c_1", "ipgpio4_c_1";
+						function = "ipgpio";
+						groups = "ipgpio0_c_1", "ipgpio1_c_1", "ipgpio4_c_1";
 					};
 					hrefv60_cfg1 {
-						ste,pins = "GPIO6_AF6", "GPIO7_AG5";
+						pins = "GPIO6_AF6", "GPIO7_AG5";
 						ste,config = <&in_pu>;
 					};
 					hrefv60_cfg2 {
-						ste,pins = "GPIO21_AB3";
+						pins = "GPIO21_AB3";
 						ste,config = <&gpio_out_lo>;
 					};
 					hrefv60_cfg3 {
-						ste,pins = "GPIO64_F3";
+						pins = "GPIO64_F3";
 						ste,config = <&out_lo>;
 					};
 				};
@@ -89,7 +89,7 @@
 				 */
 				etm_hrefv60_mode: etm_hrefv60 {
 					hrefv60_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO70_G5",
 						"GPIO71_G4",
 						"GPIO72_H4",
@@ -103,11 +103,11 @@
 				nahj_hrefv60_mode: nahj_hrefv60 {
 					/* NAHJ CTRL on GPIO76 to low, CTRL_INV on GPIO216 to high */
 					hrefv60_cfg1 {
-						ste,pins = "GPIO76_J2";
+						pins = "GPIO76_J2";
 						ste,config = <&gpio_out_lo>;
 					};
 					hrefv60_cfg2 {
-						ste,pins = "GPIO216_AG12";
+						pins = "GPIO216_AG12";
 						ste,config = <&gpio_out_hi>;
 					};
 				 };
@@ -116,13 +116,13 @@
 				nfc_hrefv60_mode: nfc_hrefv60 {
 					/* NFC ENA and RESET to low, pulldown IRQ line */
 					hrefv60_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO77_H1", /* NFC_ENA */
 						"GPIO142_C11"; /* NFC_RESET */
 						ste,config = <&gpio_out_lo>;
 					};
 					hrefv60_cfg2 {
-						ste,pins = "GPIO144_B13"; /* NFC_IRQ */
+						pins = "GPIO144_B13"; /* NFC_IRQ */
 						ste,config = <&gpio_in_pd>;
 					};
 				 };
@@ -130,11 +130,11 @@
 			force {
 				force_hrefv60_mode: force_hrefv60 {
 					hrefv60_cfg1 {
-						ste,pins = "GPIO91_B6"; /* FORCE_SENSING_INT */
+						pins = "GPIO91_B6"; /* FORCE_SENSING_INT */
 						ste,config = <&gpio_in_pu>;
 					};
 					hrefv60_cfg2 {
-						ste,pins =
+						pins =
 						"GPIO92_D6", /* FORCE_SENSING_RST */
 						"GPIO97_D9"; /* FORCE_SENSING_WU */
 						ste,config = <&gpio_out_lo>;
@@ -144,7 +144,7 @@
 			dipro {
 				dipro_hrefv60_mode: dipro_hrefv60 {
 					hrefv60_cfg1 {
-						ste,pins = "GPIO139_C9"; /* DIPRO_INT */
+						pins = "GPIO139_C9"; /* DIPRO_INT */
 						ste,config = <&gpio_in_pu>;
 					};
 				 };
@@ -153,7 +153,7 @@
 				vaudio_hf_hrefv60_mode: vaudio_hf_hrefv60 {
 					/* Audio Amplifier HF enable GPIO */
 					hrefv60_cfg1 {
-						ste,pins = "GPIO149_B14"; /* VAUDIO_HF_EN, enable MAX8968 */
+						pins = "GPIO149_B14"; /* VAUDIO_HF_EN, enable MAX8968 */
 						ste,config = <&gpio_out_hi>;
 					};
 				 };
@@ -165,7 +165,7 @@
 					 * pull low to reset state
 					 */
 					hrefv60_cfg1 {
-						ste,pins = "GPIO171_D23"; /* GBF_ENA_RESET */
+						pins = "GPIO171_D23"; /* GBF_ENA_RESET */
 						ste,config = <&gpio_out_lo>;
 					};
 				 };
@@ -174,7 +174,7 @@
 				hdtv_hrefv60_mode: hdtv_hrefv60 {
 					/* MSP : HDTV INTERFACE GPIO line */
 					hrefv60_cfg1 {
-						ste,pins = "GPIO192_AJ27";
+						pins = "GPIO192_AJ27";
 						ste,config = <&gpio_in_pd>;
 					};
 				 };
@@ -187,11 +187,11 @@
 					 * reset signals low.
 					 */
 					hrefv60_cfg1 {
-						ste,pins = "GPIO143_D12", "GPIO146_D13";
+						pins = "GPIO143_D12", "GPIO146_D13";
 						ste,config = <&gpio_out_lo>;
 					};
 					hrefv60_cfg2 {
-						ste,pins = "GPIO67_G2";
+						pins = "GPIO67_G2";
 						ste,config = <&gpio_in_pu>;
 					};
 				};
@@ -204,11 +204,11 @@
 					 * Drive DISP1 reset high (not reset), driver DISP2 reset low (reset)
 					 */
 					hrefv60_cfg1 {
-						ste,pins ="GPIO65_F1";
+						pins ="GPIO65_F1";
 						ste,config = <&gpio_out_hi>;
 					};
 					hrefv60_cfg2 {
-						ste,pins ="GPIO66_G3";
+						pins ="GPIO66_G3";
 						ste,config = <&gpio_out_lo>;
 					};
 				};

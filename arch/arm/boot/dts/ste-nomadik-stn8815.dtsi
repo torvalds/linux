@@ -100,41 +100,41 @@
 		uart0 {
 			uart0_default_mux: uart0_mux {
 				u0_default_mux {
-					ste,function = "u0";
-					ste,pins = "u0_a_1";
+					function = "u0";
+					groups = "u0_a_1";
 				};
 			};
 		};
 		uart1 {
 			uart1_default_mux: uart1_mux {
 				u1_default_mux {
-					ste,function = "u1";
-					ste,pins = "u1_a_1";
+					function = "u1";
+					groups = "u1_a_1";
 				};
 			};
 		};
 		mmcsd {
 			mmcsd_default_mux: mmcsd_mux {
 				mmcsd_default_mux {
-					ste,function = "mmcsd";
-					ste,pins = "mmcsd_a_1", "mmcsd_b_1";
+					function = "mmcsd";
+					groups = "mmcsd_a_1", "mmcsd_b_1";
 				};
 			};
 			mmcsd_default_mode: mmcsd_default {
 				mmcsd_default_cfg1 {
 					/* MCCLK */
-					ste,pins = "GPIO8_B10";
+					pins = "GPIO8_B10";
 					ste,output = <0>;
 				};
 				mmcsd_default_cfg2 {
 					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR, MCDATDIR2 */
-					ste,pins = "GPIO10_C11", "GPIO15_A12",
+					pins = "GPIO10_C11", "GPIO15_A12",
 					"GPIO16_C13", "GPIO23_D15";
 					ste,output = <1>;
 				};
 				mmcsd_default_cfg3 {
 					/* MCCMD, MCDAT3-0, MCMSFBCLK */
-					ste,pins = "GPIO9_A10", "GPIO11_B11",
+					pins = "GPIO9_A10", "GPIO11_B11",
 					"GPIO12_A11", "GPIO13_C12",
 					"GPIO14_B12", "GPIO24_C15";
 					ste,input = <1>;
@@ -144,13 +144,13 @@
 		i2c0 {
 			i2c0_default_mux: i2c0_mux {
 				i2c0_default_mux {
-					ste,function = "i2c0";
-					ste,pins = "i2c0_a_1";
+					function = "i2c0";
+					groups = "i2c0_a_1";
 				};
 			};
 			i2c0_default_mode: i2c0_default {
 				i2c0_default_cfg {
-					ste,pins = "GPIO62_D3", "GPIO63_D2";
+					pins = "GPIO62_D3", "GPIO63_D2";
 					ste,input = <0>;
 				};
 			};
@@ -158,13 +158,13 @@
 		i2c1 {
 			i2c1_default_mux: i2c1_mux {
 				i2c1_default_mux {
-					ste,function = "i2c1";
-					ste,pins = "i2c1_a_1";
+					function = "i2c1";
+					groups = "i2c1_a_1";
 				};
 			};
 			i2c1_default_mode: i2c1_default {
 				i2c1_default_cfg {
-					ste,pins = "GPIO53_L4", "GPIO54_L3";
+					pins = "GPIO53_L4", "GPIO54_L3";
 					ste,input = <0>;
 				};
 			};

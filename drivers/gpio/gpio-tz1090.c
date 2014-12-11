@@ -446,7 +446,7 @@ static int tz1090_gpio_bank_probe(struct tz1090_gpio_bank_info *info)
 	bank->irq = irq_of_parse_and_map(np, 0);
 
 	/* The interrupt is optional (it may be used by another core on chip) */
-	if (bank->irq < 0) {
+	if (!bank->irq) {
 		dev_info(dev, "IRQ not provided for bank %u, IRQs disabled\n",
 			 info->index);
 		return 0;
