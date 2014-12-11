@@ -1103,8 +1103,8 @@ int sk_attach_bpf(u32 ufd, struct sock *sk)
 		return -EPERM;
 
 	prog = bpf_prog_get(ufd);
-	if (!prog)
-		return -EINVAL;
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
 
 	if (prog->aux->prog_type != BPF_PROG_TYPE_SOCKET_FILTER) {
 		/* valid fd, but invalid program type */
