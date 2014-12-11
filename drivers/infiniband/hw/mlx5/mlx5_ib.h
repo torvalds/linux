@@ -261,8 +261,6 @@ struct mlx5_ib_mr {
 	struct list_head	list;
 	int			order;
 	int			umred;
-	__be64			*pas;
-	dma_addr_t		dma;
 	int			npages;
 	struct mlx5_ib_dev     *dev;
 	struct mlx5_create_mkey_mbox_out out;

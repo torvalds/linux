@@ -743,6 +743,8 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct mlx5_ib_mr *mr;
 	struct ib_sge sg;
 	int size = sizeof(u64) * npages;
+	__be64 *mr_pas;
+	dma_addr_t dma;
 	int err = 0;
 	int i;
 
@@ -761,25 +763,26 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	if (!mr)
 		return ERR_PTR(-EAGAIN);
 
-	mr->pas = kmalloc(size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
-	if (!mr->pas) {
+	mr_pas = kmalloc(size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
+	if (!mr_pas) {
 		err = -ENOMEM;
 		goto free_mr;
 	}
 
 	mlx5_ib_populate_pas(dev, umem, page_shift,
-			     mr_align(mr->pas, MLX5_UMR_ALIGN), 1);
+			     mr_align(mr_pas, MLX5_UMR_ALIGN), 1);
 
-	mr->dma = dma_map_single(ddev, mr_align(mr->pas, MLX5_UMR_ALIGN), size,
-				 DMA_TO_DEVICE);
-	if (dma_mapping_error(ddev, mr->dma)) {
+	dma = dma_map_single(ddev, mr_align(mr_pas, MLX5_UMR_ALIGN), size,
+			     DMA_TO_DEVICE);
+	if (dma_mapping_error(ddev, dma)) {
 		err = -ENOMEM;
 		goto free_pas;
 	}
 
 	memset(&wr, 0, sizeof(wr));
 	wr.wr_id = (u64)(unsigned long)&umr_context;
-	prep_umr_reg_wqe(pd, &wr, &sg, mr->dma, npages, mr->mmr.key, page_shift, virt_addr, len, access_flags);
+	prep_umr_reg_wqe(pd, &wr, &sg, dma, npages, mr->mmr.key, page_shift,
+			 virt_addr, len, access_flags);
 
 	mlx5_ib_init_umr_context(&umr_context);
 	down(&umrc->sem);
@@ -801,10 +804,10 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 
 unmap_dma:
 	up(&umrc->sem);
-	dma_unmap_single(ddev, mr->dma, size, DMA_TO_DEVICE);
+	dma_unmap_single(ddev, dma, size, DMA_TO_DEVICE);
 
 free_pas:
-	kfree(mr->pas);
+	kfree(mr_pas);
 
 free_mr:
 	if (err) {
