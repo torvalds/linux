@@ -277,14 +277,12 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 	field = (typeof(field))iter->ent;				\
 									\
 	ret = ftrace_raw_output_prep(iter, trace_event);		\
-	if (ret)							\
+	if (ret != TRACE_TYPE_HANDLED)					\
 		return ret;						\
 									\
-	ret = trace_seq_printf(s, print);				\
-	if (!ret)							\
-		return TRACE_TYPE_PARTIAL_LINE;				\
+	trace_seq_printf(s, print);					\
 									\
-	return TRACE_TYPE_HANDLED;					\
+	return trace_handle_return(s);					\
 }									\
 static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 	.trace			= ftrace_raw_output_##call,		\

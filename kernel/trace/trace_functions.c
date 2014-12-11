@@ -261,37 +261,74 @@ static struct tracer function_trace __tracer_data =
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-static int update_count(void **data)
+static void update_traceon_count(void **data, bool on)
 {
-	unsigned long *count = (long *)data;
+	long *count = (long *)data;
+	long old_count = *count;
 
-	if (!*count)
-		return 0;
+	/*
+	 * Tracing gets disabled (or enabled) once per count.
+	 * This function can be called at the same time on multiple CPUs.
+	 * It is fine if both disable (or enable) tracing, as disabling
+	 * (or enabling) the second time doesn't do anything as the
+	 * state of the tracer is already disabled (or enabled).
+	 * What needs to be synchronized in this case is that the count
+	 * only gets decremented once, even if the tracer is disabled
+	 * (or enabled) twice, as the second one is really a nop.
+	 *
+	 * The memory barriers guarantee that we only decrement the
+	 * counter once. First the count is read to a local variable
+	 * and a read barrier is used to make sure that it is loaded
+	 * before checking if the tracer is in the state we want.
+	 * If the tracer is not in the state we want, then the count
+	 * is guaranteed to be the old count.
+	 *
+	 * Next the tracer is set to the state we want (disabled or enabled)
+	 * then a write memory barrier is used to make sure that
+	 * the new state is visible before changing the counter by
+	 * one minus the old counter. This guarantees that another CPU
+	 * executing this code will see the new state before seeing
+	 * the new counter value, and would not do anything if the new
+	 * counter is seen.
+	 *
+	 * Note, there is no synchronization between this and a user
+	 * setting the tracing_on file. But we currently don't care
+	 * about that.
+	 */
+	if (!old_count)
+		return;
 
-	if (*count != -1)
-		(*count)--;
+	/* Make sure we see count before checking tracing state */
+	smp_rmb();
 
-	return 1;
+	if (on == !!tracing_is_on())
+		return;
+
+	if (on)
+		tracing_on();
+	else
+		tracing_off();
+
+	/* unlimited? */
+	if (old_count == -1)
+		return;
+
+	/* Make sure tracing state is visible before updating count */
+	smp_wmb();
+
+	*count = old_count - 1;
 }
 
 static void
 ftrace_traceon_count(unsigned long ip, unsigned long parent_ip, void **data)
 {
-	if (tracing_is_on())
-		return;
-
-	if (update_count(data))
-		tracing_on();
+	update_traceon_count(data, 1);
 }
 
 static void
 ftrace_traceoff_count(unsigned long ip, unsigned long parent_ip, void **data)
 {
-	if (!tracing_is_on())
-		return;
-
-	if (update_count(data))
-		tracing_off();
+	update_traceon_count(data, 0);
 }
 
 static void
@@ -330,11 +367,49 @@ ftrace_stacktrace(unsigned long ip, unsigned long parent_ip, void **data)
 static void
 ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip, void **data)
 {
-	if (!tracing_is_on())
-		return;
+	long *count = (long *)data;
+	long old_count;
+	long new_count;
 
-	if (update_count(data))
-		trace_dump_stack(STACK_SKIP);
+	/*
+	 * Stack traces should only execute the number of times the
+	 * user specified in the counter.
+	 */
+	do {
+
+		if (!tracing_is_on())
+			return;
+
+		old_count = *count;
+
+		if (!old_count)
+			return;
+
+		/* unlimited? */
+		if (old_count == -1) {
+			trace_dump_stack(STACK_SKIP);
+			return;
+		}
+
+		new_count = old_count - 1;
+		new_count = cmpxchg(count, old_count, new_count);
+		if (new_count == old_count)
+			trace_dump_stack(STACK_SKIP);
+
+	} while (new_count != old_count);
+}
+
+static int update_count(void **data)
+{
+	unsigned long *count = (long *)data;
+
+	if (!*count)
+		return 0;
+
+	if (*count != -1)
+		(*count)--;
+
+	return 1;
 }
 
 static void
@@ -361,7 +436,7 @@ ftrace_probe_print(const char *name, struct seq_file *m,
 	seq_printf(m, "%ps:%s", (void *)ip, name);
 
 	if (count == -1)
-		seq_printf(m, ":unlimited\n");
+		seq_puts(m, ":unlimited\n");
 	else
 		seq_printf(m, ":count=%ld\n", count);
 

@@ -69,20 +69,15 @@ int trace_print_seq(struct seq_file *m, struct trace_seq *s)
  * trace_seq_printf() is used to store strings into a special
  * buffer (@s). Then the output may be either used by
  * the sequencer or pulled into another buffer.
- *
- * Returns 1 if we successfully written all the contents to
- *   the buffer.
-  * Returns 0 if we the length to write is bigger than the
- *   reserved buffer space. In this case, nothing gets written.
  */
-int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
+void trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 {
 	unsigned int len = TRACE_SEQ_BUF_LEFT(s);
 	va_list ap;
 	int ret;
 
 	if (s->full || !len)
-		return 0;
+		return;
 
 	va_start(ap, fmt);
 	ret = vsnprintf(s->buffer + s->len, len, fmt, ap);
@@ -91,12 +86,10 @@ int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	/* If we can't write it all, don't bother writing anything */
 	if (ret >= len) {
 		s->full = 1;
-		return 0;
+		return;
 	}
 
 	s->len += ret;
-
-	return 1;
 }
 EXPORT_SYMBOL_GPL(trace_seq_printf);
 
@@ -107,25 +100,18 @@ EXPORT_SYMBOL_GPL(trace_seq_printf);
  * @nmaskbits:	The number of bits that are valid in @maskp
  *
  * Writes a ASCII representation of a bitmask string into @s.
- *
- * Returns 1 if we successfully written all the contents to
- *   the buffer.
- * Returns 0 if we the length to write is bigger than the
- *   reserved buffer space. In this case, nothing gets written.
  */
-int trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
+void trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
 		      int nmaskbits)
 {
 	unsigned int len = TRACE_SEQ_BUF_LEFT(s);
 	int ret;
 
 	if (s->full || !len)
-		return 0;
+		return;
 
-	ret = bitmap_scnprintf(s->buffer, len, maskp, nmaskbits);
+	ret = bitmap_scnprintf(s->buffer + s->len, len, maskp, nmaskbits);
 	s->len += ret;
-
-	return 1;
 }
 EXPORT_SYMBOL_GPL(trace_seq_bitmask);
 
@@ -139,28 +125,24 @@ EXPORT_SYMBOL_GPL(trace_seq_bitmask);
  * trace_seq_printf is used to store strings into a special
  * buffer (@s). Then the output may be either used by
  * the sequencer or pulled into another buffer.
- *
- * Returns how much it wrote to the buffer.
  */
-int trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
+void trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
 {
 	unsigned int len = TRACE_SEQ_BUF_LEFT(s);
 	int ret;
 
 	if (s->full || !len)
-		return 0;
+		return;
 
 	ret = vsnprintf(s->buffer + s->len, len, fmt, args);
 
 	/* If we can't write it all, don't bother writing anything */
 	if (ret >= len) {
 		s->full = 1;
-		return 0;
+		return;
 	}
 
 	s->len += ret;
-
-	return len;
 }
 EXPORT_SYMBOL_GPL(trace_seq_vprintf);
 
@@ -178,28 +160,24 @@ EXPORT_SYMBOL_GPL(trace_seq_vprintf);
  *
  * This function will take the format and the binary array and finish
  * the conversion into the ASCII string within the buffer.
- *
- * Returns how much it wrote to the buffer.
  */
-int trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
+void trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
 {
 	unsigned int len = TRACE_SEQ_BUF_LEFT(s);
 	int ret;
 
 	if (s->full || !len)
-		return 0;
+		return;
 
 	ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
 
 	/* If we can't write it all, don't bother writing anything */
 	if (ret >= len) {
 		s->full = 1;
-		return 0;
+		return;
 	}
 
 	s->len += ret;
-
-	return len;
 }
 EXPORT_SYMBOL_GPL(trace_seq_bprintf);
 
@@ -212,25 +190,21 @@ EXPORT_SYMBOL_GPL(trace_seq_bprintf);
  * copy to user routines. This function records a simple string
  * into a special buffer (@s) for later retrieval by a sequencer
  * or other mechanism.
- *
- * Returns how much it wrote to the buffer.
  */
-int trace_seq_puts(struct trace_seq *s, const char *str)
+void trace_seq_puts(struct trace_seq *s, const char *str)
 {
 	unsigned int len = strlen(str);
 
 	if (s->full)
-		return 0;
+		return;
 
 	if (len > TRACE_SEQ_BUF_LEFT(s)) {
 		s->full = 1;
-		return 0;
+		return;
 	}
 
 	memcpy(s->buffer + s->len, str, len);
 	s->len += len;
-
-	return len;
 }
 EXPORT_SYMBOL_GPL(trace_seq_puts);
 
@@ -243,22 +217,18 @@ EXPORT_SYMBOL_GPL(trace_seq_puts);
  * copy to user routines. This function records a simple charater
  * into a special buffer (@s) for later retrieval by a sequencer
  * or other mechanism.
- *
- * Returns how much it wrote to the buffer.
  */
-int trace_seq_putc(struct trace_seq *s, unsigned char c)
+void trace_seq_putc(struct trace_seq *s, unsigned char c)
 {
 	if (s->full)
-		return 0;
+		return;
 
 	if (TRACE_SEQ_BUF_LEFT(s) < 1) {
 		s->full = 1;
-		return 0;
+		return;
 	}
 
 	s->buffer[s->len++] = c;
-
-	return 1;
 }
 EXPORT_SYMBOL_GPL(trace_seq_putc);
 
@@ -271,23 +241,19 @@ EXPORT_SYMBOL_GPL(trace_seq_putc);
  * There may be cases where raw memory needs to be written into the
  * buffer and a strcpy() would not work. Using this function allows
  * for such cases.
- *
- * Returns how much it wrote to the buffer.
  */
-int trace_seq_putmem(struct trace_seq *s, const void *mem, unsigned int len)
+void trace_seq_putmem(struct trace_seq *s, const void *mem, unsigned int len)
 {
 	if (s->full)
-		return 0;
+		return;
 
 	if (len > TRACE_SEQ_BUF_LEFT(s)) {
 		s->full = 1;
-		return 0;
+		return;
 	}
 
 	memcpy(s->buffer + s->len, mem, len);
 	s->len += len;
-
-	return len;
 }
 EXPORT_SYMBOL_GPL(trace_seq_putmem);
 
@@ -303,20 +269,17 @@ EXPORT_SYMBOL_GPL(trace_seq_putmem);
  * This is similar to trace_seq_putmem() except instead of just copying the
  * raw memory into the buffer it writes its ASCII representation of it
  * in hex characters.
- *
- * Returns how much it wrote to the buffer.
  */
-int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
+void trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 			 unsigned int len)
 {
 	unsigned char hex[HEX_CHARS];
 	const unsigned char *data = mem;
 	unsigned int start_len;
 	int i, j;
-	int cnt = 0;
 
 	if (s->full)
-		return 0;
+		return;
 
 	while (len) {
 		start_len = min(len, HEX_CHARS - 1);
@@ -335,9 +298,8 @@ int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 		len -= j / 2;
 		hex[j++] = ' ';
 
-		cnt += trace_seq_putmem(s, hex, j);
+		trace_seq_putmem(s, hex, j);
 	}
-	return cnt;
 }
 EXPORT_SYMBOL_GPL(trace_seq_putmem_hex);
 

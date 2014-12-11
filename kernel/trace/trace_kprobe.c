@@ -826,7 +826,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	struct trace_kprobe *tk = v;
 	int i;
 
-	seq_printf(m, "%c", trace_kprobe_is_return(tk) ? 'r' : 'p');
+	seq_putc(m, trace_kprobe_is_return(tk) ? 'r' : 'p');
 	seq_printf(m, ":%s/%s", tk->tp.call.class->system,
 			ftrace_event_name(&tk->tp.call));
 
@@ -840,7 +840,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < tk->tp.nr_args; i++)
 		seq_printf(m, " %s=%s", tk->tp.args[i].name, tk->tp.args[i].comm);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 	return 0;
 }
@@ -1024,27 +1024,22 @@ print_kprobe_event(struct trace_iterator *iter, int flags,
 	field = (struct kprobe_trace_entry_head *)iter->ent;
 	tp = container_of(event, struct trace_probe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call)))
-		goto partial;
+	trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call));
 
 	if (!seq_print_ip_sym(s, field->ip, flags | TRACE_ITER_SYM_OFFSET))
-		goto partial;
+		goto out;
 
-	if (!trace_seq_puts(s, ")"))
-		goto partial;
+	trace_seq_putc(s, ')');
 
 	data = (u8 *)&field[1];
 	for (i = 0; i < tp->nr_args; i++)
 		if (!tp->args[i].type->print(s, tp->args[i].name,
 					     data + tp->args[i].offset, field))
-			goto partial;
+			goto out;
 
-	if (!trace_seq_puts(s, "\n"))
-		goto partial;
-
-	return TRACE_TYPE_HANDLED;
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
+	trace_seq_putc(s, '\n');
+ out:
+	return trace_handle_return(s);
 }
 
 static enum print_line_t
@@ -1060,33 +1055,28 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 	field = (struct kretprobe_trace_entry_head *)iter->ent;
 	tp = container_of(event, struct trace_probe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call)))
-		goto partial;
+	trace_seq_printf(s, "%s: (", ftrace_event_name(&tp->call));
 
 	if (!seq_print_ip_sym(s, field->ret_ip, flags | TRACE_ITER_SYM_OFFSET))
-		goto partial;
+		goto out;
 
-	if (!trace_seq_puts(s, " <- "))
-		goto partial;
+	trace_seq_puts(s, " <- ");
 
 	if (!seq_print_ip_sym(s, field->func, flags & ~TRACE_ITER_SYM_OFFSET))
-		goto partial;
+		goto out;
 
-	if (!trace_seq_puts(s, ")"))
-		goto partial;
+	trace_seq_putc(s, ')');
 
 	data = (u8 *)&field[1];
 	for (i = 0; i < tp->nr_args; i++)
 		if (!tp->args[i].type->print(s, tp->args[i].name,
 					     data + tp->args[i].offset, field))
-			goto partial;
+			goto out;
 
-	if (!trace_seq_puts(s, "\n"))
-		goto partial;
+	trace_seq_putc(s, '\n');
 
-	return TRACE_TYPE_HANDLED;
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
+ out:
+	return trace_handle_return(s);
 }
 
 
