@@ -513,8 +513,10 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	data->cdev = cpufreq_cooling_register(cpu_present_mask);
 	if (IS_ERR(data->cdev)) {
 		ret = PTR_ERR(data->cdev);
-		dev_err(&pdev->dev,
-			"failed to register cpufreq cooling device: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"failed to register cpufreq cooling device: %d\n",
+				ret);
 		return ret;
 	}
 
