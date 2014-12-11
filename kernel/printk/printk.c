@@ -1859,10 +1859,16 @@ asmlinkage __visible int printk(const char *fmt, ...)
 	int r;
 
 	va_start(args, fmt);
-	preempt_disable();
+
+	/*
+	 * If a caller overrides the per_cpu printk_func, then it needs
+	 * to disable preemption when calling printk(). Otherwise
+	 * the printk_func should be set to the default. No need to
+	 * disable preemption here.
+	 */
 	vprintk_func = this_cpu_read(printk_func);
 	r = vprintk_func(fmt, args);
-	preempt_enable();
+
 	va_end(args);
 
 	return r;
