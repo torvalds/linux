@@ -535,6 +535,14 @@
 			clock-output-names =
 				"vin1", "vin0", "ether";
 		};
+		mstp9_clks: mstp9_clks@e6150994 {
+			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0 0xe6150994 0 4>, <0 0xe61509a4 0 4>;
+			clocks = <&cpg_clocks R8A7794_CLK_QSPI>;
+			#clock-cells = <1>;
+			clock-indices = <R8A7794_CLK_QSPI_MOD>;
+			clock-output-names = "qspi_mod";
+		};
 		mstp11_clks: mstp11_clks@e615099c {
 			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe615099c 0 4>, <0 0xe61509ac 0 4>;
