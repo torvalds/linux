@@ -60,11 +60,11 @@ static bool ipv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-static int ipv6_print_tuple(struct seq_file *s,
+static void ipv6_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "src=%pI6 dst=%pI6 ",
-			  tuple->src.u3.ip6, tuple->dst.u3.ip6);
+	seq_printf(s, "src=%pI6 dst=%pI6 ",
+		   tuple->src.u3.ip6, tuple->dst.u3.ip6);
 }
 
 static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,

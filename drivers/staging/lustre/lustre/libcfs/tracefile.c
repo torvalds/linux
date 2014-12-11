@@ -1025,8 +1025,8 @@ static int tracefiled(void *arg)
 
 			if (f_pos >= (off_t)cfs_tracefile_size)
 				f_pos = 0;
-			else if (f_pos > i_size_read(filp->f_dentry->d_inode))
-				f_pos = i_size_read(filp->f_dentry->d_inode);
+			else if (f_pos > i_size_read(file_inode(filp)))
+				f_pos = i_size_read(file_inode(filp));
 
 			buf = kmap(tage->page);
 			rc = vfs_write(filp, (__force const char __user *)buf,

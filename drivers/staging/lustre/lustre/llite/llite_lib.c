@@ -698,10 +698,8 @@ void lustre_dump_dentry(struct dentry *dentry, int recur)
 	list_for_each(tmp, &dentry->d_subdirs)
 		subdirs++;
 
-	CERROR("dentry %p dump: name=%.*s parent=%.*s (%p), inode=%p, count=%u,"
-	       " flags=0x%x, fsdata=%p, %d subdirs\n", dentry,
-	       dentry->d_name.len, dentry->d_name.name,
-	       dentry->d_parent->d_name.len, dentry->d_parent->d_name.name,
+	CERROR("dentry %p dump: name=%pd parent=%p, inode=%p, count=%u,"
+	       " flags=0x%x, fsdata=%p, %d subdirs\n", dentry, dentry,
 	       dentry->d_parent, dentry->d_inode, d_count(dentry),
 	       dentry->d_flags, dentry->d_fsdata, subdirs);
 	if (dentry->d_inode != NULL)
@@ -711,7 +709,7 @@ void lustre_dump_dentry(struct dentry *dentry, int recur)
 		return;
 
 	list_for_each(tmp, &dentry->d_subdirs) {
-		struct dentry *d = list_entry(tmp, struct dentry, d_u.d_child);
+		struct dentry *d = list_entry(tmp, struct dentry, d_child);
 		lustre_dump_dentry(d, recur - 1);
 	}
 }

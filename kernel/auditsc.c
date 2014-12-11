@@ -1897,6 +1897,11 @@ out:
 	audit_copy_inode(n, dentry, inode);
 }
 
+void __audit_file(const struct file *file)
+{
+	__audit_inode(NULL, file->f_path.dentry, 0);
+}
+
 /**
  * __audit_inode_child - collect inode info for created/removed objects
  * @parent: inode of dentry parent
@@ -2373,7 +2378,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 
-	dentry = dget(bprm->file->f_dentry);
+	dentry = dget(bprm->file->f_path.dentry);
 	get_vfs_caps_from_disk(dentry, &vcaps);
 	dput(dentry);
 

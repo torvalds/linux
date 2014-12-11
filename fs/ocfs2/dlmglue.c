@@ -3725,8 +3725,7 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 			break;
 		spin_unlock(&dentry_attach_lock);
 
-		mlog(0, "d_delete(%.*s);\n", dentry->d_name.len,
-		     dentry->d_name.name);
+		mlog(0, "d_delete(%pd);\n", dentry);
 
 		/*
 		 * The following dcache calls may do an

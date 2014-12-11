@@ -231,6 +231,10 @@ static struct file_operations reply_cache_stats_operations = {
  * payload - write methods
  */
 
+static inline struct net *netns(struct file *file)
+{
+	return file_inode(file)->i_sb->s_fs_info;
+}
 
 /**
  * write_unlock_ip - Release all locks used by a client
@@ -252,7 +256,7 @@ static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size)
 	struct sockaddr *sap = (struct sockaddr *)&address;
 	size_t salen = sizeof(address);
 	char *fo_path;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
+	struct net *net = netns(file);
 
 	/* sanity check */
 	if (size == 0)
@@ -350,7 +354,6 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	int len;
 	struct auth_domain *dom;
 	struct knfsd_fh fh;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
 
 	if (size == 0)
 		return -EINVAL;
@@ -385,7 +388,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	if (!dom)
 		return -ENOMEM;
 
-	len = exp_rootfh(net, dom, path, &fh,  maxsize);
+	len = exp_rootfh(netns(file), dom, path, &fh,  maxsize);
 	auth_domain_put(dom);
 	if (len)
 		return len;
@@ -429,7 +432,7 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
 	int rv;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
+	struct net *net = netns(file);
 
 	if (size > 0) {
 		int newthreads;
@@ -480,7 +483,7 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 	int len;
 	int npools;
 	int *nthreads;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
+	struct net *net = netns(file);
 
 	mutex_lock(&nfsd_mutex);
 	npools = nfsd_nrpools(net);
@@ -543,8 +546,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	unsigned minor;
 	ssize_t tlen = 0;
 	char *sep;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 
 	if (size>0) {
 		if (nn->nfsd_serv)
@@ -830,10 +832,9 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size,
 static ssize_t write_ports(struct file *file, char *buf, size_t size)
 {
 	ssize_t rv;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
 
 	mutex_lock(&nfsd_mutex);
-	rv = __write_ports(file, buf, size, net);
+	rv = __write_ports(file, buf, size, netns(file));
 	mutex_unlock(&nfsd_mutex);
 	return rv;
 }
@@ -865,8 +866,7 @@ int nfsd_max_blksize;
 static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 
 	if (size > 0) {
 		int bsize;
@@ -915,8 +915,7 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 static ssize_t write_maxconn(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 	unsigned int maxconn = nn->max_connections;
 
 	if (size > 0) {
@@ -997,8 +996,7 @@ static ssize_t nfsd4_write_time(struct file *file, char *buf, size_t size,
  */
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 {
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 	return nfsd4_write_time(file, buf, size, &nn->nfsd4_lease, nn);
 }
 
@@ -1014,8 +1012,7 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
  */
 static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
 {
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 	return nfsd4_write_time(file, buf, size, &nn->nfsd4_grace, nn);
 }
 
@@ -1071,8 +1068,7 @@ static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size,
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 {
 	ssize_t rv;
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 
 	mutex_lock(&nfsd_mutex);
 	rv = __write_recoverydir(file, buf, size, nn);
@@ -1102,8 +1098,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
  */
 static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size)
 {
-	struct net *net = file->f_dentry->d_sb->s_fs_info;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
 
 	if (size > 0) {
 		switch(buf[0]) {

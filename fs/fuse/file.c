@@ -1988,7 +1988,7 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 		struct page **pagep, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	struct fuse_conn *fc = get_fuse_conn(file->f_dentry->d_inode);
+	struct fuse_conn *fc = get_fuse_conn(file_inode(file));
 	struct page *page;
 	loff_t fsize;
 	int err = -ENOMEM;

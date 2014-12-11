@@ -92,8 +92,8 @@ struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
 				     struct dentry *parent,
 				     struct debugfs_regset32 *regset);
 
-int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
-			 int nregs, void __iomem *base, char *prefix);
+void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
+			  int nregs, void __iomem *base, char *prefix);
 
 struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
 					struct dentry *parent,
@@ -233,10 +233,9 @@ static inline struct dentry *debugfs_create_regset32(const char *name,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
+static inline void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
 			 int nregs, void __iomem *base, char *prefix)
 {
-	return 0;
 }
 
 static inline bool debugfs_initialized(void)

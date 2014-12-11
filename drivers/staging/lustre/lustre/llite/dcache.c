@@ -151,10 +151,10 @@ static int ll_ddelete(const struct dentry *de)
 {
 	LASSERT(de);
 
-	CDEBUG(D_DENTRY, "%s dentry %.*s (%p, parent %p, inode %p) %s%s\n",
+	CDEBUG(D_DENTRY, "%s dentry %pd (%p, parent %p, inode %p) %s%s\n",
 	       d_lustre_invalid((struct dentry *)de) ? "deleting" : "keeping",
-	       de->d_name.len, de->d_name.name, de, de->d_parent, de->d_inode,
-	       d_unhashed((struct dentry *)de) ? "" : "hashed,",
+	       de, de, de->d_parent, de->d_inode,
+	       d_unhashed(de) ? "" : "hashed,",
 	       list_empty(&de->d_subdirs) ? "" : "subdirs");
 
 	/* kernel >= 2.6.38 last refcount is decreased after this function. */
@@ -180,8 +180,8 @@ int ll_d_init(struct dentry *de)
 {
 	LASSERT(de != NULL);
 
-	CDEBUG(D_DENTRY, "ldd on dentry %.*s (%p) parent %p inode %p refc %d\n",
-		de->d_name.len, de->d_name.name, de, de->d_parent, de->d_inode,
+	CDEBUG(D_DENTRY, "ldd on dentry %pd (%p) parent %p inode %p refc %d\n",
+		de, de, de->d_parent, de->d_inode,
 		d_count(de));
 
 	if (de->d_fsdata == NULL) {
@@ -258,10 +258,9 @@ void ll_invalidate_aliases(struct inode *inode)
 	       inode->i_ino, inode->i_generation, inode);
 
 	ll_lock_dcache(inode);
-	ll_d_hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
-		CDEBUG(D_DENTRY, "dentry in drop %.*s (%p) parent %p "
-		       "inode %p flags %d\n", dentry->d_name.len,
-		       dentry->d_name.name, dentry, dentry->d_parent,
+	ll_d_hlist_for_each_entry(dentry, p, &inode->i_dentry, d_u.d_alias) {
+		CDEBUG(D_DENTRY, "dentry in drop %pd (%p) parent %p "
+		       "inode %p flags %d\n", dentry, dentry, dentry->d_parent,
 		       dentry->d_inode, dentry->d_flags);
 
 		if (unlikely(dentry == dentry->d_sb->s_root)) {
@@ -352,8 +351,8 @@ static int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 {
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%s, flags=%u\n",
-	       dentry->d_name.name, flags);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, flags=%u\n",
+	       dentry, flags);
 
 	rc = ll_revalidate_dentry(dentry, flags);
 	return rc;

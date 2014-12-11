@@ -419,7 +419,7 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 	ssize_t size;
 	void *xattr_virt;
 	struct dentry *lower_dentry =
-		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
+		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
 	struct inode *lower_inode = lower_dentry->d_inode;
 	int rc;
 

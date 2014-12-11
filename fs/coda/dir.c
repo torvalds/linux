@@ -107,7 +107,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsig
 	}
 
 	/* control object, create inode on the fly */
-	if (coda_isroot(dir) && coda_iscontrol(name, length)) {
+	if (is_root_inode(dir) && coda_iscontrol(name, length)) {
 		inode = coda_cnode_makectl(sb);
 		type = CODA_NOCACHE;
 	} else {
@@ -195,7 +195,7 @@ static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, bool 
 	struct CodaFid newfid;
 	struct coda_vattr attrs;
 
-	if (coda_isroot(dir) && coda_iscontrol(name, length))
+	if (is_root_inode(dir) && coda_iscontrol(name, length))
 		return -EPERM;
 
 	error = venus_create(dir->i_sb, coda_i2f(dir), name, length, 
@@ -227,7 +227,7 @@ static int coda_mkdir(struct inode *dir, struct dentry *de, umode_t mode)
 	int error;
 	struct CodaFid newfid;
 
-	if (coda_isroot(dir) && coda_iscontrol(name, len))
+	if (is_root_inode(dir) && coda_iscontrol(name, len))
 		return -EPERM;
 
 	attrs.va_mode = mode;
@@ -261,7 +261,7 @@ static int coda_link(struct dentry *source_de, struct inode *dir_inode,
 	int len = de->d_name.len;
 	int error;
 
-	if (coda_isroot(dir_inode) && coda_iscontrol(name, len))
+	if (is_root_inode(dir_inode) && coda_iscontrol(name, len))
 		return -EPERM;
 
 	error = venus_link(dir_inode->i_sb, coda_i2f(inode),
@@ -287,7 +287,7 @@ static int coda_symlink(struct inode *dir_inode, struct dentry *de,
 	int symlen;
 	int error;
 
-	if (coda_isroot(dir_inode) && coda_iscontrol(name, len))
+	if (is_root_inode(dir_inode) && coda_iscontrol(name, len))
 		return -EPERM;
 
 	symlen = strlen(symname);
@@ -507,7 +507,7 @@ static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 		return -ECHILD;
 
 	inode = de->d_inode;
-	if (!inode || coda_isroot(inode))
+	if (!inode || is_root_inode(inode))
 		goto out;
 	if (is_bad_inode(inode))
 		goto bad;

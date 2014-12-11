@@ -56,11 +56,12 @@ struct getdents_callback {
 
 #define NAME_OFFSET(de) ((int) ((de)->d_name - (char __user *) (de)))
 
-static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
-		u64 ino, unsigned d_type)
+static int filldir(struct dir_context *ctx, const char *name, int namlen,
+		   loff_t offset, u64 ino, unsigned d_type)
 {
 	struct hpux_dirent __user * dirent;
-	struct getdents_callback * buf = (struct getdents_callback *) __buf;
+	struct getdents_callback *buf =
+		container_of(ctx, struct getdents_callback, ctx);
 	ino_t d_ino;
 	int reclen = ALIGN(NAME_OFFSET(dirent) + namlen + 1, sizeof(long));
 

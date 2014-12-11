@@ -1373,7 +1373,7 @@ out:
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode)
 {
 	struct dentry *lower_dentry =
-		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
+		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_path.dentry;
 	ssize_t size;
 	int rc = 0;
 

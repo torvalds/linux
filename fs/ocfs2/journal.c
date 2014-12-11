@@ -1982,10 +1982,12 @@ struct ocfs2_orphan_filldir_priv {
 	struct ocfs2_super	*osb;
 };
 
-static int ocfs2_orphan_filldir(void *priv, const char *name, int name_len,
-				loff_t pos, u64 ino, unsigned type)
+static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
+				int name_len, loff_t pos, u64 ino,
+				unsigned type)
 {
-	struct ocfs2_orphan_filldir_priv *p = priv;
+	struct ocfs2_orphan_filldir_priv *p =
+		container_of(ctx, struct ocfs2_orphan_filldir_priv, ctx);
 	struct inode *iter;
 
 	if (name_len == 1 && !strncmp(".", name, 1))
