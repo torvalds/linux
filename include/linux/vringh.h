@@ -24,12 +24,16 @@
 #ifndef _LINUX_VRINGH_H
 #define _LINUX_VRINGH_H
 #include <uapi/linux/virtio_ring.h>
+#include <linux/virtio_byteorder.h>
 #include <linux/uio.h>
 #include <linux/slab.h>
 #include <asm/barrier.h>
 
 /* virtio_ring with information needed for host access. */
 struct vringh {
+	/* Everything is little endian */
+	bool little_endian;
+
 	/* Guest publishes used event idx (note: we always do). */
 	bool event_indices;
 
@@ -222,4 +226,33 @@ static inline void vringh_notify(struct vringh *vrh)
 		vrh->notify(vrh);
 }
 
+static inline u16 vringh16_to_cpu(const struct vringh *vrh, __virtio16 val)
+{
+	return __virtio16_to_cpu(vrh->little_endian, val);
+}
+
+static inline __virtio16 cpu_to_vringh16(const struct vringh *vrh, u16 val)
+{
+	return __cpu_to_virtio16(vrh->little_endian, val);
+}
+
+static inline u32 vringh32_to_cpu(const struct vringh *vrh, __virtio32 val)
+{
+	return __virtio32_to_cpu(vrh->little_endian, val);
+}
+
+static inline __virtio32 cpu_to_vringh32(const struct vringh *vrh, u32 val)
+{
+	return __cpu_to_virtio32(vrh->little_endian, val);
+}
+
+static inline u64 vringh64_to_cpu(const struct vringh *vrh, __virtio64 val)
+{
+	return __virtio64_to_cpu(vrh->little_endian, val);
+}
+
+static inline __virtio64 cpu_to_vringh64(const struct vringh *vrh, u64 val)
+{
+	return __cpu_to_virtio64(vrh->little_endian, val);
+}
 #endif /* _LINUX_VRINGH_H */
