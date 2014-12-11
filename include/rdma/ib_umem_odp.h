@@ -34,6 +34,13 @@
 #define IB_UMEM_ODP_H
 
 #include <rdma/ib_umem.h>
+#include <rdma/ib_verbs.h>
+#include <linux/interval_tree.h>
+
+struct umem_odp_node {
+	u64 __subtree_last;
+	struct rb_node rb;
+};
 
 struct ib_umem_odp {
 	/*
@@ -51,10 +58,27 @@ struct ib_umem_odp {
 	dma_addr_t		*dma_list;
 	/*
 	 * The umem_mutex protects the page_list and dma_list fields of an ODP
-	 * umem, allowing only a single thread to map/unmap pages.
+	 * umem, allowing only a single thread to map/unmap pages. The mutex
+	 * also protects access to the mmu notifier counters.
 	 */
 	struct mutex		umem_mutex;
 	void			*private; /* for the HW driver to use. */
+
+	/* When false, use the notifier counter in the ucontext struct. */
+	bool mn_counters_active;
+	int notifiers_seq;
+	int notifiers_count;
+
+	/* A linked list of umems that don't have private mmu notifier
+	 * counters yet. */
+	struct list_head no_private_counters;
+	struct ib_umem		*umem;
+
+	/* Tree tracking */
+	struct umem_odp_node	interval_tree;
+
+	struct completion	notifier_completion;
+	int			dying;
 };
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
@@ -81,6 +105,45 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 start_offset, u64 bcnt,
 
 void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 start_offset,
 				 u64 bound);
+
+void rbt_ib_umem_insert(struct umem_odp_node *node, struct rb_root *root);
+void rbt_ib_umem_remove(struct umem_odp_node *node, struct rb_root *root);
+typedef int (*umem_call_back)(struct ib_umem *item, u64 start, u64 end,
+			      void *cookie);
+/*
+ * Call the callback on each ib_umem in the range. Returns the logical or of
+ * the return values of the functions called.
+ */
+int rbt_ib_umem_for_each_in_range(struct rb_root *root, u64 start, u64 end,
+				  umem_call_back cb, void *cookie);
+
+struct umem_odp_node *rbt_ib_umem_iter_first(struct rb_root *root,
+					     u64 start, u64 last);
+struct umem_odp_node *rbt_ib_umem_iter_next(struct umem_odp_node *node,
+					    u64 start, u64 last);
+
+static inline int ib_umem_mmu_notifier_retry(struct ib_umem *item,
+					     unsigned long mmu_seq)
+{
+	/*
+	 * This code is strongly based on the KVM code from
+	 * mmu_notifier_retry. Should be called with
+	 * the relevant locks taken (item->odp_data->umem_mutex
+	 * and the ucontext umem_mutex semaphore locked for read).
+	 */
+
+	/* Do not allow page faults while the new ib_umem hasn't seen a state
+	 * with zero notifiers yet, and doesn't have its own valid set of
+	 * private counters. */
+	if (!item->odp_data->mn_counters_active)
+		return 1;
+
+	if (unlikely(item->odp_data->notifiers_count))
+		return 1;
+	if (item->odp_data->notifiers_seq != mmu_seq)
+		return 1;
+	return 0;
+}
 
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 

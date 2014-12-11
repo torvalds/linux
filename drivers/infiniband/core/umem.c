@@ -72,7 +72,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
  * ib_umem_get - Pin and DMA map userspace memory.
  *
  * If access flags indicate ODP memory, avoid pinning. Instead, stores
- * the mm for future page fault handling.
+ * the mm for future page fault handling in conjunction with MMU notifiers.
  *
  * @context: userspace context to pin memory for
  * @addr: userspace virtual address to start at

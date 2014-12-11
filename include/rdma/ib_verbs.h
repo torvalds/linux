@@ -51,6 +51,7 @@
 #include <uapi/linux/if_ether.h>
 
 #include <linux/atomic.h>
+#include <linux/mmu_notifier.h>
 #include <asm/uaccess.h>
 
 extern struct workqueue_struct *ib_wq;
@@ -1139,6 +1140,8 @@ struct ib_fmr_attr {
 	u8	page_shift;
 };
 
+struct ib_umem;
+
 struct ib_ucontext {
 	struct ib_device       *device;
 	struct list_head	pd_list;
@@ -1153,6 +1156,22 @@ struct ib_ucontext {
 	int			closing;
 
 	struct pid             *tgid;
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	struct rb_root      umem_tree;
+	/*
+	 * Protects .umem_rbroot and tree, as well as odp_mrs_count and
+	 * mmu notifiers registration.
+	 */
+	struct rw_semaphore	umem_rwsem;
+	void (*invalidate_range)(struct ib_umem *umem,
+				 unsigned long start, unsigned long end);
+
+	struct mmu_notifier	mn;
+	atomic_t		notifier_count;
+	/* A list of umems that don't have private mmu notifier counters yet. */
+	struct list_head	no_private_counters;
+	int                     odp_mrs_count;
+#endif
 };
 
 struct ib_uobject {
