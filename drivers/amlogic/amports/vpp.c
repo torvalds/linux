@@ -335,10 +335,15 @@ vpp_process_speed_check(s32 width_in,
         return SPEED_CHECK_DONE;
     }
 
-    /* if (video_speed_check_width * video_speed_check_height * height_out > height_screen * width_in * height_in) { */
-    if (height_out > height_in) {
+#if (MESON_CPU_TYPE > MESON_CPU_TYPE_MESON6)
+    if ((height_out+1) > height_in) {
         return SPEED_CHECK_DONE;
     }
+#else
+    if (video_speed_check_width * video_speed_check_height * height_out > height_screen * width_in * height_in) {
+        return SPEED_CHECK_DONE;
+    }
+#endif
 
     amlog_mask(LOG_MASK_VPP, "vpp_process_speed_check failed\n");
 
