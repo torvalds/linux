@@ -60,6 +60,7 @@ struct mlx4_port_cap {
 	int vendor_oui;
 	u16 wavelength;
 	u64 trans_code;
+	u8 dmfs_optimized_state;
 };
 
 struct mlx4_dev_cap {
@@ -124,6 +125,8 @@ struct mlx4_dev_cap {
 	int max_gso_sz;
 	int max_rss_tbl_sz;
 	u32 max_counters;
+	u32 dmfs_high_rate_qpn_base;
+	u32 dmfs_high_rate_qpn_range;
 	struct mlx4_port_cap port_cap[MLX4_MAX_PORTS + 1];
 };
 
@@ -194,6 +197,7 @@ struct mlx4_init_hca_param {
 	u8  mw_enabled;  /* Enable memory windows */
 	u8  uar_page_sz; /* log pg sz in 4k chunks */
 	u8  steering_mode; /* for QUERY_HCA */
+	u8  dmfs_high_steer_mode; /* for QUERY_HCA */
 	u64 dev_cap_enabled;
 	u16 cqe_size; /* For use only when CQE stride feature enabled */
 	u16 eqe_size; /* For use only when EQE stride feature enabled */

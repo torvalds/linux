@@ -2594,7 +2594,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
 	if (mdev->dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+	    MLX4_STEERING_MODE_DEVICE_MANAGED &&
+	    mdev->dev->caps.dmfs_high_steer_mode != MLX4_STEERING_DMFS_A0_STATIC)
 		dev->hw_features |= NETIF_F_NTUPLE;
 
 	if (mdev->dev->caps.steering_mode != MLX4_STEERING_MODE_A0)

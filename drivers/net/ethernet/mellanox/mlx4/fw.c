@@ -144,7 +144,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[15] = "Ethernet Backplane autoneg support",
 		[16] = "CONFIG DEV support",
 		[17] = "Asymmetric EQs support",
-		[18] = "More than 80 VFs support"
+		[18] = "More than 80 VFs support",
+		[19] = "Performance optimized for limited rule configuration flow steering support"
 	};
 	int i;
 
@@ -680,6 +681,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_FW_REASSIGN_MAC		0x9d
 #define QUERY_DEV_CAP_VXLAN			0x9e
 #define QUERY_DEV_CAP_MAD_DEMUX_OFFSET		0xb0
+#define QUERY_DEV_CAP_DMFS_HIGH_RATE_QPN_BASE_OFFSET	0xa8
+#define QUERY_DEV_CAP_DMFS_HIGH_RATE_QPN_RANGE_OFFSET	0xac
 
 	dev_cap->flags2 = 0;
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -876,6 +879,13 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (field32 & (1 << 0))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_MAD_DEMUX;
 
+	MLX4_GET(dev_cap->dmfs_high_rate_qpn_base, outbox,
+		 QUERY_DEV_CAP_DMFS_HIGH_RATE_QPN_BASE_OFFSET);
+	dev_cap->dmfs_high_rate_qpn_base &= MGM_QPN_MASK;
+	MLX4_GET(dev_cap->dmfs_high_rate_qpn_range, outbox,
+		 QUERY_DEV_CAP_DMFS_HIGH_RATE_QPN_RANGE_OFFSET);
+	dev_cap->dmfs_high_rate_qpn_range &= MGM_QPN_MASK;
+
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
 	if (field32 & (1 << 16))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_UPDATE_QP;
@@ -935,6 +945,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	mlx4_dbg(dev, "Max GSO size: %d\n", dev_cap->max_gso_sz);
 	mlx4_dbg(dev, "Max counters: %d\n", dev_cap->max_counters);
 	mlx4_dbg(dev, "Max RSS Table size: %d\n", dev_cap->max_rss_tbl_sz);
+	mlx4_dbg(dev, "DMFS high rate steer QPn base: %d\n",
+		 dev_cap->dmfs_high_rate_qpn_base);
+	mlx4_dbg(dev, "DMFS high rate steer QPn range: %d\n",
+		 dev_cap->dmfs_high_rate_qpn_range);
 
 	dump_dev_cap_flags(dev, dev_cap->flags);
 	dump_dev_cap_flags2(dev, dev_cap->flags2);
@@ -996,6 +1010,7 @@ int mlx4_QUERY_PORT(struct mlx4_dev *dev, int port, struct mlx4_port_cap *port_c
 		port_cap->supported_port_types = field & 3;
 		port_cap->suggested_type = (field >> 3) & 1;
 		port_cap->default_sense = (field >> 4) & 1;
+		port_cap->dmfs_optimized_state = (field >> 5) & 1;
 		MLX4_GET(field, outbox, QUERY_PORT_MTU_OFFSET);
 		port_cap->ib_mtu	   = field & 0xf;
 		MLX4_GET(field, outbox, QUERY_PORT_WIDTH_OFFSET);
@@ -1530,6 +1545,12 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	struct mlx4_cmd_mailbox *mailbox;
 	__be32 *inbox;
 	int err;
+	static const u8 a0_dmfs_hw_steering[] =  {
+		[MLX4_STEERING_DMFS_A0_DEFAULT]		= 0,
+		[MLX4_STEERING_DMFS_A0_DYNAMIC]		= 1,
+		[MLX4_STEERING_DMFS_A0_STATIC]		= 2,
+		[MLX4_STEERING_DMFS_A0_DISABLE]		= 3
+	};
 
 #define INIT_HCA_IN_SIZE		 0x200
 #define INIT_HCA_VERSION_OFFSET		 0x000
@@ -1563,6 +1584,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define  INIT_HCA_FS_PARAM_OFFSET         0x1d0
 #define  INIT_HCA_FS_BASE_OFFSET          (INIT_HCA_FS_PARAM_OFFSET + 0x00)
 #define  INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET  (INIT_HCA_FS_PARAM_OFFSET + 0x12)
+#define  INIT_HCA_FS_A0_OFFSET		  (INIT_HCA_FS_PARAM_OFFSET + 0x18)
 #define  INIT_HCA_FS_LOG_TABLE_SZ_OFFSET  (INIT_HCA_FS_PARAM_OFFSET + 0x1b)
 #define  INIT_HCA_FS_ETH_BITS_OFFSET      (INIT_HCA_FS_PARAM_OFFSET + 0x21)
 #define  INIT_HCA_FS_ETH_NUM_ADDRS_OFFSET (INIT_HCA_FS_PARAM_OFFSET + 0x22)
@@ -1673,8 +1695,11 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		/* Enable Ethernet flow steering
 		 * with udp unicast and tcp unicast
 		 */
-		MLX4_PUT(inbox, (u8) (MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN),
-			 INIT_HCA_FS_ETH_BITS_OFFSET);
+		if (dev->caps.dmfs_high_steer_mode !=
+		    MLX4_STEERING_DMFS_A0_STATIC)
+			MLX4_PUT(inbox,
+				 (u8)(MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN),
+				 INIT_HCA_FS_ETH_BITS_OFFSET);
 		MLX4_PUT(inbox, (u16) MLX4_FS_NUM_OF_L2_ADDR,
 			 INIT_HCA_FS_ETH_NUM_ADDRS_OFFSET);
 		/* Enable IPoIB flow steering
@@ -1684,6 +1709,13 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 			 INIT_HCA_FS_IB_BITS_OFFSET);
 		MLX4_PUT(inbox, (u16) MLX4_FS_NUM_OF_L2_ADDR,
 			 INIT_HCA_FS_IB_NUM_ADDRS_OFFSET);
+
+		if (dev->caps.dmfs_high_steer_mode !=
+		    MLX4_STEERING_DMFS_A0_NOT_SUPPORTED)
+			MLX4_PUT(inbox,
+				 ((u8)(a0_dmfs_hw_steering[dev->caps.dmfs_high_steer_mode]
+				       << 6)),
+				 INIT_HCA_FS_A0_OFFSET);
 	} else {
 		MLX4_PUT(inbox, param->mc_base,	INIT_HCA_MC_BASE_OFFSET);
 		MLX4_PUT(inbox, param->log_mc_entry_sz,
@@ -1734,6 +1766,12 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	u32 dword_field;
 	int err;
 	u8 byte_field;
+	static const u8 a0_dmfs_query_hw_steering[] =  {
+		[0] = MLX4_STEERING_DMFS_A0_DEFAULT,
+		[1] = MLX4_STEERING_DMFS_A0_DYNAMIC,
+		[2] = MLX4_STEERING_DMFS_A0_STATIC,
+		[3] = MLX4_STEERING_DMFS_A0_DISABLE
+	};
 
 #define QUERY_HCA_GLOBAL_CAPS_OFFSET	0x04
 #define QUERY_HCA_CORE_CLOCK_OFFSET	0x0c
@@ -1786,6 +1824,10 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 			 INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET);
 		MLX4_GET(param->log_mc_table_sz, outbox,
 			 INIT_HCA_FS_LOG_TABLE_SZ_OFFSET);
+		MLX4_GET(byte_field, outbox,
+			 INIT_HCA_FS_A0_OFFSET);
+		param->dmfs_high_steer_mode =
+			a0_dmfs_query_hw_steering[(byte_field >> 6) & 3];
 	} else {
 		MLX4_GET(param->mc_base, outbox, INIT_HCA_MC_BASE_OFFSET);
 		MLX4_GET(param->log_mc_entry_sz, outbox,

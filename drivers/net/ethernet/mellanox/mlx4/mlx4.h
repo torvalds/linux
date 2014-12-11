@@ -689,8 +689,6 @@ enum mlx4_qp_table_zones {
 	MLX4_QP_TABLE_ZONE_NUM
 };
 
-#define MLX4_A0_STEERING_TABLE_SIZE    256
-
 struct mlx4_qp_table {
 	struct mlx4_bitmap	*bitmap_gen;
 	struct mlx4_zone_allocator *zones;

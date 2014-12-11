@@ -117,6 +117,14 @@ enum {
 	MLX4_STEERING_MODE_DEVICE_MANAGED
 };
 
+enum {
+	MLX4_STEERING_DMFS_A0_DEFAULT,
+	MLX4_STEERING_DMFS_A0_DYNAMIC,
+	MLX4_STEERING_DMFS_A0_STATIC,
+	MLX4_STEERING_DMFS_A0_DISABLE,
+	MLX4_STEERING_DMFS_A0_NOT_SUPPORTED
+};
+
 static inline const char *mlx4_steering_mode_str(int steering_mode)
 {
 	switch (steering_mode) {
@@ -191,7 +199,8 @@ enum {
 	MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP	= 1LL <<  15,
 	MLX4_DEV_CAP_FLAG2_CONFIG_DEV		= 1LL <<  16,
 	MLX4_DEV_CAP_FLAG2_SYS_EQS		= 1LL <<  17,
-	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18
+	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18,
+	MLX4_DEV_CAP_FLAG2_FS_A0		= 1LL <<  19
 };
 
 enum {
@@ -225,7 +234,8 @@ enum {
 
 enum {
 	MLX4_FUNC_CAP_64B_EQE_CQE	= 1L << 0,
-	MLX4_FUNC_CAP_EQE_CQE_STRIDE	= 1L << 1
+	MLX4_FUNC_CAP_EQE_CQE_STRIDE	= 1L << 1,
+	MLX4_FUNC_CAP_DMFS_A0_STATIC	= 1L << 2
 };
 
 
@@ -482,6 +492,7 @@ struct mlx4_caps {
 	int			reserved_mcgs;
 	int			num_qp_per_mgm;
 	int			steering_mode;
+	int			dmfs_high_steer_mode;
 	int			fs_log_max_ucast_qp_range_size;
 	int			num_pds;
 	int			reserved_pds;
@@ -522,6 +533,8 @@ struct mlx4_caps {
 	int			tunnel_offload_mode;
 	u8			rx_checksum_flags_port[MLX4_MAX_PORTS + 1];
 	u8			alloc_res_qp_mask;
+	u32			dmfs_high_rate_qpn_base;
+	u32			dmfs_high_rate_qpn_range;
 };
 
 struct mlx4_buf_list {

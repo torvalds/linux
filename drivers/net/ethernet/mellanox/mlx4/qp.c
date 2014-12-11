@@ -712,8 +712,8 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	int k;
 	int fixed_reserved_from_bot_rv = 0;
 	int bottom_reserved_for_rss_bitmap;
-	u32 max_table_offset = dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW] +
-		MLX4_A0_STEERING_TABLE_SIZE;
+	u32 max_table_offset = dev->caps.dmfs_high_rate_qpn_base +
+			dev->caps.dmfs_high_rate_qpn_range;
 
 	spin_lock_init(&qp_table->lock);
 	INIT_RADIX_TREE(&dev->qp_table_tree, GFP_ATOMIC);
