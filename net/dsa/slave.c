@@ -512,7 +512,7 @@ static int dsa_slave_fixed_link_update(struct net_device *dev,
 }
 
 /* slave device setup *******************************************************/
-static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
+static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
 {
 	struct dsa_switch *ds = p->parent;
@@ -533,7 +533,7 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		ret = of_phy_register_fixed_link(port_dn);
 		if (ret) {
 			netdev_err(slave_dev, "failed to register fixed PHY\n");
-			return;
+			return ret;
 		}
 		phy_is_fixed = true;
 		phy_dn = port_dn;
@@ -556,7 +556,7 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	if (!p->phy) {
 		p->phy = ds->slave_mii_bus->phy_map[p->port];
 		if (!p->phy)
-			return;
+			return -ENODEV;
 
 		phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
 				   p->phy_interface);
@@ -564,6 +564,8 @@ static void dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		netdev_info(slave_dev, "attached PHY at address %d [%s]\n",
 			    p->phy->addr, p->phy->drv->name);
 	}
+
+	return 0;
 }
 
 int dsa_slave_suspend(struct net_device *slave_dev)
@@ -656,12 +658,17 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	dsa_slave_phy_setup(p, slave_dev);
+	ret = dsa_slave_phy_setup(p, slave_dev);
+	if (ret) {
+		free_netdev(slave_dev);
+		return NULL;
+	}
 
 	ret = register_netdev(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
+		phy_disconnect(p->phy);
 		free_netdev(slave_dev);
 		return NULL;
 	}
