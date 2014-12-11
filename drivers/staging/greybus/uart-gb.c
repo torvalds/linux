@@ -28,7 +28,6 @@
 #include <linux/kdev_t.h>
 
 #include "greybus.h"
-#include "module.h"
 
 #define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
 #define GB_NAME		"ttyGB"
