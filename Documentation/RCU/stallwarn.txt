@@ -187,6 +187,11 @@ o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the
 	behavior, you might need to replace some of the cond_resched()
 	calls with calls to cond_resched_rcu_qs().
 
+o	Anything that prevents RCU's grace-period kthreads from running.
+	This can result in the "All QSes seen" console-log message.
+	This message will include information on when the kthread last
+	ran and how often it should be expected to run.
+
 o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
 	happen to preempt a low-priority task in the middle of an RCU
 	read-side critical section.   This is especially damaging if
