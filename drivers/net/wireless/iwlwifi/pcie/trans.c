@@ -908,6 +908,9 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 	if (ret)
 		return ret;
 
+	if (trans->dbg_dest_tlv)
+		iwl_pcie_apply_destination(trans);
+
 	/* Notify FW loading is done */
 	iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, 0xFFFFFFFF);
 
