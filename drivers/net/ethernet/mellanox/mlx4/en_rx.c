@@ -888,7 +888,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			gro_skb->ip_summed = ip_summed;
 
 			if (l2_tunnel && ip_summed == CHECKSUM_UNNECESSARY)
-				gro_skb->encapsulation = 1;
+				gro_skb->csum_level = 1;
+
 			if ((cqe->vlan_my_qpn &
 			    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) &&
 			    (dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
