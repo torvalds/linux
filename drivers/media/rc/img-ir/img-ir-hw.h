@@ -133,6 +133,18 @@ struct img_ir_timing_regvals {
 #define IMG_IR_REPEATCODE	1	/* repeat the previous code */
 
 /**
+ * struct img_ir_scancode_req - Scancode request data.
+ * @protocol:	Protocol code of received message (defaults to
+ *		RC_TYPE_UNKNOWN).
+ * @scancode:	Scan code of received message (must be written by
+ *		handler if IMG_IR_SCANCODE is returned).
+ */
+struct img_ir_scancode_req {
+	enum rc_type protocol;
+	u32 scancode;
+};
+
+/**
  * struct img_ir_decoder - Decoder settings for an IR protocol.
  * @type:	Protocol types bitmap.
  * @tolerance:	Timing tolerance as a percentage (default 10%).
@@ -162,8 +174,8 @@ struct img_ir_decoder {
 	struct img_ir_control		control;
 
 	/* scancode logic */
-	int (*scancode)(int len, u64 raw, enum rc_type *protocol,
-			u32 *scancode, u64 enabled_protocols);
+	int (*scancode)(int len, u64 raw, u64 enabled_protocols,
+			struct img_ir_scancode_req *request);
 	int (*filter)(const struct rc_scancode_filter *in,
 		      struct img_ir_filter *out, u64 protocols);
 };
