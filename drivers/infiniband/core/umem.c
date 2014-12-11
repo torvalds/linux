@@ -292,3 +292,37 @@ int ib_umem_page_count(struct ib_umem *umem)
 	return n;
 }
 EXPORT_SYMBOL(ib_umem_page_count);
+
+/*
+ * Copy from the given ib_umem's pages to the given buffer.
+ *
+ * umem - the umem to copy from
+ * offset - offset to start copying from
+ * dst - destination buffer
+ * length - buffer length
+ *
+ * Returns 0 on success, or an error code.
+ */
+int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
+		      size_t length)
+{
+	size_t end = offset + length;
+	int ret;
+
+	if (offset > umem->length || length > umem->length - offset) {
+		pr_err("ib_umem_copy_from not in range. offset: %zd umem length: %zd end: %zd\n",
+		       offset, umem->length, end);
+		return -EINVAL;
+	}
+
+	ret = sg_pcopy_to_buffer(umem->sg_head.sgl, umem->nmap, dst, length,
+				 offset + ib_umem_offset(umem));
+
+	if (ret < 0)
+		return ret;
+	else if (ret != length)
+		return -EINVAL;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(ib_umem_copy_from);
