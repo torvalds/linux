@@ -577,7 +577,7 @@ static inline int xfer_to_user(void *dst, void *src, size_t len)
  * Returns an error if num is invalid: you should check pointers
  * yourself!
  */
-int vringh_init_user(struct vringh *vrh, u32 features,
+int vringh_init_user(struct vringh *vrh, u64 features,
 		     unsigned int num, bool weak_barriers,
 		     struct vring_desc __user *desc,
 		     struct vring_avail __user *avail,
@@ -836,7 +836,7 @@ static inline int xfer_kern(void *src, void *dst, size_t len)
  *
  * Returns an error if num is invalid.
  */
-int vringh_init_kern(struct vringh *vrh, u32 features,
+int vringh_init_kern(struct vringh *vrh, u64 features,
 		     unsigned int num, bool weak_barriers,
 		     struct vring_desc *desc,
 		     struct vring_avail *avail,

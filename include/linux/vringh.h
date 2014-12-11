@@ -105,7 +105,7 @@ struct vringh_kiov {
 #define VRINGH_IOV_ALLOCATED 0x8000000
 
 /* Helpers for userspace vrings. */
-int vringh_init_user(struct vringh *vrh, u32 features,
+int vringh_init_user(struct vringh *vrh, u64 features,
 		     unsigned int num, bool weak_barriers,
 		     struct vring_desc __user *desc,
 		     struct vring_avail __user *avail,
@@ -167,7 +167,7 @@ bool vringh_notify_enable_user(struct vringh *vrh);
 void vringh_notify_disable_user(struct vringh *vrh);
 
 /* Helpers for kernelspace vrings. */
-int vringh_init_kern(struct vringh *vrh, u32 features,
+int vringh_init_kern(struct vringh *vrh, u64 features,
 		     unsigned int num, bool weak_barriers,
 		     struct vring_desc *desc,
 		     struct vring_avail *avail,
