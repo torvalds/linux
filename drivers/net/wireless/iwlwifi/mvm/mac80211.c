@@ -972,6 +972,19 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
+	/* Some hw restart cleanups must not hold the mutex */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		/*
+		 * Make sure we are out of d0i3. This is needed
+		 * to make sure the reference accounting is correct
+		 * (and there is no stale d0i3_exit_work).
+		 */
+		wait_event_timeout(mvm->d0i3_exit_waitq,
+				   !test_bit(IWL_MVM_STATUS_IN_D0I3,
+					     &mvm->status),
+				   HZ);
+	}
+
 	mutex_lock(&mvm->mutex);
 	ret = __iwl_mvm_mac_start(mvm);
 	mutex_unlock(&mvm->mutex);
