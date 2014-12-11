@@ -369,7 +369,7 @@ static int add_to_buf(struct IR *ir)
 		ret = i2c_master_send(rx->c, sendbuf, 1);
 		if (ret != 1) {
 			dev_err(ir->l.dev, "i2c_master_send failed with %d\n",
-					   ret);
+				ret);
 			if (failures >= 3) {
 				mutex_unlock(&ir->ir_lock);
 				dev_err(ir->l.dev,
@@ -412,8 +412,9 @@ static int add_to_buf(struct IR *ir)
 			rx->b[0] = keybuf[3];
 			rx->b[1] = keybuf[4];
 			rx->b[2] = keybuf[5];
-			dev_dbg(ir->l.dev, "key (0x%02x/0x%02x)\n",
-					   rx->b[0], rx->b[1]);
+			dev_dbg(ir->l.dev,
+				"key (0x%02x/0x%02x)\n",
+				rx->b[0], rx->b[1]);
 		}
 
 		/* key pressed ? */
@@ -657,8 +658,8 @@ static int send_data_block(struct IR_tx *tx, unsigned char *data_block)
 		dev_dbg(tx->ir->l.dev, "%*ph", 5, buf);
 		ret = i2c_master_send(tx->c, buf, tosend + 1);
 		if (ret != tosend + 1) {
-			dev_err(tx->ir->l.dev, "i2c_master_send failed with %d\n",
-					       ret);
+			dev_err(tx->ir->l.dev,
+				"i2c_master_send failed with %d\n", ret);
 			return ret < 0 ? ret : -EFAULT;
 		}
 		i += tosend;
@@ -711,7 +712,7 @@ static int send_boot_data(struct IR_tx *tx)
 	}
 	if ((buf[0] != 0x80) && (buf[0] != 0xa0)) {
 		dev_err(tx->ir->l.dev, "unexpected IR TX init response: %02x\n",
-				       buf[0]);
+			buf[0]);
 		return 0;
 	}
 	dev_notice(tx->ir->l.dev,
@@ -761,8 +762,9 @@ static int fw_load(struct IR_tx *tx)
 	/* Request codeset data file */
 	ret = request_firmware(&fw_entry, "haup-ir-blaster.bin", tx->ir->l.dev);
 	if (ret != 0) {
-		dev_err(tx->ir->l.dev, "firmware haup-ir-blaster.bin not available (%d)\n",
-			    ret);
+		dev_err(tx->ir->l.dev,
+			"firmware haup-ir-blaster.bin not available (%d)\n",
+			ret);
 		ret = ret < 0 ? ret : -EFAULT;
 		goto out;
 	}
@@ -812,7 +814,7 @@ static int fw_load(struct IR_tx *tx)
 		goto corrupt;
 
 	dev_dbg(tx->ir->l.dev, "%u IR blaster codesets loaded\n",
-			       tx_data->num_code_sets);
+		tx_data->num_code_sets);
 
 	tx_data->code_sets = vmalloc(
 		tx_data->num_code_sets * sizeof(char *));
@@ -942,8 +944,9 @@ static ssize_t read(struct file *filep, char __user *outbuf, size_t n,
 			unsigned char buf[MAX_XFER_SIZE];
 
 			if (rbuf->chunk_size > sizeof(buf)) {
-				dev_err(ir->l.dev, "chunk_size is too big (%d)!\n",
-					    rbuf->chunk_size);
+				dev_err(ir->l.dev,
+					"chunk_size is too big (%d)!\n",
+					rbuf->chunk_size);
 				ret = -EINVAL;
 				break;
 			}
@@ -966,8 +969,8 @@ static ssize_t read(struct file *filep, char __user *outbuf, size_t n,
 	put_ir_rx(rx, false);
 	set_current_state(TASK_RUNNING);
 
-	dev_dbg(ir->l.dev, "read result = %d (%s)\n",
-			   ret, ret ? "Error" : "OK");
+	dev_dbg(ir->l.dev, "read result = %d (%s)\n", ret,
+		ret ? "Error" : "OK");
 
 	return ret ? ret : written;
 }
@@ -1079,7 +1082,7 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 	}
 	if (buf[0] != 0x80) {
 		dev_err(tx->ir->l.dev, "unexpected IR TX response #2: %02x\n",
-				       buf[0]);
+			buf[0]);
 		return -EFAULT;
 	}
 
@@ -1231,7 +1234,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 	ret = lirc_buffer_empty(rbuf) ? 0 : (POLLIN|POLLRDNORM);
 
 	dev_dbg(ir->l.dev, "poll result = %s\n",
-			   ret ? "POLLIN|POLLRDNORM" : "none");
+		ret ? "POLLIN|POLLRDNORM" : "none");
 	return ret;
 }
 
@@ -1338,7 +1341,8 @@ static int close(struct inode *node, struct file *filep)
 	struct IR *ir = filep->private_data;
 
 	if (ir == NULL) {
-		dev_err(ir->l.dev, "close: no private_data attached to the file!\n");
+		dev_err(ir->l.dev,
+			"close: no private_data attached to the file!\n");
 		return -ENODEV;
 	}
 
@@ -1609,13 +1613,15 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ir->l.minor = minor; /* module option: user requested minor number */
 	ir->l.minor = lirc_register_driver(&ir->l);
 	if (ir->l.minor < 0 || ir->l.minor >= MAX_IRCTL_DEVICES) {
-		dev_err(tx->ir->l.dev, "%s: \"minor\" must be between 0 and %d (%d)!\n",
-			    __func__, MAX_IRCTL_DEVICES-1, ir->l.minor);
+		dev_err(tx->ir->l.dev,
+			"%s: \"minor\" must be between 0 and %d (%d)!\n",
+			__func__, MAX_IRCTL_DEVICES-1, ir->l.minor);
 		ret = -EBADRQC;
 		goto out_put_xx;
 	}
-	dev_info(ir->l.dev, "IR unit on %s (i2c-%d) registered as lirc%d and ready\n",
-		   adap->name, adap->nr, ir->l.minor);
+	dev_info(ir->l.dev,
+		 "IR unit on %s (i2c-%d) registered as lirc%d and ready\n",
+		 adap->name, adap->nr, ir->l.minor);
 
 out_ok:
 	if (rx != NULL)
@@ -1623,8 +1629,9 @@ out_ok:
 	if (tx != NULL)
 		put_ir_tx(tx, true);
 	put_ir_device(ir, true);
-	dev_info(ir->l.dev, "probe of IR %s on %s (i2c-%d) done\n",
-		   tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
+	dev_info(ir->l.dev,
+		 "probe of IR %s on %s (i2c-%d) done\n",
+		 tx_probe ? "Tx" : "Rx", adap->name, adap->nr);
 	mutex_unlock(&ir_devices_lock);
 	return 0;
 
@@ -1636,9 +1643,9 @@ out_put_xx:
 out_put_ir:
 	put_ir_device(ir, true);
 out_no_ir:
-	dev_err(&client->dev, "%s: probing IR %s on %s (i2c-%d) failed with %d\n",
-		    __func__, tx_probe ? "Tx" : "Rx", adap->name, adap->nr,
-		   ret);
+	dev_err(&client->dev,
+		"%s: probing IR %s on %s (i2c-%d) failed with %d\n",
+		__func__, tx_probe ? "Tx" : "Rx", adap->name, adap->nr, ret);
 	mutex_unlock(&ir_devices_lock);
 	return ret;
 }
