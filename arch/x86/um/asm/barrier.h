@@ -29,8 +29,6 @@
 
 #endif /* CONFIG_X86_32 */
 
-#define read_barrier_depends()	do { } while (0)
-
 #ifdef CONFIG_SMP
 
 #define smp_mb()	mb()
@@ -42,7 +40,6 @@
 
 #define smp_wmb()	barrier()
 
-#define smp_read_barrier_depends()	read_barrier_depends()
 #define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 
 #else /* CONFIG_SMP */
@@ -50,10 +47,12 @@
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	do { } while (0)
 #define set_mb(var, value) do { var = value; barrier(); } while (0)
 
 #endif /* CONFIG_SMP */
+
+#define read_barrier_depends()		do { } while (0)
+#define smp_read_barrier_depends()	do { } while (0)
 
 /*
  * Stop RDTSC speculation. This is needed when you need to use RDTSC
