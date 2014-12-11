@@ -864,7 +864,7 @@ static ssize_t show_reg_pages(struct device *device,
 	struct mlx5_ib_dev *dev =
 		container_of(device, struct mlx5_ib_dev, ib_dev.dev);
 
-	return sprintf(buf, "%d\n", dev->mdev->priv.reg_pages);
+	return sprintf(buf, "%d\n", atomic_read(&dev->mdev->priv.reg_pages));
 }
 
 static ssize_t show_hca(struct device *device, struct device_attribute *attr,
@@ -1389,15 +1389,18 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		goto err_eqs;
 
 	mutex_init(&dev->cap_mask_mutex);
-	spin_lock_init(&dev->mr_lock);
 
 	err = create_dev_resources(&dev->devr);
 	if (err)
 		goto err_eqs;
 
-	err = ib_register_device(&dev->ib_dev, NULL);
+	err = mlx5_ib_odp_init_one(dev);
 	if (err)
 		goto err_rsrc;
+
+	err = ib_register_device(&dev->ib_dev, NULL);
+	if (err)
+		goto err_odp;
 
 	err = create_umr_res(dev);
 	if (err)
@@ -1420,6 +1423,9 @@ err_umrc:
 err_dev:
 	ib_unregister_device(&dev->ib_dev);
 
+err_odp:
+	mlx5_ib_odp_remove_one(dev);
+
 err_rsrc:
 	destroy_dev_resources(&dev->devr);
 
@@ -1435,8 +1441,10 @@ err_dealloc:
 static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 {
 	struct mlx5_ib_dev *dev = context;
+
 	ib_unregister_device(&dev->ib_dev);
 	destroy_umrc_res(dev);
+	mlx5_ib_odp_remove_one(dev);
 	destroy_dev_resources(&dev->devr);
 	free_comp_eqs(dev);
 	ib_dealloc_device(&dev->ib_dev);
@@ -1450,15 +1458,30 @@ static struct mlx5_interface mlx5_ib_interface = {
 
 static int __init mlx5_ib_init(void)
 {
+	int err;
+
 	if (deprecated_prof_sel != 2)
 		pr_warn("prof_sel is deprecated for mlx5_ib, set it for mlx5_core\n");
 
-	return mlx5_register_interface(&mlx5_ib_interface);
+	err = mlx5_ib_odp_init();
+	if (err)
+		return err;
+
+	err = mlx5_register_interface(&mlx5_ib_interface);
+	if (err)
+		goto clean_odp;
+
+	return err;
+
+clean_odp:
+	mlx5_ib_odp_cleanup();
+	return err;
 }
 
 static void __exit mlx5_ib_cleanup(void)
 {
 	mlx5_unregister_interface(&mlx5_ib_interface);
+	mlx5_ib_odp_cleanup();
 }
 
 module_init(mlx5_ib_init);

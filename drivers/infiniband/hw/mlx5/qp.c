@@ -876,6 +876,8 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	int inlen = sizeof(*in);
 	int err;
 
+	mlx5_ib_odp_create_qp(qp);
+
 	gen = &dev->mdev->caps.gen;
 	mutex_init(&qp->mutex);
 	spin_lock_init(&qp->sq.lock);
@@ -1160,11 +1162,13 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
 	if (!in)
 		return;
-	if (qp->state != IB_QPS_RESET)
+	if (qp->state != IB_QPS_RESET) {
+		mlx5_ib_qp_disable_pagefaults(qp);
 		if (mlx5_core_qp_modify(dev->mdev, to_mlx5_state(qp->state),
 					MLX5_QP_STATE_RST, in, sizeof(*in), &qp->mqp))
 			mlx5_ib_warn(dev, "mlx5_ib: modify QP %06x to RESET failed\n",
 				     qp->mqp.qpn);
+	}
 
 	get_cqs(qp, &send_cq, &recv_cq);
 
@@ -1712,6 +1716,15 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	if (mlx5_st < 0)
 		goto out;
 
+	/* If moving to a reset or error state, we must disable page faults on
+	 * this QP and flush all current page faults. Otherwise a stale page
+	 * fault may attempt to work on this QP after it is reset and moved
+	 * again to RTS, and may cause the driver and the device to get out of
+	 * sync. */
+	if (cur_state != IB_QPS_RESET && cur_state != IB_QPS_ERR &&
+	    (new_state == IB_QPS_RESET || new_state == IB_QPS_ERR))
+		mlx5_ib_qp_disable_pagefaults(qp);
+
 	optpar = ib_mask_to_mlx5_opt(attr_mask);
 	optpar &= opt_mask[mlx5_cur][mlx5_new][mlx5_st];
 	in->optparam = cpu_to_be32(optpar);
@@ -1720,6 +1733,9 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 				  &qp->mqp);
 	if (err)
 		goto out;
+
+	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
+		mlx5_ib_qp_enable_pagefaults(qp);
 
 	qp->state = new_state;
 
@@ -3025,6 +3041,14 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	struct mlx5_qp_context *context;
 	int mlx5_state;
 	int err = 0;
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	/*
+	 * Wait for any outstanding page faults, in case the user frees memory
+	 * based upon this query's result.
+	 */
+	flush_workqueue(mlx5_ib_page_fault_wq);
+#endif
 
 	mutex_lock(&qp->mutex);
 	outb = kzalloc(sizeof(*outb), GFP_KERNEL);

@@ -52,6 +52,8 @@ static __be64 mlx5_ib_update_mtt_emergency_buffer[
 static DEFINE_MUTEX(mlx5_ib_update_mtt_emergency_buffer_mutex);
 #endif
 
+static int clean_mr(struct mlx5_ib_mr *mr);
+
 static int order2idx(struct mlx5_ib_dev *dev, int order)
 {
 	struct mlx5_mr_cache *cache = &dev->cache;
@@ -1049,6 +1051,10 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			mlx5_ib_dbg(dev, "cache empty for order %d", order);
 			mr = NULL;
 		}
+	} else if (access_flags & IB_ACCESS_ON_DEMAND) {
+		err = -EINVAL;
+		pr_err("Got MR registration for ODP MR > 512MB, not supported for Connect-IB");
+		goto error;
 	}
 
 	if (!mr)
@@ -1064,9 +1070,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mr->umem = umem;
 	mr->npages = npages;
-	spin_lock(&dev->mr_lock);
-	dev->mdev->priv.reg_pages += npages;
-	spin_unlock(&dev->mr_lock);
+	atomic_add(npages, &dev->mdev->priv.reg_pages);
 	mr->ibmr.lkey = mr->mmr.key;
 	mr->ibmr.rkey = mr->mmr.key;
 
@@ -1110,12 +1114,9 @@ error:
 	return err;
 }
 
-int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
+static int clean_mr(struct mlx5_ib_mr *mr)
 {
-	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
-	struct mlx5_ib_mr *mr = to_mmr(ibmr);
-	struct ib_umem *umem = mr->umem;
-	int npages = mr->npages;
+	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
 	int umred = mr->umred;
 	int err;
 
@@ -1135,15 +1136,31 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 		free_cached_mr(dev, mr);
 	}
 
-	if (umem) {
-		ib_umem_release(umem);
-		spin_lock(&dev->mr_lock);
-		dev->mdev->priv.reg_pages -= npages;
-		spin_unlock(&dev->mr_lock);
-	}
-
 	if (!umred)
 		kfree(mr);
+
+	return 0;
+}
+
+int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
+	struct mlx5_ib_mr *mr = to_mmr(ibmr);
+	int npages = mr->npages;
+	struct ib_umem *umem = mr->umem;
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	if (umem)
+		/* Wait for all running page-fault handlers to finish. */
+		synchronize_srcu(&dev->mr_srcu);
+#endif
+
+	clean_mr(mr);
+
+	if (umem) {
+		ib_umem_release(umem);
+		atomic_sub(npages, &dev->mdev->priv.reg_pages);
+	}
 
 	return 0;
 }
