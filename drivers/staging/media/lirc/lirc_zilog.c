@@ -797,7 +797,7 @@ static int fw_load(struct IR_tx *tx)
 		goto corrupt;
 	if (version != 1) {
 		dev_err(tx->ir->l.dev,
-			"unsupported code set file version (%u, expected 1) -- please upgrade to a newer driver",
+			"unsupported code set file version (%u, expected 1) -- please upgrade to a newer driver\n",
 			version);
 		fw_unload_locked();
 		ret = -EFAULT;
