@@ -70,7 +70,7 @@ struct dss_features {
 	u8 fck_div_max;
 	u8 dss_fck_multiplier;
 	const char *parent_clk_name;
-	enum omap_display_type *ports;
+	const enum omap_display_type *ports;
 	int num_ports;
 	int (*dpi_select_source)(int port, enum omap_channel channel);
 };
@@ -677,11 +677,11 @@ void dss_debug_dump_clocks(struct seq_file *s)
 #endif
 
 
-static enum omap_display_type omap2plus_ports[] = {
+static const enum omap_display_type omap2plus_ports[] = {
 	OMAP_DISPLAY_TYPE_DPI,
 };
 
-static enum omap_display_type omap34xx_ports[] = {
+static const enum omap_display_type omap34xx_ports[] = {
 	OMAP_DISPLAY_TYPE_DPI,
 	OMAP_DISPLAY_TYPE_SDI,
 };
