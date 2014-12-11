@@ -123,7 +123,7 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 static void svc_management(struct svc_function_unipro_management *management,
 			   int payload_length, struct greybus_host_device *hd)
 {
-	struct gb_module *module;
+	struct gb_interface_block *gb_ib;
 	int ret;
 
 	if (payload_length != sizeof(*management)) {
@@ -138,18 +138,18 @@ static void svc_management(struct svc_function_unipro_management *management,
 		hd->device_id = management->ap_id.device_id;
 		break;
 	case SVC_MANAGEMENT_LINK_UP:
-		module = gb_module_find(hd, management->link_up.module_id);
-		if (!module) {
+		gb_ib = gb_ib_find(hd, management->link_up.module_id);
+		if (!gb_ib) {
 			dev_err(hd->parent, "Module ID %d not found\n",
 				management->link_up.module_id);
 			return;
 		}
-		ret = gb_interface_init(module,
+		ret = gb_interface_init(gb_ib,
 				management->link_up.interface_id,
 				management->link_up.device_id);
 		if (ret)
 			dev_err(hd->parent, "error %d initializing "
-				"module %hhu interface %hhu\n",
+				"interface block %hhu interface %hhu\n",
 				ret, management->link_up.module_id,
 				management->link_up.interface_id);
 		break;

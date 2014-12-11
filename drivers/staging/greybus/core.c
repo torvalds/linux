@@ -33,10 +33,10 @@ EXPORT_SYMBOL_GPL(greybus_disabled);
 static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(drv);
-	struct gb_module *gmod = to_gb_module(dev);
+	struct gb_interface_block *gb_ib = to_gb_interface_block(dev);
 	const struct greybus_module_id *id;
 
-	id = gb_module_match_id(gmod, driver->id_table);
+	id = gb_ib_match_id(gb_ib, driver->id_table);
 	if (id)
 		return 1;
 	/* FIXME - Dynamic ids? */
@@ -45,19 +45,19 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 
 static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gb_module *gmod = NULL;
+	struct gb_interface_block *gb_ib = NULL;
 	struct gb_interface *interface = NULL;
 	struct gb_connection *connection = NULL;
 
-	if (is_gb_module(dev)) {
-		gmod = to_gb_module(dev);
+	if (is_gb_interface_block(dev)) {
+		gb_ib = to_gb_interface_block(dev);
 	} else if (is_gb_interface(dev)) {
 		interface = to_gb_interface(dev);
-		gmod = interface->gmod;
+		gb_ib = interface->gb_ib;
 	} else if (is_gb_connection(dev)) {
 		connection = to_gb_connection(dev);
 		interface = connection->interface;
-		gmod = interface->gmod;
+		gb_ib = interface->gb_ib;
 	} else {
 		dev_WARN(dev, "uevent for unknown greybus device \"type\"!\n");
 		return -EINVAL;
@@ -93,16 +93,16 @@ struct bus_type greybus_bus_type = {
 static int greybus_probe(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct gb_module *gmod = to_gb_module(dev);
+	struct gb_interface_block *gb_ib = to_gb_interface_block(dev);
 	const struct greybus_module_id *id;
 	int retval;
 
 	/* match id */
-	id = gb_module_match_id(gmod, driver->id_table);
+	id = gb_ib_match_id(gb_ib, driver->id_table);
 	if (!id)
 		return -ENODEV;
 
-	retval = driver->probe(gmod, id);
+	retval = driver->probe(gb_ib, id);
 	if (retval)
 		return retval;
 
@@ -112,9 +112,9 @@ static int greybus_probe(struct device *dev)
 static int greybus_remove(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct gb_module *gmod = to_gb_module(dev);
+	struct gb_interface_block *gb_ib = to_gb_interface_block(dev);
 
-	driver->disconnect(gmod);
+	driver->disconnect(gb_ib);
 	return 0;
 }
 

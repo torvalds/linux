@@ -340,7 +340,7 @@ static int gb_battery_connection_init(struct gb_connection *connection)
 	b->num_properties	= ARRAY_SIZE(battery_props),
 	b->get_property		= get_property,
 
-	retval = power_supply_register(&connection->interface->gmod->dev, b);
+	retval = power_supply_register(&connection->interface->gb_ib->dev, b);
 	if (retval) {
 		kfree(gb);
 		return retval;

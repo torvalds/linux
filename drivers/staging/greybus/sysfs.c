@@ -25,8 +25,8 @@ static ssize_t module_##field##_show(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     char *buf)				\
 {									\
-	struct gb_module *gmod = to_gb_module(dev);			\
-	return sprintf(buf, "%"#type"\n", gmod->field);			\
+	struct gb_interface_block *gb_ib = to_gb_interface_block(dev);	\
+	return sprintf(buf, "%"#type"\n", gb_ib->field);		\
 }									\
 static DEVICE_ATTR_RO(module_##field)
 

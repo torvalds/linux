@@ -118,12 +118,12 @@ void greybus_remove_hd(struct greybus_host_device *hd);
 struct greybus_driver {
 	const char *name;
 
-	int (*probe)(struct gb_module *gmod,
+	int (*probe)(struct gb_interface_block *gb_ib,
 		     const struct greybus_module_id *id);
-	void (*disconnect)(struct gb_module *gmod);
+	void (*disconnect)(struct gb_interface_block *gb_ib);
 
-	int (*suspend)(struct gb_module *gmod, pm_message_t message);
-	int (*resume)(struct gb_module *gmod);
+	int (*suspend)(struct gb_interface_block *gb_ib, pm_message_t message);
+	int (*resume)(struct gb_interface_block *gb_ib);
 
 	const struct greybus_module_id *id_table;
 
@@ -175,13 +175,13 @@ void gb_uart_device_exit(struct gb_connection *connection);
 int svc_set_route_send(struct gb_interface *interface,
 			       struct greybus_host_device *hd);
 
-extern struct device_type greybus_module_type;
+extern struct device_type greybus_interface_block_type;
 extern struct device_type greybus_interface_type;
 extern struct device_type greybus_connection_type;
 
-static inline int is_gb_module(const struct device *dev)
+static inline int is_gb_interface_block(const struct device *dev)
 {
-	return dev->type == &greybus_module_type;
+	return dev->type == &greybus_interface_block_type;
 }
 
 static inline int is_gb_interface(const struct device *dev)

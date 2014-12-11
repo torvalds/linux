@@ -52,7 +52,7 @@ static DEFINE_SPINLOCK(gb_interfaces_lock);
  * pointer if a failure occurs due to memory exhaustion.
  */
 struct gb_interface *
-gb_interface_create(struct gb_module *gmod, u8 interface_id)
+gb_interface_create(struct gb_interface_block *gb_ib, u8 interface_id)
 {
 	struct gb_interface *interface;
 	int retval;
@@ -61,19 +61,19 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 	if (!interface)
 		return NULL;
 
-	interface->gmod = gmod;
+	interface->gb_ib = gb_ib;
 	interface->id = interface_id;
 	interface->device_id = 0xff;	/* Invalid device id to start with */
 	INIT_LIST_HEAD(&interface->connections);
 
 	/* Build up the interface device structures and register it with the
 	 * driver core */
-	interface->dev.parent = &gmod->dev;
+	interface->dev.parent = &gb_ib->dev;
 	interface->dev.bus = &greybus_bus_type;
 	interface->dev.type = &greybus_interface_type;
 	interface->dev.groups = interface_groups;
 	device_initialize(&interface->dev);
-	dev_set_name(&interface->dev, "%d:%d", gmod->module_id, interface_id);
+	dev_set_name(&interface->dev, "%d:%d", gb_ib->module_id, interface_id);
 
 	retval = device_add(&interface->dev);
 	if (retval) {
@@ -85,7 +85,7 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 	}
 
 	spin_lock_irq(&gb_interfaces_lock);
-	list_add_tail(&interface->links, &gmod->interfaces);
+	list_add_tail(&interface->links, &gb_ib->interfaces);
 	spin_unlock_irq(&gb_interfaces_lock);
 
 	return interface;
@@ -94,16 +94,16 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 /*
  * Tear down a previously set up interface.
  */
-void gb_interface_destroy(struct gb_module *gmod)
+void gb_interface_destroy(struct gb_interface_block *gb_ib)
 {
 	struct gb_interface *interface;
 	struct gb_interface *temp;
 
-	if (WARN_ON(!gmod))
+	if (WARN_ON(!gb_ib))
 		return;
 
 	spin_lock_irq(&gb_interfaces_lock);
-	list_for_each_entry_safe(interface, temp, &gmod->interfaces, links) {
+	list_for_each_entry_safe(interface, temp, &gb_ib->interfaces, links) {
 		list_del(&interface->links);
 		gb_interface_connections_exit(interface);
 		device_del(&interface->dev);
@@ -111,28 +111,28 @@ void gb_interface_destroy(struct gb_module *gmod)
 	spin_unlock_irq(&gb_interfaces_lock);
 }
 
-int gb_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
+int gb_interface_init(struct gb_interface_block *gb_ib, u8 interface_id, u8 device_id)
 {
 	struct gb_interface *interface;
 	int ret;
 
-	interface = gb_interface_find(gmod, interface_id);
+	interface = gb_interface_find(gb_ib, interface_id);
 	if (!interface) {
-		dev_err(gmod->hd->parent, "module %hhu not found\n",
+		dev_err(gb_ib->hd->parent, "module %hhu not found\n",
 			interface_id);
 		return -ENOENT;
 	}
 	interface->device_id = device_id;
 
-	ret = svc_set_route_send(interface, gmod->hd);
+	ret = svc_set_route_send(interface, gb_ib->hd);
 	if (ret) {
-		dev_err(gmod->hd->parent, "failed to set route (%d)\n", ret);
+		dev_err(gb_ib->hd->parent, "failed to set route (%d)\n", ret);
 		return ret;
 	}
 
 	ret = gb_interface_connections_init(interface);
 	if (ret) {
-		dev_err(gmod->hd->parent, "module interface init error %d\n",
+		dev_err(gb_ib->hd->parent, "module interface init error %d\n",
 			ret);
 		/* XXX clear route */
 		return ret;
@@ -141,13 +141,13 @@ int gb_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
 	return 0;
 }
 
-struct gb_interface *gb_interface_find(struct gb_module *module,
+struct gb_interface *gb_interface_find(struct gb_interface_block *gb_ib,
 				      u8 interface_id)
 {
 	struct gb_interface *interface;
 
 	spin_lock_irq(&gb_interfaces_lock);
-	list_for_each_entry(interface, &module->interfaces, links)
+	list_for_each_entry(interface, &gb_ib->interfaces, links)
 		if (interface->id == interface_id) {
 			spin_unlock_irq(&gb_interfaces_lock);
 			return interface;

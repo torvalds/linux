@@ -1,19 +1,21 @@
 /*
- * Greybus modules
+ * Greybus Interface Block code
  *
  * Copyright 2014 Google Inc.
  *
  * Released under the GPLv2 only.
  */
 
-#ifndef __MODULE_H
-#define __MODULE_H
+#ifndef __INTERFACE_BLOCK_H
+#define __INTERFACE_BLOCK_H
 
 /* Increase these values if needed */
 #define MAX_CPORTS_PER_MODULE	10
 #define MAX_STRINGS_PER_MODULE	10
 
-struct gb_module {
+
+/* Greybus "public" definitions" */
+struct gb_interface_block {
 	struct device dev;
 
 	struct list_head interfaces;
@@ -29,27 +31,26 @@ struct gb_module {
 
 	struct greybus_host_device *hd;
 };
-#define to_gb_module(d) container_of(d, struct gb_module, dev)
+#define to_gb_interface_block(d) container_of(d, struct gb_interface_block, dev)
 
 static inline void
-gb_module_set_drvdata(struct gb_module *gmod, void *data)
+gb_interface_block_set_drvdata(struct gb_interface_block *gb_ib, void *data)
 {
-	dev_set_drvdata(&gmod->dev, data);
+	dev_set_drvdata(&gb_ib->dev, data);
 }
 
-static inline void *gb_module_get_drvdata(struct gb_module *gmod)
+static inline void *
+gb_interface_block_get_drvdata(struct gb_interface_block *gb_ib)
 {
-	return dev_get_drvdata(&gmod->dev);
+	return dev_get_drvdata(&gb_ib->dev);
 }
 
-const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
+/* Greybus "private" definitions */
+
+const struct greybus_module_id *gb_ib_match_id(struct gb_interface_block *gb_ib,
 					const struct greybus_module_id *id);
 
-struct gb_module *gb_module_create(struct greybus_host_device *hd,
-					u8 module_id);
-void gb_module_destroy(struct gb_module *module);
+struct gb_interface_block *gb_ib_find(struct greybus_host_device *hd,
+				      u8 module_id);
 
-struct gb_module *gb_module_find(struct greybus_host_device *hd,
-				u8 module_id);
-
-#endif /* __MODULE_H */
+#endif /* __INTERFACE_BLOCK_H */

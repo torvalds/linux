@@ -217,7 +217,7 @@ static u32 gb_manifest_parse_cports(struct gb_interface *interface)
  * structures.  Returns the number of interfaces set up for the
  * given module.
  */
-static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
+static u32 gb_manifest_parse_interfaces(struct gb_interface_block *gb_ib)
 {
 	u32 count = 0;
 
@@ -239,7 +239,7 @@ static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
 
 		/* Found one.  Set up its interface structure*/
 		desc_interface = descriptor->data;
-		interface = gb_interface_create(gmod, desc_interface->id);
+		interface = gb_interface_create(gb_ib, desc_interface->id);
 		if (!interface)
 			return 0;	/* Error */
 
@@ -256,41 +256,41 @@ static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
 	return count;
 }
 
-static bool gb_manifest_parse_module(struct gb_module *gmod,
+static bool gb_manifest_parse_module(struct gb_interface_block *gb_ib,
 					struct manifest_desc *module_desc)
 {
 	struct greybus_descriptor_module *desc_module = module_desc->data;
 
 	/* Handle the strings first--they can fail */
-	gmod->vendor_string = gb_string_get(desc_module->vendor_stringid);
-	if (IS_ERR(gmod->vendor_string))
+	gb_ib->vendor_string = gb_string_get(desc_module->vendor_stringid);
+	if (IS_ERR(gb_ib->vendor_string))
 		return false;
 
-	gmod->product_string = gb_string_get(desc_module->product_stringid);
-	if (IS_ERR(gmod->product_string)) {
+	gb_ib->product_string = gb_string_get(desc_module->product_stringid);
+	if (IS_ERR(gb_ib->product_string)) {
 		goto out_free_vendor_string;
 	}
 
-	gmod->vendor = le16_to_cpu(desc_module->vendor);
-	gmod->product = le16_to_cpu(desc_module->product);
-	gmod->unique_id = le64_to_cpu(desc_module->unique_id);
+	gb_ib->vendor = le16_to_cpu(desc_module->vendor);
+	gb_ib->product = le16_to_cpu(desc_module->product);
+	gb_ib->unique_id = le64_to_cpu(desc_module->unique_id);
 
 	/* Release the module descriptor, now that we're done with it */
 	release_manifest_descriptor(module_desc);
 
 	/* A module must have at least one interface descriptor */
-	if (!gb_manifest_parse_interfaces(gmod)) {
+	if (!gb_manifest_parse_interfaces(gb_ib)) {
 		pr_err("manifest interface descriptors not valid\n");
 		goto out_err;
 	}
 
 	return true;
 out_err:
-	kfree(gmod->product_string);
-	gmod->product_string = NULL;
+	kfree(gb_ib->product_string);
+	gb_ib->product_string = NULL;
 out_free_vendor_string:
-	kfree(gmod->vendor_string);
-	gmod->vendor_string = NULL;
+	kfree(gb_ib->vendor_string);
+	gb_ib->vendor_string = NULL;
 
 	return false;
 }
@@ -318,7 +318,7 @@ out_free_vendor_string:
  *
  * Returns true if parsing was successful, false otherwise.
  */
-bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
+bool gb_manifest_parse(struct gb_interface_block *gb_ib, void *data, size_t size)
 {
 	struct greybus_manifest *manifest;
 	struct greybus_manifest_header *header;
@@ -388,7 +388,7 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 	}
 
 	/* Parse the module manifest, starting with the module descriptor */
-	result = gb_manifest_parse_module(gmod, module_desc);
+	result = gb_manifest_parse_module(gb_ib, module_desc);
 
 	/*
 	 * We really should have no remaining descriptors, but we

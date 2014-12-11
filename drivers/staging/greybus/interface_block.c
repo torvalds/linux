@@ -11,25 +11,25 @@
 /* XXX This could be per-host device */
 static DEFINE_SPINLOCK(gb_modules_lock);
 
-static int gb_module_match_one_id(struct gb_module *gmod,
+static int gb_module_match_one_id(struct gb_interface_block *gb_ib,
 				const struct greybus_module_id *id)
 {
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
-	    (id->vendor != gmod->vendor))
+	    (id->vendor != gb_ib->vendor))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_PRODUCT) &&
-	    (id->product != gmod->product))
+	    (id->product != gb_ib->product))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
-	    (id->unique_id != gmod->unique_id))
+	    (id->unique_id != gb_ib->unique_id))
 		return 0;
 
 	return 1;
 }
 
-const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
+const struct greybus_module_id *gb_ib_match_id(struct gb_interface_block *gb_ib,
 				const struct greybus_module_id *id)
 {
 	if (id == NULL)
@@ -37,108 +37,110 @@ const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
 
 	for (; id->vendor || id->product || id->unique_id ||
 			id->driver_info; id++) {
-		if (gb_module_match_one_id(gmod, id))
+		if (gb_module_match_one_id(gb_ib, id))
 			return id;
 	}
 
 	return NULL;
 }
 
-struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
+struct gb_interface_block *gb_ib_find(struct greybus_host_device *hd, u8 module_id)
 {
-	struct gb_module *module;
+	struct gb_interface_block *gb_ib;
 
-	list_for_each_entry(module, &hd->modules, links)
-		if (module->module_id == module_id)
-			return module;
+	list_for_each_entry(gb_ib, &hd->modules, links)
+		if (gb_ib->module_id == module_id)
+			return gb_ib;
 
 	return NULL;
 }
 
-static void greybus_module_release(struct device *dev)
+static void greybus_ib_release(struct device *dev)
 {
-	struct gb_module *gmod = to_gb_module(dev);
+	struct gb_interface_block *gb_ib = to_gb_interface_block(dev);
 
-	kfree(gmod);
+	kfree(gb_ib);
 }
 
-struct device_type greybus_module_type = {
-	.name =		"greybus_module",
-	.release =	greybus_module_release,
+struct device_type greybus_interface_block_type = {
+	.name =		"greybus_interface_block",
+	.release =	greybus_ib_release,
 };
 
 /*
  * A Greybus module represents a user-replicable component on an Ara
- * phone.
+ * phone.  An interface block is the physical connection on that module.  A
+ * module may have more than one interface block.
  *
- * Create a gb_module structure to represent a discovered module.
+ * Create a gb_interface_block structure to represent a discovered module.
  * The position within the Endo is encoded in the "module_id" argument.
  * Returns a pointer to the new module or a null pointer if a
  * failure occurs due to memory exhaustion.
  */
-struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
+static struct gb_interface_block *gb_ib_create(struct greybus_host_device *hd,
+					       u8 module_id)
 {
-	struct gb_module *gmod;
+	struct gb_interface_block *gb_ib;
 	int retval;
 
-	gmod = gb_module_find(hd, module_id);
-	if (gmod) {
+	gb_ib = gb_ib_find(hd, module_id);
+	if (gb_ib) {
 		dev_err(hd->parent, "Duplicate module id %d will not be created\n",
 			module_id);
 		return NULL;
 	}
 
-	gmod = kzalloc(sizeof(*gmod), GFP_KERNEL);
-	if (!gmod)
+	gb_ib = kzalloc(sizeof(*gb_ib), GFP_KERNEL);
+	if (!gb_ib)
 		return NULL;
 
-	gmod->hd = hd;		/* XXX refcount? */
-	gmod->module_id = module_id;
-	INIT_LIST_HEAD(&gmod->interfaces);
+	gb_ib->hd = hd;		/* XXX refcount? */
+	gb_ib->module_id = module_id;
+	INIT_LIST_HEAD(&gb_ib->interfaces);
 
-	gmod->dev.parent = hd->parent;
-	gmod->dev.bus = &greybus_bus_type;
-	gmod->dev.type = &greybus_module_type;
-	gmod->dev.groups = greybus_module_groups;
-	gmod->dev.dma_mask = hd->parent->dma_mask;
-	device_initialize(&gmod->dev);
-	dev_set_name(&gmod->dev, "%d", module_id);
+	gb_ib->dev.parent = hd->parent;
+	gb_ib->dev.bus = &greybus_bus_type;
+	gb_ib->dev.type = &greybus_interface_block_type;
+	gb_ib->dev.groups = greybus_module_groups;
+	gb_ib->dev.dma_mask = hd->parent->dma_mask;
+	device_initialize(&gb_ib->dev);
+	dev_set_name(&gb_ib->dev, "%d", module_id);
 
-	retval = device_add(&gmod->dev);
+	retval = device_add(&gb_ib->dev);
 	if (retval) {
 		pr_err("failed to add module device for id 0x%02hhx\n",
 			module_id);
-		put_device(&gmod->dev);
-		kfree(gmod);
+		put_device(&gb_ib->dev);
+		kfree(gb_ib);
 		return NULL;
 	}
 
 	spin_lock_irq(&gb_modules_lock);
-	list_add_tail(&gmod->links, &hd->modules);
+	list_add_tail(&gb_ib->links, &hd->modules);
 	spin_unlock_irq(&gb_modules_lock);
 
-	return gmod;
+	return gb_ib;
 }
 
 /*
  * Tear down a previously set up module.
  */
-void gb_module_destroy(struct gb_module *gmod)
+static void gb_ib_destroy(struct gb_interface_block *gb_ib)
 {
-	if (WARN_ON(!gmod))
+	if (WARN_ON(!gb_ib))
 		return;
 
 	spin_lock_irq(&gb_modules_lock);
-	list_del(&gmod->links);
+	list_del(&gb_ib->links);
 	spin_unlock_irq(&gb_modules_lock);
 
-	gb_interface_destroy(gmod);
+	gb_interface_destroy(gb_ib);
 
-	kfree(gmod->product_string);
-	kfree(gmod->vendor_string);
+	kfree(gb_ib->product_string);
+	kfree(gb_ib->vendor_string);
 	/* kref_put(module->hd); */
 
-	device_del(&gmod->dev);
+	device_del(&gb_ib->dev);
 }
 
 /**
@@ -150,11 +152,11 @@ void gb_module_destroy(struct gb_module *gmod)
 void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size)
 {
-	struct gb_module *gmod;
+	struct gb_interface_block *gb_ib;
 
-	gmod = gb_module_create(hd, module_id);
-	if (!gmod) {
-		dev_err(hd->parent, "failed to create module\n");
+	gb_ib = gb_ib_create(hd, module_id);
+	if (!gb_ib) {
+		dev_err(hd->parent, "failed to create interface block\n");
 		return;
 	}
 
@@ -162,7 +164,7 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	 * Parse the manifest and build up our data structures
 	 * representing what's in it.
 	 */
-	if (!gb_manifest_parse(gmod, data, size)) {
+	if (!gb_manifest_parse(gb_ib, data, size)) {
 		dev_err(hd->parent, "manifest error\n");
 		goto err_module;
 	}
@@ -179,23 +181,23 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	return;
 
 err_module:
-	gb_module_destroy(gmod);
+	gb_ib_destroy(gb_ib);
 }
 
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 {
-	struct gb_module *gmod = gb_module_find(hd, module_id);
+	struct gb_interface_block *gb_ib = gb_ib_find(hd, module_id);
 
-	if (gmod)
-		gb_module_destroy(gmod);
+	if (gb_ib)
+		gb_ib_destroy(gb_ib);
 	else
-		dev_err(hd->parent, "module id %d not found\n", module_id);
+		dev_err(hd->parent, "interface block id %d not found\n", module_id);
 }
 
 void gb_remove_modules(struct greybus_host_device *hd)
 {
-	struct gb_module *gmod, *temp;
+	struct gb_interface_block *gb_ib, *temp;
 
-	list_for_each_entry_safe(gmod, temp, &hd->modules, links)
-		gb_module_destroy(gmod);
+	list_for_each_entry_safe(gb_ib, temp, &hd->modules, links)
+		gb_ib_destroy(gb_ib);
 }
