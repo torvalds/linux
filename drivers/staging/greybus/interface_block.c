@@ -1,5 +1,5 @@
 /*
- * Greybus modules
+ * Greybus interface block code
  *
  * Copyright 2014 Google Inc.
  *
@@ -7,6 +7,34 @@
  */
 
 #include "greybus.h"
+
+/* interface block sysfs attributes */
+#define gb_ib_attr(field, type)					\
+static ssize_t field##_show(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     char *buf)				\
+{									\
+	struct gb_interface_block *gb_ib = to_gb_interface_block(dev);	\
+	return sprintf(buf, "%"#type"\n", gb_ib->field);		\
+}									\
+static DEVICE_ATTR_RO(field)
+
+gb_ib_attr(vendor, x);
+gb_ib_attr(product, x);
+gb_ib_attr(unique_id, llX);
+gb_ib_attr(vendor_string, s);
+gb_ib_attr(product_string, s);
+
+static struct attribute *interface_block_attrs[] = {
+	&dev_attr_vendor.attr,
+	&dev_attr_product.attr,
+	&dev_attr_unique_id.attr,
+	&dev_attr_vendor_string.attr,
+	&dev_attr_product_string.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(interface_block);
+
 
 /* XXX This could be per-host device */
 static DEFINE_SPINLOCK(gb_modules_lock);
@@ -101,7 +129,7 @@ static struct gb_interface_block *gb_ib_create(struct greybus_host_device *hd,
 	gb_ib->dev.parent = hd->parent;
 	gb_ib->dev.bus = &greybus_bus_type;
 	gb_ib->dev.type = &greybus_interface_block_type;
-	gb_ib->dev.groups = greybus_interface_block_groups;
+	gb_ib->dev.groups = interface_block_groups;
 	gb_ib->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&gb_ib->dev);
 	dev_set_name(&gb_ib->dev, "%d", module_id);

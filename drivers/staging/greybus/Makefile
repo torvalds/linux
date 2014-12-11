@@ -1,5 +1,4 @@
 greybus-y :=	core.o		\
-		sysfs.o		\
 		debugfs.o	\
 		ap.o		\
 		manifest.o	\
