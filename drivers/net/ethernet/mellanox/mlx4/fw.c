@@ -266,10 +266,15 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_MTT_QUOTA_OFFSET		0x64
 #define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET		0x68
 
+#define QUERY_FUNC_CAP_EXTRA_FLAGS_OFFSET	0x6c
+
 #define QUERY_FUNC_CAP_FMR_FLAG			0x80
 #define QUERY_FUNC_CAP_FLAG_RDMA		0x40
 #define QUERY_FUNC_CAP_FLAG_ETH			0x80
 #define QUERY_FUNC_CAP_FLAG_QUOTAS		0x10
+#define QUERY_FUNC_CAP_FLAG_VALID_MAILBOX	0x04
+
+#define QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG	(1UL << 31)
 
 /* when opcode modifier = 1 */
 #define QUERY_FUNC_CAP_PHYS_PORT_OFFSET		0x3
@@ -339,7 +344,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 			mlx4_get_active_ports(dev, slave);
 		/* enable rdma and ethernet interfaces, and new quota locations */
 		field = (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA |
-			 QUERY_FUNC_CAP_FLAG_QUOTAS);
+			 QUERY_FUNC_CAP_FLAG_QUOTAS | QUERY_FUNC_CAP_FLAG_VALID_MAILBOX);
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS_OFFSET);
 
 		field = min(
@@ -401,6 +406,8 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET_DEP);
 
+		size = QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_EXTRA_FLAGS_OFFSET);
 	} else
 		err = -EINVAL;
 
@@ -492,6 +499,17 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 
 		MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
 		func_cap->reserved_eq = size & 0xFFFFFF;
+
+		func_cap->extra_flags = 0;
+
+		/* Mailbox data from 0x6c and onward should only be treated if
+		 * QUERY_FUNC_CAP_FLAG_VALID_MAILBOX is set in func_cap->flags
+		 */
+		if (func_cap->flags & QUERY_FUNC_CAP_FLAG_VALID_MAILBOX) {
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_EXTRA_FLAGS_OFFSET);
+			if (size & QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG)
+				func_cap->extra_flags |= MLX4_QUERY_FUNC_FLAGS_BF_RES_QP;
+		}
 
 		goto out;
 	}

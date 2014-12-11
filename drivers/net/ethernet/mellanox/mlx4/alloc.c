@@ -76,22 +76,53 @@ void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj, int use_rr)
 	mlx4_bitmap_free_range(bitmap, obj, 1, use_rr);
 }
 
-u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
+static unsigned long find_aligned_range(unsigned long *bitmap,
+					u32 start, u32 nbits,
+					int len, int align, u32 skip_mask)
+{
+	unsigned long end, i;
+
+again:
+	start = ALIGN(start, align);
+
+	while ((start < nbits) && (test_bit(start, bitmap) ||
+				   (start & skip_mask)))
+		start += align;
+
+	if (start >= nbits)
+		return -1;
+
+	end = start+len;
+	if (end > nbits)
+		return -1;
+
+	for (i = start + 1; i < end; i++) {
+		if (test_bit(i, bitmap) || ((u32)i & skip_mask)) {
+			start = i + 1;
+			goto again;
+		}
+	}
+
+	return start;
+}
+
+u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt,
+			    int align, u32 skip_mask)
 {
 	u32 obj;
 
-	if (likely(cnt == 1 && align == 1))
+	if (likely(cnt == 1 && align == 1 && !skip_mask))
 		return mlx4_bitmap_alloc(bitmap);
 
 	spin_lock(&bitmap->lock);
 
-	obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max,
-				bitmap->last, cnt, align - 1);
+	obj = find_aligned_range(bitmap->table, bitmap->last,
+				 bitmap->max, cnt, align, skip_mask);
 	if (obj >= bitmap->max) {
 		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
 				& bitmap->mask;
-		obj = bitmap_find_next_zero_area(bitmap->table, bitmap->max,
-						0, cnt, align - 1);
+		obj = find_aligned_range(bitmap->table, 0, bitmap->max,
+					 cnt, align, skip_mask);
 	}
 
 	if (obj < bitmap->max) {

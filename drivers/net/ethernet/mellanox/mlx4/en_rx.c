@@ -1131,7 +1131,7 @@ int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
 	int err;
 	u32 qpn;
 
-	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn);
+	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn, 0);
 	if (err) {
 		en_err(priv, "Failed reserving drop qpn\n");
 		return err;
@@ -1174,7 +1174,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	en_dbg(DRV, priv, "Configuring rss steering\n");
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
 				    priv->rx_ring_num,
-				    &rss_map->base_qpn);
+				    &rss_map->base_qpn, 0);
 	if (err) {
 		en_err(priv, "Failed reserving %d qps\n", priv->rx_ring_num);
 		return err;
