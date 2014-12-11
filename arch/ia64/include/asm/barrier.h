@@ -39,6 +39,9 @@
 #define rmb()		mb()
 #define wmb()		mb()
 
+#define dma_rmb()	mb()
+#define dma_wmb()	mb()
+
 #ifdef CONFIG_SMP
 # define smp_mb()	mb()
 #else

@@ -24,13 +24,16 @@
 #define wmb()	asm volatile("sfence" ::: "memory")
 #endif
 
+#ifdef CONFIG_X86_PPRO_FENCE
+#define dma_rmb()	rmb()
+#else
+#define dma_rmb()	barrier()
+#endif
+#define dma_wmb()	barrier()
+
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
-#ifdef CONFIG_X86_PPRO_FENCE
-# define smp_rmb()	rmb()
-#else
-# define smp_rmb()	barrier()
-#endif
+#define smp_rmb()	dma_rmb()
 #define smp_wmb()	barrier()
 #define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 #else /* !SMP */

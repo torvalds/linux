@@ -75,19 +75,20 @@
 
 #include <asm/wbflush.h>
 
-#define wmb()		fast_wmb()
-#define rmb()		fast_rmb()
 #define mb()		wbflush()
 #define iob()		wbflush()
 
 #else /* !CONFIG_CPU_HAS_WB */
 
-#define wmb()		fast_wmb()
-#define rmb()		fast_rmb()
 #define mb()		fast_mb()
 #define iob()		fast_iob()
 
 #endif /* !CONFIG_CPU_HAS_WB */
+
+#define wmb()		fast_wmb()
+#define rmb()		fast_rmb()
+#define dma_wmb()	fast_wmb()
+#define dma_rmb()	fast_rmb()
 
 #if defined(CONFIG_WEAK_ORDERING) && defined(CONFIG_SMP)
 # ifdef CONFIG_CPU_CAVIUM_OCTEON
