@@ -24,6 +24,10 @@
 
 #include "nv50.h"
 
+struct nvaa_ram_priv {
+	struct nouveau_ram base;
+};
+
 static int
 nvaa_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	      struct nouveau_oclass *oclass, void *data, u32 datasize,
@@ -32,26 +36,26 @@ nvaa_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
 	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_ram *ram;
+	struct nvaa_ram_priv *priv;
 	int ret;
 
-	ret = nouveau_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(ram);
+	ret = nouveau_ram_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ram->size = nv_rd32(pfb, 0x10020c);
-	ram->size = (ram->size & 0xffffff00) | ((ram->size & 0x000000ff) << 32);
+	priv->base.size = nv_rd32(pfb, 0x10020c);
+	priv->base.size = (priv->base.size & 0xffffff00) | ((priv->base.size & 0x000000ff) << 32);
 
-	ret = nouveau_mm_init(&pfb->vram, rsvd_head, (ram->size >> 12) -
+	ret = nouveau_mm_init(&pfb->vram, rsvd_head, (priv->base.size >> 12) -
 			      (rsvd_head + rsvd_tail), 1);
 	if (ret)
 		return ret;
 
-	ram->type   = NV_MEM_TYPE_STOLEN;
-	ram->stolen = (u64)nv_rd32(pfb, 0x100e10) << 12;
-	ram->get = nv50_ram_get;
-	ram->put = nv50_ram_put;
+	priv->base.type   = NV_MEM_TYPE_STOLEN;
+	priv->base.stolen = (u64)nv_rd32(pfb, 0x100e10) << 12;
+	priv->base.get = nv50_ram_get;
+	priv->base.put = nv50_ram_put;
 	return 0;
 }
 
