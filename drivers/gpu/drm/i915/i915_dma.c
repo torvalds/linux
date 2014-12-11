@@ -928,6 +928,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);
+		i915_gem_batch_pool_fini(&dev_priv->mm.batch_pool);
 		i915_gem_context_fini(dev);
 		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_stolen(dev);

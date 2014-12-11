@@ -1283,6 +1283,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
+	struct drm_i915_gem_object *shadow_batch_obj = NULL;
+	struct drm_i915_gem_exec_object2 shadow_exec_entry;
 	struct intel_engine_cs *ring;
 	struct intel_context *ctx;
 	struct i915_address_space *vm;
@@ -1399,27 +1401,65 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		goto err;
 	}
-	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	if (i915_needs_cmd_parser(ring)) {
+		shadow_batch_obj =
+			i915_gem_batch_pool_get(&dev_priv->mm.batch_pool,
+						batch_obj->base.size);
+		if (IS_ERR(shadow_batch_obj)) {
+			ret = PTR_ERR(shadow_batch_obj);
+			/* Don't try to clean up the obj in the error path */
+			shadow_batch_obj = NULL;
+			goto err;
+		}
+
+		ret = i915_gem_obj_ggtt_pin(shadow_batch_obj, 4096, 0);
+		if (ret)
+			goto err;
+
 		ret = i915_parse_cmds(ring,
 				      batch_obj,
+				      shadow_batch_obj,
 				      args->batch_start_offset,
 				      file->is_master);
+		i915_gem_object_ggtt_unpin(shadow_batch_obj);
+
 		if (ret) {
 			if (ret != -EACCES)
 				goto err;
 		} else {
+			struct i915_vma *vma;
+
+			memset(&shadow_exec_entry, 0,
+			       sizeof(shadow_exec_entry));
+
+			vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
+			vma->exec_entry = &shadow_exec_entry;
+			drm_gem_object_reference(&shadow_batch_obj->base);
+			list_add_tail(&vma->exec_list, &eb->vmas);
+
+			shadow_batch_obj->base.pending_read_domains =
+				batch_obj->base.pending_read_domains;
+
+			batch_obj = shadow_batch_obj;
+
 			/*
-			 * XXX: Actually do this when enabling batch copy...
+			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
+			 * bit from MI_BATCH_BUFFER_START commands issued in the
+			 * dispatch_execbuffer implementations. We specifically
+			 * don't want that set when the command parser is
+			 * enabled.
 			 *
-			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
-			 * from MI_BATCH_BUFFER_START commands issued in the
-			 * dispatch_execbuffer implementations. We specifically don't
-			 * want that set when the command parser is enabled.
+			 * FIXME: with aliasing ppgtt, buffers that should only
+			 * be in ggtt still end up in the aliasing ppgtt. remove
+			 * this check when that is fixed.
 			 */
+			if (USES_FULL_PPGTT(dev))
+				flags |= I915_DISPATCH_SECURE;
 		}
 	}
+
+	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.

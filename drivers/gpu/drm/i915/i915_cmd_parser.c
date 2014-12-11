@@ -848,6 +848,56 @@ finish:
 	return (u32*)addr;
 }
 
+/* Returns a vmap'd pointer to dest_obj, which the caller must unmap */
+static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
+		       struct drm_i915_gem_object *src_obj)
+{
+	int ret = 0;
+	int needs_clflush = 0;
+	u32 *src_addr, *dest_addr = NULL;
+
+	ret = i915_gem_obj_prepare_shmem_read(src_obj, &needs_clflush);
+	if (ret) {
+		DRM_DEBUG_DRIVER("CMD: failed to prep read\n");
+		return ERR_PTR(ret);
+	}
+
+	src_addr = vmap_batch(src_obj);
+	if (!src_addr) {
+		DRM_DEBUG_DRIVER("CMD: Failed to vmap batch\n");
+		ret = -ENOMEM;
+		goto unpin_src;
+	}
+
+	if (needs_clflush)
+		drm_clflush_virt_range((char *)src_addr, src_obj->base.size);
+
+	ret = i915_gem_object_set_to_cpu_domain(dest_obj, true);
+	if (ret) {
+		DRM_DEBUG_DRIVER("CMD: Failed to set batch CPU domain\n");
+		goto unmap_src;
+	}
+
+	dest_addr = vmap_batch(dest_obj);
+	if (!dest_addr) {
+		DRM_DEBUG_DRIVER("CMD: Failed to vmap shadow batch\n");
+		ret = -ENOMEM;
+		goto unmap_src;
+	}
+
+	memcpy(dest_addr, src_addr, src_obj->base.size);
+	if (dest_obj->base.size > src_obj->base.size)
+		memset((u8 *)dest_addr + src_obj->base.size, 0,
+		       dest_obj->base.size - src_obj->base.size);
+
+unmap_src:
+	vunmap(src_addr);
+unpin_src:
+	i915_gem_object_unpin_pages(src_obj);
+
+	return ret ? ERR_PTR(ret) : dest_addr;
+}
+
 /**
  * i915_needs_cmd_parser() - should a given ring use software command parsing?
  * @ring: the ring in question
@@ -964,6 +1014,7 @@ static bool check_cmd(const struct intel_engine_cs *ring,
  * i915_parse_cmds() - parse a submitted batch buffer for privilege violations
  * @ring: the ring on which the batch is to execute
  * @batch_obj: the batch buffer in question
+ * @shadow_batch_obj: copy of the batch buffer in question
  * @batch_start_offset: byte offset in the batch at which execution starts
  * @is_master: is the submitting process the drm master?
  *
@@ -975,32 +1026,28 @@ static bool check_cmd(const struct intel_engine_cs *ring,
  */
 int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
+		    struct drm_i915_gem_object *shadow_batch_obj,
 		    u32 batch_start_offset,
 		    bool is_master)
 {
 	int ret = 0;
 	u32 *cmd, *batch_base, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = { 0 };
-	int needs_clflush = 0;
 	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
 
-	ret = i915_gem_obj_prepare_shmem_read(batch_obj, &needs_clflush);
-	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: failed to prep read\n");
-		return ret;
+	batch_base = copy_batch(shadow_batch_obj, batch_obj);
+	if (IS_ERR(batch_base)) {
+		DRM_DEBUG_DRIVER("CMD: Failed to copy batch\n");
+		return PTR_ERR(batch_base);
 	}
-
-	batch_base = vmap_batch(batch_obj);
-	if (!batch_base) {
-		DRM_DEBUG_DRIVER("CMD: Failed to vmap batch\n");
-		i915_gem_object_unpin_pages(batch_obj);
-		return -ENOMEM;
-	}
-
-	if (needs_clflush)
-		drm_clflush_virt_range((char *)batch_base, batch_obj->base.size);
 
 	cmd = batch_base + (batch_start_offset / sizeof(*cmd));
+
+	/*
+	 * We use the source object's size because the shadow object is as
+	 * large or larger and copy_batch() will write MI_NOPs to the extra
+	 * space. Parsing should be faster in some cases this way.
+	 */
 	batch_end = cmd + (batch_obj->base.size / sizeof(*batch_end));
 
 	while (cmd < batch_end) {
@@ -1061,8 +1108,6 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 	}
 
 	vunmap(batch_base);
-
-	i915_gem_object_unpin_pages(batch_obj);
 
 	return ret;
 }

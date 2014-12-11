@@ -5007,6 +5007,8 @@ i915_gem_load(struct drm_device *dev)
 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
 	register_oom_notifier(&dev_priv->mm.oom_notifier);
 
+	i915_gem_batch_pool_init(dev, &dev_priv->mm.batch_pool);
+
 	mutex_init(&dev_priv->fb_tracking.lock);
 }
 
