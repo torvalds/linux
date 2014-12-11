@@ -42,6 +42,9 @@ static struct img_ir_decoder *img_ir_decoders[] = {
 #ifdef CONFIG_IR_IMG_SANYO
 	&img_ir_sanyo,
 #endif
+#ifdef CONFIG_IR_IMG_RC5
+	&img_ir_rc5,
+#endif
 	NULL
 };
 
