@@ -167,13 +167,12 @@ static int gb_message_send(struct gb_message *message)
 {
 	size_t message_size = sizeof(*message->header) + message->payload_size;
 	struct gb_connection *connection = message->operation->connection;
-	u16 dest_cport_id = connection->interface_cport_id;
 	int ret = 0;
 	void *cookie;
 
 	mutex_lock(&gb_message_mutex);
 	cookie = connection->hd->driver->buffer_send(connection->hd,
-					dest_cport_id,
+					connection->hd_cport_id,
 					message->header,
 					message_size,
 					GFP_KERNEL);

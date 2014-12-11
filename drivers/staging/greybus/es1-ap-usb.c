@@ -190,7 +190,7 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
  * error otherwise.  If the caller wishes to cancel the in-flight
  * buffer, it must supply the returned cookie to the cancel routine.
  */
-static void *buffer_send(struct greybus_host_device *hd, u16 dest_cport_id,
+static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
 			void *buffer, size_t buffer_size, gfp_t gfp_mask)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
@@ -216,17 +216,16 @@ static void *buffer_send(struct greybus_host_device *hd, u16 dest_cport_id,
 	 * of where the data should be sent.  Do one last check of
 	 * the target CPort id before filling it in.
 	 */
-	if (dest_cport_id == CPORT_ID_BAD) {
+	if (cport_id == CPORT_ID_BAD) {
 		pr_err("request to send inbound data buffer\n");
 		return ERR_PTR(-EINVAL);
 	}
-	if (dest_cport_id > (u16)U8_MAX) {
-		pr_err("dest_cport_id (%hd) is out of range for ES1\n",
-			dest_cport_id);
+	if (cport_id > (u16)U8_MAX) {
+		pr_err("cport_id (%hd) is out of range for ES1\n", cport_id);
 		return ERR_PTR(-EINVAL);
 	}
 	/* OK, the destination is fine; record it in the transfer buffer */
-	*transfer_buffer = dest_cport_id;
+	*transfer_buffer = cport_id;
 
 	/* Find a free urb */
 	urb = next_free_urb(es1, gfp_mask);
@@ -393,8 +392,8 @@ static void cport_in_callback(struct urb *urb)
 	}
 
 	/*
-	 * The CPort number is the first byte of the data stream, the rest of
-	 * the stream is "real" data
+	 * Our CPort number is the first byte of the data stream,
+	 * the rest of the stream is "real" data
 	 */
 	data = urb->transfer_buffer;
 	cport_id = (u16)data[0];
