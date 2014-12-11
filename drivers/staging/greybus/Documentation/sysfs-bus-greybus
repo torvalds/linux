@@ -33,3 +33,23 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID string of a Greybus interface block.
 
+What:		/sys/bus/greybus/device/.../state
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The current state of a Greybus connection.
+
+		It will be one of the following values:
+		0 - invalid
+		1 - disabled
+		2 - enabled
+		3 - error
+		4 - destroying
+
+What:		/sys/bus/greybus/device/.../protocol_id
+Date:		December 2014
+KernelVersion:	3.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The protocol id of a Greybus connection.
