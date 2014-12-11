@@ -478,6 +478,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
 	int err;
 	int reserved_from_top = 0;
+	int reserved_from_bot;
 	int k;
 
 	spin_lock_init(&qp_table->lock);
@@ -534,9 +535,14 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	* b. All the proxy SQPs (8 per function)
 	* c. All the tunnel QPs (8 per function)
 	*/
+	reserved_from_bot = mlx4_num_reserved_sqps(dev);
+	if (reserved_from_bot + reserved_from_top > dev->caps.num_qps) {
+		mlx4_err(dev, "Number of reserved QPs is higher than number of QPs\n");
+		return -EINVAL;
+	}
 
 	err = mlx4_bitmap_init(&qp_table->bitmap, dev->caps.num_qps,
-			       (1 << 23) - 1, mlx4_num_reserved_sqps(dev),
+			       (1 << 23) - 1, reserved_from_bot,
 			       reserved_from_top);
 	if (err)
 		return err;
