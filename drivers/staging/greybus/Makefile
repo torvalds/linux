@@ -3,7 +3,7 @@ greybus-y :=	core.o		\
 		debugfs.o	\
 		ap.o		\
 		manifest.o	\
-		module.o	\
+		interface_block.o	\
 		interface.o	\
 		connection.o	\
 		protocol.o	\
