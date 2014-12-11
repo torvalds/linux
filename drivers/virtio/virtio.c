@@ -162,6 +162,27 @@ static void virtio_config_enable(struct virtio_device *dev)
 	spin_unlock_irq(&dev->config_lock);
 }
 
+static int virtio_finalize_features(struct virtio_device *dev)
+{
+	int ret = dev->config->finalize_features(dev);
+	unsigned status;
+
+	if (ret)
+		return ret;
+
+	if (!virtio_has_feature(dev, VIRTIO_F_VERSION_1))
+		return 0;
+
+	add_status(dev, VIRTIO_CONFIG_S_FEATURES_OK);
+	status = dev->config->get_status(dev);
+	if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
+		dev_err(&dev->dev, "virtio: device refuses features: %x\n",
+			status);
+		return -ENODEV;
+	}
+	return 0;
+}
+
 static int virtio_dev_probe(struct device *_d)
 {
 	int err, i;
@@ -170,7 +191,6 @@ static int virtio_dev_probe(struct device *_d)
 	u64 device_features;
 	u64 driver_features;
 	u64 driver_features_legacy;
-	unsigned status;
 
 	/* We have a driver! */
 	add_status(dev, VIRTIO_CONFIG_S_DRIVER);
@@ -208,20 +228,9 @@ static int virtio_dev_probe(struct device *_d)
 		if (device_features & (1ULL << i))
 			__virtio_set_bit(dev, i);
 
-	err = dev->config->finalize_features(dev);
+	err = virtio_finalize_features(dev);
 	if (err)
 		goto err;
-
-	if (virtio_has_feature(dev, VIRTIO_F_VERSION_1)) {
-		add_status(dev, VIRTIO_CONFIG_S_FEATURES_OK);
-		status = dev->config->get_status(dev);
-		if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
-			dev_err(_d, "virtio: device refuses features: %x\n",
-			       status);
-			err = -ENODEV;
-			goto err;
-		}
-	}
 
 	err = drv->probe(dev);
 	if (err)
@@ -372,7 +381,7 @@ int virtio_device_restore(struct virtio_device *dev)
 	/* We have a driver! */
 	add_status(dev, VIRTIO_CONFIG_S_DRIVER);
 
-	ret = dev->config->finalize_features(dev);
+	ret = virtio_finalize_features(dev);
 	if (ret)
 		goto err;
 
