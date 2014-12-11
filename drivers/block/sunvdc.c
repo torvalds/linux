@@ -269,7 +269,7 @@ static void vdc_end_one(struct vdc_port *port, struct vio_dring_state *dr,
 
 	ldc_unmap(port->vio.lp, desc->cookies, desc->ncookies);
 	desc->hdr.state = VIO_DESC_FREE;
-	dr->cons = (index + 1) & (VDC_TX_RING_SIZE - 1);
+	dr->cons = vio_dring_next(dr, index);
 
 	req = rqe->req;
 	if (req == NULL) {
@@ -472,7 +472,7 @@ static int __send_request(struct request *req)
 		printk(KERN_ERR PFX "vdc_tx_trigger() failure, err=%d\n", err);
 	} else {
 		port->req_id++;
-		dr->prod = (dr->prod + 1) & (VDC_TX_RING_SIZE - 1);
+		dr->prod = vio_dring_next(dr, dr->prod);
 	}
 
 	return err;
@@ -626,7 +626,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 	err = __vdc_tx_trigger(port);
 	if (err >= 0) {
 		port->req_id++;
-		dr->prod = (dr->prod + 1) & (VDC_TX_RING_SIZE - 1);
+		dr->prod = vio_dring_next(dr, dr->prod);
 		spin_unlock_irqrestore(&port->vio.lock, flags);
 
 		wait_for_completion(&comp.com);

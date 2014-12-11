@@ -300,6 +300,21 @@ static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 		((dr->prod - dr->cons) & (ring_size - 1)) - 1);
 }
 
+static inline u32 vio_dring_next(struct vio_dring_state *dr, u32 index)
+{
+	if (++index == dr->num_entries)
+		index = 0;
+	return index;
+}
+
+static inline u32 vio_dring_prev(struct vio_dring_state *dr, u32 index)
+{
+	if (index == 0)
+		return dr->num_entries - 1;
+	else
+		return index - 1;
+}
+
 #define VIO_MAX_TYPE_LEN	32
 #define VIO_MAX_COMPAT_LEN	64
 
