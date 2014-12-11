@@ -170,10 +170,10 @@ u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 	u32 value;
 
 	if (dev->accessor_flags & ACCESS_16BIT)
-		value = readw(dev->base + offset) |
-			(readw(dev->base + offset + 2) << 16);
+		value = readw_relaxed(dev->base + offset) |
+			(readw_relaxed(dev->base + offset + 2) << 16);
 	else
-		value = readl(dev->base + offset);
+		value = readl_relaxed(dev->base + offset);
 
 	if (dev->accessor_flags & ACCESS_SWAP)
 		return swab32(value);
@@ -187,10 +187,10 @@ void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 		b = swab32(b);
 
 	if (dev->accessor_flags & ACCESS_16BIT) {
-		writew((u16)b, dev->base + offset);
-		writew((u16)(b >> 16), dev->base + offset + 2);
+		writew_relaxed((u16)b, dev->base + offset);
+		writew_relaxed((u16)(b >> 16), dev->base + offset + 2);
 	} else {
-		writel(b, dev->base + offset);
+		writel_relaxed(b, dev->base + offset);
 	}
 }
 
