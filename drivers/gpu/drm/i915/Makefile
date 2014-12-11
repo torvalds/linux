@@ -19,6 +19,7 @@ i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o
 
 # GEM code
 i915-y += i915_cmd_parser.o \
+	  i915_gem_batch_pool.o \
 	  i915_gem_context.o \
 	  i915_gem_render_state.o \
 	  i915_gem_debug.o \

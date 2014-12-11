@@ -4393,6 +4393,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->obj_exec_link);
 	INIT_LIST_HEAD(&obj->vma_list);
+	INIT_LIST_HEAD(&obj->batch_pool_list);
 
 	obj->ops = ops;
 

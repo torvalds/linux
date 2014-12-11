@@ -1141,6 +1141,11 @@ struct intel_l3_parity {
 	int which_slice;
 };
 
+struct i915_gem_batch_pool {
+	struct drm_device *dev;
+	struct list_head cache_list;
+};
+
 struct i915_gem_mm {
 	/** Memory allocator for GTT stolen memory */
 	struct drm_mm stolen;
@@ -1153,6 +1158,13 @@ struct i915_gem_mm {
 	 * (presumably uncached) pages still attached.
 	 */
 	struct list_head unbound_list;
+
+	/*
+	 * A pool of objects to use as shadow copies of client batch buffers
+	 * when the command parser is enabled. Prevents the client from
+	 * modifying the batch contents after software parsing.
+	 */
+	struct i915_gem_batch_pool batch_pool;
 
 	/** Usable portion of the GTT for GEM */
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
@@ -1884,6 +1896,8 @@ struct drm_i915_gem_object {
 	struct list_head ring_list;
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
+
+	struct list_head batch_pool_list;
 
 	/**
 	 * This is set if the object is on the active lists (has pending
@@ -2934,6 +2948,13 @@ void i915_destroy_error_state(struct drm_device *dev);
 
 void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
+
+/* i915_gem_batch_pool.c */
+void i915_gem_batch_pool_init(struct drm_device *dev,
+			      struct i915_gem_batch_pool *pool);
+void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool);
+struct drm_i915_gem_object*
+i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool, size_t size);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(void);

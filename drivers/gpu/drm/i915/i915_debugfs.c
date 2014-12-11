@@ -360,6 +360,33 @@ static int per_file_stats(int id, void *ptr, void *data)
 	return 0;
 }
 
+#define print_file_stats(m, name, stats) \
+	seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n", \
+		   name, \
+		   stats.count, \
+		   stats.total, \
+		   stats.active, \
+		   stats.inactive, \
+		   stats.global, \
+		   stats.shared, \
+		   stats.unbound)
+
+static void print_batch_pool_stats(struct seq_file *m,
+				   struct drm_i915_private *dev_priv)
+{
+	struct drm_i915_gem_object *obj;
+	struct file_stats stats;
+
+	memset(&stats, 0, sizeof(stats));
+
+	list_for_each_entry(obj,
+			    &dev_priv->mm.batch_pool.cache_list,
+			    batch_pool_list)
+		per_file_stats(0, obj, &stats);
+
+	print_file_stats(m, "batch pool", stats);
+}
+
 #define count_vmas(list, member) do { \
 	list_for_each_entry(vma, list, member) { \
 		size += i915_gem_obj_ggtt_size(vma->obj); \
@@ -442,6 +469,9 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   dev_priv->gtt.mappable_end - dev_priv->gtt.base.start);
 
 	seq_putc(m, '\n');
+	print_batch_pool_stats(m, dev_priv);
+
+	seq_putc(m, '\n');
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 		struct task_struct *task;
@@ -459,15 +489,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		 */
 		rcu_read_lock();
 		task = pid_task(file->pid, PIDTYPE_PID);
-		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n",
-			   task ? task->comm : "<unknown>",
-			   stats.count,
-			   stats.total,
-			   stats.active,
-			   stats.inactive,
-			   stats.global,
-			   stats.shared,
-			   stats.unbound);
+		print_file_stats(m, task ? task->comm : "<unknown>", stats);
 		rcu_read_unlock();
 	}
 
@@ -578,6 +600,36 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 		}
 		spin_unlock_irq(&dev->event_lock);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj;
+	int count = 0;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_puts(m, "cache:\n");
+	list_for_each_entry(obj,
+			    &dev_priv->mm.batch_pool.cache_list,
+			    batch_pool_list) {
+		seq_puts(m, "   ");
+		describe_obj(m, obj);
+		seq_putc(m, '\n');
+		count++;
+	}
+
+	seq_printf(m, "total: %d\n", count);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -4357,6 +4409,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BCS},
 	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)VCS},
 	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
+	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
