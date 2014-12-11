@@ -195,7 +195,8 @@ enum {
 };
 
 enum {
-	MLX4_QUERY_FUNC_FLAGS_BF_RES_QP		= 1LL << 0
+	MLX4_QUERY_FUNC_FLAGS_BF_RES_QP		= 1LL << 0,
+	MLX4_QUERY_FUNC_FLAGS_A0_RES_QP		= 1LL << 1
 };
 
 /* bit enums for an 8-bit flags field indicating special use
@@ -207,6 +208,7 @@ enum {
  * This enum may use only bits 0..7.
  */
 enum {
+	MLX4_RESERVE_A0_QP	= 1 << 6,
 	MLX4_RESERVE_ETH_BF_QP	= 1 << 7,
 };
 
@@ -349,6 +351,8 @@ enum {
 
 enum mlx4_qp_region {
 	MLX4_QP_REGION_FW = 0,
+	MLX4_QP_REGION_RSS_RAW_ETH,
+	MLX4_QP_REGION_BOTTOM = MLX4_QP_REGION_RSS_RAW_ETH,
 	MLX4_QP_REGION_ETH_ADDR,
 	MLX4_QP_REGION_FC_ADDR,
 	MLX4_QP_REGION_FC_EXCH,
@@ -891,7 +895,9 @@ static inline int mlx4_num_reserved_sqps(struct mlx4_dev *dev)
 static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)
 {
 	return (qpn < dev->phys_caps.base_sqpn + 8 +
-		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev));
+		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev) &&
+		qpn >= dev->phys_caps.base_sqpn) ||
+	       (qpn < dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW]);
 }
 
 static inline int mlx4_is_guest_proxy(struct mlx4_dev *dev, int slave, u32 qpn)

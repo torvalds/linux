@@ -1131,7 +1131,8 @@ int mlx4_en_create_drop_qp(struct mlx4_en_priv *priv)
 	int err;
 	u32 qpn;
 
-	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn, 0);
+	err = mlx4_qp_reserve_range(priv->mdev->dev, 1, 1, &qpn,
+				    MLX4_RESERVE_A0_QP);
 	if (err) {
 		en_err(priv, "Failed reserving drop qpn\n");
 		return err;

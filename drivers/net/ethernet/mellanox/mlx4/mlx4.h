@@ -682,8 +682,19 @@ struct mlx4_srq_table {
 	struct mlx4_icm_table	cmpt_table;
 };
 
+enum mlx4_qp_table_zones {
+	MLX4_QP_TABLE_ZONE_GENERAL,
+	MLX4_QP_TABLE_ZONE_RSS,
+	MLX4_QP_TABLE_ZONE_RAW_ETH,
+	MLX4_QP_TABLE_ZONE_NUM
+};
+
+#define MLX4_A0_STEERING_TABLE_SIZE    256
+
 struct mlx4_qp_table {
-	struct mlx4_bitmap	bitmap;
+	struct mlx4_bitmap	*bitmap_gen;
+	struct mlx4_zone_allocator *zones;
+	u32			zones_uids[MLX4_QP_TABLE_ZONE_NUM];
 	u32			rdmarc_base;
 	int			rdmarc_shift;
 	spinlock_t		lock;
