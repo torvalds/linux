@@ -621,6 +621,11 @@ struct mlx4_cq {
 
 	atomic_t		refcount;
 	struct completion	free;
+	struct {
+		struct list_head list;
+		void (*comp)(struct mlx4_cq *);
+		void		*priv;
+	} tasklet_ctx;
 };
 
 struct mlx4_qp {
