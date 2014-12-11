@@ -94,7 +94,7 @@ static unsigned desc_size(const struct lguest_device_desc *desc)
 }
 
 /* This gets the device's feature bits. */
-static u32 lg_get_features(struct virtio_device *vdev)
+static u64 lg_get_features(struct virtio_device *vdev)
 {
 	unsigned int i;
 	u32 features = 0;
@@ -126,7 +126,7 @@ static void status_notify(struct virtio_device *vdev)
  * sorted out, this routine is called so we can tell the Host which features we
  * understand and accept.
  */
-static void lg_finalize_features(struct virtio_device *vdev)
+static int lg_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
@@ -136,20 +136,25 @@ static void lg_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
+	/* Make sure we don't have any features > 32 bits! */
+	BUG_ON((u32)vdev->features != vdev->features);
+
 	/*
-	 * The vdev->feature array is a Linux bitmask: this isn't the same as a
-	 * the simple array of bits used by lguest devices for features.  So we
-	 * do this slow, manual conversion which is completely general.
+	 * Since lguest is currently x86-only, we're little-endian.  That
+	 * means we could just memcpy.  But it's not time critical, and in
+	 * case someone copies this code, we do it the slow, obvious way.
 	 */
 	memset(out_features, 0, desc->feature_len);
 	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++) {
-		if (test_bit(i, vdev->features))
+		if (__virtio_test_bit(vdev, i))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
 
 	/* Tell Host we've finished with this device's feature negotiation */
 	status_notify(vdev);
+
+	return 0;
 }
 
 /* Once they've found a field, getting a copy of it is easy. */
