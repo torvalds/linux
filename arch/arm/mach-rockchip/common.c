@@ -24,6 +24,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/pmu.h>
+#include <linux/memblock.h>
 #include "cpu_axi.h"
 #include "loader.h"
 #include "sram.h"
@@ -294,3 +295,62 @@ static int __init rockchip_jtag_enable(char *__unused)
 	return 1;
 }
 __setup("rockchip_jtag", rockchip_jtag_enable);
+
+phys_addr_t uboot_logo_base=0;
+phys_addr_t uboot_logo_size=0;
+phys_addr_t uboot_logo_offset=0;
+
+void __init rockchip_uboot_mem_reserve(void)
+{
+	if (uboot_logo_size) {
+		if (!memblock_is_region_reserved(uboot_logo_base, uboot_logo_size)
+			&& !memblock_reserve(uboot_logo_base, uboot_logo_size)){
+			pr_info("%s: reserve %zx@%zx for uboot logo\n", __func__,
+				uboot_logo_size, uboot_logo_base);
+		} else {
+			pr_err("%s: reserve of %zx@%zx failed\n", __func__,
+			       uboot_logo_size, uboot_logo_base);
+		}
+	}
+}
+
+static int __init rockchip_uboot_logo_setup(char *p)
+{
+	char *endp;
+
+	uboot_logo_size = memparse(p, &endp);
+	if (*endp == '@') {
+		uboot_logo_base = memparse(endp + 1, &endp);
+		if (*endp == ':') {
+			uboot_logo_offset = memparse(endp + 1, NULL);
+		}
+	}
+
+	pr_info("%s: mem: %zx@%zx, offset:%zx\n", __func__,
+		uboot_logo_size, uboot_logo_base, uboot_logo_offset);
+
+	return 0;
+}
+early_param("uboot_logo", rockchip_uboot_logo_setup);
+
+static int __init rockchip_uboot_mem_late_init(void)
+{
+	phys_addr_t addr = 0;
+	phys_addr_t end = 0;
+
+	if (uboot_logo_size) {
+		addr = PAGE_ALIGN(uboot_logo_base);
+		end = (uboot_logo_base+uboot_logo_size)&PAGE_MASK;
+
+		pr_info("%s: Freeing uboot logo memory: %zx@%zx\n", __func__,
+			uboot_logo_size, uboot_logo_base);
+
+		memblock_free(uboot_logo_base, uboot_logo_size);
+
+		for (; addr < end; addr += PAGE_SIZE)
+			free_reserved_page(pfn_to_page(addr >> PAGE_SHIFT));
+	}
+
+	return 0;
+}
+late_initcall(rockchip_uboot_mem_late_init);

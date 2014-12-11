@@ -353,6 +353,9 @@ static void __init rk312x_dt_init_timer(void)
 
 static void __init rk312x_reserve(void)
 {
+	/* reserve memory for uboot */
+	rockchip_uboot_mem_reserve();
+
 	/* reserve memory for ION */
 	rockchip_ion_reserve();
 }

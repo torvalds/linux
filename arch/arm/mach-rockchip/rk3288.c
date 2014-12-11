@@ -435,6 +435,9 @@ static void __init rk3288_dt_init_timer(void)
 
 static void __init rk3288_reserve(void)
 {
+	/* reserve memory for uboot */
+	rockchip_uboot_mem_reserve();
+
 	/* reserve memory for ION */
 	rockchip_ion_reserve();
 }
