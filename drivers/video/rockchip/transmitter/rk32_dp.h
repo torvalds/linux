@@ -1,6 +1,11 @@
 #ifndef __RK32_DP_H
 #define __RK32_DP_H
+
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/rk_fb.h>
+
 #include "dpcd_edid.h"
 
 #define DP_VERSION				0x10
@@ -513,11 +518,14 @@ struct link_train {
 struct rk32_edp {
 	struct device 		*dev;
 	void __iomem  		*regs;
+	struct regmap		*grf;
 	unsigned int  		irq;
 	struct clk		*pd;
 	struct clk    		*clk_edp;  /*clk for edp controller*/
 	struct clk    		*clk_24m;  /*clk for edp phy*/
 	struct clk		*pclk;	   /*clk for phb bus*/
+	struct reset_control    *rst_24m;
+	struct reset_control    *rst_apb;
 	struct link_train	link_train;
 	struct video_info	video_info;
 	struct rk_screen	screen;
