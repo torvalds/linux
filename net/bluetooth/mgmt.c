@@ -3115,14 +3115,14 @@ static void pairing_complete(struct pending_cmd *cmd, u8 status)
 	conn->disconn_cfm_cb = NULL;
 
 	hci_conn_drop(conn);
-	hci_conn_put(conn);
-
 	mgmt_pending_remove(cmd);
 
 	/* The device is paired so there is no need to remove
 	 * its connection parameters anymore.
 	 */
 	clear_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags);
+
+	hci_conn_put(conn);
 }
 
 void mgmt_smp_complete(struct hci_conn *conn, bool complete)
