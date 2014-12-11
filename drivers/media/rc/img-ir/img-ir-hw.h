@@ -218,6 +218,7 @@ enum img_ir_mode {
  * @rdev:		Remote control device
  * @clk_nb:		Notifier block for clock notify events.
  * @end_timer:		Timer until repeat timeout.
+ * @suspend_timer:	Timer to re-enable protocol.
  * @decoder:		Current decoder settings.
  * @enabled_protocols:	Currently enabled protocols.
  * @clk_hz:		Current core clock rate in Hz.
@@ -228,12 +229,14 @@ enum img_ir_mode {
  * @stopping:		Indicates that decoder is being taken down and timers
  *			should not be restarted.
  * @suspend_irqen:	Saved IRQ enable mask over suspend.
+ * @quirk_suspend_irq:	Saved IRQ enable mask over quirk suspend timer.
  */
 struct img_ir_priv_hw {
 	unsigned int			ct_quirks[4];
 	struct rc_dev			*rdev;
 	struct notifier_block		clk_nb;
 	struct timer_list		end_timer;
+	struct timer_list		suspend_timer;
 	const struct img_ir_decoder	*decoder;
 	u64				enabled_protocols;
 	unsigned long			clk_hz;
@@ -244,6 +247,7 @@ struct img_ir_priv_hw {
 	enum img_ir_mode		mode;
 	bool				stopping;
 	u32				suspend_irqen;
+	u32				quirk_suspend_irq;
 };
 
 static inline bool img_ir_hw_enabled(struct img_ir_priv_hw *hw)
