@@ -1561,6 +1561,7 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 				win->area[i].smem_start =
 					reg_win_data->reg_area_data[i].smem_start;
                                 if (inf->disp_mode == DUAL ||
+                                    inf->disp_mode == NO_DUAL ||
                                     inf->disp_policy == DISPLAY_POLICY_BOX) {
 				        win->area[i].xpos =
 				                reg_win_data->reg_area_data[i].xpos;
@@ -3138,7 +3139,11 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
 
-	if (rk_fb->disp_mode == ONE_DUAL) {
+	if ((rk_fb->disp_mode == ONE_DUAL) ||
+	    (rk_fb->disp_mode == NO_DUAL)) {
+		if ((dev_drv->ops->backlight_close) &&
+		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
+			dev_drv->ops->backlight_close(dev_drv, 1);
 		if (dev_drv->ops->dsp_black)
 			dev_drv->ops->dsp_black(dev_drv, 1);
 		if ((dev_drv->ops->set_screen_scaler) &&
@@ -3154,7 +3159,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			return 0;
 
 		/* if used one lcdc to dual disp, no need to close win */
-		if (rk_fb->disp_mode == ONE_DUAL) {
+		if ((rk_fb->disp_mode == ONE_DUAL) ||
+		    (rk_fb->disp_mode == NO_DUAL)) {
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->ops->load_screen(dev_drv, 1);
 
@@ -3171,6 +3177,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 
 			if (dev_drv->ops->dsp_black)
 				dev_drv->ops->dsp_black(dev_drv, 0);
+			if ((dev_drv->ops->backlight_close) &&
+			    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
+				dev_drv->ops->backlight_close(dev_drv, 0);
 		} else if (rk_fb->num_lcdc > 1) {
 			/* If there is more than one lcdc device, we disable
 			   the layer which attached to this device */
@@ -3235,6 +3244,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
 		if (dev_drv->ops->dsp_black)
 			dev_drv->ops->dsp_black(dev_drv, 0);
+		if ((dev_drv->ops->backlight_close) &&
+		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
+		    (rk_fb->disp_mode == ONE_DUAL))
+			dev_drv->ops->backlight_close(dev_drv, 0);
 	}
 	return 0;
 }
@@ -3491,7 +3504,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
 	/* devie use one lcdc + rk61x scaler for dual display */
-	if (rk_fb->disp_mode == ONE_DUAL) {
+	if ((rk_fb->disp_mode == ONE_DUAL) || (rk_fb->disp_mode == NO_DUAL)) {
 		struct rk_screen *screen1 =
 				devm_kzalloc(dev_drv->dev,
 					     sizeof(struct rk_screen),
