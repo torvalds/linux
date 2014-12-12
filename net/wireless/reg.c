@@ -109,7 +109,7 @@ static struct regulatory_request core_request_world = {
  * protected by RTNL (and can be accessed with RCU protection)
  */
 static struct regulatory_request __rcu *last_request =
-	(void __rcu *)&core_request_world;
+	(void __force __rcu *)&core_request_world;
 
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
