@@ -3432,6 +3432,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 
 			d40_err(base->dev, "Failed to allocate %d pages.\n",
 				base->lcla_pool.pages);
+			ret = -ENOMEM;
 
 			for (j = 0; j < i; j++)
 				free_pages(page_list[j], base->lcla_pool.pages);

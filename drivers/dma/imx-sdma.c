@@ -729,6 +729,7 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 	case IMX_DMATYPE_CSPI:
 	case IMX_DMATYPE_EXT:
 	case IMX_DMATYPE_SSI:
+	case IMX_DMATYPE_SAI:
 		per_2_emi = sdma->script_addrs->app_2_mcu_addr;
 		emi_2_per = sdma->script_addrs->mcu_2_app_addr;
 		break;
@@ -1287,7 +1288,8 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 	unsigned short *ram_code;
 
 	if (!fw) {
-		dev_err(sdma->dev, "firmware not found\n");
+		dev_info(sdma->dev, "external firmware not found, using ROM firmware\n");
+		/* In this case we just use the ROM firmware. */
 		return;
 	}
 
@@ -1346,7 +1348,7 @@ static int sdma_get_firmware(struct sdma_engine *sdma,
 	return ret;
 }
 
-static int __init sdma_init(struct sdma_engine *sdma)
+static int sdma_init(struct sdma_engine *sdma)
 {
 	int i, ret;
 	dma_addr_t ccb_phys;

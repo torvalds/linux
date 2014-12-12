@@ -16,6 +16,7 @@ obj-$(CONFIG_PPC_BESTCOMM) += bestcomm/
 obj-$(CONFIG_MV_XOR) += mv_xor.o
 obj-$(CONFIG_DW_DMAC_CORE) += dw/
 obj-$(CONFIG_AT_HDMAC) += at_hdmac.o
+obj-$(CONFIG_AT_XDMAC) += at_xdmac.o
 obj-$(CONFIG_MX3_IPU) += ipu/
 obj-$(CONFIG_TXX9_DMAC) += txx9dmac.o
 obj-$(CONFIG_SH_DMAE_BASE) += sh/

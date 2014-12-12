@@ -525,8 +525,6 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
 	vchan_init(&c->vc, &d->ddev);
 	INIT_LIST_HEAD(&c->node);
 
-	d->ddev.chancnt++;
-
 	c->chan_base = BCM2835_DMA_CHANIO(d->base, chan_id);
 	c->ch = chan_id;
 	c->irq_number = irq;
@@ -694,7 +692,6 @@ static struct platform_driver bcm2835_dma_driver = {
 	.remove	= bcm2835_dma_remove,
 	.driver = {
 		.name = "bcm2835-dma",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(bcm2835_dma_of_match),
 	},
 };

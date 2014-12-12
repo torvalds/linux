@@ -41,6 +41,7 @@ enum sdma_peripheral_type {
 	IMX_DMATYPE_ESAI,	/* ESAI */
 	IMX_DMATYPE_SSI_DUAL,	/* SSI Dual FIFO */
 	IMX_DMATYPE_ASRC_SP,	/* Shared ASRC */
+	IMX_DMATYPE_SAI,	/* SAI */
 };
 
 enum imx_dma_prio {

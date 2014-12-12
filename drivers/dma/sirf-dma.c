@@ -735,7 +735,6 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 
 	dma = &sdma->dma;
 	dma->dev = dev;
-	dma->chancnt = SIRFSOC_DMA_CHANNELS;
 
 	dma->device_alloc_chan_resources = sirfsoc_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = sirfsoc_dma_free_chan_resources;
@@ -752,7 +751,7 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	dma_cap_set(DMA_INTERLEAVE, dma->cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma->cap_mask);
 
-	for (i = 0; i < dma->chancnt; i++) {
+	for (i = 0; i < SIRFSOC_DMA_CHANNELS; i++) {
 		schan = &sdma->channels[i];
 
 		schan->chan.device = dma;
@@ -835,6 +834,7 @@ static int sirfsoc_dma_runtime_resume(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sirfsoc_dma_pm_suspend(struct device *dev)
 {
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
@@ -916,6 +916,7 @@ static int sirfsoc_dma_pm_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops sirfsoc_dma_pm_ops = {
 	SET_RUNTIME_PM_OPS(sirfsoc_dma_runtime_suspend, sirfsoc_dma_runtime_resume, NULL)

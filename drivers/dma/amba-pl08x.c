@@ -2164,7 +2164,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 			 __func__, ret);
 		goto out_no_memcpy;
 	}
-	pl08x->memcpy.chancnt = ret;
 
 	/* Register slave channels */
 	ret = pl08x_dma_init_virtual_channels(pl08x, &pl08x->slave,
@@ -2175,7 +2174,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 				__func__, ret);
 		goto out_no_slave;
 	}
-	pl08x->slave.chancnt = ret;
 
 	ret = dma_async_device_register(&pl08x->memcpy);
 	if (ret) {

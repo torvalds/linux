@@ -1722,6 +1722,13 @@ F:	drivers/dma/at_hdmac.c
 F:	drivers/dma/at_hdmac_regs.h
 F:	include/linux/platform_data/dma-atmel.h
 
+ATMEL XDMA DRIVER
+M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+L:	linux-arm-kernel@lists.infradead.org
+L:	dmaengine@vger.kernel.org
+S:	Supported
+F:	drivers/dma/at_xdmac.c
+
 ATMEL I2C DRIVER
 M:	Ludovic Desroches <ludovic.desroches@atmel.com>
 L:	linux-i2c@vger.kernel.org
@@ -3162,7 +3169,8 @@ Q:	https://patchwork.kernel.org/project/linux-dmaengine/list/
 S:	Maintained
 F:	drivers/dma/
 F:	include/linux/dma*
-T:	git git://git.infradead.org/users/vkoul/slave-dma.git (slave-dma)
+F:	Documentation/dmaengine/
+T:	git git://git.infradead.org/users/vkoul/slave-dma.git
 
 DME1737 HARDWARE MONITOR DRIVER
 M:	Juerg Haefliger <juergh@gmail.com>
