@@ -2884,7 +2884,7 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 				loff_t length)
 {
 	struct fuse_file *ff = file->private_data;
-	struct inode *inode = file->f_inode;
+	struct inode *inode = file_inode(file);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = ff->fc;
 	FUSE_ARGS(args);
