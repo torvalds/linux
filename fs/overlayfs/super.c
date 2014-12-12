@@ -305,6 +305,27 @@ static inline struct dentry *ovl_lookup_real(struct dentry *dir,
 	return dentry;
 }
 
+/*
+ * Returns next layer in stack starting from top.
+ * Returns -1 if this is the last layer.
+ */
+int ovl_path_next(int idx, struct dentry *dentry, struct path *path)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	BUG_ON(idx < 0);
+	if (idx == 0) {
+		ovl_path_upper(dentry, path);
+		if (path->dentry)
+			return oe->numlower ? 1 : -1;
+		idx++;
+	}
+	BUG_ON(idx > oe->numlower);
+	*path = oe->lowerstack[idx - 1];
+
+	return (idx < oe->numlower) ? idx + 1 : -1;
+}
+
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags)
 {
