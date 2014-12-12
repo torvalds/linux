@@ -122,4 +122,13 @@ config TCG_XEN
 	  To compile this driver as a module, choose M here; the module
 	  will be called xen-tpmfront.
 
+config TCG_CRB
+	tristate "TPM 2.0 CRB Interface"
+	depends on X86 && ACPI
+	---help---
+	  If you have a TPM security chip that is compliant with the
+	  TCG CRB 2.0 TPM specification say Yes and it will be accessible
+	  from within Linux.  To compile this driver as a module, choose
+	  M here; the module will be called tpm_crb.
+
 endif # TCG_TPM
