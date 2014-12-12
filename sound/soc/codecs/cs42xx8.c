@@ -537,7 +537,7 @@ err_enable:
 }
 EXPORT_SYMBOL_GPL(cs42xx8_probe);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int cs42xx8_runtime_resume(struct device *dev)
 {
 	struct cs42xx8_priv *cs42xx8 = dev_get_drvdata(dev);

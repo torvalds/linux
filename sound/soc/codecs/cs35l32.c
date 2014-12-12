@@ -550,7 +550,7 @@ static int cs35l32_i2c_remove(struct i2c_client *i2c_client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int cs35l32_runtime_suspend(struct device *dev)
 {
 	struct cs35l32_private *cs35l32 = dev_get_drvdata(dev);
