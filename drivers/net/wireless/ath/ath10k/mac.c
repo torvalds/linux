@@ -1099,9 +1099,6 @@ static int ath10k_mac_vif_recalc_ps_poll_count(struct ath10k_vif *arvif)
 	return 0;
 }
 
-/*
- * Review this when mac80211 gains per-interface powersave support.
- */
 static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 {
 	struct ath10k *ar = arvif->ar;
@@ -1117,7 +1114,7 @@ static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 	if (arvif->vif->type != NL80211_IFTYPE_STATION)
 		return 0;
 
-	if (conf->flags & IEEE80211_CONF_PS) {
+	if (vif->bss_conf.ps) {
 		psmode = WMI_STA_PS_MODE_ENABLED;
 		param = WMI_STA_PS_PARAM_INACTIVITY_TIME;
 
@@ -3376,6 +3373,13 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 		ret = ath10k_mac_txpower_recalc(ar);
 		if (ret)
 			ath10k_warn(ar, "failed to recalc tx power: %d\n", ret);
+	}
+
+	if (changed & BSS_CHANGED_PS) {
+		ret = ath10k_mac_vif_setup_ps(arvif);
+		if (ret)
+			ath10k_warn(ar, "failed to setup ps on vdev %i: %d\n",
+				    arvif->vdev_id, ret);
 	}
 
 	mutex_unlock(&ar->conf_mutex);
