@@ -419,7 +419,7 @@ static int kmx61_get_mode(struct kmx61_data *data, u8 *mode, u8 device)
 	return 0;
 }
 
-int kmx61_set_wake_up_odr(struct kmx61_data *data, int val, int val2)
+static int kmx61_set_wake_up_odr(struct kmx61_data *data, int val, int val2)
 {
 	int ret, odr_bits;
 
