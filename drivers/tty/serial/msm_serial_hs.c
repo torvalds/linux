@@ -1792,7 +1792,7 @@ static void __exit msm_serial_hs_exit(void)
 }
 module_exit(msm_serial_hs_exit);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int msm_hs_runtime_idle(struct device *dev)
 {
 	/*
