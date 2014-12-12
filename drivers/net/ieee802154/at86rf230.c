@@ -524,7 +524,6 @@ at86rf230_async_state_assert(void *context)
 			}
 		}
 
-
 		dev_warn(&lp->spi->dev, "unexcept state change from 0x%02x to 0x%02x. Actual state: 0x%02x\n",
 			 ctx->from_state, ctx->to_state, trx_state);
 	}
@@ -761,7 +760,6 @@ at86rf230_tx_trac_check(void *context)
 
 	at86rf230_tx_on(context);
 }
-
 
 static void
 at86rf230_tx_trac_status(void *context)
