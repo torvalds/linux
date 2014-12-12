@@ -208,3 +208,15 @@ Changes to the underlying filesystems while part of a mounted overlay
 filesystem are not allowed.  If the underlying filesystem is changed,
 the behavior of the overlay is undefined, though it will not result in
 a crash or deadlock.
+
+Testsuite
+---------
+
+There's testsuite developed by David Howells at:
+
+  git://git.infradead.org/users/dhowells/unionmount-testsuite.git
+
+Run as root:
+
+  # cd unionmount-testsuite
+  # ./run --ov
