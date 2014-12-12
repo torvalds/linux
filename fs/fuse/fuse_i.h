@@ -213,7 +213,7 @@ struct fuse_out {
 	unsigned numargs;
 
 	/** Array of arguments */
-	struct fuse_arg args[3];
+	struct fuse_arg args[2];
 };
 
 /** FUSE page descriptor */
