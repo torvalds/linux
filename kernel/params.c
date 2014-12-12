@@ -645,7 +645,9 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 	sysfs_attr_init(&mk->mp->attrs[mk->mp->num].mattr.attr);
 	mk->mp->attrs[mk->mp->num].param = kp;
 	mk->mp->attrs[mk->mp->num].mattr.show = param_attr_show;
-	mk->mp->attrs[mk->mp->num].mattr.store = param_attr_store;
+	/* Do not allow runtime DAC changes to make param writable. */
+	if ((kp->perm & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0)
+		mk->mp->attrs[mk->mp->num].mattr.store = param_attr_store;
 	mk->mp->attrs[mk->mp->num].mattr.attr.name = (char *)name;
 	mk->mp->attrs[mk->mp->num].mattr.attr.mode = kp->perm;
 	mk->mp->num++;
