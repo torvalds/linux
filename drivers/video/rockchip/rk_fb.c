@@ -841,8 +841,6 @@ static int get_extend_fb_id(struct fb_info *info)
 		fb_id = 3;
 	else if (!strcmp(id, "fb4") && (dev_drv->lcdc_win_num > 4))
 		fb_id = 4;
-	else
-		dev_err(dev_drv->dev, "get_extend_fb_id info error\n");
 	return fb_id;
 }
 
