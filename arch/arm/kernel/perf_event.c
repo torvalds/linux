@@ -484,7 +484,7 @@ static void armpmu_disable(struct pmu *pmu)
 	armpmu->stop(armpmu);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int armpmu_runtime_resume(struct device *dev)
 {
 	struct arm_pmu_platdata *plat = dev_get_platdata(dev);

@@ -14,7 +14,7 @@
 #include <linux/pm_clock.h>
 #include <linux/platform_device.h>
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int davinci_pm_runtime_suspend(struct device *dev)
 {
 	int ret;
