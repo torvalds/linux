@@ -53,7 +53,7 @@ if WIMAX_GDM72XX_USB
 
 config WIMAX_GDM72XX_USB_PM
 	bool "Enable power management support"
-	depends on PM_RUNTIME
+	depends on PM
 	help
 	  Enable USB power management in order to reduce power consumption
 	  while the interface is not in use.
