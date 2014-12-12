@@ -136,7 +136,7 @@ SOF_TIMESTAMPING_OPT_ID:
 
   This option is implemented only for transmit timestamps. There, the
   timestamp is always looped along with a struct sock_extended_err.
-  The option modifies field ee_info to pass an id that is unique
+  The option modifies field ee_data to pass an id that is unique
   among all possibly concurrently outstanding timestamp requests for
   that socket. In practice, it is a monotonically increasing u32
   (that wraps).

@@ -2,6 +2,7 @@
  * Common support for omap3 EVM boards
  */
 
+#include <dt-bindings/input/input.h>
 #include "omap-gpmc-smsc911x.dtsi"
 
 / {
@@ -109,6 +110,26 @@
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&twl_keypad {
+	linux,keymap = <
+			MATRIX_KEY(2, 2, KEY_1)
+			MATRIX_KEY(1, 1, KEY_2)
+			MATRIX_KEY(0, 0, KEY_3)
+			MATRIX_KEY(3, 2, KEY_4)
+			MATRIX_KEY(2, 1, KEY_5)
+			MATRIX_KEY(1, 0, KEY_6)
+			MATRIX_KEY(1, 3, KEY_7)
+			MATRIX_KEY(3, 1, KEY_8)
+			MATRIX_KEY(2, 0, KEY_9)
+			MATRIX_KEY(2, 3, KEY_KPASTERISK)
+			MATRIX_KEY(0, 2, KEY_0)
+			MATRIX_KEY(3, 0, KEY_KPDOT)
+			/* s4 not wired */
+			MATRIX_KEY(1, 2, KEY_BACKSPACE)
+			MATRIX_KEY(0, 1, KEY_ENTER)
+			>;
 };
 
 &usb_otg_hs {

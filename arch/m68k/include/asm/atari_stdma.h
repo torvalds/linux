@@ -8,11 +8,11 @@
 
 /***************************** Prototypes *****************************/
 
+int stdma_try_lock(irq_handler_t, void *);
 void stdma_lock(irq_handler_t handler, void *data);
 void stdma_release( void );
-int stdma_others_waiting( void );
 int stdma_islocked( void );
-void *stdma_locked_by( void );
+int stdma_is_locked_by(irq_handler_t);
 void stdma_init( void );
 
 /************************* End of Prototypes **************************/

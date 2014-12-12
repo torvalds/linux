@@ -57,6 +57,11 @@
 #define MIDR_IMPLEMENTOR(midr)	\
 	(((midr) & MIDR_IMPLEMENTOR_MASK) >> MIDR_IMPLEMENTOR_SHIFT)
 
+#define MIDR_CPU_PART(imp, partnum) \
+	(((imp)			<< MIDR_IMPLEMENTOR_SHIFT) | \
+	(0xf			<< MIDR_ARCHITECTURE_SHIFT) | \
+	((partnum)		<< MIDR_PARTNUM_SHIFT))
+
 #define ARM_CPU_IMP_ARM		0x41
 #define ARM_CPU_IMP_APM		0x50
 

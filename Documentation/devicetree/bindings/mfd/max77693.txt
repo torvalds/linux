@@ -27,6 +27,20 @@ Optional properties:
 
 	[*] refer Documentation/devicetree/bindings/regulator/regulator.txt
 
+- haptic : The MAX77693 haptic device utilises a PWM controlled motor to provide
+  users with tactile feedback. PWM period and duty-cycle are varied in
+  order to provide the approprite level of feedback.
+
+ Required properties:
+	- compatible : Must be "maxim,max77693-hpatic"
+	- haptic-supply : power supply for the haptic motor
+	[*] refer Documentation/devicetree/bindings/regulator/regulator.txt
+	- pwms : phandle to the physical PWM(Pulse Width Modulation) device.
+	 PWM properties should be named "pwms". And number of cell is different
+	 for each pwm device.
+	 To get more informations, please refer to documentaion.
+	[*] refer Documentation/devicetree/bindings/pwm/pwm.txt
+
 Example:
 	max77693@66 {
 		compatible = "maxim,max77693";
@@ -51,5 +65,12 @@ Example:
 				regulator-max-microamp = <2580000>;
 					regulator-boot-on;
 			};
+		};
+
+		haptic {
+			compatible = "maxim,max77693-haptic";
+			haptic-supply = <&haptic_supply>;
+			pwms = <&pwm 0 40000 0>;
+			pwm-names = "haptic";
 		};
 	};

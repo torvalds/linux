@@ -74,7 +74,8 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 	reg->desc.owner = THIS_MODULE;
 	reg->desc.continuous_voltage_range = true;
 
-	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node);
+	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
+					       &reg->desc);
 	if (!init_data)
 		return -EINVAL;
 

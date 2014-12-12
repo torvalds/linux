@@ -19,6 +19,7 @@
 
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/i2c-omap.h>
 
@@ -33,7 +34,6 @@
 #include "cm2_54xx.h"
 #include "prm54xx.h"
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 
 /* Base offset for all OMAP5 interrupts external to MPUSS */
@@ -421,6 +421,7 @@ static struct omap_hwmod omap54xx_dss_dispc_hwmod = {
 	.opt_clks	= dss_dispc_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dispc_opt_clks),
 	.dev_attr	= &dss_dispc_dev_attr,
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
@@ -462,6 +463,7 @@ static struct omap_hwmod omap54xx_dss_dsi1_a_hwmod = {
 	},
 	.opt_clks	= dss_dsi1_a_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dsi1_a_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /* dss_dsi1_c */
@@ -482,6 +484,7 @@ static struct omap_hwmod omap54xx_dss_dsi1_c_hwmod = {
 	},
 	.opt_clks	= dss_dsi1_c_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dsi1_c_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
@@ -521,6 +524,7 @@ static struct omap_hwmod omap54xx_dss_hdmi_hwmod = {
 	},
 	.opt_clks	= dss_hdmi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_hdmi_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
@@ -560,6 +564,7 @@ static struct omap_hwmod omap54xx_dss_rfbi_hwmod = {
 	},
 	.opt_clks	= dss_rfbi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_rfbi_opt_clks),
+	.parent_hwmod	= &omap54xx_dss_hwmod,
 };
 
 /*
@@ -1269,7 +1274,7 @@ static struct omap_hwmod_opt_clk mmc1_opt_clks[] = {
 };
 
 /* mmc1 dev_attr */
-static struct omap_mmc_dev_attr mmc1_dev_attr = {
+static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
 	.flags	= OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 

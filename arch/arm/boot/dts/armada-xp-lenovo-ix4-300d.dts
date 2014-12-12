@@ -22,7 +22,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";
-		stdout-path = "/soc/internal-regs/serial@12000";
+		stdout-path = &uart0;
 	};
 
 	memory {
@@ -51,37 +51,6 @@
 		};
 
 		internal-regs {
-			pinctrl {
-				poweroff_pin: poweroff-pin {
-					marvell,pins = "mpp24";
-					marvell,function = "gpio";
-				};
-
-				power_button_pin: power-button-pin {
-					marvell,pins = "mpp44";
-					marvell,function = "gpio";
-				};
-
-				reset_button_pin: reset-button-pin {
-					marvell,pins = "mpp45";
-					marvell,function = "gpio";
-				};
-				select_button_pin: select-button-pin {
-					marvell,pins = "mpp41";
-					marvell,function = "gpio";
-				};
-
-				scroll_button_pin: scroll-button-pin {
-					marvell,pins = "mpp42";
-					marvell,function = "gpio";
-				};
-
-				hdd_led_pin: hdd-led-pin {
-					marvell,pins = "mpp26";
-					marvell,function = "gpio";
-				};
-			};
-
 			serial@12000 {
 				status = "okay";
 			};
@@ -97,12 +66,16 @@
 			};
 
 			ethernet@70000 {
+				pinctrl-0 = <&ge0_rgmii_pins>;
+				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
 
 			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
@@ -123,6 +96,11 @@
 				adt7473@2e {
 					compatible = "adi,adt7473";
 					reg = <0x2e>;
+				};
+
+				eeprom@50 {
+					compatible = "atmel,24c64";
+					reg = <0x50>;
 				};
 
 				pcf8563@51 {
@@ -226,7 +204,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			reg = <0>;
-			registers-number = <2>;
+			registers-number = <1>;
 			spi-max-frequency = <100000>;
 		};
 	};
@@ -280,5 +258,36 @@
 		pinctrl-0 = <&poweroff_pin>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&pinctrl {
+	poweroff_pin: poweroff-pin {
+		marvell,pins = "mpp24";
+		marvell,function = "gpio";
+	};
+
+	power_button_pin: power-button-pin {
+		marvell,pins = "mpp44";
+		marvell,function = "gpio";
+	};
+
+	reset_button_pin: reset-button-pin {
+		marvell,pins = "mpp45";
+		marvell,function = "gpio";
+	};
+	select_button_pin: select-button-pin {
+		marvell,pins = "mpp41";
+		marvell,function = "gpio";
+	};
+
+	scroll_button_pin: scroll-button-pin {
+		marvell,pins = "mpp42";
+		marvell,function = "gpio";
+	};
+
+	hdd_led_pin: hdd-led-pin {
+		marvell,pins = "mpp26";
+		marvell,function = "gpio";
 	};
 };

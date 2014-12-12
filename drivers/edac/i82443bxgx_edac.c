@@ -458,8 +458,7 @@ static void __exit i82443bxgx_edacmc_exit(void)
 	if (!i82443bxgx_registered)
 		i82443bxgx_edacmc_remove_one(mci_pdev);
 
-	if (mci_pdev)
-		pci_dev_put(mci_pdev);
+	pci_dev_put(mci_pdev);
 }
 
 module_init(i82443bxgx_edacmc_init);

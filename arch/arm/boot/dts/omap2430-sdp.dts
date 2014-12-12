@@ -43,7 +43,31 @@
 		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;	/* gpio149 */
 		reg = <5 0x300 0xf>;
 		bank-width = <2>;
-		gpmc,mux-add-data;
-        };
+		gpmc,sync-clk-ps = <0>;
+		gpmc,mux-add-data = <2>;
+		gpmc,device-width = <1>;
+		gpmc,cycle2cycle-samecsen = <1>;
+		gpmc,cycle2cycle-diffcsen = <1>;
+		gpmc,cs-on-ns = <7>;
+		gpmc,cs-rd-off-ns = <233>;
+		gpmc,cs-wr-off-ns = <233>;
+		gpmc,adv-on-ns = <22>;
+		gpmc,adv-rd-off-ns = <60>;
+		gpmc,adv-wr-off-ns = <60>;
+		gpmc,oe-on-ns = <67>;
+		gpmc,oe-off-ns = <210>;
+		gpmc,we-on-ns = <67>;
+		gpmc,we-off-ns = <210>;
+		gpmc,rd-cycle-ns = <233>;
+		gpmc,wr-cycle-ns = <233>;
+		gpmc,access-ns = <233>;
+		gpmc,page-burst-access-ns = <30>;
+		gpmc,bus-turnaround-ns = <30>;
+		gpmc,cycle2cycle-delay-ns = <30>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		gpmc,wr-access-ns = <0>;
+	};
 };
 

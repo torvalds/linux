@@ -252,7 +252,7 @@ struct ReportExtendedLUNdata {
 	u8 LUNListLength[4];
 	u8 extended_response_flag;
 	u8 reserved[3];
-	struct ext_report_lun_entry LUN[HPSA_MAX_LUN];
+	struct ext_report_lun_entry LUN[HPSA_MAX_PHYS_LUN];
 };
 
 struct SenseSubsystem_info {
@@ -314,28 +314,36 @@ struct CommandListHeader {
 	u8              ReplyQueue;
 	u8              SGList;
 	u16             SGTotal;
-	struct vals32     Tag;
+	u64		tag;
 	union LUNAddr     LUN;
 };
 
 struct RequestBlock {
 	u8   CDBLen;
-	struct {
-		u8 Type:3;
-		u8 Attribute:3;
-		u8 Direction:2;
-	} Type;
+	/*
+	 * type_attr_dir:
+	 * type: low 3 bits
+	 * attr: middle 3 bits
+	 * dir: high 2 bits
+	 */
+	u8	type_attr_dir;
+#define TYPE_ATTR_DIR(t, a, d) ((((d) & 0x03) << 6) |\
+				(((a) & 0x07) << 3) |\
+				((t) & 0x07))
+#define GET_TYPE(tad) ((tad) & 0x07)
+#define GET_ATTR(tad) (((tad) >> 3) & 0x07)
+#define GET_DIR(tad) (((tad) >> 6) & 0x03)
 	u16  Timeout;
 	u8   CDB[16];
 };
 
 struct ErrDescriptor {
-	struct vals32 Addr;
+	u64 Addr;
 	u32  Len;
 };
 
 struct SGDescriptor {
-	struct vals32 Addr;
+	u64 Addr;
 	u32  Len;
 	u32  Ext;
 };
@@ -434,8 +442,8 @@ struct io_accel1_cmd {
 	u16 timeout_sec;		/* 0x62 - 0x63 */
 	u8  ReplyQueue;			/* 0x64 */
 	u8  reserved9[3];		/* 0x65 - 0x67 */
-	struct vals32 Tag;		/* 0x68 - 0x6F */
-	struct vals32 host_addr;	/* 0x70 - 0x77 */
+	u64 tag;			/* 0x68 - 0x6F */
+	u64 host_addr;			/* 0x70 - 0x77 */
 	u8  CISS_LUN[8];		/* 0x78 - 0x7F */
 	struct SGDescriptor SG[IOACCEL1_MAXSGENTRIES];
 } __aligned(IOACCEL1_COMMANDLIST_ALIGNMENT);
@@ -555,8 +563,8 @@ struct hpsa_tmf_struct {
 	u8 reserved1;		/* byte 3 Reserved */
 	u32 it_nexus;		/* SCSI I-T Nexus */
 	u8 lun_id[8];		/* LUN ID for TMF request */
-	struct vals32 Tag;	/* cciss tag associated w/ request */
-	struct vals32 abort_tag;/* cciss tag of SCSI cmd or task to abort */
+	u64 tag;		/* cciss tag associated w/ request */
+	u64 abort_tag;		/* cciss tag of SCSI cmd or task to abort */
 	u64 error_ptr;		/* Error Pointer */
 	u32 error_len;		/* Error Length */
 };

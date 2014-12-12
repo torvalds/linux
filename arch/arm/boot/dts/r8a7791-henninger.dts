@@ -23,6 +23,7 @@
 
 	chosen {
 		bootargs = "console=ttySC0,38400 ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		stdout-path = &scif0;
 	};
 
 	memory@40000000 {
@@ -269,6 +270,17 @@
 	status = "okay";
 	pinctrl-0 = <&usb1_pins>;
 	pinctrl-names = "default";
+};
+
+&hsusb {
+	status = "okay";
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+	renesas,enable-gpio = <&gpio5 31 GPIO_ACTIVE_HIGH>;
+};
+
+&usbphy {
+	status = "okay";
 };
 
 &pcie_bus_clk {

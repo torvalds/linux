@@ -51,8 +51,8 @@
 
 &gpmc {
 	ranges = <0 0 0x10000000 0x08000000>,
-		 <1 0 0x28000000 0x08000000>,
-		 <2 0 0x20000000 0x10000000>;
+		 <1 0 0x28000000 0x1000000>,	/* CS1: 16MB for NAND */
+		 <2 0 0x20000000 0x1000000>;	/* CS2: 16MB for OneNAND */
 
 	nor@0,0 {
 		compatible = "cfi-flash";
@@ -106,7 +106,7 @@
 		linux,mtd-name= "micron,mt29f1g08abb";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <1 0 0x08000000>;
+		reg = <1 0 4>;	/* CS1, offset 0, IO size 4 */
 		ti,nand-ecc-opt = "sw";
 		nand-bus-width = <8>;
 		gpmc,cs-on-ns = <0>;
@@ -150,7 +150,7 @@
 		linux,mtd-name= "samsung,kfm2g16q2m-deb8";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <2 0 0x10000000>;
+		reg = <2 0 0x20000>;	/* CS2, offset 0, IO size 4 */
 
 		gpmc,device-width = <2>;
 		gpmc,mux-add-data = <2>;

@@ -59,6 +59,31 @@ static irqreturn_t stdma_int (int irq, void *dummy);
 /************************* End of Prototypes **************************/
 
 
+/**
+ * stdma_try_lock - attempt to acquire ST DMA interrupt "lock"
+ * @handler: interrupt handler to use after acquisition
+ *
+ * Returns !0 if lock was acquired; otherwise 0.
+ */
+
+int stdma_try_lock(irq_handler_t handler, void *data)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	if (stdma_locked) {
+		local_irq_restore(flags);
+		return 0;
+	}
+
+	stdma_locked   = 1;
+	stdma_isr      = handler;
+	stdma_isr_data = data;
+	local_irq_restore(flags);
+	return 1;
+}
+EXPORT_SYMBOL(stdma_try_lock);
+
 
 /*
  * Function: void stdma_lock( isrfunc isr, void *data )
@@ -78,19 +103,10 @@ static irqreturn_t stdma_int (int irq, void *dummy);
 
 void stdma_lock(irq_handler_t handler, void *data)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);		/* protect lock */
-
 	/* Since the DMA is used for file system purposes, we
 	 have to sleep uninterruptible (there may be locked
 	 buffers) */
-	wait_event(stdma_wait, !stdma_locked);
-
-	stdma_locked   = 1;
-	stdma_isr      = handler;
-	stdma_isr_data = data;
-	local_irq_restore(flags);
+	wait_event(stdma_wait, stdma_try_lock(handler, data));
 }
 EXPORT_SYMBOL(stdma_lock);
 
@@ -122,22 +138,25 @@ void stdma_release(void)
 EXPORT_SYMBOL(stdma_release);
 
 
-/*
- * Function: int stdma_others_waiting( void )
+/**
+ * stdma_is_locked_by - allow lock holder to check whether it needs to release.
+ * @handler: interrupt handler previously used to acquire lock.
  *
- * Purpose: Check if someone waits for the ST-DMA lock.
- *
- * Inputs: none
- *
- * Returns: 0 if no one is waiting, != 0 otherwise
- *
+ * Returns !0 if locked for the given handler; 0 otherwise.
  */
 
-int stdma_others_waiting(void)
+int stdma_is_locked_by(irq_handler_t handler)
 {
-	return waitqueue_active(&stdma_wait);
+	unsigned long flags;
+	int result;
+
+	local_irq_save(flags);
+	result = stdma_locked && (stdma_isr == handler);
+	local_irq_restore(flags);
+
+	return result;
 }
-EXPORT_SYMBOL(stdma_others_waiting);
+EXPORT_SYMBOL(stdma_is_locked_by);
 
 
 /*

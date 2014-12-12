@@ -43,7 +43,7 @@ static struct sample fake_samples[] = {
 };
 
 static int add_hist_entries(struct perf_evlist *evlist,
-			    struct machine *machine __maybe_unused)
+			    struct machine *machine)
 {
 	struct perf_evsel *evsel;
 	struct addr_location al;

@@ -14,7 +14,7 @@ struct nouveau_fence {
 
 	bool sysmem;
 
-	struct nouveau_channel *channel;
+	struct nouveau_channel __rcu *channel;
 	unsigned long timeout;
 };
 
@@ -47,7 +47,7 @@ struct nouveau_fence_chan {
 	char name[32];
 
 	struct nvif_notify notify;
-	int notify_ref;
+	int notify_ref, dead;
 };
 
 struct nouveau_fence_priv {

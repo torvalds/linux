@@ -189,16 +189,17 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 val;
 
-	initdata = of_get_regulator_init_data(dev, np);
 	sreg = devm_kzalloc(dev, sizeof(*sreg), GFP_KERNEL);
 	if (!sreg)
 		return -ENOMEM;
-	sreg->initdata = initdata;
 	sreg->name = of_get_property(np, "regulator-name", NULL);
 	rdesc = &sreg->rdesc;
 	rdesc->name = sreg->name;
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->owner = THIS_MODULE;
+
+	initdata = of_get_regulator_init_data(dev, np, rdesc);
+	sreg->initdata = initdata;
 
 	anatop_np = of_get_parent(np);
 	if (!anatop_np)
@@ -282,6 +283,19 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 		if (sreg->sel == LDO_FET_FULL_ON) {
 			sreg->sel = 0;
 			sreg->bypass = true;
+		}
+
+		/*
+		 * In case vddpu was disabled by the bootloader, we need to set
+		 * a sane default until imx6-cpufreq was probed and changes the
+		 * voltage to the correct value. In this case we set 1.25V.
+		 */
+		if (!sreg->sel && !strcmp(sreg->name, "vddpu"))
+			sreg->sel = 22;
+
+		if (!sreg->sel) {
+			dev_err(&pdev->dev, "Failed to read a valid default voltage selector.\n");
+			return -EINVAL;
 		}
 	} else {
 		rdesc->ops = &anatop_rops;

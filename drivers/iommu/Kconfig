@@ -163,14 +163,14 @@ config TEGRA_IOMMU_GART
 	  hardware included on Tegra SoCs.
 
 config TEGRA_IOMMU_SMMU
-	bool "Tegra SMMU IOMMU Support"
-	depends on ARCH_TEGRA && TEGRA_AHB
+	bool "NVIDIA Tegra SMMU Support"
+	depends on ARCH_TEGRA
+	depends on TEGRA_AHB
+	depends on TEGRA_MC
 	select IOMMU_API
 	help
-	  Enables support for remapping discontiguous physical memory
-	  shared with the operating system into contiguous I/O virtual
-	  space through the SMMU (System Memory Management Unit)
-	  hardware included on Tegra SoCs.
+	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
+	  SoCs (Tegra30 up to Tegra124).
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"

@@ -84,8 +84,6 @@ struct sdio_driver {
 	struct device_driver drv;
 };
 
-#define to_sdio_driver(d)	container_of(d, struct sdio_driver, drv)
-
 /**
  * SDIO_DEVICE - macro used to describe a specific SDIO device
  * @vend: the 16 bit manufacturer code

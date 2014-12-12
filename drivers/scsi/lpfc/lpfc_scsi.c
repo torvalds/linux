@@ -243,128 +243,6 @@ lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
 }
 
 /**
- * lpfc_send_sdev_queuedepth_change_event - Posts a queuedepth change event
- * @phba: Pointer to HBA context object.
- * @vport: Pointer to vport object.
- * @ndlp: Pointer to FC node associated with the target.
- * @lun: Lun number of the scsi device.
- * @old_val: Old value of the queue depth.
- * @new_val: New value of the queue depth.
- *
- * This function sends an event to the mgmt application indicating
- * there is a change in the scsi device queue depth.
- **/
-static void
-lpfc_send_sdev_queuedepth_change_event(struct lpfc_hba *phba,
-		struct lpfc_vport  *vport,
-		struct lpfc_nodelist *ndlp,
-		uint64_t lun,
-		uint32_t old_val,
-		uint32_t new_val)
-{
-	struct lpfc_fast_path_event *fast_path_evt;
-	unsigned long flags;
-
-	fast_path_evt = lpfc_alloc_fast_evt(phba);
-	if (!fast_path_evt)
-		return;
-
-	fast_path_evt->un.queue_depth_evt.scsi_event.event_type =
-		FC_REG_SCSI_EVENT;
-	fast_path_evt->un.queue_depth_evt.scsi_event.subcategory =
-		LPFC_EVENT_VARQUEDEPTH;
-
-	/* Report all luns with change in queue depth */
-	fast_path_evt->un.queue_depth_evt.scsi_event.lun = lun;
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-		memcpy(&fast_path_evt->un.queue_depth_evt.scsi_event.wwpn,
-			&ndlp->nlp_portname, sizeof(struct lpfc_name));
-		memcpy(&fast_path_evt->un.queue_depth_evt.scsi_event.wwnn,
-			&ndlp->nlp_nodename, sizeof(struct lpfc_name));
-	}
-
-	fast_path_evt->un.queue_depth_evt.oldval = old_val;
-	fast_path_evt->un.queue_depth_evt.newval = new_val;
-	fast_path_evt->vport = vport;
-
-	fast_path_evt->work_evt.evt = LPFC_EVT_FASTPATH_MGMT_EVT;
-	spin_lock_irqsave(&phba->hbalock, flags);
-	list_add_tail(&fast_path_evt->work_evt.evt_listp, &phba->work_list);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-	lpfc_worker_wake_up(phba);
-
-	return;
-}
-
-/**
- * lpfc_change_queue_depth - Alter scsi device queue depth
- * @sdev: Pointer the scsi device on which to change the queue depth.
- * @qdepth: New queue depth to set the sdev to.
- * @reason: The reason for the queue depth change.
- *
- * This function is called by the midlayer and the LLD to alter the queue
- * depth for a scsi device. This function sets the queue depth to the new
- * value and sends an event out to log the queue depth change.
- **/
-static int
-lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_rport_data *rdata;
-	unsigned long new_queue_depth, old_queue_depth;
-
-	old_queue_depth = sdev->queue_depth;
-
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		/* change request from sysfs, fall through */
-	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		if (scsi_track_queue_full(sdev, qdepth) == 0)
-			return sdev->queue_depth;
-
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
-				 "0711 detected queue full - lun queue "
-				 "depth adjusted to %d.\n", sdev->queue_depth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	new_queue_depth = sdev->queue_depth;
-	rdata = lpfc_rport_data_from_scsi_device(sdev);
-	if (rdata)
-		lpfc_send_sdev_queuedepth_change_event(phba, vport,
-						       rdata->pnode, sdev->lun,
-						       old_queue_depth,
-						       new_queue_depth);
-	return sdev->queue_depth;
-}
-
-/**
- * lpfc_change_queue_type() - Change a device's scsi tag queuing type
- * @sdev: Pointer the scsi device whose queue depth is to change
- * @tag_type: Identifier for queue tag type
- */
-static int
-lpfc_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
-}
-
-/**
  * lpfc_rampdown_queue_depth - Post RAMP_DOWN_QUEUE event to worker thread
  * @phba: The Hba for which this call is being executed.
  *
@@ -449,8 +327,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 				else
 					new_queue_depth = sdev->queue_depth -
 								new_queue_depth;
-				lpfc_change_queue_depth(sdev, new_queue_depth,
-							SCSI_QDEPTH_DEFAULT);
+				scsi_change_queue_depth(sdev, new_queue_depth);
 			}
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -4286,7 +4163,6 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
 	struct lpfc_iocbq *piocbq = &(lpfc_cmd->cur_iocbq);
 	int datadir = scsi_cmnd->sc_data_direction;
-	char tag[2];
 	uint8_t *ptr;
 	bool sli4;
 	uint32_t fcpdl;
@@ -4308,20 +4184,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		memset(ptr, 0, (LPFC_FCP_CDB_LEN - scsi_cmnd->cmd_len));
 	}
 
-	if (scsi_populate_tag_msg(scsi_cmnd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			fcp_cmnd->fcpCntl1 = HEAD_OF_Q;
-			break;
-		case ORDERED_QUEUE_TAG:
-			fcp_cmnd->fcpCntl1 = ORDERED_Q;
-			break;
-		default:
-			fcp_cmnd->fcpCntl1 = SIMPLE_Q;
-			break;
-		}
-	} else
-		fcp_cmnd->fcpCntl1 = SIMPLE_Q;
+	fcp_cmnd->fcpCntl1 = SIMPLE_Q;
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;
@@ -5632,10 +5495,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, vport->cfg_lun_queue_depth);
-	else
-		scsi_deactivate_tcq(sdev, vport->cfg_lun_queue_depth);
+	scsi_change_queue_depth(sdev, vport->cfg_lun_queue_depth);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -6018,8 +5878,10 @@ struct scsi_host_template lpfc_template = {
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
-	.change_queue_depth	= lpfc_change_queue_depth,
-	.change_queue_type	= lpfc_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.change_queue_type	= scsi_change_queue_type,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 struct scsi_host_template lpfc_vport_template = {
@@ -6041,6 +5903,8 @@ struct scsi_host_template lpfc_vport_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
-	.change_queue_depth	= lpfc_change_queue_depth,
-	.change_queue_type	= lpfc_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.change_queue_type	= scsi_change_queue_type,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };

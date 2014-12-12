@@ -16,6 +16,7 @@ menuconfig ARCH_VEXPRESS
 	select POWER_RESET
 	select POWER_RESET_VEXPRESS
 	select POWER_SUPPLY
+	select REGULATOR if MMC_ARMMMCI
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select VEXPRESS_CONFIG
 	select VEXPRESS_SYSCFG
@@ -48,9 +49,6 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	  based on Cortex-A5 and Cortex-A9 processors. In order to
 	  build a working kernel, you must also enable relevant core
 	  tile support or Flattened Device Tree based support options.
-
-config ARCH_VEXPRESS_CA9X4
-	bool "Versatile Express Cortex-A9x4 tile"
 
 config ARCH_VEXPRESS_DCSCB
 	bool "Dual Cluster System Control Block (DCSCB) support"

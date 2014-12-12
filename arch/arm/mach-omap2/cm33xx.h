@@ -374,41 +374,6 @@
 
 
 #ifndef __ASSEMBLER__
-bool am33xx_cm_is_clkdm_in_hwsup(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_enable_hwsup(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_disable_hwsup(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_force_sleep(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs);
-
-#if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_AM43XX)
-extern int am33xx_cm_wait_module_idle(u16 inst, s16 cdoffs,
-					u16 clkctrl_offs);
-extern void am33xx_cm_module_enable(u8 mode, u16 inst, s16 cdoffs,
-					u16 clkctrl_offs);
-extern void am33xx_cm_module_disable(u16 inst, s16 cdoffs,
-					u16 clkctrl_offs);
-extern int am33xx_cm_wait_module_ready(u16 inst, s16 cdoffs,
-					u16 clkctrl_offs);
-#else
-static inline int am33xx_cm_wait_module_idle(u16 inst, s16 cdoffs,
-					u16 clkctrl_offs)
-{
-	return 0;
-}
-static inline void am33xx_cm_module_enable(u8 mode, u16 inst, s16 cdoffs,
-					u16 clkctrl_offs)
-{
-}
-static inline void am33xx_cm_module_disable(u16 inst, s16 cdoffs,
-					u16 clkctrl_offs)
-{
-}
-static inline int am33xx_cm_wait_module_ready(u16 inst, s16 cdoffs,
-					u16 clkctrl_offs)
-{
-	return 0;
-}
-#endif
-
+int am33xx_cm_init(void);
 #endif /* ASSEMBLER */
 #endif

@@ -16,12 +16,14 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 
-static const char * const m6_common_board_compat[] = {
+static const char * const meson_common_board_compat[] = {
 	"amlogic,meson6",
+	"amlogic,meson8",
 	NULL,
 };
 
-DT_MACHINE_START(AML8726_MX, "Amlogic Meson6 platform")
-	.dt_compat	= m6_common_board_compat,
+DT_MACHINE_START(MESON, "Amlogic Meson platform")
+	.dt_compat	= meson_common_board_compat,
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 MACHINE_END
-

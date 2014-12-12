@@ -117,9 +117,8 @@ static void do_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi)
 
 	rq = esas2r_alloc_request(a);
 	if (rq == NULL) {
-		up(&a->fm_api_semaphore);
 		fi->status = FI_STAT_BUSY;
-		return;
+		goto free_sem;
 	}
 
 	if (fi == &a->firmware.header) {
@@ -135,7 +134,7 @@ static void do_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi)
 		if (a->firmware.header_buff == NULL) {
 			esas2r_debug("failed to allocate header buffer!");
 			fi->status = FI_STAT_BUSY;
-			return;
+			goto free_req;
 		}
 
 		memcpy(a->firmware.header_buff, fi,
@@ -171,9 +170,10 @@ all_done:
 				  a->firmware.header_buff,
 				  (dma_addr_t)a->firmware.header_buff_phys);
 	}
-
-	up(&a->fm_api_semaphore);
+free_req:
 	esas2r_free_request(a, (struct esas2r_request *)rq);
+free_sem:
+	up(&a->fm_api_semaphore);
 	return;
 
 }
@@ -1420,9 +1420,10 @@ int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
 
 		rq = esas2r_alloc_request(a);
 		if (rq == NULL) {
-			up(&a->nvram_semaphore);
-			ioctl->data.prw.code = 0;
-			break;
+			kfree(ioctl);
+			esas2r_log(ESAS2R_LOG_WARN,
+			   "could not allocate an internal request");
+			return -ENOMEM;
 		}
 
 		code = esas2r_write_params(a, rq,
@@ -1523,9 +1524,12 @@ ioctl_done:
 		case -EINVAL:
 			ioctl->header.return_code = IOCTL_INVALID_PARAM;
 			break;
+
+		default:
+			ioctl->header.return_code = IOCTL_GENERAL_ERROR;
+			break;
 		}
 
-		ioctl->header.return_code = IOCTL_GENERAL_ERROR;
 	}
 
 	/* Always copy the buffer back, if only to pick up the status */

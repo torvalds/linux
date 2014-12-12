@@ -176,7 +176,7 @@ static int is_swapped(unsigned long addr)
  * For swapped prefix pages a new buffer is returned that contains a copy of
  * the absolute memory. The buffer size is maximum one page large.
  */
-void *xlate_dev_mem_ptr(unsigned long addr)
+void *xlate_dev_mem_ptr(phys_addr_t addr)
 {
 	void *bounce = (void *) addr;
 	unsigned long size;
@@ -197,7 +197,7 @@ void *xlate_dev_mem_ptr(unsigned long addr)
 /*
  * Free converted buffer for /dev/mem access (if necessary)
  */
-void unxlate_dev_mem_ptr(unsigned long addr, void *buf)
+void unxlate_dev_mem_ptr(phys_addr_t addr, void *buf)
 {
 	if ((void *) addr != buf)
 		free_page((unsigned long) buf);

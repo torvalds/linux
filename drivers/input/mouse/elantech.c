@@ -428,14 +428,6 @@ static void elantech_report_trackpoint(struct psmouse *psmouse,
 	int x, y;
 	u32 t;
 
-	if (dev_WARN_ONCE(&psmouse->ps2dev.serio->dev,
-			  !tp_dev,
-			  psmouse_fmt("Unexpected trackpoint message\n"))) {
-		if (etd->debug == 1)
-			elantech_packet_dump(psmouse);
-		return;
-	}
-
 	t = get_unaligned_le32(&packet[0]);
 
 	switch (t & ~7U) {
@@ -793,7 +785,7 @@ static int elantech_packet_check_v4(struct psmouse *psmouse)
 	unsigned char packet_type = packet[3] & 0x03;
 	bool sanity_check;
 
-	if ((packet[3] & 0x0f) == 0x06)
+	if (etd->tp_dev && (packet[3] & 0x0f) == 0x06)
 		return PACKET_TRACKPOINT;
 
 	/*

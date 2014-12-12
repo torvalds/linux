@@ -1028,11 +1028,11 @@ config SENSORS_LM93
 	  will be called lm93.
 
 config SENSORS_LM95234
-	tristate "National Semiconductor LM95234"
+	tristate "National Semiconductor LM95234 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for the LM95234 temperature
-	  sensor.
+	  If you say yes here you get support for the LM95233 and LM95234
+	  temperature sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm95234.
@@ -1048,10 +1048,11 @@ config SENSORS_LM95241
 	  will be called lm95241.
 
 config SENSORS_LM95245
-	tristate "National Semiconductor LM95245 sensor chip"
+	tristate "National Semiconductor LM95245 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for LM95245 sensor chip.
+	  If you say yes here you get support for LM95235 and LM95245
+	  temperature sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm95245.
@@ -1117,11 +1118,22 @@ config SENSORS_NCT6775
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
-	  NCT6791D and compatible Super-I/O chips. This driver replaces the
-	  w83627ehf driver for NCT6775F and NCT6776F.
+	  NCT6791D, NCT6792D and compatible Super-I/O chips. This driver
+	  replaces the w83627ehf driver for NCT6775F and NCT6776F.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called nct6775.
+
+config SENSORS_NCT7802
+	tristate "Nuvoton NCT7802Y"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Nuvoton NCT7802Y
+	  hardware monitoring chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called nct7802.
 
 config SENSORS_PCF8591
 	tristate "Philips PCF8591 ADC/DAC"
@@ -1454,7 +1466,7 @@ config SENSORS_TMP401
 	depends on I2C
 	help
 	  If you say yes here you get support for Texas Instruments TMP401,
-	  TMP411, TMP431, and TMP432 temperature sensor chips.
+	  TMP411, TMP431, TMP432 and TMP435 temperature sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp401.

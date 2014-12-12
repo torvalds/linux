@@ -25,6 +25,7 @@
 
 	chosen {
 		bootargs = "console=ttySC2,115200 ignore_loglevel root=/dev/nfs ip=on";
+		stdout-path = &scif2;
 	};
 
 	memory {
@@ -68,6 +69,78 @@
 			gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	vga-encoder {
+		compatible = "adi,adv7123";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				vga_enc_in: endpoint {
+					remote-endpoint = <&du_out_rgb0>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				vga_enc_out: endpoint {
+					remote-endpoint = <&vga_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		compatible = "vga-connector";
+
+		port {
+			vga_in: endpoint {
+				remote-endpoint = <&vga_enc_out>;
+			};
+		};
+	};
+
+	lvds-encoder {
+		compatible = "thine,thc63lvdm83d";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				lvds_enc_in: endpoint {
+					remote-endpoint = <&du_out_rgb1>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				lvds_connector: endpoint {
+				};
+			};
+		};
+	};
+};
+
+&du {
+	pinctrl-0 = <&du_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	ports {
+		port@0 {
+			endpoint {
+				remote-endpoint = <&vga_enc_in>;
+			};
+		};
+		port@1 {
+			endpoint {
+				remote-endpoint = <&lvds_enc_in>;
+			};
+		};
+	};
 };
 
 &irqpin0 {
@@ -83,6 +156,17 @@
 };
 
 &pfc {
+	du_pins: du {
+		du0 {
+			renesas,groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0";
+			renesas,function = "du0";
+		};
+		du1 {
+			renesas,groups = "du1_rgb666", "du1_sync_1", "du1_clk_out";
+			renesas,function = "du1";
+		};
+	};
+
 	lan0_pins: lan0 {
 		intc {
 			renesas,groups = "intc_irq1_b";

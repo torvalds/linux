@@ -12,53 +12,48 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
-#include <linux/input.h>
-#include <linux/platform_data/st1232_pdata.h>
-#include <linux/irq.h>
-#include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
-#include <linux/regulator/driver.h>
-#include <linux/pinctrl/machine.h>
-#include <linux/pwm.h>
-#include <linux/pwm_backlight.h>
-#include <linux/regulator/fixed.h>
-#include <linux/regulator/gpio-regulator.h>
-#include <linux/regulator/machine.h>
-#include <linux/sh_eth.h>
-#include <linux/videodev2.h>
-#include <linux/usb/renesas_usbhs.h>
+#include <linux/i2c-gpio.h>
+#include <linux/input.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
-#include <linux/i2c-gpio.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/platform_data/st1232_pdata.h>
+#include <linux/platform_device.h>
+#include <linux/pwm.h>
+#include <linux/pwm_backlight.h>
 #include <linux/reboot.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/gpio-regulator.h>
+#include <linux/regulator/machine.h>
+#include <linux/sh_eth.h>
+#include <linux/usb/renesas_usbhs.h>
+#include <linux/videodev2.h>
 
-#include <media/mt9t112.h>
-#include <media/sh_mobile_ceu.h>
-#include <media/soc_camera.h>
-#include <asm/page.h>
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/cache-l2x0.h>
-#include <video/sh_mobile_lcdc.h>
-#include <video/sh_mobile_hdmi.h>
+#include <asm/page.h>
+#include <media/mt9t112.h>
+#include <media/sh_mobile_ceu.h>
+#include <media/soc_camera.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
+#include <video/sh_mobile_hdmi.h>
+#include <video/sh_mobile_lcdc.h>
 
 #include "common.h"
 #include "irqs.h"
@@ -1234,8 +1229,15 @@ static void __init eva_init(void)
 	static struct pm_domain_device domain_devices[] __initdata = {
 		{ "A4LC", &lcdc0_device },
 		{ "A4LC", &hdmi_lcdc_device },
+		{ "A4MP", &hdmi_device },
+		{ "A4MP", &fsi_device },
+		{ "A4R",  &ceu0_device },
+		{ "A4S",  &sh_eth_device },
+		{ "A3SP", &pwm_device },
+		{ "A3SP", &sdhi0_device },
+		{ "A3SP", &sh_mmcif_device },
 	};
-	struct platform_device *usb = NULL;
+	struct platform_device *usb = NULL, *sdhi1 = NULL;
 
 	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
 				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
@@ -1304,6 +1306,7 @@ static void __init eva_init(void)
 
 		platform_device_register(&vcc_sdhi1);
 		platform_device_register(&sdhi1_device);
+		sdhi1 = &sdhi1_device;
 	}
 
 
@@ -1324,6 +1327,8 @@ static void __init eva_init(void)
 				       ARRAY_SIZE(domain_devices));
 	if (usb)
 		rmobile_add_device_to_domain("A3SP", usb);
+	if (sdhi1)
+		rmobile_add_device_to_domain("A3SP", sdhi1);
 
 	r8a7740_pm_init();
 }

@@ -2,6 +2,8 @@ PERF-CFLAGS
 PERF-GUI-VARS
 PERF-VERSION-FILE
 perf
+perf-read-vdso32
+perf-read-vdsox32
 perf-help
 perf-record
 perf-report

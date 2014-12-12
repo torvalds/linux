@@ -25,6 +25,7 @@
 
 	chosen {
 		bootargs = "console=tty0 console=ttySC1,115200 earlyprintk=sh-sci.1,115200 ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		stdout-path = &scifa1;
 	};
 
 	memory {
@@ -77,7 +78,7 @@
 		regulator-boot-on;
 	};
 
-	gpio-keys {
+	keyboard {
 		compatible = "gpio-keys";
 
 		power-key {
@@ -296,5 +297,9 @@
 	pinctrl-0 = <&fsia_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&tmu0 {
 	status = "okay";
 };

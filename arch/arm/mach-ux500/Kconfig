@@ -32,6 +32,7 @@ config UX500_SOC_DB8500
 	select PINCTRL_AB8540
 	select REGULATOR
 	select REGULATOR_DB8500_PRCMU
+	select PM_GENERIC_DOMAINS if PM
 
 config MACH_MOP500
 	bool "U8500 Development platform, MOP500 versions"

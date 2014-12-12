@@ -26,11 +26,21 @@
 		#size-cells = <0>;
 		enable-method = "rockchip,rk3066-smp";
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0x0>;
+			operating-points = <
+				/* kHz    uV */
+				1008000 1075000
+				 816000 1025000
+				 600000 1025000
+				 504000 1000000
+				 312000  975000
+			>;
+			clock-latency = <40000>;
+			clocks = <&cru ARMCLK>;
 		};
 		cpu@1 {
 			device_type = "cpu";
@@ -51,6 +61,51 @@
 			compatible = "rockchip,rk3066-smp-sram";
 			reg = <0x0 0x50>;
 		};
+	};
+
+	i2s0: i2s@10118000 {
+		compatible = "rockchip,rk3066-i2s";
+		reg = <0x10118000 0x2000>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s0_bus>;
+		dmas = <&dmac1_s 4>, <&dmac1_s 5>;
+		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
+		status = "disabled";
+	};
+
+	i2s1: i2s@1011a000 {
+		compatible = "rockchip,rk3066-i2s";
+		reg = <0x1011a000 0x2000>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1_bus>;
+		dmas = <&dmac1_s 6>, <&dmac1_s 7>;
+		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S1>, <&cru SCLK_I2S1>;
+		status = "disabled";
+	};
+
+	i2s2: i2s@1011c000 {
+		compatible = "rockchip,rk3066-i2s";
+		reg = <0x1011c000 0x2000>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s2_bus>;
+		dmas = <&dmac1_s 9>, <&dmac1_s 10>;
+		dma-names = "tx", "rx";
+		clock-names = "i2s_hclk", "i2s_clk";
+		clocks = <&cru HCLK_I2S2>, <&cru SCLK_I2S2>;
+		status = "disabled";
 	};
 
 	cru: clock-controller@20000000 {
@@ -177,6 +232,24 @@
 
 		pcfg_pull_none: pcfg_pull_none {
 			bias-disable;
+		};
+
+		emac {
+			emac_xfer: emac-xfer {
+				rockchip,pins = <RK_GPIO1 16 RK_FUNC_2 &pcfg_pull_none>, /* mac_clk */
+						<RK_GPIO1 17 RK_FUNC_2 &pcfg_pull_none>, /* tx_en */
+						<RK_GPIO1 18 RK_FUNC_2 &pcfg_pull_none>, /* txd1 */
+						<RK_GPIO1 19 RK_FUNC_2 &pcfg_pull_none>, /* txd0 */
+						<RK_GPIO1 20 RK_FUNC_2 &pcfg_pull_none>, /* rx_err */
+						<RK_GPIO1 21 RK_FUNC_2 &pcfg_pull_none>, /* crs_dvalid */
+						<RK_GPIO1 22 RK_FUNC_2 &pcfg_pull_none>, /* rxd1 */
+						<RK_GPIO1 23 RK_FUNC_2 &pcfg_pull_none>; /* rxd0 */
+			};
+
+			emac_mdio: emac-mdio {
+				rockchip,pins = <RK_GPIO1 24 RK_FUNC_2 &pcfg_pull_none>, /* mac_md */
+						<RK_GPIO1 25 RK_FUNC_2 &pcfg_pull_none>; /* mac_mdclk */
+			};
 		};
 
 		emmc {
@@ -405,6 +478,42 @@
 						<RK_GPIO3 20 RK_FUNC_1 &pcfg_pull_default>;
 			};
 		};
+
+		i2s0 {
+			i2s0_bus: i2s0-bus {
+				rockchip,pins = <RK_GPIO0 7 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 8 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 9 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 10 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 11 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 12 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 13 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 14 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 15 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
+
+		i2s1 {
+			i2s1_bus: i2s1-bus {
+				rockchip,pins = <RK_GPIO0 16 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 17 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 18 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 19 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 20 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 21 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
+
+		i2s2 {
+			i2s2_bus: i2s2-bus {
+				rockchip,pins = <RK_GPIO0 24 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 25 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 26 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 27 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 28 RK_FUNC_1 &pcfg_pull_default>,
+						<RK_GPIO0 29 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
 	};
 };
 
@@ -495,4 +604,8 @@
 
 &wdt {
 	compatible = "rockchip,rk3066-wdt", "snps,dw-wdt";
+};
+
+&emac {
+	compatible = "rockchip,rk3066-emac";
 };
