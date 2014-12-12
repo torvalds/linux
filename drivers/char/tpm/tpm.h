@@ -62,6 +62,59 @@ enum tpm_duration {
 #define TPM_ERR_INVALID_POSTINIT 38
 
 #define TPM_HEADER_SIZE		10
+
+enum tpm2_const {
+	TPM2_PLATFORM_PCR	= 24,
+	TPM2_PCR_SELECT_MIN	= ((TPM2_PLATFORM_PCR + 7) / 8),
+	TPM2_TIMEOUT_A		= 750,
+	TPM2_TIMEOUT_B		= 2000,
+	TPM2_TIMEOUT_C		= 200,
+	TPM2_TIMEOUT_D		= 30,
+	TPM2_DURATION_SHORT	= 20,
+	TPM2_DURATION_MEDIUM	= 750,
+	TPM2_DURATION_LONG	= 2000,
+};
+
+enum tpm2_structures {
+	TPM2_ST_NO_SESSIONS	= 0x8001,
+	TPM2_ST_SESSIONS	= 0x8002,
+};
+
+enum tpm2_return_codes {
+	TPM2_RC_INITIALIZE	= 0x0100,
+	TPM2_RC_TESTING		= 0x090A,
+	TPM2_RC_DISABLED	= 0x0120,
+};
+
+enum tpm2_algorithms {
+	TPM2_ALG_SHA1		= 0x0004,
+};
+
+enum tpm2_command_codes {
+	TPM2_CC_FIRST		= 0x011F,
+	TPM2_CC_SELF_TEST	= 0x0143,
+	TPM2_CC_STARTUP		= 0x0144,
+	TPM2_CC_SHUTDOWN	= 0x0145,
+	TPM2_CC_GET_CAPABILITY	= 0x017A,
+	TPM2_CC_GET_RANDOM	= 0x017B,
+	TPM2_CC_PCR_READ	= 0x017E,
+	TPM2_CC_PCR_EXTEND	= 0x0182,
+	TPM2_CC_LAST		= 0x018F,
+};
+
+enum tpm2_permanent_handles {
+	TPM2_RS_PW		= 0x40000009,
+};
+
+enum tpm2_capabilities {
+	TPM2_CAP_TPM_PROPERTIES = 6,
+};
+
+enum tpm2_startup_types {
+	TPM2_SU_CLEAR	= 0x0000,
+	TPM2_SU_STATE	= 0x0001,
+};
+
 struct tpm_chip;
 
 struct tpm_vendor_specific {
@@ -99,6 +152,7 @@ struct tpm_vendor_specific {
 enum tpm_chip_flags {
 	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
 	TPM_CHIP_FLAG_PPI		= BIT(1),
+	TPM_CHIP_FLAG_TPM2		= BIT(2),
 };
 
 struct tpm_chip {
@@ -370,3 +424,15 @@ static inline void tpm_remove_ppi(struct tpm_chip *chip)
 {
 }
 #endif
+
+int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
+int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash);
+int tpm2_get_random(struct tpm_chip *chip, u8 *out, size_t max);
+ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
+			u32 *value, const char *desc);
+
+extern int tpm2_startup(struct tpm_chip *chip, u16 startup_type);
+extern int tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
+extern unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *, u32);
+extern int tpm2_do_selftest(struct tpm_chip *chip);
+extern int tpm2_gen_interrupt(struct tpm_chip *chip, bool quiet);

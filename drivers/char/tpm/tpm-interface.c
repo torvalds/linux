@@ -360,7 +360,10 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 	if (chip->vendor.irq)
 		goto out_recv;
 
-	stop = jiffies + tpm_calc_ordinal_duration(chip, ordinal);
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		stop = jiffies + tpm2_calc_ordinal_duration(chip, ordinal);
+	else
+		stop = jiffies + tpm_calc_ordinal_duration(chip, ordinal);
 	do {
 		u8 status = chip->ops->status(chip);
 		if ((status & chip->ops->req_complete_mask) ==
@@ -484,6 +487,7 @@ static int tpm_startup(struct tpm_chip *chip, __be16 startup_type)
 {
 	struct tpm_cmd_t start_cmd;
 	start_cmd.header.in = tpm_startup_header;
+
 	start_cmd.params.startup_in.startup_type = startup_type;
 	return tpm_transmit_cmd(chip, &start_cmd, TPM_INTERNAL_RESULT_SIZE,
 				"attempting to start the TPM");
@@ -680,7 +684,10 @@ int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf)
 	chip = tpm_chip_find_get(chip_num);
 	if (chip == NULL)
 		return -ENODEV;
-	rc = tpm_pcr_read_dev(chip, pcr_idx, res_buf);
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		rc = tpm2_pcr_read(chip, pcr_idx, res_buf);
+	else
+		rc = tpm_pcr_read_dev(chip, pcr_idx, res_buf);
 	tpm_chip_put(chip);
 	return rc;
 }
@@ -713,6 +720,12 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 	chip = tpm_chip_find_get(chip_num);
 	if (chip == NULL)
 		return -ENODEV;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		rc = tpm2_pcr_extend(chip, pcr_idx, hash);
+		tpm_chip_put(chip);
+		return rc;
+	}
 
 	cmd.header.in = pcrextend_header;
 	cmd.params.pcrextend_in.pcr_idx = cpu_to_be32(pcr_idx);
@@ -973,6 +986,12 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 	chip = tpm_chip_find_get(chip_num);
 	if (chip == NULL)
 		return -ENODEV;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		err = tpm2_get_random(chip, out, max);
+		tpm_chip_put(chip);
+		return err;
+	}
 
 	do {
 		tpm_cmd.header.in = tpm_getrandom_header;
