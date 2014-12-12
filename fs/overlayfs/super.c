@@ -81,6 +81,9 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 		} else if (!oe->opaque) {
 			type |= __OVL_PATH_PURE;
 		}
+	} else {
+		if (oe->numlower > 1)
+			type |= __OVL_PATH_MERGE;
 	}
 	return type;
 }

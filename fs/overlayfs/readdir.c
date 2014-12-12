@@ -261,35 +261,34 @@ static void ovl_dir_reset(struct file *file)
 static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 {
 	int err;
-	struct path lowerpath;
-	struct path upperpath;
+	struct path realpath;
 	struct ovl_readdir_data rdd = {
 		.ctx.actor = ovl_fill_merge,
 		.list = list,
 		.root = RB_ROOT,
 		.is_merge = false,
 	};
+	int idx, next;
 
-	ovl_path_lower(dentry, &lowerpath);
-	ovl_path_upper(dentry, &upperpath);
+	for (idx = 0; idx != -1; idx = next) {
+		next = ovl_path_next(idx, dentry, &realpath);
 
-	if (upperpath.dentry) {
-		rdd.dir = upperpath.dentry;
-		err = ovl_dir_read(&upperpath, &rdd);
-		if (err)
-			goto out;
+		if (next != -1) {
+			rdd.dir = realpath.dentry;
+			err = ovl_dir_read(&realpath, &rdd);
+			if (err)
+				break;
+		} else {
+			/*
+			 * Insert lowest layer entries before upper ones, this
+			 * allows offsets to be reasonably constant
+			 */
+			list_add(&rdd.middle, rdd.list);
+			rdd.is_merge = true;
+			err = ovl_dir_read(&realpath, &rdd);
+			list_del(&rdd.middle);
+		}
 	}
-	if (lowerpath.dentry) {
-		/*
-		 * Insert lowerpath entries before upperpath ones, this allows
-		 * offsets to be reasonably constant
-		 */
-		list_add(&rdd.middle, rdd.list);
-		rdd.is_merge = true;
-		err = ovl_dir_read(&lowerpath, &rdd);
-		list_del(&rdd.middle);
-	}
-out:
 	return err;
 }
 
