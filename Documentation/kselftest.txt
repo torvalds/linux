@@ -15,36 +15,44 @@ Running the selftests (hotplug tests are run in limited mode)
 =============================================================
 
 To build the tests:
-
   $ make -C tools/testing/selftests
 
 
 To run the tests:
-
   $ make -C tools/testing/selftests run_tests
+
+To build and run the tests with a single command, use:
+  $ make kselftest
 
 - note that some tests will require root privileges.
 
-To run only tests targeted for a single subsystem: (including
-hotplug targets in limited mode)
 
-  $  make -C tools/testing/selftests TARGETS=cpu-hotplug run_tests
+Running a subset of selftests
+========================================
+You can use the "TARGETS" variable on the make command line to specify
+single test to run, or a list of tests to run.
 
-See the top-level tools/testing/selftests/Makefile for the list of all possible
-targets.
+To run only tests targeted for a single subsystem:
+  $  make -C tools/testing/selftests TARGETS=ptrace run_tests
+
+You can specify multiple tests to build and run:
+  $  make TARGETS="size timers" kselftest
+
+See the top-level tools/testing/selftests/Makefile for the list of all
+possible targets.
+
 
 Running the full range hotplug selftests
 ========================================
 
-To build the tests:
-
+To build the hotplug tests:
   $ make -C tools/testing/selftests hotplug
 
-To run the tests:
-
+To run the hotplug tests:
   $ make -C tools/testing/selftests run_hotplug
 
 - note that some tests will require root privileges.
+
 
 Contributing new tests
 ======================

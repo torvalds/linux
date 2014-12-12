@@ -359,7 +359,7 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * to name two of the most common.
  *
  * The return codes from the @master_xfer field should indicate the type of
- * error code that occured during the transfer, as documented in the kernel
+ * error code that occurred during the transfer, as documented in the kernel
  * Documentation file Documentation/i2c/fault-codes.
  */
 struct i2c_algorithm {

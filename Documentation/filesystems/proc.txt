@@ -1272,7 +1272,7 @@ softirq.
 
 
 1.9 Ext4 file system parameters
-------------------------------
+-------------------------------
 
 Information about mounted ext4 file systems can be found in
 /proc/fs/ext4.  Each mounted filesystem will have a directory in

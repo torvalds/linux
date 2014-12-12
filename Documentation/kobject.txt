@@ -173,7 +173,7 @@ This should be done only after any attributes or children of the kobject
 have been initialized properly, as userspace will instantly start to look
 for them when this call happens.
 
-When the kobject is removed from the kernel (details on how to do that is
+When the kobject is removed from the kernel (details on how to do that are
 below), the uevent for KOBJ_REMOVE will be automatically created by the
 kobject core, so the caller does not have to worry about doing that by
 hand.

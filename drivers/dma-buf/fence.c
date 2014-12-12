@@ -283,7 +283,7 @@ EXPORT_SYMBOL(fence_add_callback);
  * @cb:		[in]	the callback to remove
  *
  * Remove a previously queued callback from the fence. This function returns
- * true if the callback is succesfully removed, or false if the fence has
+ * true if the callback is successfully removed, or false if the fence has
  * already been signaled.
  *
  * *WARNING*:
