@@ -34,10 +34,6 @@
 
 #include "../locking/rtmutex_common.h"
 
-/* rcuc/rcub kthread realtime priority */
-static int kthread_prio = CONFIG_RCU_KTHREAD_PRIO;
-module_param(kthread_prio, int, 0644);
-
 /*
  * Control variables for per-CPU and per-rcu_node kthreads.  These
  * handle all flavors of RCU.
