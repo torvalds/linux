@@ -322,7 +322,7 @@ static int omap_usb2_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int omap_usb2_runtime_suspend(struct device *dev)
 {
