@@ -680,13 +680,21 @@ static int acpi_device_wakeup(struct acpi_device *adev, u32 target_state,
 		if (error)
 			return error;
 
+		if (adev->wakeup.flags.enabled)
+			return 0;
+
 		res = acpi_enable_gpe(wakeup->gpe_device, wakeup->gpe_number);
-		if (ACPI_FAILURE(res)) {
+		if (ACPI_SUCCESS(res)) {
+			adev->wakeup.flags.enabled = 1;
+		} else {
 			acpi_disable_wakeup_device_power(adev);
 			return -EIO;
 		}
 	} else {
-		acpi_disable_gpe(wakeup->gpe_device, wakeup->gpe_number);
+		if (adev->wakeup.flags.enabled) {
+			acpi_disable_gpe(wakeup->gpe_device, wakeup->gpe_number);
+			adev->wakeup.flags.enabled = 0;
+		}
 		acpi_disable_wakeup_device_power(adev);
 	}
 	return 0;
