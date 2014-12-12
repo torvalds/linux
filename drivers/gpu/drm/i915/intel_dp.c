@@ -4310,7 +4310,6 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 
 	drm_dp_aux_unregister(&intel_dp->aux);
 	intel_dp_mst_encoder_cleanup(intel_dig_port);
-	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 		/*
@@ -4326,6 +4325,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 			intel_dp->edp_notifier.notifier_call = NULL;
 		}
 	}
+	drm_encoder_cleanup(encoder);
 	kfree(intel_dig_port);
 }
 
