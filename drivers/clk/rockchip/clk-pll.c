@@ -945,100 +945,89 @@ static const struct clk_ops clk_pll_ops_3188plus = {
 
 static u32 clk_gcd(u32 numerator, u32 denominator)
 {
-        u32 a, b;
+	u32 a, b;
 
-        if (!numerator || !denominator)
-                return 0;
-        if (numerator > denominator) {
-                a = numerator;
-                b = denominator;
-        } else {
-                a = denominator;
-                b = numerator;
-        }
-        while (b != 0) {
-                int r = b;
-                b = a % b;
-                a = r;
-        }
+	if (!numerator || !denominator)
+		return 0;
+	if (numerator > denominator) {
+		a = numerator;
+		b = denominator;
+	} else {
+		a = denominator;
+		b = numerator;
+	}
+	while (b != 0) {
+		int r = b;
 
-        return a;
+		b = a % b;
+		a = r;
+	}
+
+	return a;
 }
 
-/* FIXME: calc using u64 */
 static int pll_clk_get_best_set(unsigned long fin_hz, unsigned long fout_hz,
 				u32 *best_nr, u32 *best_nf, u32 *best_no)
 {
-        u32 nr, nf, no, nonr;
-        u32 nr_out, nf_out, no_out;
-        u32 n;
-        u32 YFfenzi;
-        u32 YFfenmu;
-        u64 fref, fvco, fout;
-        u32 gcd_val = 0;
+	u32 nr, nf, no, nonr;
+	u32 nr_out, nf_out, no_out;
+	u32 n;
+	u32 YFfenzi;
+	u32 YFfenmu;
+	u64 fref, fvco, fout;
+	u32 gcd_val = 0;
 
+	nr_out = PLL_NR_MAX + 1;
+	no_out = 0;
 
-        nr_out = PLL_NR_MAX + 1;
-        no_out = 0;
+	if (!fin_hz || !fout_hz || fout_hz == fin_hz)
+		return -EINVAL;
+	gcd_val = clk_gcd(fin_hz, fout_hz);
 
-//	printk("pll_clk_get_set fin=%lu,fout=%lu\n", fin_hz, fout_hz);
-        if(!fin_hz || !fout_hz || fout_hz == fin_hz)
-                return -EINVAL;
-        gcd_val = clk_gcd(fin_hz, fout_hz);
+	YFfenzi = fout_hz / gcd_val;
+	YFfenmu = fin_hz / gcd_val;
 
-//      printk("gcd_val = %d\n",gcd_val);
+	for (n = 1;; n++) {
+		nf = YFfenzi * n;
+		nonr = YFfenmu * n;
+		if (nf > PLL_NF_MAX || nonr > (PLL_NO_MAX * PLL_NR_MAX))
+			break;
 
-        YFfenzi = fout_hz / gcd_val;
-        YFfenmu = fin_hz / gcd_val;
+		for (no = 1; no <= PLL_NO_MAX; no++) {
+			if (!(no == 1 || !(no % 2)))
+				continue;
 
-//      printk("YFfenzi = %d, YFfenmu = %d\n",YFfenzi,YFfenmu);
+			if (nonr % no)
+				continue;
+			nr = nonr / no;
 
-	for(n = 1;; n++) {
-	       nf = YFfenzi * n;
-	       nonr = YFfenmu * n;
-	       if(nf > PLL_NF_MAX || nonr > (PLL_NO_MAX * PLL_NR_MAX))
-		       break;
-	       for(no = 1; no <= PLL_NO_MAX; no++) {
-		       if(!(no == 1 || !(no % 2)))
-			       continue;
+			if (nr > PLL_NR_MAX)
+				continue;
 
-		       if(nonr % no)
-			       continue;
-		       nr = nonr / no;
+			fref = fin_hz / nr;
+			if (fref < PLL_FREF_MIN || fref > PLL_FREF_MAX)
+				continue;
 
-		       if(nr > PLL_NR_MAX) //PLL_NR_MAX
-			       continue;
+			fvco = fref * nf;
+			if (fvco < PLL_FVCO_MIN || fvco > PLL_FVCO_MAX)
+				continue;
 
-		       fref = fin_hz / nr;
-		       if(fref < PLL_FREF_MIN || fref > PLL_FREF_MAX)
-			       continue;
+			fout = fvco / no;
+			if (fout < PLL_FOUT_MIN || fout > PLL_FOUT_MAX)
+				continue;
 
-		       fvco = fref * nf;
-		       if(fvco < PLL_FVCO_MIN || fvco > PLL_FVCO_MAX)
-			       continue;
-		       fout = fvco / no;
-		       if(fout < PLL_FOUT_MIN || fout > PLL_FOUT_MAX)
-			       continue;
+			/* select the best from all available PLL settings */
+			if ((no > no_out) || ((no == no_out) && (nr < nr_out))) {
+				nr_out = nr;
+				nf_out = nf;
+				no_out = no;
+			}
+		}
+	}
 
-		       /* output all available PLL settings */
-		       //printk("nr=%d,\tnf=%d,\tno=%d\n",nr,nf,no);
-		       //printk("_PLL_SET_CLKS(%lu,\t%d,\t%d,\t%d),\n",fout_hz/KHZ,nr,nf,no);
-
-		       /* select the best from all available PLL settings */
-		       if ((no > no_out) || ((no == no_out) && (nr < nr_out)))
-		       {
-			       nr_out = nr;
-			       nf_out = nf;
-			       no_out = no;
-		       }
-	       }
-
-       }
-
-        /* output the best PLL setting */
-        if((nr_out <= PLL_NR_MAX) && (no_out > 0)){
-                //printk("_PLL_SET_CLKS(%lu,\t%d,\t%d,\t%d),\n",fout_hz/KHZ,nr_out,nf_out,no_out);
-		if(best_nr && best_nf && best_no){
+	/* output the best PLL setting */
+	if ((nr_out <= PLL_NR_MAX) && (no_out > 0)) {
+		if (best_nr && best_nf && best_no) {
 			*best_nr = nr_out;
 			*best_nf = nf_out;
 			*best_no = no_out;
