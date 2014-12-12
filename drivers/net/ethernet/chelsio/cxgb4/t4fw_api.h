@@ -560,6 +560,7 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_RCVNXT,
 	FW_FLOWC_MNEM_SNDBUF,
 	FW_FLOWC_MNEM_MSS,
+	FW_FLOWC_MNEM_TXDATAPLEN_MAX,
 };
 
 struct fw_flowc_mnemval {
