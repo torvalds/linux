@@ -45,7 +45,8 @@ sti_drm_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	/* src_x are in 16.16 format. */
-	res = sti_layer_prepare(layer, fb, &crtc->mode, mixer->id,
+	res = sti_layer_prepare(layer, crtc, fb,
+			&crtc->mode, mixer->id,
 			crtc_x, crtc_y, crtc_w, crtc_h,
 			src_x >> 16, src_y >> 16,
 			src_w >> 16, src_h >> 16);

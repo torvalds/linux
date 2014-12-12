@@ -22,7 +22,8 @@ enum sti_layer_type {
 	STI_GDP = 1 << STI_LAYER_TYPE_SHIFT,
 	STI_VID = 2 << STI_LAYER_TYPE_SHIFT,
 	STI_CUR = 3 << STI_LAYER_TYPE_SHIFT,
-	STI_BCK = 4 << STI_LAYER_TYPE_SHIFT
+	STI_BCK = 4 << STI_LAYER_TYPE_SHIFT,
+	STI_VDP = 5 << STI_LAYER_TYPE_SHIFT
 };
 
 enum sti_layer_id_of_type {
@@ -39,6 +40,7 @@ enum sti_layer_desc {
 	STI_GDP_3       = STI_GDP | STI_ID_3,
 	STI_VID_0       = STI_VID | STI_ID_0,
 	STI_VID_1       = STI_VID | STI_ID_1,
+	STI_HQVDP_0     = STI_VDP | STI_ID_0,
 	STI_CURSOR      = STI_CUR,
 	STI_BACK        = STI_BCK
 };
@@ -67,6 +69,7 @@ struct sti_layer_funcs {
  *
  * @plane:              drm plane it is bound to (if any)
  * @fb:                 drm fb it is bound to
+ * @crtc:               crtc it is bound to
  * @mode:               display mode
  * @desc:               layer type & id
  * @device:		driver device
@@ -82,11 +85,13 @@ struct sti_layer_funcs {
  * @format:             format
  * @pitches:            pitch of 'planes' (eg: Y, U, V)
  * @offsets:            offset of 'planes'
+ * @vaddr:              virtual address of the input buffer
  * @paddr:              physical address of the input buffer
  */
 struct sti_layer {
 	struct drm_plane plane;
 	struct drm_framebuffer *fb;
+	struct drm_crtc *crtc;
 	struct drm_display_mode *mode;
 	enum sti_layer_desc desc;
 	struct device *dev;
@@ -102,12 +107,15 @@ struct sti_layer {
 	uint32_t format;
 	unsigned int pitches[4];
 	unsigned int offsets[4];
+	void *vaddr;
 	dma_addr_t paddr;
 };
 
 struct sti_layer *sti_layer_create(struct device *dev, int desc,
 			void __iomem *baseaddr);
-int sti_layer_prepare(struct sti_layer *layer, struct drm_framebuffer *fb,
+int sti_layer_prepare(struct sti_layer *layer,
+			struct drm_crtc *crtc,
+			struct drm_framebuffer *fb,
 			struct drm_display_mode *mode,
 			int mixer_id,
 			int dest_x, int dest_y,
