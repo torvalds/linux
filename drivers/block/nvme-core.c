@@ -804,12 +804,19 @@ static int nvme_submit_sync_cmd(struct request *req, struct nvme_command *cmd,
 		nvme_finish_cmd(nvmeq, req->tag, NULL);
 		set_current_state(TASK_RUNNING);
 	}
-	schedule_timeout(timeout);
+	ret = schedule_timeout(timeout);
 
-	if (cmdinfo.status == -EINTR) {
-		nvme_abort_cmd_info(nvmeq, blk_mq_rq_to_pdu(req));
+	/*
+	 * Ensure that sync_completion has either run, or that it will
+	 * never run.
+	 */
+	nvme_abort_cmd_info(nvmeq, blk_mq_rq_to_pdu(req));
+
+	/*
+	 * We never got the completion
+	 */
+	if (cmdinfo.status == -EINTR)
 		return -EINTR;
-	}
 
 	if (result)
 		*result = cmdinfo.result;
