@@ -289,7 +289,7 @@ static int mrf24j40_read_rx_buf(struct mrf24j40 *devrec,
 		goto out;
 
 	/* Range check the RX FIFO length, accounting for the one-byte
-	 * length field at the begining. */
+	 * length field at the beginning. */
 	if (rx_len > RX_FIFO_SIZE-1) {
 		dev_err(printdev(devrec), "Invalid length read from device. Performing short read.\n");
 		rx_len = RX_FIFO_SIZE-1;
