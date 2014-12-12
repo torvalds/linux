@@ -1495,7 +1495,7 @@ int perf_evlist__strerror_mmap(struct perf_evlist *evlist, int err, char *buf, s
 		scnprintf(buf, size, "Error:\t%s.\n"
 				     "Hint:\tCheck /proc/sys/kernel/perf_event_mlock_kb (%d kB) setting.\n"
 				     "Hint:\tTried using %zd kB.\n"
-				     "Hint:\tTry using a bigger -m/--mmap-pages value.",
+				     "Hint:\tTry using a smaller -m/--mmap-pages value.",
 				     emsg, value, evlist->mmap_len / 1024);
 		break;
 	default:
