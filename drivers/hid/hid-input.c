@@ -872,7 +872,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x2cb: map_key_clear(KEY_KBDINPUTASSIST_ACCEPT);	break;
 		case 0x2cc: map_key_clear(KEY_KBDINPUTASSIST_CANCEL);	break;
 
-		default:    goto ignore;
+		default: map_key_clear(KEY_UNKNOWN);
 		}
 		break;
 

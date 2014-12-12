@@ -278,18 +278,20 @@ static void hid_irq_in(struct urb *urb)
 		usbhid->retry_delay = 0;
 		if ((hid->quirks & HID_QUIRK_ALWAYS_POLL) && !hid->open)
 			break;
-		hid_input_report(urb->context, HID_INPUT_REPORT,
-				 urb->transfer_buffer,
-				 urb->actual_length, 1);
-		/*
-		 * autosuspend refused while keys are pressed
-		 * because most keyboards don't wake up when
-		 * a key is released
-		 */
-		if (hid_check_keys_pressed(hid))
-			set_bit(HID_KEYS_PRESSED, &usbhid->iofl);
-		else
-			clear_bit(HID_KEYS_PRESSED, &usbhid->iofl);
+		if (!test_bit(HID_RESUME_RUNNING, &usbhid->iofl)) {
+			hid_input_report(urb->context, HID_INPUT_REPORT,
+					 urb->transfer_buffer,
+					 urb->actual_length, 1);
+			/*
+			 * autosuspend refused while keys are pressed
+			 * because most keyboards don't wake up when
+			 * a key is released
+			 */
+			if (hid_check_keys_pressed(hid))
+				set_bit(HID_KEYS_PRESSED, &usbhid->iofl);
+			else
+				clear_bit(HID_KEYS_PRESSED, &usbhid->iofl);
+		}
 		break;
 	case -EPIPE:		/* stall */
 		usbhid_mark_busy(usbhid);
@@ -688,6 +690,7 @@ int usbhid_open(struct hid_device *hid)
 			goto done;
 		}
 		usbhid->intf->needs_remote_wakeup = 1;
+		set_bit(HID_RESUME_RUNNING, &usbhid->iofl);
 		res = hid_start_in(hid);
 		if (res) {
 			if (res != -ENOSPC) {
@@ -701,6 +704,15 @@ int usbhid_open(struct hid_device *hid)
 			}
 		}
 		usb_autopm_put_interface(usbhid->intf);
+
+		/*
+		 * In case events are generated while nobody was listening,
+		 * some are released when the device is re-opened.
+		 * Wait 50 msec for the queue to empty before allowing events
+		 * to go through hid.
+		 */
+		msleep(50);
+		clear_bit(HID_RESUME_RUNNING, &usbhid->iofl);
 	}
 done:
 	mutex_unlock(&hid_open_mut);
