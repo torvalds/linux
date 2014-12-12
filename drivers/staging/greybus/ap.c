@@ -2,6 +2,7 @@
  * Greybus "AP" message loop handling
  *
  * Copyright 2014 Google Inc.
+ * Copyright 2014 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
