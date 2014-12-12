@@ -1215,7 +1215,7 @@ static void hidinput_led_worker(struct work_struct *work)
 		return hid->ll_driver->request(hid, report, HID_REQ_SET_REPORT);
 
 	/* fall back to generic raw-output-report */
-	len = ((report->size - 1) >> 3) + 1 + (report->id > 0);
+	len = hid_report_len(report);
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
 		return;

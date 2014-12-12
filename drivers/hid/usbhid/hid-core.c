@@ -340,8 +340,7 @@ static int hid_submit_out(struct hid_device *hid)
 	report = usbhid->out[usbhid->outtail].report;
 	raw_report = usbhid->out[usbhid->outtail].raw_report;
 
-	usbhid->urbout->transfer_buffer_length = ((report->size - 1) >> 3) +
-						 1 + (report->id > 0);
+	usbhid->urbout->transfer_buffer_length = hid_report_len(report);
 	usbhid->urbout->dev = hid_to_usb_dev(hid);
 	if (raw_report) {
 		memcpy(usbhid->outbuf, raw_report,
