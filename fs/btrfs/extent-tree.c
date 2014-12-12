@@ -5475,8 +5475,11 @@ out_fail:
 			to_free = 0;
 	}
 	spin_unlock(&BTRFS_I(inode)->lock);
-	if (dropped)
+	if (dropped) {
+		if (root->fs_info->quota_enabled)
+			btrfs_qgroup_free(root, dropped * root->nodesize);
 		to_free += btrfs_calc_trans_metadata_size(root, dropped);
+	}
 
 	if (to_free) {
 		btrfs_block_rsv_release(root, block_rsv, to_free);
