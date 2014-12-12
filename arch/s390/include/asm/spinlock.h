@@ -18,14 +18,7 @@ extern int spin_retry;
 static inline int
 _raw_compare_and_swap(unsigned int *lock, unsigned int old, unsigned int new)
 {
-	unsigned int old_expected = old;
-
-	asm volatile(
-		"	cs	%0,%3,%1"
-		: "=d" (old), "=Q" (*lock)
-		: "0" (old), "d" (new), "Q" (*lock)
-		: "cc", "memory" );
-	return old == old_expected;
+	return __sync_bool_compare_and_swap(lock, old, new);
 }
 
 /*

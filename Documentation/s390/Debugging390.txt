@@ -26,11 +26,6 @@ The Linux for s/390 & z/Architecture Kernel Task Structure
 Register Usage & Stackframes on Linux for s/390 & z/Architecture
 A sample program with comments
 Compiling programs for debugging on Linux for s/390 & z/Architecture
-Figuring out gcc compile errors
-Debugging Tools
-objdump
-strace
-Performance Debugging 
 Debugging under VM
 s/390 & z/Architecture IO Overview
 Debugging IO on s/390 & z/Architecture under VM
@@ -114,28 +109,25 @@ s/390 z/Architecture
 
 16-17 16-17   Address Space Control
 
-	      00 Primary Space Mode when DAT on
-	      The linux kernel currently runs in this mode, CR1 is affiliated with 
-              this mode & points to the primary segment table origin etc.
+	      00 Primary Space Mode:
+	      The register CR1 contains the primary address-space control ele-
+	      ment (PASCE), which points to the primary space region/segment
+	      table origin.
 
-	      01 Access register mode this mode is used in functions to 
-	      copy data between kernel & user space.
+	      01 Access register mode
 
-	      10 Secondary space mode not used in linux however CR7 the
-	      register affiliated with this mode is & this & normally
-	      CR13=CR7 to allow us to copy data between kernel & user space.
-	      We do this as follows:
-	      We set ar2 to 0 to designate its
-	      affiliated gpr ( gpr2 )to point to primary=kernel space.
-	      We set ar4 to 1 to designate its
-	      affiliated gpr ( gpr4 ) to point to secondary=home=user space
-	      & then essentially do a memcopy(gpr2,gpr4,size) to
-	      copy data between the address spaces, the reason we use home space for the
-	      kernel & don't keep secondary space free is that code will not run in 
-	      secondary space.
+	      10 Secondary Space Mode:
+	      The register CR7 contains the secondary address-space control
+	      element (SASCE), which points to the secondary space region or
+	      segment table origin.
 
-	      11 Home Space Mode all user programs run in this mode.
-	      it is affiliated with CR13.
+	      11 Home Space Mode:
+	      The register CR13 contains the home space address-space control
+	      element (HASCE), which points to the home space region/segment
+	      table origin.
+
+	      See "Address Spaces on Linux for s/390 & z/Architecture" below
+	      for more information about address space usage in Linux.
 
 18-19 18-19   Condition codes (CC)
 
@@ -249,9 +241,9 @@ currently 4TB of physical memory currently on z/Architecture.
 Address Spaces on Linux for s/390 & z/Architecture
 ==================================================
 
-Our addressing scheme is as follows
+Our addressing scheme is basically as follows:
 
-
+				   Primary Space	       Home Space
 Himem 0x7fffffff 2GB on s/390    *****************          ****************
 currently 0x3ffffffffff (2^42)-1 *  User Stack   *          *              *
 on z/Architecture.		 *****************          *              *
@@ -264,9 +256,46 @@ on z/Architecture.		 *****************          *              *
             			 *   Sections    *          *              *
 0x00000000                       *****************          ****************
 
-This also means that we need to look at the PSW problem state bit
-or the addressing mode to decide whether we are looking at
-user or kernel space.
+This also means that we need to look at the PSW problem state bit and the
+addressing mode to decide whether we are looking at user or kernel space.
+
+User space runs in primary address mode (or access register mode within
+the vdso code).
+
+The kernel usually also runs in home space mode, however when accessing
+user space the kernel switches to primary or secondary address mode if
+the mvcos instruction is not available or if a compare-and-swap (futex)
+instruction on a user space address is performed.
+
+When also looking at the ASCE control registers, this means:
+
+User space:
+- runs in primary or access register mode
+- cr1 contains the user asce
+- cr7 contains the user asce
+- cr13 contains the kernel asce
+
+Kernel space:
+- runs in home space mode
+- cr1 contains the user or kernel asce
+  -> the kernel asce is loaded when a uaccess requires primary or
+     secondary address mode
+- cr7 contains the user or kernel asce, (changed with set_fs())
+- cr13 contains the kernel asce
+
+In case of uaccess the kernel changes to:
+- primary space mode in case of a uaccess (copy_to_user) and uses
+  e.g. the mvcp instruction to access user space. However the kernel
+  will stay in home space mode if the mvcos instruction is available
+- secondary space mode in case of futex atomic operations, so that the
+  instructions come from primary address space and data from secondary
+  space
+
+In case of KVM, the kernel runs in home space mode, but cr1 gets switched
+to contain the gmap asce before the SIE instruction gets executed. When
+the SIE instruction is finished, cr1 will be switched back to contain the
+user asce.
+
 
 Virtual Addresses on s/390 & z/Architecture
 ===========================================
@@ -706,376 +735,7 @@ Debugging with optimisation has since much improved after fixing
 some bugs, please make sure you are using gdb-5.0 or later developed 
 after Nov'2000.
 
-Figuring out gcc compile errors
-===============================
-If you are getting a lot of syntax errors compiling a program & the problem
-isn't blatantly obvious from the source.
-It often helps to just preprocess the file, this is done with the -E
-option in gcc.
-What this does is that it runs through the very first phase of compilation
-( compilation in gcc is done in several stages & gcc calls many programs to
-achieve its end result ) with the -E option gcc just calls the gcc preprocessor (cpp).
-The c preprocessor does the following, it joins all the files #included together
-recursively ( #include files can #include other files ) & also the c file you wish to compile.
-It puts a fully qualified path of the #included files in a comment & it
-does macro expansion.
-This is useful for debugging because
-1) You can double check whether the files you expect to be included are the ones
-that are being included ( e.g. double check that you aren't going to the i386 asm directory ).
-2) Check that macro definitions aren't clashing with typedefs,
-3) Check that definitions aren't being used before they are being included.
-4) Helps put the line emitting the error under the microscope if it contains macros.
 
-For convenience the Linux kernel's makefile will do preprocessing automatically for you
-by suffixing the file you want built with .i ( instead of .o )
-
-e.g.
-from the linux directory type
-make arch/s390/kernel/signal.i
-this will build
-
-s390-gcc -D__KERNEL__ -I/home1/barrow/linux/include -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
--fno-strict-aliasing -D__SMP__ -pipe -fno-strength-reduce   -E arch/s390/kernel/signal.c
-> arch/s390/kernel/signal.i  
-
-Now look at signal.i you should see something like.
-
-
-# 1 "/home1/barrow/linux/include/asm/types.h" 1
-typedef unsigned short umode_t;
-typedef __signed__ char __s8;
-typedef unsigned char __u8;
-typedef __signed__ short __s16;
-typedef unsigned short __u16;
-
-If instead you are getting errors further down e.g.
-unknown instruction:2515 "move.l" or better still unknown instruction:2515 
-"Fixme not implemented yet, call Martin" you are probably are attempting to compile some code 
-meant for another architecture or code that is simply not implemented, with a fixme statement
-stuck into the inline assembly code so that the author of the file now knows he has work to do.
-To look at the assembly emitted by gcc just before it is about to call gas ( the gnu assembler )
-use the -S option.
-Again for your convenience the Linux kernel's Makefile will hold your hand &
-do all this donkey work for you also by building the file with the .s suffix.
-e.g.
-from the Linux directory type 
-make arch/s390/kernel/signal.s 
-
-s390-gcc -D__KERNEL__ -I/home1/barrow/linux/include -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
--fno-strict-aliasing -D__SMP__ -pipe -fno-strength-reduce  -S arch/s390/kernel/signal.c 
--o arch/s390/kernel/signal.s  
-
-
-This will output something like, ( please note the constant pool & the useful comments
-in the prologue to give you a hand at interpreting it ).
-
-.LC54:
-	.string	"misaligned (__u16 *) in __xchg\n"
-.LC57:
-	.string	"misaligned (__u32 *) in __xchg\n"
-.L$PG1: # Pool sys_sigsuspend
-.LC192:
-	.long	-262401
-.LC193:
-	.long	-1
-.LC194:
-	.long	schedule-.L$PG1
-.LC195:
-	.long	do_signal-.L$PG1
-	.align 4
-.globl sys_sigsuspend
-	.type	 sys_sigsuspend,@function
-sys_sigsuspend:
-#	leaf function           0
-#	automatics              16
-#	outgoing args           0
-#	need frame pointer      0
-#	call alloca             0
-#	has varargs             0
-#	incoming args (stack)   0
-#	function length         168
-	STM	8,15,32(15)
-	LR	0,15
-	AHI	15,-112
-	BASR	13,0
-.L$CO1:	AHI	13,.L$PG1-.L$CO1
-	ST	0,0(15)
-	LR    8,2
-	N     5,.LC192-.L$PG1(13) 
-
-Adding -g to the above output makes the output even more useful
-e.g. typing
-make CC:="s390-gcc -g" kernel/sched.s
-
-which compiles.
-s390-gcc -g -D__KERNEL__ -I/home/barrow/linux-2.3/include -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -fno-strict-aliasing -pipe -fno-strength-reduce   -S kernel/sched.c -o kernel/sched.s 
-
-also outputs stabs ( debugger ) info, from this info you can find out the
-offsets & sizes of various elements in structures.
-e.g. the stab for the structure
-struct rlimit {
-	unsigned long	rlim_cur;
-	unsigned long	rlim_max;
-};
-is
-.stabs "rlimit:T(151,2)=s8rlim_cur:(0,5),0,32;rlim_max:(0,5),32,32;;",128,0,0,0
-from this stab you can see that 
-rlimit_cur starts at bit offset 0 & is 32 bits in size
-rlimit_max starts at bit offset 32 & is 32 bits in size.
-
-
-Debugging Tools:
-================
-
-objdump
-=======
-This is a tool with many options the most useful being ( if compiled with -g).
-objdump --source <victim program or object file> > <victims debug listing >
-
-
-The whole kernel can be compiled like this ( Doing this will make a 17MB kernel
-& a 200 MB listing ) however you have to strip it before building the image
-using the strip command to make it a more reasonable size to boot it.
-
-A source/assembly mixed dump of the kernel can be done with the line
-objdump --source vmlinux > vmlinux.lst
-Also, if the file isn't compiled -g, this will output as much debugging information
-as it can (e.g. function names). This is very slow as it spends lots
-of time searching for debugging info. The following self explanatory line should be used 
-instead if the code isn't compiled -g, as it is much faster:
-objdump --disassemble-all --syms vmlinux > vmlinux.lst  
-
-As hard drive space is valuable most of us use the following approach.
-1) Look at the emitted psw on the console to find the crash address in the kernel.
-2) Look at the file System.map ( in the linux directory ) produced when building 
-the kernel to find the closest address less than the current PSW to find the
-offending function.
-3) use grep or similar to search the source tree looking for the source file
- with this function if you don't know where it is.
-4) rebuild this object file with -g on, as an example suppose the file was
-( /arch/s390/kernel/signal.o ) 
-5) Assuming the file with the erroneous function is signal.c Move to the base of the 
-Linux source tree.
-6) rm /arch/s390/kernel/signal.o
-7) make /arch/s390/kernel/signal.o
-8) watch the gcc command line emitted
-9) type it in again or alternatively cut & paste it on the console adding the -g option.
-10) objdump --source arch/s390/kernel/signal.o > signal.lst
-This will output the source & the assembly intermixed, as the snippet below shows
-This will unfortunately output addresses which aren't the same
-as the kernel ones you should be able to get around the mental arithmetic
-by playing with the --adjust-vma parameter to objdump.
-
-
-
-
-static inline void spin_lock(spinlock_t *lp)
-{
-      a0:       18 34           lr      %r3,%r4
-      a2:       a7 3a 03 bc     ahi     %r3,956
-        __asm__ __volatile("    lhi   1,-1\n"
-      a6:       a7 18 ff ff     lhi     %r1,-1
-      aa:       1f 00           slr     %r0,%r0
-      ac:       ba 01 30 00     cs      %r0,%r1,0(%r3)
-      b0:       a7 44 ff fd     jm      aa <sys_sigsuspend+0x2e>
-        saveset = current->blocked;
-      b4:       d2 07 f0 68     mvc     104(8,%r15),972(%r4)
-      b8:       43 cc
-        return (set->sig[0] & mask) != 0;
-} 
-
-6) If debugging under VM go down to that section in the document for more info.
-
-
-I now have a tool which takes the pain out of --adjust-vma
-& you are able to do something like
-make /arch/s390/kernel/traps.lst
-& it automatically generates the correctly relocated entries for
-the text segment in traps.lst.
-This tool is now standard in linux distro's in scripts/makelst
-
-strace:
--------
-Q. What is it ?
-A. It is a tool for intercepting calls to the kernel & logging them
-to a file & on the screen.
-
-Q. What use is it ?
-A. You can use it to find out what files a particular program opens.
-
-
-
-Example 1
----------
-If you wanted to know does ping work but didn't have the source 
-strace ping -c 1 127.0.0.1  
-& then look at the man pages for each of the syscalls below,
-( In fact this is sometimes easier than looking at some spaghetti
-source which conditionally compiles for several architectures ).
-Not everything that it throws out needs to make sense immediately.
-
-Just looking quickly you can see that it is making up a RAW socket
-for the ICMP protocol.
-Doing an alarm(10) for a 10 second timeout
-& doing a gettimeofday call before & after each read to see 
-how long the replies took, & writing some text to stdout so the user
-has an idea what is going on.
-
-socket(PF_INET, SOCK_RAW, IPPROTO_ICMP) = 3
-getuid()                                = 0
-setuid(0)                               = 0
-stat("/usr/share/locale/C/libc.cat", 0xbffff134) = -1 ENOENT (No such file or directory)
-stat("/usr/share/locale/libc/C", 0xbffff134) = -1 ENOENT (No such file or directory)
-stat("/usr/local/share/locale/C/libc.cat", 0xbffff134) = -1 ENOENT (No such file or directory)
-getpid()                                = 353
-setsockopt(3, SOL_SOCKET, SO_BROADCAST, [1], 4) = 0
-setsockopt(3, SOL_SOCKET, SO_RCVBUF, [49152], 4) = 0
-fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(3, 1), ...}) = 0
-mmap(0, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x40008000
-ioctl(1, TCGETS, {B9600 opost isig icanon echo ...}) = 0
-write(1, "PING 127.0.0.1 (127.0.0.1): 56 d"..., 42PING 127.0.0.1 (127.0.0.1): 56 data bytes
-) = 42
-sigaction(SIGINT, {0x8049ba0, [], SA_RESTART}, {SIG_DFL}) = 0 
-sigaction(SIGALRM, {0x8049600, [], SA_RESTART}, {SIG_DFL}) = 0
-gettimeofday({948904719, 138951}, NULL) = 0
-sendto(3, "\10\0D\201a\1\0\0\17#\2178\307\36"..., 64, 0, {sin_family=AF_INET,
-sin_port=htons(0), sin_addr=inet_addr("127.0.0.1")}, 16) = 64
-sigaction(SIGALRM, {0x8049600, [], SA_RESTART}, {0x8049600, [], SA_RESTART}) = 0
-sigaction(SIGALRM, {0x8049ba0, [], SA_RESTART}, {0x8049600, [], SA_RESTART}) = 0
-alarm(10)                               = 0
-recvfrom(3, "E\0\0T\0005\0\0@\1|r\177\0\0\1\177"..., 192, 0, 
-{sin_family=AF_INET, sin_port=htons(50882), sin_addr=inet_addr("127.0.0.1")}, [16]) = 84
-gettimeofday({948904719, 160224}, NULL) = 0
-recvfrom(3, "E\0\0T\0006\0\0\377\1\275p\177\0"..., 192, 0, 
-{sin_family=AF_INET, sin_port=htons(50882), sin_addr=inet_addr("127.0.0.1")}, [16]) = 84
-gettimeofday({948904719, 166952}, NULL) = 0
-write(1, "64 bytes from 127.0.0.1: icmp_se"..., 
-5764 bytes from 127.0.0.1: icmp_seq=0 ttl=255 time=28.0 ms
-
-Example 2
----------
-strace passwd 2>&1 | grep open
-produces the following output
-open("/etc/ld.so.cache", O_RDONLY)      = 3
-open("/opt/kde/lib/libc.so.5", O_RDONLY) = -1 ENOENT (No such file or directory)
-open("/lib/libc.so.5", O_RDONLY)        = 3
-open("/dev", O_RDONLY)                  = 3
-open("/var/run/utmp", O_RDONLY)         = 3
-open("/etc/passwd", O_RDONLY)           = 3
-open("/etc/shadow", O_RDONLY)           = 3
-open("/etc/login.defs", O_RDONLY)       = 4
-open("/dev/tty", O_RDONLY)              = 4 
-
-The 2>&1 is done to redirect stderr to stdout & grep is then filtering this input 
-through the pipe for each line containing the string open.
-
-
-Example 3
----------
-Getting sophisticated
-telnetd crashes & I don't know why
-
-Steps
------
-1) Replace the following line in /etc/inetd.conf
-telnet  stream  tcp     nowait  root    /usr/sbin/in.telnetd -h 
-with
-telnet  stream  tcp     nowait  root    /blah
-
-2) Create the file /blah with the following contents to start tracing telnetd 
-#!/bin/bash
-/usr/bin/strace -o/t1 -f /usr/sbin/in.telnetd -h 
-3) chmod 700 /blah to make it executable only to root
-4)
-killall -HUP inetd
-or ps aux | grep inetd
-get inetd's process id
-& kill -HUP inetd to restart it.
-
-Important options
------------------
--o is used to tell strace to output to a file in our case t1 in the root directory
--f is to follow children i.e.
-e.g in our case above telnetd will start the login process & subsequently a shell like bash.
-You will be able to tell which is which from the process ID's listed on the left hand side
-of the strace output.
--p<pid> will tell strace to attach to a running process, yup this can be done provided
- it isn't being traced or debugged already & you have enough privileges,
-the reason 2 processes cannot trace or debug the same program is that strace
-becomes the parent process of the one being debugged & processes ( unlike people )
-can have only one parent.
-
-
-However the file /t1 will get big quite quickly
-to test it telnet 127.0.0.1
-
-now look at what files in.telnetd execve'd
-413   execve("/usr/sbin/in.telnetd", ["/usr/sbin/in.telnetd", "-h"], [/* 17 vars */]) = 0
-414   execve("/bin/login", ["/bin/login", "-h", "localhost", "-p"], [/* 2 vars */]) = 0 
-
-Whey it worked!.
-
-
-Other hints:
-------------
-If the program is not very interactive ( i.e. not much keyboard input )
-& is crashing in one architecture but not in another you can do 
-an strace of both programs under as identical a scenario as you can
-on both architectures outputting to a file then.
-do a diff of the two traces using the diff program
-i.e.
-diff output1 output2
-& maybe you'll be able to see where the call paths differed, this
-is possibly near the cause of the crash. 
-
-More info
----------
-Look at man pages for strace & the various syscalls
-e.g. man strace, man alarm, man socket.
-
-
-Performance Debugging
-=====================
-gcc is capable of compiling in profiling code just add the -p option
-to the CFLAGS, this obviously affects program size & performance.
-This can be used by the gprof gnu profiling tool or the
-gcov the gnu code coverage tool ( code coverage is a means of testing
-code quality by checking if all the code in an executable in exercised by
-a tester ).
-
-
-Using top to find out where processes are sleeping in the kernel
-----------------------------------------------------------------
-To do this copy the System.map from the root directory where
-the linux kernel was built to the /boot directory on your 
-linux machine.
-Start top
-Now type fU<return>
-You should see a new field called WCHAN which
-tells you where each process is sleeping here is a typical output.
- 
- 6:59pm  up 41 min,  1 user,  load average: 0.00, 0.00, 0.00
-28 processes: 27 sleeping, 1 running, 0 zombie, 0 stopped
-CPU states:  0.0% user,  0.1% system,  0.0% nice, 99.8% idle
-Mem:   254900K av,   45976K used,  208924K free,       0K shrd,   28636K buff
-Swap:       0K av,       0K used,       0K free                    8620K cached
-
-  PID USER     PRI  NI  SIZE  RSS SHARE WCHAN     STAT  LIB %CPU %MEM   TIME COMMAND
-  750 root      12   0   848  848   700 do_select S       0  0.1  0.3   0:00 in.telnetd
-  767 root      16   0  1140 1140   964           R       0  0.1  0.4   0:00 top
-    1 root       8   0   212  212   180 do_select S       0  0.0  0.0   0:00 init
-    2 root       9   0     0    0     0 down_inte SW      0  0.0  0.0   0:00 kmcheck
-
-The time command
-----------------
-Another related command is the time command which gives you an indication
-of where a process is spending the majority of its time.
-e.g.
-time ping -c 5 nc
-outputs
-real	0m4.054s
-user	0m0.010s
-sys	0m0.010s
 
 Debugging under VM
 ==================

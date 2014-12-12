@@ -1383,7 +1383,6 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 		cpuhw->lsctl.ed = 1;
 
 	/* Set in_use flag and store event */
-	event->hw.idx = 0;	  /* only one sampling event per CPU supported */
 	cpuhw->event = event;
 	cpuhw->flags |= PMU_F_IN_USE;
 

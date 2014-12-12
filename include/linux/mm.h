@@ -56,6 +56,17 @@ extern int sysctl_legacy_va_layout;
 #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
 #endif
 
+/*
+ * To prevent common memory management code establishing
+ * a zero page mapping on a read fault.
+ * This macro should be defined within <asm/pgtable.h>.
+ * s390 does this to prevent multiplexing of hardware bits
+ * related to the physical page in case of virtualization.
+ */
+#ifndef mm_forbids_zeropage
+#define mm_forbids_zeropage(X)	(0)
+#endif
+
 extern unsigned long sysctl_user_reserve_kbytes;
 extern unsigned long sysctl_admin_reserve_kbytes;
 

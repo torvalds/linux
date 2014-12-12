@@ -61,7 +61,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-extern void __kprobes kernel_thread_starter(void);
+extern void kernel_thread_starter(void);
 
 /*
  * Free current thread data structures etc..
@@ -153,6 +153,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	save_fp_ctl(&p->thread.fp_regs.fpc);
 	save_fp_regs(p->thread.fp_regs.fprs);
 	p->thread.fp_regs.pad = 0;
+	p->thread.vxrs = NULL;
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
 		unsigned long tls = frame->childregs.gprs[6];
