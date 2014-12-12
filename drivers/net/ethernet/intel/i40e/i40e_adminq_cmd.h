@@ -276,7 +276,6 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_debug_write_reg		= 0xFF04,
 	i40e_aqc_opc_debug_modify_reg		= 0xFF07,
 	i40e_aqc_opc_debug_dump_internals	= 0xFF08,
-	i40e_aqc_opc_debug_modify_internals	= 0xFF09,
 };
 
 /* command structures and indirect data structures */
@@ -410,6 +409,7 @@ struct i40e_aqc_list_capabilities_element_resp {
 #define I40E_AQ_CAP_ID_VSI		0x0017
 #define I40E_AQ_CAP_ID_DCB		0x0018
 #define I40E_AQ_CAP_ID_FCOE		0x0021
+#define I40E_AQ_CAP_ID_ISCSI		0x0022
 #define I40E_AQ_CAP_ID_RSS		0x0040
 #define I40E_AQ_CAP_ID_RXQ		0x0041
 #define I40E_AQ_CAP_ID_TXQ		0x0042
@@ -1207,7 +1207,7 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 	} ipaddr;
 	__le16	flags;
 #define I40E_AQC_ADD_CLOUD_FILTER_SHIFT			0
-#define I40E_AQC_ADD_CLOUD_FILTER_MASK			(0x3F << \
+#define I40E_AQC_ADD_CLOUD_FILTER_MASK	(0x3F << \
 					I40E_AQC_ADD_CLOUD_FILTER_SHIFT)
 /* 0x0000 reserved */
 #define I40E_AQC_ADD_CLOUD_FILTER_OIP			0x0001
@@ -1240,7 +1240,7 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 	u8	reserved[4];
 	__le16	queue_number;
 #define I40E_AQC_ADD_CLOUD_QUEUE_SHIFT		0
-#define I40E_AQC_ADD_CLOUD_QUEUE_MASK		(0x3F << \
+#define I40E_AQC_ADD_CLOUD_QUEUE_MASK		(0x7FF << \
 						 I40E_AQC_ADD_CLOUD_QUEUE_SHIFT)
 	u8	reserved2[14];
 	/* response section */
@@ -2106,7 +2106,8 @@ struct i40e_aqc_oem_param_change {
 #define I40E_AQ_OEM_PARAM_TYPE_BW_CTL	1
 #define I40E_AQ_OEM_PARAM_MAC		2
 	__le32	param_value1;
-	u8	param_value2[8];
+	__le16	param_value2;
+	u8	reserved[6];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_oem_param_change);
