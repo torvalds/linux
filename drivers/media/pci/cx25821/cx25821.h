@@ -34,7 +34,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf2-dma-sg.h>
 
 #include "cx25821-reg.h"
 #include "cx25821-medusa-reg.h"
@@ -120,13 +120,13 @@ struct cx25821_riscmem {
 /* buffer for one video frame */
 struct cx25821_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer vb;
+	struct vb2_buffer vb;
+	struct list_head queue;
 
 	/* cx25821 specific */
 	unsigned int bpl;
 	struct cx25821_riscmem risc;
 	const struct cx25821_fmt *fmt;
-	u32 count;
 };
 
 enum port {
@@ -165,15 +165,7 @@ struct cx25821_i2c {
 
 struct cx25821_dmaqueue {
 	struct list_head active;
-	struct list_head queued;
-	struct timer_list timeout;
-	struct cx25821_riscmem stopper;
 	u32 count;
-};
-
-struct cx25821_data {
-	struct cx25821_dev *dev;
-	const struct sram_channel *channel;
 };
 
 struct cx25821_dev;
@@ -213,18 +205,17 @@ struct cx25821_video_out_data {
 struct cx25821_channel {
 	unsigned id;
 	struct cx25821_dev *dev;
-	struct v4l2_fh *streaming_fh;
 
 	struct v4l2_ctrl_handler hdl;
-	struct cx25821_data timeout_data;
 
 	struct video_device vdev;
 	struct cx25821_dmaqueue dma_vidq;
-	struct videobuf_queue vidq;
+	struct vb2_queue vidq;
 
 	const struct sram_channel *sram_channels;
 
 	const struct cx25821_fmt *fmt;
+	unsigned field;
 	unsigned int width, height;
 	int pixel_formats;
 	int use_cif_resolution;
@@ -250,6 +241,7 @@ struct cx25821_dev {
 	int hwrevision;
 	/* used by cx25821-alsa */
 	struct snd_card *card;
+	void *alloc_ctx;
 
 	u32 clk_freq;
 
@@ -425,10 +417,8 @@ extern int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 					 struct scatterlist *sglist,
 					 unsigned int bpl,
 					 unsigned int lines, unsigned int lpi);
-extern void cx25821_free_buffer(struct videobuf_queue *q,
+extern void cx25821_free_buffer(struct cx25821_dev *dev,
 				struct cx25821_buffer *buf);
-extern int cx25821_risc_stopper(struct pci_dev *pci, struct cx25821_riscmem *risc,
-				u32 reg, u32 mask, u32 value);
 extern void cx25821_sram_channel_dump(struct cx25821_dev *dev,
 				      const struct sram_channel *ch);
 extern void cx25821_sram_channel_dump_audio(struct cx25821_dev *dev,

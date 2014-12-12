@@ -874,10 +874,9 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	if (dev->pci->device != 0x8210) {
 		pr_info("%s(): Exiting. Incorrect Hardware device = 0x%02x\n",
 			__func__, dev->pci->device);
-		return -1;
-	} else {
-		pr_info("Athena Hardware device = 0x%02x\n", dev->pci->device);
+		return -ENODEV;
 	}
+	pr_info("Athena Hardware device = 0x%02x\n", dev->pci->device);
 
 	/* Apply a sensible clock frequency for the PCIe bridge */
 	dev->clk_freq = 28000000;
@@ -1003,10 +1002,16 @@ EXPORT_SYMBOL(cx25821_riscmem_alloc);
 static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 				  unsigned int offset, u32 sync_line,
 				  unsigned int bpl, unsigned int padding,
-				  unsigned int lines)
+				  unsigned int lines, bool jump)
 {
 	struct scatterlist *sg;
 	unsigned int line, todo;
+
+	if (jump) {
+		*(rp++) = cpu_to_le32(RISC_JUMP);
+		*(rp++) = cpu_to_le32(0);
+		*(rp++) = cpu_to_le32(0); /* bits 63-32 */
+	}
 
 	/* sync instruction */
 	if (sync_line != NO_SYNC_LINE)
@@ -1073,13 +1078,13 @@ int cx25821_risc_buffer(struct pci_dev *pci, struct cx25821_riscmem *risc,
 		fields++;
 
 	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords).  Padding
+	   one write per scan line + syncs + jump (all 3 dwords).  Padding
 	   can cause next bpl to start close to a page border.  First DMA
 	   region may be smaller than PAGE_SIZE */
 	/* write and jump need and extra dword */
 	instructions = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE +
 			lines);
-	instructions += 2;
+	instructions += 5;
 	rc = cx25821_riscmem_alloc(pci, risc, instructions * 12);
 
 	if (rc < 0)
@@ -1090,17 +1095,17 @@ int cx25821_risc_buffer(struct pci_dev *pci, struct cx25821_riscmem *risc,
 
 	if (UNSET != top_offset) {
 		rp = cx25821_risc_field(rp, sglist, top_offset, 0, bpl, padding,
-					lines);
+					lines, true);
 	}
 
 	if (UNSET != bottom_offset) {
 		rp = cx25821_risc_field(rp, sglist, bottom_offset, 0x200, bpl,
-					padding, lines);
+					padding, lines, UNSET == top_offset);
 	}
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 3) * sizeof(*risc->cpu) > risc->size);
 
 	return 0;
 }
@@ -1200,41 +1205,14 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 }
 EXPORT_SYMBOL(cx25821_risc_databuffer_audio);
 
-int cx25821_risc_stopper(struct pci_dev *pci, struct cx25821_riscmem *risc,
-			 u32 reg, u32 mask, u32 value)
+void cx25821_free_buffer(struct cx25821_dev *dev, struct cx25821_buffer *buf)
 {
-	__le32 *rp;
-	int rc;
-
-	rc = cx25821_riscmem_alloc(pci, risc, 4 * 16);
-
-	if (rc < 0)
-		return rc;
-
-	/* write risc instructions */
-	rp = risc->cpu;
-
-	*(rp++) = cpu_to_le32(RISC_WRITECR | RISC_IRQ1);
-	*(rp++) = cpu_to_le32(reg);
-	*(rp++) = cpu_to_le32(value);
-	*(rp++) = cpu_to_le32(mask);
-	*(rp++) = cpu_to_le32(RISC_JUMP);
-	*(rp++) = cpu_to_le32(risc->dma);
-	*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
-	return 0;
-}
-
-void cx25821_free_buffer(struct videobuf_queue *q, struct cx25821_buffer *buf)
-{
-	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
-
 	BUG_ON(in_interrupt());
-	videobuf_waiton(q, &buf->vb, 0, 0);
-	videobuf_dma_unmap(q->dev, dma);
-	videobuf_dma_free(dma);
-	pci_free_consistent(to_pci_dev(q->dev),
+	if (WARN_ON(buf->risc.size == 0))
+		return;
+	pci_free_consistent(dev->pci,
 			buf->risc.size, buf->risc.cpu, buf->risc.dma);
-	buf->vb.state = VIDEOBUF_NEEDS_INIT;
+	memset(&buf->risc, 0, sizeof(buf->risc));
 }
 
 static irqreturn_t cx25821_irq(int irq, void *dev_id)
@@ -1319,14 +1297,15 @@ static int cx25821_initdev(struct pci_dev *pci_dev,
 
 		goto fail_unregister_device;
 	}
+	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
+	if (IS_ERR(dev->alloc_ctx)) {
+		err = PTR_ERR(dev->alloc_ctx);
+		goto fail_unregister_pci;
+	}
 
 	err = cx25821_dev_setup(dev);
-	if (err) {
-		if (err == -EBUSY)
-			goto fail_unregister_device;
-		else
-			goto fail_unregister_pci;
-	}
+	if (err)
+		goto fail_free_ctx;
 
 	/* print pci info */
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
@@ -1356,6 +1335,8 @@ fail_irq:
 	pr_info("cx25821_initdev() can't get IRQ !\n");
 	cx25821_dev_unregister(dev);
 
+fail_free_ctx:
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 fail_unregister_pci:
 	pci_disable_device(pci_dev);
 fail_unregister_device:
@@ -1379,6 +1360,7 @@ static void cx25821_finidev(struct pci_dev *pci_dev)
 		free_irq(pci_dev->irq, dev);
 
 	cx25821_dev_unregister(dev);
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	v4l2_device_unregister(v4l2_dev);
 	kfree(dev);
 }
