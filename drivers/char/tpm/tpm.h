@@ -94,9 +94,14 @@ struct tpm_vendor_specific {
 #define TPM_VID_WINBOND  0x1050
 #define TPM_VID_STM      0x104A
 
+enum tpm_chip_flags {
+	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
+};
+
 struct tpm_chip {
 	struct device *dev;	/* Device stuff */
 	const struct tpm_class_ops *ops;
+	unsigned int flags;
 
 	int dev_num;		/* /dev/tpm# */
 	char devname[7];
@@ -110,7 +115,6 @@ struct tpm_chip {
 	struct dentry **bios_dir;
 
 	struct list_head list;
-	void (*release) (struct device *);
 };
 
 #define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
@@ -322,14 +326,16 @@ extern int tpm_get_timeouts(struct tpm_chip *);
 extern void tpm_gen_interrupt(struct tpm_chip *);
 extern int tpm_do_selftest(struct tpm_chip *);
 extern unsigned long tpm_calc_ordinal_duration(struct tpm_chip *, u32);
-extern struct tpm_chip* tpm_register_hardware(struct device *,
-					      const struct tpm_class_ops *ops);
-extern void tpm_dev_vendor_release(struct tpm_chip *);
-extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct device *);
 extern int tpm_pm_resume(struct device *);
 extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
 			     wait_queue_head_t *, bool);
+
+struct tpm_chip *tpm_chip_find_get(int chip_num);
+extern struct tpm_chip *tpmm_chip_alloc(struct device *dev,
+				       const struct tpm_class_ops *ops);
+extern int tpm_chip_register(struct tpm_chip *chip);
+extern void tpm_chip_unregister(struct tpm_chip *chip);
 
 int tpm_dev_add_device(struct tpm_chip *chip);
 void tpm_dev_del_device(struct tpm_chip *chip);

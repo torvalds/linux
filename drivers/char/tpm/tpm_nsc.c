@@ -247,10 +247,9 @@ static struct platform_device *pdev = NULL;
 static void tpm_nsc_remove(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	if ( chip ) {
-		release_region(chip->vendor.base, 2);
-		tpm_remove_hardware(chip->dev);
-	}
+
+	tpm_chip_unregister(chip);
+	release_region(chip->vendor.base, 2);
 }
 
 static SIMPLE_DEV_PM_OPS(tpm_nsc_pm, tpm_pm_suspend, tpm_pm_resume);
@@ -307,10 +306,15 @@ static int __init init_nsc(void)
 		goto err_del_dev;
 	}
 
-	if (!(chip = tpm_register_hardware(&pdev->dev, &tpm_nsc))) {
+	chip = tpmm_chip_alloc(&pdev->dev, &tpm_nsc);
+	if (IS_ERR(chip)) {
 		rc = -ENODEV;
 		goto err_rel_reg;
 	}
+
+	rc = tpm_chip_register(chip);
+	if (rc)
+		goto err_rel_reg;
 
 	dev_dbg(&pdev->dev, "NSC TPM detected\n");
 	dev_dbg(&pdev->dev,

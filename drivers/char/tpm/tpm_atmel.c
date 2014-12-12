@@ -138,11 +138,11 @@ static void atml_plat_remove(void)
 	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
 
 	if (chip) {
+		tpm_chip_unregister(chip);
 		if (chip->vendor.have_region)
 			atmel_release_region(chip->vendor.base,
 					     chip->vendor.region_size);
 		atmel_put_base_addr(chip->vendor.iobase);
-		tpm_remove_hardware(chip->dev);
 		platform_device_unregister(pdev);
 	}
 }
@@ -183,8 +183,9 @@ static int __init init_atmel(void)
 		goto err_rel_reg;
 	}
 
-	if (!(chip = tpm_register_hardware(&pdev->dev, &tpm_atmel))) {
-		rc = -ENODEV;
+	chip = tpmm_chip_alloc(&pdev->dev, &tpm_atmel);
+	if (IS_ERR(chip)) {
+		rc = PTR_ERR(chip);
 		goto err_unreg_dev;
 	}
 
@@ -192,6 +193,10 @@ static int __init init_atmel(void)
 	chip->vendor.base = base;
 	chip->vendor.have_region = have_region;
 	chip->vendor.region_size = region_size;
+
+	rc = tpm_chip_register(chip);
+	if (rc)
+		goto err_unreg_dev;
 
 	return 0;
 

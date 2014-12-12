@@ -735,11 +735,9 @@ tpm_stm_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!tpm_dev)
 		return -ENOMEM;
 
-	chip = tpm_register_hardware(&client->dev, &st_i2c_tpm);
-	if (!chip) {
-		dev_info(&client->dev, "fail chip\n");
-		return -ENODEV;
-	}
+	chip = tpmm_chip_alloc(&client->dev, &st_i2c_tpm);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
 	TPM_VPRIV(chip) = tpm_dev;
 	tpm_dev->client = client;
@@ -807,10 +805,8 @@ tpm_stm_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	tpm_get_timeouts(chip);
 	tpm_do_selftest(chip);
 
-	dev_info(chip->dev, "TPM I2C Initialized\n");
-	return 0;
+	return tpm_chip_register(chip);
 _tpm_clean_answer:
-	tpm_remove_hardware(chip->dev);
 	dev_info(chip->dev, "TPM I2C initialisation fail\n");
 	return ret;
 }
@@ -827,7 +823,7 @@ static int tpm_stm_i2c_remove(struct i2c_client *client)
 		(struct tpm_chip *) i2c_get_clientdata(client);
 
 	if (chip)
-		tpm_remove_hardware(chip->dev);
+		tpm_chip_unregister(chip);
 
 	return 0;
 }

@@ -153,25 +153,20 @@ static const struct tpm_class_ops i2c_atmel = {
 static int i2c_atmel_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
-	int rc;
 	struct tpm_chip *chip;
 	struct device *dev = &client->dev;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	chip = tpm_register_hardware(dev, &i2c_atmel);
-	if (!chip) {
-		dev_err(dev, "%s() error in tpm_register_hardware\n", __func__);
-		return -ENODEV;
-	}
+	chip = tpmm_chip_alloc(dev, &i2c_atmel);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
 	chip->vendor.priv = devm_kzalloc(dev, sizeof(struct priv_data),
 					 GFP_KERNEL);
-	if (!chip->vendor.priv) {
-		rc = -ENOMEM;
-		goto out_err;
-	}
+	if (!chip->vendor.priv)
+		return -ENOMEM;
 
 	/* Default timeouts */
 	chip->vendor.timeout_a = msecs_to_jiffies(TPM_I2C_SHORT_TIMEOUT);
@@ -183,32 +178,20 @@ static int i2c_atmel_probe(struct i2c_client *client,
 	/* There is no known way to probe for this device, and all version
 	 * information seems to be read via TPM commands. Thus we rely on the
 	 * TPM startup process in the common code to detect the device. */
-	if (tpm_get_timeouts(chip)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
+	if (tpm_get_timeouts(chip))
+		return -ENODEV;
 
-	if (tpm_do_selftest(chip)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
+	if (tpm_do_selftest(chip))
+		return -ENODEV;
 
-	return 0;
-
-out_err:
-	tpm_dev_vendor_release(chip);
-	tpm_remove_hardware(chip->dev);
-	return rc;
+	return tpm_chip_register(chip);
 }
 
 static int i2c_atmel_remove(struct i2c_client *client)
 {
 	struct device *dev = &(client->dev);
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-
-	tpm_dev_vendor_release(chip);
-	tpm_remove_hardware(dev);
-	kfree(chip);
+	tpm_chip_unregister(chip);
 	return 0;
 }
 

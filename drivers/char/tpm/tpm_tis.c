@@ -79,9 +79,6 @@ struct priv_data {
 	bool irq_tested;
 };
 
-static LIST_HEAD(tis_chips);
-static DEFINE_MUTEX(tis_lock);
-
 #if defined(CONFIG_PNP) && defined(CONFIG_ACPI)
 static int is_itpm(struct pnp_dev *dev)
 {
@@ -572,6 +569,17 @@ static bool interrupts = true;
 module_param(interrupts, bool, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
+static void tpm_tis_remove(struct tpm_chip *chip)
+{
+	iowrite32(~TPM_GLOBAL_INT_ENABLE &
+		  ioread32(chip->vendor.iobase +
+			   TPM_INT_ENABLE(chip->vendor.
+					  locality)),
+		  chip->vendor.iobase +
+		  TPM_INT_ENABLE(chip->vendor.locality));
+	release_locality(chip, chip->vendor.locality, 1);
+}
+
 static int tpm_tis_init(struct device *dev, resource_size_t start,
 			resource_size_t len, unsigned int irq)
 {
@@ -583,15 +591,16 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	priv = devm_kzalloc(dev, sizeof(struct priv_data), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
-	if (!(chip = tpm_register_hardware(dev, &tpm_tis)))
-		return -ENODEV;
+
+	chip = tpmm_chip_alloc(dev, &tpm_tis);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+
 	chip->vendor.priv = priv;
 
-	chip->vendor.iobase = ioremap(start, len);
-	if (!chip->vendor.iobase) {
-		rc = -EIO;
-		goto out_err;
-	}
+	chip->vendor.iobase = devm_ioremap(dev, start, len);
+	if (!chip->vendor.iobase)
+		return -EIO;
 
 	/* Default timeouts */
 	chip->vendor.timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
@@ -685,8 +694,8 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 		for (i = irq_s; i <= irq_e && chip->vendor.irq == 0; i++) {
 			iowrite8(i, chip->vendor.iobase +
 				 TPM_INT_VECTOR(chip->vendor.locality));
-			if (request_irq
-			    (i, tis_int_probe, IRQF_SHARED,
+			if (devm_request_irq
+			    (dev, i, tis_int_probe, IRQF_SHARED,
 			     chip->vendor.miscdev.name, chip) != 0) {
 				dev_info(chip->dev,
 					 "Unable to request irq: %d for probe\n",
@@ -726,15 +735,14 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 			iowrite32(intmask,
 				  chip->vendor.iobase +
 				  TPM_INT_ENABLE(chip->vendor.locality));
-			free_irq(i, chip);
 		}
 	}
 	if (chip->vendor.irq) {
 		iowrite8(chip->vendor.irq,
 			 chip->vendor.iobase +
 			 TPM_INT_VECTOR(chip->vendor.locality));
-		if (request_irq
-		    (chip->vendor.irq, tis_int_handler, IRQF_SHARED,
+		if (devm_request_irq
+		    (dev, chip->vendor.irq, tis_int_handler, IRQF_SHARED,
 		     chip->vendor.miscdev.name, chip) != 0) {
 			dev_info(chip->dev,
 				 "Unable to request irq: %d for use\n",
@@ -767,17 +775,9 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 		goto out_err;
 	}
 
-	INIT_LIST_HEAD(&chip->vendor.list);
-	mutex_lock(&tis_lock);
-	list_add(&chip->vendor.list, &tis_chips);
-	mutex_unlock(&tis_lock);
-
-
-	return 0;
+	return tpm_chip_register(chip);
 out_err:
-	if (chip->vendor.iobase)
-		iounmap(chip->vendor.iobase);
-	tpm_remove_hardware(chip->dev);
+	tpm_tis_remove(chip);
 	return rc;
 }
 
@@ -859,12 +859,9 @@ MODULE_DEVICE_TABLE(pnp, tpm_pnp_tbl);
 static void tpm_tis_pnp_remove(struct pnp_dev *dev)
 {
 	struct tpm_chip *chip = pnp_get_drvdata(dev);
-
-	tpm_dev_vendor_release(chip);
-
-	kfree(chip);
+	tpm_chip_unregister(chip);
+	tpm_tis_remove(chip);
 }
-
 
 static struct pnp_driver tis_pnp_driver = {
 	.name = "tpm_tis",
@@ -884,7 +881,7 @@ MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 
 static struct platform_driver tis_drv = {
 	.driver = {
-		.name = "tpm_tis",
+		.name		= "tpm_tis",
 		.pm		= &tpm_tis_pm,
 	},
 };
@@ -923,31 +920,16 @@ err_dev:
 
 static void __exit cleanup_tis(void)
 {
-	struct tpm_vendor_specific *i, *j;
 	struct tpm_chip *chip;
-	mutex_lock(&tis_lock);
-	list_for_each_entry_safe(i, j, &tis_chips, list) {
-		chip = to_tpm_chip(i);
-		tpm_remove_hardware(chip->dev);
-		iowrite32(~TPM_GLOBAL_INT_ENABLE &
-			  ioread32(chip->vendor.iobase +
-				   TPM_INT_ENABLE(chip->vendor.
-						  locality)),
-			  chip->vendor.iobase +
-			  TPM_INT_ENABLE(chip->vendor.locality));
-		release_locality(chip, chip->vendor.locality, 1);
-		if (chip->vendor.irq)
-			free_irq(chip->vendor.irq, chip);
-		iounmap(i->iobase);
-		list_del(&i->list);
-	}
-	mutex_unlock(&tis_lock);
 #ifdef CONFIG_PNP
 	if (!force) {
 		pnp_unregister_driver(&tis_pnp_driver);
 		return;
 	}
 #endif
+	chip = dev_get_drvdata(&pdev->dev);
+	tpm_chip_unregister(chip);
+	tpm_tis_remove(chip);
 	platform_device_unregister(pdev);
 	platform_driver_unregister(&tis_drv);
 }

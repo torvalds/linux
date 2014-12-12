@@ -530,18 +530,14 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	dev_info(dev, "VID: %04X DID: %02X RID: %02X\n", (u16) vid,
 		 (u8) (vid >> 16), (u8) (vid >> 24));
 
-	chip = tpm_register_hardware(dev, &tpm_i2c);
-	if (!chip) {
-		dev_err(dev, "%s() error in tpm_register_hardware\n", __func__);
-		return -ENODEV;
-	}
+	chip = tpmm_chip_alloc(dev, &tpm_i2c);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
 	chip->vendor.priv = devm_kzalloc(dev, sizeof(struct priv_data),
 					 GFP_KERNEL);
-	if (!chip->vendor.priv) {
-		rc = -ENOMEM;
-		goto out_err;
-	}
+	if (!chip->vendor.priv)
+		return -ENOMEM;
 
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
@@ -589,7 +585,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 							   TPM_DATA_FIFO_W,
 							   1, (u8 *) (&rc));
 				if (rc < 0)
-					goto out_err;
+					return rc;
 				/* TPM_STS <- 0x40 (commandReady) */
 				i2c_nuvoton_ready(chip);
 			} else {
@@ -599,43 +595,28 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 				 * only TPM_STS_VALID should be set
 				 */
 				if (i2c_nuvoton_read_status(chip) !=
-				    TPM_STS_VALID) {
-					rc = -EIO;
-					goto out_err;
-				}
+				    TPM_STS_VALID)
+					return -EIO;
 			}
 		}
 	}
 
-	if (tpm_get_timeouts(chip)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
+	if (tpm_get_timeouts(chip))
+		return -ENODEV;
 
-	if (tpm_do_selftest(chip)) {
-		rc = -ENODEV;
-		goto out_err;
-	}
+	if (tpm_do_selftest(chip))
+		return -ENODEV;
 
-	return 0;
-
-out_err:
-	tpm_dev_vendor_release(chip);
-	tpm_remove_hardware(chip->dev);
-	return rc;
+	return tpm_chip_register(chip);
 }
 
 static int i2c_nuvoton_remove(struct i2c_client *client)
 {
 	struct device *dev = &(client->dev);
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-
-	tpm_dev_vendor_release(chip);
-	tpm_remove_hardware(dev);
-	kfree(chip);
+	tpm_chip_unregister(chip);
 	return 0;
 }
-
 
 static const struct i2c_device_id i2c_nuvoton_id[] = {
 	{I2C_DRIVER_NAME, 0},

@@ -546,7 +546,14 @@ static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 			 vendorid[0], vendorid[1],
 			 productid[0], productid[1], chipname);
 
-		if (!(chip = tpm_register_hardware(&dev->dev, &tpm_inf)))
+		chip = tpmm_chip_alloc(&dev->dev, &tpm_inf);
+		if (IS_ERR(chip)) {
+			rc = PTR_ERR(chip);
+			goto err_release_region;
+		}
+
+		rc = tpm_chip_register(chip);
+		if (rc)
 			goto err_release_region;
 
 		return 0;
@@ -572,17 +579,15 @@ static void tpm_inf_pnp_remove(struct pnp_dev *dev)
 {
 	struct tpm_chip *chip = pnp_get_drvdata(dev);
 
-	if (chip) {
-		if (tpm_dev.iotype == TPM_INF_IO_PORT) {
-			release_region(tpm_dev.data_regs, tpm_dev.data_size);
-			release_region(tpm_dev.config_port,
-				       tpm_dev.config_size);
-		} else {
-			iounmap(tpm_dev.mem_base);
-			release_mem_region(tpm_dev.map_base, tpm_dev.map_size);
-		}
-		tpm_dev_vendor_release(chip);
-		tpm_remove_hardware(chip->dev);
+	tpm_chip_unregister(chip);
+
+	if (tpm_dev.iotype == TPM_INF_IO_PORT) {
+		release_region(tpm_dev.data_regs, tpm_dev.data_size);
+		release_region(tpm_dev.config_port,
+			       tpm_dev.config_size);
+	} else {
+		iounmap(tpm_dev.mem_base);
+		release_mem_region(tpm_dev.map_base, tpm_dev.map_size);
 	}
 }
 
