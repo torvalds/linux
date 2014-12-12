@@ -1474,7 +1474,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		lp->hw->phy->symbol_duration = 16;
 		break;
 	default:
-		chip = "unkown";
+		chip = "unknown";
 		rc = -ENOTSUPP;
 		break;
 	}
