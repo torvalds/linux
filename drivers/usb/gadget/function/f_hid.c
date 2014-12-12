@@ -396,7 +396,7 @@ static int hidg_setup(struct usb_function *f,
 
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
 		  | HID_REQ_SET_REPORT):
-		VDBG(cdev, "set_report | wLenght=%d\n", ctrl->wLength);
+		VDBG(cdev, "set_report | wLength=%d\n", ctrl->wLength);
 		goto stall;
 		break;
 

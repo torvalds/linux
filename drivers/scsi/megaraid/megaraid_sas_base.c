@@ -6783,7 +6783,7 @@ static int __init megasas_init(void)
 	rval = pci_register_driver(&megasas_pci_driver);
 
 	if (rval) {
-		printk(KERN_DEBUG "megasas: PCI hotplug regisration failed \n");
+		printk(KERN_DEBUG "megasas: PCI hotplug registration failed \n");
 		goto err_pcidrv;
 	}
 

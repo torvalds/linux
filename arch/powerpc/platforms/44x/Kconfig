@@ -220,7 +220,6 @@ config AKEBONO
 	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
 	select MMC_SDHCI
 	select MMC_SDHCI_PLTFM
-	select MMC_SDHCI_OF_476GTR
 	select ATA
 	select SATA_AHCI_PLATFORM
 	help

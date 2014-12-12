@@ -28,7 +28,7 @@
  *
  * Why is *this* driver using two configurations, rather than setting up
  * two interfaces with different functions?  To help verify that multiple
- * configuration infrastucture is working correctly; also, so that it can
+ * configuration infrastructure is working correctly; also, so that it can
  * work with low capability USB controllers without four bulk endpoints.
  */
 

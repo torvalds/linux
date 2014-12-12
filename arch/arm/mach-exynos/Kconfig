@@ -34,7 +34,7 @@ config ARCH_EXYNOS3
 	bool "SAMSUNG EXYNOS3"
 	select ARM_CPU_SUSPEND if PM
 	help
-	  Samsung EXYNOS3 (Crotex-A7) SoC based systems
+	  Samsung EXYNOS3 (Cortex-A7) SoC based systems
 
 config ARCH_EXYNOS4
 	bool "SAMSUNG EXYNOS4"

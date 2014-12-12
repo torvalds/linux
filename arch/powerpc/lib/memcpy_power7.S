@@ -653,4 +653,4 @@ _GLOBAL(memcpy_power7)
 15:	addi	r1,r1,STACKFRAMESIZE
 	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
 	b	exit_vmx_copy		/* tail call optimise */
-#endif /* CONFiG_ALTIVEC */
+#endif /* CONFIG_ALTIVEC */

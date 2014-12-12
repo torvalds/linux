@@ -166,7 +166,7 @@ static void mac_scsi_reset_boot(struct Scsi_Host *instance)
    XXX: Since bus errors in the PDMA routines never happen on my 
    computer, the bus error code is untested. 
    If the code works as intended, a bus error results in Pseudo-DMA 
-   beeing disabled, meaning that the driver switches to slow handshake. 
+   being disabled, meaning that the driver switches to slow handshake.
    If bus errors are NOT extremely rare, this has to be changed. 
 */
 

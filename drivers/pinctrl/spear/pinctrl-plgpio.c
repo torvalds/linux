@@ -724,5 +724,5 @@ static int __init plgpio_init(void)
 subsys_initcall(plgpio_init);
 
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
-MODULE_DESCRIPTION("ST Microlectronics SPEAr PLGPIO driver");
+MODULE_DESCRIPTION("STMicroelectronics SPEAr PLGPIO driver");
 MODULE_LICENSE("GPL");

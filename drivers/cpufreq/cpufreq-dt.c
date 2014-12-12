@@ -197,7 +197,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 	ret = allocate_resources(policy->cpu, &cpu_dev, &cpu_reg, &cpu_clk);
 	if (ret) {
-		pr_err("%s: Failed to allocate resources\n: %d", __func__, ret);
+		pr_err("%s: Failed to allocate resources: %d\n", __func__, ret);
 		return ret;
 	}
 
