@@ -1037,6 +1037,27 @@ rel_skb:
 	__kfree_skb(skb);
 }
 
+static void do_rx_data(struct cxgbi_device *cdev, struct sk_buff *skb)
+{
+	struct cxgbi_sock *csk;
+	struct cpl_rx_data *cpl = (struct cpl_rx_data *)skb->data;
+	unsigned int tid = GET_TID(cpl);
+	struct cxgb4_lld_info *lldi = cxgbi_cdev_priv(cdev);
+	struct tid_info *t = lldi->tids;
+
+	csk = lookup_tid(t, tid);
+	if (!csk) {
+		pr_err("can't find connection for tid %u.\n", tid);
+	} else {
+		/* not expecting this, reset the connection. */
+		pr_err("csk 0x%p, tid %u, rcv cpl_rx_data.\n", csk, tid);
+		spin_lock_bh(&csk->lock);
+		send_abort_req(csk);
+		spin_unlock_bh(&csk->lock);
+	}
+	__kfree_skb(skb);
+}
+
 static void do_rx_iscsi_hdr(struct cxgbi_device *cdev, struct sk_buff *skb)
 {
 	struct cxgbi_sock *csk;
@@ -1456,6 +1477,7 @@ cxgb4i_cplhandler_func cxgb4i_cplhandlers[NUM_CPL_CMDS] = {
 	[CPL_SET_TCB_RPL] = do_set_tcb_rpl,
 	[CPL_RX_DATA_DDP] = do_rx_data_ddp,
 	[CPL_RX_ISCSI_DDP] = do_rx_data_ddp,
+	[CPL_RX_DATA] = do_rx_data,
 };
 
 int cxgb4i_ofld_init(struct cxgbi_device *cdev)
