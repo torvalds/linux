@@ -230,6 +230,12 @@ int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);
 
+struct msm_edp;
+void __init msm_edp_register(void);
+void __exit msm_edp_unregister(void);
+int msm_edp_modeset_init(struct msm_edp *edp, struct drm_device *dev,
+		struct drm_encoder *encoder);
+
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);

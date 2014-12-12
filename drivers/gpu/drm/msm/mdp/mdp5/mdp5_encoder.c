@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -123,11 +124,13 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct drm_connector *connector;
 	int intf = mdp5_encoder->intf;
 	uint32_t dtv_hsync_skew, vsync_period, vsync_len, ctrl_pol;
 	uint32_t display_v_start, display_v_end;
 	uint32_t hsync_start_x, hsync_end_x;
-	uint32_t format;
+	uint32_t format = 0x2100;
 	unsigned long flags;
 
 	mode = adjusted_mode;
@@ -149,7 +152,28 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	/* probably need to get DATA_EN polarity from panel.. */
 
 	dtv_hsync_skew = 0;  /* get this from panel? */
-	format = 0x213f;     /* get this from panel? */
+
+	/* Get color format from panel, default is 8bpc */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			switch (connector->display_info.bpc) {
+			case 4:
+				format |= 0;
+				break;
+			case 5:
+				format |= 0x15;
+				break;
+			case 6:
+				format |= 0x2A;
+				break;
+			case 8:
+			default:
+				format |= 0x3F;
+				break;
+			}
+			break;
+		}
+	}
 
 	hsync_start_x = (mode->htotal - mode->hsync_start);
 	hsync_end_x = mode->htotal - (mode->hsync_start - mode->hdisplay) - 1;
@@ -158,6 +182,16 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	vsync_len = (mode->vsync_end - mode->vsync_start) * mode->htotal;
 	display_v_start = (mode->vtotal - mode->vsync_start) * mode->htotal + dtv_hsync_skew;
 	display_v_end = vsync_period - ((mode->vsync_start - mode->vdisplay) * mode->htotal) + dtv_hsync_skew - 1;
+
+	/*
+	 * For edp only:
+	 * DISPLAY_V_START = (VBP * HCYCLE) + HBP
+	 * DISPLAY_V_END = (VBP + VACTIVE) * HCYCLE - 1 - HFP
+	 */
+	if (mdp5_encoder->intf_id == INTF_eDP) {
+		display_v_start += mode->htotal - mode->hsync_start;
+		display_v_end -= mode->hsync_start - mode->hdisplay;
+	}
 
 	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
 
