@@ -424,3 +424,57 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 	DRM_DEBUG("%sabling HDMI interface @ 0x%04X for encoder 0x%x\n",
 		  enable ? "En" : "Dis", dig->afmt->offset, radeon_encoder->encoder_id);
 }
+
+void evergreen_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	uint32_t offset;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	offset = dig->afmt->offset;
+
+	if (enable) {
+		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		struct radeon_connector_atom_dig *dig_connector;
+		uint32_t val;
+
+		if (dig->afmt->enabled)
+			return;
+
+		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + offset, EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
+
+		if (radeon_connector->con_priv) {
+			dig_connector = radeon_connector->con_priv;
+			val = RREG32(EVERGREEN_DP_SEC_AUD_N + offset);
+			val &= ~EVERGREEN_DP_SEC_N_BASE_MULTIPLE(0xf);
+
+			if (dig_connector->dp_clock == 162000)
+				val |= EVERGREEN_DP_SEC_N_BASE_MULTIPLE(3);
+			else
+				val |= EVERGREEN_DP_SEC_N_BASE_MULTIPLE(5);
+
+			WREG32(EVERGREEN_DP_SEC_AUD_N + offset, val);
+		}
+
+		WREG32(EVERGREEN_DP_SEC_CNTL + offset,
+			EVERGREEN_DP_SEC_ASP_ENABLE |		/* Audio packet transmission */
+			EVERGREEN_DP_SEC_ATP_ENABLE |		/* Audio timestamp packet transmission */
+			EVERGREEN_DP_SEC_AIP_ENABLE |		/* Audio infoframe packet transmission */
+			EVERGREEN_DP_SEC_STREAM_ENABLE);	/* Master enable for secondary stream engine */
+		radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
+	} else {
+		if (!dig->afmt->enabled)
+			return;
+
+		WREG32(EVERGREEN_DP_SEC_CNTL + offset, 0);
+		radeon_audio_enable(rdev, dig->afmt->pin, 0);
+	}
+
+	dig->afmt->enabled = enable;
+}
