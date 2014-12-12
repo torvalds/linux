@@ -484,7 +484,7 @@ static void ovl_put_super(struct super_block *sb)
  * @buf: The struct kstatfs to fill in with stats
  *
  * Get the filesystem statistics.  As writes always target the upper layer
- * filesystem pass the statfs to the same filesystem.
+ * filesystem pass the statfs to the upper filesystem (if it exists)
  */
 static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
@@ -493,7 +493,7 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct path path;
 	int err;
 
-	ovl_path_upper(root_dentry, &path);
+	ovl_path_real(root_dentry, &path);
 
 	err = vfs_statfs(&path, buf);
 	if (!err) {
