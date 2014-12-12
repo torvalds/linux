@@ -1,7 +1,5 @@
 config ROCK_CHIP_SOC_CAMERA
 	tristate "rockchip supported soc cameras "
-	select SOC_CAMERA
-	select VIDEOBUF_DMA_CONTIG
 	default y
 	
 menu "rockchip camera sensor interface driver"
@@ -14,10 +12,14 @@ menu "rockchip camera sensor interface driver"
 	config RK30_CAMERA_ONEFRAME
 		tristate "rk30_camera_oneframe"
 		depends on ROCKCHIP_CAMERA_SENSOR_INTERFACE
-		default y
+		select SOC_CAMERA
+    	select VIDEOBUF_DMA_CONTIG
+		default n
 		
 	config RK30_CAMERA_PINGPONG
 		tristate "rk30_camera_pingpong"
 		depends on ROCKCHIP_CAMERA_SENSOR_INTERFACE
-		
+		select SOC_CAMERA
+    	select VIDEOBUF_DMA_CONTIG
+		default n
 endmenu		
