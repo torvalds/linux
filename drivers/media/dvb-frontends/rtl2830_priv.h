@@ -23,15 +23,15 @@
 #include "rtl2830.h"
 #include <linux/i2c-mux.h>
 #include <linux/math64.h>
+#include <linux/regmap.h>
 
 struct rtl2830_dev {
 	struct rtl2830_platform_data *pdata;
 	struct i2c_client *client;
+	struct regmap *regmap;
 	struct i2c_adapter *adapter;
 	struct dvb_frontend fe;
 	bool sleeping;
-	struct mutex i2c_mutex;
-	u8 page; /* active register page */
 	unsigned long filters;
 	struct delayed_work stat_work;
 	fe_status_t fe_status;
