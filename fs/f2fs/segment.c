@@ -525,7 +525,8 @@ static void add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	bool force = (cpc->reason == CP_DISCARD);
 	int i;
 
-	if (!force && !test_opt(sbi, DISCARD))
+	if (!force && (!test_opt(sbi, DISCARD) ||
+			SM_I(sbi)->nr_discards >= SM_I(sbi)->max_discards))
 		return;
 
 	if (force && !se->valid_blocks) {
@@ -553,7 +554,8 @@ static void add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* SIT_VBLOCK_MAP_SIZE should be multiple of sizeof(unsigned long) */
 	for (i = 0; i < entries; i++)
-		dmap[i] = ~(cur_map[i] | ckpt_map[i]);
+		dmap[i] = force ? ~ckpt_map[i] :
+				(cur_map[i] ^ ckpt_map[i]) & ckpt_map[i];
 
 	while (force || SM_I(sbi)->nr_discards <= SM_I(sbi)->max_discards) {
 		start = __find_rev_next_bit(dmap, max_blocks, end + 1);
@@ -1759,7 +1761,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			se = get_seg_entry(sbi, segno);
 
 			/* add discard candidates */
-			if (SM_I(sbi)->nr_discards < SM_I(sbi)->max_discards) {
+			if (cpc->reason != CP_DISCARD) {
 				cpc->trim_start = segno;
 				add_discard_addrs(sbi, cpc);
 			}
