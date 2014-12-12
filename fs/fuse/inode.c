@@ -410,7 +410,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_statfs_out outarg;
 	int err;
 
@@ -419,23 +419,17 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 		return 0;
 	}
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	memset(&outarg, 0, sizeof(outarg));
-	req->in.numargs = 0;
-	req->in.h.opcode = FUSE_STATFS;
-	req->in.h.nodeid = get_node_id(dentry->d_inode);
-	req->out.numargs = 1;
-	req->out.args[0].size =
+	args.in.numargs = 0;
+	args.in.h.opcode = FUSE_STATFS;
+	args.in.h.nodeid = get_node_id(dentry->d_inode);
+	args.out.numargs = 1;
+	args.out.args[0].size =
 		fc->minor < 4 ? FUSE_COMPAT_STATFS_SIZE : sizeof(outarg);
-	req->out.args[0].value = &outarg;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
+	args.out.args[0].value = &outarg;
+	err = fuse_simple_request(fc, &args);
 	if (!err)
 		convert_fuse_statfs(buf, &outarg.st);
-	fuse_put_request(fc, req);
 	return err;
 }
 

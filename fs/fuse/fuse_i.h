@@ -222,6 +222,25 @@ struct fuse_page_desc {
 	unsigned int offset;
 };
 
+struct fuse_args {
+	struct {
+		struct {
+			uint32_t opcode;
+			uint64_t nodeid;
+		} h;
+		unsigned numargs;
+		struct fuse_in_arg args[3];
+
+	} in;
+	struct {
+		unsigned argvar:1;
+		unsigned numargs;
+		struct fuse_arg args[2];
+	} out;
+};
+
+#define FUSE_ARGS(args) struct fuse_args args = {}
+
 /** The request state */
 enum fuse_req_state {
 	FUSE_REQ_INIT = 0,
@@ -321,7 +340,6 @@ struct fuse_req {
 			struct fuse_req *next;
 		} write;
 		struct fuse_notify_retrieve_in retrieve_in;
-		struct fuse_lk_in lk_in;
 	} misc;
 
 	/** page vector */
@@ -751,15 +769,6 @@ struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
 void __fuse_get_request(struct fuse_req *req);
 
 /**
- * Get a request, may fail with -ENOMEM,
- * useful for callers who doesn't use req->pages[]
- */
-static inline struct fuse_req *fuse_get_req_nopages(struct fuse_conn *fc)
-{
-	return fuse_get_req(fc, 0);
-}
-
-/**
  * Gets a requests for a file operation, always succeeds
  */
 struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
@@ -775,6 +784,11 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
  * Send a request (synchronous)
  */
 void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req);
+
+/**
+ * Simple request sending that does request allocation and freeing
+ */
+ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args);
 
 /**
  * Send a request in the background
