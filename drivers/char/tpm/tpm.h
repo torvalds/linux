@@ -314,9 +314,10 @@ struct tpm_cmd_t {
 } __packed;
 
 ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
-
 ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		     size_t bufsiz);
+ssize_t tpm_transmit_cmd(struct tpm_chip *chip, void *cmd, int len,
+			 const char *desc);
 extern int tpm_get_timeouts(struct tpm_chip *);
 extern void tpm_gen_interrupt(struct tpm_chip *);
 extern int tpm_do_selftest(struct tpm_chip *);
