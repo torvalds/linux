@@ -12,7 +12,6 @@ CFLAGS_REMOVE_feature-fixups.o = -pg
 obj-y			:= string.o alloc.o \
 			   crtsavres.o ppc_ksyms.o
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
-obj-$(CONFIG_HAS_IOMEM)	+= devres.o
 
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \
 			   usercopy_64.o mem_64.o string.o \

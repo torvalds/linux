@@ -22,7 +22,6 @@
  */
 
 #include <linux/irq.h>
-#include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/of_platform.h>

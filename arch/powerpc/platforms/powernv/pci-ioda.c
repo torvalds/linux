@@ -91,6 +91,24 @@ static inline bool pnv_pci_is_mem_pref_64(unsigned long flags)
 		(IORESOURCE_MEM_64 | IORESOURCE_PREFETCH));
 }
 
+static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
+{
+	if (!(pe_no >= 0 && pe_no < phb->ioda.total_pe)) {
+		pr_warn("%s: Invalid PE %d on PHB#%x\n",
+			__func__, pe_no, phb->hose->global_number);
+		return;
+	}
+
+	if (test_and_set_bit(pe_no, phb->ioda.pe_alloc)) {
+		pr_warn("%s: PE %d was assigned on PHB#%x\n",
+			__func__, pe_no, phb->hose->global_number);
+		return;
+	}
+
+	phb->ioda.pe_array[pe_no].phb = phb;
+	phb->ioda.pe_array[pe_no].pe_number = pe_no;
+}
+
 static int pnv_ioda_alloc_pe(struct pnv_phb *phb)
 {
 	unsigned long pe;
@@ -172,7 +190,7 @@ fail:
 	return -EIO;
 }
 
-static void pnv_ioda2_alloc_m64_pe(struct pnv_phb *phb)
+static void pnv_ioda2_reserve_m64_pe(struct pnv_phb *phb)
 {
 	resource_size_t sgsz = phb->ioda.m64_segsize;
 	struct pci_dev *pdev;
@@ -185,16 +203,15 @@ static void pnv_ioda2_alloc_m64_pe(struct pnv_phb *phb)
 	 * instead of root bus.
 	 */
 	list_for_each_entry(pdev, &phb->hose->bus->devices, bus_list) {
-		for (i = PCI_BRIDGE_RESOURCES;
-		     i <= PCI_BRIDGE_RESOURCE_END; i++) {
-			r = &pdev->resource[i];
+		for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
+			r = &pdev->resource[PCI_BRIDGE_RESOURCES + i];
 			if (!r->parent ||
 			    !pnv_pci_is_mem_pref_64(r->flags))
 				continue;
 
 			base = (r->start - phb->ioda.m64_base) / sgsz;
 			for (step = 0; step < resource_size(r) / sgsz; step++)
-				set_bit(base + step, phb->ioda.pe_alloc);
+				pnv_ioda_reserve_pe(phb, base + step);
 		}
 	}
 }
@@ -287,8 +304,6 @@ done:
 	while ((i = find_next_bit(pe_alloc, phb->ioda.total_pe, i + 1)) <
 		phb->ioda.total_pe) {
 		pe = &phb->ioda.pe_array[i];
-		pe->phb = phb;
-		pe->pe_number = i;
 
 		if (!master_pe) {
 			pe->flags |= PNV_IODA_PE_MASTER;
@@ -313,6 +328,12 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	const u32 *r;
 	u64 pci_addr;
 
+	/* FIXME: Support M64 for P7IOC */
+	if (phb->type != PNV_PHB_IODA2) {
+		pr_info("  Not support M64 window\n");
+		return;
+	}
+
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
 		pr_info("  Firmware too old to support M64 window\n");
 		return;
@@ -322,12 +343,6 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	if (!r) {
 		pr_info("  No <ibm,opal-m64-window> on %s\n",
 			dn->full_name);
-		return;
-	}
-
-	/* FIXME: Support M64 for P7IOC */
-	if (phb->type != PNV_PHB_IODA2) {
-		pr_info("  Not support M64 window\n");
 		return;
 	}
 
@@ -345,7 +360,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	/* Use last M64 BAR to cover M64 window */
 	phb->ioda.m64_bar_idx = 15;
 	phb->init_m64 = pnv_ioda2_init_m64;
-	phb->alloc_m64_pe = pnv_ioda2_alloc_m64_pe;
+	phb->reserve_m64_pe = pnv_ioda2_reserve_m64_pe;
 	phb->pick_m64_pe = pnv_ioda2_pick_m64_pe;
 }
 
@@ -358,7 +373,9 @@ static void pnv_ioda_freeze_pe(struct pnv_phb *phb, int pe_no)
 	/* Fetch master PE */
 	if (pe->flags & PNV_IODA_PE_SLAVE) {
 		pe = pe->master;
-		WARN_ON(!pe || !(pe->flags & PNV_IODA_PE_MASTER));
+		if (WARN_ON(!pe || !(pe->flags & PNV_IODA_PE_MASTER)))
+			return;
+
 		pe_no = pe->pe_number;
 	}
 
@@ -507,6 +524,106 @@ static struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev)
 }
 #endif /* CONFIG_PCI_MSI */
 
+static int pnv_ioda_set_one_peltv(struct pnv_phb *phb,
+				  struct pnv_ioda_pe *parent,
+				  struct pnv_ioda_pe *child,
+				  bool is_add)
+{
+	const char *desc = is_add ? "adding" : "removing";
+	uint8_t op = is_add ? OPAL_ADD_PE_TO_DOMAIN :
+			      OPAL_REMOVE_PE_FROM_DOMAIN;
+	struct pnv_ioda_pe *slave;
+	long rc;
+
+	/* Parent PE affects child PE */
+	rc = opal_pci_set_peltv(phb->opal_id, parent->pe_number,
+				child->pe_number, op);
+	if (rc != OPAL_SUCCESS) {
+		pe_warn(child, "OPAL error %ld %s to parent PELTV\n",
+			rc, desc);
+		return -ENXIO;
+	}
+
+	if (!(child->flags & PNV_IODA_PE_MASTER))
+		return 0;
+
+	/* Compound case: parent PE affects slave PEs */
+	list_for_each_entry(slave, &child->slaves, list) {
+		rc = opal_pci_set_peltv(phb->opal_id, parent->pe_number,
+					slave->pe_number, op);
+		if (rc != OPAL_SUCCESS) {
+			pe_warn(slave, "OPAL error %ld %s to parent PELTV\n",
+				rc, desc);
+			return -ENXIO;
+		}
+	}
+
+	return 0;
+}
+
+static int pnv_ioda_set_peltv(struct pnv_phb *phb,
+			      struct pnv_ioda_pe *pe,
+			      bool is_add)
+{
+	struct pnv_ioda_pe *slave;
+	struct pci_dev *pdev;
+	int ret;
+
+	/*
+	 * Clear PE frozen state. If it's master PE, we need
+	 * clear slave PE frozen state as well.
+	 */
+	if (is_add) {
+		opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
+					  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+		if (pe->flags & PNV_IODA_PE_MASTER) {
+			list_for_each_entry(slave, &pe->slaves, list)
+				opal_pci_eeh_freeze_clear(phb->opal_id,
+							  slave->pe_number,
+							  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+		}
+	}
+
+	/*
+	 * Associate PE in PELT. We need add the PE into the
+	 * corresponding PELT-V as well. Otherwise, the error
+	 * originated from the PE might contribute to other
+	 * PEs.
+	 */
+	ret = pnv_ioda_set_one_peltv(phb, pe, pe, is_add);
+	if (ret)
+		return ret;
+
+	/* For compound PEs, any one affects all of them */
+	if (pe->flags & PNV_IODA_PE_MASTER) {
+		list_for_each_entry(slave, &pe->slaves, list) {
+			ret = pnv_ioda_set_one_peltv(phb, slave, pe, is_add);
+			if (ret)
+				return ret;
+		}
+	}
+
+	if (pe->flags & (PNV_IODA_PE_BUS_ALL | PNV_IODA_PE_BUS))
+		pdev = pe->pbus->self;
+	else
+		pdev = pe->pdev->bus->self;
+	while (pdev) {
+		struct pci_dn *pdn = pci_get_pdn(pdev);
+		struct pnv_ioda_pe *parent;
+
+		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
+			parent = &phb->ioda.pe_array[pdn->pe_number];
+			ret = pnv_ioda_set_one_peltv(phb, parent, pe, is_add);
+			if (ret)
+				return ret;
+		}
+
+		pdev = pdev->bus->self;
+	}
+
+	return 0;
+}
+
 static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 {
 	struct pci_dev *parent;
@@ -561,48 +678,36 @@ static int pnv_ioda_configure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 		return -ENXIO;
 	}
 
-	rc = opal_pci_set_peltv(phb->opal_id, pe->pe_number,
-				pe->pe_number, OPAL_ADD_PE_TO_DOMAIN);
-	if (rc)
-		pe_warn(pe, "OPAL error %d adding self to PELTV\n", rc);
-	opal_pci_eeh_freeze_clear(phb->opal_id, pe->pe_number,
-				  OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+	/* Configure PELTV */
+	pnv_ioda_set_peltv(phb, pe, true);
 
-	/* Add to all parents PELT-V */
-	while (parent) {
-		struct pci_dn *pdn = pci_get_pdn(parent);
-		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
-			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
-						pe->pe_number, OPAL_ADD_PE_TO_DOMAIN);
-			/* XXX What to do in case of error ? */
-		}
-		parent = parent->bus->self;
-	}
 	/* Setup reverse map */
 	for (rid = pe->rid; rid < rid_end; rid++)
 		phb->ioda.pe_rmap[rid] = pe->pe_number;
 
 	/* Setup one MVTs on IODA1 */
-	if (phb->type == PNV_PHB_IODA1) {
-		pe->mve_number = pe->pe_number;
-		rc = opal_pci_set_mve(phb->opal_id, pe->mve_number,
-				      pe->pe_number);
+	if (phb->type != PNV_PHB_IODA1) {
+		pe->mve_number = 0;
+		goto out;
+	}
+
+	pe->mve_number = pe->pe_number;
+	rc = opal_pci_set_mve(phb->opal_id, pe->mve_number, pe->pe_number);
+	if (rc != OPAL_SUCCESS) {
+		pe_err(pe, "OPAL error %ld setting up MVE %d\n",
+		       rc, pe->mve_number);
+		pe->mve_number = -1;
+	} else {
+		rc = opal_pci_set_mve_enable(phb->opal_id,
+					     pe->mve_number, OPAL_ENABLE_MVE);
 		if (rc) {
-			pe_err(pe, "OPAL error %ld setting up MVE %d\n",
+			pe_err(pe, "OPAL error %ld enabling MVE %d\n",
 			       rc, pe->mve_number);
 			pe->mve_number = -1;
-		} else {
-			rc = opal_pci_set_mve_enable(phb->opal_id,
-						     pe->mve_number, OPAL_ENABLE_MVE);
-			if (rc) {
-				pe_err(pe, "OPAL error %ld enabling MVE %d\n",
-				       rc, pe->mve_number);
-				pe->mve_number = -1;
-			}
 		}
-	} else if (phb->type == PNV_PHB_IODA2)
-		pe->mve_number = 0;
+	}
 
+out:
 	return 0;
 }
 
@@ -837,8 +942,8 @@ static void pnv_pci_ioda_setup_PEs(void)
 		phb = hose->private_data;
 
 		/* M64 layout might affect PE allocation */
-		if (phb->alloc_m64_pe)
-			phb->alloc_m64_pe(phb);
+		if (phb->reserve_m64_pe)
+			phb->reserve_m64_pe(phb);
 
 		pnv_ioda_setup_PEs(hose->bus);
 	}
@@ -1834,19 +1939,14 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb_id = be64_to_cpup(prop64);
 	pr_debug("  PHB-ID  : 0x%016llx\n", phb_id);
 
-	phb = alloc_bootmem(sizeof(struct pnv_phb));
-	if (!phb) {
-		pr_err("  Out of memory !\n");
-		return;
-	}
+	phb = memblock_virt_alloc(sizeof(struct pnv_phb), 0);
 
 	/* Allocate PCI controller */
-	memset(phb, 0, sizeof(struct pnv_phb));
 	phb->hose = hose = pcibios_alloc_controller(np);
 	if (!phb->hose) {
 		pr_err("  Can't allocate PCI controller for %s\n",
 		       np->full_name);
-		free_bootmem((unsigned long)phb, sizeof(struct pnv_phb));
+		memblock_free(__pa(phb), sizeof(struct pnv_phb));
 		return;
 	}
 
@@ -1913,8 +2013,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	}
 	pemap_off = size;
 	size += phb->ioda.total_pe * sizeof(struct pnv_ioda_pe);
-	aux = alloc_bootmem(size);
-	memset(aux, 0, size);
+	aux = memblock_virt_alloc(size, 0);
 	phb->ioda.pe_alloc = aux;
 	phb->ioda.m32_segmap = aux + m32map_off;
 	if (phb->type == PNV_PHB_IODA1)
@@ -1999,8 +2098,8 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		ioda_eeh_phb_reset(hose, EEH_RESET_DEACTIVATE);
 	}
 
-	/* Configure M64 window */
-	if (phb->init_m64 && phb->init_m64(phb))
+	/* Remove M64 resource if we can't configure it successfully */
+	if (!phb->init_m64 || phb->init_m64(phb))
 		hose->mem_resources[1].flags = 0;
 }
 

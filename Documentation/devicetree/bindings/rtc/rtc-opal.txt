@@ -1,0 +1,16 @@
+IBM OPAL real-time clock
+------------------------
+
+Required properties:
+- comapatible: Should be "ibm,opal-rtc"
+
+Optional properties:
+- has-tpo: Decides if the wakeup is supported or not.
+
+Example:
+	rtc {
+		compatible = "ibm,opal-rtc";
+		has-tpo;
+		phandle = <0x10000029>;
+		linux,phandle = <0x10000029>;
+	};

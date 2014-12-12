@@ -500,7 +500,11 @@ static void __init pSeries_setup_arch(void)
 
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		long rc;
-		if ((rc = pSeries_enable_reloc_on_exc()) != H_SUCCESS) {
+
+		rc = pSeries_enable_reloc_on_exc();
+		if (rc == H_P2) {
+			pr_info("Relocation on exceptions not supported\n");
+		} else if (rc != H_SUCCESS) {
 			pr_warn("Unable to enable relocation on exceptions: "
 				"%ld\n", rc);
 		}
@@ -660,6 +664,34 @@ static void __init pSeries_init_early(void)
 	pr_debug(" <- pSeries_init_early()\n");
 }
 
+/**
+ * pseries_power_off - tell firmware about how to power off the system.
+ *
+ * This function calls either the power-off rtas token in normal cases
+ * or the ibm,power-off-ups token (if present & requested) in case of
+ * a power failure. If power-off token is used, power on will only be
+ * possible with power button press. If ibm,power-off-ups token is used
+ * it will allow auto poweron after power is restored.
+ */
+static void pseries_power_off(void)
+{
+	int rc;
+	int rtas_poweroff_ups_token = rtas_token("ibm,power-off-ups");
+
+	if (rtas_flash_term_hook)
+		rtas_flash_term_hook(SYS_POWER_OFF);
+
+	if (rtas_poweron_auto == 0 ||
+		rtas_poweroff_ups_token == RTAS_UNKNOWN_SERVICE) {
+		rc = rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1);
+		printk(KERN_INFO "RTAS power-off returned %d\n", rc);
+	} else {
+		rc = rtas_call(rtas_poweroff_ups_token, 0, 1, NULL);
+		printk(KERN_INFO "RTAS ibm,power-off-ups returned %d\n", rc);
+	}
+	for (;;);
+}
+
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
@@ -742,6 +774,8 @@ static int __init pSeries_probe(void)
 	else
 		hpte_init_native();
 
+	pm_power_off = pseries_power_off;
+
 	pr_debug("Machine is%s LPAR !\n",
 	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
@@ -753,34 +787,6 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		return PCI_PROBE_DEVTREE;
 	return PCI_PROBE_NORMAL;
-}
-
-/**
- * pSeries_power_off - tell firmware about how to power off the system.
- *
- * This function calls either the power-off rtas token in normal cases
- * or the ibm,power-off-ups token (if present & requested) in case of
- * a power failure. If power-off token is used, power on will only be
- * possible with power button press. If ibm,power-off-ups token is used
- * it will allow auto poweron after power is restored.
- */
-static void pSeries_power_off(void)
-{
-	int rc;
-	int rtas_poweroff_ups_token = rtas_token("ibm,power-off-ups");
-
-	if (rtas_flash_term_hook)
-		rtas_flash_term_hook(SYS_POWER_OFF);
-
-	if (rtas_poweron_auto == 0 ||
-		rtas_poweroff_ups_token == RTAS_UNKNOWN_SERVICE) {
-		rc = rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1);
-		printk(KERN_INFO "RTAS power-off returned %d\n", rc);
-	} else {
-		rc = rtas_call(rtas_poweroff_ups_token, 0, 1, NULL);
-		printk(KERN_INFO "RTAS ibm,power-off-ups returned %d\n", rc);
-	}
-	for (;;);
 }
 
 #ifndef CONFIG_PCI
@@ -797,7 +803,6 @@ define_machine(pseries) {
 	.pcibios_fixup		= pSeries_final_fixup,
 	.pci_probe_mode		= pSeries_pci_probe_mode,
 	.restart		= rtas_restart,
-	.power_off		= pSeries_power_off,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
 	.get_boot_time		= rtas_get_boot_time,

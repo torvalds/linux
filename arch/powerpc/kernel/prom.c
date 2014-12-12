@@ -160,6 +160,12 @@ static struct ibm_pa_feature {
 	{CPU_FTR_NODSISRALIGN, 0, 0,	1, 1, 1},
 	{0, MMU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
+	/*
+	 * If the kernel doesn't support TM (ie. CONFIG_PPC_TRANSACTIONAL_MEM=n),
+	 * we don't want to turn on CPU_FTR_TM here, so we use CPU_FTR_TM_COMP
+	 * which is 0 if the kernel doesn't support TM.
+	 */
+	{CPU_FTR_TM_COMP, 0, 0,		22, 0, 0},
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -696,10 +702,7 @@ void __init early_init_devtree(void *params)
 		reserve_crashkernel();
 	early_reserve_mem();
 
-	/*
-	 * Ensure that total memory size is page-aligned, because otherwise
-	 * mark_bootmem() gets upset.
-	 */
+	/* Ensure that total memory size is page-aligned. */
 	limit = ALIGN(memory_limit ?: memblock_phys_mem_size(), PAGE_SIZE);
 	memblock_enforce_memory_limit(limit);
 

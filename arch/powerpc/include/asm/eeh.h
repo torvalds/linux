@@ -39,6 +39,7 @@ struct device_node;
 #define EEH_PROBE_MODE_DEV	0x04	/* From PCI device	*/
 #define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree	*/
 #define EEH_ENABLE_IO_FOR_LOG	0x10	/* Enable IO for log	*/
+#define EEH_EARLY_DUMP_LOG	0x20	/* Dump log immediately	*/
 
 /*
  * Delay for PE reset, all in ms
@@ -72,6 +73,7 @@ struct device_node;
 #define EEH_PE_ISOLATED		(1 << 0)	/* Isolated PE		*/
 #define EEH_PE_RECOVERING	(1 << 1)	/* Recovering PE	*/
 #define EEH_PE_CFG_BLOCKED	(1 << 2)	/* Block config access	*/
+#define EEH_PE_RESET		(1 << 3)	/* PE reset in progress */
 
 #define EEH_PE_KEEP		(1 << 8)	/* Keep PE on hotplug	*/
 #define EEH_PE_CFG_RESTRICTED	(1 << 9)	/* Block config on error */

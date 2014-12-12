@@ -122,12 +122,9 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 		return;
 	}
 
-	phb = alloc_bootmem(sizeof(struct pnv_phb));
-	if (phb) {
-		memset(phb, 0, sizeof(struct pnv_phb));
-		phb->hose = pcibios_alloc_controller(np);
-	}
-	if (!phb || !phb->hose) {
+	phb = memblock_virt_alloc(sizeof(struct pnv_phb), 0);
+	phb->hose = pcibios_alloc_controller(np);
+	if (!phb->hose) {
 		pr_err("  Failed to allocate PCI controller\n");
 		return;
 	}
@@ -196,16 +193,27 @@ void __init pnv_pci_init_p5ioc2_hub(struct device_node *np)
 	hub_id = be64_to_cpup(prop64);
 	pr_info(" HUB-ID : 0x%016llx\n", hub_id);
 
+	/* Count child PHBs and calculate TCE space per PHB */
+	for_each_child_of_node(np, phbn) {
+		if (of_device_is_compatible(phbn, "ibm,p5ioc2-pcix") ||
+		    of_device_is_compatible(phbn, "ibm,p5ioc2-pciex"))
+			phb_count++;
+	}
+
+	if (phb_count <= 0) {
+		pr_info(" No PHBs for Hub %s\n", np->full_name);
+		return;
+	}
+
+	tce_per_phb = __rounddown_pow_of_two(P5IOC2_TCE_MEMORY / phb_count);
+	pr_info(" Allocating %lld MB of TCE memory per PHB\n",
+		tce_per_phb >> 20);
+
 	/* Currently allocate 16M of TCE memory for every Hub
 	 *
 	 * XXX TODO: Make it chip local if possible
 	 */
-	tce_mem = __alloc_bootmem(P5IOC2_TCE_MEMORY, P5IOC2_TCE_MEMORY,
-				  __pa(MAX_DMA_ADDRESS));
-	if (!tce_mem) {
-		pr_err(" Failed to allocate TCE Memory !\n");
-		return;
-	}
+	tce_mem = memblock_virt_alloc(P5IOC2_TCE_MEMORY, P5IOC2_TCE_MEMORY);
 	pr_debug(" TCE    : 0x%016lx..0x%016lx\n",
 		__pa(tce_mem), __pa(tce_mem) + P5IOC2_TCE_MEMORY - 1);
 	rc = opal_pci_set_hub_tce_memory(hub_id, __pa(tce_mem),
@@ -214,18 +222,6 @@ void __init pnv_pci_init_p5ioc2_hub(struct device_node *np)
 		pr_err(" Failed to allocate TCE memory, OPAL error %lld\n", rc);
 		return;
 	}
-
-	/* Count child PHBs */
-	for_each_child_of_node(np, phbn) {
-		if (of_device_is_compatible(phbn, "ibm,p5ioc2-pcix") ||
-		    of_device_is_compatible(phbn, "ibm,p5ioc2-pciex"))
-			phb_count++;
-	}
-
-	/* Calculate how much TCE space we can give per PHB */
-	tce_per_phb = __rounddown_pow_of_two(P5IOC2_TCE_MEMORY / phb_count);
-	pr_info(" Allocating %lld MB of TCE memory per PHB\n",
-		tce_per_phb >> 20);
 
 	/* Initialize PHBs */
 	for_each_child_of_node(np, phbn) {

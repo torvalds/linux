@@ -28,8 +28,7 @@
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
 
-extern unsigned long randomize_et_dyn(unsigned long base);
-#define ELF_ET_DYN_BASE		(randomize_et_dyn(0x20000000))
+#define ELF_ET_DYN_BASE	0x20000000
 
 #define ELF_CORE_EFLAGS (is_elf2_task() ? 2 : 0)
 

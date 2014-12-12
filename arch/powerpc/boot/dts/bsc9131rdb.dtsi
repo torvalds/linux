@@ -40,31 +40,6 @@
 		compatible = "fsl,ifc-nand";
 		reg = <0x0 0x0 0x4000>;
 
-		partition@0 {
-			/* This location must not be altered  */
-			/* 3MB for u-boot Bootloader Image */
-			reg = <0x0 0x00300000>;
-			label = "NAND U-Boot Image";
-			read-only;
-		};
-
-		partition@300000 {
-			/* 1MB for DTB Image */
-			reg = <0x00300000 0x00100000>;
-			label = "NAND DTB Image";
-		};
-
-		partition@400000 {
-			/* 8MB for Linux Kernel Image */
-			reg = <0x00400000 0x00800000>;
-			label = "NAND Linux Kernel Image";
-		};
-
-		partition@c00000 {
-			/* Rest space for Root file System Image */
-			reg = <0x00c00000 0x07400000>;
-			label = "NAND RFS Image";
-		};
 	};
 };
 
@@ -81,31 +56,6 @@
 			compatible = "spansion,s25sl12801";
 			reg = <0>;
 			spi-max-frequency = <50000000>;
-
-			/* 512KB for u-boot Bootloader Image */
-			partition@0 {
-				reg = <0x0 0x00080000>;
-				label = "SPI Flash U-Boot Image";
-				read-only;
-			};
-
-			/* 512KB for DTB Image */
-			partition@80000 {
-				reg = <0x00080000 0x00080000>;
-				label = "SPI Flash DTB Image";
-			};
-
-			/* 4MB for Linux Kernel Image */
-			partition@100000 {
-				reg = <0x00100000 0x00400000>;
-				label = "SPI Flash Kernel Image";
-			};
-
-			/*11MB for RFS Image */
-			partition@500000 {
-				reg = <0x00500000 0x00B00000>;
-				label = "SPI Flash RFS Image";
-			};
 
 		};
 	};

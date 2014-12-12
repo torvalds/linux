@@ -201,8 +201,6 @@ kvmppc_primary_no_guest:
 	bge	kvm_novcpu_exit	/* another thread already exiting */
 	li	r3, NAPPING_NOVCPU
 	stb	r3, HSTATE_NAPPING(r13)
-	li	r3, 1
-	stb	r3, HSTATE_HWTHREAD_REQ(r13)
 
 	b	kvm_do_nap
 
@@ -293,6 +291,8 @@ kvm_start_guest:
 	/* if we have no vcpu to run, go back to sleep */
 	beq	kvm_no_guest
 
+kvm_secondary_got_guest:
+
 	/* Set HSTATE_DSCR(r13) to something sensible */
 	ld	r6, PACA_DSCR(r13)
 	std	r6, HSTATE_DSCR(r13)
@@ -318,27 +318,46 @@ kvm_start_guest:
 	stwcx.	r3, 0, r4
 	bne	51b
 
+/*
+ * At this point we have finished executing in the guest.
+ * We need to wait for hwthread_req to become zero, since
+ * we may not turn on the MMU while hwthread_req is non-zero.
+ * While waiting we also need to check if we get given a vcpu to run.
+ */
 kvm_no_guest:
-	li	r0, KVM_HWTHREAD_IN_NAP
+	lbz	r3, HSTATE_HWTHREAD_REQ(r13)
+	cmpwi	r3, 0
+	bne	53f
+	HMT_MEDIUM
+	li	r0, KVM_HWTHREAD_IN_KERNEL
 	stb	r0, HSTATE_HWTHREAD_STATE(r13)
-kvm_do_nap:
-	/* Clear the runlatch bit before napping */
-	mfspr	r2, SPRN_CTRLF
-	clrrdi	r2, r2, 1
-	mtspr	SPRN_CTRLT, r2
-
+	/* need to recheck hwthread_req after a barrier, to avoid race */
+	sync
+	lbz	r3, HSTATE_HWTHREAD_REQ(r13)
+	cmpwi	r3, 0
+	bne	54f
+/*
+ * We jump to power7_wakeup_loss, which will return to the caller
+ * of power7_nap in the powernv cpu offline loop.  The value we
+ * put in r3 becomes the return value for power7_nap.
+ */
 	li	r3, LPCR_PECE0
 	mfspr	r4, SPRN_LPCR
 	rlwimi	r4, r3, 0, LPCR_PECE0 | LPCR_PECE1
 	mtspr	SPRN_LPCR, r4
-	isync
-	std	r0, HSTATE_SCRATCH0(r13)
-	ptesync
-	ld	r0, HSTATE_SCRATCH0(r13)
-1:	cmpd	r0, r0
-	bne	1b
-	nap
-	b	.
+	li	r3, 0
+	b	power7_wakeup_loss
+
+53:	HMT_LOW
+	ld	r4, HSTATE_KVM_VCPU(r13)
+	cmpdi	r4, 0
+	beq	kvm_no_guest
+	HMT_MEDIUM
+	b	kvm_secondary_got_guest
+
+54:	li	r0, KVM_HWTHREAD_IN_KVM
+	stb	r0, HSTATE_HWTHREAD_STATE(r13)
+	b	kvm_no_guest
 
 /******************************************************************************
  *                                                                            *
@@ -2172,6 +2191,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	 * occurs, with PECE1, PECE0 and PECEDP set in LPCR. Also clear the
 	 * runlatch bit before napping.
 	 */
+kvm_do_nap:
 	mfspr	r2, SPRN_CTRLF
 	clrrdi	r2, r2, 1
 	mtspr	SPRN_CTRLT, r2

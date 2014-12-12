@@ -987,6 +987,17 @@ config RTC_DRV_NUC900
 	  If you say yes here you get support for the RTC subsystem of the
 	  NUC910/NUC920 used in embedded systems.
 
+config RTC_DRV_OPAL
+	tristate "IBM OPAL RTC driver"
+	depends on PPC_POWERNV
+	default y
+	help
+	  If you say yes here you get support for the PowerNV platform RTC
+	  driver based on OPAL interfaces.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-opal.
+
 comment "on-CPU RTC drivers"
 
 config RTC_DRV_DAVINCI

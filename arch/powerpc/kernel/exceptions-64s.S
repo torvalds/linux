@@ -131,6 +131,8 @@ BEGIN_FTR_SECTION
 1:
 #endif
 
+	/* Return SRR1 from power7_nap() */
+	mfspr	r3,SPRN_SRR1
 	beq	cr1,2f
 	b	power7_wakeup_noloss
 2:	b	power7_wakeup_loss
@@ -292,15 +294,26 @@ decrementer_pSeries:
 	. = 0xc00
 	.globl	system_call_pSeries
 system_call_pSeries:
-	HMT_MEDIUM
+	 /*
+	  * If CONFIG_KVM_BOOK3S_64_HANDLER is set, save the PPR (on systems
+	  * that support it) before changing to HMT_MEDIUM. That allows the KVM
+	  * code to save that value into the guest state (it is the guest's PPR
+	  * value). Otherwise just change to HMT_MEDIUM as userspace has
+	  * already saved the PPR.
+	  */
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 	std	r9,PACA_EXGEN+EX_R9(r13)
+	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);
+	HMT_MEDIUM;
 	std	r10,PACA_EXGEN+EX_R10(r13)
+	OPT_SAVE_REG_TO_PACA(PACA_EXGEN+EX_PPR, r9, CPU_FTR_HAS_PPR);
 	mfcr	r9
 	KVMTEST(0xc00)
 	GET_SCRATCH0(r13)
+#else
+	HMT_MEDIUM;
 #endif
 	SYSCALL_PSERIES_1
 	SYSCALL_PSERIES_2_RFID
@@ -1301,23 +1314,6 @@ hmi_exception_after_realmode:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	hmi_exception_hv
 
-#ifdef CONFIG_PPC_POWERNV
-_GLOBAL(opal_mc_secondary_handler)
-	HMT_MEDIUM_PPR_DISCARD
-	SET_SCRATCH0(r13)
-	GET_PACA(r13)
-	clrldi	r3,r3,2
-	tovirt(r3,r3)
-	std	r3,PACA_OPAL_MC_EVT(r13)
-	ld	r13,OPAL_MC_SRR0(r3)
-	mtspr	SPRN_SRR0,r13
-	ld	r13,OPAL_MC_SRR1(r3)
-	mtspr	SPRN_SRR1,r13
-	ld	r3,OPAL_MC_GPR3(r3)
-	GET_SCRATCH0(r13)
-	b	machine_check_pSeries
-#endif /* CONFIG_PPC_POWERNV */
-
 
 #define MACHINE_CHECK_HANDLER_WINDUP			\
 	/* Clear MSR_RI before setting SRR0 and SRR1. */\
@@ -1571,9 +1567,11 @@ do_hash_page:
 	 * r3 contains the faulting address
 	 * r4 contains the required access permissions
 	 * r5 contains the trap number
+	 * r6 contains dsisr
 	 *
 	 * at return r3 = 0 for success, 1 for page fault, negative for error
 	 */
+	ld      r6,_DSISR(r1)
 	bl	hash_page		/* build HPTE if possible */
 	cmpdi	r3,0			/* see if hash_page succeeded */
 

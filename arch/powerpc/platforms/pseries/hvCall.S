@@ -18,7 +18,7 @@
 	
 #ifdef CONFIG_TRACEPOINTS
 
-#ifndef CONFIG_JUMP_LABEL
+#ifndef HAVE_JUMP_LABEL
 	.section	".toc","aw"
 
 	.globl hcall_tracepoint_refcount
@@ -78,7 +78,7 @@ hcall_tracepoint_refcount:
 	mr	r5,BUFREG;					\
 	__HCALL_INST_POSTCALL
 
-#ifdef CONFIG_JUMP_LABEL
+#ifdef HAVE_JUMP_LABEL
 #define HCALL_BRANCH(LABEL)					\
 	ARCH_STATIC_BRANCH(LABEL, hcall_tracepoint_key)
 #else

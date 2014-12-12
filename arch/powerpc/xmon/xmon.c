@@ -51,6 +51,12 @@
 #include <asm/paca.h>
 #endif
 
+#if defined(CONFIG_PPC_SPLPAR)
+#include <asm/plpar_wrappers.h>
+#else
+static inline long plapr_set_ciabr(unsigned long ciabr) {return 0; };
+#endif
+
 #include "nonstdio.h"
 #include "dis-asm.h"
 
@@ -88,10 +94,9 @@ struct bpt {
 };
 
 /* Bits in bpt.enabled */
-#define BP_IABR_TE	1		/* IABR translation enabled */
-#define BP_IABR		2
-#define BP_TRAP		8
-#define BP_DABR		0x10
+#define BP_CIABR	1
+#define BP_TRAP		2
+#define BP_DABR		4
 
 #define NBPTS	256
 static struct bpt bpts[NBPTS];
@@ -268,6 +273,45 @@ static inline void cflush(void *p)
 static inline void cinval(void *p)
 {
 	asm volatile ("dcbi 0,%0; icbi 0,%0" : : "r" (p));
+}
+
+/**
+ * write_ciabr() - write the CIABR SPR
+ * @ciabr:	The value to write.
+ *
+ * This function writes a value to the CIARB register either directly
+ * through mtspr instruction if the kernel is in HV privilege mode or
+ * call a hypervisor function to achieve the same in case the kernel
+ * is in supervisor privilege mode.
+ */
+static void write_ciabr(unsigned long ciabr)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		return;
+
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		mtspr(SPRN_CIABR, ciabr);
+		return;
+	}
+	plapr_set_ciabr(ciabr);
+}
+
+/**
+ * set_ciabr() - set the CIABR
+ * @addr:	The value to set.
+ *
+ * This function sets the correct privilege value into the the HW
+ * breakpoint address before writing it up in the CIABR register.
+ */
+static void set_ciabr(unsigned long addr)
+{
+	addr &= ~CIABR_PRIV;
+
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		addr |= CIABR_PRIV_HYPER;
+	else
+		addr |= CIABR_PRIV_SUPER;
+	write_ciabr(addr);
 }
 
 /*
@@ -727,7 +771,7 @@ static void insert_bpts(void)
 
 	bp = bpts;
 	for (i = 0; i < NBPTS; ++i, ++bp) {
-		if ((bp->enabled & (BP_TRAP|BP_IABR)) == 0)
+		if ((bp->enabled & (BP_TRAP|BP_CIABR)) == 0)
 			continue;
 		if (mread(bp->address, &bp->instr[0], 4) != 4) {
 			printf("Couldn't read instruction at %lx, "
@@ -742,7 +786,7 @@ static void insert_bpts(void)
 			continue;
 		}
 		store_inst(&bp->instr[0]);
-		if (bp->enabled & BP_IABR)
+		if (bp->enabled & BP_CIABR)
 			continue;
 		if (mwrite(bp->address, &bpinstr, 4) != 4) {
 			printf("Couldn't write instruction at %lx, "
@@ -764,9 +808,9 @@ static void insert_cpu_bpts(void)
 		brk.len = 8;
 		__set_breakpoint(&brk);
 	}
-	if (iabr && cpu_has_feature(CPU_FTR_IABR))
-		mtspr(SPRN_IABR, iabr->address
-			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
+
+	if (iabr)
+		set_ciabr(iabr->address);
 }
 
 static void remove_bpts(void)
@@ -777,7 +821,7 @@ static void remove_bpts(void)
 
 	bp = bpts;
 	for (i = 0; i < NBPTS; ++i, ++bp) {
-		if ((bp->enabled & (BP_TRAP|BP_IABR)) != BP_TRAP)
+		if ((bp->enabled & (BP_TRAP|BP_CIABR)) != BP_TRAP)
 			continue;
 		if (mread(bp->address, &instr, 4) == 4
 		    && instr == bpinstr
@@ -792,8 +836,7 @@ static void remove_bpts(void)
 static void remove_cpu_bpts(void)
 {
 	hw_breakpoint_disable();
-	if (cpu_has_feature(CPU_FTR_IABR))
-		mtspr(SPRN_IABR, 0);
+	write_ciabr(0);
 }
 
 /* Command interpreting routine */
@@ -907,7 +950,7 @@ cmds(struct pt_regs *excp)
 		case 'u':
 			dump_segments();
 			break;
-#elif defined(CONFIG_4xx)
+#elif defined(CONFIG_44x)
 		case 'u':
 			dump_tlb_44x();
 			break;
@@ -981,7 +1024,8 @@ static void bootcmds(void)
 	else if (cmd == 'h')
 		ppc_md.halt();
 	else if (cmd == 'p')
-		ppc_md.power_off();
+		if (pm_power_off)
+			pm_power_off();
 }
 
 static int cpu_cmd(void)
@@ -1127,7 +1171,7 @@ static char *breakpoint_help_string =
     "b <addr> [cnt]   set breakpoint at given instr addr\n"
     "bc               clear all breakpoints\n"
     "bc <n/addr>      clear breakpoint number n or at addr\n"
-    "bi <addr> [cnt]  set hardware instr breakpoint (POWER3/RS64 only)\n"
+    "bi <addr> [cnt]  set hardware instr breakpoint (POWER8 only)\n"
     "bd <addr> [cnt]  set hardware data breakpoint\n"
     "";
 
@@ -1166,13 +1210,13 @@ bpt_cmds(void)
 		break;
 
 	case 'i':	/* bi - hardware instr breakpoint */
-		if (!cpu_has_feature(CPU_FTR_IABR)) {
+		if (!cpu_has_feature(CPU_FTR_ARCH_207S)) {
 			printf("Hardware instruction breakpoint "
 			       "not supported on this cpu\n");
 			break;
 		}
 		if (iabr) {
-			iabr->enabled &= ~(BP_IABR | BP_IABR_TE);
+			iabr->enabled &= ~BP_CIABR;
 			iabr = NULL;
 		}
 		if (!scanhex(&a))
@@ -1181,7 +1225,7 @@ bpt_cmds(void)
 			break;
 		bp = new_breakpoint(a);
 		if (bp != NULL) {
-			bp->enabled |= BP_IABR | BP_IABR_TE;
+			bp->enabled |= BP_CIABR;
 			iabr = bp;
 		}
 		break;
@@ -1238,7 +1282,7 @@ bpt_cmds(void)
 				if (!bp->enabled)
 					continue;
 				printf("%2x %s   ", BP_NUM(bp),
-				    (bp->enabled & BP_IABR)? "inst": "trap");
+				    (bp->enabled & BP_CIABR) ? "inst": "trap");
 				xmon_print_symbol(bp->address, "  ", "\n");
 			}
 			break;

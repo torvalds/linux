@@ -149,6 +149,7 @@ static int pnv_smp_cpu_disable(void)
 static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
+	unsigned long srr1;
 
 	/* Standard hot unplug procedure */
 	local_irq_disable();
@@ -165,13 +166,25 @@ static void pnv_smp_cpu_kill_self(void)
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 	while (!generic_check_cpu_restart(cpu)) {
 		ppc64_runlatch_off();
-		power7_nap(1);
+		srr1 = power7_nap(1);
 		ppc64_runlatch_on();
 
-		/* Clear the IPI that woke us up */
-		icp_native_flush_interrupt();
-		local_paca->irq_happened &= PACA_IRQ_HARD_DIS;
-		mb();
+		/*
+		 * If the SRR1 value indicates that we woke up due to
+		 * an external interrupt, then clear the interrupt.
+		 * We clear the interrupt before checking for the
+		 * reason, so as to avoid a race where we wake up for
+		 * some other reason, find nothing and clear the interrupt
+		 * just as some other cpu is sending us an interrupt.
+		 * If we returned from power7_nap as a result of
+		 * having finished executing in a KVM guest, then srr1
+		 * contains 0.
+		 */
+		if ((srr1 & SRR1_WAKEMASK) == SRR1_WAKEEE) {
+			icp_native_flush_interrupt();
+			local_paca->irq_happened &= PACA_IRQ_HARD_DIS;
+			smp_mb();
+		}
 
 		if (cpu_core_split_required())
 			continue;

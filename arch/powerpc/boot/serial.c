@@ -33,7 +33,7 @@ static void serial_write(const char *buf, int len)
 		scdp->putc(*buf++);
 }
 
-static void serial_edit_cmdline(char *buf, int len)
+static void serial_edit_cmdline(char *buf, int len, unsigned int timeout)
 {
 	int timer = 0, count;
 	char ch, *cp;
@@ -44,7 +44,7 @@ static void serial_edit_cmdline(char *buf, int len)
 	cp = &buf[count];
 	count++;
 
-	while (timer++ < 5*1000) {
+	do {
 		if (scdp->tstc()) {
 			while (((ch = scdp->getc()) != '\n') && (ch != '\r')) {
 				/* Test for backspace/delete */
@@ -70,7 +70,7 @@ static void serial_edit_cmdline(char *buf, int len)
 			break;  /* Exit 'timer' loop */
 		}
 		udelay(1000);  /* 1 msec */
-	}
+	} while (timer++ < timeout);
 	*cp = 0;
 }
 

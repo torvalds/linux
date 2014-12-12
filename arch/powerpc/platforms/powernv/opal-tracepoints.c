@@ -48,7 +48,7 @@ void __trace_opal_entry(unsigned long opcode, unsigned long *args)
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(opal_trace_depth);
+	depth = this_cpu_ptr(&opal_trace_depth);
 
 	if (*depth)
 		goto out;
@@ -69,7 +69,7 @@ void __trace_opal_exit(long opcode, unsigned long retval)
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(opal_trace_depth);
+	depth = this_cpu_ptr(&opal_trace_depth);
 
 	if (*depth)
 		goto out;

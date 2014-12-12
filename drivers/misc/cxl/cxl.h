@@ -336,6 +336,8 @@ struct cxl_sste {
 struct cxl_afu {
 	irq_hw_number_t psl_hwirq;
 	irq_hw_number_t serr_hwirq;
+	char *err_irq_name;
+	char *psl_irq_name;
 	unsigned int serr_virq;
 	void __iomem *p1n_mmio;
 	void __iomem *p2n_mmio;
@@ -379,6 +381,12 @@ struct cxl_afu {
 	bool enabled;
 };
 
+
+struct cxl_irq_name {
+	struct list_head list;
+	char *name;
+};
+
 /*
  * This is a cxl context.  If the PSL is in dedicated mode, there will be one
  * of these per AFU.  If in AFU directed there can be lots of these.
@@ -403,6 +411,7 @@ struct cxl_context {
 
 	unsigned long *irq_bitmap; /* Accessed from IRQ context */
 	struct cxl_irq_ranges irqs;
+	struct list_head irq_names;
 	u64 fault_addr;
 	u64 fault_dsisr;
 	u64 afu_err;
@@ -444,6 +453,7 @@ struct cxl {
 	struct dentry *trace;
 	struct dentry *psl_err_chk;
 	struct dentry *debugfs;
+	char *irq_name;
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
@@ -563,9 +573,6 @@ int _cxl_afu_deactivate_mode(struct cxl_afu *afu, int mode);
 int cxl_afu_deactivate_mode(struct cxl_afu *afu);
 int cxl_afu_select_best_mode(struct cxl_afu *afu);
 
-unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
-		         irq_handler_t handler, void *cookie);
-void cxl_unmap_irq(unsigned int virq, void *cookie);
 int cxl_register_psl_irq(struct cxl_afu *afu);
 void cxl_release_psl_irq(struct cxl_afu *afu);
 int cxl_register_psl_err_irq(struct cxl *adapter);
@@ -612,7 +619,7 @@ int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed,
 			    u64 amr);
 int cxl_detach_process(struct cxl_context *ctx);
 
-int cxl_get_irq(struct cxl_context *ctx, struct cxl_irq_info *info);
+int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info);
 int cxl_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask);
 
 int cxl_check_error(struct cxl_afu *afu);

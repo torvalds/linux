@@ -17,7 +17,6 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/list.h>

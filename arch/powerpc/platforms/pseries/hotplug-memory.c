@@ -12,7 +12,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/memblock.h>
-#include <linux/vmalloc.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 
@@ -66,22 +65,6 @@ unsigned long pseries_memory_block_size(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-static int pseries_remove_memory(u64 start, u64 size)
-{
-	int ret;
-
-	/* Remove htab bolted mappings for this section of memory */
-	start = (unsigned long)__va(start);
-	ret = remove_section_mapping(start, start + size);
-
-	/* Ensure all vmalloc mappings are flushed in case they also
-	 * hit that section of memory
-	 */
-	vm_unmap_aliases();
-
-	return ret;
-}
-
 static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
 {
 	unsigned long block_sz, start_pfn;
@@ -260,10 +243,6 @@ static int __init pseries_memory_hotplug_init(void)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		of_reconfig_notifier_register(&pseries_mem_nb);
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-	ppc_md.remove_memory = pseries_remove_memory;
-#endif
 
 	return 0;
 }

@@ -18,60 +18,9 @@
 #include <linux/mm.h>
 #include <asm/machdep.h>
 
-static void invalidate_old_hpte(unsigned long vsid, unsigned long addr,
-				pmd_t *pmdp, unsigned int psize, int ssize)
-{
-	int i, max_hpte_count, valid;
-	unsigned long s_addr;
-	unsigned char *hpte_slot_array;
-	unsigned long hidx, shift, vpn, hash, slot;
-
-	s_addr = addr & HPAGE_PMD_MASK;
-	hpte_slot_array = get_hpte_slot_array(pmdp);
-	/*
-	 * IF we try to do a HUGE PTE update after a withdraw is done.
-	 * we will find the below NULL. This happens when we do
-	 * split_huge_page_pmd
-	 */
-	if (!hpte_slot_array)
-		return;
-
-	if (ppc_md.hugepage_invalidate)
-		return ppc_md.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
-						  psize, ssize);
-	/*
-	 * No bluk hpte removal support, invalidate each entry
-	 */
-	shift = mmu_psize_defs[psize].shift;
-	max_hpte_count = HPAGE_PMD_SIZE >> shift;
-	for (i = 0; i < max_hpte_count; i++) {
-		/*
-		 * 8 bits per each hpte entries
-		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
-		 */
-		valid = hpte_valid(hpte_slot_array, i);
-		if (!valid)
-			continue;
-		hidx =  hpte_hash_index(hpte_slot_array, i);
-
-		/* get the vpn */
-		addr = s_addr + (i * (1ul << shift));
-		vpn = hpt_vpn(addr, vsid, ssize);
-		hash = hpt_hash(vpn, shift, ssize);
-		if (hidx & _PTEIDX_SECONDARY)
-			hash = ~hash;
-
-		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += hidx & _PTEIDX_GROUP_IX;
-		ppc_md.hpte_invalidate(slot, vpn, psize,
-				       MMU_PAGE_16M, ssize, 0);
-	}
-}
-
-
 int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
-		    pmd_t *pmdp, unsigned long trap, int local, int ssize,
-		    unsigned int psize)
+		    pmd_t *pmdp, unsigned long trap, unsigned long flags,
+		    int ssize, unsigned int psize)
 {
 	unsigned int index, valid;
 	unsigned char *hpte_slot_array;
@@ -145,7 +94,8 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		 * hash page table entries.
 		 */
 		if ((old_pmd & _PAGE_HASHPTE) && !(old_pmd & _PAGE_COMBO))
-			invalidate_old_hpte(vsid, ea, pmdp, MMU_PAGE_64K, ssize);
+			flush_hash_hugepage(vsid, ea, pmdp, MMU_PAGE_64K,
+					    ssize, flags);
 	}
 
 	valid = hpte_valid(hpte_slot_array, index);
@@ -158,7 +108,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		slot += hidx & _PTEIDX_GROUP_IX;
 
 		ret = ppc_md.hpte_updatepp(slot, rflags, vpn,
-					   psize, lpsize, ssize, local);
+					   psize, lpsize, ssize, flags);
 		/*
 		 * We failed to update, try to insert a new entry.
 		 */
