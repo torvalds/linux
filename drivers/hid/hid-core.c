@@ -698,6 +698,7 @@ static void hid_scan_feature_usage(struct hid_parser *parser, u32 usage)
 static void hid_scan_collection(struct hid_parser *parser, unsigned type)
 {
 	struct hid_device *hid = parser->device;
+	int i;
 
 	if (((parser->global.usage_page << 16) == HID_UP_SENSOR) &&
 	    type == HID_COLLECTION_PHYSICAL)
@@ -707,6 +708,14 @@ static void hid_scan_collection(struct hid_parser *parser, unsigned type)
 	    hid->product == USB_DEVICE_ID_MS_TYPE_COVER_3 &&
 	    hid->group == HID_GROUP_MULTITOUCH)
 		hid->group = HID_GROUP_GENERIC;
+
+	if ((parser->global.usage_page << 16) == HID_UP_GENDESK)
+		for (i = 0; i < parser->local.usage_index; i++)
+			if (parser->local.usage[i] == HID_GD_POINTER)
+				parser->scan_flags |= HID_SCAN_FLAG_GD_POINTER;
+
+	if ((parser->global.usage_page << 16) >= HID_UP_MSVENDOR)
+		parser->scan_flags |= HID_SCAN_FLAG_VENDOR_SPECIFIC;
 }
 
 static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
@@ -792,11 +801,14 @@ static int hid_scan_report(struct hid_device *hid)
 		hid->group = HID_GROUP_WACOM;
 		break;
 	case USB_VENDOR_ID_SYNAPTICS:
-		if ((hid->group == HID_GROUP_GENERIC) &&
-		    (hid->bus != BUS_USB || hid->type == HID_TYPE_USBMOUSE))
-			/* hid-rmi should only bind to the mouse interface of
-			 * composite USB devices */
-			hid->group = HID_GROUP_RMI;
+		if (hid->group == HID_GROUP_GENERIC)
+			if ((parser->scan_flags & HID_SCAN_FLAG_VENDOR_SPECIFIC)
+			    && (parser->scan_flags & HID_SCAN_FLAG_GD_POINTER))
+				/*
+				 * hid-rmi should take care of them,
+				 * not hid-generic
+				 */
+				hid->group = HID_GROUP_RMI;
 		break;
 	}
 
