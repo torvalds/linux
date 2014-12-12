@@ -89,37 +89,9 @@ struct fuse_file *fuse_file_get(struct fuse_file *ff)
 	return ff;
 }
 
-static void fuse_release_async(struct work_struct *work)
-{
-	struct fuse_req *req;
-	struct fuse_conn *fc;
-	struct path path;
-
-	req = container_of(work, struct fuse_req, misc.release.work);
-	path = req->misc.release.path;
-	fc = get_fuse_conn(path.dentry->d_inode);
-
-	fuse_put_request(fc, req);
-	path_put(&path);
-}
-
 static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	if (fc->destroy_req) {
-		/*
-		 * If this is a fuseblk mount, then it's possible that
-		 * releasing the path will result in releasing the
-		 * super block and sending the DESTROY request.  If
-		 * the server is single threaded, this would hang.
-		 * For this reason do the path_put() in a separate
-		 * thread.
-		 */
-		atomic_inc(&req->count);
-		INIT_WORK(&req->misc.release.work, fuse_release_async);
-		schedule_work(&req->misc.release.work);
-	} else {
-		path_put(&req->misc.release.path);
-	}
+	iput(req->misc.release.inode);
 }
 
 static void fuse_file_put(struct fuse_file *ff, bool sync)
@@ -133,12 +105,12 @@ static void fuse_file_put(struct fuse_file *ff, bool sync)
 			 * implement 'open'
 			 */
 			req->background = 0;
-			path_put(&req->misc.release.path);
+			iput(req->misc.release.inode);
 			fuse_put_request(ff->fc, req);
 		} else if (sync) {
 			req->background = 0;
 			fuse_request_send(ff->fc, req);
-			path_put(&req->misc.release.path);
+			iput(req->misc.release.inode);
 			fuse_put_request(ff->fc, req);
 		} else {
 			req->end = fuse_release_end;
@@ -297,9 +269,8 @@ void fuse_release_common(struct file *file, int opcode)
 		inarg->lock_owner = fuse_lock_owner_id(ff->fc,
 						       (fl_owner_t) file);
 	}
-	/* Hold vfsmount and dentry until release is finished */
-	path_get(&file->f_path);
-	req->misc.release.path = file->f_path;
+	/* Hold inode until release is finished */
+	req->misc.release.inode = igrab(file_inode(file));
 
 	/*
 	 * Normally this will send the RELEASE request, however if

@@ -305,11 +305,8 @@ struct fuse_req {
 	/** Data for asynchronous requests */
 	union {
 		struct {
-			union {
-				struct fuse_release_in in;
-				struct work_struct work;
-			};
-			struct path path;
+			struct fuse_release_in in;
+			struct inode *inode;
 		} release;
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
