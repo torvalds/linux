@@ -226,7 +226,6 @@ static const struct s390_operand operands[] =
 	[U16_32] = { 16, 32, 0 },
 	[J16_16] = { 16, 16, OPERAND_PCREL },
 	[J16_32] = { 16, 32, OPERAND_PCREL },
-	[I16_32] = { 16, 32, OPERAND_SIGNED },
 	[I24_24] = { 24, 24, OPERAND_SIGNED },
 	[J32_16] = { 32, 16, OPERAND_PCREL },
 	[I32_16] = { 32, 16, OPERAND_SIGNED },
