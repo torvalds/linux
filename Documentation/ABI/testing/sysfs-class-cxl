@@ -1,3 +1,9 @@
+Note: Attributes that are shared between devices are stored in the directory
+pointed to by the symlink device/.
+Example: The real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
+/sys/class/cxl/afu0.0s/device/irqs_max, i.e. /sys/class/cxl/afu0.0/irqs_max.
+
+
 Slave contexts (eg. /sys/class/cxl/afu0.0s):
 
 What:           /sys/class/cxl/<afu>/irqs_max
@@ -67,13 +73,12 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the current version of the kernel/user API.
 
-What:           /sys/class/cxl/<afu>/api_version_com
+What:           /sys/class/cxl/<afu>/api_version_compatible
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the the lowest version of the userspace API
                 this this kernel supports.
-
 
 
 Master contexts (eg. /sys/class/cxl/afu0.0m)
@@ -106,7 +111,7 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Identifies the CAIA Version the card implements.
 
-What:           /sys/class/cxl/<card>/psl_version
+What:           /sys/class/cxl/<card>/psl_revision
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
