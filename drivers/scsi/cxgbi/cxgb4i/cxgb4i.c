@@ -172,10 +172,14 @@ static int push_tx_frames(struct cxgbi_sock *, int);
  * Returns true if a packet can be sent as an offload WR with immediate
  * data.  We currently use the same limit as for Ethernet packets.
  */
-static inline int is_ofld_imm(const struct sk_buff *skb)
+static inline bool is_ofld_imm(const struct sk_buff *skb)
 {
-	return skb->len <= (MAX_IMM_TX_PKT_LEN -
-			sizeof(struct fw_ofld_tx_data_wr));
+	int len = skb->len;
+
+	if (likely(cxgbi_skcb_test_flag(skb, SKCBF_TX_NEED_HDR)))
+		len += sizeof(struct fw_ofld_tx_data_wr);
+
+	return len <= MAX_IMM_TX_PKT_LEN;
 }
 
 static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
@@ -600,11 +604,15 @@ static int push_tx_frames(struct cxgbi_sock *csk, int req_completion)
 
 		skb_reset_transport_header(skb);
 		if (is_ofld_imm(skb))
-			credits_needed = DIV_ROUND_UP(dlen +
-					sizeof(struct fw_ofld_tx_data_wr), 16);
+			credits_needed = DIV_ROUND_UP(dlen, 16);
 		else
-			credits_needed = DIV_ROUND_UP(8*calc_tx_flits_ofld(skb)
-					+ sizeof(struct fw_ofld_tx_data_wr),
+			credits_needed = DIV_ROUND_UP(
+						8 * calc_tx_flits_ofld(skb),
+						16);
+
+		if (likely(cxgbi_skcb_test_flag(skb, SKCBF_TX_NEED_HDR)))
+			credits_needed += DIV_ROUND_UP(
+					sizeof(struct fw_ofld_tx_data_wr),
 					16);
 
 		if (csk->wr_cred < credits_needed) {
