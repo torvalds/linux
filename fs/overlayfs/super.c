@@ -350,16 +350,12 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		if (IS_ERR(this))
 			goto out;
 
-		/*
-		 * If this is not the lowermost layer, check whiteout and opaque
-		 * directory.
-		 */
-		if (poe->numlower && this) {
+		if (this) {
 			if (ovl_is_whiteout(this)) {
 				dput(this);
 				this = NULL;
 				upperopaque = true;
-			} else if (ovl_is_opaquedir(this)) {
+			} else if (poe->numlower && ovl_is_opaquedir(this)) {
 				upperopaque = true;
 			}
 		}
@@ -384,19 +380,16 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			goto out_put;
 		if (!this)
 			continue;
-
-		/*
-		 * If this is not the lowermost layer, check whiteout and opaque
-		 * directory.
-		 */
-		if (i < poe->numlower - 1) {
-			if (ovl_is_whiteout(this)) {
-				dput(this);
-				break;
-			} else if (ovl_is_opaquedir(this)) {
-				opaque = true;
-			}
+		if (ovl_is_whiteout(this)) {
+			dput(this);
+			break;
 		}
+		/*
+		 * Only makes sense to check opaque dir if this is not the
+		 * lowermost layer.
+		 */
+		if (i < poe->numlower - 1 && ovl_is_opaquedir(this))
+			opaque = true;
 		/*
 		 * If this is a non-directory then stop here.
 		 *

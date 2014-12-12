@@ -80,23 +80,50 @@ static struct ovl_cache_entry *ovl_cache_entry_find(struct rb_root *root,
 	return NULL;
 }
 
-static struct ovl_cache_entry *ovl_cache_entry_new(const char *name, int len,
+static struct ovl_cache_entry *ovl_cache_entry_new(struct dentry *dir,
+						   const char *name, int len,
 						   u64 ino, unsigned int d_type)
 {
 	struct ovl_cache_entry *p;
 	size_t size = offsetof(struct ovl_cache_entry, name[len + 1]);
 
 	p = kmalloc(size, GFP_KERNEL);
-	if (p) {
-		memcpy(p->name, name, len);
-		p->name[len] = '\0';
-		p->len = len;
-		p->type = d_type;
-		p->ino = ino;
-		p->is_whiteout = false;
-		p->is_cursor = false;
-	}
+	if (!p)
+		return NULL;
 
+	memcpy(p->name, name, len);
+	p->name[len] = '\0';
+	p->len = len;
+	p->type = d_type;
+	p->ino = ino;
+	p->is_whiteout = false;
+	p->is_cursor = false;
+
+	if (d_type == DT_CHR) {
+		struct dentry *dentry;
+		const struct cred *old_cred;
+		struct cred *override_cred;
+
+		override_cred = prepare_creds();
+		if (!override_cred) {
+			kfree(p);
+			return NULL;
+		}
+
+		/*
+		 * CAP_DAC_OVERRIDE for lookup
+		 */
+		cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
+		old_cred = override_creds(override_cred);
+
+		dentry = lookup_one_len(name, dir, len);
+		if (!IS_ERR(dentry)) {
+			p->is_whiteout = ovl_is_whiteout(dentry);
+			dput(dentry);
+		}
+		revert_creds(old_cred);
+		put_cred(override_cred);
+	}
 	return p;
 }
 
@@ -123,35 +150,9 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 			return 0;
 	}
 
-	p = ovl_cache_entry_new(name, len, ino, d_type);
+	p = ovl_cache_entry_new(rdd->dir, name, len, ino, d_type);
 	if (p == NULL)
 		return -ENOMEM;
-
-	if (d_type == DT_CHR) {
-		struct dentry *dentry;
-		const struct cred *old_cred;
-		struct cred *override_cred;
-
-		override_cred = prepare_creds();
-		if (!override_cred) {
-			kfree(p);
-			return -ENOMEM;
-		}
-
-		/*
-		 * CAP_DAC_OVERRIDE for lookup
-		 */
-		cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
-		old_cred = override_creds(override_cred);
-
-		dentry = lookup_one_len(name, rdd->dir, len);
-		if (!IS_ERR(dentry)) {
-			p->is_whiteout = ovl_is_whiteout(dentry);
-			dput(dentry);
-		}
-		revert_creds(old_cred);
-		put_cred(override_cred);
-	}
 
 	list_add_tail(&p->l_node, rdd->list);
 	rb_link_node(&p->node, parent, newp);
@@ -170,7 +171,7 @@ static int ovl_fill_lower(struct ovl_readdir_data *rdd,
 	if (p) {
 		list_move_tail(&p->l_node, &rdd->middle);
 	} else {
-		p = ovl_cache_entry_new(name, namelen, ino, d_type);
+		p = ovl_cache_entry_new(rdd->dir, name, namelen, ino, d_type);
 		if (p == NULL)
 			rdd->err = -ENOMEM;
 		else
@@ -229,6 +230,7 @@ static inline int ovl_dir_read(struct path *realpath,
 	if (IS_ERR(realfile))
 		return PTR_ERR(realfile);
 
+	rdd->dir = realpath->dentry;
 	rdd->ctx.pos = 0;
 	do {
 		rdd->count = 0;
@@ -274,7 +276,6 @@ static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 		next = ovl_path_next(idx, dentry, &realpath);
 
 		if (next != -1) {
-			rdd.dir = realpath.dentry;
 			err = ovl_dir_read(&realpath, &rdd);
 			if (err)
 				break;
