@@ -13,10 +13,12 @@
 
 #include <linux/platform_device.h>
 
-extern struct platform_device ls1x_uart_device;
-extern struct platform_device ls1x_eth0_device;
-extern struct platform_device ls1x_ehci_device;
-extern struct platform_device ls1x_rtc_device;
+extern struct platform_device ls1x_uart_pdev;
+extern struct platform_device ls1x_cpufreq_pdev;
+extern struct platform_device ls1x_eth0_pdev;
+extern struct platform_device ls1x_eth1_pdev;
+extern struct platform_device ls1x_ehci_pdev;
+extern struct platform_device ls1x_rtc_pdev;
 
 extern void __init ls1x_clk_init(void);
 extern void __init ls1x_serial_setup(struct platform_device *pdev);

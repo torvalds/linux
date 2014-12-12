@@ -38,7 +38,7 @@ int ieee754dp_isnan(union ieee754dp x)
 static inline int ieee754dp_issnan(union ieee754dp x)
 {
 	assert(ieee754dp_isnan(x));
-	return ((DPMANT(x) & DP_MBIT(DP_FBITS-1)) == DP_MBIT(DP_FBITS-1));
+	return (DPMANT(x) & DP_MBIT(DP_FBITS - 1)) == DP_MBIT(DP_FBITS - 1);
 }
 
 

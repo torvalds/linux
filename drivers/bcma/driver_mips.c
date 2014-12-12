@@ -20,6 +20,9 @@
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/time.h>
+#ifdef CONFIG_BCM47XX
+#include <bcm47xx_nvram.h>
+#endif
 
 enum bcma_boot_dev {
 	BCMA_BOOT_DEV_UNK = 0,
@@ -316,10 +319,16 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 	switch (boot_dev) {
 	case BCMA_BOOT_DEV_PARALLEL:
 	case BCMA_BOOT_DEV_SERIAL:
-		/* TODO: Init NVRAM using BCMA_SOC_FLASH2 window */
+#ifdef CONFIG_BCM47XX
+		bcm47xx_nvram_init_from_mem(BCMA_SOC_FLASH2,
+					    BCMA_SOC_FLASH2_SZ);
+#endif
 		break;
 	case BCMA_BOOT_DEV_NAND:
-		/* TODO: Init NVRAM using BCMA_SOC_FLASH1 window */
+#ifdef CONFIG_BCM47XX
+		bcm47xx_nvram_init_from_mem(BCMA_SOC_FLASH1,
+					    BCMA_SOC_FLASH1_SZ);
+#endif
 		break;
 	default:
 		break;

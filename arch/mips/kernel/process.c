@@ -42,6 +42,7 @@
 #include <asm/isadep.h>
 #include <asm/inst.h>
 #include <asm/stacktrace.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
@@ -187,21 +188,21 @@ static inline int is_ra_save_ins(union mips_instruction *ip)
 	 */
 	if (mm_insn_16bit(ip->halfword[0])) {
 		mmi.word = (ip->halfword[0] << 16);
-		return ((mmi.mm16_r5_format.opcode == mm_swsp16_op &&
-			 mmi.mm16_r5_format.rt == 31) ||
-			(mmi.mm16_m_format.opcode == mm_pool16c_op &&
-			 mmi.mm16_m_format.func == mm_swm16_op));
+		return (mmi.mm16_r5_format.opcode == mm_swsp16_op &&
+			mmi.mm16_r5_format.rt == 31) ||
+		       (mmi.mm16_m_format.opcode == mm_pool16c_op &&
+			mmi.mm16_m_format.func == mm_swm16_op);
 	}
 	else {
 		mmi.halfword[0] = ip->halfword[1];
 		mmi.halfword[1] = ip->halfword[0];
-		return ((mmi.mm_m_format.opcode == mm_pool32b_op &&
-			 mmi.mm_m_format.rd > 9 &&
-			 mmi.mm_m_format.base == 29 &&
-			 mmi.mm_m_format.func == mm_swm32_func) ||
-			(mmi.i_format.opcode == mm_sw32_op &&
-			 mmi.i_format.rs == 29 &&
-			 mmi.i_format.rt == 31));
+		return (mmi.mm_m_format.opcode == mm_pool32b_op &&
+			mmi.mm_m_format.rd > 9 &&
+			mmi.mm_m_format.base == 29 &&
+			mmi.mm_m_format.func == mm_swm32_func) ||
+		       (mmi.i_format.opcode == mm_sw32_op &&
+			mmi.i_format.rs == 29 &&
+			mmi.i_format.rt == 31);
 	}
 #else
 	/* sw / sd $ra, offset($sp) */
@@ -233,7 +234,7 @@ static inline int is_jump_ins(union mips_instruction *ip)
 	if (ip->r_format.opcode != mm_pool32a_op ||
 			ip->r_format.func != mm_pool32axf_op)
 		return 0;
-	return (((ip->u_format.uimmediate >> 6) & mm_jalr_op) == mm_jalr_op);
+	return ((ip->u_format.uimmediate >> 6) & mm_jalr_op) == mm_jalr_op;
 #else
 	if (ip->j_format.opcode == j_op)
 		return 1;
@@ -260,13 +261,13 @@ static inline int is_sp_move_ins(union mips_instruction *ip)
 		union mips_instruction mmi;
 
 		mmi.word = (ip->halfword[0] << 16);
-		return ((mmi.mm16_r3_format.opcode == mm_pool16d_op &&
-			 mmi.mm16_r3_format.simmediate && mm_addiusp_func) ||
-			(mmi.mm16_r5_format.opcode == mm_pool16d_op &&
-			 mmi.mm16_r5_format.rt == 29));
+		return (mmi.mm16_r3_format.opcode == mm_pool16d_op &&
+			mmi.mm16_r3_format.simmediate && mm_addiusp_func) ||
+		       (mmi.mm16_r5_format.opcode == mm_pool16d_op &&
+			mmi.mm16_r5_format.rt == 29);
 	}
-	return (ip->mm_i_format.opcode == mm_addiu32_op &&
-		 ip->mm_i_format.rt == 29 && ip->mm_i_format.rs == 29);
+	return ip->mm_i_format.opcode == mm_addiu32_op &&
+	       ip->mm_i_format.rt == 29 && ip->mm_i_format.rs == 29;
 #else
 	/* addiu/daddiu sp,sp,-imm */
 	if (ip->i_format.rs != 29 || ip->i_format.rt != 29)
@@ -531,4 +532,21 @@ unsigned long arch_align_stack(unsigned long sp)
 		sp -= get_random_int() & ~PAGE_MASK;
 
 	return sp & ALMASK;
+}
+
+static void arch_dump_stack(void *info)
+{
+	struct pt_regs *regs;
+
+	regs = get_irq_regs();
+
+	if (regs)
+		show_regs(regs);
+
+	dump_stack();
+}
+
+void arch_trigger_all_cpu_backtrace(bool include_self)
+{
+	smp_call_function(arch_dump_stack, NULL, 1);
 }

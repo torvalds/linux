@@ -1647,6 +1647,32 @@ static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
 	return &(ath5k_hw_common(ah)->regulatory);
 }
 
+#ifdef CONFIG_ATH5K_AHB
+#define AR5K_AR2315_PCI_BASE	((void __iomem *)0xb0100000)
+
+static inline void __iomem *ath5k_ahb_reg(struct ath5k_hw *ah, u16 reg)
+{
+	/* On AR2315 and AR2317 the PCI clock domain registers
+	 * are outside of the WMAC register space */
+	if (unlikely((reg >= 0x4000) && (reg < 0x5000) &&
+	    (ah->ah_mac_srev >= AR5K_SREV_AR2315_R6)))
+		return AR5K_AR2315_PCI_BASE + reg;
+
+	return ah->iobase + reg;
+}
+
+static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
+{
+	return ioread32(ath5k_ahb_reg(ah, reg));
+}
+
+static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
+{
+	iowrite32(val, ath5k_ahb_reg(ah, reg));
+}
+
+#else
+
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 {
 	return ioread32(ah->iobase + reg);
@@ -1656,6 +1682,8 @@ static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
 	iowrite32(val, ah->iobase + reg);
 }
+
+#endif
 
 static inline enum ath_bus_type ath5k_get_bus_type(struct ath5k_hw *ah)
 {

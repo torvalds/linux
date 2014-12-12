@@ -326,8 +326,7 @@ static inline int __octeon_is_model_runtime__(uint32_t model)
 #define OCTEON_IS_COMMON_BINARY() 1
 #undef OCTEON_MODEL
 
-const char *octeon_model_get_string(uint32_t chip_id);
-const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer);
+const char *__init octeon_model_get_string(uint32_t chip_id);
 
 /*
  * Return the octeon family, i.e., ProcessorID of the PrID register.

@@ -16,6 +16,7 @@
 #define DEFAULT_MEMSIZE			256	/* If no memsize provided */
 
 /* Loongson 1 Register Bases */
+#define LS1X_MUX_BASE			0x1fd00420
 #define LS1X_INTC_BASE			0x1fd01040
 #define LS1X_EHCI_BASE			0x1fe00000
 #define LS1X_OHCI_BASE			0x1fe08000
@@ -31,7 +32,10 @@
 #define LS1X_I2C0_BASE			0x1fe58000
 #define LS1X_I2C1_BASE			0x1fe68000
 #define LS1X_I2C2_BASE			0x1fe70000
-#define LS1X_PWM_BASE			0x1fe5c000
+#define LS1X_PWM0_BASE			0x1fe5c000
+#define LS1X_PWM1_BASE			0x1fe5c010
+#define LS1X_PWM2_BASE			0x1fe5c020
+#define LS1X_PWM3_BASE			0x1fe5c030
 #define LS1X_WDT_BASE			0x1fe5c060
 #define LS1X_RTC_BASE			0x1fe64000
 #define LS1X_AC97_BASE			0x1fe74000
@@ -39,6 +43,8 @@
 #define LS1X_CLK_BASE			0x1fe78030
 
 #include <regs-clk.h>
+#include <regs-mux.h>
+#include <regs-pwm.h>
 #include <regs-wdt.h>
 
 #endif /* __ASM_MACH_LOONGSON1_LOONGSON1_H */

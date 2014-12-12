@@ -17,7 +17,7 @@
 
 static inline pte_t gup_get_pte(pte_t *ptep)
 {
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 	pte_t pte;
 
 retry:

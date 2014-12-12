@@ -530,7 +530,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	struct mips_abi *abi = current->thread.abi;
 #ifdef CONFIG_CPU_MICROMIPS
 	void *vdso;
-	unsigned int tmp = (unsigned int)current->mm->context.vdso;
+	unsigned long tmp = (unsigned long)current->mm->context.vdso;
 
 	set_isa16_mode(tmp);
 	vdso = (void *)tmp;

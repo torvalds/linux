@@ -262,8 +262,8 @@ char *octeon_swiotlb;
 void __init plat_swiotlb_setup(void)
 {
 	int i;
-	phys_t max_addr;
-	phys_t addr_size;
+	phys_addr_t max_addr;
+	phys_addr_t addr_size;
 	size_t swiotlbsize;
 	unsigned long swiotlb_nslabs;
 
