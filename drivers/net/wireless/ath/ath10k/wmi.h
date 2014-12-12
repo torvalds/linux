@@ -4015,6 +4015,13 @@ enum wmi_sta_ps_param_pspoll_count {
 	 * Values greater than 0 indicate the maximum numer of PS-Poll frames
 	 * FW will send before waking up.
 	 */
+
+	/* When u-APSD is enabled the firmware will be very reluctant to exit
+	 * STA PS. This could result in very poor Rx performance with STA doing
+	 * PS-Poll for each and every buffered frame. This value is a bit
+	 * arbitrary.
+	 */
+	WMI_STA_PS_PSPOLL_COUNT_UAPSD = 3,
 };
 
 /*
