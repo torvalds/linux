@@ -209,13 +209,27 @@ static void pnv_smp_cpu_kill_self(void)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
+static int pnv_cpu_bootable(unsigned int nr)
+{
+	/*
+	 * Starting with POWER8, the subcore logic relies on all threads of a
+	 * core being booted so that they can participate in split mode
+	 * switches. So on those machines we ignore the smt_enabled_at_boot
+	 * setting (smt-enabled on the kernel command line).
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		return 1;
+
+	return smp_generic_cpu_bootable(nr);
+}
+
 static struct smp_ops_t pnv_smp_ops = {
 	.message_pass	= smp_muxed_ipi_message_pass,
 	.cause_ipi	= NULL,	/* Filled at runtime by xics_smp_probe() */
 	.probe		= xics_smp_probe,
 	.kick_cpu	= pnv_smp_kick_cpu,
 	.setup_cpu	= pnv_smp_setup_cpu,
-	.cpu_bootable	= smp_generic_cpu_bootable,
+	.cpu_bootable	= pnv_cpu_bootable,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable	= pnv_smp_cpu_disable,
 	.cpu_die	= generic_cpu_die,
