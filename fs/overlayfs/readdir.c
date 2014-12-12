@@ -40,6 +40,7 @@ struct ovl_readdir_data {
 	struct rb_root root;
 	struct list_head *list;
 	struct list_head middle;
+	struct dentry *dir;
 	int count;
 	int err;
 };
@@ -125,6 +126,32 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 	p = ovl_cache_entry_new(name, len, ino, d_type);
 	if (p == NULL)
 		return -ENOMEM;
+
+	if (d_type == DT_CHR) {
+		struct dentry *dentry;
+		const struct cred *old_cred;
+		struct cred *override_cred;
+
+		override_cred = prepare_creds();
+		if (!override_cred) {
+			kfree(p);
+			return -ENOMEM;
+		}
+
+		/*
+		 * CAP_DAC_OVERRIDE for lookup
+		 */
+		cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
+		old_cred = override_creds(override_cred);
+
+		dentry = lookup_one_len(name, rdd->dir, len);
+		if (!IS_ERR(dentry)) {
+			p->is_whiteout = ovl_is_whiteout(dentry);
+			dput(dentry);
+		}
+		revert_creds(old_cred);
+		put_cred(override_cred);
+	}
 
 	list_add_tail(&p->l_node, rdd->list);
 	rb_link_node(&p->node, parent, newp);
@@ -231,49 +258,6 @@ static void ovl_dir_reset(struct file *file)
 		od->is_real = false;
 }
 
-static int ovl_dir_mark_whiteouts(struct dentry *dir,
-				  struct ovl_readdir_data *rdd)
-{
-	struct ovl_cache_entry *p;
-	struct dentry *dentry;
-	const struct cred *old_cred;
-	struct cred *override_cred;
-
-	override_cred = prepare_creds();
-	if (!override_cred) {
-		ovl_cache_free(rdd->list);
-		return -ENOMEM;
-	}
-
-	/*
-	 * CAP_DAC_OVERRIDE for lookup
-	 */
-	cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
-	old_cred = override_creds(override_cred);
-
-	mutex_lock(&dir->d_inode->i_mutex);
-	list_for_each_entry(p, rdd->list, l_node) {
-		if (p->is_cursor)
-			continue;
-
-		if (p->type != DT_CHR)
-			continue;
-
-		dentry = lookup_one_len(p->name, dir, p->len);
-		if (IS_ERR(dentry))
-			continue;
-
-		p->is_whiteout = ovl_is_whiteout(dentry);
-		dput(dentry);
-	}
-	mutex_unlock(&dir->d_inode->i_mutex);
-
-	revert_creds(old_cred);
-	put_cred(override_cred);
-
-	return 0;
-}
-
 static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 {
 	int err;
@@ -290,15 +274,10 @@ static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 	ovl_path_upper(dentry, &upperpath);
 
 	if (upperpath.dentry) {
+		rdd.dir = upperpath.dentry;
 		err = ovl_dir_read(&upperpath, &rdd);
 		if (err)
 			goto out;
-
-		if (lowerpath.dentry) {
-			err = ovl_dir_mark_whiteouts(upperpath.dentry, &rdd);
-			if (err)
-				goto out;
-		}
 	}
 	if (lowerpath.dentry) {
 		/*
