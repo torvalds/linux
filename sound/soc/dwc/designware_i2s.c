@@ -345,26 +345,17 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	}
 
 	dw_i2s_dai = devm_kzalloc(&pdev->dev, sizeof(*dw_i2s_dai), GFP_KERNEL);
-	if (!dw_i2s_dai) {
-		dev_err(&pdev->dev, "mem allocation failed for dai driver\n");
+	if (!dw_i2s_dai)
 		return -ENOMEM;
-	}
 
 	dw_i2s_dai->ops = &dw_i2s_dai_ops;
 	dw_i2s_dai->suspend = dw_i2s_suspend;
 	dw_i2s_dai->resume = dw_i2s_resume;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no i2s resource defined\n");
-		return -ENODEV;
-	}
-
 	dev->i2s_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dev->i2s_base)) {
-		dev_err(&pdev->dev, "ioremap fail for i2s_region\n");
+	if (IS_ERR(dev->i2s_base))
 		return PTR_ERR(dev->i2s_base);
-	}
 
 	cap = pdata->cap;
 	dev->capability = cap;
