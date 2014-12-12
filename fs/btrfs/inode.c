@@ -382,7 +382,7 @@ static inline int inode_need_compress(struct inode *inode)
  * are written in the same order that the flusher thread sent them
  * down.
  */
-static noinline int compress_file_range(struct inode *inode,
+static noinline void compress_file_range(struct inode *inode,
 					struct page *locked_page,
 					u64 start, u64 end,
 					struct async_cow *async_cow,
@@ -411,14 +411,6 @@ static noinline int compress_file_range(struct inode *inode,
 	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
 		btrfs_add_inode_defrag(NULL, inode);
 
-	/*
-	 * skip compression for a small file range(<=blocksize) that
-	 * isn't an inline extent, since it dosen't save disk space at all.
-	 */
-	if ((end - start + 1) <= blocksize &&
-	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
-		goto cleanup_and_bail_uncompressed;
-
 	actual_end = min_t(u64, isize, end + 1);
 again:
 	will_compress = 0;
@@ -439,6 +431,14 @@ again:
 		goto cleanup_and_bail_uncompressed;
 
 	total_compressed = actual_end - start;
+
+	/*
+	 * skip compression for a small file range(<=blocksize) that
+	 * isn't an inline extent, since it dosen't save disk space at all.
+	 */
+	if (total_compressed <= blocksize &&
+	   (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
+		goto cleanup_and_bail_uncompressed;
 
 	/* we want to make sure that amount of ram required to uncompress
 	 * an extent is reasonable, so we limit the total size in ram
@@ -527,7 +527,10 @@ cont:
 		if (ret <= 0) {
 			unsigned long clear_flags = EXTENT_DELALLOC |
 				EXTENT_DEFRAG;
+			unsigned long page_error_op;
+
 			clear_flags |= (ret < 0) ? EXTENT_DO_ACCOUNTING : 0;
+			page_error_op = ret < 0 ? PAGE_SET_ERROR : 0;
 
 			/*
 			 * inline extent creation worked or returned error,
@@ -538,6 +541,7 @@ cont:
 						     clear_flags, PAGE_UNLOCK |
 						     PAGE_CLEAR_DIRTY |
 						     PAGE_SET_WRITEBACK |
+						     page_error_op |
 						     PAGE_END_WRITEBACK);
 			goto free_pages_out;
 		}
@@ -620,8 +624,7 @@ cleanup_and_bail_uncompressed:
 		*num_added += 1;
 	}
 
-out:
-	return ret;
+	return;
 
 free_pages_out:
 	for (i = 0; i < nr_pages_ret; i++) {
@@ -629,8 +632,22 @@ free_pages_out:
 		page_cache_release(pages[i]);
 	}
 	kfree(pages);
+}
 
-	goto out;
+static void free_async_extent_pages(struct async_extent *async_extent)
+{
+	int i;
+
+	if (!async_extent->pages)
+		return;
+
+	for (i = 0; i < async_extent->nr_pages; i++) {
+		WARN_ON(async_extent->pages[i]->mapping);
+		page_cache_release(async_extent->pages[i]);
+	}
+	kfree(async_extent->pages);
+	async_extent->nr_pages = 0;
+	async_extent->pages = NULL;
 }
 
 /*
@@ -639,7 +656,7 @@ free_pages_out:
  * queued.  We walk all the async extents created by compress_file_range
  * and send them down to the disk.
  */
-static noinline int submit_compressed_extents(struct inode *inode,
+static noinline void submit_compressed_extents(struct inode *inode,
 					      struct async_cow *async_cow)
 {
 	struct async_extent *async_extent;
@@ -650,9 +667,6 @@ static noinline int submit_compressed_extents(struct inode *inode,
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_io_tree *io_tree;
 	int ret = 0;
-
-	if (list_empty(&async_cow->extents))
-		return 0;
 
 again:
 	while (!list_empty(&async_cow->extents)) {
@@ -709,15 +723,7 @@ retry:
 					   async_extent->compressed_size,
 					   0, alloc_hint, &ins, 1, 1);
 		if (ret) {
-			int i;
-
-			for (i = 0; i < async_extent->nr_pages; i++) {
-				WARN_ON(async_extent->pages[i]->mapping);
-				page_cache_release(async_extent->pages[i]);
-			}
-			kfree(async_extent->pages);
-			async_extent->nr_pages = 0;
-			async_extent->pages = NULL;
+			free_async_extent_pages(async_extent);
 
 			if (ret == -ENOSPC) {
 				unlock_extent(io_tree, async_extent->start,
@@ -814,15 +820,26 @@ retry:
 				    ins.objectid,
 				    ins.offset, async_extent->pages,
 				    async_extent->nr_pages);
+		if (ret) {
+			struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
+			struct page *p = async_extent->pages[0];
+			const u64 start = async_extent->start;
+			const u64 end = start + async_extent->ram_size - 1;
+
+			p->mapping = inode->i_mapping;
+			tree->ops->writepage_end_io_hook(p, start, end,
+							 NULL, 0);
+			p->mapping = NULL;
+			extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
+						     PAGE_END_WRITEBACK |
+						     PAGE_SET_ERROR);
+			free_async_extent_pages(async_extent);
+		}
 		alloc_hint = ins.objectid + ins.offset;
 		kfree(async_extent);
-		if (ret)
-			goto out;
 		cond_resched();
 	}
-	ret = 0;
-out:
-	return ret;
+	return;
 out_free_reserve:
 	btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
 out_free:
@@ -832,7 +849,9 @@ out_free:
 				     NULL, EXTENT_LOCKED | EXTENT_DELALLOC |
 				     EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING,
 				     PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
-				     PAGE_SET_WRITEBACK | PAGE_END_WRITEBACK);
+				     PAGE_SET_WRITEBACK | PAGE_END_WRITEBACK |
+				     PAGE_SET_ERROR);
+	free_async_extent_pages(async_extent);
 	kfree(async_extent);
 	goto again;
 }
@@ -1318,7 +1337,7 @@ next_slot:
 			 * we fall into common COW way.
 			 */
 			if (!nolock) {
-				err = btrfs_start_nocow_write(root);
+				err = btrfs_start_write_no_snapshoting(root);
 				if (!err)
 					goto out_check;
 			}
@@ -1342,7 +1361,7 @@ out_check:
 		if (extent_end <= start) {
 			path->slots[0]++;
 			if (!nolock && nocow)
-				btrfs_end_nocow_write(root);
+				btrfs_end_write_no_snapshoting(root);
 			goto next_slot;
 		}
 		if (!nocow) {
@@ -1362,7 +1381,7 @@ out_check:
 					     page_started, nr_written, 1);
 			if (ret) {
 				if (!nolock && nocow)
-					btrfs_end_nocow_write(root);
+					btrfs_end_write_no_snapshoting(root);
 				goto error;
 			}
 			cow_start = (u64)-1;
@@ -1413,7 +1432,7 @@ out_check:
 						      num_bytes);
 			if (ret) {
 				if (!nolock && nocow)
-					btrfs_end_nocow_write(root);
+					btrfs_end_write_no_snapshoting(root);
 				goto error;
 			}
 		}
@@ -1424,7 +1443,7 @@ out_check:
 					     EXTENT_DELALLOC, PAGE_UNLOCK |
 					     PAGE_SET_PRIVATE2);
 		if (!nolock && nocow)
-			btrfs_end_nocow_write(root);
+			btrfs_end_write_no_snapshoting(root);
 		cur_offset = extent_end;
 		if (cur_offset > end)
 			break;
@@ -4580,6 +4599,26 @@ next:
 	return err;
 }
 
+static int wait_snapshoting_atomic_t(atomic_t *a)
+{
+	schedule();
+	return 0;
+}
+
+static void wait_for_snapshot_creation(struct btrfs_root *root)
+{
+	while (true) {
+		int ret;
+
+		ret = btrfs_start_write_no_snapshoting(root);
+		if (ret)
+			break;
+		wait_on_atomic_t(&root->will_be_snapshoted,
+				 wait_snapshoting_atomic_t,
+				 TASK_UNINTERRUPTIBLE);
+	}
+}
+
 static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -4604,17 +4643,30 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 
 	if (newsize > oldsize) {
 		truncate_pagecache(inode, newsize);
+		/*
+		 * Don't do an expanding truncate while snapshoting is ongoing.
+		 * This is to ensure the snapshot captures a fully consistent
+		 * state of this file - if the snapshot captures this expanding
+		 * truncation, it must capture all writes that happened before
+		 * this truncation.
+		 */
+		wait_for_snapshot_creation(root);
 		ret = btrfs_cont_expand(inode, oldsize, newsize);
-		if (ret)
+		if (ret) {
+			btrfs_end_write_no_snapshoting(root);
 			return ret;
+		}
 
 		trans = btrfs_start_transaction(root, 1);
-		if (IS_ERR(trans))
+		if (IS_ERR(trans)) {
+			btrfs_end_write_no_snapshoting(root);
 			return PTR_ERR(trans);
+		}
 
 		i_size_write(inode, newsize);
 		btrfs_ordered_update_i_size(inode, i_size_read(inode), NULL);
 		ret = btrfs_update_inode(trans, root, inode);
+		btrfs_end_write_no_snapshoting(root);
 		btrfs_end_transaction(trans, root);
 	} else {
 
@@ -7000,9 +7052,12 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 			btrfs_put_ordered_extent(ordered);
 		} else {
 			/* Screw you mmap */
-			ret = filemap_write_and_wait_range(inode->i_mapping,
-							   lockstart,
-							   lockend);
+			ret = btrfs_fdatawrite_range(inode, lockstart, lockend);
+			if (ret)
+				break;
+			ret = filemap_fdatawait_range(inode->i_mapping,
+						      lockstart,
+						      lockend);
 			if (ret)
 				break;
 
@@ -9440,6 +9495,21 @@ out_inode:
 	unlock_new_inode(inode);
 	goto out;
 
+}
+
+/* Inspired by filemap_check_errors() */
+int btrfs_inode_check_errors(struct inode *inode)
+{
+	int ret = 0;
+
+	if (test_bit(AS_ENOSPC, &inode->i_mapping->flags) &&
+	    test_and_clear_bit(AS_ENOSPC, &inode->i_mapping->flags))
+		ret = -ENOSPC;
+	if (test_bit(AS_EIO, &inode->i_mapping->flags) &&
+	    test_and_clear_bit(AS_EIO, &inode->i_mapping->flags))
+		ret = -EIO;
+
+	return ret;
 }
 
 static const struct inode_operations btrfs_dir_inode_operations = {
