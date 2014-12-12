@@ -506,7 +506,7 @@ static int ovl_remove_and_whiteout(struct dentry *dentry, bool is_dir)
 	struct dentry *opaquedir = NULL;
 	int err;
 
-	if (is_dir) {
+	if (is_dir && OVL_TYPE_MERGE_OR_LOWER(ovl_path_type(dentry))) {
 		opaquedir = ovl_check_empty_and_clear(dentry);
 		err = PTR_ERR(opaquedir);
 		if (IS_ERR(opaquedir))
