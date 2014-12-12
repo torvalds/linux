@@ -11,4 +11,7 @@
 
 const char *sysfs__mountpoint(void);
 const char *procfs__mountpoint(void);
+
+int filename__read_int(const char *filename, int *value);
+int sysctl__read_int(const char *sysctl, int *value);
 #endif /* __API_FS__ */

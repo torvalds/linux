@@ -2045,7 +2045,6 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	unsigned long before;
 	const bool forks = argc > 0;
 	bool draining = false;
-	char sbuf[STRERR_BUFSIZE];
 
 	trace->live = true;
 
@@ -2106,11 +2105,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_error_open;
 
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
-	if (err < 0) {
-		fprintf(trace->output, "Couldn't mmap the events: %s\n",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
-		goto out_delete_evlist;
-	}
+	if (err < 0)
+		goto out_error_mmap;
 
 	perf_evlist__enable(evlist);
 
@@ -2208,6 +2204,10 @@ out:
 
 out_error_tp:
 	perf_evlist__strerror_tp(evlist, errno, errbuf, sizeof(errbuf));
+	goto out_error;
+
+out_error_mmap:
+	perf_evlist__strerror_mmap(evlist, errno, errbuf, sizeof(errbuf));
 	goto out_error;
 
 out_error_open:
