@@ -30,8 +30,14 @@ static int db8500_cpufreq_cooling_probe(struct platform_device *pdev)
 
 	cdev = cpufreq_cooling_register(cpu_present_mask);
 	if (IS_ERR(cdev)) {
-		dev_err(&pdev->dev, "Failed to register cooling device\n");
-		return PTR_ERR(cdev);
+		int ret = PTR_ERR(cdev);
+
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"Failed to register cooling device %d\n",
+				ret);
+				
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, cdev);
