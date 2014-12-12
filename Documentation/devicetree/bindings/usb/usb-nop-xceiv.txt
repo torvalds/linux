@@ -13,7 +13,7 @@ Optional properties:
 - clock-frequency: the clock frequency (in Hz) that the PHY clock must
   be configured to.
 
-- vcc-supply: phandle to the regulator that provides RESET to the PHY.
+- vcc-supply: phandle to the regulator that provides power to the PHY.
 
 - reset-gpios: Should specify the GPIO for reset.
 
