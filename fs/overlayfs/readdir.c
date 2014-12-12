@@ -253,8 +253,8 @@ static void ovl_dir_reset(struct file *file)
 		ovl_cache_put(od, dentry);
 		od->cache = NULL;
 	}
-	WARN_ON(!od->is_real && type != OVL_PATH_MERGE);
-	if (od->is_real && type == OVL_PATH_MERGE)
+	WARN_ON(!od->is_real && !OVL_TYPE_MERGE(type));
+	if (od->is_real && OVL_TYPE_MERGE(type))
 		od->is_real = false;
 }
 
@@ -429,7 +429,7 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 	/*
 	 * Need to check if we started out being a lower dir, but got copied up
 	 */
-	if (!od->is_upper && ovl_path_type(dentry) != OVL_PATH_LOWER) {
+	if (!od->is_upper && OVL_TYPE_UPPER(ovl_path_type(dentry))) {
 		struct inode *inode = file_inode(file);
 
 		realfile = lockless_dereference(od->upperfile);
@@ -495,8 +495,8 @@ static int ovl_dir_open(struct inode *inode, struct file *file)
 	}
 	INIT_LIST_HEAD(&od->cursor.l_node);
 	od->realfile = realfile;
-	od->is_real = (type != OVL_PATH_MERGE);
-	od->is_upper = (type != OVL_PATH_LOWER);
+	od->is_real = !OVL_TYPE_MERGE(type);
+	od->is_upper = OVL_TYPE_UPPER(type);
 	od->cursor.is_cursor = true;
 	file->private_data = od;
 

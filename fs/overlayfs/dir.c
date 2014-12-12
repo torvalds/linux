@@ -152,7 +152,7 @@ static int ovl_dir_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	 * correct link count.  nlink=1 seems to pacify 'find' and
 	 * other utilities.
 	 */
-	if (type == OVL_PATH_MERGE)
+	if (OVL_TYPE_MERGE(type))
 		stat->nlink = 1;
 
 	return 0;
@@ -630,7 +630,7 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 		goto out_drop_write;
 
 	type = ovl_path_type(dentry);
-	if (type == OVL_PATH_PURE_UPPER) {
+	if (OVL_TYPE_PURE_UPPER(type)) {
 		err = ovl_remove_upper(dentry, is_dir);
 	} else {
 		const struct cred *old_cred;
@@ -712,7 +712,7 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 	/* Don't copy up directory trees */
 	old_type = ovl_path_type(old);
 	err = -EXDEV;
-	if ((old_type == OVL_PATH_LOWER || old_type == OVL_PATH_MERGE) && is_dir)
+	if (OVL_TYPE_MERGE_OR_LOWER(old_type) && is_dir)
 		goto out;
 
 	if (new->d_inode) {
@@ -725,25 +725,25 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 
 		new_type = ovl_path_type(new);
 		err = -EXDEV;
-		if (!overwrite && (new_type == OVL_PATH_LOWER || new_type == OVL_PATH_MERGE) && new_is_dir)
+		if (!overwrite && OVL_TYPE_MERGE_OR_LOWER(new_type) && new_is_dir)
 			goto out;
 
 		err = 0;
-		if (new_type == OVL_PATH_LOWER && old_type == OVL_PATH_LOWER) {
+		if (!OVL_TYPE_UPPER(new_type) && !OVL_TYPE_UPPER(old_type)) {
 			if (ovl_dentry_lower(old)->d_inode ==
 			    ovl_dentry_lower(new)->d_inode)
 				goto out;
 		}
-		if (new_type != OVL_PATH_LOWER && old_type != OVL_PATH_LOWER) {
+		if (OVL_TYPE_UPPER(new_type) && OVL_TYPE_UPPER(old_type)) {
 			if (ovl_dentry_upper(old)->d_inode ==
 			    ovl_dentry_upper(new)->d_inode)
 				goto out;
 		}
 	} else {
 		if (ovl_dentry_is_opaque(new))
-			new_type = OVL_PATH_UPPER;
+			new_type = __OVL_PATH_UPPER;
 		else
-			new_type = OVL_PATH_PURE_UPPER;
+			new_type = __OVL_PATH_UPPER | __OVL_PATH_PURE;
 	}
 
 	err = ovl_want_write(old);
@@ -763,8 +763,8 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 			goto out_drop_write;
 	}
 
-	old_opaque = old_type != OVL_PATH_PURE_UPPER;
-	new_opaque = new_type != OVL_PATH_PURE_UPPER;
+	old_opaque = !OVL_TYPE_PURE_UPPER(old_type);
+	new_opaque = !OVL_TYPE_PURE_UPPER(new_type);
 
 	if (old_opaque || new_opaque) {
 		err = -ENOMEM;
@@ -787,7 +787,7 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 		old_cred = override_creds(override_cred);
 	}
 
-	if (overwrite && (new_type == OVL_PATH_LOWER || new_type == OVL_PATH_MERGE) && new_is_dir) {
+	if (overwrite && OVL_TYPE_MERGE_OR_LOWER(new_type) && new_is_dir) {
 		opaquedir = ovl_check_empty_and_clear(new);
 		err = PTR_ERR(opaquedir);
 		if (IS_ERR(opaquedir)) {

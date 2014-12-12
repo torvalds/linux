@@ -64,22 +64,19 @@ const char *ovl_opaque_xattr = "trusted.overlay.opaque";
 enum ovl_path_type ovl_path_type(struct dentry *dentry)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
+	enum ovl_path_type type = 0;
 
 	if (oe->__upperdentry) {
+		type = __OVL_PATH_UPPER;
+
 		if (oe->lowerdentry) {
 			if (S_ISDIR(dentry->d_inode->i_mode))
-				return OVL_PATH_MERGE;
-			else
-				return OVL_PATH_UPPER;
-		} else {
-			if (oe->opaque)
-				return OVL_PATH_UPPER;
-			else
-				return OVL_PATH_PURE_UPPER;
+				type |= __OVL_PATH_MERGE;
+		} else if (!oe->opaque) {
+			type |= __OVL_PATH_PURE;
 		}
-	} else {
-		return OVL_PATH_LOWER;
 	}
+	return type;
 }
 
 static struct dentry *ovl_upperdentry_dereference(struct ovl_entry *oe)
@@ -101,7 +98,7 @@ enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path)
 
 	enum ovl_path_type type = ovl_path_type(dentry);
 
-	if (type == OVL_PATH_LOWER)
+	if (!OVL_TYPE_UPPER(type))
 		ovl_path_lower(dentry, path);
 	else
 		ovl_path_upper(dentry, path);
