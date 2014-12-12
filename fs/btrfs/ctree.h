@@ -2467,31 +2467,6 @@ BTRFS_SETGET_STACK_FUNCS(stack_inode_gid, struct btrfs_inode_item, gid, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_inode_mode, struct btrfs_inode_item, mode, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_inode_rdev, struct btrfs_inode_item, rdev, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_inode_flags, struct btrfs_inode_item, flags, 64);
-
-static inline struct btrfs_timespec *
-btrfs_inode_atime(struct btrfs_inode_item *inode_item)
-{
-	unsigned long ptr = (unsigned long)inode_item;
-	ptr += offsetof(struct btrfs_inode_item, atime);
-	return (struct btrfs_timespec *)ptr;
-}
-
-static inline struct btrfs_timespec *
-btrfs_inode_mtime(struct btrfs_inode_item *inode_item)
-{
-	unsigned long ptr = (unsigned long)inode_item;
-	ptr += offsetof(struct btrfs_inode_item, mtime);
-	return (struct btrfs_timespec *)ptr;
-}
-
-static inline struct btrfs_timespec *
-btrfs_inode_ctime(struct btrfs_inode_item *inode_item)
-{
-	unsigned long ptr = (unsigned long)inode_item;
-	ptr += offsetof(struct btrfs_inode_item, ctime);
-	return (struct btrfs_timespec *)ptr;
-}
-
 BTRFS_SETGET_FUNCS(timespec_sec, struct btrfs_timespec, sec, 64);
 BTRFS_SETGET_FUNCS(timespec_nsec, struct btrfs_timespec, nsec, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_timespec_sec, struct btrfs_timespec, sec, 64);

@@ -3276,19 +3276,19 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_token_inode_mode(leaf, item, inode->i_mode, &token);
 	btrfs_set_token_inode_nlink(leaf, item, inode->i_nlink, &token);
 
-	btrfs_set_token_timespec_sec(leaf, btrfs_inode_atime(item),
+	btrfs_set_token_timespec_sec(leaf, &item->atime,
 				     inode->i_atime.tv_sec, &token);
-	btrfs_set_token_timespec_nsec(leaf, btrfs_inode_atime(item),
+	btrfs_set_token_timespec_nsec(leaf, &item->atime,
 				      inode->i_atime.tv_nsec, &token);
 
-	btrfs_set_token_timespec_sec(leaf, btrfs_inode_mtime(item),
+	btrfs_set_token_timespec_sec(leaf, &item->mtime,
 				     inode->i_mtime.tv_sec, &token);
-	btrfs_set_token_timespec_nsec(leaf, btrfs_inode_mtime(item),
+	btrfs_set_token_timespec_nsec(leaf, &item->mtime,
 				      inode->i_mtime.tv_nsec, &token);
 
-	btrfs_set_token_timespec_sec(leaf, btrfs_inode_ctime(item),
+	btrfs_set_token_timespec_sec(leaf, &item->ctime,
 				     inode->i_ctime.tv_sec, &token);
-	btrfs_set_token_timespec_nsec(leaf, btrfs_inode_ctime(item),
+	btrfs_set_token_timespec_nsec(leaf, &item->ctime,
 				      inode->i_ctime.tv_nsec, &token);
 
 	btrfs_set_token_inode_nbytes(leaf, item, inode_get_bytes(inode),
