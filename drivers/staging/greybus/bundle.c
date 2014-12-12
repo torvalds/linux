@@ -1,5 +1,5 @@
 /*
- * Greybus interfaces
+ * Greybus bundles
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
@@ -9,131 +9,128 @@
 
 #include "greybus.h"
 
+static void gb_bundle_connections_exit(struct gb_bundle *bundle);
+static int gb_bundle_connections_init(struct gb_bundle *bundle);
+
+
 static ssize_t device_id_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	struct gb_interface *interface = to_gb_interface(dev);
+	struct gb_bundle *bundle = to_gb_bundle(dev);
 
-	return sprintf(buf, "%d", interface->device_id);
+	return sprintf(buf, "%d", bundle->device_id);
 }
 static DEVICE_ATTR_RO(device_id);
 
-static struct attribute *interface_attrs[] = {
+static struct attribute *bundle_attrs[] = {
 	&dev_attr_device_id.attr,
 	NULL,
 };
 
-ATTRIBUTE_GROUPS(interface);
+ATTRIBUTE_GROUPS(bundle);
 
-static void gb_interface_release(struct device *dev)
+static void gb_bundle_release(struct device *dev)
 {
-	struct gb_interface *interface = to_gb_interface(dev);
+	struct gb_bundle *bundle = to_gb_bundle(dev);
 
-	kfree(interface);
+	kfree(bundle);
 }
 
-struct device_type greybus_interface_type = {
-	.name =		"greybus_interface",
-	.release =	gb_interface_release,
+struct device_type greybus_bundle_type = {
+	.name =		"greybus_bundle",
+	.release =	gb_bundle_release,
 };
 
 
 /* XXX This could be per-host device or per-module */
-static DEFINE_SPINLOCK(gb_interfaces_lock);
+static DEFINE_SPINLOCK(gb_bundles_lock);
 
 /*
- * A Greybus interface represents a UniPro device present on a
- * module.  For Project Ara, each active Interface Block on a module
- * implements a UniPro device, and therefore a Greybus interface.  A
- * Greybus module has at least one interface, but can have two (or
- * even more).
- *
- * Create a gb_interface structure to represent a discovered
- * interface.  Returns a pointer to the new interface or a null
+ * Create a gb_bundle structure to represent a discovered
+ * bundle.  Returns a pointer to the new bundle or a null
  * pointer if a failure occurs due to memory exhaustion.
  */
-struct gb_interface *
-gb_interface_create(struct gb_interface_block *gb_ib, u8 interface_id)
+struct gb_bundle *gb_bundle_create(struct gb_interface_block *gb_ib, u8 interface_id)
 {
-	struct gb_interface *interface;
+	struct gb_bundle *bundle;
 	int retval;
 
-	interface = kzalloc(sizeof(*interface), GFP_KERNEL);
-	if (!interface)
+	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
+	if (!bundle)
 		return NULL;
 
-	interface->gb_ib = gb_ib;
-	interface->id = interface_id;
-	interface->device_id = 0xff;	/* Invalid device id to start with */
-	INIT_LIST_HEAD(&interface->connections);
+	bundle->gb_ib = gb_ib;
+	bundle->id = interface_id;
+	bundle->device_id = 0xff;	/* Invalid device id to start with */
+	INIT_LIST_HEAD(&bundle->connections);
 
-	/* Build up the interface device structures and register it with the
+	/* Build up the bundle device structures and register it with the
 	 * driver core */
-	interface->dev.parent = &gb_ib->dev;
-	interface->dev.bus = &greybus_bus_type;
-	interface->dev.type = &greybus_interface_type;
-	interface->dev.groups = interface_groups;
-	device_initialize(&interface->dev);
-	dev_set_name(&interface->dev, "%d:%d", gb_ib->module_id, interface_id);
+	bundle->dev.parent = &gb_ib->dev;
+	bundle->dev.bus = &greybus_bus_type;
+	bundle->dev.type = &greybus_bundle_type;
+	bundle->dev.groups = bundle_groups;
+	device_initialize(&bundle->dev);
+	dev_set_name(&bundle->dev, "%d:%d", gb_ib->module_id, interface_id);
 
-	retval = device_add(&interface->dev);
+	retval = device_add(&bundle->dev);
 	if (retval) {
-		pr_err("failed to add interface device for id 0x%02hhx\n",
+		pr_err("failed to add bundle device for id 0x%02hhx\n",
 			interface_id);
-		put_device(&interface->dev);
-		kfree(interface);
+		put_device(&bundle->dev);
+		kfree(bundle);
 		return NULL;
 	}
 
-	spin_lock_irq(&gb_interfaces_lock);
-	list_add_tail(&interface->links, &gb_ib->interfaces);
-	spin_unlock_irq(&gb_interfaces_lock);
+	spin_lock_irq(&gb_bundles_lock);
+	list_add_tail(&bundle->links, &gb_ib->interfaces);
+	spin_unlock_irq(&gb_bundles_lock);
 
-	return interface;
+	return bundle;
 }
 
 /*
- * Tear down a previously set up interface.
+ * Tear down a previously set up bundle.
  */
-void gb_interface_destroy(struct gb_interface_block *gb_ib)
+void gb_bundle_destroy(struct gb_interface_block *gb_ib)
 {
-	struct gb_interface *interface;
-	struct gb_interface *temp;
+	struct gb_bundle *bundle;
+	struct gb_bundle *temp;
 
 	if (WARN_ON(!gb_ib))
 		return;
 
-	spin_lock_irq(&gb_interfaces_lock);
-	list_for_each_entry_safe(interface, temp, &gb_ib->interfaces, links) {
-		list_del(&interface->links);
-		gb_interface_connections_exit(interface);
-		device_del(&interface->dev);
+	spin_lock_irq(&gb_bundles_lock);
+	list_for_each_entry_safe(bundle, temp, &gb_ib->interfaces, links) {
+		list_del(&bundle->links);
+		gb_bundle_connections_exit(bundle);
+		device_del(&bundle->dev);
 	}
-	spin_unlock_irq(&gb_interfaces_lock);
+	spin_unlock_irq(&gb_bundles_lock);
 }
 
-int gb_interface_init(struct gb_interface_block *gb_ib, u8 interface_id, u8 device_id)
+int gb_bundle_init(struct gb_interface_block *gb_ib, u8 bundle_id, u8 device_id)
 {
-	struct gb_interface *interface;
+	struct gb_bundle *bundle;
 	int ret;
 
-	interface = gb_interface_find(gb_ib, interface_id);
-	if (!interface) {
-		dev_err(gb_ib->hd->parent, "module %hhu not found\n",
-			interface_id);
+	bundle = gb_bundle_find(gb_ib, bundle_id);
+	if (!bundle) {
+		dev_err(gb_ib->hd->parent, "bundle %hhu not found\n",
+			bundle_id);
 		return -ENOENT;
 	}
-	interface->device_id = device_id;
+	bundle->device_id = device_id;
 
-	ret = svc_set_route_send(interface, gb_ib->hd);
+	ret = svc_set_route_send(bundle, gb_ib->hd);
 	if (ret) {
 		dev_err(gb_ib->hd->parent, "failed to set route (%d)\n", ret);
 		return ret;
 	}
 
-	ret = gb_interface_connections_init(interface);
+	ret = gb_bundle_connections_init(bundle);
 	if (ret) {
-		dev_err(gb_ib->hd->parent, "module interface init error %d\n",
+		dev_err(gb_ib->hd->parent, "interface bundle init error %d\n",
 			ret);
 		/* XXX clear route */
 		return ret;
@@ -142,29 +139,27 @@ int gb_interface_init(struct gb_interface_block *gb_ib, u8 interface_id, u8 devi
 	return 0;
 }
 
-struct gb_interface *gb_interface_find(struct gb_interface_block *gb_ib,
-				      u8 interface_id)
+struct gb_bundle *gb_bundle_find(struct gb_interface_block *gb_ib, u8 bundle_id)
 {
-	struct gb_interface *interface;
+	struct gb_bundle *bundle;
 
-	spin_lock_irq(&gb_interfaces_lock);
-	list_for_each_entry(interface, &gb_ib->interfaces, links)
-		if (interface->id == interface_id) {
-			spin_unlock_irq(&gb_interfaces_lock);
-			return interface;
+	spin_lock_irq(&gb_bundles_lock);
+	list_for_each_entry(bundle, &gb_ib->interfaces, links)
+		if (bundle->id == bundle_id) {
+			spin_unlock_irq(&gb_bundles_lock);
+			return bundle;
 		}
-	spin_unlock_irq(&gb_interfaces_lock);
+	spin_unlock_irq(&gb_bundles_lock);
 
 	return NULL;
 }
 
-int gb_interface_connections_init(struct gb_interface *interface)
+static int gb_bundle_connections_init(struct gb_bundle *bundle)
 {
 	struct gb_connection *connection;
 	int ret = 0;
 
-	list_for_each_entry(connection, &interface->connections,
-			interface_links) {
+	list_for_each_entry(connection, &bundle->connections, bundle_links) {
 		ret = gb_connection_init(connection);
 		if (ret)
 			break;
@@ -173,13 +168,13 @@ int gb_interface_connections_init(struct gb_interface *interface)
 	return ret;
 }
 
-void gb_interface_connections_exit(struct gb_interface *interface)
+static void gb_bundle_connections_exit(struct gb_bundle *bundle)
 {
 	struct gb_connection *connection;
 	struct gb_connection *next;
 
-	list_for_each_entry_safe(connection, next, &interface->connections,
-			interface_links) {
+	list_for_each_entry_safe(connection, next, &bundle->connections,
+				 bundle_links) {
 		gb_connection_exit(connection);
 		gb_connection_destroy(connection);
 	}

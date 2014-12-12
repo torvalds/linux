@@ -164,7 +164,7 @@ static void gb_ib_destroy(struct gb_interface_block *gb_ib)
 	list_del(&gb_ib->links);
 	spin_unlock_irq(&gb_modules_lock);
 
-	gb_interface_destroy(gb_ib);
+	gb_bundle_destroy(gb_ib);
 
 	kfree(gb_ib->product_string);
 	kfree(gb_ib->vendor_string);

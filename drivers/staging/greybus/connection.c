@@ -32,7 +32,7 @@ struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 
 /*
  * Callback from the host driver to let us know that data has been
- * received on the interface.
+ * received on the bundle.
  */
 void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length)
@@ -135,7 +135,7 @@ struct device_type greybus_connection_type = {
  * Returns a pointer to the new connection if successful, or a null
  * pointer otherwise.
  */
-struct gb_connection *gb_connection_create(struct gb_interface *interface,
+struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, u8 protocol_id)
 {
 	struct gb_connection *connection;
@@ -156,7 +156,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 		return NULL;
 	}
 
-	hd = interface->gb_ib->hd;
+	hd = bundle->gb_ib->hd;
 	connection->hd = hd;
 	if (!gb_connection_hd_cport_id_alloc(connection)) {
 		gb_protocol_put(connection->protocol);
@@ -164,17 +164,17 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 		return NULL;
 	}
 
-	connection->interface = interface;
-	connection->interface_cport_id = cport_id;
+	connection->bundle = bundle;
+	connection->bundle_cport_id = cport_id;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
-	connection->dev.parent = &interface->dev;
+	connection->dev.parent = &bundle->dev;
 	connection->dev.bus = &greybus_bus_type;
 	connection->dev.type = &greybus_connection_type;
 	connection->dev.groups = connection_groups;
 	device_initialize(&connection->dev);
 	dev_set_name(&connection->dev, "%s:%d",
-		     dev_name(&interface->dev), cport_id);
+		     dev_name(&bundle->dev), cport_id);
 
 	retval = device_add(&connection->dev);
 	if (retval) {
@@ -189,7 +189,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 
 	spin_lock_irq(&gb_connections_lock);
 	list_add_tail(&connection->hd_links, &hd->connections);
-	list_add_tail(&connection->interface_links, &interface->connections);
+	list_add_tail(&connection->bundle_links, &bundle->connections);
 	spin_unlock_irq(&gb_connections_lock);
 
 	atomic_set(&connection->op_cycle, 0);
@@ -216,7 +216,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 			gb_operation_cancel(operation, -ESHUTDOWN);
 	}
 	spin_lock_irq(&gb_connections_lock);
-	list_del(&connection->interface_links);
+	list_del(&connection->bundle_links);
 	list_del(&connection->hd_links);
 	spin_unlock_irq(&gb_connections_lock);
 
@@ -237,9 +237,9 @@ void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
 	vaf.va = &args;
 
 	pr_err("greybus: [%hhu:%hhu:%hu]: %pV\n",
-		connection->interface->gb_ib->module_id,
-		connection->interface->id,
-		connection->interface_cport_id, &vaf);
+		connection->bundle->gb_ib->module_id,
+		connection->bundle->id,
+		connection->bundle_cport_id, &vaf);
 
 	va_end(args);
 }

@@ -47,18 +47,18 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct gb_interface_block *gb_ib = NULL;
-	struct gb_interface *interface = NULL;
+	struct gb_bundle *bundle = NULL;
 	struct gb_connection *connection = NULL;
 
 	if (is_gb_interface_block(dev)) {
 		gb_ib = to_gb_interface_block(dev);
-	} else if (is_gb_interface(dev)) {
-		interface = to_gb_interface(dev);
-		gb_ib = interface->gb_ib;
+	} else if (is_gb_bundle(dev)) {
+		bundle = to_gb_bundle(dev);
+		gb_ib = bundle->gb_ib;
 	} else if (is_gb_connection(dev)) {
 		connection = to_gb_connection(dev);
-		interface = connection->interface;
-		gb_ib = interface->gb_ib;
+		bundle = connection->bundle;
+		gb_ib = bundle->gb_ib;
 	} else {
 		dev_WARN(dev, "uevent for unknown greybus device \"type\"!\n");
 		return -EINVAL;
@@ -70,9 +70,9 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 		return 0;
 	}
 
-	if (interface) {
+	if (bundle) {
 		// FIXME
-		// add a uevent that can "load" a interface type
+		// add a uevent that can "load" a bundle type
 		// This is what we need to bind a driver to so use the info
 		// in gmod here as well
 		return 0;

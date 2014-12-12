@@ -1,5 +1,5 @@
 /*
- * Greybus interfaces
+ * Greybus bundles
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
@@ -7,29 +7,28 @@
  * Released under the GPLv2 only.
  */
 
-#ifndef __INTERFACE_H
-#define __INTERFACE_H
+#ifndef __BUNDLE_H
+#define __BUNDLE_H
 
 #include <linux/list.h>
 
-struct gb_interface {
+/* Greybus "public" definitions" */
+struct gb_bundle {
 	struct device		dev;
 	struct gb_interface_block	*gb_ib;
 	u8			id;
 	u8			device_id;
 	struct list_head	connections;
 
-	struct list_head	links;	/* module->interfaces */
+	struct list_head	links;	/* interface->bundles */
 };
-#define to_gb_interface(d) container_of(d, struct gb_interface, dev)
+#define to_gb_bundle(d) container_of(d, struct gb_bundle, dev)
 
-struct gb_interface *gb_interface_create(struct gb_interface_block *gb_ib, u8 module_id);
-void gb_interface_destroy(struct gb_interface_block *gb_ib);
-int gb_interface_init(struct gb_interface_block *gb_ib, u8 module_id, u8 device_id);
+/* Greybus "private" definitions" */
+struct gb_bundle *gb_bundle_create(struct gb_interface_block *gb_ib, u8 module_id);
+void gb_bundle_destroy(struct gb_interface_block *gb_ib);
+int gb_bundle_init(struct gb_interface_block *gb_ib, u8 module_id, u8 device_id);
 
-struct gb_interface *gb_interface_find(struct gb_interface_block *gb_ib, u8 interface_id);
+struct gb_bundle *gb_bundle_find(struct gb_interface_block *gb_ib, u8 bundle_id);
 
-int gb_interface_connections_init(struct gb_interface *interface);
-void gb_interface_connections_exit(struct gb_interface *interface);
-
-#endif /* __INTERFACE_H */
+#endif /* __BUNDLE_H */

@@ -61,7 +61,7 @@ static int svc_msg_send(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 }
 
 
-int svc_set_route_send(struct gb_interface *interface,
+int svc_set_route_send(struct gb_bundle *bundle,
 			       struct greybus_host_device *hd)
 {
 	struct svc_msg *svc_msg;
@@ -73,7 +73,7 @@ int svc_set_route_send(struct gb_interface *interface,
 	svc_msg->header.message_type = SVC_MSG_DATA;
 	svc_msg->header.payload_length =
 		cpu_to_le16(sizeof(struct svc_function_unipro_set_route));
-	svc_msg->management.set_route.device_id = interface->device_id;
+	svc_msg->management.set_route.device_id = bundle->device_id;
 
 	return svc_msg_send(svc_msg, hd);
 }
@@ -145,12 +145,12 @@ static void svc_management(struct svc_function_unipro_management *management,
 				management->link_up.module_id);
 			return;
 		}
-		ret = gb_interface_init(gb_ib,
+		ret = gb_bundle_init(gb_ib,
 				management->link_up.interface_id,
 				management->link_up.device_id);
 		if (ret)
 			dev_err(hd->parent, "error %d initializing "
-				"interface block %hhu interface %hhu\n",
+				"interface block %hhu bundle %hhu\n",
 				ret, management->link_up.module_id,
 				management->link_up.interface_id);
 		break;

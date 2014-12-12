@@ -172,11 +172,11 @@ extern struct bus_type greybus_bus_type;
 int gb_uart_device_init(struct gb_connection *connection);
 void gb_uart_device_exit(struct gb_connection *connection);
 
-int svc_set_route_send(struct gb_interface *interface,
+int svc_set_route_send(struct gb_bundle *bundle,
 			       struct greybus_host_device *hd);
 
 extern struct device_type greybus_interface_block_type;
-extern struct device_type greybus_interface_type;
+extern struct device_type greybus_bundle_type;
 extern struct device_type greybus_connection_type;
 
 static inline int is_gb_interface_block(const struct device *dev)
@@ -184,9 +184,9 @@ static inline int is_gb_interface_block(const struct device *dev)
 	return dev->type == &greybus_interface_block_type;
 }
 
-static inline int is_gb_interface(const struct device *dev)
+static inline int is_gb_bundle(const struct device *dev)
 {
-	return dev->type == &greybus_interface_type;
+	return dev->type == &greybus_bundle_type;
 }
 
 static inline int is_gb_connection(const struct device *dev)

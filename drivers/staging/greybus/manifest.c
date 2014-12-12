@@ -172,10 +172,10 @@ static char *gb_string_get(u8 string_id)
 
 /*
  * Find cport descriptors in the manifest and set up data structures
- * for the functions that use them.  Returns the number of interfaces
- * set up for the given module, or 0 if there is an error.
+ * for the functions that use them.  Returns the number of bundles
+ * set up for the given interface, or 0 if there is an error.
  */
-static u32 gb_manifest_parse_cports(struct gb_interface *interface)
+static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 {
 	u32 count = 0;
 
@@ -190,7 +190,7 @@ static u32 gb_manifest_parse_cports(struct gb_interface *interface)
 		list_for_each_entry(descriptor, &manifest_descs, links) {
 			if (descriptor->type == GREYBUS_TYPE_CPORT) {
 				desc_cport = descriptor->data;
-				if (desc_cport->interface == interface->id) {
+				if (desc_cport->bundle == bundle->id) {
 					found = true;
 					break;
 				}
@@ -202,7 +202,7 @@ static u32 gb_manifest_parse_cports(struct gb_interface *interface)
 		/* Found one.  Set up its function structure */
 		protocol_id = desc_cport->protocol_id;
 		cport_id = le16_to_cpu(desc_cport->id);
-		if (!gb_connection_create(interface, cport_id, protocol_id))
+		if (!gb_connection_create(bundle, cport_id, protocol_id))
 			return 0;	/* Error */
 
 		count++;
@@ -214,21 +214,21 @@ static u32 gb_manifest_parse_cports(struct gb_interface *interface)
 }
 
 /*
- * Find interface descriptors in the manifest and set up their data
- * structures.  Returns the number of interfaces set up for the
+ * Find bundle descriptors in the manifest and set up their data
+ * structures.  Returns the number of bundles set up for the
  * given module.
  */
-static u32 gb_manifest_parse_interfaces(struct gb_interface_block *gb_ib)
+static u32 gb_manifest_parse_bundles(struct gb_interface_block *gb_ib)
 {
 	u32 count = 0;
 
 	while (true) {
 		struct manifest_desc *descriptor;
 		struct greybus_descriptor_interface *desc_interface;
-		struct gb_interface *interface;
+		struct gb_bundle *bundle;
 		bool found = false;
 
-		/* Find an interface descriptor */
+		/* Find an bundle descriptor */
 		list_for_each_entry(descriptor, &manifest_descs, links) {
 			if (descriptor->type == GREYBUS_TYPE_INTERFACE) {
 				found = true;
@@ -238,19 +238,19 @@ static u32 gb_manifest_parse_interfaces(struct gb_interface_block *gb_ib)
 		if (!found)
 			break;
 
-		/* Found one.  Set up its interface structure*/
+		/* Found one.  Set up its bundle structure*/
 		desc_interface = descriptor->data;
-		interface = gb_interface_create(gb_ib, desc_interface->id);
-		if (!interface)
+		bundle = gb_bundle_create(gb_ib, desc_interface->id);
+		if (!bundle)
 			return 0;	/* Error */
 
-		/* Now go set up this interface's functions and cports */
-		if (!gb_manifest_parse_cports(interface))
+		/* Now go set up this bundle's functions and cports */
+		if (!gb_manifest_parse_cports(bundle))
 			return 0;	/* Error parsing cports */
 
 		count++;
 
-		/* Done with this interface descriptor */
+		/* Done with this bundle descriptor */
 		release_manifest_descriptor(descriptor);
 	}
 
@@ -279,9 +279,9 @@ static bool gb_manifest_parse_module(struct gb_interface_block *gb_ib,
 	/* Release the module descriptor, now that we're done with it */
 	release_manifest_descriptor(module_desc);
 
-	/* A module must have at least one interface descriptor */
-	if (!gb_manifest_parse_interfaces(gb_ib)) {
-		pr_err("manifest interface descriptors not valid\n");
+	/* An interface must have at least one bundle descriptor */
+	if (!gb_manifest_parse_bundles(gb_ib)) {
+		pr_err("manifest bundle descriptors not valid\n");
 		goto out_err;
 	}
 
@@ -314,7 +314,7 @@ out_free_vendor_string:
  * information it contains, and then remove that descriptor (and any
  * string descriptors it refers to) from further consideration.
  *
- * After that we look for the module's interfaces--there must be at
+ * After that we look for the interface block's bundles--there must be at
  * least one of those.
  *
  * Returns true if parsing was successful, false otherwise.
