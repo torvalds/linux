@@ -323,7 +323,7 @@ static int mrf24j40_read_rx_buf(struct mrf24j40 *devrec,
 
 #ifdef DEBUG
 	print_hex_dump(KERN_DEBUG, "mrf24j40 rx: ",
-		DUMP_PREFIX_OFFSET, 16, 1, data, *len, 0);
+		       DUMP_PREFIX_OFFSET, 16, 1, data, *len, 0);
 	pr_debug("mrf24j40 rx: lqi: %02hhx rssi: %02hhx\n",
 		 lqi_rssi[0], lqi_rssi[1]);
 #endif
@@ -521,7 +521,7 @@ static int mrf24j40_filter(struct ieee802154_hw *hw,
 		 */
 
 		dev_dbg(printdev(devrec), "Set Pan Coord to %s\n",
-					filt->pan_coord ? "on" : "off");
+			filt->pan_coord ? "on" : "off");
 	}
 
 	return 0;
