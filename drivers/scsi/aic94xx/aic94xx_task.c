@@ -373,10 +373,10 @@ static int asd_build_ata_ascb(struct asd_ascb *ascb, struct sas_task *task,
 
 	if (unlikely(task->ata_task.device_control_reg_update))
 		scb->header.opcode = CONTROL_ATA_DEV;
-	else if (dev->sata_dev.command_set == ATA_COMMAND_SET)
-		scb->header.opcode = INITIATE_ATA_TASK;
-	else
+	else if (dev->sata_dev.class == ATA_DEV_ATAPI)
 		scb->header.opcode = INITIATE_ATAPI_TASK;
+	else
+		scb->header.opcode = INITIATE_ATA_TASK;
 
 	scb->ata_task.proto_conn_rate = (1 << 5); /* STP */
 	if (dev->port->oob_mode == SAS_OOB_MODE)
@@ -387,7 +387,7 @@ static int asd_build_ata_ascb(struct asd_ascb *ascb, struct sas_task *task,
 	if (likely(!task->ata_task.device_control_reg_update))
 		scb->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
 	scb->ata_task.fis.flags &= 0xF0; /* PM_PORT field shall be 0 */
-	if (dev->sata_dev.command_set == ATAPI_COMMAND_SET)
+	if (dev->sata_dev.class == ATA_DEV_ATAPI)
 		memcpy(scb->ata_task.atapi_packet, task->ata_task.atapi_packet,
 		       16);
 	scb->ata_task.sister_scb = cpu_to_le16(0xFFFF);
@@ -399,7 +399,7 @@ static int asd_build_ata_ascb(struct asd_ascb *ascb, struct sas_task *task,
 		if (task->ata_task.dma_xfer)
 			flags |= DATA_XFER_MODE_DMA;
 		if (task->ata_task.use_ncq &&
-		    dev->sata_dev.command_set != ATAPI_COMMAND_SET)
+		    dev->sata_dev.class != ATA_DEV_ATAPI)
 			flags |= ATA_Q_TYPE_NCQ;
 		flags |= data_dir_flags[task->data_dir];
 		scb->ata_task.ata_flags = flags;
