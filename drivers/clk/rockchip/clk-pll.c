@@ -1025,7 +1025,7 @@ static int pll_clk_get_best_set(unsigned long fin_hz, unsigned long fout_hz,
 		       //printk("_PLL_SET_CLKS(%lu,\t%d,\t%d,\t%d),\n",fout_hz/KHZ,nr,nf,no);
 
 		       /* select the best from all available PLL settings */
-		       if((nr < nr_out) || ((nr == nr_out)&&(no > no_out)))
+		       if ((no > no_out) || ((no == no_out) && (nr < nr_out)))
 		       {
 			       nr_out = nr;
 			       nf_out = nf;
