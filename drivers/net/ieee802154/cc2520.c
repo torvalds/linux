@@ -513,7 +513,6 @@ err_tx:
 	return rc;
 }
 
-
 static int cc2520_rx(struct cc2520_private *priv)
 {
 	u8 len = 0, lqi = 0, bytes = 1;
@@ -946,7 +945,6 @@ static int cc2520_probe(struct spi_device *spi)
 				    GPIOF_OUT_INIT_LOW, "vreg");
 	if (ret)
 		goto err_hw_init;
-
 
 	gpio_set_value(pdata->vreg, HIGH);
 	usleep_range(100, 150);
