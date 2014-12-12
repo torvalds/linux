@@ -3411,6 +3411,8 @@ static bool amd_iommu_capable(enum iommu_cap cap)
 		return true;
 	case IOMMU_CAP_INTR_REMAP:
 		return (irq_remapping_enabled == 1);
+	case IOMMU_CAP_NOEXEC:
+		return false;
 	}
 
 	return false;
