@@ -834,7 +834,12 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_config *pipe_config)
 {
-	hsw_ddi_clock_get(encoder, pipe_config);
+	struct drm_device *dev = encoder->base.dev;
+
+	if (INTEL_INFO(dev)->gen <= 8)
+		hsw_ddi_clock_get(encoder, pipe_config);
+	else
+		skl_ddi_clock_get(encoder, pipe_config);
 }
 
 static void
@@ -2029,7 +2034,6 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct intel_hdmi *intel_hdmi;
 	u32 temp, flags = 0;
-	struct drm_device *dev = dev_priv->dev;
 
 	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)
@@ -2106,10 +2110,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		dev_priv->vbt.edp_bpp = pipe_config->pipe_bpp;
 	}
 
-	if (INTEL_INFO(dev)->gen <= 8)
-		hsw_ddi_clock_get(encoder, pipe_config);
-	else
-		skl_ddi_clock_get(encoder, pipe_config);
+	intel_ddi_clock_get(encoder, pipe_config);
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)
