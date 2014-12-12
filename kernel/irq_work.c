@@ -175,11 +175,11 @@ EXPORT_SYMBOL_GPL(irq_work_run);
 
 void irq_work_tick(void)
 {
-	struct llist_head *raised = &__get_cpu_var(raised_list);
+	struct llist_head *raised = this_cpu_ptr(&raised_list);
 
 	if (!llist_empty(raised) && !arch_irq_work_has_interrupt())
 		irq_work_run_list(raised);
-	irq_work_run_list(&__get_cpu_var(lazy_list));
+	irq_work_run_list(this_cpu_ptr(&lazy_list));
 }
 
 /*

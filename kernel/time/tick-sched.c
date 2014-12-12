@@ -235,7 +235,7 @@ void tick_nohz_full_kick(void)
 	if (!tick_nohz_full_cpu(smp_processor_id()))
 		return;
 
-	irq_work_queue(&__get_cpu_var(nohz_full_kick_work));
+	irq_work_queue(this_cpu_ptr(&nohz_full_kick_work));
 }
 
 /*

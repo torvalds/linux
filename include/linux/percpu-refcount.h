@@ -128,10 +128,8 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 static inline bool __ref_is_percpu(struct percpu_ref *ref,
 					  unsigned long __percpu **percpu_countp)
 {
-	unsigned long percpu_ptr = ACCESS_ONCE(ref->percpu_count_ptr);
-
 	/* paired with smp_store_release() in percpu_ref_reinit() */
-	smp_read_barrier_depends();
+	unsigned long percpu_ptr = lockless_dereference(ref->percpu_count_ptr);
 
 	/*
 	 * Theoretically, the following could test just ATOMIC; however,
