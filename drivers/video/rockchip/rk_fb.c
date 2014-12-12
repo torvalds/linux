@@ -3574,6 +3574,12 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			dev_drv->ops->dsp_black(dev_drv, 1);
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 0);
+	} else if (rk_fb->disp_mode == NO_DUAL) {
+		if ((dev_drv->ops->backlight_close) &&
+		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
+			dev_drv->ops->backlight_close(dev_drv, 1);
+		if (dev_drv->ops->dsp_black)
+			dev_drv->ops->dsp_black(dev_drv, 1);
 	}
 
 	if (!enable) {
@@ -3599,6 +3605,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 
 			if (dev_drv->ops->dsp_black)
 				dev_drv->ops->dsp_black(dev_drv, 0);
+			if ((dev_drv->ops->backlight_close) &&
+			    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
+				dev_drv->ops->backlight_close(dev_drv, 0);
 		} else if (rk_fb->num_lcdc > 1) {
 			/* If there is more than one lcdc device, we disable
 			   the layer which attached to this device */
@@ -3662,11 +3671,14 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv->uboot_logo = 0;
 	}
 	hdmi_switch_complete = 1;
-	if (rk_fb->disp_mode == ONE_DUAL) {
+	if ((rk_fb->disp_mode == ONE_DUAL) || (rk_fb->disp_mode == NO_DUAL)) {
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
 		if (dev_drv->ops->dsp_black)
 			dev_drv->ops->dsp_black(dev_drv, 0);
+		if ((dev_drv->ops->backlight_close) &&
+		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
+			dev_drv->ops->backlight_close(dev_drv, 0);
 	}
 	return 0;
 }
