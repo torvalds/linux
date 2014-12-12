@@ -43,12 +43,12 @@ void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len)
 		return;
 	err = mtd_read(ubi->mtd, addr, len, &read, buf);
 	if (err && err != -EUCLEAN) {
-		ubi_err("error %d while reading %d bytes from PEB %d:%d, read %zd bytes",
+		ubi_err(ubi, "err %d while reading %d bytes from PEB %d:%d, read %zd bytes",
 			err, len, pnum, offset, read);
 		goto out;
 	}
 
-	ubi_msg("dumping %d bytes of data from PEB %d, offset %d",
+	ubi_msg(ubi, "dumping %d bytes of data from PEB %d, offset %d",
 		len, pnum, offset);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
 out:
@@ -238,8 +238,8 @@ int ubi_debugfs_init(void)
 	if (IS_ERR_OR_NULL(dfs_rootdir)) {
 		int err = dfs_rootdir ? -ENODEV : PTR_ERR(dfs_rootdir);
 
-		ubi_err("cannot create \"ubi\" debugfs directory, error %d\n",
-			err);
+		pr_err("UBI error: cannot create \"ubi\" debugfs directory, error %d\n",
+		       err);
 		return err;
 	}
 
@@ -433,7 +433,7 @@ out_remove:
 	debugfs_remove_recursive(d->dfs_dir);
 out:
 	err = dent ? PTR_ERR(dent) : -ENODEV;
-	ubi_err("cannot create \"%s\" debugfs file or directory, error %d\n",
+	ubi_err(ubi, "cannot create \"%s\" debugfs file or directory, error %d\n",
 		fname, err);
 	return err;
 }
