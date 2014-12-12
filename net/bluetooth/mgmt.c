@@ -6151,8 +6151,7 @@ static int powered_update_hci(struct hci_dev *hdev)
 int mgmt_powered(struct hci_dev *hdev, u8 powered)
 {
 	struct cmd_lookup match = { NULL, hdev };
-	u8 status_not_powered = MGMT_STATUS_NOT_POWERED;
-	u8 zero_cod[] = { 0, 0, 0 };
+	u8 status, zero_cod[] = { 0, 0, 0 };
 	int err;
 
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
@@ -6168,7 +6167,20 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	}
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
-	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status_not_powered);
+
+	/* If the power off is because of hdev unregistration let
+	 * use the appropriate INVALID_INDEX status. Otherwise use
+	 * NOT_POWERED. We cover both scenarios here since later in
+	 * mgmt_index_removed() any hci_conn callbacks will have already
+	 * been triggered, potentially causing misleading DISCONNECTED
+	 * status responses.
+	 */
+	if (test_bit(HCI_UNREGISTER, &hdev->dev_flags))
+		status = MGMT_STATUS_INVALID_INDEX;
+	else
+		status = MGMT_STATUS_NOT_POWERED;
+
+	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status);
 
 	if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0)
 		mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
