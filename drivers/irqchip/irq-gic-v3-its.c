@@ -228,7 +228,7 @@ static struct its_collection *its_build_mapd_cmd(struct its_cmd_block *cmd,
 						 struct its_cmd_desc *desc)
 {
 	unsigned long itt_addr;
-	u8 size = order_base_2(desc->its_mapd_cmd.dev->nr_ites);
+	u8 size = ilog2(desc->its_mapd_cmd.dev->nr_ites);
 
 	itt_addr = virt_to_phys(desc->its_mapd_cmd.dev->itt);
 	itt_addr = ALIGN(itt_addr, ITS_ITT_ALIGN);
@@ -1043,11 +1043,18 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	void *itt;
 	int lpi_base;
 	int nr_lpis;
+	int nr_ites;
 	int cpu;
 	int sz;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	sz = nvecs * its->ite_size;
+	/*
+	 * At least one bit of EventID is being used, hence a minimum
+	 * of two entries. No, the architecture doesn't let you
+	 * express an ITT with a single entry.
+	 */
+	nr_ites = max(2, roundup_pow_of_two(nvecs));
+	sz = nr_ites * its->ite_size;
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
 	itt = kmalloc(sz, GFP_KERNEL);
 	lpi_map = its_lpi_alloc_chunks(nvecs, &lpi_base, &nr_lpis);
@@ -1061,7 +1068,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 
 	dev->its = its;
 	dev->itt = itt;
-	dev->nr_ites = nvecs;
+	dev->nr_ites = nr_ites;
 	dev->lpi_map = lpi_map;
 	dev->lpi_base = lpi_base;
 	dev->nr_lpis = nr_lpis;
