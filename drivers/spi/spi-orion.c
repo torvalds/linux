@@ -523,7 +523,7 @@ static int orion_spi_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int orion_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
