@@ -72,6 +72,7 @@ struct btrfs_qgroup {
 	/*
 	 * reservation tracking
 	 */
+	u64 may_use;
 	u64 reserved;
 
 	/*
@@ -1417,6 +1418,8 @@ static int qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	WARN_ON(sign < 0 && qgroup->excl < oper->num_bytes);
 	qgroup->excl += sign * oper->num_bytes;
 	qgroup->excl_cmpr += sign * oper->num_bytes;
+	if (sign > 0)
+		qgroup->reserved -= oper->num_bytes;
 
 	qgroup_dirty(fs_info, qgroup);
 
@@ -1436,6 +1439,8 @@ static int qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 		qgroup->rfer_cmpr += sign * oper->num_bytes;
 		WARN_ON(sign < 0 && qgroup->excl < oper->num_bytes);
 		qgroup->excl += sign * oper->num_bytes;
+		if (sign > 0)
+			qgroup->reserved -= oper->num_bytes;
 		qgroup->excl_cmpr += sign * oper->num_bytes;
 		qgroup_dirty(fs_info, qgroup);
 
@@ -2378,6 +2383,61 @@ out:
 	return ret;
 }
 
+int btrfs_qgroup_update_reserved_bytes(struct btrfs_fs_info *fs_info,
+					    u64 ref_root,
+					    u64 num_bytes,
+					    int sign)
+{
+	struct btrfs_root *quota_root;
+	struct btrfs_qgroup *qgroup;
+	int ret = 0;
+	struct ulist_node *unode;
+	struct ulist_iterator uiter;
+
+	if (!is_fstree(ref_root) || !fs_info->quota_enabled)
+		return 0;
+
+	if (num_bytes == 0)
+		return 0;
+
+	spin_lock(&fs_info->qgroup_lock);
+	quota_root = fs_info->quota_root;
+	if (!quota_root)
+		goto out;
+
+	qgroup = find_qgroup_rb(fs_info, ref_root);
+	if (!qgroup)
+		goto out;
+
+	ulist_reinit(fs_info->qgroup_ulist);
+	ret = ulist_add(fs_info->qgroup_ulist, qgroup->qgroupid,
+			(uintptr_t)qgroup, GFP_ATOMIC);
+	if (ret < 0)
+		goto out;
+
+	ULIST_ITER_INIT(&uiter);
+	while ((unode = ulist_next(fs_info->qgroup_ulist, &uiter))) {
+		struct btrfs_qgroup *qg;
+		struct btrfs_qgroup_list *glist;
+
+		qg = u64_to_ptr(unode->aux);
+
+		qg->reserved += sign * num_bytes;
+
+		list_for_each_entry(glist, &qg->groups, next_group) {
+			ret = ulist_add(fs_info->qgroup_ulist,
+					glist->group->qgroupid,
+					(uintptr_t)glist->group, GFP_ATOMIC);
+			if (ret < 0)
+				goto out;
+		}
+	}
+
+out:
+	spin_unlock(&fs_info->qgroup_lock);
+	return ret;
+}
+
 /*
  * reserve some space for a qgroup and all its parents. The reservation takes
  * place with start_transaction or dealloc_reserve, similar to ENOSPC
@@ -2426,14 +2486,14 @@ int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 		qg = u64_to_ptr(unode->aux);
 
 		if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
-		    qg->reserved + (s64)qg->rfer + num_bytes >
+		    qg->reserved + qg->may_use + (s64)qg->rfer + num_bytes >
 		    qg->max_rfer) {
 			ret = -EDQUOT;
 			goto out;
 		}
 
 		if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) &&
-		    qg->reserved + (s64)qg->excl + num_bytes >
+		    qg->reserved + qg->may_use + (s64)qg->excl + num_bytes >
 		    qg->max_excl) {
 			ret = -EDQUOT;
 			goto out;
@@ -2457,7 +2517,7 @@ int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 
 		qg = u64_to_ptr(unode->aux);
 
-		qg->reserved += num_bytes;
+		qg->may_use += num_bytes;
 	}
 
 out:
@@ -2503,7 +2563,7 @@ void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes)
 
 		qg = u64_to_ptr(unode->aux);
 
-		qg->reserved -= num_bytes;
+		qg->may_use -= num_bytes;
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ret = ulist_add(fs_info->qgroup_ulist,

@@ -5725,8 +5725,12 @@ static int pin_down_extent(struct btrfs_root *root,
 
 	set_extent_dirty(root->fs_info->pinned_extents, bytenr,
 			 bytenr + num_bytes - 1, GFP_NOFS | __GFP_NOFAIL);
-	if (reserved)
+	if (reserved) {
+		btrfs_qgroup_update_reserved_bytes(root->fs_info,
+						   root->root_key.objectid,
+						   num_bytes, -1);
 		trace_btrfs_reserved_extent_free(root, bytenr, num_bytes);
+	}
 	return 0;
 }
 
@@ -6464,6 +6468,9 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		btrfs_put_block_group(cache);
 		trace_btrfs_reserved_extent_free(root, buf->start, buf->len);
 		pin = 0;
+		btrfs_qgroup_update_reserved_bytes(root->fs_info,
+						   root->root_key.objectid,
+						   buf->len, -1);
 	}
 out:
 	if (pin)
@@ -7196,7 +7203,11 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 			ret = btrfs_discard_extent(root, start, len, NULL);
 		btrfs_add_free_space(cache, start, len);
 		btrfs_update_reserved_bytes(cache, len, RESERVE_FREE, delalloc);
+		btrfs_qgroup_update_reserved_bytes(root->fs_info,
+						   root->root_key.objectid,
+						   len, -1);
 	}
+
 	btrfs_put_block_group(cache);
 
 	trace_btrfs_reserved_extent_free(root, start, len);
@@ -7433,6 +7444,9 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	BUG_ON(ret); /* logic error */
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
 					 0, owner, offset, ins, 1);
+	btrfs_qgroup_update_reserved_bytes(root->fs_info,
+					   root->root_key.objectid,
+					   ins->offset, 1);
 	btrfs_put_block_group(block_group);
 	return ret;
 }
@@ -7578,6 +7592,10 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		unuse_block_rsv(root->fs_info, block_rsv, blocksize);
 		return ERR_PTR(ret);
 	}
+
+	btrfs_qgroup_update_reserved_bytes(root->fs_info,
+					   root_objectid,
+					   ins.offset, 1);
 
 	buf = btrfs_init_new_buffer(trans, root, ins.objectid, level);
 	BUG_ON(IS_ERR(buf)); /* -ENOMEM */
