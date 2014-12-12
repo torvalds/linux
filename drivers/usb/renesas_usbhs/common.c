@@ -632,16 +632,12 @@ static int usbhs_probe(struct platform_device *pdev)
 	/*
 	 * manual call notify_hotplug for cold plug
 	 */
-	ret = usbhsc_drvcllbck_notify_hotplug(pdev);
-	if (ret < 0)
-		goto probe_end_call_remove;
+	usbhsc_drvcllbck_notify_hotplug(pdev);
 
 	dev_info(&pdev->dev, "probed\n");
 
 	return ret;
 
-probe_end_call_remove:
-	usbhs_platform_call(priv, hardware_exit, pdev);
 probe_end_mod_exit:
 	usbhs_mod_remove(priv);
 probe_end_fifo_exit:
