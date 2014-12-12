@@ -6097,6 +6097,11 @@ static int powered_update_hci(struct hci_dev *hdev)
 		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
 	}
 
+	if (bredr_sc_enabled(hdev) && !lmp_host_sc_capable(hdev)) {
+		u8 sc = 0x01;
+		hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT, sizeof(sc), &sc);
+	}
+
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
 	    lmp_bredr_capable(hdev)) {
 		struct hci_cp_write_le_host_supported cp;
