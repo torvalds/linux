@@ -701,7 +701,7 @@ static int intel_ring_workarounds_emit(struct intel_engine_cs *ring,
 }
 
 static int wa_add(struct drm_i915_private *dev_priv,
-		  const u32 addr, const u32 val, const u32 mask)
+		  const u32 addr, const u32 mask, const u32 val)
 {
 	const u32 idx = dev_priv->workarounds.count;
 
@@ -717,22 +717,25 @@ static int wa_add(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-#define WA_REG(addr, val, mask) { \
-		const int r = wa_add(dev_priv, (addr), (val), (mask)); \
+#define WA_REG(addr, mask, val) { \
+		const int r = wa_add(dev_priv, (addr), (mask), (val)); \
 		if (r) \
 			return r; \
 	}
 
 #define WA_SET_BIT_MASKED(addr, mask) \
-	WA_REG(addr, _MASKED_BIT_ENABLE(mask), (mask) & 0xffff)
+	WA_REG(addr, (mask), _MASKED_BIT_ENABLE(mask))
 
 #define WA_CLR_BIT_MASKED(addr, mask) \
-	WA_REG(addr, _MASKED_BIT_DISABLE(mask), (mask) & 0xffff)
+	WA_REG(addr, (mask), _MASKED_BIT_DISABLE(mask))
 
-#define WA_SET_BIT(addr, mask) WA_REG(addr, I915_READ(addr) | (mask), mask)
-#define WA_CLR_BIT(addr, mask) WA_REG(addr, I915_READ(addr) & ~(mask), mask)
+#define WA_SET_FIELD_MASKED(addr, mask, value) \
+	WA_REG(addr, mask, _MASKED_FIELD(mask, value))
 
-#define WA_WRITE(addr, val) WA_REG(addr, val, 0xffffffff)
+#define WA_SET_BIT(addr, mask) WA_REG(addr, mask, I915_READ(addr) | (mask))
+#define WA_CLR_BIT(addr, mask) WA_REG(addr, mask, I915_READ(addr) & ~(mask))
+
+#define WA_WRITE(addr, val) WA_REG(addr, 0xffffffff, val)
 
 static int bdw_init_workarounds(struct intel_engine_cs *ring)
 {
@@ -773,8 +776,9 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * disable bit, which we don't touch here, but it's good
 	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
-	WA_SET_BIT_MASKED(GEN7_GT_MODE,
-			  GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
+			    GEN6_WIZ_HASHING_MASK,
+			    GEN6_WIZ_HASHING_16x4);
 
 	return 0;
 }

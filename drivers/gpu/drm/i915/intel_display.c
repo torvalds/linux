@@ -11580,10 +11580,12 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		    to_intel_crtc(set->crtc)->config.has_audio)
 			config->mode_changed = true;
 
-		/* Force mode sets for any infoframe stuff */
-		if (pipe_config->has_infoframe ||
-		    to_intel_crtc(set->crtc)->config.has_infoframe)
-			config->mode_changed = true;
+		/*
+		 * Note we have an issue here with infoframes: current code
+		 * only updates them on the full mode set path per hw
+		 * requirements.  So here we should be checking for any
+		 * required changes and forcing a mode set.
+		 */
 	}
 
 	/* set_mode will free it in the mode_changed case */
