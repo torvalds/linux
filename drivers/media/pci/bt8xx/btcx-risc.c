@@ -32,13 +32,9 @@
 
 #include "btcx-risc.h"
 
-MODULE_DESCRIPTION("some code shared by bttv and cx88xx drivers");
-MODULE_AUTHOR("Gerd Knorr");
-MODULE_LICENSE("GPL");
-
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,"debug messages, default is 0 (no)");
+static unsigned int btcx_debug;
+module_param(btcx_debug, int, 0644);
+MODULE_PARM_DESC(btcx_debug,"debug messages, default is 0 (no)");
 
 /* ---------------------------------------------------------- */
 /* allocate/free risc memory                                  */
@@ -50,7 +46,7 @@ void btcx_riscmem_free(struct pci_dev *pci,
 {
 	if (NULL == risc->cpu)
 		return;
-	if (debug) {
+	if (btcx_debug) {
 		memcnt--;
 		printk("btcx: riscmem free [%d] dma=%lx\n",
 		       memcnt, (unsigned long)risc->dma);
@@ -75,7 +71,7 @@ int btcx_riscmem_alloc(struct pci_dev *pci,
 		risc->cpu  = cpu;
 		risc->dma  = dma;
 		risc->size = size;
-		if (debug) {
+		if (btcx_debug) {
 			memcnt++;
 			printk("btcx: riscmem alloc [%d] dma=%lx cpu=%p size=%d\n",
 			       memcnt, (unsigned long)dma, cpu, size);
@@ -141,7 +137,7 @@ btcx_align(struct v4l2_rect *win, struct v4l2_clip *clips, unsigned int n, int m
 	dx = nx - win->left;
 	win->left  = nx;
 	win->width = nw;
-	if (debug)
+	if (btcx_debug)
 		printk(KERN_DEBUG "btcx: window align %dx%d+%d+%d [dx=%d]\n",
 		       win->width, win->height, win->left, win->top, dx);
 
@@ -153,7 +149,7 @@ btcx_align(struct v4l2_rect *win, struct v4l2_clip *clips, unsigned int n, int m
 			nw += mask+1;
 		clips[i].c.left  = nx;
 		clips[i].c.width = nw;
-		if (debug)
+		if (btcx_debug)
 			printk(KERN_DEBUG "btcx:   clip align %dx%d+%d+%d\n",
 			       clips[i].c.width, clips[i].c.height,
 			       clips[i].c.left, clips[i].c.top);
@@ -234,7 +230,7 @@ btcx_calc_skips(int line, int width, int *maxy,
 	*nskips = skip;
 	*maxy = maxline;
 
-	if (debug) {
+	if (btcx_debug) {
 		printk(KERN_DEBUG "btcx: skips line %d-%d:",line,maxline);
 		for (skip = 0; skip < *nskips; skip++) {
 			printk(" %d-%d",skips[skip].start,skips[skip].end);
@@ -242,13 +238,3 @@ btcx_calc_skips(int line, int width, int *maxy,
 		printk("\n");
 	}
 }
-
-/* ---------------------------------------------------------- */
-
-EXPORT_SYMBOL(btcx_riscmem_alloc);
-EXPORT_SYMBOL(btcx_riscmem_free);
-
-EXPORT_SYMBOL(btcx_screen_clips);
-EXPORT_SYMBOL(btcx_align);
-EXPORT_SYMBOL(btcx_sort_clips);
-EXPORT_SYMBOL(btcx_calc_skips);
