@@ -1633,6 +1633,48 @@ There are some more advanced barrier functions:
      operations" subsection for information on where to use these.
 
 
+ (*) dma_wmb();
+ (*) dma_rmb();
+
+     These are for use with consistent memory to guarantee the ordering
+     of writes or reads of shared memory accessible to both the CPU and a
+     DMA capable device.
+
+     For example, consider a device driver that shares memory with a device
+     and uses a descriptor status value to indicate if the descriptor belongs
+     to the device or the CPU, and a doorbell to notify it when new
+     descriptors are available:
+
+	if (desc->status != DEVICE_OWN) {
+		/* do not read data until we own descriptor */
+		dma_rmb();
+
+		/* read/modify data */
+		read_data = desc->data;
+		desc->data = write_data;
+
+		/* flush modifications before status update */
+		dma_wmb();
+
+		/* assign ownership */
+		desc->status = DEVICE_OWN;
+
+		/* force memory to sync before notifying device via MMIO */
+		wmb();
+
+		/* notify device of new descriptors */
+		writel(DESC_NOTIFY, doorbell);
+	}
+
+     The dma_rmb() allows us guarantee the device has released ownership
+     before we read the data from the descriptor, and he dma_wmb() allows
+     us to guarantee the data is written to the descriptor before the device
+     can see it now has ownership.  The wmb() is needed to guarantee that the
+     cache coherent memory writes have completed before attempting a write to
+     the cache incoherent MMIO region.
+
+     See Documentation/DMA-API.txt for more information on consistent memory.
+
 MMIO WRITE BARRIER
 ------------------
 
