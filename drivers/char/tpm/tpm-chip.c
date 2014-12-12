@@ -147,7 +147,7 @@ int tpm_chip_register(struct tpm_chip *chip)
 	if (rc)
 		goto del_misc;
 
-	rc = tpm_add_ppi(&chip->dev->kobj);
+	rc = tpm_add_ppi(chip);
 	if (rc)
 		goto del_sysfs;
 
@@ -191,7 +191,7 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 
 	if (chip->bios_dir)
 		tpm_bios_log_teardown(chip->bios_dir);
-	tpm_remove_ppi(&chip->dev->kobj);
+	tpm_remove_ppi(chip);
 	tpm_sysfs_del_device(chip);
 
 	tpm_dev_del_device(chip);

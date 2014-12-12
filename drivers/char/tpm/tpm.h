@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/tpm.h>
+#include <linux/acpi.h>
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
@@ -94,8 +95,11 @@ struct tpm_vendor_specific {
 #define TPM_VID_WINBOND  0x1050
 #define TPM_VID_STM      0x104A
 
+#define TPM_PPI_VERSION_LEN		3
+
 enum tpm_chip_flags {
 	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
+	TPM_CHIP_FLAG_PPI		= BIT(1),
 };
 
 struct tpm_chip {
@@ -113,6 +117,11 @@ struct tpm_chip {
 	struct tpm_vendor_specific vendor;
 
 	struct dentry **bios_dir;
+
+#ifdef CONFIG_ACPI
+	acpi_handle acpi_dev_handle;
+	char ppi_version[TPM_PPI_VERSION_LEN + 1];
+#endif /* CONFIG_ACPI */
 
 	struct list_head list;
 };
@@ -345,15 +354,15 @@ void tpm_sysfs_del_device(struct tpm_chip *chip);
 int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 
 #ifdef CONFIG_ACPI
-extern int tpm_add_ppi(struct kobject *);
-extern void tpm_remove_ppi(struct kobject *);
+extern int tpm_add_ppi(struct tpm_chip *chip);
+extern void tpm_remove_ppi(struct tpm_chip *chip);
 #else
-static inline int tpm_add_ppi(struct kobject *parent)
+static inline int tpm_add_ppi(struct tpm_chip *chip)
 {
 	return 0;
 }
 
-static inline void tpm_remove_ppi(struct kobject *parent)
+static inline void tpm_remove_ppi(struct tpm_chip *chip)
 {
 }
 #endif

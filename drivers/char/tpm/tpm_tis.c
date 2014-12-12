@@ -580,8 +580,9 @@ static void tpm_tis_remove(struct tpm_chip *chip)
 	release_locality(chip, chip->vendor.locality, 1);
 }
 
-static int tpm_tis_init(struct device *dev, resource_size_t start,
-			resource_size_t len, unsigned int irq)
+static int tpm_tis_init(struct device *dev, acpi_handle acpi_dev_handle,
+			resource_size_t start, resource_size_t len,
+			unsigned int irq)
 {
 	u32 vendor, intfcaps, intmask;
 	int rc, i, irq_s, irq_e, probe;
@@ -597,6 +598,7 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 		return PTR_ERR(chip);
 
 	chip->vendor.priv = priv;
+	chip->acpi_dev_handle = acpi_dev_handle;
 
 	chip->vendor.iobase = devm_ioremap(dev, start, len);
 	if (!chip->vendor.iobase)
@@ -827,6 +829,7 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 {
 	resource_size_t start, len;
 	unsigned int irq = 0;
+	acpi_handle acpi_dev_handle = NULL;
 
 	start = pnp_mem_start(pnp_dev, 0);
 	len = pnp_mem_len(pnp_dev, 0);
@@ -839,7 +842,10 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	if (is_itpm(pnp_dev))
 		itpm = true;
 
-	return tpm_tis_init(&pnp_dev->dev, start, len, irq);
+	if (pnp_acpi_device(pnp_dev))
+		acpi_dev_handle = pnp_acpi_device(pnp_dev)->handle;
+
+	return tpm_tis_init(&pnp_dev->dev, acpi_dev_handle, start, len, irq);
 }
 
 static struct pnp_device_id tpm_pnp_tbl[] = {
@@ -907,7 +913,7 @@ static int __init init_tis(void)
 		rc = PTR_ERR(pdev);
 		goto err_dev;
 	}
-	rc = tpm_tis_init(&pdev->dev, TIS_MEM_BASE, TIS_MEM_LEN, 0);
+	rc = tpm_tis_init(&pdev->dev, NULL, TIS_MEM_BASE, TIS_MEM_LEN, 0);
 	if (rc)
 		goto err_init;
 	return 0;
