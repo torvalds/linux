@@ -500,6 +500,38 @@ static const struct ipu_rgb def_bgr_16 = {
 	.bits_per_pixel = 16,
 };
 
+static const struct ipu_rgb def_argb_16 = {
+	.red	= { .offset = 10, .length = 5, },
+	.green	= { .offset =  5, .length = 5, },
+	.blue	= { .offset =  0, .length = 5, },
+	.transp = { .offset = 15, .length = 1, },
+	.bits_per_pixel = 16,
+};
+
+static const struct ipu_rgb def_abgr_16 = {
+	.red	= { .offset =  0, .length = 5, },
+	.green	= { .offset =  5, .length = 5, },
+	.blue	= { .offset = 10, .length = 5, },
+	.transp = { .offset = 15, .length = 1, },
+	.bits_per_pixel = 16,
+};
+
+static const struct ipu_rgb def_rgba_16 = {
+	.red	= { .offset = 11, .length = 5, },
+	.green	= { .offset =  6, .length = 5, },
+	.blue	= { .offset =  1, .length = 5, },
+	.transp = { .offset =  0, .length = 1, },
+	.bits_per_pixel = 16,
+};
+
+static const struct ipu_rgb def_bgra_16 = {
+	.red	= { .offset =  1, .length = 5, },
+	.green	= { .offset =  6, .length = 5, },
+	.blue	= { .offset = 11, .length = 5, },
+	.transp = { .offset =  0, .length = 1, },
+	.bits_per_pixel = 16,
+};
+
 #define Y_OFFSET(pix, x, y)	((x) + pix->width * (y))
 #define U_OFFSET(pix, x, y)	((pix->width * pix->height) +		\
 				 (pix->width * (y) / 4) + (x) / 2)
@@ -580,6 +612,18 @@ int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc)
 		break;
 	case DRM_FORMAT_BGR565:
 		ipu_cpmem_set_format_rgb(ch, &def_bgr_16);
+		break;
+	case DRM_FORMAT_ARGB1555:
+		ipu_cpmem_set_format_rgb(ch, &def_argb_16);
+		break;
+	case DRM_FORMAT_ABGR1555:
+		ipu_cpmem_set_format_rgb(ch, &def_abgr_16);
+		break;
+	case DRM_FORMAT_RGBA5551:
+		ipu_cpmem_set_format_rgb(ch, &def_rgba_16);
+		break;
+	case DRM_FORMAT_BGRA5551:
+		ipu_cpmem_set_format_rgb(ch, &def_bgra_16);
 		break;
 	default:
 		return -EINVAL;
