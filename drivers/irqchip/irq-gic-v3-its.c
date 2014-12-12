@@ -1210,7 +1210,7 @@ static void its_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 		clear_bit(event, its_dev->lpi_map);
 
 		/* Nuke the entry in the domain */
-		irq_domain_reset_irq_data(d);
+		irq_domain_reset_irq_data(data);
 	}
 
 	/* If all interrupts have been freed, start mopping the floor */
