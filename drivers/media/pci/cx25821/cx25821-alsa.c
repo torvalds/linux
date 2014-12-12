@@ -63,7 +63,7 @@ static int devno;
 
 struct cx25821_audio_buffer {
 	unsigned int bpl;
-	struct btcx_riscmem risc;
+	struct cx25821_riscmem risc;
 	struct videobuf_dmabuf dma;
 };
 
@@ -330,12 +330,14 @@ out:
 
 static int dsp_buffer_free(struct cx25821_audio_dev *chip)
 {
+	struct cx25821_riscmem *risc = &chip->buf->risc;
+
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2, "Freeing buffer\n");
 	videobuf_dma_unmap(&chip->pci->dev, chip->dma_risc);
 	videobuf_dma_free(chip->dma_risc);
-	btcx_riscmem_free(chip->pci, &chip->buf->risc);
+	pci_free_consistent(chip->pci, risc->size, risc->cpu, risc->dma);
 	kfree(chip->buf);
 
 	chip->dma_risc = NULL;

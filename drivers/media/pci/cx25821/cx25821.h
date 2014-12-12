@@ -36,7 +36,6 @@
 #include <media/v4l2-ctrls.h>
 #include <media/videobuf-dma-sg.h>
 
-#include "btcx-risc.h"
 #include "cx25821-reg.h"
 #include "cx25821-medusa-reg.h"
 #include "cx25821-sram.h"
@@ -111,6 +110,13 @@ enum cx25821_src_sel_type {
 	CX25821_SRC_SEL_PARALLEL_MPEG_VIDEO
 };
 
+struct cx25821_riscmem {
+	unsigned int   size;
+	__le32         *cpu;
+	__le32         *jmp;
+	dma_addr_t     dma;
+};
+
 /* buffer for one video frame */
 struct cx25821_buffer {
 	/* common v4l buffer stuff -- must be first */
@@ -118,7 +124,7 @@ struct cx25821_buffer {
 
 	/* cx25821 specific */
 	unsigned int bpl;
-	struct btcx_riscmem risc;
+	struct cx25821_riscmem risc;
 	const struct cx25821_fmt *fmt;
 	u32 count;
 };
@@ -161,7 +167,7 @@ struct cx25821_dmaqueue {
 	struct list_head active;
 	struct list_head queued;
 	struct timer_list timeout;
-	struct btcx_riscmem stopper;
+	struct cx25821_riscmem stopper;
 	u32 count;
 };
 
@@ -405,20 +411,23 @@ extern int cx25821_sram_channel_setup(struct cx25821_dev *dev,
 				      const struct sram_channel *ch, unsigned int bpl,
 				      u32 risc);
 
-extern int cx25821_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
+extern int cx25821_riscmem_alloc(struct pci_dev *pci,
+				 struct cx25821_riscmem *risc,
+				 unsigned int size);
+extern int cx25821_risc_buffer(struct pci_dev *pci, struct cx25821_riscmem *risc,
 			       struct scatterlist *sglist,
 			       unsigned int top_offset,
 			       unsigned int bottom_offset,
 			       unsigned int bpl,
 			       unsigned int padding, unsigned int lines);
 extern int cx25821_risc_databuffer_audio(struct pci_dev *pci,
-					 struct btcx_riscmem *risc,
+					 struct cx25821_riscmem *risc,
 					 struct scatterlist *sglist,
 					 unsigned int bpl,
 					 unsigned int lines, unsigned int lpi);
 extern void cx25821_free_buffer(struct videobuf_queue *q,
 				struct cx25821_buffer *buf);
-extern int cx25821_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
+extern int cx25821_risc_stopper(struct pci_dev *pci, struct cx25821_riscmem *risc,
 				u32 reg, u32 mask, u32 value);
 extern void cx25821_sram_channel_dump(struct cx25821_dev *dev,
 				      const struct sram_channel *ch);
