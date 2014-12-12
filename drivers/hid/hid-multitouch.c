@@ -67,6 +67,7 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_IGNORE_DUPLICATES	(1 << 10)
 #define MT_QUIRK_HOVERING		(1 << 11)
 #define MT_QUIRK_CONTACT_CNT_ACCURATE	(1 << 12)
+#define MT_QUIRK_FORCE_GET_FEATURE	(1 << 13)
 
 #define MT_INPUTMODE_TOUCHSCREEN	0x02
 #define MT_INPUTMODE_TOUCHPAD		0x03
@@ -150,6 +151,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_FLATFROG				0x0107
 #define MT_CLS_GENERALTOUCH_TWOFINGERS		0x0108
 #define MT_CLS_GENERALTOUCH_PWT_TENFINGERS	0x0109
+#define MT_CLS_VTL				0x0110
 
 #define MT_DEFAULT_MAXCONTACT	10
 #define MT_MAX_MAXCONTACT	250
@@ -254,6 +256,11 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_NO_AREA,
 		.sn_move = 2048,
 		.maxcontacts = 40,
+	},
+	{ .name = MT_CLS_VTL,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_FORCE_GET_FEATURE,
 	},
 	{ }
 };
@@ -809,6 +816,9 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	struct mt_device *td = hid_get_drvdata(hdev);
 	struct hid_report *r;
 	struct hid_report_enum *re;
+	struct mt_class *cls = &td->mtclass;
+	char *buf;
+	int report_len;
 
 	if (td->inputmode < 0)
 		return;
@@ -816,6 +826,18 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	re = &(hdev->report_enum[HID_FEATURE_REPORT]);
 	r = re->report_id_hash[td->inputmode];
 	if (r) {
+		if (cls->quirks & MT_QUIRK_FORCE_GET_FEATURE) {
+			report_len = hid_report_len(r);
+			buf = hid_alloc_report_buf(r, GFP_KERNEL);
+			if (!buf) {
+				hid_err(hdev, "failed to allocate buffer for report\n");
+				return;
+			}
+			hid_hw_raw_request(hdev, r->id, buf, report_len,
+					   HID_FEATURE_REPORT,
+					   HID_REQ_GET_REPORT);
+			kfree(buf);
+		}
 		r->field[0]->value[td->inputmode_index] = td->inputmode_value;
 		hid_hw_request(hdev, r, HID_REQ_SET_REPORT);
 	}
@@ -1280,6 +1302,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_UNITEC,
 			USB_DEVICE_ID_UNITEC_USB_TOUCH_0A19) },
+
+	/* VTL panels */
+	{ .driver_data = MT_CLS_VTL,
+		MT_USB_DEVICE(USB_VENDOR_ID_VTL,
+			USB_DEVICE_ID_VTL_MULTITOUCH_FF3F) },
 
 	/* Wistron panels */
 	{ .driver_data = MT_CLS_NSMU,
