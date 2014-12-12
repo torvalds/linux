@@ -25,12 +25,16 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
+#include <linux/major.h>
 #include "tpm.h"
 #include "tpm_eventlog.h"
 
 static DECLARE_BITMAP(dev_mask, TPM_NUM_DEVICES);
 static LIST_HEAD(tpm_chip_list);
 static DEFINE_SPINLOCK(driver_lock);
+
+struct class *tpm_class;
+dev_t tpm_devt;
 
 /*
  * tpm_chip_find_get - return tpm_chip for a given chip number
@@ -55,16 +59,14 @@ struct tpm_chip *tpm_chip_find_get(int chip_num)
 }
 
 /**
- * tpmm_chip_remove() - free chip memory and device number
- * @data: points to struct tpm_chip instance
+ * tpm_dev_release() - free chip memory and the device number
+ * @dev: the character device for the TPM chip
  *
- * This is used internally by tpmm_chip_alloc() and called by devres
- * when the device is released. This function does the opposite of
- * tpmm_chip_alloc() freeing memory and the device number.
+ * This is used as the release function for the character device.
  */
-static void tpmm_chip_remove(void *data)
+static void tpm_dev_release(struct device *dev)
 {
-	struct tpm_chip *chip = (struct tpm_chip *) data;
+	struct tpm_chip *chip = container_of(dev, struct tpm_chip, dev);
 
 	spin_lock(&driver_lock);
 	clear_bit(chip->dev_num, dev_mask);
@@ -111,18 +113,68 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	scnprintf(chip->devname, sizeof(chip->devname), "tpm%d", chip->dev_num);
 
 	chip->pdev = dev;
-	devm_add_action(dev, tpmm_chip_remove, chip);
+
 	dev_set_drvdata(dev, chip);
+
+	chip->dev.class = tpm_class;
+	chip->dev.release = tpm_dev_release;
+	chip->dev.parent = chip->pdev;
+
+	if (chip->dev_num == 0)
+		chip->dev.devt = MKDEV(MISC_MAJOR, TPM_MINOR);
+	else
+		chip->dev.devt = MKDEV(MAJOR(tpm_devt), chip->dev_num);
+
+	dev_set_name(&chip->dev, chip->devname);
+
+	device_initialize(&chip->dev);
+
+	chip->cdev.owner = chip->pdev->driver->owner;
+	cdev_init(&chip->cdev, &tpm_fops);
 
 	return chip;
 }
 EXPORT_SYMBOL_GPL(tpmm_chip_alloc);
 
+static int tpm_dev_add_device(struct tpm_chip *chip)
+{
+	int rc;
+
+	rc = device_add(&chip->dev);
+	if (rc) {
+		dev_err(&chip->dev,
+			"unable to device_register() %s, major %d, minor %d, err=%d\n",
+			chip->devname, MAJOR(chip->dev.devt),
+			MINOR(chip->dev.devt), rc);
+
+		return rc;
+	}
+
+	rc = cdev_add(&chip->cdev, chip->dev.devt, 1);
+	if (rc) {
+		dev_err(&chip->dev,
+			"unable to cdev_add() %s, major %d, minor %d, err=%d\n",
+			chip->devname, MAJOR(chip->dev.devt),
+			MINOR(chip->dev.devt), rc);
+
+		device_unregister(&chip->dev);
+		return rc;
+	}
+
+	return rc;
+}
+
+static void tpm_dev_del_device(struct tpm_chip *chip)
+{
+	cdev_del(&chip->cdev);
+	device_unregister(&chip->dev);
+}
+
 /*
- * tpm_chip_register() - create a misc driver for the TPM chip
+ * tpm_chip_register() - create a character device for the TPM chip
  * @chip: TPM chip to use.
  *
- * Creates a misc driver for the TPM chip and adds sysfs interfaces for
+ * Creates a character device for the TPM chip and adds sysfs interfaces for
  * the device, PPI and TCPA. As the last step this function adds the
  * chip to the list of TPM chips available for use.
  *

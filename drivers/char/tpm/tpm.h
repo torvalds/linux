@@ -23,11 +23,11 @@
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
-#include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/tpm.h>
 #include <linux/acpi.h>
+#include <linux/cdev.h>
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
@@ -74,7 +74,6 @@ struct tpm_vendor_specific {
 	int region_size;
 	int have_region;
 
-	struct miscdevice miscdev;
 	struct list_head list;
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
@@ -104,6 +103,9 @@ enum tpm_chip_flags {
 
 struct tpm_chip {
 	struct device *pdev;	/* Device stuff */
+	struct device dev;
+	struct cdev cdev;
+
 	const struct tpm_class_ops *ops;
 	unsigned int flags;
 
@@ -326,6 +328,10 @@ struct tpm_cmd_t {
 	tpm_cmd_params	params;
 } __packed;
 
+extern struct class *tpm_class;
+extern dev_t tpm_devt;
+extern const struct file_operations tpm_fops;
+
 ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
 ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		     size_t bufsiz);
@@ -346,8 +352,6 @@ extern struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 extern int tpm_chip_register(struct tpm_chip *chip);
 extern void tpm_chip_unregister(struct tpm_chip *chip);
 
-int tpm_dev_add_device(struct tpm_chip *chip);
-void tpm_dev_del_device(struct tpm_chip *chip);
 int tpm_sysfs_add_device(struct tpm_chip *chip);
 void tpm_sysfs_del_device(struct tpm_chip *chip);
 

@@ -997,6 +997,35 @@ int tpm_get_random(u32 chip_num, u8 *out, size_t max)
 }
 EXPORT_SYMBOL_GPL(tpm_get_random);
 
+static int __init tpm_init(void)
+{
+	int rc;
+
+	tpm_class = class_create(THIS_MODULE, "tpm");
+	if (IS_ERR(tpm_class)) {
+		pr_err("couldn't create tpm class\n");
+		return PTR_ERR(tpm_class);
+	}
+
+	rc = alloc_chrdev_region(&tpm_devt, 0, TPM_NUM_DEVICES, "tpm");
+	if (rc < 0) {
+		pr_err("tpm: failed to allocate char dev region\n");
+		class_destroy(tpm_class);
+		return rc;
+	}
+
+	return 0;
+}
+
+static void __exit tpm_exit(void)
+{
+	class_destroy(tpm_class);
+	unregister_chrdev_region(tpm_devt, TPM_NUM_DEVICES);
+}
+
+subsys_initcall(tpm_init);
+module_exit(tpm_exit);
+
 MODULE_AUTHOR("Leendert van Doorn (leendert@watson.ibm.com)");
 MODULE_DESCRIPTION("TPM Driver");
 MODULE_VERSION("2.0");
