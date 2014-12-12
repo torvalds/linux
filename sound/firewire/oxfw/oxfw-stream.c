@@ -61,7 +61,8 @@ static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 	u8 **formats;
 	struct snd_oxfw_stream_formation formation;
 	enum avc_general_plug_dir dir;
-	unsigned int i, err, len;
+	unsigned int len;
+	int i, err;
 
 	if (s == &oxfw->tx_stream) {
 		formats = oxfw->tx_stream_formats;

@@ -15,7 +15,7 @@ static void proc_read_formation(struct snd_info_entry *entry,
 	struct snd_oxfw_stream_formation formation, curr;
 	u8 *format;
 	char flag;
-	unsigned int i, err;
+	int i, err;
 
 	/* Show input. */
 	err = snd_oxfw_stream_get_current_formation(oxfw,
