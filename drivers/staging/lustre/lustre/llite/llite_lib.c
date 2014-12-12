@@ -2372,21 +2372,6 @@ char *ll_get_fsname(struct super_block *sb, char *buf, int buflen)
 	return buf;
 }
 
-static char *ll_d_path(struct dentry *dentry, char *buf, int bufsize)
-{
-	char *path = NULL;
-
-	struct path p;
-
-	p.dentry = dentry;
-	p.mnt = current->fs->root.mnt;
-	path_get(&p);
-	path = d_path(&p, buf, bufsize);
-	path_put(&p);
-
-	return path;
-}
-
 void ll_dirty_page_discard_warn(struct page *page, int ioret)
 {
 	char *buf, *path = NULL;
@@ -2398,7 +2383,7 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 	if (buf != NULL) {
 		dentry = d_find_alias(page->mapping->host);
 		if (dentry != NULL)
-			path = ll_d_path(dentry, buf, PAGE_SIZE);
+			path = dentry_path_raw(dentry, buf, PAGE_SIZE);
 	}
 
 	CDEBUG(D_WARNING,
