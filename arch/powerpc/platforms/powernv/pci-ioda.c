@@ -357,6 +357,9 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	phb->ioda.m64_segsize = phb->ioda.m64_size / phb->ioda.total_pe;
 	phb->ioda.m64_base = pci_addr;
 
+	pr_info(" MEM64 0x%016llx..0x%016llx -> 0x%016llx\n",
+			res->start, res->end, pci_addr);
+
 	/* Use last M64 BAR to cover M64 window */
 	phb->ioda.m64_bar_idx = 15;
 	phb->init_m64 = pnv_ioda2_init_m64;
