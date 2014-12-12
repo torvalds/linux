@@ -376,8 +376,14 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		opaque = false;
 		this = ovl_lookup_real(lowerpath.dentry, &dentry->d_name);
 		err = PTR_ERR(this);
-		if (IS_ERR(this))
+		if (IS_ERR(this)) {
+			/*
+			 * If it's positive, then treat ENAMETOOLONG as ENOENT.
+			 */
+			if (err == -ENAMETOOLONG && (upperdentry || ctr))
+				continue;
 			goto out_put;
+		}
 		if (!this)
 			continue;
 		if (ovl_is_whiteout(this)) {
