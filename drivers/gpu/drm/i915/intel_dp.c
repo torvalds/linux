@@ -5085,7 +5085,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp_aux_init(intel_dp, intel_connector);
 
 	/* init MST on ports that can support it */
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
 		if (port == PORT_B || port == PORT_C || port == PORT_D) {
 			intel_dp_mst_encoder_init(intel_dig_port,
 						  intel_connector->base.base.id);
