@@ -1487,16 +1487,16 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
 int perf_evlist__strerror_mmap(struct perf_evlist *evlist, int err, char *buf, size_t size)
 {
 	char sbuf[STRERR_BUFSIZE], *emsg = strerror_r(err, sbuf, sizeof(sbuf));
-	int value;
+	int pages_attempted = evlist->mmap_len / 1024, pages_max_per_user;
 
 	switch (err) {
 	case EPERM:
-		sysctl__read_int("kernel/perf_event_mlock_kb", &value);
+		sysctl__read_int("kernel/perf_event_mlock_kb", &pages_max_per_user);
 		scnprintf(buf, size, "Error:\t%s.\n"
 				     "Hint:\tCheck /proc/sys/kernel/perf_event_mlock_kb (%d kB) setting.\n"
 				     "Hint:\tTried using %zd kB.\n"
 				     "Hint:\tTry using a smaller -m/--mmap-pages value.",
-				     emsg, value, evlist->mmap_len / 1024);
+				     emsg, pages_max_per_user, pages_attempted);
 		break;
 	default:
 		scnprintf(buf, size, "%s", emsg);
