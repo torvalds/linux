@@ -415,7 +415,7 @@ err_unlock:
 err_region:
 	unregister_chrdev_region(devt, 1);
 err:
-	fuse_conn_kill(fc);
+	fuse_abort_conn(fc);
 	goto out;
 }
 

@@ -804,8 +804,6 @@ void fuse_invalidate_atime(struct inode *inode);
  */
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 
-void fuse_conn_kill(struct fuse_conn *fc);
-
 /**
  * Initialize fuse_conn
  */
