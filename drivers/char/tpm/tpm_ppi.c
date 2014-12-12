@@ -356,7 +356,7 @@ int tpm_add_ppi(struct tpm_chip *chip)
 		ACPI_FREE(obj);
 	}
 
-	rc = sysfs_create_group(&chip->dev->kobj, &ppi_attr_grp);
+	rc = sysfs_create_group(&chip->pdev->kobj, &ppi_attr_grp);
 
 	if (!rc)
 		chip->flags |= TPM_CHIP_FLAG_PPI;
@@ -367,5 +367,5 @@ int tpm_add_ppi(struct tpm_chip *chip)
 void tpm_remove_ppi(struct tpm_chip *chip)
 {
 	if (chip->flags & TPM_CHIP_FLAG_PPI)
-		sysfs_remove_group(&chip->dev->kobj, &ppi_attr_grp);
+		sysfs_remove_group(&chip->pdev->kobj, &ppi_attr_grp);
 }

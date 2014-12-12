@@ -45,7 +45,7 @@ struct tpm_chip *tpm_chip_find_get(int chip_num)
 		if (chip_num != TPM_ANY_NUM && chip_num != pos->dev_num)
 			continue;
 
-		if (try_module_get(pos->dev->driver->owner)) {
+		if (try_module_get(pos->pdev->driver->owner)) {
 			chip = pos;
 			break;
 		}
@@ -110,7 +110,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 
 	scnprintf(chip->devname, sizeof(chip->devname), "tpm%d", chip->dev_num);
 
-	chip->dev = dev;
+	chip->pdev = dev;
 	devm_add_action(dev, tpmm_chip_remove, chip);
 	dev_set_drvdata(dev, chip);
 

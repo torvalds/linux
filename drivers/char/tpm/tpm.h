@@ -103,7 +103,7 @@ enum tpm_chip_flags {
 };
 
 struct tpm_chip {
-	struct device *dev;	/* Device stuff */
+	struct device *pdev;	/* Device stuff */
 	const struct tpm_class_ops *ops;
 	unsigned int flags;
 
@@ -130,7 +130,7 @@ struct tpm_chip {
 
 static inline void tpm_chip_put(struct tpm_chip *chip)
 {
-	module_put(chip->dev->driver->owner);
+	module_put(chip->pdev->driver->owner);
 }
 
 static inline int tpm_read_index(int base, int index)
