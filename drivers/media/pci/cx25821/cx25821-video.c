@@ -146,9 +146,13 @@ static int cx25821_queue_setup(struct vb2_queue *q, const struct v4l2_format *fm
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct cx25821_channel *chan = q->drv_priv;
+	unsigned size = (chan->fmt->depth * chan->width * chan->height) >> 3;
+
+	if (fmt && fmt->fmt.pix.sizeimage < size)
+		return -EINVAL;
 
 	*num_planes = 1;
-	sizes[0] = (chan->fmt->depth * chan->width * chan->height) >> 3;
+	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : size;
 	alloc_ctxs[0] = chan->dev->alloc_ctx;
 	return 0;
 }
@@ -610,6 +614,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vb2_ioctl_reqbufs,
 	.vidioc_prepare_buf   = vb2_ioctl_prepare_buf,
+	.vidioc_create_bufs   = vb2_ioctl_create_bufs,
 	.vidioc_querybuf      = vb2_ioctl_querybuf,
 	.vidioc_qbuf          = vb2_ioctl_qbuf,
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
