@@ -655,8 +655,9 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	mcp->irq_controller = pdata->irq_controller;
 	if (mcp->irq && mcp->irq_controller) {
-		mcp->irq_active_high = of_property_read_bool(mcp->chip.of_node,
-				"microchip,irq-active-high");
+		mcp->irq_active_high =
+			of_property_read_bool(mcp->chip.dev->of_node,
+					      "microchip,irq-active-high");
 
 		if (type == MCP_TYPE_017)
 			mirror = pdata->mirror;
