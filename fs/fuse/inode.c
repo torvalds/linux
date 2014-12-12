@@ -387,7 +387,6 @@ void fuse_conn_kill(struct fuse_conn *fc)
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 	wake_up_all(&fc->waitq);
 	wake_up_all(&fc->blocked_waitq);
-	wake_up_all(&fc->reserved_req_waitq);
 }
 EXPORT_SYMBOL_GPL(fuse_conn_kill);
 
