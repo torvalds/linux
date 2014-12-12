@@ -340,6 +340,7 @@ kernel.img: zImage
 	@echo '  Image:  kernel.img (with $*.dtb) is ready'
 
 LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
+LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
 %.img: %.dtb kernel.img $(LOGO)
-	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb $(LOGO)
-	@echo '  Image:  resource.img (with $*.dtb $(LOGO)) is ready'
+	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb $(LOGO) $(LOGO_KERNEL)
+	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'

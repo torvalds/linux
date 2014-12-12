@@ -1055,10 +1055,6 @@
 	regulator-name = "vcc_sd";			
 	};
 
-&ion_cma {
-       reg = <0x40000000 0x28000000>; /* 640MB */
-};
-
 &dwc_control_usb {
 	usb_uart {
 		status = "disabled";
