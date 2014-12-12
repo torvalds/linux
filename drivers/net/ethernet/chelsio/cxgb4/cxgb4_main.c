@@ -2325,7 +2325,7 @@ static int identify_port(struct net_device *dev,
 	return t4_identify_port(adap, adap->fn, netdev2pinfo(dev)->viid, val);
 }
 
-static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
+static unsigned int from_fw_linkcaps(enum fw_port_type type, unsigned int caps)
 {
 	unsigned int v = 0;
 
@@ -2354,14 +2354,20 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full |
 		     SUPPORTED_10000baseKX4_Full;
 	else if (type == FW_PORT_TYPE_FIBER_XFI ||
-		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP) {
+		 type == FW_PORT_TYPE_FIBER_XAUI ||
+		 type == FW_PORT_TYPE_SFP ||
+		 type == FW_PORT_TYPE_QSFP_10G ||
+		 type == FW_PORT_TYPE_QSA) {
 		v |= SUPPORTED_FIBRE;
 		if (caps & FW_PORT_CAP_SPEED_1G)
 			v |= SUPPORTED_1000baseT_Full;
 		if (caps & FW_PORT_CAP_SPEED_10G)
 			v |= SUPPORTED_10000baseT_Full;
-	} else if (type == FW_PORT_TYPE_BP40_BA)
+	} else if (type == FW_PORT_TYPE_BP40_BA ||
+		   type == FW_PORT_TYPE_QSFP) {
 		v |= SUPPORTED_40000baseSR4_Full;
+		v |= SUPPORTED_FIBRE;
+	}
 
 	if (caps & FW_PORT_CAP_ANEG)
 		v |= SUPPORTED_Autoneg;
@@ -2396,6 +2402,7 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->port = PORT_FIBRE;
 	else if (p->port_type == FW_PORT_TYPE_SFP ||
 		 p->port_type == FW_PORT_TYPE_QSFP_10G ||
+		 p->port_type == FW_PORT_TYPE_QSA ||
 		 p->port_type == FW_PORT_TYPE_QSFP) {
 		if (p->mod_type == FW_PORT_MOD_TYPE_LR ||
 		    p->mod_type == FW_PORT_MOD_TYPE_SR ||

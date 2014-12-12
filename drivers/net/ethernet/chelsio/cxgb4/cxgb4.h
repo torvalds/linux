@@ -392,7 +392,7 @@ struct port_info {
 	s16    xact_addr_filt;        /* index of exact MAC address filter */
 	u16    rss_size;              /* size of VI's RSS table slice */
 	s8     mdio_addr;
-	u8     port_type;
+	enum fw_port_type port_type;
 	u8     mod_type;
 	u8     port_id;
 	u8     tx_chan;
