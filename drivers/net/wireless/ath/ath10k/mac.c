@@ -2961,10 +2961,11 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	arvif->vdev_id = bit;
 	arvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
 
-	if (ar->p2p)
-		arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_DEVICE;
-
 	switch (vif->type) {
+	case NL80211_IFTYPE_P2P_DEVICE:
+		arvif->vdev_type = WMI_VDEV_TYPE_STA;
+		arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_DEVICE;
+		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
 		arvif->vdev_type = WMI_VDEV_TYPE_STA;
@@ -4860,6 +4861,10 @@ static const struct ieee80211_iface_limit ath10k_if_limits[] = {
 	.types	= BIT(NL80211_IFTYPE_P2P_GO)
 	},
 	{
+	.max	= 1,
+	.types	= BIT(NL80211_IFTYPE_P2P_DEVICE)
+	},
+	{
 	.max	= 7,
 	.types	= BIT(NL80211_IFTYPE_AP)
 	},
@@ -5079,6 +5084,7 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->fw_features))
 		ar->hw->wiphy->interface_modes |=
+			BIT(NL80211_IFTYPE_P2P_DEVICE) |
 			BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_P2P_GO);
 
