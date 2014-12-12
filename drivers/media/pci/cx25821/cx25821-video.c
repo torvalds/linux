@@ -692,7 +692,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 
 	spin_lock_init(&dev->slock);
 
-	for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; ++i) {
+	for (i = 0; i < MAX_VID_CAP_CHANNEL_NUM - 1; ++i) {
 		struct cx25821_channel *chan = &dev->channels[i];
 		struct video_device *vdev = &chan->vdev;
 		struct v4l2_ctrl_handler *hdl = &chan->hdl;

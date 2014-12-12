@@ -965,11 +965,15 @@ void cx25821_dev_unregister(struct cx25821_dev *dev)
 
 	release_mem_region(dev->base_io_addr, pci_resource_len(dev->pci, 0));
 
-	for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; i++) {
+	for (i = 0; i < MAX_VID_CAP_CHANNEL_NUM - 1; i++) {
 		if (i == SRAM_CH08) /* audio channel */
 			continue;
+		/*
+		 * TODO: enable when video output is properly
+		 * supported.
 		if (i == SRAM_CH09 || i == SRAM_CH10)
 			cx25821_free_mem_upstream(&dev->channels[i]);
+		 */
 		cx25821_video_unregister(dev, i);
 	}
 

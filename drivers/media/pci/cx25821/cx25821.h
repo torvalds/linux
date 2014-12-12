@@ -88,6 +88,13 @@
 
 #define CX25821_BOARD_CONEXANT_ATHENA10 1
 #define MAX_VID_CHANNEL_NUM     12
+
+/*
+ * Maximum capture-only channels. This can go away once video/audio output
+ * is fully supported in this driver.
+ */
+#define MAX_VID_CAP_CHANNEL_NUM     10
+
 #define VID_CHANNEL_NUM 8
 
 struct cx25821_fmt {
