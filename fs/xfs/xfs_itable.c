@@ -21,9 +21,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_inum.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
@@ -33,7 +30,6 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_dinode.h"
 
 STATIC int
 xfs_internal_inum(
@@ -352,7 +348,6 @@ xfs_bulkstat(
 	int			*done)	/* 1 if there are more stats to get */
 {
 	xfs_buf_t		*agbp;	/* agi header buffer */
-	xfs_agi_t		*agi;	/* agi header data */
 	xfs_agino_t		agino;	/* inode # in allocation group */
 	xfs_agnumber_t		agno;	/* allocation group number */
 	xfs_btree_cur_t		*cur;	/* btree cursor for ialloc btree */
@@ -403,7 +398,6 @@ xfs_bulkstat(
 		error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
 		if (error)
 			break;
-		agi = XFS_BUF_TO_AGI(agbp);
 		/*
 		 * Allocate and initialize a btree cursor for ialloc btree.
 		 */

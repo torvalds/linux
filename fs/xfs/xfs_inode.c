@@ -23,9 +23,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
@@ -1082,7 +1080,7 @@ xfs_create(
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
-	struct xfs_trans_res	tres;
+	struct xfs_trans_res	*tres;
 	uint			resblks;
 
 	trace_xfs_create(dp, name);
@@ -1105,13 +1103,11 @@ xfs_create(
 	if (is_dir) {
 		rdev = 0;
 		resblks = XFS_MKDIR_SPACE_RES(mp, name->len);
-		tres.tr_logres = M_RES(mp)->tr_mkdir.tr_logres;
-		tres.tr_logcount = XFS_MKDIR_LOG_COUNT;
+		tres = &M_RES(mp)->tr_mkdir;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_MKDIR);
 	} else {
 		resblks = XFS_CREATE_SPACE_RES(mp, name->len);
-		tres.tr_logres = M_RES(mp)->tr_create.tr_logres;
-		tres.tr_logcount = XFS_CREATE_LOG_COUNT;
+		tres = &M_RES(mp)->tr_create;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_CREATE);
 	}
 
@@ -1123,17 +1119,16 @@ xfs_create(
 	 * the case we'll drop the one we have and get a more
 	 * appropriate transaction later.
 	 */
-	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
-	error = xfs_trans_reserve(tp, &tres, resblks, 0);
+	error = xfs_trans_reserve(tp, tres, resblks, 0);
 	if (error == -ENOSPC) {
 		/* flush outstanding delalloc blocks and retry */
 		xfs_flush_inodes(mp);
-		error = xfs_trans_reserve(tp, &tres, resblks, 0);
+		error = xfs_trans_reserve(tp, tres, resblks, 0);
 	}
 	if (error == -ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
 		resblks = 0;
-		error = xfs_trans_reserve(tp, &tres, 0, 0);
+		error = xfs_trans_reserve(tp, tres, 0, 0);
 	}
 	if (error) {
 		cancel_flags = 0;
@@ -2488,9 +2483,7 @@ xfs_remove(
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	int			link_zero;
 	uint			resblks;
-	uint			log_count;
 
 	trace_xfs_remove(dp, name);
 
@@ -2505,13 +2498,10 @@ xfs_remove(
 	if (error)
 		goto std_return;
 
-	if (is_dir) {
+	if (is_dir)
 		tp = xfs_trans_alloc(mp, XFS_TRANS_RMDIR);
-		log_count = XFS_DEFAULT_LOG_COUNT;
-	} else {
+	else
 		tp = xfs_trans_alloc(mp, XFS_TRANS_REMOVE);
-		log_count = XFS_REMOVE_LOG_COUNT;
-	}
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 
 	/*
@@ -2578,9 +2568,6 @@ xfs_remove(
 	error = xfs_droplink(tp, ip);
 	if (error)
 		goto out_trans_cancel;
-
-	/* Determine if this is the last link while the inode is locked */
-	link_zero = (ip->i_d.di_nlink == 0);
 
 	xfs_bmap_init(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,

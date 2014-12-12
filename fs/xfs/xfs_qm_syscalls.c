@@ -26,7 +26,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
@@ -784,19 +783,21 @@ xfs_qm_log_quotaoff(
 {
 	xfs_trans_t	       *tp;
 	int			error;
-	xfs_qoff_logitem_t     *qoffi=NULL;
-	uint			oldsbqflag=0;
+	xfs_qoff_logitem_t     *qoffi;
+
+	*qoffstartp = NULL;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QUOTAOFF);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_quotaoff, 0, 0);
-	if (error)
-		goto error0;
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		goto out;
+	}
 
 	qoffi = xfs_trans_get_qoff_item(tp, NULL, flags & XFS_ALL_QUOTA_ACCT);
 	xfs_trans_log_quotaoff_item(tp, qoffi);
 
 	spin_lock(&mp->m_sb_lock);
-	oldsbqflag = mp->m_sb.sb_qflags;
 	mp->m_sb.sb_qflags = (mp->m_qflags & ~(flags)) & XFS_MOUNT_QUOTA_ALL;
 	spin_unlock(&mp->m_sb_lock);
 
@@ -809,19 +810,11 @@ xfs_qm_log_quotaoff(
 	 */
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp, 0);
+	if (error)
+		goto out;
 
-error0:
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		/*
-		 * No one else is modifying sb_qflags, so this is OK.
-		 * We still hold the quotaofflock.
-		 */
-		spin_lock(&mp->m_sb_lock);
-		mp->m_sb.sb_qflags = oldsbqflag;
-		spin_unlock(&mp->m_sb_lock);
-	}
 	*qoffstartp = qoffi;
+out:
 	return error;
 }
 

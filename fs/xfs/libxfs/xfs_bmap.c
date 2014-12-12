@@ -22,9 +22,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -46,7 +44,6 @@
 #include "xfs_trace.h"
 #include "xfs_symlink.h"
 #include "xfs_attr_leaf.h"
-#include "xfs_dinode.h"
 #include "xfs_filestream.h"
 
 
@@ -5450,13 +5447,11 @@ xfs_bmse_merge(
 	struct xfs_btree_cur		*cur,
 	int				*logflags)	/* output */
 {
-	struct xfs_ifork		*ifp;
 	struct xfs_bmbt_irec		got;
 	struct xfs_bmbt_irec		left;
 	xfs_filblks_t			blockcount;
 	int				error, i;
 
-	ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_bmbt_get_all(gotp, &got);
 	xfs_bmbt_get_all(leftp, &left);
 	blockcount = left.br_blockcount + got.br_blockcount;
@@ -5489,32 +5484,25 @@ xfs_bmse_merge(
 	error = xfs_bmbt_lookup_eq(cur, got.br_startoff, got.br_startblock,
 				   got.br_blockcount, &i);
 	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(i == 1);
 
 	error = xfs_btree_delete(cur, &i);
 	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(i == 1);
 
 	/* lookup and update size of the previous extent */
 	error = xfs_bmbt_lookup_eq(cur, left.br_startoff, left.br_startblock,
 				   left.br_blockcount, &i);
 	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(i == 1);
 
 	left.br_blockcount = blockcount;
 
-	error = xfs_bmbt_update(cur, left.br_startoff, left.br_startblock,
-				left.br_blockcount, left.br_state);
-	if (error)
-		goto out_error;
-
-	return 0;
-
-out_error:
-	return error;
+	return xfs_bmbt_update(cur, left.br_startoff, left.br_startblock,
+			       left.br_blockcount, left.br_state);
 }
 
 /*
@@ -5544,35 +5532,29 @@ xfs_bmse_shift_one(
 	startoff = got.br_startoff - offset_shift_fsb;
 
 	/* delalloc extents should be prevented by caller */
-	XFS_WANT_CORRUPTED_GOTO(!isnullstartblock(got.br_startblock),
-				out_error);
+	XFS_WANT_CORRUPTED_RETURN(!isnullstartblock(got.br_startblock));
 
 	/*
-	 * If this is the first extent in the file, make sure there's enough
-	 * room at the start of the file and jump right to the shift as there's
-	 * no left extent to merge.
+	 * Check for merge if we've got an extent to the left, otherwise make
+	 * sure there's enough room at the start of the file for the shift.
 	 */
-	if (*current_ext == 0) {
-		if (got.br_startoff < offset_shift_fsb)
+	if (*current_ext) {
+		/* grab the left extent and check for a large enough hole */
+		leftp = xfs_iext_get_ext(ifp, *current_ext - 1);
+		xfs_bmbt_get_all(leftp, &left);
+
+		if (startoff < left.br_startoff + left.br_blockcount)
 			return -EINVAL;
-		goto shift_extent;
-	}
 
-	/* grab the left extent and check for a large enough hole */
-	leftp = xfs_iext_get_ext(ifp, *current_ext - 1);
-	xfs_bmbt_get_all(leftp, &left);
-
-	if (startoff < left.br_startoff + left.br_blockcount)
+		/* check whether to merge the extent or shift it down */
+		if (xfs_bmse_can_merge(&left, &got, offset_shift_fsb)) {
+			return xfs_bmse_merge(ip, whichfork, offset_shift_fsb,
+					      *current_ext, gotp, leftp, cur,
+					      logflags);
+		}
+	} else if (got.br_startoff < offset_shift_fsb)
 		return -EINVAL;
 
-	/* check whether to merge the extent or shift it down */
-	if (!xfs_bmse_can_merge(&left, &got, offset_shift_fsb))
-		goto shift_extent;
-
-	return xfs_bmse_merge(ip, whichfork, offset_shift_fsb, *current_ext,
-			      gotp, leftp, cur, logflags);
-
-shift_extent:
 	/*
 	 * Increment the extent index for the next iteration, update the start
 	 * offset of the in-core extent and update the btree if applicable.
@@ -5589,18 +5571,11 @@ shift_extent:
 				   got.br_blockcount, &i);
 	if (error)
 		return error;
-	XFS_WANT_CORRUPTED_GOTO(i == 1, out_error);
+	XFS_WANT_CORRUPTED_RETURN(i == 1);
 
 	got.br_startoff = startoff;
-	error = xfs_bmbt_update(cur, got.br_startoff, got.br_startblock,
+	return xfs_bmbt_update(cur, got.br_startoff, got.br_startblock,
 				got.br_blockcount, got.br_state);
-	if (error)
-		return error;
-
-	return 0;
-
-out_error:
-	return error;
 }
 
 /*
