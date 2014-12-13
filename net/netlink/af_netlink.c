@@ -2298,7 +2298,12 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 			goto out;
 	}
 
+	/* It's a really convoluted way for userland to ask for mmaped
+	 * sendmsg(), but that's what we've got...
+	 */
 	if (netlink_tx_is_mmaped(sk) &&
+	    msg->msg_iter.type == ITER_IOVEC &&
+	    msg->msg_iter.nr_segs == 1 &&
 	    msg->msg_iter.iov->iov_base == NULL) {
 		err = netlink_mmap_sendmsg(sk, msg, dst_portid, dst_group,
 					   &scm);
