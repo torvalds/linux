@@ -357,7 +357,6 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 	u32 uv_offset = offset + IVTV_YUV_BUFFER_UV_OFFSET;
 	int y_done = 0;
 	int bytes_written = 0;
-	unsigned long flags = 0;
 	int idx = 0;
 
 	IVTV_DEBUG_HI_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
@@ -407,16 +406,21 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 
 	/* Sync Hardware SG List of buffers */
 	ivtv_stream_sync_for_device(s);
-	if (lock)
+	if (lock) {
+		unsigned long flags = 0;
+
 		spin_lock_irqsave(&itv->dma_reg_lock, flags);
-	if (!test_bit(IVTV_F_I_DMA, &itv->i_flags)) {
-		ivtv_dma_dec_start(s);
-	}
-	else {
-		set_bit(IVTV_F_S_DMA_PENDING, &s->s_flags);
-	}
-	if (lock)
+		if (!test_bit(IVTV_F_I_DMA, &itv->i_flags))
+			ivtv_dma_dec_start(s);
+		else
+			set_bit(IVTV_F_S_DMA_PENDING, &s->s_flags);
 		spin_unlock_irqrestore(&itv->dma_reg_lock, flags);
+	} else {
+		if (!test_bit(IVTV_F_I_DMA, &itv->i_flags))
+			ivtv_dma_dec_start(s);
+		else
+			set_bit(IVTV_F_S_DMA_PENDING, &s->s_flags);
+	}
 }
 
 static void ivtv_dma_enc_start_xfer(struct ivtv_stream *s)
