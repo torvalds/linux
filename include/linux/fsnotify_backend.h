@@ -197,24 +197,6 @@ struct fsnotify_group {
 #define FSNOTIFY_EVENT_INODE	2
 
 /*
- * Inode specific fields in an fsnotify_mark
- */
-struct fsnotify_inode_mark {
-	struct inode *inode;		/* inode this mark is associated with */
-	struct hlist_node i_list;	/* list of marks by inode->i_fsnotify_marks */
-	struct list_head free_i_list;	/* tmp list used when freeing this mark */
-};
-
-/*
- * Mount point specific fields in an fsnotify_mark
- */
-struct fsnotify_vfsmount_mark {
-	struct vfsmount *mnt;		/* vfsmount this mark is associated with */
-	struct hlist_node m_list;	/* list of marks by inode->i_fsnotify_marks */
-	struct list_head free_m_list;	/* tmp list used when freeing this mark */
-};
-
-/*
  * a mark is simply an object attached to an in core inode which allows an
  * fsnotify listener to indicate they are either no longer interested in events
  * of a type matching mask or only interested in those events.
@@ -230,11 +212,17 @@ struct fsnotify_mark {
 	 * in kernel that found and may be using this mark. */
 	atomic_t refcnt;		/* active things looking at this mark */
 	struct fsnotify_group *group;	/* group this mark is for */
-	struct list_head g_list;	/* list of marks by group->i_fsnotify_marks */
+	struct list_head g_list;	/* list of marks by group->i_fsnotify_marks
+					 * Also reused for queueing mark into
+					 * destroy_list when it's waiting for
+					 * the end of SRCU period before it can
+					 * be freed */
 	spinlock_t lock;		/* protect group and inode */
+	struct hlist_node obj_list;	/* list of marks for inode / vfsmount */
+	struct list_head free_list;	/* tmp list used when freeing this mark */
 	union {
-		struct fsnotify_inode_mark i;
-		struct fsnotify_vfsmount_mark m;
+		struct inode *inode;	/* inode this mark is associated with */
+		struct vfsmount *mnt;	/* vfsmount this mark is associated with */
 	};
 	__u32 ignored_mask;		/* events types to ignore */
 #define FSNOTIFY_MARK_FLAG_INODE		0x01
@@ -243,7 +231,6 @@ struct fsnotify_mark {
 #define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x08
 #define FSNOTIFY_MARK_FLAG_ALIVE		0x10
 	unsigned int flags;		/* vfsmount or inode mark? */
-	struct list_head destroy_list;
 	void (*free_mark)(struct fsnotify_mark *mark); /* called on final put+free */
 };
 

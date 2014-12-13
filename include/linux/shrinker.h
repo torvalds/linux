@@ -18,8 +18,6 @@ struct shrink_control {
 	 */
 	unsigned long nr_to_scan;
 
-	/* shrink from these nodes */
-	nodemask_t nodes_to_scan;
 	/* current node being shrunk (for NUMA aware shrinkers) */
 	int nid;
 };

@@ -156,7 +156,7 @@ static int idr_callback(int id, void *p, void *data)
 	 */
 	if (fsn_mark)
 		printk(KERN_WARNING "fsn_mark->group=%p inode=%p wd=%d\n",
-			fsn_mark->group, fsn_mark->i.inode, i_mark->wd);
+			fsn_mark->group, fsn_mark->inode, i_mark->wd);
 	return 0;
 }
 

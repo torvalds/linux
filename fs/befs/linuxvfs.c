@@ -269,10 +269,6 @@ more:
 	}
 	ctx->pos++;
 	goto more;
-
-	befs_debug(sb, "<--- %s pos %lld", __func__, ctx->pos);
-
-	return 0;
 }
 
 static struct inode *
