@@ -2574,10 +2574,10 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
 		if (!counters)
 			return;
 
-		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
-		smp_rmb();
 		if (v->flags & VM_UNINITIALIZED)
 			return;
+		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
+		smp_rmb();
 
 		memset(counters, 0, nr_node_ids * sizeof(unsigned int));
 
