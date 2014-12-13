@@ -534,4 +534,12 @@ enum tlb_flush_reason {
 	NR_TLB_FLUSH_REASONS,
 };
 
+ /*
+  * A swap entry has to fit into a "unsigned long", as the entry is hidden
+  * in the "index" field of the swapper address space.
+  */
+typedef struct {
+	unsigned long val;
+} swp_entry_t;
+
 #endif /* _LINUX_MM_TYPES_H */
