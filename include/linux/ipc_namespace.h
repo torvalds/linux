@@ -7,15 +7,6 @@
 #include <linux/notifier.h>
 #include <linux/nsproxy.h>
 
-/*
- * ipc namespace events
- */
-#define IPCNS_MEMCHANGED   0x00000001   /* Notify lowmem size changed */
-#define IPCNS_CREATED  0x00000002   /* Notify new ipc namespace created */
-#define IPCNS_REMOVED  0x00000003   /* Notify ipc namespace removed */
-
-#define IPCNS_CALLBACK_PRI 0
-
 struct user_namespace;
 
 struct ipc_ids {
@@ -38,7 +29,6 @@ struct ipc_namespace {
 	unsigned int	msg_ctlmni;
 	atomic_t	msg_bytes;
 	atomic_t	msg_hdrs;
-	int		auto_msgmni;
 
 	size_t		shm_ctlmax;
 	size_t		shm_ctlall;
@@ -77,18 +67,8 @@ extern atomic_t nr_ipc_ns;
 extern spinlock_t mq_lock;
 
 #ifdef CONFIG_SYSVIPC
-extern int register_ipcns_notifier(struct ipc_namespace *);
-extern int cond_register_ipcns_notifier(struct ipc_namespace *);
-extern void unregister_ipcns_notifier(struct ipc_namespace *);
-extern int ipcns_notify(unsigned long);
 extern void shm_destroy_orphaned(struct ipc_namespace *ns);
 #else /* CONFIG_SYSVIPC */
-static inline int register_ipcns_notifier(struct ipc_namespace *ns)
-{ return 0; }
-static inline int cond_register_ipcns_notifier(struct ipc_namespace *ns)
-{ return 0; }
-static inline void unregister_ipcns_notifier(struct ipc_namespace *ns) { }
-static inline int ipcns_notify(unsigned long l) { return 0; }
 static inline void shm_destroy_orphaned(struct ipc_namespace *ns) {}
 #endif /* CONFIG_SYSVIPC */
 
