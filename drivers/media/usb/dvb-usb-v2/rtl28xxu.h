@@ -80,7 +80,10 @@ struct rtl28xxu_priv {
 	#define SLAVE_DEMOD_MN88472        1
 	#define SLAVE_DEMOD_MN88473        2
 	unsigned int slave_demod:2;
-	struct rtl2830_platform_data rtl2830_platform_data;
+	union {
+		struct rtl2830_platform_data rtl2830_platform_data;
+		struct rtl2832_platform_data rtl2832_platform_data;
+	};
 };
 
 enum rtl28xxu_chip_id {
