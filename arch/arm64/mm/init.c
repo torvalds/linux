@@ -134,6 +134,22 @@ static void arm64_memory_present(void)
 }
 #endif
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+extern struct ion_platform_data ion_pdata;
+extern void __init ion_reserve(struct ion_platform_data *data);
+extern int __init rockchip_ion_find_heap(unsigned long node,
+				const char *uname, int depth, void *data);
+
+void __init rockchip_ion_reserve_bit64(void)
+{
+#ifdef CONFIG_ION_ROCKCHIP
+	printk("%s\n", __func__);
+	of_scan_flat_dt(rockchip_ion_find_heap, (void*)&ion_pdata);
+	ion_reserve(&ion_pdata);
+#endif
+}
+#endif
+
 void __init arm64_memblock_init(void)
 {
 	u64 *reserve_map, base, size;
@@ -173,6 +189,9 @@ void __init arm64_memblock_init(void)
 	}
 
 	early_init_fdt_scan_reserved_mem();
+#ifdef CONFIG_ARCH_ROCKCHIP
+	rockchip_ion_reserve_bit64();
+#endif
 	dma_contiguous_reserve(0);
 
 	memblock_allow_resize();
