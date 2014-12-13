@@ -242,13 +242,13 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 
 		if (inode_node) {
 			inode_mark = hlist_entry(srcu_dereference(inode_node, &fsnotify_mark_srcu),
-						 struct fsnotify_mark, i.i_list);
+						 struct fsnotify_mark, obj_list);
 			inode_group = inode_mark->group;
 		}
 
 		if (vfsmount_node) {
 			vfsmount_mark = hlist_entry(srcu_dereference(vfsmount_node, &fsnotify_mark_srcu),
-							struct fsnotify_mark, m.m_list);
+						    struct fsnotify_mark, obj_list);
 			vfsmount_group = vfsmount_mark->group;
 		}
 
