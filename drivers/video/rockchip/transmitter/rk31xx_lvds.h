@@ -2,7 +2,8 @@
 #define _RK31XX_LVDS_H_
 
 #include <linux/rk_screen.h>
-
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define BITS(x, bit)            ((x) << (bit))
 #define BITS_MASK(x, mask, bit)  BITS((x) & (mask), bit)
@@ -105,6 +106,7 @@ enum {
 #define v_LANE1_EN(x)           BITS_MASK(x, 1, 6)
 #define v_LANE0_EN(x)           BITS_MASK(x, 1, 7)
 
+#define GRF_SOC_CON7_LVDS	0x041c
 enum {
 	LVDS_SOC_RK312X,
 	LVDS_SOC_RK3368
@@ -120,6 +122,7 @@ struct rk_lvds_device {
 	struct device 		*dev;
 	void __iomem  		*regbase;
 	void __iomem		*ctrl_reg;
+	struct regmap		*grf_lvds_base;
 	struct clk    		*pclk;  /*phb clk*/
 	struct clk    		*ctrl_pclk;	/* mipi ctrl pclk*/
 	struct clk    		*ctrl_hclk;	/* mipi ctrl hclk*/

@@ -32,7 +32,7 @@
 #define grf_writel(v,offset)                                    \
         do {                                                    \
                 writel_relaxed(v, RK_GRF_VIRT + offset);        \
-                dsb();                                          \
+		dsb(sy);					\
         } while (0)
 
 
@@ -186,7 +186,9 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
 		val |= v_RK3368_MIPIPHY_LANE0_EN(1) |
 		       v_RK3368_MIPIDPI_FORCEX_EN(1);
 		/*rk3368  RK3368_GRF_SOC_CON7 = 0X0041C*/
-		grf_writel(val, 0x0041C);
+		/*grf_writel(val, 0x0041C);*/
+		regmap_write(lvds->grf_lvds_base, GRF_SOC_CON7_LVDS, val);
+		dsb(sy);
 	} else {
 		/* enable lvds mode */
 		val |= v_LVDSMODE_EN(1) | v_MIPIPHY_TTL_EN(0);
@@ -413,7 +415,14 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap mipi-lvds ctl reg failed\n");
 		return PTR_ERR(lvds->ctrl_reg);
 	}
-
+	if (lvds->data->soc_type == LVDS_SOC_RK3368) {
+		lvds->grf_lvds_base =
+			syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+		if (IS_ERR(lvds->grf_lvds_base)) {
+			dev_err(&pdev->dev, "can't find rockchip,grf property\n");
+			return PTR_ERR(lvds->grf_lvds_base);
+		}
+	}
 	ret = rk31xx_lvds_clk_init(lvds);
 	if(ret < 0)
 		goto err_clk_init;

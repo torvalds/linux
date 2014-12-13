@@ -631,6 +631,7 @@
 
 	lvds: lvds@ff968000 {
 		compatible = "rockchip,rk3368-lvds";
+		rockchip,grf = <&grf>;
 		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff9600b0 0x0 0x01>;
 		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
 		clocks = <&clk_gates22 10>, <&clk_gates17 3>;
