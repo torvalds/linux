@@ -4689,7 +4689,8 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
-	I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+	/* TO threshold set to 1750 us ( 0x557 * 1.28 us) */
+	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
@@ -4703,7 +4704,7 @@ static void cherryview_enable_rps(struct drm_device *dev)
 	/* 3: Enable RC6 */
 	if ((intel_enable_rc6(dev) & INTEL_RC6_ENABLE) &&
 						(pcbr >> VLV_PCBR_ADDR_SHIFT))
-		rc6_mode = GEN6_RC_CTL_EI_MODE(1);
+		rc6_mode = GEN7_RC_CTL_TO_MODE;
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
