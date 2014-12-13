@@ -194,3 +194,4 @@ struct drm_plane *sti_drm_plane_init(struct drm_device *dev,
 
 	return &layer->plane;
 }
+EXPORT_SYMBOL(sti_drm_plane_init);

@@ -816,6 +816,7 @@ struct sti_layer *sti_hqvdp_create(struct device *dev)
 
 	return &hqvdp->layer;
 }
+EXPORT_SYMBOL(sti_hqvdp_create);
 
 static void sti_hqvdp_init_plugs(struct sti_hqvdp *hqvdp)
 {

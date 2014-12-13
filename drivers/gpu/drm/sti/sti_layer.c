@@ -40,6 +40,7 @@ const char *sti_layer_to_str(struct sti_layer *layer)
 		return "<UNKNOWN LAYER>";
 	}
 }
+EXPORT_SYMBOL(sti_layer_to_str);
 
 struct sti_layer *sti_layer_create(struct device *dev, int desc,
 				   void __iomem *baseaddr)
@@ -77,6 +78,7 @@ struct sti_layer *sti_layer_create(struct device *dev, int desc,
 
 	return layer;
 }
+EXPORT_SYMBOL(sti_layer_create);
 
 int sti_layer_prepare(struct sti_layer *layer,
 		      struct drm_crtc *crtc,
