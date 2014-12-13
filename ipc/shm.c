@@ -219,7 +219,8 @@ static void shm_destroy(struct ipc_namespace *ns, struct shmid_kernel *shp)
 	if (!is_file_hugepages(shm_file))
 		shmem_lock(shm_file, 0, shp->mlock_user);
 	else if (shp->mlock_user)
-		user_shm_unlock(file_inode(shm_file)->i_size, shp->mlock_user);
+		user_shm_unlock(i_size_read(file_inode(shm_file)),
+				shp->mlock_user);
 	fput(shm_file);
 	ipc_rcu_putref(shp, shm_rcu_free);
 }
@@ -1280,7 +1281,7 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 			 * in the range we are unmapping.
 			 */
 			file = vma->vm_file;
-			size = file_inode(file)->i_size;
+			size = i_size_read(file_inode(vma->vm_file));
 			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
 			/*
 			 * We discovered the size of the shm segment, so
