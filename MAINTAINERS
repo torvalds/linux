@@ -4037,7 +4037,7 @@ F:	drivers/tty/serial/ucc_uart.c
 FREESCALE SOC SOUND DRIVERS
 M:	Timur Tabi <timur@tabi.org>
 M:	Nicolin Chen <nicoleotsuka@gmail.com>
-M:	Xiubo Li <Li.Xiubo@freescale.com>
+M:	Xiubo Li <Xiubo.Lee@gmail.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
