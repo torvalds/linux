@@ -629,6 +629,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
 		struct page *next_page;
 		struct link_free *link;
 		unsigned int i = 1;
+		void *vaddr;
 
 		/*
 		 * page->index stores offset of first object starting
@@ -639,8 +640,8 @@ static void init_zspage(struct page *first_page, struct size_class *class)
 		if (page != first_page)
 			page->index = off;
 
-		link = (struct link_free *)kmap_atomic(page) +
-						off / sizeof(*link);
+		vaddr = kmap_atomic(page);
+		link = (struct link_free *)vaddr + off / sizeof(*link);
 
 		while ((off += class->size) < PAGE_SIZE) {
 			link->next = obj_location_to_handle(page, i++);
@@ -654,7 +655,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
 		 */
 		next_page = get_next_page(page);
 		link->next = obj_location_to_handle(next_page, 0);
-		kunmap_atomic(link);
+		kunmap_atomic(vaddr);
 		page = next_page;
 		off %= PAGE_SIZE;
 	}
@@ -1064,6 +1065,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
 	unsigned long obj;
 	struct link_free *link;
 	struct size_class *class;
+	void *vaddr;
 
 	struct page *first_page, *m_page;
 	unsigned long m_objidx, m_offset;
@@ -1092,11 +1094,11 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
 	obj_handle_to_location(obj, &m_page, &m_objidx);
 	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
 
-	link = (struct link_free *)kmap_atomic(m_page) +
-					m_offset / sizeof(*link);
+	vaddr = kmap_atomic(m_page);
+	link = (struct link_free *)vaddr + m_offset / sizeof(*link);
 	first_page->freelist = link->next;
 	memset(link, POISON_INUSE, sizeof(*link));
-	kunmap_atomic(link);
+	kunmap_atomic(vaddr);
 
 	first_page->inuse++;
 	/* Now move the zspage to another fullness group, if required */
@@ -1112,6 +1114,7 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
 	struct link_free *link;
 	struct page *first_page, *f_page;
 	unsigned long f_objidx, f_offset;
+	void *vaddr;
 
 	int class_idx;
 	struct size_class *class;
@@ -1130,10 +1133,10 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
 	spin_lock(&class->lock);
 
 	/* Insert this object in containing zspage's freelist */
-	link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
-							+ f_offset);
+	vaddr = kmap_atomic(f_page);
+	link = (struct link_free *)(vaddr + f_offset);
 	link->next = first_page->freelist;
-	kunmap_atomic(link);
+	kunmap_atomic(vaddr);
 	first_page->freelist = (void *)obj;
 
 	first_page->inuse--;
