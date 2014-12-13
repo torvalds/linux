@@ -21,7 +21,6 @@
 #ifndef RTL2832_H
 #define RTL2832_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct rtl2832_config {
@@ -54,70 +53,11 @@ struct rtl2832_platform_data {
 	const struct rtl2832_config *config;
 
 	/*
-	 * frontend
-	 * returned by driver
-	 */
-	struct dvb_frontend **dvb_frontend;
-
-	/*
 	 */
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
 	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
 	struct i2c_adapter* (*get_private_i2c_adapter)(struct i2c_client *);
 	int (*enable_slave_ts)(struct i2c_client *);
 };
-
-#if IS_ENABLED(CONFIG_DVB_RTL2832)
-struct dvb_frontend *rtl2832_attach(
-	const struct rtl2832_config *cfg,
-	struct i2c_adapter *i2c
-);
-
-extern struct i2c_adapter *rtl2832_get_i2c_adapter(
-	struct dvb_frontend *fe
-);
-
-extern struct i2c_adapter *rtl2832_get_private_i2c_adapter(
-	struct dvb_frontend *fe
-);
-
-extern int rtl2832_enable_external_ts_if(
-	struct dvb_frontend *fe
-);
-
-#else
-
-static inline struct dvb_frontend *rtl2832_attach(
-	const struct rtl2832_config *config,
-	struct i2c_adapter *i2c
-)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-
-static inline struct i2c_adapter *rtl2832_get_i2c_adapter(
-	struct dvb_frontend *fe
-)
-{
-	return NULL;
-}
-
-static inline struct i2c_adapter *rtl2832_get_private_i2c_adapter(
-	struct dvb_frontend *fe
-)
-{
-	return NULL;
-}
-
-static inline int rtl2832_enable_external_ts_if(
-	struct dvb_frontend *fe
-)
-{
-	return -ENODEV;
-}
-
-#endif
-
 
 #endif /* RTL2832_H */
