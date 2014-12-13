@@ -2513,6 +2513,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	OSS		[HW,OSS]
 			See Documentation/sound/oss/oss-parameters.txt
 
+	page_owner=	[KNL] Boot-time page_owner enabling option.
+			Storage of the information about who allocated
+			each page is disabled in default. With this switch,
+			we can turn it on.
+			on: enable the feature
+
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
 			timeout = 0: wait forever
