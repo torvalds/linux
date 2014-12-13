@@ -15,10 +15,6 @@
 #include <linux/aio.h>
 #include "affs.h"
 
-#if PAGE_SIZE < 4096
-#error PAGE_SIZE must be at least 4096
-#endif
-
 static struct buffer_head *affs_get_extblock_slow(struct inode *inode, u32 ext);
 
 static int
