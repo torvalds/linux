@@ -12,6 +12,7 @@
  *  affs regular file handling primitives
  */
 
+#include <linux/aio.h>
 #include "affs.h"
 
 #if PAGE_SIZE < 4096
@@ -392,6 +393,22 @@ static void affs_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
+static ssize_t
+affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
+	       loff_t offset)
+{
+	struct file *file = iocb->ki_filp;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
+	size_t count = iov_iter_count(iter);
+	ssize_t ret;
+
+	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, affs_get_block);
+	if (ret < 0 && (rw & WRITE))
+		affs_write_failed(mapping, offset + count);
+	return ret;
+}
+
 static int affs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
@@ -418,6 +435,7 @@ const struct address_space_operations affs_aops = {
 	.writepage = affs_writepage,
 	.write_begin = affs_write_begin,
 	.write_end = generic_write_end,
+	.direct_IO = affs_direct_IO,
 	.bmap = _affs_bmap
 };
 
