@@ -21,6 +21,8 @@
 #ifndef __KMEMLEAK_H
 #define __KMEMLEAK_H
 
+#include <linux/slab.h>
+
 #ifdef CONFIG_DEBUG_KMEMLEAK
 
 extern void kmemleak_init(void) __ref;
