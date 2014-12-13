@@ -688,7 +688,7 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 	struct file *filp = NULL;
 
 	spin_lock(&fp->fi_lock);
-	if (fp->fi_deleg_file && atomic_dec_and_test(&fp->fi_delegees))
+	if (fp->fi_deleg_file && --fp->fi_delegees == 0)
 		swap(filp, fp->fi_deleg_file);
 	spin_unlock(&fp->fi_lock);
 
@@ -3855,12 +3855,12 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	/* Race breaker */
 	if (fp->fi_deleg_file) {
 		status = 0;
-		atomic_inc(&fp->fi_delegees);
+		++fp->fi_delegees;
 		hash_delegation_locked(dp, fp);
 		goto out_unlock;
 	}
 	fp->fi_deleg_file = filp;
-	atomic_set(&fp->fi_delegees, 1);
+	fp->fi_delegees = 1;
 	hash_delegation_locked(dp, fp);
 	spin_unlock(&fp->fi_lock);
 	spin_unlock(&state_lock);
@@ -3901,7 +3901,7 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 		status = -EAGAIN;
 		goto out_unlock;
 	}
-	atomic_inc(&fp->fi_delegees);
+	++fp->fi_delegees;
 	hash_delegation_locked(dp, fp);
 	status = 0;
 out_unlock:
