@@ -17,7 +17,7 @@
 static int cpu_to_queue_index(unsigned int nr_cpus, unsigned int nr_queues,
 			      const int cpu)
 {
-	return cpu / ((nr_cpus + nr_queues - 1) / nr_queues);
+	return cpu * nr_queues / nr_cpus;
 }
 
 static int get_first_sibling(unsigned int cpu)
@@ -90,7 +90,7 @@ unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set)
 	unsigned int *map;
 
 	/* If cpus are offline, map them to first hctx */
-	map = kzalloc_node(sizeof(*map) * num_possible_cpus(), GFP_KERNEL,
+	map = kzalloc_node(sizeof(*map) * nr_cpu_ids, GFP_KERNEL,
 				set->numa_node);
 	if (!map)
 		return NULL;

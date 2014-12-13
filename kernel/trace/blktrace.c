@@ -1477,9 +1477,6 @@ static int blk_trace_remove_queue(struct request_queue *q)
 	if (atomic_dec_and_test(&blk_probes_ref))
 		blk_unregister_tracepoints();
 
-	spin_lock_irq(&running_trace_lock);
-	list_del(&bt->running_list);
-	spin_unlock_irq(&running_trace_lock);
 	blk_trace_free(bt);
 	return 0;
 }

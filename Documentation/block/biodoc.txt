@@ -942,7 +942,11 @@ elevator_allow_merge_fn		called whenever the block layer determines
 				request safely. The io scheduler may still
 				want to stop a merge at this point if it
 				results in some sort of conflict internally,
-				this hook allows it to do that.
+				this hook allows it to do that. Note however
+				that two *requests* can still be merged at later
+				time. Currently the io scheduler has no way to
+				prevent that. It can only learn about the fact
+				from elevator_merge_req_fn callback.
 
 elevator_dispatch_fn*		fills the dispatch queue with ready requests.
 				I/O schedulers are free to postpone requests by
