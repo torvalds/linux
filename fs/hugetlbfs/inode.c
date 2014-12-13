@@ -472,12 +472,12 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 }
 
 /*
- * Hugetlbfs is not reclaimable; therefore its i_mmap_mutex will never
+ * Hugetlbfs is not reclaimable; therefore its i_mmap_rwsem will never
  * be taken from reclaim -- unlike regular filesystems. This needs an
  * annotation because huge_pmd_share() does an allocation under
- * i_mmap_mutex.
+ * i_mmap_rwsem.
  */
-static struct lock_class_key hugetlbfs_i_mmap_mutex_key;
+static struct lock_class_key hugetlbfs_i_mmap_rwsem_key;
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 					struct inode *dir,
@@ -495,8 +495,8 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 		struct hugetlbfs_inode_info *info;
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
-		lockdep_set_class(&inode->i_mapping->i_mmap_mutex,
-				&hugetlbfs_i_mmap_mutex_key);
+		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
+				&hugetlbfs_i_mmap_rwsem_key);
 		inode->i_mapping->a_ops = &hugetlbfs_aops;
 		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
