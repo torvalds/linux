@@ -2051,21 +2051,6 @@ static int clk_pll_set_rate_3368_apllb(struct clk_hw *hw, unsigned long rate,
 		goto CHANGE_APLL;
 	}
 
-#if 0
-	if (clk_prepare(arm_gpll)) {
-		clk_err("fail to prepare arm_gpll path\n");
-		clk_unprepare(arm_gpll);
-		goto CHANGE_APLL;
-	}
-
-	if (clk_enable(arm_gpll)) {
-		clk_err("fail to enable arm_gpll path\n");
-		clk_disable(arm_gpll);
-		clk_unprepare(arm_gpll);
-		goto CHANGE_APLL;
-	}
-#endif
-
 	local_irq_save(flags);
 
 	if (rate >= old_rate) {
@@ -2152,35 +2137,28 @@ CHANGE_APLL:
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
 #if RK3368_APLLB_DIV_MORE
-		if (temp_div == 1) {
-			/* when rate/2 < (rate-arm_gpll_rate),
-			 we can set div to make rate change more gently */
-			if (rate > (2*arm_gpll_rate)) {
-				cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(0));
-				udelay(10);
-				cru_writel(RK3368_CORE_CLK_DIV(3), RK3368_CRU_CLKSELS_CON(0));
-				udelay(10);
-				cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
-					   RK3368_CRU_CLKSELS_CON(0));
-				udelay(10);
-				cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(0));
-				udelay(10);
-				cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(0));
-			} else {
-				cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
-					   RK3368_CRU_CLKSELS_CON(0));
-			}
-		} else {
+		/* when rate/2 < (rate-arm_gpll_rate), we can set div to make
+		   rate change more gently */
+		if ((temp_div == 1) && (rate > (2*arm_gpll_rate))) {
+			cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(0));
+			udelay(10);
+			cru_writel(RK3368_CORE_CLK_DIV(3), RK3368_CRU_CLKSELS_CON(0));
+			udelay(10);
 			cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
 				   RK3368_CRU_CLKSELS_CON(0));
-			cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(0));
-		}
+			udelay(10);
+			cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(0));
+			udelay(10);
+		} else
+			cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
+				   RK3368_CRU_CLKSELS_CON(0));
 #else
 		cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
 			   RK3368_CRU_CLKSELS_CON(0));
-		cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(0));
 #endif
 	}
+
+	cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(0));
 
 	if (rate < old_rate) {
 		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(0));
@@ -2191,11 +2169,8 @@ CHANGE_APLL:
 
 	local_irq_restore(flags);
 
-	if (sel_gpll) {
+	if (sel_gpll)
 		sel_gpll = 0;
-		/* clk_disable(arm_gpll);
-		clk_unprepare(arm_gpll); */
-	}
 
 	clk_debug("apll set rate %lu, con(%x,%x,%x,%x), sel(%x,%x)\n",
 		  ps->rate,
@@ -2277,21 +2252,6 @@ static int clk_pll_set_rate_3368_aplll(struct clk_hw *hw, unsigned long rate,
 			  __clk_get_rate(clk), arm_gpll_rate);
 		goto CHANGE_APLL;
 	}
-
-#if 0
-	if (clk_prepare(arm_gpll)) {
-		clk_err("fail to prepare arm_gpll path\n");
-		clk_unprepare(arm_gpll);
-		goto CHANGE_APLL;
-	}
-
-	if (clk_enable(arm_gpll)) {
-		clk_err("fail to enable arm_gpll path\n");
-		clk_disable(arm_gpll);
-		clk_unprepare(arm_gpll);
-		goto CHANGE_APLL;
-	}
-#endif
 
 	local_irq_save(flags);
 
@@ -2379,35 +2339,28 @@ CHANGE_APLL:
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
 #if RK3368_APLLL_DIV_MORE
-		if (temp_div == 1) {
-			/* when rate/2 < (rate-arm_gpll_rate),
-			 we can set div to make rate change more gently */
-			if (rate > (2*arm_gpll_rate)) {
-				cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(2));
-				udelay(10);
-				cru_writel(RK3368_CORE_CLK_DIV(3), RK3368_CRU_CLKSELS_CON(2));
-				udelay(10);
-				cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
-					   RK3368_CRU_CLKSELS_CON(2));
-				udelay(10);
-				cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(2));
-				udelay(10);
-				cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(2));
-			} else {
-				cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
-					   RK3368_CRU_CLKSELS_CON(2));
-			}
-		} else {
+		/* when rate/2 < (rate-arm_gpll_rate), we can set div to make
+		   rate change more gently */
+		if ((temp_div == 1) && (rate > (2*arm_gpll_rate))) {
+			cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(2));
+			udelay(10);
+			cru_writel(RK3368_CORE_CLK_DIV(3), RK3368_CRU_CLKSELS_CON(2));
+			udelay(10);
 			cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
 				   RK3368_CRU_CLKSELS_CON(2));
-			cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(2));
-		}
+			udelay(10);
+			cru_writel(RK3368_CORE_CLK_DIV(2), RK3368_CRU_CLKSELS_CON(2));
+			udelay(10);
+		} else
+			cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
+				   RK3368_CRU_CLKSELS_CON(2));
 #else
 		cru_writel(RK3368_CORE_SEL_PLL_W_MSK|RK3368_CORE_SEL_APLL,
 			   RK3368_CRU_CLKSELS_CON(2));
-		cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(2));
 #endif
 	}
+
+	cru_writel(RK3368_CORE_CLK_DIV(1), RK3368_CRU_CLKSELS_CON(2));
 
 	if (rate < old_rate) {
 		cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(2));
@@ -2418,11 +2371,8 @@ CHANGE_APLL:
 
 	local_irq_restore(flags);
 
-	if (sel_gpll) {
+	if (sel_gpll)
 		sel_gpll = 0;
-		/* clk_disable(arm_gpll);
-		clk_unprepare(arm_gpll); */
-	}
 
 	clk_debug("apll set rate %lu, con(%x,%x,%x,%x), sel(%x,%x)\n",
 		  ps->rate,
