@@ -10,11 +10,17 @@ static bool page_poisoning_enabled __read_mostly;
 
 static bool need_page_poisoning(void)
 {
+	if (!debug_pagealloc_enabled())
+		return false;
+
 	return true;
 }
 
 static void init_page_poisoning(void)
 {
+	if (!debug_pagealloc_enabled())
+		return;
+
 	page_poisoning_enabled = true;
 }
 
@@ -119,7 +125,7 @@ static void unpoison_pages(struct page *page, int n)
 		unpoison_page(page + i);
 }
 
-void kernel_map_pages(struct page *page, int numpages, int enable)
+void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (!page_poisoning_enabled)
 		return;

@@ -120,7 +120,7 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 	}
 }
 
-void kernel_map_pages(struct page *page, int numpages, int enable)
+void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long address;
 	int nr, i, j;
