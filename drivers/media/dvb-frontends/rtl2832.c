@@ -1183,6 +1183,80 @@ static struct dvb_frontend_ops rtl2832_ops = {
 	.i2c_gate_ctrl = rtl2832_i2c_gate_ctrl,
 };
 
+static struct dvb_frontend *rtl2832_get_dvb_frontend(struct i2c_client *client)
+{
+	struct rtl2832_priv *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+	return &dev->fe;
+}
+
+static struct i2c_adapter *rtl2832_get_i2c_adapter_(struct i2c_client *client)
+{
+	struct rtl2832_priv *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+	return dev->i2c_adapter_tuner;
+}
+
+static struct i2c_adapter *rtl2832_get_private_i2c_adapter_(struct i2c_client *client)
+{
+	struct rtl2832_priv *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+	return dev->i2c_adapter;
+}
+
+static int rtl2832_enable_slave_ts(struct i2c_client *client)
+{
+	struct rtl2832_priv *dev = i2c_get_clientdata(client);
+	int ret;
+
+	dev_dbg(&client->dev, "setting PIP mode\n");
+
+	ret = rtl2832_wr_regs(dev, 0x0c, 1, "\x5f\xff", 2);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_demod_reg(dev, DVBT_PIP_ON, 0x1);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_reg(dev, 0xbc, 0, 0x18);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_reg(dev, 0x22, 0, 0x01);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_reg(dev, 0x26, 0, 0x1f);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_reg(dev, 0x27, 0, 0xff);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_regs(dev, 0x92, 1, "\x7f\xf7\xff", 3);
+	if (ret)
+		goto err;
+
+	/* soft reset */
+	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
 static int rtl2832_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -1194,13 +1268,6 @@ static int rtl2832_probe(struct i2c_client *client,
 	u8 tmp;
 
 	dev_dbg(&client->dev, "\n");
-
-	/* Caller really need to provide pointer for frontend we create. */
-	if (pdata->dvb_frontend == NULL) {
-		dev_err(&client->dev, "frontend pointer not defined\n");
-		ret = -EINVAL;
-		goto err;
-	}
 
 	/* allocate memory for the internal state */
 	priv = kzalloc(sizeof(struct rtl2832_priv), GFP_KERNEL);
@@ -1243,7 +1310,14 @@ static int rtl2832_probe(struct i2c_client *client,
 	priv->fe.ops.release = NULL;
 	priv->fe.demodulator_priv = priv;
 	i2c_set_clientdata(client, priv);
-	*pdata->dvb_frontend = &priv->fe;
+	if (pdata->dvb_frontend)
+		*pdata->dvb_frontend = &priv->fe;
+
+	/* setup callbacks */
+	pdata->get_dvb_frontend = rtl2832_get_dvb_frontend;
+	pdata->get_i2c_adapter = rtl2832_get_i2c_adapter_;
+	pdata->get_private_i2c_adapter = rtl2832_get_private_i2c_adapter_;
+	pdata->enable_slave_ts = rtl2832_enable_slave_ts;
 
 	dev_info(&client->dev, "Realtek RTL2832 successfully attached\n");
 	return 0;

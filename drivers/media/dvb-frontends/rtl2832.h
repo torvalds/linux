@@ -58,6 +58,13 @@ struct rtl2832_platform_data {
 	 * returned by driver
 	 */
 	struct dvb_frontend **dvb_frontend;
+
+	/*
+	 */
+	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
+	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
+	struct i2c_adapter* (*get_private_i2c_adapter)(struct i2c_client *);
+	int (*enable_slave_ts)(struct i2c_client *);
 };
 
 #if IS_ENABLED(CONFIG_DVB_RTL2832)
