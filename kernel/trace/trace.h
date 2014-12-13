@@ -1313,5 +1313,6 @@ void trace_event_init(void);
 static inline void __init trace_event_init(void) { }
 #endif
 
+extern struct trace_iterator *tracepoint_print_iter;
 
 #endif /* _LINUX_KERNEL_TRACE_H */

@@ -63,6 +63,10 @@ static bool __read_mostly tracing_selftest_running;
  */
 bool __read_mostly tracing_selftest_disabled;
 
+/* Pipe tracepoints to printk */
+struct trace_iterator *tracepoint_print_iter;
+int tracepoint_printk;
+
 /* For tracers that don't implement custom flags */
 static struct tracer_opt dummy_tracer_opt[] = {
 	{ }
@@ -193,6 +197,13 @@ static int __init set_trace_boot_clock(char *str)
 }
 __setup("trace_clock=", set_trace_boot_clock);
 
+static int __init set_tracepoint_printk(char *str)
+{
+	if ((strcmp(str, "=0") != 0 && strcmp(str, "=off") != 0))
+		tracepoint_printk = 1;
+	return 1;
+}
+__setup("tp_printk", set_tracepoint_printk);
 
 unsigned long long ns2usecs(cycle_t nsec)
 {
@@ -6878,6 +6889,12 @@ out:
 
 void __init trace_init(void)
 {
+	if (tracepoint_printk) {
+		tracepoint_print_iter =
+			kmalloc(sizeof(*tracepoint_print_iter), GFP_KERNEL);
+		if (WARN_ON(!tracepoint_print_iter))
+			tracepoint_printk = 0;
+	}
 	tracer_alloc_buffers();
 	init_ftrace_syscalls();
 	trace_event_init();	
