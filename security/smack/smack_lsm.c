@@ -160,7 +160,7 @@ static int smk_bu_file(struct file *file, int mode, int rc)
 {
 	struct task_smack *tsp = current_security();
 	struct smack_known *sskp = tsp->smk_task;
-	struct inode *inode = file->f_inode;
+	struct inode *inode = file_inode(file);
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 
 	if (rc <= 0)
@@ -168,7 +168,7 @@ static int smk_bu_file(struct file *file, int mode, int rc)
 
 	smk_bu_mode(mode, acc);
 	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %pD) %s\n",
-		sskp->smk_known, (char *)file->f_security, acc,
+		sskp->smk_known, smk_of_inode(inode)->smk_known, acc,
 		inode->i_sb->s_id, inode->i_ino, file,
 		current->comm);
 	return 0;
@@ -1347,6 +1347,9 @@ static int smack_file_permission(struct file *file, int mask)
  * The security blob for a file is a pointer to the master
  * label list, so no allocation is done.
  *
+ * f_security is the owner security information. It
+ * isn't used on file access checks, it's for send_sigio.
+ *
  * Returns 0
  */
 static int smack_file_alloc_security(struct file *file)
@@ -1384,17 +1387,18 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 {
 	int rc = 0;
 	struct smk_audit_info ad;
+	struct inode *inode = file_inode(file);
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		rc = smk_curacc(file->f_security, MAY_WRITE, &ad);
+		rc = smk_curacc(smk_of_inode(inode), MAY_WRITE, &ad);
 		rc = smk_bu_file(file, MAY_WRITE, rc);
 	}
 
 	if (rc == 0 && (_IOC_DIR(cmd) & _IOC_READ)) {
-		rc = smk_curacc(file->f_security, MAY_READ, &ad);
+		rc = smk_curacc(smk_of_inode(inode), MAY_READ, &ad);
 		rc = smk_bu_file(file, MAY_READ, rc);
 	}
 
@@ -1412,10 +1416,11 @@ static int smack_file_lock(struct file *file, unsigned int cmd)
 {
 	struct smk_audit_info ad;
 	int rc;
+	struct inode *inode = file_inode(file);
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	rc = smk_curacc(file->f_security, MAY_LOCK, &ad);
+	rc = smk_curacc(smk_of_inode(inode), MAY_LOCK, &ad);
 	rc = smk_bu_file(file, MAY_LOCK, rc);
 	return rc;
 }
@@ -1437,7 +1442,7 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 {
 	struct smk_audit_info ad;
 	int rc = 0;
-
+	struct inode *inode = file_inode(file);
 
 	switch (cmd) {
 	case F_GETLK:
@@ -1446,14 +1451,14 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 	case F_SETLKW:
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 		smk_ad_setfield_u_fs_path(&ad, file->f_path);
-		rc = smk_curacc(file->f_security, MAY_LOCK, &ad);
+		rc = smk_curacc(smk_of_inode(inode), MAY_LOCK, &ad);
 		rc = smk_bu_file(file, MAY_LOCK, rc);
 		break;
 	case F_SETOWN:
 	case F_SETSIG:
 		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 		smk_ad_setfield_u_fs_path(&ad, file->f_path);
-		rc = smk_curacc(file->f_security, MAY_WRITE, &ad);
+		rc = smk_curacc(smk_of_inode(inode), MAY_WRITE, &ad);
 		rc = smk_bu_file(file, MAY_WRITE, rc);
 		break;
 	default:
@@ -1571,14 +1576,10 @@ static int smack_mmap_file(struct file *file,
  * smack_file_set_fowner - set the file security blob value
  * @file: object in question
  *
- * Returns 0
- * Further research may be required on this one.
  */
 static void smack_file_set_fowner(struct file *file)
 {
-	struct smack_known *skp = smk_of_current();
-
-	file->f_security = skp;
+	file->f_security = smk_of_current();
 }
 
 /**
@@ -1630,6 +1631,7 @@ static int smack_file_receive(struct file *file)
 	int rc;
 	int may = 0;
 	struct smk_audit_info ad;
+	struct inode *inode = file_inode(file);
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
@@ -1641,7 +1643,7 @@ static int smack_file_receive(struct file *file)
 	if (file->f_mode & FMODE_WRITE)
 		may |= MAY_WRITE;
 
-	rc = smk_curacc(file->f_security, may, &ad);
+	rc = smk_curacc(smk_of_inode(inode), may, &ad);
 	rc = smk_bu_file(file, may, rc);
 	return rc;
 }
@@ -1661,21 +1663,17 @@ static int smack_file_receive(struct file *file)
 static int smack_file_open(struct file *file, const struct cred *cred)
 {
 	struct task_smack *tsp = cred->security;
-	struct inode_smack *isp = file_inode(file)->i_security;
+	struct inode *inode = file_inode(file);
 	struct smk_audit_info ad;
 	int rc;
 
-	if (smack_privileged(CAP_MAC_OVERRIDE)) {
-		file->f_security = isp->smk_inode;
+	if (smack_privileged(CAP_MAC_OVERRIDE))
 		return 0;
-	}
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	rc = smk_access(tsp->smk_task, isp->smk_inode, MAY_READ, &ad);
+	rc = smk_access(tsp->smk_task, smk_of_inode(inode), MAY_READ, &ad);
 	rc = smk_bu_credfile(cred, file, MAY_READ, rc);
-	if (rc == 0)
-		file->f_security = isp->smk_inode;
 
 	return rc;
 }
