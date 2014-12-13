@@ -164,7 +164,7 @@ static int rtl2832_wr(struct rtl2832_dev *dev, u8 reg, u8 *val, int len)
 	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
-			.addr = dev->cfg.i2c_addr,
+			.addr = client->addr,
 			.flags = 0,
 			.len = 1 + len,
 			.buf = buf,
@@ -198,12 +198,12 @@ static int rtl2832_rd(struct rtl2832_dev *dev, u8 reg, u8 *val, int len)
 	int ret;
 	struct i2c_msg msg[2] = {
 		{
-			.addr = dev->cfg.i2c_addr,
+			.addr = client->addr,
 			.flags = 0,
 			.len = 1,
 			.buf = &reg,
 		}, {
-			.addr = dev->cfg.i2c_addr,
+			.addr = client->addr,
 			.flags = I2C_M_RD,
 			.len = len,
 			.buf = val,
@@ -399,9 +399,9 @@ static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
 	*		/ CrystalFreqHz)
 	*/
 
-	pset_iffreq = if_freq % dev->cfg.xtal;
+	pset_iffreq = if_freq % dev->pdata->clk;
 	pset_iffreq *= 0x400000;
-	pset_iffreq = div_u64(pset_iffreq, dev->cfg.xtal);
+	pset_iffreq = div_u64(pset_iffreq, dev->pdata->clk);
 	pset_iffreq = -pset_iffreq;
 	pset_iffreq = pset_iffreq & 0x3fffff;
 	dev_dbg(&client->dev, "if_frequency=%d pset_iffreq=%08x\n",
@@ -478,8 +478,9 @@ static int rtl2832_init(struct dvb_frontend *fe)
 	}
 
 	/* load tuner specific settings */
-	dev_dbg(&client->dev, "load settings for tuner=%02x\n", dev->cfg.tuner);
-	switch (dev->cfg.tuner) {
+	dev_dbg(&client->dev, "load settings for tuner=%02x\n",
+		dev->pdata->tuner);
+	switch (dev->pdata->tuner) {
 	case RTL2832_TUNER_FC0012:
 	case RTL2832_TUNER_FC0013:
 		len = ARRAY_SIZE(rtl2832_tuner_init_fc0012);
@@ -647,7 +648,7 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	* RSAMP_RATIO = floor(CrystalFreqHz * 7 * pow(2, 22)
 	*	/ ConstWithBandwidthMode)
 	*/
-	num = dev->cfg.xtal * 7;
+	num = dev->pdata->clk * 7;
 	num *= 0x400000;
 	num = div_u64(num, bw_mode);
 	resamp_ratio =  num & 0x3ffffff;
@@ -660,7 +661,7 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	*	/ (CrystalFreqHz * 7))
 	*/
 	num = bw_mode << 20;
-	num2 = dev->cfg.xtal * 7;
+	num2 = dev->pdata->clk * 7;
 	num = div_u64(num, num2);
 	num = -num;
 	cfreq_off_ratio = num & 0xfffff;
@@ -907,12 +908,11 @@ static void rtl2832_i2c_gate_work(struct work_struct *work)
 	struct rtl2832_dev *dev = container_of(work,
 			struct rtl2832_dev, i2c_gate_work.work);
 	struct i2c_client *client = dev->client;
-	struct i2c_adapter *adap = dev->i2c;
 	int ret;
 	u8 buf[2];
 	struct i2c_msg msg[1] = {
 		{
-			.addr = dev->cfg.i2c_addr,
+			.addr = client->addr,
 			.flags = 0,
 			.len = sizeof(buf),
 			.buf = buf,
@@ -924,7 +924,7 @@ static void rtl2832_i2c_gate_work(struct work_struct *work)
 	/* select reg bank 1 */
 	buf[0] = 0x00;
 	buf[1] = 0x01;
-	ret = __i2c_transfer(adap, msg, 1);
+	ret = __i2c_transfer(client->adapter, msg, 1);
 	if (ret != 1)
 		goto err;
 
@@ -933,7 +933,7 @@ static void rtl2832_i2c_gate_work(struct work_struct *work)
 	/* close I2C repeater gate */
 	buf[0] = 0x01;
 	buf[1] = 0x10;
-	ret = __i2c_transfer(adap, msg, 1);
+	ret = __i2c_transfer(client->adapter, msg, 1);
 	if (ret != 1)
 		goto err;
 
@@ -953,7 +953,7 @@ static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 	u8 buf[2], val;
 	struct i2c_msg msg[1] = {
 		{
-			.addr = dev->cfg.i2c_addr,
+			.addr = client->addr,
 			.flags = 0,
 			.len = sizeof(buf),
 			.buf = buf,
@@ -961,12 +961,12 @@ static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 	};
 	struct i2c_msg msg_rd[2] = {
 		{
-			.addr = dev->cfg.i2c_addr,
+			.addr = client->addr,
 			.flags = 0,
 			.len = 1,
 			.buf = "\x01",
 		}, {
-			.addr = dev->cfg.i2c_addr,
+			.addr = client->addr,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = &val,
@@ -982,14 +982,14 @@ static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 	/* select reg bank 1 */
 	buf[0] = 0x00;
 	buf[1] = 0x01;
-	ret = __i2c_transfer(adap, msg, 1);
+	ret = __i2c_transfer(client->adapter, msg, 1);
 	if (ret != 1)
 		goto err;
 
 	dev->page = 1;
 
 	/* we must read that register, otherwise there will be errors */
-	ret = __i2c_transfer(adap, msg_rd, 2);
+	ret = __i2c_transfer(client->adapter, msg_rd, 2);
 	if (ret != 2)
 		goto err;
 
@@ -1000,7 +1000,7 @@ static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 	else
 		buf[1] = 0x10; /* close */
 
-	ret = __i2c_transfer(adap, msg, 1);
+	ret = __i2c_transfer(client->adapter, msg, 1);
 	if (ret != 1)
 		goto err;
 
@@ -1138,7 +1138,6 @@ static int rtl2832_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct rtl2832_platform_data *pdata = client->dev.platform_data;
-	const struct rtl2832_config *config = pdata->config;
 	struct i2c_adapter *i2c = client->adapter;
 	struct rtl2832_dev *dev;
 	int ret;
@@ -1155,12 +1154,13 @@ static int rtl2832_probe(struct i2c_client *client,
 
 	/* setup the state */
 	dev->client = client;
-	dev->i2c = i2c;
-	dev->tuner = config->tuner;
+	dev->pdata = client->dev.platform_data;
+	if (pdata->config) {
+		dev->pdata->clk = pdata->config->xtal;
+		dev->pdata->tuner = pdata->config->tuner;
+	}
 	dev->sleeping = true;
-	memcpy(&dev->cfg, config, sizeof(struct rtl2832_config));
 	INIT_DELAYED_WORK(&dev->i2c_gate_work, rtl2832_i2c_gate_work);
-
 	/* create muxed i2c adapter for demod itself */
 	dev->i2c_adapter = i2c_add_mux_adapter(i2c, &i2c->dev, dev, 0, 0, 0,
 			rtl2832_select, NULL);
