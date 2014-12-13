@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2004-2007, 2015 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2008 Juergen Beisert
  *
  * This program is free software; you can redistribute it and/or
@@ -56,7 +56,10 @@
 
 /* The maximum  bytes that a sdma BD can transfer.*/
 #define MAX_SDMA_BD_BYTES  (1 << 15)
-#define IMX_DMA_TIMEOUT (msecs_to_jiffies(3000))
+/* 3 Sec for 1MB or less than 1MB, else change with the transfer length */
+#define IMX_DEFAULT_DMA_TIMEOUT (msecs_to_jiffies(3000))
+#define IMX_DMA_TIMEOUT(len) ((len < 0x100000) ? IMX_DEFAULT_DMA_TIMEOUT : \
+				len * IMX_DEFAULT_DMA_TIMEOUT / 0x100000)
 struct spi_imx_config {
 	unsigned int speed_hz;
 	unsigned int bpw;
@@ -944,20 +947,20 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	dma_async_issue_pending(master->dma_tx);
 	dma_async_issue_pending(master->dma_rx);
 	/* Wait SDMA to finish the data transfer.*/
-	timeout = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
-						IMX_DMA_TIMEOUT);
-	if (!timeout) {
-		pr_warn("%s %s: I/O Error in DMA TX\n",
+	ret = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
+					  IMX_DMA_TIMEOUT(transfer->len));
+	if (!ret) {
+		pr_warn("%s %s: I/O Error in DMA TX:%x\n",
 			dev_driver_string(&master->dev),
-			dev_name(&master->dev));
+			dev_name(&master->dev), transfer->len);
 		dmaengine_terminate_all(master->dma_tx);
 	} else {
-		timeout = wait_for_completion_timeout(
-				&spi_imx->dma_rx_completion, IMX_DMA_TIMEOUT);
-		if (!timeout) {
-			pr_warn("%s %s: I/O Error in DMA RX\n",
+		ret = wait_for_completion_timeout(&spi_imx->dma_rx_completion,
+				IMX_DMA_TIMEOUT(transfer->len));
+		if (!ret) {
+			pr_warn("%s %s: I/O Error in DMA RX:%x\n",
 				dev_driver_string(&master->dev),
-				dev_name(&master->dev));
+				dev_name(&master->dev), transfer->len);
 			spi_imx->devtype_data->reset(spi_imx);
 			dmaengine_terminate_all(master->dma_rx);
 		}
