@@ -204,9 +204,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
-	if (spi_imx->dma_is_inited
-	    && transfer->len > spi_imx->rx_wml * sizeof(u32)
-	    && transfer->len > spi_imx->tx_wml * sizeof(u32))
+	if (spi_imx->dma_is_inited &&
+		(transfer->len > spi_imx_get_fifosize(spi_imx)) &&
+		(transfer->len > spi_imx_get_fifosize(spi_imx)))
 		return true;
 	return false;
 }
@@ -899,9 +899,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 {
 	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
 	int ret;
-	unsigned long timeout;
-	u32 dma;
-	int left;
+	int left = 0;
 	struct spi_master *master = spi_imx->bitbang.master;
 	struct sg_table *tx = &transfer->tx_sg, *rx = &transfer->rx_sg;
 
@@ -918,6 +916,18 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	}
 
 	if (rx) {
+		struct scatterlist *sgl_last = &rx->sgl[rx->nents - 1];
+		unsigned int	orig_length = sgl_last->length;
+		int	wml_mask = ~(spi_imx->rx_wml - 1);
+		/*
+		 * Adjust the transfer lenth of the last scattlist if there are
+		 * some tail data, use PIO read to get the tail data since DMA
+		 * sometimes miss the last tail interrupt.
+		 */
+		left = transfer->len % spi_imx->rx_wml;
+		if (left)
+			sgl_last->length = orig_length & wml_mask;
+
 		desc_rx = dmaengine_prep_slave_sg(master->dma_rx,
 					rx->sgl, rx->nents, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -935,13 +945,6 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	/* Trigger the cspi module. */
 	spi_imx->dma_finished = 0;
 
-	dma = readl(spi_imx->base + MX51_ECSPI_DMA);
-	dma = dma & (~MX51_ECSPI_DMA_RXT_WML_MASK);
-	/* Change RX_DMA_LENGTH trigger dma fetch tail data */
-	left = transfer->len % spi_imx->rxt_wml;
-	if (left)
-		writel(dma | (left << MX51_ECSPI_DMA_RXT_WML_OFFSET),
-				spi_imx->base + MX51_ECSPI_DMA);
 	spi_imx->devtype_data->trigger(spi_imx);
 
 	dma_async_issue_pending(master->dma_tx);
@@ -963,18 +966,24 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 				dev_name(&master->dev), transfer->len);
 			spi_imx->devtype_data->reset(spi_imx);
 			dmaengine_terminate_all(master->dma_rx);
+		} else if (left) {
+			/* read the tail data by PIO */
+			void *tmpbuf = transfer->rx_buf + transfer->len - left;
+
+			while (readl(spi_imx->base + MX51_ECSPI_STAT) & 0x8) {
+				*(char *)tmpbuf =
+					readl(spi_imx->base + MXC_CSPIRXDATA);
+				tmpbuf++;
+			}
 		}
-		writel(dma |
-		       spi_imx->rxt_wml << MX51_ECSPI_DMA_RXT_WML_OFFSET,
-		       spi_imx->base + MX51_ECSPI_DMA);
 	}
 
 	spi_imx->dma_finished = 1;
 	spi_imx->devtype_data->trigger(spi_imx);
 
-	if (!timeout)
+	if (!ret)
 		ret = -ETIMEDOUT;
-	else
+	else if (ret > 0)
 		ret = transfer->len;
 
 	return ret;
