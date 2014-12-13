@@ -10,6 +10,21 @@ struct page_ext_operations {
 #ifdef CONFIG_PAGE_EXTENSION
 
 /*
+ * page_ext->flags bits:
+ *
+ * PAGE_EXT_DEBUG_POISON is set for poisoned pages. This is used to
+ * implement generic debug pagealloc feature. The pages are filled with
+ * poison patterns and set this flag after free_pages(). The poisoned
+ * pages are verified whether the patterns are not corrupted and clear
+ * the flag before alloc_pages().
+ */
+
+enum page_ext_flags {
+	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
+	PAGE_EXT_DEBUG_GUARD,
+};
+
+/*
  * Page Extension can be considered as an extended mem_map.
  * A page_ext page is associated with every page descriptor. The
  * page_ext helps us add more information about the page.

@@ -51,6 +51,10 @@
  */
 
 static struct page_ext_operations *page_ext_ops[] = {
+	&debug_guardpage_ops,
+#ifdef CONFIG_PAGE_POISONING
+	&page_poisoning_ops,
+#endif
 };
 
 static unsigned long total_usage;
