@@ -3539,12 +3539,6 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
 		return 0;
 
 	/*
-	 * We are going to allocate memory for data shared by all memory
-	 * cgroups so let's stop accounting here.
-	 */
-	memcg_stop_kmem_account();
-
-	/*
 	 * For simplicity, we won't allow this to be disabled.  It also can't
 	 * be changed if the cgroup has children already, or if tasks had
 	 * already joined.
@@ -3588,7 +3582,6 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
 	 */
 	memcg_kmem_set_active(memcg);
 out:
-	memcg_resume_kmem_account();
 	return err;
 }
 
