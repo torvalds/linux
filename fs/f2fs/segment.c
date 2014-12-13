@@ -205,23 +205,6 @@ retry:
 	mutex_unlock(&fi->inmem_lock);
 }
 
-void invalidate_inmem_page(struct inode *inode, struct page *page)
-{
-	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct inmem_pages *cur;
-
-	mutex_lock(&fi->inmem_lock);
-	cur = radix_tree_lookup(&fi->inmem_root, page->index);
-	if (cur) {
-		radix_tree_delete(&fi->inmem_root, cur->page->index);
-		f2fs_put_page(cur->page, 0);
-		list_del(&cur->list);
-		kmem_cache_free(inmem_entry_slab, cur);
-		dec_page_count(F2FS_I_SB(inode), F2FS_INMEM_PAGES);
-	}
-	mutex_unlock(&fi->inmem_lock);
-}
-
 void commit_inmem_pages(struct inode *inode, bool abort)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
