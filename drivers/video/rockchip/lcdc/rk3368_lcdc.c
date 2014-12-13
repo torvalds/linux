@@ -133,7 +133,7 @@ static int rk3368_lcdc_clk_enable(struct lcdc_device *lcdc_dev)
 		clk_prepare_enable(lcdc_dev->hclk);
 		clk_prepare_enable(lcdc_dev->dclk);
 		clk_prepare_enable(lcdc_dev->aclk);
-		clk_prepare_enable(lcdc_dev->pd);
+		/*clk_prepare_enable(lcdc_dev->pd);*/
 		spin_lock(&lcdc_dev->reg_lock);
 		lcdc_dev->clk_on = 1;
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -156,7 +156,7 @@ static int rk3368_lcdc_clk_disable(struct lcdc_device *lcdc_dev)
 		clk_disable_unprepare(lcdc_dev->dclk);
 		clk_disable_unprepare(lcdc_dev->hclk);
 		clk_disable_unprepare(lcdc_dev->aclk);
-		clk_disable_unprepare(lcdc_dev->pd);
+		/*clk_disable_unprepare(lcdc_dev->pd);*/
 	}
 
 	return 0;
@@ -396,9 +396,9 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	lcdc_dev->hclk = devm_clk_get(lcdc_dev->dev, "hclk_lcdc");
 	lcdc_dev->aclk = devm_clk_get(lcdc_dev->dev, "aclk_lcdc");
 	lcdc_dev->dclk = devm_clk_get(lcdc_dev->dev, "dclk_lcdc");
-	lcdc_dev->pd = devm_clk_get(lcdc_dev->dev, "pd_lcdc");
+	/*lcdc_dev->pd = devm_clk_get(lcdc_dev->dev, "pd_lcdc");*/
 
-	if (IS_ERR(lcdc_dev->pd) || (IS_ERR(lcdc_dev->aclk)) ||
+	if (/*IS_ERR(lcdc_dev->pd) || */(IS_ERR(lcdc_dev->aclk)) ||
 	    (IS_ERR(lcdc_dev->dclk)) || (IS_ERR(lcdc_dev->hclk))) {
 		dev_err(lcdc_dev->dev, "failed to get lcdc%d clk source\n",
 			lcdc_dev->id);
@@ -1718,9 +1718,9 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			v = 0 << 15 | (1 << (15 + 16));
 			break;
 		case SCREEN_HDMI:
-			face = OUT_RGB_AAA;
-			mask = m_HDMI_OUT_EN;
-			val = v_HDMI_OUT_EN(1);
+			/*face = OUT_RGB_AAA;*/
+			mask = m_HDMI_OUT_EN  | m_RGB_OUT_EN;
+			val = v_HDMI_OUT_EN(1) | v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			mask = m_HDMI_HSYNC_POL | m_HDMI_VSYNC_POL |
 			    m_HDMI_DEN_POL | m_HDMI_DCLK_POL;
@@ -1730,8 +1730,8 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			    v_HDMI_DCLK_POL(screen->pin_dclk);
 			break;
 		case SCREEN_MIPI:
-			mask = m_MIPI_OUT_EN;
-			val = v_MIPI_OUT_EN(1);
+			mask = m_MIPI_OUT_EN  | m_RGB_OUT_EN;
+			val = v_MIPI_OUT_EN(1) | v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			mask = m_MIPI_HSYNC_POL | m_MIPI_VSYNC_POL |
 			    m_MIPI_DEN_POL | m_MIPI_DCLK_POL;
@@ -1741,8 +1741,10 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			    v_MIPI_DCLK_POL(screen->pin_dclk);
 			break;
 		case SCREEN_DUAL_MIPI:
-			mask = m_MIPI_OUT_EN | m_DOUB_CHANNEL_EN;
-			val = v_MIPI_OUT_EN(1) | v_DOUB_CHANNEL_EN(1);
+			mask = m_MIPI_OUT_EN | m_DOUB_CHANNEL_EN  |
+				m_RGB_OUT_EN;
+			val = v_MIPI_OUT_EN(1) | v_DOUB_CHANNEL_EN(1) |
+				v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			mask = m_MIPI_HSYNC_POL | m_MIPI_VSYNC_POL |
 			    m_MIPI_DEN_POL | m_MIPI_DCLK_POL;
@@ -1752,10 +1754,10 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			    v_MIPI_DCLK_POL(screen->pin_dclk);
 			break;
 		case SCREEN_EDP:
-			face = OUT_RGB_AAA;	/*RGB AAA output */
+			/*face = OUT_RGB_AAA;*/	/*RGB AAA output */
 
-			mask = m_EDP_OUT_EN;
-			val = v_EDP_OUT_EN(1);
+			mask = m_EDP_OUT_EN | m_RGB_OUT_EN;
+			val = v_EDP_OUT_EN(1) | v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			/*because edp have to sent aaa fmt */
 			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN;
