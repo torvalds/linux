@@ -63,6 +63,17 @@ static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
 	return (1UL << (align_order - cma->order_per_bit)) - 1;
 }
 
+static unsigned long cma_bitmap_aligned_offset(struct cma *cma, int align_order)
+{
+	unsigned int alignment;
+
+	if (align_order <= cma->order_per_bit)
+		return 0;
+	alignment = 1UL << (align_order - cma->order_per_bit);
+	return ALIGN(cma->base_pfn, alignment) -
+		(cma->base_pfn >> cma->order_per_bit);
+}
+
 static unsigned long cma_bitmap_maxno(struct cma *cma)
 {
 	return cma->count >> cma->order_per_bit;
@@ -340,7 +351,7 @@ err:
  */
 struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 {
-	unsigned long mask, pfn, start = 0;
+	unsigned long mask, offset, pfn, start = 0;
 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
 	struct page *page = NULL;
 	int ret;
@@ -355,13 +366,15 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 		return NULL;
 
 	mask = cma_bitmap_aligned_mask(cma, align);
+	offset = cma_bitmap_aligned_offset(cma, align);
 	bitmap_maxno = cma_bitmap_maxno(cma);
 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 
 	for (;;) {
 		mutex_lock(&cma->lock);
-		bitmap_no = bitmap_find_next_zero_area(cma->bitmap,
-				bitmap_maxno, start, bitmap_count, mask);
+		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
+				bitmap_maxno, start, bitmap_count, mask,
+				offset);
 		if (bitmap_no >= bitmap_maxno) {
 			mutex_unlock(&cma->lock);
 			break;
