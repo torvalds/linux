@@ -406,7 +406,7 @@
 		//#dma-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2_xfer>;
-		//status = "disabled";
+		status = "disabled";
 	};
 
 	uart_gps: serial@ff1b0000 {

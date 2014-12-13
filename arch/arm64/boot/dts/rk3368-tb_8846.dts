@@ -7,12 +7,7 @@
 
 / {
 	chosen {
-		bootargs = "vmalloc=512M console=ttyS2 earlyprintk=uart8250-32bit,0xff690000 clk_ignore_unused";
-	};
-
-	memory@00000000 {
-		device_type = "memory";
-		reg = <0x0 0x00000000 0x0 0x80000000>;
+		bootargs = "earlyprintk=uart8250-32bit,0xff690000 clk_ignore_unused";
 	};
 
 	wireless-wlan {
@@ -43,7 +38,7 @@
 		WIFI,host_wake_irq = <&gpio3 GPIO_A6 GPIO_ACTIVE_HIGH>;
 		//WIFI,reset_gpio = <&gpio0 GPIO_A2 GPIO_ACTIVE_LOW>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	wireless-bluetooth {
@@ -379,6 +374,10 @@
 		enable_dma = <0>;
 	};
 	*/
+};
+
+&uart_dbg {
+	status = "okay";
 };
 
 &uart_bt {
