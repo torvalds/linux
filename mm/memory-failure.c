@@ -239,19 +239,14 @@ void shake_page(struct page *p, int access)
 	}
 
 	/*
-	 * Only call shrink_slab here (which would also shrink other caches) if
-	 * access is not potentially fatal.
+	 * Only call shrink_node_slabs here (which would also shrink
+	 * other caches) if access is not potentially fatal.
 	 */
 	if (access) {
 		int nr;
 		int nid = page_to_nid(p);
 		do {
-			struct shrink_control shrink = {
-				.gfp_mask = GFP_KERNEL,
-			};
-			node_set(nid, shrink.nodes_to_scan);
-
-			nr = shrink_slab(&shrink, 1000, 1000);
+			nr = shrink_node_slabs(GFP_KERNEL, nid, 1000, 1000);
 			if (page_count(p) == 1)
 				break;
 		} while (nr > 10);

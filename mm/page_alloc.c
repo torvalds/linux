@@ -6284,9 +6284,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 		if (!PageLRU(page))
 			found++;
 		/*
-		 * If there are RECLAIMABLE pages, we need to check it.
-		 * But now, memory offline itself doesn't call shrink_slab()
-		 * and it still to be fixed.
+		 * If there are RECLAIMABLE pages, we need to check
+		 * it.  But now, memory offline itself doesn't call
+		 * shrink_node_slabs() and it still to be fixed.
 		 */
 		/*
 		 * If the page is not RAM, page_count()should be 0.
