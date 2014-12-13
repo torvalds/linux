@@ -81,6 +81,7 @@
 			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+#if 0
 	cpu_axi_bus: cpu_axi_bus {
 		compatible = "rockchip,cpu_axi_bus";
 		#address-cells = <2>;
@@ -180,6 +181,7 @@
 			};
 		};
 	};
+#endif
 
 	timer {
 		compatible = "arm,armv8-timer";
