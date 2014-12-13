@@ -95,7 +95,7 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 		if (vb2_get_contig_userptr(vaddr, size, &vma, &physp))
 			goto fail_pages_array_alloc;
 		buf->vma = vma;
-		buf->vaddr = ioremap_nocache(physp, size);
+		buf->vaddr = (__force void *)ioremap_nocache(physp, size);
 		if (!buf->vaddr)
 			goto fail_pages_array_alloc;
 	} else {
@@ -155,7 +155,7 @@ static void vb2_vmalloc_put_userptr(void *buf_priv)
 		kfree(buf->pages);
 	} else {
 		vb2_put_vma(buf->vma);
-		iounmap(buf->vaddr);
+		iounmap((__force void __iomem *)buf->vaddr);
 	}
 	kfree(buf);
 }
