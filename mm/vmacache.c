@@ -17,6 +17,8 @@ void vmacache_flush_all(struct mm_struct *mm)
 {
 	struct task_struct *g, *p;
 
+	count_vm_vmacache_event(VMACACHE_FULL_FLUSHES);
+
 	/*
 	 * Single threaded tasks need not iterate the entire
 	 * list of process. We can avoid the flushing as well
