@@ -344,12 +344,19 @@ static int snvs_rtc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops snvs_rtc_pm_ops = {
 	.suspend_noirq = snvs_rtc_suspend,
 	.resume_noirq = snvs_rtc_resume,
 };
+
+#define SNVS_RTC_PM_OPS	(&snvs_rtc_pm_ops)
+
+#else
+
+#define SNVS_RTC_PM_OPS	NULL
+
+#endif
 
 static const struct of_device_id snvs_dt_ids[] = {
 	{ .compatible = "fsl,sec-v4.0-mon-rtc-lp", },
@@ -361,7 +368,7 @@ static struct platform_driver snvs_rtc_driver = {
 	.driver = {
 		.name	= "snvs_rtc",
 		.owner	= THIS_MODULE,
-		.pm	= &snvs_rtc_pm_ops,
+		.pm	= SNVS_RTC_PM_OPS,
 		.of_match_table = snvs_dt_ids,
 	},
 	.probe		= snvs_rtc_probe,
