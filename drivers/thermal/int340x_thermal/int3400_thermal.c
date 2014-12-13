@@ -43,6 +43,74 @@ struct int3400_thermal_priv {
 	struct trt *trts;
 	u8 uuid_bitmap;
 	int rel_misc_dev_res;
+	int current_uuid_index;
+};
+
+static ssize_t available_uuids_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+	int i;
+	int length = 0;
+
+	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; i++) {
+		if (priv->uuid_bitmap & (1 << i))
+			if (PAGE_SIZE - length > 0)
+				length += snprintf(&buf[length],
+						   PAGE_SIZE - length,
+						   "%s\n",
+						   int3400_thermal_uuids[i]);
+	}
+
+	return length;
+}
+
+static ssize_t current_uuid_show(struct device *dev,
+				 struct device_attribute *devattr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+
+	if (priv->uuid_bitmap & (1 << priv->current_uuid_index))
+		return sprintf(buf, "%s\n",
+			       int3400_thermal_uuids[priv->current_uuid_index]);
+	else
+		return sprintf(buf, "INVALID\n");
+}
+
+static ssize_t current_uuid_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; ++i) {
+		if ((priv->uuid_bitmap & (1 << i)) &&
+		    !(strncmp(buf, int3400_thermal_uuids[i],
+			      sizeof(int3400_thermal_uuids[i]) - 1))) {
+			priv->current_uuid_index = i;
+			return count;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static DEVICE_ATTR(current_uuid, 0644, current_uuid_show, current_uuid_store);
+static DEVICE_ATTR_RO(available_uuids);
+static struct attribute *uuid_attrs[] = {
+	&dev_attr_available_uuids.attr,
+	&dev_attr_current_uuid.attr,
+	NULL
+};
+
+static struct attribute_group uuid_attribute_group = {
+	.attrs = uuid_attrs,
+	.name = "uuids"
 };
 
 static int int3400_thermal_get_uuids(struct int3400_thermal_priv *priv)
@@ -160,9 +228,9 @@ static int int3400_thermal_set_mode(struct thermal_zone_device *thermal,
 
 	if (enable != priv->mode) {
 		priv->mode = enable;
-		/* currently, only PASSIVE COOLING is supported */
 		result = int3400_thermal_run_osc(priv->adev->handle,
-					INT3400_THERMAL_PASSIVE_1, enable);
+						 priv->current_uuid_index,
+						 enable);
 	}
 	return result;
 }
@@ -223,7 +291,14 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	priv->rel_misc_dev_res = acpi_thermal_rel_misc_device_add(
 							priv->adev->handle);
 
+	result = sysfs_create_group(&pdev->dev.kobj, &uuid_attribute_group);
+	if (result)
+		goto free_zone;
+
 	return 0;
+
+free_zone:
+	thermal_zone_device_unregister(priv->thermal);
 free_trt:
 	kfree(priv->trts);
 free_art:
@@ -240,6 +315,7 @@ static int int3400_thermal_remove(struct platform_device *pdev)
 	if (!priv->rel_misc_dev_res)
 		acpi_thermal_rel_misc_device_remove(priv->adev->handle);
 
+	sysfs_remove_group(&pdev->dev.kobj, &uuid_attribute_group);
 	thermal_zone_device_unregister(priv->thermal);
 	kfree(priv->trts);
 	kfree(priv->arts);
