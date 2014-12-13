@@ -450,8 +450,8 @@
 			<&clk_uart_pll &clk_gpll>, <&aclk_gpu &clk_cpll>,
 			<&clk_cs &clk_gpll>;
 		rockchip,clocks-init-rate =
-			<&clk_core_b 792000000>,	<&clk_core_l 600000000>,
-			<&clk_gpll 576000000>,		<&clk_cpll 400000000>,
+			<&clk_gpll 576000000>,		<&clk_core_b 792000000>,
+			<&clk_core_l 600000000>,	<&clk_cpll 400000000>,
 			/*<&clk_npll 500000000>,*/	<&aclk_bus 300000000>,
 			<&hclk_bus 150000000>,		<&pclk_bus 75000000>,
 			<&clk_crypto 150000000>,	<&aclk_peri 300000000>,
