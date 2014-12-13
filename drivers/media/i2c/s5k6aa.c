@@ -348,7 +348,7 @@ static int s5k6aa_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
 	msg[1].buf = rbuf;
 
 	ret = i2c_transfer(client->adapter, msg, 2);
-	*val = be16_to_cpu(*((u16 *)rbuf));
+	*val = be16_to_cpu(*((__be16 *)rbuf));
 
 	v4l2_dbg(3, debug, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
 
