@@ -2118,12 +2118,9 @@ static int clk_pll_set_rate_3368_apllb(struct clk_hw *hw, unsigned long rate,
 CHANGE_APLL:
 	local_irq_save(flags);
 
-	/* If core src don't select gpll, apll need to enter slow mode
-	 * before reset
-	 */
-	if (!sel_gpll)
-		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
-			   pll->mode_offset);
+	/* apll enter slow mode */
+	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
+		   pll->mode_offset);
 
 	/* PLL enter reset */
 	cru_writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
@@ -2141,15 +2138,16 @@ CHANGE_APLL:
 	udelay(ps->rst_dly);
 	pll_wait_lock(hw);
 
-	/* PLL return from slow mode */
 	if (!sel_gpll) {
 		if (rate >= old_rate) {
 			cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(0));
 			cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(1));
 		}
-		cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift),
-			   pll->mode_offset);
 	}
+
+	/* apll return from slow mode */
+	cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift),
+		   pll->mode_offset);
 
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
@@ -2347,12 +2345,9 @@ static int clk_pll_set_rate_3368_aplll(struct clk_hw *hw, unsigned long rate,
 CHANGE_APLL:
 	local_irq_save(flags);
 
-	/* If core src don't select gpll, apll need to enter slow mode
-	 * before reset
-	 */
-	if (!sel_gpll)
-		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
-			   pll->mode_offset);
+	/* apll enter slow mode */
+	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
+		   pll->mode_offset);
 
 	/* PLL enter reset */
 	cru_writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
@@ -2370,15 +2365,16 @@ CHANGE_APLL:
 	udelay(ps->rst_dly);
 	pll_wait_lock(hw);
 
-	/* PLL return from slow mode */
 	if (!sel_gpll) {
 		if (rate >= old_rate) {
 			cru_writel(ps->clksel0, RK3368_CRU_CLKSELS_CON(2));
 			cru_writel(ps->clksel1, RK3368_CRU_CLKSELS_CON(3));
 		}
-		cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift),
-			   pll->mode_offset);
 	}
+
+	/* apll return from slow mode */
+	cru_writel(_RK3188_PLL_MODE_NORM_SET(pll->mode_shift),
+		   pll->mode_offset);
 
 	/* reparent to apll, and set div to 1 */
 	if (sel_gpll) {
