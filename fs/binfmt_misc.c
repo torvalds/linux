@@ -144,6 +144,10 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (!fmt)
 		goto ret;
 
+	/* Need to be able to load the file after exec */
+	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
+		return -ENOENT;
+
 	if (!(fmt->flags & MISC_FMT_PRESERVE_ARGV0)) {
 		retval = remove_arg_zero(bprm);
 		if (retval)
