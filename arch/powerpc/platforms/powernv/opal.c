@@ -653,6 +653,14 @@ static void opal_ipmi_init(struct device_node *opal_node)
 			of_platform_device_create(np, NULL, NULL);
 }
 
+static void opal_i2c_create_devs(void)
+{
+	struct device_node *np;
+
+	for_each_compatible_node(np, NULL, "ibm,opal-i2c")
+		of_platform_device_create(np, NULL, NULL);
+}
+
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
@@ -678,6 +686,9 @@ static int __init opal_init(void)
 		}
 		of_node_put(consoles);
 	}
+
+	/* Create i2c platform devices */
+	opal_i2c_create_devs();
 
 	/* Find all OPAL interrupts and request them */
 	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
@@ -824,3 +835,4 @@ EXPORT_SYMBOL_GPL(opal_rtc_read);
 EXPORT_SYMBOL_GPL(opal_rtc_write);
 EXPORT_SYMBOL_GPL(opal_tpo_read);
 EXPORT_SYMBOL_GPL(opal_tpo_write);
+EXPORT_SYMBOL_GPL(opal_i2c_request);

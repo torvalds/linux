@@ -254,3 +254,4 @@ OPAL_CALL(opal_tpo_write,			OPAL_WRITE_TPO);
 OPAL_CALL(opal_tpo_read,			OPAL_READ_TPO);
 OPAL_CALL(opal_ipmi_send,			OPAL_IPMI_SEND);
 OPAL_CALL(opal_ipmi_recv,			OPAL_IPMI_RECV);
+OPAL_CALL(opal_i2c_request,			OPAL_I2C_REQUEST);
