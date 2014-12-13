@@ -621,9 +621,12 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 		int gpio = -1;
 		enum of_gpio_flags flags;
 
+		button = &pdata->buttons[i++];
+
 		if (!of_find_property(pp, "gpios", NULL)) {
 			button->irq = irq_of_parse_and_map(pp, 0);
 			if (button->irq == 0) {
+				i--;
 				pdata->nbuttons--;
 				dev_warn(dev, "Found button without gpios or irqs\n");
 				continue;
@@ -639,8 +642,6 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 				return ERR_PTR(error);
 			}
 		}
-
-		button = &pdata->buttons[i++];
 
 		button->gpio = gpio;
 		button->active_low = flags & OF_GPIO_ACTIVE_LOW;
