@@ -42,6 +42,7 @@ struct af_alg_completion {
 struct af_alg_control {
 	struct af_alg_iv *iv;
 	int op;
+	unsigned int aead_assoclen;
 };
 
 struct af_alg_type {

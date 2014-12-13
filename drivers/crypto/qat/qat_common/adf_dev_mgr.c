@@ -129,12 +129,13 @@ struct adf_accel_dev *adf_devmgr_get_first(void)
  * Function returns acceleration device associated with the given pci device.
  * To be used by QAT device specific drivers.
  *
- * Return: pinter to accel_dev or NULL if not found.
+ * Return: pointer to accel_dev or NULL if not found.
  */
 struct adf_accel_dev *adf_devmgr_pci_to_accel_dev(struct pci_dev *pci_dev)
 {
 	struct list_head *itr;
 
+	mutex_lock(&table_lock);
 	list_for_each(itr, &accel_table) {
 		struct adf_accel_dev *ptr =
 				list_entry(itr, struct adf_accel_dev, list);
@@ -144,6 +145,7 @@ struct adf_accel_dev *adf_devmgr_pci_to_accel_dev(struct pci_dev *pci_dev)
 			return ptr;
 		}
 	}
+	mutex_unlock(&table_lock);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(adf_devmgr_pci_to_accel_dev);
@@ -152,6 +154,7 @@ struct adf_accel_dev *adf_devmgr_get_dev_by_id(uint32_t id)
 {
 	struct list_head *itr;
 
+	mutex_lock(&table_lock);
 	list_for_each(itr, &accel_table) {
 		struct adf_accel_dev *ptr =
 				list_entry(itr, struct adf_accel_dev, list);
@@ -161,6 +164,7 @@ struct adf_accel_dev *adf_devmgr_get_dev_by_id(uint32_t id)
 			return ptr;
 		}
 	}
+	mutex_unlock(&table_lock);
 	return NULL;
 }
 

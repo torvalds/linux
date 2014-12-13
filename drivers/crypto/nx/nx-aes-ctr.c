@@ -90,22 +90,14 @@ static int ctr_aes_nx_crypt(struct blkcipher_desc *desc,
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	unsigned long irq_flags;
 	unsigned int processed = 0, to_process;
-	u32 max_sg_len;
 	int rc;
 
 	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
-	max_sg_len = min_t(u32, nx_driver.of.max_sg_len/sizeof(struct nx_sg),
-			   nx_ctx->ap->sglen);
-
 	do {
-		to_process = min_t(u64, nbytes - processed,
-				   nx_ctx->ap->databytelen);
-		to_process = min_t(u64, to_process,
-				   NX_PAGE_SIZE * (max_sg_len - 1));
-		to_process = to_process & ~(AES_BLOCK_SIZE - 1);
+		to_process = nbytes - processed;
 
-		rc = nx_build_sg_lists(nx_ctx, desc, dst, src, to_process,
+		rc = nx_build_sg_lists(nx_ctx, desc, dst, src, &to_process,
 				       processed, csbcpb->cpb.aes_ctr.iv);
 		if (rc)
 			goto out;
@@ -143,6 +135,7 @@ static int ctr3686_aes_nx_crypt(struct blkcipher_desc *desc,
 
 	memcpy(iv + CTR_RFC3686_NONCE_SIZE,
 	       desc->info, CTR_RFC3686_IV_SIZE);
+	iv[12] = iv[13] = iv[14] = 0;
 	iv[15] = 1;
 
 	desc->info = nx_ctx->priv.ctr.iv;

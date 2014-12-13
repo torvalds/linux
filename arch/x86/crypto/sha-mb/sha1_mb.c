@@ -204,8 +204,7 @@ static struct sha1_hash_ctx *sha1_ctx_mgr_resubmit(struct sha1_ctx_mgr *mgr, str
 			continue;
 		}
 
-		if (ctx)
-			ctx->status = HASH_CTX_STS_IDLE;
+		ctx->status = HASH_CTX_STS_IDLE;
 		return ctx;
 	}
 
