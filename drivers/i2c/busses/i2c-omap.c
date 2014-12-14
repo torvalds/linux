@@ -54,6 +54,9 @@
 /* timeout for pm runtime autosuspend */
 #define OMAP_I2C_PM_TIMEOUT		1000	/* ms */
 
+/* timeout for making decision on bus free status */
+#define OMAP_I2C_BUS_FREE_TIMEOUT (msecs_to_jiffies(10))
+
 /* For OMAP3 I2C_IV has changed to I2C_WE (wakeup enable) */
 enum {
 	OMAP_I2C_REV_REG = 0,
@@ -98,7 +101,7 @@ enum {
 #define OMAP_I2C_STAT_ROVR	(1 << 11)	/* Receive overrun */
 #define OMAP_I2C_STAT_XUDF	(1 << 10)	/* Transmit underflow */
 #define OMAP_I2C_STAT_AAS	(1 << 9)	/* Address as slave */
-#define OMAP_I2C_STAT_AD0	(1 << 8)	/* Address zero */
+#define OMAP_I2C_STAT_BF	(1 << 8)	/* Bus Free */
 #define OMAP_I2C_STAT_XRDY	(1 << 4)	/* Transmit data ready */
 #define OMAP_I2C_STAT_RRDY	(1 << 3)	/* Receive data ready */
 #define OMAP_I2C_STAT_ARDY	(1 << 2)	/* Register access ready */
@@ -146,16 +149,20 @@ enum {
 #define OMAP_I2C_SCLH_HSSCLH	8
 
 /* I2C System Test Register (OMAP_I2C_SYSTEST): */
-#ifdef DEBUG
 #define OMAP_I2C_SYSTEST_ST_EN		(1 << 15)	/* System test enable */
 #define OMAP_I2C_SYSTEST_FREE		(1 << 14)	/* Free running mode */
 #define OMAP_I2C_SYSTEST_TMODE_MASK	(3 << 12)	/* Test mode select */
 #define OMAP_I2C_SYSTEST_TMODE_SHIFT	(12)		/* Test mode select */
+/* Functional mode */
+#define OMAP_I2C_SYSTEST_SCL_I_FUNC	(1 << 8)	/* SCL line input value */
+#define OMAP_I2C_SYSTEST_SCL_O_FUNC	(1 << 7)	/* SCL line output value */
+#define OMAP_I2C_SYSTEST_SDA_I_FUNC	(1 << 6)	/* SDA line input value */
+#define OMAP_I2C_SYSTEST_SDA_O_FUNC	(1 << 5)	/* SDA line output value */
+/* SDA/SCL IO mode */
 #define OMAP_I2C_SYSTEST_SCL_I		(1 << 3)	/* SCL line sense in */
 #define OMAP_I2C_SYSTEST_SCL_O		(1 << 2)	/* SCL line drive out */
 #define OMAP_I2C_SYSTEST_SDA_I		(1 << 1)	/* SDA line sense in */
 #define OMAP_I2C_SYSTEST_SDA_O		(1 << 0)	/* SDA line drive out */
-#endif
 
 /* OCP_SYSSTATUS bit definitions */
 #define SYSS_RESETDONE_MASK		(1 << 0)
@@ -202,6 +209,9 @@ struct omap_i2c_dev {
 						 */
 	u32			rev;
 	unsigned		b_hw:1;		/* bad h/w fixes */
+	unsigned		bb_valid:1;	/* true when BB-bit reflects
+						 * the I2C bus state
+						 */
 	unsigned		receiver:1;	/* true when we're in receiver mode */
 	u16			iestate;	/* Saved interrupt register */
 	u16			pscstate;
@@ -290,6 +300,12 @@ static void __omap_i2c_init(struct omap_i2c_dev *dev)
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, OMAP_I2C_CON_EN);
 
 	/*
+	 * NOTE: right after setting CON_EN, STAT_BB could be 0 while the
+	 * bus is busy. It will be changed to 1 on the next IP FCLK clock.
+	 * udelay(1) will be enough to fix that.
+	 */
+
+	/*
 	 * Don't write to this register if the IE state is 0 as it can
 	 * cause deadlock.
 	 */
@@ -328,7 +344,12 @@ static int omap_i2c_reset(struct omap_i2c_dev *dev)
 		/* SYSC register is cleared by the reset; rewrite it */
 		omap_i2c_write_reg(dev, OMAP_I2C_SYSC_REG, sysc);
 
+		if (dev->rev > OMAP_I2C_REV_ON_3430_3530) {
+			/* Schedule I2C-bus monitoring on the next transfer */
+			dev->bb_valid = 0;
+		}
 	}
+
 	return 0;
 }
 
@@ -441,6 +462,11 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	dev->scllstate = scll;
 	dev->sclhstate = sclh;
 
+	if (dev->rev <= OMAP_I2C_REV_ON_3430_3530) {
+		/* Not implemented */
+		dev->bb_valid = 1;
+	}
+
 	__omap_i2c_init(dev);
 
 	return 0;
@@ -462,6 +488,91 @@ static int omap_i2c_wait_for_bb(struct omap_i2c_dev *dev)
 		msleep(1);
 	}
 
+	return 0;
+}
+
+/*
+ * Wait while BB-bit doesn't reflect the I2C bus state
+ *
+ * In a multimaster environment, after IP software reset, BB-bit value doesn't
+ * correspond to the current bus state. It may happen what BB-bit will be 0,
+ * while the bus is busy due to another I2C master activity.
+ * Here are BB-bit values after reset:
+ *     SDA   SCL   BB   NOTES
+ *       0     0    0   1, 2
+ *       1     0    0   1, 2
+ *       0     1    1
+ *       1     1    0   3
+ * Later, if IP detect SDA=0 and SCL=1 (ACK) or SDA 1->0 while SCL=1 (START)
+ * combinations on the bus, it set BB-bit to 1.
+ * If IP detect SDA 0->1 while SCL=1 (STOP) combination on the bus,
+ * it set BB-bit to 0 and BF to 1.
+ * BB and BF bits correctly tracks the bus state while IP is suspended
+ * BB bit became valid on the next FCLK clock after CON_EN bit set
+ *
+ * NOTES:
+ * 1. Any transfer started when BB=0 and bus is busy wouldn't be
+ *    completed by IP and results in controller timeout.
+ * 2. Any transfer started when BB=0 and SCL=0 results in IP
+ *    starting to drive SDA low. In that case IP corrupt data
+ *    on the bus.
+ * 3. Any transfer started in the middle of another master's transfer
+ *    results in unpredictable results and data corruption
+ */
+static int omap_i2c_wait_for_bb_valid(struct omap_i2c_dev *dev)
+{
+	unsigned long bus_free_timeout = 0;
+	unsigned long timeout;
+	int bus_free = 0;
+	u16 stat, systest;
+
+	if (dev->bb_valid)
+		return 0;
+
+	timeout = jiffies + OMAP_I2C_TIMEOUT;
+	while (1) {
+		stat = omap_i2c_read_reg(dev, OMAP_I2C_STAT_REG);
+		/*
+		 * We will see BB or BF event in a case IP had detected any
+		 * activity on the I2C bus. Now IP correctly tracks the bus
+		 * state. BB-bit value is valid.
+		 */
+		if (stat & (OMAP_I2C_STAT_BB | OMAP_I2C_STAT_BF))
+			break;
+
+		/*
+		 * Otherwise, we must look signals on the bus to make
+		 * the right decision.
+		 */
+		systest = omap_i2c_read_reg(dev, OMAP_I2C_SYSTEST_REG);
+		if ((systest & OMAP_I2C_SYSTEST_SCL_I_FUNC) &&
+		    (systest & OMAP_I2C_SYSTEST_SDA_I_FUNC)) {
+			if (!bus_free) {
+				bus_free_timeout = jiffies +
+					OMAP_I2C_BUS_FREE_TIMEOUT;
+				bus_free = 1;
+			}
+
+			/*
+			 * SDA and SCL lines was high for 10 ms without bus
+			 * activity detected. The bus is free. Consider
+			 * BB-bit value is valid.
+			 */
+			if (time_after(jiffies, bus_free_timeout))
+				break;
+		} else {
+			bus_free = 0;
+		}
+
+		if (time_after(jiffies, timeout)) {
+			dev_warn(dev->dev, "timeout waiting for bus ready\n");
+			return -ETIMEDOUT;
+		}
+
+		msleep(1);
+	}
+
+	dev->bb_valid = 1;
 	return 0;
 }
 
@@ -557,7 +668,11 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 
 	if (!dev->b_hw && stop)
 		w |= OMAP_I2C_CON_STP;
-
+	/*
+	 * NOTE: STAT_BB bit could became 1 here if another master occupy
+	 * the bus. IP successfully complete transfer when the bus will be
+	 * free again (BB reset to 0).
+	 */
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, w);
 
 	/*
@@ -600,12 +715,14 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 		return 0;
 
 	/* We have an error */
-	if (dev->cmd_err & (OMAP_I2C_STAT_AL | OMAP_I2C_STAT_ROVR |
-			    OMAP_I2C_STAT_XUDF)) {
+	if (dev->cmd_err & (OMAP_I2C_STAT_ROVR | OMAP_I2C_STAT_XUDF)) {
 		omap_i2c_reset(dev);
 		__omap_i2c_init(dev);
 		return -EIO;
 	}
+
+	if (dev->cmd_err & OMAP_I2C_STAT_AL)
+		return -EAGAIN;
 
 	if (dev->cmd_err & OMAP_I2C_STAT_NACK) {
 		if (msg->flags & I2C_M_IGNORE_NAK)
@@ -632,6 +749,10 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	int r;
 
 	r = pm_runtime_get_sync(dev->dev);
+	if (r < 0)
+		goto out;
+
+	r = omap_i2c_wait_for_bb_valid(dev);
 	if (r < 0)
 		goto out;
 

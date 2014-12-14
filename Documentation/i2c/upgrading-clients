@@ -79,11 +79,10 @@ static struct i2c_driver example_driver = {
  	.driver		= {
 		.owner		= THIS_MODULE,
 		.name		= "example",
+		.pm		= &example_pm_ops,
 	},
 	.attach_adapter = example_attach_adapter,
 	.detach_client	= example_detach,
-	.suspend	= example_suspend,
-	.resume		= example_resume,
 };
 
 
@@ -272,10 +271,9 @@ static struct i2c_driver example_driver = {
  	.driver		= {
 		.owner		= THIS_MODULE,
 		.name		= "example",
+		.pm		= &example_pm_ops,
 	},
 	.id_table	= example_idtable,
 	.probe		= example_probe,
 	.remove		= example_remove,
-	.suspend	= example_suspend,
-	.resume		= example_resume,
 };

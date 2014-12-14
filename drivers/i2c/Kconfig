@@ -110,6 +110,16 @@ config I2C_STUB
 
 	  If you don't know what to do here, definitely say N.
 
+config I2C_SLAVE
+	bool "I2C slave support"
+
+if I2C_SLAVE
+
+config I2C_SLAVE_EEPROM
+	tristate "I2C eeprom slave driver"
+
+endif
+
 config I2C_DEBUG_CORE
 	bool "I2C Core debugging messages"
 	help

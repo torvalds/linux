@@ -368,8 +368,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		flag |= DAVINCI_I2C_MDR_STP;
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
 
-	r = wait_for_completion_interruptible_timeout(&dev->cmd_complete,
-						      dev->adapter.timeout);
+	r = wait_for_completion_timeout(&dev->cmd_complete, dev->adapter.timeout);
 	if (r == 0) {
 		dev_err(dev->dev, "controller timed out\n");
 		davinci_i2c_recover_bus(dev);
@@ -380,7 +379,6 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	if (dev->buf_len) {
 		/* This should be 0 if all bytes were transferred
 		 * or dev->cmd_err denotes an error.
-		 * A signal may have aborted the transfer.
 		 */
 		if (r >= 0) {
 			dev_err(dev->dev, "abnormal termination buf_len=%i\n",
@@ -634,13 +632,17 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 {
 	struct davinci_i2c_dev *dev;
 	struct i2c_adapter *adap;
-	struct resource *mem, *irq;
-	int r;
+	struct resource *mem;
+	int r, irq;
 
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq) {
-		dev_err(&pdev->dev, "no irq resource?\n");
-		return -ENODEV;
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0) {
+		if (!irq)
+			irq = -ENXIO;
+		if (irq != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"can't get irq resource ret=%d\n", irq);
+		return irq;
 	}
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_i2c_dev),
@@ -655,7 +657,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	init_completion(&dev->xfr_complete);
 #endif
 	dev->dev = &pdev->dev;
-	dev->irq = irq->start;
+	dev->irq = irq;
 	dev->pdata = dev_get_platdata(&pdev->dev);
 	platform_set_drvdata(pdev, dev);
 

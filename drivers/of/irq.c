@@ -405,6 +405,7 @@ int of_irq_get(struct device_node *dev, int index)
 
 	return irq_create_of_mapping(&oirq);
 }
+EXPORT_SYMBOL_GPL(of_irq_get);
 
 /**
  * of_irq_get_byname - Decode a node's IRQ and return it as a Linux irq number

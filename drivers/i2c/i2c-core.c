@@ -24,6 +24,7 @@
    (c) 2013  Wolfram Sang <wsa@the-dreams.de>
    I2C ACPI code Copyright (C) 2014 Intel Corp
    Author: Lan Tianyu <tianyu.lan@intel.com>
+   I2C slave support (c) 2014 by Wolfram Sang <wsa@sang-engineering.com>
  */
 
 #include <linux/module.h>
@@ -261,7 +262,7 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	struct acpi_resource *ares;
 	u32 accessor_type = function >> 16;
 	u8 action = function & ACPI_IO_MASK;
-	acpi_status ret = AE_OK;
+	acpi_status ret;
 	int status;
 
 	ret = acpi_buffer_to_resource(info->connection, info->length, &ares);
@@ -627,6 +628,17 @@ static int i2c_device_probe(struct device *dev)
 
 	if (!client)
 		return 0;
+
+	if (!client->irq && dev->of_node) {
+		int irq = of_irq_get(dev->of_node, 0);
+
+		if (irq == -EPROBE_DEFER)
+			return irq;
+		if (irq < 0)
+			irq = 0;
+
+		client->irq = irq;
+	}
 
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->probe || !driver->id_table)
@@ -1401,7 +1413,6 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 		return ERR_PTR(-EINVAL);
 	}
 
-	info.irq = irq_of_parse_and_map(node, 0);
 	info.of_node = of_node_get(node);
 	info.archdata = &dev_ad;
 
@@ -1415,7 +1426,6 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 		dev_err(&adap->dev, "of_i2c: Failure registering %s\n",
 			node->full_name);
 		of_node_put(node);
-		irq_dispose_mapping(info.irq);
 		return ERR_PTR(-EINVAL);
 	}
 	return result;
@@ -2961,6 +2971,54 @@ trace:
 	return res;
 }
 EXPORT_SYMBOL(i2c_smbus_xfer);
+
+int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
+{
+	int ret;
+
+	if (!client || !slave_cb)
+		return -EINVAL;
+
+	if (!(client->flags & I2C_CLIENT_TEN)) {
+		/* Enforce stricter address checking */
+		ret = i2c_check_addr_validity(client->addr);
+		if (ret)
+			return ret;
+	}
+
+	if (!client->adapter->algo->reg_slave)
+		return -EOPNOTSUPP;
+
+	client->slave_cb = slave_cb;
+
+	i2c_lock_adapter(client->adapter);
+	ret = client->adapter->algo->reg_slave(client);
+	i2c_unlock_adapter(client->adapter);
+
+	if (ret)
+		client->slave_cb = NULL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i2c_slave_register);
+
+int i2c_slave_unregister(struct i2c_client *client)
+{
+	int ret;
+
+	if (!client->adapter->algo->unreg_slave)
+		return -EOPNOTSUPP;
+
+	i2c_lock_adapter(client->adapter);
+	ret = client->adapter->algo->unreg_slave(client);
+	i2c_unlock_adapter(client->adapter);
+
+	if (ret == 0)
+		client->slave_cb = NULL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i2c_slave_unregister);
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");
 MODULE_DESCRIPTION("I2C-Bus main module");
