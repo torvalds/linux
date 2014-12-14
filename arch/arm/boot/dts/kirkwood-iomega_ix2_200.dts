@@ -192,8 +192,8 @@
 	};
 
 	partition@400000 {
-		label = "uInitrd";
-		reg = <0x540000 0x1000000>;
+		label = "rootfs";
+		reg = <0x400000 0x1C00000>;
 	};
 };
 
