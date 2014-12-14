@@ -305,6 +305,13 @@ void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 	u32 hi, lo;
 	u64 ns;
 
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_tx)
+		return;
+
+	/* don't attempt to timestamp if we don't have an skb */
+	if (!pf->ptp_tx_skb)
+		return;
+
 	lo = rd32(hw, I40E_PRTTSYN_TXTIME_L);
 	hi = rd32(hw, I40E_PRTTSYN_TXTIME_H);
 
@@ -338,7 +345,7 @@ void i40e_ptp_rx_hwtstamp(struct i40e_pf *pf, struct sk_buff *skb, u8 index)
 	/* Since we cannot turn off the Rx timestamp logic if the device is
 	 * doing Tx timestamping, check if Rx timestamping is configured.
 	 */
-	if (!pf->ptp_rx)
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_rx)
 		return;
 
 	hw = &pf->hw;
