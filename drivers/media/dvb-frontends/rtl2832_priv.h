@@ -24,18 +24,18 @@
 #include "dvb_frontend.h"
 #include "rtl2832.h"
 #include <linux/i2c-mux.h>
+#include <linux/regmap.h>
 
 struct rtl2832_dev {
 	struct rtl2832_platform_data *pdata;
 	struct i2c_client *client;
+	struct regmap *regmap;
 	struct i2c_adapter *i2c_adapter;
 	struct i2c_adapter *i2c_adapter_tuner;
 	struct dvb_frontend fe;
 
 	bool i2c_gate_state;
 	bool sleeping;
-
-	u8 page; /* active register page */
 	struct delayed_work i2c_gate_work;
 };
 
