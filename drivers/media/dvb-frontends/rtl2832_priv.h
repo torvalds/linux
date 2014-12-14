@@ -33,7 +33,8 @@ struct rtl2832_dev {
 	struct i2c_adapter *i2c_adapter;
 	struct i2c_adapter *i2c_adapter_tuner;
 	struct dvb_frontend fe;
-
+	struct delayed_work stat_work;
+	fe_status_t fe_status;
 	bool i2c_gate_state;
 	bool sleeping;
 	struct delayed_work i2c_gate_work;
