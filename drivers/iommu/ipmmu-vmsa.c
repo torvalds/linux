@@ -17,7 +17,6 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/platform_data/ipmmu-vmsa.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -30,7 +29,6 @@ struct ipmmu_vmsa_device {
 	void __iomem *base;
 	struct list_head list;
 
-	const struct ipmmu_vmsa_platform_data *pdata;
 	unsigned int num_utlbs;
 
 	struct dma_iommu_mapping *mapping;
@@ -1015,27 +1013,6 @@ static int ipmmu_find_utlbs(struct ipmmu_vmsa_device *mmu, struct device *dev,
 	unsigned int i;
 	int count;
 
-	if (mmu->pdata) {
-		const struct ipmmu_vmsa_master *master = mmu->pdata->masters;
-		const char *devname = dev_name(dev);
-		unsigned int i;
-
-		for (i = 0; i < mmu->pdata->num_masters; ++i, ++master) {
-			if (strcmp(master->name, devname) == 0) {
-				utlbs = kmalloc(sizeof(*utlbs), GFP_KERNEL);
-				if (!utlbs)
-					return -ENOMEM;
-
-				utlbs[0] = master->utlb;
-
-				*_utlbs = utlbs;
-				return 1;
-			}
-		}
-
-		return -EINVAL;
-	}
-
 	count = of_count_phandle_with_args(dev->of_node, "iommus",
 					   "#iommu-cells");
 	if (count < 0)
@@ -1246,7 +1223,6 @@ static int ipmmu_probe(struct platform_device *pdev)
 	}
 
 	mmu->dev = &pdev->dev;
-	mmu->pdata = pdev->dev.platform_data;
 	mmu->num_utlbs = 32;
 
 	/* Map I/O memory and request IRQ. */
