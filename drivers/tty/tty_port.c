@@ -193,8 +193,7 @@ void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (port->tty)
-		tty_kref_put(port->tty);
+	tty_kref_put(port->tty);
 	port->tty = tty_kref_get(tty);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -473,12 +472,10 @@ int tty_port_close_start(struct tty_port *port,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
-	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&port->lock, flags);
+	if (tty_hung_up_p(filp))
 		return 0;
-	}
 
+	spin_lock_irqsave(&port->lock, flags);
 	if (tty->count == 1 && port->count != 1) {
 		printk(KERN_WARNING
 		    "tty_port_close_start: tty->count = 1 port count = %d.\n",
@@ -522,6 +519,7 @@ void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 {
 	unsigned long flags;
 
+	tty_ldisc_flush(tty);
 	tty->closing = 0;
 
 	spin_lock_irqsave(&port->lock, flags);

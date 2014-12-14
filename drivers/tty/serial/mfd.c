@@ -1371,7 +1371,7 @@ static void hsu_global_init(void)
 	hsu->iolen = 0x1000;
 
 	if (!(request_mem_region(hsu->paddr, hsu->iolen, "HSU global")))
-		pr_warning("HSU: error in request mem region\n");
+		pr_warn("HSU: error in request mem region\n");
 
 	hsu->reg = ioremap_nocache((unsigned long)hsu->paddr, hsu->iolen);
 	if (!hsu->reg) {

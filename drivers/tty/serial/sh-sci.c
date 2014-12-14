@@ -1812,9 +1812,6 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 			err = DIV_ROUND_CLOSEST(freq, ((br + 1) * bps * sr *
 					       (1 << (2 * c + 1)) / 1000)) -
 					       1000;
-			if (err < 0)
-				continue;
-
 			/* Calc recv margin
 			 * M: Receive margin (%)
 			 * N: Ratio of bit rate to clock (N = sampling rate)
@@ -1829,7 +1826,7 @@ static void sci_baud_calc_hscif(unsigned int bps, unsigned long freq,
 			 */
 			recv_margin = abs((500 -
 					DIV_ROUND_CLOSEST(1000, sr << 1)) / 10);
-			if (min_err > err) {
+			if (abs(min_err) > abs(err)) {
 				min_err = err;
 				recv_max_margin = recv_margin;
 			} else if ((min_err == err) &&

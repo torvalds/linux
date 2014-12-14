@@ -16,6 +16,9 @@
 #include <linux/dmaengine.h>
 
 struct uart_8250_dma {
+	int (*tx_dma)(struct uart_8250_port *p);
+	int (*rx_dma)(struct uart_8250_port *p, unsigned int iir);
+
 	/* Filter function */
 	dma_filter_fn		fn;
 
@@ -41,6 +44,8 @@ struct uart_8250_dma {
 	size_t			tx_size;
 
 	unsigned char		tx_running:1;
+	unsigned char		tx_err: 1;
+	unsigned char		rx_running:1;
 };
 
 struct old_serial_port {
@@ -51,7 +56,7 @@ struct old_serial_port {
 	unsigned int flags;
 	unsigned char hub6;
 	unsigned char io_type;
-	unsigned char *iomem_base;
+	unsigned char __iomem *iomem_base;
 	unsigned short iomem_reg_shift;
 	unsigned long irqflags;
 };
@@ -114,6 +119,8 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 }
 
 struct uart_8250_port *serial8250_get_port(int line);
+void serial8250_rpm_get(struct uart_8250_port *p);
+void serial8250_rpm_put(struct uart_8250_port *p);
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)
 /*

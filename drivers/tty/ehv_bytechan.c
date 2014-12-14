@@ -309,8 +309,8 @@ static int __init ehv_bc_console_init(void)
 	 * handle for udbg.
 	 */
 	if (stdout_bc != CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE)
-		pr_warning("ehv-bc: udbg handle %u is not the stdout handle\n",
-			   CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE);
+		pr_warn("ehv-bc: udbg handle %u is not the stdout handle\n",
+			CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE);
 #endif
 
 	/* add_preferred_console() must be called before register_console(),

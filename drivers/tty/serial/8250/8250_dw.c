@@ -122,12 +122,43 @@ static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
 	return dw8250_modify_msr(p, offset, value);
 }
 
-/* Read Back (rb) version to ensure register access ording. */
-static void dw8250_serial_out_rb(struct uart_port *p, int offset, int value)
+#ifdef CONFIG_64BIT
+static unsigned int dw8250_serial_inq(struct uart_port *p, int offset)
 {
-	dw8250_serial_out(p, offset, value);
-	dw8250_serial_in(p, UART_LCR);
+	unsigned int value;
+
+	value = (u8)__raw_readq(p->membase + (offset << p->regshift));
+
+	return dw8250_modify_msr(p, offset, value);
 }
+
+static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
+{
+	struct dw8250_data *d = p->private_data;
+
+	if (offset == UART_MCR)
+		d->last_mcr = value;
+
+	value &= 0xff;
+	__raw_writeq(value, p->membase + (offset << p->regshift));
+	/* Read back to ensure register write ordering. */
+	__raw_readq(p->membase + (UART_LCR << p->regshift));
+
+	/* Make sure LCR write wasn't ignored */
+	if (offset == UART_LCR) {
+		int tries = 1000;
+		while (tries--) {
+			unsigned int lcr = p->serial_in(p, UART_LCR);
+			if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
+				return;
+			dw8250_force_idle(p);
+			__raw_writeq(value & 0xff,
+				     p->membase + (UART_LCR << p->regshift));
+		}
+		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+	}
+}
+#endif /* CONFIG_64BIT */
 
 static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 {
@@ -258,22 +289,19 @@ static int dw8250_probe_of(struct uart_port *p,
 	struct uart_8250_port *up = up_to_u8250p(p);
 	u32			val;
 	bool has_ucv = true;
+	int id;
 
+#ifdef CONFIG_64BIT
 	if (of_device_is_compatible(np, "cavium,octeon-3860-uart")) {
-#ifdef __BIG_ENDIAN
-		/*
-		 * Low order bits of these 64-bit registers, when
-		 * accessed as a byte, are 7 bytes further down in the
-		 * address space in big endian mode.
-		 */
-		p->membase += 7;
-#endif
-		p->serial_out = dw8250_serial_out_rb;
+		p->serial_in = dw8250_serial_inq;
+		p->serial_out = dw8250_serial_outq;
 		p->flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
 		p->type = PORT_OCTEON;
 		data->usr_reg = 0x27;
 		has_ucv = false;
-	} else if (!of_property_read_u32(np, "reg-io-width", &val)) {
+	} else
+#endif
+	if (!of_property_read_u32(np, "reg-io-width", &val)) {
 		switch (val) {
 		case 1:
 			break;
@@ -290,8 +318,21 @@ static int dw8250_probe_of(struct uart_port *p,
 	if (has_ucv)
 		dw8250_setup_port(up);
 
+	/* if we have a valid fifosize, try hooking up DMA here */
+	if (p->fifosize) {
+		up->dma = &data->dma;
+
+		up->dma->rxconf.src_maxburst = p->fifosize / 4;
+		up->dma->txconf.dst_maxburst = p->fifosize / 4;
+	}
+
 	if (!of_property_read_u32(np, "reg-shift", &val))
 		p->regshift = val;
+
+	/* get index of serial line, if found in DT aliases */
+	id = of_alias_get_id(np, "serial");
+	if (id >= 0)
+		p->line = id;
 
 	/* clock got configured through clk api, all done */
 	if (p->uartclk)

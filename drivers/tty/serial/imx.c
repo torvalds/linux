@@ -302,7 +302,7 @@ static inline int is_imx6q_uart(struct imx_port *sport)
 /*
  * Save and restore functions for UCR1, UCR2 and UCR3 registers
  */
-#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_IMX_CONSOLE)
+#if defined(CONFIG_SERIAL_IMX_CONSOLE)
 static void imx_port_ucrs_save(struct uart_port *port,
 			       struct imx_port_ucrs *ucr)
 {
@@ -991,7 +991,6 @@ static int imx_uart_dma_init(struct imx_port *sport)
 
 	sport->rx_buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!sport->rx_buf) {
-		dev_err(dev, "cannot alloc DMA buffer.\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -1076,11 +1075,11 @@ static int imx_startup(struct uart_port *port)
 
 	retval = clk_prepare_enable(sport->clk_per);
 	if (retval)
-		goto error_out1;
+		return retval;
 	retval = clk_prepare_enable(sport->clk_ipg);
 	if (retval) {
 		clk_disable_unprepare(sport->clk_per);
-		goto error_out1;
+		return retval;
 	}
 
 	imx_setup_ufcr(sport, 0);
@@ -1108,37 +1107,6 @@ static int imx_startup(struct uart_port *port)
 
 	while (!(readl(sport->port.membase + UCR2) & UCR2_SRST) && (--i > 0))
 		udelay(1);
-
-	/*
-	 * Allocate the IRQ(s) i.MX1 has three interrupts whereas later
-	 * chips only have one interrupt.
-	 */
-	if (sport->txirq > 0) {
-		retval = request_irq(sport->rxirq, imx_rxint, 0,
-				     dev_name(port->dev), sport);
-		if (retval)
-			goto error_out1;
-
-		retval = request_irq(sport->txirq, imx_txint, 0,
-				     dev_name(port->dev), sport);
-		if (retval)
-			goto error_out2;
-
-		/* do not use RTS IRQ on IrDA */
-		if (!USE_IRDA(sport)) {
-			retval = request_irq(sport->rtsirq, imx_rtsint, 0,
-					     dev_name(port->dev), sport);
-			if (retval)
-				goto error_out3;
-		}
-	} else {
-		retval = request_irq(sport->port.irq, imx_int, 0,
-				     dev_name(port->dev), sport);
-		if (retval) {
-			free_irq(sport->port.irq, sport);
-			goto error_out1;
-		}
-	}
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	/*
@@ -1201,15 +1169,6 @@ static int imx_startup(struct uart_port *port)
 	}
 
 	return 0;
-
-error_out3:
-	if (sport->txirq)
-		free_irq(sport->txirq, sport);
-error_out2:
-	if (sport->rxirq)
-		free_irq(sport->rxirq, sport);
-error_out1:
-	return retval;
 }
 
 static void imx_shutdown(struct uart_port *port)
@@ -1253,17 +1212,6 @@ static void imx_shutdown(struct uart_port *port)
 	 * Stop our timer.
 	 */
 	del_timer_sync(&sport->timer);
-
-	/*
-	 * Free the interrupts
-	 */
-	if (sport->txirq > 0) {
-		if (!USE_IRDA(sport))
-			free_irq(sport->rtsirq, sport);
-		free_irq(sport->txirq, sport);
-		free_irq(sport->rxirq, sport);
-	} else
-		free_irq(sport->port.irq, sport);
 
 	/*
 	 * Disable all interrupts, port and break condition.
@@ -1507,44 +1455,65 @@ imx_verify_port(struct uart_port *port, struct serial_struct *ser)
 }
 
 #if defined(CONFIG_CONSOLE_POLL)
+
+static int imx_poll_init(struct uart_port *port)
+{
+	struct imx_port *sport = (struct imx_port *)port;
+	unsigned long flags;
+	unsigned long temp;
+	int retval;
+
+	retval = clk_prepare_enable(sport->clk_ipg);
+	if (retval)
+		return retval;
+	retval = clk_prepare_enable(sport->clk_per);
+	if (retval)
+		clk_disable_unprepare(sport->clk_ipg);
+
+	imx_setup_ufcr(sport, 0);
+
+	spin_lock_irqsave(&sport->port.lock, flags);
+
+	temp = readl(sport->port.membase + UCR1);
+	if (is_imx1_uart(sport))
+		temp |= IMX1_UCR1_UARTCLKEN;
+	temp |= UCR1_UARTEN | UCR1_RRDYEN;
+	temp &= ~(UCR1_TXMPTYEN | UCR1_RTSDEN);
+	writel(temp, sport->port.membase + UCR1);
+
+	temp = readl(sport->port.membase + UCR2);
+	temp |= UCR2_RXEN;
+	writel(temp, sport->port.membase + UCR2);
+
+	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+	return 0;
+}
+
 static int imx_poll_get_char(struct uart_port *port)
 {
-	if (!(readl(port->membase + USR2) & USR2_RDR))
+	if (!(readl_relaxed(port->membase + USR2) & USR2_RDR))
 		return NO_POLL_CHAR;
 
-	return readl(port->membase + URXD0) & URXD_RX_DATA;
+	return readl_relaxed(port->membase + URXD0) & URXD_RX_DATA;
 }
 
 static void imx_poll_put_char(struct uart_port *port, unsigned char c)
 {
-	struct imx_port_ucrs old_ucr;
 	unsigned int status;
-
-	/* save control registers */
-	imx_port_ucrs_save(port, &old_ucr);
-
-	/* disable interrupts */
-	writel(UCR1_UARTEN, port->membase + UCR1);
-	writel(old_ucr.ucr2 & ~(UCR2_ATEN | UCR2_RTSEN | UCR2_ESCI),
-	       port->membase + UCR2);
-	writel(old_ucr.ucr3 & ~(UCR3_DCD | UCR3_RI | UCR3_DTREN),
-	       port->membase + UCR3);
 
 	/* drain */
 	do {
-		status = readl(port->membase + USR1);
+		status = readl_relaxed(port->membase + USR1);
 	} while (~status & USR1_TRDY);
 
 	/* write */
-	writel(c, port->membase + URTX0);
+	writel_relaxed(c, port->membase + URTX0);
 
 	/* flush */
 	do {
-		status = readl(port->membase + USR2);
+		status = readl_relaxed(port->membase + USR2);
 	} while (~status & USR2_TXDC);
-
-	/* restore control registers */
-	imx_port_ucrs_restore(port, &old_ucr);
 }
 #endif
 
@@ -1565,6 +1534,7 @@ static struct uart_ops imx_pops = {
 	.config_port	= imx_config_port,
 	.verify_port	= imx_verify_port,
 #if defined(CONFIG_CONSOLE_POLL)
+	.poll_init      = imx_poll_init,
 	.poll_get_char  = imx_poll_get_char,
 	.poll_put_char  = imx_poll_put_char,
 #endif
@@ -1929,6 +1899,36 @@ static int serial_imx_probe(struct platform_device *pdev)
 
 	sport->port.uartclk = clk_get_rate(sport->clk_per);
 
+	/*
+	 * Allocate the IRQ(s) i.MX1 has three interrupts whereas later
+	 * chips only have one interrupt.
+	 */
+	if (sport->txirq > 0) {
+		ret = devm_request_irq(&pdev->dev, sport->rxirq, imx_rxint, 0,
+				       dev_name(&pdev->dev), sport);
+		if (ret)
+			return ret;
+
+		ret = devm_request_irq(&pdev->dev, sport->txirq, imx_txint, 0,
+				       dev_name(&pdev->dev), sport);
+		if (ret)
+			return ret;
+
+		/* do not use RTS IRQ on IrDA */
+		if (!USE_IRDA(sport)) {
+			ret = devm_request_irq(&pdev->dev, sport->rtsirq,
+					       imx_rtsint, 0,
+					       dev_name(&pdev->dev), sport);
+			if (ret)
+				return ret;
+		}
+	} else {
+		ret = devm_request_irq(&pdev->dev, sport->port.irq, imx_int, 0,
+				       dev_name(&pdev->dev), sport);
+		if (ret)
+			return ret;
+	}
+
 	imx_ports[sport->port.line] = sport;
 
 	platform_set_drvdata(pdev, sport);
@@ -1959,11 +1959,8 @@ static struct platform_driver serial_imx_driver = {
 
 static int __init imx_serial_init(void)
 {
-	int ret;
+	int ret = uart_register_driver(&imx_reg);
 
-	pr_info("Serial: IMX driver\n");
-
-	ret = uart_register_driver(&imx_reg);
 	if (ret)
 		return ret;
 

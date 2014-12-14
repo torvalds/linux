@@ -3676,12 +3676,6 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	}
 	info->port.flags |= ASYNC_CLOSING;
 	/*
-	 * Save the termios structure, since this port may have
-	 * separate termios for callout and dialin.
-	 */
-	if (info->port.flags & ASYNC_NORMAL_ACTIVE)
-		info->normal_termios = tty->termios;
-	/*
 	 * Now we wait for the transmit buffer to clear; and we notify
 	 * the line discipline to only process XON/XOFF characters.
 	 */
@@ -4076,11 +4070,6 @@ rs_open(struct tty_struct *tty, struct file * filp)
 		return retval;
 	}
 
-	if ((info->port.count == 1) && (info->port.flags & ASYNC_SPLIT_TERMIOS)) {
-		tty->termios = info->normal_termios;
-		change_speed(info);
-	}
-
 #ifdef SERIAL_DEBUG_OPEN
 	printk("rs_open ttyS%d successful...\n", info->line);
 #endif
@@ -4327,7 +4316,6 @@ static int __init rs_init(void)
 		info->custom_divisor = 0;
 		info->x_char = 0;
 		info->event = 0;
-		info->normal_termios = driver->init_termios;
 		info->xmit.buf = NULL;
 		info->xmit.tail = info->xmit.head = 0;
 		info->first_recv_buffer = info->last_recv_buffer = NULL;

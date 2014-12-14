@@ -10,6 +10,7 @@ Required properties:
 	- "ns16850"
 	- "nvidia,tegra20-uart"
 	- "nxp,lpc3220-uart"
+	- "ralink,rt2880-uart"
 	- "ibm,qpace-nwp-serial"
 	- "altr,16550-FIFO32"
 	- "altr,16550-FIFO64"
