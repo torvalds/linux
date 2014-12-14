@@ -154,7 +154,10 @@ static inline bool rcu_is_watching(void)
 	return true;
 }
 
-
 #endif /* #else defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
+
+static inline void rcu_all_qs(void)
+{
+}
 
 #endif /* __LINUX_RCUTINY_H */
