@@ -474,6 +474,8 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		goto err;
 #endif
 	/* init stats here in order signal app which stats are supported */
+	c->strength.len = 1;
+	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->cnr.len = 1;
 	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->post_bit_error.len = 1;
@@ -822,6 +824,24 @@ static void rtl2832_stat_work(struct work_struct *work)
 	u16 u16tmp;
 
 	dev_dbg(&client->dev, "\n");
+
+	/* signal strength */
+	if (dev->fe_status & FE_HAS_SIGNAL) {
+		/* read digital AGC */
+		ret = rtl2832_bulk_read(client, 0x305, &u8tmp, 1);
+		if (ret)
+			goto err;
+
+		dev_dbg(&client->dev, "digital agc=%02x", u8tmp);
+
+		u8tmp = ~u8tmp;
+		u16tmp = u8tmp << 8 | u8tmp << 0;
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = u16tmp;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
 
 	/* CNR */
 	if (dev->fe_status & FE_HAS_VITERBI) {
