@@ -41,6 +41,7 @@ struct rtl2832_dev {
 	u64 post_bit_count;
 	bool sleeping;
 	struct delayed_work i2c_gate_work;
+	unsigned long filters; /* PID filter */
 };
 
 struct rtl2832_reg_entry {

@@ -1145,6 +1145,73 @@ err:
 	return ret;
 }
 
+static int rtl2832_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	struct rtl2832_dev *dev = fe->demodulator_priv;
+	struct i2c_client *client = dev->client;
+	int ret;
+	u8 u8tmp;
+
+	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+
+	/* enable / disable PID filter */
+	if (onoff)
+		u8tmp = 0x80;
+	else
+		u8tmp = 0x00;
+
+	ret = rtl2832_update_bits(client, 0x061, 0xc0, u8tmp);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int rtl2832_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
+			      int onoff)
+{
+	struct rtl2832_dev *dev = fe->demodulator_priv;
+	struct i2c_client *client = dev->client;
+	int ret;
+	u8 buf[4];
+
+	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
+		index, pid, onoff);
+
+	/* skip invalid PIDs (0x2000) */
+	if (pid > 0x1fff || index > 32)
+		return 0;
+
+	if (onoff)
+		set_bit(index, &dev->filters);
+	else
+		clear_bit(index, &dev->filters);
+
+	/* enable / disable PIDs */
+	buf[0] = (dev->filters >>  0) & 0xff;
+	buf[1] = (dev->filters >>  8) & 0xff;
+	buf[2] = (dev->filters >> 16) & 0xff;
+	buf[3] = (dev->filters >> 24) & 0xff;
+	ret = rtl2832_bulk_write(client, 0x062, buf, 4);
+	if (ret)
+		goto err;
+
+	/* add PID */
+	buf[0] = (pid >> 8) & 0xff;
+	buf[1] = (pid >> 0) & 0xff;
+	ret = rtl2832_bulk_write(client, 0x066 + 2 * index, buf, 2);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
 static int rtl2832_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -1235,6 +1302,8 @@ static int rtl2832_probe(struct i2c_client *client,
 	pdata->get_i2c_adapter = rtl2832_get_i2c_adapter_;
 	pdata->get_private_i2c_adapter = rtl2832_get_private_i2c_adapter_;
 	pdata->enable_slave_ts = rtl2832_enable_slave_ts;
+	pdata->pid_filter = rtl2832_pid_filter;
+	pdata->pid_filter_ctrl = rtl2832_pid_filter_ctrl;
 
 	dev_info(&client->dev, "Realtek RTL2832 successfully attached\n");
 	return 0;

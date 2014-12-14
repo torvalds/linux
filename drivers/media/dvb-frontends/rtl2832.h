@@ -78,6 +78,8 @@ struct rtl2832_platform_data {
 	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
 	struct i2c_adapter* (*get_private_i2c_adapter)(struct i2c_client *);
 	int (*enable_slave_ts)(struct i2c_client *);
+	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
+	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
 };
 
 #endif /* RTL2832_H */
