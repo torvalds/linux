@@ -1735,6 +1735,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct cfg80211_sched_scan_request *sched_scan_req;
 	bool sched_scan_stopped = false;
 
+	/* nothing to do if HW shouldn't run */
+	if (!local->open_count)
+		goto wake_up;
+
 #ifdef CONFIG_PM
 	if (local->suspended)
 		local->resuming = true;
@@ -1756,9 +1760,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		reconfig_due_to_wowlan = true;
 	}
 #endif
-	/* everything else happens only if HW was up & running */
-	if (!local->open_count)
-		goto wake_up;
 
 	/*
 	 * Upon resume hardware can sometimes be goofy due to
@@ -2042,7 +2043,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (!local->suspended || reconfig_due_to_wowlan)
+	if (local->open_count && (!local->suspended || reconfig_due_to_wowlan))
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_RESTART);
 
 	if (!local->suspended)
@@ -2054,7 +2055,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mb();
 	local->resuming = false;
 
-	if (!reconfig_due_to_wowlan)
+	if (local->open_count && !reconfig_due_to_wowlan)
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_SUSPEND);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
