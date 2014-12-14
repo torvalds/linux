@@ -1599,7 +1599,7 @@ static int rtl2832u_get_rc_config(struct dvb_usb_device *d,
 #define rtl2832u_get_rc_config NULL
 #endif
 
-static int rtl28xxu_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int rtl2831u_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct rtl28xxu_priv *priv = d_to_priv(d);
@@ -1608,11 +1608,29 @@ static int rtl28xxu_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return pdata->pid_filter_ctrl(adap->fe[0], onoff);
 }
 
-static int rtl28xxu_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
+static int rtl2832u_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+{
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct rtl28xxu_priv *priv = d_to_priv(d);
+	struct rtl2832_platform_data *pdata = &priv->rtl2832_platform_data;
+
+	return pdata->pid_filter_ctrl(adap->fe[0], onoff);
+}
+
+static int rtl2831u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct rtl28xxu_priv *priv = d_to_priv(d);
 	struct rtl2830_platform_data *pdata = &priv->rtl2830_platform_data;
+
+	return pdata->pid_filter(adap->fe[0], index, pid, onoff);
+}
+
+static int rtl2832u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
+{
+	struct dvb_usb_device *d = adap_to_d(adap);
+	struct rtl28xxu_priv *priv = d_to_priv(d);
+	struct rtl2832_platform_data *pdata = &priv->rtl2832_platform_data;
 
 	return pdata->pid_filter(adap->fe[0], index, pid, onoff);
 }
@@ -1639,8 +1657,8 @@ static const struct dvb_usb_device_properties rtl2831u_props = {
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 
 			.pid_filter_count = 32,
-			.pid_filter_ctrl = rtl28xxu_pid_filter_ctrl,
-			.pid_filter = rtl28xxu_pid_filter,
+			.pid_filter_ctrl = rtl2831u_pid_filter_ctrl,
+			.pid_filter = rtl2831u_pid_filter,
 
 			.stream = DVB_USB_STREAM_BULK(0x81, 6, 8 * 512),
 		},
@@ -1667,6 +1685,13 @@ static const struct dvb_usb_device_properties rtl2832u_props = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER |
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
+			.pid_filter_count = 32,
+			.pid_filter_ctrl = rtl2832u_pid_filter_ctrl,
+			.pid_filter = rtl2832u_pid_filter,
+
 			.stream = DVB_USB_STREAM_BULK(0x81, 6, 8 * 512),
 		},
 	},
