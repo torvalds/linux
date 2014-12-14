@@ -2368,6 +2368,11 @@ int ndo_dflt_fdb_add(struct ndmsg *ndm,
 		return err;
 	}
 
+	if (vid) {
+		pr_info("%s: vlans aren't supported yet for dev_uc|mc_add()\n", dev->name);
+		return err;
+	}
+
 	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr))
 		err = dev_uc_add_excl(dev, addr);
 	else if (is_multicast_ether_addr(addr))
