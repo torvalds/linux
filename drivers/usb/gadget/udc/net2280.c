@@ -1118,10 +1118,10 @@ static void scan_dma_completions(struct net2280_ep *ep)
 			break;
 		} else if (!ep->is_in &&
 				(req->req.length % ep->ep.maxpacket) != 0) {
-			tmp = readl(&ep->regs->ep_stat);
 			if (ep->dev->quirks & PLX_SUPERSPEED)
 				return dma_done(ep, req, tmp, 0);
 
+			tmp = readl(&ep->regs->ep_stat);
 			/* AVOID TROUBLE HERE by not issuing short reads from
 			 * your gadget driver.  That helps avoids errata 0121,
 			 * 0122, and 0124; not all cases trigger the warning.
@@ -1548,8 +1548,7 @@ static int net2280_pullup(struct usb_gadget *_gadget, int is_on)
 
 static int net2280_start(struct usb_gadget *_gadget,
 		struct usb_gadget_driver *driver);
-static int net2280_stop(struct usb_gadget *_gadget,
-		struct usb_gadget_driver *driver);
+static int net2280_stop(struct usb_gadget *_gadget);
 
 static const struct usb_gadget_ops net2280_ops = {
 	.get_frame	= net2280_get_frame,
@@ -2397,11 +2396,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 
 	ep0_start(dev);
 
-	ep_dbg(dev, "%s ready, usbctl %08x stdrsp %08x\n",
-			driver->driver.name,
-			readl(&dev->usb->usbctl),
-			readl(&dev->usb->stdrsp));
-
 	/* pci writes may still be posted */
 	return 0;
 
@@ -2437,8 +2431,7 @@ static void stop_activity(struct net2280 *dev, struct usb_gadget_driver *driver)
 	usb_reinit(dev);
 }
 
-static int net2280_stop(struct usb_gadget *_gadget,
-		struct usb_gadget_driver *driver)
+static int net2280_stop(struct usb_gadget *_gadget)
 {
 	struct net2280	*dev;
 	unsigned long	flags;
@@ -2446,10 +2439,8 @@ static int net2280_stop(struct usb_gadget *_gadget,
 	dev = container_of(_gadget, struct net2280, gadget);
 
 	spin_lock_irqsave(&dev->lock, flags);
-	stop_activity(dev, driver);
+	stop_activity(dev, NULL);
 	spin_unlock_irqrestore(&dev->lock, flags);
-
-	dev->driver = NULL;
 
 	net2280_led_active(dev, 0);
 
@@ -2460,8 +2451,7 @@ static int net2280_stop(struct usb_gadget *_gadget,
 	device_remove_file(&dev->pdev->dev, &dev_attr_function);
 	device_remove_file(&dev->pdev->dev, &dev_attr_queues);
 
-	ep_dbg(dev, "unregistered driver '%s'\n",
-			driver ? driver->driver.name : "");
+	dev->driver = NULL;
 
 	return 0;
 }
@@ -3318,17 +3308,42 @@ static void handle_stat1_irqs(struct net2280 *dev, u32 stat)
 	 * only indicates a change in the reset state).
 	 */
 	if (stat & tmp) {
+		bool	reset = false;
+		bool	disconnect = false;
+
+		/*
+		 * Ignore disconnects and resets if the speed hasn't been set.
+		 * VBUS can bounce and there's always an initial reset.
+		 */
 		writel(tmp, &dev->regs->irqstat1);
-		if ((((stat & BIT(ROOT_PORT_RESET_INTERRUPT)) &&
-				((readl(&dev->usb->usbstat) & mask) == 0)) ||
-				((readl(&dev->usb->usbctl) &
-					BIT(VBUS_PIN)) == 0)) &&
-				(dev->gadget.speed != USB_SPEED_UNKNOWN)) {
-			ep_dbg(dev, "disconnect %s\n",
-					dev->driver->driver.name);
-			stop_activity(dev, dev->driver);
-			ep0_start(dev);
-			return;
+		if (dev->gadget.speed != USB_SPEED_UNKNOWN) {
+			if ((stat & BIT(VBUS_INTERRUPT)) &&
+					(readl(&dev->usb->usbctl) &
+						BIT(VBUS_PIN)) == 0) {
+				disconnect = true;
+				ep_dbg(dev, "disconnect %s\n",
+						dev->driver->driver.name);
+			} else if ((stat & BIT(ROOT_PORT_RESET_INTERRUPT)) &&
+					(readl(&dev->usb->usbstat) & mask)
+						== 0) {
+				reset = true;
+				ep_dbg(dev, "reset %s\n",
+						dev->driver->driver.name);
+			}
+
+			if (disconnect || reset) {
+				stop_activity(dev, dev->driver);
+				ep0_start(dev);
+				spin_unlock(&dev->lock);
+				if (reset)
+					usb_gadget_udc_reset
+						(&dev->gadget, dev->driver);
+				else
+					(dev->driver->disconnect)
+						(&dev->gadget);
+				spin_lock(&dev->lock);
+				return;
+			}
 		}
 		stat &= ~tmp;
 

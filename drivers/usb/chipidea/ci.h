@@ -161,7 +161,8 @@ struct hw_bank {
  * @test_mode: the selected test mode
  * @platdata: platform specific information supplied by parent device
  * @vbus_active: is VBUS active
- * @transceiver: pointer to USB PHY, if any
+ * @phy: pointer to PHY, if any
+ * @usb_phy: pointer to USB PHY, if any and if using the USB PHY framework
  * @hcd: pointer to usb_hcd for ehci host driver
  * @debugfs: root dentry for this controller in debugfs
  * @id_event: indicates there is an id event, and handled at ci_otg_work
@@ -177,6 +178,7 @@ struct ci_hdrc {
 	struct ci_role_driver		*roles[CI_ROLE_END];
 	enum ci_role			role;
 	bool				is_otg;
+	struct usb_otg			otg;
 	struct otg_fsm			fsm;
 	struct ci_otg_fsm_timer_list	*fsm_timer;
 	struct work_struct		work;
@@ -201,7 +203,9 @@ struct ci_hdrc {
 
 	struct ci_hdrc_platform_data	*platdata;
 	int				vbus_active;
-	struct usb_phy			*transceiver;
+	struct phy			*phy;
+	/* old usb_phy interface */
+	struct usb_phy			*usb_phy;
 	struct usb_hcd			*hcd;
 	struct dentry			*debugfs;
 	bool				id_event;
@@ -348,7 +352,7 @@ u32 hw_read_intr_enable(struct ci_hdrc *ci);
 
 u32 hw_read_intr_status(struct ci_hdrc *ci);
 
-int hw_device_reset(struct ci_hdrc *ci, u32 mode);
+int hw_device_reset(struct ci_hdrc *ci);
 
 int hw_port_test_set(struct ci_hdrc *ci, u8 mode);
 

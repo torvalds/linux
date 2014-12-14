@@ -190,6 +190,12 @@ config USB_F_UAC2
 config USB_F_UVC
 	tristate
 
+config USB_F_MIDI
+	tristate
+
+config USB_F_HID
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
@@ -361,6 +367,61 @@ config USB_CONFIGFS_F_FS
 	  of composite gadgets such that some of the functions are
 	  implemented in kernel space (for instance Ethernet, serial or
 	  mass storage) and other are implemented in user space.
+
+config USB_CONFIGFS_F_UAC1
+	boolean "Audio Class 1.0"
+	depends on USB_CONFIGFS
+	depends on SND
+	select USB_LIBCOMPOSITE
+	select SND_PCM
+	select USB_F_UAC1
+	help
+	  This Audio function implements 1 AudioControl interface,
+	  1 AudioStreaming Interface each for USB-OUT and USB-IN.
+	  This driver requires a real Audio codec to be present
+	  on the device.
+
+config USB_CONFIGFS_F_UAC2
+	boolean "Audio Class 2.0"
+	depends on USB_CONFIGFS
+	depends on SND
+	select USB_LIBCOMPOSITE
+	select SND_PCM
+	select USB_F_UAC2
+	help
+	  This Audio function is compatible with USB Audio Class
+	  specification 2.0. It implements 1 AudioControl interface,
+	  1 AudioStreaming Interface each for USB-OUT and USB-IN.
+	  This driver doesn't expect any real Audio codec to be present
+	  on the device - the audio streams are simply sinked to and
+	  sourced from a virtual ALSA sound card created. The user-space
+	  application may choose to do whatever it wants with the data
+	  received from the USB Host and choose to provide whatever it
+	  wants as audio data to the USB Host.
+
+config USB_CONFIGFS_F_MIDI
+	boolean "MIDI function"
+	depends on USB_CONFIGFS
+	depends on SND
+	select USB_LIBCOMPOSITE
+	select SND_RAWMIDI
+	select USB_F_MIDI
+	help
+	  The MIDI Function acts as a USB Audio device, with one MIDI
+	  input and one MIDI output. These MIDI jacks appear as
+	  a sound "card" in the ALSA sound system. Other MIDI
+	  connections can then be made on the gadget system, using
+	  ALSA's aconnect utility etc.
+
+config USB_CONFIGFS_F_HID
+	boolean "HID function"
+	depends on USB_CONFIGFS
+	select USB_F_HID
+	help
+	  The HID function driver provides generic emulation of USB
+	  Human Interface Devices (HID).
+
+	  For more information, see Documentation/usb/gadget_hid.txt.
 
 source "drivers/usb/gadget/legacy/Kconfig"
 

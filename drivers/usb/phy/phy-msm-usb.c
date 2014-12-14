@@ -708,7 +708,7 @@ static void msm_otg_start_host(struct usb_phy *phy, int on)
 
 static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct msm_otg *motg = container_of(otg->phy, struct msm_otg, phy);
+	struct msm_otg *motg = container_of(otg->usb_phy, struct msm_otg, phy);
 	struct usb_hcd *hcd;
 
 	/*
@@ -716,16 +716,16 @@ static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	 * only peripheral configuration.
 	 */
 	if (motg->pdata->mode == USB_DR_MODE_PERIPHERAL) {
-		dev_info(otg->phy->dev, "Host mode is not supported\n");
+		dev_info(otg->usb_phy->dev, "Host mode is not supported\n");
 		return -ENODEV;
 	}
 
 	if (!host) {
-		if (otg->phy->state == OTG_STATE_A_HOST) {
-			pm_runtime_get_sync(otg->phy->dev);
-			msm_otg_start_host(otg->phy, 0);
+		if (otg->state == OTG_STATE_A_HOST) {
+			pm_runtime_get_sync(otg->usb_phy->dev);
+			msm_otg_start_host(otg->usb_phy, 0);
 			otg->host = NULL;
-			otg->phy->state = OTG_STATE_UNDEFINED;
+			otg->state = OTG_STATE_UNDEFINED;
 			schedule_work(&motg->sm_work);
 		} else {
 			otg->host = NULL;
@@ -738,14 +738,14 @@ static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	hcd->power_budget = motg->pdata->power_budget;
 
 	otg->host = host;
-	dev_dbg(otg->phy->dev, "host driver registered w/ tranceiver\n");
+	dev_dbg(otg->usb_phy->dev, "host driver registered w/ tranceiver\n");
 
 	/*
 	 * Kick the state machine work, if peripheral is not supported
 	 * or peripheral is already registered with us.
 	 */
 	if (motg->pdata->mode == USB_DR_MODE_HOST || otg->gadget) {
-		pm_runtime_get_sync(otg->phy->dev);
+		pm_runtime_get_sync(otg->usb_phy->dev);
 		schedule_work(&motg->sm_work);
 	}
 
@@ -782,23 +782,23 @@ static void msm_otg_start_peripheral(struct usb_phy *phy, int on)
 static int msm_otg_set_peripheral(struct usb_otg *otg,
 					struct usb_gadget *gadget)
 {
-	struct msm_otg *motg = container_of(otg->phy, struct msm_otg, phy);
+	struct msm_otg *motg = container_of(otg->usb_phy, struct msm_otg, phy);
 
 	/*
 	 * Fail peripheral registration if this board can support
 	 * only host configuration.
 	 */
 	if (motg->pdata->mode == USB_DR_MODE_HOST) {
-		dev_info(otg->phy->dev, "Peripheral mode is not supported\n");
+		dev_info(otg->usb_phy->dev, "Peripheral mode is not supported\n");
 		return -ENODEV;
 	}
 
 	if (!gadget) {
-		if (otg->phy->state == OTG_STATE_B_PERIPHERAL) {
-			pm_runtime_get_sync(otg->phy->dev);
-			msm_otg_start_peripheral(otg->phy, 0);
+		if (otg->state == OTG_STATE_B_PERIPHERAL) {
+			pm_runtime_get_sync(otg->usb_phy->dev);
+			msm_otg_start_peripheral(otg->usb_phy, 0);
 			otg->gadget = NULL;
-			otg->phy->state = OTG_STATE_UNDEFINED;
+			otg->state = OTG_STATE_UNDEFINED;
 			schedule_work(&motg->sm_work);
 		} else {
 			otg->gadget = NULL;
@@ -807,14 +807,15 @@ static int msm_otg_set_peripheral(struct usb_otg *otg,
 		return 0;
 	}
 	otg->gadget = gadget;
-	dev_dbg(otg->phy->dev, "peripheral driver registered w/ tranceiver\n");
+	dev_dbg(otg->usb_phy->dev,
+		"peripheral driver registered w/ tranceiver\n");
 
 	/*
 	 * Kick the state machine work, if host is not supported
 	 * or host is already registered with us.
 	 */
 	if (motg->pdata->mode == USB_DR_MODE_PERIPHERAL || otg->host) {
-		pm_runtime_get_sync(otg->phy->dev);
+		pm_runtime_get_sync(otg->usb_phy->dev);
 		schedule_work(&motg->sm_work);
 	}
 
@@ -1170,20 +1171,20 @@ static void msm_otg_sm_work(struct work_struct *w)
 	struct msm_otg *motg = container_of(w, struct msm_otg, sm_work);
 	struct usb_otg *otg = motg->phy.otg;
 
-	switch (otg->phy->state) {
+	switch (otg->state) {
 	case OTG_STATE_UNDEFINED:
-		dev_dbg(otg->phy->dev, "OTG_STATE_UNDEFINED state\n");
-		msm_otg_reset(otg->phy);
+		dev_dbg(otg->usb_phy->dev, "OTG_STATE_UNDEFINED state\n");
+		msm_otg_reset(otg->usb_phy);
 		msm_otg_init_sm(motg);
-		otg->phy->state = OTG_STATE_B_IDLE;
+		otg->state = OTG_STATE_B_IDLE;
 		/* FALL THROUGH */
 	case OTG_STATE_B_IDLE:
-		dev_dbg(otg->phy->dev, "OTG_STATE_B_IDLE state\n");
+		dev_dbg(otg->usb_phy->dev, "OTG_STATE_B_IDLE state\n");
 		if (!test_bit(ID, &motg->inputs) && otg->host) {
 			/* disable BSV bit */
 			writel(readl(USB_OTGSC) & ~OTGSC_BSVIE, USB_OTGSC);
-			msm_otg_start_host(otg->phy, 1);
-			otg->phy->state = OTG_STATE_A_HOST;
+			msm_otg_start_host(otg->usb_phy, 1);
+			otg->state = OTG_STATE_A_HOST;
 		} else if (test_bit(B_SESS_VLD, &motg->inputs)) {
 			switch (motg->chg_state) {
 			case USB_CHG_STATE_UNDEFINED:
@@ -1198,14 +1199,16 @@ static void msm_otg_sm_work(struct work_struct *w)
 				case USB_CDP_CHARGER:
 					msm_otg_notify_charger(motg,
 							IDEV_CHG_MAX);
-					msm_otg_start_peripheral(otg->phy, 1);
-					otg->phy->state
+					msm_otg_start_peripheral(otg->usb_phy,
+								 1);
+					otg->state
 						= OTG_STATE_B_PERIPHERAL;
 					break;
 				case USB_SDP_CHARGER:
 					msm_otg_notify_charger(motg, IUNIT);
-					msm_otg_start_peripheral(otg->phy, 1);
-					otg->phy->state
+					msm_otg_start_peripheral(otg->usb_phy,
+								 1);
+					otg->state
 						= OTG_STATE_B_PERIPHERAL;
 					break;
 				default:
@@ -1222,36 +1225,36 @@ static void msm_otg_sm_work(struct work_struct *w)
 			 * is incremented in charger detection work.
 			 */
 			if (cancel_delayed_work_sync(&motg->chg_work)) {
-				pm_runtime_put_sync(otg->phy->dev);
-				msm_otg_reset(otg->phy);
+				pm_runtime_put_sync(otg->usb_phy->dev);
+				msm_otg_reset(otg->usb_phy);
 			}
 			msm_otg_notify_charger(motg, 0);
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 			motg->chg_type = USB_INVALID_CHARGER;
 		}
 
-		if (otg->phy->state == OTG_STATE_B_IDLE)
-			pm_runtime_put_sync(otg->phy->dev);
+		if (otg->state == OTG_STATE_B_IDLE)
+			pm_runtime_put_sync(otg->usb_phy->dev);
 		break;
 	case OTG_STATE_B_PERIPHERAL:
-		dev_dbg(otg->phy->dev, "OTG_STATE_B_PERIPHERAL state\n");
+		dev_dbg(otg->usb_phy->dev, "OTG_STATE_B_PERIPHERAL state\n");
 		if (!test_bit(B_SESS_VLD, &motg->inputs) ||
 				!test_bit(ID, &motg->inputs)) {
 			msm_otg_notify_charger(motg, 0);
-			msm_otg_start_peripheral(otg->phy, 0);
+			msm_otg_start_peripheral(otg->usb_phy, 0);
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 			motg->chg_type = USB_INVALID_CHARGER;
-			otg->phy->state = OTG_STATE_B_IDLE;
-			msm_otg_reset(otg->phy);
+			otg->state = OTG_STATE_B_IDLE;
+			msm_otg_reset(otg->usb_phy);
 			schedule_work(w);
 		}
 		break;
 	case OTG_STATE_A_HOST:
-		dev_dbg(otg->phy->dev, "OTG_STATE_A_HOST state\n");
+		dev_dbg(otg->usb_phy->dev, "OTG_STATE_A_HOST state\n");
 		if (test_bit(ID, &motg->inputs)) {
-			msm_otg_start_host(otg->phy, 0);
-			otg->phy->state = OTG_STATE_B_IDLE;
-			msm_otg_reset(otg->phy);
+			msm_otg_start_host(otg->usb_phy, 0);
+			otg->state = OTG_STATE_B_IDLE;
+			msm_otg_reset(otg->usb_phy);
 			schedule_work(w);
 		}
 		break;
@@ -1303,7 +1306,7 @@ static int msm_otg_mode_show(struct seq_file *s, void *unused)
 	struct msm_otg *motg = s->private;
 	struct usb_otg *otg = motg->phy.otg;
 
-	switch (otg->phy->state) {
+	switch (otg->state) {
 	case OTG_STATE_A_HOST:
 		seq_puts(s, "host\n");
 		break;
@@ -1353,7 +1356,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 
 	switch (req_mode) {
 	case USB_DR_MODE_UNKNOWN:
-		switch (otg->phy->state) {
+		switch (otg->state) {
 		case OTG_STATE_A_HOST:
 		case OTG_STATE_B_PERIPHERAL:
 			set_bit(ID, &motg->inputs);
@@ -1364,7 +1367,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 		}
 		break;
 	case USB_DR_MODE_PERIPHERAL:
-		switch (otg->phy->state) {
+		switch (otg->state) {
 		case OTG_STATE_B_IDLE:
 		case OTG_STATE_A_HOST:
 			set_bit(ID, &motg->inputs);
@@ -1375,7 +1378,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 		}
 		break;
 	case USB_DR_MODE_HOST:
-		switch (otg->phy->state) {
+		switch (otg->state) {
 		case OTG_STATE_B_IDLE:
 		case OTG_STATE_B_PERIPHERAL:
 			clear_bit(ID, &motg->inputs);
@@ -1388,7 +1391,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	pm_runtime_get_sync(otg->phy->dev);
+	pm_runtime_get_sync(otg->usb_phy->dev);
 	schedule_work(&motg->sm_work);
 out:
 	return status;
@@ -1505,10 +1508,8 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	}
 
 	pdata->phy_init_seq = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
-	if (!pdata->phy_init_seq) {
-		dev_warn(&pdev->dev, "No space for PHY init sequence\n");
+	if (!pdata->phy_init_seq)
 		return 0;
-	}
 
 	ret = of_property_read_u32_array(node, "qcom,phy-init-sequence",
 					 pdata->phy_init_seq, words);
@@ -1530,10 +1531,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	void __iomem *phy_select;
 
 	motg = devm_kzalloc(&pdev->dev, sizeof(struct msm_otg), GFP_KERNEL);
-	if (!motg) {
-		dev_err(&pdev->dev, "unable to allocate msm_otg\n");
+	if (!motg)
 		return -ENOMEM;
-	}
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
@@ -1546,10 +1545,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	motg->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 				     GFP_KERNEL);
-	if (!motg->phy.otg) {
-		dev_err(&pdev->dev, "unable to allocate msm_otg\n");
+	if (!motg->phy.otg)
 		return -ENOMEM;
-	}
 
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
@@ -1674,7 +1671,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	phy->io_ops = &msm_otg_io_ops;
 
-	phy->otg->phy = &motg->phy;
+	phy->otg->usb_phy = &motg->phy;
 	phy->otg->set_host = msm_otg_set_host;
 	phy->otg->set_peripheral = msm_otg_set_peripheral;
 
@@ -1775,7 +1772,7 @@ static int msm_otg_runtime_idle(struct device *dev)
 	 * This 1 sec delay also prevents entering into LPM immediately
 	 * after asynchronous interrupt.
 	 */
-	if (otg->phy->state != OTG_STATE_UNDEFINED)
+	if (otg->state != OTG_STATE_UNDEFINED)
 		pm_schedule_suspend(dev, 1000);
 
 	return -EAGAIN;

@@ -49,10 +49,9 @@ int usb_stor_euscsi_init(struct us_data *us)
 	int result;
 
 	usb_stor_dbg(us, "Attempting to init eUSCSI bridge...\n");
-	us->iobuf[0] = 0x1;
 	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
 			0x0C, USB_RECIP_INTERFACE | USB_TYPE_VENDOR,
-			0x01, 0x0, us->iobuf, 0x1, 5 * HZ);
+			0x01, 0x0, NULL, 0x0, 5 * HZ);
 	usb_stor_dbg(us, "-- result is %d\n", result);
 
 	return 0;

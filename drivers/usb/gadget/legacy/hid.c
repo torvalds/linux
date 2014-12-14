@@ -17,10 +17,13 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/usb/composite.h>
+#include <linux/usb/g_hid.h>
 
 #include "gadget_chips.h"
 #define DRIVER_DESC		"HID Gadget"
 #define DRIVER_VERSION		"2010/03/16"
+
+#include "u_hid.h"
 
 /*-------------------------------------------------------------------------*/
 
@@ -29,17 +32,9 @@
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#include "f_hid.c"
-
-
 struct hidg_func_node {
+	struct usb_function_instance *fi;
+	struct usb_function *f;
 	struct list_head node;
 	struct hidg_func_descriptor *func;
 };
@@ -113,8 +108,8 @@ static struct usb_gadget_strings *dev_strings[] = {
 
 static int __init do_config(struct usb_configuration *c)
 {
-	struct hidg_func_node *e;
-	int func = 0, status = 0;
+	struct hidg_func_node *e, *n;
+	int status = 0;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
 		c->descriptors = otg_desc;
@@ -122,11 +117,24 @@ static int __init do_config(struct usb_configuration *c)
 	}
 
 	list_for_each_entry(e, &hidg_func_list, node) {
-		status = hidg_bind_config(c, e->func, func++);
-		if (status)
-			break;
+		e->f = usb_get_function(e->fi);
+		if (IS_ERR(e->f))
+			goto put;
+		status = usb_add_function(c, e->f);
+		if (status < 0) {
+			usb_put_function(e->f);
+			goto put;
+		}
 	}
 
+	return 0;
+put:
+	list_for_each_entry(n, &hidg_func_list, node) {
+		if (n == e)
+			break;
+		usb_remove_function(c, n->f);
+		usb_put_function(n->f);
+	}
 	return status;
 }
 
@@ -143,6 +151,8 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
 	struct list_head *tmp;
+	struct hidg_func_node *n, *m;
+	struct f_hid_opts *hid_opts;
 	int status, funcs = 0;
 
 	list_for_each(tmp, &hidg_func_list)
@@ -151,10 +161,20 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 	if (!funcs)
 		return -ENODEV;
 
-	/* set up HID */
-	status = ghid_setup(cdev->gadget, funcs);
-	if (status < 0)
-		return status;
+	list_for_each_entry(n, &hidg_func_list, node) {
+		n->fi = usb_get_function_instance("hid");
+		if (IS_ERR(n->fi)) {
+			status = PTR_ERR(n->fi);
+			goto put;
+		}
+		hid_opts = container_of(n->fi, struct f_hid_opts, func_inst);
+		hid_opts->subclass = n->func->subclass;
+		hid_opts->protocol = n->func->protocol;
+		hid_opts->report_length = n->func->report_length;
+		hid_opts->report_desc_length = n->func->report_desc_length;
+		hid_opts->report_desc = n->func->report_desc;
+	}
+
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
@@ -162,24 +182,37 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
-		return status;
+		goto put;
 	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	/* register our configuration */
 	status = usb_add_config(cdev, &config_driver, do_config);
 	if (status < 0)
-		return status;
+		goto put;
 
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
 
 	return 0;
+
+put:
+	list_for_each_entry(m, &hidg_func_list, node) {
+		if (m == n)
+			break;
+		usb_put_function_instance(m->fi);
+	}
+	return status;
 }
 
 static int __exit hid_unbind(struct usb_composite_dev *cdev)
 {
-	ghid_cleanup();
+	struct hidg_func_node *n;
+
+	list_for_each_entry(n, &hidg_func_list, node) {
+		usb_put_function(n->f);
+		usb_put_function_instance(n->fi);
+	}
 	return 0;
 }
 
@@ -260,7 +293,7 @@ module_init(hidg_init);
 
 static void __exit hidg_cleanup(void)
 {
-	platform_driver_unregister(&hidg_plat_driver);
 	usb_composite_unregister(&hidg_driver);
+	platform_driver_unregister(&hidg_plat_driver);
 }
 module_exit(hidg_cleanup);

@@ -1266,8 +1266,7 @@ static int mv_u3d_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int mv_u3d_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int mv_u3d_stop(struct usb_gadget *g)
 {
 	struct mv_u3d *u3d = container_of(g, struct mv_u3d, gadget);
 	struct mv_usb_platform_data *pdata = dev_get_platdata(u3d->dev);
@@ -1284,7 +1283,7 @@ static int mv_u3d_stop(struct usb_gadget *g,
 	mv_u3d_controller_stop(u3d);
 	/* stop all usb activities */
 	u3d->gadget.speed = USB_SPEED_UNKNOWN;
-	mv_u3d_stop_activity(u3d, driver);
+	mv_u3d_stop_activity(u3d, NULL);
 	mv_u3d_disable(u3d);
 
 	if (pdata->phy_deinit)

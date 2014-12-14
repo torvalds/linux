@@ -2,7 +2,9 @@ Berlin SATA PHY
 ---------------
 
 Required properties:
-- compatible: should be "marvell,berlin2q-sata-phy"
+- compatible: should be one of
+    "marvell,berlin2-sata-phy"
+    "marvell,berlin2q-sata-phy"
 - address-cells: should be 1
 - size-cells: should be 0
 - phy-cells: from the generic PHY bindings, must be 1

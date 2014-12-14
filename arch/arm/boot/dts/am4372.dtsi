@@ -843,6 +843,8 @@
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 				status = "disabled";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 
@@ -865,6 +867,8 @@
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 				status = "disabled";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 

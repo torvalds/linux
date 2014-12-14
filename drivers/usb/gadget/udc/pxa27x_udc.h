@@ -420,7 +420,8 @@ struct udc_stats {
  * @usb_gadget: udc gadget structure
  * @driver: bound gadget (zero, g_ether, g_mass_storage, ...)
  * @dev: device
- * @mach: machine info, used to activate specific GPIO
+ * @udc_command: machine specific function to activate D+ pullup
+ * @gpiod: gpio descriptor of gpio for D+ pullup (or NULL if none)
  * @transceiver: external transceiver to handle vbus sense and D+ pullup
  * @ep0state: control endpoint state machine state
  * @stats: statistics on udc usage
@@ -446,7 +447,8 @@ struct pxa_udc {
 	struct usb_gadget			gadget;
 	struct usb_gadget_driver		*driver;
 	struct device				*dev;
-	struct pxa2xx_udc_mach_info		*mach;
+	void					(*udc_command)(int);
+	struct gpio_desc			*gpiod;
 	struct usb_phy				*transceiver;
 
 	enum ep0_state				ep0state;

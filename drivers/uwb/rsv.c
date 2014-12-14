@@ -213,7 +213,7 @@ void uwb_rsv_backoff_win_timer(unsigned long arg)
 		bow->total_expired = 0;
 		bow->window = UWB_DRP_BACKOFF_WIN_MIN >> 1;
 	}
-	dev_dbg(dev, "backoff_win_timer total_expired=%d, n=%d\n: ", bow->total_expired, bow->n);
+	dev_dbg(dev, "backoff_win_timer total_expired=%d, n=%d\n", bow->total_expired, bow->n);
 
 	/* try to relocate all the "to be moved" relocations */
 	uwb_rsv_handle_drp_avail_change(rc);
@@ -234,7 +234,7 @@ void uwb_rsv_backoff_win_increment(struct uwb_rc *rc)
 
 	bow->window <<= 1;
 	bow->n = prandom_u32() & (bow->window - 1);
-	dev_dbg(dev, "new_window=%d, n=%d\n: ", bow->window, bow->n);
+	dev_dbg(dev, "new_window=%d, n=%d\n", bow->window, bow->n);
 
 	/* reset the timer associated variables */
 	timeout_us = bow->n * UWB_SUPERFRAME_LENGTH_US;

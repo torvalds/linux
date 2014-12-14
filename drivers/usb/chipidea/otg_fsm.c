@@ -303,7 +303,7 @@ static void a_wait_vfall_tmout_func(void *ptr, unsigned long indicator)
 	set_tmout(ci, indicator);
 	/* Disable port power */
 	hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS | PORTSC_PP, 0);
-	/* Clear exsiting DP irq */
+	/* Clear existing DP irq */
 	hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
 	/* Enable data pulse irq */
 	hw_write_otgsc(ci, OTGSC_DPIE, OTGSC_DPIE);
@@ -328,7 +328,7 @@ static void b_ssend_srp_tmout_func(void *ptr, unsigned long indicator)
 	set_tmout(ci, indicator);
 
 	/* only vbus fall below B_sess_vld in b_idle state */
-	if (ci->transceiver->state == OTG_STATE_B_IDLE)
+	if (ci->fsm.otg->state == OTG_STATE_B_IDLE)
 		ci_otg_queue_work(ci);
 }
 
@@ -543,7 +543,7 @@ static int ci_otg_start_host(struct otg_fsm *fsm, int on)
 		ci_role_start(ci, CI_ROLE_HOST);
 	} else {
 		ci_role_stop(ci);
-		hw_device_reset(ci, USBMODE_CM_DC);
+		hw_device_reset(ci);
 		ci_role_start(ci, CI_ROLE_GADGET);
 	}
 	mutex_lock(&fsm->lock);
@@ -582,11 +582,11 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 	 * when there is no gadget class driver
 	 */
 	if (ci->fsm.id && !(ci->driver) &&
-		ci->transceiver->state < OTG_STATE_A_IDLE)
+		ci->fsm.otg->state < OTG_STATE_A_IDLE)
 		return 0;
 
 	if (otg_statemachine(&ci->fsm)) {
-		if (ci->transceiver->state == OTG_STATE_A_IDLE) {
+		if (ci->fsm.otg->state == OTG_STATE_A_IDLE) {
 			/*
 			 * Further state change for cases:
 			 * a_idle to b_idle; or
@@ -600,7 +600,7 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 				ci_otg_queue_work(ci);
 			if (ci->id_event)
 				ci->id_event = false;
-		} else if (ci->transceiver->state == OTG_STATE_B_IDLE) {
+		} else if (ci->fsm.otg->state == OTG_STATE_B_IDLE) {
 			if (ci->fsm.b_sess_vld) {
 				ci->fsm.power_up = 0;
 				/*
@@ -627,7 +627,7 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 	otg_bsess_vld = hw_read_otgsc(ci, OTGSC_BSV);
 	port_conn = hw_read(ci, OP_PORTSC, PORTSC_CCS);
 
-	switch (ci->transceiver->state) {
+	switch (ci->fsm.otg->state) {
 	case OTG_STATE_A_WAIT_BCON:
 		if (port_conn) {
 			fsm->b_conn = 1;
@@ -663,7 +663,7 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 			 fsm->b_bus_suspend = 1;
 			/*
 			 * Init a timer to know how long this suspend
-			 * will contine, if time out, indicates B no longer
+			 * will continue, if time out, indicates B no longer
 			 * wants to be host role
 			 */
 			 ci_otg_add_timer(ci, A_BIDL_ADIS);
@@ -778,34 +778,25 @@ void ci_hdrc_otg_fsm_start(struct ci_hdrc *ci)
 int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 {
 	int retval = 0;
-	struct usb_otg *otg;
 
-	otg = devm_kzalloc(ci->dev,
-			sizeof(struct usb_otg), GFP_KERNEL);
-	if (!otg) {
-		dev_err(ci->dev,
-		"Failed to allocate usb_otg structure for ci hdrc otg!\n");
-		return -ENOMEM;
-	}
+	if (ci->phy)
+		ci->otg.phy = ci->phy;
+	else
+		ci->otg.usb_phy = ci->usb_phy;
 
-	otg->phy = ci->transceiver;
-	otg->gadget = &ci->gadget;
-	ci->fsm.otg = otg;
-	ci->transceiver->otg = ci->fsm.otg;
+	ci->otg.gadget = &ci->gadget;
+	ci->fsm.otg = &ci->otg;
 	ci->fsm.power_up = 1;
 	ci->fsm.id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
-	ci->transceiver->state = OTG_STATE_UNDEFINED;
+	ci->fsm.otg->state = OTG_STATE_UNDEFINED;
 	ci->fsm.ops = &ci_otg_ops;
 
 	mutex_init(&ci->fsm.lock);
 
 	ci->fsm_timer = devm_kzalloc(ci->dev,
 			sizeof(struct ci_otg_fsm_timer_list), GFP_KERNEL);
-	if (!ci->fsm_timer) {
-		dev_err(ci->dev,
-		"Failed to allocate timer structure for ci hdrc otg!\n");
+	if (!ci->fsm_timer)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&ci->fsm_timer->active_timers);
 	retval = ci_otg_init_timers(ci);

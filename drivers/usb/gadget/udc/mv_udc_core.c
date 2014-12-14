@@ -1223,7 +1223,7 @@ static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int mv_udc_start(struct usb_gadget *, struct usb_gadget_driver *);
-static int mv_udc_stop(struct usb_gadget *, struct usb_gadget_driver *);
+static int mv_udc_stop(struct usb_gadget *);
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops mv_ops = {
 
@@ -1307,6 +1307,23 @@ static void nuke(struct mv_ep *ep, int status)
 	}
 }
 
+static void gadget_reset(struct mv_udc *udc, struct usb_gadget_driver *driver)
+{
+	struct mv_ep	*ep;
+
+	nuke(&udc->eps[0], -ESHUTDOWN);
+
+	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
+		nuke(ep, -ESHUTDOWN);
+	}
+
+	/* report reset; the driver is already quiesced */
+	if (driver) {
+		spin_unlock(&udc->lock);
+		usb_gadget_udc_reset(&udc->gadget, driver);
+		spin_lock(&udc->lock);
+	}
+}
 /* stop all USB activities */
 static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver)
 {
@@ -1371,8 +1388,7 @@ static int mv_udc_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int mv_udc_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int mv_udc_stop(struct usb_gadget *gadget)
 {
 	struct mv_udc *udc;
 	unsigned long flags;
@@ -1386,7 +1402,7 @@ static int mv_udc_stop(struct usb_gadget *gadget,
 
 	/* stop all usb activities */
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	stop_activity(udc, driver);
+	stop_activity(udc, NULL);
 	mv_udc_disable(udc);
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -1882,7 +1898,7 @@ static void irq_process_reset(struct mv_udc *udc)
 		dev_info(&udc->dev->dev, "usb bus reset\n");
 		udc->usb_state = USB_STATE_DEFAULT;
 		/* reset all the queues, stop all USB activities */
-		stop_activity(udc, udc->driver);
+		gadget_reset(udc, udc->driver);
 	} else {
 		dev_info(&udc->dev->dev, "USB reset portsc 0x%x\n",
 			readl(&udc->op_regs->portsc));
@@ -2107,10 +2123,8 @@ static int mv_udc_probe(struct platform_device *pdev)
 	}
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
-	if (udc == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory for udc\n");
+	if (udc == NULL)
 		return -ENOMEM;
-	}
 
 	udc->done = &release_done;
 	udc->pdata = dev_get_platdata(&pdev->dev);
@@ -2207,7 +2221,6 @@ static int mv_udc_probe(struct platform_device *pdev)
 	size = udc->max_eps * sizeof(struct mv_ep) *2;
 	udc->eps = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (udc->eps == NULL) {
-		dev_err(&pdev->dev, "allocate ep memory failed\n");
 		retval = -ENOMEM;
 		goto err_destroy_dma;
 	}
@@ -2216,7 +2229,6 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->status_req = devm_kzalloc(&pdev->dev, sizeof(struct mv_req),
 					GFP_KERNEL);
 	if (!udc->status_req) {
-		dev_err(&pdev->dev, "allocate status_req memory failed\n");
 		retval = -ENOMEM;
 		goto err_destroy_dma;
 	}

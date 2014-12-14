@@ -1169,8 +1169,7 @@ net2272_pullup(struct usb_gadget *_gadget, int is_on)
 
 static int net2272_start(struct usb_gadget *_gadget,
 		struct usb_gadget_driver *driver);
-static int net2272_stop(struct usb_gadget *_gadget,
-		struct usb_gadget_driver *driver);
+static int net2272_stop(struct usb_gadget *_gadget);
 
 static const struct usb_gadget_ops net2272_ops = {
 	.get_frame	= net2272_get_frame,
@@ -1471,8 +1470,6 @@ static int net2272_start(struct usb_gadget *_gadget,
 	 */
 	net2272_ep0_start(dev);
 
-	dev_dbg(dev->dev, "%s ready\n", driver->driver.name);
-
 	return 0;
 }
 
@@ -1502,8 +1499,7 @@ stop_activity(struct net2272 *dev, struct usb_gadget_driver *driver)
 	net2272_usb_reinit(dev);
 }
 
-static int net2272_stop(struct usb_gadget *_gadget,
-		struct usb_gadget_driver *driver)
+static int net2272_stop(struct usb_gadget *_gadget)
 {
 	struct net2272 *dev;
 	unsigned long flags;
@@ -1511,12 +1507,11 @@ static int net2272_stop(struct usb_gadget *_gadget,
 	dev = container_of(_gadget, struct net2272, gadget);
 
 	spin_lock_irqsave(&dev->lock, flags);
-	stop_activity(dev, driver);
+	stop_activity(dev, NULL);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	dev->driver = NULL;
 
-	dev_dbg(dev->dev, "unregistered driver '%s'\n", driver->driver.name);
 	return 0;
 }
 
@@ -1987,17 +1982,42 @@ net2272_handle_stat1_irqs(struct net2272 *dev, u8 stat)
 	mask = (1 << USB_HIGH_SPEED) | (1 << USB_FULL_SPEED);
 
 	if (stat & tmp) {
+		bool	reset = false;
+		bool	disconnect = false;
+
+		/*
+		 * Ignore disconnects and resets if the speed hasn't been set.
+		 * VBUS can bounce and there's always an initial reset.
+		 */
 		net2272_write(dev, IRQSTAT1, tmp);
-		if ((((stat & (1 << ROOT_PORT_RESET_INTERRUPT)) &&
-				((net2272_read(dev, USBCTL1) & mask) == 0))
-			|| ((net2272_read(dev, USBCTL1) & (1 << VBUS_PIN))
-				== 0))
-				&& (dev->gadget.speed != USB_SPEED_UNKNOWN)) {
-			dev_dbg(dev->dev, "disconnect %s\n",
-				dev->driver->driver.name);
-			stop_activity(dev, dev->driver);
-			net2272_ep0_start(dev);
-			return;
+		if (dev->gadget.speed != USB_SPEED_UNKNOWN) {
+			if ((stat & (1 << VBUS_INTERRUPT)) &&
+					(net2272_read(dev, USBCTL1) &
+						(1 << VBUS_PIN)) == 0) {
+				disconnect = true;
+				dev_dbg(dev->dev, "disconnect %s\n",
+					dev->driver->driver.name);
+			} else if ((stat & (1 << ROOT_PORT_RESET_INTERRUPT)) &&
+					(net2272_read(dev, USBCTL1) & mask)
+						== 0) {
+				reset = true;
+				dev_dbg(dev->dev, "reset %s\n",
+					dev->driver->driver.name);
+			}
+
+			if (disconnect || reset) {
+				stop_activity(dev, dev->driver);
+				net2272_ep0_start(dev);
+				spin_unlock(&dev->lock);
+				if (reset)
+					usb_gadget_udc_reset
+						(&dev->gadget, dev->driver);
+				else
+					(dev->driver->disconnect)
+						(&dev->gadget);
+				spin_lock(&dev->lock);
+				return;
+			}
 		}
 		stat &= ~tmp;
 
@@ -2200,18 +2220,8 @@ static void
 net2272_remove(struct net2272 *dev)
 {
 	usb_del_gadget_udc(&dev->gadget);
-
-	/* start with the driver above us */
-	if (dev->driver) {
-		/* should have been done already by driver model core */
-		dev_warn(dev->dev, "pci remove, driver '%s' is still registered\n",
-			dev->driver->driver.name);
-		usb_gadget_unregister_driver(dev->driver);
-	}
-
 	free_irq(dev->irq, dev);
 	iounmap(dev->base_addr);
-
 	device_remove_file(dev->dev, &dev_attr_registers);
 
 	dev_info(dev->dev, "unbind\n");

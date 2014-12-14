@@ -47,6 +47,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/idr.h>
@@ -189,24 +190,29 @@ u8 hw_port_test_get(struct ci_hdrc *ci)
 	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> __ffs(PORTSC_PTC);
 }
 
+static void hw_wait_phy_stable(void)
+{
+	/*
+	 * The phy needs some delay to output the stable status from low
+	 * power mode. And for OTGSC, the status inputs are debounced
+	 * using a 1 ms time constant, so, delay 2ms for controller to get
+	 * the stable status, like vbus and id when the phy leaves low power.
+	 */
+	usleep_range(2000, 2500);
+}
+
 /* The PHY enters/leaves low power mode */
 static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
 {
 	enum ci_hw_regs reg = ci->hw_bank.lpm ? OP_DEVLC : OP_PORTSC;
 	bool lpm = !!(hw_read(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm)));
 
-	if (enable && !lpm) {
+	if (enable && !lpm)
 		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
 				PORTSC_PHCD(ci->hw_bank.lpm));
-	} else  if (!enable && lpm) {
+	else if (!enable && lpm)
 		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
 				0);
-		/* 
-		 * the PHY needs some time (less
-		 * than 1ms) to leave low power mode.
-		 */
-		usleep_range(1000, 1100);
-	}
 }
 
 static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
@@ -299,6 +305,49 @@ static void hw_phymode_configure(struct ci_hdrc *ci)
 }
 
 /**
+ * _ci_usb_phy_init: initialize phy taking in account both phy and usb_phy
+ * interfaces
+ * @ci: the controller
+ *
+ * This function returns an error code if the phy failed to init
+ */
+static int _ci_usb_phy_init(struct ci_hdrc *ci)
+{
+	int ret;
+
+	if (ci->phy) {
+		ret = phy_init(ci->phy);
+		if (ret)
+			return ret;
+
+		ret = phy_power_on(ci->phy);
+		if (ret) {
+			phy_exit(ci->phy);
+			return ret;
+		}
+	} else {
+		ret = usb_phy_init(ci->usb_phy);
+	}
+
+	return ret;
+}
+
+/**
+ * _ci_usb_phy_exit: deinitialize phy taking in account both phy and usb_phy
+ * interfaces
+ * @ci: the controller
+ */
+static void ci_usb_phy_exit(struct ci_hdrc *ci)
+{
+	if (ci->phy) {
+		phy_power_off(ci->phy);
+		phy_exit(ci->phy);
+	} else {
+		usb_phy_shutdown(ci->usb_phy);
+	}
+}
+
+/**
  * ci_usb_phy_init: initialize phy according to different phy type
  * @ci: the controller
  *
@@ -312,40 +361,68 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	case USBPHY_INTERFACE_MODE_UTMI:
 	case USBPHY_INTERFACE_MODE_UTMIW:
 	case USBPHY_INTERFACE_MODE_HSIC:
-		ret = usb_phy_init(ci->transceiver);
-		if (ret)
+		ret = _ci_usb_phy_init(ci);
+		if (!ret)
+			hw_wait_phy_stable();
+		else
 			return ret;
 		hw_phymode_configure(ci);
 		break;
 	case USBPHY_INTERFACE_MODE_ULPI:
 	case USBPHY_INTERFACE_MODE_SERIAL:
 		hw_phymode_configure(ci);
-		ret = usb_phy_init(ci->transceiver);
+		ret = _ci_usb_phy_init(ci);
 		if (ret)
 			return ret;
 		break;
 	default:
-		ret = usb_phy_init(ci->transceiver);
+		ret = _ci_usb_phy_init(ci);
+		if (!ret)
+			hw_wait_phy_stable();
 	}
 
 	return ret;
 }
 
 /**
- * hw_device_reset: resets chip (execute without interruption)
+ * hw_controller_reset: do controller reset
  * @ci: the controller
   *
  * This function returns an error code
  */
-int hw_device_reset(struct ci_hdrc *ci, u32 mode)
+static int hw_controller_reset(struct ci_hdrc *ci)
 {
+	int count = 0;
+
+	hw_write(ci, OP_USBCMD, USBCMD_RST, USBCMD_RST);
+	while (hw_read(ci, OP_USBCMD, USBCMD_RST)) {
+		udelay(10);
+		if (count++ > 1000)
+			return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+/**
+ * hw_device_reset: resets chip (execute without interruption)
+ * @ci: the controller
+ *
+ * This function returns an error code
+ */
+int hw_device_reset(struct ci_hdrc *ci)
+{
+	int ret;
+
 	/* should flush & stop before reset */
 	hw_write(ci, OP_ENDPTFLUSH, ~0, ~0);
 	hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
 
-	hw_write(ci, OP_USBCMD, USBCMD_RST, USBCMD_RST);
-	while (hw_read(ci, OP_USBCMD, USBCMD_RST))
-		udelay(10);		/* not RTOS friendly */
+	ret = hw_controller_reset(ci);
+	if (ret) {
+		dev_err(ci->dev, "error resetting controller, ret=%d\n", ret);
+		return ret;
+	}
 
 	if (ci->platdata->notify_event)
 		ci->platdata->notify_event(ci,
@@ -363,12 +440,12 @@ int hw_device_reset(struct ci_hdrc *ci, u32 mode)
 
 	/* USBMODE should be configured step by step */
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_IDLE);
-	hw_write(ci, OP_USBMODE, USBMODE_CM, mode);
+	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_DC);
 	/* HW >= 2.3 */
 	hw_write(ci, OP_USBMODE, USBMODE_SLOM, USBMODE_SLOM);
 
-	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != mode) {
-		pr_err("cannot enter in %s mode", ci_role(ci)->name);
+	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != USBMODE_CM_DC) {
+		pr_err("cannot enter in %s device mode", ci_role(ci)->name);
 		pr_err("lpm = %i", ci->hw_bank.lpm);
 		return -ENODEV;
 	}
@@ -472,7 +549,7 @@ static int ci_get_platdata(struct device *dev,
 		if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
 			return -EPROBE_DEFER;
 		} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
-			/* no vbus regualator is needed */
+			/* no vbus regulator is needed */
 			platdata->reg_vbus = NULL;
 		} else if (IS_ERR(platdata->reg_vbus)) {
 			dev_err(dev, "Getting regulator error: %ld\n",
@@ -589,11 +666,10 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	ci = devm_kzalloc(dev, sizeof(*ci), GFP_KERNEL);
-	if (!ci) {
-		dev_err(dev, "can't allocate device\n");
+	if (!ci)
 		return -ENOMEM;
-	}
 
+	platform_set_drvdata(pdev, ci);
 	ci->dev = dev;
 	ci->platdata = dev_get_platdata(dev);
 	ci->imx28_write_fix = !!(ci->platdata->flags &
@@ -605,36 +681,32 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (ci->platdata->phy)
-		ci->transceiver = ci->platdata->phy;
-	else
-		ci->transceiver = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (ci->platdata->phy) {
+		ci->phy = ci->platdata->phy;
+	} else if (ci->platdata->usb_phy) {
+		ci->usb_phy = ci->platdata->usb_phy;
+	} else {
+		ci->phy = devm_phy_get(dev->parent, "usb-phy");
+		ci->usb_phy = devm_usb_get_phy(dev->parent, USB_PHY_TYPE_USB2);
 
-	if (IS_ERR(ci->transceiver)) {
-		ret = PTR_ERR(ci->transceiver);
-		/*
-		 * if -ENXIO is returned, it means PHY layer wasn't
-		 * enabled, so it makes no sense to return -EPROBE_DEFER
-		 * in that case, since no PHY driver will ever probe.
-		 */
-		if (ret == -ENXIO)
-			return ret;
+		/* if both generic PHY and USB PHY layers aren't enabled */
+		if (PTR_ERR(ci->phy) == -ENOSYS &&
+				PTR_ERR(ci->usb_phy) == -ENXIO)
+			return -ENXIO;
 
-		dev_err(dev, "no usb2 phy configured\n");
-		return -EPROBE_DEFER;
+		if (IS_ERR(ci->phy) && IS_ERR(ci->usb_phy))
+			return -EPROBE_DEFER;
+
+		if (IS_ERR(ci->phy))
+			ci->phy = NULL;
+		else if (IS_ERR(ci->usb_phy))
+			ci->usb_phy = NULL;
 	}
 
 	ret = ci_usb_phy_init(ci);
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
 		return ret;
-	} else {
-		/* 
-		 * The delay to sync PHY's status, the maximum delay is
-		 * 2ms since the otgsc uses 1ms timer to debounce the
-		 * PHY's input
-		 */
-		usleep_range(2000, 2500);
 	}
 
 	ci->hw_bank.phys = res->start;
@@ -711,9 +783,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		}
 	}
 
-	platform_set_drvdata(pdev, ci);
-	ret = request_irq(ci->irq, ci_irq, IRQF_SHARED, ci->platdata->name,
-			  ci);
+	ret = devm_request_irq(dev, ci->irq, ci_irq, IRQF_SHARED,
+			ci->platdata->name, ci);
 	if (ret)
 		goto stop;
 
@@ -724,11 +795,10 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (!ret)
 		return 0;
 
-	free_irq(ci->irq, ci);
 stop:
 	ci_role_destroy(ci);
 deinit_phy:
-	usb_phy_shutdown(ci->transceiver);
+	ci_usb_phy_exit(ci);
 
 	return ret;
 }
@@ -738,19 +808,66 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	struct ci_hdrc *ci = platform_get_drvdata(pdev);
 
 	dbg_remove_files(ci);
-	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
-	usb_phy_shutdown(ci->transceiver);
+	ci_usb_phy_exit(ci);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static void ci_controller_suspend(struct ci_hdrc *ci)
+{
+	ci_hdrc_enter_lpm(ci, true);
+
+	if (ci->usb_phy)
+		usb_phy_set_suspend(ci->usb_phy, 1);
+}
+
+static int ci_controller_resume(struct device *dev)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "at %s\n", __func__);
+
+	ci_hdrc_enter_lpm(ci, false);
+
+	if (ci->usb_phy) {
+		usb_phy_set_suspend(ci->usb_phy, 0);
+		usb_phy_set_wakeup(ci->usb_phy, false);
+		hw_wait_phy_stable();
+	}
+
+	return 0;
+}
+
+static int ci_suspend(struct device *dev)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	if (ci->wq)
+		flush_workqueue(ci->wq);
+
+	ci_controller_suspend(ci);
+
+	return 0;
+}
+
+static int ci_resume(struct device *dev)
+{
+	return ci_controller_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops ci_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ci_suspend, ci_resume)
+};
 static struct platform_driver ci_hdrc_driver = {
 	.probe	= ci_hdrc_probe,
 	.remove	= ci_hdrc_remove,
 	.driver	= {
 		.name	= "ci_hdrc",
+		.pm	= &ci_pm_ops,
 		.owner	= THIS_MODULE,
 	},
 };

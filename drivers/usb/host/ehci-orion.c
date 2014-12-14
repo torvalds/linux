@@ -25,8 +25,8 @@
 
 #include "ehci.h"
 
-#define rdl(off)	__raw_readl(hcd->regs + (off))
-#define wrl(off, val)	__raw_writel((val), hcd->regs + (off))
+#define rdl(off)	readl_relaxed(hcd->regs + (off))
+#define wrl(off, val)	writel_relaxed((val), hcd->regs + (off))
 
 #define USB_CMD			0x140
 #define USB_MODE		0x1a8
@@ -175,15 +175,6 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev,
-			"Found HC with no register addr. Check %s setup!\n",
-			dev_name(&pdev->dev));
-		err = -ENODEV;
-		goto err;
-	}
-
 	/*
 	 * Right now device-tree probed devices don't get dma_mask
 	 * set. Since shared usb code relies on it, set it here for
@@ -193,6 +184,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	if (err)
 		goto err;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(regs)) {
 		err = PTR_ERR(regs);

@@ -208,6 +208,43 @@ static struct usb_descriptor_header *hs_printer_function[] = {
 	NULL
 };
 
+/*
+ * Added endpoint descriptors for 3.0 devices
+ */
+
+static struct usb_endpoint_descriptor ss_ep_in_desc = {
+	.bLength =              USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =      USB_DT_ENDPOINT,
+	.bmAttributes =         USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =       cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor ss_ep_in_comp_desc = {
+	.bLength =              sizeof(ss_ep_in_comp_desc),
+	.bDescriptorType =      USB_DT_SS_ENDPOINT_COMP,
+};
+
+static struct usb_endpoint_descriptor ss_ep_out_desc = {
+	.bLength =              USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =      USB_DT_ENDPOINT,
+	.bmAttributes =         USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =       cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor ss_ep_out_comp_desc = {
+	.bLength =              sizeof(ss_ep_out_comp_desc),
+	.bDescriptorType =      USB_DT_SS_ENDPOINT_COMP,
+};
+
+static struct usb_descriptor_header *ss_printer_function[] = {
+	(struct usb_descriptor_header *) &intf_desc,
+	(struct usb_descriptor_header *) &ss_ep_in_desc,
+	(struct usb_descriptor_header *) &ss_ep_in_comp_desc,
+	(struct usb_descriptor_header *) &ss_ep_out_desc,
+	(struct usb_descriptor_header *) &ss_ep_out_comp_desc,
+	NULL
+};
+
 static struct usb_otg_descriptor otg_descriptor = {
 	.bLength =              sizeof otg_descriptor,
 	.bDescriptorType =      USB_DT_OTG,
@@ -220,7 +257,20 @@ static const struct usb_descriptor_header *otg_desc[] = {
 };
 
 /* maxpacket and other transfer characteristics vary by speed. */
-#define ep_desc(g, hs, fs) (((g)->speed == USB_SPEED_HIGH)?(hs):(fs))
+static inline struct usb_endpoint_descriptor *ep_desc(struct usb_gadget *gadget,
+					struct usb_endpoint_descriptor *fs,
+					struct usb_endpoint_descriptor *hs,
+					struct usb_endpoint_descriptor *ss)
+{
+	switch (gadget->speed) {
+	case USB_SPEED_SUPER:
+		return ss;
+	case USB_SPEED_HIGH:
+		return hs;
+	default:
+		return fs;
+	}
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -793,11 +843,12 @@ set_printer_interface(struct printer_dev *dev)
 {
 	int			result = 0;
 
-	dev->in_ep->desc = ep_desc(dev->gadget, &hs_ep_in_desc, &fs_ep_in_desc);
+	dev->in_ep->desc = ep_desc(dev->gadget, &fs_ep_in_desc, &hs_ep_in_desc,
+				&ss_ep_in_desc);
 	dev->in_ep->driver_data = dev;
 
-	dev->out_ep->desc = ep_desc(dev->gadget, &hs_ep_out_desc,
-				    &fs_ep_out_desc);
+	dev->out_ep->desc = ep_desc(dev->gadget, &fs_ep_out_desc,
+				    &hs_ep_out_desc, &ss_ep_out_desc);
 	dev->out_ep->driver_data = dev;
 
 	result = usb_ep_enable(dev->in_ep);
@@ -1016,9 +1067,11 @@ autoconf_fail:
 	/* assumes that all endpoints are dual-speed */
 	hs_ep_in_desc.bEndpointAddress = fs_ep_in_desc.bEndpointAddress;
 	hs_ep_out_desc.bEndpointAddress = fs_ep_out_desc.bEndpointAddress;
+	ss_ep_in_desc.bEndpointAddress = fs_ep_in_desc.bEndpointAddress;
+	ss_ep_out_desc.bEndpointAddress = fs_ep_out_desc.bEndpointAddress;
 
 	ret = usb_assign_descriptors(f, fs_printer_function,
-			hs_printer_function, NULL);
+			hs_printer_function, ss_printer_function);
 	if (ret)
 		return ret;
 
@@ -1253,7 +1306,7 @@ static __refdata struct usb_composite_driver printer_driver = {
 	.name           = shortname,
 	.dev            = &device_desc,
 	.strings        = dev_strings,
-	.max_speed      = USB_SPEED_HIGH,
+	.max_speed      = USB_SPEED_SUPER,
 	.bind		= printer_bind,
 	.unbind		= printer_unbind,
 };

@@ -647,23 +647,22 @@ static inline u32 hc32_to_cpup (const struct ohci_hcd *ohci, const __hc32 *x)
 
 /*-------------------------------------------------------------------------*/
 
-/* HCCA frame number is 16 bits, but is accessed as 32 bits since not all
- * hardware handles 16 bit reads.  That creates a different confusion on
- * some big-endian SOC implementations.  Same thing happens with PSW access.
+/*
+ * The HCCA frame number is 16 bits, but is accessed as 32 bits since not all
+ * hardware handles 16 bit reads.  Depending on the SoC implementation, the
+ * frame number can wind up in either bits [31:16] (default) or
+ * [15:0] (OHCI_QUIRK_FRAME_NO) on big endian hosts.
+ *
+ * Somewhat similarly, the 16-bit PSW fields in a transfer descriptor are
+ * reordered on BE.
  */
-
-#ifdef CONFIG_PPC_MPC52xx
-#define big_endian_frame_no_quirk(ohci)	(ohci->flags & OHCI_QUIRK_FRAME_NO)
-#else
-#define big_endian_frame_no_quirk(ohci)	0
-#endif
 
 static inline u16 ohci_frame_no(const struct ohci_hcd *ohci)
 {
 	u32 tmp;
 	if (big_endian_desc(ohci)) {
 		tmp = be32_to_cpup((__force __be32 *)&ohci->hcca->frame_no);
-		if (!big_endian_frame_no_quirk(ohci))
+		if (!(ohci->flags & OHCI_QUIRK_FRAME_NO))
 			tmp >>= 16;
 	} else
 		tmp = le32_to_cpup((__force __le32 *)&ohci->hcca->frame_no);

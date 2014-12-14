@@ -987,8 +987,8 @@ usba_udc_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
 
 static int atmel_usba_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
-static int atmel_usba_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver);
+static int atmel_usba_stop(struct usb_gadget *gadget);
+
 static const struct usb_gadget_ops usba_udc_ops = {
 	.get_frame		= usba_udc_get_frame,
 	.wakeup			= usba_udc_wakeup,
@@ -1007,19 +1007,10 @@ static struct usb_endpoint_descriptor usba_ep0_desc = {
 	.bInterval = 1,
 };
 
-static void nop_release(struct device *dev)
-{
-
-}
-
 static struct usb_gadget usba_gadget_template = {
 	.ops		= &usba_udc_ops,
 	.max_speed	= USB_SPEED_HIGH,
 	.name		= "atmel_usba_udc",
-	.dev	= {
-		.init_name	= "gadget",
-		.release	= nop_release,
-	},
 };
 
 /*
@@ -1685,11 +1676,10 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		usba_writel(udc, INT_CLR, USBA_END_OF_RESET);
 		reset_all_endpoints(udc);
 
-		if (udc->gadget.speed != USB_SPEED_UNKNOWN
-				&& udc->driver && udc->driver->disconnect) {
+		if (udc->gadget.speed != USB_SPEED_UNKNOWN && udc->driver) {
 			udc->gadget.speed = USB_SPEED_UNKNOWN;
 			spin_unlock(&udc->lock);
-			udc->driver->disconnect(&udc->gadget);
+			usb_gadget_udc_reset(&udc->gadget, udc->driver);
 			spin_lock(&udc->lock);
 		}
 
@@ -1791,8 +1781,6 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 		return ret;
 	}
 
-	DBG(DBG_GADGET, "registered driver `%s'\n", driver->driver.name);
-
 	udc->vbus_prev = 0;
 	if (gpio_is_valid(udc->vbus_pin))
 		enable_irq(gpio_to_irq(udc->vbus_pin));
@@ -1809,8 +1797,7 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int atmel_usba_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int atmel_usba_stop(struct usb_gadget *gadget)
 {
 	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
 	unsigned long flags;
@@ -1829,8 +1816,6 @@ static int atmel_usba_stop(struct usb_gadget *gadget,
 
 	clk_disable_unprepare(udc->hclk);
 	clk_disable_unprepare(udc->pclk);
-
-	DBG(DBG_GADGET, "unregistered driver `%s'\n", udc->driver->driver.name);
 
 	udc->driver = NULL;
 

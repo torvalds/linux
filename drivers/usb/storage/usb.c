@@ -884,7 +884,9 @@ static void usb_stor_scan_dwork(struct work_struct *work)
 	dev_dbg(dev, "starting scan\n");
 
 	/* For bulk-only devices, determine the max LUN value */
-	if (us->protocol == USB_PR_BULK && !(us->fflags & US_FL_SINGLE_LUN)) {
+	if (us->protocol == USB_PR_BULK &&
+	    !(us->fflags & US_FL_SINGLE_LUN) &&
+	    !(us->fflags & US_FL_SCM_MULT_TARG)) {
 		mutex_lock(&us->dev_mutex);
 		us->max_lun = usb_stor_Bulk_max_lun(us);
 		mutex_unlock(&us->dev_mutex);
@@ -983,20 +985,30 @@ int usb_stor_probe2(struct us_data *us)
 	usb_stor_dbg(us, "Transport: %s\n", us->transport_name);
 	usb_stor_dbg(us, "Protocol: %s\n", us->protocol_name);
 
+	if (us->fflags & US_FL_SCM_MULT_TARG) {
+		/*
+		 * SCM eUSCSI bridge devices can have different numbers
+		 * of LUNs on different targets; allow all to be probed.
+		 */
+		us->max_lun = 7;
+		/* The eUSCSI itself has ID 7, so avoid scanning that */
+		us_to_host(us)->this_id = 7;
+		/* max_id is 8 initially, so no need to set it here */
+	} else {
+		/* In the normal case there is only a single target */
+		us_to_host(us)->max_id = 1;
+		/*
+		 * Like Windows, we won't store the LUN bits in CDB[1] for
+		 * SCSI-2 devices using the Bulk-Only transport (even though
+		 * this violates the SCSI spec).
+		 */
+		if (us->transport == usb_stor_Bulk_transport)
+			us_to_host(us)->no_scsi2_lun_in_cdb = 1;
+	}
+
 	/* fix for single-lun devices */
 	if (us->fflags & US_FL_SINGLE_LUN)
 		us->max_lun = 0;
-
-	if (!(us->fflags & US_FL_SCM_MULT_TARG))
-		us_to_host(us)->max_id = 1;
-
-	/*
-	 * Like Windows, we won't store the LUN bits in CDB[1] for SCSI-2
-	 * devices using the Bulk-Only transport (even though this violates
-	 * the SCSI spec).
-	 */
-	if (us->transport == usb_stor_Bulk_transport)
-		us_to_host(us)->no_scsi2_lun_in_cdb = 1;
 
 	/* Find the endpoints and calculate pipe values */
 	result = get_pipes(us);
