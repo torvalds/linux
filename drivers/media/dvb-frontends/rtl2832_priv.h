@@ -25,6 +25,7 @@
 #include "rtl2832.h"
 #include <linux/i2c-mux.h>
 #include <linux/regmap.h>
+#include <linux/math64.h>
 
 struct rtl2832_dev {
 	struct rtl2832_platform_data *pdata;
