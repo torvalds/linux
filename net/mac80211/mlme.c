@@ -1287,8 +1287,11 @@ ieee80211_find_80211h_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		country_ie_len -= 3;
 	}
 
-	if (have_chan_pwr)
+	if (have_chan_pwr && pwr_constr_elem)
 		*pwr_reduction = *pwr_constr_elem;
+	else
+		*pwr_reduction = 0;
+
 	return have_chan_pwr;
 }
 
@@ -1317,10 +1320,11 @@ static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	int chan_pwr = 0, pwr_reduction_80211h = 0;
 	int pwr_level_cisco, pwr_level_80211h;
 	int new_ap_level;
+	__le16 capab = mgmt->u.probe_resp.capab_info;
 
-	if (country_ie && pwr_constr_ie &&
-	    mgmt->u.probe_resp.capab_info &
-		cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT)) {
+	if (country_ie &&
+	    (capab & cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT) ||
+	     capab & cpu_to_le16(WLAN_CAPABILITY_RADIO_MEASURE))) {
 		has_80211h_pwr = ieee80211_find_80211h_pwr_constr(
 			sdata, channel, country_ie, country_ie_len,
 			pwr_constr_ie, &chan_pwr, &pwr_reduction_80211h);
