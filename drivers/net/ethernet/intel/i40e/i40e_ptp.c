@@ -247,7 +247,12 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 	u32 prttsyn_stat;
 	int n;
 
-	if (!(pf->flags & I40E_FLAG_PTP))
+	/* Since we cannot turn off the Rx timestamp logic if the device is
+	 * configured for Tx timestamping, we check if Rx timestamping is
+	 * configured. We don't want to spuriously warn about Rx timestamp
+	 * hangs if we don't care about the timestamps.
+	 */
+	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_rx)
 		return;
 
 	prttsyn_stat = rd32(hw, I40E_PRTTSYN_STAT_1);
