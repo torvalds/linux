@@ -268,6 +268,8 @@ enum i40e_admin_queue_opc {
 	/* OEM commands */
 	i40e_aqc_opc_oem_parameter_change	= 0xFE00,
 	i40e_aqc_opc_oem_device_status_change	= 0xFE01,
+	i40e_aqc_opc_oem_ocsd_initialize	= 0xFE02,
+	i40e_aqc_opc_oem_ocbb_initialize	= 0xFE03,
 
 	/* debug commands */
 	i40e_aqc_opc_debug_get_deviceid		= 0xFF00,
@@ -454,6 +456,7 @@ struct i40e_aqc_arp_proxy_data {
 	__le32	pfpm_proxyfc;
 	__le32	ip_addr;
 	u8	mac_addr[6];
+	u8	reserved[2];
 };
 
 I40E_CHECK_STRUCT_LEN(0x14, i40e_aqc_arp_proxy_data);
@@ -1854,20 +1857,31 @@ struct i40e_aqc_nvm_config_write {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_nvm_config_write);
 
+/* Used for 0x0704 as well as for 0x0705 commands */
+#define I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_SHIFT		1
+#define I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_MASK \
+				(1 << I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_SHIFT)
+#define I40E_AQ_ANVM_FEATURE		0
+#define I40E_AQ_ANVM_IMMEDIATE_FIELD	(1 << FEATURE_OR_IMMEDIATE_SHIFT)
 struct i40e_aqc_nvm_config_data_feature {
 	__le16 feature_id;
-	__le16 instance_id;
+#define I40E_AQ_ANVM_FEATURE_OPTION_OEM_ONLY		0x01
+#define I40E_AQ_ANVM_FEATURE_OPTION_DWORD_MAP		0x08
+#define I40E_AQ_ANVM_FEATURE_OPTION_POR_CSR		0x10
 	__le16 feature_options;
 	__le16 feature_selection;
 };
 
+I40E_CHECK_STRUCT_LEN(0x6, i40e_aqc_nvm_config_data_feature);
+
 struct i40e_aqc_nvm_config_data_immediate_field {
-#define ANVM_FEATURE_OR_IMMEDIATE_MASK	0x2
-	__le16 field_id;
-	__le16 instance_id;
+	__le32 field_id;
+	__le32 field_value;
 	__le16 field_options;
-	__le16 field_value;
+	__le16 reserved;
 };
+
+I40E_CHECK_STRUCT_LEN(0xc, i40e_aqc_nvm_config_data_immediate_field);
 
 /* Send to PF command (indirect 0x0801) id is only used by PF
  * Send to VF command (indirect 0x0802) id is only used by PF
@@ -2139,6 +2153,28 @@ struct i40e_aqc_oem_state_change {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_oem_state_change);
+
+/* Initialize OCSD (0xFE02, direct) */
+struct i40e_aqc_opc_oem_ocsd_initialize {
+	u8 type_status;
+	u8 reserved1[3];
+	__le32 ocsd_memory_block_addr_high;
+	__le32 ocsd_memory_block_addr_low;
+	__le32 requested_update_interval;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_opc_oem_ocsd_initialize);
+
+/* Initialize OCBB  (0xFE03, direct) */
+struct i40e_aqc_opc_oem_ocbb_initialize {
+	u8 type_status;
+	u8 reserved1[3];
+	__le32 ocbb_memory_block_addr_high;
+	__le32 ocbb_memory_block_addr_low;
+	u8 reserved2[4];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_opc_oem_ocbb_initialize);
 
 /* debug commands */
 
