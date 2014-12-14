@@ -986,6 +986,22 @@ static struct dvb_frontend_ops rtl2832_ops = {
 	.read_ber = rtl2832_read_ber,
 };
 
+static bool rtl2832_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x305:
+	case 0x33c:
+	case 0x34e:
+	case 0x351:
+	case 0x40c ... 0x40d:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 /*
  * We implement own I2C access routines for regmap in order to get manual access
  * to I2C adapter lock, which is needed for I2C mux adapter.
@@ -1240,9 +1256,11 @@ static int rtl2832_probe(struct i2c_client *client,
 	static const struct regmap_config regmap_config = {
 		.reg_bits    =  8,
 		.val_bits    =  8,
+		.volatile_reg = rtl2832_volatile_reg,
 		.max_register = 5 * 0x100,
 		.ranges = regmap_range_cfg,
 		.num_ranges = ARRAY_SIZE(regmap_range_cfg),
+		.cache_type = REGCACHE_RBTREE,
 	};
 
 	dev_dbg(&client->dev, "\n");
