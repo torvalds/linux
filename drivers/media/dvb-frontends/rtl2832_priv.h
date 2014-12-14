@@ -39,7 +39,6 @@ struct rtl2832_dev {
 	u64 post_bit_error_prev; /* for old DVBv3 read_ber() calculation */
 	u64 post_bit_error;
 	u64 post_bit_count;
-	bool i2c_gate_state;
 	bool sleeping;
 	struct delayed_work i2c_gate_work;
 };

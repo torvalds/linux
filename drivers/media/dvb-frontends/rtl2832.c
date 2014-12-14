@@ -309,30 +309,6 @@ err:
 
 }
 
-static int rtl2832_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
-{
-	struct rtl2832_dev *dev = fe->demodulator_priv;
-	struct i2c_client *client = dev->client;
-	int ret;
-
-	dev_dbg(&client->dev, "enable=%d\n", enable);
-
-	/* gate already open or close */
-	if (dev->i2c_gate_state == enable)
-		return 0;
-
-	ret = rtl2832_wr_demod_reg(dev, DVBT_IIC_REPEAT, (enable ? 0x1 : 0x0));
-	if (ret)
-		goto err;
-
-	dev->i2c_gate_state = enable;
-
-	return ret;
-err:
-	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return ret;
-}
-
 static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
@@ -932,8 +908,6 @@ static void rtl2832_i2c_gate_work(struct work_struct *work)
 	if (ret)
 		goto err;
 
-	dev->i2c_gate_state = false;
-
 	return;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
@@ -949,9 +923,6 @@ static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 	/* terminate possible gate closing */
 	cancel_delayed_work(&dev->i2c_gate_work);
 
-	if (dev->i2c_gate_state == chan_id)
-		return 0;
-
 	/*
 	 * chan_id 1 is muxed adapter demod provides and chan_id 0 is demod
 	 * itself. We need open gate when request is for chan_id 1. On that case
@@ -964,8 +935,6 @@ static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 		ret = rtl2832_update_bits(dev->client, 0x101, 0x08, 0x00);
 	if (ret)
 		goto err;
-
-	dev->i2c_gate_state = chan_id;
 
 	return 0;
 err:
@@ -1017,8 +986,6 @@ static struct dvb_frontend_ops rtl2832_ops = {
 	.read_status = rtl2832_read_status,
 	.read_snr = rtl2832_read_snr,
 	.read_ber = rtl2832_read_ber,
-
-	.i2c_gate_ctrl = rtl2832_i2c_gate_ctrl,
 };
 
 /*
