@@ -753,12 +753,10 @@ static int rtl2832_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (tmp == 11) {
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
 				FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
-	}
-	/* TODO find out if this is also true for rtl2832? */
-	/*else if (tmp == 10) {
+	} else if (tmp == 10) {
 		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
 				FE_HAS_VITERBI;
-	}*/
+	}
 
 	dev->fe_status = *status;
 	return ret;
