@@ -1074,7 +1074,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	switch (priv->tuner) {
 	case TUNER_RTL2832_FC0012:
 		fe = dvb_attach(fc0012_attach, adap->fe[0],
-			&d->i2c_adap, &rtl2832u_fc0012_config);
+			priv->demod_i2c_adapter, &rtl2832u_fc0012_config);
 
 		/* since fc0012 includs reading the signal strength delegate
 		 * that to the tuner driver */
@@ -1087,7 +1087,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		break;
 	case TUNER_RTL2832_FC0013:
 		fe = dvb_attach(fc0013_attach, adap->fe[0],
-			&d->i2c_adap, 0xc6>>1, 0, FC_XTAL_28_8_MHZ);
+			priv->demod_i2c_adapter, 0xc6>>1, 0, FC_XTAL_28_8_MHZ);
 
 		/* fc0013 also supports signal strength reading */
 		adap->fe[0]->ops.read_signal_strength =
@@ -1132,7 +1132,8 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		}
 		break;
 	case TUNER_RTL2832_FC2580:
-		fe = dvb_attach(fc2580_attach, adap->fe[0], &d->i2c_adap,
+		fe = dvb_attach(fc2580_attach, adap->fe[0],
+				priv->demod_i2c_adapter,
 				&rtl2832u_fc2580_config);
 		break;
 	case TUNER_RTL2832_TUA9001:
@@ -1145,11 +1146,13 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		if (ret)
 			goto err;
 
-		fe = dvb_attach(tua9001_attach, adap->fe[0], &d->i2c_adap,
+		fe = dvb_attach(tua9001_attach, adap->fe[0],
+				priv->demod_i2c_adapter,
 				&rtl2832u_tua9001_config);
 		break;
 	case TUNER_RTL2832_R820T:
-		fe = dvb_attach(r820t_attach, adap->fe[0], &d->i2c_adap,
+		fe = dvb_attach(r820t_attach, adap->fe[0],
+				priv->demod_i2c_adapter,
 				&rtl2832u_r820t_config);
 
 		/* Use tuner to get the signal strength */
