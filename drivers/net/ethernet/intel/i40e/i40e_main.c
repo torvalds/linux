@@ -4002,6 +4002,35 @@ static int i40e_pf_wait_txq_disabled(struct i40e_pf *pf)
 
 #endif
 /**
+ * i40e_get_iscsi_tc_map - Return TC map for iSCSI APP
+ * @pf: pointer to pf
+ *
+ * Get TC map for ISCSI PF type that will include iSCSI TC
+ * and LAN TC.
+ **/
+static u8 i40e_get_iscsi_tc_map(struct i40e_pf *pf)
+{
+	struct i40e_dcb_app_priority_table app;
+	struct i40e_hw *hw = &pf->hw;
+	u8 enabled_tc = 1; /* TC0 is always enabled */
+	u8 tc, i;
+	/* Get the iSCSI APP TLV */
+	struct i40e_dcbx_config *dcbcfg = &hw->local_dcbx_config;
+
+	for (i = 0; i < dcbcfg->numapps; i++) {
+		app = dcbcfg->app[i];
+		if (app.selector == I40E_APP_SEL_TCPIP &&
+		    app.protocolid == I40E_APP_PROTOID_ISCSI) {
+			tc = dcbcfg->etscfg.prioritytable[app.priority];
+			enabled_tc |= (1 << tc);
+			break;
+		}
+	}
+
+	return enabled_tc;
+}
+
+/**
  * i40e_dcb_get_num_tc -  Get the number of TCs from DCBx config
  * @dcbcfg: the corresponding DCBx configuration structure
  *
@@ -4064,18 +4093,23 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
 		return 1;
 
-	/* MFP mode return count of enabled TCs for this PF */
-	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
-		enabled_tc = pf->hw.func_caps.enabled_tcmap;
-		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-			if (enabled_tc & (1 << i))
-				num_tc++;
-		}
-		return num_tc;
-	}
-
 	/* SFP mode will be enabled for all TCs on port */
-	return i40e_dcb_get_num_tc(dcbcfg);
+	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
+		return i40e_dcb_get_num_tc(dcbcfg);
+
+	/* MFP mode return count of enabled TCs for this PF */
+	if (pf->hw.func_caps.iscsi)
+		enabled_tc =  i40e_get_iscsi_tc_map(pf);
+	else
+		enabled_tc = pf->hw.func_caps.enabled_tcmap;
+
+	/* At least have TC0 */
+	enabled_tc = (enabled_tc ? enabled_tc : 0x1);
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+		if (enabled_tc & (1 << i))
+			num_tc++;
+	}
+	return num_tc;
 }
 
 /**
@@ -4113,12 +4147,15 @@ static u8 i40e_pf_get_tc_map(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
 		return i40e_pf_get_default_tc(pf);
 
-	/* MFP mode will have enabled TCs set by FW */
-	if (pf->flags & I40E_FLAG_MFP_ENABLED)
-		return pf->hw.func_caps.enabled_tcmap;
-
 	/* SFP mode we want PF to be enabled for all TCs */
-	return i40e_dcb_get_enabled_tc(&pf->hw.local_dcbx_config);
+	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
+		return i40e_dcb_get_enabled_tc(&pf->hw.local_dcbx_config);
+
+	/* MPF enabled and iSCSI PF type */
+	if (pf->hw.func_caps.iscsi)
+		return i40e_get_iscsi_tc_map(pf);
+	else
+		return pf->hw.func_caps.enabled_tcmap;
 }
 
 /**
@@ -4507,9 +4544,6 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	int err = 0;
-
-	if (pf->hw.func_caps.npar_enable)
-		goto out;
 
 	/* Get the initial DCB configuration */
 	err = i40e_init_dcb(hw);
@@ -7784,7 +7818,8 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		enabled_tc = i40e_pf_get_tc_map(pf);
 
 		/* MFP mode setup queue map and update VSI */
-		if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+		if ((pf->flags & I40E_FLAG_MFP_ENABLED) &&
+		    !(pf->hw.func_caps.iscsi)) { /* NIC type PF */
 			memset(&ctxt, 0, sizeof(ctxt));
 			ctxt.seid = pf->main_vsi_seid;
 			ctxt.pf_num = pf->hw.pf_id;
@@ -7805,6 +7840,8 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 			/* Default/Main VSI is only enabled for TC0
 			 * reconfigure it to enable all TCs that are
 			 * available on the port in SFP mode.
+			 * For MFP case the iSCSI PF would use this
+			 * flow to enable LAN+iSCSI TC.
 			 */
 			ret = i40e_vsi_config_tc(vsi, enabled_tc);
 			if (ret) {

@@ -211,6 +211,7 @@ struct i40e_hw_capabilities {
 	bool evb_802_1_qbh; /* Bridge Port Extension */
 	bool dcb;
 	bool fcoe;
+	bool iscsi; /* Indicates iSCSI enabled */
 	bool mfp_mode_1;
 	bool mgmt_cem;
 	bool ieee_1588;
