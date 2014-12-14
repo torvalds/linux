@@ -441,13 +441,13 @@ static inline int scsi_execute_req(struct scsi_device *sdev,
 extern void sdev_disable_disk_events(struct scsi_device *sdev);
 extern void sdev_enable_disk_events(struct scsi_device *sdev);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 extern int scsi_autopm_get_device(struct scsi_device *);
 extern void scsi_autopm_put_device(struct scsi_device *);
 #else
 static inline int scsi_autopm_get_device(struct scsi_device *d) { return 0; }
 static inline void scsi_autopm_put_device(struct scsi_device *d) {}
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static inline int __must_check scsi_device_reprobe(struct scsi_device *sdev)
 {
