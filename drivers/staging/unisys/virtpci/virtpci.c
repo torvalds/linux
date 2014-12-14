@@ -1338,18 +1338,13 @@ static ssize_t virtpci_driver_attr_show(struct kobject *kobj,
 	ssize_t ret = 0;
 
 	struct driver_private *dprivate = to_driver(kobj);
-	struct device_driver *driver;
+	struct device_driver *driver = dprivate->driver;
 
-	if (dprivate != NULL)
-		driver = dprivate->driver;
-	else
-		driver = NULL;
+	DBGINF("In virtpci_driver_attr_show driver->name:%s\n",	driver->name);
 
-	DBGINF("In virtpci_driver_attr_show driver->name:%s\n", driver->name);
-	if (driver) {
-		if (dattr->show)
-			ret = dattr->show(driver, buf);
-	}
+	if (dattr->show)
+		ret = dattr->show(driver, buf);
+
 	return ret;
 }
 
@@ -1361,19 +1356,13 @@ static ssize_t virtpci_driver_attr_store(struct kobject *kobj,
 	ssize_t ret = 0;
 
 	struct driver_private *dprivate = to_driver(kobj);
-	struct device_driver *driver;
-
-	if (dprivate != NULL)
-		driver = dprivate->driver;
-	else
-		driver = NULL;
+	struct device_driver *driver = dprivate->driver;
 
 	DBGINF("In virtpci_driver_attr_store driver->name:%s\n", driver->name);
 
-	if (driver) {
-		if (dattr->store)
-			ret = dattr->store(driver, buf, count);
-	}
+	if (dattr->store)
+		ret = dattr->store(driver, buf, count);
+
 	return ret;
 }
 
