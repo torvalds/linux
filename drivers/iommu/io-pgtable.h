@@ -43,7 +43,8 @@ struct iommu_gather_ops {
  * @tlb:           TLB management callbacks for this set of tables.
  */
 struct io_pgtable_cfg {
-	int				quirks; /* IO_PGTABLE_QUIRK_* */
+	#define IO_PGTABLE_QUIRK_ARM_NS	(1 << 0)	/* Set NS bit in PTEs */
+	int				quirks;
 	unsigned long			pgsize_bitmap;
 	unsigned int			ias;
 	unsigned int			oas;

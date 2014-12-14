@@ -82,11 +82,13 @@
 #define ARM_LPAE_PTE_TYPE_TABLE		3
 #define ARM_LPAE_PTE_TYPE_PAGE		3
 
+#define ARM_LPAE_PTE_NSTABLE		(((arm_lpae_iopte)1) << 63)
 #define ARM_LPAE_PTE_XN			(((arm_lpae_iopte)3) << 53)
 #define ARM_LPAE_PTE_AF			(((arm_lpae_iopte)1) << 10)
 #define ARM_LPAE_PTE_SH_NS		(((arm_lpae_iopte)0) << 8)
 #define ARM_LPAE_PTE_SH_OS		(((arm_lpae_iopte)2) << 8)
 #define ARM_LPAE_PTE_SH_IS		(((arm_lpae_iopte)3) << 8)
+#define ARM_LPAE_PTE_NS			(((arm_lpae_iopte)1) << 5)
 #define ARM_LPAE_PTE_VALID		(((arm_lpae_iopte)1) << 0)
 
 #define ARM_LPAE_PTE_ATTR_LO_MASK	(((arm_lpae_iopte)0x3ff) << 2)
@@ -208,6 +210,9 @@ static int arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 		return -EEXIST;
 	}
 
+	if (data->iop.cfg.quirks & IO_PGTABLE_QUIRK_ARM_NS)
+		pte |= ARM_LPAE_PTE_NS;
+
 	if (lvl == ARM_LPAE_MAX_LEVELS - 1)
 		pte |= ARM_LPAE_PTE_TYPE_PAGE;
 	else
@@ -251,6 +256,8 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 		data->iop.cfg.tlb->flush_pgtable(cptep, 1UL << data->pg_shift,
 						 cookie);
 		pte = __pa(cptep) | ARM_LPAE_PTE_TYPE_TABLE;
+		if (data->iop.cfg.quirks & IO_PGTABLE_QUIRK_ARM_NS)
+			pte |= ARM_LPAE_PTE_NSTABLE;
 		*ptep = pte;
 		data->iop.cfg.tlb->flush_pgtable(ptep, sizeof(*ptep), cookie);
 	} else {
