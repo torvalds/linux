@@ -2488,41 +2488,42 @@ static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
 			     u8 total_vfs, int existing_vfs)
 {
 	u64 dev_flags = dev->flags;
+	int err = 0;
 
-	dev->dev_vfs = kzalloc(
-			total_vfs * sizeof(*dev->dev_vfs),
-			GFP_KERNEL);
+	atomic_inc(&pf_loading);
+	if (dev->flags &  MLX4_FLAG_SRIOV) {
+		if (existing_vfs != total_vfs) {
+			mlx4_err(dev, "SR-IOV was already enabled, but with num_vfs (%d) different than requested (%d)\n",
+				 existing_vfs, total_vfs);
+			total_vfs = existing_vfs;
+		}
+	}
+
+	dev->dev_vfs = kzalloc(total_vfs * sizeof(*dev->dev_vfs), GFP_KERNEL);
 	if (NULL == dev->dev_vfs) {
 		mlx4_err(dev, "Failed to allocate memory for VFs\n");
 		goto disable_sriov;
-	} else if (!(dev->flags &  MLX4_FLAG_SRIOV)) {
-		int err = 0;
+	}
 
-		atomic_inc(&pf_loading);
-		if (existing_vfs) {
-			if (existing_vfs != total_vfs)
-				mlx4_err(dev, "SR-IOV was already enabled, but with num_vfs (%d) different than requested (%d)\n",
-					 existing_vfs, total_vfs);
-		} else {
-			mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n", total_vfs);
-			err = pci_enable_sriov(pdev, total_vfs);
-		}
-		if (err) {
-			mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d)\n",
-				 err);
-			atomic_dec(&pf_loading);
-			goto disable_sriov;
-		} else {
-			mlx4_warn(dev, "Running in master mode\n");
-			dev_flags |= MLX4_FLAG_SRIOV |
-				MLX4_FLAG_MASTER;
-			dev_flags &= ~MLX4_FLAG_SLAVE;
-			dev->num_vfs = total_vfs;
-		}
+	if (!(dev->flags &  MLX4_FLAG_SRIOV)) {
+		mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n", total_vfs);
+		err = pci_enable_sriov(pdev, total_vfs);
+	}
+	if (err) {
+		mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d)\n",
+			 err);
+		goto disable_sriov;
+	} else {
+		mlx4_warn(dev, "Running in master mode\n");
+		dev_flags |= MLX4_FLAG_SRIOV |
+			MLX4_FLAG_MASTER;
+		dev_flags &= ~MLX4_FLAG_SLAVE;
+		dev->num_vfs = total_vfs;
 	}
 	return dev_flags;
 
 disable_sriov:
+	atomic_dec(&pf_loading);
 	dev->num_vfs = 0;
 	kfree(dev->dev_vfs);
 	return dev_flags & ~MLX4_FLAG_MASTER;
@@ -2606,8 +2607,10 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 		}
 
 		if (total_vfs) {
-			existing_vfs = pci_num_vf(pdev);
 			dev->flags = MLX4_FLAG_MASTER;
+			existing_vfs = pci_num_vf(pdev);
+			if (existing_vfs)
+				dev->flags |= MLX4_FLAG_SRIOV;
 			dev->num_vfs = total_vfs;
 		}
 	}
@@ -2643,6 +2646,7 @@ slave_start:
 	}
 
 	if (mlx4_is_master(dev)) {
+		/* when we hit the goto slave_start below, dev_cap already initialized */
 		if (!dev_cap) {
 			dev_cap = kzalloc(sizeof(*dev_cap), GFP_KERNEL);
 
@@ -2849,6 +2853,7 @@ slave_start:
 	if (mlx4_is_master(dev) && dev->num_vfs)
 		atomic_dec(&pf_loading);
 
+	kfree(dev_cap);
 	return 0;
 
 err_port:
