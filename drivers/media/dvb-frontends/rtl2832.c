@@ -805,20 +805,11 @@ static int rtl2832_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int rtl2832_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
-	struct i2c_client *client = dev->client;
-	int ret;
-	u8 buf[2];
 
-	ret = rtl2832_rd_regs(dev, 0x4e, 3, buf, 2);
-	if (ret)
-		goto err;
-
-	*ber = buf[0] << 8 | buf[1];
+	*ber = (dev->post_bit_error - dev->post_bit_error_prev);
+	dev->post_bit_error_prev = dev->post_bit_error;
 
 	return 0;
-err:
-	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return ret;
 }
 
 static void rtl2832_stat_work(struct work_struct *work)
