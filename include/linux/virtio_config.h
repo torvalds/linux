@@ -19,6 +19,9 @@
  *	offset: the offset of the configuration field
  *	buf: the buffer to read the field value from.
  *	len: the length of the buffer
+ * @generation: config generation counter
+ *	vdev: the virtio_device
+ *	Returns the config generation counter
  * @get_status: read the status byte
  *	vdev: the virtio_device
  *	Returns the status byte
@@ -60,6 +63,7 @@ struct virtio_config_ops {
 		    void *buf, unsigned len);
 	void (*set)(struct virtio_device *vdev, unsigned offset,
 		    const void *buf, unsigned len);
+	u32 (*generation)(struct virtio_device *vdev);
 	u8 (*get_status)(struct virtio_device *vdev);
 	void (*set_status)(struct virtio_device *vdev, u8 status);
 	void (*reset)(struct virtio_device *vdev);
@@ -301,14 +305,33 @@ static inline u8 virtio_cread8(struct virtio_device *vdev, unsigned int offset)
 	return ret;
 }
 
+/* Read @count fields, @bytes each. */
+static inline void __virtio_cread_many(struct virtio_device *vdev,
+				       unsigned int offset,
+				       void *buf, size_t count, size_t bytes)
+{
+	u32 old, gen = vdev->config->generation ?
+		vdev->config->generation(vdev) : 0;
+	int i;
+
+	do {
+		old = gen;
+
+		for (i = 0; i < count; i++)
+			vdev->config->get(vdev, offset + bytes * i,
+					  buf + i * bytes, bytes);
+
+		gen = vdev->config->generation ?
+			vdev->config->generation(vdev) : 0;
+	} while (gen != old);
+}
+
+
 static inline void virtio_cread_bytes(struct virtio_device *vdev,
 				      unsigned int offset,
 				      void *buf, size_t len)
 {
-	int i;
-
-	for (i = 0; i < len; i++)
-		vdev->config->get(vdev, offset + i, buf + i, 1);
+	__virtio_cread_many(vdev, offset, buf, len, 1);
 }
 
 static inline void virtio_cwrite8(struct virtio_device *vdev,
@@ -352,6 +375,7 @@ static inline u64 virtio_cread64(struct virtio_device *vdev,
 {
 	u64 ret;
 	vdev->config->get(vdev, offset, &ret, sizeof(ret));
+	__virtio_cread_many(vdev, offset, &ret, 1, sizeof(ret));
 	return virtio64_to_cpu(vdev, (__force __virtio64)ret);
 }
 
