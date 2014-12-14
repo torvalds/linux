@@ -434,21 +434,6 @@ static int rtl2832_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	/*
-	 * r820t NIM code does a software reset here at the demod -
-	 * may not be needed, as there's already a software reset at
-	 * set_params()
-	 */
-#if 1
-	/* soft reset */
-	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
-	if (ret)
-		goto err;
-#endif
 	/* init stats here in order signal app which stats are supported */
 	c->strength.len = 1;
 	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
