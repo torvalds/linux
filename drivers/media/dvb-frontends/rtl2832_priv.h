@@ -35,6 +35,8 @@ struct rtl2832_dev {
 	struct dvb_frontend fe;
 	struct delayed_work stat_work;
 	fe_status_t fe_status;
+	u64 post_bit_error;
+	u64 post_bit_count;
 	bool i2c_gate_state;
 	bool sleeping;
 	struct delayed_work i2c_gate_work;

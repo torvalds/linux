@@ -476,6 +476,10 @@ static int rtl2832_init(struct dvb_frontend *fe)
 	/* init stats here in order signal app which stats are supported */
 	c->cnr.len = 1;
 	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	/* start statistics polling */
 	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
 	dev->sleeping = false;
@@ -902,6 +906,27 @@ static void rtl2832_stat_work(struct work_struct *work)
 		c->cnr.stat[0].svalue = tmp;
 	} else {
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* BER */
+	if (dev->fe_status & FE_HAS_LOCK) {
+		ret = rtl2832_bulk_read(client, 0x34e, buf, 2);
+		if (ret)
+			goto err;
+
+		u16tmp = buf[0] << 8 | buf[1] << 0;
+		dev->post_bit_error += u16tmp;
+		dev->post_bit_count += 1000000;
+
+		dev_dbg(&client->dev, "ber errors=%u total=1000000\n", u16tmp);
+
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue = dev->post_bit_error;
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue = dev->post_bit_count;
+	} else {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
 err_schedule_delayed_work:
