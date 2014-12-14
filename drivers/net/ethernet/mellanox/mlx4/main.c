@@ -305,6 +305,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting\n");
 		return err;
 	}
+	mlx4_dev_cap_dump(dev, dev_cap);
 
 	if (dev_cap->min_page_sz > PAGE_SIZE) {
 		mlx4_err(dev, "HCA minimum page size of %d bigger than kernel PAGE_SIZE of %ld, aborting\n",

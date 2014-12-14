@@ -787,11 +787,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		if ((1 << (field & 0x3f)) > (PAGE_SIZE / dev_cap->bf_reg_size))
 			field = 3;
 		dev_cap->bf_regs_per_page = 1 << (field & 0x3f);
-		mlx4_dbg(dev, "BlueFlame available (reg size %d, regs/page %d)\n",
-			 dev_cap->bf_reg_size, dev_cap->bf_regs_per_page);
 	} else {
 		dev_cap->bf_reg_size = 0;
-		mlx4_dbg(dev, "BlueFlame not available\n");
 	}
 
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_SG_SQ_OFFSET);
@@ -902,9 +899,6 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			goto out;
 	}
 
-	mlx4_dbg(dev, "Base MM extensions: flags %08x, rsvd L_Key %08x\n",
-		 dev_cap->bmme_flags, dev_cap->reserved_lkey);
-
 	/*
 	 * Each UAR has 4 EQ doorbells; so if a UAR is reserved, then
 	 * we can't use any EQs whose doorbell falls on that page,
@@ -916,6 +910,21 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	else
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_SYS_EQS;
 
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
+void mlx4_dev_cap_dump(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
+{
+	if (dev_cap->bf_reg_size > 0)
+		mlx4_dbg(dev, "BlueFlame available (reg size %d, regs/page %d)\n",
+			 dev_cap->bf_reg_size, dev_cap->bf_regs_per_page);
+	else
+		mlx4_dbg(dev, "BlueFlame not available\n");
+
+	mlx4_dbg(dev, "Base MM extensions: flags %08x, rsvd L_Key %08x\n",
+		 dev_cap->bmme_flags, dev_cap->reserved_lkey);
 	mlx4_dbg(dev, "Max ICM size %lld MB\n",
 		 (unsigned long long) dev_cap->max_icm_sz >> 20);
 	mlx4_dbg(dev, "Max QPs: %d, reserved QPs: %d, entry size: %d\n",
@@ -949,13 +958,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 dev_cap->dmfs_high_rate_qpn_base);
 	mlx4_dbg(dev, "DMFS high rate steer QPn range: %d\n",
 		 dev_cap->dmfs_high_rate_qpn_range);
-
 	dump_dev_cap_flags(dev, dev_cap->flags);
 	dump_dev_cap_flags2(dev, dev_cap->flags2);
-
-out:
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
 }
 
 int mlx4_QUERY_PORT(struct mlx4_dev *dev, int port, struct mlx4_port_cap *port_cap)
