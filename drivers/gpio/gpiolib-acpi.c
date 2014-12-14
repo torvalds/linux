@@ -209,7 +209,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 
 	gpiod_direction_input(desc);
 
-	ret = gpio_lock_as_irq(chip, pin);
+	ret = gpiochip_lock_as_irq(chip, pin);
 	if (ret) {
 		dev_err(chip->dev, "Failed to lock GPIO as interrupt\n");
 		goto fail_free_desc;
@@ -265,7 +265,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 fail_free_event:
 	kfree(event);
 fail_unlock_irq:
-	gpio_unlock_as_irq(chip, pin);
+	gpiochip_unlock_as_irq(chip, pin);
 fail_free_desc:
 	gpiochip_free_own_desc(desc);
 
@@ -336,7 +336,7 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 		desc = event->desc;
 		if (WARN_ON(IS_ERR(desc)))
 			continue;
-		gpio_unlock_as_irq(chip, event->pin);
+		gpiochip_unlock_as_irq(chip, event->pin);
 		gpiochip_free_own_desc(desc);
 		list_del(&event->node);
 		kfree(event);

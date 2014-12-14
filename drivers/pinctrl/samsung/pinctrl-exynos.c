@@ -174,7 +174,7 @@ static int exynos_irq_request_resources(struct irq_data *irqd)
 	unsigned int con;
 	int ret;
 
-	ret = gpio_lock_as_irq(&bank->gpio_chip, irqd->hwirq);
+	ret = gpiochip_lock_as_irq(&bank->gpio_chip, irqd->hwirq);
 	if (ret) {
 		dev_err(bank->gpio_chip.dev, "unable to lock pin %s-%lu IRQ\n",
 			bank->name, irqd->hwirq);
@@ -227,7 +227,7 @@ static void exynos_irq_release_resources(struct irq_data *irqd)
 
 	spin_unlock_irqrestore(&bank->slock, flags);
 
-	gpio_unlock_as_irq(&bank->gpio_chip, irqd->hwirq);
+	gpiochip_unlock_as_irq(&bank->gpio_chip, irqd->hwirq);
 }
 
 /*

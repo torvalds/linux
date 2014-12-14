@@ -13,13 +13,22 @@ properties, each containing a 'gpio-list':
 	gpio-specifier : Array of #gpio-cells specifying specific gpio
 			 (controller specific)
 
-GPIO properties should be named "[<name>-]gpios". The exact
-meaning of each gpios property must be documented in the device tree
-binding for each device.
+GPIO properties should be named "[<name>-]gpios", with <name> being the purpose
+of this GPIO for the device. While a non-existent <name> is considered valid
+for compatibility reasons (resolving to the "gpios" property), it is not allowed
+for new bindings.
 
-For example, the following could be used to describe GPIO pins used
-as chip select lines; with chip selects 0, 1 and 3 populated, and chip
-select 2 left empty:
+GPIO properties can contain one or more GPIO phandles, but only in exceptional
+cases should they contain more than one. If your device uses several GPIOs with
+distinct functions, reference each of them under its own property, giving it a
+meaningful name. The only case where an array of GPIOs is accepted is when
+several GPIOs serve the same function (e.g. a parallel data line).
+
+The exact purpose of each gpios property must be documented in the device tree
+binding of the device.
+
+The following example could be used to describe GPIO pins used as device enable
+and bit-banged data signals:
 
 	gpio1: gpio1 {
 		gpio-controller
@@ -30,10 +39,12 @@ select 2 left empty:
 		 #gpio-cells = <1>;
 	};
 	[...]
-	 chipsel-gpios = <&gpio1 12 0>,
-			 <&gpio1 13 0>,
-			 <0>, /* holes are permitted, means no GPIO 2 */
-			 <&gpio2 2>;
+
+	enable-gpios = <&gpio2 2>;
+	data-gpios = <&gpio1 12 0>,
+		     <&gpio1 13 0>,
+		     <&gpio1 14 0>,
+		     <&gpio1 15 0>;
 
 Note that gpio-specifier length is controller dependent.  In the
 above example, &gpio1 uses 2 cells to specify a gpio, while &gpio2
@@ -42,16 +53,17 @@ only uses one.
 gpio-specifier may encode: bank, pin position inside the bank,
 whether pin is open-drain and whether pin is logically inverted.
 Exact meaning of each specifier cell is controller specific, and must
-be documented in the device tree binding for the device.
+be documented in the device tree binding for the device. Use the macros
+defined in include/dt-bindings/gpio/gpio.h whenever possible:
 
 Example of a node using GPIOs:
 
 	node {
-		gpios = <&qe_pio_e 18 0>;
+		enable-gpios = <&qe_pio_e 18 GPIO_ACTIVE_HIGH>;
 	};
 
-In this example gpio-specifier is "18 0" and encodes GPIO pin number,
-and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
+GPIO_ACTIVE_HIGH is 0, so in this example gpio-specifier is "18 0" and encodes
+GPIO pin number, and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
 
 1.1) GPIO specifier best practices
 ----------------------------------

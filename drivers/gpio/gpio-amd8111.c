@@ -223,6 +223,7 @@ found:
 	if (err) {
 		printk(KERN_ERR "GPIO registering failed (%d)\n",
 		       err);
+		ioport_unmap(gp.pm);
 		release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 		goto out;
 	}

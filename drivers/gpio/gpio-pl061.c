@@ -52,28 +52,34 @@ struct pl061_gpio {
 
 	void __iomem		*base;
 	struct gpio_chip	gc;
+	bool			uses_pinctrl;
 
 #ifdef CONFIG_PM
 	struct pl061_context_save_regs csave_regs;
 #endif
 };
 
-static int pl061_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int pl061_gpio_request(struct gpio_chip *gc, unsigned offset)
 {
 	/*
 	 * Map back to global GPIO space and request muxing, the direction
 	 * parameter does not matter for this controller.
 	 */
-	int gpio = chip->base + offset;
+	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	int gpio = gc->base + offset;
 
-	return pinctrl_request_gpio(gpio);
+	if (chip->uses_pinctrl)
+		return pinctrl_request_gpio(gpio);
+	return 0;
 }
 
-static void pl061_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void pl061_gpio_free(struct gpio_chip *gc, unsigned offset)
 {
-	int gpio = chip->base + offset;
+	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	int gpio = gc->base + offset;
 
-	pinctrl_free_gpio(gpio);
+	if (chip->uses_pinctrl)
+		pinctrl_free_gpio(gpio);
 }
 
 static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
@@ -263,6 +269,8 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(chip->base);
 
 	spin_lock_init(&chip->lock);
+	if (of_property_read_bool(dev->of_node, "gpio-ranges"))
+		chip->uses_pinctrl = true;
 
 	chip->gc.request = pl061_gpio_request;
 	chip->gc.free = pl061_gpio_free;

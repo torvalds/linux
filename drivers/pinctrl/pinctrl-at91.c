@@ -1471,7 +1471,7 @@ static unsigned int gpio_irq_startup(struct irq_data *d)
 	unsigned	pin = d->hwirq;
 	int ret;
 
-	ret = gpio_lock_as_irq(&at91_gpio->chip, pin);
+	ret = gpiochip_lock_as_irq(&at91_gpio->chip, pin);
 	if (ret) {
 		dev_err(at91_gpio->chip.dev, "unable to lock pind %lu IRQ\n",
 			d->hwirq);
@@ -1487,7 +1487,7 @@ static void gpio_irq_shutdown(struct irq_data *d)
 	unsigned	pin = d->hwirq;
 
 	gpio_irq_mask(d);
-	gpio_unlock_as_irq(&at91_gpio->chip, pin);
+	gpiochip_unlock_as_irq(&at91_gpio->chip, pin);
 }
 
 #ifdef CONFIG_PM
