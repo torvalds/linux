@@ -362,6 +362,7 @@ enum {
 enum {
 	PARITY_DISABLE_RMW = 0,
 	PARITY_ENABLE_RMW,
+	PARITY_PREFER_RMW,
 };
 
 /*
