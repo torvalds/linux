@@ -1680,8 +1680,12 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	if (IS_ERR(reg_rule)) {
 		REG_DBG_PRINT("Disabling freq %d MHz as custom regd has no rule that fits it\n",
 			      chan->center_freq);
-		chan->orig_flags |= IEEE80211_CHAN_DISABLED;
-		chan->flags = chan->orig_flags;
+		if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED) {
+			chan->flags |= IEEE80211_CHAN_DISABLED;
+		} else {
+			chan->orig_flags |= IEEE80211_CHAN_DISABLED;
+			chan->flags = chan->orig_flags;
+		}
 		return;
 	}
 
@@ -1706,7 +1710,13 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	chan->dfs_state = NL80211_DFS_USABLE;
 
 	chan->beacon_found = false;
-	chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
+
+	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
+		chan->flags = chan->orig_flags | bw_flags |
+			      map_regdom_flags(reg_rule->flags);
+	else
+		chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
+
 	chan->max_antenna_gain = (int) MBI_TO_DBI(power_rule->max_antenna_gain);
 	chan->max_reg_power = chan->max_power =
 		(int) MBM_TO_DBM(power_rule->max_eirp);
