@@ -5400,21 +5400,25 @@ EXPORT_SYMBOL(raid5_set_cache_size);
 static ssize_t
 raid5_store_stripe_cache_size(struct mddev *mddev, const char *page, size_t len)
 {
-	struct r5conf *conf = mddev->private;
+	struct r5conf *conf;
 	unsigned long new;
 	int err;
 
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
-	if (!conf)
-		return -ENODEV;
-
 	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
-	err = raid5_set_cache_size(mddev, new);
+	err = mddev_lock(mddev);
 	if (err)
 		return err;
-	return len;
+	conf = mddev->private;
+	if (!conf)
+		err = -ENODEV;
+	else
+		err = raid5_set_cache_size(mddev, new);
+	mddev_unlock(mddev);
+
+	return err ?: len;
 }
 
 static struct md_sysfs_entry
@@ -5438,19 +5442,27 @@ raid5_show_preread_threshold(struct mddev *mddev, char *page)
 static ssize_t
 raid5_store_preread_threshold(struct mddev *mddev, const char *page, size_t len)
 {
-	struct r5conf *conf = mddev->private;
+	struct r5conf *conf;
 	unsigned long new;
+	int err;
+
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
-	if (!conf)
-		return -ENODEV;
-
 	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
-	if (new > conf->max_nr_stripes)
-		return -EINVAL;
-	conf->bypass_threshold = new;
-	return len;
+
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+	conf = mddev->private;
+	if (!conf)
+		err = -ENODEV;
+	else if (new > conf->max_nr_stripes)
+		err = -EINVAL;
+	else
+		conf->bypass_threshold = new;
+	mddev_unlock(mddev);
+	return err ?: len;
 }
 
 static struct md_sysfs_entry
@@ -5475,29 +5487,35 @@ raid5_show_skip_copy(struct mddev *mddev, char *page)
 static ssize_t
 raid5_store_skip_copy(struct mddev *mddev, const char *page, size_t len)
 {
-	struct r5conf *conf = mddev->private;
+	struct r5conf *conf;
 	unsigned long new;
+	int err;
+
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
-	if (!conf)
-		return -ENODEV;
-
 	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
 	new = !!new;
-	if (new == conf->skip_copy)
-		return len;
 
-	mddev_suspend(mddev);
-	conf->skip_copy = new;
-	if (new)
-		mddev->queue->backing_dev_info.capabilities |=
-						BDI_CAP_STABLE_WRITES;
-	else
-		mddev->queue->backing_dev_info.capabilities &=
-						~BDI_CAP_STABLE_WRITES;
-	mddev_resume(mddev);
-	return len;
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+	conf = mddev->private;
+	if (!conf)
+		err = -ENODEV;
+	else if (new != conf->skip_copy) {
+		mddev_suspend(mddev);
+		conf->skip_copy = new;
+		if (new)
+			mddev->queue->backing_dev_info.capabilities |=
+				BDI_CAP_STABLE_WRITES;
+		else
+			mddev->queue->backing_dev_info.capabilities &=
+				~BDI_CAP_STABLE_WRITES;
+		mddev_resume(mddev);
+	}
+	mddev_unlock(mddev);
+	return err ?: len;
 }
 
 static struct md_sysfs_entry
@@ -5538,7 +5556,7 @@ static int alloc_thread_groups(struct r5conf *conf, int cnt,
 static ssize_t
 raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 {
-	struct r5conf *conf = mddev->private;
+	struct r5conf *conf;
 	unsigned long new;
 	int err;
 	struct r5worker_group *new_groups, *old_groups;
@@ -5546,41 +5564,41 @@ raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
-	if (!conf)
-		return -ENODEV;
-
 	if (kstrtoul(page, 10, &new))
 		return -EINVAL;
 
-	if (new == conf->worker_cnt_per_group)
-		return len;
-
-	mddev_suspend(mddev);
-
-	old_groups = conf->worker_groups;
-	if (old_groups)
-		flush_workqueue(raid5_wq);
-
-	err = alloc_thread_groups(conf, new,
-				  &group_cnt, &worker_cnt_per_group,
-				  &new_groups);
-	if (!err) {
-		spin_lock_irq(&conf->device_lock);
-		conf->group_cnt = group_cnt;
-		conf->worker_cnt_per_group = worker_cnt_per_group;
-		conf->worker_groups = new_groups;
-		spin_unlock_irq(&conf->device_lock);
-
-		if (old_groups)
-			kfree(old_groups[0].workers);
-		kfree(old_groups);
-	}
-
-	mddev_resume(mddev);
-
+	err = mddev_lock(mddev);
 	if (err)
 		return err;
-	return len;
+	conf = mddev->private;
+	if (!conf)
+		err = -ENODEV;
+	else if (new != conf->worker_cnt_per_group) {
+		mddev_suspend(mddev);
+
+		old_groups = conf->worker_groups;
+		if (old_groups)
+			flush_workqueue(raid5_wq);
+
+		err = alloc_thread_groups(conf, new,
+					  &group_cnt, &worker_cnt_per_group,
+					  &new_groups);
+		if (!err) {
+			spin_lock_irq(&conf->device_lock);
+			conf->group_cnt = group_cnt;
+			conf->worker_cnt_per_group = worker_cnt_per_group;
+			conf->worker_groups = new_groups;
+			spin_unlock_irq(&conf->device_lock);
+
+			if (old_groups)
+				kfree(old_groups[0].workers);
+			kfree(old_groups);
+		}
+		mddev_resume(mddev);
+	}
+	mddev_unlock(mddev);
+
+	return err ?: len;
 }
 
 static struct md_sysfs_entry
