@@ -3365,6 +3365,7 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x80862806, .name = "PantherPoint HDMI", .patch = patch_generic_hdmi },
 { .id = 0x80862807, .name = "Haswell HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862808, .name = "Broadwell HDMI",	.patch = patch_generic_hdmi },
+{ .id = 0x80862809, .name = "Skylake HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862880, .name = "CedarTrail HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862882, .name = "Valleyview2 HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862883, .name = "Braswell HDMI",	.patch = patch_generic_hdmi },
@@ -3425,6 +3426,7 @@ MODULE_ALIAS("snd-hda-codec-id:80862805");
 MODULE_ALIAS("snd-hda-codec-id:80862806");
 MODULE_ALIAS("snd-hda-codec-id:80862807");
 MODULE_ALIAS("snd-hda-codec-id:80862808");
+MODULE_ALIAS("snd-hda-codec-id:80862809");
 MODULE_ALIAS("snd-hda-codec-id:80862880");
 MODULE_ALIAS("snd-hda-codec-id:80862882");
 MODULE_ALIAS("snd-hda-codec-id:80862883");
