@@ -105,7 +105,6 @@ SRC := \
 	mali_kbase_utility.c \
 	mali_kbase_debug.c \
 	mali_kbase_trace_timeline.c \
-	mali_kbase_gpu_memory_debugfs.c \
 	mali_kbase_mem_linux.c \
 	mali_kbase_core_linux.c \
 	mali_kbase_sync.c \
@@ -115,6 +114,10 @@ SRC := \
 	mali_kbase_mmu_hw_direct.c \
 	mali_kbase_disjoint_events.c \
 	mali_kbase_gator_api.c
+
+ifeq ($(CONFIG_DEBUG_FS),y)
+	SRC += mali_kbase_gpu_memory_debugfs.c
+endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 SRC += \

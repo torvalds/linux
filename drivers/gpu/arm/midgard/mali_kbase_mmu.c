@@ -1650,10 +1650,12 @@ void kbase_mmu_interrupt_process(struct kbase_device *kbdev, struct kbase_contex
 		 * We need to switch to UNMAPPED mode - but we do this in a
 		 * worker so that we can sleep
 		 */
+		kbdev->kbase_group_error++;
 		KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&as->work_busfault));
 		INIT_WORK(&as->work_busfault, bus_fault_worker);
 		queue_work(as->pf_wq, &as->work_busfault);
 	} else {
+		kbdev->kbase_group_error++;
 		KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&as->work_pagefault));
 		INIT_WORK(&as->work_pagefault, page_fault_worker);
 		queue_work(as->pf_wq, &as->work_pagefault);

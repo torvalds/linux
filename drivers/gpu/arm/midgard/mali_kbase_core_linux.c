@@ -98,6 +98,7 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 #endif /* MALI_UNIT_TEST */
 
 #define KBASE_DRV_NAME "mali"
+#define ROCKCHIP_VERSION 0x0b
 
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
 
@@ -748,6 +749,7 @@ copy_failed:
 			/* version buffer size check is made in compile time assert */
 			memcpy(get_version->version_buffer, KERNEL_SIDE_DDK_VERSION_STRING, sizeof(KERNEL_SIDE_DDK_VERSION_STRING));
 			get_version->version_string_size = sizeof(KERNEL_SIDE_DDK_VERSION_STRING);
+			get_version->rk_version = ROCKCHIP_VERSION;
 			break;
 		}
 
@@ -2846,7 +2848,6 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 	mali_error mali_err;
 #endif /* CONFIG_MALI_NO_MALI */
 #ifdef CONFIG_OF
-#ifdef CONFIG_MALI_PLATFORM_FAKE
 	struct kbase_platform_config *config;
 	int attribute_count;
 
@@ -2857,7 +2858,6 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 			attribute_count * sizeof(config->attributes[0]));
 	if (err)
 		return err;
-#endif /* CONFIG_MALI_PLATFORM_FAKE */
 #endif /* CONFIG_OF */
 
 	kbdev = kbase_device_alloc();
@@ -3240,7 +3240,7 @@ static const struct dev_pm_ops kbase_pm_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id kbase_dt_ids[] = {
-	{ .compatible = "arm,malit6xx" },
+	{ .compatible = "arm,malit7xx" },
 	{ .compatible = "arm,mali-midgard" },
 	{ /* sentinel */ }
 };
@@ -3263,11 +3263,17 @@ static struct platform_driver kbase_platform_driver = {
  * anymore when using Device Tree.
  */
 #ifdef CONFIG_OF
+#if 0
 module_platform_driver(kbase_platform_driver);
-#else /* CONFIG_MALI_PLATFORM_FAKE */
+#else 
+static int __init rockchip_gpu_init_driver(void)
+{
+	return platform_driver_register(&kbase_platform_driver);
+}
 
-extern int kbase_platform_early_init(void);
-
+late_initcall(rockchip_gpu_init_driver);
+#endif
+#else
 #ifdef CONFIG_MALI_PLATFORM_FAKE
 extern int kbase_platform_fake_register(void);
 extern void kbase_platform_fake_unregister(void);
