@@ -5327,42 +5327,20 @@ static int nl80211_update_mesh_config(struct sk_buff *skb,
 	return err;
 }
 
-static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
+static int nl80211_put_regdom(const struct ieee80211_regdomain *regdom,
+			      struct sk_buff *msg)
 {
-	const struct ieee80211_regdomain *regdom;
-	struct sk_buff *msg;
-	void *hdr = NULL;
 	struct nlattr *nl_reg_rules;
 	unsigned int i;
-
-	if (!cfg80211_regdomain)
-		return -EINVAL;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOBUFS;
-
-	hdr = nl80211hdr_put(msg, info->snd_portid, info->snd_seq, 0,
-			     NL80211_CMD_GET_REG);
-	if (!hdr)
-		goto put_failure;
-
-	if (reg_last_request_cell_base() &&
-	    nla_put_u32(msg, NL80211_ATTR_USER_REG_HINT_TYPE,
-			NL80211_USER_REG_HINT_CELL_BASE))
-		goto nla_put_failure;
-
-	rcu_read_lock();
-	regdom = rcu_dereference(cfg80211_regdomain);
 
 	if (nla_put_string(msg, NL80211_ATTR_REG_ALPHA2, regdom->alpha2) ||
 	    (regdom->dfs_region &&
 	     nla_put_u8(msg, NL80211_ATTR_DFS_REGION, regdom->dfs_region)))
-		goto nla_put_failure_rcu;
+		goto nla_put_failure;
 
 	nl_reg_rules = nla_nest_start(msg, NL80211_ATTR_REG_RULES);
 	if (!nl_reg_rules)
-		goto nla_put_failure_rcu;
+		goto nla_put_failure;
 
 	for (i = 0; i < regdom->n_reg_rules; i++) {
 		struct nlattr *nl_reg_rule;
@@ -5377,7 +5355,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 
 		nl_reg_rule = nla_nest_start(msg, i);
 		if (!nl_reg_rule)
-			goto nla_put_failure_rcu;
+			goto nla_put_failure;
 
 		max_bandwidth_khz = freq_range->max_bandwidth_khz;
 		if (!max_bandwidth_khz)
@@ -5398,13 +5376,64 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 				power_rule->max_eirp) ||
 		    nla_put_u32(msg, NL80211_ATTR_DFS_CAC_TIME,
 				reg_rule->dfs_cac_ms))
-			goto nla_put_failure_rcu;
+			goto nla_put_failure;
 
 		nla_nest_end(msg, nl_reg_rule);
 	}
-	rcu_read_unlock();
 
 	nla_nest_end(msg, nl_reg_rules);
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int nl80211_get_reg_do(struct sk_buff *skb, struct genl_info *info)
+{
+	const struct ieee80211_regdomain *regdom = NULL;
+	struct cfg80211_registered_device *rdev;
+	struct wiphy *wiphy = NULL;
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOBUFS;
+
+	hdr = nl80211hdr_put(msg, info->snd_portid, info->snd_seq, 0,
+			     NL80211_CMD_GET_REG);
+	if (!hdr)
+		goto put_failure;
+
+	if (info->attrs[NL80211_ATTR_WIPHY]) {
+		rdev = cfg80211_get_dev_from_info(genl_info_net(info), info);
+		if (IS_ERR(rdev)) {
+			nlmsg_free(msg);
+			return PTR_ERR(rdev);
+		}
+
+		wiphy = &rdev->wiphy;
+		regdom = get_wiphy_regdom(wiphy);
+
+		if (regdom &&
+		    nla_put_u32(msg, NL80211_ATTR_WIPHY, get_wiphy_idx(wiphy)))
+			goto nla_put_failure;
+	}
+
+	if (!wiphy && reg_last_request_cell_base() &&
+	    nla_put_u32(msg, NL80211_ATTR_USER_REG_HINT_TYPE,
+			NL80211_USER_REG_HINT_CELL_BASE))
+		goto nla_put_failure;
+
+	rcu_read_lock();
+
+	if (!regdom)
+		regdom = rcu_dereference(cfg80211_regdomain);
+
+	if (nl80211_put_regdom(regdom, msg))
+		goto nla_put_failure_rcu;
+
+	rcu_read_unlock();
 
 	genlmsg_end(msg, hdr);
 	return genlmsg_reply(msg, info);
@@ -5416,6 +5445,79 @@ nla_put_failure:
 put_failure:
 	nlmsg_free(msg);
 	return -EMSGSIZE;
+}
+
+static int nl80211_send_regdom(struct sk_buff *msg, struct netlink_callback *cb,
+			       u32 seq, int flags, struct wiphy *wiphy,
+			       const struct ieee80211_regdomain *regdom)
+{
+	void *hdr = nl80211hdr_put(msg, NETLINK_CB(cb->skb).portid, seq, flags,
+				   NL80211_CMD_GET_REG);
+
+	if (!hdr)
+		return -1;
+
+	genl_dump_check_consistent(cb, hdr, &nl80211_fam);
+
+	if (nl80211_put_regdom(regdom, msg))
+		goto nla_put_failure;
+
+	if (!wiphy && reg_last_request_cell_base() &&
+	    nla_put_u32(msg, NL80211_ATTR_USER_REG_HINT_TYPE,
+			NL80211_USER_REG_HINT_CELL_BASE))
+		goto nla_put_failure;
+
+	if (wiphy &&
+	    nla_put_u32(msg, NL80211_ATTR_WIPHY, get_wiphy_idx(wiphy)))
+		goto nla_put_failure;
+
+	return genlmsg_end(msg, hdr);
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int nl80211_get_reg_dump(struct sk_buff *skb,
+				struct netlink_callback *cb)
+{
+	const struct ieee80211_regdomain *regdom = NULL;
+	struct cfg80211_registered_device *rdev;
+	int err, reg_idx, start = cb->args[2];
+
+	rtnl_lock();
+
+	if (cfg80211_regdomain && start == 0) {
+		err = nl80211_send_regdom(skb, cb, cb->nlh->nlmsg_seq,
+					  NLM_F_MULTI, NULL,
+					  rtnl_dereference(cfg80211_regdomain));
+		if (err < 0)
+			goto out_err;
+	}
+
+	/* the global regdom is idx 0 */
+	reg_idx = 1;
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		regdom = get_wiphy_regdom(&rdev->wiphy);
+		if (!regdom)
+			continue;
+
+		if (++reg_idx <= start)
+			continue;
+
+		err = nl80211_send_regdom(skb, cb, cb->nlh->nlmsg_seq,
+					  NLM_F_MULTI, &rdev->wiphy, regdom);
+		if (err < 0) {
+			reg_idx--;
+			break;
+		}
+	}
+
+	cb->args[2] = reg_idx;
+	err = skb->len;
+out_err:
+	rtnl_unlock();
+	return err;
 }
 
 static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
@@ -10225,7 +10327,8 @@ static const struct genl_ops nl80211_ops[] = {
 	},
 	{
 		.cmd = NL80211_CMD_GET_REG,
-		.doit = nl80211_get_reg,
+		.doit = nl80211_get_reg_do,
+		.dumpit = nl80211_get_reg_dump,
 		.policy = nl80211_policy,
 		.internal_flags = NL80211_FLAG_NEED_RTNL,
 		/* can be retrieved by unprivileged users */
@@ -10983,9 +11086,13 @@ void nl80211_send_reg_change_event(struct regulatory_request *request)
 			goto nla_put_failure;
 	}
 
-	if (request->wiphy_idx != WIPHY_IDX_INVALID &&
-	    nla_put_u32(msg, NL80211_ATTR_WIPHY, request->wiphy_idx))
-		goto nla_put_failure;
+	if (request->wiphy_idx != WIPHY_IDX_INVALID) {
+		struct wiphy *wiphy = wiphy_idx_to_wiphy(request->wiphy_idx);
+
+		if (wiphy &&
+		    nla_put_u32(msg, NL80211_ATTR_WIPHY, request->wiphy_idx))
+			goto nla_put_failure;
+	}
 
 	genlmsg_end(msg, hdr);
 
