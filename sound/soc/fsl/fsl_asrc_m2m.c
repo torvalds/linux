@@ -24,6 +24,7 @@ struct fsl_asrc_m2m {
 
 	enum asrc_word_width word_width[2];
 	unsigned int rate[2];
+	unsigned int last_period_size;
 	u32 watermark[2];
 	spinlock_t lock;
 };
@@ -111,8 +112,8 @@ retry:
 	if (size)
 		goto retry;
 
-	if (t_size > ASRC_OUTPUT_LAST_SAMPLE)
-		t_size = ASRC_OUTPUT_LAST_SAMPLE;
+	if (t_size > m2m->last_period_size)
+		t_size = m2m->last_period_size;
 
 	if (reg24)
 		output->length += t_size * pair->channels * 4;
@@ -181,13 +182,13 @@ static int fsl_asrc_dmaconfig(struct fsl_asrc_pair *pair, struct dma_chan *chan,
 		slave_config.dst_addr = dma_addr;
 		slave_config.dst_addr_width = buswidth;
 		slave_config.dst_maxburst =
-			m2m->watermark[IN] * pair->channels / buswidth;
+			m2m->watermark[IN] * pair->channels;
 	} else {
 		slave_config.direction = DMA_DEV_TO_MEM;
 		slave_config.src_addr = dma_addr;
 		slave_config.src_addr_width = buswidth;
 		slave_config.src_maxburst =
-			m2m->watermark[OUT] * pair->channels / buswidth;
+			m2m->watermark[OUT] * pair->channels;
 	}
 
 	ret = dmaengine_slave_config(chan, &slave_config);
@@ -251,6 +252,7 @@ static int fsl_asrc_prepare_io_buffer(struct fsl_asrc_pair *pair,
 	struct dma_chan *dma_chan = pair->dma_chan[dir];
 	unsigned int buf_len, wm = m2m->watermark[dir];
 	unsigned int *sg_nodes = &m2m->sg_nodes[dir];
+	unsigned int last_period_size = m2m->last_period_size;
 	enum asrc_pair_index index = pair->index;
 	u32 word_size, fifo_addr;
 	void __user *buf_vaddr;
@@ -283,7 +285,7 @@ static int fsl_asrc_prepare_io_buffer(struct fsl_asrc_pair *pair,
 
 	*dma_len = buf_len;
 	if (dir == OUT)
-		*dma_len -= ASRC_OUTPUT_LAST_SAMPLE * word_size * pair->channels;
+		*dma_len -= last_period_size * word_size * pair->channels;
 
 	*sg_nodes = *dma_len / ASRC_MAX_BUFFER_SIZE + 1;
 
@@ -555,6 +557,11 @@ static long fsl_asrc_ioctl_config_pair(struct fsl_asrc_pair *pair,
 
 	m2m->rate[IN] = config.input_sample_rate;
 	m2m->rate[OUT] = config.output_sample_rate;
+
+	if (m2m->rate[OUT] > m2m->rate[IN])
+		m2m->last_period_size = ASRC_OUTPUT_LAST_SAMPLE_MAX;
+	else
+		m2m->last_period_size = ASRC_OUTPUT_LAST_SAMPLE;
 
 	ret = fsl_allocate_dma_buf(pair);
 	if (ret) {
