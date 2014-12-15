@@ -714,10 +714,7 @@ at86rf230_tx_complete(void *context)
 
 	enable_irq(lp->spi->irq);
 
-	if (lp->max_frame_retries <= 0)
-		ieee802154_xmit_complete(lp->hw, skb, true);
-	else
-		ieee802154_xmit_complete(lp->hw, skb, false);
+	ieee802154_xmit_complete(lp->hw, skb, !lp->tx_aret);
 }
 
 static void
