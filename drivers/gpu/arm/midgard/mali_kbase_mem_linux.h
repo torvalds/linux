@@ -40,6 +40,18 @@ mali_error kbase_mem_flags_change(struct kbase_context *kctx, mali_addr64 gpu_ad
 int kbase_mem_commit(struct kbase_context * kctx, mali_addr64 gpu_addr, u64 new_pages, enum base_backing_threshold_status * failure_reason);
 int kbase_mmap(struct file *file, struct vm_area_struct *vma);
 
+struct kbase_vmap_struct {
+	mali_addr64 gpu_addr;
+	struct kbase_mem_phy_alloc *alloc;
+	phys_addr_t *pages;
+	void *addr;
+	size_t size;
+	bool is_cached;
+};
+void *kbase_vmap(struct kbase_context *kctx, mali_addr64 gpu_addr, size_t size,
+		struct kbase_vmap_struct *map);
+void kbase_vunmap(struct kbase_context *kctx, struct kbase_vmap_struct *map);
+
 /** @brief Allocate memory from kernel space and map it onto the GPU
  *
  * @param kctx   The context used for the allocation/mapping

@@ -33,9 +33,6 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	unsigned long freq = 0;
 	int err;
 
-
-	kbdev->reset_utilization = true;
-
 	freq = *target_freq;
 
 	rcu_read_lock();
@@ -46,6 +43,14 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 		return PTR_ERR(opp);
 	}
 
+	/*
+	 * Only update if there is a change of frequency
+	 */
+	if (kbdev->freq == freq) {
+		*target_freq = freq;
+		return 0;
+	}
+
 	err = clk_set_rate(kbdev->clock, freq);
 	if (err) {
 		dev_err(dev, "Failed to set clock %lu (target %lu)\n",
@@ -53,7 +58,10 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 		return err;
 	}
 
+	kbdev->freq = freq;
 	*target_freq = freq;
+
+	kbase_pm_reset_dvfs_utilisation(kbdev);
 
 	return 0;
 }
@@ -63,7 +71,7 @@ kbase_devfreq_cur_freq(struct device *dev, unsigned long *freq)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 
-	*freq = clk_get_rate(kbdev->clock);
+	*freq = kbdev->freq;
 
 	return 0;
 }
@@ -72,17 +80,12 @@ static int
 kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
-	int err;
 
-	err = kbase_devfreq_cur_freq(dev, &stat->current_frequency);
-	if (err)
-		return err;
+	stat->current_frequency = kbdev->freq;
 
 	kbase_pm_get_dvfs_utilisation(kbdev,
-			&stat->total_time, &stat->busy_time,
-			kbdev->reset_utilization);
+			&stat->total_time, &stat->busy_time);
 
-	/* TODO vsync info for governor? */
 	stat->private_data = NULL;
 
 	return 0;
@@ -152,10 +155,12 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	if (!kbdev->clock)
 		return -ENODEV;
 
+	kbdev->freq = clk_get_rate(kbdev->clock);
+
 	dp = &kbdev->devfreq_profile;
 
-	dp->initial_freq = clk_get_rate(kbdev->clock);
-	dp->polling_ms = 1000;
+	dp->initial_freq = kbdev->freq;
+	dp->polling_ms = 100;
 	dp->target = kbase_devfreq_target;
 	dp->get_dev_status = kbase_devfreq_status;
 	dp->get_cur_freq = kbase_devfreq_cur_freq;

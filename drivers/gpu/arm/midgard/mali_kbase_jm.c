@@ -362,7 +362,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 					/* fall throught */
 				default:
 					dev_warn(kbdev->dev, "error detected from slot %d, job status 0x%08x (%s)", i, completion_code, kbase_exception_name(completion_code));
-					kbdev->kbase_group_error++;
 				}
 			}
 
@@ -1253,9 +1252,11 @@ void kbasep_reset_timeout_worker(struct work_struct *data)
 	/* Disable IRQ to avoid IRQ handlers to kick in after releaseing the spinlock;
 	 * this also clears any outstanding interrupts */
 	kbase_pm_disable_interrupts(kbdev);
-	/* Ensure that any IRQ handlers have finished */
-	kbase_synchronize_irqs(kbdev);
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
+
+	/* Ensure that any IRQ handlers have finished
+	 * Must be done without any locks IRQ handlers will take */
+	kbase_synchronize_irqs(kbdev);
 
 	/* Reset the GPU */
 	kbase_pm_init_hw(kbdev, MALI_TRUE);

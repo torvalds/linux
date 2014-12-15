@@ -284,11 +284,12 @@
    MMU_IRQ_CLEAR, MMU_IRQ_MASK, MMU_IRQ_STATUS registers.
  */
 
-#define MMU_REGS_PAGE_FAULT_FLAGS   16
+#define MMU_PAGE_FAULT_FLAGS   16
 
-/* Macros return bit number to retrvie page fault or bus eror flag from MMU registers */
-#define MMU_REGS_PAGE_FAULT_FLAG(n) (n)
-#define MMU_REGS_BUS_ERROR_FLAG(n)  (n + MMU_REGS_PAGE_FAULT_FLAGS)
+/* Macros returning a bitmask to retrieve page fault or bus error flags from
+ * MMU registers */
+#define MMU_PAGE_FAULT(n)      (1UL << (n))
+#define MMU_BUS_ERROR(n)       (1UL << ((n) + MMU_PAGE_FAULT_FLAGS))
 
 /*
  * Begin MMU TRANSTAB register values
@@ -446,9 +447,7 @@
 #ifdef MALI_INCLUDE_TFRX
 #define GPU_ID_PI_TFRX                    0x0880
 #endif /* MALI_INCLUDE_TFRX */
-#ifdef MALI_INCLUDE_TF2X
-#define GPU_ID_PI_TF2X                    0x0860
-#endif /* MALI_INCLUDE_TF2X */
+#define GPU_ID_PI_T86X                    0x0860
 
 /* Values for GPU_ID_VERSION_STATUS field for PRODUCT_ID GPU_ID_PI_T60X */
 #define GPU_ID_S_15DEV0                   0x1

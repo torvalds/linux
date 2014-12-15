@@ -96,7 +96,7 @@ static int write_cmd(struct kbase_device *kbdev, int as_nr, u32 cmd,
 void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 {
 	const int num_as = 16;
-	const int busfault_shift = MMU_REGS_PAGE_FAULT_FLAGS;
+	const int busfault_shift = MMU_PAGE_FAULT_FLAGS;
 	const int pf_shift = 0;
 	const unsigned long as_bit_mask = (1UL << num_as) - 1;
 	unsigned long flags;
@@ -153,44 +153,25 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 
 		/* find the fault type */
 		as->fault_type = (bf_bits & (1 << as_no)) ?
-				  KBASE_MMU_FAULT_TYPE_BUS : KBASE_MMU_FAULT_TYPE_PAGE;
-
+				KBASE_MMU_FAULT_TYPE_BUS :
+				KBASE_MMU_FAULT_TYPE_PAGE;
 
 		if (kbase_as_has_bus_fault(as)) {
-			/*
-			 * Clear the internal JM mask first before clearing the
-			 * internal MMU mask
-			 *
-			 * Note:
-			 * Always clear the page fault just in case there was
-			 * one at the same time as the bus error (bus errors are
-			 * always processed in preference to pagefaults should
-			 * both happen at the same time).
+			/* Mark bus fault as handled.
+			 * Note that a bus fault is processed first in case
+			 * where both a bus fault and page fault occur.
 			 */
-			kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR),
-					(1UL << MMU_REGS_BUS_ERROR_FLAG(as_no)) |
-					(1UL << MMU_REGS_PAGE_FAULT_FLAG(as_no)), kctx);
+			bf_bits &= ~(1UL << as_no);
 
-			/* mark as handled (note: bf_bits is already shifted) */
-			bf_bits &= ~(1UL << (as_no));
-
-			/* remove the queued BFs (and PFs) from the mask */
-			new_mask &= ~((1UL << MMU_REGS_BUS_ERROR_FLAG(as_no)) |
-				      (1UL << MMU_REGS_PAGE_FAULT_FLAG(as_no)));
+			/* remove the queued BF (and PF) from the mask */
+			new_mask &= ~(MMU_BUS_ERROR(as_no) |
+					MMU_PAGE_FAULT(as_no));
 		} else {
-			/*
-			 * Clear the internal JM mask first before clearing the
-			 * internal MMU mask
-			 */
-			kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR),
-					1UL << MMU_REGS_PAGE_FAULT_FLAG(as_no),
-					kctx);
-
-			/* mark as handled */
+			/* Mark page fault as handled */
 			pf_bits &= ~(1UL << as_no);
 
-			/* remove the queued PFs from the mask */
-			new_mask &= ~(1UL << MMU_REGS_PAGE_FAULT_FLAG(as_no));
+			/* remove the queued PF from the mask */
+			new_mask &= ~MMU_PAGE_FAULT(as_no);
 		}
 
 		/* Process the interrupt for this address space */
@@ -280,17 +261,34 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
 void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
 		struct kbase_context *kctx, enum kbase_mmu_fault_type type)
 {
-	unsigned long flags;
-	u32 mask;
+	u32 pf_bf_mask;
 
-	spin_lock_irqsave(&kbdev->mmu_mask_change, flags);
-	mask = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_MASK), kctx);
-
-	mask |= (1UL << MMU_REGS_PAGE_FAULT_FLAG(as->number));
+	/* Clear the page (and bus fault IRQ as well in case one occurred) */
+	pf_bf_mask = MMU_PAGE_FAULT(as->number);
 	if (type == KBASE_MMU_FAULT_TYPE_BUS)
-		mask |= (1UL << MMU_REGS_BUS_ERROR_FLAG(as->number));
+		pf_bf_mask |= MMU_BUS_ERROR(as->number);
 
-	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_MASK), mask, kctx);
+	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR), pf_bf_mask, kctx);
+}
+
+void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
+		struct kbase_context *kctx, enum kbase_mmu_fault_type type)
+{
+	unsigned long flags;
+	u32 irq_mask;
+
+	/* Enable the page fault IRQ (and bus fault IRQ as well in case one
+	 * occurred) */
+	spin_lock_irqsave(&kbdev->mmu_mask_change, flags);
+
+	irq_mask = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_MASK), kctx) |
+			MMU_PAGE_FAULT(as->number);
+
+	if (type == KBASE_MMU_FAULT_TYPE_BUS)
+		irq_mask |= MMU_BUS_ERROR(as->number);
+
+	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_MASK), irq_mask, kctx);
+
 	spin_unlock_irqrestore(&kbdev->mmu_mask_change, flags);
 }
 #endif

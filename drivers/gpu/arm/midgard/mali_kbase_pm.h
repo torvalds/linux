@@ -115,6 +115,8 @@ struct kbasep_pm_metrics_data {
 	ktime_t time_period_start;
 	u32 time_busy;
 	u32 time_idle;
+	u32 prev_busy;
+	u32 prev_idle;
 	mali_bool gpu_active;
 	u32 busy_cl[2];
 	u32 busy_gl;
@@ -314,7 +316,7 @@ struct kbase_pm_device_data {
 	u64 shader_poweroff_pending;
 
 	/** Set to MALI_TRUE if the poweroff timer is currently running, MALI_FALSE otherwise */
-	mali_bool poweroff_timer_running;
+	mali_bool poweroff_timer_needed;
 
 	int poweroff_shader_ticks;
 
@@ -863,7 +865,8 @@ void kbase_pm_do_poweroff(struct kbase_device *kbdev, mali_bool is_suspend);
 
 #ifdef CONFIG_PM_DEVFREQ
 void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
-		unsigned long *total, unsigned long *busy, bool reset);
+		unsigned long *total, unsigned long *busy);
+void kbase_pm_reset_dvfs_utilisation(struct kbase_device *kbdev);
 #endif
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS

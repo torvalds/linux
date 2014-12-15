@@ -1108,10 +1108,14 @@ static bool kbase_replay_fault_check(struct kbase_jd_atom *katom)
 	bool err = false;
 
 	/* Replay job if fault is of type BASE_JD_EVENT_JOB_WRITE_FAULT or
-	 * BASE_JD_EVENT_TERMINATED.
+	 * if force_replay is enabled.
 	 */
-	if ((BASE_JD_EVENT_TERMINATED      == katom->event_code) ||
-	    (BASE_JD_EVENT_JOB_WRITE_FAULT == katom->event_code)) {
+	if (BASE_JD_EVENT_TERMINATED == katom->event_code) {
+		return false;
+	} else if (BASE_JD_EVENT_JOB_WRITE_FAULT == katom->event_code) {
+		return true;
+	} else if (BASE_JD_EVENT_FORCE_REPLAY == katom->event_code) {
+		katom->event_code = BASE_JD_EVENT_DATA_INVALID_FAULT;
 		return true;
 	} else if (BASE_JD_EVENT_DATA_INVALID_FAULT != katom->event_code) {
 		/* No replay for faults of type other than
@@ -1143,7 +1147,6 @@ static bool kbase_replay_fault_check(struct kbase_jd_atom *katom)
 		     payload->fragment_hierarchy_mask,
 		     payload->fragment_core_req);
 #endif
-
 	/* Process fragment job chain */
 	job_header      = (mali_addr64) payload->fragment_jc;
 	job_loop_detect = job_header;

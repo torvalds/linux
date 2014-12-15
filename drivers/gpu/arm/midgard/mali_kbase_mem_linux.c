@@ -72,7 +72,7 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 		goto bad_size;
 
 #if defined(CONFIG_64BIT)
-	if (is_compat_task())
+	if (kctx->is_compat)
 		cpu_va_bits = 32;
 	else
 		/* force SAME_VA if a 64-bit client */
@@ -467,7 +467,7 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx, in
 	*flags &= ~BASE_MEM_SAME_VA;
 
 #ifdef CONFIG_64BIT
-	if (!is_compat_task()) {
+	if (!kctx->is_compat) {
 		/* 64-bit tasks must MMAP anyway, but not expose this address to clients */
 		*flags |= BASE_MEM_NEED_MMAP;
 		reg = kbase_alloc_free_region(kctx, 0, *va_pages, KBASE_REG_ZONE_SAME_VA);
@@ -567,7 +567,7 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 	*num_pages = nents * stride;
 
 #ifdef CONFIG_64BIT
-	if (!is_compat_task()) {
+	if (!kctx->is_compat) {
 		/* 64-bit tasks must MMAP anyway, but not expose this address to
 		 * clients */
 		*flags |= BASE_MEM_NEED_MMAP;
@@ -648,7 +648,7 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 	}
 
 #ifdef CONFIG_64BIT
-	if (!is_compat_task()) {
+	if (!kctx->is_compat) {
 		/* Bind to a cookie */
 		if (!kctx->cookies) {
 			dev_err(kctx->kbdev->dev, "No cookies available for allocation!");
@@ -712,7 +712,7 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 	KBASE_DEBUG_ASSERT(flags);
 
 #ifdef CONFIG_64BIT
-	if (!is_compat_task())
+	if (!kctx->is_compat)
 		*flags |= BASE_MEM_SAME_VA;
 #endif
 
@@ -1490,6 +1490,142 @@ out:
 }
 
 KBASE_EXPORT_TEST_API(kbase_mmap)
+
+void *kbase_vmap(struct kbase_context *kctx, mali_addr64 gpu_addr, size_t size,
+		struct kbase_vmap_struct *map)
+{
+	struct kbase_va_region *reg;
+	unsigned long page_index;
+	unsigned int offset = gpu_addr & ~PAGE_MASK;
+	size_t page_count = PFN_UP(offset + size);
+	phys_addr_t *page_array;
+	struct page **pages;
+	void *cpu_addr = NULL;
+	pgprot_t prot;
+	size_t i;
+
+	if (!size || !map)
+		return NULL;
+
+	/* check if page_count calculation will wrap */
+	if (size > ((size_t)-1 / PAGE_SIZE))
+		return NULL;
+
+	kbase_gpu_vm_lock(kctx);
+
+	reg = kbase_region_tracker_find_region_enclosing_address(kctx, gpu_addr);
+	if (!reg || (reg->flags & KBASE_REG_FREE))
+		goto out_unlock;
+
+	page_index = (gpu_addr >> PAGE_SHIFT) - reg->start_pfn;
+
+	/* check if page_index + page_count will wrap */
+	if (-1UL - page_count < page_index)
+		goto out_unlock;
+
+	if (page_index + page_count > kbase_reg_current_backed_size(reg))
+		goto out_unlock;
+
+	page_array = kbase_get_phy_pages(reg);
+	if (!page_array)
+		goto out_unlock;
+
+	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		goto out_unlock;
+
+	for (i = 0; i < page_count; i++)
+		pages[i] = pfn_to_page(PFN_DOWN(page_array[page_index + i]));
+
+	prot = PAGE_KERNEL;
+	if (!(reg->flags & KBASE_REG_CPU_CACHED)) {
+		/* Map uncached */
+		prot = pgprot_writecombine(prot);
+	}
+
+	cpu_addr = vmap(pages, page_count, VM_MAP, prot);
+
+	kfree(pages);
+
+	if (!cpu_addr)
+		goto out_unlock;
+
+	map->gpu_addr = gpu_addr;
+	map->alloc = kbase_mem_phy_alloc_get(reg->alloc);
+	map->pages = &kbase_get_phy_pages(reg)[page_index];
+	map->addr = (void *)((uintptr_t)cpu_addr + offset);
+	map->size = size;
+	map->is_cached = (reg->flags & KBASE_REG_CPU_CACHED) != 0;
+
+	if (map->is_cached) {
+		/* Sync first page */
+		size_t sz = MIN(((size_t) PAGE_SIZE - offset), size);
+		phys_addr_t pa = map->pages[0] + offset;
+
+		kbase_sync_single(kctx, pa, sz, dma_sync_single_for_cpu);
+
+		/* Sync middle pages (if any) */
+		for (i = 1; page_count > 2 && i < page_count - 1; i++) {
+			pa = map->pages[i];
+			kbase_sync_single(kctx, pa, PAGE_SIZE, dma_sync_single_for_cpu);
+		}
+
+		/* Sync last page (if any) */
+		if (page_count > 1) {
+			pa = map->pages[page_count - 1];
+			sz = ((offset + size - 1) & ~PAGE_MASK) + 1;
+			kbase_sync_single(kctx, pa, sz, dma_sync_single_for_cpu);
+		}
+	}
+
+	kbase_gpu_vm_unlock(kctx);
+
+	return map->addr;
+
+out_unlock:
+	kbase_gpu_vm_unlock(kctx);
+	return NULL;
+}
+
+void kbase_vunmap(struct kbase_context *kctx, struct kbase_vmap_struct *map)
+{
+	void *addr = (void *)((uintptr_t)map->addr & PAGE_MASK);
+
+	vunmap(addr);
+
+	if (map->is_cached) {
+		off_t offset = (uintptr_t)map->addr & ~PAGE_MASK;
+		size_t size = map->size;
+		size_t page_count = PFN_UP(offset + size);
+		size_t i;
+
+		/* Sync first page */
+		size_t sz = MIN(((size_t) PAGE_SIZE - offset), size);
+		phys_addr_t pa = map->pages[0] + offset;
+
+		kbase_sync_single(kctx, pa, sz, dma_sync_single_for_device);
+
+		/* Sync middle pages (if any) */
+		for (i = 1; page_count > 2 && i < page_count - 1; i++) {
+			pa = map->pages[i];
+			kbase_sync_single(kctx, pa, PAGE_SIZE, dma_sync_single_for_device);
+		}
+
+		/* Sync last page (if any) */
+		if (page_count > 1) {
+			pa = map->pages[page_count - 1];
+			sz = ((offset + size - 1) & ~PAGE_MASK) + 1;
+			kbase_sync_single(kctx, pa, sz, dma_sync_single_for_device);
+		}
+	}
+
+	map->gpu_addr = 0;
+	map->alloc = kbase_mem_phy_alloc_put(map->alloc);
+	map->pages = NULL;
+	map->addr = NULL;
+	map->size = 0;
+	map->is_cached = false;
+}
 
 void kbasep_os_process_page_usage_update(struct kbase_context *kctx, int pages)
 {

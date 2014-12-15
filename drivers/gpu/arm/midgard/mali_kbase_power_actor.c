@@ -29,21 +29,15 @@ static u32 mali_pa_get_req_power(struct power_actor *actor, struct thermal_zone_
 {
 	struct mali_power_actor *mali_actor = actor->data;
 	struct kbase_device *kbdev = mali_actor->kbdev;
-	struct devfreq_dev_status stat;
+	unsigned long total_time, busy_time;
 	unsigned long power, temperature;
-	int err;
 	struct dev_pm_opp *opp;
 	unsigned long voltage;
 	unsigned long freq;
 
+	kbase_pm_get_dvfs_utilisation(kbdev, &total_time, &busy_time);
 
-	err = kbdev->devfreq->profile->get_dev_status(kbdev->dev, &stat);
-	if (err) {
-		dev_err(kbdev->dev, "Failed to get devfreq status (%d)\n", err);
-		return 0;
-	}
-
-	freq = stat.current_frequency;
+	freq = clk_get_rate(kbdev->clock);
 
 	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_floor(kbdev->dev, &freq);
@@ -55,8 +49,8 @@ static u32 mali_pa_get_req_power(struct power_actor *actor, struct thermal_zone_
 	voltage = dev_pm_opp_get_voltage(opp) / 1000; /* mV */
 	rcu_read_unlock();
 
-	power = mali_actor->ops->get_dynamic_power(freq);
-	power = (power * stat.busy_time) / stat.total_time;
+	power = mali_actor->ops->get_dynamic_power(freq, voltage);
+	power = (power * busy_time) / total_time;
 
 	temperature = zone->temperature;
 
@@ -90,7 +84,7 @@ static u32 mali_pa_get_max_power(struct power_actor *actor, struct thermal_zone_
 	temperature = zone->temperature;
 
 	power = mali_actor->ops->get_static_power(voltage, temperature)
-			+ mali_actor->ops->get_dynamic_power(freq);
+			+ mali_actor->ops->get_dynamic_power(freq, voltage);
 
 	dev_dbg(kbdev->dev, "get max power = %u\n", power);
 
@@ -102,7 +96,7 @@ static int mali_pa_set_power(struct power_actor *actor, struct thermal_zone_devi
 	struct mali_power_actor *mali_actor = actor->data;
 	struct kbase_device *kbdev = mali_actor->kbdev;
 	struct thermal_cooling_device *cdev;
-	struct devfreq_dev_status stat;
+	unsigned long total_time, busy_time;
 	unsigned long freq, state;
 	unsigned long static_power, normalized_power;
 	unsigned long voltage, temperature;
@@ -111,13 +105,9 @@ static int mali_pa_set_power(struct power_actor *actor, struct thermal_zone_devi
 
 	dev_dbg(kbdev->dev, "Setting max power %u\n", power);
 
-	err = kbdev->devfreq->profile->get_dev_status(kbdev->dev, &stat);
-	if (err) {
-		dev_err(kbdev->dev, "Failed to get devfreq status (%d)\n", err);
-		return err;
-	}
+	kbase_pm_get_dvfs_utilisation(kbdev, &total_time, &busy_time);
 
-	freq = stat.current_frequency;
+	freq = clk_get_rate(kbdev->clock);
 
 	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_exact(kbdev->dev, freq, true);
@@ -137,10 +127,10 @@ static int mali_pa_set_power(struct power_actor *actor, struct thermal_zone_devi
 	} else {
 		unsigned long dyn_power = power - static_power;
 
-		if (!stat.busy_time)
+		if (!busy_time)
 			normalized_power = dyn_power;
 		else
-			normalized_power = (dyn_power * stat.total_time) / stat.busy_time;
+			normalized_power = (dyn_power * total_time) / busy_time;
 	}
 
 	/* Find target frequency. Use the lowest OPP if allocated power is too
@@ -201,7 +191,7 @@ int mali_pa_init(struct kbase_device *kbdev)
 	num_opps = dev_pm_opp_get_opp_count(kbdev->dev);
 	rcu_read_unlock();
 
-	table = kzalloc(num_opps, sizeof(table[0]), GFP_KERNEL);
+	table = kcalloc(num_opps, sizeof(table[0]), GFP_KERNEL);
 	if (!table) {
 		kfree(mali_actor);
 		return -ENOMEM;
@@ -220,7 +210,7 @@ int mali_pa_init(struct kbase_device *kbdev)
 
 		table[i].freq = freq;
 
-		power_dyn = callbacks->get_dynamic_power(freq);
+		power_dyn = callbacks->get_dynamic_power(freq, voltage);
 		power_static = callbacks->get_static_power(voltage, 85000);
 
 		dev_info(kbdev->dev, "Power table: %lu MHz @ %lu mV: %lu + %lu = %lu mW\n",
@@ -238,7 +228,9 @@ int mali_pa_init(struct kbase_device *kbdev)
 	mali_actor->dyn_table = table;
 	mali_actor->dyn_table_count = i;
 
-	actor = power_actor_register(&mali_pa_ops, mali_actor);
+	/* Register power actor.
+	 * Set default actor weight to 1 (8-bit fixed point). */
+	actor = power_actor_register(1 * 256, &mali_pa_ops, mali_actor);
 	if (IS_ERR_OR_NULL(actor)) {
 		kfree(mali_actor->dyn_table);
 		kfree(mali_actor);

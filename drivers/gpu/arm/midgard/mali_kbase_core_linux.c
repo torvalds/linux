@@ -31,9 +31,11 @@
 #ifdef CONFIG_MALI_DEVFREQ
 #include "mali_kbase_devfreq.h"
 #endif /* CONFIG_MALI_DEVFREQ */
+#include <mali_kbase_cpuprops.h>
 #ifdef CONFIG_MALI_NO_MALI
 #include "mali_kbase_model_linux.h"
 #endif /* CONFIG_MALI_NO_MALI */
+#include "mali_kbase_mem_profile_debugfs_buf_size.h"
 
 #ifdef CONFIG_KDS
 #include <linux/kds.h>
@@ -96,12 +98,6 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 #endif /* MALI_UNIT_TEST */
 
 #define KBASE_DRV_NAME "mali"
-#define ROCKCHIP_VERSION 0x0b
-
-/** process name + ( statistics in a single bin * number of bins + histogram header ) * number of histograms + total size
- * @note Must be kept in sync with CCTX
- */
-#define KBASE_MEM_PROFILE_MAX_BUF_SIZE (64 + (24 * 32 + 64) * 16 + 40)
 
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
 
@@ -223,19 +219,16 @@ static mali_error kbasep_kds_allocate_resource_list_data(struct kbase_context *k
 	return MALI_ERROR_FUNCTION_FAILED;
 }
 
-static mali_bool kbasep_validate_kbase_pointer(union kbase_pointer *p)
+static mali_bool kbasep_validate_kbase_pointer(
+		struct kbase_context *kctx, union kbase_pointer *p)
 {
-#ifdef CONFIG_COMPAT
-	if (is_compat_task()) {
+	if (kctx->is_compat) {
 		if (p->compat_value == 0)
 			return MALI_FALSE;
 	} else {
-#endif /* CONFIG_COMPAT */
 		if (NULL == p->value)
 			return MALI_FALSE;
-#ifdef CONFIG_COMPAT
 	}
-#endif /* CONFIG_COMPAT */
 	return MALI_TRUE;
 }
 
@@ -250,7 +243,10 @@ static mali_error kbase_external_buffer_lock(struct kbase_context *kctx, struct 
 		return MALI_ERROR_FUNCTION_FAILED;
 
 	/* Check user space has provided valid data */
-	if (!kbasep_validate_kbase_pointer(&args->external_resource) || !kbasep_validate_kbase_pointer(&args->file_descriptor) || (0 == args->num_res) || (args->num_res > KBASE_MAXIMUM_EXT_RESOURCES))
+	if (!kbasep_validate_kbase_pointer(kctx, &args->external_resource) ||
+			!kbasep_validate_kbase_pointer(kctx, &args->file_descriptor) ||
+			(0 == args->num_res) ||
+			(args->num_res > KBASE_MAXIMUM_EXT_RESOURCES))
 		return MALI_ERROR_FUNCTION_FAILED;
 
 	ext_resource_size = sizeof(struct base_external_resource) * args->num_res;
@@ -262,7 +258,7 @@ static mali_error kbase_external_buffer_lock(struct kbase_context *kctx, struct 
 		struct base_external_resource __user *ext_res_user;
 		int __user *file_descriptor_user;
 #ifdef CONFIG_COMPAT
-		if (is_compat_task()) {
+		if (kctx->is_compat) {
 			ext_res_user = compat_ptr(args->external_resource.compat_value);
 			file_descriptor_user = compat_ptr(args->file_descriptor.compat_value);
 		} else {
@@ -351,13 +347,24 @@ static mali_error kbase_dispatch(struct kbase_context *kctx, void * const args, 
 		if (args_size == sizeof(struct uku_version_check_args)) {
 			struct uku_version_check_args *version_check = (struct uku_version_check_args *)args;
 
+			switch (version_check->major) {
 #ifdef BASE_LEGACY_UK6_SUPPORT
-			if (version_check->major == 6) {
+			case 6:
 				/* We are backwards compatible with version 6,
 				 * so pretend to be the old version */
 				version_check->major = 6;
 				version_check->minor = 1;
-			} else {
+				break;
+#endif /* BASE_LEGACY_UK6_SUPPORT */
+#ifdef BASE_LEGACY_UK7_SUPPORT
+			case 7:
+				/* We are backwards compatible with version 7,
+				 * so pretend to be the old version */
+				version_check->major = 7;
+				version_check->minor = 1;
+				break;
+#endif /* BASE_LEGACY_UK7_SUPPORT */
+			default:
 				/* We return our actual version regardless if it
 				 * matches the version returned by userspace -
 				 * userspace can bail if it can't handle this
@@ -365,10 +372,6 @@ static mali_error kbase_dispatch(struct kbase_context *kctx, void * const args, 
 				version_check->major = BASE_UK_VERSION_MAJOR;
 				version_check->minor = BASE_UK_VERSION_MINOR;
 			}
-#else
-			version_check->major = BASE_UK_VERSION_MAJOR;
-			version_check->minor = BASE_UK_VERSION_MINOR;
-#endif /* BASE_LEGACY_UK6_SUPPORT */
 
 			ukh->ret = MALI_ERROR_NONE;
 		} else {
@@ -434,8 +437,8 @@ static mali_error kbase_dispatch(struct kbase_context *kctx, void * const args, 
 
 			if (sizeof(*mem_import) != args_size)
 				goto bad_size;
-#ifdef CONFIG_64BIT
-			if (is_compat_task())
+#ifdef CONFIG_COMPAT
+			if (kctx->is_compat)
 				phandle = compat_ptr(mem_import->phandle.compat_value);
 			else
 #endif
@@ -472,8 +475,8 @@ bad_type:
 				break;
 			}
 
-#ifdef CONFIG_64BIT
-			if (is_compat_task())
+#ifdef CONFIG_COMPAT
+			if (kctx->is_compat)
 				user_ai = compat_ptr(alias->ai.compat_value);
 			else
 #endif
@@ -681,7 +684,8 @@ copy_failed:
 			break;
 		}
 
-	case KBASE_FUNC_CPU_PROPS_REG_DUMP:
+#ifdef BASE_LEGACY_UK7_SUPPORT
+	case KBASE_FUNC_CPU_PROPS_REG_DUMP_OBSOLETE:
 		{
 			struct kbase_uk_cpuprops *setup = args;
 
@@ -692,6 +696,7 @@ copy_failed:
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 			break;
 		}
+#endif /* BASE_LEGACY_UK7_SUPPORT */
 
 	case KBASE_FUNC_GPU_PROPS_REG_DUMP:
 		{
@@ -743,7 +748,6 @@ copy_failed:
 			/* version buffer size check is made in compile time assert */
 			memcpy(get_version->version_buffer, KERNEL_SIDE_DDK_VERSION_STRING, sizeof(KERNEL_SIDE_DDK_VERSION_STRING));
 			get_version->version_string_size = sizeof(KERNEL_SIDE_DDK_VERSION_STRING);
-			get_version->rk_version = ROCKCHIP_VERSION;
 			break;
 		}
 
@@ -903,8 +907,8 @@ copy_failed:
 				goto out_bad;
 			}
 
-#ifdef CONFIG_64BIT
-			if (is_compat_task())
+#ifdef CONFIG_COMPAT
+			if (kctx->is_compat)
 				user_buf = compat_ptr(add_data->buf.compat_value);
 			else
 #endif
@@ -999,7 +1003,7 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	if (!kbdev)
 		return -ENODEV;
 
-	kctx = kbase_create_context(kbdev);
+	kctx = kbase_create_context(kbdev, is_compat_task());
 	if (!kctx) {
 		ret = -ENOMEM;
 		goto out;
@@ -1162,7 +1166,7 @@ static unsigned long kbase_get_unmapped_area(struct file *filp,
 	 * values are known in advance */
 	struct kbase_context *kctx = filp->private_data;
 
-	if (!is_compat_task() && !addr &&
+	if (!kctx->is_compat && !addr &&
 		kbase_hw_has_feature(kctx->kbdev, BASE_HW_FEATURE_33BIT_VA)) {
 		struct mm_struct *mm = current->mm;
 		struct vm_area_struct *vma;
@@ -2842,6 +2846,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 	mali_error mali_err;
 #endif /* CONFIG_MALI_NO_MALI */
 #ifdef CONFIG_OF
+#ifdef CONFIG_MALI_PLATFORM_FAKE
 	struct kbase_platform_config *config;
 	int attribute_count;
 
@@ -2852,6 +2857,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 			attribute_count * sizeof(config->attributes[0]));
 	if (err)
 		return err;
+#endif /* CONFIG_MALI_PLATFORM_FAKE */
 #endif /* CONFIG_OF */
 
 	kbdev = kbase_device_alloc();
@@ -3234,7 +3240,7 @@ static const struct dev_pm_ops kbase_pm_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id kbase_dt_ids[] = {
-	{ .compatible = "arm,malit7xx" },
+	{ .compatible = "arm,malit6xx" },
 	{ .compatible = "arm,mali-midgard" },
 	{ /* sentinel */ }
 };
@@ -3257,17 +3263,11 @@ static struct platform_driver kbase_platform_driver = {
  * anymore when using Device Tree.
  */
 #ifdef CONFIG_OF
-#if 0
 module_platform_driver(kbase_platform_driver);
-#else 
-static int __init rockchip_gpu_init_driver(void)
-{
-	return platform_driver_register(&kbase_platform_driver);
-}
+#else /* CONFIG_MALI_PLATFORM_FAKE */
 
-late_initcall(rockchip_gpu_init_driver);
-#endif
-#else
+extern int kbase_platform_early_init(void);
+
 #ifdef CONFIG_MALI_PLATFORM_FAKE
 extern int kbase_platform_fake_register(void);
 extern void kbase_platform_fake_unregister(void);

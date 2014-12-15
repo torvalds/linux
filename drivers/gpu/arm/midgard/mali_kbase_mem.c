@@ -451,7 +451,7 @@ mali_error kbase_region_tracker_init(struct kbase_context *kctx)
 #endif
 
 #ifdef CONFIG_64BIT
-	if (is_compat_task())
+	if (kctx->is_compat)
 		same_va_bits = 32;
 	else if (kbase_hw_has_feature(kctx->kbdev, BASE_HW_FEATURE_33BIT_VA))
 		same_va_bits = 33;
@@ -470,7 +470,7 @@ mali_error kbase_region_tracker_init(struct kbase_context *kctx)
 
 #ifdef CONFIG_64BIT
 	/* only 32-bit clients have the other two zones */
-	if (is_compat_task()) {
+	if (kctx->is_compat) {
 #endif
 		if (gpu_va_limit <= KBASE_REG_ZONE_CUSTOM_VA_BASE) {
 			kbase_free_alloced_region(same_va_reg);
@@ -867,7 +867,7 @@ void kbase_sync_single(struct kbase_context *kctx,
 	BUG_ON(!p);
 	BUG_ON(offset + size > PAGE_SIZE);
 
-	dma_addr = page_private(p) + offset;
+	dma_addr = kbase_dma_addr(p) + offset;
 
 	sync_fn(kctx->kbdev->dev, dma_addr, size, DMA_BIDIRECTIONAL);
 }
@@ -1041,7 +1041,7 @@ mali_error kbase_mem_free(struct kbase_context *kctx, mali_addr64 gpu_addr)
 
 		/* Validate the region */
 		reg = kbase_region_tracker_find_region_base_address(kctx, gpu_addr);
-		if (!reg) {
+		if (!reg || (reg->flags & KBASE_REG_FREE)) {
 			dev_warn(kctx->kbdev->dev, "kbase_mem_free called with nonexistent gpu_addr 0x%llX",
 					gpu_addr);
 			err = MALI_ERROR_FUNCTION_FAILED;
@@ -1114,16 +1114,19 @@ int kbase_alloc_phy_pages_helper(
 	kbase_atomic_add_pages(nr_pages_requested, &alloc->imported.kctx->used_pages);
 	kbase_atomic_add_pages(nr_pages_requested, &alloc->imported.kctx->kbdev->memdev.used_pages);
 
+	/* Increase mm counters before we allocate pages so that this
+	 * allocation is visible to the OOM killer */
+	kbase_process_page_usage_inc(alloc->imported.kctx, nr_pages_requested);
+
 	if (MALI_ERROR_NONE != kbase_mem_allocator_alloc(&alloc->imported.kctx->osalloc, nr_pages_requested, alloc->pages + alloc->nents))
 		goto no_alloc;
 
 	alloc->nents += nr_pages_requested;
-
-	kbase_process_page_usage_inc(alloc->imported.kctx, nr_pages_requested);
 done:
 	return 0;
 
 no_alloc:
+	kbase_process_page_usage_dec(alloc->imported.kctx, nr_pages_requested);
 	kbase_atomic_sub_pages(nr_pages_requested, &alloc->imported.kctx->used_pages);
 	kbase_atomic_sub_pages(nr_pages_requested, &alloc->imported.kctx->kbdev->memdev.used_pages);
 

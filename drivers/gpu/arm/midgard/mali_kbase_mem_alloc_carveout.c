@@ -44,6 +44,7 @@ static atomic_t kbase_carveout_system_pages;
 static struct page *kbase_carveout_get_page(struct kbase_mem_allocator *allocator)
 {
 	struct page *p = NULL;
+	gfp_t gfp;
 
 	mutex_lock(&kbase_carveout_free_list_lock);
 	if (!list_empty(&kbase_carveout_free_list)) {
@@ -57,10 +58,18 @@ static struct page *kbase_carveout_get_page(struct kbase_mem_allocator *allocato
 		dma_addr_t dma_addr;
 #if defined(CONFIG_ARM) && !defined(CONFIG_HAVE_DMA_ATTRS) && LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
 		/* DMA cache sync fails for HIGHMEM before 3.5 on ARM */
-		p = alloc_page(GFP_USER);
+		gfp = GFP_USER;
 #else
-		p = alloc_page(GFP_HIGHUSER);
+		gfp = GFP_HIGHUSER;
 #endif
+
+		if (current->flags & PF_KTHREAD) {
+			/* Don't trigger OOM killer from kernel threads, e.g.
+			 * when growing memory on GPU page fault */
+			gfp |= __GFP_NORETRY;
+		}
+
+		p = alloc_page(gfp);
 		if (!p)
 			goto out;
 
@@ -72,8 +81,7 @@ static struct page *kbase_carveout_get_page(struct kbase_mem_allocator *allocato
 			goto out;
 		}
 
-		SetPagePrivate(p);
-		set_page_private(p, dma_addr);
+		kbase_set_dma_addr(p, dma_addr);
 		BUG_ON(dma_addr != PFN_PHYS(page_to_pfn(p)));
 		atomic_inc(&kbase_carveout_system_pages);
 	}
@@ -91,7 +99,7 @@ static void kbase_carveout_put_page(struct page *p,
 		atomic_dec(&kbase_carveout_used_pages);
 		mutex_unlock(&kbase_carveout_free_list_lock);
 	} else {
-		dma_unmap_page(allocator->kbdev->dev, page_private(p),
+		dma_unmap_page(allocator->kbdev->dev, kbase_dma_addr(p),
 				PAGE_SIZE,
 				DMA_BIDIRECTIONAL);
 		ClearPagePrivate(p);
@@ -140,8 +148,7 @@ static int kbase_carveout_init(struct device *dev)
 		if (dma_mapping_error(dev, dma_addr))
 			goto out_rollback;
 
-		SetPagePrivate(p);
-		set_page_private(p, dma_addr);
+		kbase_set_dma_addr(p, dma_addr);
 		BUG_ON(dma_addr != PFN_PHYS(page_to_pfn(p)));
 
 		list_add_tail(&p->lru, &kbase_carveout_free_list);
@@ -159,7 +166,7 @@ out_rollback:
 		struct page *p;
 
 		p = list_first_entry(&kbase_carveout_free_list, struct page, lru);
-		dma_unmap_page(dev, page_private(p),
+		dma_unmap_page(dev, kbase_dma_addr(p),
 				PAGE_SIZE,
 				DMA_BIDIRECTIONAL);
 		ClearPagePrivate(p);
@@ -326,7 +333,7 @@ mali_error kbase_mem_allocator_alloc(struct kbase_mem_allocator *allocator, size
 		memset(mp, 0x00, PAGE_SIZE); /* instead of __GFP_ZERO, so we can
 						do cache maintenance */
 		dma_sync_single_for_device(allocator->kbdev->dev,
-					   page_private(p),
+					   kbase_dma_addr(p),
 					   PAGE_SIZE,
 					   DMA_BIDIRECTIONAL);
 		kunmap(p);
@@ -387,7 +394,7 @@ void kbase_mem_allocator_free(struct kbase_mem_allocator *allocator, u32 nr_page
 			 */
 			if (sync_back)
 				dma_sync_single_for_cpu(allocator->kbdev->dev,
-						page_private(p),
+						kbase_dma_addr(p),
 						PAGE_SIZE,
 						DMA_BIDIRECTIONAL);
 			list_add(&p->lru, &new_free_list_items);

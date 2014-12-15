@@ -74,7 +74,7 @@ menuconfig MALI_EXPERT
 
 config MALI_DEVFREQ
 	bool "devfreq support for Mali"
-	depends on PM_DEVFREQ
+	depends on MALI_MIDGARD && PM_DEVFREQ
 	help
 	  Support devfreq for Mali.
 
@@ -84,7 +84,7 @@ config MALI_DEVFREQ
 
 config MALI_POWER_ACTOR
 	bool "Thermal API support for Mali"
-	depends on DEVFREQ_THERMAL && THERMAL_POWER_ACTOR
+	depends on MALI_MIDGARD && DEVFREQ_THERMAL && THERMAL_POWER_ACTOR
 	help
 	  Support the thermal API for Mali.
 

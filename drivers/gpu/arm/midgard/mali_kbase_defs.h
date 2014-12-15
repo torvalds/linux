@@ -143,7 +143,6 @@
 #endif
 
 #define GROWABLE_FLAGS_REQUIRED (KBASE_REG_PF_GROW)
-#define GROWABLE_FLAGS_MASK     (GROWABLE_FLAGS_REQUIRED | KBASE_REG_FREE)
 
 /** setting in kbase_context::as_nr that indicates it's invalid */
 #define KBASEP_AS_NR_INVALID     (-1)
@@ -630,7 +629,6 @@ struct kbase_device {
 
 	struct list_head entry;
 	struct device *dev;
-	unsigned int kbase_group_error;
 	struct miscdevice mdev;
 	u64 reg_start;
 	size_t reg_size;
@@ -814,7 +812,7 @@ struct kbase_device {
 #ifdef CONFIG_PM_DEVFREQ
 	struct devfreq_dev_profile devfreq_profile;
 	struct devfreq *devfreq;
-	bool reset_utilization;
+	unsigned long freq;
 #ifdef CONFIG_DEVFREQ_THERMAL
 	struct devfreq_cooling_device *devfreq_cooling;
 #ifdef CONFIG_MALI_POWER_ACTOR
@@ -875,6 +873,7 @@ struct kbase_context {
 	struct workqueue_struct *event_workq;
 
 	u64 mem_attrs;
+	bool is_compat;
 
 	atomic_t                setup_complete;
 	atomic_t                setup_in_progress;

@@ -89,7 +89,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 	/* page_1 is a u32 pointer, offset is expressed in bytes */
 	page_1 += offset>>2;
 	dma_sync_single_for_cpu(katom->kctx->kbdev->dev,
-			page_private(p) + offset,
+			kbase_dma_addr(p) + offset,
 			copy_size, DMA_BIDIRECTIONAL);
 	memcpy(dst, page_1, copy_size);
 
@@ -100,7 +100,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 		page_2 = kmap_atomic(p);
 
 		dma_sync_single_for_cpu(katom->kctx->kbdev->dev,
-				page_private(p),
+				kbase_dma_addr(p),
 				JOB_HEADER_SIZE - copy_size, DMA_BIDIRECTIONAL);
 		memcpy(dst + copy_size, page_2, JOB_HEADER_SIZE - copy_size);
 	}
@@ -180,7 +180,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 		memcpy(page_1, dst, copy_size);
 		p = pfn_to_page(PFN_DOWN(page_array[page_index]));
 		dma_sync_single_for_device(katom->kctx->kbdev->dev,
-				page_private(p) + offset,
+				kbase_dma_addr(p) + offset,
 				copy_size, DMA_TO_DEVICE);
 
 		if (copy_size < JOB_HEADER_SIZE) {
@@ -188,7 +188,7 @@ int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom)
 					JOB_HEADER_SIZE - copy_size);
 			p = pfn_to_page(PFN_DOWN(page_array[page_index + 1]));
 			dma_sync_single_for_device(katom->kctx->kbdev->dev,
-					page_private(p),
+					kbase_dma_addr(p),
 					JOB_HEADER_SIZE - copy_size,
 					DMA_TO_DEVICE);
 		}

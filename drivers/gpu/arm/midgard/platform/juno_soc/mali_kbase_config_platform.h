@@ -16,16 +16,18 @@
 
 
 /**
- * @file
- * Software workarounds configuration for Hardware issues.
+ * Maximum frequency GPU will be clocked at. Given in kHz.
+ * This must be specified as there is no default value.
+ *
+ * Attached value: number in kHz
+ * Default value: NA
  */
-
-#ifndef _BASE_HWCONFIG_H_
-#define _BASE_HWCONFIG_H_
-
-#include <malisw/mali_malisw.h>
-
-#include "mali_base_hwconfig_issues.h"
-#include "mali_base_hwconfig_features.h"
-
-#endif /* _BASE_HWCONFIG_H_ */
+#define GPU_FREQ_KHZ_MAX 600000
+/**
+ * Minimum frequency GPU will be clocked at. Given in kHz.
+ * This must be specified as there is no default value.
+ *
+ * Attached value: number in kHz
+ * Default value: NA
+ */
+#define GPU_FREQ_KHZ_MIN 600000

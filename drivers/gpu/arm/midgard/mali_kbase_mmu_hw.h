@@ -95,10 +95,24 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
  *
  * @param[in]  kbdev         kbase device to  clear the fault from.
  * @param[in]  as            address space to  clear the fault from.
- * @param[in]  kctx          kbase context to clear the fault from.
+ * @param[in]  kctx          kbase context to clear the fault from or NULL.
  * @param[in]  type          The type of fault that needs to be cleared.
  */
 void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
+		struct kbase_context *kctx, enum kbase_mmu_fault_type type);
+
+/** @brief Enable fault that has been previously reported by the MMU.
+ *
+ * After a page fault or bus error has been reported by the MMU these
+ * will be disabled. After these are handled this function needs to be
+ * called to enable the page fault or bus error fault again.
+ *
+ * @param[in]  kbdev         kbase device to again enable the fault from.
+ * @param[in]  as            address space to again enable the fault from.
+ * @param[in]  kctx          kbase context to again enable the fault from.
+ * @param[in]  type          The type of fault that needs to be enabled again.
+ */
+void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
 		struct kbase_context *kctx, enum kbase_mmu_fault_type type);
 
 /** @} *//* end group mali_kbase_mmu_hw */

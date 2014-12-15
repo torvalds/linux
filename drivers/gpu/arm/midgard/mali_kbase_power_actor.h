@@ -23,9 +23,20 @@
 
 #include <linux/pm_opp.h>
 
+/** struct mali_pa_model_ops - Function pointer for power model
+ *
+ * @get_static_power: Pointer to a function that returns the estimated static
+ *                    power usage in mW, based on the input voltage in mV and
+ *                    temperature in millidegrees Celsius.
+ * @get_dynamic_power: Pointer to a function that returns the estimated dynamic power
+ *                     usage in mW, based on the input voltage in mV and
+ *                     frequency in Hz.
+ */
 struct mali_pa_model_ops {
-	unsigned long (*get_static_power)(unsigned long voltage, unsigned long temperature);
-	unsigned long (*get_dynamic_power)(unsigned long freq);
+	unsigned long (*get_static_power)(unsigned long voltage,
+			unsigned long temperature);
+	unsigned long (*get_dynamic_power)(unsigned long freq,
+			unsigned long voltage);
 };
 
 struct mali_pa_power_table {

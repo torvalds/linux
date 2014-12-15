@@ -558,6 +558,17 @@ typedef struct kbase_pm_callback_conf {
 } kbase_pm_callback_conf;
 
 /**
+ * @brief Default implementation of @ref KBASE_CONFIG_ATTR_CPU_SPEED_FUNC.
+ *
+ * This function sets clock_speed to 100, so will be an underestimate for
+ * any real system.
+ *
+ * See @ref kbase_cpuprops_clock_speed_function for details on the parameters
+ * and return value.
+ */
+int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed);
+
+/**
  * Type of the function pointer for KBASE_CONFIG_ATTR_CPU_SPEED_FUNC.
  *
  * @param clock_speed [out] Once called this will contain the current CPU clock speed in MHz.
