@@ -132,7 +132,7 @@ char *cfs_firststr(char *str, size_t size)
 		++end;
 	}
 
-	*end= '\0';
+	*end = '\0';
 out:
 	return str;
 }
