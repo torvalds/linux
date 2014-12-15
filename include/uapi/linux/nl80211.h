@@ -782,6 +782,10 @@
  *	peer given by %NL80211_ATTR_MAC. Both peers must be on the base channel
  *	when this command completes.
  *
+ * @NL80211_CMD_WIPHY_REG_CHANGE: Similar to %NL80211_CMD_REG_CHANGE, but used
+ *	as an event to indicate changes for devices with wiphy-specific regdom
+ *	management.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -965,6 +969,8 @@ enum nl80211_commands {
 
 	NL80211_CMD_TDLS_CHANNEL_SWITCH,
 	NL80211_CMD_TDLS_CANCEL_CHANNEL_SWITCH,
+
+	NL80211_CMD_WIPHY_REG_CHANGE,
 
 	/* add new commands above here */
 

@@ -11042,25 +11042,9 @@ void nl80211_send_sched_scan(struct cfg80211_registered_device *rdev,
 				NL80211_MCGRP_SCAN, GFP_KERNEL);
 }
 
-/*
- * This can happen on global regulatory changes or device specific settings
- * based on custom world regulatory domains.
- */
-void nl80211_send_reg_change_event(struct regulatory_request *request)
+static bool nl80211_reg_change_event_fill(struct sk_buff *msg,
+					  struct regulatory_request *request)
 {
-	struct sk_buff *msg;
-	void *hdr;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return;
-
-	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_REG_CHANGE);
-	if (!hdr) {
-		nlmsg_free(msg);
-		return;
-	}
-
 	/* Userspace can always count this one always being set */
 	if (nla_put_u8(msg, NL80211_ATTR_REG_INITIATOR, request->initiator))
 		goto nla_put_failure;
@@ -11093,6 +11077,35 @@ void nl80211_send_reg_change_event(struct regulatory_request *request)
 		    nla_put_u32(msg, NL80211_ATTR_WIPHY, request->wiphy_idx))
 			goto nla_put_failure;
 	}
+
+	return true;
+
+nla_put_failure:
+	return false;
+}
+
+/*
+ * This can happen on global regulatory changes or device specific settings
+ * based on custom regulatory domains.
+ */
+void nl80211_common_reg_change_event(enum nl80211_commands cmd_id,
+				     struct regulatory_request *request)
+{
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, cmd_id);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	if (nl80211_reg_change_event_fill(msg, request) == false)
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 

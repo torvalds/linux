@@ -36,6 +36,13 @@ struct cfg80211_registered_device {
 	 * the country on the country IE changed. */
 	char country_ie_alpha2[2];
 
+	/*
+	 * the driver requests the regulatory core to set this regulatory
+	 * domain as the wiphy's. Only used for %REGULATORY_WIPHY_SELF_MANAGED
+	 * devices using the regulatory_set_wiphy_regd() API
+	 */
+	const struct ieee80211_regdomain *requested_regd;
+
 	/* If a Country IE has been received this tells us the environment
 	 * which its telling us its in. This defaults to ENVIRON_ANY */
 	enum environment_cap env;

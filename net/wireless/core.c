@@ -561,6 +561,14 @@ int wiphy_register(struct wiphy *wiphy)
 				       BIT(NL80211_IFTYPE_MONITOR)))
 		wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
 
+	if (WARN_ON((wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED) &&
+		    (wiphy->regulatory_flags &
+					(REGULATORY_CUSTOM_REG |
+					 REGULATORY_STRICT_REG |
+					 REGULATORY_COUNTRY_IE_FOLLOW_POWER |
+					 REGULATORY_COUNTRY_IE_IGNORE))))
+		return -EINVAL;
+
 	if (WARN_ON(wiphy->coalesce &&
 		    (!wiphy->coalesce->n_rules ||
 		     !wiphy->coalesce->n_patterns) &&
