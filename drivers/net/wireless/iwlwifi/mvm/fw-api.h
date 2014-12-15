@@ -128,6 +128,9 @@ enum {
 	/* global key */
 	WEP_KEY = 0x20,
 
+	/* Memory */
+	SHARED_MEM_CFG = 0x25,
+
 	/* TDLS */
 	TDLS_CHANNEL_SWITCH_CMD = 0x27,
 	TDLS_CHANNEL_SWITCH_NOTIFICATION = 0xaa,
@@ -1820,5 +1823,37 @@ struct iwl_tdls_config_res {
 	__le32 tx_to_ap_last_seq;
 	struct iwl_tdls_config_sta_info_res sta_info[IWL_MVM_TDLS_STA_COUNT];
 } __packed; /* TDLS_CONFIG_RSP_API_S_VER_1 */
+
+#define TX_FIFO_MAX_NUM		8
+#define RX_FIFO_MAX_NUM		2
+
+/**
+ * Shared memory configuration information from the FW
+ *
+ * @shared_mem_addr: shared memory addr (pre 8000 HW set to 0x0 as MARBH is not
+ *	accessible)
+ * @shared_mem_size: shared memory size
+ * @sample_buff_addr: internal sample (mon/adc) buff addr (pre 8000 HW set to
+ *	0x0 as accessible only via DBGM RDAT)
+ * @sample_buff_size: internal sample buff size
+ * @txfifo_addr: start addr of TXF0 (excluding the context table 0.5KB), (pre
+ *	8000 HW set to 0x0 as not accessible)
+ * @txfifo_size: size of TXF0 ... TXF7
+ * @rxfifo_size: RXF1, RXF2 sizes. If there is no RXF2, it'll have a value of 0
+ * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
+ *	when paging is not supported this should be 0
+ * @page_buff_size: size of %page_buff_addr
+ */
+struct iwl_shared_mem_cfg {
+	__le32 shared_mem_addr;
+	__le32 shared_mem_size;
+	__le32 sample_buff_addr;
+	__le32 sample_buff_size;
+	__le32 txfifo_addr;
+	__le32 txfifo_size[TX_FIFO_MAX_NUM];
+	__le32 rxfifo_size[RX_FIFO_MAX_NUM];
+	__le32 page_buff_addr;
+	__le32 page_buff_size;
+} __packed; /* SHARED_MEM_ALLOC_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */

@@ -536,6 +536,18 @@ enum iwl_mvm_tdls_cs_state {
 	IWL_MVM_TDLS_SW_ACTIVE,
 };
 
+struct iwl_mvm_shared_mem_cfg {
+	u32 shared_mem_addr;
+	u32 shared_mem_size;
+	u32 sample_buff_addr;
+	u32 sample_buff_size;
+	u32 txfifo_addr;
+	u32 txfifo_size[TX_FIFO_MAX_NUM];
+	u32 rxfifo_size[RX_FIFO_MAX_NUM];
+	u32 page_buff_addr;
+	u32 page_buff_size;
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -787,6 +799,8 @@ struct iwl_mvm {
 			u32 ch_sw_tm_ie;
 		} peer;
 	} tdls_cs;
+
+	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1002,6 +1016,9 @@ int iwl_mvm_rx_radio_ver(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			 struct iwl_device_cmd *cmd);
 int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			    struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_shared_mem_cfg_notif(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb,
+				    struct iwl_device_cmd *cmd);
 
 /* MVM PHY */
 int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
