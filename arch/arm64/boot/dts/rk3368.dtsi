@@ -678,9 +678,10 @@
 		 rockchip,iommu-enabled = <0>;
 		 reg = <0x0 0xff930000 0x0 0x10000>;
 		 interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		 pinctrl-names = "default", "gpio";
-		 pinctrl-0 = <&lcdc_lcdc>;
-		 pinctrl-1 = <&lcdc_gpio>;
+		/*pinctrl-names = "default", "gpio";
+		 *pinctrl-0 = <&lcdc_lcdc>;
+		 *pinctrl-1 = <&lcdc_gpio>;
+		 */
 		 status = "disabled";
 		 clocks = <&clk_gates16 5>, <&dclk_vop0>, <&clk_gates16 6>, <&clk_npll>;
 		 clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "sclk_pll";
@@ -1576,14 +1577,44 @@
 
 		lcdc {
 			lcdc_lcdc: lcdc-lcdc {
-				rockchip,pins = <0 GPIO_D7 RK_FUNC_1 &pcfg_pull_none>,//DCLK
+				rockchip,pins =
+						<0 GPIO_B6 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D10
+						<0 GPIO_B7 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D11
+						<0 GPIO_C0 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D12
+						<0 GPIO_C1 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D13
+						<0 GPIO_C2 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D14
+						<0 GPIO_C3 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D15
+						<0 GPIO_C4 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D16
+						<0 GPIO_C5 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D17
+						<0 GPIO_C6 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D18
+						<0 GPIO_C7 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D19
+						<0 GPIO_D0 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D20
+						<0 GPIO_D1 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D21
+						<0 GPIO_D2 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D22
+						<0 GPIO_D3 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D23
+						<0 GPIO_D7 RK_FUNC_1 &pcfg_pull_none>,//DCLK
 						<0 GPIO_D6 RK_FUNC_1 &pcfg_pull_none>,//DEN
 						<0 GPIO_D4 RK_FUNC_1 &pcfg_pull_none>,//HSYNC
 						<0 GPIO_D5 RK_FUNC_1 &pcfg_pull_none>;//VSYN
 			};
 
 			lcdc_gpio: lcdc-gpio {
-				rockchip,pins = <0 GPIO_D7 RK_FUNC_GPIO &pcfg_pull_none>,//DCLK
+				rockchip,pins =
+						<0 GPIO_B6 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D10
+						<0 GPIO_B7 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D11
+						<0 GPIO_C0 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D12
+						<0 GPIO_C1 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D13
+						<0 GPIO_C2 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D14
+						<0 GPIO_C3 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D15
+						<0 GPIO_C4 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D16
+						<0 GPIO_C5 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D17
+						<0 GPIO_C6 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D18
+						<0 GPIO_C7 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D19
+						<0 GPIO_D0 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D20
+						<0 GPIO_D1 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D21
+						<0 GPIO_D2 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D22
+						<0 GPIO_D3 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D23
+						<0 GPIO_D7 RK_FUNC_GPIO &pcfg_pull_none>,//DCLK
 						<0 GPIO_D6 RK_FUNC_GPIO &pcfg_pull_none>,//DEN
 						<0 GPIO_D4 RK_FUNC_GPIO &pcfg_pull_none>,//HSYNC
 						<0 GPIO_D5 RK_FUNC_GPIO &pcfg_pull_none>;//VSYN

@@ -557,9 +557,12 @@
 	 display-timings = <&disp_timings>;
 };
 
-&lvds {
+/*&lvds {
 	status = "okay";
-};
+	pinctrl-names = "lcdc", "sleep";
+	pinctrl-0 = <&lcdc_lcdc>;
+	pinctrl-1 = <&lcdc_gpio>;
+};*/
 
 &lcdc {
 	status = "okay";

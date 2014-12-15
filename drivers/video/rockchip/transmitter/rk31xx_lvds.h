@@ -155,6 +155,15 @@ static inline u32 lvds_readl(struct rk_lvds_device *lvds, u32 offset)
 	return readl_relaxed(lvds->regbase + offset);
 }
 
+static inline int lvds_grf_writel(struct rk_lvds_device *lvds,
+				  u32 offset, u32 val)
+{
+	regmap_write(lvds->grf_lvds_base, offset, val);
+	dsb(sy);
+
+	return 0;
+}
+
 static inline u32 lvds_phy_lockon(struct rk_lvds_device *lvds)
 {
 	u32 val = 0;

@@ -187,8 +187,7 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
 		       v_RK3368_MIPIDPI_FORCEX_EN(1);
 		/*rk3368  RK3368_GRF_SOC_CON7 = 0X0041C*/
 		/*grf_writel(val, 0x0041C);*/
-		regmap_write(lvds->grf_lvds_base, GRF_SOC_CON7_LVDS, val);
-		dsb(sy);
+		lvds_grf_writel(lvds, GRF_SOC_CON7_LVDS, val);
 	} else {
 		/* enable lvds mode */
 		val |= v_LVDSMODE_EN(1) | v_MIPIPHY_TTL_EN(0);
@@ -242,28 +241,46 @@ static void rk31xx_output_lvttl(struct rk_lvds_device *lvds,
 {
         u32 val = 0;
 
-        /* iomux to lcdc */
+	if (lvds->data->soc_type == LVDS_SOC_RK3368) {
+		/* iomux to lcdc */
+#ifdef CONFIG_PINCTRL
+		if (lvds->pins && !IS_ERR(lvds->pins->default_state))
+			pinctrl_select_state(lvds->pins->p,
+					     lvds->pins->default_state);
+#endif
+		/* enable lvds mode */
+		val |= v_RK3368_LVDSMODE_EN(0) | v_RK3368_MIPIPHY_TTL_EN(1);
+		lvds_grf_writel(lvds, GRF_SOC_CON7_LVDS, val);
+
+		/*val = v_MIPITTL_CLK_EN(1) | v_MIPITTL_LANE0_EN(1) |
+		v_MIPITTL_LANE1_EN(1) | v_MIPITTL_LANE2_EN(1) |
+		v_MIPITTL_LANE3_EN(1);
+		grf_writel(val, RK312X_GRF_SOC_CON1);*/
+	} else {
+		/* iomux to lcdc */
 #if defined(CONFIG_RK_FPGA)
-        grf_writel(0xffff5555, RK312X_GRF_GPIO2B_IOMUX);
-        grf_writel(0x00ff0055, RK312X_GRF_GPIO2C_IOMUX);
-        grf_writel(0x77771111, 0x00e8); /* RK312X_GRF_GPIO2C_IOMUX2 */
-        grf_writel(0x700c1004, RK312X_GRF_GPIO2D_IOMUX);
+		grf_writel(0xffff5555, RK312X_GRF_GPIO2B_IOMUX);
+		grf_writel(0x00ff0055, RK312X_GRF_GPIO2C_IOMUX);
+		grf_writel(0x77771111, 0x00e8); /* RK312X_GRF_GPIO2C_IOMUX2 */
+		grf_writel(0x700c1004, RK312X_GRF_GPIO2D_IOMUX);
 #else
 #ifdef CONFIG_PINCTRL
-        if (lvds->pins && !IS_ERR(lvds->pins->default_state))
-                pinctrl_select_state(lvds->pins->p, lvds->pins->default_state);
+		if (lvds->pins && !IS_ERR(lvds->pins->default_state))
+			pinctrl_select_state(lvds->pins->p,
+					     lvds->pins->default_state);
 #endif
 #endif
+		/* enable lvds mode */
+		val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);
+		/* config data source */
+		val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);
+		grf_writel(0xffff0380, RK312X_GRF_LVDS_CON0);
 
-	val |= v_LVDSMODE_EN(0) | v_MIPIPHY_TTL_EN(1);  /* enable lvds mode */
-	val |= v_LVDS_DATA_SEL(LVDS_DATA_FROM_LCDC);    /* config data source */
-	grf_writel(0xffff0380, RK312X_GRF_LVDS_CON0);
-
-        val = v_MIPITTL_CLK_EN(1) | v_MIPITTL_LANE0_EN(1) |
-                v_MIPITTL_LANE1_EN(1) | v_MIPITTL_LANE2_EN(1) |
-                v_MIPITTL_LANE3_EN(1);
-        grf_writel(val, RK312X_GRF_SOC_CON1);
-
+		val = v_MIPITTL_CLK_EN(1) | v_MIPITTL_LANE0_EN(1) |
+			v_MIPITTL_LANE1_EN(1) | v_MIPITTL_LANE2_EN(1) |
+			v_MIPITTL_LANE3_EN(1);
+		grf_writel(val, RK312X_GRF_SOC_CON1);
+	}
         /* enable lane */
         lvds_writel(lvds, MIPIPHY_REG0, 0x7f);
         val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) | v_LANE3_EN(1) |
