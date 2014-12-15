@@ -452,4 +452,25 @@ static inline u32 vepu_read(struct rk3288_vpu_dev *vpu, u32 reg)
 	return val;
 }
 
+static inline void vdpu_write_relaxed(struct rk3288_vpu_dev *vpu,
+				       u32 val, u32 reg)
+{
+	vpu_debug(6, "MARK: set reg[%03d]: %08x\n", reg / 4, val);
+	writel_relaxed(val, vpu->dec_base + reg);
+}
+
+static inline void vdpu_write(struct rk3288_vpu_dev *vpu, u32 val, u32 reg)
+{
+	vpu_debug(6, "MARK: set reg[%03d]: %08x\n", reg / 4, val);
+	writel(val, vpu->dec_base + reg);
+}
+
+static inline u32 vdpu_read(struct rk3288_vpu_dev *vpu, u32 reg)
+{
+	u32 val = readl(vpu->dec_base + reg);
+
+	vpu_debug(6, "MARK: get reg[%03d]: %08x\n", reg / 4, val);
+	return val;
+}
+
 #endif /* RK3288_VPU_COMMON_H_ */

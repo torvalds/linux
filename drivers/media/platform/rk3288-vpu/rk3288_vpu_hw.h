@@ -113,6 +113,14 @@ struct rk3288_vpu_vp8e_hw_ctx {
 };
 
 /**
+ * struct rk3288_vpu_h264d_hw_ctx - Per context data specific to H264 decoding.
+ * @priv_tbl:		Private auxiliary buffer for hardware.
+ */
+struct rk3288_vpu_h264d_hw_ctx {
+	struct rk3288_vpu_aux_buf priv_tbl;
+};
+
+/**
  * struct rk3288_vpu_hw_ctx - Context private data of hardware code.
  * @codec_ops:		Set of operations associated with current codec mode.
  */
@@ -122,6 +130,7 @@ struct rk3288_vpu_hw_ctx {
 	/* Specific for particular codec modes. */
 	union {
 		struct rk3288_vpu_vp8e_hw_ctx vp8e;
+		struct rk3288_vpu_h264d_hw_ctx h264d;
 		/* Other modes will need different data. */
 	};
 };
@@ -134,6 +143,10 @@ void rk3288_vpu_deinit(struct rk3288_vpu_ctx *ctx);
 
 void rk3288_vpu_run(struct rk3288_vpu_ctx *ctx);
 
+/* Run ops for H264 decoder */
+int rk3288_vpu_h264d_init(struct rk3288_vpu_ctx *ctx);
+void rk3288_vpu_h264d_exit(struct rk3288_vpu_ctx *ctx);
+void rk3288_vpu_h264d_run(struct rk3288_vpu_ctx *ctx);
 void rk3288_vpu_power_on(struct rk3288_vpu_dev *vpu);
 
 /* Run ops for VP8 encoder */

@@ -153,6 +153,28 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t vdpu_irq(int irq, void *dev_id)
+{
+	struct rk3288_vpu_dev *vpu = dev_id;
+	u32 status = vdpu_read(vpu, VDPU_REG_INTERRUPT);
+
+	vdpu_write(vpu, 0, VDPU_REG_INTERRUPT);
+
+	vpu_debug(3, "vdpu_irq status: %08x\n", status);
+
+	if (status & VDPU_REG_INTERRUPT_DEC_IRQ) {
+		struct rk3288_vpu_ctx *ctx = vpu->current_ctx;
+
+		vdpu_write(vpu, 0, VDPU_REG_CONFIG);
+		rk3288_vpu_power_off(vpu);
+		cancel_delayed_work(&vpu->watchdog_work);
+
+		ctx->hw.codec_ops->done(ctx, VB2_BUF_STATE_DONE);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static void rk3288_vpu_watchdog(struct work_struct *work)
 {
 	struct rk3288_vpu_dev *vpu = container_of(to_delayed_work(work),
@@ -224,7 +246,7 @@ static inline void rk3288_vpu_iommu_cleanup(struct rk3288_vpu_dev *vpu) { }
 int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 {
 	struct resource *res;
-	int irq_enc;
+	int irq_enc, irq_dec;
 	int ret;
 
 	pr_info("probe device %s\n", dev_name(vpu->dev));
@@ -284,6 +306,20 @@ int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 		goto err_iommu;
 	}
 
+	irq_dec = platform_get_irq_byname(vpu->pdev, "vdpu");
+	if (irq_dec <= 0) {
+		dev_err(vpu->dev, "could not get vdpu IRQ\n");
+		ret = -ENXIO;
+		goto err_iommu;
+	}
+
+	ret = devm_request_threaded_irq(vpu->dev, irq_dec, NULL, vdpu_irq,
+					IRQF_ONESHOT, dev_name(vpu->dev), vpu);
+	if (ret) {
+		dev_err(vpu->dev, "could not request vdpu IRQ\n");
+		goto err_iommu;
+	}
+
 	pm_runtime_set_autosuspend_delay(vpu->dev, 100);
 	pm_runtime_use_autosuspend(vpu->dev);
 	pm_runtime_enable(vpu->dev);
@@ -318,6 +354,14 @@ static void rk3288_vpu_enc_reset(struct rk3288_vpu_ctx *ctx)
 	vepu_write(vpu, 0, VEPU_REG_AXI_CTRL);
 }
 
+static void rk3288_vpu_dec_reset(struct rk3288_vpu_ctx *ctx)
+{
+	struct rk3288_vpu_dev *vpu = ctx->dev;
+
+	vdpu_write(vpu, VDPU_REG_INTERRUPT_DEC_IRQ_DIS, VDPU_REG_INTERRUPT);
+	vdpu_write(vpu, 0, VDPU_REG_CONFIG);
+}
+
 static const struct rk3288_vpu_codec_ops mode_ops[] = {
 	[RK_VPU_CODEC_VP8E] = {
 		.init = rk3288_vpu_vp8e_init,
@@ -325,6 +369,13 @@ static const struct rk3288_vpu_codec_ops mode_ops[] = {
 		.run = rk3288_vpu_vp8e_run,
 		.done = rk3288_vpu_vp8e_done,
 		.reset = rk3288_vpu_enc_reset,
+	},
+	[RK_VPU_CODEC_H264D] = {
+		.init = rk3288_vpu_h264d_init,
+		.exit = rk3288_vpu_h264d_exit,
+		.run = rk3288_vpu_h264d_run,
+		.done = rk3288_vpu_run_done,
+		.reset = rk3288_vpu_dec_reset,
 	},
 };
 
