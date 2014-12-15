@@ -551,7 +551,8 @@ static int mma9551_config_incli_event(struct iio_dev *indio_dev,
 		return 0;
 
 	if (state == 0) {
-		ret = mma9551_gpio_config(data->client, mma_axis,
+		ret = mma9551_gpio_config(data->client,
+					  (enum mma9551_gpio_pin)mma_axis,
 					  MMA9551_APPID_NONE, 0, 0);
 		if (ret < 0)
 			return ret;
@@ -573,7 +574,8 @@ static int mma9551_config_incli_event(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 
-		ret = mma9551_gpio_config(data->client, mma_axis,
+		ret = mma9551_gpio_config(data->client,
+					  (enum mma9551_gpio_pin)mma_axis,
 					  MMA9551_APPID_TILT, bitnum, 0);
 		if (ret < 0)
 			return ret;
