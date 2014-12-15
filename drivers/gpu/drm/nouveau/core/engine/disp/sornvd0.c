@@ -60,7 +60,7 @@ nvd0_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 	return 0;
 }
 
-static int
+int
 nvd0_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
 	struct nv50_disp_priv *priv = (void *)nouveau_disp(outp);

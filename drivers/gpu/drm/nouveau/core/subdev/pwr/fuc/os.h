@@ -18,6 +18,10 @@
 #define MEMX_MSG_INFO 0
 #define MEMX_MSG_EXEC 1
 
+/* MEMX: info types */
+#define MEMX_INFO_DATA  0
+#define MEMX_INFO_TRAIN 1
+
 /* MEMX: script opcode definitions */
 #define MEMX_ENTER  1
 #define MEMX_LEAVE  2
@@ -25,6 +29,7 @@
 #define MEMX_WAIT   4
 #define MEMX_DELAY  5
 #define MEMX_VBLANK 6
+#define MEMX_TRAIN  7
 
 /* I2C_: message identifiers */
 #define I2C__MSG_RD08 0

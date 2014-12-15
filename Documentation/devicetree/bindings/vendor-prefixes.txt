@@ -66,8 +66,10 @@ gmt	Global Mixed-mode Technology, Inc.
 google	Google, Inc.
 gumstix	Gumstix, Inc.
 gw	Gateworks Corporation
+hannstar	HannStar Display Corporation
 haoyu	Haoyu Microelectronic Co. Ltd.
 hisilicon	Hisilicon Limited.
+hit	Hitachi Ltd.
 honeywell	Honeywell
 hp	Hewlett Packard
 i2se	I2SE GmbH

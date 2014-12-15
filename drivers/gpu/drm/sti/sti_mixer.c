@@ -45,6 +45,7 @@ static const u32 mixerColorSpaceMatIdentity[] = {
 #define GAM_CTL_GDP1_MASK  BIT(4)
 #define GAM_CTL_GDP2_MASK  BIT(5)
 #define GAM_CTL_GDP3_MASK  BIT(6)
+#define GAM_CTL_CURSOR_MASK BIT(9)
 
 const char *sti_mixer_to_str(struct sti_mixer *mixer)
 {
@@ -122,11 +123,15 @@ int sti_mixer_set_layer_depth(struct sti_mixer *mixer, struct sti_layer *layer)
 		layer_id = GAM_DEPTH_GDP3_ID;
 		break;
 	case STI_VID_0:
+	case STI_HQVDP_0:
 		layer_id = GAM_DEPTH_VID0_ID;
 		break;
 	case STI_VID_1:
 		layer_id = GAM_DEPTH_VID1_ID;
 		break;
+	case STI_CURSOR:
+		/* no need to set depth for cursor */
+		return 0;
 	default:
 		DRM_ERROR("Unknown layer %d\n", layer->desc);
 		return 1;
@@ -185,9 +190,12 @@ static u32 sti_mixer_get_layer_mask(struct sti_layer *layer)
 	case STI_GDP_3:
 		return GAM_CTL_GDP3_MASK;
 	case STI_VID_0:
+	case STI_HQVDP_0:
 		return GAM_CTL_VID0_MASK;
 	case STI_VID_1:
 		return GAM_CTL_VID1_MASK;
+	case STI_CURSOR:
+		return GAM_CTL_CURSOR_MASK;
 	default:
 		return 0;
 	}
@@ -213,6 +221,15 @@ int sti_mixer_set_layer_status(struct sti_mixer *mixer,
 	sti_mixer_reg_write(mixer, GAM_MIXER_CTL, val);
 
 	return 0;
+}
+
+void sti_mixer_clear_all_layers(struct sti_mixer *mixer)
+{
+	u32 val;
+
+	DRM_DEBUG_DRIVER("%s clear all layer\n", sti_mixer_to_str(mixer));
+	val = sti_mixer_reg_read(mixer, GAM_MIXER_CTL) & 0xFFFF0000;
+	sti_mixer_reg_write(mixer, GAM_MIXER_CTL, val);
 }
 
 void sti_mixer_set_matrix(struct sti_mixer *mixer)

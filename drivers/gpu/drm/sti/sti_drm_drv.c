@@ -67,8 +67,12 @@ static int sti_drm_load(struct drm_device *dev, unsigned long flags)
 	sti_drm_mode_config_init(dev);
 
 	ret = component_bind_all(dev->dev, dev);
-	if (ret)
+	if (ret) {
+		drm_kms_helper_poll_fini(dev);
+		drm_mode_config_cleanup(dev);
+		kfree(private);
 		return ret;
+	}
 
 	drm_helper_disable_unused_functions(dev);
 

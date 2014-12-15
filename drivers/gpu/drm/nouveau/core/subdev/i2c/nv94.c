@@ -214,10 +214,6 @@ nv94_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	port->state = 7;
 	port->addr = nv50_i2c_addr[info->drive];
-	if (info->share != DCB_I2C_UNUSED) {
-		port->ctrl = 0x00e500 + (info->share * 0x50);
-		port->data = 0x0000e001;
-	}
 	return 0;
 }
 
@@ -242,13 +238,8 @@ nv94_aux_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	port->base.aux = info->drive;
-	port->addr = info->drive;
-	if (info->share != DCB_I2C_UNUSED) {
-		port->ctrl = 0x00e500 + (info->drive * 0x50);
-		port->data = 0x00002002;
-	}
-
+	port->base.aux = info->auxch;
+	port->addr = info->auxch;
 	return 0;
 }
 

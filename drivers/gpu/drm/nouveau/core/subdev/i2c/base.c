@@ -473,18 +473,56 @@ nouveau_i2c_extdev_sclass[] = {
 	nouveau_anx9805_sclass,
 };
 
+static void
+nouveau_i2c_create_port(struct nouveau_i2c *i2c, int index, u8 type,
+			struct dcb_i2c_entry *info)
+{
+	const struct nouveau_i2c_impl *impl = (void *)nv_oclass(i2c);
+	struct nouveau_oclass *oclass;
+	struct nouveau_object *parent;
+	struct nouveau_object *object;
+	int ret, pad;
+
+	if (info->share != DCB_I2C_UNUSED) {
+		pad    = info->share;
+		oclass = impl->pad_s;
+	} else {
+		if (type != DCB_I2C_NVIO_AUX)
+			pad = 0x100 + info->drive;
+		else
+			pad = 0x100 + info->auxch;
+		oclass = impl->pad_x;
+	}
+
+	ret = nouveau_object_ctor(NULL, nv_object(i2c), oclass, NULL, pad,
+				 &parent);
+	if (ret < 0)
+		return;
+
+	oclass = impl->sclass;
+	do {
+		ret = -EINVAL;
+		if (oclass->handle == type) {
+			ret = nouveau_object_ctor(parent, nv_object(i2c),
+						  oclass, info, index,
+						 &object);
+		}
+	} while (ret && (++oclass)->handle);
+
+	nouveau_object_ref(NULL, &parent);
+}
+
 int
 nouveau_i2c_create_(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
 		    struct nouveau_oclass *oclass,
 		    int length, void **pobject)
 {
-	const struct nouveau_i2c_impl *impl = (void *)oclass;
 	struct nouveau_bios *bios = nouveau_bios(parent);
 	struct nouveau_i2c *i2c;
 	struct nouveau_object *object;
 	struct dcb_i2c_entry info;
-	int ret, i, j, index = -1, pad;
+	int ret, i, j, index = -1;
 	struct dcb_output outp;
 	u8  ver, hdr;
 	u32 data;
@@ -507,43 +545,40 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 	INIT_LIST_HEAD(&i2c->ports);
 
 	while (!dcb_i2c_parse(bios, ++index, &info)) {
-		if (info.type == DCB_I2C_UNUSED)
-			continue;
-
-		if (info.share != DCB_I2C_UNUSED) {
-			if (info.type == DCB_I2C_NVIO_AUX)
-				pad = info.drive;
-			else
-				pad = info.share;
-			oclass = impl->pad_s;
-		} else {
-			pad = 0x100 + info.drive;
-			oclass = impl->pad_x;
-		}
-
-		ret = nouveau_object_ctor(NULL, *pobject, oclass,
-					  NULL, pad, &parent);
-		if (ret < 0)
-			continue;
-
-		oclass = impl->sclass;
-		do {
-			ret = -EINVAL;
-			if (oclass->handle == info.type) {
-				ret = nouveau_object_ctor(parent, *pobject,
-							  oclass, &info,
-							  index, &object);
+		switch (info.type) {
+		case DCB_I2C_NV04_BIT:
+		case DCB_I2C_NV4E_BIT:
+		case DCB_I2C_NVIO_BIT:
+			nouveau_i2c_create_port(i2c, NV_I2C_PORT(index),
+						info.type, &info);
+			break;
+		case DCB_I2C_NVIO_AUX:
+			nouveau_i2c_create_port(i2c, NV_I2C_AUX(index),
+						info.type, &info);
+			break;
+		case DCB_I2C_PMGR:
+			if (info.drive != DCB_I2C_UNUSED) {
+				nouveau_i2c_create_port(i2c, NV_I2C_PORT(index),
+							DCB_I2C_NVIO_BIT,
+							&info);
 			}
-		} while (ret && (++oclass)->handle);
-
-		nouveau_object_ref(NULL, &parent);
+			if (info.auxch != DCB_I2C_UNUSED) {
+				nouveau_i2c_create_port(i2c, NV_I2C_AUX(index),
+							DCB_I2C_NVIO_AUX,
+							&info);
+			}
+			break;
+		case DCB_I2C_UNUSED:
+		default:
+			continue;
+		}
 	}
 
 	/* in addition to the busses specified in the i2c table, there
 	 * may be ddc/aux channels hiding behind external tmds/dp/etc
 	 * transmitters.
 	 */
-	index = ((index + 0x0f) / 0x10) * 0x10;
+	index = NV_I2C_EXT(0);
 	i = -1;
 	while ((data = dcb_outp_parse(bios, ++i, &ver, &hdr, &outp))) {
 		if (!outp.location || !outp.extdev)

@@ -88,6 +88,7 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 /* This is a HW constraint. The value below is the largest known requirement
  * I've seen in a spec to date, and that was a workaround for a non-shipping
@@ -136,6 +137,8 @@ void i915_gem_context_free(struct kref *ctx_ref)
 {
 	struct intel_context *ctx = container_of(ctx_ref,
 						 typeof(*ctx), ref);
+
+	trace_i915_context_free(ctx);
 
 	if (i915.enable_execlists)
 		intel_lr_context_free(ctx);
@@ -273,6 +276,8 @@ i915_gem_create_context(struct drm_device *dev,
 
 		ctx->ppgtt = ppgtt;
 	}
+
+	trace_i915_context_create(ctx);
 
 	return ctx;
 
@@ -522,6 +527,7 @@ static int do_switch(struct intel_engine_cs *ring,
 	struct intel_context *from = ring->last_context;
 	u32 hw_flags = 0;
 	bool uninitialized = false;
+	struct i915_vma *vma;
 	int ret, i;
 
 	if (from != NULL && ring == &dev_priv->ring[RCS]) {
@@ -548,6 +554,7 @@ static int do_switch(struct intel_engine_cs *ring,
 	from = ring->last_context;
 
 	if (to->ppgtt) {
+		trace_switch_mm(ring, to);
 		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
 		if (ret)
 			goto unpin_out;
@@ -571,11 +578,10 @@ static int do_switch(struct intel_engine_cs *ring,
 	if (ret)
 		goto unpin_out;
 
-	if (!to->legacy_hw_ctx.rcs_state->has_global_gtt_mapping) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(to->legacy_hw_ctx.rcs_state,
-							   &dev_priv->gtt.base);
-		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level, GLOBAL_BIND);
-	}
+	vma = i915_gem_obj_to_ggtt(to->legacy_hw_ctx.rcs_state);
+	if (!(vma->bound & GLOBAL_BIND))
+		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level,
+				GLOBAL_BIND);
 
 	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
@@ -629,7 +635,7 @@ done:
 
 	if (uninitialized) {
 		if (ring->init_context) {
-			ret = ring->init_context(ring);
+			ret = ring->init_context(ring, to);
 			if (ret)
 				DRM_ERROR("ring init context: %d\n", ret);
 		}
