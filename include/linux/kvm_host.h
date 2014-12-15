@@ -43,6 +43,7 @@
  * include/linux/kvm_h.
  */
 #define KVM_MEMSLOT_INVALID	(1UL << 16)
+#define KVM_MEMSLOT_INCOHERENT	(1UL << 17)
 
 /* Two fragments for cross MMIO pages. */
 #define KVM_MAX_MMIO_FRAGMENTS	2
@@ -712,7 +713,7 @@ void kvm_arch_sync_events(struct kvm *kvm);
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 
-bool kvm_is_mmio_pfn(pfn_t pfn);
+bool kvm_is_reserved_pfn(pfn_t pfn);
 
 struct kvm_irq_ack_notifier {
 	struct hlist_node link;

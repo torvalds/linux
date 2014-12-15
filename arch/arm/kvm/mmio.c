@@ -187,15 +187,18 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	}
 
 	rt = vcpu->arch.mmio_decode.rt;
-	data = vcpu_data_guest_to_host(vcpu, *vcpu_reg(vcpu, rt), mmio.len);
 
-	trace_kvm_mmio((mmio.is_write) ? KVM_TRACE_MMIO_WRITE :
-					 KVM_TRACE_MMIO_READ_UNSATISFIED,
-			mmio.len, fault_ipa,
-			(mmio.is_write) ? data : 0);
+	if (mmio.is_write) {
+		data = vcpu_data_guest_to_host(vcpu, *vcpu_reg(vcpu, rt),
+					       mmio.len);
 
-	if (mmio.is_write)
+		trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, mmio.len,
+			       fault_ipa, data);
 		mmio_write_buf(mmio.data, mmio.len, data);
+	} else {
+		trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, mmio.len,
+			       fault_ipa, 0);
+	}
 
 	if (vgic_handle_mmio(vcpu, run, &mmio))
 		return 1;
