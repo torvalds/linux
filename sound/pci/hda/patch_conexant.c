@@ -855,14 +855,14 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	case 0x14f15045:
 		codec->single_adc_amp = 1;
 		spec->gen.mixer_nid = 0x17;
-		spec->gen.add_stereo_mix_input = 1;
+		spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
 		snd_hda_pick_fixup(codec, cxt5045_fixup_models,
 				   cxt5045_fixups, cxt_fixups);
 		break;
 	case 0x14f15047:
 		codec->pin_amp_workaround = 1;
 		spec->gen.mixer_nid = 0x19;
-		spec->gen.add_stereo_mix_input = 1;
+		spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
 		snd_hda_pick_fixup(codec, cxt5047_fixup_models,
 				   cxt5047_fixups, cxt_fixups);
 		break;
