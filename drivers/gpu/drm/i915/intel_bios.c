@@ -314,6 +314,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 {
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
+	const struct bdb_lfp_backlight_control_data *bl_ctrl_data;
 
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
@@ -326,6 +327,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	}
 
 	entry = &backlight_data->data[panel_type];
+	bl_ctrl_data = &backlight_data->blc_ctl[panel_type];
 
 	dev_priv->vbt.backlight.present = entry->type == BDB_BACKLIGHT_TYPE_PWM;
 	if (!dev_priv->vbt.backlight.present) {
@@ -337,12 +339,30 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
 	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
+
+	dev_priv->vbt.backlight.controller = 0;
+	if (bdb->version >= 191) {
+		dev_priv->vbt.backlight.present =
+				bl_ctrl_data->pin == BLC_CONTROL_PIN_DDI;
+		if (!dev_priv->vbt.backlight.present) {
+			DRM_DEBUG_KMS("BL control pin is not DDI (pin %u)\n",
+					bl_ctrl_data->pin);
+			return;
+		}
+		if (bl_ctrl_data->controller == 1)
+			dev_priv->vbt.backlight.controller =
+				bl_ctrl_data->controller;
+	}
+
 	DRM_DEBUG_KMS("VBT backlight PWM modulation frequency %u Hz, "
 		      "active %s, min brightness %u, level %u\n",
 		      dev_priv->vbt.backlight.pwm_freq_hz,
 		      dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
 		      dev_priv->vbt.backlight.min_brightness,
 		      backlight_data->level[panel_type]);
+
+	DRM_DEBUG_KMS("VBT BL controller %u\n",
+		dev_priv->vbt.backlight.controller);
 }
 
 /* Try to find sdvo panel data */

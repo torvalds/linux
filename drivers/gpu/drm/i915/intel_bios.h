@@ -402,10 +402,21 @@ struct bdb_lfp_backlight_data_entry {
 	u8 obsolete3;
 } __packed;
 
+#define BLC_CONTROL_PIN_PMIC		0
+#define BLC_CONTROL_PIN_LPSS_PWM	1
+#define BLC_CONTROL_PIN_DDI		2
+#define BLC_CONTROL_PIN_CABC		3
+
+struct bdb_lfp_backlight_control_data {
+	u8 controller:4;
+	u8 pin:4;
+} __packed;
+
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct bdb_lfp_backlight_data_entry data[16];
 	u8 level[16];
+	struct bdb_lfp_backlight_control_data blc_ctl[16];
 } __packed;
 
 struct aimdb_header {
