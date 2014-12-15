@@ -1015,6 +1015,13 @@ static int host20_driver_probe(struct platform_device *_dev)
 	dev_dbg(&_dev->dev, "base=0x%08x\n",
 		(unsigned)dwc_otg_device->os_dep.base);
 
+	/* Set device flags indicating whether the HCD supports DMA. */
+	if (!_dev->dev.dma_mask)
+		_dev->dev.dma_mask = &_dev->dev.coherent_dma_mask;
+	retval = dma_set_coherent_mask(&_dev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto clk_disable;
+
 	/*
 	 * Initialize driver data to point to the global DWC_otg
 	 * Device structure.
@@ -1390,6 +1397,13 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	}
 	dev_dbg(&_dev->dev, "base=0x%08x\n",
 		(unsigned)dwc_otg_device->os_dep.base);
+
+	/* Set device flags indicating whether the HCD supports DMA. */
+	if (!_dev->dev.dma_mask)
+		_dev->dev.dma_mask = &_dev->dev.coherent_dma_mask;
+	retval = dma_set_coherent_mask(&_dev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto clk_disable;
 
 	/*
 	 * Initialize driver data to point to the global DWC_otg
