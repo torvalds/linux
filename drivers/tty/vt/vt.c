@@ -3318,11 +3318,8 @@ static int vt_bind(struct con_driver *con)
 		if (first == 0 && last == MAX_NR_CONSOLES -1)
 			deflt = 1;
 
-		if (first != -1) {
-			console_lock();
+		if (first != -1)
 			do_bind_con_driver(csw, first, last, deflt);
-			console_unlock();
-		}
 
 		first = -1;
 		last = -1;
@@ -3362,9 +3359,7 @@ static int vt_unbind(struct con_driver *con)
 			deflt = 1;
 
 		if (first != -1) {
-			console_lock();
 			ret = do_unbind_con_driver(csw, first, last, deflt);
-			console_unlock();
 			if (ret != 0)
 				return ret;
 		}
@@ -3394,10 +3389,14 @@ static ssize_t store_bind(struct device *dev, struct device_attribute *attr,
 	struct con_driver *con = dev_get_drvdata(dev);
 	int bind = simple_strtoul(buf, NULL, 0);
 
+	console_lock();
+
 	if (bind)
 		vt_bind(con);
 	else
 		vt_unbind(con);
+
+	console_unlock();
 
 	return count;
 }
