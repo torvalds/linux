@@ -904,6 +904,8 @@ static void send_vblank_event(struct drm_device *dev,
  *
  * Updates sequence # and timestamp on event, and sends it to userspace.
  * Caller must hold event lock.
+ *
+ * This is the legacy version of drm_crtc_send_vblank_event().
  */
 void drm_send_vblank_event(struct drm_device *dev, int crtc,
 		struct drm_pending_vblank_event *e)
@@ -921,6 +923,23 @@ void drm_send_vblank_event(struct drm_device *dev, int crtc,
 	send_vblank_event(dev, e, seq, &now);
 }
 EXPORT_SYMBOL(drm_send_vblank_event);
+
+/**
+ * drm_crtc_send_vblank_event - helper to send vblank event after pageflip
+ * @crtc: the source CRTC of the vblank event
+ * @e: the event to send
+ *
+ * Updates sequence # and timestamp on event, and sends it to userspace.
+ * Caller must hold event lock.
+ *
+ * This is the native KMS version of drm_send_vblank_event().
+ */
+void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
+				struct drm_pending_vblank_event *e)
+{
+	drm_send_vblank_event(crtc->dev, drm_crtc_index(crtc), e);
+}
+EXPORT_SYMBOL(drm_crtc_send_vblank_event);
 
 /**
  * drm_vblank_enable - enable the vblank interrupt on a CRTC

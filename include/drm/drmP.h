@@ -905,6 +905,8 @@ extern u32 drm_vblank_count_and_time(struct drm_device *dev, int crtc,
 				     struct timeval *vblanktime);
 extern void drm_send_vblank_event(struct drm_device *dev, int crtc,
 				     struct drm_pending_vblank_event *e);
+extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
+				       struct drm_pending_vblank_event *e);
 extern bool drm_handle_vblank(struct drm_device *dev, int crtc);
 extern int drm_vblank_get(struct drm_device *dev, int crtc);
 extern void drm_vblank_put(struct drm_device *dev, int crtc);
