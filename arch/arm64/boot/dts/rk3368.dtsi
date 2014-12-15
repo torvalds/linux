@@ -1175,6 +1175,83 @@
 		clock-names = "clk_crypto", "sclk_crypto", "mclk_crypto";
 		status = "okay";
 	};
+	dwc_control_usb: dwc-control-usb {
+		compatible = "rockchip,rk3368-dwc-control-usb";
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "otg_id", "otg_bvalid",
+				  "otg_linestate", "host0_linestate";
+		clocks = <&clk_gates20 6>, <&usbphy_480m>;
+		clock-names = "hclk_usb_peri", "usbphy_480m";
+		//resets = <&reset RK3128_RST_USBPOR>;
+		//reset-names = "usbphy_por";
+		usb_bc{
+			compatible = "inno,phy";
+			regbase = &dwc_control_usb;
+			rk_usb,bvalid     = <0x04b 23 1>;
+			rk_usb,iddig      = <0x04b 26 1>;
+			rk_usb,vdmsrcen   = <0x718 12 1>;
+			rk_usb,vdpsrcen   = <0x718 11 1>;
+			rk_usb,rdmpden    = <0x718 10 1>;
+			rk_usb,idpsrcen   = <0x718  9 1>;
+			rk_usb,idmsinken  = <0x718  8 1>;
+			rk_usb,idpsinken  = <0x718  7 1>;
+			rk_usb,dpattach   = <0x4b8 31 1>;
+			rk_usb,cpdet      = <0x4b8 30 1>;
+			rk_usb,dcpattach  = <0x4b8 29 1>;
+		};
+	};
+
+	usb0: usb@ff580000 {
+		compatible = "rockchip,rk3368_usb20_otg";
+		reg = <0x0 0xff580000 0x0 0x40000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates8 1>, <&clk_gates20 1>;
+		clock-names = "clk_usbphy0", "hclk_otg";
+		resets = <&reset RK3368_SRST_USBOTG0_H>, <&reset RK3368_SRST_USBOTGPHY0>,
+				<&reset RK3368_SRST_USBOTGC0>;
+		reset-names = "otg_ahb", "otg_phy", "otg_controller";
+		/*0 - Normal, 1 - Force Host, 2 - Force Device*/
+		rockchip,usb-mode = <0>;
+	};
+
+	usb_ehci: usb@ff500000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xff500000 0x0 0x20000>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates8 1>, <&clk_gates20 3>;
+		clock-names = "clk_usbphy0", "hclk_ehci";
+		//resets = <&reset RK3288_SOFT_RST_USBHOST0_H>, <&reset RK3288_SOFT_RST_USBHOST0PHY>,
+		//		<&reset RK3288_SOFT_RST_USBHOST0C>, <&reset RK3288_SOFT_RST_USB_HOST0>;
+		//reset-names = "ehci_ahb", "ehci_phy", "ehci_controller", "ehci";
+	};
+
+	usb_ohci: usb@ff520000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0xff520000 0x0 0x20000>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates8 1>, <&clk_gates20 3>;
+		clock-names =  "clk_usbphy0", "hclk_ohci";
+	};
+
+	usb_hsic: usb@ff5c0000 {
+		compatible = "rockchip,rk3288_rk_hsic_host";
+		reg = <0x0 0xff5c0000 0x0 0x40000>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+/*
+		clocks = <&hsicphy_480m>, <&clk_gates7 8>,
+			 <&hsicphy_12m>, <&usbphy_480m>,
+			 <&otgphy1_480m>, <&otgphy2_480m>;
+		clock-names = "hsicphy_480m", "hclk_hsic",
+			      "hsicphy_12m", "usbphy_480m",
+			      "hsic_usbphy1", "hsic_usbphy2";
+		resets = <&reset RK3288_SOFT_RST_HSIC>, <&reset RK3288_SOFT_RST_HSIC_AUX>,
+				<&reset RK3288_SOFT_RST_HSICPHY>;
+		reset-names = "hsic_ahb", "hsic_aux", "hsic_phy";
+*/
+		status = "disabled";
+	};
 
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3368-pinctrl";

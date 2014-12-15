@@ -19,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/reset.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/cpu.h>
@@ -71,6 +73,10 @@ extern struct dwc_otg_platform_data usb20otg_pdata_rk3126;
 extern struct dwc_otg_platform_data usb20host_pdata_rk3126;
 extern struct dwc_otg_platform_data usb20ohci_pdata_rk3126;
 extern struct rkehci_platform_data usb20ehci_pdata_rk3126;
+/* rk3368 platform data */
+extern struct rkehci_platform_data usb20ehci_pdata_rk3368;
+extern struct dwc_otg_platform_data usb20ohci_pdata_rk3368;
+extern struct dwc_otg_platform_data usb20otg_pdata_rk3368;
 
 struct dwc_otg_platform_data {
 	void *privdata;
@@ -120,6 +126,7 @@ struct dwc_otg_control_usb {
 	pGRF_SOC_STATUS19_RK3288 grf_soc_status19_rk3288;
 	pGRF_SOC_STATUS21_RK3288 grf_soc_status21_rk3288;
 
+	struct regmap *grf;
 	struct gpio *host_gpios;
 	struct gpio *otg_gpios;
 	struct clk *hclk_usb_peri;

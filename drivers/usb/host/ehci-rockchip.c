@@ -253,6 +253,10 @@ static struct of_device_id rk_ehci_of_match[] = {
 	 .compatible = "rockchip,rk3126_ehci",
 	 .data = &usb20ehci_pdata_rk3126,
 	 },
+	{
+	 .compatible = "rockchip,rk3368_ehci",
+	 .data = &usb20ehci_pdata_rk3368,
+	 },
 	{},
 };
 

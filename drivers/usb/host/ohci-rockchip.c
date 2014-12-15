@@ -93,6 +93,10 @@ static struct of_device_id rk_ohci_of_match[] = {
 	 .compatible = "rockchip,rk3126_ohci",
 	 .data = &usb20ohci_pdata_rk3126,
 	 },
+	{
+	 .compatible = "rockchip,rk3368_ohci",
+	 .data = &usb20ohci_pdata_rk3368,
+	 },
 	{},
 };
 
@@ -120,7 +124,7 @@ static int ohci_hcd_rk_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	match = of_match_device(of_match_ptr(rk_ohci_of_match), &pdev->dev);
-	if (match) {
+	if (match && match->data) {
 		pldata = (struct dwc_otg_platform_data *)match->data;
 	} else {
 		dev_err(dev, "ohci_rk match failed\n");
@@ -144,6 +148,11 @@ static int ohci_hcd_rk_probe(struct platform_device *pdev)
 		ret = irq;
 		goto clk_disable;
 	}
+
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

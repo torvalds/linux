@@ -186,16 +186,6 @@
 		};
 	};
 
-	usb_control {
-		compatible = "rockchip,rk3288-usb-control";
-
-		host_drv_gpio = <&gpio0 GPIO_A4 GPIO_ACTIVE_LOW>;
-		otg_drv_gpio = <&gpio0 GPIO_D1 GPIO_ACTIVE_LOW>;
-
-		rockchip,remote_wakeup;
-		rockchip,usb_irq_wakeup;
-	};
-
 	io-domains {
 		compatible = "rockchip,rk3368-io-voltage-domain";
 		rockchip,grf = <&grf>;
@@ -747,6 +737,14 @@
 	auto-freq=<0>;
 	status="disabled";
 };
+
+&dwc_control_usb {
+		host_drv_gpio = <&gpio0 GPIO_A4 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio0 GPIO_D1 GPIO_ACTIVE_LOW>;
+
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+	};
 
 /include/ "../../../arm/boot/dts/act8846.dtsi"
 &act8846 {

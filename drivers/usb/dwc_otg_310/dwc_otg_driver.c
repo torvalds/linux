@@ -959,14 +959,12 @@ static int host20_driver_probe(struct platform_device *_dev)
 	    of_match_device(of_match_ptr(usb20_host_of_match), &_dev->dev);
 
 	if (match && match->data) {
-		dev->platform_data = (void *)match->data;
+		pldata = (void *)match->data;
+		pldata->dev = dev;
 	} else {
-		dev_err(dev, "usb20host match failed\n");
+		dev_err(dev, "usb20otg match failed\n");
 		return -EINVAL;
 	}
-
-	pldata = dev->platform_data;
-	pldata->dev = dev;
 
 	if (!node) {
 		dev_err(dev, "device node not found\n");
@@ -1012,8 +1010,7 @@ static int host20_driver_probe(struct platform_device *_dev)
 		retval = -ENOMEM;
 		goto clk_disable;
 	}
-	dev_dbg(&_dev->dev, "base=0x%08x\n",
-		(unsigned)dwc_otg_device->os_dep.base);
+	dev_dbg(&_dev->dev, "base=0x%p\n", dwc_otg_device->os_dep.base);
 
 	/* Set device flags indicating whether the HCD supports DMA. */
 	if (!_dev->dev.dma_mask)
@@ -1156,18 +1153,18 @@ static int dwc_otg_driver_resume(struct platform_device *_dev)
 static void dwc_otg_driver_shutdown(struct platform_device *_dev)
 {
 	struct device *dev = &_dev->dev;
-	struct dwc_otg_platform_data *pldata = dev->platform_data;
 	dwc_otg_device_t *otg_dev = dev->platform_data;
 	dwc_otg_core_if_t *core_if = otg_dev->core_if;
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 	dctl_data_t dctl = {.d32 = 0 };
 
 	DWC_PRINTF("%s: disconnect USB %s mode\n", __func__,
 		   dwc_otg_is_host_mode(core_if) ? "host" : "device");
 
-    if( pldata->dwc_otg_uart_mode != NULL)
-        pldata->dwc_otg_uart_mode( pldata, PHY_USB_MODE);
-    if(pldata->phy_suspend != NULL)
-        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+	if (pldata->dwc_otg_uart_mode != NULL)
+		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
+	if (pldata->phy_suspend != NULL)
+		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	if (dwc_otg_is_host_mode(core_if)) {
 		if (core_if->hcd_cb && core_if->hcd_cb->stop)
 			core_if->hcd_cb->stop(core_if->hcd_cb_p);
@@ -1303,6 +1300,10 @@ static const struct of_device_id usb20_otg_of_match[] = {
 	 .compatible = "rockchip,rk3126_usb20_otg",
 	 .data = &usb20otg_pdata_rk3126,
 	 },
+	{
+	 .compatible = "rockchip,rk3368_usb20_otg",
+	 .data = &usb20otg_pdata_rk3368,
+	 },
 	{ },
 };
 
@@ -1332,21 +1333,19 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	const struct of_device_id *match =
 	    of_match_device(of_match_ptr(usb20_otg_of_match), &_dev->dev);
 
-	if (match) {
-		dev->platform_data = (void *)match->data;
+	if (match && match->data) {
+		pldata = (void *)match->data;
+		pldata->dev = dev;
 	} else {
 		dev_err(dev, "usb20otg match failed\n");
 		return -EINVAL;
 	}
 
-	pldata = dev->platform_data;
-	pldata->dev = dev;
-
 	if (!node) {
 		dev_err(dev, "device node not found\n");
 		return -EINVAL;
 	}
-	/*todo : move to usbdev_rk-XX.c */
+
 	if (pldata->hw_init)
 		pldata->hw_init();
 
@@ -1395,8 +1394,7 @@ static int otg20_driver_probe(struct platform_device *_dev)
 		retval = -ENOMEM;
 		goto clk_disable;
 	}
-	dev_dbg(&_dev->dev, "base=0x%08x\n",
-		(unsigned)dwc_otg_device->os_dep.base);
+	dev_dbg(&_dev->dev, "base=0x%p\n", dwc_otg_device->os_dep.base);
 
 	/* Set device flags indicating whether the HCD supports DMA. */
 	if (!_dev->dev.dma_mask)
