@@ -1,0 +1,10 @@
+#
+#Hdmirx SiI9233A Device Driver Configuration
+#
+
+config TVIN_SII9233A
+    tristate "Amlogic SII9233A device driver" 
+    default  y
+    help
+         Amlogic SII9233A device driver.
+

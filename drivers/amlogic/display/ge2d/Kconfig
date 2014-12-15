@@ -1,0 +1,4 @@
+config  AM_GE2D
+	tristate  "ge2d module"
+	help 
+		ge2d graphic  engine support

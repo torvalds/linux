@@ -2483,6 +2483,7 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		 * through the netdev notifier and must be added here
 		 */
 		mutex_init(&wdev->mtx);
+		mutex_init(&wdev->clean_mtx);
 		INIT_LIST_HEAD(&wdev->event_list);
 		spin_lock_init(&wdev->event_lock);
 		INIT_LIST_HEAD(&wdev->mgmt_registrations);

@@ -272,7 +272,9 @@ static int usb_probe_interface(struct device *dev)
 	dev_dbg(dev, "%s\n", __func__);
 
 	intf->needs_binding = 0;
-
+	
+	intf->auto_suspend = driver->supports_autosuspend;
+	
 	if (usb_device_is_owned(udev))
 		return error;
 

@@ -1,0 +1,17 @@
+#
+# Near Field Communication (NFC) devices
+#
+
+config MESON_NFC
+    bool "Near Field Communication (NFC) devices"
+    default n
+
+
+config BCM2079X_NFC
+    tristate "bcm2079x NFC driver"
+    depends on MESON_NFC
+    default n
+    ---help---
+      Say yes if you want bcm2079x Near Field Communication driver.
+      This is for i2c connected version. If unsure, say N here.
+

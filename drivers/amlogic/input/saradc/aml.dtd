@@ -1,0 +1,8 @@
+#ifdef CONFIG_SARADC_AM
+//$$ DEVICE="saradc"
+//$$ L2 PROP_STR = "status"
+	saradc{
+		compatible = "amlogic,saradc";
+		status = "okay";
+	};
+#endif

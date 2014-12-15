@@ -1,0 +1,5 @@
+config D2D3_PROCESS
+       tristate "AMLOGIC D2D3 SUPORT"
+       default n
+       help
+            "AMLOGIC D2D3 DRIVER SUPPORT"

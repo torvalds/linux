@@ -80,6 +80,9 @@ void of_device_make_bus_id(struct device *dev)
 	u64 addr;
 	const __be32 *addrp;
 	int magic;
+	#if defined(CONFIG_PLAT_MESON)
+	const char *name;
+	#endif
 
 #ifdef CONFIG_PPC_DCR
 	/*
@@ -101,6 +104,16 @@ void of_device_make_bus_id(struct device *dev)
 	}
 #endif /* CONFIG_PPC_DCR */
 
+	#if defined(CONFIG_PLAT_MESON)
+	name = of_get_property(node,"dev_name",NULL);
+	if (name){
+		dev_set_name(dev, "%s", name);
+		pr_debug("+++%s: %s care the dev_name!(PLAT_MESON)\n",__func__,node->full_name);
+		return;
+	}
+	else
+		pr_debug("+++%s: %s don't care the dev_name!!!(PLAT_MESON)\n",__func__,node->full_name);
+	#endif
 	/*
 	 * For MMIO, get the physical address
 	 */

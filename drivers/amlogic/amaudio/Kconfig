@@ -1,0 +1,17 @@
+# AML AUDIO control drivers
+
+menu "Audio Interface"
+
+config	AMAUDIO
+	bool "Amlogic Audio Interface"
+    default y
+    select SOUND
+    select SND_SOC
+    select SND
+    select AML_AUDIO_DSP
+    select SND_AML_SOC
+    select SWITCH
+	help
+		"Amlogic Audio Interface"
+	
+endmenu	

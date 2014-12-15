@@ -18,6 +18,7 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "nl80211.h"
@@ -326,8 +327,15 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 
 	rdev = kzalloc(alloc_size, GFP_KERNEL);
-	if (!rdev)
+	if (!rdev) {
+		printk("kzalloc %d memory failed! try to use vzalloc\n", alloc_size);
+		rdev = vzalloc(alloc_size);
+		if(!rdev) {
+			printk("vzalloc %d memory failed\n", alloc_size);
 		return NULL;
+		}
+		rdev->vmalloc_flag = 1;
+	}
 
 	rdev->ops = ops;
 
@@ -339,7 +347,10 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 		wiphy_counter--;
 		mutex_unlock(&cfg80211_mutex);
 		/* ugh, wrapped! */
-		kfree(rdev);
+		if(rdev->vmalloc_flag)
+			vfree(rdev);
+		else
+			kfree(rdev);
 		return NULL;
 	}
 
@@ -380,7 +391,10 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 				   &rdev->rfkill_ops, rdev);
 
 	if (!rdev->rfkill) {
-		kfree(rdev);
+		if(rdev->vmalloc_flag)
+			vfree(rdev);
+		else
+			kfree(rdev);
 		return NULL;
 	}
 
@@ -757,7 +771,10 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	}
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&rdev->wiphy, &scan->pub);
-	kfree(rdev);
+	if(rdev->vmalloc_flag)
+	    vfree(rdev);
+    else
+        kfree(rdev);
 }
 
 void wiphy_free(struct wiphy *wiphy)
@@ -803,6 +820,7 @@ static void wdev_cleanup_work(struct work_struct *work)
 	wake_up(&rdev->dev_wait);
 
 	dev_put(wdev->netdev);
+	mutex_unlock(&wdev->clean_mtx);
 }
 
 void cfg80211_unregister_wdev(struct wireless_dev *wdev)
@@ -913,6 +931,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * are added with nl80211.
 		 */
 		mutex_init(&wdev->mtx);
+		mutex_init(&wdev->clean_mtx);
 		INIT_WORK(&wdev->cleanup_work, wdev_cleanup_work);
 		INIT_LIST_HEAD(&wdev->event_list);
 		spin_lock_init(&wdev->event_lock);
@@ -957,6 +976,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		cfg80211_leave(rdev, wdev);
 		break;
 	case NETDEV_DOWN:
+		mutex_lock(&wdev->clean_mtx);
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
 		dev_hold(dev);
 		queue_work(cfg80211_wq, &wdev->cleanup_work);
@@ -972,6 +992,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 			mutex_lock(&rdev->devlist_mtx);
 			rdev->opencount--;
 			mutex_unlock(&rdev->devlist_mtx);
+			mutex_unlock(&wdev->clean_mtx);
 			dev_put(dev);
 		}
 		cfg80211_update_iface_num(rdev, wdev->iftype, 1);

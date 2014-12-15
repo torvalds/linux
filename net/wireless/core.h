@@ -86,6 +86,8 @@ struct cfg80211_registered_device {
 
 	struct cfg80211_wowlan *wowlan;
 
+    int vmalloc_flag;
+
 	struct delayed_work dfs_update_channels_wk;
 
 	/* netlink port which started critical protocol (0 means not started) */

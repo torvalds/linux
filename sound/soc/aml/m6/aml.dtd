@@ -1,0 +1,38 @@
+#ifndef CONFIG_SND_AML_SOC
+//$$ DEVICE="audio_platform"
+//$$ L2 PROP_STR = "status"
+		audio_platform{
+			compatible = "amlogic,aml-audio";
+			dev_name = "aml-audio.0";
+			status = "okay";
+		};
+
+//$$ DEVICE="audio_dai"
+//$$ L2 PROP_STR = "status"
+    audio_dai{
+        compatible = "amlogic,aml-dai";
+        dev_name = "aml-dai.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="dummy_codec_audio"
+//$$ L2 PROP_STR = "status"	
+//$$ L2 PROP_STR = "pinctrl-names"
+//$$ L3 PROP_CHOICE "dummy_codec_audio_0_pin_match" = "pinctrl-0"
+	dummy_codec_audio{
+        status = "okay";
+        compatible = "amlogic,aml_dummy_codec_audio";
+        dev_name = "aml_dummy_codec_audio.0";
+        pinctrl-names = "dummy_codec_audio";
+        pinctrl-0 = <&aml_dummy_codec_pins>;
+    };
+ 
+//$$ DEVICE="dummy_codec"
+//$$ L2 PROP_STR = "status"	 
+    dummy_codec{
+        status = "okay";
+        compatible = "amlogic,aml_dummy_codec";
+        dev_name = "dummy_codec.0";
+    };
+
+#endif        

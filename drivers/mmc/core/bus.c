@@ -258,9 +258,10 @@ struct mmc_card *mmc_alloc_card(struct mmc_host *host, struct device_type *type)
  */
 int mmc_add_card(struct mmc_card *card)
 {
-	int ret;
+	int ret, width;
 	const char *type;
 	const char *uhs_bus_speed_mode = "";
+    struct mmc_host *mmc = card->host;
 	static const char *const uhs_speeds[] = {
 		[UHS_SDR12_BUS_SPEED] = "SDR12 ",
 		[UHS_SDR25_BUS_SPEED] = "SDR25 ",
@@ -309,13 +310,29 @@ int mmc_add_card(struct mmc_card *card)
 			mmc_card_ddr_mode(card) ? "DDR " : "",
 			type);
 	} else {
-		pr_info("%s: new %s%s%s%s%s card at address %04x\n",
+        switch(mmc->ios.bus_width)
+        {
+            case MMC_BUS_WIDTH_1:
+                width = 1;
+                break;
+            case MMC_BUS_WIDTH_4:
+                width = 4;
+                break;
+            case MMC_BUS_WIDTH_8:
+                width = 8;
+                break;
+            default:
+                width = -1;
+                break;
+        }
+
+		pr_info("%s: new %s%s%s%s%s card at address %04x, clock %d, %u-bit-bus-width\n",
 			mmc_hostname(card->host),
 			mmc_card_uhs(card) ? "ultra high speed " :
 			(mmc_card_highspeed(card) ? "high speed " : ""),
 			(mmc_card_hs200(card) ? "HS200 " : ""),
 			mmc_card_ddr_mode(card) ? "DDR " : "",
-			uhs_bus_speed_mode, type, card->rca);
+			uhs_bus_speed_mode, type, card->rca, mmc->actual_clock, width);
 	}
 
 #ifdef CONFIG_DEBUG_FS

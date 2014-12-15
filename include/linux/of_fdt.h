@@ -96,6 +96,15 @@ extern int early_init_dt_scan_chosen(unsigned long node, const char *uname,
 extern void early_init_dt_check_for_initrd(unsigned long node);
 extern int early_init_dt_scan_memory(unsigned long node, const char *uname,
 				     int depth, void *data);
+#if defined(CONFIG_PLAT_MESON)
+extern int early_init_dt_scan_reserve_memory(unsigned long node, const char *uname,
+				     int depth, void *data);
+extern int init_reserve_mgr(void);
+extern int find_reserve_block_by_name(const char * name);
+extern int find_reserve_block(const char * name,int idx);
+extern unsigned long long get_reserve_block_addr(int blockid);
+extern unsigned long long get_reserve_block_size(int blockid);
+#endif
 extern void early_init_dt_add_memory_arch(u64 base, u64 size);
 extern void * early_init_dt_alloc_memory_arch(u64 size, u64 align);
 extern u64 dt_mem_next_cell(int s, __be32 **cellp);

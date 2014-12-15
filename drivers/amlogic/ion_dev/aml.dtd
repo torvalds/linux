@@ -1,0 +1,9 @@
+#ifdef CONFIG_AMLOGIC_ION
+//$$ DEVICE="ion_dev"
+//$$ L2 PROP_STR = "status"
+    ion_dev{
+		   compatible = "amlogic,ion_dev";
+		   dev_name = "ion_dev";
+		   status = "ok";
+	};
+#endif

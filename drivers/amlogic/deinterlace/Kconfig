@@ -1,0 +1,22 @@
+#
+# Deinterlace driver configuration
+#
+
+menu "Deinterlace driver"
+
+config DEINTERLACE
+	tristate "DEINTERLACE driver"
+	default n
+	help
+	  Select to enable AMLOGIC DEINTERLACE driver.
+
+if DEINTERLACE
+config AM_DEINTERLACE_SD_ONLY
+        bool "Enable DI Only for SD"
+        default n
+        help  
+                The buffer size will be smaller
+endif        
+
+
+endmenu

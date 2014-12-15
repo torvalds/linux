@@ -1,0 +1,20 @@
+# Amlogic Thermal
+
+
+config AML_VIRTUAL_THERMAL
+    bool "Amlogic virtual thermal interface"
+    default y
+    help 
+        Say Y if you want use amlogic virtual thermal interface
+
+config AMLOGIC_THERMAL
+    bool "amlogic thermal support"
+    select THERMAL
+    select CPU_THERMAL
+    select GPU_THERMAL
+    select CPUCORE_THERMAL
+    select GPUCORE_THERMAL
+    select AML_VIRTUAL_THERMAL 
+    default n
+    help
+      This is the Amlogic Thermal interface driver

@@ -1,0 +1,9 @@
+#ifdef CONFIG_SUSPEND
+//$$ DEVICE="amvenc_avc"
+//$$ L2 PROP_STR = "status"
+    aml_pm{
+		compatible = "amlogic,pm-m8";
+		dev_name = "aml_pm_m8";
+		status = "okay";
+	};
+#endif

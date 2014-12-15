@@ -1,0 +1,6 @@
+config MACH_MESONG9TV_COMMON_BOARD
+	depends on ARCH_MESONG9TV
+	bool "G9TV common board"
+	default y
+	help
+	  Support for Amlogic G9TV common development platform.

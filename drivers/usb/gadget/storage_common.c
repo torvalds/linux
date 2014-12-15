@@ -133,6 +133,7 @@ struct fsg_lun {
 	unsigned int	registered:1;
 	unsigned int	info_valid:1;
 	unsigned int	nofua:1;
+	unsigned int	force_sync:1;
 
 	u32		sense_data;
 	u32		sense_data_info;
@@ -592,6 +593,13 @@ static ssize_t fsg_show_file(struct device *dev, struct device_attribute *attr,
 	return rc;
 }
 
+static ssize_t fsg_show_force_sync(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
+
+	return sprintf(buf, "%u\n", curlun->force_sync);
+}
 
 static ssize_t fsg_store_ro(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
@@ -674,4 +682,18 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	}
 	up_write(filesem);
 	return (rc < 0 ? rc : count);
+}
+static ssize_t fsg_store_force_sync(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
+	unsigned long	force_sync;
+
+	if (strict_strtoul(buf, 2, &force_sync))
+		return -EINVAL;
+
+	curlun->force_sync = force_sync;
+
+	return count;
 }

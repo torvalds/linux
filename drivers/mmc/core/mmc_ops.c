@@ -142,7 +142,7 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
 	for (i = 100; i; i--) {
-		err = mmc_wait_for_cmd(host, &cmd, 0);
+		err = mmc_wait_for_cmd(host, &cmd, 3); // fix: temporary add for emmc resume timeout issue
 		if (err)
 			break;
 

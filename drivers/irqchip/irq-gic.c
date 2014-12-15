@@ -376,7 +376,7 @@ static u8 gic_get_cpumask(struct gic_chip_data *gic)
 
 static void __init gic_dist_init(struct gic_chip_data *gic)
 {
-	unsigned int i;
+	unsigned int i,trigger;
 	u32 cpumask;
 	unsigned int gic_irqs = gic->gic_irqs;
 	void __iomem *base = gic_data_dist_base(gic);
@@ -386,8 +386,13 @@ static void __init gic_dist_init(struct gic_chip_data *gic)
 	/*
 	 * Set all global interrupts to be level triggered, active low.
 	 */
+#if CONFIG_PLAT_MESON
+	trigger = 0xFFFFFFFF; // edge
+#else
+	trigger = 0;	// level
+#endif
 	for (i = 32; i < gic_irqs; i += 16)
-		writel_relaxed(0, base + GIC_DIST_CONFIG + i * 4 / 16);
+		writel_relaxed(trigger, base + GIC_DIST_CONFIG + i * 4 / 16);
 
 	/*
 	 * Set all global interrupts to this CPU only.

@@ -486,15 +486,17 @@ static int uvc_v4l2_open(struct file *file)
 
 	if (stream->dev->state & UVC_DEV_DISCONNECTED)
 		return -ENODEV;
-
-	ret = usb_autopm_get_interface(stream->dev->intf);
-	if (ret < 0)
-		return ret;
+	if(stream->dev->intf->auto_suspend){
+		ret = usb_autopm_get_interface(stream->dev->intf);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Create the device handle. */
 	handle = kzalloc(sizeof *handle, GFP_KERNEL);
 	if (handle == NULL) {
-		usb_autopm_put_interface(stream->dev->intf);
+		if(stream->dev->intf->auto_suspend)
+			usb_autopm_put_interface(stream->dev->intf);
 		return -ENOMEM;
 	}
 
@@ -502,7 +504,8 @@ static int uvc_v4l2_open(struct file *file)
 		ret = uvc_status_start(stream->dev);
 		if (ret < 0) {
 			atomic_dec(&stream->dev->users);
-			usb_autopm_put_interface(stream->dev->intf);
+			if(stream->dev->intf->auto_suspend)
+				usb_autopm_put_interface(stream->dev->intf);
 			kfree(handle);
 			return ret;
 		}

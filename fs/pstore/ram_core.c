@@ -30,10 +30,43 @@ struct persistent_ram_buffer {
 	uint32_t    sig;
 	atomic_t    start;
 	atomic_t    size;
+	atomic_t	full_flag;/*For console type*/
 	uint8_t     data[0];
 };
 
 #define PERSISTENT_RAM_SIG (0x43474244) /* DBGC */
+
+
+
+unsigned int get_c_pstore_start(ramoops_context *cxt)
+{
+	return atomic_read(&cxt->cprz->buffer->start);
+}
+
+void set_c_pstore_start(ramoops_context *cxt, unsigned int val)
+{
+	atomic_set(&cxt->cprz->buffer->start,val);
+}
+void set_c_pstore_size(ramoops_context *cxt, unsigned int val)
+{
+	atomic_set(&cxt->cprz->buffer->size,val);
+}
+void set_c_pstore_full_flag(ramoops_context *cxt, unsigned int val)
+{
+	atomic_set(&cxt->cprz->buffer->full_flag,val);
+}
+
+
+unsigned int get_pstore_buffer_size(ramoops_context *cxt)
+{
+	return cxt->cprz->buffer_size;
+}
+/*
+void set_pstore_buffer_size(ramoops_context *cxt,unsigned int val)
+{
+	return cxt->cprz->buffer_size = val;
+}
+*/
 
 static inline size_t buffer_size(struct persistent_ram_zone *prz)
 {
@@ -43,6 +76,19 @@ static inline size_t buffer_size(struct persistent_ram_zone *prz)
 static inline size_t buffer_start(struct persistent_ram_zone *prz)
 {
 	return atomic_read(&prz->buffer->start);
+}
+static inline int atomic_cmpxchg__(atomic_t *v, int old, int new)
+{
+	int ret;
+	unsigned long flags;
+
+	raw_local_irq_save(flags);
+	ret = v->counter;
+	if (likely(ret == old))
+		v->counter = new;
+	raw_local_irq_restore(flags);
+
+	return ret;
 }
 
 /* increase and wrap the start pointer, returning the old value */
@@ -56,7 +102,7 @@ static inline size_t buffer_start_add(struct persistent_ram_zone *prz, size_t a)
 		new = old + a;
 		while (unlikely(new > prz->buffer_size))
 			new -= prz->buffer_size;
-	} while (atomic_cmpxchg(&prz->buffer->start, old, new) != old);
+	} while (atomic_cmpxchg__(&prz->buffer->start, old, new) != old);
 
 	return old;
 }
@@ -75,7 +121,7 @@ static inline void buffer_size_add(struct persistent_ram_zone *prz, size_t a)
 		new = old + a;
 		if (new > prz->buffer_size)
 			new = prz->buffer_size;
-	} while (atomic_cmpxchg(&prz->buffer->size, old, new) != old);
+	} while (atomic_cmpxchg__(&prz->buffer->size, old, new) != old);
 }
 
 static void notrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
@@ -262,6 +308,12 @@ void persistent_ram_save_old(struct persistent_ram_zone *prz)
 	size_t size = buffer_size(prz);
 	size_t start = buffer_start(prz);
 
+	if(atomic_read(&prz->buffer->full_flag))
+		{
+		size = prz->buffer_size;
+//		printk("^^^^^^^^^^^^^^size=0x%x",size);
+		}
+
 	if (!size)
 		return;
 
@@ -330,6 +382,7 @@ void persistent_ram_zap(struct persistent_ram_zone *prz)
 {
 	atomic_set(&prz->buffer->start, 0);
 	atomic_set(&prz->buffer->size, 0);
+	atomic_set(&prz->buffer->full_flag, 0);
 	persistent_ram_update_header_ecc(prz);
 }
 
@@ -407,7 +460,8 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 	if (ret)
 		return ret;
 
-	sig ^= PERSISTENT_RAM_SIG;
+	if(PERSISTENT_CON_SIG != sig)
+		sig ^= PERSISTENT_RAM_SIG;
 
 	if (prz->buffer->sig == sig) {
 		if (buffer_size(prz) > prz->buffer_size ||
@@ -416,7 +470,7 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 				" size %zu, start %zu\n",
 			       buffer_size(prz), buffer_start(prz));
 		else {
-			pr_debug("persistent_ram: found existing buffer,"
+			pr_info("persistent_ram: found existing buffer,"
 				" size %zu, start %zu\n",
 			       buffer_size(prz), buffer_start(prz));
 			persistent_ram_save_old(prz);

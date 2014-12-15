@@ -16,7 +16,7 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/pinctrl/pinctrl-state.h>
-
+#include <linux/pinctrl/machine.h>
 /* This struct is private to the core and should be regarded as a cookie */
 struct pinctrl;
 struct pinctrl_state;
@@ -39,7 +39,12 @@ extern int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *s);
 
 extern struct pinctrl * __must_check devm_pinctrl_get(struct device *dev);
 extern void devm_pinctrl_put(struct pinctrl *p);
-
+extern struct pinctrl_map * amlogic_register_mux_map(struct device *dev,const char *state_name,
+					const char *func,const char *group);
+extern void amlogic_unregister_mux_map(struct pinctrl_map *map);
+extern struct pinctrl_map * amlogic_register_config_map(struct device *dev,const char *state_name,const char *group,
+					unsigned long *configs,unsigned int num_configs);
+extern void amlogic_unregister_config_map(struct pinctrl_map *map);
 #else /* !CONFIG_PINCTRL */
 
 static inline int pinctrl_request_gpio(unsigned gpio)

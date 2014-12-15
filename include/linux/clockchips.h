@@ -113,6 +113,7 @@ struct clock_event_device {
 	int			rating;
 	int			irq;
 	const struct cpumask	*cpumask;
+	void * private;
 	struct list_head	list;
 	struct module		*owner;
 } ____cacheline_aligned;

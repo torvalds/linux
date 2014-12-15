@@ -1,0 +1,68 @@
+#ifdef CONFIG_AMLOGIC_PMU_OF
+    pmu {
+        compatible = "amlogic, aml_pmu_prober";                 /* fixed for pmu driver, don't change   */
+        #address-cells = <1>;
+        #size-cells = <0>;
+//$$ DEVICE = "Pmu_axp202"
+//$$ L2 PROP_STR = "sub_type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "reg"
+//$$ L2 PROP_U32 = "soft_limit_to99"
+//$$ L2 PROP_U32 = "ddr_voltage"
+//$$ L2 PROP_U32 = "vddao_voltage"
+//$$ L2 PROP_CHOICE "battery_parameter_match" = "board_battery"
+//$$ L2 PROP_STR = "status"
+        axp202 { /* PMU for AXP */
+            compatible = "axp_mfd";                             /* for driver probe, must have          */
+            sub_type = "axp20_mfd";                             /** sub type of pmu family, must have    */
+            i2c_bus = "i2c_bus_ao";                             /** attached i2c bus, must have          */
+            reg = <0x34>;                                       /** device i2c address, must have        */
+            soft_limit_to99 = <0>;                              /** optional                             */
+            ddr_voltage   = <1500000>;                          /** default voltage for DDR, optional    */
+            vddao_voltage = <1200000>;                          /** default voltage for AO, optional     */
+            board_battery = <&battery_parameter>;               /** battery parameter used, must have    */
+            status = "disable";                                 /** status of pmu, only one should be OK */
+        };
+//$$ DEVICE = "Pmu_aml1212"
+//$$ L2 PROP_STR = "sub_type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "reg"
+//$$ L2 PROP_U32 = "soft_limit_to99"
+//$$ L2 PROP_U32 = "ddr_voltage"
+//$$ L2 PROP_U32 = "vddao_voltage"
+//$$ L2 PROP_CHOICE "battery_parameter_match" = "board_battery"
+//$$ L2 PROP_STR = "status"
+        aml1212{                                                /* PMU for AML1212, see comment above   */
+            compatible = "aml_pmu";                             /* for driver probe, must have          */
+            sub_type = "aml1212";                               /** sub type of pmu family, must have    */
+            i2c_bus = "i2c_bus_ao";                             /** attached i2c bus, must have          */
+            reg = <0x35>;                                       /** device i2c address, must have        */
+            soft_limit_to99 = <0>;                              /** optional                             */
+            ddr_voltage   = <1500000>;                          /** default voltage for DDR, optional    */
+            vddao_voltage = <1200000>;                          /** default voltage for AO, optional     */
+            board_battery = <&battery_parameter>;               /** battery parameter used, must have    */
+            status = "disable";                                 /** status of pmu, only one should be OK */
+        };
+//$$ DEVICE = "Pmu_rn5t618"
+//$$ L2 PROP_STR = "sub_type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "reg"
+//$$ L2 PROP_U32 = "soft_limit_to99"
+//$$ L2 PROP_U32 = "ddr_voltage"
+//$$ L2 PROP_U32 = "vddao_voltage"
+//$$ L2 PROP_CHOICE "battery_parameter_match" = "board_battery"
+//$$ L2 PROP_STR = "status"
+        rn5t618{                                                /* PMU for RN5T618, see comment above   */
+            compatible = "ricoh_pmu";                           /* for driver probe, must have          */
+            sub_type = "rn5t618";                               /** sub type of pmu family, must have    */
+            i2c_bus = "i2c_bus_ao";                             /** attached i2c bus, must have          */
+            reg = <0x32>;                                       /** device i2c address, must have        */
+            soft_limit_to99 = <0>;                              /** optional                             */
+            ddr_voltage   = <1500000>;                          /** default voltage for DDR, optional    */
+            vddao_voltage = <1200000>;                          /** default voltage for AO, optional     */
+            board_battery = <&battery_parameter>;               /** battery parameter used, must have    */
+            vbus_dcin_short_connect = <1>;
+            status = "okay";                                    /** status of pmu, only one should be OK */
+        };
+    };
+#endif

@@ -40,7 +40,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/log2.h>
 #include <linux/configfs.h>
-
+#include <linux/wakelock_android.h>
 /*
  * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
  * wish to delay the data/status stages of the control transfer till they
@@ -394,6 +394,8 @@ struct usb_composite_dev {
 
 	/* protects deactivations and delayed_status counts*/
 	spinlock_t			lock;
+	int is_lock;
+	struct wake_lock wake_lock;
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);

@@ -1,0 +1,58 @@
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+#ifdef CONFIG_AML_LCD_BACKLIGHT_SUPPORT
+//******************************************************************************
+//bl extern
+//Notice: only one dev support
+//******************************************************************************
+//$$ DEVICE = "bl_extern_pmu_aml1218"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 2 = "gpio_enable"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_U32 2 = "dim_max_min"
+	bl_extern_pmu_aml1218{
+		compatible = "amlogic,bl_pmu_aml1218";
+		dev_name ="bl_pmu_aml1218";
+		status = "disabled"; /** "disabled" or "okay" */
+
+		gpio_enable = "GPIODV_28"; /** "n" for none */
+		type = <2>;	/** bl_extern_driver type: 0=i2c, 1=spi, 2=other */
+		dim_max_min = <0x1 0x1b>;
+	};
+
+//$$ DEVICE = "bl_extern_i2c_lp8556"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 2 = "gpio_enable"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 2 = "dim_max_min"
+	bl_extern_i2c_lp8556{
+		compatible = "amlogic,bl_i2c_lp8556";
+		dev_name ="bl_i2c_lp8556";
+		status = "disabled"; /** "disabled" or "okay" */
+
+		gpio_enable = "GPIODV_28"; /** "n" for none */
+		type = <0>;	/** bl_extern_driver type: 0=i2c, 1=spi, 2=other */
+		i2c_address = <0x2c>; /** 7bit i2c address */
+		i2c_bus = "i2c_bus_b";
+		dim_max_min = <255 10>;
+	};
+
+//$$ DEVICE = "bl_extern_mipi_LT070ME05"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 2 = "gpio_enable"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_U32 2 = "dim_max_min"
+	bl_extern_mipi_LT070ME05{
+		compatible = "amlogic,bl_mipi_LT070ME05";
+		dev_name ="bl_mipi_LT070ME056";
+		status = "disabled"; /** "disabled" or "okay" */
+
+		gpio_enable = "GPIODV_28"; /** "n" for none */
+		type = <2>;	/** bl_extern_driver type: 0=i2c, 1=spi, 2=other */
+		dim_max_min = <255 10>;
+	};
+
+//******************************************************************************
+
+#endif
+#endif

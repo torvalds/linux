@@ -45,6 +45,9 @@
 #include <linux/leds.h>
 #include <linux/io.h>
 #include <linux/mtd/partitions.h>
+#ifndef CONFIG_SYS_NAND_RESET_CNT
+#define CONFIG_SYS_NAND_RESET_CNT 200000
+#endif
 
 /* Define default oob placement schemes for large and small page devices */
 static struct nand_ecclayout nand_oob_8 = {
@@ -90,7 +93,7 @@ static struct nand_ecclayout nand_oob_128 = {
 		 .length = 78} }
 };
 
-static int nand_get_device(struct mtd_info *mtd, int new_state);
+int nand_get_device(struct mtd_info *mtd, int new_state);
 
 static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops);
@@ -128,9 +131,10 @@ static int check_offs_len(struct mtd_info *mtd,
  *
  * Release chip lock and wake up anyone waiting on the device.
  */
-static void nand_release_device(struct mtd_info *mtd)
+void nand_release_device(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
+	chip->select_chip(mtd, -1);
 
 	/* Release the controller and the chip */
 	spin_lock(&chip->controller->lock);
@@ -519,6 +523,7 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 {
 	register struct nand_chip *chip = mtd->priv;
 	int ctrl = NAND_CTRL_CLE | NAND_CTRL_CHANGE;
+	uint32_t rst_sts_cnt = CONFIG_SYS_NAND_RESET_CNT;
 
 	/* Write out the command to the device */
 	if (command == NAND_CMD_SEQIN) {
@@ -581,8 +586,9 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 			       NAND_CTRL_CLE | NAND_CTRL_CHANGE);
 		chip->cmd_ctrl(mtd,
 			       NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
-		while (!(chip->read_byte(mtd) & NAND_STATUS_READY))
-				;
+		while (!(chip->read_byte(mtd) & NAND_STATUS_READY) &&
+			(rst_sts_cnt--));
+
 		return;
 
 		/* This applies to read commands */
@@ -628,7 +634,8 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	}
 
 	/* Command latch cycle */
-	chip->cmd_ctrl(mtd, command, NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
+	chip->cmd_ctrl(mtd, command & 0xff,
+		       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 
 	if (column != -1 || page_addr != -1) {
 		int ctrl = NAND_CTRL_CHANGE | NAND_NCE | NAND_ALE;
@@ -739,7 +746,7 @@ static void panic_nand_get_device(struct nand_chip *chip,
  *
  * Get the device and lock it for exclusive access
  */
-static int
+int
 nand_get_device(struct mtd_info *mtd, int new_state)
 {
 	struct nand_chip *chip = mtd->priv;
@@ -1529,7 +1536,8 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 		/* For subsequent reads align to page boundary */
 		col = 0;
 		/* Increment page address */
-		realpage++;
+		//realpage++;
+		realpage += (mtd->writesize >> chip->page_shift);
 
 		page = realpage & chip->pagemask;
 		/* Check, if we cross a chip boundary */
@@ -2307,7 +2315,8 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 
 		column = 0;
 		buf += bytes;
-		realpage++;
+		//realpage++;
+		realpage += (mtd->writesize >> chip->page_shift);
 
 		page = realpage & chip->pagemask;
 		/* Check, if we cross a chip boundary */
@@ -3252,14 +3261,14 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 				break;
 		}
 	}
-
+#if 0
 	chip->onfi_version = 0;
 	if (!type->name || !type->pagesize) {
 		/* Check is chip is ONFI compliant */
 		if (nand_flash_detect_onfi(mtd, chip, &busw))
 			goto ident_done;
 	}
-
+#endif
 	if (!type->name)
 		return ERR_PTR(-ENODEV);
 

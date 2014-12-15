@@ -1,0 +1,14 @@
+#
+# Input core configuration
+#
+
+
+
+config AML_GPIO_KEY
+	tristate "Amlogic gpio key device surport"
+	default n
+	help
+	  Say Y here if you want to use the amlogic hold key.
+
+
+

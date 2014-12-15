@@ -1,0 +1,12 @@
+#
+# Amlogic register debug driver configuration
+#
+menu "Register Debug Support"
+
+config AML_REG_DEBUG
+	bool "Amlogic Register Debug"
+	default n
+	help
+	  Amlogic register debug driver.
+
+endmenu

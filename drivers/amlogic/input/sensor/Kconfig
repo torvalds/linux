@@ -1,0 +1,176 @@
+menuconfig SENSOR_DEVICES
+	bool "Sensor devices"
+	---help---
+	  Say Y here to get to see options for sensor device drivers from
+	  all categories. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if SENSOR_DEVICES
+
+config GRAVITY_BMA250
+	tristate "BMA250 acceleration sensor driver"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Bosch Sensortec's 
+	  acceleration sensors BMA250.
+
+config GRAVITY_BMA222
+	tristate "BMA222 acceleration sensor driver"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Bosch Sensortec's 
+	  acceleration sensors BMA222.
+
+config GRAVITY_MMA7660
+	tristate "MMA7660 acceleration sensor driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Freescale's accelerometer sensor MMA7660
+
+config GRAVITY_MIR3DA
+	tristate "MIR3DA acceleration sensor driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Freescale's accelerometer sensor MIR3DA
+
+config GRAVITY_LIS3DH
+	tristate "LIS3DH acceleration sensor driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Freescale's accelerometer sensor LIS3DH
+ 
+config GRAVITY_MMA8452
+	tristate "MMA8452 accelerometer sensor MMA8452 driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Freescale's accelerometer sensor MMA8452
+
+config GRAVITY_MC32X0
+	tristate "MC32X0 accelerometer sensor driver"
+	depends on I2C && INPUT_POLLDEV
+	help
+	  Say yes here to support the MC32X0's accelerometer sensor MC32X0
+
+config GRAVITY_DMARD06
+	tristate "DMARD06 accelerometer sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support Dominteck's DMARD06 accelerometer sensor
+
+config GRAVITY_MMA865X
+	tristate "MMA865X accelerometer sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support the Freescale's MMA865X accelerometer sensor	  
+
+config GRAVITY_LSM303D
+	tristate "LSM303 sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support the sensor	 
+
+config GRAVITY_DMARD10
+ 		tristate "DMARD10 GSENSOR support"
+ 		---help---
+ 		  Choose this option.
+ 		  If you say yes here you get support for accelerometer
+ 		  sensor DMARD10.
+
+config GRAVITY_KXTJ9
+ 		tristate "KXTJ9 GSENSOR support"
+ 		---help---
+ 		  Choose this option.
+ 		  If you say yes here you get support for Kionix's accelerometer
+ 		  sensor KTXJ9.
+
+config GRAVITY_STK8313
+	tristate "STK8313 accelerometer sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support Sensortek's STK8313 accelerometer sensor
+
+config GRAVITY_STK8312
+	tristate "STK8312 accelerometer sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support Sensortek's STK8312 accelerometer sensor
+
+config GRAVITY_MM3A310
+ 		tristate "MM3A310 GSENSOR support"
+ 		---help---
+ 		  Choose this option.
+ 		  If you say yes here you get support for MiraMEM's accelerometer
+ 		  sensor MM3A310.
+
+config GRAVITY_MXC622X
+	tristate "MXC622X 2-Axis acceleration sensor driver"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Memsic's 2-Axis
+	  acceleration sensors MXC622X.
+
+config GRAVITY_MXC6255XC
+	tristate "MXC6255XC 2-Axis acceleration sensor driver"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for Memsic's 2-Axis
+	  acceleration sensors MXC6255XC.
+
+config GYROSCOPE_L3GD20
+	tristate "L3GD20 3-Axis gyroscope sensor driver"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for STMicroelectronics 3-Axis
+	  gyroscope sensor L3GD20.
+	  
+config LIGHT_CM36283
+	tristate "CM36283 light sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support Capella's CM36283 light sensor and proximity sensor     
+
+config LIGHT_CM3232
+	tristate "CM3232 light sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support Capella's CM3232 light sensor and proximity sensor     
+
+config LIGHT_CM3217
+	tristate "CM3217 light sensor driver"
+	depends on I2C
+	help
+	  Say yes here to support Capella's CM3217 light sensor and proximity sensor     
+
+
+config LIGHT_LTR501
+ 		tristate "LTR501 light sensor support"
+ 		help
+ 		  Choose this option.
+ 		  If you say yes here you get support for Lite-On's light 
+ 		  sensor LTR501.
+	   	
+config LIGHT_EPL6814
+	tristate "EPL6814 light sensor driver"
+	depends on I2C
+	help
+	   Say Y here to enable the EPL6814.
+
+config LIGHT_ISL29023
+	tristate "ISL29023 light sensor driver"
+	depends on I2C
+	help
+	   Say Y here to enable Intersil's light sensor ISL29023.
+
+config LIGHT_STK220X
+	bool "STK2203 light sensor in polling mode"
+	help
+	    Say Y here to enable SensorTek's STK2203 using polling mode.
+
+config LIGHT_LTR558
+	bool "Liteon's light sensor LTR558"
+	help
+	    Say Y here to enable Liteon's LTR558 ambient light sensor.
+
+
+endif # SENSOR_DEVICES 

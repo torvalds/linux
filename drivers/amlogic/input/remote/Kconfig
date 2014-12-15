@@ -1,0 +1,34 @@
+#
+# Remote control drivers
+#
+menuconfig MESON_INPUT_REMOTE
+	bool "Remotes"
+	default y
+	help
+	  Say Y here, and a list of supported remote controls will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if MESON_INPUT_REMOTE
+
+config AM_REMOTE
+	tristate "Meson IR remote control support"
+	default n
+	help
+	  Say Y here if you want to use the Meson IR remote control.
+
+config AM_IR_RECEIVER
+	tristate "Meson IR receiver (self-learning) support"
+	default n
+	help
+	  Say Y here if you want to use the Meson IR receiver (self-learning) function.
+
+config VIRTUAL_REMOTE
+	tristate "Meson virtual IR remote keypad support (EXPERIMENTAL)"
+	default n
+	help
+	  Say Y here if you want to use the Meson virtual remote keypad.
+	  It can fill a series of key events into input device for testing.
+
+endif # MESON_INPUT_REMOTE

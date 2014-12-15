@@ -1,0 +1,108 @@
+#
+# Frame buffer configuration
+#
+menu "Amlogic osd module"
+
+config FB_AM
+	tristate "Amlogic osd support"
+	select FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select AM_CANVAS
+	help
+	  This is the frame buffer device driver.
+
+config FB_OSD2_ENABLE
+	bool "osd2 layer enable"
+	default y
+	depends on  FB_AM
+	help  
+		if enable osd2 then we will have two OSD op layer
+
+config FB_OSD2_CURSOR
+	bool "Android OSD2 cursor support"
+	depends on FB_OSD2_ENABLE
+	default n
+	help
+		Enables support for a mouse cursor using OSD2.
+config FB_OSD2_DEFAULT_BITS_PER_PIXEL
+	depends on FB_OSD2_ENABLE
+	int "default OSD2 BPP"
+	range 16  32
+	default  32
+	---help---
+	 The default osd2 color depth.
+config FB_OSD2_DEFAULT_WIDTH
+	depends on FB_OSD2_ENABLE
+	int "Default OSD2 width"
+	range 1 4096
+	default 720
+	---help---
+	  The default osd2/fb1 width. Does not affect ability to change width using fbset or FBIOPUT ioctl.
+
+config FB_OSD2_DEFAULT_HEIGHT
+	depends on FB_OSD2_ENABLE
+	int "Default OSD2 height"
+	range 1 4096
+	default 480
+	---help---
+	  The default osd2/fb1 height. Does not affect ability to change height using fbset or FBIOPUT ioctl.
+
+config FB_OSD2_DEFAULT_WIDTH_VIRTUAL
+	depends on FB_OSD2_ENABLE
+	int "Default OSD2 virtual width"
+	range FB_OSD2_DEFAULT_WIDTH 4096
+	default 720
+	---help---
+	  The default osd2/fb1 virtual width. Does not affect ability to change width using fbset or FBIOPUT ioctl.
+
+config FB_OSD2_DEFAULT_HEIGHT_VIRTUAL
+	depends on FB_OSD2_ENABLE
+	int "Default OSD2 virtual height"
+	range FB_OSD2_DEFAULT_HEIGHT 4096
+	default 480
+	---help---
+	  The default osd2/fb1 virtual height. Does not affect ability to change height using fbset or FBIOPUT ioctl.
+config FB_OSD1_DEFAULT_BITS_PER_PIXEL
+	depends on FB_AM
+	int "default OSD1 BPP"
+	range 16  32
+	default  16
+	---help---
+	 The default osd1 color depth.
+config FB_OSD1_DEFAULT_WIDTH
+	depends on FB_AM
+	int "Default OSD1 width"
+	range 1 4096
+	default 720
+	---help---
+	  The default osd1/fb0 width. Does not affect ability to change width using fbset or FBIOPUT ioctl.
+
+config FB_OSD1_DEFAULT_HEIGHT
+	depends on FB_AM
+	int "Default OSD1 height"
+	range 1 4096
+	default 480
+	---help---
+	  The default osd1/fb0 height. Does not affect ability to change height using fbset or FBIOPUT ioctl.
+
+config FB_OSD1_DEFAULT_WIDTH_VIRTUAL
+	depends on FB_AM
+	int "Default OSD1 virtual width"
+	range FB_OSD1_DEFAULT_WIDTH 4096
+	default 720
+	---help---
+	  The default osd1/fb0 virtual width. Does not affect ability to change width using fbset or FBIOPUT ioctl.
+
+config FB_OSD1_DEFAULT_HEIGHT_VIRTUAL
+	depends on FB_AM
+	int "Default OSD1 virtual height"
+	range FB_OSD1_DEFAULT_HEIGHT 4096
+	default 480
+	---help---
+	  The default osd1/fb0 virtual height. Does not affect ability to change height using fbset or FBIOPUT ioctl.
+
+
+
+endmenu	

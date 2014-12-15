@@ -1,0 +1,5 @@
+       ion_dev{
+               compatible = "amlogic,ion_dev";
+               dev_name = "ion_dev";
+               reg = <0x90500000 0x02000000>;
+       };

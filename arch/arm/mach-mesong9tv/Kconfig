@@ -1,0 +1,24 @@
+if ARCH_MESONG9TV
+
+config CLKTREE_DEBUG
+	bool "New clock tree debug support"
+	default y
+	help
+	  Create a node /sys/class/meson_clocktree/clkTree to get/set clocks.
+
+config MESON_CPU_TEMP_SENSOR
+	bool "meson temperature sensor cpu interface support"
+	default n
+	help
+	  /sys/class/saradc/temperature can got the celius.
+
+config MESON_SUSPEND_FIRMWARE_BASE
+	hex
+	default 0x04f00000
+	depends on MESON_SUSPEND
+	help
+	  The base address of 1MB of memory reserved for suspend firmware.
+
+endif # ARCH_MESONG9TV
+
+

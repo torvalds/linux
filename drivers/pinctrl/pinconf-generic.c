@@ -12,7 +12,6 @@
 #define pr_fmt(fmt) "generic pinconfig core: " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -34,7 +33,7 @@ struct pin_config_item {
 
 #define PCONFDUMP(a, b, c) { .param = a, .display = b, .format = c }
 
-static struct pin_config_item conf_items[] = {
+struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_BIAS_DISABLE, "input bias disabled", NULL),
 	PCONFDUMP(PIN_CONFIG_BIAS_HIGH_IMPEDANCE, "input bias high impedance", NULL),
 	PCONFDUMP(PIN_CONFIG_BIAS_PULL_UP, "input bias pull up", NULL),
@@ -42,13 +41,11 @@ static struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_DRIVE_PUSH_PULL, "output drive push pull", NULL),
 	PCONFDUMP(PIN_CONFIG_DRIVE_OPEN_DRAIN, "output drive open drain", NULL),
 	PCONFDUMP(PIN_CONFIG_DRIVE_OPEN_SOURCE, "output drive open source", NULL),
-	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_ENABLE, "input schmitt enabled", NULL),
+	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT_DISABLE, "input schmitt disabled", NULL),
 	PCONFDUMP(PIN_CONFIG_INPUT_SCHMITT, "input schmitt trigger", NULL),
 	PCONFDUMP(PIN_CONFIG_INPUT_DEBOUNCE, "input debounce", "time units"),
 	PCONFDUMP(PIN_CONFIG_POWER_SOURCE, "pin power source", "selector"),
-	PCONFDUMP(PIN_CONFIG_SLEW_RATE, "slew rate", NULL),
 	PCONFDUMP(PIN_CONFIG_LOW_POWER_MODE, "pin low power", "mode"),
-	PCONFDUMP(PIN_CONFIG_OUTPUT, "pin output", "level"),
 };
 
 void pinconf_generic_dump_pin(struct pinctrl_dev *pctldev,
@@ -60,7 +57,7 @@ void pinconf_generic_dump_pin(struct pinctrl_dev *pctldev,
 	if (!ops->is_generic)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
+	for(i = 0; i < ARRAY_SIZE(conf_items); i++) {
 		unsigned long config;
 		int ret;
 
@@ -95,7 +92,7 @@ void pinconf_generic_dump_group(struct pinctrl_dev *pctldev,
 	if (!ops->is_generic)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
+	for(i = 0; i < ARRAY_SIZE(conf_items); i++) {
 		unsigned long config;
 		int ret;
 
@@ -121,17 +118,4 @@ void pinconf_generic_dump_group(struct pinctrl_dev *pctldev,
 	}
 }
 
-void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
-				 struct seq_file *s, unsigned long config)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
-		if (pinconf_to_config_param(config) != conf_items[i].param)
-			continue;
-		seq_printf(s, "%s: 0x%x", conf_items[i].display,
-			   pinconf_to_config_argument(config));
-	}
-}
-EXPORT_SYMBOL_GPL(pinconf_generic_dump_config);
 #endif

@@ -569,6 +569,7 @@ static void fill_contig_page_info(struct zone *zone,
 
 		/* Count number of free blocks */
 		blocks = zone->free_area[order].nr_free;
+		//blocks -= zone->free_area[order].nr_free_cma;
 		info->free_blocks_total += blocks;
 
 		/* Count free base pages */

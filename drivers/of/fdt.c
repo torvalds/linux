@@ -24,6 +24,12 @@
 #endif /* CONFIG_PPC */
 
 #include <asm/page.h>
+#if defined(CONFIG_PLAT_MESON)
+#include <mach/cpu.h>
+#endif
+#ifdef CONFIG_MESON_TRUSTZONE
+#include <mach/meson-secure.h>
+#endif
 
 char *of_fdt_get_string(struct boot_param_header *blob, u32 offset)
 {
@@ -370,7 +376,7 @@ static void __unflatten_device_tree(struct boot_param_header *blob,
 		return;
 	}
 
-	pr_debug("Unflattening device tree:\n");
+	pr_debug("Unflattening device tree:%x\n",(unsigned int)blob);
 	pr_debug("magic: %08x\n", be32_to_cpu(blob->magic));
 	pr_debug("size: %08x\n", be32_to_cpu(blob->totalsize));
 	pr_debug("version: %08x\n", be32_to_cpu(blob->version));
@@ -612,6 +618,191 @@ u64 __init dt_mem_next_cell(int s, __be32 **cellp)
 	return of_read_number(p, s);
 }
 
+#if defined(CONFIG_PLAT_MESON)
+extern unsigned long long aml_reserved_start;
+extern unsigned long long aml_reserved_end;
+unsigned long long phys_offset=0;
+
+#define MAX_RESERVE_BLOCK  32
+//limit: reserve block < 32
+#define DSP_MEM_SIZE	0x100000
+
+#define FIRMWARE_ADDR 0x9ff00000
+
+#ifdef CONFIG_MESON_TRUSTZONE
+#define EARLY_RESERVED_MEM_SIZE	(DSP_MEM_SIZE+meson_secure_mem_total_size())
+#else
+#define EARLY_RESERVED_MEM_SIZE	(DSP_MEM_SIZE)
+#endif
+#define MEM_BLOCK1_SIZE	0x4000000
+
+struct reserve_mem{
+	unsigned long long startaddr;
+	unsigned long long size;
+	unsigned int flag;					//0: high memory  1:low memory
+	char name[16];					//limit: device name must < 14;
+};
+
+struct reserve_mgr{
+	int count;
+	unsigned long long start_memory_addr;
+	unsigned long long total_memory;
+	unsigned long long current_addr_from_low;
+	unsigned long long current_addr_from_high;
+	struct reserve_mem reserve[MAX_RESERVE_BLOCK];
+};
+
+struct reserve_mgr Reserve_Manager;
+struct reserve_mgr * pReserve_Manager;
+
+
+int init_reserve_mgr(void)
+{
+	pReserve_Manager = &Reserve_Manager;
+	pReserve_Manager->count = 0;
+	pReserve_Manager->current_addr_from_low=0;
+	pReserve_Manager->current_addr_from_high=0;
+	return 0;
+}
+
+unsigned long long get_reserve_end(void)
+{
+	return pReserve_Manager->current_addr_from_low+aml_reserved_start+EARLY_RESERVED_MEM_SIZE-1;
+}
+
+unsigned long long get_high_reserve_size(void)
+{
+	return pReserve_Manager->current_addr_from_high;
+}
+
+void set_memory_start_addr(unsigned long long addr)
+{
+	pReserve_Manager->start_memory_addr = addr;
+}
+
+void set_memory_total_size(unsigned long long size)
+{
+	pReserve_Manager->total_memory = size;
+}
+
+int find_reserve_block(const char * name,int idx)
+{
+	int i;
+
+	for(i=0;i<pReserve_Manager->count;i++)
+	{
+		if((strncmp(pReserve_Manager->reserve[i].name,name,strlen(name))==0)&&(pReserve_Manager->reserve[i].name[strlen(name)]=='0'+idx))
+			return i;
+	}
+
+	return -1;
+}
+
+int find_reserve_block_by_name(const char * name)
+{
+	int i;
+
+	for(i=0;i<pReserve_Manager->count;i++)
+	{
+		if(strcmp(pReserve_Manager->reserve[i].name,name)==0)
+			return i;
+	}
+
+	return -1;
+}
+
+unsigned long long get_reserve_block_addr(int blockid)
+{
+	unsigned long long addr;
+	struct reserve_mem * prm = &pReserve_Manager->reserve[blockid];
+	if(blockid >= MAX_RESERVE_BLOCK)
+		printk("error: reserve block count is larger than MAX_RESERVE_BLOCK,please reset the code\n");
+
+	if(prm->flag)
+	{
+		addr = prm->startaddr+aml_reserved_start+EARLY_RESERVED_MEM_SIZE;
+	}
+	else
+	{
+		addr = pReserve_Manager->start_memory_addr+pReserve_Manager->total_memory-prm->startaddr-prm->size;
+	}
+
+	return addr;
+}
+
+unsigned long long get_reserve_block_size(int blockid)
+{
+	if(blockid >= MAX_RESERVE_BLOCK)
+		printk("error: reserve block count is larger than MAX_RESERVE_BLOCK,please reset the code\n");
+	return pReserve_Manager->reserve[blockid].size;
+}
+
+
+/**
+ * early_init_dt_scan_memory - Look for an parse memory nodes
+ */
+int __init early_init_dt_scan_reserve_memory(unsigned long node, const char *uname,
+				     int depth, void *data)
+{
+	__be32 *mem, *endp;
+	char * need_iomap=NULL;
+	unsigned int iomap_flag = 0;
+	unsigned long l;
+	int idx=0;
+	struct reserve_mem * prm;
+
+	mem = of_get_flat_dt_prop(node, "reserve-memory", &l);
+	if (mem == NULL)
+		return 0;
+
+	endp = mem + (l / sizeof(__be32));
+	while ((endp - mem) >= dt_root_size_cells) {
+		u64 size;
+
+		size = dt_mem_next_cell(dt_root_size_cells, &mem);
+
+		if (size == 0)
+			continue;
+
+		need_iomap = of_get_flat_dt_prop(node,"reserve-iomap",&l);
+		if(need_iomap&&(strcmp(need_iomap,"true")==0))
+		{
+			iomap_flag = 1;
+		}
+
+		prm = &pReserve_Manager->reserve[pReserve_Manager->count];
+
+		if(iomap_flag)
+		{
+			prm->startaddr = pReserve_Manager->current_addr_from_low;
+			prm->size = size;
+			strcpy(prm->name,uname);
+			prm->name[strlen(uname)] = '0'+idx;
+			prm->name[strlen(uname)+1] = 0;
+			pReserve_Manager->current_addr_from_low +=size;
+		}
+		else
+		{
+			prm->startaddr = pReserve_Manager->current_addr_from_high;
+			prm->size = size;
+			strcpy(prm->name,uname);
+			prm->name[strlen(uname)] = '0'+idx;
+			prm->name[strlen(uname)+1] = 0;
+			pReserve_Manager->current_addr_from_high +=size;
+		}
+		prm->flag = iomap_flag;
+		pReserve_Manager->count +=1;
+		idx++;
+
+		if(pReserve_Manager->count >= MAX_RESERVE_BLOCK){
+			printk("error: reserve block count is larger than MAX_RESERVE_BLOCK,please reset the code\n");
+			break;
+		}
+	}
+
+	return 0;
+}
+#endif
 /**
  * early_init_dt_scan_memory - Look for an parse memory nodes
  */
@@ -619,9 +810,17 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 				     int depth, void *data)
 {
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	__be32 *reg, *endp;
+	__be32 *reg;
 	unsigned long l;
-
+#if defined(CONFIG_PLAT_MESON)
+	unsigned long long high_reserve_size;
+	struct reserve_mem * prm;
+	int i;
+	u64 total;
+	unsigned long long phys_offset=0;
+#else
+	__be32 * endp;
+#endif
 	/* We are scanning "memory" nodes only */
 	if (type == NULL) {
 		/*
@@ -633,6 +832,86 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
+#if defined(CONFIG_PLAT_MESON)
+	reg = of_get_flat_dt_prop(node, "aml_reserved_start", &l);
+	if (reg == NULL)
+		printk("error: can not get reserved mem start for AML\n");
+	else
+		aml_reserved_start = of_read_number(reg,1);
+
+	reg = of_get_flat_dt_prop(node, "aml_reserved_end", &l);
+	if (reg == NULL)
+		printk("error: can not get reserved mem end for AML\n");
+	else
+		aml_reserved_end = of_read_number(reg,1);
+	reg = of_get_flat_dt_prop(node, "phys_offset", &l);
+	if (reg == NULL)
+		printk("error: can not get phys_offset for AML\n");
+	else
+	{
+		phys_offset = of_read_number(reg,1);
+		printk("physical memory start address is 0x%llx\n",phys_offset);
+	}
+
+	early_init_dt_add_memory_arch(phys_offset,MEM_BLOCK1_SIZE);
+	early_init_dt_add_memory_arch(aml_reserved_end,aml_reserved_start-aml_reserved_end);
+
+	aml_reserved_end = get_reserve_end();
+	pr_info("reserved_end is %llx \n ",aml_reserved_end);
+	high_reserve_size = get_high_reserve_size();
+
+	reg = of_get_flat_dt_prop(node, "linux,total-memory", &l);
+	if (reg == NULL){
+		printk("error: can not get total-memory for AML\n");
+		return -1;
+	}
+	else
+		total =  of_read_number(reg,1);
+
+	set_memory_start_addr(phys_offset);
+	set_memory_total_size(total);
+#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6TV
+	early_init_dt_add_memory_arch(aml_reserved_end+1,phys_offset+total-aml_reserved_end-1-high_reserve_size);
+#else
+	if(aml_reserved_end+1 > FIRMWARE_ADDR)
+	{
+		printk("error: firmware memory has been used\n");
+		return -1;
+	}
+	else{
+		early_init_dt_add_memory_arch(aml_reserved_end+1,FIRMWARE_ADDR-aml_reserved_end-1);  //511M-512M reserved for firmware
+		early_init_dt_add_memory_arch(FIRMWARE_ADDR+0x100000, phys_offset+total-(FIRMWARE_ADDR+0x100000)-high_reserve_size);
+		printk("reserved 511M-512M 1M memory for firmware\n");
+	}
+#endif
+
+	pr_info("Total memory is %4d MiB\n",((unsigned int)total >> 20));
+	pr_info("Reserved low memory from 0x%08llx to 0x%08llx, size: %3ld MiB \n",
+		aml_reserved_start,aml_reserved_end,
+		((unsigned long)(aml_reserved_end - aml_reserved_start + 1)) >> 20);
+
+	for(i = 0; i < MAX_RESERVE_BLOCK; i++){
+		prm = &pReserve_Manager->reserve[i];
+		if(!prm->size)
+			break;
+		if(prm->flag)
+		{
+			pr_info("\t%s(low)   \t: 0x%08llx - 0x%08llx (%3ld MiB)\n",
+				prm->name,
+				prm->startaddr + aml_reserved_start+EARLY_RESERVED_MEM_SIZE ,
+				prm->startaddr + prm->size + aml_reserved_start+EARLY_RESERVED_MEM_SIZE,
+				(unsigned long)(prm->size >> 20));
+		}
+		else
+		{
+			pr_info("\t%s(high)   \t: 0x%08llx - 0x%08llx (%3ld MiB)\n",
+				prm->name,
+				pReserve_Manager->start_memory_addr+pReserve_Manager->total_memory-prm->startaddr-prm->size,
+				pReserve_Manager->start_memory_addr+pReserve_Manager->total_memory-prm->startaddr,
+				(unsigned long)(prm->size >> 20));
+		}
+	}
+#else
 	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
 	if (reg == NULL)
 		reg = of_get_flat_dt_prop(node, "reg", &l);
@@ -658,6 +937,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 		early_init_dt_add_memory_arch(base, size);
 	}
 
+#endif
 	return 0;
 }
 

@@ -1,0 +1,25 @@
+#
+# Video output configuration
+#
+menu "Amlogic video output module"
+
+config AM_TV_OUTPUT
+	tristate "TV output"
+	default y
+	help  
+		tv output module
+
+config AM_LCD_OUTPUT
+	tristate "LCD output" 
+	default y
+	help  
+		LCD output module
+
+config AML_GAMMA_DEBUG
+	tristate "AML Gamma debug"
+	default y
+	depends on  AM_LCD_OUTPUT
+	help
+		AML gamma debug
+
+endmenu

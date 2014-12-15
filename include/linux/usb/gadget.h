@@ -537,6 +537,7 @@ struct usb_gadget {
 	struct device			dev;
 	unsigned			out_epnum;
 	unsigned			in_epnum;
+	void *   priv_data;
 };
 
 static inline void set_gadget_data(struct usb_gadget *gadget, void *data)

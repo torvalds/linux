@@ -1,0 +1,11 @@
+#ifdef CONFIG_DEINTERLACE
+//$$ DEVICE="deinterlace"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "reserve-memory"
+    deinterlace{
+		compatible = "amlogic,deinterlace";
+		dev_name = "deinterlace";
+		status = "ok";
+		reserve-memory = <0x02300000>;
+	};
+#endif

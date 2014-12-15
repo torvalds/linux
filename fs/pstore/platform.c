@@ -35,6 +35,8 @@
 #include <linux/workqueue.h>
 
 #include "internal.h"
+#include <linux/pstore_ram.h>
+
 
 /*
  * We defer making "oops" entries appear in pstore - see
@@ -178,9 +180,15 @@ static struct kmsg_dumper pstore_dumper = {
 };
 
 #ifdef CONFIG_PSTORE_CONSOLE
+
+extern unsigned int get_c_pstore_start(ramoops_context *cxt);
+extern unsigned int get_pstore_buffer_size(ramoops_context *cxt);
+
 static void pstore_console_write(struct console *con, const char *s, unsigned c)
 {
 	const char *e = s + c;
+	struct ramoops_context *cxt = psinfo->data;
+	unsigned int full_flag = 0;
 
 	while (s < e) {
 		unsigned long flags;
@@ -189,14 +197,31 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 		if (c > psinfo->bufsize)
 			c = psinfo->bufsize;
 
+		if(c + get_c_pstore_start(cxt) > get_pstore_buffer_size(cxt)){
+			c = get_pstore_buffer_size(cxt) - get_c_pstore_start(cxt);
+			full_flag = 1;
+		}
+/*		if(c + atomic_read(cxt->cprz->buffer->start) > cxt->cprz->buffer_size){
+			c = cxt->cprz->buffer_size - atomic_read(cxt->cprz->buffer->start);
+			full_flag = 1;
+			printk("kkkk c=0x%x buffer_size=0x%x start=0x%x\n",c, cxt->cprz->buffer_size, atomic_read(cxt->cprz->buffer->start));
+		}
+	*/	
 		if (oops_in_progress) {
 			if (!spin_trylock_irqsave(&psinfo->buf_lock, flags))
 				break;
 		} else {
 			spin_lock_irqsave(&psinfo->buf_lock, flags);
 		}
+			
 		memcpy(psinfo->buf, s, c);
 		psinfo->write(PSTORE_TYPE_CONSOLE, 0, &id, 0, 0, c, psinfo);
+		if(full_flag){
+			set_c_pstore_start(cxt, 0);
+			set_c_pstore_size(cxt, 0);
+			set_c_pstore_full_flag(cxt, 1);
+		}
+		
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 		s += c;
 		c = e - s;

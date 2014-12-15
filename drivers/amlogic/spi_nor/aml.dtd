@@ -1,0 +1,41 @@
+#ifdef CONFIG_AMLOGIC_SPI_NOR
+//$$ DEVICE="spi"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 2 = "reg"
+//$$ L2 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "Spi_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_U32 = "nr-parts"
+//$$ L2 PROP_CHOICE "Spi_nr-part-0_match" = "nr-part-0"
+//$$ L2 PROP_CHOICE "Spi_nr-part-1_match" = "nr-part-1"
+    spi@cc000000{
+		compatible = "amlogic,apollo_spi_nor";
+		status = "ok";
+		reg = <0xcc000000 0x04000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&aml_spi_nor_pins>;
+
+		nr-parts = <2>;
+		nr-part-0 = <&bootloader>;
+		nr-part-1 = <&ubootenv>;
+
+//$$ MATCH "Spi_nr-part-0_match" = <&bootloader>
+//$$ L2 PROP_STR = "name"
+//$$ L2 PROP_U32 = "offset"
+//$$ L2 PROP_U32 = "size"
+		bootloader:bootloader{
+			name = "bootloader";
+			offset = <0>;
+			size = <0x60000>;
+		};
+
+//$$ MATCH "Spi_nr-part-1_match" = <&ubootenv>
+//$$ L2 PROP_STR = "name"
+//$$ L2 PROP_U32 = "offset"
+//$$ L2 PROP_U32 = "size"
+		ubootenv:ubootenv{
+			name = "ubootenv";
+		      offset = <0x100000>;
+		      size = <0x10000>;
+		};
+	};
+#endif

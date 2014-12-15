@@ -1,0 +1,12 @@
+#ifdef CONFIG_AM_STREAMING
+//$$ DEVICE="mesonstream"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reserve-memory"
+	mesonstream{
+		compatible = "amlogic,mesonstream";
+		dev_name = "mesonstream.0";
+		status = "okay";
+		reserve-memory = <0x04000000 0x00a00000>;
+	};
+
+#endif

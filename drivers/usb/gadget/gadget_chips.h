@@ -33,6 +33,7 @@
 #define gadget_is_net2280(g)		(!strcmp("net2280", (g)->name))
 #define gadget_is_pxa(g)		(!strcmp("pxa25x_udc", (g)->name))
 #define gadget_is_pxa27x(g)		(!strcmp("pxa27x_udc", (g)->name))
+#define gadget_is_dwc_otg(g)    (!strcmp("dwc_otg_pcd", (g)->name))
 
 /**
  * gadget_supports_altsettings - return true if altsettings work

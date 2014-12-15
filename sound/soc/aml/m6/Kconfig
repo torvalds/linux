@@ -1,0 +1,37 @@
+config SND_AML_M6_RT5631
+	tristate "M6 evaluation board with RT5631"
+	depends on SND_AML_M6_SOC
+	select SND_SOC_RT5631 if SND_AML_M6_RT5631
+
+config SND_AML_M6_RT5616
+	tristate "M6 evaluation board with RT5616"
+	depends on SND_AML_M6_SOC
+	select SND_SOC_RT5616 if SND_AML_M6_RT5616
+
+config SND_AML_M6_RT3261
+	tristate "M6 evaluation board with RT3261"
+	depends on SND_AML_M6_SOC
+	select SND_SOC_RT3261 if SND_AML_M6_RT3261
+	select SND_HWDEP
+config SND_AML_M6_WM8960
+	tristate "M6 evaluation board with WM8960"
+	depends on SND_AML_M6_SOC
+	select SND_SOC_WM8960 if SND_AML_M6_WM8960
+config SND_AML_M6_PCM2BT
+	tristate "M6 evaluation board with PCM2BT"
+	depends on SND_AML_M6_SOC
+	select SND_SOC_PCM2BT
+
+config SND_AML_M_DUMMY_CODEC
+    tristate "AML M series board with DUMMY_CODEC"
+    depends on SND_AML_M6_SOC
+    select SND_SOC_DUMMY_CODEC if SND_AML_M_DUMMY_CODEC
+config SND_AML_M6TV_AUDIO_CODEC
+	tristate "AML M6TV evaluation board,this must be selected for all m6tv board"
+	depends on SND_AML_M6_SOC
+	select SND_AML_M6TV_SYNOPSYS9629_CODEC
+	select SND_SOC_TAS5711
+	select SND_SOC_TAS5707
+config SND_AML_M6TV_SYNOPSYS9629_CODEC
+	tristate "AML M6TV  board with internal syno9629 codec"
+	depends on SND_AML_M6TV_AUDIO_CODEC

@@ -1,0 +1,253 @@
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE
+///	-	aml_cams
+//$$ DEVICE = "aml_cams"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 2 = "pinctrl-names"
+//$$ L2 PROP_CHOICE "Camera_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_CHOICE "Camera_pin_1_match" = "pinctrl-1"
+	aml_cams{
+		compatible = "amlogic,cams_prober";
+		status = "okay";
+		pinctrl-names = "gpio","csi";
+		pinctrl-0 = <&aml_cam_gpio_pins> ;
+		pinctrl-1 = <&aml_cam_csi_pins> ;
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_GC0308
+///	-	gc0308
+//$$ DEVICE = "gc0308"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_0{
+			cam_name = "gc0308";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_6";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <1>;
+			vertical_flip = <0>;
+			bt_path = "gpio";
+			status = "okay";
+		};	
+#endif
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_GT2005
+///	-	gt2005
+//$$ DEVICE="gt2005"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_1{
+			cam_name = "gt2005";
+			front_back = <1>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;
+			bt_path = "gpio";
+			status = "okay";
+		};	
+#endif
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_GC0328
+///	-	gc0328
+//$$ DEVICE="gc0328"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+        cam_2{
+			cam_name = "gc0328";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_6";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+#endif
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_GC2035
+///	-	gc2035
+//$$ DEVICE="gc2035"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+        cam_3{
+			cam_name = "gc2035";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_6";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <1>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+#endif
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_OV5640
+///	-	ov5640
+//$$ DEVICE="ov5640"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_4{
+			cam_name = "ov5640";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+#endif
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_HI253
+///	-	hi253
+//$$ DEVICE="hi253"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_5{
+			cam_name = "hi253";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+#endif
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_OV5647
+///	-	ov5647
+//$$ DEVICE="ov5647"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_6{
+			cam_name = "ov5647";
+			front_back = <1>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			config_path = "/system/etc/myconfig";
+			bt_path = "gpio";
+			status = "okay";
+		};
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_HM2057
+///	-	hm2057
+//$$ DEVICE="hm2057"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_7{
+			cam_name = "hm2057";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_HM5065
+///	-	hm5065
+//$$ DEVICE="hm5065"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_8{
+			cam_name = "hm5065";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+
+#ifdef CONFIG_VIDEO_AMLOGIC_CAPTURE_SP1628
+///	-    sp1628
+//$$ DEVICE="sp1628"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+		cam_9{
+			cam_name = "sp1628";
+			front_back = <1>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_6";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+#endif
+	};	
+#endif

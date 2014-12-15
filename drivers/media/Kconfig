@@ -39,6 +39,7 @@ config MEDIA_ANALOG_TV_SUPPORT
 
 config MEDIA_DIGITAL_TV_SUPPORT
 	bool "Digital TV support"
+	default y
 	---help---
 	  Enable digital TV support.
 

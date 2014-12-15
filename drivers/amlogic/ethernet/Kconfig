@@ -1,0 +1,25 @@
+#
+# Amlogic Ethernet Driver configuration
+#
+menu "Ethernet Support"
+
+config AM_ETHERNET
+	tristate "Amloigc Ethetnet support"
+	select  NET
+	help
+		Depends on NET
+source "drivers/amlogic/ethernet/phy/Kconfig"
+	
+config AM_ETHERNET_DEBUG_LEVEL
+	int "Amloigc Ethetnet support"
+	default 1
+	depends on NET && AM_ETHERNET
+	help
+		debug level:
+		// >0 for basic init and remove debug;
+		// >1 further setting debug;
+		// >2 for tx
+		// >3 for rx
+
+endmenu
+

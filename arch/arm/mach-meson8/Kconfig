@@ -1,0 +1,73 @@
+if ARCH_MESON8 || ARCH_MESON8M2
+
+config CLKTREE_DEBUG
+	bool "New clock tree debug support"
+	default y
+	help
+		Create a node /sys/class/meson_clocktree/clkTree to get/set clocks
+
+config MESON_CPU_TEMP_SENSOR
+	bool "meson temperature sensor cpu interface support"
+	default n
+	help
+		/sys/class/saradc/temperature can got the celius . 
+config CORE_FREQ_TRACK
+    bool "trace for cpu frequence with kernel timestamp"
+    default n
+    help
+        Create /dev/core_freq to collect cpu frequent change information with kernel timestamp
+
+config SUPPORT_USB_BURNING
+	bool "USB burning support"
+	default n
+	help
+		select it for enable USB burning function
+
+config MESON_L2CC_OPTIMIZE
+	bool "Optimize L2 cache"
+	depends on SMP && CACHE_L2X0
+	default n
+	help
+		enable PL310 double linefill
+
+config MESON_L2CC_DLF
+	bool "L2 cache double line fill"
+	depends on SMP && CACHE_L2X0
+	default n
+	help
+		enable PL310 double line fill
+
+config MESON_L2CC_STANDBY
+	bool "Enable L2 cache standby"
+	depends on SMP && CACHE_L2X0
+	default n
+	help
+		enable PL310 dynamic gating & standby mode
+		
+config MESON_FIX_SMP_SCALING_WARNING
+	bool "Fix scaling warning"
+	depends on SMP
+	default n
+	help
+		Fix scaling warning which caused by smp_call_function
+
+config MESON_SUSPEND_FIRMWARE_BASE
+	hex
+	default 0x04f00000
+	depends on MESON_SUSPEND
+	help
+		The base address of 1MB of memory reserved for suspend firmware.
+
+config MESON_TRUSTZONE
+	bool "Enable ARM Trustzone secure extension"
+	default n
+	help
+		Enable ARM Trustzone secure extension
+		
+config GPIO_TEST
+	bool "support gpio group test"
+	default n
+	help
+		support gpio group test
+
+endif # ARCH_MESON8

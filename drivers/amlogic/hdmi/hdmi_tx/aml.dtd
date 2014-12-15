@@ -1,0 +1,48 @@
+#ifdef CONFIG_AML_HDMI_TX
+//$$ DEVICE="amhdmitx"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_CHOICE "HDMI_vend-data_match" = "vend-data"
+//$$ L2 PROP_CHOICE "HDMI_pwr-ctrl_match" = "pwr-ctrl"
+    amhdmitx{
+		compatible = "amlogic,amhdmitx";
+		dev_name = "amhdmitx";
+		status = "ok";
+		vend-data = <&vend_data>;
+		pwr-ctrl = <&pwr_ctrl>;
+#ifdef CONFIG_ARCH_MESON6
+		phy-size = <3>;
+		phy-data = <27  0x16  0x30    /* 480i/p 576i/p */
+				 74  0x16  0x40    /* 720p 1080i */
+				 148  0x16  0x40   /* 1080p */
+				>;
+#endif        
+        
+//$$ MATCH "HDMI_vend-data_match" = <&vend_data>
+//$$ L2 PROP_STR = "vendor_name"
+//$$ L2 PROP_U32 = "vendor_id"
+//$$ L2 PROP_STR = "product_desc"
+//$$ L2 PROP_STR = "cec_osd_string"        
+        vend_data: vend_data{
+            vendor_name = "Amlogic";           /* Max Chars: 8     */
+            vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
+            product_desc = "M8 MBox SKTv1";        /* Max Chars: 16    */
+            cec_osd_string = "Amlogic MBox";        /* Max Chars: 14    */
+        };
+        
+//$$ MATCH "HDMI_pwr-ctrl_match" = <&pwr_ctrl>
+//$$ L2 PROP_STR = "pwr_5v_on"
+//$$ L2 PROP_STR = "pwr_5v_off"
+//$$ L2 PROP_STR = "pwr_3v3_on"
+//$$ L2 PROP_STR = "pwr_3v3_off"
+//$$ L2 PROP_STR = "pwr_hpll_vdd_on"
+//$$ L2 PROP_STR = "pwr_hpll_vdd_off"
+        pwr_ctrl: pwr_ctrl{
+            pwr_5v_on = "";
+            pwr_5v_off = "";
+            pwr_3v3_on = "";
+            pwr_3v3_off = "";
+            pwr_hpll_vdd_on = "";
+            pwr_hpll_vdd_off = "";
+        };
+	};
+#endif

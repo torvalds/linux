@@ -1,0 +1,8 @@
+#ifdef CONFIG_GPIO_AMLOGIC
+//$$ DEVICE="gpio"
+	gpio:gpio{
+		compatible = "amlogic,m6-gpio";
+		dev_name = "gpio";
+		#gpio-cells=<2>;
+	};
+#endif

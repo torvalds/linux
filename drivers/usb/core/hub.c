@@ -1681,7 +1681,8 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 *   suspend timer for hub, also may decrease power consumption
 	 *   of USB bus.
 	 */
-	pm_runtime_set_autosuspend_delay(&hdev->dev, 0);
+	 /* for Amlogic dwc_otg usb controller, change to 100ms */
+	pm_runtime_set_autosuspend_delay(&hdev->dev, 100);
 
 	/* Hubs have proper suspend/resume support. */
 	usb_enable_autosuspend(hdev);

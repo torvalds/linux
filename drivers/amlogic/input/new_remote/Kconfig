@@ -1,0 +1,28 @@
+#
+# Remote control drivers
+#
+menuconfig MESON_NEW_INPUT_REMOTE
+	bool "M8 Remotes"
+	default y
+	help
+	  Say Y here, and a list of supported remote controls will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if MESON_NEW_INPUT_REMOTE
+
+config NEW_AM_REMOTE
+	tristate "Meson M8 IR remote control support"
+	default n
+	help
+	  Say Y here if you want to use the Meson IR remote control.
+
+config NEW_AM_IR_TX
+	tristate "Meson M8 IR TX support"
+	default n
+	help
+	  Say Y here if you want to use the Meson IR tx nec protocl& other protocl function.
+
+
+endif # MESON_INPUT_REMOTE

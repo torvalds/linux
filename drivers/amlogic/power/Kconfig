@@ -1,0 +1,75 @@
+
+menu "Power Management Support"
+
+#############################################################
+#
+# NOTE:
+#
+# AMLOGIC_BOARD_HAS_PMU is general switch to compile on-board
+# PMU drivers, ALL new added PMU driver should be depend on 
+# this config
+#
+############################################################
+config AMLOGIC_BOARD_HAS_PMU
+	bool "Amlogic on board Power Management Unit support"
+	select POWER_SUPPLY
+	default y
+	help
+	  Say Y here if your board has Power Management Unit
+
+config AMLOGIC_PMU_OF
+	bool "Amlogic Power OF support"
+	depends on I2C
+    depends on AMLOGIC_BOARD_HAS_PMU
+    default y
+	help
+		Power management device tree support
+
+config CW2015
+	bool "CellWise gasgauge"
+    depends on AMLOGIC_BOARD_HAS_PMU
+	default n
+	help
+	  Say Y here if you want to use the CellWise gasgauge.
+
+config SMBA10XX_BATTERY
+	boolean "SMBA10XX battery driver support"
+    depends on AMLOGIC_BOARD_HAS_PMU
+	select I2C
+	default n
+	help
+	  Say Y if you want to add battery driver supoort for SMBA10XX
+	  
+config BQ27x00_BATTERY
+	bool "BQ27x00 Battery support"
+    depends on AMLOGIC_BOARD_HAS_PMU
+	select I2C
+	default n
+	help
+	  Say Y here if you want to add battery driver supoort for bq27x00.
+
+config UBOOT_BATTERY_PARAMETERS
+	bool "battery parameters get from uboot support"
+    depends on AMLOGIC_BOARD_HAS_PMU
+	default n
+	help
+	    Say y if you want to get battery parameters from uboot
+
+config AML_PMU_ALGORITHM_SUPPORT
+    tristate "Amlogic PMU battery algorithm support"
+    select AML_RTC
+    help
+        Say y if your pmu device need this algorithm support
+
+config AML_DVFS
+    bool "Amlogic DVFS interface support"
+    default y
+    help
+        interface for clock adjustment and power managment
+
+#source "drivers/amlogic/power/act8xxx_pmu/Kconfig"
+source "drivers/amlogic/power/axp_power/Kconfig"
+source "drivers/amlogic/power/meson_cs_dcdc_regulator/Kconfig"
+source "drivers/amlogic/power/aml_pmu/Kconfig"
+source "drivers/amlogic/power/ricoh/Kconfig"
+endmenu

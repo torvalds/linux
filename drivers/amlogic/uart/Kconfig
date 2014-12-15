@@ -1,0 +1,19 @@
+#
+# Amlogic driver configuration
+#
+	
+config AM_UART
+    bool "Serial support"
+    depends on PLAT_MESON
+	select SERIAL_CORE
+	default y
+    help
+	Add support for the Amlogic serial port.
+
+config AM_UART_CONSOLE
+	bool "Console on Amlogic Serial port"
+	depends on AM_UART
+	select SERIAL_CORE_CONSOLE
+	default y
+	help
+		Support for running a console on the Amlogic serial

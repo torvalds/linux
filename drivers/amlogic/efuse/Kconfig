@@ -1,0 +1,35 @@
+#
+# Amlogic efuse device configuration
+#
+
+menu "EFUSE Support"
+
+config EFUSE
+	bool "EFUSE Driver"
+	default n
+	help
+	    EFUSE device driver.
+
+config EFUSE_WRITE_VERSION_PERMIT
+	depends on EFUSE
+	bool "efuse write version permit"
+	default n
+	help
+		efuse version is prohibited writing in kernel default case, if it must be written, enable this config
+		if you don't understand efuse version, please don't enable this config
+
+
+config EFUSE_LAYOUT_VERSION
+	depends on EFUSE
+	int "default efuse layout version"
+	range 0  3
+	default  3
+	help
+		EFUSE layout version
+
+		0 => v0  for m1
+		1 => v1  for m3
+		2 => v2  for m6
+		3 => v3  for m3 and m6, security key save in emmc or nand, hash save in efuse
+
+endmenu

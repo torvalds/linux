@@ -1,0 +1,21 @@
+menuconfig AM_WIFI
+	bool "WiFi support"
+	default n
+
+if AM_WIFI
+config AM_WIFI_SD_MMC
+	bool "Amlogic SDIO Wi-Fi support"
+	depends on AM_WIFI
+	default n
+
+config DHD_USE_STATIC_BUF
+    bool "broadcom wifi static buff support"
+    default n
+
+config AM_WIFI_USB
+	bool "Amlogic USB Wi-Fi Dongle Support"
+	depends on AM_WIFI
+	default n
+
+
+endif # AM_WIFI

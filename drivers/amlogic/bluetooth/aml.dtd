@@ -1,0 +1,13 @@
+#ifdef CONFIG_BT_DEVICE
+//#ifdef CONFIG_ARCH_MESON8
+//$$ DEVICE="bt-dev"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "gpio_reset"
+    bt-dev{
+        compatible = "amlogic,bt-dev";
+        dev_name = "bt-dev";
+        status = "ok";
+        gpio_reset = "GPIOX_20";
+    };
+//#endif
+#endif

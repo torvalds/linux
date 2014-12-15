@@ -1,0 +1,418 @@
+#ifdef CONFIG_PLAT_MESON
+#the head of the dtd file
+/dts-v1/;
+/// ***************************************************************************************\\\n
+#ifndef CONFIG_ARCH_MESON8
+//$$ PROJECT="meson6"
+//$$ REMOVE 1
+void root_func(){
+//$$ ADD /{
+	compatible = "AMLOGIC,8726_MX";
+	model = "AMLOGIC";
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+#else
+//$$ PROJECT="meson8"
+//$$ REMOVE 1
+void root_func(){
+//$$ ADD /{
+	compatible = "AMLOGIC,8726_M8";
+	model = "AMLOGIC";
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+#endif
+
+/// ***************************************************************************************
+///	-	CPU
+//$$ MODULE="CPU"
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+//$$ DEVICE="cpu0"
+        cpu@0 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x200>;
+        };
+//$$ DEVICE="cpu1"
+        cpu@1 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x1>;
+        };
+#ifdef CONFIG_ARCH_MESON8
+//$$ DEVICE="cpu2"
+        cpu@2 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x2>;
+        };
+//$$ DEVICE="cpu3"
+        cpu@3 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x3>;
+        };
+#endif
+    };
+
+/// ***************************************************************************************
+///	-	Cache
+//$$ MODULE="Cache"
+//$$ DEVICE="cache"
+#ifdef CONFIG_ARCH_MESON8
+    cache-controller {
+          compatible = "arm,meson-pl310-cache";
+          reg = <0xc4200000 0x1000>;
+          arm,data-latency = <3 3 3>;
+          arm,tag-latency = <2 2 2>;
+          cache-unified;
+          cache-level = <2>;
+          aux-instruction_prefetch;
+          aux-data_prefetch;
+          aux-ns_lockdown;
+          aux-force_no_write_alloc;
+          aux-cache_replace_policy_round_robin;
+          aux-early_write_response;
+          aux-full_line_of_zero;
+          aux-ns_int_ctrl;
+          aux-share_override;
+          prefetch-double_line_fill;
+          prefetch-prefetch_drop;
+          prefetch-prefetch_offset = <7>;
+    };
+#else
+		cache-controller {
+          compatible = "arm,meson-pl310-cache";
+          reg = <0xc4200000 0x1000>;
+          cache-unified;
+          cache-level = <2>;
+          aux-instruction_prefetch;
+          aux-data_prefetch;
+          aux-ns_lockdown;
+          aux-ns_int_ctrl;
+          aux-share_override;
+          aux-cache_replace_policy_round_robin;
+          prefetch-prefetch_offset = <6>;
+    };
+#endif
+
+/// ***************************************************************************************
+///	-	Memory
+//$$ MODULE="Memory"
+//$$ DEVICE="memory"
+//$$ L2 PROP_U32 = "aml_reserved_start"
+//$$ L2 PROP_U32 = "aml_reserved_end"
+//$$ L2 PROP_U32 = "linux,usable-memory"
+#ifndef CONFIG_ARCH_MESON6
+	memory{
+		device_type = "memory";
+		aml_reserved_start = <0x06000000>; /**reserved memory start-for kernel */
+		aml_reserved_end = <0x05000000>;/**reserved uImage and dtb memory-for uboot*/
+		linux,total-memory = <0x40000000>; /**0x40000000--1G memory 0x80000000--2G memory*/
+	};
+#else
+	memory{
+		device_type = "memory";
+		aml_reserved_start = <0x85000000>; /**reserved memory start-for kernel */
+		aml_reserved_end = <0x84000000>;/**reserved uImage and dtb memory-for uboot*/
+		linux,total-memory = <0x40000000>;/**0x40000000--1G memory 0x80000000--2G memory*/
+	};
+#endif
+
+/// ***************************************************************************************
+///	-	GIC
+//$$ MODULE="GIC"
+//$$ DEVICE="gic"
+	gic:interrupt-controller{
+        compatible = "arm,cortex-a9-gic";
+        reg = <0xc4301000 0x1000
+               0xc4300100 0x0100>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #address-cells = <0>;
+    };
+
+#ifdef CONFIG_ARCH_MESON8
+/// ***************************************************************************************
+///	-	VPU
+//$$ MODULE="VPU"
+//$$ DEVICE="vpu"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "clk_level"
+    vpu{
+		compatible = "amlogic,vpu";
+		dev_name = "vpu";
+		status = "ok";
+		clk_level = <6>;	//for 4k2k
+		/**    	0: 106.25M		1: 127.5M		2: 159.375M
+				3: 182.15M		4: 212.5M		5: 255M
+		    	6: 318.75M		7: 364.3M					 */
+	};
+#endif
+/// ***************************************************************************************
+///	-	ION
+//$$ MODULE="ION"
+//$$ DEVICE="ion_dev"
+//$$ L2 PROP_STR = "status"
+    ion_dev{
+        compatible = "amlogic,ion_dev";
+        dev_name = "ion_dev";
+        status = "ok";
+        reserve-memory = <0x01400000>;
+    };
+
+/// **************************************************************************************
+/// -   DISP&MM-FB
+//$$ MODULE = "DISP&MM-FB"
+#device mesonfb
+sub_file /drivers/amlogic/display/osd/aml.dtd
+#device mesonfb_ext
+sub_file /drivers/amlogic/display/osd_ext/aml.dtd
+#device deinterlace
+sub_file /drivers/amlogic/deinterlace/aml.dtd
+
+/// ***************************************************************************************
+///	-	DISP&MM-A/V stream
+//$$ MODULE = "DISP&MM-A/V stream"
+#device mesonstream
+sub_file /drivers/amlogic/amports/aml_stream.dtd
+
+/// ***************************************************************************************
+///	-	DISP&MM-PostProcess
+//$$ MODULE="DISP&MM-PostProcess"
+#device ppmgr
+sub_file /drivers/amlogic/ppmgr/aml.dtd
+
+/// ***************************************************************************************
+///	-	DISP&MM-AVC Video Encoder
+//$$ MODULE = "DISP&MM-AVC Video Encoder"
+#device amvenc_avc
+sub_file /drivers/amlogic/amports/aml_encoder.dtd
+
+/// ***************************************************************************************
+///	-	DISP&MM-VDIN
+//$$ MODULE = "DISP&MM-VDIN"
+#device vdin0 vdin1
+#sub_file /drivers/amlogic/tvin/aml.dtd
+
+/// ***************************************************************************************
+///	-	DISP&MM-AMLVIDEO2
+//$$ MODULE = "DISP&MM-AMLVIDEO2"
+#device amlvideo2
+sub_file /drivers/amlogic/video_dev/aml.dtd
+
+/// ***************************************************************************************
+///	-	DISP&MM-Video Input Manager
+//$$ MODULE = "DISP&MM-Video Input Manager"
+#device vm
+#sub_file /drivers/amlogic/camera/common/aml.dtd
+
+/// ***************************************************************************************
+///	-	DISP&MM-Vout
+//$$ MODULE = "DISP&MM-Vout"
+#device mesonvout
+sub_file /drivers/amlogic/display/vout/aml_vout.dtd
+#device mesonvout2
+sub_file /drivers/amlogic/display/vout2/aml.dtd
+
+/// ***************************************************************************************
+///	-	EARLY_INIT
+//$$ MODULE="early_init"
+#device early_init
+sub_file /drivers/amlogic/early_init/aml.dtd
+
+/// ***************************************************************************************
+///	-	RTC
+//$$ MODULE="RTC"
+#device rtc
+sub_file /drivers/amlogic/rtc/aml.dtd
+
+/// ***************************************************************************************
+///	-	UART
+//$$ MODULE="UART"
+sub_file /drivers/amlogic/uart/aml.dtd
+
+/// ***************************************************************************************
+///	-	Bluetooth
+//$$ MODULE="Bluetooth"
+sub_file /drivers/amlogic/bluetooth/aml.dtd
+
+/// ***************************************************************************************
+///	-	WiFi
+//$$ MODULE="WiFi"
+sub_file /drivers/amlogic/wifi/aml.dtd
+
+/// ***************************************************************************************
+///	-	Ethernet
+//$$ MODULE="Ethernet"
+sub_file /drivers/amlogic/ethernet/aml.dtd
+
+/// ***************************************************************************************
+///	-	MMC
+//$$ MODULE="MMC"
+sub_file /drivers/amlogic/mmc/aml.dtd
+
+/// ***************************************************************************************
+///	-	I2C
+//$$ MODULE="I2C"
+sub_file /drivers/amlogic/i2c/aml.dtd
+
+/// ***************************************************************************************
+///	-	Power
+//$$ MODULE="Power"
+#device dvfs
+sub_file /drivers/amlogic/power/aml_dvfs/aml.dtd
+#device dcdc
+sub_file /drivers/amlogic/power/meson_cs_dcdc_regulator/aml.dtd
+#ifdef CONFIG_ARCH_MESON8
+//$$ DEVICE="arm_pmu"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 4*3 = "interrupts"
+    arm_pmu {
+        compatible = "arm,cortex-a9-pmu";
+        status = "ok";
+        interrupts = <0     137     0x04
+                      0     138     0x04
+                      0     153     0x04
+                      0     154     0x04>;
+    };
+#endif
+#device battery_parameter
+sub_file /drivers/amlogic/power/aml.dtd
+#device PMU
+sub_file /drivers/amlogic/power/axp_power/aml.dtd
+
+/// ***************************************************************************************
+///	-	USB Controller
+//$$ MODULE="USB Controller"
+sub_file /drivers/amlogic/usb/aml.dtd
+
+/// ***************************************************************************************
+///	-	LCD
+//$$ MODULE="LCD"
+#device backlight
+sub_file /drivers/amlogic/display/backlight/aml.dtd
+#device backlight_extern
+sub_file /drivers/amlogic/display/backlight/aml_bl_extern/aml.dtd
+#device lcd
+sub_file /drivers/amlogic/display/vout/aml_lcd.dtd
+#device lcd_extern
+sub_file /drivers/amlogic/display/vout/lcd_extern/aml.dtd
+
+/// ***************************************************************************************
+///     -       Sensors
+//$$ MODULE="Sensors"
+#device sensor
+sub_file /drivers/amlogic/input/sensor/aml.dtd
+
+/// ***************************************************************************************
+///	-	Audio
+//$$ MODULE="Audio"
+#ifdef CONFIG_ARCH_MESON8
+sub_file /sound/soc/aml/m8/aml.dtd
+#else
+sub_file /sound/soc/aml/m6/aml.dtd
+#endif
+
+/// ***************************************************************************************
+///	-	Camera
+//$$ MODULE="Camera"
+#device camera
+sub_file /drivers/amlogic/camera/aml.dtd
+
+/// ***************************************************************************************
+///	-	Input
+//$$ MODULE="Input"
+#device gpio_keypad
+sub_file /drivers/amlogic/input/gpio_key/aml.dtd
+#device saradc
+sub_file /drivers/amlogic/input/saradc/aml.dtd
+#device adc_keypad
+sub_file /drivers/amlogic/input/keyboard/aml.dtd
+#device new_remote
+sub_file /drivers/amlogic/input/new_remote/aml.dtd
+#device remote
+sub_file /drivers/amlogic/input/remote/aml.dtd
+
+/// ***************************************************************************************
+///	-	Spi
+//$$ MODULE="Spi"
+sub_file /drivers/amlogic/spi_nor/aml.dtd
+
+/// ***************************************************************************************
+///	-	Nand
+//$$ MODULE="Nand"
+#ifdef CONFIG_ARCH_MESON8
+sub_file /drivers/amlogic/amlnf/dev/aml.dtd
+#else
+sub_file /drivers/amlogic/nand/aml.dtd
+#endif
+
+/// ***************************************************************************************
+///	-	Efuse
+//$$ MODULE="Efuse"
+sub_file /drivers/amlogic/efuse/aml.dtd
+
+/// ***************************************************************************************
+///	-	HDMI
+//$$ MODULE="HDMI"
+sub_file /drivers/amlogic/hdmi/hdmi_tx/aml.dtd
+
+/// ***************************************************************************************
+///	-	Securitykey
+//$$ MODULE="Securitykey"
+sub_file /drivers/amlogic/securitykeys/aml.dtd
+
+/// ***************************************************************************************
+///	-	Unifykey
+//$$ MODULE="Unifykey"
+sub_file /drivers/amlogic/keymanage/aml.dtd
+
+/// ***************************************************************************************
+///	-	PowerManager
+//$$ MODULE="PowerManager"
+#ifdef CONFIG_ARCH_MESON8
+sub_file /arch/arm/mach-meson8/aml_pm.dtd
+#else
+sub_file /arch/arm/mach-meson6/aml_pm.dtd
+#endif
+
+/// ***************************************************************************************
+///	-	Touch
+//$$ MODULE="Touch"
+sub_file /drivers/amlogic/input/touchscreen/aml.dtd
+
+/// **************************************************************************************
+/// -   Smartcard
+//$$ MODULE="Smartcard"
+sub_file /drivers/amlogic/smartcard/aml.dtd
+
+/// ***************************************************************************************
+///	-	Cpufreq
+//$$ MODULE="Cpufreq"
+sub_file /drivers/amlogic/cpufreq/aml.dtd
+
+/// **************************************************************************************
+/// -   GPIO
+//$$ MODULE="GPIO"
+#ifdef CONFIG_ARCH_MESON8
+sub_file /arch/arm/mach-meson8/aml_gpio.dtd
+#else
+sub_file /arch/arm/mach-meson6/aml_gpio.dtd
+#endif
+
+/// **************************************************************************************
+/// -   Pinmux
+//$$ MODULE="Pinmux"
+#ifdef CONFIG_ARCH_MESON8
+sub_file /arch/arm/mach-meson8/aml_pin.dtd
+#else
+sub_file /arch/arm/mach-meson6/aml_pin.dtd
+#endif
+
+#the end of dtd file
+}; /* end of / */
+#endif

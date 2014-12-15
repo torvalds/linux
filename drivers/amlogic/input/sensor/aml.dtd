@@ -1,0 +1,100 @@
+#ifdef CONFIG_SENSOR_DEVICES
+//$$ DEVICE="sensor"
+//$$ L2 PROP_STR = "status"
+    sensor{
+		compatible = "amlogic,aml_sensor";
+		status = "okay";
+
+//$$ DEVICE="stk831x"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+        stk831x{
+            dev_name = "stk831x";
+            status = "okay";
+            address = <0x3d>;
+            i2c_bus = "i2c_bus_b";
+        };
+
+//$$ DEVICE="mma7660"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+        mma7660{
+            dev_name = "mma7660";
+            status = "okay";
+            address = <0x4c>;
+            i2c_bus = "i2c_bus_b";
+        };
+
+//$$ DEVICE="mma8452"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+        mma8452{
+            dev_name = "mma8452";
+            status = "okay";
+            address = <0x1c>;
+            i2c_bus = "i2c_bus_b";
+        };
+
+//$$ DEVICE="mma865x"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+        mma865x{
+            dev_name = "mma865x";
+            status = "okay";
+            address = <0x1d>;
+            i2c_bus = "i2c_bus_b";
+        };
+
+//$$ DEVICE="afa750"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+        afa750{
+            dev_name = "afa750";
+            status = "okay";
+            address = <0x3c>;
+            i2c_bus = "i2c_bus_b";
+        };
+
+//$$ DEVICE="cm3217"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+        cm3217{
+            dev_name = "cm3217";
+            status = "okay";
+            address = <0x10>;
+            i2c_bus = "i2c_bus_b";
+        };
+
+//$$ DEVICE="mxc6255xc"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "acc_dir"
+        mxc6255xc{
+            dev_name = "mxc6255xc";
+            status = "okay";
+            address = <0x15>;
+            i2c_bus = "i2c_bus_b";
+            acc_dir = <0x0000>;
+        };
+//$$ DEVICE="mir3da"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+        mir3da{
+            dev_name = "mir3da";
+            status = "okay";
+            address = <0x27>;
+            i2c_bus = "i2c_bus_b";
+	    acc_dir = <0x0000>;
+        };
+
+};
+
+#endif

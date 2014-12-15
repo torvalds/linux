@@ -1493,7 +1493,7 @@ static int ipv6_count_addresses(struct inet6_dev *idev)
 }
 
 int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
-		  const struct net_device *dev, int strict)
+		   struct net_device *dev, int strict)
 {
 	struct inet6_ifaddr *ifp;
 	unsigned int hash = inet6_addr_hash(addr);

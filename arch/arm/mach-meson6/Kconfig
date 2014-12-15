@@ -1,0 +1,102 @@
+if ARCH_MESON6
+
+config CLKTREE_DEBUG
+	bool "New clock tree debug support"
+	default y
+	help
+		Create a node /sys/class/meson_clocktree/clkTree to get/set clocks
+menu    "Meson Global Timer Setting"
+config MESON_TIMERA
+	bool "Enable EE Domain Timer A"
+	default y
+	help
+		Enable EE Timer A . if enable the timer is 1Mhz
+config MESON_TIMERB
+	bool "Enable EE Domain Timer B"
+	depends on !SMP || HAVE_ARM_TWD
+	default n
+	help
+		Enable EE Timer B . if enable the timer is 1Mhz
+config MESON_TIMERC
+	bool "Enable EE Domain Timer C"
+	default n
+	help
+		Enable EE Timer C . if enable the timer is 1Mhz
+config MESON_TIMERD
+	bool "Enable EE Domain Timer D"
+	depends on !SMP || HAVE_ARM_TWD
+	default n
+	help
+		Enable EE Timer D . if enable the timer is 1Mhz
+endmenu
+choice 
+	prompt "Meson Local timer select"
+	depends on SMP
+	default MESON_LOCAL_TIMER
+config  MESON_LOCAL_TIMER
+	bool "USE Meson timer "
+config  MESON_ARM_TWD
+	bool "USE Meson ARM TWD"
+	select HAVE_ARM_TWD
+endchoice
+config MESON_CPU_TEMP_SENSOR
+	bool "meson temperature sensor cpu interface support"
+	default n
+	help
+		/sys/class/saradc/temperature can got the celius . 
+config CORE_FREQ_TRACK
+    bool "trace for cpu frequence with kernel timestamp"
+    default n
+    help
+        Create /dev/core_freq to collect cpu frequent change information with kernel timestamp
+
+config MESON6_SMP_HOTPLUG
+	bool "Hotplug support for test"
+	depends on SMP
+	default n
+	help
+		Hotplug let cpu1 enter wfi. Wake up it via SGI by cpu0
+
+config SUPPORT_USB_BURNING
+	bool "USB burning support"
+	default n
+	help
+		select it for enable USB burning function
+
+config MESON_L2CC_OPTIMIZE
+	bool "Optimize L2 cache"
+	depends on SMP && CACHE_L2X0
+	default n
+	help
+		enable PL310 double linefill
+
+config MESON_L2CC_DLF
+	bool "L2 cache double line fill"
+	depends on SMP && CACHE_L2X0
+	default n
+	help
+		enable PL310 double line fill
+
+config MESON_L2CC_STANDBY
+	bool "Enable L2 cache standby"
+	depends on SMP && CACHE_L2X0
+	default n
+	help
+		enable PL310 dynamic gating & standby mode
+
+config MESON_SUSPEND_FIRMWARE_BASE
+        hex
+        default 0x1ff00000
+        depends on MESON_SUSPEND
+        help
+          The base address of 1MB of memory reserved for suspend firmware.
+
+config MESON_TRUSTZONE
+	bool "Enable ARM Trustzone secure extension"
+	default n
+	help
+		Enable ARM Trustzone secure extension
+		
+endif # ARCH_MESON36
+
+

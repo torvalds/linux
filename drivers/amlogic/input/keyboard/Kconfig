@@ -1,0 +1,47 @@
+#
+# Kyeboard device configuration
+#
+
+menuconfig MESON_INPUT_KEYBOARD
+	bool "Keyboards and keypads"
+	default y
+	help
+	  Say Y here, and a list of supported keyboards and keypads will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if MESON_INPUT_KEYBOARD
+
+config ADC_KEYPADS_AM
+	tristate "Meson ADC keypad support"
+	depends on SARADC_AM
+	default n
+	help
+	  Say Y here if you want to use the Meson ADC keypad.
+
+config KEY_INPUT_CUSTOM_AM
+	tristate "Meson custom key input support"
+        default n
+        help
+          Say Y here if you want to use the Meson custom key input.
+
+config TOUCH_KEY_PAD_IT7230
+	tristate "IT7230 capacitive touch keypad support"
+	default n
+	help
+	  Say Y here if you want to use the IT7230 capacitive touch keypad.
+
+config TOUCH_KEY_PAD_SO340010
+	tristate "SO340010 capacitive touch keypad support"
+	default n
+	help
+	  Say Y here if you want to use the SO340010 capacitive touch keypad.
+
+config TOUCH_KEY_PAD_HA2605
+        tristate "HA2605 touch keypad support"
+        default n
+        help
+          Say Y here if you want to use the HA2605 touch keypad support.
+
+endif # MESON_INPUT_KEYBOARD

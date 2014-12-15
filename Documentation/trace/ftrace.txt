@@ -2013,6 +2013,35 @@ will produce:
  1)   1.449 us    |             }
 
 
+You can disable the hierarchical function call formatting and instead print a
+flat list of function entry and return events.  This uses the format described
+in the Output Formatting section and respects all the trace options that
+control that formatting.  Hierarchical formatting is the default.
+
+	hierachical: echo nofuncgraph-flat > trace_options
+	flat: echo funcgraph-flat > trace_options
+
+  ie:
+
+  # tracer: function_graph
+  #
+  # entries-in-buffer/entries-written: 68355/68355   #P:2
+  #
+  #                              _-----=> irqs-off
+  #                             / _----=> need-resched
+  #                            | / _---=> hardirq/softirq
+  #                            || / _--=> preempt-depth
+  #                            ||| /     delay
+  #           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
+  #              | |       |   ||||       |         |
+                sh-1806  [001] d...   198.843443: graph_ent: func=_raw_spin_lock
+                sh-1806  [001] d...   198.843445: graph_ent: func=__raw_spin_lock
+                sh-1806  [001] d..1   198.843447: graph_ret: func=__raw_spin_lock
+                sh-1806  [001] d..1   198.843449: graph_ret: func=_raw_spin_lock
+                sh-1806  [001] d..1   198.843451: graph_ent: func=_raw_spin_unlock_irqrestore
+                sh-1806  [001] d...   198.843453: graph_ret: func=_raw_spin_unlock_irqrestore
+
+
 You might find other useful features for this tracer in the
 following "dynamic ftrace" section such as tracing only specific
 functions or tasks.

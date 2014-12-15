@@ -1,0 +1,145 @@
+if PLAT_MESON
+
+menu "Amlogic Meson platform"
+	depends on PLAT_MESON
+choice
+	prompt "Meson SoC"
+	default ARCH_MESON8
+
+config ARCH_MESON6
+	bool "Meson6 series"
+	help
+	  Enable support for Amlogic Meson6 based system
+
+config ARCH_MESON6TV
+	bool "Meson6TV series"
+	help
+	  Enable support for Amlogic Meson6TV based system
+
+config ARCH_MESON6TVD
+	bool "Meson6TVD series"
+	help
+	  Enable support for Amlogic Meson6TVD based system
+
+config ARCH_MESON8
+	bool "Meson8 series"
+	help
+	  Enable support for Amlogic Meson8 based system
+
+config ARCH_MESON8B
+	bool "Meson8 baby series"
+	help
+	  Enable support for Amlogic Meson8 baby based system
+
+config ARCH_MESON8M2
+	bool "Meson8M2 series"
+	help
+	  Enable support for Amlogic Meson8M2 based system
+
+config ARCH_MESONG9TV
+	bool "MesonG9TV series"
+	help
+	  Enable support for Amlogic G9TV based system
+
+endchoice
+
+menu "Meson development boards"
+
+source "arch/arm/mach-meson6/Kconfig.boards"
+source "arch/arm/mach-meson6tv/Kconfig.boards"
+source "arch/arm/mach-meson6tvd/Kconfig.boards"
+source "arch/arm/mach-meson8/Kconfig.boards"
+source "arch/arm/mach-meson8b/Kconfig.boards"
+source "arch/arm/mach-mesong9tv/Kconfig.boards"
+
+#if MESON_CUSTOM_BOARD_SUPPORT
+#isource "customer/meson/dt/Kconfig"
+#endif # MESON_CUSTOM_BOARD_SUPPORT
+
+endmenu # "Meson reference boards"
+
+choice
+	prompt "Interrupt Controller Select"
+	default MESON_ARM_GIC
+
+config MESON_IRQ
+	bool "Meson Interrupt controller"
+	help
+	  If SMP is opend , you should not Enable it
+
+config MESON_ARM_GIC
+	bool "ARM Generic Interrupt Controller"
+	select ARM_GIC
+	help
+	  Interrupt Controller from ARM Company
+
+endchoice
+
+config MESON_CLOCK_TICK_RATE
+	int "Clock Tick Rate"
+	default 24000000
+
+config MESON_ARM_GIC_FIQ
+	bool "ARM Generic Interrupt Controller FIQ"
+	depends on ARM_GIC
+	help
+	  enable ARM GIC FIQ
+	default n
+
+config MESON_SUSPEND
+	bool "Support Meson A9 domain power down"
+	depends on SUSPEND
+	default n
+
+config SUSPEND_WATCHDOG
+	bool "Enable hardware watchdog while system halt in suspend or resume process"
+	depends on MESON_SUSPEND
+	default n
+
+config MESON_SUSPEND_TEST
+	bool "Enable suspend/resume test"
+	depends on MESON_SUSPEND
+	default n
+
+config SCREEN_ON_EARLY
+	bool "Turn on screen early"
+	depends on MESON_SUSPEND
+	default n
+
+config CLK81_DFS
+	bool "Scale clk81 freqence in dynamic mode"
+	default n
+
+config MESON_LEGACY_REGISTER_API
+	bool "Support legacy Meson regiser operation API"
+	default n
+	help
+	  Enable support for legacy Meson register operation API.
+
+config MESON_CPU_EMULATOR
+	bool "Support Meson serial CPU running at Emulator"
+	default n
+	help
+	  Enable support for Meson serial CPU running at VLSI Emulator
+
+source "arch/arm/mach-meson6/Kconfig"
+source "arch/arm/mach-meson6tv/Kconfig"
+source "arch/arm/mach-meson6tvd/Kconfig"
+source "arch/arm/mach-meson8/Kconfig"
+source "arch/arm/mach-meson8b/Kconfig"
+source "arch/arm/mach-mesong9tv/Kconfig"
+
+config MESON_CUSTOM_BOARD_SUPPORT
+	bool "Support customer board"
+	default n
+	help
+	  This enables board definition from external customer directory
+
+menu "Meson customer board drivers"
+depends on MESON_CUSTOM_BOARD_SUPPORT
+#isource "customer/drivers/Kconfig"
+endmenu # "Customer drivers"
+
+endmenu # "Amlogic Meson platform"
+
+endif # PLAT_MESON

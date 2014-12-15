@@ -40,12 +40,13 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 	 * and we know an IRQ was signaled then call irq handler directly.
 	 * Otherwise do the full probe.
 	 */
+#if 0
 	func = card->sdio_single_irq;
 	if (func && host->sdio_irq_pending) {
 		func->irq_handler(func);
 		return 1;
 	}
-
+#endif	
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &pending);
 	if (ret) {
 		pr_debug("%s: error %d reading SDIO_CCCR_INTx\n",
@@ -95,9 +96,9 @@ static int sdio_irq_thread(void *_host)
 	 * hence we poll for them in that case.
 	 */
 	idle_period = msecs_to_jiffies(10);
-	period = (host->caps & MMC_CAP_SDIO_IRQ) ?
-		MAX_SCHEDULE_TIMEOUT : idle_period;
-
+	//period = (host->caps & MMC_CAP_SDIO_IRQ) ?
+	//	MAX_SCHEDULE_TIMEOUT : idle_period;
+	period = idle_period;
 	pr_debug("%s: IRQ thread started (poll period = %lu jiffies)\n",
 		 mmc_hostname(host), period);
 
@@ -138,7 +139,8 @@ static int sdio_irq_thread(void *_host)
 		 * that an interrupt will be closely followed by more.
 		 * This has a substantial benefit for network devices.
 		 */
-		if (!(host->caps & MMC_CAP_SDIO_IRQ)) {
+	//	if (!(host->caps & MMC_CAP_SDIO_IRQ)) {
+		{
 			if (ret > 0)
 				period /= 2;
 			else {
@@ -175,7 +177,7 @@ static int sdio_card_irq_get(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 
-	WARN_ON(!host->claimed);
+	WARN_ON(!host->alldev_claim->claimed);
 
 	if (!host->sdio_irqs++) {
 		atomic_set(&host->sdio_irq_thread_abort, 0);
@@ -196,7 +198,7 @@ static int sdio_card_irq_put(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 
-	WARN_ON(!host->claimed);
+	WARN_ON(!host->alldev_claim->claimed);
 	BUG_ON(host->sdio_irqs < 1);
 
 	if (!--host->sdio_irqs) {

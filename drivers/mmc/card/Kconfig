@@ -18,7 +18,7 @@ config MMC_BLOCK_MINORS
 	int "Number of minors per block device"
 	depends on MMC_BLOCK
 	range 4 256
-	default 8
+	default 16
 	help
 	  Number of minors per block device. One is needed for every
 	  partition on the disk (plus one for the whole disk).
@@ -49,6 +49,22 @@ config MMC_BLOCK_BOUNCE
 	  physical memory.
 
 	  If unsure, say Y here.
+
+config EMMC_SECURE_STORAGE
+	bool "Meson secure storage store in emmc device support"
+	depends on MMC_BLOCK
+	default n
+	help
+	  Support secure storage store in emmc device
+	  
+config MMC_BLOCK_DEFERRED_RESUME
+	bool "Deferr MMC layer resume until I/O is requested"
+	depends on MMC_BLOCK
+	default n
+	help
+	  Say Y here to enable deferred MMC resume until I/O
+	  is requested. This will reduce overall resume latency and
+	  save power when theres an SD card inserted but not being used.
 
 config SDIO_UART
 	tristate "SDIO UART/GPS class support"

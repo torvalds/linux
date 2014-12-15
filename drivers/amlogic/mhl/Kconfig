@@ -1,0 +1,10 @@
+
+menu "MHL Support"
+
+config PANEL_IT6681
+	tristate "it6681 hdmi2mhl device"
+	default n
+	help
+	  it6611 HDMI to MHL device
+
+endmenu

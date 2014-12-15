@@ -1,0 +1,10 @@
+menu "ION support"
+
+config AMLOGIC_ION
+        tristate "ION memeory management support"
+        select ION
+        select ARM_HAS_SG_CHAIN
+        default y
+        ---help---
+          Select to enable "Amlogic ion device support.
+endmenu

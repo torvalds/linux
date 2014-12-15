@@ -1,0 +1,92 @@
+#ifdef CONFIG_AMLOGIC_PMU_OF
+//$$ DEVICE="Battery_parameter"
+//$$ MATCH "battery_parameter_match" = <&battery_parameter>
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "pmu_twi_id"
+//$$ L2 PROP_U32 = "pmu_irq_id"
+//$$ L2 PROP_U32 = "pmu_twi_addr"
+//$$ L2 PROP_U32 = "pmu_battery_rdc"
+//$$ L2 PROP_U32 = "pmu_battery_cap"
+//$$ L2 PROP_U32 = "pmu_battery_technology"
+//$$ L2 PROP_STR = "pmu_battery_name"
+//$$ L2 PROP_U32 = "pmu_init_chgvol"
+//$$ L2 PROP_U32 = "pmu_init_chgend_rate"
+//$$ L2 PROP_U32 = "pmu_init_chg_enabled"
+//$$ L2 PROP_U32 = "pmu_init_adc_freq"
+//$$ L2 PROP_U32 = "pmu_init_adc_freqc"
+//$$ L2 PROP_U32 = "pmu_init_chg_pretime"
+//$$ L2 PROP_U32 = "pmu_init_chg_csttime"
+//$$ L2 PROP_U32 = "pmu_init_chgcur"
+//$$ L2 PROP_U32 = "pmu_suspend_chgcur"
+//$$ L2 PROP_U32 = "pmu_resume_chgcur"
+//$$ L2 PROP_U32 = "pmu_shutdown_chgcur"
+//$$ L2 PROP_U32 = "pmu_usbcur_limit"
+//$$ L2 PROP_U32 = "pmu_usbcur"
+//$$ L2 PROP_U32 = "pmu_usbvol_limit"
+//$$ L2 PROP_U32 = "pmu_usbvol"
+//$$ L2 PROP_U32 = "pmu_pwroff_vol"
+//$$ L2 PROP_U32 = "pmu_pwron_vol"
+//$$ L2 PROP_U32 = "pmu_pekoff_time"
+//$$ L2 PROP_U32 = "pmu_pekoff_en"
+//$$ L2 PROP_U32 = "pmu_peklong_time"
+//$$ L2 PROP_U32 = "pmu_pwrok_time"
+//$$ L2 PROP_U32 = "pmu_pwrnoe_time"
+//$$ L2 PROP_U32 = "pmu_intotp_en"
+//$$ L2 PROP_U32 = "pmu_pekon_time"
+//$$ L2 PROP_U32 = "pmu_charge_efficiency"
+//$$ L2 PROP_U32 16*3 ="pmu_bat_curve"
+    battery_parameter:battery_parameter{
+        status = "okay";
+        pmu_twi_id = <2>;                   /** PMU i2c bus                          */
+        pmu_irq_id = <0>;                   /** INT_WATCHDOG                         */
+        pmu_twi_addr = <0x32>;              /** PMU i2c addr                         */
+        pmu_battery_rdc = <94>;             /** battery internal resistor            */
+        pmu_battery_cap = <9250>;           /** battery capacity                     */
+        pmu_battery_technology = <4>;       /** POWER_SUPPLY_TECHNOLOGY_LiFe         */
+        pmu_battery_name = "PTI PL336078";  /** battery name                         */
+        pmu_init_chgvol = <4200000>;        /** target charge voltage                */
+        pmu_init_chgend_rate = <10>;        /** set initial charing end current rate */
+        pmu_init_chg_enabled = <1>;         /** set initial charing enabled          */
+        pmu_init_adc_freq = <25>;           /** set initial adc frequency            */
+        pmu_init_adc_freqc = <100>;         /** set initial coulomb adc coufrequency */
+        pmu_init_chg_pretime = <80>;        /** set initial pre-charging time        */
+        pmu_init_chg_csttime = <300>;       /** set initial rapid-charging time      */
+        pmu_init_chgcur = <300000>;         /** set initial charging current limite  */
+        pmu_suspend_chgcur = <1300000>;     /** set suspend charging current limite  */
+        pmu_resume_chgcur = <300000>;       /** set resume charging current limite   */
+        pmu_shutdown_chgcur = <1300000>;    /** set shutdown charging current limite */
+        pmu_usbcur_limit = <1>;             /** enable usb current limit?            */
+        pmu_usbcur = <500>;                 /** usb limit current value if enabled   */
+        pmu_usbvol_limit = <1>;             /** enable usb vbus voltage limit        */
+        pmu_usbvol = <4400>;                /** voltage limit value if enabled       */
+        pmu_pwroff_vol = <3200>;            /** hardware force power off voltage     */
+        pmu_pwron_vol = <2900>;             /** power on when battery voltage above  */
+        pmu_pekoff_time = <6000>;           /** long press to power off system       */
+        pmu_pekoff_en  = <1>;               /** enable long press to PWR OFF system  */
+        pmu_peklong_time = <1500>;          /** threshold to detect long press       */
+        pmu_pwrok_time   = <64>;            /** delay to detect pwr ok signal        */
+        pmu_pwrnoe_time = <2000>;           /**                                      */
+        pmu_intotp_en = <1>;                /** over temperature protection enable   */
+        pmu_pekon_time = <128>;             /** powerkey hold time for power on      */
+        pmu_charge_efficiency = <99>;       /** efficient of charging                */
+        pmu_bat_curve = <
+         /* ocv, charge, discharge */
+            3132      0       0
+            3273      0       0
+            3414      0       0
+            3555      0       0  
+            3625      1       3  
+            3660      2       7  
+            3696      7      14 
+            3731     12      22 
+            3766     18      37 
+            3801     37      49 
+            3836     51      57
+            3872     57      63
+            3942     69      73
+            4012     80      82
+            4083     89      90
+            4153    100     100>;
+	};
+
+#endif

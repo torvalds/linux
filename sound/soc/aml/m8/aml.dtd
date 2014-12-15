@@ -1,0 +1,59 @@
+#ifdef CONFIG_SND_AML_SOC
+//$$ DEVICE="audio_platform"
+//$$ L2 PROP_STR = "status"
+    audio_platform{
+        compatible = "amlogic,aml-audio";
+        dev_name = "aml-audio.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_dai"
+//$$ L2 PROP_STR = "status"
+    audio_dai{
+        compatible = "amlogic,aml-dai";
+        dev_name = "aml-dai.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_m8_audio"
+//$$ L2 PROP_STR = "status"
+    audio_m8_audio{
+        compatible = "amlogic,m8_audio_codec";
+        dev_name = "aml_m8_codec.0";
+        status = "okay";
+    };
+#endif        
+
+#ifdef CONFIG_SND_AML_M8
+//$$ DEVICE="aml_m8_sound_card"
+//$$ L2 PROP_STR = "aml,sound_card"
+//$$ L2 PROP_STR = "aml,codec_dai"
+//$$ L2 PROP_STR 6*2 = "aml,audio-routing"
+//$$ L2 PROP_STR = "mute_gpio"
+//$$ L2 PROP_U32 5 = "hp_paraments"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "Audio_pin_0_match" = "pinctrl-0"
+    aml_m8_sound_card{
+        compatible = "sound_card, aml_snd_m8";
+        aml,sound_card = "AML-M8AUDIO";
+        aml,codec_dai = "AML-M8";
+        aml,audio-routing =
+            "Ext Spk","LINEOUTL",
+            "Ext Spk","LINEOUTR",
+            "HP","HP_L",
+            "HP","HP_R",
+            "MICBIAS","MAIN MIC",
+            "LINPUT1","MICBIAS";
+        mute_gpio = "GPIOY_15";
+        //mute_inv;
+        hp_paraments = <800 713 300 5 1>;
+        pinctrl-names = "aml_snd_m8";
+        pinctrl-0 = <&audio_pins>;
+        status = "okay";
+        
+    };
+#endif
+
+
+

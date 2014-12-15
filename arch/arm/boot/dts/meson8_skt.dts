@@ -1,0 +1,850 @@
+/*
+ * Amlogic-M8 SKT Device Tree Source
+ *
+ * Copyright Amlogic 2013
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+/{
+	compatible = "AMLOGIC,8726_M8";
+	model = "AMLOGIC";
+    interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        
+        cpu@0 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x200>;
+        };
+        cpu@1 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x1>;
+        };
+        cpu@2 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x2>;
+        };
+        cpu@3 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x3>;
+        };
+    };
+    
+    cache-controller {
+          compatible = "arm,meson-pl310-cache";
+          reg = <0xc4200000 0x1000>;
+          arm,data-latency = <3 3 3>;
+          arm,tag-latency = <2 2 2>;
+          cache-unified;
+          cache-level = <2>;
+          aux-instruction_prefetch;
+          aux-data_prefetch;
+          aux-ns_lockdown;
+          aux-force_no_write_alloc;
+          aux-cache_replace_policy_round_robin;
+          aux-early_write_response;
+          aux-full_line_of_zero;
+          aux-ns_int_ctrl;
+          aux-share_override;
+          prefetch-double_line_fill;
+          prefetch-prefetch_drop;
+          prefetch-prefetch_offset = <7>;
+    };
+	
+	/*start  memory config*/
+	memory{
+		device_type = "memory";
+		aml_reserved_start = <0x05000000>;
+		aml_reserved_end = <0x1b5fffff>;
+		linux,usable-memory = <0x00000000 0x04000000 0x1b600000 0x64a00000>;
+	};
+
+    gic:interrupt-controller{
+        compatible = "arm,cortex-a9-gic";
+        reg = <0xc4301000 0x1000
+               0xc4300100 0x0100>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #address-cells = <0>;
+    };
+
+    arm_pmu {
+        compatible = "arm,cortex-a9-pmu";
+        interrupts = <0     137     0x04
+                      0     138     0x04
+                      0     153     0x04
+                      0     154     0x04>;
+    };
+
+	ion_dev{
+		   compatible = "amlogic,ion_dev";
+		   dev_name = "ion_dev";
+	};
+	
+	vpu{
+		compatible = "amlogic,vpu";
+		dev_name = "vpu";
+		
+		clk_level = <4>;
+		/**    	0: 106.25M		1: 127.5M		2: 159.375M
+				3: 182.15M		4: 212.5M		5: 255M
+		    	6: 318.75M		7: 364.3M				 */
+	};
+	
+	mesonfb{
+        compatible = "amlogic,mesonfb";
+        dev_name = "mesonfb";
+        reg = <0x05100000 0x01000000
+               0x06100000 0x00100000>;
+        vmode = <3>; /*0:VMODE_720P 1:VMODE_LCD  2:VMODE_LVDS_1080P 3:VMODE_1080P*/
+        display_size_default = <1920 1080 1920 2160 32>;
+    };
+    
+    mesonstream{
+		compatible = "amlogic,mesonstream";
+		dev_name = "mesonstream.0";
+		reg = <0x06200000 0x04000000
+						0x18400000 0x00a00000>;
+	};
+	vdin0{
+		compatible = "amlogic,vdin";
+		dev_name = "vdin0";
+	        reg = <0x0a200000 0x04000000>;
+		irq = <115>;
+                vdin_id = <0>;
+	};
+	
+    vdin1{
+		compatible = "amlogic,vdin";
+		dev_name = "vdin1";
+		reg = <0x0e200000 0x04000000>;
+		irq = <117>;
+                vdin_id = <1>;
+	};
+	deinterlace{
+		compatible = "amlogic,deinterlace";
+		dev_name = "deinterlace";
+		reg = <0x12200000 0x02300000>;
+	};
+    ppmgr{
+		compatible = "amlogic,ppmgr";
+		dev_name = "ppmgr";
+	    reg = <	0x14500000 0x03000000>;    
+    };
+	amvenc_avc{
+		compatible = "amlogic,amvenc_avc";
+		dev_name = "amvenc_avc.0";
+		reg = <0x17500000 0x00f00000>;
+	};
+	amlvideo2{
+		compatible = "amlogic,amlvideo2";
+		dev_name = "amlvideo2.0";
+		reg = <0x18e00000 0x01800000>;
+	};
+	vm{
+		compatible = "amlogic,vm";
+		dev_name = "vm.0";
+		reg = <0x1a600000 0x01000000>;
+	};
+	
+    mesonvout{
+        compatible = "amlogic,mesonvout";
+        dev_name = "mesonvout";
+    };
+
+	rtc{
+		compatible = "amlogic,aml_rtc";
+	};
+	
+	uart_ao{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_ao";
+		status = "okay";
+		dev_name = "uart_ao";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ao_uart_pins>;
+	};
+	
+	uart_0{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_a";
+		status = "okay";
+		dev_name = "uart_0";
+//        pinctrl-names = "default";
+//        pinctrl-0 = <&a_uart_pins>;
+	};
+	
+	uart_1{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_b";
+		status = "disabled";
+		dev_name = "uart_1";
+	};
+	
+	uart_2{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_c";
+		status = "disabled";
+		dev_name = "uart_2";
+	};
+	
+	uart_3{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_d";
+		status = "ok";
+		dev_name = "uart_3";
+	};
+	i2c@c8100500{ //I2C-AO
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-AO";
+		status = "ok";
+		reg = <0xc8100500 0x1d>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		device_id = <0>;
+		pinctrl-names="default";
+		pinctrl-0=<&ao_i2c_master>;
+	};
+
+	i2c@c1108500{ /*I2C-A*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-A";
+		status = "ok";
+		reg = <0xc1108500 0x20>;
+		device_id = <1>;
+		pinctrl-names="default";
+		pinctrl-0=<&a_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c@c11087c0{ /*I2C-B*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-B";
+		status = "ok";
+		reg = <0xc11087c0 0x20>;
+		device_id = <2>;
+		pinctrl-names="default";
+		pinctrl-0=<&b_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c@c11087e0{ /*I2C-C*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-C";
+		status = "ok";
+		reg = <0xc11087e0 0x20>;
+		device_id = <3>;
+		pinctrl-names="default";
+//		pinctrl-0=<&c_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	i2c@c1108d20{ /*I2C-D*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-D";
+		status = "ok";
+		reg = <0xc1108d20 0x20>;
+		device_id = <4>;
+		pinctrl-names="default";
+		pinctrl-0=<&d_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	card{
+		compatible = "amlogic,aml_card";
+		dev_name = "aml_sd_mmc.0";
+		pinctrl-names="sdhc_b","sdhc_c","sdhc_a";
+		pinctrl-0=<&sdhc_b_pins>;
+		pinctrl-1=<&sdhc_c_pins>;
+		pinctrl-2=<&sdhc_a_pins>;
+	};
+	
+		aml_cams{
+		compatible = "amlogic,cams_prober";
+		pinctrl-names = "gpio","csi";
+		pinctrl-0 = <&aml_cam_gpio_pins> ;
+		pinctrl-1 = <&aml_cam_csi_pins> ;
+	    cam_1{
+			cam_name = "ov5647";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+      config_path = "/system/etc/myconfig";
+			bt_path = "csi";
+		};
+	};
+    sdio{
+        compatible = "amlogic,aml_sdio";
+        dev_name = "aml_sdio.0";
+        reg = <0xc1108c20 0x20>;
+        pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins", "emmc_clk_cmd_pins", "emmc_all_pins", "sdio_clk_cmd_pins", "sdio_all_pins","sd_1bit_pins"; // "jtag_pin", "uartao_default";
+        pinctrl-0 = <&sd_clk_cmd_pins>;
+        pinctrl-1 = <&sd_all_pins>;
+        pinctrl-2 = <&emmc_clk_cmd_pins>;
+        pinctrl-3 = <&emmc_all_pins>;
+        pinctrl-4 = <&sdio_clk_cmd_pins>;
+        pinctrl-5 = <&sdio_all_pins>;
+        pinctrl-6 = <&sd_1bit_pins>;
+        /* pinctrl-7 = <&ao_jtag_uart_pins>;
+        pinctrl-8 = <&ao_def_uart_pins>;*/
+
+        sd{
+            port = <1>;          /*0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+            pinname = "sd";
+            ocr_avail = <0x200000>;          /*VDD voltage 3.3 ~ 3.4 */
+            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED";
+            f_min = <300000>;
+            f_max = <50000000>;
+            f_max_w = <50000000>;
+            max_req_size = <0x20000>;          /*128KB*/
+            gpio_dat3 = "CARD_4";
+            jtag_pin = "CARD_0";
+            gpio_cd = "CARD_6";
+            irq_in = <3>;
+            irq_out = <5>;
+        };
+    
+        emmc{
+            port = <2>;          /*0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+            pinname = "emmc";
+            ocr_avail = <0x200000>;          /*VDD voltage 3.3 ~ 3.4 */
+            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE"; // MMC_CAP_NEEDS_POLL -- for detect, MMC_CAP_NONREMOVABLE -- for eMMC/TSD
+            f_min = <300000>;
+            f_max = <50000000>;
+            f_max_w = <50000000>;
+            max_req_size = <0x20000>;          /*128KB*/
+            gpio_dat3 = "BOOT_3";
+        };
+    
+        // sdio{
+            // port = <0>;          /*0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+            // pinname = "sdio";
+            // ocr_avail = <0x200000>;          /*VDD voltage 3.3 ~ 3.4 */
+            // caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE";
+            // f_min = <300000>;
+            // f_max = <50000000>;
+            // f_max_w = <50000000>;
+            // max_req_size = <0x20000>;          /*128KB*/
+        // };
+    };
+    
+    // sdhc{
+        // compatible = "amlogic,aml_sdhc";
+        // dev_name = "aml_sdhc.0";
+        // reg = <0xc1108e00 0x30>;
+        // pinctrl-names = "sdhc_sd_clk_cmd_pins", "sdhc_sd_all_pins";
+        // pinctrl-0 = <&sdhc_sd_clk_cmd_pins>;
+        // pinctrl-1 = <&sdhc_sd_all_pins>;
+        
+        // sd{
+            // port = <4>;
+            // pinname = "sd";
+            // ocr_avail = <0x200000>;
+            // caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED";
+            // f_min = <300000>;
+            // f_max = <10000000>;
+            // max_req_size = <0x80000>;
+            // gpio_dat3 = "CARD_4";
+            // gpio_cd = "CARD_6";
+            // irq_in = <3>;
+            // irq_out = <4>;
+            // };
+    // };
+
+	usb_con {
+		lm-compatible = "logicmodule-bus";
+					
+		usb_b{
+			lm-compatible = "amlogic,usb";
+			lm-periph-id = <1>; /* lm name */
+			clock-src = "usb1";
+			port-id = <1>; /* ref to mach/usb.h */
+			port-type = <1>;	/* 0: otg, 1: host, 2: slave */
+			port-speed = <0>; /* 0: default, 1: high, 2: full */
+			port-config = <0>; /* 0: default */
+			port-dma = <0>; /* 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
+			port-id-mode = <1>; /* 0: hardware, 1: sw_host, 2: sw_slave*/
+		};
+
+		usb_a{
+			lm-compatible = "amlogic,usb";
+			lm-periph-id = <0>; /* lm name */
+			clock-src = "usb0";
+			port-id = <0>; /* ref to mach/usb.h */
+			port-type = <0>;	/* 0: otg, 1: host, 2: slave */
+			port-speed = <0>; /* 0: default, high, 1: full */
+			port-config = <0>; /* 0: default */
+			port-dma = <0>; /* 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
+			port-id-mode = <0>; /* 0: hardware, 1: sw_host, 2: sw_slave*/
+			gpio-vbus-power = "GPIOZ_1";
+			gpio-work-mask	= <1>; /*0: work on pulldown,1:work on pullup*/
+		};
+	};
+
+	lcd_LP097QX1:lcd_LP097QX1{	//k100
+		model_name="LP097QX1";	/** lcd model name */
+		interface="edp";		/** lcd_interface(mipi, lvds, edp, ttl) */
+		active_area=<197 147>;	/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+		lcd_bits_option=<8 0>;	/** lcd_bits(6,8), bits_option(0 for only support one mode as lcd_bits define, 1 for both support 6/8bit) */
+		
+		resolution=<2048 1536>;	/** horizontal resolution, vertical resolution */
+		period=<2219 1560>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+		clock_hz_pol=<207700000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+		hsync_width_backporch=<5 120>;	/** hsync_width, hsync_backporch(include hsync_width) */
+		vsync_width_backporch=<1 22>;	/** vsync_width, vsync_backporch(include vsync_width) */
+		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0 for negative, 1 for positive) */
+	};
+	
+	lcd_B080XAN01:lcd_B080XAN01{	//k101
+		model_name="B080XAN01";	/** lcd model name */
+		interface="mipi";		/** lcd_interface(mipi, lvds, edp, ttl) */
+		active_area=<119 159>;		/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+		lcd_bits_option=<6 1>;		/** lcd_bits(6,8), bits_option(0 for only support one mode as lcd_bits define, 1 for both support 6/8bit) */
+
+		resolution=<768 1024>;	/** horizontal resolution, vertical resolution */
+		period=<948 1140>;		/** horizontal period(htotal), vertical period(vtotal) */
+
+		clock_hz_pol=<64843200 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+		hsync_width_backporch=<64 56>;	/** hsync_width, hsync_backporch(include hsync_width) */
+		vsync_width_backporch=<50 30>;	/** vsync_width, vsync_backporch(include vsync_width) */
+		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0 for negative, 1 for positive) */
+                dsi_clk = <250 280 1>;  /** min_clk, max_clk, scaler**/
+
+                lane_num=<4>;//lane num
+                pol_vs_hs_de=<1 1 0>;
+                dpi_color_type=<4 0>;
+                refresh_rate =<60 0>;// refresh rate available only for 2560x1600
+	};
+	
+	lcd_CLAP070NJ02:lcd_CLAP070NJ02{	//g33
+		model_name="CLAP070NJ02";	/** lcd model name */
+		interface="ttl";			/** lcd_interface(mipi, lvds, edp, ttl) */
+		active_area=<154 86>;		/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+		lcd_bits_option=<8 1>;		/** lcd_bits(6,8), bits_option(0 for only support one mode as lcd_bits define, 1 for both support 6/8bit) */
+		
+		resolution=<1024 600>;	/** horizontal resolution, vertical resolution */
+		period=<1344 635>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+		clock_hz_pol=<42700000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+		hsync_width_backporch=<10 160>;	/** hsync_width, hsync_backporch(include hsync_width) */
+		vsync_width_backporch=<5 23>;	/** vsync_width, vsync_backporch(include vsync_width) */
+		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0 for negative, 1 for positive) */
+	};
+	
+	lcd_TN070TN92:lcd_TN070TN92{	//800*480
+		model_name="TN070TN92";	/** lcd model name */
+		interface="ttl";		/** lcd_interface(mipi, lvds, edp, ttl) */
+		active_area=<154 86>;	/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+		lcd_bits_option=<8 1>;	/** lcd_bits(6,8), bits_option(0 for only support one mode as lcd_bits define, 1 for both support 6/8bit) */
+		
+		resolution=<800 480>;	/** horizontal resolution, vertical resolution */
+		period=<1056 525>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+		clock_hz_pol=<33300000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+		hsync_width_backporch=<10 46>;	/** hsync_width, hsync_backporch(include hsync_width) */
+		vsync_width_backporch=<5 23>;	/** vsync_width, vsync_backporch(include vsync_width) */
+		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0 for negative, 1 for positive) */
+	};
+	
+	lcd_LP097X02:lcd_LP097X02{	//g24
+		model_name="LP097X02";	/** lcd model name */
+		interface="lvds";		/** lcd_interface(mipi, lvds, edp, ttl) */
+		active_area=<197 147>;	/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+		lcd_bits_option=<6 0>;	/** lcd_bits(6,8), bits_option(0 for only support one mode as lcd_bits define, 1 for both support 6/8bit) */
+		
+		resolution=<1024 768>;	/** horizontal resolution, vertical resolution */
+		period=<2084 810>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+		clock_hz_pol=<85700000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+		hsync_width_backporch=<10 70>;	/** hsync_width, hsync_backporch(include hsync_width) */
+		vsync_width_backporch=<3 30>;	/** vsync_width, vsync_backporch(include vsync_width) */
+		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0 for negative, 1 for positive) */
+	};
+	
+	meson-remote{
+		compatible = "amlogic,aml_remote";
+		dev_name = "meson-remote";
+		ao_baseaddr = <0xf3100480>;
+		pinctrl-names="default";
+		pinctrl-0=<&remote_pins>;
+	};
+
+	
+    
+    audio_platform{
+        compatible = "amlogic,aml-audio";
+        dev_name = "aml-audio.0";
+    };
+
+    audio_dai{
+        compatible = "amlogic,aml-dai";
+        dev_name = "aml-dai.0";
+    };
+
+    audio_m8_audio{
+        compatible = "amlogic,m8_audio_codec";
+        dev_name = "aml_m8_codec.0";
+    };
+
+    aml_m8_sound_card{
+        compatible = "sound_card, aml_snd_m8";
+        aml,sound_card = "AML-M8AUDIO";
+        aml,codec_dai = "AML-M8";
+        aml,audio-routing =
+            "Ext Spk","LINEOUTL",
+            "Ext Spk","LINEOUTR",
+            "HP","HP_L",
+            "HP","HP_R",
+            "MICBIAS","MAIN MIC",
+            "LINPUT1","MICBIAS";
+        mute_gpio = "GPIO_BSD_EN";
+        //mute_inv;
+
+        hp_paraments = <800 713 300 5 1>;
+        pinctrl-names = "aml_snd_m8";
+        pinctrl-0 = <&audio_pins>;
+        status = "okay";
+        
+    };
+	gpio_keypad{        
+		compatible = "amlogic,gpio_keypad";        
+		scan_period = <20>;        
+		key_num = <1>;        
+		key_name = "power";        
+		key_code = <116>;        
+		key_pin = "GPIOAO_3";
+		irq_keyup = <6>;
+		irq_keydown = <7>;
+	};
+	spi@cc000000{
+		compatible = "amlogic,apollo_spi_nor";
+		status = "ok";
+		reg = <0xcc000000 0x04000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&aml_spi_nor_pins>;
+
+		nr-parts = <2>;
+		nr-part-0 = <&bootloader>;
+		nr-part-1 = <&ubootenv>;
+
+		bootloader:bootloader{
+			name = "bootloader";
+			offset = <0>;
+			size = <0x60000>;
+		};
+
+		ubootenv:ubootenv{
+			name = "ubootenv";
+      offset = <0x100000>;
+      size = <0x10000>;
+    };
+	};
+
+	nand{
+		compatible = "amlogic,aml_nand";
+		dev_name = "nand";
+		reg = <0xd0048600 0x24>;
+		pinctrl-names = "nand_rb_mod","nand_norb_mod";
+		pinctrl-0 = <&nand_input_state &conf_nand_state &nand_base>; 
+		pinctrl-1 = <&nand_input_state &conf_nand_state &nand_base>;							
+		device_id = <0>;			
+		plat-names = "nandnormal";
+		plat-num = <1>;
+		plat-part-0 = <&normal>;
+
+		normal: normal{
+			enable_pad ="ce0","ce1","ce2","ce3";
+			busy_pad = "rb0";
+		};
+				
+	};	
+
+	amhdmitx{
+		compatible = "amlogic,amhdmitx";
+		dev_name = "amhdmitx";
+        vend-data = <&vend_data>;
+        pwr-ctrl = <&pwr_ctrl>;
+        vend_data: vend_data{
+            vendor_name = "Amlogic";           /* Max Chars: 8     */
+            vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
+            product_desc = "M8 MBox SKTv1";        /* Max Chars: 16    */
+            cec_osd_string = "Amlogic MBox";        /* Max Chars: 14    */
+        };
+        pwr_ctrl: pwr_ctrl{
+            pwr_5v_on = "";
+            pwr_5v_off = "";
+            pwr_3v3_on = "";
+            pwr_3v3_off = "";
+            pwr_hpll_vdd_on = "";
+            pwr_hpll_vdd_off = "";
+        };
+	};
+	aml_pm{
+		compatible = "amlogic,pm-m8";
+		dev_name = "aml_pm_m8";
+	};
+
+    cpufreq-meson{
+        compatible = "amlogic,cpufreq-meson";
+    };
+
+	//crypto_device{
+	//	compatible = "amlogic,crypto-device";
+	//	dev_name = "crypto_device";
+	//};
+	
+	gpio:gpio{
+		compatible = "amlogic,m8-gpio";
+		dev_name = "gpio";
+		#gpio-cells=<2>;
+	};
+
+	pinmux{
+		compatible = "amlogic,pinmux-m8";
+		dev_name = "pinmux";
+		#pinmux-cells=<2>;
+		ao_uart_pins:ao_uart{
+			amlogic,setmask=<10 0x1800>;
+			amlogic,pins="GPIOAO_0", "GPIOAO_1";
+		};
+		
+		/* ao_jtag_uart_pins:ao_jtag_uart{
+			amlogic,setmask=<8 0x600>;
+			// amlogic,clrmask=<2 0x3040 10 0x1800>;
+			amlogic,clrmask=<2 0x3040>;
+			amlogic,pins="CARD_4", "CARD_5";
+		};
+		ao_def_uart_pins:ao_def_uart{
+			amlogic,setmask=<10 0x1800>;
+			amlogic,clrmask=<8 0x600>;
+			amlogic,pins="GPIOAO_0", "GPIOAO_1";
+		};*/
+		
+		nand_input_state:nand_input{
+			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
+						"BOOT_5","BOOT_6","BOOT_7","BOOT_12","BOOT_13",
+						"BOOT_8","BOOT_9","BOOT_10","BOOT_11",
+						"BOOT_14","BOOT_15","BOOT_16","BOOT_17";
+			amlogic,enable-output=<1>;
+		};
+		conf_nand_state: conf_nand{
+			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
+						"BOOT_5","BOOT_6","BOOT_7","BOOT_15";
+			amlogic,pullup=<0>;
+		};
+		aml_cam_gpio_pins: aml_cam_gpio_pins{
+			amlogic,setmask=<3 0x80000
+					 9 0x37c>;
+			amlogic,pins = "GPIOH_9","GPIOY_6","GPIOY_7","GPIOY_8","GPIOY_9","GPIOY_10","GPIOY_11","GPIOY_12","GPIOY_13","GPIOY_14";
+		};
+		
+		aml_cam_csi_pins: aml_cam_csi_pins{
+			amlogic,setmask=<3 0x80000>;
+			amlogic,pins = "GPIOH_9";
+		};
+       ao_i2c_master:ao_i2c{
+			amlogic,setmask=<10 0x60>;
+			amlogic,clrmask=<10 0x1800006>;
+			amlogic,pins="GPIOAO_4","GPIOAO_5";
+		};
+      a_i2c_master:a_i2c{
+//			amlogic,setmask=<5 0xc0000000>;
+//			amlogic,clrmask=<9 0x58000 7 3000000>;
+//			amlogic,pins="GPIOZ_0","GPIOZ_1";
+
+//			amlogic,setmask=<5 0x300>;
+//			amlogic,clrmask=<6 0x900 8 11000>;
+//			amlogic,pins="GPIOZ_9","GPIOZ_10";
+
+			amlogic,setmask=<5 0xc0>;
+			amlogic,clrmask=<6 0xc0 8 0xc000>;
+			amlogic,pins="GPIOZ_11","GPIOZ_12";
+		};
+		b_i2c_master:b_i2c{
+			amlogic,setmask=<5 0xc000000>;
+			amlogic,pins="GPIOZ_2","GPIOZ_3";
+		};
+//		c_i2c_master:c_i2c{
+//			amlogic,setmask=<5 0x3000000>;
+//			amlogic,clrmask=<6 0xc000>;
+//			amlogic,pins="GPIOZ_4","GPIOZ_5";
+
+//			amlogic,setmask=<1 0xc000>;
+//			amlogic,clrmask=<1 0xc0400 3 0x6 9 0x300>;
+//			amlogic,pins="GPIOY_0","GPIOY_1";
+//		};
+		d_i2c_master:d_i2c{
+			amlogic,setmask=<4 0xc>;
+			amlogic,pins="GPIOH_7","GPIOH_8";
+		};
+		nand_base: nand{
+			amlogic,setmask=<2 0x7fe0000>;
+			amlogic,clrmask=<	5 0xe
+							6 0x3f000000
+							4 0x7c000000>;
+			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
+						"BOOT_5","BOOT_6","BOOT_7","BOOT_8","BOOT_9",
+						"BOOT_10","BOOT_12","BOOT_13",
+						"BOOT_14","BOOT_15","BOOT_16","BOOT_17";
+		};
+		
+		sdhc_b_pins:sdhc_b_pin{
+			amlogic,setmask=<2 0xfc00>;
+			amlogic,clrmask=<2 0xf0 8 0x600>;
+			amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
+      		//amlogic,enable-output=<1>; /* 0:output, 1:input */
+      		//amlogic,pullup=<1>;
+			//amlogic,pullupen=<1>;			
+		};
+		sdhc_c_pins:sdhc_c_pin{
+			amlogic,setmask=<6 0x3f000000>;
+			amlogic,clrmask=<4 0x6c000000 2 0x4c00000>;
+			amlogic,pins="BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_10","BOOT_11";
+		};
+		sdhc_a_pins:sdhc_a_pin{
+			amlogic,setmask=<8 0x3f>;
+			amlogic,clrmask=<5 0x6c00 >;
+			amlogic,pins="GPIOX_0","GPIOX_1","GPIOX_2","GPIOX_3","GPIOX_8","GPIOX_9";
+		};
+
+        sdio_all_pins:sdio_all_pins{
+            amlogic,setmask=<8 0x0000003f>;         /*sdio a*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                2 0x0000fc00        /*sdio b*/
+                                5 0x00006c00>;      /*sdhc a*/
+            amlogic,pins = "GPIOX_0","GPIOX_1","GPIOX_2","GPIOX_3","GPIOX_8","GPIOX_9";
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        sdio_clk_cmd_pins:sdio_clk_cmd_pins{
+            amlogic,setmask=<8 0x00000003>;         /*sdio a*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                2 0x0000fc00        /*sdio b*/
+                                5 0x00006c00>;      /*sdhc a*/
+            amlogic,pins = "GPIOX_8","GPIOX_9"; /* GPIOX_8:CLK, GPIOX_9:CMD */
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        sd_all_pins:sd_all_pins{
+            amlogic,setmask=<2 0x0000fc00>;         /*sdio b*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                8 0x0000063f        /*sdio a, UART*/
+                                2 0x000000f0>;      /*sdhc b*/
+            amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        sd_1bit_pins:sd_1bit_pins{
+            amlogic,setmask=<2 0x00008c00>;         /*sdio b*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                8 0x0000003f        /*sdio a*/
+                                2 0x000000f0>;      /*sdhc b*/
+            amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        sd_clk_cmd_pins:sd_clk_cmd_pins{
+            amlogic,setmask=<2 0x00000c00>;         /*sdio b*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                8 0x0000003f        /*sdio a*/
+                                2 0x000000f0>;      /*sdhc b*/
+            amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        emmc_all_pins:emmc_all_pins{
+            amlogic,setmask=<6 0x3f000000>;         /*sdio c*/
+            amlogic,clrmask=<2 0x04c0fc00           /*sdio b & nand*/
+                                8 0x0000003f        /*sdio a*/
+                                4 0x6c000000>;        /*sdhc c*/
+            amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_16","BOOT_17";
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        emmc_clk_cmd_pins:emmc_clk_cmd_pins{
+            amlogic,setmask=<6 0x03000000>;         /*bit[24-25] */
+            amlogic,clrmask=<2 0x04c0fc00           /*sdio b & nand*/
+                                8 0x0000003f        /*sdio a*/
+                                4 0x6c000000>;        /*sdhc c*/
+            amlogic,pins = "BOOT_16","BOOT_17"; /* BOOT_16:CMD, BOOT_17:CLK */
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+
+        sdhc_sd_all_pins:sdhc_sd_all_pins{
+            amlogic,setmask=<2 0x000000f0>;         /*sdhc b*/
+            amlogic,clrmask=<5 0x00007c00           /*sdhc a*/
+                                4 0x7c000000        /*sdhc c*/
+                                2 0x0000fc00        /*sdio b*/
+                                8 0x00000600>;      /*UART*/
+            amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        sdhc_sd_clk_cmd_pins:sdhc_sd_clk_cmd_pins{
+            amlogic,setmask=<2 0x00000030>;         /*sdhc b*/
+            amlogic,clrmask=<5 0x00007c00           /*sdhc a*/
+                                4 0x7c000000        /*sdhc c*/
+                                2 0x0000fc00        /*sdio b*/
+                                8 0x00000600>;      /*UART*/
+            amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+
+		remote_pins:remote_pin{
+			amlogic,setmask=<10 0x1>;
+			amlogic,pins="GPIOAO_7";
+		};
+
+    audio_pins:audio_pin{
+        amlogic,setmask=<1 0x80
+                         1 0x75>;
+        amlogic,clrmask=<1 0x10000
+                         1 0x0a
+                         3 0x389
+                         4 0x3c00000
+                         9 0xd>;
+        amlogic,pins = "GPIOY_3","GPIOY_4","GPIOY_5","GPIOY_6","GPIOY_7","GPIOY_8";
+    };
+		aml_spi_nor_pins: aml_spi_nor_pins{
+			amlogic,setmask=<5 0xf>;
+			amlogic,clrmask=<2 0x380000>;
+			amlogic,pins = "BOOT_11","BOOT_12","BOOT_13","BOOT_18";
+		};
+   	};
+
+    saradc{
+        compatible = "amlogic,saradc";
+    };
+
+}; /* end of / */
+

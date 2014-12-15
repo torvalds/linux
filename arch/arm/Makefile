@@ -156,6 +156,12 @@ machine-$(CONFIG_ARCH_IXP4XX)		+= ixp4xx
 machine-$(CONFIG_ARCH_KIRKWOOD)		+= kirkwood
 machine-$(CONFIG_ARCH_KS8695)		+= ks8695
 machine-$(CONFIG_ARCH_LPC32XX)		+= lpc32xx
+machine-$(CONFIG_ARCH_MESON6)		+= meson6
+machine-$(CONFIG_ARCH_MESON6TV)		+= meson6tv
+machine-$(CONFIG_ARCH_MESON6TVD)	+= meson6tvd
+machine-$(CONFIG_ARCH_MESON8)		+= meson8
+machine-$(CONFIG_ARCH_MESON8B)		+= meson8b
+machine-$(CONFIG_ARCH_MESONG9TV)	+= mesong9tv
 machine-$(CONFIG_ARCH_MMP)		+= mmp
 machine-$(CONFIG_ARCH_MSM)		+= msm
 machine-$(CONFIG_ARCH_MV78XX0)		+= mv78xx0
@@ -200,6 +206,7 @@ machine-$(CONFIG_ARCH_SUNXI)		+= sunxi
 plat-$(CONFIG_ARCH_OMAP)	+= omap
 plat-$(CONFIG_ARCH_S3C64XX)	+= samsung
 plat-$(CONFIG_PLAT_IOP)		+= iop
+plat-$(CONFIG_PLAT_MESON)       += meson
 plat-$(CONFIG_PLAT_ORION)	+= orion
 plat-$(CONFIG_PLAT_PXA)		+= pxa
 plat-$(CONFIG_PLAT_S3C24XX)	+= samsung
@@ -264,6 +271,8 @@ libs-y				:= arch/arm/lib/ $(libs-y)
 # Default target when executing plain make
 ifeq ($(CONFIG_XIP_KERNEL),y)
 KBUILD_IMAGE := xipImage
+else ifeq ($(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE),y)
+KBUILD_IMAGE := zImage-dtb
 else
 KBUILD_IMAGE := zImage
 endif
@@ -290,10 +299,18 @@ zinstall uinstall install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
 %.dtb: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts MACHINE=$(MACHINE) $(boot)/dts/$@
+	$(Q)$(MAKE) $(build)=$(subst $(wildcard $(srctree)//),,$(subst $(join /,$(subst dtb,dts,$@)),,$(firstword $(wildcard $(srctree)/$(boot)/dts/amlogic/$(subst dtb,dts,$@) $(srctree)/$(CUSTOMER_DIR_NAME)/meson/dt/$(subst dtb,dts,$@))))) \
+	MACHINE=$(MACHINE) \
+	$(subst $(wildcard $(srctree)//),,$(subst .dts,.dtb,$(firstword $(wildcard $(srctree)/$(boot)/dts/amlogic/$(subst dtb,dts,$@) $(srctree)/$(CUSTOMER_DIR_NAME)/meson/dt/$(subst dtb,dts,$@)))))
+	rm  $(firstword $(wildcard $(srctree)/$(boot)/dts/amlogic/$(subst dtb,dts,$@) $(srctree)/$(CUSTOMER_DIR_NAME)/meson/dt/$(subst dtb,dts,$@)))
 
 dtbs: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts MACHINE=$(MACHINE) dtbs
+	$(Q)$(MAKE) $(build)=$(subst $(wildcard $(srctree)//),,$(subst $(join /,$(subst dtb,dts,$@)),,$(firstword $(wildcard $(srctree)/$(boot)/dts/amlogic/$(subst dtb,dts,$@) $(srctree)/$(CUSTOMER_DIR_NAME)/meson/dt/$(subst dtb,dts,$@))))) \
+	MACHINE=$(MACHINE) \
+	dtbs
+
+zImage-dtb: vmlinux scripts dtbs
+	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
@@ -312,6 +329,7 @@ define archhelp
   echo  '  bootpImage    - Combined zImage and initial RAM disk'
   echo  '                  (supply initrd image via make variable INITRD=<path>)'
   echo  '* dtbs          - Build device tree blobs for enabled boards'
+  echo  '  dtd           - Build dtd file for amlogic Device Tree Tool'
   echo  '  install       - Install uncompressed kernel'
   echo  '  zinstall      - Install compressed kernel'
   echo  '  uinstall      - Install U-Boot wrapped compressed kernel'

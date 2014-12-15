@@ -1,0 +1,2409 @@
+/dts-v1/;
+/// ***************************************************************************************\n
+//$$ PROJECT="meson8m2"
+//$$ REMOVE 1
+void root_func(){
+//$$ ADD /{
+	compatible = "AMLOGIC,8726_M8M2";
+	model = "AMLOGIC";
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	
+/// ***************************************************************************************
+///	-	CPU
+//$$ MODULE="CPU"
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+//$$ DEVICE="cpu0"
+        cpu@0 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x200>;
+        };
+//$$ DEVICE="cpu1"
+        cpu@1 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x1>;
+        };
+//$$ DEVICE="cpu2"
+        cpu@2 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x2>;
+        };
+//$$ DEVICE="cpu3"
+        cpu@3 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x3>;
+        };
+    };
+
+/// ***************************************************************************************
+///	-	Cache
+//$$ MODULE="Cache"
+//$$ DEVICE="cache"
+    cache-controller {
+          compatible = "arm,meson-pl310-cache";
+          reg = <0xc4200000 0x1000>;
+          arm,data-latency = <3 3 3>;
+          arm,tag-latency = <2 2 2>;
+          arm,filter-ranges = <0x100000 0xc0000000>;
+          cache-unified;
+          cache-level = <2>;
+          aux-instruction_prefetch;
+          aux-data_prefetch;
+          aux-ns_lockdown;
+          aux-force_no_write_alloc;
+          aux-cache_replace_policy_round_robin;
+          aux-early_write_response;
+          aux-full_line_of_zero;
+          aux-ns_int_ctrl;
+          aux-share_override;
+          prefetch-double_line_fill;
+          prefetch-prefetch_drop;
+          prefetch-prefetch_offset = <7>;
+    };
+
+/// ***************************************************************************************
+///	-	Memory
+//$$ MODULE="Memory"
+//$$ DEVICE="memory"
+//$$ L2 PROP_U32 = "aml_reserved_start"
+//$$ L2 PROP_U32 = "aml_reserved_end"
+//$$ L2 PROP_U32 6 = "linux,usable-memory"
+	memory{
+		device_type = "memory";
+		aml_reserved_start = <0x06000000>; /**reserved memory start */
+		aml_reserved_end = <0x05000000>;/**reserved memory end */
+		phys_offset = <0x00200000>;
+		linux,total-memory = <0x1fe00000>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        cma_0:region@0 {
+           region_name = "cma_0";
+           reg = <0 0x02a00000>;
+           linux,contiguous-region;
+        };
+	};
+/// ***************************************************************************************
+///	-	GIC
+//$$ MODULE="GIC"
+//$$ DEVICE="gic"	
+	gic:interrupt-controller{
+        compatible = "arm,cortex-a9-gic";
+        reg = <0xc4301000 0x1000
+               0xc4300100 0x0100>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #address-cells = <0>;
+    };
+    
+/// ***************************************************************************************
+///	-	VPU
+//$$ MODULE="VPU"
+//$$ DEVICE="vpu"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "clk_level"
+    vpu{
+        compatible = "amlogic,vpu";
+        dev_name = "vpu";	
+        status = "ok";
+        clk_level = <3>;
+        /**    0: 106.25M    1: 127.50M    2: 159.375M
+               3: 212.50M    4: 255.00M    5: 283.33M
+               6: 318.75M    7: 425.00M    */
+	};
+	
+/// **************************************************************************************	
+/// -   DISP&MM-FB
+//$$ MODULE = "DISP&MM-FB"	
+//$$ DEVICE = "mesonfb"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 4 ="reg"
+//$$ L2 PROP_U32 = "rotation"
+//$$ L2 PROP_U32 = "vmode"
+//$$ L2 PROP_U32 5 = "display_size_default"
+	mesonfb{
+		compatible = "amlogic,mesonfb";
+		dev_name = "mesonfb";
+		status = "okay";
+        reserve-memory = <0x0900000  0x00100000>;//9M+1M=10M
+	   	reserve-iomap = "true";
+        vmode = <1>; /**0:VMODE_720P 1:VMODE_LCD  2:VMODE_LVDS_1080P 3:VMODE_1080P*/
+        display_size_default = <768 1024 768 3072 32>;//1024x768x4x3==0x0900000,9MB
+	};
+//$$ DEVICE = "mesonfb-ext"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 4 ="reg"
+//$$ L2 PROP_U32 5 = "display_size_default"
+	mesonfb-ext{
+		compatible = "amlogic,mesonfb-ext";
+		dev_name = "mesonfb-ext";
+		status = "ok";
+		need-memory = <0>; /*0:no need,1:need*/
+	   	reserve-iomap = "true";
+        display_size_default = <768 1024 768 3072 32>;//1024x768x4x3==0x0900000 < 0x01000000
+	 
+	};
+
+/// ***************************************************************************************
+///	-	DISP&MM-A/V stream
+//$$ MODULE = "DISP&MM-A/V stream"
+//$$ DEVICE="mesonstream"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 4 ="reg"
+	mesonstream{
+		compatible = "amlogic,mesonstream";
+		dev_name = "mesonstream.0";
+		status = "okay";
+		reserve-memory = <0x00a00000>;//10M,you can use 8M if memory isn't enough
+		reserve-iomap = "true";
+	};
+
+/// ***************************************************************************************
+///     -       DISP&MM-A/V stream
+//$$ MODULE = "DISP&MM-A/V video dec"
+//$$ DEVICE="vdec"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 4 ="reg"
+        vdec{
+                compatible = "amlogic,vdec";
+                dev_name = "vdec.0";
+                status = "okay";
+                reserve-memory = <0x02000000>;//32M
+		reserve-iomap = "true";
+        };
+
+        
+/// ***************************************************************************************
+///	-	DISP&MM-PostProcess
+//$$ MODULE="DISP&MM-PostProcess"
+//$$ DEVICE="ppmgr"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+    ppmgr{
+		compatible = "amlogic,ppmgr";
+		dev_name = "ppmgr";
+		status = "okay";
+		reserve-memory = <0x01000000>;//16M
+		reserve-iomap = "true";
+	};
+
+/// ***************************************************************************************
+///	Encoder
+//$$ MODULE = "DISP&MM-AVC Video Encoder"
+//$$ DEVICE="amvenc_avc"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+    amvenc_avc{
+		compatible = "amlogic,amvenc_avc";
+		dev_name = "amvenc_avc.0";
+		status = "okay";
+        linux,contiguous-region = <&cma_0>;
+	};
+
+/// ***************************************************************************************
+///	-	DISP&MM-VDIN
+//$$ MODULE = "DISP&MM-VDIN"
+//$$ DEVICE="vdin0"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 2 = "reg"
+//$$ L2 PROP_U32 = "irq"
+//$$ L2 PROP_U32 = "vdin_id"
+    vdin0{
+        compatible = "amlogic,vdin";
+        dev_name = "vdin0";
+        status = "ok";
+	reserve-memory = <0x01000000>;
+	camera_size = <1600 1200>;//camera is gc2035,the picture resolution is 1600x1200;so 1600x1200x2x4=16M
+	 reserve-iomap = "true";
+        irq = <115>;
+        vdin_id = <0>;
+	};
+	
+//$$ DEVICE="vdin1"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 2 = "reg"
+//$$ L2 PROP_U32 = "irq"
+//$$ L2 PROP_U32 = "vdin_id"
+    vdin1{
+        compatible = "amlogic,vdin";
+        dev_name = "vdin1";
+        status = "ok";
+        reserve-memory = <0x0600000>;
+	miracast_size = <1024 768>;//miracast resolution is 1024x768,1024x768x2x4=6M
+	reserve-iomap = "true";
+        irq = <117>;
+        vdin_id = <1>;
+	};
+
+/// ***************************************************************************************
+///	-	DISP&MM-AMLVIDEO2
+//$$ MODULE = "DISP&MM-AMLVIDEO2"
+//$$ DEVICE="amlvideo2"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+    amlvideo2{
+		compatible = "amlogic,amlvideo2";
+		dev_name = "amlvideo2.0";
+		status = "okay";
+		reserve-memory = <0x0600000>;//miracast resolution is 1024x768,1024x768x1.5x4=6M. NV21,not YUV422 now,so not 1024x768x2x4
+		reserve-iomap = "true";
+	};
+
+/// ***************************************************************************************
+///	-	DISP&MM-Video Input Manager
+//$$ MODULE = "DISP&MM-Video Input Manager"
+//$$ DEVICE="vm"
+//$$ L2 PROP_STR = "status"
+    vm{
+		compatible = "amlogic,vm";
+		dev_name = "vm.0";
+		status = "okay";
+        linux,contiguous-region = <&cma_0>;
+	};
+
+/// ***************************************************************************************
+///	-	ION
+//$$ MODULE="ION"
+//$$ DEVICE="ion_dev"
+//$$ L2 PROP_STR = "status"
+    ion_dev{
+        compatible = "amlogic,ion_dev";
+        dev_name = "ion_dev";
+        status = "ok";
+        share-memory-name = "ppmgr0";
+        share-memory-offset = <0>;
+        share-memory-size = <0x01000000>;//ion_dev use same buffer with ppmgr0
+    };
+/// ***************************************************************************************
+///	-	DISP&MM-Vout
+//$$ MODULE = "DISP&MM-Vout"
+//$$ DEVICE = "mesonvout"
+//$$ L2 PROP_STR = "status"
+	mesonvout{
+		compatible = "amlogic,mesonvout";
+		dev_name = "mesonvout";
+		status = "okay";
+	};
+//$$ DEVICE = "mesonvout2"
+//$$ L2 PROP_STR = "status"
+	mesonvout2{
+		compatible = "amlogic,mesonvout2";
+		dev_name = "mesonvout2";
+		status = "okay";
+	};
+
+/// ***************************************************************************************
+///	-	RTC
+//$$ MODULE="RTC"
+//$$ DEVICE="Rtc"
+//$$ L2 PROP_STR = "status"
+    rtc{
+		compatible = "amlogic,aml_rtc";
+		status = "okay";
+	};
+
+/// ***************************************************************************************
+///	-	UART
+//$$ MODULE="UART"
+//$$ DEVICE="uart_ao"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "pinctrl-names"
+//$$ L3 PROP_CHOICE "uart_ao_pin_match" = "pinctrl-0"
+	uart_ao{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_ao";
+		status = "okay";
+		dev_name = "uart_ao";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ao_uart_pins>;
+	};
+	
+//$$ DEVICE="uart_0"
+//$$ L2 PROP_STR = "status"
+	uart_0{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_a";
+		status = "okay";
+		dev_name = "uart_0";
+	};
+	
+//$$ DEVICE="uart_1"
+//$$ L2 PROP_STR = "status"
+	uart_1{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_b";
+		status = "disabled";
+		dev_name = "uart_1";
+	};
+	
+//$$ DEVICE="uart_2"
+//$$ L2 PROP_STR = "status"
+	uart_2{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_c";
+		status = "disabled";
+		dev_name = "uart_2";
+	};
+	
+//$$ DEVICE="uart_3"
+//$$ L2 PROP_STR = "status"	
+	uart_3{
+		compatible = "amlogic,aml_uart";
+		port_name = "uart_d";
+		status = "ok";
+		dev_name = "uart_3";
+	};
+
+
+/// ***************************************************************************************
+///	-	MMC
+//$$ MODULE="MMC"
+//$$ DEVICE="aml_sdio"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+//$$ L2 PROP_STR 7 = "pinctrl-names"
+//$$ L2 PROP_CHOICE "sdio_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_CHOICE "sdio_pin_1_match" = "pinctrl-1"
+//$$ L2 PROP_CHOICE "sdio_pin_2_match" = "pinctrl-2"
+//$$ L2 PROP_CHOICE "sdio_pin_3_match" = "pinctrl-3"
+//$$ L2 PROP_CHOICE "sdio_pin_4_match" = "pinctrl-4"
+//$$ L2 PROP_CHOICE "sdio_pin_5_match" = "pinctrl-5"
+//$$ L2 PROP_CHOICE "sdio_pin_6_match" = "pinctrl-6"
+sdio{
+        compatible = "amlogic,aml_sdio";
+        dev_name = "aml_sdio.0";
+        status = "okay";
+        reg = <0xc1108c20 0x20>;
+        pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins", "emmc_clk_cmd_pins", "emmc_all_pins", "sdio_clk_cmd_pins", "sdio_all_pins","sd_1bit_pins"; // "jtag_pin", "uartao_default";
+        pinctrl-0 = <&sd_clk_cmd_pins>;
+        pinctrl-1 = <&sd_all_pins>;
+        pinctrl-2 = <&emmc_clk_cmd_pins>;
+        pinctrl-3 = <&emmc_all_pins>;
+        pinctrl-4 = <&sdio_clk_cmd_pins>;
+        pinctrl-5 = <&sdio_all_pins>;
+        pinctrl-6 = <&sd_1bit_pins>;
+
+//$$ DEVICE="sd"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 = "port"
+//$$ L2 PROP_STR = "pinname"
+//$$ L3 PROP_U32 = "ocr_avail"
+//$$ L2 PROP_STR 3 = "caps"
+//$$ L3 PROP_U32 = "f_min"
+//$$ L3 PROP_U32 = "f_max"
+//$$ L3 PROP_U32 = "max_req_size"
+//$$ L2 PROP_STR = "gpio_dat3"
+//$$ L2 PROP_STR = "jtag_pin"
+//$$ L2 PROP_STR = "gpio_cd"
+//$$ L2 PROP_U32 = "irq_in"
+//$$ L2 PROP_U32 = "irq_out"
+//$$ L2 PROP_U32 = "card_type"
+        sd{
+            status = "okay";
+            port = <1>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+            pinname = "sd";
+            ocr_avail = <0x200000>;          /**VDD voltage 3.3 ~ 3.4 */
+            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED";
+            f_min = <300000>;
+            f_max = <50000000>;
+            max_req_size = <0x20000>;          /**128KB*/
+            gpio_dat3 = "CARD_4";
+            jtag_pin = "CARD_0";
+            gpio_cd = "CARD_6";
+            irq_in = <3>;
+            irq_out = <5>;
+            card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+        };
+
+//$$ DEVICE="emmc"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 = "port"
+//$$ L2 PROP_STR = "pinname"
+//$$ L3 PROP_U32 = "ocr_avail"
+//$$ L2 PROP_STR 4 = "caps"
+//$$ L3 PROP_U32 = "f_min"
+//$$ L3 PROP_U32 = "f_max"
+//$$ L3 PROP_U32 = "f_max_w"
+//$$ L3 PROP_U32 = "max_req_size"
+//$$ L2 PROP_STR = "gpio_dat3"       	
+//$$ L2 PROP_U32 = "card_type"
+//        emmc{
+//            status = "ok";
+//            port = <2>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+//            pinname = "emmc";
+//            ocr_avail = <0x200000>;          /**VDD voltage 3.3 ~ 3.4 */
+//            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE"; // MMC_CAP_NEEDS_POLL -- for detect, MMC_CAP_NONREMOVABLE -- for eMMC/TSD
+//            f_min = <300000>;
+//            f_max = <50000000>;
+//            f_max_w = <50000000>;
+//            max_req_size = <0x20000>;          /**128KB*/
+//            gpio_dat3 = "BOOT_3";
+//            card_type = <1>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+//        };
+
+    };
+
+/// ***************************************************************************************
+///	-	I2C
+//$$ MODULE="I2C"
+//$$ DEVICE="I2C_AO"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+//$$ L3 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "I2C_AO_pin_match" = "pinctrl-0"	
+	i2c@c8100500{ /*I2C-AO*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-AO";
+		status = "ok";
+		reg = <0xc8100500 0x1d>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		device_id = <0>;
+		pinctrl-names="default";
+		pinctrl-0=<&ao_i2c_master>;
+		use_pio = <0>;
+		master_i2c_speed = <100000>;
+	};
+
+//$$ DEVICE = "I2C_A"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+//$$ L3 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "I2C_A_pin_match" = "pinctrl-0"
+    i2c@c1108500{ /*I2C-A*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-A";
+		status = "ok";
+		reg = <0xc1108500 0x20>;
+		device_id = <1>;
+		pinctrl-names="default";
+		pinctrl-0=<&a_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+	};
+	
+//$$ DEVICE="I2C_B"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2="reg"
+//$$ L3 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "I2C_B_pin_match" = "pinctrl-0"	
+	i2c@c11087c0{ /*I2C-B*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-B";
+		status = "ok";
+		reg = <0xc11087c0 0x20>;
+		device_id = <2>;
+		pinctrl-names="default";
+		pinctrl-0=<&b_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+ 	};
+
+//$$ DEVICE="I2C_C"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2="reg"
+//$$ L3 PROP_STR = "pinctrl-names"
+    i2c@c11087e0{ /*I2C-C*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-C";
+		status = "ok";
+		reg = <0xc11087e0 0x20>;
+		device_id = <3>;
+		pinctrl-names="default";
+//		pinctrl-0=<&c_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+	};
+
+//$$ DEVICE="I2C_D"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2="reg"
+//$$ L3 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "I2C_D_pin_match" = "pinctrl-0"	
+	i2c@c1108d20{ /*I2C-D*/
+		compatible = "amlogic,aml_i2c";
+		dev_name = "i2c-D";
+		status = "ok";
+		reg = <0xc1108d20 0x20>;
+		device_id = <4>;
+		pinctrl-names="default";
+		pinctrl-0=<&d_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+	};
+
+/// ***************************************************************************************
+///	-	Power
+//$$ MODULE="Power"
+//$$ DEVICE="dvfs"
+//$$ L2 PROP_STR = "status"
+    dvfs {
+        compatible = "amlogic, amlogic-dvfs";                   /** fixed for driver, don't change       */
+        #address-cells = <1>;
+        #size-cells = <0>;
+        status = "ok";
+
+//$$ L2 PROP_U32 = "dvfs_id"
+//$$ L2 PROP_U32 = "table_count"
+//$$ L2 PROP_U32 16*3 = "dvfs_table"
+        vcck_dvfs {
+            dvfs_id     = <1>;                                  /** must be value of (1 << n)            */
+            table_count = <14>;                                 /** must be correct count for dvfs_table */
+            dvfs_table  = <
+            /* NOTE: frequent in this table must be ascending order */
+            /* frequent(Khz)    min_uV      max_uV                  */
+                  96000         825000      825000
+                 192000         825000      825000
+                 312000         825000      825000
+                 408000         825000      825000
+                 504000         825000      825000
+                 600000         850000      850000
+                 720000         850000      850000
+                 816000         875000      875000
+                1008000         925000      925000
+                1200000         975000      975000
+                1416000        1025000     1025000
+                1608000        1100000     1100000
+                1800000        1125000     1125000
+                1992000        1150000     1150000
+            >;
+        };
+    };
+
+//$$ DEVICE="arm_pmu"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 4*3 = "interrupts"
+    arm_pmu {
+        compatible = "arm,cortex-a9-pmu";
+        status = "ok";
+        interrupts = <0     137     0x04
+                      0     138     0x04
+                      0     153     0x04
+                      0     154     0x04>;
+    };
+
+//$$ DEVICE="Battery_parameter"
+//$$ MATCH "battery_parameter_match" = <&battery_parameter>
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "pmu_twi_id"
+//$$ L2 PROP_U32 = "pmu_irq_id"
+//$$ L2 PROP_U32 = "pmu_twi_addr"
+//$$ L2 PROP_U32 = "pmu_battery_rdc"
+//$$ L2 PROP_U32 = "pmu_battery_cap"
+//$$ L2 PROP_U32 = "pmu_battery_technology"
+//$$ L2 PROP_STR = "pmu_battery_name"
+//$$ L2 PROP_U32 = "pmu_init_chgvol"
+//$$ L2 PROP_U32 = "pmu_init_chgend_rate"
+//$$ L2 PROP_U32 = "pmu_init_chg_enabled"
+//$$ L2 PROP_U32 = "pmu_init_adc_freq"
+//$$ L2 PROP_U32 = "pmu_init_adc_freqc"
+//$$ L2 PROP_U32 = "pmu_init_chg_pretime"
+//$$ L2 PROP_U32 = "pmu_init_chg_csttime"
+//$$ L2 PROP_U32 = "pmu_init_chgcur"
+//$$ L2 PROP_U32 = "pmu_suspend_chgcur"
+//$$ L2 PROP_U32 = "pmu_resume_chgcur"
+//$$ L2 PROP_U32 = "pmu_shutdown_chgcur"
+//$$ L2 PROP_U32 = "pmu_usbcur_limit"
+//$$ L2 PROP_U32 = "pmu_usbcur"
+//$$ L2 PROP_U32 = "pmu_usbvol_limit"
+//$$ L2 PROP_U32 = "pmu_usbvol"
+//$$ L2 PROP_U32 = "pmu_pwroff_vol"
+//$$ L2 PROP_U32 = "pmu_pwron_vol"
+//$$ L2 PROP_U32 = "pmu_pekoff_time"
+//$$ L2 PROP_U32 = "pmu_pekoff_en"
+//$$ L2 PROP_U32 = "pmu_peklong_time"
+//$$ L2 PROP_U32 = "pmu_pwrok_time"
+//$$ L2 PROP_U32 = "pmu_pwrnoe_time"
+//$$ L2 PROP_U32 = "pmu_intotp_en"
+//$$ L2 PROP_U32 = "pmu_pekon_time"
+//$$ L2 PROP_U32 = "pmu_charge_efficiency"
+//$$ L2 PROP_U32 16*3 ="pmu_bat_curve"
+    battery_parameter:battery_parameter{
+        status = "okay";
+	    pmu_twi_id = <2>;                   /** PMU i2c bus                          */
+        pmu_irq_id = <0>;                   /** INT_WATCHDOG                         */
+        pmu_twi_addr = <0x32>;              /** PMU i2c addr                         */
+        pmu_battery_rdc = <135>;             /** battery internal resistor            */
+        pmu_battery_cap = <3800>;           /** battery capacity                     */
+        pmu_battery_technology = <4>;       /** POWER_SUPPLY_TECHNOLOGY_LiFe         */
+        pmu_battery_name = "PTI PL336078";  /** battery name                         */
+        pmu_init_chgvol = <4200000>;        /** target charge voltage                */
+        pmu_init_chgend_rate = <10>;        /** set initial charing end current rate */
+        pmu_init_chg_enabled = <1>;         /** set initial charing enabled          */
+        pmu_init_adc_freq = <25>;           /** set initial adc frequency            */
+        pmu_init_adc_freqc = <100>;         /** set initial coulomb adc coufrequency */
+        pmu_init_chg_pretime = <80>;        /** set initial pre-charging time        */
+        pmu_init_chg_csttime = <300>;       /** set initial rapid-charging time      */
+        pmu_init_chgcur = <10>;             /** initial charge current, 0.1c         */
+        pmu_suspend_chgcur = <20>;          /** suspend charge current, 0.2c         */
+        pmu_resume_chgcur = <10>;           /** resume charge current, 0.1c          */
+        pmu_shutdown_chgcur = <20>;         /** shutdown charge current, 0.2c        */
+        pmu_usbcur_limit = <1>;             /** enable usb current limit?            */
+        pmu_usbcur = <500>;                 /** usb limit current value if enabled   */
+        pmu_usbvol_limit = <1>;             /** enable usb vbus voltage limit        */
+        pmu_usbvol = <4400>;                /** voltage limit value if enabled       */
+        pmu_pwroff_vol = <3200>;            /** hardware force power off voltage     */
+        pmu_pwron_vol = <2900>;             /** power on when battery voltage above  */
+        pmu_pekoff_time = <6000>;           /** long press to power off system       */
+        pmu_pekoff_en  = <1>;               /** enable long press to PWR OFF system  */
+        pmu_peklong_time = <1500>;          /** threshold to detect long press       */
+        pmu_pwrok_time   = <64>;            /** delay to detect pwr ok signal        */
+        pmu_pwrnoe_time = <2000>;           /**                                      */
+        pmu_intotp_en = <1>;                /** over temperature protection enable   */
+        pmu_pekon_time = <128>;             /** powerkey hold time for power on      */
+        pmu_charge_efficiency = <93>;       /** efficient of charging                */
+        pmu_bat_curve = <
+         /* ocv, charge, discharge */
+            3132      0       0
+            3273      0       0
+            3414      0       0
+            3555      0       0  
+            3625      1       2  
+            3660      2       3  
+            3696      3      12 
+            3731     10      18 
+            3766     15      31 
+            3801     22      45 
+            3836     40      55
+            3872     55      62
+            3942     68      73
+            4012     79      83
+            4083     88      90
+            4153    100     100>;
+	};
+
+    pmu {
+        compatible = "amlogic, aml_pmu_prober";                 /* fixed for pmu driver, don't change   */
+        #address-cells = <1>;
+        #size-cells = <0>;
+//$$ DEVICE = "Pmu_axp202"
+//$$ L2 PROP_STR = "sub_type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "reg"
+//$$ L2 PROP_U32 = "soft_limit_to99"
+//$$ L2 PROP_U32 = "ddr_voltage"
+//$$ L2 PROP_U32 = "vddao_voltage"
+//$$ L2 PROP_CHOICE "battery_parameter_match" = "board_battery"
+//$$ L2 PROP_STR = "status"
+//        axp202 { /* PMU for AXP */
+//            compatible = "axp_mfd";                             /* for driver probe, must have          */
+//            sub_type = "axp20_mfd";                             /** sub type of pmu family, must have    */
+//            i2c_bus = "i2c_bus_ao";                             /** attached i2c bus, must have          */
+//            reg = <0x34>;                                       /** device i2c address, must have        */
+//            soft_limit_to99 = <0>;                              /** optional                             */
+//            ddr_voltage   = <1500000>;                          /** default voltage for DDR, optional    */
+//            vddao_voltage = <1200000>;                          /** default voltage for AO, optional     */
+//            board_battery = <&battery_parameter>;               /** battery parameter used, must have    */
+//            status = "disable";                                 /** status of pmu, only one should be OK */
+//        };
+//$$ DEVICE = "Pmu_aml1212"
+//$$ L2 PROP_STR = "sub_type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "reg"
+//$$ L2 PROP_U32 = "soft_limit_to99"
+//$$ L2 PROP_U32 = "ddr_voltage"
+//$$ L2 PROP_U32 = "vddao_voltage"
+//$$ L2 PROP_CHOICE "battery_parameter_match" = "board_battery"
+//$$ L2 PROP_STR = "status"
+//        aml1212{                                                /* PMU for AML1212, see comment above   */
+//            compatible = "aml_pmu";                             /* for driver probe, must have          */
+//            sub_type = "aml1212";                               /** sub type of pmu family, must have    */
+//            i2c_bus = "i2c_bus_ao";                             /** attached i2c bus, must have          */
+//            reg = <0x35>;                                       /** device i2c address, must have        */
+//            soft_limit_to99 = <0>;                              /** optional                             */
+//            ddr_voltage   = <1500000>;                          /** default voltage for DDR, optional    */
+//            vddao_voltage = <1200000>;                          /** default voltage for AO, optional     */
+//            board_battery = <&battery_parameter>;               /** battery parameter used, must have    */
+//            status = "disable";                                 /** status of pmu, only one should be OK */
+//        };
+//$$ DEVICE = "Pmu_rn5t618"
+//$$ L2 PROP_STR = "sub_type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "reg"
+//$$ L2 PROP_U32 = "soft_limit_to99"
+//$$ L2 PROP_U32 = "ddr_voltage"
+//$$ L2 PROP_U32 = "vddao_voltage"
+//$$ L2 PROP_CHOICE "battery_parameter_match" = "board_battery"
+//$$ L2 PROP_STR = "status"
+        rn5t618{                                                /* PMU for RN5T618, see comment above   */
+            compatible = "ricoh_pmu";                           /* for driver probe, must have          */
+            sub_type = "rn5t618";                               /** sub type of pmu family, must have    */
+            i2c_bus = "i2c_bus_ao";                             /** attached i2c bus, must have          */
+            reg = <0x32>;                                       /** device i2c address, must have        */
+            soft_limit_to99 = <0>;                              /** optional                             */
+            ddr_voltage   = <1500000>;                          /** default voltage for DDR, optional    */
+            vddao_voltage = <1200000>;                          /** default voltage for AO, optional     */
+            board_battery = <&battery_parameter>;               /** battery parameter used, must have    */
+            vbus_dcin_short_connect = <0>;
+            status = "okay";                                    /** status of pmu, only one should be OK */
+        };
+    };
+
+/// ***************************************************************************************
+///	-	USB Controller
+//$$ MODULE="USB Controller"
+    usb_con {
+		lm-compatible = "logicmodule-bus";
+
+//$$ DEVICE="usb_b"
+//$$ L2 PROP_U32 = "lm-periph-id"
+//$$ L2 PROP_STR = "clock-src"
+//$$ L2 PROP_U32 = "port-id"
+//$$ L2 PROP_U32 = "port-type"
+//$$ L2 PROP_U32 = "port-speed"
+//$$ L2 PROP_U32 = "port-config"
+//$$ L2 PROP_U32 = "port-dma"
+//$$ L2 PROP_U32 = "port-id-mode"
+//$$ L2 PROP_STR = "status"
+		usb_b{
+			lm-compatible = "amlogic,usb";
+			lm-periph-id = <1>; /** lm name */
+			clock-src = "usb1"; /** clock src */
+			port-id = <1>; /** ref to mach/usb.h */
+			port-type = <1>;	/** 0: otg, 1: host, 2: slave */
+			port-speed = <0>; /** 0: default, 1: high, 2: full */
+			port-config = <0>; /** 0: default */
+			port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
+			port-id-mode = <1>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+			host-only-core = <1>;
+			pmu-apply-power = <1>;
+			status = "okay";
+		};
+		
+//$$ DEVICE="usb_a"
+//$$ L2 PROP_U32 = "lm-periph-id"
+//$$ L2 PROP_STR = "clock-src"
+//$$ L2 PROP_U32 = "port-id"
+//$$ L2 PROP_U32 = "port-type"
+//$$ L2 PROP_U32 = "port-speed"
+//$$ L2 PROP_U32 = "port-config"
+//$$ L2 PROP_U32 = "port-dma"
+//$$ L2 PROP_U32 = "port-id-mode"
+//$$ L2 PROP_STR = "gpio-vbus-power"
+//$$ L2 PROP_U32 = "gpio-work-mask"
+//$$ L2 PROP_U32 = "charger_detect"
+//$$ L2 PROP_STR = "status"
+		usb_a{
+			lm-compatible = "amlogic,usb";
+			lm-periph-id = <0>; /** lm name */
+			clock-src = "usb0"; /** clock src */
+			port-id = <0>;  /** ref to mach/usb.h */
+			port-type = <0>;	/** 0: otg, 1: host, 2: slave */
+			port-speed = <0>; /** 0: default, high, 1: full */
+			port-config = <0>; /** 0: default */
+			port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
+			port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+			gpio-vbus-power = "GPIOZ_1";
+			gpio-work-mask	= <1>; /**0: work on pulldown,1:work on pullup*/
+			charger_detect = <1>;
+			status = "okay";
+		};
+	};
+    
+/// ***************************************************************************************
+///	-	LCD
+//$$ MODULE="LCD"
+//$$ DEVICE="backlight"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_CHOICE "Bl_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_CHOICE "Bl_pin_1_match" = "pinctrl-1"
+//$$ L2 PROP_U32 2= "bl_level_default_uboot_kernel"
+//$$ L2 PROP_U32 2= "bl_level_middle_mapping"
+//$$ L2 PROP_U32 2= "bl_level_max_min"
+//$$ L2 PROP_U32 = "bl_power_on_delay"
+//$$ L2 PROP_U32 = "bl_ctrl_method"
+//$$ L2 PROP_STR = "bl_gpio_port"
+//$$ L2 PROP_U32 2 = "bl_gpio_dim_max_min"
+//$$ L2 PROP_STR 2 = "bl_pwm_port_gpio_used"
+//$$ L2 PROP_U32 = "bl_pwm_freq"
+//$$ L2 PROP_U32 2 = "bl_pwm_duty_max_min"
+//$$ L2 PROP_U32 = "bl_pwm_combo_high_low_level_switch"
+//$$ L2 PROP_STR 2 = "bl_pwm_combo_high_port_method"
+//$$ L2 PROP_STR 2 = "bl_pwm_combo_low_port_method"
+//$$ L2 PROP_U32 3 = "bl_pwm_combo_high_freq_duty_max_min"
+//$$ L2 PROP_U32 3 = "bl_pwm_combo_low_freq_duty_max_min"
+    backlight{
+		compatible = "amlogic,backlight";
+		dev_name = "backlight";
+		status = "okay";
+		pinctrl-names = "default","pwm_combo";
+		pinctrl-0 = <&lcd_backlight_pins>;	/** pwm_default pinmux */
+		pinctrl-1 = <&lcd_backlight_combo_pins>;	/** pwm_combo pinmux */
+		
+		bl_level_default_uboot_kernel=<102 102>;	/** default brightness level for uboot & kernel */
+		bl_level_middle_mapping=<128 102>;	/** brightness middle level mapping to a new level*/
+		bl_level_max_min=<255 10>;	/** brightness level max & min, must match the rootfs setting*/
+		
+		/* backlight power ctrl */
+		bl_power_on_delay=<100>; /** delay time before backlight power on(unit: ms) */
+		bl_ctrl_method=<3>;	/** backlight control method(0=gpio, 1=pwm_negative, 2=pwm_positive, 3=pwm_combo. 4=extern. decided by hardware design) */
+		
+		bl_gpio_port="GPIODV_28";	/** backlight control gpio port */
+		bl_gpio_dim_max_min=<0x0 0xf>;	/** brightness diming level_max, level_min : (0x0~0xf, negative logic, only for gpio control method) */
+		bl_pwm_port_gpio_used="PWM_C","1";	/** pwm_port_name(for pwm control method), pwm_gpio_used(0=use pwm_port only, 1=use bl_gpio_port to control on/off) */
+		bl_pwm_freq=<300000>;	/** backlight control pwm frequency(unit: Hz, only for pwm control method) */
+		bl_pwm_duty_max_min=<90 30>;	/** brightness diminig duty_max, duty_min : (unit: %, positive logic, only for pwm control method) */
+		
+		/** backlight pwm_combo control: low_duty_max is always active for level_high, and high_duty_min is always active for level_low */
+		bl_pwm_combo_high_low_level_switch=<220>;	/** backlight pwm_combo control switch level */
+		bl_pwm_combo_high_port_method="PWM_C","1";	/** backlight pwm_combo high port name, pwm control method(1=pwm_negative, 2=pwm_positive) */
+		bl_pwm_combo_low_port_method="PWM_D","2";	/** backlight pwm_combo low port name, pwm control method(1=pwm_negative, 2=pwm_positive) */
+		bl_pwm_combo_high_freq_duty_max_min=<300000 96 89>;	/** backlight pwm_combo level_high port frequency(unit: Hz), duty_max, duty_min : (unit: %, positive logic) */
+		bl_pwm_combo_low_freq_duty_max_min=<10000 100 10>;	/** backlight pwm_combo level_low port frequency(unit: Hz), duty_max, duty_min : (unit: %, positive logic) */
+	};
+
+//******************************************************************************
+//bl extern
+//Notice: only one dev support
+//******************************************************************************
+//$$ DEVICE = "bl_extern_pmu_aml1218"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 2 = "gpio_enable"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_U32 2 = "dim_max_min"
+	bl_extern_pmu_aml1218{
+		compatible = "amlogic,bl_pmu_aml1218";
+		dev_name ="bl_pmu_aml1218";
+		status = "disabled"; /** "disabled" or "okay" */
+
+		gpio_enable = "GPIODV_28"; /** "n" for none */
+		type = <2>;	/** bl_extern_driver type: 0=i2c, 1=spi, 2=other */
+		dim_max_min = <0x1 0x1b>;
+	};
+
+//$$ DEVICE = "bl_extern_i2c_lp8556"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 2 = "gpio_enable"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 2 = "dim_max_min"
+	bl_extern_i2c_lp8556{
+		compatible = "amlogic,bl_i2c_lp8556";
+		dev_name ="bl_i2c_lp8556";
+		status = "disabled"; /** "disabled" or "okay" */
+
+		gpio_enable = "GPIODV_28"; /** "n" for none */
+		type = <0>;	/** bl_extern_driver type: 0=i2c, 1=spi, 2=other */
+		i2c_address = <0x2c>; /** 7bit i2c address */
+		i2c_bus = "i2c_bus_b";
+		dim_max_min = <255 10>;
+	};
+
+//******************************************************************************
+
+//$$ DEVICE="lcd"
+//$$ L2 PROP_STR = "status"
+
+//$$ L2 PROP_STR = "lcd_model_name"
+//$$ L2 PROP_CHOICE "lcd_model_config_match" = "lcd_model_config"
+//$$ L2 PROP_U32 = "lcd_bits_user"
+
+//$$ L2 PROP_U32 2 = "ttl_rb_bit_swap"
+//$$ L2 PROP_U32 = "lvds_channel_pn_swap"
+
+//$$ L2 PROP_U32 2 = "valid_hvsync_de"
+//$$ L3 PROP_U32 4 = "hsign_hoffset_vsign_voffset"
+
+//$$ L3 PROP_U32 2 = "dither_user_ctrl"
+//$$ L3 PROP_U32 3 = "vadj_brightness_contrast_saturation"
+
+//$$ L3 PROP_U32 2 = "gamma_en_reverse"
+//$$ L4 PROP_U32 4 = "gamma_multi_rgb_coeff"
+//$$ L3 PROP_U32 256 = "gamma_table"
+
+//$$ L4 PROP_U32 = "clock_spread_spectrum"
+//$$ L4 PROP_U32 = "clock_auto_generation"
+//$$ L4 PROP_U32 3 = "clk_pll_div_clk_ctrl"
+//$$ L4 PROP_U32 = "lvds_vswing"
+//$$ L4 PROP_U32 2 = "lvds_user_repack"
+//$$ L4 PROP_U32 3 = "edp_user_link_rate_lane_count"
+//$$ L4 PROP_U32 2 = "edp_link_adaptive_vswing"
+//$$ L4 PROP_U32 = "edp_sync_clock_mode"
+//$$ L4 PROP_U32 2 = "rgb_base_coeff"
+
+//$$ L2 PROP_STR 3 = "power_on_uboot"
+//$$ L2 PROP_STR 3 = "power_on_step_1"
+//$$ L2 PROP_STR 3 = "power_on_step_2"
+//$$ L2 PROP_STR 3 = "power_on_step_3"
+//$$ L2 PROP_STR 3 = "power_on_step_4"
+//$$ L2 PROP_STR 3 = "power_on_step_5"
+//$$ L2 PROP_STR 3 = "power_on_step_6"
+//$$ L2 PROP_STR 3 = "power_on_step_7"
+//$$ L2 PROP_STR 3 = "power_on_step_8"
+//$$ L2 PROP_STR 3 = "power_on_step_9"
+//$$ L2 PROP_STR 3 = "power_on_step_10"
+//$$ L2 PROP_STR 3 = "power_on_step_11"
+//$$ L2 PROP_STR 3 = "power_on_step_12"
+//$$ L2 PROP_STR 3 = "power_on_step_13"
+//$$ L2 PROP_STR 3 = "power_on_step_14"
+//$$ L2 PROP_STR 3 = "power_on_step_15"
+//$$ L2 PROP_U32 15 = "power_on_delay"
+//$$ L2 PROP_STR 3 = "power_off_step_1"
+//$$ L2 PROP_STR 3 = "power_off_step_2"
+//$$ L2 PROP_STR 3 = "power_off_step_3"
+//$$ L2 PROP_STR 3 = "power_off_step_4"
+//$$ L2 PROP_STR 3 = "power_off_step_5"
+//$$ L2 PROP_STR 3 = "power_off_step_6"
+//$$ L2 PROP_STR 3 = "power_off_step_7"
+//$$ L2 PROP_STR 3 = "power_off_step_8"
+//$$ L2 PROP_STR 3 = "power_off_step_9"
+//$$ L2 PROP_STR 3 = "power_off_step_10"
+//$$ L2 PROP_STR 3 = "power_off_step_11"
+//$$ L2 PROP_STR 3 = "power_off_step_12"
+//$$ L2 PROP_STR 3 = "power_off_step_13"
+//$$ L2 PROP_STR 3 = "power_off_step_14"
+//$$ L2 PROP_STR 3 = "power_off_step_15"
+//$$ L2 PROP_U32 15 = "power_off_delay"
+//$$ L2 PROP_STR 3 = "power_off_uboot"
+	lcd{
+		compatible = "amlogic,lcd";
+		dev_name = "lcd";
+		status = "okay";
+		pinctrl-names = "ttl_6bit_hvsync_de_on","ttl_6bit_hvsync_on","ttl_6bit_de_on","ttl_8bit_hvsync_de_on","ttl_8bit_hvsync_on","ttl_8bit_de_on",
+						"ttl_6bit_hvsync_de_off","ttl_8bit_hvsync_de_off";
+		pinctrl-0 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_clk_pins_on &lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_on>;
+		pinctrl-1 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_clk_pins_on &lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_off>;
+		pinctrl-2 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_clk_pins_on &lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_on>;
+		pinctrl-3 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_clk_pins_on &lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_on>;
+		pinctrl-4 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_clk_pins_on &lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_off>;
+		pinctrl-5 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_clk_pins_on &lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_on>;
+		pinctrl-6 = <&lcd_ttl_rgb_6bit_pins_off &lcd_ttl_clk_pins_off &lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_off>;
+		pinctrl-7 = <&lcd_ttl_rgb_8bit_pins_off &lcd_ttl_clk_pins_off &lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_off>;
+
+ 		lcd_model_name ="lcd_B080XAN01";	/** lcd model name for uboot driver */
+ 		lcd_model_config = <&lcd_B080XAN01>;	/** choose panel model config */
+ 		lcd_bits_user=<6>;	/** user defined lcd bits(6 or 8, decided by hardware design; only valid when lcd_bits_option=1) */
+
+		/* below configs are decided by hardware design, you can modify them if needed. */
+		ttl_rb_bit_swap=<0 0>;	/** ttl rb_swap, bit_swap : (0=normal, 1=swap) */
+		lvds_channel_pn_swap=<0>;	/** lvds channel pn swap(0=normal, 1=swap) */
+
+		/* recommend settings, you can modify them if needed. */
+		valid_hvsync_de=<1 1>;	/** hvsync_signal_valid, DE_signal_valid : (0=disable signal, 1=enable signal) */
+		hsign_hoffset_vsign_voffset=<0 0 0 0>;	/** hsign, hoffset, vsign, voffset :("sign-offset" is a pair. sign: 0=positive, 1=negative) */
+
+		dither_user_ctrl=<0 0x000>;	/**  dither_user(0=auto setting, 1=user define), dither_ctrl(user defined dither control, only valid when user_define=1) */
+		vadj_brightness_contrast_saturation=<0x0 0x80 0x100>;	/** video adjust brightness, contrast, saturation */
+
+		gamma_en_reverse=<1 0>;	/** gamma_en(0=disable gamma table, 1=enable gamma table), gamma_table_revert(0=normal, 1=reverse) */
+		gamma_multi_rgb_coeff=<0 100 100 100>;	/** gamma_multi(0=single gamma, RGB are same, 1=multi gamma, RGB are different), gamma_r_coeff(%), gamma_g_coeff(%), gamma_b_coeff(%) */
+		/** if gamma_multi=1, there must be 3 gamma tables, named as gamma_table_r, gamma_table_g, gamma_table_b */
+		gamma_table=<0 1 2 3 4 5 6 7 8 8 9 10 11 12 13 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 
+					32 33 34 35 36 37 37 38 39 40 41 42 43 44 45 46 47 48 49 50 50 51 52 53 54 55 56 57 57 58 59 60 
+					61 62 63 64 65 65 67 67 68 69 70 71 72 73 74 75 76 76 77 78 79 80 81 82 82 83 84 85 86 87 88 88 
+					89 90 91 92 93 94 95 96 97 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 
+					120 121 122 123 124 125 126 127 128 129 130 131 131 132 133 135 136 136 138 139 140 141 142 143 144 145 146 147 148 149 151 152 
+					153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 176 177 178 179 180 181 182 183 184 185 
+					186 188 189 190 191 192 193 195 196 197 198 199 200 202 203 204 205 206 208 209 210 211 212 213 214 216 217 218 219 220 221 222 
+					223 224 225 226 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255>;
+
+		/* default settings, don't modify them unless there is display problem */
+		clock_spread_spectrum=<0>;	/** ss_level(0=disable, 1=0.5%, 2=1%, 3=1.5%, 4=2%) */
+		clock_auto_generation=<1>;	/** clk_auto_generation(0=use customer clock parameters, as clk_pll_div_clk_ctrl defined, 1=auto generate clock parameters by lcd_clock) */
+		clk_pll_div_clk_ctrl=<0x100042b 0x18833 0x03a82102>;	/** pll_ctrl, div_ctrl, clk_ctrl : (only valid when clk_auto_generation=0) */
+		lvds_vswing=<1>;	/** lvds_vswing_level(default level=1, support level 0,1,2,3,4) */
+		lvds_user_repack=<0 0>;	/** lvds_repack_user(0=auto setting, 1=user define), lvds_repack(0=JEIDA mode data mapping, 1=VESA mode data mapping. only valid when lvds_repack_user=1) */
+		edp_user_link_rate_lane_count=<1 1 4>;	/** edp_user(0=auto setting, 1=user define), link_rate(0=1.62G, 1=2.7G, only valid when edp_user=1), lane_count(support 1,2,4, only valid when edp_user=1) */
+		edp_link_adaptive_vswing=<0 0>;	/** adaptive(0=fixed user defined vswing, 1=auto setting vswing by training), vswing(support level 0,1,2,3, user defined vswing, only valid when adaptive=0) */
+		edp_sync_clock_mode=<1>; /** clocking mode for the user data: (0=asyncronous clock, 1=synchronous clock. default 1) */
+		rgb_base_coeff=<0xf0 0x74a>;	/** rgb_base, rgb_coeff */
+
+		//lcd power ctrl	//support up to 15 steps for each sequence
+		power_on_uboot="n","n","n";	/** only for uboot, ahead of lcd_power_on, no need config delay */
+		power_on_step_1="pmu","GPIO0","0";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+		power_on_step_2="cpu","GPIODV_29","0";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+		power_on_step_3="cpu","GPIODV_0","0";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+		power_on_step_4="cpu","GPIODV_0","1";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+		power_on_step_5="signal";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+		power_on_step_6="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_7="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_8="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_9="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_10="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_11="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_12="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_13="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_14="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_on_step_15="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+ 		power_on_delay=<20 14 5 70 5 0 0 0 0 0 0 0 0 0 0>;	/** power on delay after each step */
+		power_off_step_1="signal";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+ 		power_off_step_2="cpu","GPIODV_29","1";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+ 		power_off_step_3="cpu","GPIODV_0","0";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+		power_off_step_4="pmu","GPIO0","2";	/** gpio_type(cpu, pmu, signal), gpio_name(valid when gpio_type is cpu or pmu), gpio_value(valid when gpio_type is cpu or pmu) */
+		power_off_step_5="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_6="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_7="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_8="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_9="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_10="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_11="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_12="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_13="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_14="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_step_15="n","n","n";	/** gpio_type(support 3 types: cpu, pmu, signal), gpio_name(upper-case, valid when gpio_type is cpu or pmu), gpio_value(0=output_low, 1=output_high, 2=input. valid when gpio_type is cpu or pmu) */
+		power_off_delay=<5 14 0 100 0 0 0 0 0 0 0 0 0 0 0>;	/** power off delay after each step */
+		power_off_uboot="n","n","n";	/** only for uboot, at the end of lcd_power_off, no need config delay */
+	};
+
+//$$ MATCH "lcd_model_config_match" = <&lcd_LP097QX1>
+//$$ L2 PROP_STR = "model_name"
+//$$ L2 PROP_STR = "interface"
+//$$ L2 PROP_U32 2 = "active_area"
+//$$ L2 PROP_U32 2 = "lcd_bits_option"
+//$$ L2 PROP_U32 2 = "resolution"
+//$$ L2 PROP_U32 2 = "period"
+//$$ L2 PROP_U32 2 = "clock_hz_pol"
+//$$ L2 PROP_U32 2 = "hsync_width_backporch"
+//$$ L2 PROP_U32 2 = "vsync_width_backporch"
+//$$ L2 PROP_U32 2 = "pol_hsync_vsync"		
+//$$ L2 PROP_U32 = "max_lane_count"
+//	lcd_LP097QX1:lcd_LP097QX1{	//k100
+//		model_name="LP097QX1";	/** lcd model name */
+//		interface="edp";		/** lcd_interface(mipi, lvds, edp, ttl) */
+//		active_area=<197 147>;	/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+//		lcd_bits_option=<8 0>;	/** lcd_bits(6,8), bits_option(0=only support one mode as lcd_bits define, 1=both support 6/8bit) */
+		
+//		resolution=<2048 1536>;	/** horizontal resolution, vertical resolution */
+//		period=<2219 1560>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+//		clock_hz_pol=<207700000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+//		hsync_width_backporch=<5 120>;	/** hsync_width, hsync_backporch(include hsync_width) */
+//		vsync_width_backporch=<1 22>;	/** vsync_width, vsync_backporch(include vsync_width) */
+//		pol_hsync_vsync=<1 1>;	/** hsync_polarity, vsync_polarity : (0=negative, 1=positive) */
+
+//		max_lane_count=<4>; /** max lane count supported */
+//	};
+
+//$$ MATCH "lcd_model_config_match" = <&lcd_B080XAN01>
+//$$ L2 PROP_STR = "model_name"
+//$$ L2 PROP_STR = "interface"
+//$$ L2 PROP_U32 2 = "active_area"
+//$$ L2 PROP_U32 2 = "lcd_bits_option"
+//$$ L2 PROP_U32 2 = "resolution"
+//$$ L2 PROP_U32 2 = "period"
+//$$ L2 PROP_U32 2 = "clock_hz_pol"
+//$$ L2 PROP_U32 2 = "hsync_width_backporch"
+//$$ L2 PROP_U32 2 = "vsync_width_backporch"
+//$$ L2 PROP_U32 2 = "pol_hsync_vsync"
+//$$ L2 PROP_U32 = "dsi_lane_num"
+//$$ L2 PROP_U32 2 = "dsi_operation_mode"
+//$$ L2 PROP_U32 = "dsi_bit_rate_max"
+//$$ L2 PROP_U32 = "pclk_lanebyteclk_factor"
+//$$ L2 PROP_U32 2 = "dsi_transfer_ctrl"
+//$$ L2 PROP_U32 12 = "dsi_init_on"
+//$$ L2 PROP_U32 12 = "dsi_init_off"
+//$$ L2 PROP_U32 = "lcd_extern_init"
+	lcd_B080XAN01:lcd_B080XAN01{	//k101
+		model_name="B080XAN01";	/** lcd model name */
+		interface="mipi";		/** lcd_interface(mipi, lvds, edp, ttl) */
+		active_area=<119 159>;		/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+		lcd_bits_option=<6 1>;		/** lcd_bits(6,8), bits_option(0=only support one mode as lcd_bits define, 1=both support 6/8bit) */
+
+		resolution=<768 1024>;	/** horizontal resolution, vertical resolution */
+		period=<948 1140>;		/** horizontal period(htotal), vertical period(vtotal) */
+
+		clock_hz_pol=<64843200 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+		hsync_width_backporch=<64 120>;	/** hsync_width, hsync_backporch(include hsync_width) */
+		vsync_width_backporch=<50 80>;	/** vsync_width, vsync_backporch(include vsync_width) */
+		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0=negative, 1=positive) */
+
+		dsi_lane_num=<4>;/** mipi dsi data lane number */
+		dsi_bit_rate_max=<550>;/** mipi-dsi data lane bit rate limit(unit: MHz) */
+		dsi_init_on=<0x05 0x11 0 //sleep out
+					0xff 20      //delay 20ms
+					0x05 0x29 0  //display on
+					0xff 20      //delay 20ms
+					0xff 0xff>;/** mipi command(data_type, command, para_num, parameters). 0xff,0xff is ending flag. 0xff,n(n<0xff) means delay n(unit: ms) */
+		dsi_init_off=<0x05 0x28 0 //display off
+					0xff 10       //delay 10ms
+					0x05 0x10 0   //sleep in
+					0xff 10       //delay 10ms
+					0xff 0xff>;/** mipi command(data_type, command, para_num, parameters). 0xff,0xff is ending flag. 0xff,n(n<0xff) means delay n(unit: ms) */
+	};
+
+//$$ MATCH "lcd_model_config_match" = <&lcd_CLAP070NJ02>
+//$$ L2 PROP_STR = "model_name"
+//$$ L2 PROP_STR = "interface"
+//$$ L2 PROP_U32 2 = "active_area"
+//$$ L2 PROP_U32 2 = "lcd_bits_option"
+//$$ L2 PROP_U32 2 = "resolution"
+//$$ L2 PROP_U32 2 = "period"
+//$$ L2 PROP_U32 2 = "clock_hz_pol"
+//$$ L2 PROP_U32 2 = "hsync_width_backporch"
+//$$ L2 PROP_U32 2 = "vsync_width_backporch"
+//$$ L2 PROP_U32 2 = "pol_hsync_vsync"
+//	lcd_CLAP070NJ02:lcd_CLAP070NJ02{	//g33
+//		model_name="CLAP070NJ02";	/** lcd model name */
+//		interface="ttl";			/** lcd_interface(mipi, lvds, edp, ttl) */
+//		active_area=<154 86>;		/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+//		lcd_bits_option=<8 1>;		/** lcd_bits(6,8), bits_option(0=only support one mode as lcd_bits define, 1=both support 6/8bit) */
+		
+//		resolution=<1024 600>;	/** horizontal resolution, vertical resolution */
+//		period=<1344 635>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+//		clock_hz_pol=<42700000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+//		hsync_width_backporch=<10 160>;	/** hsync_width, hsync_backporch(include hsync_width) */
+//		vsync_width_backporch=<5 23>;	/** vsync_width, vsync_backporch(include vsync_width) */
+//		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0=negative, 1=positive) */
+//	};
+
+//$$ MATCH "lcd_model_config_match" = <&lcd_TN070TN92>
+//$$ L2 PROP_STR = "model_name"
+//$$ L2 PROP_STR = "interface"
+//$$ L2 PROP_U32 2 = "active_area"
+//$$ L2 PROP_U32 2 = "lcd_bits_option"
+//$$ L2 PROP_U32 2 = "resolution"
+//$$ L2 PROP_U32 2 = "period"
+//$$ L2 PROP_U32 2 = "clock_hz_pol"
+//$$ L2 PROP_U32 2 = "hsync_width_backporch"
+//$$ L2 PROP_U32 2 = "vsync_width_backporch"
+//$$ L2 PROP_U32 2 = "pol_hsync_vsync"
+//	lcd_TN070TN92:lcd_TN070TN92{	//800*480
+//		model_name="TN070TN92";	/** lcd model name */
+//		interface="ttl";		/** lcd_interface(mipi, lvds, edp, ttl) */
+//		active_area=<154 86>;	/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+//		lcd_bits_option=<8 1>;	/** lcd_bits(6,8), bits_option(0=only support one mode as lcd_bits define, 1=both support 6/8bit) */
+		
+//		resolution=<800 480>;	/** horizontal resolution, vertical resolution */
+//		period=<1056 525>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+//		clock_hz_pol=<33300000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+//		hsync_width_backporch=<10 46>;	/** hsync_width, hsync_backporch(include hsync_width) */
+//		vsync_width_backporch=<5 23>;	/** vsync_width, vsync_backporch(include vsync_width) */
+//		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0=negative, 1=positive) */
+//	};
+
+//$$ MATCH "lcd_model_config_match" = <&lcd_LP097X02>
+//$$ L2 PROP_STR = "model_name"
+//$$ L2 PROP_STR = "interface"
+//$$ L2 PROP_U32 2 = "active_area"
+//$$ L2 PROP_U32 2 = "lcd_bits_option"
+//$$ L2 PROP_U32 2 = "resolution"
+//$$ L2 PROP_U32 2 = "period"
+//$$ L2 PROP_U32 2 = "clock_hz_pol"
+//$$ L2 PROP_U32 2 = "hsync_width_backporch"
+//$$ L2 PROP_U32 2 = "vsync_width_backporch"
+//$$ L2 PROP_U32 2 = "pol_hsync_vsync"	
+//	lcd_LP097X02:lcd_LP097X02{	//g24
+//		model_name="LP097X02";	/** lcd model name */
+//		interface="lvds";		/** lcd_interface(mipi, lvds, edp, ttl) */
+//		active_area=<197 147>;	/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+//		lcd_bits_option=<6 0>;	/** lcd_bits(6,8), bits_option(0=only support one mode as lcd_bits define, 1=both support 6/8bit) */
+		
+//		resolution=<1024 768>;	/** horizontal resolution, vertical resolution */
+//		period=<2084 810>;		/** horizontal period(htotal), vertical period(vtotal) */
+		
+//		clock_hz_pol=<85700000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+//		hsync_width_backporch=<10 70>;	/** hsync_width, hsync_backporch(include hsync_width) */
+//		vsync_width_backporch=<3 30>;	/** vsync_width, vsync_backporch(include vsync_width) */
+//		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0=negative, 1=positive) */
+//	};
+
+//$$ MATCH "lcd_model_config_match" = <&lcd_CLAA101FP05XG>
+//$$ L2 PROP_STR = "model_name"
+//$$ L2 PROP_STR = "interface"
+//$$ L2 PROP_U32 2 = "active_area"
+//$$ L2 PROP_U32 2 = "lcd_bits_option"
+//$$ L2 PROP_U32 2 = "resolution"
+//$$ L2 PROP_U32 2 = "period"
+//$$ L2 PROP_U32 2 = "clock_hz_pol"
+//$$ L2 PROP_U32 2 = "hsync_width_backporch"
+//$$ L2 PROP_U32 2 = "vsync_width_backporch"
+//$$ L2 PROP_U32 2 = "pol_hsync_vsync"
+//$$ L2 PROP_U32 = "dsi_lane_num"
+//$$ L2 PROP_U32 = "dsi_bit_rate_max"
+//$$ L2 PROP_U32 = "pclk_lanebyteclk_factor"
+//$$ L2 PROP_U32 2 = "dsi_transfer_ctrl"
+//$$ L2 PROP_U32 12 = "dsi_init_on"
+//$$ L2 PROP_U32 12 = "dsi_init_off"
+//	lcd_CLAA101FP05XG:lcd_CLAA101FP05XG{
+//		model_name="CLAA101FP05XG";	/** lcd model name */
+//		interface="mipi";		/** lcd_interface(mipi, lvds, edp, ttl) */
+//		active_area=<216 135>;		/** lcd active_area or display_area horizontal size, vertical size : (unit in mm, you can find them on the home page of lcd spec) */
+//		lcd_bits_option=<8 0>;		/** lcd_bits(6,8), bits_option(0=only support one mode as lcd_bits define, 1=both support 6/8bit) */
+
+//		resolution=<1920 1200>;	/** horizontal resolution, vertical resolution */
+//		period=<2080 1235>;		/** horizontal period(htotal), vertical period(vtotal) */
+
+//		clock_hz_pol=<154128000 0>;	/** clock_hz(unit in Hz, both support clk and frame_rate, >200 regard as clk, <200 regard as frame_rate), clk_pol(only valid for TTL) */
+//		hsync_width_backporch=<32 112>;	/** hsync_width, hsync_backporch(include hsync_width) */
+//		vsync_width_backporch=<6 26>;	/** vsync_width, vsync_backporch(include vsync_width) */
+//		pol_hsync_vsync=<0 0>;	/** hsync_polarity, vsync_polarity : (0=negative, 1=positive) */
+
+//		dsi_lane_num=<4>;/** mipi dsi data lane number */
+//		dsi_bit_rate_max=<1000>; /** mipi-dsi data lane bit rate limit(unit: MHz) */
+//		pclk_lanebyteclk_factor =<15>;/** special adjust, default is 0 */
+//		dsi_transfer_ctrl=<1 0>; /** clk_lane auto stop in LP mode: (0=disable, 1=enable), transfer switch between LP and HS: (0=auto, 1=standard, 2=slow). default is <0 0> */
+//		dsi_init_on=<0x05 0x11 0 //sleep out
+//				0xff 100     //delay 100ms
+//				0x05 0x29 0  //display on
+//				0xff 100     //delay 100ms
+//				0xff 0xff>;  /** mipi command(data_type, command, para_num, parameters). 0xff,0xff is ending flag. 0xff,n(n<0xff) means delay n(unit: ms) */
+//		dsi_init_off=<0x05 0x28 0 //display off
+//				0xff 10       //delay 10ms
+//				0x05 0x10 0   //sleep in
+//				0xff 10       //delay 10ms
+//				0xff 0xff>;   /** mipi command(data_type, command, para_num, parameters). 0xff,0xff is ending flag. 0xff,n(n<0xff) means delay n(unit: ms) */
+//	};
+
+//******************************************************************************
+//lcd extern
+//Notice: only one dev support
+//******************************************************************************
+//$$ DEVICE = "lcd_extern_i2c_tc101"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_STR = "i2c_bus"
+	lcd_extern_i2c_tc101{
+		compatible = "amlogic,lcd_i2c_tc101";
+		dev_name ="lcd_i2c_tc101";
+		status = "disabled";
+
+		type = <0>;	/** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
+		i2c_address = <0x7e>; /** i2c address */
+		i2c_bus = "i2c_bus_a";
+	};
+
+//$$ DEVICE = "lcd_extern_spi_LD070WS2"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_U32 = "gpio_spi_cs"
+//$$ L2 PROP_U32 = "gpio_spi_clk"
+//$$ L2 PROP_U32 = "gpio_spi_data"
+	lcd_extern_spi_LD070WS2{
+		compatible = "amlogic,lcd_spi_LD070WS2";
+		dev_name ="lcd_spi_LD070WS2";
+		status = "disabled";
+
+		type = <1>;	/** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
+		gpio_spi_cs="GPIODV_1";
+		gpio_spi_clk="GPIODV_16";
+		gpio_spi_data="GPIODV_17";
+	};
+
+//$$ DEVICE = "lcd_extern_mipi_N070ICN"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "type"
+	lcd_extern_mipi_N070ICN{
+		compatible = "amlogic,lcd_mipi_N070ICN";
+		dev_name ="lcd_mipi_N070ICN";
+		status = "disabled";
+
+		type = <2>;	/** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
+	};
+
+/// ***************************************************************************************
+///     -       Sensors
+//$$ MODULE="Sensors"
+//$$ DEVICE="sensor"
+//$$ L2 PROP_STR = "status"
+    sensor{
+		compatible = "amlogic,aml_sensor";
+		status = "okay";
+
+//$$ DEVICE="stk831x"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+//        stk831x{
+//            dev_name = "stk831x";
+//            status = "okay";
+//            address = <0x3d>;
+//            i2c_bus = "i2c_bus_b";
+//        };
+
+//$$ DEVICE="mma7660"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+//        mma7660{
+//            dev_name = "mma7660";
+//            status = "okay";
+//            address = <0x4c>;
+//            i2c_bus = "i2c_bus_b";
+//        };
+
+//$$ DEVICE="mma8452"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "acc_dir"
+//        mma8452{
+//            dev_name = "mma8452";
+//            status = "okay";
+//            address = <0x1c>;
+//            i2c_bus = "i2c_bus_b";
+//            acc_dir = <0x0101>;
+//        };
+
+//$$ DEVICE="mma865x"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_U32 = "acc_dir"
+        mma865x{
+            dev_name = "mma865x";
+            status = "okay";
+            address = <0x1d>;
+            i2c_bus = "i2c_bus_b";
+            acc_dir = <0x0101>;
+        };
+
+//$$ DEVICE="afa750"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "address"
+//$$ L2 PROP_STR = "i2c_bus"
+//        afa750{
+//            dev_name = "afa750";
+//            status = "okay";
+//            address = <0x3c>;
+//            i2c_bus = "i2c_bus_b";
+//        };
+};
+
+/// ***************************************************************************************
+/// -   Audio
+//$$ MODULE="Audio"
+//$$ DEVICE="audio_i2s"
+//$$ L2 PROP_STR = "status"
+    audio_platform{
+        compatible = "amlogic,aml-i2s";
+        dev_name = "aml-i2s.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_i2s_dai"
+//$$ L2 PROP_STR = "status"
+    audio_dai{
+        compatible = "amlogic,aml-i2s-dai";
+        dev_name = "aml-i2s-dai.0";
+        clk_src_mpll = <0>; /* 0:mpll0, 1:mpll1, 2:mpll2 */
+        status = "okay";
+    };
+    audio_spdif_dai{
+        compatible = "amlogic,aml-spdif-dai";
+        dev_name = "aml-spdif-dai.0";
+        status = "okay";
+    };
+
+    audio_spdif_codec{
+        compatible = "amlogic,aml-spdif-codec";
+        dev_name = "spdif-dit.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_pcm2BT_codec"
+//$$ L2 PROP_STR = "status"
+    audio_pcm2BT_codec{
+        compatible = "amlogic,pcm2BT-codec";
+        dev_name = "pcm2bt.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_pcm_dai"
+//$$ L2 PROP_STR = "status"
+    audio_pcm_dai{
+        compatible = "amlogic,aml-pcm-dai";
+        dev_name = "aml-pcm-dai.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_pcm"
+//$$ L2 PROP_STR = "status"
+    audio_pcm{
+        compatible = "amlogic,aml-pcm";
+        dev_name = "aml-pcm.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_m8_audio"
+//$$ L2 PROP_STR = "status"
+    audio_m8_audio{
+        compatible = "amlogic,m8_audio_codec";
+        dev_name = "aml_m8_codec.0";
+        status = "okay";
+    };
+
+    aml_audio_codec{
+        compatible = "amlogic,audio_codec";
+        rt5616:rt5616{
+            codec_name = "rt5616";
+            i2c_addr = <0x1B>;
+            i2c_bus = "i2c_bus_d";
+            id_reg = <0x00>;
+            id_val = <0x21>;
+            capless = <0>;
+            status = "okay";
+        };
+        rt5631:rt5631{
+            codec_name = "rt5631";
+            i2c_addr = <0x1A>;
+            i2c_bus = "i2c_bus_b";
+            id_reg = <0x00>;
+            id_val = <0x01>;
+            capless = <0>;
+            status = "disable";      
+        };  
+        wm8960:wm8960{
+            codec_name = "wm8960";
+            i2c_addr = <0x1A>;
+            i2c_bus = "i2c_bus_b";
+            capless = <1>;
+	    status = "disable";
+        };
+    };
+
+//$$ DEVICE="aml_m8_sound_card"
+//$$ L2 PROP_STR = "aml,sound_card"
+//$$ L2 PROP_STR = "aml,codec_dai"
+//$$ L2 PROP_STR 6*2 = "aml,audio-routing"
+//$$ L2 PROP_STR = "mute_gpio"
+//$$ L2 PROP_U32 5 = "hp_paraments"
+//$$ L2 PROP_STR = "status"
+    aml_m8_sound_card{
+        compatible = "sound_card, aml_snd_m8";
+        aml,sound_card = "AML-M8AUDIO";
+        aml,codec_dai = "AML-M8","rt5616-aif1","rt5631-hifi","wm8960-hifi";
+        //aml,codec_name = "aml_m8_codec.0","rt5616.4-001b";
+        //aml,audio-codec = <&rt5616>;
+        aml,audio-routing-rt5616 = 
+            "Ext Spk","LOUTL",
+            "Ext Spk","LOUTR",
+            "HP","HPOL",
+            "HP","HPOR",
+            "micbias1","MAIN MIC",
+            "IN2P","micbias1";
+        aml,audio-routing-amlm8 = 
+            "Ext Spk","LINEOUTL",
+            "Ext Spk","LINEOUTR",
+            "HP","HP_L",
+            "HP","HP_R",
+            "MICBIAS","MAIN MIC",
+            "LINPUT1","MICBIAS";
+        mute_gpio = "GPIOY_15";
+        sleep_time = <50>;
+        I2S_MCLK = "GPIOAO_8";
+        I2S_SCLK = "GPIOAO_9";
+        I2S_LRCLK = "GPIOAO_10";
+        I2S_ODAT = "GPIOAO_11";
+        hp_paraments = <800 300 0 5 1>;
+		pinctrl-names = "aml_snd_m8";
+		pinctrl-0 = <&audio_pins>;
+		status = "okay"; 
+	};
+
+/// ***************************************************************************************
+///	-	Camera
+//$$ MODULE="Camera"
+///	-	aml_cams
+//$$ DEVICE = "aml_cams"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 2 = "pinctrl-names"
+//$$ L2 PROP_CHOICE "Camera_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_CHOICE "Camera_pin_1_match" = "pinctrl-1"
+	aml_cams{
+		compatible = "amlogic,cams_prober";
+		status = "okay";
+		pinctrl-names = "gpio","csi";
+		pinctrl-0 = <&aml_cam_gpio_pins> ;
+		pinctrl-1 = <&aml_cam_csi_pins> ;
+
+///	-	gc2035
+//$$ DEVICE="gc2035"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+        	cam_0{
+			cam_name = "gc2035";
+			front_back = <1>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_5";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <1>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+
+///	-	gc2035
+//$$ DEVICE="gc2035"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+        	cam_1{
+			cam_name = "gc2035";
+			front_back = <0>;
+			i2c_bus = "i2c_bus_d";
+			gpio_pwdn = "GPIOH_6";
+			gpio_rst = "GPIOH_4";
+			mirror_flip = <0>;
+			vertical_flip = <0>;	
+			bt_path = "gpio";
+			status = "okay";
+		};
+
+///	-	ov5640
+//$$ DEVICE="ov5640"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+//		cam_2{
+//			cam_name = "ov5640";
+//			front_back = <0>;
+//			i2c_bus = "i2c_bus_d";
+//			gpio_pwdn = "GPIOH_6";
+//			gpio_rst = "GPIOH_4";
+//			mirror_flip = <1>;
+//			vertical_flip = <0>;	
+//			bt_path = "gpio";
+//			status = "okay";	
+//		};
+
+ ///	-	hm2057
+//$$ DEVICE="hm2057"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"    
+//            	 cam_3{
+//			cam_name = "hm2057";
+//			front_back = <0>;
+//			i2c_bus = "i2c_bus_d";
+//			gpio_pwdn = "GPIOH_5";
+//			gpio_rst = "GPIOH_4";
+//			mirror_flip = <0>;
+//			vertical_flip = <0>;	
+//			bt_path = "gpio";
+//			status = "okay";
+//		};
+
+//$$ DEVICE="sp0a19"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+//        cam_4{
+//			cam_name = "sp0a19";
+//			front_back = <0>;
+//			i2c_bus = "i2c_bus_d";
+//			gpio_pwdn = "GPIOH_6";
+//			gpio_rst = "GPIOH_4";
+//			mirror_flip = <0>;
+//			vertical_flip = <0>;	
+//			bt_path = "gpio";
+//			status = "okay";
+//		};
+
+///	-	hm5065
+//$$ DEVICE="hm5065"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+//		cam_5{
+//			cam_name = "hm5065";
+//			front_back = <0>;
+//			i2c_bus = "i2c_bus_d";
+//			gpio_pwdn = "GPIOH_5";
+//			gpio_rst = "GPIOH_4";
+//			mirror_flip = <0>;
+//			vertical_flip = <0>;	
+//			bt_path = "gpio";
+//			status = "okay";
+//		};
+
+///	-    sp1628
+//$$ DEVICE="sp1628"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "front_back"
+//$$ L2 PROP_STR = "i2c_bus"
+//$$ L2 PROP_STR = "gpio_pwdn"
+//$$ L2 PROP_STR = "gpio_rst"
+//$$ L2 PROP_U32 = "mirror_flip"
+//$$ L2 PROP_U32 = "vertical_flip"
+//$$ L2 PROP_STR = "bt_path"
+//		cam_6{
+//			cam_name = "sp1628";
+//			front_back = <1>;
+//			i2c_bus = "i2c_bus_d";
+//			gpio_pwdn = "GPIOH_6";
+//			gpio_rst = "GPIOH_4";
+//			mirror_flip = <0>;
+//			vertical_flip = <0>;	
+//			bt_path = "gpio";
+//			status = "okay";
+//		};
+
+	};	
+
+/// ***************************************************************************************
+///	-	Input
+//$$ MODULE="Input"
+//$$ DEVICE="gpio_keypad"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "scan_period"
+//$$ L2 PROP_U32 = "key_num"
+//$$ L2 PROP_STR = "key_name"
+//$$ L2 PROP_U32 = "key_code"
+//$$ L2 PROP_STR = "key_pin"
+//$$ L2 PROP_U32 = "irq_keyup"
+//$$ L2 PROP_U32 = "irq_keydown"
+    gpio_keypad{
+		compatible = "amlogic,gpio_keypad";
+		status = "okay";
+		scan_period = <20>;
+		key_num = <1>;
+        key_name = "power";
+		key_code = <116>;
+		key_pin = "GPIOAO_3";
+        irq_keyup = <6>;
+        irq_keydown = <7>;
+	};
+//$$ DEVICE="saradc"
+//$$ L2 PROP_STR = "status"
+	saradc{
+		compatible = "amlogic,saradc";
+		status = "okay";
+	};
+//$$ DEVICE="adc_keypad"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "key_name"
+//$$ L2 PROP_U32 = "key_num"
+//$$ L2 PROP_U32 2 = "key_code"
+//$$ L2 PROP_U32 2 = "key_chan"
+//$$ L2 PROP_U32 2 = "key_val"
+//$$ L2 PROP_U32 2 = "key_tolerance"
+    adc_keypad{
+		compatible = "amlogic,adc_keypad";
+		status = "okay";
+		key_name = "vol-","vol+";
+		key_num = <2>;
+		key_code = <114 115>;
+		key_chan = <0 0>;
+		key_val = <144 267>;
+		key_tolerance = <40 40>;
+	};
+
+/// ***************************************************************************************
+///	-	WiFi
+//$$ MODULE="WiFi"
+//$$ DEVICE="wifi_power"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "power_gpio"
+	wifi_power{
+            compatible = "amlogic,wifi_power";
+            dev_name = "wifi_power";
+            status = "okay";
+            power_gpio = "GPIOAO_6";
+            power_gpio2 = "GPIOX_11";
+	};  
+    
+/// ***************************************************************************************
+///	-	Nand
+//$$ MODULE="Nand"
+//$$ DEVICE="aml_nand"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+//$$ L2 PROP_STR 2 = "pinctrl-names"
+//$$ L2 PROP_CHOICE 3 "Nand_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_CHOICE 3 "Nand_pin_1_match" = "pinctrl-1"
+//$$ L3 PROP_STR ="plat-names"
+//$$ L2 PROP_U32 = "plat-num"
+//$$ L2 PROP_CHOICE "plat-part-0_match" = "plat-part-0"
+	nand{
+		compatible = "amlogic,aml_nand";
+		dev_name = "nand";
+		status = "ok";
+		reg = <0xd0048600 0x24>;
+		pinctrl-names = "nand_rb_mod","nand_norb_mod";
+		pinctrl-0 = <&nand_input_state &conf_nand_state &nand_base>;
+		pinctrl-1 = <&nand_input_state &conf_nand_state &nand_base>;
+		device_id = <0>;
+		plat-names = "nandnormal";
+		plat-num = <1>;
+		plat-part-0 = <&normal>;
+
+//$$ MATCH "plat-part-0_match" = <&normal>
+//$$ L2 PROP_STR 4 = "enable_pad"
+//$$ L2 PROP_STR = "busy_pad"
+		normal: normal{
+			enable_pad ="ce0","ce1","ce2","ce3";
+			busy_pad = "rb0";
+		};
+	};
+
+/// ***************************************************************************************
+///	-	Efuse
+//$$ MODULE="Efuse"
+//$$ DEVICE="efuse"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 2 = "plat-pos"
+//$$ L2 PROP_U32 = "plat-count"
+//$$ L2 PROP_U32 = "usid-min"
+//$$ L2 PROP_U32 = "usid-max"
+    efuse{
+		compatible = "amlogic,efuse";
+		dev_name = "efuse";
+		status = "okay";
+		plat-pos = <0 454>;
+		plat-count = <58>;
+		usid-min = <8>; /*reserved*/
+		usid-max = <31>; /*reserved*/
+	};
+/// ***************************************************************************************
+///	-	Thermal
+//$$ MODULE="Thermal"
+//$$ DEVICE="thermal"
+//$$ L2 PROP_U32 3*3 = "trip_point"
+//$$ L2 PROP_U32 = "#thermal-cells"
+//$$ L2 PROP_U32 = "cpu_cali_a"
+//$$ L2 PROP_U32 = "idle_interval"
+	thermal{
+		compatible = "amlogic-thermal";
+		#thermal-cells=<7>;
+		dev_name = "aml_thermal";
+        trip_point=<70 1608001 1608001 511 511 3 5 
+                    80 1200001 1200001 435 435 2 4
+                    90  800001 800001  328 328 2 3
+                    110 0xffffffff 0xffffffff 0xffffffff 0xffffffff 0xffffffff 0xffffffff>;
+		cpu_cali_a=<0>;
+		idle_interval=<1000>;
+        use_virtual_thermal;
+        freq_sample_period=<30>;
+        report_time=<1 10 30 60>;         /* based on freq_sample_period */
+        cpu_virtual=<
+             500000  40  40  40  40
+             600000  45  55  60  65
+             800000  50  60  65  70
+            1000000  55  65  70  75
+            1200000  60  70  75  80
+            1400000  65  75  80  85
+        >;
+        gpu_virtual=<
+            183      40  40  40  40
+            251      40  45  50  55
+            319      50  60  65  70
+            426      55  65  70  75
+            511      60  70  75  80
+        >;
+	};
+
+/// ***************************************************************************************
+///	-	HDMI
+//$$ MODULE="HDMI"
+//$$ DEVICE="amhdmitx"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_CHOICE "HDMI_vend-data_match" = "vend-data"
+//$$ L2 PROP_CHOICE "HDMI_pwr-ctrl_match" = "pwr-ctrl"
+    amhdmitx{
+		compatible = "amlogic,amhdmitx";
+		dev_name = "amhdmitx";
+		status = "ok";
+        vend-data = <&vend_data>;
+        pwr-ctrl = <&pwr_ctrl>;
+        
+//$$ MATCH "HDMI_vend-data_match" = <&vend_data>
+//$$ L2 PROP_STR = "vendor_name"
+//$$ L2 PROP_U32 = "vendor_id"
+//$$ L2 PROP_STR = "product_desc"
+//$$ L2 PROP_STR = "cec_osd_string"        
+        vend_data: vend_data{
+            vendor_name = "Amlogic";           /* Max Chars: 8     */
+            vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
+            product_desc = "M8 MBox SKTv1";        /* Max Chars: 16    */
+            cec_osd_string = "Amlogic MBox";        /* Max Chars: 14    */
+        };
+        
+//$$ MATCH "HDMI_pwr-ctrl_match" = <&pwr_ctrl>
+//$$ L2 PROP_STR = "pwr_5v_on"
+//$$ L2 PROP_STR = "pwr_5v_off"
+//$$ L2 PROP_STR = "pwr_3v3_on"
+//$$ L2 PROP_STR = "pwr_3v3_off"
+//$$ L2 PROP_STR = "pwr_hpll_vdd_on"
+//$$ L2 PROP_STR = "pwr_hpll_vdd_off"
+        pwr_ctrl: pwr_ctrl{
+            pwr_5v_on = "";
+            pwr_5v_off = "";
+            pwr_3v3_on = "";
+            pwr_3v3_off = "";
+            pwr_hpll_vdd_on = "";
+            pwr_hpll_vdd_off = "";
+        };
+	};
+	
+/// ***************************************************************************************
+///	-	Securitykey
+//$$ MODULE="Securitykey"
+//$$ DEVICE="securitykey"
+//$$ L2 PROP_STR = "status"
+    securitykey{
+		compatible = "amlogic,aml_keys";
+		status = "ok";
+	};
+
+/// ***************************************************************************************
+///	-	Unifykey
+//$$ MODULE="Unifykey"
+//$$ DEVICE="securitykey"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 ="unifykey-num"
+//$$ L2 PROP_CHOICE "Unifykey_0_match" = "unifykey-index-0"
+//$$ L2 PROP_CHOICE "Unifykey_1_match" = "unifykey-index-1"
+//$$ L2 PROP_CHOICE "Unifykey_2_match" = "unifykey-index-2"
+    	unifykey{
+		compatible = "amlogic,unifykey";
+		status = "ok";
+
+		/*efuse-version = <0>;*/ /*m6 efuse version 2,m3 efuse version 1, not config efuse version in default*/
+		unifykey-num = <3>;
+		unifykey-index-0 = <&keysn_0>;
+		unifykey-index-1 = <&keysn_1>;
+		unifykey-index-2 = <&keysn_2>;
+
+
+//$$ MATCH "Unifykey_0_match" = <&keysn_0>
+//$$ L2 PROP_STR = "key-name"
+//$$ L2 PROP_STR = "key-device"
+//$$ L2 PROP_STR = "key-dataformat"
+//$$ L2 PROP_STR 3 = "key-permit"
+		keysn_0: key_0{
+			key-name = "key0";
+			key-device = "nandkey";
+			key-dataformat = "hexdata";
+			key-permit = "read","write","del";
+		};
+		
+//$$ MATCH "Unifykey_1_match" = <&keysn_1>
+//$$ L2 PROP_STR = "key-name"
+//$$ L2 PROP_STR = "key-device"
+//$$ L2 PROP_STR = "key-dataformat"
+//$$ L2 PROP_STR 3 = "key-permit"
+		keysn_1:key_1{
+			key-name = "key1";
+			key-device = "nandkey";
+			key-dataformat = "hexdata";
+			key-permit = "read","write","del";
+		};
+		
+//$$ MATCH "Unifykey_2_match" = <&keysn_2>
+//$$ L2 PROP_STR = "key-name"
+//$$ L2 PROP_STR = "key-device"
+//$$ L2 PROP_STR = "key-dataformat"
+//$$ L2 PROP_STR 3 = "key-permit"
+		keysn_2:key_2{
+			key-name = "key2";
+			key-device = "nandkey";
+			key-dataformat = "hexdata";
+			key-permit = "read","write","del";
+		};
+	};
+
+	
+/// ***************************************************************************************
+///	-	PowerManager
+//$$ MODULE="PowerManager"
+//$$ DEVICE="amvenc_avc"
+//$$ L2 PROP_STR = "status"
+    aml_pm{
+		compatible = "amlogic,pm-m8";
+		dev_name = "aml_pm_m8";
+		status = "okay";
+	};
+	
+/// ***************************************************************************************
+///	-	Touch
+//$$ MODULE="Touch"
+//$$ DEVICE="touch"
+//$$ L2 PROP_STR = "status"
+    touch{
+        compatible = "amlogic,aml_touch";
+        status = "okay";
+        #address-cells = <1>;
+		#size-cells = <0>;
+		
+//$$ DEVICE = "touch_ct36x"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "touch_name"
+//$$ L3 PROP_STR = "i2c_bus"
+//$$ L3 PROP_U32 ="reg"
+//$$ L3 PROP_U32 ="irq"
+//$$ L3 PROP_STR = "gpio_interrupt"
+//$$ L3 PROP_STR = "gpio_reset"
+//$$ L3 PROP_U32 ="xres"
+//$$ L3 PROP_U32 ="yres"
+//$$ L3 PROP_U32 ="pol"
+//$$ L3 PROP_STR = "fw_file"
+        touch_ct36x:ct36x{
+			compatible = "vtl,ct36x";
+			touch_name = "ct36x";
+			i2c_bus = "i2c_bus_a";
+			reg = <0x01>;
+			irq = <0>;
+			gpio_interrupt = "GPIOZ_7";
+			gpio_reset = "GPIOZ_6";
+			xres = <1024>;
+			yres = <768>;
+			pol = <0x6>;
+			fw_file = "/etc/touch/ct36x.dat";
+			status = "okay";
+		};
+   };
+
+/// ***************************************************************************************
+///	-	Cpufreq
+//$$ MODULE="Cpufreq"
+//$$ DEVICE="cpufreq-meson"
+//$$ L2 PROP_STR = "status"
+    cpufreq-meson{
+        compatible = "amlogic,cpufreq-meson";
+        status = "okay";
+    };
+
+/// **************************************************************************************
+/// -   GPIO
+//$$ MODULE="GPIO"
+//$$ DEVICE="m8-gpio"
+	gpio:gpio{
+		compatible = "amlogic,m8-gpio";
+		dev_name = "gpio";
+		#gpio-cells=<2>;
+	};
+
+/// **************************************************************************************
+/// -   Pinmux
+//$$ MODULE="Pinmux"
+//$$ DEVICE="pinmux-m8"
+    pinmux{ 
+		compatible = "amlogic,pinmux-m8";
+		dev_name = "pinmux";
+		#pinmux-cells=<2>;    
+    
+//$$ MATCH "uart_ao_pin_match" = "&ao_uart_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"
+        ao_uart_pins:ao_uart{
+			amlogic,setmask=<10 0x1800>;
+			amlogic,pins="GPIOAO_0", "GPIOAO_1";
+		};
+		
+//$$ MATCH "uart_0_pin_match" = "&a_uart_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_STR 4 = "amlogic,pins"
+		a_uart_pins:a_uart{
+			amlogic,setmask=<4 0x3c00>;
+			amlogic,pins="GPIOX_12", "GPIOX_13", "GPIOX_14", "GPIOX_15";
+		};
+		
+//$$ MATCH "Nand_pin_0_match" = "&nand_input_state"
+//$$ MATCH "Nand_pin_1_match" = "&nand_input_state"
+//$$ L2 PROP_STR 18 = "amlogic,pins"
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+		nand_input_state:nand_input{
+			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
+						"BOOT_5","BOOT_6","BOOT_7","BOOT_12","BOOT_13",
+						"BOOT_8","BOOT_9","BOOT_10","BOOT_11",
+						"BOOT_14","BOOT_15","BOOT_16","BOOT_17";
+			amlogic,enable-output=<1>;
+		};
+		
+//$$ MATCH "Nand_pin_0_match" = "&conf_nand_state"
+//$$ MATCH "Nand_pin_1_match" = "&conf_nand_state"
+//$$ L2 PROP_STR 9 = "amlogic,pins"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+		conf_nand_state: conf_nand{
+			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
+						"BOOT_5","BOOT_6","BOOT_7","BOOT_15";
+			amlogic,pullup=<0>;
+		};
+		
+//$$ MATCH "Nand_pin_0_match" = "&nand_base"
+//$$ MATCH "Nand_pin_1_match" = "&nand_base"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 17 = "amlogic,pins"
+		nand_base: nand{
+			amlogic,setmask=<2 0x7fe0000>;
+			amlogic,clrmask=<	5 0xe
+							6 0x3f000000
+							4 0x7c000000>;
+			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
+						"BOOT_5","BOOT_6","BOOT_7","BOOT_8","BOOT_9",
+						"BOOT_10","BOOT_12","BOOT_13",
+						"BOOT_14","BOOT_15","BOOT_16","BOOT_17";
+		};
+		
+//$$ MATCH "Card_pin_0_match" = "&sdhc_b_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 4 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"	
+
+		sdhc_b_pins:sdhc_b_pin{
+			amlogic,setmask=<2 0xfc00>;
+			amlogic,clrmask=<2 0xf0 8 0x600>;
+			amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
+		};
+
+//$$ MATCH "Card_pin_1_match" = "&sdhc_c_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 4 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"	
+		sdhc_c_pins:sdhc_c_pin{
+			amlogic,setmask=<6 0x3f000000>;
+			amlogic,clrmask=<4 0x6c000000 2 0x4c00000>;
+			amlogic,pins="BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_10","BOOT_11";
+		};
+
+//$$ MATCH "Card_pin_2_match" = "&sdhc_a_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"		
+		sdhc_a_pins:sdhc_a_pin{
+			amlogic,setmask=<8 0x3f>;
+			amlogic,clrmask=<5 0x6c00 >;
+			amlogic,pins="GPIOX_0","GPIOX_1","GPIOX_2","GPIOX_3","GPIOX_8","GPIOX_9";
+		};
+
+//$$ MATCH "sdio_pin_5_match" = "&sdio_all_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"	
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+//$$ L2 PROP_U32 = "amlogic,pullupen"	
+        sdio_all_pins:sdio_all_pins{
+            amlogic,setmask=<8 0x0000003f>;         /*sdio a*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                2 0x0000fc00        /*sdio b*/
+                                5 0x00006c00>;      /*sdhc a*/
+            amlogic,pins = "GPIOX_0","GPIOX_1","GPIOX_2","GPIOX_3","GPIOX_8","GPIOX_9";
+            amlogic,enable-output=<1>; /** 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        
+//$$ MATCH "sdio_pin_4_match" = "&sdio_clk_cmd_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"	
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+//$$ L2 PROP_U32 = "amlogic,pullupen"
+        sdio_clk_cmd_pins:sdio_clk_cmd_pins{
+            amlogic,setmask=<8 0x00000003>;         /*sdio a*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                2 0x0000fc00        /*sdio b*/
+                                5 0x00006c00>;      /*sdhc a*/
+            amlogic,pins = "GPIOX_8","GPIOX_9"; /** GPIOX_8:CLK, GPIOX_9:CMD */
+            amlogic,enable-output=<1>; /** 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+
+//$$ MATCH "sdio_pin_1_match" = "&sd_all_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"	
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+//$$ L2 PROP_U32 = "amlogic,pullupen"
+        sd_all_pins:sd_all_pins{
+            amlogic,setmask=<2 0x0000fc00>;         /*sdio b*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                8 0x0000063f        /*sdio a, UART*/
+                                2 0x000000f0>;      /*sdhc b*/
+            amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        
+//$$ MATCH "sdio_pin_6_match" = "&sd_1bit_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"	
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+//$$ L2 PROP_U32 = "amlogic,pullupen"
+        sd_1bit_pins:sd_1bit_pins{
+            amlogic,setmask=<2 0x00008c00>;         /*sdio b*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                8 0x0000003f        /*sdio a*/
+                                2 0x000000f0>;      /*sdhc b*/
+            amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
+            amlogic,enable-output=<1>; /* 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        
+//$$ MATCH "sdio_pin_0_match" = "&sd_clk_cmd_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"	
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+//$$ L2 PROP_U32 = "amlogic,pullupen"
+        sd_clk_cmd_pins:sd_clk_cmd_pins{
+            amlogic,setmask=<2 0x00000c00>;         /*sdio b*/
+            amlogic,clrmask=<6 0x3f000000           /*sdio c*/
+                                8 0x0000003f        /*sdio a*/
+                                2 0x000000f0>;      /*sdhc b*/
+            amlogic,pins = "CARD_2","CARD_3"; /** CARD_2:CLK, CARD_3:CMD */
+            amlogic,enable-output=<1>; /** 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        
+//$$ MATCH "sdio_pin_3_match" = "&emmc_all_pins"  
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"	
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+//$$ L2 PROP_U32 = "amlogic,pullupen"      
+        emmc_all_pins:emmc_all_pins{
+            amlogic,setmask=<6 0x3f000000>;         /*sdio c*/
+            amlogic,clrmask=<2 0x04c0fc00           /*sdio b & nand*/
+                                8 0x0000003f        /*sdio a*/
+                                4 0x6c000000>;        /*sdhc c*/
+            amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_16","BOOT_17";
+            amlogic,enable-output=<1>; /** 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+        
+//$$ MATCH "sdio_pin_2_match" = "&emmc_clk_cmd_pins" 
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 3*2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"	
+//$$ L2 PROP_U32 = "amlogic,enable-output"
+//$$ L2 PROP_U32 = "amlogic,pullup"
+//$$ L2 PROP_U32 = "amlogic,pullupen"
+        emmc_clk_cmd_pins:emmc_clk_cmd_pins{
+            amlogic,setmask=<6 0x03000000>;         /*bit[24-25] */
+            amlogic,clrmask=<2 0x04c0fc00           /*sdio b & nand*/
+                                8 0x0000003f        /*sdio a*/
+                                4 0x6c000000>;        /*sdhc c*/
+            amlogic,pins = "BOOT_16","BOOT_17"; /** BOOT_16:CMD, BOOT_17:CLK */
+            amlogic,enable-output=<1>; /** 0:output, 1:input */
+            amlogic,pullup=<1>;
+            amlogic,pullupen=<1>;
+        };
+
+//$$ MATCH "Camera_pin_0_match" = "&aml_cam_gpio_pins"
+//$$ L2 PROP_U32 4 = "amlogic,setmask"
+//$$ L2 PROP_STR 10 = "amlogic,pins"	
+        aml_cam_gpio_pins: aml_cam_gpio_pins{
+			amlogic,setmask=<3 0x80000
+					         9 0x37c>;
+			amlogic,pins = "GPIOH_9","GPIOY_6","GPIOY_7","GPIOY_8","GPIOY_9","GPIOY_10","GPIOY_11","GPIOY_12","GPIOY_13","GPIOY_14";
+		};
+		
+//$$ MATCH "Camera_pin_1_match" = "&aml_cam_csi_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_STR = "amlogic,pins"	
+		aml_cam_csi_pins: aml_cam_csi_pins{
+			amlogic,setmask=<3 0x80000>;
+			amlogic,pins = "GPIOH_9";
+		};
+
+//$$ MATCH "I2C_AO_pin_match" = "&ao_i2c_master"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"
+		ao_i2c_master:ao_i2c{
+			amlogic,setmask=<10 0x60>;
+			amlogic,clrmask=<10 0x1800006>;
+			amlogic,pins="GPIOAO_4","GPIOAO_5";
+		};
+		
+//$$ MATCH "I2C_A_pin_match" = "&a_i2c_master"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 2 = "amlogic,clrmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"
+		a_i2c_master:a_i2c{
+//			amlogic,setmask=<5 0xc0000000>;
+//			amlogic,clrmask=<9 0x58000 7 3000000>;
+//			amlogic,pins="GPIOZ_0","GPIOZ_1";
+
+//			amlogic,setmask=<5 0x300>;
+//			amlogic,clrmask=<6 0x900 8 11000>;
+//			amlogic,pins="GPIOZ_9","GPIOZ_10";
+
+			amlogic,setmask=<5 0xc0>;
+			amlogic,clrmask=<6 0xc0 8 0xc000>;
+			amlogic,pins="GPIOZ_11","GPIOZ_12";
+		};
+		
+//$$ MATCH "I2C_B_pin_match" = "&b_i2c_master"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"
+		b_i2c_master:b_i2c{
+			amlogic,setmask=<5 0xc000000>;
+			amlogic,pins="GPIOZ_2","GPIOZ_3";
+		};
+
+// MATCH "I2C_C_pin_match" = "&c_i2c_master"
+// L2 PROP_U32 2 = "amlogic,setmask"
+// L2 PROP_U32 2 = "amlogic,clrmask"
+// L2 PROP_STR 2 = "amlogic,pins"	
+//		c_i2c_master:c_i2c{
+//			amlogic,setmask=<5 0x3000000>;
+//			amlogic,clrmask=<6 0xc000>;
+//			amlogic,pins="GPIOZ_4","GPIOZ_5";
+
+//			amlogic,setmask=<1 0xc000>;
+//			amlogic,clrmask=<1 0xc0400 3 0x6 9 0x300>;
+//			amlogic,pins="GPIOY_0","GPIOY_1";
+//		};
+
+//$$ MATCH "I2C_D_pin_match" = "&d_i2c_master"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"
+		d_i2c_master:d_i2c{
+			amlogic,setmask=<4 0xc>;
+			amlogic,pins="GPIOH_7","GPIOH_8";
+		};
+		
+//$$ MATCH "Bl_pin_0_match" = "&lcd_backlight_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 4 = "amlogic,clrmask"
+//$$ L2 PROP_STR = "amlogic,pins"	
+		lcd_backlight_pins:lcd_backlight{
+			amlogic,setmask=<3 0x1000000>;
+			amlogic,clrmask=<0 0x48 7 0x10000200>;
+			amlogic,pins = "GPIODV_9";
+		};
+		
+//$$ MATCH "Bl_pin_1_match" = "&lcd_backlight_combo_pins"
+//$$ L2 PROP_U32 2 = "amlogic,setmask"
+//$$ L2 PROP_U32 4 = "amlogic,clrmask"
+//$$ L2 PROP_STR 2 = "amlogic,pins"
+		lcd_backlight_combo_pins:lcd_backlight_combo{
+			amlogic,setmask=<3 0x5000000>;
+			amlogic,clrmask=<0 0x48 7 0x18000200>;
+			amlogic,pins = "GPIODV_9","GPIODV_28";
+		};
+		
+		lcd_ttl_hvsync_pins_on:lcd_ttl_hvsync_on{
+			amlogic,setmask=<8 0x1800000>;
+			amlogic,clrmask=<0 0x3c0300 6 0xc00000>;
+			amlogic,pins = "GPIODV_24","GPIODV_25";
+		};
+		
+		lcd_ttl_hvsync_pins_off:lcd_ttl_hvsync_off{
+			amlogic,clrmask=<0 0x3c0300 6 0xc00000 8 0x1800000>;
+			amlogic,pins = "GPIODV_24","GPIODV_25";
+			amlogic,enable-output=<1>;
+		};
+		
+		lcd_ttl_de_pins_on:lcd_ttl_de_on{
+			amlogic,setmask=<8 0x10000000>;
+			amlogic,clrmask=<0 0x400 6 0x100000 8 0x80000>;
+			amlogic,pins = "GPIODV_27";
+		};
+		
+		lcd_ttl_de_pins_off:lcd_ttl_de_off{
+			amlogic,clrmask=<0 0x400 6 0x100000 8 0x10080000>;
+			amlogic,pins = "GPIODV_27";
+			amlogic,enable-output=<1>;
+		};
+		
+		lcd_ttl_clk_pins_on:lcd_ttl_clk_on{
+			amlogic,setmask=<8 0x400000>;
+			amlogic,clrmask=<0 0x80 6 0x200000 8 0x300000>;
+			amlogic,pins = "GPIODV_26";
+		};
+		
+		lcd_ttl_clk_pins_off:lcd_ttl_clk_off{
+			amlogic,clrmask=<0 0x80 6 0x200000 8 0x700000>;
+			amlogic,pins = "GPIODV_26";
+			amlogic,enable-output=<1>;
+		};
+		
+		lcd_ttl_rgb_8bit_pins_on:lcd_ttl_rgb_8bit_on{
+			amlogic,setmask=<0 0x3f>;
+			amlogic,clrmask=<0 0x40 3 0x1000000 7 0x1003ffff 8 0xe000000>;
+			amlogic,pins = "GPIODV_0","GPIODV_1","GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7",		//R0~R7
+						"GPIODV_8","GPIODV_9","GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15",	//G0~G7
+						"GPIODV_16","GPIODV_17","GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23";//B0~B7
+		};
+		
+		lcd_ttl_rgb_8bit_pins_off:lcd_ttl_rgb_8bit_off{
+			amlogic,clrmask=<0 0x7f 3 0x1000000 7 0x1003ffff 8 0xe000000>;
+			amlogic,pins = "GPIODV_0","GPIODV_1","GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7",		//R0~R7
+						"GPIODV_8","GPIODV_9","GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15",	//G0~G7
+						"GPIODV_16","GPIODV_17","GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23";//B0~B7
+			amlogic,enable-output=<1>;
+		};
+		
+		lcd_ttl_rgb_6bit_pins_on:lcd_ttl_rgb_6bit_on{
+			amlogic,setmask=<0 0x15>;
+			amlogic,clrmask=<0 0x40 7 0xfcfc>;
+			amlogic,pins = "GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7",		//R2~R7
+						"GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15",	//G2~G7
+						"GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23";	//B2~B7
+		};
+		
+		lcd_ttl_rgb_6bit_pins_off:lcd_ttl_rgb_6bit_off{
+			amlogic,clrmask=<0 0x55 7 0xfcfc>;
+			amlogic,pins = "GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7",		//R2~R7
+						"GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15",	//G2~G7
+						"GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23";	//B2~B7
+			amlogic,enable-output=<1>;
+        };
+        
+//$$ MATCH "Audio_pin_0_match" = "&audio_pins"
+//$$ L2 PROP_U32 4 = "amlogic,setmask"
+//$$ L2 PROP_U32 10 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"
+		audio_pins:audio_pin{
+				amlogic,setmask=<10 0x78000000 1 0x20>;
+				amlogic,clrmask=<4 0x1000000 3 0x8000 9 0x80>;
+				amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11","GPIOY_5";
+		};
+	};
+
+}; /* end of / */

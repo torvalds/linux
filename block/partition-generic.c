@@ -216,10 +216,21 @@ static void part_release(struct device *dev)
 	kfree(p);
 }
 
+static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct hd_struct *part = dev_to_part(dev);
+
+	add_uevent_var(env, "PARTN=%u", part->partno);
+	if (part->info && part->info->volname[0])
+		add_uevent_var(env, "PARTNAME=%s", part->info->volname);
+	return 0;
+}
+
 struct device_type part_type = {
 	.name		= "partition",
 	.groups		= part_attr_groups,
 	.release	= part_release,
+	.uevent		= part_uevent,
 };
 
 static void delete_partition_rcu_cb(struct rcu_head *head)
@@ -397,8 +408,6 @@ static int drop_partitions(struct gendisk *disk, struct block_device *bdev)
 	struct hd_struct *part;
 	int res;
 
-	if (bdev->bd_part_count)
-		return -EBUSY;
 	res = invalidate_partition(disk, 0);
 	if (res)
 		return res;
@@ -421,6 +430,9 @@ rescan:
 		free_partitions(state);
 		state = NULL;
 	}
+
+	if (bdev->bd_part_count)
+		return -EBUSY;
 
 	res = drop_partitions(disk, bdev);
 	if (res)
@@ -458,9 +470,6 @@ rescan:
 		if (disk_unlock_native_capacity(disk))
 			goto rescan;
 	}
-
-	/* tell userspace that the media / partition table may have changed */
-	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
 
 	/* Detect the highest partition number and preallocate
 	 * disk->part_tbl.  This is an optimization and not strictly
@@ -525,6 +534,9 @@ rescan:
 			md_autodetect_dev(part_to_dev(part)->devt);
 #endif
 	}
+	
+	/* tell userspace that the media / partition table may have changed */
+	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_ADD);
 	free_partitions(state);
 	return 0;
 }

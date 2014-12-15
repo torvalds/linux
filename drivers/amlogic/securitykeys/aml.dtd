@@ -1,0 +1,8 @@
+#ifdef CONFIG_SECURITYKEY
+//$$ DEVICE="securitykey"
+//$$ L2 PROP_STR = "status"
+    securitykey{
+		compatible = "amlogic,aml_keys";
+		status = "ok";
+	};
+#endif

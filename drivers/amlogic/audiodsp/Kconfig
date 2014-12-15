@@ -1,0 +1,13 @@
+#
+# audio dsp  configuration
+#
+menu "Audio dsp process "
+
+config  AML_AUDIO_DSP
+	tristate  "audio dsp control support "
+	default n
+	help  
+		aupport the audio dsp ;
+		
+
+endmenu	

@@ -597,7 +597,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		lruvec = mem_cgroup_page_lruvec(page, zone);
 
 		/* Try isolate the page */
-		if (__isolate_lru_page(page, mode) != 0)
+		if (__isolate_lru_page(page, mode, cc->migratetype) != 0)
 			continue;
 
 		VM_BUG_ON(PageTransCompound(page));
@@ -1037,7 +1037,7 @@ static unsigned long compact_zone_order(struct zone *zone,
 	return ret;
 }
 
-int sysctl_extfrag_threshold = 500;
+int sysctl_extfrag_threshold = 200;
 
 /**
  * try_to_compact_pages - Direct compact to satisfy a high-order allocation

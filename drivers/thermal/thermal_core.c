@@ -347,7 +347,7 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 	if (trip_type == THERMAL_TRIP_CRITICAL) {
 		dev_emerg(&tz->device,
 			  "critical temperature reached(%d C),shutting down\n",
-			  tz->temperature / 1000);
+			  tz->temperature);
 		orderly_poweroff(true);
 	}
 }
@@ -1446,6 +1446,7 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 			continue;
 		if (instance->target > target)
 			target = instance->target;
+		pr_debug( "instance->target=%ld,target=%ld\n",instance->target,target);
 	}
 	mutex_unlock(&cdev->lock);
 	cdev->ops->set_cur_state(cdev, target);

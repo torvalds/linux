@@ -23,9 +23,35 @@ ZRELADDR    := $(zreladdr-y)
 PARAMS_PHYS := $(params_phys-y)
 INITRD_PHYS := $(initrd_phys-y)
 
-export ZRELADDR INITRD_PHYS PARAMS_PHYS
+ifeq ($(CONFIG_KERNEL_LZMA),y)
+UIMAGE_COMPRESSION ?= lzma
+kcomp=lzma
+karg="-z"
+else ifeq ($(CONFIG_KERNEL_LZO),y)
+UIMAGE_COMPRESSION ?= lzo
+kcomp=lzop
+karg="-9"
+else ifeq ($(CONFIG_KERNEL_GZIP),y)
+UIMAGE_COMPRESSION ?= gzip
+kcomp=gzip
+karg="-S.gzip"
+else ifeq ($(CONFIG_KERNEL_XZ),y)
+UIMAGE_COMPRESSION ?= xz
+kcomp=xz
+karg="-z"
+endif
+
+export ZRELADDR INITRD_PHYS PARAMS_PHYS UIMAGE_COMPRESSION
 
 targets := Image zImage xipImage bootpImage uImage
+
+DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE_NAMES))
+ifneq ($(DTB_NAMES),)
+DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
+else
+DTB_LIST := $(dtb-y)
+endif
+DTB_OBJS := $(addprefix $(obj)/dts/,$(DTB_LIST))
 
 ifeq ($(CONFIG_XIP_KERNEL),y)
 
@@ -55,6 +81,10 @@ $(obj)/zImage:	$(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 	@$(kecho) '  Kernel: $@ is ready'
 
+$(obj)/zImage-dtb:	$(obj)/zImage $(DTB_OBJS) FORCE
+	$(call if_changed,cat)
+	@echo '  Kernel: $@ is ready'
+
 endif
 
 ifneq ($(LOADADDR),)
@@ -75,7 +105,25 @@ if [ $(words $(UIMAGE_LOADADDR)) -ne 1 ]; then \
 	false; \
 fi
 
-$(obj)/uImage:	$(obj)/zImage FORCE
+#get uncompressed uImage from 'make UIMAGE_COMPRESSION=none uImage'
+CIMAGE_NAME=ccImage
+ifeq ($(UIMAGE_COMPRESSION), none)
+	F_CIMAGE_NAME=$(CIMAGE_NAME)
+else
+	C_CIMAGE_NAME=ccImage.$(UIMAGE_COMPRESSION)
+	F_CIMAGE_NAME=$(C_CIMAGE_NAME)
+endif
+
+$(obj)/$(CIMAGE_NAME): vmlinux FORCE
+	$(call if_changed,objcopy)
+	@echo '  Kernel: $@ is ready'
+
+$(obj)/$(C_CIMAGE_NAME):$(obj)/$(CIMAGE_NAME) FORCE
+	@-rm -rf $(obj)/$(C_CIMAGE_NAME)
+	@$(kcomp) $(karg) $(obj)/$(CIMAGE_NAME)
+	@echo '  Image $@ is ready'
+
+$(obj)/uImage:	$(obj)/$(F_CIMAGE_NAME) FORCE
 	@$(check_for_multiple_loadaddr)
 	$(call if_changed,uimage)
 	@$(kecho) '  Image $@ is ready'

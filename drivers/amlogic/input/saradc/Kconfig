@@ -1,0 +1,8 @@
+#
+# Input core configuration
+#
+config SARADC_AM
+	bool "Meson SAR ADC support"
+	default n
+	help
+	  Say Y here if you want to use the Meson SAR ADC.

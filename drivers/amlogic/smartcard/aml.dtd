@@ -1,0 +1,14 @@
+#ifdef CONFIG_AM_SMARTCARD
+//$$ DEVICE = "smartcard"
+//$$ L2 PROP_U32 = "smc_reset_level"
+//$$ L2 PROP_STR = "smc_reset"
+//$$ L2 PROP_STR 2 = "pinctrl-names"
+//$$ L2 PROP_CHOICE "smc_pins_match" = "pinctrl-0"
+smartcard{
+	compatible = "amlogic,smartcard";
+	smc_reset_level = <0>;
+	smc_reset = "GPIOX_12";
+	pinctrl-names = "default";
+	pinctrl-0 = <&smc_pins>;
+};
+#endif

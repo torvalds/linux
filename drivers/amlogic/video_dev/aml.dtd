@@ -1,0 +1,11 @@
+#ifdef CONFIG_V4L_AMLOGIC_VIDEO2
+//$$ DEVICE="amlvideo2"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 2 ="reg"
+    amlvideo2{
+		compatible = "amlogic,amlvideo2";
+		dev_name = "amlvideo2.0";
+		status = "okay";
+		reg = <0x19b00000 0x01800000>;
+	};
+#endif

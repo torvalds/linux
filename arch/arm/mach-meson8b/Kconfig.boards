@@ -1,0 +1,6 @@
+config MACH_MESON8B_COMMON_BOARD
+	depends on ARCH_MESON8B
+	bool "Meson8 baby common board"
+	default y 
+	help
+      Support for Amlogic Meson8 baby common development platform.

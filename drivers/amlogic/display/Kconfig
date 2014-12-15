@@ -1,0 +1,21 @@
+#
+# Amlogic display driver configuration
+#
+
+menuconfig AM_DISPLAY_MODULE
+	bool "Display Support"
+	default y
+	help
+	  "display include logo, ge2d, vout, backligth etc."
+
+if  AM_DISPLAY_MODULE
+source "drivers/amlogic/display/vout/Kconfig"
+source "drivers/amlogic/display/vout2/Kconfig"
+source "drivers/amlogic/display/lcd/Kconfig"
+source "drivers/amlogic/display/osd/Kconfig"
+source "drivers/amlogic/display/osd_ext/Kconfig"
+source "drivers/amlogic/display/backlight/Kconfig"
+source "drivers/amlogic/display/ge2d/Kconfig"
+source "drivers/amlogic/display/aml_logo/Kconfig"
+endif
+

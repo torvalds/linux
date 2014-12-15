@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/sysfs.h>
 
+#define EACH_CPU_ON
 /*
  * The polling frequency depends on the capability of the processor. Default
  * polling frequency is 1000 times the transition latency of the processor. The
@@ -32,11 +33,19 @@
  * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
  * this governor will not work. All times here are in uS.
  */
-#define MIN_SAMPLING_RATE_RATIO			(2)
-#define LATENCY_MULTIPLIER			(1000)
+#define MIN_SAMPLING_RATE_RATIO			(1)
+#define LATENCY_MULTIPLIER			(500)
 #define MIN_LATENCY_MULTIPLIER			(20)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
 
+/* default number of sampling periods to average before hotplug-in decision */
+#define DEFAULT_HOTPLUG_IN_SAMPLING_PERIODS		(5)
+
+/* default number of sampling periods to average before hotplug-out decision */
+#define DEFAULT_HOTPLUG_OUT_SAMPLING_PERIODS		(20)
+#ifdef EACH_CPU_ON
+#define DEFAULT_EACHCPU_OUT_SAMPLING_PERIODS		(20)
+#endif
 /* Ondemand Sampling types */
 enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
 
@@ -145,7 +154,13 @@ struct cpu_dbs_common_info {
 	struct mutex timer_mutex;
 	ktime_t time_stamp;
 };
-
+struct hg_cpu_dbs_info_s {
+	struct cpu_dbs_common_info cdbs;
+	struct cpufreq_frequency_table *freq_table;
+	unsigned int requested_freq;
+	unsigned int enable:1;
+	struct mutex hotplug_thread_mutex;
+};
 struct od_cpu_dbs_info_s {
 	struct cpu_dbs_common_info cdbs;
 	struct cpufreq_frequency_table *freq_table;
@@ -183,12 +198,40 @@ struct cs_dbs_tuners {
 	unsigned int freq_step;
 };
 
+struct hg_dbs_tuners {
+	unsigned int sampling_rate;
+	unsigned int up_threshold;
+	unsigned int down_differential;
+	unsigned int down_threshold;
+	unsigned int hotplug_in_sampling_periods;
+	unsigned int hotplug_out_sampling_periods;
+//#ifdef EACH_CPU_ON
+	unsigned int each_cpu_out_sampling_periods;
+//#endif
+	unsigned int hotplug_load_index;
+	unsigned int *hotplug_load_history;
+//#ifdef EACH_CPU_ON
+	unsigned int *cpu_load_history[NR_CPUS];
+//#endif
+	unsigned int ignore_nice_load;
+	unsigned int io_is_busy;
+	unsigned int max_load_freq;
+	unsigned int default_freq;
+	unsigned int cpu_num_unplug_once;
+//#ifdef EACH_CPU_ON
+	unsigned int each_cpu_num_unplug_once;
+//#endif
+	unsigned int cpu_num_plug_once;
+	unsigned int hotplug_min_freq;
+	unsigned int hotplug_max_freq;
+} ;
 /* Common Governer data across policies */
 struct dbs_data;
 struct common_dbs_data {
 	/* Common across governors */
 	#define GOV_ONDEMAND		0
 	#define GOV_CONSERVATIVE	1
+	#define GOV_HOTPLUG			2
 	int governor;
 	struct attribute_group *attr_group_gov_sys; /* one governor - system */
 	struct attribute_group *attr_group_gov_pol; /* one governor - policy */
@@ -230,6 +273,9 @@ struct cs_ops {
 	struct notifier_block *notifier_block;
 };
 
+struct hg_ops {
+	struct notifier_block *notifier_block;
+};
 static inline int delay_for_sampling_rate(unsigned int sampling_rate)
 {
 	int delay = usecs_to_jiffies(sampling_rate);
@@ -264,6 +310,8 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		struct common_dbs_data *cdata, unsigned int event);
 void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 		unsigned int delay, bool all_cpus);
+void gov_cancel_work(struct dbs_data *dbs_data,
+		struct cpufreq_policy *policy);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);

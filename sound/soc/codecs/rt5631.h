@@ -698,4 +698,8 @@
 #define RT5631_EN_HW_EQ_LPF				(0x1 << 0)
 
 
+#define RT5631_NO_JACK		BIT(0)
+#define RT5631_HEADSET_DET	BIT(1)
+#define RT5631_HEADPHO_DET	BIT(2)
+int rt5631_headset_detect(struct snd_soc_codec *codec, int jack_insert);
 #endif /* __RTCODEC5631_H__ */

@@ -1,0 +1,55 @@
+#ifdef CONFIG_UNIFY_KEY_MANAGE
+//$$ DEVICE="securitykey"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 ="unifykey-num"
+//$$ L2 PROP_CHOICE "Unifykey_0_match" = "unifykey-index-0"
+//$$ L2 PROP_CHOICE "Unifykey_1_match" = "unifykey-index-1"
+//$$ L2 PROP_CHOICE "Unifykey_2_match" = "unifykey-index-2"
+    unifykey{
+		compatible = "amlogic,unifykey";
+		status = "ok";
+
+		/*efuse-version = <0>;*/ /*m6 efuse version 2,m3 efuse version 1, not config efuse version in default*/
+		unifykey-num = <3>;
+		unifykey-index-0 = <&keysn_0>;
+		unifykey-index-1 = <&keysn_1>;
+		unifykey-index-2 = <&keysn_2>;
+
+
+//$$ MATCH "Unifykey_0_match" = <&keysn_0>
+//$$ L2 PROP_STR = "key-name"
+//$$ L2 PROP_STR = "key-device"
+//$$ L2 PROP_STR = "key-dataformat"
+//$$ L2 PROP_STR 3 = "key-permit"
+		keysn_0: key_0{
+			key-name = "key0";
+			key-device = "nandkey";
+			key-dataformat = "hexdata";
+			key-permit = "read","write","del";
+		};
+		
+//$$ MATCH "Unifykey_1_match" = <&keysn_1>
+//$$ L2 PROP_STR = "key-name"
+//$$ L2 PROP_STR = "key-device"
+//$$ L2 PROP_STR = "key-dataformat"
+//$$ L2 PROP_STR 3 = "key-permit"
+		keysn_1:key_1{
+			key-name = "key1";
+			key-device = "nandkey";
+			key-dataformat = "hexdata";
+			key-permit = "read","write","del";
+		};
+		
+//$$ MATCH "Unifykey_2_match" = <&keysn_2>
+//$$ L2 PROP_STR = "key-name"
+//$$ L2 PROP_STR = "key-device"
+//$$ L2 PROP_STR = "key-dataformat"
+//$$ L2 PROP_STR 3 = "key-permit"
+		keysn_2:key_2{
+			key-name = "key2";
+			key-device = "nandkey";
+			key-dataformat = "hexdata";
+			key-permit = "read","write","del";
+		};
+	};
+#endif

@@ -1,0 +1,9 @@
+#
+# VFM configuration
+#
+
+config AML_VFM
+	bool "Amlogic VFM Support"
+	default y
+	help
+	  Select to enable VFM support

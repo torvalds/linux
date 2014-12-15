@@ -1,0 +1,31 @@
+#
+# Amlogic mipi devices configuration
+#
+
+menu "MIPI Support"
+
+config AMLOGIC_MIPI
+	bool "Amlogic MIPI device"
+	default n
+	help
+		Amlogic MIPI device driver
+		
+config MEM_MIPI
+	bool "Amlogic MEM_MIPI device"
+	default n
+	depends on  AMLOGIC_MIPI
+	select AM_GE2D
+	help
+		Amlogic MEM_MIPI device driver.
+
+config VDIN_MIPI
+	bool "Amlogic VDIN_MIPI device"
+	default n
+	depends on  AMLOGIC_MIPI
+	select TVIN
+	select TVIN_VDIN
+	select AM_GE2D
+	help
+		Amlogic VDIN_MIPI device driver.
+
+endmenu

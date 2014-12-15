@@ -44,6 +44,7 @@ snd-soc-ml26124-objs := ml26124.o
 snd-soc-omap-hdmi-codec-objs := omap-hdmi.o
 snd-soc-pcm3008-objs := pcm3008.o
 snd-soc-rt5631-objs := rt5631.o
+snd-soc-rt5616-objs := rt5616.o
 snd-soc-sgtl5000-objs := sgtl5000.o
 snd-soc-alc5623-objs := alc5623.o
 snd-soc-alc5632-objs := alc5632.o
@@ -118,7 +119,12 @@ snd-soc-wm9705-objs := wm9705.o
 snd-soc-wm9712-objs := wm9712.o
 snd-soc-wm9713-objs := wm9713.o
 snd-soc-wm-hubs-objs := wm_hubs.o
-
+snd-soc-dummy_codec-objs := dummy_codec.o
+snd-soc-aml-m8-codec-objs := aml_m8_codec.o
+snd-soc-pcm2bt-objs  := pcm2bt.o
+snd-soc-tas5711-objs := tas5711.o
+snd-soc-tas5707-objs := tas5707.o
+snd-soc-amlpmu3-objs := aml_pmu3.o
 # Amp
 snd-soc-max9877-objs := max9877.o
 snd-soc-tpa6130a2-objs := tpa6130a2.o
@@ -171,6 +177,7 @@ obj-$(CONFIG_SND_SOC_ML26124)	+= snd-soc-ml26124.o
 obj-$(CONFIG_SND_SOC_OMAP_HDMI_CODEC) += snd-soc-omap-hdmi-codec.o
 obj-$(CONFIG_SND_SOC_PCM3008)	+= snd-soc-pcm3008.o
 obj-$(CONFIG_SND_SOC_RT5631)	+= snd-soc-rt5631.o
+obj-$(CONFIG_SND_SOC_RT5616)    += snd-soc-rt5616.o
 obj-$(CONFIG_SND_SOC_SGTL5000)  += snd-soc-sgtl5000.o
 obj-$(CONFIG_SND_SOC_SIGMADSP)	+= snd-soc-sigmadsp.o
 obj-$(CONFIG_SND_SOC_SI476X)	+= snd-soc-si476x.o
@@ -242,7 +249,12 @@ obj-$(CONFIG_SND_SOC_WM9712)	+= snd-soc-wm9712.o
 obj-$(CONFIG_SND_SOC_WM9713)	+= snd-soc-wm9713.o
 obj-$(CONFIG_SND_SOC_WM_ADSP)	+= snd-soc-wm-adsp.o
 obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
-
+obj-$(CONFIG_SND_SOC_DUMMY_CODEC)   += snd-soc-dummy_codec.o
+obj-$(CONFIG_SND_SOC_AML_M8_CODEC)	+= snd-soc-aml-m8-codec.o
+obj-$(CONFIG_SND_SOC_PCM2BT)    += snd-soc-pcm2bt.o
+obj-$(CONFIG_SND_SOC_TAS5711)   += snd-soc-tas5711.o
+obj-$(CONFIG_SND_SOC_TAS5707)   += snd-soc-tas5707.o
+obj-$(CONFIG_SND_SOC_AMLPMU3)	+= snd-soc-amlpmu3.o
 # Amp
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
 obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o

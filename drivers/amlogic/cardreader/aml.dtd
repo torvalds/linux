@@ -1,0 +1,17 @@
+#ifdef CONFIG_CARDREADER
+//$$ DEVICE="aml_card"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR 3 = "pinctrl-names"
+//$$ L2 PROP_CHOICE "Card_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_CHOICE "Card_pin_1_match" = "pinctrl-1"
+//$$ L2 PROP_CHOICE "Card_pin_2_match" = "pinctrl-2"
+    card{
+		compatible = "amlogic,aml_card";
+		dev_name = "aml_sd_mmc.0";
+		status = "okay";
+		pinctrl-names="sdhc_b","sdhc_c","sdhc_a";
+		pinctrl-0=<&sdhc_b_pins>;
+		pinctrl-1=<&sdhc_c_pins>;
+		pinctrl-2=<&sdhc_a_pins>;
+	};
+#endif

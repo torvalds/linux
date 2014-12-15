@@ -167,7 +167,7 @@ static int get_property(unsigned int cpu, unsigned long input,
 			continue;
 
 		/* get the frequency order */
-		if (freq != CPUFREQ_ENTRY_INVALID && descend != -1)
+		if (freq != CPUFREQ_ENTRY_INVALID && descend == -1)
 			descend = !!(freq > table[i].frequency);
 
 		freq = table[i].frequency;
@@ -276,7 +276,7 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 	struct cpumask *mask = &cpufreq_device->allowed_cpus;
 	unsigned int cpu = cpumask_any(mask);
 
-
+	pr_debug("cpufreq_device->cpufreq_state=%d,cooling_state=%ld\n",cpufreq_device->cpufreq_state,cooling_state);
 	/* Check if the old cooling action is same as new cooling action */
 	if (cpufreq_device->cpufreq_state == cooling_state)
 		return 0;
@@ -284,16 +284,13 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 	clip_freq = get_cpu_frequency(cpu, cooling_state);
 	if (!clip_freq)
 		return -EINVAL;
-
 	cpufreq_device->cpufreq_state = cooling_state;
 	cpufreq_device->cpufreq_val = clip_freq;
 	notify_device = cpufreq_device;
-
 	for_each_cpu(cpuid, mask) {
 		if (is_cpufreq_valid(cpuid))
 			cpufreq_update_policy(cpuid);
 	}
-
 	notify_device = NOTIFY_INVALID;
 
 	return 0;
@@ -322,14 +319,15 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 
 	if (cpumask_test_cpu(policy->cpu, &notify_device->allowed_cpus))
 		max_freq = notify_device->cpufreq_val;
-
+	else
+		return 0;
+	pr_debug("policy->max=%d,max_freq=%ld\n",policy->max,max_freq);
 	/* Never exceed user_policy.max */
 	if (max_freq > policy->user_policy.max)
 		max_freq = policy->user_policy.max;
-
 	if (policy->max != max_freq)
 		cpufreq_verify_within_limits(policy, 0, max_freq);
-
+	pr_debug(KERN_DEBUG "policy->max=%d\n",policy->max);
 	return 0;
 }
 
@@ -377,10 +375,8 @@ static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
 static int cpufreq_get_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
 {
-	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
-
-	*state = cpufreq_device->cpufreq_state;
-
+	*state=cpufreq_cooling_get_level(0,cpufreq_quick_get_max(0));
+	pr_debug( "*state=%ld\n",*state);
 	return 0;
 }
 
@@ -496,8 +492,12 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
  */
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 {
-	struct cpufreq_cooling_device *cpufreq_dev = cdev->devdata;
+	struct cpufreq_cooling_device *cpufreq_dev;
 
+	if (!cdev)
+		return;
+
+	cpufreq_dev = cdev->devdata;
 	mutex_lock(&cooling_cpufreq_lock);
 	cpufreq_dev_count--;
 

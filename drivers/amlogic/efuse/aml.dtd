@@ -1,0 +1,17 @@
+#ifdef CONFIG_EFUSE
+//$$ DEVICE="efuse"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 2 = "plat-pos"
+//$$ L2 PROP_U32 = "plat-count"
+//$$ L2 PROP_U32 = "usid-min"
+//$$ L2 PROP_U32 = "usid-max"
+    efuse{
+		compatible = "amlogic,efuse";
+		dev_name = "efuse";
+		status = "okay";
+		plat-pos = <0 454>;
+		plat-count = <58>;
+		usid-min = <8>; /*reserved*/
+		usid-max = <31>; /*reserved*/
+	};
+#endif

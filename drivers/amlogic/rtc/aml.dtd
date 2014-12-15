@@ -1,0 +1,8 @@
+#ifdef CONFIG_AML_RTC
+//$$ DEVICE="Rtc"
+//$$ L2 PROP_STR = "status"
+    rtc{
+		compatible = "amlogic,aml_rtc";
+		status = "okay";
+	};
+#endif

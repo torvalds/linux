@@ -1,0 +1,48 @@
+#ifdef CONFIG_AM_LCD_OUTPUT
+//******************************************************************************
+//lcd extern 
+//Notice: only one dev support
+//******************************************************************************
+//$$ DEVICE = "lcd_extern_i2c_tc101"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_STR = "i2c_bus"
+	lcd_extern_i2c_tc101{
+		compatible = "amlogic,lcd_i2c_tc101";
+		dev_name ="lcd_i2c_tc101";
+		status = "disabled";
+
+		type = <0>;	/** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
+		i2c_address = <0x7e>; /** i2c address */
+		i2c_bus = "i2c_bus_a";
+	};
+
+//$$ DEVICE = "lcd_extern_spi_LD070WS2"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "type"
+//$$ L2 PROP_U32 = "gpio_spi_cs"
+//$$ L2 PROP_U32 = "gpio_spi_clk"
+//$$ L2 PROP_U32 = "gpio_spi_data"
+	lcd_extern_spi_LD070WS2{
+		compatible = "amlogic,lcd_spi_LD070WS2";
+		dev_name ="lcd_spi_LD070WS2";
+		status = "disabled";
+
+		type = <1>;	/** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
+		gpio_spi_cs="GPIODV_1";
+		gpio_spi_clk="GPIODV_16";
+		gpio_spi_data="GPIODV_17";
+	};
+
+//$$ DEVICE = "lcd_extern_mipi_N070ICN"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "type"
+	lcd_extern_mipi_N070ICN{
+		compatible = "amlogic,lcd_mipi_N070ICN";
+		dev_name ="lcd_mipi_N070ICN";
+		status = "disabled";
+
+		type = <2>;	/** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
+	};
+
+#endif

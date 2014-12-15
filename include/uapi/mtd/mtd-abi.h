@@ -196,6 +196,8 @@ struct otp_info {
 #define MEMREADOOB64		_IOWR('M', 22, struct mtd_oob_buf64)
 /* Check if chip is locked (for MTD that supports it) */
 #define MEMISLOCKED		_IOR('M', 23, struct erase_info_user)
+#define BLKWIPEPART	_IO('M',127)
+
 /*
  * Most generic write interface; can write in-band and/or out-of-band in various
  * modes (see "struct mtd_write_req"). This ioctl is not supported for flashes

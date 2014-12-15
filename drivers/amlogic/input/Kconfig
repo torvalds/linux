@@ -1,0 +1,25 @@
+#
+# Input device configuration
+#
+
+menuconfig AM_INPUT
+	bool "Input Device Support"
+	default y
+	help
+	  "Input devices include keyboard, touchscreen, remote, sensor, etc."
+
+if AM_INPUT
+
+source "drivers/amlogic/input/saradc/Kconfig"
+source "drivers/amlogic/input/remote/Kconfig"
+source "drivers/amlogic/input/new_remote/Kconfig"
+source "drivers/amlogic/input/keyboard/Kconfig"
+source "drivers/amlogic/input/touchscreen/Kconfig"
+source "drivers/amlogic/input/simcard_detect/Kconfig"
+source "drivers/amlogic/input/holdkey/Kconfig"
+source "drivers/amlogic/input/call_key/Kconfig"
+source "drivers/amlogic/input/sensor/Kconfig"
+source "drivers/amlogic/input/gpio_key/Kconfig"
+
+endif
+

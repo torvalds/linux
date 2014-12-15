@@ -1,0 +1,9 @@
+#ifdef CONFIG_VDIN_MIPI
+//$$ DEVICE="csi"
+//$$ L3 PROP_U32 2 = "reg"
+    vm{
+		compatible = "amlogic,csi";
+		dev_name = "csi.0";
+		reg = <0x8cd00000 0x01000000>;
+	};
+#endif

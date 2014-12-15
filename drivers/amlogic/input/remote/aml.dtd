@@ -1,0 +1,15 @@
+#ifdef CONFIG_AM_REMOTE
+//$$ DEVICE="aml_remote"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "ao_baseaddr"
+//$$ L2 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "Remote_pin_match" = "pinctrl-0"
+    meson-remote{
+		compatible = "amlogic,aml_remote";
+		dev_name = "meson-remote";
+		status = "okay";
+		ao_baseaddr = <0xf3100480>;
+		pinctrl-names="default";
+		pinctrl-0=<&remote_pins>;
+	};
+#endif

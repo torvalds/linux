@@ -1,0 +1,16 @@
+#
+# Sensor device configuration
+#
+
+menu "AMLOGIC SPI Hardware bus support"
+
+
+config AMLOGIC_SPICC_MASTER
+	tristate "AMLOGIC SPICC MASTER SUPPORT"
+
+  select SPI
+	help
+		This is amlogic SPICC hardware bus master.
+		This driver can also be built as a module.
+	  
+endmenu

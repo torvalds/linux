@@ -1,0 +1,23 @@
+menu "V4L2 Video Support"
+
+config V4L_AMLOGIC_VIDEO
+	tristate "Amlogic v4l video device support"
+	select VIDEO_DEV
+	select VIDEO_V4L2
+	select VIDEOBUF_RESOURCE
+	default n
+	---help---
+	  Select to enable "Amlogic v4l video device support.
+
+config V4L_AMLOGIC_VIDEO2
+	tristate "Amlogic v4l video2 device support"
+	select VIDEO_DEV
+	select VIDEOBUF_GEN
+	select VIDEO_V4L2_COMMON
+	select VIDEOBUF_RESOURCE
+	select AM_GE2D
+    	default n
+	---help---
+	  Select to enable "Amlogic v4l video2 device support.
+
+endmenu

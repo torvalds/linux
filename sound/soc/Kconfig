@@ -55,6 +55,9 @@ source "sound/soc/tegra/Kconfig"
 source "sound/soc/txx9/Kconfig"
 source "sound/soc/ux500/Kconfig"
 
+# for Amlogic SoC
+source "sound/soc/aml/Kconfig"
+
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
 

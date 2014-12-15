@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/pstore.h>
 
 struct persistent_ram_buffer;
 struct rs_control;
@@ -51,6 +52,32 @@ struct persistent_ram_zone {
 	char *old_log;
 	size_t old_log_size;
 };
+
+typedef struct ramoops_context {
+	struct persistent_ram_zone **przs;
+	struct persistent_ram_zone *cprz;
+	struct persistent_ram_zone *fprz;
+	phys_addr_t phys_addr;
+	unsigned long size;
+	size_t record_size;
+	size_t console_size;
+	size_t ftrace_size;
+	int dump_oops;
+	struct persistent_ram_ecc_info ecc_info;
+	unsigned int max_dump_cnt;
+	unsigned int dump_write_cnt;
+	unsigned int dump_read_cnt;
+	unsigned int console_read_cnt;
+	unsigned int ftrace_read_cnt;
+	struct pstore_info pstore;
+}ramoops_context;
+extern unsigned int get_c_pstore_start(ramoops_context *cxt);
+extern void set_c_pstore_start(ramoops_context *cxt, unsigned int val);
+extern void set_c_pstore_size(ramoops_context *cxt, unsigned int val);
+extern void set_c_pstore_full_flag(ramoops_context *cxt, unsigned int val);
+extern unsigned int get_pstore_buffer_size(ramoops_context *cxt);
+//extern void set_pstore_buffer_size(ramoops_context *cxt,unsigned int val);
+
 
 struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 			u32 sig, struct persistent_ram_ecc_info *ecc_info);
@@ -82,5 +109,6 @@ struct ramoops_platform_data {
 	int		dump_oops;
 	struct persistent_ram_ecc_info ecc_info;
 };
+#define PERSISTENT_CON_SIG (0x534e4f43) /* CONS */
 
 #endif

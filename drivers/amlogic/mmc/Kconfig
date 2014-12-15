@@ -1,0 +1,25 @@
+#
+# MMC/SD host controller drivers
+#
+
+comment "MMC/SD/SDIO Host Controller Drivers"
+
+menu "Multimedia Card support"
+
+config MMC_AML
+	bool "Amlogic Multimedia Card support"
+	default n
+	select MMC
+	select MMC_BLOCK
+	select MMC_BLOCK_BOUNCE 
+ 	select MMC_UNSAFE_RESUME
+   
+config MMC_AML_DEBUG
+    bool "Amlogic Multimedia Card Debug support"
+	default n
+	
+config AML_MMC_DEBUG_FORCE_SINGLE_BLOCK_RW
+    bool "force read and write to use single-block mode(CMD17/24)."
+	default n
+    
+endmenu

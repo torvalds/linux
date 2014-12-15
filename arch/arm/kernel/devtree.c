@@ -169,6 +169,10 @@ void __init arm_dt_init_cpu_maps(void)
 	}
 }
 
+#if defined(CONFIG_PLAT_MESON)
+unsigned long long aml_reserved_start;
+unsigned long long aml_reserved_end;
+#endif
 /**
  * setup_machine_fdt - Machine setup when an dtb was passed to the kernel
  * @dt_phys: physical address of dt blob
@@ -239,9 +243,17 @@ struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
 	/* Initialize {size,address}-cells info */
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
+#if defined(CONFIG_PLAT_MESON)
+	init_reserve_mgr();
+	of_scan_flat_dt(early_init_dt_scan_reserve_memory, NULL);
+#endif
 	/* Setup memory, calling early_init_dt_add_memory_arch */
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 
+#if defined(CONFIG_PLAT_MESON)
+	mdesc_best->video_start = 	aml_reserved_start;
+	mdesc_best->video_end = aml_reserved_end;
+#endif
 	/* Change machine number to match the mdesc we're using */
 	__machine_arch_type = mdesc_best->nr;
 

@@ -10,6 +10,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/mmc/host.h>
@@ -19,6 +20,8 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 
+#include <mach/sd.h>
+
 #include "core.h"
 #include "bus.h"
 #include "sd.h"
@@ -27,6 +30,10 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 #include "sdio_cis.h"
+
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#include <linux/mmc/sdio_ids.h>
+#endif
 
 static int sdio_read_fbr(struct sdio_func *func)
 {
@@ -587,7 +594,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	int retries = 10;
 
 	BUG_ON(!host);
-	WARN_ON(!host->claimed);
+	WARN_ON(!host->alldev_claim->claimed);
 
 try_again:
 	if (!retries) {
@@ -728,19 +735,35 @@ try_again:
 		goto finish;
 	}
 
-	/*
-	 * Read the common registers.
-	 */
-	err = sdio_read_cccr(card, ocr);
-	if (err)
-		goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cccr)
+		memcpy(&card->cccr, host->embedded_sdio_data.cccr, sizeof(struct sdio_cccr));
+	else {
+#endif
+		/*
+		 * Read the common registers.
+		 */
+		err = sdio_read_cccr(card,  ocr);
+		if (err)
+			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
 
-	/*
-	 * Read the common CIS tuples.
-	 */
-	err = sdio_read_common_cis(card);
-	if (err)
-		goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cis)
+		memcpy(&card->cis, host->embedded_sdio_data.cis, sizeof(struct sdio_cis));
+	else {
+#endif
+		/*
+		 * Read the common CIS tuples.
+		 */
+		err = sdio_read_common_cis(card);
+		if (err)
+			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
 
 	if (oldcard) {
 		int same = (card->cis.vendor == oldcard->cis.vendor &&
@@ -948,26 +971,26 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	/* Basic card reinitialization. */
-	mmc_claim_host(host);
+	// mmc_claim_host(host);
 
 	/* No need to reinitialize powered-resumed nonremovable cards */
-	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
-		sdio_reset(host);
-		mmc_go_idle(host);
-		err = mmc_sdio_init_card(host, host->ocr, host->card,
-					mmc_card_keep_power(host));
-	} else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
+	// if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
+        // sdio_reset(host);
+		// mmc_go_idle(host);
+		// err = mmc_sdio_init_card(host, host->ocr, host->card,
+					// mmc_card_keep_power(host));
+	// } else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
 		/* We may have switched to 1-bit mode during suspend */
-		err = sdio_enable_4bit_bus(host->card);
-		if (err > 0) {
-			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
-			err = 0;
-		}
-	}
+		// err = sdio_enable_4bit_bus(host->card);
+		// if (err > 0) {
+			// mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+			// err = 0;
+		// }
+	// }
 
-	if (!err && host->sdio_irqs)
-		wake_up_process(host->sdio_irq_thread);
-	mmc_release_host(host);
+	// if (!err && host->sdio_irqs)
+		// wake_up_process(host->sdio_irq_thread);
+	// mmc_release_host(host);
 
 	/*
 	 * If the card looked to be the same as before suspending, then
@@ -1060,6 +1083,7 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 	.alive = mmc_sdio_alive,
 };
 
+struct mmc_card* comm_card;
 
 /*
  * Starting point for SDIO card init.
@@ -1071,7 +1095,7 @@ int mmc_attach_sdio(struct mmc_host *host)
 	struct mmc_card *card;
 
 	BUG_ON(!host);
-	WARN_ON(!host->claimed);
+	WARN_ON(!host->alldev_claim->claimed);
 
 	err = mmc_send_io_op_cond(host, 0, &ocr);
 	if (err)
@@ -1091,7 +1115,6 @@ int mmc_attach_sdio(struct mmc_host *host)
 		       mmc_hostname(host));
 		ocr &= ~0x7F;
 	}
-
 	host->ocr = mmc_select_voltage(host, ocr);
 
 	/*
@@ -1122,6 +1145,7 @@ int mmc_attach_sdio(struct mmc_host *host)
 			goto err;
 	}
 	card = host->card;
+	comm_card = card;
 
 	/*
 	 * Enable runtime PM only if supported by host+card+board
@@ -1147,14 +1171,36 @@ int mmc_attach_sdio(struct mmc_host *host)
 	funcs = (ocr & 0x70000000) >> 28;
 	card->sdio_funcs = 0;
 
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.funcs)
+		card->sdio_funcs = funcs = host->embedded_sdio_data.num_funcs;
+#endif
+
 	/*
 	 * Initialize (but don't add) all present functions.
 	 */
 	for (i = 0; i < funcs; i++, card->sdio_funcs++) {
-		err = sdio_init_func(host->card, i + 1);
-		if (err)
-			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+		if (host->embedded_sdio_data.funcs) {
+			struct sdio_func *tmp;
 
+			tmp = sdio_alloc_func(host->card);
+			if (IS_ERR(tmp))
+				goto remove;
+			tmp->num = (i + 1);
+			card->sdio_func[i] = tmp;
+			tmp->class = host->embedded_sdio_data.funcs[i].f_class;
+			tmp->max_blksize = host->embedded_sdio_data.funcs[i].f_maxblksize;
+			tmp->vendor = card->cis.vendor;
+			tmp->device = card->cis.device;
+		} else {
+#endif
+			err = sdio_init_func(host->card, i + 1);
+			if (err)
+				goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+		}
+#endif
 		/*
 		 * Enable Runtime PM for this func (if supported)
 		 */
@@ -1201,4 +1247,98 @@ err:
 
 	return err;
 }
+
+int sdio_reset_comm(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	u32 ocr;
+	int err;
+
+	printk("%s():\n", __func__);
+    if (host == NULL) {
+        printk("\033[0;47;33m %s(): Error----card->host=NULL \033[0m\n", __func__);
+		err = -EINVAL;
+		goto err;
+    }
+
+    if (host->alldev_claim == NULL) {
+        printk("\033[0;47;33m %s(): Error----mmc_host->alldev_claim=NULL \033[0m\n", __func__);
+		err = -EINVAL;
+		goto err;
+    }
+
+	mmc_claim_host(host);
+
+	/*
+		for 8189ETV wifi restart
+	*/
+
+	if(588 == card->cis.vendor)	
+		sdio_reset(host);
+
+		
+
+	mmc_go_idle(host);
+
+	mmc_set_clock(host, host->f_min);
+
+	err = mmc_send_io_op_cond(host, 0, &ocr);
+	if (err)
+		goto err;
+
+	host->ocr = mmc_select_voltage(host, ocr);
+	if (!host->ocr) {
+		err = -EINVAL;
+		goto err;
+	}
+
+    if (mmc_host_uhs(host))
+        /* to query card if 1.8V signalling is supported */
+        host->ocr |= R4_18V_PRESENT;
+
+	err = mmc_sdio_init_card(host, host->ocr, card, 0);
+	if (err)
+		goto err;
+
+	mmc_release_host(host);
+	return 0;
+err:
+	printk("%s: Error resetting SDIO communications (%d)\n",
+	       mmc_hostname(host), err);
+	mmc_release_host(host);
+	return err;
+}
+EXPORT_SYMBOL(sdio_reset_comm);
+
+static void sdio_rescan (struct mmc_host *host)
+{
+    int ret;
+
+    host->rescan_entered = 0;
+	host->host_rescan_disable = false;
+    mmc_detect_change(host, 0); // start the delayed_work
+    ret = flush_work(&(host->detect.work)); // wait for the delayed_work to finish
+    if (!ret) {
+        printk("\033[0;47;33m [%s] Error: delayed_work mmc_rescan() already idle! \033[0m\n", __func__);
+    }
+    // else {
+        // printk("\033[0;40;32m [%s] delayed_work mmc_rescan() finish \033[0m\n", __FUNCTION__);
+    // }
+}
+
+void sdio_reinit (void)
+{
+    if(comm_card) { // run sdio_rescan() already
+        sdio_reset_comm(comm_card);
+    } else {
+        // printk("\033[0;40;35m [%s] real init \033[0m\n", __func__);
+        if (sdio_host) {
+            sdio_rescan(sdio_host);
+        } else {
+            printk("\033[0;47;33m [%s] Error: sdio_host is NULL \033[0m\n", __func__);
+        }
+    }
+    printk("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_reinit);
 

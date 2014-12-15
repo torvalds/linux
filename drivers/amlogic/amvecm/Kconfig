@@ -1,0 +1,14 @@
+#
+# AMLOGIC tvin devices configuration
+#
+
+menu "Amlogic VE & CM"
+
+config AM_VECM
+	tristate "Amlogic VE & CM"
+	default n
+	help
+		Video Enhancement & Color Management.
+
+endmenu
+

@@ -1,0 +1,98 @@
+#ifdef MESON_INPUT_TOUCHSCREEN
+//$$ DEVICE = "touch"
+//$$ L2 PROP_STR = "status"
+    touch{
+        compatible = "amlogic,aml_touch";
+        status = "okay";
+        #address-cells = <1>;
+		#size-cells = <0>;
+		
+#ifdef CONFIG_FOCALTECH_CAPACITIVE_TOUCHSCREEN
+//$$ DEVICE = "touch_ft5x06"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_STR = "i2c_bus"
+//$$ L3 PROP_U32 ="reg"
+//$$ L3 PROP_U32 ="ic_type"
+//$$ L3 PROP_U32 ="irq"
+//$$ L3 PROP_STR = "gpio_interrupt"
+//$$ L3 PROP_STR = "gpio_reset"
+//$$ L3 PROP_U32 ="xres"
+//$$ L3 PROP_U32 ="yres"
+//$$ L3 PROP_U32 ="pol"
+//$$ L3 PROP_STR = "fw_file"
+		touch_ft5x06:ft5x06{
+			touch_name = "ft5x06";
+			status = "okay";
+			i2c_bus = "i2c_bus_a";
+			reg = <0x38>;
+			ic_type = <0>;
+			irq = <0>;
+			gpio_interrupt = "GPIOZ_7";
+			gpio_reset = "GPIOZ_6";
+			xres = <1024>;
+			yres = <600>;
+			pol = <0x1>;
+			fw_file = "/etc/touch/ft5x06.fw";
+						
+		};
+#endif
+
+#ifdef CONFIG_GOODIX_GT9XX_CAPACITIVE_TOUCHSCREEN
+//$$ DEVICE = "touch_gt9xx"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "touch_name"
+//$$ L3 PROP_STR = "i2c_bus"
+//$$ L3 PROP_U32 ="reg"
+//$$ L3 PROP_U32 ="irq"
+//$$ L3 PROP_STR = "gpio_interrupt"
+//$$ L3 PROP_STR = "gpio_reset"
+//$$ L3 PROP_U32 ="xres"
+//$$ L3 PROP_U32 ="yres"
+//$$ L3 PROP_U32 ="pol"
+//$$ L3 PROP_STR = "config_file"
+		touch_gt9xx:gt9xx{
+			compatible = "goodix,gt9xx";
+			status = "okay";
+			touch_name = "gt9xx";
+			i2c_bus = "i2c_bus_a";
+			reg = <0x14>;
+			irq = <0>;
+			gpio_interrupt = "GPIOZ_7";
+			gpio_reset = "GPIOZ_6";
+			xres = <2048>;
+			yres = <1536>;
+			pol = <0x4>;
+			config_file = "/etc/touch/goodix.cfg";
+		};
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_CT36X_PLATFORM_AMLCHIP
+//$$ DEVICE = "touch_ct36x"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "touch_name"
+//$$ L3 PROP_STR = "i2c_bus"
+//$$ L3 PROP_U32 ="reg"
+//$$ L3 PROP_U32 ="irq"
+//$$ L3 PROP_STR = "gpio_interrupt"
+//$$ L3 PROP_STR = "gpio_reset"
+//$$ L3 PROP_U32 ="xres"
+//$$ L3 PROP_U32 ="yres"
+//$$ L3 PROP_U32 ="pol"
+//$$ L3 PROP_STR = "fw_file"
+        touch_ct36x:ct36x{
+			compatible = "vtl,ct36x";
+			status = "okay";
+			touch_name = "ct36x";
+			i2c_bus = "i2c_bus_a";
+			reg = <0x01>;
+			irq = <0>;
+			gpio_interrupt = "GPIOZ_7";
+			gpio_reset = "GPIOZ_6";
+			xres = <1024>;
+			yres = <768>;
+			pol = <0x0>;
+			fw_file = "/etc/touch/ct36x.dat";
+		};
+#endif
+   };
+#endif

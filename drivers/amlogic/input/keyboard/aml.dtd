@@ -1,0 +1,38 @@
+#ifdef CONFIG_ADC_KEYPADS_AM
+//$$ DEVICE="adc_keypad"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "key_name"
+//$$ L2 PROP_U32 = "key_num"
+//$$ L2 PROP_U32 2 = "key_code"
+//$$ L2 PROP_U32 2 = "key_chan"
+//$$ L2 PROP_U32 2 = "key_val"
+//$$ L2 PROP_U32 2 = "key_tolerance"
+    adc_keypad{
+		compatible = "amlogic,adc_keypad";
+		status = "okay";
+		key_name = "vol-","vol+";
+		key_num = <2>;
+		key_code = <114 115>;
+		key_chan = <0 0>;
+		key_val = <144 267>;
+		key_tolerance = <40 40>;
+	};
+#endif
+#ifdef CONFIG_KEY_INPUT_CUSTOM_AM
+//$$ DEVICE="key_input"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "scan_period"
+//$$ L2 PROP_U32 = "fuzz_time"
+//$$ L2 PROP_U32 = "key_code_list"
+//$$ L2 PROP_U32 = "key_num"
+//$$ L2 PROP_U32 = "config"
+		key_input{
+		compatible = "amlogic,key_input";
+		status = "okay";
+		scan_period = <20>;
+		fuzz_time = <60>;
+		key_code_list = <116>;
+		key_num = <1>;
+		config = <0>;
+	};
+#endif

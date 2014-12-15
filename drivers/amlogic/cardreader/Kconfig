@@ -1,0 +1,73 @@
+#
+# cardreader subsystem configuration
+#
+
+menu "Card support"
+
+config CARDREADER
+	bool "Card reader support "
+	default n
+
+config SD_MMC
+	bool "SD/MMC card driver support"
+	default y
+	depends on CARDREADER
+
+config SDIO
+	bool "sdio interface driver support"
+	default y
+	depends on CARDREADER
+	select SD_MMC
+	
+config AM_ATA
+	bool "ATA/ATAPI driver support"
+	default n
+	depends on CARDREADER
+
+config CF
+	bool "CF card driver support"
+	default n
+	depends on AM_ATA
+
+config MS_MSPRO
+	bool "MS/MSPRO card driver support"
+	default n
+	depends on CARDREADER
+
+config XD
+	bool "XD card driver support"
+	default n
+	depends on CARDREADER
+
+config INAND
+	bool "inand card driver support"
+	default n
+	depends on CARDREADER
+	select SD_MMC
+
+config INAND_LP
+	bool "enable inand register last partition as a full block device"
+	depends on INAND
+	select SD_MMC
+config AML_CARD_KEY
+	bool "Meson key data store in card device (dev/nand_key) support"
+	depends on INAND
+	depends on CARDREADER
+	depends on ARCH_MESON3 || ARCH_MESON6
+	default n
+	help
+	  Support key variable store in card device
+
+config CARD_DEFERRED_MONITOR
+	bool "card deffer monitor to init card(except inand)"
+	default n
+	depends on DEFERRED_MODULE_INIT
+	
+config CARD_NO_POWER_DELAY
+	bool "No power delay in init function when no external power control the card"
+	default n
+
+config CARD_MUTE_INIT_INFO
+	bool "card mute init info"
+	default n
+endmenu

@@ -186,6 +186,7 @@ struct usb_interface {
 	struct device *usb_dev;
 	atomic_t pm_usage_cnt;		/* usage counter for autosuspend */
 	struct work_struct reset_ws;	/* for resets in atomic context */
+	int auto_suspend;
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
 

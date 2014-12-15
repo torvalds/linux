@@ -1,0 +1,14 @@
+#
+# Amlogic efuse device configuration
+#
+
+menu "Security key Support"
+
+config SECURITYKEY
+	bool "security key Driver"
+	default n
+	help
+	    security device driver.
+
+
+endmenu

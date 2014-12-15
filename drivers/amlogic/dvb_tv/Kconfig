@@ -1,0 +1,216 @@
+#
+# DVB driver configuration
+#
+
+menu "Amlogic DVB driver"
+
+config AM_DVB
+	tristate "AMLOGIC DVB driver"
+	default n
+	select DVB_CORE
+	help
+		Select to enable AMLogic DVB driver.
+
+menu "AMLOGIC CI Driver"
+
+config AM_CI
+	tristate "Amlogic Common Interface driver"
+	default n
+	depends on AM_DVB
+	select AM_PCMCIA
+	select AM_IOBUS
+	help
+		Select to enable Amlogic CI driver.
+
+config AM_PCMCIA
+	tristate "Amlogic PCMCIA driver"
+	default n
+	help
+		Select to enable Amlogic PCMCIA driver.
+
+config AM_IOBUS
+	tristate "Amlogic IOBUS driver"
+	default n
+	help
+		Select to enable Amlogic IOBUS driver.
+
+endmenu
+
+if !OF
+
+config AMLOGIC_TS0
+	bool "Enable TS0"
+	default n
+	depends on AM_DVB
+	help
+		Enable TS0.
+
+config AMLOGIC_S_TS0
+	bool "Serial TS0"
+	default n
+	depends on AMLOGIC_TS0
+	help
+		TS0 in serial mode.
+
+config AMLOGIC_TS0_INVERT_S2P1_FEC_ERROR
+	bool "Invert FEC_ERROR TS0"
+	default n
+	depends on AMLOGIC_S_TS0
+	help
+		TS0 FEC_ERROR invert
+
+config AMLOGIC_TS0_INVERT_S2P1_FEC_DATA
+	bool "Invert FEC_DATA TS0"
+	default n
+	depends on AMLOGIC_S_TS0
+	help
+		TS0 FEC_DATA invert
+
+config AMLOGIC_TS0_INVERT_S2P1_FEC_SYNC
+	bool "Invert FEC_SYNC TS0"
+	default n
+	depends on AMLOGIC_S_TS0
+	help
+		TS0 FEC_SYNC invert
+
+config AMLOGIC_TS0_INVERT_S2P1_FEC_VALID
+	bool "Invert FEC_VALID TS0"
+	default n
+	depends on AMLOGIC_S_TS0
+	help
+		TS0 FEC_VALID invert
+
+config AMLOGIC_TS0_INVERT_S2P1_FEC_CLK
+	bool "Invert FEC_CLK TS0"
+	default n
+	depends on AMLOGIC_S_TS0
+	help
+		TS0 FEC_CLK invert
+
+config AMLOGIC_TS1
+	bool "Enable TS1"
+	default n
+	depends on AM_DVB
+	help
+		Enable TS1.
+
+config AMLOGIC_S_TS1
+	bool "Serial TS1"
+	default n
+	depends on AMLOGIC_TS1
+	help
+		TS1 in serial mode.
+
+config AMLOGIC_TS1_INVERT_S2P1_FEC_ERROR
+	bool "Invert FEC_ERROR TS1"
+	default n
+	depends on AMLOGIC_S_TS1
+	help
+		TS1 FEC_ERROR invert
+
+config AMLOGIC_TS1_INVERT_S2P1_FEC_DATA
+	bool "Invert FEC_DATA TS1"
+	default n
+	depends on AMLOGIC_S_TS1
+	help
+		TS1 FEC_DATA invert
+
+config AMLOGIC_TS1_INVERT_S2P1_FEC_SYNC
+	bool "Invert FEC_SYNC TS1"
+	default n
+	depends on AMLOGIC_S_TS1
+	help
+		TS1 FEC_SYNC invert
+
+config AMLOGIC_TS1_INVERT_S2P1_FEC_VALID
+	bool "Invert FEC_VALID TS1"
+	default n
+	depends on AMLOGIC_S_TS1
+	help
+		TS1 FEC_VALID invert
+
+config AMLOGIC_TS1_INVERT_S2P1_FEC_CLK
+	bool "Invert FEC_CLK TS1"
+	default n
+	depends on AMLOGIC_S_TS1
+	help
+		TS1 FEC_CLK invert
+
+config AMLOGIC_TS2
+	bool "Enable TS2"
+	default n
+	depends on AM_DVB
+	help
+		Enable TS2.
+
+config AMLOGIC_S_TS2
+	bool "Serial TS2"
+	default n
+	depends on AMLOGIC_TS2
+	help
+		TS2 in serial mode.
+
+config AMLOGIC_TS2_INVERT_S2P1_FEC_ERROR
+	bool "Invert FEC_ERROR TS2"
+	default n
+	depends on AMLOGIC_S_TS2
+	help
+		TS2 FEC_ERROR invert
+
+config AMLOGIC_TS2_INVERT_S2P1_FEC_DATA
+	bool "Invert FEC_DATA TS2"
+	default n
+	depends on AMLOGIC_S_TS2
+	help
+		TS2 FEC_DATA invert
+
+config AMLOGIC_TS2_INVERT_S2P1_FEC_SYNC
+	bool "Invert FEC_SYNC TS2"
+	default n
+	depends on AMLOGIC_S_TS2
+	help
+		TS2 FEC_SYNC invert
+
+config AMLOGIC_TS2_INVERT_S2P1_FEC_VALID
+	bool "Invert FEC_VALID TS2"
+	default n
+	depends on AMLOGIC_S_TS2
+	help
+		TS2 FEC_VALID invert
+
+config AMLOGIC_TS2_INVERT_S2P1_FEC_CLK
+	bool "Invert FEC_CLK TS2"
+	default n
+	depends on AMLOGIC_S_TS2
+	help
+		TS2 FEC_CLK invert
+
+endif
+
+if ARCH_MESON6TV || ARCH_MESON6TVD
+config AM_M6_DEMOD
+	tristate "M6 demod driver"
+	default n
+	depends on AM_DVB
+	help
+		Select to enable M6 demod driver.
+endif
+
+isource "../hardware/dvb/altobeam/drivers/atbm887x/Kconfig"
+
+config AM_SI2177
+	tristate "SI2177 tuner"
+	default n
+	depends on AM_DVB
+	help
+		select the 2177 tuner.
+
+config AM_AVL6211
+	tristate "AVL6211 DVB-S2 demod driver"
+	default n
+	depends on AM_DVB
+	help
+		select the AVL6211 DVB-S2 demod.
+
+endmenu
+

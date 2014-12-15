@@ -858,6 +858,10 @@ typedef __u64 v4l2_std_id;
 #define V4L2_STD_ATSC_8_VSB     ((v4l2_std_id)0x01000000)
 #define V4L2_STD_ATSC_16_VSB    ((v4l2_std_id)0x02000000)
 
+/*COLOR MODULATION TYPE*/
+#define V4L2_COLOR_STD_PAL 	((v4l2_std_id)0x04000000)
+#define V4L2_COLOR_STD_NTSC	((v4l2_std_id)0x08000000)
+#define V4L2_COLOR_STD_SECAM 	((v4l2_std_id)0x10000000)
 /* FIXME:
    Although std_id is 64 bits, there is an issue on PPC32 architecture that
    makes switch(__u64) to break. So, there's a hack on v4l2-common.c rounding

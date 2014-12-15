@@ -1,0 +1,10 @@
+if ARCH_MESON6TVD
+
+config MACH_MESON6TVD_COMMON_BOARD
+	depends on ARCH_MESON6TVD
+	bool "Meson6TVD common board"
+	default y
+	help
+	  Support for Amlogic Meson6TVD common development platform.
+
+endif # ARCH_MESON6TVD

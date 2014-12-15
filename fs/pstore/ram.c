@@ -34,6 +34,11 @@
 #include <linux/slab.h>
 #include <linux/compiler.h>
 #include <linux/pstore_ram.h>
+#include <linux/proc_fs.h>
+#include <linux/uaccess.h>
+#include <linux/compiler.h>
+#include "internal.h"
+
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -73,24 +78,6 @@ MODULE_PARM_DESC(ramoops_ecc,
 		"ECC buffer size in bytes (1 is a special value, means 16 "
 		"bytes ECC)");
 
-struct ramoops_context {
-	struct persistent_ram_zone **przs;
-	struct persistent_ram_zone *cprz;
-	struct persistent_ram_zone *fprz;
-	phys_addr_t phys_addr;
-	unsigned long size;
-	size_t record_size;
-	size_t console_size;
-	size_t ftrace_size;
-	int dump_oops;
-	struct persistent_ram_ecc_info ecc_info;
-	unsigned int max_dump_cnt;
-	unsigned int dump_write_cnt;
-	unsigned int dump_read_cnt;
-	unsigned int console_read_cnt;
-	unsigned int ftrace_read_cnt;
-	struct pstore_info pstore;
-};
 
 static struct platform_device *dummy;
 static struct ramoops_platform_data *dummy_data;
@@ -145,7 +132,7 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 				   PSTORE_TYPE_DMESG, 1);
 	if (!prz)
 		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
-					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
+					   1, id, type, PSTORE_TYPE_CONSOLE, 1);
 	if (!prz)
 		prz = ramoops_get_next_prz(&cxt->fprz, &cxt->ftrace_read_cnt,
 					   1, id, type, PSTORE_TYPE_FTRACE, 0);
@@ -170,6 +157,42 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 
 	return size + ecc_notice_size;
 }
+
+static ssize_t ramoops_pstore_console_read(u64 *id, enum pstore_type_id *type,
+				   int *count, struct timespec *time,
+				   char **buf, struct pstore_info *psi)
+{
+	ssize_t size;
+	ssize_t ecc_notice_size;
+	struct ramoops_context *cxt = psi->data;
+	struct persistent_ram_zone *prz;
+
+
+	prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
+					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
+
+	if (!prz)
+		return 0;
+
+	/* TODO(kees): Bogus time for the moment. */
+	time->tv_sec = 0;
+	time->tv_nsec = 0;
+
+	size = persistent_ram_old_size(prz);
+
+	/* ECC correction notice */
+	ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
+
+	*buf = kmalloc(size + ecc_notice_size + 1, GFP_KERNEL);
+	if (*buf == NULL)
+		return -ENOMEM;
+
+	memcpy(*buf, persistent_ram_old(prz), size);
+	persistent_ram_ecc_string(prz, *buf + size, ecc_notice_size + 1);
+
+	return size + ecc_notice_size;
+}
+
 
 static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
 {
@@ -377,6 +400,59 @@ static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
 	return 0;
 }
 
+extern int	oopscount;
+//static void __iomem *pstore_iomap;
+
+static ssize_t ram_console_read_old(struct file *file, char __user *buf,
+				    size_t len, loff_t *offset)
+{
+	loff_t pos = *offset;
+	ssize_t count;
+	static unsigned int record_size = 0;
+	struct ramoops_context *cxt = &oops_cxt;
+
+	struct pstore_info *psi = psinfo;
+	char			*buf_f = NULL;
+	ssize_t 		size;
+	u64 		id;
+	int 		count_f;
+	enum pstore_type_id type;
+	struct timespec 	time;
+
+	if (!psi)
+		return -1;
+
+	mutex_lock(&psi->read_mutex);
+	while ((size = ramoops_pstore_console_read(&id, &type, &count_f, &time, &buf_f, psi)) > 0) {
+		kfree(buf_f);
+		buf_f = NULL;
+		record_size += size;
+		
+//		printk("size=0x%x old_log_size=0x%x record_size=0x%x\n",size,cxt->cprz->old_log_size,record_size);
+	}
+
+	mutex_unlock(&psi->read_mutex);
+
+	if (pos >= record_size || pos >= cxt->cprz->old_log_size)
+		return 0;
+
+	if(record_size > cxt->cprz->old_log_size)
+		record_size = cxt->cprz->old_log_size;
+	
+	count = min(len, (size_t)(record_size - pos));
+//	printk("old_log_size = 0x%x count=0x%x len=0x%x record_size=0x%x\n",cxt->cprz->old_log_size,count, len,record_size);
+	if (copy_to_user(buf, cxt->cprz->old_log + pos, count))
+		return -EFAULT;
+
+	*offset += count;
+	return count;
+}
+
+static const struct file_operations ram_console_file_ops = {
+	.owner = THIS_MODULE,
+	.read = ram_console_read_old,
+};
+
 static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -385,6 +461,8 @@ static int ramoops_probe(struct platform_device *pdev)
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
 	int err = -EINVAL;
+
+	struct proc_dir_entry *entry = NULL;
 
 	/* Only a single ramoops area allowed at a time, so fail extra
 	 * probes.
@@ -423,9 +501,11 @@ static int ramoops_probe(struct platform_device *pdev)
 	err = ramoops_init_przs(dev, cxt, &paddr, dump_mem_sz);
 	if (err)
 		goto fail_out;
+	printk("pstore przs=0x%x\n",(unsigned int)cxt->przs[0]->buffer);
 
 	err = ramoops_init_prz(dev, cxt, &cxt->cprz, &paddr,
-			       cxt->console_size, 0);
+			       cxt->console_size, PERSISTENT_CON_SIG);//Flag for consol
+	printk("pstore cprz=0x%x\n",(unsigned int)cxt->cprz->buffer);
 	if (err)
 		goto fail_init_cprz;
 
@@ -474,6 +554,17 @@ static int ramoops_probe(struct platform_device *pdev)
 	mem_address = pdata->mem_address;
 	record_size = pdata->record_size;
 	dump_oops = pdata->dump_oops;
+
+	if(cxt->cprz->old_log){
+	//	pstore_iomap = ioremap(cxt->cprz->old_log,cxt->cprz->old_log_size);
+		printk("cprz old_log=0x%x\n",(unsigned int *)cxt->cprz->old_log);
+		entry = proc_create_data("last_kmsg", S_IFREG | S_IRUGO, NULL,&ram_console_file_ops,NULL);
+	}
+	
+	if (!entry) {
+		printk(KERN_ERR "ram_console: failed to create proc entry\n");
+		return 0;
+	}
 
 	pr_info("attached 0x%lx@0x%llx, ecc: %d/%d\n",
 		cxt->size, (unsigned long long)cxt->phys_addr,

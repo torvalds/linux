@@ -1,0 +1,1 @@
+// featal head file to compatible with sii9233a original driver.

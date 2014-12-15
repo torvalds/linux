@@ -571,12 +571,13 @@ int device_create_file(struct device *dev,
 	int error = 0;
 
 	if (dev) {
-		WARN(((attr->attr.mode & S_IWUGO) && !attr->store),
+/*		WARN(((attr->attr.mode & S_IWUGO) && !attr->store),
 			"Attribute %s: write permission without 'store'\n",
 			attr->attr.name);
 		WARN(((attr->attr.mode & S_IRUGO) && !attr->show),
 			"Attribute %s: read permission without 'show'\n",
 			attr->attr.name);
+*/
 		error = sysfs_create_file(&dev->kobj, &attr->attr);
 	}
 
@@ -1875,12 +1876,12 @@ void device_shutdown(void)
 		pm_runtime_barrier(dev);
 
 		if (dev->bus && dev->bus->shutdown) {
-			if (initcall_debug)
-				dev_info(dev, "shutdown\n");
+			//if (initcall_debug)
+				dev_info(dev, "Bus %s calling %pf shutdown\n",dev->bus->name,dev->bus->shutdown);
 			dev->bus->shutdown(dev);
 		} else if (dev->driver && dev->driver->shutdown) {
-			if (initcall_debug)
-				dev_info(dev, "shutdown\n");
+			//if (initcall_debug)
+				dev_info(dev, "Driver %s calling %pf shutdown\n",dev->driver->name,dev->driver->shutdown);
 			dev->driver->shutdown(dev);
 		}
 

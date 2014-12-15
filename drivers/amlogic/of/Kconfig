@@ -1,0 +1,5 @@
+config OF_LM
+	bool "Support for lm bus devices in device tree"
+	depends on OF
+	default y
+

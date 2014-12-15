@@ -1,0 +1,5 @@
+config AMLOGIC_MESON_CPUFREQ
+	bool "Meson CPU Frequency scaling support"
+	depends on PLAT_MESON
+	help
+	  This adds the CPUFreq driver for Meson series CPU

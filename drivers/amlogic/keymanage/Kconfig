@@ -1,0 +1,14 @@
+#
+# Amlogic efuse device configuration
+#
+
+menu "key management Support"
+
+config UNIFY_KEY_MANAGE
+	bool "unify key management Driver"
+	default n
+	help
+	    unify key management device driver.
+
+
+endmenu

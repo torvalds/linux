@@ -1,0 +1,28 @@
+menuconfig SND_AML_M6_SOC
+	tristate "Audio for Amlogic Meson6 SoC"
+	depends on PLAT_MESON
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Amlogic I2S interface. You will also need
+	  to select the audio interfaces to support below.
+
+menuconfig SND_AML_M8_SOC
+	tristate "Audio for Amlogic Meson8 SoC"
+	depends on PLAT_MESON
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Amlogic I2S interface. You will also need
+	  to select the audio interfaces to support below.
+
+if SND_AML_M6_SOC
+
+# for Amlogic m6 SoC
+source "sound/soc/aml/m6/Kconfig"
+
+endif  # SND_AML_M6_SOC
+
+if SND_AML_M8_SOC
+
+source "sound/soc/aml/m8/Kconfig"
+
+endif # SND_AML_M8_SOC

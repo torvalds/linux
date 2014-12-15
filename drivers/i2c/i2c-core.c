@@ -689,6 +689,67 @@ out_err_silent:
 }
 EXPORT_SYMBOL_GPL(i2c_new_device);
 
+struct i2c_client *
+i2c_new_existing_device(struct i2c_adapter *adap, 
+			struct i2c_board_info const *info)
+{
+	struct i2c_client	*client;
+	int			status;
+	int			nr = 0;
+
+	client = kzalloc(sizeof *client, GFP_KERNEL);
+	if (!client)
+		return NULL;
+
+	client->adapter = adap;
+
+	client->dev.platform_data = info->platform_data;
+
+	if (info->archdata)
+		client->dev.archdata = *info->archdata;
+
+	client->flags = info->flags;
+	client->addr = info->addr;
+	client->irq = info->irq;
+
+	strlcpy(client->name, info->type, sizeof(client->name));
+
+	client->dev.parent = &client->adapter->dev;
+	client->dev.bus = &i2c_bus_type;
+	client->dev.type = &i2c_client_type;
+	client->dev.of_node = info->of_node;
+
+	do {
+		struct device *dev;
+		char dev_name[32] = {0};
+		sprintf(dev_name, "%d-%04x-%d", i2c_adapter_id(adap),
+		     			client->addr, nr);
+		dev = bus_find_device_by_name(&i2c_bus_type, NULL, dev_name);
+		if (!dev){	
+			//printk("try to register dev %s\n", dev_name);
+			dev_set_name(&client->dev, "%d-%04x-%d", i2c_adapter_id(adap),
+		     			client->addr, nr);
+			status = device_register(&client->dev);
+		} else {
+			//printk("file %s have existed\n", dev_name);
+			status = -1;
+		}
+		nr++;
+	} while(status);
+
+	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
+		client->name, dev_name(&client->dev));
+
+	return client;
+
+/*out_err:
+	dev_err(&adap->dev, "Failed to register i2c client %s at 0x%02x "
+		"(%d)\n", client->name, client->addr, status);
+out_err_silent:
+	kfree(client);
+	return NULL;
+*/
+}
 
 /**
  * i2c_unregister_device - reverse effect of i2c_new_device()

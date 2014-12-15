@@ -1,0 +1,17 @@
+#
+# Amlogic external hdmi-in chips configuration
+#
+
+menuconfig AML_EXT_HDMIIN
+	bool "External hdmi-in chips support"
+	default y
+
+if AML_EXT_HDMIIN
+config AML_SII9233
+	bool "SiliconImage 9233 support"
+	depends on AML_EXT_HDMIIN
+	default n
+
+source "drivers/amlogic/ext_hdmiin/sii9293/linux_driver/Kconfig"
+
+endif # AML_EXT_HDMIIN

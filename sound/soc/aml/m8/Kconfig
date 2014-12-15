@@ -1,0 +1,22 @@
+#config  SND_AML_SPDIF
+#	tristate "Amlogic S/PDIF codec support"
+#	depends on SND_AML_M8_SOC
+#	select SND_SOC_AML_SPDIF_CODEC if SND_AML_SPDIF
+config SND_AML_M8
+	tristate "AML-SND-M8 Board"
+	depends on SND_AML_M8_SOC && SWITCH
+	select SND_SOC_AML_M8_CODEC if SND_AML_M8
+	select SND_SOC_RT5616 if SND_AML_M8
+	select SND_SOC_DUMMY_CODEC
+	select SND_SOC_WM8960
+	select SND_SOC_RT5631
+	select SND_SOC_AMLPMU3 if AML1218
+
+config SND_AML_M8_PCM
+	tristate "M8 evaluation board with PCM2BT"
+	depends on SND_AML_M8_SOC
+	select SND_SOC_PCM2BT if SND_AML_M8_PCM
+	
+config SND_AML_M_DUMMY_CODEC
+    tristate "AML M series board with DUMMY_CODEC"
+    select SND_SOC_DUMMY_CODEC

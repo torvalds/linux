@@ -1,0 +1,15 @@
+#
+# Input core configuration
+#
+
+
+
+config AML_HOLD_KEY
+	tristate "Amlogic hold key device surport"
+	depends on SWITCH
+	default n
+	help
+	  Say Y here if you want to use the amlogic hold key.
+
+
+

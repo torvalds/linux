@@ -437,6 +437,21 @@ __enable_mmu:
 		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
 	mcr	p15, 0, r5, c3, c0, 0		@ load domain access register
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
+	
+	@ Invalidate BTAC/ICache/TLB
+	MOV r5,#0
+	MCR p15,0,r5,c7,c5,6		@ Invalidate BTAC
+	MCR p15,0,r5,c7,c5,0		@ Invalidate ICache
+	DSB
+	MCR p15,0,r5,c8,c7,0		@ Invalidate TLBs
+	DSB
+	
+	@ Enable Branch Prediction
+	MRC p15, 0, r5, c1, c0, 0	@ get control register
+	ORR r5, r5, #1 << 11		@ enable Branch Prediction
+	MCR p15, 0, r5, c1, c0, 0	@ write control register
+	DSB
+	ISB
 #endif
 	b	__turn_mmu_on
 ENDPROC(__enable_mmu)

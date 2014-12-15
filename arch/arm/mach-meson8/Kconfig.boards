@@ -1,0 +1,10 @@
+if ARCH_MESON8 || ARCH_MESON8M2
+
+config MACH_MESON8_COMMON_BOARD
+	depends on ARCH_MESON8 || ARCH_MESON8M2
+	bool "Meson8 common board"
+	default y 
+	help
+      Support for Amlogic Meson8 common development platform.
+
+endif # ARCH_MESON8

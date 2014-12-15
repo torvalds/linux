@@ -1,0 +1,172 @@
+#
+# Touchscreen driver configuration
+#
+
+menuconfig MESON_INPUT_TOUCHSCREEN
+	bool "Touchscreens"
+	help
+	  Say Y here, and a list of supported touchscreens will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if MESON_INPUT_TOUCHSCREEN
+
+config ADC_TOUCHSCREEN_AM
+	tristate "Meson ADC touchscreen"
+	depends on SARADC_AM
+	help
+          Say Y here if you want to use the Meson ADC touchscreen.
+
+config ITK_CAPACITIVE_TOUCHSCREEN
+	tristate "ITK capacitive touchscreen"
+	default n
+	help
+	  Say Y here if you want to use the ITK capacitive panel.
+
+config PIXCIR_CAPACITIVE_TOUCHSCREEN
+	tristate "PIXCIR I2C capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the PIXCIR capacitive panel.
+
+config PIXCIR_NEW_CAPACITIVE_TOUCHSCREEN
+	tristate "PIXCIR I2C new capacitive touchscreen(5 points)"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the PIXCIR new capacitive panel.
+
+config SINTEK_CAPACITIVE_TOUCHSCREEN
+	tristate "Sintek capacitive touchscreen"
+	default n
+	help
+	  Say Y here if you want to use the Sintek capacitive panel.
+
+config EETI_CAPACITIVE_TOUCHSCREEN
+	tristate "EETI capacitive touchscreen"
+	default n
+	help
+	  Say Y here if you want to use the EETI capacitive panel.
+
+config SIS92XX_CAPACITIVE_TOUCHSCREEN
+	tristate "SIS92XX I2C capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the SIS92XX capacitive panel.
+
+config FOCALTECH_CAPACITIVE_TOUCHSCREEN
+	tristate "FocalTech I2C capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the FocalTech 5X06 capacitive panel.
+
+config SITRONIX_CAPACITIVE_TOUCHSCREEN
+	tristate "SITRONIX I2C capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the SITRONIX ST15XX capacitive panel.
+
+config HX8520_CAPACITIVE_TOUCHSCREEN
+	tristate "HX8520 I2C capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the HX8520 capacitive panel.
+
+config RAYDIUM_CAPACITIVE_TOUCHSCREEN
+	tristate "Raydium I2C capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the Raydium capacitive panel.
+
+config GOODIX_CAPACITIVE_TOUCHSCREEN
+	tristate "Goodix I2C capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the Goodix capacitive panel.
+
+config GOODIX_GT81XX_CAPACITIVE_TOUCHSCREEN
+	tristate "Goodix I2C GT81XX capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the Goodix capacitive panel.
+
+config GOODIX_GT82X_CAPACITIVE_TOUCHSCREEN
+	tristate "Goodix GT828X capacitive touch panel"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the Goodix GT828X capacitive panel.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called .
+
+config UOR7X5X_RESISTIVE_TOUCHSCREEN
+	tristate "UOR7X5X resistive touchscreen"
+	default n
+	help
+	  Say Y here if you want to use the UOR7X5X resistive panel.
+
+config UOR6X5X_RESISTIVE_TOUCHSCREEN
+	tristate "UOR6X5X resistive touchscreen"
+	default n
+	help
+	  Say Y here if you want to use the UOR6X5X resistive panel.
+	  
+config GSLX680_CAPACITIVE_TOUCHSCREEN
+	tristate "gslx680 I2C capacitive touchscreen"
+		depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the gslx680 capacitive panel.
+
+config GSLX680_COMPATIBLE_CAPACITIVE_TOUCHSCREEN
+	tristate "gslx680 I2C compatible chip type A and B capacitive touchscreen"
+		depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the gslx680 compatible capacitive panel.
+
+
+config GSLX680B_CAPACITIVE_TOUCHSCREEN
+	tristate "gslx680b I2C capacitive touchscreen"
+		depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the gslx680b capacitive panel.	  
+	  
+config GOODIX_GT9XX_CAPACITIVE_TOUCHSCREEN
+	tristate "Goodix I2C GT9XX capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the Goodix capacitive panel.
+
+config FT5X02_CAPACITIVE_TOUCHSCREEN
+	tristate "FocalTech I2C FT5X02 capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the Goodix capacitive panel.
+
+config NOVATEK_CAPACITIVE_TOUCHSCREEN
+	tristate "novatek I2C NT110x capacitive touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you want to use the Goodix capacitive panel.
+
+# VTL TouchScreen Driver Config
+menu "Ct36x Touch device support"
+source "drivers/amlogic/input/touchscreen/ct36x_ts/Kconfig"
+endmenu
+
+endif # MESON_INPUT_TOUCHSCREEN

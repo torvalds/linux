@@ -581,6 +581,10 @@ static int __init early_mem(char *p)
 	phys_addr_t start;
 	char *endp;
 
+#if (defined CONFIG_OF ) && (defined CONFIG_PLAT_MESON )
+	printk(KERN_WARNING "Ignore bootargs \'mem\' param.\n");
+	return 0;
+#endif
 	/*
 	 * If the user specifies memory size, we
 	 * blow away any automatically generated
@@ -877,9 +881,12 @@ static const char *hwcap_str[] = {
 
 static int c_show(struct seq_file *m, void *v)
 {
-	int i, j;
-	u32 cpuid;
+	int i;
 
+	seq_printf(m, "Processor\t: %s rev %d (%s)\n",
+		   cpu_name, read_cpuid_id() & 15, elf_platform);
+
+#if defined(CONFIG_SMP)
 	for_each_online_cpu(i) {
 		/*
 		 * glibc reads /proc/cpuinfo to determine the number of
@@ -887,48 +894,45 @@ static int c_show(struct seq_file *m, void *v)
 		 * "processor".  Give glibc what it expects.
 		 */
 		seq_printf(m, "processor\t: %d\n", i);
-		cpuid = is_smp() ? per_cpu(cpu_data, i).cpuid : read_cpuid_id();
-		seq_printf(m, "model name\t: %s rev %d (%s)\n",
-			   cpu_name, cpuid & 15, elf_platform);
-
-#if defined(CONFIG_SMP)
-		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
+		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n\n",
 			   per_cpu(cpu_data, i).loops_per_jiffy / (500000UL/HZ),
 			   (per_cpu(cpu_data, i).loops_per_jiffy / (5000UL/HZ)) % 100);
-#else
-		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
-			   loops_per_jiffy / (500000/HZ),
-			   (loops_per_jiffy / (5000/HZ)) % 100);
-#endif
-		/* dump out the processor features */
-		seq_puts(m, "Features\t: ");
-
-		for (j = 0; hwcap_str[j]; j++)
-			if (elf_hwcap & (1 << j))
-				seq_printf(m, "%s ", hwcap_str[j]);
-
-		seq_printf(m, "\nCPU implementer\t: 0x%02x\n", cpuid >> 24);
-		seq_printf(m, "CPU architecture: %s\n",
-			   proc_arch[cpu_architecture()]);
-
-		if ((cpuid & 0x0008f000) == 0x00000000) {
-			/* pre-ARM7 */
-			seq_printf(m, "CPU part\t: %07x\n", cpuid >> 4);
-		} else {
-			if ((cpuid & 0x0008f000) == 0x00007000) {
-				/* ARM7 */
-				seq_printf(m, "CPU variant\t: 0x%02x\n",
-					   (cpuid >> 16) & 127);
-			} else {
-				/* post-ARM7 */
-				seq_printf(m, "CPU variant\t: 0x%x\n",
-					   (cpuid >> 20) & 15);
-			}
-			seq_printf(m, "CPU part\t: 0x%03x\n",
-				   (cpuid >> 4) & 0xfff);
-		}
-		seq_printf(m, "CPU revision\t: %d\n\n", cpuid & 15);
 	}
+#else /* CONFIG_SMP */
+	seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
+		   loops_per_jiffy / (500000/HZ),
+		   (loops_per_jiffy / (5000/HZ)) % 100);
+#endif
+
+	/* dump out the processor features */
+	seq_puts(m, "Features\t: ");
+
+	for (i = 0; hwcap_str[i]; i++)
+		if (elf_hwcap & (1 << i))
+			seq_printf(m, "%s ", hwcap_str[i]);
+
+	seq_printf(m, "\nCPU implementer\t: 0x%02x\n", read_cpuid_id() >> 24);
+	seq_printf(m, "CPU architecture: %s\n", proc_arch[cpu_architecture()]);
+
+	if ((read_cpuid_id() & 0x0008f000) == 0x00000000) {
+		/* pre-ARM7 */
+		seq_printf(m, "CPU part\t: %07x\n", read_cpuid_id() >> 4);
+	} else {
+		if ((read_cpuid_id() & 0x0008f000) == 0x00007000) {
+			/* ARM7 */
+			seq_printf(m, "CPU variant\t: 0x%02x\n",
+				   (read_cpuid_id() >> 16) & 127);
+		} else {
+			/* post-ARM7 */
+			seq_printf(m, "CPU variant\t: 0x%x\n",
+				   (read_cpuid_id() >> 20) & 15);
+		}
+		seq_printf(m, "CPU part\t: 0x%03x\n",
+			   (read_cpuid_id() >> 4) & 0xfff);
+	}
+	seq_printf(m, "CPU revision\t: %d\n", read_cpuid_id() & 15);
+
+	seq_puts(m, "\n");
 
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
 	seq_printf(m, "Revision\t: %04x\n", system_rev);

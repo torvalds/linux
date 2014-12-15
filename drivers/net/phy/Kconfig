@@ -28,7 +28,12 @@ config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
 	---help---
 	  Currently has a driver for the 88E1011S
-	
+
+config AMLOGIC_PHY
+	tristate "Drivers for AMLOGIC PHY"
+	---help---
+	  Currently has a driver for the AMLOGIC INTERNAL PHY
+
 config DAVICOM_PHY
 	tristate "Drivers for Davicom PHYs"
 	---help---

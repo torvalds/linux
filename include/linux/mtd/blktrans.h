@@ -80,7 +80,8 @@ struct mtd_blktrans_ops {
 	   of devices, with mtd_table_mutex held. */
 	void (*add_mtd)(struct mtd_blktrans_ops *tr, struct mtd_info *mtd);
 	void (*remove_dev)(struct mtd_blktrans_dev *dev);
-
+	//add this for m6 erase nand
+	int(*wipe_part)(struct mtd_blktrans_dev *dev);
 	struct list_head devs;
 	struct list_head list;
 	struct module *owner;

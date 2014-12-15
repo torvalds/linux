@@ -56,6 +56,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_OMAP_HDMI_CODEC if OMAP4_DSS_HDMI
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
+        select SND_SOC_RT5616 if I2C
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
@@ -125,6 +126,10 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
+	select SND_SOC_TAS5711 if I2C
+	select SND_SOC_TAS5707 if I2C
+	select SND_SOC_DUMMY_CODEC
+	select SND_SOC_AML_M8_CODEC
         help
           Normally ASoC codec drivers are only built if a machine driver which
           uses them is also built since they are only usable with a machine
@@ -292,6 +297,8 @@ config SND_SOC_OMAP_HDMI_CODEC
 
 config SND_SOC_PCM3008
        tristate
+config SND_SOC_RT5616
+	tristate
 
 config SND_SOC_RT5631
 	tristate
@@ -507,6 +514,18 @@ config SND_SOC_WM9712
 config SND_SOC_WM9713
 	tristate
 
+config SND_SOC_AML_M8_CODEC
+	tristate
+
+config SND_SOC_TAS5711
+        tristate
+
+config SND_SOC_TAS5707
+        tristate
+
+config SND_SOC_AMLPMU3
+        tristate
+        
 # Amp
 config SND_SOC_LM4857
 	tristate
@@ -525,3 +544,7 @@ config SND_SOC_ML26124
 
 config SND_SOC_TPA6130A2
 	tristate
+config SND_SOC_DUMMY_CODEC
+       tristate
+config SND_SOC_PCM2BT
+       tristate

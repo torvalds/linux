@@ -1,0 +1,22 @@
+#ifdef CONFIG_AML_GPIO_KEY
+//$$ DEVICE="gpio_keypad"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 = "scan_period"
+//$$ L2 PROP_U32 = "key_num"
+//$$ L2 PROP_STR = "key_name"
+//$$ L2 PROP_U32 = "key_code"
+//$$ L2 PROP_STR = "key_pin"
+//$$ L2 PROP_U32 = "irq_keyup"
+//$$ L2 PROP_U32 = "irq_keydown"
+    gpio_keypad{
+		compatible = "amlogic,gpio_keypad";
+		status = "okay";
+		scan_period = <20>;
+		key_num = <1>;
+        key_name = "power";
+		key_code = <116>;
+		key_pin = "GPIOAO_3";
+        irq_keyup = <6>;
+        irq_keydown = <7>;
+	};
+#endif

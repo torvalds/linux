@@ -1,0 +1,32 @@
+#ifdef CONFIG_AM_WIFI_SD_MMC
+//$$ DEVICE="aml_broadcm_wifi"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "interrupt_pin"
+//$$ L2 PROP_U32 = "irq_num"
+//$$ L2 PROP_STR = "irq_trigger_type"
+//$$ L2 PROP_STR = "power_on_pin"
+//$$ L2 PROP_STR = "clock_32k_pin"
+    wifi{
+		compatible = "amlogic,aml_broadcm_wifi";
+		dev_name = "aml_broadcm_wifi";
+		status = "okay";
+		interrupt_pin = "GPIOX_21";
+		irq_num = <4>;
+		irq_trigger_type = "GPIO_IRQ_HIGH";
+		power_on_pin = "GPIOAO_6";
+		power_on_pin_level = <0>;
+		clock_32k_pin = "GPIOX_10";
+	};
+#endif
+
+#ifdef CONFIG_AM_WIFI
+//$$ DEVICE="wifi_power"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_STR = "power_gpio"
+	wifi_power{
+        compatible = "amlogic,wifi_power";
+        dev_name = "wifi_power";
+        status = "okay";
+        power_gpio = "GPIOAO_6";
+    };  
+#endif

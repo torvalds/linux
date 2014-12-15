@@ -1,0 +1,101 @@
+* Memory binding
+
+The /memory node provides basic information about the address and size
+of the physical memory. This node is usually filled or updated by the
+bootloader, depending on the actual memory configuration of the given
+hardware.
+
+The memory layout is described by the folllowing node:
+
+memory {
+	reg =  <(baseaddr1) (size1)
+		(baseaddr2) (size2)
+		...
+		(baseaddrN) (sizeN)>;
+};
+
+baseaddrX:	the base address of the defined memory bank
+sizeX:		the size of the defined memory bank
+
+More than one memory bank can be defined.
+
+
+* Memory regions
+
+In /memory node one can create additional nodes describing particular
+memory regions, usually for the special usage by various device drivers.
+A good example are contiguous memory allocations or memory sharing with
+other operating system on the same hardware board. Those special memory
+regions might depend on the board configuration and devices used on the
+target system.
+
+Parameters for each memory region can be encoded into the device tree
+wit the following convention:
+
+(name): region@(base-address) {
+	reg = <(baseaddr) (size)>;
+	(linux,contiguous-region);
+	(linux,default-contiguous-region);
+};
+
+name:		an name given to the defined region.
+base-address:	the base address of the defined region.
+size:		the size of the memory region.
+linux,contiguous-region: property indicating that the defined memory
+		region is used for contiguous memory allocations,
+		Linux specific (optional)
+linux,default-contiguous-region: property indicating that the region
+		is the default region for all contiguous memory
+		allocations, Linux specific (optional)
+
+
+* Device nodes
+
+Once the regions in the /memory node are defined, they can be assigned
+to device some device nodes for their special use. The following
+properties are defined:
+
+linux,contiguous-region = <&phandle>;
+	This property indicates that the device driver should use the
+	memory region pointed by the given phandle.
+
+
+* Example:
+
+This example defines a memory consisting of 4 memory banks. 2 contiguous
+regions are defined for Linux kernel, one default of all device drivers
+(named contig_mem, placed at 0x72000000, 64MiB) and one dedicated to the
+framebuffer device (named display_mem, placed at 0x78000000, 16MiB). The
+display_mem region is then assigned to fb at 12300000 device for contiguous
+memory allocation with Linux kernel drivers.
+
+The reason for creating a separate region for framebuffer device is to
+match the framebuffer address of from configuration done by bootloader,
+so once Linux kernel drivers starts, no glitches on the displayed boot
+logo appears.
+
+/ {
+	/* ... */
+	memory {
+		reg =  <0x40000000 0x10000000
+			0x50000000 0x10000000
+			0x60000000 0x10000000
+			0x70000000 0x10000000>;
+
+		contig_mem: region at 72000000 {
+			linux,contiguous-region;
+			linux,default-contiguous-region;
+			reg = <0x72000000 0x4000000>;
+		};
+
+		display_mem: region at 78000000 {
+			linux,contiguous-region;
+			reg = <0x78000000 0x1000000>;
+		};
+	};
+
+	fb at 12300000 {
+		linux,contiguous-region = <&display_mem>;
+		status = "okay";
+	};
+};

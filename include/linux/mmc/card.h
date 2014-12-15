@@ -519,5 +519,6 @@ extern void mmc_unregister_driver(struct mmc_driver *);
 
 extern void mmc_fixup_device(struct mmc_card *card,
 			     const struct mmc_fixup *table);
+extern int mmc_blk_main_md_part_switch(struct mmc_card *card);
 
 #endif /* LINUX_MMC_CARD_H */

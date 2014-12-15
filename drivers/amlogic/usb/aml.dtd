@@ -1,0 +1,57 @@
+#ifdef CONFIG_AMLOGIC_USB
+    usb_con {
+		lm-compatible = "logicmodule-bus";
+									
+//$$ DEVICE="usb_b"
+//$$ L2 PROP_U32 = "lm-periph-id" 
+//$$ L2 PROP_STR = "clock-src"
+//$$ L2 PROP_U32 = "port-id"
+//$$ L2 PROP_U32 = "port-type"
+//$$ L2 PROP_U32 = "port-speed"
+//$$ L2 PROP_U32 = "port-config"
+//$$ L2 PROP_U32 = "port-dma"
+//$$ L2 PROP_U32 = "port-id-mode"
+//$$ L2 PROP_STR = "status"
+        usb_b{
+			lm-compatible = "amlogic,usb";
+			lm-periph-id = <1>; /** lm name */
+			clock-src = "usb1"; /** clock src */
+			port-id = <1>;   /** ref to mach/usb.h */
+			port-type = <1>;	/** 0: otg, 1: host, 2: slave */
+			port-speed = <0>; /** 0: default, 1: high, 2: full */
+			port-config = <0>; /** 0: default */
+			port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
+			port-id-mode = <1>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+			status = "okay";
+		};
+
+//$$ DEVICE="usb_a"
+//$$ L2 PROP_U32 = "lm-periph-id"
+//$$ L2 PROP_STR = "clock-src"
+//$$ L2 PROP_U32 = "port-id"
+//$$ L2 PROP_U32 = "port-type"
+//$$ L2 PROP_U32 = "port-speed"
+//$$ L2 PROP_U32 = "port-config"
+//$$ L2 PROP_U32 = "port-dma"
+//$$ L2 PROP_U32 = "port-id-mode"
+//$$ L2 PROP_STR = "gpio-vbus-power"
+//$$ L2 PROP_U32 = "gpio-work-mask"
+//$$ L2 PROP_U32 = "charger_detect"
+//$$ L2 PROP_STR = "status"
+		usb_a{
+			lm-compatible = "amlogic,usb";
+			lm-periph-id = <0>; /** lm name */
+			clock-src = "usb0"; /** clock src */
+			port-id = <0>;  /** ref to mach/usb.h */
+			port-type = <0>;	/** 0: otg, 1: host, 2: slave */
+			port-speed = <0>; /** 0: default, high, 1: full */
+			port-config = <0>; /** 0: default */
+			port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
+			port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+			gpio-vbus-power = "GPIOZ_1";
+			gpio-work-mask	= <1>; /**0: work on pulldown,1:work on pullup*/
+			charger_detect = <1>;
+			status = "okay";
+		};
+	};
+#endif

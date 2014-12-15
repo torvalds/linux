@@ -1,0 +1,39 @@
+#ifdef CONFIG_AML_DVFS
+//$$ DEVICE="dvfs"
+//$$ L2 PROP_STR = "status"
+    dvfs {
+        compatible = "amlogic, amlogic-dvfs";                   /** fixed for driver, don't change       */
+        #address-cells = <1>;
+        #size-cells = <0>;
+        status = "ok";
+
+//$$ L2 PROP_U32 = "dvfs_id"
+//$$ L2 PROP_U32 = "table_count"
+//$$ L2 PROP_U32 16*3 = "dvfs_table"
+        vcck_dvfs {
+            dvfs_id     = <1>;                                  /** must be value of (1 << n)            */
+            table_count = <17>;                                 /** must be correct count for dvfs_table */
+            dvfs_table  = <
+            /* NOTE: frequent in this table must be ascending order */
+            /* frequent(Khz)    min_uV      max_uV                  */
+                  24000         825000      825000
+                  96000         825000      825000
+                 192000         825000      825000
+                 312000         825000      825000
+                 408000         825000      825000
+                 504000         825000      825000
+                 600000         850000      850000
+                 720000         850000      850000
+                 816000         875000      875000
+                 912000         900000      900000
+                1008000         925000      925000
+                1104000         950000      950000
+                1200000         975000      975000
+                1320000        1000000     1000000
+                1416000        1025000     1025000
+                1512000        1050000     1050000
+                1608000        1100000     1100000
+            >;
+        };
+    };
+#endif

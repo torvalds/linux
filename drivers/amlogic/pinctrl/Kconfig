@@ -1,0 +1,11 @@
+# Amlogic PINCTRL
+
+
+config PINCTRL_AMLOGIC
+    bool "PINCTRL support"
+    select PINCTRL
+    select PINMUX
+    select PINCONF
+    default y
+    help
+      This is the Amlogic PINCTRL interface driver

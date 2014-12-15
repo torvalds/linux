@@ -1,0 +1,11 @@
+#ifdef CONFIG_POST_PROCESS_MANAGER
+//$$ DEVICE="ppmgr"
+//$$ L2 PROP_STR = "status"
+//$$ L3 PROP_U32 ="reserve-memory"
+    ppmgr{
+		compatible = "amlogic,ppmgr";
+		dev_name = "ppmgr";
+		status = "okay";
+		reserve-memory = <0x03f00000>;		
+	};
+#endif

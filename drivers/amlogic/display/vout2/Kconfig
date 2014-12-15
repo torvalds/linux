@@ -1,0 +1,14 @@
+#
+# Video output configuration
+#
+menu "Amlogic video output2 module"
+
+config AM_TV_OUTPUT2
+	tristate "TV output2"
+	default n
+	help  
+		tv output2 module
+
+		
+endmenu
+	

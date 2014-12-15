@@ -1,0 +1,7 @@
+config EARLY_INIT
+	bool "early_init Driver"
+	default n
+	depends on GPIO_AMLOGIC
+	help
+	    early_init device driver.
+
