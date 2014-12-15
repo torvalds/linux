@@ -55,6 +55,7 @@
  * single thread (max3421_spi_thread).
  */
 
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/usb.h>
@@ -1291,7 +1292,7 @@ max3421_handle_irqs(struct usb_hcd *hcd)
 		char sbuf[16 * 16], *dp, *end;
 		int i;
 
-		if (jiffies - last_time > 5*HZ) {
+		if (time_after(jiffies, last_time + 5*HZ)) {
 			dp = sbuf;
 			end = sbuf + sizeof(sbuf);
 			*dp = '\0';
