@@ -90,6 +90,7 @@ static void raid6_sse21_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_sse2x1 = {
 	raid6_sse21_gen_syndrome,
+	NULL,			/* XOR not yet implemented */
 	raid6_have_sse2,
 	"sse2x1",
 	1			/* Has cache hints */
@@ -152,6 +153,7 @@ static void raid6_sse22_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_sse2x2 = {
 	raid6_sse22_gen_syndrome,
+	NULL,			/* XOR not yet implemented */
 	raid6_have_sse2,
 	"sse2x2",
 	1			/* Has cache hints */
@@ -250,6 +252,7 @@ static void raid6_sse24_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_sse2x4 = {
 	raid6_sse24_gen_syndrome,
+	NULL,			/* XOR not yet implemented */
 	raid6_have_sse2,
 	"sse2x4",
 	1			/* Has cache hints */

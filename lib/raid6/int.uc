@@ -109,7 +109,8 @@ static void raid6_int$#_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_intx$# = {
 	raid6_int$#_gen_syndrome,
-	NULL,		/* always valid */
+	NULL,			/* XOR not yet implemented */
+	NULL,			/* always valid */
 	"int" NSTRING "x$#",
 	0
 };
