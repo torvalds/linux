@@ -325,7 +325,7 @@ static struct synth_settings *synth_interrogate(struct spk_synth *synth)
 
 static int synth_probe(struct spk_synth *synth)
 {
-		unsigned int port_val = 0;
+	unsigned int port_val = 0;
 	int i = 0;
 	struct synth_settings *sp;
 
@@ -361,7 +361,8 @@ static int synth_probe(struct spk_synth *synth)
 	port_val &= 0xfbff;
 	if (port_val != 0x107f) {
 		pr_info("DoubleTalk PC: not found\n");
-		synth_release_region(synth_lpc, SYNTH_IO_EXTENT);
+		if (synth_lpc)
+			synth_release_region(synth_lpc, SYNTH_IO_EXTENT);
 		return -ENODEV;
 	}
 	while (inw_p(synth_lpc) != 0x147f)
@@ -369,7 +370,7 @@ static int synth_probe(struct spk_synth *synth)
 	sp = synth_interrogate(synth);
 	pr_info("%s: %03x-%03x, ROM ver %s, s/n %u, driver: %s\n",
 		synth->long_name, synth_lpc, synth_lpc+SYNTH_IO_EXTENT - 1,
-	 sp->rom_version, sp->serial_number, synth->version);
+		sp->rom_version, sp->serial_number, synth->version);
 	synth->alive = 1;
 	return 0;
 }
