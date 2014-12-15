@@ -450,7 +450,7 @@ at86rf230_async_error_recover(void *context)
 	ieee802154_wake_queue(lp->hw);
 }
 
-static void
+static inline void
 at86rf230_async_error(struct at86rf230_local *lp,
 		      struct at86rf230_state_change *ctx, int rc)
 {
