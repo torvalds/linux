@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <linux/virtio_types.h>
 #include <linux/vhost.h>
 #include <linux/virtio.h>
 #include <linux/virtio_ring.h>
