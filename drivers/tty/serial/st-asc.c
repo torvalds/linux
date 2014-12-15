@@ -895,7 +895,6 @@ static struct platform_driver asc_serial_driver = {
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm	= &asc_serial_pm_ops,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(asc_match),
 	},
 };

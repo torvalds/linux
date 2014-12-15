@@ -29,75 +29,52 @@
 #include <linux/hardirq.h>
 #include <linux/topology.h>
 
-#define define_one_ro_named(_name, _func)				\
-	static DEVICE_ATTR(_name, 0444, _func, NULL)
-
-#define define_one_ro(_name)				\
-	static DEVICE_ATTR(_name, 0444, show_##_name, NULL)
-
 #define define_id_show_func(name)				\
-static ssize_t show_##name(struct device *dev,			\
+static ssize_t name##_show(struct device *dev,			\
 		struct device_attribute *attr, char *buf)	\
 {								\
 	return sprintf(buf, "%d\n", topology_##name(dev->id));	\
 }
 
-#if defined(topology_thread_cpumask) || defined(topology_core_cpumask) || \
-    defined(topology_book_cpumask)
-static ssize_t show_cpumap(int type, const struct cpumask *mask, char *buf)
-{
-	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
-	int n = 0;
-
-	if (len > 1) {
-		n = type?
-			cpulist_scnprintf(buf, len-2, mask) :
-			cpumask_scnprintf(buf, len-2, mask);
-		buf[n++] = '\n';
-		buf[n] = '\0';
-	}
-	return n;
-}
-#endif
-
-#define define_siblings_show_map(name)					\
-static ssize_t show_##name(struct device *dev,				\
+#define define_siblings_show_map(name, mask)				\
+static ssize_t name##_show(struct device *dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
-	return show_cpumap(0, topology_##name(dev->id), buf);		\
+	return cpumap_print_to_pagebuf(false, buf, topology_##mask(dev->id));\
 }
 
-#define define_siblings_show_list(name)					\
-static ssize_t show_##name##_list(struct device *dev,			\
-				  struct device_attribute *attr,	\
-				  char *buf)				\
+#define define_siblings_show_list(name, mask)				\
+static ssize_t name##_list_show(struct device *dev,			\
+				struct device_attribute *attr,		\
+				char *buf)				\
 {									\
-	return show_cpumap(1, topology_##name(dev->id), buf);		\
+	return cpumap_print_to_pagebuf(true, buf, topology_##mask(dev->id));\
 }
 
-#define define_siblings_show_func(name)		\
-	define_siblings_show_map(name); define_siblings_show_list(name)
+#define define_siblings_show_func(name, mask)	\
+	define_siblings_show_map(name, mask);	\
+	define_siblings_show_list(name, mask)
 
 define_id_show_func(physical_package_id);
-define_one_ro(physical_package_id);
+static DEVICE_ATTR_RO(physical_package_id);
 
 define_id_show_func(core_id);
-define_one_ro(core_id);
+static DEVICE_ATTR_RO(core_id);
 
-define_siblings_show_func(thread_cpumask);
-define_one_ro_named(thread_siblings, show_thread_cpumask);
-define_one_ro_named(thread_siblings_list, show_thread_cpumask_list);
+define_siblings_show_func(thread_siblings, thread_cpumask);
+static DEVICE_ATTR_RO(thread_siblings);
+static DEVICE_ATTR_RO(thread_siblings_list);
 
-define_siblings_show_func(core_cpumask);
-define_one_ro_named(core_siblings, show_core_cpumask);
-define_one_ro_named(core_siblings_list, show_core_cpumask_list);
+define_siblings_show_func(core_siblings, core_cpumask);
+static DEVICE_ATTR_RO(core_siblings);
+static DEVICE_ATTR_RO(core_siblings_list);
 
 #ifdef CONFIG_SCHED_BOOK
 define_id_show_func(book_id);
-define_one_ro(book_id);
-define_siblings_show_func(book_cpumask);
-define_one_ro_named(book_siblings, show_book_cpumask);
-define_one_ro_named(book_siblings_list, show_book_cpumask_list);
+static DEVICE_ATTR_RO(book_id);
+define_siblings_show_func(book_siblings, book_cpumask);
+static DEVICE_ATTR_RO(book_siblings);
+static DEVICE_ATTR_RO(book_siblings_list);
 #endif
 
 static struct attribute *default_attrs[] = {

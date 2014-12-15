@@ -322,7 +322,6 @@ static struct platform_driver clock_driver = {
 	.probe		= clock_probe,
 	.driver = {
 		.name = "rtc",
-		.owner = THIS_MODULE,
 		.of_match_table = clock_match,
 	},
 };

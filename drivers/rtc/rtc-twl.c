@@ -608,7 +608,6 @@ static struct platform_driver twl4030rtc_driver = {
 	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.driver		= {
-		.owner		= THIS_MODULE,
 		.name		= "twl_rtc",
 		.pm		= &twl_rtc_pm_ops,
 		.of_match_table = of_match_ptr(twl_rtc_of_match),

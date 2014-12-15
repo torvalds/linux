@@ -255,7 +255,6 @@ static struct platform_driver amikbd_driver = {
 	.remove = __exit_p(amikbd_remove),
 	.driver   = {
 		.name	= "amiga-keyboard",
-		.owner	= THIS_MODULE,
 	},
 };
 

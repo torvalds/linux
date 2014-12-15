@@ -2005,7 +2005,6 @@ static struct platform_driver at91_udc_driver = {
 	.resume		= at91udc_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(at91_udc_dt_ids),
 	},
 };

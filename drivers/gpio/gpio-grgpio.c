@@ -491,7 +491,6 @@ MODULE_DEVICE_TABLE(of, grgpio_match);
 static struct platform_driver grgpio_driver = {
 	.driver = {
 		.name = "grgpio",
-		.owner = THIS_MODULE,
 		.of_match_table = grgpio_match,
 	},
 	.probe = grgpio_probe,

@@ -394,7 +394,6 @@ static int stac9766_remove(struct platform_device *pdev)
 static struct platform_driver stac9766_codec_driver = {
 	.driver = {
 			.name = "stac9766-codec",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = stac9766_probe,

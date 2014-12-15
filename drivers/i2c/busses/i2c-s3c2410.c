@@ -1330,7 +1330,6 @@ static struct platform_driver s3c24xx_i2c_driver = {
 	.remove		= s3c24xx_i2c_remove,
 	.id_table	= s3c24xx_driver_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c-i2c",
 		.pm	= S3C24XX_DEV_PM_OPS,
 		.of_match_table = of_match_ptr(s3c24xx_i2c_match),

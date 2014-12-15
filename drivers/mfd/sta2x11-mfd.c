@@ -368,7 +368,6 @@ static int sta2x11_scr_probe(struct platform_device *dev)
 static struct platform_driver sta2x11_sctl_platform_driver = {
 	.driver = {
 		.name	= STA2X11_MFD_SCTL_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= sta2x11_sctl_probe,
 };
@@ -382,7 +381,6 @@ static int __init sta2x11_sctl_init(void)
 static struct platform_driver sta2x11_platform_driver = {
 	.driver = {
 		.name	= STA2X11_MFD_APBREG_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= sta2x11_apbreg_probe,
 };
@@ -396,7 +394,6 @@ static int __init sta2x11_apbreg_init(void)
 static struct platform_driver sta2x11_apb_soc_regs_platform_driver = {
 	.driver = {
 		.name	= STA2X11_MFD_APB_SOC_REGS_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= sta2x11_apb_soc_regs_probe,
 };
@@ -410,7 +407,6 @@ static int __init sta2x11_apb_soc_regs_init(void)
 static struct platform_driver sta2x11_scr_platform_driver = {
 	.driver = {
 		.name = STA2X11_MFD_SCR_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = sta2x11_scr_probe,
 };

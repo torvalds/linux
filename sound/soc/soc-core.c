@@ -1772,7 +1772,6 @@ EXPORT_SYMBOL_GPL(snd_soc_pm_ops);
 static struct platform_driver soc_driver = {
 	.driver		= {
 		.name		= "soc-audio",
-		.owner		= THIS_MODULE,
 		.pm		= &snd_soc_pm_ops,
 	},
 	.probe		= soc_probe,

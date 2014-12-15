@@ -856,7 +856,6 @@ static const struct of_device_id ux500_msp_i2s_match[] = {
 static struct platform_driver msp_i2s_driver = {
 	.driver = {
 		.name = "ux500-msp-i2s",
-		.owner = THIS_MODULE,
 		.of_match_table = ux500_msp_i2s_match,
 	},
 	.probe = ux500_msp_drv_probe,

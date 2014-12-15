@@ -267,7 +267,6 @@ MODULE_DEVICE_TABLE(of, imx1_pinctrl_of_match);
 static struct platform_driver imx1_pinctrl_driver = {
 	.driver	= {
 		.name		= "imx1-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= imx1_pinctrl_of_match,
 	},
 	.remove	= imx1_pinctrl_core_remove,

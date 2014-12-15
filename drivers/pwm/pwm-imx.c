@@ -336,7 +336,6 @@ static int imx_pwm_remove(struct platform_device *pdev)
 static struct platform_driver imx_pwm_driver = {
 	.driver		= {
 		.name	= "imx-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = imx_pwm_dt_ids,
 	},
 	.probe		= imx_pwm_probe,

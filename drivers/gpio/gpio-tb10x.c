@@ -311,7 +311,6 @@ static struct platform_driver tb10x_gpio_driver = {
 	.driver = {
 		.name	= "tb10x-gpio",
 		.of_match_table = tb10x_gpio_dt_ids,
-		.owner	= THIS_MODULE,
 	}
 };
 

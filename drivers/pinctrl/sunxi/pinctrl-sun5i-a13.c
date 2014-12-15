@@ -398,7 +398,6 @@ static struct platform_driver sun5i_a13_pinctrl_driver = {
 	.probe	= sun5i_a13_pinctrl_probe,
 	.driver	= {
 		.name		= "sun5i-a13-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sun5i_a13_pinctrl_match,
 	},
 };

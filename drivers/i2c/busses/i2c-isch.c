@@ -309,7 +309,6 @@ static int smbus_sch_remove(struct platform_device *pdev)
 static struct platform_driver smbus_sch_driver = {
 	.driver = {
 		.name = "isch_smbus",
-		.owner = THIS_MODULE,
 	},
 	.probe		= smbus_sch_probe,
 	.remove		= smbus_sch_remove,

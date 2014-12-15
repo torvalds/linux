@@ -413,7 +413,6 @@ static const struct dev_pm_ops i2c_au1550_pmops = {
 static struct platform_driver au1xpsc_smbus_driver = {
 	.driver = {
 		.name	= "au1xpsc_smbus",
-		.owner	= THIS_MODULE,
 		.pm	= AU1XPSC_SMBUS_PMOPS,
 	},
 	.probe		= i2c_au1550_probe,

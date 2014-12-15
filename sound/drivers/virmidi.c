@@ -143,7 +143,6 @@ static struct platform_driver snd_virmidi_driver = {
 	.remove		= snd_virmidi_remove,
 	.driver		= {
 		.name	= SND_VIRMIDI_DRIVER,
-		.owner	= THIS_MODULE,
 	},
 };
 

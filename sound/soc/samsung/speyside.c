@@ -340,7 +340,6 @@ static int speyside_probe(struct platform_device *pdev)
 static struct platform_driver speyside_driver = {
 	.driver = {
 		.name = "speyside",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = speyside_probe,

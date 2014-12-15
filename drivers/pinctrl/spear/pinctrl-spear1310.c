@@ -2712,7 +2712,6 @@ static int spear1310_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver spear1310_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = spear1310_pinctrl_of_match,
 	},
 	.probe = spear1310_pinctrl_probe,

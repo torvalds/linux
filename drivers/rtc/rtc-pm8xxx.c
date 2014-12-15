@@ -531,7 +531,6 @@ static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
 	.driver	= {
 		.name		= "rtc-pm8xxx",
-		.owner		= THIS_MODULE,
 		.pm		= &pm8xxx_rtc_pm_ops,
 		.of_match_table	= pm8xxx_id_table,
 	},

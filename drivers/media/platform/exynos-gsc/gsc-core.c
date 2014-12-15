@@ -1256,7 +1256,6 @@ static struct platform_driver gsc_driver = {
 	.id_table	= gsc_driver_ids,
 	.driver = {
 		.name	= GSC_MODULE_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &gsc_pm_ops,
 		.of_match_table = exynos_gsc_match,
 	}

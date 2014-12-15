@@ -329,7 +329,6 @@ static struct platform_driver armada_thermal_driver = {
 	.remove = armada_thermal_exit,
 	.driver = {
 		.name = "armada_thermal",
-		.owner = THIS_MODULE,
 		.of_match_table = armada_thermal_id_table,
 	},
 };

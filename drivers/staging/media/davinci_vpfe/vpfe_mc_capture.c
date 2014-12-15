@@ -707,7 +707,6 @@ static int vpfe_remove(struct platform_device *pdev)
 static struct platform_driver vpfe_driver = {
 	.driver = {
 		.name = CAPTURE_DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = vpfe_probe,
 	.remove = vpfe_remove,

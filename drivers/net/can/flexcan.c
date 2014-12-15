@@ -1302,7 +1302,6 @@ static SIMPLE_DEV_PM_OPS(flexcan_pm_ops, flexcan_suspend, flexcan_resume);
 static struct platform_driver flexcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &flexcan_pm_ops,
 		.of_match_table = flexcan_of_match,
 	},

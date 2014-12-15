@@ -1480,7 +1480,6 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 static struct platform_driver fsl_ssi_driver = {
 	.driver = {
 		.name = "fsl-ssi-dai",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_ssi_ids,
 	},
 	.probe = fsl_ssi_probe,

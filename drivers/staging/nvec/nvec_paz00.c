@@ -87,7 +87,6 @@ static struct platform_driver nvec_paz00_driver = {
 	.remove = nvec_paz00_remove,
 	.driver = {
 		.name  = "nvec-paz00",
-		.owner = THIS_MODULE,
 	},
 };
 

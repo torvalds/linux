@@ -933,7 +933,6 @@ static int twl4030_power_remove(struct platform_device *pdev)
 static struct platform_driver twl4030_power_driver = {
 	.driver = {
 		.name	= "twl4030_power",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl4030_power_of_match),
 	},
 	.probe		= twl4030_power_probe,

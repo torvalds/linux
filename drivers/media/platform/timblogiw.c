@@ -857,7 +857,6 @@ static int timblogiw_remove(struct platform_device *pdev)
 static struct platform_driver timblogiw_platform_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= timblogiw_probe,
 	.remove		= timblogiw_remove,

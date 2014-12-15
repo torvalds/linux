@@ -1838,7 +1838,6 @@ static struct platform_driver msm_serial_hs_platform_driver = {
 	.remove = msm_hs_remove,
 	.driver = {
 		.name = "msm_serial_hs",
-		.owner = THIS_MODULE,
 		.pm   = &msm_hs_dev_pm_ops,
 	},
 };

@@ -284,7 +284,6 @@ static struct platform_driver imx_pd_driver = {
 	.driver		= {
 		.of_match_table = imx_pd_dt_ids,
 		.name	= "imx-parallel-display",
-		.owner	= THIS_MODULE,
 	},
 };
 

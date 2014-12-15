@@ -206,7 +206,6 @@ static struct platform_driver iio_trig_periodic_rtc_driver = {
 	.remove = iio_trig_periodic_rtc_remove,
 	.driver = {
 		.name = "iio_prtc_trigger",
-		.owner = THIS_MODULE,
 	},
 };
 

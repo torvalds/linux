@@ -242,7 +242,6 @@ static int bcm47xx_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm47xx_wdt_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "bcm47xx-wdt",
 	},
 	.probe		= bcm47xx_wdt_probe,

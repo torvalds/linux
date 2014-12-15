@@ -1269,7 +1269,6 @@ static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
 	.remove		= mv_xor_remove,
 	.driver		= {
-		.owner	        = THIS_MODULE,
 		.name	        = MV_XOR_NAME,
 		.of_match_table = of_match_ptr(mv_xor_dt_ids),
 	},

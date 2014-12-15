@@ -407,7 +407,6 @@ static int wm9705_remove(struct platform_device *pdev)
 static struct platform_driver wm9705_codec_driver = {
 	.driver = {
 			.name = "wm9705-codec",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = wm9705_probe,

@@ -807,7 +807,6 @@ MODULE_DEVICE_TABLE(platform, max14577_muic_id);
 static struct platform_driver max14577_muic_driver = {
 	.driver		= {
 		.name	= "max14577-muic",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max14577_muic_probe,
 	.remove		= max14577_muic_remove,

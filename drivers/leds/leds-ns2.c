@@ -380,7 +380,6 @@ static struct platform_driver ns2_led_driver = {
 	.remove		= ns2_led_remove,
 	.driver		= {
 		.name		= "leds-ns2",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(of_ns2_leds_match),
 	},
 };

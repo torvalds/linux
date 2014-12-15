@@ -2051,7 +2051,6 @@ static const struct of_device_id nmk_gpio_match[] = {
 
 static struct platform_driver nmk_gpio_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "gpio",
 		.of_match_table = nmk_gpio_match,
 	},
@@ -2064,7 +2063,6 @@ static SIMPLE_DEV_PM_OPS(nmk_pinctrl_pm_ops,
 
 static struct platform_driver nmk_pinctrl_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "pinctrl-nomadik",
 		.of_match_table = nmk_pinctrl_match,
 		.pm = &nmk_pinctrl_pm_ops,

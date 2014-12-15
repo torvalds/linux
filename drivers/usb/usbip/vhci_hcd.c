@@ -1107,7 +1107,6 @@ static struct platform_driver vhci_driver = {
 	.resume	= vhci_hcd_resume,
 	.driver	= {
 		.name = driver_name,
-		.owner = THIS_MODULE,
 	},
 };
 

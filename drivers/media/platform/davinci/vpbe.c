@@ -876,7 +876,6 @@ static int vpbe_remove(struct platform_device *device)
 static struct platform_driver vpbe_driver = {
 	.driver	= {
 		.name	= "vpbe_controller",
-		.owner	= THIS_MODULE,
 	},
 	.probe = vpbe_probe,
 	.remove = vpbe_remove,

@@ -1960,7 +1960,6 @@ static int wm5102_remove(struct platform_device *pdev)
 static struct platform_driver wm5102_codec_driver = {
 	.driver = {
 		.name = "wm5102-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm5102_probe,
 	.remove = wm5102_remove,

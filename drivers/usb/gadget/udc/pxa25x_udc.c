@@ -2292,7 +2292,6 @@ static struct platform_driver udc_driver = {
 	.suspend	= pxa25x_udc_suspend,
 	.resume		= pxa25x_udc_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "pxa25x-udc",
 	},
 };

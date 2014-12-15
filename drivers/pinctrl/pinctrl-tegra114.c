@@ -1859,7 +1859,6 @@ MODULE_DEVICE_TABLE(of, tegra114_pinctrl_of_match);
 static struct platform_driver tegra114_pinctrl_driver = {
 	.driver = {
 		.name = "tegra114-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra114_pinctrl_of_match,
 	},
 	.probe = tegra114_pinctrl_probe,

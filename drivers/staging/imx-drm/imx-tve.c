@@ -724,7 +724,6 @@ static struct platform_driver imx_tve_driver = {
 	.driver		= {
 		.of_match_table = imx_tve_dt_ids,
 		.name	= "imx-tve",
-		.owner	= THIS_MODULE,
 	},
 };
 

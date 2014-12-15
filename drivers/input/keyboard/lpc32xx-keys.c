@@ -381,7 +381,6 @@ static struct platform_driver lpc32xx_kscan_driver = {
 	.remove		= lpc32xx_kscan_remove,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &lpc32xx_kscan_pm_ops,
 		.of_match_table = lpc32xx_kscan_match,
 	}

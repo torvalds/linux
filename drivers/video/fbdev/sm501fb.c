@@ -2225,7 +2225,6 @@ static struct platform_driver sm501fb_driver = {
 	.resume		= sm501fb_resume,
 	.driver		= {
 		.name	= "sm501-fb",
-		.owner	= THIS_MODULE,
 	},
 };
 

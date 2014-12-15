@@ -519,7 +519,6 @@ MODULE_DEVICE_TABLE(of, rx51_audio_of_match);
 static struct platform_driver rx51_soc_driver = {
 	.driver = {
 		.name = "rx51-audio",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rx51_audio_of_match),
 	},
 	.probe = rx51_soc_probe,

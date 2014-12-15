@@ -261,7 +261,6 @@ MODULE_ALIAS("platform:si476x-codec");
 static struct platform_driver si476x_platform_driver = {
 	.driver		= {
 		.name	= "si476x-codec",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= si476x_platform_probe,
 	.remove		= si476x_platform_remove,

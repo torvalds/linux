@@ -171,7 +171,6 @@ static struct platform_driver spear_ohci_hcd_driver = {
 	.resume =	spear_ohci_hcd_drv_resume,
 #endif
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "spear-ohci",
 		.of_match_table = spear_ohci_id_table,
 	},

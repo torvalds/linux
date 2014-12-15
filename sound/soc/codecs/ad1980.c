@@ -334,7 +334,6 @@ static int ad1980_remove(struct platform_device *pdev)
 static struct platform_driver ad1980_codec_driver = {
 	.driver = {
 			.name = "ad1980",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = ad1980_probe,

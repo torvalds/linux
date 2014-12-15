@@ -159,7 +159,6 @@ static int imx_mc13783_remove(struct platform_device *pdev)
 static struct platform_driver imx_mc13783_audio_driver = {
 	.driver = {
 		.name = "imx_mc13783",
-		.owner = THIS_MODULE,
 	},
 	.probe = imx_mc13783_probe,
 	.remove = imx_mc13783_remove

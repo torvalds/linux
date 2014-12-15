@@ -3263,7 +3263,6 @@ static int ab8500_debug_remove(struct platform_device *plf)
 static struct platform_driver ab8500_debug_driver = {
 	.driver = {
 		.name = "ab8500-debug",
-		.owner = THIS_MODULE,
 	},
 	.probe  = ab8500_debug_probe,
 	.remove = ab8500_debug_remove

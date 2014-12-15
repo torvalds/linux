@@ -710,7 +710,6 @@ static struct platform_driver serial_netx_driver = {
 
 	.driver		= {
 		.name   = DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

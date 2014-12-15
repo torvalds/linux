@@ -194,7 +194,6 @@ static struct platform_driver rt288x_wdt_driver = {
 	.shutdown	= rt288x_wdt_shutdown,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= rt288x_wdt_match,
 	},
 };

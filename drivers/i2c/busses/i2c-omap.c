@@ -1453,7 +1453,6 @@ static struct platform_driver omap_i2c_driver = {
 	.remove		= omap_i2c_remove,
 	.driver		= {
 		.name	= "omap_i2c",
-		.owner	= THIS_MODULE,
 		.pm	= OMAP_I2C_PM_OPS,
 		.of_match_table = of_match_ptr(omap_i2c_of_match),
 	},

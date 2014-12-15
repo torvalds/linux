@@ -300,7 +300,6 @@ static struct platform_driver arizona_ldo1_driver = {
 	.probe = arizona_ldo1_probe,
 	.driver		= {
 		.name	= "arizona-ldo1",
-		.owner	= THIS_MODULE,
 	},
 };
 

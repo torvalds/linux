@@ -71,7 +71,6 @@ static int zynq_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver zynq_cpuidle_driver = {
 	.driver = {
 		.name = "cpuidle-zynq",
-		.owner = THIS_MODULE,
 	},
 	.probe = zynq_cpuidle_probe,
 };

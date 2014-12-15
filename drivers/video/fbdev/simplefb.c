@@ -387,7 +387,6 @@ MODULE_DEVICE_TABLE(of, simplefb_of_match);
 static struct platform_driver simplefb_driver = {
 	.driver = {
 		.name = "simple-framebuffer",
-		.owner = THIS_MODULE,
 		.of_match_table = simplefb_of_match,
 	},
 	.probe = simplefb_probe,

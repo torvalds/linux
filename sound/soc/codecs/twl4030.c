@@ -2218,7 +2218,6 @@ static struct platform_driver twl4030_codec_driver = {
 	.remove		= twl4030_codec_remove,
 	.driver		= {
 		.name	= "twl4030-codec",
-		.owner	= THIS_MODULE,
 	},
 };
 

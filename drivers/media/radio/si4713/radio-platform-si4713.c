@@ -220,7 +220,6 @@ static int radio_si4713_pdriver_remove(struct platform_device *pdev)
 static struct platform_driver radio_si4713_pdriver = {
 	.driver		= {
 		.name	= "radio-si4713",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= radio_si4713_pdriver_probe,
 	.remove         = radio_si4713_pdriver_remove,

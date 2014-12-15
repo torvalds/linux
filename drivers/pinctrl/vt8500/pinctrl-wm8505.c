@@ -519,7 +519,6 @@ static struct platform_driver wmt_pinctrl_driver = {
 	.remove	= wm8505_pinctrl_remove,
 	.driver = {
 		.name	= "pinctrl-wm8505",
-		.owner	= THIS_MODULE,
 		.of_match_table	= wmt_pinctrl_of_match,
 	},
 };

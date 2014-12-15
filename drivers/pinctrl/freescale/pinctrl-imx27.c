@@ -402,7 +402,6 @@ static int imx27_pinctrl_probe(struct platform_device *pdev)
 static struct platform_driver imx27_pinctrl_driver = {
 	.driver = {
 		.name = "imx27-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(imx27_pinctrl_of_match),
 	},
 	.probe = imx27_pinctrl_probe,

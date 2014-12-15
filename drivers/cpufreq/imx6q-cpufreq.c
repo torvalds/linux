@@ -357,7 +357,6 @@ static int imx6q_cpufreq_remove(struct platform_device *pdev)
 static struct platform_driver imx6q_cpufreq_platdrv = {
 	.driver = {
 		.name	= "imx6q-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= imx6q_cpufreq_probe,
 	.remove		= imx6q_cpufreq_remove,

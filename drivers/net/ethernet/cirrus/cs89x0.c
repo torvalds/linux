@@ -1897,7 +1897,6 @@ static int cs89x0_platform_remove(struct platform_device *pdev)
 static struct platform_driver cs89x0_driver = {
 	.driver	= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.remove	= cs89x0_platform_remove,
 };

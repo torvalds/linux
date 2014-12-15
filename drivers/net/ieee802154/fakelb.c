@@ -261,7 +261,6 @@ static struct platform_driver ieee802154fake_driver = {
 	.remove = fakelb_remove,
 	.driver = {
 			.name = "ieee802154fakelb",
-			.owner = THIS_MODULE,
 	},
 };
 

@@ -231,7 +231,6 @@ static struct platform_driver omap_rproc_driver = {
 	.remove = omap_rproc_remove,
 	.driver = {
 		.name = "omap-rproc",
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -1455,7 +1455,6 @@ MODULE_ALIAS("platform:bfin-spi");
 static struct platform_driver bfin_spi_driver = {
 	.driver	= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= BFIN_SPI_PM_OPS,
 	},
 	.probe		= bfin_spi_probe,

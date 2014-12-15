@@ -401,7 +401,6 @@ MODULE_DEVICE_TABLE(i2c, max8997_haptic_id);
 static struct platform_driver max8997_haptic_driver = {
 	.driver	= {
 		.name	= "max8997-haptic",
-		.owner	= THIS_MODULE,
 		.pm	= &max8997_haptic_pm_ops,
 	},
 	.probe		= max8997_haptic_probe,

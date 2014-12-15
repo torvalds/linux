@@ -471,7 +471,6 @@ static int c_can_resume(struct platform_device *pdev)
 static struct platform_driver c_can_plat_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.of_match_table = c_can_of_table,
 	},
 	.probe = c_can_plat_probe,

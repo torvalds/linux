@@ -450,7 +450,6 @@ static struct platform_driver tahvo_usb_driver = {
 	.remove		= tahvo_usb_remove,
 	.driver		= {
 		.name	= "tahvo-usb",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(tahvo_usb_driver);

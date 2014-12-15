@@ -655,7 +655,6 @@ static struct platform_driver ohci_hcd_at91_driver = {
 	.resume		= ohci_hcd_at91_drv_resume,
 	.driver		= {
 		.name	= "at91_ohci",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(at91_ohci_dt_ids),
 	},
 };

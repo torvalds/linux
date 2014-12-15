@@ -120,7 +120,6 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 static struct platform_driver gef_gpio_driver = {
 	.driver = {
 		.name		= "gef-gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= gef_gpio_ids,
 	},
 };

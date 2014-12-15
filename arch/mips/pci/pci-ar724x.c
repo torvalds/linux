@@ -400,7 +400,6 @@ static struct platform_driver ar724x_pci_driver = {
 	.probe = ar724x_pci_probe,
 	.driver = {
 		.name = "ar724x-pci",
-		.owner = THIS_MODULE,
 	},
 };
 

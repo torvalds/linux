@@ -751,7 +751,6 @@ MODULE_DEVICE_TABLE(of, i2c_pnx_of_match);
 static struct platform_driver i2c_pnx_driver = {
 	.driver = {
 		.name = "pnx-i2c",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(i2c_pnx_of_match),
 		.pm = PNX_I2C_PM,
 	},

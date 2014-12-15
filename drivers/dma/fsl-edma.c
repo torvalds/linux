@@ -966,7 +966,6 @@ MODULE_DEVICE_TABLE(of, fsl_edma_dt_ids);
 static struct platform_driver fsl_edma_driver = {
 	.driver		= {
 		.name	= "fsl-edma",
-		.owner  = THIS_MODULE,
 		.of_match_table = fsl_edma_dt_ids,
 	},
 	.probe          = fsl_edma_probe,

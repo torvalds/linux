@@ -462,7 +462,6 @@ static int bf5xx_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver bf5xx_pcm_driver = {
 	.driver = {
 			.name = "bfin-ac97-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = bf5xx_soc_platform_probe,

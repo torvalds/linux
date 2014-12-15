@@ -326,7 +326,6 @@ static struct platform_driver axon_ram_driver = {
 	.remove		= axon_ram_remove,
 	.driver = {
 		.name = AXON_RAM_MODULE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = axon_ram_device_id,
 	},
 };

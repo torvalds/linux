@@ -2788,7 +2788,6 @@ static struct of_device_id ipmi_match[] =
 static struct platform_driver ipmi_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = ipmi_match,
 	},
 	.probe		= ipmi_probe,

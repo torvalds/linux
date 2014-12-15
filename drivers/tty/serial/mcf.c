@@ -667,7 +667,6 @@ static struct platform_driver mcf_platform_driver = {
 	.remove		= mcf_remove,
 	.driver		= {
 		.name	= "mcfuart",
-		.owner	= THIS_MODULE,
 	},
 };
 

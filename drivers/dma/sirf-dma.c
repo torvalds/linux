@@ -934,7 +934,6 @@ static struct platform_driver sirfsoc_dma_driver = {
 	.remove		= sirfsoc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &sirfsoc_dma_pm_ops,
 		.of_match_table	= sirfsoc_dma_match,
 	},

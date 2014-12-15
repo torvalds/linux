@@ -474,7 +474,6 @@ static const struct of_device_id abx500_temp_match[] = {
 
 static struct platform_driver abx500_temp_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "abx500-temp",
 		.of_match_table = of_match_ptr(abx500_temp_match),
 	},

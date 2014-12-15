@@ -100,7 +100,6 @@ static int qi_lb60_probe(struct platform_device *pdev)
 static struct platform_driver qi_lb60_driver = {
 	.driver		= {
 		.name	= "qi-lb60-audio",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= qi_lb60_probe,
 };

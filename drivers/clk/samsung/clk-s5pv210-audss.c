@@ -216,7 +216,6 @@ static const struct of_device_id s5pv210_audss_clk_of_match[] = {
 static struct platform_driver s5pv210_audss_clk_driver = {
 	.driver	= {
 		.name = "s5pv210-audss-clk",
-		.owner = THIS_MODULE,
 		.of_match_table = s5pv210_audss_clk_of_match,
 	},
 	.probe = s5pv210_audss_clk_probe,

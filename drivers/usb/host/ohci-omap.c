@@ -481,7 +481,6 @@ static struct platform_driver ohci_hcd_omap_driver = {
 	.resume		= ohci_omap_resume,
 #endif
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "ohci",
 	},
 };

@@ -114,7 +114,6 @@ static struct platform_driver sirfsoc_rstc_driver = {
 	.probe		= sirfsoc_rstc_probe,
 	.driver		= {
 		.name	= "sirfsoc_rstc",
-		.owner	= THIS_MODULE,
 		.of_match_table = rstc_ids,
 	},
 };

@@ -1081,7 +1081,6 @@ static struct platform_driver tegra_usb_phy_driver = {
 	.remove		= tegra_usb_phy_remove,
 	.driver		= {
 		.name	= "tegra-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table = tegra_usb_phy_id_table,
 	},
 };

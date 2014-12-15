@@ -200,7 +200,6 @@ MODULE_DEVICE_TABLE(of, imx_sgtl5000_dt_ids);
 static struct platform_driver imx_sgtl5000_driver = {
 	.driver = {
 		.name = "imx-sgtl5000",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_sgtl5000_dt_ids,
 	},

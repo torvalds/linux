@@ -3075,7 +3075,6 @@ static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
 	.driver         = {
 		.name   = "ab8500-regulator",
-		.owner  = THIS_MODULE,
 	},
 };
 

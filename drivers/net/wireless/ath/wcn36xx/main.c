@@ -1078,7 +1078,6 @@ static struct platform_driver wcn36xx_driver = {
 	.remove     = wcn36xx_remove,
 	.driver         = {
 		.name   = "wcn36xx",
-		.owner  = THIS_MODULE,
 	},
 	.id_table    = wcn36xx_platform_id_table,
 };

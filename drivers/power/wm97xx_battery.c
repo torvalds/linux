@@ -281,7 +281,6 @@ static int wm97xx_bat_remove(struct platform_device *dev)
 static struct platform_driver wm97xx_bat_driver = {
 	.driver	= {
 		.name	= "wm97xx-battery",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &wm97xx_bat_pm_ops,
 #endif

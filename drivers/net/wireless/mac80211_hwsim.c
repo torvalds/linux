@@ -395,7 +395,6 @@ static int hwsim_radio_idx;
 static struct platform_driver mac80211_hwsim_driver = {
 	.driver = {
 		.name = "mac80211_hwsim",
-		.owner = THIS_MODULE,
 	},
 };
 

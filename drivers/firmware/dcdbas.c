@@ -578,7 +578,6 @@ static int dcdbas_remove(struct platform_device *dev)
 static struct platform_driver dcdbas_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= dcdbas_probe,
 	.remove		= dcdbas_remove,

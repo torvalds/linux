@@ -1459,7 +1459,6 @@ static SIMPLE_DEV_PM_OPS(vpif_pm_ops, vpif_suspend, vpif_resume);
 static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 			.name	= VPIF_DRIVER_NAME,
-			.owner	= THIS_MODULE,
 			.pm	= &vpif_pm_ops,
 	},
 	.probe	= vpif_probe,

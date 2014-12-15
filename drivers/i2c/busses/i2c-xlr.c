@@ -263,7 +263,6 @@ static struct platform_driver xlr_i2c_driver = {
 	.remove = xlr_i2c_remove,
 	.driver = {
 		.name   = "xlr-i2cbus",
-		.owner  = THIS_MODULE,
 	},
 };
 

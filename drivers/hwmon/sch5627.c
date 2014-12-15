@@ -591,7 +591,6 @@ error:
 
 static struct platform_driver sch5627_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe		= sch5627_probe,

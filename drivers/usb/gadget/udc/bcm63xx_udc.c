@@ -2424,7 +2424,6 @@ static struct platform_driver bcm63xx_udc_driver = {
 	.remove		= bcm63xx_udc_remove,
 	.driver		= {
 		.name	= DRV_MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(bcm63xx_udc_driver);

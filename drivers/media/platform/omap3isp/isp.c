@@ -2380,7 +2380,6 @@ static struct platform_driver omap3isp_driver = {
 	.remove = isp_remove,
 	.id_table = omap3isp_id_table,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "omap3isp",
 		.pm	= &omap3isp_pm_ops,
 	},

@@ -1233,7 +1233,6 @@ static int vt1211_remove(struct platform_device *pdev)
 
 static struct platform_driver vt1211_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = DRVNAME,
 	},
 	.probe  = vt1211_probe,

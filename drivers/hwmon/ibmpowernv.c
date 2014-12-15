@@ -313,7 +313,6 @@ static struct platform_driver ibmpowernv_driver = {
 	.probe		= ibmpowernv_probe,
 	.id_table	= opal_sensor_driver_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 };

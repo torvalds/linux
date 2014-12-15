@@ -401,7 +401,6 @@ static struct platform_driver usb3503_platform_driver = {
 	.driver = {
 		.name = USB3503_I2C_NAME,
 		.of_match_table = of_match_ptr(usb3503_of_match),
-		.owner = THIS_MODULE,
 	},
 	.probe		= usb3503_platform_probe,
 };

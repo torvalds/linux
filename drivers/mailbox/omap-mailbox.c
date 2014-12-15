@@ -864,7 +864,6 @@ static struct platform_driver omap_mbox_driver = {
 	.remove	= omap_mbox_remove,
 	.driver	= {
 		.name = "omap-mailbox",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(omap_mailbox_of_match),
 	},
 };

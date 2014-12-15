@@ -737,7 +737,6 @@ static int sst_platform_remove(struct platform_device *pdev)
 static struct platform_driver sst_platform_driver = {
 	.driver		= {
 		.name		= "sst-mfld-platform",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= sst_platform_probe,
 	.remove		= sst_platform_remove,

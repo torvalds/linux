@@ -2839,7 +2839,6 @@ static struct platform_driver mv643xx_eth_shared_driver = {
 	.remove		= mv643xx_eth_shared_remove,
 	.driver = {
 		.name	= MV643XX_ETH_SHARED_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(mv643xx_eth_shared_ids),
 	},
 };
@@ -3188,7 +3187,6 @@ static struct platform_driver mv643xx_eth_driver = {
 	.shutdown	= mv643xx_eth_shutdown,
 	.driver = {
 		.name	= MV643XX_ETH_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

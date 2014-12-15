@@ -444,7 +444,6 @@ static SIMPLE_DEV_PM_OPS(sirfsoc_rtc_pm_ops,
 static struct platform_driver sirfsoc_rtc_driver = {
 	.driver = {
 		.name = "sirfsoc-rtc",
-		.owner = THIS_MODULE,
 		.pm = &sirfsoc_rtc_pm_ops,
 		.of_match_table = sirfsoc_rtc_of_match,
 	},

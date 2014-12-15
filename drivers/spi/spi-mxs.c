@@ -572,7 +572,6 @@ static struct platform_driver mxs_spi_driver = {
 	.remove	= mxs_spi_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = mxs_spi_dt_ids,
 	},
 };

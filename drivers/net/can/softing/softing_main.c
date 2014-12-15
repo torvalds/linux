@@ -856,7 +856,6 @@ platform_resource_failed:
 static struct platform_driver softing_driver = {
 	.driver = {
 		.name = "softing",
-		.owner = THIS_MODULE,
 	},
 	.probe = softing_pdev_probe,
 	.remove = softing_pdev_remove,

@@ -417,7 +417,6 @@ err:
 
 static struct platform_driver f7188x_gpio_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe		= f7188x_gpio_probe,

@@ -338,7 +338,6 @@ static struct platform_driver psc_ac97_driver = {
 	.remove = psc_ac97_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-ac97",
-		.owner = THIS_MODULE,
 		.of_match_table = psc_ac97_match,
 	},
 };

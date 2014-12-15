@@ -184,7 +184,6 @@ static struct platform_driver sti_drm_master_driver = {
 	.probe = sti_drm_master_probe,
 	.remove = sti_drm_master_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRIVER_NAME "__master",
 	},
 };
@@ -228,7 +227,6 @@ static struct platform_driver sti_drm_platform_driver = {
 	.probe = sti_drm_platform_probe,
 	.remove = sti_drm_platform_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRIVER_NAME,
 		.of_match_table = sti_drm_dt_ids,
 	},

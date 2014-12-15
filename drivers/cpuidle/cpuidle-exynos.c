@@ -74,7 +74,6 @@ static struct platform_driver exynos_cpuidle_driver = {
 	.probe	= exynos_cpuidle_probe,
 	.driver = {
 		.name = "exynos_cpuidle",
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -269,7 +269,6 @@ static struct platform_driver ppc4xx_msi_driver = {
 	.remove = ppc4xx_of_msi_remove,
 	.driver = {
 		   .name = "ppc4xx-msi",
-		   .owner = THIS_MODULE,
 		   .of_match_table = ppc4xx_msi_ids,
 		   },
 

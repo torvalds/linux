@@ -144,7 +144,6 @@ static int da903x_led_remove(struct platform_device *pdev)
 static struct platform_driver da903x_led_driver = {
 	.driver	= {
 		.name	= "da903x-led",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_led_probe,
 	.remove		= da903x_led_remove,

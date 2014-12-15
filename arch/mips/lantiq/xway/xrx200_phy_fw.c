@@ -106,7 +106,6 @@ static struct platform_driver xway_phy_driver = {
 	.probe = xway_phy_fw_probe,
 	.driver = {
 		.name = "phy-xrx200",
-		.owner = THIS_MODULE,
 		.of_match_table = xway_phy_match,
 	},
 };

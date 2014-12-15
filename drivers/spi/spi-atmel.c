@@ -1522,7 +1522,6 @@ MODULE_DEVICE_TABLE(of, atmel_spi_dt_ids);
 static struct platform_driver atmel_spi_driver = {
 	.driver		= {
 		.name	= "atmel_spi",
-		.owner	= THIS_MODULE,
 		.pm	= ATMEL_SPI_PM_OPS,
 		.of_match_table	= of_match_ptr(atmel_spi_dt_ids),
 	},

@@ -981,7 +981,6 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 static struct platform_driver rcar_pcie_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = rcar_pcie_of_match,
 		.suppress_bind_attrs = true,
 	},

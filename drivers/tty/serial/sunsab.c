@@ -1104,7 +1104,6 @@ MODULE_DEVICE_TABLE(of, sab_match);
 static struct platform_driver sab_driver = {
 	.driver = {
 		.name = "sab",
-		.owner = THIS_MODULE,
 		.of_match_table = sab_match,
 	},
 	.probe		= sab_probe,

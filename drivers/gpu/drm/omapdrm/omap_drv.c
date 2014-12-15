@@ -718,7 +718,6 @@ static const struct dev_pm_ops omapdrm_pm_ops = {
 static struct platform_driver pdev = {
 		.driver = {
 			.name = DRIVER_NAME,
-			.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 			.pm = &omapdrm_pm_ops,
 #endif

@@ -1177,7 +1177,6 @@ static int twl6040_codec_remove(struct platform_device *pdev)
 static struct platform_driver twl6040_codec_driver = {
 	.driver = {
 		.name = "twl6040-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = twl6040_codec_probe,
 	.remove = twl6040_codec_remove,

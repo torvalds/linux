@@ -2243,7 +2243,6 @@ static struct platform_driver fcu_of_platform_driver =
 {
 	.driver = {
 		.name = "temperature",
-		.owner = THIS_MODULE,
 		.of_match_table = fcu_match,
 	},
 	.probe		= fcu_of_probe,

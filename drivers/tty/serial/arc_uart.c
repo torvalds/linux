@@ -653,7 +653,6 @@ static struct platform_driver arc_platform_driver = {
 	.remove = arc_serial_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table  = arc_uart_dt_ids,
 	 },
 };

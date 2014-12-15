@@ -641,7 +641,6 @@ static struct platform_driver exynos_pcie_driver = {
 	.remove		= __exit_p(exynos_pcie_remove),
 	.driver = {
 		.name	= "exynos-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = exynos_pcie_of_match,
 	},
 };

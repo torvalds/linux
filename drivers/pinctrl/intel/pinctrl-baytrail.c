@@ -606,7 +606,6 @@ static struct platform_driver byt_gpio_driver = {
 	.remove         = byt_gpio_remove,
 	.driver         = {
 		.name   = "byt_gpio",
-		.owner  = THIS_MODULE,
 		.pm	= &byt_gpio_pm_ops,
 		.acpi_match_table = ACPI_PTR(byt_gpio_acpi_match),
 	},

@@ -212,7 +212,6 @@ MODULE_DEVICE_TABLE(of, zevio_gpio_of_match);
 static struct platform_driver zevio_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-zevio",
-		.owner	= THIS_MODULE,
 		.of_match_table = zevio_gpio_of_match,
 	},
 	.probe		= zevio_gpio_probe,

@@ -2889,7 +2889,6 @@ static struct platform_driver bcmgenet_driver = {
 	.remove	= bcmgenet_remove,
 	.driver	= {
 		.name	= "bcmgenet",
-		.owner	= THIS_MODULE,
 		.of_match_table = bcmgenet_match,
 		.pm	= &bcmgenet_pm_ops,
 	},

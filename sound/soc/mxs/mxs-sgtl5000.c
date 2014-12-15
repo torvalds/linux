@@ -187,7 +187,6 @@ MODULE_DEVICE_TABLE(of, mxs_sgtl5000_dt_ids);
 static struct platform_driver mxs_sgtl5000_audio_driver = {
 	.driver = {
 		.name = "mxs-sgtl5000",
-		.owner = THIS_MODULE,
 		.of_match_table = mxs_sgtl5000_dt_ids,
 	},
 	.probe = mxs_sgtl5000_probe,

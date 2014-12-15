@@ -327,7 +327,6 @@ static struct platform_driver dw_i2c_driver = {
 	.remove = dw_i2c_remove,
 	.driver		= {
 		.name	= "i2c_designware",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(dw_i2c_of_match),
 		.acpi_match_table = ACPI_PTR(dw_i2c_acpi_match),
 		.pm	= &dw_i2c_dev_pm_ops,

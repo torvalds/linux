@@ -223,7 +223,6 @@ static struct platform_driver sunfire_clockboard_led_driver = {
 	.remove		= sunfire_led_generic_remove,
 	.driver		= {
 		.name	= "sunfire-clockboard-leds",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -232,7 +231,6 @@ static struct platform_driver sunfire_fhc_led_driver = {
 	.remove		= sunfire_led_generic_remove,
 	.driver		= {
 		.name	= "sunfire-fhc-leds",
-		.owner	= THIS_MODULE,
 	},
 };
 

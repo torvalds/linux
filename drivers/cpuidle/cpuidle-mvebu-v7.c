@@ -114,7 +114,6 @@ static int mvebu_v7_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver armadaxp_cpuidle_plat_driver = {
 	.driver = {
 		.name = "cpuidle-armada-xp",
-		.owner = THIS_MODULE,
 	},
 	.probe = mvebu_v7_cpuidle_probe,
 };
@@ -124,7 +123,6 @@ module_platform_driver(armadaxp_cpuidle_plat_driver);
 static struct platform_driver armada370_cpuidle_plat_driver = {
 	.driver = {
 		.name = "cpuidle-armada-370",
-		.owner = THIS_MODULE,
 	},
 	.probe = mvebu_v7_cpuidle_probe,
 };
@@ -134,7 +132,6 @@ module_platform_driver(armada370_cpuidle_plat_driver);
 static struct platform_driver armada38x_cpuidle_plat_driver = {
 	.driver = {
 		.name = "cpuidle-armada-38x",
-		.owner = THIS_MODULE,
 	},
 	.probe = mvebu_v7_cpuidle_probe,
 };

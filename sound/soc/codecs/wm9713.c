@@ -1301,7 +1301,6 @@ static int wm9713_remove(struct platform_device *pdev)
 static struct platform_driver wm9713_codec_driver = {
 	.driver = {
 			.name = "wm9713-codec",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = wm9713_probe,

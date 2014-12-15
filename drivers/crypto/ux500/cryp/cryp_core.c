@@ -1783,7 +1783,6 @@ static struct platform_driver cryp_driver = {
 	.remove = ux500_cryp_remove,
 	.shutdown = ux500_cryp_shutdown,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "cryp1",
 		.of_match_table = ux500_cryp_match,
 		.pm    = &ux500_cryp_pm,

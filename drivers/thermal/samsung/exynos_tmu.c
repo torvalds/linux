@@ -750,7 +750,6 @@ static SIMPLE_DEV_PM_OPS(exynos_tmu_pm,
 static struct platform_driver exynos_tmu_driver = {
 	.driver = {
 		.name   = "exynos-tmu",
-		.owner  = THIS_MODULE,
 		.pm     = EXYNOS_TMU_PM,
 		.of_match_table = exynos_tmu_match,
 	},

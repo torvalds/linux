@@ -1063,7 +1063,6 @@ static const struct dev_pm_ops sa11x0_dma_pm_ops = {
 static struct platform_driver sa11x0_dma_driver = {
 	.driver = {
 		.name	= "sa11x0-dma",
-		.owner	= THIS_MODULE,
 		.pm	= &sa11x0_dma_pm_ops,
 	},
 	.probe		= sa11x0_dma_probe,

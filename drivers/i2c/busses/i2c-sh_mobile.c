@@ -973,7 +973,6 @@ static const struct dev_pm_ops sh_mobile_i2c_dev_pm_ops = {
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
-		.owner		= THIS_MODULE,
 		.pm		= &sh_mobile_i2c_dev_pm_ops,
 		.of_match_table = sh_mobile_i2c_dt_ids,
 	},

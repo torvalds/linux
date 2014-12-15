@@ -1347,7 +1347,6 @@ static const struct dev_pm_ops wistron_pm_ops = {
 static struct platform_driver wistron_driver = {
 	.driver		= {
 		.name	= "wistron-bios",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &wistron_pm_ops,
 #endif

@@ -244,7 +244,6 @@ static struct platform_driver omap_dss_driver = {
 	.shutdown	= omap_dss_shutdown,
 	.driver         = {
 		.name   = "omapdss",
-		.owner  = THIS_MODULE,
 	},
 };
 

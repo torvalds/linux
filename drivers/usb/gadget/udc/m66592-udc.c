@@ -1698,7 +1698,6 @@ static struct platform_driver m66592_driver = {
 	.remove =	__exit_p(m66592_remove),
 	.driver		= {
 		.name =	(char *) udc_name,
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -290,7 +290,6 @@ static struct platform_driver ams_delta_nand_driver = {
 	.remove		= ams_delta_cleanup,
 	.driver		= {
 		.name	= "ams-delta-nand",
-		.owner	= THIS_MODULE,
 	},
 };
 

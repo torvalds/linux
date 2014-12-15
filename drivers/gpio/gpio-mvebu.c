@@ -828,7 +828,6 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 static struct platform_driver mvebu_gpio_driver = {
 	.driver		= {
 		.name	        = "mvebu-gpio",
-		.owner	        = THIS_MODULE,
 		.of_match_table = mvebu_gpio_of_match,
 	},
 	.probe		= mvebu_gpio_probe,

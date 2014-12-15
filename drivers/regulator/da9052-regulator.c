@@ -464,7 +464,6 @@ static struct platform_driver da9052_regulator_driver = {
 	.probe = da9052_regulator_probe,
 	.driver = {
 		.name = "da9052-regulator",
-		.owner = THIS_MODULE,
 	},
 };
 

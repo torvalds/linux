@@ -296,7 +296,6 @@ static struct platform_driver ks8695wdt_driver = {
 	.resume		= ks8695wdt_resume,
 	.driver		= {
 		.name	= "ks8695_wdt",
-		.owner	= THIS_MODULE,
 	},
 };
 

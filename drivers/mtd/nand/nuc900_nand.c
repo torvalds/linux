@@ -300,7 +300,6 @@ static struct platform_driver nuc900_nand_driver = {
 	.remove		= nuc900_nand_remove,
 	.driver		= {
 		.name	= "nuc900-fmi",
-		.owner	= THIS_MODULE,
 	},
 };
 

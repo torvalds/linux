@@ -181,7 +181,6 @@ static const struct platform_device_id max8997_battery_id[] = {
 static struct platform_driver max8997_battery_driver = {
 	.driver = {
 		.name = "max8997-battery",
-		.owner = THIS_MODULE,
 	},
 	.probe = max8997_battery_probe,
 	.remove = max8997_battery_remove,

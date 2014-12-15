@@ -804,7 +804,6 @@ static struct platform_driver omap2_onenand_driver = {
 	.shutdown	= omap2_onenand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner  = THIS_MODULE,
 	},
 };
 

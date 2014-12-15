@@ -630,7 +630,6 @@ static struct platform_driver mac_sonic_driver = {
 	.remove = mac_sonic_device_remove,
 	.driver	= {
 		.name	= mac_sonic_string,
-		.owner	= THIS_MODULE,
 	},
 };
 

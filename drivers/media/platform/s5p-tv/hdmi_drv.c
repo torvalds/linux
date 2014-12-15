@@ -1046,7 +1046,6 @@ static struct platform_driver hdmi_driver __refdata = {
 	.id_table = hdmi_driver_types,
 	.driver = {
 		.name = "s5p-hdmi",
-		.owner = THIS_MODULE,
 		.pm = &hdmi_pm_ops,
 	}
 };

@@ -586,7 +586,6 @@ static int au_ide_remove(struct platform_device *dev)
 static struct platform_driver au1200_ide_driver = {
 	.driver = {
 		.name		= "au1200-ide",
-		.owner		= THIS_MODULE,
 	},
 	.probe 		= au_ide_probe,
 	.remove		= au_ide_remove,

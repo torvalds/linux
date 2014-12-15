@@ -740,7 +740,6 @@ static struct platform_driver lp8788_charger_driver = {
 	.remove = lp8788_charger_remove,
 	.driver = {
 		.name = LP8788_DEV_CHARGER,
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(lp8788_charger_driver);

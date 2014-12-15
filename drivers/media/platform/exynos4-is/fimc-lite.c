@@ -1720,7 +1720,6 @@ static struct platform_driver fimc_lite_driver = {
 	.driver = {
 		.of_match_table = flite_of_match,
 		.name		= FIMC_LITE_DRV_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &fimc_lite_pm_ops,
 	}
 };

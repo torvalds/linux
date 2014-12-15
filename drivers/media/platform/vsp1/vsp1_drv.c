@@ -562,7 +562,6 @@ static struct platform_driver vsp1_platform_driver = {
 	.probe		= vsp1_probe,
 	.remove		= vsp1_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "vsp1",
 		.pm	= &vsp1_pm_ops,
 		.of_match_table = vsp1_of_match,

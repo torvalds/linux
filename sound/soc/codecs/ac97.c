@@ -142,7 +142,6 @@ static int ac97_remove(struct platform_device *pdev)
 static struct platform_driver ac97_codec_driver = {
 	.driver = {
 		.name = "ac97-codec",
-		.owner = THIS_MODULE,
 	},
 
 	.probe = ac97_probe,

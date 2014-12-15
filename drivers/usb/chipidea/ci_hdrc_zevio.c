@@ -61,7 +61,6 @@ static struct platform_driver ci_hdrc_zevio_driver = {
 	.remove = ci_hdrc_zevio_remove,
 	.driver = {
 		.name = "zevio_usb",
-		.owner = THIS_MODULE,
 		.of_match_table = ci_hdrc_zevio_dt_ids,
 	},
 };

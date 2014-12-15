@@ -528,7 +528,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 static struct platform_driver tegra_gpio_driver = {
 	.driver		= {
 		.name	= "tegra-gpio",
-		.owner	= THIS_MODULE,
 		.pm	= &tegra_gpio_pm_ops,
 		.of_match_table = tegra_gpio_of_match,
 	},

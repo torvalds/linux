@@ -605,7 +605,6 @@ static int uda134x_codec_remove(struct platform_device *pdev)
 static struct platform_driver uda134x_codec_driver = {
 	.driver = {
 		.name = "uda134x-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = uda134x_codec_probe,
 	.remove = uda134x_codec_remove,

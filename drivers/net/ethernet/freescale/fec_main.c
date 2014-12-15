@@ -3386,7 +3386,6 @@ static SIMPLE_DEV_PM_OPS(fec_pm_ops, fec_suspend, fec_resume);
 static struct platform_driver fec_driver = {
 	.driver	= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &fec_pm_ops,
 		.of_match_table = fec_dt_ids,
 	},

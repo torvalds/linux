@@ -304,7 +304,6 @@ static struct platform_driver bcm63xx_wdt_driver = {
 	.remove = bcm63xx_wdt_remove,
 	.shutdown = bcm63xx_wdt_shutdown,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "bcm63xx-wdt",
 	}
 };

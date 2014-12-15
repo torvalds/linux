@@ -367,7 +367,6 @@ static int cs5535_gpio_remove(struct platform_device *pdev)
 static struct platform_driver cs5535_gpio_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = cs5535_gpio_probe,
 	.remove = cs5535_gpio_remove,

@@ -297,7 +297,6 @@ static struct platform_driver tfp410_driver = {
 	.remove	= __exit_p(tfp410_remove),
 	.driver	= {
 		.name	= "tfp410",
-		.owner	= THIS_MODULE,
 		.of_match_table = tfp410_of_match,
 		.suppress_bind_attrs = true,
 	},

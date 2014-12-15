@@ -571,7 +571,6 @@ static struct platform_device *cros_platform_device;
 static struct platform_driver cros_platform_driver = {
 	.driver = {
 		.name = "chromeos_laptop",
-		.owner = THIS_MODULE,
 	},
 	.probe = chromeos_laptop_probe,
 };

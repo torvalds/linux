@@ -171,7 +171,6 @@ static struct platform_driver gpio_mouse_device_driver = {
 	.remove		= gpio_mouse_remove,
 	.driver		= {
 		.name	= "gpio_mouse",
-		.owner	= THIS_MODULE,
 	}
 };
 module_platform_driver(gpio_mouse_device_driver);

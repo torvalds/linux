@@ -614,7 +614,6 @@ static struct platform_driver davinci_gpio_driver = {
 	.probe		= davinci_gpio_probe,
 	.driver		= {
 		.name		= "davinci_gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(davinci_gpio_ids),
 	},
 };

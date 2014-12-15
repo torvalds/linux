@@ -532,7 +532,6 @@ static struct platform_driver spi_sh_driver = {
 	.remove = spi_sh_remove,
 	.driver = {
 		.name = "sh_spi",
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(spi_sh_driver);

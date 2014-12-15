@@ -265,7 +265,6 @@ static struct platform_driver da9052_rtc_driver = {
 	.probe	= da9052_rtc_probe,
 	.driver = {
 		.name	= "da9052-rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 

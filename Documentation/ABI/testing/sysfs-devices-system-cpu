@@ -224,3 +224,50 @@ Description:	Parameters for the Intel P-state driver
 		frequency range.
 
 		More details can be found in Documentation/cpu-freq/intel-pstate.txt
+
+What:		/sys/devices/system/cpu/cpu*/cache/index*/<set_of_attributes_mentioned_below>
+Date:		July 2014(documented, existed before August 2008)
+Contact:	Sudeep Holla <sudeep.holla@arm.com>
+		Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Parameters for the CPU cache attributes
+
+		allocation_policy:
+			- WriteAllocate: allocate a memory location to a cache line
+					 on a cache miss because of a write
+			- ReadAllocate: allocate a memory location to a cache line
+					on a cache miss because of a read
+			- ReadWriteAllocate: both writeallocate and readallocate
+
+		attributes: LEGACY used only on IA64 and is same as write_policy
+
+		coherency_line_size: the minimum amount of data in bytes that gets
+				     transferred from memory to cache
+
+		level: the cache hierarcy in the multi-level cache configuration
+
+		number_of_sets: total number of sets in the cache, a set is a
+				collection of cache lines with the same cache index
+
+		physical_line_partition: number of physical cache line per cache tag
+
+		shared_cpu_list: the list of logical cpus sharing the cache
+
+		shared_cpu_map: logical cpu mask containing the list of cpus sharing
+				the cache
+
+		size: the total cache size in kB
+
+		type:
+			- Instruction: cache that only holds instructions
+			- Data: cache that only caches data
+			- Unified: cache that holds both data and instructions
+
+		ways_of_associativity: degree of freedom in placing a particular block
+					of memory in the cache
+
+		write_policy:
+			- WriteThrough: data is written to both the cache line
+					and to the block in the lower-level memory
+			- WriteBack: data is written only to the cache line and
+				     the modified cache line is written to main
+				     memory only when it is replaced

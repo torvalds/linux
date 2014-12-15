@@ -1339,7 +1339,6 @@ static struct platform_driver mxs_auart_driver = {
 	.remove = mxs_auart_remove,
 	.driver = {
 		.name = "mxs-auart",
-		.owner = THIS_MODULE,
 		.of_match_table = mxs_auart_dt_ids,
 	},
 };

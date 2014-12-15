@@ -651,7 +651,6 @@ static struct platform_driver s3c_camif_driver = {
 	.id_table	= s3c_camif_driver_ids,
 	.driver = {
 		.name	= S3C_CAMIF_DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &s3c_camif_pm_ops,
 	}
 };

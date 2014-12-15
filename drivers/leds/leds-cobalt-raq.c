@@ -124,7 +124,6 @@ static struct platform_driver cobalt_raq_led_driver = {
 	.remove	= cobalt_raq_led_remove,
 	.driver = {
 		.name	= "cobalt-raq-leds",
-		.owner	= THIS_MODULE,
 	},
 };
 

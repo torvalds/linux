@@ -122,7 +122,6 @@ static int dbx500_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver dbx500_cpuidle_plat_driver = {
 	.driver = {
 		.name = "cpuidle-dbx500",
-		.owner = THIS_MODULE,
 	},
 	.probe = dbx500_cpuidle_probe,
 };

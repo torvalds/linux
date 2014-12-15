@@ -745,7 +745,6 @@ MODULE_DEVICE_TABLE(of, ltq_asc_match);
 static struct platform_driver lqasc_driver = {
 	.driver		= {
 		.name	= DRVNAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = ltq_asc_match,
 	},
 };

@@ -127,7 +127,6 @@ static struct platform_driver rbtx4939_flash_driver = {
 	.shutdown	= rbtx4939_flash_shutdown,
 	.driver		= {
 		.name	= "rbtx4939-flash",
-		.owner	= THIS_MODULE,
 	},
 };
 

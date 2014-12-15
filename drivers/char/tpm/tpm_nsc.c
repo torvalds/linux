@@ -258,7 +258,6 @@ static SIMPLE_DEV_PM_OPS(tpm_nsc_pm, tpm_pm_suspend, tpm_pm_resume);
 static struct platform_driver nsc_drv = {
 	.driver          = {
 		.name    = "tpm_nsc",
-		.owner   = THIS_MODULE,
 		.pm      = &tpm_nsc_pm,
 	},
 };

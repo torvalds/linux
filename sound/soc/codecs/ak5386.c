@@ -205,7 +205,6 @@ static struct platform_driver ak5386_driver = {
 	.remove		= ak5386_remove,
 	.driver		= {
 		.name	= "ak5386",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ak5386_dt_ids),
 	},
 };

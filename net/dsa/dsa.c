@@ -879,7 +879,6 @@ static struct platform_driver dsa_driver = {
 	.shutdown	= dsa_shutdown,
 	.driver = {
 		.name	= "dsa",
-		.owner	= THIS_MODULE,
 		.of_match_table = dsa_of_match_table,
 		.pm	= &dsa_pm_ops,
 	},

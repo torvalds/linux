@@ -251,7 +251,6 @@ static struct platform_driver platram_driver = {
 	.remove		= platram_remove,
 	.driver		= {
 		.name	= "mtd-ram",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -182,7 +182,6 @@ static struct platform_driver adc_jack_driver = {
 	.remove         = adc_jack_remove,
 	.driver         = {
 		.name   = "adc-jack",
-		.owner  = THIS_MODULE,
 	},
 };
 

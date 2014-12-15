@@ -224,7 +224,6 @@ static struct platform_driver orion_nand_driver = {
 	.remove		= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(orion_nand_of_match_table),
 	},
 };

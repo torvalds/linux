@@ -159,7 +159,6 @@ static struct platform_driver serial8250_em_platform_driver = {
 	.driver = {
 		.name		= "serial8250-em",
 		.of_match_table = serial8250_em_dt_ids,
-		.owner		= THIS_MODULE,
 	},
 	.probe			= serial8250_em_probe,
 	.remove			= serial8250_em_remove,

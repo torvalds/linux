@@ -2684,7 +2684,6 @@ static struct platform_driver net2272_plat_driver = {
 	.remove  = net2272_plat_remove,
 	.driver  = {
 		.name  = driver_name,
-		.owner = THIS_MODULE,
 	},
 	/* FIXME .suspend, .resume */
 };

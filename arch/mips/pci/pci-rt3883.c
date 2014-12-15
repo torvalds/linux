@@ -589,7 +589,6 @@ static struct platform_driver rt3883_pci_driver = {
 	.probe = rt3883_pci_probe,
 	.driver = {
 		.name = "rt3883-pci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rt3883_pci_ids),
 	},
 };

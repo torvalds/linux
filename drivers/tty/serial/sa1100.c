@@ -898,7 +898,6 @@ static struct platform_driver sa11x0_serial_driver = {
 	.resume		= sa1100_serial_resume,
 	.driver		= {
 		.name	= "sa11x0-uart",
-		.owner	= THIS_MODULE,
 	},
 };
 

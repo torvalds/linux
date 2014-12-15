@@ -420,7 +420,6 @@ static int snd_mfld_mc_probe(struct platform_device *pdev)
 
 static struct platform_driver snd_mfld_mc_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "msic_audio",
 	},
 	.probe = snd_mfld_mc_probe,

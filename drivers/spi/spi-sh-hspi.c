@@ -315,7 +315,6 @@ static struct platform_driver hspi_driver = {
 	.remove = hspi_remove,
 	.driver = {
 		.name = "sh-hspi",
-		.owner = THIS_MODULE,
 		.of_match_table = hspi_of_match,
 	},
 };

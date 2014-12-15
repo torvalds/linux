@@ -374,7 +374,6 @@ static struct platform_driver spear13xx_pcie_driver __initdata = {
 	.probe		= spear13xx_pcie_probe,
 	.driver = {
 		.name	= "spear-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spear13xx_pcie_of_match),
 	},
 };

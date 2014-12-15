@@ -972,7 +972,6 @@ static void tpacpi_shutdown_handler(struct platform_device *pdev)
 static struct platform_driver tpacpi_pdriver = {
 	.driver = {
 		.name = TPACPI_DRVR_NAME,
-		.owner = THIS_MODULE,
 		.pm = &tpacpi_pm,
 	},
 	.shutdown = tpacpi_shutdown_handler,
@@ -981,7 +980,6 @@ static struct platform_driver tpacpi_pdriver = {
 static struct platform_driver tpacpi_hwmon_pdriver = {
 	.driver = {
 		.name = TPACPI_HWMON_DRVR_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -422,7 +422,6 @@ MODULE_DEVICE_TABLE(platform, s3cts_driver_ids);
 static struct platform_driver s3c_ts_driver = {
 	.driver         = {
 		.name   = "samsung-ts",
-		.owner  = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &s3c_ts_pmops,
 #endif

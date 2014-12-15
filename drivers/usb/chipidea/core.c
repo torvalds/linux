@@ -868,7 +868,6 @@ static struct platform_driver ci_hdrc_driver = {
 	.driver	= {
 		.name	= "ci_hdrc",
 		.pm	= &ci_pm_ops,
-		.owner	= THIS_MODULE,
 	},
 };
 

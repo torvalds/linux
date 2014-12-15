@@ -1061,7 +1061,6 @@ static struct platform_driver imxfb_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = imxfb_of_dev_id,
-		.owner	= THIS_MODULE,
 		.pm	= &imxfb_pm_ops,
 	},
 	.probe		= imxfb_probe,

@@ -285,7 +285,6 @@ static struct platform_driver exynos_ohci_driver = {
 	.shutdown	= exynos_ohci_shutdown,
 	.driver = {
 		.name	= "exynos-ohci",
-		.owner	= THIS_MODULE,
 		.pm	= &exynos_ohci_pm_ops,
 		.of_match_table	= of_match_ptr(exynos_ohci_match),
 	}

@@ -31,6 +31,11 @@
 #include <linux/fs.h>
 #include <linux/workqueue.h>
 
+static struct class devcd_class;
+
+/* global disable flag, for security purposes */
+static bool devcd_disabled;
+
 /* if data isn't read by userspace after 5 minutes then delete it */
 #define DEVCD_TIMEOUT	(HZ * 60 * 5)
 
@@ -121,11 +126,51 @@ static const struct attribute_group *devcd_dev_groups[] = {
 	&devcd_dev_group, NULL,
 };
 
+static int devcd_free(struct device *dev, void *data)
+{
+	struct devcd_entry *devcd = dev_to_devcd(dev);
+
+	flush_delayed_work(&devcd->del_wk);
+	return 0;
+}
+
+static ssize_t disabled_show(struct class *class, struct class_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%d\n", devcd_disabled);
+}
+
+static ssize_t disabled_store(struct class *class, struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	long tmp = simple_strtol(buf, NULL, 10);
+
+	/*
+	 * This essentially makes the attribute write-once, since you can't
+	 * go back to not having it disabled. This is intentional, it serves
+	 * as a system lockdown feature.
+	 */
+	if (tmp != 1)
+		return -EINVAL;
+
+	devcd_disabled = true;
+
+	class_for_each_device(&devcd_class, NULL, NULL, devcd_free);
+
+	return count;
+}
+
+static struct class_attribute devcd_class_attrs[] = {
+	__ATTR_RW(disabled),
+	__ATTR_NULL
+};
+
 static struct class devcd_class = {
 	.name		= "devcoredump",
 	.owner		= THIS_MODULE,
 	.dev_release	= devcd_dev_release,
 	.dev_groups	= devcd_dev_groups,
+	.class_attrs	= devcd_class_attrs,
 };
 
 static ssize_t devcd_readv(char *buffer, loff_t offset, size_t count,
@@ -192,6 +237,9 @@ void dev_coredumpm(struct device *dev, struct module *owner,
 	struct devcd_entry *devcd;
 	struct device *existing;
 
+	if (devcd_disabled)
+		goto free;
+
 	existing = class_find_device(&devcd_class, NULL, dev,
 				     devcd_match_failing);
 	if (existing) {
@@ -248,14 +296,6 @@ static int __init devcoredump_init(void)
 	return class_register(&devcd_class);
 }
 __initcall(devcoredump_init);
-
-static int devcd_free(struct device *dev, void *data)
-{
-	struct devcd_entry *devcd = dev_to_devcd(dev);
-
-	flush_delayed_work(&devcd->del_wk);
-	return 0;
-}
 
 static void __exit devcoredump_exit(void)
 {

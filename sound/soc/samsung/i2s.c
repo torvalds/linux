@@ -1470,7 +1470,6 @@ static struct platform_driver samsung_i2s_driver = {
 	.id_table = samsung_i2s_driver_ids,
 	.driver = {
 		.name = "samsung-i2s",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(exynos_i2s_match),
 		.pm = &samsung_i2s_pm,
 	},

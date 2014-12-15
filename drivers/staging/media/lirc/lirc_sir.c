@@ -931,7 +931,6 @@ static struct platform_driver lirc_sir_driver = {
 	.remove		= lirc_sir_remove,
 	.driver		= {
 		.name	= "lirc_sir",
-		.owner	= THIS_MODULE,
 	},
 };
 

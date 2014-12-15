@@ -312,7 +312,6 @@ MODULE_DEVICE_TABLE(platform, s2mps11_clk_id);
 static struct platform_driver s2mps11_clk_driver = {
 	.driver = {
 		.name  = "s2mps11-clk",
-		.owner = THIS_MODULE,
 	},
 	.probe = s2mps11_clk_probe,
 	.remove = s2mps11_clk_remove,

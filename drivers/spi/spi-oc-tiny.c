@@ -351,7 +351,6 @@ static struct platform_driver tiny_spi_driver = {
 	.remove = tiny_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = NULL,
 		.of_match_table = of_match_ptr(tiny_spi_match),
 	},

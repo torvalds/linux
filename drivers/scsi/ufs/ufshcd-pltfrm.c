@@ -393,7 +393,6 @@ static struct platform_driver ufshcd_pltfrm_driver = {
 	.shutdown = ufshcd_pltfrm_shutdown,
 	.driver	= {
 		.name	= "ufshcd",
-		.owner	= THIS_MODULE,
 		.pm	= &ufshcd_dev_pm_ops,
 		.of_match_table = ufs_of_match,
 	},

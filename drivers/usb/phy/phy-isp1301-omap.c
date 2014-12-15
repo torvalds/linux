@@ -878,7 +878,6 @@ static struct platform_driver omap_otg_driver = {
 	.probe		= otg_probe,
 	.remove		= otg_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "omap_otg",
 	},
 };

@@ -1518,7 +1518,6 @@ static struct platform_driver ab8500_usb_driver = {
 	.id_table	= ab8500_usb_devtype,
 	.driver		= {
 		.name	= "abx5x0-usb",
-		.owner	= THIS_MODULE,
 	},
 };
 

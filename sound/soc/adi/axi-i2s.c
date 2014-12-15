@@ -263,7 +263,6 @@ MODULE_DEVICE_TABLE(of, axi_i2s_of_match);
 static struct platform_driver axi_i2s_driver = {
 	.driver = {
 		.name = "axi-i2s",
-		.owner = THIS_MODULE,
 		.of_match_table = axi_i2s_of_match,
 	},
 	.probe = axi_i2s_probe,

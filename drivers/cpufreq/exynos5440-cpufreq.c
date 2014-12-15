@@ -442,7 +442,6 @@ static int exynos_cpufreq_remove(struct platform_device *pdev)
 static struct platform_driver exynos_cpufreq_platdrv = {
 	.driver = {
 		.name	= "exynos5440-cpufreq",
-		.owner	= THIS_MODULE,
 		.of_match_table = exynos_cpufreq_match,
 	},
 	.probe		= exynos_cpufreq_probe,

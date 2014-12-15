@@ -1098,7 +1098,6 @@ static struct platform_driver i2c_imx_driver = {
 	.remove = i2c_imx_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = i2c_imx_dt_ids,
 	},
 	.id_table	= imx_i2c_devtype,

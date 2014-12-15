@@ -842,7 +842,6 @@ static struct platform_driver tc6393xb_driver = {
 
 	.driver = {
 		.name = "tc6393xb",
-		.owner = THIS_MODULE,
 	},
 };
 

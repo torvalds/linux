@@ -389,7 +389,6 @@ static struct platform_driver spear_adc_driver = {
 	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= SPEAR_ADC_MOD_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spear_adc_dt_ids),
 	},
 };

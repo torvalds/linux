@@ -354,7 +354,6 @@ MODULE_DEVICE_TABLE(of, omap_abe_of_match);
 static struct platform_driver omap_abe_driver = {
 	.driver = {
 		.name = "omap-abe-twl6040",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = omap_abe_of_match,
 	},

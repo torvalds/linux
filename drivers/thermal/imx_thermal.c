@@ -637,7 +637,6 @@ static SIMPLE_DEV_PM_OPS(imx_thermal_pm_ops,
 static struct platform_driver imx_thermal = {
 	.driver = {
 		.name	= "imx_thermal",
-		.owner  = THIS_MODULE,
 		.pm	= &imx_thermal_pm_ops,
 		.of_match_table = of_imx_thermal_match,
 	},

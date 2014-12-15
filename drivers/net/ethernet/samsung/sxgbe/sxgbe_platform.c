@@ -233,7 +233,6 @@ static struct platform_driver sxgbe_platform_driver = {
 	.remove	= sxgbe_platform_remove,
 	.driver	= {
 		.name		= SXGBE_RESOURCE_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &sxgbe_platform_pm_ops,
 		.of_match_table	= of_match_ptr(sxgbe_dt_ids),
 	},

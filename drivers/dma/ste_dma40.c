@@ -3750,7 +3750,6 @@ static const struct of_device_id d40_match[] = {
 
 static struct platform_driver d40_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = D40_NAME,
 		.pm = &dma40_pm_ops,
 		.of_match_table = d40_match,

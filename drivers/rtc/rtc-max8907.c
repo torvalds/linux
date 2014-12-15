@@ -215,7 +215,6 @@ static int max8907_rtc_probe(struct platform_device *pdev)
 static struct platform_driver max8907_rtc_driver = {
 	.driver = {
 		.name = "max8907-rtc",
-		.owner = THIS_MODULE,
 	},
 	.probe = max8907_rtc_probe,
 };

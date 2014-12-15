@@ -907,7 +907,6 @@ static int sn95031_device_remove(struct platform_device *pdev)
 static struct platform_driver sn95031_codec_driver = {
 	.driver		= {
 		.name		= "sn95031",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= sn95031_device_probe,
 	.remove		= sn95031_device_remove,

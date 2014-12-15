@@ -880,7 +880,6 @@ static struct platform_driver at91_twi_driver = {
 	.id_table	= at91_twi_devtypes,
 	.driver		= {
 		.name	= "at91_i2c",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(atmel_twi_dt_ids),
 		.pm	= at91_twi_pm_ops,
 	},

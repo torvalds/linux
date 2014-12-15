@@ -633,7 +633,6 @@ err_unlock:
 static struct platform_driver mc13892_regulator_driver = {
 	.driver	= {
 		.name	= "mc13892-regulator",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= mc13892_regulator_probe,
 };

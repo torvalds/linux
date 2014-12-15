@@ -1526,7 +1526,6 @@ static int vpbe_display_remove(struct platform_device *pdev)
 static struct platform_driver vpbe_display_driver = {
 	.driver = {
 		.name = VPBE_DISPLAY_DRIVER,
-		.owner = THIS_MODULE,
 		.bus = &platform_bus_type,
 	},
 	.probe = vpbe_display_probe,

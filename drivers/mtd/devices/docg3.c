@@ -2129,7 +2129,6 @@ static int __exit docg3_release(struct platform_device *pdev)
 static struct platform_driver g3_driver = {
 	.driver		= {
 		.name	= "docg3",
-		.owner	= THIS_MODULE,
 	},
 	.suspend	= docg3_suspend,
 	.resume		= docg3_resume,

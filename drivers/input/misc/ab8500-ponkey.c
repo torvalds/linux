@@ -123,7 +123,6 @@ static const struct of_device_id ab8500_ponkey_match[] = {
 static struct platform_driver ab8500_ponkey_driver = {
 	.driver		= {
 		.name	= "ab8500-poweron-key",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ab8500_ponkey_match),
 	},
 	.probe		= ab8500_ponkey_probe,

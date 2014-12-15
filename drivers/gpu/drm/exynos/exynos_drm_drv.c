@@ -736,7 +736,6 @@ static struct platform_driver exynos_drm_platform_driver = {
 	.probe	= exynos_drm_platform_probe,
 	.remove	= exynos_drm_platform_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "exynos-drm",
 		.pm	= &exynos_drm_pm_ops,
 	},

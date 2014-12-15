@@ -1333,7 +1333,6 @@ static struct platform_driver i2c_pxa_driver = {
 	.remove		= i2c_pxa_remove,
 	.driver		= {
 		.name	= "pxa2xx-i2c",
-		.owner	= THIS_MODULE,
 		.pm	= I2C_PXA_DEV_PM_OPS,
 		.of_match_table = i2c_pxa_dt_ids,
 	},

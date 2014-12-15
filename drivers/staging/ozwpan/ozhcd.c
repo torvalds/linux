@@ -224,7 +224,6 @@ static struct platform_driver g_oz_plat_drv = {
 	.resume = oz_plat_resume,
 	.driver = {
 		.name = OZ_PLAT_DEV_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

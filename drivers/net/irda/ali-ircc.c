@@ -61,7 +61,6 @@ static struct platform_driver ali_ircc_driver = {
 	.resume		= ali_ircc_resume,
 	.driver		= {
 		.name	= ALI_IRCC_DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

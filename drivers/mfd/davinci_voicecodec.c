@@ -143,7 +143,6 @@ static int davinci_vc_remove(struct platform_device *pdev)
 static struct platform_driver davinci_vc_driver = {
 	.driver	= {
 		.name = "davinci_voicecodec",
-		.owner = THIS_MODULE,
 	},
 	.remove	= davinci_vc_remove,
 };

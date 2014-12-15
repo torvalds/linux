@@ -1170,9 +1170,7 @@ static const struct dev_pm_ops hsw_pcm_pm = {
 static struct platform_driver hsw_pcm_driver = {
 	.driver = {
 		.name = "haswell-pcm-audio",
-		.owner = THIS_MODULE,
 		.pm = &hsw_pcm_pm,
-
 	},
 
 	.probe = hsw_pcm_dev_probe,

@@ -505,7 +505,6 @@ static struct platform_driver s3c_adc_driver = {
 	.id_table	= s3c_adc_driver_ids,
 	.driver		= {
 		.name	= "s3c-adc",
-		.owner	= THIS_MODULE,
 		.pm	= &adc_pm_ops,
 	},
 	.probe		= s3c_adc_probe,

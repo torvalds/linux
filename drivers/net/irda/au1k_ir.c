@@ -989,7 +989,6 @@ static int au1k_irda_remove(struct platform_device *pdev)
 static struct platform_driver au1k_irda_driver = {
 	.driver	= {
 		.name	= "au1000-irda",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= au1k_irda_probe,
 	.remove		= au1k_irda_remove,

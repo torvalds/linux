@@ -1450,7 +1450,6 @@ static struct platform_driver __refdata sh_vou = {
 	.remove  = sh_vou_remove,
 	.driver  = {
 		.name	= "sh-vou",
-		.owner	= THIS_MODULE,
 	},
 };
 

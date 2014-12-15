@@ -684,7 +684,6 @@ static const struct of_device_id sysmmu_of_match[] __initconst = {
 static struct platform_driver exynos_sysmmu_driver __refdata = {
 	.probe	= exynos_sysmmu_probe,
 	.driver	= {
-		.owner		= THIS_MODULE,
 		.name		= "exynos-sysmmu",
 		.of_match_table	= sysmmu_of_match,
 	}

@@ -829,7 +829,6 @@ static int pnx8xxx_serial_remove(struct platform_device *pdev)
 static struct platform_driver pnx8xxx_serial_driver = {
 	.driver		= {
 		.name	= "pnx8xxx-uart",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pnx8xxx_serial_probe,
 	.remove		= pnx8xxx_serial_remove,

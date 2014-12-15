@@ -401,7 +401,6 @@ static struct platform_driver gpio_regulator_driver = {
 	.remove		= gpio_regulator_remove,
 	.driver		= {
 		.name		= "gpio-regulator",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(regulator_gpio_of_match),
 	},
 };

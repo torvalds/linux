@@ -284,7 +284,6 @@ static struct platform_driver usb_phy_generic_driver = {
 	.remove		= usb_phy_generic_remove,
 	.driver		= {
 		.name	= "usb_phy_generic",
-		.owner	= THIS_MODULE,
 		.of_match_table = nop_xceiv_dt_ids,
 	},
 };

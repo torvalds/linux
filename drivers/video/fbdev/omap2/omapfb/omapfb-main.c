@@ -2638,7 +2638,6 @@ static struct platform_driver omapfb_driver = {
 	.remove         = omapfb_remove,
 	.driver         = {
 		.name   = "omapfb",
-		.owner  = THIS_MODULE,
 	},
 };
 

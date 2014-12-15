@@ -310,7 +310,6 @@ static int gen_pci_probe(struct platform_device *pdev)
 static struct platform_driver gen_pci_driver = {
 	.driver = {
 		.name = "pci-host-generic",
-		.owner = THIS_MODULE,
 		.of_match_table = gen_pci_of_match,
 	},
 	.probe = gen_pci_probe,

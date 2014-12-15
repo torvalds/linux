@@ -119,7 +119,6 @@ static struct platform_driver menf21bmc_led = {
 	.remove		= menf21bmc_led_remove,
 	.driver		= {
 		.name		= "menf21bmc_led",
-		.owner		= THIS_MODULE,
 	},
 };
 

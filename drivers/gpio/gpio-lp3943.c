@@ -231,7 +231,6 @@ static struct platform_driver lp3943_gpio_driver = {
 	.remove = lp3943_gpio_remove,
 	.driver = {
 		.name = "lp3943-gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = lp3943_gpio_of_match,
 	},
 };

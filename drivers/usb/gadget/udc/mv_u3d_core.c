@@ -2052,7 +2052,6 @@ static struct platform_driver mv_u3d_driver = {
 	.remove		= mv_u3d_remove,
 	.shutdown	= mv_u3d_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "mv-u3d",
 		.pm	= &mv_u3d_pm_ops,
 	},

@@ -973,7 +973,6 @@ static struct platform_driver nvec_device_driver = {
 	.remove  = tegra_nvec_remove,
 	.driver  = {
 		.name = "nvec",
-		.owner = THIS_MODULE,
 		.pm = &nvec_pm_ops,
 		.of_match_table = nvidia_nvec_of_match,
 	}

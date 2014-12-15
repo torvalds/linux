@@ -121,7 +121,6 @@ static struct platform_driver ehci_hcd_w90x900_driver = {
 	.remove = ehci_w90x900_remove,
 	.driver = {
 		.name = "w90x900-ehci",
-		.owner = THIS_MODULE,
 	},
 };
 

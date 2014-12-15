@@ -726,7 +726,6 @@ MODULE_DEVICE_TABLE(platform, rcar_i2c_id_table);
 static struct platform_driver rcar_i2c_driver = {
 	.driver	= {
 		.name	= "i2c-rcar",
-		.owner	= THIS_MODULE,
 		.of_match_table = rcar_i2c_dt_ids,
 	},
 	.probe		= rcar_i2c_probe,

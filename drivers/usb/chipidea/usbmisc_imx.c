@@ -370,7 +370,6 @@ static struct platform_driver usbmisc_imx_driver = {
 	.remove = usbmisc_imx_remove,
 	.driver = {
 		.name = "usbmisc_imx",
-		.owner = THIS_MODULE,
 		.of_match_table = usbmisc_imx_dt_ids,
 	 },
 };

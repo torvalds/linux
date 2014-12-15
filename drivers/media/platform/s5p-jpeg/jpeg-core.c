@@ -2763,7 +2763,6 @@ static struct platform_driver s5p_jpeg_driver = {
 	.remove = s5p_jpeg_remove,
 	.driver = {
 		.of_match_table	= of_match_ptr(samsung_jpeg_match),
-		.owner		= THIS_MODULE,
 		.name		= S5P_JPEG_M2M_NAME,
 		.pm		= &s5p_jpeg_pm_ops,
 	},

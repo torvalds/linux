@@ -151,7 +151,6 @@ static int cq93vc_platform_remove(struct platform_device *pdev)
 static struct platform_driver cq93vc_codec_driver = {
 	.driver = {
 			.name = "cq93vc-codec",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = cq93vc_platform_probe,

@@ -441,7 +441,6 @@ static struct platform_driver dw_i2s_driver = {
 	.remove		= dw_i2s_remove,
 	.driver		= {
 		.name	= "designware-i2s",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -283,7 +283,6 @@ static struct platform_driver xway_stp_driver = {
 	.probe = xway_stp_probe,
 	.driver = {
 		.name = "gpio-stp-xway",
-		.owner = THIS_MODULE,
 		.of_match_table = xway_stp_match,
 	},
 };

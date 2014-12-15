@@ -250,7 +250,6 @@ static int sch_gpio_remove(struct platform_device *pdev)
 static struct platform_driver sch_gpio_driver = {
 	.driver = {
 		.name = "sch_gpio",
-		.owner = THIS_MODULE,
 	},
 	.probe		= sch_gpio_probe,
 	.remove		= sch_gpio_remove,

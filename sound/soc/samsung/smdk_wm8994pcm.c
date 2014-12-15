@@ -143,7 +143,6 @@ static int snd_smdk_probe(struct platform_device *pdev)
 
 static struct platform_driver snd_smdk_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "samsung-smdk-pcm",
 	},
 	.probe = snd_smdk_probe,

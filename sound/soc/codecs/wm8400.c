@@ -1365,7 +1365,6 @@ static int wm8400_remove(struct platform_device *pdev)
 static struct platform_driver wm8400_codec_driver = {
 	.driver = {
 		   .name = "wm8400-codec",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8400_probe,
 	.remove = wm8400_remove,

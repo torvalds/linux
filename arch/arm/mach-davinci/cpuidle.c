@@ -91,7 +91,6 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver davinci_cpuidle_driver = {
 	.driver = {
 		.name	= "cpuidle-davinci",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -1119,7 +1119,6 @@ static int davinci_spi_remove(struct platform_device *pdev)
 static struct platform_driver davinci_spi_driver = {
 	.driver = {
 		.name = "spi_davinci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(davinci_spi_of_match),
 	},
 	.probe = davinci_spi_probe,

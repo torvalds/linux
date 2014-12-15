@@ -1385,7 +1385,6 @@ static struct platform_driver ssi_port_pdriver = {
 	.remove	= __exit_p(ssi_port_remove),
 	.driver	= {
 		.name	= "omap_ssi_port",
-		.owner	= THIS_MODULE,
 		.of_match_table = omap_ssi_port_of_match,
 		.pm	= DEV_PM_OPS,
 	},

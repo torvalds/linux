@@ -351,7 +351,6 @@ static struct platform_driver ds1553_rtc_driver = {
 	.remove		= ds1553_rtc_remove,
 	.driver		= {
 		.name	= "rtc-ds1553",
-		.owner	= THIS_MODULE,
 	},
 };
 

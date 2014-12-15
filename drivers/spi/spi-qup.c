@@ -756,7 +756,6 @@ static const struct dev_pm_ops spi_qup_dev_pm_ops = {
 static struct platform_driver spi_qup_driver = {
 	.driver = {
 		.name		= "spi_qup",
-		.owner		= THIS_MODULE,
 		.pm		= &spi_qup_dev_pm_ops,
 		.of_match_table = spi_qup_dt_match,
 	},

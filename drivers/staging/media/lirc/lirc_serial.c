@@ -1060,7 +1060,6 @@ static struct platform_driver lirc_serial_driver = {
 	.resume		= lirc_serial_resume,
 	.driver		= {
 		.name	= "lirc_serial",
-		.owner	= THIS_MODULE,
 	},
 };
 

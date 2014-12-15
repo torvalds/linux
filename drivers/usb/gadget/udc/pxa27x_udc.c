@@ -2591,7 +2591,6 @@ MODULE_ALIAS("platform:pxa27x-udc");
 static struct platform_driver udc_driver = {
 	.driver		= {
 		.name	= "pxa27x-udc",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(udc_pxa_dt_ids),
 	},
 	.probe		= pxa_udc_probe,

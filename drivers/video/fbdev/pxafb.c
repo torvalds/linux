@@ -2304,7 +2304,6 @@ static struct platform_driver pxafb_driver = {
 	.probe		= pxafb_probe,
 	.remove 	= pxafb_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "pxa2xx-fb",
 #ifdef CONFIG_PM
 		.pm	= &pxafb_pm_ops,

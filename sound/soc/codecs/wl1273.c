@@ -511,7 +511,6 @@ MODULE_ALIAS("platform:wl1273-codec");
 static struct platform_driver wl1273_platform_driver = {
 	.driver		= {
 		.name	= "wl1273-codec",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= wl1273_platform_probe,
 	.remove		= wl1273_platform_remove,

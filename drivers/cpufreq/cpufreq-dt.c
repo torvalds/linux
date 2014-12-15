@@ -400,7 +400,6 @@ static int dt_cpufreq_remove(struct platform_device *pdev)
 static struct platform_driver dt_cpufreq_platdrv = {
 	.driver = {
 		.name	= "cpufreq-dt",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= dt_cpufreq_probe,
 	.remove		= dt_cpufreq_remove,

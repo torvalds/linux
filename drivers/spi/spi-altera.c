@@ -282,7 +282,6 @@ static struct platform_driver altera_spi_driver = {
 	.remove = altera_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = NULL,
 		.of_match_table = of_match_ptr(altera_spi_match),
 	},

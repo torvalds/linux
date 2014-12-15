@@ -193,7 +193,6 @@ static struct platform_driver rb532_pata_platform_driver = {
 	.remove		= rb532_pata_driver_remove,
 	.driver	 = {
 		.name   = DRV_NAME,
-		.owner  = THIS_MODULE,
 	},
 };
 

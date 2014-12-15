@@ -1087,7 +1087,6 @@ static int ghes_remove(struct platform_device *ghes_dev)
 static struct platform_driver ghes_platform_driver = {
 	.driver		= {
 		.name	= "GHES",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ghes_probe,
 	.remove		= ghes_remove,

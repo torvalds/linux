@@ -3218,7 +3218,6 @@ static struct platform_driver u132_platform_driver = {
 	.resume = u132_resume,
 	.driver = {
 		   .name = hcd_name,
-		   .owner = THIS_MODULE,
 		   },
 };
 static int __init u132_hcd_init(void)

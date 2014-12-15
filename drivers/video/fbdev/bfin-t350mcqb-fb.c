@@ -661,7 +661,6 @@ static struct platform_driver bfin_t350mcqb_driver = {
 	.resume = bfin_t350mcqb_resume,
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .owner = THIS_MODULE,
 		   },
 };
 module_platform_driver(bfin_t350mcqb_driver);

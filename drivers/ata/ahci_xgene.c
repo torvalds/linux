@@ -544,7 +544,6 @@ static struct platform_driver xgene_ahci_driver = {
 	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = "xgene-ahci",
-		.owner = THIS_MODULE,
 		.of_match_table = xgene_ahci_of_match,
 	},
 };

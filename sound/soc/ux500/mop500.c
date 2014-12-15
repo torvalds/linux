@@ -155,7 +155,6 @@ static const struct of_device_id snd_soc_mop500_match[] = {
 
 static struct platform_driver snd_soc_mop500_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "snd-soc-mop500",
 		.of_match_table = snd_soc_mop500_match,
 	},

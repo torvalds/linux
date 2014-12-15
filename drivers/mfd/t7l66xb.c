@@ -431,7 +431,6 @@ static int t7l66xb_remove(struct platform_device *dev)
 static struct platform_driver t7l66xb_platform_driver = {
 	.driver = {
 		.name	= "t7l66xb",
-		.owner	= THIS_MODULE,
 	},
 	.suspend	= t7l66xb_suspend,
 	.resume		= t7l66xb_resume,

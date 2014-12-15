@@ -2117,7 +2117,6 @@ static void acer_platform_shutdown(struct platform_device *device)
 static struct platform_driver acer_platform_driver = {
 	.driver = {
 		.name = "acer-wmi",
-		.owner = THIS_MODULE,
 		.pm = &acer_pm,
 	},
 	.probe = acer_platform_probe,

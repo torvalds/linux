@@ -1469,7 +1469,6 @@ static struct platform_driver fimc_md_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(fimc_md_of_match),
 		.name		= "s5p-fimc-md",
-		.owner		= THIS_MODULE,
 	}
 };
 

@@ -239,7 +239,6 @@ static int __exit ab3100_otp_remove(struct platform_device *pdev)
 static struct platform_driver ab3100_otp_driver = {
 	.driver = {
 		.name = "ab3100-otp",
-		.owner = THIS_MODULE,
 	},
 	.remove	 = __exit_p(ab3100_otp_remove),
 };

@@ -180,7 +180,6 @@ static int soc_camera_platform_remove(struct platform_device *pdev)
 static struct platform_driver soc_camera_platform_driver = {
 	.driver		= {
 		.name	= "soc_camera_platform",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= soc_camera_platform_probe,
 	.remove		= soc_camera_platform_remove,

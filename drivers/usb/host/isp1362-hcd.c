@@ -2778,7 +2778,6 @@ static struct platform_driver isp1362_driver = {
 	.resume = isp1362_resume,
 	.driver = {
 		.name = hcd_name,
-		.owner = THIS_MODULE,
 	},
 };
 

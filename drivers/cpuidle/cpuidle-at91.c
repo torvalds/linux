@@ -60,7 +60,6 @@ static int at91_cpuidle_probe(struct platform_device *dev)
 static struct platform_driver at91_cpuidle_driver = {
 	.driver = {
 		.name = "cpuidle-at91",
-		.owner = THIS_MODULE,
 	},
 	.probe = at91_cpuidle_probe,
 };

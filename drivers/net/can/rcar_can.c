@@ -907,7 +907,6 @@ MODULE_DEVICE_TABLE(of, rcar_can_of_table);
 static struct platform_driver rcar_can_driver = {
 	.driver = {
 		.name = RCAR_CAN_DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rcar_can_of_table),
 		.pm = &rcar_can_pm_ops,
 	},

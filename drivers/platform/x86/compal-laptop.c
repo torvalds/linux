@@ -710,7 +710,6 @@ static int compal_remove(struct platform_device *);
 static struct platform_driver compal_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe	= compal_probe,
 	.remove	= compal_remove,

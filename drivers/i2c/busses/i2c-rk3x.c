@@ -980,7 +980,6 @@ static struct platform_driver rk3x_i2c_driver = {
 	.probe   = rk3x_i2c_probe,
 	.remove  = rk3x_i2c_remove,
 	.driver  = {
-		.owner = THIS_MODULE,
 		.name  = "rk3x-i2c",
 		.of_match_table = rk3x_i2c_match,
 	},

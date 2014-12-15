@@ -1558,7 +1558,6 @@ static const struct dev_pm_ops pxa2xx_spi_pm_ops = {
 static struct platform_driver driver = {
 	.driver = {
 		.name	= "pxa2xx-spi",
-		.owner	= THIS_MODULE,
 		.pm	= &pxa2xx_spi_pm_ops,
 		.acpi_match_table = ACPI_PTR(pxa2xx_spi_acpi_match),
 	},

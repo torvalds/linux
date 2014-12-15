@@ -3405,7 +3405,6 @@ static struct platform_driver lpc32xx_udc_driver = {
 	.resume		= lpc32xx_udc_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(lpc32xx_udc_of_match),
 	},
 };

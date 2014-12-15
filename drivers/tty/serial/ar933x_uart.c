@@ -744,7 +744,6 @@ static struct platform_driver ar933x_uart_platform_driver = {
 	.remove		= ar933x_uart_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(ar933x_uart_of_ids),
 	},
 };

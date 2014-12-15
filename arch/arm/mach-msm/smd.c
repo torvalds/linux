@@ -1019,7 +1019,6 @@ static struct platform_driver msm_smd_driver = {
 	.probe = msm_smd_probe,
 	.driver = {
 		.name = MODULE_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

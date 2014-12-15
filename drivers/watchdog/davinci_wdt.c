@@ -218,7 +218,6 @@ MODULE_DEVICE_TABLE(of, davinci_wdt_of_match);
 static struct platform_driver platform_wdt_driver = {
 	.driver = {
 		.name = "davinci-wdt",
-		.owner	= THIS_MODULE,
 		.of_match_table = davinci_wdt_of_match,
 	},
 	.probe = davinci_wdt_probe,

@@ -923,7 +923,6 @@ static int sh_dmae_remove(struct platform_device *pdev)
 
 static struct platform_driver sh_dmae_driver = {
 	.driver 	= {
-		.owner	= THIS_MODULE,
 		.pm	= &sh_dmae_pm,
 		.name	= SH_DMAE_DRV_NAME,
 		.of_match_table = sh_dmae_of_match,

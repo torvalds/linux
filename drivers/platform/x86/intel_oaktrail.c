@@ -288,7 +288,6 @@ static int oaktrail_remove(struct platform_device *pdev)
 static struct platform_driver oaktrail_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe	= oaktrail_probe,
 	.remove	= oaktrail_remove,

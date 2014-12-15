@@ -788,7 +788,6 @@ static SIMPLE_DEV_PM_OPS(w5100_pm_ops, w5100_suspend, w5100_resume);
 static struct platform_driver w5100_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &w5100_pm_ops,
 	},
 	.probe		= w5100_probe,

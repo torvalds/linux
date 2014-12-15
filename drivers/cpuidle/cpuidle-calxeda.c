@@ -72,7 +72,6 @@ static int calxeda_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver calxeda_cpuidle_plat_driver = {
         .driver = {
                 .name = "cpuidle-calxeda",
-                .owner = THIS_MODULE,
         },
         .probe = calxeda_cpuidle_probe,
 };

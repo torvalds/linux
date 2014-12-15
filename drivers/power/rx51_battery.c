@@ -281,7 +281,6 @@ static struct platform_driver rx51_battery_driver = {
 	.remove = rx51_battery_remove,
 	.driver = {
 		.name = "rx51-battery",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(n900_battery_of_match),
 	},
 };

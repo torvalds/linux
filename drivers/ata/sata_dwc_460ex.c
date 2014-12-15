@@ -1807,7 +1807,6 @@ MODULE_DEVICE_TABLE(of, sata_dwc_match);
 static struct platform_driver sata_dwc_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = sata_dwc_match,
 	},
 	.probe = sata_dwc_probe,

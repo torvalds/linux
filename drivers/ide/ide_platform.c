@@ -125,7 +125,6 @@ static int plat_ide_remove(struct platform_device *pdev)
 static struct platform_driver platform_ide_driver = {
 	.driver = {
 		.name = "pata_platform",
-		.owner = THIS_MODULE,
 	},
 	.probe = plat_ide_probe,
 	.remove = plat_ide_remove,

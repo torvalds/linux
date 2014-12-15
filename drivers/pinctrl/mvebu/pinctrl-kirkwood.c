@@ -489,7 +489,6 @@ static int kirkwood_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver kirkwood_pinctrl_driver = {
 	.driver = {
 		.name = "kirkwood-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = kirkwood_pinctrl_of_match,
 	},
 	.probe = kirkwood_pinctrl_probe,

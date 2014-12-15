@@ -691,7 +691,6 @@ static struct platform_driver imx_drm_pdrv = {
 	.probe		= imx_drm_platform_probe,
 	.remove		= imx_drm_platform_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "imx-drm",
 		.pm	= &imx_drm_pm_ops,
 		.of_match_table = imx_drm_dt_ids,

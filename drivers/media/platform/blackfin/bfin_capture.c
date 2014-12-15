@@ -1120,7 +1120,6 @@ static int bcap_remove(struct platform_device *pdev)
 static struct platform_driver bcap_driver = {
 	.driver = {
 		.name  = CAPTURE_DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = bcap_probe,
 	.remove = bcap_remove,

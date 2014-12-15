@@ -413,7 +413,6 @@ static struct platform_driver aemif_driver = {
 	.remove = aemif_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(aemif_of_match),
 	},
 };

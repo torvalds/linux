@@ -69,7 +69,6 @@ static int dbx500_cpufreq_probe(struct platform_device *pdev)
 static struct platform_driver dbx500_cpufreq_plat_driver = {
 	.driver = {
 		.name = "cpufreq-ux500",
-		.owner = THIS_MODULE,
 	},
 	.probe = dbx500_cpufreq_probe,
 };

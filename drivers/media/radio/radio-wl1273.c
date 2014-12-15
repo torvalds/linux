@@ -2150,7 +2150,6 @@ static struct platform_driver wl1273_fm_radio_driver = {
 	.remove		= wl1273_fm_radio_remove,
 	.driver		= {
 		.name	= "wl1273_fm_radio",
-		.owner	= THIS_MODULE,
 	},
 };
 

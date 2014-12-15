@@ -1964,7 +1964,6 @@ static struct platform_driver hash_driver = {
 	.remove = ux500_hash_remove,
 	.shutdown = ux500_hash_shutdown,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "hash1",
 		.of_match_table = ux500_hash_match,
 		.pm    = &ux500_hash_pm,

@@ -1162,7 +1162,6 @@ static struct platform_driver snd_dummy_driver = {
 	.remove		= snd_dummy_remove,
 	.driver		= {
 		.name	= SND_DUMMY_DRIVER,
-		.owner	= THIS_MODULE,
 		.pm	= SND_DUMMY_PM_OPS,
 	},
 };

@@ -3561,7 +3561,6 @@ MODULE_DEVICE_TABLE(of, gfar_match);
 static struct platform_driver gfar_driver = {
 	.driver = {
 		.name = "fsl-gianfar",
-		.owner = THIS_MODULE,
 		.pm = GFAR_PM_OPS,
 		.of_match_table = gfar_match,
 	},

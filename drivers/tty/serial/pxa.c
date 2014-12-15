@@ -933,7 +933,6 @@ static struct platform_driver serial_pxa_driver = {
 
 	.driver		= {
 	        .name	= "pxa2xx-uart",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &serial_pxa_pm_ops,
 #endif

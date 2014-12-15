@@ -519,7 +519,6 @@ static int ab8500_rtc_remove(struct platform_device *pdev)
 static struct platform_driver ab8500_rtc_driver = {
 	.driver = {
 		.name = "ab8500-rtc",
-		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_rtc_probe,
 	.remove = ab8500_rtc_remove,

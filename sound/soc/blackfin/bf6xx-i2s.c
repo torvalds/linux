@@ -229,7 +229,6 @@ static struct platform_driver bfin_i2s_driver = {
 	.remove = bfin_i2s_remove,
 	.driver = {
 		.name = "bfin-i2s",
-		.owner = THIS_MODULE,
 	},
 };
 

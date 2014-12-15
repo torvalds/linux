@@ -881,7 +881,6 @@ static struct platform_driver pxa27x_keypad_driver = {
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.of_match_table = of_match_ptr(pxa27x_keypad_dt_match),
-		.owner	= THIS_MODULE,
 		.pm	= &pxa27x_keypad_pm_ops,
 	},
 };

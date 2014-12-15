@@ -1301,7 +1301,6 @@ static int max77693_muic_remove(struct platform_device *pdev)
 static struct platform_driver max77693_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max77693_muic_probe,
 	.remove		= max77693_muic_remove,

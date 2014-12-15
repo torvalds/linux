@@ -116,7 +116,6 @@ static struct platform_driver s3c24xx_led_driver = {
 	.remove		= s3c24xx_led_remove,
 	.driver		= {
 		.name		= "s3c24xx_led",
-		.owner		= THIS_MODULE,
 	},
 };
 

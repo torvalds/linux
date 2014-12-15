@@ -1195,7 +1195,6 @@ static struct platform_driver ab8500_btemp_driver = {
 	.resume = ab8500_btemp_resume,
 	.driver = {
 		.name = "ab8500-btemp",
-		.owner = THIS_MODULE,
 		.of_match_table = ab8500_btemp_match,
 	},
 };

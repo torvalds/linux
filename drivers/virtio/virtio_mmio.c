@@ -640,7 +640,6 @@ static struct platform_driver virtio_mmio_driver = {
 	.remove		= virtio_mmio_remove,
 	.driver		= {
 		.name	= "virtio-mmio",
-		.owner	= THIS_MODULE,
 		.of_match_table	= virtio_mmio_match,
 	},
 };

@@ -180,7 +180,6 @@ static int ab8500_sysctrl_remove(struct platform_device *pdev)
 static struct platform_driver ab8500_sysctrl_driver = {
 	.driver = {
 		.name = "ab8500-sysctrl",
-		.owner = THIS_MODULE,
 	},
 	.probe = ab8500_sysctrl_probe,
 	.remove = ab8500_sysctrl_remove,

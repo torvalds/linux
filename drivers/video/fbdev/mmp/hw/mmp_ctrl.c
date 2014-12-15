@@ -571,7 +571,6 @@ failed:
 static struct platform_driver mmphw_driver = {
 	.driver		= {
 		.name	= "mmp-disp",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= mmphw_probe,
 };

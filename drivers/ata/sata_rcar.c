@@ -1004,7 +1004,6 @@ static struct platform_driver sata_rcar_driver = {
 	.id_table	= sata_rcar_id_table,
 	.driver = {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= sata_rcar_match,
 #ifdef CONFIG_PM_SLEEP
 		.pm		= &sata_rcar_pm_ops,

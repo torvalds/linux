@@ -334,7 +334,6 @@ static const struct dev_pm_ops au1xpscac97_pmops = {
 static struct platform_driver au1xac97c_driver = {
 	.driver	= {
 		.name	= "alchemy-ac97c",
-		.owner	= THIS_MODULE,
 		.pm	= AU1XPSCAC97_PMOPS,
 	},
 	.probe		= au1xac97c_drvprobe,

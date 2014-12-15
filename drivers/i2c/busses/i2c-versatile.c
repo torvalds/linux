@@ -138,7 +138,6 @@ static struct platform_driver i2c_versatile_driver = {
 	.remove		= i2c_versatile_remove,
 	.driver		= {
 		.name	= "versatile-i2c",
-		.owner	= THIS_MODULE,
 		.of_match_table = i2c_versatile_match,
 	},
 };

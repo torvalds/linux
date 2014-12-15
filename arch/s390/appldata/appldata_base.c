@@ -511,7 +511,6 @@ static const struct dev_pm_ops appldata_pm_ops = {
 static struct platform_driver appldata_pdrv = {
 	.driver = {
 		.name	= "appldata",
-		.owner	= THIS_MODULE,
 		.pm	= &appldata_pm_ops,
 	},
 };

@@ -133,7 +133,6 @@ static struct platform_driver fimc_is_i2c_driver = {
 	.driver = {
 		.of_match_table = fimc_is_i2c_of_match,
 		.name		= "fimc-isp-i2c",
-		.owner		= THIS_MODULE,
 		.pm		= &fimc_is_i2c_pm_ops,
 	}
 };

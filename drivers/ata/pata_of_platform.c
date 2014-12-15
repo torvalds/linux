@@ -75,7 +75,6 @@ MODULE_DEVICE_TABLE(of, pata_of_platform_match);
 static struct platform_driver pata_of_platform_driver = {
 	.driver = {
 		.name = "pata_of_platform",
-		.owner = THIS_MODULE,
 		.of_match_table = pata_of_platform_match,
 	},
 	.probe		= pata_of_platform_probe,

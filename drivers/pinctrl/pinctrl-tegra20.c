@@ -2236,7 +2236,6 @@ static const struct of_device_id tegra20_pinctrl_of_match[] = {
 static struct platform_driver tegra20_pinctrl_driver = {
 	.driver = {
 		.name = "tegra20-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra20_pinctrl_of_match,
 	},
 	.probe = tegra20_pinctrl_probe,
