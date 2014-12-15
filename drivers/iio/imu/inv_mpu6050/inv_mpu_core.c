@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
 #include <linux/i2c-mux.h>
+#include <linux/acpi.h>
 #include "inv_mpu_iio.h"
 
 /*
@@ -875,6 +876,13 @@ static const struct i2c_device_id inv_mpu_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, inv_mpu_id);
 
+static const struct acpi_device_id inv_acpi_match[] = {
+	{"INVN6500", 0},
+	{ },
+};
+
+MODULE_DEVICE_TABLE(acpi, inv_acpi_match);
+
 static struct i2c_driver inv_mpu_driver = {
 	.probe		=	inv_mpu_probe,
 	.remove		=	inv_mpu_remove,
@@ -883,6 +891,7 @@ static struct i2c_driver inv_mpu_driver = {
 		.owner	=	THIS_MODULE,
 		.name	=	"inv-mpu6050",
 		.pm     =       INV_MPU6050_PMOPS,
+		.acpi_match_table = ACPI_PTR(inv_acpi_match),
 	},
 };
 
