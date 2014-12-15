@@ -3440,8 +3440,10 @@ unhash:
 				      struct stripe_head, batch_list);
 		list_del_init(&sh->batch_list);
 
-		sh->state = head_sh->state & (~((1 << STRIPE_ACTIVE) |
-			(1 << STRIPE_PREREAD_ACTIVE)));
+		set_mask_bits(&sh->state, ~STRIPE_EXPAND_SYNC_FLAG,
+			      head_sh->state & ~((1 << STRIPE_ACTIVE) |
+						 (1 << STRIPE_PREREAD_ACTIVE) |
+						 STRIPE_EXPAND_SYNC_FLAG));
 		sh->check_state = head_sh->check_state;
 		sh->reconstruct_state = head_sh->reconstruct_state;
 		for (i = 0; i < sh->disks; i++) {
@@ -3453,6 +3455,8 @@ unhash:
 		spin_lock_irq(&sh->stripe_lock);
 		sh->batch_head = NULL;
 		spin_unlock_irq(&sh->stripe_lock);
+		if (sh->state & STRIPE_EXPAND_SYNC_FLAG)
+			set_bit(STRIPE_HANDLE, &sh->state);
 		release_stripe(sh);
 	}
 
@@ -3460,6 +3464,8 @@ unhash:
 	head_sh->batch_head = NULL;
 	spin_unlock_irq(&head_sh->stripe_lock);
 	wake_up_nr(&conf->wait_for_overlap, wakeup_nr);
+	if (head_sh->state & STRIPE_EXPAND_SYNC_FLAG)
+		set_bit(STRIPE_HANDLE, &head_sh->state);
 }
 
 static void handle_stripe_dirtying(struct r5conf *conf,
@@ -3927,8 +3933,8 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 
 	memset(s, 0, sizeof(*s));
 
-	s->expanding = test_bit(STRIPE_EXPAND_SOURCE, &sh->state);
-	s->expanded = test_bit(STRIPE_EXPAND_READY, &sh->state);
+	s->expanding = test_bit(STRIPE_EXPAND_SOURCE, &sh->state) && !sh->batch_head;
+	s->expanded = test_bit(STRIPE_EXPAND_READY, &sh->state) && !sh->batch_head;
 	s->failed_num[0] = -1;
 	s->failed_num[1] = -1;
 
@@ -4150,9 +4156,11 @@ static void check_break_stripe_batch_list(struct stripe_head *sh)
 					struct stripe_head, batch_list);
 		list_del_init(&sh->batch_list);
 
-		sh->state = head_sh->state & ~((1 << STRIPE_ACTIVE) |
-					       (1 << STRIPE_PREREAD_ACTIVE) |
-					       (1 << STRIPE_DEGRADED));
+		set_mask_bits(&sh->state, ~STRIPE_EXPAND_SYNC_FLAG,
+			      head_sh->state & ~((1 << STRIPE_ACTIVE) |
+						 (1 << STRIPE_PREREAD_ACTIVE) |
+						 (1 << STRIPE_DEGRADED) |
+						 STRIPE_EXPAND_SYNC_FLAG));
 		sh->check_state = head_sh->check_state;
 		sh->reconstruct_state = head_sh->reconstruct_state;
 		for (i = 0; i < sh->disks; i++)
@@ -4194,7 +4202,7 @@ static void handle_stripe(struct stripe_head *sh)
 
 	check_break_stripe_batch_list(sh);
 
-	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
+	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state) && !sh->batch_head) {
 		spin_lock(&sh->stripe_lock);
 		/* Cannot process 'sync' concurrently with 'discard' */
 		if (!test_bit(STRIPE_DISCARD, &sh->state) &&

@@ -339,6 +339,11 @@ enum {
 	STRIPE_BATCH_ERR,
 };
 
+#define STRIPE_EXPAND_SYNC_FLAG \
+	((1 << STRIPE_EXPAND_SOURCE) |\
+	(1 << STRIPE_EXPAND_READY) |\
+	(1 << STRIPE_EXPANDING) |\
+	(1 << STRIPE_SYNC_REQUESTED))
 /*
  * Operation request flags
  */
