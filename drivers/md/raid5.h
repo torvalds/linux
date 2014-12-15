@@ -219,6 +219,10 @@ struct stripe_head {
 	spinlock_t		stripe_lock;
 	int			cpu;
 	struct r5worker_group	*group;
+
+	struct stripe_head	*batch_head; /* protected by stripe lock */
+	spinlock_t		batch_lock; /* only header's lock is useful */
+	struct list_head	batch_list; /* protected by head's batch lock*/
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
