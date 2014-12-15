@@ -42,34 +42,8 @@ void __init at91rm9200_set_type(int type)
 		at91_get_soc_subtype(&at91_soc_initdata));
 }
 
-void __init at91_init_irq_default(void)
-{
-	at91_init_interrupts(at91_boot_soc.default_irq_priority);
-}
-
-void __init at91_init_interrupts(unsigned int *priority)
-{
-	/* Initialize the AIC interrupt controller */
-	if (IS_ENABLED(CONFIG_OLD_IRQ_AT91))
-		at91_aic_init(priority, at91_boot_soc.extern_irq);
-
-	/* Enable GPIO interrupts */
-	at91_gpio_irq_setup();
-}
-
 void __iomem *at91_ramc_base[2];
 EXPORT_SYMBOL_GPL(at91_ramc_base);
-
-void __init at91_ioremap_ramc(int id, u32 addr, u32 size)
-{
-	if (id < 0 || id > 1) {
-		pr_emerg("Wrong RAM controller id (%d), cannot continue\n", id);
-		BUG();
-	}
-	at91_ramc_base[id] = ioremap(addr, size);
-	if (!at91_ramc_base[id])
-		panic(pr_fmt("Impossible to ioremap ramc.%d 0x%x\n"), id, addr);
-}
 
 static struct map_desc sram_desc[2] __initdata;
 
@@ -418,7 +392,6 @@ void __init at91_ioremap_matrix(u32 base_addr)
 		panic(pr_fmt("Impossible to ioremap at91_matrix_base\n"));
 }
 
-#if defined(CONFIG_OF) && !defined(CONFIG_ARCH_AT91X40)
 static struct of_device_id ramc_ids[] = {
 	{ .compatible = "atmel,at91rm9200-sdramc", .data = at91rm9200_standby },
 	{ .compatible = "atmel,at91sam9260-sdramc", .data = at91sam9_sdram_standby },
@@ -460,13 +433,6 @@ void __init at91rm9200_dt_initialize(void)
 {
 	at91_dt_ramc();
 
-	/* Init clock subsystem */
-	at91_dt_clock_init();
-
-	/* Register the processor-specific clocks */
-	if (at91_boot_soc.register_clocks)
-		at91_boot_soc.register_clocks();
-
 	at91_boot_soc.init();
 }
 
@@ -474,39 +440,6 @@ void __init at91_dt_initialize(void)
 {
 	at91_dt_ramc();
 
-	/* Init clock subsystem */
-	at91_dt_clock_init();
-
-	/* Register the processor-specific clocks */
-	if (at91_boot_soc.register_clocks)
-		at91_boot_soc.register_clocks();
-
 	if (at91_boot_soc.init)
 		at91_boot_soc.init();
-}
-#endif
-
-void __init at91_initialize(unsigned long main_clock)
-{
-	at91_boot_soc.ioremap_registers();
-
-	/* Init clock subsystem */
-	at91_clock_init(main_clock);
-
-	/* Register the processor-specific clocks */
-	at91_boot_soc.register_clocks();
-
-	at91_boot_soc.init();
-
-	pinctrl_provide_dummies();
-}
-
-void __init at91_register_devices(void)
-{
-	at91_boot_soc.register_devices();
-}
-
-void __init at91_init_time(void)
-{
-	at91_boot_soc.init_time();
 }

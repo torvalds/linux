@@ -26,7 +26,6 @@
 
 #include <linux/i2c.h>
 
-#define MAX77693_NUM_IRQ_MUIC_REGS	3
 #define MAX77693_REG_INVALID		(0xff)
 
 /* Slave addr = 0xCC: PMIC, Charger, Flash LED */

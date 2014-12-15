@@ -912,7 +912,7 @@ static int get_cmd_dir(const unsigned char *cdb)
 	case INQUIRY:
 	case MODE_SENSE:
 	case MODE_SENSE_10:
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 	case MAINTENANCE_IN:
 	case PERSISTENT_RESERVE_IN:
 	case SECURITY_PROTOCOL_IN:

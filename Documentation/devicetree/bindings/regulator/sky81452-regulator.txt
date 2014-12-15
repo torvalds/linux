@@ -1,6 +1,7 @@
 SKY81452 voltage regulator
 
 Required properties:
+- regulator node named lout.
 - any required generic properties defined in regulator.txt
 
 Optional properties:
@@ -9,8 +10,9 @@ Optional properties:
 Example:
 
 	regulator {
-		/* generic regulator properties */
-		regulator-name = "touch_en";
-		regulator-min-microvolt = <4500000>;
-		regulator-max-microvolt = <8000000>;
+		lout {
+			regulator-name = "sky81452-lout";
+			regulator-min-microvolt = <4500000>;
+			regulator-max-microvolt = <8000000>;
+		};
 	};

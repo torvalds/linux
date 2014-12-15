@@ -17,7 +17,7 @@
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
 
-#include <mach/atmel-mci.h>
+#include <linux/platform_data/mmc-atmel-mci.h>
 #include <linux/atmel-mci.h>
 
 #include <asm/io.h>

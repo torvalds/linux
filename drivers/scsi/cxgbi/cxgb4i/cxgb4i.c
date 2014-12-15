@@ -89,7 +89,7 @@ static struct scsi_host_template cxgb4i_host_template = {
 	.proc_name	= DRV_MODULE_NAME,
 	.can_queue	= CXGB4I_SCSI_HOST_QDEPTH,
 	.queuecommand	= iscsi_queuecommand,
-	.change_queue_depth = iscsi_change_queue_depth,
+	.change_queue_depth = scsi_change_queue_depth,
 	.sg_tablesize	= SG_ALL,
 	.max_sectors	= 0xFFFF,
 	.cmd_per_lun	= ISCSI_DEF_CMD_PER_LUN,
@@ -99,6 +99,7 @@ static struct scsi_host_template cxgb4i_host_template = {
 	.target_alloc	= iscsi_target_alloc,
 	.use_clustering	= DISABLE_CLUSTERING,
 	.this_id	= -1,
+	.track_queue_depth = 1,
 };
 
 static struct iscsi_transport cxgb4i_iscsi_transport = {

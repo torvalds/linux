@@ -953,7 +953,8 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 		rdata->id = i;
 		rdata->initdata = of_get_regulator_init_data(&pdev->dev,
-							     reg_np);
+							     reg_np,
+							     &regulators[i]);
 		rdata->reg_node = reg_np;
 		rdata++;
 	}

@@ -353,8 +353,10 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	adapter->ccw_device = ccw_device;
 
 	INIT_WORK(&adapter->stat_work, _zfcp_status_read_scheduler);
-	INIT_WORK(&adapter->scan_work, zfcp_fc_scan_ports);
+	INIT_DELAYED_WORK(&adapter->scan_work, zfcp_fc_scan_ports);
 	INIT_WORK(&adapter->ns_up_work, zfcp_fc_sym_name_update);
+
+	adapter->next_port_scan = jiffies;
 
 	if (zfcp_qdio_setup(adapter))
 		goto failed;
@@ -420,7 +422,7 @@ void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
 {
 	struct ccw_device *cdev = adapter->ccw_device;
 
-	cancel_work_sync(&adapter->scan_work);
+	cancel_delayed_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
 	cancel_work_sync(&adapter->ns_up_work);
 	zfcp_destroy_adapter_work_queue(adapter);

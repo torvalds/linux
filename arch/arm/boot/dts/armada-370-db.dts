@@ -75,6 +75,7 @@
 				clock-frequency = <100000>;
 				status = "okay";
 				audio_codec: audio-codec@4a {
+					#sound-dai-cells = <0>;
 					compatible = "cirrus,cs42l51";
 					reg = <0x4a>;
 				};
@@ -102,30 +103,6 @@
 				broken-cd;
 			};
 
-			pinctrl {
-				/*
-				 * These pins might be muxed as I2S by
-				 * the bootloader, but it conflicts
-				 * with the real I2S pins that are
-				 * muxed using i2s_pins. We must mux
-				 * those pins to a function other than
-				 * I2S.
-				 */
-				pinctrl-0 = <&hog_pins1 &hog_pins2>;
-				pinctrl-names = "default";
-
-				hog_pins1: hog-pins1 {
-					marvell,pins = "mpp6",  "mpp8", "mpp10",
-						       "mpp12", "mpp13";
-					marvell,function = "gpio";
-				};
-
-				hog_pins2: hog-pins2 {
-					marvell,pins = "mpp5", "mpp7", "mpp9";
-					marvell,function = "gpo";
-				};
-			};
-
 			usb@50000 {
 				status = "okay";
 			};
@@ -135,6 +112,8 @@
 			};
 
 			spi0: spi@10600 {
+				pinctrl-0 = <&spi0_pins2>;
+				pinctrl-names = "default";
 				status = "okay";
 
 				spi-flash@0 {
@@ -167,17 +146,84 @@
 	};
 
 	sound {
-	      compatible = "marvell,a370db-audio";
-	      marvell,audio-controller = <&audio_controller>;
-	      marvell,audio-codec = <&audio_codec &spdif_out &spdif_in>;
-	      status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Armada 370 DB Audio";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,widgets =
+			"Headphone", "Out Jack",
+			"Line", "In Jack";
+		simple-audio-card,routing =
+			"Out Jack", "HPL",
+			"Out Jack", "HPR",
+			"AIN1L", "In Jack",
+			"AIN1L", "In Jack";
+		status = "okay";
+
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&audio_controller 0>;
+			};
+
+			codec {
+				sound-dai = <&audio_codec>;
+			};
+		};
+
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&audio_controller 1>;
+			};
+
+			codec {
+				sound-dai = <&spdif_out>;
+			};
+		};
+
+		simple-audio-card,dai-link@2 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&audio_controller 1>;
+			};
+
+			codec {
+				sound-dai = <&spdif_in>;
+			};
+		};
 	};
 
 	spdif_out: spdif-out {
-	      compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
 	};
 
 	spdif_in: spdif-in {
-	      compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dir";
+	};
+};
+
+&pinctrl {
+	/*
+	 * These pins might be muxed as I2S by
+	 * the bootloader, but it conflicts
+	 * with the real I2S pins that are
+	 * muxed using i2s_pins. We must mux
+	 * those pins to a function other than
+	 * I2S.
+	 */
+	pinctrl-0 = <&hog_pins1 &hog_pins2>;
+	pinctrl-names = "default";
+
+	hog_pins1: hog-pins1 {
+		marvell,pins = "mpp6",  "mpp8", "mpp10",
+			       "mpp12", "mpp13";
+		marvell,function = "gpio";
+	};
+
+	hog_pins2: hog-pins2 {
+		marvell,pins = "mpp5", "mpp7", "mpp9";
+		marvell,function = "gpo";
 	};
 };

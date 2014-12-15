@@ -274,10 +274,6 @@ static void scsiback_print_status(char *sense_buffer, int errors,
 	       tpg->tport->tport_name, pending_req->v2p->lun,
 	       pending_req->cmnd[0], status_byte(errors), msg_byte(errors),
 	       host_byte(errors), driver_byte(errors));
-
-	if (CHECK_CONDITION & status_byte(errors))
-		__scsi_print_sense("xen-pvscsi", sense_buffer,
-				   SCSI_SENSE_BUFFERSIZE);
 }
 
 static void scsiback_fast_flush_area(struct vscsibk_pend *req)

@@ -27,10 +27,10 @@ struct scsi_sense_hdr {		/* See SPC-3 section 4.5 */
 	u8 additional_length;	/* always 0 for fixed sense format */
 };
 
-static inline int scsi_sense_valid(struct scsi_sense_hdr *sshdr)
+static inline bool scsi_sense_valid(const struct scsi_sense_hdr *sshdr)
 {
 	if (!sshdr)
-		return 0;
+		return false;
 
 	return (sshdr->response_code & 0x70) == 0x70;
 }
@@ -42,12 +42,12 @@ extern void scsi_eh_flush_done_q(struct list_head *done_q);
 extern void scsi_report_bus_reset(struct Scsi_Host *, int);
 extern void scsi_report_device_reset(struct Scsi_Host *, int, int);
 extern int scsi_block_when_processing_errors(struct scsi_device *);
-extern int scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
-		struct scsi_sense_hdr *sshdr);
-extern int scsi_command_normalize_sense(struct scsi_cmnd *cmd,
-		struct scsi_sense_hdr *sshdr);
+extern bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
+				 struct scsi_sense_hdr *sshdr);
+extern bool scsi_command_normalize_sense(const struct scsi_cmnd *cmd,
+					 struct scsi_sense_hdr *sshdr);
 
-static inline int scsi_sense_is_deferred(struct scsi_sense_hdr *sshdr)
+static inline bool scsi_sense_is_deferred(const struct scsi_sense_hdr *sshdr)
 {
 	return ((sshdr->response_code >= 0x70) && (sshdr->response_code & 1));
 }
@@ -60,15 +60,7 @@ extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
 
 extern void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq);
 
-/*
- * Reset request from external source
- */
-#define SCSI_TRY_RESET_DEVICE	1
-#define SCSI_TRY_RESET_BUS	2
-#define SCSI_TRY_RESET_HOST	3
-#define SCSI_TRY_RESET_TARGET	4
-
-extern int scsi_reset_provider(struct scsi_device *, int);
+extern int scsi_ioctl_reset(struct scsi_device *, int __user *);
 
 struct scsi_eh_save {
 	/* saved state */

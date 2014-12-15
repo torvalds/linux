@@ -922,4 +922,15 @@ static inline int of_changeset_update_property(struct of_changeset *ocs,
 /* CONFIG_OF_RESOLVE api */
 extern int of_resolve_phandles(struct device_node *tree);
 
+/**
+ * of_device_is_system_power_controller - Tells if system-power-controller is found for device_node
+ * @np: Pointer to the given device_node
+ *
+ * return true if present false otherwise
+ */
+static inline bool of_device_is_system_power_controller(const struct device_node *np)
+{
+	return of_property_read_bool(np, "system-power-controller");
+}
+
 #endif /* _LINUX_OF_H */

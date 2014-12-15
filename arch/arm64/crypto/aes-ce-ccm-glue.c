@@ -16,6 +16,8 @@
 #include <linux/crypto.h>
 #include <linux/module.h>
 
+#include "aes-ce-setkey.h"
+
 static int num_rounds(struct crypto_aes_ctx *ctx)
 {
 	/*
@@ -48,7 +50,7 @@ static int ccm_setkey(struct crypto_aead *tfm, const u8 *in_key,
 	struct crypto_aes_ctx *ctx = crypto_aead_ctx(tfm);
 	int ret;
 
-	ret = crypto_aes_expand_key(ctx, in_key, key_len);
+	ret = ce_aes_expandkey(ctx, in_key, key_len);
 	if (!ret)
 		return 0;
 

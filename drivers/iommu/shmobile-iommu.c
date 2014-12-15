@@ -361,6 +361,7 @@ static const struct iommu_ops shmobile_iommu_ops = {
 	.detach_dev = shmobile_iommu_detach_device,
 	.map = shmobile_iommu_map,
 	.unmap = shmobile_iommu_unmap,
+	.map_sg = default_iommu_map_sg,
 	.iova_to_phys = shmobile_iommu_iova_to_phys,
 	.add_device = shmobile_iommu_add_device,
 	.pgsize_bitmap = SZ_1M | SZ_64K | SZ_4K,

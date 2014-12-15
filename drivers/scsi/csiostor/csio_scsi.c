@@ -152,28 +152,6 @@ csio_scsi_itnexus_loss_error(uint16_t error)
 	return 0;
 }
 
-static inline void
-csio_scsi_tag(struct scsi_cmnd *scmnd, uint8_t *tag, uint8_t hq,
-	      uint8_t oq, uint8_t sq)
-{
-	char stag[2];
-
-	if (scsi_populate_tag_msg(scmnd, stag)) {
-		switch (stag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			*tag = hq;
-			break;
-		case ORDERED_QUEUE_TAG:
-			*tag = oq;
-			break;
-		default:
-			*tag = sq;
-			break;
-		}
-	} else
-		*tag = 0;
-}
-
 /*
  * csio_scsi_fcp_cmnd - Frame the SCSI FCP command paylod.
  * @req: IO req structure.
@@ -192,11 +170,12 @@ csio_scsi_fcp_cmnd(struct csio_ioreq *req, void *addr)
 		int_to_scsilun(scmnd->device->lun, &fcp_cmnd->fc_lun);
 		fcp_cmnd->fc_tm_flags = 0;
 		fcp_cmnd->fc_cmdref = 0;
-		fcp_cmnd->fc_pri_ta = 0;
 
 		memcpy(fcp_cmnd->fc_cdb, scmnd->cmnd, 16);
-		csio_scsi_tag(scmnd, &fcp_cmnd->fc_pri_ta,
-			      FCP_PTA_HEADQ, FCP_PTA_ORDERED, FCP_PTA_SIMPLE);
+		if (scmnd->flags & SCMD_TAGGED)
+			fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
+		else
+			fcp_cmnd->fc_pri_ta = 0;
 		fcp_cmnd->fc_dl = cpu_to_be32(scsi_bufflen(scmnd));
 
 		if (req->nsge)
@@ -2262,11 +2241,7 @@ csio_slave_alloc(struct scsi_device *sdev)
 static int
 csio_slave_configure(struct scsi_device *sdev)
 {
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, csio_lun_qdepth);
-	else
-		scsi_deactivate_tcq(sdev, csio_lun_qdepth);
-
+	scsi_change_queue_depth(sdev, csio_lun_qdepth);
 	return 0;
 }
 
@@ -2311,6 +2286,7 @@ struct scsi_host_template csio_fcoe_shost_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= csio_fcoe_lport_attrs,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
+	.use_blk_tags		= 1,
 };
 
 struct scsi_host_template csio_fcoe_shost_vport_template = {
@@ -2330,6 +2306,7 @@ struct scsi_host_template csio_fcoe_shost_vport_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= csio_fcoe_vport_attrs,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
+	.use_blk_tags		= 1,
 };
 
 /*

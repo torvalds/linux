@@ -49,7 +49,7 @@ static int __init omap3_l3_init(void)
 	 * To avoid code running on other OMAPs in
 	 * multi-omap builds
 	 */
-	if (!(cpu_is_omap34xx()))
+	if (!(cpu_is_omap34xx()) || of_have_populated_dt())
 		return -ENODEV;
 
 	snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main");
@@ -66,40 +66,6 @@ static int __init omap3_l3_init(void)
 	return PTR_RET(pdev);
 }
 omap_postcore_initcall(omap3_l3_init);
-
-static int __init omap4_l3_init(void)
-{
-	int i;
-	struct omap_hwmod *oh[3];
-	struct platform_device *pdev;
-	char oh_name[L3_MODULES_MAX_LEN];
-
-	/* If dtb is there, the devices will be created dynamically */
-	if (of_have_populated_dt())
-		return -ENODEV;
-
-	/*
-	 * To avoid code running on other OMAPs in
-	 * multi-omap builds
-	 */
-	if (!cpu_is_omap44xx() && !soc_is_omap54xx())
-		return -ENODEV;
-
-	for (i = 0; i < L3_MODULES; i++) {
-		snprintf(oh_name, L3_MODULES_MAX_LEN, "l3_main_%d", i+1);
-
-		oh[i] = omap_hwmod_lookup(oh_name);
-		if (!(oh[i]))
-			pr_err("could not look up %s\n", oh_name);
-	}
-
-	pdev = omap_device_build_ss("omap_l3_noc", 0, oh, 3, NULL, 0);
-
-	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
-
-	return PTR_RET(pdev);
-}
-omap_postcore_initcall(omap4_l3_init);
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
@@ -445,3 +411,29 @@ static int __init omap2_init_devices(void)
 	return 0;
 }
 omap_arch_initcall(omap2_init_devices);
+
+static int __init omap_gpmc_init(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+	char *oh_name = "gpmc";
+
+	/*
+	 * if the board boots up with a populated DT, do not
+	 * manually add the device from this initcall
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	pdev = omap_device_build("omap-gpmc", -1, oh, NULL, 0);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
+
+	return PTR_RET(pdev);
+}
+omap_postcore_initcall(omap_gpmc_init);

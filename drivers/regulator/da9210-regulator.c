@@ -147,7 +147,7 @@ static int da9210_i2c_probe(struct i2c_client *i2c,
 
 	config.dev = &i2c->dev;
 	config.init_data = pdata ? &pdata->da9210_constraints :
-		of_get_regulator_init_data(dev, dev->of_node);
+		of_get_regulator_init_data(dev, dev->of_node, &da9210_reg);
 	config.driver_data = chip;
 	config.regmap = chip->regmap;
 	config.of_node = dev->of_node;

@@ -8,18 +8,18 @@
  * licensing only applies to this file, and not this project as a
  * whole.
  *
- *  a) This library is free software; you can redistribute it and/or
+ *  a) This file is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License as
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This library is distributed in the hope that it will be useful,
+ *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
  *     You should have received a copy of the GNU General Public
- *     License along with this library; if not, write to the Free
+ *     License along with this file; if not, write to the Free
  *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
  *     MA 02110-1301 USA
  *
@@ -62,6 +62,20 @@
 		serial5 = &uart5;
 		serial6 = &uart6;
 		serial7 = &uart7;
+	};
+
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer@0 {
+			compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0-hdmi";
+			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
+				 <&ahb_gates 44>;
+			status = "disabled";
+		};
 	};
 
 	cpus {
@@ -552,8 +566,8 @@
 			reg-names = "phy_ctrl", "pmu1", "pmu2";
 			clocks = <&usb_clk 8>;
 			clock-names = "usb_phy";
-			resets = <&usb_clk 1>, <&usb_clk 2>;
-			reset-names = "usb1_reset", "usb2_reset";
+			resets = <&usb_clk 0>, <&usb_clk 1>, <&usb_clk 2>;
+			reset-names = "usb0_reset", "usb1_reset", "usb2_reset";
 			status = "disabled";
 		};
 
@@ -677,6 +691,13 @@
 				allwinner,pull = <0>;
 			};
 
+			uart3_pins_b: uart3@1 {
+				allwinner,pins = "PH0", "PH1";
+				allwinner,function = "uart3";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			uart4_pins_a: uart4@0 {
 				allwinner,pins = "PG10", "PG11";
 				allwinner,function = "uart4";
@@ -784,6 +805,13 @@
 				allwinner,pull = <0>;
 			};
 
+			spi0_pins_a: spi0@0 {
+				allwinner,pins = "PI10", "PI11", "PI12", "PI13", "PI14";
+				allwinner,function = "spi0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			spi1_pins_a: spi1@0 {
 				allwinner,pins = "PI16", "PI17", "PI18", "PI19";
 				allwinner,function = "spi1";
@@ -816,6 +844,13 @@
 				allwinner,pins = "PH1";
 				allwinner,function = "gpio_in";
 				allwinner,drive = <0>;
+				allwinner,pull = <1>;
+			};
+
+			mmc2_pins_a: mmc2@0 {
+				allwinner,pins = "PC6","PC7","PC8","PC9","PC10","PC11";
+				allwinner,function = "mmc2";
+				allwinner,drive = <2>;
 				allwinner,pull = <1>;
 			};
 

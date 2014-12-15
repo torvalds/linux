@@ -327,7 +327,7 @@ EXPORT_SYMBOL(iounmap);
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access
  */
-void *xlate_dev_mem_ptr(unsigned long phys)
+void *xlate_dev_mem_ptr(phys_addr_t phys)
 {
 	void *addr;
 	unsigned long start = phys & PAGE_MASK;
@@ -343,7 +343,7 @@ void *xlate_dev_mem_ptr(unsigned long phys)
 	return addr;
 }
 
-void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
+void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
 {
 	if (page_is_ram(phys >> PAGE_SHIFT))
 		return;

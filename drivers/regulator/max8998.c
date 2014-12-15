@@ -686,8 +686,9 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 			continue;
 
 		rdata->id = regulators[i].id;
-		rdata->initdata = of_get_regulator_init_data(
-							iodev->dev, reg_np);
+		rdata->initdata = of_get_regulator_init_data(iodev->dev,
+							     reg_np,
+							     &regulators[i]);
 		rdata->reg_node = reg_np;
 		++rdata;
 	}

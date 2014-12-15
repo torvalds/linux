@@ -219,8 +219,8 @@ static void sg_device_destroy(struct kref *kref);
 #define SZ_SG_REQ_INFO sizeof(sg_req_info_t)
 
 #define sg_printk(prefix, sdp, fmt, a...) \
-	sdev_printk(prefix, (sdp)->device, "[%s] " fmt, \
-		    (sdp)->disk->disk_name, ##a)
+	sdev_prefix_printk(prefix, (sdp)->device,		\
+			   (sdp)->disk->disk_name, fmt, ##a)
 
 static int sg_allow_access(struct file *filp, unsigned char *cmd)
 {
@@ -1071,39 +1071,6 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		if (atomic_read(&sdp->detaching))
 			return -ENODEV;
 		return put_user(sdp->device->host->hostt->emulated, ip);
-	case SG_SCSI_RESET:
-		if (atomic_read(&sdp->detaching))
-			return -ENODEV;
-		if (filp->f_flags & O_NONBLOCK) {
-			if (scsi_host_in_recovery(sdp->device->host))
-				return -EBUSY;
-		} else if (!scsi_block_when_processing_errors(sdp->device))
-			return -EBUSY;
-		result = get_user(val, ip);
-		if (result)
-			return result;
-		if (SG_SCSI_RESET_NOTHING == val)
-			return 0;
-		switch (val) {
-		case SG_SCSI_RESET_DEVICE:
-			val = SCSI_TRY_RESET_DEVICE;
-			break;
-		case SG_SCSI_RESET_TARGET:
-			val = SCSI_TRY_RESET_TARGET;
-			break;
-		case SG_SCSI_RESET_BUS:
-			val = SCSI_TRY_RESET_BUS;
-			break;
-		case SG_SCSI_RESET_HOST:
-			val = SCSI_TRY_RESET_HOST;
-			break;
-		default:
-			return -EINVAL;
-		}
-		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-			return -EACCES;
-		return (scsi_reset_provider(sdp->device, val) ==
-			SUCCESS) ? 0 : -EIO;
 	case SCSI_IOCTL_SEND_COMMAND:
 		if (atomic_read(&sdp->detaching))
 			return -ENODEV;
@@ -1123,13 +1090,6 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 			return result;
 		sdp->sgdebug = (char) val;
 		return 0;
-	case SCSI_IOCTL_GET_IDLUN:
-	case SCSI_IOCTL_GET_BUS_NUMBER:
-	case SCSI_IOCTL_PROBE_HOST:
-	case SG_GET_TRANSFORM:
-		if (atomic_read(&sdp->detaching))
-			return -ENODEV;
-		return scsi_ioctl(sdp->device, cmd_in, p);
 	case BLKSECTGET:
 		return put_user(max_sectors_bytes(sdp->device->request_queue),
 				ip);
@@ -1145,11 +1105,25 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		return blk_trace_startstop(sdp->device->request_queue, 0);
 	case BLKTRACETEARDOWN:
 		return blk_trace_remove(sdp->device->request_queue);
+	case SCSI_IOCTL_GET_IDLUN:
+	case SCSI_IOCTL_GET_BUS_NUMBER:
+	case SCSI_IOCTL_PROBE_HOST:
+	case SG_GET_TRANSFORM:
+	case SG_SCSI_RESET:
+		if (atomic_read(&sdp->detaching))
+			return -ENODEV;
+		break;
 	default:
 		if (read_only)
 			return -EPERM;	/* don't know so take safe approach */
-		return scsi_ioctl(sdp->device, cmd_in, p);
+		break;
 	}
+
+	result = scsi_ioctl_block_when_processing_errors(sdp->device,
+			cmd_in, filp->f_flags & O_NDELAY);
+	if (result)
+		return result;
+	return scsi_ioctl(sdp->device, cmd_in, p);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1360,7 +1334,7 @@ sg_rq_end_io(struct request *rq, int uptodate)
 		if ((sdp->sgdebug > 0) &&
 		    ((CHECK_CONDITION == srp->header.masked_status) ||
 		     (COMMAND_TERMINATED == srp->header.masked_status)))
-			__scsi_print_sense(__func__, sense,
+			__scsi_print_sense(sdp->device, __func__, sense,
 					   SCSI_SENSE_BUFFERSIZE);
 
 		/* Following if statement is a patch supplied by Eric Youngdale */
