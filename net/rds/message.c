@@ -325,7 +325,8 @@ int rds_message_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to)
 	copied = 0;
 
 	while (iov_iter_count(to) && copied < len) {
-		to_copy = min(iov_iter_count(to), sg->length - vec_off);
+		to_copy = min_t(unsigned long, iov_iter_count(to),
+				sg->length - vec_off);
 		to_copy = min_t(unsigned long, to_copy, len - copied);
 
 		rds_stats_add(s_copy_to_user, to_copy);
