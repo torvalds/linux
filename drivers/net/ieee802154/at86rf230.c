@@ -654,7 +654,7 @@ at86rf230_async_state_change_start(void *context)
 		if (ctx->irq_enable)
 			enable_irq(lp->spi->irq);
 
-		at86rf230_async_error(lp, &lp->state, rc);
+		at86rf230_async_error(lp, ctx, rc);
 	}
 }
 
