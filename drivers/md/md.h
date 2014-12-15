@@ -393,6 +393,7 @@ struct mddev {
 	 *   in_sync - and related safemode and MD_CHANGE changes
 	 *   pers (also protected by reconfig_mutex and pending IO).
 	 *   clearing ->bitmap
+	 *   clearing ->bitmap_info.file
 	 */
 	spinlock_t			lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */

@@ -5292,8 +5292,11 @@ static int do_md_stop(struct mddev *mddev, int mode,
 
 		bitmap_destroy(mddev);
 		if (mddev->bitmap_info.file) {
-			fput(mddev->bitmap_info.file);
+			struct file *f = mddev->bitmap_info.file;
+			spin_lock(&mddev->lock);
 			mddev->bitmap_info.file = NULL;
+			spin_unlock(&mddev->lock);
+			fput(f);
 		}
 		mddev->bitmap_info.offset = 0;
 
@@ -5503,32 +5506,30 @@ static int get_bitmap_file(struct mddev *mddev, void __user * arg)
 {
 	mdu_bitmap_file_t *file = NULL; /* too big for stack allocation */
 	char *ptr;
-	int err = -ENOMEM;
+	int err;
 
 	file = kmalloc(sizeof(*file), GFP_NOIO);
-
 	if (!file)
-		goto out;
+		return -ENOMEM;
 
-	/* bitmap disabled, zero the first byte and copy out */
-	if (!mddev->bitmap || !mddev->bitmap->storage.file) {
-		file->pathname[0] = '\0';
-		goto copy_out;
-	}
-
-	ptr = d_path(&mddev->bitmap->storage.file->f_path,
-		     file->pathname, sizeof(file->pathname));
-	if (IS_ERR(ptr))
-		goto out;
-
-	memmove(file->pathname, ptr,
-		sizeof(file->pathname)-(ptr-file->pathname));
-
-copy_out:
 	err = 0;
-	if (copy_to_user(arg, file, sizeof(*file)))
+	spin_lock(&mddev->lock);
+	/* bitmap disabled, zero the first byte and copy out */
+	if (!mddev->bitmap_info.file)
+		file->pathname[0] = '\0';
+	else if ((ptr = d_path(&mddev->bitmap_info.file->f_path,
+			       file->pathname, sizeof(file->pathname))),
+		 IS_ERR(ptr))
+		err = PTR_ERR(ptr);
+	else
+		memmove(file->pathname, ptr,
+			sizeof(file->pathname)-(ptr-file->pathname));
+	spin_unlock(&mddev->lock);
+
+	if (err == 0 &&
+	    copy_to_user(arg, file, sizeof(*file)))
 		err = -EFAULT;
-out:
+
 	kfree(file);
 	return err;
 }
@@ -5900,9 +5901,13 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 		mddev->pers->quiesce(mddev, 0);
 	}
 	if (fd < 0) {
-		if (mddev->bitmap_info.file)
-			fput(mddev->bitmap_info.file);
-		mddev->bitmap_info.file = NULL;
+		struct file *f = mddev->bitmap_info.file;
+		if (f) {
+			spin_lock(&mddev->lock);
+			mddev->bitmap_info.file = NULL;
+			spin_unlock(&mddev->lock);
+			fput(f);
+		}
 	}
 
 	return err;
@@ -6315,6 +6320,11 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	case SET_DISK_FAULTY:
 		err = set_disk_faulty(mddev, new_decode_dev(arg));
 		goto out;
+
+	case GET_BITMAP_FILE:
+		err = get_bitmap_file(mddev, argp);
+		goto out;
+
 	}
 
 	if (cmd == ADD_NEW_DISK)
@@ -6406,10 +6416,6 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	 * Commands even a read-only array can execute:
 	 */
 	switch (cmd) {
-	case GET_BITMAP_FILE:
-		err = get_bitmap_file(mddev, argp);
-		goto unlock;
-
 	case RESTART_ARRAY_RW:
 		err = restart_array(mddev);
 		goto unlock;
