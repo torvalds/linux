@@ -590,32 +590,9 @@ static struct mddev *mddev_find(dev_t unit)
 	goto retry;
 }
 
-static inline int __must_check mddev_lock(struct mddev *mddev)
-{
-	return mutex_lock_interruptible(&mddev->reconfig_mutex);
-}
-
-/* Sometimes we need to take the lock in a situation where
- * failure due to interrupts is not acceptable.
- */
-static inline void mddev_lock_nointr(struct mddev *mddev)
-{
-	mutex_lock(&mddev->reconfig_mutex);
-}
-
-static inline int mddev_is_locked(struct mddev *mddev)
-{
-	return mutex_is_locked(&mddev->reconfig_mutex);
-}
-
-static inline int mddev_trylock(struct mddev *mddev)
-{
-	return mutex_trylock(&mddev->reconfig_mutex);
-}
-
 static struct attribute_group md_redundancy_group;
 
-static void mddev_unlock(struct mddev *mddev)
+void mddev_unlock(struct mddev *mddev)
 {
 	if (mddev->to_remove) {
 		/* These cannot be removed under reconfig_mutex as
@@ -657,6 +634,7 @@ static void mddev_unlock(struct mddev *mddev)
 	md_wakeup_thread(mddev->thread);
 	spin_unlock(&pers_lock);
 }
+EXPORT_SYMBOL_GPL(mddev_unlock);
 
 static struct md_rdev *find_rdev_nr_rcu(struct mddev *mddev, int nr)
 {

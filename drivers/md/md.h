@@ -450,6 +450,30 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 };
 
+static inline int __must_check mddev_lock(struct mddev *mddev)
+{
+	return mutex_lock_interruptible(&mddev->reconfig_mutex);
+}
+
+/* Sometimes we need to take the lock in a situation where
+ * failure due to interrupts is not acceptable.
+ */
+static inline void mddev_lock_nointr(struct mddev *mddev)
+{
+	mutex_lock(&mddev->reconfig_mutex);
+}
+
+static inline int mddev_is_locked(struct mddev *mddev)
+{
+	return mutex_is_locked(&mddev->reconfig_mutex);
+}
+
+static inline int mddev_trylock(struct mddev *mddev)
+{
+	return mutex_trylock(&mddev->reconfig_mutex);
+}
+extern void mddev_unlock(struct mddev *mddev);
+
 static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 {
 	int faulty = test_bit(Faulty, &rdev->flags);
