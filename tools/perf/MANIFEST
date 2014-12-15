@@ -4,8 +4,10 @@ tools/lib/traceevent
 tools/lib/api
 tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
+tools/lib/util/find_next_bit.c
 tools/include/asm/bug.h
 tools/include/asm-generic/bitops/atomic.h
+tools/include/asm-generic/bitops/find.h
 tools/include/asm-generic/bitops/__ffs.h
 tools/include/linux/compiler.h
 tools/include/linux/export.h
@@ -18,6 +20,7 @@ include/linux/rbtree.h
 include/linux/list.h
 include/linux/hash.h
 include/linux/stringify.h
+lib/find_next_bit.c
 lib/rbtree.c
 include/linux/swab.h
 arch/*/include/asm/unistd*.h
