@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
@@ -2734,18 +2735,26 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 
 	}
 
+	pm_runtime_enable(&i2c->dev);
+	pm_request_idle(&i2c->dev);
+
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5670,
 			rt5670_dai, ARRAY_SIZE(rt5670_dai));
 	if (ret < 0)
 		goto err;
 
+	pm_runtime_put(&i2c->dev);
+
 	return 0;
 err:
+	pm_runtime_disable(&i2c->dev);
+
 	return ret;
 }
 
 static int rt5670_i2c_remove(struct i2c_client *i2c)
 {
+	pm_runtime_disable(&i2c->dev);
 	snd_soc_unregister_codec(&i2c->dev);
 
 	return 0;
