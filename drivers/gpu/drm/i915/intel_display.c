@@ -11864,6 +11864,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   uint32_t src_w, uint32_t src_h)
 {
 	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *old_fb = plane->fb;
 	struct intel_plane_state state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -11903,7 +11904,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 			return ret;
 	}
 
+	intel_runtime_pm_get(dev_priv);
 	intel_plane->commit_plane(plane, &state);
+	intel_runtime_pm_put(dev_priv);
 
 	if (fb != old_fb && old_fb) {
 		if (intel_crtc->active)
