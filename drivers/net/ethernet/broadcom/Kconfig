@@ -64,7 +64,7 @@ config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
 	select MII
 	select PHYLIB
-	select FIXED_PHY if BCMGENET=y
+	select FIXED_PHY
 	select BCM7XXX_PHY
 	help
 	  This driver supports the built-in Ethernet MACs found in the
