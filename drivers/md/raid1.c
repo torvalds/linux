@@ -2954,29 +2954,17 @@ static int run(struct mddev *mddev)
 	}
 
 	ret =  md_integrity_register(mddev);
-	if (ret)
+	if (ret) {
+		md_unregister_thread(&mddev->thread);
 		stop(mddev);
+	}
 	return ret;
 }
 
 static int stop(struct mddev *mddev)
 {
 	struct r1conf *conf = mddev->private;
-	struct bitmap *bitmap = mddev->bitmap;
 
-	/* wait for behind writes to complete */
-	if (bitmap && atomic_read(&bitmap->behind_writes) > 0) {
-		printk(KERN_INFO "md/raid1:%s: behind writes in progress - waiting to stop.\n",
-		       mdname(mddev));
-		/* need to kick something here to make sure I/O goes? */
-		wait_event(bitmap->behind_wait,
-			   atomic_read(&bitmap->behind_writes) == 0);
-	}
-
-	freeze_array(conf, 0);
-	unfreeze_array(conf);
-
-	md_unregister_thread(&mddev->thread);
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
 	kfree(conf->mirrors);

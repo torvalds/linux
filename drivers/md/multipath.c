@@ -504,8 +504,6 @@ static int multipath_stop (struct mddev *mddev)
 {
 	struct mpconf *conf = mddev->private;
 
-	md_unregister_thread(&mddev->thread);
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	mempool_destroy(conf->pool);
 	kfree(conf->multipaths);
 	kfree(conf);

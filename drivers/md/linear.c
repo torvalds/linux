@@ -253,7 +253,6 @@ static int linear_stop (struct mddev *mddev)
 {
 	struct linear_conf *conf = mddev->private;
 
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf);
 	mddev->private = NULL;
 

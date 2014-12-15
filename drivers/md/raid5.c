@@ -6317,7 +6317,6 @@ static int stop(struct mddev *mddev)
 {
 	struct r5conf *conf = mddev->private;
 
-	md_unregister_thread(&mddev->thread);
 	free_conf(conf);
 	mddev->private = NULL;
 	mddev->to_remove = &raid5_attrs_group;

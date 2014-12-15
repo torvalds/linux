@@ -72,6 +72,7 @@ static struct workqueue_struct *md_misc_wq;
 
 static int remove_and_add_spares(struct mddev *mddev,
 				 struct md_rdev *this);
+static void mddev_detach(struct mddev *mddev);
 
 /*
  * Default number of read corrections we'll attempt on an rdev
@@ -3372,6 +3373,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 
 	/* Looks like we have a winner */
 	mddev_suspend(mddev);
+	mddev_detach(mddev);
 	mddev->pers->stop(mddev);
 
 	if (mddev->pers->sync_request == NULL &&
@@ -4928,18 +4930,17 @@ int md_run(struct mddev *mddev)
 		       (unsigned long long)mddev->array_sectors / 2,
 		       (unsigned long long)mddev->pers->size(mddev, 0, 0) / 2);
 		err = -EINVAL;
-		mddev->pers->stop(mddev);
 	}
 	if (err == 0 && mddev->pers->sync_request &&
 	    (mddev->bitmap_info.file || mddev->bitmap_info.offset)) {
 		err = bitmap_create(mddev);
-		if (err) {
+		if (err)
 			printk(KERN_ERR "%s: failed to create bitmap (%d)\n",
 			       mdname(mddev), err);
-			mddev->pers->stop(mddev);
-		}
 	}
 	if (err) {
+		mddev_detach(mddev);
+		mddev->pers->stop(mddev);
 		module_put(mddev->pers->owner);
 		mddev->pers = NULL;
 		bitmap_destroy(mddev);
@@ -5112,9 +5113,30 @@ void md_stop_writes(struct mddev *mddev)
 }
 EXPORT_SYMBOL_GPL(md_stop_writes);
 
+static void mddev_detach(struct mddev *mddev)
+{
+	struct bitmap *bitmap = mddev->bitmap;
+	/* wait for behind writes to complete */
+	if (bitmap && atomic_read(&bitmap->behind_writes) > 0) {
+		printk(KERN_INFO "md:%s: behind writes in progress - waiting to stop.\n",
+		       mdname(mddev));
+		/* need to kick something here to make sure I/O goes? */
+		wait_event(bitmap->behind_wait,
+			   atomic_read(&bitmap->behind_writes) == 0);
+	}
+	if (mddev->pers->quiesce) {
+		mddev->pers->quiesce(mddev, 1);
+		mddev->pers->quiesce(mddev, 0);
+	}
+	md_unregister_thread(&mddev->thread);
+	if (mddev->queue)
+		blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
+}
+
 static void __md_stop(struct mddev *mddev)
 {
 	mddev->ready = 0;
+	mddev_detach(mddev);
 	mddev->pers->stop(mddev);
 	if (mddev->pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;

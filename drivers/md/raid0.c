@@ -477,7 +477,6 @@ static int raid0_stop(struct mddev *mddev)
 {
 	struct r0conf *conf = mddev->private;
 
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf->strip_zone);
 	kfree(conf->devlist);
 	kfree(conf);

@@ -3802,14 +3802,6 @@ static int stop(struct mddev *mddev)
 {
 	struct r10conf *conf = mddev->private;
 
-	raise_barrier(conf, 0);
-	lower_barrier(conf);
-
-	md_unregister_thread(&mddev->thread);
-	if (mddev->queue)
-		/* the unplug fn references 'conf'*/
-		blk_sync_queue(mddev->queue);
-
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
 	safe_put_page(conf->tmppage);
