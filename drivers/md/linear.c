@@ -60,11 +60,10 @@ static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
  *
  *	Return amount of bytes we can take at this offset
  */
-static int linear_mergeable_bvec(struct request_queue *q,
+static int linear_mergeable_bvec(struct mddev *mddev,
 				 struct bvec_merge_data *bvm,
 				 struct bio_vec *biovec)
 {
-	struct mddev *mddev = q->queuedata;
 	struct dev_info *dev0;
 	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
@@ -213,8 +212,6 @@ static int linear_run (struct mddev *mddev)
 	mddev->private = conf;
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 
-	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
-
 	ret =  md_integrity_register(mddev);
 	if (ret) {
 		kfree(conf);
@@ -361,6 +358,7 @@ static struct md_personality linear_personality =
 	.hot_add_disk	= linear_add,
 	.size		= linear_size,
 	.congested	= linear_congested,
+	.mergeable_bvec	= linear_mergeable_bvec,
 };
 
 static int __init linear_init (void)

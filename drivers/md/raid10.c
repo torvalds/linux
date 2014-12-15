@@ -674,7 +674,7 @@ static sector_t raid10_find_virt(struct r10conf *conf, sector_t sector, int dev)
 
 /**
  *	raid10_mergeable_bvec -- tell bio layer if a two requests can be merged
- *	@q: request queue
+ *	@mddev: the md device
  *	@bvm: properties of new bio
  *	@biovec: the request that could be merged to it.
  *
@@ -682,11 +682,10 @@ static sector_t raid10_find_virt(struct r10conf *conf, sector_t sector, int dev)
  *	This requires checking for end-of-chunk if near_copies != raid_disks,
  *	and for subordinate merge_bvec_fns if merge_check_needed.
  */
-static int raid10_mergeable_bvec(struct request_queue *q,
+static int raid10_mergeable_bvec(struct mddev *mddev,
 				 struct bvec_merge_data *bvm,
 				 struct bio_vec *biovec)
 {
-	struct mddev *mddev = q->queuedata;
 	struct r10conf *conf = mddev->private;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 	int max;
@@ -3756,7 +3755,6 @@ static int run(struct mddev *mddev)
 		stripe /= conf->geo.near_copies;
 		if (mddev->queue->backing_dev_info.ra_pages < 2 * stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2 * stripe;
-		blk_queue_merge_bvec(mddev->queue, raid10_mergeable_bvec);
 	}
 
 	if (md_integrity_register(mddev))
@@ -4717,6 +4715,7 @@ static struct md_personality raid10_personality =
 	.start_reshape	= raid10_start_reshape,
 	.finish_reshape	= raid10_finish_reshape,
 	.congested	= raid10_congested,
+	.mergeable_bvec	= raid10_mergeable_bvec,
 };
 
 static int __init raid_init(void)

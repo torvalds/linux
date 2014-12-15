@@ -499,6 +499,10 @@ struct md_personality
 	/* congested implements bdi.congested_fn().
 	 * Will not be called while array is 'suspended' */
 	int (*congested)(struct mddev *mddev, int bits);
+	/* mergeable_bvec is use to implement ->merge_bvec_fn */
+	int (*mergeable_bvec)(struct mddev *mddev,
+			      struct bvec_merge_data *bvm,
+			      struct bio_vec *biovec);
 };
 
 struct md_sysfs_entry {
