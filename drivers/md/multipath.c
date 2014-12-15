@@ -153,14 +153,10 @@ static void multipath_status (struct seq_file *seq, struct mddev *mddev)
 	seq_printf (seq, "]");
 }
 
-static int multipath_congested(void *data, int bits)
+static int multipath_congested(struct mddev *mddev, int bits)
 {
-	struct mddev *mddev = data;
 	struct mpconf *conf = mddev->private;
 	int i, ret = 0;
-
-	if (mddev_congested(mddev, bits))
-		return 1;
 
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks ; i++) {
@@ -489,9 +485,6 @@ static int multipath_run (struct mddev *mddev)
 	 */
 	md_set_array_sectors(mddev, multipath_size(mddev, 0, 0));
 
-	mddev->queue->backing_dev_info.congested_fn = multipath_congested;
-	mddev->queue->backing_dev_info.congested_data = mddev;
-
 	if (md_integrity_register(mddev))
 		goto out_free_conf;
 
@@ -533,6 +526,7 @@ static struct md_personality multipath_personality =
 	.hot_add_disk	= multipath_add_disk,
 	.hot_remove_disk= multipath_remove_disk,
 	.size		= multipath_size,
+	.congested	= multipath_congested,
 };
 
 static int __init multipath_init (void)

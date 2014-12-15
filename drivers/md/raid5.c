@@ -4149,7 +4149,7 @@ static void activate_bit_delay(struct r5conf *conf,
 	}
 }
 
-int md_raid5_congested(struct mddev *mddev, int bits)
+static int raid5_congested(struct mddev *mddev, int bits)
 {
 	struct r5conf *conf = mddev->private;
 
@@ -4165,15 +4165,6 @@ int md_raid5_congested(struct mddev *mddev, int bits)
 		return 1;
 
 	return 0;
-}
-EXPORT_SYMBOL_GPL(md_raid5_congested);
-
-static int raid5_congested(void *data, int bits)
-{
-	struct mddev *mddev = data;
-
-	return mddev_congested(mddev, bits) ||
-		md_raid5_congested(mddev, bits);
 }
 
 /* We want read requests to align with chunks where possible,
@@ -6248,9 +6239,6 @@ static int run(struct mddev *mddev)
 
 		blk_queue_merge_bvec(mddev->queue, raid5_mergeable_bvec);
 
-		mddev->queue->backing_dev_info.congested_data = mddev;
-		mddev->queue->backing_dev_info.congested_fn = raid5_congested;
-
 		chunk_size = mddev->chunk_sectors << 9;
 		blk_queue_io_min(mddev->queue, chunk_size);
 		blk_queue_io_opt(mddev->queue, chunk_size *
@@ -6333,8 +6321,6 @@ static int stop(struct mddev *mddev)
 	struct r5conf *conf = mddev->private;
 
 	md_unregister_thread(&mddev->thread);
-	if (mddev->queue)
-		mddev->queue->backing_dev_info.congested_fn = NULL;
 	free_conf(conf);
 	mddev->private = NULL;
 	mddev->to_remove = &raid5_attrs_group;
@@ -7126,6 +7112,7 @@ static struct md_personality raid6_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
+	.congested	= raid5_congested,
 };
 static struct md_personality raid5_personality =
 {
@@ -7148,6 +7135,7 @@ static struct md_personality raid5_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
+	.congested	= raid5_congested,
 };
 
 static struct md_personality raid4_personality =
@@ -7171,6 +7159,7 @@ static struct md_personality raid4_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid4_takeover,
+	.congested	= raid5_congested,
 };
 
 static int __init raid5_init(void)

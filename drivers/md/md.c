@@ -321,9 +321,23 @@ EXPORT_SYMBOL_GPL(mddev_resume);
 
 int mddev_congested(struct mddev *mddev, int bits)
 {
-	return mddev->suspended;
+	struct md_personality *pers = mddev->pers;
+	int ret = 0;
+
+	rcu_read_lock();
+	if (mddev->suspended)
+		ret = 1;
+	else if (pers && pers->congested)
+		ret = pers->congested(mddev, bits);
+	rcu_read_unlock();
+	return ret;
 }
-EXPORT_SYMBOL(mddev_congested);
+EXPORT_SYMBOL_GPL(mddev_congested);
+static int md_congested(void *data, int bits)
+{
+	struct mddev *mddev = data;
+	return mddev_congested(mddev, bits);
+}
 
 /*
  * Generic flush handling for md
@@ -4907,6 +4921,10 @@ int md_run(struct mddev *mddev)
 		mddev->pers = NULL;
 		bitmap_destroy(mddev);
 		return err;
+	}
+	if (mddev->queue) {
+		mddev->queue->backing_dev_info.congested_data = mddev;
+		mddev->queue->backing_dev_info.congested_fn = md_congested;
 	}
 	if (mddev->pers->sync_request) {
 		if (mddev->kobj.sd &&

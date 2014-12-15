@@ -25,16 +25,12 @@
 #include "raid0.h"
 #include "raid5.h"
 
-static int raid0_congested(void *data, int bits)
+static int raid0_congested(struct mddev *mddev, int bits)
 {
-	struct mddev *mddev = data;
 	struct r0conf *conf = mddev->private;
 	struct md_rdev **devlist = conf->devlist;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i, ret = 0;
-
-	if (mddev_congested(mddev, bits))
-		return 1;
 
 	for (i = 0; i < raid_disks && !ret ; i++) {
 		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
@@ -263,8 +259,6 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 			 mdname(mddev),
 			 (unsigned long long)smallest->sectors);
 	}
-	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
-	mddev->queue->backing_dev_info.congested_data = mddev;
 
 	/*
 	 * now since we have the hard sector sizes, we can make sure
@@ -729,6 +723,7 @@ static struct md_personality raid0_personality=
 	.size		= raid0_size,
 	.takeover	= raid0_takeover,
 	.quiesce	= raid0_quiesce,
+	.congested	= raid0_congested,
 };
 
 static int __init raid0_init (void)

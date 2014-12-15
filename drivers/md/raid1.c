@@ -734,7 +734,7 @@ static int raid1_mergeable_bvec(struct request_queue *q,
 
 }
 
-int md_raid1_congested(struct mddev *mddev, int bits)
+static int raid1_congested(struct mddev *mddev, int bits)
 {
 	struct r1conf *conf = mddev->private;
 	int i, ret = 0;
@@ -762,15 +762,6 @@ int md_raid1_congested(struct mddev *mddev, int bits)
 	}
 	rcu_read_unlock();
 	return ret;
-}
-EXPORT_SYMBOL_GPL(md_raid1_congested);
-
-static int raid1_congested(void *data, int bits)
-{
-	struct mddev *mddev = data;
-
-	return mddev_congested(mddev, bits) ||
-		md_raid1_congested(mddev, bits);
 }
 
 static void flush_pending_writes(struct r1conf *conf)
@@ -2955,8 +2946,6 @@ static int run(struct mddev *mddev)
 	md_set_array_sectors(mddev, raid1_size(mddev, 0, 0));
 
 	if (mddev->queue) {
-		mddev->queue->backing_dev_info.congested_fn = raid1_congested;
-		mddev->queue->backing_dev_info.congested_data = mddev;
 		blk_queue_merge_bvec(mddev->queue, raid1_mergeable_bvec);
 
 		if (discard_supported)
@@ -3193,6 +3182,7 @@ static struct md_personality raid1_personality =
 	.check_reshape	= raid1_reshape,
 	.quiesce	= raid1_quiesce,
 	.takeover	= raid1_takeover,
+	.congested	= raid1_congested,
 };
 
 static int __init raid_init(void)

@@ -746,13 +746,7 @@ static int raid_is_congested(struct dm_target_callbacks *cb, int bits)
 {
 	struct raid_set *rs = container_of(cb, struct raid_set, callbacks);
 
-	if (rs->raid_type->level == 1)
-		return md_raid1_congested(&rs->md, bits);
-
-	if (rs->raid_type->level == 10)
-		return md_raid10_congested(&rs->md, bits);
-
-	return md_raid5_congested(&rs->md, bits);
+	return mddev_congested(&rs->md, bits);
 }
 
 /*
