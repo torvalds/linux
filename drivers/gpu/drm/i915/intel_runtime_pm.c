@@ -633,7 +633,7 @@ static void check_power_well_state(struct drm_i915_private *dev_priv,
 	return;
 
 mismatch:
-	WARN(1, "state mismatch for '%s' (always_on %d hw state %d use-count %d disable_power_well %d\n",
+	I915_STATE_WARN(1, "state mismatch for '%s' (always_on %d hw state %d use-count %d disable_power_well %d\n",
 		  power_well->name, power_well->always_on, enabled,
 		  power_well->count, i915.disable_power_well);
 }

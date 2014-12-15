@@ -51,6 +51,7 @@ struct i915_params i915 __read_mostly = {
 	.disable_vtd_wa = 0,
 	.use_mmio_flip = 0,
 	.mmio_debug = 0,
+	.verbose_state_checks = 1,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -173,3 +174,7 @@ module_param_named(mmio_debug, i915.mmio_debug, bool, 0600);
 MODULE_PARM_DESC(mmio_debug,
 	"Enable the MMIO debug code (default: false). This may negatively "
 	"affect performance.");
+
+module_param_named(verbose_state_checks, i915.verbose_state_checks, bool, 0600);
+MODULE_PARM_DESC(verbose_state_checks,
+	"Enable verbose logs (ie. WARN_ON()) in case of unexpected hw state conditions.");

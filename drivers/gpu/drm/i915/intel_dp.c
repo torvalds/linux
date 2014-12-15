@@ -1558,7 +1558,7 @@ void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	vdd = edp_panel_vdd_on(intel_dp);
 	pps_unlock(intel_dp);
 
-	WARN(!vdd, "eDP port %c VDD already requested on\n",
+	I915_STATE_WARN(!vdd, "eDP port %c VDD already requested on\n",
 	     port_name(dp_to_dig_port(intel_dp)->port));
 }
 
@@ -1642,7 +1642,7 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	if (!is_edp(intel_dp))
 		return;
 
-	WARN(!intel_dp->want_panel_vdd, "eDP port %c VDD not forced on",
+	I915_STATE_WARN(!intel_dp->want_panel_vdd, "eDP port %c VDD not forced on",
 	     port_name(dp_to_dig_port(intel_dp)->port));
 
 	intel_dp->want_panel_vdd = false;

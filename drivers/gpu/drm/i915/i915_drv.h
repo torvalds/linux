@@ -72,6 +72,35 @@
 #define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
 			     (long) (x), __func__);
 
+/* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
+ * WARN_ON()) for hw state sanity checks to check for unexpected conditions
+ * which may not necessarily be a user visible problem.  This will either
+ * WARN() or DRM_ERROR() depending on the verbose_checks moduleparam, to
+ * enable distros and users to tailor their preferred amount of i915 abrt
+ * spam.
+ */
+#define I915_STATE_WARN(condition, format...) ({			\
+	int __ret_warn_on = !!(condition);				\
+	if (unlikely(__ret_warn_on)) {					\
+		if (i915.verbose_state_checks)				\
+			__WARN_printf(format);				\
+		else 							\
+			DRM_ERROR(format);				\
+	}								\
+	unlikely(__ret_warn_on);					\
+})
+
+#define I915_STATE_WARN_ON(condition) ({				\
+	int __ret_warn_on = !!(condition);				\
+	if (unlikely(__ret_warn_on)) {					\
+		if (i915.verbose_state_checks)				\
+			__WARN_printf("WARN_ON(" #condition ")\n");	\
+		else 							\
+			DRM_ERROR("WARN_ON(" #condition ")\n");		\
+	}								\
+	unlikely(__ret_warn_on);					\
+})
+
 enum pipe {
 	INVALID_PIPE = -1,
 	PIPE_A = 0,
@@ -2401,6 +2430,7 @@ struct i915_params {
 	bool disable_vtd_wa;
 	int use_mmio_flip;
 	bool mmio_debug;
+	bool verbose_state_checks;
 };
 extern struct i915_params i915 __read_mostly;
 
