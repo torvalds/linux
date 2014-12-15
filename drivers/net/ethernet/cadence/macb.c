@@ -2160,7 +2160,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	int err = -ENXIO;
 	const char *mac;
 	void __iomem *mem;
-	unsigned int hw_q, queue_mask, q, num_queues, q_irq = 0;
+	unsigned int hw_q, queue_mask, q, num_queues;
 	struct clk *pclk, *hclk, *tx_clk;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2235,11 +2235,11 @@ static int __init macb_probe(struct platform_device *pdev)
 	 * register mapping but we don't want to test the queue index then
 	 * compute the corresponding register offset at run time.
 	 */
-	for (hw_q = 0; hw_q < MACB_MAX_QUEUES; ++hw_q) {
+	for (hw_q = 0, q = 0; hw_q < MACB_MAX_QUEUES; ++hw_q) {
 		if (!(queue_mask & (1 << hw_q)))
 			continue;
 
-		queue = &bp->queues[q_irq];
+		queue = &bp->queues[q];
 		queue->bp = bp;
 		if (hw_q) {
 			queue->ISR  = GEM_ISR(hw_q - 1);
@@ -2261,18 +2261,18 @@ static int __init macb_probe(struct platform_device *pdev)
 		 * must remove the optional gaps that could exist in the
 		 * hardware queue mask.
 		 */
-		queue->irq = platform_get_irq(pdev, q_irq);
+		queue->irq = platform_get_irq(pdev, q);
 		err = devm_request_irq(&pdev->dev, queue->irq, macb_interrupt,
 				       0, dev->name, queue);
 		if (err) {
 			dev_err(&pdev->dev,
 				"Unable to request IRQ %d (error %d)\n",
 				queue->irq, err);
-			goto err_out_free_irq;
+			goto err_out_free_netdev;
 		}
 
 		INIT_WORK(&queue->tx_error_task, macb_tx_error_task);
-		q_irq++;
+		q++;
 	}
 	dev->irq = bp->queues[0].irq;
 
@@ -2350,7 +2350,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
-		goto err_out_free_irq;
+		goto err_out_free_netdev;
 	}
 
 	err = macb_mii_init(bp);
@@ -2373,9 +2373,7 @@ static int __init macb_probe(struct platform_device *pdev)
 
 err_out_unregister_netdev:
 	unregister_netdev(dev);
-err_out_free_irq:
-	for (q = 0, queue = bp->queues; q < q_irq; ++q, ++queue)
-		devm_free_irq(&pdev->dev, queue->irq, queue);
+err_out_free_netdev:
 	free_netdev(dev);
 err_out_disable_clocks:
 	if (!IS_ERR(tx_clk))
@@ -2392,8 +2390,6 @@ static int __exit macb_remove(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct macb *bp;
-	struct macb_queue *queue;
-	unsigned int q;
 
 	dev = platform_get_drvdata(pdev);
 
@@ -2405,9 +2401,6 @@ static int __exit macb_remove(struct platform_device *pdev)
 		kfree(bp->mii_bus->irq);
 		mdiobus_free(bp->mii_bus);
 		unregister_netdev(dev);
-		queue = bp->queues;
-		for (q = 0; q < bp->num_queues; ++q, ++queue)
-			devm_free_irq(&pdev->dev, queue->irq, queue);
 		if (!IS_ERR(bp->tx_clk))
 			clk_disable_unprepare(bp->tx_clk);
 		clk_disable_unprepare(bp->hclk);
