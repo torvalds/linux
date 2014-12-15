@@ -655,7 +655,7 @@
 		reg = <0x0 0xff980000 0x0 0x20000>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default", "gpio";
-		pinctrl-0 = <&i2c5_xfer &hdmi_cec>;
+		pinctrl-0 = <&hdmii2c_xfer &hdmi_cec>;
 		pinctrl-1 = <&i2c5_gpio>;
 		clocks = <&clk_gates17 6>, <&clk_gates4 13>, <&clk_gates4 12>;
 		clock-names = "pclk_hdmi", "hdcp_clk_hdmi", "cec_clk_hdmi";
@@ -1712,6 +1712,13 @@
 			hdmi_cec: hdmi-cec {
 				rockchip,pins =	<3 GPIO_C7 RK_FUNC_1 &pcfg_pull_none>;
 			};
+		};
+
+		hdmi_i2c {
+			hdmii2c_xfer: hdmii2c-xfer {
+                                rockchip,pins = <3 GPIO_D2 RK_FUNC_1 &pcfg_pull_none>,
+                                                <3 GPIO_D3 RK_FUNC_1 &pcfg_pull_none>;
+                        };
 		};
 	};
 };
