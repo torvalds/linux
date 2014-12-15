@@ -468,7 +468,7 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 EXPORT_SYMBOL_GPL(snd_hda_get_bool_hint);
 
 /**
- * snd_hda_get_bool_hint - Get a boolean hint value
+ * snd_hda_get_int_hint - Get an integer hint value
  * @codec: the HDA codec
  * @key: the hint key string
  * @valp: pointer to store a value
