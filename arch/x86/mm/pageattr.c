@@ -384,6 +384,26 @@ static pte_t *_lookup_address_cpa(struct cpa_data *cpa, unsigned long address,
 }
 
 /*
+ * Lookup the PMD entry for a virtual address. Return a pointer to the entry
+ * or NULL if not present.
+ */
+pmd_t *lookup_pmd_address(unsigned long address)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+
+	pgd = pgd_offset_k(address);
+	if (pgd_none(*pgd))
+		return NULL;
+
+	pud = pud_offset(pgd, address);
+	if (pud_none(*pud) || pud_large(*pud) || !pud_present(*pud))
+		return NULL;
+
+	return pmd_offset(pud, address);
+}
+
+/*
  * This is necessary because __pa() does not work on some
  * kinds of memory, like vmalloc() or the alloc_remap()
  * areas on 32-bit NUMA systems.  The percpu areas can
