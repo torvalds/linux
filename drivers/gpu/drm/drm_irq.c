@@ -1613,6 +1613,8 @@ static void drm_handle_vblank_events(struct drm_device *dev, int crtc)
  *
  * Drivers should call this routine in their vblank interrupt handlers to
  * update the vblank counter and send any signals that may be pending.
+ *
+ * This is the legacy version of drm_crtc_handle_vblank().
  */
 bool drm_handle_vblank(struct drm_device *dev, int crtc)
 {
@@ -1689,3 +1691,21 @@ bool drm_handle_vblank(struct drm_device *dev, int crtc)
 	return true;
 }
 EXPORT_SYMBOL(drm_handle_vblank);
+
+/**
+ * drm_crtc_handle_vblank - handle a vblank event
+ * @crtc: where this event occurred
+ *
+ * Drivers should call this routine in their vblank interrupt handlers to
+ * update the vblank counter and send any signals that may be pending.
+ *
+ * This is the native KMS version of drm_handle_vblank().
+ *
+ * Returns:
+ * True if the event was successfully handled, false on failure.
+ */
+bool drm_crtc_handle_vblank(struct drm_crtc *crtc)
+{
+	return drm_handle_vblank(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_handle_vblank);
