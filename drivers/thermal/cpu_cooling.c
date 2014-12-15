@@ -39,6 +39,7 @@
  * @cpufreq_val: integer value representing the absolute value of the clipped
  *	frequency.
  * @allowed_cpus: all the cpus involved for this cpufreq_cooling_device.
+ * @node: list_head to link all cpufreq_cooling_device together.
  *
  * This structure is required for keeping information of each
  * cpufreq_cooling_device registered. In order to prevent corruption of this a
