@@ -5851,22 +5851,24 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 
 	if (fd >= 0) {
 		struct inode *inode;
-		if (mddev->bitmap)
-			return -EEXIST; /* cannot add when bitmap is present */
-		mddev->bitmap_info.file = fget(fd);
+		struct file *f;
 
-		if (mddev->bitmap_info.file == NULL) {
+		if (mddev->bitmap || mddev->bitmap_info.file)
+			return -EEXIST; /* cannot add when bitmap is present */
+		f = fget(fd);
+
+		if (f == NULL) {
 			printk(KERN_ERR "%s: error: failed to get bitmap file\n",
 			       mdname(mddev));
 			return -EBADF;
 		}
 
-		inode = mddev->bitmap_info.file->f_mapping->host;
+		inode = f->f_mapping->host;
 		if (!S_ISREG(inode->i_mode)) {
 			printk(KERN_ERR "%s: error: bitmap file must be a regular file\n",
 			       mdname(mddev));
 			err = -EBADF;
-		} else if (!(mddev->bitmap_info.file->f_mode & FMODE_WRITE)) {
+		} else if (!(f->f_mode & FMODE_WRITE)) {
 			printk(KERN_ERR "%s: error: bitmap file must open for write\n",
 			       mdname(mddev));
 			err = -EBADF;
@@ -5876,10 +5878,10 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 			err = -EBUSY;
 		}
 		if (err) {
-			fput(mddev->bitmap_info.file);
-			mddev->bitmap_info.file = NULL;
+			fput(f);
 			return err;
 		}
+		mddev->bitmap_info.file = f;
 		mddev->bitmap_info.offset = 0; /* file overrides offset */
 	} else if (mddev->bitmap == NULL)
 		return -ENOENT; /* cannot remove what isn't there */
