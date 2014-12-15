@@ -38,8 +38,8 @@ config ACER_WMI
 
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
+	depends on ACPI && THERMAL
 	select THERMAL_GOV_BANG_BANG
-	depends on ACPI
 	---help---
 	  This is a driver for Acer Aspire One netbooks. It allows to access
 	  the temperature sensor and to control the fan.
