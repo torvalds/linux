@@ -45,8 +45,7 @@ struct rtl2832_dev {
 };
 
 struct rtl2832_reg_entry {
-	u8 page;
-	u8 start_address;
+	u16 start_address;
 	u8 msb;
 	u8 lsb;
 };
