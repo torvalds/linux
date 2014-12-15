@@ -234,6 +234,7 @@ struct ti_clk_features {
 };
 
 #define TI_CLK_DPLL_HAS_FREQSEL		(1 << 0)
+#define TI_CLK_DPLL4_DENY_REPROGRAM	(1 << 1)
 
 extern struct ti_clk_features ti_clk_features;
 

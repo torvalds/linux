@@ -2832,12 +2832,10 @@ static int __init _add_link(struct omap_hwmod_ocp_if *oi)
 	_alloc_links(&ml, &sl);
 
 	ml->ocp_if = oi;
-	INIT_LIST_HEAD(&ml->node);
 	list_add(&ml->node, &oi->master->master_ports);
 	oi->master->masters_cnt++;
 
 	sl->ocp_if = oi;
-	INIT_LIST_HEAD(&sl->node);
 	list_add(&sl->node, &oi->slave->slave_ports);
 	oi->slave->slaves_cnt++;
 
