@@ -51,9 +51,11 @@ struct regmap_async {
 struct regmap {
 	union {
 		struct mutex mutex;
-		spinlock_t spinlock;
+		struct {
+			spinlock_t spinlock;
+			unsigned long spinlock_flags;
+		};
 	};
-	unsigned long spinlock_flags;
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg; /* This is passed to lock/unlock functions */
