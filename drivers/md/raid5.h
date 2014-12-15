@@ -210,6 +210,10 @@ struct stripe_head {
 	atomic_t		count;	      /* nr of active thread/requests */
 	int			bm_seq;	/* sequence number for bitmap flushes */
 	int			disks;		/* disks in stripe */
+	int			overwrite_disks; /* total overwrite disks in stripe,
+						  * this is only checked when stripe
+						  * has STRIPE_BATCH_READY
+						  */
 	enum check_states	check_state;
 	enum reconstruct_states reconstruct_state;
 	spinlock_t		stripe_lock;

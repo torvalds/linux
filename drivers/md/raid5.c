@@ -553,6 +553,7 @@ retry:
 	}
 	if (read_seqcount_retry(&conf->gen_lock, seq))
 		goto retry;
+	sh->overwrite_disks = 0;
 	insert_hash(conf, sh);
 	sh->cpu = smp_processor_id();
 	set_bit(STRIPE_BATCH_READY, &sh->state);
@@ -708,6 +709,12 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 
 	spin_unlock_irq(conf->hash_locks + hash);
 	return sh;
+}
+
+static bool is_full_stripe_write(struct stripe_head *sh)
+{
+	BUG_ON(sh->overwrite_disks > (sh->disks - sh->raid_conf->max_degraded));
+	return sh->overwrite_disks == (sh->disks - sh->raid_conf->max_degraded);
 }
 
 /* Determine if 'data_offset' or 'new_data_offset' should be used
@@ -1413,6 +1420,7 @@ ops_run_biodrain(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 			spin_lock_irq(&sh->stripe_lock);
 			chosen = dev->towrite;
 			dev->towrite = NULL;
+			sh->overwrite_disks = 0;
 			BUG_ON(dev->written);
 			wbi = dev->written = chosen;
 			spin_unlock_irq(&sh->stripe_lock);
@@ -2700,7 +2708,8 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx,
 				sector = bio_end_sector(bi);
 		}
 		if (sector >= sh->dev[dd_idx].sector + STRIPE_SECTORS)
-			set_bit(R5_OVERWRITE, &sh->dev[dd_idx].flags);
+			if (!test_and_set_bit(R5_OVERWRITE, &sh->dev[dd_idx].flags))
+				sh->overwrite_disks++;
 	}
 
 	pr_debug("added bi b#%llu to stripe s#%llu, disk %d.\n",
@@ -2772,6 +2781,7 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 		/* fail all writes first */
 		bi = sh->dev[i].towrite;
 		sh->dev[i].towrite = NULL;
+		sh->overwrite_disks = 0;
 		spin_unlock_irq(&sh->stripe_lock);
 		if (bi)
 			bitmap_end = 1;
@@ -4630,12 +4640,14 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 		}
 		set_bit(STRIPE_DISCARD, &sh->state);
 		finish_wait(&conf->wait_for_overlap, &w);
+		sh->overwrite_disks = 0;
 		for (d = 0; d < conf->raid_disks; d++) {
 			if (d == sh->pd_idx || d == sh->qd_idx)
 				continue;
 			sh->dev[d].towrite = bi;
 			set_bit(R5_OVERWRITE, &sh->dev[d].flags);
 			raid5_inc_bi_active_stripes(bi);
+			sh->overwrite_disks++;
 		}
 		spin_unlock_irq(&sh->stripe_lock);
 		if (conf->mddev->bitmap) {
