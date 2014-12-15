@@ -1673,7 +1673,8 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	/* SMP over BR/EDR requires special treatment */
 	if (conn->hcon->type == ACL_LINK) {
 		/* We must have a BR/EDR SC link */
-		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags))
+		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags) &&
+		    !test_bit(HCI_FORCE_LESC, &hdev->dbg_flags))
 			return SMP_CROSS_TRANSP_NOT_ALLOWED;
 
 		set_bit(SMP_FLAG_SC, &smp->flags);
@@ -2927,7 +2928,7 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(tfm_aes)) {
 		BT_ERR("Unable to create crypto context");
-		return ERR_PTR(PTR_ERR(tfm_aes));
+		return ERR_CAST(tfm_aes);
 	}
 
 create_chan:
