@@ -815,7 +815,7 @@ cleanup:
 struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
 {
 	struct list_head *cur, *tmp;
-	int cur_cpu = hv_context.vp_index[smp_processor_id()];
+	int cur_cpu;
 	struct vmbus_channel *cur_channel;
 	struct vmbus_channel *outgoing_channel = primary;
 	int cpu_distance, new_cpu_distance;
@@ -823,6 +823,8 @@ struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
 	if (list_empty(&primary->sc_list))
 		return outgoing_channel;
 
+	cur_cpu = hv_context.vp_index[get_cpu()];
+	put_cpu();
 	list_for_each_safe(cur, tmp, &primary->sc_list) {
 		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
 		if (cur_channel->state != CHANNEL_OPENED_STATE)
