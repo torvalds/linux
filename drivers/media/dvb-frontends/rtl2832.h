@@ -80,6 +80,10 @@ struct rtl2832_platform_data {
 	int (*enable_slave_ts)(struct i2c_client *);
 	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
 	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
+	/* Register access for SDR module */
+	int (*bulk_read)(struct i2c_client *, unsigned int, void *, size_t);
+	int (*bulk_write)(struct i2c_client *, unsigned int, const void *, size_t);
+	int (*update_bits)(struct i2c_client *, unsigned int, unsigned int, unsigned int);
 };
 
 #endif /* RTL2832_H */

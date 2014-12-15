@@ -1279,6 +1279,9 @@ static int rtl2832_probe(struct i2c_client *client,
 	pdata->enable_slave_ts = rtl2832_enable_slave_ts;
 	pdata->pid_filter = rtl2832_pid_filter;
 	pdata->pid_filter_ctrl = rtl2832_pid_filter_ctrl;
+	pdata->bulk_read = rtl2832_bulk_read;
+	pdata->bulk_write = rtl2832_bulk_write;
+	pdata->update_bits = rtl2832_update_bits;
 
 	dev_info(&client->dev, "Realtek RTL2832 successfully attached\n");
 	return 0;
