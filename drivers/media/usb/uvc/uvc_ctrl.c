@@ -694,7 +694,11 @@ static struct uvc_control_mapping uvc_ctrl_mappings[] = {
 
 static inline __u8 *uvc_ctrl_data(struct uvc_control *ctrl, int id)
 {
+	#if 0       /* ddl@rock-chips.com: address must align to 4-bytes */
 	return ctrl->uvc_data + id * ctrl->info.size;
+	#else
+	return ctrl->uvc_data + id * ((ctrl->info.size+3)/4*4);
+	#endif
 }
 
 static inline int uvc_test_bit(const __u8 *data, int bit)
@@ -1842,8 +1846,13 @@ static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
 	INIT_LIST_HEAD(&ctrl->info.mappings);
 
 	/* Allocate an array to save control values (cur, def, max, etc.) */
+	#if 0           /* ddl@rock-chips.com: address must align to 4-bytes */
 	ctrl->uvc_data = kzalloc(ctrl->info.size * UVC_CTRL_DATA_LAST + 1,
 				 GFP_KERNEL);
+	#else
+	ctrl->uvc_data = kzalloc(((ctrl->info.size+3)/4*4) * UVC_CTRL_DATA_LAST + 1,
+				 GFP_KERNEL);
+	#endif
 	if (ctrl->uvc_data == NULL) {
 		ret = -ENOMEM;
 		goto done;
