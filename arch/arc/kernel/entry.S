@@ -736,16 +736,20 @@ ENTRY(ret_from_fork)
 	; put last task in scheduler queue
 	bl   @schedule_tail
 
-	; If kernel thread, jump to its entry-point
 	ld   r9, [sp, PT_status32]
 	brne r9, 0, 1f
 
-	jl.d [r14]
-	mov  r0, r13		; arg to payload
+	jl.d [r14]		; kernel thread entry point
+	mov  r0, r13		; (see PF_KTHREAD block in copy_thread)
 
 1:
-	; special case of kernel_thread entry point returning back due to
-	; kernel_execve() - pretend return from syscall to ret to userland
+	; Return to user space
+	; 1. Any forked task (Reach here via BRne above)
+	; 2. First ever init task (Reach here via return from JL above)
+	;    This is the historic "kernel_execve" use-case, to return to init
+	;    user mode, in a round about way since that is always done from
+	;    a kernel thread which is executed via JL above but always returns
+	;    out whenever kernel_execve (now inline do_fork()) is involved
 	b    ret_from_exception
 END(ret_from_fork)
 
