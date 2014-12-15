@@ -142,8 +142,7 @@ int smk_access(struct smack_known *subject, struct smack_known *object,
 	 * Tasks cannot be assigned the internet label.
 	 * An internet subject can access any object.
 	 */
-	if (object == &smack_known_web ||
-	    subject == &smack_known_web)
+	if (object == &smack_known_web || subject == &smack_known_web)
 		goto out_audit;
 	/*
 	 * A star object can be accessed by any subject.
@@ -157,10 +156,11 @@ int smk_access(struct smack_known *subject, struct smack_known *object,
 	if (subject->smk_known == object->smk_known)
 		goto out_audit;
 	/*
-	 * A hat subject can read any object.
-	 * A floor object can be read by any subject.
+	 * A hat subject can read or lock any object.
+	 * A floor object can be read or locked by any subject.
 	 */
-	if ((request & MAY_ANYREAD) == request) {
+	if ((request & MAY_ANYREAD) == request ||
+	    (request & MAY_LOCK) == request) {
 		if (object == &smack_known_floor)
 			goto out_audit;
 		if (subject == &smack_known_hat)
@@ -452,10 +452,9 @@ char *smk_parse_smack(const char *string, int len)
 		return NULL;
 
 	smack = kzalloc(i + 1, GFP_KERNEL);
-	if (smack != NULL) {
-		strncpy(smack, string, i + 1);
-		smack[i] = '\0';
-	}
+	if (smack != NULL)
+		strncpy(smack, string, i);
+
 	return smack;
 }
 

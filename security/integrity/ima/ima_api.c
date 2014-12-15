@@ -173,8 +173,7 @@ int ima_get_action(struct inode *inode, int mask, int function)
 {
 	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
 
-	if (!ima_appraise)
-		flags &= ~IMA_APPRAISE;
+	flags &= ima_policy_flag;
 
 	return ima_match_policy(inode, function, mask, flags);
 }
@@ -325,11 +324,11 @@ const char *ima_d_path(struct path *path, char **pathbuf)
 {
 	char *pathname = NULL;
 
-	*pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+	*pathbuf = __getname();
 	if (*pathbuf) {
 		pathname = d_absolute_path(path, *pathbuf, PATH_MAX);
 		if (IS_ERR(pathname)) {
-			kfree(*pathbuf);
+			__putname(*pathbuf);
 			*pathbuf = NULL;
 			pathname = NULL;
 		}
