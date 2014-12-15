@@ -363,6 +363,7 @@ static void usbhsc_hotplug(struct usbhs_priv *priv)
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	int id;
 	int enable;
+	int cable;
 	int ret;
 
 	/*
@@ -376,6 +377,16 @@ static void usbhsc_hotplug(struct usbhs_priv *priv)
 	id = usbhs_platform_call(priv, get_id, pdev);
 
 	if (enable && !mod) {
+		if (priv->edev) {
+			cable = extcon_get_cable_state(priv->edev, "USB-HOST");
+			if ((cable > 0 && id != USBHS_HOST) ||
+			    (!cable && id != USBHS_GADGET)) {
+				dev_info(&pdev->dev,
+					 "USB cable plugged in doesn't match the selected role!\n");
+				return;
+			}
+		}
+
 		ret = usbhs_mod_change(priv, id);
 		if (ret < 0)
 			return;
@@ -513,6 +524,12 @@ static int usbhs_probe(struct platform_device *pdev)
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
+
+	if (of_property_read_bool(pdev->dev.of_node, "extcon")) {
+		priv->edev = extcon_get_edev_by_phandle(&pdev->dev, 0);
+		if (IS_ERR(priv->edev))
+			return PTR_ERR(priv->edev);
+	}
 
 	/*
 	 * care platform info
