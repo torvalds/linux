@@ -2408,11 +2408,11 @@ static int __exit macb_remove(struct platform_device *pdev)
 		queue = bp->queues;
 		for (q = 0; q < bp->num_queues; ++q, ++queue)
 			devm_free_irq(&pdev->dev, queue->irq, queue);
-		free_netdev(dev);
 		if (!IS_ERR(bp->tx_clk))
 			clk_disable_unprepare(bp->tx_clk);
 		clk_disable_unprepare(bp->hclk);
 		clk_disable_unprepare(bp->pclk);
+		free_netdev(dev);
 	}
 
 	return 0;
