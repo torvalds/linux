@@ -249,14 +249,11 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 	return 0;
 }
 
-static int linear_stop (struct mddev *mddev)
+static void linear_free(struct mddev *mddev, void *priv)
 {
-	struct linear_conf *conf = mddev->private;
+	struct linear_conf *conf = priv;
 
 	kfree(conf);
-	mddev->private = NULL;
-
-	return 0;
 }
 
 static void linear_make_request(struct mddev *mddev, struct bio *bio)
@@ -335,7 +332,7 @@ static struct md_personality linear_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= linear_make_request,
 	.run		= linear_run,
-	.stop		= linear_stop,
+	.free		= linear_free,
 	.status		= linear_status,
 	.hot_add_disk	= linear_add,
 	.size		= linear_size,

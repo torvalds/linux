@@ -3798,9 +3798,9 @@ out:
 	return -EIO;
 }
 
-static int stop(struct mddev *mddev)
+static void raid10_free(struct mddev *mddev, void *priv)
 {
-	struct r10conf *conf = mddev->private;
+	struct r10conf *conf = priv;
 
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
@@ -3809,8 +3809,6 @@ static int stop(struct mddev *mddev)
 	kfree(conf->mirrors_old);
 	kfree(conf->mirrors_new);
 	kfree(conf);
-	mddev->private = NULL;
-	return 0;
 }
 
 static void raid10_quiesce(struct mddev *mddev, int state)
@@ -4692,7 +4690,7 @@ static struct md_personality raid10_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
-	.stop		= stop,
+	.free		= raid10_free,
 	.status		= status,
 	.error_handler	= error,
 	.hot_add_disk	= raid10_add_disk,

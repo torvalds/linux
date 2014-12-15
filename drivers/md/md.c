@@ -293,8 +293,8 @@ static void md_make_request(struct request_queue *q, struct bio *bio)
 /* mddev_suspend makes sure no new requests are submitted
  * to the device, and that any requests that have been submitted
  * are completely handled.
- * Once ->stop is called and completes, the module will be completely
- * unused.
+ * Once mddev_detach() is called and completes, the module will be
+ * completely unused.
  */
 void mddev_suspend(struct mddev *mddev)
 {
@@ -3374,7 +3374,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 	/* Looks like we have a winner */
 	mddev_suspend(mddev);
 	mddev_detach(mddev);
-	mddev->pers->stop(mddev);
+	mddev->pers->free(mddev, mddev->private);
 
 	if (mddev->pers->sync_request == NULL &&
 	    pers->sync_request != NULL) {
@@ -4940,7 +4940,7 @@ int md_run(struct mddev *mddev)
 	}
 	if (err) {
 		mddev_detach(mddev);
-		mddev->pers->stop(mddev);
+		mddev->pers->free(mddev, mddev->private);
 		module_put(mddev->pers->owner);
 		mddev->pers = NULL;
 		bitmap_destroy(mddev);
@@ -5137,7 +5137,7 @@ static void __md_stop(struct mddev *mddev)
 {
 	mddev->ready = 0;
 	mddev_detach(mddev);
-	mddev->pers->stop(mddev);
+	mddev->pers->free(mddev, mddev->private);
 	if (mddev->pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
 	module_put(mddev->pers->owner);

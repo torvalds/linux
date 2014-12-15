@@ -399,7 +399,7 @@ static int multipath_run (struct mddev *mddev)
 	/*
 	 * copy the already verified devices into our private MULTIPATH
 	 * bookkeeping area. [whatever we allocate in multipath_run(),
-	 * should be freed in multipath_stop()]
+	 * should be freed in multipath_free()]
 	 */
 
 	conf = kzalloc(sizeof(struct mpconf), GFP_KERNEL);
@@ -500,15 +500,13 @@ out:
 	return -EIO;
 }
 
-static int multipath_stop (struct mddev *mddev)
+static void multipath_free(struct mddev *mddev, void *priv)
 {
-	struct mpconf *conf = mddev->private;
+	struct mpconf *conf = priv;
 
 	mempool_destroy(conf->pool);
 	kfree(conf->multipaths);
 	kfree(conf);
-	mddev->private = NULL;
-	return 0;
 }
 
 static struct md_personality multipath_personality =
@@ -518,7 +516,7 @@ static struct md_personality multipath_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= multipath_make_request,
 	.run		= multipath_run,
-	.stop		= multipath_stop,
+	.free		= multipath_free,
 	.status		= multipath_status,
 	.error_handler	= multipath_error,
 	.hot_add_disk	= multipath_add_disk,

@@ -2872,7 +2872,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	return ERR_PTR(err);
 }
 
-static int stop(struct mddev *mddev);
+static void raid1_free(struct mddev *mddev, void *priv);
 static int run(struct mddev *mddev)
 {
 	struct r1conf *conf;
@@ -2894,7 +2894,7 @@ static int run(struct mddev *mddev)
 	/*
 	 * copy the already verified devices into our private RAID1
 	 * bookkeeping area. [whatever we allocate in run(),
-	 * should be freed in stop()]
+	 * should be freed in raid1_free()]
 	 */
 	if (mddev->private == NULL)
 		conf = setup_conf(mddev);
@@ -2956,14 +2956,14 @@ static int run(struct mddev *mddev)
 	ret =  md_integrity_register(mddev);
 	if (ret) {
 		md_unregister_thread(&mddev->thread);
-		stop(mddev);
+		raid1_free(mddev, conf);
 	}
 	return ret;
 }
 
-static int stop(struct mddev *mddev)
+static void raid1_free(struct mddev *mddev, void *priv)
 {
-	struct r1conf *conf = mddev->private;
+	struct r1conf *conf = priv;
 
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
@@ -2971,8 +2971,6 @@ static int stop(struct mddev *mddev)
 	safe_put_page(conf->tmppage);
 	kfree(conf->poolinfo);
 	kfree(conf);
-	mddev->private = NULL;
-	return 0;
 }
 
 static int raid1_resize(struct mddev *mddev, sector_t sectors)
@@ -3155,7 +3153,7 @@ static struct md_personality raid1_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
-	.stop		= stop,
+	.free		= raid1_free,
 	.status		= status,
 	.error_handler	= error,
 	.hot_add_disk	= raid1_add_disk,
