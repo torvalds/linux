@@ -54,6 +54,7 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 #include <linux/nodemask.h>
+#include <linux/flex_array.h>
 #include <trace/events/block.h>
 
 #include "md.h"
@@ -1109,16 +1110,28 @@ static void ops_complete_compute(void *stripe_head_ref)
 
 /* return a pointer to the address conversion region of the scribble buffer */
 static addr_conv_t *to_addr_conv(struct stripe_head *sh,
-				 struct raid5_percpu *percpu)
+				 struct raid5_percpu *percpu, int i)
 {
-	return percpu->scribble + sizeof(struct page *) * (sh->disks + 2);
+	void *addr;
+
+	addr = flex_array_get(percpu->scribble, i);
+	return addr + sizeof(struct page *) * (sh->disks + 2);
+}
+
+/* return a pointer to the address conversion region of the scribble buffer */
+static struct page **to_addr_page(struct raid5_percpu *percpu, int i)
+{
+	void *addr;
+
+	addr = flex_array_get(percpu->scribble, i);
+	return addr;
 }
 
 static struct dma_async_tx_descriptor *
 ops_run_compute5(struct stripe_head *sh, struct raid5_percpu *percpu)
 {
 	int disks = sh->disks;
-	struct page **xor_srcs = percpu->scribble;
+	struct page **xor_srcs = to_addr_page(percpu, 0);
 	int target = sh->ops.target;
 	struct r5dev *tgt = &sh->dev[target];
 	struct page *xor_dest = tgt->page;
@@ -1138,7 +1151,7 @@ ops_run_compute5(struct stripe_head *sh, struct raid5_percpu *percpu)
 	atomic_inc(&sh->count);
 
 	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST, NULL,
-			  ops_complete_compute, sh, to_addr_conv(sh, percpu));
+			  ops_complete_compute, sh, to_addr_conv(sh, percpu, 0));
 	if (unlikely(count == 1))
 		tx = async_memcpy(xor_dest, xor_srcs[0], 0, 0, STRIPE_SIZE, &submit);
 	else
@@ -1183,7 +1196,7 @@ static struct dma_async_tx_descriptor *
 ops_run_compute6_1(struct stripe_head *sh, struct raid5_percpu *percpu)
 {
 	int disks = sh->disks;
-	struct page **blocks = percpu->scribble;
+	struct page **blocks = to_addr_page(percpu, 0);
 	int target;
 	int qd_idx = sh->qd_idx;
 	struct dma_async_tx_descriptor *tx;
@@ -1216,7 +1229,7 @@ ops_run_compute6_1(struct stripe_head *sh, struct raid5_percpu *percpu)
 		BUG_ON(blocks[count+1] != dest); /* q should already be set */
 		init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
 				  ops_complete_compute, sh,
-				  to_addr_conv(sh, percpu));
+				  to_addr_conv(sh, percpu, 0));
 		tx = async_gen_syndrome(blocks, 0, count+2, STRIPE_SIZE, &submit);
 	} else {
 		/* Compute any data- or p-drive using XOR */
@@ -1229,7 +1242,7 @@ ops_run_compute6_1(struct stripe_head *sh, struct raid5_percpu *percpu)
 
 		init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST,
 				  NULL, ops_complete_compute, sh,
-				  to_addr_conv(sh, percpu));
+				  to_addr_conv(sh, percpu, 0));
 		tx = async_xor(dest, blocks, 0, count, STRIPE_SIZE, &submit);
 	}
 
@@ -1248,7 +1261,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 	struct r5dev *tgt = &sh->dev[target];
 	struct r5dev *tgt2 = &sh->dev[target2];
 	struct dma_async_tx_descriptor *tx;
-	struct page **blocks = percpu->scribble;
+	struct page **blocks = to_addr_page(percpu, 0);
 	struct async_submit_ctl submit;
 
 	pr_debug("%s: stripe %llu block1: %d block2: %d\n",
@@ -1290,7 +1303,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			/* Missing P+Q, just recompute */
 			init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
 					  ops_complete_compute, sh,
-					  to_addr_conv(sh, percpu));
+					  to_addr_conv(sh, percpu, 0));
 			return async_gen_syndrome(blocks, 0, syndrome_disks+2,
 						  STRIPE_SIZE, &submit);
 		} else {
@@ -1314,21 +1327,21 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			init_async_submit(&submit,
 					  ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST,
 					  NULL, NULL, NULL,
-					  to_addr_conv(sh, percpu));
+					  to_addr_conv(sh, percpu, 0));
 			tx = async_xor(dest, blocks, 0, count, STRIPE_SIZE,
 				       &submit);
 
 			count = set_syndrome_sources(blocks, sh);
 			init_async_submit(&submit, ASYNC_TX_FENCE, tx,
 					  ops_complete_compute, sh,
-					  to_addr_conv(sh, percpu));
+					  to_addr_conv(sh, percpu, 0));
 			return async_gen_syndrome(blocks, 0, count+2,
 						  STRIPE_SIZE, &submit);
 		}
 	} else {
 		init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
 				  ops_complete_compute, sh,
-				  to_addr_conv(sh, percpu));
+				  to_addr_conv(sh, percpu, 0));
 		if (failb == syndrome_disks) {
 			/* We're missing D+P. */
 			return async_raid6_datap_recov(syndrome_disks+2,
@@ -1356,7 +1369,7 @@ ops_run_prexor(struct stripe_head *sh, struct raid5_percpu *percpu,
 	       struct dma_async_tx_descriptor *tx)
 {
 	int disks = sh->disks;
-	struct page **xor_srcs = percpu->scribble;
+	struct page **xor_srcs = to_addr_page(percpu, 0);
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct async_submit_ctl submit;
 
@@ -1374,7 +1387,7 @@ ops_run_prexor(struct stripe_head *sh, struct raid5_percpu *percpu,
 	}
 
 	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_DROP_DST, tx,
-			  ops_complete_prexor, sh, to_addr_conv(sh, percpu));
+			  ops_complete_prexor, sh, to_addr_conv(sh, percpu, 0));
 	tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE, &submit);
 
 	return tx;
@@ -1478,7 +1491,7 @@ ops_run_reconstruct5(struct stripe_head *sh, struct raid5_percpu *percpu,
 		     struct dma_async_tx_descriptor *tx)
 {
 	int disks = sh->disks;
-	struct page **xor_srcs = percpu->scribble;
+	struct page **xor_srcs = to_addr_page(percpu, 0);
 	struct async_submit_ctl submit;
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct page *xor_dest;
@@ -1531,7 +1544,7 @@ ops_run_reconstruct5(struct stripe_head *sh, struct raid5_percpu *percpu,
 	atomic_inc(&sh->count);
 
 	init_async_submit(&submit, flags, tx, ops_complete_reconstruct, sh,
-			  to_addr_conv(sh, percpu));
+			  to_addr_conv(sh, percpu, 0));
 	if (unlikely(count == 1))
 		tx = async_memcpy(xor_dest, xor_srcs[0], 0, 0, STRIPE_SIZE, &submit);
 	else
@@ -1543,7 +1556,7 @@ ops_run_reconstruct6(struct stripe_head *sh, struct raid5_percpu *percpu,
 		     struct dma_async_tx_descriptor *tx)
 {
 	struct async_submit_ctl submit;
-	struct page **blocks = percpu->scribble;
+	struct page **blocks = to_addr_page(percpu, 0);
 	int count, i;
 
 	pr_debug("%s: stripe %llu\n", __func__, (unsigned long long)sh->sector);
@@ -1567,7 +1580,7 @@ ops_run_reconstruct6(struct stripe_head *sh, struct raid5_percpu *percpu,
 	atomic_inc(&sh->count);
 
 	init_async_submit(&submit, ASYNC_TX_ACK, tx, ops_complete_reconstruct,
-			  sh, to_addr_conv(sh, percpu));
+			  sh, to_addr_conv(sh, percpu, 0));
 	async_gen_syndrome(blocks, 0, count+2, STRIPE_SIZE,  &submit);
 }
 
@@ -1589,7 +1602,7 @@ static void ops_run_check_p(struct stripe_head *sh, struct raid5_percpu *percpu)
 	int pd_idx = sh->pd_idx;
 	int qd_idx = sh->qd_idx;
 	struct page *xor_dest;
-	struct page **xor_srcs = percpu->scribble;
+	struct page **xor_srcs = to_addr_page(percpu, 0);
 	struct dma_async_tx_descriptor *tx;
 	struct async_submit_ctl submit;
 	int count;
@@ -1608,7 +1621,7 @@ static void ops_run_check_p(struct stripe_head *sh, struct raid5_percpu *percpu)
 	}
 
 	init_async_submit(&submit, 0, NULL, NULL, NULL,
-			  to_addr_conv(sh, percpu));
+			  to_addr_conv(sh, percpu, 0));
 	tx = async_xor_val(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
 			   &sh->ops.zero_sum_result, &submit);
 
@@ -1619,7 +1632,7 @@ static void ops_run_check_p(struct stripe_head *sh, struct raid5_percpu *percpu)
 
 static void ops_run_check_pq(struct stripe_head *sh, struct raid5_percpu *percpu, int checkp)
 {
-	struct page **srcs = percpu->scribble;
+	struct page **srcs = to_addr_page(percpu, 0);
 	struct async_submit_ctl submit;
 	int count;
 
@@ -1632,7 +1645,7 @@ static void ops_run_check_pq(struct stripe_head *sh, struct raid5_percpu *percpu
 
 	atomic_inc(&sh->count);
 	init_async_submit(&submit, ASYNC_TX_ACK, NULL, ops_complete_check,
-			  sh, to_addr_conv(sh, percpu));
+			  sh, to_addr_conv(sh, percpu, 0));
 	async_syndrome_val(srcs, 0, count+2, STRIPE_SIZE,
 			   &sh->ops.zero_sum_result, percpu->spare_page, &submit);
 }
@@ -1772,13 +1785,21 @@ static int grow_stripes(struct r5conf *conf, int num)
  * calculate over all devices (not just the data blocks), using zeros in place
  * of the P and Q blocks.
  */
-static size_t scribble_len(int num)
+static struct flex_array *scribble_alloc(int num, int cnt, gfp_t flags)
 {
+	struct flex_array *ret;
 	size_t len;
 
 	len = sizeof(struct page *) * (num+2) + sizeof(addr_conv_t) * (num+2);
-
-	return len;
+	ret = flex_array_alloc(len, cnt, flags);
+	if (!ret)
+		return NULL;
+	/* always prealloc all elements, so no locking is required */
+	if (flex_array_prealloc(ret, 0, cnt, flags)) {
+		flex_array_free(ret);
+		return NULL;
+	}
+	return ret;
 }
 
 static int resize_stripes(struct r5conf *conf, int newsize)
@@ -1896,16 +1917,16 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 		err = -ENOMEM;
 
 	get_online_cpus();
-	conf->scribble_len = scribble_len(newsize);
 	for_each_present_cpu(cpu) {
 		struct raid5_percpu *percpu;
-		void *scribble;
+		struct flex_array *scribble;
 
 		percpu = per_cpu_ptr(conf->percpu, cpu);
-		scribble = kmalloc(conf->scribble_len, GFP_NOIO);
+		scribble = scribble_alloc(newsize, conf->chunk_sectors /
+			STRIPE_SECTORS, GFP_NOIO);
 
 		if (scribble) {
-			kfree(percpu->scribble);
+			flex_array_free(percpu->scribble);
 			percpu->scribble = scribble;
 		} else {
 			err = -ENOMEM;
@@ -5698,7 +5719,8 @@ raid5_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 static void free_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu)
 {
 	safe_put_page(percpu->spare_page);
-	kfree(percpu->scribble);
+	if (percpu->scribble)
+		flex_array_free(percpu->scribble);
 	percpu->spare_page = NULL;
 	percpu->scribble = NULL;
 }
@@ -5708,7 +5730,9 @@ static int alloc_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu
 	if (conf->level == 6 && !percpu->spare_page)
 		percpu->spare_page = alloc_page(GFP_KERNEL);
 	if (!percpu->scribble)
-		percpu->scribble = kmalloc(conf->scribble_len, GFP_KERNEL);
+		percpu->scribble = scribble_alloc(max(conf->raid_disks,
+			conf->previous_raid_disks), conf->chunk_sectors /
+			STRIPE_SECTORS, GFP_KERNEL);
 
 	if (!percpu->scribble || (conf->level == 6 && !percpu->spare_page)) {
 		free_scratch_buffer(conf, percpu);
@@ -5878,7 +5902,6 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	else
 		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
 	max_disks = max(conf->raid_disks, conf->previous_raid_disks);
-	conf->scribble_len = scribble_len(max_disks);
 
 	conf->disks = kzalloc(max_disks * sizeof(struct disk_info),
 			      GFP_KERNEL);
@@ -5906,6 +5929,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		INIT_LIST_HEAD(conf->temp_inactive_list + i);
 
 	conf->level = mddev->new_level;
+	conf->chunk_sectors = mddev->new_chunk_sectors;
 	if (raid5_alloc_percpu(conf) != 0)
 		goto abort;
 
@@ -5938,7 +5962,6 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 			conf->fullsync = 1;
 	}
 
-	conf->chunk_sectors = mddev->new_chunk_sectors;
 	conf->level = mddev->new_level;
 	if (conf->level == 6)
 		conf->max_degraded = 2;
