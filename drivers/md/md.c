@@ -5502,7 +5502,7 @@ static int get_array_info(struct mddev *mddev, void __user *arg)
 static int get_bitmap_file(struct mddev *mddev, void __user * arg)
 {
 	mdu_bitmap_file_t *file = NULL; /* too big for stack allocation */
-	char *ptr, *buf = NULL;
+	char *ptr;
 	int err = -ENOMEM;
 
 	file = kmalloc(sizeof(*file), GFP_NOIO);
@@ -5516,23 +5516,19 @@ static int get_bitmap_file(struct mddev *mddev, void __user * arg)
 		goto copy_out;
 	}
 
-	buf = kmalloc(sizeof(file->pathname), GFP_KERNEL);
-	if (!buf)
-		goto out;
-
 	ptr = d_path(&mddev->bitmap->storage.file->f_path,
-		     buf, sizeof(file->pathname));
+		     file->pathname, sizeof(file->pathname));
 	if (IS_ERR(ptr))
 		goto out;
 
-	strcpy(file->pathname, ptr);
+	memmove(file->pathname, ptr,
+		sizeof(file->pathname)-(ptr-file->pathname));
 
 copy_out:
 	err = 0;
 	if (copy_to_user(arg, file, sizeof(*file)))
 		err = -EFAULT;
 out:
-	kfree(buf);
 	kfree(file);
 	return err;
 }
