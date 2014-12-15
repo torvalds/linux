@@ -3242,11 +3242,13 @@ safe_delay_store(struct mddev *mddev, const char *cbuf, size_t len)
 		mddev->safemode_delay = 0;
 	else {
 		unsigned long old_delay = mddev->safemode_delay;
-		mddev->safemode_delay = (msec*HZ)/1000;
-		if (mddev->safemode_delay == 0)
-			mddev->safemode_delay = 1;
-		if (mddev->safemode_delay < old_delay || old_delay == 0)
-			md_safemode_timeout((unsigned long)mddev);
+		unsigned long new_delay = (msec*HZ)/1000;
+
+		if (new_delay == 0)
+			new_delay = 1;
+		mddev->safemode_delay = new_delay;
+		if (new_delay < old_delay || old_delay == 0)
+			mod_timer(&mddev->safemode_timer, jiffies+1);
 	}
 	return len;
 }
