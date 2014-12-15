@@ -394,6 +394,8 @@ struct mddev {
 	 *   pers (also protected by reconfig_mutex and pending IO).
 	 *   clearing ->bitmap
 	 *   clearing ->bitmap_info.file
+	 *   changing ->resync_{min,max}
+	 *   setting MD_RECOVERY_RUNNING (which interacts with resync_{min,max})
 	 */
 	spinlock_t			lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */

@@ -4269,22 +4269,36 @@ static ssize_t
 min_sync_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	unsigned long long min;
+	int err;
+	int chunk;
+
 	if (kstrtoull(buf, 10, &min))
 		return -EINVAL;
+
+	spin_lock(&mddev->lock);
+	err = -EINVAL;
 	if (min > mddev->resync_max)
-		return -EINVAL;
+		goto out_unlock;
+
+	err = -EBUSY;
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		return -EBUSY;
+		goto out_unlock;
 
 	/* Must be a multiple of chunk_size */
-	if (mddev->chunk_sectors) {
+	chunk = mddev->chunk_sectors;
+	if (chunk) {
 		sector_t temp = min;
-		if (sector_div(temp, mddev->chunk_sectors))
-			return -EINVAL;
+
+		err = -EINVAL;
+		if (sector_div(temp, chunk))
+			goto out_unlock;
 	}
 	mddev->resync_min = min;
+	err = 0;
 
-	return len;
+out_unlock:
+	spin_unlock(&mddev->lock);
+	return err ?: len;
 }
 
 static struct md_sysfs_entry md_min_sync =
@@ -4302,29 +4316,42 @@ max_sync_show(struct mddev *mddev, char *page)
 static ssize_t
 max_sync_store(struct mddev *mddev, const char *buf, size_t len)
 {
+	int err;
+	spin_lock(&mddev->lock);
 	if (strncmp(buf, "max", 3) == 0)
 		mddev->resync_max = MaxSector;
 	else {
 		unsigned long long max;
+		int chunk;
+
+		err = -EINVAL;
 		if (kstrtoull(buf, 10, &max))
-			return -EINVAL;
+			goto out_unlock;
 		if (max < mddev->resync_min)
-			return -EINVAL;
+			goto out_unlock;
+
+		err = -EBUSY;
 		if (max < mddev->resync_max &&
 		    mddev->ro == 0 &&
 		    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-			return -EBUSY;
+			goto out_unlock;
 
 		/* Must be a multiple of chunk_size */
-		if (mddev->chunk_sectors) {
+		chunk = mddev->chunk_sectors;
+		if (chunk) {
 			sector_t temp = max;
-			if (sector_div(temp, mddev->chunk_sectors))
-				return -EINVAL;
+
+			err = -EINVAL;
+			if (sector_div(temp, chunk))
+				goto out_unlock;
 		}
 		mddev->resync_max = max;
 	}
 	wake_up(&mddev->recovery_wait);
-	return len;
+	err = 0;
+out_unlock:
+	spin_unlock(&mddev->lock);
+	return err ?: len;
 }
 
 static struct md_sysfs_entry md_max_sync =
@@ -7585,6 +7612,7 @@ void md_do_sync(struct md_thread *thread)
  skip:
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
+	spin_lock(&mddev->lock);
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 		/* We completed so min/max setting can be forgotten if used. */
 		if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
@@ -7593,6 +7621,8 @@ void md_do_sync(struct md_thread *thread)
 	} else if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 		mddev->resync_min = mddev->curr_resync_completed;
 	mddev->curr_resync = 0;
+	spin_unlock(&mddev->lock);
+
 	wake_up(&resync_wait);
 	set_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
@@ -7793,7 +7823,9 @@ void md_check_recovery(struct mddev *mddev)
 		 * any transients in the value of "sync_action".
 		 */
 		mddev->curr_resync_completed = 0;
+		spin_lock(&mddev->lock);
 		set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+		spin_unlock(&mddev->lock);
 		/* Clear some bits that don't mean anything, but
 		 * might be left set
 		 */
