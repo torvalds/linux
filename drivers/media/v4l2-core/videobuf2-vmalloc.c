@@ -211,6 +211,7 @@ static int vb2_vmalloc_mmap(void *buf_priv, struct vm_area_struct *vma)
 	return 0;
 }
 
+#ifdef CONFIG_HAS_DMA
 /*********************************************/
 /*         DMABUF ops for exporters          */
 /*********************************************/
@@ -380,6 +381,8 @@ static struct dma_buf *vb2_vmalloc_get_dmabuf(void *buf_priv, unsigned long flag
 
 	return dbuf;
 }
+#endif /* CONFIG_HAS_DMA */
+
 
 /*********************************************/
 /*       callbacks for DMABUF buffers        */
@@ -437,7 +440,9 @@ const struct vb2_mem_ops vb2_vmalloc_memops = {
 	.put		= vb2_vmalloc_put,
 	.get_userptr	= vb2_vmalloc_get_userptr,
 	.put_userptr	= vb2_vmalloc_put_userptr,
+#ifdef CONFIG_HAS_DMA
 	.get_dmabuf	= vb2_vmalloc_get_dmabuf,
+#endif
 	.map_dmabuf	= vb2_vmalloc_map_dmabuf,
 	.unmap_dmabuf	= vb2_vmalloc_unmap_dmabuf,
 	.attach_dmabuf	= vb2_vmalloc_attach_dmabuf,
