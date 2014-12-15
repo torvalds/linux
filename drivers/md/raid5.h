@@ -355,6 +355,23 @@ enum {
 	STRIPE_OP_RECONSTRUCT,
 	STRIPE_OP_CHECK,
 };
+
+/*
+ * RAID parity calculation preferences
+ */
+enum {
+	PARITY_DISABLE_RMW = 0,
+	PARITY_ENABLE_RMW,
+};
+
+/*
+ * Pages requested from set_syndrome_sources()
+ */
+enum {
+	SYNDROME_SRC_ALL,
+	SYNDROME_SRC_WANT_DRAIN,
+	SYNDROME_SRC_WRITTEN,
+};
 /*
  * Plugging:
  *
@@ -411,7 +428,7 @@ struct r5conf {
 	spinlock_t		hash_locks[NR_STRIPE_HASH_LOCKS];
 	struct mddev		*mddev;
 	int			chunk_sectors;
-	int			level, algorithm;
+	int			level, algorithm, rmw_level;
 	int			max_degraded;
 	int			raid_disks;
 	int			max_nr_stripes;
