@@ -117,8 +117,6 @@ struct mei_nfc_dev {
 	u16 recv_req_id;
 };
 
-static struct mei_nfc_dev nfc_dev;
-
 /* UUIDs for NFC F/W clients */
 const uuid_le mei_nfc_guid = UUID_LE(0x0bb17a78, 0x2a8e, 0x4c50,
 				     0x94, 0xd4, 0x50, 0x26,
@@ -138,6 +136,9 @@ static const uuid_le mei_nfc_info_guid = UUID_LE(0xd2de1625, 0x382d, 0x417d,
 
 static void mei_nfc_free(struct mei_nfc_dev *ndev)
 {
+	if (!ndev)
+		return;
+
 	if (ndev->cl) {
 		list_del(&ndev->cl->device_link);
 		mei_cl_unlink(ndev->cl);
@@ -150,7 +151,7 @@ static void mei_nfc_free(struct mei_nfc_dev *ndev)
 		kfree(ndev->cl_info);
 	}
 
-	memset(ndev, 0, sizeof(struct mei_nfc_dev));
+	kfree(ndev);
 }
 
 static int mei_nfc_build_bus_name(struct mei_nfc_dev *ndev)
@@ -319,9 +320,10 @@ err:
 static int mei_nfc_enable(struct mei_cl_device *cldev)
 {
 	struct mei_device *dev;
-	struct mei_nfc_dev *ndev = &nfc_dev;
+	struct mei_nfc_dev *ndev;
 	int ret;
 
+	ndev = (struct mei_nfc_dev *)cldev->priv_data;
 	dev = ndev->cl->dev;
 
 	ret = mei_nfc_connect(ndev);
@@ -479,14 +481,24 @@ err:
 
 int mei_nfc_host_init(struct mei_device *dev)
 {
-	struct mei_nfc_dev *ndev = &nfc_dev;
+	struct mei_nfc_dev *ndev;
 	struct mei_cl *cl_info, *cl = NULL;
 	struct mei_me_client *me_cl;
 	int ret;
 
-	/* already initialized */
-	if (ndev->cl_info)
+
+	/* in case of internal reset bail out
+	 * as the device is already setup
+	 */
+	cl = mei_cl_bus_find_cl_by_uuid(dev, mei_nfc_guid);
+	if (cl)
 		return 0;
+
+	ndev = kzalloc(sizeof(struct mei_nfc_dev), GFP_KERNEL);
+	if (!ndev) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	ndev->cl_info = mei_cl_allocate(dev);
 	ndev->cl = mei_cl_allocate(dev);
@@ -550,9 +562,31 @@ err:
 
 void mei_nfc_host_exit(struct mei_device *dev)
 {
-	struct mei_nfc_dev *ndev = &nfc_dev;
+	struct mei_nfc_dev *ndev;
+	struct mei_cl *cl;
+	struct mei_cl_device *cldev;
 
-	cancel_work_sync(&ndev->init_work);
+	cl = mei_cl_bus_find_cl_by_uuid(dev, mei_nfc_guid);
+	if (!cl)
+		return;
+
+	cldev = cl->device;
+	if (!cldev)
+		return;
+
+	ndev = (struct mei_nfc_dev *)cldev->priv_data;
+	if (ndev)
+		cancel_work_sync(&ndev->init_work);
+
+	cldev->priv_data = NULL;
+
+	mutex_lock(&dev->device_lock);
+	/* Need to remove the device here
+	 * since mei_nfc_free will unlink the clients
+	 */
+	mei_cl_remove_device(cldev);
+	mei_nfc_free(ndev);
+	mutex_unlock(&dev->device_lock);
 }
 
 

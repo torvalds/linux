@@ -278,14 +278,6 @@ config MACH_SBC3530
 	default y
 	select OMAP_PACKAGE_CUS
 
-config OMAP3_EMU
-	bool "OMAP3 debugging peripherals"
-	depends on ARCH_OMAP3
-	select ARM_AMBA
-	select OC_ETM
-	help
-	  Say Y here to enable debugging hardware of omap3
-
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
 	depends on ARCH_OMAP3

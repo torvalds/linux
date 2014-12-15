@@ -270,10 +270,10 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 static void mei_me_host_set_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr = mei_hcsr_read(hw);
 
-	hw->host_hw_state = mei_hcsr_read(hw);
-	hw->host_hw_state |= H_IE | H_IG | H_RDY;
-	mei_hcsr_set(hw, hw->host_hw_state);
+	hcsr |= H_IE | H_IG | H_RDY;
+	mei_hcsr_set(hw, hcsr);
 }
 
 /**
@@ -285,9 +285,9 @@ static void mei_me_host_set_ready(struct mei_device *dev)
 static bool mei_me_host_is_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr = mei_hcsr_read(hw);
 
-	hw->host_hw_state = mei_hcsr_read(hw);
-	return (hw->host_hw_state & H_RDY) == H_RDY;
+	return (hcsr & H_RDY) == H_RDY;
 }
 
 /**
@@ -299,9 +299,9 @@ static bool mei_me_host_is_ready(struct mei_device *dev)
 static bool mei_me_hw_is_ready(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 mecsr = mei_me_mecsr_read(hw);
 
-	hw->me_hw_state = mei_me_mecsr_read(hw);
-	return (hw->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
+	return (mecsr & ME_RDY_HRA) == ME_RDY_HRA;
 }
 
 /**
@@ -356,12 +356,13 @@ static int mei_me_hw_start(struct mei_device *dev)
 static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr;
 	char read_ptr, write_ptr;
 
-	hw->host_hw_state = mei_hcsr_read(hw);
+	hcsr = mei_hcsr_read(hw);
 
-	read_ptr = (char) ((hw->host_hw_state & H_CBRP) >> 8);
-	write_ptr = (char) ((hw->host_hw_state & H_CBWP) >> 16);
+	read_ptr = (char) ((hcsr & H_CBRP) >> 8);
+	write_ptr = (char) ((hcsr & H_CBWP) >> 16);
 
 	return (unsigned char) (write_ptr - read_ptr);
 }
@@ -474,13 +475,14 @@ static int mei_me_write_message(struct mei_device *dev,
 static int mei_me_count_full_read_slots(struct mei_device *dev)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 me_csr;
 	char read_ptr, write_ptr;
 	unsigned char buffer_depth, filled_slots;
 
-	hw->me_hw_state = mei_me_mecsr_read(hw);
-	buffer_depth = (unsigned char)((hw->me_hw_state & ME_CBD_HRA) >> 24);
-	read_ptr = (char) ((hw->me_hw_state & ME_CBRP_HRA) >> 8);
-	write_ptr = (char) ((hw->me_hw_state & ME_CBWP_HRA) >> 16);
+	me_csr = mei_me_mecsr_read(hw);
+	buffer_depth = (unsigned char)((me_csr & ME_CBD_HRA) >> 24);
+	read_ptr = (char) ((me_csr & ME_CBRP_HRA) >> 8);
+	write_ptr = (char) ((me_csr & ME_CBWP_HRA) >> 16);
 	filled_slots = (unsigned char) (write_ptr - read_ptr);
 
 	/* check for overflow */
@@ -833,6 +835,14 @@ static bool mei_me_fw_type_sps(struct pci_dev *pdev)
 	.fw_status.status[0] = PCI_CFG_HFS_1,   \
 	.fw_status.status[1] = PCI_CFG_HFS_2
 
+#define MEI_CFG_PCH8_HFS                        \
+	.fw_status.count = 6,                   \
+	.fw_status.status[0] = PCI_CFG_HFS_1,   \
+	.fw_status.status[1] = PCI_CFG_HFS_2,   \
+	.fw_status.status[2] = PCI_CFG_HFS_3,   \
+	.fw_status.status[3] = PCI_CFG_HFS_4,   \
+	.fw_status.status[4] = PCI_CFG_HFS_5,   \
+	.fw_status.status[5] = PCI_CFG_HFS_6
 
 /* ICH Legacy devices */
 const struct mei_cfg mei_me_legacy_cfg = {
@@ -856,9 +866,14 @@ const struct mei_cfg mei_me_pch_cpt_pbg_cfg = {
 	MEI_CFG_FW_NM,
 };
 
-/* PCH Lynx Point with quirk for SPS Firmware exclusion */
-const struct mei_cfg mei_me_lpt_cfg = {
-	MEI_CFG_PCH_HFS,
+/* PCH8 Lynx Point and newer devices */
+const struct mei_cfg mei_me_pch8_cfg = {
+	MEI_CFG_PCH8_HFS,
+};
+
+/* PCH8 Lynx Point with quirk for SPS Firmware exclusion */
+const struct mei_cfg mei_me_pch8_sps_cfg = {
+	MEI_CFG_PCH8_HFS,
 	MEI_CFG_FW_SPS,
 };
 

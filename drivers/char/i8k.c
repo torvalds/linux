@@ -298,7 +298,7 @@ static int i8k_get_temp(int sensor)
 	int temp;
 
 #ifdef I8K_TEMPERATURE_BUG
-	static int prev[4];
+	static int prev[4] = { I8K_MAX_TEMP+1, I8K_MAX_TEMP+1, I8K_MAX_TEMP+1, I8K_MAX_TEMP+1 };
 #endif
 	regs.ebx = sensor & 0xff;
 	rc = i8k_smm(&regs);
@@ -317,10 +317,12 @@ static int i8k_get_temp(int sensor)
 	 */
 	if (temp > I8K_MAX_TEMP) {
 		temp = prev[sensor];
-		prev[sensor] = I8K_MAX_TEMP;
+		prev[sensor] = I8K_MAX_TEMP+1;
 	} else {
 		prev[sensor] = temp;
 	}
+	if (temp > I8K_MAX_TEMP)
+		return -ERANGE;
 #endif
 
 	return temp;
@@ -499,6 +501,8 @@ static ssize_t i8k_hwmon_show_temp(struct device *dev,
 	int temp;
 
 	temp = i8k_get_temp(index);
+	if (temp == -ERANGE)
+		return -EINVAL;
 	if (temp < 0)
 		return temp;
 	return sprintf(buf, "%d\n", temp * 1000);
@@ -610,17 +614,17 @@ static int __init i8k_init_hwmon(void)
 
 	/* CPU temperature attributes, if temperature reading is OK */
 	err = i8k_get_temp(0);
-	if (err >= 0)
+	if (err >= 0 || err == -ERANGE)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP1;
 	/* check for additional temperature sensors */
 	err = i8k_get_temp(1);
-	if (err >= 0)
+	if (err >= 0 || err == -ERANGE)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP2;
 	err = i8k_get_temp(2);
-	if (err >= 0)
+	if (err >= 0 || err == -ERANGE)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP3;
 	err = i8k_get_temp(3);
-	if (err >= 0)
+	if (err >= 0 || err == -ERANGE)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP4;
 
 	/* Left fan attributes, if left fan is present */
@@ -711,6 +715,14 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 		.driver_data = (void *)&i8k_config_data[DELL_LATITUDE_D520],
 	},
 	{
+		.ident = "Dell Latitude E6440",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E6440"),
+		},
+		.driver_data = (void *)&i8k_config_data[DELL_LATITUDE_E6540],
+	},
+	{
 		.ident = "Dell Latitude E6540",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -787,6 +799,8 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 	},
 	{ }
 };
+
+MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
 
 /*
  * Probe for the presence of a supported laptop.

@@ -203,10 +203,10 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 	sa1111_writel(PCCR_S0_FLT | PCCR_S1_FLT, base + PCCR);
 
 #ifdef CONFIG_SA1100_BADGE4
-	pcmcia_badge4_init(&dev->dev);
+	pcmcia_badge4_init(dev);
 #endif
 #ifdef CONFIG_SA1100_JORNADA720
-	pcmcia_jornada720_init(&dev->dev);
+	pcmcia_jornada720_init(dev);
 #endif
 #ifdef CONFIG_ARCH_LUBBOCK
 	pcmcia_lubbock_init(dev);

@@ -631,6 +631,44 @@ out:
 	return mask;
 }
 
+/**
+ * fw_status_show - mei device attribute show method
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t fw_status_show(struct device *device,
+		struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	struct mei_fw_status fw_status;
+	int err, i;
+	ssize_t cnt = 0;
+
+	mutex_lock(&dev->device_lock);
+	err = mei_fw_status(dev, &fw_status);
+	mutex_unlock(&dev->device_lock);
+	if (err) {
+		dev_err(device, "read fw_status error = %d\n", err);
+		return err;
+	}
+
+	for (i = 0; i < fw_status.count; i++)
+		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "%08X\n",
+				fw_status.status[i]);
+	return cnt;
+}
+static DEVICE_ATTR_RO(fw_status);
+
+static struct attribute *mei_attrs[] = {
+	&dev_attr_fw_status.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(mei);
+
 /*
  * file operations structure will be used for mei char device.
  */
@@ -710,8 +748,9 @@ int mei_register(struct mei_device *dev, struct device *parent)
 		goto err_dev_add;
 	}
 
-	clsdev = device_create(mei_class, parent, devno,
-			 NULL, "mei%d", dev->minor);
+	clsdev = device_create_with_groups(mei_class, parent, devno,
+					   dev, mei_groups,
+					   "mei%d", dev->minor);
 
 	if (IS_ERR(clsdev)) {
 		dev_err(parent, "unable to create device %d:%d\n",

@@ -140,7 +140,7 @@ static struct device_type mei_cl_device_type = {
 	.release	= mei_cl_dev_release,
 };
 
-static struct mei_cl *mei_bus_find_mei_cl_by_uuid(struct mei_device *dev,
+struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev,
 						uuid_le uuid)
 {
 	struct mei_cl *cl;
@@ -160,7 +160,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 	struct mei_cl *cl;
 	int status;
 
-	cl = mei_bus_find_mei_cl_by_uuid(dev, uuid);
+	cl = mei_cl_bus_find_cl_by_uuid(dev, uuid);
 	if (cl == NULL)
 		return NULL;
 

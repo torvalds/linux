@@ -1,7 +1,6 @@
 config CARMA_FPGA
 	tristate "CARMA DATA-FPGA Access Driver"
-	depends on FSL_SOC && PPC_83xx && MEDIA_SUPPORT && HAS_DMA && FSL_DMA
-	select VIDEOBUF_DMA_SG
+	depends on FSL_SOC && PPC_83xx && HAS_DMA && FSL_DMA
 	default n
 	help
 	  Say Y here to include support for communicating with the data
@@ -9,8 +8,7 @@ config CARMA_FPGA
 
 config CARMA_FPGA_PROGRAM
 	tristate "CARMA DATA-FPGA Programmer"
-	depends on FSL_SOC && PPC_83xx && MEDIA_SUPPORT && HAS_DMA && FSL_DMA
-	select VIDEOBUF_DMA_SG
+	depends on FSL_SOC && PPC_83xx && HAS_DMA && FSL_DMA
 	default n
 	help
 	  Say Y here to include support for programming the data processing

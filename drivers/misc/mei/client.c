@@ -146,7 +146,7 @@ static void __mei_io_list_flush(struct mei_cl_cb *list,
 
 	/* enable removing everything if no cl is specified */
 	list_for_each_entry_safe(cb, next, &list->list, list) {
-		if (!cl || (cb->cl && mei_cl_cmp_id(cl, cb->cl))) {
+		if (!cl || mei_cl_cmp_id(cl, cb->cl)) {
 			list_del(&cb->list);
 			if (free)
 				mei_io_cb_free(cb);

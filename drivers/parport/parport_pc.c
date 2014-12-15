@@ -3339,13 +3339,14 @@ static void __exit parport_pc_exit(void)
 	while (!list_empty(&ports_list)) {
 		struct parport_pc_private *priv;
 		struct parport *port;
+		struct device *dev;
 		priv = list_entry(ports_list.next,
 				  struct parport_pc_private, list);
 		port = priv->port;
-		if (port->dev && port->dev->bus == &platform_bus_type)
-			platform_device_unregister(
-				to_platform_device(port->dev));
+		dev = port->dev;
 		parport_pc_unregister_port(port);
+		if (dev && dev->bus == &platform_bus_type)
+			platform_device_unregister(to_platform_device(dev));
 	}
 }
 

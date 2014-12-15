@@ -152,7 +152,10 @@ struct mei_msg_data {
 };
 
 /* Maximum number of processed FW status registers */
-#define MEI_FW_STATUS_MAX 2
+#define MEI_FW_STATUS_MAX 6
+/* Minimal  buffer for FW status string (8 bytes in dw + space or '\0') */
+#define MEI_FW_STATUS_STR_SZ (MEI_FW_STATUS_MAX * (8 + 1))
+
 
 /*
  * struct mei_fw_status - storage of FW status data
@@ -349,6 +352,7 @@ void mei_cl_bus_rx_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *dev);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
+struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev, uuid_le uuid);
 
 
 /**
@@ -804,11 +808,6 @@ static inline int mei_fw_status(struct mei_device *dev,
 	return dev->ops->fw_status(dev, fw_status);
 }
 
-#define FW_STS_FMT "%08X %08X"
-#define FW_STS_PRM(fw_status) \
-	(fw_status).count > 0 ? (fw_status).status[0] : 0xDEADBEEF, \
-	(fw_status).count > 1 ? (fw_status).status[1] : 0xDEADBEEF
-
 bool mei_hbuf_acquire(struct mei_device *dev);
 
 bool mei_write_is_idle(struct mei_device *dev);
@@ -831,5 +830,33 @@ void mei_deregister(struct mei_device *dev);
 #define MEI_HDR_PRM(hdr)                  \
 	(hdr)->host_addr, (hdr)->me_addr, \
 	(hdr)->length, (hdr)->internal, (hdr)->msg_complete
+
+ssize_t mei_fw_status2str(struct mei_fw_status *fw_sts, char *buf, size_t len);
+/**
+ * mei_fw_status_str - fetch and convert fw status registers to printable string
+ *
+ * @dev: the device structure
+ * @buf: string buffer at minimal size MEI_FW_STATUS_STR_SZ
+ * @len: buffer len must be >= MEI_FW_STATUS_STR_SZ
+ *
+ * Return: number of bytes written or < 0 on failure
+ */
+static inline ssize_t mei_fw_status_str(struct mei_device *dev,
+					char *buf, size_t len)
+{
+	struct mei_fw_status fw_status;
+	int ret;
+
+	buf[0] = '\0';
+
+	ret = mei_fw_status(dev, &fw_status);
+	if (ret)
+		return ret;
+
+	ret = mei_fw_status2str(&fw_status, buf, MEI_FW_STATUS_STR_SZ);
+
+	return ret;
+}
+
 
 #endif
