@@ -2172,6 +2172,9 @@ error_unlocked:
 		reiserfs_write_unlock(s);
 	}
 
+	if (sbi->commit_wq)
+		destroy_workqueue(sbi->commit_wq);
+
 	cancel_delayed_work_sync(&REISERFS_SB(s)->old_work);
 
 	reiserfs_free_bitmap_cache(s);
