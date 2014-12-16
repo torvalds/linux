@@ -2177,8 +2177,6 @@ static int twl4030_soc_remove(struct snd_soc_codec *codec)
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	struct twl4030_codec_data *pdata = twl4030->pdata;
 
-	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	if (pdata && pdata->hs_extmute && gpio_is_valid(pdata->hs_extmute_gpio))
 		gpio_free(pdata->hs_extmute_gpio);
 

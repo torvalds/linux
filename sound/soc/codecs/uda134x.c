@@ -518,11 +518,6 @@ static int uda134x_soc_probe(struct snd_soc_codec *codec)
 
 	uda134x_reset(codec);
 
-	if (pd->is_powered_on_standby)
-		uda134x_set_bias_level(codec, SND_SOC_BIAS_ON);
-	else
-		uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	if (pd->model == UDA134X_UDA1341) {
 		widgets = uda1341_dapm_widgets;
 		num_widgets = ARRAY_SIZE(uda1341_dapm_widgets);
@@ -574,44 +569,21 @@ static int uda134x_soc_remove(struct snd_soc_codec *codec)
 {
 	struct uda134x_priv *uda134x = snd_soc_codec_get_drvdata(codec);
 
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	kfree(uda134x);
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-static int uda134x_soc_suspend(struct snd_soc_codec *codec)
-{
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int uda134x_soc_resume(struct snd_soc_codec *codec)
-{
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
-	uda134x_set_bias_level(codec, SND_SOC_BIAS_ON);
-	return 0;
-}
-#else
-#define uda134x_soc_suspend NULL
-#define uda134x_soc_resume NULL
-#endif /* CONFIG_PM */
-
 static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.probe =        uda134x_soc_probe,
 	.remove =       uda134x_soc_remove,
-	.suspend =      uda134x_soc_suspend,
-	.resume =       uda134x_soc_resume,
 	.reg_cache_size = sizeof(uda134x_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = uda134x_reg,
 	.reg_cache_step = 1,
 	.read = uda134x_read_reg_cache,
-	.write = uda134x_write,
 	.set_bias_level = uda134x_set_bias_level,
+	.suspend_bias_off = true,
+
 	.dapm_widgets = uda134x_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(uda134x_dapm_widgets),
 	.dapm_routes = uda134x_dapm_routes,

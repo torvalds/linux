@@ -505,39 +505,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 },
 };
 
-static int ak4641_suspend(struct snd_soc_codec *codec)
-{
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int ak4641_resume(struct snd_soc_codec *codec)
-{
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
-static int ak4641_probe(struct snd_soc_codec *codec)
-{
-	/* power on device */
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-static int ak4641_remove(struct snd_soc_codec *codec)
-{
-	ak4641_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-
 static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
-	.probe			= ak4641_probe,
-	.remove			= ak4641_remove,
-	.suspend		= ak4641_suspend,
-	.resume			= ak4641_resume,
 	.controls		= ak4641_snd_controls,
 	.num_controls		= ARRAY_SIZE(ak4641_snd_controls),
 	.dapm_widgets		= ak4641_dapm_widgets,
@@ -545,6 +513,7 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
 	.dapm_routes		= ak4641_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(ak4641_audio_map),
 	.set_bias_level		= ak4641_set_bias_level,
+	.suspend_bias_off	= true,
 };
 
 static const struct regmap_config ak4641_regmap = {

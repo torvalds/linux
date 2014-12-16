@@ -2004,7 +2004,6 @@ static int wm8995_remove(struct snd_soc_codec *codec)
 	int i;
 
 	wm8995 = snd_soc_codec_get_drvdata(codec);
-	wm8995_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); ++i)
 		regulator_unregister_notifier(wm8995->supplies[i].consumer,
@@ -2078,8 +2077,6 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 		goto err_reg_enable;
 	}
 
-	wm8995_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	/* Latch volume updates (right only; we always do left then right). */
 	snd_soc_update_bits(codec, WM8995_AIF1_DAC1_RIGHT_VOLUME,
 			    WM8995_AIF1DAC1_VU_MASK, WM8995_AIF1DAC1_VU);
@@ -2101,13 +2098,6 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 			    WM8995_IN1_VU_MASK, WM8995_IN1_VU);
 
 	wm8995_update_class_w(codec);
-
-	snd_soc_add_codec_controls(codec, wm8995_snd_controls,
-			     ARRAY_SIZE(wm8995_snd_controls));
-	snd_soc_dapm_new_controls(&codec->dapm, wm8995_dapm_widgets,
-				  ARRAY_SIZE(wm8995_dapm_widgets));
-	snd_soc_dapm_add_routes(&codec->dapm, wm8995_intercon,
-				ARRAY_SIZE(wm8995_intercon));
 
 	return 0;
 
@@ -2205,6 +2195,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
 	.remove = wm8995_remove,
 	.set_bias_level = wm8995_set_bias_level,
 	.idle_bias_off = true,
+
+	.controls = wm8995_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8995_snd_controls),
+	.dapm_widgets = wm8995_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8995_dapm_widgets),
+	.dapm_routes = wm8995_intercon,
+	.num_dapm_routes = ARRAY_SIZE(wm8995_intercon),
 };
 
 static struct regmap_config wm8995_regmap = {

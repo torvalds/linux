@@ -1227,32 +1227,6 @@ static int wm8991_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm8991_suspend(struct snd_soc_codec *codec)
-{
-	wm8991_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8991_resume(struct snd_soc_codec *codec)
-{
-	wm8991_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
-/* power down chip */
-static int wm8991_remove(struct snd_soc_codec *codec)
-{
-	wm8991_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8991_probe(struct snd_soc_codec *codec)
-{
-	wm8991_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
 #define WM8991_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE)
 
@@ -1293,11 +1267,9 @@ static struct snd_soc_dai_driver wm8991_dai = {
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
-	.probe = wm8991_probe,
-	.remove = wm8991_remove,
-	.suspend = wm8991_suspend,
-	.resume = wm8991_resume,
 	.set_bias_level = wm8991_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls = wm8991_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8991_snd_controls),
 	.dapm_widgets = wm8991_dapm_widgets,

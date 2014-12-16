@@ -26,6 +26,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -67,6 +68,7 @@ struct wm8962_priv {
 	int fll_fref;
 	int fll_fout;
 
+	struct mutex dsp2_ena_lock;
 	u16 dsp2_ena;
 
 	struct delayed_work mic_work;
@@ -1570,7 +1572,7 @@ static int wm8962_dsp2_ena_put(struct snd_kcontrol *kcontrol,
 	int dsp2_running = snd_soc_read(codec, WM8962_DSP2_POWER_MANAGEMENT) &
 		WM8962_DSP2_ENA;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&wm8962->dsp2_ena_lock);
 
 	if (ucontrol->value.integer.value[0])
 		wm8962->dsp2_ena |= 1 << shift;
@@ -1590,7 +1592,7 @@ static int wm8962_dsp2_ena_put(struct snd_kcontrol *kcontrol,
 	}
 
 out:
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&wm8962->dsp2_ena_lock);
 
 	return ret;
 }
@@ -3552,10 +3554,11 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 	unsigned int reg;
 	int ret, i, irq_pol, trigger;
 
-	wm8962 = devm_kzalloc(&i2c->dev, sizeof(struct wm8962_priv),
-			      GFP_KERNEL);
+	wm8962 = devm_kzalloc(&i2c->dev, sizeof(*wm8962), GFP_KERNEL);
 	if (wm8962 == NULL)
 		return -ENOMEM;
+
+	mutex_init(&wm8962->dsp2_ena_lock);
 
 	i2c_set_clientdata(i2c, wm8962);
 
