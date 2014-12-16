@@ -310,7 +310,7 @@ static inline int path__join3(char *bf, size_t size,
 struct dso;
 struct symbol;
 
-char *get_srcline(struct dso *dso, unsigned long addr, struct symbol *sym,
+char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 		  bool show_sym);
 void free_srcline(char *srcline);
 
