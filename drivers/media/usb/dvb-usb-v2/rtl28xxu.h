@@ -22,6 +22,8 @@
 #ifndef RTL28XXU_H
 #define RTL28XXU_H
 
+#include <linux/platform_device.h>
+
 #include "dvb_usb.h"
 
 #include "rtl2830.h"
@@ -76,6 +78,7 @@ struct rtl28xxu_priv {
 	struct i2c_client *i2c_client_demod;
 	struct i2c_client *i2c_client_tuner;
 	struct i2c_client *i2c_client_slave_demod;
+	struct platform_device *platform_device_sdr;
 	#define SLAVE_DEMOD_NONE           0
 	#define SLAVE_DEMOD_MN88472        1
 	#define SLAVE_DEMOD_MN88473        2
