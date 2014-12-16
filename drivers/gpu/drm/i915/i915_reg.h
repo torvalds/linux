@@ -1129,6 +1129,7 @@ enum punit_power_well {
 #define GEN6_VERSYNC	(RING_SYNC_1(VEBOX_RING_BASE))
 #define GEN6_VEVSYNC	(RING_SYNC_2(VEBOX_RING_BASE))
 #define GEN6_NOSYNC 0
+#define RING_PSMI_CTL(base)	((base)+0x50)
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
@@ -1459,6 +1460,7 @@ enum punit_power_well {
 #define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
 
 #define GEN6_RC_SLEEP_PSMI_CONTROL	0x2050
+#define   GEN6_PSMI_SLEEP_MSG_DISABLE	(1 << 0)
 #define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
 #define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	(1<<10)
 
