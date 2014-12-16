@@ -64,9 +64,8 @@ struct dln2_gpio {
 	 */
 	DECLARE_BITMAP(output_enabled, DLN2_GPIO_MAX_PINS);
 
-	DECLARE_BITMAP(irqs_masked, DLN2_GPIO_MAX_PINS);
-	DECLARE_BITMAP(irqs_enabled, DLN2_GPIO_MAX_PINS);
-	DECLARE_BITMAP(irqs_pending, DLN2_GPIO_MAX_PINS);
+	/* active IRQs - not synced to hardware */
+	DECLARE_BITMAP(unmasked_irqs, DLN2_GPIO_MAX_PINS);
 	struct dln2_irq_work *irq_work;
 };
 
@@ -303,29 +302,19 @@ static void dln2_irq_work(struct work_struct *w)
 	struct dln2_gpio *dln2 = iw->dln2;
 	u8 type = iw->type & DLN2_GPIO_EVENT_MASK;
 
-	if (test_bit(iw->pin, dln2->irqs_enabled))
+	if (test_bit(iw->pin, dln2->unmasked_irqs))
 		dln2_gpio_set_event_cfg(dln2, iw->pin, type, 0);
 	else
 		dln2_gpio_set_event_cfg(dln2, iw->pin, DLN2_GPIO_EVENT_NONE, 0);
 }
 
-static void dln2_irq_enable(struct irq_data *irqd)
+static void dln2_irq_unmask(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
 	int pin = irqd_to_hwirq(irqd);
 
-	set_bit(pin, dln2->irqs_enabled);
-	schedule_work(&dln2->irq_work[pin].work);
-}
-
-static void dln2_irq_disable(struct irq_data *irqd)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
-	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
-	int pin = irqd_to_hwirq(irqd);
-
-	clear_bit(pin, dln2->irqs_enabled);
+	set_bit(pin, dln2->unmasked_irqs);
 	schedule_work(&dln2->irq_work[pin].work);
 }
 
@@ -335,27 +324,8 @@ static void dln2_irq_mask(struct irq_data *irqd)
 	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
 	int pin = irqd_to_hwirq(irqd);
 
-	set_bit(pin, dln2->irqs_masked);
-}
-
-static void dln2_irq_unmask(struct irq_data *irqd)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
-	struct dln2_gpio *dln2 = container_of(gc, struct dln2_gpio, gpio);
-	struct device *dev = dln2->gpio.dev;
-	int pin = irqd_to_hwirq(irqd);
-
-	if (test_and_clear_bit(pin, dln2->irqs_pending)) {
-		int irq;
-
-		irq = irq_find_mapping(dln2->gpio.irqdomain, pin);
-		if (!irq) {
-			dev_err(dev, "pin %d not mapped to IRQ\n", pin);
-			return;
-		}
-
-		generic_handle_irq(irq);
-	}
+	clear_bit(pin, dln2->unmasked_irqs);
+	schedule_work(&dln2->irq_work[pin].work);
 }
 
 static int dln2_irq_set_type(struct irq_data *irqd, unsigned type)
@@ -389,8 +359,6 @@ static int dln2_irq_set_type(struct irq_data *irqd, unsigned type)
 
 static struct irq_chip dln2_gpio_irqchip = {
 	.name = "dln2-irq",
-	.irq_enable = dln2_irq_enable,
-	.irq_disable = dln2_irq_disable,
 	.irq_mask = dln2_irq_mask,
 	.irq_unmask = dln2_irq_unmask,
 	.irq_set_type = dln2_irq_set_type,
@@ -422,13 +390,6 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 	irq = irq_find_mapping(dln2->gpio.irqdomain, pin);
 	if (!irq) {
 		dev_err(dln2->gpio.dev, "pin %d not mapped to IRQ\n", pin);
-		return;
-	}
-
-	if (!test_bit(pin, dln2->irqs_enabled))
-		return;
-	if (test_bit(pin, dln2->irqs_masked)) {
-		set_bit(pin, dln2->irqs_pending);
 		return;
 	}
 
