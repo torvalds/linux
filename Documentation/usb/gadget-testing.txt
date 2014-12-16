@@ -8,6 +8,7 @@ provided by gadgets.
 5. FFS function
 6. HID function
 7. LOOPBACK function
+8. MASS STORAGE function
 
 
 1. ACM function
@@ -228,3 +229,56 @@ device: run the gadget
 host: test-usb
 
 http://www.linux-usb.org/usbtest/testusb.c
+
+8. MASS STORAGE function
+========================
+
+The function is provided by usb_f_mass_storage.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "mass_storage".
+The MASS STORAGE function provides these attributes in its directory:
+files:
+
+	stall		- Set to permit function to halt bulk endpoints.
+			Disabled on some USB devices known not to work
+			correctly. You should set it to true.
+	num_buffers	- Number of pipeline buffers. Valid numbers
+			are 2..4. Available only if
+			CONFIG_USB_GADGET_DEBUG_FILES is set.
+
+and a default lun.0 directory corresponding to SCSI LUN #0.
+
+A new lun can be added with mkdir:
+
+$ mkdir functions/mass_storage.0/partition.5
+
+Lun numbering does not have to be continuous, except for lun #0 which is
+created by default. A maximum of 8 luns can be specified and they all must be
+named following the <name>.<number> scheme. The numbers can be 0..8.
+Probably a good convention is to name the luns "lun.<number>",
+although it is not mandatory.
+
+In each lun directory there are the following attribute files:
+
+	file		- The path to the backing file for the LUN.
+			Required if LUN is not marked as removable.
+	ro		- Flag specifying access to the LUN shall be
+			read-only. This is implied if CD-ROM emulation
+			is enabled as well as when it was impossible
+			to open "filename" in R/W mode.
+	removable	- Flag specifying that LUN shall be indicated as
+			being removable.
+	cdrom		- Flag specifying that LUN shall be reported as
+			being a CD-ROM.
+	nofua		- Flag specifying that FUA flag
+			in SCSI WRITE(10,12)
+
+Testing the MASS STORAGE function
+---------------------------------
+
+device: connect the gadget, enable it
+host: dmesg, see the USB drives appear (if system configured to automatically
+mount)
