@@ -5,6 +5,7 @@ provided by gadgets.
 2. ECM function
 3. ECM subset function
 4. EEM function
+5. FFS function
 
 
 1. ACM function
@@ -134,3 +135,26 @@ Configure IP addresses of the device and the host. Then:
 
 On the device: ping <host's IP>
 On the host: ping <device's IP>
+
+5. FFS function
+===============
+
+The function is provided by usb_f_fs.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "ffs".
+The function directory is intentionally empty and not modifiable.
+
+After creating the directory there is a new instance (a "device") of FunctionFS
+available in the system. Once a "device" is available, the user should follow
+the standard procedure for using FunctionFS (mount it, run the userspace
+process which implements the function proper). The gadget should be enabled
+by writing a suitable string to usb_gadget/<gadget>/UDC.
+
+Testing the FFS function
+------------------------
+
+On the device: start the function's userspace daemon, enable the gadget
+On the host: use the USB function provided by the device
