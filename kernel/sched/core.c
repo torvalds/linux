@@ -7325,6 +7325,9 @@ void ___might_sleep(const char *file, int line, int preempt_offset)
 			in_atomic(), irqs_disabled(),
 			current->pid, current->comm);
 
+	if (task_stack_end_corrupted(current))
+		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
+
 	debug_show_held_locks(current);
 	if (irqs_disabled())
 		print_irqtrace_events(current);
