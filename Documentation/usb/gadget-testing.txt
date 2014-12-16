@@ -3,6 +3,7 @@ provided by gadgets.
 
 1. ACM function
 2. ECM function
+3. ECM subset function
 
 
 1. ACM function
@@ -61,6 +62,39 @@ which was assigned by the net core, e. g. usb0.
 
 Testing the ECM function
 ------------------------
+
+Configure IP addresses of the device and the host. Then:
+
+On the device: ping <host's IP>
+On the host: ping <device's IP>
+
+3. ECM subset function
+======================
+
+The function is provided by usb_f_ecm_subset.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "geth".
+The ECM subset function provides these attributes in its function directory:
+
+	ifname		- network device interface name associated with this
+			function instance
+	qmult		- queue length multiplier for high and super speed
+	host_addr	- MAC address of host's end of this
+			Ethernet over USB link
+	dev_addr	- MAC address of device's end of this
+			Ethernet over USB link
+
+and after creating the functions/ecm.<instance name> they contain default
+values: qmult is 5, dev_addr and host_addr are randomly selected.
+Except for ifname they can be written to until the function is linked to a
+configuration. The ifname is read-only and contains the name of the interface
+which was assigned by the net core, e. g. usb0.
+
+Testing the ECM subset function
+-------------------------------
 
 Configure IP addresses of the device and the host. Then:
 
