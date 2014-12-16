@@ -217,6 +217,9 @@ struct clk __init *ti_clk_register_clk(struct ti_clk *setup)
 	case TI_CLK_DIVIDER:
 		clk = ti_clk_register_divider(setup);
 		break;
+	case TI_CLK_COMPOSITE:
+		clk = ti_clk_register_composite(setup);
+		break;
 	case TI_CLK_FIXED_FACTOR:
 		fixed_factor = setup->data;
 
