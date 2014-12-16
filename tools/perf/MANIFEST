@@ -7,8 +7,9 @@ tools/lib/symbol/kallsyms.h
 tools/lib/util/find_next_bit.c
 tools/include/asm/bug.h
 tools/include/asm-generic/bitops/atomic.h
-tools/include/asm-generic/bitops/find.h
 tools/include/asm-generic/bitops/__ffs.h
+tools/include/asm-generic/bitops/find.h
+tools/include/asm-generic/bitops.h
 tools/include/linux/compiler.h
 tools/include/linux/export.h
 tools/include/linux/hash.h
