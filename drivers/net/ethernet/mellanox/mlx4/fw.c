@@ -1852,8 +1852,8 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	/* CX3 is capable of extending CQEs\EQEs to strides larger than 64B */
 	MLX4_GET(byte_field, outbox, INIT_HCA_EQE_CQE_STRIDE_OFFSET);
 	if (byte_field) {
-		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_EQE_ENABLED;
-		param->dev_cap_enabled |= MLX4_DEV_CAP_64B_CQE_ENABLED;
+		param->dev_cap_enabled |= MLX4_DEV_CAP_EQE_STRIDE_ENABLED;
+		param->dev_cap_enabled |= MLX4_DEV_CAP_CQE_STRIDE_ENABLED;
 		param->cqe_size = 1 << ((byte_field &
 					 MLX4_CQE_SIZE_MASK_STRIDE) + 5);
 		param->eqe_size = 1 << (((byte_field &
