@@ -550,6 +550,7 @@ static struct dma_chan *sh_mobile_i2c_request_dma_chan(struct device *dev,
 
 	chan = dma_request_slave_channel_reason(dev, chan_name);
 	if (IS_ERR(chan)) {
+		ret = PTR_ERR(chan);
 		dev_dbg(dev, "request_channel failed for %s (%d)\n", chan_name, ret);
 		return chan;
 	}
