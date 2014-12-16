@@ -38,11 +38,11 @@
  * @brief Macros used to extract cpu id info
  * @see Doc's for Main ID register
  */
-#define KBASE_CPUPROPS_ID_GET_REV(cpuid)    (  (cpuid) & 0x0F         )  /* [3:0]   Revision                            */
-#define KBASE_CPUPROPS_ID_GET_PART_NR(cpuid)( ((cpuid) >>  4) & 0xFFF )  /* [15:4]  Part number                         */
-#define KBASE_CPUPROPS_ID_GET_ARCH(cpuid)   ( ((cpuid) >> 16) & 0x0F  )  /* [19:16] Architecture                        */
-#define KBASE_CPUPROPS_ID_GET_VARIANT(cpuid)( ((cpuid) >> 20) & 0x0F  )  /* [23:20] Variant                             */
-#define KBASE_CPUPROPS_ID_GET_CODE(cpuid)   ( ((cpuid) >> 24) & 0xFF  )  /* [31:23] ASCII code of implementer trademark */
+#define KBASE_CPUPROPS_ID_GET_REV(cpuid)    ((cpuid) & 0x0F)          /* [3:0]   Revision                            */
+#define KBASE_CPUPROPS_ID_GET_PART_NR(cpuid)(((cpuid) >>  4) & 0xFFF) /* [15:4]  Part number                         */
+#define KBASE_CPUPROPS_ID_GET_ARCH(cpuid)   (((cpuid) >> 16) & 0x0F)  /* [19:16] Architecture                        */
+#define KBASE_CPUPROPS_ID_GET_VARIANT(cpuid)(((cpuid) >> 20) & 0x0F)  /* [23:20] Variant                             */
+#define KBASE_CPUPROPS_ID_GET_CODE(cpuid)   (((cpuid) >> 24) & 0xFF)  /* [31:23] ASCII code of implementer trademark */
 
 /*Below value sourced from OSK*/
 #define L1_DCACHE_SIZE ((u32)0x00008000)
@@ -55,7 +55,7 @@
  *
  */
 #if defined(CONFIG_ARM) || defined(CONFIG_ARM64) 
-static void kbasep_cpuprops_uk_get_cpu_id_info(kbase_uk_cpuprops * const kbase_props)
+static void kbasep_cpuprops_uk_get_cpu_id_info(struct kbase_uk_cpuprops * const kbase_props)
 {
 	kbase_props->props.cpu_id.id           = read_cpuid_id();
 
@@ -67,7 +67,7 @@ static void kbasep_cpuprops_uk_get_cpu_id_info(kbase_uk_cpuprops * const kbase_p
 	kbase_props->props.cpu_id.implementer  = KBASE_CPUPROPS_ID_GET_CODE(kbase_props->props.cpu_id.id);
 }
 #else
-static void kbasep_cpuprops_uk_get_cpu_id_info(kbase_uk_cpuprops * const kbase_props)
+static void kbasep_cpuprops_uk_get_cpu_id_info(struct kbase_uk_cpuprops * const kbase_props)
 {
 	kbase_props->props.cpu_id.id           = 0;
 	kbase_props->props.cpu_id.valid        = 0;
@@ -87,7 +87,7 @@ int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed)
 	return 0;
 }
 
-mali_error kbase_cpuprops_uk_get_props(kbase_context *kctx, kbase_uk_cpuprops * const kbase_props)
+mali_error kbase_cpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_cpuprops * const kbase_props)
 {
 	unsigned int max_cpu_freq;
 
@@ -102,11 +102,11 @@ mali_error kbase_cpuprops_uk_get_props(kbase_context *kctx, kbase_uk_cpuprops * 
 	kbasep_cpuprops_uk_get_cpu_id_info(kbase_props);
 
 	/* check if kernel supports dynamic frequency scaling */
-	max_cpu_freq = cpufreq_quick_get_max( KBASE_DEFAULT_CPU_NUM );
-	if ( max_cpu_freq != 0 )
+	max_cpu_freq = cpufreq_quick_get_max(KBASE_DEFAULT_CPU_NUM);
+	if (max_cpu_freq != 0)
 	{
 		/* convert from kHz to mHz */
-		kbase_props->props.max_cpu_clock_speed_mhz = max_cpu_freq / 1000 ;
+		kbase_props->props.max_cpu_clock_speed_mhz = max_cpu_freq / 1000;
 	}
 	else 
 	{

@@ -33,11 +33,11 @@
 /**
  * @brief Initialize gpu_memory debugfs entry
  */
-mali_error kbasep_gpu_memory_debugfs_init(kbase_device *kbdev);
+mali_error kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev);
 
 /**
  * @brief Terminate gpu_memory debugfs entry
  */
-void kbasep_gpu_memory_debugfs_term(kbase_device *kbdev);
+void kbasep_gpu_memory_debugfs_term(struct kbase_device *kbdev);
 
 #endif  /*_KBASE_GPU_MEMORY_H*/

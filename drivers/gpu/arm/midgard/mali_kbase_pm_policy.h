@@ -24,15 +24,15 @@
 #define _KBASE_PM_POLICY_H_
 
 /** List of policy IDs */
-typedef enum kbase_pm_policy_id {
+enum kbase_pm_policy_id {
 	KBASE_PM_POLICY_ID_DEMAND = 1,
 	KBASE_PM_POLICY_ID_ALWAYS_ON,
 	KBASE_PM_POLICY_ID_COARSE_DEMAND,
-#if MALI_CUSTOMER_RELEASE == 0
+#if !MALI_CUSTOMER_RELEASE
 	KBASE_PM_POLICY_ID_DEMAND_ALWAYS_POWERED,
 	KBASE_PM_POLICY_ID_FAST_START
 #endif
-} kbase_pm_policy_id;
+};
 
 typedef u32 kbase_pm_policy_flags;
 
@@ -54,13 +54,13 @@ typedef struct kbase_pm_policy {
 	 *
 	 * @param kbdev     The kbase device structure for the device (must be a valid pointer)
 	 */
-	void (*init) (struct kbase_device *kbdev);
+	void (*init)(struct kbase_device *kbdev);
 
 	/** Function called when the policy is unselected.
 	 *
 	 * @param kbdev     The kbase device structure for the device (must be a valid pointer)
 	 */
-	void (*term) (struct kbase_device *kbdev);
+	void (*term)(struct kbase_device *kbdev);
 
 	/** Function called to get the current shader core mask
 	 *
@@ -69,7 +69,7 @@ typedef struct kbase_pm_policy {
 	 * @param kbdev     The kbase device structure for the device (must be a valid pointer)
 	 *
 	 * @return     The mask of shader cores to be powered */
-	u64 (*get_core_mask) (struct kbase_device *kbdev);
+	u64 (*get_core_mask)(struct kbase_device *kbdev);
 
 	/** Function called to get the current overall GPU power state
 	 *
@@ -88,7 +88,7 @@ typedef struct kbase_pm_policy {
 	/** Field indicating an ID for this policy. This is not necessarily the
 	 * same as its index in the list returned by kbase_pm_list_policies().
 	 * It is used purely for debugging. */
-	kbase_pm_policy_id id;
+	enum kbase_pm_policy_id id;
 } kbase_pm_policy;
 
 /** Initialize power policy framework
@@ -128,14 +128,14 @@ void kbase_pm_update_cores(struct kbase_device *kbdev);
  *
  * @return The current policy
  */
-const kbase_pm_policy *kbase_pm_get_policy(struct kbase_device *kbdev);
+const struct kbase_pm_policy *kbase_pm_get_policy(struct kbase_device *kbdev);
 
 /** Change the policy to the one specified.
  *
  * @param kbdev     The kbase device structure for the device (must be a valid pointer)
  * @param policy    The policy to change to (valid pointer returned from @ref kbase_pm_list_policies)
  */
-void kbase_pm_set_policy(struct kbase_device *kbdev, const kbase_pm_policy *policy);
+void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_policy *policy);
 
 /** Retrieve a static list of the available policies.
  * @param[out]  policies    An array pointer to take the list of policies. This may be NULL.
@@ -143,14 +143,14 @@ void kbase_pm_set_policy(struct kbase_device *kbdev, const kbase_pm_policy *poli
  *
  * @return The number of policies
  */
-int kbase_pm_list_policies(const kbase_pm_policy * const **policies);
+int kbase_pm_list_policies(const struct kbase_pm_policy * const **policies);
 
 
-typedef enum kbase_pm_cores_ready {
+enum kbase_pm_cores_ready {
 	KBASE_CORES_NOT_READY = 0,
 	KBASE_NEW_AFFINITY = 1,
 	KBASE_CORES_READY = 2
-} kbase_pm_cores_ready;
+};
 
 
 /** Synchronous variant of kbase_pm_request_cores()
@@ -221,7 +221,7 @@ void kbase_pm_unrequest_cores(struct kbase_device *kbdev, mali_bool tiler_requir
  *
  * @return MALI_TRUE if the job can be submitted to the hardware or MALI_FALSE if the job is not ready to run.
  */
-mali_bool kbase_pm_register_inuse_cores(struct kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores);
+enum kbase_pm_cores_ready kbase_pm_register_inuse_cores(struct kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores);
 
 /** Release cores after a job has run.
  *
@@ -251,6 +251,14 @@ void kbase_pm_release_cores(struct kbase_device *kbdev, mali_bool tiler_required
  * @param kbdev    The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_request_l2_caches(struct kbase_device *kbdev);
+
+/** Increment the count of l2 users but do not attempt to power on the l2
+ *  It is the callers responsibility to ensure that the l2 is already powered up
+ *  and to eventually  call @ref kbase_pm_release_l2_caches 
+ *
+ * @param kbdev    The kbase device structure for the device (must be a valid pointer)
+ */
+void kbase_pm_request_l2_caches_l2_is_on(struct kbase_device *kbdev);
 
 /** Release the use of l2 caches for all core groups and allow the power manager to
  *  power them down when necessary.

@@ -1,5 +1,9 @@
-#include "rk3126-sdk.dtsi"
+/dts-v1/;
+
+#include "rk3126.dtsi"
 #include "lcd-b101ew05.dtsi"
+#include "rk3126-cif-sensor.dtsi"
+#include "rk312x-sdk.dtsi"
 
 / {
 	 compatible = "rockchip,rk3126";

@@ -38,6 +38,7 @@
 static int kbase_stream_close(struct inode *inode, struct file *file)
 {
 	struct sync_timeline *tl;
+
 	tl = (struct sync_timeline *)file->private_data;
 	BUG_ON(!tl);
 	sync_timeline_destroy(tl);
@@ -52,6 +53,7 @@ static const struct file_operations stream_fops = {
 mali_error kbase_stream_create(const char *name, int *const out_fd)
 {
 	struct sync_timeline *tl;
+
 	BUG_ON(!out_fd);
 
 	tl = kbase_sync_timeline_alloc(name);
@@ -143,6 +145,7 @@ int kbase_stream_create_fence(int tl_fd)
 mali_error kbase_fence_validate(int fd)
 {
 	struct sync_fence *fence;
+
 	fence = sync_fence_fdget(fd);
 	if (NULL != fence) {
 		sync_fence_put(fence);

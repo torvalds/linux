@@ -61,31 +61,31 @@ extern "C" {
  * provide a mapping of the identifier to the OS specific device name.
  *
  */
-	typedef enum uk_client_id {
+enum uk_client_id {
 	/**
 	 * Value used to identify the Base driver UK client.
 	 */
-		UK_CLIENT_MALI_T600_BASE,
+	UK_CLIENT_MALI_T600_BASE,
 
 	/** The number of uk clients supported. This must be the last member of the enum */
-		UK_CLIENT_COUNT
-	} uk_client_id;
+	UK_CLIENT_COUNT
+};
 
 /**
  * Each function callable through the UK interface has a unique number.
  * Functions provided by UK clients start from number UK_FUNC_ID.
  * Numbers below UK_FUNC_ID are used for internal UK functions.
  */
-	typedef enum uk_func {
-		UKP_FUNC_ID_CHECK_VERSION,   /**< UKK Core internal function */
+enum uk_func {
+	UKP_FUNC_ID_CHECK_VERSION,   /**< UKK Core internal function */
 	/**
 	 * Each UK client numbers the functions they provide starting from
 	 * number UK_FUNC_ID. This number is then eventually assigned to the
-	 * id field of the uk_header structure when preparing to make a
+	 * id field of the union uk_header structure when preparing to make a
 	 * UK call. See your UK client for a list of their function numbers.
 	 */
-		UK_FUNC_ID = 512
-	} uk_func;
+	UK_FUNC_ID = 512
+};
 
 /**
  * Arguments for a UK call are stored in a structure. This structure consists
@@ -99,43 +99,43 @@ extern "C" {
  * of a 32 or 64-bit kernel. The uk_kernel_size_type type should be defined
  * accordingly in the OS specific mali_uk_os.h header file.
  */
-	typedef union uk_header {
-		/**
-		 * 32-bit number identifying the UK function to be called.
-		 * Also see uk_func.
-		 */
-		u32 id;
-		/**
-		 * The mali_error return code returned by the called UK function.
-		 * See the specification of the particular UK function you are
-		 * calling for the meaning of the error codes returned. All
-		 * UK functions return MALI_ERROR_NONE on success.
-		 */
-		u32 ret;
-		/*
-		 * Used to ensure 64-bit alignment of this union. Do not remove.
-		 * This field is used for padding and does not need to be initialized.
-		 */
-		u64 sizer;
-	} uk_header;
+union uk_header {
+	/**
+	 * 32-bit number identifying the UK function to be called.
+	 * Also see uk_func.
+	 */
+	u32 id;
+	/**
+	 * The mali_error return code returned by the called UK function.
+	 * See the specification of the particular UK function you are
+	 * calling for the meaning of the error codes returned. All
+	 * UK functions return MALI_ERROR_NONE on success.
+	 */
+	u32 ret;
+	/*
+	 * Used to ensure 64-bit alignment of this union. Do not remove.
+	 * This field is used for padding and does not need to be initialized.
+	 */
+	u64 sizer;
+};
 
 /**
  * This structure carries a 16-bit major and minor number and is sent along with an internal UK call
  * used during uku_open to identify the versions of the UK module in use by the user-side and kernel-side.
  */
-	typedef struct uku_version_check_args {
-		uk_header header;
-			  /**< UK call header */
-		u16 major;
-		   /**< This field carries the user-side major version on input and the kernel-side major version on output */
-		u16 minor;
-		   /**< This field carries the user-side minor version on input and the kernel-side minor version on output. */
-		u8 padding[4];
-	} uku_version_check_args;
+struct uku_version_check_args {
+	union uk_header header;
+		  /**< UK call header */
+	u16 major;
+	   /**< This field carries the user-side major version on input and the kernel-side major version on output */
+	u16 minor;
+	   /**< This field carries the user-side minor version on input and the kernel-side minor version on output. */
+	u8 padding[4];
+};
 
 /** @} end group uk_api */
 
-	/** @} *//* end group base_api */
+/** @} *//* end group base_api */
 
 #ifdef __cplusplus
 }

@@ -22,15 +22,15 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
-
-extern const kbase_pm_ca_policy kbase_pm_ca_fixed_policy_ops;
-#if MALI_CUSTOMER_RELEASE == 0
-extern const kbase_pm_ca_policy kbase_pm_ca_random_policy_ops;
+#if KBASE_PM_EN
+extern const struct kbase_pm_ca_policy kbase_pm_ca_fixed_policy_ops;
+#if !MALI_CUSTOMER_RELEASE
+extern const struct kbase_pm_ca_policy kbase_pm_ca_random_policy_ops;
 #endif
 
-static const kbase_pm_ca_policy *const policy_list[] = {
+static const struct kbase_pm_ca_policy *const policy_list[] = {
 	&kbase_pm_ca_fixed_policy_ops,
-#if MALI_CUSTOMER_RELEASE == 0
+#if !MALI_CUSTOMER_RELEASE
 	&kbase_pm_ca_random_policy_ops
 #endif
 };
@@ -40,7 +40,7 @@ static const kbase_pm_ca_policy *const policy_list[] = {
  */
 #define POLICY_COUNT (sizeof(policy_list)/sizeof(*policy_list))
 
-mali_error kbase_pm_ca_init(kbase_device *kbdev)
+mali_error kbase_pm_ca_init(struct kbase_device *kbdev)
 {
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -51,12 +51,12 @@ mali_error kbase_pm_ca_init(kbase_device *kbdev)
 	return MALI_ERROR_NONE;
 }
 
-void kbase_pm_ca_term(kbase_device *kbdev)
+void kbase_pm_ca_term(struct kbase_device *kbdev)
 {
 	kbdev->pm.ca_current_policy->term(kbdev);
 }
 
-int kbase_pm_ca_list_policies(const kbase_pm_ca_policy * const **list)
+int kbase_pm_ca_list_policies(const struct kbase_pm_ca_policy * const **list)
 {
 	if (!list)
 		return POLICY_COUNT;
@@ -68,7 +68,7 @@ int kbase_pm_ca_list_policies(const kbase_pm_ca_policy * const **list)
 
 KBASE_EXPORT_TEST_API(kbase_pm_ca_list_policies)
 
-const kbase_pm_ca_policy *kbase_pm_ca_get_policy(kbase_device *kbdev)
+const struct kbase_pm_ca_policy *kbase_pm_ca_get_policy(struct kbase_device *kbdev)
 {
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -77,9 +77,9 @@ const kbase_pm_ca_policy *kbase_pm_ca_get_policy(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbase_pm_ca_get_policy)
 
-void kbase_pm_ca_set_policy(kbase_device *kbdev, const kbase_pm_ca_policy *new_policy)
+void kbase_pm_ca_set_policy(struct kbase_device *kbdev, const struct kbase_pm_ca_policy *new_policy)
 {
-	const kbase_pm_ca_policy *old_policy;
+	const struct kbase_pm_ca_policy *old_policy;
 	unsigned long flags;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -125,7 +125,7 @@ void kbase_pm_ca_set_policy(kbase_device *kbdev, const kbase_pm_ca_policy *new_p
 
 KBASE_EXPORT_TEST_API(kbase_pm_ca_set_policy)
 
-u64 kbase_pm_ca_get_core_mask(kbase_device *kbdev)
+u64 kbase_pm_ca_get_core_mask(struct kbase_device *kbdev)
 {
 	lockdep_assert_held(&kbdev->pm.power_change_lock);
 
@@ -141,7 +141,7 @@ u64 kbase_pm_ca_get_core_mask(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbase_pm_ca_get_core_mask)
 
-void kbase_pm_ca_update_core_status(kbase_device *kbdev, u64 cores_ready, u64 cores_transitioning)
+void kbase_pm_ca_update_core_status(struct kbase_device *kbdev, u64 cores_ready, u64 cores_transitioning)
 {
 	lockdep_assert_held(&kbdev->pm.power_change_lock);
 
@@ -170,4 +170,4 @@ void kbase_pm_ca_instr_disable(struct kbase_device *kbdev)
 	kbase_pm_update_cores_state_nolock(kbdev);
 	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
 }
-
+#endif /* KBASE_PM_EN */

@@ -25,21 +25,23 @@
 #include <mali_kbase_gator.h>
 #include <mali_kbase_pm.h>
 
-extern const kbase_pm_policy kbase_pm_always_on_policy_ops;
-extern const kbase_pm_policy kbase_pm_coarse_demand_policy_ops;
-extern const kbase_pm_policy kbase_pm_demand_policy_ops;
+#if KBASE_PM_EN
 
-#if MALI_CUSTOMER_RELEASE == 0 
-extern const kbase_pm_policy kbase_pm_fast_start_policy_ops;
-extern const kbase_pm_policy kbase_pm_demand_always_powered_policy_ops;
+extern const struct kbase_pm_policy kbase_pm_always_on_policy_ops;
+extern const struct kbase_pm_policy kbase_pm_coarse_demand_policy_ops;
+extern const struct kbase_pm_policy kbase_pm_demand_policy_ops;
+
+#if !MALI_CUSTOMER_RELEASE
+extern const struct kbase_pm_policy kbase_pm_fast_start_policy_ops;
+extern const struct kbase_pm_policy kbase_pm_demand_always_powered_policy_ops;
 #endif
 
-static const kbase_pm_policy *const policy_list[] = {
+static const struct kbase_pm_policy *const policy_list[] = {
 #ifdef CONFIG_MALI_NO_MALI
 	&kbase_pm_always_on_policy_ops,
 	&kbase_pm_demand_policy_ops,
 	&kbase_pm_coarse_demand_policy_ops,
-#if MALI_CUSTOMER_RELEASE == 0 
+#if !MALI_CUSTOMER_RELEASE
 	&kbase_pm_demand_always_powered_policy_ops,
 	&kbase_pm_fast_start_policy_ops,
 #endif
@@ -47,7 +49,7 @@ static const kbase_pm_policy *const policy_list[] = {
 	&kbase_pm_demand_policy_ops,
 	&kbase_pm_always_on_policy_ops,
 	&kbase_pm_coarse_demand_policy_ops,
-#if MALI_CUSTOMER_RELEASE == 0        
+#if !MALI_CUSTOMER_RELEASE
 	&kbase_pm_demand_always_powered_policy_ops,
 	&kbase_pm_fast_start_policy_ops,
 #endif
@@ -61,8 +63,7 @@ static const kbase_pm_policy *const policy_list[] = {
 
 
 /* Function IDs for looking up Timeline Trace codes in kbase_pm_change_state_trace_code */
-typedef enum
-{
+enum kbase_pm_func_id {
 	KBASE_PM_FUNC_ID_REQUEST_CORES_START,
 	KBASE_PM_FUNC_ID_REQUEST_CORES_END,
 	KBASE_PM_FUNC_ID_RELEASE_CORES_START,
@@ -74,12 +75,11 @@ typedef enum
 
 	/* Must be the last */
 	KBASE_PM_FUNC_ID_COUNT
-} kbase_pm_func_id;
+};
 
 
 /* State changes during request/unrequest/release-ing cores */
-enum
-{
+enum {
 	KBASE_PM_CHANGE_STATE_SHADER = (1u << 0),
 	KBASE_PM_CHANGE_STATE_TILER  = (1u << 1),
 
@@ -92,8 +92,7 @@ typedef u32 kbase_pm_change_state;
 
 #ifdef CONFIG_MALI_TRACE_TIMELINE
 /* Timeline Trace code lookups for each function */
-static u32 kbase_pm_change_state_trace_code[KBASE_PM_FUNC_ID_COUNT][KBASE_PM_CHANGE_STATE_COUNT] =
-{
+static u32 kbase_pm_change_state_trace_code[KBASE_PM_FUNC_ID_COUNT][KBASE_PM_CHANGE_STATE_COUNT] = {
 	/* kbase_pm_request_cores */
 	[KBASE_PM_FUNC_ID_REQUEST_CORES_START][0] = 0,
 	[KBASE_PM_FUNC_ID_REQUEST_CORES_START][KBASE_PM_CHANGE_STATE_SHADER] =
@@ -129,11 +128,12 @@ static u32 kbase_pm_change_state_trace_code[KBASE_PM_FUNC_ID_COUNT][KBASE_PM_CHA
 		SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_SHADER_TILER_END
 };
 
-STATIC INLINE void kbase_timeline_pm_cores_func(kbase_device *kbdev,
-                                                kbase_pm_func_id func_id,
-                                                kbase_pm_change_state state)
+STATIC INLINE void kbase_timeline_pm_cores_func(struct kbase_device *kbdev,
+		enum kbase_pm_func_id func_id,
+		kbase_pm_change_state state)
 {
 	int trace_code;
+
 	KBASE_DEBUG_ASSERT(func_id >= 0 && func_id < KBASE_PM_FUNC_ID_COUNT);
 	KBASE_DEBUG_ASSERT(state != 0 && (state & KBASE_PM_CHANGE_STATE_MASK) == state);
 
@@ -142,9 +142,8 @@ STATIC INLINE void kbase_timeline_pm_cores_func(kbase_device *kbdev,
 }
 
 #else /* CONFIG_MALI_TRACE_TIMELINE */
-STATIC INLINE void kbase_timeline_pm_cores_func(kbase_device *kbdev,
-                                                kbase_pm_func_id func_id,
-                                                kbase_pm_change_state state)
+STATIC INLINE void kbase_timeline_pm_cores_func(struct kbase_device *kbdev,
+		enum kbase_pm_func_id func_id, kbase_pm_change_state state)
 {
 }
 
@@ -152,9 +151,9 @@ STATIC INLINE void kbase_timeline_pm_cores_func(kbase_device *kbdev,
 
 static enum hrtimer_restart kbasep_pm_do_gpu_poweroff_callback(struct hrtimer *timer)
 {
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 
-	kbdev = container_of(timer, kbase_device, pm.gpu_poweroff_timer);
+	kbdev = container_of(timer, struct kbase_device, pm.gpu_poweroff_timer);
 
 	/* It is safe for this call to do nothing if the work item is already queued.
 	 * The worker function will read the must up-to-date state of kbdev->pm.gpu_poweroff_pending
@@ -189,7 +188,7 @@ static enum hrtimer_restart kbasep_pm_do_gpu_poweroff_callback(struct hrtimer *t
 
 					KBASE_TIMELINE_PM_CHECKTRANS(kbdev, SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_DEFERRED_START);
 					cores_are_available = kbase_pm_check_transitions_nolock(kbdev);
-					KBASE_TIMELINE_PM_CHECKTRANS(kbdev, SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_DEFERRED_END);		
+					KBASE_TIMELINE_PM_CHECKTRANS(kbdev, SW_FLOW_PM_CHECKTRANS_PM_RELEASE_CORES_DEFERRED_END);
 
 					/* Don't need 'cores_are_available', because we don't return anything */
 					CSTD_UNUSED(cores_are_available);
@@ -207,10 +206,10 @@ static enum hrtimer_restart kbasep_pm_do_gpu_poweroff_callback(struct hrtimer *t
 static void kbasep_pm_do_gpu_poweroff_wq(struct work_struct *data)
 {
 	unsigned long flags;
-	kbase_device *kbdev;
+	struct kbase_device *kbdev;
 	mali_bool do_poweroff = MALI_FALSE;
 
-	kbdev = container_of(data, kbase_device, pm.gpu_poweroff_work);
+	kbdev = container_of(data, struct kbase_device, pm.gpu_poweroff_work);
 
 	mutex_lock(&kbdev->pm.lock);
 
@@ -246,7 +245,7 @@ static void kbasep_pm_do_gpu_poweroff_wq(struct work_struct *data)
 	mutex_unlock(&kbdev->pm.lock);
 }
 
-mali_error kbase_pm_policy_init(kbase_device *kbdev)
+mali_error kbase_pm_policy_init(struct kbase_device *kbdev)
 {
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -270,12 +269,12 @@ mali_error kbase_pm_policy_init(kbase_device *kbdev)
 	return MALI_ERROR_NONE;
 }
 
-void kbase_pm_policy_term(kbase_device *kbdev)
+void kbase_pm_policy_term(struct kbase_device *kbdev)
 {
 	kbdev->pm.pm_current_policy->term(kbdev);
 }
 
-void kbase_pm_cancel_deferred_poweroff(kbase_device *kbdev)
+void kbase_pm_cancel_deferred_poweroff(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 
@@ -294,7 +293,7 @@ void kbase_pm_cancel_deferred_poweroff(kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
 }
 
-void kbase_pm_update_active(kbase_device *kbdev)
+void kbase_pm_update_active(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	mali_bool active;
@@ -352,7 +351,7 @@ void kbase_pm_update_active(kbase_device *kbdev)
 	}
 }
 
-void kbase_pm_update_cores_state_nolock(kbase_device *kbdev)
+void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 {
 	u64 desired_bitmap;
 	mali_bool cores_are_available;
@@ -375,7 +374,6 @@ void kbase_pm_update_cores_state_nolock(kbase_device *kbdev)
 	/* Are any cores being powered on? */
 	if (~kbdev->pm.desired_shader_state & desired_bitmap ||
 	    kbdev->pm.ca_in_transition != MALI_FALSE) {
-
 		/* Check if we are powering off any cores before updating shader state */
 		if (kbdev->pm.desired_shader_state & ~desired_bitmap) {
 			/* Start timer to power off cores */
@@ -409,7 +407,7 @@ void kbase_pm_update_cores_state_nolock(kbase_device *kbdev)
 	CSTD_UNUSED(cores_are_available);
 }
 
-void kbase_pm_update_cores_state(kbase_device *kbdev)
+void kbase_pm_update_cores_state(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 
@@ -420,7 +418,7 @@ void kbase_pm_update_cores_state(kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
 }
 
-int kbase_pm_list_policies(const kbase_pm_policy * const **list)
+int kbase_pm_list_policies(const struct kbase_pm_policy * const **list)
 {
 	if (!list)
 		return POLICY_COUNT;
@@ -432,7 +430,7 @@ int kbase_pm_list_policies(const kbase_pm_policy * const **list)
 
 KBASE_EXPORT_TEST_API(kbase_pm_list_policies)
 
-const kbase_pm_policy *kbase_pm_get_policy(kbase_device *kbdev)
+const struct kbase_pm_policy *kbase_pm_get_policy(struct kbase_device *kbdev)
 {
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -441,9 +439,9 @@ const kbase_pm_policy *kbase_pm_get_policy(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbase_pm_get_policy)
 
-void kbase_pm_set_policy(kbase_device *kbdev, const kbase_pm_policy *new_policy)
+void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_policy *new_policy)
 {
-	const kbase_pm_policy *old_policy;
+	const struct kbase_pm_policy *old_policy;
 	unsigned long flags;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -490,14 +488,14 @@ void kbase_pm_set_policy(kbase_device *kbdev, const kbase_pm_policy *new_policy)
 KBASE_EXPORT_TEST_API(kbase_pm_set_policy)
 
 /** Check whether a state change has finished, and trace it as completed */
-STATIC void kbase_pm_trace_check_and_finish_state_change(kbase_device *kbdev)
+STATIC void kbase_pm_trace_check_and_finish_state_change(struct kbase_device *kbdev)
 {
-	if ((kbdev->shader_available_bitmap & kbdev->pm.desired_shader_state) == kbdev->pm.desired_shader_state
-		&& (kbdev->tiler_available_bitmap & kbdev->pm.desired_tiler_state) == kbdev->pm.desired_tiler_state)
+	if ((kbdev->shader_available_bitmap & kbdev->pm.desired_shader_state) == kbdev->pm.desired_shader_state &&
+		(kbdev->tiler_available_bitmap & kbdev->pm.desired_tiler_state) == kbdev->pm.desired_tiler_state)
 		kbase_timeline_pm_check_handle_event(kbdev, KBASE_TIMELINE_PM_EVENT_GPU_STATE_CHANGED);
 }
 
-void kbase_pm_request_cores(kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
+void kbase_pm_request_cores(struct kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
 {
 	unsigned long flags;
 	u64 cores;
@@ -514,8 +512,8 @@ void kbase_pm_request_cores(kbase_device *kbdev, mali_bool tiler_required, u64 s
 		u64 bit = 1ULL << bitnum;
 
 		/* It should be almost impossible for this to overflow. It would require 2^32 atoms
-		 * to request a particular core, which would require 2^24 contexts to submit. This 
-		 * would require an amount of memory that is impossible on a 32-bit system and 
+		 * to request a particular core, which would require 2^24 contexts to submit. This
+		 * would require an amount of memory that is impossible on a 32-bit system and
 		 * extremely unlikely on a 64-bit system. */
 		int cnt = ++kbdev->shader_needed_cnt[bitnum];
 
@@ -533,7 +531,7 @@ void kbase_pm_request_cores(kbase_device *kbdev, mali_bool tiler_required, u64 s
 		KBASE_DEBUG_ASSERT(kbdev->tiler_needed_cnt != 0);
 
 		/* For tiler jobs, we must make sure that core 0 is not turned off if it's already on.
-	         * However, it's safe for core 0 to be left off and turned on later whilst a tiler job
+		 * However, it's safe for core 0 to be left off and turned on later whilst a tiler job
 		 * is running. Hence, we don't need to update the cores state immediately. Also,
 		 * attempts to turn off cores will always check the tiler_needed/inuse state first anyway.
 		 *
@@ -559,7 +557,7 @@ void kbase_pm_request_cores(kbase_device *kbdev, mali_bool tiler_required, u64 s
 
 KBASE_EXPORT_TEST_API(kbase_pm_request_cores)
 
-void kbase_pm_unrequest_cores(kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
+void kbase_pm_unrequest_cores(struct kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
 {
 	unsigned long flags;
 
@@ -614,7 +612,7 @@ void kbase_pm_unrequest_cores(kbase_device *kbdev, mali_bool tiler_required, u64
 
 KBASE_EXPORT_TEST_API(kbase_pm_unrequest_cores)
 
-kbase_pm_cores_ready kbase_pm_register_inuse_cores(kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
+enum kbase_pm_cores_ready kbase_pm_register_inuse_cores(struct kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
 {
 	unsigned long flags;
 	u64 prev_shader_needed;	/* Just for tracing */
@@ -693,7 +691,7 @@ kbase_pm_cores_ready kbase_pm_register_inuse_cores(kbase_device *kbdev, mali_boo
 
 KBASE_EXPORT_TEST_API(kbase_pm_register_inuse_cores)
 
-void kbase_pm_release_cores(kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
+void kbase_pm_release_cores(struct kbase_device *kbdev, mali_bool tiler_required, u64 shader_cores)
 {
 	unsigned long flags;
 	kbase_pm_change_state change_gpu_state = 0u;
@@ -756,18 +754,21 @@ void kbase_pm_request_cores_sync(struct kbase_device *kbdev, mali_bool tiler_req
 
 KBASE_EXPORT_TEST_API(kbase_pm_request_cores_sync)
 
-void kbase_pm_request_l2_caches(kbase_device *kbdev)
+void kbase_pm_request_l2_caches(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	u32 prior_l2_users_count;
+
 	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
 
 	prior_l2_users_count = kbdev->l2_users_count++;
 
 	KBASE_DEBUG_ASSERT(kbdev->l2_users_count != 0);
 
-	if (!prior_l2_users_count)
-		kbase_pm_update_cores_state_nolock(kbdev);
+	/* if the GPU is reset while the l2 is on, l2 will be off but prior_l2_users_count will be > 0
+	 * l2_available_bitmap will have been set to 0 though by kbase_pm_init_hw */
+	if (!prior_l2_users_count || !kbdev->l2_available_bitmap)
+		kbase_pm_check_transitions_nolock(kbdev);
 
 	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
 	wait_event(kbdev->pm.l2_powered_wait, kbdev->pm.l2_powered == 1);
@@ -778,7 +779,19 @@ void kbase_pm_request_l2_caches(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbase_pm_request_l2_caches)
 
-void kbase_pm_release_l2_caches(kbase_device *kbdev)
+void kbase_pm_request_l2_caches_l2_is_on(struct kbase_device *kbdev)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
+
+	kbdev->l2_users_count++;
+
+	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
+}
+
+KBASE_EXPORT_TEST_API(kbase_pm_request_l2_caches_l2_is_on)
+
+void kbase_pm_release_l2_caches(struct kbase_device *kbdev)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
@@ -788,7 +801,7 @@ void kbase_pm_release_l2_caches(kbase_device *kbdev)
 	--kbdev->l2_users_count;
 
 	if (!kbdev->l2_users_count) {
-		kbase_pm_update_cores_state_nolock(kbdev);
+		kbase_pm_check_transitions_nolock(kbdev);
 		/* Trace that any state change completed immediately */
 		kbase_pm_trace_check_and_finish_state_change(kbdev);
 	}
@@ -797,4 +810,4 @@ void kbase_pm_release_l2_caches(kbase_device *kbdev)
 }
 
 KBASE_EXPORT_TEST_API(kbase_pm_release_l2_caches)
-
+#endif /* KBASE_PM_EN */

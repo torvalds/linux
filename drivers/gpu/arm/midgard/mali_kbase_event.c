@@ -20,9 +20,9 @@
 #include <mali_kbase.h>
 #include <mali_kbase_debug.h>
 
-STATIC base_jd_udata kbase_event_process(kbase_context *kctx, kbase_jd_atom *katom)
+STATIC struct base_jd_udata kbase_event_process(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
-	base_jd_udata data;
+	struct base_jd_udata data;
 
 	KBASE_DEBUG_ASSERT(kctx != NULL);
 	KBASE_DEBUG_ASSERT(katom != NULL);
@@ -41,7 +41,7 @@ STATIC base_jd_udata kbase_event_process(kbase_context *kctx, kbase_jd_atom *kat
 	return data;
 }
 
-int kbase_event_pending(kbase_context *ctx)
+int kbase_event_pending(struct kbase_context *ctx)
 {
 	int ret;
 
@@ -56,9 +56,9 @@ int kbase_event_pending(kbase_context *ctx)
 
 KBASE_EXPORT_TEST_API(kbase_event_pending)
 
-int kbase_event_dequeue(kbase_context *ctx, base_jd_event_v2 *uevent)
+int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *uevent)
 {
-	kbase_jd_atom *atom;
+	struct kbase_jd_atom *atom;
 
 	KBASE_DEBUG_ASSERT(ctx);
 
@@ -81,7 +81,7 @@ int kbase_event_dequeue(kbase_context *ctx, base_jd_event_v2 *uevent)
 	}
 
 	/* normal event processing */
-	atom = list_entry(ctx->event_list.next, kbase_jd_atom, dep_item[0]);
+	atom = list_entry(ctx->event_list.next, struct kbase_jd_atom, dep_item[0]);
 	list_del(ctx->event_list.next);
 
 	mutex_unlock(&ctx->event_mutex);
@@ -98,8 +98,8 @@ KBASE_EXPORT_TEST_API(kbase_event_dequeue)
 
 static void kbase_event_post_worker(struct work_struct *data)
 {
-	kbase_jd_atom *atom = CONTAINER_OF(data, kbase_jd_atom, work);
-	kbase_context *ctx = atom->kctx;
+	struct kbase_jd_atom *atom = container_of(data, struct kbase_jd_atom, work);
+	struct kbase_context *ctx = atom->kctx;
 
 	if (atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES)
 		kbase_jd_free_external_resources(atom);
@@ -125,7 +125,7 @@ static void kbase_event_post_worker(struct work_struct *data)
 	kbase_event_wakeup(ctx);
 }
 
-void kbase_event_post(kbase_context *ctx, kbase_jd_atom *atom)
+void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 {
 	KBASE_DEBUG_ASSERT(ctx);
 	KBASE_DEBUG_ASSERT(ctx->event_workq);
@@ -137,7 +137,7 @@ void kbase_event_post(kbase_context *ctx, kbase_jd_atom *atom)
 
 KBASE_EXPORT_TEST_API(kbase_event_post)
 
-void kbase_event_close(kbase_context *kctx)
+void kbase_event_close(struct kbase_context *kctx)
 {
 	mutex_lock(&kctx->event_mutex);
 	kctx->event_closed = MALI_TRUE;
@@ -145,7 +145,7 @@ void kbase_event_close(kbase_context *kctx)
 	kbase_event_wakeup(kctx);
 }
 
-mali_error kbase_event_init(kbase_context *kctx)
+mali_error kbase_event_init(struct kbase_context *kctx)
 {
 	KBASE_DEBUG_ASSERT(kctx);
 
@@ -162,7 +162,7 @@ mali_error kbase_event_init(kbase_context *kctx)
 
 KBASE_EXPORT_TEST_API(kbase_event_init)
 
-void kbase_event_cleanup(kbase_context *kctx)
+void kbase_event_cleanup(struct kbase_context *kctx)
 {
 	KBASE_DEBUG_ASSERT(kctx);
 	KBASE_DEBUG_ASSERT(kctx->event_workq);
@@ -177,7 +177,8 @@ void kbase_event_cleanup(kbase_context *kctx)
 	 * thread using it (because we're about to terminate the lock)
 	 */
 	while (!list_empty(&kctx->event_list)) {
-		base_jd_event_v2 event;
+		struct base_jd_event_v2 event;
+
 		kbase_event_dequeue(kctx, &event);
 	}
 }

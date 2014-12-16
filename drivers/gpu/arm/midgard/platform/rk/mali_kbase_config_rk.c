@@ -147,7 +147,7 @@ static int mali_pm_notifier(struct notifier_block *nb,unsigned long event,void* 
 /*
   rk3288 hardware specific initialization
  */
-mali_bool kbase_platform_rk_init(kbase_device *kbdev)
+mali_bool kbase_platform_rk_init(struct kbase_device *kbdev)
 {
  	if(MALI_ERROR_NONE == kbase_platform_init(kbdev))
  	{
@@ -164,7 +164,7 @@ mali_bool kbase_platform_rk_init(kbase_device *kbdev)
 /*
  rk3288  hardware specific termination
 */
-void kbase_platform_rk_term(kbase_device *kbdev)
+void kbase_platform_rk_term(struct kbase_device *kbdev)
 {
 	unregister_pm_notifier(&mali_pm_nb);
 #ifdef CONFIG_MALI_MIDGARD_DEBUG_SYS
@@ -179,7 +179,7 @@ kbase_platform_funcs_conf platform_funcs = {
 };
 
 #ifdef CONFIG_MALI_MIDGARD_RT_PM
-static int pm_callback_power_on(kbase_device *kbdev)
+static int pm_callback_power_on(struct kbase_device *kbdev)
 {
 	int result;
 	int ret_val;
@@ -207,7 +207,7 @@ static int pm_callback_power_on(kbase_device *kbdev)
 	return ret_val;
 }
 
-static void pm_callback_power_off(kbase_device *kbdev)
+static void pm_callback_power_off(struct kbase_device *kbdev)
 {
 	struct device *dev = kbdev->dev;
 	pm_schedule_suspend(dev, RUNTIME_PM_DELAY_TIME);
@@ -229,7 +229,7 @@ void kbase_device_runtime_disable(struct kbase_device *kbdev)
 	pm_runtime_disable(kbdev->dev);
 }
 
-static int pm_callback_runtime_on(kbase_device *kbdev)
+static int pm_callback_runtime_on(struct kbase_device *kbdev)
 {
 #ifdef CONFIG_MALI_MIDGARD_DVFS	
 	struct rk_context *platform = (struct rk_context *)kbdev->platform_context;
@@ -264,7 +264,7 @@ static int pm_callback_runtime_on(kbase_device *kbdev)
 	return 0;
 }
 
-static void pm_callback_runtime_off(kbase_device *kbdev)
+static void pm_callback_runtime_off(struct kbase_device *kbdev)
 {
 #ifdef CONFIG_MALI_MIDGARD_DVFS	
 	struct rk_context *platform = (struct rk_context *)kbdev->platform_context;
@@ -308,11 +308,6 @@ static kbase_pm_callback_conf pm_callbacks = {
 
 /* Please keep table config_attributes in sync with config_attributes_hw_issue_8408 */
 static kbase_attribute config_attributes[] = {
-#if 0	
-	{
-	 KBASE_CONFIG_ATTR_MEMORY_PER_PROCESS_LIMIT,
-	 KBASE_VE_MEMORY_PER_PROCESS_LIMIT},
-#endif
 #ifdef CONFIG_UMP
 	{
 	 KBASE_CONFIG_ATTR_UMP_DEVICE,
@@ -323,113 +318,13 @@ static kbase_attribute config_attributes[] = {
 	 KBASE_CONFIG_ATTR_POWER_MANAGEMENT_CALLBACKS,
 	 (uintptr_t)&pm_callbacks},
 #endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_MEMORY_OS_SHARED_MAX,
-	 KBASE_VE_MEMORY_OS_SHARED_MAX},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_MEMORY_OS_SHARED_PERF_GPU,
-	 KBASE_VE_MEMORY_OS_SHARED_PERF_GPU},
-#endif	
 	{
 	 KBASE_CONFIG_ATTR_PLATFORM_FUNCS,
 	 (uintptr_t) &platform_funcs},
 	
 	{
-	 KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MAX,
-	 KBASE_VE_GPU_FREQ_KHZ_MAX},
-
-	{
-	 KBASE_CONFIG_ATTR_GPU_FREQ_KHZ_MIN,
-	 KBASE_VE_GPU_FREQ_KHZ_MIN},
-
-#ifdef CONFIG_MALI_DEBUG
-/* Use more aggressive scheduling timeouts in debug builds for testing purposes */
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_JS_SCHEDULING_TICK_NS,
-	 KBASE_VE_JS_SCHEDULING_TICK_NS_DEBUG},
-
-	{
-	 KBASE_CONFIG_ATTR_JS_SOFT_STOP_TICKS,
-	 KBASE_VE_JS_SOFT_STOP_TICKS_DEBUG},
-
-	{
-	 KBASE_CONFIG_ATTR_JS_HARD_STOP_TICKS_SS,
-	 KBASE_VE_JS_HARD_STOP_TICKS_SS_DEBUG},
-
-	{
-	 KBASE_CONFIG_ATTR_JS_HARD_STOP_TICKS_NSS,
-	 KBASE_VE_JS_HARD_STOP_TICKS_NSS_DEBUG},
-
-	{
-	 KBASE_CONFIG_ATTR_JS_RESET_TICKS_SS,
-	 KBASE_VE_JS_RESET_TICKS_SS_DEBUG},
-
-	{
-	 KBASE_CONFIG_ATTR_JS_RESET_TICKS_NSS,
-	 KBASE_VE_JS_RESET_TICKS_NSS_DEBUG},
-#endif
-#else				/* CONFIG_MALI_DEBUG */
-/* In release builds same as the defaults but scaled for 5MHz FPGA */
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_JS_SCHEDULING_TICK_NS,
-	 KBASE_VE_JS_SCHEDULING_TICK_NS},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_JS_SOFT_STOP_TICKS,
-	 KBASE_VE_JS_SOFT_STOP_TICKS},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_JS_HARD_STOP_TICKS_SS,
-	 KBASE_VE_JS_HARD_STOP_TICKS_SS},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_JS_HARD_STOP_TICKS_NSS,
-	 KBASE_VE_JS_HARD_STOP_TICKS_NSS},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_JS_RESET_TICKS_SS,
-	 KBASE_VE_JS_RESET_TICKS_SS},
-#endif
-#if 0 
-	{
-	 KBASE_CONFIG_ATTR_JS_RESET_TICKS_NSS,
-	 KBASE_VE_JS_RESET_TICKS_NSS},
-#endif
-#endif				/* CONFIG_MALI_DEBUG */
-#if 1
-	{
 	 KBASE_CONFIG_ATTR_JS_RESET_TIMEOUT_MS,
 	 KBASE_VE_JS_RESET_TIMEOUT_MS},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_JS_CTX_TIMESLICE_NS,
-	 KBASE_VE_JS_CTX_TIMESLICE_NS},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_CPU_SPEED_FUNC,
-	 KBASE_VE_CPU_SPEED_FUNC},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_SECURE_BUT_LOSS_OF_PERFORMANCE,
-	 KBASE_VE_SECURE_BUT_LOSS_OF_PERFORMANCE},
-#endif
-#if 0
-	{
-	 KBASE_CONFIG_ATTR_GPU_IRQ_THROTTLE_TIME_US,
-	 20},
-#endif
 	{
 	 KBASE_CONFIG_ATTR_END,
 	 0}

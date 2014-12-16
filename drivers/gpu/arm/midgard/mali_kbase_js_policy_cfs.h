@@ -68,7 +68,7 @@ typedef struct kbasep_js_policy_cfs {
 	u32 num_core_req_variants;
 
 	/** Variants of the core requirements */
-	kbasep_atom_req core_req_variants[KBASEP_JS_MAX_NR_CORE_REQ_VARIANTS];
+	struct kbasep_atom_req core_req_variants[KBASEP_JS_MAX_NR_CORE_REQ_VARIANTS];
 
 	/* Lookups per job slot against which core_req_variants match it */
 	u32 slot_to_variant_lookup_ss_state[KBASEP_JS_VARIANT_LOOKUP_WORDS_NEEDED];

@@ -23,10 +23,10 @@
 #ifndef _KBASE_PM_CA_H_
 #define _KBASE_PM_CA_H_
 
-typedef enum kbase_pm_ca_policy_id {
+enum kbase_pm_ca_policy_id {
 	KBASE_PM_CA_POLICY_ID_FIXED = 1,
 	KBASE_PM_CA_POLICY_ID_RANDOM
-} kbase_pm_ca_policy_id;
+};
 
 typedef u32 kbase_pm_ca_policy_flags;
 
@@ -35,7 +35,7 @@ typedef u32 kbase_pm_ca_policy_flags;
  * Each core availability policy exposes a (static) instance of this structure which contains function pointers to the
  * policy's methods.
  */
-typedef struct kbase_pm_ca_policy {
+struct kbase_pm_ca_policy {
 	/** The name of this policy */
 	char *name;
 
@@ -48,13 +48,13 @@ typedef struct kbase_pm_ca_policy {
 	 *
 	 * @param kbdev     The kbase device structure for the device (must be a valid pointer)
 	 */
-	void (*init) (struct kbase_device *kbdev);
+	void (*init)(struct kbase_device *kbdev);
 
 	/** Function called when the policy is unselected.
 	 *
 	 * @param kbdev     The kbase device structure for the device (must be a valid pointer)
 	 */
-	void (*term) (struct kbase_device *kbdev);
+	void (*term)(struct kbase_device *kbdev);
 
 	/** Function called to get the current shader core availability mask
 	 *
@@ -67,7 +67,7 @@ typedef struct kbase_pm_ca_policy {
 	 * @param kbdev     The kbase device structure for the device (must be a valid pointer)
 	 *
 	 * @return     The current core availability mask */
-	u64 (*get_core_mask) (struct kbase_device *kbdev);
+	u64 (*get_core_mask)(struct kbase_device *kbdev);
 
 	/** Function called to update the current core status
 	 *
@@ -82,7 +82,7 @@ typedef struct kbase_pm_ca_policy {
 	 * @param kbdev                   The kbase device structure for the device (must be a valid pointer)
 	 * @param cores_ready             The mask of cores currently powered and ready to run jobs
 	 * @param cores_transitioning     The mask of cores currently transitioning power state */
-	void (*update_core_status) (struct kbase_device *kbdev, u64 cores_ready, u64 cores_transitioning);
+	void (*update_core_status)(struct kbase_device *kbdev, u64 cores_ready, u64 cores_transitioning);
 
 	/** Field indicating flags for this policy */
 	kbase_pm_ca_policy_flags flags;
@@ -90,8 +90,8 @@ typedef struct kbase_pm_ca_policy {
 	/** Field indicating an ID for this policy. This is not necessarily the
 	 * same as its index in the list returned by kbase_pm_list_policies().
 	 * It is used purely for debugging. */
-	kbase_pm_ca_policy_id id;
-} kbase_pm_ca_policy;
+	enum kbase_pm_ca_policy_id id;
+};
 
 /** Initialize core availability framework
  *
@@ -150,14 +150,14 @@ void kbase_pm_ca_instr_disable(struct kbase_device *kbdev);
  *
  * @return The current policy
  */
-const kbase_pm_ca_policy *kbase_pm_ca_get_policy(struct kbase_device *kbdev);
+const struct kbase_pm_ca_policy *kbase_pm_ca_get_policy(struct kbase_device *kbdev);
 
 /** Change the policy to the one specified.
  *
  * @param kbdev     The kbase device structure for the device (must be a valid pointer)
  * @param policy    The policy to change to (valid pointer returned from @ref kbase_pm_ca_list_policies)
  */
-void kbase_pm_ca_set_policy(struct kbase_device *kbdev, const kbase_pm_ca_policy *policy);
+void kbase_pm_ca_set_policy(struct kbase_device *kbdev, const struct kbase_pm_ca_policy *policy);
 
 /** Retrieve a static list of the available policies.
  * @param[out]  policies    An array pointer to take the list of policies. This may be NULL.
@@ -165,6 +165,6 @@ void kbase_pm_ca_set_policy(struct kbase_device *kbdev, const kbase_pm_ca_policy
  *
  * @return The number of policies
  */
-int kbase_pm_ca_list_policies(const kbase_pm_ca_policy * const **policies);
+int kbase_pm_ca_list_policies(const struct kbase_pm_ca_policy * const **policies);
 
 #endif				/* _KBASE_PM_CA_H_ */

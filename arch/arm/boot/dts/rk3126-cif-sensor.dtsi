@@ -1,5 +1,3 @@
-#include "rk312x.dtsi" 
-#include "rk312x-pinctrl.dtsi"
 #include "../../mach-rockchip/rk_camera_sensor_info.h"
 /{
 	rk3126_cif_sensor: rk3126_cif_sensor{

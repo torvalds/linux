@@ -62,13 +62,12 @@ updates and generates duplicate page faults as the page table information used b
  * A CPU mapping
  */
 typedef struct kbase_cpu_mapping {
-	struct  list_head mappings_list;
-	struct  kbase_mem_phy_alloc *alloc;
-	struct  kbase_context *kctx;
-	struct  kbase_va_region *region;
-	pgoff_t page_off;
-	int     count;
-
+	struct   list_head mappings_list;
+	struct   kbase_mem_phy_alloc *alloc;
+	struct   kbase_context *kctx;
+	struct   kbase_va_region *region;
+	pgoff_t  page_off;
+	int      count;
 	unsigned long vm_start;
 	unsigned long vm_end;
 } kbase_cpu_mapping;
@@ -89,6 +88,12 @@ struct kbase_aliased {
 	u64 offset; /* in pages */
 	u64 length; /* in pages */
 };
+
+/**
+ * @brief Physical pages tracking object properties
+  */
+#define KBASE_MEM_PHY_ALLOC_ACCESSED_CACHED  (1ul << 0)
+#define KBASE_MEM_PHY_ALLOC_LARGE            (1ul << 1)
 
 /* physical pages tracking object.
  * Set up to track N pages.
@@ -111,7 +116,7 @@ struct kbase_mem_phy_alloc
 	/* type of buffer */
 	enum kbase_memory_type type;
 
-	int accessed_cached;
+	unsigned long properties;
 
 	/* member in union valid based on @a type */
 	union {
@@ -157,9 +162,9 @@ static inline void kbase_mem_phy_alloc_gpu_unmapped(struct kbase_mem_phy_alloc *
 
 void kbase_mem_kref_free(struct kref * kref);
 
-mali_error kbase_mem_init(kbase_device * kbdev);
-void kbase_mem_halt(kbase_device * kbdev);
-void kbase_mem_term(kbase_device * kbdev);
+mali_error kbase_mem_init(struct kbase_device * kbdev);
+void kbase_mem_halt(struct kbase_device * kbdev);
+void kbase_mem_term(struct kbase_device * kbdev);
 
 static inline struct kbase_mem_phy_alloc * kbase_mem_phy_alloc_get(struct kbase_mem_phy_alloc * alloc)
 {
@@ -180,7 +185,7 @@ typedef struct kbase_va_region {
 	struct rb_node rblink;
 	struct list_head link;
 
-	kbase_context *kctx;	/* Backlink to base context */
+	struct kbase_context *kctx;	/* Backlink to base context */
 
 	u64 start_pfn;		/* The PFN in GPU space */
 	size_t nr_pages;
@@ -276,17 +281,31 @@ static INLINE size_t kbase_reg_current_backed_size(struct kbase_va_region * reg)
 		return 0;
 }
 
+#define KBASE_MEM_PHY_ALLOC_LARGE_THRESHOLD ((size_t)(4*1024)) /* size above which vmalloc is used over kmalloc */
+
 static INLINE struct kbase_mem_phy_alloc * kbase_alloc_create(size_t nr_pages, enum kbase_memory_type type)
 {
 	struct kbase_mem_phy_alloc *alloc;
+	const size_t alloc_size =
+			sizeof(*alloc) + sizeof(*alloc->pages) * nr_pages;
 
 	/* Prevent nr_pages*sizeof + sizeof(*alloc) from wrapping around. */
-	if (nr_pages > ((((size_t) -1) - sizeof(*alloc)) / sizeof(*alloc->pages)))
+	if (nr_pages > ((((size_t) -1) - sizeof(*alloc))
+			/ sizeof(*alloc->pages)))
 		return ERR_PTR(-ENOMEM);
 
-	alloc = vzalloc(sizeof(*alloc) + sizeof(*alloc->pages) * nr_pages);
+	/* Allocate based on the size to reduce internal fragmentation of vmem */
+	if (alloc_size > KBASE_MEM_PHY_ALLOC_LARGE_THRESHOLD)
+		alloc = vzalloc(alloc_size);
+	else
+		alloc = kzalloc(alloc_size, GFP_KERNEL);
+
 	if (!alloc)
 		return ERR_PTR(-ENOMEM);
+
+	/* Store allocation method */
+	if (alloc_size > KBASE_MEM_PHY_ALLOC_LARGE_THRESHOLD)
+		alloc->properties |= KBASE_MEM_PHY_ALLOC_LARGE;
 
 	kref_init(&alloc->kref);
 	atomic_set(&alloc->gpu_mappings, 0);
@@ -333,6 +352,28 @@ static inline int kbase_atomic_sub_pages(int num_pages, atomic_t *used_pages)
 }
 
 /**
+ * @brief Initialize low-level memory access for a kbase device
+ *
+ * Performs any low-level setup needed for a kbase device to access memory on
+ * the device.
+ *
+ * @param kbdev kbase device to initialize memory access for
+ * @return 0 on success, Linux error code on failure
+ */
+int kbase_mem_lowlevel_init(struct kbase_device *kbdev);
+
+
+/**
+ * @brief Terminate low-level memory access for a kbase device
+ *
+ * Perform any low-level cleanup needed to clean
+ * after @ref kbase_mem_lowlevel_init
+ *
+ * @param kbdev kbase device to clean up for
+ */
+void kbase_mem_lowlevel_term(struct kbase_device *kbdev);
+
+/**
  * @brief Initialize an OS based memory allocator.
  *
  * Initializes a allocator.
@@ -345,9 +386,13 @@ static inline int kbase_atomic_sub_pages(int num_pages, atomic_t *used_pages)
  *
  * @param allocator Allocator object to initialize
  * @param max_size Maximum number of pages to keep on the freelist.
- * @return MALI_ERROR_NONE on success, an error code indicating what failed on error.
+ * @param kbdev The kbase device this allocator is used with
+ * @return MALI_ERROR_NONE on success, an error code indicating what failed on
+ * error.
  */
-mali_error kbase_mem_allocator_init(kbase_mem_allocator * allocator, unsigned int max_size);
+mali_error kbase_mem_allocator_init(struct kbase_mem_allocator *allocator,
+				    unsigned int max_size,
+				    struct kbase_device *kbdev);
 
 /**
  * @brief Allocate memory via an OS based memory allocator.
@@ -357,7 +402,7 @@ mali_error kbase_mem_allocator_init(kbase_mem_allocator * allocator, unsigned in
  * @param[out] pages Pointer to an array where the physical address of the allocated pages will be stored
  * @return MALI_ERROR_NONE if the pages were allocated, an error code indicating what failed on error
  */
-mali_error kbase_mem_allocator_alloc(kbase_mem_allocator * allocator, size_t nr_pages, phys_addr_t *pages);
+mali_error kbase_mem_allocator_alloc(struct kbase_mem_allocator * allocator, size_t nr_pages, phys_addr_t *pages);
 
 /**
  * @brief Free memory obtained for an OS based memory allocator.
@@ -367,7 +412,7 @@ mali_error kbase_mem_allocator_alloc(kbase_mem_allocator * allocator, size_t nr_
  * @param[in] pages Pointer to an array holding the physical address of the paghes to free.
  * @param[in] sync_back MALI_TRUE case the memory should be synced back
  */
-void kbase_mem_allocator_free(kbase_mem_allocator * allocator, size_t nr_pages, phys_addr_t *pages, mali_bool sync_back);
+void kbase_mem_allocator_free(struct kbase_mem_allocator * allocator, size_t nr_pages, phys_addr_t *pages, mali_bool sync_back);
 
 /**
  * @brief Terminate an OS based memory allocator.
@@ -378,81 +423,79 @@ void kbase_mem_allocator_free(kbase_mem_allocator * allocator, size_t nr_pages, 
  *
  * @param[in] allocator Allocator to terminate
  */
-void kbase_mem_allocator_term(kbase_mem_allocator * allocator);
+void kbase_mem_allocator_term(struct kbase_mem_allocator * allocator);
 
 
 
-mali_error kbase_region_tracker_init(kbase_context *kctx);
-void kbase_region_tracker_term(kbase_context *kctx);
+mali_error kbase_region_tracker_init(struct kbase_context *kctx);
+void kbase_region_tracker_term(struct kbase_context *kctx);
 
-struct kbase_va_region *kbase_region_tracker_find_region_enclosing_range(kbase_context *kctx, u64 start_pgoff, size_t nr_pages);
-
-struct kbase_va_region *kbase_region_tracker_find_region_enclosing_address(kbase_context *kctx, mali_addr64 gpu_addr);
+struct kbase_va_region *kbase_region_tracker_find_region_enclosing_address(struct kbase_context *kctx, mali_addr64 gpu_addr);
 
 /**
  * @brief Check that a pointer is actually a valid region.
  *
  * Must be called with context lock held.
  */
-struct kbase_va_region *kbase_region_tracker_find_region_base_address(kbase_context *kctx, mali_addr64 gpu_addr);
+struct kbase_va_region *kbase_region_tracker_find_region_base_address(struct kbase_context *kctx, mali_addr64 gpu_addr);
 
-struct kbase_va_region *kbase_alloc_free_region(kbase_context *kctx, u64 start_pfn, size_t nr_pages, int zone);
+struct kbase_va_region *kbase_alloc_free_region(struct kbase_context *kctx, u64 start_pfn, size_t nr_pages, int zone);
 void kbase_free_alloced_region(struct kbase_va_region *reg);
-mali_error kbase_add_va_region(kbase_context *kctx, struct kbase_va_region *reg, mali_addr64 addr, size_t nr_pages, size_t align);
+mali_error kbase_add_va_region(struct kbase_context *kctx, struct kbase_va_region *reg, mali_addr64 addr, size_t nr_pages, size_t align);
 
-mali_error kbase_gpu_mmap(kbase_context *kctx, struct kbase_va_region *reg, mali_addr64 addr, size_t nr_pages, size_t align);
+mali_error kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, mali_addr64 addr, size_t nr_pages, size_t align);
 mali_bool kbase_check_alloc_flags(unsigned long flags);
 void kbase_update_region_flags(struct kbase_va_region *reg, unsigned long flags);
 
-void kbase_gpu_vm_lock(kbase_context *kctx);
-void kbase_gpu_vm_unlock(kbase_context *kctx);
+void kbase_gpu_vm_lock(struct kbase_context *kctx);
+void kbase_gpu_vm_unlock(struct kbase_context *kctx);
 
 int kbase_alloc_phy_pages(struct kbase_va_region *reg, size_t vsize, size_t size);
 
-mali_error kbase_mmu_init(kbase_context *kctx);
-void kbase_mmu_term(kbase_context *kctx);
+mali_error kbase_mmu_init(struct kbase_context *kctx);
+void kbase_mmu_term(struct kbase_context *kctx);
 
-phys_addr_t kbase_mmu_alloc_pgd(kbase_context *kctx);
-void kbase_mmu_free_pgd(kbase_context *kctx);
-mali_error kbase_mmu_insert_pages(kbase_context *kctx, u64 vpfn,
+phys_addr_t kbase_mmu_alloc_pgd(struct kbase_context *kctx);
+void kbase_mmu_free_pgd(struct kbase_context *kctx);
+mali_error kbase_mmu_insert_pages(struct kbase_context *kctx, u64 vpfn,
 				  phys_addr_t *phys, size_t nr,
 				  unsigned long flags);
-mali_error kbase_mmu_insert_single_page(kbase_context *kctx, u64 vpfn,
+mali_error kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
 					phys_addr_t phys, size_t nr,
 					unsigned long flags);
 
-mali_error kbase_mmu_teardown_pages(kbase_context *kctx, u64 vpfn, size_t nr);
-mali_error kbase_mmu_update_pages(kbase_context* kctx, u64 vpfn, phys_addr_t* phys, size_t nr, unsigned long flags);
+mali_error kbase_mmu_teardown_pages(struct kbase_context *kctx, u64 vpfn, size_t nr);
+mali_error kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn, phys_addr_t* phys, size_t nr, unsigned long flags);
 
 /**
  * @brief Register region and map it on the GPU.
  *
  * Call kbase_add_va_region() and map the region on the GPU.
  */
-mali_error kbase_gpu_mmap(kbase_context *kctx, struct kbase_va_region *reg, mali_addr64 addr, size_t nr_pages, size_t align);
+mali_error kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg, mali_addr64 addr, size_t nr_pages, size_t align);
 
 /**
  * @brief Remove the region from the GPU and unregister it.
  *
  * Must be called with context lock held.
  */
-mali_error kbase_gpu_munmap(kbase_context *kctx, struct kbase_va_region *reg);
+mali_error kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg);
 
 /**
  * The caller has the following locking conditions:
  * - It must hold kbase_as::transaction_mutex on kctx's address space
  * - It must hold the kbasep_js_device_data::runpool_irq::lock
  */
-void kbase_mmu_update(kbase_context *kctx);
+void kbase_mmu_update(struct kbase_context *kctx);
 
 /**
  * The caller has the following locking conditions:
  * - It must hold kbase_as::transaction_mutex on kctx's address space
  * - It must hold the kbasep_js_device_data::runpool_irq::lock
  */
-void kbase_mmu_disable(kbase_context *kctx);
+void kbase_mmu_disable(struct kbase_context *kctx);
 
-void kbase_mmu_interrupt(kbase_device *kbdev, u32 irq_stat);
+void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat);
 
 /** Dump the MMU tables to a buffer
  *
@@ -469,11 +512,13 @@ void kbase_mmu_interrupt(kbase_device *kbdev, u32 irq_stat);
  * @return The address of the buffer containing the MMU dump or NULL on error (including if the @c nr_pages is too
  * small)
  */
-void *kbase_mmu_dump(kbase_context *kctx, int nr_pages);
+void *kbase_mmu_dump(struct kbase_context *kctx, int nr_pages);
 
-mali_error kbase_sync_now(kbase_context *kctx, base_syncset *syncset);
-void kbase_pre_job_sync(kbase_context *kctx, base_syncset *syncsets, size_t nr);
-void kbase_post_job_sync(kbase_context *kctx, base_syncset *syncsets, size_t nr);
+mali_error kbase_sync_now(struct kbase_context *kctx, struct base_syncset *syncset);
+void kbase_sync_single(struct kbase_context *kctx, phys_addr_t pa,
+		size_t size, kbase_sync_kmem_fn sync_fn);
+void kbase_pre_job_sync(struct kbase_context *kctx, struct base_syncset *syncsets, size_t nr);
+void kbase_post_job_sync(struct kbase_context *kctx, struct base_syncset *syncsets, size_t nr);
 
 /**
  * Set attributes for imported tmem region
@@ -482,12 +527,12 @@ void kbase_post_job_sync(kbase_context *kctx, base_syncset *syncsets, size_t nr)
  * of imported external memory
  *
  * @param[in]  kctx  	    The kbase context which the tmem belongs to
- * @param[in]  gpu_adr     The base address of the tmem region
+ * @param[in]  gpu_addr     The base address of the tmem region
  * @param[in]  attributes   The attributes of tmem region to be set
  *
  * @return MALI_ERROR_NONE on success.  Any other value indicates failure.
  */
-mali_error kbase_tmem_set_attributes(kbase_context *kctx, mali_addr64 gpu_adr, u32  attributes );
+mali_error kbase_tmem_set_attributes(struct kbase_context *kctx, mali_addr64 gpu_addr, u32  attributes);
 
 /**
  * Get attributes of imported tmem region
@@ -495,18 +540,18 @@ mali_error kbase_tmem_set_attributes(kbase_context *kctx, mali_addr64 gpu_adr, u
  * This function retrieves the attributes of imported external memory
  *
  * @param[in]  kctx  	    The kbase context which the tmem belongs to
- * @param[in]  gpu_adr     The base address of the tmem region
+ * @param[in]  gpu_addr     The base address of the tmem region
  * @param[out] attributes   The actual attributes of tmem region
  *
  * @return MALI_ERROR_NONE on success.  Any other value indicates failure.
  */
-mali_error kbase_tmem_get_attributes(kbase_context *kctx, mali_addr64 gpu_adr, u32 * const attributes );
+mali_error kbase_tmem_get_attributes(struct kbase_context *kctx, mali_addr64 gpu_addr, u32 * const attributes);
 
 /* OS specific functions */
-mali_error kbase_mem_free(kbase_context *kctx, mali_addr64 gpu_addr);
-mali_error kbase_mem_free_region(kbase_context *kctx, struct kbase_va_region *reg);
-void kbase_os_mem_map_lock(kbase_context *kctx);
-void kbase_os_mem_map_unlock(kbase_context *kctx);
+mali_error kbase_mem_free(struct kbase_context *kctx, mali_addr64 gpu_addr);
+mali_error kbase_mem_free_region(struct kbase_context *kctx, struct kbase_va_region *reg);
+void kbase_os_mem_map_lock(struct kbase_context *kctx);
+void kbase_os_mem_map_unlock(struct kbase_context *kctx);
 
 /**
  * @brief Update the memory allocation counters for the current process
@@ -518,7 +563,7 @@ void kbase_os_mem_map_unlock(kbase_context *kctx);
  * @param[in] pages The desired delta to apply to the memory usage counters.
  */
 
-void kbasep_os_process_page_usage_update( struct kbase_context * kctx, int pages );
+void kbasep_os_process_page_usage_update(struct kbase_context *kctx, int pages);
 
 /**
  * @brief Add to the memory allocation counters for the current process
@@ -530,9 +575,9 @@ void kbasep_os_process_page_usage_update( struct kbase_context * kctx, int pages
  * @param[in] pages The desired delta to apply to the memory usage counters.
  */
 
-static INLINE void kbase_process_page_usage_inc( struct kbase_context *kctx, int pages )
+static INLINE void kbase_process_page_usage_inc(struct kbase_context *kctx, int pages)
 {
-	kbasep_os_process_page_usage_update( kctx, pages );
+	kbasep_os_process_page_usage_update(kctx, pages);
 }
 
 /**
@@ -545,9 +590,9 @@ static INLINE void kbase_process_page_usage_inc( struct kbase_context *kctx, int
  * @param[in] pages The desired delta to apply to the memory usage counters.
  */
 
-static INLINE void kbase_process_page_usage_dec( struct kbase_context *kctx, int pages )
+static INLINE void kbase_process_page_usage_dec(struct kbase_context *kctx, int pages)
 {
-	kbasep_os_process_page_usage_update( kctx, 0 - pages );
+	kbasep_os_process_page_usage_update(kctx, 0 - pages);
 }
 
 /**
@@ -571,15 +616,15 @@ static INLINE void kbase_process_page_usage_dec( struct kbase_context *kctx, int
  * @return MALI_ERROR_NONE if offset was obtained successfully. Error code
  *         otherwise.
  */
-mali_error kbasep_find_enclosing_cpu_mapping_offset(kbase_context *kctx,
+mali_error kbasep_find_enclosing_cpu_mapping_offset(struct kbase_context *kctx,
 							mali_addr64 gpu_addr,
 							unsigned long uaddr,
 							size_t size,
 							mali_size64 *offset);
 
 enum hrtimer_restart kbasep_as_poke_timer_callback(struct hrtimer *timer);
-void kbase_as_poking_timer_retain_atom(kbase_device *kbdev, kbase_context *kctx, kbase_jd_atom *katom);
-void kbase_as_poking_timer_release_atom(kbase_device *kbdev, kbase_context *kctx, kbase_jd_atom *katom);
+void kbase_as_poking_timer_retain_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);
+void kbase_as_poking_timer_release_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);
 
 /**
 * @brief Allocates physical pages.
@@ -604,12 +649,24 @@ int kbase_alloc_phy_pages_helper(struct kbase_mem_phy_alloc * alloc, size_t nr_p
 int kbase_free_phy_pages_helper(struct kbase_mem_phy_alloc * alloc, size_t nr_pages_to_free);
 
 #ifdef CONFIG_MALI_NO_MALI
-static inline void kbase_wait_write_flush(kbase_context *kctx)
+static inline void kbase_wait_write_flush(struct kbase_context *kctx)
 {
 }
 #else
-void kbase_wait_write_flush(kbase_context *kctx);
+void kbase_wait_write_flush(struct kbase_context *kctx);
 #endif
 
+/**
+* @brief Process a bus or page fault.
+*
+* This function will process a fault on a specific address space
+*
+* @param[in] kbdev   The @ref kbase_device the fault happened on
+* @param[in] kctx    The @ref kbase_context for the faulting address space if
+*                    one was found.
+* @param[in] as      The address space that has the fault
+*/
+void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
+		struct kbase_context *kctx, struct kbase_as *as);
 
 #endif				/* _KBASE_MEM_H_ */

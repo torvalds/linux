@@ -55,7 +55,7 @@
 
 #define RGA_TEST_CASE 0
 
-#define RGA_TEST 0
+#define RGA_TEST 1
 #define RGA_TEST_TIME 0
 #define RGA_TEST_FLUSH_TIME 0
 #define RGA_INFO_BUS_ERROR 1
@@ -108,6 +108,8 @@ struct rga_drvdata {
 
 static struct rga_drvdata *drvdata;
 rga_service_info rga_service;
+struct rga_mmu_buf_t rga_mmu_buf;
+
 
 #if defined(CONFIG_ION_ROCKCHIP)
 extern struct ion_client *rockchip_ion_client_create(const char * name);
@@ -120,7 +122,7 @@ static void rga_try_set_reg(void);
 
 
 /* Logging */
-#define RGA_DEBUG 0
+#define RGA_DEBUG 1
 #if RGA_DEBUG
 #define DBG(format, args...) printk(KERN_DEBUG "%s: " format, DRIVER_NAME, ## args)
 #define ERR(format, args...) printk(KERN_ERR "%s: " format, DRIVER_NAME, ## args)
@@ -700,11 +702,14 @@ static void rga_del_running_list(void)
     {
         reg = list_entry(rga_service.running.next, struct rga_reg, status_link);
 
-        if(reg->MMU_base != NULL)
+        if(reg->MMU_len != 0)
         {
-            kfree(reg->MMU_base);
-            reg->MMU_base = NULL;
+            if (rga_mmu_buf.back + reg->MMU_len > 2*rga_mmu_buf.size)
+                rga_mmu_buf.back = reg->MMU_len + rga_mmu_buf.size;
+            else
+                rga_mmu_buf.back += reg->MMU_len;
         }
+
         atomic_sub(1, &reg->session->task_running);
         atomic_sub(1, &rga_service.total_running);
 
@@ -1339,26 +1344,31 @@ static int __init rga_init(void)
 
     /* malloc pre scale mid buf mmu table */
     mmu_buf = kzalloc(1024*8, GFP_KERNEL);
-    if(mmu_buf == NULL)
-    {
+    if(mmu_buf == NULL) {
         printk(KERN_ERR "RGA get Pre Scale buff failed. \n");
         return -1;
     }
 
     /* malloc 4 M buf */
-    for(i=0; i<1024; i++)
-    {
+    for(i=0; i<1024; i++) {
         buf_p = (uint32_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
-        if(buf_p == NULL)
-        {
+        if(buf_p == NULL) {
             printk(KERN_ERR "RGA init pre scale buf falied\n");
             return -ENOMEM;
         }
-
         mmu_buf[i] = virt_to_phys((void *)((uint32_t)buf_p));
     }
 
     rga_service.pre_scale_buf = (uint32_t *)mmu_buf;
+
+    buf_p = kmalloc(1024*256, GFP_KERNEL);
+    rga_mmu_buf.buf_virtual = buf_p;
+    rga_mmu_buf.buf = (uint32_t *)virt_to_phys((void *)((uint32_t)buf_p));
+    rga_mmu_buf.front = 0;
+    rga_mmu_buf.back = 64*1024;
+    rga_mmu_buf.size = 64*1024;
+
+    rga_mmu_buf.pages = kmalloc((32768)* sizeof(struct page *), GFP_KERNEL);
 
 	if ((ret = platform_driver_register(&rga_driver)) != 0)
 	{
@@ -1413,6 +1423,13 @@ static void __exit rga_exit(void)
     if(rga_service.pre_scale_buf != NULL) {
         kfree((uint8_t *)rga_service.pre_scale_buf);
     }
+
+    if (rga_mmu_buf.buf_virtual)
+        kfree(rga_mmu_buf.buf_virtual);
+
+    if (rga_mmu_buf.pages)
+        kfree(rga_mmu_buf.pages);
+
 	platform_driver_unregister(&rga_driver);
 }
 

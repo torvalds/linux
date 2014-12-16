@@ -1,4 +1,4 @@
-#include "rk312x-sdk.dtsi"
+#include "rk312x.dtsi"
 
 &clk_gpll_div2 {
 	clocks = <&dummy>;

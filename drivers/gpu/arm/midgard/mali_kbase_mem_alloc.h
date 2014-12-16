@@ -22,12 +22,12 @@
 #include <linux/slab.h>
 
 /* raw page handling */
-typedef struct kbase_mem_allocator
+struct kbase_mem_allocator
 {
+	struct kbase_device *kbdev;
 	atomic_t            free_list_size;
 	unsigned int        free_list_max_size;
 	struct mutex        free_list_lock;
 	struct list_head    free_list_head;
 	struct shrinker     free_list_reclaimer;
-} kbase_mem_allocator;
-
+};

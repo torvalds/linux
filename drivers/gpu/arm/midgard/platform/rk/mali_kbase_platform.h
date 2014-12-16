@@ -40,7 +40,7 @@ int kbase_platform_create_sysfs_file(struct device *dev);
 void kbase_platform_remove_sysfs_file(struct device *dev);
 int kbase_platform_is_power_on(void);
 mali_error kbase_platform_init(struct kbase_device *kbdev);
-void kbase_platform_term(kbase_device *kbdev);
+void kbase_platform_term(struct kbase_device *kbdev);
 
 int kbase_platform_clock_on(struct kbase_device *kbdev);
 int kbase_platform_clock_off(struct kbase_device *kbdev);

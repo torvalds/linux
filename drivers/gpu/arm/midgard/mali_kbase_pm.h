@@ -35,14 +35,14 @@ struct kbase_device;
 #include "mali_kbase_pm_policy.h"
 
 #include "mali_kbase_pm_ca_fixed.h"
-#if MALI_CUSTOMER_RELEASE == 0
+#if !MALI_CUSTOMER_RELEASE
 #include "mali_kbase_pm_ca_random.h"
 #endif
 
 #include "mali_kbase_pm_always_on.h"
 #include "mali_kbase_pm_coarse_demand.h"
 #include "mali_kbase_pm_demand.h"
-#if MALI_CUSTOMER_RELEASE == 0
+#if !MALI_CUSTOMER_RELEASE
 #include "mali_kbase_pm_demand_always_powered.h"
 #include "mali_kbase_pm_fast_start.h"
 #endif
@@ -59,12 +59,12 @@ struct kbase_device;
  * a manner that allows @ref core_type_to_reg function to be simpler and more
  * efficient.
  */
-typedef enum kbase_pm_core_type {
+enum kbase_pm_core_type {
 	KBASE_PM_CORE_L3 = L3_PRESENT_LO,	    /**< The L3 cache */
 	KBASE_PM_CORE_L2 = L2_PRESENT_LO,	    /**< The L2 cache */
 	KBASE_PM_CORE_SHADER = SHADER_PRESENT_LO,   /**< Shader cores */
 	KBASE_PM_CORE_TILER = TILER_PRESENT_LO	    /**< Tiler cores */
-} kbase_pm_core_type;
+};
 
 /** Initialize the power management framework.
  *
@@ -107,7 +107,7 @@ void kbase_pm_term(struct kbase_device *kbdev);
 /** Metrics data collected for use by the power management framework.
  *
  */
-typedef struct kbasep_pm_metrics_data {
+struct kbasep_pm_metrics_data {
 	int vsync_hit;
 	int utilisation;
 	int util_gl_share;
@@ -123,47 +123,49 @@ typedef struct kbasep_pm_metrics_data {
 
 	spinlock_t lock;
 
+#ifdef CONFIG_MALI_MIDGARD_DVFS
 	struct hrtimer timer;
 	mali_bool timer_active;
+#endif
 
 	void *platform_data;
 	struct kbase_device *kbdev;
-} kbasep_pm_metrics_data;
+};
 
 /** Actions for DVFS.
  *
  * kbase_pm_get_dvfs_action will return one of these enumerated values to
  * describe the action that the DVFS system should take.
  */
-typedef enum kbase_pm_dvfs_action {
+enum kbase_pm_dvfs_action {
 	KBASE_PM_DVFS_NOP,	    /**< No change in clock frequency is requested */
 	KBASE_PM_DVFS_CLOCK_UP,	    /**< The clock frequency should be increased if possible */
 	KBASE_PM_DVFS_CLOCK_DOWN    /**< The clock frequency should be decreased if possible */
-} kbase_pm_dvfs_action;
+};
 
-typedef union kbase_pm_policy_data {
-	kbasep_pm_policy_always_on always_on;
-	kbasep_pm_policy_coarse_demand coarse_demand;
-	kbasep_pm_policy_demand demand;
-#if MALI_CUSTOMER_RELEASE == 0 	
-	kbasep_pm_policy_demand_always_powered demand_always_powered;
-	kbasep_pm_policy_fast_start fast_start;
+union kbase_pm_policy_data {
+	struct kbasep_pm_policy_always_on always_on;
+	struct kbasep_pm_policy_coarse_demand coarse_demand;
+	struct kbasep_pm_policy_demand demand;
+#if !MALI_CUSTOMER_RELEASE
+	struct kbasep_pm_policy_demand_always_powered demand_always_powered;
+	struct kbasep_pm_policy_fast_start fast_start;
 #endif
-} kbase_pm_policy_data;
+};
 
-typedef union kbase_pm_ca_policy_data {
-	kbasep_pm_ca_policy_fixed fixed;
-#if MALI_CUSTOMER_RELEASE == 0
-	kbasep_pm_ca_policy_random random;
+union kbase_pm_ca_policy_data {
+	struct kbasep_pm_ca_policy_fixed fixed;
+#if !MALI_CUSTOMER_RELEASE
+	struct kbasep_pm_ca_policy_random random;
 #endif
-} kbase_pm_ca_policy_data;
+};
 
 /** Data stored per device for power management.
  *
  * This structure contains data for the power management framework. There is one instance of this structure per device
  * in the system.
  */
-typedef struct kbase_pm_device_data {
+struct kbase_pm_device_data {
 	/** The lock protecting Power Management structures accessed
 	 * outside of IRQ.
 	 *
@@ -180,7 +182,7 @@ typedef struct kbase_pm_device_data {
 	 * kbase_pm_ca_set_policy() will re-issue the policy functions that would've
 	 * been done under IRQ.
 	 */
-	const kbase_pm_ca_policy *ca_current_policy;
+	const struct kbase_pm_ca_policy *ca_current_policy;
 
 	/** The policy that is currently actively controlling the power state.
 	 *
@@ -191,13 +193,13 @@ typedef struct kbase_pm_device_data {
 	 * kbase_pm_set_policy() will re-issue the policy functions that would've
 	 * been done under IRQ.
 	 */
-	const kbase_pm_policy *pm_current_policy;
+	const struct kbase_pm_policy *pm_current_policy;
 
 	/** Private data for current CA policy */
-	kbase_pm_ca_policy_data ca_policy_data;
+	union kbase_pm_ca_policy_data ca_policy_data;
 
 	/** Private data for current PM policy */
-	kbase_pm_policy_data pm_policy_data;
+	union kbase_pm_policy_data pm_policy_data;
 
 	/** Flag indicating when core availability policy is transitioning cores.
 	 * The core availability policy must set this when a change in core availability
@@ -290,7 +292,7 @@ typedef struct kbase_pm_device_data {
 
 	/** Structure to hold metrics for the GPU */
 
-	kbasep_pm_metrics_data metrics;
+	struct kbasep_pm_metrics_data metrics;
 
 	/** Set to the number of poweroff timer ticks until the GPU is powered off */
 	int gpu_poweroff_pending;
@@ -324,27 +326,27 @@ typedef struct kbase_pm_device_data {
 	 *
 	 * @return 1 if GPU state was lost, 0 otherwise
 	 */
-	int (*callback_power_on) (struct kbase_device *kbdev);
+	int (*callback_power_on)(struct kbase_device *kbdev);
 
 	/** Callback when the GPU may be turned off. See @ref kbase_pm_callback_conf
 	 *
 	 * @param kbdev         The kbase device
 	 */
-	void (*callback_power_off) (struct kbase_device *kbdev);
+	void (*callback_power_off)(struct kbase_device *kbdev);
 
 	/** Callback when a suspend occurs and the GPU needs to be turned off.
 	 *  See @ref kbase_pm_callback_conf
 	 *
 	 * @param kbdev         The kbase device
 	 */
-	void (*callback_power_suspend) (struct kbase_device *kbdev);
+	void (*callback_power_suspend)(struct kbase_device *kbdev);
 
 	/** Callback when a resume occurs and the GPU needs to be turned on.
 	 *  See @ref kbase_pm_callback_conf
 	 *
 	 * @param kbdev         The kbase device
 	 */
-	void (*callback_power_resume) (struct kbase_device *kbdev);
+	void (*callback_power_resume)(struct kbase_device *kbdev);
 
 	/** Callback for initializing the runtime power management.
 	 *
@@ -352,13 +354,13 @@ typedef struct kbase_pm_device_data {
 	 *
 	 * @return MALI_ERROR_NONE on success, else error code
 	 */
-	 mali_error(*callback_power_runtime_init) (struct kbase_device *kbdev);
+	 mali_error (*callback_power_runtime_init)(struct kbase_device *kbdev);
 
 	/** Callback for terminating the runtime power management.
 	 *
 	 * @param kbdev         The kbase device
 	 */
-	void (*callback_power_runtime_term) (struct kbase_device *kbdev);
+	void (*callback_power_runtime_term)(struct kbase_device *kbdev);
 
 	/** Callback when the GPU needs to be turned on. See @ref kbase_pm_callback_conf
 	 *
@@ -366,15 +368,15 @@ typedef struct kbase_pm_device_data {
 	 *
 	 * @return 1 if GPU state was lost, 0 otherwise
 	 */
-	int (*callback_power_runtime_on) (struct kbase_device *kbdev);
+	int (*callback_power_runtime_on)(struct kbase_device *kbdev);
 
 	/** Callback when the GPU may be turned off. See @ref kbase_pm_callback_conf
 	 *
 	 * @param kbdev         The kbase device
 	 */
-	void (*callback_power_runtime_off) (struct kbase_device *kbdev);
+	void (*callback_power_runtime_off)(struct kbase_device *kbdev);
 
-} kbase_pm_device_data;
+};
 
 /** The GPU is idle.
  *
@@ -398,11 +400,11 @@ void kbase_pm_dev_activate(struct kbase_device *kbdev);
  * present in the GPU device and also a count of the number of cores.
  *
  * @param kbdev     The kbase device structure for the device (must be a valid pointer)
- * @param type      The type of core (see the @ref kbase_pm_core_type enumeration)
+ * @param type      The type of core (see the @ref enum kbase_pm_core_type enumeration)
  *
  * @return          The bit mask of cores present
  */
-u64 kbase_pm_get_present_cores(struct kbase_device *kbdev, kbase_pm_core_type type);
+u64 kbase_pm_get_present_cores(struct kbase_device *kbdev, enum kbase_pm_core_type type);
 
 /** Get details of the cores that are currently active in the device.
  *
@@ -410,11 +412,11 @@ u64 kbase_pm_get_present_cores(struct kbase_device *kbdev, kbase_pm_core_type ty
  * are actively processing work (i.e. turned on *and* busy).
  *
  * @param kbdev     The kbase device structure for the device (must be a valid pointer)
- * @param type      The type of core (see the @ref kbase_pm_core_type enumeration)
+ * @param type      The type of core (see the @ref enum kbase_pm_core_type enumeration)
  *
  * @return          The bit mask of active cores
  */
-u64 kbase_pm_get_active_cores(struct kbase_device *kbdev, kbase_pm_core_type type);
+u64 kbase_pm_get_active_cores(struct kbase_device *kbdev, enum kbase_pm_core_type type);
 
 /** Get details of the cores that are currently transitioning between power states.
  *
@@ -422,11 +424,11 @@ u64 kbase_pm_get_active_cores(struct kbase_device *kbdev, kbase_pm_core_type typ
  * are currently transitioning between power states.
  *
  * @param kbdev     The kbase device structure for the device (must be a valid pointer)
- * @param type      The type of core (see the @ref kbase_pm_core_type enumeration)
+ * @param type      The type of core (see the @ref enum kbase_pm_core_type enumeration)
  *
  * @return          The bit mask of transitioning cores
  */
-u64 kbase_pm_get_trans_cores(struct kbase_device *kbdev, kbase_pm_core_type type);
+u64 kbase_pm_get_trans_cores(struct kbase_device *kbdev, enum kbase_pm_core_type type);
 
 /** Get details of the cores that are currently powered and ready for jobs.
  *
@@ -434,11 +436,11 @@ u64 kbase_pm_get_trans_cores(struct kbase_device *kbdev, kbase_pm_core_type type
  * are powered and ready for jobs (they may or may not be currently executing jobs).
  *
  * @param kbdev     The kbase device structure for the device (must be a valid pointer)
- * @param type      The type of core (see the @ref kbase_pm_core_type enumeration)
+ * @param type      The type of core (see the @ref enum kbase_pm_core_type enumeration)
  *
  * @return          The bit mask of ready cores
  */
-u64 kbase_pm_get_ready_cores(struct kbase_device *kbdev, kbase_pm_core_type type);
+u64 kbase_pm_get_ready_cores(struct kbase_device *kbdev, enum kbase_pm_core_type type);
 
 /** Turn the clock for the device on, and enable device interrupts.
  *
@@ -492,7 +494,7 @@ void kbase_pm_disable_interrupts(struct kbase_device *kbdev);
  *
  * @return MALI_ERROR_NONE if the device is supported and successfully reset.
  */
-mali_error kbase_pm_init_hw(struct kbase_device *kbdev, mali_bool enable_irqs );
+mali_error kbase_pm_init_hw(struct kbase_device *kbdev, mali_bool enable_irqs);
 
 /** The GPU has been reset successfully.
  *
@@ -523,7 +525,7 @@ void kbase_pm_context_active(struct kbase_device *kbdev);
 
 
 /** Handler codes for doing kbase_pm_context_active_handle_suspend() */
-typedef enum {
+enum kbase_pm_suspend_handler {
 	/** A suspend is not expected/not possible - this is the same as
 	 * kbase_pm_context_active() */
 	KBASE_PM_SUSPEND_HANDLER_NOT_POSSIBLE,
@@ -535,12 +537,12 @@ typedef enum {
 	 * This should only be used when there is a bounded time on the activation
 	 * (e.g. guarantee it's going to be idled very soon after) */
 	KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE
-} kbase_pm_suspend_handler;
+};
 
 /** Suspend 'safe' variant of kbase_pm_context_active()
  *
  * If a suspend is in progress, this allows for various different ways of
- * handling the suspend. Refer to @ref kbase_pm_suspend_handler for details.
+ * handling the suspend. Refer to @ref enum kbase_pm_suspend_handler for details.
  *
  * We returns a status code indicating whether we're allowed to keep the GPU
  * active during the suspend, depending on the handler code. If the status code
@@ -552,7 +554,7 @@ typedef enum {
  * @return zero     Indicates success
  * @return non-zero Indicates failure due to the system being suspending/suspended.
  */
-int kbase_pm_context_active_handle_suspend(struct kbase_device *kbdev, kbase_pm_suspend_handler suspend_handler);
+int kbase_pm_context_active_handle_suspend(struct kbase_device *kbdev, enum kbase_pm_suspend_handler suspend_handler);
 
 /** Decrement the reference count of active contexts.
  *
@@ -565,7 +567,7 @@ void kbase_pm_context_idle(struct kbase_device *kbdev);
 
 /** Check if there are any power transitions to make, and if so start them.
  *
- * This function will check the desired_xx_state members of kbase_pm_device_data and the actual status of the
+ * This function will check the desired_xx_state members of struct kbase_pm_device_data and the actual status of the
  * hardware to see if any power transitions can be made at this time to make the hardware state closer to the state
  * desired by the power policy.
  *
@@ -621,7 +623,7 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev);
  * any power transitions.
  *
  * This function will update the desired_xx_state members of
- * kbase_pm_device_data by calling into the current Power Policy. It will then
+ * struct kbase_pm_device_data by calling into the current Power Policy. It will then
  * begin power transitions to make the hardware acheive the desired shader core
  * state.
  *
@@ -738,17 +740,27 @@ void kbase_pm_unregister_vsync_callback(struct kbase_device *kbdev);
  * @retval KBASE_PM_DVFS_CLOCK_UP,  The clock frequency should be increased if possible.
  * @retval KBASE_PM_DVFS_CLOCK_DOWN The clock frequency should be decreased if possible.
  */
-kbase_pm_dvfs_action kbase_pm_get_dvfs_action(struct kbase_device *kbdev);
+enum kbase_pm_dvfs_action kbase_pm_get_dvfs_action(struct kbase_device *kbdev);
 
 /** Mark that the GPU cycle counter is needed, if the caller is the first caller
- *  then the GPU cycle counters will be enabled.
+ *  then the GPU cycle counters will be enabled along with the l2 cache
  *
  * The GPU must be powered when calling this function (i.e. @ref kbase_pm_context_active must have been called).
  *
  * @param kbdev    The kbase device structure for the device (must be a valid pointer)
  */
-
 void kbase_pm_request_gpu_cycle_counter(struct kbase_device *kbdev);
+
+/** This is a version of the above function (@ref kbase_pm_request_gpu_cycle_counter) suitable for being 
+ *  called when the l2 cache is known to be on and assured to be on until the subsequent call of 
+ *  kbase_pm_release_gpu_cycle_counter such as when a job is submitted. 
+ *  It does not sleep and can be called from atomic functions. 
+ *
+ *  The GPU must be powered when calling this function (i.e. @ref kbase_pm_context_active must have been called).
+ *  and the l2 cache must be powered on 
+ *  @param kbdev    The kbase device structure for the device (must be a valid pointer)
+ */
+void kbase_pm_request_gpu_cycle_counter_l2_is_on(struct kbase_device *kbdev);
 
 /** Mark that the GPU cycle counter is no longer in use, if the caller is the last
  *  caller then the GPU cycle counters will be disabled. A request must have been made
@@ -848,6 +860,11 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, mali_bool is_resume);
  *                     MALI_FALSE otherwise
  */
 void kbase_pm_do_poweroff(struct kbase_device *kbdev, mali_bool is_suspend);
+
+#ifdef CONFIG_PM_DEVFREQ
+void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
+		unsigned long *total, unsigned long *busy, bool reset);
+#endif
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 

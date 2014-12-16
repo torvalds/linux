@@ -358,6 +358,33 @@ TRACE_EVENT(mali_timeline_pm_checktrans,
 
 );
 
+TRACE_EVENT(mali_timeline_context_active,
+
+	TP_PROTO(u64 ts_sec,
+		u32 ts_nsec,
+		int count),
+
+	TP_ARGS(ts_sec,
+		ts_nsec,
+		count),
+
+	TP_STRUCT__entry(
+			__field(u64, ts_sec)
+			__field(u32, ts_nsec)
+			__field(int, count)
+	),
+
+	TP_fast_assign(
+		__entry->ts_sec = ts_sec;
+		__entry->ts_nsec = ts_nsec;
+		__entry->count = count;
+	),
+
+	TP_printk("%i,%i.%.9i,0,%i", SW_SET_CONTEXT_ACTIVE,
+				(int)__entry->ts_sec,
+				(int)__entry->ts_nsec,
+				__entry->count)
+);
 
 #endif				/* _MALI_TIMELINE_H */
 

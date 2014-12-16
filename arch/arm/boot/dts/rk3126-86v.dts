@@ -1,5 +1,9 @@
-#include "rk3126-sdk.dtsi"
+/dts-v1/;
+
+#include "rk3126.dtsi"
 #include "lcd-86v-rgb1024x600.dtsi"
+#include "rk3126-cif-sensor.dtsi"
+#include "rk312x-sdk.dtsi"
 //#include "lcd-y81349.dtsi"
 
 / {

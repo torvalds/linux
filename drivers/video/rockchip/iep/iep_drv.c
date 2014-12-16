@@ -996,8 +996,6 @@ err_irq:
 err_ioremap:
     wake_lock_destroy(&data->wake_lock);
 err_clock:
-    kfree(data);
-
     return ret;
 }
 
@@ -1032,7 +1030,6 @@ static int iep_drv_remove(struct platform_device *pdev)
     }
 #endif
 
-    //devm_kfree(data);
     return 0;
 }
 

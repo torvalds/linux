@@ -332,6 +332,16 @@ typedef struct TILE_INFO
 }
 TILE_INFO;
 
+struct rga_mmu_buf_t {
+    int32_t front;
+    int32_t back;
+    int32_t size;
+    int32_t curr;
+    unsigned int *buf;
+    unsigned int *buf_virtual;
+
+    struct page **pages;
+};
 
 /**
  * struct for process session which connect to rga
@@ -361,6 +371,7 @@ struct rga_reg {
     uint32_t  cmd_reg[RGA_REG_CMD_LEN];
 
     uint32_t *MMU_base;
+    uint32_t MMU_len;
     //atomic_t int_enable;
 
     //struct rga_req      req;
