@@ -1,0 +1,34 @@
+This file summarizes information on basic testing of USB functions
+provided by gadgets.
+
+1. ACM function
+
+
+1. ACM function
+===============
+
+The function is provided by usb_f_acm.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "acm".
+The ACM function provides just one attribute in its function directory:
+
+	port_num
+
+The attribute is read-only.
+
+There can be at most 4 ACM/generic serial/OBEX ports in the system.
+
+
+Testing the ACM function
+------------------------
+
+On the host: cat > /dev/ttyACM<X>
+On the device : cat /dev/ttyGS<Y>
+
+then the other way round
+
+On the device: cat > /dev/ttyGS<Y>
+On the host: cat /dev/ttyACM<X>
