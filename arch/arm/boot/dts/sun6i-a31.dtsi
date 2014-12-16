@@ -49,6 +49,8 @@
 
 #include "skeleton.dtsi"
 
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
@@ -113,10 +115,10 @@
 
 	pmu {
 		compatible = "arm,cortex-a7-pmu", "arm,cortex-a15-pmu";
-		interrupts = <0 120 4>,
-			     <0 121 4>,
-			     <0 122 4>,
-			     <0 123 4>;
+		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	clocks {
@@ -363,7 +365,7 @@
 		dma: dma-controller@01c02000 {
 			compatible = "allwinner,sun6i-a31-dma";
 			reg = <0x01c02000 0x1000>;
-			interrupts = <0 50 4>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 6>;
 			resets = <&ahb1_rst 6>;
 			#dma-cells = <1>;
@@ -380,7 +382,7 @@
 			clock-names = "ahb", "mmc";
 			resets = <&ahb1_rst 8>;
 			reset-names = "ahb";
-			interrupts = <0 60 4>;
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -391,7 +393,7 @@
 			clock-names = "ahb", "mmc";
 			resets = <&ahb1_rst 9>;
 			reset-names = "ahb";
-			interrupts = <0 61 4>;
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -402,7 +404,7 @@
 			clock-names = "ahb", "mmc";
 			resets = <&ahb1_rst 10>;
 			reset-names = "ahb";
-			interrupts = <0 62 4>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -413,7 +415,7 @@
 			clock-names = "ahb", "mmc";
 			resets = <&ahb1_rst 11>;
 			reset-names = "ahb";
-			interrupts = <0 63 4>;
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -444,7 +446,7 @@
 		ehci0: usb@01c1a000 {
 			compatible = "allwinner,sun6i-a31-ehci", "generic-ehci";
 			reg = <0x01c1a000 0x100>;
-			interrupts = <0 72 4>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 26>;
 			resets = <&ahb1_rst 26>;
 			phys = <&usbphy 1>;
@@ -455,7 +457,7 @@
 		ohci0: usb@01c1a400 {
 			compatible = "allwinner,sun6i-a31-ohci", "generic-ohci";
 			reg = <0x01c1a400 0x100>;
-			interrupts = <0 73 4>;
+			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 29>, <&usb_clk 16>;
 			resets = <&ahb1_rst 29>;
 			phys = <&usbphy 1>;
@@ -466,7 +468,7 @@
 		ehci1: usb@01c1b000 {
 			compatible = "allwinner,sun6i-a31-ehci", "generic-ehci";
 			reg = <0x01c1b000 0x100>;
-			interrupts = <0 74 4>;
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 27>;
 			resets = <&ahb1_rst 27>;
 			phys = <&usbphy 2>;
@@ -477,7 +479,7 @@
 		ohci1: usb@01c1b400 {
 			compatible = "allwinner,sun6i-a31-ohci", "generic-ohci";
 			reg = <0x01c1b400 0x100>;
-			interrupts = <0 75 4>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 30>, <&usb_clk 17>;
 			resets = <&ahb1_rst 30>;
 			phys = <&usbphy 2>;
@@ -488,7 +490,7 @@
 		ohci2: usb@01c1c400 {
 			compatible = "allwinner,sun6i-a31-ohci", "generic-ohci";
 			reg = <0x01c1c400 0x100>;
-			interrupts = <0 77 4>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 31>, <&usb_clk 18>;
 			resets = <&ahb1_rst 31>;
 			status = "disabled";
@@ -497,10 +499,10 @@
 		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun6i-a31-pinctrl";
 			reg = <0x01c20800 0x400>;
-			interrupts = <0 11 4>,
-				     <0 15 4>,
-				     <0 16 4>,
-				     <0 17 4>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 5>;
 			gpio-controller;
 			interrupt-controller;
@@ -607,11 +609,11 @@
 		timer@01c20c00 {
 			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x01c20c00 0xa0>;
-			interrupts = <0 18 4>,
-				     <0 19 4>,
-				     <0 20 4>,
-				     <0 21 4>,
-				     <0 22 4>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&osc24M>;
 		};
 
@@ -623,7 +625,7 @@
 		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
-			interrupts = <0 0 4>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 16>;
@@ -636,7 +638,7 @@
 		uart1: serial@01c28400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
-			interrupts = <0 1 4>;
+			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 17>;
@@ -649,7 +651,7 @@
 		uart2: serial@01c28800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28800 0x400>;
-			interrupts = <0 2 4>;
+			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 18>;
@@ -662,7 +664,7 @@
 		uart3: serial@01c28c00 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28c00 0x400>;
-			interrupts = <0 3 4>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 19>;
@@ -675,7 +677,7 @@
 		uart4: serial@01c29000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29000 0x400>;
-			interrupts = <0 4 4>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 20>;
@@ -688,7 +690,7 @@
 		uart5: serial@01c29400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c29400 0x400>;
-			interrupts = <0 5 4>;
+			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb2_gates 21>;
@@ -701,7 +703,7 @@
 		i2c0: i2c@01c2ac00 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x01c2ac00 0x400>;
-			interrupts = <0 6 4>;
+			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb2_gates 0>;
 			resets = <&apb2_rst 0>;
 			status = "disabled";
@@ -712,7 +714,7 @@
 		i2c1: i2c@01c2b000 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x01c2b000 0x400>;
-			interrupts = <0 7 4>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb2_gates 1>;
 			resets = <&apb2_rst 1>;
 			status = "disabled";
@@ -723,7 +725,7 @@
 		i2c2: i2c@01c2b400 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x01c2b400 0x400>;
-			interrupts = <0 8 4>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb2_gates 2>;
 			resets = <&apb2_rst 2>;
 			status = "disabled";
@@ -734,7 +736,7 @@
 		i2c3: i2c@01c2b800 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x01c2b800 0x400>;
-			interrupts = <0 9 4>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb2_gates 3>;
 			resets = <&apb2_rst 3>;
 			status = "disabled";
@@ -745,7 +747,7 @@
 		gmac: ethernet@01c30000 {
 			compatible = "allwinner,sun7i-a20-gmac";
 			reg = <0x01c30000 0x1054>;
-			interrupts = <0 82 4>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			clocks = <&ahb1_gates 17>, <&gmac_tx_clk>;
 			clock-names = "stmmaceth", "allwinner_gmac_tx";
@@ -762,10 +764,10 @@
 		timer@01c60000 {
 			compatible = "allwinner,sun6i-a31-hstimer", "allwinner,sun7i-a20-hstimer";
 			reg = <0x01c60000 0x1000>;
-			interrupts = <0 51 4>,
-				     <0 52 4>,
-				     <0 53 4>,
-				     <0 54 4>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 19>;
 			resets = <&ahb1_rst 19>;
 		};
@@ -773,7 +775,7 @@
 		spi0: spi@01c68000 {
 			compatible = "allwinner,sun6i-a31-spi";
 			reg = <0x01c68000 0x1000>;
-			interrupts = <0 65 4>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 20>, <&spi0_clk>;
 			clock-names = "ahb", "mod";
 			dmas = <&dma 23>, <&dma 23>;
@@ -785,7 +787,7 @@
 		spi1: spi@01c69000 {
 			compatible = "allwinner,sun6i-a31-spi";
 			reg = <0x01c69000 0x1000>;
-			interrupts = <0 66 4>;
+			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 21>, <&spi1_clk>;
 			clock-names = "ahb", "mod";
 			dmas = <&dma 24>, <&dma 24>;
@@ -797,7 +799,7 @@
 		spi2: spi@01c6a000 {
 			compatible = "allwinner,sun6i-a31-spi";
 			reg = <0x01c6a000 0x1000>;
-			interrupts = <0 67 4>;
+			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 22>, <&spi2_clk>;
 			clock-names = "ahb", "mod";
 			dmas = <&dma 25>, <&dma 25>;
@@ -809,7 +811,7 @@
 		spi3: spi@01c6b000 {
 			compatible = "allwinner,sun6i-a31-spi";
 			reg = <0x01c6b000 0x1000>;
-			interrupts = <0 68 4>;
+			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ahb1_gates 23>, <&spi3_clk>;
 			clock-names = "ahb", "mod";
 			dmas = <&dma 26>, <&dma 26>;
@@ -826,13 +828,14 @@
 			      <0x01c86000 0x2000>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			interrupts = <1 9 0xf04>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		rtc: rtc@01f00000 {
 			compatible = "allwinner,sun6i-a31-rtc";
 			reg = <0x01f00000 0x54>;
-			interrupts = <0 40 4>, <0 41 4>;
+			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		nmi_intc: interrupt-controller@01f00c0c {
@@ -840,7 +843,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			reg = <0x01f00c0c 0x38>;
-			interrupts = <0 32 4>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		prcm@01f01400 {
@@ -903,7 +906,7 @@
 			clocks = <&apb0_gates 1>, <&ir_clk>;
 			clock-names = "apb", "ir";
 			resets = <&apb0_rst 1>;
-			interrupts = <0 37 4>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x01f02000 0x40>;
 			status = "disabled";
 		};
@@ -911,8 +914,8 @@
 		r_pio: pinctrl@01f02c00 {
 			compatible = "allwinner,sun6i-a31-r-pinctrl";
 			reg = <0x01f02c00 0x400>;
-			interrupts = <0 45 4>,
-				     <0 46 4>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb0_gates 0>;
 			resets = <&apb0_rst 0>;
 			gpio-controller;

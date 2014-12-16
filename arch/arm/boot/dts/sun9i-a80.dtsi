@@ -49,6 +49,8 @@
 
 #include "skeleton64.dtsi"
 
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
@@ -293,7 +295,7 @@
 			      <0x01c46000 0x2000>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			interrupts = <1 9 0xf04>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		ahb0_resets: reset@060005a0 {
@@ -329,12 +331,12 @@
 		timer@06000c00 {
 			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x06000c00 0xa0>;
-			interrupts = <0 18 4>,
-				     <0 19 4>,
-				     <0 20 4>,
-				     <0 21 4>,
-				     <0 22 4>,
-				     <0 23 4>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&osc24M>;
 		};
@@ -342,11 +344,11 @@
 		pio: pinctrl@06000800 {
 			compatible = "allwinner,sun9i-a80-pinctrl";
 			reg = <0x06000800 0x400>;
-			interrupts = <0 11 4>,
-				     <0 15 4>,
-				     <0 16 4>,
-				     <0 17 4>,
-				     <0 120 4>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb0_gates 5>;
 			gpio-controller;
 			interrupt-controller;
@@ -379,7 +381,7 @@
 		uart0: serial@07000000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x07000000 0x400>;
-			interrupts = <0 0 4>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 16>;
@@ -390,7 +392,7 @@
 		uart1: serial@07000400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x07000400 0x400>;
-			interrupts = <0 1 4>;
+			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 17>;
@@ -401,7 +403,7 @@
 		uart2: serial@07000800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x07000800 0x400>;
-			interrupts = <0 2 4>;
+			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 18>;
@@ -412,7 +414,7 @@
 		uart3: serial@07000c00 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x07000c00 0x400>;
-			interrupts = <0 3 4>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 19>;
@@ -423,7 +425,7 @@
 		uart4: serial@07001000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x07001000 0x400>;
-			interrupts = <0 4 4>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 20>;
@@ -434,7 +436,7 @@
 		uart5: serial@07001400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x07001400 0x400>;
-			interrupts = <0 5 4>;
+			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 21>;
@@ -445,7 +447,7 @@
 		i2c0: i2c@07002800 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x07002800 0x400>;
-			interrupts = <0 6 4>;
+			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 0>;
 			resets = <&apb1_resets 0>;
 			status = "disabled";
@@ -456,7 +458,7 @@
 		i2c1: i2c@07002c00 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x07002c00 0x400>;
-			interrupts = <0 7 4>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 1>;
 			resets = <&apb1_resets 1>;
 			status = "disabled";
@@ -467,7 +469,7 @@
 		i2c2: i2c@07003000 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x07003000 0x400>;
-			interrupts = <0 8 4>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 2>;
 			resets = <&apb1_resets 2>;
 			status = "disabled";
@@ -478,7 +480,7 @@
 		i2c3: i2c@07003400 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x07003400 0x400>;
-			interrupts = <0 9 4>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 3>;
 			resets = <&apb1_resets 3>;
 			status = "disabled";
@@ -489,7 +491,7 @@
 		i2c4: i2c@07003800 {
 			compatible = "allwinner,sun6i-a31-i2c";
 			reg = <0x07003800 0x400>;
-			interrupts = <0 10 4>;
+			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 4>;
 			resets = <&apb1_resets 4>;
 			status = "disabled";
@@ -500,13 +502,13 @@
 		r_wdt: watchdog@08001000 {
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x08001000 0x20>;
-			interrupts = <0 36 4>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		r_uart: serial@08002800 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x08002800 0x400>;
-			interrupts = <0 38 4>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&osc24M>;
