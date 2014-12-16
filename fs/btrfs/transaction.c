@@ -1020,6 +1020,7 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 	u64 old_root_bytenr;
 	u64 old_root_used;
 	struct btrfs_root *tree_root = root->fs_info->tree_root;
+	bool extent_root = (root->objectid == BTRFS_EXTENT_TREE_OBJECTID);
 
 	old_root_used = btrfs_root_used(&root->root_item);
 	btrfs_write_dirty_block_groups(trans, root);
@@ -1038,7 +1039,12 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 			return ret;
 
 		old_root_used = btrfs_root_used(&root->root_item);
-		ret = btrfs_write_dirty_block_groups(trans, root);
+		if (extent_root) {
+			ret = btrfs_write_dirty_block_groups(trans, root);
+			if (ret)
+				return ret;
+		}
+		ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
 		if (ret)
 			return ret;
 	}
@@ -1097,6 +1103,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 		next = fs_info->dirty_cowonly_roots.next;
 		list_del_init(next);
 		root = list_entry(next, struct btrfs_root, dirty_list);
+		clear_bit(BTRFS_ROOT_DIRTY, &root->state);
 
 		if (root != fs_info->extent_root)
 			list_add_tail(&root->dirty_list,
