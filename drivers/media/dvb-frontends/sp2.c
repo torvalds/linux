@@ -266,7 +266,7 @@ int sp2_ci_poll_slot_status(struct dvb_ca_en50221 *en50221,
 	return s->status;
 }
 
-int sp2_init(struct sp2 *s)
+static int sp2_init(struct sp2 *s)
 {
 	int ret = 0;
 	u8 buf;
@@ -348,7 +348,7 @@ err:
 	return ret;
 }
 
-int sp2_exit(struct i2c_client *client)
+static int sp2_exit(struct i2c_client *client)
 {
 	struct sp2 *s;
 

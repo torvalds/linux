@@ -23,7 +23,6 @@ static char const		*generate_script_lang;
 static bool			debug_mode;
 static u64			last_timestamp;
 static u64			nr_unordered;
-extern const struct option	record_options[];
 static bool			no_callchain;
 static bool			latency_format;
 static bool			system_wide;
@@ -379,7 +378,6 @@ static void print_sample_start(struct perf_sample *sample,
 
 static void print_sample_addr(union perf_event *event,
 			  struct perf_sample *sample,
-			  struct machine *machine,
 			  struct thread *thread,
 			  struct perf_event_attr *attr)
 {
@@ -390,7 +388,7 @@ static void print_sample_addr(union perf_event *event,
 	if (!sample_addr_correlates_sym(attr))
 		return;
 
-	perf_event__preprocess_sample_addr(event, sample, machine, thread, &al);
+	perf_event__preprocess_sample_addr(event, sample, thread, &al);
 
 	if (PRINT_FIELD(SYM)) {
 		printf(" ");
@@ -438,7 +436,7 @@ static void print_sample_bts(union perf_event *event,
 	    ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
 	     !output[attr->type].user_set)) {
 		printf(" => ");
-		print_sample_addr(event, sample, al->machine, thread, attr);
+		print_sample_addr(event, sample, thread, attr);
 	}
 
 	if (print_srcline_last)
@@ -475,7 +473,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 		event_format__print(evsel->tp_format, sample->cpu,
 				    sample->raw_data, sample->raw_size);
 	if (PRINT_FIELD(ADDR))
-		print_sample_addr(event, sample, al->machine, thread, attr);
+		print_sample_addr(event, sample, thread, attr);
 
 	if (PRINT_FIELD(IP)) {
 		if (!symbol_conf.use_callchain)

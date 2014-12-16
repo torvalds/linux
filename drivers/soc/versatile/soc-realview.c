@@ -26,6 +26,7 @@ static const struct of_device_id realview_soc_of_match[] = {
 	{ .compatible = "arm,realview-pb11mp-soc", },
 	{ .compatible = "arm,realview-pba8-soc", },
 	{ .compatible = "arm,realview-pbx-soc", },
+	{ }
 };
 
 static u32 realview_coreid;

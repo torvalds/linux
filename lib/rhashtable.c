@@ -230,7 +230,7 @@ int rhashtable_expand(struct rhashtable *ht, gfp_t flags)
 	ht->shift++;
 
 	/* For each new bucket, search the corresponding old bucket
-	 * for the ﬁrst entry that hashes to the new bucket, and
+	 * for the first entry that hashes to the new bucket, and
 	 * link the new bucket to that entry. Since all the entries
 	 * which will end up in the new bucket appear in the same
 	 * old bucket, this constructs an entirely valid new hash
@@ -248,8 +248,8 @@ int rhashtable_expand(struct rhashtable *ht, gfp_t flags)
 	}
 
 	/* Publish the new table pointer. Lookups may now traverse
-	 * the new table, but they will not beneﬁt from any
-	 * additional efﬁciency until later steps unzip the buckets.
+	 * the new table, but they will not benefit from any
+	 * additional efficiency until later steps unzip the buckets.
 	 */
 	rcu_assign_pointer(ht->tbl, new_tbl);
 
@@ -306,14 +306,14 @@ int rhashtable_shrink(struct rhashtable *ht, gfp_t flags)
 
 	ht->shift--;
 
-	/* Link each bucket in the new table to the ﬁrst bucket
+	/* Link each bucket in the new table to the first bucket
 	 * in the old table that contains entries which will hash
 	 * to the new bucket.
 	 */
 	for (i = 0; i < ntbl->size; i++) {
 		ntbl->buckets[i] = tbl->buckets[i];
 
-		/* Link each bucket in the new table to the ﬁrst bucket
+		/* Link each bucket in the new table to the first bucket
 		 * in the old table that contains entries which will hash
 		 * to the new bucket.
 		 */

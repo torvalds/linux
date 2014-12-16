@@ -264,20 +264,6 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
-	void *data_buf;
-	int is_on_stack;
-
-	is_on_stack = object_is_on_stack(buf);
-	if (is_on_stack) {
-		/*
-		 * dma onto stack is unsafe/nonportable, but callers to this
-		 * routine normally provide temporary on-stack buffers ...
-		 */
-		data_buf = kmalloc(len, GFP_KERNEL);
-		if (!data_buf)
-			return -ENOMEM;
-	} else
-		data_buf = buf;
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -298,7 +284,7 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	data.sg = &sg;
 	data.sg_len = 1;
 
-	sg_init_one(&sg, data_buf, len);
+	sg_init_one(&sg, buf, len);
 
 	if (opcode == MMC_SEND_CSD || opcode == MMC_SEND_CID) {
 		/*
@@ -311,11 +297,6 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		mmc_set_data_timeout(&data, card);
 
 	mmc_wait_for_req(host, &mrq);
-
-	if (is_on_stack) {
-		memcpy(buf, data_buf, len);
-		kfree(data_buf);
-	}
 
 	if (cmd.error)
 		return cmd.error;
@@ -334,7 +315,7 @@ int mmc_send_csd(struct mmc_card *card, u32 *csd)
 		return mmc_send_cxd_native(card->host, card->rca << 16,
 				csd, MMC_SEND_CSD);
 
-	csd_tmp = kmalloc(16, GFP_KERNEL);
+	csd_tmp = kzalloc(16, GFP_KERNEL);
 	if (!csd_tmp)
 		return -ENOMEM;
 
@@ -362,7 +343,7 @@ int mmc_send_cid(struct mmc_host *host, u32 *cid)
 				cid, MMC_SEND_CID);
 	}
 
-	cid_tmp = kmalloc(16, GFP_KERNEL);
+	cid_tmp = kzalloc(16, GFP_KERNEL);
 	if (!cid_tmp)
 		return -ENOMEM;
 
@@ -378,12 +359,35 @@ err:
 	return ret;
 }
 
-int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
+int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 {
-	return mmc_send_cxd_data(card, card->host, MMC_SEND_EXT_CSD,
-			ext_csd, 512);
+	int err;
+	u8 *ext_csd;
+
+	if (!card || !new_ext_csd)
+		return -EINVAL;
+
+	if (!mmc_can_ext_csd(card))
+		return -EOPNOTSUPP;
+
+	/*
+	 * As the ext_csd is so large and mostly unused, we don't store the
+	 * raw block in mmc_card.
+	 */
+	ext_csd = kzalloc(512, GFP_KERNEL);
+	if (!ext_csd)
+		return -ENOMEM;
+
+	err = mmc_send_cxd_data(card, card->host, MMC_SEND_EXT_CSD, ext_csd,
+				512);
+	if (err)
+		kfree(ext_csd);
+	else
+		*new_ext_csd = ext_csd;
+
+	return err;
 }
-EXPORT_SYMBOL_GPL(mmc_send_ext_csd);
+EXPORT_SYMBOL_GPL(mmc_get_ext_csd);
 
 int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 {
@@ -543,6 +547,75 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 }
 EXPORT_SYMBOL_GPL(mmc_switch);
 
+int mmc_send_tuning(struct mmc_host *host)
+{
+	struct mmc_request mrq = {NULL};
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
+	struct scatterlist sg;
+	struct mmc_ios *ios = &host->ios;
+	const u8 *tuning_block_pattern;
+	int size, err = 0;
+	u8 *data_buf;
+	u32 opcode;
+
+	if (ios->bus_width == MMC_BUS_WIDTH_8) {
+		tuning_block_pattern = tuning_blk_pattern_8bit;
+		size = sizeof(tuning_blk_pattern_8bit);
+		opcode = MMC_SEND_TUNING_BLOCK_HS200;
+	} else if (ios->bus_width == MMC_BUS_WIDTH_4) {
+		tuning_block_pattern = tuning_blk_pattern_4bit;
+		size = sizeof(tuning_blk_pattern_4bit);
+		opcode = MMC_SEND_TUNING_BLOCK;
+	} else
+		return -EINVAL;
+
+	data_buf = kzalloc(size, GFP_KERNEL);
+	if (!data_buf)
+		return -ENOMEM;
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	cmd.opcode = opcode;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	data.blksz = size;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+
+	/*
+	 * According to the tuning specs, Tuning process
+	 * is normally shorter 40 executions of CMD19,
+	 * and timeout value should be shorter than 150 ms
+	 */
+	data.timeout_ns = 150 * NSEC_PER_MSEC;
+
+	data.sg = &sg;
+	data.sg_len = 1;
+	sg_init_one(&sg, data_buf, size);
+
+	mmc_wait_for_req(host, &mrq);
+
+	if (cmd.error) {
+		err = cmd.error;
+		goto out;
+	}
+
+	if (data.error) {
+		err = data.error;
+		goto out;
+	}
+
+	if (memcmp(data_buf, tuning_block_pattern, size))
+		err = -EIO;
+
+out:
+	kfree(data_buf);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mmc_send_tuning);
+
 static int
 mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 		  u8 len)
@@ -674,4 +747,9 @@ int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
 		*status = cmd.resp[0];
 
 	return 0;
+}
+
+int mmc_can_ext_csd(struct mmc_card *card)
+{
+	return (card && card->csd.mmca_vsn > CSD_SPEC_VER_3);
 }

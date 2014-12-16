@@ -124,7 +124,7 @@ void __init load_ucode_bsp(void)
 static bool check_loader_disabled_ap(void)
 {
 #ifdef CONFIG_X86_32
-	return __pa_nodebug(dis_ucode_ldr);
+	return *((bool *)__pa_nodebug(&dis_ucode_ldr));
 #else
 	return dis_ucode_ldr;
 #endif
@@ -175,4 +175,25 @@ int __init save_microcode_in_initrd(void)
 	}
 
 	return 0;
+}
+
+void reload_early_microcode(void)
+{
+	int vendor, x86;
+
+	vendor = x86_vendor();
+	x86 = x86_family();
+
+	switch (vendor) {
+	case X86_VENDOR_INTEL:
+		if (x86 >= 6)
+			reload_ucode_intel();
+		break;
+	case X86_VENDOR_AMD:
+		if (x86 >= 0x10)
+			reload_ucode_amd();
+		break;
+	default:
+		break;
+	}
 }

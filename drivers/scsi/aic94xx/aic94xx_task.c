@@ -543,8 +543,7 @@ static int asd_can_queue(struct asd_ha_struct *asd_ha, int num)
 	return res;
 }
 
-int asd_execute_task(struct sas_task *task, const int num,
-		     gfp_t gfp_flags)
+int asd_execute_task(struct sas_task *task, gfp_t gfp_flags)
 {
 	int res = 0;
 	LIST_HEAD(alist);
@@ -553,11 +552,11 @@ int asd_execute_task(struct sas_task *task, const int num,
 	struct asd_ha_struct *asd_ha = task->dev->port->ha->lldd_ha;
 	unsigned long flags;
 
-	res = asd_can_queue(asd_ha, num);
+	res = asd_can_queue(asd_ha, 1);
 	if (res)
 		return res;
 
-	res = num;
+	res = 1;
 	ascb = asd_ascb_alloc_list(asd_ha, &res, gfp_flags);
 	if (res) {
 		res = -ENOMEM;
@@ -568,7 +567,7 @@ int asd_execute_task(struct sas_task *task, const int num,
 	list_for_each_entry(a, &alist, list) {
 		a->uldd_task = t;
 		t->lldd_task = a;
-		t = list_entry(t->list.next, struct sas_task, list);
+		break;
 	}
 	list_for_each_entry(a, &alist, list) {
 		t = a->uldd_task;
@@ -601,7 +600,7 @@ int asd_execute_task(struct sas_task *task, const int num,
 	}
 	list_del_init(&alist);
 
-	res = asd_post_ascb_list(asd_ha, ascb, num);
+	res = asd_post_ascb_list(asd_ha, ascb, 1);
 	if (unlikely(res)) {
 		a = NULL;
 		__list_add(&alist, ascb->list.prev, &ascb->list);
@@ -639,6 +638,6 @@ out_err_unmap:
 out_err:
 	if (ascb)
 		asd_ascb_free_list(ascb);
-	asd_can_dequeue(asd_ha, num);
+	asd_can_dequeue(asd_ha, 1);
 	return res;
 }

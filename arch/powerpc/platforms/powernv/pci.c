@@ -50,7 +50,6 @@ static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
-	struct pci_dn *pdn = pci_get_pdn(pdev);
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	int hwirq;
@@ -60,7 +59,7 @@ static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	if (WARN_ON(!phb) || !phb->msi_bmp.bitmap)
 		return -ENODEV;
 
-	if (pdn && pdn->force_32bit_msi && !phb->msi32_support)
+	if (pdev->no_64bit_msi && !phb->msi32_support)
 		return -ENODEV;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
@@ -91,7 +90,7 @@ static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			return rc;
 		}
 		irq_set_msi_desc(virq, entry);
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 	return 0;
 }

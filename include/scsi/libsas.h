@@ -365,12 +365,6 @@ struct asd_sas_phy {
 struct scsi_core {
 	struct Scsi_Host *shost;
 
-	struct mutex	  task_queue_flush;
-	spinlock_t        task_queue_lock;
-	struct list_head  task_queue;
-	int               task_queue_size;
-
-	struct task_struct *queue_thread;
 };
 
 struct sas_ha_event {
@@ -422,9 +416,6 @@ struct sas_ha_struct {
 	struct asd_sas_port **sas_port; /* array of valid pointers, must be set */
 	int             num_phys; /* must be set, gt 0, static */
 
-	/* The class calls this to send a task for execution. */
-	int lldd_max_execute_num;
-	int lldd_queue_size;
 	int strict_wide_ports; /* both sas_addr and attached_sas_addr must match
 				* their siblings when forming wide ports */
 
@@ -612,7 +603,6 @@ struct sas_ssp_task {
 
 struct sas_task {
 	struct domain_device *dev;
-	struct list_head      list;
 
 	spinlock_t   task_state_lock;
 	unsigned     task_state_flags;
@@ -665,8 +655,7 @@ struct sas_domain_function_template {
 	int  (*lldd_dev_found)(struct domain_device *);
 	void (*lldd_dev_gone)(struct domain_device *);
 
-	int (*lldd_execute_task)(struct sas_task *, int num,
-				 gfp_t gfp_flags);
+	int (*lldd_execute_task)(struct sas_task *, gfp_t gfp_flags);
 
 	/* Task Management Functions. Must be called from process context. */
 	int (*lldd_abort_task)(struct sas_task *);
@@ -700,12 +689,10 @@ extern void sas_suspend_ha(struct sas_ha_struct *sas_ha);
 int sas_set_phy_speed(struct sas_phy *phy,
 		      struct sas_phy_linkrates *rates);
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
-int sas_queue_up(struct sas_task *task);
 extern int sas_queuecommand(struct Scsi_Host * ,struct scsi_cmnd *);
 extern int sas_target_alloc(struct scsi_target *);
 extern int sas_slave_configure(struct scsi_device *);
-extern int sas_change_queue_depth(struct scsi_device *, int new_depth,
-				  int reason);
+extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
 extern int sas_change_queue_type(struct scsi_device *, int qt);
 extern int sas_bios_param(struct scsi_device *,
 			  struct block_device *,

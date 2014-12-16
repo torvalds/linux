@@ -246,11 +246,11 @@ static void update_ipv6_checksum(struct sk_buff *skb, u8 l4_proto,
 {
 	int transport_len = skb->len - skb_transport_offset(skb);
 
-	if (l4_proto == IPPROTO_TCP) {
+	if (l4_proto == NEXTHDR_TCP) {
 		if (likely(transport_len >= sizeof(struct tcphdr)))
 			inet_proto_csum_replace16(&tcp_hdr(skb)->check, skb,
 						  addr, new_addr, 1);
-	} else if (l4_proto == IPPROTO_UDP) {
+	} else if (l4_proto == NEXTHDR_UDP) {
 		if (likely(transport_len >= sizeof(struct udphdr))) {
 			struct udphdr *uh = udp_hdr(skb);
 
@@ -261,6 +261,10 @@ static void update_ipv6_checksum(struct sk_buff *skb, u8 l4_proto,
 					uh->check = CSUM_MANGLED_0;
 			}
 		}
+	} else if (l4_proto == NEXTHDR_ICMP) {
+		if (likely(transport_len >= sizeof(struct icmp6hdr)))
+			inet_proto_csum_replace16(&icmp6_hdr(skb)->icmp6_cksum,
+						  skb, addr, new_addr, 1);
 	}
 }
 
@@ -722,8 +726,6 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_SAMPLE:
 			err = sample(dp, skb, key, a);
-			if (unlikely(err)) /* skb already freed. */
-				return err;
 			break;
 		}
 

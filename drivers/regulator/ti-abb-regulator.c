@@ -837,7 +837,8 @@ skip_opt:
 		return -EINVAL;
 	}
 
-	initdata = of_get_regulator_init_data(dev, pdev->dev.of_node);
+	initdata = of_get_regulator_init_data(dev, pdev->dev.of_node,
+					      &abb->rdesc);
 	if (!initdata) {
 		dev_err(dev, "%s: Unable to alloc regulator init data\n",
 			__func__);

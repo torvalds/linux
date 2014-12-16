@@ -911,7 +911,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.module                 = THIS_MODULE,
 	.name                   = "iSCSI Initiator over iSER",
 	.queuecommand           = iscsi_queuecommand,
-	.change_queue_depth	= iscsi_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,
 	.max_sectors		= 1024,
 	.cmd_per_lun            = ISER_DEF_CMD_PER_LUN,
@@ -922,6 +922,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.use_clustering         = DISABLE_CLUSTERING,
 	.proc_name              = "iscsi_iser",
 	.this_id                = -1,
+	.track_queue_depth	= 1,
 };
 
 static struct iscsi_transport iscsi_iser_transport = {

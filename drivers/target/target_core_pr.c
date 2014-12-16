@@ -459,7 +459,7 @@ static int core_scsi3_pr_seq_non_holder(
 	case ACCESS_CONTROL_OUT:
 	case INQUIRY:
 	case LOG_SENSE:
-	case READ_MEDIA_SERIAL_NUMBER:
+	case SERVICE_ACTION_IN_12:
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
 	case PERSISTENT_RESERVE_IN:
@@ -2738,7 +2738,8 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp, *pr_reg_n, *pr_res_holder;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	u32 pr_res_mapped_lun = 0;
-	int all_reg = 0, calling_it_nexus = 0, released_regs = 0;
+	int all_reg = 0, calling_it_nexus = 0;
+	bool sa_res_key_unmatched = sa_res_key != 0;
 	int prh_type = 0, prh_scope = 0;
 
 	if (!se_sess)
@@ -2813,6 +2814,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 			if (!all_reg) {
 				if (pr_reg->pr_res_key != sa_res_key)
 					continue;
+				sa_res_key_unmatched = false;
 
 				calling_it_nexus = (pr_reg_n == pr_reg) ? 1 : 0;
 				pr_reg_nacl = pr_reg->pr_reg_nacl;
@@ -2820,7 +2822,6 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 				__core_scsi3_free_registration(dev, pr_reg,
 					(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list :
 						NULL, calling_it_nexus);
-				released_regs++;
 			} else {
 				/*
 				 * Case for any existing all registrants type
@@ -2838,6 +2839,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 				if ((sa_res_key) &&
 				     (pr_reg->pr_res_key != sa_res_key))
 					continue;
+				sa_res_key_unmatched = false;
 
 				calling_it_nexus = (pr_reg_n == pr_reg) ? 1 : 0;
 				if (calling_it_nexus)
@@ -2848,7 +2850,6 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 				__core_scsi3_free_registration(dev, pr_reg,
 					(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list :
 						NULL, 0);
-				released_regs++;
 			}
 			if (!calling_it_nexus)
 				core_scsi3_ua_allocate(pr_reg_nacl,
@@ -2863,7 +2864,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 		 * registered reservation key, then the device server shall
 		 * complete the command with RESERVATION CONFLICT status.
 		 */
-		if (!released_regs) {
+		if (sa_res_key_unmatched) {
 			spin_unlock(&dev->dev_reservation_lock);
 			core_scsi3_put_pr_reg(pr_reg_n);
 			return TCM_RESERVATION_CONFLICT;

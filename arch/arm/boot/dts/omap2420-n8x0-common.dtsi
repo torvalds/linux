@@ -40,14 +40,14 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x04000000 0x10000000>;
+	ranges = <0 0 0x04000000 0x1000000>;	/* CS0: 16MB for OneNAND */
 
 	/* gpio-irq for dma: 26 */
 
 	onenand@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0 0 0x10000000>;
+		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
 
 		gpmc,sync-read;
 		gpmc,burst-length = <16>;

@@ -144,6 +144,8 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 	gnvh = (struct genevehdr *)__skb_push(skb, sizeof(*gnvh) + opt_len);
 	geneve_build_header(gnvh, tun_flags, vni, opt_len, opt);
 
+	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
+
 	return udp_tunnel_xmit_skb(gs->sock, rt, skb, src, dst,
 				   tos, ttl, df, src_port, dst_port, xnet);
 }
@@ -364,6 +366,7 @@ late_initcall(geneve_init_module);
 static void __exit geneve_cleanup_module(void)
 {
 	destroy_workqueue(geneve_wq);
+	unregister_pernet_subsys(&geneve_net_ops);
 }
 module_exit(geneve_cleanup_module);
 

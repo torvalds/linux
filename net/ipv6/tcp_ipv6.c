@@ -903,7 +903,10 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	if (th->rst)
 		return;
 
-	if (!ipv6_unicast_destination(skb))
+	/* If sk not NULL, it means we did a successful lookup and incoming
+	 * route had to be correct. prequeue might have dropped our dst.
+	 */
+	if (!sk && !ipv6_unicast_destination(skb))
 		return;
 
 #ifdef CONFIG_TCP_MD5SIG

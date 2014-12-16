@@ -26,6 +26,7 @@
 #include <linux/of_pci.h>
 #include <linux/irqdomain.h>
 #include <linux/slab.h>
+#include <linux/syscore_ops.h>
 #include <linux/msi.h>
 #include <asm/mach/arch.h>
 #include <asm/exception.h>
@@ -43,6 +44,7 @@
 #define ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS	(0x34)
 #define ARMADA_370_XP_INT_SOURCE_CTL(irq)	(0x100 + irq*4)
 #define ARMADA_370_XP_INT_SOURCE_CPU_MASK	0xF
+#define ARMADA_370_XP_INT_IRQ_FIQ_MASK(cpuid)	((BIT(0) | BIT(8)) << cpuid)
 
 #define ARMADA_370_XP_CPU_INTACK_OFFS		(0x44)
 #define ARMADA_375_PPI_CAUSE			(0x10)
@@ -66,6 +68,7 @@
 static void __iomem *per_cpu_int_base;
 static void __iomem *main_int_base;
 static struct irq_domain *armada_370_xp_mpic_domain;
+static u32 doorbell_mask_reg;
 #ifdef CONFIG_PCI_MSI
 static struct irq_domain *armada_370_xp_msi_domain;
 static DECLARE_BITMAP(msi_used, PCI_MSI_DOORBELL_NR);
@@ -129,7 +132,7 @@ static void armada_370_xp_free_msi(int hwirq)
 	mutex_unlock(&msi_used_lock);
 }
 
-static int armada_370_xp_setup_msi_irq(struct msi_chip *chip,
+static int armada_370_xp_setup_msi_irq(struct msi_controller *chip,
 				       struct pci_dev *pdev,
 				       struct msi_desc *desc)
 {
@@ -156,11 +159,11 @@ static int armada_370_xp_setup_msi_irq(struct msi_chip *chip,
 	msg.address_hi = 0;
 	msg.data = 0xf00 | (hwirq + 16);
 
-	write_msi_msg(virq, &msg);
+	pci_write_msi_msg(virq, &msg);
 	return 0;
 }
 
-static void armada_370_xp_teardown_msi_irq(struct msi_chip *chip,
+static void armada_370_xp_teardown_msi_irq(struct msi_controller *chip,
 					   unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
@@ -172,10 +175,10 @@ static void armada_370_xp_teardown_msi_irq(struct msi_chip *chip,
 
 static struct irq_chip armada_370_xp_msi_irq_chip = {
 	.name = "armada_370_xp_msi_irq",
-	.irq_enable = unmask_msi_irq,
-	.irq_disable = mask_msi_irq,
-	.irq_mask = mask_msi_irq,
-	.irq_unmask = unmask_msi_irq,
+	.irq_enable = pci_msi_unmask_irq,
+	.irq_disable = pci_msi_mask_irq,
+	.irq_mask = pci_msi_mask_irq,
+	.irq_unmask = pci_msi_unmask_irq,
 };
 
 static int armada_370_xp_msi_map(struct irq_domain *domain, unsigned int virq,
@@ -195,7 +198,7 @@ static const struct irq_domain_ops armada_370_xp_msi_irq_ops = {
 static int armada_370_xp_msi_init(struct device_node *node,
 				  phys_addr_t main_int_phys_base)
 {
-	struct msi_chip *msi_chip;
+	struct msi_controller *msi_chip;
 	u32 reg;
 	int ret;
 
@@ -265,7 +268,7 @@ static int armada_xp_set_affinity(struct irq_data *d,
 	writel(reg, main_int_base + ARMADA_370_XP_INT_SOURCE_CTL(hwirq));
 	raw_spin_unlock(&irq_controller_lock);
 
-	return 0;
+	return IRQ_SET_MASK_OK;
 }
 #endif
 
@@ -406,19 +409,29 @@ static void armada_370_xp_mpic_handle_cascade_irq(unsigned int irq,
 						  struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_get_chip(irq);
-	unsigned long irqmap, irqn;
+	unsigned long irqmap, irqn, irqsrc, cpuid;
 	unsigned int cascade_irq;
 
 	chained_irq_enter(chip, desc);
 
 	irqmap = readl_relaxed(per_cpu_int_base + ARMADA_375_PPI_CAUSE);
-
-	if (irqmap & BIT(0)) {
-		armada_370_xp_handle_msi_irq(NULL, true);
-		irqmap &= ~BIT(0);
-	}
+	cpuid = cpu_logical_map(smp_processor_id());
 
 	for_each_set_bit(irqn, &irqmap, BITS_PER_LONG) {
+		irqsrc = readl_relaxed(main_int_base +
+				       ARMADA_370_XP_INT_SOURCE_CTL(irqn));
+
+		/* Check if the interrupt is not masked on current CPU.
+		 * Test IRQ (0-1) and FIQ (8-9) mask bits.
+		 */
+		if (!(irqsrc & ARMADA_370_XP_INT_IRQ_FIQ_MASK(cpuid)))
+			continue;
+
+		if (irqn == 1) {
+			armada_370_xp_handle_msi_irq(NULL, true);
+			continue;
+		}
+
 		cascade_irq = irq_find_mapping(armada_370_xp_mpic_domain, irqn);
 		generic_handle_irq(cascade_irq);
 	}
@@ -473,6 +486,54 @@ armada_370_xp_handle_irq(struct pt_regs *regs)
 
 	} while (1);
 }
+
+static int armada_370_xp_mpic_suspend(void)
+{
+	doorbell_mask_reg = readl(per_cpu_int_base +
+				  ARMADA_370_XP_IN_DRBEL_MSK_OFFS);
+	return 0;
+}
+
+static void armada_370_xp_mpic_resume(void)
+{
+	int nirqs;
+	irq_hw_number_t irq;
+
+	/* Re-enable interrupts */
+	nirqs = (readl(main_int_base + ARMADA_370_XP_INT_CONTROL) >> 2) & 0x3ff;
+	for (irq = 0; irq < nirqs; irq++) {
+		struct irq_data *data;
+		int virq;
+
+		virq = irq_linear_revmap(armada_370_xp_mpic_domain, irq);
+		if (virq == 0)
+			continue;
+
+		if (irq != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
+			writel(irq, per_cpu_int_base +
+			       ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
+		else
+			writel(irq, main_int_base +
+			       ARMADA_370_XP_INT_SET_ENABLE_OFFS);
+
+		data = irq_get_irq_data(virq);
+		if (!irqd_irq_disabled(data))
+			armada_370_xp_irq_unmask(data);
+	}
+
+	/* Reconfigure doorbells for IPIs and MSIs */
+	writel(doorbell_mask_reg,
+	       per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK_OFFS);
+	if (doorbell_mask_reg & IPI_DOORBELL_MASK)
+		writel(0, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
+	if (doorbell_mask_reg & PCI_MSI_DOORBELL_MASK)
+		writel(1, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
+}
+
+struct syscore_ops armada_370_xp_mpic_syscore_ops = {
+	.suspend	= armada_370_xp_mpic_suspend,
+	.resume		= armada_370_xp_mpic_resume,
+};
 
 static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 					     struct device_node *parent)
@@ -529,6 +590,8 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 		irq_set_chained_handler(parent_irq,
 					armada_370_xp_mpic_handle_cascade_irq);
 	}
+
+	register_syscore_ops(&armada_370_xp_mpic_syscore_ops);
 
 	return 0;
 }

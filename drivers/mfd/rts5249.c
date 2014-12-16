@@ -130,6 +130,10 @@ static int rts5249_optimize_phy(struct rtsx_pcr *pcr)
 {
 	int err;
 
+	err = rtsx_gops_pm_reset(pcr);
+	if (err < 0)
+		return err;
+
 	err = rtsx_pci_write_phy_register(pcr, PHY_REG_REV,
 			PHY_REG_REV_RESV | PHY_REG_REV_RXIDLE_LATCHED |
 			PHY_REG_REV_P1_EN | PHY_REG_REV_RXIDLE_EN |

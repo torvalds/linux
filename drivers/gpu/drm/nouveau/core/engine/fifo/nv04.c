@@ -551,8 +551,8 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 			}
 
 			if (status & 0x40000000) {
-				nouveau_fifo_uevent(&priv->base);
 				nv_wr32(priv, 0x002100, 0x40000000);
+				nouveau_fifo_uevent(&priv->base);
 				status &= ~0x40000000;
 			}
 		}

@@ -1266,7 +1266,7 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 	blk_clear_rq_complete(rq);
 	trace_block_rq_requeue(q, rq);
 
-	if (blk_rq_tagged(rq))
+	if (rq->cmd_flags & REQ_QUEUED)
 		blk_queue_end_tag(q, rq);
 
 	BUG_ON(blk_queued_rq(rq));
@@ -2554,7 +2554,7 @@ EXPORT_SYMBOL_GPL(blk_unprep_request);
  */
 void blk_finish_request(struct request *req, int error)
 {
-	if (blk_rq_tagged(req))
+	if (req->cmd_flags & REQ_QUEUED)
 		blk_queue_end_tag(req->q, req);
 
 	BUG_ON(blk_queued_rq(req));

@@ -1522,13 +1522,36 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 		dpcm_init_runtime_hw(runtime, &cpu_dai_drv->capture);
 }
 
+static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd);
+
+/* Set FE's runtime_update state; the state is protected via PCM stream lock
+ * for avoiding the race with trigger callback.
+ * If the state is unset and a trigger is pending while the previous operation,
+ * process the pending trigger action here.
+ */
+static void dpcm_set_fe_update_state(struct snd_soc_pcm_runtime *fe,
+				     int stream, enum snd_soc_dpcm_update state)
+{
+	struct snd_pcm_substream *substream =
+		snd_soc_dpcm_get_substream(fe, stream);
+
+	snd_pcm_stream_lock_irq(substream);
+	if (state == SND_SOC_DPCM_UPDATE_NO && fe->dpcm[stream].trigger_pending) {
+		dpcm_fe_dai_do_trigger(substream,
+				       fe->dpcm[stream].trigger_pending - 1);
+		fe->dpcm[stream].trigger_pending = 0;
+	}
+	fe->dpcm[stream].runtime_update = state;
+	snd_pcm_stream_unlock_irq(substream);
+}
+
 static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 {
 	struct snd_soc_pcm_runtime *fe = fe_substream->private_data;
 	struct snd_pcm_runtime *runtime = fe_substream->runtime;
 	int stream = fe_substream->stream, ret = 0;
 
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
 	ret = dpcm_be_dai_startup(fe, fe_substream->stream);
 	if (ret < 0) {
@@ -1550,13 +1573,13 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	dpcm_set_fe_runtime(fe_substream);
 	snd_pcm_limit_hw_rates(runtime);
 
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	return 0;
 
 unwind:
 	dpcm_be_dai_startup_unwind(fe, fe_substream->stream);
 be_err:
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	return ret;
 }
 
@@ -1603,7 +1626,7 @@ static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *fe = substream->private_data;
 	int stream = substream->stream;
 
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
 	/* shutdown the BEs */
 	dpcm_be_dai_shutdown(fe, substream->stream);
@@ -1617,7 +1640,7 @@ static int dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_STOP);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	return 0;
 }
 
@@ -1665,7 +1688,7 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 	int err, stream = substream->stream;
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
 	dev_dbg(fe->dev, "ASoC: hw_free FE %s\n", fe->dai_link->name);
 
@@ -1680,7 +1703,7 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 	err = dpcm_be_dai_hw_free(fe, stream);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 
 	mutex_unlock(&fe->card->mutex);
 	return 0;
@@ -1773,7 +1796,7 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 	int ret, stream = substream->stream;
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
 	memcpy(&fe->dpcm[substream->stream].hw_params, params,
 			sizeof(struct snd_pcm_hw_params));
@@ -1796,7 +1819,7 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 		fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_PARAMS;
 
 out:
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	mutex_unlock(&fe->card->mutex);
 	return ret;
 }
@@ -1910,7 +1933,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 }
 EXPORT_SYMBOL_GPL(dpcm_be_dai_trigger);
 
-static int dpcm_fe_dai_trigger(struct snd_pcm_substream *substream, int cmd)
+static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *fe = substream->private_data;
 	int stream = substream->stream, ret;
@@ -1984,6 +2007,23 @@ out:
 	return ret;
 }
 
+static int dpcm_fe_dai_trigger(struct snd_pcm_substream *substream, int cmd)
+{
+	struct snd_soc_pcm_runtime *fe = substream->private_data;
+	int stream = substream->stream;
+
+	/* if FE's runtime_update is already set, we're in race;
+	 * process this trigger later at exit
+	 */
+	if (fe->dpcm[stream].runtime_update != SND_SOC_DPCM_UPDATE_NO) {
+		fe->dpcm[stream].trigger_pending = cmd + 1;
+		return 0; /* delayed, assuming it's successful */
+	}
+
+	/* we're alone, let's trigger */
+	return dpcm_fe_dai_do_trigger(substream, cmd);
+}
+
 int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm *dpcm;
@@ -2027,7 +2067,7 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 
 	dev_dbg(fe->dev, "ASoC: prepare FE %s\n", fe->dai_link->name);
 
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
 	/* there is no point preparing this FE if there are no BEs */
 	if (list_empty(&fe->dpcm[stream].be_clients)) {
@@ -2054,7 +2094,7 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 
 out:
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 	mutex_unlock(&fe->card->mutex);
 
 	return ret;
@@ -2201,11 +2241,11 @@ static int dpcm_run_new_update(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	int ret;
 
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_BE;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_BE);
 	ret = dpcm_run_update_startup(fe, stream);
 	if (ret < 0)
 		dev_err(fe->dev, "ASoC: failed to startup some BEs\n");
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 
 	return ret;
 }
@@ -2214,11 +2254,11 @@ static int dpcm_run_old_update(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	int ret;
 
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_BE;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_BE);
 	ret = dpcm_run_update_shutdown(fe, stream);
 	if (ret < 0)
 		dev_err(fe->dev, "ASoC: failed to shutdown some BEs\n");
-	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
 
 	return ret;
 }

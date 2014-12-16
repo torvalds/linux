@@ -388,19 +388,101 @@ static void update_shadow_stats(struct perf_evsel *counter, u64 *count)
 		update_stats(&runtime_itlb_cache_stats[0], count[0]);
 }
 
+static void zero_per_pkg(struct perf_evsel *counter)
+{
+	if (counter->per_pkg_mask)
+		memset(counter->per_pkg_mask, 0, MAX_NR_CPUS);
+}
+
+static int check_per_pkg(struct perf_evsel *counter, int cpu, bool *skip)
+{
+	unsigned long *mask = counter->per_pkg_mask;
+	struct cpu_map *cpus = perf_evsel__cpus(counter);
+	int s;
+
+	*skip = false;
+
+	if (!counter->per_pkg)
+		return 0;
+
+	if (cpu_map__empty(cpus))
+		return 0;
+
+	if (!mask) {
+		mask = zalloc(MAX_NR_CPUS);
+		if (!mask)
+			return -ENOMEM;
+
+		counter->per_pkg_mask = mask;
+	}
+
+	s = cpu_map__get_socket(cpus, cpu);
+	if (s < 0)
+		return -1;
+
+	*skip = test_and_set_bit(s, mask) == 1;
+	return 0;
+}
+
+static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
+		   struct perf_counts_values *count)
+{
+	struct perf_counts_values *aggr = &evsel->counts->aggr;
+	static struct perf_counts_values zero;
+	bool skip = false;
+
+	if (check_per_pkg(evsel, cpu, &skip)) {
+		pr_err("failed to read per-pkg counter\n");
+		return -1;
+	}
+
+	if (skip)
+		count = &zero;
+
+	switch (aggr_mode) {
+	case AGGR_CORE:
+	case AGGR_SOCKET:
+	case AGGR_NONE:
+		if (!evsel->snapshot)
+			perf_evsel__compute_deltas(evsel, cpu, count);
+		perf_counts_values__scale(count, scale, NULL);
+		evsel->counts->cpu[cpu] = *count;
+		update_shadow_stats(evsel, count->values);
+		break;
+	case AGGR_GLOBAL:
+		aggr->val += count->val;
+		if (scale) {
+			aggr->ena += count->ena;
+			aggr->run += count->run;
+		}
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int read_counter(struct perf_evsel *counter);
+
 /*
  * Read out the results of a single counter:
  * aggregate counts across CPUs in system-wide mode
  */
 static int read_counter_aggr(struct perf_evsel *counter)
 {
+	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat *ps = counter->priv;
 	u64 *count = counter->counts->aggr.values;
 	int i;
 
-	if (__perf_evsel__read(counter, perf_evsel__nr_cpus(counter),
-			       thread_map__nr(evsel_list->threads), scale) < 0)
+	aggr->val = aggr->ena = aggr->run = 0;
+
+	if (read_counter(counter))
 		return -1;
+
+	if (!counter->snapshot)
+		perf_evsel__compute_deltas(counter, -1, aggr);
+	perf_counts_values__scale(aggr, scale, &counter->counts->scaled);
 
 	for (i = 0; i < 3; i++)
 		update_stats(&ps->res_stats[i], count[i]);
@@ -424,16 +506,21 @@ static int read_counter_aggr(struct perf_evsel *counter)
  */
 static int read_counter(struct perf_evsel *counter)
 {
-	u64 *count;
-	int cpu;
+	int nthreads = thread_map__nr(evsel_list->threads);
+	int ncpus = perf_evsel__nr_cpus(counter);
+	int cpu, thread;
 
-	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-		if (__perf_evsel__read_on_cpu(counter, cpu, 0, scale) < 0)
-			return -1;
+	if (counter->system_wide)
+		nthreads = 1;
 
-		count = counter->counts->cpu[cpu].values;
+	if (counter->per_pkg)
+		zero_per_pkg(counter);
 
-		update_shadow_stats(counter, count);
+	for (thread = 0; thread < nthreads; thread++) {
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			if (perf_evsel__read_cb(counter, cpu, thread, read_cb))
+				return -1;
+		}
 	}
 
 	return 0;

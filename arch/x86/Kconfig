@@ -144,7 +144,7 @@ config INSTRUCTION_DECODER
 
 config PERF_EVENTS_INTEL_UNCORE
 	def_bool y
-	depends on PERF_EVENTS && SUP_SUP_INTEL && PCI
+	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
 
 config OUTPUT_FORMAT
 	string
@@ -247,6 +247,10 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config HAVE_INTEL_TXT
 	def_bool y
 	depends on INTEL_IOMMU && ACPI
+
+config X86_INTEL_MPX
+	def_bool y
+	depends on CPU_SUP_INTEL
 
 config X86_32_SMP
 	def_bool y
@@ -987,6 +991,24 @@ config X86_ESPFIX32
 config X86_ESPFIX64
 	def_bool y
 	depends on X86_16BIT && X86_64
+
+config X86_VSYSCALL_EMULATION
+       bool "Enable vsyscall emulation" if EXPERT
+       default y
+       depends on X86_64
+       ---help---
+	 This enables emulation of the legacy vsyscall page.  Disabling
+	 it is roughly equivalent to booting with vsyscall=none, except
+	 that it will also disable the helpful warning if a program
+	 tries to use a vsyscall.  With this option set to N, offending
+	 programs will just segfault, citing addresses of the form
+	 0xffffffffff600?00.
+
+	 This option is required by many programs built before 2013, and
+	 care should be used even with newer programs if set to N.
+
+	 Disabling this option saves about 7K of kernel size and
+	 possibly 4K of additional runtime pagetable memory.
 
 config TOSHIBA
 	tristate "Toshiba Laptop support"

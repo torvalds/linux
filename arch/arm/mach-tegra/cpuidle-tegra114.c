@@ -49,7 +49,7 @@ static int tegra114_idle_power_down(struct cpuidle_device *dev,
 	call_firmware_op(prepare_idle);
 
 	/* Do suspend by ourselves if the firmware does not implement it */
-	if (call_firmware_op(do_idle) == -ENOSYS)
+	if (call_firmware_op(do_idle, 0) == -ENOSYS)
 		cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);

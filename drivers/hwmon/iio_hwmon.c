@@ -63,7 +63,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	struct iio_hwmon_state *st;
 	struct sensor_device_attribute *a;
 	int ret, i;
-	int in_i = 1, temp_i = 1, curr_i = 1;
+	int in_i = 1, temp_i = 1, curr_i = 1, humidity_i = 1;
 	enum iio_chan_type type;
 	struct iio_channel *channels;
 	const char *name = "iio_hwmon";
@@ -122,6 +122,11 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 			a->dev_attr.attr.name = kasprintf(GFP_KERNEL,
 							  "curr%d_input",
 							  curr_i++);
+			break;
+		case IIO_HUMIDITYRELATIVE:
+			a->dev_attr.attr.name = kasprintf(GFP_KERNEL,
+							  "humidity%d_input",
+							  humidity_i++);
 			break;
 		default:
 			ret = -EINVAL;

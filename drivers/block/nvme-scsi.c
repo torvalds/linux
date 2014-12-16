@@ -329,7 +329,7 @@ INQUIRY_EVPD_BIT_MASK) ? 1 : 0)
 (GET_U32_FROM_CDB(cdb, READ_CAP_16_CDB_ALLOC_LENGTH_OFFSET))
 
 #define IS_READ_CAP_16(cdb)					\
-((cdb[0] == SERVICE_ACTION_IN && cdb[1] == SAI_READ_CAPACITY_16) ? 1 : 0)
+((cdb[0] == SERVICE_ACTION_IN_16 && cdb[1] == SAI_READ_CAPACITY_16) ? 1 : 0)
 
 /* Request Sense Helper Macros */
 #define GET_REQUEST_SENSE_ALLOC_LENGTH(cdb)			\
@@ -2947,7 +2947,7 @@ static int nvme_scsi_translate(struct nvme_ns *ns, struct sg_io_hdr *hdr)
 	case READ_CAPACITY:
 		retcode = nvme_trans_read_capacity(ns, hdr, cmd);
 		break;
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		if (IS_READ_CAP_16(cmd))
 			retcode = nvme_trans_read_capacity(ns, hdr, cmd);
 		else

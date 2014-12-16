@@ -88,6 +88,9 @@ struct mmc_ext_csd {
 	unsigned int            data_tag_unit_size;     /* DATA TAG UNIT size */
 	unsigned int		boot_ro_lock;		/* ro lock support */
 	bool			boot_ro_lockable;
+	bool			ffu_capable;	/* Firmware upgrade support */
+#define MMC_FIRMWARE_LEN 8
+	u8			fwrev[MMC_FIRMWARE_LEN];  /* FW version */
 	u8			raw_exception_status;	/* 54 */
 	u8			raw_partition_support;	/* 160 */
 	u8			raw_rpmb_size_mult;	/* 168 */
@@ -509,24 +512,8 @@ static inline int mmc_card_broken_irq_polling(const struct mmc_card *c)
 
 #define mmc_dev_to_card(d)	container_of(d, struct mmc_card, dev)
 
-#define mmc_list_to_card(l)	container_of(l, struct mmc_card, node)
-#define mmc_get_drvdata(c)	dev_get_drvdata(&(c)->dev)
-#define mmc_set_drvdata(c,d)	dev_set_drvdata(&(c)->dev, d)
-
-/*
- * MMC device driver (e.g., Flash card, I/O card...)
- */
-struct mmc_driver {
-	struct device_driver drv;
-	int (*probe)(struct mmc_card *);
-	void (*remove)(struct mmc_card *);
-	int (*suspend)(struct mmc_card *);
-	int (*resume)(struct mmc_card *);
-	void (*shutdown)(struct mmc_card *);
-};
-
-extern int mmc_register_driver(struct mmc_driver *);
-extern void mmc_unregister_driver(struct mmc_driver *);
+extern int mmc_register_driver(struct device_driver *);
+extern void mmc_unregister_driver(struct device_driver *);
 
 extern void mmc_fixup_device(struct mmc_card *card,
 			     const struct mmc_fixup *table);

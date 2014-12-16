@@ -227,6 +227,15 @@ nodes to be present and contain the properties described below.
 			# List of phandles to idle state nodes supported
 			  by this cpu [3].
 
+	- rockchip,pmu
+		Usage: optional for systems that have an "enable-method"
+		       property value of "rockchip,rk3066-smp"
+		       While optional, it is the preferred way to get access to
+		       the cpu-core power-domains.
+		Value type: <phandle>
+		Definition: Specifies the syscon node controlling the cpu core
+			    power domains.
+
 Example 1 (dual-cluster big.LITTLE system 32-bit):
 
 	cpus {

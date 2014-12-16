@@ -1104,7 +1104,8 @@ static int twlreg_probe(struct platform_device *pdev)
 		template = match->data;
 		id = template->desc.id;
 		initdata = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node);
+						      pdev->dev.of_node,
+						      &template->desc);
 		drvdata = NULL;
 	} else {
 		id = pdev->id;

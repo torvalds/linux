@@ -1341,13 +1341,15 @@ config SCSI_DC395x
 	  To compile this driver as a module, choose M here: the
 	  module will be called dc395x.
 
-config SCSI_DC390T
-	tristate "Tekram DC390(T) and Am53/79C974 SCSI support"
+config SCSI_AM53C974
+	tristate "Tekram DC390(T) and Am53/79C974 SCSI support (new driver)"
 	depends on PCI && SCSI
+	select SCSI_SPI_ATTRS
 	---help---
 	  This driver supports PCI SCSI host adapters based on the Am53C974A
 	  chip, e.g. Tekram DC390(T), DawiControl 2974 and some onboard
 	  PCscsi/PCnet (Am53/79C974) solutions.
+	  This is a new implementation base on the generic esp_scsi driver.
 
 	  Documentation can be found in <file:Documentation/scsi/tmscsim.txt>.
 
@@ -1355,7 +1357,7 @@ config SCSI_DC390T
 	  based on NCR/Symbios chips. Use "NCR53C8XX SCSI support" for those.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called tmscsim.
+	  module will be called am53c974.
 
 config SCSI_T128
 	tristate "Trantor T128/T128F/T228 SCSI support"
@@ -1450,6 +1452,14 @@ config SCSI_NSP32
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nsp32.
+
+config SCSI_WD719X
+	tristate "Western Digital WD7193/7197/7296 support"
+	depends on PCI && SCSI
+	select EEPROM_93CX6
+	---help---
+	  This is a driver for Western Digital WD7193, WD7197 and WD7296 PCI
+	  SCSI controllers (based on WD33C296A chip).
 
 config SCSI_DEBUG
 	tristate "SCSI debugging host simulator"
@@ -1615,7 +1625,7 @@ config ATARI_SCSI_RESET_BOOT
 	  that leave the devices with SCSI operations partway completed.
 
 config MAC_SCSI
-	bool "Macintosh NCR5380 SCSI"
+	tristate "Macintosh NCR5380 SCSI"
 	depends on MAC && SCSI=y
 	select SCSI_SPI_ATTRS
 	help

@@ -10,12 +10,7 @@
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-    MA 02110-1301 USA.							     */
+    GNU General Public License for more details.			     */
 /* ------------------------------------------------------------------------- */
 
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
@@ -669,6 +664,9 @@ static int i2c_device_remove(struct device *dev)
 		dev_dbg(dev, "remove\n");
 		status = driver->remove(client);
 	}
+
+	if (dev->of_node)
+		irq_dispose_mapping(client->irq);
 
 	dev_pm_domain_detach(&client->dev, true);
 	return status;

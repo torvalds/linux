@@ -1238,21 +1238,9 @@ config RCU_CPU_STALL_TIMEOUT
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
 
-config RCU_CPU_STALL_VERBOSE
-	bool "Print additional per-task information for RCU_CPU_STALL_DETECTOR"
-	depends on TREE_PREEMPT_RCU
-	default y
-	help
-	  This option causes RCU to printk detailed per-task information
-	  for any tasks that are stalling the current RCU grace period.
-
-	  Say N if you are unsure.
-
-	  Say Y if you want to enable such checks.
-
 config RCU_CPU_STALL_INFO
 	bool "Print additional diagnostics on RCU CPU stall"
-	depends on (TREE_RCU || TREE_PREEMPT_RCU) && DEBUG_KERNEL
+	depends on (TREE_RCU || PREEMPT_RCU) && DEBUG_KERNEL
 	default n
 	help
 	  For each stalled CPU that is aware of the current RCU grace

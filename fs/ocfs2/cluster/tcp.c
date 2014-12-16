@@ -925,7 +925,7 @@ static int o2net_send_tcp_msg(struct socket *sock, struct kvec *vec,
 			      size_t veclen, size_t total)
 {
 	int ret;
-	struct msghdr msg;
+	struct msghdr msg = {.msg_flags = 0,};
 
 	if (sock == NULL) {
 		ret = -EINVAL;

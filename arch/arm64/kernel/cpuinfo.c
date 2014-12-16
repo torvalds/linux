@@ -18,6 +18,7 @@
 #include <asm/cachetype.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
+#include <asm/cpufeature.h>
 
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -111,6 +112,15 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	diff |= CHECK(cntfrq, boot, cur, cpu);
 
 	/*
+	 * The kernel uses self-hosted debug features and expects CPUs to
+	 * support identical debug features. We presently need CTX_CMPs, WRPs,
+	 * and BRPs to be identical.
+	 * ID_AA64DFR1 is currently RES0.
+	 */
+	diff |= CHECK(id_aa64dfr0, boot, cur, cpu);
+	diff |= CHECK(id_aa64dfr1, boot, cur, cpu);
+
+	/*
 	 * Even in big.LITTLE, processors should be identical instruction-set
 	 * wise.
 	 */
@@ -143,7 +153,12 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	diff |= CHECK(id_isar3, boot, cur, cpu);
 	diff |= CHECK(id_isar4, boot, cur, cpu);
 	diff |= CHECK(id_isar5, boot, cur, cpu);
-	diff |= CHECK(id_mmfr0, boot, cur, cpu);
+	/*
+	 * Regardless of the value of the AuxReg field, the AIFSR, ADFSR, and
+	 * ACTLR formats could differ across CPUs and therefore would have to
+	 * be trapped for virtualization anyway.
+	 */
+	diff |= CHECK_MASK(id_mmfr0, 0xff0fffff, boot, cur, cpu);
 	diff |= CHECK(id_mmfr1, boot, cur, cpu);
 	diff |= CHECK(id_mmfr2, boot, cur, cpu);
 	diff |= CHECK(id_mmfr3, boot, cur, cpu);
@@ -155,7 +170,7 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	 * pretend to support them.
 	 */
 	WARN_TAINT_ONCE(diff, TAINT_CPU_OUT_OF_SPEC,
-			"Unsupported CPU feature variation.");
+			"Unsupported CPU feature variation.\n");
 }
 
 static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
@@ -165,6 +180,8 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_dczid = read_cpuid(DCZID_EL0);
 	info->reg_midr = read_cpuid_id();
 
+	info->reg_id_aa64dfr0 = read_cpuid(ID_AA64DFR0_EL1);
+	info->reg_id_aa64dfr1 = read_cpuid(ID_AA64DFR1_EL1);
 	info->reg_id_aa64isar0 = read_cpuid(ID_AA64ISAR0_EL1);
 	info->reg_id_aa64isar1 = read_cpuid(ID_AA64ISAR1_EL1);
 	info->reg_id_aa64mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
@@ -186,6 +203,8 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
 
 	cpuinfo_detect_icache_policy(info);
+
+	check_local_cpu_errata();
 }
 
 void cpuinfo_store_cpu(void)

@@ -669,10 +669,12 @@ static int brcmf_usb_dl_cmd(struct brcmf_usbdev_info *devinfo, u8 cmd,
 		goto finalize;
 	}
 
-	if (!brcmf_usb_ioctl_resp_wait(devinfo))
+	if (!brcmf_usb_ioctl_resp_wait(devinfo)) {
+		usb_kill_urb(devinfo->ctl_urb);
 		ret = -ETIMEDOUT;
-	else
+	} else {
 		memcpy(buffer, tmpbuf, buflen);
+	}
 
 finalize:
 	kfree(tmpbuf);

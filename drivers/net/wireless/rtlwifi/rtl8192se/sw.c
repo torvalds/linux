@@ -236,6 +236,19 @@ static void rtl92s_deinit_sw_vars(struct ieee80211_hw *hw)
 	}
 }
 
+static bool rtl92se_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue,
+				      u16 index)
+{
+	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
+	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
+	u8 own = (u8)rtl92se_get_desc(entry, true, HW_DESC_OWN);
+
+	if (own)
+		return false;
+	return true;
+}
+
 static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.init_sw_vars = rtl92s_init_sw_vars,
 	.deinit_sw_vars = rtl92s_deinit_sw_vars,
@@ -269,6 +282,7 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.led_control = rtl92se_led_control,
 	.set_desc = rtl92se_set_desc,
 	.get_desc = rtl92se_get_desc,
+	.is_tx_desc_closed = rtl92se_is_tx_desc_closed,
 	.tx_polling = rtl92se_tx_polling,
 	.enable_hw_sec = rtl92se_enable_hw_security_config,
 	.set_key = rtl92se_set_key,
@@ -306,6 +320,8 @@ static struct rtl_hal_cfg rtl92se_hal_cfg = {
 	.maps[MAC_RCR_ACRC32] = RCR_ACRC32,
 	.maps[MAC_RCR_ACF] = RCR_ACF,
 	.maps[MAC_RCR_AAP] = RCR_AAP,
+	.maps[MAC_HIMR] = INTA_MASK,
+	.maps[MAC_HIMRE] = INTA_MASK + 4,
 
 	.maps[EFUSE_TEST] = REG_EFUSE_TEST,
 	.maps[EFUSE_CTRL] = REG_EFUSE_CTRL,

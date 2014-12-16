@@ -333,9 +333,17 @@
 			};
 
 			vpu: vpu@02040000 {
+				compatible = "cnm,coda960";
 				reg = <0x02040000 0x3c000>;
 				interrupts = <0 3 IRQ_TYPE_LEVEL_HIGH>,
 				             <0 12 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "bit", "jpeg";
+				clocks = <&clks IMX6QDL_CLK_VPU_AXI>,
+					 <&clks IMX6QDL_CLK_MMDC_CH0_AXI>,
+					 <&clks IMX6QDL_CLK_OCRAM>;
+				clock-names = "per", "ahb", "ocram";
+				resets = <&src 1>;
+				iram = <&ocram>;
 			};
 
 			aipstz@0207c000 { /* AIPSTZ1 */
@@ -656,6 +664,12 @@
 					reg = <0x34 0x58>;
 					interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>,
 						     <0 20 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				snvs_poweroff: snvs-poweroff@38 {
+					compatible = "fsl,sec-v4.0-poweroff";
+					reg = <0x38 0x4>;
+					status = "disabled";
 				};
 			};
 

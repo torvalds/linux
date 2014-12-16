@@ -304,7 +304,9 @@ struct timespec timespec_trunc(struct timespec t, unsigned gran)
 }
 EXPORT_SYMBOL(timespec_trunc);
 
-/* Converts Gregorian date to seconds since 1970-01-01 00:00:00.
+/*
+ * mktime64 - Converts date to seconds.
+ * Converts Gregorian date to seconds since 1970-01-01 00:00:00.
  * Assumes input in normal date format, i.e. 1980-12-31 23:59:59
  * => year=1980, mon=12, day=31, hour=23, min=59, sec=59.
  *
@@ -314,15 +316,10 @@ EXPORT_SYMBOL(timespec_trunc);
  * -year/100+year/400 terms, and add 10.]
  *
  * This algorithm was first published by Gauss (I think).
- *
- * WARNING: this function will overflow on 2106-02-07 06:28:16 on
- * machines where long is 32-bit! (However, as time_t is signed, we
- * will already get problems at other places on 2038-01-19 03:14:08)
  */
-unsigned long
-mktime(const unsigned int year0, const unsigned int mon0,
-       const unsigned int day, const unsigned int hour,
-       const unsigned int min, const unsigned int sec)
+time64_t mktime64(const unsigned int year0, const unsigned int mon0,
+		const unsigned int day, const unsigned int hour,
+		const unsigned int min, const unsigned int sec)
 {
 	unsigned int mon = mon0, year = year0;
 
@@ -332,15 +329,14 @@ mktime(const unsigned int year0, const unsigned int mon0,
 		year -= 1;
 	}
 
-	return ((((unsigned long)
+	return ((((time64_t)
 		  (year/4 - year/100 + year/400 + 367*mon/12 + day) +
 		  year*365 - 719499
 	    )*24 + hour /* now have hours */
 	  )*60 + min /* now have minutes */
 	)*60 + sec; /* finally seconds */
 }
-
-EXPORT_SYMBOL(mktime);
+EXPORT_SYMBOL(mktime64);
 
 /**
  * set_normalized_timespec - set timespec sec and nsec parts and normalize

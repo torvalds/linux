@@ -236,8 +236,6 @@ static int qla2xxx_eh_target_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_bus_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
 
-static int qla2x00_change_queue_depth(struct scsi_device *, int, int);
-static int qla2x00_change_queue_type(struct scsi_device *, int);
 static void qla2x00_clear_drv_active(struct qla_hw_data *);
 static void qla2x00_free_device(scsi_qla_host_t *);
 static void qla83xx_disable_laser(scsi_qla_host_t *vha);
@@ -259,8 +257,8 @@ struct scsi_host_template qla2xxx_driver_template = {
 	.slave_destroy		= qla2xxx_slave_destroy,
 	.scan_finished		= qla2xxx_scan_finished,
 	.scan_start		= qla2xxx_scan_start,
-	.change_queue_depth	= qla2x00_change_queue_depth,
-	.change_queue_type	= qla2x00_change_queue_type,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.change_queue_type	= scsi_change_queue_type,
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
@@ -270,6 +268,8 @@ struct scsi_host_template qla2xxx_driver_template = {
 	.shost_attrs		= qla2x00_host_attrs,
 
 	.supported_mode		= MODE_INITIATOR,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static struct scsi_transport_template *qla2xxx_transport_template = NULL;
@@ -1405,10 +1405,7 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	if (IS_T10_PI_CAPABLE(vha->hw))
 		blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
 
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, req->max_q_depth);
-	else
-		scsi_deactivate_tcq(sdev, req->max_q_depth);
+	scsi_change_queue_depth(sdev, req->max_q_depth);
 	return 0;
 }
 
@@ -1416,76 +1413,6 @@ static void
 qla2xxx_slave_destroy(struct scsi_device *sdev)
 {
 	sdev->hostdata = NULL;
-}
-
-static void qla2x00_handle_queue_full(struct scsi_device *sdev, int qdepth)
-{
-	fc_port_t *fcport = (struct fc_port *) sdev->hostdata;
-
-	if (!scsi_track_queue_full(sdev, qdepth))
-		return;
-
-	ql_dbg(ql_dbg_io, fcport->vha, 0x3029,
-	    "Queue depth adjusted-down to %d for nexus=%ld:%d:%llu.\n",
-	    sdev->queue_depth, fcport->vha->host_no, sdev->id, sdev->lun);
-}
-
-static void qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, int qdepth)
-{
-	fc_port_t *fcport = sdev->hostdata;
-	struct scsi_qla_host *vha = fcport->vha;
-	struct req_que *req = NULL;
-
-	req = vha->req;
-	if (!req)
-		return;
-
-	if (req->max_q_depth <= sdev->queue_depth || req->max_q_depth < qdepth)
-		return;
-
-	if (sdev->ordered_tags)
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, qdepth);
-	else
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, qdepth);
-
-	ql_dbg(ql_dbg_io, vha, 0x302a,
-	    "Queue depth adjusted-up to %d for nexus=%ld:%d:%llu.\n",
-	    sdev->queue_depth, fcport->vha->host_no, sdev->id, sdev->lun);
-}
-
-static int
-qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
-{
-	switch (reason) {
-	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
-		break;
-	case SCSI_QDEPTH_QFULL:
-		qla2x00_handle_queue_full(sdev, qdepth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP:
-		qla2x00_adjust_sdev_qdepth_up(sdev, qdepth);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return sdev->queue_depth;
-}
-
-static int
-qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
 }
 
 /**

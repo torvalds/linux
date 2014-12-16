@@ -4309,10 +4309,15 @@ static int be_ndo_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 		return -EOPNOTSUPP;
 
 	br_spec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+	if (!br_spec)
+		return -EINVAL;
 
 	nla_for_each_nested(attr, br_spec, rem) {
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)
 			continue;
+
+		if (nla_len(attr) < sizeof(mode))
+			return -EINVAL;
 
 		mode = nla_get_u16(attr);
 		if (mode != BRIDGE_MODE_VEPA && mode != BRIDGE_MODE_VEB)
@@ -4421,6 +4426,11 @@ static void be_del_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 		 "Disabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));
 }
+
+static bool be_gso_check(struct sk_buff *skb, struct net_device *dev)
+{
+	return vxlan_gso_check(skb);
+}
 #endif
 
 static const struct net_device_ops be_netdev_ops = {
@@ -4450,6 +4460,7 @@ static const struct net_device_ops be_netdev_ops = {
 #ifdef CONFIG_BE2NET_VXLAN
 	.ndo_add_vxlan_port	= be_add_vxlan_port,
 	.ndo_del_vxlan_port	= be_del_vxlan_port,
+	.ndo_gso_check		= be_gso_check,
 #endif
 };
 

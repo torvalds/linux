@@ -320,24 +320,6 @@ config ARCH_MULTIPLATFORM
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARCH_INTEGRATOR
-	bool "ARM Ltd. Integrator family"
-	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT if MMU
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select COMMON_CLK_VERSATILE
-	select GENERIC_CLOCKEVENTS
-	select HAVE_TCM
-	select ICST
-	select MULTI_IRQ_HANDLER
-	select PLAT_VERSATILE
-	select SPARSE_IRQ
-	select USE_OF
-	select VERSATILE_FPGA_IRQ
-	help
-	  Support for ARM's Integrator platform.
-
 config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -350,6 +332,7 @@ config ARCH_REALVIEW
 	select ICST
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_SCHED_CLOCK
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -365,6 +348,7 @@ config ARCH_VERSATILE
 	select ICST
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLOCK
+	select PLAT_VERSATILE_SCHED_CLOCK
 	select VERSATILE_FPGA_IRQ
 	help
 	  This enables support for ARM Ltd Versatile board.
@@ -376,10 +360,11 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
 	select PINCTRL
-	select PINCTRL_AT91 if USE_OF
+	select PINCTRL_AT91
+	select USE_OF
 	help
 	  This enables support for systems based on Atmel
-	  AT91RM9200 and AT91SAM9* processors.
+	  AT91RM9200, AT91SAM9 and SAMA5 processors.
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
@@ -854,6 +839,8 @@ config ARCH_VIRT
 #
 source "arch/arm/mach-mvebu/Kconfig"
 
+source "arch/arm/mach-asm9260/Kconfig"
+
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-axxia/Kconfig"
@@ -1258,9 +1245,6 @@ endmenu
 source "arch/arm/common/Kconfig"
 
 menu "Bus support"
-
-config ARM_AMBA
-	bool
 
 config ISA
 	bool

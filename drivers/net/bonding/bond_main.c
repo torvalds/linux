@@ -2471,7 +2471,8 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 			bond_slave_state_change(bond);
 			if (BOND_MODE(bond) == BOND_MODE_XOR)
 				bond_update_slave_arr(bond, NULL);
-		} else if (do_failover) {
+		}
+		if (do_failover) {
 			block_netpoll_tx();
 			bond_select_active_slave(bond);
 			unblock_netpoll_tx();

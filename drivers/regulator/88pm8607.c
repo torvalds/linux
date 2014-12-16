@@ -330,7 +330,8 @@ static int pm8607_regulator_dt_init(struct platform_device *pdev,
 	for_each_child_of_node(nproot, np) {
 		if (!of_node_cmp(np->name, info->desc.name)) {
 			config->init_data =
-				of_get_regulator_init_data(&pdev->dev, np);
+				of_get_regulator_init_data(&pdev->dev, np,
+							   &info->desc);
 			config->of_node = np;
 			break;
 		}

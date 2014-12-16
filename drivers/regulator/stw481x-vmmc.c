@@ -72,7 +72,8 @@ static int stw481x_vmmc_regulator_probe(struct platform_device *pdev)
 	config.regmap = stw481x->map;
 	config.of_node = pdev->dev.of_node;
 	config.init_data = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node);
+						      pdev->dev.of_node,
+						      &vmmc_regulator);
 
 	stw481x->vmmc_regulator = devm_regulator_register(&pdev->dev,
 						&vmmc_regulator, &config);

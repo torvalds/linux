@@ -2940,6 +2940,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			quiescent states.  Units are jiffies, minimum
 			value is one, and maximum value is HZ.
 
+	rcutree.kthread_prio= 	 [KNL,BOOT]
+			Set the SCHED_FIFO priority of the RCU
+			per-CPU kthreads (rcuc/N). This value is also
+			used for the priority of the RCU boost threads
+			(rcub/N). Valid values are 1-99 and the default
+			is 1 (the least-favored priority).
+
 	rcutree.rcu_nocb_leader_stride= [KNL]
 			Set the number of NOCB kthread groups, which
 			defaults to the square root of the number of
@@ -3088,6 +3095,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set timeout in jiffies for RCU task stall warning
 			messages.  Disable with a value less than or equal
 			to zero.
+
+	rcupdate.rcu_self_test= [KNL]
+			Run the RCU early boot self tests
+
+	rcupdate.rcu_self_test_bh= [KNL]
+			Run the RCU bh early boot self tests
+
+	rcupdate.rcu_self_test_sched= [KNL]
+			Run the RCU sched early boot self tests
 
 	rdinit=		[KNL]
 			Format: <full_path>
@@ -3621,7 +3637,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	usb-storage.delay_use=
 			[UMS] The delay in seconds before a new device is
-			scanned for Logical Units (default 5).
+			scanned for Logical Units (default 1).
 
 	usb-storage.quirks=
 			[UMS] A list of quirks entries to supplement or

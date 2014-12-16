@@ -30,9 +30,6 @@ static __always_inline void preempt_count_set(int pc)
 /*
  * must be macros to avoid header recursion hell
  */
-#define task_preempt_count(p) \
-	(task_thread_info(p)->saved_preempt_count & ~PREEMPT_NEED_RESCHED)
-
 #define init_task_preempt_count(p) do { \
 	task_thread_info(p)->saved_preempt_count = PREEMPT_DISABLED; \
 } while (0)

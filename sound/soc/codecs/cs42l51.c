@@ -558,11 +558,13 @@ error:
 }
 EXPORT_SYMBOL_GPL(cs42l51_probe);
 
-static const struct of_device_id cs42l51_of_match[] = {
+const struct of_device_id cs42l51_of_match[] = {
 	{ .compatible = "cirrus,cs42l51", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cs42l51_of_match);
+EXPORT_SYMBOL_GPL(cs42l51_of_match);
+
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Cirrus Logic CS42L51 ALSA SoC Codec Driver");
 MODULE_LICENSE("GPL");

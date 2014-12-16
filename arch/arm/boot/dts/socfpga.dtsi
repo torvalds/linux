@@ -639,6 +639,33 @@
 			clock-names = "biu", "ciu";
 		};
 
+		ocram: sram@ffff0000 {
+			compatible = "mmio-sram";
+			reg = <0xffff0000 0x10000>;
+		};
+
+		spi0: spi@fff00000 {
+			compatible = "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfff00000 0x1000>;
+			interrupts = <0 154 4>;
+			num-cs = <4>;
+			clocks = <&spi_m_clk>;
+			status = "disabled";
+		};
+
+		spi1: spi@fff01000 {
+			compatible = "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfff01000 0x1000>;
+			interrupts = <0 156 4>;
+			num-cs = <4>;
+			clocks = <&spi_m_clk>;
+			status = "disabled";
+		};
+
 		/* Local timer */
 		timer@fffec600 {
 			compatible = "arm,cortex-a9-twd-timer";

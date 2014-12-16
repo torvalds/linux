@@ -812,6 +812,7 @@ rcu_torture_cbflood(void *arg)
 		cur_ops->cb_barrier();
 		stutter_wait("rcu_torture_cbflood");
 	} while (!torture_must_stop());
+	vfree(rhp);
 	torture_kthread_stopping("rcu_torture_cbflood");
 	return 0;
 }

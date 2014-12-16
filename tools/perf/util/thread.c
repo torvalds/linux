@@ -4,6 +4,7 @@
 #include <string.h>
 #include "session.h"
 #include "thread.h"
+#include "thread-stack.h"
 #include "util.h"
 #include "debug.h"
 #include "comm.h"
@@ -15,7 +16,7 @@ int thread__init_map_groups(struct thread *thread, struct machine *machine)
 	pid_t pid = thread->pid_;
 
 	if (pid == thread->tid || pid == -1) {
-		thread->mg = map_groups__new();
+		thread->mg = map_groups__new(machine);
 	} else {
 		leader = machine__findnew_thread(machine, pid, pid);
 		if (leader)
@@ -66,6 +67,8 @@ void thread__delete(struct thread *thread)
 {
 	struct comm *comm, *tmp;
 
+	thread_stack__free(thread);
+
 	if (thread->mg) {
 		map_groups__put(thread->mg);
 		thread->mg = NULL;
@@ -100,15 +103,14 @@ struct comm *thread__exec_comm(const struct thread *thread)
 	return last;
 }
 
-/* CHECKME: time should always be 0 if event aren't ordered */
 int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
 		       bool exec)
 {
 	struct comm *new, *curr = thread__comm(thread);
 	int err;
 
-	/* Override latest entry if it had no specific time coverage */
-	if (!curr->start && !curr->exec) {
+	/* Override the default :tid entry */
+	if (!thread->comm_set) {
 		err = comm__override(curr, str, timestamp, exec);
 		if (err)
 			return err;
@@ -198,7 +200,6 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 }
 
 void thread__find_cpumode_addr_location(struct thread *thread,
-					struct machine *machine,
 					enum map_type type, u64 addr,
 					struct addr_location *al)
 {
@@ -211,8 +212,7 @@ void thread__find_cpumode_addr_location(struct thread *thread,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(cpumodes); i++) {
-		thread__find_addr_location(thread, machine, cpumodes[i], type,
-					   addr, al);
+		thread__find_addr_location(thread, cpumodes[i], type, addr, al);
 		if (al->map)
 			break;
 	}

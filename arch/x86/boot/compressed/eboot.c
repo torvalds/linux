@@ -21,8 +21,10 @@ static efi_system_table_t *sys_table;
 
 static struct efi_config *efi_early;
 
-#define efi_call_early(f, ...)						\
-	efi_early->call(efi_early->f, __VA_ARGS__);
+__pure const struct efi_config *__efi_early(void)
+{
+	return efi_early;
+}
 
 #define BOOT_SERVICES(bits)						\
 static void setup_boot_services##bits(struct efi_config *c)		\
@@ -284,8 +286,6 @@ void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 		efi_early->call(*func, out, str);
 	}
 }
-
-#include "../../../../drivers/firmware/efi/libstub/efi-stub-helper.c"
 
 static void find_bits(unsigned long mask, u8 *pos, u8 *size)
 {

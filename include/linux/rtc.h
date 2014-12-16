@@ -19,11 +19,28 @@
 extern int rtc_month_days(unsigned int month, unsigned int year);
 extern int rtc_year_days(unsigned int day, unsigned int month, unsigned int year);
 extern int rtc_valid_tm(struct rtc_time *tm);
-extern int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time);
-extern void rtc_time_to_tm(unsigned long time, struct rtc_time *tm);
+extern time64_t rtc_tm_to_time64(struct rtc_time *tm);
+extern void rtc_time64_to_tm(time64_t time, struct rtc_time *tm);
 ktime_t rtc_tm_to_ktime(struct rtc_time tm);
 struct rtc_time rtc_ktime_to_tm(ktime_t kt);
 
+/**
+ * Deprecated. Use rtc_time64_to_tm().
+ */
+static inline void rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
+{
+	rtc_time64_to_tm(time, tm);
+}
+
+/**
+ * Deprecated. Use rtc_tm_to_time64().
+ */
+static inline int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
+{
+	*time = rtc_tm_to_time64(tm);
+
+	return 0;
+}
 
 #include <linux/device.h>
 #include <linux/seq_file.h>

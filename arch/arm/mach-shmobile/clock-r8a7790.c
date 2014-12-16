@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/init.h>
 #include <linux/io.h>
@@ -68,7 +64,7 @@
 
 #define SDCKCR		0xE6150074
 #define SD2CKCR		0xE6150078
-#define SD3CKCR		0xE615007C
+#define SD3CKCR		0xE615026C
 #define MMC0CKCR	0xE6150240
 #define MMC1CKCR	0xE6150244
 #define SSPCKCR		0xE6150248

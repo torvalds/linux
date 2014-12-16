@@ -286,7 +286,13 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	}
 	WARN_ON_ONCE(!blk_get_queue(sdev->request_queue));
 	sdev->request_queue->queuedata = sdev;
-	scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
+
+	if (!shost_use_blk_mq(sdev->host) &&
+	    (shost->bqt || shost->hostt->use_blk_tags)) {
+		blk_queue_init_tags(sdev->request_queue,
+				    sdev->host->cmd_per_lun, shost->bqt);
+	}
+	scsi_change_queue_depth(sdev, sdev->host->cmd_per_lun);
 
 	scsi_sysfs_device_initialize(sdev);
 
@@ -874,8 +880,10 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 			(inq_result[3] & 0x0f) == 1 ? " CCS" : "");
 
 	if ((sdev->scsi_level >= SCSI_2) && (inq_result[7] & 2) &&
-	    !(*bflags & BLIST_NOTQ))
+	    !(*bflags & BLIST_NOTQ)) {
 		sdev->tagged_supported = 1;
+		sdev->simple_tags = 1;
+	}
 
 	/*
 	 * Some devices (Texel CD ROM drives) have handshaking problems
@@ -1214,9 +1222,9 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 		sparse_lun = 0;
 
 	/*
-	 * If less than SCSI_1_CSS, and no special lun scaning, stop
+	 * If less than SCSI_1_CCS, and no special lun scanning, stop
 	 * scanning; this matches 2.4 behaviour, but could just be a bug
-	 * (to continue scanning a SCSI_1_CSS device).
+	 * (to continue scanning a SCSI_1_CCS device).
 	 *
 	 * This test is broken.  We might not have any device on lun0 for
 	 * a sparselun device, and if that's the case then how would we
@@ -1585,16 +1593,15 @@ EXPORT_SYMBOL(scsi_add_device);
 
 void scsi_rescan_device(struct device *dev)
 {
-	struct scsi_driver *drv;
-	
 	if (!dev->driver)
 		return;
 
-	drv = to_scsi_driver(dev->driver);
-	if (try_module_get(drv->owner)) {
+	if (try_module_get(dev->driver->owner)) {
+		struct scsi_driver *drv = to_scsi_driver(dev->driver);
+
 		if (drv->rescan)
 			drv->rescan(dev);
-		module_put(drv->owner);
+		module_put(dev->driver->owner);
 	}
 }
 EXPORT_SYMBOL(scsi_rescan_device);
@@ -1727,7 +1734,7 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||
-	    ((lun != SCAN_WILD_CARD) && (lun > shost->max_lun)))
+	    ((lun != SCAN_WILD_CARD) && (lun >= shost->max_lun)))
 		return -EINVAL;
 
 	mutex_lock(&shost->scan_mutex);

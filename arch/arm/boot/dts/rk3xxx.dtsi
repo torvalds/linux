@@ -29,6 +29,10 @@
 		mshc0 = &emmc;
 		mshc1 = &mmc0;
 		mshc2 = &mmc1;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
 		spi0 = &spi0;
 		spi1 = &spi1;
 	};
@@ -173,10 +177,9 @@
 		compatible = "rockchip,rk2928-dw-mshc";
 		reg = <0x10214000 0x1000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
 		clock-names = "biu", "ciu";
-
+		fifo-depth = <256>;
 		status = "disabled";
 	};
 
@@ -184,10 +187,9 @@
 		compatible = "rockchip,rk2928-dw-mshc";
 		reg = <0x10218000 0x1000>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>;
 		clock-names = "biu", "ciu";
-
+		fifo-depth = <256>;
 		status = "disabled";
 	};
 
@@ -195,10 +197,9 @@
 		compatible = "rockchip,rk2928-dw-mshc";
 		reg = <0x1021c000 0x1000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
-
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
 		clock-names = "biu", "ciu";
-
+		fifo-depth = <256>;
 		status = "disabled";
 	};
 
@@ -367,6 +368,8 @@
 		reg = <0x20070000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		dmas = <&dmac2 10>, <&dmac2 11>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -378,6 +381,8 @@
 		reg = <0x20074000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		dmas = <&dmac2 12>, <&dmac2 13>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 };

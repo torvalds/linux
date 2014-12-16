@@ -2442,9 +2442,13 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full |
 		     SUPPORTED_10000baseKX4_Full;
 	else if (type == FW_PORT_TYPE_FIBER_XFI ||
-		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP)
+		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP) {
 		v |= SUPPORTED_FIBRE;
-	else if (type == FW_PORT_TYPE_BP40_BA)
+		if (caps & FW_PORT_CAP_SPEED_1G)
+			v |= SUPPORTED_1000baseT_Full;
+		if (caps & FW_PORT_CAP_SPEED_10G)
+			v |= SUPPORTED_10000baseT_Full;
+	} else if (type == FW_PORT_TYPE_BP40_BA)
 		v |= SUPPORTED_40000baseSR4_Full;
 
 	if (caps & FW_PORT_CAP_ANEG)

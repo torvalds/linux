@@ -485,7 +485,7 @@ static void __init bootmem_init(void)
  * NOTE: historically plat_mem_setup did the entire platform initialization.
  *	 This was rather impractical because it meant plat_mem_setup had to
  * get away without any kind of memory allocator.  To keep old code from
- * breaking plat_setup was just renamed to plat_setup and a second platform
+ * breaking plat_setup was just renamed to plat_mem_setup and a second platform
  * initialization hook for anything else was introduced.
  */
 
@@ -493,7 +493,7 @@ static int usermem __initdata;
 
 static int __init early_parse_mem(char *p)
 {
-	unsigned long start, size;
+	phys_t start, size;
 
 	/*
 	 * If a user specifies memory size, we
@@ -683,7 +683,8 @@ static void __init arch_mem_init(char **cmdline_p)
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 	/* Tell bootmem about cma reserved memblock section */
 	for_each_memblock(reserved, reg)
-		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
+		if (reg->size != 0)
+			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
 }
 
 static void __init resource_init(void)

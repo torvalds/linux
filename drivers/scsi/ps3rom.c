@@ -220,10 +220,6 @@ static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 	unsigned char opcode;
 	int res;
 
-#ifdef DEBUG
-	scsi_print_command(cmd);
-#endif
-
 	priv->curr_cmd = cmd;
 	cmd->scsi_done = done;
 
