@@ -16,6 +16,7 @@ provided by gadgets.
 13. RNDIS function
 14. SERIAL function
 15. SOURCESINK function
+16. UAC1 function
 
 
 1. ACM function
@@ -587,3 +588,29 @@ device: run the gadget
 host: test-usb
 
 http://www.linux-usb.org/usbtest/testusb.c
+
+16. UAC1 function
+=================
+
+The function is provided by usb_f_uac1.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "uac1".
+The uac1 function provides these attributes in its function directory:
+
+	audio_buf_size - audio buffer size
+	fn_cap - capture pcm device file name
+	fn_cntl - control device file name
+	fn_play - playback pcm device file name
+	req_buf_size - ISO OUT endpoint request buffer size
+	req_count - ISO OUT endpoint request count
+
+The attributes have sane default values.
+
+Testing the UAC1 function
+-------------------------
+
+device: run the gadget
+host: aplay -l # should list our USB Audio Gadget
