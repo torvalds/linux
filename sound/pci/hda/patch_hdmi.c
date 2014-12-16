@@ -47,7 +47,9 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
 #define is_haswell(codec)  ((codec)->vendor_id == 0x80862807)
 #define is_broadwell(codec)    ((codec)->vendor_id == 0x80862808)
-#define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec))
+#define is_skylake(codec) ((codec)->vendor_id == 0x80862809)
+#define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec) \
+					|| is_skylake(codec))
 
 #define is_valleyview(codec) ((codec)->vendor_id == 0x80862882)
 #define is_cherryview(codec) ((codec)->vendor_id == 0x80862883)
