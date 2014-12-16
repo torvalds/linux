@@ -1,5 +1,5 @@
-#ifndef _LINUX_KCMP_H
-#define _LINUX_KCMP_H
+#ifndef _UAPI_LINUX_KCMP_H
+#define _UAPI_LINUX_KCMP_H
 
 /* Comparison type */
 enum kcmp_type {
@@ -14,4 +14,4 @@ enum kcmp_type {
 	KCMP_TYPES,
 };
 
-#endif /* _LINUX_KCMP_H */
+#endif /* _UAPI_LINUX_KCMP_H */
