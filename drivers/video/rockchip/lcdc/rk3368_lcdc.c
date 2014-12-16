@@ -95,28 +95,20 @@ u32 rk3368_get_hard_ware_vskiplines(u32 srch, u32 dsth)
 	return vscalednmult;
 }
 
-static int rk3368_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
+static int rk3368_lcdc_set_lut(struct rk_lcdc_driver *dev_drv, int *dsp_lut)
 {
-	int i, j;
+	int i;
 	int __iomem *c;
-	u32 v, r, g, b;
+	u32 v;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	mdelay(25);
 	for (i = 0; i < 256; i++) {
-		v = dev_drv->cur_screen->dsp_lut[i];
-		c = lcdc_dev->dsp_lut_addr_base + (i << 2);
-		b = (v & 0xff) << 2;
-		g = (v & 0xff00) << 4;
-		r = (v & 0xff0000) << 6;
-		v = r + g + b;
-		for (j = 0; j < 4; j++) {
-			writel_relaxed(v, c);
-			v += (1 + (1 << 10) + (1 << 20));
-			c++;
-		}
+		v = dsp_lut[i];
+		c = lcdc_dev->dsp_lut_addr_base + i;
+		writel_relaxed(v, c);
 	}
 	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
 
@@ -1925,7 +1917,8 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			rk3368_lcdc_set_bcsh(dev_drv, 1);
 		spin_lock(&lcdc_dev->reg_lock);
 		if (dev_drv->cur_screen->dsp_lut)
-			rk3368_lcdc_set_lut(dev_drv);
+			rk3368_lcdc_set_lut(dev_drv,
+					    dev_drv->cur_screen->dsp_lut);
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
 
@@ -2896,9 +2889,6 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	int i, j;
-	int __iomem *c;
-	int v, r, g, b;
 
 	if (!dev_drv->suspend_flag)
 		return 0;
@@ -2910,27 +2900,9 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		rk3368_lcdc_reg_restore(lcdc_dev);
 
 		spin_lock(&lcdc_dev->reg_lock);
-		if (dev_drv->cur_screen->dsp_lut) {
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
-				     v_DSP_LUT_EN(0));
-			lcdc_cfg_done(lcdc_dev);
-			mdelay(25);
-			for (i = 0; i < 256; i++) {
-				v = dev_drv->cur_screen->dsp_lut[i];
-				c = lcdc_dev->dsp_lut_addr_base + (i << 2);
-				b = (v & 0xff);
-				g = (v & 0xff00);
-				r = (v & 0xff0000);
-				v = r + g + b;
-				for (j = 0; j < 4; j++) {
-					writel_relaxed(v, c);
-					v += (1 + (1 << 10) + (1 << 20));
-					c++;
-				}
-			}
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
-				     v_DSP_LUT_EN(1));
-		}
+		if (dev_drv->cur_screen->dsp_lut)
+			rk3368_lcdc_set_lut(dev_drv,
+					    dev_drv->cur_screen->dsp_lut);
 
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_OUT_ZERO,
 			     v_DSP_OUT_ZERO(0));
@@ -3573,46 +3545,6 @@ static int rk3368_lcdc_get_win_id(struct rk_lcdc_driver *dev_drv,
 	return win_id;
 }
 
-static int rk3368_set_dsp_lut(struct rk_lcdc_driver *dev_drv, int *lut)
-{
-	int i, j;
-	int __iomem *c;
-	int v, r, g, b;
-	int ret = 0;
-
-	struct lcdc_device *lcdc_dev =
-	    container_of(dev_drv, struct lcdc_device, driver);
-	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(0));
-	lcdc_cfg_done(lcdc_dev);
-	mdelay(25);
-	if (dev_drv->cur_screen->dsp_lut) {
-		for (i = 0; i < 256; i++) {
-			dev_drv->cur_screen->dsp_lut[i] = lut[i];
-			v = dev_drv->cur_screen->dsp_lut[i];
-			c = lcdc_dev->dsp_lut_addr_base + (i << 2);
-			b = (v & 0xff) << 2;
-			g = (v & 0xff00) << 4;
-			r = (v & 0xff0000) << 6;
-			v = r + g + b;
-			for (j = 0; j < 4; j++) {
-				writel_relaxed(v, c);
-				v += (1 + (1 << 10) + (1 << 20));
-				c++;
-			}
-		}
-	} else {
-		dev_err(dev_drv->dev, "no buffer to backup lut data!\n");
-		ret = -1;
-	}
-
-	do {
-		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
-			     v_DSP_LUT_EN(1));
-		lcdc_cfg_done(lcdc_dev);
-	} while (!lcdc_read_bit(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN));
-	return ret;
-}
-
 static int rk3368_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
@@ -4128,7 +4060,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.fps_mgr = rk3368_lcdc_fps_mgr,
 	.fb_get_win_id = rk3368_lcdc_get_win_id,
 	.fb_win_remap = rk3368_fb_win_remap,
-	.set_dsp_lut = rk3368_set_dsp_lut,
+	.set_dsp_lut = rk3368_lcdc_set_lut,
 	.poll_vblank = rk3368_lcdc_poll_vblank,
 	.dpi_open = rk3368_lcdc_dpi_open,
 	.dpi_win_sel = rk3368_lcdc_dpi_win_sel,
