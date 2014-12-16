@@ -55,8 +55,16 @@
 		enable-active-high;
 	};
 
-	/* Common 3.3V rail, used by several devices on APE6EVM */
-	ape6evm_fixed_3v3: regulator@2 {
+	/* Common 1.8V and 3.3V rails, used by several devices on APE6EVM */
+	ape6evm_fixed_1v8: regulator@2 {
+		compatible = "regulator-fixed";
+		regulator-name = "1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ape6evm_fixed_3v3: regulator@3 {
 		compatible = "regulator-fixed";
 		regulator-name = "3V3";
 		regulator-min-microvolt = <3300000>;
@@ -80,7 +88,7 @@
 			smsc,irq-active-high;
 			smsc,irq-push-pull;
 			vdd33a-supply = <&ape6evm_fixed_3v3>;
-			vddvario-supply = <&ape6evm_fixed_3v3>;
+			vddvario-supply = <&ape6evm_fixed_1v8>;
 		};
 	};
 
