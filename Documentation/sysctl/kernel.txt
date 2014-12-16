@@ -843,6 +843,7 @@ can be ORed together:
 8192 - An unsigned module has been loaded in a kernel supporting module
        signature.
 16384 - A soft lockup has previously occurred on the system.
+32768 - The kernel has been live patched.
 
 ==============================================================
 
