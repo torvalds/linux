@@ -91,6 +91,7 @@ static void show_type(struct seq_file *m, struct super_block *sb)
 
 static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 {
+	struct proc_mounts *p = proc_mounts(m);
 	struct mount *r = real_mount(mnt);
 	int err = 0;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
@@ -104,7 +105,10 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 	}
 	seq_putc(m, ' ');
-	seq_path(m, &mnt_path, " \t\n\\");
+	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
+	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
+	if (err)
+		goto out;
 	seq_putc(m, ' ');
 	show_type(m, sb);
 	seq_puts(m, __mnt_is_readonly(mnt) ? " ro" : " rw");
@@ -181,6 +185,7 @@ out:
 
 static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 {
+	struct proc_mounts *p = proc_mounts(m);
 	struct mount *r = real_mount(mnt);
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	struct super_block *sb = mnt_path.dentry->d_sb;
@@ -200,7 +205,10 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 
 	/* mount point */
 	seq_puts(m, " mounted on ");
-	seq_path(m, &mnt_path, " \t\n\\");
+	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
+	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
+	if (err)
+		goto out;
 	seq_putc(m, ' ');
 
 	/* file system type */
@@ -215,6 +223,7 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	}
 
 	seq_putc(m, '\n');
+out:
 	return err;
 }
 
