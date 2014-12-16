@@ -608,7 +608,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 				       num);
 			sep = " ";
 
-			if (len > remaining)
+			if (len >= remaining)
 				break;
 			remaining -= len;
 			buf += len;
@@ -623,7 +623,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 						'+' : '-',
 					minor);
 
-			if (len > remaining)
+			if (len >= remaining)
 				break;
 			remaining -= len;
 			buf += len;
@@ -631,7 +631,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 		}
 
 	len = snprintf(buf, remaining, "\n");
-	if (len > remaining)
+	if (len >= remaining)
 		return -EINVAL;
 	return tlen + len;
 }

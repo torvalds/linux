@@ -26,10 +26,10 @@ typedef int		(*svc_thread_fn)(void *);
 
 /* statistics for svc_pool structures */
 struct svc_pool_stats {
-	unsigned long	packets;
+	atomic_long_t	packets;
 	unsigned long	sockets_queued;
-	unsigned long	threads_woken;
-	unsigned long	threads_timedout;
+	atomic_long_t	threads_woken;
+	atomic_long_t	threads_timedout;
 };
 
 /*
@@ -45,12 +45,13 @@ struct svc_pool_stats {
 struct svc_pool {
 	unsigned int		sp_id;	    	/* pool id; also node id on NUMA */
 	spinlock_t		sp_lock;	/* protects all fields */
-	struct list_head	sp_threads;	/* idle server threads */
 	struct list_head	sp_sockets;	/* pending sockets */
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
 	struct svc_pool_stats	sp_stats;	/* statistics on pool operation */
-	int			sp_task_pending;/* has pending task */
+#define	SP_TASK_PENDING		(0)		/* still work to do even if no
+						 * xprt is queued. */
+	unsigned long		sp_flags;
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -219,8 +220,8 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
  * processed.
  */
 struct svc_rqst {
-	struct list_head	rq_list;	/* idle list */
 	struct list_head	rq_all;		/* all threads list */
+	struct rcu_head		rq_rcu_head;	/* for RCU deferred kfree */
 	struct svc_xprt *	rq_xprt;	/* transport ptr */
 
 	struct sockaddr_storage	rq_addr;	/* peer address */
@@ -236,7 +237,6 @@ struct svc_rqst {
 	struct svc_cred		rq_cred;	/* auth info */
 	void *			rq_xprt_ctxt;	/* transport specific context ptr */
 	struct svc_deferred_req*rq_deferred;	/* deferred request we are replaying */
-	bool			rq_usedeferral;	/* use deferral */
 
 	size_t			rq_xprt_hlen;	/* xprt header len */
 	struct xdr_buf		rq_arg;
@@ -253,9 +253,17 @@ struct svc_rqst {
 	u32			rq_vers;	/* program version */
 	u32			rq_proc;	/* procedure number */
 	u32			rq_prot;	/* IP protocol */
-	unsigned short
-				rq_secure  : 1;	/* secure port */
-	unsigned short		rq_local   : 1;	/* local request */
+	int			rq_cachetype;	/* catering to nfsd */
+#define	RQ_SECURE	(0)			/* secure port */
+#define	RQ_LOCAL	(1)			/* local request */
+#define	RQ_USEDEFERRAL	(2)			/* use deferral */
+#define	RQ_DROPME	(3)			/* drop current reply */
+#define	RQ_SPLICE_OK	(4)			/* turned off in gss privacy
+						 * to prevent encrypting page
+						 * cache pages */
+#define	RQ_VICTIM	(5)			/* about to be shut down */
+#define	RQ_BUSY		(6)			/* request is busy */
+	unsigned long		rq_flags;	/* flags field */
 
 	void *			rq_argp;	/* decoded arguments */
 	void *			rq_resp;	/* xdr'd results */
@@ -271,16 +279,12 @@ struct svc_rqst {
 	struct cache_req	rq_chandle;	/* handle passed to caches for 
 						 * request delaying 
 						 */
-	bool			rq_dropme;
 	/* Catering to nfsd */
 	struct auth_domain *	rq_client;	/* RPC peer info */
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
-	int			rq_cachetype;
 	struct svc_cacherep *	rq_cacherep;	/* cache info */
-	bool			rq_splice_ok;   /* turned off in gss privacy
-						 * to prevent encrypting page
-						 * cache pages */
 	struct task_struct	*rq_task;	/* service thread */
+	spinlock_t		rq_lock;	/* per-request lock */
 };
 
 #define SVC_NET(svc_rqst)	(svc_rqst->rq_xprt->xpt_net)

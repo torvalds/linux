@@ -8,6 +8,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/xprtsock.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include <net/tcp_states.h>
 #include <linux/net.h>
 #include <linux/tracepoint.h>
@@ -412,6 +413,16 @@ TRACE_EVENT(xs_tcp_data_recv,
 			__entry->copied, __entry->reclen, __entry->offset)
 );
 
+#define show_rqstp_flags(flags)						\
+	__print_flags(flags, "|",					\
+		{ (1UL << RQ_SECURE),		"RQ_SECURE"},		\
+		{ (1UL << RQ_LOCAL),		"RQ_LOCAL"},		\
+		{ (1UL << RQ_USEDEFERRAL),	"RQ_USEDEFERRAL"},	\
+		{ (1UL << RQ_DROPME),		"RQ_DROPME"},		\
+		{ (1UL << RQ_SPLICE_OK),	"RQ_SPLICE_OK"},	\
+		{ (1UL << RQ_VICTIM),		"RQ_VICTIM"},		\
+		{ (1UL << RQ_BUSY),		"RQ_BUSY"})
+
 TRACE_EVENT(svc_recv,
 	TP_PROTO(struct svc_rqst *rqst, int status),
 
@@ -421,16 +432,19 @@ TRACE_EVENT(svc_recv,
 		__field(struct sockaddr *, addr)
 		__field(__be32, xid)
 		__field(int, status)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
 		__entry->xid = status > 0 ? rqst->rq_xid : 0;
 		__entry->status = status;
+		__entry->flags = rqst->rq_flags;
 	),
 
-	TP_printk("addr=%pIScp xid=0x%x status=%d", __entry->addr,
-			be32_to_cpu(__entry->xid), __entry->status)
+	TP_printk("addr=%pIScp xid=0x%x status=%d flags=%s", __entry->addr,
+			be32_to_cpu(__entry->xid), __entry->status,
+			show_rqstp_flags(__entry->flags))
 );
 
 DECLARE_EVENT_CLASS(svc_rqst_status,
@@ -444,18 +458,19 @@ DECLARE_EVENT_CLASS(svc_rqst_status,
 		__field(__be32, xid)
 		__field(int, dropme)
 		__field(int, status)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
 		__entry->xid = rqst->rq_xid;
-		__entry->dropme = (int)rqst->rq_dropme;
 		__entry->status = status;
+		__entry->flags = rqst->rq_flags;
 	),
 
-	TP_printk("addr=%pIScp rq_xid=0x%x dropme=%d status=%d",
-		__entry->addr, be32_to_cpu(__entry->xid), __entry->dropme,
-		__entry->status)
+	TP_printk("addr=%pIScp rq_xid=0x%x status=%d flags=%s",
+		__entry->addr, be32_to_cpu(__entry->xid),
+		__entry->status, show_rqstp_flags(__entry->flags))
 );
 
 DEFINE_EVENT(svc_rqst_status, svc_process,
@@ -466,6 +481,99 @@ DEFINE_EVENT(svc_rqst_status, svc_send,
 	TP_PROTO(struct svc_rqst *rqst, int status),
 	TP_ARGS(rqst, status));
 
+#define show_svc_xprt_flags(flags)					\
+	__print_flags(flags, "|",					\
+		{ (1UL << XPT_BUSY),		"XPT_BUSY"},		\
+		{ (1UL << XPT_CONN),		"XPT_CONN"},		\
+		{ (1UL << XPT_CLOSE),		"XPT_CLOSE"},		\
+		{ (1UL << XPT_DATA),		"XPT_DATA"},		\
+		{ (1UL << XPT_TEMP),		"XPT_TEMP"},		\
+		{ (1UL << XPT_DEAD),		"XPT_DEAD"},		\
+		{ (1UL << XPT_CHNGBUF),		"XPT_CHNGBUF"},		\
+		{ (1UL << XPT_DEFERRED),	"XPT_DEFERRED"},	\
+		{ (1UL << XPT_OLD),		"XPT_OLD"},		\
+		{ (1UL << XPT_LISTENER),	"XPT_LISTENER"},	\
+		{ (1UL << XPT_CACHE_AUTH),	"XPT_CACHE_AUTH"},	\
+		{ (1UL << XPT_LOCAL),		"XPT_LOCAL"})
+
+TRACE_EVENT(svc_xprt_do_enqueue,
+	TP_PROTO(struct svc_xprt *xprt, struct svc_rqst *rqst),
+
+	TP_ARGS(xprt, rqst),
+
+	TP_STRUCT__entry(
+		__field(struct svc_xprt *, xprt)
+		__field(struct svc_rqst *, rqst)
+	),
+
+	TP_fast_assign(
+		__entry->xprt = xprt;
+		__entry->rqst = rqst;
+	),
+
+	TP_printk("xprt=0x%p addr=%pIScp pid=%d flags=%s", __entry->xprt,
+		(struct sockaddr *)&__entry->xprt->xpt_remote,
+		__entry->rqst ? __entry->rqst->rq_task->pid : 0,
+		show_svc_xprt_flags(__entry->xprt->xpt_flags))
+);
+
+TRACE_EVENT(svc_xprt_dequeue,
+	TP_PROTO(struct svc_xprt *xprt),
+
+	TP_ARGS(xprt),
+
+	TP_STRUCT__entry(
+		__field(struct svc_xprt *, xprt)
+		__field_struct(struct sockaddr_storage, ss)
+		__field(unsigned long, flags)
+	),
+
+	TP_fast_assign(
+		__entry->xprt = xprt,
+		xprt ? memcpy(&__entry->ss, &xprt->xpt_remote, sizeof(__entry->ss)) : memset(&__entry->ss, 0, sizeof(__entry->ss));
+		__entry->flags = xprt ? xprt->xpt_flags : 0;
+	),
+
+	TP_printk("xprt=0x%p addr=%pIScp flags=%s", __entry->xprt,
+		(struct sockaddr *)&__entry->ss,
+		show_svc_xprt_flags(__entry->flags))
+);
+
+TRACE_EVENT(svc_wake_up,
+	TP_PROTO(int pid),
+
+	TP_ARGS(pid),
+
+	TP_STRUCT__entry(
+		__field(int, pid)
+	),
+
+	TP_fast_assign(
+		__entry->pid = pid;
+	),
+
+	TP_printk("pid=%d", __entry->pid)
+);
+
+TRACE_EVENT(svc_handle_xprt,
+	TP_PROTO(struct svc_xprt *xprt, int len),
+
+	TP_ARGS(xprt, len),
+
+	TP_STRUCT__entry(
+		__field(struct svc_xprt *, xprt)
+		__field(int, len)
+	),
+
+	TP_fast_assign(
+		__entry->xprt = xprt;
+		__entry->len = len;
+	),
+
+	TP_printk("xprt=0x%p addr=%pIScp len=%d flags=%s", __entry->xprt,
+		(struct sockaddr *)&__entry->xprt->xpt_remote, __entry->len,
+		show_svc_xprt_flags(__entry->xprt->xpt_flags))
+);
 #endif /* _TRACE_SUNRPC_H */
 
 #include <trace/define_trace.h>
