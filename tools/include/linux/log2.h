@@ -48,6 +48,15 @@ bool is_power_of_2(unsigned long n)
 }
 
 /*
+ * round up to nearest power of two
+ */
+static inline __attribute__((const))
+unsigned long __roundup_pow_of_two(unsigned long n)
+{
+	return 1UL << fls_long(n - 1);
+}
+
+/*
  * round down to nearest power of two
  */
 static inline __attribute__((const))
@@ -141,6 +150,22 @@ unsigned long __rounddown_pow_of_two(unsigned long n)
 	__ilog2_u64(n)				\
  )
 
+/**
+ * roundup_pow_of_two - round the given value up to nearest power of two
+ * @n - parameter
+ *
+ * round the given value up to the nearest power of two
+ * - the result is undefined when n == 0
+ * - this can be used to initialise global variables from constant data
+ */
+#define roundup_pow_of_two(n)			\
+(						\
+	__builtin_constant_p(n) ? (		\
+		(n == 1) ? 1 :			\
+		(1UL << (ilog2((n) - 1) + 1))	\
+				   ) :		\
+	__roundup_pow_of_two(n)			\
+ )
 
 /**
  * rounddown_pow_of_two - round the given value down to nearest power of two
