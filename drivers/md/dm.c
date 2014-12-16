@@ -1062,7 +1062,7 @@ static void dm_unprep_request(struct request *rq)
 /*
  * Requeue the original request of a clone.
  */
-void dm_requeue_unmapped_request(struct request *clone)
+static void dm_requeue_unmapped_request(struct request *clone)
 {
 	int rw = rq_data_dir(clone);
 	struct dm_rq_target_io *tio = clone->end_io_data;
@@ -1079,7 +1079,6 @@ void dm_requeue_unmapped_request(struct request *clone)
 
 	rq_completed(md, rw, 0);
 }
-EXPORT_SYMBOL_GPL(dm_requeue_unmapped_request);
 
 static void __stop_queue(struct request_queue *q)
 {
@@ -1177,7 +1176,7 @@ static void dm_complete_request(struct request *clone, int error)
  * Target's rq_end_io() function isn't called.
  * This may be used when the target's map_rq() function fails.
  */
-void dm_kill_unmapped_request(struct request *clone, int error)
+static void dm_kill_unmapped_request(struct request *clone, int error)
 {
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct request *rq = tio->orig;
@@ -1185,7 +1184,6 @@ void dm_kill_unmapped_request(struct request *clone, int error)
 	rq->cmd_flags |= REQ_FAILED;
 	dm_complete_request(clone, error);
 }
-EXPORT_SYMBOL_GPL(dm_kill_unmapped_request);
 
 /*
  * Called with the queue lock held
@@ -1686,7 +1684,7 @@ static void dm_request(struct request_queue *q, struct bio *bio)
 		_dm_request(q, bio);
 }
 
-void dm_dispatch_request(struct request *rq)
+static void dm_dispatch_request(struct request *rq)
 {
 	int r;
 
@@ -1698,7 +1696,6 @@ void dm_dispatch_request(struct request *rq)
 	if (r)
 		dm_complete_request(rq, r);
 }
-EXPORT_SYMBOL_GPL(dm_dispatch_request);
 
 static int dm_rq_bio_constructor(struct bio *bio, struct bio *bio_orig,
 				 void *data)
