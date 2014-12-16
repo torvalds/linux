@@ -841,7 +841,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			info.addr = 0x18;
 			info.platform_data = &mn88472_config;
 			request_module(info.type);
-			client = i2c_new_device(priv->demod_i2c_adapter, &info);
+			client = i2c_new_device(&d->i2c_adap, &info);
 			if (client == NULL || client->dev.driver == NULL) {
 				priv->slave_demod = SLAVE_DEMOD_NONE;
 				goto err_slave_demod_failed;
@@ -863,7 +863,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			info.addr = 0x18;
 			info.platform_data = &mn88473_config;
 			request_module(info.type);
-			client = i2c_new_device(priv->demod_i2c_adapter, &info);
+			client = i2c_new_device(&d->i2c_adap, &info);
 			if (client == NULL || client->dev.driver == NULL) {
 				priv->slave_demod = SLAVE_DEMOD_NONE;
 				goto err_slave_demod_failed;
