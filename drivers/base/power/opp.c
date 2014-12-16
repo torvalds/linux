@@ -216,9 +216,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
  * This function returns the number of available opps if there are any,
  * else returns 0 if none or the corresponding error value.
  *
- * Locking: This function must be called under rcu_read_lock(). This function
- * internally references two RCU protected structures: device_opp and opp which
- * are safe as long as we are under a common RCU locked section.
+ * Locking: This function takes rcu_read_lock().
  */
 int dev_pm_opp_get_opp_count(struct device *dev)
 {
@@ -226,13 +224,14 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 	struct dev_pm_opp *temp_opp;
 	int count = 0;
 
-	opp_rcu_lockdep_assert();
+	rcu_read_lock();
 
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
-		int r = PTR_ERR(dev_opp);
-		dev_err(dev, "%s: device OPP not found (%d)\n", __func__, r);
-		return r;
+		count = PTR_ERR(dev_opp);
+		dev_err(dev, "%s: device OPP not found (%d)\n",
+			__func__, count);
+		goto out_unlock;
 	}
 
 	list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
@@ -240,6 +239,8 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 			count++;
 	}
 
+out_unlock:
+	rcu_read_unlock();
 	return count;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
