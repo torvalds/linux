@@ -362,6 +362,7 @@ gen7_render_ring_flush(struct intel_engine_cs *ring,
 		flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_MEDIA_STATE_CLEAR;
 		/*
 		 * TLB invalidate requires a post-sync write.
 		 */
