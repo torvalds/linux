@@ -3588,7 +3588,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			return 0;
 
 		/* if used one lcdc to dual disp, no need to close win */
-		if (rk_fb->disp_mode == ONE_DUAL) {
+		if ((rk_fb->disp_mode == ONE_DUAL) ||
+		    (rk_fb->disp_mode == NO_DUAL)) {
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->ops->load_screen(dev_drv, 1);
 
@@ -3677,7 +3678,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		if (dev_drv->ops->dsp_black)
 			dev_drv->ops->dsp_black(dev_drv, 0);
 		if ((dev_drv->ops->backlight_close) &&
-		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
+		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
+		    (rk_fb->disp_mode == ONE_DUAL))
 			dev_drv->ops->backlight_close(dev_drv, 0);
 	}
 	return 0;
@@ -4198,8 +4200,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			vaddr = vmap(pages, nr_pages, VM_MAP,
 					pgprot_writecombine(PAGE_KERNEL));
 			if (!vaddr) {
-				pr_err("failed to vmap phy addr %x\n",
-					uboot_logo_base + uboot_logo_offset);
+				pr_err("failed to vmap phy addr 0x%lx\n",
+				       (long)(uboot_logo_base +
+				       uboot_logo_offset));
 				return -1;
 			}
 
