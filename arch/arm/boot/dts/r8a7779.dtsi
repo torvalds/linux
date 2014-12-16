@@ -12,6 +12,7 @@
 /include/ "skeleton.dtsi"
 
 #include <dt-bindings/clock/r8a7779-clock.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
@@ -60,6 +61,14 @@
 		interrupt-controller;
 		reg = <0xf0001000 0x1000>,
 		      <0xf0000100 0x100>;
+	};
+
+	timer@f0000600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0xf0000600 0x20>;
+		interrupts = <GIC_PPI 13
+			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		clocks = <&cpg_clocks R8A7779_CLK_ZS>;
 	};
 
 	gpio0: gpio@ffc40000 {
