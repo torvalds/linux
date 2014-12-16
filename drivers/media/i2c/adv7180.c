@@ -616,10 +616,8 @@ static int adv7180_probe(struct i2c_client *client,
 		 client->addr, client->adapter->name);
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
-	if (state == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (state == NULL)
+		return -ENOMEM;
 
 	state->irq = client->irq;
 	mutex_init(&state->mutex);
@@ -649,7 +647,6 @@ err_free_ctrl:
 	adv7180_exit_controls(state);
 err_unreg_subdev:
 	mutex_destroy(&state->mutex);
-err:
 	return ret;
 }
 
