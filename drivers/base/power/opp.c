@@ -108,6 +108,14 @@ static LIST_HEAD(dev_opp_list);
 /* Lock to allow exclusive modification to the device and opp lists */
 static DEFINE_MUTEX(dev_opp_list_lock);
 
+#define opp_rcu_lockdep_assert()					\
+do {									\
+	rcu_lockdep_assert(rcu_read_lock_held() ||			\
+				lockdep_is_held(&dev_opp_list_lock),	\
+			   "Missing rcu_read_lock() or "		\
+			   "dev_opp_list_lock protection");		\
+} while (0)
+
 /**
  * find_device_opp() - find device_opp struct using device pointer
  * @dev:	device pointer used to lookup device OPPs
@@ -218,6 +226,8 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 	struct dev_pm_opp *temp_opp;
 	int count = 0;
 
+	opp_rcu_lockdep_assert();
+
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		int r = PTR_ERR(dev_opp);
@@ -267,6 +277,8 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
+	opp_rcu_lockdep_assert();
+
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		int r = PTR_ERR(dev_opp);
@@ -312,6 +324,8 @@ struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+
+	opp_rcu_lockdep_assert();
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
@@ -360,6 +374,8 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+
+	opp_rcu_lockdep_assert();
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
