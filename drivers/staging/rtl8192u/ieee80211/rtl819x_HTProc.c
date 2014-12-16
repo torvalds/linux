@@ -602,8 +602,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 	// TODO: Nedd to take care of this part
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n", pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
-	if( IsEncrypt)
-	{
+	if (IsEncrypt) {
 		pCapELE->MPDUDensity	= 7; // 8us
 		pCapELE->MaxRxAMPDUFactor	= 2; // 2 is for 32 K and 3 is 64K
 	}
@@ -951,8 +950,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	static u8				EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};		// For 11n EWC definition, 2007.07.17, by Emily
 	static u8				EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};	// For 11n EWC definition, 2007.07.17, by Emily
 
-	if( pHTInfo->bCurrentHTSupport == false )
-	{
+	if (pHTInfo->bCurrentHTSupport == false) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "<=== HTOnAssocRsp(): HT_DISABLE\n");
 		return;
 	}
@@ -1043,7 +1041,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 		// Replace MPDU factor declared in original association response frame format. 2007.08.20 by Emily
 		if (ieee->current_network.bssht.bdRT2RTAggregation)
 		{
-			if( ieee->pairwise_key_type != KEY_TYPE_NA)
+			if (ieee->pairwise_key_type != KEY_TYPE_NA)
 				// Realtek may set 32k in security mode and 64k for others
 				pHTInfo->CurrentAMPDUFactor = pPeerHTCap->MaxRxAMPDUFactor;
 			else
@@ -1332,8 +1330,7 @@ u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame)
 {
 	if(ieee->pHTInfo->bCurrentHTSupport)
 	{
-		if( (IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1)
-		{
+		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
 			IEEE80211_DEBUG(IEEE80211_DL_HT, "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}

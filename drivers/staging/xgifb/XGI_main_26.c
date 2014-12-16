@@ -2012,7 +2012,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	XGIfb_get_fix(&fb_info->fix, -1, fb_info);
 	fb_info->pseudo_palette = xgifb_info->pseudo_palette;
 
-	fb_alloc_cmap(&fb_info->cmap, 256 , 0);
+	fb_alloc_cmap(&fb_info->cmap, 256, 0);
 
 #ifdef CONFIG_MTRR
 	xgifb_info->mtrr = mtrr_add(xgifb_info->video_base,

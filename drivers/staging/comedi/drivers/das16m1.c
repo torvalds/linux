@@ -442,8 +442,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 		num_samples = FIFO_SIZE;
 	insw(dev->iobase, devpriv->ai_buffer, num_samples);
 	munge_sample_array(devpriv->ai_buffer, num_samples);
-	cfc_write_array_to_buffer(s, devpriv->ai_buffer,
-				  num_samples * sizeof(short));
+	comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
 	devpriv->adc_count += num_samples;
 
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -460,7 +459,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 		dev_err(dev->class_dev, "fifo overflow\n");
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -598,7 +597,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	s = &dev->subdevices[2];
 	/* do */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;

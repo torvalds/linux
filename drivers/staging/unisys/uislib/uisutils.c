@@ -25,9 +25,7 @@
 #include "uisutils.h"
 #include "version.h"
 #include "vbushelper.h"
-#include <linux/uuid.h>
 #include <linux/skbuff.h>
-#include <linux/uuid.h>
 #ifdef CONFIG_HIGHMEM
 #include <linux/highmem.h>
 #endif
@@ -39,7 +37,7 @@
 #define __MYFILE__ "uisutils.c"
 
 /* exports */
-atomic_t UisUtils_Registered_Services = ATOMIC_INIT(0);
+atomic_t uisutils_registered_services = ATOMIC_INIT(0);
 					/* num registrations via
 					 * uisctrl_register_req_handler() or
 					 * uisctrl_register_req_handler_ex() */
@@ -75,20 +73,20 @@ EXPORT_SYMBOL_GPL(uisutil_add_proc_line_ex);
 
 int
 uisctrl_register_req_handler(int type, void *fptr,
-			     ULTRA_VBUS_DEVICEINFO *chipset_driver_info)
+			     struct ultra_vbus_deviceinfo *chipset_driver_info)
 {
 	LOGINF("type = %d, fptr = 0x%p.\n", type, fptr);
 
 	switch (type) {
 	case 2:
 		if (fptr) {
-			if (!VirtControlChanFunc)
-				atomic_inc(&UisUtils_Registered_Services);
-			VirtControlChanFunc = fptr;
+			if (!virt_control_chan_func)
+				atomic_inc(&uisutils_registered_services);
+			virt_control_chan_func = fptr;
 		} else {
-			if (VirtControlChanFunc)
-				atomic_dec(&UisUtils_Registered_Services);
-			VirtControlChanFunc = NULL;
+			if (virt_control_chan_func)
+				atomic_dec(&uisutils_registered_services);
+			virt_control_chan_func = NULL;
 		}
 		break;
 
@@ -105,76 +103,75 @@ uisctrl_register_req_handler(int type, void *fptr,
 EXPORT_SYMBOL_GPL(uisctrl_register_req_handler);
 
 int
-uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
-				const char *switch_type_name,
-				int (*controlfunc)(struct io_msgs *),
-				unsigned long min_channel_bytes,
-				int (*Server_Channel_Ok)(unsigned long
-							  channelBytes),
-				int (*Server_Channel_Init)
-				 (void *x, unsigned char *clientStr,
-				  u32 clientStrLen, u64 bytes),
-				ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo)
+uisctrl_register_req_handler_ex(uuid_le switch_uuid,
+			const char *switch_type_name,
+			int (*controlfunc)(struct io_msgs *),
+			unsigned long min_channel_bytes,
+			int (*server_channel_ok)(unsigned long channel_bytes),
+			int (*server_channel_init)(void *x,
+						unsigned char *client_str,
+						u32 client_str_len, u64 bytes),
+			struct ultra_vbus_deviceinfo *chipset_driver_info)
 {
-	ReqHandlerInfo_t *pReqHandlerInfo;
+	struct req_handler_info *pReqHandlerInfo;
 	int rc = 0;		/* assume failure */
 
 	LOGINF("type=%pUL, controlfunc=0x%p.\n",
-	       &switchTypeGuid, controlfunc);
+	       &switch_uuid, controlfunc);
 	if (!controlfunc) {
-		LOGERR("%pUL: controlfunc must be supplied\n", &switchTypeGuid);
+		LOGERR("%pUL: controlfunc must be supplied\n", &switch_uuid);
 		goto Away;
 	}
-	if (!Server_Channel_Ok) {
+	if (!server_channel_ok) {
 		LOGERR("%pUL: Server_Channel_Ok must be supplied\n",
-				&switchTypeGuid);
+				&switch_uuid);
 		goto Away;
 	}
-	if (!Server_Channel_Init) {
+	if (!server_channel_init) {
 		LOGERR("%pUL: Server_Channel_Init must be supplied\n",
-				&switchTypeGuid);
+				&switch_uuid);
 		goto Away;
 	}
-	pReqHandlerInfo = ReqHandlerAdd(switchTypeGuid,
+	pReqHandlerInfo = req_handler_add(switch_uuid,
 					switch_type_name,
 					controlfunc,
 					min_channel_bytes,
-					Server_Channel_Ok, Server_Channel_Init);
+					server_channel_ok, server_channel_init);
 	if (!pReqHandlerInfo) {
-		LOGERR("failed to add %pUL to server list\n", &switchTypeGuid);
+		LOGERR("failed to add %pUL to server list\n", &switch_uuid);
 		goto Away;
 	}
 
-	atomic_inc(&UisUtils_Registered_Services);
+	atomic_inc(&uisutils_registered_services);
 	rc = 1;			/* success */
 Away:
 	if (rc) {
-		if (chipset_DriverInfo)
-			bus_device_info_init(chipset_DriverInfo, "chipset",
+		if (chipset_driver_info)
+			bus_device_info_init(chipset_driver_info, "chipset",
 					   "uislib", VERSION, NULL);
 	} else
-		LOGERR("failed to register type %pUL.\n", &switchTypeGuid);
+		LOGERR("failed to register type %pUL.\n", &switch_uuid);
 
 	return rc;
 }
 EXPORT_SYMBOL_GPL(uisctrl_register_req_handler_ex);
 
 int
-uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid)
+uisctrl_unregister_req_handler_ex(uuid_le switch_uuid)
 {
 	int rc = 0;		/* assume failure */
 
-	LOGINF("type=%pUL.\n", &switchTypeGuid);
-	if (ReqHandlerDel(switchTypeGuid) < 0) {
+	LOGINF("type=%pUL.\n", &switch_uuid);
+	if (req_handler_del(switch_uuid) < 0) {
 		LOGERR("failed to remove %pUL from server list\n",
-				&switchTypeGuid);
+				&switch_uuid);
 		goto Away;
 	}
-	atomic_dec(&UisUtils_Registered_Services);
+	atomic_dec(&uisutils_registered_services);
 	rc = 1;			/* success */
 Away:
 	if (!rc)
-		LOGERR("failed to unregister type %pUL.\n", &switchTypeGuid);
+		LOGERR("failed to unregister type %pUL.\n", &switch_uuid);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(uisctrl_unregister_req_handler_ex);
@@ -275,11 +272,11 @@ dolist: if (skb_shinfo(skb)->frag_list) {
 }
 EXPORT_SYMBOL_GPL(uisutil_copy_fragsinfo_from_skb);
 
-static LIST_HEAD(ReqHandlerInfo_list);	/* list of ReqHandlerInfo_t */
+static LIST_HEAD(ReqHandlerInfo_list);	/* list of struct req_handler_info */
 static DEFINE_SPINLOCK(ReqHandlerInfo_list_lock);
 
-ReqHandlerInfo_t *
-ReqHandlerAdd(uuid_le switchTypeGuid,
+struct req_handler_info *
+req_handler_add(uuid_le switch_uuid,
 	      const char *switch_type_name,
 	      int (*controlfunc)(struct io_msgs *),
 	      unsigned long min_channel_bytes,
@@ -287,16 +284,16 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	      int (*Server_Channel_Init)
 	       (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes))
 {
-	ReqHandlerInfo_t *rc = NULL;
+	struct req_handler_info *rc = NULL;
 
 	rc = kzalloc(sizeof(*rc), GFP_ATOMIC);
 	if (!rc)
 		return NULL;
-	rc->switchTypeGuid = switchTypeGuid;
+	rc->switch_uuid = switch_uuid;
 	rc->controlfunc = controlfunc;
 	rc->min_channel_bytes = min_channel_bytes;
-	rc->Server_Channel_Ok = Server_Channel_Ok;
-	rc->Server_Channel_Init = Server_Channel_Init;
+	rc->server_channel_ok = Server_Channel_Ok;
+	rc->server_channel_init = Server_Channel_Init;
 	if (switch_type_name)
 		strncpy(rc->switch_type_name, switch_type_name,
 			sizeof(rc->switch_type_name) - 1);
@@ -307,16 +304,16 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	return rc;
 }
 
-ReqHandlerInfo_t *
-ReqHandlerFind(uuid_le switchTypeGuid)
+struct req_handler_info *
+req_handler_find(uuid_le switch_uuid)
 {
 	struct list_head *lelt, *tmp;
-	ReqHandlerInfo_t *entry = NULL;
+	struct req_handler_info *entry = NULL;
 
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
-		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);
-		if (uuid_le_cmp(entry->switchTypeGuid, switchTypeGuid) == 0) {
+		entry = list_entry(lelt, struct req_handler_info, list_link);
+		if (uuid_le_cmp(entry->switch_uuid, switch_uuid) == 0) {
 			spin_unlock(&ReqHandlerInfo_list_lock);
 			return entry;
 		}
@@ -326,16 +323,16 @@ ReqHandlerFind(uuid_le switchTypeGuid)
 }
 
 int
-ReqHandlerDel(uuid_le switchTypeGuid)
+req_handler_del(uuid_le switch_uuid)
 {
 	struct list_head *lelt, *tmp;
-	ReqHandlerInfo_t *entry = NULL;
+	struct req_handler_info *entry = NULL;
 	int rc = -1;
 
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
-		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);
-		if (uuid_le_cmp(entry->switchTypeGuid, switchTypeGuid) == 0) {
+		entry = list_entry(lelt, struct req_handler_info, list_link);
+		if (uuid_le_cmp(entry->switch_uuid, switch_uuid) == 0) {
 			list_del(lelt);
 			kfree(entry);
 			rc++;

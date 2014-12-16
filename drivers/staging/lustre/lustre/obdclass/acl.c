@@ -171,17 +171,17 @@ EXPORT_SYMBOL(lustre_posix_acl_xattr_2ext);
 /*
  * Filter out the "nobody" entries in the posix ACL.
  */
-int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
+int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
 				  posix_acl_xattr_header **out)
 {
 	int count, i, j, rc = 0;
 	__u32 id;
 	posix_acl_xattr_header *new;
 
-	if (unlikely(size < 0))
-		return -EINVAL;
-	else if (!size)
+	if (!size)
 		return 0;
+	if (size < sizeof(*new))
+		return -EINVAL;
 
 	OBD_ALLOC(new, size);
 	if (unlikely(new == NULL))

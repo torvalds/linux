@@ -331,6 +331,7 @@ rtw_update_TSF(struct mlme_ext_priv *pmlmeext, struct ieee80211_mgmt *mgmt)
 int rtw_ch_set_search_ch23a(struct rt_channel_info *ch_set, const u32 ch)
 {
 	int i;
+
 	for (i = 0; ch_set[i]. ChannelNum != 0; i++) {
 		if (ch == ch_set[i].ChannelNum)
 			break;
@@ -566,7 +567,6 @@ static u8 init_channel_set(struct rtw_adapter *padapter, u8 cplan,
 
 int init_mlme_ext_priv23a(struct rtw_adapter *padapter)
 {
-	int res = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -593,7 +593,7 @@ int init_mlme_ext_priv23a(struct rtw_adapter *padapter)
 	pmlmeext->mlmeext_init = true;
 
 	pmlmeext->active_keep_alive_check = true;
-	return res;
+	return _SUCCESS;
 }
 
 void free_mlme_ext_priv23a (struct mlme_ext_priv *pmlmeext)
@@ -680,8 +680,7 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 	}
 
 #ifdef CONFIG_8723AU_AP_MODE
-	switch (stype)
-	{
+	switch (stype) {
 	case IEEE80211_STYPE_AUTH:
 		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			ptable->func = &OnAuth23a;
@@ -1572,6 +1571,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat->uapsd_bk = 0;
 	if (pmlmepriv->qos_option) {
 		const u8 *end = pos + left;
+
 		p = pos;
 
 		for (;;) {
@@ -2335,12 +2335,9 @@ static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
 	   __func__, hidden_ssid_mode, ssid_ie, ssid_len_ori); */
 
 	if (ssid_ie && ssid_len_ori > 0) {
-		switch (hidden_ssid_mode)
-		{
+		switch (hidden_ssid_mode) {
 		case 1:
 			next_ie = ssid_ie + 2 + ssid_len_ori;
-			remain_len = 0;
-
 			remain_len = ies_len -(next_ie-ies);
 
 			ssid_ie[1] = 0;
@@ -2599,7 +2596,9 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 		if (ssid_ie && cur_network->Ssid.ssid_len) {
 			uint remainder_ielen;
 			u8 *remainder_ie;
+
 			remainder_ie = ssid_ie + 2;
+
 			remainder_ielen = pframe - remainder_ie;
 
 			DBG_8723A_LEVEL(_drv_warning_, "%s(%s): "
@@ -2862,6 +2861,7 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	if (psta) { /*  for AP mode */
 #ifdef CONFIG_8723AU_AP_MODE
 		unsigned short val16;
+
 		ether_addr_copy(mgmt->da, psta->hwaddr);
 		ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
 		ether_addr_copy(mgmt->bssid, myid(&padapter->eeprompriv));
@@ -3306,6 +3306,7 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 			    !memcmp(p + 2, WMM_OUI23A, 4) ||
 			    !memcmp(p + 2, WPS_OUI23A, 4)) {
 				u8 plen = p[1];
+
 				if (!padapter->registrypriv.wifi_spec) {
 					/* Commented by Kurt 20110629 */
 					/* In some older APs, WPS handshake */
@@ -3997,7 +3998,7 @@ int send_beacon23a(struct rtw_adapter *padapter)
 			yield();
 			bxmitok = rtl8723a_get_bcn_valid(padapter);
 			poll++;
-		} while ((poll % 10) != 0 && bxmitok == false &&
+		} while ((poll % 10) != 0 && !bxmitok &&
 			 !padapter->bSurpriseRemoved &&
 			 !padapter->bDriverStopped);
 
@@ -4070,6 +4071,7 @@ static void rtw_site_survey(struct rtw_adapter *padapter)
 		if (ScanType == SCAN_ACTIVE) /* obey the channel plan setting... */
 		{
 			int i;
+
 			for (i = 0;i<RTW_SSID_SCAN_AMOUNT;i++) {
 				if (pmlmeext->sitesurvey_res.ssid[i].ssid_len) {
 					/* todo: to issue two probe req??? */
@@ -4197,9 +4199,9 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 	/* get the signal strength */
 	/*  in dBM.raw data */
 	bssid->Rssi = precv_frame->attrib.phy_info.RecvSignalPower;
-	bssid->PhyInfo.SignalQuality =
+	bssid->SignalQuality =
 		precv_frame->attrib.phy_info.SignalQuality;/* in percentage */
-	bssid->PhyInfo.SignalStrength =
+	bssid->SignalStrength =
 		precv_frame->attrib.phy_info.SignalStrength;/* in percentage */
 
 	/*  checking SSID */
@@ -4293,6 +4295,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 				     bssid->IELength);
 		if (p && p[1] > 0) {
 			struct ieee80211_ht_cap *pHT_caps;
+
 			pHT_caps = (struct ieee80211_ht_cap *)(p + 2);
 
 			if (pHT_caps->cap_info &
@@ -4305,7 +4308,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 
 	/*  mark bss info receiving from nearby channel as SignalQuality 101 */
 	if (bssid->DSConfig != rtw_get_oper_ch23a(padapter))
-		bssid->PhyInfo.SignalQuality = 101;
+		bssid->SignalQuality = 101;
 
 	return bssid;
 fail:
@@ -4319,6 +4322,7 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
+
 	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
 	pmlmeinfo->bcn_interval = pnetwork->beacon_interval;
 
@@ -4354,9 +4358,7 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 			report_join_res23a(padapter, 1);
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 		}
-	}
-	else
-	{
+	} else {
 		DBG_8723A("%s: invalid cap:%x\n", __func__, caps);
 		return;
 	}
@@ -4414,9 +4416,7 @@ static void start_clnt_join(struct rtw_adapter *padapter)
 		pmlmeinfo->state = MSR_ADHOC;
 
 		report_join_res23a(padapter, 1);
-	}
-	else
-	{
+	} else {
 		/* DBG_8723A("marc: invalid cap:%x\n", caps); */
 		return;
 	}
@@ -4480,16 +4480,12 @@ int receive_disconnect23a(struct rtw_adapter *padapter,
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmlmeinfo->state&0x03) == MSR_INFRA)
-	{
-		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
-		{
+	if ((pmlmeinfo->state&0x03) == MSR_INFRA) {
+		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 			pmlmeinfo->state = MSR_NOLINK;
 			report_del_sta_event23a(padapter, MacAddr, reason);
 
-		}
-		else if (pmlmeinfo->state & WIFI_FW_LINKING_STATE)
-		{
+		} else if (pmlmeinfo->state & WIFI_FW_LINKING_STATE) {
 			pmlmeinfo->state = MSR_NOLINK;
 			report_join_res23a(padapter, -2);
 		}
@@ -4866,7 +4862,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	pjoinbss_evt = (struct joinbss_event*)(pevtcmd + sizeof(struct C2HEvent_Header));
 	memcpy((unsigned char *)&pjoinbss_evt->network.network,
 	       &pmlmeinfo->network, sizeof(struct wlan_bssid_ex));
-	pjoinbss_evt->network.join_res	= pjoinbss_evt->network.aid = res;
+	pjoinbss_evt->network.join_res = res;
 
 	DBG_8723A("report_join_res23a(%d)\n", res);
 
@@ -4995,8 +4991,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	VCS_update23a(padapter, psta);
 
 	/* HT */
-	if (pmlmepriv->htpriv.ht_option)
-	{
+	if (pmlmepriv->htpriv.ht_option) {
 		psta->htpriv.ht_option = true;
 
 		psta->htpriv.ampdu_enable = pmlmepriv->htpriv.ampdu_enable;
@@ -5006,9 +5001,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 		psta->qos_option = true;
 
-	}
-	else
-	{
+	} else {
 		psta->htpriv.ht_option = false;
 
 		psta->htpriv.ampdu_enable = false;
@@ -5050,12 +5043,10 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 		goto exit_mlmeext_joinbss_event_callback23a;
 	}
 
-	if ((pmlmeinfo->state&0x03) == MSR_ADHOC)
-	{
+	if ((pmlmeinfo->state&0x03) == MSR_ADHOC) {
 		/* for bc/mc */
 		psta_bmc = rtw_get_bcmc_stainfo23a(padapter);
-		if (psta_bmc)
-		{
+		if (psta_bmc) {
 			pmlmeinfo->FW_sta_info[psta_bmc->mac_id].psta = psta_bmc;
 			update_bmc_sta_support_rate23a(padapter, psta_bmc->mac_id);
 			Update_RA_Entry23a(padapter, psta_bmc);
@@ -5086,8 +5077,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 	set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
 	psta = rtw_get_stainfo23a(pstapriv, cur_network->MacAddress);
-	if (psta) /* only for infra. mode */
-	{
+	if (psta) { /* only for infra. mode */
 		pmlmeinfo->FW_sta_info[psta->mac_id].psta = psta;
 
 		/* DBG_8723A("set_sta_rate23a\n"); */
@@ -5123,8 +5113,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter,
 
 	if ((pmlmeinfo->state & 0x03) == MSR_ADHOC) {
 	/* adhoc master or sta_count>1 */
-		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
-		{
+		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 			/* nothing to do */
 		} else { /* adhoc client */
 			/*  correcting TSF */

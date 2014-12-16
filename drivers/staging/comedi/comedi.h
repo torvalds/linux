@@ -367,6 +367,8 @@ enum comedi_support_level {
 #define COMEDI_BUFCONFIG _IOR(CIO, 13, struct comedi_bufconfig)
 #define COMEDI_BUFINFO _IOWR(CIO, 14, struct comedi_bufinfo)
 #define COMEDI_POLL _IO(CIO, 15)
+#define COMEDI_SETRSUBD _IO(CIO, 16)
+#define COMEDI_SETWSUBD _IO(CIO, 17)
 
 /* structures */
 
@@ -513,17 +515,6 @@ struct comedi_bufinfo {
 #define UNIT_none		2
 
 #define COMEDI_MIN_SPEED	((unsigned int)0xffffffff)
-
-/* callback stuff */
-/* only relevant to kernel modules. */
-
-#define COMEDI_CB_EOS		1	/* end of scan */
-#define COMEDI_CB_EOA		2	/* end of acquisition/output */
-#define COMEDI_CB_BLOCK		4	/* data has arrived:
-					 * wakes up read() / write() */
-#define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */
-#define COMEDI_CB_ERROR		16	/* card error during acquisition */
-#define COMEDI_CB_OVERFLOW	32	/* buffer overflow/underflow */
 
 /**********************************************************/
 /* everything after this line is ALPHA */

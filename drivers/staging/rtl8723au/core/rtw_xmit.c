@@ -22,9 +22,6 @@
 #include <usb_ops.h>
 #include <rtl8723a_xmit.h>
 
-static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
-static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
-
 static void _init_txservq(struct tx_servq *ptxservq)
 {
 
@@ -180,15 +177,7 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 	for (i = 0; i < 4; i ++)
 		pxmitpriv->wmm_para_seq[i] = i;
 
-	pxmitpriv->txirp_cnt = 1;
-
 	sema_init(&pxmitpriv->tx_retevt, 0);
-
-	/* per AC pending irp */
-	pxmitpriv->beq_cnt = 0;
-	pxmitpriv->bkq_cnt = 0;
-	pxmitpriv->viq_cnt = 0;
-	pxmitpriv->voq_cnt = 0;
 
 	pxmitpriv->ack_tx = false;
 	mutex_init(&pxmitpriv->ack_tx_mutex);
@@ -315,6 +304,7 @@ static void update_attrib_vcs_info(struct rtw_adapter *padapter, struct xmit_fra
 			/* check HT op mode */
 			if (pattrib->ht_en) {
 				u8 HTOpMode = pmlmeinfo->HT_protection;
+
 				if ((pmlmeext->cur_bwmode && (HTOpMode == 2 || HTOpMode == 3)) ||
 				    (!pmlmeext->cur_bwmode && HTOpMode == 3)) {
 					pattrib->vcs_mode = RTS_CTS;
@@ -464,6 +454,7 @@ static int update_attrib(struct rtw_adapter *padapter,
 		if (pattrib->pktlen > 282 + 24) {
 			if (pattrib->ether_type == ETH_P_IP) {/*  IP header */
 				u8 *pframe = skb->data;
+
 				pframe += ETH_HLEN;
 
 				if ((pframe[21] == 68 && pframe[23] == 67) ||
@@ -1048,21 +1039,23 @@ s32 rtw_txframes_sta_ac_pending23a(struct rtw_adapter *padapter,
 	return ptxservq->qcnt;
 }
 
-/*
- * Calculate wlan 802.11 packet MAX size from pkt_attrib
- * This function doesn't consider fragment case
+/* Logical Link Control(LLC) SubNetwork Attachment Point(SNAP) header
+ * IEEE LLC/SNAP header contains 8 octets
+ * First 3 octets comprise the LLC portion
+ * SNAP portion, 5 octets, is divided into two fields:
+ *	Organizationally Unique Identifier(OUI), 3 octets,
+ *	type, defined by that organization, 2 octets.
  */
-u32 rtw_calculate_wlan_pkt_size_by_attribue23a(struct pkt_attrib *pattrib)
+static int rtw_put_snap(u8 *data, u16 h_proto)
 {
-	u32	len = 0;
+	if (h_proto == ETH_P_IPX || h_proto == ETH_P_AARP)
+		ether_addr_copy(data, bridge_tunnel_header);
+	else
+		ether_addr_copy(data, rfc1042_header);
 
-	len = pattrib->hdrlen + pattrib->iv_len; /*  WLAN Header and IV */
-	len += SNAP_SIZE + sizeof(u16); /*  LLC */
-	len += pattrib->pktlen;
-	if (pattrib->encrypt == WLAN_CIPHER_SUITE_TKIP) len += 8; /*  MIC */
-	len += ((pattrib->bswenc) ? pattrib->icv_len : 0); /*  ICV */
-
-	return len;
+	data += ETH_ALEN;
+	put_unaligned_be16(h_proto, data);
+	return ETH_ALEN + sizeof(u16);
 }
 
 /*
@@ -1188,7 +1181,7 @@ int rtw_xmitframe_coalesce23a(struct rtw_adapter *padapter, struct sk_buff *skb,
 			mpdu_len -= pattrib->iv_len;
 		}
 		if (frg_inx == 0) {
-			llc_sz = rtw_put_snap23a(pframe, pattrib->ether_type);
+			llc_sz = rtw_put_snap(pframe, pattrib->ether_type);
 			pframe += llc_sz;
 			mpdu_len -= llc_sz;
 		}
@@ -1258,34 +1251,6 @@ exit:
 	return res;
 }
 
-/* Logical Link Control(LLC) SubNetwork Attachment Point(SNAP) header
- * IEEE LLC/SNAP header contains 8 octets
- * First 3 octets comprise the LLC portion
- * SNAP portion, 5 octets, is divided into two fields:
- *	Organizationally Unique Identifier(OUI), 3 octets,
- *	type, defined by that organization, 2 octets.
- */
-s32 rtw_put_snap23a(u8 *data, u16 h_proto)
-{
-	struct ieee80211_snap_hdr *snap;
-	u8 *oui;
-
-	snap = (struct ieee80211_snap_hdr *)data;
-	snap->dsap = 0xaa;
-	snap->ssap = 0xaa;
-	snap->ctrl = 0x03;
-
-	if (h_proto == 0x8137 || h_proto == 0x80f3)
-		oui = P802_1H_OUI;
-	else
-		oui = RFC1042_OUI;
-	snap->oui[0] = oui[0];
-	snap->oui[1] = oui[1];
-	snap->oui[2] = oui[2];
-	*(u16 *)(data + SNAP_SIZE) = htons(h_proto);
-	return SNAP_SIZE + sizeof(u16);
-}
-
 void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -1293,7 +1258,7 @@ void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
 	uint protection;
 	const u8 *p;
 
-	switch (pxmitpriv->vcs_setting) {
+	switch (pregistrypriv->vrtl_carrier_sense) {
 	case DISABLE_VCS:
 		pxmitpriv->vcs = NONE_VCS;
 		break;
@@ -1326,7 +1291,7 @@ void rtw_count_tx_stats23a(struct rtw_adapter *padapter, struct xmit_frame *pxmi
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 
-	if ((pxmitframe->frame_tag&0x0f) == DATA_FRAMETAG) {
+	if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 		pxmitpriv->tx_bytes += sz;
 		pmlmepriv->LinkDetectInfo.NumTxOkInPeriod++;
 
@@ -1893,18 +1858,6 @@ u32 rtw_get_ff_hwaddr23a(struct xmit_frame *pxmitframe)
 	return addr;
 }
 
-static void do_queue_select(struct rtw_adapter	*padapter, struct pkt_attrib *pattrib)
-{
-	u8 qsel;
-
-	qsel = pattrib->priority;
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-		 ("### do_queue_select priority =%d , qsel = %d\n",
-		  pattrib->priority, qsel));
-
-	pattrib->qsel = qsel;
-}
-
 /*
  * The main transmit(tx) entry
  *
@@ -1936,9 +1889,7 @@ int rtw_xmit23a(struct rtw_adapter *padapter, struct sk_buff *skb)
 	}
 	pxmitframe->pkt = skb;
 
-	rtw_led_control(padapter, LED_CTL_TX);
-
-	do_queue_select(padapter, &pxmitframe->attrib);
+	pxmitframe->attrib.qsel = pxmitframe->attrib.priority;
 
 #ifdef CONFIG_8723AU_AP_MODE
 	spin_lock_bh(&pxmitpriv->lock);
@@ -2409,11 +2360,6 @@ void rtw23a_sctx_done_err(struct submit_ctx **sctx, int status)
 		complete(&(*sctx)->done);
 		*sctx = NULL;
 	}
-}
-
-void rtw_sctx_done23a(struct submit_ctx **sctx)
-{
-	rtw23a_sctx_done_err(sctx, RTW_SCTX_DONE_SUCCESS);
 }
 
 int rtw_ack_tx_wait23a(struct xmit_priv *pxmitpriv, u32 timeout_ms)

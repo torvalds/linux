@@ -133,8 +133,6 @@ static const struct comedi_lrange pci9111_ai_range = {
 struct pci9111_private_data {
 	unsigned long lcr_io_base;
 
-	int stop_counter;
-
 	unsigned int scan_delay;
 	unsigned int chunk_counter;
 	unsigned int chunk_num_samples;
@@ -404,12 +402,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	outb(CR_RANGE(cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
 		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
-	/* Set counter */
-	if (cmd->stop_src == TRIG_COUNT)
-		dev_private->stop_counter = cmd->stop_arg * cmd->chanlist_len;
-	else	/* TRIG_NONE */
-		dev_private->stop_counter = 0;
-
 	/*  Set timer pacer */
 	dev_private->scan_delay = 0;
 	if (cmd->convert_src == TRIG_TIMER) {
@@ -435,7 +427,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	}
 	outb(trig, dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 
-	dev_private->stop_counter *= (1 + dev_private->scan_delay);
 	dev_private->chunk_counter = 0;
 	dev_private->chunk_num_samples = cmd->chanlist_len *
 					 (1 + dev_private->scan_delay);
@@ -452,7 +443,7 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 	unsigned int maxdata = s->maxdata;
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
-	unsigned int num_samples = num_bytes / sizeof(short);
+	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned int i;
 
 	for (i = 0; i < num_samples; i++)
@@ -464,22 +455,14 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 {
 	struct pci9111_private_data *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int total = 0;
 	unsigned int samples;
 
-	if (cmd->stop_src == TRIG_COUNT &&
-	    PCI9111_FIFO_HALF_SIZE > devpriv->stop_counter)
-		samples = devpriv->stop_counter;
-	else
-		samples = PCI9111_FIFO_HALF_SIZE;
-
+	samples = comedi_nsamples_left(s, PCI9111_FIFO_HALF_SIZE);
 	insw(dev->iobase + PCI9111_AI_FIFO_REG,
 	     devpriv->ai_bounce_buffer, samples);
 
 	if (devpriv->scan_delay < 1) {
-		total = cfc_write_array_to_buffer(s,
-						  devpriv->ai_bounce_buffer,
-						  samples * sizeof(short));
+		comedi_buf_write_samples(s, devpriv->ai_bounce_buffer, samples);
 	} else {
 		unsigned int pos = 0;
 		unsigned int to_read;
@@ -492,17 +475,15 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 				if (to_read > samples - pos)
 					to_read = samples - pos;
 
-				total += cfc_write_array_to_buffer(s,
+				comedi_buf_write_samples(s,
 						devpriv->ai_bounce_buffer + pos,
-						to_read * sizeof(short));
+						to_read);
 			} else {
 				to_read = devpriv->chunk_num_samples -
 					  devpriv->chunk_counter;
 
 				if (to_read > samples - pos)
 					to_read = samples - pos;
-
-				total += to_read * sizeof(short);
 			}
 
 			pos += to_read;
@@ -513,8 +494,6 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 				devpriv->chunk_counter = 0;
 		}
 	}
-
-	devpriv->stop_counter -= total / sizeof(short);
 }
 
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
@@ -561,7 +540,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			dev_dbg(dev->class_dev, "fifo overflow\n");
 			outb(0, dev->iobase + PCI9111_INT_CLR_REG);
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			cfc_handle_events(dev, s);
+			comedi_handle_events(dev, s);
 
 			return IRQ_HANDLED;
 		}
@@ -571,14 +550,14 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			pci9111_handle_fifo_half_full(dev, s);
 	}
 
-	if (cmd->stop_src == TRIG_COUNT && dev_private->stop_counter == 0)
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
 		async->events |= COMEDI_CB_EOA;
 
 	outb(0, dev->iobase + PCI9111_INT_CLR_REG);
 
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
@@ -752,7 +731,6 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 	s->len_chanlist	= 1;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci9111_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -768,7 +746,7 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 16;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;

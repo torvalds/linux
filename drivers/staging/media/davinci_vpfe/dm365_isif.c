@@ -70,17 +70,17 @@ static const u32 isif_srggb_pattern =
 	ISIF_COLPTN_Gb_G  << ISIF_CCOLP_CP15_4 |
 	ISIF_COLPTN_B_Mg  << ISIF_CCOLP_CP17_6;
 
-static inline u32 isif_read(void *__iomem base_addr, u32 offset)
+static inline u32 isif_read(void __iomem *base_addr, u32 offset)
 {
 	return readl(base_addr + offset);
 }
 
-static inline void isif_write(void *__iomem base_addr, u32 val, u32 offset)
+static inline void isif_write(void __iomem *base_addr, u32 val, u32 offset)
 {
 	writel(val, base_addr + offset);
 }
 
-static inline u32 isif_merge(void *__iomem base_addr, u32 mask, u32 val,
+static inline u32 isif_merge(void __iomem *base_addr, u32 mask, u32 val,
 			     u32 offset)
 {
 	u32 new_val = (isif_read(base_addr, offset) & ~mask) | (val & mask);
@@ -646,7 +646,7 @@ static void isif_config_gain_offset(struct vpfe_isif_device *isif)
 {
 	struct vpfe_isif_gain_offsets_adj *gain_off_ptr =
 		&isif->isif_cfg.bayer.config_params.gain_offset;
-	void *__iomem base = isif->isif_cfg.base_addr;
+	void __iomem *base = isif->isif_cfg.base_addr;
 	u32 val;
 
 	val = ((gain_off_ptr->gain_sdram_en & 1) << GAIN_SDRAM_EN_SHIFT) |
@@ -1602,6 +1602,7 @@ isif_pad_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 
 	if (crop->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_rect *rect;
+
 		rect = v4l2_subdev_get_try_crop(fh, ISIF_PAD_SINK);
 		memcpy(&crop->rect, rect, sizeof(*rect));
 	} else {
@@ -1991,7 +1992,7 @@ int vpfe_isif_init(struct vpfe_isif_device *isif, struct platform_device *pdev)
 	struct media_entity *me = &sd->entity;
 	static resource_size_t res_len;
 	struct resource *res;
-	void *__iomem addr;
+	void __iomem *addr;
 	int status;
 	int i = 0;
 

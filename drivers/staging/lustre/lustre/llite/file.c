@@ -170,8 +170,8 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		 * OSTs and send setattr to back to MDS. */
 		rc = ll_som_update(inode, op_data);
 		if (rc) {
-			CERROR("inode %lu mdc Size-on-MDS update failed: "
-			       "rc = %d\n", inode->i_ino, rc);
+			CERROR("inode %lu mdc Size-on-MDS update failed: rc = %d\n",
+			       inode->i_ino, rc);
 			rc = 0;
 		}
 	} else if (rc) {
@@ -247,7 +247,7 @@ int ll_md_real_close(struct inode *inode, fmode_t fmode)
 		return 0;
 	}
 
-	och=*och_p;
+	och = *och_p;
 	*och_p = NULL;
 	mutex_unlock(&lli->lli_och_mutex);
 
@@ -358,7 +358,7 @@ int ll_file_release(struct inode *inode, struct file *file)
 	fd = LUSTRE_FPRIVATE(file);
 	LASSERT(fd != NULL);
 
-	/* The last ref on @file, maybe not the the owner pid of statahead.
+	/* The last ref on @file, maybe not the owner pid of statahead.
 	 * Different processes can open the same dir, "ll_opendir_key" means:
 	 * it is me that should stop the statahead thread. */
 	if (S_ISDIR(inode->i_mode) && lli->lli_opendir_key == fd &&
@@ -975,8 +975,8 @@ int ll_inode_getattr(struct inode *inode, struct obdo *obdo,
 		struct ost_id *oi = lsm ? &lsm->lsm_oi : &obdo->o_oi;
 
 		obdo_refresh_inode(inode, obdo, obdo->o_valid);
-		CDEBUG(D_INODE, "objid "DOSTID" size %llu, blocks %llu,"
-		       " blksize %lu\n", POSTID(oi), i_size_read(inode),
+		CDEBUG(D_INODE, "objid " DOSTID " size %llu, blocks %llu, blksize %lu\n",
+		       POSTID(oi), i_size_read(inode),
 		       (unsigned long long)inode->i_blocks,
 		       1UL << inode->i_blkbits);
 	}
@@ -1403,8 +1403,8 @@ int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
 	rc = md_getattr_name(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr_name failed "
-		       "on %s: rc %d\n", filename, rc);
+		CDEBUG(D_INFO, "md_getattr_name failed on %s: rc %d\n",
+		       filename, rc);
 		goto out;
 	}
 
@@ -2221,8 +2221,8 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (cmd == LL_IOC_SETFLAGS) {
 			if ((flags & LL_FILE_IGNORE_LOCK) &&
 			    !(file->f_flags & O_DIRECT)) {
-				CERROR("%s: unable to disable locking on "
-				       "non-O_DIRECT file\n", current->comm);
+				CERROR("%s: unable to disable locking on non-O_DIRECT file\n",
+				       current->comm);
 				return -EINVAL;
 			}
 
@@ -2848,7 +2848,7 @@ ldlm_mode_t ll_take_md_lock(struct inode *inode, __u64 bits,
 			    struct lustre_handle *lockh, __u64 flags,
 			    ldlm_mode_t mode)
 {
-	ldlm_policy_data_t policy = { .l_inodebits = {bits}};
+	ldlm_policy_data_t policy = { .l_inodebits = {bits} };
 	struct lu_fid *fid;
 	ldlm_mode_t rc;
 

@@ -353,8 +353,7 @@ static void oz_complete_urb(struct usb_hcd *hcd, struct urb *urb,
 	}
 	spin_lock(&g_tasklet_lock);
 	spin_unlock_irqrestore(&g_tasklet_lock, irq_state);
-	if (cancel_urbl)
-		oz_free_urb_link(cancel_urbl);
+	oz_free_urb_link(cancel_urbl);
 }
 
 /*
@@ -522,8 +521,7 @@ static int oz_dequeue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 		}
 	}
 	spin_unlock_bh(&port->ozhcd->hcd_lock);
-	if (urbl)
-		oz_free_urb_link(urbl);
+	oz_free_urb_link(urbl);
 	return urbl ? 0 : -EIDRM;
 }
 
@@ -729,7 +727,7 @@ void oz_hcd_pd_reset(void *hpd, void *hport)
 {
 	/* Cleanup the current configuration and report reset to the core.
 	 */
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct oz_hcd *ozhcd = port->ozhcd;
 
 	oz_dbg(ON, "PD Reset\n");
@@ -748,7 +746,7 @@ void oz_hcd_pd_reset(void *hpd, void *hport)
 void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
 			int length, int offset, int total_size)
 {
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct urb *urb;
 	int err = 0;
 
@@ -888,7 +886,7 @@ static void oz_hcd_complete_set_interface(struct oz_port *port, struct urb *urb,
 void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, const u8 *data,
 	int data_len)
 {
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct urb *urb;
 	struct usb_ctrlrequest *setup;
 	struct usb_hcd *hcd = port->ozhcd->hcd;
@@ -1035,7 +1033,7 @@ static inline int oz_usb_get_frame_number(void)
 int oz_hcd_heartbeat(void *hport)
 {
 	int rc = 0;
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct oz_hcd *ozhcd = port->ozhcd;
 	struct oz_urb_link *urbl, *n;
 	LIST_HEAD(xfr_list);
@@ -1913,7 +1911,7 @@ static void oz_get_hub_descriptor(struct usb_hcd *hcd,
 	memset(desc, 0, sizeof(*desc));
 	desc->bDescriptorType = 0x29;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(0x0001);
+	desc->wHubCharacteristics = cpu_to_le16(0x0001);
 	desc->bNbrPorts = OZ_NB_PORTS;
 }
 
@@ -2031,11 +2029,11 @@ static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 		break;
 	case USB_PORT_FEAT_C_CONNECTION:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_CONNECTION\n");
-		clear_bits = (USB_PORT_STAT_C_CONNECTION << 16);
+		clear_bits = USB_PORT_STAT_C_CONNECTION << 16;
 		break;
 	case USB_PORT_FEAT_C_ENABLE:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_ENABLE\n");
-		clear_bits = (USB_PORT_STAT_C_ENABLE << 16);
+		clear_bits = USB_PORT_STAT_C_ENABLE << 16;
 		break;
 	case USB_PORT_FEAT_C_SUSPEND:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_SUSPEND\n");
@@ -2045,7 +2043,7 @@ static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 		break;
 	case USB_PORT_FEAT_C_RESET:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_RESET\n");
-		clear_bits = (USB_PORT_FEAT_C_RESET << 16);
+		clear_bits = USB_PORT_FEAT_C_RESET << 16;
 		break;
 	case USB_PORT_FEAT_TEST:
 		oz_dbg(HUB, "USB_PORT_FEAT_TEST\n");

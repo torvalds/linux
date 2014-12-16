@@ -1,30 +1,30 @@
 /*
-*---------------------------------------------------------------------------
-* FT1000 driver for Flarion Flash OFDM NIC Device
-*
-* Copyright (C) 2002 Flarion Technologies, All rights reserved.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the Free
-* Software Foundation; either version 2 of the License, or (at your option) any
-* later version. This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-* or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-* more details. You should have received a copy of the GNU General Public
-* License along with this program; if not, write to the
-* Free Software Foundation, Inc., 59 Temple Place -
-* Suite 330, Boston, MA 02111-1307, USA.
-*---------------------------------------------------------------------------
-*
-* File:         ft1000_ioctl.h
-*
-* Description:    Common structures and defines relating to IOCTL
-*
-* History:
-* 11/5/02    Whc                Created.
-*
-*---------------------------------------------------------------------------
-*/
+ *---------------------------------------------------------------------------
+ * FT1000 driver for Flarion Flash OFDM NIC Device
+ *
+ * Copyright (C) 2002 Flarion Technologies, All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option) any
+ * later version. This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details. You should have received a copy of the GNU General Public
+ * License along with this program; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place -
+ * Suite 330, Boston, MA 02111-1307, USA.
+ *---------------------------------------------------------------------------
+ *
+ * File:         ft1000_ioctl.h
+ *
+ * Description:    Common structures and defines relating to IOCTL
+ *
+ * History:
+ * 11/5/02    Whc                Created.
+ *
+ *---------------------------------------------------------------------------
+ */
 #ifndef _FT1000IOCTLH_
 #define _FT1000IOCTLH_
 
@@ -94,8 +94,8 @@ struct IOCTL_DPRAM_COMMAND {
 } __packed;
 
 /*
-* Custom IOCTL command codes
-*/
+ * Custom IOCTL command codes
+ */
 #define FT1000_MAGIC_CODE      'F'
 
 #define IOCTL_REGISTER_CMD	0
@@ -106,8 +106,8 @@ struct IOCTL_DPRAM_COMMAND {
 #define IOCTL_CONNECT		10
 #define IOCTL_DISCONNECT	11
 
-#define IOCTL_FT1000_GET_DSP_STAT _IOR(FT1000_MAGIC_CODE,      \
-				       IOCTL_GET_DSP_STAT_CMD, \
+#define IOCTL_FT1000_GET_DSP_STAT _IOR(FT1000_MAGIC_CODE,		\
+				       IOCTL_GET_DSP_STAT_CMD,		\
 				       struct IOCTL_GET_DSP_STAT)
 #define IOCTL_FT1000_GET_VER _IOR(FT1000_MAGIC_CODE, IOCTL_GET_VER_CMD, \
 				  struct IOCTL_GET_VER)

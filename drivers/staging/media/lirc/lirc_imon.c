@@ -495,7 +495,7 @@ static int ir_open(void *data)
 	/* prevent races with disconnect */
 	mutex_lock(&driver_lock);
 
-	context = (struct imon_context *)data;
+	context = data;
 
 	/* initial IR protocol decode variables */
 	context->rx.count = 0;
@@ -516,7 +516,7 @@ static void ir_close(void *data)
 {
 	struct imon_context *context;
 
-	context = (struct imon_context *)data;
+	context = data;
 	if (!context) {
 		pr_err("%s: no context for device\n", __func__);
 		return;
@@ -570,29 +570,6 @@ static void submit_data(struct imon_context *context)
 
 	lirc_buffer_write(context->driver->rbuf, buf);
 	wake_up(&context->driver->rbuf->wait_poll);
-}
-
-static inline int tv2int(const struct timeval *a, const struct timeval *b)
-{
-	int usecs = 0;
-	int sec   = 0;
-
-	if (b->tv_usec > a->tv_usec) {
-		usecs = 1000000;
-		sec--;
-	}
-
-	usecs += a->tv_usec - b->tv_usec;
-
-	sec += a->tv_sec - b->tv_sec;
-	sec *= 1000;
-	usecs /= 1000;
-	sec += usecs;
-
-	if (sec < 0)
-		sec = 1000;
-
-	return sec;
 }
 
 /**

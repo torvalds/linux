@@ -25,8 +25,6 @@
 
 #define MYDRVNAME "periodic_work"
 
-
-
 struct periodic_work {
 	rwlock_t lock;
 	struct delayed_work work;
@@ -39,8 +37,6 @@ struct periodic_work {
 	const char *devnam;
 };
 
-
-
 static void periodic_work_func(struct work_struct *work)
 {
 	struct periodic_work *pw;
@@ -48,8 +44,6 @@ static void periodic_work_func(struct work_struct *work)
 	pw = container_of(work, struct periodic_work, work.work);
 	(*pw->workfunc)(pw->workfuncarg);
 }
-
-
 
 struct periodic_work *visor_periodic_work_create(ulong jiffy_interval,
 					struct workqueue_struct *workqueue,
@@ -73,15 +67,11 @@ struct periodic_work *visor_periodic_work_create(ulong jiffy_interval,
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_create);
 
-
-
 void visor_periodic_work_destroy(struct periodic_work *pw)
 {
 	kfree(pw);
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_destroy);
-
-
 
 /** Call this from your periodic work worker function to schedule the next
  *  call.
@@ -111,8 +101,6 @@ unlock:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_nextperiod);
-
-
 
 /** This function returns TRUE iff new periodic work was actually started.
  *  If this function returns FALSE, then no work was started
@@ -145,12 +133,8 @@ BOOL visor_periodic_work_start(struct periodic_work *pw)
 unlock:
 	write_unlock(&pw->lock);
 	return rc;
-
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_start);
-
-
-
 
 /** This function returns TRUE iff your call actually stopped the periodic
  *  work.
@@ -223,8 +207,9 @@ BOOL visor_periodic_work_stop(struct periodic_work *pw)
 			 */
 			SLEEPJIFFIES(10);
 			write_lock(&pw->lock);
-		} else
+		} else {
 			pw->want_to_stop = FALSE;
+		}
 	}
 	write_unlock(&pw->lock);
 	return stopped_something;

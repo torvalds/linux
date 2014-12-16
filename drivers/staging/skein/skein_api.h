@@ -79,7 +79,7 @@ OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include <linux/types.h>
-#include "skein.h"
+#include "skein_base.h"
 
 /**
  * Which Skein size to use

@@ -270,8 +270,7 @@ struct action_handler {
 	int (*func)(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
 };
 
-struct	ss_res
-{
+struct	ss_res {
 	int	state;
 	int	bss_cnt;
 	int	channel_idx;
@@ -318,8 +317,7 @@ struct FW_Sta_Info {
  * 5. ... and so on, till survey done.
  */
 
-struct mlme_ext_info
-{
+struct mlme_ext_info {
 	u32	state;
 	u32	reauth_count;
 	u32	reassoc_count;

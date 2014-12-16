@@ -412,8 +412,8 @@ void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, int n, int min_size)
 
 	buflen = m->lm_buflens[n];
 	if (unlikely(buflen < min_size)) {
-		CERROR("msg %p buffer[%d] size %d too small "
-		       "(required %d, opc=%d)\n", m, n, buflen, min_size,
+		CERROR("msg %p buffer[%d] size %d too small (required %d, opc=%d)\n",
+		       m, n, buflen, min_size,
 		       n == MSG_PTLRPC_BODY_OFF ? -1 : lustre_msg_get_opc(m));
 		return NULL;
 	}
@@ -749,21 +749,19 @@ char *lustre_msg_string(struct lustre_msg *m, int index, int max_len)
 	slen = strnlen(str, blen);
 
 	if (slen == blen) {		     /* not NULL terminated */
-		CERROR("can't unpack non-NULL terminated string in "
-			"msg %p buffer[%d] len %d\n", m, index, blen);
+		CERROR("can't unpack non-NULL terminated string in msg %p buffer[%d] len %d\n",
+		       m, index, blen);
 		return NULL;
 	}
 
 	if (max_len == 0) {
 		if (slen != blen - 1) {
-			CERROR("can't unpack short string in msg %p "
-			       "buffer[%d] len %d: strlen %d\n",
+			CERROR("can't unpack short string in msg %p buffer[%d] len %d: strlen %d\n",
 			       m, index, blen, slen);
 			return NULL;
 		}
 	} else if (slen > max_len) {
-		CERROR("can't unpack oversized string in msg %p "
-		       "buffer[%d] len %d strlen %d: max %d expected\n",
+		CERROR("can't unpack oversized string in msg %p buffer[%d] len %d strlen %d: max %d expected\n",
 		       m, index, blen, slen, max_len);
 		return NULL;
 	}
@@ -1313,43 +1311,17 @@ __u32 lustre_msg_get_cksum(struct lustre_msg *msg)
 	}
 }
 
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-/*
- * In 1.6 and 1.8 the checksum was computed only on struct ptlrpc_body as
- * it was in 1.6 (88 bytes, smaller than the full size in 1.8).  It makes
- * more sense to compute the checksum on the full ptlrpc_body, regardless
- * of what size it is, but in order to keep interoperability with 1.8 we
- * can optionally also checksum only the first 88 bytes (caller decides). */
-# define ptlrpc_body_cksum_size_compat18	 88
-
-__u32 lustre_msg_calc_cksum(struct lustre_msg *msg, int compat18)
-#else
-# warning "remove checksum compatibility support for b1_8"
 __u32 lustre_msg_calc_cksum(struct lustre_msg *msg)
-#endif
 {
 	switch (msg->lm_magic) {
 	case LUSTRE_MSG_MAGIC_V2: {
 		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-		__u32 crc;
-		unsigned int hsize = 4;
-		__u32 len = compat18 ? ptlrpc_body_cksum_size_compat18 :
-			    lustre_msg_buflen(msg, MSG_PTLRPC_BODY_OFF);
-		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
-		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32, (unsigned char *)pb,
-				       len, NULL, 0, (unsigned char *)&crc,
-				       &hsize);
-		return crc;
-#else
-# warning "remove checksum compatibility support for b1_8"
 		__u32 crc;
 		unsigned int hsize = 4;
 		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32, (unsigned char *)pb,
 				   lustre_msg_buflen(msg, MSG_PTLRPC_BODY_OFF),
 				   NULL, 0, (unsigned char *)&crc, &hsize);
 		return crc;
-#endif
 	}
 	default:
 		CERROR("incorrect message magic: %08x\n", msg->lm_magic);
@@ -2284,8 +2256,8 @@ void lustre_swab_quota_body(struct quota_body *b)
 void dump_ioo(struct obd_ioobj *ioo)
 {
 	CDEBUG(D_RPCTRACE,
-	       "obd_ioobj: ioo_oid="DOSTID", ioo_max_brw=%#x, "
-	       "ioo_bufct=%d\n", POSTID(&ioo->ioo_oid), ioo->ioo_max_brw,
+	       "obd_ioobj: ioo_oid=" DOSTID ", ioo_max_brw=%#x, ioo_bufct=%d\n",
+	       POSTID(&ioo->ioo_oid), ioo->ioo_max_brw,
 	       ioo->ioo_bufcnt);
 }
 EXPORT_SYMBOL(dump_ioo);
@@ -2356,8 +2328,7 @@ void dump_obdo(struct obdo *oa)
 		CDEBUG(D_RPCTRACE, "obdo: o_handle = %lld\n",
 		       oa->o_handle.cookie);
 	if (valid & OBD_MD_FLCOOKIE)
-		CDEBUG(D_RPCTRACE, "obdo: o_lcookie = "
-		       "(llog_cookie dumping not yet implemented)\n");
+		CDEBUG(D_RPCTRACE, "obdo: o_lcookie = (llog_cookie dumping not yet implemented)\n");
 }
 EXPORT_SYMBOL(dump_obdo);
 
@@ -2421,17 +2392,15 @@ void _debug_req(struct ptlrpc_request *req,
 
 	va_start(args, fmt);
 	libcfs_debug_vmsg2(msgdata, fmt, args,
-			   " req@%p x%llu/t%lld(%lld) o%d->%s@%s:%d/%d"
-			   " lens %d/%d e %d to %d dl "CFS_TIME_T" ref %d "
-			   "fl "REQ_FLAGS_FMT"/%x/%x rc %d/%d\n",
+			   " req@%p x%llu/t%lld(%lld) o%d->%s@%s:%d/%d lens %d/%d e %d to %d dl " CFS_TIME_T " ref %d fl " REQ_FLAGS_FMT "/%x/%x rc %d/%d\n",
 			   req, req->rq_xid, req->rq_transno,
 			   req_ok ? lustre_msg_get_transno(req->rq_reqmsg) : 0,
 			   req_ok ? lustre_msg_get_opc(req->rq_reqmsg) : -1,
 			   req->rq_import ?
-				req->rq_import->imp_obd->obd_name :
-				req->rq_export ?
-				     req->rq_export->exp_client_uuid.uuid :
-				     "<?>",
+			   req->rq_import->imp_obd->obd_name :
+			   req->rq_export ?
+			   req->rq_export->exp_client_uuid.uuid :
+			   "<?>",
 			   libcfs_nid2str(nid),
 			   req->rq_request_portal, req->rq_reply_portal,
 			   req->rq_reqlen, req->rq_replen,

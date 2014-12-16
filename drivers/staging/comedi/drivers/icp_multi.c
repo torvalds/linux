@@ -53,7 +53,7 @@ Configuration options: not applicable, uses PCI auto config
 #define ICP_MULTI_AI		2	/* R:   Analogue input data */
 #define ICP_MULTI_DAC_CSR	4	/* R/W: DAC command/status register */
 #define ICP_MULTI_AO		6	/* R/W: Analogue output data */
-#define ICP_MULTI_DI		8	/* R/W: Digital inouts */
+#define ICP_MULTI_DI		8	/* R/W: Digital inputs */
 #define ICP_MULTI_DO		0x0A	/* R/W: Digital outputs */
 #define ICP_MULTI_INT_EN	0x0C	/* R/W: Interrupt enable register */
 #define ICP_MULTI_INT_STAT	0x0E	/* R/W: Interrupt status register */
@@ -319,7 +319,7 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev,
 	if (comedi_dio_update_state(s, data))
 		writew(s->state, dev->mmio + ICP_MULTI_DO);
 
-	data[1] = readw(dev->mmio + ICP_MULTI_DI);
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -495,7 +495,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->len_chanlist = 4;
 	s->range_table = &range_analog;
 	s->insn_write = icp_multi_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -512,7 +511,7 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 8;
 	s->maxdata = 1;
 	s->len_chanlist = 8;
@@ -521,7 +520,7 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 4;
 	s->maxdata = 0xffff;
 	s->len_chanlist = 4;

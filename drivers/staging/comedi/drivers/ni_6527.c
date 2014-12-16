@@ -208,9 +208,8 @@ static irqreturn_t ni6527_interrupt(int irq, void *d)
 		return IRQ_NONE;
 
 	if (status & NI6527_STATUS_EDGE) {
-		comedi_buf_put(s, 0);
-		s->async->events |= COMEDI_CB_EOS;
-		comedi_event(dev, s);
+		comedi_buf_write_samples(s, &s->state, 1);
+		comedi_handle_events(dev, s);
 	}
 
 	writeb(NI6527_CLR_IRQS, dev->mmio + NI6527_CLR_REG);
@@ -237,9 +236,6 @@ static int ni6527_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 2a : make sure trigger sources are unique */
 	/* Step 2b : and mutually compatible */
-
-	if (err)
-		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
 

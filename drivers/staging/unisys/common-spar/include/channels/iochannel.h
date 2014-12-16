@@ -8,7 +8,6 @@
 * this file.  Note: Everything is OS-independent because this file is
 * used by Windows, Linux and possible EFI drivers.  */
 
-
 /*
 * Communication flow between the IOPart and GuestPart uses the channel headers
 * channel state.  The following states are currently being used:
@@ -60,41 +59,21 @@
 #define ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID 2
 #define ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define ULTRA_VHBA_CHANNEL_OK_CLIENT(pChannel, logCtx)			\
-	(ULTRA_check_channel_client(pChannel, UltraVhbaChannelProtocolGuid, \
-				    "vhba", MIN_IO_CHANNEL_SIZE,	\
-				    ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
-				    ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE, \
-				    __FILE__, __LINE__, logCtx))
-#define ULTRA_VHBA_CHANNEL_OK_SERVER(actualBytes, logCtx)		\
-	(ULTRA_check_channel_server(UltraVhbaChannelProtocolGuid,	\
-				    "vhba", MIN_IO_CHANNEL_SIZE, actualBytes, \
-				    __FILE__, __LINE__, logCtx))
-#define ULTRA_VNIC_CHANNEL_OK_CLIENT(pChannel, logCtx)			\
-	(ULTRA_check_channel_client(pChannel, UltraVnicChannelProtocolGuid, \
-				    "vnic", MIN_IO_CHANNEL_SIZE,	\
-				    ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID, \
-				    ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE, \
-				    __FILE__, __LINE__, logCtx))
-#define ULTRA_VNIC_CHANNEL_OK_SERVER(actualBytes, logCtx)		\
-	(ULTRA_check_channel_server(UltraVnicChannelProtocolGuid,	\
-				    "vnic", MIN_IO_CHANNEL_SIZE, actualBytes, \
-				    __FILE__, __LINE__, logCtx))
-#define ULTRA_VSWITCH_CHANNEL_OK_CLIENT(pChannel, logCtx)		\
-	(ULTRA_check_channel_client(pChannel, UltraVswitchChannelProtocolGuid, \
-				    "vswitch", MIN_IO_CHANNEL_SIZE,	\
-				    ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID, \
-				    ULTRA_VSWITCH_CHANNEL_PROTOCOL_SIGNATURE, \
-				    __FILE__, __LINE__, logCtx))
-#define ULTRA_VSWITCH_CHANNEL_OK_SERVER(actualBytes, logCtx)          \
-	(ULTRA_check_channel_server(UltraVswitchChannelProtocolGuid,	\
-				    "vswitch", MIN_IO_CHANNEL_SIZE,	\
-				    actualBytes,		    \
-				    __FILE__, __LINE__, logCtx))
+#define SPAR_VHBA_CHANNEL_OK_CLIENT(ch)			\
+	(spar_check_channel_client(ch, spar_vhba_channel_protocol_uuid, \
+				   "vhba", MIN_IO_CHANNEL_SIZE,	\
+				   ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
+				   ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE))
+
+#define SPAR_VNIC_CHANNEL_OK_CLIENT(ch)			\
+	(spar_check_channel_client(ch, spar_vnic_channel_protocol_uuid, \
+				   "vnic", MIN_IO_CHANNEL_SIZE,	\
+				   ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID, \
+				   ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE))
+
 /*
 * Everything necessary to handle SCSI & NIC traffic between Guest Partition and
 * IO Partition is defined below.  */
-
 
 /*
 * Defines and enums.
@@ -172,8 +151,9 @@
 						 * SCSI Host value */
 
 /* various types of network packets that can be sent in cmdrsp */
-typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
-					 * incoming packet */
+enum net_types {
+	NET_RCV_POST = 0,	/* submit buffer to hold receiving
+				 * incoming packet */
 	/* virtnic -> uisnic */
 	NET_RCV,		/* incoming packet received */
 	/* uisnic -> virtpci */
@@ -195,7 +175,7 @@ typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
 				 * its MAC addr */
 	NET_MACADDR_ACK,	/* MAC address  */
 
-} NET_TYPES;
+};
 
 #define		ETH_HEADER_SIZE 14	/* size of ethernet header */
 
@@ -211,19 +191,23 @@ typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
 #define MAX_MACADDR_LEN 6	/* number of bytes in MAC address */
 #endif				/* MAX_MACADDR_LEN */
 
-#define ETH_IS_LOCALLY_ADMINISTERED(Address) \
-	(((u8 *) (Address))[0] & ((u8) 0x02))
+#define ETH_IS_LOCALLY_ADMINISTERED(address) \
+	(((u8 *)(address))[0] & ((u8)0x02))
 #define NIC_VENDOR_ID 0x0008000B
 
 /* various types of scsi task mgmt commands  */
-typedef enum { TASK_MGMT_ABORT_TASK =
-	    1, TASK_MGMT_BUS_RESET, TASK_MGMT_LUN_RESET,
-	    TASK_MGMT_TARGET_RESET,
-} TASK_MGMT_TYPES;
+enum task_mgmt_types {
+	TASK_MGMT_ABORT_TASK = 1,
+	TASK_MGMT_BUS_RESET,
+	TASK_MGMT_LUN_RESET,
+	TASK_MGMT_TARGET_RESET,
+};
 
 /* various types of vdisk mgmt commands  */
-typedef enum { VDISK_MGMT_ACQUIRE = 1, VDISK_MGMT_RELEASE,
-} VDISK_MGMT_TYPES;
+enum vdisk_mgmt_types {
+	VDISK_MGMT_ACQUIRE = 1,
+	VDISK_MGMT_RELEASE,
+};
 
 /* this is used in the vdest field  */
 #define VDEST_ALL 0xFFFF
@@ -241,7 +225,6 @@ typedef enum { VDISK_MGMT_ACQUIRE = 1, VDISK_MGMT_RELEASE,
 
 /*
  * structs with pragma pack  */
-
 
 /* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
@@ -377,16 +360,16 @@ struct uiscmdrsp_scsi {
 	do {								\
 		memset(buf, 0,						\
 		       MINNUM(len,					\
-			      (unsigned int) NO_DISK_INQUIRY_RESULT_LEN)); \
-		buf[2] = (u8) SCSI_SPC2_VER;				\
+			      (unsigned int)NO_DISK_INQUIRY_RESULT_LEN)); \
+		buf[2] = (u8)SCSI_SPC2_VER;				\
 		if (lun == 0) {						\
-			buf[0] = (u8) lun0notpresent;			\
-			buf[3] = (u8) DEV_HISUPPORT;			\
+			buf[0] = (u8)lun0notpresent;			\
+			buf[3] = (u8)DEV_HISUPPORT;			\
 		} else							\
-			buf[0] = (u8) notpresent;			\
-		buf[4] = (u8) (						\
+			buf[0] = (u8)notpresent;			\
+		buf[4] = (u8)(						\
 			MINNUM(len,					\
-			       (unsigned int) NO_DISK_INQUIRY_RESULT_LEN) - 5);	\
+			       (unsigned int)NO_DISK_INQUIRY_RESULT_LEN) - 5);\
 		if (len >= NO_DISK_INQUIRY_RESULT_LEN) {		\
 			buf[8] = 'D';					\
 			buf[9] = 'E';					\
@@ -410,11 +393,9 @@ struct uiscmdrsp_scsi {
 		}							\
 	} while (0)
 
-
 /*
 * Struct & Defines to support sense information.
 */
-
 
 /* The following struct is returned in sensebuf field in uiscmdrsp_scsi.  It is
 * initialized in exactly the manner that is recommended in Windows (hence the
@@ -429,21 +410,21 @@ struct uiscmdrsp_scsi {
 * AdditionalSenseLength		contains will be sizeof(sense_data)-8=10.
 */
 struct sense_data {
-	u8 ErrorCode:7;
-	u8 Valid:1;
-	u8 SegmentNumber;
-	u8 SenseKey:4;
-	u8 Reserved:1;
-	u8 IncorrectLength:1;
-	u8 EndOfMedia:1;
-	u8 FileMark:1;
-	u8 Information[4];
-	u8 AdditionalSenseLength;
-	u8 CommandSpecificInformation[4];
-	u8 AdditionalSenseCode;
-	u8 AdditionalSenseCodeQualifier;
-	u8 FieldReplaceableUnitCode;
-	u8 SenseKeySpecific[3];
+	u8 errorcode:7;
+	u8 valid:1;
+	u8 segment_number;
+	u8 sense_key:4;
+	u8 reserved:1;
+	u8 incorrect_length:1;
+	u8 end_of_media:1;
+	u8 file_mark:1;
+	u8 information[4];
+	u8 additional_sense_length;
+	u8 command_specific_information[4];
+	u8 additional_sense_code;
+	u8 additional_sense_code_qualifier;
+	u8 fru_code;
+	u8 sense_key_specific[3];
 };
 
 /* some SCSI ADSENSE codes */
@@ -484,7 +465,6 @@ struct net_pkt_xmt {
 						 * each fragment */
 	char ethhdr[ETH_HEADER_SIZE];	/* the ethernet header  */
 	struct {
-
 		    /* these are needed for csum at uisnic end */
 		u8 valid;	/* 1 = rest of this struct is valid - else
 				 * ignore */
@@ -528,13 +508,12 @@ struct net_pkt_rcvpost {
 	    * to be describable */
 	    struct phys_info frag;	/* physical page information for the
 					 * single fragment 2K rcv buf */
-	    u64 UniqueNum;		/* This is used to make sure that
+	    u64 unique_num;		/* This is used to make sure that
 					 * receive posts are returned to  */
 	    /* the Adapter which sent them origonally. */
 };
 
 struct net_pkt_rcv {
-
 	/* the number of receive buffers that can be chained  */
 	/* is based on max mtu and size of each rcv buf */
 	u32 rcv_done_len;	/* length of received data */
@@ -544,8 +523,8 @@ struct net_pkt_rcv {
 						 * that must be chained; */
 	/* each entry is a receive buffer provided by NET_RCV_POST. */
 	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
-	u64 UniqueNum;
-	u32 RcvsDroppedDelta;
+	u64 unique_num;
+	u32 rcvs_dropped_delta;
 };
 
 struct net_pkt_enbdis {
@@ -560,7 +539,7 @@ struct net_pkt_macaddr {
 
 /* cmd rsp packet used for VNIC network traffic  */
 struct uiscmdrsp_net {
-	NET_TYPES type;
+	enum net_types type;
 	void *buf;
 	union {
 		struct net_pkt_xmt xmt;	/* used for NET_XMIT */
@@ -576,7 +555,7 @@ struct uiscmdrsp_net {
 };
 
 struct uiscmdrsp_scsitaskmgmt {
-	TASK_MGMT_TYPES tasktype;
+	enum task_mgmt_types tasktype;
 
 	    /* the type of task */
 	struct uisscsi_dest vdest;
@@ -594,7 +573,7 @@ struct uiscmdrsp_scsitaskmgmt {
 	    * For windows guests, this is a pointer to a location that a waiting
 	    * thread is testing to see if the taskmgmt command has completed.
 	    * When the rsp is received by guest, the thread receiving the
-	    * response uses this to notify the the thread waiting for taskmgmt
+	    * response uses this to notify the thread waiting for taskmgmt
 	    * command completion.  Its value is preserved by iopart & returned
 	    * as is in the task mgmt rsp. */
 	void *notifyresult;
@@ -615,7 +594,7 @@ struct uiscmdrsp_scsitaskmgmt {
 /* Note that the vHba pointer is not used by the Client/Guest side. */
 struct uiscmdrsp_disknotify {
 	u8 add;		/* 0-remove, 1-add */
-	void *vHba;		/* Pointer to vhba_info for channel info to
+	void *v_hba;		/* Pointer to vhba_info for channel info to
 				 * route msg */
 	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
 };
@@ -623,7 +602,7 @@ struct uiscmdrsp_disknotify {
 /* The following is used by virthba/vSCSI to send the Acquire/Release commands
 * to the IOVM.  */
 struct uiscmdrsp_vdiskmgmt {
-	VDISK_MGMT_TYPES vdisktype;
+	enum vdisk_mgmt_types vdisktype;
 
 	    /* the type of task */
 	struct uisscsi_dest vdest;
@@ -641,7 +620,7 @@ struct uiscmdrsp_vdiskmgmt {
 	    * For windows guests, this is a pointer to a location that a waiting
 	    * thread is testing to see if the taskmgmt command has completed.
 	    * When the rsp is received by guest, the thread receiving the
-	    * response uses this to notify the the thread waiting for taskmgmt
+	    * response uses this to notify the thread waiting for taskmgmt
 	    * command completion.  Its value is preserved by iopart & returned
 	    * as is in the task mgmt rsp. */
 	void *notifyresult;
@@ -683,11 +662,11 @@ struct uiscmdrsp {
 
 /* This is just the header of the IO channel.  It is assumed that directly after
 * this header there is a large region of memory which contains the command and
-* response queues as specified in cmdQ and rspQ SIGNAL_QUEUE_HEADERS. */
-typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
-	CHANNEL_HEADER ChannelHeader;
-	SIGNAL_QUEUE_HEADER cmdQ;
-	SIGNAL_QUEUE_HEADER rspQ;
+* response queues as specified in cmd_q and rsp_q SIGNAL_QUEUE_HEADERS. */
+struct spar_io_channel_protocol {
+	struct channel_header channel_header;
+	struct signal_queue_header cmd_q;
+	struct signal_queue_header rsp_q;
 	union {
 		struct {
 			struct vhba_wwnn wwnn;	/* 8 bytes */
@@ -697,14 +676,14 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 			u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
 			u32 num_rcv_bufs;	/* 4 */
 			u32 mtu;	/* 4 */
-			uuid_le zoneGuid;	/* 16 */
+			uuid_le zone_uuid;	/* 16 */
 		} vnic;		/* total     30 */
 	};
 
 #define MAX_CLIENTSTRING_LEN 1024
-	 u8 clientString[MAX_CLIENTSTRING_LEN];	/* NULL terminated - so holds
+	 u8 client_string[MAX_CLIENTSTRING_LEN];/* NULL terminated - so holds
 						 * max - 1 bytes */
-} ULTRA_IO_CHANNEL_PROTOCOL;
+};
 
 #pragma pack(pop)
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
@@ -733,143 +712,16 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 * INLINE functions for initializing and accessing I/O data channels
 */
 
-
-#define NUMSIGNALS(x, q) (((ULTRA_IO_CHANNEL_PROTOCOL *)(x))->q.MaxSignalSlots)
-#define SIZEOF_PROTOCOL (COVER(sizeof(ULTRA_IO_CHANNEL_PROTOCOL), 64))
+#define SIZEOF_PROTOCOL (COVER(sizeof(struct spar_io_channel_protocol), 64))
 #define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
 
-#define IO_CHANNEL_SIZE(x) COVER(SIZEOF_PROTOCOL + \
-				 (NUMSIGNALS(x, cmdQ) + \
-				  NUMSIGNALS(x, rspQ)) * SIZEOF_CMDRSP, 4096)
 #define MIN_IO_CHANNEL_SIZE COVER(SIZEOF_PROTOCOL + \
 				  2 * MIN_NUMSIGNALS * SIZEOF_CMDRSP, 4096)
-#ifdef __GNUC__
-/* These defines should only ever be used in service partitons */
-/* because they rely on the size of uiscmdrsp */
-#define QSLOTSFROMBYTES(bytes) (((bytes-SIZEOF_PROTOCOL)/2)/SIZEOF_CMDRSP)
-#define QSIZEFROMBYTES(bytes) (QSLOTSFROMBYTES(bytes)*SIZEOF_CMDRSP)
-#define SignalQInit(x)						\
-	do {							\
-		x->cmdQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
-		x->cmdQ.oSignalBase = SIZEOF_PROTOCOL -			\
-			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
-		x->cmdQ.SignalSize = SIZEOF_CMDRSP;			\
-		x->cmdQ.MaxSignalSlots =				\
-			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
-		x->cmdQ.MaxSignals = x->cmdQ.MaxSignalSlots - 1;	\
-		x->rspQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
-		x->rspQ.oSignalBase =					\
-			(SIZEOF_PROTOCOL + x->cmdQ.Size) -		\
-			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
-		x->rspQ.SignalSize = SIZEOF_CMDRSP;			\
-		x->rspQ.MaxSignalSlots =				\
-			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
-		x->rspQ.MaxSignals = x->rspQ.MaxSignalSlots - 1;	\
-		x->ChannelHeader.oChannelSpace =			\
-			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
-	} while (0)
-
-#define INIT_CLIENTSTRING(chan, type, clientStr, clientStrLen)	\
-	do {								\
-		if (clientStr) {					\
-			chan->ChannelHeader.oClientString =		\
-				offsetof(type, clientString);		\
-			memcpy(chan->clientString, clientStr,		\
-			       MINNUM(clientStrLen,			\
-				      (u32) (MAX_CLIENTSTRING_LEN - 1))); \
-			chan->clientString[MINNUM(clientStrLen,		\
-						  (u32) (MAX_CLIENTSTRING_LEN \
-							 - 1))]		\
-				= '\0';					\
-		}							\
-		else							\
-			if (clientStrLen > 0)				\
-				return 0;				\
-	} while (0)
-
-
-#define ULTRA_IO_CHANNEL_SERVER_READY(x, chanId, logCtx) \
-	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, CHANNELSRV_READY, \
-					logCtx)
-
-#define ULTRA_IO_CHANNEL_SERVER_NOTREADY(x, chanId, logCtx)	\
-	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, \
-					CHANNELSRV_UNINITIALIZED, logCtx)
-
-static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
-					      struct vhba_wwnn *wwnn,
-					      struct vhba_config_max *max,
-					      unsigned char *clientStr,
-					      u32 clientStrLen, u64 bytes)  {
-	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
-	x->ChannelHeader.VersionId = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
-	x->ChannelHeader.Signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
-	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
-	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
-	x->ChannelHeader.Size = COVER(bytes, 4096);
-	x->ChannelHeader.Type = UltraVhbaChannelProtocolGuid;
-	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
-	x->vhba.wwnn = *wwnn;
-	x->vhba.max = *max;
-	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
-			  clientStrLen);
-	SignalQInit(x);
-	if ((x->cmdQ.MaxSignalSlots > MAX_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots > MAX_NUMSIGNALS)) {
-		return 0;
-	}
-	if ((x->cmdQ.MaxSignalSlots < MIN_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots < MIN_NUMSIGNALS)) {
-		return 0;
-	}
-	return 1;
-}
-
-static inline void ULTRA_VHBA_set_max(ULTRA_IO_CHANNEL_PROTOCOL *x,
-				      struct vhba_config_max *max)  {
-	x->vhba.max = *max;
-}
-
-static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
-						 unsigned char *macaddr,
-						 u32 num_rcv_bufs, u32 mtu,
-						 uuid_le zoneGuid,
-						 unsigned char *clientStr,
-						 u32 clientStrLen,
-						 u64 bytes)  {
-	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
-	x->ChannelHeader.VersionId = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
-	x->ChannelHeader.Signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;
-	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
-	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
-	x->ChannelHeader.Size = COVER(bytes, 4096);
-	x->ChannelHeader.Type = UltraVnicChannelProtocolGuid;
-	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
-	memcpy(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
-	x->vnic.num_rcv_bufs = num_rcv_bufs;
-	x->vnic.mtu = mtu;
-	x->vnic.zoneGuid = zoneGuid;
-	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
-			   clientStrLen);
-	SignalQInit(x);
-	if ((x->cmdQ.MaxSignalSlots > MAX_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots > MAX_NUMSIGNALS)) {
-		return 0;
-	}
-	if ((x->cmdQ.MaxSignalSlots < MIN_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots < MIN_NUMSIGNALS)) {
-		return 0;
-	}
-	return 1;
-}
-
-#endif	/* __GNUC__ */
 
 /*
 * INLINE function for expanding a guest's pfn-off-size into multiple 4K page
 * pfn-off-size entires.
 */
-
 
 /* we deal with 4K page sizes when we it comes to passing page information
  * between */
@@ -900,13 +752,12 @@ add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 
 	firstlen = PI_PAGE_SIZE - inp_off;
 	if (inp_len <= firstlen) {
-
 		/* the input entry spans only one page - add as is */
 		if (index >= max_pi_arr_entries)
 			return 0;
 		pi_arr[index].pi_pfn = inp_pfn;
-		pi_arr[index].pi_off = (u16) inp_off;
-		pi_arr[index].pi_len = (u16) inp_len;
+		pi_arr[index].pi_off = (u16)inp_off;
+		pi_arr[index].pi_len = (u16)inp_len;
 		    return index + 1;
 	}
 
@@ -924,9 +775,8 @@ add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 		else {
 			pi_arr[index + i].pi_off = 0;
 			pi_arr[index + i].pi_len =
-			    (u16) MINNUM(len, (u32) PI_PAGE_SIZE);
+			    (u16)MINNUM(len, (u32)PI_PAGE_SIZE);
 		}
-
 	}
 	return index + i;
 }

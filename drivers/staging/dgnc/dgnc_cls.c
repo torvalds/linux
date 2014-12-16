@@ -724,10 +724,8 @@ static void cls_tasklet(unsigned long data)
 	int state = 0;
 	int ports = 0;
 
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC) {
-		APR(("poll_tasklet() - NULL or bad bd.\n"));
+	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-	}
 
 	/* Cache a couple board values */
 	spin_lock_irqsave(&bd->bd_lock, flags);
@@ -794,25 +792,17 @@ static void cls_tasklet(unsigned long data)
  */
 static irqreturn_t cls_intr(int irq, void *voidbrd)
 {
-	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
+	struct dgnc_board *brd = voidbrd;
 	uint i = 0;
 	unsigned char poll_reg;
 	unsigned long flags;
 
-	if (!brd) {
-		APR(("Received interrupt (%d) with null board associated\n",
-									 irq));
-		return IRQ_NONE;
-	}
-
 	/*
-	 * Check to make sure its for us.
+	 * Check to make sure it didn't receive interrupt with a null board
+	 * associated or a board pointer that wasn't ours.
 	 */
-	if (brd->magic != DGNC_BOARD_MAGIC) {
-		APR(("Received interrupt (%d) with a board pointer that wasn't ours!\n",
-			  irq));
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return IRQ_NONE;
-	}
 
 	spin_lock_irqsave(&brd->bd_intr_lock, flags);
 
@@ -928,8 +918,6 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		ch->ch_equeue[head] = linestatus & (UART_LSR_BI | UART_LSR_PE
 								 | UART_LSR_FE);
 		ch->ch_rqueue[head] = readb(&ch->ch_cls_uart->txrx);
-		dgnc_sniff_nowait_nolock(ch, "UART READ",
-						 ch->ch_rqueue + head, 1);
 
 		qleft--;
 
@@ -964,7 +952,6 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	unsigned long flags;
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENXIO;
@@ -984,12 +971,11 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	/*
 	 * NOTE: Do something with time passed in.
 	 */
-	rc = wait_event_interruptible(un->un_flags_wait,
-					 ((un->un_flags & UN_EMPTY) == 0));
 
 	/* If ret is non-zero, user ctrl-c'ed us */
 
-	return rc;
+	return wait_event_interruptible(un->un_flags_wait,
+					 ((un->un_flags & UN_EMPTY) == 0));
 }
 
 
@@ -1098,8 +1084,6 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 			ch->ch_tun.un_flags |= (UN_EMPTY);
 		}
 		writeb(ch->ch_wqueue[ch->ch_w_tail], &ch->ch_cls_uart->txrx);
-		dgnc_sniff_nowait_nolock(ch, "UART WRITE",
-					    ch->ch_wqueue + ch->ch_w_tail, 1);
 		ch->ch_w_tail++;
 		ch->ch_w_tail &= WQUEUEMASK;
 		ch->ch_txcount++;

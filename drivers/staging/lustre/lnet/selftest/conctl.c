@@ -45,7 +45,7 @@
 #include "../../include/linux/lnet/lnetst.h"
 #include "console.h"
 
-int
+static int
 lst_session_new_ioctl(lstio_session_new_args_t *args)
 {
 	char      *name;
@@ -82,7 +82,7 @@ lst_session_new_ioctl(lstio_session_new_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_session_end_ioctl(lstio_session_end_args_t *args)
 {
 	if (args->lstio_ses_key != console_session.ses_key)
@@ -91,7 +91,7 @@ lst_session_end_ioctl(lstio_session_end_args_t *args)
 	return lstcon_session_end();
 }
 
-int
+static int
 lst_session_info_ioctl(lstio_session_info_args_t *args)
 {
 	/* no checking of key */
@@ -113,7 +113,7 @@ lst_session_info_ioctl(lstio_session_info_args_t *args)
 				   args->lstio_ses_nmlen);
 }
 
-int
+static int
 lst_debug_ioctl(lstio_debug_args_t *args)
 {
 	char   *name   = NULL;
@@ -194,7 +194,7 @@ out:
 	return rc;
 }
 
-int
+static int
 lst_group_add_ioctl(lstio_group_add_args_t *args)
 {
 	char	   *name;
@@ -228,7 +228,7 @@ lst_group_add_ioctl(lstio_group_add_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_group_del_ioctl(lstio_group_del_args_t *args)
 {
 	int     rc;
@@ -262,7 +262,7 @@ lst_group_del_ioctl(lstio_group_del_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_group_update_ioctl(lstio_group_update_args_t *args)
 {
 	int     rc;
@@ -320,7 +320,7 @@ lst_group_update_ioctl(lstio_group_update_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 {
 	unsigned feats;
@@ -365,7 +365,7 @@ lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_group_list_ioctl(lstio_group_list_args_t *args)
 {
 	if (args->lstio_grp_key != console_session.ses_key)
@@ -382,7 +382,7 @@ lst_group_list_ioctl(lstio_group_list_args_t *args)
 			      args->lstio_grp_namep);
 }
 
-int
+static int
 lst_group_info_ioctl(lstio_group_info_args_t *args)
 {
 	char	   *name;
@@ -446,7 +446,7 @@ lst_group_info_ioctl(lstio_group_info_args_t *args)
 	return 0;
 }
 
-int
+static int
 lst_batch_add_ioctl(lstio_batch_add_args_t *args)
 {
 	int	     rc;
@@ -480,7 +480,7 @@ lst_batch_add_ioctl(lstio_batch_add_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_run_ioctl(lstio_batch_run_args_t *args)
 {
 	int	     rc;
@@ -515,7 +515,7 @@ lst_batch_run_ioctl(lstio_batch_run_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_stop_ioctl(lstio_batch_stop_args_t *args)
 {
 	int	     rc;
@@ -551,7 +551,7 @@ lst_batch_stop_ioctl(lstio_batch_stop_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_query_ioctl(lstio_batch_query_args_t *args)
 {
 	char   *name;
@@ -593,7 +593,7 @@ lst_batch_query_ioctl(lstio_batch_query_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_batch_list_ioctl(lstio_batch_list_args_t *args)
 {
 	if (args->lstio_bat_key != console_session.ses_key)
@@ -610,7 +610,7 @@ lst_batch_list_ioctl(lstio_batch_list_args_t *args)
 			      args->lstio_bat_namep);
 }
 
-int
+static int
 lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 {
 	char	   *name;
@@ -675,7 +675,7 @@ lst_batch_info_ioctl(lstio_batch_info_args_t *args)
 	return rc;
 }
 
-int
+static int
 lst_stat_query_ioctl(lstio_stat_args_t *args)
 {
 	int	     rc;

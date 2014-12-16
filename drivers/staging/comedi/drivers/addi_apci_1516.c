@@ -163,7 +163,7 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	if (this_board->do_nchan) {
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
+		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= this_board->do_nchan;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;

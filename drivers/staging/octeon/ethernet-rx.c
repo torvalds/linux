@@ -61,66 +61,7 @@
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
-struct cvm_napi_wrapper {
-	struct napi_struct napi;
-} ____cacheline_aligned_in_smp;
-
-static struct cvm_napi_wrapper cvm_oct_napi[NR_CPUS] __cacheline_aligned_in_smp;
-
-struct cvm_oct_core_state {
-	int baseline_cores;
-	/*
-	 * The number of additional cores that could be processing
-	 * input packets.
-	 */
-	atomic_t available_cores;
-	cpumask_t cpu_state;
-} ____cacheline_aligned_in_smp;
-
-static struct cvm_oct_core_state core_state __cacheline_aligned_in_smp;
-
-static int cvm_irq_cpu;
-
-static void cvm_oct_enable_napi(void *_)
-{
-	int cpu = smp_processor_id();
-	napi_schedule(&cvm_oct_napi[cpu].napi);
-}
-
-static void cvm_oct_enable_one_cpu(void)
-{
-	int v;
-	int cpu;
-
-	/* Check to see if more CPUs are available for receive processing... */
-	v = atomic_sub_if_positive(1, &core_state.available_cores);
-	if (v < 0)
-		return;
-
-	/* ... if a CPU is available, Turn on NAPI polling for that CPU.  */
-	for_each_online_cpu(cpu) {
-		if (!cpu_test_and_set(cpu, core_state.cpu_state)) {
-			v = smp_call_function_single(cpu, cvm_oct_enable_napi,
-						     NULL, 0);
-			if (v)
-				panic("Can't enable NAPI.");
-			break;
-		}
-	}
-}
-
-static void cvm_oct_no_more_work(void)
-{
-	int cpu = smp_processor_id();
-
-	if (cpu == cvm_irq_cpu) {
-		enable_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group);
-		return;
-	}
-
-	cpu_clear(cpu, core_state.cpu_state);
-	atomic_add(1, &core_state.available_cores);
-}
+static struct napi_struct cvm_oct_napi;
 
 /**
  * cvm_oct_do_interrupt - interrupt handler.
@@ -132,8 +73,7 @@ static irqreturn_t cvm_oct_do_interrupt(int cpl, void *dev_id)
 {
 	/* Disable the IRQ and start napi_poll. */
 	disable_irq_nosync(OCTEON_IRQ_WORKQ0 + pow_receive_group);
-	cvm_irq_cpu = smp_processor_id();
-	cvm_oct_enable_napi(NULL);
+	napi_schedule(&cvm_oct_napi);
 
 	return IRQ_HANDLED;
 }
@@ -186,13 +126,15 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 
 			if (*ptr == 0xd5) {
 				/*
-				  printk_ratelimited("Port %d received 0xd5 preamble\n", work->ipprt);
+				  printk_ratelimited("Port %d received 0xd5 preamble\n",
+					  work->ipprt);
 				 */
 				work->packet_ptr.s.addr += i + 1;
 				work->len -= i + 5;
 			} else if ((*ptr & 0xf) == 0xd) {
 				/*
-				  printk_ratelimited("Port %d received 0x?d preamble\n", work->ipprt);
+				  printk_ratelimited("Port %d received 0x?d preamble\n",
+					  work->ipprt);
 				 */
 				work->packet_ptr.s.addr += i;
 				work->len -= i + 4;
@@ -278,27 +220,14 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			cvmx_write_csr(CVMX_POW_WQ_INT, wq_int.u64);
 			break;
 		}
-		pskb = (struct sk_buff **)(cvm_oct_get_buffer_ptr(work->packet_ptr) - sizeof(void *));
+		pskb = (struct sk_buff **)(cvm_oct_get_buffer_ptr(work->packet_ptr) -
+			sizeof(void *));
 		prefetch(pskb);
 
 		if (USE_ASYNC_IOBDMA && rx_count < (budget - 1)) {
-			cvmx_pow_work_request_async_nocheck(CVMX_SCR_SCRATCH, CVMX_POW_NO_WAIT);
+			cvmx_pow_work_request_async_nocheck(CVMX_SCR_SCRATCH,
+							    CVMX_POW_NO_WAIT);
 			did_work_request = 1;
-		}
-
-		if (rx_count == 0) {
-			/*
-			 * First time through, see if there is enough
-			 * work waiting to merit waking another
-			 * CPU.
-			 */
-			union cvmx_pow_wq_int_cntx counts;
-			int backlog;
-			int cores_in_use = core_state.baseline_cores - atomic_read(&core_state.available_cores);
-			counts.u64 = cvmx_read_csr(CVMX_POW_WQ_INT_CNTX(pow_receive_group));
-			backlog = counts.s.iq_cnt + counts.s.ds_cnt;
-			if (backlog > budget * cores_in_use && napi != NULL)
-				cvm_oct_enable_one_cpu();
 		}
 		rx_count++;
 
@@ -322,7 +251,8 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		 * buffer.
 		 */
 		if (likely(skb_in_hw)) {
-			skb->data = skb->head + work->packet_ptr.s.addr - cvmx_ptr_to_phys(skb->head);
+			skb->data = skb->head + work->packet_ptr.s.addr -
+				cvmx_ptr_to_phys(skb->head);
 			prefetch(skb->data);
 			skb->len = work->len;
 			skb_set_tail_pointer(skb, skb->len);
@@ -359,7 +289,8 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 				/* No packet buffers to free */
 			} else {
 				int segments = work->word2.s.bufs;
-				union cvmx_buf_ptr segment_ptr = work->packet_ptr;
+				union cvmx_buf_ptr segment_ptr =
+				    work->packet_ptr;
 				int len = work->len;
 
 				while (segments--) {
@@ -375,8 +306,11 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			 * one: int segment_size =
 			 * segment_ptr.s.size;
 			 */
-					int segment_size = CVMX_FPA_PACKET_POOL_SIZE -
-						(segment_ptr.s.addr - (((segment_ptr.s.addr >> 7) - segment_ptr.s.back) << 7));
+					int segment_size =
+					    CVMX_FPA_PACKET_POOL_SIZE -
+					    (segment_ptr.s.addr -
+					     (((segment_ptr.s.addr >> 7) -
+					       segment_ptr.s.back) << 7));
 					/*
 					 * Don't copy more than what
 					 * is left in the packet.
@@ -407,8 +341,10 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 				skb->protocol = eth_type_trans(skb, dev);
 				skb->dev = dev;
 
-				if (unlikely(work->word2.s.not_IP || work->word2.s.IP_exc ||
-					work->word2.s.L4_error || !work->word2.s.tcp_or_udp))
+				if (unlikely(work->word2.s.not_IP ||
+					     work->word2.s.IP_exc ||
+					     work->word2.s.L4_error ||
+					     !work->word2.s.tcp_or_udp))
 					skb->ip_summed = CHECKSUM_NONE;
 				else
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -416,11 +352,15 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 				/* Increment RX stats for virtual ports */
 				if (work->ipprt >= CVMX_PIP_NUM_INPUT_PORTS) {
 #ifdef CONFIG_64BIT
-					atomic64_add(1, (atomic64_t *)&priv->stats.rx_packets);
-					atomic64_add(skb->len, (atomic64_t *)&priv->stats.rx_bytes);
+					atomic64_add(1,
+						     (atomic64_t *)&priv->stats.rx_packets);
+					atomic64_add(skb->len,
+						     (atomic64_t *)&priv->stats.rx_bytes);
 #else
-					atomic_add(1, (atomic_t *)&priv->stats.rx_packets);
-					atomic_add(skb->len, (atomic_t *)&priv->stats.rx_bytes);
+					atomic_add(1,
+						   (atomic_t *)&priv->stats.rx_packets);
+					atomic_add(skb->len,
+						   (atomic_t *)&priv->stats.rx_bytes);
 #endif
 				}
 				netif_receive_skb(skb);
@@ -431,9 +371,11 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 					   dev->name);
 				*/
 #ifdef CONFIG_64BIT
-				atomic64_add(1, (atomic64_t *)&priv->stats.rx_dropped);
+				atomic64_add(1,
+					     (atomic64_t *)&priv->stats.rx_dropped);
 #else
-				atomic_add(1, (atomic_t *)&priv->stats.rx_dropped);
+				atomic_add(1,
+					   (atomic_t *)&priv->stats.rx_dropped);
 #endif
 				dev_kfree_skb_irq(skb);
 			}
@@ -476,7 +418,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	if (rx_count < budget && napi != NULL) {
 		/* No more work */
 		napi_complete(napi);
-		cvm_oct_no_more_work();
+		enable_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group);
 	}
 	return rx_count;
 }
@@ -511,18 +453,10 @@ void cvm_oct_rx_initialize(void)
 	if (NULL == dev_for_napi)
 		panic("No net_devices were allocated.");
 
-	if (max_rx_cpus >= 1 && max_rx_cpus < num_online_cpus())
-		atomic_set(&core_state.available_cores, max_rx_cpus);
-	else
-		atomic_set(&core_state.available_cores, num_online_cpus());
-	core_state.baseline_cores = atomic_read(&core_state.available_cores);
+	netif_napi_add(dev_for_napi, &cvm_oct_napi, cvm_oct_napi_poll,
+		       rx_napi_weight);
+	napi_enable(&cvm_oct_napi);
 
-	core_state.cpu_state = CPU_MASK_NONE;
-	for_each_possible_cpu(i) {
-		netif_napi_add(dev_for_napi, &cvm_oct_napi[i].napi,
-			       cvm_oct_napi_poll, rx_napi_weight);
-		napi_enable(&cvm_oct_napi[i].napi);
-	}
 	/* Register an IRQ handler to receive POW interrupts */
 	i = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
 			cvm_oct_do_interrupt, 0, "Ethernet", cvm_oct_device);
@@ -543,15 +477,11 @@ void cvm_oct_rx_initialize(void)
 	int_pc.s.pc_thr = 5;
 	cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
 
-
-	/* Scheduld NAPI now.  This will indirectly enable interrupts. */
-	cvm_oct_enable_one_cpu();
+	/* Schedule NAPI now. This will indirectly enable the interrupt. */
+	napi_schedule(&cvm_oct_napi);
 }
 
 void cvm_oct_rx_shutdown(void)
 {
-	int i;
-	/* Shutdown all of the NAPIs */
-	for_each_possible_cpu(i)
-		netif_napi_del(&cvm_oct_napi[i].napi);
+	netif_napi_del(&cvm_oct_napi);
 }

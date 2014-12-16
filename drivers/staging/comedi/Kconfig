@@ -384,6 +384,7 @@ config COMEDI_DT282X
 
 config COMEDI_DMM32AT
 	tristate "Diamond Systems MM-32-AT PC/104 board support"
+	select COMEDI_8255
 	---help---
 	  Enable support for Diamond Systems MM-32-AT PC/104 boards
 
@@ -564,10 +565,13 @@ config COMEDI_S526
 endif # COMEDI_ISA_DRIVERS
 
 menuconfig COMEDI_PCI_DRIVERS
-	bool "Comedi PCI drivers"
+	tristate "Comedi PCI drivers"
 	depends on PCI
 	---help---
 	  Enable support for comedi PCI drivers.
+
+	  To compile this support as a module, choose M here: the module will
+	  be called comedi_pci.
 
 if COMEDI_PCI_DRIVERS
 
@@ -594,14 +598,6 @@ config COMEDI_ADDI_WATCHDOG
 	  Provides support for the watchdog subdevice found on many ADDI-DATA
 	  boards. This module will be automatically selected when needed. The
 	  module will be called addi_watchdog.
-
-config COMEDI_ADDI_APCI_035
-	tristate "ADDI-DATA APCI_035 support"
-	---help---
-	  Enable support for ADDI-DATA APCI_035 cards
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called addi_apci_035.
 
 config COMEDI_ADDI_APCI_1032
 	tristate "ADDI-DATA APCI_1032 support"
@@ -939,11 +935,11 @@ config COMEDI_CB_PCIDDA
 	  called cb_pcidda.
 
 config COMEDI_CB_PCIMDAS
-	tristate "MeasurementComputing PCIM-DAS1602/16 support"
+	tristate "MeasurementComputing PCIM-DAS1602/16, PCIe-DAS1602/16 support"
 	select COMEDI_8255
 	---help---
 	  Enable support for ComputerBoards/MeasurementComputing PCI Migration
-	  series PCIM-DAS1602/16
+	  series PCIM-DAS1602/16 and PCIe-DAS1602/16.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called cb_pcimdas.
@@ -1084,10 +1080,13 @@ config COMEDI_NI_TIOCMD
 endif # COMEDI_PCI_DRIVERS
 
 menuconfig COMEDI_PCMCIA_DRIVERS
-	bool "Comedi PCMCIA drivers"
+	tristate "Comedi PCMCIA drivers"
 	depends on PCMCIA
 	---help---
 	  Enable support for comedi PCMCIA drivers.
+
+	  To compile this support as a module, choose M here: the module will
+	  be called comedi_pcmcia.
 
 if COMEDI_PCMCIA_DRIVERS
 
@@ -1160,10 +1159,13 @@ config COMEDI_QUATECH_DAQP_CS
 endif # COMEDI_PCMCIA_DRIVERS
 
 menuconfig COMEDI_USB_DRIVERS
-	bool "Comedi USB drivers"
+	tristate "Comedi USB drivers"
 	depends on USB
 	---help---
 	  Enable support for comedi USB drivers.
+
+	  To compile this support as a module, choose M here: the module will
+	  be called comedi_usb.
 
 if COMEDI_USB_DRIVERS
 

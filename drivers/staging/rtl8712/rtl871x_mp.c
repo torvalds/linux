@@ -56,7 +56,7 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 	pmp_priv->pallocated_mp_xmitframe_buf = kmalloc(NR_MP_XMITFRAME *
 				sizeof(struct mp_xmit_frame) + 4,
 				GFP_ATOMIC);
-	if (pmp_priv->pallocated_mp_xmitframe_buf == NULL) {
+	if (!pmp_priv->pallocated_mp_xmitframe_buf) {
 		res = _FAIL;
 		goto _exit_init_mp_priv;
 	}
@@ -173,7 +173,7 @@ u8 r8712_bb_reg_write(struct _adapter *pAdapter, u16 offset, u32 value)
 		oldValue = r8712_bb_reg_read(pAdapter, iocmd.value);
 		oldValue &= (0xFFFFFFFF >> ((4 - shift) * 8));
 		value = oldValue | (newValue << (shift * 8));
-		if (fw_iocmd_write(pAdapter, iocmd, value) == false)
+		if (!fw_iocmd_write(pAdapter, iocmd, value))
 			return false;
 		iocmd.value += 4;
 		oldValue = r8712_bb_reg_read(pAdapter, iocmd.value);

@@ -190,7 +190,6 @@ struct pcmmio_private {
 	spinlock_t pagelock;	/* protects the page registers */
 	spinlock_t spinlock;	/* protects the member variables */
 	unsigned int enabled_mask;
-	unsigned int stop_count;
 	unsigned int active:1;
 };
 
@@ -337,7 +336,6 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 {
 	struct pcmmio_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int oldevents = s->async->events;
 	unsigned int val = 0;
 	unsigned long flags;
 	int i;
@@ -357,31 +355,16 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 			val |= (1 << i);
 	}
 
-	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s, val) &&
-	    comedi_buf_put(s, val >> 16)) {
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-	} else {
-		/* Overflow! Stop acquisition!! */
-		/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-		pcmmio_stop_intr(dev, s);
-	}
+	comedi_buf_write_samples(s, &val, 1);
 
-	/* Check for end of acquisition. */
-	if (cmd->stop_src == TRIG_COUNT && devpriv->stop_count > 0) {
-		devpriv->stop_count--;
-		if (devpriv->stop_count == 0) {
-			s->async->events |= COMEDI_CB_EOA;
-			/* TODO: STOP_ACQUISITION_CALL_HERE!! */
-			pcmmio_stop_intr(dev, s);
-		}
-	}
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
+		s->async->events |= COMEDI_CB_EOA;
 
 done:
 	spin_unlock_irqrestore(&devpriv->spinlock, flags);
 
-	if (oldevents != s->async->events)
-		comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t interrupt_pcmmio(int irq, void *d)
@@ -480,8 +463,6 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	spin_lock_irqsave(&devpriv->spinlock, flags);
 	devpriv->active = 1;
-
-	devpriv->stop_count = cmd->stop_arg;
 
 	/* Set up start of acquisition. */
 	if (cmd->start_src == TRIG_INT)
@@ -751,7 +732,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0xffff;
 	s->range_table	= &pcmmio_ao_ranges;
 	s->insn_write	= pcmmio_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
@@ -774,7 +754,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_config	= pcmmio_dio_insn_config;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags	|= SDF_CMD_READ;
+		s->subdev_flags	|= SDF_CMD_READ | SDF_LSAMPL | SDF_PACKED;
 		s->len_chanlist	= s->n_chan;
 		s->cancel	= pcmmio_cancel;
 		s->do_cmd	= pcmmio_cmd;

@@ -233,7 +233,7 @@ brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 	}
 }
 
-int
+static int
 brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 {
 	int	 i;
@@ -358,7 +358,7 @@ out:
 	return;
 }
 
-void
+static void
 brw_server_rpc_done(srpc_server_rpc_t *rpc)
 {
 	srpc_bulk_t *blk = rpc->srpc_bulk;
@@ -378,7 +378,7 @@ brw_server_rpc_done(srpc_server_rpc_t *rpc)
 	sfw_free_pages(rpc);
 }
 
-int
+static int
 brw_bulk_ready(srpc_server_rpc_t *rpc, int status)
 {
 	__u64	     magic = BRW_MAGIC;
@@ -414,7 +414,7 @@ brw_bulk_ready(srpc_server_rpc_t *rpc, int status)
 	return 0;
 }
 
-int
+static int
 brw_server_handle(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service	*sv = rpc->srpc_scd->scd_svc;

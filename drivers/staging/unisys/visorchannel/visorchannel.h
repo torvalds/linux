@@ -66,7 +66,7 @@ char *visorchannel_id(VISORCHANNEL *channel, char *s);
 char *visorchannel_zoneid(VISORCHANNEL *channel, char *s);
 u64 visorchannel_get_clientpartition(VISORCHANNEL *channel);
 uuid_le visorchannel_get_uuid(VISORCHANNEL *channel);
-MEMREGION *visorchannel_get_memregion(VISORCHANNEL *channel);
+struct memregion *visorchannel_get_memregion(VISORCHANNEL *channel);
 char *visorchannel_uuid_id(uuid_le *guid, char *s);
 void visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 			struct seq_file *seq, u32 off);

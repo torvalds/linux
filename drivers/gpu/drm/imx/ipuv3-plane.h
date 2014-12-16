@@ -26,6 +26,8 @@ struct ipu_plane {
 
 	int			x;
 	int			y;
+	int			w;
+	int			h;
 
 	bool			enabled;
 };

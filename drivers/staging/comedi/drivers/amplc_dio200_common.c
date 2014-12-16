@@ -120,7 +120,6 @@ struct dio200_subdev_intr {
 	unsigned int ofs;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
-	unsigned int stopcount;
 	bool active:1;
 };
 
@@ -256,7 +255,6 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned int triggered)
 {
-	struct dio200_subdev_intr *subpriv = s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned short val;
 	unsigned int n, ch;
@@ -267,26 +265,12 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 		if (triggered & (1U << ch))
 			val |= (1U << n);
 	}
-	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s, val)) {
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-	} else {
-		/* Error!  Stop acquisition.  */
-		dio200_stop_intr(dev, s);
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		dev_err(dev->class_dev, "buffer overflow\n");
-	}
 
-	/* Check for end of acquisition. */
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (subpriv->stopcount > 0) {
-			subpriv->stopcount--;
-			if (subpriv->stopcount == 0) {
-				s->async->events |= COMEDI_CB_EOA;
-				dio200_stop_intr(dev, s);
-			}
-		}
-	}
+	comedi_buf_write_samples(s, &val, 1);
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
+		s->async->events |= COMEDI_CB_EOA;
 }
 
 static int dio200_handle_read_intr(struct comedi_device *dev,
@@ -297,13 +281,11 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	unsigned triggered;
 	unsigned intstat;
 	unsigned cur_enabled;
-	unsigned int oldevents;
 	unsigned long flags;
 
 	triggered = 0;
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	oldevents = s->async->events;
 	if (board->has_int_sce) {
 		/*
 		 * Collect interrupt sources that have triggered and disable
@@ -356,8 +338,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	}
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (oldevents != s->async->events)
-		comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
 	return (triggered != 0);
 }
@@ -436,7 +417,6 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 
 	subpriv->active = true;
-	subpriv->stopcount = cmd->stop_arg;
 
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = dio200_inttrig_start_intr;
@@ -469,7 +449,7 @@ static int dio200_subdev_intr_init(struct comedi_device *dev,
 		dio200_write8(dev, subpriv->ofs, 0);
 
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ | SDF_PACKED;
 	if (board->has_int_sce) {
 		s->n_chan = DIO200_MAX_ISNS;
 		s->len_chanlist = DIO200_MAX_ISNS;
