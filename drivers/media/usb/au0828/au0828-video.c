@@ -22,7 +22,6 @@
 
 /* Developer Notes:
  *
- * VBI support is not yet working
  * The hardware scaler supported is unimplemented
  * AC97 audio support is unimplemented (only i2s audio mode)
  *
