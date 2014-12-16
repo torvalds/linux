@@ -914,6 +914,26 @@ TRACE_EVENT(kvm_pvclock_update,
 		  __entry->flags)
 );
 
+TRACE_EVENT(kvm_wait_lapic_expire,
+	TP_PROTO(unsigned int vcpu_id, s64 delta),
+	TP_ARGS(vcpu_id, delta),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	vcpu_id		)
+		__field(	s64,		delta		)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id	   = vcpu_id;
+		__entry->delta             = delta;
+	),
+
+	TP_printk("vcpu %u: delta %lld (%s)",
+		  __entry->vcpu_id,
+		  __entry->delta,
+		  __entry->delta < 0 ? "early" : "late")
+);
+
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
