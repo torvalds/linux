@@ -4193,11 +4193,21 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
 
-static bool drm_property_change_is_valid(struct drm_property *property,
-					 uint64_t value)
+/* Some properties could refer to dynamic refcnt'd objects, or things that
+ * need special locking to handle lifetime issues (ie. to ensure the prop
+ * value doesn't become invalid part way through the property update due to
+ * race).  The value returned by reference via 'obj' should be passed back
+ * to drm_property_change_valid_put() after the property is set (and the
+ * object to which the property is attached has a chance to take it's own
+ * reference).
+ */
+static bool drm_property_change_valid_get(struct drm_property *property,
+					 uint64_t value, struct drm_mode_object **ref)
 {
 	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
 		return false;
+
+	*ref = NULL;
 
 	if (drm_property_type_is(property, DRM_MODE_PROP_RANGE)) {
 		if (value < property->values[0] || value > property->values[1])
@@ -4219,25 +4229,41 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		/* Only the driver knows */
 		return true;
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
-		struct drm_mode_object *obj;
 		/* a zero value for an object property translates to null: */
 		if (value == 0)
 			return true;
-		/*
-		 * NOTE: use _object_find() directly to bypass restriction on
-		 * looking up refcnt'd objects (ie. fb's).  For a refcnt'd
-		 * object this could race against object finalization, so it
-		 * simply tells us that the object *was* valid.  Which is good
-		 * enough.
-		 */
-		obj = _object_find(property->dev, value, property->values[0]);
-		return obj != NULL;
+
+		/* handle refcnt'd objects specially: */
+		if (property->values[0] == DRM_MODE_OBJECT_FB) {
+			struct drm_framebuffer *fb;
+			fb = drm_framebuffer_lookup(property->dev, value);
+			if (fb) {
+				*ref = &fb->base;
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return _object_find(property->dev, value, property->values[0]) != NULL;
+		}
 	} else {
 		int i;
 		for (i = 0; i < property->num_values; i++)
 			if (property->values[i] == value)
 				return true;
 		return false;
+	}
+}
+
+static void drm_property_change_valid_put(struct drm_property *property,
+		struct drm_mode_object *ref)
+{
+	if (!ref)
+		return;
+
+	if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
+		if (property->values[0] == DRM_MODE_OBJECT_FB)
+			drm_framebuffer_unreference(obj_to_fb(ref));
 	}
 }
 
@@ -4429,8 +4455,8 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	struct drm_mode_object *arg_obj;
 	struct drm_mode_object *prop_obj;
 	struct drm_property *property;
-	int ret = -EINVAL;
-	int i;
+	int i, ret = -EINVAL;
+	struct drm_mode_object *ref;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -4460,7 +4486,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	}
 	property = obj_to_property(prop_obj);
 
-	if (!drm_property_change_is_valid(property, arg->value))
+	if (!drm_property_change_valid_get(property, arg->value, &ref))
 		goto out;
 
 	switch (arg_obj->type) {
@@ -4476,6 +4502,8 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 						  property, arg->value);
 		break;
 	}
+
+	drm_property_change_valid_put(property, ref);
 
 out:
 	drm_modeset_unlock_all(dev);
