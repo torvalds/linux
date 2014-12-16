@@ -8206,6 +8206,18 @@ static void nested_ept_uninit_mmu_context(struct kvm_vcpu *vcpu)
 	vcpu->arch.walk_mmu = &vcpu->arch.mmu;
 }
 
+static bool nested_vmx_is_page_fault_vmexit(struct vmcs12 *vmcs12,
+					    u16 error_code)
+{
+	bool inequality, bit;
+
+	bit = (vmcs12->exception_bitmap & (1u << PF_VECTOR)) != 0;
+	inequality =
+		(error_code & vmcs12->page_fault_error_code_mask) !=
+		 vmcs12->page_fault_error_code_match;
+	return inequality ^ bit;
+}
+
 static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 		struct x86_exception *fault)
 {
@@ -8213,8 +8225,7 @@ static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 
 	WARN_ON(!is_guest_mode(vcpu));
 
-	/* TODO: also check PFEC_MATCH/MASK, not just EB.PF. */
-	if (vmcs12->exception_bitmap & (1u << PF_VECTOR))
+	if (nested_vmx_is_page_fault_vmexit(vmcs12, fault->error_code))
 		nested_vmx_vmexit(vcpu, to_vmx(vcpu)->exit_reason,
 				  vmcs_read32(VM_EXIT_INTR_INFO),
 				  vmcs_readl(EXIT_QUALIFICATION));
