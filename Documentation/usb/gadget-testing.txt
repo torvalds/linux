@@ -12,6 +12,7 @@ provided by gadgets.
 9. MIDI function
 10. NCM function
 11. OBEX function
+12. PHONET function
 
 
 1. ACM function
@@ -429,3 +430,66 @@ On host: serialc -v <vendorID> -p <productID> -i<interface#> -a1 -s1024 \
 where seriald and serialc are Felipe's utilities found here:
 
 https://git.gitorious.org/usb/usb-tools.git master
+
+12. PHONET function
+===================
+
+The function is provided by usb_f_phonet.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "phonet".
+The PHONET function provides just one attribute in its function directory:
+
+	ifname		- network device interface name associated with this
+			function instance
+
+Testing the PHONET function
+---------------------------
+
+It is not possible to test the SOCK_STREAM protocol without a specific piece
+of hardware, so only SOCK_DGRAM has been tested. For the latter to work,
+in the past I had to apply the patch mentioned here:
+
+http://www.spinics.net/lists/linux-usb/msg85689.html
+
+These tools are required:
+
+git://git.gitorious.org/meego-cellular/phonet-utils.git
+
+On the host:
+
+$ ./phonet -a 0x10 -i usbpn0
+$ ./pnroute add 0x6c usbpn0
+$./pnroute add 0x10 usbpn0
+$ ifconfig usbpn0 up
+
+On the device:
+
+$ ./phonet -a 0x6c -i upnlink0
+$ ./pnroute add 0x10 upnlink0
+$ ifconfig upnlink0 up
+
+Then a test program can be used:
+
+http://www.spinics.net/lists/linux-usb/msg85690.html
+
+On the device:
+
+$ ./pnxmit -a 0x6c -r
+
+On the host:
+
+$ ./pnxmit -a 0x10 -s 0x6c
+
+As a result some data should be sent from host to device.
+Then the other way round:
+
+On the host:
+
+$ ./pnxmit -a 0x10 -r
+
+On the device:
+
+$ ./pnxmit -a 0x6c -s 0x10
