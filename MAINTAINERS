@@ -5784,6 +5784,19 @@ F:	Documentation/misc-devices/lis3lv02d
 F:	drivers/misc/lis3lv02d/
 F:	drivers/platform/x86/hp_accel.c
 
+LIVE PATCHING
+M:	Josh Poimboeuf <jpoimboe@redhat.com>
+M:	Seth Jennings <sjenning@redhat.com>
+M:	Jiri Kosina <jkosina@suse.cz>
+M:	Vojtech Pavlik <vojtech@suse.cz>
+S:	Maintained
+F:	kernel/livepatch/
+F:	include/linux/livepatch.h
+F:	arch/x86/include/asm/livepatch.h
+F:	arch/x86/kernel/livepatch.c
+F:	Documentation/ABI/testing/sysfs-kernel-livepatch
+L:	live-patching@vger.kernel.org
+
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 S:	Maintained
