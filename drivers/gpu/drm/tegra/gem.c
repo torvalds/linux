@@ -219,19 +219,47 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo,
 			      size_t size)
 {
+	struct scatterlist *s;
+	struct sg_table *sgt;
+	unsigned int i;
+
 	bo->pages = drm_gem_get_pages(&bo->gem);
 	if (IS_ERR(bo->pages))
 		return PTR_ERR(bo->pages);
 
 	bo->num_pages = size >> PAGE_SHIFT;
 
-	bo->sgt = drm_prime_pages_to_sg(bo->pages, bo->num_pages);
-	if (IS_ERR(bo->sgt)) {
-		drm_gem_put_pages(&bo->gem, bo->pages, false, false);
-		return PTR_ERR(bo->sgt);
+	sgt = drm_prime_pages_to_sg(bo->pages, bo->num_pages);
+	if (IS_ERR(sgt))
+		goto put_pages;
+
+	/*
+	 * Fake up the SG table so that dma_map_sg() can be used to flush the
+	 * pages associated with it. Note that this relies on the fact that
+	 * the DMA API doesn't hook into IOMMU on Tegra, therefore mapping is
+	 * only cache maintenance.
+	 *
+	 * TODO: Replace this by drm_clflash_sg() once it can be implemented
+	 * without relying on symbols that are not exported.
+	 */
+	for_each_sg(sgt->sgl, s, sgt->nents, i)
+		sg_dma_address(s) = sg_phys(s);
+
+	if (dma_map_sg(drm->dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE) == 0) {
+		sgt = ERR_PTR(-ENOMEM);
+		goto release_sgt;
 	}
 
+	bo->sgt = sgt;
+
 	return 0;
+
+release_sgt:
+	sg_free_table(sgt);
+	kfree(sgt);
+put_pages:
+	drm_gem_put_pages(&bo->gem, bo->pages, false, false);
+	return PTR_ERR(sgt);
 }
 
 static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
