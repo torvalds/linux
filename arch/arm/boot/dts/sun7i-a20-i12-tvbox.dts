@@ -50,6 +50,7 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "I12 / Q5 / QT840A A20 tvbox";
@@ -100,35 +101,35 @@
 		pinctrl@01c20800 {
 			mmc3_pins_a: mmc3@0 {
 				/* AP6210 / AP6330 requires pull-up */
-				allwinner,pull = <1>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			vmmc3_pin_i12_tvbox: vmmc3_pin@0 {
 				allwinner,pins = "PH2";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			vmmc3_io_pin_i12_tvbox: vmmc3_io_pin@0 {
 				allwinner,pins = "PH12";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			gmac_power_pin_i12_tvbox: gmac_power_pin@0 {
 				allwinner,pins = "PH21";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			led_pins_i12_tvbox: led_pins@0 {
 				allwinner,pins = "PH9", "PH20";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

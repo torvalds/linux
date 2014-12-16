@@ -51,6 +51,7 @@
 #include "sun9i-a80.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Merrii A80 Optimus Board";
@@ -64,19 +65,19 @@
 		pio: pinctrl@06000800 {
 			i2c3_pins_a: i2c3@0 {
 				/* Enable internal pull-up */
-				allwinner,pull = <1>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			led_pins_optimus: led-pins@0 {
 				allwinner,pins = "PH0", "PH1";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart4_pins_a: uart4@0 {
 				/* Enable internal pull-up */
-				allwinner,pull = <1>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 		};
 

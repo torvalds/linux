@@ -50,6 +50,7 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "R7 A10s hdmi tv-stick";
@@ -92,22 +93,22 @@
 			mmc0_cd_pin_r7: mmc0_cd_pin@0 {
 				allwinner,pins = "PG1";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			led_pins_r7: led_pins@0 {
 				allwinner,pins = "PB2";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <1>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			usb1_vbus_pin_r7: usb1_vbus_pin@0 {
 				allwinner,pins = "PG13";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

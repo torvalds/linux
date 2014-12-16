@@ -50,6 +50,7 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "HSG H702";
@@ -87,8 +88,8 @@
 			mmc0_cd_pin_h702: mmc0_cd_pin@0 {
 				allwinner,pins = "PG0";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 		};
 

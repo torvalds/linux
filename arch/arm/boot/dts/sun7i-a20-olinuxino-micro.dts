@@ -17,6 +17,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Olimex A20-Olinuxino Micro";
@@ -91,15 +92,15 @@
 			mmc3_cd_pin_olinuxinom: mmc3_cd_pin@0 {
 				allwinner,pins = "PH11";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			led_pins_olinuxino: led_pins@0 {
 				allwinner,pins = "PH2";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <1>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

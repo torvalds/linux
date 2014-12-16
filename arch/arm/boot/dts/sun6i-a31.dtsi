@@ -49,6 +49,8 @@
 
 #include "skeleton.dtsi"
 
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
 / {
 	interrupt-parent = <&gic>;
 
@@ -509,36 +511,36 @@
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PH20", "PH21";
 				allwinner,function = "uart0";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c0_pins_a: i2c0@0 {
 				allwinner,pins = "PH14", "PH15";
 				allwinner,function = "i2c0";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c1_pins_a: i2c1@0 {
 				allwinner,pins = "PH16", "PH17";
 				allwinner,function = "i2c1";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c2_pins_a: i2c2@0 {
 				allwinner,pins = "PH18", "PH19";
 				allwinner,function = "i2c2";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc0_pins_a: mmc0@0 {
 				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
 				allwinner,function = "mmc0";
-				allwinner,drive = <2>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			gmac_pins_mii_a: gmac_mii@0 {
@@ -548,8 +550,8 @@
 						"PA20", "PA21", "PA22", "PA23",
 						"PA24", "PA26", "PA27";
 				allwinner,function = "gmac";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			gmac_pins_gmii_a: gmac_gmii@0 {
@@ -565,8 +567,8 @@
 				 * data lines in GMII mode run at 125MHz and
 				 * might need a higher signal drive strength
 				 */
-				allwinner,drive = <2>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			gmac_pins_rgmii_a: gmac_rgmii@0 {
@@ -579,8 +581,8 @@
 				 * data lines in RGMII mode use DDR mode
 				 * and need a higher signal drive strength
 				 */
-				allwinner,drive = <3>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -922,8 +924,8 @@
 			ir_pins_a: ir@0 {
 				allwinner,pins = "PL4";
 				allwinner,function = "s_ir";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 	};

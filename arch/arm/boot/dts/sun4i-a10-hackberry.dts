@@ -52,6 +52,7 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Miniand Hackberry";
@@ -113,15 +114,15 @@
 			hackberry_hogs: hogs@0 {
 				allwinner,pins = "PH19";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			usb2_vbus_pin_hackberry: usb2_vbus_pin@0 {
 					allwinner,pins = "PH12";
 					allwinner,function = "gpio_out";
-					allwinner,drive = <0>;
-					allwinner,pull = <0>;
+					allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+					allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

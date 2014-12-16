@@ -1,7 +1,7 @@
 /*
- * Copyright 2014 Chen-Yu Tsai
+ * Copyright 2014 Maxime Ripard
  *
- * Chen-Yu Tsai <wens@csie.org>
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -47,68 +47,16 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-#include "sun8i-a23.dtsi"
-#include "sunxi-common-regulators.dtsi"
+#ifndef __DT_BINDINGS_PINCTRL_SUN4I_A10_H_
+#define __DT_BINDINGS_PINCTRL_SUN4I_A10_H_
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
+#define SUN4I_PINCTRL_10_MA	0
+#define SUN4I_PINCTRL_20_MA	1
+#define SUN4I_PINCTRL_30_MA	2
+#define SUN4I_PINCTRL_40_MA	3
 
-/ {
-	model = "Ippo Q8H Dual Core Tablet (v5)";
-	compatible = "ippo,q8h-v5", "allwinner,sun8i-a23";
+#define SUN4I_PINCTRL_NO_PULL	0
+#define SUN4I_PINCTRL_PULL_UP	1
+#define SUN4I_PINCTRL_PULL_DOWN	2
 
-	aliases {
-		serial0 = &r_uart;
-	};
-
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
-	};
-
-	soc@01c00000 {
-		mmc0: mmc@01c0f000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_q8h>;
-			vmmc-supply = <&reg_vcc3v0>;
-			bus-width = <4>;
-			cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
-			cd-inverted;
-			status = "okay";
-		};
-
-		pinctrl@01c20800 {
-			mmc0_cd_pin_q8h: mmc0_cd_pin@0 {
-				allwinner,pins = "PB4";
-				allwinner,function = "gpio_in";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-			};
-		};
-
-		i2c0: i2c@01c2ac00 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins_a>;
-			status = "okay";
-		};
-
-		i2c1: i2c@01c2b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins_a>;
-			status = "okay";
-		};
-
-		i2c2: i2c@01c2b400 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c2_pins_a>;
-			/* pull-ups and devices require PMIC regulator */
-			status = "failed";
-		};
-
-		r_uart: serial@01f02800 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&r_uart_pins_a>;
-			status = "okay";
-		};
-	};
-};
+#endif /* __DT_BINDINGS_PINCTRL_SUN4I_A10_H_ */

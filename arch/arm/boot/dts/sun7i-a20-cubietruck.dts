@@ -16,6 +16,7 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Cubietech Cubietruck";
@@ -72,35 +73,35 @@
 		pinctrl@01c20800 {
 			mmc3_pins_a: mmc3@0 {
 				/* AP6210 requires pull-up */
-				allwinner,pull = <1>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			vmmc3_pin_cubietruck: vmmc3_pin@0 {
 				allwinner,pins = "PH9";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			ahci_pwr_pin_cubietruck: ahci_pwr_pin@1 {
 				allwinner,pins = "PH12";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			led_pins_cubietruck: led_pins@0 {
 				allwinner,pins = "PH7", "PH11", "PH20", "PH21";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			usb0_vbus_pin_a: usb0_vbus_pin@0 {
 				allwinner,pins = "PH17";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

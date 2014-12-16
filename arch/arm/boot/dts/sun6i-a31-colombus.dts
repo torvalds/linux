@@ -52,6 +52,7 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "WITS A31 Colombus Evaluation Board";
@@ -83,21 +84,21 @@
 
 		pio: pinctrl@01c20800 {
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pull = <1>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
 				allwinner,pins = "PA8";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
 				allwinner,pins = "PH24";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 

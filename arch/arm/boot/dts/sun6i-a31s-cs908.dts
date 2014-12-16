@@ -48,6 +48,8 @@
 /dts-v1/;
 #include "sun6i-a31s.dtsi"
 
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
 / {
 	model = "CSQ CS908 top set box";
 	compatible = "csq,cs908", "allwinner,sun6i-a31s";
@@ -73,8 +75,8 @@
 	usb1_vbus_pin_csq908: usb1_vbus_pin@0 {
 		allwinner,pins = "PC27";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <0>;
-		allwinner,pull = <0>;
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
