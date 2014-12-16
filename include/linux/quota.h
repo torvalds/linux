@@ -344,7 +344,10 @@ struct qc_dqblk {
 	int d_rt_spc_warns;	/* # warnings issued wrt RT space */
 };
 
-/* Field specifiers for ->set_dqblk() in struct qc_dqblk */
+/*
+ * Field specifiers for ->set_dqblk() in struct qc_dqblk and also for
+ * ->set_info() in struct qc_info
+ */
 #define	QC_INO_SOFT	(1<<0)
 #define	QC_INO_HARD	(1<<1)
 #define	QC_SPC_SOFT	(1<<2)
@@ -365,6 +368,7 @@ struct qc_dqblk {
 #define	QC_INO_COUNT	(1<<13)
 #define	QC_RT_SPACE	(1<<14)
 #define QC_ACCT_MASK (QC_SPACE | QC_INO_COUNT | QC_RT_SPACE)
+#define QC_FLAGS	(1<<15)
 
 #define QCI_SYSFILE		(1 << 0)	/* Quota file is hidden from userspace */
 #define QCI_ROOT_SQUASH		(1 << 1)	/* Root squash turned on */
@@ -397,6 +401,19 @@ struct qc_state {
 	struct qc_type_state s_state[XQM_MAXQUOTAS];
 };
 
+/* Structure for communicating via ->set_info */
+struct qc_info {
+	int i_fieldmask;	/* mask of fields to change in ->set_info() */
+	unsigned int i_flags;		/* Flags QCI_* */
+	unsigned int i_spc_timelimit;	/* Time after which space softlimit is
+					 * enforced */
+	unsigned int i_ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int i_rt_spc_timelimit;/* Ditto for real-time space */
+	unsigned int i_spc_warnlimit;	/* Limit for number of space warnings */
+	unsigned int i_ino_warnlimit;	/* Limit for number of inode warnings */
+	unsigned int i_rt_spc_warnlimit;	/* Ditto for real-time space */
+};
+
 /* Operations handling requests from userspace */
 struct quotactl_ops {
 	int (*quota_on)(struct super_block *, int, int, struct path *);
@@ -404,7 +421,7 @@ struct quotactl_ops {
 	int (*quota_enable)(struct super_block *, unsigned int);
 	int (*quota_disable)(struct super_block *, unsigned int);
 	int (*quota_sync)(struct super_block *, int);
-	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
+	int (*set_info)(struct super_block *, int, struct qc_info *);
 	int (*get_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*set_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*get_state)(struct super_block *, struct qc_state *);

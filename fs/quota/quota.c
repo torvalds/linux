@@ -149,12 +149,31 @@ static int quota_getinfo(struct super_block *sb, int type, void __user *addr)
 static int quota_setinfo(struct super_block *sb, int type, void __user *addr)
 {
 	struct if_dqinfo info;
+	struct qc_info qinfo;
 
 	if (copy_from_user(&info, addr, sizeof(info)))
 		return -EFAULT;
 	if (!sb->s_qcop->set_info)
 		return -ENOSYS;
-	return sb->s_qcop->set_info(sb, type, &info);
+	if (info.dqi_valid & ~(IIF_FLAGS | IIF_BGRACE | IIF_IGRACE))
+		return -EINVAL;
+	memset(&qinfo, 0, sizeof(qinfo));
+	if (info.dqi_valid & IIF_FLAGS) {
+		if (info.dqi_flags & ~DQF_SETINFO_MASK)
+			return -EINVAL;
+		if (info.dqi_flags & DQF_ROOT_SQUASH)
+			qinfo.i_flags |= QCI_ROOT_SQUASH;
+		qinfo.i_fieldmask |= QC_FLAGS;
+	}
+	if (info.dqi_valid & IIF_BGRACE) {
+		qinfo.i_spc_timelimit = info.dqi_bgrace;
+		qinfo.i_fieldmask |= QC_SPC_TIMER;
+	}
+	if (info.dqi_valid & IIF_IGRACE) {
+		qinfo.i_ino_timelimit = info.dqi_igrace;
+		qinfo.i_fieldmask |= QC_INO_TIMER;
+	}
+	return sb->s_qcop->set_info(sb, type, &qinfo);
 }
 
 static inline qsize_t qbtos(qsize_t blocks)
