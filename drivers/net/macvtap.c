@@ -999,7 +999,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = (void __user *)arg;
 	struct ifreq __user *ifr = argp;
 	unsigned int __user *up = argp;
-	unsigned int u;
+	unsigned short u;
 	int __user *sp = argp;
 	int s;
 	int ret;
@@ -1014,7 +1014,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		if ((u & ~MACVTAP_FEATURES) != (IFF_NO_PI | IFF_TAP))
 			ret = -EINVAL;
 		else
-			q->flags = u;
+			q->flags = (q->flags & ~MACVTAP_FEATURES) | u;
 
 		return ret;
 
@@ -1027,8 +1027,9 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		ret = 0;
+		u = q->flags;
 		if (copy_to_user(&ifr->ifr_name, vlan->dev->name, IFNAMSIZ) ||
-		    put_user(q->flags, &ifr->ifr_flags))
+		    put_user(u, &ifr->ifr_flags))
 			ret = -EFAULT;
 		macvtap_put_vlan(vlan);
 		rtnl_unlock();
