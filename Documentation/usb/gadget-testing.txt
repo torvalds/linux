@@ -9,6 +9,7 @@ provided by gadgets.
 6. HID function
 7. LOOPBACK function
 8. MASS STORAGE function
+9. MIDI function
 
 
 1. ACM function
@@ -282,3 +283,86 @@ Testing the MASS STORAGE function
 device: connect the gadget, enable it
 host: dmesg, see the USB drives appear (if system configured to automatically
 mount)
+
+9. MIDI function
+================
+
+The function is provided by usb_f_midi.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "midi".
+The MIDI function provides these attributes in its function directory:
+
+	buflen		- MIDI buffer length
+	id		- ID string for the USB MIDI adapter
+	in_ports	- number of MIDI input ports
+	index		- index value for the USB MIDI adapter
+	out_ports	- number of MIDI output ports
+	qlen		- USB read request queue length
+
+Testing the MIDI function
+-------------------------
+
+There are two cases: playing a mid from the gadget to
+the host and playing a mid from the host to the gadget.
+
+1) Playing a mid from the gadget to the host
+host)
+
+$ arecordmidi -l
+ Port    Client name                      Port name
+ 14:0    Midi Through                     Midi Through Port-0
+ 24:0    MIDI Gadget                      MIDI Gadget MIDI 1
+$ arecordmidi -p 24:0 from_gadget.mid
+
+gadget)
+
+$ aplaymidi -l
+ Port    Client name                      Port name
+ 20:0    f_midi                           f_midi
+
+$ aplaymidi -p 20:0 to_host.mid
+
+2) Playing a mid from the host to the gadget
+gadget)
+
+$ arecordmidi -l
+ Port    Client name                      Port name
+ 20:0    f_midi                           f_midi
+
+$ arecordmidi -p 20:0 from_host.mid
+
+host)
+
+$ aplaymidi -l
+ Port    Client name                      Port name
+ 14:0    Midi Through                     Midi Through Port-0
+ 24:0    MIDI Gadget                      MIDI Gadget MIDI 1
+
+$ aplaymidi -p24:0 to_gadget.mid
+
+The from_gadget.mid should sound identical to the to_host.mid.
+The from_host.id should sound identical to the to_gadget.mid.
+
+MIDI files can be played to speakers/headphones with e.g. timidity installed
+
+$ aplaymidi -l
+ Port    Client name                      Port name
+ 14:0    Midi Through                     Midi Through Port-0
+ 24:0    MIDI Gadget                      MIDI Gadget MIDI 1
+128:0    TiMidity                         TiMidity port 0
+128:1    TiMidity                         TiMidity port 1
+128:2    TiMidity                         TiMidity port 2
+128:3    TiMidity                         TiMidity port 3
+
+$ aplaymidi -p 128:0 file.mid
+
+MIDI ports can be logically connected using the aconnect utility, e.g.:
+
+$ aconnect 24:0 128:0 # try it on the host
+
+After the gadget's MIDI port is connected to timidity's MIDI port,
+whatever is played at the gadget side with aplaymidi -l is audible
+in host's speakers/headphones.
