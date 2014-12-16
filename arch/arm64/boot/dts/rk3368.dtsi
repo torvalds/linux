@@ -644,8 +644,7 @@
 	edp: edp@ff970000 {
 		compatible = "rockchip,rk32-edp";
 		reg = <0x0 0xff970000 0x0 0x4000>;
-		rockchip,grf = <&grf>;
-		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_edp>, <&clk_edp_24m>, <&clk_gates17 9>;
 		clock-names = "clk_edp", "clk_edp_24m", "pclk_edp";
 	};

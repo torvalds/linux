@@ -12,20 +12,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/clk.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/rockchip/cpu.h>
-#include <linux/rockchip/iomap.h>
-#include <linux/rockchip/grf.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/clk.h>
+#include <linux/platform_device.h>
 #include <linux/uaccess.h>
+#include <linux/rockchip/iomap.h>
+#include <linux/rockchip/grf.h>
+#include "rk32_dp.h"
 
 #if defined(CONFIG_OF)
 #include <linux/of.h>
@@ -37,27 +37,16 @@
 #include <linux/seq_file.h>
 #endif
 
-#include "rk32_dp.h"
-
 /*#define EDP_BIST_MODE*/
 /*#define SW_LT*/
-
-#define RK3368_GRF_SOC_CON4	0x410
-
 static struct rk32_edp *rk32_edp;
 
 static int rk32_edp_clk_enable(struct rk32_edp *edp)
 {
-	int ret;
-
 	if (!edp->clk_on) {
-	//	clk_prepare_enable(edp->pd);
+		clk_prepare_enable(edp->pd);
 		clk_prepare_enable(edp->pclk);
 		clk_prepare_enable(edp->clk_edp);
-		ret = clk_set_rate(edp->clk_24m, 24000000);
-		if (ret < 0)
-			dev_err(edp->dev,
-				"cannot set edp clk_24m %d\n", ret);
 		clk_prepare_enable(edp->clk_24m);
 		edp->clk_on = true;
 	}
@@ -71,42 +60,30 @@ static int rk32_edp_clk_disable(struct rk32_edp *edp)
 		clk_disable_unprepare(edp->pclk);
 		clk_disable_unprepare(edp->clk_edp);
 		clk_disable_unprepare(edp->clk_24m);
-		//clk_disable_unprepare(edp->pd);
+		clk_disable_unprepare(edp->pd);
 		edp->clk_on = false;
 	}
 
 	return 0;
 }
 
-static int rk32_edp_pre_init(struct rk32_edp *edp)
+static int rk32_edp_pre_init(void)
 {
 	u32 val;
+	val = GRF_EDP_REF_CLK_SEL_INTER | (GRF_EDP_REF_CLK_SEL_INTER << 16);
+	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
 
-	if (cpu_is_rk3288()) {
-		val = GRF_EDP_REF_CLK_SEL_INTER | (GRF_EDP_REF_CLK_SEL_INTER << 16);
-		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
-
-		val = 0x80008000;
-		writel_relaxed(val, RK_CRU_VIRT + 0x01d0); /*reset edp*/
-		dsb(sy);
-		udelay(1);
-		val = 0x80000000;
-		writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
-		dsb(sy);
-		udelay(1);
-	} else {
-		val = 0x01 | (0x01 << 16);
-		regmap_write(edp->grf, RK3368_GRF_SOC_CON4, val);
-
-		val = 0x80008000;
-		regmap_write(edp->grf, 0x318, val); /*reset edp*/
-		dsb(sy);
-		udelay(1);
-		val = 0x80000000;
-		regmap_write(edp->grf, 0x318, val);
-		dsb(sy);
-		udelay(1);
-	}
+	val = 0x80008000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x0d0); /*select 24m*/
+	dsb();
+	val = 0x80008000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0); /*reset edp*/
+	dsb();
+	udelay(1);
+	val = 0x80000000;
+	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+	dsb();
+	udelay(1);
 	return 0;
 }
 
@@ -116,14 +93,11 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 	u32 val = 0;
 
 	rk_fb_get_prmry_screen(screen);
-
-	if (cpu_is_rk3288()) {
-		if (screen->lcdc_id == 1)  /*select lcdc*/
-			val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
-		else
-			val = EDP_SEL_VOP_LIT << 16;
-		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
-	}
+	if (screen->lcdc_id == 1)  /*select lcdc*/
+		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
+	else
+		val = EDP_SEL_VOP_LIT << 16;
+	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
 
 	rk32_edp_reset(edp);
 	rk32_edp_init_refclk(edp);
@@ -1179,7 +1153,7 @@ static int rk32_edp_enable(void)
 
 
 	rk32_edp_clk_enable(edp);
-	rk32_edp_pre_init(edp);
+	rk32_edp_pre_init();
 	rk32_edp_init_edp(edp);
 	enable_irq(edp->irq);
 	/*ret = rk32_edp_handle_edid(edp);
@@ -1378,12 +1352,6 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return PTR_ERR(edp->regs);
 	}
 
-	edp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-        if (IS_ERR(edp->grf)) {
-                dev_err(&pdev->dev, "can't find rockchip,grf property\n");
-                return PTR_ERR(edp->grf);
-        }
-
 	edp->pd = devm_clk_get(&pdev->dev, "pd_edp");
 	if (IS_ERR(edp->pd))
 		dev_err(&pdev->dev, "cannot get pd\n");
@@ -1406,7 +1374,7 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	}
 	rk32_edp_clk_enable(edp);
 	if (!support_uboot_display())
-		rk32_edp_pre_init(edp);
+		rk32_edp_pre_init();
 	edp->irq = platform_get_irq(pdev, 0);
 	if (edp->irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");

@@ -3,8 +3,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/rkfb/rk_fb.h>
 #include "rk3368.dtsi"
-//#include "../../../arm/boot/dts/lcd-b101ew05.dtsi"
-#include "../../../arm/boot/dts/lcd-F402.dtsi"
+#include "../../../arm/boot/dts/lcd-b101ew05.dtsi"
 
 / {
 	chosen {
