@@ -661,7 +661,7 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	memset(&cp, 0, sizeof(cp));
 
 	/* Update random address, but set require_privacy to false so
-	 * that we never connect with an unresolvable address.
+	 * that we never connect with an non-resolvable address.
 	 */
 	if (hci_update_random_address(req, false, &own_addr_type))
 		return;

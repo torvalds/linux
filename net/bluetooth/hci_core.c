@@ -1373,8 +1373,6 @@ static void hci_init1_req(struct hci_request *req, unsigned long opt)
 
 static void bredr_setup(struct hci_request *req)
 {
-	struct hci_dev *hdev = req->hdev;
-
 	__le16 param;
 	__u8 flt_type;
 
@@ -1403,14 +1401,6 @@ static void bredr_setup(struct hci_request *req)
 	/* Connection accept timeout ~20 secs */
 	param = cpu_to_le16(0x7d00);
 	hci_req_add(req, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
-
-	/* AVM Berlin (31), aka "BlueFRITZ!", reports version 1.2,
-	 * but it does not support page scan related HCI commands.
-	 */
-	if (hdev->manufacturer != 31 && hdev->hci_ver > BLUETOOTH_VER_1_1) {
-		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_ACTIVITY, 0, NULL);
-		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_TYPE, 0, NULL);
-	}
 }
 
 static void le_setup(struct hci_request *req)
@@ -1717,6 +1707,16 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
+
+	if (hdev->commands[8] & 0x01)
+		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_ACTIVITY, 0, NULL);
+
+	/* Some older Broadcom based Bluetooth 1.2 controllers do not
+	 * support the Read Page Scan Type command. Check support for
+	 * this command in the bit mask of supported commands.
+	 */
+	if (hdev->commands[13] & 0x01)
+		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_TYPE, 0, NULL);
 
 	if (lmp_le_capable(hdev)) {
 		u8 events[8];
@@ -2634,6 +2634,12 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	drain_workqueue(hdev->workqueue);
 
 	hci_dev_lock(hdev);
+
+	if (!test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
+		if (hdev->dev_type == HCI_BREDR)
+			mgmt_powered(hdev, 0);
+	}
+
 	hci_inquiry_cache_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
 	hci_conn_hash_flush(hdev);
@@ -2680,14 +2686,6 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	/* Clear flags */
 	hdev->flags &= BIT(HCI_RAW);
 	hdev->dev_flags &= ~HCI_PERSISTENT_MASK;
-
-	if (!test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
-		if (hdev->dev_type == HCI_BREDR) {
-			hci_dev_lock(hdev);
-			mgmt_powered(hdev, 0);
-			hci_dev_unlock(hdev);
-		}
-	}
 
 	/* Controller radio is available but is currently powered down */
 	hdev->amp_status = AMP_STATUS_POWERED_DOWN;
@@ -3083,7 +3081,9 @@ static void hci_power_on(struct work_struct *work)
 
 	err = hci_dev_do_open(hdev);
 	if (err < 0) {
+		hci_dev_lock(hdev);
 		mgmt_set_powered_failed(hdev, err);
+		hci_dev_unlock(hdev);
 		return;
 	}
 
@@ -3959,17 +3959,29 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	}
 
 	/* In case of required privacy without resolvable private address,
-	 * use an unresolvable private address. This is useful for active
+	 * use an non-resolvable private address. This is useful for active
 	 * scanning and non-connectable advertising.
 	 */
 	if (require_privacy) {
-		bdaddr_t urpa;
+		bdaddr_t nrpa;
 
-		get_random_bytes(&urpa, 6);
-		urpa.b[5] &= 0x3f;	/* Clear two most significant bits */
+		while (true) {
+			/* The non-resolvable private address is generated
+			 * from random six bytes with the two most significant
+			 * bits cleared.
+			 */
+			get_random_bytes(&nrpa, 6);
+			nrpa.b[5] &= 0x3f;
+
+			/* The non-resolvable private address shall not be
+			 * equal to the public address.
+			 */
+			if (bacmp(&hdev->bdaddr, &nrpa))
+				break;
+		}
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
-		set_random_addr(req, &urpa);
+		set_random_addr(req, &nrpa);
 		return 0;
 	}
 
@@ -5625,7 +5637,7 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	u8 filter_policy;
 
 	/* Set require_privacy to false since no SCAN_REQ are send
-	 * during passive scanning. Not using an unresolvable address
+	 * during passive scanning. Not using an non-resolvable address
 	 * here is important so that peer devices using direct
 	 * advertising with our address will be correctly reported
 	 * by the controller.
