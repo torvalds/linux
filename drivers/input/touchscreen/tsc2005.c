@@ -773,8 +773,7 @@ static int tsc2005_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int tsc2005_suspend(struct device *dev)
+static int __maybe_unused tsc2005_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct tsc2005 *ts = spi_get_drvdata(spi);
@@ -791,7 +790,7 @@ static int tsc2005_suspend(struct device *dev)
 	return 0;
 }
 
-static int tsc2005_resume(struct device *dev)
+static int __maybe_unused tsc2005_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct tsc2005 *ts = spi_get_drvdata(spi);
@@ -807,7 +806,6 @@ static int tsc2005_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(tsc2005_pm_ops, tsc2005_suspend, tsc2005_resume);
 

@@ -133,8 +133,7 @@ static int max8925_onkey_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int max8925_onkey_suspend(struct device *dev)
+static int __maybe_unused max8925_onkey_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct max8925_onkey_info *info = platform_get_drvdata(pdev);
@@ -148,7 +147,7 @@ static int max8925_onkey_suspend(struct device *dev)
 	return 0;
 }
 
-static int max8925_onkey_resume(struct device *dev)
+static int __maybe_unused max8925_onkey_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct max8925_onkey_info *info = platform_get_drvdata(pdev);
@@ -161,7 +160,6 @@ static int max8925_onkey_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(max8925_onkey_pm_ops, max8925_onkey_suspend, max8925_onkey_resume);
 

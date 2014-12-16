@@ -309,8 +309,7 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int max77693_haptic_suspend(struct device *dev)
+static int __maybe_unused max77693_haptic_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct max77693_haptic *haptic = platform_get_drvdata(pdev);
@@ -323,7 +322,7 @@ static int max77693_haptic_suspend(struct device *dev)
 	return 0;
 }
 
-static int max77693_haptic_resume(struct device *dev)
+static int __maybe_unused max77693_haptic_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct max77693_haptic *haptic = platform_get_drvdata(pdev);
@@ -335,7 +334,6 @@ static int max77693_haptic_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(max77693_haptic_pm_ops,
 			 max77693_haptic_suspend, max77693_haptic_resume);

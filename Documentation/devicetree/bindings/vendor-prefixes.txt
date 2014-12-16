@@ -42,6 +42,7 @@ dlink	D-Link Corporation
 dmo	Data Modul AG
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
+elan	Elan Microelectronic Corp.
 emmicro	EM Microelectronic
 epcos	EPCOS AG
 epfl	Ecole Polytechnique Fédérale de Lausanne
