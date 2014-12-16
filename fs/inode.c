@@ -114,6 +114,11 @@ int proc_nr_inodes(struct ctl_table *table, int write,
 }
 #endif
 
+static int no_open(struct inode *inode, struct file *file)
+{
+	return -ENXIO;
+}
+
 /**
  * inode_init_always - perform inode structure intialisation
  * @sb: superblock inode belongs to
@@ -125,7 +130,7 @@ int proc_nr_inodes(struct ctl_table *table, int write,
 int inode_init_always(struct super_block *sb, struct inode *inode)
 {
 	static const struct inode_operations empty_iops;
-	static const struct file_operations empty_fops;
+	static const struct file_operations no_open_fops = {.open = no_open};
 	struct address_space *const mapping = &inode->i_data;
 
 	inode->i_sb = sb;
@@ -133,7 +138,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_flags = 0;
 	atomic_set(&inode->i_count, 1);
 	inode->i_op = &empty_iops;
-	inode->i_fop = &empty_fops;
+	inode->i_fop = &no_open_fops;
 	inode->__i_nlink = 1;
 	inode->i_opflags = 0;
 	i_uid_write(inode, 0);
@@ -1798,7 +1803,7 @@ void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 	} else if (S_ISFIFO(mode))
 		inode->i_fop = &pipefifo_fops;
 	else if (S_ISSOCK(mode))
-		inode->i_fop = &bad_sock_fops;
+		;	/* leave it no_open_fops */
 	else
 		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o) for"
 				  " inode %s:%lu\n", mode, inode->i_sb->s_id,

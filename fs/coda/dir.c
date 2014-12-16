@@ -426,7 +426,6 @@ static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 	struct coda_file_info *cfi;
 	struct coda_inode_info *cii;
 	struct file *host_file;
-	struct dentry *de;
 	struct venus_dirent *vdir;
 	unsigned long vdir_size = offsetof(struct venus_dirent, d_name);
 	unsigned int type;
@@ -438,8 +437,7 @@ static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
 
-	de = coda_file->f_path.dentry;
-	cii = ITOC(de->d_inode);
+	cii = ITOC(file_inode(coda_file));
 
 	vdir = kmalloc(sizeof(*vdir), GFP_KERNEL);
 	if (!vdir) return -ENOMEM;

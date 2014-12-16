@@ -79,6 +79,7 @@
 #include <linux/random.h>
 #include <linux/list.h>
 #include <linux/integrity.h>
+#include <linux/proc_ns.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -665,6 +666,7 @@ asmlinkage __visible void __init start_kernel(void)
 	/* rootfs populating might need page-writeback */
 	page_writeback_init();
 	proc_root_init();
+	nsfs_init();
 	cgroup_init();
 	cpuset_init();
 	taskstats_init_early();

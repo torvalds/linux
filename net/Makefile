@@ -5,8 +5,6 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-obj-y	:= nonet.o
-
 obj-$(CONFIG_NET)		:= socket.o core/
 
 tmp-$(CONFIG_COMPAT) 		:= compat.o
