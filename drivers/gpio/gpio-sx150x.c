@@ -436,7 +436,7 @@ static void sx150x_irq_bus_sync_unlock(struct irq_data *d)
 
 	/* Avoid updates if nothing changed */
 	if (chip->dev_sense == chip->irq_sense &&
-	    chip->dev_sense == chip->irq_masked)
+	    chip->dev_masked == chip->irq_masked)
 		goto out;
 
 	chip->dev_sense = chip->irq_sense;
