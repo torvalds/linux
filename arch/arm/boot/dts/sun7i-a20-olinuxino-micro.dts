@@ -17,6 +17,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
@@ -185,7 +186,7 @@
 				compatible = "x-powers,axp209";
 				reg = <0x34>;
 				interrupt-parent = <&nmi_intc>;
-				interrupts = <0 8>;
+				interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 
 				interrupt-controller;
 				#interrupt-cells = <1>;
