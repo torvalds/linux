@@ -43,7 +43,7 @@
 #include "sst.h"
 
 struct sst_machines {
-	char codec_id[32];
+	char *codec_id;
 	char board[32];
 	char machine[32];
 	void (*machine_quirk)(void);
