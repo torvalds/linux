@@ -153,8 +153,10 @@ struct ti_clk_dpll {
 	u8 recal_st_bit;
 };
 
+struct clk *ti_clk_register_gate(struct ti_clk *setup);
 struct clk *ti_clk_register_mux(struct ti_clk *setup);
 
+struct clk_hw *ti_clk_build_component_gate(struct ti_clk_gate *setup);
 struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup);
 
 void ti_clk_patch_legacy_clks(struct ti_clk **patch);

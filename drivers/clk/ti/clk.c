@@ -222,6 +222,9 @@ struct clk __init *ti_clk_register_clk(struct ti_clk *setup)
 						0, fixed_factor->mult,
 						fixed_factor->div);
 		break;
+	case TI_CLK_GATE:
+		clk = ti_clk_register_gate(setup);
+		break;
 	default:
 		pr_err("bad type for %s!\n", setup->name);
 		clk = ERR_PTR(-EINVAL);
