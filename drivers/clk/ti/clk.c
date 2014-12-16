@@ -211,6 +211,9 @@ struct clk __init *ti_clk_register_clk(struct ti_clk *setup)
 		clk = clk_register_fixed_rate(NULL, setup->name, NULL,
 					      CLK_IS_ROOT, fixed->frequency);
 		break;
+	case TI_CLK_MUX:
+		clk = ti_clk_register_mux(setup);
+		break;
 	case TI_CLK_FIXED_FACTOR:
 		fixed_factor = setup->data;
 
