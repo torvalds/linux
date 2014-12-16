@@ -15,6 +15,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
+#include <uapi/linux/magic.h>
+
 /*
  * NAND flash on Netgear R6250 was verified to contain 15 partitions.
  * This will result in allocating too big array for some old devices, but the
@@ -39,7 +41,7 @@
 #define ML_MAGIC1			0x39685a42
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
-#define SQSH_MAGIC			0x71736873	/* shsq */
+#define SHSQ_MAGIC			0x71736873	/* shsq (weird ZTE H218N endianness) */
 #define UBI_EC_MAGIC			0x23494255	/* UBI# */
 
 struct trx_header {
@@ -233,7 +235,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		}
 
 		/* Squashfs on devices not using TRX */
-		if (buf[0x000 / 4] == SQSH_MAGIC) {
+		if (le32_to_cpu(buf[0x000 / 4]) == SQUASHFS_MAGIC ||
+		    buf[0x000 / 4] == SHSQ_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
 					     offset, 0);
 			continue;
