@@ -216,8 +216,7 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 	}
 }
 
-static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo,
-			      size_t size)
+static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
 {
 	struct scatterlist *s;
 	struct sg_table *sgt;
@@ -227,7 +226,7 @@ static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo,
 	if (IS_ERR(bo->pages))
 		return PTR_ERR(bo->pages);
 
-	bo->num_pages = size >> PAGE_SHIFT;
+	bo->num_pages = bo->gem.size >> PAGE_SHIFT;
 
 	sgt = drm_prime_pages_to_sg(bo->pages, bo->num_pages);
 	if (IS_ERR(sgt))
@@ -262,14 +261,13 @@ put_pages:
 	return PTR_ERR(sgt);
 }
 
-static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
-			  size_t size)
+static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 {
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
 	if (tegra->domain) {
-		err = tegra_bo_get_pages(drm, bo, size);
+		err = tegra_bo_get_pages(drm, bo);
 		if (err < 0)
 			return err;
 
@@ -279,6 +277,8 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
 			return err;
 		}
 	} else {
+		size_t size = bo->gem.size;
+
 		bo->vaddr = dma_alloc_writecombine(drm->dev, size, &bo->paddr,
 						   GFP_KERNEL | __GFP_NOWARN);
 		if (!bo->vaddr) {
@@ -302,7 +302,7 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
 	if (IS_ERR(bo))
 		return bo;
 
-	err = tegra_bo_alloc(drm, bo, size);
+	err = tegra_bo_alloc(drm, bo);
 	if (err < 0)
 		goto release;
 
