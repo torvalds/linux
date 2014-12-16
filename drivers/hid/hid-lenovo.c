@@ -92,6 +92,38 @@ static int lenovo_input_mapping_cptkbd(struct hid_device *hdev,
 		case 0x00fa: /* Fn-Esc: Fn-lock toggle */
 			map_key_clear(KEY_FN_ESC);
 			return 1;
+		case 0x00fb: /* Middle mouse button (in native mode) */
+			map_key_clear(BTN_MIDDLE);
+			return 1;
+		}
+	}
+
+	/* Compatibility middle/wheel mappings should be ignored */
+	if (usage->hid == HID_GD_WHEEL)
+		return -1;
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON &&
+			(usage->hid & HID_USAGE) == 0x003)
+		return -1;
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER &&
+			(usage->hid & HID_USAGE) == 0x238)
+		return -1;
+
+	/* Map wheel emulation reports: 0xffa1 = USB, 0xff10 = BT */
+	if ((usage->hid & HID_USAGE_PAGE) == 0xff100000 ||
+	    (usage->hid & HID_USAGE_PAGE) == 0xffa10000) {
+		field->flags |= HID_MAIN_ITEM_RELATIVE | HID_MAIN_ITEM_VARIABLE;
+		field->logical_minimum = -127;
+		field->logical_maximum = 127;
+
+		switch (usage->hid & HID_USAGE) {
+		case 0x0000:
+			hid_map_usage(hi, usage, bit, max, EV_REL, 0x06);
+			return 1;
+		case 0x0001:
+			hid_map_usage(hi, usage, bit, max, EV_REL, 0x08);
+			return 1;
+		default:
+			return -1;
 		}
 	}
 
@@ -632,6 +664,11 @@ static int lenovo_probe_cptkbd(struct hid_device *hdev)
 	ret = lenovo_send_cmd_cptkbd(hdev, 0x01, 0x03);
 	if (ret)
 		hid_warn(hdev, "Failed to switch F7/9/11 mode: %d\n", ret);
+
+	/* Switch middle button to native mode */
+	ret = lenovo_send_cmd_cptkbd(hdev, 0x09, 0x01);
+	if (ret)
+		hid_warn(hdev, "Failed to switch middle button: %d\n", ret);
 
 	/* Set keyboard settings to known state */
 	cptkbd_data->fn_lock = true;
