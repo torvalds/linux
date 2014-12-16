@@ -106,7 +106,7 @@ static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 
 static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 	{
-		.num_different_channels = 1,
+		.num_different_channels = 2,
 		.max_interfaces = 3,
 		.limits = iwl_mvm_limits,
 		.n_limits = ARRAY_SIZE(iwl_mvm_limits),
