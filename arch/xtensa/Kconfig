@@ -436,6 +436,12 @@ source "fs/Kconfig.binfmt"
 
 endmenu
 
+menu "Power management options"
+
+source "kernel/power/Kconfig"
+
+endmenu
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"
