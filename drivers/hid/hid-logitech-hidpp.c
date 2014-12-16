@@ -805,6 +805,7 @@ static int wtp_raw_event(struct hid_device *hdev, u8 *data, int size)
 			input_event(wd->input, EV_KEY, BTN_RIGHT,
 					!!(data[1] & 0x02));
 			input_sync(wd->input);
+			return 0;
 		} else {
 			if (size < 21)
 				return 1;
