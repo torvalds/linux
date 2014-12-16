@@ -799,9 +799,15 @@ void of_free_opp_table(struct device *dev)
 
 	/* Check for existing list for 'dev' */
 	dev_opp = find_device_opp(dev);
-	if (WARN(IS_ERR(dev_opp), "%s: dev_opp: %ld\n", dev_name(dev),
-		 PTR_ERR(dev_opp)))
+	if (IS_ERR(dev_opp)) {
+		int error = PTR_ERR(dev_opp);
+		if (error != -ENODEV)
+			WARN(1, "%s: dev_opp: %d\n",
+			     IS_ERR_OR_NULL(dev) ?
+					"Invalid device" : dev_name(dev),
+			     error);
 		return;
+	}
 
 	/* Hold our list modification lock here */
 	mutex_lock(&dev_opp_list_lock);
