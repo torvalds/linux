@@ -337,7 +337,7 @@ static int imx2_wdt_suspend(struct device *dev)
 	imx2_wdt_ping(wdog);
 
 	/* Watchdog has been stopped but IP block is still running */
-	if (!watchdog_active(&wdog) && imx2_wdt_is_running(wdev))
+	if (!watchdog_active(wdog) && imx2_wdt_is_running(wdev))
 		del_timer_sync(&wdev->timer);
 
 	clk_disable_unprepare(wdev->clk);
