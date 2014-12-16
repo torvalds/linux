@@ -142,6 +142,9 @@ struct clk *ti_clk_register_gate(struct ti_clk *setup)
 
 	gate = setup->data;
 
+	if (gate->flags & CLKF_INTERFACE)
+		return ti_clk_register_interface(setup);
+
 	reg_setup = (struct clk_omap_reg *)&reg;
 
 	if (gate->flags & CLKF_SET_RATE_PARENT)
