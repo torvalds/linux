@@ -193,7 +193,6 @@ struct tegra_output_ops {
 };
 
 enum tegra_output_type {
-	TEGRA_OUTPUT_RGB,
 	TEGRA_OUTPUT_HDMI,
 	TEGRA_OUTPUT_DSI,
 	TEGRA_OUTPUT_EDP,

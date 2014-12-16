@@ -9,6 +9,8 @@
 
 #include <linux/clk.h>
 
+#include <drm/drm_panel.h>
+
 #include "drm.h"
 #include "dc.h"
 
@@ -85,13 +87,99 @@ static void tegra_dc_write_regs(struct tegra_dc *dc,
 		tegra_dc_writel(dc, table[i].value, table[i].offset);
 }
 
-static int tegra_output_rgb_enable(struct tegra_output *output)
+static void tegra_rgb_connector_dpms(struct drm_connector *connector,
+				     int mode)
 {
-	struct tegra_rgb *rgb = to_rgb(output);
-	unsigned long value;
+}
 
-	if (rgb->enabled)
-		return 0;
+static const struct drm_connector_funcs tegra_rgb_connector_funcs = {
+	.dpms = tegra_rgb_connector_dpms,
+	.detect = tegra_output_connector_detect,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = tegra_output_connector_destroy,
+};
+
+static enum drm_mode_status
+tegra_rgb_connector_mode_valid(struct drm_connector *connector,
+			       struct drm_display_mode *mode)
+{
+	/*
+	 * FIXME: For now, always assume that the mode is okay. There are
+	 * unresolved issues with clk_round_rate(), which doesn't always
+	 * reliably report whether a frequency can be set or not.
+	 */
+	return MODE_OK;
+}
+
+static const struct drm_connector_helper_funcs tegra_rgb_connector_helper_funcs = {
+	.get_modes = tegra_output_connector_get_modes,
+	.mode_valid = tegra_rgb_connector_mode_valid,
+	.best_encoder = tegra_output_connector_best_encoder,
+};
+
+static const struct drm_encoder_funcs tegra_rgb_encoder_funcs = {
+	.destroy = tegra_output_encoder_destroy,
+};
+
+static void tegra_rgb_encoder_dpms(struct drm_encoder *encoder, int mode)
+{
+}
+
+static bool tegra_rgb_encoder_mode_fixup(struct drm_encoder *encoder,
+					 const struct drm_display_mode *mode,
+					 struct drm_display_mode *adjusted)
+{
+	struct tegra_output *output = encoder_to_output(encoder);
+	unsigned long pclk = mode->clock * 1000;
+	struct tegra_rgb *rgb = to_rgb(output);
+	unsigned int div;
+	int err;
+
+	/*
+	 * We may not want to change the frequency of the parent clock, since
+	 * it may be a parent for other peripherals. This is due to the fact
+	 * that on Tegra20 there's only a single clock dedicated to display
+	 * (pll_d_out0), whereas later generations have a second one that can
+	 * be used to independently drive a second output (pll_d2_out0).
+	 *
+	 * As a way to support multiple outputs on Tegra20 as well, pll_p is
+	 * typically used as the parent clock for the display controllers.
+	 * But this comes at a cost: pll_p is the parent of several other
+	 * peripherals, so its frequency shouldn't change out of the blue.
+	 *
+	 * The best we can do at this point is to use the shift clock divider
+	 * and hope that the desired frequency can be matched (or at least
+	 * matched sufficiently close that the panel will still work).
+	 */
+	div = ((clk_get_rate(rgb->clk) * 2) / pclk) - 2;
+
+	err = tegra_dc_setup_clock(rgb->dc, rgb->clk_parent, pclk, div);
+	if (err < 0) {
+		dev_err(output->dev, "failed to setup DC clock: %d\n", err);
+		return false;
+	}
+
+	return true;
+}
+
+static void tegra_rgb_encoder_prepare(struct drm_encoder *encoder)
+{
+}
+
+static void tegra_rgb_encoder_commit(struct drm_encoder *encoder)
+{
+}
+
+static void tegra_rgb_encoder_mode_set(struct drm_encoder *encoder,
+				       struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted)
+{
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_rgb *rgb = to_rgb(output);
+	u32 value;
+
+	if (output->panel)
+		drm_panel_prepare(output->panel);
 
 	tegra_dc_write_regs(rgb->dc, rgb_enable, ARRAY_SIZE(rgb_enable));
 
@@ -125,88 +213,31 @@ static int tegra_output_rgb_enable(struct tegra_output *output)
 
 	tegra_dc_commit(rgb->dc);
 
-	rgb->enabled = true;
-
-	return 0;
+	if (output->panel)
+		drm_panel_enable(output->panel);
 }
 
-static int tegra_output_rgb_disable(struct tegra_output *output)
+static void tegra_rgb_encoder_disable(struct drm_encoder *encoder)
 {
+	struct tegra_output *output = encoder_to_output(encoder);
 	struct tegra_rgb *rgb = to_rgb(output);
-	unsigned long value;
 
-	if (!rgb->enabled)
-		return 0;
-
-	value = tegra_dc_readl(rgb->dc, DC_CMD_DISPLAY_POWER_CONTROL);
-	value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-		   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
-	tegra_dc_writel(rgb->dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
+	if (output->panel)
+		drm_panel_disable(output->panel);
 
 	tegra_dc_write_regs(rgb->dc, rgb_disable, ARRAY_SIZE(rgb_disable));
 
-	tegra_dc_commit(rgb->dc);
-
-	rgb->enabled = false;
-
-	return 0;
+	if (output->panel)
+		drm_panel_unprepare(output->panel);
 }
 
-static int tegra_output_rgb_setup_clock(struct tegra_output *output,
-					struct clk *clk, unsigned long pclk,
-					unsigned int *div)
-{
-	struct tegra_rgb *rgb = to_rgb(output);
-	int err;
-
-	err = clk_set_parent(clk, rgb->clk_parent);
-	if (err < 0) {
-		dev_err(output->dev, "failed to set parent: %d\n", err);
-		return err;
-	}
-
-	/*
-	 * We may not want to change the frequency of the parent clock, since
-	 * it may be a parent for other peripherals. This is due to the fact
-	 * that on Tegra20 there's only a single clock dedicated to display
-	 * (pll_d_out0), whereas later generations have a second one that can
-	 * be used to independently drive a second output (pll_d2_out0).
-	 *
-	 * As a way to support multiple outputs on Tegra20 as well, pll_p is
-	 * typically used as the parent clock for the display controllers.
-	 * But this comes at a cost: pll_p is the parent of several other
-	 * peripherals, so its frequency shouldn't change out of the blue.
-	 *
-	 * The best we can do at this point is to use the shift clock divider
-	 * and hope that the desired frequency can be matched (or at least
-	 * matched sufficiently close that the panel will still work).
-	 */
-
-	*div = ((clk_get_rate(clk) * 2) / pclk) - 2;
-
-	return 0;
-}
-
-static int tegra_output_rgb_check_mode(struct tegra_output *output,
-				       struct drm_display_mode *mode,
-				       enum drm_mode_status *status)
-{
-	/*
-	 * FIXME: For now, always assume that the mode is okay. There are
-	 * unresolved issues with clk_round_rate(), which doesn't always
-	 * reliably report whether a frequency can be set or not.
-	 */
-
-	*status = MODE_OK;
-
-	return 0;
-}
-
-static const struct tegra_output_ops rgb_ops = {
-	.enable = tegra_output_rgb_enable,
-	.disable = tegra_output_rgb_disable,
-	.setup_clock = tegra_output_rgb_setup_clock,
-	.check_mode = tegra_output_rgb_check_mode,
+static const struct drm_encoder_helper_funcs tegra_rgb_encoder_helper_funcs = {
+	.dpms = tegra_rgb_encoder_dpms,
+	.mode_fixup = tegra_rgb_encoder_mode_fixup,
+	.prepare = tegra_rgb_encoder_prepare,
+	.commit = tegra_rgb_encoder_commit,
+	.mode_set = tegra_rgb_encoder_mode_set,
+	.disable = tegra_rgb_encoder_disable,
 };
 
 int tegra_dc_rgb_probe(struct tegra_dc *dc)
@@ -265,55 +296,55 @@ int tegra_dc_rgb_remove(struct tegra_dc *dc)
 	if (err < 0)
 		return err;
 
+	dc->rgb = NULL;
+
 	return 0;
 }
 
 int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 {
-	struct tegra_rgb *rgb = to_rgb(dc->rgb);
+	struct tegra_output *output = dc->rgb;
 	int err;
 
 	if (!dc->rgb)
 		return -ENODEV;
 
-	rgb->output.type = TEGRA_OUTPUT_RGB;
-	rgb->output.ops = &rgb_ops;
+	drm_connector_init(drm, &output->connector, &tegra_rgb_connector_funcs,
+			   DRM_MODE_CONNECTOR_LVDS);
+	drm_connector_helper_add(&output->connector,
+				 &tegra_rgb_connector_helper_funcs);
+	output->connector.dpms = DRM_MODE_DPMS_OFF;
 
-	err = tegra_output_init(dc->base.dev, &rgb->output);
-	if (err < 0) {
-		dev_err(dc->dev, "output setup failed: %d\n", err);
-		return err;
+	if (output->panel) {
+		err = drm_panel_attach(output->panel, &output->connector);
+		if (err < 0)
+			dev_err(output->dev, "failed to attach panel: %d\n",
+				err);
 	}
 
+	drm_encoder_init(drm, &output->encoder, &tegra_rgb_encoder_funcs,
+			 DRM_MODE_ENCODER_LVDS);
+	drm_encoder_helper_add(&output->encoder,
+			       &tegra_rgb_encoder_helper_funcs);
+
+	drm_mode_connector_attach_encoder(&output->connector,
+					  &output->encoder);
+	drm_connector_register(&output->connector);
+
 	/*
-	 * By default, outputs can be associated with each display controller.
-	 * RGB outputs are an exception, so we make sure they can be attached
-	 * to only their parent display controller.
+	 * Other outputs can be attached to either display controller. The RGB
+	 * outputs are an exception and work only with their parent display
+	 * controller.
 	 */
-	rgb->output.encoder.possible_crtcs = drm_crtc_mask(&dc->base);
+	output->encoder.possible_crtcs = drm_crtc_mask(&dc->base);
 
 	return 0;
 }
 
 int tegra_dc_rgb_exit(struct tegra_dc *dc)
 {
-	if (dc->rgb) {
-		int err;
+	if (!dc->rgb)
+		return 0;
 
-		err = tegra_output_disable(dc->rgb);
-		if (err < 0) {
-			dev_err(dc->dev, "output failed to disable: %d\n", err);
-			return err;
-		}
-
-		err = tegra_output_exit(dc->rgb);
-		if (err < 0) {
-			dev_err(dc->dev, "output cleanup failed: %d\n", err);
-			return err;
-		}
-
-		dc->rgb = NULL;
-	}
-
-	return 0;
+	return tegra_output_exit(dc->rgb);
 }

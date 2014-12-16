@@ -274,11 +274,6 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	int connector, encoder;
 
 	switch (output->type) {
-	case TEGRA_OUTPUT_RGB:
-		connector = DRM_MODE_CONNECTOR_LVDS;
-		encoder = DRM_MODE_ENCODER_LVDS;
-		break;
-
 	case TEGRA_OUTPUT_HDMI:
 		connector = DRM_MODE_CONNECTOR_HDMIA;
 		encoder = DRM_MODE_ENCODER_TMDS;

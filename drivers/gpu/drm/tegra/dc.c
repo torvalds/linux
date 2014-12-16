@@ -994,6 +994,7 @@ static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
 static void tegra_crtc_disable(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
+	u32 value;
 
 	if (!tegra_dc_idle(dc)) {
 		tegra_dc_stop(dc);
@@ -1003,6 +1004,29 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 		 * in case this fails.
 		 */
 		tegra_dc_wait_idle(dc, 100);
+	}
+
+	/*
+	 * This should really be part of the RGB encoder driver, but clearing
+	 * these bits has the side-effect of stopping the display controller.
+	 * When that happens no VBLANK interrupts will be raised. At the same
+	 * time the encoder is disabled before the display controller, so the
+	 * above code is always going to timeout waiting for the controller
+	 * to go idle.
+	 *
+	 * Given the close coupling between the RGB encoder and the display
+	 * controller doing it here is still kind of okay. None of the other
+	 * encoder drivers require these bits to be cleared.
+	 *
+	 * XXX: Perhaps given that the display controller is switched off at
+	 * this point anyway maybe clearing these bits isn't even useful for
+	 * the RGB encoder?
+	 */
+	if (dc->rgb) {
+		value = tegra_dc_readl(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+		value &= ~(PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+			   PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+		tegra_dc_writel(dc, value, DC_CMD_DISPLAY_POWER_CONTROL);
 	}
 
 	drm_crtc_vblank_off(crtc);
