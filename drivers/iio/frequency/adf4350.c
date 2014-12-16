@@ -611,9 +611,8 @@ static int adf4350_remove(struct spi_device *spi)
 	if (st->clk)
 		clk_disable_unprepare(st->clk);
 
-	if (!IS_ERR(reg)) {
+	if (!IS_ERR(reg))
 		regulator_disable(reg);
-	}
 
 	return 0;
 }
