@@ -673,6 +673,8 @@
 
 	lcdc: lcdc@ff930000 {
 		 compatible = "rockchip,rk3368-lcdc";
+		 rockchip,grf = <&grf>;
+		 rockchip,pmu = <&pmu_grf>;
 		 rockchip,prop = <PRMRY>;
 		 rockchip,pwr18 = <0>;
 		 rockchip,iommu-enabled = <0>;

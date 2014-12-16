@@ -4,6 +4,8 @@
 #include<linux/rk_fb.h>
 #include<linux/io.h>
 #include<linux/clk.h>
+#include<linux/mfd/syscon.h>
+#include<linux/regmap.h>
 
 #define VOP_INPUT_MAX_WIDTH 4096 /*3840 for LINCOLN*/
 
@@ -1635,7 +1637,7 @@
 #define MCU_BYPASS_WPORT		(0x2200)
 #define MCU_BYPASS_RPORT		(0x2300)
 
-
+#define PMUGRF_SOC_CON0_VOP		(0x0100)
 
 enum lb_mode {
 	LB_YUV_3840X5 = 0x0,
@@ -1737,6 +1739,8 @@ struct lcdc_device {
 	void __iomem *regs;
 	void *regsbak;		/*back up reg*/
 	u32 reg_phy_base;	/* physical basic address of lcdc register*/
+	struct regmap *grf_base;
+	struct regmap *pmugrf_base;
 	u32 len;		/* physical map length of lcdc register*/
 	/*one time only one process allowed to config the register*/
 	spinlock_t reg_lock;
@@ -1861,6 +1865,15 @@ static inline void lcdc_cfg_done(struct lcdc_device *lcdc_dev)
 {
 	writel_relaxed(0x01, lcdc_dev->regs + REG_CFG_DONE);
 	dsb(sy);
+}
+
+static inline int lcdc_grf_writel(struct regmap *base,
+				  u32 offset, u32 val)
+{
+	regmap_write(base, offset, val);
+	dsb(sy);
+
+	return 0;
 }
 
 #define CUBIC_PRECISE  0

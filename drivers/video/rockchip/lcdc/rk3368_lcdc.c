@@ -379,7 +379,7 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 /********do basic init*********/
 static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 {
-	u32 mask, val;
+	u32 mask, val, v;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	if (lcdc_dev->pre_init)
@@ -401,6 +401,15 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 	/*backup reg config at uboot */
 	lcdc_read_reg_defalut_cfg(lcdc_dev);
+	if (lcdc_dev->pwr18 == 1) {
+		v = 0x00200020;	/*bit5: 1,1.8v;0,3.3v*/
+		lcdc_grf_writel(lcdc_dev->pmugrf_base,
+				PMUGRF_SOC_CON0_VOP, v);
+	} else {
+		v = 0x00200000;	/*bit5: 1,1.8v;0,3.3v*/
+		lcdc_grf_writel(lcdc_dev->pmugrf_base,
+				PMUGRF_SOC_CON0_VOP, v);
+	}
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_0, 0x15110903);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_1, 0x00030911);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_0, 0x1a150b04);
@@ -1575,6 +1584,8 @@ static void rk3368_lcdc_bcsh_path_sel(struct rk_lcdc_driver *dev_drv)
 	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 bcsh_ctrl;
 
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_OVERLAY_MODE,
+		     v_OVERLAY_MODE(dev_drv->overlay_mode));
 	if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
 		if (dev_drv->output_color == COLOR_YCBCR)	/* bypass */
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
@@ -1746,7 +1757,7 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			    v_MIPI_DCLK_POL(screen->pin_dclk);
 			break;
 		case SCREEN_EDP:
-			/*face = OUT_RGB_AAA;*/	/*RGB AAA output */
+			face = OUT_P888;	/*RGB 888 output */
 
 			mask = m_EDP_OUT_EN | m_RGB_OUT_EN;
 			val = v_EDP_OUT_EN(1) | v_RGB_OUT_EN(0);
@@ -4292,6 +4303,18 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 	if (IS_ERR(lcdc_dev->regsbak))
 		return PTR_ERR(lcdc_dev->regsbak);
 	lcdc_dev->dsp_lut_addr_base = (lcdc_dev->regs + GAMMA_LUT_ADDR);
+	lcdc_dev->grf_base =
+		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(lcdc_dev->grf_base)) {
+		dev_err(&pdev->dev, "can't find lcdc grf property\n");
+		return PTR_ERR(lcdc_dev->grf_base);
+	}
+	lcdc_dev->pmugrf_base =
+		syscon_regmap_lookup_by_phandle(np, "rockchip,pmu");
+	if (IS_ERR(lcdc_dev->pmugrf_base)) {
+		dev_err(&pdev->dev, "can't find lcdc pmu grf property\n");
+		return PTR_ERR(lcdc_dev->pmugrf_base);
+	}
 	lcdc_dev->id = 0;
 	dev_set_name(lcdc_dev->dev, "lcdc%d", lcdc_dev->id);
 	dev_drv = &lcdc_dev->driver;
