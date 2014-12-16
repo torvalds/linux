@@ -33,6 +33,7 @@
 #include <asm/page.h>
 #include <asm/current.h>
 #include <asm/apicdef.h>
+#include <asm/delay.h>
 #include <linux/atomic.h>
 #include <linux/jump_label.h>
 #include "kvm_cache_regs.h"
@@ -1073,6 +1074,7 @@ static void apic_timer_expired(struct kvm_lapic *apic)
 {
 	struct kvm_vcpu *vcpu = apic->vcpu;
 	wait_queue_head_t *q = &vcpu->wq;
+	struct kvm_timer *ktimer = &apic->lapic_timer;
 
 	/*
 	 * Note: KVM_REQ_PENDING_TIMER is implicitly checked in
@@ -1087,11 +1089,61 @@ static void apic_timer_expired(struct kvm_lapic *apic)
 
 	if (waitqueue_active(q))
 		wake_up_interruptible(q);
+
+	if (apic_lvtt_tscdeadline(apic))
+		ktimer->expired_tscdeadline = ktimer->tscdeadline;
+}
+
+/*
+ * On APICv, this test will cause a busy wait
+ * during a higher-priority task.
+ */
+
+static bool lapic_timer_int_injected(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	u32 reg = kvm_apic_get_reg(apic, APIC_LVTT);
+
+	if (kvm_apic_hw_enabled(apic)) {
+		int vec = reg & APIC_VECTOR_MASK;
+
+		if (kvm_x86_ops->test_posted_interrupt)
+			return kvm_x86_ops->test_posted_interrupt(vcpu, vec);
+		else {
+			if (apic_test_vector(vec, apic->regs + APIC_ISR))
+				return true;
+		}
+	}
+	return false;
+}
+
+void wait_lapic_expire(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	u64 guest_tsc, tsc_deadline;
+
+	if (!kvm_vcpu_has_lapic(vcpu))
+		return;
+
+	if (apic->lapic_timer.expired_tscdeadline == 0)
+		return;
+
+	if (!lapic_timer_int_injected(vcpu))
+		return;
+
+	tsc_deadline = apic->lapic_timer.expired_tscdeadline;
+	apic->lapic_timer.expired_tscdeadline = 0;
+	guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu, native_read_tsc());
+
+	/* __delay is delay_tsc whenever the hardware has TSC, thus always.  */
+	if (guest_tsc < tsc_deadline)
+		__delay(tsc_deadline - guest_tsc);
 }
 
 static void start_apic_timer(struct kvm_lapic *apic)
 {
 	ktime_t now;
+
 	atomic_set(&apic->lapic_timer.pending, 0);
 
 	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic)) {
@@ -1137,6 +1189,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		/* lapic timer in tsc deadline mode */
 		u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
 		u64 ns = 0;
+		ktime_t expire;
 		struct kvm_vcpu *vcpu = apic->vcpu;
 		unsigned long this_tsc_khz = vcpu->arch.virtual_tsc_khz;
 		unsigned long flags;
@@ -1151,8 +1204,10 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		if (likely(tscdeadline > guest_tsc)) {
 			ns = (tscdeadline - guest_tsc) * 1000000ULL;
 			do_div(ns, this_tsc_khz);
+			expire = ktime_add_ns(now, ns);
+			expire = ktime_sub_ns(expire, lapic_timer_advance_ns);
 			hrtimer_start(&apic->lapic_timer.timer,
-				ktime_add_ns(now, ns), HRTIMER_MODE_ABS);
+				      expire, HRTIMER_MODE_ABS);
 		} else
 			apic_timer_expired(apic);
 

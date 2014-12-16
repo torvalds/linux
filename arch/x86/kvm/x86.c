@@ -108,6 +108,10 @@ EXPORT_SYMBOL_GPL(kvm_max_guest_tsc_khz);
 static u32 tsc_tolerance_ppm = 250;
 module_param(tsc_tolerance_ppm, uint, S_IRUGO | S_IWUSR);
 
+/* lapic timer advance (tscdeadline mode only) in nanoseconds */
+unsigned int lapic_timer_advance_ns = 0;
+module_param(lapic_timer_advance_ns, uint, S_IRUGO | S_IWUSR);
+
 static bool backwards_tsc_observed = false;
 
 #define KVM_NR_SHARED_MSRS 16
@@ -6312,6 +6316,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	}
 
 	trace_kvm_entry(vcpu->vcpu_id);
+	wait_lapic_expire(vcpu);
 	kvm_x86_ops->run(vcpu);
 
 	/*
