@@ -5795,6 +5795,7 @@ F:	include/linux/livepatch.h
 F:	arch/x86/include/asm/livepatch.h
 F:	arch/x86/kernel/livepatch.c
 F:	Documentation/ABI/testing/sysfs-kernel-livepatch
+F:	samples/livepatch/
 L:	live-patching@vger.kernel.org
 
 LLC (802.2)
