@@ -862,24 +862,24 @@ static int wtp_allocate(struct hid_device *hdev, const struct hid_device_id *id)
 	return 0;
 };
 
-static void wtp_connect(struct hid_device *hdev, bool connected)
+static int wtp_connect(struct hid_device *hdev, bool connected)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	struct wtp_data *wd = hidpp->private_data;
 	int ret;
 
 	if (!connected)
-		return;
+		return 0;
 
 	if (!wd->x_size) {
 		ret = wtp_get_config(hidpp);
 		if (ret) {
 			hid_err(hdev, "Can not get wtp config: %d\n", ret);
-			return;
+			return ret;
 		}
 	}
 
-	hidpp_touchpad_set_raw_report_state(hidpp, wd->mt_feature_index,
+	return hidpp_touchpad_set_raw_report_state(hidpp, wd->mt_feature_index,
 			true, true);
 }
 
@@ -1063,8 +1063,11 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 	struct input_dev *input;
 	char *name, *devm_name;
 
-	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP)
-		wtp_connect(hdev, connected);
+	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP) {
+		ret = wtp_connect(hdev, connected);
+		if (ret)
+			return;
+	}
 
 	if (!connected || hidpp->delayed_input)
 		return;
