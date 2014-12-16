@@ -7,6 +7,7 @@ provided by gadgets.
 4. EEM function
 5. FFS function
 6. HID function
+7. LOOPBACK function
 
 
 1. ACM function
@@ -205,3 +206,25 @@ $ ./hid_gadget_test /dev/hidg0 keyboard
 
 Host:
 - observe the keystrokes from the gadget
+
+7. LOOPBACK function
+====================
+
+The function is provided by usb_f_ss_lb.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "Loopback".
+The LOOPBACK function provides these attributes in its function directory:
+
+	qlen		- depth of loopback queue
+	bulk_buflen	- buffer length
+
+Testing the LOOPBACK function
+-----------------------------
+
+device: run the gadget
+host: test-usb
+
+http://www.linux-usb.org/usbtest/testusb.c
