@@ -50,6 +50,8 @@
 /dts-v1/;
 #include "sun5i-a10s.dtsi"
 #include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
 / {
@@ -77,7 +79,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino_micro>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 1 0>; /* PG1 */
+			cd-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -87,7 +89,7 @@
 			pinctrl-0 = <&mmc1_pins_a>, <&mmc1_cd_pin_olinuxino_micro>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 13 0>; /* PG13 */
+			cd-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -226,14 +228,14 @@
 
 		green {
 			label = "a10s-olinuxino-micro:green:usr";
-			gpios = <&pio 4 3 0>;
+			gpios = <&pio 4 3 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-0 = <&usb1_vbus_pin_olinuxino_m>;
-		gpio = <&pio 1 10 0>;
+		gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

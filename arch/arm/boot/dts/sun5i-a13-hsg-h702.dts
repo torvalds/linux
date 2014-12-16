@@ -49,6 +49,8 @@
 #include "sun5i-a13.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "HSG H702";
 	compatible = "hsg,h702", "allwinner,sun5i-a13";
@@ -59,7 +61,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_h702>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 0 0>; /* PG0 */
+			cd-gpios = <&pio 6 0 GPIO_ACTIVE_HIGH>; /* PG0 */
 			cd-inverted;
 			status = "okay";
 		};

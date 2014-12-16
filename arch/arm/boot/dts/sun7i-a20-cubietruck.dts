@@ -15,6 +15,8 @@
 #include "sun7i-a20.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Cubietech Cubietruck";
 	compatible = "cubietech,cubietruck", "allwinner,sun7i-a20";
@@ -25,7 +27,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -168,34 +170,34 @@
 
 		blue {
 			label = "cubietruck:blue:usr";
-			gpios = <&pio 7 21 0>;
+			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>;
 		};
 
 		orange {
 			label = "cubietruck:orange:usr";
-			gpios = <&pio 7 20 0>;
+			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};
 
 		white {
 			label = "cubietruck:white:usr";
-			gpios = <&pio 7 11 0>;
+			gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>;
 		};
 
 		green {
 			label = "cubietruck:green:usr";
-			gpios = <&pio 7 7 0>;
+			gpios = <&pio 7 7 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	reg_ahci_5v: ahci-5v {
 		pinctrl-0 = <&ahci_pwr_pin_cubietruck>;
-		gpio = <&pio 7 12 0>;
+		gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
 	reg_usb0_vbus: usb0-vbus {
 		pinctrl-0 = <&usb0_vbus_pin_a>;
-		gpio = <&pio 7 17 0>;
+		gpio = <&pio 7 17 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -215,6 +217,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpio = <&pio 7 9 0>;
+		gpio = <&pio 7 9 GPIO_ACTIVE_HIGH>;
 	};
 };

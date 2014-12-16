@@ -51,6 +51,8 @@
 #include "sun6i-a31.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Allwinner A31 APP4 EVB1 Evaluation Board";
 	compatible = "allwinner,app4-evb1", "allwinner,sun6i-a31";
@@ -87,7 +89,7 @@
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-0 = <&usb1_vbus_pin_a>;
-		gpio = <&pio 7 27 0>;
+		gpio = <&pio 7 27 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

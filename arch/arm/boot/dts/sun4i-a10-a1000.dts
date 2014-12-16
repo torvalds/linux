@@ -51,6 +51,8 @@
 #include "sun4i-a10.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Mele A1000";
 	compatible = "mele,a1000", "allwinner,sun4i-a10";
@@ -77,7 +79,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -159,12 +161,12 @@
 
 		red {
 			label = "a1000:red:usr";
-			gpios = <&pio 7 10 0>;
+			gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>;
 		};
 
 		blue {
 			label = "a1000:blue:usr";
-			gpios = <&pio 7 20 0>;
+			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -176,7 +178,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpio = <&pio 7 15 0>;
+		gpio = <&pio 7 15 GPIO_ACTIVE_HIGH>;
 	};
 
 	reg_usb1_vbus: usb1-vbus {

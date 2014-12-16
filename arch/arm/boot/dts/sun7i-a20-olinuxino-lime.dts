@@ -52,6 +52,8 @@
 #include "sun7i-a20.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Olimex A20-OLinuXino-LIME";
 	compatible = "olimex,a20-olinuxino-lime", "allwinner,sun7i-a20";
@@ -62,7 +64,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -152,14 +154,14 @@
 
 		green {
 			label = "a20-olinuxino-lime:green:usr";
-			gpios = <&pio 7 2 0>;
+			gpios = <&pio 7 2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
 
 	reg_ahci_5v: ahci-5v {
 		pinctrl-0 = <&ahci_pwr_pin_olinuxinolime>;
-		gpio = <&pio 2 3 0>;
+		gpio = <&pio 2 3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 

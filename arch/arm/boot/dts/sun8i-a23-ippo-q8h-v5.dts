@@ -51,6 +51,8 @@
 #include "sun8i-a23.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Ippo Q8H Dual Core Tablet (v5)";
 	compatible = "ippo,q8h-v5", "allwinner,sun8i-a23";
@@ -69,7 +71,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_q8h>;
 			vmmc-supply = <&reg_vcc3v0>;
 			bus-width = <4>;
-			cd-gpios = <&pio 1 4 0>; /* PB4 */
+			cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
 			cd-inverted;
 			status = "okay";
 		};

@@ -47,6 +47,8 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	soc@01c00000 {
 		pio: pinctrl@01c20800 {
@@ -89,7 +91,7 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 		enable-active-high;
-		gpio = <&pio 1 8 0>;
+		gpio = <&pio 1 8 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 
@@ -101,7 +103,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpio = <&pio 1 9 0>;
+		gpio = <&pio 1 9 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 
@@ -113,7 +115,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpio = <&pio 7 6 0>;
+		gpio = <&pio 7 6 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 
@@ -125,7 +127,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpio = <&pio 7 3 0>;
+		gpio = <&pio 7 3 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 

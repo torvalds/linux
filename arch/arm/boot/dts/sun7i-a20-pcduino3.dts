@@ -63,7 +63,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -204,7 +204,7 @@
 	};
 
 	reg_ahci_5v: ahci-5v {
-		gpio = <&pio 7 2 0>;
+		gpio = <&pio 7 2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

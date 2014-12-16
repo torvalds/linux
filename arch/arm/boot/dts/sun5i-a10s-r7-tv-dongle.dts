@@ -49,6 +49,8 @@
 #include "sun5i-a10s.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "R7 A10s hdmi tv-stick";
 	compatible = "allwinner,r7-tv-dongle", "allwinner,sun5i-a10s";
@@ -59,7 +61,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_r7>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 1 0>; /* PG1 */
+			cd-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -123,14 +125,14 @@
 
 		green {
 			label = "r7-tv-dongle:green:usr";
-			gpios = <&pio 1 2 0>;
+			gpios = <&pio 1 2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-0 = <&usb1_vbus_pin_r7>;
-		gpio = <&pio 6 13 0>;
+		gpio = <&pio 6 13 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

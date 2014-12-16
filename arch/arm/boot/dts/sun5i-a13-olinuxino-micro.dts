@@ -50,6 +50,8 @@
 #include "sun5i-a13.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Olimex A13-Olinuxino Micro";
 	compatible = "olimex,a13-olinuxino-micro", "allwinner,sun5i-a13";
@@ -60,7 +62,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxinom>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 0 0>; /* PG0 */
+			cd-gpios = <&pio 6 0 GPIO_ACTIVE_HIGH>; /* PG0 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -133,14 +135,14 @@
 
 		power {
 			label = "a13-olinuxino-micro:green:power";
-			gpios = <&pio 6 9 0>;
+			gpios = <&pio 6 9 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-0 = <&usb1_vbus_pin_olinuxinom>;
-		gpio = <&pio 6 11 0>;
+		gpio = <&pio 6 11 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

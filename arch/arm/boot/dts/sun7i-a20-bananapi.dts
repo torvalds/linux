@@ -51,6 +51,8 @@
 #include "sun7i-a20.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "LeMaker Banana Pi";
 	compatible = "lemaker,bananapi", "allwinner,sun7i-a20";
@@ -67,7 +69,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bananapi>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 10 0>; /* PH10 */
+			cd-gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>; /* PH10 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -188,7 +190,7 @@
 
 		green {
 			label = "bananapi:green:usr";
-			gpios = <&pio 7 24 0>;
+			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -209,6 +211,6 @@
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <100000>;
 		enable-active-high;
-		gpio = <&pio 7 23 0>;
+		gpio = <&pio 7 23 GPIO_ACTIVE_HIGH>;
 	};
 };

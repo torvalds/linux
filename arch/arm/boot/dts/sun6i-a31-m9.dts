@@ -49,6 +49,8 @@
 #include "sun6i-a31.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Mele M9 / A1000G Quad top set box";
 	compatible = "mele,m9", "allwinner,sun6i-a31";
@@ -63,7 +65,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_m9>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 22 0>; /* PH22 */
+			cd-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -136,14 +138,14 @@
 
 		blue {
 			label = "m9:blue:usr";
-			gpios = <&pio 7 13 0>;
+			gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb1_vbus_pin_m9>;
-		gpio = <&pio 2 27 0>;
+		gpio = <&pio 2 27 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

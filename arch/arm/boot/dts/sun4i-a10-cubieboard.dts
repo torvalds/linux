@@ -50,6 +50,8 @@
 #include "sun4i-a10.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Cubietech Cubieboard";
 	compatible = "cubietech,a10-cubieboard", "allwinner,sun4i-a10";
@@ -75,7 +77,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -163,12 +165,12 @@
 
 		blue {
 			label = "cubieboard:blue:usr";
-			gpios = <&pio 7 21 0>; /* LED1 */
+			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>; /* LED1 */
 		};
 
 		green {
 			label = "cubieboard:green:usr";
-			gpios = <&pio 7 20 0>; /* LED2 */
+			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>; /* LED2 */
 			linux,default-trigger = "heartbeat";
 		};
 	};

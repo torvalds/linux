@@ -51,6 +51,8 @@
 #include "sun6i-a31.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "WITS A31 Colombus Evaluation Board";
 	compatible = "wits,colombus", "allwinner,sun6i-a31";
@@ -65,7 +67,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
 			vmmc-supply = <&reg_vcc3v0>;
 			bus-width = <4>;
-			cd-gpios = <&pio 0 8 0>; /* PA8 */
+			cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -127,7 +129,7 @@
 	reg_usb2_vbus: usb2-vbus {
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb2_vbus_pin_colombus>;
-		gpio = <&pio 7 24 0>;
+		gpio = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

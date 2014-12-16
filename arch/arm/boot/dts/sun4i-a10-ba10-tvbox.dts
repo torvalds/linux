@@ -49,6 +49,8 @@
 #include "sun4i-a10.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "BA10 tvbox";
 	compatible = "allwinner,ba10-tvbox", "allwinner,sun4i-a10";
@@ -74,7 +76,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -140,7 +142,7 @@
 	};
 
 	reg_usb2_vbus: usb2-vbus {
-		gpio = <&pio 7 12 0>;
+		gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

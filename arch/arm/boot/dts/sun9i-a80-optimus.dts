@@ -50,6 +50,8 @@
 /dts-v1/;
 #include "sun9i-a80.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Merrii A80 Optimus Board";
 	compatible = "merrii,a80-optimus", "allwinner,sun9i-a80";
@@ -106,14 +108,14 @@
 
 		led2 {
 			label = "optimus:led2:usr";
-			gpios = <&pio 7 1 0>;
+			gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>;
 		};
 
 		/* led3 is on PM15, in R_PIO */
 
 		led4 {
 			label = "optimus:led4:usr";
-			gpios = <&pio 7 0 0>;
+			gpios = <&pio 7 0 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
