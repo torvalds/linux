@@ -15,6 +15,7 @@ provided by gadgets.
 12. PHONET function
 13. RNDIS function
 14. SERIAL function
+15. SOURCESINK function
 
 
 1. ACM function
@@ -560,3 +561,29 @@ then the other way round
 
 On target: cat > /dev/ttyGS<Y>
 On host: cat /dev/ttyUSB<X>
+
+15. SOURCESINK function
+=======================
+
+The function is provided by usb_f_ss_lb.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "SourceSink".
+The SOURCESINK function provides these attributes in its function directory:
+
+	pattern		- 0 (all zeros), 1 (mod63), 2 (none)
+	isoc_interval	- 1..16
+	isoc_maxpacket	- 0 - 1023 (fs), 0 - 1024 (hs/ss)
+	isoc_mult	- 0..2 (hs/ss only)
+	isoc_maxburst	- 0..15 (ss only)
+	bulk_buflen	- buffer length
+
+Testing the SOURCESINK function
+-------------------------------
+
+device: run the gadget
+host: test-usb
+
+http://www.linux-usb.org/usbtest/testusb.c
