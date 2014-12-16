@@ -3193,6 +3193,9 @@ static ssize_t mxt_debug_enable_store(struct device *dev,
 static int mxt_check_mem_access_params(struct mxt_data *data, loff_t off,
 				       size_t *count)
 {
+	if (data->in_bootloader)
+		return -EINVAL;
+
 	if (off >= data->mem_size)
 		return -EIO;
 
