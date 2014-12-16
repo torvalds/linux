@@ -2,6 +2,7 @@
  * Realtek RTL2832 DVB-T demodulator driver
  *
  * Copyright (C) 2012 Thomas Mair <thomas.mair86@gmail.com>
+ * Copyright (C) 2012-2014 Antti Palosaari <crope@iki.fi>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -1299,5 +1300,6 @@ static struct i2c_driver rtl2832_driver = {
 module_i2c_driver(rtl2832_driver);
 
 MODULE_AUTHOR("Thomas Mair <mair.thomas86@gmail.com>");
+MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Realtek RTL2832 DVB-T demodulator driver");
 MODULE_LICENSE("GPL");
