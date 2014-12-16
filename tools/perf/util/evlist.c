@@ -909,6 +909,8 @@ static size_t perf_evlist__mmap_size(unsigned long pages)
 		}
 
 		pages = (max * 1024) / page_size;
+		if (!is_power_of_2(pages))
+			pages = rounddown_pow_of_two(pages);
 	} else if (!is_power_of_2(pages))
 		return 0;
 
