@@ -130,7 +130,7 @@ static int __init setup_maxmem(char *str)
 
 	maxmem_pfn = (maxmem >> HPAGE_SHIFT) << (HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used to no more than %dMB\n",
-	       maxmem_pfn >> (20 - PAGE_SHIFT));
+		maxmem_pfn >> (20 - PAGE_SHIFT));
 	return 0;
 }
 early_param("maxmem", setup_maxmem);
@@ -149,7 +149,7 @@ static int __init setup_maxnodemem(char *str)
 	maxnodemem_pfn[node] = (maxnodemem >> HPAGE_SHIFT) <<
 		(HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used on node %ld to no more than %dMB\n",
-	       node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
+		node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
 	return 0;
 }
 early_param("maxnodemem", setup_maxnodemem);
@@ -417,8 +417,7 @@ static void __init setup_memory(void)
 			range.start = (start_pa + HPAGE_SIZE - 1) & HPAGE_MASK;
 			range.size -= (range.start - start_pa);
 			range.size &= HPAGE_MASK;
-			pr_err("Range not hugepage-aligned: %#llx..%#llx:"
-			       " now %#llx-%#llx\n",
+			pr_err("Range not hugepage-aligned: %#llx..%#llx: now %#llx-%#llx\n",
 			       start_pa, start_pa + orig_size,
 			       range.start, range.start + range.size);
 		}
@@ -437,8 +436,8 @@ static void __init setup_memory(void)
 		if (PFN_DOWN(range.size) > maxnodemem_pfn[i]) {
 			int max_size = maxnodemem_pfn[i];
 			if (max_size > 0) {
-				pr_err("Maxnodemem reduced node %d to"
-				       " %d pages\n", i, max_size);
+				pr_err("Maxnodemem reduced node %d to %d pages\n",
+				       i, max_size);
 				range.size = PFN_PHYS(max_size);
 			} else {
 				pr_err("Maxnodemem disabled node %d\n", i);
@@ -490,8 +489,8 @@ static void __init setup_memory(void)
 				NR_CPUS * (PFN_UP(per_cpu_size) >> PAGE_SHIFT);
 			if (end < pci_reserve_end_pfn + percpu_pages) {
 				end = pci_reserve_start_pfn;
-				pr_err("PCI mapping region reduced node %d to"
-				       " %ld pages\n", i, end - start);
+				pr_err("PCI mapping region reduced node %d to %ld pages\n",
+				       i, end - start);
 			}
 		}
 #endif
@@ -555,10 +554,9 @@ static void __init setup_memory(void)
 		MAXMEM_PFN : mappable_physpages;
 	highmem_pages = (long) (physpages - lowmem_pages);
 
-	pr_notice("%ldMB HIGHMEM available.\n",
-	       pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
-	pr_notice("%ldMB LOWMEM available.\n",
-			pages_to_mb(lowmem_pages));
+	pr_notice("%ldMB HIGHMEM available\n",
+		  pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
+	pr_notice("%ldMB LOWMEM available\n", pages_to_mb(lowmem_pages));
 #else
 	/* Set max_low_pfn based on what node 0 can directly address. */
 	max_low_pfn = node_end_pfn[0];
@@ -571,8 +569,8 @@ static void __init setup_memory(void)
 		max_pfn = MAXMEM_PFN;
 		node_end_pfn[0] = MAXMEM_PFN;
 	} else {
-		pr_notice("%ldMB memory available.\n",
-		       pages_to_mb(node_end_pfn[0]));
+		pr_notice("%ldMB memory available\n",
+			  pages_to_mb(node_end_pfn[0]));
 	}
 	for (i = 1; i < MAX_NUMNODES; ++i) {
 		node_start_pfn[i] = 0;
@@ -587,8 +585,7 @@ static void __init setup_memory(void)
 		if (pages)
 			high_memory = pfn_to_kaddr(node_end_pfn[i]);
 	}
-	pr_notice("%ldMB memory available.\n",
-	       pages_to_mb(lowmem_pages));
+	pr_notice("%ldMB memory available\n", pages_to_mb(lowmem_pages));
 #endif
 #endif
 }
@@ -1535,8 +1532,7 @@ static void __init pcpu_fc_populate_pte(unsigned long addr)
 
 	BUG_ON(pgd_addr_invalid(addr));
 	if (addr < VMALLOC_START || addr >= VMALLOC_END)
-		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx;"
-		      " try increasing CONFIG_VMALLOC_RESERVE\n",
+		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx; try increasing CONFIG_VMALLOC_RESERVE\n",
 		      addr, VMALLOC_START, VMALLOC_END);
 
 	pgd = swapper_pg_dir + pgd_index(addr);
@@ -1591,8 +1587,8 @@ void __init setup_per_cpu_areas(void)
 			lowmem_va = (unsigned long)pfn_to_kaddr(pfn);
 			ptep = virt_to_kpte(lowmem_va);
 			if (pte_huge(*ptep)) {
-				printk(KERN_DEBUG "early shatter of huge page"
-				       " at %#lx\n", lowmem_va);
+				printk(KERN_DEBUG "early shatter of huge page at %#lx\n",
+				       lowmem_va);
 				shatter_pmd((pmd_t *)ptep);
 				ptep = virt_to_kpte(lowmem_va);
 				BUG_ON(pte_huge(*ptep));
