@@ -20,22 +20,14 @@
  * GNU Radio plugin "gr-kernel" for device usage will be on:
  * http://git.linuxtv.org/anttip/gr-kernel.git
  *
- * TODO:
- * Help is very highly welcome for these + all the others you could imagine:
- * - move controls to V4L2 API
- * - use libv4l2 for stream format conversions
- * - gr-kernel: switch to v4l2_mmap (current read eats a lot of cpu)
- * - SDRSharp support
  */
 
 #ifndef RTL2832_SDR_H
 #define RTL2832_SDR_H
 
-#include <linux/kconfig.h>
 #include <linux/i2c.h>
 #include <media/v4l2-subdev.h>
 #include "dvb_frontend.h"
-#include "rtl2832.h"
 
 struct rtl2832_sdr_platform_data {
 	/*
@@ -65,14 +57,5 @@ struct rtl2832_sdr_platform_data {
 	struct v4l2_subdev *v4l2_subdev;
 	struct dvb_usb_device *dvb_usb_device;
 };
-
-
-static inline struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct rtl2832_config *cfg,
-	struct v4l2_subdev *sd)
-{
-	dev_warn(&i2c->dev, "%s: driver disabled!\n", __func__);
-	return NULL;
-}
 
 #endif /* RTL2832_SDR_H */
