@@ -311,14 +311,19 @@ static void xgene_sgmac_tx_disable(struct xgene_enet_pdata *p)
 	xgene_sgmac_rxtx(p, TX_EN, false);
 }
 
-static void xgene_enet_reset(struct xgene_enet_pdata *p)
+static int xgene_enet_reset(struct xgene_enet_pdata *p)
 {
+	if (!xgene_ring_mgr_init(p))
+		return -ENODEV;
+
 	clk_prepare_enable(p->clk);
 	clk_disable_unprepare(p->clk);
 	clk_prepare_enable(p->clk);
 
 	xgene_enet_ecc_init(p);
 	xgene_enet_config_ring_if_assoc(p);
+
+	return 0;
 }
 
 static void xgene_enet_cle_bypass(struct xgene_enet_pdata *p,

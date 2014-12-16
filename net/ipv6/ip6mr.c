@@ -1439,6 +1439,10 @@ reg_pernet_fail:
 
 void ip6_mr_cleanup(void)
 {
+	rtnl_unregister(RTNL_FAMILY_IP6MR, RTM_GETROUTE);
+#ifdef CONFIG_IPV6_PIMSM_V2
+	inet6_del_protocol(&pim6_protocol, IPPROTO_PIM);
+#endif
 	unregister_netdevice_notifier(&ip6_mr_notifier);
 	unregister_pernet_subsys(&ip6mr_net_ops);
 	kmem_cache_destroy(mrt_cachep);

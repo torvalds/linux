@@ -952,8 +952,8 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x80000000) {
-		nve0_fifo_intr_engine(priv);
 		nv_wr32(priv, 0x002100, 0x80000000);
+		nve0_fifo_intr_engine(priv);
 		stat &= ~0x80000000;
 	}
 

@@ -240,7 +240,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 		goto err_irq_charger;
 	}
 
-	ret = regmap_add_irq_chip(max77693->regmap, max77693->irq,
+	ret = regmap_add_irq_chip(max77693->regmap_muic, max77693->irq,
 				IRQF_ONESHOT | IRQF_SHARED |
 				IRQF_TRIGGER_FALLING, 0,
 				&max77693_muic_irq_chip,
@@ -248,6 +248,17 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	if (ret) {
 		dev_err(max77693->dev, "failed to add irq chip: %d\n", ret);
 		goto err_irq_muic;
+	}
+
+	/* Unmask interrupts from all blocks in interrupt source register */
+	ret = regmap_update_bits(max77693->regmap,
+				MAX77693_PMIC_REG_INTSRC_MASK,
+				SRC_IRQ_ALL, (unsigned int)~SRC_IRQ_ALL);
+	if (ret < 0) {
+		dev_err(max77693->dev,
+			"Could not unmask interrupts in INTSRC: %d\n",
+			ret);
+		goto err_intsrc;
 	}
 
 	pm_runtime_set_active(max77693->dev);
@@ -261,6 +272,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 
 err_mfd:
 	mfd_remove_devices(max77693->dev);
+err_intsrc:
 	regmap_del_irq_chip(max77693->irq, max77693->irq_data_muic);
 err_irq_muic:
 	regmap_del_irq_chip(max77693->irq, max77693->irq_data_charger);

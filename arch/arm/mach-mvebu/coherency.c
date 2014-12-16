@@ -400,6 +400,8 @@ int __init coherency_init(void)
 		 type == COHERENCY_FABRIC_TYPE_ARMADA_380)
 		armada_375_380_coherency_init(np);
 
+	of_node_put(np);
+
 	return 0;
 }
 

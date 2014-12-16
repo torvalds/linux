@@ -10,6 +10,7 @@
 	aliases {
 		rtc0 = "/i2c@0,7000d000/pmic@40";
 		rtc1 = "/rtc@0,7000e000";
+		serial0 = &uarta;
 	};
 
 	memory {

@@ -79,8 +79,9 @@ static void cxgb4_dcb_cleanup_apps(struct net_device *dev)
 		app.protocol = dcb->app_priority[i].protocolid;
 
 		if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE) {
+			app.priority = dcb->app_priority[i].user_prio_map;
 			app.selector = dcb->app_priority[i].sel_field + 1;
-			err = dcb_ieee_setapp(dev, &app);
+			err = dcb_ieee_delapp(dev, &app);
 		} else {
 			app.selector = !!(dcb->app_priority[i].sel_field);
 			err = dcb_setapp(dev, &app);
@@ -122,7 +123,11 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 		case CXGB4_DCB_INPUT_FW_ENABLED: {
 			/* we're going to use Firmware DCB */
 			dcb->state = CXGB4_DCB_STATE_FW_INCOMPLETE;
-			dcb->supported = CXGB4_DCBX_FW_SUPPORT;
+			dcb->supported = DCB_CAP_DCBX_LLD_MANAGED;
+			if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE)
+				dcb->supported |= DCB_CAP_DCBX_VER_IEEE;
+			else
+				dcb->supported |= DCB_CAP_DCBX_VER_CEE;
 			break;
 		}
 
@@ -436,14 +441,17 @@ static void cxgb4_getpgtccfg(struct net_device *dev, int tc,
 	*up_tc_map = (1 << tc);
 
 	/* prio_type is link strict */
-	*prio_type = 0x2;
+	if (*pgid != 0xF)
+		*prio_type = 0x2;
 }
 
 static void cxgb4_getpgtccfg_tx(struct net_device *dev, int tc,
 				u8 *prio_type, u8 *pgid, u8 *bw_per,
 				u8 *up_tc_map)
 {
-	return cxgb4_getpgtccfg(dev, tc, prio_type, pgid, bw_per, up_tc_map, 1);
+	/* tc 0 is written at MSB position */
+	return cxgb4_getpgtccfg(dev, (7 - tc), prio_type, pgid, bw_per,
+				up_tc_map, 1);
 }
 
 
@@ -451,7 +459,9 @@ static void cxgb4_getpgtccfg_rx(struct net_device *dev, int tc,
 				u8 *prio_type, u8 *pgid, u8 *bw_per,
 				u8 *up_tc_map)
 {
-	return cxgb4_getpgtccfg(dev, tc, prio_type, pgid, bw_per, up_tc_map, 0);
+	/* tc 0 is written at MSB position */
+	return cxgb4_getpgtccfg(dev, (7 - tc), prio_type, pgid, bw_per,
+				up_tc_map, 0);
 }
 
 static void cxgb4_setpgtccfg_tx(struct net_device *dev, int tc,
@@ -461,6 +471,7 @@ static void cxgb4_setpgtccfg_tx(struct net_device *dev, int tc,
 	struct fw_port_cmd pcmd;
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = pi->adapter;
+	int fw_tc = 7 - tc;
 	u32 _pgid;
 	int err;
 
@@ -479,8 +490,8 @@ static void cxgb4_setpgtccfg_tx(struct net_device *dev, int tc,
 	}
 
 	_pgid = be32_to_cpu(pcmd.u.dcb.pgid.pgid);
-	_pgid &= ~(0xF << (tc * 4));
-	_pgid |= pgid << (tc * 4);
+	_pgid &= ~(0xF << (fw_tc * 4));
+	_pgid |= pgid << (fw_tc * 4);
 	pcmd.u.dcb.pgid.pgid = cpu_to_be32(_pgid);
 
 	INIT_PORT_DCB_WRITE_CMD(pcmd, pi->port_id);
@@ -593,7 +604,7 @@ static void cxgb4_getpfccfg(struct net_device *dev, int priority, u8 *pfccfg)
 	    priority >= CXGB4_MAX_PRIORITY)
 		*pfccfg = 0;
 	else
-		*pfccfg = (pi->dcb.pfcen >> priority) & 1;
+		*pfccfg = (pi->dcb.pfcen >> (7 - priority)) & 1;
 }
 
 /* Enable/disable Priority Pause Frames for the specified Traffic Class
@@ -618,9 +629,9 @@ static void cxgb4_setpfccfg(struct net_device *dev, int priority, u8 pfccfg)
 	pcmd.u.dcb.pfc.pfcen = pi->dcb.pfcen;
 
 	if (pfccfg)
-		pcmd.u.dcb.pfc.pfcen |= (1 << priority);
+		pcmd.u.dcb.pfc.pfcen |= (1 << (7 - priority));
 	else
-		pcmd.u.dcb.pfc.pfcen &= (~(1 << priority));
+		pcmd.u.dcb.pfc.pfcen &= (~(1 << (7 - priority)));
 
 	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
 	if (err != FW_PORT_DCB_CFG_SUCCESS) {
@@ -1071,7 +1082,7 @@ static int cxgb4_cee_peer_getpg(struct net_device *dev, struct cee_pg *pg)
 	pgid = be32_to_cpu(pcmd.u.dcb.pgid.pgid);
 
 	for (i = 0; i < CXGB4_MAX_PRIORITY; i++)
-		pg->prio_pg[i] = (pgid >> (i * 4)) & 0xF;
+		pg->prio_pg[7 - i] = (pgid >> (i * 4)) & 0xF;
 
 	INIT_PORT_DCB_READ_PEER_CMD(pcmd, pi->port_id);
 	pcmd.u.dcb.pgrate.type = FW_PORT_DCB_TYPE_PGRATE;

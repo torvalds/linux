@@ -915,7 +915,8 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	 * restart. So don't process again if the device is
 	 * already dead.
 	 */
-	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
+	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
+		IWL_DEBUG_INFO(trans, "DEVICE_ENABLED bit was set and is now cleared\n");
 		iwl_pcie_tx_stop(trans);
 		iwl_pcie_rx_stop(trans);
 
@@ -945,7 +946,6 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	/* clear all status bits */
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	clear_bit(STATUS_INT_ENABLED, &trans->status);
-	clear_bit(STATUS_DEVICE_ENABLED, &trans->status);
 	clear_bit(STATUS_TPOWER_PMI, &trans->status);
 	clear_bit(STATUS_RFKILL, &trans->status);
 
@@ -1894,8 +1894,7 @@ static u32 iwl_trans_pcie_dump_prph(struct iwl_trans *trans,
 		int reg;
 		__le32 *val;
 
-		prph_len += sizeof(*data) + sizeof(*prph) +
-			num_bytes_in_chunk;
+		prph_len += sizeof(**data) + sizeof(*prph) + num_bytes_in_chunk;
 
 		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PRPH);
 		(*data)->len = cpu_to_le32(sizeof(*prph) +

@@ -1164,7 +1164,8 @@ static bool acpi_video_device_in_dod(struct acpi_video_device *device)
 		return true;
 
 	for (i = 0; i < video->attached_count; i++) {
-		if (video->attached_array[i].bind_info == device)
+		if ((video->attached_array[i].value.int_val & 0xfff) ==
+		    (device->device_id & 0xfff))
 			return true;
 	}
 

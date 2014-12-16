@@ -1670,15 +1670,17 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_regs;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_kick_out_vgacon(dev_priv);
-		if (ret) {
-			DRM_ERROR("failed to remove conflicting VGA console\n");
-			goto out_gtt;
-		}
-
+		/* WARNING: Apparently we must kick fbdev drivers before vgacon,
+		 * otherwise the vga fbdev driver falls over. */
 		ret = i915_kick_out_firmware_fb(dev_priv);
 		if (ret) {
 			DRM_ERROR("failed to remove conflicting framebuffer drivers\n");
+			goto out_gtt;
+		}
+
+		ret = i915_kick_out_vgacon(dev_priv);
+		if (ret) {
+			DRM_ERROR("failed to remove conflicting VGA console\n");
 			goto out_gtt;
 		}
 	}

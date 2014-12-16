@@ -2140,6 +2140,12 @@ static int bcmgenet_open(struct net_device *dev)
 		goto err_irq0;
 	}
 
+	/* Re-configure the port multiplexer towards the PHY device */
+	bcmgenet_mii_config(priv->dev, false);
+
+	phy_connect_direct(dev, priv->phydev, bcmgenet_mii_setup,
+			   priv->phy_interface);
+
 	bcmgenet_netif_start(dev);
 
 	return 0;
@@ -2183,6 +2189,9 @@ static int bcmgenet_close(struct net_device *dev)
 	netif_dbg(priv, ifdown, dev, "bcmgenet_close\n");
 
 	bcmgenet_netif_stop(dev);
+
+	/* Really kill the PHY state machine and disconnect from it */
+	phy_disconnect(priv->phydev);
 
 	/* Disable MAC receive */
 	umac_enable_set(priv, CMD_RX_EN, false);
@@ -2685,7 +2694,7 @@ static int bcmgenet_resume(struct device *d)
 
 	phy_init_hw(priv->phydev);
 	/* Speed settings must be restored */
-	bcmgenet_mii_config(priv->dev);
+	bcmgenet_mii_config(priv->dev, false);
 
 	/* disable ethernet MAC while updating its registers */
 	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);

@@ -864,14 +864,14 @@ static int init_one(struct pci_dev *pdev,
 	dev->profile = &profile[prof_sel];
 	dev->event = mlx5_core_event;
 
+	INIT_LIST_HEAD(&priv->ctx_list);
+	spin_lock_init(&priv->ctx_lock);
 	err = mlx5_dev_init(dev, pdev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_dev_init failed %d\n", err);
 		goto out;
 	}
 
-	INIT_LIST_HEAD(&priv->ctx_list);
-	spin_lock_init(&priv->ctx_lock);
 	err = mlx5_register_device(dev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);

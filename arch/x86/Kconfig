@@ -144,7 +144,7 @@ config INSTRUCTION_DECODER
 
 config PERF_EVENTS_INTEL_UNCORE
 	def_bool y
-	depends on PERF_EVENTS && SUP_SUP_INTEL && PCI
+	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
 
 config OUTPUT_FORMAT
 	string

@@ -361,6 +361,10 @@
 			clocks = <&ahb1_gates 6>;
 			resets = <&ahb1_rst 6>;
 			#dma-cells = <1>;
+
+			/* DMA controller requires AHB1 clocked from PLL6 */
+			assigned-clocks = <&ahb1_mux>;
+			assigned-clock-parents = <&pll6>;
 		};
 
 		mmc0: mmc@01c0f000 {

@@ -1563,7 +1563,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 
 	for (i = 0; i < npages; i++) {
 		pfn = gfn_to_pfn(kvm, base_gfn + i);
-		if (!kvm_is_mmio_pfn(pfn)) {
+		if (!kvm_is_reserved_pfn(pfn)) {
 			kvm_set_pmt_entry(kvm, base_gfn + i,
 					pfn << PAGE_SHIFT,
 				_PAGE_AR_RWX | _PAGE_MA_WB);

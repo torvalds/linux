@@ -666,9 +666,9 @@
 			#clock-cells = <0>;
 			clock-output-names = "sd2";
 		};
-		sd3_clk: sd3_clk@e615007c {
+		sd3_clk: sd3_clk@e615026c {
 			compatible = "renesas,r8a7790-div6-clock", "renesas,cpg-div6-clock";
-			reg = <0 0xe615007c 0 4>;
+			reg = <0 0xe615026c 0 4>;
 			clocks = <&pll1_div2_clk>;
 			#clock-cells = <0>;
 			clock-output-names = "sd3";

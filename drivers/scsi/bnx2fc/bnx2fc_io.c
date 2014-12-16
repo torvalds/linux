@@ -1894,18 +1894,24 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 			goto exit_qcmd;
 		}
 	}
+
+	spin_lock_bh(&tgt->tgt_lock);
+
 	io_req = bnx2fc_cmd_alloc(tgt);
 	if (!io_req) {
 		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto exit_qcmd;
+		goto exit_qcmd_tgtlock;
 	}
 	io_req->sc_cmd = sc_cmd;
 
 	if (bnx2fc_post_io_req(tgt, io_req)) {
 		printk(KERN_ERR PFX "Unable to post io_req\n");
 		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto exit_qcmd;
+		goto exit_qcmd_tgtlock;
 	}
+
+exit_qcmd_tgtlock:
+	spin_unlock_bh(&tgt->tgt_lock);
 exit_qcmd:
 	return rc;
 }
@@ -2020,6 +2026,8 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	int task_idx, index;
 	u16 xid;
 
+	/* bnx2fc_post_io_req() is called with the tgt_lock held */
+
 	/* Initialize rest of io_req fields */
 	io_req->cmd_type = BNX2FC_SCSI_CMD;
 	io_req->port = port;
@@ -2047,9 +2055,7 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	/* Build buffer descriptor list for firmware from sg list */
 	if (bnx2fc_build_bd_list_from_sg(io_req)) {
 		printk(KERN_ERR PFX "BD list creation failed\n");
-		spin_lock_bh(&tgt->tgt_lock);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
@@ -2061,19 +2067,15 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	task = &(task_page[index]);
 	bnx2fc_init_task(io_req, task);
 
-	spin_lock_bh(&tgt->tgt_lock);
-
 	if (tgt->flush_in_prog) {
 		printk(KERN_ERR PFX "Flush in progress..Host Busy\n");
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
 		printk(KERN_ERR PFX "Session not ready...post_io\n");
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
@@ -2091,6 +2093,5 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 
 	/* Ring doorbell */
 	bnx2fc_ring_doorbell(tgt);
-	spin_unlock_bh(&tgt->tgt_lock);
 	return 0;
 }
