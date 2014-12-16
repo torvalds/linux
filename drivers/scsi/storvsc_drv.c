@@ -1394,6 +1394,19 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	 */
 	sdevice->sdev_bflags |= msft_blist_flags;
 
+	/*
+	 * If the host is WIN8 or WIN8 R2, claim conformance to SPC-3
+	 * if the device is a MSFT virtual device.
+	 */
+	if (!strncmp(sdevice->vendor, "Msft", 4)) {
+		switch (vmbus_proto_version) {
+		case VERSION_WIN8:
+		case VERSION_WIN8_1:
+			sdevice->scsi_level = SCSI_SPC_3;
+			break;
+		}
+	}
+
 	return 0;
 }
 
