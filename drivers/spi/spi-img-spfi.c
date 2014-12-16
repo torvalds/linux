@@ -390,13 +390,13 @@ static int img_spfi_start_dma(struct spi_master *master,
 		dma_async_issue_pending(spfi->rx_ch);
 	}
 
+	spfi_start(spfi);
+
 	if (xfer->tx_buf) {
 		spfi->tx_dma_busy = true;
 		dmaengine_submit(txdesc);
 		dma_async_issue_pending(spfi->tx_ch);
 	}
-
-	spfi_start(spfi);
 
 	return 1;
 
