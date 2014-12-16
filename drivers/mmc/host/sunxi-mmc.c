@@ -627,7 +627,7 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 				  struct mmc_ios *ios)
 {
-	u32 rate, oclk_dly, rval, sclk_dly, src_clk;
+	u32 rate, oclk_dly, rval, sclk_dly;
 	int ret;
 
 	rate = clk_round_rate(host->clk_mmc, ios->clock);
@@ -670,14 +670,6 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 		/* rate > 50000000 */
 		oclk_dly = 2;
 		sclk_dly = 4;
-	}
-
-	src_clk = clk_get_rate(clk_get_parent(host->clk_mmc));
-	if (src_clk >= 300000000 && src_clk <= 400000000) {
-		if (oclk_dly)
-			oclk_dly--;
-		if (sclk_dly)
-			sclk_dly--;
 	}
 
 	clk_sunxi_mmc_phase_control(host->clk_mmc, sclk_dly, oclk_dly);
