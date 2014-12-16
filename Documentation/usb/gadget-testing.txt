@@ -11,6 +11,7 @@ provided by gadgets.
 8. MASS STORAGE function
 9. MIDI function
 10. NCM function
+11. OBEX function
 
 
 1. ACM function
@@ -400,3 +401,31 @@ Configure IP addresses of the device and the host. Then:
 
 On the device: ping <host's IP>
 On the host: ping <device's IP>
+
+11. OBEX function
+=================
+
+The function is provided by usb_f_obex.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "obex".
+The OBEX function provides just one attribute in its function directory:
+
+	port_num
+
+The attribute is read-only.
+
+There can be at most 4 ACM/generic serial/OBEX ports in the system.
+
+Testing the OBEX function
+-------------------------
+
+On device: seriald -f /dev/ttyGS<Y> -s 1024
+On host: serialc -v <vendorID> -p <productID> -i<interface#> -a1 -s1024 \
+             -t<out endpoint addr> -r<in endpoint addr>
+
+where seriald and serialc are Felipe's utilities found here:
+
+https://git.gitorious.org/usb/usb-tools.git master
