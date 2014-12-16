@@ -281,6 +281,11 @@ acpi_status acpi_unload_table_id(acpi_owner_id id)
 
 	ACPI_FUNCTION_TRACE(acpi_unload_table_id);
 
+	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
 	/* Find table in the global table list */
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		if (id != acpi_gbl_root_table_list.tables[i].owner_id) {
@@ -297,6 +302,8 @@ acpi_status acpi_unload_table_id(acpi_owner_id id)
 		acpi_tb_set_table_loaded_flag(i, FALSE);
 		break;
 	}
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
 	return_ACPI_STATUS(status);
 }
 
