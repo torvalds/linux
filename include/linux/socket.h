@@ -139,6 +139,11 @@ static inline struct cmsghdr * cmsg_nxthdr (struct msghdr *__msg, struct cmsghdr
 	return __cmsg_nxthdr(__msg->msg_control, __msg->msg_controllen, __cmsg);
 }
 
+static inline size_t msg_data_left(struct msghdr *msg)
+{
+	return iov_iter_count(&msg->msg_iter);
+}
+
 /* "Socket"-level control message types: */
 
 #define	SCM_RIGHTS	0x01		/* rw: access rights (array of int) */

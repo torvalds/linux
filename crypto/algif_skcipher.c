@@ -641,7 +641,7 @@ static int skcipher_recvmsg_sync(struct socket *sock, struct msghdr *msg,
 	long copied = 0;
 
 	lock_sock(sk);
-	while (iov_iter_count(&msg->msg_iter)) {
+	while (msg_data_left(msg)) {
 		sgl = list_first_entry(&ctx->tsgl,
 				       struct skcipher_sg_list, list);
 		sg = sgl->sg;
@@ -655,7 +655,7 @@ static int skcipher_recvmsg_sync(struct socket *sock, struct msghdr *msg,
 				goto unlock;
 		}
 
-		used = min_t(unsigned long, ctx->used, iov_iter_count(&msg->msg_iter));
+		used = min_t(unsigned long, ctx->used, msg_data_left(msg));
 
 		used = af_alg_make_sg(&ctx->rsgl, &msg->msg_iter, used);
 		err = used;

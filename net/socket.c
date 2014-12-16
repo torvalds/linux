@@ -612,7 +612,7 @@ EXPORT_SYMBOL(__sock_tx_timestamp);
 
 static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
 {
-	int ret = sock->ops->sendmsg(sock, msg, iov_iter_count(&msg->msg_iter));
+	int ret = sock->ops->sendmsg(sock, msg, msg_data_left(msg));
 	BUG_ON(ret == -EIOCBQUEUED);
 	return ret;
 }
@@ -620,7 +620,7 @@ static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
 int sock_sendmsg(struct socket *sock, struct msghdr *msg)
 {
 	int err = security_socket_sendmsg(sock, msg,
-					  iov_iter_count(&msg->msg_iter));
+					  msg_data_left(msg));
 
 	return err ?: sock_sendmsg_nosec(sock, msg);
 }

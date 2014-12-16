@@ -56,8 +56,8 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	ctx->more = 0;
 
-	while (iov_iter_count(&msg->msg_iter)) {
-		int len = iov_iter_count(&msg->msg_iter);
+	while (msg_data_left(msg)) {
+		int len = msg_data_left(msg);
 
 		if (len > limit)
 			len = limit;

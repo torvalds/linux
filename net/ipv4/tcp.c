@@ -1119,7 +1119,7 @@ int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	sg = !!(sk->sk_route_caps & NETIF_F_SG);
 
-	while (iov_iter_count(&msg->msg_iter)) {
+	while (msg_data_left(msg)) {
 		int copy = 0;
 		int max = size_goal;
 
@@ -1163,8 +1163,8 @@ new_segment:
 		}
 
 		/* Try to append data to the end of skb. */
-		if (copy > iov_iter_count(&msg->msg_iter))
-			copy = iov_iter_count(&msg->msg_iter);
+		if (copy > msg_data_left(msg))
+			copy = msg_data_left(msg);
 
 		/* Where to copy to? */
 		if (skb_availroom(skb) > 0) {
@@ -1221,7 +1221,7 @@ new_segment:
 		tcp_skb_pcount_set(skb, 0);
 
 		copied += copy;
-		if (!iov_iter_count(&msg->msg_iter)) {
+		if (!msg_data_left(msg)) {
 			tcp_tx_timestamp(sk, skb);
 			goto out;
 		}

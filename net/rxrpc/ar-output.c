@@ -564,8 +564,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			max &= ~(call->conn->size_align - 1UL);
 
 			chunk = max;
-			if (chunk > iov_iter_count(&msg->msg_iter) && !more)
-				chunk = iov_iter_count(&msg->msg_iter);
+			if (chunk > msg_data_left(msg) && !more)
+				chunk = msg_data_left(msg);
 
 			space = chunk + call->conn->size_align;
 			space &= ~(call->conn->size_align - 1UL);
@@ -608,11 +608,11 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 		sp = rxrpc_skb(skb);
 
 		/* append next segment of data to the current buffer */
-		if (iov_iter_count(&msg->msg_iter) > 0) {
+		if (msg_data_left(msg) > 0) {
 			int copy = skb_tailroom(skb);
 			ASSERTCMP(copy, >, 0);
-			if (copy > iov_iter_count(&msg->msg_iter))
-				copy = iov_iter_count(&msg->msg_iter);
+			if (copy > msg_data_left(msg))
+				copy = msg_data_left(msg);
 			if (copy > sp->remain)
 				copy = sp->remain;
 
@@ -633,7 +633,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 		/* add the packet to the send queue if it's now full */
 		if (sp->remain <= 0 ||
-		    (iov_iter_count(&msg->msg_iter) == 0 && !more)) {
+		    (msg_data_left(msg) == 0 && !more)) {
 			struct rxrpc_connection *conn = call->conn;
 			uint32_t seq;
 			size_t pad;
@@ -663,7 +663,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			sp->hdr.serviceId = conn->service_id;
 
 			sp->hdr.flags = conn->out_clientflag;
-			if (iov_iter_count(&msg->msg_iter) == 0 && !more)
+			if (msg_data_left(msg) == 0 && !more)
 				sp->hdr.flags |= RXRPC_LAST_PACKET;
 			else if (CIRC_SPACE(call->acks_head, call->acks_tail,
 					    call->acks_winsz) > 1)
@@ -679,11 +679,10 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			memcpy(skb->head, &sp->hdr,
 			       sizeof(struct rxrpc_header));
-			rxrpc_queue_packet(call, skb,
-					   iov_iter_count(&msg->msg_iter) == 0 && !more);
+			rxrpc_queue_packet(call, skb, !msg_data_left(msg) && !more);
 			skb = NULL;
 		}
-	} while (iov_iter_count(&msg->msg_iter) > 0);
+	} while (msg_data_left(msg) > 0);
 
 success:
 	ret = copied;
