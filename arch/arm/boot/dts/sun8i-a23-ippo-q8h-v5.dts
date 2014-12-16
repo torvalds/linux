@@ -48,8 +48,8 @@
  */
 
 /dts-v1/;
-/include/ "sun8i-a23.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun8i-a23.dtsi"
+#include "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Ippo Q8H Dual Core Tablet (v5)";

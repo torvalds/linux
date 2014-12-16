@@ -46,8 +46,8 @@
  */
 
 /dts-v1/;
-/include/ "sun5i-a13.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun5i-a13.dtsi"
+#include "sunxi-common-regulators.dtsi"
 
 / {
 	model = "HSG H702";

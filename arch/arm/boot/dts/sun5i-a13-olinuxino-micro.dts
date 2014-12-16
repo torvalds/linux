@@ -47,8 +47,8 @@
  */
 
 /dts-v1/;
-/include/ "sun5i-a13.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun5i-a13.dtsi"
+#include "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Olimex A13-Olinuxino Micro";

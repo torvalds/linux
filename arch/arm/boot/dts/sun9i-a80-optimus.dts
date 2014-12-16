@@ -48,7 +48,7 @@
  */
 
 /dts-v1/;
-/include/ "sun9i-a80.dtsi"
+#include "sun9i-a80.dtsi"
 
 / {
 	model = "Merrii A80 Optimus Board";

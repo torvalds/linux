@@ -46,7 +46,7 @@
  */
 
 /dts-v1/;
-/include/ "sun6i-a31s.dtsi"
+#include "sun6i-a31s.dtsi"
 
 / {
 	model = "CSQ CS908 top set box";

@@ -48,8 +48,8 @@
  */
 
 /dts-v1/;
-/include/ "sun6i-a31.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun6i-a31.dtsi"
+#include "sunxi-common-regulators.dtsi"
 
 / {
 	model = "Merrii A31 Hummingbird";

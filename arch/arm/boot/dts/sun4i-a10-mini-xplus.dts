@@ -48,8 +48,8 @@
  */
 
 /dts-v1/;
-/include/ "sun4i-a10.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun4i-a10.dtsi"
+#include "sunxi-common-regulators.dtsi"
 
 / {
 	model = "PineRiver Mini X-Plus";

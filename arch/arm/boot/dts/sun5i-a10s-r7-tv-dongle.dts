@@ -46,8 +46,8 @@
  */
 
 /dts-v1/;
-/include/ "sun5i-a10s.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun5i-a10s.dtsi"
+#include "sunxi-common-regulators.dtsi"
 
 / {
 	model = "R7 A10s hdmi tv-stick";

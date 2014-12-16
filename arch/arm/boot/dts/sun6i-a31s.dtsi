@@ -51,7 +51,7 @@
  * identical.
  */
 
-/include/ "sun6i-a31.dtsi"
+#include "sun6i-a31.dtsi"
 
 &pio {
 	compatible = "allwinner,sun6i-a31s-pinctrl";
