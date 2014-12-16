@@ -2105,12 +2105,11 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		prop_ptr = (uint32_t __user *)(unsigned long)(out_resp->props_ptr);
 		prop_values = (uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr);
 		for (i = 0; i < connector->properties.count; i++) {
-			if (put_user(connector->properties.ids[i],
-				     prop_ptr + copied)) {
+			struct drm_property *prop = connector->properties.properties[i];
+			if (put_user(prop->base.id, prop_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;
 			}
-
 			if (put_user(connector->properties.values[i],
 				     prop_values + copied)) {
 				ret = -EFAULT;
@@ -3822,7 +3821,7 @@ void drm_object_attach_property(struct drm_mode_object *obj,
 		return;
 	}
 
-	obj->properties->ids[count] = property->base.id;
+	obj->properties->properties[count] = property;
 	obj->properties->values[count] = init_val;
 	obj->properties->count++;
 }
@@ -3847,7 +3846,7 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 	int i;
 
 	for (i = 0; i < obj->properties->count; i++) {
-		if (obj->properties->ids[i] == property->base.id) {
+		if (obj->properties->properties[i] == property) {
 			obj->properties->values[i] = val;
 			return 0;
 		}
@@ -3877,7 +3876,7 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 	int i;
 
 	for (i = 0; i < obj->properties->count; i++) {
-		if (obj->properties->ids[i] == property->base.id) {
+		if (obj->properties->properties[i] == property) {
 			*val = obj->properties->values[i];
 			return 0;
 		}
@@ -4413,8 +4412,8 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 		prop_values_ptr = (uint64_t __user *)(unsigned long)
 				  (arg->prop_values_ptr);
 		for (i = 0; i < props_count; i++) {
-			if (put_user(obj->properties->ids[i],
-				     props_ptr + copied)) {
+			struct drm_property *prop = obj->properties->properties[i];
+			if (put_user(prop->base.id, props_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;
 			}
@@ -4472,7 +4471,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		goto out;
 
 	for (i = 0; i < arg_obj->properties->count; i++)
-		if (arg_obj->properties->ids[i] == arg->prop_id)
+		if (arg_obj->properties->properties[i]->base.id == arg->prop_id)
 			break;
 
 	if (i == arg_obj->properties->count)

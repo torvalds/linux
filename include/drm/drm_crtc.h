@@ -64,7 +64,12 @@ struct drm_mode_object {
 #define DRM_OBJECT_MAX_PROPERTY 24
 struct drm_object_properties {
 	int count;
-	uint32_t ids[DRM_OBJECT_MAX_PROPERTY];
+	/* NOTE: if we ever start dynamically destroying properties (ie.
+	 * not at drm_mode_config_cleanup() time), then we'd have to do
+	 * a better job of detaching property from mode objects to avoid
+	 * dangling property pointers:
+	 */
+	struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
