@@ -573,6 +573,9 @@ int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
 	if (t->encap.type == TUNNEL_ENCAP_NONE)
 		return 0;
 
+	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)
+		return -EINVAL;
+
 	rcu_read_lock();
 	ops = rcu_dereference(iptun_encaps[t->encap.type]);
 	if (likely(ops && ops->build_header))
