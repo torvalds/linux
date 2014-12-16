@@ -830,6 +830,8 @@ drm_get_last_vbltimestamp(struct drm_device *dev, int crtc,
  * vblank events since the system was booted, including lost events due to
  * modesetting activity.
  *
+ * This is the legacy version of drm_crtc_vblank_count().
+ *
  * Returns:
  * The software vblank counter.
  */
@@ -842,6 +844,25 @@ u32 drm_vblank_count(struct drm_device *dev, int crtc)
 	return atomic_read(&vblank->count);
 }
 EXPORT_SYMBOL(drm_vblank_count);
+
+/**
+ * drm_crtc_vblank_count - retrieve "cooked" vblank counter value
+ * @crtc: which counter to retrieve
+ *
+ * Fetches the "cooked" vblank count value that represents the number of
+ * vblank events since the system was booted, including lost events due to
+ * modesetting activity.
+ *
+ * This is the native KMS version of drm_vblank_count().
+ *
+ * Returns:
+ * The software vblank counter.
+ */
+u32 drm_crtc_vblank_count(struct drm_crtc *crtc)
+{
+	return drm_vblank_count(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_count);
 
 /**
  * drm_vblank_count_and_time - retrieve "cooked" vblank counter value
