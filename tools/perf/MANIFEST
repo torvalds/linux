@@ -10,6 +10,7 @@ tools/include/asm-generic/bitops/atomic.h
 tools/include/asm-generic/bitops/__ffs.h
 tools/include/asm-generic/bitops/find.h
 tools/include/asm-generic/bitops.h
+tools/include/linux/bitops.h
 tools/include/linux/compiler.h
 tools/include/linux/export.h
 tools/include/linux/hash.h
