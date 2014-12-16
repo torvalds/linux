@@ -21,11 +21,13 @@
 #ifndef RTL2832_PRIV_H
 #define RTL2832_PRIV_H
 
-#include "dvb_frontend.h"
-#include "rtl2832.h"
-#include <linux/i2c-mux.h>
 #include <linux/regmap.h>
 #include <linux/math64.h>
+#include <linux/bitops.h>
+
+#include "dvb_frontend.h"
+#include "dvb_math.h"
+#include "rtl2832.h"
 
 struct rtl2832_dev {
 	struct rtl2832_platform_data *pdata;
@@ -54,7 +56,6 @@ struct rtl2832_reg_value {
 	int reg;
 	u32 value;
 };
-
 
 /* Demod register bit names */
 enum DVBT_REG_BIT_NAME {

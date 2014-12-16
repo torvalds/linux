@@ -19,8 +19,6 @@
  */
 
 #include "rtl2832_priv.h"
-#include "dvb_math.h"
-#include <linux/bitops.h>
 
 #define REG_MASK(b) (BIT(b + 1) - 1)
 
@@ -194,21 +192,14 @@ int rtl2832_bulk_read(struct i2c_client *client, unsigned int reg, void *val,
 static int rtl2832_rd_demod_reg(struct rtl2832_dev *dev, int reg, u32 *val)
 {
 	struct i2c_client *client = dev->client;
-	int ret;
-
+	int ret, i;
 	u16 reg_start_addr;
-	u8 msb, lsb;
-	u8 reading[4];
-	u32 reading_tmp;
-	int i;
-
-	u8 len;
-	u32 mask;
+	u8 msb, lsb, reading[4], len;
+	u32 reading_tmp, mask;
 
 	reg_start_addr = registers[reg].start_address;
 	msb = registers[reg].msb;
 	lsb = registers[reg].lsb;
-
 	len = (msb >> 3) + 1;
 	mask = REG_MASK(msb - lsb);
 
@@ -222,37 +213,25 @@ static int rtl2832_rd_demod_reg(struct rtl2832_dev *dev, int reg, u32 *val)
 
 	*val = (reading_tmp >> lsb) & mask;
 
-	return ret;
-
+	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
-
 }
 
 static int rtl2832_wr_demod_reg(struct rtl2832_dev *dev, int reg, u32 val)
 {
 	struct i2c_client *client = dev->client;
 	int ret, i;
-	u8 len;
 	u16 reg_start_addr;
-	u8 msb, lsb;
-	u32 mask;
-
-
-	u8 reading[4];
-	u8 writing[4];
-	u32 reading_tmp;
-	u32 writing_tmp;
-
+	u8 msb, lsb, reading[4], writing[4], len;
+	u32 reading_tmp, writing_tmp, mask;
 
 	reg_start_addr = registers[reg].start_address;
 	msb = registers[reg].msb;
 	lsb = registers[reg].lsb;
-
 	len = (msb >> 3) + 1;
 	mask = REG_MASK(msb - lsb);
-
 
 	ret = rtl2832_bulk_read(client, reg_start_addr, reading, len);
 	if (ret)
@@ -265,7 +244,6 @@ static int rtl2832_wr_demod_reg(struct rtl2832_dev *dev, int reg, u32 val)
 	writing_tmp = reading_tmp & ~(mask << lsb);
 	writing_tmp |= ((val & mask) << lsb);
 
-
 	for (i = 0; i < len; i++)
 		writing[i] = (writing_tmp >> ((len - 1 - i) * 8)) & 0xff;
 
@@ -273,12 +251,10 @@ static int rtl2832_wr_demod_reg(struct rtl2832_dev *dev, int reg, u32 val)
 	if (ret)
 		goto err;
 
-	return ret;
-
+	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
-
 }
 
 static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
@@ -293,7 +269,6 @@ static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
 	* PSET_IFFREQ = - floor((IfFreqHz % CrystalFreqHz) * pow(2, 22)
 	*		/ CrystalFreqHz)
 	*/
-
 	pset_iffreq = if_freq % dev->pdata->clk;
 	pset_iffreq *= 0x400000;
 	pset_iffreq = div_u64(pset_iffreq, dev->pdata->clk);
@@ -304,10 +279,15 @@ static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
 
 	ret = rtl2832_wr_demod_reg(dev, DVBT_EN_BBIN, en_bbin);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = rtl2832_wr_demod_reg(dev, DVBT_PSET_IFFREQ, pset_iffreq);
+	if (ret)
+		goto err;
 
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -419,7 +399,7 @@ static int rtl2832_init(struct dvb_frontend *fe)
 	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
 	dev->sleeping = false;
 
-	return ret;
+	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
@@ -484,7 +464,6 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 		0x19, 0xe0,
 		},
 	};
-
 
 	dev_dbg(&client->dev, "frequency=%u bandwidth_hz=%u inversion=%u\n",
 		c->frequency, c->bandwidth_hz, c->inversion);
@@ -571,7 +550,7 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	return ret;
+	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
@@ -716,7 +695,7 @@ static int rtl2832_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	}
 
 	dev->fe_status = *status;
-	return ret;
+	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
@@ -866,7 +845,6 @@ static void rtl2832_i2c_gate_work(struct work_struct *work)
 	return;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return;
 }
 
 static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
@@ -1052,20 +1030,12 @@ static struct dvb_frontend *rtl2832_get_dvb_frontend(struct i2c_client *client)
 	return &dev->fe;
 }
 
-static struct i2c_adapter *rtl2832_get_i2c_adapter_(struct i2c_client *client)
+static struct i2c_adapter *rtl2832_get_i2c_adapter(struct i2c_client *client)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
 	return dev->i2c_adapter_tuner;
-}
-
-static struct i2c_adapter *rtl2832_get_private_i2c_adapter_(struct i2c_client *client)
-{
-	struct rtl2832_dev *dev = i2c_get_clientdata(client);
-
-	dev_dbg(&client->dev, "\n");
-	return dev->i2c_adapter;
 }
 
 static int rtl2832_enable_slave_ts(struct i2c_client *client)
@@ -1233,10 +1203,6 @@ static int rtl2832_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, dev);
 	dev->client = client;
 	dev->pdata = client->dev.platform_data;
-	if (pdata->config) {
-		dev->pdata->clk = pdata->config->xtal;
-		dev->pdata->tuner = pdata->config->tuner;
-	}
 	dev->sleeping = true;
 	INIT_DELAYED_WORK(&dev->i2c_gate_work, rtl2832_i2c_gate_work);
 	INIT_DELAYED_WORK(&dev->stat_work, rtl2832_stat_work);
@@ -1274,8 +1240,7 @@ static int rtl2832_probe(struct i2c_client *client,
 
 	/* setup callbacks */
 	pdata->get_dvb_frontend = rtl2832_get_dvb_frontend;
-	pdata->get_i2c_adapter = rtl2832_get_i2c_adapter_;
-	pdata->get_private_i2c_adapter = rtl2832_get_private_i2c_adapter_;
+	pdata->get_i2c_adapter = rtl2832_get_i2c_adapter;
 	pdata->enable_slave_ts = rtl2832_enable_slave_ts;
 	pdata->pid_filter = rtl2832_pid_filter;
 	pdata->pid_filter_ctrl = rtl2832_pid_filter_ctrl;
@@ -1336,4 +1301,3 @@ module_i2c_driver(rtl2832_driver);
 MODULE_AUTHOR("Thomas Mair <mair.thomas86@gmail.com>");
 MODULE_DESCRIPTION("Realtek RTL2832 DVB-T demodulator driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.5");

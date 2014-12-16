@@ -22,36 +22,9 @@
 #define RTL2832_H
 
 #include <linux/dvb/frontend.h>
-
-struct rtl2832_config {
-	/*
-	 * Demodulator I2C address.
-	 */
-	u8 i2c_addr;
-
-	/*
-	 * Xtal frequency.
-	 * Hz
-	 * 4000000, 16000000, 25000000, 28800000
-	 */
-	u32 xtal;
-
-	/*
-	 * tuner
-	 * XXX: This must be keep sync with dvb_usb_rtl28xxu demod driver.
-	 */
-#define RTL2832_TUNER_TUA9001   0x24
-#define RTL2832_TUNER_FC0012    0x26
-#define RTL2832_TUNER_E4000     0x27
-#define RTL2832_TUNER_FC0013    0x29
-#define RTL2832_TUNER_R820T	0x2a
-#define RTL2832_TUNER_R828D	0x2b
-	u8 tuner;
-};
+#include <linux/i2c-mux.h>
 
 struct rtl2832_platform_data {
-	const struct rtl2832_config *config;
-
 	/*
 	 * Clock frequency.
 	 * Hz
@@ -61,7 +34,7 @@ struct rtl2832_platform_data {
 
 	/*
 	 * Tuner.
-	 * XXX: This must be keep sync with dvb_usb_rtl28xxu USB IF driver.
+	 * XXX: This list must be kept sync with dvb_usb_rtl28xxu USB IF driver.
 	 */
 #define RTL2832_TUNER_TUA9001   0x24
 #define RTL2832_TUNER_FC0012    0x26
@@ -76,7 +49,6 @@ struct rtl2832_platform_data {
 	 */
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
 	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
-	struct i2c_adapter* (*get_private_i2c_adapter)(struct i2c_client *);
 	int (*enable_slave_ts)(struct i2c_client *);
 	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
 	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
