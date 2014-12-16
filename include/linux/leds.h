@@ -13,6 +13,7 @@
 #define __LINUX_LEDS_H_INCLUDED
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
@@ -42,11 +43,20 @@ struct led_classdev {
 #define LED_BLINK_ONESHOT	(1 << 17)
 #define LED_BLINK_ONESHOT_STOP	(1 << 18)
 #define LED_BLINK_INVERT	(1 << 19)
+#define LED_SYSFS_DISABLE	(1 << 20)
+#define SET_BRIGHTNESS_ASYNC	(1 << 21)
+#define SET_BRIGHTNESS_SYNC	(1 << 22)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
+	/*
+	 * Set LED brightness level immediately - it can block the caller for
+	 * the time required for accessing a LED device register.
+	 */
+	int		(*brightness_set_sync)(struct led_classdev *led_cdev,
+					enum led_brightness brightness);
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
@@ -85,6 +95,9 @@ struct led_classdev {
 	/* true if activated - deactivate routine uses it to do cleanup */
 	bool			activated;
 #endif
+
+	/* Ensures consistent access to the LED Flash Class device */
+	struct mutex		led_access;
 };
 
 extern int led_classdev_register(struct device *parent,
@@ -150,6 +163,33 @@ extern void led_set_brightness(struct led_classdev *led_cdev,
  * Returns: 0 on success or negative error value on failure
  */
 extern int led_update_brightness(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_disable - disable LED sysfs interface
+ * @led_cdev: the LED to set
+ *
+ * Disable the led_cdev's sysfs interface.
+ */
+extern void led_sysfs_disable(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_enable - enable LED sysfs interface
+ * @led_cdev: the LED to set
+ *
+ * Enable the led_cdev's sysfs interface.
+ */
+extern void led_sysfs_enable(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_is_disabled - check if LED sysfs interface is disabled
+ * @led_cdev: the LED to query
+ *
+ * Returns: true if the led_cdev's sysfs interface is disabled.
+ */
+static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
+{
+	return led_cdev->flags & LED_SYSFS_DISABLE;
+}
 
 /*
  * LED Triggers
