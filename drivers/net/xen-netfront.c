@@ -977,7 +977,6 @@ static int xennet_poll(struct napi_struct *napi, int budget)
 	struct sk_buff_head rxq;
 	struct sk_buff_head errq;
 	struct sk_buff_head tmpq;
-	unsigned long flags;
 	int err;
 
 	spin_lock(&queue->rx_lock);
@@ -1050,15 +1049,11 @@ err:
 	if (work_done < budget) {
 		int more_to_do = 0;
 
-		napi_gro_flush(napi, false);
-
-		local_irq_save(flags);
+		napi_complete(napi);
 
 		RING_FINAL_CHECK_FOR_RESPONSES(&queue->rx, more_to_do);
-		if (!more_to_do)
-			__napi_complete(napi);
-
-		local_irq_restore(flags);
+		if (more_to_do)
+			napi_schedule(napi);
 	}
 
 	spin_unlock(&queue->rx_lock);
