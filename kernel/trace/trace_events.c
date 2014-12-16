@@ -212,8 +212,40 @@ void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
 }
 EXPORT_SYMBOL_GPL(ftrace_event_buffer_reserve);
 
+static DEFINE_SPINLOCK(tracepoint_iter_lock);
+
+static void output_printk(struct ftrace_event_buffer *fbuffer)
+{
+	struct ftrace_event_call *event_call;
+	struct trace_event *event;
+	unsigned long flags;
+	struct trace_iterator *iter = tracepoint_print_iter;
+
+	if (!iter)
+		return;
+
+	event_call = fbuffer->ftrace_file->event_call;
+	if (!event_call || !event_call->event.funcs ||
+	    !event_call->event.funcs->trace)
+		return;
+
+	event = &fbuffer->ftrace_file->event_call->event;
+
+	spin_lock_irqsave(&tracepoint_iter_lock, flags);
+	trace_seq_init(&iter->seq);
+	iter->ent = fbuffer->entry;
+	event_call->event.funcs->trace(iter, 0, event);
+	trace_seq_putc(&iter->seq, 0);
+	printk("%s", iter->seq.buffer);
+
+	spin_unlock_irqrestore(&tracepoint_iter_lock, flags);
+}
+
 void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer)
 {
+	if (tracepoint_printk)
+		output_printk(fbuffer);
+
 	event_trigger_unlock_commit(fbuffer->ftrace_file, fbuffer->buffer,
 				    fbuffer->event, fbuffer->entry,
 				    fbuffer->flags, fbuffer->pc);
@@ -2480,8 +2512,14 @@ static __init int event_trace_init(void)
 #endif
 	return 0;
 }
-early_initcall(event_trace_memsetup);
-core_initcall(event_trace_enable);
+
+void __init trace_event_init(void)
+{
+	event_trace_memsetup();
+	init_ftrace_syscalls();
+	event_trace_enable();
+}
+
 fs_initcall(event_trace_init);
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST

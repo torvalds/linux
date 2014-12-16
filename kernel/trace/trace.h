@@ -1301,4 +1301,18 @@ int perf_ftrace_event_register(struct ftrace_event_call *call,
 #define perf_ftrace_event_register NULL
 #endif
 
+#ifdef CONFIG_FTRACE_SYSCALLS
+void init_ftrace_syscalls(void);
+#else
+static inline void init_ftrace_syscalls(void) { }
+#endif
+
+#ifdef CONFIG_EVENT_TRACING
+void trace_event_init(void);
+#else
+static inline void __init trace_event_init(void) { }
+#endif
+
+extern struct trace_iterator *tracepoint_print_iter;
+
 #endif /* _LINUX_KERNEL_TRACE_H */

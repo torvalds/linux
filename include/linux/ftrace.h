@@ -39,6 +39,12 @@
 # define FTRACE_FORCE_LIST_FUNC 0
 #endif
 
+/* Main tracing buffer and events set up */
+#ifdef CONFIG_TRACING
+void trace_init(void);
+#else
+static inline void trace_init(void) { }
+#endif
 
 struct module;
 struct ftrace_hash;
@@ -873,6 +879,7 @@ static inline int test_tsk_trace_graph(struct task_struct *tsk)
 enum ftrace_dump_mode;
 
 extern enum ftrace_dump_mode ftrace_dump_on_oops;
+extern int tracepoint_printk;
 
 extern void disable_trace_on_warning(void);
 extern int __disable_trace_on_warning;
