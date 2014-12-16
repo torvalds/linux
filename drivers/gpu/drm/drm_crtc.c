@@ -2106,12 +2106,17 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		prop_values = (uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr);
 		for (i = 0; i < connector->properties.count; i++) {
 			struct drm_property *prop = connector->properties.properties[i];
+			uint64_t val;
+
+			ret = drm_object_property_get_value(&connector->base, prop, &val);
+			if (ret)
+				goto out;
+
 			if (put_user(prop->base.id, prop_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;
 			}
-			if (put_user(connector->properties.values[i],
-				     prop_values + copied)) {
+			if (put_user(val, prop_values + copied)) {
 				ret = -EFAULT;
 				goto out;
 			}
@@ -4413,12 +4418,18 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 				  (arg->prop_values_ptr);
 		for (i = 0; i < props_count; i++) {
 			struct drm_property *prop = obj->properties->properties[i];
+			uint64_t val;
+
+			ret = drm_object_property_get_value(obj, prop, &val);
+			if (ret)
+				goto out;
+
 			if (put_user(prop->base.id, props_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;
 			}
-			if (put_user(obj->properties->values[i],
-				     prop_values_ptr + copied)) {
+
+			if (put_user(val, prop_values_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;
 			}

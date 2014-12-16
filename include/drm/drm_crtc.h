@@ -70,6 +70,9 @@ struct drm_object_properties {
 	 * dangling property pointers:
 	 */
 	struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
+	/* do not read/write values directly, but use drm_object_property_get_value()
+	 * and drm_object_property_set_value():
+	 */
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
