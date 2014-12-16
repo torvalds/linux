@@ -814,8 +814,12 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 	unsigned long flags, base;
 	struct tegra_bo *bo;
 
-	if (!dc->event)
+	spin_lock_irqsave(&drm->event_lock, flags);
+
+	if (!dc->event) {
+		spin_unlock_irqrestore(&drm->event_lock, flags);
 		return;
+	}
 
 	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
 
@@ -825,12 +829,12 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
 	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
-		spin_lock_irqsave(&drm->event_lock, flags);
 		drm_crtc_send_vblank_event(crtc, dc->event);
 		drm_crtc_vblank_put(crtc);
 		dc->event = NULL;
-		spin_unlock_irqrestore(&drm->event_lock, flags);
 	}
+
+	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
 void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
