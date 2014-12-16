@@ -514,6 +514,9 @@ const struct ip_tunnel_encap_ops __rcu *
 int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *ops,
 			    unsigned int num)
 {
+	if (num >= MAX_IPTUN_ENCAP_OPS)
+		return -ERANGE;
+
 	return !cmpxchg((const struct ip_tunnel_encap_ops **)
 			&iptun_encaps[num],
 			NULL, ops) ? 0 : -1;
@@ -524,6 +527,9 @@ int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *ops,
 			    unsigned int num)
 {
 	int ret;
+
+	if (num >= MAX_IPTUN_ENCAP_OPS)
+		return -ERANGE;
 
 	ret = (cmpxchg((const struct ip_tunnel_encap_ops **)
 		       &iptun_encaps[num],
