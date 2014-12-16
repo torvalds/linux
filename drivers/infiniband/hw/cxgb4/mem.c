@@ -50,6 +50,13 @@ static int inline_threshold = C4IW_INLINE_THRESHOLD;
 module_param(inline_threshold, int, 0644);
 MODULE_PARM_DESC(inline_threshold, "inline vs dsgl threshold (default=128)");
 
+static int mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
+{
+	return (is_t4(dev->rdev.lldi.adapter_type) ||
+		is_t5(dev->rdev.lldi.adapter_type)) &&
+		length >= 8*1024*1024*1024ULL;
+}
+
 static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 				       u32 len, dma_addr_t data, int wait)
 {
@@ -369,9 +376,11 @@ static int register_mem(struct c4iw_dev *rhp, struct c4iw_pd *php,
 	int ret;
 
 	ret = write_tpt_entry(&rhp->rdev, 0, &stag, 1, mhp->attr.pdid,
-			      FW_RI_STAG_NSMR, mhp->attr.perms,
+			      FW_RI_STAG_NSMR, mhp->attr.len ?
+			      mhp->attr.perms : 0,
 			      mhp->attr.mw_bind_enable, mhp->attr.zbva,
-			      mhp->attr.va_fbo, mhp->attr.len, shift - 12,
+			      mhp->attr.va_fbo, mhp->attr.len ?
+			      mhp->attr.len : -1, shift - 12,
 			      mhp->attr.pbl_size, mhp->attr.pbl_addr);
 	if (ret)
 		return ret;
@@ -536,6 +545,11 @@ int c4iw_reregister_phys_mem(struct ib_mr *mr, int mr_rereg_mask,
 			return ret;
 	}
 
+	if (mr_exceeds_hw_limits(rhp, total_size)) {
+		kfree(page_list);
+		return -EINVAL;
+	}
+
 	ret = reregister_mem(rhp, php, &mh, shift, npages);
 	kfree(page_list);
 	if (ret)
@@ -595,6 +609,12 @@ struct ib_mr *c4iw_register_phys_mem(struct ib_pd *pd,
 					&page_list);
 	if (ret)
 		goto err;
+
+	if (mr_exceeds_hw_limits(rhp, total_size)) {
+		kfree(page_list);
+		ret = -EINVAL;
+		goto err;
+	}
 
 	ret = alloc_pbl(mhp, npages);
 	if (ret) {
@@ -699,6 +719,10 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
+
+	if (mr_exceeds_hw_limits(rhp, length))
+		return ERR_PTR(-EINVAL);
+
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);

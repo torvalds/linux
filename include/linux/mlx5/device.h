@@ -120,6 +120,15 @@ enum {
 };
 
 enum {
+	MLX5_MKEY_INBOX_PG_ACCESS = 1 << 31
+};
+
+enum {
+	MLX5_PFAULT_SUBTYPE_WQE = 0,
+	MLX5_PFAULT_SUBTYPE_RDMA = 1,
+};
+
+enum {
 	MLX5_PERM_LOCAL_READ	= 1 << 2,
 	MLX5_PERM_LOCAL_WRITE	= 1 << 3,
 	MLX5_PERM_REMOTE_READ	= 1 << 4,
@@ -180,6 +189,19 @@ enum {
 	MLX5_MKEY_MASK_FREE		= 1ull << 29,
 };
 
+enum {
+	MLX5_UMR_TRANSLATION_OFFSET_EN	= (1 << 4),
+
+	MLX5_UMR_CHECK_NOT_FREE		= (1 << 5),
+	MLX5_UMR_CHECK_FREE		= (2 << 5),
+
+	MLX5_UMR_INLINE			= (1 << 7),
+};
+
+#define MLX5_UMR_MTT_ALIGNMENT 0x40
+#define MLX5_UMR_MTT_MASK      (MLX5_UMR_MTT_ALIGNMENT - 1)
+#define MLX5_UMR_MTT_MIN_CHUNK_SIZE MLX5_UMR_MTT_ALIGNMENT
+
 enum mlx5_event {
 	MLX5_EVENT_TYPE_COMP		   = 0x0,
 
@@ -206,6 +228,8 @@ enum mlx5_event {
 
 	MLX5_EVENT_TYPE_CMD		   = 0x0a,
 	MLX5_EVENT_TYPE_PAGE_REQUEST	   = 0xb,
+
+	MLX5_EVENT_TYPE_PAGE_FAULT	   = 0xc,
 };
 
 enum {
@@ -225,6 +249,7 @@ enum {
 	MLX5_DEV_CAP_FLAG_APM		= 1LL << 17,
 	MLX5_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
 	MLX5_DEV_CAP_FLAG_BLOCK_MCAST	= 1LL << 23,
+	MLX5_DEV_CAP_FLAG_ON_DMND_PG	= 1LL << 24,
 	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
 	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
 	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 37,
@@ -290,6 +315,8 @@ enum {
 enum {
 	HCA_CAP_OPMOD_GET_MAX	= 0,
 	HCA_CAP_OPMOD_GET_CUR	= 1,
+	HCA_CAP_OPMOD_GET_ODP_MAX = 4,
+	HCA_CAP_OPMOD_GET_ODP_CUR = 5
 };
 
 struct mlx5_inbox_hdr {
@@ -317,6 +344,23 @@ struct mlx5_cmd_query_adapter_mbox_out {
 	__be16			vsd_vendor_id;
 	u8			vsd[208];
 	u8			vsd_psid[16];
+};
+
+enum mlx5_odp_transport_cap_bits {
+	MLX5_ODP_SUPPORT_SEND	 = 1 << 31,
+	MLX5_ODP_SUPPORT_RECV	 = 1 << 30,
+	MLX5_ODP_SUPPORT_WRITE	 = 1 << 29,
+	MLX5_ODP_SUPPORT_READ	 = 1 << 28,
+};
+
+struct mlx5_odp_caps {
+	char reserved[0x10];
+	struct {
+		__be32			rc_odp_caps;
+		__be32			uc_odp_caps;
+		__be32			ud_odp_caps;
+	} per_transport_caps;
+	char reserved2[0xe4];
 };
 
 struct mlx5_cmd_init_hca_mbox_in {
@@ -439,6 +483,27 @@ struct mlx5_eqe_page_req {
 	__be32		rsvd1[5];
 };
 
+struct mlx5_eqe_page_fault {
+	__be32 bytes_committed;
+	union {
+		struct {
+			u16     reserved1;
+			__be16  wqe_index;
+			u16	reserved2;
+			__be16  packet_length;
+			u8	reserved3[12];
+		} __packed wqe;
+		struct {
+			__be32  r_key;
+			u16	reserved1;
+			__be16  packet_length;
+			__be32  rdma_op_len;
+			__be64  rdma_va;
+		} __packed rdma;
+	} __packed;
+	__be32 flags_qpn;
+} __packed;
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -450,6 +515,7 @@ union ev_data {
 	struct mlx5_eqe_congestion	cong;
 	struct mlx5_eqe_stall_vl	stall_vl;
 	struct mlx5_eqe_page_req	req_pages;
+	struct mlx5_eqe_page_fault	page_fault;
 } __packed;
 
 struct mlx5_eqe {
@@ -776,6 +842,10 @@ struct mlx5_query_eq_mbox_out {
 	struct mlx5_eq_context	ctx;
 };
 
+enum {
+	MLX5_MKEY_STATUS_FREE = 1 << 6,
+};
+
 struct mlx5_mkey_seg {
 	/* This is a two bit field occupying bits 31-30.
 	 * bit 31 is always 0,
@@ -812,7 +882,7 @@ struct mlx5_query_special_ctxs_mbox_out {
 struct mlx5_create_mkey_mbox_in {
 	struct mlx5_inbox_hdr	hdr;
 	__be32			input_mkey_index;
-	u8			rsvd0[4];
+	__be32			flags;
 	struct mlx5_mkey_seg	seg;
 	u8			rsvd1[16];
 	__be32			xlat_oct_act_size;
