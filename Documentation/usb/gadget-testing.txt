@@ -6,6 +6,7 @@ provided by gadgets.
 3. ECM subset function
 4. EEM function
 5. FFS function
+6. HID function
 
 
 1. ACM function
@@ -158,3 +159,49 @@ Testing the FFS function
 
 On the device: start the function's userspace daemon, enable the gadget
 On the host: use the USB function provided by the device
+
+6. HID function
+===============
+
+The function is provided by usb_f_hid.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "hid".
+The HID function provides these attributes in its function directory:
+
+	protocol	- HID protocol to use
+	report_desc	- data to be used in HID reports, except data
+			passed with /dev/hidg<X>
+	report_length	- HID report length
+	subclass	- HID subclass to use
+
+For a keyboard the protocol and the subclass are 1, the report_length is 8,
+while the report_desc is:
+
+$ hd my_report_desc
+00000000  05 01 09 06 a1 01 05 07  19 e0 29 e7 15 00 25 01  |..........)...%.|
+00000010  75 01 95 08 81 02 95 01  75 08 81 03 95 05 75 01  |u.......u.....u.|
+00000020  05 08 19 01 29 05 91 02  95 01 75 03 91 03 95 06  |....).....u.....|
+00000030  75 08 15 00 25 65 05 07  19 00 29 65 81 00 c0     |u...%e....)e...|
+0000003f
+
+Such a sequence of bytes can be stored to the attribute with echo:
+
+$ echo -ne \\x05\\x01\\x09\\x06\\xa1.....
+
+Testing the HID function
+------------------------
+
+Device:
+- create the gadget
+- connect the gadget to a host, preferably not the one used
+to control the gadget
+- run a program which writes to /dev/hidg<N>, e.g.
+a userspace program found in Documentation/usb/gadget_hid.txt:
+
+$ ./hid_gadget_test /dev/hidg0 keyboard
+
+Host:
+- observe the keystrokes from the gadget
