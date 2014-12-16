@@ -410,13 +410,23 @@ static int rtl2832_sleep(struct dvb_frontend *fe)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
+	int ret;
 
 	dev_dbg(&client->dev, "\n");
+
 	dev->sleeping = true;
 	/* stop statistics polling */
 	cancel_delayed_work_sync(&dev->stat_work);
 	dev->fe_status = 0;
+
+	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
+	if (ret)
+		goto err;
+
 	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
 }
 
 static int rtl2832_get_tune_settings(struct dvb_frontend *fe,
