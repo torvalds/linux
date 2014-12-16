@@ -3036,7 +3036,8 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	 * of the superblock.
 	 */
 	if (opt_dentry->d_parent == opt_dentry) {
-		if (sbp->s_magic == CGROUP_SUPER_MAGIC) {
+		switch (sbp->s_magic) {
+		case CGROUP_SUPER_MAGIC:
 			/*
 			 * The cgroup filesystem is never mounted,
 			 * so there's no opportunity to set the mount
@@ -3044,8 +3045,19 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			 */
 			sbsp->smk_root = &smack_known_star;
 			sbsp->smk_default = &smack_known_star;
+			isp->smk_inode = sbsp->smk_root;
+			break;
+		case TMPFS_MAGIC:
+			/*
+			 * What about shmem/tmpfs anonymous files with dentry
+			 * obtained from d_alloc_pseudo()?
+			 */
+			isp->smk_inode = smk_of_current();
+			break;
+		default:
+			isp->smk_inode = sbsp->smk_root;
+			break;
 		}
-		isp->smk_inode = sbsp->smk_root;
 		isp->smk_flags |= SMK_INODE_INSTANT;
 		goto unlockandout;
 	}
