@@ -38,6 +38,7 @@ struct lenovo_drvdata_tpkbd {
 
 struct lenovo_drvdata_cptkbd {
 	bool fn_lock;
+	int sensitivity;
 };
 
 #define map_key_clear(c) hid_map_usage_clear(hi, usage, bit, max, EV_KEY, (c))
@@ -145,6 +146,7 @@ static void lenovo_features_set_cptkbd(struct hid_device *hdev)
 	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
 
 	ret = lenovo_send_cmd_cptkbd(hdev, 0x05, cptkbd_data->fn_lock);
+	ret = lenovo_send_cmd_cptkbd(hdev, 0x02, cptkbd_data->sensitivity);
 	if (ret)
 		hid_err(hdev, "Fn-lock setting failed: %d\n", ret);
 }
@@ -179,13 +181,50 @@ static ssize_t attr_fn_lock_store_cptkbd(struct device *dev,
 	return count;
 }
 
+static ssize_t attr_sensitivity_show_cptkbd(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+		cptkbd_data->sensitivity);
+}
+
+static ssize_t attr_sensitivity_store_cptkbd(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+	int value;
+
+	if (kstrtoint(buf, 10, &value) || value < 1 || value > 255)
+		return -EINVAL;
+
+	cptkbd_data->sensitivity = value;
+	lenovo_features_set_cptkbd(hdev);
+
+	return count;
+}
+
+
 static struct device_attribute dev_attr_fn_lock_cptkbd =
 	__ATTR(fn_lock, S_IWUSR | S_IRUGO,
 			attr_fn_lock_show_cptkbd,
 			attr_fn_lock_store_cptkbd);
 
+static struct device_attribute dev_attr_sensitivity_cptkbd =
+	__ATTR(sensitivity, S_IWUSR | S_IRUGO,
+			attr_sensitivity_show_cptkbd,
+			attr_sensitivity_store_cptkbd);
+
+
 static struct attribute *lenovo_attributes_cptkbd[] = {
 	&dev_attr_fn_lock_cptkbd.attr,
+	&dev_attr_sensitivity_cptkbd.attr,
 	NULL
 };
 
@@ -594,8 +633,9 @@ static int lenovo_probe_cptkbd(struct hid_device *hdev)
 	if (ret)
 		hid_warn(hdev, "Failed to switch F7/9/11 mode: %d\n", ret);
 
-	/* Turn Fn-Lock on by default */
+	/* Set keyboard settings to known state */
 	cptkbd_data->fn_lock = true;
+	cptkbd_data->sensitivity = 0x05;
 	lenovo_features_set_cptkbd(hdev);
 
 	ret = sysfs_create_group(&hdev->dev.kobj, &lenovo_attr_group_cptkbd);
