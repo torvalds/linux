@@ -347,7 +347,6 @@ __cpufreq_cooling_register(struct device_node *np,
 	cpufreq_dev->freq_table = kmalloc(sizeof(*cpufreq_dev->freq_table) *
 					  cpufreq_dev->max_level, GFP_KERNEL);
 	if (!cpufreq_dev->freq_table) {
-		return ERR_PTR(-ENOMEM);
 		cool_dev = ERR_PTR(-ENOMEM);
 		goto free_cdev;
 	}
