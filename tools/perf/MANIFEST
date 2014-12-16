@@ -8,7 +8,10 @@ tools/lib/util/find_next_bit.c
 tools/include/asm/bug.h
 tools/include/asm-generic/bitops/atomic.h
 tools/include/asm-generic/bitops/__ffs.h
+tools/include/asm-generic/bitops/__fls.h
 tools/include/asm-generic/bitops/find.h
+tools/include/asm-generic/bitops/fls64.h
+tools/include/asm-generic/bitops/fls.h
 tools/include/asm-generic/bitops.h
 tools/include/linux/bitops.h
 tools/include/linux/compiler.h
@@ -16,6 +19,9 @@ tools/include/linux/export.h
 tools/include/linux/hash.h
 tools/include/linux/log2.h
 tools/include/linux/types.h
+include/asm-generic/bitops/fls64.h
+include/asm-generic/bitops/__fls.h
+include/asm-generic/bitops/fls.h
 include/linux/const.h
 include/linux/perf_event.h
 include/linux/rbtree.h
