@@ -435,6 +435,19 @@ static const struct drm_plane_funcs tegra_primary_plane_funcs = {
 static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 						       struct tegra_dc *dc)
 {
+	/*
+	 * Ideally this would use drm_crtc_mask(), but that would require the
+	 * CRTC to already be in the mode_config's list of CRTCs. However, it
+	 * will only be added to that list in the drm_crtc_init_with_planes()
+	 * (in tegra_dc_init()), which in turn requires registration of these
+	 * planes. So we have ourselves a nice little chicken and egg problem
+	 * here.
+	 *
+	 * We work around this by manually creating the mask from the number
+	 * of CRTCs that have been registered, and should therefore always be
+	 * the same as drm_crtc_index() after registration.
+	 */
+	unsigned long possible_crtcs = 1 << drm->mode_config.num_crtc;
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -447,7 +460,7 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 	num_formats = ARRAY_SIZE(tegra_primary_plane_formats);
 	formats = tegra_primary_plane_formats;
 
-	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
+	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_primary_plane_funcs, formats,
 				       num_formats, DRM_PLANE_TYPE_PRIMARY);
 	if (err < 0) {
