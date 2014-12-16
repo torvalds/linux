@@ -14,6 +14,7 @@ provided by gadgets.
 11. OBEX function
 12. PHONET function
 13. RNDIS function
+14. SERIAL function
 
 
 1. ACM function
@@ -529,3 +530,33 @@ Configure IP addresses of the device and the host. Then:
 
 On the device: ping <host's IP>
 On the host: ping <device's IP>
+
+14. SERIAL function
+===================
+
+The function is provided by usb_f_gser.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "gser".
+The SERIAL function provides just one attribute in its function directory:
+
+	port_num
+
+The attribute is read-only.
+
+There can be at most 4 ACM/generic serial/OBEX ports in the system.
+
+Testing the SERIAL function
+---------------------------
+
+On host: insmod usbserial
+	 echo VID PID >/sys/bus/usb-serial/drivers/generic/new_id
+On host: cat > /dev/ttyUSB<X>
+On target: cat /dev/ttyGS<Y>
+
+then the other way round
+
+On target: cat > /dev/ttyGS<Y>
+On host: cat /dev/ttyUSB<X>
