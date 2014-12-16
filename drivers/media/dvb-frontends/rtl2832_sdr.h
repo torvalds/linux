@@ -32,23 +32,47 @@
 #define RTL2832_SDR_H
 
 #include <linux/kconfig.h>
+#include <linux/i2c.h>
 #include <media/v4l2-subdev.h>
-
-/* for config struct */
+#include "dvb_frontend.h"
 #include "rtl2832.h"
 
-#if IS_ENABLED(CONFIG_DVB_RTL2832_SDR)
-extern struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct rtl2832_config *cfg,
-	struct v4l2_subdev *sd);
-#else
+struct rtl2832_sdr_platform_data {
+	/*
+	 * Clock frequency.
+	 * Hz
+	 * 4000000, 16000000, 25000000, 28800000
+	 */
+	u32 clk;
+
+	/*
+	 * Tuner.
+	 * XXX: This list must be kept sync with dvb_usb_rtl28xxu USB IF driver.
+	 */
+#define RTL2832_SDR_TUNER_TUA9001   0x24
+#define RTL2832_SDR_TUNER_FC0012    0x26
+#define RTL2832_SDR_TUNER_E4000     0x27
+#define RTL2832_SDR_TUNER_FC0013    0x29
+#define RTL2832_SDR_TUNER_R820T     0x2a
+#define RTL2832_SDR_TUNER_R828D     0x2b
+	u8 tuner;
+
+	struct i2c_client *i2c_client;
+	int (*bulk_read)(struct i2c_client *, unsigned int, void *, size_t);
+	int (*bulk_write)(struct i2c_client *, unsigned int, const void *, size_t);
+	int (*update_bits)(struct i2c_client *, unsigned int, unsigned int, unsigned int);
+	struct dvb_frontend *dvb_frontend;
+	struct v4l2_subdev *v4l2_subdev;
+	struct dvb_usb_device *dvb_usb_device;
+};
+
+
 static inline struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, const struct rtl2832_config *cfg,
 	struct v4l2_subdev *sd)
 {
-	dev_warn(&i2c->dev, "%s: driver disabled by Kconfig\n", __func__);
+	dev_warn(&i2c->dev, "%s: driver disabled!\n", __func__);
 	return NULL;
 }
-#endif
 
 #endif /* RTL2832_SDR_H */
