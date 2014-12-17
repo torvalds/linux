@@ -387,6 +387,7 @@ header-y += tcp.h
 header-y += tcp_metrics.h
 header-y += telephony.h
 header-y += termios.h
+header-y += thermal.h
 header-y += time.h
 header-y += times.h
 header-y += timex.h

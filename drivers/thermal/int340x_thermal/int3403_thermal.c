@@ -293,8 +293,7 @@ static int int3403_sensor_add(struct int3403_priv *priv)
 	return 0;
 
  err_free_obj:
-	if (obj->tzone)
-		thermal_zone_device_unregister(obj->tzone);
+	thermal_zone_device_unregister(obj->tzone);
 	return result;
 }
 
@@ -471,7 +470,6 @@ static struct platform_driver int3403_driver = {
 	.remove = int3403_remove,
 	.driver = {
 		.name = "int3403 thermal",
-		.owner  = THIS_MODULE,
 		.acpi_match_table = int3403_device_ids,
 	},
 };
