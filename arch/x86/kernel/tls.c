@@ -55,12 +55,6 @@ static bool tls_desc_okay(const struct user_desc *info)
 	if (info->seg_not_present)
 		return false;
 
-#ifdef CONFIG_X86_64
-	/* The L bit makes no sense for data. */
-	if (info->lm)
-		return false;
-#endif
-
 	return true;
 }
 
