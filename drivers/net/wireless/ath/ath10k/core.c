@@ -1231,9 +1231,18 @@ static void ath10k_core_register_work(struct work_struct *work)
 		goto err_debug_destroy;
 	}
 
+	status = ath10k_thermal_register(ar);
+	if (status) {
+		ath10k_err(ar, "could not register thermal device: %d\n",
+			   status);
+		goto err_spectral_destroy;
+	}
+
 	set_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags);
 	return;
 
+err_spectral_destroy:
+	ath10k_spectral_destroy(ar);
 err_debug_destroy:
 	ath10k_debug_destroy(ar);
 err_unregister_mac:
@@ -1263,6 +1272,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 	if (!test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags))
 		return;
 
+	ath10k_thermal_unregister(ar);
 	/* Stop spectral before unregistering from mac80211 to remove the
 	 * relayfs debugfs file cleanly. Otherwise the parent debugfs tree
 	 * would be already be free'd recursively, leading to a double free.

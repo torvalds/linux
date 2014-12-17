@@ -34,6 +34,7 @@
 #include "../regd.h"
 #include "../dfs_pattern_detector.h"
 #include "spectral.h"
+#include "thermal.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -633,6 +634,8 @@ struct ath10k {
 		u32 fw_warm_reset_counter;
 		u32 fw_cold_reset_counter;
 	} stats;
+
+	struct ath10k_thermal thermal;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
