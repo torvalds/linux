@@ -1247,7 +1247,7 @@ good_area:
 		}
 
 		/* User mode? Just return to handle the fatal exception */
-		if (fault & FAULT_FLAG_USER)
+		if (flags & FAULT_FLAG_USER)
 			return;
 
 		/* Not returning to user mode? Handle exceptions or die: */
