@@ -39,6 +39,8 @@
 
 #include <linux/fb.h>
 
+#include <drm/drm_crtc.h>
+
 enum mode_set_atomic {
 	LEAVE_ATOMIC_MODE_SET,
 	ENTER_ATOMIC_MODE_SET,
