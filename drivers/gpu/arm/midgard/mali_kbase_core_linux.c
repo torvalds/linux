@@ -98,6 +98,7 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 #endif /* MALI_UNIT_TEST */
 
 #define KBASE_DRV_NAME "mali"
+/** rk_ext : version of rk_ext on mali_ko, aka. rk_ko_ver. */
 #define ROCKCHIP_VERSION 0x0b
 
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
@@ -2850,6 +2851,12 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	struct kbase_platform_config *config;
 	int attribute_count;
+
+	printk(KERN_INFO "arm_release_ver of this mali_ko is '%s', rk_ko_ver is '%d', built at '%s', on '%s'.",
+           MALI_RELEASE_NAME,
+           ROCKCHIP_VERSION,
+           __TIME__,
+           __DATE__);
 
 	config = kbase_get_platform_config();
 	attribute_count = kbasep_get_config_attribute_count(config->attributes);
