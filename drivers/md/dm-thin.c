@@ -3832,6 +3832,8 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		r = -EINVAL;
 		goto bad;
 	}
+	atomic_set(&tc->refcount, 1);
+	init_completion(&tc->can_destroy);
 	list_add_tail_rcu(&tc->list, &tc->pool->active_thins);
 	spin_unlock_irqrestore(&tc->pool->lock, flags);
 	/*
@@ -3843,9 +3845,6 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	synchronize_rcu();
 
 	dm_put(pool_md);
-
-	atomic_set(&tc->refcount, 1);
-	init_completion(&tc->can_destroy);
 
 	return 0;
 
