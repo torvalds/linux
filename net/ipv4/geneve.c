@@ -159,6 +159,15 @@ static void geneve_notify_add_rx_port(struct geneve_sock *gs)
 	}
 }
 
+static void geneve_notify_del_rx_port(struct geneve_sock *gs)
+{
+	struct sock *sk = gs->sock->sk;
+	sa_family_t sa_family = sk->sk_family;
+
+	if (sa_family == AF_INET)
+		udp_del_offload(&gs->udp_offloads);
+}
+
 /* Callback from net/ipv4/udp.c to receive packets */
 static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
@@ -312,8 +321,16 @@ EXPORT_SYMBOL_GPL(geneve_sock_add);
 
 void geneve_sock_release(struct geneve_sock *gs)
 {
+	struct net *net = sock_net(gs->sock->sk);
+	struct geneve_net *gn = net_generic(net, geneve_net_id);
+
 	if (!atomic_dec_and_test(&gs->refcnt))
 		return;
+
+	spin_lock(&gn->sock_lock);
+	hlist_del_rcu(&gs->hlist);
+	geneve_notify_del_rx_port(gs);
+	spin_unlock(&gn->sock_lock);
 
 	queue_work(geneve_wq, &gs->del_work);
 }
