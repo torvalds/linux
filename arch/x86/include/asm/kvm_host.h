@@ -664,6 +664,16 @@ struct msr_data {
 	u64 data;
 };
 
+struct kvm_lapic_irq {
+	u32 vector;
+	u32 delivery_mode;
+	u32 dest_mode;
+	u32 level;
+	u32 trig_mode;
+	u32 shorthand;
+	u32 dest_id;
+};
+
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */

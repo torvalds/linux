@@ -44,6 +44,23 @@ struct rtc_status {
 	DECLARE_BITMAP(dest_map, KVM_MAX_VCPUS);
 };
 
+union kvm_ioapic_redirect_entry {
+	u64 bits;
+	struct {
+		u8 vector;
+		u8 delivery_mode:3;
+		u8 dest_mode:1;
+		u8 delivery_status:1;
+		u8 polarity:1;
+		u8 remote_irr:1;
+		u8 trig_mode:1;
+		u8 mask:1;
+		u8 reserve:7;
+		u8 reserved[4];
+		u8 dest_id;
+	} fields;
+};
+
 struct kvm_ioapic {
 	u64 base_address;
 	u32 ioregsel;
