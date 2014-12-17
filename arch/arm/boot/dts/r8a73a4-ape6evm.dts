@@ -82,6 +82,34 @@
 			vddvario-supply = <&ape6evm_fixed_3v3>;
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			gpios = <&pfc 28 GPIO_ACTIVE_LOW>;
+			label = "GNSS_EN";
+		};
+		led2 {
+			gpios = <&pfc 126 GPIO_ACTIVE_LOW>;
+			label = "NFC_NRST";
+		};
+		led3 {
+			gpios = <&pfc 132 GPIO_ACTIVE_LOW>;
+			label = "GNSS_NRST";
+		};
+		led4 {
+			gpios = <&pfc 232 GPIO_ACTIVE_LOW>;
+			label = "BT_WAKEUP";
+		};
+		led5 {
+			gpios = <&pfc 250 GPIO_ACTIVE_LOW>;
+			label = "STROBE";
+		};
+		led6 {
+			gpios = <&pfc 288 GPIO_ACTIVE_LOW>;
+			label = "BBRESETOUT";
+		};
+	};
 };
 
 &i2c5 {
