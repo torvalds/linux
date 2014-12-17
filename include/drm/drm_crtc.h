@@ -455,7 +455,7 @@ struct drm_connector_state {
 
 /**
  * struct drm_connector_funcs - control connectors on a given device
- * @dpms: set power state (see drm_crtc_funcs above)
+ * @dpms: set power state
  * @save: save connector state
  * @restore: restore connector state
  * @reset: reset connector after state has been invalidated (e.g. resume)
