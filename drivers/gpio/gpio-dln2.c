@@ -140,16 +140,16 @@ static int dln2_gpio_pin_get_out_val(struct dln2_gpio *dln2, unsigned int pin)
 	return !!ret;
 }
 
-static void dln2_gpio_pin_set_out_val(struct dln2_gpio *dln2,
-				      unsigned int pin, int value)
+static int dln2_gpio_pin_set_out_val(struct dln2_gpio *dln2,
+				     unsigned int pin, int value)
 {
 	struct dln2_gpio_pin_val req = {
 		.pin = cpu_to_le16(pin),
 		.value = value,
 	};
 
-	dln2_transfer_tx(dln2->pdev, DLN2_GPIO_PIN_SET_OUT_VAL, &req,
-			 sizeof(req));
+	return dln2_transfer_tx(dln2->pdev, DLN2_GPIO_PIN_SET_OUT_VAL, &req,
+				sizeof(req));
 }
 
 #define DLN2_GPIO_DIRECTION_IN		0
@@ -266,6 +266,13 @@ static int dln2_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int dln2_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 				      int value)
 {
+	struct dln2_gpio *dln2 = container_of(chip, struct dln2_gpio, gpio);
+	int ret;
+
+	ret = dln2_gpio_pin_set_out_val(dln2, offset, value);
+	if (ret < 0)
+		return ret;
+
 	return dln2_gpio_set_direction(chip, offset, DLN2_GPIO_DIRECTION_OUT);
 }
 
