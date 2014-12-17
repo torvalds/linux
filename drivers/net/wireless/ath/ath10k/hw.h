@@ -37,6 +37,9 @@
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
+/* added support for ATH10K_FW_IE_WMI_OP_VERSION */
+#define ATH10K_FW_API4_FILE		"firmware-4.bin"
+
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 
 /* includes also the null byte */
@@ -72,6 +75,7 @@ enum ath10k_fw_wmi_op_version {
 	ATH10K_FW_WMI_OP_VERSION_10_1 = 2,
 	ATH10K_FW_WMI_OP_VERSION_10_2 = 3,
 	ATH10K_FW_WMI_OP_VERSION_TLV = 4,
+	ATH10K_FW_WMI_OP_VERSION_10_2_4 = 5,
 
 	/* keep last */
 	ATH10K_FW_WMI_OP_VERSION_MAX,

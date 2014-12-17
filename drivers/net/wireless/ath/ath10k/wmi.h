@@ -1940,6 +1940,11 @@ struct wmi_resource_config_10x {
 	__le32 max_frag_entries;
 } __packed;
 
+enum wmi_10_2_feature_mask {
+	WMI_10_2_RX_BATCH_MODE = BIT(0),
+	WMI_10_2_ATF_CONFIG    = BIT(1),
+};
+
 struct wmi_resource_config_10_2 {
 	struct wmi_resource_config_10x common;
 	__le32 max_peer_ext_stats;
@@ -1948,7 +1953,7 @@ struct wmi_resource_config_10_2 {
 	__le32 be_min_free;
 	__le32 vi_min_free;
 	__le32 vo_min_free;
-	__le32 rx_batchmode; /* 0-disable, 1-enable */
+	__le32 feature_mask;
 } __packed;
 
 #define NUM_UNITS_IS_NUM_VDEVS   0x1

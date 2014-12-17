@@ -687,6 +687,13 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 	/* calibration file is optional, don't check for any errors */
 	ath10k_fetch_cal_file(ar);
 
+	ar->fw_api = 4;
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
+
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API4_FILE);
+	if (ret == 0)
+		goto success;
+
 	ar->fw_api = 3;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
@@ -891,7 +898,8 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	 */
 	if (ar->wmi.op_version == ATH10K_FW_WMI_OP_VERSION_UNSET) {
 		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
-			if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features))
+			if (test_bit(ATH10K_FW_FEATURE_WMI_10_2,
+				     ar->fw_features))
 				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_2;
 			else
 				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
@@ -909,6 +917,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_1:
 	case ATH10K_FW_WMI_OP_VERSION_10_2:
+	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
 		ar->max_num_peers = TARGET_10X_NUM_PEERS;
 		ar->max_num_stations = TARGET_10X_NUM_STATIONS;
 		ar->max_num_vdevs = TARGET_10X_NUM_VDEVS;
