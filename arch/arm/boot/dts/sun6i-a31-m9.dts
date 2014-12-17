@@ -121,6 +121,12 @@
 				reg = <1>;
 			};
 		};
+
+		ir@01f02000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&ir_pins_a>;
+			status = "okay";
+		};
 	};
 
 	leds {
