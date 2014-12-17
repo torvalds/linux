@@ -114,6 +114,10 @@ struct wmi_ops {
 	struct sk_buff *(*gen_dbglog_cfg)(struct ath10k *ar, u32 module_enable);
 	struct sk_buff *(*gen_pktlog_enable)(struct ath10k *ar, u32 filter);
 	struct sk_buff *(*gen_pktlog_disable)(struct ath10k *ar);
+	struct sk_buff *(*gen_pdev_set_quiet_mode)(struct ath10k *ar,
+						   u32 period, u32 duration,
+						   u32 next_offset,
+						   u32 enabled);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -816,6 +820,24 @@ ath10k_wmi_pdev_pktlog_disable(struct ath10k *ar)
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->pdev_pktlog_disable_cmdid);
+}
+
+static inline int
+ath10k_wmi_pdev_set_quiet_mode(struct ath10k *ar, u32 period, u32 duration,
+			       u32 next_offset, u32 enabled)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_pdev_set_quiet_mode)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_pdev_set_quiet_mode(ar, period, duration,
+						   next_offset, enabled);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_set_quiet_mode_cmdid);
 }
 
 #endif
