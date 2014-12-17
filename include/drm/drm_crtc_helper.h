@@ -47,9 +47,20 @@ enum mode_set_atomic {
 };
 
 /**
- * drm_crtc_helper_funcs - helper operations for CRTCs
- * @mode_fixup: try to fixup proposed mode for this connector
+ * struct drm_crtc_helper_funcs - helper operations for CRTCs
+ * @dpms: set power state
+ * @prepare: prepare the CRTC, called before @mode_set
+ * @commit: commit changes to CRTC, called after @mode_set
+ * @mode_fixup: try to fixup proposed mode for this CRTC
  * @mode_set: set this mode
+ * @mode_set_nofb: set mode only (no scanout buffer attached)
+ * @mode_set_base: update the scanout buffer
+ * @mode_set_base_atomic: non-blocking mode set (used for kgdb support)
+ * @load_lut: load color palette
+ * @disable: disable CRTC when no longer in use
+ * @atomic_check: check for validity of an atomic state
+ * @atomic_begin: begin atomic update
+ * @atomic_flush: flush atomic update
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
@@ -93,9 +104,17 @@ struct drm_crtc_helper_funcs {
 };
 
 /**
- * drm_encoder_helper_funcs - helper operations for encoders
+ * struct drm_encoder_helper_funcs - helper operations for encoders
+ * @dpms: set power state
+ * @save: save connector state
+ * @restore: restore connector state
  * @mode_fixup: try to fixup proposed mode for this connector
+ * @prepare: part of the disable sequence, called before the CRTC modeset
+ * @commit: called after the CRTC modeset
  * @mode_set: set this mode
+ * @get_crtc: return CRTC that the encoder is currently attached to
+ * @detect: connection status detection
+ * @disable: disable encoder when not in use (overrides DPMS off)
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
@@ -121,9 +140,10 @@ struct drm_encoder_helper_funcs {
 };
 
 /**
- * drm_connector_helper_funcs - helper operations for connectors
+ * struct drm_connector_helper_funcs - helper operations for connectors
  * @get_modes: get mode list for this connector
- * @mode_valid (optional): is this mode valid on the given connector?
+ * @mode_valid: is this mode valid on the given connector? (optional)
+ * @best_encoder: return the preferred encoder for this connector
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
