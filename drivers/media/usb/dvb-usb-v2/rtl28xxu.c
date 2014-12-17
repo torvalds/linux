@@ -740,8 +740,23 @@ static int rtl2832u_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
 static int rtl2832u_frontend_callback(void *adapter_priv, int component,
 		int cmd, int arg)
 {
-	struct i2c_adapter *adap = adapter_priv;
-	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	struct i2c_adapter *adapter = adapter_priv;
+	struct device *parent = adapter->dev.parent;
+	struct i2c_adapter *parent_adapter;
+	struct dvb_usb_device *d;
+
+	/*
+	 * All tuners are connected to demod muxed I2C adapter. We have to
+	 * resolve its parent adapter in order to get handle for this driver
+	 * private data. That is a bit hackish solution, GPIO or direct driver
+	 * callback would be better...
+	 */
+	if (parent != NULL && parent->type == &i2c_adapter_type)
+		parent_adapter = to_i2c_adapter(parent);
+	else
+		return -EINVAL;
+
+	d = i2c_get_adapdata(parent_adapter);
 
 	dev_dbg(&d->udev->dev, "%s: component=%d cmd=%d arg=%d\n",
 			__func__, component, cmd, arg);
