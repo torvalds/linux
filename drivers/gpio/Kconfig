@@ -367,8 +367,8 @@ config GPIO_XGENE
 	  here to enable the GFC GPIO functionality.
 
 config GPIO_XILINX
-	bool "Xilinx GPIO support"
-	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
+	tristate "Xilinx GPIO support"
+	depends on OF_GPIO && (PPC_OF || MICROBLAZE || ARCH_ZYNQ || ARCH_X86)
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
