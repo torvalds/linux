@@ -74,8 +74,10 @@ static inline int __enable_fpu(enum fpu_mode mode)
 #endif
 		/* fall through */
 	case FPU_32BIT:
-		/* clear FRE */
-		write_c0_config5(read_c0_config5() & ~MIPS_CONF5_FRE);
+		if (cpu_has_fre) {
+			/* clear FRE */
+			write_c0_config5(read_c0_config5() & ~MIPS_CONF5_FRE);
+		}
 fr_common:
 		/* set CU1 & change FR appropriately */
 		fr = (int)mode & FPU_FR_MASK;
@@ -182,25 +184,34 @@ static inline int init_fpu(void)
 	int ret = 0;
 
 	if (cpu_has_fpu) {
+		unsigned int config5;
+
 		ret = __own_fpu();
-		if (!ret) {
-			unsigned int config5 = read_c0_config5();
+		if (ret)
+			return ret;
 
-			/*
-			 * Ensure FRE is clear whilst running _init_fpu, since
-			 * single precision FP instructions are used. If FRE
-			 * was set then we'll just end up initialising all 32
-			 * 64b registers.
-			 */
-			write_c0_config5(config5 & ~MIPS_CONF5_FRE);
-			enable_fpu_hazard();
-
+		if (!cpu_has_fre) {
 			_init_fpu();
 
-			/* Restore FRE */
-			write_c0_config5(config5);
-			enable_fpu_hazard();
+			return 0;
 		}
+
+		config5 = read_c0_config5();
+
+		/*
+		 * Ensure FRE is clear whilst running _init_fpu, since
+		 * single precision FP instructions are used. If FRE
+		 * was set then we'll just end up initialising all 32
+		 * 64b registers.
+		 */
+		write_c0_config5(config5 & ~MIPS_CONF5_FRE);
+		enable_fpu_hazard();
+
+		_init_fpu();
+
+		/* Restore FRE */
+		write_c0_config5(config5);
+		enable_fpu_hazard();
 	} else
 		fpu_emulator_init_fpu();
 
