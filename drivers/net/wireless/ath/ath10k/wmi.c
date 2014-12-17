@@ -145,6 +145,7 @@ static struct wmi_cmd_map wmi_cmd_map = {
 	.force_fw_hang_cmdid = WMI_FORCE_FW_HANG_CMDID,
 	.gpio_config_cmdid = WMI_GPIO_CONFIG_CMDID,
 	.gpio_output_cmdid = WMI_GPIO_OUTPUT_CMDID,
+	.pdev_get_temperature_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.X WMI cmd track */
@@ -267,6 +268,7 @@ static struct wmi_cmd_map wmi_10x_cmd_map = {
 	.force_fw_hang_cmdid = WMI_CMD_UNSUPPORTED,
 	.gpio_config_cmdid = WMI_10X_GPIO_CONFIG_CMDID,
 	.gpio_output_cmdid = WMI_10X_GPIO_OUTPUT_CMDID,
+	.pdev_get_temperature_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 /* 10.2.4 WMI cmd track */
@@ -388,6 +390,7 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 	.force_fw_hang_cmdid = WMI_CMD_UNSUPPORTED,
 	.gpio_config_cmdid = WMI_10_2_GPIO_CONFIG_CMDID,
 	.gpio_output_cmdid = WMI_10_2_GPIO_OUTPUT_CMDID,
+	.pdev_get_temperature_cmdid = WMI_10_2_PDEV_GET_TEMPERATURE_CMDID,
 };
 
 /* MAIN WMI VDEV param map */
@@ -843,6 +846,7 @@ static struct wmi_cmd_map wmi_10_2_cmd_map = {
 	.force_fw_hang_cmdid = WMI_CMD_UNSUPPORTED,
 	.gpio_config_cmdid = WMI_10_2_GPIO_CONFIG_CMDID,
 	.gpio_output_cmdid = WMI_10_2_GPIO_OUTPUT_CMDID,
+	.pdev_get_temperature_cmdid = WMI_CMD_UNSUPPORTED,
 };
 
 void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
@@ -3026,6 +3030,17 @@ int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
+static int ath10k_wmi_event_temperature(struct ath10k *ar, struct sk_buff *skb)
+{
+	const struct wmi_pdev_temperature_event *ev;
+
+	ev = (struct wmi_pdev_temperature_event *)skb->data;
+	if (WARN_ON(skb->len < sizeof(*ev)))
+		return -EPROTO;
+
+	return 0;
+}
+
 static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -3364,6 +3379,9 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_2_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		break;
+	case WMI_10_2_PDEV_TEMPERATURE_EVENTID:
+		ath10k_wmi_event_temperature(ar, skb);
 		break;
 	case WMI_10_2_RTT_KEEPALIVE_EVENTID:
 	case WMI_10_2_GPIO_INPUT_EVENTID:
@@ -4646,6 +4664,19 @@ ath10k_wmi_10_2_op_gen_peer_assoc(struct ath10k *ar,
 	return skb;
 }
 
+static struct sk_buff *
+ath10k_wmi_10_2_op_gen_pdev_get_temperature(struct ath10k *ar)
+{
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, 0);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi pdev get temperature\n");
+	return skb;
+}
+
 /* This function assumes the beacon is already DMA mapped */
 static struct sk_buff *
 ath10k_wmi_op_gen_beacon_dma(struct ath10k_vif *arvif)
@@ -4895,6 +4926,7 @@ static const struct wmi_ops wmi_ops = {
 	.gen_pktlog_enable = ath10k_wmi_op_gen_pktlog_enable,
 	.gen_pktlog_disable = ath10k_wmi_op_gen_pktlog_disable,
 	.gen_pdev_set_quiet_mode = ath10k_wmi_op_gen_pdev_set_quiet_mode,
+	/* .gen_pdev_get_temperature not implemented */
 };
 
 static const struct wmi_ops wmi_10_1_ops = {
@@ -4906,6 +4938,7 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.gen_pdev_set_rd = ath10k_wmi_10x_op_gen_pdev_set_rd,
 	.gen_start_scan = ath10k_wmi_10x_op_gen_start_scan,
 	.gen_peer_assoc = ath10k_wmi_10_1_op_gen_peer_assoc,
+	/* .gen_pdev_get_temperature not implemented */
 
 	/* shared with main branch */
 	.pull_scan = ath10k_wmi_op_pull_scan_ev,
@@ -4954,6 +4987,7 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.rx = ath10k_wmi_10_2_op_rx,
 	.gen_init = ath10k_wmi_10_2_op_gen_init,
 	.gen_peer_assoc = ath10k_wmi_10_2_op_gen_peer_assoc,
+	/* .gen_pdev_get_temperature not implemented */
 
 	/* shared with 10.1 */
 	.map_svc = wmi_10x_svc_map,
@@ -5008,6 +5042,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.rx = ath10k_wmi_10_2_op_rx,
 	.gen_init = ath10k_wmi_10_2_op_gen_init,
 	.gen_peer_assoc = ath10k_wmi_10_2_op_gen_peer_assoc,
+	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
 
 	/* shared with 10.1 */
 	.map_svc = wmi_10x_svc_map,

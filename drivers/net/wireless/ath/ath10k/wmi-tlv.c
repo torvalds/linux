@@ -2044,6 +2044,7 @@ static struct wmi_cmd_map wmi_tlv_cmd_map = {
 	.force_fw_hang_cmdid = WMI_TLV_FORCE_FW_HANG_CMDID,
 	.gpio_config_cmdid = WMI_TLV_GPIO_CONFIG_CMDID,
 	.gpio_output_cmdid = WMI_TLV_GPIO_OUTPUT_CMDID,
+	.pdev_get_temperature_cmdid = WMI_TLV_CMD_UNSUPPORTED,
 };
 
 static struct wmi_pdev_param_map wmi_tlv_pdev_param_map = {
@@ -2205,6 +2206,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_pktlog_enable = ath10k_wmi_tlv_op_gen_pktlog_enable,
 	.gen_pktlog_disable = ath10k_wmi_tlv_op_gen_pktlog_disable,
 	/* .gen_pdev_set_quiet_mode not implemented */
+	/* .gen_pdev_get_temperature not implemented */
 };
 
 /************/

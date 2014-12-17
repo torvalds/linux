@@ -550,6 +550,7 @@ struct wmi_cmd_map {
 	u32 force_fw_hang_cmdid;
 	u32 gpio_config_cmdid;
 	u32 gpio_output_cmdid;
+	u32 pdev_get_temperature_cmdid;
 };
 
 /*
@@ -1154,6 +1155,11 @@ enum wmi_10_2_cmd_id {
 	WMI_10_2_PDEV_SET_MIMOGAIN_TABLE_CMDID,
 	WMI_10_2_PDEV_RATEPWR_TABLE_CMDID,
 	WMI_10_2_PDEV_RATEPWR_CHAINMSK_TABLE_CMDID,
+	WMI_10_2_PDEV_GET_INFO,
+	WMI_10_2_VDEV_GET_INFO,
+	WMI_10_2_VDEV_ATF_REQUEST_CMDID,
+	WMI_10_2_PEER_ATF_REQUEST_CMDID,
+	WMI_10_2_PDEV_GET_TEMPERATURE_CMDID,
 	WMI_10_2_PDEV_UTF_CMDID = WMI_10_2_END_CMDID - 1,
 };
 
@@ -1195,6 +1201,8 @@ enum wmi_10_2_event_id {
 	WMI_10_2_MCAST_BUF_RELEASE_EVENTID,
 	WMI_10_2_MCAST_LIST_AGEOUT_EVENTID,
 	WMI_10_2_WDS_PEER_EVENTID,
+	WMI_10_2_PEER_STA_PS_STATECHG_EVENTID,
+	WMI_10_2_PDEV_TEMPERATURE_EVENTID,
 	WMI_10_2_PDEV_UTF_EVENTID = WMI_10_2_END_EVENTID - 1,
 };
 
@@ -4739,6 +4747,11 @@ struct wmi_rdy_ev_arg {
 	__le32 status;
 	const u8 *mac_addr;
 };
+
+struct wmi_pdev_temperature_event {
+	/* temperature value in Celcius degree */
+	__le32 temperature;
+} __packed;
 
 struct ath10k;
 struct ath10k_vif;
