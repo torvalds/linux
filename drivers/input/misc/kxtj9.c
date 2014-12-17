@@ -615,8 +615,7 @@ static int kxtj9_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int kxtj9_suspend(struct device *dev)
+static int __maybe_unused kxtj9_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
@@ -631,7 +630,7 @@ static int kxtj9_suspend(struct device *dev)
 	return 0;
 }
 
-static int kxtj9_resume(struct device *dev)
+static int __maybe_unused kxtj9_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
@@ -646,7 +645,6 @@ static int kxtj9_resume(struct device *dev)
 	mutex_unlock(&input_dev->mutex);
 	return retval;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(kxtj9_pm_ops, kxtj9_suspend, kxtj9_resume);
 

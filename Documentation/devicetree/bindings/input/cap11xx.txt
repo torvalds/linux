@@ -1,14 +1,16 @@
-Device tree bindings for Microchip CAP1106, 6 channel capacitive touch sensor
+Device tree bindings for Microchip CAP11xx based capacitive touch sensors
 
-The node for this driver must be a child of a I2C controller node, as the
+The node for this device must be a child of a I2C controller node, as the
 device communication via I2C only.
 
 Required properties:
 
-	compatible:		Must be "microchip,cap1106"
+	compatible:		Must contain one of:
+					"microchip,cap1106"
+					"microchip,cap1126"
+					"microchip,cap1188"
 
 	reg:			The I2C slave address of the device.
-				Only 0x28 is valid.
 
 	interrupts:		Property describing the interrupt line the
 				device's ALERT#/CM_IRQ# pin is connected to.
@@ -25,6 +27,10 @@ Optional properties:
 				generate the same delta count values.
 				Valid values are 1, 2, 4, and 8.
 				By default, a gain of 1 is set.
+
+	microchip,irq-active-high:	By default the interrupt pin is active low
+				open drain. This property allows using the active
+				high push-pull output.
 
 	linux,keycodes:		Specifies an array of numeric keycode values to
 				be used for the channels. If this property is
@@ -43,11 +49,11 @@ i2c_controller {
 		autorepeat;
 		microchip,sensor-gain = <2>;
 
-		linux,keycodes = <103		/* KEY_UP */
-				  106		/* KEY_RIGHT */
-				  108		/* KEY_DOWN */
-				  105		/* KEY_LEFT */
-				  109		/* KEY_PAGEDOWN */
-				  104>;		/* KEY_PAGEUP */
+		linux,keycodes = <103>,		/* KEY_UP */
+				 <106>,		/* KEY_RIGHT */
+				 <108>,		/* KEY_DOWN */
+				 <105>,		/* KEY_LEFT */
+				 <109>,		/* KEY_PAGEDOWN */
+				 <104>;		/* KEY_PAGEUP */
 	};
 }

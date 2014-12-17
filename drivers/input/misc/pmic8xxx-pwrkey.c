@@ -53,8 +53,7 @@ static irqreturn_t pwrkey_release_irq(int irq, void *_pwr)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int pmic8xxx_pwrkey_suspend(struct device *dev)
+static int __maybe_unused pmic8xxx_pwrkey_suspend(struct device *dev)
 {
 	struct pmic8xxx_pwrkey *pwrkey = dev_get_drvdata(dev);
 
@@ -64,7 +63,7 @@ static int pmic8xxx_pwrkey_suspend(struct device *dev)
 	return 0;
 }
 
-static int pmic8xxx_pwrkey_resume(struct device *dev)
+static int __maybe_unused pmic8xxx_pwrkey_resume(struct device *dev)
 {
 	struct pmic8xxx_pwrkey *pwrkey = dev_get_drvdata(dev);
 
@@ -73,7 +72,6 @@ static int pmic8xxx_pwrkey_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(pm8xxx_pwr_key_pm_ops,
 		pmic8xxx_pwrkey_suspend, pmic8xxx_pwrkey_resume);
