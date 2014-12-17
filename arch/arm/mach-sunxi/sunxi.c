@@ -29,6 +29,7 @@ MACHINE_END
 
 static const char * const sun6i_board_dt_compat[] = {
 	"allwinner,sun6i-a31",
+	"allwinner,sun6i-a31s",
 	NULL,
 };
 
