@@ -4212,7 +4212,6 @@ static void need_waiter(ipmi_smi_t intf)
 static atomic_t smi_msg_inuse_count = ATOMIC_INIT(0);
 static atomic_t recv_msg_inuse_count = ATOMIC_INIT(0);
 
-/* FIXME - convert these to slabs. */
 static void free_smi_msg(struct ipmi_smi_msg *msg)
 {
 	atomic_dec(&smi_msg_inuse_count);
