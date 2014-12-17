@@ -92,7 +92,7 @@ static struct nand_ecclayout atmel_oobinfo_small = {
 struct atmel_nfc {
 	void __iomem		*base_cmd_regs;
 	void __iomem		*hsmc_regs;
-	void __iomem		*sram_bank0;
+	void			*sram_bank0;
 	dma_addr_t		sram_bank0_phys;
 	bool			use_nfc_sram;
 	bool			write_by_sram;
@@ -105,7 +105,7 @@ struct atmel_nfc {
 	struct completion	comp_xfer_done;
 
 	/* Point to the sram bank which include readed data via NFC */
-	void __iomem		*data_in_sram;
+	void			*data_in_sram;
 	bool			will_write_sram;
 };
 static struct atmel_nfc	nand_nfc;
@@ -127,6 +127,7 @@ struct atmel_nand_host {
 	bool			has_pmecc;
 	u8			pmecc_corr_cap;
 	u16			pmecc_sector_size;
+	bool			has_no_lookup_table;
 	u32			pmecc_lookup_table_offset;
 	u32			pmecc_lookup_table_offset_512;
 	u32			pmecc_lookup_table_offset_1024;
@@ -256,26 +257,6 @@ static int atmel_nand_set_enable_ready_pins(struct mtd_info *mtd)
 	return res;
 }
 
-static void memcpy32_fromio(void *trg, const void __iomem  *src, size_t size)
-{
-	int i;
-	u32 *t = trg;
-	const __iomem u32 *s = src;
-
-	for (i = 0; i < (size >> 2); i++)
-		*t++ = readl_relaxed(s++);
-}
-
-static void memcpy32_toio(void __iomem *trg, const void *src, int size)
-{
-	int i;
-	u32 __iomem *t = trg;
-	const u32 *s = src;
-
-	for (i = 0; i < (size >> 2); i++)
-		writel_relaxed(*s++, t++);
-}
-
 /*
  * Minimal-overhead PIO for data access.
  */
@@ -285,7 +266,7 @@ static void atmel_read_buf8(struct mtd_info *mtd, u8 *buf, int len)
 	struct atmel_nand_host *host = nand_chip->priv;
 
 	if (host->nfc && host->nfc->use_nfc_sram && host->nfc->data_in_sram) {
-		memcpy32_fromio(buf, host->nfc->data_in_sram, len);
+		memcpy(buf, host->nfc->data_in_sram, len);
 		host->nfc->data_in_sram += len;
 	} else {
 		__raw_readsb(nand_chip->IO_ADDR_R, buf, len);
@@ -298,7 +279,7 @@ static void atmel_read_buf16(struct mtd_info *mtd, u8 *buf, int len)
 	struct atmel_nand_host *host = nand_chip->priv;
 
 	if (host->nfc && host->nfc->use_nfc_sram && host->nfc->data_in_sram) {
-		memcpy32_fromio(buf, host->nfc->data_in_sram, len);
+		memcpy(buf, host->nfc->data_in_sram, len);
 		host->nfc->data_in_sram += len;
 	} else {
 		__raw_readsw(nand_chip->IO_ADDR_R, buf, len / 2);
@@ -1112,12 +1093,66 @@ static int pmecc_choose_ecc(struct atmel_nand_host *host,
 	return 0;
 }
 
+static inline int deg(unsigned int poly)
+{
+	/* polynomial degree is the most-significant bit index */
+	return fls(poly) - 1;
+}
+
+static int build_gf_tables(int mm, unsigned int poly,
+		int16_t *index_of, int16_t *alpha_to)
+{
+	unsigned int i, x = 1;
+	const unsigned int k = 1 << deg(poly);
+	unsigned int nn = (1 << mm) - 1;
+
+	/* primitive polynomial must be of degree m */
+	if (k != (1u << mm))
+		return -EINVAL;
+
+	for (i = 0; i < nn; i++) {
+		alpha_to[i] = x;
+		index_of[x] = i;
+		if (i && (x == 1))
+			/* polynomial is not primitive (a^i=1 with 0<i<2^m-1) */
+			return -EINVAL;
+		x <<= 1;
+		if (x & k)
+			x ^= poly;
+	}
+	alpha_to[nn] = 1;
+	index_of[0] = 0;
+
+	return 0;
+}
+
+static uint16_t *create_lookup_table(struct device *dev, int sector_size)
+{
+	int degree = (sector_size == 512) ?
+			PMECC_GF_DIMENSION_13 :
+			PMECC_GF_DIMENSION_14;
+	unsigned int poly = (sector_size == 512) ?
+			PMECC_GF_13_PRIMITIVE_POLY :
+			PMECC_GF_14_PRIMITIVE_POLY;
+	int table_size = (sector_size == 512) ?
+			PMECC_LOOKUP_TABLE_SIZE_512 :
+			PMECC_LOOKUP_TABLE_SIZE_1024;
+
+	int16_t *addr = devm_kzalloc(dev, 2 * table_size * sizeof(uint16_t),
+			GFP_KERNEL);
+	if (addr && build_gf_tables(degree, poly, addr, addr + table_size))
+		return NULL;
+
+	return addr;
+}
+
 static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
 	struct mtd_info *mtd = &host->mtd;
 	struct nand_chip *nand_chip = &host->nand_chip;
 	struct resource *regs, *regs_pmerr, *regs_rom;
+	uint16_t *galois_table;
 	int cap, sector_size, err_no;
 
 	err_no = pmecc_choose_ecc(host, &cap, &sector_size);
@@ -1163,8 +1198,24 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 	regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev, regs_rom);
 	if (IS_ERR(host->pmecc_rom_base)) {
-		err_no = PTR_ERR(host->pmecc_rom_base);
-		goto err;
+		if (!host->has_no_lookup_table)
+			/* Don't display the information again */
+			dev_err(host->dev, "Can not get I/O resource for ROM, will build a lookup table in runtime!\n");
+
+		host->has_no_lookup_table = true;
+	}
+
+	if (host->has_no_lookup_table) {
+		/* Build the look-up table in runtime */
+		galois_table = create_lookup_table(host->dev, sector_size);
+		if (!galois_table) {
+			dev_err(host->dev, "Failed to build a lookup table in runtime!\n");
+			err_no = -EINVAL;
+			goto err;
+		}
+
+		host->pmecc_rom_base = (void __iomem *)galois_table;
+		host->pmecc_lookup_table_offset = 0;
 	}
 
 	nand_chip->ecc.size = sector_size;
@@ -1501,8 +1552,10 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 
 	if (of_property_read_u32_array(np, "atmel,pmecc-lookup-table-offset",
 			offset, 2) != 0) {
-		dev_err(host->dev, "Cannot get PMECC lookup table offset\n");
-		return -EINVAL;
+		dev_err(host->dev, "Cannot get PMECC lookup table offset, will build a lookup table in runtime.\n");
+		host->has_no_lookup_table = true;
+		/* Will build a lookup table and initialize the offset later */
+		return 0;
 	}
 	if (!offset[0] && !offset[1]) {
 		dev_err(host->dev, "Invalid PMECC lookup table offset\n");
@@ -1899,7 +1952,7 @@ static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	int cfg, len;
 	int status = 0;
 	struct atmel_nand_host *host = chip->priv;
-	void __iomem *sram = host->nfc->sram_bank0 + nfc_get_sram_off(host);
+	void *sram = host->nfc->sram_bank0 + nfc_get_sram_off(host);
 
 	/* Subpage write is not supported */
 	if (offset || (data_len < mtd->writesize))
@@ -1910,14 +1963,14 @@ static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (use_dma) {
 		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) != 0)
 			/* Fall back to use cpu copy */
-			memcpy32_toio(sram, buf, len);
+			memcpy(sram, buf, len);
 	} else {
-		memcpy32_toio(sram, buf, len);
+		memcpy(sram, buf, len);
 	}
 
 	cfg = nfc_readl(host->nfc->hsmc_regs, CFG);
 	if (unlikely(raw) && oob_required) {
-		memcpy32_toio(sram + len, chip->oob_poi, mtd->oobsize);
+		memcpy(sram + len, chip->oob_poi, mtd->oobsize);
 		len += mtd->oobsize;
 		nfc_writel(host->nfc->hsmc_regs, CFG, cfg | NFC_CFG_WSPARE);
 	} else {
@@ -2260,7 +2313,8 @@ static int atmel_nand_nfc_probe(struct platform_device *pdev)
 
 	nfc_sram = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (nfc_sram) {
-		nfc->sram_bank0 = devm_ioremap_resource(&pdev->dev, nfc_sram);
+		nfc->sram_bank0 = (void * __force)
+				devm_ioremap_resource(&pdev->dev, nfc_sram);
 		if (IS_ERR(nfc->sram_bank0)) {
 			dev_warn(&pdev->dev, "Fail to ioremap the NFC sram with error: %ld. So disable NFC sram.\n",
 					PTR_ERR(nfc->sram_bank0));

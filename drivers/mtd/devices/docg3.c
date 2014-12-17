@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -1655,22 +1656,21 @@ static int dbg_flashctrl_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
-	int pos = 0;
 	u8 fctrl;
 
 	mutex_lock(&docg3->cascade->lock);
 	fctrl = doc_register_readb(docg3, DOC_FLASHCONTROL);
 	mutex_unlock(&docg3->cascade->lock);
 
-	pos += seq_printf(s,
-		 "FlashControl : 0x%02x (%s,CE# %s,%s,%s,flash %s)\n",
-		 fctrl,
-		 fctrl & DOC_CTRL_VIOLATION ? "protocol violation" : "-",
-		 fctrl & DOC_CTRL_CE ? "active" : "inactive",
-		 fctrl & DOC_CTRL_PROTECTION_ERROR ? "protection error" : "-",
-		 fctrl & DOC_CTRL_SEQUENCE_ERROR ? "sequence error" : "-",
-		 fctrl & DOC_CTRL_FLASHREADY ? "ready" : "not ready");
-	return pos;
+	seq_printf(s, "FlashControl : 0x%02x (%s,CE# %s,%s,%s,flash %s)\n",
+		   fctrl,
+		   fctrl & DOC_CTRL_VIOLATION ? "protocol violation" : "-",
+		   fctrl & DOC_CTRL_CE ? "active" : "inactive",
+		   fctrl & DOC_CTRL_PROTECTION_ERROR ? "protection error" : "-",
+		   fctrl & DOC_CTRL_SEQUENCE_ERROR ? "sequence error" : "-",
+		   fctrl & DOC_CTRL_FLASHREADY ? "ready" : "not ready");
+
+	return 0;
 }
 DEBUGFS_RO_ATTR(flashcontrol, dbg_flashctrl_show);
 
@@ -1678,58 +1678,56 @@ static int dbg_asicmode_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
-	int pos = 0, pctrl, mode;
+	int pctrl, mode;
 
 	mutex_lock(&docg3->cascade->lock);
 	pctrl = doc_register_readb(docg3, DOC_ASICMODE);
 	mode = pctrl & 0x03;
 	mutex_unlock(&docg3->cascade->lock);
 
-	pos += seq_printf(s,
-			 "%04x : RAM_WE=%d,RSTIN_RESET=%d,BDETCT_RESET=%d,WRITE_ENABLE=%d,POWERDOWN=%d,MODE=%d%d (",
-			 pctrl,
-			 pctrl & DOC_ASICMODE_RAM_WE ? 1 : 0,
-			 pctrl & DOC_ASICMODE_RSTIN_RESET ? 1 : 0,
-			 pctrl & DOC_ASICMODE_BDETCT_RESET ? 1 : 0,
-			 pctrl & DOC_ASICMODE_MDWREN ? 1 : 0,
-			 pctrl & DOC_ASICMODE_POWERDOWN ? 1 : 0,
-			 mode >> 1, mode & 0x1);
+	seq_printf(s,
+		   "%04x : RAM_WE=%d,RSTIN_RESET=%d,BDETCT_RESET=%d,WRITE_ENABLE=%d,POWERDOWN=%d,MODE=%d%d (",
+		   pctrl,
+		   pctrl & DOC_ASICMODE_RAM_WE ? 1 : 0,
+		   pctrl & DOC_ASICMODE_RSTIN_RESET ? 1 : 0,
+		   pctrl & DOC_ASICMODE_BDETCT_RESET ? 1 : 0,
+		   pctrl & DOC_ASICMODE_MDWREN ? 1 : 0,
+		   pctrl & DOC_ASICMODE_POWERDOWN ? 1 : 0,
+		   mode >> 1, mode & 0x1);
 
 	switch (mode) {
 	case DOC_ASICMODE_RESET:
-		pos += seq_puts(s, "reset");
+		seq_puts(s, "reset");
 		break;
 	case DOC_ASICMODE_NORMAL:
-		pos += seq_puts(s, "normal");
+		seq_puts(s, "normal");
 		break;
 	case DOC_ASICMODE_POWERDOWN:
-		pos += seq_puts(s, "powerdown");
+		seq_puts(s, "powerdown");
 		break;
 	}
-	pos += seq_puts(s, ")\n");
-	return pos;
+	seq_puts(s, ")\n");
+	return 0;
 }
 DEBUGFS_RO_ATTR(asic_mode, dbg_asicmode_show);
 
 static int dbg_device_id_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
-	int pos = 0;
 	int id;
 
 	mutex_lock(&docg3->cascade->lock);
 	id = doc_register_readb(docg3, DOC_DEVICESELECT);
 	mutex_unlock(&docg3->cascade->lock);
 
-	pos += seq_printf(s, "DeviceId = %d\n", id);
-	return pos;
+	seq_printf(s, "DeviceId = %d\n", id);
+	return 0;
 }
 DEBUGFS_RO_ATTR(device_id, dbg_device_id_show);
 
 static int dbg_protection_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
-	int pos = 0;
 	int protect, dps0, dps0_low, dps0_high, dps1, dps1_low, dps1_high;
 
 	mutex_lock(&docg3->cascade->lock);
@@ -1742,45 +1740,40 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 	dps1_high = doc_register_readw(docg3, DOC_DPS1_ADDRHIGH);
 	mutex_unlock(&docg3->cascade->lock);
 
-	pos += seq_printf(s, "Protection = 0x%02x (",
-			 protect);
+	seq_printf(s, "Protection = 0x%02x (", protect);
 	if (protect & DOC_PROTECT_FOUNDRY_OTP_LOCK)
-		pos += seq_puts(s, "FOUNDRY_OTP_LOCK,");
+		seq_puts(s, "FOUNDRY_OTP_LOCK,");
 	if (protect & DOC_PROTECT_CUSTOMER_OTP_LOCK)
-		pos += seq_puts(s, "CUSTOMER_OTP_LOCK,");
+		seq_puts(s, "CUSTOMER_OTP_LOCK,");
 	if (protect & DOC_PROTECT_LOCK_INPUT)
-		pos += seq_puts(s, "LOCK_INPUT,");
+		seq_puts(s, "LOCK_INPUT,");
 	if (protect & DOC_PROTECT_STICKY_LOCK)
-		pos += seq_puts(s, "STICKY_LOCK,");
+		seq_puts(s, "STICKY_LOCK,");
 	if (protect & DOC_PROTECT_PROTECTION_ENABLED)
-		pos += seq_puts(s, "PROTECTION ON,");
+		seq_puts(s, "PROTECTION ON,");
 	if (protect & DOC_PROTECT_IPL_DOWNLOAD_LOCK)
-		pos += seq_puts(s, "IPL_DOWNLOAD_LOCK,");
+		seq_puts(s, "IPL_DOWNLOAD_LOCK,");
 	if (protect & DOC_PROTECT_PROTECTION_ERROR)
-		pos += seq_puts(s, "PROTECT_ERR,");
+		seq_puts(s, "PROTECT_ERR,");
 	else
-		pos += seq_puts(s, "NO_PROTECT_ERR");
-	pos += seq_puts(s, ")\n");
+		seq_puts(s, "NO_PROTECT_ERR");
+	seq_puts(s, ")\n");
 
-	pos += seq_printf(s, "DPS0 = 0x%02x : "
-			 "Protected area [0x%x - 0x%x] : OTP=%d, READ=%d, "
-			 "WRITE=%d, HW_LOCK=%d, KEY_OK=%d\n",
-			 dps0, dps0_low, dps0_high,
-			 !!(dps0 & DOC_DPS_OTP_PROTECTED),
-			 !!(dps0 & DOC_DPS_READ_PROTECTED),
-			 !!(dps0 & DOC_DPS_WRITE_PROTECTED),
-			 !!(dps0 & DOC_DPS_HW_LOCK_ENABLED),
-			 !!(dps0 & DOC_DPS_KEY_OK));
-	pos += seq_printf(s, "DPS1 = 0x%02x : "
-			 "Protected area [0x%x - 0x%x] : OTP=%d, READ=%d, "
-			 "WRITE=%d, HW_LOCK=%d, KEY_OK=%d\n",
-			 dps1, dps1_low, dps1_high,
-			 !!(dps1 & DOC_DPS_OTP_PROTECTED),
-			 !!(dps1 & DOC_DPS_READ_PROTECTED),
-			 !!(dps1 & DOC_DPS_WRITE_PROTECTED),
-			 !!(dps1 & DOC_DPS_HW_LOCK_ENABLED),
-			 !!(dps1 & DOC_DPS_KEY_OK));
-	return pos;
+	seq_printf(s, "DPS0 = 0x%02x : Protected area [0x%x - 0x%x] : OTP=%d, READ=%d, WRITE=%d, HW_LOCK=%d, KEY_OK=%d\n",
+		   dps0, dps0_low, dps0_high,
+		   !!(dps0 & DOC_DPS_OTP_PROTECTED),
+		   !!(dps0 & DOC_DPS_READ_PROTECTED),
+		   !!(dps0 & DOC_DPS_WRITE_PROTECTED),
+		   !!(dps0 & DOC_DPS_HW_LOCK_ENABLED),
+		   !!(dps0 & DOC_DPS_KEY_OK));
+	seq_printf(s, "DPS1 = 0x%02x : Protected area [0x%x - 0x%x] : OTP=%d, READ=%d, WRITE=%d, HW_LOCK=%d, KEY_OK=%d\n",
+		   dps1, dps1_low, dps1_high,
+		   !!(dps1 & DOC_DPS_OTP_PROTECTED),
+		   !!(dps1 & DOC_DPS_READ_PROTECTED),
+		   !!(dps1 & DOC_DPS_WRITE_PROTECTED),
+		   !!(dps1 & DOC_DPS_HW_LOCK_ENABLED),
+		   !!(dps1 & DOC_DPS_KEY_OK));
+	return 0;
 }
 DEBUGFS_RO_ATTR(protection, dbg_protection_show);
 
@@ -2126,9 +2119,18 @@ static int __exit docg3_release(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id docg3_dt_ids[] = {
+	{ .compatible = "m-systems,diskonchip-g3" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, docg3_dt_ids);
+#endif
+
 static struct platform_driver g3_driver = {
 	.driver		= {
 		.name	= "docg3",
+		.of_match_table = of_match_ptr(docg3_dt_ids),
 	},
 	.suspend	= docg3_suspend,
 	.resume		= docg3_resume,

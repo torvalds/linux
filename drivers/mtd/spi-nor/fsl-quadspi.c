@@ -719,15 +719,9 @@ static int fsl_qspi_read(struct spi_nor *nor, loff_t from,
 {
 	struct fsl_qspi *q = nor->priv;
 	u8 cmd = nor->read_opcode;
-	int ret;
 
 	dev_dbg(q->dev, "cmd [%x],read from (0x%p, 0x%.8x, 0x%.8x),len:%d\n",
 		cmd, q->ahb_base, q->chip_base_addr, (unsigned int)from, len);
-
-	/* Wait until the previous command is finished. */
-	ret = nor->wait_till_ready(nor);
-	if (ret)
-		return ret;
 
 	/* Read out the data directly from the AHB buffer.*/
 	memcpy(buf, q->ahb_base + q->chip_base_addr + from, len);
@@ -743,16 +737,6 @@ static int fsl_qspi_erase(struct spi_nor *nor, loff_t offs)
 
 	dev_dbg(nor->dev, "%dKiB at 0x%08x:0x%08x\n",
 		nor->mtd->erasesize / 1024, q->chip_base_addr, (u32)offs);
-
-	/* Wait until finished previous write command. */
-	ret = nor->wait_till_ready(nor);
-	if (ret)
-		return ret;
-
-	/* Send write enable, then erase commands. */
-	ret = nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0, 0);
-	if (ret)
-		return ret;
 
 	ret = fsl_qspi_runcmd(q, nor->erase_opcode, offs, 0);
 	if (ret)
@@ -849,9 +833,8 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(q->clk);
 	if (ret) {
-		clk_disable_unprepare(q->clk_en);
 		dev_err(dev, "can not enable the qspi clock\n");
-		goto map_failed;
+		goto clk_failed;
 	}
 
 	/* find the irq */
@@ -905,7 +888,8 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		nor->prepare = fsl_qspi_prep;
 		nor->unprepare = fsl_qspi_unprep;
 
-		if (of_modalias_node(np, modalias, sizeof(modalias)) < 0)
+		ret = of_modalias_node(np, modalias, sizeof(modalias));
+		if (ret < 0)
 			goto map_failed;
 
 		ret = of_property_read_u32(np, "spi-max-frequency",
@@ -964,6 +948,7 @@ last_init_failed:
 
 irq_failed:
 	clk_disable_unprepare(q->clk);
+clk_failed:
 	clk_disable_unprepare(q->clk_en);
 map_failed:
 	dev_err(dev, "Freescale QuadSPI probe failed\n");
