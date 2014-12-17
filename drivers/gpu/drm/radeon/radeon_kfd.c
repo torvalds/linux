@@ -390,6 +390,10 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 		cpu_relax();
 	write_register(kgd, ATC_VMID_PASID_MAPPING_UPDATE_STATUS, 1U << vmid);
 
+	/* Mapping vmid to pasid also for IH block */
+	write_register(kgd, IH_VMID_0_LUT + vmid * sizeof(uint32_t),
+			pasid_mapping);
+
 	return 0;
 }
 
