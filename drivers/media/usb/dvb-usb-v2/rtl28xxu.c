@@ -1142,16 +1142,12 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		pdata.v4l2_subdev = subdev;
 
 		request_module("%s", "rtl2832_sdr");
-		pdev = platform_device_register_data(&priv->i2c_client_demod->dev,
+		pdev = platform_device_register_data(&d->intf->dev,
 						     "rtl2832_sdr",
 						     PLATFORM_DEVID_AUTO,
 						     &pdata, sizeof(pdata));
 		if (pdev == NULL || pdev->dev.driver == NULL)
 			break;
-		if (!try_module_get(pdev->dev.driver->owner)) {
-			platform_device_unregister(pdev);
-			break;
-		}
 		priv->platform_device_sdr = pdev;
 		break;
 	default:
@@ -1175,10 +1171,8 @@ static int rtl2832u_tuner_detach(struct dvb_usb_adapter *adap)
 
 	/* remove platform SDR */
 	pdev = priv->platform_device_sdr;
-	if (pdev) {
-		module_put(pdev->dev.driver->owner);
+	if (pdev)
 		platform_device_unregister(pdev);
-	}
 
 	/* remove I2C tuner */
 	client = priv->i2c_client_tuner;
