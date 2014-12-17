@@ -101,6 +101,7 @@ kernel.img: Image
 	@echo '  Image:  kernel.img is ready'
 
 LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
-%.img: %.dtb kernel.img $(LOGO)
-	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm64/boot/dts/$*.dtb $(LOGO)
-	@echo '  Image:  resource.img (with $*.dtb $(LOGO)) is ready'
+LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
+%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
+	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm64/boot/dts/$*.dtb $(LOGO) $(LOGO_KERNEL)
+	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'
