@@ -1471,7 +1471,7 @@ static int test_event(struct evlist_test *e)
 	} else {
 		ret = e->check(evlist);
 	}
-	
+
 	perf_evlist__delete(evlist);
 
 	return ret;

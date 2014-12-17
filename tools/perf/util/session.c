@@ -274,7 +274,7 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 	if (tool->id_index == NULL)
 		tool->id_index = process_id_index_stub;
 }
- 
+
 static void swap_sample_id_all(union perf_event *event, void *data)
 {
 	void *end = (void *) event + event->header.size;
