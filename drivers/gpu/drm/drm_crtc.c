@@ -2673,6 +2673,12 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
+		mode->status = drm_mode_validate_basic(mode);
+		if (mode->status != MODE_OK) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
 		ret = drm_crtc_check_viewport(crtc, crtc_req->x, crtc_req->y,
