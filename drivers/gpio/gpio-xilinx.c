@@ -43,14 +43,12 @@
  * struct of_mm_gpio_chip mmchip: OF GPIO chip for memory mapped banks
  * gpio_state: GPIO state shadow register
  * gpio_dir: GPIO direction shadow register
- * offset: GPIO channel offset
  * gpio_lock: Lock used for synchronization
  */
 struct xgpio_instance {
 	struct of_mm_gpio_chip mmchip;
 	u32 gpio_state;
 	u32 gpio_dir;
-	u32 offset;
 	spinlock_t gpio_lock;
 };
 
@@ -65,12 +63,8 @@ struct xgpio_instance {
 static int xgpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct xgpio_instance *chip =
-	    container_of(mm_gc, struct xgpio_instance, mmchip);
 
-	void __iomem *regs = mm_gc->regs + chip->offset;
-
-	return !!(xgpio_readreg(regs + XGPIO_DATA_OFFSET) & BIT(gpio));
+	return !!(xgpio_readreg(mm_gc->regs + XGPIO_DATA_OFFSET) & BIT(gpio));
 }
 
 /**
@@ -88,7 +82,6 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
-	void __iomem *regs = mm_gc->regs;
 
 	spin_lock_irqsave(&chip->gpio_lock, flags);
 
@@ -98,8 +91,7 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	else
 		chip->gpio_state &= ~BIT(gpio);
 
-	xgpio_writereg(regs + chip->offset + XGPIO_DATA_OFFSET,
-							 chip->gpio_state);
+	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET, chip->gpio_state);
 
 	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 }
@@ -119,13 +111,12 @@ static int xgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
-	void __iomem *regs = mm_gc->regs;
 
 	spin_lock_irqsave(&chip->gpio_lock, flags);
 
 	/* Set the GPIO bit in shadow register and set direction as input */
 	chip->gpio_dir |= BIT(gpio);
-	xgpio_writereg(regs + chip->offset + XGPIO_TRI_OFFSET, chip->gpio_dir);
+	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET, chip->gpio_dir);
 
 	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 
@@ -148,7 +139,6 @@ static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
-	void __iomem *regs = mm_gc->regs;
 
 	spin_lock_irqsave(&chip->gpio_lock, flags);
 
@@ -157,12 +147,11 @@ static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 		chip->gpio_state |= BIT(gpio);
 	else
 		chip->gpio_state &= ~BIT(gpio);
-	xgpio_writereg(regs + chip->offset + XGPIO_DATA_OFFSET,
-		       chip->gpio_state);
+	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET, chip->gpio_state);
 
 	/* Clear the GPIO bit in shadow register and set direction as output */
 	chip->gpio_dir &= ~BIT(gpio);
-	xgpio_writereg(regs + chip->offset + XGPIO_TRI_OFFSET, chip->gpio_dir);
+	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET, chip->gpio_dir);
 
 	spin_unlock_irqrestore(&chip->gpio_lock, flags);
 
@@ -178,10 +167,8 @@ static void xgpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
 
-	xgpio_writereg(mm_gc->regs + chip->offset + XGPIO_DATA_OFFSET,
-							chip->gpio_state);
-	xgpio_writereg(mm_gc->regs + chip->offset + XGPIO_TRI_OFFSET,
-							 chip->gpio_dir);
+	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET,	chip->gpio_state);
+	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET, chip->gpio_dir);
 }
 
 /**
@@ -247,9 +234,6 @@ static int xgpio_of_probe(struct device_node *np)
 		if (!chip)
 			return -ENOMEM;
 
-		/* Add dual channel offset */
-		chip->offset = XGPIO_CHANNEL_OFFSET;
-
 		/* Update GPIO state shadow register with default value */
 		of_property_read_u32(np, "xlnx,dout-default-2",
 				     &chip->gpio_state);
@@ -285,6 +269,10 @@ static int xgpio_of_probe(struct device_node *np)
 			np->full_name, status);
 			return status;
 		}
+
+		/* Add dual channel offset */
+		chip->mmchip.regs += XGPIO_CHANNEL_OFFSET;
+
 		pr_info("XGpio: %s: dual channel registered, base is %d\n",
 					np->full_name, chip->mmchip.gc.base);
 	}
