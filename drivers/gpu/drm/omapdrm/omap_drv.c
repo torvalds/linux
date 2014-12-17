@@ -491,6 +491,7 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
+	spin_lock_init(&priv->list_lock);
 	INIT_LIST_HEAD(&priv->obj_list);
 
 	omap_gem_init(dev);

@@ -1273,13 +1273,16 @@ unlock:
 void omap_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 
 	evict(obj);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
+	spin_lock(&priv->list_lock);
 	list_del(&omap_obj->mm_list);
+	spin_unlock(&priv->list_lock);
 
 	drm_gem_free_mmap_offset(obj);
 
@@ -1377,7 +1380,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	if (!omap_obj)
 		goto fail;
 
+	spin_lock(&priv->list_lock);
 	list_add(&omap_obj->mm_list, &priv->obj_list);
+	spin_unlock(&priv->list_lock);
 
 	obj = &omap_obj->base;
 
