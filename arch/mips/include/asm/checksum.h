@@ -103,22 +103,16 @@ __wsum csum_partial_copy_nocheck(const void *src, void *dst,
 /*
  *	Fold a partial checksum without adding pseudo headers
  */
-static inline __sum16 csum_fold(__wsum sum)
+static inline __sum16 csum_fold(__wsum csum)
 {
-	__asm__(
-	"	.set	push		# csum_fold\n"
-	"	.set	noat		\n"
-	"	sll	$1, %0, 16	\n"
-	"	addu	%0, $1		\n"
-	"	sltu	$1, %0, $1	\n"
-	"	srl	%0, %0, 16	\n"
-	"	addu	%0, $1		\n"
-	"	xori	%0, 0xffff	\n"
-	"	.set	pop"
-	: "=r" (sum)
-	: "0" (sum));
+	u32 sum = (__force u32)csum;;
 
-	return (__force __sum16)sum;
+	sum += (sum << 16);
+	csum = (sum < csum);
+	sum >>= 16;
+	sum += csum;
+
+	return (__force __sum16)~sum;
 }
 
 /*
