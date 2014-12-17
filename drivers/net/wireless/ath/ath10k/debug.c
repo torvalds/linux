@@ -124,7 +124,7 @@ EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_print_driver_info(struct ath10k *ar)
 {
-	ath10k_info(ar, "%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d wmi %d.%d.%d.%d cal %s max_sta %d\n",
+	ath10k_info(ar, "%s (0x%08x, 0x%08x) fw %s api %d htt %d.%d wmi %d cal %s max_sta %d\n",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
@@ -132,10 +132,7 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ar->fw_api,
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
-		    ar->fw_version_major,
-		    ar->fw_version_minor,
-		    ar->fw_version_release,
-		    ar->fw_version_build,
+		    ar->wmi.op_version,
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations);
 	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d testmode %d\n",
