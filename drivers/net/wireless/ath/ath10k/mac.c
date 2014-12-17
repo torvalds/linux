@@ -1468,9 +1468,16 @@ static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
 		if (vif->bss_conf.qos)
 			arg->peer_flags |= WMI_PEER_QOS;
 		break;
+	case WMI_VDEV_TYPE_IBSS:
+		if (sta->wme)
+			arg->peer_flags |= WMI_PEER_QOS;
+		break;
 	default:
 		break;
 	}
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac peer %pM qos %d\n",
+		   sta->addr, !!(arg->peer_flags & WMI_PEER_QOS));
 }
 
 static bool ath10k_mac_sta_has_11g_rates(struct ieee80211_sta *sta)
