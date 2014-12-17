@@ -1310,10 +1310,21 @@ static int rtl2832_sdr_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
+	if (!pdev->dev.parent->driver) {
+		dev_dbg(&pdev->dev, "No parent device\n");
+		ret = -EINVAL;
+		goto err;
+	}
+	/* try to refcount host drv since we are the consumer */
+	if (!try_module_get(pdev->dev.parent->driver->owner)) {
+		dev_err(&pdev->dev, "Refcount fail");
+		ret = -EINVAL;
+		goto err;
+	}
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_module_put;
 	}
 
 	/* setup the state */
@@ -1426,6 +1437,8 @@ err_v4l2_ctrl_handler_free:
 	v4l2_ctrl_handler_free(&dev->hdl);
 err_kfree:
 	kfree(dev);
+err_module_put:
+	module_put(pdev->dev.parent->driver->owner);
 err:
 	return ret;
 }
@@ -1444,8 +1457,8 @@ static int rtl2832_sdr_remove(struct platform_device *pdev)
 	video_unregister_device(&dev->vdev);
 	mutex_unlock(&dev->v4l2_lock);
 	mutex_unlock(&dev->vb_queue_lock);
-
 	v4l2_device_put(&dev->v4l2_dev);
+	module_put(pdev->dev.parent->driver->owner);
 
 	return 0;
 }
