@@ -296,6 +296,7 @@ struct geneve_sock *geneve_sock_add(struct net *net, __be16 port,
 				    geneve_rcv_t *rcv, void *data,
 				    bool no_share, bool ipv6)
 {
+	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_sock *gs;
 
 	gs = geneve_socket_create(net, port, rcv, data, ipv6);
@@ -305,15 +306,15 @@ struct geneve_sock *geneve_sock_add(struct net *net, __be16 port,
 	if (no_share)	/* Return error if sharing is not allowed. */
 		return ERR_PTR(-EINVAL);
 
+	spin_lock(&gn->sock_lock);
 	gs = geneve_find_sock(net, port);
-	if (gs) {
-		if (gs->rcv == rcv)
-			atomic_inc(&gs->refcnt);
-		else
+	if (gs && ((gs->rcv != rcv) ||
+		   !atomic_add_unless(&gs->refcnt, 1, 0)))
 			gs = ERR_PTR(-EBUSY);
-	} else {
+	spin_unlock(&gn->sock_lock);
+
+	if (!gs)
 		gs = ERR_PTR(-EINVAL);
-	}
 
 	return gs;
 }
