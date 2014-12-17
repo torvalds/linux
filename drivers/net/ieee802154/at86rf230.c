@@ -1421,7 +1421,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	if (rc)
 		return rc;
 
-	rc = __at86rf230_read(lp, RG_PART_NUM, &version);
+	rc = __at86rf230_read(lp, RG_VERSION_NUM, &version);
 	if (rc)
 		return rc;
 
