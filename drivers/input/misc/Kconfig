@@ -394,6 +394,18 @@ config INPUT_CM109
 	  To compile this driver as a module, choose M here: the module will be
 	  called cm109.
 
+config INPUT_REGULATOR_HAPTIC
+	tristate "Regulator haptics support"
+	depends on REGULATOR
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the haptic controlled
+	  by a regulator. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called regulator-haptic.
+
 config INPUT_RETU_PWRBUTTON
 	tristate "Retu Power button Driver"
 	depends on MFD_RETU
