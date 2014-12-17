@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/time.h>
 #include <linux/list.h>
+#include <linux/completion.h>
 
 #include "omap_dmm_tiler.h"
 #include "omap_dmm_priv.h"
@@ -146,10 +147,10 @@ static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 
 	for (i = 0; i < dmm->num_engines; i++) {
 		if (status & DMM_IRQSTAT_LST) {
-			wake_up_interruptible(&dmm->engines[i].wait_for_refill);
-
 			if (dmm->engines[i].async)
 				release_engine(&dmm->engines[i]);
+
+			complete(&dmm->engines[i].compl);
 		}
 
 		status >>= 8;
@@ -273,7 +274,8 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 
 	/* mark whether it is async to denote list management in IRQ handler */
 	engine->async = wait ? false : true;
-	/* verify that the irq handler sees the 'async' value */
+	reinit_completion(&engine->compl);
+	/* verify that the irq handler sees the 'async' and completion value */
 	smp_mb();
 
 	/* kick reload */
@@ -281,9 +283,8 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 		dmm->base + reg[PAT_DESCR][engine->id]);
 
 	if (wait) {
-		if (wait_event_interruptible_timeout(engine->wait_for_refill,
-				wait_status(engine, DMM_PATSTATUS_READY) == 0,
-				msecs_to_jiffies(1)) <= 0) {
+		if (!wait_for_completion_timeout(&engine->compl,
+				msecs_to_jiffies(1))) {
 			dev_err(dmm->dev, "timed out waiting for done\n");
 			ret = -ETIMEDOUT;
 		}
@@ -719,7 +720,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 						(REFILL_BUFFER_SIZE * i);
 		omap_dmm->engines[i].refill_pa = omap_dmm->refill_pa +
 						(REFILL_BUFFER_SIZE * i);
-		init_waitqueue_head(&omap_dmm->engines[i].wait_for_refill);
+		init_completion(&omap_dmm->engines[i].compl);
 
 		list_add(&omap_dmm->engines[i].idle_node, &omap_dmm->idle_head);
 	}

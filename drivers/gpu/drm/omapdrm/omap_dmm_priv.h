@@ -148,7 +148,7 @@ struct refill_engine {
 
 	bool async;
 
-	wait_queue_head_t wait_for_refill;
+	struct completion compl;
 
 	struct list_head idle_node;
 };
