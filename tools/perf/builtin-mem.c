@@ -10,21 +10,17 @@
 #define MEM_OPERATION_LOAD	0x1
 #define MEM_OPERATION_STORE	0x2
 
-/*
- * default to both load an store sampling
- */
-static int mem_operation = MEM_OPERATION_LOAD | MEM_OPERATION_STORE;
-
 struct perf_mem {
 	struct perf_tool	tool;
 	char const		*input_name;
 	bool			hide_unresolved;
 	bool			dump_raw;
+	int			operation;
 	const char		*cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
-static int __cmd_record(int argc, const char **argv)
+static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 {
 	int rec_argc, i = 0, j;
 	const char **rec_argv;
@@ -37,17 +33,17 @@ static int __cmd_record(int argc, const char **argv)
 
 	rec_argv[i++] = "record";
 
-	if (mem_operation & MEM_OPERATION_LOAD)
+	if (mem->operation & MEM_OPERATION_LOAD)
 		rec_argv[i++] = "-W";
 
 	rec_argv[i++] = "-d";
 
-	if (mem_operation & MEM_OPERATION_LOAD) {
+	if (mem->operation & MEM_OPERATION_LOAD) {
 		rec_argv[i++] = "-e";
 		rec_argv[i++] = "cpu/mem-loads/pp";
 	}
 
-	if (mem_operation & MEM_OPERATION_STORE) {
+	if (mem->operation & MEM_OPERATION_STORE) {
 		rec_argv[i++] = "-e";
 		rec_argv[i++] = "cpu/mem-stores/pp";
 	}
@@ -177,7 +173,7 @@ static int report_events(int argc, const char **argv, struct perf_mem *mem)
 	 * there is no weight (cost) associated with stores, so don't print
 	 * the column
 	 */
-	if (!(mem_operation & MEM_OPERATION_LOAD))
+	if (!(mem->operation & MEM_OPERATION_LOAD))
 		rep_argv[i++] = "--sort=mem,sym,dso,symbol_daddr,"
 				"dso_daddr,tlb,locked";
 
@@ -273,9 +269,13 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 			.ordered_events	= true,
 		},
 		.input_name		 = "perf.data",
+		/*
+		 * default to both load an store sampling
+		 */
+		.operation		 = MEM_OPERATION_LOAD | MEM_OPERATION_STORE,
 	};
 	const struct option mem_options[] = {
-	OPT_CALLBACK('t', "type", &mem_operation,
+	OPT_CALLBACK('t', "type", &mem.operation,
 		   "type", "memory operations(load,store) Default load,store",
 		    parse_mem_ops),
 	OPT_BOOLEAN('D', "dump-raw-samples", &mem.dump_raw,
@@ -302,7 +302,7 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 	argc = parse_options_subcommand(argc, argv, mem_options, mem_subcommands,
 					mem_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
-	if (!argc || !(strncmp(argv[0], "rec", 3) || mem_operation))
+	if (!argc || !(strncmp(argv[0], "rec", 3) || mem.operation))
 		usage_with_options(mem_usage, mem_options);
 
 	if (!mem.input_name || !strlen(mem.input_name)) {
@@ -313,7 +313,7 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	if (!strncmp(argv[0], "rec", 3))
-		return __cmd_record(argc, argv);
+		return __cmd_record(argc, argv, &mem);
 	else if (!strncmp(argv[0], "rep", 3))
 		return report_events(argc, argv, &mem);
 	else
