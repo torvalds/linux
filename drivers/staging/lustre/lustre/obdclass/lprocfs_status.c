@@ -1862,6 +1862,7 @@ int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
 	char kernbuf[22], *end, *pbuf;
 	__u64 whole, frac = 0, units;
 	unsigned frac_d = 1;
+	int sign = 1;
 
 	if (count > (sizeof(kernbuf) - 1))
 		return -EINVAL;
@@ -1872,7 +1873,7 @@ int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
 	kernbuf[count] = '\0';
 	pbuf = kernbuf;
 	if (*pbuf == '-') {
-		mult = -mult;
+		sign = -1;
 		pbuf++;
 	}
 
@@ -1909,11 +1910,11 @@ int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
 	}
 	/* Specified units override the multiplier */
 	if (units > 1)
-		mult = mult < 0 ? -units : units;
+		mult = units;
 
 	frac *= mult;
 	do_div(frac, frac_d);
-	*val = whole * mult + frac;
+	*val = sign * (whole * mult + frac);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_write_frac_u64_helper);
