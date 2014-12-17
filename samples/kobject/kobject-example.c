@@ -36,7 +36,12 @@ static ssize_t foo_show(struct kobject *kobj, struct kobj_attribute *attr,
 static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
 			 const char *buf, size_t count)
 {
-	sscanf(buf, "%du", &foo);
+	int ret;
+
+	ret = kstrtoint(buf, 10, &foo);
+	if (ret < 0)
+		return ret;
+
 	return count;
 }
 
@@ -63,9 +68,12 @@ static ssize_t b_show(struct kobject *kobj, struct kobj_attribute *attr,
 static ssize_t b_store(struct kobject *kobj, struct kobj_attribute *attr,
 		       const char *buf, size_t count)
 {
-	int var;
+	int var, ret;
 
-	sscanf(buf, "%du", &var);
+	ret = kstrtoint(buf, 10, &var);
+	if (ret < 0)
+		return ret;
+
 	if (strcmp(attr->attr.name, "baz") == 0)
 		baz = var;
 	else
