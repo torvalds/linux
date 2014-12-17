@@ -235,6 +235,8 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	/*
 	 * We don't need an orphan item because truncating the free space cache
 	 * will never be split across transactions.
+	 * We don't need to check for -EAGAIN because we're a free space
+	 * cache inode
 	 */
 	ret = btrfs_truncate_inode_items(trans, root, inode,
 					 0, BTRFS_EXTENT_DATA_KEY);

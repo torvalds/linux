@@ -4197,9 +4197,19 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	int extent_type = -1;
 	int ret;
 	int err = 0;
+	int be_nice = 0;
 	u64 ino = btrfs_ino(inode);
+	u64 bytes_deleted = 0;
 
 	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
+
+	/*
+	 * for non-free space inodes and ref cows, we want to back off from
+	 * time to time
+	 */
+	if (!btrfs_is_free_space_inode(inode) &&
+	    test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+		be_nice = 1;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -4230,6 +4240,19 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	key.type = (u8)-1;
 
 search_again:
+	/*
+	 * with a 16K leaf size and 128MB extents, you can actually queue
+	 * up a huge file in a single leaf.  Most of the time that
+	 * bytes_deleted is > 0, it will be huge by the time we get here
+	 */
+	if (be_nice && bytes_deleted > 32 * 1024 * 1024) {
+		if (btrfs_should_end_transaction(trans, root)) {
+			err = -EAGAIN;
+			goto error;
+		}
+	}
+
+
 	path->leave_spinning = 1;
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0) {
@@ -4376,11 +4399,18 @@ delete:
 		    (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
 		     root == root->fs_info->tree_root)) {
 			btrfs_set_path_blocking(path);
+			bytes_deleted += extent_num_bytes;
 			ret = btrfs_free_extent(trans, root, extent_start,
 						extent_num_bytes, 0,
 						btrfs_header_owner(leaf),
 						ino, extent_offset, 0);
 			BUG_ON(ret);
+			if (be_nice && pending_del_nr &&
+			    (pending_del_nr % 16 == 0) &&
+			    bytes_deleted > 1024 * 1024) {
+				btrfs_async_run_delayed_refs(root,
+					trans->delayed_ref_updates * 2, 0);
+			}
 		}
 
 		if (found_type == BTRFS_INODE_ITEM_KEY)
@@ -4416,7 +4446,18 @@ error:
 	if (last_size != (u64)-1 &&
 	    root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
 		btrfs_ordered_update_i_size(inode, last_size, NULL);
+
 	btrfs_free_path(path);
+
+	if (be_nice && bytes_deleted > 32 * 1024 * 1024) {
+		unsigned long updates = trans->delayed_ref_updates;
+		if (updates) {
+			trans->delayed_ref_updates = 0;
+			ret = btrfs_run_delayed_refs(trans, root, updates * 2);
+			if (ret && !err)
+				err = ret;
+		}
+	}
 	return err;
 }
 
@@ -5013,7 +5054,7 @@ void btrfs_evict_inode(struct inode *inode)
 		trans->block_rsv = rsv;
 
 		ret = btrfs_truncate_inode_items(trans, root, inode, 0, 0);
-		if (ret != -ENOSPC)
+		if (ret != -ENOSPC && ret != -EAGAIN)
 			break;
 
 		trans->block_rsv = &root->fs_info->trans_block_rsv;
@@ -8582,7 +8623,7 @@ static int btrfs_truncate(struct inode *inode)
 		ret = btrfs_truncate_inode_items(trans, root, inode,
 						 inode->i_size,
 						 BTRFS_EXTENT_DATA_KEY);
-		if (ret != -ENOSPC) {
+		if (ret != -ENOSPC && ret != -EAGAIN) {
 			err = ret;
 			break;
 		}

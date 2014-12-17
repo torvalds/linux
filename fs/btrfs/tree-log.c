@@ -4251,8 +4251,12 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 					  &BTRFS_I(inode)->runtime_flags);
 				clear_bit(BTRFS_INODE_COPY_EVERYTHING,
 					  &BTRFS_I(inode)->runtime_flags);
-				ret = btrfs_truncate_inode_items(trans, log,
-								 inode, 0, 0);
+				while(1) {
+					ret = btrfs_truncate_inode_items(trans,
+							 log, inode, 0, 0);
+					if (ret != -EAGAIN)
+						break;
+				}
 			}
 		} else if (test_and_clear_bit(BTRFS_INODE_COPY_EVERYTHING,
 					      &BTRFS_I(inode)->runtime_flags) ||

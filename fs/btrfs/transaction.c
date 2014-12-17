@@ -718,7 +718,7 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 	updates = trans->delayed_ref_updates;
 	trans->delayed_ref_updates = 0;
 	if (updates) {
-		err = btrfs_run_delayed_refs(trans, root, updates);
+		err = btrfs_run_delayed_refs(trans, root, updates * 2);
 		if (err) /* Error code will also eval true */
 			return err;
 	}
