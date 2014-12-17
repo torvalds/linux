@@ -3038,6 +3038,7 @@ static int ath10k_wmi_event_temperature(struct ath10k *ar, struct sk_buff *skb)
 	if (WARN_ON(skb->len < sizeof(*ev)))
 		return -EPROTO;
 
+	ath10k_thermal_event_temperature(ar, __le32_to_cpu(ev->temperature));
 	return 0;
 }
 

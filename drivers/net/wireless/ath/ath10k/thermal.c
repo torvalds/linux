@@ -17,6 +17,8 @@
 #include <linux/device.h>
 #include <linux/sysfs.h>
 #include <linux/thermal.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include "core.h"
 #include "debug.h"
 #include "wmi-ops.h"
@@ -119,9 +121,72 @@ static struct thermal_cooling_device_ops ath10k_thermal_ops = {
 	.set_cur_state = ath10k_thermal_set_cur_dutycycle,
 };
 
+static ssize_t ath10k_thermal_show_temp(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct ath10k *ar = dev_get_drvdata(dev);
+	int ret, temperature;
+
+	mutex_lock(&ar->conf_mutex);
+
+	/* Can't get temperature when the card is off */
+	if (ar->state != ATH10K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto out;
+	}
+
+	reinit_completion(&ar->thermal.wmi_sync);
+	ret = ath10k_wmi_pdev_get_temperature(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to read temperature %d\n", ret);
+		goto out;
+	}
+
+	if (test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags)) {
+		ret = -ESHUTDOWN;
+		goto out;
+	}
+
+	ret = wait_for_completion_timeout(&ar->thermal.wmi_sync,
+					  ATH10K_THERMAL_SYNC_TIMEOUT_HZ);
+	if (ret == 0) {
+		ath10k_warn(ar, "failed to synchronize thermal read\n");
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+	spin_lock_bh(&ar->data_lock);
+	temperature = ar->thermal.temperature;
+	spin_unlock_bh(&ar->data_lock);
+
+	ret = snprintf(buf, PAGE_SIZE, "%d", temperature);
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+void ath10k_thermal_event_temperature(struct ath10k *ar, int temperature)
+{
+	spin_lock_bh(&ar->data_lock);
+	ar->thermal.temperature = temperature;
+	spin_unlock_bh(&ar->data_lock);
+	complete(&ar->thermal.wmi_sync);
+}
+
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ath10k_thermal_show_temp,
+			  NULL, 0);
+
+static struct attribute *ath10k_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(ath10k_hwmon);
+
 int ath10k_thermal_register(struct ath10k *ar)
 {
 	struct thermal_cooling_device *cdev;
+	struct device *hwmon_dev;
 	int ret;
 
 	cdev = thermal_cooling_device_register("ath10k_thermal", ar,
@@ -141,8 +206,26 @@ int ath10k_thermal_register(struct ath10k *ar)
 	}
 
 	ar->thermal.cdev = cdev;
+
+	/* Do not register hwmon device when temperature reading is not
+	 * supported by firmware
+	 */
+	if (ar->wmi.op_version != ATH10K_FW_WMI_OP_VERSION_10_2_4)
+		return 0;
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(ar->dev,
+							   "ath10k_hwmon", ar,
+							   ath10k_hwmon_groups);
+	if (IS_ERR(hwmon_dev)) {
+		ath10k_err(ar, "failed to register hwmon device: %ld\n",
+			   PTR_ERR(hwmon_dev));
+		ret = -EINVAL;
+		goto err_remove_link;
+	}
 	return 0;
 
+err_remove_link:
+	sysfs_remove_link(&ar->dev->kobj, "thermal_sensor");
 err_cooling_destroy:
 	thermal_cooling_device_unregister(cdev);
 	return ret;

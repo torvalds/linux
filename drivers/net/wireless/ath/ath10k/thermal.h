@@ -20,17 +20,25 @@
 #define ATH10K_QUIET_PERIOD_MIN         25
 #define ATH10K_QUIET_START_OFFSET       10
 #define ATH10K_QUIET_DUTY_CYCLE_MAX     70
+#define ATH10K_HWMON_NAME_LEN           15
+#define ATH10K_THERMAL_SYNC_TIMEOUT_HZ (5*HZ)
 
 struct ath10k_thermal {
 	struct thermal_cooling_device *cdev;
+	struct completion wmi_sync;
 
 	/* protected by conf_mutex */
 	u32 duty_cycle;
+	/* temperature value in Celcius degree
+	 * protected by data_lock
+	 */
+	int temperature;
 };
 
 #ifdef CONFIG_THERMAL
 int ath10k_thermal_register(struct ath10k *ar);
 void ath10k_thermal_unregister(struct ath10k *ar);
+void ath10k_thermal_event_temperature(struct ath10k *ar, int temperature);
 #else
 static inline int ath10k_thermal_register(struct ath10k *ar)
 {
@@ -40,5 +48,11 @@ static inline int ath10k_thermal_register(struct ath10k *ar)
 static inline void ath10k_thermal_unregister(struct ath10k *ar)
 {
 }
+
+static inline void ath10k_thermal_event_temperature(struct ath10k *ar,
+						    int temperature)
+{
+}
+
 #endif
 #endif /* _THERMAL_ */

@@ -844,6 +844,7 @@ static void ath10k_core_restart(struct work_struct *work)
 	complete_all(&ar->offchan_tx_completed);
 	complete_all(&ar->install_key_done);
 	complete_all(&ar->vdev_setup_done);
+	complete_all(&ar->thermal.wmi_sync);
 	wake_up(&ar->htt.empty_tx_wq);
 	wake_up(&ar->wmi.tx_credits_wq);
 	wake_up(&ar->peer_mapping_wq);
@@ -1316,6 +1317,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
+	init_completion(&ar->thermal.wmi_sync);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 
