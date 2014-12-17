@@ -236,10 +236,7 @@ static int xgpio_remove(struct platform_device *pdev)
 {
 	struct xgpio_instance *chip = platform_get_drvdata(pdev);
 
-	gpiochip_remove(&chip->mmchip.gc);
-
-	iounmap(chip->mmchip.regs);
-	kfree(chip->mmchip.gc.label);
+	of_mm_gpiochip_remove(&chip->mmchip);
 
 	return 0;
 }
