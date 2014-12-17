@@ -1073,6 +1073,21 @@ static void record_gp_stall_check_time(struct rcu_state *rsp)
 }
 
 /*
+ * Complain about starvation of grace-period kthread.
+ */
+static void rcu_check_gp_kthread_starvation(struct rcu_state *rsp)
+{
+	unsigned long gpa;
+	unsigned long j;
+
+	j = jiffies;
+	gpa = ACCESS_ONCE(rsp->gp_activity);
+	if (j - gpa > 2 * HZ)
+		pr_err("%s kthread starved for %ld jiffies!\n",
+		       rsp->name, j - gpa);
+}
+
+/*
  * Dump stacks of all tasks running on stalled CPUs.
  */
 static void rcu_dump_cpu_stacks(struct rcu_state *rsp)
@@ -1169,8 +1184,9 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 	}
 
 	/* Complain about tasks blocking the grace period. */
-
 	rcu_print_detail_task_stall(rsp);
+
+	rcu_check_gp_kthread_starvation(rsp);
 
 	force_quiescent_state(rsp);  /* Kick them all. */
 }
@@ -1196,6 +1212,9 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	pr_cont(" (t=%lu jiffies g=%ld c=%ld q=%lu)\n",
 		jiffies - rsp->gp_start,
 		(long)rsp->gpnum, (long)rsp->completed, totqlen);
+
+	rcu_check_gp_kthread_starvation(rsp);
+
 	rcu_dump_cpu_stacks(rsp);
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
