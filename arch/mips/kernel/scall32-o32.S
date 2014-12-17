@@ -580,3 +580,4 @@ EXPORT(sys_call_table)
 	PTR	sys_getrandom
 	PTR	sys_memfd_create
 	PTR	sys_bpf				/* 4355 */
+	PTR	sys_execveat
