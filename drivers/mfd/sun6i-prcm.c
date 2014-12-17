@@ -41,6 +41,14 @@ static const struct resource sun6i_a31_apb0_gates_clk_res[] = {
 	},
 };
 
+static const struct resource sun6i_a31_ir_clk_res[] = {
+	{
+		.start = 0x54,
+		.end = 0x57,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
 static const struct resource sun6i_a31_apb0_rstc_res[] = {
 	{
 		.start = 0xb0,
@@ -67,6 +75,12 @@ static const struct mfd_cell sun6i_a31_prcm_subdevs[] = {
 		.of_compatible = "allwinner,sun6i-a31-apb0-gates-clk",
 		.num_resources = ARRAY_SIZE(sun6i_a31_apb0_gates_clk_res),
 		.resources = sun6i_a31_apb0_gates_clk_res,
+	},
+	{
+		.name = "sun6i-a31-ir-clk",
+		.of_compatible = "allwinner,sun4i-a10-mod0-clk",
+		.num_resources = ARRAY_SIZE(sun6i_a31_ir_clk_res),
+		.resources = sun6i_a31_ir_clk_res,
 	},
 	{
 		.name = "sun6i-a31-apb0-clock-reset",
