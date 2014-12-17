@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/balloon_compaction.h>
+#include <linux/oom.h>
 
 /*
  * Balloon device works in 4K page units.  So each page is pointed to by
@@ -36,6 +37,12 @@
  */
 #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
 #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
+#define OOM_VBALLOON_DEFAULT_PAGES 256
+#define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+
+static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
+module_param(oom_pages, int, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
 
 struct virtio_balloon
 {
@@ -71,6 +78,9 @@ struct virtio_balloon
 	/* Memory statistics */
 	int need_stats_update;
 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+
+	/* To register callback in oom notifier call chain */
+	struct notifier_block nb;
 };
 
 static struct virtio_device_id id_table[] = {
@@ -168,8 +178,9 @@ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
 	}
 }
 
-static void leak_balloon(struct virtio_balloon *vb, size_t num)
+static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
 {
+	unsigned num_freed_pages;
 	struct page *page;
 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
 
@@ -186,6 +197,7 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
 	}
 
+	num_freed_pages = vb->num_pfns;
 	/*
 	 * Note that if
 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
@@ -195,6 +207,7 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 		tell_host(vb, vb->deflate_vq);
 	mutex_unlock(&vb->balloon_lock);
 	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+	return num_freed_pages;
 }
 
 static inline void update_stat(struct virtio_balloon *vb, int idx,
@@ -285,6 +298,38 @@ static void update_balloon_size(struct virtio_balloon *vb)
 
 	virtio_cwrite(vb->vdev, struct virtio_balloon_config, actual,
 		      &actual);
+}
+
+/*
+ * virtballoon_oom_notify - release pages when system is under severe
+ *			    memory pressure (called from out_of_memory())
+ * @self : notifier block struct
+ * @dummy: not used
+ * @parm : returned - number of freed pages
+ *
+ * The balancing of memory by use of the virtio balloon should not cause
+ * the termination of processes while there are pages in the balloon.
+ * If virtio balloon manages to release some memory, it will make the
+ * system return and retry the allocation that forced the OOM killer
+ * to run.
+ */
+static int virtballoon_oom_notify(struct notifier_block *self,
+				  unsigned long dummy, void *parm)
+{
+	struct virtio_balloon *vb;
+	unsigned long *freed;
+	unsigned num_freed_pages;
+
+	vb = container_of(self, struct virtio_balloon, nb);
+	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+		return NOTIFY_OK;
+
+	freed = parm;
+	num_freed_pages = leak_balloon(vb, oom_pages);
+	update_balloon_size(vb);
+	*freed += num_freed_pages;
+
+	return NOTIFY_OK;
 }
 
 static int balloon(void *_vballoon)
@@ -443,6 +488,12 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	if (err)
 		goto out_free_vb;
 
+	vb->nb.notifier_call = virtballoon_oom_notify;
+	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
+	err = register_oom_notifier(&vb->nb);
+	if (err < 0)
+		goto out_oom_notify;
+
 	vb->thread = kthread_run(balloon, vb, "vballoon");
 	if (IS_ERR(vb->thread)) {
 		err = PTR_ERR(vb->thread);
@@ -452,6 +503,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	return 0;
 
 out_del_vqs:
+	unregister_oom_notifier(&vb->nb);
+out_oom_notify:
 	vdev->config->del_vqs(vdev);
 out_free_vb:
 	kfree(vb);
@@ -476,6 +529,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 
+	unregister_oom_notifier(&vb->nb);
 	kthread_stop(vb->thread);
 	remove_common(vb);
 	kfree(vb);
@@ -515,6 +569,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
 static unsigned int features[] = {
 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
 	VIRTIO_BALLOON_F_STATS_VQ,
+	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
 };
 
 static struct virtio_driver virtio_balloon_driver = {
