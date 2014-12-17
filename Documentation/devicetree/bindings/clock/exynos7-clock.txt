@@ -34,6 +34,7 @@ Required Properties for Clock Controller:
 	- "samsung,exynos7-clock-peris"
 	- "samsung,exynos7-clock-fsys0"
 	- "samsung,exynos7-clock-fsys1"
+	- "samsung,exynos7-clock-mscl"
 
  - reg: physical base address of the controller and the length of
 	memory mapped region.
