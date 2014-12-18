@@ -887,9 +887,15 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 		return -EOPNOTSUPP;
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend,
-			 "feature-rx-notify", "%d", &val) < 0 || val == 0) {
-		xenbus_dev_fatal(dev, -EINVAL, "feature-rx-notify is mandatory");
-		return -EINVAL;
+			 "feature-rx-notify", "%d", &val) < 0)
+		val = 0;
+	if (!val) {
+		/* - Reduce drain timeout to poll more frequently for
+		 *   Rx requests.
+		 * - Disable Rx stall detection.
+		 */
+		be->vif->drain_timeout = msecs_to_jiffies(30);
+		be->vif->stall_timeout = 0;
 	}
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-sg",

@@ -60,14 +60,12 @@ module_param(separate_tx_rx_irq, bool, 0644);
  */
 unsigned int rx_drain_timeout_msecs = 10000;
 module_param(rx_drain_timeout_msecs, uint, 0444);
-unsigned int rx_drain_timeout_jiffies;
 
 /* The length of time before the frontend is considered unresponsive
  * because it isn't providing Rx slots.
  */
-static unsigned int rx_stall_timeout_msecs = 60000;
+unsigned int rx_stall_timeout_msecs = 60000;
 module_param(rx_stall_timeout_msecs, uint, 0444);
-static unsigned int rx_stall_timeout_jiffies;
 
 unsigned int xenvif_max_queues;
 module_param_named(max_queues, xenvif_max_queues, uint, 0644);
@@ -2020,7 +2018,7 @@ static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
 	return !queue->stalled
 		&& prod - cons < XEN_NETBK_RX_SLOTS_MAX
 		&& time_after(jiffies,
-			      queue->last_rx_time + rx_stall_timeout_jiffies);
+			      queue->last_rx_time + queue->vif->stall_timeout);
 }
 
 static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
@@ -2038,8 +2036,9 @@ static bool xenvif_have_rx_work(struct xenvif_queue *queue)
 {
 	return (!skb_queue_empty(&queue->rx_queue)
 		&& xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX))
-		|| xenvif_rx_queue_stalled(queue)
-		|| xenvif_rx_queue_ready(queue)
+		|| (queue->vif->stall_timeout &&
+		    (xenvif_rx_queue_stalled(queue)
+		     || xenvif_rx_queue_ready(queue)))
 		|| kthread_should_stop()
 		|| queue->vif->disabled;
 }
@@ -2092,6 +2091,9 @@ int xenvif_kthread_guest_rx(void *data)
 	struct xenvif_queue *queue = data;
 	struct xenvif *vif = queue->vif;
 
+	if (!vif->stall_timeout)
+		xenvif_queue_carrier_on(queue);
+
 	for (;;) {
 		xenvif_wait_for_rx_work(queue);
 
@@ -2118,10 +2120,12 @@ int xenvif_kthread_guest_rx(void *data)
 		 * while it's probably not responsive, drop the
 		 * carrier so packets are dropped earlier.
 		 */
-		if (xenvif_rx_queue_stalled(queue))
-			xenvif_queue_carrier_off(queue);
-		else if (xenvif_rx_queue_ready(queue))
-			xenvif_queue_carrier_on(queue);
+		if (vif->stall_timeout) {
+			if (xenvif_rx_queue_stalled(queue))
+				xenvif_queue_carrier_off(queue);
+			else if (xenvif_rx_queue_ready(queue))
+				xenvif_queue_carrier_on(queue);
+		}
 
 		/* Queued packets may have foreign pages from other
 		 * domains.  These cannot be queued indefinitely as
@@ -2191,9 +2195,6 @@ static int __init netback_init(void)
 	rc = xenvif_xenbus_init();
 	if (rc)
 		goto failed_init;
-
-	rx_drain_timeout_jiffies = msecs_to_jiffies(rx_drain_timeout_msecs);
-	rx_stall_timeout_jiffies = msecs_to_jiffies(rx_stall_timeout_msecs);
 
 #ifdef CONFIG_DEBUG_FS
 	xen_netback_dbg_root = debugfs_create_dir("xen-netback", NULL);
