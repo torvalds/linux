@@ -3570,17 +3570,16 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
 
-	if (rk_fb->disp_mode == ONE_DUAL) {
-		if (dev_drv->ops->dsp_black)
-			dev_drv->ops->dsp_black(dev_drv, 1);
-		if (dev_drv->ops->set_screen_scaler)
-			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 0);
-	} else if (rk_fb->disp_mode == NO_DUAL) {
+	if ((rk_fb->disp_mode == ONE_DUAL) ||
+	    (rk_fb->disp_mode == NO_DUAL)) {
 		if ((dev_drv->ops->backlight_close) &&
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
 			dev_drv->ops->backlight_close(dev_drv, 1);
 		if (dev_drv->ops->dsp_black)
 			dev_drv->ops->dsp_black(dev_drv, 1);
+		if (dev_drv->ops->set_screen_scaler)
+			dev_drv->ops->set_screen_scaler(dev_drv,
+							dev_drv->screen0, 0);
 	}
 
 	if (!enable) {

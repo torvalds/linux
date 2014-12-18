@@ -499,15 +499,6 @@ static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 		screen->post_dsp_sty = y_res - screen->post_ysize;
 	}
 
-	if (screen->y_mirror == 0) {
-		post_dsp_vact_st = screen->post_dsp_sty +
-		    screen->mode.vsync_len + screen->mode.upper_margin;
-		post_dsp_vact_end = post_dsp_vact_st + screen->post_ysize;
-	} else {
-		post_dsp_vact_end = v_total - screen->mode.lower_margin -
-		    screen->post_dsp_sty;
-		post_dsp_vact_st = post_dsp_vact_end - screen->post_ysize;
-	}
 	if ((screen->post_ysize < y_res) && (screen->post_ysize != 0)) {
 		post_vsd_en = 1;
 		post_v_fac = GET_SCALE_FACTOR_BILI_DN(y_res,
@@ -517,10 +508,33 @@ static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 		post_v_fac = 0x1000;
 	}
 
-	if (screen->interlace == 1) {
-		post_dsp_vact_st_f1 = v_total + post_dsp_vact_st;
-		post_dsp_vact_end_f1 = post_dsp_vact_st_f1 + screen->post_ysize;
+	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+		post_dsp_vact_st = screen->post_dsp_sty +
+		    screen->mode.vsync_len + screen->mode.upper_margin;
+		post_dsp_vact_end = post_dsp_vact_st + screen->post_ysize;
+
+		post_dsp_vact_st_f1 = screen->mode.vsync_len +
+				      screen->mode.upper_margin +
+				      y_res/2 +
+				      screen->mode.lower_margin +
+				      screen->mode.vsync_len +
+				      screen->mode.upper_margin + 1;
+		post_dsp_vact_end_f1 = post_dsp_vact_st_f1 +
+					screen->post_ysize/2;
 	} else {
+		if (screen->y_mirror == 0) {
+			post_dsp_vact_st = screen->post_dsp_sty +
+			    screen->mode.vsync_len +
+			    screen->mode.upper_margin;
+			post_dsp_vact_end = post_dsp_vact_st +
+				screen->post_ysize;
+		} else {
+			post_dsp_vact_end = v_total -
+				screen->mode.lower_margin -
+			    screen->post_dsp_sty;
+			post_dsp_vact_st = post_dsp_vact_end -
+				screen->post_ysize;
+		}
 		post_dsp_vact_st_f1 = 0;
 		post_dsp_vact_end_f1 = 0;
 	}
@@ -1723,6 +1737,7 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			break;
 		case SCREEN_HDMI:
 			/*face = OUT_RGB_AAA;*/
+			dev_drv->overlay_mode = VOP_YUV_DOMAIN;
 			mask = m_HDMI_OUT_EN  | m_RGB_OUT_EN;
 			val = v_HDMI_OUT_EN(1) | v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
@@ -1798,8 +1813,20 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
 		/*BG color */
 		mask = m_DSP_BG_BLUE | m_DSP_BG_GREEN | m_DSP_BG_RED;
-		val = v_DSP_BG_BLUE(0) | v_DSP_BG_GREEN(0) | v_DSP_BG_RED(0);
+		if (dev_drv->overlay_mode == VOP_YUV_DOMAIN)
+			val = v_DSP_BG_BLUE(0x80) | v_DSP_BG_GREEN(0x10) |
+				v_DSP_BG_RED(0x80);
+		else
+			val = v_DSP_BG_BLUE(0) | v_DSP_BG_GREEN(0) |
+				v_DSP_BG_RED(0);
 		lcdc_msk_reg(lcdc_dev, DSP_BG, mask, val);
+		dev_drv->output_color = screen->color_mode;
+		if (screen->dsp_lut == NULL)
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
+				     v_DSP_LUT_EN(0));
+		else
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
+				     v_DSP_LUT_EN(1));
 		rk3368_lcdc_bcsh_path_sel(dev_drv);
 		rk3368_config_timing(dev_drv);
 	}
