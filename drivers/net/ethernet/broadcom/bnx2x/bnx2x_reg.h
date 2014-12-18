@@ -7549,7 +7549,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_REG_SISR_MDPC_WOMASK_UPPER		0x05a6
 
 #define IGU_REG_RESERVED_UPPER				0x05ff
-/* Fields of IGU PF CONFIGRATION REGISTER */
+/* Fields of IGU PF CONFIGURATION REGISTER */
 #define IGU_PF_CONF_FUNC_EN	  (0x1<<0)  /* function enable	      */
 #define IGU_PF_CONF_MSI_MSIX_EN   (0x1<<1)  /* MSI/MSIX enable	      */
 #define IGU_PF_CONF_INT_LINE_EN   (0x1<<2)  /* INT enable	      */
@@ -7557,7 +7557,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1<<4)  /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE	  (0x1<<5)  /* simd all ones mode     */
 
-/* Fields of IGU VF CONFIGRATION REGISTER */
+/* Fields of IGU VF CONFIGURATION REGISTER */
 #define IGU_VF_CONF_FUNC_EN	   (0x1<<0)  /* function enable        */
 #define IGU_VF_CONF_MSI_MSIX_EN    (0x1<<1)  /* MSI/MSIX enable        */
 #define IGU_VF_CONF_PARENT_MASK    (0x3<<2)  /* Parent PF	       */
