@@ -172,7 +172,7 @@ void __init msm_map_msm7x30_io(void)
 }
 #endif /* CONFIG_ARCH_MSM7X30 */
 
-void __iomem *__msm_ioremap_caller(unsigned long phys_addr, size_t size,
+void __iomem *__msm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 				   unsigned int mtype, void *caller)
 {
 	if (mtype == MT_DEVICE) {
