@@ -251,9 +251,6 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 	unsigned offset = 0x400;
 	u32 value, orig;
 
-	if (!is_lpss_ssp(drv_data))
-		return;
-
 	/*
 	 * Perform auto-detection of the LPSS SSP private registers. They
 	 * can be either at 1k or 2k offset from the base address.
@@ -302,9 +299,6 @@ static void lpss_ssp_cs_control(struct driver_data *drv_data, bool enable)
 {
 	u32 value;
 
-	if (!is_lpss_ssp(drv_data))
-		return;
-
 	value = __lpss_ssp_read_priv(drv_data, SPI_CS_CONTROL);
 	if (enable)
 		value &= ~SPI_CS_CONTROL_CS_HIGH;
@@ -332,7 +326,8 @@ static void cs_assert(struct driver_data *drv_data)
 		return;
 	}
 
-	lpss_ssp_cs_control(drv_data, true);
+	if (is_lpss_ssp(drv_data))
+		lpss_ssp_cs_control(drv_data, true);
 }
 
 static void cs_deassert(struct driver_data *drv_data)
@@ -352,7 +347,8 @@ static void cs_deassert(struct driver_data *drv_data)
 		return;
 	}
 
-	lpss_ssp_cs_control(drv_data, false);
+	if (is_lpss_ssp(drv_data))
+		lpss_ssp_cs_control(drv_data, false);
 }
 
 int pxa2xx_spi_flush(struct driver_data *drv_data)
@@ -1415,7 +1411,8 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (!is_quark_x1000_ssp(drv_data))
 		write_SSPSP(0, drv_data->ioaddr);
 
-	lpss_ssp_setup(drv_data);
+	if (is_lpss_ssp(drv_data))
+		lpss_ssp_setup(drv_data);
 
 	tasklet_init(&drv_data->pump_transfers, pump_transfers,
 		     (unsigned long)drv_data);
