@@ -1103,14 +1103,13 @@ static int __inject_sigp_emergency(struct kvm_vcpu *vcpu,
 				   struct kvm_s390_irq *irq)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	struct kvm_s390_emerg_info *emerg = &li->irq.emerg;
 
 	VCPU_EVENT(vcpu, 3, "inject: emergency %u\n",
 		   irq->u.emerg.code);
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_INT_EMERGENCY,
-				   emerg->code, 0, 2);
+				   irq->u.emerg.code, 0, 2);
 
-	set_bit(emerg->code, li->sigp_emerg_pending);
+	set_bit(irq->u.emerg.code, li->sigp_emerg_pending);
 	set_bit(IRQ_PEND_EXT_EMERGENCY, &li->pending_irqs);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	return 0;
