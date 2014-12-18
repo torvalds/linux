@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <asm/cacheflush.h>
 #include <asm/asm-offsets.h>
+#include <asm/kgdb.h>
 #include <asm/pvr.h>
 
 #define GDB_REG		0
@@ -77,7 +78,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 		pt_regb[i] = gdb_regs[i];
 }
 
-void microblaze_kgdb_break(struct pt_regs *regs)
+asmlinkage void microblaze_kgdb_break(struct pt_regs *regs)
 {
 	if (kgdb_handle_exception(1, SIGTRAP, 0, regs) != 0)
 		return;
