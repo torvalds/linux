@@ -75,6 +75,8 @@ enum {
 	OCRDMA_CMD_DESTROY_RBQ = 26,
 
 	OCRDMA_CMD_GET_RDMA_STATS = 27,
+	OCRDMA_CMD_ALLOC_PD_RANGE = 28,
+	OCRDMA_CMD_DEALLOC_PD_RANGE = 29,
 
 	OCRDMA_CMD_MAX
 };
@@ -1295,6 +1297,37 @@ struct ocrdma_dealloc_pd {
 struct ocrdma_dealloc_pd_rsp {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_rsp rsp;
+};
+
+struct ocrdma_alloc_pd_range {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_hdr req;
+	u32 enable_dpp_rsvd;
+	u32 pd_count;
+};
+
+struct ocrdma_alloc_pd_range_rsp {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_rsp rsp;
+	u32 dpp_page_pdid;
+	u32 pd_count;
+};
+
+enum {
+	OCRDMA_ALLOC_PD_RNG_RSP_START_PDID_MASK = 0xFFFF,
+};
+
+struct ocrdma_dealloc_pd_range {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_hdr req;
+	u32 start_pd_id;
+	u32 pd_count;
+};
+
+struct ocrdma_dealloc_pd_range_rsp {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_hdr req;
+	u32 rsvd;
 };
 
 enum {

@@ -1050,6 +1050,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_pd =
 	    (rsp->max_pd_ca_ack_delay & OCRDMA_MBX_QUERY_CFG_MAX_PD_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_PD_SHIFT;
+	attr->max_dpp_pds =
+	   (rsp->max_dpp_pds_credits & OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_MASK) >>
+	    OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_OFFSET;
 	attr->max_qp =
 	    (rsp->qp_srq_cq_ird_ord & OCRDMA_MBX_QUERY_CFG_MAX_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_QP_SHIFT;
@@ -1394,6 +1397,122 @@ int ocrdma_mbx_dealloc_pd(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	kfree(cmd);
 	return status;
+}
+
+
+static int ocrdma_mbx_alloc_pd_range(struct ocrdma_dev *dev)
+{
+	int status = -ENOMEM;
+	size_t pd_bitmap_size;
+	struct ocrdma_alloc_pd_range *cmd;
+	struct ocrdma_alloc_pd_range_rsp *rsp;
+
+	/* Pre allocate the DPP PDs */
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_ALLOC_PD_RANGE, sizeof(*cmd));
+	if (!cmd)
+		return -ENOMEM;
+	cmd->pd_count = dev->attr.max_dpp_pds;
+	cmd->enable_dpp_rsvd |= OCRDMA_ALLOC_PD_ENABLE_DPP;
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
+	if (status)
+		goto mbx_err;
+	rsp = (struct ocrdma_alloc_pd_range_rsp *)cmd;
+
+	if ((rsp->dpp_page_pdid & OCRDMA_ALLOC_PD_RSP_DPP) && rsp->pd_count) {
+		dev->pd_mgr->dpp_page_index = rsp->dpp_page_pdid >>
+				OCRDMA_ALLOC_PD_RSP_DPP_PAGE_SHIFT;
+		dev->pd_mgr->pd_dpp_start = rsp->dpp_page_pdid &
+				OCRDMA_ALLOC_PD_RNG_RSP_START_PDID_MASK;
+		dev->pd_mgr->max_dpp_pd = rsp->pd_count;
+		pd_bitmap_size = BITS_TO_LONGS(rsp->pd_count) * sizeof(long);
+		dev->pd_mgr->pd_dpp_bitmap = kzalloc(pd_bitmap_size,
+						     GFP_KERNEL);
+	}
+	kfree(cmd);
+
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_ALLOC_PD_RANGE, sizeof(*cmd));
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->pd_count = dev->attr.max_pd - dev->attr.max_dpp_pds;
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
+	if (status)
+		goto mbx_err;
+	rsp = (struct ocrdma_alloc_pd_range_rsp *)cmd;
+	if (rsp->pd_count) {
+		dev->pd_mgr->pd_norm_start = rsp->dpp_page_pdid &
+					OCRDMA_ALLOC_PD_RNG_RSP_START_PDID_MASK;
+		dev->pd_mgr->max_normal_pd = rsp->pd_count;
+		pd_bitmap_size = BITS_TO_LONGS(rsp->pd_count) * sizeof(long);
+		dev->pd_mgr->pd_norm_bitmap = kzalloc(pd_bitmap_size,
+						      GFP_KERNEL);
+	}
+
+	if (dev->pd_mgr->pd_norm_bitmap || dev->pd_mgr->pd_dpp_bitmap) {
+		/* Enable PD resource manager */
+		dev->pd_mgr->pd_prealloc_valid = true;
+	} else {
+		return -ENOMEM;
+	}
+mbx_err:
+	kfree(cmd);
+	return status;
+}
+
+static void ocrdma_mbx_dealloc_pd_range(struct ocrdma_dev *dev)
+{
+	struct ocrdma_dealloc_pd_range *cmd;
+
+	/* return normal PDs to firmware */
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_DEALLOC_PD_RANGE, sizeof(*cmd));
+	if (!cmd)
+		goto mbx_err;
+
+	if (dev->pd_mgr->max_normal_pd) {
+		cmd->start_pd_id = dev->pd_mgr->pd_norm_start;
+		cmd->pd_count = dev->pd_mgr->max_normal_pd;
+		ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
+	}
+
+	if (dev->pd_mgr->max_dpp_pd) {
+		kfree(cmd);
+		/* return DPP PDs to firmware */
+		cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_DEALLOC_PD_RANGE,
+					  sizeof(*cmd));
+		if (!cmd)
+			goto mbx_err;
+
+		cmd->start_pd_id = dev->pd_mgr->pd_dpp_start;
+		cmd->pd_count = dev->pd_mgr->max_dpp_pd;
+		ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
+	}
+mbx_err:
+	kfree(cmd);
+}
+
+void ocrdma_alloc_pd_pool(struct ocrdma_dev *dev)
+{
+	int status;
+
+	dev->pd_mgr = kzalloc(sizeof(struct ocrdma_pd_resource_mgr),
+			      GFP_KERNEL);
+	if (!dev->pd_mgr) {
+		pr_err("%s(%d)Memory allocation failure.\n", __func__, dev->id);
+		return;
+	}
+	status = ocrdma_mbx_alloc_pd_range(dev);
+	if (status) {
+		pr_err("%s(%d) Unable to initialize PD pool, using default.\n",
+			 __func__, dev->id);
+	}
+}
+
+static void ocrdma_free_pd_pool(struct ocrdma_dev *dev)
+{
+	ocrdma_mbx_dealloc_pd_range(dev);
+	kfree(dev->pd_mgr->pd_norm_bitmap);
+	kfree(dev->pd_mgr->pd_dpp_bitmap);
+	kfree(dev->pd_mgr);
 }
 
 static int ocrdma_build_q_conf(u32 *num_entries, int entry_size,
@@ -2915,6 +3034,7 @@ qpeq_err:
 
 void ocrdma_cleanup_hw(struct ocrdma_dev *dev)
 {
+	ocrdma_free_pd_pool(dev);
 	ocrdma_mbx_delete_ah_tbl(dev);
 
 	/* cleanup the eqs */

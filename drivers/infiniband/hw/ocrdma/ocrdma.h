@@ -61,6 +61,7 @@ struct ocrdma_dev_attr {
 	u32 vendor_id;
 	u32 device_id;
 	u16 max_pd;
+	u16 max_dpp_pds;
 	u16 max_cq;
 	u16 max_cqe;
 	u16 max_qp;
@@ -171,6 +172,21 @@ struct ocrdma_stats {
 	struct ocrdma_dev *dev;
 };
 
+struct ocrdma_pd_resource_mgr {
+	u32 pd_norm_start;
+	u16 pd_norm_count;
+	u16 pd_norm_thrsh;
+	u16 max_normal_pd;
+	u32 pd_dpp_start;
+	u16 pd_dpp_count;
+	u16 pd_dpp_thrsh;
+	u16 max_dpp_pd;
+	u16 dpp_page_index;
+	unsigned long *pd_norm_bitmap;
+	unsigned long *pd_dpp_bitmap;
+	bool pd_prealloc_valid;
+};
+
 struct stats_mem {
 	struct ocrdma_mqe mqe;
 	void *va;
@@ -256,6 +272,7 @@ struct ocrdma_dev {
 	struct ocrdma_stats tx_dbg_stats;
 	struct ocrdma_stats rx_dbg_stats;
 	struct dentry *dir;
+	struct ocrdma_pd_resource_mgr *pd_mgr;
 };
 
 struct ocrdma_cq {

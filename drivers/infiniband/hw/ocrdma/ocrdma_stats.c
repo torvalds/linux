@@ -489,6 +489,9 @@ static void ocrdma_update_stats(struct ocrdma_dev *dev)
 {
 	ulong now = jiffies, secs;
 	int status = 0;
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		      (struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rsrc_stats *rsrc_stats = &rdma_stats->act_rsrc_stats;
 
 	secs = jiffies_to_msecs(now - dev->last_stats_time) / 1000U;
 	if (secs) {
@@ -497,6 +500,15 @@ static void ocrdma_update_stats(struct ocrdma_dev *dev)
 		if (status)
 			pr_err("%s: stats mbox failed with status = %d\n",
 			       __func__, status);
+		/* Update PD counters from PD resource manager */
+		if (dev->pd_mgr->pd_prealloc_valid) {
+			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_count;
+			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_count;
+			/* Threshold stata*/
+			rsrc_stats = &rdma_stats->th_rsrc_stats;
+			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_thrsh;
+			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_thrsh;
+		}
 		dev->last_stats_time = jiffies;
 	}
 }

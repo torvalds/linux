@@ -329,6 +329,8 @@ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 	if (dev->stag_arr == NULL)
 		goto alloc_err;
 
+	ocrdma_alloc_pd_pool(dev);
+
 	spin_lock_init(&dev->av_tbl.lock);
 	spin_lock_init(&dev->flush_q_lock);
 	return 0;

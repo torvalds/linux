@@ -253,6 +253,107 @@ static bool ocrdma_search_mmap(struct ocrdma_ucontext *uctx, u64 phy_addr,
 	return found;
 }
 
+
+static u16 _ocrdma_pd_mgr_get_bitmap(struct ocrdma_dev *dev, bool dpp_pool)
+{
+	u16 pd_bitmap_idx = 0;
+	const unsigned long *pd_bitmap;
+
+	if (dpp_pool) {
+		pd_bitmap = dev->pd_mgr->pd_dpp_bitmap;
+		pd_bitmap_idx = find_first_zero_bit(pd_bitmap,
+						    dev->pd_mgr->max_dpp_pd);
+		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_dpp_bitmap);
+		dev->pd_mgr->pd_dpp_count++;
+		if (dev->pd_mgr->pd_dpp_count > dev->pd_mgr->pd_dpp_thrsh)
+			dev->pd_mgr->pd_dpp_thrsh = dev->pd_mgr->pd_dpp_count;
+	} else {
+		pd_bitmap = dev->pd_mgr->pd_norm_bitmap;
+		pd_bitmap_idx = find_first_zero_bit(pd_bitmap,
+						    dev->pd_mgr->max_normal_pd);
+		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_norm_bitmap);
+		dev->pd_mgr->pd_norm_count++;
+		if (dev->pd_mgr->pd_norm_count > dev->pd_mgr->pd_norm_thrsh)
+			dev->pd_mgr->pd_norm_thrsh = dev->pd_mgr->pd_norm_count;
+	}
+	return pd_bitmap_idx;
+}
+
+static int _ocrdma_pd_mgr_put_bitmap(struct ocrdma_dev *dev, u16 pd_id,
+					bool dpp_pool)
+{
+	u16 pd_count;
+	u16 pd_bit_index;
+
+	pd_count = dpp_pool ? dev->pd_mgr->pd_dpp_count :
+			      dev->pd_mgr->pd_norm_count;
+	if (pd_count == 0)
+		return -EINVAL;
+
+	if (dpp_pool) {
+		pd_bit_index = pd_id - dev->pd_mgr->pd_dpp_start;
+		if (pd_bit_index >= dev->pd_mgr->max_dpp_pd) {
+			return -EINVAL;
+		} else {
+			__clear_bit(pd_bit_index, dev->pd_mgr->pd_dpp_bitmap);
+			dev->pd_mgr->pd_dpp_count--;
+		}
+	} else {
+		pd_bit_index = pd_id - dev->pd_mgr->pd_norm_start;
+		if (pd_bit_index >= dev->pd_mgr->max_normal_pd) {
+			return -EINVAL;
+		} else {
+			__clear_bit(pd_bit_index, dev->pd_mgr->pd_norm_bitmap);
+			dev->pd_mgr->pd_norm_count--;
+		}
+	}
+
+	return 0;
+}
+
+static u8 ocrdma_put_pd_num(struct ocrdma_dev *dev, u16 pd_id,
+				   bool dpp_pool)
+{
+	int status;
+
+	mutex_lock(&dev->dev_lock);
+	status = _ocrdma_pd_mgr_put_bitmap(dev, pd_id, dpp_pool);
+	mutex_unlock(&dev->dev_lock);
+	return status;
+}
+
+static int ocrdma_get_pd_num(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
+{
+	u16 pd_idx = 0;
+	int status = 0;
+
+	mutex_lock(&dev->dev_lock);
+	if (pd->dpp_enabled) {
+		/* try allocating DPP PD, if not available then normal PD */
+		if (dev->pd_mgr->pd_dpp_count < dev->pd_mgr->max_dpp_pd) {
+			pd_idx = _ocrdma_pd_mgr_get_bitmap(dev, true);
+			pd->id = dev->pd_mgr->pd_dpp_start + pd_idx;
+			pd->dpp_page = dev->pd_mgr->dpp_page_index + pd_idx;
+		} else if (dev->pd_mgr->pd_norm_count <
+			   dev->pd_mgr->max_normal_pd) {
+			pd_idx = _ocrdma_pd_mgr_get_bitmap(dev, false);
+			pd->id = dev->pd_mgr->pd_norm_start + pd_idx;
+			pd->dpp_enabled = false;
+		} else {
+			status = -EINVAL;
+		}
+	} else {
+		if (dev->pd_mgr->pd_norm_count < dev->pd_mgr->max_normal_pd) {
+			pd_idx = _ocrdma_pd_mgr_get_bitmap(dev, false);
+			pd->id = dev->pd_mgr->pd_norm_start + pd_idx;
+		} else {
+			status = -EINVAL;
+		}
+	}
+	mutex_unlock(&dev->dev_lock);
+	return status;
+}
+
 static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 					  struct ocrdma_ucontext *uctx,
 					  struct ib_udata *udata)
@@ -270,6 +371,11 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 		pd->num_dpp_qp =
 			pd->dpp_enabled ? (dev->nic_info.db_page_size /
 					   dev->attr.wqe_size) : 0;
+	}
+
+	if (dev->pd_mgr->pd_prealloc_valid) {
+		status = ocrdma_get_pd_num(dev, pd);
+		return (status == 0) ? pd : ERR_PTR(status);
 	}
 
 retry:
@@ -299,7 +405,11 @@ static int _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
 {
 	int status = 0;
 
-	status = ocrdma_mbx_dealloc_pd(dev, pd);
+	if (dev->pd_mgr->pd_prealloc_valid)
+		status = ocrdma_put_pd_num(dev, pd->id, pd->dpp_enabled);
+	else
+		status = ocrdma_mbx_dealloc_pd(dev, pd);
+
 	kfree(pd);
 	return status;
 }
@@ -569,7 +679,7 @@ err:
 	if (is_uctx_pd) {
 		ocrdma_release_ucontext_pd(uctx);
 	} else {
-		status = ocrdma_mbx_dealloc_pd(dev, pd);
+		status = _ocrdma_dealloc_pd(dev, pd);
 		kfree(pd);
 	}
 exit:
