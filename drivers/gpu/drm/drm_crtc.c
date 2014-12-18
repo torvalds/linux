@@ -1991,6 +1991,38 @@ static struct drm_encoder *drm_connector_get_encoder(struct drm_connector *conne
 	return connector->encoder;
 }
 
+/* helper for getconnector and getproperties ioctls */
+static int get_properties(struct drm_mode_object *obj,
+		uint32_t __user *prop_ptr, uint64_t __user *prop_values,
+		uint32_t *arg_count_props)
+{
+	int props_count = obj->properties->count;
+	int i, ret, copied = 0;
+
+	if ((*arg_count_props >= props_count) && props_count) {
+		copied = 0;
+		for (i = 0; i < props_count; i++) {
+			struct drm_property *prop = obj->properties->properties[i];
+			uint64_t val;
+
+			ret = drm_object_property_get_value(obj, prop, &val);
+			if (ret)
+				return ret;
+
+			if (put_user(prop->base.id, prop_ptr + copied))
+				return -EFAULT;
+
+			if (put_user(val, prop_values + copied))
+				return -EFAULT;
+
+			copied++;
+		}
+	}
+	*arg_count_props = props_count;
+
+	return 0;
+}
+
 /**
  * drm_mode_getconnector - get connector configuration
  * @dev: drm device for the ioctl
@@ -2012,15 +2044,12 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	struct drm_encoder *encoder;
 	struct drm_display_mode *mode;
 	int mode_count = 0;
-	int props_count = 0;
 	int encoders_count = 0;
 	int ret = 0;
 	int copied = 0;
 	int i;
 	struct drm_mode_modeinfo u_mode;
 	struct drm_mode_modeinfo __user *mode_ptr;
-	uint32_t __user *prop_ptr;
-	uint64_t __user *prop_values;
 	uint32_t __user *encoder_ptr;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -2038,8 +2067,6 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		ret = -ENOENT;
 		goto out;
 	}
-
-	props_count = connector->properties.count;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
 		if (connector->encoder_ids[i] != 0)
@@ -2091,30 +2118,12 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	}
 	out_resp->count_modes = mode_count;
 
-	if ((out_resp->count_props >= props_count) && props_count) {
-		copied = 0;
-		prop_ptr = (uint32_t __user *)(unsigned long)(out_resp->props_ptr);
-		prop_values = (uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr);
-		for (i = 0; i < connector->properties.count; i++) {
-			struct drm_property *prop = connector->properties.properties[i];
-			uint64_t val;
-
-			ret = drm_object_property_get_value(&connector->base, prop, &val);
-			if (ret)
-				goto out;
-
-			if (put_user(prop->base.id, prop_ptr + copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
-			if (put_user(val, prop_values + copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
-			copied++;
-		}
-	}
-	out_resp->count_props = props_count;
+	ret = get_properties(&connector->base,
+			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
+			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
+			&out_resp->count_props);
+	if (ret)
+		goto out;
 
 	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
 		copied = 0;
@@ -4388,11 +4397,6 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 	struct drm_mode_obj_get_properties *arg = data;
 	struct drm_mode_object *obj;
 	int ret = 0;
-	int i;
-	int copied = 0;
-	int props_count = 0;
-	uint32_t __user *props_ptr;
-	uint64_t __user *prop_values_ptr;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -4409,36 +4413,11 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	props_count = obj->properties->count;
+	ret = get_properties(obj,
+			(uint32_t __user *)(unsigned long)(arg->props_ptr),
+			(uint64_t __user *)(unsigned long)(arg->prop_values_ptr),
+			&arg->count_props);
 
-	/* This ioctl is called twice, once to determine how much space is
-	 * needed, and the 2nd time to fill it. */
-	if ((arg->count_props >= props_count) && props_count) {
-		copied = 0;
-		props_ptr = (uint32_t __user *)(unsigned long)(arg->props_ptr);
-		prop_values_ptr = (uint64_t __user *)(unsigned long)
-				  (arg->prop_values_ptr);
-		for (i = 0; i < props_count; i++) {
-			struct drm_property *prop = obj->properties->properties[i];
-			uint64_t val;
-
-			ret = drm_object_property_get_value(obj, prop, &val);
-			if (ret)
-				goto out;
-
-			if (put_user(prop->base.id, props_ptr + copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
-
-			if (put_user(val, prop_values_ptr + copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
-			copied++;
-		}
-	}
-	arg->count_props = props_count;
 out:
 	drm_modeset_unlock_all(dev);
 	return ret;
