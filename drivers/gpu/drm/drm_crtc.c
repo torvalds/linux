@@ -38,6 +38,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
+#include <drm/drm_atomic.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -1992,18 +1993,24 @@ static struct drm_encoder *drm_connector_get_encoder(struct drm_connector *conne
 }
 
 /* helper for getconnector and getproperties ioctls */
-static int get_properties(struct drm_mode_object *obj,
+static int get_properties(struct drm_mode_object *obj, bool atomic,
 		uint32_t __user *prop_ptr, uint64_t __user *prop_values,
 		uint32_t *arg_count_props)
 {
-	int props_count = obj->properties->count;
-	int i, ret, copied = 0;
+	int props_count;
+	int i, ret, copied;
+
+	props_count = obj->properties->count;
+	if (!atomic)
+		props_count -= obj->properties->atomic_count;
 
 	if ((*arg_count_props >= props_count) && props_count) {
-		copied = 0;
-		for (i = 0; i < props_count; i++) {
+		for (i = 0, copied = 0; copied < props_count; i++) {
 			struct drm_property *prop = obj->properties->properties[i];
 			uint64_t val;
+
+			if ((prop->flags & DRM_MODE_PROP_ATOMIC) && !atomic)
+				continue;
 
 			ret = drm_object_property_get_value(obj, prop, &val);
 			if (ret)
@@ -2118,7 +2125,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	}
 	out_resp->count_modes = mode_count;
 
-	ret = get_properties(&connector->base,
+	ret = get_properties(&connector->base, file_priv->atomic,
 			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
 			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
 			&out_resp->count_props);
@@ -3832,6 +3839,8 @@ void drm_object_attach_property(struct drm_mode_object *obj,
 	obj->properties->properties[count] = property;
 	obj->properties->values[count] = init_val;
 	obj->properties->count++;
+	if (property->flags & DRM_MODE_PROP_ATOMIC)
+		obj->properties->atomic_count++;
 }
 EXPORT_SYMBOL(drm_object_attach_property);
 
@@ -3882,6 +3891,14 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 				  struct drm_property *property, uint64_t *val)
 {
 	int i;
+
+	/* read-only properties bypass atomic mechanism and still store
+	 * their value in obj->properties->values[].. mostly to avoid
+	 * having to deal w/ EDID and similar props in atomic paths:
+	 */
+	if (drm_core_check_feature(property->dev, DRIVER_ATOMIC) &&
+			!(property->flags & DRM_MODE_PROP_IMMUTABLE))
+		return drm_atomic_get_property(obj, property, val);
 
 	for (i = 0; i < obj->properties->count; i++) {
 		if (obj->properties->properties[i] == property) {
@@ -4413,7 +4430,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	ret = get_properties(obj,
+	ret = get_properties(obj, file_priv->atomic,
 			(uint32_t __user *)(unsigned long)(arg->props_ptr),
 			(uint64_t __user *)(unsigned long)(arg->prop_values_ptr),
 			&arg->count_props);

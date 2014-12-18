@@ -654,6 +654,13 @@ struct drm_get_cap {
  */
 #define DRM_CLIENT_CAP_UNIVERSAL_PLANES  2
 
+/**
+ * DRM_CLIENT_CAP_ATOMIC
+ *
+ * If set to 1, the DRM core will expose atomic properties to userspace
+ */
+#define DRM_CLIENT_CAP_ATOMIC	3
+
 /** DRM_IOCTL_SET_CLIENT_CAP ioctl argument type */
 struct drm_set_client_cap {
 	__u64 capability;

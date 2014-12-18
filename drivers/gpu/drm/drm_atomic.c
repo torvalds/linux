@@ -521,6 +521,51 @@ int drm_atomic_connector_get_property(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_atomic_connector_get_property);
 
 /**
+ * drm_atomic_get_property - helper to read atomic property
+ * @obj: drm mode object whose property to read
+ * @property: the property to read
+ * @val: the read value, returned by reference
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_atomic_get_property(struct drm_mode_object *obj,
+		struct drm_property *property, uint64_t *val)
+{
+	struct drm_device *dev = property->dev;
+	int ret;
+
+	switch (obj->type) {
+	case DRM_MODE_OBJECT_CONNECTOR: {
+		struct drm_connector *connector = obj_to_connector(obj);
+		WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+		ret = drm_atomic_connector_get_property(connector,
+				connector->state, property, val);
+		break;
+	}
+	case DRM_MODE_OBJECT_CRTC: {
+		struct drm_crtc *crtc = obj_to_crtc(obj);
+		WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+		ret = drm_atomic_crtc_get_property(crtc,
+				crtc->state, property, val);
+		break;
+	}
+	case DRM_MODE_OBJECT_PLANE: {
+		struct drm_plane *plane = obj_to_plane(obj);
+		WARN_ON(!drm_modeset_is_locked(&plane->mutex));
+		ret = drm_atomic_plane_get_property(plane,
+				plane->state, property, val);
+		break;
+	}
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+/**
  * drm_atomic_set_crtc_for_plane - set crtc for plane
  * @plane_state: the plane whose incoming state to update
  * @crtc: crtc to use for the plane

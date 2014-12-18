@@ -239,6 +239,14 @@
               Driver supports dedicated render nodes.
             </para></listitem>
           </varlistentry>
+          <varlistentry>
+            <term>DRIVER_ATOMIC</term>
+            <listitem><para>
+              Driver supports atomic properties.  In this case the driver
+              must implement appropriate obj->atomic_get_property() vfuncs
+              for any modeset objects with driver specific properties.
+            </para></listitem>
+          </varlistentry>
         </variablelist>
       </sect3>
       <sect3>

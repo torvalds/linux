@@ -63,6 +63,9 @@ int drm_atomic_connector_get_property(struct drm_connector *connector,
 		const struct drm_connector_state *state,
 		struct drm_property *property, uint64_t *val);
 
+int drm_atomic_get_property(struct drm_mode_object *obj,
+			   struct drm_property *property, uint64_t *val);
+
 int __must_check
 drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 			      struct drm_crtc *crtc);

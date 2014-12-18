@@ -272,6 +272,13 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_OBJECT		DRM_MODE_PROP_TYPE(1)
 #define DRM_MODE_PROP_SIGNED_RANGE	DRM_MODE_PROP_TYPE(2)
 
+/* the PROP_ATOMIC flag is used to hide properties from userspace that
+ * is not aware of atomic properties.  This is mostly to work around
+ * older userspace (DDX drivers) that read/write each prop they find,
+ * witout being aware that this could be triggering a lengthy modeset.
+ */
+#define DRM_MODE_PROP_ATOMIC        0x80000000
+
 struct drm_mode_property_enum {
 	__u64 value;
 	char name[DRM_PROP_NAME_LEN];
