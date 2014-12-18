@@ -2485,7 +2485,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			.user_freq     = UINT_MAX,
 			.user_interval = ULLONG_MAX,
 			.no_buffering  = true,
-			.mmap_pages    = 1024,
+			.mmap_pages    = UINT_MAX,
 		},
 		.output = stdout,
 		.show_comm = true,
