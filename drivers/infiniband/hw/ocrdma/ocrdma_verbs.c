@@ -1522,8 +1522,6 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 		goto mbx_err;
 	if (qp->qp_type == IB_QPT_UD)
 		qp_attr->qkey = params.qkey;
-	qp_attr->qp_state = get_ibqp_state(IB_QPS_INIT);
-	qp_attr->cur_qp_state = get_ibqp_state(IB_QPS_INIT);
 	qp_attr->path_mtu =
 		ocrdma_mtu_int_to_enum(params.path_mtu_pkey_indx &
 				OCRDMA_QP_PARAMS_PATH_MTU_MASK) >>
@@ -1578,6 +1576,8 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	memset(&qp_attr->alt_ah_attr, 0, sizeof(qp_attr->alt_ah_attr));
 	qp_state = (params.max_sge_recv_flags & OCRDMA_QP_PARAMS_STATE_MASK) >>
 		    OCRDMA_QP_PARAMS_STATE_SHIFT;
+	qp_attr->qp_state = get_ibqp_state(qp_state);
+	qp_attr->cur_qp_state = qp_attr->qp_state;
 	qp_attr->sq_draining = (qp_state == OCRDMA_QPS_SQ_DRAINING) ? 1 : 0;
 	qp_attr->max_dest_rd_atomic =
 	    params.max_ord_ird >> OCRDMA_QP_PARAMS_MAX_ORD_SHIFT;
@@ -1585,6 +1585,8 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	    params.max_ord_ird & OCRDMA_QP_PARAMS_MAX_IRD_MASK;
 	qp_attr->en_sqd_async_notify = (params.max_sge_recv_flags &
 				OCRDMA_QP_PARAMS_FLAGS_SQD_ASYNC) ? 1 : 0;
+	/* Sync driver QP state with FW */
+	ocrdma_qp_state_change(qp, qp_attr->qp_state, NULL);
 mbx_err:
 	return status;
 }
