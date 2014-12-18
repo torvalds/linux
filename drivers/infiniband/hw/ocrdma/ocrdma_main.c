@@ -239,7 +239,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
 	dev->ibdev.phys_port_cnt = 1;
-	dev->ibdev.num_comp_vectors = 1;
+	dev->ibdev.num_comp_vectors = dev->eq_cnt;
 
 	/* mandatory verbs. */
 	dev->ibdev.query_device = ocrdma_query_device;
