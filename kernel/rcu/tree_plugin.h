@@ -2056,9 +2056,26 @@ static void wake_nocb_leader(struct rcu_data *rdp, bool force)
 static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+	unsigned long ret;
+#ifdef CONFIG_PROVE_RCU
 	struct rcu_head *rhp;
+#endif /* #ifdef CONFIG_PROVE_RCU */
 
-	/* No-CBs CPUs might have callbacks on any of three lists. */
+	/*
+	 * Check count of all no-CBs callbacks awaiting invocation.
+	 * There needs to be a barrier before this function is called,
+	 * but associated with a prior determination that no more
+	 * callbacks would be posted.  In the worst case, the first
+	 * barrier in _rcu_barrier() suffices (but the caller cannot
+	 * necessarily rely on this, not a substitute for the caller
+	 * getting the concurrency design right!).  There must also be
+	 * a barrier between the following load an posting of a callback
+	 * (if a callback is in fact needed).  This is associated with an
+	 * atomic_inc() in the caller.
+	 */
+	ret = atomic_long_read(&rdp->nocb_q_count);
+
+#ifdef CONFIG_PROVE_RCU
 	rhp = ACCESS_ONCE(rdp->nocb_head);
 	if (!rhp)
 		rhp = ACCESS_ONCE(rdp->nocb_gp_head);
@@ -2072,8 +2089,9 @@ static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu)
 		       cpu, rhp->func);
 		WARN_ON_ONCE(1);
 	}
+#endif /* #ifdef CONFIG_PROVE_RCU */
 
-	return !!rhp;
+	return !!ret;
 }
 
 /*
@@ -2095,9 +2113,10 @@ static void __call_rcu_nocb_enqueue(struct rcu_data *rdp,
 	struct task_struct *t;
 
 	/* Enqueue the callback on the nocb list and update counts. */
+	atomic_long_add(rhcount, &rdp->nocb_q_count);
+	/* rcu_barrier() relies on ->nocb_q_count add before xchg. */
 	old_rhpp = xchg(&rdp->nocb_tail, rhtp);
 	ACCESS_ONCE(*old_rhpp) = rhp;
-	atomic_long_add(rhcount, &rdp->nocb_q_count);
 	atomic_long_add(rhcount_lazy, &rdp->nocb_q_count_lazy);
 	smp_mb__after_atomic(); /* Store *old_rhpp before _wake test. */
 
@@ -2288,9 +2307,6 @@ wait_again:
 		/* Move callbacks to wait-for-GP list, which is empty. */
 		ACCESS_ONCE(rdp->nocb_head) = NULL;
 		rdp->nocb_gp_tail = xchg(&rdp->nocb_tail, &rdp->nocb_head);
-		rdp->nocb_gp_count = atomic_long_xchg(&rdp->nocb_q_count, 0);
-		rdp->nocb_gp_count_lazy =
-			atomic_long_xchg(&rdp->nocb_q_count_lazy, 0);
 		gotcbs = true;
 	}
 
@@ -2338,9 +2354,6 @@ wait_again:
 		/* Append callbacks to follower's "done" list. */
 		tail = xchg(&rdp->nocb_follower_tail, rdp->nocb_gp_tail);
 		*tail = rdp->nocb_gp_head;
-		atomic_long_add(rdp->nocb_gp_count, &rdp->nocb_follower_count);
-		atomic_long_add(rdp->nocb_gp_count_lazy,
-				&rdp->nocb_follower_count_lazy);
 		smp_mb__after_atomic(); /* Store *tail before wakeup. */
 		if (rdp != my_rdp && tail == &rdp->nocb_follower_head) {
 			/*
@@ -2415,13 +2428,11 @@ static int rcu_nocb_kthread(void *arg)
 		trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu, "WokeNonEmpty");
 		ACCESS_ONCE(rdp->nocb_follower_head) = NULL;
 		tail = xchg(&rdp->nocb_follower_tail, &rdp->nocb_follower_head);
-		c = atomic_long_xchg(&rdp->nocb_follower_count, 0);
-		cl = atomic_long_xchg(&rdp->nocb_follower_count_lazy, 0);
-		rdp->nocb_p_count += c;
-		rdp->nocb_p_count_lazy += cl;
 
 		/* Each pass through the following loop invokes a callback. */
-		trace_rcu_batch_start(rdp->rsp->name, cl, c, -1);
+		trace_rcu_batch_start(rdp->rsp->name,
+				      atomic_long_read(&rdp->nocb_q_count_lazy),
+				      atomic_long_read(&rdp->nocb_q_count), -1);
 		c = cl = 0;
 		while (list) {
 			next = list->next;
@@ -2443,9 +2454,9 @@ static int rcu_nocb_kthread(void *arg)
 			list = next;
 		}
 		trace_rcu_batch_end(rdp->rsp->name, c, !!list, 0, 0, 1);
-		ACCESS_ONCE(rdp->nocb_p_count) = rdp->nocb_p_count - c;
-		ACCESS_ONCE(rdp->nocb_p_count_lazy) =
-						rdp->nocb_p_count_lazy - cl;
+		smp_mb__before_atomic();  /* _add after CB invocation. */
+		atomic_long_add(-c, &rdp->nocb_q_count);
+		atomic_long_add(-cl, &rdp->nocb_q_count_lazy);
 		rdp->n_nocbs_invoked += c;
 	}
 	return 0;

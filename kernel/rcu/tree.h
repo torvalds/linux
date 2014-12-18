@@ -340,14 +340,10 @@ struct rcu_data {
 #ifdef CONFIG_RCU_NOCB_CPU
 	struct rcu_head *nocb_head;	/* CBs waiting for kthread. */
 	struct rcu_head **nocb_tail;
-	atomic_long_t nocb_q_count;	/* # CBs waiting for kthread */
-	atomic_long_t nocb_q_count_lazy; /*  (approximate). */
+	atomic_long_t nocb_q_count;	/* # CBs waiting for nocb */
+	atomic_long_t nocb_q_count_lazy; /*  invocation (all stages). */
 	struct rcu_head *nocb_follower_head; /* CBs ready to invoke. */
 	struct rcu_head **nocb_follower_tail;
-	atomic_long_t nocb_follower_count; /* # CBs ready to invoke. */
-	atomic_long_t nocb_follower_count_lazy; /*  (approximate). */
-	int nocb_p_count;		/* # CBs being invoked by kthread */
-	int nocb_p_count_lazy;		/*  (approximate). */
 	wait_queue_head_t nocb_wq;	/* For nocb kthreads to sleep on. */
 	struct task_struct *nocb_kthread;
 	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
@@ -356,8 +352,6 @@ struct rcu_data {
 	struct rcu_head *nocb_gp_head ____cacheline_internodealigned_in_smp;
 					/* CBs waiting for GP. */
 	struct rcu_head **nocb_gp_tail;
-	long nocb_gp_count;
-	long nocb_gp_count_lazy;
 	bool nocb_leader_sleep;		/* Is the nocb leader thread asleep? */
 	struct rcu_data *nocb_next_follower;
 					/* Next follower in wakeup chain. */
@@ -622,24 +616,15 @@ static void rcu_dynticks_task_exit(void);
 #endif /* #ifndef RCU_TREE_NONCORE */
 
 #ifdef CONFIG_RCU_TRACE
+/* Read out queue lengths for tracing. */
+static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
+{
 #ifdef CONFIG_RCU_NOCB_CPU
-/* Sum up queue lengths for tracing. */
-static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
-{
-	*ql = atomic_long_read(&rdp->nocb_q_count) +
-	      rdp->nocb_p_count +
-	      atomic_long_read(&rdp->nocb_follower_count) +
-	      rdp->nocb_p_count + rdp->nocb_gp_count;
-	*qll = atomic_long_read(&rdp->nocb_q_count_lazy) +
-	       rdp->nocb_p_count_lazy +
-	       atomic_long_read(&rdp->nocb_follower_count_lazy) +
-	       rdp->nocb_p_count_lazy + rdp->nocb_gp_count_lazy;
-}
+	*ql = atomic_long_read(&rdp->nocb_q_count);
+	*qll = atomic_long_read(&rdp->nocb_q_count_lazy);
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
-static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
-{
 	*ql = 0;
 	*qll = 0;
-}
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
+}
 #endif /* #ifdef CONFIG_RCU_TRACE */

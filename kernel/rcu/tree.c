@@ -3344,6 +3344,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 			} else {
 				_rcu_barrier_trace(rsp, "OnlineNoCB", cpu,
 						   rsp->n_barrier_done);
+				smp_mb__before_atomic();
 				atomic_inc(&rsp->barrier_cpu_count);
 				__call_rcu(&rdp->barrier_head,
 					   rcu_barrier_callback, rsp, cpu, 0);
