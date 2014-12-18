@@ -52,7 +52,7 @@ static int mmc_gpio_alloc(struct mmc_host *host)
 		 * before device_add(), i.e., between mmc_alloc_host() and
 		 * mmc_add_host()
 		 */
-		ctx = devm_kzalloc(&host->class_dev, sizeof(*ctx) + 2 * len,
+		ctx = devm_kzalloc(host->parent, sizeof(*ctx) + 2 * len,
 				   GFP_KERNEL);
 		if (ctx) {
 			ctx->ro_label = ctx->cd_label + len;
@@ -121,7 +121,7 @@ int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
 
 	ctx = host->slot.handler_priv;
 
-	ret = devm_gpio_request_one(&host->class_dev, gpio, GPIOF_DIR_IN,
+	ret = devm_gpio_request_one(host->parent, gpio, GPIOF_DIR_IN,
 				    ctx->ro_label);
 	if (ret < 0)
 		return ret;
@@ -152,7 +152,7 @@ void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 		irq = -EINVAL;
 
 	if (irq >= 0) {
-		ret = devm_request_threaded_irq(&host->class_dev, irq,
+		ret = devm_request_threaded_irq(host->parent, irq,
 			NULL, mmc_gpio_cd_irqt,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			ctx->cd_label, host);
@@ -194,7 +194,7 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 
 	ctx = host->slot.handler_priv;
 
-	ret = devm_gpio_request_one(&host->class_dev, gpio, GPIOF_DIR_IN,
+	ret = devm_gpio_request_one(host->parent, gpio, GPIOF_DIR_IN,
 				    ctx->cd_label);
 	if (ret < 0)
 		/*
