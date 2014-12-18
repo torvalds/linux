@@ -426,7 +426,7 @@ static inline void emit_mod(unsigned int dst, unsigned int src,
 		u32 *p = &ctx->target[ctx->idx];
 		uasm_i_divu(&p, dst, src);
 		p = &ctx->target[ctx->idx + 1];
-		uasm_i_mflo(&p, dst);
+		uasm_i_mfhi(&p, dst);
 	}
 	ctx->idx += 2; /* 2 insts */
 }
@@ -971,7 +971,7 @@ load_ind:
 			break;
 		case BPF_ALU | BPF_MOD | BPF_K:
 			/* A %= k */
-			if (k == 1 || optimize_div(&k)) {
+			if (k == 1) {
 				ctx->flags |= SEEN_A;
 				emit_jit_reg_move(r_A, r_zero, ctx);
 			} else {

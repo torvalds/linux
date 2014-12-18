@@ -94,7 +94,7 @@ static unsigned int fq_codel_classify(struct sk_buff *skb, struct Qdisc *sch,
 	    TC_H_MIN(skb->priority) <= q->flows_cnt)
 		return TC_H_MIN(skb->priority);
 
-	filter = rcu_dereference(q->filter_list);
+	filter = rcu_dereference_bh(q->filter_list);
 	if (!filter)
 		return fq_codel_hash(q, skb) + 1;
 
