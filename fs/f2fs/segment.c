@@ -20,6 +20,7 @@
 #include "f2fs.h"
 #include "segment.h"
 #include "node.h"
+#include "trace.h"
 #include <trace/events/f2fs.h>
 
 #define __reverse_ffz(x) __reverse_ffs(~(x))
@@ -181,6 +182,7 @@ void register_inmem_page(struct inode *inode, struct page *page)
 	int err;
 
 	SetPagePrivate(page);
+	f2fs_trace_pid(page);
 
 	new = f2fs_kmem_cache_alloc(inmem_entry_slab, GFP_NOFS);
 
