@@ -191,7 +191,10 @@ struct smb2_negotiate_req {
 	__le16 Reserved;	/* MBZ */
 	__le32 Capabilities;
 	__u8   ClientGUID[SMB2_CLIENT_GUID_SIZE];
-	__le64 ClientStartTime;	/* MBZ */
+	/* In SMB3.02 and earlier next three were MBZ le64 ClientStartTime */
+	__le32 NegotiateContextOffset; /* SMB3.1.1 only. MBZ earlier */
+	__le16 NegotiateContextCount;  /* SMB3.1.1 only. MBZ earlier */
+	__le16 Reserved2;
 	__le16 Dialects[1]; /* One dialect (vers=) at a time for now */
 } __packed;
 
@@ -200,6 +203,7 @@ struct smb2_negotiate_req {
 #define SMB21_PROT_ID 0x0210
 #define SMB30_PROT_ID 0x0300
 #define SMB302_PROT_ID 0x0302
+#define SMB311_PROT_ID 0x0311
 #define BAD_PROT_ID   0xFFFF
 
 /* SecurityMode flags */
@@ -222,7 +226,7 @@ struct smb2_negotiate_rsp {
 	__le16 StructureSize;	/* Must be 65 */
 	__le16 SecurityMode;
 	__le16 DialectRevision;
-	__le16 Reserved;	/* MBZ */
+	__le16 NegotiateContextCount;	/* Prior to SMB3.1.1 was Reserved & MBZ */
 	__u8   ServerGUID[16];
 	__le32 Capabilities;
 	__le32 MaxTransactSize;
@@ -232,7 +236,7 @@ struct smb2_negotiate_rsp {
 	__le64 ServerStartTime;
 	__le16 SecurityBufferOffset;
 	__le16 SecurityBufferLength;
-	__le32 Reserved2;	/* may be any value, ignore */
+	__le32 NegotiateContextOffset;	/* Pre:SMB3.1.1 was reserved/ignored */
 	__u8   Buffer[1];	/* variable length GSS security buffer */
 } __packed;
 
