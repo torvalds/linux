@@ -1451,16 +1451,12 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		break;
 	case 7:
 		chip = "at86rf212";
-		if (version == 1) {
-			lp->data = &at86rf212_data;
-			lp->hw->flags |= IEEE802154_HW_LBT;
-			lp->hw->phy->channels_supported[0] = 0x00007FF;
-			lp->hw->phy->channels_supported[2] = 0x00007FF;
-			lp->hw->phy->current_channel = 5;
-			lp->hw->phy->symbol_duration = 25;
-		} else {
-			rc = -ENOTSUPP;
-		}
+		lp->data = &at86rf212_data;
+		lp->hw->flags |= IEEE802154_HW_LBT;
+		lp->hw->phy->channels_supported[0] = 0x00007FF;
+		lp->hw->phy->channels_supported[2] = 0x00007FF;
+		lp->hw->phy->current_channel = 5;
+		lp->hw->phy->symbol_duration = 25;
 		break;
 	case 11:
 		chip = "at86rf233";
