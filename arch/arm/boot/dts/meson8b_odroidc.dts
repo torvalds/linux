@@ -62,12 +62,8 @@
         #address-cells = <1>;
         #size-cells = <1>;
 
-        cma_0:region@0 {
-           region_name = "cma_0";
-           reg = <0 0x02a00000>;
-           linux,contiguous-region;
         };
-        };
+
         gic:interrupt-controller{
         compatible = "arm,cortex-a9-gic";
         reg = <0xc4301000 0x1000
@@ -82,8 +78,6 @@
                 dev_name = "vpu";
                 status = "ok";
                 clk_level = <3>;
-                /**     0: 106.25M              1: 127.5M               2: 159.375M
-                                3: 182.15M              4: 212.5M        */
         };
 
         mesonfb{
@@ -96,13 +90,6 @@
                 scale_mode = <1>; /*0:default 1:new*/
                 4k2k_fb = <0>;
                 display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
-        };
-
-    deinterlace{
-                compatible = "amlogic,deinterlace";
-                dev_name = "deinterlace";
-                status = "ok";
-                reserve-memory = <0x02100000>; //10x1920x1088x3/2=33M
         };
 
         mesonstream{
@@ -127,57 +114,6 @@
                 status = "okay";
                 reserve-memory = <0x01000000>; // 16M
         };
-
-    amvenc_avc{
-                compatible = "amlogic,amvenc_avc";
-                dev_name = "amvenc_avc.0";
-                status = "okay";
-                linux,contiguous-region = <&cma_0>;
-                reserve-iomap = "true";
-        };
-
-//    amvdec_656in{
-//              compatible = "amlogic,amvdec_656in";
-//              dev_name = "amvdec_656in";
-//              status = "ok";
-//              reg = <0x1e400000 0x00100000>;
-//      };
-//
-//    vdin0{
-//       compatible = "amlogic,vdin";
-//        dev_name = "vdin0";
-//        status = "ok";
-//       reserve-memory = <0x04000000>;
-//        irq = <115>;
-//        vdin_id = <0>;
-//      };
-
-//    vdin1{
-//        compatible = "amlogic,vdin";
-//       dev_name = "vdin1";
-//        status = "ok";
-//        reserve-memory = <0x01000000>;
-//        miracast_size = <1920 1080>;//1920x1080x2x4=17M
-//        reserve-iomap = "true";
-//        irq = <117>;
-//        vdin_id = <1>;
-//      };
-
-//    amlvideo2{
-//              compatible = "amlogic,amlvideo2";
-//              dev_name = "amlvideo2.0";
-//              status = "okay";
-//              reserve-memory = <0x01800000>;
-//              reserve-iomap = "true";
-//      };
-
-//    vm{
-//              compatible = "amlogic,vm";
-//              dev_name = "vm.0";
-//              status = "okay";
-//              reserve-memory = <0x01800000>;
-//              reserve-iomap = "true";
-//      };
 
     ion_dev{
         compatible = "amlogic,ion_dev";
