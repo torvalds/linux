@@ -323,9 +323,7 @@ static int host1x_device_add(struct host1x *host1x,
 		return err;
 	}
 
-	mutex_lock(&host1x->devices_lock);
 	list_add_tail(&device->list, &host1x->devices);
-	mutex_unlock(&host1x->devices_lock);
 
 	mutex_lock(&clients_lock);
 
@@ -414,11 +412,11 @@ static void host1x_attach_driver(struct host1x *host1x,
 		}
 	}
 
-	mutex_unlock(&host1x->devices_lock);
-
 	err = host1x_device_add(host1x, driver);
 	if (err < 0)
 		dev_err(host1x->dev, "failed to allocate device: %d\n", err);
+
+	mutex_unlock(&host1x->devices_lock);
 }
 
 static void host1x_detach_driver(struct host1x *host1x,
