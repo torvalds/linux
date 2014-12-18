@@ -8806,6 +8806,13 @@ F:	arch/m68k/sun3*/
 F:	arch/m68k/include/asm/sun3*
 F:	drivers/net/ethernet/i825xx/sun3*
 
+SUN4I LOW RES ADC ATTACHED TABLET KEYS DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/sun4i-lradc-keys.txt
+F:	drivers/input/keyboard/sun4i-lradc-keys.c
+
 SUNDANCE NETWORK DRIVER
 M:	Denis Kirjanov <kda@linux-powerpc.org>
 L:	netdev@vger.kernel.org
