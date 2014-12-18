@@ -22,6 +22,7 @@
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
+#include "trace.h"
 #include <trace/events/f2fs.h>
 
 static void f2fs_read_end_io(struct bio *bio, int err)
@@ -137,6 +138,7 @@ int f2fs_submit_page_bio(struct f2fs_sb_info *sbi, struct page *page,
 	struct bio *bio;
 
 	trace_f2fs_submit_page_bio(page, fio->blk_addr, fio->rw);
+	f2fs_trace_ios(page, fio, 0);
 
 	/* Allocate a new bio */
 	bio = __bio_alloc(sbi, fio->blk_addr, 1, is_read_io(fio->rw));
@@ -185,6 +187,7 @@ alloc_new:
 	}
 
 	io->last_block_in_bio = fio->blk_addr;
+	f2fs_trace_ios(page, fio, 0);
 
 	up_write(&io->io_rwsem);
 	trace_f2fs_submit_page_mbio(page, fio->rw, fio->type, fio->blk_addr);
