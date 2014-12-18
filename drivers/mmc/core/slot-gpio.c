@@ -103,11 +103,7 @@ EXPORT_SYMBOL(mmc_gpio_get_cd);
  * @gpio: gpio number requested
  *
  * As devm_* managed functions are used in mmc_gpio_request_ro(), client
- * drivers do not need to explicitly call mmc_gpio_free_ro() for freeing up,
- * if the requesting and freeing are only needed at probing and unbinding time
- * for once.  However, if client drivers do something special like runtime
- * switching for write-protection, they are responsible for calling
- * mmc_gpio_request_ro() and mmc_gpio_free_ro() as a pair on their own.
+ * drivers do not need to worry about freeing up memory.
  *
  * Returns zero on success, else an error.
  */
@@ -178,11 +174,7 @@ EXPORT_SYMBOL(mmc_gpiod_request_cd_irq);
  * @debounce: debounce time in microseconds
  *
  * As devm_* managed functions are used in mmc_gpio_request_cd(), client
- * drivers do not need to explicitly call mmc_gpio_free_cd() for freeing up,
- * if the requesting and freeing are only needed at probing and unbinding time
- * for once.  However, if client drivers do something special like runtime
- * switching for card-detection, they are responsible for calling
- * mmc_gpio_request_cd() and mmc_gpio_free_cd() as a pair on their own.
+ * drivers do not need to worry about freeing up memory.
  *
  * If GPIO debouncing is desired, set the debounce parameter to a non-zero
  * value. The caller is responsible for ensuring that the GPIO driver associated
@@ -226,55 +218,6 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 EXPORT_SYMBOL(mmc_gpio_request_cd);
 
 /**
- * mmc_gpio_free_ro - free the write-protection gpio
- * @host: mmc host
- *
- * It's provided only for cases that client drivers need to manually free
- * up the write-protection gpio requested by mmc_gpio_request_ro().
- */
-void mmc_gpio_free_ro(struct mmc_host *host)
-{
-	struct mmc_gpio *ctx = host->slot.handler_priv;
-	int gpio;
-
-	if (!ctx || !ctx->ro_gpio)
-		return;
-
-	gpio = desc_to_gpio(ctx->ro_gpio);
-	ctx->ro_gpio = NULL;
-
-	devm_gpio_free(&host->class_dev, gpio);
-}
-EXPORT_SYMBOL(mmc_gpio_free_ro);
-
-/**
- * mmc_gpio_free_cd - free the card-detection gpio
- * @host: mmc host
- *
- * It's provided only for cases that client drivers need to manually free
- * up the card-detection gpio requested by mmc_gpio_request_cd().
- */
-void mmc_gpio_free_cd(struct mmc_host *host)
-{
-	struct mmc_gpio *ctx = host->slot.handler_priv;
-	int gpio;
-
-	if (!ctx || !ctx->cd_gpio)
-		return;
-
-	if (host->slot.cd_irq >= 0) {
-		devm_free_irq(&host->class_dev, host->slot.cd_irq, host);
-		host->slot.cd_irq = -EINVAL;
-	}
-
-	gpio = desc_to_gpio(ctx->cd_gpio);
-	ctx->cd_gpio = NULL;
-
-	devm_gpio_free(&host->class_dev, gpio);
-}
-EXPORT_SYMBOL(mmc_gpio_free_cd);
-
-/**
  * mmc_gpiod_request_cd - request a gpio descriptor for card-detection
  * @host: mmc host
  * @con_id: function within the GPIO consumer
@@ -285,8 +228,7 @@ EXPORT_SYMBOL(mmc_gpio_free_cd);
  * to NULL to ignore
  *
  * Use this function in place of mmc_gpio_request_cd() to use the GPIO
- * descriptor API.  Note that it is paired with mmc_gpiod_free_cd() not
- * mmc_gpio_free_cd().  Note also that it must be called prior to mmc_add_host()
+ * descriptor API.  Note that it must be called prior to mmc_add_host()
  * otherwise the caller must also call mmc_gpiod_request_cd_irq().
  *
  * Returns zero on success, else an error.
@@ -339,8 +281,7 @@ EXPORT_SYMBOL(mmc_gpiod_request_cd);
  * set to NULL to ignore
  *
  * Use this function in place of mmc_gpio_request_ro() to use the GPIO
- * descriptor API.  Note that it is paired with mmc_gpiod_free_ro() not
- * mmc_gpio_free_ro().
+ * descriptor API.
  *
  * Returns zero on success, else an error.
  */
@@ -380,28 +321,3 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 	return 0;
 }
 EXPORT_SYMBOL(mmc_gpiod_request_ro);
-
-/**
- * mmc_gpiod_free_cd - free the card-detection gpio descriptor
- * @host: mmc host
- *
- * It's provided only for cases that client drivers need to manually free
- * up the card-detection gpio requested by mmc_gpiod_request_cd().
- */
-void mmc_gpiod_free_cd(struct mmc_host *host)
-{
-	struct mmc_gpio *ctx = host->slot.handler_priv;
-
-	if (!ctx || !ctx->cd_gpio)
-		return;
-
-	if (host->slot.cd_irq >= 0) {
-		devm_free_irq(&host->class_dev, host->slot.cd_irq, host);
-		host->slot.cd_irq = -EINVAL;
-	}
-
-	devm_gpiod_put(host->parent, ctx->cd_gpio);
-
-	ctx->cd_gpio = NULL;
-}
-EXPORT_SYMBOL(mmc_gpiod_free_cd);
