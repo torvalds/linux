@@ -1325,33 +1325,40 @@ EXPORT_SYMBOL(drm_plane_force_disable);
 
 static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 {
-	struct drm_property *edid;
-	struct drm_property *dpms;
-	struct drm_property *dev_path;
+	struct drm_property *prop;
 
 	/*
 	 * Standard properties (apply to all connectors)
 	 */
-	edid = drm_property_create(dev, DRM_MODE_PROP_BLOB |
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB |
 				   DRM_MODE_PROP_IMMUTABLE,
 				   "EDID", 0);
-	dev->mode_config.edid_property = edid;
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.edid_property = prop;
 
-	dpms = drm_property_create_enum(dev, 0,
+	prop = drm_property_create_enum(dev, 0,
 				   "DPMS", drm_dpms_enum_list,
 				   ARRAY_SIZE(drm_dpms_enum_list));
-	dev->mode_config.dpms_property = dpms;
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.dpms_property = prop;
 
-	dev_path = drm_property_create(dev,
-				       DRM_MODE_PROP_BLOB |
-				       DRM_MODE_PROP_IMMUTABLE,
-				       "PATH", 0);
-	dev->mode_config.path_property = dev_path;
+	prop = drm_property_create(dev,
+				   DRM_MODE_PROP_BLOB |
+				   DRM_MODE_PROP_IMMUTABLE,
+				   "PATH", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.path_property = prop;
 
-	dev->mode_config.tile_property = drm_property_create(dev,
-							     DRM_MODE_PROP_BLOB |
-							     DRM_MODE_PROP_IMMUTABLE,
-							     "TILE", 0);
+	prop = drm_property_create(dev,
+				   DRM_MODE_PROP_BLOB |
+				   DRM_MODE_PROP_IMMUTABLE,
+				   "TILE", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.tile_property = prop;
 
 	return 0;
 }
