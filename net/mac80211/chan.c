@@ -1011,6 +1011,10 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 
 	ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
 
+	ieee80211_recalc_smps_chanctx(local, new_ctx);
+	ieee80211_recalc_radar_chanctx(local, new_ctx);
+	ieee80211_recalc_chanctx_min_def(local, new_ctx);
+
 	if (changed)
 		ieee80211_bss_info_change_notify(sdata, changed);
 
