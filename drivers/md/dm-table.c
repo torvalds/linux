@@ -831,7 +831,7 @@ static int dm_table_set_type(struct dm_table *t)
 	struct dm_target *tgt;
 	struct dm_dev_internal *dd;
 	struct list_head *devices;
-	unsigned live_md_type;
+	unsigned live_md_type = dm_get_md_type(t->md);
 
 	for (i = 0; i < t->num_targets; i++) {
 		tgt = t->targets + i;
@@ -855,8 +855,8 @@ static int dm_table_set_type(struct dm_table *t)
 		 * Determine the type from the live device.
 		 * Default to bio-based if device is new.
 		 */
-		live_md_type = dm_get_md_type(t->md);
-		if (live_md_type == DM_TYPE_REQUEST_BASED)
+		if (live_md_type == DM_TYPE_REQUEST_BASED ||
+		    live_md_type == DM_TYPE_MQ_REQUEST_BASED)
 			request_based = 1;
 		else
 			bio_based = 1;
@@ -869,6 +869,17 @@ static int dm_table_set_type(struct dm_table *t)
 	}
 
 	BUG_ON(!request_based); /* No targets in this table */
+
+	/*
+	 * Request-based dm supports only tables that have a single target now.
+	 * To support multiple targets, request splitting support is needed,
+	 * and that needs lots of changes in the block-layer.
+	 * (e.g. request completion process for partial completion.)
+	 */
+	if (t->num_targets > 1) {
+		DMWARN("Request-based dm doesn't support multiple targets yet");
+		return -EINVAL;
+	}
 
 	/* Non-request-stackable devices can't be used for request-based dm */
 	devices = dm_table_get_devices(t);
@@ -893,20 +904,14 @@ static int dm_table_set_type(struct dm_table *t)
 				      " are blk-mq request-stackable");
 				return -EINVAL;
 			}
-	}
+		t->type = DM_TYPE_MQ_REQUEST_BASED;
 
-	/*
-	 * Request-based dm supports only tables that have a single target now.
-	 * To support multiple targets, request splitting support is needed,
-	 * and that needs lots of changes in the block-layer.
-	 * (e.g. request completion process for partial completion.)
-	 */
-	if (t->num_targets > 1) {
-		DMWARN("Request-based dm doesn't support multiple targets yet");
-		return -EINVAL;
-	}
+	} else if (hybrid && list_empty(devices) && live_md_type != DM_TYPE_NONE) {
+		/* inherit live MD type */
+		t->type = live_md_type;
 
-	t->type = !use_blk_mq ? DM_TYPE_REQUEST_BASED : DM_TYPE_MQ_REQUEST_BASED;
+	} else
+		t->type = DM_TYPE_REQUEST_BASED;
 
 	return 0;
 }
