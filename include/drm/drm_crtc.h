@@ -312,6 +312,8 @@ struct drm_crtc_state {
  * @atomic_destroy_state: destroy an atomic state for this CRTC
  * @atomic_set_property: set a property on an atomic state for this CRTC
  *    (do not call directly, use drm_atomic_crtc_set_property())
+ * @atomic_get_property: get a property on an atomic state for this CRTC
+ *    (do not call directly, use drm_atomic_crtc_get_property())
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -371,6 +373,10 @@ struct drm_crtc_funcs {
 				   struct drm_crtc_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_crtc *crtc,
+				   const struct drm_crtc_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 /**
@@ -499,6 +505,8 @@ struct drm_connector_state {
  * @atomic_destroy_state: destroy an atomic state for this connector
  * @atomic_set_property: set a property on an atomic state for this connector
  *    (do not call directly, use drm_atomic_connector_set_property())
+ * @atomic_get_property: get a property on an atomic state for this connector
+ *    (do not call directly, use drm_atomic_connector_get_property())
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -532,6 +540,10 @@ struct drm_connector_funcs {
 				   struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_connector *connector,
+				   const struct drm_connector_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 /**
@@ -763,6 +775,8 @@ struct drm_plane_state {
  * @atomic_destroy_state: destroy an atomic state for this plane
  * @atomic_set_property: set a property on an atomic state for this plane
  *    (do not call directly, use drm_atomic_plane_set_property())
+ * @atomic_get_property: get a property on an atomic state for this plane
+ *    (do not call directly, use drm_atomic_plane_get_property())
  */
 struct drm_plane_funcs {
 	int (*update_plane)(struct drm_plane *plane,
@@ -786,6 +800,10 @@ struct drm_plane_funcs {
 				   struct drm_plane_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_plane *plane,
+				   const struct drm_plane_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 enum drm_plane_type {
