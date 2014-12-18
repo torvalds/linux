@@ -45,8 +45,6 @@ MODULE_DESCRIPTION("PXA2xx SSP SPI Controller");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pxa2xx-spi");
 
-#define MAX_BUSES 3
-
 #define TIMOUT_DFLT		1000
 
 /*
