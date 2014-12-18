@@ -43,28 +43,16 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 int mmc_gpio_alloc(struct mmc_host *host)
 {
 	size_t len = strlen(dev_name(host->parent)) + 4;
-	struct mmc_gpio *ctx;
+	struct mmc_gpio *ctx = devm_kzalloc(host->parent,
+				sizeof(*ctx) + 2 * len,	GFP_KERNEL);
 
-	mutex_lock(&host->slot.lock);
-
-	ctx = host->slot.handler_priv;
-	if (!ctx) {
-		/*
-		 * devm_kzalloc() can be called after device_initialize(), even
-		 * before device_add(), i.e., between mmc_alloc_host() and
-		 * mmc_add_host()
-		 */
-		ctx = devm_kzalloc(host->parent, sizeof(*ctx) + 2 * len,
-				   GFP_KERNEL);
-		if (ctx) {
-			ctx->ro_label = ctx->cd_label + len;
-			snprintf(ctx->cd_label, len, "%s cd", dev_name(host->parent));
-			snprintf(ctx->ro_label, len, "%s ro", dev_name(host->parent));
-			host->slot.handler_priv = ctx;
-		}
+	if (ctx) {
+		ctx->ro_label = ctx->cd_label + len;
+		snprintf(ctx->cd_label, len, "%s cd", dev_name(host->parent));
+		snprintf(ctx->ro_label, len, "%s ro", dev_name(host->parent));
+		host->slot.handler_priv = ctx;
+		host->slot.cd_irq = -EINVAL;
 	}
-
-	mutex_unlock(&host->slot.lock);
 
 	return ctx ? 0 : -ENOMEM;
 }
@@ -111,17 +99,11 @@ EXPORT_SYMBOL(mmc_gpio_get_cd);
  */
 int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
 {
-	struct mmc_gpio *ctx;
+	struct mmc_gpio *ctx = host->slot.handler_priv;
 	int ret;
 
 	if (!gpio_is_valid(gpio))
 		return -EINVAL;
-
-	ret = mmc_gpio_alloc(host);
-	if (ret < 0)
-		return ret;
-
-	ctx = host->slot.handler_priv;
 
 	ret = devm_gpio_request_one(host->parent, gpio, GPIOF_DIR_IN,
 				    ctx->ro_label);
@@ -187,14 +169,8 @@ EXPORT_SYMBOL(mmc_gpiod_request_cd_irq);
 int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 			unsigned int debounce)
 {
-	struct mmc_gpio *ctx;
+	struct mmc_gpio *ctx = host->slot.handler_priv;
 	int ret;
-
-	ret = mmc_gpio_alloc(host);
-	if (ret < 0)
-		return ret;
-
-	ctx = host->slot.handler_priv;
 
 	ret = devm_gpio_request_one(host->parent, gpio, GPIOF_DIR_IN,
 				    ctx->cd_label);
@@ -239,15 +215,9 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 			 unsigned int idx, bool override_active_level,
 			 unsigned int debounce, bool *gpio_invert)
 {
-	struct mmc_gpio *ctx;
+	struct mmc_gpio *ctx = host->slot.handler_priv;
 	struct gpio_desc *desc;
 	int ret;
-
-	ret = mmc_gpio_alloc(host);
-	if (ret < 0)
-		return ret;
-
-	ctx = host->slot.handler_priv;
 
 	if (!con_id)
 		con_id = ctx->cd_label;
@@ -291,15 +261,9 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 			 unsigned int idx, bool override_active_level,
 			 unsigned int debounce, bool *gpio_invert)
 {
-	struct mmc_gpio *ctx;
+	struct mmc_gpio *ctx = host->slot.handler_priv;
 	struct gpio_desc *desc;
 	int ret;
-
-	ret = mmc_gpio_alloc(host);
-	if (ret < 0)
-		return ret;
-
-	ctx = host->slot.handler_priv;
 
 	if (!con_id)
 		con_id = ctx->ro_label;
