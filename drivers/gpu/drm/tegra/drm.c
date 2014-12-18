@@ -996,6 +996,30 @@ static int host1x_drm_remove(struct host1x_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int host1x_drm_suspend(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	drm_kms_helper_poll_disable(drm);
+
+	return 0;
+}
+
+static int host1x_drm_resume(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	drm_kms_helper_poll_enable(drm);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops host1x_drm_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(host1x_drm_suspend, host1x_drm_resume)
+};
+
 static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra20-dc", },
 	{ .compatible = "nvidia,tegra20-hdmi", },
@@ -1017,6 +1041,7 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 static struct host1x_driver host1x_drm_driver = {
 	.driver = {
 		.name = "drm",
+		.pm = &host1x_drm_pm_ops,
 	},
 	.probe = host1x_drm_probe,
 	.remove = host1x_drm_remove,
