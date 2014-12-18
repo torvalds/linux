@@ -18,6 +18,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include "slot-gpio.h"
+
 struct mmc_gpio {
 	struct gpio_desc *ro_gpio;
 	struct gpio_desc *cd_gpio;
@@ -38,7 +40,7 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int mmc_gpio_alloc(struct mmc_host *host)
+int mmc_gpio_alloc(struct mmc_host *host)
 {
 	size_t len = strlen(dev_name(host->parent)) + 4;
 	struct mmc_gpio *ctx;
