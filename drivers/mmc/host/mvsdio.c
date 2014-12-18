@@ -828,8 +828,6 @@ static int mvsd_probe(struct platform_device *pdev)
 
 out:
 	if (mmc) {
-		mmc_gpio_free_cd(mmc);
-		mmc_gpio_free_ro(mmc);
 		if (!IS_ERR(host->clk))
 			clk_disable_unprepare(host->clk);
 		mmc_free_host(mmc);
@@ -844,8 +842,6 @@ static int mvsd_remove(struct platform_device *pdev)
 
 	struct mvsd_host *host = mmc_priv(mmc);
 
-	mmc_gpio_free_cd(mmc);
-	mmc_gpio_free_ro(mmc);
 	mmc_remove_host(mmc);
 	del_timer_sync(&host->timer);
 	mvsd_power_down(host);
