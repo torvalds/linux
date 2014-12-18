@@ -2572,8 +2572,8 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="35" valign="top" >DRM</td>
-	<td rowspan="4" valign="top" >Generic</td>
+	<td rowspan="36" valign="top" >DRM</td>
+	<td rowspan="5" valign="top" >Connector</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
 	<td valign="top" >0</td>
@@ -2600,6 +2600,13 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >0</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >Contains tiling information for a connector.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_ID”</td>
+	<td valign="top" >OBJECT</td>
+	<td valign="top" >DRM_MODE_OBJECT_CRTC</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >CRTC that connector is attached to (atomic)</td>
 	</tr>
 	<tr>
 	<td rowspan="11" valign="top" >Plane</td>

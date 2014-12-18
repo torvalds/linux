@@ -627,7 +627,10 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	struct drm_mode_config *config = &dev->mode_config;
 
-	if (property == config->dpms_property) {
+	if (property == config->prop_crtc_id) {
+		struct drm_crtc *crtc = drm_crtc_find(dev, val);
+		return drm_atomic_set_crtc_for_connector(state, crtc);
+	} else if (property == config->dpms_property) {
 		/* setting DPMS property requires special handling, which
 		 * is done in legacy setprop path for us.  Disallow (for
 		 * now?) atomic writes to DPMS property:
@@ -665,7 +668,9 @@ int drm_atomic_connector_get_property(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	struct drm_mode_config *config = &dev->mode_config;
 
-	if (property == config->dpms_property) {
+	if (property == config->prop_crtc_id) {
+		*val = (state->crtc) ? state->crtc->base.id : 0;
+	} else if (property == config->dpms_property) {
 		*val = connector->dpms;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,

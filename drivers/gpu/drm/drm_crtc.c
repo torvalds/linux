@@ -831,6 +831,7 @@ int drm_connector_init(struct drm_device *dev,
 		       const struct drm_connector_funcs *funcs,
 		       int connector_type)
 {
+	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
 	struct ida *connector_ida =
 		&drm_connector_enum_list[connector_type].ida;
@@ -869,16 +870,20 @@ int drm_connector_init(struct drm_device *dev,
 
 	/* We should add connectors at the end to avoid upsetting the connector
 	 * index too much. */
-	list_add_tail(&connector->head, &dev->mode_config.connector_list);
-	dev->mode_config.num_connector++;
+	list_add_tail(&connector->head, &config->connector_list);
+	config->num_connector++;
 
 	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL)
 		drm_object_attach_property(&connector->base,
-					      dev->mode_config.edid_property,
+					      config->edid_property,
 					      0);
 
 	drm_object_attach_property(&connector->base,
-				      dev->mode_config.dpms_property, 0);
+				      config->dpms_property, 0);
+
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
+		drm_object_attach_property(&connector->base, config->prop_crtc_id, 0);
+	}
 
 	connector->debugfs_entry = NULL;
 
