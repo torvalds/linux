@@ -9,6 +9,8 @@
 #include <linux/ceph/pagelist.h>
 
 static u64 lock_secret;
+static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
+                                         struct ceph_mds_request *req);
 
 static inline u64 secure_addr(void *addr)
 {
@@ -40,6 +42,9 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 	u64 length = 0;
 	u64 owner;
 
+	if (operation != CEPH_MDS_OP_SETFILELOCK || cmd == CEPH_LOCK_UNLOCK)
+		wait = 0;
+
 	req = ceph_mdsc_create_request(mdsc, operation, USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -68,6 +73,9 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 	req->r_args.filelock_change.length = cpu_to_le64(length);
 	req->r_args.filelock_change.wait = wait;
 
+	if (wait)
+		req->r_wait_for_completion = ceph_lock_wait_for_completion;
+
 	err = ceph_mdsc_do_request(mdsc, inode, req);
 
 	if (operation == CEPH_MDS_OP_GETFILELOCK) {
@@ -94,6 +102,52 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 	     (int)operation, (u64)fl->fl_pid, fl->fl_start,
 	     length, wait, fl->fl_type, err);
 	return err;
+}
+
+static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
+                                         struct ceph_mds_request *req)
+{
+	struct ceph_mds_request *intr_req;
+	struct inode *inode = req->r_inode;
+	int err, lock_type;
+
+	BUG_ON(req->r_op != CEPH_MDS_OP_SETFILELOCK);
+	if (req->r_args.filelock_change.rule == CEPH_LOCK_FCNTL)
+		lock_type = CEPH_LOCK_FCNTL_INTR;
+	else if (req->r_args.filelock_change.rule == CEPH_LOCK_FLOCK)
+		lock_type = CEPH_LOCK_FLOCK_INTR;
+	else
+		BUG_ON(1);
+	BUG_ON(req->r_args.filelock_change.type == CEPH_LOCK_UNLOCK);
+
+	err = wait_for_completion_interruptible(&req->r_completion);
+	if (!err)
+		return 0;
+
+	dout("ceph_lock_wait_for_completion: request %llu was interrupted\n",
+	     req->r_tid);
+
+	intr_req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETFILELOCK,
+					    USE_AUTH_MDS);
+	if (IS_ERR(intr_req))
+		return PTR_ERR(intr_req);
+
+	intr_req->r_inode = inode;
+	ihold(inode);
+	intr_req->r_num_caps = 1;
+
+	intr_req->r_args.filelock_change = req->r_args.filelock_change;
+	intr_req->r_args.filelock_change.rule = lock_type;
+	intr_req->r_args.filelock_change.type = CEPH_LOCK_UNLOCK;
+
+	err = ceph_mdsc_do_request(mdsc, inode, intr_req);
+	ceph_mdsc_put_request(intr_req);
+
+	if (err && err != -ERESTARTSYS)
+		return err;
+
+	wait_for_completion(&req->r_completion);
+	return 0;
 }
 
 /**
@@ -143,11 +197,6 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 				     err);
 			}
 		}
-
-	} else if (err == -ERESTARTSYS) {
-		dout("undoing lock\n");
-		ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
-				  CEPH_LOCK_UNLOCK, 0, fl);
 	}
 	return err;
 }
@@ -186,11 +235,6 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 					  file, CEPH_LOCK_UNLOCK, 0, fl);
 			dout("got %d on flock_lock_file_wait, undid lock", err);
 		}
-	} else if (err == -ERESTARTSYS) {
-		dout("undoing lock\n");
-		ceph_lock_message(CEPH_LOCK_FLOCK,
-				  CEPH_MDS_OP_SETFILELOCK,
-				  file, CEPH_LOCK_UNLOCK, 0, fl);
 	}
 	return err;
 }
