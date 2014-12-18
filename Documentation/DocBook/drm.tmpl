@@ -2572,7 +2572,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="25" valign="top" >DRM</td>
+	<td rowspan="35" valign="top" >DRM</td>
 	<td rowspan="4" valign="top" >Generic</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
@@ -2602,12 +2602,82 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Contains tiling information for a connector.</td>
 	</tr>
 	<tr>
-	<td rowspan="1" valign="top" >Plane</td>
+	<td rowspan="11" valign="top" >Plane</td>
 	<td valign="top" >“type”</td>
 	<td valign="top" >ENUM | IMMUTABLE</td>
 	<td valign="top" >{ "Overlay", "Primary", "Cursor" }</td>
 	<td valign="top" >Plane</td>
 	<td valign="top" >Plane type</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_X”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source x coordinate in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_Y”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source y coordinate in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_W”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source width in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_H”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source height in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_X”</td>
+	<td valign="top" >SIGNED_RANGE</td>
+	<td valign="top" >Min=INT_MIN, Max=INT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) x coordinate (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_Y”</td>
+	<td valign="top" >SIGNED_RANGE</td>
+	<td valign="top" >Min=INT_MIN, Max=INT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) y coordinate (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_W”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) width (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_H”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) height (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“FB_ID”</td>
+	<td valign="top" >OBJECT</td>
+	<td valign="top" >DRM_MODE_OBJECT_FB</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout framebuffer (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_ID”</td>
+	<td valign="top" >OBJECT</td>
+	<td valign="top" >DRM_MODE_OBJECT_CRTC</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >CRTC that plane is attached to (atomic)</td>
 	</tr>
 	<tr>
 	<td rowspan="2" valign="top" >DVI-I</td>

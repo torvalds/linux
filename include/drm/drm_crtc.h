@@ -1099,6 +1099,16 @@ struct drm_mode_config {
 	struct drm_property *tile_property;
 	struct drm_property *plane_type_property;
 	struct drm_property *rotation_property;
+	struct drm_property *prop_src_x;
+	struct drm_property *prop_src_y;
+	struct drm_property *prop_src_w;
+	struct drm_property *prop_src_h;
+	struct drm_property *prop_crtc_x;
+	struct drm_property *prop_crtc_y;
+	struct drm_property *prop_crtc_w;
+	struct drm_property *prop_crtc_h;
+	struct drm_property *prop_fb_id;
+	struct drm_property *prop_crtc_id;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
