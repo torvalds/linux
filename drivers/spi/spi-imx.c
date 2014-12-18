@@ -374,6 +374,8 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	if (spi_imx->dma_is_inited) {
 		dma = readl(spi_imx->base + MX51_ECSPI_DMA);
 
+		spi_imx->tx_wml = spi_imx_get_fifosize(spi_imx) / 4;
+		spi_imx->rx_wml = spi_imx_get_fifosize(spi_imx) / 2;
 		spi_imx->rxt_wml = spi_imx_get_fifosize(spi_imx) / 2;
 		rx_wml_cfg = spi_imx->rx_wml << MX51_ECSPI_DMA_RX_WML_OFFSET;
 		tx_wml_cfg = spi_imx->tx_wml << MX51_ECSPI_DMA_TX_WML_OFFSET;
@@ -839,7 +841,7 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 	slave_config.direction = DMA_MEM_TO_DEV;
 	slave_config.dst_addr = res->start + MXC_CSPITXDATA;
 	slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	slave_config.dst_maxburst = spi_imx_get_fifosize(spi_imx) / 2;
+	slave_config.dst_maxburst = spi_imx_get_fifosize(spi_imx) / 4;
 	ret = dmaengine_slave_config(master->dma_tx, &slave_config);
 	if (ret) {
 		dev_err(dev, "error in TX dma configuration.\n");
