@@ -377,10 +377,9 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 		mdesc->reserve();
 
 	/*
-	 * reserve memory for DMA contigouos allocations,
-	 * must come from DMA area inside low memory
+	 * reserve memory for DMA contigouos allocations
 	 */
-	dma_contiguous_reserve(min(arm_dma_limit, arm_lowmem_limit));
+	dma_contiguous_reserve(arm_dma_limit);
 
 	arm_memblock_steal_permitted = false;
 	memblock_allow_resize();

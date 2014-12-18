@@ -296,6 +296,8 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t *res_base,
 {
 	phys_addr_t base = *res_base;
 	phys_addr_t alignment;
+	phys_addr_t memblock_end = memblock_end_of_DRAM();
+	phys_addr_t highmem_start = __pa(high_memory);
 	int ret = 0;
 
 	pr_debug("%s(size %lx, base %08lx, limit %08lx)\n", __func__,
@@ -310,6 +312,13 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t *res_base,
 
 	if (!size)
 		return -EINVAL;
+
+	if (((limit == 0 || limit > memblock_end) &&
+	     (memblock_end - size < highmem_start &&
+	      memblock_end > highmem_start)) ||
+	    (limit > highmem_start && limit - size < highmem_start)) {
+		limit = highmem_start;
+	}
 
 	/* Sanitise input arguments */
 	alignment = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
