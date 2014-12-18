@@ -53,6 +53,7 @@ config PWM_ATMEL
 config PWM_ATMEL_HLCDC_PWM
 	tristate "Atmel HLCDC PWM support"
 	depends on MFD_ATMEL_HLCDC
+	depends on HAVE_CLK
 	help
 	  Generic PWM framework driver for the PWM output of the HLCDC
 	  (Atmel High-end LCD Controller). This PWM output is mainly used
