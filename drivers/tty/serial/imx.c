@@ -1410,7 +1410,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	sport->port.ignore_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		sport->port.ignore_status_mask |= URXD_PRERR;
+		sport->port.ignore_status_mask |= URXD_PRERR | URXD_FRMERR;
 	if (termios->c_iflag & IGNBRK) {
 		sport->port.ignore_status_mask |= URXD_BRK;
 		/*
