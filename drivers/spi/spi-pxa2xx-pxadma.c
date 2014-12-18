@@ -118,11 +118,11 @@ static void pxa2xx_spi_unmap_dma_buffers(struct driver_data *drv_data)
 	drv_data->dma_mapped = 0;
 }
 
-static int wait_ssp_rx_stall(void const __iomem *ioaddr)
+static int wait_ssp_rx_stall(struct driver_data *drv_data)
 {
 	unsigned long limit = loops_per_jiffy << 1;
 
-	while ((read_SSSR(ioaddr) & SSSR_BSY) && --limit)
+	while ((read_SSSR(drv_data->ioaddr) & SSSR_BSY) && --limit)
 		cpu_relax();
 
 	return limit;
@@ -228,7 +228,7 @@ void pxa2xx_spi_dma_handler(int channel, void *data)
 		&& (drv_data->ssp_type == PXA25x_SSP)) {
 
 		/* Wait for rx to stall */
-		if (wait_ssp_rx_stall(drv_data->ioaddr) == 0)
+		if (wait_ssp_rx_stall(drv_data) == 0)
 			dev_err(&drv_data->pdev->dev,
 				"dma_handler: ssp rx stall failed\n");
 
