@@ -544,8 +544,13 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						(u8 *)(&fw_current_inps));
 			}
 		break; }
-	case HW_VAR_KEEP_ALIVE:
-		break;
+	case HW_VAR_KEEP_ALIVE: {
+		u8 array[2];
+
+		array[0] = 0xff;
+		array[1] = *((u8 *)val);
+		rtl92c_fill_h2c_cmd(hw, H2C_92C_KEEP_ALIVE_CTRL, 2, array);
+		break; }
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "switch case %d not processed\n", variable);
