@@ -89,6 +89,7 @@ enum {
 	OCRDMA_CMD_CREATE_MQ		= 21,
 	OCRDMA_CMD_GET_CTRL_ATTRIBUTES  = 32,
 	OCRDMA_CMD_GET_FW_VER		= 35,
+	OCRDMA_CMD_MODIFY_EQ_DELAY      = 41,
 	OCRDMA_CMD_DELETE_MQ		= 53,
 	OCRDMA_CMD_DELETE_CQ		= 54,
 	OCRDMA_CMD_DELETE_EQ		= 55,
@@ -315,6 +316,29 @@ struct ocrdma_create_eq_rsp {
 };
 
 #define OCRDMA_EQ_MINOR_OTHER	0x1
+
+struct ocrmda_set_eqd {
+	u32 eq_id;
+	u32 phase;
+	u32 delay_multiplier;
+};
+
+struct ocrdma_modify_eqd_cmd {
+	struct ocrdma_mbx_hdr req;
+	u32 num_eq;
+	struct ocrmda_set_eqd set_eqd[8];
+} __packed;
+
+struct ocrdma_modify_eqd_req {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_modify_eqd_cmd cmd;
+};
+
+
+struct ocrdma_modify_eq_delay_rsp {
+	struct ocrdma_mbx_rsp hdr;
+	u32 rsvd0;
+} __packed;
 
 enum {
 	OCRDMA_MCQE_STATUS_SHIFT	= 0,

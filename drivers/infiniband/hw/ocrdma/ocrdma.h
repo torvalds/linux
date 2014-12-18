@@ -55,6 +55,12 @@
 #define OCRDMA_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
 
 #define convert_to_64bit(lo, hi) ((u64)hi << 32 | (u64)lo)
+#define EQ_INTR_PER_SEC_THRSH_HI 150000
+#define EQ_INTR_PER_SEC_THRSH_LOW 100000
+#define EQ_AIC_MAX_EQD 20
+#define EQ_AIC_MIN_EQD 0
+
+void ocrdma_eqd_set_task(struct work_struct *work);
 
 struct ocrdma_dev_attr {
 	u8 fw_ver[32];
@@ -117,12 +123,19 @@ struct ocrdma_queue_info {
 	bool created;
 };
 
+struct ocrdma_aic_obj {         /* Adaptive interrupt coalescing (AIC) info */
+	u32 prev_eqd;
+	u64 eq_intr_cnt;
+	u64 prev_eq_intr_cnt;
+};
+
 struct ocrdma_eq {
 	struct ocrdma_queue_info q;
 	u32 vector;
 	int cq_cnt;
 	struct ocrdma_dev *dev;
 	char irq_name[32];
+	struct ocrdma_aic_obj aic_obj;
 };
 
 struct ocrdma_mq {
@@ -214,6 +227,7 @@ struct ocrdma_dev {
 
 	struct ocrdma_eq *eq_tbl;
 	int eq_cnt;
+	struct delayed_work eqd_work;
 	u16 base_eqid;
 	u16 max_eq;
 

@@ -960,6 +960,7 @@ static irqreturn_t ocrdma_irq_handler(int irq, void *handle)
 
 	} while (budget);
 
+	eq->aic_obj.eq_intr_cnt++;
 	ocrdma_ring_eq_db(dev, eq->q.id, true, true, 0);
 	return IRQ_HANDLED;
 }
@@ -3014,6 +3015,82 @@ static int ocrdma_create_eqs(struct ocrdma_dev *dev)
 done:
 	ocrdma_destroy_eqs(dev);
 	return status;
+}
+
+static int ocrdma_mbx_modify_eqd(struct ocrdma_dev *dev, struct ocrdma_eq *eq,
+				 int num)
+{
+	int i, status = -ENOMEM;
+	struct ocrdma_modify_eqd_req *cmd;
+
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_MODIFY_EQ_DELAY, sizeof(*cmd));
+	if (!cmd)
+		return status;
+
+	ocrdma_init_mch(&cmd->cmd.req, OCRDMA_CMD_MODIFY_EQ_DELAY,
+			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
+
+	cmd->cmd.num_eq = num;
+	for (i = 0; i < num; i++) {
+		cmd->cmd.set_eqd[i].eq_id = eq[i].q.id;
+		cmd->cmd.set_eqd[i].phase = 0;
+		cmd->cmd.set_eqd[i].delay_multiplier =
+				(eq[i].aic_obj.prev_eqd * 65)/100;
+	}
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
+	if (status)
+		goto mbx_err;
+mbx_err:
+	kfree(cmd);
+	return status;
+}
+
+static int ocrdma_modify_eqd(struct ocrdma_dev *dev, struct ocrdma_eq *eq,
+			     int num)
+{
+	int num_eqs, i = 0;
+	if (num > 8) {
+		while (num) {
+			num_eqs = min(num, 8);
+			ocrdma_mbx_modify_eqd(dev, &eq[i], num_eqs);
+			i += num_eqs;
+			num -= num_eqs;
+		}
+	} else {
+		ocrdma_mbx_modify_eqd(dev, eq, num);
+	}
+	return 0;
+}
+
+void ocrdma_eqd_set_task(struct work_struct *work)
+{
+	struct ocrdma_dev *dev =
+		container_of(work, struct ocrdma_dev, eqd_work.work);
+	struct ocrdma_eq *eq = 0;
+	int i, num = 0, status = -EINVAL;
+	u64 eq_intr;
+
+	for (i = 0; i < dev->eq_cnt; i++) {
+		eq = &dev->eq_tbl[i];
+		if (eq->aic_obj.eq_intr_cnt > eq->aic_obj.prev_eq_intr_cnt) {
+			eq_intr = eq->aic_obj.eq_intr_cnt -
+				  eq->aic_obj.prev_eq_intr_cnt;
+			if ((eq_intr > EQ_INTR_PER_SEC_THRSH_HI) &&
+			    (eq->aic_obj.prev_eqd == EQ_AIC_MIN_EQD)) {
+				eq->aic_obj.prev_eqd = EQ_AIC_MAX_EQD;
+				num++;
+			} else if ((eq_intr < EQ_INTR_PER_SEC_THRSH_LOW) &&
+				   (eq->aic_obj.prev_eqd == EQ_AIC_MAX_EQD)) {
+				eq->aic_obj.prev_eqd = EQ_AIC_MIN_EQD;
+				num++;
+			}
+		}
+		eq->aic_obj.prev_eq_intr_cnt = eq->aic_obj.eq_intr_cnt;
+	}
+
+	if (num)
+		status = ocrdma_modify_eqd(dev, &dev->eq_tbl[0], num);
+	schedule_delayed_work(&dev->eqd_work, msecs_to_jiffies(1000));
 }
 
 int ocrdma_init_hw(struct ocrdma_dev *dev)
