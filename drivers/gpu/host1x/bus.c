@@ -279,10 +279,59 @@ void host1x_bus_exit(void)
 	bus_unregister(&host1x_bus_type);
 }
 
+static void __host1x_device_del(struct host1x_device *device)
+{
+	struct host1x_subdev *subdev, *sd;
+	struct host1x_client *client, *cl;
+
+	mutex_lock(&device->subdevs_lock);
+
+	/* unregister subdevices */
+	list_for_each_entry_safe(subdev, sd, &device->active, list) {
+		/*
+		 * host1x_subdev_unregister() will remove the client from
+		 * any lists, so we'll need to manually add it back to the
+		 * list of idle clients.
+		 *
+		 * XXX: Alternatively, perhaps don't remove the client from
+		 * any lists in host1x_subdev_unregister() and instead do
+		 * that explicitly from host1x_unregister_client()?
+		 */
+		client = subdev->client;
+
+		__host1x_subdev_unregister(device, subdev);
+
+		/* add the client to the list of idle clients */
+		mutex_lock(&clients_lock);
+		list_add_tail(&client->list, &clients);
+		mutex_unlock(&clients_lock);
+	}
+
+	/* remove subdevices */
+	list_for_each_entry_safe(subdev, sd, &device->subdevs, list)
+		host1x_subdev_del(subdev);
+
+	mutex_unlock(&device->subdevs_lock);
+
+	/* move clients to idle list */
+	mutex_lock(&clients_lock);
+	mutex_lock(&device->clients_lock);
+
+	list_for_each_entry_safe(client, cl, &device->clients, list)
+		list_move_tail(&client->list, &clients);
+
+	mutex_unlock(&device->clients_lock);
+	mutex_unlock(&clients_lock);
+
+	/* finally remove the device */
+	list_del_init(&device->list);
+}
+
 static void host1x_device_release(struct device *dev)
 {
 	struct host1x_device *device = to_host1x_device(dev);
 
+	__host1x_device_del(device);
 	kfree(device);
 }
 
@@ -350,50 +399,6 @@ static int host1x_device_add(struct host1x *host1x,
 static void host1x_device_del(struct host1x *host1x,
 			      struct host1x_device *device)
 {
-	struct host1x_subdev *subdev, *sd;
-	struct host1x_client *client, *cl;
-
-	mutex_lock(&device->subdevs_lock);
-
-	/* unregister subdevices */
-	list_for_each_entry_safe(subdev, sd, &device->active, list) {
-		/*
-		 * host1x_subdev_unregister() will remove the client from
-		 * any lists, so we'll need to manually add it back to the
-		 * list of idle clients.
-		 *
-		 * XXX: Alternatively, perhaps don't remove the client from
-		 * any lists in host1x_subdev_unregister() and instead do
-		 * that explicitly from host1x_unregister_client()?
-		 */
-		client = subdev->client;
-
-		__host1x_subdev_unregister(device, subdev);
-
-		/* add the client to the list of idle clients */
-		mutex_lock(&clients_lock);
-		list_add_tail(&client->list, &clients);
-		mutex_unlock(&clients_lock);
-	}
-
-	/* remove subdevices */
-	list_for_each_entry_safe(subdev, sd, &device->subdevs, list)
-		host1x_subdev_del(subdev);
-
-	mutex_unlock(&device->subdevs_lock);
-
-	/* move clients to idle list */
-	mutex_lock(&clients_lock);
-	mutex_lock(&device->clients_lock);
-
-	list_for_each_entry_safe(client, cl, &device->clients, list)
-		list_move_tail(&client->list, &clients);
-
-	mutex_unlock(&device->clients_lock);
-	mutex_unlock(&clients_lock);
-
-	/* finally remove the device */
-	list_del_init(&device->list);
 	device_unregister(&device->dev);
 }
 
