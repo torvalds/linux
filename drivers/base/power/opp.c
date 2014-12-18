@@ -84,7 +84,11 @@ struct dev_pm_opp {
  *
  * This is an internal data structure maintaining the link to opps attached to
  * a device. This structure is not meant to be shared to users as it is
- * meant for book keeping and private to OPP library
+ * meant for book keeping and private to OPP library.
+ *
+ * Because the opp structures can be used from both rcu and srcu readers, we
+ * need to wait for the grace period of both of them before freeing any
+ * resources. And so we have used kfree_rcu() from within call_srcu() handlers.
  */
 struct device_opp {
 	struct list_head node;
@@ -103,6 +107,14 @@ struct device_opp {
 static LIST_HEAD(dev_opp_list);
 /* Lock to allow exclusive modification to the device and opp lists */
 static DEFINE_MUTEX(dev_opp_list_lock);
+
+#define opp_rcu_lockdep_assert()					\
+do {									\
+	rcu_lockdep_assert(rcu_read_lock_held() ||			\
+				lockdep_is_held(&dev_opp_list_lock),	\
+			   "Missing rcu_read_lock() or "		\
+			   "dev_opp_list_lock protection");		\
+} while (0)
 
 /**
  * find_device_opp() - find device_opp struct using device pointer
@@ -204,9 +216,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
  * This function returns the number of available opps if there are any,
  * else returns 0 if none or the corresponding error value.
  *
- * Locking: This function must be called under rcu_read_lock(). This function
- * internally references two RCU protected structures: device_opp and opp which
- * are safe as long as we are under a common RCU locked section.
+ * Locking: This function takes rcu_read_lock().
  */
 int dev_pm_opp_get_opp_count(struct device *dev)
 {
@@ -214,11 +224,14 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 	struct dev_pm_opp *temp_opp;
 	int count = 0;
 
+	rcu_read_lock();
+
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
-		int r = PTR_ERR(dev_opp);
-		dev_err(dev, "%s: device OPP not found (%d)\n", __func__, r);
-		return r;
+		count = PTR_ERR(dev_opp);
+		dev_err(dev, "%s: device OPP not found (%d)\n",
+			__func__, count);
+		goto out_unlock;
 	}
 
 	list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
@@ -226,6 +239,8 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 			count++;
 	}
 
+out_unlock:
+	rcu_read_unlock();
 	return count;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
@@ -262,6 +277,8 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+
+	opp_rcu_lockdep_assert();
 
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
@@ -308,6 +325,8 @@ struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+
+	opp_rcu_lockdep_assert();
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
@@ -357,6 +376,8 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
+	opp_rcu_lockdep_assert();
+
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
 		return ERR_PTR(-EINVAL);
@@ -382,12 +403,34 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
 
+static struct device_opp *add_device_opp(struct device *dev)
+{
+	struct device_opp *dev_opp;
+
+	/*
+	 * Allocate a new device OPP table. In the infrequent case where a new
+	 * device is needed to be added, we pay this penalty.
+	 */
+	dev_opp = kzalloc(sizeof(*dev_opp), GFP_KERNEL);
+	if (!dev_opp)
+		return NULL;
+
+	dev_opp->dev = dev;
+	srcu_init_notifier_head(&dev_opp->srcu_head);
+	INIT_LIST_HEAD(&dev_opp->opp_list);
+
+	/* Secure the device list modification */
+	list_add_rcu(&dev_opp->node, &dev_opp_list);
+	return dev_opp;
+}
+
 static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 				  unsigned long u_volt, bool dynamic)
 {
 	struct device_opp *dev_opp = NULL;
 	struct dev_pm_opp *opp, *new_opp;
 	struct list_head *head;
+	int ret;
 
 	/* allocate new OPP node */
 	new_opp = kzalloc(sizeof(*new_opp), GFP_KERNEL);
@@ -400,7 +443,6 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	mutex_lock(&dev_opp_list_lock);
 
 	/* populate the opp table */
-	new_opp->dev_opp = dev_opp;
 	new_opp->rate = freq;
 	new_opp->u_volt = u_volt;
 	new_opp->available = true;
@@ -409,27 +451,12 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	/* Check for existing list for 'dev' */
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
-		/*
-		 * Allocate a new device OPP table. In the infrequent case
-		 * where a new device is needed to be added, we pay this
-		 * penalty.
-		 */
-		dev_opp = kzalloc(sizeof(struct device_opp), GFP_KERNEL);
+		dev_opp = add_device_opp(dev);
 		if (!dev_opp) {
-			mutex_unlock(&dev_opp_list_lock);
-			kfree(new_opp);
-			dev_warn(dev,
-				"%s: Unable to create device OPP structure\n",
-				__func__);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto free_opp;
 		}
 
-		dev_opp->dev = dev;
-		srcu_init_notifier_head(&dev_opp->srcu_head);
-		INIT_LIST_HEAD(&dev_opp->opp_list);
-
-		/* Secure the device list modification */
-		list_add_rcu(&dev_opp->node, &dev_opp_list);
 		head = &dev_opp->opp_list;
 		goto list_add;
 	}
@@ -448,18 +475,17 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 
 	/* Duplicate OPPs ? */
 	if (new_opp->rate == opp->rate) {
-		int ret = opp->available && new_opp->u_volt == opp->u_volt ?
+		ret = opp->available && new_opp->u_volt == opp->u_volt ?
 			0 : -EEXIST;
 
 		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
 			 __func__, opp->rate, opp->u_volt, opp->available,
 			 new_opp->rate, new_opp->u_volt, new_opp->available);
-		mutex_unlock(&dev_opp_list_lock);
-		kfree(new_opp);
-		return ret;
+		goto free_opp;
 	}
 
 list_add:
+	new_opp->dev_opp = dev_opp;
 	list_add_rcu(&new_opp->node, head);
 	mutex_unlock(&dev_opp_list_lock);
 
@@ -469,6 +495,11 @@ list_add:
 	 */
 	srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_ADD, new_opp);
 	return 0;
+
+free_opp:
+	mutex_unlock(&dev_opp_list_lock);
+	kfree(new_opp);
+	return ret;
 }
 
 /**
@@ -511,10 +542,11 @@ static void kfree_device_rcu(struct rcu_head *head)
 {
 	struct device_opp *device_opp = container_of(head, struct device_opp, rcu_head);
 
-	kfree(device_opp);
+	kfree_rcu(device_opp, rcu_head);
 }
 
-void __dev_pm_opp_remove(struct device_opp *dev_opp, struct dev_pm_opp *opp)
+static void __dev_pm_opp_remove(struct device_opp *dev_opp,
+				struct dev_pm_opp *opp)
 {
 	/*
 	 * Notify the changes in the availability of the operable
@@ -592,7 +624,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 static int opp_set_availability(struct device *dev, unsigned long freq,
 		bool availability_req)
 {
-	struct device_opp *tmp_dev_opp, *dev_opp = ERR_PTR(-ENODEV);
+	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
 	int r = 0;
 
@@ -606,12 +638,7 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 	mutex_lock(&dev_opp_list_lock);
 
 	/* Find the device_opp */
-	list_for_each_entry(tmp_dev_opp, &dev_opp_list, node) {
-		if (dev == tmp_dev_opp->dev) {
-			dev_opp = tmp_dev_opp;
-			break;
-		}
-	}
+	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		r = PTR_ERR(dev_opp);
 		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
@@ -768,14 +795,20 @@ EXPORT_SYMBOL_GPL(of_init_opp_table);
  */
 void of_free_opp_table(struct device *dev)
 {
-	struct device_opp *dev_opp = find_device_opp(dev);
+	struct device_opp *dev_opp;
 	struct dev_pm_opp *opp, *tmp;
 
 	/* Check for existing list for 'dev' */
 	dev_opp = find_device_opp(dev);
-	if (WARN(IS_ERR(dev_opp), "%s: dev_opp: %ld\n", dev_name(dev),
-		 PTR_ERR(dev_opp)))
+	if (IS_ERR(dev_opp)) {
+		int error = PTR_ERR(dev_opp);
+		if (error != -ENODEV)
+			WARN(1, "%s: dev_opp: %d\n",
+			     IS_ERR_OR_NULL(dev) ?
+					"Invalid device" : dev_name(dev),
+			     error);
 		return;
+	}
 
 	/* Hold our list modification lock here */
 	mutex_lock(&dev_opp_list_lock);
