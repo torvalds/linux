@@ -1044,7 +1044,10 @@ static void free_rq_clone(struct request *clone)
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
 	blk_rq_unprep_clone(clone);
-	free_clone_request(tio->md, clone);
+	if (clone->q && clone->q->mq_ops)
+		tio->ti->type->release_clone_rq(clone);
+	else
+		free_clone_request(tio->md, clone);
 	free_rq_tio(tio);
 }
 
@@ -1086,7 +1089,8 @@ static void dm_unprep_request(struct request *rq)
 	rq->special = NULL;
 	rq->cmd_flags &= ~REQ_DONTPREP;
 
-	free_rq_clone(clone);
+	if (clone)
+		free_rq_clone(clone);
 }
 
 /*
@@ -1185,6 +1189,13 @@ static void dm_softirq_done(struct request *rq)
 	struct dm_rq_target_io *tio = rq->special;
 	struct request *clone = tio->clone;
 
+	if (!clone) {
+		blk_end_request_all(rq, tio->error);
+		rq_completed(tio->md, rq_data_dir(rq), false);
+		free_rq_tio(tio);
+		return;
+	}
+
 	if (rq->cmd_flags & REQ_FAILED)
 		mapped = false;
 
@@ -1207,7 +1218,7 @@ static void dm_complete_request(struct request *rq, int error)
  * Complete the not-mapped clone and the original request with the error status
  * through softirq context.
  * Target's rq_end_io() function isn't called.
- * This may be used when the target's map_rq() function fails.
+ * This may be used when the target's map_rq() or clone_and_map_rq() functions fail.
  */
 static void dm_kill_unmapped_request(struct request *rq, int error)
 {
@@ -1222,13 +1233,15 @@ static void end_clone_request(struct request *clone, int error)
 {
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
-	/*
-	 * For just cleaning up the information of the queue in which
-	 * the clone was dispatched.
-	 * The clone is *NOT* freed actually here because it is alloced from
-	 * dm own mempool and REQ_ALLOCED isn't set in clone->cmd_flags.
-	 */
-	__blk_put_request(clone->q, clone);
+	if (!clone->q->mq_ops) {
+		/*
+		 * For just cleaning up the information of the queue in which
+		 * the clone was dispatched.
+		 * The clone is *NOT* freed actually here because it is alloced
+		 * from dm own mempool (REQ_ALLOCED isn't set).
+		 */
+		__blk_put_request(clone->q, clone);
+	}
 
 	/*
 	 * Actual request completion is done in a softirq context which doesn't
@@ -1789,6 +1802,8 @@ static struct dm_rq_target_io *prep_tio(struct request *rq,
 					struct mapped_device *md, gfp_t gfp_mask)
 {
 	struct dm_rq_target_io *tio;
+	int srcu_idx;
+	struct dm_table *table;
 
 	tio = alloc_rq_tio(md, gfp_mask);
 	if (!tio)
@@ -1802,10 +1817,15 @@ static struct dm_rq_target_io *prep_tio(struct request *rq,
 	memset(&tio->info, 0, sizeof(tio->info));
 	init_kthread_work(&tio->work, map_tio_request);
 
-	if (!clone_rq(rq, md, tio, gfp_mask)) {
-		free_rq_tio(tio);
-		return NULL;
+	table = dm_get_live_table(md, &srcu_idx);
+	if (!dm_table_mq_request_based(table)) {
+		if (!clone_rq(rq, md, tio, gfp_mask)) {
+			dm_put_live_table(md, srcu_idx);
+			free_rq_tio(tio);
+			return NULL;
+		}
 	}
+	dm_put_live_table(md, srcu_idx);
 
 	return tio;
 }
@@ -1835,17 +1855,36 @@ static int dm_prep_fn(struct request_queue *q, struct request *rq)
 
 /*
  * Returns:
- * 0  : the request has been processed (not requeued)
- * !0 : the request has been requeued
+ * 0                : the request has been processed
+ * DM_MAPIO_REQUEUE : the original request needs to be requeued
+ * < 0              : the request was completed due to failure
  */
 static int map_request(struct dm_target *ti, struct request *rq,
 		       struct mapped_device *md)
 {
-	int r, requeued = 0;
+	int r;
 	struct dm_rq_target_io *tio = rq->special;
-	struct request *clone = tio->clone;
+	struct request *clone = NULL;
 
-	r = ti->type->map_rq(ti, clone, &tio->info);
+	if (tio->clone) {
+		clone = tio->clone;
+		r = ti->type->map_rq(ti, clone, &tio->info);
+	} else {
+		r = ti->type->clone_and_map_rq(ti, rq, &tio->info, &clone);
+		if (r < 0) {
+			/* The target wants to complete the I/O */
+			dm_kill_unmapped_request(rq, r);
+			return r;
+		}
+		if (IS_ERR(clone))
+			return DM_MAPIO_REQUEUE;
+		if (setup_clone(clone, rq, tio, GFP_KERNEL)) {
+			/* -ENOMEM */
+			ti->type->release_clone_rq(clone);
+			return DM_MAPIO_REQUEUE;
+		}
+	}
+
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
 		/* The target has taken the I/O to submit by itself later */
@@ -1859,7 +1898,6 @@ static int map_request(struct dm_target *ti, struct request *rq,
 	case DM_MAPIO_REQUEUE:
 		/* The target wants to requeue the I/O */
 		dm_requeue_unmapped_request(clone);
-		requeued = 1;
 		break;
 	default:
 		if (r > 0) {
@@ -1869,17 +1907,20 @@ static int map_request(struct dm_target *ti, struct request *rq,
 
 		/* The target wants to complete the I/O */
 		dm_kill_unmapped_request(rq, r);
-		break;
+		return r;
 	}
 
-	return requeued;
+	return 0;
 }
 
 static void map_tio_request(struct kthread_work *work)
 {
 	struct dm_rq_target_io *tio = container_of(work, struct dm_rq_target_io, work);
+	struct request *rq = tio->orig;
+	struct mapped_device *md = tio->md;
 
-	map_request(tio->ti, tio->orig, tio->md);
+	if (map_request(tio->ti, rq, md) == DM_MAPIO_REQUEUE)
+		dm_requeue_unmapped_original_request(md, rq);
 }
 
 static void dm_start_request(struct mapped_device *md, struct request *orig)
@@ -2459,6 +2500,14 @@ unsigned dm_get_md_type(struct mapped_device *md)
 	return md->type;
 }
 
+static bool dm_md_type_request_based(struct mapped_device *md)
+{
+	unsigned table_type = dm_get_md_type(md);
+
+	return (table_type == DM_TYPE_REQUEST_BASED ||
+		table_type == DM_TYPE_MQ_REQUEST_BASED);
+}
+
 struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
 {
 	return md->immutable_target_type;
@@ -2511,8 +2560,7 @@ static int dm_init_request_based_queue(struct mapped_device *md)
  */
 int dm_setup_md_queue(struct mapped_device *md)
 {
-	if ((dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) &&
-	    !dm_init_request_based_queue(md)) {
+	if (dm_md_type_request_based(md) && !dm_init_request_based_queue(md)) {
 		DMWARN("Cannot initialize queue for request-based mapped device");
 		return -EINVAL;
 	}
@@ -3184,27 +3232,35 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, u
 {
 	struct dm_md_mempools *pools = kzalloc(sizeof(*pools), GFP_KERNEL);
 	struct kmem_cache *cachep;
-	unsigned int pool_size;
+	unsigned int pool_size = 0;
 	unsigned int front_pad;
 
 	if (!pools)
 		return NULL;
 
-	if (type == DM_TYPE_BIO_BASED) {
+	switch (type) {
+	case DM_TYPE_BIO_BASED:
 		cachep = _io_cache;
 		pool_size = dm_get_reserved_bio_based_ios();
 		front_pad = roundup(per_bio_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
-	} else if (type == DM_TYPE_REQUEST_BASED) {
-		cachep = _rq_tio_cache;
+		break;
+	case DM_TYPE_REQUEST_BASED:
 		pool_size = dm_get_reserved_rq_based_ios();
 		pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
 		if (!pools->rq_pool)
 			goto out;
+		/* fall through to setup remaining rq-based pools */
+	case DM_TYPE_MQ_REQUEST_BASED:
+		cachep = _rq_tio_cache;
+		if (!pool_size)
+			pool_size = dm_get_reserved_rq_based_ios();
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
 		/* per_bio_data_size is not used. See __bind_mempools(). */
 		WARN_ON(per_bio_data_size != 0);
-	} else
+		break;
+	default:
 		goto out;
+	}
 
 	pools->io_pool = mempool_create_slab_pool(pool_size, cachep);
 	if (!pools->io_pool)

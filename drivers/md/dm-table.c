@@ -827,6 +827,7 @@ static int dm_table_set_type(struct dm_table *t)
 {
 	unsigned i;
 	unsigned bio_based = 0, request_based = 0, hybrid = 0;
+	bool use_blk_mq = false;
 	struct dm_target *tgt;
 	struct dm_dev_internal *dd;
 	struct list_head *devices;
@@ -872,11 +873,26 @@ static int dm_table_set_type(struct dm_table *t)
 	/* Non-request-stackable devices can't be used for request-based dm */
 	devices = dm_table_get_devices(t);
 	list_for_each_entry(dd, devices, list) {
-		if (!blk_queue_stackable(bdev_get_queue(dd->dm_dev->bdev))) {
-			DMWARN("table load rejected: including"
-			       " non-request-stackable devices");
+		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
+
+		if (!blk_queue_stackable(q)) {
+			DMERR("table load rejected: including"
+			      " non-request-stackable devices");
 			return -EINVAL;
 		}
+
+		if (q->mq_ops)
+			use_blk_mq = true;
+	}
+
+	if (use_blk_mq) {
+		/* verify _all_ devices in the table are blk-mq devices */
+		list_for_each_entry(dd, devices, list)
+			if (!bdev_get_queue(dd->dm_dev->bdev)->mq_ops) {
+				DMERR("table load rejected: not all devices"
+				      " are blk-mq request-stackable");
+				return -EINVAL;
+			}
 	}
 
 	/*
@@ -890,7 +906,7 @@ static int dm_table_set_type(struct dm_table *t)
 		return -EINVAL;
 	}
 
-	t->type = DM_TYPE_REQUEST_BASED;
+	t->type = !use_blk_mq ? DM_TYPE_REQUEST_BASED : DM_TYPE_MQ_REQUEST_BASED;
 
 	return 0;
 }
@@ -907,7 +923,15 @@ struct target_type *dm_table_get_immutable_target_type(struct dm_table *t)
 
 bool dm_table_request_based(struct dm_table *t)
 {
-	return dm_table_get_type(t) == DM_TYPE_REQUEST_BASED;
+	unsigned table_type = dm_table_get_type(t);
+
+	return (table_type == DM_TYPE_REQUEST_BASED ||
+		table_type == DM_TYPE_MQ_REQUEST_BASED);
+}
+
+bool dm_table_mq_request_based(struct dm_table *t)
+{
+	return dm_table_get_type(t) == DM_TYPE_MQ_REQUEST_BASED;
 }
 
 static int dm_table_alloc_md_mempools(struct dm_table *t)
