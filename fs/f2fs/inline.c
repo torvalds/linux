@@ -79,7 +79,6 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 {
 	void *src_addr, *dst_addr;
-	block_t new_blk_addr;
 	struct f2fs_io_info fio = {
 		.type = DATA,
 		.rw = WRITE_SYNC | REQ_PRIO,
@@ -115,9 +114,9 @@ no_update:
 
 	/* write data page to try to make data consistent */
 	set_page_writeback(page);
-
-	write_data_page(page, dn, &new_blk_addr, &fio);
-	update_extent_cache(new_blk_addr, dn);
+	fio.blk_addr = dn->data_blkaddr;
+	write_data_page(page, dn, &fio);
+	update_extent_cache(fio.blk_addr, dn);
 	f2fs_wait_on_page_writeback(page, DATA);
 	if (dirty)
 		inode_dec_dirty_pages(dn->inode);

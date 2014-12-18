@@ -977,6 +977,10 @@ static int read_node_page(struct page *page, int rw)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 	struct node_info ni;
+	struct f2fs_io_info fio = {
+		.type = NODE,
+		.rw = rw,
+	};
 
 	get_node_info(sbi, page->index, &ni);
 
@@ -988,7 +992,8 @@ static int read_node_page(struct page *page, int rw)
 	if (PageUptodate(page))
 		return LOCKED_PAGE;
 
-	return f2fs_submit_page_bio(sbi, page, ni.blk_addr, rw);
+	fio.blk_addr = ni.blk_addr;
+	return f2fs_submit_page_bio(sbi, page, &fio);
 }
 
 /*
@@ -1269,7 +1274,6 @@ static int f2fs_write_node_page(struct page *page,
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 	nid_t nid;
-	block_t new_addr;
 	struct node_info ni;
 	struct f2fs_io_info fio = {
 		.type = NODE,
@@ -1304,9 +1308,11 @@ static int f2fs_write_node_page(struct page *page,
 	} else {
 		down_read(&sbi->node_write);
 	}
+
 	set_page_writeback(page);
-	write_node_page(sbi, page, &fio, nid, ni.blk_addr, &new_addr);
-	set_node_addr(sbi, &ni, new_addr, is_fsync_dnode(page));
+	fio.blk_addr = ni.blk_addr;
+	write_node_page(sbi, page, nid, &fio);
+	set_node_addr(sbi, &ni, fio.blk_addr, is_fsync_dnode(page));
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
 	up_read(&sbi->node_write);
 	unlock_page(page);

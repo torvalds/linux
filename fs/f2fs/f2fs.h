@@ -491,6 +491,7 @@ enum page_type {
 struct f2fs_io_info {
 	enum page_type type;	/* contains DATA/NODE/META/META_FLUSH */
 	int rw;			/* contains R/RS/W/WS with REQ_META/REQ_PRIO */
+	block_t blk_addr;	/* block address to be written */
 };
 
 #define is_read_io(rw)	(((rw) & 1) == READ)
@@ -1414,10 +1415,10 @@ int f2fs_trim_fs(struct f2fs_sb_info *, struct fstrim_range *);
 struct page *get_sum_page(struct f2fs_sb_info *, unsigned int);
 void write_meta_page(struct f2fs_sb_info *, struct page *);
 void write_node_page(struct f2fs_sb_info *, struct page *,
-		struct f2fs_io_info *, unsigned int, block_t, block_t *);
-void write_data_page(struct page *, struct dnode_of_data *, block_t *,
-					struct f2fs_io_info *);
-void rewrite_data_page(struct page *, block_t, struct f2fs_io_info *);
+				unsigned int, struct f2fs_io_info *);
+void write_data_page(struct page *, struct dnode_of_data *,
+			struct f2fs_io_info *);
+void rewrite_data_page(struct page *, struct f2fs_io_info *);
 void recover_data_page(struct f2fs_sb_info *, struct page *,
 				struct f2fs_summary *, block_t, block_t);
 void allocate_data_block(struct f2fs_sb_info *, struct page *,
@@ -1464,8 +1465,9 @@ void destroy_checkpoint_caches(void);
  * data.c
  */
 void f2fs_submit_merged_bio(struct f2fs_sb_info *, enum page_type, int);
-int f2fs_submit_page_bio(struct f2fs_sb_info *, struct page *, block_t, int);
-void f2fs_submit_page_mbio(struct f2fs_sb_info *, struct page *, block_t,
+int f2fs_submit_page_bio(struct f2fs_sb_info *, struct page *,
+						struct f2fs_io_info *);
+void f2fs_submit_page_mbio(struct f2fs_sb_info *, struct page *,
 						struct f2fs_io_info *);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);

@@ -1182,39 +1182,39 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 }
 
 static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
-			block_t old_blkaddr, block_t *new_blkaddr,
-			struct f2fs_summary *sum, struct f2fs_io_info *fio)
+			struct f2fs_summary *sum,
+			struct f2fs_io_info *fio)
 {
 	int type = __get_segment_type(page, fio->type);
 
-	allocate_data_block(sbi, page, old_blkaddr, new_blkaddr, sum, type);
+	allocate_data_block(sbi, page, fio->blk_addr, &fio->blk_addr, sum, type);
 
 	/* writeout dirty page into bdev */
-	f2fs_submit_page_mbio(sbi, page, *new_blkaddr, fio);
+	f2fs_submit_page_mbio(sbi, page, fio);
 }
 
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 {
 	struct f2fs_io_info fio = {
 		.type = META,
-		.rw = WRITE_SYNC | REQ_META | REQ_PRIO
+		.rw = WRITE_SYNC | REQ_META | REQ_PRIO,
+		.blk_addr = page->index,
 	};
 
 	set_page_writeback(page);
-	f2fs_submit_page_mbio(sbi, page, page->index, &fio);
+	f2fs_submit_page_mbio(sbi, page, &fio);
 }
 
 void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
-		struct f2fs_io_info *fio,
-		unsigned int nid, block_t old_blkaddr, block_t *new_blkaddr)
+			unsigned int nid, struct f2fs_io_info *fio)
 {
 	struct f2fs_summary sum;
 	set_summary(&sum, nid, 0, 0);
-	do_write_page(sbi, page, old_blkaddr, new_blkaddr, &sum, fio);
+	do_write_page(sbi, page, &sum, fio);
 }
 
 void write_data_page(struct page *page, struct dnode_of_data *dn,
-		block_t *new_blkaddr, struct f2fs_io_info *fio)
+				struct f2fs_io_info *fio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_summary sum;
@@ -1223,14 +1223,12 @@ void write_data_page(struct page *page, struct dnode_of_data *dn,
 	f2fs_bug_on(sbi, dn->data_blkaddr == NULL_ADDR);
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
-
-	do_write_page(sbi, page, dn->data_blkaddr, new_blkaddr, &sum, fio);
+	do_write_page(sbi, page, &sum, fio);
 }
 
-void rewrite_data_page(struct page *page, block_t old_blkaddr,
-					struct f2fs_io_info *fio)
+void rewrite_data_page(struct page *page, struct f2fs_io_info *fio)
 {
-	f2fs_submit_page_mbio(F2FS_P_SB(page), page, old_blkaddr, fio);
+	f2fs_submit_page_mbio(F2FS_P_SB(page), page, fio);
 }
 
 void recover_data_page(struct f2fs_sb_info *sbi,
