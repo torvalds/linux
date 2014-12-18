@@ -1049,9 +1049,9 @@ static int __inject_set_prefix(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	struct kvm_s390_prefix_info *prefix = &li->irq.prefix;
 
 	VCPU_EVENT(vcpu, 3, "inject: set prefix to %x (from user)",
-		   prefix->address);
+		   irq->u.prefix.address);
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_SIGP_SET_PREFIX,
-				   prefix->address, 0, 2);
+				   irq->u.prefix.address, 0, 2);
 
 	if (!is_vcpu_stopped(vcpu))
 		return -EBUSY;
@@ -1121,9 +1121,9 @@ static int __inject_mchk(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	struct kvm_s390_mchk_info *mchk = &li->irq.mchk;
 
 	VCPU_EVENT(vcpu, 5, "inject: machine check parm64:%llx",
-		   mchk->mcic);
+		   irq->u.mchk.mcic);
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_MCHK, 0,
-				   mchk->mcic, 2);
+				   irq->u.mchk.mcic, 2);
 
 	/*
 	 * Because repressible machine checks can be indicated along with
