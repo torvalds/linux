@@ -74,6 +74,7 @@ struct kvmppc_icp {
 #define XICS_RM_NOTIFY_EOI	0x8
 	u32 rm_action;
 	struct kvm_vcpu *rm_kick_target;
+	struct kvmppc_icp *rm_resend_icp;
 	u32  rm_reject;
 	u32  rm_eoied_irq;
 
