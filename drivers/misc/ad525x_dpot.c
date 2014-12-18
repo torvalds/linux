@@ -176,6 +176,7 @@ static s32 dpot_read_i2c(struct dpot_data *dpot, u8 reg)
 {
 	int value;
 	unsigned ctrl = 0;
+
 	switch (dpot->uid) {
 	case DPOT_UID(AD5246_ID):
 	case DPOT_UID(AD5247_ID):
