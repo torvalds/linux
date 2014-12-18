@@ -32,10 +32,16 @@
 
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
 
+static DEFINE_IDR(mmc_host_idr);
+static DEFINE_SPINLOCK(mmc_host_lock);
+
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	mutex_destroy(&host->slot.lock);
+	spin_lock(&mmc_host_lock);
+	idr_remove(&mmc_host_idr, host->index);
+	spin_unlock(&mmc_host_lock);
 	kfree(host);
 }
 
@@ -53,9 +59,6 @@ void mmc_unregister_host_class(void)
 {
 	class_unregister(&mmc_host_class);
 }
-
-static DEFINE_IDR(mmc_host_idr);
-static DEFINE_SPINLOCK(mmc_host_lock);
 
 #ifdef CONFIG_MMC_CLKGATE
 static ssize_t clkgate_delay_show(struct device *dev,
@@ -585,10 +588,6 @@ EXPORT_SYMBOL(mmc_remove_host);
  */
 void mmc_free_host(struct mmc_host *host)
 {
-	spin_lock(&mmc_host_lock);
-	idr_remove(&mmc_host_idr, host->index);
-	spin_unlock(&mmc_host_lock);
-
 	put_device(&host->class_dev);
 }
 
