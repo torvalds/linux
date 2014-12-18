@@ -272,10 +272,10 @@ static __init int match_config_table(efi_guid_t *guid,
 	int i;
 
 	if (table_types) {
-		efi_guid_unparse(guid, str);
+		efi_guid_to_str(guid, str);
 
 		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
-			efi_guid_unparse(&table_types[i].guid, str);
+			efi_guid_to_str(&table_types[i].guid, str);
 
 			if (!efi_guidcmp(*guid, table_types[i].guid)) {
 				*(table_types[i].ptr) = table;
