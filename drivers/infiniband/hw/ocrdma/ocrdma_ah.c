@@ -29,11 +29,13 @@
 #include <net/netevent.h>
 
 #include <rdma/ib_addr.h>
+#include <rdma/ib_mad.h>
 
 #include "ocrdma.h"
 #include "ocrdma_verbs.h"
 #include "ocrdma_ah.h"
 #include "ocrdma_hw.h"
+#include "ocrdma_stats.h"
 
 #define OCRDMA_VID_PCP_SHIFT	0xD
 
@@ -191,5 +193,20 @@ int ocrdma_process_mad(struct ib_device *ibdev,
 		       struct ib_grh *in_grh,
 		       struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
-	return IB_MAD_RESULT_SUCCESS;
+	int status;
+	struct ocrdma_dev *dev;
+
+	switch (in_mad->mad_hdr.mgmt_class) {
+	case IB_MGMT_CLASS_PERF_MGMT:
+		dev = get_ocrdma_dev(ibdev);
+		if (!ocrdma_pma_counters(dev, out_mad))
+			status = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
+		else
+			status = IB_MAD_RESULT_SUCCESS;
+		break;
+	default:
+		status = IB_MAD_RESULT_SUCCESS;
+		break;
+	}
+	return status;
 }

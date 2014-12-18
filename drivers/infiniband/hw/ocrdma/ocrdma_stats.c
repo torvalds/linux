@@ -26,6 +26,7 @@
  *******************************************************************/
 
 #include <rdma/ib_addr.h>
+#include <rdma/ib_pma.h>
 #include "ocrdma_stats.h"
 
 static struct dentry *ocrdma_dbgfs_dir;
@@ -249,6 +250,27 @@ static char *ocrdma_rx_stats(struct ocrdma_dev *dev)
 	return stats;
 }
 
+static u64 ocrdma_sysfs_rcv_pkts(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rx_stats *rx_stats = &rdma_stats->rx_stats;
+
+	return convert_to_64bit(rx_stats->roce_frames_lo,
+		rx_stats->roce_frames_hi) + (u64)rx_stats->roce_frame_icrc_drops
+		+ (u64)rx_stats->roce_frame_payload_len_drops;
+}
+
+static u64 ocrdma_sysfs_rcv_data(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rx_stats *rx_stats = &rdma_stats->rx_stats;
+
+	return (convert_to_64bit(rx_stats->roce_frame_bytes_lo,
+		rx_stats->roce_frame_bytes_hi))/4;
+}
+
 static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
@@ -290,6 +312,37 @@ static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 				(u64)tx_stats->ack_timeouts);
 
 	return stats;
+}
+
+static u64 ocrdma_sysfs_xmit_pkts(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_tx_stats *tx_stats = &rdma_stats->tx_stats;
+
+	return (convert_to_64bit(tx_stats->send_pkts_lo,
+				 tx_stats->send_pkts_hi) +
+	convert_to_64bit(tx_stats->write_pkts_lo, tx_stats->write_pkts_hi) +
+	convert_to_64bit(tx_stats->read_pkts_lo, tx_stats->read_pkts_hi) +
+	convert_to_64bit(tx_stats->read_rsp_pkts_lo,
+			 tx_stats->read_rsp_pkts_hi) +
+	convert_to_64bit(tx_stats->ack_pkts_lo, tx_stats->ack_pkts_hi));
+}
+
+static u64 ocrdma_sysfs_xmit_data(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_tx_stats *tx_stats = &rdma_stats->tx_stats;
+
+	return (convert_to_64bit(tx_stats->send_bytes_lo,
+				 tx_stats->send_bytes_hi) +
+		convert_to_64bit(tx_stats->write_bytes_lo,
+				 tx_stats->write_bytes_hi) +
+		convert_to_64bit(tx_stats->read_req_bytes_lo,
+				 tx_stats->read_req_bytes_hi) +
+		convert_to_64bit(tx_stats->read_rsp_bytes_lo,
+				 tx_stats->read_rsp_bytes_hi))/4;
 }
 
 static char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
@@ -446,6 +499,22 @@ static void ocrdma_update_stats(struct ocrdma_dev *dev)
 			       __func__, status);
 		dev->last_stats_time = jiffies;
 	}
+}
+
+int ocrdma_pma_counters(struct ocrdma_dev *dev,
+			struct ib_mad *out_mad)
+{
+	struct ib_pma_portcounters *pma_cnt;
+
+	memset(out_mad->data, 0, sizeof out_mad->data);
+	pma_cnt = (void *)(out_mad->data + 40);
+	ocrdma_update_stats(dev);
+
+	pma_cnt->port_xmit_data    = cpu_to_be32(ocrdma_sysfs_xmit_data(dev));
+	pma_cnt->port_rcv_data     = cpu_to_be32(ocrdma_sysfs_rcv_data(dev));
+	pma_cnt->port_xmit_packets = cpu_to_be32(ocrdma_sysfs_xmit_pkts(dev));
+	pma_cnt->port_rcv_packets  = cpu_to_be32(ocrdma_sysfs_rcv_pkts(dev));
+	return 0;
 }
 
 static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,

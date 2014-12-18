@@ -50,5 +50,7 @@ void ocrdma_rem_debugfs(void);
 void ocrdma_init_debugfs(void);
 void ocrdma_rem_port_stats(struct ocrdma_dev *dev);
 void ocrdma_add_port_stats(struct ocrdma_dev *dev);
+int ocrdma_pma_counters(struct ocrdma_dev *dev,
+			struct ib_mad *out_mad);
 
 #endif	/* __OCRDMA_STATS_H__ */
