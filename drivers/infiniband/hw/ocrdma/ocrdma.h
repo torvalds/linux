@@ -271,7 +271,11 @@ struct ocrdma_dev {
 	struct ocrdma_stats rx_qp_err_stats;
 	struct ocrdma_stats tx_dbg_stats;
 	struct ocrdma_stats rx_dbg_stats;
+	struct ocrdma_stats driver_stats;
+	struct ocrdma_stats reset_stats;
 	struct dentry *dir;
+	atomic_t async_err_stats[OCRDMA_MAX_ASYNC_ERRORS];
+	atomic_t cqe_err_stats[OCRDMA_MAX_CQE_ERR];
 	struct ocrdma_pd_resource_mgr *pd_mgr;
 };
 

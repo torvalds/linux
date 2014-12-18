@@ -2594,8 +2594,11 @@ static bool ocrdma_poll_err_scqe(struct ocrdma_qp *qp,
 				 bool *polled, bool *stop)
 {
 	bool expand;
+	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 	int status = (le32_to_cpu(cqe->flags_status_srcqpn) &
 		OCRDMA_CQE_STATUS_MASK) >> OCRDMA_CQE_STATUS_SHIFT;
+	if (status < OCRDMA_MAX_CQE_ERR)
+		atomic_inc(&dev->cqe_err_stats[status]);
 
 	/* when hw sq is empty, but rq is not empty, so we continue
 	 * to keep the cqe in order to get the cq event again.
@@ -2714,6 +2717,10 @@ static bool ocrdma_poll_err_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 				int status)
 {
 	bool expand;
+	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
+
+	if (status < OCRDMA_MAX_CQE_ERR)
+		atomic_inc(&dev->cqe_err_stats[status]);
 
 	/* when hw_rq is empty, but wq is not empty, so continue
 	 * to keep the cqe to get the cq event again.

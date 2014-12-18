@@ -734,6 +734,9 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		break;
 	}
 
+	if (type < OCRDMA_MAX_ASYNC_ERRORS)
+		atomic_inc(&dev->async_err_stats[type]);
+
 	if (qp_event) {
 		if (qp->ibqp.event_handler)
 			qp->ibqp.event_handler(&ib_evt, qp->ibqp.qp_context);
