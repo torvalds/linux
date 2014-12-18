@@ -435,7 +435,6 @@ err:
 
 static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 {
-	int status = 0;
 	struct ocrdma_pd *pd = uctx->cntxt_pd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
@@ -444,8 +443,8 @@ static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 		       __func__, dev->id, pd->id);
 	}
 	uctx->cntxt_pd = NULL;
-	status = _ocrdma_dealloc_pd(dev, pd);
-	return status;
+	(void)_ocrdma_dealloc_pd(dev, pd);
+	return 0;
 }
 
 static struct ocrdma_pd *ocrdma_get_ucontext_pd(struct ocrdma_ucontext *uctx)
@@ -947,9 +946,8 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ib_mr);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ib_mr->device);
-	int status;
 
-	status = ocrdma_mbx_dealloc_lkey(dev, mr->hwmr.fr_mr, mr->hwmr.lkey);
+	(void) ocrdma_mbx_dealloc_lkey(dev, mr->hwmr.fr_mr, mr->hwmr.lkey);
 
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
 
@@ -960,11 +958,10 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 
 	/* Don't stop cleanup, in case FW is unresponsive */
 	if (dev->mqe_ctx.fw_error_state) {
-		status = 0;
 		pr_err("%s(%d) fw not responding.\n",
 		       __func__, dev->id);
 	}
-	return status;
+	return 0;
 }
 
 static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
@@ -1096,7 +1093,6 @@ static void ocrdma_flush_cq(struct ocrdma_cq *cq)
 
 int ocrdma_destroy_cq(struct ib_cq *ibcq)
 {
-	int status;
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_eq *eq = NULL;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);
@@ -1113,7 +1109,7 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 	synchronize_irq(irq);
 	ocrdma_flush_cq(cq);
 
-	status = ocrdma_mbx_destroy_cq(dev, cq);
+	(void)ocrdma_mbx_destroy_cq(dev, cq);
 	if (cq->ucontext) {
 		pdid = cq->ucontext->cntxt_pd->id;
 		ocrdma_del_mmap(cq->ucontext, (u64) cq->pa,
@@ -1124,7 +1120,7 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 	}
 
 	kfree(cq);
-	return status;
+	return 0;
 }
 
 static int ocrdma_add_qpn_map(struct ocrdma_dev *dev, struct ocrdma_qp *qp)
@@ -1725,7 +1721,6 @@ void ocrdma_del_flush_qp(struct ocrdma_qp *qp)
 
 int ocrdma_destroy_qp(struct ib_qp *ibqp)
 {
-	int status;
 	struct ocrdma_pd *pd;
 	struct ocrdma_qp *qp;
 	struct ocrdma_dev *dev;
@@ -1747,7 +1742,7 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 	 * discarded until the old CQEs are discarded.
 	 */
 	mutex_lock(&dev->dev_lock);
-	status = ocrdma_mbx_destroy_qp(dev, qp);
+	(void) ocrdma_mbx_destroy_qp(dev, qp);
 
 	/*
 	 * acquire CQ lock while destroy is in progress, in order to
@@ -1782,7 +1777,7 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 	kfree(qp->wqe_wr_id_tbl);
 	kfree(qp->rqe_wr_id_tbl);
 	kfree(qp);
-	return status;
+	return 0;
 }
 
 static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,

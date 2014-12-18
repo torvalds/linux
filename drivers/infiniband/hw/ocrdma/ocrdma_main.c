@@ -530,10 +530,10 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	/* first unregister with stack to stop all the active traffic
 	 * of the registered clients.
 	 */
-	ocrdma_rem_port_stats(dev);
 	ocrdma_remove_sysfiles(dev);
-
 	ib_unregister_device(&dev->ibdev);
+
+	ocrdma_rem_port_stats(dev);
 
 	spin_lock(&ocrdma_devlist_lock);
 	list_del_rcu(&dev->entry);
