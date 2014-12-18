@@ -9,6 +9,8 @@
 
 
 obj-y +=early_init/
+obj-$(CONFIG_EFUSE)+=efuse/
+
 ###For Display, this is for quick logo show##
 obj-$(CONFIG_AM_DISPLAY_MODULE) += display/
 
@@ -46,7 +48,6 @@ obj-$(CONFIG_I2C) += i2c/
 
 #obj-y += extern_io/
 
-obj-$(CONFIG_EFUSE)+=efuse/
 obj-$(CONFIG_AM_INPUT)		+= input/
 
 ifneq ($(wildcard $(srctree)/../hardware/amlogic/touch),)

@@ -119,6 +119,7 @@ static int ethernet_reset(struct net_device *dev);
 static int reset_mac(struct net_device *dev);
 static void am_net_dump_macreg(void);
 static void read_macreg(void);
+extern char *aml_efuse_get_item(unsigned char* key_name);
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -890,45 +891,6 @@ static int mac_pmt_enable(unsigned int enable)
  * @return
  */
 /* --------------------------------------------------------------------------*/
-//#undef CONFIG_AML_NAND_KEY
-#ifdef CONFIG_AML_NAND_KEY
-extern int get_aml_key_kernel(const char* key_name, unsigned char* data, int ascii_flag);
-extern int extenal_api_key_set_version(char *devvesion);
-static char print_buff[1025];
-void read_mac_from_nand(struct net_device *ndev)
-{
-	int ret;
-	u8 mac[ETH_ALEN];
-	char *endp;
-	int j;
-	ret = get_aml_key_kernel("mac", print_buff, 0);
-	extenal_api_key_set_version("nand3");
-	printk("ret = %d\nprint_buff=%s\n", ret, print_buff);
-	if (ret >= 0) {
-		strcpy(ndev->dev_addr, print_buff);
-	for(j=0; j < ETH_ALEN; j++)
-	{
-		mac[j] = simple_strtol(&ndev->dev_addr[3 * j], &endp, 16);
-		printk("%d : %d\n", j, mac[j]);
-	}
-	memcpy(ndev->dev_addr, mac, ETH_ALEN);
-	}
-
-}
-#endif
-
-#if defined(CONFIG_MACH_MESON8B_ODROIDC)
-extern int aml_efuse_get_item(unsigned char* key_name, unsigned char* data);
-void read_mac_from_efuse(struct net_device *ndev)
-{
-    int ret;
-    ret = aml_efuse_get_item("mac", ndev->dev_addr);
-    if (ret < 0) {
-        printk(KERN_INFO "ERROR! failed to read hardware mac address\n");
-        random_ether_addr(ndev->dev_addr);
-    }
-}
-#endif
 
 static int aml_mac_init(struct net_device *ndev)
 {
@@ -937,18 +899,15 @@ static int aml_mac_init(struct net_device *ndev)
 
 	writel(1, (void*)(np->base_addr + ETH_DMA_0_Bus_Mode));
 	writel(0x00100800,(void*)(np->base_addr + ETH_DMA_0_Bus_Mode));
-#if defined(CONFIG_MACH_MESON8B_ODROIDC)
-	read_mac_from_efuse(ndev);
-#else
+
 	printk("--1--write mac add to:");
 
 	data_dump(ndev->dev_addr, 6);
-#ifdef CONFIG_AML_NAND_KEY
-	read_mac_from_nand(ndev);
-#endif
+
 	printk("--2--write mac add to:");
+
 	data_dump(ndev->dev_addr, 6);
-#endif
+
 	write_mac_addr(ndev, ndev->dev_addr);
 
 	val = 0xc80c |		//8<<8 | 8<<17; //tx and rx all 8bit mode;
@@ -1556,32 +1515,6 @@ static void tx_timeout(struct net_device *dev)
  * @param  macaddr
  */
 /* --------------------------------------------------------------------------*/
-/*static void get_mac_from_nand(struct net_device *dev, char *macaddr)
-{
-	int ret;
-	int use_nand_mac=0;
-	u8 mac[ETH_ALEN];
-
-	extenal_api_key_set_version("nand3");
-	ret = get_aml_key_kernel("mac_wifi", print_buff, 0);
-	printk("ret = %d\nprint_buff=%s\n", ret, print_buff);
-	if (ret >= 0) {
-		strcpy(mac_addr, print_buff);
-	}
-	for(; j < ETH_ALEN; j++)
-		{
-		mac[j] = simple_strtol(&mac_addr[3 * j], &endp, 16);
-		printk("%d : %d\n", j, mac[j]);
-	}
-	memcpy(macaddr, mac, ETH_ALEN);
-}
-static void print_mac(char *macaddr)
-{
-	printk("write mac add to:");
-	data_dump(macaddr, 6);
-}*/
-
-
 
 static void write_mac_addr(struct net_device *dev, char *macaddr)
 {
@@ -1637,33 +1570,21 @@ static void config_mac_addr(struct net_device *dev, void *mac)
 	write_mac_addr(dev, dev->dev_addr);
 }
 
-/* --------------------------------------------------------------------------*/
-/**
- * @brief  mac_addr_set
- *
- * @param  line
- *
- * @return
- */
-/* --------------------------------------------------------------------------*/
-static int __init mac_addr_set(char *line)
+static void mac_from_efuse_to_DEFMAC(void)
 {
 	unsigned char mac[6];
-	int i = 0;
-	for (i = 0; i < 6 && line[0] != '\0' && line[1] != '\0'; i++) {
-		mac[i] = chartonum(line[0]) << 4 | chartonum(line[1]);
-		line += 3;
+	unsigned char *efuse_mac;
+	int i;
+	
+	efuse_mac = aml_efuse_get_item("mac");
+
+	for (i = 0; i < 6 && efuse_mac[0] != '\0' && efuse_mac[1] != '\0'; i++) {
+		mac[i] = chartonum(efuse_mac[0]) << 4 | chartonum(efuse_mac[1]);
+		efuse_mac += 3;
 	}
 	memcpy(DEFMAC, mac, 6);
-	printk("******** uboot setup mac-addr: %x:%x:%x:%x:%x:%x\n",
-			DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4], DEFMAC[5]);
 	g_mac_addr_setup++;
-
-	return 1;
 }
-
-__setup("mac=", mac_addr_set);
-
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -1893,31 +1814,13 @@ static int setup_net_device(struct net_device *dev)
 	               (1 << 13) |          //FBI: Fatal Bus Error Interrupt
 	               (1) | 		        //tx interrupt
 	               0;
+	mac_from_efuse_to_DEFMAC();
 	config_mac_addr(dev, DEFMAC);
 	dev_alloc_name(dev, "eth%d");
 	memset(&np->stats, 0, sizeof(np->stats));
 	return res;
 }
 
-/*
-M6TV
- 23
-M6TVlite
- 24
-M8
- 25
-M6TVd
- 26
-M8baby
- 27
-G9TV
- 28
-*/
-#if 0
-static unsigned int get_cpuid(){
-	return READ_CBUS_REG(0x1f53)&0xff;
-}
-#endif
 /* --------------------------------------------------------------------------*/
 /**
  * @brief  probe_init
