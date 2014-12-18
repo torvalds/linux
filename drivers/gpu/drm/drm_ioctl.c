@@ -32,6 +32,7 @@
 #include <drm/drm_core.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #include <linux/pci.h>
 #include <linux/export.h>

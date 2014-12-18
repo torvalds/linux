@@ -247,21 +247,11 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drm_atomic_crtc_set_property);
 
-/**
- * drm_atomic_crtc_get_property - get property on CRTC
- * @crtc: the drm CRTC to get a property on
- * @state: the state object with the property value to read
- * @property: the property to get
- * @val: the property value (returned by reference)
- *
- * Use this instead of calling crtc->atomic_get_property directly.
+/*
  * This function handles generic/core properties and calls out to
  * driver's ->atomic_get_property() for driver properties.  To ensure
  * consistent behavior you must call this function rather than the
  * driver hook directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
  */
 int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		const struct drm_crtc_state *state,
@@ -271,7 +261,6 @@ int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(drm_atomic_crtc_get_property);
 
 /**
  * drm_atomic_crtc_check - check crtc state
@@ -409,23 +398,14 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_atomic_plane_set_property);
 
-/**
- * drm_atomic_plane_get_property - get property on plane
- * @plane: the drm plane to get a property on
- * @state: the state object with the property value to read
- * @property: the property to get
- * @val: the property value (returned by reference)
- *
- * Use this instead of calling plane->atomic_get_property directly.
+/*
  * This function handles generic/core properties and calls out to
  * driver's ->atomic_get_property() for driver properties.  To ensure
  * consistent behavior you must call this function rather than the
  * driver hook directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
  */
-int drm_atomic_plane_get_property(struct drm_plane *plane,
+static int
+drm_atomic_plane_get_property(struct drm_plane *plane,
 		const struct drm_plane_state *state,
 		struct drm_property *property, uint64_t *val)
 {
@@ -460,7 +440,6 @@ int drm_atomic_plane_get_property(struct drm_plane *plane,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_atomic_plane_get_property);
 
 /**
  * drm_atomic_plane_check - check plane state
@@ -650,23 +629,14 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_atomic_connector_set_property);
 
-/**
- * drm_atomic_connector_get_property - get property on connector
- * @connector: the drm connector to get a property on
- * @state: the state object with the property value to read
- * @property: the property to get
- * @val: the property value (returned by reference)
- *
- * Use this instead of calling connector->atomic_get_property directly.
+/*
  * This function handles generic/core properties and calls out to
  * driver's ->atomic_get_property() for driver properties.  To ensure
  * consistent behavior you must call this function rather than the
  * driver hook directly.
- *
- * RETURNS:
- * Zero on success, error code on failure
  */
-int drm_atomic_connector_get_property(struct drm_connector *connector,
+static int
+drm_atomic_connector_get_property(struct drm_connector *connector,
 		const struct drm_connector_state *state,
 		struct drm_property *property, uint64_t *val)
 {
@@ -686,17 +656,7 @@ int drm_atomic_connector_get_property(struct drm_connector *connector,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_atomic_connector_get_property);
 
-/**
- * drm_atomic_get_property - helper to read atomic property
- * @obj: drm mode object whose property to read
- * @property: the property to read
- * @val: the read value, returned by reference
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
 int drm_atomic_get_property(struct drm_mode_object *obj,
 		struct drm_property *property, uint64_t *val)
 {
