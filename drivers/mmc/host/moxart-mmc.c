@@ -599,7 +599,9 @@ static int moxart_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	mmc_of_parse(mmc);
+	ret = mmc_of_parse(mmc);
+	if (ret)
+		goto out;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
