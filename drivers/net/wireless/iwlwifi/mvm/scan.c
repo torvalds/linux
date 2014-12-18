@@ -309,18 +309,18 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 		goto not_bound;
 
 	params->suspend_time = 30;
-	params->max_out_time = 170;
+	params->max_out_time = 120;
 
 	if (iwl_mvm_low_latency(mvm)) {
 		if (mvm->fw->ucode_capa.api[0] &
 		    IWL_UCODE_TLV_API_FRAGMENTED_SCAN) {
 			params->suspend_time = 105;
-			params->max_out_time = 70;
 			/*
 			 * If there is more than one active interface make
 			 * passive scan more fragmented.
 			 */
 			frag_passive_dwell = (global_cnt < 2) ? 40 : 20;
+			params->max_out_time = frag_passive_dwell;
 		} else {
 			params->suspend_time = 120;
 			params->max_out_time = 120;
