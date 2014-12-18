@@ -1314,7 +1314,7 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	/* If RSS is requested for the PF *and* VFs then we can't write RSS
 	 * table entries that are inaccessible to VFs
 	 */
-	if (efx_sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
+	if (efx->type->sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
 	    count > efx_vf_size(efx)) {
 		netif_warn(efx, probe, efx->net_dev,
 			   "Reducing number of RSS channels from %u to %u for "
@@ -1426,7 +1426,9 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	}
 
 	/* RSS might be usable on VFs even if it is disabled on the PF */
-	efx->rss_spread = ((efx->n_rx_channels > 1 || !efx_sriov_wanted(efx)) ?
+
+	efx->rss_spread = ((efx->n_rx_channels > 1 ||
+			    !efx->type->sriov_wanted(efx)) ?
 			   efx->n_rx_channels : efx_vf_size(efx));
 
 	return 0;
@@ -1614,7 +1616,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 		goto fail2;
 
 	if (efx->n_channels > 1)
-		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
+		netdev_rss_key_fill(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
 	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
 		efx->rx_indir_table[i] =
 			ethtool_rxfh_indir_default(i, efx->rss_spread);
@@ -2166,7 +2168,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	}
 
 	ether_addr_copy(net_dev->dev_addr, new_addr);
-	efx_sriov_mac_address_changed(efx);
+	efx->type->sriov_mac_address_changed(efx);
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
@@ -2210,10 +2212,10 @@ static const struct net_device_ops efx_farch_netdev_ops = {
 	.ndo_set_rx_mode	= efx_set_rx_mode,
 	.ndo_set_features	= efx_set_features,
 #ifdef CONFIG_SFC_SRIOV
-	.ndo_set_vf_mac		= efx_sriov_set_vf_mac,
-	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
-	.ndo_set_vf_spoofchk	= efx_sriov_set_vf_spoofchk,
-	.ndo_get_vf_config	= efx_sriov_get_vf_config,
+	.ndo_set_vf_mac		= efx_siena_sriov_set_vf_mac,
+	.ndo_set_vf_vlan	= efx_siena_sriov_set_vf_vlan,
+	.ndo_set_vf_spoofchk	= efx_siena_sriov_set_vf_spoofchk,
+	.ndo_get_vf_config	= efx_siena_sriov_get_vf_config,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
@@ -2433,7 +2435,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	if (rc)
 		goto fail;
 	efx_restore_filters(efx);
-	efx_sriov_reset(efx);
+	efx->type->sriov_reset(efx);
 
 	mutex_unlock(&efx->mac_lock);
 
@@ -2826,7 +2828,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx_disable_interrupts(efx);
 	rtnl_unlock();
 
-	efx_sriov_fini(efx);
+	efx->type->sriov_fini(efx);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -3023,7 +3025,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	if (rc)
 		goto fail4;
 
-	rc = efx_sriov_init(efx);
+	rc = efx->type->sriov_init(efx);
 	if (rc)
 		netif_err(efx, probe, efx->net_dev,
 			  "SR-IOV can't be enabled rc %d\n", rc);

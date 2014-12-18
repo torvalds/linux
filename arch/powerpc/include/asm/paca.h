@@ -42,7 +42,6 @@ extern unsigned int debug_smp_processor_id(void); /* from linux/smp.h */
 #define get_slb_shadow()	(get_paca()->slb_shadow_ptr)
 
 struct task_struct;
-struct opal_machine_check_event;
 
 /*
  * Defines the layout of the paca.
@@ -153,12 +152,6 @@ struct paca_struct {
 	u64 tm_scratch;                 /* TM scratch area for reclaim */
 #endif
 
-#ifdef CONFIG_PPC_POWERNV
-	/* Pointer to OPAL machine check event structure set by the
-	 * early exception handler for use by high level C handler
-	 */
-	struct opal_machine_check_event *opal_mc_evt;
-#endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* Exclusive emergency stack pointer for machine check exception. */
 	void *mc_emergency_sp;

@@ -50,7 +50,6 @@ struct st21nfcb_i2c_phy {
 	struct i2c_client *i2c_dev;
 	struct llt_ndlc *ndlc;
 
-	unsigned int gpio_irq;
 	unsigned int gpio_reset;
 	unsigned int irq_polarity;
 
@@ -80,8 +79,6 @@ static int st21nfcb_nci_i2c_enable(void *phy_id)
 static void st21nfcb_nci_i2c_disable(void *phy_id)
 {
 	struct st21nfcb_i2c_phy *phy = phy_id;
-
-	pr_info("\n");
 
 	phy->powered = 0;
 	/* reset chip in order to flush clf */
@@ -258,19 +255,11 @@ static int st21nfcb_nci_i2c_of_request_resources(struct i2c_client *client)
 				GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		nfc_err(&client->dev, "Failed to request reset pin\n");
-		return -ENODEV;
+		return r;
 	}
 	phy->gpio_reset = gpio;
 
-	/* IRQ */
-	r = irq_of_parse_and_map(pp, 0);
-	if (r < 0) {
-		nfc_err(&client->dev, "Unable to get irq, error: %d\n", r);
-		return r;
-	}
-
-	phy->irq_polarity = irq_get_trigger_type(r);
-	client->irq = r;
+	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
 	return 0;
 }
@@ -286,7 +275,6 @@ static int st21nfcb_nci_i2c_request_resources(struct i2c_client *client)
 	struct st21nfcb_nfc_platform_data *pdata;
 	struct st21nfcb_i2c_phy *phy = i2c_get_clientdata(client);
 	int r;
-	int irq;
 
 	pdata = client->dev.platform_data;
 	if (pdata == NULL) {
@@ -295,33 +283,15 @@ static int st21nfcb_nci_i2c_request_resources(struct i2c_client *client)
 	}
 
 	/* store for later use */
-	phy->gpio_irq = pdata->gpio_irq;
 	phy->gpio_reset = pdata->gpio_reset;
 	phy->irq_polarity = pdata->irq_polarity;
-
-	r = devm_gpio_request_one(&client->dev, phy->gpio_irq,
-				GPIOF_IN, "clf_irq");
-	if (r) {
-		pr_err("%s : gpio_request failed\n", __FILE__);
-		return -ENODEV;
-	}
 
 	r = devm_gpio_request_one(&client->dev,
 			phy->gpio_reset, GPIOF_OUT_INIT_HIGH, "clf_reset");
 	if (r) {
 		pr_err("%s : reset gpio_request failed\n", __FILE__);
-		return -ENODEV;
+		return r;
 	}
-
-	/* IRQ */
-	irq = gpio_to_irq(phy->gpio_irq);
-	if (irq < 0) {
-		nfc_err(&client->dev,
-			"Unable to get irq number for GPIO %d error %d\n",
-			phy->gpio_irq, r);
-		return -ENODEV;
-	}
-	client->irq = irq;
 
 	return 0;
 }
@@ -401,10 +371,13 @@ static int st21nfcb_nci_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id of_st21nfcb_i2c_match[] = {
 	{ .compatible = "st,st21nfcb_i2c", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_st21nfcb_i2c_match);
+#endif
 
 static struct i2c_driver st21nfcb_nci_i2c_driver = {
 	.driver = {

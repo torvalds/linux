@@ -923,7 +923,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 ignore_joinbss_callback:
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 	if (sizeof(struct list_head) == 4 * sizeof(u32))
-		kfree((u8 *)pnetwork);
+		kfree(pnetwork);
 }
 
 void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
@@ -1218,7 +1218,7 @@ sint r8712_set_auth(struct _adapter *adapter,
 
 	psetauthparm = kzalloc(sizeof(*psetauthparm), GFP_ATOMIC);
 	if (psetauthparm == NULL) {
-		kfree((unsigned char *)pcmd);
+		kfree(pcmd);
 		return _FAIL;
 	}
 	psetauthparm->mode = (u8)psecuritypriv->AuthAlgrthm;
@@ -1372,7 +1372,7 @@ static int SecIsInPMKIDList(struct _adapter *Adapter, u8 *bssid)
 sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 		     u8 *out_ie, uint in_len)
 {
-	u8 authmode = 0, securitytype, match;
+	u8 authmode = 0, match;
 	u8 sec_ie[255], uncst_oui[4], bkup_ie[255];
 	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
 	uint ielength, cnt, remove_cnt;
@@ -1399,21 +1399,17 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 	switch (ndissecuritytype) {
 	case Ndis802_11Encryption1Enabled:
 	case Ndis802_11Encryption1KeyAbsent:
-		securitytype = _WEP40_;
 		uncst_oui[3] = 0x1;
 		break;
 	case Ndis802_11Encryption2Enabled:
 	case Ndis802_11Encryption2KeyAbsent:
-		securitytype = _TKIP_;
 		uncst_oui[3] = 0x2;
 		break;
 	case Ndis802_11Encryption3Enabled:
 	case Ndis802_11Encryption3KeyAbsent:
-		securitytype = _AES_;
 		uncst_oui[3] = 0x4;
 		break;
 	default:
-		securitytype = _NO_PRIVACY_;
 		break;
 	}
 	/*Search required WPA or WPA2 IE and copy to sec_ie[] */
@@ -1705,7 +1701,7 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 				     u8 *out_ie, uint in_len, uint *pout_len)
 {
 	u32 ielen, out_len;
-	unsigned char *p, *pframe;
+	unsigned char *p;
 	struct ieee80211_ht_cap ht_capie;
 	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1717,10 +1713,8 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 	if (p && (ielen > 0)) {
 		if (pqospriv->qos_option == 0) {
 			out_len = *pout_len;
-			pframe = r8712_set_ie(out_ie+out_len,
-					      _VENDOR_SPECIFIC_IE_,
-					      _WMM_IE_Length_,
-					       WMM_IE, pout_len);
+			r8712_set_ie(out_ie+out_len, _VENDOR_SPECIFIC_IE_,
+				     _WMM_IE_Length_, WMM_IE, pout_len);
 			pqospriv->qos_option = 1;
 		}
 		out_len = *pout_len;
@@ -1733,9 +1727,9 @@ unsigned int r8712_restructure_ht_ie(struct _adapter *padapter, u8 *in_ie,
 				    IEEE80211_HT_CAP_DSSSCCK40;
 		ht_capie.ampdu_params_info = (IEEE80211_HT_CAP_AMPDU_FACTOR &
 				0x03) | (IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00);
-		pframe = r8712_set_ie(out_ie+out_len, _HT_CAPABILITY_IE_,
-				sizeof(struct ieee80211_ht_cap),
-				(unsigned char *)&ht_capie, pout_len);
+		r8712_set_ie(out_ie+out_len, _HT_CAPABILITY_IE_,
+			     sizeof(struct ieee80211_ht_cap),
+			     (unsigned char *)&ht_capie, pout_len);
 		phtpriv->ht_option = 1;
 	}
 	return phtpriv->ht_option;
@@ -1748,7 +1742,6 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 	int i, len;
 	struct sta_info *bmc_sta, *psta;
 	struct ieee80211_ht_cap *pht_capie;
-	struct ieee80211_ht_addt_info *pht_addtinfo;
 	struct recv_reorder_ctrl *preorder_ctrl;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
@@ -1801,8 +1794,6 @@ static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len)
 	p = r8712_get_ie(pie + sizeof(struct NDIS_802_11_FIXED_IEs),
 		   _HT_ADD_INFO_IE_, &len,
 		   ie_len-sizeof(struct NDIS_802_11_FIXED_IEs));
-	if (p && len > 0)
-		pht_addtinfo = (struct ieee80211_ht_addt_info *)(p + 2);
 }
 
 void r8712_issue_addbareq_cmd(struct _adapter *padapter, int priority)

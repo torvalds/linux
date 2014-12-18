@@ -2599,9 +2599,9 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 
 			if (count > sector_cnt) {
 				if (mode_2k)
-					ms_card->seq_mode |= MODE_2K_SEQ;
+					ms_card->seq_mode = MODE_2K_SEQ;
 				else
-					ms_card->seq_mode |= MODE_512_SEQ;
+					ms_card->seq_mode = MODE_512_SEQ;
 			}
 		} else {
 			count = sector_cnt;

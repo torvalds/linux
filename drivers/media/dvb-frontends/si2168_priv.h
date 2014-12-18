@@ -38,6 +38,7 @@ struct si2168 {
 	bool active;
 	bool fw_loaded;
 	u8 ts_mode;
+	bool ts_clock_inv;
 };
 
 /* firmare command struct */

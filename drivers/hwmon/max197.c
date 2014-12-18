@@ -334,7 +334,6 @@ MODULE_DEVICE_TABLE(platform, max197_device_ids);
 static struct platform_driver max197_driver = {
 	.driver = {
 		.name = "max197",
-		.owner = THIS_MODULE,
 	},
 	.probe = max197_probe,
 	.remove = max197_remove,

@@ -809,6 +809,7 @@ static struct irq_chip octeon_irq_chip_ciu_gpio_v2 = {
 	.irq_set_type = octeon_irq_ciu_gpio_set_type,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = octeon_irq_ciu_set_affinity_v2,
+	.irq_cpu_offline = octeon_irq_cpu_offline_ciu,
 #endif
 	.flags = IRQCHIP_SET_TYPE_MASKED,
 };
@@ -823,6 +824,7 @@ static struct irq_chip octeon_irq_chip_ciu_gpio = {
 	.irq_set_type = octeon_irq_ciu_gpio_set_type,
 #ifdef CONFIG_SMP
 	.irq_set_affinity = octeon_irq_ciu_set_affinity,
+	.irq_cpu_offline = octeon_irq_cpu_offline_ciu,
 #endif
 	.flags = IRQCHIP_SET_TYPE_MASKED,
 };

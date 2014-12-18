@@ -647,7 +647,7 @@ err_unmap:
 	mlx5_ib_db_unmap_user(context, &qp->db);
 
 err_free:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_umem:
 	if (qp->umem)
@@ -761,7 +761,7 @@ err_wrid:
 	kfree(qp->rq.wrid);
 
 err_free:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_buf:
 	mlx5_buf_free(dev->mdev, &qp->buf);
@@ -971,7 +971,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto err_create;
 	}
 
-	mlx5_vfree(in);
+	kvfree(in);
 	/* Hardware wants QPN written in big-endian order (after
 	 * shifting) for send doorbell.  Precompute this value to save
 	 * a little bit when posting sends.
@@ -988,7 +988,7 @@ err_create:
 	else if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 
-	mlx5_vfree(in);
+	kvfree(in);
 	return err;
 }
 
@@ -1011,9 +1011,14 @@ static void mlx5_ib_lock_cqs(struct mlx5_ib_cq *send_cq, struct mlx5_ib_cq *recv
 			}
 		} else {
 			spin_lock_irq(&send_cq->lock);
+			__acquire(&recv_cq->lock);
 		}
 	} else if (recv_cq) {
 		spin_lock_irq(&recv_cq->lock);
+		__acquire(&send_cq->lock);
+	} else {
+		__acquire(&send_cq->lock);
+		__acquire(&recv_cq->lock);
 	}
 }
 
@@ -1033,10 +1038,15 @@ static void mlx5_ib_unlock_cqs(struct mlx5_ib_cq *send_cq, struct mlx5_ib_cq *re
 				spin_unlock_irq(&recv_cq->lock);
 			}
 		} else {
+			__release(&recv_cq->lock);
 			spin_unlock_irq(&send_cq->lock);
 		}
 	} else if (recv_cq) {
+		__release(&send_cq->lock);
 		spin_unlock_irq(&recv_cq->lock);
+	} else {
+		__release(&recv_cq->lock);
+		__release(&send_cq->lock);
 	}
 }
 
@@ -2411,7 +2421,7 @@ static u8 get_fence(u8 fence, struct ib_send_wr *wr)
 
 static int begin_wqe(struct mlx5_ib_qp *qp, void **seg,
 		     struct mlx5_wqe_ctrl_seg **ctrl,
-		     struct ib_send_wr *wr, int *idx,
+		     struct ib_send_wr *wr, unsigned *idx,
 		     int *size, int nreq)
 {
 	int err = 0;
@@ -2737,6 +2747,8 @@ out:
 
 		if (bf->need_lock)
 			spin_lock(&bf->lock);
+		else
+			__acquire(&bf->lock);
 
 		/* TBD enable WC */
 		if (0 && nreq == 1 && bf->uuarn && inl && size > 1 && size <= bf->buf_size / 16) {
@@ -2753,6 +2765,8 @@ out:
 		bf->offset ^= bf->buf_size;
 		if (bf->need_lock)
 			spin_unlock(&bf->lock);
+		else
+			__release(&bf->lock);
 	}
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);

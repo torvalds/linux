@@ -4,6 +4,6 @@ obj-$(CONFIG_LIRC_STAGING)	+= lirc/
 obj-$(CONFIG_VIDEO_DT3155)	+= dt3155v4l/
 obj-$(CONFIG_VIDEO_DM365_VPFE)	+= davinci_vpfe/
 obj-$(CONFIG_VIDEO_OMAP4)	+= omap4iss/
-obj-$(CONFIG_VIDEO_OMAP2)       += omap24xx/
-obj-$(CONFIG_VIDEO_TCM825X)     += omap24xx/
+obj-$(CONFIG_DVB_MN88472)       += mn88472/
+obj-$(CONFIG_DVB_MN88473)       += mn88473/
 

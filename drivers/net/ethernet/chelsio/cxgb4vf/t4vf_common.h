@@ -67,7 +67,7 @@ enum chip_type {
 /*
  * The "len16" field of a Firmware Command Structure ...
  */
-#define FW_LEN16(fw_struct) FW_CMD_LEN16(sizeof(fw_struct) / 16)
+#define FW_LEN16(fw_struct) FW_CMD_LEN16_V(sizeof(fw_struct) / 16)
 
 /*
  * Per-VF statistics.
@@ -134,11 +134,16 @@ struct dev_params {
  */
 struct sge_params {
 	u32 sge_control;		/* padding, boundaries, lengths, etc. */
-	u32 sge_host_page_size;		/* RDMA page sizes */
-	u32 sge_queues_per_page;	/* RDMA queues/page */
-	u32 sge_user_mode_limits;	/* limits for BAR2 user mode accesses */
+	u32 sge_control2;		/* T5: more of the same */
+	u32 sge_host_page_size;		/* PF0-7 page sizes */
+	u32 sge_egress_queues_per_page;	/* PF0-7 egress queues/page */
+	u32 sge_ingress_queues_per_page;/* PF0-7 ingress queues/page */
+	u32 sge_vf_hps;                 /* host page size for our vf */
+	u32 sge_vf_eq_qpp;		/* egress queues/page for our VF */
+	u32 sge_vf_iq_qpp;		/* ingress queues/page for our VF */
 	u32 sge_fl_buffer_size[16];	/* free list buffer sizes */
 	u32 sge_ingress_rx_threshold;	/* RX counter interrupt threshold[4] */
+	u32 sge_congestion_control;     /* congestion thresholds, etc. */
 	u32 sge_timer_value_0_and_1;	/* interrupt coalescing timer values */
 	u32 sge_timer_value_2_and_3;
 	u32 sge_timer_value_4_and_5;
@@ -265,6 +270,8 @@ static inline int t4vf_wr_mbox_ns(struct adapter *adapter, const void *cmd,
 	return t4vf_wr_mbox_core(adapter, cmd, size, rpl, false);
 }
 
+#define CHELSIO_PCI_ID_VER(dev_id)  ((dev_id) >> 12)
+
 static inline int is_t4(enum chip_type chip)
 {
 	return CHELSIO_CHIP_VERSION(chip) == CHELSIO_T4;
@@ -275,6 +282,13 @@ int t4vf_port_init(struct adapter *, int);
 
 int t4vf_fw_reset(struct adapter *);
 int t4vf_set_params(struct adapter *, unsigned int, const u32 *, const u32 *);
+
+enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
+int t4_bar2_sge_qregs(struct adapter *adapter,
+		      unsigned int qid,
+		      enum t4_bar2_qtype qtype,
+		      u64 *pbar2_qoffset,
+		      unsigned int *pbar2_qid);
 
 int t4vf_get_sge_params(struct adapter *);
 int t4vf_get_vpd_params(struct adapter *);
@@ -307,5 +321,6 @@ int t4vf_iq_free(struct adapter *, unsigned int, unsigned int, unsigned int,
 int t4vf_eth_eq_free(struct adapter *, unsigned int);
 
 int t4vf_handle_fw_rpl(struct adapter *, const __be64 *);
+int t4vf_prep_adapter(struct adapter *);
 
 #endif /* __T4VF_COMMON_H__ */

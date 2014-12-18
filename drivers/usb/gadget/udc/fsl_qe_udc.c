@@ -1887,8 +1887,7 @@ static int qe_get_frame(struct usb_gadget *gadget)
 
 static int fsl_qe_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
-static int fsl_qe_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver);
+static int fsl_qe_stop(struct usb_gadget *gadget);
 
 /* defined in usb_gadget.h */
 static const struct usb_gadget_ops qe_gadget_ops = {
@@ -1918,7 +1917,7 @@ static int reset_queues(struct qe_udc *udc)
 
 	/* report disconnect; the driver is already quiesced */
 	spin_unlock(&udc->lock);
-	udc->driver->disconnect(&udc->gadget);
+	usb_gadget_udc_reset(&udc->gadget, udc->driver);
 	spin_lock(&udc->lock);
 
 	return 0;
@@ -2305,13 +2304,10 @@ static int fsl_qe_start(struct usb_gadget *gadget,
 	udc->ep0_dir = USB_DIR_OUT;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	dev_info(udc->dev, "%s bind to driver %s\n", udc->gadget.name,
-			driver->driver.name);
 	return 0;
 }
 
-static int fsl_qe_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int fsl_qe_stop(struct usb_gadget *gadget)
 {
 	struct qe_udc *udc;
 	struct qe_ep *loop_ep;
@@ -2336,8 +2332,6 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 
 	udc->driver = NULL;
 
-	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
-			driver->driver.name);
 	return 0;
 }
 
@@ -2538,7 +2532,6 @@ static int qe_udc_probe(struct platform_device *ofdev)
 	/* create a buf for ZLP send, need to remain zeroed */
 	udc->nullbuf = devm_kzalloc(&ofdev->dev, 256, GFP_KERNEL);
 	if (udc->nullbuf == NULL) {
-		dev_err(udc->dev, "cannot alloc nullbuf\n");
 		ret = -ENOMEM;
 		goto err3;
 	}
@@ -2709,7 +2702,6 @@ MODULE_DEVICE_TABLE(of, qe_udc_match);
 static struct platform_driver udc_driver = {
 	.driver = {
 		.name = driver_name,
-		.owner = THIS_MODULE,
 		.of_match_table = qe_udc_match,
 	},
 	.probe          = qe_udc_probe,

@@ -107,8 +107,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 
 void sms_ir_exit(struct smscore_device_t *coredev)
 {
-	if (coredev->ir.dev)
-		rc_unregister_device(coredev->ir.dev);
+	rc_unregister_device(coredev->ir.dev);
 
 	sms_log("");
 }

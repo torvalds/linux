@@ -207,7 +207,7 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
  * VSI
  **/
 static int i40e_dcbnl_vsi_del_app(struct i40e_vsi *vsi,
-				  struct i40e_ieee_app_priority_table *app)
+				  struct i40e_dcb_app_priority_table *app)
 {
 	struct net_device *dev = vsi->netdev;
 	struct dcb_app sapp;
@@ -229,7 +229,7 @@ static int i40e_dcbnl_vsi_del_app(struct i40e_vsi *vsi,
  * Delete given APP from all the VSIs for given PF
  **/
 static void i40e_dcbnl_del_app(struct i40e_pf *pf,
-			      struct i40e_ieee_app_priority_table *app)
+			       struct i40e_dcb_app_priority_table *app)
 {
 	int v, err;
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
@@ -252,7 +252,7 @@ static void i40e_dcbnl_del_app(struct i40e_pf *pf,
  * Find given APP in the DCB configuration
  **/
 static bool i40e_dcbnl_find_app(struct i40e_dcbx_config *cfg,
-				struct i40e_ieee_app_priority_table *app)
+				struct i40e_dcb_app_priority_table *app)
 {
 	int i;
 
@@ -277,7 +277,7 @@ static bool i40e_dcbnl_find_app(struct i40e_dcbx_config *cfg,
 void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
 			   struct i40e_dcbx_config *new_cfg)
 {
-	struct i40e_ieee_app_priority_table app;
+	struct i40e_dcb_app_priority_table app;
 	struct i40e_dcbx_config *dcbxcfg;
 	struct i40e_hw *hw = &pf->hw;
 	int i;

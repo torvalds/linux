@@ -867,25 +867,16 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SN95031_SSR2, 0x10);
 	snd_soc_write(codec, SN95031_SSR3, 0x40);
 
-	snd_soc_add_codec_controls(codec, sn95031_snd_controls,
-			     ARRAY_SIZE(sn95031_snd_controls));
-
-	return 0;
-}
-
-static int sn95031_codec_remove(struct snd_soc_codec *codec)
-{
-	pr_debug("codec_remove called\n");
-	sn95031_set_vaud_bias(codec, SND_SOC_BIAS_OFF);
-
 	return 0;
 }
 
 static struct snd_soc_codec_driver sn95031_codec = {
 	.probe		= sn95031_codec_probe,
-	.remove		= sn95031_codec_remove,
 	.set_bias_level	= sn95031_set_vaud_bias,
 	.idle_bias_off	= true,
+
+	.controls	= sn95031_snd_controls,
+	.num_controls	= ARRAY_SIZE(sn95031_snd_controls),
 	.dapm_widgets	= sn95031_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(sn95031_dapm_widgets),
 	.dapm_routes	= sn95031_audio_map,
@@ -916,7 +907,6 @@ static int sn95031_device_remove(struct platform_device *pdev)
 static struct platform_driver sn95031_codec_driver = {
 	.driver		= {
 		.name		= "sn95031",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= sn95031_device_probe,
 	.remove		= sn95031_device_remove,

@@ -100,7 +100,6 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0xfff;
 	s->n_chan	= 8;
 	s->insn_write	= rti802_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

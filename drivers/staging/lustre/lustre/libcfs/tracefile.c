@@ -196,8 +196,7 @@ static void cfs_tcd_shrink(struct cfs_trace_cpu_data *tcd)
 	 */
 
 	if (printk_ratelimit())
-		printk(KERN_WARNING "debug daemon buffer overflowed; "
-		       "discarding 10%% of pages (%d of %ld)\n",
+		printk(KERN_WARNING "debug daemon buffer overflowed; discarding 10%% of pages (%d of %ld)\n",
 		       pgcount + 1, tcd->tcd_cur_pages);
 
 	INIT_LIST_HEAD(&pc.pc_pages);
@@ -357,8 +356,8 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	}
 
 	if (*(string_buf+needed-1) != '\n')
-		printk(KERN_INFO "format at %s:%d:%s doesn't end in "
-		       "newline\n", file, msgdata->msg_line, msgdata->msg_fn);
+		printk(KERN_INFO "format at %s:%d:%s doesn't end in newline\n",
+		       file, msgdata->msg_line, msgdata->msg_fn);
 
 	header.ph_len = known_size + needed;
 	debug_buf = (char *)page_address(tage->page) + tage->used;
@@ -715,8 +714,8 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		kunmap(tage->page);
 
 		if (rc != (int)tage->used) {
-			printk(KERN_WARNING "wanted to write %u but wrote "
-			       "%d\n", tage->used, rc);
+			printk(KERN_WARNING "wanted to write %u but wrote %d\n",
+			       tage->used, rc);
 			put_pages_back(&pc);
 			__LASSERT(list_empty(&pc.pc_pages));
 			break;
@@ -875,8 +874,8 @@ int cfs_trace_daemon_command(char *str)
 		strcpy(cfs_tracefile, str);
 
 		printk(KERN_INFO
-		       "Lustre: debug daemon will attempt to start writing "
-		       "to %s (%lukB max)\n", cfs_tracefile,
+		       "Lustre: debug daemon will attempt to start writing to %s (%lukB max)\n",
+		       cfs_tracefile,
 		       (long)(cfs_tracefile_size >> 10));
 
 		cfs_trace_start_thread();
@@ -914,15 +913,15 @@ int cfs_trace_set_debug_mb(int mb)
 
 	if (mb < num_possible_cpus()) {
 		printk(KERN_WARNING
-		       "Lustre: %d MB is too small for debug buffer size, "
-		       "setting it to %d MB.\n", mb, num_possible_cpus());
+		       "Lustre: %d MB is too small for debug buffer size, setting it to %d MB.\n",
+		       mb, num_possible_cpus());
 		mb = num_possible_cpus();
 	}
 
 	if (mb > limit) {
 		printk(KERN_WARNING
-		       "Lustre: %d MB is too large for debug buffer size, "
-		       "setting it to %d MB.\n", mb, limit);
+		       "Lustre: %d MB is too large for debug buffer size, setting it to %d MB.\n",
+		       mb, limit);
 		mb = limit;
 	}
 
@@ -1004,8 +1003,8 @@ static int tracefiled(void *arg)
 			if (IS_ERR(filp)) {
 				rc = PTR_ERR(filp);
 				filp = NULL;
-				printk(KERN_WARNING "couldn't open %s: "
-				       "%d\n", cfs_tracefile, rc);
+				printk(KERN_WARNING "couldn't open %s: %d\n",
+				       cfs_tracefile, rc);
 			}
 		}
 		cfs_tracefile_read_unlock();
@@ -1025,8 +1024,8 @@ static int tracefiled(void *arg)
 
 			if (f_pos >= (off_t)cfs_tracefile_size)
 				f_pos = 0;
-			else if (f_pos > i_size_read(filp->f_dentry->d_inode))
-				f_pos = i_size_read(filp->f_dentry->d_inode);
+			else if (f_pos > i_size_read(file_inode(filp)))
+				f_pos = i_size_read(file_inode(filp));
 
 			buf = kmap(tage->page);
 			rc = vfs_write(filp, (__force const char __user *)buf,
@@ -1034,8 +1033,8 @@ static int tracefiled(void *arg)
 			kunmap(tage->page);
 
 			if (rc != (int)tage->used) {
-				printk(KERN_WARNING "wanted to write %u "
-				       "but wrote %d\n", tage->used, rc);
+				printk(KERN_WARNING "wanted to write %u but wrote %d\n",
+				       tage->used, rc);
 				put_pages_back(&pc);
 				__LASSERT(list_empty(&pc.pc_pages));
 			}
@@ -1047,8 +1046,7 @@ static int tracefiled(void *arg)
 		if (!list_empty(&pc.pc_pages)) {
 			int i;
 
-			printk(KERN_ALERT "Lustre: trace pages aren't "
-			       " empty\n");
+			printk(KERN_ALERT "Lustre: trace pages aren't empty\n");
 			printk(KERN_ERR "total cpus(%d): ",
 			       num_possible_cpus());
 			for (i = 0; i < num_possible_cpus(); i++)
@@ -1061,8 +1059,8 @@ static int tracefiled(void *arg)
 			i = 0;
 			list_for_each_entry_safe(tage, tmp, &pc.pc_pages,
 						     linkage)
-				printk(KERN_ERR "page %d belongs to cpu "
-				       "%d\n", ++i, tage->cpu);
+				printk(KERN_ERR "page %d belongs to cpu %d\n",
+				       ++i, tage->cpu);
 			printk(KERN_ERR "There are %d pages unwritten\n",
 			       i);
 		}

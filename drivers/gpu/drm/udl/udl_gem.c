@@ -25,6 +25,7 @@ struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 		return NULL;
 	}
 
+	obj->flags = UDL_BO_CACHEABLE;
 	return obj;
 }
 
@@ -56,6 +57,23 @@ udl_gem_create(struct drm_file *file,
 	return 0;
 }
 
+static void update_vm_cache_attr(struct udl_gem_object *obj,
+				 struct vm_area_struct *vma)
+{
+	DRM_DEBUG_KMS("flags = 0x%x\n", obj->flags);
+
+	/* non-cacheable as default. */
+	if (obj->flags & UDL_BO_CACHEABLE) {
+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	} else if (obj->flags & UDL_BO_WC) {
+		vma->vm_page_prot =
+			pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+	} else {
+		vma->vm_page_prot =
+			pgprot_noncached(vm_get_page_prot(vma->vm_flags));
+	}
+}
+
 int udl_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args)
@@ -76,6 +94,8 @@ int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_flags |= VM_MIXEDMAP;
+
+	update_vm_cache_attr(to_udl_bo(vma->vm_private_data), vma);
 
 	return ret;
 }
@@ -107,7 +127,7 @@ int udl_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 }
 
-static int udl_gem_get_pages(struct udl_gem_object *obj)
+int udl_gem_get_pages(struct udl_gem_object *obj)
 {
 	struct page **pages;
 
@@ -123,7 +143,7 @@ static int udl_gem_get_pages(struct udl_gem_object *obj)
 	return 0;
 }
 
-static void udl_gem_put_pages(struct udl_gem_object *obj)
+void udl_gem_put_pages(struct udl_gem_object *obj)
 {
 	if (obj->base.import_attach) {
 		drm_free_large(obj->pages);
@@ -164,8 +184,7 @@ void udl_gem_vunmap(struct udl_gem_object *obj)
 		return;
 	}
 
-	if (obj->vmapping)
-		vunmap(obj->vmapping);
+	vunmap(obj->vmapping);
 
 	udl_gem_put_pages(obj);
 }
@@ -219,74 +238,4 @@ out:
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
-}
-
-static int udl_prime_create(struct drm_device *dev,
-			    size_t size,
-			    struct sg_table *sg,
-			    struct udl_gem_object **obj_p)
-{
-	struct udl_gem_object *obj;
-	int npages;
-
-	npages = size / PAGE_SIZE;
-
-	*obj_p = NULL;
-	obj = udl_gem_alloc_object(dev, npages * PAGE_SIZE);
-	if (!obj)
-		return -ENOMEM;
-
-	obj->sg = sg;
-	obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
-	if (obj->pages == NULL) {
-		DRM_ERROR("obj pages is NULL %d\n", npages);
-		return -ENOMEM;
-	}
-
-	drm_prime_sg_to_page_addr_arrays(sg, obj->pages, NULL, npages);
-
-	*obj_p = obj;
-	return 0;
-}
-
-struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
-				struct dma_buf *dma_buf)
-{
-	struct dma_buf_attachment *attach;
-	struct sg_table *sg;
-	struct udl_gem_object *uobj;
-	int ret;
-
-	/* need to attach */
-	get_device(dev->dev);
-	attach = dma_buf_attach(dma_buf, dev->dev);
-	if (IS_ERR(attach)) {
-		put_device(dev->dev);
-		return ERR_CAST(attach);
-	}
-
-	get_dma_buf(dma_buf);
-
-	sg = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	if (IS_ERR(sg)) {
-		ret = PTR_ERR(sg);
-		goto fail_detach;
-	}
-
-	ret = udl_prime_create(dev, dma_buf->size, sg, &uobj);
-	if (ret) {
-		goto fail_unmap;
-	}
-
-	uobj->base.import_attach = attach;
-
-	return &uobj->base;
-
-fail_unmap:
-	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
-fail_detach:
-	dma_buf_detach(dma_buf, attach);
-	dma_buf_put(dma_buf);
-	put_device(dev->dev);
-	return ERR_PTR(ret);
 }

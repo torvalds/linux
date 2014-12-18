@@ -18,13 +18,6 @@
 #include <usb_ops_linux.h>
 #include <rtw_sreset.h>
 
-struct zero_bulkout_context {
-	void *pbuf;
-	void *purb;
-	void *pirp;
-	void *padapter;
-};
-
 void rtl8723au_read_port_cancel(struct rtw_adapter *padapter)
 {
 	struct recv_buf *precvbuf;
@@ -53,18 +46,6 @@ static void usb_write_port23a_complete(struct urb *purb)
 	unsigned long irqL;
 
 	switch (pxmitbuf->flags) {
-	case VO_QUEUE_INX:
-		pxmitpriv->voq_cnt--;
-		break;
-	case VI_QUEUE_INX:
-		pxmitpriv->viq_cnt--;
-		break;
-	case BE_QUEUE_INX:
-		pxmitpriv->beq_cnt--;
-		break;
-	case BK_QUEUE_INX:
-		pxmitpriv->bkq_cnt--;
-		break;
 	case HIGH_QUEUE_INX:
 #ifdef CONFIG_8723AU_AP_MODE
 		rtw_chk_hi_queue_cmd23a(padapter);
@@ -166,19 +147,15 @@ int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 
 	switch (addr) {
 	case VO_QUEUE_INX:
-		pxmitpriv->voq_cnt++;
 		pxmitbuf->flags = VO_QUEUE_INX;
 		break;
 	case VI_QUEUE_INX:
-		pxmitpriv->viq_cnt++;
 		pxmitbuf->flags = VI_QUEUE_INX;
 		break;
 	case BE_QUEUE_INX:
-		pxmitpriv->beq_cnt++;
 		pxmitbuf->flags = BE_QUEUE_INX;
 		break;
 	case BK_QUEUE_INX:
-		pxmitpriv->bkq_cnt++;
 		pxmitbuf->flags = BK_QUEUE_INX;
 		break;
 	case HIGH_QUEUE_INX:

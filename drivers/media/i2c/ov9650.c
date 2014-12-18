@@ -384,17 +384,17 @@ static const struct ov965x_framesize ov965x_framesizes[] = {
 };
 
 struct ov965x_pixfmt {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u32 colorspace;
 	/* REG_TSLB value, only bits [3:2] may be set. */
 	u8 tslb_reg;
 };
 
 static const struct ov965x_pixfmt ov965x_formats[] = {
-	{ V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG, 0x00},
-	{ V4L2_MBUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG, 0x04},
-	{ V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG, 0x0c},
-	{ V4L2_MBUS_FMT_VYUY8_2X8, V4L2_COLORSPACE_JPEG, 0x08},
+	{ MEDIA_BUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG, 0x00},
+	{ MEDIA_BUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG, 0x04},
+	{ MEDIA_BUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG, 0x0c},
+	{ MEDIA_BUS_FMT_VYUY8_2X8, V4L2_COLORSPACE_JPEG, 0x08},
 };
 
 /*

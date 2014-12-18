@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2011 Texas Instruments, Inc.
  *  Copyright (C) 2013 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2014 Marvell International Ltd.
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
@@ -49,6 +50,8 @@ enum nci_state {
 	NCI_W4_ALL_DISCOVERIES,
 	NCI_W4_HOST_SELECT,
 	NCI_POLL_ACTIVE,
+	NCI_LISTEN_ACTIVE,
+	NCI_LISTEN_SLEEP,
 };
 
 /* NCI timeouts */
@@ -69,6 +72,12 @@ struct nci_ops {
 	int   (*send)(struct nci_dev *ndev, struct sk_buff *skb);
 	int   (*setup)(struct nci_dev *ndev);
 	__u32 (*get_rfprotocol)(struct nci_dev *ndev, __u8 rf_protocol);
+	int   (*discover_se)(struct nci_dev *ndev);
+	int   (*disable_se)(struct nci_dev *ndev, u32 se_idx);
+	int   (*enable_se)(struct nci_dev *ndev, u32 se_idx);
+	int   (*se_io)(struct nci_dev *ndev, u32 se_idx,
+				u8 *apdu, size_t apdu_length,
+				se_io_cb_t cb, void *cb_context);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4

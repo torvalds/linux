@@ -29,6 +29,7 @@
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 
+#include <subdev/bios.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
@@ -138,7 +139,7 @@ nouveau_devobj_info(struct nouveau_object *object, void *data, u32 size)
 	}
 
 	args->v0.chipset  = device->chipset;
-	args->v0.revision = device->chipset >= 0x10 ? nv_rd32(device, 0) : 0x00;
+	args->v0.revision = device->chiprev;
 	if (pfb)  args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
 	else      args->v0.ram_size = args->v0.ram_user = 0;
 	if (imem) args->v0.ram_user = args->v0.ram_user - imem->reserved;
@@ -222,6 +223,7 @@ static const u64 disable_map[] = {
 	[NVDEV_SUBDEV_VOLT]	= NV_DEVICE_V0_DISABLE_CORE,
 	[NVDEV_SUBDEV_THERM]	= NV_DEVICE_V0_DISABLE_CORE,
 	[NVDEV_SUBDEV_PWR]	= NV_DEVICE_V0_DISABLE_CORE,
+	[NVDEV_SUBDEV_FUSE]	= NV_DEVICE_V0_DISABLE_CORE,
 	[NVDEV_ENGINE_DMAOBJ]	= NV_DEVICE_V0_DISABLE_CORE,
 	[NVDEV_ENGINE_PERFMON]  = NV_DEVICE_V0_DISABLE_CORE,
 	[NVDEV_ENGINE_FIFO]	= NV_DEVICE_V0_DISABLE_FIFO,
@@ -235,6 +237,7 @@ static const u64 disable_map[] = {
 	[NVDEV_ENGINE_PPP]	= NV_DEVICE_V0_DISABLE_PPP,
 	[NVDEV_ENGINE_COPY0]	= NV_DEVICE_V0_DISABLE_COPY0,
 	[NVDEV_ENGINE_COPY1]	= NV_DEVICE_V0_DISABLE_COPY1,
+	[NVDEV_ENGINE_COPY2]	= NV_DEVICE_V0_DISABLE_COPY1,
 	[NVDEV_ENGINE_VIC]	= NV_DEVICE_V0_DISABLE_VIC,
 	[NVDEV_ENGINE_VENC]	= NV_DEVICE_V0_DISABLE_VENC,
 	[NVDEV_ENGINE_DISP]	= NV_DEVICE_V0_DISABLE_DISP,
@@ -352,12 +355,14 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		/* determine chipset and derive architecture from it */
 		if ((boot0 & 0x1f000000) > 0) {
 			device->chipset = (boot0 & 0x1ff00000) >> 20;
+			device->chiprev = (boot0 & 0x000000ff);
 			switch (device->chipset & 0x1f0) {
 			case 0x010: {
 				if (0x461 & (1 << (device->chipset & 0xf)))
 					device->card_type = NV_10;
 				else
 					device->card_type = NV_11;
+				device->chiprev = 0x00;
 				break;
 			}
 			case 0x020: device->card_type = NV_20; break;
@@ -373,7 +378,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 			case 0x0e0:
 			case 0x0f0:
 			case 0x100: device->card_type = NV_E0; break;
-			case 0x110: device->card_type = GM100; break;
+			case 0x110:
+			case 0x120: device->card_type = GM100; break;
 			default:
 				break;
 			}
@@ -427,6 +433,10 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		}
 
 		nv_debug(device, "crystal freq: %dKHz\n", device->crystal);
+	} else
+	if ( (args->v0.disable & NV_DEVICE_V0_DISABLE_IDENTIFY)) {
+		device->cname = "NULL";
+		device->oclass[NVDEV_SUBDEV_VBIOS] = &nouveau_bios_oclass;
 	}
 
 	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) &&

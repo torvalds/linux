@@ -406,7 +406,6 @@ static const struct dev_pm_ops sirfsoc_pinmux_pm_ops = {
 static struct platform_driver sirfsoc_pinmux_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = pinmux_ids,
 #ifdef CONFIG_PM_SLEEP
 		.pm = &sirfsoc_pinmux_pm_ops,

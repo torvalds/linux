@@ -100,8 +100,7 @@ out:
 static ssize_t
 ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	size_t already_read = 0;
 	off_t pos;
 	size_t bufsize;
@@ -109,7 +108,7 @@ ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	void* freepage;
 	size_t freelen;
 
-	ncp_dbg(1, "enter %pd2\n", dentry);
+	ncp_dbg(1, "enter %pD2\n", file);
 
 	pos = *ppos;
 
@@ -167,7 +166,7 @@ ncp_file_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	file_accessed(file);
 
-	ncp_dbg(1, "exit %pd2\n", dentry);
+	ncp_dbg(1, "exit %pD2\n", file);
 outrel:
 	ncp_inode_close(inode);		
 	return already_read ? already_read : error;
@@ -176,15 +175,14 @@ outrel:
 static ssize_t
 ncp_file_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	size_t already_written = 0;
 	off_t pos;
 	size_t bufsize;
 	int errno;
 	void* bouncebuffer;
 
-	ncp_dbg(1, "enter %pd2\n", dentry);
+	ncp_dbg(1, "enter %pD2\n", file);
 	if ((ssize_t) count < 0)
 		return -EINVAL;
 	pos = *ppos;
@@ -263,7 +261,7 @@ ncp_file_write(struct file *file, const char __user *buf, size_t count, loff_t *
 			i_size_write(inode, pos);
 		mutex_unlock(&inode->i_mutex);
 	}
-	ncp_dbg(1, "exit %pd2\n", dentry);
+	ncp_dbg(1, "exit %pD2\n", file);
 outrel:
 	ncp_inode_close(inode);		
 	return already_written ? already_written : errno;

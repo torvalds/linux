@@ -269,6 +269,8 @@ static int kxcjk1013_set_range(struct kxcjk1013_data *data, int range_index)
 		return ret;
 	}
 
+	ret &= ~(KXCJK1013_REG_CTRL1_BIT_GSEL0 |
+		 KXCJK1013_REG_CTRL1_BIT_GSEL1);
 	ret |= (KXCJK1013_scale_table[range_index].gsel_0 << 3);
 	ret |= (KXCJK1013_scale_table[range_index].gsel_1 << 4);
 
@@ -358,7 +360,7 @@ static int kxcjk1013_chip_init(struct kxcjk1013_data *data)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int kxcjk1013_get_startup_times(struct kxcjk1013_data *data)
 {
 	int i;
@@ -894,7 +896,7 @@ static const struct attribute_group kxcjk1013_attrs_group = {
 
 static const struct iio_event_spec kxcjk1013_event = {
 		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_RISING | IIO_EV_DIR_FALLING,
+		.dir = IIO_EV_DIR_EITHER,
 		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 				 BIT(IIO_EV_INFO_ENABLE) |
 				 BIT(IIO_EV_INFO_PERIOD)
@@ -1357,7 +1359,7 @@ static int kxcjk1013_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int kxcjk1013_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));

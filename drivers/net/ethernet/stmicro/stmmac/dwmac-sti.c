@@ -1,4 +1,4 @@
-/**
+/*
  * dwmac-sti.c - STMicroelectronics DWMAC Specific Glue layer
  *
  * Copyright (C) 2003-2014 STMicroelectronics (R&D) Limited
@@ -22,6 +22,8 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 
+#include "stmmac_platform.h"
+
 #define DWMAC_125MHZ	125000000
 #define DWMAC_50MHZ	50000000
 #define DWMAC_25MHZ	25000000
@@ -35,9 +37,8 @@
 #define IS_PHY_IF_MODE_GBIT(iface)	(IS_PHY_IF_MODE_RGMII(iface) || \
 					 iface == PHY_INTERFACE_MODE_GMII)
 
-/* STiH4xx register definitions (STiH415/STiH416/STiH407/STiH410 families) */
-
-/**
+/* STiH4xx register definitions (STiH415/STiH416/STiH407/STiH410 families)
+ *
  * Below table summarizes the clock requirement and clock sources for
  * supported phy interface modes with link speeds.
  * ________________________________________________
@@ -76,9 +77,7 @@
 #define STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK	BIT(7)
 #define STIH4XX_ETH_SEL_TXCLK_NOT_CLK125	BIT(6)
 
-/* STiD127 register definitions */
-
-/**
+/* STiD127 register definitions
  *-----------------------
  * src	 |BIT(6)| BIT(7)|
  *-----------------------
@@ -104,13 +103,13 @@
 #define EN_MASK		GENMASK(1, 1)
 #define EN		BIT(1)
 
-/**
+/*
  * 3 bits [4:2]
  *	000-GMII/MII
  *	001-RGMII
  *	010-SGMII
  *	100-RMII
-*/
+ */
 #define MII_PHY_SEL_MASK	GENMASK(4, 2)
 #define ETH_PHY_SEL_RMII	BIT(4)
 #define ETH_PHY_SEL_SGMII	BIT(3)

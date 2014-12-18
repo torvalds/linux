@@ -35,13 +35,26 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
 
 static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
-	if (enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+	bool has_aliasing_ppgtt;
+	bool has_full_ppgtt;
+
+	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
+	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
+	if (IS_GEN8(dev))
+		has_full_ppgtt = false; /* XXX why? */
+
+	/*
+	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
+	 * execlists, the sole mechanism available to submit work.
+	 */
+	if (INTEL_INFO(dev)->gen < 9 &&
+	    (enable_ppgtt == 0 || !has_aliasing_ppgtt))
 		return 0;
 
 	if (enable_ppgtt == 1)
 		return 1;
 
-	if (enable_ppgtt == 2 && HAS_PPGTT(dev))
+	if (enable_ppgtt == 2 && has_full_ppgtt)
 		return 2;
 
 #ifdef CONFIG_INTEL_IOMMU
@@ -59,7 +72,7 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 		return 0;
 	}
 
-	return HAS_ALIASING_PPGTT(dev) ? 1 : 0;
+	return has_aliasing_ppgtt ? 1 : 0;
 }
 
 
@@ -156,9 +169,6 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
-	/* Mark the page as writeable.  Other platforms don't have a
-	 * setting for read-only/writable, so this matches that behavior.
-	 */
 	if (!(flags & PTE_READ_ONLY))
 		pte |= BYT_PTE_WRITEABLE;
 
@@ -1092,7 +1102,7 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 
 	if (INTEL_INFO(dev)->gen < 8)
 		return gen6_ppgtt_init(ppgtt);
-	else if (IS_GEN8(dev))
+	else if (IS_GEN8(dev) || IS_GEN9(dev))
 		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
 		BUG();
@@ -1166,6 +1176,8 @@ i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 
 	ppgtt->file_priv = fpriv;
 
+	trace_i915_ppgtt_create(&ppgtt->base);
+
 	return ppgtt;
 }
 
@@ -1173,6 +1185,8 @@ void  i915_ppgtt_release(struct kref *kref)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(kref, struct i915_hw_ppgtt, ref);
+
+	trace_i915_ppgtt_release(&ppgtt->base);
 
 	/* vmas should already be unbound */
 	WARN_ON(!list_empty(&ppgtt->base.active_list));
@@ -1258,7 +1272,7 @@ void i915_check_and_clear_faults(struct drm_device *dev)
 		fault_reg = I915_READ(RING_FAULT_REG(ring));
 		if (fault_reg & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"
-					 "\tAddr: 0x%08lx\\n"
+					 "\tAddr: 0x%08lx\n"
 					 "\tAddress space: %s\n"
 					 "\tSource ID: %d\n"
 					 "\tType: %d\n",
@@ -1328,7 +1342,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 		 * Unfortunately above, we've just wiped out the mappings
 		 * without telling our object about it. So we need to fake it.
 		 */
-		obj->has_global_gtt_mapping = 0;
+		vma->bound &= ~GLOBAL_BIND;
 		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
 	}
 
@@ -1525,7 +1539,7 @@ static void i915_ggtt_bind_vma(struct i915_vma *vma,
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
 	intel_gtt_insert_sg_entries(vma->obj->pages, entry, flags);
-	vma->obj->has_global_gtt_mapping = 1;
+	vma->bound = GLOBAL_BIND;
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
@@ -1544,7 +1558,7 @@ static void i915_ggtt_unbind_vma(struct i915_vma *vma)
 	const unsigned int size = vma->obj->base.size >> PAGE_SHIFT;
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
-	vma->obj->has_global_gtt_mapping = 0;
+	vma->bound = 0;
 	intel_gtt_clear_range(first, size);
 }
 
@@ -1572,24 +1586,24 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	 * flags. At all other times, the GPU will use the aliasing PPGTT.
 	 */
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
-		if (!obj->has_global_gtt_mapping ||
+		if (!(vma->bound & GLOBAL_BIND) ||
 		    (cache_level != obj->cache_level)) {
 			vma->vm->insert_entries(vma->vm, obj->pages,
 						vma->node.start,
 						cache_level, flags);
-			obj->has_global_gtt_mapping = 1;
+			vma->bound |= GLOBAL_BIND;
 		}
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt &&
-	    (!obj->has_aliasing_ppgtt_mapping ||
+	    (!(vma->bound & LOCAL_BIND) ||
 	     (cache_level != obj->cache_level))) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
 					    vma->obj->pages,
 					    vma->node.start,
 					    cache_level, flags);
-		vma->obj->has_aliasing_ppgtt_mapping = 1;
+		vma->bound |= LOCAL_BIND;
 	}
 }
 
@@ -1599,21 +1613,21 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	if (obj->has_global_gtt_mapping) {
+	if (vma->bound & GLOBAL_BIND) {
 		vma->vm->clear_range(vma->vm,
 				     vma->node.start,
 				     obj->base.size,
 				     true);
-		obj->has_global_gtt_mapping = 0;
+		vma->bound &= ~GLOBAL_BIND;
 	}
 
-	if (obj->has_aliasing_ppgtt_mapping) {
+	if (vma->bound & LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.clear_range(&appgtt->base,
 					 vma->node.start,
 					 obj->base.size,
 					 true);
-		obj->has_aliasing_ppgtt_mapping = 0;
+		vma->bound &= ~LOCAL_BIND;
 	}
 }
 
@@ -1650,10 +1664,10 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	}
 }
 
-int i915_gem_setup_global_gtt(struct drm_device *dev,
-			      unsigned long start,
-			      unsigned long mappable_end,
-			      unsigned long end)
+static int i915_gem_setup_global_gtt(struct drm_device *dev,
+				     unsigned long start,
+				     unsigned long mappable_end,
+				     unsigned long end)
 {
 	/* Let GEM Manage all of the aperture.
 	 *
@@ -1691,7 +1705,7 @@ int i915_gem_setup_global_gtt(struct drm_device *dev,
 			DRM_DEBUG_KMS("Reservation failed: %i\n", ret);
 			return ret;
 		}
-		obj->has_global_gtt_mapping = 1;
+		vma->bound |= GLOBAL_BIND;
 	}
 
 	dev_priv->gtt.base.start = start;
@@ -1764,7 +1778,6 @@ static int setup_scratch_page(struct drm_device *dev)
 	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 	if (page == NULL)
 		return -ENOMEM;
-	get_page(page);
 	set_pages_uc(page, 1);
 
 #ifdef CONFIG_INTEL_IOMMU
@@ -1789,7 +1802,6 @@ static void teardown_scratch_page(struct drm_device *dev)
 	set_pages_wb(page, 1);
 	pci_unmap_page(dev->pdev, dev_priv->gtt.base.scratch.addr,
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	put_page(page);
 	__free_page(page);
 }
 
@@ -1859,6 +1871,18 @@ static size_t chv_get_stolen_size(u16 gmch_ctrl)
 		return (gmch_ctrl - 0x17 + 9) << 22;
 }
 
+static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
+{
+	gen9_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
+	gen9_gmch_ctl &= BDW_GMCH_GMS_MASK;
+
+	if (gen9_gmch_ctl < 0xf0)
+		return gen9_gmch_ctl << 25; /* 32 MB units */
+	else
+		/* 4MB increments starting at 0xf0 for 4MB */
+		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
+}
+
 static int ggtt_probe_common(struct drm_device *dev,
 			     size_t gtt_size)
 {
@@ -1902,6 +1926,22 @@ static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 
+	if (!USES_PPGTT(dev_priv->dev))
+		/* Spec: "For GGTT, there is NO pat_sel[2:0] from the entry,
+		 * so RTL will always use the value corresponding to
+		 * pat_sel = 000".
+		 * So let's disable cache for GGTT to avoid screen corruptions.
+		 * MOCS still can be used though.
+		 * - System agent ggtt writes (i.e. cpu gtt mmaps) already work
+		 * before this patch, i.e. the same uncached + snooping access
+		 * like on gen6/7 seems to be in effect.
+		 * - So this just fixes blitter/render access. Again it looks
+		 * like it's not just uncached access, but uncached + snooping.
+		 * So we can still hold onto all our assumptions wrt cpu
+		 * clflushing on LLC machines.
+		 */
+		pat = GEN8_PPAT(0, GEN8_PPAT_UC);
+
 	/* XXX: spec defines this as 2 distinct registers. It's unclear if a 64b
 	 * write would work. */
 	I915_WRITE(GEN8_PRIVATE_PAT, pat);
@@ -1918,9 +1958,17 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 	 * Only the snoop bit has meaning for CHV, the rest is
 	 * ignored.
 	 *
-	 * Note that the harware enforces snooping for all page
-	 * table accesses. The snoop bit is actually ignored for
-	 * PDEs.
+	 * The hardware will never snoop for certain types of accesses:
+	 * - CPU GTT (GMADR->GGTT->no snoop->memory)
+	 * - PPGTT page tables
+	 * - some other special cycles
+	 *
+	 * As with BDW, we also need to consider the following for GT accesses:
+	 * "For GGTT, there is NO pat_sel[2:0] from the entry,
+	 * so RTL will always use the value corresponding to
+	 * pat_sel = 000".
+	 * Which means we must set the snoop bit in PAT entry 0
+	 * in order to keep the global status page working.
 	 */
 	pat = GEN8_PPAT(0, CHV_PPAT_SNOOP) |
 	      GEN8_PPAT(1, 0) |
@@ -1955,7 +2003,10 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		*stolen = gen9_get_stolen_size(snb_gmch_ctl);
+		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+	} else if (IS_CHERRYVIEW(dev)) {
 		*stolen = chv_get_stolen_size(snb_gmch_ctl);
 		gtt_size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
@@ -2127,6 +2178,7 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	vma->obj = obj;
 
 	switch (INTEL_INFO(vm->dev)->gen) {
+	case 9:
 	case 8:
 	case 7:
 	case 6:

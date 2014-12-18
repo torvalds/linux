@@ -17,4 +17,3 @@ snd-soc-sam9x5-wm8731-objs := sam9x5_wm8731.o
 obj-$(CONFIG_SND_AT91_SOC_SAM9G20_WM8731) += snd-soc-sam9g20-wm8731.o
 obj-$(CONFIG_SND_ATMEL_SOC_WM8904) += snd-atmel-soc-wm8904.o
 obj-$(CONFIG_SND_AT91_SOC_SAM9X5_WM8731) += snd-soc-sam9x5-wm8731.o
-obj-$(CONFIG_SND_AT91_SOC_AFEB9260) += snd-soc-afeb9260.o

@@ -639,9 +639,9 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 	struct device *dev = ndev_to_dev(ndev);
 	struct xgene_enet_desc_ring *rx_ring, *tx_ring, *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool = NULL;
-	u8 cpu_bufnum = 0, eth_bufnum = 0;
-	u8 bp_bufnum = 0x20;
-	u16 ring_id, ring_num = 0;
+	u8 cpu_bufnum = 0, eth_bufnum = START_ETH_BUFNUM;
+	u8 bp_bufnum = START_BP_BUFNUM;
+	u16 ring_id, ring_num = START_RING_NUM;
 	int ret;
 
 	/* allocate rx descriptor ring */
@@ -761,10 +761,6 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	ndev = pdata->ndev;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "enet_csr");
-	if (!res) {
-		dev_err(dev, "Resource enet_csr not defined\n");
-		return -ENODEV;
-	}
 	pdata->base_addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pdata->base_addr)) {
 		dev_err(dev, "Unable to retrieve ENET Port CSR region\n");
@@ -772,10 +768,6 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ring_csr");
-	if (!res) {
-		dev_err(dev, "Resource ring_csr not defined\n");
-		return -ENODEV;
-	}
 	pdata->ring_csr_addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pdata->ring_csr_addr)) {
 		dev_err(dev, "Unable to retrieve ENET Ring CSR region\n");
@@ -783,10 +775,6 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ring_cmd");
-	if (!res) {
-		dev_err(dev, "Resource ring_cmd not defined\n");
-		return -ENODEV;
-	}
 	pdata->ring_cmd_addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pdata->ring_cmd_addr)) {
 		dev_err(dev, "Unable to retrieve ENET Ring command region\n");
@@ -852,7 +840,9 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	u16 dst_ring_num;
 	int ret;
 
-	pdata->port_ops->reset(pdata);
+	ret = pdata->port_ops->reset(pdata);
+	if (ret)
+		return ret;
 
 	ret = xgene_enet_create_desc_rings(ndev);
 	if (ret) {
@@ -954,6 +944,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	return ret;
 err:
+	unregister_netdev(ndev);
 	free_netdev(ndev);
 	return ret;
 }

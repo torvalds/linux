@@ -267,8 +267,8 @@ if V4L_TEST_DRIVERS
 
 source "drivers/media/platform/vivid/Kconfig"
 
-config VIDEO_MEM2MEM_TESTDEV
-	tristate "Virtual test device for mem2mem framework"
+config VIDEO_VIM2M
+	tristate "Virtual Memory-to-Memory Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV

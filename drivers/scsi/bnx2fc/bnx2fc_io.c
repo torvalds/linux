@@ -1725,7 +1725,6 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 				  struct fcp_cmnd *fcp_cmnd)
 {
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
-	char tag[2];
 
 	memset(fcp_cmnd, 0, sizeof(struct fcp_cmnd));
 
@@ -1739,21 +1738,10 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 	fcp_cmnd->fc_tm_flags = io_req->mp_req.tm_flags;
 	fcp_cmnd->fc_flags = io_req->io_req_flags;
 
-	if (scsi_populate_tag_msg(sc_cmd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_HEADQ;
-			break;
-		case ORDERED_QUEUE_TAG:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_ORDERED;
-			break;
-		default:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
-			break;
-		}
-	} else {
+	if (sc_cmd->flags & SCMD_TAGGED)
+		fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
+	else
 		fcp_cmnd->fc_pri_ta = 0;
-	}
 }
 
 static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
@@ -1894,18 +1882,24 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 			goto exit_qcmd;
 		}
 	}
+
+	spin_lock_bh(&tgt->tgt_lock);
+
 	io_req = bnx2fc_cmd_alloc(tgt);
 	if (!io_req) {
 		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto exit_qcmd;
+		goto exit_qcmd_tgtlock;
 	}
 	io_req->sc_cmd = sc_cmd;
 
 	if (bnx2fc_post_io_req(tgt, io_req)) {
 		printk(KERN_ERR PFX "Unable to post io_req\n");
 		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto exit_qcmd;
+		goto exit_qcmd_tgtlock;
 	}
+
+exit_qcmd_tgtlock:
+	spin_unlock_bh(&tgt->tgt_lock);
 exit_qcmd:
 	return rc;
 }
@@ -2020,6 +2014,8 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	int task_idx, index;
 	u16 xid;
 
+	/* bnx2fc_post_io_req() is called with the tgt_lock held */
+
 	/* Initialize rest of io_req fields */
 	io_req->cmd_type = BNX2FC_SCSI_CMD;
 	io_req->port = port;
@@ -2047,9 +2043,7 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	/* Build buffer descriptor list for firmware from sg list */
 	if (bnx2fc_build_bd_list_from_sg(io_req)) {
 		printk(KERN_ERR PFX "BD list creation failed\n");
-		spin_lock_bh(&tgt->tgt_lock);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
@@ -2061,19 +2055,15 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	task = &(task_page[index]);
 	bnx2fc_init_task(io_req, task);
 
-	spin_lock_bh(&tgt->tgt_lock);
-
 	if (tgt->flush_in_prog) {
 		printk(KERN_ERR PFX "Flush in progress..Host Busy\n");
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
 		printk(KERN_ERR PFX "Session not ready...post_io\n");
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
-		spin_unlock_bh(&tgt->tgt_lock);
 		return -EAGAIN;
 	}
 
@@ -2091,6 +2081,5 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 
 	/* Ring doorbell */
 	bnx2fc_ring_doorbell(tgt);
-	spin_unlock_bh(&tgt->tgt_lock);
 	return 0;
 }

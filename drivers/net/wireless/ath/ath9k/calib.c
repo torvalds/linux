@@ -234,7 +234,7 @@ void ath9k_hw_start_nfcal(struct ath_hw *ah, bool update)
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 }
 
-void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
+int ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	struct ath9k_nfcal_hist *h = NULL;
 	unsigned i, j;
@@ -301,7 +301,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		ath_dbg(common, ANY,
 			"Timeout while waiting for nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 			REG_READ(ah, AR_PHY_AGC_CONTROL));
-		return;
+		return -ETIMEDOUT;
 	}
 
 	/*
@@ -322,6 +322,8 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		}
 	}
 	REGWRITE_BUFFER_FLUSH(ah);
+
+	return 0;
 }
 
 

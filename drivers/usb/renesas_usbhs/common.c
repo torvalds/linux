@@ -126,13 +126,15 @@ void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable)
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable)
 {
 	u16 mask = DCFM | DRPD | DPRPU | HSE | USBE;
-	u16 val  = DPRPU | HSE | USBE;
+	u16 val  = HSE | USBE;
 
 	/*
 	 * if enable
 	 *
 	 * - select Function mode
-	 * - D+ Line Pull-up
+	 * - D+ Line Pull-up is disabled
+	 *      When D+ Line Pull-up is enabled,
+	 *      calling usbhs_sys_function_pullup(,1)
 	 */
 	usbhs_bset(priv, SYSCFG, mask, enable ? val : 0);
 }
@@ -496,20 +498,18 @@ static int usbhs_probe(struct platform_device *pdev)
 	}
 
 	/* platform data */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res || !irq_res) {
+	if (!irq_res) {
 		dev_err(&pdev->dev, "Not enough Renesas USB platform resources.\n");
 		return -ENODEV;
 	}
 
 	/* usb private data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "Could not allocate priv\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);

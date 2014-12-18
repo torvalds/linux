@@ -1078,9 +1078,9 @@ static void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 	cli->cl_chunkbits = max_t(int, PAGE_CACHE_SHIFT, ocd->ocd_blocksize);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 
-	CDEBUG(D_CACHE, "%s, setting cl_avail_grant: %ld cl_lost_grant: %ld."
-		"chunk bits: %d.\n", cli->cl_import->imp_obd->obd_name,
-		cli->cl_avail_grant, cli->cl_lost_grant, cli->cl_chunkbits);
+	CDEBUG(D_CACHE, "%s, setting cl_avail_grant: %ld cl_lost_grant: %ld chunk bits: %d\n",
+	       cli->cl_import->imp_obd->obd_name,
+	       cli->cl_avail_grant, cli->cl_lost_grant, cli->cl_chunkbits);
 
 	if (ocd->ocd_connect_flags & OBD_CONNECT_GRANT_SHRINK &&
 	    list_empty(&cli->cl_grant_shrink_list))
@@ -1171,8 +1171,7 @@ static inline int can_merge_pages(struct brw_page *p1, struct brw_page *p2)
 		/* warn if we try to combine flags that we don't know to be
 		 * safe to combine */
 		if (unlikely((p1->flag & mask) != (p2->flag & mask))) {
-			CWARN("Saw flags 0x%x and 0x%x in the same brw, please "
-			      "report this at http://bugs.whamcloud.com/\n",
+			CWARN("Saw flags 0x%x and 0x%x in the same brw, please report this at http://bugs.whamcloud.com/\n",
 			      p1->flag, p2->flag);
 		}
 		return 0;
@@ -1343,8 +1342,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 			 "i: %d/%d pg: %p off: %llu, count: %u\n",
 			 i, page_count, pg, pg->off, pg->count);
 		LASSERTF(i == 0 || pg->off > pg_prev->off,
-			 "i %d p_c %u pg %p [pri %lu ind %lu] off %llu"
-			 " prev_pg %p [pri %lu ind %lu] off %llu\n",
+			 "i %d p_c %u pg %p [pri %lu ind %lu] off %llu prev_pg %p [pri %lu ind %lu] off %llu\n",
 			 i, page_count,
 			 pg->pg, page_private(pg->pg), pg->pg->index, pg->off,
 			 pg_prev->pg, page_private(pg_prev->pg),
@@ -1467,16 +1465,16 @@ static int check_write_checksum(struct obdo *oa, const lnet_process_id_t *peer,
 				      cksum_type);
 
 	if (cksum_type != client_cksum_type)
-		msg = "the server did not use the checksum type specified in "
-		      "the original request - likely a protocol problem";
+		msg = "the server did not use the checksum type specified in the original request - likely a protocol problem"
+			;
 	else if (new_cksum == server_cksum)
-		msg = "changed on the client after we checksummed it - "
-		      "likely false positive due to mmap IO (bug 11742)";
+		msg = "changed on the client after we checksummed it - likely false positive due to mmap IO (bug 11742)"
+			;
 	else if (new_cksum == client_cksum)
 		msg = "changed in transit before arrival at OST";
 	else
-		msg = "changed in transit AND doesn't match the original - "
-		      "likely false positive due to mmap IO (bug 11742)";
+		msg = "changed in transit AND doesn't match the original - likely false positive due to mmap IO (bug 11742)"
+			;
 
 	LCONSOLE_ERROR_MSG(0x132, "BAD WRITE CHECKSUM: %s: from %s inode "DFID
 			   " object "DOSTID" extent [%llu-%llu]\n",
@@ -1486,8 +1484,8 @@ static int check_write_checksum(struct obdo *oa, const lnet_process_id_t *peer,
 			   oa->o_valid & OBD_MD_FLFID ? oa->o_parent_ver : 0,
 			   POSTID(&oa->o_oi), pga[0]->off,
 			   pga[page_count-1]->off + pga[page_count-1]->count - 1);
-	CERROR("original client csum %x (type %x), server csum %x (type %x), "
-	       "client csum now %x\n", client_cksum, client_cksum_type,
+	CERROR("original client csum %x (type %x), server csum %x (type %x), client csum now %x\n",
+	       client_cksum, client_cksum_type,
 	       server_cksum, cksum_type, new_cksum);
 	return 1;
 }
@@ -1601,23 +1599,21 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 		}
 
 		if (server_cksum != client_cksum) {
-			LCONSOLE_ERROR_MSG(0x133, "%s: BAD READ CHECKSUM: from "
-					   "%s%s%s inode "DFID" object "DOSTID
-					   " extent [%llu-%llu]\n",
+			LCONSOLE_ERROR_MSG(0x133, "%s: BAD READ CHECKSUM: from %s%s%s inode " DFID " object " DOSTID " extent [%llu-%llu]\n",
 					   req->rq_import->imp_obd->obd_name,
 					   libcfs_nid2str(peer->nid),
 					   via, router,
 					   body->oa.o_valid & OBD_MD_FLFID ?
-						body->oa.o_parent_seq : (__u64)0,
+					   body->oa.o_parent_seq : (__u64)0,
 					   body->oa.o_valid & OBD_MD_FLFID ?
-						body->oa.o_parent_oid : 0,
+					   body->oa.o_parent_oid : 0,
 					   body->oa.o_valid & OBD_MD_FLFID ?
-						body->oa.o_parent_ver : 0,
+					   body->oa.o_parent_ver : 0,
 					   POSTID(&body->oa.o_oi),
 					   aa->aa_ppga[0]->off,
 					   aa->aa_ppga[aa->aa_page_count-1]->off +
 					   aa->aa_ppga[aa->aa_page_count-1]->count -
-									1);
+					   1);
 			CERROR("client %x, server %x, cksum_type %x\n",
 			       client_cksum, server_cksum, cksum_type);
 			cksum_counter = 0;
@@ -1771,8 +1767,7 @@ static int brw_interpret(const struct lu_env *env,
 	if (osc_recoverable_error(rc)) {
 		if (req->rq_import_generation !=
 		    req->rq_import->imp_generation) {
-			CDEBUG(D_HA, "%s: resend cross eviction for object: "
-			       ""DOSTID", rc = %d.\n",
+			CDEBUG(D_HA, "%s: resend cross eviction for object: " DOSTID ", rc = %d.\n",
 			       req->rq_import->imp_obd->obd_name,
 			       POSTID(&aa->aa_oa->o_oi), rc);
 		} else if (rc == -EINPROGRESS ||
@@ -3013,8 +3008,8 @@ static int osc_reconnect(const struct lu_env *env,
 		cli->cl_lost_grant = 0;
 		client_obd_list_unlock(&cli->cl_loi_list_lock);
 
-		CDEBUG(D_RPCTRACE, "ocd_connect_flags: %#llx ocd_version: %d"
-		       " ocd_grant: %d, lost: %ld.\n", data->ocd_connect_flags,
+		CDEBUG(D_RPCTRACE, "ocd_connect_flags: %#llx ocd_version: %d ocd_grant: %d, lost: %ld.\n",
+		       data->ocd_connect_flags,
 		       data->ocd_version, data->ocd_grant, lost_grant);
 	}
 
@@ -3217,8 +3212,6 @@ out_ptlrpcd:
 
 static int osc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
-	int rc = 0;
-
 	switch (stage) {
 	case OBD_CLEANUP_EARLY: {
 		struct obd_import *imp;
@@ -3253,7 +3246,7 @@ static int osc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		break;
 		}
 	}
-	return rc;
+	return 0;
 }
 
 int osc_cleanup(struct obd_device *obd)

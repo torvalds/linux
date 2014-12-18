@@ -239,6 +239,17 @@ void __init bootmem_init(void)
 	unsigned long bootmap_start, bootmap_size;
 	int i;
 
+	/* Reserve all memory below PLATFORM_DEFAULT_MEM_START, as memory
+	 * accounting doesn't work for pages below that address.
+	 *
+	 * If PLATFORM_DEFAULT_MEM_START is zero reserve page at address 0:
+	 * successfull allocations should never return NULL.
+	 */
+	if (PLATFORM_DEFAULT_MEM_START)
+		mem_reserve(0, PLATFORM_DEFAULT_MEM_START, 0);
+	else
+		mem_reserve(0, 1, 0);
+
 	sysmem_dump();
 	max_low_pfn = max_pfn = 0;
 	min_low_pfn = ~0;
@@ -332,18 +343,24 @@ void __init mem_init(void)
 		"    pkmap   : 0x%08lx - 0x%08lx  (%5lu kB)\n"
 		"    fixmap  : 0x%08lx - 0x%08lx  (%5lu kB)\n"
 #endif
+#ifdef CONFIG_MMU
 		"    vmalloc : 0x%08x - 0x%08x  (%5u MB)\n"
-		"    lowmem  : 0x%08x - 0x%08lx  (%5lu MB)\n",
+#endif
+		"    lowmem  : 0x%08lx - 0x%08lx  (%5lu MB)\n",
 #ifdef CONFIG_HIGHMEM
 		PKMAP_BASE, PKMAP_BASE + LAST_PKMAP * PAGE_SIZE,
 		(LAST_PKMAP*PAGE_SIZE) >> 10,
 		FIXADDR_START, FIXADDR_TOP,
 		(FIXADDR_TOP - FIXADDR_START) >> 10,
 #endif
+#ifdef CONFIG_MMU
 		VMALLOC_START, VMALLOC_END,
 		(VMALLOC_END - VMALLOC_START) >> 20,
 		PAGE_OFFSET, PAGE_OFFSET +
 		(max_low_pfn - min_low_pfn) * PAGE_SIZE,
+#else
+		min_low_pfn * PAGE_SIZE, max_low_pfn * PAGE_SIZE,
+#endif
 		((max_low_pfn - min_low_pfn) * PAGE_SIZE) >> 20);
 }
 

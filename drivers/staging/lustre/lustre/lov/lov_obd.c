@@ -168,8 +168,8 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 
 
 	if (imp->imp_invalid) {
-		CDEBUG(D_CONFIG, "not connecting OSC %s; administratively "
-		       "disabled\n", obd_uuid2str(tgt_uuid));
+		CDEBUG(D_CONFIG, "not connecting OSC %s; administratively disabled\n",
+		       obd_uuid2str(tgt_uuid));
 		return 0;
 	}
 
@@ -201,10 +201,9 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 						  osc_obd->obd_type->typ_name,
 						  osc_obd->obd_name);
 		if (osc_symlink == NULL) {
-			CERROR("could not register LOV target "
-				"/proc/fs/lustre/%s/%s/target_obds/%s.",
-				obd->obd_type->typ_name, obd->obd_name,
-				osc_obd->obd_name);
+			CERROR("could not register LOV target /proc/fs/lustre/%s/%s/target_obds/%s.",
+			       obd->obd_type->typ_name, obd->obd_name,
+			       osc_obd->obd_name);
 			lprocfs_remove(&lov_proc_dir);
 			obd->obd_proc_private = NULL;
 		}
@@ -726,8 +725,7 @@ void lov_fix_desc_stripe_size(__u64 *val)
 {
 	if (*val < LOV_MIN_STRIPE_SIZE) {
 		if (*val != 0)
-			LCONSOLE_INFO("Increasing default stripe size to "
-				      "minimum %u\n",
+			LCONSOLE_INFO("Increasing default stripe size to minimum %u\n",
 				      LOV_DESC_STRIPE_SIZE_DEFAULT);
 		*val = LOV_DESC_STRIPE_SIZE_DEFAULT;
 	} else if (*val & (LOV_MIN_STRIPE_SIZE - 1)) {
@@ -847,7 +845,6 @@ out:
 
 static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
-	int rc = 0;
 	struct lov_obd *lov = &obd->u.lov;
 
 	switch (stage) {
@@ -865,7 +862,7 @@ static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		break;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int lov_cleanup(struct obd_device *obd)
@@ -900,8 +897,7 @@ static int lov_cleanup(struct obd_device *obd)
 			    /* We should never get here - these
 			       should have been removed in the
 			     disconnect. */
-				CERROR("lov tgt %d not cleaned!"
-				       " deathrow=%d, lovrc=%d\n",
+				CERROR("lov tgt %d not cleaned! deathrow=%d, lovrc=%d\n",
 				       i, lov->lov_death_row,
 				       atomic_read(&lov->lov_refcount));
 			lov_del_target(obd, i, NULL, 0);
@@ -1176,8 +1172,8 @@ static int lov_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
 	list_for_each(pos, &lovset->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
-		CDEBUG(D_INFO, "objid "DOSTID"[%d] has subobj "DOSTID" at idx"
-		       "%u\n", POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
+		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
+		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
 		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
 		rc = obd_getattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
 				       &req->rq_oi, rqset);
@@ -1256,8 +1252,8 @@ static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 		if (oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
 			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
 
-		CDEBUG(D_INFO, "objid "DOSTID"[%d] has subobj "DOSTID" at idx"
-		       "%u\n", POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
+		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
+		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
 		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
 
 		rc = obd_setattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
@@ -1568,8 +1564,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 				if (lov->lov_tgts[i]->ltd_active) {
 					CDEBUG(err == -ENOTTY ?
 					       D_IOCTL : D_WARNING,
-					       "iocontrol OSC %s on OST "
-					       "idx %d cmd %x: err = %d\n",
+					       "iocontrol OSC %s on OST idx %d cmd %x: err = %d\n",
 					       lov_uuid2str(lov, i),
 					       i, cmd, err);
 					if (!rc)
@@ -2266,8 +2261,8 @@ static int lov_quotacheck(struct obd_device *obd, struct obd_export *exp,
 
 		/* Skip quota check on the administratively disabled OSTs. */
 		if (!lov->lov_tgts[i]->ltd_activate) {
-			CWARN("lov idx %d was administratively disabled, "
-			      "skip quotacheck on it.\n", i);
+			CWARN("lov idx %d was administratively disabled, skip quotacheck on it.\n",
+			      i);
 			continue;
 		}
 

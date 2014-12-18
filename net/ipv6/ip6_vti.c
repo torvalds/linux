@@ -95,6 +95,7 @@ vti6_tnl_lookup(struct net *net, const struct in6_addr *remote,
 	unsigned int hash = HASH(remote, local);
 	struct ip6_tnl *t;
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
+	struct in6_addr any;
 
 	for_each_vti6_tunnel_rcu(ip6n->tnls_r_l[hash]) {
 		if (ipv6_addr_equal(local, &t->parms.laddr) &&
@@ -102,6 +103,22 @@ vti6_tnl_lookup(struct net *net, const struct in6_addr *remote,
 		    (t->dev->flags & IFF_UP))
 			return t;
 	}
+
+	memset(&any, 0, sizeof(any));
+	hash = HASH(&any, local);
+	for_each_vti6_tunnel_rcu(ip6n->tnls_r_l[hash]) {
+		if (ipv6_addr_equal(local, &t->parms.laddr) &&
+		    (t->dev->flags & IFF_UP))
+			return t;
+	}
+
+	hash = HASH(remote, &any);
+	for_each_vti6_tunnel_rcu(ip6n->tnls_r_l[hash]) {
+		if (ipv6_addr_equal(remote, &t->parms.raddr) &&
+		    (t->dev->flags & IFF_UP))
+			return t;
+	}
+
 	t = rcu_dereference(ip6n->tnls_wc[0]);
 	if (t && (t->dev->flags & IFF_UP))
 		return t;
@@ -171,10 +188,6 @@ static int vti6_tnl_create2(struct net_device *dev)
 	struct net *net = dev_net(dev);
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
 	int err;
-
-	err = vti6_dev_init(dev);
-	if (err < 0)
-		goto out;
 
 	err = register_netdevice(dev);
 	if (err < 0)
@@ -291,8 +304,8 @@ static int vti6_rcv(struct sk_buff *skb)
 	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 
 	rcu_read_lock();
-	if ((t = vti6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr,
-				 &ipv6h->daddr)) != NULL) {
+	t = vti6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr, &ipv6h->daddr);
+	if (t != NULL) {
 		if (t->parms.proto != IPPROTO_IPV6 && t->parms.proto != 0) {
 			rcu_read_unlock();
 			goto discard;
@@ -416,6 +429,7 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	struct net_device_stats *stats = &t->dev->stats;
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *tdev;
+	struct xfrm_state *x;
 	int err = -1;
 
 	if (!dst)
@@ -429,7 +443,12 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 		goto tx_err_link_failure;
 	}
 
-	if (!vti6_state_check(dst->xfrm, &t->parms.raddr, &t->parms.laddr))
+	x = dst->xfrm;
+	if (!vti6_state_check(x, &t->parms.raddr, &t->parms.laddr))
+		goto tx_err_link_failure;
+
+	if (!ip6_tnl_xmit_ctl(t, (const struct in6_addr *)&x->props.saddr,
+			      (const struct in6_addr *)&x->id.daddr))
 		goto tx_err_link_failure;
 
 	tdev = dst->dev;
@@ -484,7 +503,7 @@ vti6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		ipv6h = ipv6_hdr(skb);
 
 		if ((t->parms.proto != IPPROTO_IPV6 && t->parms.proto != 0) ||
-		    !ip6_tnl_xmit_ctl(t) || vti6_addr_conflict(t, ipv6h))
+		    vti6_addr_conflict(t, ipv6h))
 			goto tx_err;
 
 		xfrm_decode_session(skb, &fl, AF_INET6);
@@ -783,6 +802,7 @@ static int vti6_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 static const struct net_device_ops vti6_netdev_ops = {
+	.ndo_init	= vti6_dev_init,
 	.ndo_uninit	= vti6_dev_uninit,
 	.ndo_start_xmit = vti6_tnl_xmit,
 	.ndo_do_ioctl	= vti6_ioctl,
@@ -852,15 +872,9 @@ static int __net_init vti6_fb_tnl_dev_init(struct net_device *dev)
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net *net = dev_net(dev);
 	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
-	int err = vti6_dev_init_gen(dev);
-
-	if (err)
-		return err;
 
 	t->parms.proto = IPPROTO_IPV6;
 	dev_hold(dev);
-
-	vti6_link_config(t);
 
 	rcu_assign_pointer(ip6n->tnls_wc[0], t);
 	return 0;
@@ -912,6 +926,15 @@ static int vti6_newlink(struct net *src_net, struct net_device *dev,
 		return -EEXIST;
 
 	return vti6_tnl_create2(dev);
+}
+
+static void vti6_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct net *net = dev_net(dev);
+	struct vti6_net *ip6n = net_generic(net, vti6_net_id);
+
+	if (dev != ip6n->fb_tnl_dev)
+		unregister_netdevice_queue(dev, head);
 }
 
 static int vti6_changelink(struct net_device *dev, struct nlattr *tb[],
@@ -989,6 +1012,7 @@ static struct rtnl_link_ops vti6_link_ops __read_mostly = {
 	.setup		= vti6_dev_setup,
 	.validate	= vti6_validate,
 	.newlink	= vti6_newlink,
+	.dellink	= vti6_dellink,
 	.changelink	= vti6_changelink,
 	.get_size	= vti6_get_size,
 	.fill_info	= vti6_fill_info,
@@ -1029,6 +1053,7 @@ static int __net_init vti6_init_net(struct net *net)
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;
 	dev_net_set(ip6n->fb_tnl_dev, net);
+	ip6n->fb_tnl_dev->rtnl_link_ops = &vti6_link_ops;
 
 	err = vti6_fb_tnl_dev_init(ip6n->fb_tnl_dev);
 	if (err < 0)

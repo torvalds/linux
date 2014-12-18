@@ -50,6 +50,17 @@ config PWM_ATMEL
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-atmel.
 
+config PWM_ATMEL_HLCDC_PWM
+	tristate "Atmel HLCDC PWM support"
+	depends on MFD_ATMEL_HLCDC
+	help
+	  Generic PWM framework driver for the PWM output of the HLCDC
+	  (Atmel High-end LCD Controller). This PWM output is mainly used
+	  to control the LCD backlight.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-atmel-hlcdc.
+
 config PWM_ATMEL_TCB
 	tristate "Atmel TC Block PWM support"
 	depends on ATMEL_TCLIB && OF
@@ -70,6 +81,15 @@ config PWM_BCM_KONA
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bcm-kona.
+
+config PWM_BCM2835
+	tristate "BCM2835 PWM support"
+	depends on ARCH_BCM2835
+	help
+	  PWM framework driver for BCM2835 controller (Raspberry Pi)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bcm2835.
 
 config PWM_BFIN
 	tristate "Blackfin PWM support"
@@ -235,7 +255,7 @@ config PWM_ROCKCHIP
 
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
-	depends on PLAT_SAMSUNG
+	depends on PLAT_SAMSUNG || ARCH_EXYNOS
 	help
 	  Generic PWM framework driver for Samsung.
 

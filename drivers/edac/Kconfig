@@ -61,14 +61,14 @@ config EDAC_DECODE_MCE
 	  has been initialized.
 
 config EDAC_MCE_INJ
-	tristate "Simple MCE injection interface over /sysfs"
-	depends on EDAC_DECODE_MCE
+	tristate "Simple MCE injection interface"
+	depends on EDAC_DECODE_MCE && DEBUG_FS
 	default n
 	help
-	  This is a simple interface to inject MCEs over /sysfs and test
-	  the MCE decoding code in EDAC.
+	  This is a simple debugfs interface to inject MCEs and test different
+	  aspects of the MCE handling code.
 
-	  This is currently AMD-only.
+	  WARNING: Do not even assume this interface is staying stable!
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
@@ -105,11 +105,11 @@ config EDAC_GHES
 	  In doubt, say 'Y'.
 
 config EDAC_AMD64
-	tristate "AMD64 (Opteron, Athlon64) K8, F10h"
-	depends on EDAC_MM_EDAC && AMD_NB && X86_64 && EDAC_DECODE_MCE
+	tristate "AMD64 (Opteron, Athlon64)"
+	depends on EDAC_MM_EDAC && AMD_NB && EDAC_DECODE_MCE
 	help
 	  Support for error detection and correction of DRAM ECC errors on
-	  the AMD64 families of memory controllers (K8 and F10h)
+	  the AMD64 families (>= K8) of memory controllers.
 
 config EDAC_AMD64_ERROR_INJECTION
 	bool "Sysfs HW Error injection facilities"

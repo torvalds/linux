@@ -130,9 +130,9 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 		goto fail2;
 
 	/* init the buffers to a known pattern, easier during debugging */
-	memset_io(buf->cpu, 0xff, buf->pci_size);
+	memset(buf->cpu, 0xff, buf->pci_size);
 	buf->crc = crc32(0, buf->cpu, buf->actual_size);
-	memset_io(buf->pt_cpu, 0xff, buf->pt_size);
+	memset(buf->pt_cpu, 0xff, buf->pt_size);
 
 	dprintk(DBGLVL_BUF, "%s()   allocated buffer @ 0x%p (%d pageptrs)\n",
 		__func__, buf, params->numpagetables);

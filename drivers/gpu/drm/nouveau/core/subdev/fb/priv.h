@@ -37,6 +37,7 @@ extern struct nouveau_oclass gm107_ram_oclass;
 
 int nouveau_sddr2_calc(struct nouveau_ram *ram);
 int nouveau_sddr3_calc(struct nouveau_ram *ram);
+int nouveau_gddr3_calc(struct nouveau_ram *ram);
 int nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts);
 
 #define nouveau_fb_create(p,e,c,d)                                             \

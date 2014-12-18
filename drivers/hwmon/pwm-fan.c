@@ -161,10 +161,17 @@ static int pwm_fan_suspend(struct device *dev)
 static int pwm_fan_resume(struct device *dev)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
+	unsigned long duty;
+	int ret;
 
-	if (ctx->pwm_value)
-		return pwm_enable(ctx->pwm);
-	return 0;
+	if (ctx->pwm_value == 0)
+		return 0;
+
+	duty = DIV_ROUND_UP(ctx->pwm_value * (ctx->pwm->period - 1), MAX_PWM);
+	ret = pwm_config(ctx->pwm, duty, ctx->pwm->period);
+	if (ret)
+		return ret;
+	return pwm_enable(ctx->pwm);
 }
 #endif
 

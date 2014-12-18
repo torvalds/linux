@@ -54,7 +54,8 @@
 #define PORT_ALTR_16550_F32 26	/* Altera 16550 UART with 32 FIFOs */
 #define PORT_ALTR_16550_F64 27	/* Altera 16550 UART with 64 FIFOs */
 #define PORT_ALTR_16550_F128 28 /* Altera 16550 UART with 128 FIFOs */
-#define PORT_MAX_8250	28	/* max port ID */
+#define PORT_RT2880	29	/* Ralink RT2880 internal UART */
+#define PORT_MAX_8250	29	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed

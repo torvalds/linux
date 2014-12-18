@@ -2477,7 +2477,7 @@ static int nf_tables_getset(struct sock *nlsk, struct sk_buff *skb,
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	int err;
 
-	/* Verify existance before starting dump */
+	/* Verify existence before starting dump */
 	err = nft_ctx_init_from_setattr(&ctx, skb, nlh, nla);
 	if (err < 0)
 		return err;
@@ -3484,13 +3484,8 @@ static void nft_chain_commit_update(struct nft_trans *trans)
 	}
 }
 
-/* Schedule objects for release via rcu to make sure no packets are accesing
- * removed rules.
- */
-static void nf_tables_commit_release_rcu(struct rcu_head *rt)
+static void nf_tables_commit_release(struct nft_trans *trans)
 {
-	struct nft_trans *trans = container_of(rt, struct nft_trans, rcu_head);
-
 	switch (trans->msg_type) {
 	case NFT_MSG_DELTABLE:
 		nf_tables_table_destroy(&trans->ctx);
@@ -3612,10 +3607,11 @@ static int nf_tables_commit(struct sk_buff *skb)
 		}
 	}
 
+	synchronize_rcu();
+
 	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
 		list_del(&trans->list);
-		trans->ctx.nla = NULL;
-		call_rcu(&trans->rcu_head, nf_tables_commit_release_rcu);
+		nf_tables_commit_release(trans);
 	}
 
 	nf_tables_gen_notify(net, skb, NFT_MSG_NEWGEN);
@@ -3623,13 +3619,8 @@ static int nf_tables_commit(struct sk_buff *skb)
 	return 0;
 }
 
-/* Schedule objects for release via rcu to make sure no packets are accesing
- * aborted rules.
- */
-static void nf_tables_abort_release_rcu(struct rcu_head *rt)
+static void nf_tables_abort_release(struct nft_trans *trans)
 {
-	struct nft_trans *trans = container_of(rt, struct nft_trans, rcu_head);
-
 	switch (trans->msg_type) {
 	case NFT_MSG_NEWTABLE:
 		nf_tables_table_destroy(&trans->ctx);
@@ -3674,8 +3665,7 @@ static int nf_tables_abort(struct sk_buff *skb)
 			break;
 		case NFT_MSG_NEWCHAIN:
 			if (nft_trans_chain_update(trans)) {
-				if (nft_trans_chain_stats(trans))
-					free_percpu(nft_trans_chain_stats(trans));
+				free_percpu(nft_trans_chain_stats(trans));
 
 				nft_trans_destroy(trans);
 			} else {
@@ -3725,11 +3715,12 @@ static int nf_tables_abort(struct sk_buff *skb)
 		}
 	}
 
+	synchronize_rcu();
+
 	list_for_each_entry_safe_reverse(trans, next,
 					 &net->nft.commit_list, list) {
 		list_del(&trans->list);
-		trans->ctx.nla = NULL;
-		call_rcu(&trans->rcu_head, nf_tables_abort_release_rcu);
+		nf_tables_abort_release(trans);
 	}
 
 	return 0;

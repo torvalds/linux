@@ -152,9 +152,8 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 /* bits 0-7 are used for indicating driver type */
 #define AZX_DCAPS_NO_TCSEL	(1 << 8)	/* No Intel TCSEL bit */
 #define AZX_DCAPS_NO_MSI	(1 << 9)	/* No MSI support */
-#define AZX_DCAPS_ATI_SNOOP	(1 << 10)	/* ATI snoop enable */
-#define AZX_DCAPS_NVIDIA_SNOOP	(1 << 11)	/* Nvidia snoop enable */
-#define AZX_DCAPS_SCH_SNOOP	(1 << 12)	/* SCH/PCH snoop enable */
+#define AZX_DCAPS_SNOOP_MASK	(3 << 10)	/* snoop type mask */
+#define AZX_DCAPS_SNOOP_OFF	(1 << 12)	/* snoop default off */
 #define AZX_DCAPS_RIRB_DELAY	(1 << 13)	/* Long delay in read loop */
 #define AZX_DCAPS_RIRB_PRE_DELAY (1 << 14)	/* Put a delay before read */
 #define AZX_DCAPS_CTX_WORKAROUND (1 << 15)	/* X-Fi workaround */
@@ -163,14 +162,22 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_DCAPS_NO_64BIT	(1 << 18)	/* No 64bit address */
 #define AZX_DCAPS_SYNC_WRITE	(1 << 19)	/* sync each cmd write */
 #define AZX_DCAPS_OLD_SSYNC	(1 << 20)	/* Old SSYNC reg for ICH */
-#define AZX_DCAPS_BUFSIZE	(1 << 21)	/* no buffer size alignment */
-#define AZX_DCAPS_ALIGN_BUFSIZE	(1 << 22)	/* buffer size alignment */
+#define AZX_DCAPS_NO_ALIGN_BUFSIZE (1 << 21)	/* no buffer size alignment */
+/* 22 unused */
 #define AZX_DCAPS_4K_BDLE_BOUNDARY (1 << 23)	/* BDLE in 4k boundary */
 #define AZX_DCAPS_REVERSE_ASSIGN (1 << 24)	/* Assign devices in reverse order */
 #define AZX_DCAPS_COUNT_LPIB_DELAY  (1 << 25)	/* Take LPIB as delay */
 #define AZX_DCAPS_PM_RUNTIME	(1 << 26)	/* runtime PM support */
 #define AZX_DCAPS_I915_POWERWELL (1 << 27)	/* HSW i915 powerwell support */
 #define AZX_DCAPS_CORBRP_SELF_CLEAR (1 << 28)	/* CORBRP clears itself after reset */
+#define AZX_DCAPS_NO_MSI64      (1 << 29)	/* Stick to 32-bit MSIs */
+
+enum {
+	AZX_SNOOP_TYPE_NONE ,
+	AZX_SNOOP_TYPE_SCH,
+	AZX_SNOOP_TYPE_ATI,
+	AZX_SNOOP_TYPE_NVIDIA,
+};
 
 /* HD Audio class code */
 #define PCI_CLASS_MULTIMEDIA_HD_AUDIO	0x0403

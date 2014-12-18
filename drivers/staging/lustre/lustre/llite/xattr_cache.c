@@ -126,9 +126,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		return -ENOMEM;
 	}
 
-	xattr->xe_namelen = strlen(xattr_name) + 1;
-
-	xattr->xe_name = kzalloc(xattr->xe_namelen, GFP_NOFS);
+	xattr->xe_name = kstrdup(xattr_name, GFP_NOFS);
 	if (!xattr->xe_name) {
 		CDEBUG(D_CACHE, "failed to alloc xattr name %u\n",
 		       xattr->xe_namelen);
@@ -141,7 +139,6 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		goto err_value;
 	}
 
-	memcpy(xattr->xe_name, xattr_name, xattr->xe_namelen);
 	memcpy(xattr->xe_value, xattr_val, xattr_val_len);
 	xattr->xe_vallen = xattr_val_len;
 	list_add(&xattr->xe_list, cache);

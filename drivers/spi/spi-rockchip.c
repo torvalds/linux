@@ -749,8 +749,6 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	if (rs->dma_rx.ch)
 		dma_release_channel(rs->dma_rx.ch);
 
-	spi_master_put(master);
-
 	return 0;
 }
 
@@ -848,7 +846,6 @@ MODULE_DEVICE_TABLE(of, rockchip_spi_dt_match);
 static struct platform_driver rockchip_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &rockchip_spi_pm,
 		.of_match_table = of_match_ptr(rockchip_spi_dt_match),
 	},

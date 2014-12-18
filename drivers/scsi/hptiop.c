@@ -1118,17 +1118,13 @@ static int hptiop_reset(struct scsi_cmnd *scp)
 }
 
 static int hptiop_adjust_disk_queue_depth(struct scsi_device *sdev,
-					  int queue_depth, int reason)
+					  int queue_depth)
 {
 	struct hptiop_hba *hba = (struct hptiop_hba *)sdev->host->hostdata;
 
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
 	if (queue_depth > hba->max_requests)
 		queue_depth = hba->max_requests;
-	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
-	return queue_depth;
+	return scsi_change_queue_depth(sdev, queue_depth);
 }
 
 static ssize_t hptiop_show_version(struct device *dev,

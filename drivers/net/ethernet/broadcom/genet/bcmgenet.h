@@ -143,6 +143,9 @@ struct bcmgenet_mib_counters {
 	u32	rbuf_ovflow_cnt;
 	u32	rbuf_err_cnt;
 	u32	mdf_err_cnt;
+	u32	alloc_rx_buff_failed;
+	u32	rx_dma_failed;
+	u32	tx_dma_failed;
 };
 
 #define UMAC_HD_BKP_CTRL		0x004
@@ -181,6 +184,21 @@ struct bcmgenet_mib_counters {
 #define UMAC_MAC0			0x00C
 #define UMAC_MAC1			0x010
 #define UMAC_MAX_FRAME_LEN		0x014
+
+#define UMAC_EEE_CTRL			0x064
+#define  EN_LPI_RX_PAUSE		(1 << 0)
+#define  EN_LPI_TX_PFC			(1 << 1)
+#define  EN_LPI_TX_PAUSE		(1 << 2)
+#define  EEE_EN				(1 << 3)
+#define  RX_FIFO_CHECK			(1 << 4)
+#define  EEE_TX_CLK_DIS			(1 << 5)
+#define  DIS_EEE_10M			(1 << 6)
+#define  LP_IDLE_PREDICTION_MODE	(1 << 7)
+
+#define UMAC_EEE_LPI_TIMER		0x068
+#define UMAC_EEE_WAKE_TIMER		0x06C
+#define UMAC_EEE_REF_COUNT		0x070
+#define  EEE_REFERENCE_COUNT_MASK	0xffff
 
 #define UMAC_TX_FLUSH			0x334
 
@@ -229,6 +247,10 @@ struct bcmgenet_mib_counters {
 #define  RBUF_RXCHK_EN			(1 << 0)
 #define  RBUF_SKIP_FCS			(1 << 4)
 
+#define RBUF_ENERGY_CTRL		0x9c
+#define  RBUF_EEE_EN			(1 << 0)
+#define  RBUF_PM_EN			(1 << 1)
+
 #define RBUF_TBUF_SIZE_CTRL		0xb4
 
 #define RBUF_HFB_CTRL_V1		0x38
@@ -244,6 +266,9 @@ struct bcmgenet_mib_counters {
 
 #define TBUF_CTRL			0x00
 #define TBUF_BP_MC			0x0C
+#define TBUF_ENERGY_CTRL		0x14
+#define  TBUF_EEE_EN			(1 << 0)
+#define  TBUF_PM_EN			(1 << 1)
 
 #define TBUF_CTRL_V1			0x80
 #define TBUF_BP_MC_V1			0xA0
@@ -548,6 +573,8 @@ struct bcmgenet_priv {
 	struct device_node *phy_dn;
 	struct mii_bus *mii_bus;
 	u16 gphy_rev;
+	struct clk *clk_eee;
+	bool clk_eee_enabled;
 
 	/* PHY device variables */
 	int old_link;
@@ -584,6 +611,8 @@ struct bcmgenet_priv {
 	u32 wolopts;
 
 	struct bcmgenet_mib_counters mib;
+
+	struct ethtool_eee eee;
 };
 
 #define GENET_IO_MACRO(name, offset)					\
@@ -617,9 +646,10 @@ GENET_IO_MACRO(rbuf, GENET_RBUF_OFF);
 
 /* MDIO routines */
 int bcmgenet_mii_init(struct net_device *dev);
-int bcmgenet_mii_config(struct net_device *dev);
+int bcmgenet_mii_config(struct net_device *dev, bool init);
 void bcmgenet_mii_exit(struct net_device *dev);
 void bcmgenet_mii_reset(struct net_device *dev);
+void bcmgenet_mii_setup(struct net_device *dev);
 
 /* Wake-on-LAN routines */
 void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol);

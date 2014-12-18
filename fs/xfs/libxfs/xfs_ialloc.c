@@ -22,9 +22,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
@@ -39,7 +37,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_icreate_item.h"
 #include "xfs_icache.h"
-#include "xfs_dinode.h"
 #include "xfs_trace.h"
 
 
@@ -48,12 +45,12 @@
  */
 static inline int
 xfs_ialloc_cluster_alignment(
-	xfs_alloc_arg_t	*args)
+	struct xfs_mount	*mp)
 {
-	if (xfs_sb_version_hasalign(&args->mp->m_sb) &&
-	    args->mp->m_sb.sb_inoalignmt >=
-	     XFS_B_TO_FSBT(args->mp, args->mp->m_inode_cluster_size))
-		return args->mp->m_sb.sb_inoalignmt;
+	if (xfs_sb_version_hasalign(&mp->m_sb) &&
+	    mp->m_sb.sb_inoalignmt >=
+			XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size))
+		return mp->m_sb.sb_inoalignmt;
 	return 1;
 }
 
@@ -412,7 +409,7 @@ xfs_ialloc_ag_alloc(
 		 * but not to use them in the actual exact allocation.
 		 */
 		args.alignment = 1;
-		args.minalignslop = xfs_ialloc_cluster_alignment(&args) - 1;
+		args.minalignslop = xfs_ialloc_cluster_alignment(args.mp) - 1;
 
 		/* Allow space for the inode btree to split. */
 		args.minleft = args.mp->m_in_maxlevels - 1;
@@ -448,7 +445,7 @@ xfs_ialloc_ag_alloc(
 			args.alignment = args.mp->m_dalign;
 			isaligned = 1;
 		} else
-			args.alignment = xfs_ialloc_cluster_alignment(&args);
+			args.alignment = xfs_ialloc_cluster_alignment(args.mp);
 		/*
 		 * Need to figure out where to allocate the inode blocks.
 		 * Ideally they should be spaced out through the a.g.
@@ -477,7 +474,7 @@ xfs_ialloc_ag_alloc(
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 		args.agbno = be32_to_cpu(agi->agi_root);
 		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
-		args.alignment = xfs_ialloc_cluster_alignment(&args);
+		args.alignment = xfs_ialloc_cluster_alignment(args.mp);
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
@@ -632,10 +629,24 @@ xfs_ialloc_ag_select(
 		}
 
 		/*
-		 * Is there enough free space for the file plus a block of
-		 * inodes? (if we need to allocate some)?
+		 * Check that there is enough free space for the file plus a
+		 * chunk of inodes if we need to allocate some. If this is the
+		 * first pass across the AGs, take into account the potential
+		 * space needed for alignment of inode chunks when checking the
+		 * longest contiguous free space in the AG - this prevents us
+		 * from getting ENOSPC because we have free space larger than
+		 * m_ialloc_blks but alignment constraints prevent us from using
+		 * it.
+		 *
+		 * If we can't find an AG with space for full alignment slack to
+		 * be taken into account, we must be near ENOSPC in all AGs.
+		 * Hence we don't include alignment for the second pass and so
+		 * if we fail allocation due to alignment issues then it is most
+		 * likely a real ENOSPC condition.
 		 */
 		ineed = mp->m_ialloc_blks;
+		if (flags && ineed > 1)
+			ineed += xfs_ialloc_cluster_alignment(mp);
 		longest = pag->pagf_longest;
 		if (!longest)
 			longest = pag->pagf_flcount > 0;
@@ -1137,11 +1148,7 @@ xfs_dialloc_ag_update_inobt(
 	XFS_WANT_CORRUPTED_RETURN((rec.ir_free == frec->ir_free) &&
 				  (rec.ir_freecount == frec->ir_freecount));
 
-	error = xfs_inobt_update(cur, &rec);
-	if (error)
-		return error;
-
-	return 0;
+	return xfs_inobt_update(cur, &rec);
 }
 
 /*

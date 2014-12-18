@@ -1220,7 +1220,6 @@ static struct platform_driver loopback_driver = {
 	.remove		= loopback_remove,
 	.driver		= {
 		.name	= SND_LOOPBACK_DRIVER,
-		.owner	= THIS_MODULE,
 		.pm	= LOOPBACK_PM_OPS,
 	},
 };

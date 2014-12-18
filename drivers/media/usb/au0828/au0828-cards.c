@@ -36,6 +36,11 @@ static void hvr950q_cs5340_audio(void *priv, int enable)
 		au0828_clear(dev, REG_000, 0x10);
 }
 
+/*
+ * WARNING: There's a quirks table at sound/usb/quirks-table.h
+ * that should also be updated every time a new device with V4L2 support
+ * is added here.
+ */
 struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_UNKNOWN] = {
 		.name	= "Unknown board",

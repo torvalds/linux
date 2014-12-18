@@ -561,8 +561,8 @@ static int mipspmu_get_irq(void)
 			IRQF_PERCPU | IRQF_NOBALANCING | IRQF_NO_THREAD,
 			"mips_perf_pmu", NULL);
 		if (err) {
-			pr_warning("Unable to request IRQ%d for MIPS "
-			   "performance counters!\n", mipspmu.irq);
+			pr_warn("Unable to request IRQ%d for MIPS performance counters!\n",
+				mipspmu.irq);
 		}
 	} else if (cp0_perfcount_irq < 0) {
 		/*
@@ -572,8 +572,7 @@ static int mipspmu_get_irq(void)
 		perf_irq = mipsxx_pmu_handle_shared_irq;
 		err = 0;
 	} else {
-		pr_warning("The platform hasn't properly defined its "
-			"interrupt controller.\n");
+		pr_warn("The platform hasn't properly defined its interrupt controller\n");
 		err = -ENOENT;
 	}
 
@@ -1614,22 +1613,13 @@ init_hw_perf_events(void)
 		counters = counters_total_to_per_cpu(counters);
 #endif
 
-#ifdef MSC01E_INT_BASE
-	if (cpu_has_veic) {
-		/*
-		 * Using platform specific interrupt controller defines.
-		 */
-		irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
-	} else {
-#endif
-		if ((cp0_perfcount_irq >= 0) &&
-				(cp0_compare_irq != cp0_perfcount_irq))
-			irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
-		else
-			irq = -1;
-#ifdef MSC01E_INT_BASE
-	}
-#endif
+	if (get_c0_perfcount_int)
+		irq = get_c0_perfcount_int();
+	else if ((cp0_perfcount_irq >= 0) &&
+		 (cp0_compare_irq != cp0_perfcount_irq))
+		irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
+	else
+		irq = -1;
 
 	mipspmu.map_raw_event = mipsxx_pmu_map_raw_event;
 

@@ -323,7 +323,7 @@ static int mt9m032_enum_mbus_code(struct v4l2_subdev *subdev,
 	if (code->index != 0)
 		return -EINVAL;
 
-	code->code = V4L2_MBUS_FMT_Y8_1X8;
+	code->code = MEDIA_BUS_FMT_Y8_1X8;
 	return 0;
 }
 
@@ -331,7 +331,7 @@ static int mt9m032_enum_frame_size(struct v4l2_subdev *subdev,
 				   struct v4l2_subdev_fh *fh,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index != 0 || fse->code != V4L2_MBUS_FMT_Y8_1X8)
+	if (fse->index != 0 || fse->code != MEDIA_BUS_FMT_Y8_1X8)
 		return -EINVAL;
 
 	fse->min_width = MT9M032_COLUMN_SIZE_DEF;
@@ -759,7 +759,7 @@ static int mt9m032_probe(struct i2c_client *client,
 
 	sensor->format.width = sensor->crop.width;
 	sensor->format.height = sensor->crop.height;
-	sensor->format.code = V4L2_MBUS_FMT_Y8_1X8;
+	sensor->format.code = MEDIA_BUS_FMT_Y8_1X8;
 	sensor->format.field = V4L2_FIELD_NONE;
 	sensor->format.colorspace = V4L2_COLORSPACE_SRGB;
 

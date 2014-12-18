@@ -17,6 +17,9 @@
 #include <linux/notifier.h>
 #include <linux/cpuidle.h>
 
+/* Defines used for the flags field in the struct generic_pm_domain */
+#define GENPD_FLAG_PM_CLK	(1U << 0) /* PM domain uses PM clk */
+
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
 	GPD_STATE_WAIT_MASTER,	/* PM domain's master is being waited for */
@@ -72,8 +75,11 @@ struct generic_pm_domain {
 	bool max_off_time_changed;
 	bool cached_power_down_ok;
 	struct gpd_cpuidle_data *cpuidle_data;
-	void (*attach_dev)(struct device *dev);
-	void (*detach_dev)(struct device *dev);
+	int (*attach_dev)(struct generic_pm_domain *domain,
+			  struct device *dev);
+	void (*detach_dev)(struct generic_pm_domain *domain,
+			   struct device *dev);
+	unsigned int flags;		/* Bit field of configs for genpd */
 };
 
 static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
@@ -98,13 +104,18 @@ struct gpd_timing_data {
 	bool cached_stop_ok;
 };
 
+struct pm_domain_data {
+	struct list_head list_node;
+	struct device *dev;
+};
+
 struct generic_pm_domain_data {
 	struct pm_domain_data base;
 	struct gpd_timing_data td;
 	struct notifier_block nb;
 	struct mutex lock;
 	unsigned int refcount;
-	bool need_restore;
+	int need_restore;
 };
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
@@ -145,6 +156,7 @@ extern void pm_genpd_init(struct generic_pm_domain *genpd,
 
 extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
 extern int pm_genpd_name_poweron(const char *domain_name);
+extern void pm_genpd_poweroff_unused(void);
 
 extern struct dev_power_governor simple_qos_governor;
 extern struct dev_power_governor pm_domain_always_on_gov;
@@ -219,6 +231,7 @@ static inline int pm_genpd_name_poweron(const char *domain_name)
 {
 	return -ENOSYS;
 }
+static inline void pm_genpd_poweroff_unused(void) {}
 #define simple_qos_governor NULL
 #define pm_domain_always_on_gov NULL
 #endif
@@ -234,12 +247,6 @@ static inline int pm_genpd_name_add_device(const char *domain_name,
 {
 	return __pm_genpd_name_add_device(domain_name, dev, NULL);
 }
-
-#ifdef CONFIG_PM_GENERIC_DOMAINS_RUNTIME
-extern void pm_genpd_poweroff_unused(void);
-#else
-static inline void pm_genpd_poweroff_unused(void) {}
-#endif
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS_SLEEP
 extern void pm_genpd_syscore_poweroff(struct device *dev);

@@ -112,8 +112,6 @@ void irlmp_add_discovery_log(hashbin_t *cachelog, hashbin_t *log)
 {
 	discovery_t *discovery;
 
-	IRDA_DEBUG(4, "%s()\n", __func__);
-
 	/*
 	 *  If log is missing this means that IrLAP was unable to perform the
 	 *  discovery, so restart discovery again with just the half timeout
@@ -159,8 +157,6 @@ void irlmp_expire_discoveries(hashbin_t *log, __u32 saddr, int force)
 	int			i = 0;		/* How many we expired */
 
 	IRDA_ASSERT(log != NULL, return;);
-	IRDA_DEBUG(4, "%s()\n", __func__);
-
 	spin_lock_irqsave(&log->hb_spinlock, flags);
 
 	discovery = (discovery_t *) hashbin_get_first(log);
@@ -232,10 +228,10 @@ void irlmp_dump_discoveries(hashbin_t *log)
 
 	discovery = (discovery_t *) hashbin_get_first(log);
 	while (discovery != NULL) {
-		IRDA_DEBUG(0, "Discovery:\n");
-		IRDA_DEBUG(0, "  daddr=%08x\n", discovery->data.daddr);
-		IRDA_DEBUG(0, "  saddr=%08x\n", discovery->data.saddr);
-		IRDA_DEBUG(0, "  nickname=%s\n", discovery->data.info);
+		pr_debug("Discovery:\n");
+		pr_debug("  daddr=%08x\n", discovery->data.daddr);
+		pr_debug("  saddr=%08x\n", discovery->data.saddr);
+		pr_debug("  nickname=%s\n", discovery->data.info);
 
 		discovery = (discovery_t *) hashbin_get_next(log);
 	}

@@ -179,9 +179,9 @@ static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
 
 	/* Never idle if active, or when VBUS timeout is not set as host */
 	if (musb->is_active || (musb->a_wait_bcon == 0 &&
-				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
+			musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
-				usb_otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->otg->state));
 		del_timer(&glue->timer);
 		glue->last_timer = jiffies;
 		return;
@@ -201,7 +201,7 @@ static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
 	glue->last_timer = timeout;
 
 	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
-		usb_otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->otg->state),
 			jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&glue->timer, timeout);
 }
@@ -265,10 +265,10 @@ static void otg_timer(unsigned long _musb)
 	 */
 	devctl = dsps_readb(mregs, MUSB_DEVCTL);
 	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
-				usb_otg_state_string(musb->xceiv->state));
+				usb_otg_state_string(musb->xceiv->otg->state));
 
 	spin_lock_irqsave(&musb->lock, flags);
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_BCON:
 		dsps_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
@@ -277,10 +277,10 @@ static void otg_timer(unsigned long _musb)
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_B_IDLE:
 		if (devctl & MUSB_DEVCTL_BDEVICE) {
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
 		} else {
-			musb->xceiv->state = OTG_STATE_A_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 			MUSB_HST_MODE(musb);
 		}
 		if (!(devctl & MUSB_DEVCTL_SESSION) && !skip_session)
@@ -288,7 +288,7 @@ static void otg_timer(unsigned long _musb)
 		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
-		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 		dsps_writel(musb->ctrl_base, wrp->coreintr_set,
 			    MUSB_INTR_VBUSERROR << wrp->usb_shift);
 		break;
@@ -373,26 +373,26 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			 * devctl.
 			 */
 			musb->int_usb &= ~MUSB_INTR_VBUSERROR;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VFALL;
 			mod_timer(&glue->timer,
 					jiffies + wrp->poll_seconds * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			musb->xceiv->otg->default_a = 1;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			del_timer(&glue->timer);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
 			musb->xceiv->otg->default_a = 0;
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 		}
 
 		/* NOTE: this must complete power-on within 100 ms. */
 		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
-				usb_otg_state_string(musb->xceiv->state),
+				usb_otg_state_string(musb->xceiv->otg->state),
 				err ? " ERROR" : "",
 				devctl);
 		ret = IRQ_HANDLED;
@@ -402,7 +402,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 		ret |= musb_interrupt(musb);
 
 	/* Poll for ID change in OTG port mode */
-	if (musb->xceiv->state == OTG_STATE_B_IDLE &&
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
 			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
 		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 out:
@@ -447,9 +447,6 @@ static int dsps_musb_init(struct musb *musb)
 	int ret;
 
 	r = platform_get_resource_byname(parent, IORESOURCE_MEM, "control");
-	if (!r)
-		return -EINVAL;
-
 	reg_base = devm_ioremap_resource(dev, r);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
@@ -636,6 +633,7 @@ static int dsps_musb_reset(struct musb *musb)
 }
 
 static struct musb_platform_ops dsps_ops = {
+	.quirks		= MUSB_INDEXED_EP,
 	.init		= dsps_musb_init,
 	.exit		= dsps_musb_exit,
 
@@ -729,7 +727,6 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 
 	config = devm_kzalloc(&parent->dev, sizeof(*config), GFP_KERNEL);
 	if (!config) {
-		dev_err(dev, "failed to allocate musb hdrc config\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -781,10 +778,8 @@ static int dsps_probe(struct platform_device *pdev)
 
 	/* allocate glue */
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "unable to allocate glue memory\n");
+	if (!glue)
 		return -ENOMEM;
-	}
 
 	glue->dev = &pdev->dev;
 	glue->wrp = wrp;
@@ -906,7 +901,7 @@ static int dsps_resume(struct device *dev)
 	dsps_writel(mbase, wrp->mode, glue->context.mode);
 	dsps_writel(mbase, wrp->tx_mode, glue->context.tx_mode);
 	dsps_writel(mbase, wrp->rx_mode, glue->context.rx_mode);
-	if (musb->xceiv->state == OTG_STATE_B_IDLE &&
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
 	    musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
 		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 

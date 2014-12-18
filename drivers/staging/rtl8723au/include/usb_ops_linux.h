@@ -21,13 +21,13 @@
 
 #define MAX_USBCTRL_VENDORREQ_TIMES	10
 
-int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+int rtl8723au_read_port(struct rtw_adapter *adapter, u32 cnt,
 			struct recv_buf *precvbuf);
 void rtl8723au_read_port_cancel(struct rtw_adapter *padapter);
 int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 			 struct xmit_buf *pxmitbuf);
 void rtl8723au_write_port_cancel(struct rtw_adapter *padapter);
-int rtl8723au_read_interrupt(struct rtw_adapter *adapter, u32 addr);
+int rtl8723au_read_interrupt(struct rtw_adapter *adapter);
 
 u8 rtl8723au_read8(struct rtw_adapter *padapter, u16 addr);
 u16 rtl8723au_read16(struct rtw_adapter *padapter, u16 addr);

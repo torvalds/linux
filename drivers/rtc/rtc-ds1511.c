@@ -561,7 +561,6 @@ static struct platform_driver ds1511_rtc_driver = {
 	.remove		= ds1511_rtc_remove,
 	.driver		= {
 		.name	= "ds1511",
-		.owner	= THIS_MODULE,
 	},
 };
 

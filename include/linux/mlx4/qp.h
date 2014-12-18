@@ -120,13 +120,15 @@ enum {
 	MLX4_RSS_QPC_FLAG_OFFSET		= 13,
 };
 
+#define MLX4_EN_RSS_KEY_SIZE 40
+
 struct mlx4_rss_context {
 	__be32			base_qpn;
 	__be32			default_qpn;
 	u16			reserved;
 	u8			hash_fn;
 	u8			flags;
-	__be32			rss_key[10];
+	__be32			rss_key[MLX4_EN_RSS_KEY_SIZE / sizeof(__be32)];
 	__be32			base_qpn_udp;
 };
 

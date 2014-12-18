@@ -295,7 +295,7 @@ long machine_check_early(struct pt_regs *regs)
 {
 	long handled = 0;
 
-	__get_cpu_var(irq_stat).mce_exceptions++;
+	__this_cpu_inc(irq_stat.mce_exceptions);
 
 	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
 		handled = cur_cpu_spec->machine_check_early(regs);
@@ -304,7 +304,7 @@ long machine_check_early(struct pt_regs *regs)
 
 long hmi_exception_realmode(struct pt_regs *regs)
 {
-	__get_cpu_var(irq_stat).hmi_exceptions++;
+	__this_cpu_inc(irq_stat.hmi_exceptions);
 
 	if (ppc_md.hmi_exception_early)
 		ppc_md.hmi_exception_early(regs);
@@ -700,7 +700,7 @@ void machine_check_exception(struct pt_regs *regs)
 	enum ctx_state prev_state = exception_enter();
 	int recover = 0;
 
-	__get_cpu_var(irq_stat).mce_exceptions++;
+	__this_cpu_inc(irq_stat.mce_exceptions);
 
 	/* See if any machine dependent calls. In theory, we would want
 	 * to call the CPU first, and call the ppc_md. one if the CPU
@@ -1519,7 +1519,7 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 
 void performance_monitor_exception(struct pt_regs *regs)
 {
-	__get_cpu_var(irq_stat).pmu_irqs++;
+	__this_cpu_inc(irq_stat.pmu_irqs);
 
 	perf_irq(regs);
 }

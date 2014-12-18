@@ -26,7 +26,6 @@
 
 #include <linux/i2c.h>
 
-#define MAX77693_NUM_IRQ_MUIC_REGS	3
 #define MAX77693_REG_INVALID		(0xff)
 
 /* Slave addr = 0xCC: PMIC, Charger, Flash LED */
@@ -329,6 +328,13 @@ enum max77693_irq_source {
 
 	MAX77693_IRQ_GROUP_NR,
 };
+
+#define SRC_IRQ_CHARGER			BIT(0)
+#define SRC_IRQ_TOP			BIT(1)
+#define SRC_IRQ_FLASH			BIT(2)
+#define SRC_IRQ_MUIC			BIT(3)
+#define SRC_IRQ_ALL			(SRC_IRQ_CHARGER | SRC_IRQ_TOP \
+						| SRC_IRQ_FLASH | SRC_IRQ_MUIC)
 
 #define LED_IRQ_FLED2_OPEN		BIT(0)
 #define LED_IRQ_FLED2_SHORT		BIT(1)

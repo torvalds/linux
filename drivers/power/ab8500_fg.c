@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/time.h>
+#include <linux/time64.h>
 #include <linux/of.h>
 #include <linux/completion.h>
 #include <linux/mfd/core.h>
@@ -108,7 +109,7 @@ enum ab8500_fg_calibration_state {
 struct ab8500_fg_avg_cap {
 	int avg;
 	int samples[NBR_AVG_SAMPLES];
-	__kernel_time_t time_stamps[NBR_AVG_SAMPLES];
+	time64_t time_stamps[NBR_AVG_SAMPLES];
 	int pos;
 	int nbr_samples;
 	int sum;
@@ -386,15 +387,15 @@ static int ab8500_fg_is_low_curr(struct ab8500_fg *di, int curr)
  */
 static int ab8500_fg_add_cap_sample(struct ab8500_fg *di, int sample)
 {
-	struct timespec ts;
+	struct timespec64 ts64;
 	struct ab8500_fg_avg_cap *avg = &di->avg_cap;
 
-	getnstimeofday(&ts);
+	getnstimeofday64(&ts64);
 
 	do {
 		avg->sum += sample - avg->samples[avg->pos];
 		avg->samples[avg->pos] = sample;
-		avg->time_stamps[avg->pos] = ts.tv_sec;
+		avg->time_stamps[avg->pos] = ts64.tv_sec;
 		avg->pos++;
 
 		if (avg->pos == NBR_AVG_SAMPLES)
@@ -407,7 +408,7 @@ static int ab8500_fg_add_cap_sample(struct ab8500_fg *di, int sample)
 		 * Check the time stamp for each sample. If too old,
 		 * replace with latest sample
 		 */
-	} while (ts.tv_sec - VALID_CAPACITY_SEC > avg->time_stamps[avg->pos]);
+	} while (ts64.tv_sec - VALID_CAPACITY_SEC > avg->time_stamps[avg->pos]);
 
 	avg->avg = avg->sum / avg->nbr_samples;
 
@@ -446,14 +447,14 @@ static void ab8500_fg_clear_cap_samples(struct ab8500_fg *di)
 static void ab8500_fg_fill_cap_sample(struct ab8500_fg *di, int sample)
 {
 	int i;
-	struct timespec ts;
+	struct timespec64 ts64;
 	struct ab8500_fg_avg_cap *avg = &di->avg_cap;
 
-	getnstimeofday(&ts);
+	getnstimeofday64(&ts64);
 
 	for (i = 0; i < NBR_AVG_SAMPLES; i++) {
 		avg->samples[i] = sample;
-		avg->time_stamps[i] = ts.tv_sec;
+		avg->time_stamps[i] = ts64.tv_sec;
 	}
 
 	avg->pos = 0;
@@ -3280,7 +3281,6 @@ static struct platform_driver ab8500_fg_driver = {
 	.resume = ab8500_fg_resume,
 	.driver = {
 		.name = "ab8500-fg",
-		.owner = THIS_MODULE,
 		.of_match_table = ab8500_fg_match,
 	},
 };

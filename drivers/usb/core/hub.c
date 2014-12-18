@@ -1737,7 +1737,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * - If user has indicated to prevent autosuspend by passing
 	 *   usbcore.autosuspend = -1 then keep autosuspend disabled.
 	 */
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (hdev->dev.power.autosuspend_delay >= 0)
 		pm_runtime_set_autosuspend_delay(&hdev->dev, 0);
 #endif
@@ -2543,11 +2543,14 @@ int usb_authorize_device(struct usb_device *usb_dev)
 			"can't autoresume for authorization: %d\n", result);
 		goto error_autoresume;
 	}
-	result = usb_get_device_descriptor(usb_dev, sizeof(usb_dev->descriptor));
-	if (result < 0) {
-		dev_err(&usb_dev->dev, "can't re-read device descriptor for "
-			"authorization: %d\n", result);
-		goto error_device_descriptor;
+
+	if (usb_dev->wusb) {
+		result = usb_get_device_descriptor(usb_dev, sizeof(usb_dev->descriptor));
+		if (result < 0) {
+			dev_err(&usb_dev->dev, "can't re-read device descriptor for "
+				"authorization: %d\n", result);
+			goto error_device_descriptor;
+		}
 	}
 
 	usb_dev->authorized = 1;
@@ -3449,7 +3452,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	return status;
 }
 
-#ifdef	CONFIG_PM_RUNTIME
+#ifdef	CONFIG_PM
 
 int usb_remote_wakeup(struct usb_device *udev)
 {
@@ -3907,14 +3910,9 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 static int usb_disable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		enum usb3_link_state state)
 {
-	int feature;
-
 	switch (state) {
 	case USB3_LPM_U1:
-		feature = USB_PORT_FEAT_U1_TIMEOUT;
-		break;
 	case USB3_LPM_U2:
-		feature = USB_PORT_FEAT_U2_TIMEOUT;
 		break;
 	default:
 		dev_warn(&udev->dev, "%s: Can't disable non-U1 or U2 state.\n",
@@ -4468,9 +4466,6 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval)
 		goto fail;
 
-	if (hcd->usb_phy && !hdev->parent)
-		usb_phy_notify_connect(hcd->usb_phy, udev->speed);
-
 	/*
 	 * Some superspeed devices have finished the link training process
 	 * and attached to a superspeed hub port, but the device descriptor
@@ -4627,8 +4622,7 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 
 	/* Disconnect any existing devices under this port */
 	if (udev) {
-		if (hcd->usb_phy && !hdev->parent &&
-				!(portstatus & USB_PORT_STAT_CONNECTION))
+		if (hcd->usb_phy && !hdev->parent)
 			usb_phy_notify_disconnect(hcd->usb_phy, udev->speed);
 		usb_disconnect(&port_dev->child);
 	}
@@ -4783,6 +4777,10 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 				port_dev->child = NULL;
 				spin_unlock_irq(&device_state_lock);
 				mutex_unlock(&usb_port_peer_mutex);
+			} else {
+				if (hcd->usb_phy && !hdev->parent)
+					usb_phy_notify_connect(hcd->usb_phy,
+							udev->speed);
 			}
 		}
 
@@ -4856,7 +4854,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			udev->state != USB_STATE_NOTATTACHED) {
 		if (portstatus & USB_PORT_STAT_ENABLE) {
 			status = 0;		/* Nothing to do */
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 		} else if (udev->state == USB_STATE_SUSPENDED &&
 				udev->persist_enabled) {
 			/* For a suspended device, treat this as a

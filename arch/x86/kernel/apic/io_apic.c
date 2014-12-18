@@ -3158,7 +3158,7 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
 	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
 
-	__write_msi_msg(data->msi_desc, &msg);
+	__pci_write_msi_msg(data->msi_desc, &msg);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
@@ -3169,8 +3169,8 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
  */
 static struct irq_chip msi_chip = {
 	.name			= "PCI-MSI",
-	.irq_unmask		= unmask_msi_irq,
-	.irq_mask		= mask_msi_irq,
+	.irq_unmask		= pci_msi_unmask_irq,
+	.irq_mask		= pci_msi_mask_irq,
 	.irq_ack		= ack_apic_edge,
 	.irq_set_affinity	= msi_set_affinity,
 	.irq_retrigger		= ioapic_retrigger_irq,
@@ -3196,7 +3196,7 @@ int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	 * MSI message denotes a contiguous group of IRQs, written for 0th IRQ.
 	 */
 	if (!irq_offset)
-		write_msi_msg(irq, &msg);
+		pci_write_msi_msg(irq, &msg);
 
 	setup_remapped_irq(irq, irq_cfg(irq), chip);
 

@@ -51,7 +51,6 @@ static int db1000_audio_remove(struct platform_device *pdev)
 static struct platform_driver db1000_audio_driver = {
 	.driver	= {
 		.name	= "db1000-audio",
-		.owner	= THIS_MODULE,
 		.pm	= &snd_soc_pm_ops,
 	},
 	.probe		= db1000_audio_probe,

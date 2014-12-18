@@ -133,7 +133,7 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 {
 	unsigned flt = 0;
 	int result;
-	unsigned long access, flags;
+	unsigned long access, flags, inv_flags = 0;
 
 	if ((result = copro_handle_mm_fault(mm, dar, dsisr, &flt))) {
 		pr_devel("copro_handle_mm_fault failed: %#x\n", result);
@@ -149,8 +149,12 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 		access |= _PAGE_RW;
 	if ((!ctx->kernel) || ~(dar & (1ULL << 63)))
 		access |= _PAGE_USER;
+
+	if (dsisr & DSISR_NOHPTE)
+		inv_flags |= HPTE_NOHPTE_UPDATE;
+
 	local_irq_save(flags);
-	hash_page_mm(mm, dar, access, 0x300);
+	hash_page_mm(mm, dar, access, 0x300, inv_flags);
 	local_irq_restore(flags);
 
 	pr_devel("Page fault successfully handled for pe: %i!\n", ctx->pe);

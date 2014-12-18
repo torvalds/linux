@@ -376,8 +376,9 @@ static inline int adf_get_cfg_int(struct adf_accel_dev *accel_dev,
 	return 0;
 }
 
-static void adf_enable_coalesc(struct adf_etr_bank_data *bank,
-			       const char *section, uint32_t bank_num_in_accel)
+static void adf_get_coalesc_timer(struct adf_etr_bank_data *bank,
+				  const char *section,
+				  uint32_t bank_num_in_accel)
 {
 	if (adf_get_cfg_int(bank->accel_dev, section,
 			    ADF_ETRMGR_COALESCE_TIMER_FORMAT,
@@ -396,7 +397,7 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_etr_ring_data *ring;
 	struct adf_etr_ring_data *tx_ring;
-	uint32_t i, coalesc_enabled;
+	uint32_t i, coalesc_enabled = 0;
 
 	memset(bank, 0, sizeof(*bank));
 	bank->bank_number = bank_num;
@@ -407,10 +408,10 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 	/* Enable IRQ coalescing always. This will allow to use
 	 * the optimised flag and coalesc register.
 	 * If it is disabled in the config file just use min time value */
-	if (adf_get_cfg_int(accel_dev, "Accelerator0",
-			    ADF_ETRMGR_COALESCING_ENABLED_FORMAT,
-			    bank_num, &coalesc_enabled) && coalesc_enabled)
-		adf_enable_coalesc(bank, "Accelerator0", bank_num);
+	if ((adf_get_cfg_int(accel_dev, "Accelerator0",
+			     ADF_ETRMGR_COALESCING_ENABLED_FORMAT, bank_num,
+			     &coalesc_enabled) == 0) && coalesc_enabled)
+		adf_get_coalesc_timer(bank, "Accelerator0", bank_num);
 	else
 		bank->irq_coalesc_timer = ADF_COALESCING_MIN_TIME;
 
@@ -419,9 +420,10 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 		WRITE_CSR_RING_BASE(csr_addr, bank_num, i, 0);
 		ring = &bank->rings[i];
 		if (hw_data->tx_rings_mask & (1 << i)) {
-			ring->inflights = kzalloc_node(sizeof(atomic_t),
-						       GFP_KERNEL,
-						       accel_dev->numa_node);
+			ring->inflights =
+				kzalloc_node(sizeof(atomic_t),
+					     GFP_KERNEL,
+					     dev_to_node(&GET_DEV(accel_dev)));
 			if (!ring->inflights)
 				goto err;
 		} else {
@@ -469,13 +471,14 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	int i, ret;
 
 	etr_data = kzalloc_node(sizeof(*etr_data), GFP_KERNEL,
-				accel_dev->numa_node);
+				dev_to_node(&GET_DEV(accel_dev)));
 	if (!etr_data)
 		return -ENOMEM;
 
 	num_banks = GET_MAX_BANKS(accel_dev);
 	size = num_banks * sizeof(struct adf_etr_bank_data);
-	etr_data->banks = kzalloc_node(size, GFP_KERNEL, accel_dev->numa_node);
+	etr_data->banks = kzalloc_node(size, GFP_KERNEL,
+				       dev_to_node(&GET_DEV(accel_dev)));
 	if (!etr_data->banks) {
 		ret = -ENOMEM;
 		goto err_bank;

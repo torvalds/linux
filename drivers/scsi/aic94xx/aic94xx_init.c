@@ -49,14 +49,6 @@ MODULE_PARM_DESC(use_msi, "\n"
 	"\tEnable(1) or disable(0) using PCI MSI.\n"
 	"\tDefault: 0");
 
-static int lldd_max_execute_num = 0;
-module_param_named(collector, lldd_max_execute_num, int, S_IRUGO);
-MODULE_PARM_DESC(collector, "\n"
-	"\tIf greater than one, tells the SAS Layer to run in Task Collector\n"
-	"\tMode.  If 1 or 0, tells the SAS Layer to run in Direct Mode.\n"
-	"\tThe aic94xx SAS LLDD supports both modes.\n"
-	"\tDefault: 0 (Direct Mode).\n");
-
 static struct scsi_transport_template *aic94xx_transport_template;
 static int asd_scan_finished(struct Scsi_Host *, unsigned long);
 static void asd_scan_start(struct Scsi_Host *);
@@ -83,6 +75,8 @@ static struct scsi_host_template aic94xx_sht = {
 	.eh_bus_reset_handler	= sas_eh_bus_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
 };
 
 static int asd_map_memio(struct asd_ha_struct *asd_ha)
@@ -708,9 +702,6 @@ static int asd_register_sas_ha(struct asd_ha_struct *asd_ha)
 	asd_ha->sas_ha.sas_phy = sas_phys;
 	asd_ha->sas_ha.sas_port= sas_ports;
 	asd_ha->sas_ha.num_phys= ASD_MAX_PHYS;
-
-	asd_ha->sas_ha.lldd_queue_size = asd_ha->seq.can_queue;
-	asd_ha->sas_ha.lldd_max_execute_num = lldd_max_execute_num;
 
 	return sas_register_ha(&asd_ha->sas_ha);
 }

@@ -23,49 +23,6 @@
 
 #include "../comedidev.h"
 
-static inline unsigned int cfc_bytes_per_scan(struct comedi_subdevice *s)
-{
-	return comedi_bytes_per_scan(s);
-}
-
-static inline void cfc_inc_scan_progress(struct comedi_subdevice *s,
-					 unsigned int num_bytes)
-{
-	comedi_inc_scan_progress(s, num_bytes);
-}
-
-static inline unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
-						     const void *data,
-						     unsigned int num_bytes)
-{
-	return comedi_write_array_to_buffer(s, data, num_bytes);
-}
-
-static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *s,
-					       unsigned short data)
-{
-	return comedi_write_array_to_buffer(s, &data, sizeof(data));
-};
-
-static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *s,
-						    unsigned int data)
-{
-	return comedi_write_array_to_buffer(s, &data, sizeof(data));
-};
-
-static inline unsigned int
-cfc_read_array_from_buffer(struct comedi_subdevice *s, void *data,
-			   unsigned int num_bytes)
-{
-	return comedi_read_array_from_buffer(s, data, num_bytes);
-}
-
-static inline unsigned int cfc_handle_events(struct comedi_device *dev,
-					     struct comedi_subdevice *s)
-{
-	return comedi_handle_events(dev, s);
-}
-
 /**
  * cfc_check_trigger_src() - trivially validate a comedi_cmd trigger source
  * @src: pointer to the trigger source to validate

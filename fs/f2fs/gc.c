@@ -96,8 +96,6 @@ int start_gc_thread(struct f2fs_sb_info *sbi)
 	dev_t dev = sbi->sb->s_bdev->bd_dev;
 	int err = 0;
 
-	if (!test_opt(sbi, BG_GC))
-		goto out;
 	gc_th = kmalloc(sizeof(struct f2fs_gc_kthread), GFP_KERNEL);
 	if (!gc_th) {
 		err = -ENOMEM;
@@ -340,34 +338,39 @@ static const struct victim_selection default_v_ops = {
 	.get_victim = get_victim_by_default,
 };
 
-static struct inode *find_gc_inode(nid_t ino, struct list_head *ilist)
+static struct inode *find_gc_inode(struct gc_inode_list *gc_list, nid_t ino)
 {
 	struct inode_entry *ie;
 
-	list_for_each_entry(ie, ilist, list)
-		if (ie->inode->i_ino == ino)
-			return ie->inode;
+	ie = radix_tree_lookup(&gc_list->iroot, ino);
+	if (ie)
+		return ie->inode;
 	return NULL;
 }
 
-static void add_gc_inode(struct inode *inode, struct list_head *ilist)
+static void add_gc_inode(struct gc_inode_list *gc_list, struct inode *inode)
 {
 	struct inode_entry *new_ie;
 
-	if (inode == find_gc_inode(inode->i_ino, ilist)) {
+	if (inode == find_gc_inode(gc_list, inode->i_ino)) {
 		iput(inode);
 		return;
 	}
-
 	new_ie = f2fs_kmem_cache_alloc(winode_slab, GFP_NOFS);
 	new_ie->inode = inode;
-	list_add_tail(&new_ie->list, ilist);
+retry:
+	if (radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie)) {
+		cond_resched();
+		goto retry;
+	}
+	list_add_tail(&new_ie->list, &gc_list->ilist);
 }
 
-static void put_gc_inode(struct list_head *ilist)
+static void put_gc_inode(struct gc_inode_list *gc_list)
 {
 	struct inode_entry *ie, *next_ie;
-	list_for_each_entry_safe(ie, next_ie, ilist, list) {
+	list_for_each_entry_safe(ie, next_ie, &gc_list->ilist, list) {
+		radix_tree_delete(&gc_list->iroot, ie->inode->i_ino);
 		iput(ie->inode);
 		list_del(&ie->list);
 		kmem_cache_free(winode_slab, ie);
@@ -553,7 +556,7 @@ out:
  * the victim data block is ignored.
  */
 static void gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
-		struct list_head *ilist, unsigned int segno, int gc_type)
+		struct gc_inode_list *gc_list, unsigned int segno, int gc_type)
 {
 	struct super_block *sb = sbi->sb;
 	struct f2fs_summary *entry;
@@ -605,27 +608,27 @@ next_step:
 
 			data_page = find_data_page(inode,
 					start_bidx + ofs_in_node, false);
-			if (IS_ERR(data_page))
-				goto next_iput;
+			if (IS_ERR(data_page)) {
+				iput(inode);
+				continue;
+			}
 
 			f2fs_put_page(data_page, 0);
-			add_gc_inode(inode, ilist);
-		} else {
-			inode = find_gc_inode(dni.ino, ilist);
-			if (inode) {
-				start_bidx = start_bidx_of_node(nofs,
-								F2FS_I(inode));
-				data_page = get_lock_data_page(inode,
-						start_bidx + ofs_in_node);
-				if (IS_ERR(data_page))
-					continue;
-				move_data_page(inode, data_page, gc_type);
-				stat_inc_data_blk_count(sbi, 1);
-			}
+			add_gc_inode(gc_list, inode);
+			continue;
 		}
-		continue;
-next_iput:
-		iput(inode);
+
+		/* phase 3 */
+		inode = find_gc_inode(gc_list, dni.ino);
+		if (inode) {
+			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
+			data_page = get_lock_data_page(inode,
+						start_bidx + ofs_in_node);
+			if (IS_ERR(data_page))
+				continue;
+			move_data_page(inode, data_page, gc_type);
+			stat_inc_data_blk_count(sbi, 1);
+		}
 	}
 
 	if (++phase < 4)
@@ -646,18 +649,20 @@ next_iput:
 }
 
 static int __get_victim(struct f2fs_sb_info *sbi, unsigned int *victim,
-						int gc_type, int type)
+			int gc_type)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	int ret;
+
 	mutex_lock(&sit_i->sentry_lock);
-	ret = DIRTY_I(sbi)->v_ops->get_victim(sbi, victim, gc_type, type, LFS);
+	ret = DIRTY_I(sbi)->v_ops->get_victim(sbi, victim, gc_type,
+					      NO_CHECK_TYPE, LFS);
 	mutex_unlock(&sit_i->sentry_lock);
 	return ret;
 }
 
 static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
-				struct list_head *ilist, int gc_type)
+				struct gc_inode_list *gc_list, int gc_type)
 {
 	struct page *sum_page;
 	struct f2fs_summary_block *sum;
@@ -675,7 +680,7 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 		gc_node_segment(sbi, sum->entries, segno, gc_type);
 		break;
 	case SUM_TYPE_DATA:
-		gc_data_segment(sbi, sum->entries, ilist, segno, gc_type);
+		gc_data_segment(sbi, sum->entries, gc_list, segno, gc_type);
 		break;
 	}
 	blk_finish_plug(&plug);
@@ -688,16 +693,18 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 
 int f2fs_gc(struct f2fs_sb_info *sbi)
 {
-	struct list_head ilist;
 	unsigned int segno, i;
 	int gc_type = BG_GC;
 	int nfree = 0;
 	int ret = -1;
-	struct cp_control cpc = {
-		.reason = CP_SYNC,
+	struct cp_control cpc;
+	struct gc_inode_list gc_list = {
+		.ilist = LIST_HEAD_INIT(gc_list.ilist),
+		.iroot = RADIX_TREE_INIT(GFP_NOFS),
 	};
 
-	INIT_LIST_HEAD(&ilist);
+	cpc.reason = test_opt(sbi, FASTBOOT) ? CP_UMOUNT : CP_SYNC;
+
 gc_more:
 	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
 		goto stop;
@@ -709,7 +716,7 @@ gc_more:
 		write_checkpoint(sbi, &cpc);
 	}
 
-	if (!__get_victim(sbi, &segno, gc_type, NO_CHECK_TYPE))
+	if (!__get_victim(sbi, &segno, gc_type))
 		goto stop;
 	ret = 0;
 
@@ -719,7 +726,7 @@ gc_more:
 								META_SSA);
 
 	for (i = 0; i < sbi->segs_per_sec; i++)
-		do_garbage_collect(sbi, segno + i, &ilist, gc_type);
+		do_garbage_collect(sbi, segno + i, &gc_list, gc_type);
 
 	if (gc_type == FG_GC) {
 		sbi->cur_victim_sec = NULL_SEGNO;
@@ -735,7 +742,7 @@ gc_more:
 stop:
 	mutex_unlock(&sbi->gc_mutex);
 
-	put_gc_inode(&ilist);
+	put_gc_inode(&gc_list);
 	return ret;
 }
 

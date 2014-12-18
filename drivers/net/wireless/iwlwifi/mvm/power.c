@@ -286,6 +286,27 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	return true;
 }
 
+static int iwl_mvm_power_get_skip_over_dtim(int dtimper, int bi)
+{
+	int numerator;
+	int dtim_interval = dtimper * bi;
+
+	if (WARN_ON(!dtim_interval))
+		return 0;
+
+	if (dtimper == 1) {
+		if (bi > 100)
+			numerator = 408;
+		else
+			numerator = 510;
+	} else if (dtimper < 10) {
+		numerator = 612;
+	} else {
+		return 0;
+	}
+	return max(1, (numerator / dtim_interval));
+}
+
 static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -308,7 +329,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct iwl_mac_power_cmd *cmd)
 {
-	int dtimper, dtimper_msec;
+	int dtimper, bi;
 	int keep_alive;
 	bool radar_detect = false;
 	struct iwl_mvm_vif *mvmvif __maybe_unused =
@@ -317,6 +338,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	cmd->id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							    mvmvif->color));
 	dtimper = vif->bss_conf.dtim_period;
+	bi = vif->bss_conf.beacon_int;
 
 	/*
 	 * Regardless of power management state the driver must set
@@ -324,10 +346,9 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	 * immediately after association. Check that keep alive period
 	 * is at least 3 * DTIM
 	 */
-	dtimper_msec = dtimper * vif->bss_conf.beacon_int;
-	keep_alive = max_t(int, 3 * dtimper_msec,
-			   MSEC_PER_SEC * POWER_KEEP_ALIVE_PERIOD_SEC);
-	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
+	keep_alive = DIV_ROUND_UP(ieee80211_tu_to_usec(3 * dtimper * bi),
+				  USEC_PER_SEC);
+	keep_alive = max(keep_alive, POWER_KEEP_ALIVE_PERIOD_SEC);
 	cmd->keep_alive_seconds = cpu_to_le16(keep_alive);
 
 	if (mvm->ps_disabled)
@@ -352,11 +373,14 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	radar_detect = iwl_mvm_power_is_radar(vif);
 
 	/* Check skip over DTIM conditions */
-	if (!radar_detect && (dtimper <= 10) &&
+	if (!radar_detect && (dtimper < 10) &&
 	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP ||
 	     mvm->cur_ucode == IWL_UCODE_WOWLAN)) {
-		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
-		cmd->skip_dtim_periods = 3;
+		cmd->skip_dtim_periods =
+			iwl_mvm_power_get_skip_over_dtim(dtimper, bi);
+		if (cmd->skip_dtim_periods)
+			cmd->flags |=
+				cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 	}
 
 	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {

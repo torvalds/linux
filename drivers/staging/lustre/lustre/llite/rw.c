@@ -121,8 +121,8 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 			/* this is too bad. Someone is trying to write the
 			 * page w/o holding inode mutex. This means we can
 			 * add dirty pages into cache during truncate */
-			CERROR("Proc %s is dirting page w/o inode lock, this"
-			       "will break truncate.\n", current->comm);
+			CERROR("Proc %s is dirtying page w/o inode lock, this will break truncate\n",
+			       current->comm);
 			dump_stack();
 			LBUG();
 			return ERR_PTR(-EIO);
@@ -145,7 +145,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		 */
 		io->ci_lockreq = CILR_NEVER;
 
-		pos = (vmpage->index << PAGE_CACHE_SHIFT);
+		pos = vmpage->index << PAGE_CACHE_SHIFT;
 
 		/* Create a temp IO to serve write. */
 		result = cl_io_rw_init(env, io, CIT_WRITE, pos, PAGE_CACHE_SIZE);
@@ -606,8 +606,8 @@ stride_pg_count(pgoff_t st_off, unsigned long st_len, unsigned long st_pgs,
 	else
 		pg_count = start_left + st_pgs * (end - start - 1) + end_left;
 
-	CDEBUG(D_READA, "st_off %lu, st_len %lu st_pgs %lu off %lu length %lu"
-	       "pgcount %lu\n", st_off, st_len, st_pgs, off, length, pg_count);
+	CDEBUG(D_READA, "st_off %lu, st_len %lu st_pgs %lu off %lu length %lu pgcount %lu\n",
+	       st_off, st_len, st_pgs, off, length, pg_count);
 
 	return pg_count;
 }
@@ -667,10 +667,10 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 			/* FIXME: This assertion only is valid when it is for
 			 * forward read-ahead, it will be fixed when backward
 			 * read-ahead is implemented */
-			LASSERTF(page_idx > ria->ria_stoff, "Invalid page_idx %lu"
-				"rs %lu re %lu ro %lu rl %lu rp %lu\n", page_idx,
-				ria->ria_start, ria->ria_end, ria->ria_stoff,
-				ria->ria_length, ria->ria_pages);
+			LASSERTF(page_idx > ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
+				 page_idx,
+				 ria->ria_start, ria->ria_end, ria->ria_stoff,
+				 ria->ria_length, ria->ria_pages);
 			offset = page_idx - ria->ria_stoff;
 			offset = offset % (ria->ria_length);
 			if (offset > ria->ria_pages) {
@@ -927,8 +927,8 @@ static void ras_stride_increase_window(struct ll_readahead_state *ras,
 
 	LASSERT(ras->ras_stride_length > 0);
 	LASSERTF(ras->ras_window_start + ras->ras_window_len
-		 >= ras->ras_stride_offset, "window_start %lu, window_len %lu"
-		 " stride_offset %lu\n", ras->ras_window_start,
+		 >= ras->ras_stride_offset, "window_start %lu, window_len %lu stride_offset %lu\n",
+		 ras->ras_window_start,
 		 ras->ras_window_len, ras->ras_stride_offset);
 
 	stride_len = ras->ras_window_start + ras->ras_window_len -

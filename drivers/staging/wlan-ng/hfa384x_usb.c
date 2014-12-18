@@ -3583,12 +3583,8 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 	}
 
 	skb = dev_alloc_skb(skblen);
-	if (skb == NULL) {
-		netdev_err(hw->wlandev->netdev,
-			   "alloc_skb failed trying to allocate %d bytes\n",
-			   skblen);
+	if (skb == NULL)
 		return;
-	}
 
 	/* only prepend the prism header if in the right mode */
 	if ((wlandev->netdev->type == ARPHRD_IEEE80211_PRISM) &&

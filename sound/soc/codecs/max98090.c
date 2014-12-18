@@ -806,7 +806,7 @@ static const struct snd_kcontrol_new max98091_snd_controls[] = {
 static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
 
 	unsigned int val = snd_soc_read(codec, w->reg);
@@ -1311,6 +1311,10 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"MIC1 Input", NULL, "MIC1"},
 	{"MIC2 Input", NULL, "MIC2"},
 
+	{"DMICL", NULL, "DMICL_ENA"},
+	{"DMICL", NULL, "DMICR_ENA"},
+	{"DMICR", NULL, "DMICL_ENA"},
+	{"DMICR", NULL, "DMICR_ENA"},
 	{"DMICL", NULL, "AHPF"},
 	{"DMICR", NULL, "AHPF"},
 
@@ -1368,8 +1372,6 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"DMIC Mux", "ADC", "ADCR"},
 	{"DMIC Mux", "DMIC", "DMICL"},
 	{"DMIC Mux", "DMIC", "DMICR"},
-	{"DMIC Mux", "DMIC", "DMICL_ENA"},
-	{"DMIC Mux", "DMIC", "DMICR_ENA"},
 
 	{"LBENL Mux", "Normal", "DMIC Mux"},
 	{"LBENL Mux", "Loopback", "LTENL Mux"},
@@ -1395,8 +1397,8 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"STENL Mux", "Sidetone Left", "DMICL"},
 	{"STENR Mux", "Sidetone Right", "ADCR"},
 	{"STENR Mux", "Sidetone Right", "DMICR"},
-	{"DACL", "NULL", "STENL Mux"},
-	{"DACR", "NULL", "STENL Mux"},
+	{"DACL", NULL, "STENL Mux"},
+	{"DACR", NULL, "STENR Mux"},
 
 	{"AIFINL", NULL, "SHDN"},
 	{"AIFINR", NULL, "SHDN"},
@@ -1826,26 +1828,154 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static const int comp_pclk_rates[] = {
-	11289600, 12288000, 12000000, 13000000, 19200000
-};
-
-static const int dmic_micclk[] = {
-	2, 2, 2, 2, 4, 2
-};
+static const int dmic_divisors[] = { 2, 3, 4, 5, 6, 8 };
 
 static const int comp_lrclk_rates[] = {
 	8000, 16000, 32000, 44100, 48000, 96000
 };
 
-static const int dmic_comp[6][6] = {
-	{7, 8, 3, 3, 3, 3},
-	{7, 8, 3, 3, 3, 3},
-	{7, 8, 3, 3, 3, 3},
-	{7, 8, 3, 1, 1, 1},
-	{7, 8, 3, 1, 2, 2},
-	{7, 8, 3, 3, 3, 3}
+struct dmic_table {
+	int pclk;
+	struct {
+		int freq;
+		int comp[6]; /* One each for 8, 16, 32, 44.1, 48, and 96 kHz */
+	} settings[6]; /* One for each dmic divisor. */
 };
+
+static const struct dmic_table dmic_table[] = { /* One for each pclk freq. */
+	{
+		.pclk = 11289600,
+		.settings = {
+			{ .freq = 2, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 1, .comp = { 7, 8, 2, 2, 2, 2 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 0, .comp = { 7, 8, 6, 6, 6, 6 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+		},
+	},
+	{
+		.pclk = 12000000,
+		.settings = {
+			{ .freq = 2, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 1, .comp = { 7, 8, 2, 2, 2, 2 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 0, .comp = { 7, 8, 5, 5, 6, 6 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+		}
+	},
+	{
+		.pclk = 12288000,
+		.settings = {
+			{ .freq = 2, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 1, .comp = { 7, 8, 2, 2, 2, 2 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 0, .comp = { 7, 8, 6, 6, 6, 6 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+			{ .freq = 0, .comp = { 7, 8, 3, 3, 3, 3 } },
+		}
+	},
+	{
+		.pclk = 13000000,
+		.settings = {
+			{ .freq = 2, .comp = { 7, 8, 1, 1, 1, 1 } },
+			{ .freq = 1, .comp = { 7, 8, 0, 0, 0, 0 } },
+			{ .freq = 0, .comp = { 7, 8, 1, 1, 1, 1 } },
+			{ .freq = 0, .comp = { 7, 8, 4, 4, 5, 5 } },
+			{ .freq = 0, .comp = { 7, 8, 1, 1, 1, 1 } },
+			{ .freq = 0, .comp = { 7, 8, 1, 1, 1, 1 } },
+		}
+	},
+	{
+		.pclk = 19200000,
+		.settings = {
+			{ .freq = 2, .comp = { 0, 0, 0, 0, 0, 0 } },
+			{ .freq = 1, .comp = { 7, 8, 1, 1, 1, 1 } },
+			{ .freq = 0, .comp = { 7, 8, 5, 5, 6, 6 } },
+			{ .freq = 0, .comp = { 7, 8, 2, 2, 3, 3 } },
+			{ .freq = 0, .comp = { 7, 8, 1, 1, 2, 2 } },
+			{ .freq = 0, .comp = { 7, 8, 5, 5, 6, 6 } },
+		}
+	},
+};
+
+static int max98090_find_divisor(int target_freq, int pclk)
+{
+	int current_diff = INT_MAX;
+	int test_diff = INT_MAX;
+	int divisor_index = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dmic_divisors); i++) {
+		test_diff = abs(target_freq - (pclk / dmic_divisors[i]));
+		if (test_diff < current_diff) {
+			current_diff = test_diff;
+			divisor_index = i;
+		}
+	}
+
+	return divisor_index;
+}
+
+static int max98090_find_closest_pclk(int pclk)
+{
+	int m1;
+	int m2;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dmic_table); i++) {
+		if (pclk == dmic_table[i].pclk)
+			return i;
+		if (pclk < dmic_table[i].pclk) {
+			if (i == 0)
+				return i;
+			m1 = pclk - dmic_table[i-1].pclk;
+			m2 = dmic_table[i].pclk - pclk;
+			if (m1 < m2)
+				return i - 1;
+			else
+				return i;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int max98090_configure_dmic(struct max98090_priv *max98090,
+				   int target_dmic_clk, int pclk, int fs)
+{
+	int micclk_index;
+	int pclk_index;
+	int dmic_freq;
+	int dmic_comp;
+	int i;
+
+	pclk_index = max98090_find_closest_pclk(pclk);
+	if (pclk_index < 0)
+		return pclk_index;
+
+	micclk_index = max98090_find_divisor(target_dmic_clk, pclk);
+
+	for (i = 0; i < ARRAY_SIZE(comp_lrclk_rates) - 1; i++) {
+		if (fs <= (comp_lrclk_rates[i] + comp_lrclk_rates[i+1]) / 2)
+			break;
+	}
+
+	dmic_freq = dmic_table[pclk_index].settings[micclk_index].freq;
+	dmic_comp = dmic_table[pclk_index].settings[micclk_index].comp[i];
+
+	regmap_update_bits(max98090->regmap, M98090_REG_DIGITAL_MIC_ENABLE,
+			   M98090_MICCLK_MASK,
+			   micclk_index << M98090_MICCLK_SHIFT);
+
+	regmap_update_bits(max98090->regmap, M98090_REG_DIGITAL_MIC_CONFIG,
+			   M98090_DMIC_COMP_MASK | M98090_DMIC_FREQ_MASK,
+			   dmic_comp << M98090_DMIC_COMP_SHIFT |
+			   dmic_freq << M98090_DMIC_FREQ_SHIFT);
+
+	return 0;
+}
 
 static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params,
@@ -1854,7 +1984,6 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
 	struct max98090_cdata *cdata;
-	int i, j;
 
 	cdata = &max98090->dai[0];
 	max98090->bclk = snd_soc_params_to_bclk(params);
@@ -1893,27 +2022,8 @@ static int max98090_dai_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_update_bits(codec, M98090_REG_FILTER_CONFIG,
 			M98090_DHF_MASK, M98090_DHF_MASK);
 
-	/* Check for supported PCLK to LRCLK ratios */
-	for (j = 0; j < ARRAY_SIZE(comp_pclk_rates); j++) {
-		if (comp_pclk_rates[j] == max98090->sysclk) {
-			break;
-		}
-	}
-
-	for (i = 0; i < ARRAY_SIZE(comp_lrclk_rates) - 1; i++) {
-		if (max98090->lrclk <= (comp_lrclk_rates[i] +
-			comp_lrclk_rates[i + 1]) / 2) {
-			break;
-		}
-	}
-
-	snd_soc_update_bits(codec, M98090_REG_DIGITAL_MIC_ENABLE,
-			M98090_MICCLK_MASK,
-			dmic_micclk[j] << M98090_MICCLK_SHIFT);
-
-	snd_soc_update_bits(codec, M98090_REG_DIGITAL_MIC_CONFIG,
-			M98090_DMIC_COMP_MASK,
-			dmic_comp[j][i] << M98090_DMIC_COMP_SHIFT);
+	max98090_configure_dmic(max98090, max98090->dmic_freq, max98090->pclk,
+				max98090->lrclk);
 
 	return 0;
 }
@@ -1941,15 +2051,18 @@ static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 	 *		 0x02 (when master clk is 20MHz to 40MHz)..
 	 *		 0x03 (when master clk is 40MHz to 60MHz)..
 	 */
-	if ((freq >= 10000000) && (freq < 20000000)) {
+	if ((freq >= 10000000) && (freq <= 20000000)) {
 		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV1);
-	} else if ((freq >= 20000000) && (freq < 40000000)) {
+		max98090->pclk = freq;
+	} else if ((freq > 20000000) && (freq <= 40000000)) {
 		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV2);
-	} else if ((freq >= 40000000) && (freq < 60000000)) {
+		max98090->pclk = freq >> 1;
+	} else if ((freq > 40000000) && (freq <= 60000000)) {
 		snd_soc_write(codec, M98090_REG_SYSTEM_CLOCK,
 			M98090_PSCLK_DIV4);
+		max98090->pclk = freq >> 2;
 	} else {
 		dev_err(codec->dev, "Invalid master clock frequency\n");
 		return -EINVAL;
@@ -2324,6 +2437,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	/* Initialize private data */
 
 	max98090->sysclk = (unsigned)-1;
+	max98090->pclk = (unsigned)-1;
 	max98090->master = false;
 
 	cdata = &max98090->dai[0];
@@ -2462,6 +2576,11 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	max98090->devtype = driver_data;
 	i2c_set_clientdata(i2c, max98090);
 	max98090->pdata = i2c->dev.platform_data;
+
+	ret = of_property_read_u32(i2c->dev.of_node, "maxim,dmic-freq",
+				   &max98090->dmic_freq);
+	if (ret < 0)
+		max98090->dmic_freq = MAX98090_DEFAULT_DMIC_FREQ;
 
 	max98090->regmap = devm_regmap_init_i2c(i2c, &max98090_regmap);
 	if (IS_ERR(max98090->regmap)) {

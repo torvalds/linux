@@ -645,8 +645,10 @@ static int array_resize(struct dm_array_info *info, dm_block_t root,
 	int r;
 	struct resize resize;
 
-	if (old_size == new_size)
+	if (old_size == new_size) {
+		*new_root = root;
 		return 0;
+	}
 
 	resize.info = info;
 	resize.root = root;

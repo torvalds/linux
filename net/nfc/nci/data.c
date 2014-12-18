@@ -3,6 +3,7 @@
  *  NFC Controller (NFCC) and a Device Host (DH).
  *
  *  Copyright (C) 2011 Texas Instruments, Inc.
+ *  Copyright (C) 2014 Marvell International Ltd.
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
@@ -184,10 +185,15 @@ exit:
 
 static void nci_add_rx_data_frag(struct nci_dev *ndev,
 				 struct sk_buff *skb,
-				 __u8 pbf)
+				 __u8 pbf, __u8 status)
 {
 	int reassembly_len;
 	int err = 0;
+
+	if (status) {
+		err = status;
+		goto exit;
+	}
 
 	if (ndev->rx_data_reassembly) {
 		reassembly_len = ndev->rx_data_reassembly->len;
@@ -223,13 +229,24 @@ static void nci_add_rx_data_frag(struct nci_dev *ndev,
 	}
 
 exit:
-	nci_data_exchange_complete(ndev, skb, err);
+	if (ndev->nfc_dev->rf_mode == NFC_RF_INITIATOR) {
+		nci_data_exchange_complete(ndev, skb, err);
+	} else if (ndev->nfc_dev->rf_mode == NFC_RF_TARGET) {
+		/* Data received in Target mode, forward to nfc core */
+		err = nfc_tm_data_received(ndev->nfc_dev, skb);
+		if (err)
+			pr_err("unable to handle received data\n");
+	} else {
+		pr_err("rf mode unknown\n");
+		kfree_skb(skb);
+	}
 }
 
 /* Rx Data packet */
 void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u8 pbf = nci_pbf(skb->data);
+	__u8 status = 0;
 
 	pr_debug("len %d\n", skb->len);
 
@@ -247,8 +264,9 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	    ndev->target_active_prot == NFC_PROTO_ISO15693) {
 		/* frame I/F => remove the status byte */
 		pr_debug("frame I/F => remove the status byte\n");
+		status = skb->data[skb->len - 1];
 		skb_trim(skb, (skb->len - 1));
 	}
 
-	nci_add_rx_data_frag(ndev, skb, pbf);
+	nci_add_rx_data_frag(ndev, skb, pbf, nci_to_errno(status));
 }

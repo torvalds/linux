@@ -395,7 +395,7 @@ static void genwqe_vma_open(struct vm_area_struct *vma)
 static void genwqe_vma_close(struct vm_area_struct *vma)
 {
 	unsigned long vsize = vma->vm_end - vma->vm_start;
-	struct inode *inode = vma->vm_file->f_dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	struct dma_mapping *dma_map;
 	struct genwqe_dev *cd = container_of(inode->i_cdev, struct genwqe_dev,
 					    cdev_genwqe);

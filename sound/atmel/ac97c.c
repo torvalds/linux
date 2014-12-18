@@ -773,7 +773,7 @@ static int atmel_ac97c_pcm_new(struct atmel_ac97c *chip)
 			return err;
 	}
 	retval = snd_pcm_new(chip->card, chip->card->shortname,
-			chip->pdev->id, playback, capture, &pcm);
+			0, playback, capture, &pcm);
 	if (retval)
 		return retval;
 
@@ -944,7 +944,7 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "no peripheral clock\n");
 		return PTR_ERR(pclk);
 	}
-	clk_enable(pclk);
+	clk_prepare_enable(pclk);
 
 	retval = snd_card_new(&pdev->dev, SNDRV_DEFAULT_IDX1,
 			      SNDRV_DEFAULT_STR1, THIS_MODULE,
@@ -1122,7 +1122,7 @@ err_ioremap:
 err_request_irq:
 	snd_card_free(card);
 err_snd_card_new:
-	clk_disable(pclk);
+	clk_disable_unprepare(pclk);
 	clk_put(pclk);
 	return retval;
 }
@@ -1139,7 +1139,7 @@ static int atmel_ac97c_suspend(struct device *pdev)
 		if (test_bit(DMA_TX_READY, &chip->flags))
 			dw_dma_cyclic_stop(chip->dma.tx_chan);
 	}
-	clk_disable(chip->pclk);
+	clk_disable_unprepare(chip->pclk);
 
 	return 0;
 }
@@ -1149,7 +1149,7 @@ static int atmel_ac97c_resume(struct device *pdev)
 	struct snd_card *card = dev_get_drvdata(pdev);
 	struct atmel_ac97c *chip = card->private_data;
 
-	clk_enable(chip->pclk);
+	clk_prepare_enable(chip->pclk);
 	if (cpu_is_at32ap7000()) {
 		if (test_bit(DMA_RX_READY, &chip->flags))
 			dw_dma_cyclic_start(chip->dma.rx_chan);
@@ -1177,7 +1177,7 @@ static int atmel_ac97c_remove(struct platform_device *pdev)
 	ac97c_writel(chip, COMR, 0);
 	ac97c_writel(chip, MR,   0);
 
-	clk_disable(chip->pclk);
+	clk_disable_unprepare(chip->pclk);
 	clk_put(chip->pclk);
 	iounmap(chip->regs);
 	free_irq(chip->irq, chip);
@@ -1203,7 +1203,6 @@ static struct platform_driver atmel_ac97c_driver = {
 	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
-		.owner	= THIS_MODULE,
 		.pm	= ATMEL_AC97C_PM_OPS,
 	},
 };

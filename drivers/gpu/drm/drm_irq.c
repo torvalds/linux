@@ -166,7 +166,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 	spin_lock_irqsave(&dev->vblank_time_lock, irqflags);
 
 	/*
-	 * If the vblank interrupt was already disbled update the count
+	 * If the vblank interrupt was already disabled update the count
 	 * and timestamp to maintain the appearance that the counter
 	 * has been ticking all along until this time. This makes the
 	 * count account for the entire time between drm_vblank_on() and
@@ -1029,7 +1029,8 @@ void drm_vblank_put(struct drm_device *dev, int crtc)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[crtc];
 
-	BUG_ON(atomic_read(&vblank->refcount) == 0);
+	if (WARN_ON(atomic_read(&vblank->refcount) == 0))
+		return;
 
 	if (WARN_ON(crtc >= dev->num_crtcs))
 		return;
@@ -1190,7 +1191,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_off);
  *
  * This functions restores the vblank interrupt state captured with
  * drm_vblank_off() again. Note that calls to drm_vblank_on() and
- * drm_vblank_off() can be unbalanced and so can also be unconditionaly called
+ * drm_vblank_off() can be unbalanced and so can also be unconditionally called
  * in driver load code to reflect the current hardware state of the crtc.
  *
  * This is the legacy version of drm_crtc_vblank_on().
@@ -1237,7 +1238,7 @@ EXPORT_SYMBOL(drm_vblank_on);
  *
  * This functions restores the vblank interrupt state captured with
  * drm_vblank_off() again. Note that calls to drm_vblank_on() and
- * drm_vblank_off() can be unbalanced and so can also be unconditionaly called
+ * drm_vblank_off() can be unbalanced and so can also be unconditionally called
  * in driver load code to reflect the current hardware state of the crtc.
  *
  * This is the native kms version of drm_vblank_on().

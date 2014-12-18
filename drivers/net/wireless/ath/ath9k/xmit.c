@@ -1096,6 +1096,37 @@ void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop)
 	}
 }
 
+static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
+			       u8 rateidx)
+{
+	u8 max_power;
+	struct ath_hw *ah = sc->sc_ah;
+
+	if (sc->tx99_state)
+		return MAX_RATE_POWER;
+
+	if (!AR_SREV_9300_20_OR_LATER(ah)) {
+		/* ar9002 is not sipported for the moment */
+		return MAX_RATE_POWER;
+	}
+
+	if (!bf->bf_state.bfs_paprd) {
+		struct sk_buff *skb = bf->bf_mpdu;
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+		struct ath_frame_info *fi = get_frame_info(skb);
+
+		if (rateidx < 8 && (info->flags & IEEE80211_TX_CTL_STBC))
+			max_power = min(ah->tx_power_stbc[rateidx],
+					fi->tx_power);
+		else
+			max_power = min(ah->tx_power[rateidx], fi->tx_power);
+	} else {
+		max_power = ah->paprd_training_power;
+	}
+
+	return max_power;
+}
+
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 			     struct ath_tx_info *info, int len, bool rts)
 {
@@ -1166,6 +1197,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 				 is_40, is_sgi, is_sp);
 			if (rix < 8 && (tx_info->flags & IEEE80211_TX_CTL_STBC))
 				info->rates[i].RateFlags |= ATH9K_RATESERIES_STBC;
+
+			info->txpower[i] = ath_get_rate_txpower(sc, bf, rix);
 			continue;
 		}
 
@@ -1193,6 +1226,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 
 		info->rates[i].PktDuration = ath9k_hw_computetxtime(sc->sc_ah,
 			phy, rate->bitrate * 100, len, rix, is_sp);
+
+		info->txpower[i] = ath_get_rate_txpower(sc, bf, rix);
 	}
 
 	/* For AR5416 - RTS cannot be followed by a frame larger than 8K */
@@ -1239,7 +1274,6 @@ static void ath_tx_fill_desc(struct ath_softc *sc, struct ath_buf *bf,
 	memset(&info, 0, sizeof(info));
 	info.is_first = true;
 	info.is_last = true;
-	info.txpower = MAX_RATE_POWER;
 	info.qcu = txq->axq_qnum;
 
 	while (bf) {
@@ -2063,6 +2097,7 @@ static void setup_frame_info(struct ieee80211_hw *hw,
 		fi->keyix = ATH9K_TXKEYIX_INVALID;
 	fi->keytype = keytype;
 	fi->framelen = framelen;
+	fi->tx_power = MAX_RATE_POWER;
 
 	if (!rate)
 		return;

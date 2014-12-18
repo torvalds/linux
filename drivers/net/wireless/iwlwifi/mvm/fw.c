@@ -186,7 +186,12 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	static const u8 alive_cmd[] = { MVM_ALIVE };
 	struct iwl_sf_region st_fwrd_space;
 
-	fw = iwl_get_ucode_image(mvm, ucode_type);
+	if (ucode_type == IWL_UCODE_REGULAR &&
+	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_CUSTOM) &&
+	    iwl_fw_dbg_conf_enabled(mvm->fw, FW_DBG_CUSTOM))
+		fw = iwl_get_ucode_image(mvm, IWL_UCODE_REGULAR_USNIFFER);
+	else
+		fw = iwl_get_ucode_image(mvm, ucode_type);
 	if (WARN_ON(!fw))
 		return -EINVAL;
 	mvm->cur_ucode = ucode_type;
@@ -227,6 +232,10 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	st_fwrd_space.addr = mvm->sf_space.addr;
 	st_fwrd_space.size = mvm->sf_space.size;
 	ret = iwl_trans_update_sf(mvm->trans, &st_fwrd_space);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to update SF size. ret %d\n", ret);
+		return ret;
+	}
 
 	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
 
@@ -284,7 +293,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN_ON_ONCE(mvm->init_ucode_complete))
+	if (WARN_ON_ONCE(mvm->init_ucode_complete || mvm->calibrating))
 		return 0;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
@@ -334,6 +343,8 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto out;
 	}
 
+	mvm->calibrating = true;
+
 	/* Send TX valid antennas before triggering calibrations */
 	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
 	if (ret)
@@ -358,11 +369,17 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 			MVM_UCODE_CALIB_TIMEOUT);
 	if (!ret)
 		mvm->init_ucode_complete = true;
+
+	if (ret && iwl_mvm_is_radio_killed(mvm)) {
+		IWL_DEBUG_RF_KILL(mvm, "RFKILL while calibrating.\n");
+		ret = 1;
+	}
 	goto out;
 
 error:
 	iwl_remove_notification(&mvm->notif_wait, &calib_wait);
 out:
+	mvm->calibrating = false;
 	if (iwlmvm_mod_params.init_dbg && !mvm->nvm_data) {
 		/* we want to debug INIT and we have no NVM - fake */
 		mvm->nvm_data = kzalloc(sizeof(struct iwl_nvm_data) +
@@ -379,6 +396,42 @@ out:
 		mvm->nvm_data->bands[0].bitrates->hw_value = 10;
 	}
 
+	return ret;
+}
+
+static int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm,
+				     enum iwl_fw_dbg_conf conf_id)
+{
+	u8 *ptr;
+	int ret;
+	int i;
+
+	if (WARN_ONCE(conf_id >= ARRAY_SIZE(mvm->fw->dbg_conf_tlv),
+		      "Invalid configuration %d\n", conf_id))
+		return -EINVAL;
+
+	if (!mvm->fw->dbg_conf_tlv[conf_id])
+		return -EINVAL;
+
+	if (mvm->fw_dbg_conf != FW_DBG_INVALID)
+		IWL_WARN(mvm, "FW already configured (%d) - re-configuring\n",
+			 mvm->fw_dbg_conf);
+
+	/* Send all HCMDs for configuring the FW debug */
+	ptr = (void *)&mvm->fw->dbg_conf_tlv[conf_id]->hcmd;
+	for (i = 0; i < mvm->fw->dbg_conf_tlv[conf_id]->num_of_hcmds; i++) {
+		struct iwl_fw_dbg_conf_hcmd *cmd = (void *)ptr;
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, cmd->id, 0,
+					   le16_to_cpu(cmd->len), cmd->data);
+		if (ret)
+			return ret;
+
+		ptr += sizeof(*cmd);
+		ptr += le16_to_cpu(cmd->len);
+	}
+
+	mvm->fw_dbg_conf = conf_id;
 	return ret;
 }
 
@@ -433,6 +486,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
+	mvm->fw_dbg_conf = FW_DBG_INVALID;
+	iwl_mvm_start_fw_dbg_conf(mvm, FW_DBG_CUSTOM);
+
 	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
 	if (ret)
 		goto error;
@@ -453,6 +509,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* init the fw <-> mac80211 STA mapping */
 	for (i = 0; i < IWL_MVM_STATION_COUNT; i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
+
+	mvm->tdls_cs.peer.sta_id = IWL_MVM_STATION_COUNT;
 
 	/* reset quota debouncing buffer - 0xff will yield invalid data */
 	memset(&mvm->last_quota_cmd, 0xff, sizeof(mvm->last_quota_cmd));
@@ -492,6 +550,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_mvm_power_update_device(mvm);
 	if (ret)
 		goto error;
+
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+		ret = iwl_mvm_config_scan(mvm);
+		if (ret)
+			goto error;
+	}
 
 	/* allow FW/transport low power modes if not during restart */
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
@@ -577,5 +641,21 @@ int iwl_mvm_rx_radio_ver(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		       le32_to_cpu(radio_version->radio_flavor),
 		       le32_to_cpu(radio_version->radio_step),
 		       le32_to_cpu(radio_version->radio_dash));
+	return 0;
+}
+
+int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
+			    struct iwl_rx_cmd_buffer *rxb,
+			    struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_mfuart_load_notif *mfuart_notif = (void *)pkt->data;
+
+	IWL_DEBUG_INFO(mvm,
+		       "MFUART: installed ver: 0x%08x, external ver: 0x%08x, status: 0x%08x, duration: 0x%08x\n",
+		       le32_to_cpu(mfuart_notif->installed_ver),
+		       le32_to_cpu(mfuart_notif->external_ver),
+		       le32_to_cpu(mfuart_notif->status),
+		       le32_to_cpu(mfuart_notif->duration));
 	return 0;
 }

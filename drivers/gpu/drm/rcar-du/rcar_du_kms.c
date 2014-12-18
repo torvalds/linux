@@ -126,9 +126,9 @@ int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 	else
 		align = 16 * args->bpp / 8;
 
-	args->pitch = roundup(max(args->pitch, min_pitch), align);
+	args->pitch = roundup(min_pitch, align);
 
-	return drm_gem_cma_dumb_create(file, dev, args);
+	return drm_gem_cma_dumb_create_internal(file, dev, args);
 }
 
 static struct drm_framebuffer *
@@ -190,49 +190,16 @@ static const struct drm_mode_config_funcs rcar_du_mode_config_funcs = {
 	.output_poll_changed = rcar_du_output_poll_changed,
 };
 
-static int rcar_du_encoders_init_pdata(struct rcar_du_device *rcdu)
-{
-	unsigned int num_encoders = 0;
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < rcdu->pdata->num_encoders; ++i) {
-		const struct rcar_du_encoder_data *pdata =
-			&rcdu->pdata->encoders[i];
-		const struct rcar_du_output_routing *route =
-			&rcdu->info->routes[pdata->output];
-
-		if (pdata->type == RCAR_DU_ENCODER_UNUSED)
-			continue;
-
-		if (pdata->output >= RCAR_DU_OUTPUT_MAX ||
-		    route->possible_crtcs == 0) {
-			dev_warn(rcdu->dev,
-				 "encoder %u references unexisting output %u, skipping\n",
-				 i, pdata->output);
-			continue;
-		}
-
-		ret = rcar_du_encoder_init(rcdu, pdata->type, pdata->output,
-					   pdata, NULL);
-		if (ret < 0)
-			return ret;
-
-		num_encoders++;
-	}
-
-	return num_encoders;
-}
-
-static int rcar_du_encoders_init_dt_one(struct rcar_du_device *rcdu,
-					enum rcar_du_output output,
-					struct of_endpoint *ep)
+static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
+				     enum rcar_du_output output,
+				     struct of_endpoint *ep)
 {
 	static const struct {
 		const char *compatible;
 		enum rcar_du_encoder_type type;
 	} encoders[] = {
 		{ "adi,adv7123", RCAR_DU_ENCODER_VGA },
+		{ "adi,adv7511w", RCAR_DU_ENCODER_HDMI },
 		{ "thine,thc63lvdm83d", RCAR_DU_ENCODER_LVDS },
 	};
 
@@ -323,14 +290,14 @@ static int rcar_du_encoders_init_dt_one(struct rcar_du_device *rcdu,
 		connector = entity;
 	}
 
-	ret = rcar_du_encoder_init(rcdu, enc_type, output, NULL, connector);
+	ret = rcar_du_encoder_init(rcdu, enc_type, output, encoder, connector);
 	of_node_put(encoder);
 	of_node_put(connector);
 
 	return ret < 0 ? ret : 1;
 }
 
-static int rcar_du_encoders_init_dt(struct rcar_du_device *rcdu)
+static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 {
 	struct device_node *np = rcdu->dev->of_node;
 	struct device_node *prev = NULL;
@@ -377,7 +344,7 @@ static int rcar_du_encoders_init_dt(struct rcar_du_device *rcdu)
 		}
 
 		/* Process the output pipeline. */
-		ret = rcar_du_encoders_init_dt_one(rcdu, output, &ep);
+		ret = rcar_du_encoders_init_one(rcdu, output, &ep);
 		if (ret < 0) {
 			of_node_put(ep_node);
 			return ret;
@@ -442,11 +409,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	if (ret < 0)
 		return ret;
 
-	if (rcdu->pdata)
-		ret = rcar_du_encoders_init_pdata(rcdu);
-	else
-		ret = rcar_du_encoders_init_dt(rcdu);
-
+	ret = rcar_du_encoders_init(rcdu);
 	if (ret < 0)
 		return ret;
 

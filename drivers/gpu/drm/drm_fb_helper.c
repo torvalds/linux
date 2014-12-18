@@ -347,9 +347,18 @@ bool drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	bool ret;
+	bool do_delayed = false;
+
 	drm_modeset_lock_all(dev);
 	ret = restore_fbdev_mode(fb_helper);
+
+	do_delayed = fb_helper->delayed_hotplug;
+	if (do_delayed)
+		fb_helper->delayed_hotplug = false;
 	drm_modeset_unlock_all(dev);
+
+	if (do_delayed)
+		drm_fb_helper_hotplug_event(fb_helper);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode_unlocked);
@@ -888,10 +897,6 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
 
-	if (fb_helper->delayed_hotplug) {
-		fb_helper->delayed_hotplug = false;
-		drm_fb_helper_hotplug_event(fb_helper);
-	}
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_set_par);
@@ -995,19 +1000,21 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	crtc_count = 0;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_display_mode *desired_mode;
+		int x, y;
 		desired_mode = fb_helper->crtc_info[i].desired_mode;
-
+		x = fb_helper->crtc_info[i].x;
+		y = fb_helper->crtc_info[i].y;
 		if (desired_mode) {
 			if (gamma_size == 0)
 				gamma_size = fb_helper->crtc_info[i].mode_set.crtc->gamma_size;
-			if (desired_mode->hdisplay < sizes.fb_width)
-				sizes.fb_width = desired_mode->hdisplay;
-			if (desired_mode->vdisplay < sizes.fb_height)
-				sizes.fb_height = desired_mode->vdisplay;
-			if (desired_mode->hdisplay > sizes.surface_width)
-				sizes.surface_width = desired_mode->hdisplay;
-			if (desired_mode->vdisplay > sizes.surface_height)
-				sizes.surface_height = desired_mode->vdisplay;
+			if (desired_mode->hdisplay + x < sizes.fb_width)
+				sizes.fb_width = desired_mode->hdisplay + x;
+			if (desired_mode->vdisplay + y < sizes.fb_height)
+				sizes.fb_height = desired_mode->vdisplay + y;
+			if (desired_mode->hdisplay + x > sizes.surface_width)
+				sizes.surface_width = desired_mode->hdisplay + x;
+			if (desired_mode->vdisplay + y > sizes.surface_height)
+				sizes.surface_height = desired_mode->vdisplay + y;
 			crtc_count++;
 		}
 	}
@@ -1307,6 +1314,7 @@ static void drm_enable_connectors(struct drm_fb_helper *fb_helper,
 
 static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 			      struct drm_display_mode **modes,
+			      struct drm_fb_offset *offsets,
 			      bool *enabled, int width, int height)
 {
 	int count, i, j;
@@ -1378,27 +1386,88 @@ static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 	return false;
 }
 
+static int drm_get_tile_offsets(struct drm_fb_helper *fb_helper,
+				struct drm_display_mode **modes,
+				struct drm_fb_offset *offsets,
+				int idx,
+				int h_idx, int v_idx)
+{
+	struct drm_fb_helper_connector *fb_helper_conn;
+	int i;
+	int hoffset = 0, voffset = 0;
+
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		fb_helper_conn = fb_helper->connector_info[i];
+		if (!fb_helper_conn->connector->has_tile)
+			continue;
+
+		if (!modes[i] && (h_idx || v_idx)) {
+			DRM_DEBUG_KMS("no modes for connector tiled %d %d\n", i,
+				      fb_helper_conn->connector->base.id);
+			continue;
+		}
+		if (fb_helper_conn->connector->tile_h_loc < h_idx)
+			hoffset += modes[i]->hdisplay;
+
+		if (fb_helper_conn->connector->tile_v_loc < v_idx)
+			voffset += modes[i]->vdisplay;
+	}
+	offsets[idx].x = hoffset;
+	offsets[idx].y = voffset;
+	DRM_DEBUG_KMS("returned %d %d for %d %d\n", hoffset, voffset, h_idx, v_idx);
+	return 0;
+}
+
 static bool drm_target_preferred(struct drm_fb_helper *fb_helper,
 				 struct drm_display_mode **modes,
+				 struct drm_fb_offset *offsets,
 				 bool *enabled, int width, int height)
 {
 	struct drm_fb_helper_connector *fb_helper_conn;
 	int i;
-
+	uint64_t conn_configured = 0, mask;
+	int tile_pass = 0;
+	mask = (1 << fb_helper->connector_count) - 1;
+retry:
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		fb_helper_conn = fb_helper->connector_info[i];
 
-		if (enabled[i] == false)
+		if (conn_configured & (1 << i))
 			continue;
 
+		if (enabled[i] == false) {
+			conn_configured |= (1 << i);
+			continue;
+		}
+
+		/* first pass over all the untiled connectors */
+		if (tile_pass == 0 && fb_helper_conn->connector->has_tile)
+			continue;
+
+		if (tile_pass == 1) {
+			if (fb_helper_conn->connector->tile_h_loc != 0 ||
+			    fb_helper_conn->connector->tile_v_loc != 0)
+				continue;
+
+		} else {
+			if (fb_helper_conn->connector->tile_h_loc != tile_pass -1 &&
+			    fb_helper_conn->connector->tile_v_loc != tile_pass - 1)
+			/* if this tile_pass doesn't cover any of the tiles - keep going */
+				continue;
+
+			/* find the tile offsets for this pass - need
+			   to find all tiles left and above */
+			drm_get_tile_offsets(fb_helper, modes, offsets,
+					     i, fb_helper_conn->connector->tile_h_loc, fb_helper_conn->connector->tile_v_loc);
+		}
 		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
 			      fb_helper_conn->connector->base.id);
 
 		/* got for command line mode first */
 		modes[i] = drm_pick_cmdline_mode(fb_helper_conn, width, height);
 		if (!modes[i]) {
-			DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
-				      fb_helper_conn->connector->base.id);
+			DRM_DEBUG_KMS("looking for preferred mode on connector %d %d\n",
+				      fb_helper_conn->connector->base.id, fb_helper_conn->connector->tile_group ? fb_helper_conn->connector->tile_group->id : 0);
 			modes[i] = drm_has_preferred_mode(fb_helper_conn, width, height);
 		}
 		/* No preferred modes, pick one off the list */
@@ -1408,6 +1477,12 @@ static bool drm_target_preferred(struct drm_fb_helper *fb_helper,
 		}
 		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
 			  "none");
+		conn_configured |= (1 << i);
+	}
+
+	if ((conn_configured & mask) != mask) {
+		tile_pass++;
+		goto retry;
 	}
 	return true;
 }
@@ -1497,6 +1572,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_fb_helper_crtc **crtcs;
 	struct drm_display_mode **modes;
+	struct drm_fb_offset *offsets;
 	struct drm_mode_set *modeset;
 	bool *enabled;
 	int width, height;
@@ -1511,9 +1587,11 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
 	modes = kcalloc(dev->mode_config.num_connector,
 			sizeof(struct drm_display_mode *), GFP_KERNEL);
+	offsets = kcalloc(dev->mode_config.num_connector,
+			  sizeof(struct drm_fb_offset), GFP_KERNEL);
 	enabled = kcalloc(dev->mode_config.num_connector,
 			  sizeof(bool), GFP_KERNEL);
-	if (!crtcs || !modes || !enabled) {
+	if (!crtcs || !modes || !enabled || !offsets) {
 		DRM_ERROR("Memory allocation failed\n");
 		goto out;
 	}
@@ -1523,14 +1601,16 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 
 	if (!(fb_helper->funcs->initial_config &&
 	      fb_helper->funcs->initial_config(fb_helper, crtcs, modes,
+					       offsets,
 					       enabled, width, height))) {
 		memset(modes, 0, dev->mode_config.num_connector*sizeof(modes[0]));
 		memset(crtcs, 0, dev->mode_config.num_connector*sizeof(crtcs[0]));
+		memset(offsets, 0, dev->mode_config.num_connector*sizeof(offsets[0]));
 
-		if (!drm_target_cloned(fb_helper,
-				       modes, enabled, width, height) &&
-		    !drm_target_preferred(fb_helper,
-					  modes, enabled, width, height))
+		if (!drm_target_cloned(fb_helper, modes, offsets,
+				       enabled, width, height) &&
+		    !drm_target_preferred(fb_helper, modes, offsets,
+					  enabled, width, height))
 			DRM_ERROR("Unable to find initial modes\n");
 
 		DRM_DEBUG_KMS("picking CRTCs for %dx%d config\n",
@@ -1550,18 +1630,23 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		struct drm_display_mode *mode = modes[i];
 		struct drm_fb_helper_crtc *fb_crtc = crtcs[i];
+		struct drm_fb_offset *offset = &offsets[i];
 		modeset = &fb_crtc->mode_set;
 
 		if (mode && fb_crtc) {
-			DRM_DEBUG_KMS("desired mode %s set on crtc %d\n",
-				      mode->name, fb_crtc->mode_set.crtc->base.id);
+			DRM_DEBUG_KMS("desired mode %s set on crtc %d (%d,%d)\n",
+				      mode->name, fb_crtc->mode_set.crtc->base.id, offset->x, offset->y);
 			fb_crtc->desired_mode = mode;
+			fb_crtc->x = offset->x;
+			fb_crtc->y = offset->y;
 			if (modeset->mode)
 				drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = drm_mode_duplicate(dev,
 							   fb_crtc->desired_mode);
 			modeset->connectors[modeset->num_connectors++] = fb_helper->connector_info[i]->connector;
 			modeset->fb = fb_helper->fb;
+			modeset->x = offset->x;
+			modeset->y = offset->y;
 		}
 	}
 
@@ -1570,7 +1655,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 		modeset = &fb_helper->crtc_info[i].mode_set;
 		if (modeset->num_connectors == 0) {
 			BUG_ON(modeset->fb);
-			BUG_ON(modeset->num_connectors);
 			if (modeset->mode)
 				drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = NULL;
@@ -1579,6 +1663,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 out:
 	kfree(crtcs);
 	kfree(modes);
+	kfree(offsets);
 	kfree(enabled);
 }
 

@@ -662,12 +662,10 @@ slow_path:
 		if (len < left)	{
 			len &= ~7;
 		}
-		/*
-		 *	Allocate buffer.
-		 */
 
-		if ((skb2 = alloc_skb(len+hlen+ll_rs, GFP_ATOMIC)) == NULL) {
-			NETDEBUG(KERN_INFO "IP: frag: no memory for new fragment!\n");
+		/* Allocate buffer */
+		skb2 = alloc_skb(len + hlen + ll_rs, GFP_ATOMIC);
+		if (!skb2) {
 			err = -ENOMEM;
 			goto fail;
 		}
@@ -754,14 +752,16 @@ EXPORT_SYMBOL(ip_fragment);
 int
 ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk_buff *skb)
 {
-	struct iovec *iov = from;
+	struct msghdr *msg = from;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (memcpy_fromiovecend(to, iov, offset, len) < 0)
+		/* XXX: stripping const */
+		if (memcpy_fromiovecend(to, (struct iovec *)msg->msg_iter.iov, offset, len) < 0)
 			return -EFAULT;
 	} else {
 		__wsum csum = 0;
-		if (csum_partial_copy_fromiovecend(to, iov, offset, len, &csum) < 0)
+		/* XXX: stripping const */
+		if (csum_partial_copy_fromiovecend(to, (struct iovec *)msg->msg_iter.iov, offset, len, &csum) < 0)
 			return -EFAULT;
 		skb->csum = csum_block_add(skb->csum, csum, odd);
 	}

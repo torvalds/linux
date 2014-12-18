@@ -371,12 +371,24 @@ config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
 	depends on HIDRAW
 	depends on HID_LOGITECH
+	select HID_LOGITECH_HIDPP
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.
 	Unifying receivers are capable of pairing up to 6 Logitech compliant
 	devices to the same receiver. Without this driver it will be handled by
 	generic USB_HID driver and all incoming events will be multiplexed
 	into a single mouse and a single keyboard device.
+
+config HID_LOGITECH_HIDPP
+	tristate "Logitech HID++ devices support"
+	depends on HID_LOGITECH
+	---help---
+	Support for Logitech devices relyingon the HID++ Logitech specification
+
+	Say Y if you want support for Logitech devices relying on the HID++
+	specification. Such devices are the various Logitech Touchpads (T650,
+	T651, TK820), some mice (Zone Touch mouse), or even keyboards (Solar
+	Keayboard).
 
 config LOGITECH_FF
 	bool "Logitech force feedback support"
@@ -613,6 +625,13 @@ config HID_PICOLCD_CIR
 	---help---
 	  Provide access to PicoLCD's CIR interface via remote control (LIRC).
 
+config HID_PLANTRONICS
+	tristate "Plantronics USB HID Driver"
+	default !EXPERT
+	depends on HID
+	---help---
+	Provides HID support for Plantronics telephony devices.
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on HID
@@ -629,7 +648,7 @@ config HID_ROCCAT
 	support for its special functionalities.
 
 config HID_SAITEK
-	tristate "Saitek non-fully HID-compliant devices"
+	tristate "Saitek (Mad Catz) non-fully HID-compliant devices"
 	depends on HID
 	---help---
 	Support for Saitek devices that are not fully compliant with the
@@ -637,6 +656,7 @@ config HID_SAITEK
 
 	Supported devices:
 	- PS1000 Dual Analog Pad
+	- R.A.T.9 Gaming Mouse
 	- R.A.T.7 Gaming Mouse
 	- M.M.O.7 Gaming Mouse
 

@@ -73,6 +73,7 @@ static void __lapb_remove_cb(struct lapb_cb *lapb)
 		lapb_put(lapb);
 	}
 }
+EXPORT_SYMBOL(lapb_register);
 
 /*
  *	Add a socket to the bound sockets list.
@@ -195,6 +196,7 @@ out:
 	write_unlock_bh(&lapb_list_lock);
 	return rc;
 }
+EXPORT_SYMBOL(lapb_unregister);
 
 int lapb_getparms(struct net_device *dev, struct lapb_parms_struct *parms)
 {
@@ -227,6 +229,7 @@ int lapb_getparms(struct net_device *dev, struct lapb_parms_struct *parms)
 out:
 	return rc;
 }
+EXPORT_SYMBOL(lapb_getparms);
 
 int lapb_setparms(struct net_device *dev, struct lapb_parms_struct *parms)
 {
@@ -262,6 +265,7 @@ out_put:
 out:
 	return rc;
 }
+EXPORT_SYMBOL(lapb_setparms);
 
 int lapb_connect_request(struct net_device *dev)
 {
@@ -290,6 +294,7 @@ out_put:
 out:
 	return rc;
 }
+EXPORT_SYMBOL(lapb_connect_request);
 
 int lapb_disconnect_request(struct net_device *dev)
 {
@@ -334,6 +339,7 @@ out_put:
 out:
 	return rc;
 }
+EXPORT_SYMBOL(lapb_disconnect_request);
 
 int lapb_data_request(struct net_device *dev, struct sk_buff *skb)
 {
@@ -355,6 +361,7 @@ out_put:
 out:
 	return rc;
 }
+EXPORT_SYMBOL(lapb_data_request);
 
 int lapb_data_received(struct net_device *dev, struct sk_buff *skb)
 {
@@ -369,6 +376,7 @@ int lapb_data_received(struct net_device *dev, struct sk_buff *skb)
 
 	return rc;
 }
+EXPORT_SYMBOL(lapb_data_received);
 
 void lapb_connect_confirmation(struct lapb_cb *lapb, int reason)
 {
@@ -414,15 +422,6 @@ int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)
 
 	return used;
 }
-
-EXPORT_SYMBOL(lapb_register);
-EXPORT_SYMBOL(lapb_unregister);
-EXPORT_SYMBOL(lapb_getparms);
-EXPORT_SYMBOL(lapb_setparms);
-EXPORT_SYMBOL(lapb_connect_request);
-EXPORT_SYMBOL(lapb_disconnect_request);
-EXPORT_SYMBOL(lapb_data_request);
-EXPORT_SYMBOL(lapb_data_received);
 
 static int __init lapb_init(void)
 {

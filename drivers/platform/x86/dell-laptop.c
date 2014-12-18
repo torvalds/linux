@@ -84,7 +84,6 @@ static struct calling_interface_token *da_tokens;
 static struct platform_driver platform_driver = {
 	.driver = {
 		.name = "dell-laptop",
-		.owner = THIS_MODULE,
 	}
 };
 

@@ -235,10 +235,10 @@ static void xenvif_down(struct xenvif *vif)
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
 		queue = &vif->queues[queue_index];
-		napi_disable(&queue->napi);
 		disable_irq(queue->tx_irq);
 		if (queue->tx_irq != queue->rx_irq)
 			disable_irq(queue->rx_irq);
+		napi_disable(&queue->napi);
 		del_timer_sync(&queue->credit_timeout);
 	}
 }

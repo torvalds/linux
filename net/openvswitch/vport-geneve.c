@@ -17,6 +17,7 @@
 #include <linux/rculist.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+#include <linux/module.h>
 
 #include <net/geneve.h>
 #include <net/icmp.h>
@@ -27,6 +28,8 @@
 
 #include "datapath.h"
 #include "vport.h"
+
+static struct vport_ops ovs_geneve_vport_ops;
 
 /**
  * struct geneve_port - Keeps track of open UDP ports
@@ -65,7 +68,7 @@ static void tunnel_id_to_vni(__be64 tun_id, __u8 *vni)
 }
 
 /* Convert 24 bit VNI to 64 bit tunnel ID. */
-static __be64 vni_to_tunnel_id(__u8 *vni)
+static __be64 vni_to_tunnel_id(const __u8 *vni)
 {
 #ifdef __BIG_ENDIAN
 	return (vni[0] << 16) | (vni[1] << 8) | vni[2];
@@ -94,7 +97,9 @@ static void geneve_rcv(struct geneve_sock *gs, struct sk_buff *skb)
 
 	key = vni_to_tunnel_id(geneveh->vni);
 
-	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb), key, flags,
+	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb),
+			       udp_hdr(skb)->source, udp_hdr(skb)->dest,
+			       key, flags,
 			       geneveh->options, opts_len);
 
 	ovs_vport_receive(vport, skb, &tun_info);
@@ -225,11 +230,46 @@ static const char *geneve_get_name(const struct vport *vport)
 	return geneve_port->name;
 }
 
-const struct vport_ops ovs_geneve_vport_ops = {
+static int geneve_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
+				      struct ovs_tunnel_info *egress_tun_info)
+{
+	struct geneve_port *geneve_port = geneve_vport(vport);
+	struct net *net = ovs_dp_get_net(vport->dp);
+	__be16 dport = inet_sk(geneve_port->gs->sock->sk)->inet_sport;
+	__be16 sport = udp_flow_src_port(net, skb, 1, USHRT_MAX, true);
+
+	/* Get tp_src and tp_dst, refert to geneve_build_header().
+	 */
+	return ovs_tunnel_get_egress_info(egress_tun_info,
+					  ovs_dp_get_net(vport->dp),
+					  OVS_CB(skb)->egress_tun_info,
+					  IPPROTO_UDP, skb->mark, sport, dport);
+}
+
+static struct vport_ops ovs_geneve_vport_ops = {
 	.type		= OVS_VPORT_TYPE_GENEVE,
 	.create		= geneve_tnl_create,
 	.destroy	= geneve_tnl_destroy,
 	.get_name	= geneve_get_name,
 	.get_options	= geneve_get_options,
 	.send		= geneve_tnl_send,
+	.owner          = THIS_MODULE,
+	.get_egress_tun_info	= geneve_get_egress_tun_info,
 };
+
+static int __init ovs_geneve_tnl_init(void)
+{
+	return ovs_vport_ops_register(&ovs_geneve_vport_ops);
+}
+
+static void __exit ovs_geneve_tnl_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_geneve_vport_ops);
+}
+
+module_init(ovs_geneve_tnl_init);
+module_exit(ovs_geneve_tnl_exit);
+
+MODULE_DESCRIPTION("OVS: Geneve swiching port");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("vport-type-5");

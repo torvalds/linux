@@ -96,6 +96,7 @@ int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
 	int err;
 
 	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
 	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DEALLOC_UAR);
 	in.uarn = cpu_to_be32(uarn);
 	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));

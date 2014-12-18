@@ -168,6 +168,27 @@ wakeup:
 	hci_uart_tx_wakeup(hu);
 }
 
+static void h5_peer_reset(struct hci_uart *hu)
+{
+	struct h5 *h5 = hu->priv;
+
+	BT_ERR("Peer device has reset");
+
+	h5->state = H5_UNINITIALIZED;
+
+	del_timer(&h5->timer);
+
+	skb_queue_purge(&h5->rel);
+	skb_queue_purge(&h5->unrel);
+	skb_queue_purge(&h5->unack);
+
+	h5->tx_seq = 0;
+	h5->tx_ack = 0;
+
+	/* Send reset request to upper stack */
+	hci_reset_dev(hu->hdev);
+}
+
 static int h5_open(struct hci_uart *hu)
 {
 	struct h5 *h5;
@@ -283,8 +304,12 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 	conf_req[2] = h5_cfg_field(h5);
 
 	if (memcmp(data, sync_req, 2) == 0) {
+		if (h5->state == H5_ACTIVE)
+			h5_peer_reset(hu);
 		h5_link_control(hu, sync_rsp, 2);
 	} else if (memcmp(data, sync_rsp, 2) == 0) {
+		if (h5->state == H5_ACTIVE)
+			h5_peer_reset(hu);
 		h5->state = H5_INITIALIZED;
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_req, 2) == 0) {

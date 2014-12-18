@@ -37,7 +37,7 @@ int gpio_get_value(unsigned gpio)
 	val = LOONGSON_GPIODATA;
 	spin_unlock(&gpio_lock);
 
-	return ((val & mask) != 0);
+	return (val & mask) != 0;
 }
 EXPORT_SYMBOL(gpio_get_value);
 

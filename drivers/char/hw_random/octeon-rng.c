@@ -117,7 +117,6 @@ static int __exit octeon_rng_remove(struct platform_device *pdev)
 static struct platform_driver octeon_rng_driver = {
 	.driver = {
 		.name		= "octeon_rng",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= octeon_rng_probe,
 	.remove		= __exit_p(octeon_rng_remove),

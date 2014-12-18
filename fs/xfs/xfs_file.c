@@ -21,8 +21,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -37,7 +35,6 @@
 #include "xfs_ioctl.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
-#include "xfs_dinode.h"
 #include "xfs_icache.h"
 
 #include <linux/aio.h>
@@ -933,7 +930,6 @@ xfs_file_readdir(
 {
 	struct inode	*inode = file_inode(file);
 	xfs_inode_t	*ip = XFS_I(inode);
-	int		error;
 	size_t		bufsize;
 
 	/*
@@ -950,10 +946,7 @@ xfs_file_readdir(
 	 */
 	bufsize = (size_t)min_t(loff_t, 32768, ip->i_d.di_size);
 
-	error = xfs_readdir(ip, ctx, bufsize);
-	if (error)
-		return error;
-	return 0;
+	return xfs_readdir(ip, ctx, bufsize);
 }
 
 STATIC int

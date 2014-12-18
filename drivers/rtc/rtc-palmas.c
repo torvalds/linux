@@ -363,7 +363,6 @@ static struct platform_driver palmas_rtc_driver = {
 	.probe		= palmas_rtc_probe,
 	.remove		= palmas_rtc_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "palmas-rtc",
 		.pm	= &palmas_rtc_pm_ops,
 		.of_match_table = of_match_ptr(of_palmas_rtc_match),

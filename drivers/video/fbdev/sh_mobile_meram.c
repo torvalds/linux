@@ -745,7 +745,6 @@ static int sh_mobile_meram_remove(struct platform_device *pdev)
 static struct platform_driver sh_mobile_meram_driver = {
 	.driver	= {
 		.name		= "sh_mobile_meram",
-		.owner		= THIS_MODULE,
 		.pm		= &sh_mobile_meram_dev_pm_ops,
 	},
 	.probe		= sh_mobile_meram_probe,

@@ -71,6 +71,15 @@ config POWER_RESET_HISI
 	help
 	  Reboot support for Hisilicon boards.
 
+config POWER_RESET_IMX
+	bool "IMX6 power-off driver"
+	depends on POWER_RESET && SOC_IMX6
+	help
+	  This driver support power off external PMIC by PMIC_ON_REQ on i.mx6
+	  boards.If you want to use other pin to control external power,please
+	  say N here or disable in dts to make sure pm_power_off never be
+	  overwrote wrongly by this driver.
+
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM

@@ -1561,7 +1561,6 @@ static int pch_spi_pd_resume(struct platform_device *pd_dev)
 static struct platform_driver pch_spi_pd_driver = {
 	.driver = {
 		.name = "pch-spi",
-		.owner = THIS_MODULE,
 	},
 	.probe = pch_spi_pd_probe,
 	.remove = pch_spi_pd_remove,

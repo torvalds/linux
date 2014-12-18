@@ -374,8 +374,8 @@ static inline void s2dhms(struct dhms *ts, time_t secs)
 #define JOBSTATS_PROCNAME_UID		"procname_uid"
 #define JOBSTATS_NODELOCAL		"nodelocal"
 
-extern int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
-				     int *val, int mult);
+extern int lprocfs_write_frac_helper(const char __user *buffer,
+				     unsigned long count, int *val, int mult);
 extern int lprocfs_read_frac_helper(char *buffer, unsigned long count,
 				    long val, int mult);
 #if defined (CONFIG_PROC_FS)
@@ -557,7 +557,7 @@ extern void lprocfs_free_obd_stats(struct obd_device *obddev);
 extern void lprocfs_free_md_stats(struct obd_device *obddev);
 struct obd_export;
 struct nid_stat;
-extern int lprocfs_add_clear_entry(struct obd_device * obd,
+extern int lprocfs_add_clear_entry(struct obd_device *obd,
 				   struct proc_dir_entry *entry);
 extern int lprocfs_exp_setup(struct obd_export *exp,
 			     lnet_nid_t *peer_nid, int *newnid);
@@ -647,7 +647,7 @@ extern int lprocfs_rd_kbytesavail(struct seq_file *m, void *data);
 extern int lprocfs_rd_filestotal(struct seq_file *m, void *data);
 extern int lprocfs_rd_filesfree(struct seq_file *m, void *data);
 
-extern int lprocfs_write_helper(const char *buffer, unsigned long count,
+extern int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 				int *val);
 extern int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult);
 extern int lprocfs_write_u64_helper(const char *buffer, unsigned long count,

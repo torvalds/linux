@@ -265,7 +265,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 		skb->fclone = SKB_FCLONE_ORIG;
 		atomic_set(&fclones->fclone_ref, 1);
 
-		fclones->skb2.fclone = SKB_FCLONE_FREE;
+		fclones->skb2.fclone = SKB_FCLONE_CLONE;
 		fclones->skb2.pfmemalloc = pfmemalloc;
 	}
 out:
@@ -336,59 +336,85 @@ struct netdev_alloc_cache {
 	unsigned int		pagecnt_bias;
 };
 static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
+static DEFINE_PER_CPU(struct netdev_alloc_cache, napi_alloc_cache);
 
-static void *__netdev_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
+static struct page *__page_frag_refill(struct netdev_alloc_cache *nc,
+				       gfp_t gfp_mask)
 {
-	struct netdev_alloc_cache *nc;
-	void *data = NULL;
-	int order;
-	unsigned long flags;
+	const unsigned int order = NETDEV_FRAG_PAGE_MAX_ORDER;
+	struct page *page = NULL;
+	gfp_t gfp = gfp_mask;
 
-	local_irq_save(flags);
-	nc = this_cpu_ptr(&netdev_alloc_cache);
-	if (unlikely(!nc->frag.page)) {
+	if (order) {
+		gfp_mask |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY;
+		page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
+		nc->frag.size = PAGE_SIZE << (page ? order : 0);
+	}
+
+	if (unlikely(!page))
+		page = alloc_pages_node(NUMA_NO_NODE, gfp, 0);
+
+	nc->frag.page = page;
+
+	return page;
+}
+
+static void *__alloc_page_frag(struct netdev_alloc_cache __percpu *cache,
+			       unsigned int fragsz, gfp_t gfp_mask)
+{
+	struct netdev_alloc_cache *nc = this_cpu_ptr(cache);
+	struct page *page = nc->frag.page;
+	unsigned int size;
+	int offset;
+
+	if (unlikely(!page)) {
 refill:
-		for (order = NETDEV_FRAG_PAGE_MAX_ORDER; ;) {
-			gfp_t gfp = gfp_mask;
+		page = __page_frag_refill(nc, gfp_mask);
+		if (!page)
+			return NULL;
 
-			if (order)
-				gfp |= __GFP_COMP | __GFP_NOWARN;
-			nc->frag.page = alloc_pages(gfp, order);
-			if (likely(nc->frag.page))
-				break;
-			if (--order < 0)
-				goto end;
-		}
-		nc->frag.size = PAGE_SIZE << order;
+		/* if size can vary use frag.size else just use PAGE_SIZE */
+		size = NETDEV_FRAG_PAGE_MAX_ORDER ? nc->frag.size : PAGE_SIZE;
+
 		/* Even if we own the page, we do not use atomic_set().
 		 * This would break get_page_unless_zero() users.
 		 */
-		atomic_add(NETDEV_PAGECNT_MAX_BIAS - 1,
-			   &nc->frag.page->_count);
-		nc->pagecnt_bias = NETDEV_PAGECNT_MAX_BIAS;
-		nc->frag.offset = 0;
+		atomic_add(size - 1, &page->_count);
+
+		/* reset page count bias and offset to start of new frag */
+		nc->pagecnt_bias = size;
+		nc->frag.offset = size;
 	}
 
-	if (nc->frag.offset + fragsz > nc->frag.size) {
-		if (atomic_read(&nc->frag.page->_count) != nc->pagecnt_bias) {
-			if (!atomic_sub_and_test(nc->pagecnt_bias,
-						 &nc->frag.page->_count))
-				goto refill;
-			/* OK, page count is 0, we can safely set it */
-			atomic_set(&nc->frag.page->_count,
-				   NETDEV_PAGECNT_MAX_BIAS);
-		} else {
-			atomic_add(NETDEV_PAGECNT_MAX_BIAS - nc->pagecnt_bias,
-				   &nc->frag.page->_count);
-		}
-		nc->pagecnt_bias = NETDEV_PAGECNT_MAX_BIAS;
-		nc->frag.offset = 0;
+	offset = nc->frag.offset - fragsz;
+	if (unlikely(offset < 0)) {
+		if (!atomic_sub_and_test(nc->pagecnt_bias, &page->_count))
+			goto refill;
+
+		/* if size can vary use frag.size else just use PAGE_SIZE */
+		size = NETDEV_FRAG_PAGE_MAX_ORDER ? nc->frag.size : PAGE_SIZE;
+
+		/* OK, page count is 0, we can safely set it */
+		atomic_set(&page->_count, size);
+
+		/* reset page count bias and offset to start of new frag */
+		nc->pagecnt_bias = size;
+		offset = size - fragsz;
 	}
 
-	data = page_address(nc->frag.page) + nc->frag.offset;
-	nc->frag.offset += fragsz;
 	nc->pagecnt_bias--;
-end:
+	nc->frag.offset = offset;
+
+	return page_address(page) + offset;
+}
+
+static void *__netdev_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
+{
+	unsigned long flags;
+	void *data;
+
+	local_irq_save(flags);
+	data = __alloc_page_frag(&netdev_alloc_cache, fragsz, gfp_mask);
 	local_irq_restore(flags);
 	return data;
 }
@@ -406,11 +432,25 @@ void *netdev_alloc_frag(unsigned int fragsz)
 }
 EXPORT_SYMBOL(netdev_alloc_frag);
 
+static void *__napi_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
+{
+	return __alloc_page_frag(&napi_alloc_cache, fragsz, gfp_mask);
+}
+
+void *napi_alloc_frag(unsigned int fragsz)
+{
+	return __napi_alloc_frag(fragsz, GFP_ATOMIC | __GFP_COLD);
+}
+EXPORT_SYMBOL(napi_alloc_frag);
+
 /**
- *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
- *	@dev: network device to receive on
+ *	__alloc_rx_skb - allocate an skbuff for rx
  *	@length: length to allocate
  *	@gfp_mask: get_free_pages mask, passed to alloc_skb
+ *	@flags:	If SKB_ALLOC_RX is set, __GFP_MEMALLOC will be used for
+ *		allocations in case we have to fallback to __alloc_skb()
+ *		If SKB_ALLOC_NAPI is set, page fragment will be allocated
+ *		from napi_cache instead of netdev_cache.
  *
  *	Allocate a new &sk_buff and assign it a usage count of one. The
  *	buffer has unspecified headroom built in. Users should allocate
@@ -419,11 +459,11 @@ EXPORT_SYMBOL(netdev_alloc_frag);
  *
  *	%NULL is returned if there is no free memory.
  */
-struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
-				   unsigned int length, gfp_t gfp_mask)
+static struct sk_buff *__alloc_rx_skb(unsigned int length, gfp_t gfp_mask,
+				      int flags)
 {
 	struct sk_buff *skb = NULL;
-	unsigned int fragsz = SKB_DATA_ALIGN(length + NET_SKB_PAD) +
+	unsigned int fragsz = SKB_DATA_ALIGN(length) +
 			      SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	if (fragsz <= PAGE_SIZE && !(gfp_mask & (__GFP_WAIT | GFP_DMA))) {
@@ -432,7 +472,9 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		if (sk_memalloc_socks())
 			gfp_mask |= __GFP_MEMALLOC;
 
-		data = __netdev_alloc_frag(fragsz, gfp_mask);
+		data = (flags & SKB_ALLOC_NAPI) ?
+			__napi_alloc_frag(fragsz, gfp_mask) :
+			__netdev_alloc_frag(fragsz, gfp_mask);
 
 		if (likely(data)) {
 			skb = build_skb(data, fragsz);
@@ -440,16 +482,71 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 				put_page(virt_to_head_page(data));
 		}
 	} else {
-		skb = __alloc_skb(length + NET_SKB_PAD, gfp_mask,
+		skb = __alloc_skb(length, gfp_mask,
 				  SKB_ALLOC_RX, NUMA_NO_NODE);
 	}
+	return skb;
+}
+
+/**
+ *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
+ *	@dev: network device to receive on
+ *	@length: length to allocate
+ *	@gfp_mask: get_free_pages mask, passed to alloc_skb
+ *
+ *	Allocate a new &sk_buff and assign it a usage count of one. The
+ *	buffer has NET_SKB_PAD headroom built in. Users should allocate
+ *	the headroom they think they need without accounting for the
+ *	built in space. The built in space is used for optimisations.
+ *
+ *	%NULL is returned if there is no free memory.
+ */
+struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
+				   unsigned int length, gfp_t gfp_mask)
+{
+	struct sk_buff *skb;
+
+	length += NET_SKB_PAD;
+	skb = __alloc_rx_skb(length, gfp_mask, 0);
+
 	if (likely(skb)) {
 		skb_reserve(skb, NET_SKB_PAD);
 		skb->dev = dev;
 	}
+
 	return skb;
 }
 EXPORT_SYMBOL(__netdev_alloc_skb);
+
+/**
+ *	__napi_alloc_skb - allocate skbuff for rx in a specific NAPI instance
+ *	@napi: napi instance this buffer was allocated for
+ *	@length: length to allocate
+ *	@gfp_mask: get_free_pages mask, passed to alloc_skb and alloc_pages
+ *
+ *	Allocate a new sk_buff for use in NAPI receive.  This buffer will
+ *	attempt to allocate the head from a special reserved region used
+ *	only for NAPI Rx allocation.  By doing this we can save several
+ *	CPU cycles by avoiding having to disable and re-enable IRQs.
+ *
+ *	%NULL is returned if there is no free memory.
+ */
+struct sk_buff *__napi_alloc_skb(struct napi_struct *napi,
+				 unsigned int length, gfp_t gfp_mask)
+{
+	struct sk_buff *skb;
+
+	length += NET_SKB_PAD + NET_IP_ALIGN;
+	skb = __alloc_rx_skb(length, gfp_mask, SKB_ALLOC_NAPI);
+
+	if (likely(skb)) {
+		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
+		skb->dev = napi->dev;
+	}
+
+	return skb;
+}
+EXPORT_SYMBOL(__napi_alloc_skb);
 
 void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
 		     int size, unsigned int truesize)
@@ -541,33 +638,27 @@ static void kfree_skbmem(struct sk_buff *skb)
 	switch (skb->fclone) {
 	case SKB_FCLONE_UNAVAILABLE:
 		kmem_cache_free(skbuff_head_cache, skb);
-		break;
+		return;
 
 	case SKB_FCLONE_ORIG:
 		fclones = container_of(skb, struct sk_buff_fclones, skb1);
-		if (atomic_dec_and_test(&fclones->fclone_ref))
-			kmem_cache_free(skbuff_fclone_cache, fclones);
+
+		/* We usually free the clone (TX completion) before original skb
+		 * This test would have no chance to be true for the clone,
+		 * while here, branch prediction will be good.
+		 */
+		if (atomic_read(&fclones->fclone_ref) == 1)
+			goto fastpath;
 		break;
 
-	case SKB_FCLONE_CLONE:
+	default: /* SKB_FCLONE_CLONE */
 		fclones = container_of(skb, struct sk_buff_fclones, skb2);
-
-		/* Warning : We must perform the atomic_dec_and_test() before
-		 * setting skb->fclone back to SKB_FCLONE_FREE, otherwise
-		 * skb_clone() could set clone_ref to 2 before our decrement.
-		 * Anyway, if we are going to free the structure, no need to
-		 * rewrite skb->fclone.
-		 */
-		if (atomic_dec_and_test(&fclones->fclone_ref)) {
-			kmem_cache_free(skbuff_fclone_cache, fclones);
-		} else {
-			/* The clone portion is available for
-			 * fast-cloning again.
-			 */
-			skb->fclone = SKB_FCLONE_FREE;
-		}
 		break;
 	}
+	if (!atomic_dec_and_test(&fclones->fclone_ref))
+		return;
+fastpath:
+	kmem_cache_free(skbuff_fclone_cache, fclones);
 }
 
 static void skb_release_head_state(struct sk_buff *skb)
@@ -879,18 +970,14 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	struct sk_buff_fclones *fclones = container_of(skb,
 						       struct sk_buff_fclones,
 						       skb1);
-	struct sk_buff *n = &fclones->skb2;
+	struct sk_buff *n;
 
 	if (skb_orphan_frags(skb, gfp_mask))
 		return NULL;
 
 	if (skb->fclone == SKB_FCLONE_ORIG &&
-	    n->fclone == SKB_FCLONE_FREE) {
-		n->fclone = SKB_FCLONE_CLONE;
-		/* As our fastclone was free, clone_ref must be 1 at this point.
-		 * We could use atomic_inc() here, but it is faster
-		 * to set the final value.
-		 */
+	    atomic_read(&fclones->fclone_ref) == 1) {
+		n = &fclones->skb2;
 		atomic_set(&fclones->fclone_ref, 2);
 	} else {
 		if (skb_pfmemalloc(skb))
@@ -3013,7 +3100,7 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		if (nskb->len == len + doffset)
 			goto perform_csum_check;
 
-		if (!sg) {
+		if (!sg && !nskb->remcsum_offload) {
 			nskb->ip_summed = CHECKSUM_NONE;
 			nskb->csum = skb_copy_and_csum_bits(head_skb, offset,
 							    skb_put(nskb, len),
@@ -3085,7 +3172,7 @@ skip_fraglist:
 		nskb->truesize += nskb->data_len;
 
 perform_csum_check:
-		if (!csum) {
+		if (!csum && !nskb->remcsum_offload) {
 			nskb->csum = skb_checksum(nskb, doffset,
 						  nskb->len - doffset, 0);
 			nskb->ip_summed = CHECKSUM_NONE;
@@ -3099,6 +3186,16 @@ perform_csum_check:
 	 * (see validate_xmit_skb_list() for example)
 	 */
 	segs->prev = tail;
+
+	/* Following permits correct backpressure, for protocols
+	 * using skb_set_owner_w().
+	 * Idea is to tranfert ownership from head_skb to last segment.
+	 */
+	if (head_skb->destructor == sock_wfree) {
+		swap(tail->truesize, head_skb->truesize);
+		swap(tail->destructor, head_skb->destructor);
+		swap(tail->sk, head_skb->sk);
+	}
 	return segs;
 
 err:
@@ -4140,6 +4237,113 @@ err_free:
 	return NULL;
 }
 EXPORT_SYMBOL(skb_vlan_untag);
+
+int skb_ensure_writable(struct sk_buff *skb, int write_len)
+{
+	if (!pskb_may_pull(skb, write_len))
+		return -ENOMEM;
+
+	if (!skb_cloned(skb) || skb_clone_writable(skb, write_len))
+		return 0;
+
+	return pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(skb_ensure_writable);
+
+/* remove VLAN header from packet and update csum accordingly. */
+static int __skb_vlan_pop(struct sk_buff *skb, u16 *vlan_tci)
+{
+	struct vlan_hdr *vhdr;
+	unsigned int offset = skb->data - skb_mac_header(skb);
+	int err;
+
+	__skb_push(skb, offset);
+	err = skb_ensure_writable(skb, VLAN_ETH_HLEN);
+	if (unlikely(err))
+		goto pull;
+
+	skb_postpull_rcsum(skb, skb->data + (2 * ETH_ALEN), VLAN_HLEN);
+
+	vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);
+	*vlan_tci = ntohs(vhdr->h_vlan_TCI);
+
+	memmove(skb->data + VLAN_HLEN, skb->data, 2 * ETH_ALEN);
+	__skb_pull(skb, VLAN_HLEN);
+
+	vlan_set_encap_proto(skb, vhdr);
+	skb->mac_header += VLAN_HLEN;
+
+	if (skb_network_offset(skb) < ETH_HLEN)
+		skb_set_network_header(skb, ETH_HLEN);
+
+	skb_reset_mac_len(skb);
+pull:
+	__skb_pull(skb, offset);
+
+	return err;
+}
+
+int skb_vlan_pop(struct sk_buff *skb)
+{
+	u16 vlan_tci;
+	__be16 vlan_proto;
+	int err;
+
+	if (likely(vlan_tx_tag_present(skb))) {
+		skb->vlan_tci = 0;
+	} else {
+		if (unlikely((skb->protocol != htons(ETH_P_8021Q) &&
+			      skb->protocol != htons(ETH_P_8021AD)) ||
+			     skb->len < VLAN_ETH_HLEN))
+			return 0;
+
+		err = __skb_vlan_pop(skb, &vlan_tci);
+		if (err)
+			return err;
+	}
+	/* move next vlan tag to hw accel tag */
+	if (likely((skb->protocol != htons(ETH_P_8021Q) &&
+		    skb->protocol != htons(ETH_P_8021AD)) ||
+		   skb->len < VLAN_ETH_HLEN))
+		return 0;
+
+	vlan_proto = skb->protocol;
+	err = __skb_vlan_pop(skb, &vlan_tci);
+	if (unlikely(err))
+		return err;
+
+	__vlan_hwaccel_put_tag(skb, vlan_proto, vlan_tci);
+	return 0;
+}
+EXPORT_SYMBOL(skb_vlan_pop);
+
+int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci)
+{
+	if (vlan_tx_tag_present(skb)) {
+		unsigned int offset = skb->data - skb_mac_header(skb);
+		int err;
+
+		/* __vlan_insert_tag expect skb->data pointing to mac header.
+		 * So change skb->data before calling it and change back to
+		 * original position later
+		 */
+		__skb_push(skb, offset);
+		err = __vlan_insert_tag(skb, skb->vlan_proto,
+					vlan_tx_tag_get(skb));
+		if (err)
+			return err;
+		skb->protocol = skb->vlan_proto;
+		skb->mac_len += VLAN_HLEN;
+		__skb_pull(skb, offset);
+
+		if (skb->ip_summed == CHECKSUM_COMPLETE)
+			skb->csum = csum_add(skb->csum, csum_partial(skb->data
+					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
+	}
+	__vlan_hwaccel_put_tag(skb, vlan_proto, vlan_tci);
+	return 0;
+}
+EXPORT_SYMBOL(skb_vlan_push);
 
 /**
  * alloc_skb_with_frags - allocate skb with page frags

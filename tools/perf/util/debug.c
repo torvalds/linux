@@ -19,13 +19,14 @@
 int verbose;
 bool dump_trace = false, quiet = false;
 int debug_ordered_events;
+static int redirect_to_stderr;
 
 static int _eprintf(int level, int var, const char *fmt, va_list args)
 {
 	int ret = 0;
 
 	if (var >= level) {
-		if (use_browser >= 1)
+		if (use_browser >= 1 && !redirect_to_stderr)
 			ui_helpline__vshow(fmt, args);
 		else
 			ret = vfprintf(stderr, fmt, args);
@@ -145,6 +146,7 @@ static struct debug_variable {
 } debug_variables[] = {
 	{ .name = "verbose",		.ptr = &verbose },
 	{ .name = "ordered-events",	.ptr = &debug_ordered_events},
+	{ .name = "stderr",		.ptr = &redirect_to_stderr},
 	{ .name = NULL, }
 };
 

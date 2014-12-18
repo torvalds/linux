@@ -17,6 +17,9 @@ adi,adt7473		+/-1C TDM Extended Temp Range I.C
 adi,adt7475		+/-1C TDM Extended Temp Range I.C
 adi,adt7476		+/-1C TDM Extended Temp Range I.C
 adi,adt7490		+/-1C TDM Extended Temp Range I.C
+adi,adxl345		Three-Axis Digital Accelerometer
+adi,adxl346		Three-Axis Digital Accelerometer
+adi,adxl34x		Three-Axis Digital Accelerometer
 at,24c08		i2c serial eeprom  (24cxx)
 atmel,24c00		i2c serial eeprom  (24cxx)
 atmel,24c01		i2c serial eeprom  (24cxx)
@@ -56,6 +59,8 @@ gmt,g751		G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire In
 infineon,slb9635tt	Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
 infineon,slb9645tt	Infineon SLB9645 I2C TPM (new protocol, max 400khz)
 isl,isl12057		Intersil ISL12057 I2C RTC Chip
+isil,isl29028           (deprecated, use isl)
+isl,isl29028            Intersil ISL29028 Ambient Light and Proximity Sensor
 maxim,ds1050		5 Bit Programmable, Pulse-Width Modulator
 maxim,max1237		Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
 maxim,max6625		9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
@@ -74,7 +79,12 @@ ovti,ov5642		OV5642: Color CMOS QSXGA (5-megapixel) Image Sensor with OmniBSI an
 pericom,pt7c4338	Real-time Clock Module
 plx,pex8648		48-Lane, 12-Port PCI Express Gen 2 (5.0 GT/s) Switch
 ramtron,24c64		i2c serial eeprom  (24cxx)
+ricoh,r2025sd		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+ricoh,r2221tl		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
 ricoh,rs5c372a		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+ricoh,rs5c372b		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+ricoh,rv5c386		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+ricoh,rv5c387a		I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
 samsung,24ad0xd1	S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
 sii,s35390a		2-wire CMOS real-time clock
 st-micro,24c256		i2c serial eeprom  (24cxx)

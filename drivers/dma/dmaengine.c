@@ -330,8 +330,7 @@ static int __init dma_channel_table_init(void)
 	if (err) {
 		pr_err("initialization failure\n");
 		for_each_dma_cap_mask(cap, dma_cap_mask_all)
-			if (channel_table[cap])
-				free_percpu(channel_table[cap]);
+			free_percpu(channel_table[cap]);
 	}
 
 	return err;

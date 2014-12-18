@@ -168,7 +168,6 @@ static struct platform_driver clevo_mail_led_driver = {
 	.remove		= clevo_mail_led_remove,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
-		.owner		= THIS_MODULE,
 	},
 };
 

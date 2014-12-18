@@ -103,7 +103,7 @@
 			prox {
 				prox_stuib_mode: prox_stuib {
 					stuib_cfg {
-						ste,pins = "GPIO217_AH12";
+						pins = "GPIO217_AH12";
 						ste,config = <&gpio_in_pu>;
 					};
 				};
@@ -111,7 +111,7 @@
 			hall {
 				hall_stuib_mode: stuib_tvk {
 					stuib_cfg {
-						ste,pins = "GPIO145_C13";
+						pins = "GPIO145_C13";
 						ste,config = <&gpio_in_pu>;
 					};
 				};

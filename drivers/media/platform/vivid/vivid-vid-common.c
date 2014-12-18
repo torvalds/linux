@@ -259,6 +259,8 @@ void fmt_sp2mp(const struct v4l2_format *sp_fmt, struct v4l2_format *mp_fmt)
 	mp->pixelformat = pix->pixelformat;
 	mp->field = pix->field;
 	mp->colorspace = pix->colorspace;
+	mp->ycbcr_enc = pix->ycbcr_enc;
+	mp->quantization = pix->quantization;
 	mp->num_planes = 1;
 	mp->flags = pix->flags;
 	ppix->sizeimage = pix->sizeimage;
@@ -285,6 +287,8 @@ int fmt_sp2mp_func(struct file *file, void *priv,
 	pix->pixelformat = mp->pixelformat;
 	pix->field = mp->field;
 	pix->colorspace = mp->colorspace;
+	pix->ycbcr_enc = mp->ycbcr_enc;
+	pix->quantization = mp->quantization;
 	pix->sizeimage = ppix->sizeimage;
 	pix->bytesperline = ppix->bytesperline;
 	pix->flags = mp->flags;

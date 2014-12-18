@@ -449,13 +449,29 @@ static void dt282x_munge(struct comedi_device *dev,
 	}
 }
 
+static unsigned int dt282x_ao_setup_dma(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					int cur_dma)
+{
+	struct dt282x_private *devpriv = dev->private;
+	void *ptr = devpriv->dma[cur_dma].buf;
+	unsigned int nsamples = comedi_bytes_to_samples(s, devpriv->dma_maxsize);
+	unsigned int nbytes;
+
+	nbytes = comedi_buf_read_samples(s, ptr, nsamples);
+	if (nbytes)
+		dt282x_prep_ao_dma(dev, cur_dma, nbytes);
+	else
+		dev_err(dev->class_dev, "AO underrun\n");
+
+	return nbytes;
+}
+
 static void dt282x_ao_dma_interrupt(struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
 	struct dt282x_private *devpriv = dev->private;
 	int cur_dma = devpriv->current_dma_index;
-	void *ptr = devpriv->dma[cur_dma].buf;
-	int size;
 
 	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
 	     dev->iobase + DT2821_SUPCSR_REG);
@@ -464,13 +480,8 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev,
 
 	devpriv->current_dma_index = 1 - cur_dma;
 
-	size = cfc_read_array_from_buffer(s, ptr, devpriv->dma_maxsize);
-	if (size == 0) {
-		dev_err(dev->class_dev, "AO underrun\n");
+	if (!dt282x_ao_setup_dma(dev, s, cur_dma))
 		s->async->events |= COMEDI_CB_OVERFLOW;
-	} else {
-		dt282x_prep_ao_dma(dev, cur_dma, size);
-	}
 }
 
 static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
@@ -480,6 +491,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	int cur_dma = devpriv->current_dma_index;
 	void *ptr = devpriv->dma[cur_dma].buf;
 	int size = devpriv->dma[cur_dma].size;
+	unsigned int nsamples = comedi_bytes_to_samples(s, size);
 	int ret;
 
 	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
@@ -490,13 +502,11 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	devpriv->current_dma_index = 1 - cur_dma;
 
 	dt282x_munge(dev, s, ptr, size);
-	ret = cfc_write_array_to_buffer(s, ptr, size);
-	if (ret != size) {
-		s->async->events |= COMEDI_CB_OVERFLOW;
+	ret = comedi_buf_write_samples(s, ptr, nsamples);
+	if (ret != size)
 		return;
-	}
 
-	devpriv->nread -= size / 2;
+	devpriv->nread -= nsamples;
 	if (devpriv->nread < 0) {
 		dev_info(dev->class_dev, "nread off by one\n");
 		devpriv->nread = 0;
@@ -555,7 +565,6 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 	}
 #if 0
 	if (adcsr & DT2821_ADCSR_ADDONE) {
-		int ret;
 		unsigned short data;
 
 		data = inw(dev->iobase + DT2821_ADDAT_REG);
@@ -563,10 +572,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		if (devpriv->ad_2scomp)
 			data = comedi_offset_munge(s, data);
 
-		ret = comedi_buf_put(s, data);
-
-		if (ret == 0)
-			s->async->events |= COMEDI_CB_OVERFLOW;
+		comedi_buf_write_samples(s, &data, 1);
 
 		devpriv->nread--;
 		if (!devpriv->nread) {
@@ -579,8 +585,8 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		handled = 1;
 	}
 #endif
-	cfc_handle_events(dev, s);
-	cfc_handle_events(dev, s_ao);
+	comedi_handle_events(dev, s);
+	comedi_handle_events(dev, s_ao);
 
 	return IRQ_RETVAL(handled);
 }
@@ -916,26 +922,15 @@ static int dt282x_ao_inttrig(struct comedi_device *dev,
 {
 	struct dt282x_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int size;
 
 	if (trig_num != cmd->start_src)
 		return -EINVAL;
 
-	size = cfc_read_array_from_buffer(s, devpriv->dma[0].buf,
-					  devpriv->dma_maxsize);
-	if (size == 0) {
-		dev_err(dev->class_dev, "AO underrun\n");
+	if (!dt282x_ao_setup_dma(dev, s, 0))
 		return -EPIPE;
-	}
-	dt282x_prep_ao_dma(dev, 0, size);
 
-	size = cfc_read_array_from_buffer(s, devpriv->dma[1].buf,
-					  devpriv->dma_maxsize);
-	if (size == 0) {
-		dev_err(dev->class_dev, "AO underrun\n");
+	if (!dt282x_ao_setup_dma(dev, s, 1))
 		return -EPIPE;
-	}
-	dt282x_prep_ao_dma(dev, 1, size);
 
 	outw(devpriv->supcsr | DT2821_SUPCSR_STRIG,
 	     dev->iobase + DT2821_SUPCSR_REG);
@@ -1236,7 +1231,6 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* ranges are per-channel, set by jumpers on the board */
 		s->range_table	= &dt282x_ao_range;
 		s->insn_write	= dt282x_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags	|= SDF_CMD_WRITE;

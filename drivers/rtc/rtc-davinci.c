@@ -550,7 +550,6 @@ static struct platform_driver davinci_rtc_driver = {
 	.remove		= __exit_p(davinci_rtc_remove),
 	.driver		= {
 		.name = "rtc_davinci",
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -165,6 +165,15 @@ static struct vfsmount *aio_mnt;
 static const struct file_operations aio_ring_fops;
 static const struct address_space_operations aio_ctx_aops;
 
+/* Backing dev info for aio fs.
+ * -no dirty page accounting or writeback happens
+ */
+static struct backing_dev_info aio_fs_backing_dev_info = {
+	.name           = "aiofs",
+	.state          = 0,
+	.capabilities   = BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_MAP_COPY,
+};
+
 static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 {
 	struct qstr this = QSTR_INIT("[aio]", 5);
@@ -176,6 +185,7 @@ static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 
 	inode->i_mapping->a_ops = &aio_ctx_aops;
 	inode->i_mapping->private_data = ctx;
+	inode->i_mapping->backing_dev_info = &aio_fs_backing_dev_info;
 	inode->i_size = PAGE_SIZE * nr_pages;
 
 	path.dentry = d_alloc_pseudo(aio_mnt->mnt_sb, &this);
@@ -219,6 +229,9 @@ static int __init aio_setup(void)
 	aio_mnt = kern_mount(&aio_fs);
 	if (IS_ERR(aio_mnt))
 		panic("Failed to create aio fs mount.");
+
+	if (bdi_init(&aio_fs_backing_dev_info))
+		panic("Failed to init aio fs backing dev info.");
 
 	kiocb_cachep = KMEM_CACHE(kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
@@ -273,18 +286,38 @@ static void aio_free_ring(struct kioctx *ctx)
 
 static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	vma->vm_flags |= VM_DONTEXPAND;
 	vma->vm_ops = &generic_file_vm_ops;
 	return 0;
 }
 
+static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	struct kioctx_table *table;
+	int i;
+
+	spin_lock(&mm->ioctx_lock);
+	rcu_read_lock();
+	table = rcu_dereference(mm->ioctx_table);
+	for (i = 0; i < table->nr; i++) {
+		struct kioctx *ctx;
+
+		ctx = table->table[i];
+		if (ctx && ctx->aio_ring_file == file) {
+			ctx->user_id = ctx->mmap_base = vma->vm_start;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+	spin_unlock(&mm->ioctx_lock);
+}
+
 static const struct file_operations aio_ring_fops = {
 	.mmap = aio_ring_mmap,
+	.mremap = aio_ring_remap,
 };
-
-static int aio_set_page_dirty(struct page *page)
-{
-	return 0;
-}
 
 #if IS_ENABLED(CONFIG_MIGRATION)
 static int aio_migratepage(struct address_space *mapping, struct page *new,
@@ -357,7 +390,7 @@ out:
 #endif
 
 static const struct address_space_operations aio_ctx_aops = {
-	.set_page_dirty = aio_set_page_dirty,
+	.set_page_dirty = __set_page_dirty_no_writeback,
 #if IS_ENABLED(CONFIG_MIGRATION)
 	.migratepage	= aio_migratepage,
 #endif
@@ -412,7 +445,6 @@ static int aio_setup_ring(struct kioctx *ctx)
 		pr_debug("pid(%d) page[%d]->count=%d\n",
 			 current->pid, i, page_count(page));
 		SetPageUptodate(page);
-		SetPageDirty(page);
 		unlock_page(page);
 
 		ctx->ring_pages[i] = page;
@@ -1221,8 +1253,12 @@ static long read_events(struct kioctx *ctx, long min_nr, long nr,
 	 * the ringbuffer empty. So in practice we should be ok, but it's
 	 * something to be aware of when touching this code.
 	 */
-	wait_event_interruptible_hrtimeout(ctx->wait,
-			aio_read_events(ctx, min_nr, nr, event, &ret), until);
+	if (until.tv64 == 0)
+		aio_read_events(ctx, min_nr, nr, event, &ret);
+	else
+		wait_event_interruptible_hrtimeout(ctx->wait,
+				aio_read_events(ctx, min_nr, nr, event, &ret),
+				until);
 
 	if (!ret && signal_pending(current))
 		ret = -EINTR;

@@ -372,15 +372,8 @@ struct hal_data_8723a {
 	/*  2010/08/09 MH Add CU power down mode. */
 	u8	pwrdown;
 
-	/*  Add for dual MAC  0--Mac0 1--Mac1 */
-	u32	interfaceIndex;
-
 	u8	OutEpQueueSel;
 	u8	OutEpNumber;
-
-	/*  2010/11/22 MH Add for slim combo debug mode selective. */
-	/*  This is used for fix the drawback of CU TSMC-A/UMC-A cut. HW auto suspend ability. Close BT clock. */
-	bool		SlimComboDbg;
 
 	/*  */
 	/*  Add For EEPROM Efuse switch and  Efuse Shadow map Setting */
@@ -404,8 +397,6 @@ struct hal_data_8723a {
 	/* 8723-----------------------------------------
 	 *  2011/02/23 MH Add for 8723 mylti function definition. The define should be moved to an */
 	/*  independent file in the future. */
-
-	bool				bMACFuncEnable;
 
 	/*  Interrupt related register information. */
 	u32	IntArray[2];
@@ -517,8 +508,6 @@ void Hal_EfuseParseAntennaDiversity(struct rtw_adapter *padapter, u8 *hwinfo, bo
 void Hal_EfuseParseRateIndicationOption(struct rtw_adapter *padapter, u8 *hwinfo, bool AutoLoadFail);
 void Hal_EfuseParseXtal_8723A(struct rtw_adapter *pAdapter, u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter, u8 *hwinfo, bool AutoLoadFail);
-
-void Hal_InitChannelPlan23a(struct rtw_adapter *padapter);
 
 /*  register */
 void SetBcnCtrlReg23a(struct rtw_adapter *padapter, u8 SetBits, u8 ClearBits);

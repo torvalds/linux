@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004 Bernd Porr, Bernd.Porr@f2s.com
+ *  Copyright (C) 2004-2014 Bernd Porr, mail@berndporr.me.uk
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -10,6 +10,15 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ */
+
+/*
+ * Driver: usbduxfast
+ * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Devices: (ITL) USB-DUX [usbduxfast]
+ * Author: Bernd Porr <mail@berndporr.me.uk>
+ * Updated: 10 Oct 2014
+ * Status: stable
  */
 
 /*
@@ -152,7 +161,6 @@ struct usbduxfast_private {
 	uint8_t *duxbuf;
 	int8_t *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
-	long int ai_sample_count;	/* number of samples to acquire */
 	int ignore;		/* counter which ignores the first
 				   buffers */
 	struct semaphore sem;
@@ -227,114 +235,82 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev,
 	return ret;
 }
 
-/*
- * analogue IN
- * interrupt service routine
- */
+static void usbduxfast_ai_handle_urb(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct urb *urb)
+{
+	struct usbduxfast_private *devpriv = dev->private;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	int ret;
+
+	if (devpriv->ignore) {
+		devpriv->ignore--;
+	} else {
+		unsigned int nsamples;
+
+		nsamples = comedi_bytes_to_samples(s, urb->actual_length);
+		nsamples = comedi_nsamples_left(s, nsamples);
+		comedi_buf_write_samples(s, urb->transfer_buffer, nsamples);
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg)
+			async->events |= COMEDI_CB_EOA;
+	}
+
+	/* if command is still running, resubmit urb for BULK transfer */
+	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
+		urb->dev = comedi_to_usb_dev(dev);
+		urb->status = 0;
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
+		if (ret < 0) {
+			dev_err(dev->class_dev, "urb resubm failed: %d", ret);
+			async->events |= COMEDI_CB_ERROR;
+		}
+	}
+}
+
 static void usbduxfast_ai_interrupt(struct urb *urb)
 {
 	struct comedi_device *dev = urb->context;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
-	int n, err;
 
-	/* are we running a command? */
-	if (unlikely(!devpriv->ai_cmd_running)) {
-		/*
-		 * not running a command
-		 * do not continue execution if no asynchronous command
-		 * is running in particular not resubmit
-		 */
+	/* exit if not running a command, do not resubmit urb */
+	if (!devpriv->ai_cmd_running)
 		return;
-	}
 
-	/* first we test if something unusual has just happened */
 	switch (urb->status) {
 	case 0:
+		usbduxfast_ai_handle_urb(dev, s, urb);
 		break;
 
-		/*
-		 * happens after an unlink command or when the device
-		 * is plugged out
-		 */
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
-		/* tell this comedi */
-		async->events |= COMEDI_CB_EOA;
+		/* after an unlink command, unplug, ... etc */
 		async->events |= COMEDI_CB_ERROR;
-		comedi_event(dev, s);
-		/* stop the transfer w/o unlink */
-		usbduxfast_ai_stop(dev, 0);
-		return;
+		break;
 
 	default:
+		/* a real error */
 		dev_err(dev->class_dev,
 			"non-zero urb status received in ai intr context: %d\n",
 			urb->status);
-		async->events |= COMEDI_CB_EOA;
 		async->events |= COMEDI_CB_ERROR;
-		comedi_event(dev, s);
-		usbduxfast_ai_stop(dev, 0);
-		return;
-	}
-
-	if (!devpriv->ignore) {
-		if (cmd->stop_src == TRIG_COUNT) {
-			/* not continuous, fixed number of samples */
-			n = urb->actual_length / sizeof(uint16_t);
-			if (unlikely(devpriv->ai_sample_count < n)) {
-				unsigned int num_bytes;
-
-				/* partial sample received */
-				num_bytes = devpriv->ai_sample_count *
-					    sizeof(uint16_t);
-				cfc_write_array_to_buffer(s,
-							  urb->transfer_buffer,
-							  num_bytes);
-				usbduxfast_ai_stop(dev, 0);
-				/* tell comedi that the acquistion is over */
-				async->events |= COMEDI_CB_EOA;
-				comedi_event(dev, s);
-				return;
-			}
-			devpriv->ai_sample_count -= n;
-		}
-		/* write the full buffer to comedi */
-		err = cfc_write_array_to_buffer(s, urb->transfer_buffer,
-						urb->actual_length);
-		if (unlikely(err == 0)) {
-			/* buffer overflow */
-			usbduxfast_ai_stop(dev, 0);
-			return;
-		}
-
-		/* tell comedi that data is there */
-		comedi_event(dev, s);
-	} else {
-		/* ignore this packet */
-		devpriv->ignore--;
+		break;
 	}
 
 	/*
-	 * command is still running
-	 * resubmit urb for BULK transfer
+	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * operation would unlink the urb.
 	 */
-	urb->dev = usb;
-	urb->status = 0;
-	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (err < 0) {
-		dev_err(dev->class_dev,
-			"urb resubm failed: %d", err);
-		async->events |= COMEDI_CB_EOA;
-		async->events |= COMEDI_CB_ERROR;
-		comedi_event(dev, s);
+	if (async->events & COMEDI_CB_CANCEL_MASK)
 		usbduxfast_ai_stop(dev, 0);
-	}
+
+	comedi_event(dev, s);
 }
 
 static int usbduxfast_submit_urb(struct comedi_device *dev)
@@ -499,8 +475,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return -EBUSY;
 	}
-	/* set current channel of the running acquisition to zero */
-	s->async->cur_chan = 0;
 
 	/*
 	 * ignore the first buffers from the device if there
@@ -809,11 +783,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return result;
 	}
-
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_sample_count = cmd->stop_arg * cmd->scan_end_arg;
-	else	/* TRIG_NONE */
-		devpriv->ai_sample_count = 0;
 
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */

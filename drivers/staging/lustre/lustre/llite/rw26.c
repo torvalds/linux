@@ -183,7 +183,7 @@ static int ll_set_page_dirty(struct page *vmpage)
 	return __set_page_dirty_nobuffers(vmpage);
 }
 
-#define MAX_DIRECTIO_SIZE 2*1024*1024*1024UL
+#define MAX_DIRECTIO_SIZE (2*1024*1024*1024UL)
 
 static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 				    size_t size, struct page ***pages,
@@ -417,7 +417,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 
 		result = iov_iter_get_pages_alloc(iter, &pages, count, &offs);
 		if (likely(result > 0)) {
-			int n = (result + offs + PAGE_SIZE - 1) / PAGE_SIZE;
+			int n = DIV_ROUND_UP(result + offs, PAGE_SIZE);
 			result = ll_direct_IO_26_seg(env, io, rw, inode,
 						     file->f_mapping,
 						     result, file_offset,
@@ -535,7 +535,7 @@ const struct address_space_operations ll_aops = {
 #else
 const struct address_space_operations_ext ll_aops = {
 	.orig_aops.readpage       = ll_readpage,
-//	.orig_aops.readpages      = ll_readpages,
+/*	.orig_aops.readpages      = ll_readpages, */
 	.orig_aops.direct_IO      = ll_direct_IO_26,
 	.orig_aops.writepage      = ll_writepage,
 	.orig_aops.writepages     = ll_writepages,

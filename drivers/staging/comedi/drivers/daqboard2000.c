@@ -707,7 +707,6 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	s->n_chan = 2;
 	s->maxdata = 0xffff;
 	s->insn_write = daqboard2000_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 	s->range_table = &range_bipolar10;
 
 	result = comedi_alloc_subdev_readback(s);

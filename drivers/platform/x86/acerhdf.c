@@ -533,7 +533,6 @@ static const struct dev_pm_ops acerhdf_pm_ops = {
 static struct platform_driver acerhdf_driver = {
 	.driver = {
 		.name  = "acerhdf",
-		.owner = THIS_MODULE,
 		.pm    = &acerhdf_pm_ops,
 	},
 	.probe = acerhdf_probe,

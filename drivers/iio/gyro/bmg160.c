@@ -67,6 +67,9 @@
 #define BMG160_REG_INT_EN_0		0x15
 #define BMG160_DATA_ENABLE_INT		BIT(7)
 
+#define BMG160_REG_INT_EN_1		0x16
+#define BMG160_INT1_BIT_OD		BIT(1)
+
 #define BMG160_REG_XOUT_L		0x02
 #define BMG160_AXIS_TO_REG(axis)	(BMG160_REG_XOUT_L + (axis * 2))
 
@@ -82,6 +85,9 @@
 
 #define BMG160_REG_INT_STATUS_2	0x0B
 #define BMG160_ANY_MOTION_MASK		0x07
+#define BMG160_ANY_MOTION_BIT_X		BIT(0)
+#define BMG160_ANY_MOTION_BIT_Y		BIT(1)
+#define BMG160_ANY_MOTION_BIT_Z		BIT(2)
 
 #define BMG160_REG_TEMP		0x08
 #define BMG160_TEMP_CENTER_VAL		23
@@ -222,6 +228,19 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	data->slope_thres = ret;
 
 	/* Set default interrupt mode */
+	ret = i2c_smbus_read_byte_data(data->client, BMG160_REG_INT_EN_1);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_en_1\n");
+		return ret;
+	}
+	ret &= ~BMG160_INT1_BIT_OD;
+	ret = i2c_smbus_write_byte_data(data->client,
+					BMG160_REG_INT_EN_1, ret);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_int_en_1\n");
+		return ret;
+	}
+
 	ret = i2c_smbus_write_byte_data(data->client,
 					BMG160_REG_INT_RST_LATCH,
 					BMG160_INT_MODE_LATCH_INT |
@@ -237,7 +256,7 @@ static int bmg160_chip_init(struct bmg160_data *data)
 
 static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	int ret;
 
 	if (on)
@@ -250,6 +269,9 @@ static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"Failed: bmg160_set_power_state for %d\n", on);
+		if (on)
+			pm_runtime_put_noidle(&data->client->dev);
+
 		return ret;
 	}
 #endif
@@ -705,6 +727,7 @@ static int bmg160_write_event_config(struct iio_dev *indio_dev,
 
 	ret =  bmg160_setup_any_motion_interrupt(data, state);
 	if (ret < 0) {
+		bmg160_set_power_state(data, false);
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
@@ -743,7 +766,7 @@ static const struct attribute_group bmg160_attrs_group = {
 
 static const struct iio_event_spec bmg160_event = {
 		.type = IIO_EV_TYPE_ROC,
-		.dir = IIO_EV_DIR_RISING | IIO_EV_DIR_FALLING,
+		.dir = IIO_EV_DIR_EITHER,
 		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) |
 				       BIT(IIO_EV_INFO_ENABLE)
 };
@@ -871,6 +894,7 @@ static int bmg160_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	else
 		ret = bmg160_setup_new_data_interrupt(data, state);
 	if (ret < 0) {
+		bmg160_set_power_state(data, false);
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
@@ -908,10 +932,24 @@ static irqreturn_t bmg160_event_handler(int irq, void *private)
 	else
 		dir = IIO_EV_DIR_FALLING;
 
-	if (ret & BMG160_ANY_MOTION_MASK)
+	if (ret & BMG160_ANY_MOTION_BIT_X)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
 							0,
-							IIO_MOD_X_OR_Y_OR_Z,
+							IIO_MOD_X,
+							IIO_EV_TYPE_ROC,
+							dir),
+							data->timestamp);
+	if (ret & BMG160_ANY_MOTION_BIT_Y)
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
+							0,
+							IIO_MOD_Y,
+							IIO_EV_TYPE_ROC,
+							dir),
+							data->timestamp);
+	if (ret & BMG160_ANY_MOTION_BIT_Z)
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
+							0,
+							IIO_MOD_Z,
 							IIO_EV_TYPE_ROC,
 							dir),
 							data->timestamp);
@@ -1164,13 +1202,20 @@ static int bmg160_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int bmg160_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct bmg160_data *data = iio_priv(indio_dev);
+	int ret;
 
-	return bmg160_set_mode(data, BMG160_MODE_SUSPEND);
+	ret = bmg160_set_mode(data, BMG160_MODE_SUSPEND);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "set mode failed\n");
+		return -EAGAIN;
+	}
+
+	return 0;
 }
 
 static int bmg160_runtime_resume(struct device *dev)

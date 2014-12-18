@@ -1422,7 +1422,10 @@ one of the <constant>V4L2_FIELD_NONE</constant>,
 <constant>V4L2_FIELD_BOTTOM</constant>, or
 <constant>V4L2_FIELD_INTERLACED</constant> formats is acceptable.
 Drivers choose depending on hardware capabilities or e.&nbsp;g. the
-requested image size, and return the actual field order. &v4l2-buffer;
+requested image size, and return the actual field order. Drivers must
+never return <constant>V4L2_FIELD_ANY</constant>. If multiple
+field orders are possible the driver must choose one of the possible
+field orders during &VIDIOC-S-FMT; or &VIDIOC-TRY-FMT;. &v4l2-buffer;
 <structfield>field</structfield> can never be
 <constant>V4L2_FIELD_ANY</constant>.</entry>
 	  </row>

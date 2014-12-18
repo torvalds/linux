@@ -128,10 +128,10 @@ static int csio_setup_debugfs(struct csio_hw *hw)
 	if (IS_ERR_OR_NULL(hw->debugfs_root))
 		return -1;
 
-	i = csio_rd_reg32(hw, MA_TARGET_MEM_ENABLE);
-	if (i & EDRAM0_ENABLE)
+	i = csio_rd_reg32(hw, MA_TARGET_MEM_ENABLE_A);
+	if (i & EDRAM0_ENABLE_F)
 		csio_add_debugfs_mem(hw, "edc0", MEM_EDC0, 5);
-	if (i & EDRAM1_ENABLE)
+	if (i & EDRAM1_ENABLE_F)
 		csio_add_debugfs_mem(hw, "edc1", MEM_EDC1, 5);
 
 	hw->chip_ops->chip_dfs_create_ext_mem(hw);
@@ -955,6 +955,10 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct csio_hw *hw;
 	struct csio_lnode *ln;
 
+	/* probe only T5 cards */
+	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)))
+		return -ENODEV;
+
 	rv = csio_pci_init(pdev, &bars);
 	if (rv)
 		goto err;
@@ -974,10 +978,10 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	sprintf(hw->fwrev_str, "%u.%u.%u.%u\n",
-		    FW_HDR_FW_VER_MAJOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MINOR_GET(hw->fwrev),
-		    FW_HDR_FW_VER_MICRO_GET(hw->fwrev),
-		    FW_HDR_FW_VER_BUILD_GET(hw->fwrev));
+		    FW_HDR_FW_VER_MAJOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MINOR_G(hw->fwrev),
+		    FW_HDR_FW_VER_MICRO_G(hw->fwrev),
+		    FW_HDR_FW_VER_BUILD_G(hw->fwrev));
 
 	for (i = 0; i < hw->num_pports; i++) {
 		ln = csio_shost_init(hw, &pdev->dev, true, NULL);
@@ -1167,53 +1171,21 @@ static struct pci_error_handlers csio_err_handler = {
 	.resume		= csio_pci_resume,
 };
 
-static const struct pci_device_id csio_pci_tbl[] = {
-	CSIO_DEVICE(CSIO_DEVID_T440DBG_FCOE, 0),        /* T4 DEBUG FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T420CR_FCOE, 0),		/* T420CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T422CR_FCOE, 0),		/* T422CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T440CR_FCOE, 0),		/* T440CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T420BCH_FCOE, 0),	/* T420BCH FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T440BCH_FCOE, 0),	/* T440BCH FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T440CH_FCOE, 0),		/* T440CH FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T420SO_FCOE, 0),		/* T420SO FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T420CX_FCOE, 0),		/* T420CX FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T420BT_FCOE, 0),		/* T420BT FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T404BT_FCOE, 0),		/* T404BT FCOE */
-	CSIO_DEVICE(CSIO_DEVID_B420_FCOE, 0),		/* B420 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_B404_FCOE, 0),		/* B404 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T480CR_FCOE, 0),		/* T480 CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T440LPCR_FCOE, 0),	/* T440 LP-CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_AMSTERDAM_T4_FCOE, 0),   /* AMSTERDAM T4 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T480_FCOE, 0),    /* HUAWEI T480 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T440_FCOE, 0),    /* HUAWEI T440 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_HUAWEI_STG310_FCOE, 0),  /* HUAWEI STG FCOE */
-	CSIO_DEVICE(CSIO_DEVID_ACROMAG_XMC_XAUI, 0),    /* ACROMAG XAUI FCOE */
-	CSIO_DEVICE(CSIO_DEVID_QUANTA_MEZZ_SFP_FCOE, 0),/* QUANTA MEZZ FCOE */
-	CSIO_DEVICE(CSIO_DEVID_HUAWEI_10GT_FCOE, 0),    /* HUAWEI 10GT FCOE */
-	CSIO_DEVICE(CSIO_DEVID_HUAWEI_T440_TOE_FCOE, 0),/* HUAWEI T4 TOE FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T580DBG_FCOE, 0),        /* T5 DEBUG FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T520CR_FCOE, 0),         /* T520CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T522CR_FCOE, 0),         /* T522CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T540CR_FCOE, 0),         /* T540CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T520BCH_FCOE, 0),        /* T520BCH FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T540BCH_FCOE, 0),        /* T540BCH FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T540CH_FCOE, 0),         /* T540CH FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T520SO_FCOE, 0),         /* T520SO FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T520CX_FCOE, 0),         /* T520CX FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T520BT_FCOE, 0),         /* T520BT FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T504BT_FCOE, 0),         /* T504BT FCOE */
-	CSIO_DEVICE(CSIO_DEVID_B520_FCOE, 0),           /* B520 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_B504_FCOE, 0),           /* B504 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T580CR2_FCOE, 0),	/* T580 CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T540LPCR_FCOE, 0),       /* T540 LP-CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_AMSTERDAM_T5_FCOE, 0),   /* AMSTERDAM T5 FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T580LPCR_FCOE, 0),       /* T580 LP-CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T520LLCR_FCOE, 0),       /* T520 LL-CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T560CR_FCOE, 0),         /* T560 CR FCOE */
-	CSIO_DEVICE(CSIO_DEVID_T580CR_FCOE, 0),         /* T580 CR FCOE */
-	{ 0, 0, 0, 0, 0, 0, 0 }
-};
+/*
+ *  Macros needed to support the PCI Device ID Table ...
+ */
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
+	static struct pci_device_id csio_pci_tbl[] = {
+/* Define for iSCSI uses PF5, FCoE uses PF6 */
+#define CH_PCI_DEVICE_ID_FUNCTION	0x5
+#define CH_PCI_DEVICE_ID_FUNCTION2	0x6
 
+#define CH_PCI_ID_TABLE_ENTRY(devid) \
+		{ PCI_VDEVICE(CHELSIO, (devid)), 0 }
+
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_END { 0, } }
+
+#include "t4_pci_id_tbl.h"
 
 static struct pci_driver csio_pci_driver = {
 	.name		= KBUILD_MODNAME,

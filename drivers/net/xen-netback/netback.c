@@ -82,6 +82,16 @@ MODULE_PARM_DESC(max_queues,
 static unsigned int fatal_skb_slots = FATAL_SKB_SLOTS_DEFAULT;
 module_param(fatal_skb_slots, uint, 0444);
 
+/* The amount to copy out of the first guest Tx slot into the skb's
+ * linear area.  If the first slot has more data, it will be mapped
+ * and put into the first frag.
+ *
+ * This is sized to avoid pulling headers from the frags for most
+ * TCP/IP packets.
+ */
+#define XEN_NETBACK_TX_COPY_LEN 128
+
+
 static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 			       u8 status);
 
@@ -124,13 +134,6 @@ static inline struct xenvif_queue *ubuf_to_queue(const struct ubuf_info *ubuf)
 			    struct xenvif_queue,
 			    pending_tx_info[0]);
 }
-
-/* This is a miniumum size for the linear area to avoid lots of
- * calls to __pskb_pull_tail() as we set up checksum offsets. The
- * value 128 was chosen as it covers all IPv4 and most likely
- * IPv6 headers.
- */
-#define PKT_PROT_LEN 128
 
 static u16 frag_get_pending_idx(skb_frag_t *frag)
 {
@@ -1446,9 +1449,9 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 		index = pending_index(queue->pending_cons);
 		pending_idx = queue->pending_ring[index];
 
-		data_len = (txreq.size > PKT_PROT_LEN &&
+		data_len = (txreq.size > XEN_NETBACK_TX_COPY_LEN &&
 			    ret < XEN_NETBK_LEGACY_SLOTS_MAX) ?
-			PKT_PROT_LEN : txreq.size;
+			XEN_NETBACK_TX_COPY_LEN : txreq.size;
 
 		skb = xenvif_alloc_skb(data_len);
 		if (unlikely(skb == NULL)) {
@@ -1550,7 +1553,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 		unsigned int len;
 
 		BUG_ON(i >= MAX_SKB_FRAGS);
-		page = alloc_page(GFP_ATOMIC|__GFP_COLD);
+		page = alloc_page(GFP_ATOMIC);
 		if (!page) {
 			int j;
 			skb->truesize += skb->data_len;
@@ -1651,11 +1654,6 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 				kfree_skb(skb);
 				continue;
 			}
-		}
-
-		if (skb_is_nonlinear(skb) && skb_headlen(skb) < PKT_PROT_LEN) {
-			int target = min_t(int, skb->len, PKT_PROT_LEN);
-			__pskb_pull_tail(skb, target - skb_headlen(skb));
 		}
 
 		skb->dev      = queue->vif->dev;

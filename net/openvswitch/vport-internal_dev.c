@@ -36,6 +36,8 @@ struct internal_dev {
 	struct vport *vport;
 };
 
+static struct vport_ops ovs_internal_vport_ops;
+
 static struct internal_dev *internal_dev_priv(struct net_device *netdev)
 {
 	return netdev_priv(netdev);
@@ -222,6 +224,11 @@ static int internal_dev_recv(struct vport *vport, struct sk_buff *skb)
 	struct net_device *netdev = netdev_vport_priv(vport)->dev;
 	int len;
 
+	if (unlikely(!(netdev->flags & IFF_UP))) {
+		kfree_skb(skb);
+		return 0;
+	}
+
 	len = skb->len;
 
 	skb_dst_drop(skb);
@@ -238,7 +245,7 @@ static int internal_dev_recv(struct vport *vport, struct sk_buff *skb)
 	return len;
 }
 
-const struct vport_ops ovs_internal_vport_ops = {
+static struct vport_ops ovs_internal_vport_ops = {
 	.type		= OVS_VPORT_TYPE_INTERNAL,
 	.create		= internal_dev_create,
 	.destroy	= internal_dev_destroy,
@@ -261,10 +268,21 @@ struct vport *ovs_internal_dev_get_vport(struct net_device *netdev)
 
 int ovs_internal_dev_rtnl_link_register(void)
 {
-	return rtnl_link_register(&internal_dev_link_ops);
+	int err;
+
+	err = rtnl_link_register(&internal_dev_link_ops);
+	if (err < 0)
+		return err;
+
+	err = ovs_vport_ops_register(&ovs_internal_vport_ops);
+	if (err < 0)
+		rtnl_link_unregister(&internal_dev_link_ops);
+
+	return err;
 }
 
 void ovs_internal_dev_rtnl_link_unregister(void)
 {
+	ovs_vport_ops_unregister(&ovs_internal_vport_ops);
 	rtnl_link_unregister(&internal_dev_link_ops);
 }

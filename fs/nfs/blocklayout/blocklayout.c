@@ -378,7 +378,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	loff_t offset = header->args.offset;
 	size_t count = header->args.count;
 	struct page **pages = header->args.pages;
-	int pg_index = pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
+	int pg_index = header->args.pgbase >> PAGE_CACHE_SHIFT;
 	unsigned int pg_len;
 	struct blk_plug plug;
 	int i;
@@ -812,7 +812,7 @@ static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
 
 	/* Optimize common case that writes from 0 to end of file */
 	end = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
-	if (end != NFS_I(inode)->npages) {
+	if (end != inode->i_mapping->nrpages) {
 		rcu_read_lock();
 		end = page_cache_next_hole(mapping, idx + 1, ULONG_MAX);
 		rcu_read_unlock();

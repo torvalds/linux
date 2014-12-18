@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -112,8 +113,6 @@ static int __init uefi_init(void)
 		efi.systab->hdr.revision & 0xffff, vendor);
 
 	retval = efi_config_init(NULL);
-	if (retval == 0)
-		set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
 out:
 	early_memunmap(efi.systab,  sizeof(efi_system_table_t));
@@ -125,17 +124,17 @@ out:
  */
 static __init int is_reserve_region(efi_memory_desc_t *md)
 {
-	if (!is_normal_ram(md))
+	switch (md->type) {
+	case EFI_LOADER_CODE:
+	case EFI_LOADER_DATA:
+	case EFI_BOOT_SERVICES_CODE:
+	case EFI_BOOT_SERVICES_DATA:
+	case EFI_CONVENTIONAL_MEMORY:
 		return 0;
-
-	if (md->attribute & EFI_MEMORY_RUNTIME)
-		return 1;
-
-	if (md->type == EFI_ACPI_RECLAIM_MEMORY ||
-	    md->type == EFI_RESERVED_TYPE)
-		return 1;
-
-	return 0;
+	default:
+		break;
+	}
+	return is_normal_ram(md);
 }
 
 static __init void reserve_regions(void)
@@ -471,3 +470,17 @@ err_unmap:
 	return -1;
 }
 early_initcall(arm64_enter_virtual_mode);
+
+static int __init arm64_dmi_init(void)
+{
+	/*
+	 * On arm64, DMI depends on UEFI, and dmi_scan_machine() needs to
+	 * be called early because dmi_id_init(), which is an arch_initcall
+	 * itself, depends on dmi_scan_machine() having been called already.
+	 */
+	dmi_scan_machine();
+	if (dmi_available)
+		dmi_set_dump_stack_arch_desc();
+	return 0;
+}
+core_initcall(arm64_dmi_init);

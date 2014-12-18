@@ -519,7 +519,6 @@ static int tps65912_probe(struct platform_device *pdev)
 static struct platform_driver tps65912_driver = {
 	.driver = {
 		.name = "tps65912-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = tps65912_probe,
 };

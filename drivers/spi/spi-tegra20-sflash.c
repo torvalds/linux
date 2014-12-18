@@ -608,7 +608,6 @@ static const struct dev_pm_ops slink_pm_ops = {
 static struct platform_driver tegra_sflash_driver = {
 	.driver = {
 		.name		= "spi-tegra-sflash",
-		.owner		= THIS_MODULE,
 		.pm		= &slink_pm_ops,
 		.of_match_table	= tegra_sflash_of_match,
 	},

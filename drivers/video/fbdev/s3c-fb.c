@@ -1971,7 +1971,6 @@ static struct platform_driver s3c_fb_driver = {
 	.id_table	= s3c_fb_driver_ids,
 	.driver		= {
 		.name	= "s3c-fb",
-		.owner	= THIS_MODULE,
 		.pm	= &s3cfb_pm_ops,
 	},
 };

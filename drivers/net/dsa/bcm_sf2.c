@@ -377,6 +377,29 @@ static irqreturn_t bcm_sf2_switch_1_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
+{
+	unsigned int timeout = 1000;
+	u32 reg;
+
+	reg = core_readl(priv, CORE_WATCHDOG_CTRL);
+	reg |= SOFTWARE_RESET | EN_CHIP_RST | EN_SW_RESET;
+	core_writel(priv, reg, CORE_WATCHDOG_CTRL);
+
+	do {
+		reg = core_readl(priv, CORE_WATCHDOG_CTRL);
+		if (!(reg & SOFTWARE_RESET))
+			break;
+
+		usleep_range(1000, 2000);
+	} while (timeout-- > 0);
+
+	if (timeout == 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
 static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 {
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
@@ -404,9 +427,16 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 		*base = of_iomap(dn, i);
 		if (*base == NULL) {
 			pr_err("unable to find register: %s\n", reg_names[i]);
-			return -ENODEV;
+			ret = -ENOMEM;
+			goto out_unmap;
 		}
 		base++;
+	}
+
+	ret = bcm_sf2_sw_rst(priv);
+	if (ret) {
+		pr_err("unable to software reset switch: %d\n", ret);
+		goto out_unmap;
 	}
 
 	/* Disable all interrupts and request them */
@@ -484,7 +514,8 @@ out_free_irq0:
 out_unmap:
 	base = &priv->core;
 	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
-		iounmap(*base);
+		if (*base)
+			iounmap(*base);
 		base++;
 	}
 	return ret;
@@ -653,10 +684,9 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 					 struct fixed_phy_status *status)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
-	u32 link, duplex, pause, speed;
+	u32 duplex, pause, speed;
 	u32 reg;
 
-	link = core_readl(priv, CORE_LNKSTS);
 	duplex = core_readl(priv, CORE_DUPSTS);
 	pause = core_readl(priv, CORE_PAUSESTS);
 	speed = core_readl(priv, CORE_SPDSTS);
@@ -670,21 +700,25 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 	 * which means that we need to force the link at the port override
 	 * level to get the data to flow. We do use what the interrupt handler
 	 * did determine before.
+	 *
+	 * For the other ports, we just force the link status, since this is
+	 * a fixed PHY device.
 	 */
 	if (port == 7) {
 		status->link = priv->port_sts[port].link;
-		reg = core_readl(priv, CORE_STS_OVERRIDE_GMIIP_PORT(7));
-		reg |= SW_OVERRIDE;
-		if (status->link)
-			reg |= LINK_STS;
-		else
-			reg &= ~LINK_STS;
-		core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(7));
 		status->duplex = 1;
 	} else {
-		status->link = !!(link & (1 << port));
+		status->link = 1;
 		status->duplex = !!(duplex & (1 << port));
 	}
+
+	reg = core_readl(priv, CORE_STS_OVERRIDE_GMIIP_PORT(port));
+	reg |= SW_OVERRIDE;
+	if (status->link)
+		reg |= LINK_STS;
+	else
+		reg &= ~LINK_STS;
+	core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(port));
 
 	switch (speed) {
 	case SPDSTS_10:
@@ -729,29 +763,6 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 		    dsa_is_cpu_port(ds, port))
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
-
-	return 0;
-}
-
-static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
-{
-	unsigned int timeout = 1000;
-	u32 reg;
-
-	reg = core_readl(priv, CORE_WATCHDOG_CTRL);
-	reg |= SOFTWARE_RESET | EN_CHIP_RST | EN_SW_RESET;
-	core_writel(priv, reg, CORE_WATCHDOG_CTRL);
-
-	do {
-		reg = core_readl(priv, CORE_WATCHDOG_CTRL);
-		if (!(reg & SOFTWARE_RESET))
-			break;
-
-		usleep_range(1000, 2000);
-	} while (timeout-- > 0);
-
-	if (timeout == 0)
-		return -ETIMEDOUT;
 
 	return 0;
 }

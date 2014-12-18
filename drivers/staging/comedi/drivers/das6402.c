@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
+#include "comedi_fc.h"
 #include "8253.h"
 
 /*
@@ -192,26 +193,197 @@ static void das6402_enable_counter(struct comedi_device *dev, bool load)
 	}
 }
 
+static unsigned int das6402_ai_read_sample(struct comedi_device *dev,
+					   struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	val = inw(dev->iobase + DAS6402_AI_DATA_REG);
+	if (s->maxdata == 0x0fff)
+		val >>= 4;
+	return val;
+}
+
 static irqreturn_t das6402_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int status;
+
+	status = inb(dev->iobase + DAS6402_STATUS_REG);
+	if ((status & DAS6402_STATUS_INT) == 0)
+		return IRQ_NONE;
+
+	if (status & DAS6402_STATUS_FFULL) {
+		async->events |= COMEDI_CB_OVERFLOW;
+	} else if (status & DAS6402_STATUS_FFNE) {
+		unsigned int val;
+
+		val = das6402_ai_read_sample(dev, s);
+		comedi_buf_write_samples(s, &val, 1);
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg)
+			async->events |= COMEDI_CB_EOA;
+	}
 
 	das6402_clear_all_interrupts(dev);
 
+	comedi_handle_events(dev, s);
+
 	return IRQ_HANDLED;
+}
+
+static void das6402_ai_set_mode(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned int chanspec,
+				unsigned int mode)
+{
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+
+	mode |= DAS6402_MODE_RANGE(range);
+	if (aref == AREF_GROUND)
+		mode |= DAS6402_MODE_SE;
+	if (comedi_range_is_unipolar(s, range))
+		mode |= DAS6402_MODE_UNI;
+
+	das6402_set_mode(dev, mode);
 }
 
 static int das6402_ai_cmd(struct comedi_device *dev,
 			  struct comedi_subdevice *s)
 {
-	return -EINVAL;
+	struct das6402_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int chan_lo = CR_CHAN(cmd->chanlist[0]);
+	unsigned int chan_hi = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+
+	das6402_ai_set_mode(dev, s, cmd->chanlist[0], DAS6402_MODE_FIFONEPTY);
+
+	/* load the mux for chanlist conversion */
+	outw(DAS6402_AI_MUX_HI(chan_hi) | DAS6402_AI_MUX_LO(chan_lo),
+	     dev->iobase + DAS6402_AI_MUX_REG);
+
+	das6402_enable_counter(dev, true);
+
+	/* enable interrupt and pacer trigger */
+	outb(DAS6402_CTRL_INTE |
+	     DAS6402_CTRL_IRQ(devpriv->irq) |
+	     DAS6402_CTRL_PACER_TRIG, dev->iobase + DAS6402_CTRL_REG);
+
+	return 0;
+}
+
+static int das6402_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (chan != chan0 + i) {
+			dev_dbg(dev->class_dev,
+				"chanlist must be consecutive\n");
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"chanlist must have the same range\n");
+			return -EINVAL;
+		}
+
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"chanlist must have the same reference\n");
+			return -EINVAL;
+		}
+
+		if (aref0 == AREF_DIFF && chan > (s->n_chan / 2)) {
+			dev_dbg(dev->class_dev,
+				"chanlist differential channel to large\n");
+			return -EINVAL;
+		}
+	}
+	return 0;
 }
 
 static int das6402_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
-	return -EINVAL;
+	struct das6402_private *devpriv = dev->private;
+	int err = 0;
+	unsigned int arg;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		arg = cmd->convert_arg;
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &devpriv->divider1,
+					  &devpriv->divider2,
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+	}
+
+	if (err)
+		return 4;
+
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= das6402_ai_check_chanlist(dev, s, cmd);
+
+	if (err)
+		return 5;
+
+	return 0;
 }
 
 static int das6402_ai_cancel(struct comedi_device *dev,
@@ -246,26 +418,17 @@ static int das6402_ai_insn_read(struct comedi_device *dev,
 				unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
-	unsigned int val;
 	int ret;
 	int i;
 
-	val = DAS6402_MODE_RANGE(range) | DAS6402_MODE_POLLED;
-	if (aref == AREF_DIFF) {
-		if (chan > s->n_chan / 2)
-			return -EINVAL;
-	} else {
-		val |= DAS6402_MODE_SE;
-	}
-	if (comedi_range_is_unipolar(s, range))
-		val |= DAS6402_MODE_UNI;
+	if (aref == AREF_DIFF && chan > (s->n_chan / 2))
+		return -EINVAL;
 
 	/* enable software conversion trigger */
 	outb(DAS6402_CTRL_SOFT_TRIG, dev->iobase + DAS6402_CTRL_REG);
 
-	das6402_set_mode(dev, val);
+	das6402_ai_set_mode(dev, s, insn->chanspec, DAS6402_MODE_POLLED);
 
 	/* load the mux for single channel conversion */
 	outw(DAS6402_AI_MUX_HI(chan) | DAS6402_AI_MUX_LO(chan),
@@ -279,12 +442,7 @@ static int das6402_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			break;
 
-		val = inw(dev->iobase + DAS6402_AI_DATA_REG);
-
-		if (s->maxdata == 0x0fff)
-			val >>= 4;
-
-		data[i] = val;
+		data[i] = das6402_ai_read_sample(dev, s);
 	}
 
 	das6402_ai_clear_eoc(dev);
@@ -497,7 +655,7 @@ static int das6402_attach(struct comedi_device *dev,
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= board->maxdata;
 	s->range_table	= &das6402_ao_ranges;
@@ -520,7 +678,7 @@ static int das6402_attach(struct comedi_device *dev,
 	/* Digital Input subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;

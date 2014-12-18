@@ -1065,8 +1065,6 @@ struct pcidas64_private {
 	/*  local address (used by dma controller) */
 	uint32_t local0_iobase;
 	uint32_t local1_iobase;
-	/*  number of analog input samples remaining */
-	unsigned int ai_count;
 	/*  dma buffers for analog input */
 	uint16_t *ai_buffer[MAX_AI_DMA_RING_COUNT];
 	/*  physical addresses of ai dma buffers */
@@ -1087,8 +1085,6 @@ struct pcidas64_private {
 	dma_addr_t ao_dma_desc_bus_addr;
 	/*  keeps track of buffer where the next ao sample should go */
 	unsigned int ao_dma_index;
-	/*  number of analog output samples remaining */
-	unsigned long ao_count;
 	unsigned int hw_revision;	/*  stc chip hardware revision number */
 	/*  last bits sent to INTR_ENABLE_REG register */
 	unsigned int intr_enable_bits;
@@ -1109,9 +1105,6 @@ struct pcidas64_private {
 	uint8_t i2c_cal_range_bits;
 	/*  configure digital triggers to trigger on falling edge */
 	unsigned int ext_trig_falling;
-	/*  states of various devices stored to enable read-back */
-	unsigned int ad8402_state[2];
-	unsigned int caldac_state[8];
 	short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
@@ -2199,10 +2192,6 @@ static void setup_sample_counters(struct comedi_device *dev,
 {
 	struct pcidas64_private *devpriv = dev->private;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		/*  set software count */
-		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
-	}
 	/*  load hardware conversion counter */
 	if (use_hw_sample_counter(cmd)) {
 		writew(cmd->stop_arg & 0xffff,
@@ -2642,8 +2631,6 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 {
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int i;
 	uint16_t prepost_bits;
 	int read_segment, read_index, write_segment, write_index;
@@ -2672,26 +2659,21 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 				devpriv->ai_fifo_segment_length - read_index;
 		else
 			num_samples = write_index - read_index;
-
-		if (cmd->stop_src == TRIG_COUNT) {
-			if (devpriv->ai_count == 0)
-				break;
-			if (num_samples > devpriv->ai_count)
-				num_samples = devpriv->ai_count;
-
-			devpriv->ai_count -= num_samples;
-		}
-
 		if (num_samples < 0) {
 			dev_err(dev->class_dev,
 				"cb_pcidas64: bug! num_samples < 0\n");
 			break;
 		}
 
+		num_samples = comedi_nsamples_left(s, num_samples);
+		if (num_samples == 0)
+			break;
+
 		for (i = 0; i < num_samples; i++) {
-			cfc_write_to_buffer(s,
-					    readw(devpriv->main_iobase +
-						  ADC_FIFO_REG));
+			unsigned short val;
+
+			val = readw(devpriv->main_iobase + ADC_FIFO_REG);
+			comedi_buf_write_samples(s, &val, 1);
 		}
 
 	} while (read_segment != write_segment);
@@ -2706,33 +2688,30 @@ static void pio_drain_ai_fifo_32(struct comedi_device *dev)
 {
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int nsamples;
 	unsigned int i;
-	unsigned int max_transfer = 100000;
 	uint32_t fifo_data;
 	int write_code =
 		readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
 	int read_code =
 		readw(devpriv->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (max_transfer > devpriv->ai_count)
-			max_transfer = devpriv->ai_count;
+	nsamples = comedi_nsamples_left(s, 100000);
+	for (i = 0; read_code != write_code && i < nsamples;) {
+		unsigned short val;
 
-	}
-	for (i = 0; read_code != write_code && i < max_transfer;) {
 		fifo_data = readl(dev->mmio + ADC_FIFO_REG);
-		cfc_write_to_buffer(s, fifo_data & 0xffff);
+		val = fifo_data & 0xffff;
+		comedi_buf_write_samples(s, &val, 1);
 		i++;
-		if (i < max_transfer) {
-			cfc_write_to_buffer(s, (fifo_data >> 16) & 0xffff);
+		if (i < nsamples) {
+			val = (fifo_data >> 16) & 0xffff;
+			comedi_buf_write_samples(s, &val, 1);
 			i++;
 		}
 		read_code = readw(devpriv->main_iobase + ADC_READ_PNTR_REG) &
 			    0x7fff;
 	}
-	devpriv->ai_count -= i;
 }
 
 /* empty fifo */
@@ -2750,8 +2729,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 {
 	const struct pcidas64_board *thisboard = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	struct comedi_async *async = dev->read_subdev->async;
-	struct comedi_cmd *cmd = &async->cmd;
+	struct comedi_subdevice *s = dev->read_subdev;
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
@@ -2772,16 +2750,10 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	      devpriv->ai_buffer_bus_addr[devpriv->ai_dma_index] +
 	      DMA_BUFFER_SIZE) && j < ai_dma_ring_count(thisboard); j++) {
 		/*  transfer data from dma buffer to comedi buffer */
-		num_samples = dma_transfer_size(dev);
-		if (cmd->stop_src == TRIG_COUNT) {
-			if (num_samples > devpriv->ai_count)
-				num_samples = devpriv->ai_count;
-			devpriv->ai_count -= num_samples;
-		}
-		cfc_write_array_to_buffer(dev->read_subdev,
-					  devpriv->ai_buffer[devpriv->
-							     ai_dma_index],
-					  num_samples * sizeof(uint16_t));
+		num_samples = comedi_nsamples_left(s, dma_transfer_size(dev));
+		comedi_buf_write_samples(s,
+				devpriv->ai_buffer[devpriv->ai_dma_index],
+				num_samples);
 		devpriv->ai_dma_index = (devpriv->ai_dma_index + 1) %
 					ai_dma_ring_count(thisboard);
 	}
@@ -2831,12 +2803,12 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 			spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
 	/*  if we are have all the data, then quit */
-	if ((cmd->stop_src == TRIG_COUNT && (int)devpriv->ai_count <= 0) ||
-	    (cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT))) {
+	if ((cmd->stop_src == TRIG_COUNT &&
+	     async->scans_done >= cmd->stop_arg) ||
+	    (cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT)))
 		async->events |= COMEDI_CB_EOA;
-	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static inline unsigned int prev_ao_dma_index(struct comedi_device *dev)
@@ -2871,22 +2843,6 @@ static int last_ao_dma_load_completed(struct comedi_device *dev)
 	return 1;
 }
 
-static int ao_stopped_by_error(struct comedi_device *dev,
-			       const struct comedi_cmd *cmd)
-{
-	struct pcidas64_private *devpriv = dev->private;
-
-	if (cmd->stop_src == TRIG_NONE)
-		return 1;
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (devpriv->ao_count)
-			return 1;
-		if (last_ao_dma_load_completed(dev) == 0)
-			return 1;
-	}
-	return 0;
-}
-
 static inline int ao_dma_needs_restart(struct comedi_device *dev,
 				       unsigned short dma_status)
 {
@@ -2912,32 +2868,39 @@ static void restart_ao_dma(struct comedi_device *dev)
 	dma_start_sync(dev, 0);
 }
 
+static unsigned int cb_pcidas64_ao_fill_buffer(struct comedi_device *dev,
+					       struct comedi_subdevice *s,
+					       unsigned short *dest,
+					       unsigned int max_bytes)
+{
+	unsigned int nsamples = comedi_bytes_to_samples(s, max_bytes);
+	unsigned int actual_bytes;
+
+	nsamples = comedi_nsamples_left(s, nsamples);
+	actual_bytes = comedi_buf_read_samples(s, dest, nsamples);
+
+	return comedi_bytes_to_samples(s, actual_bytes);
+}
+
 static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 				       const struct comedi_cmd *cmd)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int num_bytes, buffer_index, prev_buffer_index;
+	struct comedi_subdevice *s = dev->write_subdev;
+	unsigned int buffer_index = devpriv->ao_dma_index;
+	unsigned int prev_buffer_index = prev_ao_dma_index(dev);
+	unsigned int nsamples;
+	unsigned int nbytes;
 	unsigned int next_bits;
 
-	buffer_index = devpriv->ao_dma_index;
-	prev_buffer_index = prev_ao_dma_index(dev);
-
-	num_bytes = comedi_buf_read_n_available(dev->write_subdev);
-	if (num_bytes > DMA_BUFFER_SIZE)
-		num_bytes = DMA_BUFFER_SIZE;
-	if (cmd->stop_src == TRIG_COUNT && num_bytes > devpriv->ao_count)
-		num_bytes = devpriv->ao_count;
-	num_bytes -= num_bytes % bytes_in_sample;
-
-	if (num_bytes == 0)
+	nsamples = cb_pcidas64_ao_fill_buffer(dev, s,
+					      devpriv->ao_buffer[buffer_index],
+					      DMA_BUFFER_SIZE);
+	if (nsamples == 0)
 		return 0;
 
-	num_bytes = cfc_read_array_from_buffer(dev->write_subdev,
-					       devpriv->
-					       ao_buffer[buffer_index],
-					       num_bytes);
-	devpriv->ao_dma_desc[buffer_index].transfer_size =
-		cpu_to_le32(num_bytes);
+	nbytes = comedi_samples_to_bytes(s, nsamples);
+	devpriv->ao_dma_desc[buffer_index].transfer_size = cpu_to_le32(nbytes);
 	/* set end of chain bit so we catch underruns */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[buffer_index].next);
 	next_bits |= PLX_END_OF_CHAIN_BIT;
@@ -2949,9 +2912,8 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	devpriv->ao_dma_desc[prev_buffer_index].next = cpu_to_le32(next_bits);
 
 	devpriv->ao_dma_index = (buffer_index + 1) % AO_DMA_RING_COUNT;
-	devpriv->ao_count -= num_bytes;
 
-	return num_bytes;
+	return nbytes;
 }
 
 static void load_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
@@ -3016,11 +2978,14 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 	}
 
 	if ((status & DAC_DONE_BIT)) {
-		async->events |= COMEDI_CB_EOA;
-		if (ao_stopped_by_error(dev, cmd))
+		if ((cmd->stop_src == TRIG_COUNT &&
+		     async->scans_done >= cmd->stop_arg) ||
+		    last_ao_dma_load_completed(dev))
+			async->events |= COMEDI_CB_EOA;
+		else
 			async->events |= COMEDI_CB_ERROR;
 	}
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t handle_interrupt(int irq, void *d)
@@ -3191,7 +3156,9 @@ static void set_dac_interval_regs(struct comedi_device *dev,
 static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int num_bytes;
+	struct comedi_subdevice *s = dev->write_subdev;
+	unsigned int nsamples;
+	unsigned int nbytes;
 	int i;
 
 	/* clear queue pointer too, since external queue has
@@ -3199,22 +3166,23 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
 	writew(0, devpriv->main_iobase + DAC_BUFFER_CLEAR_REG);
 
-	num_bytes = (DAC_FIFO_SIZE / 2) * bytes_in_sample;
-	if (cmd->stop_src == TRIG_COUNT &&
-	    num_bytes / bytes_in_sample > devpriv->ao_count)
-		num_bytes = devpriv->ao_count * bytes_in_sample;
-	num_bytes = cfc_read_array_from_buffer(dev->write_subdev,
-					       devpriv->ao_bounce_buffer,
-					       num_bytes);
-	for (i = 0; i < num_bytes / bytes_in_sample; i++) {
+	nsamples = cb_pcidas64_ao_fill_buffer(dev, s,
+					      devpriv->ao_bounce_buffer,
+					      DAC_FIFO_SIZE);
+	if (nsamples == 0)
+		return -1;
+
+	for (i = 0; i < nsamples; i++) {
 		writew(devpriv->ao_bounce_buffer[i],
 		       devpriv->main_iobase + DAC_FIFO_REG);
 	}
-	devpriv->ao_count -= num_bytes / bytes_in_sample;
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_count == 0)
+
+	if (cmd->stop_src == TRIG_COUNT &&
+	    s->async->scans_done >= cmd->stop_arg)
 		return 0;
-	num_bytes = load_ao_dma_buffer(dev, cmd);
-	if (num_bytes == 0)
+
+	nbytes = load_ao_dma_buffer(dev, cmd);
+	if (nbytes == 0)
 		return -1;
 	load_ao_dma(dev, cmd);
 
@@ -3275,7 +3243,6 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(0x0, devpriv->main_iobase + DAC_CONTROL0_REG);
 
 	devpriv->ao_dma_index = 0;
-	devpriv->ao_count = cmd->stop_arg * cmd->chanlist_len;
 
 	set_dac_select_reg(dev, cmd);
 	set_dac_interval_regs(dev, cmd);
@@ -3580,9 +3547,6 @@ static void caldac_write(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value)
 {
 	const struct pcidas64_board *thisboard = dev->board_ptr;
-	struct pcidas64_private *devpriv = dev->private;
-
-	devpriv->caldac_state[channel] = value;
 
 	switch (thisboard->layout) {
 	case LAYOUT_60XX:
@@ -3597,33 +3561,27 @@ static void caldac_write(struct comedi_device *dev, unsigned int channel,
 	}
 }
 
-static int calib_write_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas64_calib_insn_write(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
-	int channel = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	/* return immediately if setting hasn't changed, since
-	 * programming these things is slow */
-	if (devpriv->caldac_state[channel] == data[0])
-		return 1;
+	/*
+	 * Programming the calib device is slow. Only write the
+	 * last data value if the value has changed.
+	 */
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
 
-	caldac_write(dev, channel, data[0]);
+		if (s->readback[chan] != val) {
+			caldac_write(dev, chan, val);
+			s->readback[chan] = val;
+		}
+	}
 
-	return 1;
-}
-
-static int calib_read_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int channel = CR_CHAN(insn->chanspec);
-
-	data[0] = devpriv->caldac_state[channel];
-
-	return 1;
+	return insn->n;
 }
 
 static void ad8402_write(struct comedi_device *dev, unsigned int channel,
@@ -3634,8 +3592,6 @@ static void ad8402_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int bit, register_bits;
 	unsigned int bitstream = ((channel & 0x3) << 8) | (value & 0xff);
 	static const int ad8402_udelay = 1;
-
-	devpriv->ad8402_state[channel] = value;
 
 	register_bits = SELECT_8402_64XX_BIT;
 	udelay(ad8402_udelay);
@@ -3658,35 +3614,27 @@ static void ad8402_write(struct comedi_device *dev, unsigned int channel,
 }
 
 /* for pci-das6402/16, channel 0 is analog input gain and channel 1 is offset */
-static int ad8402_write_insn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int cb_pcidas64_ad8402_insn_write(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
-	struct pcidas64_private *devpriv = dev->private;
-	int channel = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	/* return immediately if setting hasn't changed, since
-	 * programming these things is slow */
-	if (devpriv->ad8402_state[channel] == data[0])
-		return 1;
+	/*
+	 * Programming the calib device is slow. Only write the
+	 * last data value if the value has changed.
+	 */
+	if (insn->n) {
+		unsigned int val = data[insn->n - 1];
 
-	devpriv->ad8402_state[channel] = data[0];
+		if (s->readback[chan] != val) {
+			ad8402_write(dev, chan, val);
+			s->readback[chan] = val;
+		}
+	}
 
-	ad8402_write(dev, channel, data[0]);
-
-	return 1;
-}
-
-static int ad8402_read_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int channel = CR_CHAN(insn->chanspec);
-
-	data[0] = devpriv->ad8402_state[channel];
-
-	return 1;
+	return insn->n;
 }
 
 static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
@@ -3816,7 +3764,6 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = thisboard->ao_range_table;
 		s->insn_write = ao_winsn;
-		s->insn_read = comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -3849,7 +3796,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (thisboard->layout == LAYOUT_64XX) {
 		s = &dev->subdevices[3];
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 4;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
@@ -3895,10 +3842,16 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = 0xfff;
 	else
 		s->maxdata = 0xff;
-	s->insn_read = calib_read_insn;
-	s->insn_write = calib_write_insn;
-	for (i = 0; i < s->n_chan; i++)
+	s->insn_write = cb_pcidas64_calib_insn_write;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < s->n_chan; i++) {
 		caldac_write(dev, i, s->maxdata / 2);
+		s->readback[i] = s->maxdata / 2;
+	}
 
 	/*  2 channel ad8402 potentiometer */
 	s = &dev->subdevices[7];
@@ -3906,11 +3859,17 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = 2;
-		s->insn_read = ad8402_read_insn;
-		s->insn_write = ad8402_write_insn;
 		s->maxdata = 0xff;
-		for (i = 0; i < s->n_chan; i++)
+		s->insn_write = cb_pcidas64_ad8402_insn_write;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < s->n_chan; i++) {
 			ad8402_write(dev, i, s->maxdata / 2);
+			s->readback[i] = s->maxdata / 2;
+		}
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 

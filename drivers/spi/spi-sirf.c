@@ -23,6 +23,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
+#include <linux/reset.h>
 
 #define DRIVER_NAME "sirfsoc_spi"
 
@@ -134,6 +135,7 @@
 	ALIGNED(x->len) && (x->len < 2 * PAGE_SIZE))
 
 #define SIRFSOC_MAX_CMD_BYTES	4
+#define SIRFSOC_SPI_DEFAULT_FRQ 1000000
 
 struct sirfsoc_spi {
 	struct spi_bitbang bitbang;
@@ -562,9 +564,9 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	sspi->word_width = DIV_ROUND_UP(bits_per_word, 8);
 	txfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					   sspi->word_width;
+					   (sspi->word_width >> 1);
 	rxfifo_ctrl = SIRFSOC_SPI_FIFO_THD(SIRFSOC_SPI_FIFO_SIZE / 2) |
-					   sspi->word_width;
+					   (sspi->word_width >> 1);
 
 	if (!(spi->mode & SPI_CS_HIGH))
 		regval |= SIRFSOC_SPI_CS_IDLE_STAT;
@@ -629,9 +631,6 @@ static int spi_sirfsoc_setup(struct spi_device *spi)
 {
 	struct sirfsoc_spi *sspi;
 
-	if (!spi->max_speed_hz)
-		return -EINVAL;
-
 	sspi = spi_master_get_devdata(spi->master);
 
 	if (spi->cs_gpio == -ENOENT)
@@ -648,6 +647,12 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	struct resource *mem_res;
 	int irq;
 	int i, ret;
+
+	ret = device_reset(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "SPI reset failed!\n");
+		return ret;
+	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*sspi));
 	if (!master) {
@@ -683,6 +688,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(12) |
 					SPI_BPW_MASK(16) | SPI_BPW_MASK(32);
+	master->max_speed_hz = SIRFSOC_SPI_DEFAULT_FRQ;
 	sspi->bitbang.master->dev.of_node = pdev->dev.of_node;
 
 	/* request DMA channels */
@@ -820,7 +826,6 @@ MODULE_DEVICE_TABLE(of, spi_sirfsoc_of_match);
 static struct platform_driver spi_sirfsoc_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm     = &spi_sirfsoc_pm_ops,
 		.of_match_table = spi_sirfsoc_of_match,
 	},

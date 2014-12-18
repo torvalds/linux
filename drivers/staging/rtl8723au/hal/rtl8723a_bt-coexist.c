@@ -340,7 +340,7 @@ static u8 bthci_GetAssocInfo(struct rtw_adapter *padapter, u8 EntryNum)
 			tempBuf, TotalLen-BaseMemoryShift);
 
 		pAmpAsoc = (struct amp_assoc_structure *)tempBuf;
-		pAmpAsoc->Length = le16_to_cpu(pAmpAsoc->Length);
+		le16_to_cpus(&pAmpAsoc->Length);
 		BaseMemoryShift += 3 + pAmpAsoc->Length;
 
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("TypeID = 0x%x, ", pAmpAsoc->TypeID));
@@ -1759,18 +1759,6 @@ static enum hci_status bthci_CmdReadConnectionAcceptTimeout(struct rtw_adapter *
 	return status;
 }
 
-/* 7.3.3 */
-static enum hci_status
-bthci_CmdSetEventFilter(
-	struct rtw_adapter *padapter,
-	struct packet_irp_hcicmd_data *pHciCmd
-	)
-{
-	enum hci_status status = HCI_STATUS_SUCCESS;
-
-	return status;
-}
-
 /* 7.3.14 */
 static enum hci_status
 bthci_CmdWriteConnectionAcceptTimeout(
@@ -2982,19 +2970,12 @@ bthci_CmdReadLinkQuality(
 	return status;
 }
 
-static enum hci_status bthci_CmdReadRSSI(struct rtw_adapter *padapter)
-{
-	enum hci_status status = HCI_STATUS_SUCCESS;
-	return status;
-}
-
 static enum hci_status
 bthci_CmdCreateLogicalLink(
 	struct rtw_adapter *padapter,
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
@@ -3003,7 +2984,7 @@ bthci_CmdCreateLogicalLink(
 	bthci_BuildLogicalLink(padapter, pHciCmd,
 		HCI_CREATE_LOGICAL_LINK);
 
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
@@ -3012,7 +2993,6 @@ bthci_CmdAcceptLogicalLink(
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
@@ -3021,7 +3001,7 @@ bthci_CmdAcceptLogicalLink(
 	bthci_BuildLogicalLink(padapter, pHciCmd,
 		HCI_ACCEPT_LOGICAL_LINK);
 
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
@@ -4138,15 +4118,6 @@ bthci_CmdHostBufferSize(struct rtw_adapter *padapter,
 }
 
 static enum hci_status
-bthci_CmdHostNumberOfCompletedPackets(struct rtw_adapter *padapter,
-				      struct packet_irp_hcicmd_data *pHciCmd)
-{
-	enum hci_status status = HCI_STATUS_SUCCESS;
-
-	return status;
-}
-
-static enum hci_status
 bthci_UnknownCMD(struct rtw_adapter *padapter, struct packet_irp_hcicmd_data *pHciCmd)
 {
 	enum hci_status status = HCI_STATUS_UNKNOW_HCI_CMD;
@@ -4219,7 +4190,6 @@ bthci_HandleOGFSetEventMaskCMD(struct rtw_adapter *padapter,
 		break;
 	case HCI_SET_EVENT_FILTER:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_SET_EVENT_FILTER\n"));
-		status = bthci_CmdSetEventFilter(padapter, pHciCmd);
 		break;
 	case HCI_WRITE_CONNECTION_ACCEPT_TIMEOUT:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_WRITE_CONNECTION_ACCEPT_TIMEOUT\n"));
@@ -4235,7 +4205,6 @@ bthci_HandleOGFSetEventMaskCMD(struct rtw_adapter *padapter,
 		break;
 	case HCI_HOST_NUMBER_OF_COMPLETED_PACKETS:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_HOST_NUMBER_OF_COMPLETED_PACKETS\n"));
-		status = bthci_CmdHostNumberOfCompletedPackets(padapter, pHciCmd);
 		break;
 	case HCI_READ_LINK_SUPERVISION_TIMEOUT:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_READ_LINK_SUPERVISION_TIMEOUT\n"));
@@ -4323,7 +4292,6 @@ bthci_HandleOGFStatusParameters(struct rtw_adapter *padapter,
 		break;
 	case HCI_READ_RSSI:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_READ_RSSI\n"));
-		status = bthci_CmdReadRSSI(padapter);
 		break;
 	case HCI_READ_LOCAL_AMP_INFO:
 		RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_READ_LOCAL_AMP_INFO\n"));
@@ -10671,7 +10639,7 @@ void BTDM_BBBackOffLevel(struct rtw_adapter *padapter, u8 type)
 
 void BTDM_FWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_FWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bFWCoexistAllOff)
@@ -10685,7 +10653,7 @@ void BTDM_FWCoexAllOff(struct rtw_adapter *padapter)
 
 void BTDM_SWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_SWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bSWCoexistAllOff)
@@ -10698,7 +10666,7 @@ void BTDM_SWCoexAllOff(struct rtw_adapter *padapter)
 
 void BTDM_HWCoexAllOff(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
 
 	RTPRINT(FBT, BT_TRACE, ("BTDM_HWCoexAllOff()\n"));
 	if (pHalData->bt_coexist.bHWCoexistAllOff)

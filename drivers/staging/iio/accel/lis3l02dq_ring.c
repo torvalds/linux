@@ -35,6 +35,7 @@ irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 		iio_trigger_poll(st->trig);
 		return IRQ_HANDLED;
 	}
+
 	return IRQ_WAKE_THREAD;
 }
 

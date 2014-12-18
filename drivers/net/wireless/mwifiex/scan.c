@@ -1623,7 +1623,7 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 
 	if (*bytes_left >= sizeof(beacon_size)) {
 		/* Extract & convert beacon size from command buffer */
-		memcpy(&beacon_size, *bss_info, sizeof(beacon_size));
+		beacon_size = le16_to_cpu(*(__le16 *)(*bss_info));
 		*bytes_left -= sizeof(beacon_size);
 		*bss_info += sizeof(beacon_size);
 	}
@@ -1755,6 +1755,7 @@ static void mwifiex_complete_scan(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
+	adapter->survey_idx = 0;
 	if (adapter->curr_cmd->wait_q_enabled) {
 		adapter->cmd_wait_q.status = 0;
 		if (!priv->scan_request) {
@@ -1976,16 +1977,89 @@ int mwifiex_cmd_802_11_scan_ext(struct mwifiex_private *priv,
 	return 0;
 }
 
-/* This function handles the command response of extended scan */
-int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv)
+static void
+mwifiex_update_chan_statistics(struct mwifiex_private *priv,
+			       struct mwifiex_ietypes_chanstats *tlv_stat)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
+	u8 i, num_chan;
+	struct mwifiex_fw_chan_stats *fw_chan_stats;
+	struct mwifiex_chan_stats chan_stats;
+
+	fw_chan_stats = (void *)((u8 *)tlv_stat +
+			      sizeof(struct mwifiex_ie_types_header));
+	num_chan = le16_to_cpu(tlv_stat->header.len) /
+					      sizeof(struct mwifiex_chan_stats);
+
+	for (i = 0 ; i < num_chan; i++) {
+		chan_stats.chan_num = fw_chan_stats->chan_num;
+		chan_stats.bandcfg = fw_chan_stats->bandcfg;
+		chan_stats.flags = fw_chan_stats->flags;
+		chan_stats.noise = fw_chan_stats->noise;
+		chan_stats.total_bss = le16_to_cpu(fw_chan_stats->total_bss);
+		chan_stats.cca_scan_dur =
+				       le16_to_cpu(fw_chan_stats->cca_scan_dur);
+		chan_stats.cca_busy_dur =
+				       le16_to_cpu(fw_chan_stats->cca_busy_dur);
+		dev_dbg(adapter->dev,
+			"chan=%d, noise=%d, total_network=%d scan_duration=%d, busy_duration=%d\n",
+			chan_stats.chan_num,
+			chan_stats.noise,
+			chan_stats.total_bss,
+			chan_stats.cca_scan_dur,
+			chan_stats.cca_busy_dur);
+		memcpy(&adapter->chan_stats[adapter->survey_idx++], &chan_stats,
+		       sizeof(struct mwifiex_chan_stats));
+		fw_chan_stats++;
+	}
+}
+
+/* This function handles the command response of extended scan */
+int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *resp)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct host_cmd_ds_802_11_scan_ext *ext_scan_resp;
+	struct mwifiex_ie_types_header *tlv;
+	struct mwifiex_ietypes_chanstats *tlv_stat;
+	u16 buf_left, type, len;
+
 	struct host_cmd_ds_command *cmd_ptr;
 	struct cmd_ctrl_node *cmd_node;
 	unsigned long cmd_flags, scan_flags;
 	bool complete_scan = false;
 
 	dev_dbg(priv->adapter->dev, "info: EXT scan returns successfully\n");
+
+	ext_scan_resp = &resp->params.ext_scan;
+
+	tlv = (void *)ext_scan_resp->tlv_buffer;
+	buf_left = le16_to_cpu(resp->size) - (sizeof(*ext_scan_resp) + S_DS_GEN
+					      - 1);
+
+	while (buf_left >= sizeof(struct mwifiex_ie_types_header)) {
+		type = le16_to_cpu(tlv->type);
+		len = le16_to_cpu(tlv->len);
+
+		if (buf_left < (sizeof(struct mwifiex_ie_types_header) + len)) {
+			dev_err(adapter->dev,
+				"error processing scan response TLVs");
+			break;
+		}
+
+		switch (type) {
+		case TLV_TYPE_CHANNEL_STATS:
+			tlv_stat = (void *)tlv;
+			mwifiex_update_chan_statistics(priv, tlv_stat);
+			break;
+		default:
+			break;
+		}
+
+		buf_left -= len + sizeof(struct mwifiex_ie_types_header);
+		tlv = (void *)((u8 *)tlv + len +
+			       sizeof(struct mwifiex_ie_types_header));
+	}
 
 	spin_lock_irqsave(&adapter->cmd_pending_q_lock, cmd_flags);
 	spin_lock_irqsave(&adapter->scan_pending_q_lock, scan_flags);

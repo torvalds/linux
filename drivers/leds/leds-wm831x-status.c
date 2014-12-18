@@ -312,7 +312,6 @@ static int wm831x_status_remove(struct platform_device *pdev)
 static struct platform_driver wm831x_status_driver = {
 	.driver = {
 		   .name = "wm831x-status",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = wm831x_status_probe,
 	.remove = wm831x_status_remove,

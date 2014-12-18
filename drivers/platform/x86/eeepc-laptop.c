@@ -961,7 +961,6 @@ static const struct dev_pm_ops eeepc_pm_ops = {
 static struct platform_driver platform_driver = {
 	.driver = {
 		.name = EEEPC_LAPTOP_FILE,
-		.owner = THIS_MODULE,
 		.pm = &eeepc_pm_ops,
 	}
 };

@@ -70,6 +70,19 @@ static inline bool is_active(struct msm_gem_object *msm_obj)
 	return msm_obj->gpu != NULL;
 }
 
+static inline uint32_t msm_gem_fence(struct msm_gem_object *msm_obj,
+		uint32_t op)
+{
+	uint32_t fence = 0;
+
+	if (op & MSM_PREP_READ)
+		fence = msm_obj->write_fence;
+	if (op & MSM_PREP_WRITE)
+		fence = max(fence, msm_obj->read_fence);
+
+	return fence;
+}
+
 #define MAX_CMDS 4
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,

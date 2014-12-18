@@ -153,8 +153,8 @@ static int odroidx2_audio_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_card(card);
 
-	of_node_put((struct device_node *)odroidx2_dai[0].cpu_of_node);
-	of_node_put((struct device_node *)odroidx2_dai[0].codec_of_node);
+	of_node_put(odroidx2_dai[0].cpu_of_node);
+	of_node_put(odroidx2_dai[0].codec_of_node);
 
 	return 0;
 }
@@ -162,7 +162,6 @@ static int odroidx2_audio_remove(struct platform_device *pdev)
 static struct platform_driver odroidx2_audio_driver = {
 	.driver = {
 		.name		= "odroidx2-audio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= odroidx2_audio_of_match,
 		.pm		= &snd_soc_pm_ops,
 	},

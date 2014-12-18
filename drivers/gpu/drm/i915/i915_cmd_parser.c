@@ -73,7 +73,7 @@
  * those commands required by the parser. This generally works because command
  * opcode ranges have standard command length encodings. So for commands that
  * the parser does not need to check, it can easily skip them. This is
- * implementated via a per-ring length decoding vfunc.
+ * implemented via a per-ring length decoding vfunc.
  *
  * Unfortunately, there are a number of commands that do not follow the standard
  * length encoding for their opcode range, primarily amongst the MI_* commands.
@@ -138,6 +138,11 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 			.mask = MI_GLOBAL_GTT,
 			.expected = 0,
 	      }},						       ),
+	/*
+	 * MI_BATCH_BUFFER_START requires some special handling. It's not
+	 * really a 'skip' action but it doesn't seem like it's worth adding
+	 * a new action. See i915_parse_cmds().
+	 */
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
 
@@ -408,6 +413,8 @@ static const u32 gen7_render_regs[] = {
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
 	OACONTROL, /* Only allowed for LRI and SRM. See below. */
+	REG64(MI_PREDICATE_SRC0),
+	REG64(MI_PREDICATE_SRC1),
 	GEN7_3DPRIM_END_OFFSET,
 	GEN7_3DPRIM_START_VERTEX,
 	GEN7_3DPRIM_VERTEX_COUNT,
@@ -838,7 +845,7 @@ finish:
  * @ring: the ring in question
  *
  * Only certain platforms require software batch buffer command parsing, and
- * only when enabled via module paramter.
+ * only when enabled via module parameter.
  *
  * Return: true if the ring requires software command parsing
  */
@@ -847,12 +854,7 @@ bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 	if (!ring->needs_cmd_parser)
 		return false;
 
-	/*
-	 * XXX: VLV is Gen7 and therefore has cmd_tables, but has PPGTT
-	 * disabled. That will cause all of the parser's PPGTT checks to
-	 * fail. For now, disable parsing when PPGTT is off.
-	 */
-	if (USES_PPGTT(ring->dev))
+	if (!USES_PPGTT(ring->dev))
 		return false;
 
 	return (i915.enable_cmd_parser == 1);
@@ -888,8 +890,10 @@ static bool check_cmd(const struct intel_engine_cs *ring,
 		 * OACONTROL writes to only MI_LOAD_REGISTER_IMM commands.
 		 */
 		if (reg_addr == OACONTROL) {
-			if (desc->cmd.value == MI_LOAD_REGISTER_MEM)
+			if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
+				DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
 				return false;
+			}
 
 			if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
 				*oacontrol_set = (cmd[2] != 0);
@@ -958,7 +962,8 @@ static bool check_cmd(const struct intel_engine_cs *ring,
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
  *
- * Return: non-zero if the parser finds violations or otherwise fails
+ * Return: non-zero if the parser finds violations or otherwise fails; -EACCES
+ * if the batch appears legal but should use hardware parsing
  */
 int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
@@ -1002,6 +1007,16 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 			DRM_DEBUG_DRIVER("CMD: Unrecognized command: 0x%08X\n",
 					 *cmd);
 			ret = -EINVAL;
+			break;
+		}
+
+		/*
+		 * If the batch buffer contains a chained batch, return an
+		 * error that tells the caller to abort and dispatch the
+		 * workload as a non-secure batch.
+		 */
+		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
+			ret = -EACCES;
 			break;
 		}
 
@@ -1059,6 +1074,8 @@ int i915_cmd_parser_get_version(void)
 	 *
 	 * 1. Initial version. Checks batches and reports violations, but leaves
 	 *    hardware parsing enabled (so does not allow new use cases).
+	 * 2. Allow access to the MI_PREDICATE_SRC0 and
+	 *    MI_PREDICATE_SRC1 registers.
 	 */
-	return 1;
+	return 2;
 }

@@ -360,7 +360,7 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 
 	if (map && map->dso) {
 		srcline = get_srcline(map->dso,
-				      map__rip_2objdump(map, addr));
+				      map__rip_2objdump(map, addr), NULL, true);
 		if (srcline != SRCLINE_UNKNOWN)
 			ret = fprintf(fp, "%s%s", prefix, srcline);
 		free_srcline(srcline);
@@ -413,14 +413,14 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	return ip + map->reloc;
 }
 
-void map_groups__init(struct map_groups *mg)
+void map_groups__init(struct map_groups *mg, struct machine *machine)
 {
 	int i;
 	for (i = 0; i < MAP__NR_TYPES; ++i) {
 		mg->maps[i] = RB_ROOT;
 		INIT_LIST_HEAD(&mg->removed_maps[i]);
 	}
-	mg->machine = NULL;
+	mg->machine = machine;
 	mg->refcnt = 1;
 }
 
@@ -471,12 +471,12 @@ bool map_groups__empty(struct map_groups *mg)
 	return true;
 }
 
-struct map_groups *map_groups__new(void)
+struct map_groups *map_groups__new(struct machine *machine)
 {
 	struct map_groups *mg = malloc(sizeof(*mg));
 
 	if (mg != NULL)
-		map_groups__init(mg);
+		map_groups__init(mg, machine);
 
 	return mg;
 }

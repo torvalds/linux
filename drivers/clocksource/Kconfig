@@ -32,6 +32,7 @@ config ARMADA_370_XP_TIMER
 
 config MESON6_TIMER
 	bool
+	select CLKSRC_MMIO
 
 config ORION_TIMER
 	select CLKSRC_OF
@@ -222,5 +223,10 @@ config CLKSRC_VERSATILE
 	  counter available in the "System Registers" block of
 	  ARM Versatile, RealView and Versatile Express reference
 	  platforms.
+
+config CLKSRC_MIPS_GIC
+	bool
+	depends on MIPS_GIC
+	select CLKSRC_OF
 
 endmenu

@@ -1285,7 +1285,7 @@ typhoon_request_firmware(struct typhoon *tp)
 		return err;
 	}
 
-	image_data = (u8 *) typhoon_fw->data;
+	image_data = typhoon_fw->data;
 	remaining = typhoon_fw->size;
 	if (remaining < sizeof(struct typhoon_file_header))
 		goto invalid_fw;
@@ -1343,7 +1343,7 @@ typhoon_download_firmware(struct typhoon *tp)
 	int i;
 	int err;
 
-	image_data = (u8 *) typhoon_fw->data;
+	image_data = typhoon_fw->data;
 	fHdr = (struct typhoon_file_header *) image_data;
 
 	/* Cannot just map the firmware image using pci_map_single() as

@@ -155,7 +155,6 @@ static int ttc_dkb_remove(struct platform_device *pdev)
 static struct platform_driver ttc_dkb_driver = {
 	.driver		= {
 		.name	= "ttc-dkb-audio",
-		.owner	= THIS_MODULE,
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= ttc_dkb_probe,

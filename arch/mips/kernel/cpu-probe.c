@@ -69,6 +69,63 @@ static int __init htw_disable(char *s)
 
 __setup("nohtw", htw_disable);
 
+static int mips_ftlb_disabled;
+static int mips_has_ftlb_configured;
+
+static void set_ftlb_enable(struct cpuinfo_mips *c, int enable);
+
+static int __init ftlb_disable(char *s)
+{
+	unsigned int config4, mmuextdef;
+
+	/*
+	 * If the core hasn't done any FTLB configuration, there is nothing
+	 * for us to do here.
+	 */
+	if (!mips_has_ftlb_configured)
+		return 1;
+
+	/* Disable it in the boot cpu */
+	set_ftlb_enable(&cpu_data[0], 0);
+
+	back_to_back_c0_hazard();
+
+	config4 = read_c0_config4();
+
+	/* Check that FTLB has been disabled */
+	mmuextdef = config4 & MIPS_CONF4_MMUEXTDEF;
+	/* MMUSIZEEXT == VTLB ON, FTLB OFF */
+	if (mmuextdef == MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT) {
+		/* This should never happen */
+		pr_warn("FTLB could not be disabled!\n");
+		return 1;
+	}
+
+	mips_ftlb_disabled = 1;
+	mips_has_ftlb_configured = 0;
+
+	/*
+	 * noftlb is mainly used for debug purposes so print
+	 * an informative message instead of using pr_debug()
+	 */
+	pr_info("FTLB has been disabled\n");
+
+	/*
+	 * Some of these bits are duplicated in the decode_config4.
+	 * MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT is the only possible case
+	 * once FTLB has been disabled so undo what decode_config4 did.
+	 */
+	cpu_data[0].tlbsize -= cpu_data[0].tlbsizeftlbways *
+			       cpu_data[0].tlbsizeftlbsets;
+	cpu_data[0].tlbsizeftlbsets = 0;
+	cpu_data[0].tlbsizeftlbways = 0;
+
+	return 1;
+}
+
+__setup("noftlb", ftlb_disable);
+
+
 static inline void check_errata(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -140,7 +197,7 @@ static inline unsigned long cpu_get_fpu_id(void)
  */
 static inline int __cpu_has_fpu(void)
 {
-	return ((cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE);
+	return (cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE;
 }
 
 static inline unsigned long cpu_get_msa_id(void)
@@ -193,6 +250,32 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 static char unknown_isa[] = KERN_ERR \
 	"Unsupported ISA type, c0.config0: %d.";
 
+static unsigned int calculate_ftlb_probability(struct cpuinfo_mips *c)
+{
+
+	unsigned int probability = c->tlbsize / c->tlbsizevtlb;
+
+	/*
+	 * 0 = All TLBWR instructions go to FTLB
+	 * 1 = 15:1: For every 16 TBLWR instructions, 15 go to the
+	 * FTLB and 1 goes to the VTLB.
+	 * 2 = 7:1: As above with 7:1 ratio.
+	 * 3 = 3:1: As above with 3:1 ratio.
+	 *
+	 * Use the linear midpoint as the probability threshold.
+	 */
+	if (probability >= 12)
+		return 1;
+	else if (probability >= 6)
+		return 2;
+	else
+		/*
+		 * So FTLB is less than 4 times bigger than VTLB.
+		 * A 3:1 ratio can still be useful though.
+		 */
+		return 3;
+}
+
 static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 {
 	unsigned int config6;
@@ -203,9 +286,14 @@ static void set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 	case CPU_P5600:
 		/* proAptiv & related cores use Config6 to enable the FTLB */
 		config6 = read_c0_config6();
+		/* Clear the old probability value */
+		config6 &= ~(3 << MIPS_CONF6_FTLBP_SHIFT);
 		if (enable)
 			/* Enable FTLB */
-			write_c0_config6(config6 | MIPS_CONF6_FTLBEN);
+			write_c0_config6(config6 |
+					 (calculate_ftlb_probability(c)
+					  << MIPS_CONF6_FTLBP_SHIFT)
+					 | MIPS_CONF6_FTLBEN);
 		else
 			/* Disable FTLB */
 			write_c0_config6(config6 &  ~MIPS_CONF6_FTLBEN);
@@ -368,6 +456,8 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 			ftlb_page = MIPS_CONF4_VFTLBPAGESIZE;
 			/* fall through */
 		case MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT:
+			if (mips_ftlb_disabled)
+				break;
 			newcf4 = (config4 & ~ftlb_page) |
 				(page_size_ftlb(mmuextdef) <<
 				 MIPS_CONF4_FTLBPAGESIZE_SHIFT);
@@ -387,6 +477,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 			c->tlbsizeftlbways = ((config4 & MIPS_CONF4_FTLBWAYS) >>
 					      MIPS_CONF4_FTLBWAYS_SHIFT) + 2;
 			c->tlbsize += c->tlbsizeftlbways * c->tlbsizeftlbsets;
+			mips_has_ftlb_configured = 1;
 			break;
 		}
 	}
@@ -401,7 +492,7 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 	unsigned int config5;
 
 	config5 = read_c0_config5();
-	config5 &= ~MIPS_CONF5_UFR;
+	config5 &= ~(MIPS_CONF5_UFR | MIPS_CONF5_UFE);
 	write_c0_config5(config5);
 
 	if (config5 & MIPS_CONF5_EVA)
@@ -422,8 +513,8 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
-	/* Enable FTLB if present */
-	set_ftlb_enable(c, 1);
+	/* Enable FTLB if present and not disabled */
+	set_ftlb_enable(c, !mips_ftlb_disabled);
 
 	ok = decode_config0(c);			/* Read Config registers.  */
 	BUG_ON(!ok);				/* Arch spec violation!	 */
@@ -757,31 +848,34 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			c->cputype = CPU_LOONGSON2;
 			__cpu_name[cpu] = "ICT Loongson-2";
 			set_elf_platform(cpu, "loongson2e");
+			set_isa(c, MIPS_CPU_ISA_III);
 			break;
 		case PRID_REV_LOONGSON2F:
 			c->cputype = CPU_LOONGSON2;
 			__cpu_name[cpu] = "ICT Loongson-2";
 			set_elf_platform(cpu, "loongson2f");
+			set_isa(c, MIPS_CPU_ISA_III);
 			break;
 		case PRID_REV_LOONGSON3A:
 			c->cputype = CPU_LOONGSON3;
-			c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
+			set_isa(c, MIPS_CPU_ISA_M64R1);
 			break;
 		case PRID_REV_LOONGSON3B_R1:
 		case PRID_REV_LOONGSON3B_R2:
 			c->cputype = CPU_LOONGSON3;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3b");
+			set_isa(c, MIPS_CPU_ISA_M64R1);
 			break;
 		}
 
-		set_isa(c, MIPS_CPU_ISA_III);
 		c->options = R4K_OPTS |
 			     MIPS_CPU_FPU | MIPS_CPU_LLSC |
 			     MIPS_CPU_32FPR;
 		c->tlbsize = 64;
+		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		break;
 	case PRID_IMP_LOONGSON_32:  /* Loongson-1 */
 		decode_configs(c);
@@ -1024,6 +1118,7 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 		break;
 	}
 	case PRID_IMP_BMIPS5000:
+	case PRID_IMP_BMIPS5200:
 		c->cputype = CPU_BMIPS5000;
 		__cpu_name[cpu] = "Broadcom BMIPS5000";
 		set_elf_platform(cpu, "bmips5000");
@@ -1254,6 +1349,8 @@ void cpu_probe(void)
 				    MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2)) {
 			if (c->fpu_id & MIPS_FPIR_3D)
 				c->ases |= MIPS_ASE_MIPS3D;
+			if (c->fpu_id & MIPS_FPIR_FREP)
+				c->options |= MIPS_CPU_FRE;
 		}
 	}
 

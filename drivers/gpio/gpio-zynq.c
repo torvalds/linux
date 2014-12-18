@@ -578,7 +578,7 @@ static void zynq_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static const struct dev_pm_ops zynq_gpio_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(zynq_gpio_suspend, zynq_gpio_resume)
-	SET_PM_RUNTIME_PM_OPS(zynq_gpio_runtime_suspend,
+	SET_RUNTIME_PM_OPS(zynq_gpio_runtime_suspend,
 			zynq_gpio_runtime_resume, NULL)
 };
 

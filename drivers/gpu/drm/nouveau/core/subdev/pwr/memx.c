@@ -47,7 +47,8 @@ nouveau_memx_init(struct nouveau_pwr *ppwr, struct nouveau_memx **pmemx)
 	u32 reply[2];
 	int ret;
 
-	ret = ppwr->message(ppwr, reply, PROC_MEMX, MEMX_MSG_INFO, 0, 0);
+	ret = ppwr->message(ppwr, reply, PROC_MEMX, MEMX_MSG_INFO,
+					MEMX_INFO_DATA, 0);
 	if (ret)
 		return ret;
 
@@ -106,7 +107,7 @@ nouveau_memx_wait(struct nouveau_memx *memx,
 {
 	nv_debug(memx->ppwr, "R[%06x] & 0x%08x == 0x%08x, %d us\n",
 				addr, mask, data, nsec);
-	memx_cmd(memx, MEMX_WAIT, 4, (u32[]){ addr, ~mask, data, nsec });
+	memx_cmd(memx, MEMX_WAIT, 4, (u32[]){ addr, mask, data, nsec });
 	memx_out(memx); /* fuc can't handle multiple */
 }
 
@@ -149,6 +150,38 @@ nouveau_memx_wait_vblank(struct nouveau_memx *memx)
 	nv_debug(memx->ppwr, "WAIT VBLANK HEAD%d\n", head_sync);
 	memx_cmd(memx, MEMX_VBLANK, 1, (u32[]){ head_sync });
 	memx_out(memx); /* fuc can't handle multiple */
+}
+
+void
+nouveau_memx_train(struct nouveau_memx *memx)
+{
+	nv_debug(memx->ppwr, "   MEM TRAIN\n");
+	memx_cmd(memx, MEMX_TRAIN, 0, NULL);
+}
+
+int
+nouveau_memx_train_result(struct nouveau_pwr *ppwr, u32 *res, int rsize)
+{
+	u32 reply[2], base, size, i;
+	int ret;
+
+	ret = ppwr->message(ppwr, reply, PROC_MEMX, MEMX_MSG_INFO,
+					MEMX_INFO_TRAIN, 0);
+	if (ret)
+		return ret;
+
+	base = reply[0];
+	size = reply[1] >> 2;
+	if (size > rsize)
+		return -ENOMEM;
+
+	/* read the packet */
+	nv_wr32(ppwr, 0x10a1c0, 0x02000000 | base);
+
+	for (i = 0; i < size; i++)
+		res[i] = nv_rd32(ppwr, 0x10a1c4);
+
+	return 0;
 }
 
 void

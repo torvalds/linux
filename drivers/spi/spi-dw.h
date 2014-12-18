@@ -139,7 +139,7 @@ struct dw_spi {
 	struct scatterlist	tx_sgl;
 	struct dma_chan		*rxchan;
 	struct scatterlist	rx_sgl;
-	int			dma_chan_done;
+	unsigned long		dma_chan_busy;
 	struct device		*dma_dev;
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	struct dw_spi_dma_ops	*dma_ops;

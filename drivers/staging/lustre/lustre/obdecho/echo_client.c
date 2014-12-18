@@ -698,14 +698,16 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	int cleanup = 0;
 
 	OBD_ALLOC_PTR(ed);
-	if (ed == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (ed == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	cleanup = 1;
 	cd = &ed->ed_cl;
 	rc = cl_device_init(cd, t);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	cd->cd_lu_dev.ld_ops = &echo_device_lu_ops;
 	cd->cd_ops = &echo_device_cl_ops;
@@ -719,24 +721,26 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	if (tgt == NULL) {
 		CERROR("Can not find tgt device %s\n",
 			lustre_cfg_string(cfg, 1));
-		GOTO(out, rc = -ENODEV);
+		rc = -ENODEV;
+		goto out;
 	}
 
 	next = tgt->obd_lu_dev;
 	if (!strcmp(tgt->obd_type->typ_name, LUSTRE_MDT_NAME)) {
 		CERROR("echo MDT client must be run on server\n");
-		GOTO(out, rc = -EOPNOTSUPP);
+		rc = -EOPNOTSUPP;
+		goto out;
 	}
 
 	rc = echo_site_init(env, ed);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	cleanup = 3;
 
 	rc = echo_client_setup(env, obd, cfg);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	ed->ed_ec = &obd->u.echo_client;
 	cleanup = 4;
@@ -749,15 +753,17 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	tgt_type_name = tgt->obd_type->typ_name;
 	if (next != NULL) {
 		LASSERT(next != NULL);
-		if (next->ld_site != NULL)
-			GOTO(out, rc = -EBUSY);
+		if (next->ld_site != NULL) {
+			rc = -EBUSY;
+			goto out;
+		}
 
 		next->ld_site = &ed->ed_site->cs_lu;
 		rc = next->ld_type->ldt_ops->ldto_device_init(env, next,
 						next->ld_type->ldt_name,
 							      NULL);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 
 		/* Tricky case, I have to determine the obd type since
 		 * CLIO uses the different parameters to initialize
@@ -865,8 +871,7 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 	spin_lock(&ec->ec_lock);
 	while (!list_empty(&ec->ec_objects)) {
 		spin_unlock(&ec->ec_lock);
-		CERROR("echo_client still has objects at cleanup time, "
-		       "wait for 1 second\n");
+		CERROR("echo_client still has objects at cleanup time, wait for 1 second\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(1));
 		lu_site_purge(env, &ed->ed_site->cs_lu, -1);
@@ -968,15 +973,19 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 
 	fid  = &info->eti_fid;
 	rc = ostid_to_fid(fid, &lsm->lsm_oi, 0);
-	if (rc != 0)
-		GOTO(out, eco = ERR_PTR(rc));
+	if (rc != 0) {
+		eco = ERR_PTR(rc);
+		goto out;
+	}
 
 	/* In the function below, .hs_keycmp resolves to
 	 * lu_obj_hop_keycmp() */
 	/* coverity[overrun-buffer-val] */
 	obj = cl_object_find(env, echo_dev2cl(d), fid, &conf->eoc_cl);
-	if (IS_ERR(obj))
-		GOTO(out, eco = (void *)obj);
+	if (IS_ERR(obj)) {
+		eco = (void *)obj;
+		goto out;
+	}
 
 	eco = cl2echo_obj(obj);
 	if (eco->eo_deleted) {
@@ -1076,7 +1085,7 @@ static int cl_echo_enqueue(struct echo_object *eco, u64 start, u64 end,
 	io->ci_ignore_layout = 1;
 	result = cl_io_init(env, io, CIT_MISC, echo_obj2cl(eco));
 	if (result < 0)
-		GOTO(out, result);
+		goto out;
 	LASSERT(result == 0);
 
 	result = cl_echo_enqueue0(env, eco, start, end, mode, cookie, 0);
@@ -1182,7 +1191,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 	io->ci_ignore_layout = 1;
 	rc = cl_io_init(env, io, CIT_MISC, obj);
 	if (rc < 0)
-		GOTO(out, rc);
+		goto out;
 	LASSERT(rc == 0);
 
 
@@ -1191,7 +1200,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			      rw == READ ? LCK_PR : LCK_PW, &lh.cookie,
 			      CEF_NEVER);
 	if (rc < 0)
-		GOTO(error_lock, rc);
+		goto error_lock;
 
 	for (i = 0; i < npages; i++) {
 		LASSERT(pages[i]);
@@ -1318,7 +1327,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	rc = echo_alloc_memmd(ed, &lsm);
 	if (rc < 0) {
 		CERROR("Cannot allocate md: rc = %d\n", rc);
-		GOTO(failed, rc);
+		goto failed;
 	}
 
 	if (ulsm != NULL) {
@@ -1326,7 +1335,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 
 		rc = echo_copyin_lsm (ed, lsm, ulsm, ulsm_nob);
 		if (rc != 0)
-			GOTO(failed, rc);
+			goto failed;
 
 		if (lsm->lsm_stripe_count == 0)
 			lsm->lsm_stripe_count = ec->ec_nstripes;
@@ -1363,7 +1372,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 		rc = obd_create(env, ec->ec_exp, oa, &lsm, oti);
 		if (rc != 0) {
 			CERROR("Cannot create objects: rc = %d\n", rc);
-			GOTO(failed, rc);
+			goto failed;
 		}
 		created = 1;
 	}
@@ -1373,8 +1382,10 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	oa->o_valid |= OBD_MD_FLID;
 
 	eco = cl_echo_object_find(ed, &lsm);
-	if (IS_ERR(eco))
-		GOTO(failed, rc = PTR_ERR(eco));
+	if (IS_ERR(eco)) {
+		rc = PTR_ERR(eco);
+		goto failed;
+	}
 	cl_echo_object_put(eco);
 
 	CDEBUG(D_INFO, "oa oid "DOSTID"\n", POSTID(&oa->o_oi));
@@ -1642,8 +1653,10 @@ static int echo_client_prep_commit(const struct lu_env *env,
 	OBD_ALLOC(lnb, npages * sizeof(struct niobuf_local));
 	OBD_ALLOC(rnb, npages * sizeof(struct niobuf_remote));
 
-	if (lnb == NULL || rnb == NULL)
-		GOTO(out, ret = -ENOMEM);
+	if (lnb == NULL || rnb == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	if (rw == OBD_BRW_WRITE && async)
 		brw_flags |= OBD_BRW_ASYNC;
@@ -1671,7 +1684,7 @@ static int echo_client_prep_commit(const struct lu_env *env,
 		ret = obd_preprw(env, rw, exp, oa, 1, &ioo, rnb, &lpages,
 				 lnb, oti, NULL);
 		if (ret != 0)
-			GOTO(out, ret);
+			goto out;
 		LASSERT(lpages == npages);
 
 		for (i = 0; i < lpages; i++) {
@@ -1704,7 +1717,7 @@ static int echo_client_prep_commit(const struct lu_env *env,
 		ret = obd_commitrw(env, rw, exp, oa, 1, &ioo,
 				   rnb, npages, lnb, oti, ret);
 		if (ret != 0)
-			GOTO(out, ret);
+			goto out;
 
 		/* Reset oti otherwise it would confuse ldiskfs. */
 		memset(oti, 0, sizeof(*oti));
@@ -1862,21 +1875,27 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		return -ENOMEM;
 
 	rc = lu_env_init(env, LCT_DT_THREAD);
-	if (rc)
-		GOTO(out, rc = -ENOMEM);
+	if (rc) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	switch (cmd) {
 	case OBD_IOC_CREATE:		    /* may create echo object */
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			GOTO (out, rc = -EPERM);
+		if (!capable(CFS_CAP_SYS_ADMIN)) {
+			rc = -EPERM;
+			goto out;
+		}
 
 		rc = echo_create_object(env, ed, 1, oa, data->ioc_pbuf1,
 					data->ioc_plen1, &dummy_oti);
-		GOTO(out, rc);
+		goto out;
 
 	case OBD_IOC_DESTROY:
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			GOTO (out, rc = -EPERM);
+		if (!capable(CFS_CAP_SYS_ADMIN)) {
+			rc = -EPERM;
+			goto out;
+		}
 
 		rc = echo_get_object(&eco, ed, oa);
 		if (rc == 0) {
@@ -1886,7 +1905,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 				eco->eo_deleted = 1;
 			echo_put_object(eco);
 		}
-		GOTO(out, rc);
+		goto out;
 
 	case OBD_IOC_GETATTR:
 		rc = echo_get_object(&eco, ed, oa);
@@ -1897,11 +1916,13 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			rc = obd_getattr(env, ec->ec_exp, &oinfo);
 			echo_put_object(eco);
 		}
-		GOTO(out, rc);
+		goto out;
 
 	case OBD_IOC_SETATTR:
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			GOTO (out, rc = -EPERM);
+		if (!capable(CFS_CAP_SYS_ADMIN)) {
+			rc = -EPERM;
+			goto out;
+		}
 
 		rc = echo_get_object(&eco, ed, oa);
 		if (rc == 0) {
@@ -1912,17 +1933,19 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			rc = obd_setattr(env, ec->ec_exp, &oinfo, NULL);
 			echo_put_object(eco);
 		}
-		GOTO(out, rc);
+		goto out;
 
 	case OBD_IOC_BRW_WRITE:
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			GOTO (out, rc = -EPERM);
+		if (!capable(CFS_CAP_SYS_ADMIN)) {
+			rc = -EPERM;
+			goto out;
+		}
 
 		rw = OBD_BRW_WRITE;
 		/* fall through */
 	case OBD_IOC_BRW_READ:
 		rc = echo_client_brw_ioctl(env, rw, exp, data, &dummy_oti);
-		GOTO(out, rc);
+		goto out;
 
 	case ECHO_IOC_GET_STRIPE:
 		rc = echo_get_object(&eco, ed, oa);
@@ -1931,11 +1954,13 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 					      data->ioc_plen1);
 			echo_put_object(eco);
 		}
-		GOTO(out, rc);
+		goto out;
 
 	case ECHO_IOC_SET_STRIPE:
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			GOTO (out, rc = -EPERM);
+		if (!capable(CFS_CAP_SYS_ADMIN)) {
+			rc = -EPERM;
+			goto out;
+		}
 
 		if (data->ioc_pbuf1 == NULL) {  /* unset */
 			rc = echo_get_object(&eco, ed, oa);
@@ -1948,25 +1973,28 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 						data->ioc_pbuf1,
 						data->ioc_plen1, &dummy_oti);
 		}
-		GOTO (out, rc);
+		goto out;
 
 	case ECHO_IOC_ENQUEUE:
-		if (!capable(CFS_CAP_SYS_ADMIN))
-			GOTO (out, rc = -EPERM);
+		if (!capable(CFS_CAP_SYS_ADMIN)) {
+			rc = -EPERM;
+			goto out;
+		}
 
 		rc = echo_client_enqueue(exp, oa,
 					 data->ioc_conn1, /* lock mode */
 					 data->ioc_offset,
 					 data->ioc_count);/*extent*/
-		GOTO (out, rc);
+		goto out;
 
 	case ECHO_IOC_CANCEL:
 		rc = echo_client_cancel(exp, oa);
-		GOTO (out, rc);
+		goto out;
 
 	default:
 		CERROR ("echo_ioctl(): unrecognised ioctl %#x\n", cmd);
-		GOTO (out, rc = -ENOTTY);
+		rc = -ENOTTY;
+		goto out;
 	}
 
 out:
@@ -2084,11 +2112,13 @@ static int echo_client_disconnect(struct obd_export *exp)
 {
 	int		     rc;
 
-	if (exp == NULL)
-		GOTO(out, rc = -EINVAL);
+	if (exp == NULL) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	rc = class_disconnect(exp);
-	GOTO(out, rc);
+	goto out;
  out:
 	return rc;
 }

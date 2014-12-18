@@ -9,8 +9,11 @@
 #ifndef __BFIN_ASM_SERIAL_H__
 #define __BFIN_ASM_SERIAL_H__
 
+#include <linux/circ_buf.h>
 #include <linux/serial_core.h>
 #include <linux/spinlock.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 #include <mach/anomaly.h>
 #include <mach/bfin_serial.h>
 
@@ -24,10 +27,6 @@
 #  define CONFIG_SERIAL_BFIN_CTSRTS
 # endif
 #endif
-
-struct circ_buf;
-struct timer_list;
-struct work_struct;
 
 struct bfin_serial_port {
 	struct uart_port port;

@@ -27,25 +27,19 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_device.h>
+
 #include "stmmac.h"
+#include "stmmac_platform.h"
 
 static const struct of_device_id stmmac_dt_ids[] = {
-#ifdef CONFIG_DWMAC_MESON
+	/* SoC specific glue layers should come before generic bindings */
 	{ .compatible = "amlogic,meson6-dwmac", .data = &meson6_dwmac_data},
-#endif
-#ifdef CONFIG_DWMAC_SUNXI
 	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
-#endif
-#ifdef CONFIG_DWMAC_STI
 	{ .compatible = "st,stih415-dwmac", .data = &stih4xx_dwmac_data},
 	{ .compatible = "st,stih416-dwmac", .data = &stih4xx_dwmac_data},
 	{ .compatible = "st,stid127-dwmac", .data = &stid127_dwmac_data},
 	{ .compatible = "st,stih407-dwmac", .data = &stih4xx_dwmac_data},
-#endif
-#ifdef CONFIG_DWMAC_SOCFPGA
 	{ .compatible = "altr,socfpga-stmmac", .data = &socfpga_gmac_data },
-#endif
-	/* SoC specific glue layers should come before generic bindings */
 	{ .compatible = "st,spear600-gmac"},
 	{ .compatible = "snps,dwmac-3.610"},
 	{ .compatible = "snps,dwmac-3.70a"},
@@ -57,7 +51,11 @@ MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
 
 #ifdef CONFIG_OF
 
-/* This function validates the number of Multicast filtering bins specified
+/**
+ * dwmac1000_validate_mcast_bins - validates the number of Multicast filter bins
+ * @mcast_bins: Multicast filtering bins
+ * Description:
+ * this function validates the number of Multicast filtering bins specified
  * by the configuration through the device tree. The Synopsys GMAC supports
  * 64 bins, 128 bins, or 256 bins. "bins" refer to the division of CRC
  * number space. 64 bins correspond to 6 bits of the CRC, 128 corresponds
@@ -83,7 +81,11 @@ static int dwmac1000_validate_mcast_bins(int mcast_bins)
 	return x;
 }
 
-/* This function validates the number of Unicast address entries supported
+/**
+ * dwmac1000_validate_ucast_entries - validate the Unicast address entries
+ * @ucast_entries: number of Unicast address entries
+ * Description:
+ * This function validates the number of Unicast address entries supported
  * by a particular Synopsys 10/100/1000 controller. The Synopsys controller
  * supports 1, 32, 64, or 128 Unicast filter entries for it's Unicast filter
  * logic. This function validates a valid, supported configuration is
@@ -109,6 +111,15 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 	return x;
 }
 
+/**
+ * stmmac_probe_config_dt - parse device-tree driver parameters
+ * @pdev: platform_device structure
+ * @plat: driver data platform structure
+ * @mac: MAC address to use
+ * Description:
+ * this function is to read the driver parameters from device-tree and
+ * set some private fields that will be used by the main at runtime.
+ */
 static int stmmac_probe_config_dt(struct platform_device *pdev,
 				  struct plat_stmmacenet_data *plat,
 				  const char **mac)
@@ -177,12 +188,6 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	 */
 	plat->maxmtu = JUMBO_LEN;
 
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
 	/*
 	 * Currently only the properties needed on SPEAr600
 	 * are provided. All other properties should be added
@@ -248,11 +253,11 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 #endif /* CONFIG_OF */
 
 /**
- * stmmac_pltfr_probe
+ * stmmac_pltfr_probe - platform driver probe.
  * @pdev: platform device pointer
- * Description: platform_device probe function. It allocates
- * the necessary resources and invokes the main to init
- * the net device, register the mdio bus etc.
+ * Description: platform_device probe function. It is to allocate
+ * the necessary platform resources, invoke custom helper (if required) and
+ * invoke the main probe function.
  */
 static int stmmac_pltfr_probe(struct platform_device *pdev)
 {
@@ -270,16 +275,23 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		return PTR_ERR(addr);
 
 	plat_dat = dev_get_platdata(&pdev->dev);
-	if (pdev->dev.of_node) {
-		if (!plat_dat)
-			plat_dat = devm_kzalloc(&pdev->dev,
+
+	if (!plat_dat)
+		plat_dat = devm_kzalloc(&pdev->dev,
 					sizeof(struct plat_stmmacenet_data),
 					GFP_KERNEL);
-		if (!plat_dat) {
-			pr_err("%s: ERROR: no memory", __func__);
-			return  -ENOMEM;
-		}
+	if (!plat_dat) {
+		pr_err("%s: ERROR: no memory", __func__);
+		return  -ENOMEM;
+	}
 
+	/* Set default value for multicast hash bins */
+	plat_dat->multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat_dat->unicast_filter_entries = 1;
+
+	if (pdev->dev.of_node) {
 		ret = stmmac_probe_config_dt(pdev, plat_dat, &mac);
 		if (ret) {
 			pr_err("%s: main dt probe failed", __func__);
@@ -368,7 +380,14 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+/**
+ * stmmac_pltfr_suspend
+ * @dev: device pointer
+ * Description: this function is invoked when suspend the driver and it direcly
+ * call the main suspend function and then, if required, on some platform, it
+ * can call an exit helper.
+ */
 static int stmmac_pltfr_suspend(struct device *dev)
 {
 	int ret;
@@ -383,6 +402,13 @@ static int stmmac_pltfr_suspend(struct device *dev)
 	return ret;
 }
 
+/**
+ * stmmac_pltfr_resume
+ * @dev: device pointer
+ * Description: this function is invoked when resume the driver before calling
+ * the main resume function, on some platforms, it can call own init helper
+ * if required.
+ */
 static int stmmac_pltfr_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -394,13 +420,12 @@ static int stmmac_pltfr_resume(struct device *dev)
 
 	return stmmac_resume(ndev);
 }
-
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
-			stmmac_pltfr_suspend, stmmac_pltfr_resume);
+			 stmmac_pltfr_suspend, stmmac_pltfr_resume);
 
-struct platform_driver stmmac_pltfr_driver = {
+static struct platform_driver stmmac_pltfr_driver = {
 	.probe = stmmac_pltfr_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
@@ -408,8 +433,10 @@ struct platform_driver stmmac_pltfr_driver = {
 		   .owner = THIS_MODULE,
 		   .pm = &stmmac_pltfr_pm_ops,
 		   .of_match_table = of_match_ptr(stmmac_dt_ids),
-		   },
+	},
 };
+
+module_platform_driver(stmmac_pltfr_driver);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PLATFORM driver");
 MODULE_AUTHOR("Giuseppe Cavallaro <peppe.cavallaro@st.com>");

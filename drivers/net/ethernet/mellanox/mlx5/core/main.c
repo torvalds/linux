@@ -43,6 +43,7 @@
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/srq.h>
 #include <linux/debugfs.h>
+#include <linux/kmod.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
 
@@ -225,7 +226,7 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 		table->msix_arr[i].entry = i;
 
 	nvec = pci_enable_msix_range(dev->pdev, table->msix_arr,
-				     MLX5_EQ_VEC_COMP_BASE, nvec);
+				     MLX5_EQ_VEC_COMP_BASE + 1, nvec);
 	if (nvec < 0)
 		return nvec;
 
@@ -840,6 +841,8 @@ struct mlx5_core_event_handler {
 		      void *data);
 };
 
+#define MLX5_IB_MOD "mlx5_ib"
+
 static int init_one(struct pci_dev *pdev,
 		    const struct pci_device_id *id)
 {
@@ -864,19 +867,23 @@ static int init_one(struct pci_dev *pdev,
 	dev->profile = &profile[prof_sel];
 	dev->event = mlx5_core_event;
 
+	INIT_LIST_HEAD(&priv->ctx_list);
+	spin_lock_init(&priv->ctx_lock);
 	err = mlx5_dev_init(dev, pdev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_dev_init failed %d\n", err);
 		goto out;
 	}
 
-	INIT_LIST_HEAD(&priv->ctx_list);
-	spin_lock_init(&priv->ctx_lock);
 	err = mlx5_register_device(dev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
 		goto out_init;
 	}
+
+	err = request_module_nowait(MLX5_IB_MOD);
+	if (err)
+		pr_info("failed request module on %s\n", MLX5_IB_MOD);
 
 	return 0;
 
@@ -896,8 +903,12 @@ static void remove_one(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id mlx5_core_pci_table[] = {
-	{ PCI_VDEVICE(MELLANOX, 4113) }, /* MT4113 Connect-IB */
+	{ PCI_VDEVICE(MELLANOX, 4113) }, /* Connect-IB */
+	{ PCI_VDEVICE(MELLANOX, 4114) }, /* Connect-IB VF */
 	{ PCI_VDEVICE(MELLANOX, 4115) }, /* ConnectX-4 */
+	{ PCI_VDEVICE(MELLANOX, 4116) }, /* ConnectX-4 VF */
+	{ PCI_VDEVICE(MELLANOX, 4117) }, /* ConnectX-4LX */
+	{ PCI_VDEVICE(MELLANOX, 4118) }, /* ConnectX-4LX VF */
 	{ 0, }
 };
 

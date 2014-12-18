@@ -253,6 +253,5 @@ int fdtv_ca_register(struct firedtv *fdtv)
 
 void fdtv_ca_release(struct firedtv *fdtv)
 {
-	if (fdtv->cadev)
-		dvb_unregister_device(fdtv->cadev);
+	dvb_unregister_device(fdtv->cadev);
 }

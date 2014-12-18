@@ -314,10 +314,8 @@ static int usb3503_i2c_probe(struct i2c_client *i2c,
 	int err;
 
 	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb3503), GFP_KERNEL);
-	if (!hub) {
-		dev_err(&i2c->dev, "private data alloc fail\n");
+	if (!hub)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, hub);
 	hub->regmap = devm_regmap_init_i2c(i2c, &usb3503_regmap_config);
@@ -336,10 +334,8 @@ static int usb3503_platform_probe(struct platform_device *pdev)
 	struct usb3503 *hub;
 
 	hub = devm_kzalloc(&pdev->dev, sizeof(struct usb3503), GFP_KERNEL);
-	if (!hub) {
-		dev_err(&pdev->dev, "private data alloc fail\n");
+	if (!hub)
 		return -ENOMEM;
-	}
 	hub->dev = &pdev->dev;
 
 	return usb3503_probe(hub);
@@ -405,7 +401,6 @@ static struct platform_driver usb3503_platform_driver = {
 	.driver = {
 		.name = USB3503_I2C_NAME,
 		.of_match_table = of_match_ptr(usb3503_of_match),
-		.owner = THIS_MODULE,
 	},
 	.probe		= usb3503_platform_probe,
 };

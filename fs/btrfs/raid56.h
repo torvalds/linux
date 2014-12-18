@@ -39,12 +39,24 @@ static inline int nr_data_stripes(struct map_lookup *map)
 #define is_parity_stripe(x) (((x) == RAID5_P_STRIPE) ||		\
 			     ((x) == RAID6_Q_STRIPE))
 
+struct btrfs_raid_bio;
+struct btrfs_device;
+
 int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
-				 struct btrfs_bio *bbio, u64 *raid_map,
-				 u64 stripe_len, int mirror_num);
+			  struct btrfs_bio *bbio, u64 *raid_map,
+			  u64 stripe_len, int mirror_num, int generic_io);
 int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 			       struct btrfs_bio *bbio, u64 *raid_map,
 			       u64 stripe_len);
+
+struct btrfs_raid_bio *
+raid56_parity_alloc_scrub_rbio(struct btrfs_root *root, struct bio *bio,
+			       struct btrfs_bio *bbio, u64 *raid_map,
+			       u64 stripe_len, struct btrfs_device *scrub_dev,
+			       unsigned long *dbitmap, int stripe_nsectors);
+void raid56_parity_add_scrub_pages(struct btrfs_raid_bio *rbio,
+				   struct page *page, u64 logical);
+void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio);
 
 int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info);
 void btrfs_free_stripe_hash_table(struct btrfs_fs_info *info);

@@ -90,9 +90,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 		div->width = div_width;
 		div->lock = lock;
 		div->table = div_table;
-		div_ops = (div_flags & CLK_DIVIDER_READ_ONLY)
-						? &clk_divider_ro_ops
-						: &clk_divider_ops;
+		div_ops = &clk_divider_ops;
 	}
 
 	clk = clk_register_composite(NULL, name, parent_names, num_parents,

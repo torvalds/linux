@@ -1242,19 +1242,6 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm8350_suspend(struct snd_soc_codec *codec)
-{
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8350_resume(struct snd_soc_codec *codec)
-{
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
 static void wm8350_hp_work(struct wm8350_data *priv,
 			   struct wm8350_jack_data *jack,
 			   u16 mask)
@@ -1565,9 +1552,6 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_MICD,
 			    wm8350_mic_handler, 0, "Microphone detect", priv);
 
-
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
@@ -1596,8 +1580,6 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	 * wait for its completion */
 	flush_delayed_work(&codec->dapm.delayed_work);
 
-	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
 	return 0;
@@ -1613,10 +1595,9 @@ static struct regmap *wm8350_get_regmap(struct device *dev)
 static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.probe =	wm8350_codec_probe,
 	.remove =	wm8350_codec_remove,
-	.suspend = 	wm8350_suspend,
-	.resume =	wm8350_resume,
 	.get_regmap =	wm8350_get_regmap,
 	.set_bias_level = wm8350_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8350_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8350_snd_controls),
@@ -1641,7 +1622,6 @@ static int wm8350_remove(struct platform_device *pdev)
 static struct platform_driver wm8350_codec_driver = {
 	.driver = {
 		   .name = "wm8350-codec",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8350_probe,
 	.remove = wm8350_remove,

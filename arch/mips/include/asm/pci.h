@@ -84,7 +84,7 @@ static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
 		const struct resource *rsrc, resource_size_t *start,
 		resource_size_t *end)
 {
-	phys_t size = resource_size(rsrc);
+	phys_addr_t size = resource_size(rsrc);
 
 	*start = fixup_bigphys_addr(rsrc->start, size);
 	*end = rsrc->start + size;

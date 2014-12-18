@@ -76,7 +76,6 @@ static struct platform_driver ahci_driver = {
 	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = "ahci",
-		.owner = THIS_MODULE,
 		.of_match_table = ahci_of_match,
 		.pm = &ahci_pm_ops,
 	},

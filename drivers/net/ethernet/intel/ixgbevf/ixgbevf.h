@@ -58,8 +58,9 @@ struct ixgbevf_tx_buffer {
 };
 
 struct ixgbevf_rx_buffer {
-	struct sk_buff *skb;
 	dma_addr_t dma;
+	struct page *page;
+	unsigned int page_offset;
 };
 
 struct ixgbevf_stats {
@@ -79,7 +80,6 @@ struct ixgbevf_tx_queue_stats {
 };
 
 struct ixgbevf_rx_queue_stats {
-	u64 non_eop_descs;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
 	u64 csum_err;
@@ -92,9 +92,10 @@ struct ixgbevf_ring {
 	void *desc;			/* descriptor ring memory */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
 	unsigned int size;		/* length in bytes */
-	unsigned int count;		/* amount of descriptors */
-	unsigned int next_to_use;
-	unsigned int next_to_clean;
+	u16 count;			/* amount of descriptors */
+	u16 next_to_use;
+	u16 next_to_clean;
+	u16 next_to_alloc;
 
 	union {
 		struct ixgbevf_tx_buffer *tx_buffer_info;
@@ -110,12 +111,11 @@ struct ixgbevf_ring {
 
 	u64 hw_csum_rx_error;
 	u8 __iomem *tail;
+	struct sk_buff *skb;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different
 		      * for DCB and RSS modes */
-
-	u16 rx_buf_len;
 	int queue_index; /* needed for multiqueue queue management */
 };
 
@@ -134,12 +134,10 @@ struct ixgbevf_ring {
 
 /* Supported Rx Buffer Sizes */
 #define IXGBEVF_RXBUFFER_256   256    /* Used for packet split */
-#define IXGBEVF_RXBUFFER_2K    2048
-#define IXGBEVF_RXBUFFER_4K    4096
-#define IXGBEVF_RXBUFFER_8K    8192
-#define IXGBEVF_RXBUFFER_10K   10240
+#define IXGBEVF_RXBUFFER_2048  2048
 
 #define IXGBEVF_RX_HDR_SIZE IXGBEVF_RXBUFFER_256
+#define IXGBEVF_RX_BUFSZ    IXGBEVF_RXBUFFER_2048
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
@@ -307,6 +305,13 @@ static inline bool ixgbevf_qv_disable(struct ixgbevf_q_vector *q_vector)
 	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 8)
 #define EITR_REG_TO_INTS_PER_SEC EITR_INTS_PER_SEC_TO_REG
 
+/* ixgbevf_test_staterr - tests bits in Rx descriptor status and error fields */
+static inline __le32 ixgbevf_test_staterr(union ixgbe_adv_rx_desc *rx_desc,
+					  const u32 stat_err_bits)
+{
+	return rx_desc->wb.upper.status_error & cpu_to_le32(stat_err_bits);
+}
+
 static inline u16 ixgbevf_desc_unused(struct ixgbevf_ring *ring)
 {
 	u16 ntc = ring->next_to_clean;
@@ -339,8 +344,10 @@ static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
 
 /* board specific private data structure */
 struct ixgbevf_adapter {
-	struct timer_list watchdog_timer;
+	/* this field must be first, see ixgbevf_process_skb_fields */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+
+	struct timer_list watchdog_timer;
 	struct work_struct reset_task;
 	struct ixgbevf_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 
@@ -363,7 +370,6 @@ struct ixgbevf_adapter {
 	struct ixgbevf_ring *rx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
-	u64 non_eop_descs;
 	int num_msix_vectors;
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
@@ -373,7 +379,7 @@ struct ixgbevf_adapter {
 	 */
 	u32 flags;
 #define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1)
-#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 1)
+
 #define IXGBEVF_FLAG_QUEUE_RESET_REQUESTED	(u32)(1 << 2)
 
 	struct msix_entry *msix_entries;
@@ -423,18 +429,17 @@ enum ixbgevf_state_t {
 	__IXGBEVF_WORK_INIT,
 };
 
-struct ixgbevf_cb {
-	struct sk_buff *prev;
-};
-#define IXGBE_CB(skb) ((struct ixgbevf_cb *)(skb)->cb)
-
 enum ixgbevf_boards {
 	board_82599_vf,
 	board_X540_vf,
+	board_X550_vf,
+	board_X550EM_x_vf,
 };
 
 extern const struct ixgbevf_info ixgbevf_82599_vf_info;
 extern const struct ixgbevf_info ixgbevf_X540_vf_info;
+extern const struct ixgbevf_info ixgbevf_X550_vf_info;
+extern const struct ixgbevf_info ixgbevf_X550EM_x_vf_info;
 extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
 
 /* needed by ethtool.c */

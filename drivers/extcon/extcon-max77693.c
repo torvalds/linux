@@ -232,7 +232,7 @@ static const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
 	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
 	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
-	[EXTCON_CABLE_JIG_UART_ON]		= "Dock-Car",
+	[EXTCON_CABLE_JIG_UART_ON]		= "JIG-UART-ON",
 	[EXTCON_CABLE_DOCK_SMART]		= "Dock-Smart",
 	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
 	[EXTCON_CABLE_DOCK_AUDIO]		= "Dock-Audio",
@@ -532,9 +532,6 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		extcon_set_cable_state(info->edev, "Dock-Smart", attached);
 		extcon_set_cable_state(info->edev, "MHL", attached);
 		goto out;
-	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* Dock-Car */
-		strcpy(dock_name, "Dock-Car");
-		break;
 	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:	/* Dock-Desk */
 		strcpy(dock_name, "Dock-Desk");
 		break;
@@ -669,6 +666,11 @@ static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 		strcpy(cable_name, "JIG-UART-OFF");
 		path = CONTROL1_SW_UART;
 		break;
+	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* ADC_JIG_UART_ON */
+		/* PATH:AP_UART */
+		strcpy(cable_name, "JIG-UART-ON");
+		path = CONTROL1_SW_UART;
+		break;
 	default:
 		dev_err(info->dev, "failed to detect %s jig cable\n",
 			attached ? "attached" : "detached");
@@ -708,13 +710,13 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_OFF:
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_ON:
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_OFF:
+	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:
 		/* JIG */
 		ret = max77693_muic_jig_handler(info, cable_type, attached);
 		if (ret < 0)
 			return ret;
 		break;
 	case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
-	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* Dock-Car */
 	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:	/* Dock-Desk */
 	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
 		/*
@@ -1301,7 +1303,6 @@ static int max77693_muic_remove(struct platform_device *pdev)
 static struct platform_driver max77693_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max77693_muic_probe,
 	.remove		= max77693_muic_remove,

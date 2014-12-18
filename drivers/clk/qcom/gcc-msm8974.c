@@ -2737,7 +2737,6 @@ static struct platform_driver gcc_msm8974_driver = {
 	.remove		= gcc_msm8974_remove,
 	.driver		= {
 		.name	= "gcc-msm8974",
-		.owner	= THIS_MODULE,
 		.of_match_table = gcc_msm8974_match_table,
 	},
 };

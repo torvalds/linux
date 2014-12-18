@@ -34,7 +34,7 @@
  ******************************************************************************/
 
 static const struct nv50_disp_mthd_list
-nve0_disp_mast_mthd_head = {
+nve0_disp_core_mthd_head = {
 	.mthd = 0x0300,
 	.addr = 0x000300,
 	.data = {
@@ -113,15 +113,15 @@ nve0_disp_mast_mthd_head = {
 };
 
 const struct nv50_disp_mthd_chan
-nve0_disp_mast_mthd_chan = {
+nve0_disp_core_mthd_chan = {
 	.name = "Core",
 	.addr = 0x000000,
 	.data = {
-		{ "Global", 1, &nvd0_disp_mast_mthd_base },
-		{    "DAC", 3, &nvd0_disp_mast_mthd_dac  },
-		{    "SOR", 8, &nvd0_disp_mast_mthd_sor  },
-		{   "PIOR", 4, &nvd0_disp_mast_mthd_pior },
-		{   "HEAD", 4, &nve0_disp_mast_mthd_head },
+		{ "Global", 1, &nvd0_disp_core_mthd_base },
+		{    "DAC", 3, &nvd0_disp_core_mthd_dac  },
+		{    "SOR", 8, &nvd0_disp_core_mthd_sor  },
+		{   "PIOR", 4, &nvd0_disp_core_mthd_pior },
+		{   "HEAD", 4, &nve0_disp_core_mthd_head },
 		{}
 	}
 };
@@ -200,8 +200,8 @@ nve0_disp_ovly_mthd_chan = {
 
 static struct nouveau_oclass
 nve0_disp_sclass[] = {
-	{ GK104_DISP_CORE_CHANNEL_DMA, &nvd0_disp_mast_ofuncs.base },
-	{ GK104_DISP_BASE_CHANNEL_DMA, &nvd0_disp_sync_ofuncs.base },
+	{ GK104_DISP_CORE_CHANNEL_DMA, &nvd0_disp_core_ofuncs.base },
+	{ GK104_DISP_BASE_CHANNEL_DMA, &nvd0_disp_base_ofuncs.base },
 	{ GK104_DISP_OVERLAY_CONTROL_DMA, &nvd0_disp_ovly_ofuncs.base },
 	{ GK104_DISP_OVERLAY, &nvd0_disp_oimm_ofuncs.base },
 	{ GK104_DISP_CURSOR, &nvd0_disp_curs_ofuncs.base },
@@ -209,8 +209,8 @@ nve0_disp_sclass[] = {
 };
 
 static struct nouveau_oclass
-nve0_disp_base_oclass[] = {
-	{ GK104_DISP, &nvd0_disp_base_ofuncs },
+nve0_disp_main_oclass[] = {
+	{ GK104_DISP, &nvd0_disp_main_ofuncs },
 	{}
 };
 
@@ -237,7 +237,7 @@ nve0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nve0_disp_base_oclass;
+	nv_engine(priv)->sclass = nve0_disp_main_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nvd0_disp_intr;
 	INIT_WORK(&priv->supervisor, nvd0_disp_intr_supervisor);
@@ -264,9 +264,9 @@ nve0_disp_oclass = &(struct nv50_disp_impl) {
 	},
 	.base.vblank = &nvd0_disp_vblank_func,
 	.base.outp =  nvd0_disp_outp_sclass,
-	.mthd.core = &nve0_disp_mast_mthd_chan,
-	.mthd.base = &nvd0_disp_sync_mthd_chan,
+	.mthd.core = &nve0_disp_core_mthd_chan,
+	.mthd.base = &nvd0_disp_base_mthd_chan,
 	.mthd.ovly = &nve0_disp_ovly_mthd_chan,
 	.mthd.prev = -0x020000,
-	.head.scanoutpos = nvd0_disp_base_scanoutpos,
+	.head.scanoutpos = nvd0_disp_main_scanoutpos,
 }.base.base;

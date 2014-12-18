@@ -30,8 +30,6 @@
 #ifndef __BASEBAND_H__
 #define __BASEBAND_H__
 
-#include "ttype.h"
-#include "tether.h"
 #include "device.h"
 
 /*
@@ -79,42 +77,37 @@ BBuGetFrameTime(
 void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
 		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *);
 
-bool BBbReadEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char *pbyData);
-bool BBbWriteEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byData);
+bool BBbReadEmbedded(struct vnt_private *, unsigned char byBBAddr, unsigned char *pbyData);
+bool BBbWriteEmbedded(struct vnt_private *, unsigned char byBBAddr, unsigned char byData);
 
-void BBvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyBBRegs);
-void BBvLoopbackOn(struct vnt_private *pDevice);
-void BBvLoopbackOff(struct vnt_private *pDevice);
-void BBvSetShortSlotTime(struct vnt_private *pDevice);
-bool BBbIsRegBitsOn(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
-bool BBbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned char byTestBits);
-void BBvSetVGAGainOffset(struct vnt_private *pDevice, unsigned char byData);
+void BBvSetShortSlotTime(struct vnt_private *);
+void BBvSetVGAGainOffset(struct vnt_private *, unsigned char byData);
 
 /* VT3253 Baseband */
-bool BBbVT3253Init(struct vnt_private *pDevice);
-void BBvSoftwareReset(void __iomem *dwIoBase);
-void BBvPowerSaveModeON(void __iomem *dwIoBase);
-void BBvPowerSaveModeOFF(void __iomem *dwIoBase);
-void BBvSetTxAntennaMode(void __iomem *dwIoBase, unsigned char byAntennaMode);
-void BBvSetRxAntennaMode(void __iomem *dwIoBase, unsigned char byAntennaMode);
-void BBvSetDeepSleep(void __iomem *dwIoBase, unsigned char byLocalID);
-void BBvExitDeepSleep(void __iomem *dwIoBase, unsigned char byLocalID);
+bool BBbVT3253Init(struct vnt_private *);
+void BBvSoftwareReset(struct vnt_private *);
+void BBvPowerSaveModeON(struct vnt_private *);
+void BBvPowerSaveModeOFF(struct vnt_private *);
+void BBvSetTxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
+void BBvSetRxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
+void BBvSetDeepSleep(struct vnt_private *, unsigned char byLocalID);
+void BBvExitDeepSleep(struct vnt_private *, unsigned char byLocalID);
 
 /* timer for antenna diversity */
 
 void
 TimerSQ3CallBack(
-	void *hDeviceContext
+	unsigned long
 );
 
 void
 TimerState1CallBack(
-	void *hDeviceContext
+	unsigned long
 );
 
-void BBvAntennaDiversity(struct vnt_private *pDevice,
+void BBvAntennaDiversity(struct vnt_private *,
 			 unsigned char byRxRate, unsigned char bySQ3);
 void
-BBvClearAntDivSQ3Value(struct vnt_private *pDevice);
+BBvClearAntDivSQ3Value(struct vnt_private *);
 
 #endif /* __BASEBAND_H__ */

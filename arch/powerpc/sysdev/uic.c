@@ -19,7 +19,6 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/device.h>
-#include <linux/bootmem.h>
 #include <linux/spinlock.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>

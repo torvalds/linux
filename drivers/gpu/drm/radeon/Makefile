@@ -80,7 +80,8 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	r600_dpm.o rs780_dpm.o rv6xx_dpm.o rv770_dpm.o rv730_dpm.o rv740_dpm.o \
 	rv770_smc.o cypress_dpm.o btc_dpm.o sumo_dpm.o sumo_smc.o trinity_dpm.o \
 	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o kv_smc.o kv_dpm.o ci_smc.o \
-	ci_dpm.o dce6_afmt.o radeon_vm.o radeon_ucode.o radeon_ib.o radeon_mn.o
+	ci_dpm.o dce6_afmt.o radeon_vm.o radeon_ucode.o radeon_ib.o radeon_mn.o \
+	radeon_sync.o
 
 # add async DMA block
 radeon-y += \
@@ -104,6 +105,7 @@ radeon-y += \
 	radeon_vce.o \
 	vce_v1_0.o \
 	vce_v2_0.o \
+	radeon_kfd.o
 
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o

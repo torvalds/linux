@@ -7,6 +7,9 @@
  * $Id:
  *====================================================
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -45,7 +48,7 @@ static int ft1000_poll_thread(void *arg)
 		if (!gPollingfailed) {
 			ret = ft1000_poll(arg);
 			if (ret != 0) {
-				DEBUG("ft1000_poll_thread: polling failed\n");
+				pr_debug("polling failed\n");
 				gPollingfailed = true;
 			}
 		}
@@ -71,9 +74,8 @@ static int ft1000_probe(struct usb_interface *interface,
 		return -ENOMEM;
 
 	dev = interface_to_usbdev(interface);
-	DEBUG("ft1000_probe: usb device descriptor info:\n");
-	DEBUG("ft1000_probe: number of configuration is %d\n",
-	      dev->descriptor.bNumConfigurations);
+	pr_debug("usb device descriptor info - number of configuration is %d\n",
+		 dev->descriptor.bNumConfigurations);
 
 	ft1000dev->dev = dev;
 	ft1000dev->status = 0;
@@ -85,60 +87,56 @@ static int ft1000_probe(struct usb_interface *interface,
 		goto err_fw;
 	}
 
-	DEBUG("ft1000_probe is called\n");
 	numaltsetting = interface->num_altsetting;
-	DEBUG("ft1000_probe: number of alt settings is :%d\n", numaltsetting);
+	pr_debug("number of alt settings is: %d\n", numaltsetting);
 	iface_desc = interface->cur_altsetting;
-	DEBUG("ft1000_probe: number of endpoints is %d\n",
-	      iface_desc->desc.bNumEndpoints);
-	DEBUG("ft1000_probe: descriptor type is %d\n",
-	      iface_desc->desc.bDescriptorType);
-	DEBUG("ft1000_probe: interface number is %d\n",
-	      iface_desc->desc.bInterfaceNumber);
-	DEBUG("ft1000_probe: alternatesetting is %d\n",
-	      iface_desc->desc.bAlternateSetting);
-	DEBUG("ft1000_probe: interface class is %d\n",
-	      iface_desc->desc.bInterfaceClass);
-	DEBUG("ft1000_probe: control endpoint info:\n");
-	DEBUG("ft1000_probe: descriptor0 type -- %d\n",
-	      iface_desc->endpoint[0].desc.bmAttributes);
-	DEBUG("ft1000_probe: descriptor1 type -- %d\n",
-	      iface_desc->endpoint[1].desc.bmAttributes);
-	DEBUG("ft1000_probe: descriptor2 type -- %d\n",
-	      iface_desc->endpoint[2].desc.bmAttributes);
+	pr_debug("number of endpoints is: %d\n",
+		 iface_desc->desc.bNumEndpoints);
+	pr_debug("descriptor type is: %d\n", iface_desc->desc.bDescriptorType);
+	pr_debug("interface number is: %d\n",
+		 iface_desc->desc.bInterfaceNumber);
+	pr_debug("alternatesetting is: %d\n",
+		 iface_desc->desc.bAlternateSetting);
+	pr_debug("interface class is: %d\n", iface_desc->desc.bInterfaceClass);
+	pr_debug("control endpoint info:\n");
+	pr_debug("descriptor0 type -- %d\n",
+		 iface_desc->endpoint[0].desc.bmAttributes);
+	pr_debug("descriptor1 type -- %d\n",
+		 iface_desc->endpoint[1].desc.bmAttributes);
+	pr_debug("descriptor2 type -- %d\n",
+		 iface_desc->endpoint[2].desc.bmAttributes);
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint =
-		    (struct usb_endpoint_descriptor *)&iface_desc->
-		    endpoint[i].desc;
-		DEBUG("endpoint %d\n", i);
-		DEBUG("bEndpointAddress=%x, bmAttributes=%x\n",
-		      endpoint->bEndpointAddress, endpoint->bmAttributes);
+			(struct usb_endpoint_descriptor *)&iface_desc->
+			endpoint[i].desc;
+		pr_debug("endpoint %d\n", i);
+		pr_debug("bEndpointAddress=%x, bmAttributes=%x\n",
+			 endpoint->bEndpointAddress, endpoint->bmAttributes);
 		if ((endpoint->bEndpointAddress & USB_DIR_IN)
 		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_BULK)) {
 			ft1000dev->bulk_in_endpointAddr =
-			    endpoint->bEndpointAddress;
-			DEBUG("ft1000_probe: in: %d\n",
-			      endpoint->bEndpointAddress);
+				endpoint->bEndpointAddress;
+			pr_debug("in: %d\n", endpoint->bEndpointAddress);
 		}
 
 		if (!(endpoint->bEndpointAddress & USB_DIR_IN)
 		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_BULK)) {
 			ft1000dev->bulk_out_endpointAddr =
-			    endpoint->bEndpointAddress;
-			DEBUG("ft1000_probe: out: %d\n",
-			      endpoint->bEndpointAddress);
+				endpoint->bEndpointAddress;
+			pr_debug("out: %d\n", endpoint->bEndpointAddress);
 		}
 	}
 
-	DEBUG("bulk_in=%d, bulk_out=%d\n", ft1000dev->bulk_in_endpointAddr,
-	      ft1000dev->bulk_out_endpointAddr);
+	pr_debug("bulk_in=%d, bulk_out=%d\n",
+		 ft1000dev->bulk_in_endpointAddr,
+		 ft1000dev->bulk_out_endpointAddr);
 
 	ret = request_firmware(&dsp_fw, "ft3000.img", &dev->dev);
 	if (ret < 0) {
-		pr_err("Error request_firmware().\n");
+		pr_err("Error request_firmware()\n");
 		goto err_fw;
 	}
 
@@ -155,7 +153,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	FileLength = dsp_fw->size;
 	release_firmware(dsp_fw);
 
-	DEBUG("ft1000_probe: start downloading dsp image...\n");
+	pr_debug("start downloading dsp image...\n");
 
 	ret = init_ft1000_netdev(ft1000dev);
 	if (ret)
@@ -163,7 +161,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	pft1000info = netdev_priv(ft1000dev->net);
 
-	DEBUG("In probe: pft1000info=%p\n", pft1000info);
+	pr_debug("pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);
 	if (ret) {
 		pr_err("Problem with DSP image loading\n");
@@ -172,7 +170,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	gPollingfailed = false;
 	ft1000dev->pPollThread =
-	    kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
+		kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
 
 	if (IS_ERR(ft1000dev->pPollThread)) {
 		ret = PTR_ERR(ft1000dev->pPollThread);
@@ -187,10 +185,10 @@ static int ft1000_probe(struct usb_interface *interface,
 			goto err_thread;
 		}
 		msleep(100);
-		DEBUG("ft1000_probe::Waiting for Card Ready\n");
+		pr_debug("Waiting for Card Ready\n");
 	}
 
-	DEBUG("ft1000_probe::Card Ready!!!! Registering network device\n");
+	pr_debug("Card Ready!!!! Registering network device\n");
 
 	ret = reg_ft1000_netdev(ft1000dev, interface);
 	if (ret)
@@ -216,24 +214,21 @@ static void ft1000_disconnect(struct usb_interface *interface)
 	struct ft1000_info *pft1000info;
 	struct ft1000_usb *ft1000dev;
 
-	DEBUG("ft1000_disconnect is called\n");
-
-	pft1000info = (struct ft1000_info *) usb_get_intfdata(interface);
-	DEBUG("In disconnect pft1000info=%p\n", pft1000info);
+	pft1000info = (struct ft1000_info *)usb_get_intfdata(interface);
+	pr_debug("In disconnect pft1000info=%p\n", pft1000info);
 
 	if (pft1000info) {
 		ft1000dev = pft1000info->priv;
 		if (ft1000dev->pPollThread)
 			kthread_stop(ft1000dev->pPollThread);
 
-		DEBUG("ft1000_disconnect: threads are terminated\n");
+		pr_debug("threads are terminated\n");
 
 		if (ft1000dev->net) {
-			DEBUG("ft1000_disconnect: destroy char driver\n");
+			pr_debug("destroy char driver\n");
 			ft1000_destroy_dev(ft1000dev->net);
 			unregister_netdev(ft1000dev->net);
-			DEBUG
-			    ("ft1000_disconnect: network device unregistered\n");
+			pr_debug("network device unregistered\n");
 			free_netdev(ft1000dev->net);
 
 		}
@@ -241,7 +236,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 		usb_free_urb(ft1000dev->rx_urb);
 		usb_free_urb(ft1000dev->tx_urb);
 
-		DEBUG("ft1000_disconnect: urb freed\n");
+		pr_debug("urb freed\n");
 
 		kfree(ft1000dev);
 	}

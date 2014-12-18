@@ -16,6 +16,7 @@
 
 #define STA_ENTRY	__array(char, sta_addr, ETH_ALEN)
 #define STA_ASSIGN	(sta ? memcpy(__entry->sta_addr, sta->addr, ETH_ALEN) : memset(__entry->sta_addr, 0, ETH_ALEN))
+#define STA_NAMED_ASSIGN(s)	memcpy(__entry->sta_addr, (s)->addr, ETH_ALEN)
 #define STA_PR_FMT	" sta:%pM"
 #define STA_PR_ARG	__entry->sta_addr
 
@@ -595,14 +596,33 @@ DEFINE_EVENT(local_sdata_evt, drv_sched_scan_stop,
 	TP_ARGS(local, sdata)
 );
 
-DEFINE_EVENT(local_only_evt, drv_sw_scan_start,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+TRACE_EVENT(drv_sw_scan_start,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const u8 *mac_addr),
+
+	TP_ARGS(local, sdata, mac_addr),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__array(char, mac_addr, ETH_ALEN)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		memcpy(__entry->mac_addr, mac_addr, ETH_ALEN);
+	),
+
+	TP_printk(LOCAL_PR_FMT ", " VIF_PR_FMT ", addr:%pM",
+		  LOCAL_PR_ARG, VIF_PR_ARG, __entry->mac_addr)
 );
 
-DEFINE_EVENT(local_only_evt, drv_sw_scan_complete,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+DEFINE_EVENT(local_sdata_evt, drv_sw_scan_complete,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 TRACE_EVENT(drv_get_stats,
@@ -826,6 +846,13 @@ DEFINE_EVENT(sta_event, drv_sta_pre_rcu_remove,
 	TP_ARGS(local, sdata, sta)
 );
 
+DEFINE_EVENT(sta_event, drv_sta_rate_tbl_update,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
+);
+
 TRACE_EVENT(drv_conf_tx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
@@ -987,29 +1014,34 @@ TRACE_EVENT(drv_flush,
 
 TRACE_EVENT(drv_channel_switch,
 	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_channel_switch *ch_switch),
 
-	TP_ARGS(local, ch_switch),
+	TP_ARGS(local, sdata, ch_switch),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		CHANDEF_ENTRY
 		__field(u64, timestamp)
+		__field(u32, device_timestamp)
 		__field(bool, block_tx)
 		__field(u8, count)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		CHANDEF_ASSIGN(&ch_switch->chandef)
 		__entry->timestamp = ch_switch->timestamp;
+		__entry->device_timestamp = ch_switch->device_timestamp;
 		__entry->block_tx = ch_switch->block_tx;
 		__entry->count = ch_switch->count;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " new " CHANDEF_PR_FMT " count:%d",
-		LOCAL_PR_ARG, CHANDEF_PR_ARG, __entry->count
+		LOCAL_PR_FMT VIF_PR_FMT " new " CHANDEF_PR_FMT " count:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->count
 	)
 );
 
@@ -1557,9 +1589,26 @@ DEFINE_EVENT(local_sdata_evt, drv_stop_ap,
 	TP_ARGS(local, sdata)
 );
 
-DEFINE_EVENT(local_only_evt, drv_restart_complete,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+TRACE_EVENT(drv_reconfig_complete,
+	TP_PROTO(struct ieee80211_local *local,
+		 enum ieee80211_reconfig_type reconfig_type),
+	TP_ARGS(local, reconfig_type),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u8, reconfig_type)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->reconfig_type = reconfig_type;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  " reconfig_type:%d",
+		LOCAL_PR_ARG, __entry->reconfig_type
+	)
+
 );
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1778,6 +1827,12 @@ TRACE_EVENT(api_cqm_rssi_notify,
 		VIF_PR_FMT " event:%d",
 		VIF_PR_ARG, __entry->rssi_event
 	)
+);
+
+DEFINE_EVENT(local_sdata_evt, api_cqm_beacon_loss_notify,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 TRACE_EVENT(api_scan_completed,
@@ -2106,6 +2161,175 @@ TRACE_EVENT(drv_channel_switch_beacon,
 	)
 );
 
+TRACE_EVENT(drv_pre_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_channel_switch *ch_switch),
+
+	TP_ARGS(local, sdata, ch_switch),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		CHANDEF_ENTRY
+		__field(u64, timestamp)
+		__field(u32, device_timestamp)
+		__field(bool, block_tx)
+		__field(u8, count)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		CHANDEF_ASSIGN(&ch_switch->chandef)
+		__entry->timestamp = ch_switch->timestamp;
+		__entry->device_timestamp = ch_switch->device_timestamp;
+		__entry->block_tx = ch_switch->block_tx;
+		__entry->count = ch_switch->count;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " prepare channel switch to "
+		CHANDEF_PR_FMT  " count:%d block_tx:%d timestamp:%llu",
+		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->count,
+		__entry->block_tx, __entry->timestamp
+	)
+);
+
+DEFINE_EVENT(local_sdata_evt, drv_post_channel_switch,
+	     TP_PROTO(struct ieee80211_local *local,
+		      struct ieee80211_sub_if_data *sdata),
+	     TP_ARGS(local, sdata)
+);
+
+TRACE_EVENT(drv_get_txpower,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 int dbm, int ret),
+
+	TP_ARGS(local, sdata, dbm, ret),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(int, dbm)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->dbm = dbm;
+		__entry->ret = ret;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " dbm:%d ret:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->dbm, __entry->ret
+	)
+);
+
+TRACE_EVENT(drv_tdls_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta, u8 oper_class,
+		 struct cfg80211_chan_def *chandef),
+
+	TP_ARGS(local, sdata, sta, oper_class, chandef),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(u8, oper_class)
+		CHANDEF_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+		__entry->oper_class = oper_class;
+		CHANDEF_ASSIGN(chandef)
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " tdls channel switch to"
+		CHANDEF_PR_FMT  " oper_class:%d " STA_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->oper_class,
+		STA_PR_ARG
+	)
+);
+
+TRACE_EVENT(drv_tdls_cancel_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+
+	TP_ARGS(local, sdata, sta),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT
+		" tdls cancel channel switch with " STA_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG
+	)
+);
+
+TRACE_EVENT(drv_tdls_recv_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_tdls_ch_sw_params *params),
+
+	TP_ARGS(local, sdata, params),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, action_code)
+		STA_ENTRY
+		CHANDEF_ENTRY
+		__field(u32, status)
+		__field(bool, peer_initiator)
+		__field(u32, timestamp)
+		__field(u16, switch_time)
+		__field(u16, switch_timeout)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_NAMED_ASSIGN(params->sta);
+		CHANDEF_ASSIGN(params->chandef)
+		__entry->peer_initiator = params->sta->tdls_initiator;
+		__entry->action_code = params->action_code;
+		__entry->status = params->status;
+		__entry->timestamp = params->timestamp;
+		__entry->switch_time = params->switch_time;
+		__entry->switch_timeout = params->switch_timeout;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " received tdls channel switch packet"
+		" action:%d status:%d time:%d switch time:%d switch"
+		" timeout:%d initiator: %d chan:" CHANDEF_PR_FMT STA_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->action_code, __entry->status,
+		__entry->timestamp, __entry->switch_time,
+		__entry->switch_timeout, __entry->peer_initiator,
+		CHANDEF_PR_ARG, STA_PR_ARG
+	)
+);
 
 #ifdef CONFIG_MAC80211_MESSAGE_TRACING
 #undef TRACE_SYSTEM

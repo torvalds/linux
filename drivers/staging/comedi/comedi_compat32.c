@@ -416,6 +416,8 @@ static inline int raw_ioctl(struct file *file, unsigned int cmd,
 	case COMEDI_UNLOCK:
 	case COMEDI_CANCEL:
 	case COMEDI_POLL:
+	case COMEDI_SETRSUBD:
+	case COMEDI_SETWSUBD:
 		/* No translation needed. */
 		rc = translated_ioctl(file, cmd, arg);
 		break;

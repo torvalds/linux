@@ -32,6 +32,15 @@
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
 
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+#define CREATE_TRACE_POINTS
+#include "pcm_trace.h"
+#else
+#define trace_hwptr(substream, pos, in_interrupt)
+#define trace_xrun(substream)
+#define trace_hw_ptr_error(substream, reason)
+#endif
+
 /*
  * fill ring buffer with silence
  * runtime->silence_start: starting pointer to silence area
@@ -146,10 +155,6 @@ EXPORT_SYMBOL(snd_pcm_debug_name);
 #define XRUN_DEBUG_BASIC	(1<<0)
 #define XRUN_DEBUG_STACK	(1<<1)	/* dump also stack */
 #define XRUN_DEBUG_JIFFIESCHECK	(1<<2)	/* do jiffies check */
-#define XRUN_DEBUG_PERIODUPDATE	(1<<3)	/* full period update info */
-#define XRUN_DEBUG_HWPTRUPDATE	(1<<4)	/* full hwptr update info */
-#define XRUN_DEBUG_LOG		(1<<5)	/* show last 10 positions on err */
-#define XRUN_DEBUG_LOGONCE	(1<<6)	/* do above only once */
 
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
 
@@ -168,6 +173,7 @@ static void xrun(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
+	trace_xrun(substream);
 	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
 		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
@@ -180,97 +186,19 @@ static void xrun(struct snd_pcm_substream *substream)
 }
 
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
-#define hw_ptr_error(substream, fmt, args...)				\
+#define hw_ptr_error(substream, in_interrupt, reason, fmt, args...)	\
 	do {								\
+		trace_hw_ptr_error(substream, reason);	\
 		if (xrun_debug(substream, XRUN_DEBUG_BASIC)) {		\
-			xrun_log_show(substream);			\
-			pr_err_ratelimited("ALSA: PCM: " fmt, ##args);	\
+			pr_err_ratelimited("ALSA: PCM: [%c] " reason ": " fmt, \
+					   (in_interrupt) ? 'Q' : 'P', ##args);	\
 			dump_stack_on_xrun(substream);			\
 		}							\
 	} while (0)
 
-#define XRUN_LOG_CNT	10
-
-struct hwptr_log_entry {
-	unsigned int in_interrupt;
-	unsigned long jiffies;
-	snd_pcm_uframes_t pos;
-	snd_pcm_uframes_t period_size;
-	snd_pcm_uframes_t buffer_size;
-	snd_pcm_uframes_t old_hw_ptr;
-	snd_pcm_uframes_t hw_ptr_base;
-};
-
-struct snd_pcm_hwptr_log {
-	unsigned int idx;
-	unsigned int hit: 1;
-	struct hwptr_log_entry entries[XRUN_LOG_CNT];
-};
-
-static void xrun_log(struct snd_pcm_substream *substream,
-		     snd_pcm_uframes_t pos, int in_interrupt)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_pcm_hwptr_log *log = runtime->hwptr_log;
-	struct hwptr_log_entry *entry;
-
-	if (log == NULL) {
-		log = kzalloc(sizeof(*log), GFP_ATOMIC);
-		if (log == NULL)
-			return;
-		runtime->hwptr_log = log;
-	} else {
-		if (xrun_debug(substream, XRUN_DEBUG_LOGONCE) && log->hit)
-			return;
-	}
-	entry = &log->entries[log->idx];
-	entry->in_interrupt = in_interrupt;
-	entry->jiffies = jiffies;
-	entry->pos = pos;
-	entry->period_size = runtime->period_size;
-	entry->buffer_size = runtime->buffer_size;
-	entry->old_hw_ptr = runtime->status->hw_ptr;
-	entry->hw_ptr_base = runtime->hw_ptr_base;
-	log->idx = (log->idx + 1) % XRUN_LOG_CNT;
-}
-
-static void xrun_log_show(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_hwptr_log *log = substream->runtime->hwptr_log;
-	struct hwptr_log_entry *entry;
-	char name[16];
-	unsigned int idx;
-	int cnt;
-
-	if (log == NULL)
-		return;
-	if (xrun_debug(substream, XRUN_DEBUG_LOGONCE) && log->hit)
-		return;
-	snd_pcm_debug_name(substream, name, sizeof(name));
-	for (cnt = 0, idx = log->idx; cnt < XRUN_LOG_CNT; cnt++) {
-		entry = &log->entries[idx];
-		if (entry->period_size == 0)
-			break;
-		pr_info("hwptr log: %s: %sj=%lu, pos=%ld/%ld/%ld, "
-			   "hwptr=%ld/%ld\n",
-			   name, entry->in_interrupt ? "[Q] " : "",
-			   entry->jiffies,
-			   (unsigned long)entry->pos,
-			   (unsigned long)entry->period_size,
-			   (unsigned long)entry->buffer_size,
-			   (unsigned long)entry->old_hw_ptr,
-			   (unsigned long)entry->hw_ptr_base);
-		idx++;
-		idx %= XRUN_LOG_CNT;
-	}
-	log->hit = 1;
-}
-
 #else /* ! CONFIG_SND_PCM_XRUN_DEBUG */
 
 #define hw_ptr_error(substream, fmt, args...) do { } while (0)
-#define xrun_log(substream, pos, in_interrupt)	do { } while (0)
-#define xrun_log_show(substream)	do { } while (0)
 
 #endif
 
@@ -343,17 +271,15 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		if (printk_ratelimit()) {
 			char name[16];
 			snd_pcm_debug_name(substream, name, sizeof(name));
-			xrun_log_show(substream);
 			pcm_err(substream->pcm,
-				"XRUN: %s, pos = %ld, buffer size = %ld, period size = %ld\n",
+				"BUG: %s, pos = %ld, buffer size = %ld, period size = %ld\n",
 				name, pos, runtime->buffer_size,
 				runtime->period_size);
 		}
 		pos = 0;
 	}
 	pos -= pos % runtime->min_align;
-	if (xrun_debug(substream, XRUN_DEBUG_LOG))
-		xrun_log(substream, pos, in_interrupt);
+	trace_hwptr(substream, pos, in_interrupt);
 	hw_base = runtime->hw_ptr_base;
 	new_hw_ptr = hw_base + pos;
 	if (in_interrupt) {
@@ -388,22 +314,6 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	delta = new_hw_ptr - old_hw_ptr;
 	if (delta < 0)
 		delta += runtime->boundary;
-	if (xrun_debug(substream, in_interrupt ?
-			XRUN_DEBUG_PERIODUPDATE : XRUN_DEBUG_HWPTRUPDATE)) {
-		char name[16];
-		snd_pcm_debug_name(substream, name, sizeof(name));
-		pcm_dbg(substream->pcm,
-			"%s_update: %s: pos=%u/%u/%u, hwptr=%ld/%ld/%ld/%ld\n",
-			   in_interrupt ? "period" : "hwptr",
-			   name,
-			   (unsigned int)pos,
-			   (unsigned int)runtime->period_size,
-			   (unsigned int)runtime->buffer_size,
-			   (unsigned long)delta,
-			   (unsigned long)old_hw_ptr,
-			   (unsigned long)new_hw_ptr,
-			   (unsigned long)runtime->hw_ptr_base);
-	}
 
 	if (runtime->no_period_wakeup) {
 		snd_pcm_sframes_t xrun_threshold;
@@ -431,13 +341,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 
 	/* something must be really wrong */
 	if (delta >= runtime->buffer_size + runtime->period_size) {
-		hw_ptr_error(substream,
-			       "Unexpected hw_pointer value %s"
-			       "(stream=%i, pos=%ld, new_hw_ptr=%ld, "
-			       "old_hw_ptr=%ld)\n",
-				     in_interrupt ? "[Q] " : "[P]",
-				     substream->stream, (long)pos,
-				     (long)new_hw_ptr, (long)old_hw_ptr);
+		hw_ptr_error(substream, in_interrupt, "Unexpected hw_ptr",
+			     "(stream=%i, pos=%ld, new_hw_ptr=%ld, old_hw_ptr=%ld)\n",
+			     substream->stream, (long)pos,
+			     (long)new_hw_ptr, (long)old_hw_ptr);
 		return 0;
 	}
 
@@ -474,11 +381,8 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			delta--;
 		}
 		/* align hw_base to buffer_size */
-		hw_ptr_error(substream,
-			     "hw_ptr skipping! %s"
-			     "(pos=%ld, delta=%ld, period=%ld, "
-			     "jdelta=%lu/%lu/%lu, hw_ptr=%ld/%ld)\n",
-			     in_interrupt ? "[Q] " : "",
+		hw_ptr_error(substream, in_interrupt, "hw_ptr skipping",
+			     "(pos=%ld, delta=%ld, period=%ld, jdelta=%lu/%lu/%lu, hw_ptr=%ld/%ld)\n",
 			     (long)pos, (long)hdelta,
 			     (long)runtime->period_size, jdelta,
 			     ((hdelta * HZ) / runtime->rate), hw_base,
@@ -490,11 +394,9 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	}
  no_jiffies_check:
 	if (delta > runtime->period_size + runtime->period_size / 2) {
-		hw_ptr_error(substream,
-			     "Lost interrupts? %s"
-			     "(stream=%i, delta=%ld, new_hw_ptr=%ld, "
-			     "old_hw_ptr=%ld)\n",
-			     in_interrupt ? "[Q] " : "",
+		hw_ptr_error(substream, in_interrupt,
+			     "Lost interrupts?",
+			     "(stream=%i, delta=%ld, new_hw_ptr=%ld, old_hw_ptr=%ld)\n",
 			     substream->stream, (long)delta,
 			     (long)new_hw_ptr,
 			     (long)old_hw_ptr);

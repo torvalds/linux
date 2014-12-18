@@ -1,6 +1,10 @@
 Rockchip platforms device tree bindings
 ---------------------------------------
 
+- MarsBoard RK3066 board:
+    Required root node properties:
+      - compatible = "haoyu,marsboard-rk3066", "rockchip,rk3066a";
+
 - bq Curie 2 tablet:
     Required root node properties:
       - compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";

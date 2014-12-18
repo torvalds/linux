@@ -29,7 +29,7 @@
  */
 
 #include <linux/types.h>
-#include "skein.h"
+#include "skein_base.h"
 
 #define KEY_SCHEDULE_CONST 0x1BD11BDAA9FC1A22L
 

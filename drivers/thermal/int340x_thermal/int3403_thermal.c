@@ -92,7 +92,13 @@ static int sys_get_trip_hyst(struct thermal_zone_device *tzone,
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	*temp = DECI_KELVIN_TO_MILLI_CELSIUS(hyst, KELVIN_OFFSET);
+	/*
+	 * Thermal hysteresis represents a temperature difference.
+	 * Kelvin and Celsius have same degree size. So the
+	 * conversion here between tenths of degree Kelvin unit
+	 * and Milli-Celsius unit is just to multiply 100.
+	 */
+	*temp = hyst * 100;
 
 	return 0;
 }
@@ -287,8 +293,7 @@ static int int3403_sensor_add(struct int3403_priv *priv)
 	return 0;
 
  err_free_obj:
-	if (obj->tzone)
-		thermal_zone_device_unregister(obj->tzone);
+	thermal_zone_device_unregister(obj->tzone);
 	return result;
 }
 
@@ -465,7 +470,6 @@ static struct platform_driver int3403_driver = {
 	.remove = int3403_remove,
 	.driver = {
 		.name = "int3403 thermal",
-		.owner  = THIS_MODULE,
 		.acpi_match_table = int3403_device_ids,
 	},
 };

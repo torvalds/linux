@@ -292,7 +292,7 @@ struct btrfs_bio_stripe {
 struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 
-#define BTRFS_BIO_ORIG_BIO_SUBMITTED	0x1
+#define BTRFS_BIO_ORIG_BIO_SUBMITTED	(1 << 0)
 
 struct btrfs_bio {
 	atomic_t stripes_pending;
@@ -305,6 +305,8 @@ struct btrfs_bio {
 	int max_errors;
 	int num_stripes;
 	int mirror_num;
+	int num_tgtdevs;
+	int *tgtdev_map;
 	struct btrfs_bio_stripe stripes[];
 };
 
@@ -387,12 +389,18 @@ struct btrfs_balance_control {
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);
 
-#define btrfs_bio_size(n) (sizeof(struct btrfs_bio) + \
-			    (sizeof(struct btrfs_bio_stripe) * (n)))
+#define btrfs_bio_size(total_stripes, real_stripes)		\
+	(sizeof(struct btrfs_bio) +				\
+	 (sizeof(struct btrfs_bio_stripe) * (total_stripes)) +	\
+	 (sizeof(int) * (real_stripes)))
 
 int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		    u64 logical, u64 *length,
 		    struct btrfs_bio **bbio_ret, int mirror_num);
+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
+		     u64 logical, u64 *length,
+		     struct btrfs_bio **bbio_ret, int mirror_num,
+		     u64 **raid_map_ret);
 int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len);
@@ -448,8 +456,10 @@ void btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
-void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
-				 struct btrfs_device *srcdev);
+void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
+					struct btrfs_device *srcdev);
+void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
+				      struct btrfs_device *srcdev);
 void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				      struct btrfs_device *tgtdev);
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
@@ -513,4 +523,16 @@ static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
 void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
 void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
 					struct btrfs_transaction *transaction);
+
+static inline void lock_chunks(struct btrfs_root *root)
+{
+	mutex_lock(&root->fs_info->chunk_mutex);
+}
+
+static inline void unlock_chunks(struct btrfs_root *root)
+{
+	mutex_unlock(&root->fs_info->chunk_mutex);
+}
+
+
 #endif

@@ -479,6 +479,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GM204_DISP,
 			GM107_DISP,
 			GK110_DISP,
 			GK104_DISP,
@@ -568,9 +569,10 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-		nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		if (nv_crtc->cursor.nvbo) {
+			nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		}
 	}
 
 	return 0;
@@ -591,15 +593,17 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		if (!nouveau_fb || !nouveau_fb->nvbo)
 			continue;
 
-		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			NV_ERROR(drm, "Could not pin framebuffer\n");
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
 
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
 		if (!ret)
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
 		if (ret)
@@ -630,9 +634,10 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		u32 offset = nv_crtc->cursor.nvbo->bo.offset;
 
-		nv_crtc->cursor.set_offset(nv_crtc, offset);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
+		nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
 						 nv_crtc->cursor_saved_y);
 	}
@@ -710,7 +715,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		return -ENOMEM;
 
 	if (new_bo != old_bo) {
-		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			goto fail_free;
 	}
@@ -871,6 +876,7 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	bo->gem.dumb = true;
 	ret = drm_gem_handle_create(file_priv, &bo->gem, &args->handle);
 	drm_gem_object_unreference_unlocked(&bo->gem);
 	return ret;
@@ -886,6 +892,14 @@ nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 	gem = drm_gem_object_lookup(dev, file_priv, handle);
 	if (gem) {
 		struct nouveau_bo *bo = nouveau_gem_object(gem);
+
+		/*
+		 * We don't allow dumb mmaps on objects created using another
+		 * interface.
+		 */
+		WARN_ONCE(!(gem->dumb || gem->import_attach),
+			  "Illegal dumb map of accelerated buffer.\n");
+
 		*poffset = drm_vma_node_offset_addr(&bo->bo.vma_node);
 		drm_gem_object_unreference_unlocked(gem);
 		return 0;

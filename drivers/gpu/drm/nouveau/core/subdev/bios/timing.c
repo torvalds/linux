@@ -93,10 +93,44 @@ nvbios_timingEp(struct nouveau_bios *bios, int idx,
 	p->timing_hdr = *hdr;
 	switch (!!data * *ver) {
 	case 0x10:
-		p->timing_10_WR = nv_ro08(bios, data + 0x00);
-		p->timing_10_CL = nv_ro08(bios, data + 0x02);
-		p->timing_10_ODT = nv_ro08(bios, data + 0x0e) & 0x07;
-		p->timing_10_CWL = nv_ro08(bios, data + 0x13);
+		p->timing_10_WR    = nv_ro08(bios, data + 0x00);
+		p->timing_10_WTR   = nv_ro08(bios, data + 0x01);
+		p->timing_10_CL    = nv_ro08(bios, data + 0x02);
+		p->timing_10_RC    = nv_ro08(bios, data + 0x03);
+		p->timing_10_RFC   = nv_ro08(bios, data + 0x05);
+		p->timing_10_RAS   = nv_ro08(bios, data + 0x07);
+		p->timing_10_RP    = nv_ro08(bios, data + 0x09);
+		p->timing_10_RCDRD = nv_ro08(bios, data + 0x0a);
+		p->timing_10_RCDWR = nv_ro08(bios, data + 0x0b);
+		p->timing_10_RRD   = nv_ro08(bios, data + 0x0c);
+		p->timing_10_13    = nv_ro08(bios, data + 0x0d);
+		p->timing_10_ODT   = nv_ro08(bios, data + 0x0e) & 0x07;
+
+		p->timing_10_24  = 0xff;
+		p->timing_10_21  = 0;
+		p->timing_10_20  = 0;
+		p->timing_10_CWL = 0;
+		p->timing_10_18  = 0;
+		p->timing_10_16  = 0;
+
+		switch (min_t(u8, *hdr, 25)) {
+		case 25:
+			p->timing_10_24  = nv_ro08(bios, data + 0x18);
+		case 24:
+		case 23:
+		case 22:
+			p->timing_10_21  = nv_ro08(bios, data + 0x15);
+		case 21:
+			p->timing_10_20  = nv_ro08(bios, data + 0x14);
+		case 20:
+			p->timing_10_CWL = nv_ro08(bios, data + 0x13);
+		case 19:
+			p->timing_10_18  = nv_ro08(bios, data + 0x12);
+		case 18:
+		case 17:
+			p->timing_10_16  = nv_ro08(bios, data + 0x10);
+		}
+
 		break;
 	case 0x20:
 		p->timing[0] = nv_ro32(bios, data + 0x00);

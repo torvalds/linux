@@ -150,8 +150,7 @@ static int qcom_ipq806x_sata_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->mmio))
 		return PTR_ERR(phy->mmio);
 
-	generic_phy = devm_phy_create(dev, NULL, &qcom_ipq806x_sata_phy_ops,
-				      NULL);
+	generic_phy = devm_phy_create(dev, NULL, &qcom_ipq806x_sata_phy_ops);
 	if (IS_ERR(generic_phy)) {
 		dev_err(dev, "%s: failed to create phy\n", __func__);
 		return PTR_ERR(generic_phy);

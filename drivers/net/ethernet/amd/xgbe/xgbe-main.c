@@ -133,60 +133,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(XGBE_DRV_VERSION);
 MODULE_DESCRIPTION(XGBE_DRV_DESC);
 
-static struct xgbe_channel *xgbe_alloc_rings(struct xgbe_prv_data *pdata)
-{
-	struct xgbe_channel *channel_mem, *channel;
-	struct xgbe_ring *tx_ring, *rx_ring;
-	unsigned int count, i;
-
-	DBGPR("-->xgbe_alloc_rings\n");
-
-	count = max_t(unsigned int, pdata->tx_ring_count, pdata->rx_ring_count);
-
-	channel_mem = devm_kcalloc(pdata->dev, count,
-				   sizeof(struct xgbe_channel), GFP_KERNEL);
-	if (!channel_mem)
-		return NULL;
-
-	tx_ring = devm_kcalloc(pdata->dev, pdata->tx_ring_count,
-			       sizeof(struct xgbe_ring), GFP_KERNEL);
-	if (!tx_ring)
-		return NULL;
-
-	rx_ring = devm_kcalloc(pdata->dev, pdata->rx_ring_count,
-			       sizeof(struct xgbe_ring), GFP_KERNEL);
-	if (!rx_ring)
-		return NULL;
-
-	for (i = 0, channel = channel_mem; i < count; i++, channel++) {
-		snprintf(channel->name, sizeof(channel->name), "channel-%d", i);
-		channel->pdata = pdata;
-		channel->queue_index = i;
-		channel->dma_regs = pdata->xgmac_regs + DMA_CH_BASE +
-				    (DMA_CH_INC * i);
-
-		if (i < pdata->tx_ring_count) {
-			spin_lock_init(&tx_ring->lock);
-			channel->tx_ring = tx_ring++;
-		}
-
-		if (i < pdata->rx_ring_count) {
-			spin_lock_init(&rx_ring->lock);
-			channel->rx_ring = rx_ring++;
-		}
-
-		DBGPR("  %s - queue_index=%u, dma_regs=%p, tx=%p, rx=%p\n",
-		      channel->name, channel->queue_index, channel->dma_regs,
-		      channel->tx_ring, channel->rx_ring);
-	}
-
-	pdata->channel_count = count;
-
-	DBGPR("<--xgbe_alloc_rings\n");
-
-	return channel_mem;
-}
-
 static void xgbe_default_config(struct xgbe_prv_data *pdata)
 {
 	DBGPR("-->xgbe_default_config\n");
@@ -224,6 +170,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	const u8 *mac_addr;
+	unsigned int i;
 	int ret;
 
 	DBGPR("--> xgbe_probe\n");
@@ -244,6 +191,7 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pdata->lock);
 	mutex_init(&pdata->xpcs_mutex);
+	mutex_init(&pdata->rss_mutex);
 	spin_lock_init(&pdata->tstamp_lock);
 
 	/* Set and validate the number of descriptors for a ring */
@@ -318,12 +266,18 @@ static int xgbe_probe(struct platform_device *pdev)
 		pdata->awcache = XGBE_DMA_SYS_AWCACHE;
 	}
 
+	/* Check for per channel interrupt support */
+	if (of_property_read_bool(dev->of_node, XGBE_DMA_IRQS))
+		pdata->per_channel_irq = 1;
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(dev, "platform_get_irq failed\n");
+		dev_err(dev, "platform_get_irq 0 failed\n");
 		goto err_io;
 	}
-	netdev->irq = ret;
+	pdata->dev_irq = ret;
+
+	netdev->irq = pdata->dev_irq;
 	netdev->base_addr = (unsigned long)pdata->xgmac_regs;
 
 	/* Set all the function pointers */
@@ -383,13 +337,16 @@ static int xgbe_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	/* Allocate the rings for the DMA channels */
-	pdata->channel = xgbe_alloc_rings(pdata);
-	if (!pdata->channel) {
-		dev_err(dev, "ring allocation failed\n");
-		ret = -ENOMEM;
-		goto err_io;
-	}
+	/* Initialize RSS hash key and lookup table */
+	netdev_rss_key_fill(pdata->rss_key, sizeof(pdata->rss_key));
+
+	for (i = 0; i < XGBE_RSS_MAX_TABLE_SIZE; i++)
+		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
+			       i % pdata->rx_ring_count);
+
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);
+	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
 
 	/* Prepare to regsiter with MDIO */
 	pdata->mii_bus_id = kasprintf(GFP_KERNEL, "%s", pdev->name);
@@ -420,6 +377,9 @@ static int xgbe_probe(struct platform_device *pdev)
 			      NETIF_F_HW_VLAN_CTAG_RX |
 			      NETIF_F_HW_VLAN_CTAG_TX |
 			      NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	if (pdata->hw_feat.rss)
+		netdev->hw_features |= NETIF_F_RXHASH;
 
 	netdev->vlan_features |= NETIF_F_SG |
 				 NETIF_F_IP_CSUM |

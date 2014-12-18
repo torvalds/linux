@@ -15,7 +15,7 @@
  * Enable debugging for nfsd.
  * Requires RPC_DEBUG.
  */
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define NFSD_DEBUG		1
 #endif
 

@@ -441,8 +441,7 @@ static void path_deinit(struct mmphw_path_plat *path_plat)
 	if (!path_plat)
 		return;
 
-	if (path_plat->path)
-		mmp_unregister_path(path_plat->path);
+	mmp_unregister_path(path_plat->path);
 }
 
 static int mmphw_probe(struct platform_device *pdev)
@@ -572,7 +571,6 @@ failed:
 static struct platform_driver mmphw_driver = {
 	.driver		= {
 		.name	= "mmp-disp",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= mmphw_probe,
 };

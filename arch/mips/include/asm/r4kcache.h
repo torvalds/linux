@@ -47,79 +47,20 @@ extern void (*r4k_blast_icache)(void);
 
 #ifdef CONFIG_MIPS_MT
 
-/*
- * Optionally force single-threaded execution during I-cache flushes.
- */
-#define PROTECT_CACHE_FLUSHES 1
-
-#ifdef PROTECT_CACHE_FLUSHES
-
-extern int mt_protiflush;
-extern int mt_protdflush;
-extern void mt_cflush_lockdown(void);
-extern void mt_cflush_release(void);
-
-#define BEGIN_MT_IPROT \
-	unsigned long flags = 0;			\
-	unsigned long mtflags = 0;			\
-	if(mt_protiflush) {				\
-		local_irq_save(flags);			\
-		ehb();					\
-		mtflags = dvpe();			\
-		mt_cflush_lockdown();			\
-	}
-
-#define END_MT_IPROT \
-	if(mt_protiflush) {				\
-		mt_cflush_release();			\
-		evpe(mtflags);				\
-		local_irq_restore(flags);		\
-	}
-
-#define BEGIN_MT_DPROT \
-	unsigned long flags = 0;			\
-	unsigned long mtflags = 0;			\
-	if(mt_protdflush) {				\
-		local_irq_save(flags);			\
-		ehb();					\
-		mtflags = dvpe();			\
-		mt_cflush_lockdown();			\
-	}
-
-#define END_MT_DPROT \
-	if(mt_protdflush) {				\
-		mt_cflush_release();			\
-		evpe(mtflags);				\
-		local_irq_restore(flags);		\
-	}
-
-#else
-
-#define BEGIN_MT_IPROT
-#define BEGIN_MT_DPROT
-#define END_MT_IPROT
-#define END_MT_DPROT
-
-#endif /* PROTECT_CACHE_FLUSHES */
-
 #define __iflush_prologue						\
 	unsigned long redundance;					\
 	extern int mt_n_iflushes;					\
-	BEGIN_MT_IPROT							\
 	for (redundance = 0; redundance < mt_n_iflushes; redundance++) {
 
 #define __iflush_epilogue						\
-	END_MT_IPROT							\
 	}
 
 #define __dflush_prologue						\
 	unsigned long redundance;					\
 	extern int mt_n_dflushes;					\
-	BEGIN_MT_DPROT							\
 	for (redundance = 0; redundance < mt_n_dflushes; redundance++) {
 
 #define __dflush_epilogue \
-	END_MT_DPROT	 \
 	}
 
 #define __inv_dflush_prologue __dflush_prologue
@@ -257,7 +198,11 @@ static inline void protected_flush_icache_line(unsigned long addr)
  */
 static inline void protected_writeback_dcache_line(unsigned long addr)
 {
+#ifdef CONFIG_EVA
+	protected_cachee_op(Hit_Writeback_Inv_D, addr);
+#else
 	protected_cache_op(Hit_Writeback_Inv_D, addr);
+#endif
 }
 
 static inline void protected_writeback_scache_line(unsigned long addr)

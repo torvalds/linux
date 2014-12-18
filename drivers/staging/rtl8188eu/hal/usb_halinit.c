@@ -1673,7 +1673,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			pRegToSet = RegToSet_Normal; /*  0xb972a841; */
 			FactorToSet = *((u8 *)val);
 			if (FactorToSet <= 3) {
-				FactorToSet = (1<<(FactorToSet + 2));
+				FactorToSet = 1 << (FactorToSet + 2);
 				if (FactorToSet > 0xf)
 					FactorToSet = 0xf;
 
@@ -2012,7 +2012,7 @@ static u8 SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eV
 			u8 bRSSIDump = *((u8 *)pValue);
 			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
 			if (bRSSIDump)
-				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT	;
+				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT;
 			else
 				dm_ocm->DebugComponents	= 0;
 		}

@@ -38,3 +38,7 @@ usb_f_uac2-y			:= f_uac2.o
 obj-$(CONFIG_USB_F_UAC2)	+= usb_f_uac2.o
 usb_f_uvc-y			:= f_uvc.o uvc_queue.o uvc_v4l2.o uvc_video.o
 obj-$(CONFIG_USB_F_UVC)		+= usb_f_uvc.o
+usb_f_midi-y			:= f_midi.o
+obj-$(CONFIG_USB_F_MIDI)	+= usb_f_midi.o
+usb_f_hid-y			:= f_hid.o
+obj-$(CONFIG_USB_F_HID)		+= usb_f_hid.o

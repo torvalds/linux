@@ -180,10 +180,12 @@ static void ovl_cache_put(struct ovl_dir_file *od, struct dentry *dentry)
 	}
 }
 
-static int ovl_fill_merge(void *buf, const char *name, int namelen,
-			  loff_t offset, u64 ino, unsigned int d_type)
+static int ovl_fill_merge(struct dir_context *ctx, const char *name,
+			  int namelen, loff_t offset, u64 ino,
+			  unsigned int d_type)
 {
-	struct ovl_readdir_data *rdd = buf;
+	struct ovl_readdir_data *rdd =
+		container_of(ctx, struct ovl_readdir_data, ctx);
 
 	rdd->count++;
 	if (!rdd->is_merge)
@@ -274,11 +276,11 @@ static int ovl_dir_mark_whiteouts(struct dentry *dir,
 	return 0;
 }
 
-static inline int ovl_dir_read_merged(struct path *upperpath,
-				      struct path *lowerpath,
-				      struct list_head *list)
+static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list)
 {
 	int err;
+	struct path lowerpath;
+	struct path upperpath;
 	struct ovl_readdir_data rdd = {
 		.ctx.actor = ovl_fill_merge,
 		.list = list,
@@ -286,25 +288,28 @@ static inline int ovl_dir_read_merged(struct path *upperpath,
 		.is_merge = false,
 	};
 
-	if (upperpath->dentry) {
-		err = ovl_dir_read(upperpath, &rdd);
+	ovl_path_lower(dentry, &lowerpath);
+	ovl_path_upper(dentry, &upperpath);
+
+	if (upperpath.dentry) {
+		err = ovl_dir_read(&upperpath, &rdd);
 		if (err)
 			goto out;
 
-		if (lowerpath->dentry) {
-			err = ovl_dir_mark_whiteouts(upperpath->dentry, &rdd);
+		if (lowerpath.dentry) {
+			err = ovl_dir_mark_whiteouts(upperpath.dentry, &rdd);
 			if (err)
 				goto out;
 		}
 	}
-	if (lowerpath->dentry) {
+	if (lowerpath.dentry) {
 		/*
 		 * Insert lowerpath entries before upperpath ones, this allows
 		 * offsets to be reasonably constant
 		 */
 		list_add(&rdd.middle, rdd.list);
 		rdd.is_merge = true;
-		err = ovl_dir_read(lowerpath, &rdd);
+		err = ovl_dir_read(&lowerpath, &rdd);
 		list_del(&rdd.middle);
 	}
 out:
@@ -329,8 +334,6 @@ static void ovl_seek_cursor(struct ovl_dir_file *od, loff_t pos)
 static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 {
 	int res;
-	struct path lowerpath;
-	struct path upperpath;
 	struct ovl_dir_cache *cache;
 
 	cache = ovl_dir_cache(dentry);
@@ -347,10 +350,7 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 	cache->refcount = 1;
 	INIT_LIST_HEAD(&cache->entries);
 
-	ovl_path_lower(dentry, &lowerpath);
-	ovl_path_upper(dentry, &upperpath);
-
-	res = ovl_dir_read_merged(&upperpath, &lowerpath, &cache->entries);
+	res = ovl_dir_read_merged(dentry, &cache->entries);
 	if (res) {
 		ovl_cache_free(&cache->entries);
 		kfree(cache);
@@ -452,10 +452,10 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 	/*
 	 * Need to check if we started out being a lower dir, but got copied up
 	 */
-	if (!od->is_upper && ovl_path_type(dentry) == OVL_PATH_MERGE) {
+	if (!od->is_upper && ovl_path_type(dentry) != OVL_PATH_LOWER) {
 		struct inode *inode = file_inode(file);
 
-		realfile =lockless_dereference(od->upperfile);
+		realfile = lockless_dereference(od->upperfile);
 		if (!realfile) {
 			struct path upperpath;
 
@@ -538,14 +538,9 @@ const struct file_operations ovl_dir_operations = {
 int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
 {
 	int err;
-	struct path lowerpath;
-	struct path upperpath;
 	struct ovl_cache_entry *p;
 
-	ovl_path_upper(dentry, &upperpath);
-	ovl_path_lower(dentry, &lowerpath);
-
-	err = ovl_dir_read_merged(&upperpath, &lowerpath, list);
+	err = ovl_dir_read_merged(dentry, list);
 	if (err)
 		return err;
 

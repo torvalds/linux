@@ -21,8 +21,8 @@
 #include <linux/mmc/sdio_func.h>
 
 #include <defs.h>
-#include "dhd_dbg.h"
-#include "sdio_host.h"
+#include "debug.h"
+#include "sdio.h"
 
 void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
 {
@@ -40,8 +40,8 @@ void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
 		return;
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq < 0) {
-		brcmf_err("interrupt could not be mapped: err=%d\n", irq);
+	if (!irq) {
+		brcmf_err("interrupt could not be mapped\n");
 		devm_kfree(dev, sdiodev->pdata);
 		return;
 	}

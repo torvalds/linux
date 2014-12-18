@@ -102,22 +102,33 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	} else if (INTEL_INFO(dev)->gen >= 6) {
-		uint32_t dimm_c0, dimm_c1;
-		dimm_c0 = I915_READ(MAD_DIMM_C0);
-		dimm_c1 = I915_READ(MAD_DIMM_C1);
-		dimm_c0 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
-		dimm_c1 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
-		/* Enable swizzling when the channels are populated with
-		 * identically sized dimms. We don't need to check the 3rd
-		 * channel because no cpu with gpu attached ships in that
-		 * configuration. Also, swizzling only makes sense for 2
-		 * channels anyway. */
-		if (dimm_c0 == dimm_c1) {
-			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
-			swizzle_y = I915_BIT_6_SWIZZLE_9;
+		if (dev_priv->preserve_bios_swizzle) {
+			if (I915_READ(DISP_ARB_CTL) &
+			    DISP_TILE_SURFACE_SWIZZLING) {
+				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
+				swizzle_y = I915_BIT_6_SWIZZLE_9;
+			} else {
+				swizzle_x = I915_BIT_6_SWIZZLE_NONE;
+				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+			}
 		} else {
-			swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-			swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+			uint32_t dimm_c0, dimm_c1;
+			dimm_c0 = I915_READ(MAD_DIMM_C0);
+			dimm_c1 = I915_READ(MAD_DIMM_C1);
+			dimm_c0 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
+			dimm_c1 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
+			/* Enable swizzling when the channels are populated
+			 * with identically sized dimms. We don't need to check
+			 * the 3rd channel because no cpu with gpu attached
+			 * ships in that configuration. Also, swizzling only
+			 * makes sense for 2 channels anyway. */
+			if (dimm_c0 == dimm_c1) {
+				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
+				swizzle_y = I915_BIT_6_SWIZZLE_9;
+			} else {
+				swizzle_x = I915_BIT_6_SWIZZLE_NONE;
+				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+			}
 		}
 	} else if (IS_GEN5(dev)) {
 		/* On Ironlake whatever DRAM config, GPU always do
@@ -167,6 +178,15 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 			}
 			break;
 		}
+
+		/* check for L-shaped memory aka modified enhanced addressing */
+		if (IS_GEN4(dev)) {
+			uint32_t ddc2 = I915_READ(DCC2);
+
+			if (!(ddc2 & DCC2_MODIFIED_ENHANCED_DISABLE))
+				dev_priv->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
+		}
+
 		if (dcc == 0xffffffff) {
 			DRM_ERROR("Couldn't read from MCHBAR.  "
 				  "Disabling tiling.\n");
@@ -364,24 +384,20 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * has to also include the unfenced register the GPU uses
 		 * whilst executing a fenced command for an untiled object.
 		 */
-
-		obj->map_and_fenceable =
-			!i915_gem_obj_ggtt_bound(obj) ||
-			(i915_gem_obj_ggtt_offset(obj) +
-			 obj->base.size <= dev_priv->gtt.mappable_end &&
-			 i915_gem_object_fence_ok(obj, args->tiling_mode));
-
-		/* Rebind if we need a change of alignment */
-		if (!obj->map_and_fenceable) {
-			u32 unfenced_align =
-				i915_gem_get_gtt_alignment(dev, obj->base.size,
-							    args->tiling_mode,
-							    false);
-			if (i915_gem_obj_ggtt_offset(obj) & (unfenced_align - 1))
-				ret = i915_gem_object_ggtt_unbind(obj);
-		}
+		if (obj->map_and_fenceable &&
+		    !i915_gem_object_fence_ok(obj, args->tiling_mode))
+			ret = i915_gem_object_ggtt_unbind(obj);
 
 		if (ret == 0) {
+			if (obj->pages &&
+			    obj->madv == I915_MADV_WILLNEED &&
+			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+				if (args->tiling_mode == I915_TILING_NONE)
+					i915_gem_object_unpin_pages(obj);
+				if (obj->tiling_mode == I915_TILING_NONE)
+					i915_gem_object_pin_pages(obj);
+			}
+
 			obj->fence_dirty =
 				obj->last_fenced_seqno ||
 				obj->fence_reg != I915_FENCE_REG_NONE;
@@ -447,6 +463,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	}
 
 	/* Hide bit 17 from the user -- see comment in i915_gem_set_tiling */
+	args->phys_swizzle_mode = args->swizzle_mode;
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_17)
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9;
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)

@@ -499,6 +499,7 @@ static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev) {}
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	const struct iwl_cfg *cfg_7265d __maybe_unused = NULL;
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
 	int ret;
@@ -506,6 +507,25 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
+
+#if IS_ENABLED(CONFIG_IWLMVM)
+	/*
+	 * special-case 7265D, it has the same PCI IDs.
+	 *
+	 * Note that because we already pass the cfg to the transport above,
+	 * all the parameters that the transport uses must, until that is
+	 * changed, be identical to the ones in the 7265D configuration.
+	 */
+	if (cfg == &iwl7265_2ac_cfg)
+		cfg_7265d = &iwl7265d_2ac_cfg;
+	else if (cfg == &iwl7265_2n_cfg)
+		cfg_7265d = &iwl7265d_2n_cfg;
+	else if (cfg == &iwl7265_n_cfg)
+		cfg_7265d = &iwl7265d_n_cfg;
+	if (cfg_7265d &&
+	    (iwl_trans->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_7265D)
+		cfg = cfg_7265d;
+#endif
 
 	pci_set_drvdata(pdev, iwl_trans);
 

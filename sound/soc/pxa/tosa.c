@@ -265,7 +265,6 @@ static int tosa_remove(struct platform_device *pdev)
 static struct platform_driver tosa_driver = {
 	.driver		= {
 		.name	= "tosa-audio",
-		.owner	= THIS_MODULE,
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= tosa_probe,

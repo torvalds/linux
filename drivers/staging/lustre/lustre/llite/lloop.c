@@ -187,7 +187,7 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 {
 	const struct lu_env  *env   = lo->lo_env;
 	struct cl_io	 *io    = &lo->lo_io;
-	struct inode	 *inode = lo->lo_backing_file->f_dentry->d_inode;
+	struct inode	 *inode = file_inode(lo->lo_backing_file);
 	struct cl_object     *obj = ll_i2info(inode)->lli_clob;
 	pgoff_t	       offset;
 	int		   ret;
@@ -626,7 +626,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 			break;
 		}
 		if (inode == NULL)
-			inode = lo->lo_backing_file->f_dentry->d_inode;
+			inode = file_inode(lo->lo_backing_file);
 		if (lo->lo_state == LLOOP_BOUND)
 			fid = ll_i2info(inode)->lli_fid;
 		else
@@ -692,8 +692,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 					lo_free = lo;
 				continue;
 			}
-			if (lo->lo_backing_file->f_dentry->d_inode ==
-			    file->f_dentry->d_inode)
+			if (file_inode(lo->lo_backing_file) == file_inode(file))
 				break;
 		}
 		if (lo || !lo_free) {
@@ -778,8 +777,8 @@ static int __init lloop_init(void)
 
 	if (max_loop < 1 || max_loop > 256) {
 		max_loop = MAX_LOOP_DEFAULT;
-		CWARN("lloop: invalid max_loop (must be between"
-		      " 1 and 256), using default (%u)\n", max_loop);
+		CWARN("lloop: invalid max_loop (must be between 1 and 256), using default (%u)\n",
+		      max_loop);
 	}
 
 	lloop_major = register_blkdev(0, "lloop");
@@ -793,11 +792,11 @@ static int __init lloop_init(void)
 	if (ll_iocontrol_magic == NULL)
 		goto out_mem1;
 
-	loop_dev = kzalloc(max_loop * sizeof(*loop_dev), GFP_KERNEL);
+	loop_dev = kcalloc(max_loop, sizeof(*loop_dev), GFP_KERNEL);
 	if (!loop_dev)
 		goto out_mem1;
 
-	disks = kzalloc(max_loop * sizeof(*disks), GFP_KERNEL);
+	disks = kcalloc(max_loop, sizeof(*disks), GFP_KERNEL);
 	if (!disks)
 		goto out_mem2;
 

@@ -146,12 +146,11 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
 	struct device_node *np = pdev->dev.of_node;
-	struct rcar_du_platform_data *pdata = pdev->dev.platform_data;
 	struct rcar_du_device *rcdu;
 	struct resource *mem;
 	int ret;
 
-	if (pdata == NULL && np == NULL) {
+	if (np == NULL) {
 		dev_err(dev->dev, "no platform data\n");
 		return -ENODEV;
 	}
@@ -163,7 +162,6 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	rcdu->dev = &pdev->dev;
-	rcdu->pdata = pdata;
 	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
 		   : (void *)platform_get_device_id(pdev)->driver_data;
 	rcdu->ddev = dev;
@@ -330,7 +328,6 @@ static struct platform_driver rcar_du_platform_driver = {
 	.probe		= rcar_du_probe,
 	.remove		= rcar_du_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rcar-du",
 		.pm	= &rcar_du_pm_ops,
 		.of_match_table = rcar_du_of_table,

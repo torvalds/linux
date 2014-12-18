@@ -288,6 +288,9 @@ static int cmpu64_rev(const void *a, const void *b)
 	return 0;
 }
 
+
+static struct ceph_snap_context *empty_snapc;
+
 /*
  * build the snap context for a given realm.
  */
@@ -328,6 +331,12 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 		return 0;
 	}
 
+	if (num == 0 && realm->seq == empty_snapc->seq) {
+		ceph_get_snap_context(empty_snapc);
+		snapc = empty_snapc;
+		goto done;
+	}
+
 	/* alloc new snap context */
 	err = -ENOMEM;
 	if (num > (SIZE_MAX - sizeof(*snapc)) / sizeof(u64))
@@ -365,8 +374,8 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	     realm->ino, realm, snapc, snapc->seq,
 	     (unsigned int) snapc->num_snaps);
 
-	if (realm->cached_context)
-		ceph_put_snap_context(realm->cached_context);
+done:
+	ceph_put_snap_context(realm->cached_context);
 	realm->cached_context = snapc;
 	return 0;
 
@@ -466,6 +475,9 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		   cap_snap.  lucky us. */
 		dout("queue_cap_snap %p already pending\n", inode);
 		kfree(capsnap);
+	} else if (ci->i_snap_realm->cached_context == empty_snapc) {
+		dout("queue_cap_snap %p empty snapc\n", inode);
+		kfree(capsnap);
 	} else if (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
 			    CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR)) {
 		struct ceph_snap_context *snapc = ci->i_head_snapc;
@@ -503,6 +515,8 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 			capsnap->xattr_blob = NULL;
 			capsnap->xattr_version = 0;
 		}
+
+		capsnap->inline_data = ci->i_inline_version != CEPH_INLINE_NONE;
 
 		/* dirty page count moved from _head to this cap_snap;
 		   all subsequent writes page dirties occur _after_ this
@@ -590,15 +604,13 @@ static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
 		if (!inode)
 			continue;
 		spin_unlock(&realm->inodes_with_caps_lock);
-		if (lastinode)
-			iput(lastinode);
+		iput(lastinode);
 		lastinode = inode;
 		ceph_queue_cap_snap(ci);
 		spin_lock(&realm->inodes_with_caps_lock);
 	}
 	spin_unlock(&realm->inodes_with_caps_lock);
-	if (lastinode)
-		iput(lastinode);
+	iput(lastinode);
 
 	list_for_each_entry(child, &realm->children, child_item) {
 		dout("queue_realm_cap_snaps %p %llx queue child %p %llx\n",
@@ -928,5 +940,16 @@ out:
 	return;
 }
 
+int __init ceph_snap_init(void)
+{
+	empty_snapc = ceph_create_snap_context(0, GFP_NOFS);
+	if (!empty_snapc)
+		return -ENOMEM;
+	empty_snapc->seq = 1;
+	return 0;
+}
 
-
+void ceph_snap_exit(void)
+{
+	ceph_put_snap_context(empty_snapc);
+}

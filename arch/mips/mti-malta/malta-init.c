@@ -111,7 +111,7 @@ static void __init mips_ejtag_setup(void)
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 
-phys_t mips_cpc_default_phys_base(void)
+phys_addr_t mips_cpc_default_phys_base(void)
 {
 	return CPC_BASE_ADDR;
 }

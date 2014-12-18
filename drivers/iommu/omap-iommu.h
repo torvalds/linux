@@ -10,9 +10,8 @@
  * published by the Free Software Foundation.
  */
 
-#if defined(CONFIG_ARCH_OMAP1)
-#error "iommu for this processor not implemented yet"
-#endif
+#ifndef _OMAP_IOMMU_H
+#define _OMAP_IOMMU_H
 
 struct iotlb_entry {
 	u32 da;
@@ -30,10 +29,9 @@ struct omap_iommu {
 	const char	*name;
 	void __iomem	*regbase;
 	struct device	*dev;
-	void		*isr_priv;
 	struct iommu_domain *domain;
+	struct dentry	*debug_dir;
 
-	unsigned int	refcount;
 	spinlock_t	iommu_lock;	/* global for this whole object */
 
 	/*
@@ -67,34 +65,6 @@ struct cr_regs {
 	};
 };
 
-/* architecture specific functions */
-struct iommu_functions {
-	unsigned long	version;
-
-	int (*enable)(struct omap_iommu *obj);
-	void (*disable)(struct omap_iommu *obj);
-	void (*set_twl)(struct omap_iommu *obj, bool on);
-	u32 (*fault_isr)(struct omap_iommu *obj, u32 *ra);
-
-	void (*tlb_read_cr)(struct omap_iommu *obj, struct cr_regs *cr);
-	void (*tlb_load_cr)(struct omap_iommu *obj, struct cr_regs *cr);
-
-	struct cr_regs *(*alloc_cr)(struct omap_iommu *obj,
-							struct iotlb_entry *e);
-	int (*cr_valid)(struct cr_regs *cr);
-	u32 (*cr_to_virt)(struct cr_regs *cr);
-	void (*cr_to_e)(struct cr_regs *cr, struct iotlb_entry *e);
-	ssize_t (*dump_cr)(struct omap_iommu *obj, struct cr_regs *cr,
-							char *buf);
-
-	u32 (*get_pte_attr)(struct iotlb_entry *e);
-
-	void (*save_ctx)(struct omap_iommu *obj);
-	void (*restore_ctx)(struct omap_iommu *obj);
-	ssize_t (*dump_ctx)(struct omap_iommu *obj, char *buf, ssize_t len);
-};
-
-#ifdef CONFIG_IOMMU_API
 /**
  * dev_to_omap_iommu() - retrieves an omap iommu object from a user device
  * @dev: iommu client device
@@ -105,7 +75,6 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 
 	return arch_data->iommu_dev;
 }
-#endif
 
 /*
  * MMU Register offsets
@@ -133,6 +102,28 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 /*
  * MMU Register bit definitions
  */
+/* IRQSTATUS & IRQENABLE */
+#define MMU_IRQ_MULTIHITFAULT	(1 << 4)
+#define MMU_IRQ_TABLEWALKFAULT	(1 << 3)
+#define MMU_IRQ_EMUMISS		(1 << 2)
+#define MMU_IRQ_TRANSLATIONFAULT	(1 << 1)
+#define MMU_IRQ_TLBMISS		(1 << 0)
+
+#define __MMU_IRQ_FAULT		\
+	(MMU_IRQ_MULTIHITFAULT | MMU_IRQ_EMUMISS | MMU_IRQ_TRANSLATIONFAULT)
+#define MMU_IRQ_MASK		\
+	(__MMU_IRQ_FAULT | MMU_IRQ_TABLEWALKFAULT | MMU_IRQ_TLBMISS)
+#define MMU_IRQ_TWL_MASK	(__MMU_IRQ_FAULT | MMU_IRQ_TABLEWALKFAULT)
+#define MMU_IRQ_TLB_MISS_MASK	(__MMU_IRQ_FAULT | MMU_IRQ_TLBMISS)
+
+/* MMU_CNTL */
+#define MMU_CNTL_SHIFT		1
+#define MMU_CNTL_MASK		(7 << MMU_CNTL_SHIFT)
+#define MMU_CNTL_EML_TLB	(1 << 3)
+#define MMU_CNTL_TWL_EN		(1 << 2)
+#define MMU_CNTL_MMU_EN		(1 << 1)
+
+/* CAM */
 #define MMU_CAM_VATAG_SHIFT	12
 #define MMU_CAM_VATAG_MASK \
 	((~0UL >> MMU_CAM_VATAG_SHIFT) << MMU_CAM_VATAG_SHIFT)
@@ -144,6 +135,7 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 #define MMU_CAM_PGSZ_4K		(2 << 0)
 #define MMU_CAM_PGSZ_16M	(3 << 0)
 
+/* RAM */
 #define MMU_RAM_PADDR_SHIFT	12
 #define MMU_RAM_PADDR_MASK \
 	((~0UL >> MMU_RAM_PADDR_SHIFT) << MMU_RAM_PADDR_SHIFT)
@@ -164,6 +156,12 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 #define MMU_RAM_MIXED		MMU_RAM_MIXED_MASK
 
 #define MMU_GP_REG_BUS_ERR_BACK_EN	0x1
+
+#define get_cam_va_mask(pgsz)				\
+	(((pgsz) == MMU_CAM_PGSZ_16M) ? 0xff000000 :	\
+	 ((pgsz) == MMU_CAM_PGSZ_1M)  ? 0xfff00000 :	\
+	 ((pgsz) == MMU_CAM_PGSZ_64K) ? 0xffff0000 :	\
+	 ((pgsz) == MMU_CAM_PGSZ_4K)  ? 0xfffff000 : 0)
 
 /*
  * utilities for super page(16MB, 1MB, 64KB and 4KB)
@@ -192,26 +190,24 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 /*
  * global functions
  */
-extern u32 omap_iommu_arch_version(void);
-
-extern void omap_iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
-
-extern int
-omap_iopgtable_store_entry(struct omap_iommu *obj, struct iotlb_entry *e);
-
-extern void omap_iommu_save_ctx(struct device *dev);
-extern void omap_iommu_restore_ctx(struct device *dev);
-
-extern int omap_foreach_iommu_device(void *data,
-				int (*fn)(struct device *, void *));
-
-extern int omap_install_iommu_arch(const struct iommu_functions *ops);
-extern void omap_uninstall_iommu_arch(const struct iommu_functions *ops);
-
+#ifdef CONFIG_OMAP_IOMMU_DEBUG
 extern ssize_t
 omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len);
 extern size_t
 omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t len);
+
+void omap_iommu_debugfs_init(void);
+void omap_iommu_debugfs_exit(void);
+
+void omap_iommu_debugfs_add(struct omap_iommu *obj);
+void omap_iommu_debugfs_remove(struct omap_iommu *obj);
+#else
+static inline void omap_iommu_debugfs_init(void) { }
+static inline void omap_iommu_debugfs_exit(void) { }
+
+static inline void omap_iommu_debugfs_add(struct omap_iommu *obj) { }
+static inline void omap_iommu_debugfs_remove(struct omap_iommu *obj) { }
+#endif
 
 /*
  * register accessors
@@ -225,3 +221,5 @@ static inline void iommu_write_reg(struct omap_iommu *obj, u32 val, size_t offs)
 {
 	__raw_writel(val, obj->regbase + offs);
 }
+
+#endif /* _OMAP_IOMMU_H */

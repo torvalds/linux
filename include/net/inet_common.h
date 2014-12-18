@@ -37,6 +37,8 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 			 unsigned short type, unsigned char protocol,
 			 struct net *net);
+int inet_recv_error(struct sock *sk, struct msghdr *msg, int len,
+		    int *addr_len);
 
 static inline void inet_ctl_sock_destroy(struct sock *sk)
 {

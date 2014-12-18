@@ -334,7 +334,7 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 		max_channel = 6;
 	}
 	if (channel > max_channel) {
-		printk("%s: bug, invalid RTSI_channel=%i\n", __func__, channel);
+		pr_err("%s: bug, invalid RTSI_channel=%i\n", __func__, channel);
 		return 0;
 	}
 	return 1 << (base_bit_shift + channel);
@@ -1090,7 +1090,7 @@ static inline int M_Offset_Static_AI_Control(int i)
 		0x263,
 	};
 	if (((unsigned)i) >= ARRAY_SIZE(offset)) {
-		printk("%s: invalid channel=%i\n", __func__, i);
+		pr_err("%s: invalid channel=%i\n", __func__, i);
 		return offset[0];
 	}
 	return offset[i];
@@ -1105,7 +1105,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 		0x267
 	};
 	if (((unsigned)channel) >= ARRAY_SIZE(offset)) {
-		printk("%s: invalid channel=%i\n", __func__, channel);
+		pr_err("%s: invalid channel=%i\n", __func__, channel);
 		return offset[0];
 	}
 	return offset[channel];
@@ -1114,7 +1114,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
 {
 	if (n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS) {
-		printk("%s: invalid pfi output select register=%i\n",
+		pr_err("%s: invalid pfi output select register=%i\n",
 		       __func__, n);
 		return M_Offset_PFI_Output_Select_1;
 	}
@@ -1171,7 +1171,7 @@ static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned
 							      RTSI_channel)
 {
 	if (RTSI_channel > 7) {
-		printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
+		pr_err("%s: bug, invalid RTSI_channel=%i\n", __func__,
 		       RTSI_channel);
 		return 0;
 	}
@@ -1192,7 +1192,7 @@ static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
 	static const unsigned max_divisor = 0x10;
 	if (divisor < 1 || divisor > max_divisor) {
-		printk("%s: bug, invalid divisor=%i\n", __func__, divisor);
+		pr_err("%s: bug, invalid divisor=%i\n", __func__, divisor);
 		return 0;
 	}
 	return (divisor & 0xf) << 8;
@@ -1202,7 +1202,7 @@ static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
 {
 	static const unsigned max_multiplier = 0x100;
 	if (multiplier < 1 || multiplier > max_multiplier) {
-		printk("%s: bug, invalid multiplier=%i\n", __func__,
+		pr_err("%s: bug, invalid multiplier=%i\n", __func__,
 		       multiplier);
 		return 0;
 	}
@@ -1464,7 +1464,7 @@ struct ni_private {
 
 	unsigned short ai_fifo_buffer[0x2000];
 	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
-	uint32_t serial_number;
+	__be32 serial_number;
 
 	struct mite_struct *mite;
 	struct mite_channel *ai_mite_chan;

@@ -78,7 +78,6 @@ struct s626_buffer_dma {
 
 struct s626_private {
 	uint8_t ai_cmd_running;		/* ai_cmd is running */
-	int ai_sample_count;		/* number of samples to acquire */
 	unsigned int ai_sample_timer;	/* time between samples in
 					 * units of the timer */
 	int ai_convert_count;		/* conversion counter */
@@ -1480,7 +1479,6 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 	 * from the final ADC of the previous poll list scan.
 	 */
 	uint32_t *readaddr = (uint32_t *)devpriv->ana_buf.logical_base + 1;
-	bool finished = false;
 	int i;
 
 	/* get the data and hand it over to comedi */
@@ -1494,36 +1492,21 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 		tempdata = s626_ai_reg_to_uint(*readaddr);
 		readaddr++;
 
-		/* put data into read buffer */
-		cfc_write_to_buffer(s, tempdata);
+		comedi_buf_write_samples(s, &tempdata, 1);
 	}
 
-	/* end of scan occurs */
-	async->events |= COMEDI_CB_EOS;
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
+		async->events |= COMEDI_CB_EOA;
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_sample_count--;
-		if (devpriv->ai_sample_count <= 0) {
-			devpriv->ai_cmd_running = 0;
-
-			/* Stop RPS program */
-			s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
-
-			/* send end of acquisition */
-			async->events |= COMEDI_CB_EOA;
-
-			/* disable master interrupt */
-			finished = true;
-		}
-	}
+	if (async->events & COMEDI_CB_CANCEL_MASK)
+		devpriv->ai_cmd_running = 0;
 
 	if (devpriv->ai_cmd_running && cmd->scan_begin_src == TRIG_EXT)
 		s626_dio_set_irq(dev, cmd->scan_begin_arg);
 
-	/* tell comedi that data is there */
-	comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
-	return finished;
+	return !devpriv->ai_cmd_running;
 }
 
 static irqreturn_t s626_irq_handler(int irq, void *d)
@@ -1970,13 +1953,13 @@ static int s626_ns_to_timer(unsigned int *nanosec, unsigned int flags)
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = (*nanosec + base / 2) / base;
+		divider = DIV_ROUND_CLOSEST(*nanosec, base);
 		break;
 	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = (*nanosec + base - 1) / base;
+		divider = DIV_ROUND_UP(*nanosec, base);
 		break;
 	}
 
@@ -2101,8 +2084,6 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			s626_dio_set_irq(dev, cmd->convert_arg);
 		break;
 	}
-
-	devpriv->ai_sample_count = cmd->stop_arg;
 
 	s626_reset_adc(dev, ppl);
 
@@ -2820,7 +2801,6 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0x3fff;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= s626_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

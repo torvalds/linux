@@ -33,20 +33,20 @@
 /*
  * Definitions for the generic 5380 driver.
  */
-#define AUTOSENSE
+
+#define DONT_USE_INTR
 
 #define NCR5380_read(reg)		inb(port + reg)
 #define NCR5380_write(reg, value)	outb(value, port + reg)
 
-#define NCR5380_implementation_fields	unsigned int port
-#define NCR5380_local_declare()		NCR5380_implementation_fields
+#define NCR5380_implementation_fields	/* none */
+#define NCR5380_local_declare()		unsigned int port
 #define NCR5380_setup(instance)		port = instance->io_port
 
 /*
  * Includes needed for NCR5380.[ch] (XXX: Move them to NCR5380.h)
  */
 #include <linux/delay.h>
-#include "scsi.h"
 
 #include "NCR5380.h"
 #include "NCR5380.c"
@@ -58,6 +58,7 @@
 static struct scsi_host_template dmx3191d_driver_template = {
 	.proc_name		= DMX3191D_DRIVER_NAME,
 	.name			= "Domex DMX3191D",
+	.info			= NCR5380_info,
 	.queuecommand		= NCR5380_queue_command,
 	.eh_abort_handler	= NCR5380_abort,
 	.eh_bus_reset_handler	= NCR5380_bus_reset,
@@ -90,31 +91,23 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	if (!shost)
 		goto out_release_region;       
 	shost->io_port = io;
-	shost->irq = pdev->irq;
+
+	/* This card does not seem to raise an interrupt on pdev->irq.
+	 * Steam-powered SCSI controllers run without an IRQ anyway.
+	 */
+	shost->irq = NO_IRQ;
 
 	NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
-
-	if (request_irq(pdev->irq, NCR5380_intr, IRQF_SHARED,
-				DMX3191D_DRIVER_NAME, shost)) {
-		/*
-		 * Steam powered scsi controllers run without an IRQ anyway
-		 */
-		printk(KERN_WARNING "dmx3191: IRQ %d not available - "
-				    "switching to polled mode.\n", pdev->irq);
-		shost->irq = SCSI_IRQ_NONE;
-	}
 
 	pci_set_drvdata(pdev, shost);
 
 	error = scsi_add_host(shost, &pdev->dev);
 	if (error)
-		goto out_free_irq;
+		goto out_release_region;
 
 	scsi_scan_host(shost);
 	return 0;
 
- out_free_irq:
-	free_irq(shost->irq, shost);
  out_release_region:
 	release_region(io, DMX3191D_REGION_LEN);
  out_disable_device:
@@ -131,8 +124,6 @@ static void dmx3191d_remove_one(struct pci_dev *pdev)
 
 	NCR5380_exit(shost);
 
-	if (shost->irq != SCSI_IRQ_NONE)
-		free_irq(shost->irq, shost);
 	release_region(shost->io_port, DMX3191D_REGION_LEN);
 	pci_disable_device(pdev);
 

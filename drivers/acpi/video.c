@@ -1164,7 +1164,8 @@ static bool acpi_video_device_in_dod(struct acpi_video_device *device)
 		return true;
 
 	for (i = 0; i < video->attached_count; i++) {
-		if (video->attached_array[i].bind_info == device)
+		if ((video->attached_array[i].value.int_val & 0xfff) ==
+		    (device->device_id & 0xfff))
 			return true;
 	}
 
@@ -1680,12 +1681,27 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 		printk(KERN_ERR PREFIX "Create sysfs link\n");
 }
 
+static void acpi_video_run_bcl_for_osi(struct acpi_video_bus *video)
+{
+	struct acpi_video_device *dev;
+	union acpi_object *levels;
+
+	mutex_lock(&video->device_list_lock);
+	list_for_each_entry(dev, &video->video_device_list, entry) {
+		if (!acpi_video_device_lcd_query_levels(dev, &levels))
+			kfree(levels);
+	}
+	mutex_unlock(&video->device_list_lock);
+}
+
 static int acpi_video_bus_register_backlight(struct acpi_video_bus *video)
 {
 	struct acpi_video_device *dev;
 
 	if (video->backlight_registered)
 		return 0;
+
+	acpi_video_run_bcl_for_osi(video);
 
 	if (!acpi_video_verify_backlight_support())
 		return 0;

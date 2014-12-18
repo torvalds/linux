@@ -44,6 +44,15 @@ static u8 twl4030_start_script_address = 0x2b;
 #define PWR_DEVSLP		BIT(1)
 #define PWR_DEVOFF		BIT(0)
 
+/* Register bits for CFG_P1_TRANSITION (also for P2 and P3) */
+#define STARTON_SWBUG		BIT(7)	/* Start on watchdog */
+#define STARTON_VBUS		BIT(5)	/* Start on VBUS */
+#define STARTON_VBAT		BIT(4)	/* Start on battery insert */
+#define STARTON_RTC		BIT(3)	/* Start on RTC */
+#define STARTON_USB		BIT(2)	/* Start on USB host */
+#define STARTON_CHG		BIT(1)	/* Start on charger */
+#define STARTON_PWON		BIT(0)	/* Start on PWRON button */
+
 #define SEQ_OFFSYNC		(1 << 0)
 
 #define PHY_TO_OFF_PM_MASTER(p)		(p - 0x36)
@@ -606,6 +615,44 @@ twl4030_power_configure_resources(const struct twl4030_power_data *pdata)
 	return 0;
 }
 
+static int twl4030_starton_mask_and_set(u8 bitmask, u8 bitvalues)
+{
+	u8 regs[3] = { TWL4030_PM_MASTER_CFG_P1_TRANSITION,
+		       TWL4030_PM_MASTER_CFG_P2_TRANSITION,
+		       TWL4030_PM_MASTER_CFG_P3_TRANSITION, };
+	u8 val;
+	int i, err;
+
+	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, TWL4030_PM_MASTER_KEY_CFG1,
+			       TWL4030_PM_MASTER_PROTECT_KEY);
+	if (err)
+		goto relock;
+	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
+			       TWL4030_PM_MASTER_KEY_CFG2,
+			       TWL4030_PM_MASTER_PROTECT_KEY);
+	if (err)
+		goto relock;
+
+	for (i = 0; i < sizeof(regs); i++) {
+		err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER,
+				      &val, regs[i]);
+		if (err)
+			break;
+		val = (~bitmask & val) | (bitmask & bitvalues);
+		err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
+				       val, regs[i]);
+		if (err)
+			break;
+	}
+
+	if (err)
+		pr_err("TWL4030 Register access failed: %i\n", err);
+
+relock:
+	return twl_i2c_write_u8(TWL_MODULE_PM_MASTER, 0,
+				TWL4030_PM_MASTER_PROTECT_KEY);
+}
+
 /*
  * In master mode, start the power off sequence.
  * After a successful execution, TWL shuts down the power to the SoC
@@ -614,6 +661,11 @@ twl4030_power_configure_resources(const struct twl4030_power_data *pdata)
 void twl4030_power_off(void)
 {
 	int err;
+
+	/* Disable start on charger or VBUS as it can break poweroff */
+	err = twl4030_starton_mask_and_set(STARTON_VBUS | STARTON_CHG, 0);
+	if (err)
+		pr_err("TWL4030 Unable to configure start-up\n");
 
 	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, PWR_DEVOFF,
 			       TWL4030_PM_MASTER_P1_SW_EVENTS);
@@ -779,6 +831,9 @@ static struct twl4030_power_data osc_off_idle = {
 
 static struct of_device_id twl4030_power_of_match[] = {
 	{
+		.compatible = "ti,twl4030-power",
+	},
+	{
 		.compatible = "ti,twl4030-power-reset",
 		.data = &omap3_reset,
 	},
@@ -878,7 +933,6 @@ static int twl4030_power_remove(struct platform_device *pdev)
 static struct platform_driver twl4030_power_driver = {
 	.driver = {
 		.name	= "twl4030_power",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl4030_power_of_match),
 	},
 	.probe		= twl4030_power_probe,

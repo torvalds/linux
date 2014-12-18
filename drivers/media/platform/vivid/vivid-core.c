@@ -100,11 +100,9 @@ MODULE_PARM_DESC(ccs_out_mode, " output crop/compose/scale mode:\n"
 			   "\t\t    bit 0=crop, 1=compose, 2=scale,\n"
 			   "\t\t    -1=user-controlled (default)");
 
-static unsigned multiplanar[VIVID_MAX_DEVS];
+static unsigned multiplanar[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 1 };
 module_param_array(multiplanar, uint, NULL, 0444);
-MODULE_PARM_DESC(multiplanar, " 0 (default) is alternating single and multiplanar devices,\n"
-			      "\t\t    1 is single planar devices,\n"
-			      "\t\t    2 is multiplanar devices");
+MODULE_PARM_DESC(multiplanar, " 1 (default) creates a single planar device, 2 creates a multiplanar device.");
 
 /* Default: video + vbi-cap (raw and sliced) + radio rx + radio tx + sdr + vbi-out + vid-out */
 static unsigned node_types[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0x1d3d };
@@ -196,20 +194,6 @@ static const u8 vivid_hdmi_edid[256] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd7
 };
-
-void vivid_lock(struct vb2_queue *vq)
-{
-	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_lock(&dev->mutex);
-}
-
-void vivid_unlock(struct vb2_queue *vq)
-{
-	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-
-	mutex_unlock(&dev->mutex);
-}
 
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
@@ -588,7 +572,7 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
-/* Not yet	.vidioc_expbuf		= vb2_ioctl_expbuf,*/
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 
@@ -669,10 +653,7 @@ static int __init vivid_create_instance(int inst)
 	/* start detecting feature set */
 
 	/* do we use single- or multi-planar? */
-	if (multiplanar[inst] == 0)
-		dev->multiplanar = inst & 1;
-	else
-		dev->multiplanar = multiplanar[inst] > 1;
+	dev->multiplanar = multiplanar[inst] > 1;
 	v4l2_info(&dev->v4l2_dev, "using %splanar format API\n",
 			dev->multiplanar ? "multi" : "single ");
 
@@ -1023,6 +1004,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1041,6 +1023,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1059,6 +1042,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1077,6 +1061,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
@@ -1094,6 +1079,7 @@ static int __init vivid_create_instance(int inst)
 		q->mem_ops = &vb2_vmalloc_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 8;
+		q->lock = &dev->mutex;
 
 		ret = vb2_queue_init(q);
 		if (ret)
