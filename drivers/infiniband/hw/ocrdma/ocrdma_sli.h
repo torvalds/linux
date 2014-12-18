@@ -101,7 +101,7 @@ enum {
 	QTYPE_MCCQ	= 3
 };
 
-#define OCRDMA_MAX_SGID		8
+#define OCRDMA_MAX_SGID		16
 
 #define OCRDMA_MAX_QP    2048
 #define OCRDMA_MAX_CQ    2048
