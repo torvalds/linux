@@ -217,6 +217,11 @@
 				status = "disabled";
 			};
 
+			sfr: sfr@f0038000 {
+				compatible = "atmel,sama5d3-sfr", "syscon";
+				reg = <0xf0038000 0x60>;
+			};
+
 			mmc1: mmc@f8000000 {
 				compatible = "atmel,hsmci";
 				reg = <0xf8000000 0x600>;
