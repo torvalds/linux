@@ -733,7 +733,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 				continue;
 			}
 
-			rx &= sport->port.read_status_mask;
+			rx &= (sport->port.read_status_mask | 0xFF);
 
 			if (rx & URXD_BRK)
 				flg = TTY_BREAK;
