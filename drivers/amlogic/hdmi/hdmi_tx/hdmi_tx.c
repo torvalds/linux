@@ -851,6 +851,7 @@ static ssize_t show_support_3d(struct device * dev, struct device_attribute *att
 
 void hdmi_print(int dbg_lvl, const char *fmt, ...)
 {
+    return;
     va_list args;
     if(dbg_lvl == OFF)
         return ;
