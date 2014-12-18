@@ -78,7 +78,7 @@ static inline int local_sid_setup_one(struct id *entry)
 
 	sid = __this_cpu_inc_return(pcpu_last_used_sid);
 	if (sid < NUM_TIDS) {
-		__this_cpu_write(pcpu_sids)entry[sid], entry);
+		__this_cpu_write(pcpu_sids.entry[sid], entry);
 		entry->val = sid;
 		entry->pentry = this_cpu_ptr(&pcpu_sids.entry[sid]);
 		ret = sid;
