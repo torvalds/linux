@@ -2442,7 +2442,7 @@ struct i915_params {
 	bool disable_display;
 	bool disable_vtd_wa;
 	int use_mmio_flip;
-	bool mmio_debug;
+	int mmio_debug;
 	bool verbose_state_checks;
 	bool nuclear_pageflip;
 };

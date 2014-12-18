@@ -557,18 +557,24 @@ hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv, u32 reg, bool read,
 		WARN(1, "Unclaimed register detected %s %s register 0x%x\n",
 		     when, op, reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+		i915.mmio_debug--; /* Only report the first N failures */
 	}
 }
 
 static void
 hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 {
-	if (i915.mmio_debug)
+	static bool mmio_debug_once = true;
+
+	if (i915.mmio_debug || !mmio_debug_once)
 		return;
 
 	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
-		DRM_ERROR("Unclaimed register detected. Please use the i915.mmio_debug=1 to debug this problem.");
+		DRM_DEBUG("Unclaimed register detected, "
+			  "enabling oneshot unclaimed register reporting. "
+			  "Please use i915.mmio_debug=N for more information.\n");
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+		i915.mmio_debug = mmio_debug_once--;
 	}
 }
 
