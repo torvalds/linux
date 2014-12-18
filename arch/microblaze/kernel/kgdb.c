@@ -36,9 +36,10 @@ struct pvr_s pvr;
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
-	int i;
+	unsigned int i;
 	unsigned long *pt_regb = (unsigned long *)regs;
 	int temp;
+
 	/* registers r0 - r31, pc, msr, ear, esr, fsr + do not save pt_mode */
 	for (i = 0; i < (sizeof(struct pt_regs) / 4) - 1; i++)
 		gdb_regs[i] = pt_regb[i];
@@ -68,7 +69,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 
 void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
-	int i;
+	unsigned int i;
 	unsigned long *pt_regb = (unsigned long *)regs;
 
 	/* pt_regs and gdb_regs have the same 37 values.
@@ -92,7 +93,7 @@ asmlinkage void microblaze_kgdb_break(struct pt_regs *regs)
 /* untested */
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
-	int i;
+	unsigned int i;
 	unsigned long *pt_regb = (unsigned long *)(p->thread.regs);
 
 	/* registers r0 - r31, pc, msr, ear, esr, fsr + do not save pt_mode */
