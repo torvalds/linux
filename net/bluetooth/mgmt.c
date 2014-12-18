@@ -7081,13 +7081,15 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		 * kept and checking possible scan response data
 		 * will be skipped.
 		 */
-		if (hdev->discovery.uuid_count > 0) {
+		if (hdev->discovery.uuid_count > 0)
 			match = eir_has_uuids(eir, eir_len,
 					      hdev->discovery.uuid_count,
 					      hdev->discovery.uuids);
-			if (!match)
-				return;
-		}
+		else
+			match = true;
+
+		if (!match && !scan_rsp_len)
+			return;
 
 		/* Copy EIR or advertising data into event */
 		memcpy(ev->eir, eir, eir_len);
@@ -7096,8 +7098,10 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		 * provided, results with empty EIR or advertising data
 		 * should be dropped since they do not match any UUID.
 		 */
-		if (hdev->discovery.uuid_count > 0)
+		if (hdev->discovery.uuid_count > 0 && !scan_rsp_len)
 			return;
+
+		match = false;
 	}
 
 	if (dev_class && !eir_has_data_type(ev->eir, eir_len, EIR_CLASS_OF_DEV))
