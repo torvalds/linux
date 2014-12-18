@@ -367,16 +367,10 @@ int mmc_of_parse(struct mmc_host *host)
 
 		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
 					   0, &cd_gpio_invert);
-		if (ret) {
-			if (ret == -EPROBE_DEFER)
-				return ret;
-			if (ret != -ENOENT) {
-				dev_err(host->parent,
-					"Failed to request CD GPIO: %d\n",
-					ret);
-			}
-		} else
+		if (!ret)
 			dev_info(host->parent, "Got CD GPIO\n");
+		else if (ret != -ENOENT)
+			return ret;
 
 		/*
 		 * There are two ways to flag that the CD line is inverted:
@@ -397,16 +391,10 @@ int mmc_of_parse(struct mmc_host *host)
 	ro_cap_invert = of_property_read_bool(np, "wp-inverted");
 
 	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
-	if (ret) {
-		if (ret == -EPROBE_DEFER)
-			goto out;
-		if (ret != -ENOENT) {
-			dev_err(host->parent,
-				"Failed to request WP GPIO: %d\n",
-				ret);
-		}
-	} else
+	if (!ret)
 		dev_info(host->parent, "Got WP GPIO\n");
+	else if (ret != -ENOENT)
+		return ret;
 
 	/* See the comment on CD inversion above */
 	if (ro_cap_invert ^ ro_gpio_invert)
@@ -458,10 +446,6 @@ int mmc_of_parse(struct mmc_host *host)
 	}
 
 	return 0;
-
-out:
-	mmc_gpio_free_cd(host);
-	return ret;
 }
 
 EXPORT_SYMBOL(mmc_of_parse);
