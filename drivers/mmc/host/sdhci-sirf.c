@@ -209,9 +209,6 @@ static int sdhci_sirf_remove(struct platform_device *pdev)
 
 	sdhci_pltfm_unregister(pdev);
 
-	if (gpio_is_valid(priv->gpio_cd))
-		mmc_gpio_free_cd(host->mmc);
-
 	clk_disable_unprepare(priv->clk);
 	return 0;
 }
