@@ -1427,6 +1427,9 @@ static int rcu_torture_barrier(void *arg)
 		cur_ops->cb_barrier(); /* Implies smp_mb() for wait_event(). */
 		if (atomic_read(&barrier_cbs_invoked) != n_barrier_cbs) {
 			n_rcu_torture_barrier_error++;
+			pr_err("barrier_cbs_invoked = %d, n_barrier_cbs = %d\n",
+			       atomic_read(&barrier_cbs_invoked),
+			       n_barrier_cbs);
 			WARN_ON_ONCE(1);
 		}
 		n_barrier_successes++;
