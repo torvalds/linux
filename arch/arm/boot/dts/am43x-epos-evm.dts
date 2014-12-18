@@ -243,6 +243,42 @@
 				0x08C (PIN_OUTPUT_PULLUP | MUX_MODE7)
 			>;
 		};
+
+		vpfe1_pins_default: vpfe1_pins_default {
+			pinctrl-single,pins = <
+				0x1cc (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data9 mode 0 */
+				0x1d0 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data8 mode 0 */
+				0x1d4 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_hd mode 0 */
+				0x1d8 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_vd mode 0 */
+				0x1dc (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_pclk mode 0 */
+				0x1e8 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data0 mode 0 */
+				0x1ec (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data1 mode 0 */
+				0x1f0 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data2 mode 0 */
+				0x1f4 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data3 mode 0 */
+				0x1f8 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data4 mode 0 */
+				0x1fc (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data5 mode 0 */
+				0x200 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data6 mode 0 */
+				0x204 (PIN_INPUT_PULLUP | MUX_MODE0)  /* cam1_data7 mode 0 */
+			>;
+		};
+
+		vpfe1_pins_sleep: vpfe1_pins_sleep {
+			pinctrl-single,pins = <
+				0x1cc (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1d0 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1d4 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1d8 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1dc (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1e8 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1ec (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1f0 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1f4 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1f8 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x1fc (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x200 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+				0x204 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
+			>;
+		};
 	};
 
 	matrix_keypad: matrix_keypad@0 {
@@ -631,6 +667,23 @@
 		dpi_out: endpoint@0 {
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
+		};
+	};
+};
+
+&vpfe1 {
+	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&vpfe1_pins_default>;
+	pinctrl-1 = <&vpfe1_pins_sleep>;
+
+	port {
+		vpfe1_ep: endpoint {
+			/* remote-endpoint = <&sensor>; add once we have it */
+			ti,am437x-vpfe-interface = <0>;
+			bus-width = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
 		};
 	};
 };
