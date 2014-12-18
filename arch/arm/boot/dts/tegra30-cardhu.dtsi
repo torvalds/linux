@@ -1,3 +1,4 @@
+#include <dt-bindings/input/input.h>
 #include "tegra30.dtsi"
 
 /**
@@ -614,5 +615,32 @@
 			 <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
 			 <&tegra_car TEGRA30_CLK_EXTERN1>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			interrupt-parent = <&pmic>;
+			interrupts = <2 0>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <100>;
+			gpio-key,wakeup;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			debounce-interval = <10>;
+		};
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(R, 1) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+		};
 	};
 };
