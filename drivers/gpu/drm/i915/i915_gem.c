@@ -3148,6 +3148,13 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 		u32 size = i915_gem_obj_ggtt_size(obj);
 		uint64_t val;
 
+		/* Adjust fence size to match tiled area */
+		if (obj->tiling_mode != I915_TILING_NONE) {
+			uint32_t row_size = obj->stride *
+				(obj->tiling_mode == I915_TILING_Y ? 32 : 8);
+			size = (size / row_size) * row_size;
+		}
+
 		val = (uint64_t)((i915_gem_obj_ggtt_offset(obj) + size - 4096) &
 				 0xfffff000) << 32;
 		val |= i915_gem_obj_ggtt_offset(obj) & 0xfffff000;
