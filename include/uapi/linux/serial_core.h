@@ -248,4 +248,7 @@
 /* MESON */
 #define PORT_MESON	109
 
+/* Conexant Digicolor */
+#define PORT_DIGICOLOR	110
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
