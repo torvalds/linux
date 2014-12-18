@@ -191,8 +191,8 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 		pstats->rxpower = rx_pwr_all;
 		pstats->recvsignalpower = rx_pwr_all;
 
-		if (pstats->is_ht && pstats->rate >= DESC92_RATEMCS8 &&
-		    pstats->rate <= DESC92_RATEMCS15)
+		if (pstats->is_ht && pstats->rate >= DESC_RATEMCS8 &&
+		    pstats->rate <= DESC_RATEMCS15)
 			max_spatial_stream = 2;
 		else
 			max_spatial_stream = 1;
@@ -393,14 +393,14 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_RSVD_MACID(pdesc, reserved_macid);
 
 		SET_TX_DESC_TXHT(pdesc, ((ptcb_desc->hw_rate >=
-				 DESC92_RATEMCS0) ? 1 : 0));
+				 DESC_RATEMCS0) ? 1 : 0));
 
 		if (rtlhal->version == VERSION_8192S_ACUT) {
-			if (ptcb_desc->hw_rate == DESC92_RATE1M ||
-			    ptcb_desc->hw_rate  == DESC92_RATE2M ||
-			    ptcb_desc->hw_rate == DESC92_RATE5_5M ||
-			    ptcb_desc->hw_rate == DESC92_RATE11M) {
-				ptcb_desc->hw_rate = DESC92_RATE12M;
+			if (ptcb_desc->hw_rate == DESC_RATE1M ||
+			    ptcb_desc->hw_rate  == DESC_RATE2M ||
+			    ptcb_desc->hw_rate == DESC_RATE5_5M ||
+			    ptcb_desc->hw_rate == DESC_RATE11M) {
+				ptcb_desc->hw_rate = DESC_RATE12M;
 			}
 		}
 
@@ -429,7 +429,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_RTS_BANDWIDTH(pdesc, 0);
 		SET_TX_DESC_RTS_SUB_CARRIER(pdesc, ptcb_desc->rts_sc);
 		SET_TX_DESC_RTS_SHORT(pdesc, ((ptcb_desc->rts_rate <=
-		       DESC92_RATE54M) ?
+		       DESC_RATE54M) ?
 		       (ptcb_desc->rts_use_shortpreamble ? 1 : 0)
 		       : (ptcb_desc->rts_use_shortgi ? 1 : 0)));
 

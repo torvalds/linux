@@ -543,7 +543,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	SET_TX_DESC_RTS_BW(txdesc, 0);
 	SET_TX_DESC_RTS_SC(txdesc, tcb_desc->rts_sc);
 	SET_TX_DESC_RTS_SHORT(txdesc,
-			      ((tcb_desc->rts_rate <= DESC92_RATE54M) ?
+			      ((tcb_desc->rts_rate <= DESC_RATE54M) ?
 			       (tcb_desc->rts_use_shortpreamble ? 1 : 0)
 			       : (tcb_desc->rts_use_shortgi ? 1 : 0)));
 	if (mac->bw_40) {
@@ -642,7 +642,7 @@ void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 * pDesc,
 	}
 	SET_TX_DESC_USE_RATE(pDesc, 1); /* use data rate which is set by Sw */
 	SET_TX_DESC_OWN(pDesc, 1);
-	SET_TX_DESC_TX_RATE(pDesc, DESC92_RATE1M);
+	SET_TX_DESC_TX_RATE(pDesc, DESC_RATE1M);
 	_rtl_tx_desc_checksum(pDesc);
 }
 
@@ -658,7 +658,7 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	memset((void *)pdesc, 0, RTL_TX_HEADER_SIZE);
 	if (firstseg)
 		SET_TX_DESC_OFFSET(pdesc, RTL_TX_HEADER_SIZE);
-	SET_TX_DESC_TX_RATE(pdesc, DESC92_RATE1M);
+	SET_TX_DESC_TX_RATE(pdesc, DESC_RATE1M);
 	SET_TX_DESC_SEQ(pdesc, 0);
 	SET_TX_DESC_LINIP(pdesc, 0);
 	SET_TX_DESC_QUEUE_SEL(pdesc, fw_queue);

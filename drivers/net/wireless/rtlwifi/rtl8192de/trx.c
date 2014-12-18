@@ -235,8 +235,8 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 		pstats->rx_pwdb_all = pwdb_all;
 		pstats->rxpower = rx_pwr_all;
 		pstats->recvsignalpower = rx_pwr_all;
-		if (pdesc->rxht && pdesc->rxmcs >= DESC92_RATEMCS8 &&
-		    pdesc->rxmcs <= DESC92_RATEMCS15)
+		if (pdesc->rxht && pdesc->rxmcs >= DESC_RATEMCS8 &&
+		    pdesc->rxmcs <= DESC_RATEMCS15)
 			max_spatial_stream = 2;
 		else
 			max_spatial_stream = 1;
@@ -611,14 +611,14 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 		}
 		/* 5G have no CCK rate */
 		if (rtlhal->current_bandtype == BAND_ON_5G)
-			if (ptcb_desc->hw_rate < DESC92_RATE6M)
-				ptcb_desc->hw_rate = DESC92_RATE6M;
+			if (ptcb_desc->hw_rate < DESC_RATE6M)
+				ptcb_desc->hw_rate = DESC_RATE6M;
 		SET_TX_DESC_TX_RATE(pdesc, ptcb_desc->hw_rate);
 		if (ptcb_desc->use_shortgi || ptcb_desc->use_shortpreamble)
 			SET_TX_DESC_DATA_SHORTGI(pdesc, 1);
 
 		if (rtlhal->macphymode == DUALMAC_DUALPHY &&
-			ptcb_desc->hw_rate == DESC92_RATEMCS7)
+			ptcb_desc->hw_rate == DESC_RATEMCS7)
 			SET_TX_DESC_DATA_SHORTGI(pdesc, 1);
 
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
@@ -634,13 +634,13 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_RTS_STBC(pdesc, ((ptcb_desc->rts_stbc) ? 1 : 0));
 		/* 5G have no CCK rate */
 		if (rtlhal->current_bandtype == BAND_ON_5G)
-			if (ptcb_desc->rts_rate < DESC92_RATE6M)
-				ptcb_desc->rts_rate = DESC92_RATE6M;
+			if (ptcb_desc->rts_rate < DESC_RATE6M)
+				ptcb_desc->rts_rate = DESC_RATE6M;
 		SET_TX_DESC_RTS_RATE(pdesc, ptcb_desc->rts_rate);
 		SET_TX_DESC_RTS_BW(pdesc, 0);
 		SET_TX_DESC_RTS_SC(pdesc, ptcb_desc->rts_sc);
 		SET_TX_DESC_RTS_SHORT(pdesc, ((ptcb_desc->rts_rate <=
-			DESC92_RATE54M) ?
+			DESC_RATE54M) ?
 			(ptcb_desc->rts_use_shortpreamble ? 1 : 0) :
 			(ptcb_desc->rts_use_shortgi ? 1 : 0)));
 		if (bw_40) {
@@ -755,9 +755,9 @@ void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	 * The braces are needed no matter what checkpatch says
 	 */
 	if (rtlhal->current_bandtype == BAND_ON_5G) {
-		SET_TX_DESC_TX_RATE(pdesc, DESC92_RATE6M);
+		SET_TX_DESC_TX_RATE(pdesc, DESC_RATE6M);
 	} else {
-		SET_TX_DESC_TX_RATE(pdesc, DESC92_RATE1M);
+		SET_TX_DESC_TX_RATE(pdesc, DESC_RATE1M);
 	}
 	SET_TX_DESC_SEQ(pdesc, 0);
 	SET_TX_DESC_LINIP(pdesc, 0);
