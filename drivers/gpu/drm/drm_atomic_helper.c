@@ -467,7 +467,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 
 		ret = funcs->atomic_check(plane, plane_state);
 		if (ret) {
-			DRM_DEBUG_KMS("[PLANE:%d] atomic check failed\n",
+			DRM_DEBUG_KMS("[PLANE:%d] atomic driver check failed\n",
 				      plane->base.id);
 			return ret;
 		}
@@ -487,7 +487,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 
 		ret = funcs->atomic_check(crtc, state->crtc_states[i]);
 		if (ret) {
-			DRM_DEBUG_KMS("[CRTC:%d] atomic check failed\n",
+			DRM_DEBUG_KMS("[CRTC:%d] atomic driver check failed\n",
 				      crtc->base.id);
 			return ret;
 		}

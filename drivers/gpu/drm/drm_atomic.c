@@ -269,6 +269,29 @@ int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_atomic_crtc_get_property);
 
 /**
+ * drm_atomic_crtc_check - check crtc state
+ * @crtc: crtc to check
+ * @state: crtc state to check
+ *
+ * Provides core sanity checks for crtc state.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+static int drm_atomic_crtc_check(struct drm_crtc *crtc,
+		struct drm_crtc_state *state)
+{
+	/* NOTE: we explicitly don't enforce constraints such as primary
+	 * layer covering entire screen, since that is something we want
+	 * to allow (on hw that supports it).  For hw that does not, it
+	 * should be checked in driver's crtc->atomic_check() vfunc.
+	 *
+	 * TODO: Add generic modeset state checks once we support those.
+	 */
+	return 0;
+}
+
+/**
  * drm_atomic_get_plane_state - get plane state
  * @state: global atomic state object
  * @plane: plane to get state object for
@@ -374,6 +397,82 @@ int drm_atomic_plane_get_property(struct drm_plane *plane,
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_atomic_plane_get_property);
+
+/**
+ * drm_atomic_plane_check - check plane state
+ * @plane: plane to check
+ * @state: plane state to check
+ *
+ * Provides core sanity checks for plane state.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+static int drm_atomic_plane_check(struct drm_plane *plane,
+		struct drm_plane_state *state)
+{
+	unsigned int fb_width, fb_height;
+	unsigned int i;
+
+	/* either *both* CRTC and FB must be set, or neither */
+	if (WARN_ON(state->crtc && !state->fb)) {
+		DRM_DEBUG_KMS("CRTC set but no FB\n");
+		return -EINVAL;
+	} else if (WARN_ON(state->fb && !state->crtc)) {
+		DRM_DEBUG_KMS("FB set but no CRTC\n");
+		return -EINVAL;
+	}
+
+	/* if disabled, we don't care about the rest of the state: */
+	if (!state->crtc)
+		return 0;
+
+	/* Check whether this plane is usable on this CRTC */
+	if (!(plane->possible_crtcs & drm_crtc_mask(state->crtc))) {
+		DRM_DEBUG_KMS("Invalid crtc for plane\n");
+		return -EINVAL;
+	}
+
+	/* Check whether this plane supports the fb pixel format. */
+	for (i = 0; i < plane->format_count; i++)
+		if (state->fb->pixel_format == plane->format_types[i])
+			break;
+	if (i == plane->format_count) {
+		DRM_DEBUG_KMS("Invalid pixel format %s\n",
+			      drm_get_format_name(state->fb->pixel_format));
+		return -EINVAL;
+	}
+
+	/* Give drivers some help against integer overflows */
+	if (state->crtc_w > INT_MAX ||
+	    state->crtc_x > INT_MAX - (int32_t) state->crtc_w ||
+	    state->crtc_h > INT_MAX ||
+	    state->crtc_y > INT_MAX - (int32_t) state->crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      state->crtc_w, state->crtc_h,
+			      state->crtc_x, state->crtc_y);
+		return -ERANGE;
+	}
+
+	fb_width = state->fb->width << 16;
+	fb_height = state->fb->height << 16;
+
+	/* Make sure source coordinates are inside the fb. */
+	if (state->src_w > fb_width ||
+	    state->src_x > fb_width - state->src_w ||
+	    state->src_h > fb_height ||
+	    state->src_y > fb_height - state->src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      state->src_w >> 16, ((state->src_w & 0xffff) * 15625) >> 10,
+			      state->src_h >> 16, ((state->src_h & 0xffff) * 15625) >> 10,
+			      state->src_x >> 16, ((state->src_x & 0xffff) * 15625) >> 10,
+			      state->src_y >> 16, ((state->src_y & 0xffff) * 15625) >> 10);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
 
 /**
  * drm_atomic_get_connector_state - get connector state
@@ -801,14 +900,46 @@ EXPORT_SYMBOL(drm_atomic_legacy_backoff);
  */
 int drm_atomic_check_only(struct drm_atomic_state *state)
 {
-	struct drm_mode_config *config = &state->dev->mode_config;
+	struct drm_device *dev = state->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+	int nplanes = config->num_total_plane;
+	int ncrtcs = config->num_crtc;
+	int i, ret = 0;
 
 	DRM_DEBUG_KMS("checking %p\n", state);
 
+	for (i = 0; i < nplanes; i++) {
+		struct drm_plane *plane = state->planes[i];
+
+		if (!plane)
+			continue;
+
+		ret = drm_atomic_plane_check(plane, state->plane_states[i]);
+		if (ret) {
+			DRM_DEBUG_KMS("[PLANE:%d] atomic core check failed\n",
+				      plane->base.id);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < ncrtcs; i++) {
+		struct drm_crtc *crtc = state->crtcs[i];
+
+		if (!crtc)
+			continue;
+
+		ret = drm_atomic_crtc_check(crtc, state->crtc_states[i]);
+		if (ret) {
+			DRM_DEBUG_KMS("[CRTC:%d] atomic core check failed\n",
+				      crtc->base.id);
+			return ret;
+		}
+	}
+
 	if (config->funcs->atomic_check)
-		return config->funcs->atomic_check(state->dev, state);
-	else
-		return 0;
+		ret = config->funcs->atomic_check(state->dev, state);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_check_only);
 
