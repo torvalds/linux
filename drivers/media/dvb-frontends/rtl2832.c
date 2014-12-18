@@ -1028,6 +1028,32 @@ static int rtl2832_regmap_gather_write(void *context, const void *reg,
 	return 0;
 }
 
+/*
+ * FIXME: Hack. Implement own regmap locking in order to silence lockdep
+ * recursive lock warning. That happens when regmap I2C client calls I2C mux
+ * adapter, which leads demod I2C repeater enable via demod regmap. Operation
+ * takes two regmap locks recursively - but those are different regmap instances
+ * in a two different I2C drivers, so it is not deadlock. Proper fix is to make
+ * regmap aware of lockdep.
+ */
+static void rtl2832_regmap_lock(void *__dev)
+{
+	struct rtl2832_dev *dev = __dev;
+	struct i2c_client *client = dev->client;
+
+	dev_dbg(&client->dev, "\n");
+	mutex_lock(&dev->regmap_mutex);
+}
+
+static void rtl2832_regmap_unlock(void *__dev)
+{
+	struct rtl2832_dev *dev = __dev;
+	struct i2c_client *client = dev->client;
+
+	dev_dbg(&client->dev, "\n");
+	mutex_unlock(&dev->regmap_mutex);
+}
+
 static struct dvb_frontend *rtl2832_get_dvb_frontend(struct i2c_client *client)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
@@ -1186,15 +1212,6 @@ static int rtl2832_probe(struct i2c_client *client,
 			.range_max        = 5 * 0x100,
 		},
 	};
-	static const struct regmap_config regmap_config = {
-		.reg_bits    =  8,
-		.val_bits    =  8,
-		.volatile_reg = rtl2832_volatile_reg,
-		.max_register = 5 * 0x100,
-		.ranges = regmap_range_cfg,
-		.num_ranges = ARRAY_SIZE(regmap_range_cfg),
-		.cache_type = REGCACHE_RBTREE,
-	};
 
 	dev_dbg(&client->dev, "\n");
 
@@ -1213,8 +1230,19 @@ static int rtl2832_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&dev->i2c_gate_work, rtl2832_i2c_gate_work);
 	INIT_DELAYED_WORK(&dev->stat_work, rtl2832_stat_work);
 	/* create regmap */
+	mutex_init(&dev->regmap_mutex);
+	dev->regmap_config.reg_bits =  8,
+	dev->regmap_config.val_bits =  8,
+	dev->regmap_config.lock = rtl2832_regmap_lock,
+	dev->regmap_config.unlock = rtl2832_regmap_unlock,
+	dev->regmap_config.lock_arg = dev,
+	dev->regmap_config.volatile_reg = rtl2832_volatile_reg,
+	dev->regmap_config.max_register = 5 * 0x100,
+	dev->regmap_config.ranges = regmap_range_cfg,
+	dev->regmap_config.num_ranges = ARRAY_SIZE(regmap_range_cfg),
+	dev->regmap_config.cache_type = REGCACHE_RBTREE,
 	dev->regmap = regmap_init(&client->dev, &regmap_bus, client,
-				  &regmap_config);
+				  &dev->regmap_config);
 	if (IS_ERR(dev->regmap)) {
 		ret = PTR_ERR(dev->regmap);
 		goto err_kfree;
