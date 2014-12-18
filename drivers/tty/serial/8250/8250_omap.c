@@ -1248,6 +1248,46 @@ static int omap8250_runtime_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_SERIAL_8250_OMAP_TTYO_FIXUP
+static int __init omap8250_console_fixup(void)
+{
+	char *omap_str;
+	char *options;
+	u8 idx;
+
+	if (strstr(boot_command_line, "console=ttyS"))
+		/* user set a ttyS based name for the console */
+		return 0;
+
+	omap_str = strstr(boot_command_line, "console=ttyO");
+	if (!omap_str)
+		/* user did not set ttyO based console, so we don't care */
+		return 0;
+
+	omap_str += 12;
+	if ('0' <= *omap_str && *omap_str <= '9')
+		idx = *omap_str - '0';
+	else
+		return 0;
+
+	omap_str++;
+	if (omap_str[0] == ',') {
+		omap_str++;
+		options = omap_str;
+	} else {
+		options = NULL;
+	}
+
+	add_preferred_console("ttyS", idx, options);
+	pr_err("WARNING: Your 'console=ttyO%d' has been replaced by 'ttyS%d'\n",
+	       idx, idx);
+	pr_err("This ensures that you still see kernel messages. Please\n");
+	pr_err("update your kernel commandline.\n");
+	return 0;
+}
+console_initcall(omap8250_console_fixup);
+#endif
+
 static const struct dev_pm_ops omap8250_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(omap8250_suspend, omap8250_resume)
 	SET_RUNTIME_PM_OPS(omap8250_runtime_suspend,
