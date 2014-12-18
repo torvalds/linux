@@ -19,8 +19,6 @@
 
 #include <video/mipi_display.h>
 
-#include <linux/host1x.h>
-
 struct sharp_panel {
 	struct drm_panel base;
 	/* the datasheet refers to them as DSI-LINK1 and DSI-LINK2 */
