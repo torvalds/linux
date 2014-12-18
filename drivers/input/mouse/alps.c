@@ -919,12 +919,14 @@ static void alps_get_finger_coordinate_v7(struct input_mt_pos *mt,
 
 static int alps_get_mt_count(struct input_mt_pos *mt)
 {
-	int i;
+	int i, fingers = 0;
 
-	for (i = 0; i < MAX_TOUCHES && mt[i].x != 0 && mt[i].y != 0; i++)
-		/* empty */;
+	for (i = 0; i < MAX_TOUCHES; i++) {
+		if (mt[i].x != 0 || mt[i].y != 0)
+			fingers++;
+	}
 
-	return i;
+	return fingers;
 }
 
 static int alps_decode_packet_v7(struct alps_fields *f,
@@ -969,6 +971,14 @@ static int alps_decode_packet_v7(struct alps_fields *f,
 		f->fingers = alps_get_mt_count(f->mt);
 	else /* pkt_id == V7_PACKET_ID_MULTI */
 		f->fingers = 3 + (p[5] & 0x03);
+
+	/* Sometimes a single touch is reported in mt[1] rather then mt[0] */
+	if (f->fingers == 1 && f->mt[0].x == 0 && f->mt[0].y == 0) {
+		f->mt[0].x = f->mt[1].x;
+		f->mt[0].y = f->mt[1].y;
+		f->mt[1].x = 0;
+		f->mt[1].y = 0;
+	}
 
 	return 0;
 }
