@@ -40,10 +40,11 @@
 #define OCRDMA_VID_PCP_SHIFT	0xD
 
 static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
-			struct ib_ah_attr *attr, union ib_gid *sgid, int pdid)
+			struct ib_ah_attr *attr, union ib_gid *sgid,
+			int pdid, bool *isvlan)
 {
 	int status = 0;
-	u16 vlan_tag; bool vlan_enabled = false;
+	u16 vlan_tag;
 	struct ocrdma_eth_vlan eth;
 	struct ocrdma_grh grh;
 	int eth_sz;
@@ -61,7 +62,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 		vlan_tag |= (dev->sl & 0x07) << OCRDMA_VID_PCP_SHIFT;
 		eth.vlan_tag = cpu_to_be16(vlan_tag);
 		eth_sz = sizeof(struct ocrdma_eth_vlan);
-		vlan_enabled = true;
+		*isvlan = true;
 	} else {
 		eth.eth_type = cpu_to_be16(OCRDMA_ROCE_ETH_TYPE);
 		eth_sz = sizeof(struct ocrdma_eth_basic);
@@ -84,7 +85,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	/* Eth HDR */
 	memcpy(&ah->av->eth_hdr, &eth, eth_sz);
 	memcpy((u8 *)ah->av + eth_sz, &grh, sizeof(struct ocrdma_grh));
-	if (vlan_enabled)
+	if (*isvlan)
 		ah->av->valid |= OCRDMA_AV_VLAN_VALID;
 	ah->av->valid = cpu_to_le32(ah->av->valid);
 	return status;
@@ -93,6 +94,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 {
 	u32 *ahid_addr;
+	bool isvlan = false;
 	int status;
 	struct ocrdma_ah *ah;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
@@ -129,15 +131,20 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 		}
 	}
 
-	status = set_av_attr(dev, ah, attr, &sgid, pd->id);
+	status = set_av_attr(dev, ah, attr, &sgid, pd->id, &isvlan);
 	if (status)
 		goto av_conf_err;
 
 	/* if pd is for the user process, pass the ah_id to user space */
 	if ((pd->uctx) && (pd->uctx->ah_tbl.va)) {
 		ahid_addr = pd->uctx->ah_tbl.va + attr->dlid;
-		*ahid_addr = ah->id;
+		*ahid_addr = 0;
+		*ahid_addr |= ah->id & OCRDMA_AH_ID_MASK;
+		if (isvlan)
+			*ahid_addr |= (OCRDMA_AH_VLAN_VALID_MASK <<
+				       OCRDMA_AH_VLAN_VALID_SHIFT);
 	}
+
 	return &ah->ibah;
 
 av_conf_err:
