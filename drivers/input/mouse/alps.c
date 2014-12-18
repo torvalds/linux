@@ -933,6 +933,7 @@ static int alps_decode_packet_v7(struct alps_fields *f,
 				  unsigned char *p,
 				  struct psmouse *psmouse)
 {
+	struct alps_data *priv = psmouse->private;
 	unsigned char pkt_id;
 
 	pkt_id = alps_get_packet_id_v7(p);
@@ -963,14 +964,21 @@ static int alps_decode_packet_v7(struct alps_fields *f,
 
 	alps_get_finger_coordinate_v7(f->mt, p, pkt_id);
 
-	f->left = (p[0] & 0x80) >> 7;
-	f->right = (p[0] & 0x20) >> 5;
-	f->middle = (p[0] & 0x10) >> 4;
-
 	if (pkt_id == V7_PACKET_ID_TWO)
 		f->fingers = alps_get_mt_count(f->mt);
 	else /* pkt_id == V7_PACKET_ID_MULTI */
 		f->fingers = 3 + (p[5] & 0x03);
+
+	f->left = (p[0] & 0x80) >> 7;
+	if (priv->flags & ALPS_BUTTONPAD) {
+		if (p[0] & 0x20)
+			f->fingers++;
+		if (p[0] & 0x10)
+			f->fingers++;
+	} else {
+		f->right = (p[0] & 0x20) >> 5;
+		f->middle = (p[0] & 0x10) >> 4;
+	}
 
 	/* Sometimes a single touch is reported in mt[1] rather then mt[0] */
 	if (f->fingers == 1 && f->mt[0].x == 0 && f->mt[0].y == 0) {
