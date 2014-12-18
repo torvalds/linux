@@ -902,7 +902,7 @@ struct drm_bridge {
 /**
  * struct struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
- * @flags: state flags like async update
+ * @allow_modeset: allow full modeset
  * @planes: pointer to array of plane pointers
  * @plane_states: pointer to array of plane states pointers
  * @crtcs: pointer to array of CRTC pointers
@@ -914,7 +914,7 @@ struct drm_bridge {
  */
 struct drm_atomic_state {
 	struct drm_device *dev;
-	uint32_t flags;
+	bool allow_modeset : 1;
 	struct drm_plane **planes;
 	struct drm_plane_state **plane_states;
 	struct drm_crtc **crtcs;
@@ -1346,6 +1346,10 @@ extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
+extern bool drm_property_change_valid_get(struct drm_property *property,
+					 uint64_t value, struct drm_mode_object **ref);
+extern void drm_property_change_valid_put(struct drm_property *property,
+		struct drm_mode_object *ref);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
@@ -1437,6 +1441,8 @@ extern int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 extern int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				       struct drm_property *property,
 				       uint64_t value);
+extern int drm_mode_atomic_ioctl(struct drm_device *dev,
+				 void *data, struct drm_file *file_priv);
 
 extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 				 int *bpp);

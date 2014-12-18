@@ -526,4 +526,27 @@ struct drm_mode_destroy_dumb {
 	uint32_t handle;
 };
 
+/* page-flip flags are valid, plus: */
+#define DRM_MODE_ATOMIC_TEST_ONLY 0x0100
+#define DRM_MODE_ATOMIC_NONBLOCK  0x0200
+#define DRM_MODE_ATOMIC_ALLOW_MODESET 0x0400
+
+#define DRM_MODE_ATOMIC_FLAGS (\
+		DRM_MODE_PAGE_FLIP_EVENT |\
+		DRM_MODE_PAGE_FLIP_ASYNC |\
+		DRM_MODE_ATOMIC_TEST_ONLY |\
+		DRM_MODE_ATOMIC_NONBLOCK |\
+		DRM_MODE_ATOMIC_ALLOW_MODESET)
+
+struct drm_mode_atomic {
+	__u32 flags;
+	__u32 count_objs;
+	__u64 objs_ptr;
+	__u64 count_props_ptr;
+	__u64 props_ptr;
+	__u64 prop_values_ptr;
+	__u64 reserved;
+	__u64 user_data;
+};
+
 #endif

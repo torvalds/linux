@@ -4303,7 +4303,7 @@ EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
  * object to which the property is attached has a chance to take it's own
  * reference).
  */
-static bool drm_property_change_valid_get(struct drm_property *property,
+bool drm_property_change_valid_get(struct drm_property *property,
 					 uint64_t value, struct drm_mode_object **ref)
 {
 	int i;
@@ -4365,7 +4365,7 @@ static bool drm_property_change_valid_get(struct drm_property *property,
 	return false;
 }
 
-static void drm_property_change_valid_put(struct drm_property *property,
+void drm_property_change_valid_put(struct drm_property *property,
 		struct drm_mode_object *ref)
 {
 	if (!ref)
