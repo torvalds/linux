@@ -102,8 +102,9 @@ struct rk3x_i2c {
 
 	/* Settings */
 	unsigned int scl_frequency;
-	unsigned int rise_ns;
-	unsigned int fall_ns;
+	unsigned int scl_rise_ns;
+	unsigned int scl_fall_ns;
+	unsigned int sda_fall_ns;
 
 	/* Synchronization & notification */
 	spinlock_t lock;
@@ -437,8 +438,9 @@ out:
  *
  * @clk_rate: I2C input clock rate
  * @scl_rate: Desired SCL rate
- * @rise_ns: How many ns it takes for signals to rise.
- * @fall_ns: How many ns it takes for signals to fall.
+ * @scl_rise_ns: How many ns it takes for SCL to rise.
+ * @scl_fall_ns: How many ns it takes for SCL to fall.
+ * @sda_fall_ns: How many ns it takes for SDA to fall.
  * @div_low: Divider output for low
  * @div_high: Divider output for high
  *
@@ -447,11 +449,13 @@ out:
  * too high, we silently use the highest possible rate.
  */
 static int rk3x_i2c_calc_divs(unsigned long clk_rate, unsigned long scl_rate,
-			      unsigned long rise_ns, unsigned long fall_ns,
+			      unsigned long scl_rise_ns,
+			      unsigned long scl_fall_ns,
+			      unsigned long sda_fall_ns,
 			      unsigned long *div_low, unsigned long *div_high)
 {
 	unsigned long spec_min_low_ns, spec_min_high_ns;
-	unsigned long spec_max_data_hold_ns;
+	unsigned long spec_setup_start, spec_max_data_hold_ns;
 	unsigned long data_hold_buffer_ns;
 
 	unsigned long min_low_ns, min_high_ns;
@@ -490,18 +494,35 @@ static int rk3x_i2c_calc_divs(unsigned long clk_rate, unsigned long scl_rate,
 	if (scl_rate <= 100000) {
 		/* Standard-mode */
 		spec_min_low_ns = 4700;
+		spec_setup_start = 4700;
 		spec_min_high_ns = 4000;
 		spec_max_data_hold_ns = 3450;
 		data_hold_buffer_ns = 50;
 	} else {
 		/* Fast-mode */
 		spec_min_low_ns = 1300;
+		spec_setup_start = 600;
 		spec_min_high_ns = 600;
 		spec_max_data_hold_ns = 900;
 		data_hold_buffer_ns = 50;
 	}
-	min_low_ns = spec_min_low_ns + fall_ns;
-	min_high_ns = spec_min_high_ns + rise_ns;
+	min_high_ns = scl_rise_ns + spec_min_high_ns;
+
+	/*
+	 * Timings for repeated start:
+	 * - controller appears to drop SDA at .875x (7/8) programmed clk high.
+	 * - controller appears to keep SCL high for 2x programmed clk high.
+	 *
+	 * We need to account for those rules in picking our "high" time so
+	 * we meet tSU;STA and tHD;STA times.
+	 */
+	min_high_ns = max(min_high_ns,
+		DIV_ROUND_UP((scl_rise_ns + spec_setup_start) * 1000, 875));
+	min_high_ns = max(min_high_ns,
+		DIV_ROUND_UP((scl_rise_ns + spec_setup_start +
+			      sda_fall_ns + spec_min_high_ns), 2));
+
+	min_low_ns = scl_fall_ns + spec_min_low_ns;
 	max_low_ns = spec_max_data_hold_ns * 2 - data_hold_buffer_ns;
 	min_total_ns = min_low_ns + min_high_ns;
 
@@ -599,9 +620,9 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
 	u64 t_low_ns, t_high_ns;
 	int ret;
 
-	ret = rk3x_i2c_calc_divs(clk_rate, i2c->scl_frequency, i2c->rise_ns,
-				 i2c->fall_ns, &div_low, &div_high);
-
+	ret = rk3x_i2c_calc_divs(clk_rate, i2c->scl_frequency, i2c->scl_rise_ns,
+				 i2c->scl_fall_ns, i2c->sda_fall_ns,
+				 &div_low, &div_high);
 	WARN_ONCE(ret != 0, "Could not reach SCL freq %u", i2c->scl_frequency);
 
 	clk_enable(i2c->clk);
@@ -644,8 +665,9 @@ static int rk3x_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		if (rk3x_i2c_calc_divs(ndata->new_rate, i2c->scl_frequency,
-				       i2c->rise_ns, i2c->fall_ns, &div_low,
-				       &div_high) != 0)
+				       i2c->scl_rise_ns, i2c->scl_fall_ns,
+				       i2c->sda_fall_ns,
+				       &div_low, &div_high) != 0)
 			return NOTIFY_STOP;
 
 		/* scale up */
@@ -875,15 +897,18 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	 * the default maximum timing from the specification.
 	 */
 	if (of_property_read_u32(pdev->dev.of_node, "i2c-scl-rising-time-ns",
-				 &i2c->rise_ns)) {
+				 &i2c->scl_rise_ns)) {
 		if (i2c->scl_frequency <= 100000)
-			i2c->rise_ns = 1000;
+			i2c->scl_rise_ns = 1000;
 		else
-			i2c->rise_ns = 300;
+			i2c->scl_rise_ns = 300;
 	}
 	if (of_property_read_u32(pdev->dev.of_node, "i2c-scl-falling-time-ns",
-				 &i2c->fall_ns))
-		i2c->fall_ns = 300;
+				 &i2c->scl_fall_ns))
+		i2c->scl_fall_ns = 300;
+	if (of_property_read_u32(pdev->dev.of_node, "i2c-sda-falling-time-ns",
+				 &i2c->scl_fall_ns))
+		i2c->sda_fall_ns = i2c->scl_fall_ns;
 
 	strlcpy(i2c->adap.name, "rk3x-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner = THIS_MODULE;
