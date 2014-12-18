@@ -1219,8 +1219,8 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 	int status = 0;
 	u64 usr_db;
 	struct ocrdma_create_qp_uresp uresp;
-	struct ocrdma_dev *dev = qp->dev;
 	struct ocrdma_pd *pd = qp->pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
 	memset(&uresp, 0, sizeof(uresp));
 	usr_db = dev->nic_info.unmapped_db +
@@ -1359,7 +1359,6 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 		status = -ENOMEM;
 		goto gen_err;
 	}
-	qp->dev = dev;
 	ocrdma_set_qp_init_params(qp, pd, attrs);
 	if (udata == NULL)
 		qp->cap_flags |= (OCRDMA_QP_MW_BIND | OCRDMA_QP_LKEY0 |
@@ -1418,7 +1417,7 @@ int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	enum ib_qp_state old_qps;
 
 	qp = get_ocrdma_qp(ibqp);
-	dev = qp->dev;
+	dev = get_ocrdma_dev(ibqp->device);
 	if (attr_mask & IB_QP_STATE)
 		status = ocrdma_qp_state_change(qp, attr->qp_state, &old_qps);
 	/* if new and previous states are same hw doesn't need to
@@ -1441,7 +1440,7 @@ int ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	enum ib_qp_state old_qps, new_qps;
 
 	qp = get_ocrdma_qp(ibqp);
-	dev = qp->dev;
+	dev = get_ocrdma_dev(ibqp->device);
 
 	/* syncronize with multiple context trying to change, retrive qps */
 	mutex_lock(&dev->dev_lock);
@@ -1508,7 +1507,7 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	u32 qp_state;
 	struct ocrdma_qp_params params;
 	struct ocrdma_qp *qp = get_ocrdma_qp(ibqp);
-	struct ocrdma_dev *dev = qp->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibqp->device);
 
 	memset(&params, 0, sizeof(params));
 	mutex_lock(&dev->dev_lock);
@@ -1704,7 +1703,7 @@ void ocrdma_del_flush_qp(struct ocrdma_qp *qp)
 {
 	int found = false;
 	unsigned long flags;
-	struct ocrdma_dev *dev = qp->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 	/* sync with any active CQ poll */
 
 	spin_lock_irqsave(&dev->flush_q_lock, flags);
@@ -1729,7 +1728,7 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 	unsigned long flags;
 
 	qp = get_ocrdma_qp(ibqp);
-	dev = qp->dev;
+	dev = get_ocrdma_dev(ibqp->device);
 
 	attrs.qp_state = IB_QPS_ERR;
 	pd = qp->pd;
@@ -2114,11 +2113,12 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	u64 fbo;
 	struct ocrdma_ewqe_fr *fast_reg = (struct ocrdma_ewqe_fr *)(hdr + 1);
 	struct ocrdma_mr *mr;
+	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 	u32 wqe_size = sizeof(*fast_reg) + sizeof(*hdr);
 
 	wqe_size = roundup(wqe_size, OCRDMA_WQE_ALIGN_BYTES);
 
-	if (wr->wr.fast_reg.page_list_len > qp->dev->attr.max_pages_per_frmr)
+	if (wr->wr.fast_reg.page_list_len > dev->attr.max_pages_per_frmr)
 		return -EINVAL;
 
 	hdr->cw |= (OCRDMA_FR_MR << OCRDMA_WQE_OPCODE_SHIFT);
@@ -2146,7 +2146,7 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	fast_reg->size_sge =
 		get_encoded_page_size(1 << wr->wr.fast_reg.page_shift);
 	mr = (struct ocrdma_mr *) (unsigned long)
-		qp->dev->stag_arr[(hdr->lkey >> 8) & (OCRDMA_MAX_STAG - 1)];
+		dev->stag_arr[(hdr->lkey >> 8) & (OCRDMA_MAX_STAG - 1)];
 	build_frmr_pbes(wr, mr->hwmr.pbl_table, &mr->hwmr);
 	return 0;
 }

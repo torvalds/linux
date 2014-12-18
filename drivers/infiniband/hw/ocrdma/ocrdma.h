@@ -370,7 +370,6 @@ struct ocrdma_srq {
 
 struct ocrdma_qp {
 	struct ib_qp ibqp;
-	struct ocrdma_dev *dev;
 
 	u8 __iomem *sq_db;
 	struct ocrdma_qp_hwq_info sq;

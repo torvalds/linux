@@ -2041,8 +2041,9 @@ void ocrdma_flush_qp(struct ocrdma_qp *qp)
 {
 	bool found;
 	unsigned long flags;
+	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 
-	spin_lock_irqsave(&qp->dev->flush_q_lock, flags);
+	spin_lock_irqsave(&dev->flush_q_lock, flags);
 	found = ocrdma_is_qp_in_sq_flushlist(qp->sq_cq, qp);
 	if (!found)
 		list_add_tail(&qp->sq_entry, &qp->sq_cq->sq_head);
@@ -2051,7 +2052,7 @@ void ocrdma_flush_qp(struct ocrdma_qp *qp)
 		if (!found)
 			list_add_tail(&qp->rq_entry, &qp->rq_cq->rq_head);
 	}
-	spin_unlock_irqrestore(&qp->dev->flush_q_lock, flags);
+	spin_unlock_irqrestore(&dev->flush_q_lock, flags);
 }
 
 static void ocrdma_init_hwq_ptr(struct ocrdma_qp *qp)
@@ -2117,7 +2118,8 @@ static int ocrdma_set_create_qp_sq_cmd(struct ocrdma_create_qp_req *cmd,
 	int status;
 	u32 len, hw_pages, hw_page_size;
 	dma_addr_t pa;
-	struct ocrdma_dev *dev = qp->dev;
+	struct ocrdma_pd *pd = qp->pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 	struct pci_dev *pdev = dev->nic_info.pdev;
 	u32 max_wqe_allocated;
 	u32 max_sges = attrs->cap.max_send_sge;
@@ -2172,7 +2174,8 @@ static int ocrdma_set_create_qp_rq_cmd(struct ocrdma_create_qp_req *cmd,
 	int status;
 	u32 len, hw_pages, hw_page_size;
 	dma_addr_t pa = 0;
-	struct ocrdma_dev *dev = qp->dev;
+	struct ocrdma_pd *pd = qp->pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 	struct pci_dev *pdev = dev->nic_info.pdev;
 	u32 max_rqe_allocated = attrs->cap.max_recv_wr + 1;
 
@@ -2231,7 +2234,8 @@ static void ocrdma_set_create_qp_dpp_cmd(struct ocrdma_create_qp_req *cmd,
 static int ocrdma_set_create_qp_ird_cmd(struct ocrdma_create_qp_req *cmd,
 					struct ocrdma_qp *qp)
 {
-	struct ocrdma_dev *dev = qp->dev;
+	struct ocrdma_pd *pd = qp->pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 	struct pci_dev *pdev = dev->nic_info.pdev;
 	dma_addr_t pa = 0;
 	int ird_page_size = dev->attr.ird_page_size;
@@ -2302,8 +2306,8 @@ int ocrdma_mbx_create_qp(struct ocrdma_qp *qp, struct ib_qp_init_attr *attrs,
 {
 	int status = -ENOMEM;
 	u32 flags = 0;
-	struct ocrdma_dev *dev = qp->dev;
 	struct ocrdma_pd *pd = qp->pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 	struct pci_dev *pdev = dev->nic_info.pdev;
 	struct ocrdma_cq *cq;
 	struct ocrdma_create_qp_req *cmd;
@@ -2426,11 +2430,12 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	union ib_gid sgid, zgid;
 	u32 vlan_id;
 	u8 mac_addr[6];
+	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 
 	if ((ah_attr->ah_flags & IB_AH_GRH) == 0)
 		return -EINVAL;
-	if (atomic_cmpxchg(&qp->dev->update_sl, 1, 0))
-		ocrdma_init_service_level(qp->dev);
+	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
+		ocrdma_init_service_level(dev);
 	cmd->params.tclass_sq_psn |=
 	    (ah_attr->grh.traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
 	cmd->params.rnt_rc_sl_fl |=
@@ -2441,7 +2446,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;
 	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
 	       sizeof(cmd->params.dgid));
-	status = ocrdma_query_gid(&qp->dev->ibdev, 1,
+	status = ocrdma_query_gid(&dev->ibdev, 1,
 			ah_attr->grh.sgid_index, &sgid);
 	if (status)
 		return status;
@@ -2452,7 +2457,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 
 	qp->sgid_idx = ah_attr->grh.sgid_index;
 	memcpy(&cmd->params.sgid[0], &sgid.raw[0], sizeof(cmd->params.sgid));
-	status = ocrdma_resolve_dmac(qp->dev, ah_attr, &mac_addr[0]);
+	status = ocrdma_resolve_dmac(dev, ah_attr, &mac_addr[0]);
 	if (status)
 		return status;
 	cmd->params.dmac_b0_to_b3 = mac_addr[0] | (mac_addr[1] << 8) |
@@ -2467,7 +2472,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;
 		cmd->params.rnt_rc_sl_fl |=
-			(qp->dev->sl & 0x07) << OCRDMA_QP_PARAMS_SL_SHIFT;
+			(dev->sl & 0x07) << OCRDMA_QP_PARAMS_SL_SHIFT;
 	}
 	return 0;
 }
@@ -2477,6 +2482,7 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 				struct ib_qp_attr *attrs, int attr_mask)
 {
 	int status = 0;
+	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		cmd->params.path_mtu_pkey_indx |= (attrs->pkey_index &
@@ -2494,12 +2500,12 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 			return status;
 	} else if (qp->qp_type == IB_QPT_GSI || qp->qp_type == IB_QPT_UD) {
 		/* set the default mac address for UD, GSI QPs */
-		cmd->params.dmac_b0_to_b3 = qp->dev->nic_info.mac_addr[0] |
-			(qp->dev->nic_info.mac_addr[1] << 8) |
-			(qp->dev->nic_info.mac_addr[2] << 16) |
-			(qp->dev->nic_info.mac_addr[3] << 24);
-		cmd->params.vlan_dmac_b4_to_b5 = qp->dev->nic_info.mac_addr[4] |
-					(qp->dev->nic_info.mac_addr[5] << 8);
+		cmd->params.dmac_b0_to_b3 = dev->nic_info.mac_addr[0] |
+			(dev->nic_info.mac_addr[1] << 8) |
+			(dev->nic_info.mac_addr[2] << 16) |
+			(dev->nic_info.mac_addr[3] << 24);
+		cmd->params.vlan_dmac_b4_to_b5 = dev->nic_info.mac_addr[4] |
+					(dev->nic_info.mac_addr[5] << 8);
 	}
 	if ((attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) &&
 	    attrs->en_sqd_async_notify) {
@@ -2556,7 +2562,7 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->flags |= OCRDMA_QP_PARA_RQPSN_VALID;
 	}
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
-		if (attrs->max_rd_atomic > qp->dev->attr.max_ord_per_qp) {
+		if (attrs->max_rd_atomic > dev->attr.max_ord_per_qp) {
 			status = -EINVAL;
 			goto pmtu_err;
 		}
@@ -2564,7 +2570,7 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->flags |= OCRDMA_QP_PARA_MAX_ORD_VALID;
 	}
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		if (attrs->max_dest_rd_atomic > qp->dev->attr.max_ird_per_qp) {
+		if (attrs->max_dest_rd_atomic > dev->attr.max_ird_per_qp) {
 			status = -EINVAL;
 			goto pmtu_err;
 		}
