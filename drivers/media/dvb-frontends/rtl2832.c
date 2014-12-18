@@ -868,15 +868,10 @@ static int rtl2832_select(struct i2c_adapter *adap, void *mux_priv, u32 chan_id)
 	cancel_delayed_work(&dev->i2c_gate_work);
 
 	/*
-	 * chan_id 1 is muxed adapter demod provides and chan_id 0 is demod
-	 * itself. We need open gate when request is for chan_id 1. On that case
 	 * I2C adapter lock is already taken and due to that we will use
 	 * regmap_update_bits() which does not lock again I2C adapter.
 	 */
-	if (chan_id == 1)
-		ret = regmap_update_bits(dev->regmap, 0x101, 0x08, 0x08);
-	else
-		ret = rtl2832_update_bits(dev->client, 0x101, 0x08, 0x00);
+	ret = regmap_update_bits(dev->regmap, 0x101, 0x08, 0x08);
 	if (ret)
 		goto err;
 
@@ -1224,25 +1219,18 @@ static int rtl2832_probe(struct i2c_client *client,
 		ret = PTR_ERR(dev->regmap);
 		goto err_kfree;
 	}
-	/* create muxed i2c adapter for demod itself */
-	dev->i2c_adapter = i2c_add_mux_adapter(i2c, &i2c->dev, dev, 0, 0, 0,
-			rtl2832_select, NULL);
-	if (dev->i2c_adapter == NULL) {
-		ret = -ENODEV;
-		goto err_regmap_exit;
-	}
 
 	/* check if the demod is there */
 	ret = rtl2832_bulk_read(client, 0x000, &tmp, 1);
 	if (ret)
-		goto err_i2c_del_mux_adapter;
+		goto err_regmap_exit;
 
 	/* create muxed i2c adapter for demod tuner bus */
 	dev->i2c_adapter_tuner = i2c_add_mux_adapter(i2c, &i2c->dev, dev,
-			0, 1, 0, rtl2832_select, rtl2832_deselect);
+			0, 0, 0, rtl2832_select, rtl2832_deselect);
 	if (dev->i2c_adapter_tuner == NULL) {
 		ret = -ENODEV;
-		goto err_i2c_del_mux_adapter;
+		goto err_regmap_exit;
 	}
 
 	/* create dvb_frontend */
@@ -1261,8 +1249,6 @@ static int rtl2832_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "Realtek RTL2832 successfully attached\n");
 	return 0;
-err_i2c_del_mux_adapter:
-	i2c_del_mux_adapter(dev->i2c_adapter);
 err_regmap_exit:
 	regmap_exit(dev->regmap);
 err_kfree:
@@ -1281,8 +1267,6 @@ static int rtl2832_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&dev->i2c_gate_work);
 
 	i2c_del_mux_adapter(dev->i2c_adapter_tuner);
-
-	i2c_del_mux_adapter(dev->i2c_adapter);
 
 	regmap_exit(dev->regmap);
 

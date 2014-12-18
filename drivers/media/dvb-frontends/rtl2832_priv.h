@@ -34,7 +34,6 @@ struct rtl2832_dev {
 	struct rtl2832_platform_data *pdata;
 	struct i2c_client *client;
 	struct regmap *regmap;
-	struct i2c_adapter *i2c_adapter;
 	struct i2c_adapter *i2c_adapter_tuner;
 	struct dvb_frontend fe;
 	struct delayed_work stat_work;
