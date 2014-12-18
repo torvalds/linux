@@ -223,9 +223,9 @@ Do not send more than 15 patches at once to the vger mailing lists!!!
 
 
 Linus Torvalds is the final arbiter of all changes accepted into the
-Linux kernel.  His e-mail address is <torvalds@linux-foundation.org>. 
+Linux kernel.  His e-mail address is <torvalds@linux-foundation.org>.
 He gets a lot of e-mail, so typically you should do your best to -avoid-
-sending him e-mail. 
+sending him e-mail.
 
 Patches which are bug fixes, are "obvious" changes, or similarly
 require little discussion should be sent or CC'd to Linus.  Patches
@@ -387,11 +387,11 @@ can certify the below:
             person who certified (a), (b) or (c) and I have not modified
             it.
 
-	(d) I understand and agree that this project and the contribution
-	    are public and that a record of the contribution (including all
-	    personal information I submit with it, including my sign-off) is
-	    maintained indefinitely and may be redistributed consistent with
-	    this project or the open source license(s) involved.
+        (d) I understand and agree that this project and the contribution
+            are public and that a record of the contribution (including all
+            personal information I submit with it, including my sign-off) is
+            maintained indefinitely and may be redistributed consistent with
+            this project or the open source license(s) involved.
 
 then you just add a line saying
 
@@ -401,7 +401,7 @@ using your real name (sorry, no pseudonyms or anonymous contributions.)
 
 Some people also put extra tags at the end.  They'll just be ignored for
 now, but you can do this to mark internal company procedures or just
-point out some special detail about the sign-off. 
+point out some special detail about the sign-off.
 
 If you are a subsystem or branch maintainer, sometimes you need to slightly
 modify patches you receive in order to merge them, because the code is not
