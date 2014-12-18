@@ -93,6 +93,7 @@ struct grant_map {
 	struct gnttab_map_grant_ref   *kmap_ops;
 	struct gnttab_unmap_grant_ref *kunmap_ops;
 	struct page **pages;
+	unsigned long pages_vm_start;
 };
 
 static int unmap_grant_pages(struct grant_map *map, int offset, int pages);
@@ -446,9 +447,18 @@ static void gntdev_vma_close(struct vm_area_struct *vma)
 	gntdev_put_map(priv, map);
 }
 
+static struct page *gntdev_vma_find_special_page(struct vm_area_struct *vma,
+						 unsigned long addr)
+{
+	struct grant_map *map = vma->vm_private_data;
+
+	return map->pages[(addr - map->pages_vm_start) >> PAGE_SHIFT];
+}
+
 static struct vm_operations_struct gntdev_vmops = {
 	.open = gntdev_vma_open,
 	.close = gntdev_vma_close,
+	.find_special_page = gntdev_vma_find_special_page,
 };
 
 /* ------------------------------------------------------------------ */
@@ -874,6 +884,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 					    set_grant_ptes_as_special, NULL);
 		}
 #endif
+		map->pages_vm_start = vma->vm_start;
 	}
 
 	return 0;
