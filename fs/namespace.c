@@ -1327,23 +1327,25 @@ enum umount_tree_flags {
  */
 static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 {
-	HLIST_HEAD(tmp_list);
+	LIST_HEAD(tmp_list);
 	struct mount *p;
 
-	for (p = mnt; p; p = next_mnt(p, mnt)) {
+	/* Gather the mounts to umount */
+	for (p = mnt; p; p = next_mnt(p, mnt))
+		list_move(&p->mnt_list, &tmp_list);
+
+	/* Hide the mounts from lookup_mnt and mnt_mounts */
+	list_for_each_entry(p, &tmp_list, mnt_list) {
 		hlist_del_init_rcu(&p->mnt_hash);
-		hlist_add_head(&p->mnt_hash, &tmp_list);
+		list_del_init(&p->mnt_child);
 	}
 
-	hlist_for_each_entry(p, &tmp_list, mnt_hash)
-		list_del_init(&p->mnt_child);
-
+	/* Add propogated mounts to the tmp_list */
 	if (how & UMOUNT_PROPAGATE)
 		propagate_umount(&tmp_list);
 
-	while (!hlist_empty(&tmp_list)) {
-		p = hlist_entry(tmp_list.first, struct mount, mnt_hash);
-		hlist_del_init_rcu(&p->mnt_hash);
+	while (!list_empty(&tmp_list)) {
+		p = list_first_entry(&tmp_list, struct mount, mnt_list);
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);

@@ -384,7 +384,7 @@ static void __propagate_umount(struct mount *mnt)
 		if (child && list_empty(&child->mnt_mounts)) {
 			list_del_init(&child->mnt_child);
 			hlist_del_init_rcu(&child->mnt_hash);
-			hlist_add_before_rcu(&child->mnt_hash, &mnt->mnt_hash);
+			list_move_tail(&child->mnt_list, &mnt->mnt_list);
 		}
 	}
 }
@@ -396,11 +396,11 @@ static void __propagate_umount(struct mount *mnt)
  *
  * vfsmount lock must be held for write
  */
-int propagate_umount(struct hlist_head *list)
+int propagate_umount(struct list_head *list)
 {
 	struct mount *mnt;
 
-	hlist_for_each_entry(mnt, list, mnt_hash)
+	list_for_each_entry(mnt, list, mnt_list)
 		__propagate_umount(mnt);
 	return 0;
 }
