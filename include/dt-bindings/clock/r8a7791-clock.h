@@ -92,6 +92,7 @@
 
 /* MSTP8 */
 #define R8A7791_CLK_IPMMU_SGX		0
+#define R8A7791_CLK_MLB			2
 #define R8A7791_CLK_VIN2		9
 #define R8A7791_CLK_VIN1		10
 #define R8A7791_CLK_VIN0		11
