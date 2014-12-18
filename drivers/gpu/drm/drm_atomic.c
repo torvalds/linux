@@ -217,6 +217,32 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
 /**
+ * drm_atomic_crtc_set_property - set property on CRTC
+ * @crtc: the drm CRTC to set a property on
+ * @state: the state object to update with the new property value
+ * @property: the property to set
+ * @val: the new property value
+ *
+ * Use this instead of calling crtc->atomic_set_property directly.
+ * This function handles generic/core properties and calls out to
+ * driver's ->atomic_set_property() for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the
+ * driver hook directly.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
+		struct drm_crtc_state *state, struct drm_property *property,
+		uint64_t val)
+{
+	if (crtc->funcs->atomic_set_property)
+		return crtc->funcs->atomic_set_property(crtc, state, property, val);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(drm_atomic_crtc_set_property);
+
+/**
  * drm_atomic_get_plane_state - get plane state
  * @state: global atomic state object
  * @plane: plane to get state object for
@@ -270,6 +296,32 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	return plane_state;
 }
 EXPORT_SYMBOL(drm_atomic_get_plane_state);
+
+/**
+ * drm_atomic_plane_set_property - set property on plane
+ * @plane: the drm plane to set a property on
+ * @state: the state object to update with the new property value
+ * @property: the property to set
+ * @val: the new property value
+ *
+ * Use this instead of calling plane->atomic_set_property directly.
+ * This function handles generic/core properties and calls out to
+ * driver's ->atomic_set_property() for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the
+ * driver hook directly.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_atomic_plane_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state, struct drm_property *property,
+		uint64_t val)
+{
+	if (plane->funcs->atomic_set_property)
+		return plane->funcs->atomic_set_property(plane, state, property, val);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(drm_atomic_plane_set_property);
 
 /**
  * drm_atomic_get_connector_state - get connector state
@@ -341,6 +393,44 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	return connector_state;
 }
 EXPORT_SYMBOL(drm_atomic_get_connector_state);
+
+/**
+ * drm_atomic_connector_set_property - set property on connector.
+ * @connector: the drm connector to set a property on
+ * @state: the state object to update with the new property value
+ * @property: the property to set
+ * @val: the new property value
+ *
+ * Use this instead of calling connector->atomic_set_property directly.
+ * This function handles generic/core properties and calls out to
+ * driver's ->atomic_set_property() for driver properties.  To ensure
+ * consistent behavior you must call this function rather than the
+ * driver hook directly.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int drm_atomic_connector_set_property(struct drm_connector *connector,
+		struct drm_connector_state *state, struct drm_property *property,
+		uint64_t val)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (property == config->dpms_property) {
+		/* setting DPMS property requires special handling, which
+		 * is done in legacy setprop path for us.  Disallow (for
+		 * now?) atomic writes to DPMS property:
+		 */
+		return -EINVAL;
+	} else if (connector->funcs->atomic_set_property) {
+		return connector->funcs->atomic_set_property(connector,
+				state, property, val);
+	} else {
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(drm_atomic_connector_set_property);
 
 /**
  * drm_atomic_set_crtc_for_plane - set crtc for plane

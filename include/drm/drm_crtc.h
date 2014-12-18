@@ -311,6 +311,7 @@ struct drm_crtc_state {
  * @atomic_duplicate_state: duplicate the atomic state for this CRTC
  * @atomic_destroy_state: destroy an atomic state for this CRTC
  * @atomic_set_property: set a property on an atomic state for this CRTC
+ *    (do not call directly, use drm_atomic_crtc_set_property())
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -497,6 +498,7 @@ struct drm_connector_state {
  * @atomic_duplicate_state: duplicate the atomic state for this connector
  * @atomic_destroy_state: destroy an atomic state for this connector
  * @atomic_set_property: set a property on an atomic state for this connector
+ *    (do not call directly, use drm_atomic_connector_set_property())
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -760,6 +762,7 @@ struct drm_plane_state {
  * @atomic_duplicate_state: duplicate the atomic state for this plane
  * @atomic_destroy_state: destroy an atomic state for this plane
  * @atomic_set_property: set a property on an atomic state for this plane
+ *    (do not call directly, use drm_atomic_plane_set_property())
  */
 struct drm_plane_funcs {
 	int (*update_plane)(struct drm_plane *plane,
