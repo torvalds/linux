@@ -834,20 +834,20 @@ static int ocrdma_mq_cq_handler(struct ocrdma_dev *dev, u16 cq_id)
 	return 0;
 }
 
-static void ocrdma_qp_buddy_cq_handler(struct ocrdma_dev *dev,
-				       struct ocrdma_cq *cq)
+static struct ocrdma_cq *_ocrdma_qp_buddy_cq_handler(struct ocrdma_dev *dev,
+				struct ocrdma_cq *cq, bool sq)
 {
-	unsigned long flags;
 	struct ocrdma_qp *qp;
-	bool buddy_cq_found = false;
-	/* Go through list of QPs in error state which are using this CQ
-	 * and invoke its callback handler to trigger CQE processing for
-	 * error/flushed CQE. It is rare to find more than few entries in
-	 * this list as most consumers stops after getting error CQE.
-	 * List is traversed only once when a matching buddy cq found for a QP.
-	 */
-	spin_lock_irqsave(&dev->flush_q_lock, flags);
-	list_for_each_entry(qp, &cq->sq_head, sq_entry) {
+	struct list_head *cur;
+	struct ocrdma_cq *bcq = NULL;
+	struct list_head *head = sq?(&cq->sq_head):(&cq->rq_head);
+
+	list_for_each(cur, head) {
+		if (sq)
+			qp = list_entry(cur, struct ocrdma_qp, sq_entry);
+		else
+			qp = list_entry(cur, struct ocrdma_qp, rq_entry);
+
 		if (qp->srq)
 			continue;
 		/* if wq and rq share the same cq, than comp_handler
@@ -859,19 +859,41 @@ static void ocrdma_qp_buddy_cq_handler(struct ocrdma_dev *dev,
 		 * if completion came on rq, sq's cq is buddy cq.
 		 */
 		if (qp->sq_cq == cq)
-			cq = qp->rq_cq;
+			bcq = qp->rq_cq;
 		else
-			cq = qp->sq_cq;
-		buddy_cq_found = true;
-		break;
+			bcq = qp->sq_cq;
+		return bcq;
 	}
+	return NULL;
+}
+
+static void ocrdma_qp_buddy_cq_handler(struct ocrdma_dev *dev,
+				       struct ocrdma_cq *cq)
+{
+	unsigned long flags;
+	struct ocrdma_cq *bcq = NULL;
+
+	/* Go through list of QPs in error state which are using this CQ
+	 * and invoke its callback handler to trigger CQE processing for
+	 * error/flushed CQE. It is rare to find more than few entries in
+	 * this list as most consumers stops after getting error CQE.
+	 * List is traversed only once when a matching buddy cq found for a QP.
+	 */
+	spin_lock_irqsave(&dev->flush_q_lock, flags);
+	/* Check if buddy CQ is present.
+	 * true - Check for  SQ CQ
+	 * false - Check for RQ CQ
+	 */
+	bcq = _ocrdma_qp_buddy_cq_handler(dev, cq, true);
+	if (bcq == NULL)
+		bcq = _ocrdma_qp_buddy_cq_handler(dev, cq, false);
 	spin_unlock_irqrestore(&dev->flush_q_lock, flags);
-	if (buddy_cq_found == false)
-		return;
-	if (cq->ibcq.comp_handler) {
-		spin_lock_irqsave(&cq->comp_handler_lock, flags);
-		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
-		spin_unlock_irqrestore(&cq->comp_handler_lock, flags);
+
+	/* if there is valid buddy cq, look for its completion handler */
+	if (bcq && bcq->ibcq.comp_handler) {
+		spin_lock_irqsave(&bcq->comp_handler_lock, flags);
+		(*bcq->ibcq.comp_handler) (&bcq->ibcq, bcq->ibcq.cq_context);
+		spin_unlock_irqrestore(&bcq->comp_handler_lock, flags);
 	}
 }
 
