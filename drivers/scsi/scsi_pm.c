@@ -213,8 +213,6 @@ static int scsi_bus_restore(struct device *dev)
 
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
-
 static int sdev_runtime_suspend(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
@@ -331,14 +329,6 @@ void scsi_autopm_put_host(struct Scsi_Host *shost)
 {
 	pm_runtime_put_sync(&shost->shost_gendev);
 }
-
-#else
-
-#define scsi_runtime_suspend	NULL
-#define scsi_runtime_resume	NULL
-#define scsi_runtime_idle	NULL
-
-#endif /* CONFIG_PM_RUNTIME */
 
 const struct dev_pm_ops scsi_bus_pm_ops = {
 	.prepare =		scsi_bus_prepare,
