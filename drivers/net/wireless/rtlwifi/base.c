@@ -883,7 +883,7 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
  * DESC92_RATEMCS0-->DESC92_RATEMCS15 ==> idx is 0-->15
  */
 int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
-			 bool isht, u8 desc_rate, bool first_ampdu)
+			 bool isht, u8 desc_rate)
 {
 	int rate_idx;
 

@@ -514,8 +514,7 @@ bool rtl92de_rx_query_desc(struct ieee80211_hw *hw,	struct rtl_stats *stats,
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
 					(bool)GET_RX_DESC_RXHT(pdesc),
-					(u8)GET_RX_DESC_RXMCS(pdesc),
-					(bool)GET_RX_DESC_PAGGR(pdesc));
+					(u8)GET_RX_DESC_RXMCS(pdesc));
 	rx_status->mactime = GET_RX_DESC_TSFL(pdesc);
 	if (phystatus) {
 		p_drvinfo = (struct rx_fwinfo_92d *)(skb->data +

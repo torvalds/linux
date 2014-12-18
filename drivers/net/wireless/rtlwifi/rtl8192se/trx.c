@@ -264,7 +264,6 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	struct rx_fwinfo *p_drvinfo;
 	u32 phystatus = (u32)GET_RX_STATUS_DESC_PHY_STATUS(pdesc);
 	struct ieee80211_hdr *hdr;
-	bool first_ampdu = false;
 
 	stats->length = (u16)GET_RX_STATUS_DESC_PKT_LEN(pdesc);
 	stats->rx_drvinfo_size = (u8)GET_RX_STATUS_DESC_DRVINFO_SIZE(pdesc) * 8;
@@ -319,8 +318,8 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 			rx_status->flag |= RX_FLAG_DECRYPTED;
 	}
 
-	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
-			      stats->is_ht, stats->rate, first_ampdu);
+	rx_status->rate_idx = rtlwifi_rate_mapping(hw, stats->is_ht,
+						   stats->rate);
 
 	rx_status->mactime = stats->timestamp_low;
 	if (phystatus) {
@@ -398,9 +397,9 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 
 		if (rtlhal->version == VERSION_8192S_ACUT) {
 			if (ptcb_desc->hw_rate == DESC92_RATE1M ||
-				ptcb_desc->hw_rate  == DESC92_RATE2M ||
-				ptcb_desc->hw_rate == DESC92_RATE5_5M ||
-				ptcb_desc->hw_rate == DESC92_RATE11M) {
+			    ptcb_desc->hw_rate  == DESC92_RATE2M ||
+			    ptcb_desc->hw_rate == DESC92_RATE5_5M ||
+			    ptcb_desc->hw_rate == DESC92_RATE11M) {
 				ptcb_desc->hw_rate = DESC92_RATE12M;
 			}
 		}

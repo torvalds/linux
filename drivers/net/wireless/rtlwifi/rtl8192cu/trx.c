@@ -340,8 +340,7 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
 					(bool)GET_RX_DESC_RX_HT(pdesc),
-					(u8)GET_RX_DESC_RX_MCS(pdesc),
-					(bool)GET_RX_DESC_PAGGR(pdesc));
+					(u8)GET_RX_DESC_RX_MCS(pdesc));
 	rx_status->mactime = GET_RX_DESC_TSFL(pdesc);
 	if (phystatus) {
 		p_drvinfo = (struct rx_fwinfo_92c *)(skb->data +
@@ -408,8 +407,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	/* Data rate */
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
 					(bool)GET_RX_DESC_RX_HT(rxdesc),
-					(u8)GET_RX_DESC_RX_MCS(rxdesc),
-					(bool)GET_RX_DESC_PAGGR(rxdesc));
+					(u8)GET_RX_DESC_RX_MCS(rxdesc));
 	/*  There is a phy status after this rx descriptor. */
 	if (GET_RX_DESC_PHY_STATUS(rxdesc)) {
 		p_drvinfo = (struct rx_fwinfo_92c *)(rxdesc + RTL_RX_DESC_SIZE);
