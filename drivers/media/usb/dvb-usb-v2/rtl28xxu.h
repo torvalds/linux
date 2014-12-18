@@ -68,7 +68,7 @@
 #define CMD_I2C_DA_WR    0x0610
 
 
-struct rtl28xxu_priv {
+struct rtl28xxu_dev {
 	u8 chip_id;
 	u8 tuner;
 	char *tuner_name;
