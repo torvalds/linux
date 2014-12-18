@@ -401,7 +401,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	 * Notice: this is diff with windows define
 	 */
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw, stats->is_ht,
-						   stats->rate);
+						   false, stats->rate);
 
 	rx_status->mactime = stats->timestamp_low;
 	if (phystatus) {

@@ -881,12 +881,84 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
  * N rate:
  * (rx_status->flag & RX_FLAG_HT) = 1,
  * DESC_RATEMCS0-->DESC_RATEMCS15 ==> idx is 0-->15
+ *
+ * VHT rates:
+ * DESC_RATEVHT1SS_MCS0-->DESC_RATEVHT1SS_MCS9 ==> idx is 0-->9
+ * DESC_RATEVHT2SS_MCS0-->DESC_RATEVHT2SS_MCS9 ==> idx is 0-->9
  */
-int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
-			 bool isht, u8 desc_rate)
+int rtlwifi_rate_mapping(struct ieee80211_hw *hw, bool isht, bool isvht,
+			 u8 desc_rate)
 {
 	int rate_idx;
 
+	if (isvht) {
+		switch (desc_rate) {
+		case DESC_RATEVHT1SS_MCS0:
+			rate_idx = 0;
+			break;
+		case DESC_RATEVHT1SS_MCS1:
+			rate_idx = 1;
+			break;
+		case DESC_RATEVHT1SS_MCS2:
+			rate_idx = 2;
+			break;
+		case DESC_RATEVHT1SS_MCS3:
+			rate_idx = 3;
+			break;
+		case DESC_RATEVHT1SS_MCS4:
+			rate_idx = 4;
+			break;
+		case DESC_RATEVHT1SS_MCS5:
+			rate_idx = 5;
+			break;
+		case DESC_RATEVHT1SS_MCS6:
+			rate_idx = 6;
+			break;
+		case DESC_RATEVHT1SS_MCS7:
+			rate_idx = 7;
+			break;
+		case DESC_RATEVHT1SS_MCS8:
+			rate_idx = 8;
+			break;
+		case DESC_RATEVHT1SS_MCS9:
+			rate_idx = 9;
+			break;
+		case DESC_RATEVHT2SS_MCS0:
+			rate_idx = 0;
+			break;
+		case DESC_RATEVHT2SS_MCS1:
+			rate_idx = 1;
+			break;
+		case DESC_RATEVHT2SS_MCS2:
+			rate_idx = 2;
+			break;
+		case DESC_RATEVHT2SS_MCS3:
+			rate_idx = 3;
+			break;
+		case DESC_RATEVHT2SS_MCS4:
+			rate_idx = 4;
+			break;
+		case DESC_RATEVHT2SS_MCS5:
+			rate_idx = 5;
+			break;
+		case DESC_RATEVHT2SS_MCS6:
+			rate_idx = 6;
+			break;
+		case DESC_RATEVHT2SS_MCS7:
+			rate_idx = 7;
+			break;
+		case DESC_RATEVHT2SS_MCS8:
+			rate_idx = 8;
+			break;
+		case DESC_RATEVHT2SS_MCS9:
+			rate_idx = 9;
+			break;
+		default:
+			rate_idx = 0;
+			break;
+		}
+		return rate_idx;
+	}
 	if (false == isht) {
 		if (IEEE80211_BAND_2GHZ == hw->conf.chandef.chan->band) {
 			switch (desc_rate) {
