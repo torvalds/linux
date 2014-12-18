@@ -1647,13 +1647,9 @@ static void set_multicast_list(struct net_device *dev)
 		char * addr;
 		hash[0] = 0;
 		hash[1] = 0;
-		printk("changed the Multicast,mcount=%d\n", netdev_mc_count(dev));
 		netdev_for_each_mc_addr(ha, dev) {
 			addr = ha->addr;
 			hash_id = phy_mc_hash(addr);
-			printk("add mac address:%02x:%02x:%02x:%02x:%02x:%02x,bit=%d\n",
-			       addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
-			       hash_id);
 
 			if (hash_id > 31) {
 				hash[1] |= 1 << (hash_id - 32);
@@ -1664,19 +1660,16 @@ static void set_multicast_list(struct net_device *dev)
 		if((dev_hash[0]==hash[0]) && (dev_hash[1]==hash[1])) return;
 		dev_hash[0]=hash[0] ;
 		dev_hash[1]=hash[1];
-		printk("set hash low=%x,high=%x\n", hash[0], hash[1]);
 		writel(hash[1],(void*)(np->base_addr + ETH_MAC_2_Hash_Table_High));
 		writel(hash[0], (void*)(np->base_addr + ETH_MAC_3_Hash_Table_Low));
 		tmp = readl((void*)(np->base_addr + ETH_MAC_1_Frame_Filter));
 		tmp |= (1 << 2) | 	//hash filter
 		       0;
-		printk("changed the filter setting to :%x\n", tmp);
 		writel(tmp, (void*)(np->base_addr + ETH_MAC_1_Frame_Filter));//hash muticast
 	}
 }
 static int set_mac_addr_n(struct net_device *dev, void *addr){
 	struct sockaddr *sa = addr;
-	printk("mac addr come in\n");
 
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
