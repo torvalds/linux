@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.10.33 Kernel Configuration
+# Linux/arm 3.10.34 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -79,7 +79,10 @@ CONFIG_TICK_CPU_ACCOUNTING=y
 # CONFIG_IRQ_TIME_ACCOUNTING is not set
 CONFIG_BSD_PROCESS_ACCT=y
 # CONFIG_BSD_PROCESS_ACCT_V3 is not set
-# CONFIG_TASKSTATS is not set
+CONFIG_TASKSTATS=y
+CONFIG_TASK_DELAY_ACCT=y
+CONFIG_TASK_XACCT=y
+CONFIG_TASK_IO_ACCOUNTING=y
 
 #
 # RCU Subsystem
@@ -1154,18 +1157,6 @@ CONFIG_MMC_AML=y
 # SPI NOR Flash  support
 #
 # CONFIG_AMLOGIC_SPI_NOR is not set
-
-#
-# Meson NAND Device Support(For NEXT GEN NAND DRIV)
-#
-# CONFIG_AML_NEXT_GEN_NAND is not set
-# CONFIG_AML_NFTL_NEW is not set
-
-#
-# Meson NAND Device Support
-#
-# CONFIG_AM_NAND is not set
-# CONFIG_AML_NEXT_NAND is not set
 
 #
 # Network devices
