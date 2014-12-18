@@ -480,15 +480,13 @@ static void dm_bandwidth_autoswitch(struct net_device *dev)
 
 	if(priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 ||!priv->ieee80211->bandwidth_auto_switch.bautoswitch_enable){
 		return;
-	}else{
-		if(priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz == false){//If send packets in 40 Mhz in 20/40
-			if(priv->undecorated_smoothed_pwdb <= priv->ieee80211->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
-				priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = true;
-		}else{//in force send packets in 20 Mhz in 20/40
-			if(priv->undecorated_smoothed_pwdb >= priv->ieee80211->bandwidth_auto_switch.threshold_20Mhzto40Mhz)
-				priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = false;
-
-		}
+	}
+	if(priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz == false){//If send packets in 40 Mhz in 20/40
+		if(priv->undecorated_smoothed_pwdb <= priv->ieee80211->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
+			priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = true;
+	}else{//in force send packets in 20 Mhz in 20/40
+		if(priv->undecorated_smoothed_pwdb >= priv->ieee80211->bandwidth_auto_switch.threshold_20Mhzto40Mhz)
+			priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = false;
 	}
 }	// dm_BandwidthAutoSwitch
 
