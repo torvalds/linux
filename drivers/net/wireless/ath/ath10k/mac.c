@@ -269,7 +269,10 @@ chan_to_phymode(const struct cfg80211_chan_def *chandef)
 	case IEEE80211_BAND_2GHZ:
 		switch (chandef->width) {
 		case NL80211_CHAN_WIDTH_20_NOHT:
-			phymode = MODE_11G;
+			if (chandef->chan->flags & IEEE80211_CHAN_NO_OFDM)
+				phymode = MODE_11B;
+			else
+				phymode = MODE_11G;
 			break;
 		case NL80211_CHAN_WIDTH_20:
 			phymode = MODE_11NG_HT20;
