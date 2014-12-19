@@ -278,7 +278,7 @@ static void stage2_flush_memslot(struct kvm *kvm,
  * Go through the stage 2 page tables and invalidate any cache lines
  * backing memory already mapped to the VM.
  */
-void stage2_flush_vm(struct kvm *kvm)
+static void stage2_flush_vm(struct kvm *kvm)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
@@ -1410,4 +1410,72 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 	spin_lock(&kvm->mmu_lock);
 	unmap_stage2_range(kvm, gpa, size);
 	spin_unlock(&kvm->mmu_lock);
+}
+
+/*
+ * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ *
+ * Main problems:
+ * - S/W ops are local to a CPU (not broadcast)
+ * - We have line migration behind our back (speculation)
+ * - System caches don't support S/W at all (damn!)
+ *
+ * In the face of the above, the best we can do is to try and convert
+ * S/W ops to VA ops. Because the guest is not allowed to infer the
+ * S/W to PA mapping, it can only use S/W to nuke the whole cache,
+ * which is a rather good thing for us.
+ *
+ * Also, it is only used when turning caches on/off ("The expected
+ * usage of the cache maintenance instructions that operate by set/way
+ * is associated with the cache maintenance instructions associated
+ * with the powerdown and powerup of caches, if this is required by
+ * the implementation.").
+ *
+ * We use the following policy:
+ *
+ * - If we trap a S/W operation, we enable VM trapping to detect
+ *   caches being turned on/off, and do a full clean.
+ *
+ * - We flush the caches on both caches being turned on and off.
+ *
+ * - Once the caches are enabled, we stop trapping VM ops.
+ */
+void kvm_set_way_flush(struct kvm_vcpu *vcpu)
+{
+	unsigned long hcr = vcpu_get_hcr(vcpu);
+
+	/*
+	 * If this is the first time we do a S/W operation
+	 * (i.e. HCR_TVM not set) flush the whole memory, and set the
+	 * VM trapping.
+	 *
+	 * Otherwise, rely on the VM trapping to wait for the MMU +
+	 * Caches to be turned off. At that point, we'll be able to
+	 * clean the caches again.
+	 */
+	if (!(hcr & HCR_TVM)) {
+		trace_kvm_set_way_flush(*vcpu_pc(vcpu),
+					vcpu_has_cache_enabled(vcpu));
+		stage2_flush_vm(vcpu->kvm);
+		vcpu_set_hcr(vcpu, hcr | HCR_TVM);
+	}
+}
+
+void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled)
+{
+	bool now_enabled = vcpu_has_cache_enabled(vcpu);
+
+	/*
+	 * If switching the MMU+caches on, need to invalidate the caches.
+	 * If switching it off, need to clean the caches.
+	 * Clean + invalidate does the trick always.
+	 */
+	if (now_enabled != was_enabled)
+		stage2_flush_vm(vcpu->kvm);
+
+	/* Caches are now on, stop trapping VM ops (until a S/W op) */
+	if (now_enabled)
+		vcpu_set_hcr(vcpu, vcpu_get_hcr(vcpu) & ~HCR_TVM);
+
+	trace_kvm_toggle_cache(*vcpu_pc(vcpu), was_enabled, now_enabled);
 }
