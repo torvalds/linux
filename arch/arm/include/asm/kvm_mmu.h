@@ -44,6 +44,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 
@@ -186,6 +187,36 @@ static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
 		/* any kind of VIPT cache */
 		__flush_icache_all();
 	}
+}
+
+static inline void __kvm_flush_dcache_pte(pte_t pte)
+{
+	void *va = kmap_atomic(pte_page(pte));
+
+	kvm_flush_dcache_to_poc(va, PAGE_SIZE);
+
+	kunmap_atomic(va);
+}
+
+static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
+{
+	unsigned long size = PMD_SIZE;
+	pfn_t pfn = pmd_pfn(pmd);
+
+	while (size) {
+		void *va = kmap_atomic_pfn(pfn);
+
+		kvm_flush_dcache_to_poc(va, PAGE_SIZE);
+
+		pfn++;
+		size -= PAGE_SIZE;
+
+		kunmap_atomic(va);
+	}
+}
+
+static inline void __kvm_flush_dcache_pud(pud_t pud)
+{
 }
 
 #define kvm_virt_to_phys(x)		virt_to_idmap((unsigned long)(x))

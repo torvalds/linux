@@ -258,6 +258,24 @@ static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
 	}
 }
 
+static inline void __kvm_flush_dcache_pte(pte_t pte)
+{
+	struct page *page = pte_page(pte);
+	kvm_flush_dcache_to_poc(page_address(page), PAGE_SIZE);
+}
+
+static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
+{
+	struct page *page = pmd_page(pmd);
+	kvm_flush_dcache_to_poc(page_address(page), PMD_SIZE);
+}
+
+static inline void __kvm_flush_dcache_pud(pud_t pud)
+{
+	struct page *page = pud_page(pud);
+	kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
+}
+
 #define kvm_virt_to_phys(x)		__virt_to_phys((unsigned long)(x))
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
