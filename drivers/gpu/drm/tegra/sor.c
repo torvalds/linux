@@ -1396,6 +1396,8 @@ static int tegra_sor_exit(struct host1x_client *client)
 	struct tegra_sor *sor = host1x_client_to_sor(client);
 	int err;
 
+	tegra_output_exit(&sor->output);
+
 	if (sor->dpaux) {
 		err = tegra_dpaux_detach(sor->dpaux);
 		if (err < 0) {
@@ -1500,11 +1502,7 @@ static int tegra_sor_remove(struct platform_device *pdev)
 		return err;
 	}
 
-	err = tegra_output_remove(&sor->output);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to remove output: %d\n", err);
-		return err;
-	}
+	tegra_output_remove(&sor->output);
 
 	return 0;
 }

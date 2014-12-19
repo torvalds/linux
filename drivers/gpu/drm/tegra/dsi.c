@@ -1577,11 +1577,7 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 		return err;
 	}
 
-	err = tegra_output_remove(&dsi->output);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to remove output: %d\n", err);
-		return err;
-	}
+	tegra_output_remove(&dsi->output);
 
 	mipi_dsi_host_unregister(&dsi->host);
 	tegra_mipi_free(dsi->mipi);

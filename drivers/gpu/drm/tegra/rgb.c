@@ -287,15 +287,10 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 
 int tegra_dc_rgb_remove(struct tegra_dc *dc)
 {
-	int err;
-
 	if (!dc->rgb)
 		return 0;
 
-	err = tegra_output_remove(dc->rgb);
-	if (err < 0)
-		return err;
-
+	tegra_output_remove(dc->rgb);
 	dc->rgb = NULL;
 
 	return 0;
@@ -342,8 +337,8 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 
 int tegra_dc_rgb_exit(struct tegra_dc *dc)
 {
-	if (!dc->rgb)
-		return 0;
+	if (dc->rgb)
+		tegra_output_exit(dc->rgb);
 
-	return tegra_output_exit(dc->rgb);
+	return 0;
 }

@@ -172,7 +172,7 @@ int tegra_output_probe(struct tegra_output *output)
 	return 0;
 }
 
-int tegra_output_remove(struct tegra_output *output)
+void tegra_output_remove(struct tegra_output *output)
 {
 	if (gpio_is_valid(output->hpd_gpio)) {
 		free_irq(output->hpd_irq, output);
@@ -181,8 +181,6 @@ int tegra_output_remove(struct tegra_output *output)
 
 	if (output->ddc)
 		put_device(&output->ddc->dev);
-
-	return 0;
 }
 
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
@@ -205,7 +203,7 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	return 0;
 }
 
-int tegra_output_exit(struct tegra_output *output)
+void tegra_output_exit(struct tegra_output *output)
 {
 	/*
 	 * The connector is going away, so the interrupt must be disabled to
@@ -216,6 +214,4 @@ int tegra_output_exit(struct tegra_output *output)
 
 	if (output->panel)
 		drm_panel_detach(output->panel);
-
-	return 0;
 }

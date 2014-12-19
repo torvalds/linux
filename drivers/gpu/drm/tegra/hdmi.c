@@ -1563,11 +1563,7 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 		return err;
 	}
 
-	err = tegra_output_remove(&hdmi->output);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to remove output: %d\n", err);
-		return err;
-	}
+	tegra_output_remove(&hdmi->output);
 
 	clk_disable_unprepare(hdmi->clk_parent);
 	clk_disable_unprepare(hdmi->clk);

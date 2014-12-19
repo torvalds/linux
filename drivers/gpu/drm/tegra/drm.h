@@ -213,9 +213,9 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 /* from output.c */
 int tegra_output_probe(struct tegra_output *output);
-int tegra_output_remove(struct tegra_output *output);
+void tegra_output_remove(struct tegra_output *output);
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output);
-int tegra_output_exit(struct tegra_output *output);
+void tegra_output_exit(struct tegra_output *output);
 
 int tegra_output_connector_get_modes(struct drm_connector *connector);
 struct drm_encoder *
