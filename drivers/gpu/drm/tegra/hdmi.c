@@ -822,32 +822,6 @@ static void tegra_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 }
 
-static bool tegra_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
-					  const struct drm_display_mode *mode,
-					  struct drm_display_mode *adjusted)
-{
-	struct tegra_output *output = encoder_to_output(encoder);
-	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
-	struct tegra_hdmi *hdmi = to_hdmi(output);
-	unsigned long pclk = mode->clock * 1000;
-	int err;
-
-	err = tegra_dc_setup_clock(dc, hdmi->clk_parent, pclk, 0);
-	if (err < 0) {
-		dev_err(output->dev, "failed to setup DC clock: %d\n", err);
-		return false;
-	}
-
-	err = clk_set_rate(hdmi->clk_parent, pclk);
-	if (err < 0) {
-		dev_err(output->dev, "failed to set clock rate to %lu Hz\n",
-			pclk);
-		return false;
-	}
-
-	return true;
-}
-
 static void tegra_hdmi_encoder_prepare(struct drm_encoder *encoder)
 {
 }
@@ -1104,7 +1078,6 @@ tegra_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs tegra_hdmi_encoder_helper_funcs = {
 	.dpms = tegra_hdmi_encoder_dpms,
-	.mode_fixup = tegra_hdmi_encoder_mode_fixup,
 	.prepare = tegra_hdmi_encoder_prepare,
 	.commit = tegra_hdmi_encoder_commit,
 	.mode_set = tegra_hdmi_encoder_mode_set,

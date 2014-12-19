@@ -129,43 +129,6 @@ static void tegra_rgb_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 }
 
-static bool tegra_rgb_encoder_mode_fixup(struct drm_encoder *encoder,
-					 const struct drm_display_mode *mode,
-					 struct drm_display_mode *adjusted)
-{
-	struct tegra_output *output = encoder_to_output(encoder);
-	unsigned long pclk = mode->clock * 1000;
-	struct tegra_rgb *rgb = to_rgb(output);
-	unsigned int div;
-	int err;
-
-	/*
-	 * We may not want to change the frequency of the parent clock, since
-	 * it may be a parent for other peripherals. This is due to the fact
-	 * that on Tegra20 there's only a single clock dedicated to display
-	 * (pll_d_out0), whereas later generations have a second one that can
-	 * be used to independently drive a second output (pll_d2_out0).
-	 *
-	 * As a way to support multiple outputs on Tegra20 as well, pll_p is
-	 * typically used as the parent clock for the display controllers.
-	 * But this comes at a cost: pll_p is the parent of several other
-	 * peripherals, so its frequency shouldn't change out of the blue.
-	 *
-	 * The best we can do at this point is to use the shift clock divider
-	 * and hope that the desired frequency can be matched (or at least
-	 * matched sufficiently close that the panel will still work).
-	 */
-	div = ((clk_get_rate(rgb->clk) * 2) / pclk) - 2;
-
-	err = tegra_dc_setup_clock(rgb->dc, rgb->clk_parent, pclk, div);
-	if (err < 0) {
-		dev_err(output->dev, "failed to setup DC clock: %d\n", err);
-		return false;
-	}
-
-	return true;
-}
-
 static void tegra_rgb_encoder_prepare(struct drm_encoder *encoder)
 {
 }
@@ -278,7 +241,6 @@ tegra_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs tegra_rgb_encoder_helper_funcs = {
 	.dpms = tegra_rgb_encoder_dpms,
-	.mode_fixup = tegra_rgb_encoder_mode_fixup,
 	.prepare = tegra_rgb_encoder_prepare,
 	.commit = tegra_rgb_encoder_commit,
 	.mode_set = tegra_rgb_encoder_mode_set,

@@ -786,92 +786,6 @@ static void tegra_dsi_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 }
 
-static bool tegra_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
-					 const struct drm_display_mode *mode,
-					 struct drm_display_mode *adjusted)
-{
-	struct tegra_output *output = encoder_to_output(encoder);
-	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
-	unsigned int mul, div, scdiv, vrefresh, lanes;
-	struct tegra_dsi *dsi = to_dsi(output);
-	struct mipi_dphy_timing timing;
-	unsigned long pclk, bclk, plld;
-	unsigned long period;
-	int err;
-
-	lanes = tegra_dsi_get_lanes(dsi);
-	pclk = mode->clock * 1000;
-
-	err = tegra_dsi_get_muldiv(dsi->format, &mul, &div);
-	if (err < 0)
-		return err;
-
-	DRM_DEBUG_KMS("mul: %u, div: %u, lanes: %u\n", mul, div, lanes);
-	vrefresh = drm_mode_vrefresh(mode);
-	DRM_DEBUG_KMS("vrefresh: %u\n", vrefresh);
-
-	/* compute byte clock */
-	bclk = (pclk * mul) / (div * lanes);
-
-	/*
-	 * Compute bit clock and round up to the next MHz.
-	 */
-	plld = DIV_ROUND_UP(bclk * 8, USEC_PER_SEC) * USEC_PER_SEC;
-	period = DIV_ROUND_CLOSEST(NSEC_PER_SEC, plld);
-
-	/*
-	 * We divide the frequency by two here, but we make up for that by
-	 * setting the shift clock divider (further below) to half of the
-	 * correct value.
-	 */
-	plld /= 2;
-
-	/*
-	 * Derive pixel clock from bit clock using the shift clock divider.
-	 * Note that this is only half of what we would expect, but we need
-	 * that to make up for the fact that we divided the bit clock by a
-	 * factor of two above.
-	 *
-	 * It's not clear exactly why this is necessary, but the display is
-	 * not working properly otherwise. Perhaps the PLLs cannot generate
-	 * frequencies sufficiently high.
-	 */
-	scdiv = ((8 * mul) / (div * lanes)) - 2;
-
-	err = tegra_dc_setup_clock(dc, dsi->clk_parent, plld, scdiv);
-	if (err < 0) {
-		dev_err(output->dev, "failed to setup DC clock: %d\n", err);
-		return false;
-	}
-
-	err = clk_set_rate(dsi->clk_parent, plld);
-	if (err < 0) {
-		dev_err(dsi->dev, "failed to set clock rate to %lu Hz\n",
-			plld);
-		return false;
-	}
-
-	tegra_dsi_set_timeout(dsi, bclk, vrefresh);
-
-	err = mipi_dphy_timing_get_default(&timing, period);
-	if (err < 0)
-		return err;
-
-	err = mipi_dphy_timing_validate(&timing, period);
-	if (err < 0) {
-		dev_err(dsi->dev, "failed to validate D-PHY timing: %d\n", err);
-		return err;
-	}
-
-	/*
-	 * The D-PHY timing fields are expressed in byte-clock cycles, so
-	 * multiply the period by 8.
-	 */
-	tegra_dsi_set_phy_timing(dsi, period * 8, &timing);
-
-	return true;
-}
-
 static void tegra_dsi_encoder_prepare(struct drm_encoder *encoder)
 {
 }
@@ -1053,7 +967,6 @@ tegra_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs tegra_dsi_encoder_helper_funcs = {
 	.dpms = tegra_dsi_encoder_dpms,
-	.mode_fixup = tegra_dsi_encoder_mode_fixup,
 	.prepare = tegra_dsi_encoder_prepare,
 	.commit = tegra_dsi_encoder_commit,
 	.mode_set = tegra_dsi_encoder_mode_set,
