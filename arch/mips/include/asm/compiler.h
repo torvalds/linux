@@ -16,13 +16,18 @@
 #define GCC_REG_ACCUM "accum"
 #endif
 
+#ifdef CONFIG_CPU_MIPSR6
+/* All MIPS R6 toolchains support the ZC constrain */
+#define GCC_OFF_SMALL_ASM() "ZC"
+#else
 #ifndef CONFIG_CPU_MICROMIPS
 #define GCC_OFF_SMALL_ASM() "R"
 #elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
 #define GCC_OFF_SMALL_ASM() "ZC"
 #else
 #error "microMIPS compilation unsupported with GCC older than 4.9"
-#endif
+#endif /* CONFIG_CPU_MICROMIPS */
+#endif /* CONFIG_CPU_MIPSR6 */
 
 #ifdef CONFIG_CPU_MIPSR6
 #define MIPS_ISA_LEVEL "mips64r6"
