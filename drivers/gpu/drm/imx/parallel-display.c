@@ -130,8 +130,8 @@ static void imx_pd_encoder_commit(struct drm_encoder *encoder)
 }
 
 static void imx_pd_encoder_mode_set(struct drm_encoder *encoder,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode)
+			 struct drm_display_mode *orig_mode,
+			 struct drm_display_mode *mode)
 {
 }
 

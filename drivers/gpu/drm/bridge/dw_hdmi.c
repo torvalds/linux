@@ -1341,8 +1341,8 @@ static void dw_hdmi_poweroff(struct dw_hdmi *hdmi)
 }
 
 static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode)
+				    struct drm_display_mode *orig_mode,
+				    struct drm_display_mode *mode)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 

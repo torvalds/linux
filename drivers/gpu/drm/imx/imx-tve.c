@@ -307,8 +307,8 @@ static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 }
 
 static void imx_tve_encoder_mode_set(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode,
-				     struct drm_display_mode *adjusted_mode)
+				     struct drm_display_mode *orig_mode,
+				     struct drm_display_mode *mode)
 {
 	struct imx_tve *tve = enc_to_tve(encoder);
 	unsigned long rounded_rate;
