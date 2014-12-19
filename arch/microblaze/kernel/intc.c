@@ -148,13 +148,13 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	ret = of_property_read_u32(intc, "xlnx,num-intr-inputs", &nr_irq);
 	if (ret < 0) {
 		pr_err("%s: unable to read xlnx,num-intr-inputs\n", __func__);
-		return -EINVAL;
+		return ret;
 	}
 
 	ret = of_property_read_u32(intc, "xlnx,kind-of-intr", &intr_mask);
 	if (ret < 0) {
 		pr_err("%s: unable to read xlnx,kind-of-intr\n", __func__);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (intr_mask > (u32)((1ULL << nr_irq) - 1))
