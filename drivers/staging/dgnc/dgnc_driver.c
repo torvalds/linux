@@ -238,6 +238,7 @@ static int dgnc_start(void)
 {
 	int rc = 0;
 	unsigned long flags;
+	struct device *dev;
 
 	/* make sure that the globals are init'd before we do anything else */
 	dgnc_init_globals();
@@ -257,9 +258,20 @@ static int dgnc_start(void)
 	dgnc_Major = rc;
 
 	dgnc_class = class_create(THIS_MODULE, "dgnc_mgmt");
-	device_create(dgnc_class, NULL,
-		MKDEV(dgnc_Major, 0),
-		NULL, "dgnc_mgmt");
+	if (IS_ERR(dgnc_class)) {
+		rc = PTR_ERR(dgnc_class);
+		pr_err(DRVSTR ": Can't create dgnc_mgmt class (%d)\n", rc);
+		goto failed_class;
+	}
+
+	dev = device_create(dgnc_class, NULL,
+			MKDEV(dgnc_Major, 0),
+			NULL, "dgnc_mgmt");
+	if (IS_ERR(dev)) {
+		rc = PTR_ERR(dev);
+		pr_err(DRVSTR ": Can't create device (%d)\n", rc);
+		goto failed_device;
+	}
 
 	/*
 	 * Init any global tty stuff.
@@ -268,7 +280,7 @@ static int dgnc_start(void)
 
 	if (rc < 0) {
 		pr_err(DRVSTR ": tty preinit - not enough memory (%d)\n", rc);
-		return rc;
+		goto failed_tty;
 	}
 
 	/* Start the poller */
@@ -282,6 +294,14 @@ static int dgnc_start(void)
 
 	add_timer(&dgnc_poll_timer);
 
+	return 0;
+
+failed_tty:
+	device_destroy(dgnc_class, MKDEV(dgnc_Major, 0));
+failed_device:
+	class_destroy(dgnc_class);
+failed_class:
+	unregister_chrdev(dgnc_Major, "dgnc");
 	return rc;
 }
 
