@@ -24,7 +24,7 @@
 #include "greybus_id.h"
 #include "greybus_manifest.h"
 #include "manifest.h"
-#include "interface_block.h"
+#include "interface.h"
 #include "bundle.h"
 #include "connection.h"
 #include "protocol.h"

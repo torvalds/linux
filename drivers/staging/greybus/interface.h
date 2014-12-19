@@ -7,8 +7,8 @@
  * Released under the GPLv2 only.
  */
 
-#ifndef __INTERFACE_BLOCK_H
-#define __INTERFACE_BLOCK_H
+#ifndef __INTERFACE_H
+#define __INTERFACE_H
 
 /* Increase these values if needed */
 #define MAX_CPORTS_PER_MODULE	10
@@ -55,4 +55,4 @@ const struct greybus_interface_block_id *
 struct gb_interface_block *gb_ib_find(struct greybus_host_device *hd,
 				      u8 module_id);
 
-#endif /* __INTERFACE_BLOCK_H */
+#endif /* __INTERFACE_H */
