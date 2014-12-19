@@ -1,5 +1,5 @@
 config VIDEO_TLG2300
-	tristate "Telegent TLG2300 USB video capture support"
+	tristate "Telegent TLG2300 USB video capture support (Deprecated)"
 	depends on VIDEO_DEV && I2C && SND && DVB_CORE
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
@@ -11,6 +11,10 @@ config VIDEO_TLG2300
 	---help---
 	  This is a video4linux driver for Telegent tlg2300 based TV cards.
 	  The driver supports V4L2, DVB-T and radio.
+
+	  This driver is deprecated and will be removed soon. If you have
+	  hardware for this and you want to work on this driver, then contact
+	  the linux-media mailinglist.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called poseidon
