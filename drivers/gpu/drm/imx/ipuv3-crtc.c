@@ -153,35 +153,19 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 	out_pixel_fmt = ipu_crtc->interface_pix_fmt;
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		sig_cfg.interlaced = 1;
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		sig_cfg.Hsync_pol = 1;
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		sig_cfg.Vsync_pol = 1;
-
 	sig_cfg.enable_pol = 1;
 	sig_cfg.clk_pol = 0;
-	sig_cfg.width = mode->hdisplay;
-	sig_cfg.height = mode->vdisplay;
 	sig_cfg.pixel_fmt = out_pixel_fmt;
-	sig_cfg.h_start_width = mode->htotal - mode->hsync_end;
-	sig_cfg.h_sync_width = mode->hsync_end - mode->hsync_start;
-	sig_cfg.h_end_width = mode->hsync_start - mode->hdisplay;
-
-	sig_cfg.v_start_width = mode->vtotal - mode->vsync_end;
-	sig_cfg.v_sync_width = mode->vsync_end - mode->vsync_start;
-	sig_cfg.v_end_width = mode->vsync_start - mode->vdisplay;
-	sig_cfg.pixelclock = mode->clock * 1000;
 	sig_cfg.clkflags = ipu_crtc->di_clkflags;
-
 	sig_cfg.v_to_h_sync = 0;
-
 	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
 	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
 
-	ret = ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di, sig_cfg.interlaced,
-			out_pixel_fmt, mode->hdisplay);
+	drm_display_mode_to_videomode(mode, &sig_cfg.mode);
+
+	ret = ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di,
+			       mode->flags & DRM_MODE_FLAG_INTERLACE,
+			       out_pixel_fmt, mode->hdisplay);
 	if (ret) {
 		dev_err(ipu_crtc->dev,
 				"initializing display controller failed with %d\n",

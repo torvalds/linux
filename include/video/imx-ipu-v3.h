@@ -33,28 +33,15 @@ enum ipuv3_type {
  * Bitfield of Display Interface signal polarities.
  */
 struct ipu_di_signal_cfg {
-	unsigned datamask_en:1;
-	unsigned interlaced:1;
-	unsigned odd_field_first:1;
-	unsigned clksel_en:1;
-	unsigned clkidle_en:1;
 	unsigned data_pol:1;	/* true = inverted */
 	unsigned clk_pol:1;	/* true = rising edge */
 	unsigned enable_pol:1;
-	unsigned Hsync_pol:1;	/* true = active high */
-	unsigned Vsync_pol:1;
 
-	u16 width;
-	u16 height;
+	struct videomode mode;
+
 	u32 pixel_fmt;
-	u16 h_start_width;
-	u16 h_sync_width;
-	u16 h_end_width;
-	u16 v_start_width;
-	u16 v_sync_width;
-	u16 v_end_width;
 	u32 v_to_h_sync;
-	unsigned long pixelclock;
+
 #define IPU_DI_CLKMODE_SYNC	(1 << 0)
 #define IPU_DI_CLKMODE_EXT	(1 << 1)
 	unsigned long clkflags;
