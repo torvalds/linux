@@ -1284,30 +1284,7 @@ static inline int hci_check_conn_params(u16 min, u16 max, u16 latency,
 int hci_register_cb(struct hci_cb *hcb);
 int hci_unregister_cb(struct hci_cb *hcb);
 
-struct hci_request {
-	struct hci_dev		*hdev;
-	struct sk_buff_head	cmd_q;
-
-	/* If something goes wrong when building the HCI request, the error
-	 * value is stored in this field.
-	 */
-	int			err;
-};
-
-void hci_req_init(struct hci_request *req, struct hci_dev *hdev);
-int hci_req_run(struct hci_request *req, hci_req_complete_t complete);
-void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
-		 const void *param);
-void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
-		    const void *param, u8 event);
-void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status);
 bool hci_req_pending(struct hci_dev *hdev);
-
-void hci_req_add_le_scan_disable(struct hci_request *req);
-void hci_req_add_le_passive_scan(struct hci_request *req);
-
-void hci_update_page_scan(struct hci_dev *hdev);
-void __hci_update_page_scan(struct hci_request *req);
 
 struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 			       const void *param, u32 timeout);
@@ -1418,8 +1395,6 @@ u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,
 							__u8 ltk[16]);
 
-int hci_update_random_address(struct hci_request *req, bool require_privacy,
-			      u8 *own_addr_type);
 void hci_copy_identity_address(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			       u8 *bdaddr_type);
 

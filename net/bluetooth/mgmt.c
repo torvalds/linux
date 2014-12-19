@@ -32,6 +32,7 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/mgmt.h>
 
+#include "hci_request.h"
 #include "smp.h"
 
 #define MGMT_VERSION	1

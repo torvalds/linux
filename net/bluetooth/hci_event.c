@@ -30,6 +30,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
 
+#include "hci_request.h"
 #include "a2mp.h"
 #include "amp.h"
 #include "smp.h"
