@@ -318,7 +318,7 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			memcpy(&found, result, csum_size);
 
 			read_extent_buffer(buf, &val, 0, csum_size);
-			printk_ratelimited(KERN_INFO
+			printk_ratelimited(KERN_WARNING
 				"BTRFS: %s checksum verify failed on %llu wanted %X found %X "
 				"level %d\n",
 				root->fs_info->sb->s_id, buf->start,

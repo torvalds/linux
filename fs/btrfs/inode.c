@@ -2945,7 +2945,7 @@ static int __readpage_endio_check(struct inode *inode,
 	return 0;
 zeroit:
 	if (__ratelimit(&_rs))
-		btrfs_info(BTRFS_I(inode)->root->fs_info,
+		btrfs_warn(BTRFS_I(inode)->root->fs_info,
 			   "csum failed ino %llu off %llu csum %u expected csum %u",
 			   btrfs_ino(inode), start, csum, csum_expected);
 	memset(kaddr + pgoff, 1, len);
