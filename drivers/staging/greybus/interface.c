@@ -41,7 +41,7 @@ ATTRIBUTE_GROUPS(interface);
 static DEFINE_SPINLOCK(gb_modules_lock);
 
 static int gb_interface_match_one_id(struct gb_interface *intf,
-				     const struct greybus_interface_block_id *id)
+				     const struct greybus_interface_id *id)
 {
 	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
 	    (id->vendor != intf->vendor))
@@ -58,9 +58,9 @@ static int gb_interface_match_one_id(struct gb_interface *intf,
 	return 1;
 }
 
-const struct greybus_interface_block_id *
+const struct greybus_interface_id *
 gb_interface_match_id(struct gb_interface *intf,
-		      const struct greybus_interface_block_id *id)
+		      const struct greybus_interface_id *id)
 {
 	if (id == NULL)
 		return NULL;

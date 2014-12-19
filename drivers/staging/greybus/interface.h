@@ -47,9 +47,9 @@ static inline void * gb_interface__get_drvdata(struct gb_interface *intf)
 
 /* Greybus "private" definitions */
 
-const struct greybus_interface_block_id *
+const struct greybus_interface_id *
 	gb_interface_match_id(struct gb_interface *intf,
-			      const struct greybus_interface_block_id *id);
+			      const struct greybus_interface_id *id);
 
 struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
 				       u8 module_id);

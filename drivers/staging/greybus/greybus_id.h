@@ -9,7 +9,7 @@
 #include <linux/mod_devicetable.h>
 
 
-struct greybus_interface_block_id {
+struct greybus_interface_id {
 	__u16	match_flags;
 	__u16	vendor;
 	__u16	product;
@@ -18,7 +18,7 @@ struct greybus_interface_block_id {
 	kernel_ulong_t	driver_info __aligned(sizeof(kernel_ulong_t));
 };
 
-/* Used to match the greybus_interface_block_id */
+/* Used to match the greybus_interface_id */
 #define GREYBUS_ID_MATCH_VENDOR		BIT(0)
 #define GREYBUS_ID_MATCH_PRODUCT		BIT(1)
 #define GREYBUS_ID_MATCH_SERIAL		BIT(2)

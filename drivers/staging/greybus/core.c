@@ -35,7 +35,7 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(drv);
 	struct gb_interface *intf = to_gb_interface(dev);
-	const struct greybus_interface_block_id *id;
+	const struct greybus_interface_id *id;
 
 	id = gb_interface_match_id(intf, driver->id_table);
 	if (id)
@@ -95,7 +95,7 @@ static int greybus_probe(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
 	struct gb_interface *intf = to_gb_interface(dev);
-	const struct greybus_interface_block_id *id;
+	const struct greybus_interface_id *id;
 	int retval;
 
 	/* match id */
