@@ -272,7 +272,7 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 {
 	struct klp_func *func = ops->private;
 
-	regs->ip = (unsigned long)func->new_func;
+	klp_arch_set_pc(regs, (unsigned long)func->new_func);
 }
 
 static int klp_disable_func(struct klp_func *func)

@@ -22,6 +22,7 @@
 #define _ASM_X86_LIVEPATCH_H
 
 #include <linux/module.h>
+#include <linux/ftrace.h>
 
 #ifdef CONFIG_LIVE_PATCHING
 #ifndef CC_USING_FENTRY
@@ -30,6 +31,10 @@
 extern int klp_write_module_reloc(struct module *mod, unsigned long type,
 				  unsigned long loc, unsigned long value);
 
+static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
+{
+	regs->ip = ip;
+}
 #else
 #error Live patching support is disabled; check CONFIG_LIVE_PATCHING
 #endif
