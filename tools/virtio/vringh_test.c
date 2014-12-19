@@ -7,6 +7,7 @@
 #include <linux/virtio.h>
 #include <linux/vringh.h>
 #include <linux/virtio_ring.h>
+#include <linux/virtio_config.h>
 #include <linux/uaccess.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -131,7 +132,7 @@ static inline int vringh_get_head(struct vringh *vrh, u16 *head)
 	return 1;
 }
 
-static int parallel_test(unsigned long features,
+static int parallel_test(u64 features,
 			 bool (*getrange)(struct vringh *vrh,
 					  u64 addr, struct vringh_range *r),
 			 bool fast_vringh)
@@ -456,6 +457,8 @@ int main(int argc, char *argv[])
 			__virtio_set_bit(&vdev, VIRTIO_RING_F_INDIRECT_DESC);
 		else if (strcmp(argv[1], "--eventidx") == 0)
 			__virtio_set_bit(&vdev, VIRTIO_RING_F_EVENT_IDX);
+		else if (strcmp(argv[1], "--virtio-1") == 0)
+			__virtio_set_bit(&vdev, VIRTIO_F_VERSION_1);
 		else if (strcmp(argv[1], "--slow-range") == 0)
 			getrange = getrange_slow;
 		else if (strcmp(argv[1], "--fast-vringh") == 0)

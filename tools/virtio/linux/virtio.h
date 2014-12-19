@@ -6,6 +6,7 @@
 /* TODO: empty stubs for now. Broken but enough for virtio_ring.c */
 #define list_add_tail(a, b) do {} while (0)
 #define list_del(a) do {} while (0)
+#define list_for_each_entry(a, b, c) while (0)
 /* end of stubs */
 
 struct virtio_device {

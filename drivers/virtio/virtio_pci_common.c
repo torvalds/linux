@@ -458,7 +458,44 @@ static int virtio_pci_restore(struct device *dev)
 	return virtio_device_restore(&vp_dev->vdev);
 }
 
-const struct dev_pm_ops virtio_pci_pm_ops = {
+static const struct dev_pm_ops virtio_pci_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(virtio_pci_freeze, virtio_pci_restore)
 };
 #endif
+
+
+/* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
+static const struct pci_device_id virtio_pci_id_table[] = {
+	{ PCI_DEVICE(0x1af4, PCI_ANY_ID) },
+	{ 0 }
+};
+
+MODULE_DEVICE_TABLE(pci, virtio_pci_id_table);
+
+static int virtio_pci_probe(struct pci_dev *pci_dev,
+			    const struct pci_device_id *id)
+{
+	return virtio_pci_legacy_probe(pci_dev, id);
+}
+
+static void virtio_pci_remove(struct pci_dev *pci_dev)
+{
+     virtio_pci_legacy_remove(pci_dev);
+}
+
+static struct pci_driver virtio_pci_driver = {
+	.name		= "virtio-pci",
+	.id_table	= virtio_pci_id_table,
+	.probe		= virtio_pci_probe,
+	.remove		= virtio_pci_remove,
+#ifdef CONFIG_PM_SLEEP
+	.driver.pm	= &virtio_pci_pm_ops,
+#endif
+};
+
+module_pci_driver(virtio_pci_driver);
+
+MODULE_AUTHOR("Anthony Liguori <aliguori@us.ibm.com>");
+MODULE_DESCRIPTION("virtio-pci");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("1");
