@@ -38,7 +38,7 @@ ATTRIBUTE_GROUPS(interface);
 
 
 /* XXX This could be per-host device */
-static DEFINE_SPINLOCK(gb_modules_lock);
+static DEFINE_SPINLOCK(gb_interfaces_lock);
 
 static int gb_interface_match_one_id(struct gb_interface *intf,
 				     const struct greybus_interface_id *id)
@@ -146,9 +146,9 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 		return NULL;
 	}
 
-	spin_lock_irq(&gb_modules_lock);
+	spin_lock_irq(&gb_interfaces_lock);
 	list_add_tail(&intf->links, &hd->interfaces);
-	spin_unlock_irq(&gb_modules_lock);
+	spin_unlock_irq(&gb_interfaces_lock);
 
 	return intf;
 }
@@ -161,9 +161,9 @@ static void gb_interface_destroy(struct gb_interface *intf)
 	if (WARN_ON(!intf))
 		return;
 
-	spin_lock_irq(&gb_modules_lock);
+	spin_lock_irq(&gb_interfaces_lock);
 	list_del(&intf->links);
-	spin_unlock_irq(&gb_modules_lock);
+	spin_unlock_irq(&gb_interfaces_lock);
 
 	gb_bundle_destroy(intf);
 
