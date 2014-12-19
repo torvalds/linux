@@ -83,7 +83,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface_block *gb_ib, u8 interfac
 	}
 
 	spin_lock_irq(&gb_bundles_lock);
-	list_add_tail(&bundle->links, &gb_ib->interfaces);
+	list_add_tail(&bundle->links, &gb_ib->bundles);
 	spin_unlock_irq(&gb_bundles_lock);
 
 	return bundle;
@@ -101,7 +101,7 @@ void gb_bundle_destroy(struct gb_interface_block *gb_ib)
 		return;
 
 	spin_lock_irq(&gb_bundles_lock);
-	list_for_each_entry_safe(bundle, temp, &gb_ib->interfaces, links) {
+	list_for_each_entry_safe(bundle, temp, &gb_ib->bundles, links) {
 		list_del(&bundle->links);
 		gb_bundle_connections_exit(bundle);
 		device_del(&bundle->dev);
@@ -144,7 +144,7 @@ struct gb_bundle *gb_bundle_find(struct gb_interface_block *gb_ib, u8 bundle_id)
 	struct gb_bundle *bundle;
 
 	spin_lock_irq(&gb_bundles_lock);
-	list_for_each_entry(bundle, &gb_ib->interfaces, links)
+	list_for_each_entry(bundle, &gb_ib->bundles, links)
 		if (bundle->id == bundle_id) {
 			spin_unlock_irq(&gb_bundles_lock);
 			return bundle;
