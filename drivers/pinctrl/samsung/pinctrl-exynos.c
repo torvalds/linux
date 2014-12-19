@@ -1314,6 +1314,11 @@ static const struct samsung_pin_bank_data exynos7_pin_banks8[] __initconst = {
 	EXYNOS_PIN_BANK_EINTG(3, 0x140, "gpv6", 0x24),
 };
 
+static const struct samsung_pin_bank_data exynos7_pin_banks9[] __initconst = {
+	EXYNOS_PIN_BANK_EINTG(7, 0x000, "gpz0", 0x00),
+	EXYNOS_PIN_BANK_EINTG(4, 0x020, "gpz1", 0x04),
+};
+
 const struct samsung_pin_ctrl exynos7_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 0 Alive data */
@@ -1360,6 +1365,11 @@ const struct samsung_pin_ctrl exynos7_pin_ctrl[] __initconst = {
 		/* pin-controller instance 8 BUS1 data */
 		.pin_banks	= exynos7_pin_banks8,
 		.nr_banks	= ARRAY_SIZE(exynos7_pin_banks8),
+		.eint_gpio_init = exynos_eint_gpio_init,
+	}, {
+		/* pin-controller instance 9 AUD data */
+		.pin_banks	= exynos7_pin_banks9,
+		.nr_banks	= ARRAY_SIZE(exynos7_pin_banks9),
 		.eint_gpio_init = exynos_eint_gpio_init,
 	},
 };
