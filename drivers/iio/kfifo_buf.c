@@ -164,4 +164,58 @@ void iio_kfifo_free(struct iio_buffer *r)
 }
 EXPORT_SYMBOL(iio_kfifo_free);
 
+static void devm_iio_kfifo_release(struct device *dev, void *res)
+{
+	iio_kfifo_free(*(struct iio_buffer **)res);
+}
+
+static int devm_iio_kfifo_match(struct device *dev, void *res, void *data)
+{
+	struct iio_buffer **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+/**
+ * devm_iio_fifo_allocate - Resource-managed iio_kfifo_allocate()
+ * @dev:		Device to allocate kfifo buffer for
+ *
+ * RETURNS:
+ * Pointer to allocated iio_buffer on success, NULL on failure.
+ */
+struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
+{
+	struct iio_buffer **ptr, *r;
+
+	ptr = devres_alloc(devm_iio_kfifo_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	r = iio_kfifo_allocate();
+	if (r) {
+		*ptr = r;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return r;
+}
+EXPORT_SYMBOL(devm_iio_kfifo_allocate);
+
+/**
+ * devm_iio_fifo_free - Resource-managed iio_kfifo_free()
+ * @dev:		Device the buffer belongs to
+ * @r:			The buffer associated with the device
+ */
+void devm_iio_kfifo_free(struct device *dev, struct iio_buffer *r)
+{
+	WARN_ON(devres_release(dev, devm_iio_kfifo_release,
+			       devm_iio_kfifo_match, r));
+}
+EXPORT_SYMBOL(devm_iio_kfifo_free);
+
 MODULE_LICENSE("GPL");
