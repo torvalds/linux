@@ -1043,7 +1043,6 @@ struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv)
 	if (!ptr)
 		return NULL;
 
-	/* use raw alloc_dr for kmalloc caller tracing */
 	iio_dev = iio_device_alloc(sizeof_priv);
 	if (iio_dev) {
 		*ptr = iio_dev;
