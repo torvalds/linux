@@ -158,6 +158,43 @@ opal_tracepoint_return:
 	blr
 #endif
 
+/*
+ * Make opal call in realmode. This is a generic function to be called
+ * from realmode. It handles endianness.
+ *
+ * r13 - paca pointer
+ * r1  - stack pointer
+ * r0  - opal token
+ */
+_GLOBAL(opal_call_realmode)
+	mflr	r12
+	std	r12,PPC_LR_STKOFF(r1)
+	ld	r2,PACATOC(r13)
+	/* Set opal return address */
+	LOAD_REG_ADDR(r12,return_from_opal_call)
+	mtlr	r12
+
+	mfmsr	r12
+#ifdef __LITTLE_ENDIAN__
+	/* Handle endian-ness */
+	li	r11,MSR_LE
+	andc	r12,r12,r11
+#endif
+	mtspr	SPRN_HSRR1,r12
+	LOAD_REG_ADDR(r11,opal)
+	ld	r12,8(r11)
+	ld	r2,0(r11)
+	mtspr	SPRN_HSRR0,r12
+	hrfid
+
+return_from_opal_call:
+#ifdef __LITTLE_ENDIAN__
+	FIXUP_ENDIAN
+#endif
+	ld	r12,PPC_LR_STKOFF(r1)
+	mtlr	r12
+	blr
+
 OPAL_CALL(opal_invalid_call,			OPAL_INVALID_CALL);
 OPAL_CALL(opal_console_write,			OPAL_CONSOLE_WRITE);
 OPAL_CALL(opal_console_read,			OPAL_CONSOLE_READ);
@@ -247,6 +284,7 @@ OPAL_CALL(opal_sensor_read,			OPAL_SENSOR_READ);
 OPAL_CALL(opal_get_param,			OPAL_GET_PARAM);
 OPAL_CALL(opal_set_param,			OPAL_SET_PARAM);
 OPAL_CALL(opal_handle_hmi,			OPAL_HANDLE_HMI);
+OPAL_CALL(opal_slw_set_reg,			OPAL_SLW_SET_REG);
 OPAL_CALL(opal_register_dump_region,		OPAL_REGISTER_DUMP_REGION);
 OPAL_CALL(opal_unregister_dump_region,		OPAL_UNREGISTER_DUMP_REGION);
 OPAL_CALL(opal_pci_set_phb_cxl_mode,		OPAL_PCI_SET_PHB_CXL_MODE);
@@ -254,3 +292,4 @@ OPAL_CALL(opal_tpo_write,			OPAL_WRITE_TPO);
 OPAL_CALL(opal_tpo_read,			OPAL_READ_TPO);
 OPAL_CALL(opal_ipmi_send,			OPAL_IPMI_SEND);
 OPAL_CALL(opal_ipmi_recv,			OPAL_IPMI_RECV);
+OPAL_CALL(opal_i2c_request,			OPAL_I2C_REQUEST);

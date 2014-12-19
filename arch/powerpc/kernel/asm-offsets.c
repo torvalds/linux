@@ -726,5 +726,16 @@ int main(void)
 					arch.timing_last_enter.tv32.tbl));
 #endif
 
+#ifdef CONFIG_PPC_POWERNV
+	DEFINE(PACA_CORE_IDLE_STATE_PTR,
+			offsetof(struct paca_struct, core_idle_state_ptr));
+	DEFINE(PACA_THREAD_IDLE_STATE,
+			offsetof(struct paca_struct, thread_idle_state));
+	DEFINE(PACA_THREAD_MASK,
+			offsetof(struct paca_struct, thread_mask));
+	DEFINE(PACA_SUBCORE_SIBLING_MASK,
+			offsetof(struct paca_struct, subcore_sibling_mask));
+#endif
+
 	return 0;
 }

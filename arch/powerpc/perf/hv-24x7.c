@@ -177,7 +177,7 @@ static ssize_t _name##_show(struct device *dev,			\
 	}							\
 	ret = sprintf(buf, _fmt, _expr);			\
 e_free:								\
-	kfree(page);						\
+	kmem_cache_free(hv_page_cache, page);			\
 	return ret;						\
 }								\
 static DEVICE_ATTR_RO(_name)
@@ -217,11 +217,14 @@ static bool is_physical_domain(int domain)
 		domain == HV_24X7_PERF_DOMAIN_PHYSICAL_CORE;
 }
 
+DEFINE_PER_CPU(char, hv_24x7_reqb[4096]) __aligned(4096);
+DEFINE_PER_CPU(char, hv_24x7_resb[4096]) __aligned(4096);
+
 static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 					 u16 lpar, u64 *res,
 					 bool success_expected)
 {
-	unsigned long ret = -ENOMEM;
+	unsigned long ret;
 
 	/*
 	 * request_buffer and result_buffer are not required to be 4k aligned,
@@ -243,13 +246,11 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 	BUILD_BUG_ON(sizeof(*request_buffer) > 4096);
 	BUILD_BUG_ON(sizeof(*result_buffer) > 4096);
 
-	request_buffer = kmem_cache_zalloc(hv_page_cache, GFP_USER);
-	if (!request_buffer)
-		goto out;
+	request_buffer = (void *)get_cpu_var(hv_24x7_reqb);
+	result_buffer = (void *)get_cpu_var(hv_24x7_resb);
 
-	result_buffer = kmem_cache_zalloc(hv_page_cache, GFP_USER);
-	if (!result_buffer)
-		goto out_free_request_buffer;
+	memset(request_buffer, 0, 4096);
+	memset(result_buffer, 0, 4096);
 
 	*request_buffer = (struct reqb) {
 		.buf = {
@@ -278,15 +279,11 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 				domain, offset, ix, lpar, ret, ret,
 				result_buffer->buf.detailed_rc,
 				result_buffer->buf.failing_request_ix);
-		goto out_free_result_buffer;
+		goto out;
 	}
 
 	*res = be64_to_cpu(result_buffer->result);
 
-out_free_result_buffer:
-	kfree(result_buffer);
-out_free_request_buffer:
-	kfree(request_buffer);
 out:
 	return ret;
 }
