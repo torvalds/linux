@@ -13256,7 +13256,7 @@ static int bnx2x_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		return -EFAULT;
 	}
 
-	DP(BNX2X_MSG_PTP, "Configrued val = %d, period = %d\n", best_val,
+	DP(BNX2X_MSG_PTP, "Configured val = %d, period = %d\n", best_val,
 	   best_period);
 
 	return 0;
@@ -14784,7 +14784,7 @@ static int bnx2x_hwtstamp_ioctl(struct bnx2x *bp, struct ifreq *ifr)
 		-EFAULT : 0;
 }
 
-/* Configrues HW for PTP */
+/* Configures HW for PTP */
 static int bnx2x_configure_ptp(struct bnx2x *bp)
 {
 	int rc, port = BP_PORT(bp);

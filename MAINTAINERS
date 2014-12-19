@@ -6610,19 +6610,8 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 NETWORKING [WIRELESS]
-M:	"John W. Linville" <linville@tuxdriver.com>
 L:	linux-wireless@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-wireless/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless.git
-S:	Maintained
-F:	net/mac80211/
-F:	net/rfkill/
-F:	net/wireless/
-F:	include/net/ieee80211*
-F:	include/linux/wireless.h
-F:	include/uapi/linux/wireless.h
-F:	include/net/iw_handler.h
-F:	drivers/net/wireless/
 
 NETWORKING DRIVERS
 L:	netdev@vger.kernel.org
@@ -6642,6 +6631,14 @@ F:	include/linux/hippidevice.h
 F:	include/linux/inetdevice.h
 F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdevice.h
+
+NETWORKING DRIVERS (WIRELESS)
+M:	Kalle Valo <kvalo@codeaurora.org>
+L:	linux-wireless@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/linux-wireless/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/wireless-drivers.git/
+S:	Maintained
+F:	drivers/net/wireless/
 
 NETXEN (1/10) GbE SUPPORT
 M:	Manish Chopra <manish.chopra@qlogic.com>

@@ -309,16 +309,16 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 
 	if (IS_PHY_IF_MODE_GBIT(dwmac->interface)) {
 		const char *rs;
-		dwmac->tx_retime_src = TX_RETIME_SRC_CLKGEN;
 
 		err = of_property_read_string(np, "st,tx-retime-src", &rs);
-		if (err < 0)
+		if (err < 0) {
 			dev_warn(dev, "Use internal clock source\n");
-
-		if (!strcasecmp(rs, "clk_125"))
+			dwmac->tx_retime_src = TX_RETIME_SRC_CLKGEN;
+		} else if (!strcasecmp(rs, "clk_125")) {
 			dwmac->tx_retime_src = TX_RETIME_SRC_CLK_125;
-		else if (!strcasecmp(rs, "txclk"))
+		} else if (!strcasecmp(rs, "txclk")) {
 			dwmac->tx_retime_src = TX_RETIME_SRC_TXCLK;
+		}
 
 		dwmac->speed = SPEED_1000;
 	}

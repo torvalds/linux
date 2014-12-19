@@ -3138,6 +3138,7 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 
 	netdev->hw_enc_features = 0;
 	netdev->hw_features &= ~(NETIF_F_GSO_UDP_TUNNEL);
+	netdev->features &= ~(NETIF_F_GSO_UDP_TUNNEL);
 }
 #endif
 
@@ -4429,6 +4430,7 @@ static void be_add_vxlan_port(struct net_device *netdev, sa_family_t sa_family,
 				   NETIF_F_TSO | NETIF_F_TSO6 |
 				   NETIF_F_GSO_UDP_TUNNEL;
 	netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+	netdev->features |= NETIF_F_GSO_UDP_TUNNEL;
 
 	dev_info(dev, "Enabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));

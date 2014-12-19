@@ -7549,6 +7549,11 @@ static int i40e_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	if (!(pf->flags & I40E_FLAG_SRIOV_ENABLED))
 		return -EOPNOTSUPP;
 
+	if (vid) {
+		pr_info("%s: vlans aren't supported yet for dev_uc|mc_add()\n", dev->name);
+		return -EINVAL;
+	}
+
 	/* Hardware does not support aging addresses so if a
 	 * ndm_state is given only allow permanent addresses
 	 */

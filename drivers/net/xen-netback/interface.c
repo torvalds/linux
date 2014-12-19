@@ -166,7 +166,7 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 
 	cb = XENVIF_RX_CB(skb);
-	cb->expires = jiffies + rx_drain_timeout_jiffies;
+	cb->expires = jiffies + vif->drain_timeout;
 
 	xenvif_rx_queue_tail(queue, skb);
 	xenvif_kick_thread(queue);
@@ -414,6 +414,8 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->ip_csum = 1;
 	vif->dev = dev;
 	vif->disabled = false;
+	vif->drain_timeout = msecs_to_jiffies(rx_drain_timeout_msecs);
+	vif->stall_timeout = msecs_to_jiffies(rx_stall_timeout_msecs);
 
 	/* Start out with no queues. */
 	vif->queues = NULL;

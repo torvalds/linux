@@ -2376,7 +2376,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"KR/KX",
 		"KR/KX/KX4",
 		"R QSFP_10G",
-		"",
+		"R QSA",
 		"R QSFP",
 		"R BP40_BA",
 	};

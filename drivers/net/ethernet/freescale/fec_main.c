@@ -1558,20 +1558,21 @@ fec_enet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *ndev = dev_id;
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	const unsigned napi_mask = FEC_ENET_RXF | FEC_ENET_TXF;
 	uint int_events;
 	irqreturn_t ret = IRQ_NONE;
 
 	int_events = readl(fep->hwp + FEC_IEVENT);
-	writel(int_events & ~napi_mask, fep->hwp + FEC_IEVENT);
+	writel(int_events, fep->hwp + FEC_IEVENT);
 	fec_enet_collect_events(fep, int_events);
 
-	if (int_events & napi_mask) {
+	if (fep->work_tx || fep->work_rx) {
 		ret = IRQ_HANDLED;
 
-		/* Disable the NAPI interrupts */
-		writel(FEC_ENET_MII, fep->hwp + FEC_IMASK);
-		napi_schedule(&fep->napi);
+		if (napi_schedule_prep(&fep->napi)) {
+			/* Disable the NAPI interrupts */
+			writel(FEC_ENET_MII, fep->hwp + FEC_IMASK);
+			__napi_schedule(&fep->napi);
+		}
 	}
 
 	if (int_events & FEC_ENET_MII) {
@@ -1590,12 +1591,6 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	struct net_device *ndev = napi->dev;
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int pkts;
-
-	/*
-	 * Clear any pending transmit or receive interrupts before
-	 * processing the rings to avoid racing with the hardware.
-	 */
-	writel(FEC_ENET_RXF | FEC_ENET_TXF, fep->hwp + FEC_IEVENT);
 
 	pkts = fec_enet_rx(ndev, budget);
 
