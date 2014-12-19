@@ -842,7 +842,7 @@ hdmi_audio_coding_type_ext_get_name(enum hdmi_audio_coding_type_ext ctx)
 		return "Invalid";
 
 	switch (ctx) {
-	case HDMI_AUDIO_CODING_TYPE_EXT_STREAM:
+	case HDMI_AUDIO_CODING_TYPE_EXT_CT:
 		return "Refer to CT";
 	case HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC:
 		return "HE AAC";

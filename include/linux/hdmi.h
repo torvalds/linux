@@ -230,7 +230,8 @@ enum hdmi_audio_sample_frequency {
 };
 
 enum hdmi_audio_coding_type_ext {
-	HDMI_AUDIO_CODING_TYPE_EXT_STREAM,
+	/* Refer to Audio Coding Type (CT) field in Data Byte 1 */
+	HDMI_AUDIO_CODING_TYPE_EXT_CT,
 
 	/*
 	 * The next three CXT values are defined in CEA-861-E only.
