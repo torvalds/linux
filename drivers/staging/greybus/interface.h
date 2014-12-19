@@ -10,11 +10,6 @@
 #ifndef __INTERFACE_H
 #define __INTERFACE_H
 
-/* Increase these values if needed */
-#define MAX_CPORTS_PER_MODULE	10
-#define MAX_STRINGS_PER_MODULE	10
-
-
 /* Greybus "public" definitions" */
 struct gb_interface {
 	struct device dev;
