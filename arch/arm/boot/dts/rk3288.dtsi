@@ -822,8 +822,8 @@
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vop1_pwm_pin>;
-		clocks = <&clk_gates13 11>;
-		clock-names = "pclk_pwm";
+		clocks = <&clk_gates13 11>, <&clk_gates15 7>, <&clk_gates15 8>;
+		clock-names = "pclk_pwm", "aclk_lcdc", "hclk_lcdc";
 		status = "disabled";
 	};
 
@@ -833,8 +833,8 @@
 		#pwm-cells = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vop0_pwm_pin>;
-		clocks = <&clk_gates13 10>;
-		clock-names = "pclk_pwm";
+		clocks = <&clk_gates13 10>, <&clk_gates15 5>, <&clk_gates15 6>;
+		clock-names = "pclk_pwm", "aclk_lcdc", "hclk_lcdc";
 		status = "disabled";
 	};
 

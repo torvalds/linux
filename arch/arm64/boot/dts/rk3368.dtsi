@@ -796,6 +796,17 @@
 		status = "disabled";
 	};
 
+	voppwm: pwm@ff9301a0 {
+		compatible = "rockchip,vop-pwm";
+		reg = <0x0 0xff9301a0 0x0 0x10>;
+		#pwm-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vop_pwm_pin>;
+		clocks = <&clk_gates4 2>, <&clk_gates16 5>, <&clk_gates16 6>;
+		clock-names = "pclk_pwm", "aclk_lcdc", "hclk_lcdc";
+		status = "disabled";
+	};
+
 	dvfs {
 
 		vd_arm: vd_arm {

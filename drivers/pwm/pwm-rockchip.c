@@ -97,6 +97,8 @@ module_param_named(dbg_level, pwm_dbg_level, int, 0644);
  struct rk_pwm_chip {
 	void __iomem *base;
 	struct clk *clk;
+	struct clk *aclk_lcdc;
+	struct clk *hclk_lcdc;
 	struct pwm_chip chip;
 	unsigned int pwm_id;
 	spinlock_t		lock;
@@ -471,7 +473,23 @@ static int  rk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret)
 		return ret;
 
+	if (pc->aclk_lcdc) {
+		ret = clk_enable(pc->aclk_lcdc);
+		if (ret)
+			return ret;
+	}
+	if (pc->hclk_lcdc) {
+		ret = clk_enable(pc->hclk_lcdc);
+		if (ret)
+			return ret;
+	}
+
 	ret = pc->config(chip, pwm, duty_ns, period_ns);
+
+	if (pc->aclk_lcdc)
+		clk_disable(pc->aclk_lcdc);
+	if (pc->hclk_lcdc)
+		clk_disable(pc->hclk_lcdc);
 
 	clk_disable(pc->clk);
 
@@ -486,6 +504,17 @@ static int rk_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	if (ret)
 		return ret;
 
+	if (pc->aclk_lcdc) {
+		ret = clk_enable(pc->aclk_lcdc);
+		if (ret)
+			return ret;
+	}
+	if (pc->hclk_lcdc) {
+		ret = clk_enable(pc->hclk_lcdc);
+		if (ret)
+			return ret;
+	}
+
 	pc->set_enable(chip, pwm,true);
 	return 0;
 }
@@ -495,6 +524,11 @@ static void rk_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct rk_pwm_chip *pc = to_rk_pwm_chip(chip);
 
 	pc->set_enable(chip, pwm,false);
+
+	if (pc->aclk_lcdc)
+		clk_disable(pc->aclk_lcdc);
+	if (pc->hclk_lcdc)
+		clk_disable(pc->hclk_lcdc);
 
 	clk_disable(pc->clk);
 
@@ -568,13 +602,30 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	}
 
 	pc->base = of_iomap(np, 0);
-	if (IS_ERR(pc->base)){
+	if (IS_ERR(pc->base)) {
 		printk("PWM base ERR \n");
 		return PTR_ERR(pc->base);
 	}
-	pc->clk = devm_clk_get(&pdev->dev,"pclk_pwm");
+	pc->clk = devm_clk_get(&pdev->dev, "pclk_pwm");
 	if (IS_ERR(pc->clk))
 		return PTR_ERR(pc->clk);
+
+	if (of_device_is_compatible(np, "rockchip,vop-pwm")) {
+		pc->aclk_lcdc = devm_clk_get(&pdev->dev, "aclk_lcdc");
+		if (IS_ERR(pc->aclk_lcdc))
+			return PTR_ERR(pc->aclk_lcdc);
+
+		pc->hclk_lcdc = devm_clk_get(&pdev->dev, "hclk_lcdc");
+		if (IS_ERR(pc->hclk_lcdc))
+			return PTR_ERR(pc->hclk_lcdc);
+
+		ret = clk_prepare(pc->aclk_lcdc);
+		if (ret)
+			return ret;
+		clk_prepare(pc->hclk_lcdc);
+		if (ret)
+			return ret;
+	}
 
 	platform_set_drvdata(pdev, pc);
 	data = of_id->data;
@@ -587,10 +638,14 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	pc->chip.base = -1;
 	pc->chip.npwm = NUM_PWM;
 	spin_lock_init(&pc->lock);
-	clk_prepare(pc->clk);
+	ret = clk_prepare(pc->clk);
+	if (ret)
+		return ret;
 
-	/* Following enables PWM chip, channels would still be enabled individually through their control register */
-	DBG("npwm = %d, of_pwm_ncells =%d \n", pc->chip.npwm,pc->chip.of_pwm_n_cells);
+	/* Following enables PWM chip, channels would still
+	be enabled individually through their control register */
+	DBG("npwm = %d, of_pwm_ncells =%d \n"
+		, pc->chip.npwm, pc->chip.of_pwm_n_cells);
 	ret = pwmchip_add(&pc->chip);
 	if (ret < 0){
 		printk("failed to add pwm\n");
