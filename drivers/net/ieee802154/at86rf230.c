@@ -749,13 +749,11 @@ at86rf230_tx_trac_check(void *context)
 	 * to STATE_FORCE_TRX_OFF then STATE_TX_ON to recover the transceiver
 	 * state to TX_ON.
 	 */
-	if (trac) {
+	if (trac)
 		at86rf230_async_state_change(lp, ctx, STATE_FORCE_TRX_OFF,
 					     at86rf230_tx_trac_error, true);
-		return;
-	}
-
-	at86rf230_tx_on(context);
+	else
+		at86rf230_tx_on(context);
 }
 
 static void
