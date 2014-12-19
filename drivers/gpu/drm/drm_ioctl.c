@@ -355,6 +355,7 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		if (req->value > 1)
 			return -EINVAL;
 		file_priv->atomic = req->value;
+		file_priv->universal_planes = req->value;
 		break;
 	default:
 		return -EINVAL;
