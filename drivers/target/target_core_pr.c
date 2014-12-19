@@ -2397,6 +2397,7 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 	spin_lock(&dev->dev_reservation_lock);
 	pr_res_holder = dev->dev_pr_res_holder;
 	if (pr_res_holder) {
+		int pr_res_type = pr_res_holder->pr_res_type;
 		/*
 		 * From spc4r17 Section 5.7.9: Reserving:
 		 *
@@ -2407,7 +2408,9 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 		 * the logical unit, then the command shall be completed with
 		 * RESERVATION CONFLICT status.
 		 */
-		if (pr_res_holder != pr_reg) {
+		if ((pr_res_holder != pr_reg) &&
+		    (pr_res_type != PR_TYPE_WRITE_EXCLUSIVE_ALLREG) &&
+		    (pr_res_type != PR_TYPE_EXCLUSIVE_ACCESS_ALLREG)) {
 			struct se_node_acl *pr_res_nacl = pr_res_holder->pr_reg_nacl;
 			pr_err("SPC-3 PR: Attempted RESERVE from"
 				" [%s]: %s while reservation already held by"
