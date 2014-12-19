@@ -2768,16 +2768,17 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	if (entry_bytes > cd->rd_maxcount)
 		goto fail;
 	cd->rd_maxcount -= entry_bytes;
-	if (!cd->rd_dircount)
-		goto fail;
 	/*
 	 * RFC 3530 14.2.24 describes rd_dircount as only a "hint", so
 	 * let's always let through the first entry, at least:
 	 */
-	name_and_cookie = 4 * XDR_QUADLEN(namlen) + 8;
+	if (!cd->rd_dircount)
+		goto fail;
+	name_and_cookie = 4 + 4 * XDR_QUADLEN(namlen) + 8;
 	if (name_and_cookie > cd->rd_dircount && cd->cookie_offset)
 		goto fail;
 	cd->rd_dircount -= min(cd->rd_dircount, name_and_cookie);
+
 	cd->cookie_offset = cookie_offset;
 skip_entry:
 	cd->common.err = nfs_ok;
