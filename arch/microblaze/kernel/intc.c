@@ -158,7 +158,7 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	}
 
 	if (intr_mask >> nr_irq)
-		pr_info(" ERROR: Mismatch in kind-of-intr param\n");
+		pr_warn("%s: mismatch in kind-of-intr param\n", __func__);
 
 	pr_info("%s: num_irq=%d, edge=0x%x\n",
 		intc->full_name, nr_irq, intr_mask);
