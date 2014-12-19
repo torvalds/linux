@@ -26,9 +26,6 @@
 #include <trace/events/kvm.h>
 
 #include <asm/msidef.h>
-#ifdef CONFIG_IA64
-#include <asm/iosapic.h>
-#endif
 
 #include "irq.h"
 
@@ -38,12 +35,8 @@ static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   struct kvm *kvm, int irq_source_id, int level,
 			   bool line_status)
 {
-#ifdef CONFIG_X86
 	struct kvm_pic *pic = pic_irqchip(kvm);
 	return kvm_pic_set_irq(pic, e->irqchip.pin, irq_source_id, level);
-#else
-	return -1;
-#endif
 }
 
 static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
@@ -57,12 +50,7 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 
 inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
 {
-#ifdef CONFIG_IA64
-	return irq->delivery_mode ==
-		(IOSAPIC_LOWEST_PRIORITY << IOSAPIC_DELIVERY_SHIFT);
-#else
 	return irq->delivery_mode == APIC_DM_LOWEST;
-#endif
 }
 
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
@@ -202,9 +190,7 @@ int kvm_request_irq_source_id(struct kvm *kvm)
 	}
 
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
-#ifdef CONFIG_X86
 	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
-#endif
 	set_bit(irq_source_id, bitmap);
 unlock:
 	mutex_unlock(&kvm->irq_lock);
@@ -215,9 +201,7 @@ unlock:
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 {
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
-#ifdef CONFIG_X86
 	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
-#endif
 
 	mutex_lock(&kvm->irq_lock);
 	if (irq_source_id < 0 ||
@@ -230,9 +214,7 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 		goto unlock;
 
 	kvm_ioapic_clear_all(kvm->arch.vioapic, irq_source_id);
-#ifdef CONFIG_X86
 	kvm_pic_clear_all(pic_irqchip(kvm), irq_source_id);
-#endif
 unlock:
 	mutex_unlock(&kvm->irq_lock);
 }
@@ -242,7 +224,7 @@ void kvm_register_irq_mask_notifier(struct kvm *kvm, int irq,
 {
 	mutex_lock(&kvm->irq_lock);
 	kimn->irq = irq;
-	hlist_add_head_rcu(&kimn->link, &kvm->mask_notifier_list);
+	hlist_add_head_rcu(&kimn->link, &kvm->arch.mask_notifier_list);
 	mutex_unlock(&kvm->irq_lock);
 }
 
@@ -264,7 +246,7 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
 	if (gsi != -1)
-		hlist_for_each_entry_rcu(kimn, &kvm->mask_notifier_list, link)
+		hlist_for_each_entry_rcu(kimn, &kvm->arch.mask_notifier_list, link)
 			if (kimn->irq == gsi)
 				kimn->func(kimn, mask);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
@@ -322,16 +304,11 @@ out:
 	  .u.irqchip = { .irqchip = KVM_IRQCHIP_IOAPIC, .pin = (irq) } }
 #define ROUTING_ENTRY1(irq) IOAPIC_ROUTING_ENTRY(irq)
 
-#ifdef CONFIG_X86
-#  define PIC_ROUTING_ENTRY(irq) \
+#define PIC_ROUTING_ENTRY(irq) \
 	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
 	  .u.irqchip = { .irqchip = SELECT_PIC(irq), .pin = (irq) % 8 } }
-#  define ROUTING_ENTRY2(irq) \
+#define ROUTING_ENTRY2(irq) \
 	IOAPIC_ROUTING_ENTRY(irq), PIC_ROUTING_ENTRY(irq)
-#else
-#  define ROUTING_ENTRY2(irq) \
-	IOAPIC_ROUTING_ENTRY(irq)
-#endif
 
 static const struct kvm_irq_routing_entry default_routing[] = {
 	ROUTING_ENTRY2(0), ROUTING_ENTRY2(1),
@@ -346,20 +323,6 @@ static const struct kvm_irq_routing_entry default_routing[] = {
 	ROUTING_ENTRY1(18), ROUTING_ENTRY1(19),
 	ROUTING_ENTRY1(20), ROUTING_ENTRY1(21),
 	ROUTING_ENTRY1(22), ROUTING_ENTRY1(23),
-#ifdef CONFIG_IA64
-	ROUTING_ENTRY1(24), ROUTING_ENTRY1(25),
-	ROUTING_ENTRY1(26), ROUTING_ENTRY1(27),
-	ROUTING_ENTRY1(28), ROUTING_ENTRY1(29),
-	ROUTING_ENTRY1(30), ROUTING_ENTRY1(31),
-	ROUTING_ENTRY1(32), ROUTING_ENTRY1(33),
-	ROUTING_ENTRY1(34), ROUTING_ENTRY1(35),
-	ROUTING_ENTRY1(36), ROUTING_ENTRY1(37),
-	ROUTING_ENTRY1(38), ROUTING_ENTRY1(39),
-	ROUTING_ENTRY1(40), ROUTING_ENTRY1(41),
-	ROUTING_ENTRY1(42), ROUTING_ENTRY1(43),
-	ROUTING_ENTRY1(44), ROUTING_ENTRY1(45),
-	ROUTING_ENTRY1(46), ROUTING_ENTRY1(47),
-#endif
 };
 
 int kvm_setup_default_irq_routing(struct kvm *kvm)

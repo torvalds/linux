@@ -299,14 +299,6 @@ void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr)
 	kvmppc_e500_recalc_shadow_pid(to_e500(vcpu));
 }
 
-void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu)
-{
-}
-
-void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
-{
-}
-
 static void kvmppc_core_vcpu_load_e500(struct kvm_vcpu *vcpu, int cpu)
 {
 	kvmppc_booke_vcpu_load(vcpu, cpu);

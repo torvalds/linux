@@ -183,8 +183,10 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * state update in HW (ie bus transactions) so we can handle them
 	 * separately here as well.
 	 */
-	if (resend)
+	if (resend) {
 		icp->rm_action |= XICS_RM_CHECK_RESEND;
+		icp->rm_resend_icp = icp;
+	}
 }
 
 
@@ -254,10 +256,25 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * nothing needs to be done as there can be no XISR to
 	 * reject.
 	 *
-	 * If the CPPR is less favored, then we might be replacing
-	 * an interrupt, and thus need to possibly reject it as in
-	 *
 	 * ICP state: Check_IPI
+	 *
+	 * If the CPPR is less favored, then we might be replacing
+	 * an interrupt, and thus need to possibly reject it.
+	 *
+	 * ICP State: IPI
+	 *
+	 * Besides rejecting any pending interrupts, we also
+	 * update XISR and pending_pri to mark IPI as pending.
+	 *
+	 * PAPR does not describe this state, but if the MFRR is being
+	 * made less favored than its earlier value, there might be
+	 * a previously-rejected interrupt needing to be resent.
+	 * Ideally, we would want to resend only if
+	 *	prio(pending_interrupt) < mfrr &&
+	 *	prio(pending_interrupt) < cppr
+	 * where pending interrupt is the one that was rejected. But
+	 * we don't have that state, so we simply trigger a resend
+	 * whenever the MFRR is made less favored.
 	 */
 	do {
 		old_state = new_state = ACCESS_ONCE(icp->state);
@@ -270,13 +287,14 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 		resend = false;
 		if (mfrr < new_state.cppr) {
 			/* Reject a pending interrupt if not an IPI */
-			if (mfrr <= new_state.pending_pri)
+			if (mfrr <= new_state.pending_pri) {
 				reject = new_state.xisr;
-			new_state.pending_pri = mfrr;
-			new_state.xisr = XICS_IPI;
+				new_state.pending_pri = mfrr;
+				new_state.xisr = XICS_IPI;
+			}
 		}
 
-		if (mfrr > old_state.mfrr && mfrr > new_state.cppr) {
+		if (mfrr > old_state.mfrr) {
 			resend = new_state.need_resend;
 			new_state.need_resend = 0;
 		}
@@ -289,8 +307,10 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	}
 
 	/* Pass resends to virtual mode */
-	if (resend)
+	if (resend) {
 		this_icp->rm_action |= XICS_RM_CHECK_RESEND;
+		this_icp->rm_resend_icp = icp;
+	}
 
 	return check_too_hard(xics, this_icp);
 }

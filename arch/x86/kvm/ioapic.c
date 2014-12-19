@@ -270,7 +270,6 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap,
 	spin_unlock(&ioapic->lock);
 }
 
-#ifdef CONFIG_X86
 void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
@@ -279,12 +278,6 @@ void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
 		return;
 	kvm_make_scan_ioapic_request(kvm);
 }
-#else
-void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
-{
-	return;
-}
-#endif
 
 static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 {
@@ -586,11 +579,6 @@ static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	case IOAPIC_REG_WINDOW:
 		ioapic_write_indirect(ioapic, data);
 		break;
-#ifdef	CONFIG_IA64
-	case IOAPIC_REG_EOI:
-		__kvm_ioapic_update_eoi(NULL, ioapic, data, IOAPIC_LEVEL_TRIG);
-		break;
-#endif
 
 	default:
 		break;

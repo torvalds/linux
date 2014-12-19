@@ -124,15 +124,6 @@ int vcpu_load(struct kvm_vcpu *vcpu)
 
 	if (mutex_lock_killable(&vcpu->mutex))
 		return -EINTR;
-	if (unlikely(vcpu->pid != current->pids[PIDTYPE_PID].pid)) {
-		/* The thread running this VCPU changed. */
-		struct pid *oldpid = vcpu->pid;
-		struct pid *newpid = get_task_pid(current, PIDTYPE_PID);
-		rcu_assign_pointer(vcpu->pid, newpid);
-		if (oldpid)
-			synchronize_rcu();
-		put_pid(oldpid);
-	}
 	cpu = get_cpu();
 	preempt_notifier_register(&vcpu->preempt_notifier);
 	kvm_arch_vcpu_load(vcpu, cpu);
@@ -468,9 +459,6 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	if (r)
 		goto out_err_no_disable;
 
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
-	INIT_HLIST_HEAD(&kvm->mask_notifier_list);
-#endif
 #ifdef CONFIG_HAVE_KVM_IRQFD
 	INIT_HLIST_HEAD(&kvm->irq_ack_notifier_list);
 #endif
@@ -668,48 +656,46 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 	return 0;
 }
 
-static int cmp_memslot(const void *slot1, const void *slot2)
-{
-	struct kvm_memory_slot *s1, *s2;
-
-	s1 = (struct kvm_memory_slot *)slot1;
-	s2 = (struct kvm_memory_slot *)slot2;
-
-	if (s1->npages < s2->npages)
-		return 1;
-	if (s1->npages > s2->npages)
-		return -1;
-
-	return 0;
-}
-
 /*
- * Sort the memslots base on its size, so the larger slots
- * will get better fit.
+ * Insert memslot and re-sort memslots based on their GFN,
+ * so binary search could be used to lookup GFN.
+ * Sorting algorithm takes advantage of having initially
+ * sorted array and known changed memslot position.
  */
-static void sort_memslots(struct kvm_memslots *slots)
-{
-	int i;
-
-	sort(slots->memslots, KVM_MEM_SLOTS_NUM,
-	      sizeof(struct kvm_memory_slot), cmp_memslot, NULL);
-
-	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
-		slots->id_to_index[slots->memslots[i].id] = i;
-}
-
 static void update_memslots(struct kvm_memslots *slots,
 			    struct kvm_memory_slot *new)
 {
-	if (new) {
-		int id = new->id;
-		struct kvm_memory_slot *old = id_to_memslot(slots, id);
-		unsigned long npages = old->npages;
+	int id = new->id;
+	int i = slots->id_to_index[id];
+	struct kvm_memory_slot *mslots = slots->memslots;
 
-		*old = *new;
-		if (new->npages != npages)
-			sort_memslots(slots);
+	WARN_ON(mslots[i].id != id);
+	if (!new->npages) {
+		new->base_gfn = 0;
+		if (mslots[i].npages)
+			slots->used_slots--;
+	} else {
+		if (!mslots[i].npages)
+			slots->used_slots++;
 	}
+
+	while (i < KVM_MEM_SLOTS_NUM - 1 &&
+	       new->base_gfn <= mslots[i + 1].base_gfn) {
+		if (!mslots[i + 1].npages)
+			break;
+		mslots[i] = mslots[i + 1];
+		slots->id_to_index[mslots[i].id] = i;
+		i++;
+	}
+	while (i > 0 &&
+	       new->base_gfn > mslots[i - 1].base_gfn) {
+		mslots[i] = mslots[i - 1];
+		slots->id_to_index[mslots[i].id] = i;
+		i--;
+	}
+
+	mslots[i] = *new;
+	slots->id_to_index[mslots[i].id] = i;
 }
 
 static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
@@ -727,7 +713,7 @@ static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
 }
 
 static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
-		struct kvm_memslots *slots, struct kvm_memory_slot *new)
+		struct kvm_memslots *slots)
 {
 	struct kvm_memslots *old_memslots = kvm->memslots;
 
@@ -738,7 +724,6 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 	WARN_ON(old_memslots->generation & 1);
 	slots->generation = old_memslots->generation + 1;
 
-	update_memslots(slots, new);
 	rcu_assign_pointer(kvm->memslots, slots);
 	synchronize_srcu_expedited(&kvm->srcu);
 
@@ -760,7 +745,7 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
  *
  * Discontiguous memory is allowed, mostly for framebuffers.
  *
- * Must be called holding mmap_sem for write.
+ * Must be called holding kvm->slots_lock for write.
  */
 int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem)
@@ -866,15 +851,16 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			goto out_free;
 	}
 
+	slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
+			GFP_KERNEL);
+	if (!slots)
+		goto out_free;
+
 	if ((change == KVM_MR_DELETE) || (change == KVM_MR_MOVE)) {
-		slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
-				GFP_KERNEL);
-		if (!slots)
-			goto out_free;
 		slot = id_to_memslot(slots, mem->slot);
 		slot->flags |= KVM_MEMSLOT_INVALID;
 
-		old_memslots = install_new_memslots(kvm, slots, NULL);
+		old_memslots = install_new_memslots(kvm, slots);
 
 		/* slot was deleted or moved, clear iommu mapping */
 		kvm_iommu_unmap_pages(kvm, &old);
@@ -886,6 +872,12 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		 * 	- kvm_is_visible_gfn (mmu_check_roots)
 		 */
 		kvm_arch_flush_shadow_memslot(kvm, slot);
+
+		/*
+		 * We can re-use the old_memslots from above, the only difference
+		 * from the currently installed memslots is the invalid flag.  This
+		 * will get overwritten by update_memslots anyway.
+		 */
 		slots = old_memslots;
 	}
 
@@ -893,26 +885,14 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (r)
 		goto out_slots;
 
-	r = -ENOMEM;
-	/*
-	 * We can re-use the old_memslots from above, the only difference
-	 * from the currently installed memslots is the invalid flag.  This
-	 * will get overwritten by update_memslots anyway.
-	 */
-	if (!slots) {
-		slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
-				GFP_KERNEL);
-		if (!slots)
-			goto out_free;
-	}
-
 	/* actual memory is freed via old in kvm_free_physmem_slot below */
 	if (change == KVM_MR_DELETE) {
 		new.dirty_bitmap = NULL;
 		memset(&new.arch, 0, sizeof(new.arch));
 	}
 
-	old_memslots = install_new_memslots(kvm, slots, &new);
+	update_memslots(slots, &new);
+	old_memslots = install_new_memslots(kvm, slots);
 
 	kvm_arch_commit_memory_region(kvm, mem, &old, change);
 
@@ -1799,10 +1779,6 @@ int kvm_vcpu_yield_to(struct kvm_vcpu *target)
 	rcu_read_unlock();
 	if (!task)
 		return ret;
-	if (task->flags & PF_VCPU) {
-		put_task_struct(task);
-		return ret;
-	}
 	ret = yield_to(task, 1);
 	put_task_struct(task);
 
@@ -2065,6 +2041,15 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (arg)
 			goto out;
+		if (unlikely(vcpu->pid != current->pids[PIDTYPE_PID].pid)) {
+			/* The thread running this VCPU changed. */
+			struct pid *oldpid = vcpu->pid;
+			struct pid *newpid = get_task_pid(current, PIDTYPE_PID);
+			rcu_assign_pointer(vcpu->pid, newpid);
+			if (oldpid)
+				synchronize_rcu();
+			put_pid(oldpid);
+		}
 		r = kvm_arch_vcpu_ioctl_run(vcpu, vcpu->run);
 		trace_kvm_userspace_exit(vcpu->run->exit_reason, r);
 		break;
@@ -2599,8 +2584,6 @@ static long kvm_vm_ioctl(struct file *filp,
 		break;
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
-		if (r == -ENOTTY)
-			r = kvm_vm_ioctl_assigned_device(kvm, ioctl, arg);
 	}
 out:
 	return r;
