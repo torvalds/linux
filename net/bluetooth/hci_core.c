@@ -5787,8 +5787,9 @@ static bool disconnected_whitelist_entries(struct hci_dev *hdev)
 	return false;
 }
 
-void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req)
+void __hci_update_page_scan(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
 	u8 scan;
 
 	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
@@ -5812,8 +5813,14 @@ void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req)
 	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 		scan |= SCAN_INQUIRY;
 
-	if (req)
-		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
-	else
-		hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+}
+
+void hci_update_page_scan(struct hci_dev *hdev)
+{
+	struct hci_request req;
+
+	hci_req_init(&req, hdev);
+	__hci_update_page_scan(&req);
+	hci_req_run(&req, NULL);
 }

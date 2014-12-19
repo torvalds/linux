@@ -1306,7 +1306,8 @@ bool hci_req_pending(struct hci_dev *hdev);
 void hci_req_add_le_scan_disable(struct hci_request *req);
 void hci_req_add_le_passive_scan(struct hci_request *req);
 
-void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req);
+void hci_update_page_scan(struct hci_dev *hdev);
+void __hci_update_page_scan(struct hci_request *req);
 
 struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 			       const void *param, u32 timeout);
