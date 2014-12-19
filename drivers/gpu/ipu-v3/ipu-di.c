@@ -511,6 +511,35 @@ static void ipu_di_config_clock(struct ipu_di *di,
 		clk_get_rate(di->clk_di_pixel) / (clkgen0 >> 4));
 }
 
+/*
+ * This function is called to adjust a video mode to IPU restrictions.
+ * It is meant to be called from drm crtc mode_fixup() methods.
+ */
+int ipu_di_adjust_videomode(struct ipu_di *di, struct videomode *mode)
+{
+	u32 diff;
+
+	if (mode->vfront_porch >= 2)
+		return 0;
+
+	diff = 2 - mode->vfront_porch;
+
+	if (mode->vback_porch >= diff) {
+		mode->vfront_porch = 2;
+		mode->vback_porch -= diff;
+	} else if (mode->vsync_len > diff) {
+		mode->vfront_porch = 2;
+		mode->vsync_len = mode->vsync_len - diff;
+	} else {
+		dev_warn(di->ipu->dev, "failed to adjust videomode\n");
+		return -EINVAL;
+	}
+
+	dev_warn(di->ipu->dev, "videomode adapted for IPU restrictions\n");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_di_adjust_videomode);
+
 int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 {
 	u32 reg;

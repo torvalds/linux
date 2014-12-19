@@ -17,6 +17,7 @@
 #include <linux/bitmap.h>
 #include <linux/fb.h>
 #include <media/v4l2-mediabus.h>
+#include <video/videomode.h>
 
 struct ipu_soc;
 
@@ -236,6 +237,7 @@ void ipu_di_put(struct ipu_di *);
 int ipu_di_disable(struct ipu_di *);
 int ipu_di_enable(struct ipu_di *);
 int ipu_di_get_num(struct ipu_di *);
+int ipu_di_adjust_videomode(struct ipu_di *di, struct videomode *mode);
 int ipu_di_init_sync_panel(struct ipu_di *, struct ipu_di_signal_cfg *sig);
 
 /*
