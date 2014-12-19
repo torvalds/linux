@@ -100,7 +100,7 @@ struct cpu_spec {
 	/*
 	 * Processor specific routine to flush tlbs.
 	 */
-	void		(*flush_tlb)(unsigned long inval_selector);
+	void		(*flush_tlb)(unsigned int action);
 
 };
 
@@ -113,6 +113,12 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 			      void *fixup_end);
 
 extern const char *powerpc_base_platform;
+
+/* TLB flush actions. Used as argument to cpu_spec.flush_tlb() hook */
+enum {
+	TLB_INVAL_SCOPE_GLOBAL = 0,	/* invalidate all TLBs */
+	TLB_INVAL_SCOPE_LPID = 1,	/* invalidate TLBs for current LPID */
+};
 
 #endif /* __ASSEMBLY__ */
 
