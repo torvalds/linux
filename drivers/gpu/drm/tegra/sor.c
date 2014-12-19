@@ -710,12 +710,10 @@ remove:
 	return err;
 }
 
-static int tegra_sor_debugfs_exit(struct tegra_sor *sor)
+static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 {
 	debugfs_remove_recursive(sor->debugfs);
 	sor->debugfs = NULL;
-
-	return 0;
 }
 
 static void tegra_sor_connector_dpms(struct drm_connector *connector, int mode)
@@ -1410,11 +1408,8 @@ static int tegra_sor_exit(struct host1x_client *client)
 	clk_disable_unprepare(sor->clk_dp);
 	clk_disable_unprepare(sor->clk);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_sor_debugfs_exit(sor);
-		if (err < 0)
-			dev_err(sor->dev, "debugfs cleanup failed: %d\n", err);
-	}
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		tegra_sor_debugfs_exit(sor);
 
 	return 0;
 }

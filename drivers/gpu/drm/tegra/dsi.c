@@ -228,7 +228,7 @@ remove:
 	return err;
 }
 
-static int tegra_dsi_debugfs_exit(struct tegra_dsi *dsi)
+static void tegra_dsi_debugfs_exit(struct tegra_dsi *dsi)
 {
 	drm_debugfs_remove_files(dsi->debugfs_files, ARRAY_SIZE(debugfs_files),
 				 dsi->minor);
@@ -239,8 +239,6 @@ static int tegra_dsi_debugfs_exit(struct tegra_dsi *dsi)
 
 	debugfs_remove(dsi->debugfs);
 	dsi->debugfs = NULL;
-
-	return 0;
 }
 
 #define PKT_ID0(id)	((((id) & 0x3f) <<  3) | (1 <<  9))
@@ -1025,15 +1023,11 @@ reset:
 static int tegra_dsi_exit(struct host1x_client *client)
 {
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
-	int err;
 
 	tegra_output_exit(&dsi->output);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_dsi_debugfs_exit(dsi);
-		if (err < 0)
-			dev_err(dsi->dev, "debugfs cleanup failed: %d\n", err);
-	}
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		tegra_dsi_debugfs_exit(dsi);
 
 	reset_control_assert(dsi->rst);
 

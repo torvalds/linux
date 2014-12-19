@@ -1310,7 +1310,7 @@ remove:
 	return err;
 }
 
-static int tegra_hdmi_debugfs_exit(struct tegra_hdmi *hdmi)
+static void tegra_hdmi_debugfs_exit(struct tegra_hdmi *hdmi)
 {
 	drm_debugfs_remove_files(hdmi->debugfs_files, ARRAY_SIZE(debugfs_files),
 				 hdmi->minor);
@@ -1321,8 +1321,6 @@ static int tegra_hdmi_debugfs_exit(struct tegra_hdmi *hdmi)
 
 	debugfs_remove(hdmi->debugfs);
 	hdmi->debugfs = NULL;
-
-	return 0;
 }
 
 static int tegra_hdmi_init(struct host1x_client *client)
@@ -1393,7 +1391,6 @@ static int tegra_hdmi_init(struct host1x_client *client)
 static int tegra_hdmi_exit(struct host1x_client *client)
 {
 	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
-	int err;
 
 	tegra_output_exit(&hdmi->output);
 
@@ -1404,12 +1401,8 @@ static int tegra_hdmi_exit(struct host1x_client *client)
 	regulator_disable(hdmi->pll);
 	regulator_disable(hdmi->hdmi);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_hdmi_debugfs_exit(hdmi);
-		if (err < 0)
-			dev_err(client->dev, "debugfs cleanup failed: %d\n",
-				err);
-	}
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		tegra_hdmi_debugfs_exit(hdmi);
 
 	return 0;
 }
