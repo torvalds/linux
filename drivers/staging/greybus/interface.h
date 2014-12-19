@@ -16,7 +16,7 @@
 
 
 /* Greybus "public" definitions" */
-struct gb_interface_block {
+struct gb_interface {
 	struct device dev;
 
 	struct list_head bundles;
@@ -32,27 +32,26 @@ struct gb_interface_block {
 
 	struct greybus_host_device *hd;
 };
-#define to_gb_interface_block(d) container_of(d, struct gb_interface_block, dev)
+#define to_gb_interface(d) container_of(d, struct gb_interface, dev)
 
-static inline void
-gb_interface_block_set_drvdata(struct gb_interface_block *gb_ib, void *data)
+static inline void gb_interface_set_drvdata(struct gb_interface *intf,
+					    void *data)
 {
-	dev_set_drvdata(&gb_ib->dev, data);
+	dev_set_drvdata(&intf->dev, data);
 }
 
-static inline void *
-gb_interface_block_get_drvdata(struct gb_interface_block *gb_ib)
+static inline void * gb_interface__get_drvdata(struct gb_interface *intf)
 {
-	return dev_get_drvdata(&gb_ib->dev);
+	return dev_get_drvdata(&intf->dev);
 }
 
 /* Greybus "private" definitions */
 
 const struct greybus_interface_block_id *
-	gb_ib_match_id(struct gb_interface_block *gb_ib,
-		       const struct greybus_interface_block_id *id);
+	gb_interface_match_id(struct gb_interface *intf,
+			      const struct greybus_interface_block_id *id);
 
-struct gb_interface_block *gb_ib_find(struct greybus_host_device *hd,
-				      u8 module_id);
+struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
+				       u8 module_id);
 
 #endif /* __INTERFACE_H */

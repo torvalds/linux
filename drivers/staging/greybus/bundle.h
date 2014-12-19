@@ -15,7 +15,7 @@
 /* Greybus "public" definitions" */
 struct gb_bundle {
 	struct device		dev;
-	struct gb_interface_block	*gb_ib;
+	struct gb_interface	*intf;
 	u8			id;
 	u8			device_id;
 	struct list_head	connections;
@@ -25,10 +25,10 @@ struct gb_bundle {
 #define to_gb_bundle(d) container_of(d, struct gb_bundle, dev)
 
 /* Greybus "private" definitions" */
-struct gb_bundle *gb_bundle_create(struct gb_interface_block *gb_ib, u8 module_id);
-void gb_bundle_destroy(struct gb_interface_block *gb_ib);
-int gb_bundle_init(struct gb_interface_block *gb_ib, u8 module_id, u8 device_id);
+struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 module_id);
+void gb_bundle_destroy(struct gb_interface *intf);
+int gb_bundle_init(struct gb_interface *intf, u8 module_id, u8 device_id);
 
-struct gb_bundle *gb_bundle_find(struct gb_interface_block *gb_ib, u8 bundle_id);
+struct gb_bundle *gb_bundle_find(struct gb_interface *intf, u8 bundle_id);
 
 #endif /* __BUNDLE_H */

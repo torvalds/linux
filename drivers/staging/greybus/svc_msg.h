@@ -83,9 +83,8 @@ enum svc_function_hotplug_event {
 };
 
 /* XXX
- * Does a hotplug come from module insertion, or from detection
- * of each interface block (UniPro device) in a module?  Assume
- * the former for now.
+ * Does a hotplug come from module insertion, or from detection of each
+ * interface (UniPro device) in a module?  Assume the former for now.
  */
 struct svc_function_hotplug {
 	__u8	hotplug_event;	/* enum svc_function_hotplug_event */
@@ -116,7 +115,7 @@ struct svc_function_power_battery_status_request {
 };
 
 /* XXX
- * Each interface block carries power, so it's possible these things
+ * Each interface carries power, so it's possible these things
  * are associated with each UniPro device and not just the module.
  * For now it's safe to assume it's per-module.
  */
@@ -145,7 +144,7 @@ enum svc_function_suspend_command_type {
 	SVC_SUSPEND_FIXME_2	= 0x01,
 };
 
-/* We'll want independent control for multi-interface block modules */
+/* We'll want independent control for multi-interface modules */
 struct svc_function_suspend {
 	__u8	suspend_command_type;	/* enum function_suspend_command_type */
 	__u8	device_id;

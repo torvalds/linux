@@ -156,7 +156,7 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 		return NULL;
 	}
 
-	hd = bundle->gb_ib->hd;
+	hd = bundle->intf->hd;
 	connection->hd = hd;
 	if (!gb_connection_hd_cport_id_alloc(connection)) {
 		gb_protocol_put(connection->protocol);
@@ -237,7 +237,7 @@ void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
 	vaf.va = &args;
 
 	pr_err("greybus: [%hhu:%hhu:%hu]: %pV\n",
-		connection->bundle->gb_ib->module_id,
+		connection->bundle->intf->module_id,
 		connection->bundle->id,
 		connection->bundle_cport_id, &vaf);
 

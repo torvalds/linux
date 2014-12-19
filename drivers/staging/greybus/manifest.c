@@ -218,7 +218,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
  * structures.  Returns the number of bundles set up for the
  * given module.
  */
-static u32 gb_manifest_parse_bundles(struct gb_interface_block *gb_ib)
+static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 {
 	u32 count = 0;
 
@@ -240,7 +240,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface_block *gb_ib)
 
 		/* Found one.  Set up its bundle structure*/
 		desc_interface = descriptor->data;
-		bundle = gb_bundle_create(gb_ib, desc_interface->id);
+		bundle = gb_bundle_create(intf, desc_interface->id);
 		if (!bundle)
 			return 0;	/* Error */
 
@@ -257,41 +257,41 @@ static u32 gb_manifest_parse_bundles(struct gb_interface_block *gb_ib)
 	return count;
 }
 
-static bool gb_manifest_parse_module(struct gb_interface_block *gb_ib,
-					struct manifest_desc *module_desc)
+static bool gb_manifest_parse_module(struct gb_interface *intf,
+				     struct manifest_desc *module_desc)
 {
 	struct greybus_descriptor_module *desc_module = module_desc->data;
 
 	/* Handle the strings first--they can fail */
-	gb_ib->vendor_string = gb_string_get(desc_module->vendor_stringid);
-	if (IS_ERR(gb_ib->vendor_string))
+	intf->vendor_string = gb_string_get(desc_module->vendor_stringid);
+	if (IS_ERR(intf->vendor_string))
 		return false;
 
-	gb_ib->product_string = gb_string_get(desc_module->product_stringid);
-	if (IS_ERR(gb_ib->product_string)) {
+	intf->product_string = gb_string_get(desc_module->product_stringid);
+	if (IS_ERR(intf->product_string)) {
 		goto out_free_vendor_string;
 	}
 
-	gb_ib->vendor = le16_to_cpu(desc_module->vendor);
-	gb_ib->product = le16_to_cpu(desc_module->product);
-	gb_ib->unique_id = le64_to_cpu(desc_module->unique_id);
+	intf->vendor = le16_to_cpu(desc_module->vendor);
+	intf->product = le16_to_cpu(desc_module->product);
+	intf->unique_id = le64_to_cpu(desc_module->unique_id);
 
 	/* Release the module descriptor, now that we're done with it */
 	release_manifest_descriptor(module_desc);
 
 	/* An interface must have at least one bundle descriptor */
-	if (!gb_manifest_parse_bundles(gb_ib)) {
+	if (!gb_manifest_parse_bundles(intf)) {
 		pr_err("manifest bundle descriptors not valid\n");
 		goto out_err;
 	}
 
 	return true;
 out_err:
-	kfree(gb_ib->product_string);
-	gb_ib->product_string = NULL;
+	kfree(intf->product_string);
+	intf->product_string = NULL;
 out_free_vendor_string:
-	kfree(gb_ib->vendor_string);
-	gb_ib->vendor_string = NULL;
+	kfree(intf->vendor_string);
+	intf->vendor_string = NULL;
 
 	return false;
 }
@@ -314,12 +314,12 @@ out_free_vendor_string:
  * information it contains, and then remove that descriptor (and any
  * string descriptors it refers to) from further consideration.
  *
- * After that we look for the interface block's bundles--there must be at
+ * After that we look for the interface's bundles--there must be at
  * least one of those.
  *
  * Returns true if parsing was successful, false otherwise.
  */
-bool gb_manifest_parse(struct gb_interface_block *gb_ib, void *data, size_t size)
+bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 {
 	struct greybus_manifest *manifest;
 	struct greybus_manifest_header *header;
@@ -389,7 +389,7 @@ bool gb_manifest_parse(struct gb_interface_block *gb_ib, void *data, size_t size
 	}
 
 	/* Parse the module manifest, starting with the module descriptor */
-	result = gb_manifest_parse_module(gb_ib, module_desc);
+	result = gb_manifest_parse_module(intf, module_desc);
 
 	/*
 	 * We really should have no remaining descriptors, but we
