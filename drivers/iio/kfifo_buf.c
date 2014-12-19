@@ -140,18 +140,20 @@ static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.release = &iio_kfifo_buffer_release,
 };
 
-struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
+struct iio_buffer *iio_kfifo_allocate(void)
 {
 	struct iio_kfifo *kf;
 
-	kf = kzalloc(sizeof *kf, GFP_KERNEL);
+	kf = kzalloc(sizeof(*kf), GFP_KERNEL);
 	if (!kf)
 		return NULL;
+
 	kf->update_needed = true;
 	iio_buffer_init(&kf->buffer);
 	kf->buffer.access = &kfifo_access_funcs;
 	kf->buffer.length = 2;
 	mutex_init(&kf->user_lock);
+
 	return &kf->buffer;
 }
 EXPORT_SYMBOL(iio_kfifo_allocate);

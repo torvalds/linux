@@ -121,7 +121,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	struct iio_buffer *buffer;
 
 	/* Allocate a buffer to use - here a kfifo */
-	buffer = iio_kfifo_allocate(indio_dev);
+	buffer = iio_kfifo_allocate();
 	if (buffer == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;

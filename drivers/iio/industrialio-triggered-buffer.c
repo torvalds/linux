@@ -49,7 +49,7 @@ int iio_triggered_buffer_setup(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer;
 	int ret;
 
-	buffer = iio_kfifo_allocate(indio_dev);
+	buffer = iio_kfifo_allocate();
 	if (!buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
