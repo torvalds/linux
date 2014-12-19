@@ -79,7 +79,7 @@ struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
 {
 	struct gb_interface *intf;
 
-	list_for_each_entry(intf, &hd->modules, links)
+	list_for_each_entry(intf, &hd->interfaces, links)
 		if (intf->module_id == module_id)
 			return intf;
 
@@ -147,7 +147,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 	}
 
 	spin_lock_irq(&gb_modules_lock);
-	list_add_tail(&intf->links, &hd->modules);
+	list_add_tail(&intf->links, &hd->interfaces);
 	spin_unlock_irq(&gb_modules_lock);
 
 	return intf;
@@ -229,6 +229,6 @@ void gb_remove_interfaces(struct greybus_host_device *hd)
 {
 	struct gb_interface *intf, *temp;
 
-	list_for_each_entry_safe(intf, temp, &hd->modules, links)
+	list_for_each_entry_safe(intf, temp, &hd->interfaces, links)
 		gb_interface_destroy(intf);
 }

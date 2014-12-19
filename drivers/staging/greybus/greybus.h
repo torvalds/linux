@@ -99,7 +99,7 @@ struct greybus_host_device {
 	struct device *parent;
 	const struct greybus_host_driver *driver;
 
-	struct list_head modules;
+	struct list_head interfaces;
 	struct list_head connections;
 	struct ida cport_id_map;
 	u8 device_id;

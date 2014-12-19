@@ -183,7 +183,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	kref_init(&hd->kref);
 	hd->parent = parent;
 	hd->driver = driver;
-	INIT_LIST_HEAD(&hd->modules);
+	INIT_LIST_HEAD(&hd->interfaces);
 	INIT_LIST_HEAD(&hd->connections);
 	ida_init(&hd->cport_id_map);
 
