@@ -237,6 +237,18 @@ static bool ipu_crtc_mode_fixup(struct drm_crtc *crtc,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+	struct videomode vm;
+	int ret;
+
+	drm_display_mode_to_videomode(adjusted_mode, &vm);
+
+	ret = ipu_di_adjust_videomode(ipu_crtc->di, &vm);
+	if (ret)
+		return false;
+
+	drm_display_mode_from_videomode(&vm, adjusted_mode);
+
 	return true;
 }
 
