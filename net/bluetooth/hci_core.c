@@ -3660,23 +3660,6 @@ struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 	return NULL;
 }
 
-static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
-{
-	struct hci_conn *conn;
-
-	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, addr);
-	if (!conn)
-		return false;
-
-	if (conn->dst_type != type)
-		return false;
-
-	if (conn->state != BT_CONNECTED)
-		return false;
-
-	return true;
-}
-
 /* This function requires the caller holds hdev->lock */
 struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
 						  bdaddr_t *addr, u8 addr_type)
@@ -3730,47 +3713,6 @@ struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 	BT_DBG("addr %pMR (type %u)", addr, addr_type);
 
 	return params;
-}
-
-/* This function requires the caller holds hdev->lock */
-int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
-			u8 auto_connect)
-{
-	struct hci_conn_params *params;
-
-	params = hci_conn_params_add(hdev, addr, addr_type);
-	if (!params)
-		return -EIO;
-
-	if (params->auto_connect == auto_connect)
-		return 0;
-
-	list_del_init(&params->action);
-
-	switch (auto_connect) {
-	case HCI_AUTO_CONN_DISABLED:
-	case HCI_AUTO_CONN_LINK_LOSS:
-		hci_update_background_scan(hdev);
-		break;
-	case HCI_AUTO_CONN_REPORT:
-		list_add(&params->action, &hdev->pend_le_reports);
-		hci_update_background_scan(hdev);
-		break;
-	case HCI_AUTO_CONN_DIRECT:
-	case HCI_AUTO_CONN_ALWAYS:
-		if (!is_connected(hdev, addr, addr_type)) {
-			list_add(&params->action, &hdev->pend_le_conns);
-			hci_update_background_scan(hdev);
-		}
-		break;
-	}
-
-	params->auto_connect = auto_connect;
-
-	BT_DBG("addr %pMR (type %u) auto_connect %u", addr, addr_type,
-	       auto_connect);
-
-	return 0;
 }
 
 static void hci_conn_params_free(struct hci_conn_params *params)

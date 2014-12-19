@@ -5425,6 +5425,65 @@ unlock:
 	return err;
 }
 
+static bool is_connected(struct hci_dev *hdev, bdaddr_t *addr, u8 type)
+{
+	struct hci_conn *conn;
+
+	conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, addr);
+	if (!conn)
+		return false;
+
+	if (conn->dst_type != type)
+		return false;
+
+	if (conn->state != BT_CONNECTED)
+		return false;
+
+	return true;
+}
+
+/* This function requires the caller holds hdev->lock */
+static int hci_conn_params_set(struct hci_request *req, bdaddr_t *addr,
+			       u8 addr_type, u8 auto_connect)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_conn_params *params;
+
+	params = hci_conn_params_add(hdev, addr, addr_type);
+	if (!params)
+		return -EIO;
+
+	if (params->auto_connect == auto_connect)
+		return 0;
+
+	list_del_init(&params->action);
+
+	switch (auto_connect) {
+	case HCI_AUTO_CONN_DISABLED:
+	case HCI_AUTO_CONN_LINK_LOSS:
+		__hci_update_background_scan(req);
+		break;
+	case HCI_AUTO_CONN_REPORT:
+		list_add(&params->action, &hdev->pend_le_reports);
+		__hci_update_background_scan(req);
+		break;
+	case HCI_AUTO_CONN_DIRECT:
+	case HCI_AUTO_CONN_ALWAYS:
+		if (!is_connected(hdev, addr, addr_type)) {
+			list_add(&params->action, &hdev->pend_le_conns);
+			__hci_update_background_scan(req);
+		}
+		break;
+	}
+
+	params->auto_connect = auto_connect;
+
+	BT_DBG("addr %pMR (type %u) auto_connect %u", addr, addr_type,
+	       auto_connect);
+
+	return 0;
+}
+
 static void device_added(struct sock *sk, struct hci_dev *hdev,
 			 bdaddr_t *bdaddr, u8 type, u8 action)
 {
@@ -5437,10 +5496,31 @@ static void device_added(struct sock *sk, struct hci_dev *hdev,
 	mgmt_event(MGMT_EV_DEVICE_ADDED, hdev, &ev, sizeof(ev), sk);
 }
 
+static void add_device_complete(struct hci_dev *hdev, u8 status)
+{
+	struct pending_cmd *cmd;
+
+	BT_DBG("status 0x%02x", status);
+
+	hci_dev_lock(hdev);
+
+	cmd = mgmt_pending_find(MGMT_OP_ADD_DEVICE, hdev);
+	if (!cmd)
+		goto unlock;
+
+	cmd->cmd_complete(cmd, mgmt_status(status));
+	mgmt_pending_remove(cmd);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static int add_device(struct sock *sk, struct hci_dev *hdev,
 		      void *data, u16 len)
 {
 	struct mgmt_cp_add_device *cp = data;
+	struct pending_cmd *cmd;
+	struct hci_request req;
 	u8 auto_conn, addr_type;
 	int err;
 
@@ -5457,14 +5537,24 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 				    MGMT_STATUS_INVALID_PARAMS,
 				    &cp->addr, sizeof(cp->addr));
 
+	hci_req_init(&req, hdev);
+
 	hci_dev_lock(hdev);
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_ADD_DEVICE, hdev, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto unlock;
+	}
+
+	cmd->cmd_complete = addr_cmd_complete;
 
 	if (cp->addr.type == BDADDR_BREDR) {
 		/* Only incoming connections action is supported for now */
 		if (cp->action != 0x01) {
-			err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
-					   MGMT_STATUS_INVALID_PARAMS,
-					   &cp->addr, sizeof(cp->addr));
+			err = 0;
+			cmd->cmd_complete(cmd, MGMT_STATUS_INVALID_PARAMS);
+			mgmt_pending_remove(cmd);
 			goto unlock;
 		}
 
@@ -5473,7 +5563,7 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 		if (err)
 			goto unlock;
 
-		hci_update_page_scan(hdev);
+		__hci_update_page_scan(&req);
 
 		goto added;
 	}
@@ -5493,19 +5583,28 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	/* If the connection parameters don't exist for this device,
 	 * they will be created and configured with defaults.
 	 */
-	if (hci_conn_params_set(hdev, &cp->addr.bdaddr, addr_type,
+	if (hci_conn_params_set(&req, &cp->addr.bdaddr, addr_type,
 				auto_conn) < 0) {
-		err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
-				   MGMT_STATUS_FAILED,
-				   &cp->addr, sizeof(cp->addr));
+		err = 0;
+		cmd->cmd_complete(cmd, MGMT_STATUS_FAILED);
+		mgmt_pending_remove(cmd);
 		goto unlock;
 	}
 
 added:
 	device_added(sk, hdev, &cp->addr.bdaddr, cp->addr.type, cp->action);
 
-	err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
-			   MGMT_STATUS_SUCCESS, &cp->addr, sizeof(cp->addr));
+	err = hci_req_run(&req, add_device_complete);
+	if (err < 0) {
+		/* ENODATA means no HCI commands were needed (e.g. if
+		 * the adapter is powered off).
+		 */
+		if (err == -ENODATA) {
+			cmd->cmd_complete(cmd, MGMT_STATUS_SUCCESS);
+			err = 0;
+		}
+		mgmt_pending_remove(cmd);
+	}
 
 unlock:
 	hci_dev_unlock(hdev);
