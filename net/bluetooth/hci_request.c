@@ -378,9 +378,15 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * address use the static address as random address (but skip
 	 * the HCI command if the current random address is already the
 	 * static one.
+	 *
+	 * In case BR/EDR has been disabled on a dual-mode controller
+	 * and a static address has been configured, then use that
+	 * address instead of the public BR/EDR address.
 	 */
 	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
-	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
+	    !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
+	    (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	     bacmp(&hdev->static_addr, BDADDR_ANY))) {
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 		if (bacmp(&hdev->static_addr, &hdev->random_addr))
 			hci_req_add(req, HCI_OP_LE_SET_RANDOM_ADDR, 6,

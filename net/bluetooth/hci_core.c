@@ -3852,12 +3852,18 @@ static void le_scan_disable_work(struct work_struct *work)
  *
  * For debugging purposes it is possible to force controllers with a
  * public address to use the static random address instead.
+ *
+ * In case BR/EDR has been disabled on a dual-mode controller and
+ * userspace has configured a static address, then that address
+ * becomes the identity address instead of the public BR/EDR address.
  */
 void hci_copy_identity_address(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			       u8 *bdaddr_type)
 {
 	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
-	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
+	    !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
+	    (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	     bacmp(&hdev->static_addr, BDADDR_ANY))) {
 		bacpy(bdaddr, &hdev->static_addr);
 		*bdaddr_type = ADDR_LE_DEV_RANDOM;
 	} else {
