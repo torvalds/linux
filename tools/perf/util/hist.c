@@ -241,6 +241,20 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	return he->stat.period == 0;
 }
 
+static void hists__delete_entry(struct hists *hists, struct hist_entry *he)
+{
+	rb_erase(&he->rb_node, &hists->entries);
+
+	if (sort__need_collapse)
+		rb_erase(&he->rb_node_in, &hists->entries_collapsed);
+
+	--hists->nr_entries;
+	if (!he->filtered)
+		--hists->nr_non_filtered_entries;
+
+	hist_entry__delete(he);
+}
+
 void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel)
 {
 	struct rb_node *next = rb_first(&hists->entries);
@@ -258,16 +272,7 @@ void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel)
 		     (zap_kernel && n->level != '.') ||
 		     hists__decay_entry(hists, n)) &&
 		    !n->used) {
-			rb_erase(&n->rb_node, &hists->entries);
-
-			if (sort__need_collapse)
-				rb_erase(&n->rb_node_in, &hists->entries_collapsed);
-
-			--hists->nr_entries;
-			if (!n->filtered)
-				--hists->nr_non_filtered_entries;
-
-			hist_entry__delete(n);
+			hists__delete_entry(hists, n);
 		}
 	}
 }
@@ -281,16 +286,7 @@ void hists__delete_entries(struct hists *hists)
 		n = rb_entry(next, struct hist_entry, rb_node);
 		next = rb_next(&n->rb_node);
 
-		rb_erase(&n->rb_node, &hists->entries);
-
-		if (sort__need_collapse)
-			rb_erase(&n->rb_node_in, &hists->entries_collapsed);
-
-		--hists->nr_entries;
-		if (!n->filtered)
-			--hists->nr_non_filtered_entries;
-
-		hist_entry__delete(n);
+		hists__delete_entry(hists, n);
 	}
 }
 
