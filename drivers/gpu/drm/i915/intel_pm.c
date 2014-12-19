@@ -4432,7 +4432,8 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 		return;
 
 	/* Mask turbo interrupt so that they will not come in between */
-	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
+	I915_WRITE(GEN6_PMINTRMSK,
+		   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
 
 	vlv_force_gfx_clock(dev_priv, true);
 

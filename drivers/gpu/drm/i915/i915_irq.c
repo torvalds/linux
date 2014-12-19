@@ -295,8 +295,10 @@ void gen6_enable_rps_interrupts(struct drm_device *dev)
 u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask)
 {
 	/*
-	 * IVB and SNB hard hangs on looping batchbuffer
+	 * SNB,IVB can while VLV,CHV may hard hang on looping batchbuffer
 	 * if GEN6_PM_UP_EI_EXPIRED is masked.
+	 *
+	 * TODO: verify if this can be reproduced on VLV,CHV.
 	 */
 	if (INTEL_INFO(dev_priv)->gen <= 7 && !IS_HASWELL(dev_priv))
 		mask &= ~GEN6_PM_RP_UP_EI_EXPIRED;
