@@ -49,3 +49,6 @@ void __hci_update_page_scan(struct hci_request *req);
 
 int hci_update_random_address(struct hci_request *req, bool require_privacy,
 			      u8 *own_addr_type);
+
+void hci_update_background_scan(struct hci_dev *hdev);
+void __hci_update_background_scan(struct hci_request *req);

@@ -395,3 +395,99 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 
 	return 0;
 }
+
+/* This function controls the background scanning based on hdev->pend_le_conns
+ * list. If there are pending LE connection we start the background scanning,
+ * otherwise we stop it.
+ *
+ * This function requires the caller holds hdev->lock.
+ */
+void __hci_update_background_scan(struct hci_request *req)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_conn *conn;
+
+	if (!test_bit(HCI_UP, &hdev->flags) ||
+	    test_bit(HCI_INIT, &hdev->flags) ||
+	    test_bit(HCI_SETUP, &hdev->dev_flags) ||
+	    test_bit(HCI_CONFIG, &hdev->dev_flags) ||
+	    test_bit(HCI_AUTO_OFF, &hdev->dev_flags) ||
+	    test_bit(HCI_UNREGISTER, &hdev->dev_flags))
+		return;
+
+	/* No point in doing scanning if LE support hasn't been enabled */
+	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+		return;
+
+	/* If discovery is active don't interfere with it */
+	if (hdev->discovery.state != DISCOVERY_STOPPED)
+		return;
+
+	/* Reset RSSI and UUID filters when starting background scanning
+	 * since these filters are meant for service discovery only.
+	 *
+	 * The Start Discovery and Start Service Discovery operations
+	 * ensure to set proper values for RSSI threshold and UUID
+	 * filter list. So it is safe to just reset them here.
+	 */
+	hci_discovery_filter_clear(hdev);
+
+	if (list_empty(&hdev->pend_le_conns) &&
+	    list_empty(&hdev->pend_le_reports)) {
+		/* If there is no pending LE connections or devices
+		 * to be scanned for, we should stop the background
+		 * scanning.
+		 */
+
+		/* If controller is not scanning we are done. */
+		if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+			return;
+
+		hci_req_add_le_scan_disable(req);
+
+		BT_DBG("%s stopping background scanning", hdev->name);
+	} else {
+		/* If there is at least one pending LE connection, we should
+		 * keep the background scan running.
+		 */
+
+		/* If controller is connecting, we should not start scanning
+		 * since some controllers are not able to scan and connect at
+		 * the same time.
+		 */
+		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+		if (conn)
+			return;
+
+		/* If controller is currently scanning, we stop it to ensure we
+		 * don't miss any advertising (due to duplicates filter).
+		 */
+		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+			hci_req_add_le_scan_disable(req);
+
+		hci_req_add_le_passive_scan(req);
+
+		BT_DBG("%s starting background scanning", hdev->name);
+	}
+}
+
+static void update_background_scan_complete(struct hci_dev *hdev, u8 status)
+{
+	if (status)
+		BT_DBG("HCI request failed to update background scanning: "
+		       "status 0x%2.2x", status);
+}
+
+void hci_update_background_scan(struct hci_dev *hdev)
+{
+	int err;
+	struct hci_request req;
+
+	hci_req_init(&req, hdev);
+
+	__hci_update_background_scan(&req);
+
+	err = hci_req_run(&req, update_background_scan_complete);
+	if (err && err != -ENODATA)
+		BT_ERR("Failed to run HCI request: err %d", err);
+}

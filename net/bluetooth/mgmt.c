@@ -2228,9 +2228,8 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status)
 		hci_req_init(&req, hdev);
 		update_adv_data(&req);
 		update_scan_rsp_data(&req);
+		__hci_update_background_scan(&req);
 		hci_req_run(&req, NULL);
-
-		hci_update_background_scan(hdev);
 	}
 
 unlock:
@@ -6038,8 +6037,9 @@ void mgmt_index_removed(struct hci_dev *hdev)
 }
 
 /* This function requires the caller holds hdev->lock */
-static void restart_le_actions(struct hci_dev *hdev)
+static void restart_le_actions(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
 	struct hci_conn_params *p;
 
 	list_for_each_entry(p, &hdev->le_conn_params, list) {
@@ -6061,7 +6061,7 @@ static void restart_le_actions(struct hci_dev *hdev)
 		}
 	}
 
-	hci_update_background_scan(hdev);
+	__hci_update_background_scan(req);
 }
 
 static void powered_complete(struct hci_dev *hdev, u8 status)
@@ -6071,8 +6071,6 @@ static void powered_complete(struct hci_dev *hdev, u8 status)
 	BT_DBG("status 0x%02x", status);
 
 	hci_dev_lock(hdev);
-
-	restart_le_actions(hdev);
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
@@ -6131,6 +6129,8 @@ static int powered_update_hci(struct hci_dev *hdev)
 
 		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 			enable_advertising(&req);
+
+		restart_le_actions(&req);
 	}
 
 	link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
