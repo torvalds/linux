@@ -615,6 +615,46 @@ void drm_display_mode_from_videomode(const struct videomode *vm,
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_from_videomode);
 
+/**
+ * drm_display_mode_to_videomode - fill in @vm using @dmode,
+ * @dmode: drm_display_mode structure to use as source
+ * @vm: videomode structure to use as destination
+ *
+ * Fills out @vm using the display mode specified in @dmode.
+ */
+void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
+				   struct videomode *vm)
+{
+	vm->hactive = dmode->hdisplay;
+	vm->hfront_porch = dmode->hsync_start - dmode->hdisplay;
+	vm->hsync_len = dmode->hsync_end - dmode->hsync_start;
+	vm->hback_porch = dmode->htotal - dmode->hsync_end;
+
+	vm->vactive = dmode->vdisplay;
+	vm->vfront_porch = dmode->vsync_start - dmode->vdisplay;
+	vm->vsync_len = dmode->vsync_end - dmode->vsync_start;
+	vm->vback_porch = dmode->vtotal - dmode->vsync_end;
+
+	vm->pixelclock = dmode->clock * 1000;
+
+	vm->flags = 0;
+	if (dmode->flags & DRM_MODE_FLAG_PHSYNC)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	else if (dmode->flags & DRM_MODE_FLAG_NHSYNC)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
+	if (dmode->flags & DRM_MODE_FLAG_PVSYNC)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	else if (dmode->flags & DRM_MODE_FLAG_NVSYNC)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+	if (dmode->flags & DRM_MODE_FLAG_INTERLACE)
+		vm->flags |= DISPLAY_FLAGS_INTERLACED;
+	if (dmode->flags & DRM_MODE_FLAG_DBLSCAN)
+		vm->flags |= DISPLAY_FLAGS_DOUBLESCAN;
+	if (dmode->flags & DRM_MODE_FLAG_DBLCLK)
+		vm->flags |= DISPLAY_FLAGS_DOUBLECLK;
+}
+EXPORT_SYMBOL_GPL(drm_display_mode_to_videomode);
+
 #ifdef CONFIG_OF
 /**
  * of_get_drm_display_mode - get a drm_display_mode from devicetree

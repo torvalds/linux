@@ -197,6 +197,8 @@ struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
 					      int GTF_K, int GTF_2J);
 void drm_display_mode_from_videomode(const struct videomode *vm,
 				     struct drm_display_mode *dmode);
+void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
+				   struct videomode *vm);
 int of_get_drm_display_mode(struct device_node *np,
 			    struct drm_display_mode *dmode,
 			    int index);
