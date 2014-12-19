@@ -444,19 +444,6 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			f->val = 0;
 		}
 
-		if ((f->type == AUDIT_PID) || (f->type == AUDIT_PPID)) {
-			struct pid *pid;
-			rcu_read_lock();
-			pid = find_vpid(f->val);
-			if (!pid) {
-				rcu_read_unlock();
-				err = -ESRCH;
-				goto exit_free;
-			}
-			f->val = pid_nr(pid);
-			rcu_read_unlock();
-		}
-
 		err = audit_field_valid(entry, f);
 		if (err)
 			goto exit_free;
