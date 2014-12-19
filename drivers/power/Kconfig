@@ -315,7 +315,7 @@ config CHARGER_GPIO
 
 config CHARGER_MANAGER
 	bool "Battery charger manager for multiple chargers"
-	depends on REGULATOR && RTC_CLASS
+	depends on REGULATOR
 	select EXTCON
 	help
           Say Y to enable charger-manager support, which allows multiple
