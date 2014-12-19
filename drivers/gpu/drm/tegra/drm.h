@@ -181,22 +181,9 @@ void tegra_dc_commit(struct tegra_dc *dc);
 int tegra_dc_setup_clock(struct tegra_dc *dc, struct clk *parent,
 			 unsigned long pclk, unsigned int div);
 
-struct tegra_output_ops {
-	int (*enable)(struct tegra_output *output);
-	int (*disable)(struct tegra_output *output);
-	int (*setup_clock)(struct tegra_output *output, struct clk *clk,
-			   unsigned long pclk, unsigned int *div);
-	int (*check_mode)(struct tegra_output *output,
-			  struct drm_display_mode *mode,
-			  enum drm_mode_status *status);
-	enum drm_connector_status (*detect)(struct tegra_output *output);
-};
-
 struct tegra_output {
 	struct device_node *of_node;
 	struct device *dev;
-
-	const struct tegra_output_ops *ops;
 
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
@@ -216,32 +203,6 @@ static inline struct tegra_output *encoder_to_output(struct drm_encoder *e)
 static inline struct tegra_output *connector_to_output(struct drm_connector *c)
 {
 	return container_of(c, struct tegra_output, connector);
-}
-
-static inline int tegra_output_enable(struct tegra_output *output)
-{
-	if (output && output->ops && output->ops->enable)
-		return output->ops->enable(output);
-
-	return output ? -ENOSYS : -EINVAL;
-}
-
-static inline int tegra_output_disable(struct tegra_output *output)
-{
-	if (output && output->ops && output->ops->disable)
-		return output->ops->disable(output);
-
-	return output ? -ENOSYS : -EINVAL;
-}
-
-static inline int tegra_output_check_mode(struct tegra_output *output,
-					  struct drm_display_mode *mode,
-					  enum drm_mode_status *status)
-{
-	if (output && output->ops && output->ops->check_mode)
-		return output->ops->check_mode(output, mode, status);
-
-	return output ? -ENOSYS : -EINVAL;
 }
 
 /* from rgb.c */

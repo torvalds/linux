@@ -1347,10 +1347,13 @@ static int tegra_hdmi_init(struct host1x_client *client)
 					  &hdmi->output.encoder);
 	drm_connector_register(&hdmi->output.connector);
 
-	hdmi->output.encoder.possible_crtcs = 0x3;
+	err = tegra_output_init(drm, &hdmi->output);
+	if (err < 0) {
+		dev_err(client->dev, "failed to initialize output: %d\n", err);
+		return err;
+	}
 
-	if (gpio_is_valid(hdmi->output.hpd_gpio))
-		enable_irq(hdmi->output.hpd_irq);
+	hdmi->output.encoder.possible_crtcs = 0x3;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_hdmi_debugfs_init(hdmi, drm->primary);

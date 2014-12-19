@@ -1070,52 +1070,6 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 	return 0;
 }
 
-static int tegra_crtc_setup_clk(struct drm_crtc *crtc,
-				struct drm_display_mode *mode)
-{
-	unsigned long pclk = mode->clock * 1000;
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	struct tegra_output *output = NULL;
-	struct drm_encoder *encoder;
-	unsigned int div;
-	u32 value;
-	long err;
-
-	list_for_each_entry(encoder, &crtc->dev->mode_config.encoder_list, head)
-		if (encoder->crtc == crtc) {
-			output = encoder_to_output(encoder);
-			break;
-		}
-
-	if (!output)
-		return -ENODEV;
-
-	/*
-	 * The ->setup_clock() callback is optional, but if encoders don't
-	 * implement it they most likely need to do the equivalent within the
-	 * ->mode_fixup() callback.
-	 */
-	if (!output->ops || !output->ops->setup_clock)
-		return 0;
-
-	/*
-	 * This assumes that the parent clock is pll_d_out0 or pll_d2_out
-	 * respectively, each of which divides the base pll_d by 2.
-	 */
-	err = output->ops->setup_clock(output, dc->clk, pclk, &div);
-	if (err < 0) {
-		dev_err(dc->dev, "failed to setup clock: %ld\n", err);
-		return err;
-	}
-
-	DRM_DEBUG_KMS("rate: %lu, div: %u\n", clk_get_rate(dc->clk), div);
-
-	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
-
-	return 0;
-}
-
 int tegra_dc_setup_clock(struct tegra_dc *dc, struct clk *parent,
 			 unsigned long pclk, unsigned int div)
 {
@@ -1146,12 +1100,6 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	struct tegra_dc_window window;
 	u32 value;
 	int err;
-
-	err = tegra_crtc_setup_clk(crtc, mode);
-	if (err) {
-		dev_err(dc->dev, "failed to setup clock for CRTC: %d\n", err);
-		return err;
-	}
 
 	/* program display mode */
 	tegra_dc_set_timings(dc, mode);

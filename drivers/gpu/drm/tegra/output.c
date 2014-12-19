@@ -43,20 +43,6 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	return err;
 }
 
-static int tegra_connector_mode_valid(struct drm_connector *connector,
-				      struct drm_display_mode *mode)
-{
-	struct tegra_output *output = connector_to_output(connector);
-	enum drm_mode_status status = MODE_OK;
-	int err;
-
-	err = tegra_output_check_mode(output, mode, &status);
-	if (err < 0)
-		return MODE_ERROR;
-
-	return status;
-}
-
 struct drm_encoder *
 tegra_output_connector_best_encoder(struct drm_connector *connector)
 {
@@ -65,20 +51,11 @@ tegra_output_connector_best_encoder(struct drm_connector *connector)
 	return &output->encoder;
 }
 
-static const struct drm_connector_helper_funcs connector_helper_funcs = {
-	.get_modes = tegra_output_connector_get_modes,
-	.mode_valid = tegra_connector_mode_valid,
-	.best_encoder = tegra_output_connector_best_encoder,
-};
-
 enum drm_connector_status
 tegra_output_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	enum drm_connector_status status = connector_status_unknown;
-
-	if (output->ops->detect)
-		return output->ops->detect(output);
 
 	if (gpio_is_valid(output->hpd_gpio)) {
 		if (gpio_get_value(output->hpd_gpio) == 0)
@@ -89,9 +66,6 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force)
 		if (!output->panel)
 			status = connector_status_disconnected;
 		else
-			status = connector_status_connected;
-
-		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
 			status = connector_status_connected;
 	}
 
@@ -104,68 +78,10 @@ void tegra_output_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static const struct drm_connector_funcs connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
-	.detect = tegra_output_connector_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = tegra_output_connector_destroy,
-};
-
 void tegra_output_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 }
-
-static const struct drm_encoder_funcs encoder_funcs = {
-	.destroy = tegra_output_encoder_destroy,
-};
-
-static void tegra_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct tegra_output *output = encoder_to_output(encoder);
-	struct drm_panel *panel = output->panel;
-
-	if (mode != DRM_MODE_DPMS_ON) {
-		drm_panel_disable(panel);
-		tegra_output_disable(output);
-		drm_panel_unprepare(panel);
-	} else {
-		drm_panel_prepare(panel);
-		tegra_output_enable(output);
-		drm_panel_enable(panel);
-	}
-}
-
-static bool tegra_encoder_mode_fixup(struct drm_encoder *encoder,
-				     const struct drm_display_mode *mode,
-				     struct drm_display_mode *adjusted)
-{
-	return true;
-}
-
-static void tegra_encoder_prepare(struct drm_encoder *encoder)
-{
-	tegra_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-static void tegra_encoder_commit(struct drm_encoder *encoder)
-{
-	tegra_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
-}
-
-static void tegra_encoder_mode_set(struct drm_encoder *encoder,
-				   struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted)
-{
-}
-
-static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.dpms = tegra_encoder_dpms,
-	.mode_fixup = tegra_encoder_mode_fixup,
-	.prepare = tegra_encoder_prepare,
-	.commit = tegra_encoder_commit,
-	.mode_set = tegra_encoder_mode_set,
-};
 
 static irqreturn_t hpd_irq(int irq, void *data)
 {
@@ -271,24 +187,13 @@ int tegra_output_remove(struct tegra_output *output)
 
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 {
-	int connector = DRM_MODE_CONNECTOR_Unknown;
-	int encoder = DRM_MODE_ENCODER_NONE;
+	int err;
 
-	drm_connector_init(drm, &output->connector, &connector_funcs,
-			   connector);
-	drm_connector_helper_add(&output->connector, &connector_helper_funcs);
-	output->connector.dpms = DRM_MODE_DPMS_OFF;
-
-	if (output->panel)
-		drm_panel_attach(output->panel, &output->connector);
-
-	drm_encoder_init(drm, &output->encoder, &encoder_funcs, encoder);
-	drm_encoder_helper_add(&output->encoder, &encoder_helper_funcs);
-
-	drm_mode_connector_attach_encoder(&output->connector, &output->encoder);
-	drm_connector_register(&output->connector);
-
-	output->encoder.possible_crtcs = 0x3;
+	if (output->panel) {
+		err = drm_panel_attach(output->panel, &output->connector);
+		if (err < 0)
+			return err;
+	}
 
 	/*
 	 * The connector is now registered and ready to receive hotplug events

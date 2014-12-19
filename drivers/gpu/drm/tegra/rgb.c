@@ -315,13 +315,6 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 				 &tegra_rgb_connector_helper_funcs);
 	output->connector.dpms = DRM_MODE_DPMS_OFF;
 
-	if (output->panel) {
-		err = drm_panel_attach(output->panel, &output->connector);
-		if (err < 0)
-			dev_err(output->dev, "failed to attach panel: %d\n",
-				err);
-	}
-
 	drm_encoder_init(drm, &output->encoder, &tegra_rgb_encoder_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 	drm_encoder_helper_add(&output->encoder,
@@ -330,6 +323,12 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 	drm_mode_connector_attach_encoder(&output->connector,
 					  &output->encoder);
 	drm_connector_register(&output->connector);
+
+	err = tegra_output_init(drm, output);
+	if (err < 0) {
+		dev_err(output->dev, "failed to initialize output: %d\n", err);
+		return err;
+	}
 
 	/*
 	 * Other outputs can be attached to either display controller. The RGB

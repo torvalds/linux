@@ -1343,9 +1343,6 @@ static int tegra_sor_init(struct host1x_client *client)
 				 &tegra_sor_connector_helper_funcs);
 	sor->output.connector.dpms = DRM_MODE_DPMS_OFF;
 
-	if (sor->output.panel)
-		drm_panel_attach(sor->output.panel, &sor->output.connector);
-
 	drm_encoder_init(drm, &sor->output.encoder, &tegra_sor_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&sor->output.encoder,
@@ -1355,10 +1352,13 @@ static int tegra_sor_init(struct host1x_client *client)
 					  &sor->output.encoder);
 	drm_connector_register(&sor->output.connector);
 
-	sor->output.encoder.possible_crtcs = 0x3;
+	err = tegra_output_init(drm, &sor->output);
+	if (err < 0) {
+		dev_err(client->dev, "failed to initialize output: %d\n", err);
+		return err;
+	}
 
-	if (gpio_is_valid(sor->output.hpd_gpio))
-		enable_irq(sor->output.hpd_irq);
+	sor->output.encoder.possible_crtcs = 0x3;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_sor_debugfs_init(sor, drm->primary);

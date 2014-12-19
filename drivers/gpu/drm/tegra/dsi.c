@@ -990,10 +990,6 @@ static int tegra_dsi_init(struct host1x_client *client)
 					 &tegra_dsi_connector_helper_funcs);
 		dsi->output.connector.dpms = DRM_MODE_DPMS_OFF;
 
-		if (dsi->output.panel)
-			drm_panel_attach(dsi->output.panel,
-					 &dsi->output.connector);
-
 		drm_encoder_init(drm, &dsi->output.encoder,
 				 &tegra_dsi_encoder_funcs,
 				 DRM_MODE_ENCODER_DSI);
@@ -1003,6 +999,14 @@ static int tegra_dsi_init(struct host1x_client *client)
 		drm_mode_connector_attach_encoder(&dsi->output.connector,
 						  &dsi->output.encoder);
 		drm_connector_register(&dsi->output.connector);
+
+		err = tegra_output_init(drm, &dsi->output);
+		if (err < 0) {
+			dev_err(client->dev,
+				"failed to initialize output: %d\n",
+				err);
+			goto reset;
+		}
 
 		dsi->output.encoder.possible_crtcs = 0x3;
 	}
