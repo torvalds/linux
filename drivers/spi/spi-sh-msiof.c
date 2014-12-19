@@ -82,6 +82,8 @@ struct sh_msiof_spi_priv {
 #define MDR1_SYNCMD_LR	 0x30000000 /*   L/R mode */
 #define MDR1_SYNCAC_SHIFT	 25 /* Sync Polarity (1 = Active-low) */
 #define MDR1_BITLSB_SHIFT	 24 /* MSB/LSB First (1 = LSB first) */
+#define MDR1_DTDL_SHIFT		 20 /* Data Pin Bit Delay for MSIOF_SYNC */
+#define MDR1_SYNCDL_SHIFT	 16 /* Frame Sync Signal Timing Delay */
 #define MDR1_FLD_MASK	 0x000000c0 /* Frame Sync Signal Interval (0-3) */
 #define MDR1_FLD_SHIFT		  2
 #define MDR1_XXSTP	 0x00000001 /* Transmission/Reception Stop on FIFO */
@@ -279,6 +281,48 @@ static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 		sh_msiof_write(p, RSCR, sh_msiof_spi_clk_table[k].scr);
 }
 
+static u32 sh_msiof_get_delay_bit(u32 dtdl_or_syncdl)
+{
+	/*
+	 * DTDL/SYNCDL bit	: p->info->dtdl or p->info->syncdl
+	 * b'000		: 0
+	 * b'001		: 100
+	 * b'010		: 200
+	 * b'011 (SYNCDL only)	: 300
+	 * b'101		: 50
+	 * b'110		: 150
+	 */
+	if (dtdl_or_syncdl % 100)
+		return dtdl_or_syncdl / 100 + 5;
+	else
+		return dtdl_or_syncdl / 100;
+}
+
+static u32 sh_msiof_spi_get_dtdl_and_syncdl(struct sh_msiof_spi_priv *p)
+{
+	u32 val;
+
+	if (!p->info)
+		return 0;
+
+	/* check if DTDL and SYNCDL is allowed value */
+	if (p->info->dtdl > 200 || p->info->syncdl > 300) {
+		dev_warn(&p->pdev->dev, "DTDL or SYNCDL is too large\n");
+		return 0;
+	}
+
+	/* check if the sum of DTDL and SYNCDL becomes an integer value  */
+	if ((p->info->dtdl + p->info->syncdl) % 100) {
+		dev_warn(&p->pdev->dev, "the sum of DTDL/SYNCDL is not good\n");
+		return 0;
+	}
+
+	val = sh_msiof_get_delay_bit(p->info->dtdl) << MDR1_DTDL_SHIFT;
+	val |= sh_msiof_get_delay_bit(p->info->syncdl) << MDR1_SYNCDL_SHIFT;
+
+	return val;
+}
+
 static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 				      u32 cpol, u32 cpha,
 				      u32 tx_hi_z, u32 lsb_first, u32 cs_high)
@@ -296,6 +340,7 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	tmp = MDR1_SYNCMD_SPI | 1 << MDR1_FLD_SHIFT | MDR1_XXSTP;
 	tmp |= !cs_high << MDR1_SYNCAC_SHIFT;
 	tmp |= lsb_first << MDR1_BITLSB_SHIFT;
+	tmp |= sh_msiof_spi_get_dtdl_and_syncdl(p);
 	sh_msiof_write(p, TMDR1, tmp | MDR1_TRMD | TMDR1_PCON);
 	if (p->chipdata->master_flags & SPI_MASTER_MUST_TX) {
 		/* These bits are reserved if RX needs TX */
@@ -952,6 +997,8 @@ static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 					&info->tx_fifo_override);
 	of_property_read_u32(np, "renesas,rx-fifo-size",
 					&info->rx_fifo_override);
+	of_property_read_u32(np, "renesas,dtdl", &info->dtdl);
+	of_property_read_u32(np, "renesas,syncdl", &info->syncdl);
 
 	info->num_chipselect = num_cs;
 

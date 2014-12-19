@@ -30,6 +30,22 @@ Optional properties:
 			 specifiers, one for transmission, and one for
 			 reception.
 - dma-names            : Must contain a list of two DMA names, "tx" and "rx".
+- renesas,dtdl         : delay sync signal (setup) in transmit mode.
+			 Must contain one of the following values:
+			 0   (no bit delay)
+			 50  (0.5-clock-cycle delay)
+			 100 (1-clock-cycle delay)
+			 150 (1.5-clock-cycle delay)
+			 200 (2-clock-cycle delay)
+
+- renesas,syncdl       : delay sync signal (hold) in transmit mode.
+			 Must contain one of the following values:
+			 0   (no bit delay)
+			 50  (0.5-clock-cycle delay)
+			 100 (1-clock-cycle delay)
+			 150 (1.5-clock-cycle delay)
+			 200 (2-clock-cycle delay)
+			 300 (3-clock-cycle delay)
 
 Optional properties, deprecated for soctype-specific bindings:
 - renesas,tx-fifo-size : Overrides the default tx fifo size given in words
