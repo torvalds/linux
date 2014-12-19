@@ -137,24 +137,10 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 static int mac802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_sub_if_data *subif;
 	struct ieee802154_local *local = sdata->local;
 	int res = 0;
 
 	ASSERT_RTNL();
-
-	if (sdata->vif.type == NL802154_IFTYPE_NODE) {
-		mutex_lock(&sdata->local->iflist_mtx);
-		list_for_each_entry(subif, &sdata->local->interfaces, list) {
-			if (subif != sdata &&
-			    subif->vif.type == sdata->vif.type &&
-			    ieee802154_sdata_running(subif)) {
-				mutex_unlock(&sdata->local->iflist_mtx);
-				return -EBUSY;
-			}
-		}
-		mutex_unlock(&sdata->local->iflist_mtx);
-	}
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
@@ -234,6 +220,15 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 	list_for_each_entry(nsdata, &local->interfaces, list) {
 		if (nsdata != sdata && ieee802154_sdata_running(nsdata)) {
 			int ret;
+
+			/* TODO currently we don't support multiple node types
+			 * we need to run skb_clone at rx path. Check if there
+			 * exist really an use case if we need to support
+			 * multiple node types at the same time.
+			 */
+			if (sdata->vif.type == NL802154_IFTYPE_NODE &&
+			    nsdata->vif.type == NL802154_IFTYPE_NODE)
+				return -EBUSY;
 
 			/* check all phy mac sublayer settings are the same.
 			 * We have only one phy, different values makes trouble.
