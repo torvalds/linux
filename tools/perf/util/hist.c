@@ -267,7 +267,7 @@ void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel)
 			if (!n->filtered)
 				--hists->nr_non_filtered_entries;
 
-			hist_entry__free(n);
+			hist_entry__delete(n);
 		}
 	}
 }
@@ -290,7 +290,7 @@ void hists__delete_entries(struct hists *hists)
 		if (!n->filtered)
 			--hists->nr_non_filtered_entries;
 
-		hist_entry__free(n);
+		hist_entry__delete(n);
 	}
 }
 
@@ -941,7 +941,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	return cmp;
 }
 
-void hist_entry__free(struct hist_entry *he)
+void hist_entry__delete(struct hist_entry *he)
 {
 	zfree(&he->branch_info);
 	zfree(&he->mem_info);
@@ -981,7 +981,7 @@ static bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 						iter->callchain,
 						he->callchain);
 			}
-			hist_entry__free(he);
+			hist_entry__delete(he);
 			return false;
 		}
 

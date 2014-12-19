@@ -430,7 +430,7 @@ static void hists__baseline_only(struct hists *hists)
 		next = rb_next(&he->rb_node_in);
 		if (!hist_entry__next_pair(he)) {
 			rb_erase(&he->rb_node_in, root);
-			hist_entry__free(he);
+			hist_entry__delete(he);
 		}
 	}
 }
