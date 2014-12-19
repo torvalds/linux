@@ -175,13 +175,13 @@ static void gb_interface_destroy(struct gb_interface *intf)
 }
 
 /**
- * gb_add_module
+ * gb_add_interface
  *
  * Pass in a buffer that _should_ contain a Greybus module manifest
  * and register a greybus device structure with the kernel core.
  */
-void gb_add_module(struct greybus_host_device *hd, u8 module_id,
-		   u8 *data, int size)
+void gb_add_interface(struct greybus_host_device *hd, u8 module_id,
+		      u8 *data, int size)
 {
 	struct gb_interface *intf;
 
@@ -197,7 +197,7 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	 */
 	if (!gb_manifest_parse(intf, data, size)) {
 		dev_err(hd->parent, "manifest error\n");
-		goto err_module;
+		goto err_parse;
 	}
 
 	/*
@@ -211,11 +211,11 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 
 	return;
 
-err_module:
+err_parse:
 	gb_interface_destroy(intf);
 }
 
-void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
+void gb_remove_interface(struct greybus_host_device *hd, u8 module_id)
 {
 	struct gb_interface *intf = gb_interface_find(hd, module_id);
 
@@ -225,7 +225,7 @@ void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 		dev_err(hd->parent, "interface id %d not found\n", module_id);
 }
 
-void gb_remove_modules(struct greybus_host_device *hd)
+void gb_remove_interfaces(struct greybus_host_device *hd)
 {
 	struct gb_interface *intf, *temp;
 

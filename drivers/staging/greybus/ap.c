@@ -175,8 +175,8 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 			return;
 		}
 		dev_dbg(hd->parent, "module id %d added\n", module_id);
-		gb_add_module(hd, module_id, hotplug->data,
-			      payload_length - 0x02);
+		gb_add_interface(hd, module_id, hotplug->data,
+				 payload_length - 0x02);
 		break;
 
 	case SVC_HOTUNPLUG_EVENT:
@@ -189,7 +189,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 			return;
 		}
 		dev_dbg(hd->parent, "module id %d removed\n", module_id);
-		gb_remove_module(hd, module_id);
+		gb_remove_interface(hd, module_id);
 		break;
 
 	default:

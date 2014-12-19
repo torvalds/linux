@@ -195,7 +195,7 @@ void greybus_remove_hd(struct greybus_host_device *hd)
 {
 	/* Tear down all modules that happen to be associated with this host
 	 * controller */
-	gb_remove_modules(hd);
+	gb_remove_interfaces(hd);
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
 EXPORT_SYMBOL_GPL(greybus_remove_hd);
