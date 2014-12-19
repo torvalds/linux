@@ -27,6 +27,7 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <sound/core.h>
 #include <sound/compress_offload.h>
 #include <sound/asound.h>
 #include <sound/pcm.h>
