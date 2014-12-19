@@ -577,22 +577,28 @@ open_volume_desc(const char *name, int ubi_num, int vol_id)
 		return ubi_open_volume(ubi_num, vol_id, UBI_READONLY);
 }
 
-static int __init ubiblock_create_from_param(void)
+static void __init ubiblock_create_from_param(void)
 {
-	int i, ret;
+	int i, ret = 0;
 	struct ubiblock_param *p;
 	struct ubi_volume_desc *desc;
 	struct ubi_volume_info vi;
 
+	/*
+	 * If there is an error creating one of the ubiblocks, continue on to
+	 * create the following ubiblocks. This helps in a circumstance where
+	 * the kernel command-line specifies multiple block devices and some
+	 * may be broken, but we still want the working ones to come up.
+	 */
 	for (i = 0; i < ubiblock_devs; i++) {
 		p = &ubiblock_param[i];
 
 		desc = open_volume_desc(p->name, p->ubi_num, p->vol_id);
 		if (IS_ERR(desc)) {
-			pr_err("UBI: block: can't open volume, err=%ld\n",
-			       PTR_ERR(desc));
-			ret = PTR_ERR(desc);
-			break;
+			pr_err(
+			       "UBI: block: can't open volume on ubi%d_%d, err=%ld",
+			       p->ubi_num, p->vol_id, PTR_ERR(desc));
+			continue;
 		}
 
 		ubi_get_volume_info(desc, &vi);
@@ -600,12 +606,12 @@ static int __init ubiblock_create_from_param(void)
 
 		ret = ubiblock_create(&vi);
 		if (ret) {
-			pr_err("UBI: block: can't add '%s' volume, err=%d\n",
-			       vi.name, ret);
-			break;
+			pr_err(
+			       "UBI: block: can't add '%s' volume on ubi%d_%d, err=%d",
+			       vi.name, p->ubi_num, p->vol_id, ret);
+			continue;
 		}
 	}
-	return ret;
 }
 
 static void ubiblock_remove_all(void)
@@ -631,10 +637,12 @@ int __init ubiblock_init(void)
 	if (ubiblock_major < 0)
 		return ubiblock_major;
 
-	/* Attach block devices from 'block=' module param */
-	ret = ubiblock_create_from_param();
-	if (ret)
-		goto err_remove;
+	/*
+	 * Attach block devices from 'block=' module param.
+	 * Even if one block device in the param list fails to come up,
+	 * still allow the module to load and leave any others up.
+	 */
+	ubiblock_create_from_param();
 
 	/*
 	 * Block devices are only created upon user requests, so we ignore
@@ -647,7 +655,6 @@ int __init ubiblock_init(void)
 
 err_unreg:
 	unregister_blkdev(ubiblock_major, "ubiblock");
-err_remove:
 	ubiblock_remove_all();
 	return ret;
 }
