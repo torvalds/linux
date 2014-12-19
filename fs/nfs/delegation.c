@@ -301,6 +301,17 @@ nfs_inode_detach_delegation(struct inode *inode)
 	return nfs_detach_delegation(nfsi, delegation, server);
 }
 
+static void
+nfs_update_inplace_delegation(struct nfs_delegation *delegation,
+		const struct nfs_delegation *update)
+{
+	if (nfs4_stateid_is_newer(&update->stateid, &delegation->stateid)) {
+		delegation->stateid.seqid = update->stateid.seqid;
+		smp_wmb();
+		delegation->type = update->type;
+	}
+}
+
 /**
  * nfs_inode_set_delegation - set up a delegation on an inode
  * @inode: inode to which delegation applies
@@ -334,9 +345,12 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	old_delegation = rcu_dereference_protected(nfsi->delegation,
 					lockdep_is_held(&clp->cl_lock));
 	if (old_delegation != NULL) {
-		if (nfs4_stateid_match(&delegation->stateid,
-					&old_delegation->stateid) &&
-				delegation->type == old_delegation->type) {
+		/* Is this an update of the existing delegation? */
+		if (nfs4_stateid_match_other(&old_delegation->stateid,
+					&delegation->stateid)) {
+			nfs_update_inplace_delegation(old_delegation,
+					delegation);
+			nfsi->delegation_state = old_delegation->type;
 			goto out;
 		}
 		/*
