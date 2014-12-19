@@ -209,6 +209,7 @@ config VIDEO_ADV7604
 config VIDEO_ADV7842
 	tristate "Analog Devices ADV7842 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
 	---help---
 	  Support for the Analog Devices ADV7842 video decoder.
 
