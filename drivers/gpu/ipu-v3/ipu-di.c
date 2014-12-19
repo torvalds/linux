@@ -545,18 +545,12 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	u32 reg;
 	u32 di_gen, vsync_cnt;
 	u32 div;
-	u32 h_total, v_total;
 
 	dev_dbg(di->ipu->dev, "disp %d: panel size = %d x %d\n",
 		di->id, sig->width, sig->height);
 
 	if ((sig->v_sync_width == 0) || (sig->h_sync_width == 0))
 		return -EINVAL;
-
-	h_total = sig->width + sig->h_sync_width + sig->h_start_width +
-		sig->h_end_width;
-	v_total = sig->height + sig->v_sync_width + sig->v_start_width +
-		sig->v_end_width;
 
 	dev_dbg(di->ipu->dev, "Clocks: IPU %luHz DI %luHz Needed %luHz\n",
 		clk_get_rate(di->clk_ipu),
