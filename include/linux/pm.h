@@ -351,8 +351,6 @@ struct dev_pm_ops {
 #define SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn)
 #endif
 
-#define SET_PM_RUNTIME_PM_OPS	SET_RUNTIME_PM_OPS
-
 /*
  * Use this if you want to use the same suspend and resume callbacks for suspend
  * to RAM and hibernation.

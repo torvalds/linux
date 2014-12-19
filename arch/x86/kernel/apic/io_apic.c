@@ -3968,7 +3968,7 @@ bool mp_should_keep_irq(struct device *dev)
 {
 	if (dev->power.is_prepared)
 		return true;
-#ifdef	CONFIG_PM_RUNTIME
+#ifdef	CONFIG_PM
 	if (dev->power.runtime_status == RPM_SUSPENDING)
 		return true;
 #endif

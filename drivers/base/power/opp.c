@@ -84,7 +84,11 @@ struct dev_pm_opp {
  *
  * This is an internal data structure maintaining the link to opps attached to
  * a device. This structure is not meant to be shared to users as it is
- * meant for book keeping and private to OPP library
+ * meant for book keeping and private to OPP library.
+ *
+ * Because the opp structures can be used from both rcu and srcu readers, we
+ * need to wait for the grace period of both of them before freeing any
+ * resources. And so we have used kfree_rcu() from within call_srcu() handlers.
  */
 struct device_opp {
 	struct list_head node;
@@ -382,12 +386,34 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
 
+static struct device_opp *add_device_opp(struct device *dev)
+{
+	struct device_opp *dev_opp;
+
+	/*
+	 * Allocate a new device OPP table. In the infrequent case where a new
+	 * device is needed to be added, we pay this penalty.
+	 */
+	dev_opp = kzalloc(sizeof(*dev_opp), GFP_KERNEL);
+	if (!dev_opp)
+		return NULL;
+
+	dev_opp->dev = dev;
+	srcu_init_notifier_head(&dev_opp->srcu_head);
+	INIT_LIST_HEAD(&dev_opp->opp_list);
+
+	/* Secure the device list modification */
+	list_add_rcu(&dev_opp->node, &dev_opp_list);
+	return dev_opp;
+}
+
 static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 				  unsigned long u_volt, bool dynamic)
 {
 	struct device_opp *dev_opp = NULL;
 	struct dev_pm_opp *opp, *new_opp;
 	struct list_head *head;
+	int ret;
 
 	/* allocate new OPP node */
 	new_opp = kzalloc(sizeof(*new_opp), GFP_KERNEL);
@@ -400,7 +426,6 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	mutex_lock(&dev_opp_list_lock);
 
 	/* populate the opp table */
-	new_opp->dev_opp = dev_opp;
 	new_opp->rate = freq;
 	new_opp->u_volt = u_volt;
 	new_opp->available = true;
@@ -409,27 +434,12 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	/* Check for existing list for 'dev' */
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
-		/*
-		 * Allocate a new device OPP table. In the infrequent case
-		 * where a new device is needed to be added, we pay this
-		 * penalty.
-		 */
-		dev_opp = kzalloc(sizeof(struct device_opp), GFP_KERNEL);
+		dev_opp = add_device_opp(dev);
 		if (!dev_opp) {
-			mutex_unlock(&dev_opp_list_lock);
-			kfree(new_opp);
-			dev_warn(dev,
-				"%s: Unable to create device OPP structure\n",
-				__func__);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto free_opp;
 		}
 
-		dev_opp->dev = dev;
-		srcu_init_notifier_head(&dev_opp->srcu_head);
-		INIT_LIST_HEAD(&dev_opp->opp_list);
-
-		/* Secure the device list modification */
-		list_add_rcu(&dev_opp->node, &dev_opp_list);
 		head = &dev_opp->opp_list;
 		goto list_add;
 	}
@@ -448,18 +458,17 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 
 	/* Duplicate OPPs ? */
 	if (new_opp->rate == opp->rate) {
-		int ret = opp->available && new_opp->u_volt == opp->u_volt ?
+		ret = opp->available && new_opp->u_volt == opp->u_volt ?
 			0 : -EEXIST;
 
 		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
 			 __func__, opp->rate, opp->u_volt, opp->available,
 			 new_opp->rate, new_opp->u_volt, new_opp->available);
-		mutex_unlock(&dev_opp_list_lock);
-		kfree(new_opp);
-		return ret;
+		goto free_opp;
 	}
 
 list_add:
+	new_opp->dev_opp = dev_opp;
 	list_add_rcu(&new_opp->node, head);
 	mutex_unlock(&dev_opp_list_lock);
 
@@ -469,6 +478,11 @@ list_add:
 	 */
 	srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_ADD, new_opp);
 	return 0;
+
+free_opp:
+	mutex_unlock(&dev_opp_list_lock);
+	kfree(new_opp);
+	return ret;
 }
 
 /**
@@ -511,10 +525,11 @@ static void kfree_device_rcu(struct rcu_head *head)
 {
 	struct device_opp *device_opp = container_of(head, struct device_opp, rcu_head);
 
-	kfree(device_opp);
+	kfree_rcu(device_opp, rcu_head);
 }
 
-void __dev_pm_opp_remove(struct device_opp *dev_opp, struct dev_pm_opp *opp)
+static void __dev_pm_opp_remove(struct device_opp *dev_opp,
+				struct dev_pm_opp *opp)
 {
 	/*
 	 * Notify the changes in the availability of the operable
@@ -592,7 +607,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 static int opp_set_availability(struct device *dev, unsigned long freq,
 		bool availability_req)
 {
-	struct device_opp *tmp_dev_opp, *dev_opp = ERR_PTR(-ENODEV);
+	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
 	int r = 0;
 
@@ -606,12 +621,7 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 	mutex_lock(&dev_opp_list_lock);
 
 	/* Find the device_opp */
-	list_for_each_entry(tmp_dev_opp, &dev_opp_list, node) {
-		if (dev == tmp_dev_opp->dev) {
-			dev_opp = tmp_dev_opp;
-			break;
-		}
-	}
+	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		r = PTR_ERR(dev_opp);
 		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
@@ -768,7 +778,7 @@ EXPORT_SYMBOL_GPL(of_init_opp_table);
  */
 void of_free_opp_table(struct device *dev)
 {
-	struct device_opp *dev_opp = find_device_opp(dev);
+	struct device_opp *dev_opp;
 	struct dev_pm_opp *opp, *tmp;
 
 	/* Check for existing list for 'dev' */

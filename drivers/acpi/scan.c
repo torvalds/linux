@@ -2214,7 +2214,7 @@ static void acpi_device_dep_initialize(struct acpi_device *adev)
 	status = acpi_evaluate_reference(adev->handle, "_DEP", NULL,
 					&dep_devices);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&adev->dev, "Failed to evaluate _DEP.\n");
+		dev_dbg(&adev->dev, "Failed to evaluate _DEP.\n");
 		return;
 	}
 
@@ -2224,7 +2224,7 @@ static void acpi_device_dep_initialize(struct acpi_device *adev)
 
 		status = acpi_get_object_info(dep_devices.handles[i], &info);
 		if (ACPI_FAILURE(status)) {
-			dev_err(&adev->dev, "Error reading device info\n");
+			dev_dbg(&adev->dev, "Error reading _DEP device info\n");
 			continue;
 		}
 
