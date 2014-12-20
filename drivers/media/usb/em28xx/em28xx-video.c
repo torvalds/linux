@@ -1958,7 +1958,7 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 	if (v4l2 == NULL)
 		return 0;
 
-	em28xx_info("Closing video extension");
+	em28xx_info("Closing video extension\n");
 
 	mutex_lock(&dev->lock);
 

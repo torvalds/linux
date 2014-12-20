@@ -1724,7 +1724,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	if (!dev->dvb)
 		return 0;
 
-	em28xx_info("Closing DVB extension");
+	em28xx_info("Closing DVB extension\n");
 
 	dvb = dev->dvb;
 	client = dvb->i2c_client_tuner;
