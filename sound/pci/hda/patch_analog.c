@@ -195,7 +195,8 @@ static int ad198x_parse_auto_config(struct hda_codec *codec, bool indep_hp)
 	codec->no_sticky_stream = 1;
 
 	spec->gen.indep_hp = indep_hp;
-	spec->gen.add_stereo_mix_input = 1;
+	if (!spec->gen.add_stereo_mix_input)
+		spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
 
 	err = snd_hda_parse_pin_defcfg(codec, cfg, NULL, 0);
 	if (err < 0)
@@ -256,6 +257,18 @@ static void ad1986a_fixup_eapd(struct hda_codec *codec,
 	}
 }
 
+/* enable stereo-mix input for avoiding regression on KDE (bko#88251) */
+static void ad1986a_fixup_eapd_mix_in(struct hda_codec *codec,
+				      const struct hda_fixup *fix, int action)
+{
+	struct ad198x_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		ad1986a_fixup_eapd(codec, fix, action);
+		spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_ENABLE;
+	}
+}
+
 enum {
 	AD1986A_FIXUP_INV_JACK_DETECT,
 	AD1986A_FIXUP_ULTRA,
@@ -264,6 +277,8 @@ enum {
 	AD1986A_FIXUP_LAPTOP,
 	AD1986A_FIXUP_LAPTOP_IMIC,
 	AD1986A_FIXUP_EAPD,
+	AD1986A_FIXUP_EAPD_MIX_IN,
+	AD1986A_FIXUP_EASYNOTE,
 };
 
 static const struct hda_fixup ad1986a_fixups[] = {
@@ -328,6 +343,30 @@ static const struct hda_fixup ad1986a_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = ad1986a_fixup_eapd,
 	},
+	[AD1986A_FIXUP_EAPD_MIX_IN] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = ad1986a_fixup_eapd_mix_in,
+	},
+	[AD1986A_FIXUP_EASYNOTE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x1a, 0x0421402f }, /* headphone */
+			{ 0x1b, 0x90170110 }, /* speaker */
+			{ 0x1c, 0x411111f0 }, /* N/A */
+			{ 0x1d, 0x90a70130 }, /* int mic */
+			{ 0x1e, 0x411111f0 }, /* N/A */
+			{ 0x1f, 0x04a19040 }, /* mic */
+			{ 0x20, 0x411111f0 }, /* N/A */
+			{ 0x21, 0x411111f0 }, /* N/A */
+			{ 0x22, 0x411111f0 }, /* N/A */
+			{ 0x23, 0x411111f0 }, /* N/A */
+			{ 0x24, 0x411111f0 }, /* N/A */
+			{ 0x25, 0x411111f0 }, /* N/A */
+			{}
+		},
+		.chained = true,
+		.chain_id = AD1986A_FIXUP_EAPD_MIX_IN,
+	},
 };
 
 static const struct snd_pci_quirk ad1986a_fixup_tbl[] = {
@@ -341,6 +380,7 @@ static const struct snd_pci_quirk ad1986a_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x144d, 0xc01e, "FSC V2060", AD1986A_FIXUP_LAPTOP),
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc000, "Samsung", AD1986A_FIXUP_SAMSUNG),
 	SND_PCI_QUIRK(0x144d, 0xc027, "Samsung Q1", AD1986A_FIXUP_ULTRA),
+	SND_PCI_QUIRK(0x1631, 0xc022, "PackardBell EasyNote MX65", AD1986A_FIXUP_EASYNOTE),
 	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo N100", AD1986A_FIXUP_INV_JACK_DETECT),
 	SND_PCI_QUIRK(0x17aa, 0x1011, "Lenovo M55", AD1986A_FIXUP_3STACK),
 	SND_PCI_QUIRK(0x17aa, 0x1017, "Lenovo A60", AD1986A_FIXUP_3STACK),

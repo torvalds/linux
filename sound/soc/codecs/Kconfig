@@ -520,6 +520,8 @@ config SND_SOC_RT5670
 
 config SND_SOC_RT5677
 	tristate
+	select REGMAP_I2C
+	select REGMAP_IRQ
 
 config SND_SOC_RT5677_SPI
 	tristate

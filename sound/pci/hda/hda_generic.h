@@ -222,7 +222,7 @@ struct hda_gen_spec {
 	unsigned int vmaster_mute_enum:1; /* add vmaster mute mode enum */
 	unsigned int indep_hp:1; /* independent HP supported */
 	unsigned int prefer_hp_amp:1; /* enable HP amp for speaker if any */
-	unsigned int add_stereo_mix_input:1; /* add aamix as a capture src */
+	unsigned int add_stereo_mix_input:2; /* add aamix as a capture src */
 	unsigned int add_jack_modes:1; /* add i/o jack mode enum ctls */
 	unsigned int power_down_unused:1; /* power down unused widgets */
 	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
@@ -289,6 +289,13 @@ struct hda_gen_spec {
 				   struct hda_jack_callback *cb);
 	void (*mic_autoswitch_hook)(struct hda_codec *codec,
 				    struct hda_jack_callback *cb);
+};
+
+/* values for add_stereo_mix_input flag */
+enum {
+	HDA_HINT_STEREO_MIX_DISABLE,	/* No stereo mix input */
+	HDA_HINT_STEREO_MIX_ENABLE,	/* Add stereo mix input */
+	HDA_HINT_STEREO_MIX_AUTO,	/* Add only if auto-mic is disabled */
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
