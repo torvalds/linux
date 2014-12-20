@@ -13,6 +13,7 @@
 #include <linux/gfp.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
+#include <linux/sched.h>
 
 #include "smpboot.h"
 
@@ -164,7 +165,7 @@ static int generic_exec_single(int cpu, struct call_single_data *csd,
 	if (!csd) {
 		csd = &csd_stack;
 		if (!wait)
-			csd = &__get_cpu_var(csd_data);
+			csd = this_cpu_ptr(&csd_data);
 	}
 
 	csd_lock(csd);
@@ -229,7 +230,7 @@ static void flush_smp_call_function_queue(bool warn_cpu_offline)
 
 	WARN_ON(!irqs_disabled());
 
-	head = &__get_cpu_var(call_single_queue);
+	head = this_cpu_ptr(&call_single_queue);
 	entry = llist_del_all(head);
 	entry = llist_reverse_order(entry);
 
@@ -419,7 +420,7 @@ void smp_call_function_many(const struct cpumask *mask,
 		return;
 	}
 
-	cfd = &__get_cpu_var(cfd_data);
+	cfd = this_cpu_ptr(&cfd_data);
 
 	cpumask_and(cfd->cpumask, mask, cpu_online_mask);
 	cpumask_clear_cpu(this_cpu, cfd->cpumask);
@@ -699,3 +700,24 @@ void kick_all_cpus_sync(void)
 	smp_call_function(do_nothing, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(kick_all_cpus_sync);
+
+/**
+ * wake_up_all_idle_cpus - break all cpus out of idle
+ * wake_up_all_idle_cpus try to break all cpus which is in idle state even
+ * including idle polling cpus, for non-idle cpus, we will do nothing
+ * for them.
+ */
+void wake_up_all_idle_cpus(void)
+{
+	int cpu;
+
+	preempt_disable();
+	for_each_online_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+
+		wake_up_if_idle(cpu);
+	}
+	preempt_enable();
+}
+EXPORT_SYMBOL_GPL(wake_up_all_idle_cpus);

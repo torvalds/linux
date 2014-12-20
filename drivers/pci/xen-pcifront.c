@@ -596,8 +596,7 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 	pcidev = pci_get_bus_and_slot(bus, devfn);
 	if (!pcidev || !pcidev->driver) {
 		dev_err(&pdev->xdev->dev, "device or AER driver is NULL\n");
-		if (pcidev)
-			pci_dev_put(pcidev);
+		pci_dev_put(pcidev);
 		return result;
 	}
 	pdrv = pcidev->driver;
@@ -866,6 +865,11 @@ static int pcifront_try_connect(struct pcifront_device *pdev)
 		xenbus_dev_error(pdev->xdev, err,
 				 "No PCI Roots found, trying 0000:00");
 		err = pcifront_scan_root(pdev, 0, 0);
+		if (err) {
+			xenbus_dev_fatal(pdev->xdev, err,
+					 "Error scanning PCI root 0000:00");
+			goto out;
+		}
 		num_roots = 0;
 	} else if (err != 1) {
 		if (err == 0)
@@ -947,6 +951,11 @@ static int pcifront_attach_devices(struct pcifront_device *pdev)
 		xenbus_dev_error(pdev->xdev, err,
 				 "No PCI Roots found, trying 0000:00");
 		err = pcifront_rescan_root(pdev, 0, 0);
+		if (err) {
+			xenbus_dev_fatal(pdev->xdev, err,
+					 "Error scanning PCI root 0000:00");
+			goto out;
+		}
 		num_roots = 0;
 	} else if (err != 1) {
 		if (err == 0)
@@ -1136,11 +1145,13 @@ static const struct xenbus_device_id xenpci_ids[] = {
 	{""},
 };
 
-static DEFINE_XENBUS_DRIVER(xenpci, "pcifront",
+static struct xenbus_driver xenpci_driver = {
+	.name			= "pcifront",
+	.ids			= xenpci_ids,
 	.probe			= pcifront_xenbus_probe,
 	.remove			= pcifront_xenbus_remove,
 	.otherend_changed	= pcifront_backend_changed,
-);
+};
 
 static int __init pcifront_init(void)
 {

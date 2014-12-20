@@ -31,85 +31,85 @@
 /** Describes the state from the perspective of which controlvm messages have
  *  been received for a bus or device.
  */
-typedef struct {
+struct visorchipset_state {
 	u32 created:1;
 	u32 attached:1;
 	u32 configured:1;
 	u32 running:1;
 	/* Add new fields above. */
 	/* Remaining bits in this 32-bit word are unused. */
-} VISORCHIPSET_STATE;
+};
 
-typedef enum {
+enum visorchipset_addresstype {
 	/** address is guest physical, but outside of the physical memory
 	 *  region that is controlled by the running OS (this is the normal
 	 *  address type for Supervisor channels)
 	 */
-	ADDRTYPE_localPhysical,
+	ADDRTYPE_LOCALPHYSICAL,
 
 	/** address is guest physical, and withIN the confines of the
 	 *  physical memory controlled by the running OS.
 	 */
-	ADDRTYPE_localTest,
-} VISORCHIPSET_ADDRESSTYPE;
+	ADDRTYPE_LOCALTEST,
+};
 
-typedef enum {
-	CRASH_dev,
-	CRASH_bus,
-} CRASH_OBJ_TYPE;
+enum crash_obj_type {
+	CRASH_DEV,
+	CRASH_BUS,
+};
 
 /** Attributes for a particular Supervisor channel.
  */
-typedef struct {
-	VISORCHIPSET_ADDRESSTYPE addrType;
-	HOSTADDRESS channelAddr;
-	struct InterruptInfo intr;
-	u64 nChannelBytes;
-	uuid_le channelTypeGuid;
-	uuid_le channelInstGuid;
+struct visorchipset_channel_info {
+	enum visorchipset_addresstype addr_type;
+	HOSTADDRESS channel_addr;
+	struct irq_info intr;
+	u64 n_channel_bytes;
+	uuid_le channel_type_uuid;
+	uuid_le channel_inst_uuid;
 
-} VISORCHIPSET_CHANNEL_INFO;
+};
 
 /** Attributes for a particular Supervisor device.
  *  Any visorchipset client can query these attributes using
  *  visorchipset_get_client_device_info() or
  *  visorchipset_get_server_device_info().
  */
-typedef struct {
+struct visorchipset_device_info {
 	struct list_head entry;
-	u32 busNo;
-	u32 devNo;
-	uuid_le devInstGuid;
-	VISORCHIPSET_STATE state;
-	VISORCHIPSET_CHANNEL_INFO chanInfo;
-	u32 Reserved1;		/* CONTROLVM_ID */
-	u64 Reserved2;
-	u32 switchNo;		/* when devState.attached==1 */
-	u32 internalPortNo;	/* when devState.attached==1 */
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;	/* CONTROLVM_MESSAGE */
+	u32 bus_no;
+	u32 dev_no;
+	uuid_le dev_inst_uuid;
+	struct visorchipset_state state;
+	struct visorchipset_channel_info chan_info;
+	u32 reserved1;		/* control_vm_id */
+	u64 reserved2;
+	u32 switch_no;		/* when devState.attached==1 */
+	u32 internal_port_no;	/* when devState.attached==1 */
+	struct controlvm_message_header pending_msg_hdr;/* CONTROLVM_MESSAGE */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
 
-} VISORCHIPSET_DEVICE_INFO;
+};
 
-static inline VISORCHIPSET_DEVICE_INFO *
-finddevice(struct list_head *list, u32 busNo, u32 devNo)
+static inline struct visorchipset_device_info *finddevice(
+		struct list_head *list, u32 bus_no, u32 dev_no)
 {
-	VISORCHIPSET_DEVICE_INFO *p;
+	struct visorchipset_device_info *p;
 
 	list_for_each_entry(p, list, entry) {
-		if (p->busNo == busNo && p->devNo == devNo)
+		if (p->bus_no == bus_no && p->dev_no == dev_no)
 			return p;
 	}
 	return NULL;
 }
 
-static inline void delbusdevices(struct list_head *list, u32 busNo)
+static inline void delbusdevices(struct list_head *list, u32 bus_no)
 {
-	VISORCHIPSET_DEVICE_INFO *p, *tmp;
+	struct visorchipset_device_info *p, *tmp;
 
 	list_for_each_entry_safe(p, tmp, list, entry) {
-		if (p->busNo == busNo) {
+		if (p->bus_no == bus_no) {
 			list_del(&p->entry);
 			kfree(p);
 		}
@@ -122,37 +122,37 @@ static inline void delbusdevices(struct list_head *list, u32 busNo)
  *  Any visorchipset client can query these attributes using
  *  visorchipset_get_client_bus_info() or visorchipset_get_bus_info().
  */
-typedef struct {
+struct visorchipset_bus_info {
 	struct list_head entry;
-	u32 busNo;
-	VISORCHIPSET_STATE state;
-	VISORCHIPSET_CHANNEL_INFO chanInfo;
-	uuid_le partitionGuid;
-	u64 partitionHandle;
+	u32 bus_no;
+	struct visorchipset_state state;
+	struct visorchipset_channel_info chan_info;
+	uuid_le partition_uuid;
+	u64 partition_handle;
 	u8 *name;		/* UTF8 */
 	u8 *description;	/* UTF8 */
-	u64 Reserved1;
-	u32 Reserved2;
-	MYPROCOBJECT *procObject;
+	u64 reserved1;
+	u32 reserved2;
+	MYPROCOBJECT *proc_object;
 	struct {
 		u32 server:1;
 		/* Add new fields above. */
 		/* Remaining bits in this 32-bit word are unused. */
 	} flags;
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;	/* CONTROLVM MsgHdr */
+	struct controlvm_message_header pending_msg_hdr;/* CONTROLVM MsgHdr */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
-	u64 devNo;
+	u64 dev_no;
 
-} VISORCHIPSET_BUS_INFO;
+};
 
-static inline VISORCHIPSET_BUS_INFO *
-findbus(struct list_head *list, u32 busNo)
+static inline struct visorchipset_bus_info *
+findbus(struct list_head *list, u32 bus_no)
 {
-	VISORCHIPSET_BUS_INFO *p;
+	struct visorchipset_bus_info *p;
 
 	list_for_each_entry(p, list, entry) {
-		if (p->busNo == busNo)
+		if (p->bus_no == bus_no)
 			return p;
 	}
 	return NULL;
@@ -160,75 +160,73 @@ findbus(struct list_head *list, u32 busNo)
 
 /** Attributes for a particular Supervisor switch.
  */
-typedef struct {
-	u32 switchNo;
-	VISORCHIPSET_STATE state;
-	uuid_le switchTypeGuid;
-	u8 *authService1;
-	u8 *authService2;
-	u8 *authService3;
-	u8 *securityContext;
-	u64 Reserved;
-	u32 Reserved2;		/* CONTROLVM_ID */
+struct visorchipset_switch_info {
+	u32 switch_no;
+	struct visorchipset_state state;
+	uuid_le switch_type_uuid;
+	u8 *authservice1;
+	u8 *authservice2;
+	u8 *authservice3;
+	u8 *security_context;
+	u64 reserved;
+	u32 reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
-
-} VISORCHIPSET_SWITCH_INFO;
+	struct controlvm_message_header pending_msg_hdr;
+};
 
 /** Attributes for a particular Supervisor external port, which is connected
  *  to a specific switch.
  */
-typedef struct {
-	u32 switchNo;
-	u32 externalPortNo;
-	VISORCHIPSET_STATE state;
-	uuid_le networkZoneGuid;
-	int pdPort;
+struct visorchipset_externalport_info {
+	u32 switch_no;
+	u32 external_port_no;
+	struct visorchipset_state state;
+	uuid_le network_zone_uuid;
+	int pd_port;
 	u8 *ip;
-	u8 *ipNetmask;
-	u8 *ipBroadcast;
-	u8 *ipNetwork;
-	u8 *ipGateway;
-	u8 *ipDNS;
-	u64 Reserved1;
-	u32 Reserved2;		/* CONTROLVM_ID */
+	u8 *ip_netmask;
+	u8 *ip_broadcast;
+	u8 *ip_network;
+	u8 *ip_gateway;
+	u8 *ip_dns;
+	u64 reserved1;
+	u32 reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
-
-} VISORCHIPSET_EXTERNALPORT_INFO;
+	struct controlvm_message_header pending_msg_hdr;
+};
 
 /** Attributes for a particular Supervisor internal port, which is how a
  *  device connects to a particular switch.
  */
-typedef struct {
-	u32 switchNo;
-	u32 internalPortNo;
-	VISORCHIPSET_STATE state;
-	u32 busNo;		/* valid only when state.attached == 1 */
-	u32 devNo;		/* valid only when state.attached == 1 */
-	u64 Reserved1;
-	u32 Reserved2;		/* CONTROLVM_ID */
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
-	MYPROCOBJECT *procObject;
+struct visorchipset_internalport_info {
+	u32 switch_no;
+	u32 internal_port_no;
+	struct visorchipset_state state;
+	u32 bus_no;		/* valid only when state.attached == 1 */
+	u32 dev_no;		/* valid only when state.attached == 1 */
+	u64 reserved1;
+	u32 reserved2;		/* CONTROLVM_ID */
+	struct controlvm_message_header pending_msg_hdr;
+	MYPROCOBJECT *proc_object;
 
-} VISORCHIPSET_INTERNALPORT_INFO;
+};
 
 /*  These functions will be called from within visorchipset when certain
  *  events happen.  (The implementation of these functions is outside of
  *  visorchipset.)
  */
-typedef struct {
-	void (*bus_create)(ulong busNo);
-	void (*bus_destroy)(ulong busNo);
-	void (*device_create)(ulong busNo, ulong devNo);
-	void (*device_destroy)(ulong busNo, ulong devNo);
-	void (*device_pause)(ulong busNo, ulong devNo);
-	void (*device_resume)(ulong busNo, ulong devNo);
-	int (*get_channel_info)(uuid_le typeGuid, ulong *minSize,
-				 ulong *maxSize);
-} VISORCHIPSET_BUSDEV_NOTIFIERS;
+struct visorchipset_busdev_notifiers {
+	void (*bus_create)(ulong bus_no);
+	void (*bus_destroy)(ulong bus_no);
+	void (*device_create)(ulong bus_no, ulong dev_no);
+	void (*device_destroy)(ulong bus_no, ulong dev_no);
+	void (*device_pause)(ulong bus_no, ulong dev_no);
+	void (*device_resume)(ulong bus_no, ulong dev_no);
+	int (*get_channel_info)(uuid_le type_uuid, ulong *min_size,
+				ulong *max_size);
+};
 
 /*  These functions live inside visorchipset, and will be called to indicate
  *  responses to specific events (by code outside of visorchipset).
@@ -236,14 +234,14 @@ typedef struct {
  *       0 = it worked
  *      -1 = it failed
  */
-typedef struct {
-	void (*bus_create)(ulong busNo, int response);
-	void (*bus_destroy)(ulong busNo, int response);
-	void (*device_create)(ulong busNo, ulong devNo, int response);
-	void (*device_destroy)(ulong busNo, ulong devNo, int response);
-	void (*device_pause)(ulong busNo, ulong devNo, int response);
-	void (*device_resume)(ulong busNo, ulong devNo, int response);
-} VISORCHIPSET_BUSDEV_RESPONDERS;
+struct visorchipset_busdev_responders {
+	void (*bus_create)(ulong bus_no, int response);
+	void (*bus_destroy)(ulong bus_no, int response);
+	void (*device_create)(ulong bus_no, ulong dev_no, int response);
+	void (*device_destroy)(ulong bus_no, ulong dev_no, int response);
+	void (*device_pause)(ulong bus_no, ulong dev_no, int response);
+	void (*device_resume)(ulong bus_no, ulong dev_no, int response);
+};
 
 /** Register functions (in the bus driver) to get called by visorchipset
  *  whenever a bus or device appears for which this service partition is
@@ -252,9 +250,10 @@ typedef struct {
  *  responses.
  */
 void
-visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
-				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    ULTRA_VBUS_DEVICEINFO *driverInfo);
+visorchipset_register_busdev_client(
+			struct visorchipset_busdev_notifiers *notifiers,
+			struct visorchipset_busdev_responders *responders,
+			struct ultra_vbus_deviceinfo *driver_info);
 
 /** Register functions (in the bus driver) to get called by visorchipset
  *  whenever a bus or device appears for which this service partition is
@@ -263,47 +262,31 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
  *  responses.
  */
 void
-visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
-				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    ULTRA_VBUS_DEVICEINFO *driverInfo);
+visorchipset_register_busdev_server(
+			struct visorchipset_busdev_notifiers *notifiers,
+			struct visorchipset_busdev_responders *responders,
+			struct ultra_vbus_deviceinfo *driver_info);
 
-typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (CONTROLVM_MESSAGE *msg,
+typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
 					       int status);
 
-void visorchipset_device_pause_response(ulong busNo, ulong devNo, int response);
+void visorchipset_device_pause_response(ulong bus_no, ulong dev_no,
+					int response);
 
-BOOL visorchipset_get_bus_info(ulong busNo, VISORCHIPSET_BUS_INFO *busInfo);
-BOOL visorchipset_get_device_info(ulong busNo, ulong devNo,
-				  VISORCHIPSET_DEVICE_INFO *devInfo);
-BOOL visorchipset_get_switch_info(ulong switchNo,
-				  VISORCHIPSET_SWITCH_INFO *switchInfo);
-BOOL visorchipset_get_externalport_info(ulong switchNo, ulong externalPortNo,
-					VISORCHIPSET_EXTERNALPORT_INFO
-					*externalPortInfo);
-BOOL visorchipset_set_bus_context(ulong busNo, void *context);
-BOOL visorchipset_set_device_context(ulong busNo, ulong devNo, void *context);
+BOOL visorchipset_get_bus_info(ulong bus_no,
+			       struct visorchipset_bus_info *bus_info);
+BOOL visorchipset_get_device_info(ulong bus_no, ulong dev_no,
+				  struct visorchipset_device_info *dev_info);
+BOOL visorchipset_set_bus_context(ulong bus_no, void *context);
+BOOL visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context);
 int visorchipset_chipset_ready(void);
 int visorchipset_chipset_selftest(void);
 int visorchipset_chipset_notready(void);
-void visorchipset_controlvm_respond_reportEvent(CONTROLVM_MESSAGE *msg,
-						void *payload);
-void visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type);
+void visorchipset_save_message(struct controlvm_message *msg,
+			       enum crash_obj_type type);
 void *visorchipset_cache_alloc(struct kmem_cache *pool,
 			       BOOL ok_to_block, char *fn, int ln);
 void visorchipset_cache_free(struct kmem_cache *pool, void *p,
 			     char *fn, int ln);
-
-#if defined(TRANSMITFILE_DEBUG) || defined(DEBUG)
-#define DBG_GETFILE_PAYLOAD(msg, controlvm_header)      \
-	LOGINF(msg,                                     \
-	       (ulong)controlvm_header.PayloadVmOffset, \
-	       (ulong)controlvm_header.PayloadMaxBytes)
-#define DBG_GETFILE(fmt, ...)  LOGINF(fmt, ##__VA_ARGS__)
-#define DBG_PUTFILE(fmt, ...)  LOGINF(fmt, ##__VA_ARGS__)
-#else
-#define DBG_GETFILE_PAYLOAD(msg, controlvm_header)
-#define DBG_GETFILE(fmt, ...)
-#define DBG_PUTFILE(fmt, ...)
-#endif
 
 #endif

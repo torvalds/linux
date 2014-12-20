@@ -297,14 +297,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strncpy(cap->driver, G2D_NAME, sizeof(cap->driver) - 1);
 	strncpy(cap->card, G2D_NAME, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
-	cap->version = KERNEL_VERSION(1, 0, 0);
-	/*
-	 * This is only a mem-to-mem video device. The capture and output
-	 * device capability flags are left only for backward compatibility
-	 * and are scheduled for removal.
-	 */
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
-			    V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -490,14 +484,13 @@ static void job_abort(void *prv)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
-	int ret;
 
 	if (dev->curr == NULL) /* No job currently running */
 		return;
 
-	ret = wait_event_timeout(dev->irq_queue,
-		dev->curr == NULL,
-		msecs_to_jiffies(G2D_TIMEOUT));
+	wait_event_timeout(dev->irq_queue,
+			   dev->curr == NULL,
+			   msecs_to_jiffies(G2D_TIMEOUT));
 }
 
 static void device_run(void *prv)
@@ -813,7 +806,6 @@ static struct platform_driver g2d_pdrv = {
 	.id_table	= g2d_driver_ids,
 	.driver		= {
 		.name = G2D_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = exynos_g2d_match,
 	},
 };

@@ -277,17 +277,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "AIF", NULL, "ADCR" },
 };
 
-static int wm8737_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8737_dapm_widgets,
-				  ARRAY_SIZE(wm8737_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
-	return 0;
-}
-
 /* codec mclk clock divider coefficients */
 static const struct {
 	u32 mclk;
@@ -548,23 +537,6 @@ static struct snd_soc_dai_driver wm8737_dai = {
 	.ops = &wm8737_dai_ops,
 };
 
-#ifdef CONFIG_PM
-static int wm8737_suspend(struct snd_soc_codec *codec)
-{
-	wm8737_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8737_resume(struct snd_soc_codec *codec)
-{
-	wm8737_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8737_suspend NULL
-#define wm8737_resume NULL
-#endif
-
 static int wm8737_probe(struct snd_soc_codec *codec)
 {
 	struct wm8737_priv *wm8737 = snd_soc_codec_get_drvdata(codec);
@@ -593,10 +565,6 @@ static int wm8737_probe(struct snd_soc_codec *codec)
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(wm8737->supplies), wm8737->supplies);
 
-	snd_soc_add_codec_controls(codec, wm8737_snd_controls,
-			     ARRAY_SIZE(wm8737_snd_controls));
-	wm8737_add_widgets(codec);
-
 	return 0;
 
 err_enable:
@@ -605,18 +573,17 @@ err_get:
 	return ret;
 }
 
-static int wm8737_remove(struct snd_soc_codec *codec)
-{
-	wm8737_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8737 = {
 	.probe		= wm8737_probe,
-	.remove		= wm8737_remove,
-	.suspend	= wm8737_suspend,
-	.resume		= wm8737_resume,
 	.set_bias_level = wm8737_set_bias_level,
+	.suspend_bias_off = true,
+
+	.controls = wm8737_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8737_snd_controls),
+	.dapm_widgets = wm8737_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8737_dapm_widgets),
+	.dapm_routes = intercon,
+	.num_dapm_routes = ARRAY_SIZE(intercon),
 };
 
 static const struct of_device_id wm8737_of_match[] = {

@@ -13,6 +13,7 @@
 #define __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H
 
 struct imx_usbmisc_data {
+	struct device *dev;
 	int index;
 
 	unsigned int disable_oc:1; /* over current detect disabled */

@@ -42,7 +42,7 @@ static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
 	struct alg_sock *ask = alg_sk(sk);
 	struct hash_ctx *ctx = ask->private;
 	unsigned long iovlen;
-	struct iovec *iov;
+	const struct iovec *iov;
 	long copied = 0;
 	int err;
 
@@ -58,7 +58,7 @@ static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
 
 	ctx->more = 0;
 
-	for (iov = msg->msg_iov, iovlen = msg->msg_iovlen; iovlen > 0;
+	for (iov = msg->msg_iter.iov, iovlen = msg->msg_iter.nr_segs; iovlen > 0;
 	     iovlen--, iov++) {
 		unsigned long seglen = iov->iov_len;
 		char __user *from = iov->iov_base;
@@ -174,7 +174,7 @@ static int hash_recvmsg(struct kiocb *unused, struct socket *sock,
 			goto unlock;
 	}
 
-	err = memcpy_toiovec(msg->msg_iov, ctx->result, len);
+	err = memcpy_to_msg(msg, ctx->result, len);
 
 unlock:
 	release_sock(sk);
@@ -258,8 +258,8 @@ static void hash_sock_destruct(struct sock *sk)
 	struct alg_sock *ask = alg_sk(sk);
 	struct hash_ctx *ctx = ask->private;
 
-	sock_kfree_s(sk, ctx->result,
-		     crypto_ahash_digestsize(crypto_ahash_reqtfm(&ctx->req)));
+	sock_kzfree_s(sk, ctx->result,
+		      crypto_ahash_digestsize(crypto_ahash_reqtfm(&ctx->req)));
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);
 }

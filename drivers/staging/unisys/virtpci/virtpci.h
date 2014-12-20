@@ -42,25 +42,25 @@ struct net_adap_info {
 	u8 mac_addr[MAX_MACADDR_LEN];
 	int num_rcv_bufs;
 	unsigned mtu;
-	uuid_le zoneGuid;
+	uuid_le zone_uuid;
 };
 
-typedef enum {
+enum virtpci_dev_type {
 	VIRTHBA_TYPE = 0,
 	VIRTNIC_TYPE = 1,
 	VIRTBUS_TYPE = 6,
-} VIRTPCI_DEV_TYPE;
+};
 
 struct virtpci_dev {
-	VIRTPCI_DEV_TYPE devtype;	/* indicates type of the
+	enum virtpci_dev_type devtype;	/* indicates type of the
 					 * virtual pci device */
 	struct virtpci_driver *mydriver;	/* which driver has allocated
 						 * this device */
 	unsigned short vendor;	/* vendor id for device */
 	unsigned short device;	/* device id for device */
-	u32 busNo;		/* number of bus on which device exists */
-	u32 deviceNo;		/* device's number on the bus */
-	struct InterruptInfo intr;	/* interrupt info */
+	u32 bus_no;		/* number of bus on which device exists */
+	u32 device_no;		/* device's number on the bus */
+	struct irq_info intr;	/* interrupt info */
 	struct device generic_dev;	/* generic device */
 	union {
 		struct scsi_adap_info scsi;
@@ -80,15 +80,15 @@ struct virtpci_driver {
 	const struct pci_device_id *id_table;	/* must be non-NULL for probe
 						 * to be called */
 	int (*probe)(struct virtpci_dev *dev,
-		      const struct pci_device_id *id); /* device inserted */
+		     const struct pci_device_id *id); /* device inserted */
 	void (*remove)(struct virtpci_dev *dev); /* Device removed (NULL if
 						    * not a hot-plug capable
 						    * driver) */
 	int (*suspend)(struct virtpci_dev *dev,
-			u32 state);		   /* Device suspended */
+		       u32 state);		   /* Device suspended */
 	int (*resume)(struct virtpci_dev *dev);	/* Device woken up */
 	int (*enable_wake)(struct virtpci_dev *dev,
-			    u32 state, int enable);	/* Enable wake event */
+			   u32 state, int enable);	/* Enable wake event */
 	struct device_driver core_driver;	/* VIRTPCI core fills this in */
 };
 

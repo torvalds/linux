@@ -995,7 +995,6 @@ static void    de4x5_dbg_mii(struct net_device *dev, int k);
 static void    de4x5_dbg_media(struct net_device *dev);
 static void    de4x5_dbg_srom(struct de4x5_srom *p);
 static void    de4x5_dbg_rx(struct sk_buff *skb, int len);
-static int     de4x5_strncmp(char *a, char *b, int n);
 static int     dc21041_infoleaf(struct net_device *dev);
 static int     dc21140_infoleaf(struct net_device *dev);
 static int     dc21142_infoleaf(struct net_device *dev);
@@ -4102,8 +4101,7 @@ get_hw_addr(struct net_device *dev)
 }
 
 /*
-** Test for enet addresses in the first 32 bytes. The built-in strncmp
-** didn't seem to work here...?
+** Test for enet addresses in the first 32 bytes.
 */
 static int
 de4x5_bad_srom(struct de4x5_private *lp)
@@ -4111,8 +4109,8 @@ de4x5_bad_srom(struct de4x5_private *lp)
     int i, status = 0;
 
     for (i = 0; i < ARRAY_SIZE(enet_det); i++) {
-	if (!de4x5_strncmp((char *)&lp->srom, (char *)&enet_det[i], 3) &&
-	    !de4x5_strncmp((char *)&lp->srom+0x10, (char *)&enet_det[i], 3)) {
+	if (!memcmp(&lp->srom, &enet_det[i], 3) &&
+	    !memcmp((char *)&lp->srom+0x10, &enet_det[i], 3)) {
 	    if (i == 0) {
 		status = SMC;
 	    } else if (i == 1) {
@@ -4123,18 +4121,6 @@ de4x5_bad_srom(struct de4x5_private *lp)
     }
 
     return status;
-}
-
-static int
-de4x5_strncmp(char *a, char *b, int n)
-{
-    int ret=0;
-
-    for (;n && !ret; n--) {
-	ret = *a++ - *b++;
-    }
-
-    return ret;
 }
 
 static void

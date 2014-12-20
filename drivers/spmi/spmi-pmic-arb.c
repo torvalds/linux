@@ -768,7 +768,6 @@ static struct platform_driver spmi_pmic_arb_driver = {
 	.remove		= spmi_pmic_arb_remove,
 	.driver		= {
 		.name	= "spmi_pmic_arb",
-		.owner	= THIS_MODULE,
 		.of_match_table = spmi_pmic_arb_match_table,
 	},
 };

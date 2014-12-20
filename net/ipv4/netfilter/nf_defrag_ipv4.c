@@ -50,7 +50,7 @@ static enum ip_defrag_users nf_ct_defrag_user(unsigned int hooknum,
 		zone = nf_ct_zone((struct nf_conn *)skb->nfct);
 #endif
 
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (skb->nf_bridge &&
 	    skb->nf_bridge->mask & BRNF_NF_BRIDGE_PREROUTING)
 		return IP_DEFRAG_CONNTRACK_BRIDGE_IN + zone;

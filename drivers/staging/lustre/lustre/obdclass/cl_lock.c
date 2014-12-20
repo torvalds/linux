@@ -129,8 +129,7 @@ static void cl_lock_trace0(int level, const struct lu_env *env,
 			   const char *func, const int line)
 {
 	struct cl_object_header *h = cl_object_header(lock->cll_descr.cld_obj);
-	CDEBUG(level, "%s: %p@(%d %p %d %d %d %d %d %lx)"
-		      "(%p/%d/%d) at %s():%d\n",
+	CDEBUG(level, "%s: %p@(%d %p %d %d %d %d %d %lx)(%p/%d/%d) at %s():%d\n",
 	       prefix, lock, atomic_read(&lock->cll_ref),
 	       lock->cll_guarder, lock->cll_depth,
 	       lock->cll_state, lock->cll_error, lock->cll_holds,
@@ -1938,7 +1937,7 @@ int cl_lock_discard_pages(const struct lu_env *env, struct cl_lock *lock)
 	io->ci_ignore_layout = 1;
 	result = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 	if (result != 0)
-		GOTO(out, result);
+		goto out;
 
 	cb = descr->cld_mode == CLM_READ ? check_and_discard_cb : discard_cb;
 	info->clt_fn_index = info->clt_next_index = descr->cld_start;

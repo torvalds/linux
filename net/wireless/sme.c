@@ -80,9 +80,18 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	if (!request)
 		return -ENOMEM;
 
-	if (wdev->conn->params.channel)
+	if (wdev->conn->params.channel) {
+		enum ieee80211_band band = wdev->conn->params.channel->band;
+		struct ieee80211_supported_band *sband =
+			wdev->wiphy->bands[band];
+
+		if (!sband) {
+			kfree(request);
+			return -EINVAL;
+		}
 		request->channels[0] = wdev->conn->params.channel;
-	else {
+		request->rates[band] = (1 << sband->n_bitrates) - 1;
+	} else {
 		int i = 0, j;
 		enum ieee80211_band band;
 		struct ieee80211_supported_band *bands;
@@ -641,7 +650,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	}
 
 	if (status != WLAN_STATUS_SUCCESS) {
-		kfree(wdev->connect_keys);
+		kzfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 		wdev->ssid_len = 0;
 		if (bss) {
@@ -918,7 +927,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (WARN_ON(wdev->connect_keys)) {
-		kfree(wdev->connect_keys);
+		kzfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 	}
 
@@ -978,7 +987,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	kfree(wdev->connect_keys);
+	kzfree(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 
 	if (wdev->conn)

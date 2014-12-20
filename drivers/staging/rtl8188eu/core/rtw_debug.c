@@ -45,7 +45,7 @@ int proc_get_write_reg(char *page, char **start,
 int proc_set_write_reg(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 addr, val, len;
@@ -577,7 +577,7 @@ int proc_get_rx_signal(char *page, char **start,
 int proc_set_rx_signal(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 is_signal_dbg;
@@ -627,7 +627,7 @@ int proc_get_ht_enable(char *page, char **start,
 int proc_set_ht_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -669,7 +669,7 @@ int proc_get_cbw40_enable(char *page, char **start,
 int proc_set_cbw40_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -710,7 +710,7 @@ int proc_get_ampdu_enable(char *page, char **start,
 int proc_set_ampdu_enable(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -771,7 +771,7 @@ int proc_get_rx_stbc(char *page, char **start,
 int proc_set_rx_stbc(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	char tmp[32];
@@ -800,7 +800,7 @@ int proc_get_rssi_disp(char *page, char **start,
 int proc_set_rssi_disp(struct file *file, const char __user *buffer,
 		unsigned long count, void *data)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	char tmp[32];
 	u32 enable = 0;

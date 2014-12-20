@@ -90,9 +90,10 @@ enum {
 
 #define LNET_PROC_VERSION(v)	((unsigned int)((v) & LNET_PROC_VER_MASK))
 
-static int proc_call_handler(void *data, int write, loff_t *ppos, void *buffer,
-			     size_t *lenp, int (*handler)(void *data, int write,
-			     loff_t pos, void *buffer, int len))
+static int proc_call_handler(void *data, int write, loff_t *ppos,
+		void __user *buffer, size_t *lenp,
+		int (*handler)(void *data, int write,
+		loff_t pos, void __user *buffer, int len))
 {
 	int rc = handler(data, write, *ppos, buffer, *lenp);
 
@@ -109,7 +110,7 @@ static int proc_call_handler(void *data, int write, loff_t *ppos, void *buffer,
 }
 
 static int __proc_lnet_stats(void *data, int write,
-			     loff_t pos, void *buffer, int nob)
+			     loff_t pos, void __user *buffer, int nob)
 {
 	int	      rc;
 	lnet_counters_t *ctrs;
@@ -163,8 +164,8 @@ static int proc_lnet_stats(struct ctl_table *table, int write,
 				 __proc_lnet_stats);
 }
 
-int proc_lnet_routes(struct ctl_table *table, int write, void __user *buffer,
-		     size_t *lenp, loff_t *ppos)
+static int proc_lnet_routes(struct ctl_table *table, int write,
+			    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	const int	tmpsiz = 256;
 	char		*tmpstr;
@@ -289,8 +290,8 @@ int proc_lnet_routes(struct ctl_table *table, int write, void __user *buffer,
 	return rc;
 }
 
-int proc_lnet_routers(struct ctl_table *table, int write, void __user *buffer,
-		      size_t *lenp, loff_t *ppos)
+static int proc_lnet_routers(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int	rc = 0;
 	char      *tmpstr;
@@ -424,8 +425,8 @@ int proc_lnet_routers(struct ctl_table *table, int write, void __user *buffer,
 	return rc;
 }
 
-int proc_lnet_peers(struct ctl_table *table, int write, void __user *buffer,
-		    size_t *lenp, loff_t *ppos)
+static int proc_lnet_peers(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	const int		tmpsiz  = 256;
 	struct lnet_peer_table	*ptable;
@@ -592,7 +593,7 @@ int proc_lnet_peers(struct ctl_table *table, int write, void __user *buffer,
 }
 
 static int __proc_lnet_buffers(void *data, int write,
-			       loff_t pos, void *buffer, int nob)
+			       loff_t pos, void __user *buffer, int nob)
 {
 	char	    *s;
 	char	    *tmpstr;
@@ -656,8 +657,8 @@ static int proc_lnet_buffers(struct ctl_table *table, int write,
 				 __proc_lnet_buffers);
 }
 
-int proc_lnet_nis(struct ctl_table *table, int write, void __user *buffer,
-		  size_t *lenp, loff_t *ppos)
+static int proc_lnet_nis(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int	tmpsiz = 128 * LNET_CPT_NUMBER;
 	int	rc = 0;
@@ -790,20 +791,17 @@ static struct lnet_portal_rotors	portal_rotors[] = {
 	{
 		.pr_value = LNET_PTL_ROTOR_ON,
 		.pr_name  = "ON",
-		.pr_desc  = "round-robin dispatch all PUT messages for "
-			    "wildcard portals"
+		.pr_desc  = "round-robin dispatch all PUT messages for wildcard portals"
 	},
 	{
 		.pr_value = LNET_PTL_ROTOR_RR_RT,
 		.pr_name  = "RR_RT",
-		.pr_desc  = "round-robin dispatch routed PUT message for "
-			    "wildcard portals"
+		.pr_desc  = "round-robin dispatch routed PUT message for wildcard portals"
 	},
 	{
 		.pr_value = LNET_PTL_ROTOR_HASH_RT,
 		.pr_name  = "HASH_RT",
-		.pr_desc  = "dispatch routed PUT message by hashing source "
-			    "NID for wildcard portals"
+		.pr_desc  = "dispatch routed PUT message by hashing source NID for wildcard portals"
 	},
 	{
 		.pr_value = -1,
@@ -815,7 +813,7 @@ static struct lnet_portal_rotors	portal_rotors[] = {
 extern int portal_rotor;
 
 static int __proc_lnet_portal_rotor(void *data, int write,
-				    loff_t pos, void *buffer, int nob)
+				    loff_t pos, void __user *buffer, int nob)
 {
 	const int	buf_len	= 128;
 	char		*buf;

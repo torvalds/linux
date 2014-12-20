@@ -4,8 +4,8 @@ Flash chips (Memory Technology Devices) are often used for solid state
 file systems on embedded devices.
 
  - compatible : should contain the specific model of mtd chip(s)
-   used, if known, followed by either "cfi-flash", "jedec-flash"
-   or "mtd-ram".
+   used, if known, followed by either "cfi-flash", "jedec-flash",
+   "mtd-ram" or "mtd-rom".
  - reg : Address range(s) of the mtd chip(s)
    It's possible to (optionally) define multiple "reg" tuples so that
    non-identical chips can be described in one node.

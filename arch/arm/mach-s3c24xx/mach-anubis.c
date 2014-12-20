@@ -430,5 +430,4 @@ MACHINE_START(ANUBIS, "Simtec-Anubis")
 	.init_machine	= anubis_init,
 	.init_irq	= s3c2440_init_irq,
 	.init_time	= anubis_init_time,
-	.restart	= s3c244x_restart,
 MACHINE_END

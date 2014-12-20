@@ -104,6 +104,17 @@ static inline void *vnic_wq_next_desc(struct vnic_wq *wq)
 	return wq->to_use->desc;
 }
 
+static inline void vnic_wq_doorbell(struct vnic_wq *wq)
+{
+	/* Adding write memory barrier prevents compiler and/or CPU
+	 * reordering, thus avoiding descriptor posting before
+	 * descriptor is initialized. Otherwise, hardware can read
+	 * stale descriptor fields.
+	 */
+	wmb();
+	iowrite32(wq->to_use->index, &wq->ctrl->posted_index);
+}
+
 static inline void vnic_wq_post(struct vnic_wq *wq,
 	void *os_buf, dma_addr_t dma_addr,
 	unsigned int len, int sop, int eop,
@@ -122,15 +133,6 @@ static inline void vnic_wq_post(struct vnic_wq *wq,
 	buf->wr_id = wrid;
 
 	buf = buf->next;
-	if (eop) {
-		/* Adding write memory barrier prevents compiler and/or CPU
-		 * reordering, thus avoiding descriptor posting before
-		 * descriptor is initialized. Otherwise, hardware can read
-		 * stale descriptor fields.
-		 */
-		wmb();
-		iowrite32(buf->index, &wq->ctrl->posted_index);
-	}
 	wq->to_use = buf;
 
 	wq->ring.desc_avail -= desc_skip_cnt;

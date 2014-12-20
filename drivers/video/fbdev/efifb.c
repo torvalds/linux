@@ -311,7 +311,6 @@ static int efifb_remove(struct platform_device *pdev)
 static struct platform_driver efifb_driver = {
 	.driver = {
 		.name = "efi-framebuffer",
-		.owner = THIS_MODULE,
 	},
 	.probe = efifb_probe,
 	.remove = efifb_remove,

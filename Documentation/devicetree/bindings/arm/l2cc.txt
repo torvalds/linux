@@ -2,6 +2,10 @@
 
 ARM cores often have a separate level 2 cache controller. There are various
 implementations of the L2 cache controller with compatible programming models.
+Some of the properties that are just prefixed "cache-*" are taken from section
+3.7.3 of the ePAPR v1.1 specification which can be found at:
+https://www.power.org/wp-content/uploads/2012/06/Power_ePAPR_APPROVED_v1.1.pdf
+
 The ARM L2 cache representation in the device tree should be done as follows:
 
 Required properties:
@@ -44,6 +48,12 @@ Optional properties:
   I/O coherent mode. Valid only when the arm,pl310-cache compatible
   string is used.
 - interrupts : 1 combined interrupt.
+- cache-size : specifies the size in bytes of the cache
+- cache-sets : specifies the number of associativity sets of the cache
+- cache-block-size : specifies the size in bytes of a cache block
+- cache-line-size : specifies the size in bytes of a line in the cache,
+  if this is not specified, the line size is assumed to be equal to the
+  cache block size
 - cache-id-part: cache id part number to be used if it is not present
   on hardware
 - wt-override: If present then L2 is forced to Write through mode

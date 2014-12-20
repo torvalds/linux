@@ -312,7 +312,11 @@ static void tps65090_configure_regulator_config(
 			gpio_flag = GPIOF_OUT_INIT_HIGH;
 
 		config->ena_gpio = tps_pdata->gpio;
+		config->ena_gpio_initialized = true;
 		config->ena_gpio_flags = gpio_flag;
+	} else {
+		config->ena_gpio = -EINVAL;
+		config->ena_gpio_initialized = false;
 	}
 }
 
@@ -507,7 +511,6 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps65090_regulator_driver = {
 	.driver	= {
 		.name	= "tps65090-pmic",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tps65090_regulator_probe,
 };

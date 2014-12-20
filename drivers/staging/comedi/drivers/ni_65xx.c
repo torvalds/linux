@@ -294,7 +294,7 @@ MODULE_PARM_DESC(legacy_invert_outputs,
 
 static unsigned int ni_65xx_num_ports(struct comedi_device *dev)
 {
-	const struct ni_65xx_board *board = comedi_board(dev);
+	const struct ni_65xx_board *board = dev->board_ptr;
 
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
@@ -508,9 +508,9 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 	writeb(NI_65XX_CLR_EDGE_INT | NI_65XX_CLR_OVERFLOW_INT,
 	       dev->mmio + NI_65XX_CLR_REG);
 
-	comedi_buf_put(s, 0);
-	s->async->events |= COMEDI_CB_EOS;
-	comedi_event(dev, s);
+	comedi_buf_write_samples(s, &s->state, 1);
+	comedi_handle_events(dev, s);
+
 	return IRQ_HANDLED;
 }
 
@@ -534,9 +534,6 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 	/* Step 2a : make sure trigger sources are unique */
 	/* Step 2b : and mutually compatible */
 
-	if (err)
-		return 2;
-
 	/* Step 3: check if arguments are trivially valid */
 
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
@@ -548,10 +545,9 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: fix up any arguments */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -793,13 +789,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 static void ni_65xx_detach(struct comedi_device *dev)
 {
-	if (dev->mmio) {
+	if (dev->mmio)
 		writeb(0x00, dev->mmio + NI_65XX_CTRL_REG);
-		iounmap(dev->mmio);
-	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver ni_65xx_driver = {

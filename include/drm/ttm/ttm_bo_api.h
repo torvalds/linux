@@ -45,12 +45,24 @@ struct ttm_bo_device;
 
 struct drm_mm_node;
 
+/**
+ * struct ttm_place
+ *
+ * @fpfn:	first valid page frame number to put the object
+ * @lpfn:	last valid page frame number to put the object
+ * @flags:	memory domain and caching flags for the object
+ *
+ * Structure indicating a possible place to put an object.
+ */
+struct ttm_place {
+	unsigned	fpfn;
+	unsigned	lpfn;
+	uint32_t	flags;
+};
 
 /**
  * struct ttm_placement
  *
- * @fpfn:		first valid page frame number to put the object
- * @lpfn:		last valid page frame number to put the object
  * @num_placement:	number of preferred placements
  * @placement:		preferred placements
  * @num_busy_placement:	number of preferred placements when need to evict buffer
@@ -59,12 +71,10 @@ struct drm_mm_node;
  * Structure indicating the placement you request for an object.
  */
 struct ttm_placement {
-	unsigned	fpfn;
-	unsigned	lpfn;
-	unsigned	num_placement;
-	const uint32_t	*placement;
-	unsigned	num_busy_placement;
-	const uint32_t	*busy_placement;
+	unsigned		num_placement;
+	const struct ttm_place	*placement;
+	unsigned		num_busy_placement;
+	const struct ttm_place	*busy_placement;
 };
 
 /**
@@ -163,7 +173,6 @@ struct ttm_tt;
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
- * @sync_obj: Pointer to a synchronization object.
  * @priv_flags: Flags describing buffer object internal state.
  * @vma_node: Address space manager node.
  * @offset: The current GPU offset, which can have different meanings
@@ -227,13 +236,9 @@ struct ttm_buffer_object {
 	struct list_head io_reserve_lru;
 
 	/**
-	 * Members protected by struct buffer_object_device::fence_lock
-	 * In addition, setting sync_obj to anything else
-	 * than NULL requires bo::reserved to be held. This allows for
-	 * checking NULL while reserved but not holding the mentioned lock.
+	 * Members protected by a bo reservation.
 	 */
 
-	void *sync_obj;
 	unsigned long priv_flags;
 
 	struct drm_vma_offset_node vma_node;
@@ -455,6 +460,7 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
  * @acc_size: Accounted size for this object.
+ * @resv: Pointer to a reservation_object, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
  * This function initializes a pre-allocated struct ttm_buffer_object.
@@ -482,6 +488,7 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
 			struct file *persistent_swap_storage,
 			size_t acc_size,
 			struct sg_table *sg,
+			struct reservation_object *resv,
 			void (*destroy) (struct ttm_buffer_object *));
 
 /**
@@ -517,20 +524,6 @@ extern int ttm_bo_create(struct ttm_bo_device *bdev,
 				bool interruptible,
 				struct file *persistent_swap_storage,
 				struct ttm_buffer_object **p_bo);
-
-/**
- * ttm_bo_check_placement
- *
- * @bo:		the buffer object.
- * @placement:	placements
- *
- * Performs minimal validity checking on an intended change of
- * placement flags.
- * Returns
- * -EINVAL: Intended change is invalid or not allowed.
- */
-extern int ttm_bo_check_placement(struct ttm_buffer_object *bo,
-					struct ttm_placement *placement);
 
 /**
  * ttm_bo_init_mm

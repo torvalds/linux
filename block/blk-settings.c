@@ -257,9 +257,7 @@ void blk_limits_max_hw_sectors(struct queue_limits *limits, unsigned int max_hw_
 		       __func__, max_hw_sectors);
 	}
 
-	limits->max_hw_sectors = max_hw_sectors;
-	limits->max_sectors = min_t(unsigned int, max_hw_sectors,
-				    BLK_DEF_MAX_SECTORS);
+	limits->max_sectors = limits->max_hw_sectors = max_hw_sectors;
 }
 EXPORT_SYMBOL(blk_limits_max_hw_sectors);
 
@@ -574,7 +572,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		bottom = max(b->physical_block_size, b->io_min) + alignment;
 
 		/* Verify that top and bottom intervals line up */
-		if (max(top, bottom) & (min(top, bottom) - 1)) {
+		if (max(top, bottom) % min(top, bottom)) {
 			t->misaligned = 1;
 			ret = -1;
 		}
@@ -619,7 +617,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	/* Find lowest common alignment_offset */
 	t->alignment_offset = lcm(t->alignment_offset, alignment)
-		& (max(t->physical_block_size, t->io_min) - 1);
+		% max(t->physical_block_size, t->io_min);
 
 	/* Verify that new alignment_offset is on a logical block boundary */
 	if (t->alignment_offset & (t->logical_block_size - 1)) {

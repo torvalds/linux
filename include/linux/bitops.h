@@ -18,8 +18,11 @@
  * position @h. For example
  * GENMASK_ULL(39, 21) gives us the 64bit vector 0x000000ffffe00000.
  */
-#define GENMASK(h, l)		(((U32_C(1) << ((h) - (l) + 1)) - 1) << (l))
-#define GENMASK_ULL(h, l)	(((U64_C(1) << ((h) - (l) + 1)) - 1) << (l))
+#define GENMASK(h, l) \
+	(((~0UL) << (l)) & (~0UL >> (BITS_PER_LONG - 1 - (h))))
+
+#define GENMASK_ULL(h, l) \
+	(((~0ULL) << (l)) & (~0ULL >> (BITS_PER_LONG_LONG - 1 - (h))))
 
 extern unsigned int __sw_hweight8(unsigned int w);
 extern unsigned int __sw_hweight16(unsigned int w);
@@ -31,26 +34,6 @@ extern unsigned long __sw_hweight64(__u64 w);
  * scope
  */
 #include <asm/bitops.h>
-
-/*
- * Provide __deprecated wrappers for the new interface, avoid flag day changes.
- * We need the ugly external functions to break header recursion hell.
- */
-#ifndef smp_mb__before_clear_bit
-static inline void __deprecated smp_mb__before_clear_bit(void)
-{
-	extern void __smp_mb__before_atomic(void);
-	__smp_mb__before_atomic();
-}
-#endif
-
-#ifndef smp_mb__after_clear_bit
-static inline void __deprecated smp_mb__after_clear_bit(void)
-{
-	extern void __smp_mb__after_atomic(void);
-	__smp_mb__after_atomic();
-}
-#endif
 
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = find_first_bit((addr), (size));		\

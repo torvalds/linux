@@ -35,7 +35,7 @@
 #include "cq_enet_desc.h"
 #include "cq_exch_desc.h"
 
-static u8 fcoe_all_fcfs[ETH_ALEN];
+static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
 struct workqueue_struct *fnic_fip_queue;
 struct workqueue_struct *fnic_event_queue;
 
@@ -101,13 +101,14 @@ void fnic_handle_link(struct work_struct *work)
 				FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
 					     "link up\n");
 				fcoe_ctlr_link_up(&fnic->ctlr);
-			} else
+			} else {
 				/* UP -> UP */
 				spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 				fnic_fc_trace_set_data(
 					fnic->lport->host->host_no, FNIC_FC_LE,
 					"Link Status: UP_UP",
 					strlen("Link Status: UP_UP"));
+			}
 		}
 	} else if (fnic->link_status) {
 		/* DOWN -> UP */
@@ -134,6 +135,11 @@ void fnic_handle_link(struct work_struct *work)
 			fnic->lport->host->host_no, FNIC_FC_LE,
 			"Link Status: UP_DOWN",
 			strlen("Link Status: UP_DOWN"));
+		if (fnic->config.flags & VFCF_FIP_CAPABLE) {
+			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
+				"deleting fip-timer during link-down\n");
+			del_timer_sync(&fnic->fip_timer);
+		}
 		fcoe_ctlr_link_down(&fnic->ctlr);
 	}
 

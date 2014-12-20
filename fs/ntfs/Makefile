@@ -8,7 +8,7 @@ ntfs-y := aops.o attrib.o collate.o compress.o debug.o dir.o file.o \
 
 ntfs-$(CONFIG_NTFS_RW) += bitmap.o lcnalloc.o logfile.o quota.o usnjrnl.o
 
-ccflags-y := -DNTFS_VERSION=\"2.1.30\"
+ccflags-y := -DNTFS_VERSION=\"2.1.31\"
 ccflags-$(CONFIG_NTFS_DEBUG)	+= -DDEBUG
 ccflags-$(CONFIG_NTFS_RW)	+= -DNTFS_RW
 

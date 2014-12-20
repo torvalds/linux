@@ -431,8 +431,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	if (rc)
 		goto neg_exit;
 	if (blob_length)
-		rc = decode_neg_token_init(security_blob, blob_length,
-				   &server->sec_type);
+		rc = decode_negTokenInit(security_blob, blob_length, server);
 	if (rc == 1)
 		rc = 0;
 	else if (rc == 0) {
@@ -1098,6 +1097,8 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 	if (oparms->create_options & CREATE_OPTION_READONLY)
 		file_attributes |= ATTR_READONLY;
+	if (oparms->create_options & CREATE_OPTION_SPECIAL)
+		file_attributes |= ATTR_SYSTEM;
 
 	req->ImpersonationLevel = IL_IMPERSONATION;
 	req->DesiredAccess = cpu_to_le32(oparms->desired_access);
@@ -1357,7 +1358,7 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 	char *ret_data = NULL;
 
 	fsctl_input.CompressionState =
-			__constant_cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+			cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SET_COMPRESSION, true /* is_fsctl */,

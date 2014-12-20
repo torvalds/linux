@@ -41,9 +41,9 @@
 #include <chipcommon.h>
 #include <soc.h>
 #include "chip.h"
-#include "dhd_bus.h"
-#include "dhd_dbg.h"
-#include "sdio_host.h"
+#include "bus.h"
+#include "debug.h"
+#include "sdio.h"
 #include "of.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
@@ -1064,6 +1064,16 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	if (!sdiodev->pdata)
 		brcmf_of_probe(sdiodev);
 
+#ifdef CONFIG_PM_SLEEP
+	/* wowl can be supported when KEEP_POWER is true and (WAKE_SDIO_IRQ
+	 * is true or when platform data OOB irq is true).
+	 */
+	if ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_KEEP_POWER) &&
+	    ((sdio_get_host_pm_caps(sdiodev->func[1]) & MMC_PM_WAKE_SDIO_IRQ) ||
+	     (sdiodev->pdata->oob_irq_supported)))
+		bus_if->wowl_supported = true;
+#endif
+
 	atomic_set(&sdiodev->suspend, false);
 	init_waitqueue_head(&sdiodev->request_word_wait);
 	init_waitqueue_head(&sdiodev->request_buffer_wait);
@@ -1116,34 +1126,39 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 	brcmf_dbg(SDIO, "Exit\n");
 }
 
+void brcmf_sdio_wowl_config(struct device *dev, bool enabled)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+
+	brcmf_dbg(SDIO, "Configuring WOWL, enabled=%d\n", enabled);
+	sdiodev->wowl_enabled = enabled;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int brcmf_ops_sdio_suspend(struct device *dev)
 {
-	mmc_pm_flag_t sdio_flags;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
-	int ret = 0;
+	mmc_pm_flag_t sdio_flags;
 
 	brcmf_dbg(SDIO, "Enter\n");
 
-	sdio_flags = sdio_get_host_pm_caps(sdiodev->func[1]);
-	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
-		brcmf_err("Host can't keep power while suspended\n");
-		return -EINVAL;
-	}
-
 	atomic_set(&sdiodev->suspend, true);
 
-	ret = sdio_set_host_pm_flags(sdiodev->func[1], MMC_PM_KEEP_POWER);
-	if (ret) {
-		brcmf_err("Failed to set pm_flags\n");
-		atomic_set(&sdiodev->suspend, false);
-		return ret;
+	if (sdiodev->wowl_enabled) {
+		sdio_flags = MMC_PM_KEEP_POWER;
+		if (sdiodev->pdata->oob_irq_supported)
+			enable_irq_wake(sdiodev->pdata->oob_irq_nr);
+		else
+			sdio_flags = MMC_PM_WAKE_SDIO_IRQ;
+		if (sdio_set_host_pm_flags(sdiodev->func[1], sdio_flags))
+			brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
 	}
 
 	brcmf_sdio_wd_timer(sdiodev->bus, 0);
 
-	return ret;
+	return 0;
 }
 
 static int brcmf_ops_sdio_resume(struct device *dev)
@@ -1152,6 +1167,8 @@ static int brcmf_ops_sdio_resume(struct device *dev)
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
 	brcmf_dbg(SDIO, "Enter\n");
+	if (sdiodev->pdata->oob_irq_supported)
+		disable_irq_wake(sdiodev->pdata->oob_irq_nr);
 	brcmf_sdio_wd_timer(sdiodev->bus, BRCMF_WD_POLL_MS);
 	atomic_set(&sdiodev->suspend, false);
 	return 0;
@@ -1204,7 +1221,6 @@ static struct platform_driver brcmf_sdio_pd = {
 	.remove		= brcmf_sdio_pd_remove,
 	.driver		= {
 		.name	= BRCMFMAC_SDIO_PDATA_NAME,
-		.owner	= THIS_MODULE,
 	}
 };
 

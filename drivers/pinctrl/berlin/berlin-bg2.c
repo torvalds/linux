@@ -263,7 +263,6 @@ static struct platform_driver berlin2_pinctrl_driver = {
 	.probe	= berlin2_pinctrl_probe,
 	.driver	= {
 		.name = "berlin-bg2-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = berlin2_pinctrl_match,
 	},
 };

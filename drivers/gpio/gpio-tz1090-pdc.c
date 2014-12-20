@@ -230,7 +230,6 @@ static struct of_device_id tz1090_pdc_gpio_of_match[] = {
 static struct platform_driver tz1090_pdc_gpio_driver = {
 	.driver = {
 		.name		= "tz1090-pdc-gpio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_pdc_gpio_of_match,
 	},
 	.probe		= tz1090_pdc_gpio_probe,

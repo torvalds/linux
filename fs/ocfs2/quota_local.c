@@ -166,12 +166,12 @@ static int ocfs2_read_quota_block(struct inode *inode, u64 v_block,
 /* Check whether we understand format of quota files */
 static int ocfs2_local_check_quota_file(struct super_block *sb, int type)
 {
-	unsigned int lmagics[MAXQUOTAS] = OCFS2_LOCAL_QMAGICS;
-	unsigned int lversions[MAXQUOTAS] = OCFS2_LOCAL_QVERSIONS;
-	unsigned int gmagics[MAXQUOTAS] = OCFS2_GLOBAL_QMAGICS;
-	unsigned int gversions[MAXQUOTAS] = OCFS2_GLOBAL_QVERSIONS;
-	unsigned int ino[MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
-					GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int lmagics[OCFS2_MAXQUOTAS] = OCFS2_LOCAL_QMAGICS;
+	unsigned int lversions[OCFS2_MAXQUOTAS] = OCFS2_LOCAL_QVERSIONS;
+	unsigned int gmagics[OCFS2_MAXQUOTAS] = OCFS2_GLOBAL_QMAGICS;
+	unsigned int gversions[OCFS2_MAXQUOTAS] = OCFS2_GLOBAL_QVERSIONS;
+	unsigned int ino[OCFS2_MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
+					      GROUP_QUOTA_SYSTEM_INODE };
 	struct buffer_head *bh = NULL;
 	struct inode *linode = sb_dqopt(sb)->files[type];
 	struct inode *ginode = NULL;
@@ -336,7 +336,7 @@ void ocfs2_free_quota_recovery(struct ocfs2_quota_recovery *rec)
 {
 	int type;
 
-	for (type = 0; type < MAXQUOTAS; type++)
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++)
 		free_recovery_list(&(rec->r_list[type]));
 	kfree(rec);
 }
@@ -382,7 +382,7 @@ static struct ocfs2_quota_recovery *ocfs2_alloc_quota_recovery(void)
 	rec = kmalloc(sizeof(struct ocfs2_quota_recovery), GFP_NOFS);
 	if (!rec)
 		return NULL;
-	for (type = 0; type < MAXQUOTAS; type++)
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++)
 		INIT_LIST_HEAD(&(rec->r_list[type]));
 	return rec;
 }
@@ -392,10 +392,11 @@ struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 						struct ocfs2_super *osb,
 						int slot_num)
 {
-	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
-					    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
-	unsigned int ino[MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
-					LOCAL_GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int feature[OCFS2_MAXQUOTAS] = {
+					OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
+					OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
+	unsigned int ino[OCFS2_MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
+					      LOCAL_GROUP_QUOTA_SYSTEM_INODE };
 	struct super_block *sb = osb->sb;
 	struct ocfs2_local_disk_dqinfo *ldinfo;
 	struct inode *lqinode;
@@ -412,7 +413,7 @@ struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 		return ERR_PTR(-ENOMEM);
 	/* First init... */
 
-	for (type = 0; type < MAXQUOTAS; type++) {
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 			continue;
 		/* At this point, journal of the slot is already replayed so
@@ -589,8 +590,8 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 				struct ocfs2_quota_recovery *rec,
 				int slot_num)
 {
-	unsigned int ino[MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
-					LOCAL_GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int ino[OCFS2_MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
+					      LOCAL_GROUP_QUOTA_SYSTEM_INODE };
 	struct super_block *sb = osb->sb;
 	struct ocfs2_local_disk_dqinfo *ldinfo;
 	struct buffer_head *bh;
@@ -604,7 +605,7 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 	       "slot %u\n", osb->dev_str, slot_num);
 
 	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
-	for (type = 0; type < MAXQUOTAS; type++) {
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (list_empty(&(rec->r_list[type])))
 			continue;
 		trace_ocfs2_finish_quota_recovery(slot_num);

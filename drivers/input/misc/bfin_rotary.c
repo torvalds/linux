@@ -256,7 +256,6 @@ static struct platform_driver bfin_rotary_device_driver = {
 	.remove		= bfin_rotary_remove,
 	.driver		= {
 		.name	= "bfin-rotary",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &bfin_rotary_pm_ops,
 #endif

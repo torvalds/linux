@@ -354,7 +354,6 @@ static struct platform_device bfin_sir0_device = {
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 2,
-	.irq_type = IRQF_TRIGGER_HIGH,
 };
 
 static struct resource bfin_pata_resources[] = {
@@ -371,7 +370,7 @@ static struct resource bfin_pata_resources[] = {
 	{
 		.start = PATA_INT,
 		.end = PATA_INT,
-		.flags = IORESOURCE_IRQ,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
 

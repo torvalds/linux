@@ -35,8 +35,11 @@
 #include "def.h"
 #include "hw.h"
 #include "phy.h"
+#include "../rtl8192c/phy_common.h"
 #include "rf.h"
 #include "dm.h"
+#include "../rtl8192c/dm_common.h"
+#include "../rtl8192c/fw_common.h"
 #include "table.h"
 
 static bool _rtl92c_phy_config_mac_with_headerfile(struct ieee80211_hw *hw);

@@ -387,7 +387,6 @@ static const struct dev_pm_ops tegra20_spdif_pm_ops = {
 static struct platform_driver tegra20_spdif_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &tegra20_spdif_pm_ops,
 	},
 	.probe = tegra20_spdif_platform_probe,

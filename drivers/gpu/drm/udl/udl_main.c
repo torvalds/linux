@@ -202,7 +202,7 @@ static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 		}
 		unode->urb = urb;
 
-		buf = usb_alloc_coherent(udl->ddev->usbdev, MAX_TRANSFER, GFP_KERNEL,
+		buf = usb_alloc_coherent(udl->udev, MAX_TRANSFER, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
@@ -211,7 +211,7 @@ static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 		}
 
 		/* urb->transfer_buffer_length set to actual before submit */
-		usb_fill_bulk_urb(urb, udl->ddev->usbdev, usb_sndbulkpipe(udl->ddev->usbdev, 1),
+		usb_fill_bulk_urb(urb, udl->udev, usb_sndbulkpipe(udl->udev, 1),
 			buf, size, udl_urb_completion, unode);
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -282,6 +282,7 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 
 int udl_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	struct usb_device *udev = (void*)flags;
 	struct udl_device *udl;
 	int ret = -ENOMEM;
 
@@ -290,10 +291,11 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!udl)
 		return -ENOMEM;
 
+	udl->udev = udev;
 	udl->ddev = dev;
 	dev->dev_private = udl;
 
-	if (!udl_parse_vendor_descriptor(dev, dev->usbdev)) {
+	if (!udl_parse_vendor_descriptor(dev, udl->udev)) {
 		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;

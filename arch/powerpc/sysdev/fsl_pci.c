@@ -23,7 +23,6 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
@@ -152,7 +151,7 @@ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 		flags |= 0x10000000; /* enable relaxed ordering */
 
 	for (i = 0; size > 0; i++) {
-		unsigned int bits = min(ilog2(size),
+		unsigned int bits = min_t(u32, ilog2(size),
 					__ffs(pci_addr | phys_addr));
 
 		if (index + i >= 5)
@@ -522,7 +521,8 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	} else {
 		/* For PCI read PROG to identify controller mode */
 		early_read_config_byte(hose, 0, 0, PCI_CLASS_PROG, &progif);
-		if ((progif & 1) == 1)
+		if ((progif & 1) &&
+		    !of_property_read_bool(dev, "fsl,pci-agent-force-enum"))
 			goto no_bridge;
 	}
 

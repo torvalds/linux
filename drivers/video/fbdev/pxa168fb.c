@@ -823,7 +823,6 @@ static int pxa168fb_remove(struct platform_device *pdev)
 static struct platform_driver pxa168fb_driver = {
 	.driver		= {
 		.name	= "pxa168-fb",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa168fb_probe,
 	.remove		= pxa168fb_remove,

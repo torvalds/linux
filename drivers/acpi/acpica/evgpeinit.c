@@ -424,6 +424,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	}
 
 	/* Disable the GPE in case it's been enabled already. */
+
 	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_DISABLE);
 
 	/*

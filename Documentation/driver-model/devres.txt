@@ -264,8 +264,10 @@ IIO
 IO region
   devm_release_mem_region()
   devm_release_region()
+  devm_release_resource()
   devm_request_mem_region()
   devm_request_region()
+  devm_request_resource()
 
 IOMAP
   devm_ioport_map()
@@ -281,7 +283,9 @@ IOMAP
 
 IRQ
   devm_free_irq()
+  devm_request_any_context_irq()
   devm_request_irq()
+  devm_request_threaded_irq()
 
 MDIO
   devm_mdiobus_alloc()
@@ -291,11 +295,14 @@ MDIO
 MEM
   devm_free_pages()
   devm_get_free_pages()
+  devm_kasprintf()
   devm_kcalloc()
   devm_kfree()
   devm_kmalloc()
   devm_kmalloc_array()
   devm_kmemdup()
+  devm_kstrdup()
+  devm_kvasprintf()
   devm_kzalloc()
 
 PCI

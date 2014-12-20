@@ -74,8 +74,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 end:
-	if (spdif_np)
-		of_node_put(spdif_np);
+	of_node_put(spdif_np);
 
 	return ret;
 }
@@ -89,7 +88,6 @@ MODULE_DEVICE_TABLE(of, imx_spdif_dt_ids);
 static struct platform_driver imx_spdif_driver = {
 	.driver = {
 		.name = "imx-spdif",
-		.owner = THIS_MODULE,
 		.of_match_table = imx_spdif_dt_ids,
 	},
 	.probe = imx_spdif_audio_probe,

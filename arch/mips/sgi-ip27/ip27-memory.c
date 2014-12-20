@@ -42,8 +42,7 @@ static int fine_mode;
 
 static int is_fine_dirmode(void)
 {
-	return (((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK)
-		>> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE);
+	return ((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK) >> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE;
 }
 
 static hubreg_t get_region(cnodeid_t cnode)
@@ -107,6 +106,7 @@ static void router_recurse(klrou_t *router_a, klrou_t *router_b, int depth)
 }
 
 unsigned char __node_distances[MAX_COMPACT_NODES][MAX_COMPACT_NODES];
+EXPORT_SYMBOL(__node_distances);
 
 static int __init compute_node_distance(nasid_t nasid_a, nasid_t nasid_b)
 {
@@ -287,7 +287,7 @@ static unsigned long __init slot_psize_compute(cnodeid_t node, int slot)
 	if (size <= 128) {
 		if (slot % 4 == 0) {
 			size <<= 20;		/* size in bytes */
-			return(size >> PAGE_SHIFT);
+			return size >> PAGE_SHIFT;
 		} else
 			return 0;
 	} else {

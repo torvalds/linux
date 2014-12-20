@@ -13,6 +13,7 @@ typedef struct {
 
 typedef struct {
 	unsigned int lock;
+	unsigned int owner;
 } arch_rwlock_t;
 
 #define __ARCH_RW_LOCK_UNLOCKED		{ 0 }

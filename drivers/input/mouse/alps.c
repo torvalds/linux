@@ -835,8 +835,8 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 		f->fingers = alps_process_bitmap(priv, f);
 	}
 
-	f->left = packet[4] & 0x01;
-	f->right = packet[4] & 0x02;
+	f->left = !!(packet[4] & 0x01);
+	f->right = !!(packet[4] & 0x02);
 
 	f->st.x = ((packet[1] & 0x7f) << 4) | ((packet[3] & 0x30) >> 2) |
 		  ((packet[0] & 0x30) >> 4);
@@ -1156,7 +1156,13 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
 
-	if ((psmouse->packet[0] & 0xc8) == 0x08) { /* PS/2 packet */
+	/*
+	 * Check if we are dealing with a bare PS/2 packet, presumably from
+	 * a device connected to the external PS/2 port. Because bare PS/2
+	 * protocol does not have enough constant bits to self-synchronize
+	 * properly we only do this if the device is fully synchronized.
+	 */
+	if (!psmouse->out_of_sync_cnt && (psmouse->packet[0] & 0xc8) == 0x08) {
 		if (psmouse->pktcnt == 3) {
 			alps_report_bare_ps2_packet(psmouse, psmouse->packet,
 						    true);
@@ -1180,12 +1186,27 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 	}
 
 	/* Bytes 2 - pktsize should have 0 in the highest bit */
-	if ((priv->proto_version < ALPS_PROTO_V5) &&
+	if (priv->proto_version < ALPS_PROTO_V5 &&
 	    psmouse->pktcnt >= 2 && psmouse->pktcnt <= psmouse->pktsize &&
 	    (psmouse->packet[psmouse->pktcnt - 1] & 0x80)) {
 		psmouse_dbg(psmouse, "refusing packet[%i] = %x\n",
 			    psmouse->pktcnt - 1,
 			    psmouse->packet[psmouse->pktcnt - 1]);
+
+		if (priv->proto_version == ALPS_PROTO_V3 &&
+		    psmouse->pktcnt == psmouse->pktsize) {
+			/*
+			 * Some Dell boxes, such as Latitude E6440 or E7440
+			 * with closed lid, quite often smash last byte of
+			 * otherwise valid packet with 0xff. Given that the
+			 * next packet is very likely to be valid let's
+			 * report PSMOUSE_FULL_PACKET but not process data,
+			 * rather than reporting PSMOUSE_BAD_DATA and
+			 * filling the logs.
+			 */
+			return PSMOUSE_FULL_PACKET;
+		}
+
 		return PSMOUSE_BAD_DATA;
 	}
 
@@ -2388,6 +2409,9 @@ int alps_init(struct psmouse *psmouse)
 
 	/* We are having trouble resyncing ALPS touchpads so disable it for now */
 	psmouse->resync_time = 0;
+
+	/* Allow 2 invalid packets without resetting device */
+	psmouse->resetafter = psmouse->pktsize * 2;
 
 	return 0;
 

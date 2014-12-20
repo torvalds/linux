@@ -77,11 +77,10 @@ static ssize_t broken_parity_status_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(broken_parity_status);
 
-static ssize_t pci_dev_show_local_cpu(struct device *dev, int type,
+static ssize_t pci_dev_show_local_cpu(struct device *dev, bool list,
 				      struct device_attribute *attr, char *buf)
 {
 	const struct cpumask *mask;
-	int len;
 
 #ifdef CONFIG_NUMA
 	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
@@ -89,59 +88,41 @@ static ssize_t pci_dev_show_local_cpu(struct device *dev, int type,
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif
-	len = type ?
-		cpumask_scnprintf(buf, PAGE_SIZE-2, mask) :
-		cpulist_scnprintf(buf, PAGE_SIZE-2, mask);
-
-	buf[len++] = '\n';
-	buf[len] = '\0';
-	return len;
+	return cpumap_print_to_pagebuf(list, buf, mask);
 }
 
 static ssize_t local_cpus_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	return pci_dev_show_local_cpu(dev, 1, attr, buf);
+	return pci_dev_show_local_cpu(dev, false, attr, buf);
 }
 static DEVICE_ATTR_RO(local_cpus);
 
 static ssize_t local_cpulist_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	return pci_dev_show_local_cpu(dev, 0, attr, buf);
+	return pci_dev_show_local_cpu(dev, true, attr, buf);
 }
 static DEVICE_ATTR_RO(local_cpulist);
 
 /*
  * PCI Bus Class Devices
  */
-static ssize_t pci_bus_show_cpuaffinity(struct device *dev, int type,
-					struct device_attribute *attr,
-					char *buf)
-{
-	int ret;
-	const struct cpumask *cpumask;
-
-	cpumask = cpumask_of_pcibus(to_pci_bus(dev));
-	ret = type ?
-		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask) :
-		cpumask_scnprintf(buf, PAGE_SIZE-2, cpumask);
-	buf[ret++] = '\n';
-	buf[ret] = '\0';
-	return ret;
-}
-
 static ssize_t cpuaffinity_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return pci_bus_show_cpuaffinity(dev, 0, attr, buf);
+	const struct cpumask *cpumask = cpumask_of_pcibus(to_pci_bus(dev));
+
+	return cpumap_print_to_pagebuf(false, buf, cpumask);
 }
 static DEVICE_ATTR_RO(cpuaffinity);
 
 static ssize_t cpulistaffinity_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
+	const struct cpumask *cpumask = cpumask_of_pcibus(to_pci_bus(dev));
+
+	return cpumap_print_to_pagebuf(true, buf, cpumask);
 }
 static DEVICE_ATTR_RO(cpulistaffinity);
 
@@ -177,7 +158,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 
-	return sprintf(buf, "pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02x\n",
+	return sprintf(buf, "pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02X\n",
 		       pci_dev->vendor, pci_dev->device,
 		       pci_dev->subsystem_vendor, pci_dev->subsystem_device,
 		       (u8)(pci_dev->class >> 16), (u8)(pci_dev->class >> 8),
@@ -185,7 +166,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(modalias);
 
-static ssize_t enabled_store(struct device *dev, struct device_attribute *attr,
+static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -210,7 +191,7 @@ static ssize_t enabled_store(struct device *dev, struct device_attribute *attr,
 	return result < 0 ? result : count;
 }
 
-static ssize_t enabled_show(struct device *dev, struct device_attribute *attr,
+static ssize_t enable_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct pci_dev *pdev;
@@ -218,15 +199,40 @@ static ssize_t enabled_show(struct device *dev, struct device_attribute *attr,
 	pdev = to_pci_dev(dev);
 	return sprintf(buf, "%u\n", atomic_read(&pdev->enable_cnt));
 }
-static DEVICE_ATTR_RW(enabled);
+static DEVICE_ATTR_RW(enable);
 
 #ifdef CONFIG_NUMA
+static ssize_t numa_node_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int node, ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = kstrtoint(buf, 0, &node);
+	if (ret)
+		return ret;
+
+	if (!node_online(node))
+		return -EINVAL;
+
+	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
+	dev_alert(&pdev->dev, FW_BUG "Overriding NUMA node to %d.  Contact your vendor for updates.",
+		  node);
+
+	dev->numa_node = node;
+	return count;
+}
+
 static ssize_t numa_node_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	return sprintf(buf, "%d\n", dev->numa_node);
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RW(numa_node);
 #endif
 
 static ssize_t dma_mask_bits_show(struct device *dev,
@@ -250,46 +256,45 @@ static ssize_t msi_bus_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_bus *subordinate = pdev->subordinate;
 
-	if (!pdev->subordinate)
-		return 0;
-
-	return sprintf(buf, "%u\n",
-		       !(pdev->subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI));
+	return sprintf(buf, "%u\n", subordinate ?
+		       !(subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+			   : !pdev->no_msi);
 }
 
 static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_bus *subordinate = pdev->subordinate;
 	unsigned long val;
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	/*
-	 * Bad things may happen if the no_msi flag is changed
-	 * while drivers are loaded.
-	 */
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/*
-	 * Maybe devices without subordinate buses shouldn't have this
-	 * attribute in the first place?
+	 * "no_msi" and "bus_flags" only affect what happens when a driver
+	 * requests MSI or MSI-X.  They don't affect any drivers that have
+	 * already requested MSI or MSI-X.
 	 */
-	if (!pdev->subordinate)
+	if (!subordinate) {
+		pdev->no_msi = !val;
+		dev_info(&pdev->dev, "MSI/MSI-X %s for future drivers\n",
+			 val ? "allowed" : "disallowed");
 		return count;
-
-	/* Is the flag going to change, or keep the value it already had? */
-	if (!(pdev->subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI) ^
-	    !!val) {
-		pdev->subordinate->bus_flags ^= PCI_BUS_FLAGS_NO_MSI;
-
-		dev_warn(&pdev->dev, "forced subordinate bus to%s support MSI, bad things could happen\n",
-			 val ? "" : " not");
 	}
 
+	if (val)
+		subordinate->bus_flags &= ~PCI_BUS_FLAGS_NO_MSI;
+	else
+		subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+
+	dev_info(&subordinate->dev, "MSI/MSI-X %s for future drivers of devices on this bus\n",
+		 val ? "allowed" : "disallowed");
 	return count;
 }
 static DEVICE_ATTR_RW(msi_bus);
@@ -386,7 +391,7 @@ static ssize_t dev_bus_rescan_store(struct device *dev,
 }
 static DEVICE_ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, dev_bus_rescan_store);
 
-#if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
+#if defined(CONFIG_PM) && defined(CONFIG_ACPI)
 static ssize_t d3cold_allowed_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
@@ -564,10 +569,10 @@ static struct attribute *pci_dev_attrs[] = {
 #endif
 	&dev_attr_dma_mask_bits.attr,
 	&dev_attr_consistent_dma_mask_bits.attr,
-	&dev_attr_enabled.attr,
+	&dev_attr_enable.attr,
 	&dev_attr_broken_parity_status.attr,
 	&dev_attr_msi_bus.attr,
-#if defined(CONFIG_PM_RUNTIME) && defined(CONFIG_ACPI)
+#if defined(CONFIG_PM) && defined(CONFIG_ACPI)
 	&dev_attr_d3cold_allowed.attr,
 #endif
 #ifdef CONFIG_OF

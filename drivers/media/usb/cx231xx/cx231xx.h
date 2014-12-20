@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/usb.h>
 
 #include <media/cx2341x.h>
 
@@ -322,10 +323,11 @@ enum cx231xx_decoder {
 };
 
 enum CX231XX_I2C_MASTER_PORT {
-	I2C_0 = 0,
-	I2C_1 = 1,
-	I2C_2 = 2,
-	I2C_3 = 3
+	I2C_0 = 0,       /* master 0 - internal connection */
+	I2C_1 = 1,       /* master 1 - used with mux */
+	I2C_2 = 2,       /* master 2 */
+	I2C_1_MUX_1 = 3, /* master 1 - port 1 (I2C_DEMOD_EN = 0) */
+	I2C_1_MUX_3 = 4  /* master 1 - port 3 (I2C_DEMOD_EN = 1) */
 };
 
 struct cx231xx_board {
@@ -367,7 +369,6 @@ struct cx231xx_board {
 	unsigned int valid:1;
 	unsigned int no_alt_vanc:1;
 	unsigned int external_av:1;
-	unsigned int dont_use_port_3:1;
 
 	unsigned char xclk, i2c_speed;
 
@@ -472,7 +473,6 @@ struct cx231xx_i2c {
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap;
-	struct i2c_client i2c_client;
 	u32 i2c_rc;
 
 	/* different settings for each bus */
@@ -597,6 +597,7 @@ struct cx231xx {
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
+	struct device *dev;	/* pointer to USB interface's dev */
 
 	struct cx231xx_board board;
 
@@ -608,6 +609,8 @@ struct cx231xx {
 	unsigned int vbi_stream_on:1;	/* Locks streams for VBI */
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
+
+	unsigned int i2c_scan_running:1; /* true only during i2c_scan */
 
 	struct cx231xx_fmt *format;
 
@@ -628,7 +631,10 @@ struct cx231xx {
 
 	/* I2C adapters: Master 1 & 2 (External) & Master 3 (Internal only) */
 	struct cx231xx_i2c i2c_bus[3];
+	struct i2c_adapter *i2c_mux_adap[2];
+
 	unsigned int xc_fw_load_done:1;
+	unsigned int port_3_switch_enabled:1;
 	/* locks */
 	struct mutex gpio_i2c_lock;
 	struct mutex i2c_lock;
@@ -751,9 +757,12 @@ int cx231xx_set_analog_freq(struct cx231xx *dev, u32 freq);
 int cx231xx_reset_analog_tuner(struct cx231xx *dev);
 
 /* Provided by cx231xx-i2c.c */
-void cx231xx_do_i2c_scan(struct cx231xx *dev, struct i2c_client *c);
+void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port);
 int cx231xx_i2c_register(struct cx231xx_i2c *bus);
 int cx231xx_i2c_unregister(struct cx231xx_i2c *bus);
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no);
+void cx231xx_i2c_mux_unregister(struct cx231xx *dev, int mux_no);
+struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port);
 
 /* Internal block control functions */
 int cx231xx_read_i2c_master(struct cx231xx *dev, u8 dev_addr, u16 saddr,
@@ -802,7 +811,6 @@ void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev);
 void reset_s5h1432_demod(struct cx231xx *dev);
 void cx231xx_dump_HH_reg(struct cx231xx *dev);
 void update_HH_register_after_set_DIF(struct cx231xx *dev);
-void cx231xx_dump_SC_reg(struct cx231xx *dev);
 
 
 
@@ -975,23 +983,6 @@ void cx231xx_ir_exit(struct cx231xx *dev);
 #define cx231xx_ir_init(dev)	(0)
 #define cx231xx_ir_exit(dev)	(0)
 #endif
-
-
-/* printk macros */
-
-#define cx231xx_err(fmt, arg...) do {\
-	printk(KERN_ERR fmt , ##arg); } while (0)
-
-#define cx231xx_errdev(fmt, arg...) do {\
-	printk(KERN_ERR "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-
-#define cx231xx_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-#define cx231xx_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "%s: "fmt,\
-			dev->name , ##arg); } while (0)
 
 static inline unsigned int norm_maxw(struct cx231xx *dev)
 {

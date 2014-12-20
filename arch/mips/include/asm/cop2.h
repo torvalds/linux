@@ -37,15 +37,15 @@ extern void nlm_cop2_restore(struct nlm_cop2_state *);
 
 #define cop2_present		1
 #define cop2_lazy_restore	1
-#define cop2_save(r)		do { (r); } while (0)
-#define cop2_restore(r)		do { (r); } while (0)
+#define cop2_save(r)		do { (void)(r); } while (0)
+#define cop2_restore(r)		do { (void)(r); } while (0)
 
 #else
 
 #define cop2_present		0
 #define cop2_lazy_restore	0
-#define cop2_save(r)		do { (r); } while (0)
-#define cop2_restore(r)		do { (r); } while (0)
+#define cop2_save(r)		do { (void)(r); } while (0)
+#define cop2_restore(r)		do { (void)(r); } while (0)
 #endif
 
 enum cu2_ops {

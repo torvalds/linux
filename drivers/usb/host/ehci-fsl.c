@@ -93,20 +93,14 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev,
-			"Found HC with no register addr. Check %s setup!\n",
-			dev_name(&pdev->dev));
-		retval = -ENODEV;
-		goto err2;
-	}
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
 	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err2;
 	}
+
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	pdata->regs = hcd->regs;
 
@@ -136,15 +130,15 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	if (pdata->operating_mode == FSL_USB2_DR_OTG) {
 		struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-		hcd->phy = usb_get_phy(USB_PHY_TYPE_USB2);
+		hcd->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
 		dev_dbg(&pdev->dev, "hcd=0x%p  ehci=0x%p, phy=0x%p\n",
-			hcd, ehci, hcd->phy);
+			hcd, ehci, hcd->usb_phy);
 
-		if (!IS_ERR_OR_NULL(hcd->phy)) {
-			retval = otg_set_host(hcd->phy->otg,
+		if (!IS_ERR_OR_NULL(hcd->usb_phy)) {
+			retval = otg_set_host(hcd->usb_phy->otg,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
-				usb_put_phy(hcd->phy);
+				usb_put_phy(hcd->usb_phy);
 				goto err2;
 			}
 		} else {
@@ -181,9 +175,9 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 {
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
-	if (!IS_ERR_OR_NULL(hcd->phy)) {
-		otg_set_host(hcd->phy->otg, NULL);
-		usb_put_phy(hcd->phy);
+	if (!IS_ERR_OR_NULL(hcd->usb_phy)) {
+		otg_set_host(hcd->usb_phy->otg, NULL);
+		usb_put_phy(hcd->usb_phy);
 	}
 
 	usb_remove_hcd(hcd);
@@ -627,7 +621,7 @@ static int ehci_start_port_reset(struct usb_hcd *hcd, unsigned port)
 	if (!(status & PORT_CONNECT))
 		return -ENODEV;
 
-	/* khubd will finish the reset later */
+	/* hub_wq will finish the reset later */
 	if (ehci_is_TDI(ehci)) {
 		writel(PORT_RESET |
 		       (status & ~(PORT_CSC | PORT_PEC | PORT_OCC)),

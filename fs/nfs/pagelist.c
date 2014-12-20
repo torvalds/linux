@@ -258,6 +258,7 @@ bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
 static inline void
 nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 {
+	struct inode *inode;
 	WARN_ON_ONCE(prev == req);
 
 	if (!prev) {
@@ -276,12 +277,16 @@ nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 		 * nfs_page_group_destroy is called */
 		kref_get(&req->wb_head->wb_kref);
 
-		/* grab extra ref if head request has extra ref from
-		 * the write/commit path to handle handoff between write
-		 * and commit lists */
+		/* grab extra ref and bump the request count if head request
+		 * has extra ref from the write/commit path to handle handoff
+		 * between write and commit lists. */
 		if (test_bit(PG_INODE_REF, &prev->wb_head->wb_flags)) {
+			inode = page_file_mapping(req->wb_page)->host;
 			set_bit(PG_INODE_REF, &req->wb_flags);
 			kref_get(&req->wb_kref);
+			spin_lock(&inode->i_lock);
+			NFS_I(inode)->nrequests++;
+			spin_unlock(&inode->i_lock);
 		}
 	}
 }
@@ -481,6 +486,14 @@ size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 		return 0;
 	}
 
+	/*
+	 * Limit the request size so that we can still allocate a page array
+	 * for it without upsetting the slab allocator.
+	 */
+	if (((desc->pg_count + req->wb_bytes) >> PAGE_SHIFT) *
+			sizeof(struct page) > PAGE_SIZE)
+		return 0;
+
 	return min(desc->pg_bsize - desc->pg_count, (size_t)req->wb_bytes);
 }
 EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
@@ -518,7 +531,8 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
  */
 void nfs_pgio_data_destroy(struct nfs_pgio_header *hdr)
 {
-	put_nfs_open_context(hdr->args.context);
+	if (hdr->args.context)
+		put_nfs_open_context(hdr->args.context);
 	if (hdr->page_array.pagevec != hdr->page_array.page_array)
 		kfree(hdr->page_array.pagevec);
 }
@@ -743,12 +757,11 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &hdr->pages);
 
-		if (WARN_ON_ONCE(pageused >= pagecount))
-			return nfs_pgio_error(desc, hdr);
-
 		if (!last_page || last_page != req->wb_page) {
-			*pages++ = last_page = req->wb_page;
 			pageused++;
+			if (pageused > pagecount)
+				break;
+			*pages++ = last_page = req->wb_page;
 		}
 	}
 	if (WARN_ON_ONCE(pageused != pagecount))

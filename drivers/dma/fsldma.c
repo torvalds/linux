@@ -36,7 +36,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-
+#include <linux/fsldma.h>
 #include "dmaengine.h"
 #include "fsldma.h"
 
@@ -366,6 +366,20 @@ static void fsl_chan_toggle_ext_start(struct fsldma_chan *chan, int enable)
 	else
 		chan->feature &= ~FSL_DMA_CHAN_START_EXT;
 }
+
+int fsl_dma_external_start(struct dma_chan *dchan, int enable)
+{
+	struct fsldma_chan *chan;
+
+	if (!dchan)
+		return -EINVAL;
+
+	chan = to_fsl_chan(dchan);
+
+	fsl_chan_toggle_ext_start(chan, enable);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fsl_dma_external_start);
 
 static void append_ld_queue(struct fsldma_chan *chan, struct fsl_desc_sw *desc)
 {
@@ -998,15 +1012,6 @@ static int fsl_dma_device_control(struct dma_chan *dchan,
 		chan->set_request_count(chan, size);
 		return 0;
 
-	case FSLDMA_EXTERNAL_START:
-
-		/* make sure the channel supports external start */
-		if (!chan->toggle_ext_start)
-			return -ENXIO;
-
-		chan->toggle_ext_start(chan, arg);
-		return 0;
-
 	default:
 		return -ENXIO;
 	}
@@ -1332,7 +1337,6 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 
 	/* Add the channel to DMA device channel list */
 	list_add_tail(&chan->common.device_node, &fdev->common.channels);
-	fdev->common.chancnt++;
 
 	dev_info(fdev->dev, "#%d (%s), irq %d\n", chan->id, compatible,
 		 chan->irq != NO_IRQ ? chan->irq : fdev->irq);
@@ -1535,7 +1539,6 @@ static const struct of_device_id fsldma_of_ids[] = {
 static struct platform_driver fsldma_of_driver = {
 	.driver = {
 		.name = "fsl-elo-dma",
-		.owner = THIS_MODULE,
 		.of_match_table = fsldma_of_ids,
 #ifdef CONFIG_PM
 		.pm = &fsldma_pm_ops,

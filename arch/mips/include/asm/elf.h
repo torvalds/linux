@@ -8,6 +8,8 @@
 #ifndef _ASM_ELF_H
 #define _ASM_ELF_H
 
+#include <linux/fs.h>
+#include <uapi/linux/elf.h>
 
 /* ELF header e_flags defines. */
 /* MIPS architecture level. */
@@ -28,6 +30,7 @@
 #define PT_MIPS_REGINFO		0x70000000
 #define PT_MIPS_RTPROC		0x70000001
 #define PT_MIPS_OPTIONS		0x70000002
+#define PT_MIPS_ABIFLAGS	0x70000003
 
 /* Flags in the e_flags field of the header */
 #define EF_MIPS_NOREORDER	0x00000001
@@ -174,6 +177,30 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
+struct mips_elf_abiflags_v0 {
+	uint16_t version;	/* Version of flags structure */
+	uint8_t isa_level;	/* The level of the ISA: 1-5, 32, 64 */
+	uint8_t isa_rev;	/* The revision of ISA: 0 for MIPS V and below,
+				   1-n otherwise */
+	uint8_t gpr_size;	/* The size of general purpose registers */
+	uint8_t cpr1_size;	/* The size of co-processor 1 registers */
+	uint8_t cpr2_size;	/* The size of co-processor 2 registers */
+	uint8_t fp_abi;		/* The floating-point ABI */
+	uint32_t isa_ext;	/* Mask of processor-specific extensions */
+	uint32_t ases;		/* Mask of ASEs used */
+	uint32_t flags1;	/* Mask of general flags */
+	uint32_t flags2;
+};
+
+#define MIPS_ABI_FP_ANY		0	/* FP ABI doesn't matter */
+#define MIPS_ABI_FP_DOUBLE	1	/* -mdouble-float */
+#define MIPS_ABI_FP_SINGLE	2	/* -msingle-float */
+#define MIPS_ABI_FP_SOFT	3	/* -msoft-float */
+#define MIPS_ABI_FP_OLD_64	4	/* -mips32r2 -mfp64 */
+#define MIPS_ABI_FP_XX		5	/* -mfpxx */
+#define MIPS_ABI_FP_64		6	/* -mips32r2 -mfp64 */
+#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -mno-odd-spreg */
+
 #ifdef CONFIG_32BIT
 
 /*
@@ -262,15 +289,12 @@ extern struct mips_abi mips_abi_n32;
 
 #ifdef CONFIG_32BIT
 
-#define SET_PERSONALITY(ex)						\
+#define SET_PERSONALITY2(ex, state)					\
 do {									\
-	if ((ex).e_flags & EF_MIPS_FP64)				\
-		clear_thread_flag(TIF_32BIT_FPREGS);			\
-	else								\
-		set_thread_flag(TIF_32BIT_FPREGS);			\
-									\
 	if (personality(current->personality) != PER_LINUX)		\
 		set_personality(PER_LINUX);				\
+									\
+	mips_set_personality_fp(state);					\
 									\
 	current->thread.abi = &mips_abi;				\
 } while (0)
@@ -291,44 +315,44 @@ do {									\
 #endif
 
 #ifdef CONFIG_MIPS32_O32
-#define __SET_PERSONALITY32_O32(ex)					\
+#define __SET_PERSONALITY32_O32(ex, state)				\
 	do {								\
 		set_thread_flag(TIF_32BIT_REGS);			\
 		set_thread_flag(TIF_32BIT_ADDR);			\
 									\
-		if (!((ex).e_flags & EF_MIPS_FP64))			\
-			set_thread_flag(TIF_32BIT_FPREGS);		\
+		mips_set_personality_fp(state);				\
 									\
 		current->thread.abi = &mips_abi_32;			\
 	} while (0)
 #else
-#define __SET_PERSONALITY32_O32(ex)					\
+#define __SET_PERSONALITY32_O32(ex, state)				\
 	do { } while (0)
 #endif
 
 #ifdef CONFIG_MIPS32_COMPAT
-#define __SET_PERSONALITY32(ex)						\
+#define __SET_PERSONALITY32(ex, state)					\
 do {									\
 	if ((((ex).e_flags & EF_MIPS_ABI2) != 0) &&			\
 	     ((ex).e_flags & EF_MIPS_ABI) == 0)				\
 		__SET_PERSONALITY32_N32();				\
 	else								\
-		__SET_PERSONALITY32_O32(ex);                            \
+		__SET_PERSONALITY32_O32(ex, state);			\
 } while (0)
 #else
-#define __SET_PERSONALITY32(ex) do { } while (0)
+#define __SET_PERSONALITY32(ex, state) do { } while (0)
 #endif
 
-#define SET_PERSONALITY(ex)						\
+#define SET_PERSONALITY2(ex, state)					\
 do {									\
 	unsigned int p;							\
 									\
 	clear_thread_flag(TIF_32BIT_REGS);				\
 	clear_thread_flag(TIF_32BIT_FPREGS);				\
+	clear_thread_flag(TIF_HYBRID_FPREGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
 									\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)			\
-		__SET_PERSONALITY32(ex);				\
+		__SET_PERSONALITY32(ex, state);				\
 	else								\
 		current->thread.abi = &mips_abi;			\
 									\
@@ -389,5 +413,25 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 struct mm_struct;
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
+
+struct arch_elf_state {
+	int fp_abi;
+	int interp_fp_abi;
+	int overall_abi;
+};
+
+#define INIT_ARCH_ELF_STATE {			\
+	.fp_abi = -1,				\
+	.interp_fp_abi = -1,			\
+	.overall_abi = -1,			\
+}
+
+extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
+			    bool is_interp, struct arch_elf_state *state);
+
+extern int arch_check_elf(void *ehdr, bool has_interpreter,
+			  struct arch_elf_state *state);
+
+extern void mips_set_personality_fp(struct arch_elf_state *state);
 
 #endif /* _ASM_ELF_H */

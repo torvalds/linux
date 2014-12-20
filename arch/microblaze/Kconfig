@@ -1,5 +1,6 @@
 config MICROBLAZE
 	def_bool y
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -128,6 +129,10 @@ config SECCOMP
 endmenu
 
 menu "Kernel features"
+
+config NR_CPUS
+	int
+	default "1"
 
 config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"

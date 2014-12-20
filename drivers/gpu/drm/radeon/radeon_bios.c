@@ -658,12 +658,10 @@ bool radeon_get_bios(struct radeon_device *rdev)
 		r = igp_read_bios_from_vram(rdev);
 	if (r == false)
 		r = radeon_read_bios(rdev);
-	if (r == false) {
+	if (r == false)
 		r = radeon_read_disabled_bios(rdev);
-	}
-	if (r == false) {
+	if (r == false)
 		r = radeon_read_platform_bios(rdev);
-	}
 	if (r == false || rdev->bios == NULL) {
 		DRM_ERROR("Unable to locate a BIOS ROM\n");
 		rdev->bios = NULL;

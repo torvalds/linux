@@ -51,8 +51,6 @@
 #include "../include/obd_class.h"
 #include "../include/lustre_log.h"
 #include <linux/list.h>
-#include "../include/lvfs.h"
-#include "../include/lustre_fsfilt.h"
 
 int llog_initiator_connect(struct llog_ctxt *ctxt)
 {

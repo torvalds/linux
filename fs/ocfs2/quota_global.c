@@ -336,8 +336,8 @@ void ocfs2_unlock_global_qf(struct ocfs2_mem_dqinfo *oinfo, int ex)
 int ocfs2_global_read_info(struct super_block *sb, int type)
 {
 	struct inode *gqinode = NULL;
-	unsigned int ino[MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
-					GROUP_QUOTA_SYSTEM_INODE };
+	unsigned int ino[OCFS2_MAXQUOTAS] = { USER_QUOTA_SYSTEM_INODE,
+					      GROUP_QUOTA_SYSTEM_INODE };
 	struct ocfs2_global_disk_dqinfo dinfo;
 	struct mem_dqinfo *info = sb_dqinfo(sb, type);
 	struct ocfs2_mem_dqinfo *oinfo = info->dqi_priv;

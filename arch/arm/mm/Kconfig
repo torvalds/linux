@@ -21,7 +21,7 @@ config CPU_ARM7TDMI
 
 # ARM720T
 config CPU_ARM720T
-	bool "Support ARM720T processor" if ARCH_INTEGRATOR
+	bool "Support ARM720T processor" if (ARCH_MULTI_V4T && ARCH_INTEGRATOR)
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V4
@@ -39,7 +39,7 @@ config CPU_ARM720T
 
 # ARM740T
 config CPU_ARM740T
-	bool "Support ARM740T processor" if ARCH_INTEGRATOR
+	bool "Support ARM740T processor" if (ARCH_MULTI_V4T && ARCH_INTEGRATOR)
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
@@ -71,7 +71,7 @@ config CPU_ARM9TDMI
 
 # ARM920T
 config CPU_ARM920T
-	bool "Support ARM920T processor" if ARCH_INTEGRATOR
+	bool "Support ARM920T processor" if (ARCH_MULTI_V4T && ARCH_INTEGRATOR)
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
@@ -89,7 +89,7 @@ config CPU_ARM920T
 
 # ARM922T
 config CPU_ARM922T
-	bool "Support ARM922T processor" if ARCH_INTEGRATOR
+	bool "Support ARM922T processor" if (ARCH_MULTI_V4T && ARCH_INTEGRATOR)
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
@@ -127,7 +127,7 @@ config CPU_ARM925T
 
 # ARM926T
 config CPU_ARM926T
-	bool "Support ARM926T processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
+	bool "Support ARM926T processor" if (!ARCH_MULTIPLATFORM || ARCH_MULTI_V5) && (ARCH_INTEGRATOR || MACH_REALVIEW_EB)
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
 	select CPU_CACHE_VIVT
@@ -163,7 +163,7 @@ config CPU_FA526
 
 # ARM940T
 config CPU_ARM940T
-	bool "Support ARM940T processor" if ARCH_INTEGRATOR
+	bool "Support ARM940T processor" if (ARCH_MULTI_V4T && ARCH_INTEGRATOR)
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
@@ -181,7 +181,7 @@ config CPU_ARM940T
 
 # ARM946E-S
 config CPU_ARM946E
-	bool "Support ARM946E-S processor" if ARCH_INTEGRATOR
+	bool "Support ARM946E-S processor" if (ARCH_MULTI_V5 && ARCH_INTEGRATOR)
 	depends on !MMU
 	select CPU_32v5
 	select CPU_ABRT_NOMMU
@@ -198,7 +198,7 @@ config CPU_ARM946E
 
 # ARM1020 - needs validating
 config CPU_ARM1020
-	bool "Support ARM1020T (rev 0) processor" if ARCH_INTEGRATOR
+	bool "Support ARM1020T (rev 0) processor" if (ARCH_MULTI_V5 && ARCH_INTEGRATOR)
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
@@ -216,7 +216,7 @@ config CPU_ARM1020
 
 # ARM1020E - needs validating
 config CPU_ARM1020E
-	bool "Support ARM1020E processor" if ARCH_INTEGRATOR
+	bool "Support ARM1020E processor" if (ARCH_MULTI_V5 && ARCH_INTEGRATOR)
 	depends on n
 	select CPU_32v5
 	select CPU_ABRT_EV4T
@@ -229,7 +229,7 @@ config CPU_ARM1020E
 
 # ARM1022E
 config CPU_ARM1022
-	bool "Support ARM1022E processor" if ARCH_INTEGRATOR
+	bool "Support ARM1022E processor" if (ARCH_MULTI_V5 && ARCH_INTEGRATOR)
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_VIVT
@@ -247,7 +247,7 @@ config CPU_ARM1022
 
 # ARM1026EJ-S
 config CPU_ARM1026
-	bool "Support ARM1026EJ-S processor" if ARCH_INTEGRATOR
+	bool "Support ARM1026EJ-S processor" if (ARCH_MULTI_V5 && ARCH_INTEGRATOR)
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
 	select CPU_CACHE_VIVT
@@ -358,7 +358,7 @@ config CPU_PJ4B
 
 # ARMv6
 config CPU_V6
-	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
+	bool "Support ARM V6 processor" if (!ARCH_MULTIPLATFORM || ARCH_MULTI_V6) && (ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX)
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
@@ -371,7 +371,7 @@ config CPU_V6
 
 # ARMv6k
 config CPU_V6K
-	bool "Support ARM V6K processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
+	bool "Support ARM V6K processor" if (!ARCH_MULTIPLATFORM || ARCH_MULTI_V6) && (ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX)
 	select CPU_32v6
 	select CPU_32v6K
 	select CPU_ABRT_EV6
@@ -385,7 +385,7 @@ config CPU_V6K
 
 # ARMv7
 config CPU_V7
-	bool "Support ARM V7 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
+	bool "Support ARM V7 processor" if (!ARCH_MULTIPLATFORM || ARCH_MULTI_V7) && (ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX)
 	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7
@@ -798,6 +798,7 @@ config NEED_KUSER_HELPERS
 
 config KUSER_HELPERS
 	bool "Enable kuser helpers in vector page" if !NEED_KUSER_HELPERS
+	depends on MMU
 	default y
 	help
 	  Warning: disabling this option may break user programs.
@@ -1008,3 +1009,24 @@ config ARCH_SUPPORTS_BIG_ENDIAN
 	help
 	  This option specifies the architecture can support big endian
 	  operation.
+
+config ARM_KERNMEM_PERMS
+	bool "Restrict kernel memory permissions"
+	help
+	  If this is set, kernel memory other than kernel text (and rodata)
+	  will be made non-executable. The tradeoff is that each region is
+	  padded to section-size (1MiB) boundaries (because their permissions
+	  are different and splitting the 1M pages into 4K ones causes TLB
+	  performance problems), wasting memory.
+
+config DEBUG_RODATA
+	bool "Make kernel text and rodata read-only"
+	depends on ARM_KERNMEM_PERMS
+	default y
+	help
+	  If this is set, kernel text and rodata will be made read-only. This
+	  is to help catch accidental or malicious attempts to change the
+	  kernel's executable code. Additionally splits rodata from kernel
+	  text so it can be made explicitly non-executable. This creates
+	  another section-size padded region, so it can waste more memory
+	  space while gaining the read-only protections.

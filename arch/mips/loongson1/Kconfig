@@ -5,8 +5,8 @@ choice
 
 config LOONGSON1_LS1B
 	bool "Loongson LS1B board"
-	select CEVT_R4K
-	select CSRC_R4K
+	select CEVT_R4K if !MIPS_EXTERNAL_TIMER
+	select CSRC_R4K if !MIPS_EXTERNAL_TIMER
 	select SYS_HAS_CPU_LOONGSON1B
 	select DMA_NONCOHERENT
 	select BOOT_ELF32
@@ -16,7 +16,45 @@ config LOONGSON1_LS1B
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_MIPS16
 	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
 	select COMMON_CLK
+
+endchoice
+
+menuconfig CEVT_CSRC_LS1X
+	bool "Use PWM Timer for clockevent/clocksource"
+	select MIPS_EXTERNAL_TIMER
+	depends on CPU_LOONGSON1
+	help
+	  This option changes the default clockevent/clocksource to PWM Timer,
+	  and is required by Loongson1 CPUFreq support.
+
+	  If unsure, say N.
+
+choice
+	prompt  "Select clockevent/clocksource"
+	depends on CEVT_CSRC_LS1X
+	default TIMER_USE_PWM0
+
+config TIMER_USE_PWM0
+	bool "Use PWM Timer 0"
+	help
+	  Use PWM Timer 0 as the default clockevent/clocksourcer.
+
+config TIMER_USE_PWM1
+	bool "Use PWM Timer 1"
+	help
+	  Use PWM Timer 1 as the default clockevent/clocksourcer.
+
+config TIMER_USE_PWM2
+	bool "Use PWM Timer 2"
+	help
+	  Use PWM Timer 2 as the default clockevent/clocksourcer.
+
+config TIMER_USE_PWM3
+	bool "Use PWM Timer 3"
+	help
+	  Use PWM Timer 3 as the default clockevent/clocksourcer.
 
 endchoice
 

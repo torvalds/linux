@@ -15,18 +15,23 @@
 
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
 /* Fast-BCR without checkpoint synchronization */
-#define mb() do {  asm volatile("bcr 14,0" : : : "memory"); } while (0)
+#define __ASM_BARRIER "bcr 14,0\n"
 #else
-#define mb() do {  asm volatile("bcr 15,0" : : : "memory"); } while (0)
+#define __ASM_BARRIER "bcr 15,0\n"
 #endif
+
+#define mb() do {  asm volatile(__ASM_BARRIER : : : "memory"); } while (0)
 
 #define rmb()				mb()
 #define wmb()				mb()
-#define read_barrier_depends()		do { } while(0)
+#define dma_rmb()			rmb()
+#define dma_wmb()			wmb()
 #define smp_mb()			mb()
 #define smp_rmb()			rmb()
 #define smp_wmb()			wmb()
-#define smp_read_barrier_depends()	read_barrier_depends()
+
+#define read_barrier_depends()		do { } while (0)
+#define smp_read_barrier_depends()	do { } while (0)
 
 #define smp_mb__before_atomic()		smp_mb()
 #define smp_mb__after_atomic()		smp_mb()

@@ -673,6 +673,7 @@ static struct spi_driver tpo_td043_spi_driver = {
 		.owner	= THIS_MODULE,
 		.pm	= &tpo_td043_spi_pm,
 		.of_match_table = tpo_td043_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe	= tpo_td043_probe,
 	.remove	= tpo_td043_remove,

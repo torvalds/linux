@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,6 +81,7 @@
  * @IWL_FW_ERROR_DUMP_FW_MONITOR: firmware monitor
  * @IWL_FW_ERROR_DUMP_PRPH: range of periphery registers - there can be several
  *	sections like this in a single file.
+ * @IWL_FW_ERROR_DUMP_FH_REGS: range of FH registers
  */
 enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_SRAM = 0,
@@ -88,6 +91,8 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_DEV_FW_INFO = 4,
 	IWL_FW_ERROR_DUMP_FW_MONITOR = 5,
 	IWL_FW_ERROR_DUMP_PRPH = 6,
+	IWL_FW_ERROR_DUMP_TXF = 7,
+	IWL_FW_ERROR_DUMP_FH_REGS = 8,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };

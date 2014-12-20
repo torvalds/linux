@@ -254,6 +254,20 @@
 			0x238 (PIN_OUTPUT_PULLUP | MUX_MODE7)
 		>;
 	};
+
+	dcan0_default: dcan0_default_pins {
+		pinctrl-single,pins = <
+			0x178 (PIN_OUTPUT | MUX_MODE2)		/* uart1_ctsn.d_can0_tx */
+			0x17c (PIN_INPUT_PULLUP | MUX_MODE2)	/* uart1_rtsn.d_can0_rx */
+		>;
+	};
+
+	dcan1_default: dcan1_default_pins {
+		pinctrl-single,pins = <
+			0x180 (PIN_OUTPUT | MUX_MODE2)		/* uart1_rxd.d_can1_tx */
+			0x184 (PIN_INPUT_PULLUP | MUX_MODE2)	/* uart1_txd.d_can1_rx */
+		>;
+	};
 };
 
 &i2c0 {
@@ -291,8 +305,8 @@
 		dcdc3: regulator-dcdc3 {
 			compatible = "ti,tps65218-dcdc3";
 			regulator-name = "vdcdc3";
-			regulator-min-microvolt = <1350000>;
-			regulator-max-microvolt = <1350000>;
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <1500000>;
 			regulator-boot-on;
 			regulator-always-on;
 		};
@@ -341,6 +355,14 @@
 
 &epwmss0 {
 	status = "okay";
+};
+
+&tscadc {
+	status = "okay";
+
+	adc {
+		ti,adc-channels = <0 1 2 3 4 5 6 7>;
+	};
 };
 
 &ecap0 {
@@ -510,4 +532,16 @@
 			data-lines = <24>;
 		};
 	};
+};
+
+&dcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan0_default>;
+	status = "okay";
+};
+
+&dcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan1_default>;
+	status = "okay";
 };

@@ -245,7 +245,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 
 struct dt3k_private {
 	unsigned int lock;
-	unsigned int ao_readback[2];
 	unsigned int ai_front;
 	unsigned int ai_rear;
 };
@@ -316,7 +315,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 
 	for (i = 0; i < count; i++) {
 		data = readw(dev->mmio + DPR_ADC_buffer + rear);
-		comedi_buf_put(s, data);
+		comedi_buf_write_samples(s, &data, 1);
 		rear++;
 		if (rear >= AI_FIFO_DEPTH)
 			rear = 0;
@@ -352,10 +351,8 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 
 	status = readw(dev->mmio + DPR_Intr_Flag);
 
-	if (status & DT3000_ADFULL) {
+	if (status & DT3000_ADFULL)
 		dt3k_ai_empty_fifo(dev, s);
-		s->async->events |= COMEDI_CB_BLOCK;
-	}
 
 	if (status & (DT3000_ADSWERR | DT3000_ADHWERR))
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
@@ -364,7 +361,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	if (debug_n_ints >= 10)
 		s->async->events |= COMEDI_CB_EOA;
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -378,15 +375,15 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 
 	for (prescale = 0; prescale < 16; prescale++) {
 		base = timer_base * (prescale + 1);
-		switch (flags & TRIG_ROUND_MASK) {
-		case TRIG_ROUND_NEAREST:
+		switch (flags & CMDF_ROUND_MASK) {
+		case CMDF_ROUND_NEAREST:
 		default:
 			divider = (*nanosec + base / 2) / base;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			divider = (*nanosec) / base;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			divider = (*nanosec) / base;
 			break;
 		}
@@ -406,7 +403,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 static int dt3k_ai_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct dt3k_boardtype *this_board = comedi_board(dev);
+	const struct dt3k_boardtype *this_board = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
@@ -423,9 +420,6 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 2a : make sure trigger sources are unique */
 	/* Step 2b : and mutually compatible */
-
-	if (err)
-		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
 
@@ -488,7 +482,6 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int chan, range, aref;
 	unsigned int divider;
 	unsigned int tscandiv;
-	unsigned int mode;
 
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		chan = CR_CHAN(cmd->chanlist[i]);
@@ -513,8 +506,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writew((tscandiv & 0xffff), dev->mmio + DPR_Params(4));
 	}
 
-	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
-	writew(mode, dev->mmio + DPR_Params(5));
+	writew(DT3000_AD_RETRIG_INTERNAL, dev->mmio + DPR_Params(5));
 	writew(aref == AREF_DIFF, dev->mmio + DPR_Params(6));
 
 	writew(AI_FIFO_DEPTH / 2, dev->mmio + DPR_Params(7));
@@ -550,35 +542,22 @@ static int dt3k_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-static int dt3k_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int dt3k_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct dt3k_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
-	unsigned int chan;
 
-	chan = CR_CHAN(insn->chanspec);
 	for (i = 0; i < insn->n; i++) {
-		dt3k_writesingle(dev, SUBS_AO, chan, data[i]);
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		dt3k_writesingle(dev, SUBS_AO, chan, val);
 	}
+	s->readback[chan] = val;
 
-	return i;
-}
-
-static int dt3k_ao_insn_read(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
-{
-	struct dt3k_private *devpriv = dev->private;
-	int i;
-	unsigned int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 static void dt3k_dio_config(struct comedi_device *dev, int bits)
@@ -714,11 +693,14 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
-	s->insn_read	= dt3k_ao_insn_read;
-	s->insn_write	= dt3k_ao_insn;
 	s->maxdata	= (1 << this_board->dabits) - 1;
 	s->len_chanlist	= 1;
 	s->range_table	= &range_bipolar10;
+	s->insn_write	= dt3k_ao_insn_write;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* dio subsystem */
@@ -750,20 +732,11 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void dt3000_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver dt3000_driver = {
 	.driver_name	= "dt3000",
 	.module		= THIS_MODULE,
 	.auto_attach	= dt3000_auto_attach,
-	.detach		= dt3000_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int dt3000_pci_probe(struct pci_dev *dev,

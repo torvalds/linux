@@ -81,14 +81,14 @@ struct pci_ops pci_root_ops = {
  */
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 
-static int can_skip_ioresource_align(const struct dmi_system_id *d)
+static int __init can_skip_ioresource_align(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
 	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
 	return 0;
 }
 
-static const struct dmi_system_id can_skip_pciprobe_dmi_table[] = {
+static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __initconst = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
@@ -186,7 +186,7 @@ void pcibios_remove_bus(struct pci_bus *bus)
  * on the kernel command line (which was parsed earlier).
  */
 
-static int set_bf_sort(const struct dmi_system_id *d)
+static int __init set_bf_sort(const struct dmi_system_id *d)
 {
 	if (pci_bf_sort == pci_bf_sort_default) {
 		pci_bf_sort = pci_dmi_bf;
@@ -195,8 +195,8 @@ static int set_bf_sort(const struct dmi_system_id *d)
 	return 0;
 }
 
-static void read_dmi_type_b1(const struct dmi_header *dm,
-				       void *private_data)
+static void __init read_dmi_type_b1(const struct dmi_header *dm,
+				    void *private_data)
 {
 	u8 *d = (u8 *)dm + 4;
 
@@ -217,7 +217,7 @@ static void read_dmi_type_b1(const struct dmi_header *dm,
 	}
 }
 
-static int find_sort_method(const struct dmi_system_id *d)
+static int __init find_sort_method(const struct dmi_system_id *d)
 {
 	dmi_walk(read_dmi_type_b1, NULL);
 
@@ -232,7 +232,7 @@ static int find_sort_method(const struct dmi_system_id *d)
  * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
  */
 #ifdef __i386__
-static int assign_all_busses(const struct dmi_system_id *d)
+static int __init assign_all_busses(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_ASSIGN_ALL_BUSSES;
 	printk(KERN_INFO "%s detected: enabling PCI bus# renumbering"
@@ -241,7 +241,7 @@ static int assign_all_busses(const struct dmi_system_id *d)
 }
 #endif
 
-static int set_scan_all(const struct dmi_system_id *d)
+static int __init set_scan_all(const struct dmi_system_id *d)
 {
 	printk(KERN_INFO "PCI: %s detected, enabling pci=pcie_scan_all\n",
 	       d->ident);
@@ -249,7 +249,7 @@ static int set_scan_all(const struct dmi_system_id *d)
 	return 0;
 }
 
-static const struct dmi_system_id pciprobe_dmi_table[] = {
+static const struct dmi_system_id pciprobe_dmi_table[] __initconst = {
 #ifdef __i386__
 /*
  * Laptops which need pci=assign-busses to see Cardbus cards
@@ -512,7 +512,7 @@ int __init pcibios_init(void)
 	return 0;
 }
 
-char * __init pcibios_setup(char *str)
+char *__init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;

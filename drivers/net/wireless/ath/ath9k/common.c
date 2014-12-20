@@ -159,7 +159,7 @@ void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
 		if (test_bit(keyix, common->keymap))
 			rxs->flag |= RX_FLAG_DECRYPTED;
 	}
-	if (ah->sw_mgmt_crypto &&
+	if (ah->sw_mgmt_crypto_rx &&
 	    (rxs->flag & RX_FLAG_DECRYPTED) &&
 	    ieee80211_is_mgmt(fc))
 		/* Use software decrypt for management frames. */
@@ -368,11 +368,11 @@ void ath9k_cmn_update_txpow(struct ath_hw *ah, u16 cur_txpow,
 {
 	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
 
-	if (reg->power_limit != new_txpow) {
+	if (reg->power_limit != new_txpow)
 		ath9k_hw_set_txpowerlimit(ah, new_txpow, false);
-		/* read back in case value is clamped */
-		*txpower = reg->max_power_level;
-	}
+
+	/* read back in case value is clamped */
+	*txpower = reg->max_power_level;
 }
 EXPORT_SYMBOL(ath9k_cmn_update_txpow);
 

@@ -130,6 +130,8 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | \
 					 _TIF_SIGPENDING)
 
+#define is_32bit_task()	(1)
+
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_THREAD_INFO_H */

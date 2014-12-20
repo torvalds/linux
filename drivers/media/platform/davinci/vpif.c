@@ -38,6 +38,7 @@ MODULE_LICENSE("GPL");
 #define VPIF_CH3_MAX_MODES	2
 
 spinlock_t vpif_lock;
+EXPORT_SYMBOL_GPL(vpif_lock);
 
 void __iomem *vpif_base;
 EXPORT_SYMBOL_GPL(vpif_base);
@@ -466,7 +467,6 @@ static const struct dev_pm_ops vpif_pm = {
 static struct platform_driver vpif_driver = {
 	.driver = {
 		.name	= "vpif",
-		.owner = THIS_MODULE,
 		.pm	= vpif_pm_ops,
 	},
 	.remove = vpif_remove,

@@ -33,6 +33,9 @@
 /* Check if EEH is supported */
 #define VFIO_EEH			5
 
+/* Two-stage IOMMU */
+#define VFIO_TYPE1_NESTING_IOMMU	6	/* Implies v2 */
+
 /*
  * The IOCTL interface is designed for extensibility by embedding the
  * structure length (argsz) and flags into structures passed between

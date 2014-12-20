@@ -1084,10 +1084,8 @@ static int g762_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret)
 		goto clock_dis;
 
-	data->hwmon_dev = devm_hwmon_device_register_with_groups(dev,
-								 client->name,
-								 data,
-								 g762_groups);
+	data->hwmon_dev = hwmon_device_register_with_groups(dev, client->name,
+							    data, g762_groups);
 	if (IS_ERR(data->hwmon_dev)) {
 		ret = PTR_ERR(data->hwmon_dev);
 		goto clock_dis;

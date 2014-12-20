@@ -72,6 +72,169 @@ static const struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
 
 
 /*
+ * check if the chipset is supported
+ */
+static int r600_audio_chipset_supported(struct radeon_device *rdev)
+{
+	return ASIC_IS_DCE2(rdev) && !ASIC_IS_NODCE(rdev);
+}
+
+static struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
+{
+	struct r600_audio_pin status;
+	uint32_t value;
+
+	value = RREG32(R600_AUDIO_RATE_BPS_CHANNEL);
+
+	/* number of channels */
+	status.channels = (value & 0x7) + 1;
+
+	/* bits per sample */
+	switch ((value & 0xF0) >> 4) {
+	case 0x0:
+		status.bits_per_sample = 8;
+		break;
+	case 0x1:
+		status.bits_per_sample = 16;
+		break;
+	case 0x2:
+		status.bits_per_sample = 20;
+		break;
+	case 0x3:
+		status.bits_per_sample = 24;
+		break;
+	case 0x4:
+		status.bits_per_sample = 32;
+		break;
+	default:
+		dev_err(rdev->dev, "Unknown bits per sample 0x%x, using 16\n",
+			(int)value);
+		status.bits_per_sample = 16;
+	}
+
+	/* current sampling rate in HZ */
+	if (value & 0x4000)
+		status.rate = 44100;
+	else
+		status.rate = 48000;
+	status.rate *= ((value >> 11) & 0x7) + 1;
+	status.rate /= ((value >> 8) & 0x7) + 1;
+
+	value = RREG32(R600_AUDIO_STATUS_BITS);
+
+	/* iec 60958 status bits */
+	status.status_bits = value & 0xff;
+
+	/* iec 60958 category code */
+	status.category_code = (value >> 8) & 0xff;
+
+	return status;
+}
+
+/*
+ * update all hdmi interfaces with current audio parameters
+ */
+void r600_audio_update_hdmi(struct work_struct *work)
+{
+	struct radeon_device *rdev = container_of(work, struct radeon_device,
+						  audio_work);
+	struct drm_device *dev = rdev->ddev;
+	struct r600_audio_pin audio_status = r600_audio_status(rdev);
+	struct drm_encoder *encoder;
+	bool changed = false;
+
+	if (rdev->audio.pin[0].channels != audio_status.channels ||
+	    rdev->audio.pin[0].rate != audio_status.rate ||
+	    rdev->audio.pin[0].bits_per_sample != audio_status.bits_per_sample ||
+	    rdev->audio.pin[0].status_bits != audio_status.status_bits ||
+	    rdev->audio.pin[0].category_code != audio_status.category_code) {
+		rdev->audio.pin[0] = audio_status;
+		changed = true;
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (!radeon_encoder_is_digital(encoder))
+			continue;
+		if (changed || r600_hdmi_buffer_status_changed(encoder))
+			r600_hdmi_update_audio_settings(encoder);
+	}
+}
+
+/* enable the audio stream */
+void r600_audio_enable(struct radeon_device *rdev,
+		       struct r600_audio_pin *pin,
+		       u8 enable_mask)
+{
+	u32 tmp = RREG32(AZ_HOT_PLUG_CONTROL);
+
+	if (!pin)
+		return;
+
+	if (enable_mask) {
+		tmp |= AUDIO_ENABLED;
+		if (enable_mask & 1)
+			tmp |= PIN0_AUDIO_ENABLED;
+		if (enable_mask & 2)
+			tmp |= PIN1_AUDIO_ENABLED;
+		if (enable_mask & 4)
+			tmp |= PIN2_AUDIO_ENABLED;
+		if (enable_mask & 8)
+			tmp |= PIN3_AUDIO_ENABLED;
+	} else {
+		tmp &= ~(AUDIO_ENABLED |
+			 PIN0_AUDIO_ENABLED |
+			 PIN1_AUDIO_ENABLED |
+			 PIN2_AUDIO_ENABLED |
+			 PIN3_AUDIO_ENABLED);
+	}
+
+	WREG32(AZ_HOT_PLUG_CONTROL, tmp);
+}
+
+/*
+ * initialize the audio vars
+ */
+int r600_audio_init(struct radeon_device *rdev)
+{
+	if (!radeon_audio || !r600_audio_chipset_supported(rdev))
+		return 0;
+
+	rdev->audio.enabled = true;
+
+	rdev->audio.num_pins = 1;
+	rdev->audio.pin[0].channels = -1;
+	rdev->audio.pin[0].rate = -1;
+	rdev->audio.pin[0].bits_per_sample = -1;
+	rdev->audio.pin[0].status_bits = 0;
+	rdev->audio.pin[0].category_code = 0;
+	rdev->audio.pin[0].id = 0;
+	/* disable audio.  it will be set up later */
+	r600_audio_enable(rdev, &rdev->audio.pin[0], 0);
+
+	return 0;
+}
+
+/*
+ * release the audio timer
+ * TODO: How to do this correctly on SMP systems?
+ */
+void r600_audio_fini(struct radeon_device *rdev)
+{
+	if (!rdev->audio.enabled)
+		return;
+
+	r600_audio_enable(rdev, &rdev->audio.pin[0], 0);
+
+	rdev->audio.enabled = false;
+}
+
+struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev)
+{
+	/* only one pin on 6xx-NI */
+	return &rdev->audio.pin[0];
+}
+
+/*
  * calculate CTS and N values if they are not found in the table
  */
 static void r600_hdmi_calc_cts(uint32_t clock, int *CTS, int *N, int freq)
@@ -357,7 +520,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	/* disable audio prior to setting up hw */
 	dig->afmt->pin = r600_audio_get_pin(rdev);
-	r600_audio_enable(rdev, dig->afmt->pin, false);
+	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
 
 	r600_audio_set_dto(encoder, mode->clock);
 
@@ -443,7 +606,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
 	/* enable audio after to setting up hw */
-	r600_audio_enable(rdev, dig->afmt->pin, true);
+	r600_audio_enable(rdev, dig->afmt->pin, 0xf);
 }
 
 /**
@@ -527,6 +690,11 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 	if (!enable && !dig->afmt->enabled)
 		return;
+
+	if (!enable && dig->afmt->pin) {
+		r600_audio_enable(rdev, dig->afmt->pin, 0);
+		dig->afmt->pin = NULL;
+	}
 
 	/* Older chipsets require setting HDMI and routing manually */
 	if (!ASIC_IS_DCE3(rdev)) {

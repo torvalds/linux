@@ -54,6 +54,7 @@ static int r8192_wx_get_rate(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_rate(priv->rtllib, info, wrqu, extra);
 }
 
@@ -103,6 +104,7 @@ static int r8192_wx_get_rts(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_rts(priv->rtllib, info, wrqu, extra);
 }
 
@@ -132,6 +134,7 @@ static int r8192_wx_get_power(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_power(priv->rtllib, info, wrqu, extra);
 }
 
@@ -480,6 +483,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 		struct iw_scan_req *req = (struct iw_scan_req *)b;
+
 		if (req->essid_len) {
 			ieee->current_network.ssid_len = req->essid_len;
 			memcpy(ieee->current_network.ssid, req->essid,
@@ -654,6 +658,7 @@ static int r8192_wx_get_name(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	return rtllib_wx_get_name(priv->rtllib, info, wrqu, extra);
 }
 
@@ -934,6 +939,7 @@ static int r8192_wx_get_sens(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	if (priv->rf_set_sens == NULL)
 		return -1; /* we have not this support for this radio */
 	wrqu->sens.value = priv->sens;
@@ -995,6 +1001,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;
 		u8 idx = 0, alg = 0, group = 0;
+
 		if ((encoding->flags & IW_ENCODE_DISABLED) ||
 		     ext->alg == IW_ENCODE_ALG_NONE) {
 			ieee->pairwise_key_type = ieee->group_key_type
@@ -1309,6 +1316,7 @@ static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	int tmp_level = 0;
 	int tmp_qual = 0;
 	int tmp_noise = 0;
+
 	if (ieee->state < RTLLIB_LINKED) {
 		wstats->qual.qual = 10;
 		wstats->qual.level = 0;

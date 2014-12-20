@@ -1326,8 +1326,7 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 			buf_id[EXYNOS_DRM_OPS_SRC];
 		event_work->buf_id[EXYNOS_DRM_OPS_DST] =
 			buf_id[EXYNOS_DRM_OPS_DST];
-		queue_work(ippdrv->event_workq,
-			(struct work_struct *)event_work);
+		queue_work(ippdrv->event_workq, &event_work->work);
 	}
 
 	return IRQ_HANDLED;
@@ -1765,7 +1764,7 @@ static int gsc_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int gsc_runtime_suspend(struct device *dev)
 {
 	struct gsc_context *ctx = get_gsc_context(dev);

@@ -250,9 +250,10 @@ static void rx1950_disable_charger(void)
 
 static DEFINE_SPINLOCK(rx1950_blink_spin);
 
-static int rx1950_led_blink_set(unsigned gpio, int state,
+static int rx1950_led_blink_set(struct gpio_desc *desc, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
+	int gpio = desc_to_gpio(desc);
 	int blink_gpio, check_gpio;
 
 	switch (gpio) {
@@ -812,5 +813,4 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.init_irq	= s3c2442_init_irq,
 	.init_machine = rx1950_init_machine,
 	.init_time	= rx1950_init_time,
-	.restart	= s3c244x_restart,
 MACHINE_END

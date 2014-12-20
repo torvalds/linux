@@ -459,7 +459,7 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	stats = nla_data(na);
 	memset(stats, 0, sizeof(*stats));
 
-	rc = cgroupstats_build(stats, f.file->f_dentry);
+	rc = cgroupstats_build(stats, f.file->f_path.dentry);
 	if (rc < 0) {
 		nlmsg_free(rep_skb);
 		goto err;
@@ -638,7 +638,7 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 		fill_tgid_exit(tsk);
 	}
 
-	listeners = __this_cpu_ptr(&listener_array);
+	listeners = raw_cpu_ptr(&listener_array);
 	if (list_empty(&listeners->list))
 		return;
 

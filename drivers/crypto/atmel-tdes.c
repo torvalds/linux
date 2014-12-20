@@ -1524,7 +1524,6 @@ static struct platform_driver atmel_tdes_driver = {
 	.remove		= atmel_tdes_remove,
 	.driver		= {
 		.name	= "atmel_tdes",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(atmel_tdes_dt_ids),
 	},
 };

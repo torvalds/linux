@@ -115,7 +115,7 @@ static const struct pci_device_id gem_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, gem_pci_tbl);
 
-static u16 __phy_read(struct gem *gp, int phy_addr, int reg)
+static u16 __sungem_phy_read(struct gem *gp, int phy_addr, int reg)
 {
 	u32 cmd;
 	int limit = 10000;
@@ -141,18 +141,18 @@ static u16 __phy_read(struct gem *gp, int phy_addr, int reg)
 	return cmd & MIF_FRAME_DATA;
 }
 
-static inline int _phy_read(struct net_device *dev, int mii_id, int reg)
+static inline int _sungem_phy_read(struct net_device *dev, int mii_id, int reg)
 {
 	struct gem *gp = netdev_priv(dev);
-	return __phy_read(gp, mii_id, reg);
+	return __sungem_phy_read(gp, mii_id, reg);
 }
 
-static inline u16 phy_read(struct gem *gp, int reg)
+static inline u16 sungem_phy_read(struct gem *gp, int reg)
 {
-	return __phy_read(gp, gp->mii_phy_addr, reg);
+	return __sungem_phy_read(gp, gp->mii_phy_addr, reg);
 }
 
-static void __phy_write(struct gem *gp, int phy_addr, int reg, u16 val)
+static void __sungem_phy_write(struct gem *gp, int phy_addr, int reg, u16 val)
 {
 	u32 cmd;
 	int limit = 10000;
@@ -174,15 +174,15 @@ static void __phy_write(struct gem *gp, int phy_addr, int reg, u16 val)
 	}
 }
 
-static inline void _phy_write(struct net_device *dev, int mii_id, int reg, int val)
+static inline void _sungem_phy_write(struct net_device *dev, int mii_id, int reg, int val)
 {
 	struct gem *gp = netdev_priv(dev);
-	__phy_write(gp, mii_id, reg, val & 0xffff);
+	__sungem_phy_write(gp, mii_id, reg, val & 0xffff);
 }
 
-static inline void phy_write(struct gem *gp, int reg, u16 val)
+static inline void sungem_phy_write(struct gem *gp, int reg, u16 val)
 {
-	__phy_write(gp, gp->mii_phy_addr, reg, val);
+	__sungem_phy_write(gp, gp->mii_phy_addr, reg, val);
 }
 
 static inline void gem_enable_ints(struct gem *gp)
@@ -1687,9 +1687,9 @@ static void gem_init_phy(struct gem *gp)
 			/* Some PHYs used by apple have problem getting back to us,
 			 * we do an additional reset here
 			 */
-			phy_write(gp, MII_BMCR, BMCR_RESET);
+			sungem_phy_write(gp, MII_BMCR, BMCR_RESET);
 			msleep(20);
-			if (phy_read(gp, MII_BMCR) != 0xffff)
+			if (sungem_phy_read(gp, MII_BMCR) != 0xffff)
 				break;
 			if (i == 2)
 				netdev_warn(gp->dev, "GMAC PHY not responding !\n");
@@ -2012,7 +2012,7 @@ static int gem_check_invariants(struct gem *gp)
 
 		for (i = 0; i < 32; i++) {
 			gp->mii_phy_addr = i;
-			if (phy_read(gp, MII_BMCR) != 0xffff)
+			if (sungem_phy_read(gp, MII_BMCR) != 0xffff)
 				break;
 		}
 		if (i == 32) {
@@ -2696,13 +2696,13 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		/* Fallthrough... */
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
-		data->val_out = __phy_read(gp, data->phy_id & 0x1f,
+		data->val_out = __sungem_phy_read(gp, data->phy_id & 0x1f,
 					   data->reg_num & 0x1f);
 		rc = 0;
 		break;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		__phy_write(gp, data->phy_id & 0x1f, data->reg_num & 0x1f,
+		__sungem_phy_write(gp, data->phy_id & 0x1f, data->reg_num & 0x1f,
 			    data->val_in);
 		rc = 0;
 		break;
@@ -2933,8 +2933,8 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Fill up the mii_phy structure (even if we won't use it) */
 	gp->phy_mii.dev = dev;
-	gp->phy_mii.mdio_read = _phy_read;
-	gp->phy_mii.mdio_write = _phy_write;
+	gp->phy_mii.mdio_read = _sungem_phy_read;
+	gp->phy_mii.mdio_write = _sungem_phy_write;
 #ifdef CONFIG_PPC_PMAC
 	gp->phy_mii.platform_data = gp->of_node;
 #endif

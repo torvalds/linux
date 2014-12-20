@@ -20,8 +20,6 @@
 #include <linux/writeback.h>
 #include "affs.h"
 
-extern struct timezone sys_tz;
-
 static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
@@ -308,7 +306,6 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	u32			 chksum;
 	int			 num_bm;
 	int			 i, j;
-	s32			 key;
 	kuid_t			 uid;
 	kgid_t			 gid;
 	int			 reserved;
@@ -367,7 +364,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		i = j = blocksize;
 		size = size / (blocksize / 512);
 	}
-	for (blocksize = i, key = 0; blocksize <= j; blocksize <<= 1, size >>= 1) {
+	for (blocksize = i; blocksize <= j; blocksize <<= 1, size >>= 1) {
 		sbi->s_root_block = root_block;
 		if (root_block < 0)
 			sbi->s_root_block = (reserved + size - 1) / 2;
@@ -399,7 +396,6 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 			    be32_to_cpu(AFFS_ROOT_TAIL(sb, root_bh)->stype) == ST_ROOT) {
 				sbi->s_hashsize    = blocksize / 4 - 56;
 				sbi->s_root_block += num_bm;
-				key                        = 1;
 				goto got_root;
 			}
 			affs_brelse(root_bh);

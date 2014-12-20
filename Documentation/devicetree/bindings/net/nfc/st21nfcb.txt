@@ -26,7 +26,7 @@ Example (for ARM-based BeagleBoard xM with ST21NFCB on I2C2):
 		clock-frequency = <400000>;
 
 		interrupt-parent = <&gpio5>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
 
 		reset-gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
 	};

@@ -366,7 +366,6 @@ static void raid10_end_read_request(struct bio *bio, int error)
 	struct md_rdev *rdev;
 	struct r10conf *conf = r10_bio->mddev->private;
 
-
 	slot = r10_bio->read_slot;
 	dev = r10_bio->devs[slot].devnum;
 	rdev = r10_bio->devs[slot].rdev;
@@ -1559,7 +1558,6 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 
 	md_write_start(mddev, bio);
 
-
 	do {
 
 		/*
@@ -1782,7 +1780,6 @@ static int raid10_spare_active(struct mddev *mddev)
 	return count;
 }
 
-
 static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r10conf *conf = mddev->private;
@@ -1928,7 +1925,6 @@ abort:
 	print_conf(conf);
 	return err;
 }
-
 
 static void end_sync_read(struct bio *bio, int error)
 {
@@ -2294,7 +2290,6 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		generic_make_request(wbio2);
 	}
 }
-
 
 /*
  * Used by fix_read_error() to decay the per rdev read_errors.
@@ -2852,7 +2847,6 @@ static void raid10d(struct md_thread *thread)
 	blk_finish_plug(&plug);
 }
 
-
 static int init_resync(struct r10conf *conf)
 {
 	int buffs;
@@ -3388,7 +3382,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 				/* remove last page from this bio */
 				bio2->bi_vcnt--;
 				bio2->bi_iter.bi_size -= len;
-				bio2->bi_flags &= ~(1<< BIO_SEG_VALID);
+				__clear_bit(BIO_SEG_VALID, &bio2->bi_flags);
 			}
 			goto bio_full;
 		}
@@ -3776,7 +3770,6 @@ static int run(struct mddev *mddev)
 		blk_queue_merge_bvec(mddev->queue, raid10_mergeable_bvec);
 	}
 
-
 	if (md_integrity_register(mddev))
 		goto out_free_conf;
 
@@ -3834,6 +3827,8 @@ static int stop(struct mddev *mddev)
 		mempool_destroy(conf->r10bio_pool);
 	safe_put_page(conf->tmppage);
 	kfree(conf->mirrors);
+	kfree(conf->mirrors_old);
+	kfree(conf->mirrors_new);
 	kfree(conf);
 	mddev->private = NULL;
 	return 0;
@@ -4121,7 +4116,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 		memcpy(conf->mirrors_new, conf->mirrors,
 		       sizeof(struct raid10_info)*conf->prev.raid_disks);
 		smp_mb();
-		kfree(conf->mirrors_old); /* FIXME and elsewhere */
+		kfree(conf->mirrors_old);
 		conf->mirrors_old = conf->mirrors;
 		conf->mirrors = conf->mirrors_new;
 		conf->mirrors_new = NULL;
@@ -4416,7 +4411,7 @@ read_more:
 	read_bio->bi_end_io = end_sync_read;
 	read_bio->bi_rw = READ;
 	read_bio->bi_flags &= (~0UL << BIO_RESET_BITS);
-	read_bio->bi_flags |= 1 << BIO_UPTODATE;
+	__set_bit(BIO_UPTODATE, &read_bio->bi_flags);
 	read_bio->bi_vcnt = 0;
 	read_bio->bi_iter.bi_size = 0;
 	r10_bio->master_bio = read_bio;
@@ -4473,7 +4468,7 @@ read_more:
 				/* Remove last page from this bio */
 				bio2->bi_vcnt--;
 				bio2->bi_iter.bi_size -= len;
-				bio2->bi_flags &= ~(1<<BIO_SEG_VALID);
+				__clear_bit(BIO_SEG_VALID, &bio2->bi_flags);
 			}
 			goto bio_full;
 		}
@@ -4574,7 +4569,6 @@ static void end_reshape(struct r10conf *conf)
 	}
 	conf->fullsync = 0;
 }
-
 
 static int handle_reshape_read_error(struct mddev *mddev,
 				     struct r10bio *r10_bio)

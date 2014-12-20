@@ -122,9 +122,10 @@
 					interrupts-extended = <&pmc AT91_PMC_LOCKB>;
 					clocks = <&main>;
 					reg = <1>;
-					atmel,clk-input-range = <1000000 5000000>;
+					atmel,clk-input-range = <1000000 32000000>;
 					#atmel,pll-clk-output-range-cells = <4>;
-					atmel,pll-clk-output-ranges = <70000000 130000000 1 1>;
+					atmel,pll-clk-output-ranges = <80000000 200000000 0 1>,
+								<190000000 240000000 2 1>;
 				};
 
 				mck: masterck {
@@ -345,10 +346,14 @@
 				};
 			};
 
-			ramc: ramc@ffffe200 {
+			ramc0: ramc@ffffe200 {
 				compatible = "atmel,at91sam9260-sdramc";
-				reg = <0xffffe200 0x200
-				       0xffffe800 0x200>;
+				reg = <0xffffe200 0x200>;
+			};
+
+			ramc1: ramc@ffffe800 {
+				compatible = "atmel,at91sam9260-sdramc";
+				reg = <0xffffe800 0x200>;
 			};
 
 			pit: timer@fffffd30 {
@@ -672,6 +677,14 @@
 					};
 				};
 
+				can {
+					pinctrl_can_rx_tx: can_rx_tx {
+						atmel,pins =
+							<AT91_PIOA 14 AT91_PERIPH_A AT91_PINCTRL_NONE	/* CANRX, conflicts with IRQ0 */
+							 AT91_PIOA 13 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* CANTX, conflicts with PCK0 */
+					};
+				};
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;
@@ -834,6 +847,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfff80000 0x600>;
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&mci0_clk>;
@@ -845,6 +859,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfff84000 0x600>;
 				interrupts = <11 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&mci1_clk>;
@@ -896,6 +911,38 @@
 				#pwm-cells = <3>;
 				clocks = <&pwm_clk>;
 				clock-names = "pwm_clk";
+				status = "disabled";
+			};
+
+			can: can@fffac000 {
+				compatible = "atmel,at91sam9263-can";
+				reg = <0xfffac000 0x300>;
+				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 3>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_can_rx_tx>;
+				clocks = <&can_clk>;
+				clock-names = "can_clk";
+			};
+
+			rtc@fffffd20 {
+				compatible = "atmel,at91sam9260-rtt";
+				reg = <0xfffffd20 0x10>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&slow_xtal>;
+				status = "disabled";
+			};
+
+			rtc@fffffd50 {
+				compatible = "atmel,at91sam9260-rtt";
+				reg = <0xfffffd50 0x10>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&slow_xtal>;
+				status = "disabled";
+			};
+
+			gpbr: syscon@fffffd60 {
+				compatible = "atmel,at91sam9260-gpbr", "syscon";
+				reg = <0xfffffd60 0x50>;
 				status = "disabled";
 			};
 		};

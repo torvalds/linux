@@ -29,6 +29,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
 struct gpio_button_data {
@@ -617,26 +618,30 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 
 	i = 0;
 	for_each_child_of_node(node, pp) {
-		int gpio;
+		int gpio = -1;
 		enum of_gpio_flags flags;
 
-		if (!of_find_property(pp, "gpios", NULL)) {
-			pdata->nbuttons--;
-			dev_warn(dev, "Found button without gpios\n");
-			continue;
-		}
-
-		gpio = of_get_gpio_flags(pp, 0, &flags);
-		if (gpio < 0) {
-			error = gpio;
-			if (error != -EPROBE_DEFER)
-				dev_err(dev,
-					"Failed to get gpio flags, error: %d\n",
-					error);
-			return ERR_PTR(error);
-		}
-
 		button = &pdata->buttons[i++];
+
+		if (!of_find_property(pp, "gpios", NULL)) {
+			button->irq = irq_of_parse_and_map(pp, 0);
+			if (button->irq == 0) {
+				i--;
+				pdata->nbuttons--;
+				dev_warn(dev, "Found button without gpios or irqs\n");
+				continue;
+			}
+		} else {
+			gpio = of_get_gpio_flags(pp, 0, &flags);
+			if (gpio < 0) {
+				error = gpio;
+				if (error != -EPROBE_DEFER)
+					dev_err(dev,
+						"Failed to get gpio flags, error: %d\n",
+						error);
+				return ERR_PTR(error);
+			}
+		}
 
 		button->gpio = gpio;
 		button->active_low = flags & OF_GPIO_ACTIVE_LOW;
@@ -835,7 +840,6 @@ static struct platform_driver gpio_keys_device_driver = {
 	.remove		= gpio_keys_remove,
 	.driver		= {
 		.name	= "gpio-keys",
-		.owner	= THIS_MODULE,
 		.pm	= &gpio_keys_pm_ops,
 		.of_match_table = of_match_ptr(gpio_keys_of_match),
 	}

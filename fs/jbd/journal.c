@@ -886,7 +886,7 @@ journal_t * journal_init_inode (struct inode *inode)
 		goto out_err;
 	}
 
-	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
+	bh = getblk_unmovable(journal->j_dev, blocknr, journal->j_blocksize);
 	if (!bh) {
 		printk(KERN_ERR
 		       "%s: Cannot get buffer for journal superblock\n",
@@ -1373,8 +1373,7 @@ int journal_destroy(journal_t *journal)
 	}
 	mutex_unlock(&journal->j_checkpoint_mutex);
 
-	if (journal->j_inode)
-		iput(journal->j_inode);
+	iput(journal->j_inode);
 	if (journal->j_revoke)
 		journal_destroy_revoke(journal);
 	kfree(journal->j_wbuf);

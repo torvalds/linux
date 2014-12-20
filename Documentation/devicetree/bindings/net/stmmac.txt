@@ -58,5 +58,5 @@ Examples:
 		snps,multicast-filter-bins = <256>;
 		snps,perfect-filter-entries = <128>;
 		clocks = <&clock>;
-		clock-names = "stmmaceth">;
+		clock-names = "stmmaceth";
 	};

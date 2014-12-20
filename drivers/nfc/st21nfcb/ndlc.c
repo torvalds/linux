@@ -112,6 +112,10 @@ static void llt_ndlc_send_queue(struct llt_ndlc *ndlc)
 		ndlc->t1_active = true;
 		mod_timer(&ndlc->t1_timer, time_sent +
 			msecs_to_jiffies(NDLC_TIMER_T1));
+		/* start timer t2 for chip availability */
+		ndlc->t2_active = true;
+		mod_timer(&ndlc->t2_timer, time_sent +
+			msecs_to_jiffies(NDLC_TIMER_T2));
 	}
 }
 
@@ -207,7 +211,7 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 		ndlc->t2_active = false;
 		ndlc->t1_active = false;
 		del_timer_sync(&ndlc->t1_timer);
-
+		del_timer_sync(&ndlc->t2_timer);
 		ndlc_close(ndlc);
 		ndlc->hard_fault = -EREMOTEIO;
 	}
@@ -262,7 +266,7 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 
 	*ndlc_id = ndlc;
 
-	/* start timers */
+	/* initialize timers */
 	init_timer(&ndlc->t1_timer);
 	ndlc->t1_timer.data = (unsigned long)ndlc;
 	ndlc->t1_timer.function = ndlc_t1_timeout;

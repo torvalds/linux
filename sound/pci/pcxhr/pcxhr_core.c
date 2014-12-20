@@ -767,11 +767,11 @@ void pcxhr_set_pipe_cmd_params(struct pcxhr_rmh *rmh, int capture,
  */
 int pcxhr_send_msg(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 {
-	unsigned long flags;
 	int err;
-	spin_lock_irqsave(&mgr->msg_lock, flags);
+
+	mutex_lock(&mgr->msg_lock);
 	err = pcxhr_send_msg_nolock(mgr, rmh);
-	spin_unlock_irqrestore(&mgr->msg_lock, flags);
+	mutex_unlock(&mgr->msg_lock);
 	return err;
 }
 
@@ -910,8 +910,9 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask,
 	int audio_mask;
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-	struct timeval my_tv1, my_tv2;
-	do_gettimeofday(&my_tv1);
+	ktime_t start_time, stop_time, diff_time;
+
+	start_time = ktime_get();
 #endif
 	audio_mask = (playback_mask |
 		      (capture_mask << PCXHR_PIPE_STATE_CAPTURE_OFFSET));
@@ -960,9 +961,10 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask,
 			return err;
 	}
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-	do_gettimeofday(&my_tv2);
+	stop_time = ktime_get();
+	diff_time = ktime_sub(stop_time, start_time);
 	dev_dbg(&mgr->pci->dev, "***SET PIPE STATE*** TIME = %ld (err = %x)\n",
-		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
+			(long)(ktime_to_ns(diff_time)), err);
 #endif
 	return 0;
 }
@@ -971,17 +973,16 @@ int pcxhr_write_io_num_reg_cont(struct pcxhr_mgr *mgr, unsigned int mask,
 				unsigned int value, int *changed)
 {
 	struct pcxhr_rmh rmh;
-	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&mgr->msg_lock, flags);
+	mutex_lock(&mgr->msg_lock);
 	if ((mgr->io_num_reg_cont & mask) == value) {
 		dev_dbg(&mgr->pci->dev,
 			"IO_NUM_REG_CONT mask %x already is set to %x\n",
 			    mask, value);
 		if (changed)
 			*changed = 0;
-		spin_unlock_irqrestore(&mgr->msg_lock, flags);
+		mutex_unlock(&mgr->msg_lock);
 		return 0;	/* already programmed */
 	}
 	pcxhr_init_rmh(&rmh, CMD_ACCESS_IO_WRITE);
@@ -996,7 +997,7 @@ int pcxhr_write_io_num_reg_cont(struct pcxhr_mgr *mgr, unsigned int mask,
 		if (changed)
 			*changed = 1;
 	}
-	spin_unlock_irqrestore(&mgr->msg_lock, flags);
+	mutex_unlock(&mgr->msg_lock);
 	return err;
 }
 
@@ -1043,22 +1044,21 @@ static int pcxhr_handle_async_err(struct pcxhr_mgr *mgr, u32 err,
 }
 
 
-void pcxhr_msg_tasklet(unsigned long arg)
+static void pcxhr_msg_thread(struct pcxhr_mgr *mgr)
 {
-	struct pcxhr_mgr *mgr = (struct pcxhr_mgr *)(arg);
 	struct pcxhr_rmh *prmh = mgr->prmh;
 	int err;
 	int i, j;
 
 	if (mgr->src_it_dsp & PCXHR_IRQ_FREQ_CHANGE)
 		dev_dbg(&mgr->pci->dev,
-			"TASKLET : PCXHR_IRQ_FREQ_CHANGE event occurred\n");
+			"PCXHR_IRQ_FREQ_CHANGE event occurred\n");
 	if (mgr->src_it_dsp & PCXHR_IRQ_TIME_CODE)
 		dev_dbg(&mgr->pci->dev,
-			"TASKLET : PCXHR_IRQ_TIME_CODE event occurred\n");
+			"PCXHR_IRQ_TIME_CODE event occurred\n");
 	if (mgr->src_it_dsp & PCXHR_IRQ_NOTIFY)
 		dev_dbg(&mgr->pci->dev,
-			"TASKLET : PCXHR_IRQ_NOTIFY event occurred\n");
+			"PCXHR_IRQ_NOTIFY event occurred\n");
 	if (mgr->src_it_dsp & (PCXHR_IRQ_FREQ_CHANGE | PCXHR_IRQ_TIME_CODE)) {
 		/* clear events FREQ_CHANGE and TIME_CODE */
 		pcxhr_init_rmh(prmh, CMD_TEST_IT);
@@ -1068,7 +1068,7 @@ void pcxhr_msg_tasklet(unsigned long arg)
 	}
 	if (mgr->src_it_dsp & PCXHR_IRQ_ASYNC) {
 		dev_dbg(&mgr->pci->dev,
-			"TASKLET : PCXHR_IRQ_ASYNC event occurred\n");
+			"PCXHR_IRQ_ASYNC event occurred\n");
 
 		pcxhr_init_rmh(prmh, CMD_ASYNC);
 		prmh->cmd[0] |= 1;	/* add SEL_ASYNC_EVENTS */
@@ -1076,7 +1076,7 @@ void pcxhr_msg_tasklet(unsigned long arg)
 		prmh->stat_len = PCXHR_SIZE_MAX_LONG_STATUS;
 		err = pcxhr_send_msg(mgr, prmh);
 		if (err)
-			dev_err(&mgr->pci->dev, "ERROR pcxhr_msg_tasklet=%x;\n",
+			dev_err(&mgr->pci->dev, "ERROR pcxhr_msg_thread=%x;\n",
 				   err);
 		i = 1;
 		while (i < prmh->stat_len) {
@@ -1220,9 +1220,9 @@ static void pcxhr_update_timer_pos(struct pcxhr_mgr *mgr,
 		}
 
 		if (elapsed) {
-			spin_unlock(&mgr->lock);
+			mutex_unlock(&mgr->lock);
 			snd_pcm_period_elapsed(stream->substream);
-			spin_lock(&mgr->lock);
+			mutex_lock(&mgr->lock);
 		}
 	}
 }
@@ -1231,14 +1231,10 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 {
 	struct pcxhr_mgr *mgr = dev_id;
 	unsigned int reg;
-	int i, j;
-	struct snd_pcxhr *chip;
-
-	spin_lock(&mgr->lock);
+	bool wake_thread = false;
 
 	reg = PCXHR_INPL(mgr, PCXHR_PLX_IRQCS);
 	if (! (reg & PCXHR_IRQCS_ACTIVE_PCIDB)) {
-		spin_unlock(&mgr->lock);
 		/* this device did not cause the interrupt */
 		return IRQ_NONE;
 	}
@@ -1250,6 +1246,44 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 	/* timer irq occurred */
 	if (reg & PCXHR_IRQ_TIMER) {
 		int timer_toggle = reg & PCXHR_IRQ_TIMER;
+		if (timer_toggle == mgr->timer_toggle) {
+			dev_dbg(&mgr->pci->dev, "ERROR TIMER TOGGLE\n");
+			mgr->dsp_time_err++;
+		}
+
+		mgr->timer_toggle = timer_toggle;
+		mgr->src_it_dsp = reg;
+		wake_thread = true;
+	}
+
+	/* other irq's handled in the thread */
+	if (reg & PCXHR_IRQ_MASK) {
+		if (reg & PCXHR_IRQ_ASYNC) {
+			/* as we didn't request any async notifications,
+			 * some kind of xrun error will probably occurred
+			 */
+			/* better resynchronize all streams next interrupt : */
+			mgr->dsp_time_last = PCXHR_DSP_TIME_INVALID;
+		}
+		mgr->src_it_dsp = reg;
+		wake_thread = true;
+	}
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+	if (reg & PCXHR_FATAL_DSP_ERR)
+		dev_dbg(&mgr->pci->dev, "FATAL DSP ERROR : %x\n", reg);
+#endif
+
+	return wake_thread ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+}
+
+irqreturn_t pcxhr_threaded_irq(int irq, void *dev_id)
+{
+	struct pcxhr_mgr *mgr = dev_id;
+	int i, j;
+	struct snd_pcxhr *chip;
+
+	mutex_lock(&mgr->lock);
+	if (mgr->src_it_dsp & PCXHR_IRQ_TIMER) {
 		/* is a 24 bit counter */
 		int dsp_time_new =
 			PCXHR_INPL(mgr, PCXHR_PLX_MBOX4) & PCXHR_DSP_TIME_MASK;
@@ -1290,13 +1324,6 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 #endif
 		mgr->dsp_time_last = dsp_time_new;
 
-		if (timer_toggle == mgr->timer_toggle) {
-			dev_dbg(&mgr->pci->dev, "ERROR TIMER TOGGLE\n");
-			mgr->dsp_time_err++;
-		}
-		mgr->timer_toggle = timer_toggle;
-
-		reg &= ~PCXHR_IRQ_TIMER;
 		for (i = 0; i < mgr->num_cards; i++) {
 			chip = mgr->chip[i];
 			for (j = 0; j < chip->nb_streams_capt; j++)
@@ -1312,22 +1339,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 						dsp_time_diff);
 		}
 	}
-	/* other irq's handled in the tasklet */
-	if (reg & PCXHR_IRQ_MASK) {
-		if (reg & PCXHR_IRQ_ASYNC) {
-			/* as we didn't request any async notifications,
-			 * some kind of xrun error will probably occurred
-			 */
-			/* better resynchronize all streams next interrupt : */
-			mgr->dsp_time_last = PCXHR_DSP_TIME_INVALID;
-		}
-		mgr->src_it_dsp = reg;
-		tasklet_schedule(&mgr->msg_taskq);
-	}
-#ifdef CONFIG_SND_DEBUG_VERBOSE
-	if (reg & PCXHR_FATAL_DSP_ERR)
-		dev_dbg(&mgr->pci->dev, "FATAL DSP ERROR : %x\n", reg);
-#endif
-	spin_unlock(&mgr->lock);
-	return IRQ_HANDLED;	/* this device caused the interrupt */
+
+	pcxhr_msg_thread(mgr);
+	return IRQ_HANDLED;
 }

@@ -23,7 +23,7 @@
  *
  *****************************************************************************/
 
-#include "pwrseqcmd.h"
+#include "../pwrseqcmd.h"
 #include "pwrseq.h"
 
 

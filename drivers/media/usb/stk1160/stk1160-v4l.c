@@ -475,7 +475,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct stk1160 *dev = video_drvdata(file);
 
 	/* Match host */
-	return stk1160_write_reg(dev, reg->reg, cpu_to_le16(reg->val));
+	return stk1160_write_reg(dev, reg->reg, reg->val);
 }
 #endif
 

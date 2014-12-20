@@ -1,0 +1,12 @@
+What:		/config/usb-gadget/gadget/functions/uac2.name
+Date:		Sep 2014
+KernelVersion:	3.18
+Description:
+		The attributes:
+
+		c_chmask - capture channel mask
+		c_srate - capture sampling rate
+		c_ssize - capture sample size (bytes)
+		p_chmask - playback channel mask
+		p_srate - playback sampling rate
+		p_ssize - playback sample size (bytes)

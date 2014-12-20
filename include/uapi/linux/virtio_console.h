@@ -32,6 +32,7 @@
 #ifndef _UAPI_LINUX_VIRTIO_CONSOLE_H
 #define _UAPI_LINUX_VIRTIO_CONSOLE_H
 #include <linux/types.h>
+#include <linux/virtio_types.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_config.h>
 
@@ -58,9 +59,9 @@ struct virtio_console_config {
  * particular port.
  */
 struct virtio_console_control {
-	__u32 id;		/* Port number */
-	__u16 event;		/* The kind of control event (see below) */
-	__u16 value;		/* Extra information for the key */
+	__virtio32 id;		/* Port number */
+	__virtio16 event;	/* The kind of control event (see below) */
+	__virtio16 value;	/* Extra information for the key */
 };
 
 /* Some events for control messages */

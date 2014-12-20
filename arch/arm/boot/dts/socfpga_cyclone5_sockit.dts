@@ -37,6 +37,13 @@
 		 */
 		ethernet0 = &gmac1;
 	};
+
+	regulator_3_3v: vcc3p3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3P3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &gmac1 {
@@ -51,6 +58,11 @@
 	txc-skew-ps = <2600>;
 	rxdv-skew-ps = <0>;
 	rxc-skew-ps = <2000>;
+};
+
+&mmc0 {
+	vmmc-supply = <&regulator_3_3v>;
+	vqmmc-supply = <&regulator_3_3v>;
 };
 
 &usb1 {

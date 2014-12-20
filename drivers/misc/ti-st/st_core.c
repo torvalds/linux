@@ -153,8 +153,9 @@ static void st_reg_complete(struct st_data_s *st_gdata, char err)
 				(st_gdata->list[i]->priv_data, err);
 			pr_info("protocol %d's cb sent %d\n", i, err);
 			if (err) { /* cleanup registered protocol */
-				st_gdata->protos_registered--;
 				st_gdata->is_registered[i] = false;
+				if (st_gdata->protos_registered)
+					st_gdata->protos_registered--;
 			}
 		}
 	}
@@ -639,13 +640,11 @@ long st_unregister(struct st_proto_s *proto)
 		return -EPROTONOSUPPORT;
 	}
 
-	st_gdata->protos_registered--;
+	if (st_gdata->protos_registered)
+		st_gdata->protos_registered--;
+
 	remove_channel_from_table(st_gdata, proto);
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
-
-	/* paranoid check */
-	if (st_gdata->protos_registered < ST_EMPTY)
-		st_gdata->protos_registered = ST_EMPTY;
 
 	if ((st_gdata->protos_registered == ST_EMPTY) &&
 	    (!test_bit(ST_REG_PENDING, &st_gdata->st_state))) {

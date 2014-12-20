@@ -180,8 +180,10 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
-			   __be32 saddr, const struct ip_reply_arg *arg,
+void ip_send_unicast_reply(struct net *net, struct sk_buff *skb,
+			   const struct ip_options *sopt,
+			   __be32 daddr, __be32 saddr,
+			   const struct ip_reply_arg *arg,
 			   unsigned int len);
 
 #define IP_INC_STATS(net, field)	SNMP_INC_STATS64((net)->mib.ip_statistics, field)
@@ -228,8 +230,6 @@ static inline int inet_is_local_reserved_port(struct net *net, int port)
 	return 0;
 }
 #endif
-
-extern int sysctl_ip_nonlocal_bind;
 
 /* From inetpeer.c */
 extern int inet_peer_threshold;
@@ -362,6 +362,14 @@ static inline void inet_set_txhash(struct sock *sk)
 	keys.port16[1] = inet->inet_dport;
 
 	sk->sk_txhash = flow_hash_from_keys(&keys);
+}
+
+static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
+{
+	const struct iphdr *iph = skb_gro_network_header(skb);
+
+	return csum_tcpudp_nofold(iph->saddr, iph->daddr,
+				  skb_gro_len(skb), proto, 0);
 }
 
 /*
@@ -505,7 +513,14 @@ int ip_forward(struct sk_buff *skb);
  
 void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
 		      __be32 daddr, struct rtable *rt, int is_frag);
-int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb);
+
+int __ip_options_echo(struct ip_options *dopt, struct sk_buff *skb,
+		      const struct ip_options *sopt);
+static inline int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
+{
+	return __ip_options_echo(dopt, skb, &IPCB(skb)->opt);
+}
+
 void ip_options_fragment(struct sk_buff *skb);
 int ip_options_compile(struct net *net, struct ip_options *opt,
 		       struct sk_buff *skb);
@@ -541,6 +556,10 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, __be16 port,
 		   u32 info, u8 *payload);
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 		    u32 info);
+
+bool icmp_global_allow(void);
+extern int sysctl_icmp_msgs_per_sec;
+extern int sysctl_icmp_msgs_burst;
 
 #ifdef CONFIG_PROC_FS
 int ip_misc_proc_init(void);

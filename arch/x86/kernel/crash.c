@@ -28,6 +28,7 @@
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/hpet.h>
 #include <linux/kdebug.h>
 #include <asm/cpu.h>
@@ -237,7 +238,7 @@ static void fill_up_crash_elf_data(struct crash_elf_data *ced,
 	ced->max_nr_ranges++;
 
 	/* If crashk_low_res is not 0, another range split possible */
-	if (crashk_low_res.end != 0)
+	if (crashk_low_res.end)
 		ced->max_nr_ranges++;
 }
 
@@ -335,9 +336,11 @@ static int elf_header_exclude_ranges(struct crash_elf_data *ced,
 	if (ret)
 		return ret;
 
-	ret = exclude_mem_range(cmem, crashk_low_res.start, crashk_low_res.end);
-	if (ret)
-		return ret;
+	if (crashk_low_res.end) {
+		ret = exclude_mem_range(cmem, crashk_low_res.start, crashk_low_res.end);
+		if (ret)
+			return ret;
+	}
 
 	/* Exclude GART region */
 	if (ced->gart_end) {

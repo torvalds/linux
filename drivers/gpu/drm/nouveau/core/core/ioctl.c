@@ -349,7 +349,6 @@ nvkm_ioctl_unmap(struct nouveau_handle *handle, void *data, u32 size)
 static int
 nvkm_ioctl_ntfy_new(struct nouveau_handle *handle, void *data, u32 size)
 {
-	struct nouveau_client *client = nouveau_client(handle->object);
 	struct nouveau_object *object = handle->object;
 	struct nouveau_ofuncs *ofuncs = object->oclass->ofuncs;
 	union {
@@ -365,7 +364,7 @@ nvkm_ioctl_ntfy_new(struct nouveau_handle *handle, void *data, u32 size)
 		if (ret = -ENODEV, ofuncs->ntfy)
 			ret = ofuncs->ntfy(object, args->v0.event, &event);
 		if (ret == 0) {
-			ret = nvkm_client_notify_new(client, event, data, size);
+			ret = nvkm_client_notify_new(object, event, data, size);
 			if (ret >= 0) {
 				args->v0.index = ret;
 				ret = 0;

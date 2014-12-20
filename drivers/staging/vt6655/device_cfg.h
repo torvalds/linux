@@ -29,8 +29,6 @@
 
 #include <linux/types.h>
 
-#include "ttype.h"
-
 typedef
 struct _version {
 	unsigned char   major;
@@ -66,9 +64,6 @@ struct _version {
 #endif
 
 #define PKT_BUF_SZ          2390
-
-#define MAX_UINTS           8
-#define OPTION_DEFAULT      { [0 ... MAX_UINTS-1] = -1}
 
 typedef enum  _chip_type {
 	VT3253 = 1

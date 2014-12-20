@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -52,8 +48,8 @@
  * |  DATA7|  DATA6|  DATA5|  DATA4|  DATA3|  DATA2|  DATA1|  DATA0|
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  */
-#include <media/videobuf-dma-sg.h>
-#include <media/videobuf-dvb.h>
+#include <dvb_demux.h>
+#include <dvb_frontend.h>
 #include "altera-ci.h"
 #include "dvb_ca_en50221.h"
 

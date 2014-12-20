@@ -335,7 +335,7 @@ static int max8660_pdata_from_dt(struct device *dev,
 	int matched, i;
 	struct device_node *np;
 	struct max8660_subdev_data *sub;
-	struct of_regulator_match rmatch[ARRAY_SIZE(max8660_reg)];
+	struct of_regulator_match rmatch[ARRAY_SIZE(max8660_reg)] = { };
 
 	np = of_get_child_by_name(dev->of_node, "regulators");
 	if (!np) {

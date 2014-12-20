@@ -267,7 +267,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 }
 
 /* Handler for classic adc channel eoc trigger */
-void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
+static void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 {
 	struct at91_adc_state *st = iio_priv(idev);
 

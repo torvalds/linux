@@ -307,6 +307,9 @@ static int mxs_i2c_pio_wait_xfer_end(struct mxs_i2c_dev *i2c)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
 	while (readl(i2c->regs + MXS_I2C_CTRL0) & MXS_I2C_CTRL0_RUN) {
+		if (readl(i2c->regs + MXS_I2C_CTRL1) &
+				MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+			return -ENXIO;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 		cond_resched();
@@ -808,7 +811,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err, irq;
 
-	i2c = devm_kzalloc(dev, sizeof(struct mxs_i2c_dev), GFP_KERNEL);
+	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
@@ -890,7 +893,6 @@ static int mxs_i2c_remove(struct platform_device *pdev)
 static struct platform_driver mxs_i2c_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .owner = THIS_MODULE,
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
 	.probe = mxs_i2c_probe,

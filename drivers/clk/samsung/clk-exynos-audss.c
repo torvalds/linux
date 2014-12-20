@@ -223,7 +223,6 @@ static int exynos_audss_clk_remove(struct platform_device *pdev)
 static struct platform_driver exynos_audss_clk_driver = {
 	.driver	= {
 		.name = "exynos-audss-clk",
-		.owner = THIS_MODULE,
 		.of_match_table = exynos_audss_clk_of_match,
 	},
 	.probe = exynos_audss_clk_probe,

@@ -263,6 +263,14 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	if (!rate)
 		rate = 1;
 
+	/* if read only, just return current value */
+	if (divider->flags & CLK_DIVIDER_READ_ONLY) {
+		bestdiv = readl(divider->reg) >> divider->shift;
+		bestdiv &= div_mask(divider);
+		bestdiv = _get_div(divider, bestdiv);
+		return bestdiv;
+	}
+
 	maxdiv = _get_maxdiv(divider);
 
 	if (!(__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT)) {
@@ -361,11 +369,6 @@ const struct clk_ops clk_divider_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_divider_ops);
 
-const struct clk_ops clk_divider_ro_ops = {
-	.recalc_rate = clk_divider_recalc_rate,
-};
-EXPORT_SYMBOL_GPL(clk_divider_ro_ops);
-
 static struct clk *_register_divider(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
@@ -391,10 +394,7 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	}
 
 	init.name = name;
-	if (clk_divider_flags & CLK_DIVIDER_READ_ONLY)
-		init.ops = &clk_divider_ro_ops;
-	else
-		init.ops = &clk_divider_ops;
+	init.ops = &clk_divider_ops;
 	init.flags = flags | CLK_IS_BASIC;
 	init.parent_names = (parent_name ? &parent_name: NULL);
 	init.num_parents = (parent_name ? 1 : 0);

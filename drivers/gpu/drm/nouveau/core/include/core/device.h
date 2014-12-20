@@ -16,6 +16,7 @@ enum nv_subdev_type {
 	 * to during POST.
 	 */
 	NVDEV_SUBDEV_DEVINIT,
+	NVDEV_SUBDEV_IBUS,
 	NVDEV_SUBDEV_GPIO,
 	NVDEV_SUBDEV_I2C,
 	NVDEV_SUBDEV_DEVINIT_LAST = NVDEV_SUBDEV_I2C,
@@ -24,13 +25,13 @@ enum nv_subdev_type {
 	 * been created, and are allowed to assume any subdevs in the
 	 * list above them exist and have been initialised.
 	 */
+	NVDEV_SUBDEV_FUSE,
 	NVDEV_SUBDEV_MXM,
 	NVDEV_SUBDEV_MC,
 	NVDEV_SUBDEV_BUS,
 	NVDEV_SUBDEV_TIMER,
 	NVDEV_SUBDEV_FB,
 	NVDEV_SUBDEV_LTC,
-	NVDEV_SUBDEV_IBUS,
 	NVDEV_SUBDEV_INSTMEM,
 	NVDEV_SUBDEV_VM,
 	NVDEV_SUBDEV_BAR,
@@ -91,6 +92,7 @@ struct nouveau_device {
 		GM100    = 0x110,
 	} card_type;
 	u32 chipset;
+	u8  chiprev;
 	u32 crystal;
 
 	struct nouveau_oclass *oclass[NVDEV_SUBDEV_NR];
@@ -155,6 +157,12 @@ static inline bool
 nv_device_is_pci(struct nouveau_device *device)
 {
 	return device->pdev != NULL;
+}
+
+static inline bool
+nv_device_is_cpu_coherent(struct nouveau_device *device)
+{
+	return (!IS_ENABLED(CONFIG_ARM) && nv_device_is_pci(device));
 }
 
 static inline struct device *

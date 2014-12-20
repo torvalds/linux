@@ -98,7 +98,7 @@
  * super-class definitions.
  */
 #include "lu_object.h"
-#include "lvfs.h"
+#include "linux/lustre_compat25.h"
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 
@@ -2508,7 +2508,7 @@ struct cl_req_operations {
 	void (*cro_attr_set)(const struct lu_env *env,
 			     const struct cl_req_slice *slice,
 			     const struct cl_object *obj,
-			     struct cl_req_attr *attr, obd_valid flags);
+			     struct cl_req_attr *attr, u64 flags);
 	/**
 	 * Called top-to-bottom from cl_req_completion() to notify layers that
 	 * transfer completed. Has to free all state allocated by
@@ -3182,7 +3182,7 @@ void cl_req_page_add  (const struct lu_env *env, struct cl_req *req,
 void cl_req_page_done (const struct lu_env *env, struct cl_page *page);
 int  cl_req_prep      (const struct lu_env *env, struct cl_req *req);
 void cl_req_attr_set  (const struct lu_env *env, struct cl_req *req,
-		       struct cl_req_attr *attr, obd_valid flags);
+		       struct cl_req_attr *attr, u64 flags);
 void cl_req_completion(const struct lu_env *env, struct cl_req *req, int ioret);
 
 /** \defgroup cl_sync_io cl_sync_io

@@ -532,6 +532,6 @@ module_exit(des_sparc64_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DES & Triple DES EDE Cipher Algorithms, sparc64 des opcode accelerated");
 
-MODULE_ALIAS("des");
+MODULE_ALIAS_CRYPTO("des");
 
 #include "crop_devid.c"

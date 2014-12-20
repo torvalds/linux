@@ -44,9 +44,11 @@ static unsigned long mxc_pin_alloc_map[NB_PORTS * 32 / BITS_PER_LONG];
 /*
  * set the mode for a IOMUX pin.
  */
-int mxc_iomux_mode(unsigned int pin_mode)
+void mxc_iomux_mode(unsigned int pin_mode)
 {
-	u32 field, l, mode, ret = 0;
+	u32 field;
+	u32 l;
+	u32 mode;
 	void __iomem *reg;
 
 	reg = IOMUXSW_MUX_CTL + (pin_mode & IOMUX_REG_MASK);
@@ -61,10 +63,7 @@ int mxc_iomux_mode(unsigned int pin_mode)
 	__raw_writel(l, reg);
 
 	spin_unlock(&gpio_mux_lock);
-
-	return ret;
 }
-EXPORT_SYMBOL(mxc_iomux_mode);
 
 /*
  * This function configures the pad value for a IOMUX pin.
@@ -90,7 +89,6 @@ void mxc_iomux_set_pad(enum iomux_pins pin, u32 config)
 
 	spin_unlock(&gpio_mux_lock);
 }
-EXPORT_SYMBOL(mxc_iomux_set_pad);
 
 /*
  * allocs a single pin:
@@ -116,7 +114,6 @@ int mxc_iomux_alloc_pin(unsigned int pin, const char *label)
 
 	return 0;
 }
-EXPORT_SYMBOL(mxc_iomux_alloc_pin);
 
 int mxc_iomux_setup_multiple_pins(const unsigned int *pin_list, unsigned count,
 		const char *label)
@@ -137,7 +134,6 @@ setup_error:
 	mxc_iomux_release_multiple_pins(pin_list, i);
 	return ret;
 }
-EXPORT_SYMBOL(mxc_iomux_setup_multiple_pins);
 
 void mxc_iomux_release_pin(unsigned int pin)
 {
@@ -146,7 +142,6 @@ void mxc_iomux_release_pin(unsigned int pin)
 	if (pad < (PIN_MAX + 1))
 		clear_bit(pad, mxc_pin_alloc_map);
 }
-EXPORT_SYMBOL(mxc_iomux_release_pin);
 
 void mxc_iomux_release_multiple_pins(const unsigned int *pin_list, int count)
 {
@@ -158,7 +153,6 @@ void mxc_iomux_release_multiple_pins(const unsigned int *pin_list, int count)
 		p++;
 	}
 }
-EXPORT_SYMBOL(mxc_iomux_release_multiple_pins);
 
 /*
  * This function enables/disables the general purpose function for a particular
@@ -178,4 +172,3 @@ void mxc_iomux_set_gpr(enum iomux_gp_func gp, bool en)
 	__raw_writel(l, IOMUXGPR);
 	spin_unlock(&gpio_mux_lock);
 }
-EXPORT_SYMBOL(mxc_iomux_set_gpr);

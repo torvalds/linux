@@ -72,6 +72,7 @@ void flush_dcache_page(struct page *page)
 	addr = (unsigned long) page_address(page);
 	flush_data_cache_page(addr);
 }
+EXPORT_SYMBOL(flush_dcache_page);
 
 /* called by update_mmu_cache. */
 void __update_cache(struct vm_area_struct *vma, unsigned long address,
@@ -277,3 +278,4 @@ void flush_icache_range(unsigned long start, unsigned long end)
 		start += L1_CACHE_BYTES;
 	}
 }
+EXPORT_SYMBOL(flush_icache_range);

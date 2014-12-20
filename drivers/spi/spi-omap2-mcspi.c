@@ -1521,7 +1521,6 @@ static const struct dev_pm_ops omap2_mcspi_pm_ops = {
 static struct platform_driver omap2_mcspi_driver = {
 	.driver = {
 		.name =		"omap2_mcspi",
-		.owner =	THIS_MODULE,
 		.pm =		&omap2_mcspi_pm_ops,
 		.of_match_table = omap_mcspi_of_match,
 	},

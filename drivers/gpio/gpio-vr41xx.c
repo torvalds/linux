@@ -138,7 +138,7 @@ static void unmask_giuint_low(struct irq_data *d)
 
 static unsigned int startup_giuint(struct irq_data *data)
 {
-	if (gpio_lock_as_irq(&vr41xx_gpio_chip, data->hwirq))
+	if (gpiochip_lock_as_irq(&vr41xx_gpio_chip, data->hwirq))
 		dev_err(vr41xx_gpio_chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			data->hwirq);
@@ -150,7 +150,7 @@ static unsigned int startup_giuint(struct irq_data *data)
 static void shutdown_giuint(struct irq_data *data)
 {
 	mask_giuint_low(data);
-	gpio_unlock_as_irq(&vr41xx_gpio_chip, data->hwirq);
+	gpiochip_unlock_as_irq(&vr41xx_gpio_chip, data->hwirq);
 }
 
 static struct irq_chip giuint_low_irq_chip = {
@@ -591,7 +591,6 @@ static struct platform_driver giu_device_driver = {
 	.remove		= giu_remove,
 	.driver		= {
 		.name	= "GIU",
-		.owner	= THIS_MODULE,
 	},
 };
 

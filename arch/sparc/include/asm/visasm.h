@@ -39,6 +39,14 @@
 297:	wr		%o5, FPRS_FEF, %fprs;		\
 298:
 
+#define VISEntryHalfFast(fail_label)			\
+	rd		%fprs, %o5;			\
+	andcc		%o5, FPRS_FEF, %g0;		\
+	be,pt		%icc, 297f;			\
+	 nop;						\
+	ba,a,pt		%xcc, fail_label;		\
+297:	wr		%o5, FPRS_FEF, %fprs;
+
 #define VISExitHalf					\
 	wr		%o5, 0, %fprs;
 

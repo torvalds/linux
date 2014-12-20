@@ -265,9 +265,8 @@ static void ptlrpc_at_adj_service(struct ptlrpc_request *req,
 	   so just keep minimal history here */
 	oldse = at_measured(&at->iat_service_estimate[idx], serv_est);
 	if (oldse != 0)
-		CDEBUG(D_ADAPTTO, "The RPC service estimate for %s ptl %d "
-		       "has changed from %d to %d\n",
-		       req->rq_import->imp_obd->obd_name,req->rq_request_portal,
+		CDEBUG(D_ADAPTTO, "The RPC service estimate for %s ptl %d has changed from %d to %d\n",
+		       req->rq_import->imp_obd->obd_name, req->rq_request_portal,
 		       oldse, at_get(&at->iat_service_estimate[idx]));
 }
 
@@ -289,7 +288,7 @@ static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 	at = &req->rq_import->imp_at;
 
 	/* Network latency is total time less server processing time */
-	nl = max_t(int, now - req->rq_sent - service_time, 0) +1/*st rounding*/;
+	nl = max_t(int, now - req->rq_sent - service_time, 0) + 1/*st rounding*/;
 	if (service_time > now - req->rq_sent + 3 /* bz16408 */)
 		CWARN("Reported service time %u > total measured time "
 		      CFS_DURATION_T"\n", service_time,
@@ -297,8 +296,7 @@ static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 
 	oldnl = at_measured(&at->iat_net_latency, nl);
 	if (oldnl != 0)
-		CDEBUG(D_ADAPTTO, "The network latency for %s (nid %s) "
-		       "has changed from %d to %d\n",
+		CDEBUG(D_ADAPTTO, "The network latency for %s (nid %s) has changed from %d to %d\n",
 		       req->rq_import->imp_obd->obd_name,
 		       obd_uuid2str(
 			       &req->rq_import->imp_connection->c_remote_uuid),
@@ -313,14 +311,14 @@ static int unpack_reply(struct ptlrpc_request *req)
 		rc = ptlrpc_unpack_rep_msg(req, req->rq_replen);
 		if (rc) {
 			DEBUG_REQ(D_ERROR, req, "unpack_rep failed: %d", rc);
-			return(-EPROTO);
+			return -EPROTO;
 		}
 	}
 
 	rc = lustre_unpack_rep_ptlrpc_body(req, MSG_PTLRPC_BODY_OFF);
 	if (rc) {
 		DEBUG_REQ(D_ERROR, req, "unpack ptlrpc body failed: %d", rc);
-		return(-EPROTO);
+		return -EPROTO;
 	}
 	return 0;
 }
@@ -371,8 +369,8 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 			   ptlrpc_at_get_net_latency(req);
 
 	DEBUG_REQ(D_ADAPTTO, req,
-		  "Early reply #%d, new deadline in "CFS_DURATION_T"s "
-		  "("CFS_DURATION_T"s)", req->rq_early_count,
+		  "Early reply #%d, new deadline in " CFS_DURATION_T "s (" CFS_DURATION_T "s)",
+		  req->rq_early_count,
 		  cfs_time_sub(req->rq_deadline, get_seconds()),
 		  cfs_time_sub(req->rq_deadline, olddl));
 
@@ -394,7 +392,7 @@ void ptlrpc_request_cache_fini(void)
 	kmem_cache_destroy(request_cache);
 }
 
-struct ptlrpc_request *ptlrpc_request_cache_alloc(int flags)
+struct ptlrpc_request *ptlrpc_request_cache_alloc(gfp_t flags)
 {
 	struct ptlrpc_request *req;
 
@@ -445,8 +443,8 @@ void ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq)
 
 	LASSERTF(list_empty(&pool->prp_req_list) ||
 		 size == pool->prp_rq_size,
-		 "Trying to change pool size with nonempty pool "
-		 "from %d to %d bytes\n", pool->prp_rq_size, size);
+		 "Trying to change pool size with nonempty pool from %d to %d bytes\n",
+		 pool->prp_rq_size, size);
 
 	spin_lock(&pool->prp_lock);
 	pool->prp_rq_size = size;
@@ -578,7 +576,7 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	else {
 		rc = sptlrpc_req_get_ctx(request);
 		if (rc)
-			GOTO(out_free, rc);
+			goto out_free;
 	}
 
 	sptlrpc_req_set_flavor(request, opcode);
@@ -587,7 +585,7 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 				 lengths, bufs);
 	if (rc) {
 		LASSERT(!request->rq_pool);
-		GOTO(out_ctx, rc);
+		goto out_ctx;
 	}
 
 	lustre_msg_add_version(request->rq_reqmsg, version);
@@ -721,7 +719,7 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
  */
 static struct ptlrpc_request *
 ptlrpc_request_alloc_internal(struct obd_import *imp,
-			      struct ptlrpc_request_pool * pool,
+			      struct ptlrpc_request_pool *pool,
 			      const struct req_format *format)
 {
 	struct ptlrpc_request *request;
@@ -751,7 +749,7 @@ EXPORT_SYMBOL(ptlrpc_request_alloc);
  * initialize its buffer structure according to capsule template \a format.
  */
 struct ptlrpc_request *ptlrpc_request_alloc_pool(struct obd_import *imp,
-					    struct ptlrpc_request_pool * pool,
+					    struct ptlrpc_request_pool *pool,
 					    const struct req_format *format)
 {
 	return ptlrpc_request_alloc_internal(imp, pool, format);
@@ -1146,11 +1144,10 @@ static int ptlrpc_check_status(struct ptlrpc_request *req)
 		struct obd_import *imp = req->rq_import;
 		__u32 opc = lustre_msg_get_opc(req->rq_reqmsg);
 		if (ptlrpc_console_allow(req))
-			LCONSOLE_ERROR_MSG(0x011, "%s: Communicating with %s,"
-					   " operation %s failed with %d.\n",
+			LCONSOLE_ERROR_MSG(0x011, "%s: Communicating with %s, operation %s failed with %d.\n",
 					   imp->imp_obd->obd_name,
 					   libcfs_nid2str(
-					   imp->imp_connection->c_peer.nid),
+						   imp->imp_connection->c_peer.nid),
 					   ll_opcode2str(opc), err);
 		return err < 0 ? err : -EINVAL;
 	}
@@ -1206,8 +1203,7 @@ static int after_reply(struct ptlrpc_request *req)
 
 	if (req->rq_reply_truncate) {
 		if (ptlrpc_no_resend(req)) {
-			DEBUG_REQ(D_ERROR, req, "reply buffer overflow,"
-				  " expected: %d, actual size: %d",
+			DEBUG_REQ(D_ERROR, req, "reply buffer overflow, expected: %d, actual size: %d",
 				  req->rq_nob_received, req->rq_repbuf_len);
 			return -EOVERFLOW;
 		}
@@ -1259,8 +1255,7 @@ static int after_reply(struct ptlrpc_request *req)
 			/* new xid is already allocated for bulk in
 			 * ptlrpc_check_set() */
 			req->rq_xid = ptlrpc_next_xid();
-			DEBUG_REQ(D_RPCTRACE, req, "Allocating new xid for "
-				  "resend on EINPROGRESS");
+			DEBUG_REQ(D_RPCTRACE, req, "Allocating new xid for resend on EINPROGRESS");
 		}
 
 		/* Readjust the timeout for current conditions */
@@ -1412,8 +1407,8 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 		req->rq_waiting = 1;
 		spin_unlock(&req->rq_lock);
 
-		DEBUG_REQ(D_HA, req, "req from PID %d waiting for recovery: "
-			  "(%s != %s)", lustre_msg_get_status(req->rq_reqmsg),
+		DEBUG_REQ(D_HA, req, "req from PID %d waiting for recovery: (%s != %s)",
+			  lustre_msg_get_status(req->rq_reqmsg),
 			  ptlrpc_import_state_name(req->rq_send_state),
 			  ptlrpc_import_state_name(imp->imp_state));
 		LASSERT(list_empty(&req->rq_list));
@@ -1450,8 +1445,8 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 		}
 	}
 
-	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc"
-	       " %s:%s:%d:%llu:%s:%d\n", current_comm(),
+	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
+	       current_comm(),
 	       imp->imp_obd->obd_uuid.uuid,
 	       lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
 	       libcfs_nid2str(imp->imp_connection->c_peer.nid),
@@ -1585,7 +1580,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			continue;
 
 		if (req->rq_phase == RQ_PHASE_INTERPRET)
-			GOTO(interpret, req->rq_status);
+			goto interpret;
 
 		/*
 		 * Note that this also will start async reply unlink.
@@ -1604,7 +1599,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 				if (req->rq_status == 0)
 					req->rq_status = -EIO;
 				ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-				GOTO(interpret, req->rq_status);
+				goto interpret;
 			} else {
 				continue;
 			}
@@ -1617,7 +1612,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			if (req->rq_status == 0)
 				req->rq_status = -EIO;
 			ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-			GOTO(interpret, req->rq_status);
+			goto interpret;
 		}
 
 		/* ptlrpc_set_wait->l_wait_event sets lwi_allow_intr
@@ -1633,7 +1628,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 				     req->rq_wait_ctx)) {
 			req->rq_status = -EINTR;
 			ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-			GOTO(interpret, req->rq_status);
+			goto interpret;
 		}
 
 		if (req->rq_phase == RQ_PHASE_RPC) {
@@ -1662,7 +1657,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					ptlrpc_rqphase_move(req,
 						RQ_PHASE_INTERPRET);
 					spin_unlock(&imp->imp_lock);
-					GOTO(interpret, req->rq_status);
+					goto interpret;
 				}
 				if (ptlrpc_no_resend(req) &&
 				    !req->rq_wait_ctx) {
@@ -1670,7 +1665,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 					ptlrpc_rqphase_move(req,
 							    RQ_PHASE_INTERPRET);
 					spin_unlock(&imp->imp_lock);
-					GOTO(interpret, req->rq_status);
+					goto interpret;
 				}
 
 				list_del_init(&req->rq_list);
@@ -1780,7 +1775,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			 */
 			if (req->rq_bulk == NULL || req->rq_status < 0) {
 				ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
-				GOTO(interpret, req->rq_status);
+				goto interpret;
 			}
 
 			ptlrpc_rqphase_move(req, RQ_PHASE_BULK);
@@ -1828,12 +1823,11 @@ interpret:
 		ptlrpc_rqphase_move(req, RQ_PHASE_COMPLETE);
 
 		CDEBUG(req->rq_reqmsg != NULL ? D_RPCTRACE : 0,
-			"Completed RPC pname:cluuid:pid:xid:nid:"
-			"opc %s:%s:%d:%llu:%s:%d\n",
-			current_comm(), imp->imp_obd->obd_uuid.uuid,
-			lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
-			libcfs_nid2str(imp->imp_connection->c_peer.nid),
-			lustre_msg_get_opc(req->rq_reqmsg));
+		       "Completed RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
+		       current_comm(), imp->imp_obd->obd_uuid.uuid,
+		       lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
+		       libcfs_nid2str(imp->imp_connection->c_peer.nid),
+		       lustre_msg_get_opc(req->rq_reqmsg));
 
 		spin_lock(&imp->imp_lock);
 		/* Request already may be not on sending or delaying list. This
@@ -2041,8 +2035,6 @@ int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 	struct ptlrpc_request *req;
 	int		    deadline;
 
-	SIGNAL_MASK_ASSERT(); /* XXX BUG 1511 */
-
 	list_for_each(tmp, &set->set_requests) {
 		req = list_entry(tmp, struct ptlrpc_request, rq_set_chain);
 
@@ -2132,7 +2124,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * interrupts are allowed. Wait until all
 			 * complete, or an in-flight req times out.
 			 */
-			lwi = LWI_TIMEOUT(cfs_time_seconds(timeout? timeout : 1),
+			lwi = LWI_TIMEOUT(cfs_time_seconds(timeout ? timeout : 1),
 					  ptlrpc_expired_set, set);
 
 		rc = l_wait_event(set->set_waitq, ptlrpc_check_set(NULL, set), &lwi);
@@ -2186,7 +2178,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 	}
 
 	if (set->set_interpret != NULL) {
-		int (*interpreter)(struct ptlrpc_request_set *set,void *,int) =
+		int (*interpreter)(struct ptlrpc_request_set *set, void *, int) =
 			set->set_interpret;
 		rc = interpreter (set, set->set_arg, rc);
 	} else {
@@ -2217,12 +2209,10 @@ EXPORT_SYMBOL(ptlrpc_set_wait);
  */
 static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 {
-	if (request == NULL) {
+	if (request == NULL)
 		return;
-	}
-
 	LASSERTF(!request->rq_receiving_reply, "req %p\n", request);
-	LASSERTF(request->rq_rqbd == NULL, "req %p\n",request);/* client-side */
+	LASSERTF(request->rq_rqbd == NULL, "req %p\n", request);/* client-side */
 	LASSERTF(list_empty(&request->rq_list), "req %p\n", request);
 	LASSERTF(list_empty(&request->rq_set_chain), "req %p\n", request);
 	LASSERTF(list_empty(&request->rq_exp_list), "req %p\n", request);
@@ -2491,7 +2481,7 @@ void ptlrpc_free_committed(struct obd_import *imp)
 		}
 		if (req->rq_import_generation < imp->imp_generation) {
 			DEBUG_REQ(D_RPCTRACE, req, "free request with old gen");
-			GOTO(free_req, 0);
+			goto free_req;
 		}
 
 		/* not yet committed */
@@ -2692,7 +2682,7 @@ struct ptlrpc_replay_async_args {
  */
 static int ptlrpc_replay_interpret(const struct lu_env *env,
 				   struct ptlrpc_request *req,
-				   void * data, int rc)
+				   void *data, int rc)
 {
 	struct ptlrpc_replay_async_args *aa = data;
 	struct obd_import *imp = req->rq_import;
@@ -2701,13 +2691,16 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 
 	if (!ptlrpc_client_replied(req)) {
 		CERROR("request replay timed out, restarting recovery\n");
-		GOTO(out, rc = -ETIMEDOUT);
+		rc = -ETIMEDOUT;
+		goto out;
 	}
 
 	if (lustre_msg_get_type(req->rq_repmsg) == PTL_RPC_MSG_ERR &&
 	    (lustre_msg_get_status(req->rq_repmsg) == -ENOTCONN ||
-	     lustre_msg_get_status(req->rq_repmsg) == -ENODEV))
-		GOTO(out, rc = lustre_msg_get_status(req->rq_repmsg));
+	     lustre_msg_get_status(req->rq_repmsg) == -ENODEV)) {
+		rc = lustre_msg_get_status(req->rq_repmsg);
+		goto out;
+	}
 
 	/** VBR: check version failure */
 	if (lustre_msg_get_status(req->rq_repmsg) == -EOVERFLOW) {
@@ -2742,7 +2735,8 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 			  "Reported transno %llu is bigger than the replayed one: %llu",
 			  req->rq_transno,
 			  lustre_msg_get_transno(req->rq_reqmsg));
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	DEBUG_REQ(D_HA, req, "got rep");

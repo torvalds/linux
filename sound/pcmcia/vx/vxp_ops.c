@@ -468,12 +468,11 @@ static void vxp_write_codec_reg(struct vx_core *chip, int codec, unsigned int da
 void vx_set_mic_boost(struct vx_core *chip, int boost)
 {
 	struct snd_vxpocket *pchip = (struct snd_vxpocket *)chip;
-	unsigned long flags;
 
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	if (pchip->regCDSP & P24_CDSP_MICS_SEL_MASK) {
 		if (boost) {
 			/* boost: 38 dB */
@@ -486,7 +485,7 @@ void vx_set_mic_boost(struct vx_core *chip, int boost)
                 }
 		vx_outb(chip, CDSP, pchip->regCDSP);
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 }
 
 /*
@@ -511,17 +510,16 @@ static int vx_compute_mic_level(int level)
 void vx_set_mic_level(struct vx_core *chip, int level)
 {
 	struct snd_vxpocket *pchip = (struct snd_vxpocket *)chip;
-	unsigned long flags;
 
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	if (pchip->regCDSP & VXP_CDSP_MIC_SEL_MASK) {
 		level = vx_compute_mic_level(level);
 		vx_outb(chip, MICRO, level);
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 }
 
 

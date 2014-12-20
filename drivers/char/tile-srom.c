@@ -76,6 +76,7 @@ MODULE_LICENSE("GPL");
 
 static int srom_devs;			/* Number of SROM partitions */
 static struct cdev srom_cdev;
+static struct platform_device *srom_parent;
 static struct class *srom_class;
 static struct srom_dev *srom_devices;
 
@@ -350,7 +351,7 @@ static int srom_setup_minor(struct srom_dev *srom, int index)
 		       SROM_PAGE_SIZE_OFF, sizeof(srom->page_size)) < 0)
 		return -EIO;
 
-	dev = device_create(srom_class, &platform_bus,
+	dev = device_create(srom_class, &srom_parent->dev,
 			    MKDEV(srom_major, index), srom, "%d", index);
 	return PTR_ERR_OR_ZERO(dev);
 }
@@ -415,6 +416,13 @@ static int srom_init(void)
 	if (result < 0)
 		goto fail_chrdev;
 
+	/* Create a parent device */
+	srom_parent = platform_device_register_simple("srom", -1, NULL, 0);
+	if (IS_ERR(srom_parent)) {
+		result = PTR_ERR(srom_parent);
+		goto fail_pdev;
+	}
+
 	/* Create a sysfs class. */
 	srom_class = class_create(THIS_MODULE, "srom");
 	if (IS_ERR(srom_class)) {
@@ -438,6 +446,8 @@ fail_class:
 		device_destroy(srom_class, MKDEV(srom_major, i));
 	class_destroy(srom_class);
 fail_cdev:
+	platform_device_unregister(srom_parent);
+fail_pdev:
 	cdev_del(&srom_cdev);
 fail_chrdev:
 	unregister_chrdev_region(dev, srom_devs);
@@ -454,6 +464,7 @@ static void srom_cleanup(void)
 		device_destroy(srom_class, MKDEV(srom_major, i));
 	class_destroy(srom_class);
 	cdev_del(&srom_cdev);
+	platform_device_unregister(srom_parent);
 	unregister_chrdev_region(MKDEV(srom_major, 0), srom_devs);
 	kfree(srom_devices);
 }

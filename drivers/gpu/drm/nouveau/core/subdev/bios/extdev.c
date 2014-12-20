@@ -90,7 +90,7 @@ nvbios_extdev_find(struct nouveau_bios *bios, enum nvbios_extdev_type type,
 	u16 entry;
 
 	i = 0;
-	while (!(entry = nvbios_extdev_entry(bios, i++, &ver, &len))) {
+	while ((entry = nvbios_extdev_entry(bios, i++, &ver, &len))) {
 		extdev_parse_entry(bios, entry, func);
 		if (func->type == type)
 			return 0;

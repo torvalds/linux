@@ -23,7 +23,6 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/device.h>
-#include <linux/bootmem.h>
 #include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <asm/io.h>

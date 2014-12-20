@@ -80,7 +80,7 @@ static void pvr2_context_set_notify(struct pvr2_context *mp, int fl)
 static void pvr2_context_destroy(struct pvr2_context *mp)
 {
 	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (destroy)",mp);
-	if (mp->hdw) pvr2_hdw_destroy(mp->hdw);
+	pvr2_hdw_destroy(mp->hdw);
 	pvr2_context_set_notify(mp, 0);
 	mutex_lock(&pvr2_context_mutex);
 	if (mp->exist_next) {

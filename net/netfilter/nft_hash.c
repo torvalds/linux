@@ -65,7 +65,7 @@ static int nft_hash_insert(const struct nft_set *set,
 	if (set->flags & NFT_SET_MAP)
 		nft_data_copy(he->data, &elem->data);
 
-	rhashtable_insert(priv, &he->node, GFP_KERNEL);
+	rhashtable_insert(priv, &he->node);
 
 	return 0;
 }
@@ -88,7 +88,7 @@ static void nft_hash_remove(const struct nft_set *set,
 	pprev = elem->cookie;
 	he = rht_dereference((*pprev), priv);
 
-	rhashtable_remove_pprev(priv, he, pprev, GFP_KERNEL);
+	rhashtable_remove_pprev(priv, he, pprev);
 
 	synchronize_rcu();
 	kfree(he);
@@ -153,10 +153,12 @@ static unsigned int nft_hash_privsize(const struct nlattr * const nla[])
 	return sizeof(struct rhashtable);
 }
 
-static int lockdep_nfnl_lock_is_held(void)
+#ifdef CONFIG_PROVE_LOCKING
+static int lockdep_nfnl_lock_is_held(void *parent)
 {
 	return lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES);
 }
+#endif
 
 static int nft_hash_init(const struct nft_set *set,
 			 const struct nft_set_desc *desc,
@@ -171,7 +173,9 @@ static int nft_hash_init(const struct nft_set *set,
 		.hashfn = jhash,
 		.grow_decision = rht_grow_above_75,
 		.shrink_decision = rht_shrink_below_30,
+#ifdef CONFIG_PROVE_LOCKING
 		.mutex_is_held = lockdep_nfnl_lock_is_held,
+#endif
 	};
 
 	return rhashtable_init(priv, &params);
@@ -180,15 +184,17 @@ static int nft_hash_init(const struct nft_set *set,
 static void nft_hash_destroy(const struct nft_set *set)
 {
 	const struct rhashtable *priv = nft_set_priv(set);
-	const struct bucket_table *tbl;
+	const struct bucket_table *tbl = priv->tbl;
 	struct nft_hash_elem *he, *next;
 	unsigned int i;
 
-	tbl = rht_dereference(priv->tbl, priv);
-	for (i = 0; i < tbl->size; i++)
-		rht_for_each_entry_safe(he, next, tbl->buckets[i], priv, node)
+	for (i = 0; i < tbl->size; i++) {
+		for (he = rht_entry(tbl->buckets[i], struct nft_hash_elem, node);
+		     he != NULL; he = next) {
+			next = rht_entry(he->node.next, struct nft_hash_elem, node);
 			nft_hash_elem_destroy(set, he);
-
+		}
+	}
 	rhashtable_destroy(priv);
 }
 

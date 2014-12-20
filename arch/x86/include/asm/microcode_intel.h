@@ -43,7 +43,7 @@ struct extended_sigtable {
 #define DWSIZE			(sizeof(u32))
 
 #define get_totalsize(mc) \
-	(((struct microcode_intel *)mc)->hdr.totalsize ? \
+	(((struct microcode_intel *)mc)->hdr.datasize ? \
 	 ((struct microcode_intel *)mc)->hdr.totalsize : \
 	 DEFAULT_UCODE_TOTALSIZE)
 
@@ -68,11 +68,13 @@ extern void __init load_ucode_intel_bsp(void);
 extern void load_ucode_intel_ap(void);
 extern void show_ucode_info_early(void);
 extern int __init save_microcode_in_initrd_intel(void);
+void reload_ucode_intel(void);
 #else
 static inline __init void load_ucode_intel_bsp(void) {}
 static inline void load_ucode_intel_ap(void) {}
 static inline void show_ucode_info_early(void) {}
 static inline int __init save_microcode_in_initrd_intel(void) { return -EINVAL; }
+static inline void reload_ucode_intel(void) {}
 #endif
 
 #if defined(CONFIG_MICROCODE_INTEL_EARLY) && defined(CONFIG_HOTPLUG_CPU)

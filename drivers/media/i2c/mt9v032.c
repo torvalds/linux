@@ -454,7 +454,7 @@ static int mt9v032_enum_mbus_code(struct v4l2_subdev *subdev,
 	if (code->index > 0)
 		return -EINVAL;
 
-	code->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	return 0;
 }
 
@@ -462,7 +462,7 @@ static int mt9v032_enum_frame_size(struct v4l2_subdev *subdev,
 				   struct v4l2_subdev_fh *fh,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= 3 || fse->code != V4L2_MBUS_FMT_SGRBG10_1X10)
+	if (fse->index >= 3 || fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
 		return -EINVAL;
 
 	fse->min_width = MT9V032_WINDOW_WIDTH_DEF / (1 << fse->index);
@@ -814,9 +814,9 @@ static int mt9v032_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	format = v4l2_subdev_get_try_format(fh, 0);
 
 	if (mt9v032->model->color)
-		format->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		format->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	else
-		format->code = V4L2_MBUS_FMT_Y10_1X10;
+		format->code = MEDIA_BUS_FMT_Y10_1X10;
 
 	format->width = MT9V032_WINDOW_WIDTH_DEF;
 	format->height = MT9V032_WINDOW_HEIGHT_DEF;
@@ -966,9 +966,9 @@ static int mt9v032_probe(struct i2c_client *client,
 	mt9v032->crop.height = MT9V032_WINDOW_HEIGHT_DEF;
 
 	if (mt9v032->model->color)
-		mt9v032->format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		mt9v032->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	else
-		mt9v032->format.code = V4L2_MBUS_FMT_Y10_1X10;
+		mt9v032->format.code = MEDIA_BUS_FMT_Y10_1X10;
 
 	mt9v032->format.width = MT9V032_WINDOW_WIDTH_DEF;
 	mt9v032->format.height = MT9V032_WINDOW_HEIGHT_DEF;

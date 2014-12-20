@@ -32,31 +32,20 @@
 
 void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 {
-	struct fsnotify_mark *mark, *lmark;
+	struct fsnotify_mark *mark;
 	struct hlist_node *n;
 	struct mount *m = real_mount(mnt);
 	LIST_HEAD(free_list);
 
 	spin_lock(&mnt->mnt_root->d_lock);
-	hlist_for_each_entry_safe(mark, n, &m->mnt_fsnotify_marks, m.m_list) {
-		list_add(&mark->m.free_m_list, &free_list);
-		hlist_del_init_rcu(&mark->m.m_list);
+	hlist_for_each_entry_safe(mark, n, &m->mnt_fsnotify_marks, obj_list) {
+		list_add(&mark->free_list, &free_list);
+		hlist_del_init_rcu(&mark->obj_list);
 		fsnotify_get_mark(mark);
 	}
 	spin_unlock(&mnt->mnt_root->d_lock);
 
-	list_for_each_entry_safe(mark, lmark, &free_list, m.free_m_list) {
-		struct fsnotify_group *group;
-
-		spin_lock(&mark->lock);
-		fsnotify_get_group(mark->group);
-		group = mark->group;
-		spin_unlock(&mark->lock);
-
-		fsnotify_destroy_mark(mark, group);
-		fsnotify_put_mark(mark);
-		fsnotify_put_group(group);
-	}
+	fsnotify_destroy_marks(&free_list);
 }
 
 void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
@@ -65,64 +54,33 @@ void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 }
 
 /*
- * Recalculate the mask of events relevant to a given vfsmount locked.
- */
-static void fsnotify_recalc_vfsmount_mask_locked(struct vfsmount *mnt)
-{
-	struct mount *m = real_mount(mnt);
-	struct fsnotify_mark *mark;
-	__u32 new_mask = 0;
-
-	assert_spin_locked(&mnt->mnt_root->d_lock);
-
-	hlist_for_each_entry(mark, &m->mnt_fsnotify_marks, m.m_list)
-		new_mask |= mark->mask;
-	m->mnt_fsnotify_mask = new_mask;
-}
-
-/*
  * Recalculate the mnt->mnt_fsnotify_mask, or the mask of all FS_* event types
  * any notifier is interested in hearing for this mount point
  */
 void fsnotify_recalc_vfsmount_mask(struct vfsmount *mnt)
 {
+	struct mount *m = real_mount(mnt);
+
 	spin_lock(&mnt->mnt_root->d_lock);
-	fsnotify_recalc_vfsmount_mask_locked(mnt);
+	m->mnt_fsnotify_mask = fsnotify_recalc_mask(&m->mnt_fsnotify_marks);
 	spin_unlock(&mnt->mnt_root->d_lock);
 }
 
 void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
 {
-	struct vfsmount *mnt = mark->m.mnt;
+	struct vfsmount *mnt = mark->mnt;
+	struct mount *m = real_mount(mnt);
 
 	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
 
-	hlist_del_init_rcu(&mark->m.m_list);
-	mark->m.mnt = NULL;
+	hlist_del_init_rcu(&mark->obj_list);
+	mark->mnt = NULL;
 
-	fsnotify_recalc_vfsmount_mask_locked(mnt);
-
+	m->mnt_fsnotify_mask = fsnotify_recalc_mask(&m->mnt_fsnotify_marks);
 	spin_unlock(&mnt->mnt_root->d_lock);
-}
-
-static struct fsnotify_mark *fsnotify_find_vfsmount_mark_locked(struct fsnotify_group *group,
-								struct vfsmount *mnt)
-{
-	struct mount *m = real_mount(mnt);
-	struct fsnotify_mark *mark;
-
-	assert_spin_locked(&mnt->mnt_root->d_lock);
-
-	hlist_for_each_entry(mark, &m->mnt_fsnotify_marks, m.m_list) {
-		if (mark->group == group) {
-			fsnotify_get_mark(mark);
-			return mark;
-		}
-	}
-	return NULL;
 }
 
 /*
@@ -132,10 +90,11 @@ static struct fsnotify_mark *fsnotify_find_vfsmount_mark_locked(struct fsnotify_
 struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group,
 						  struct vfsmount *mnt)
 {
+	struct mount *m = real_mount(mnt);
 	struct fsnotify_mark *mark;
 
 	spin_lock(&mnt->mnt_root->d_lock);
-	mark = fsnotify_find_vfsmount_mark_locked(group, mnt);
+	mark = fsnotify_find_mark(&m->mnt_fsnotify_marks, group);
 	spin_unlock(&mnt->mnt_root->d_lock);
 
 	return mark;
@@ -151,8 +110,7 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 			       int allow_dups)
 {
 	struct mount *m = real_mount(mnt);
-	struct fsnotify_mark *lmark, *last = NULL;
-	int ret = 0;
+	int ret;
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_VFSMOUNT;
 
@@ -160,40 +118,9 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 	assert_spin_locked(&mark->lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
-
-	mark->m.mnt = mnt;
-
-	/* is mark the first mark? */
-	if (hlist_empty(&m->mnt_fsnotify_marks)) {
-		hlist_add_head_rcu(&mark->m.m_list, &m->mnt_fsnotify_marks);
-		goto out;
-	}
-
-	/* should mark be in the middle of the current list? */
-	hlist_for_each_entry(lmark, &m->mnt_fsnotify_marks, m.m_list) {
-		last = lmark;
-
-		if ((lmark->group == group) && !allow_dups) {
-			ret = -EEXIST;
-			goto out;
-		}
-
-		if (mark->group->priority < lmark->group->priority)
-			continue;
-
-		if ((mark->group->priority == lmark->group->priority) &&
-		    (mark->group < lmark->group))
-			continue;
-
-		hlist_add_before_rcu(&mark->m.m_list, &lmark->m.m_list);
-		goto out;
-	}
-
-	BUG_ON(last == NULL);
-	/* mark should be the last entry.  last is the current last entry */
-	hlist_add_behind_rcu(&mark->m.m_list, &last->m.m_list);
-out:
-	fsnotify_recalc_vfsmount_mask_locked(mnt);
+	mark->mnt = mnt;
+	ret = fsnotify_add_mark_list(&m->mnt_fsnotify_marks, mark, allow_dups);
+	m->mnt_fsnotify_mask = fsnotify_recalc_mask(&m->mnt_fsnotify_marks);
 	spin_unlock(&mnt->mnt_root->d_lock);
 
 	return ret;

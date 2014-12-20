@@ -157,6 +157,12 @@ extern void syscall_unregfunc(void);
  * Make sure the alignment of the structure in the __tracepoints section will
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
+ *
+ * When lockdep is enabled, we make sure to always do the RCU portions of
+ * the tracepoint code, regardless of whether tracing is on or we match the
+ * condition.  This lets us find RCU issues triggered with tracepoints even
+ * when this tracepoint is off.  This code has no purpose other than poking
+ * RCU a bit.
  */
 #define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args) \
 	extern struct tracepoint __tracepoint_##name;			\
@@ -167,6 +173,11 @@ extern void syscall_unregfunc(void);
 				TP_PROTO(data_proto),			\
 				TP_ARGS(data_args),			\
 				TP_CONDITION(cond),,);			\
+		if (IS_ENABLED(CONFIG_LOCKDEP)) {			\
+			rcu_read_lock_sched_notrace();			\
+			rcu_dereference_sched(__tracepoint_##name.funcs);\
+			rcu_read_unlock_sched_notrace();		\
+		}							\
 	}								\
 	__DECLARE_TRACE_RCU(name, PARAMS(proto), PARAMS(args),		\
 		PARAMS(cond), PARAMS(data_proto), PARAMS(data_args))	\

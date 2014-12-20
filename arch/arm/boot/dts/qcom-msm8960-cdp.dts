@@ -1,3 +1,5 @@
+#include <dt-bindings/input/input.h>
+
 #include "qcom-msm8960.dtsi"
 
 / {
@@ -12,5 +14,30 @@
 				status = "ok";
 			};
 		};
+
+		amba {
+			/* eMMC */
+			sdcc1: sdcc@12400000 {
+				status = "okay";
+			};
+
+			/* External micro SD card */
+			sdcc3: sdcc@12180000 {
+				status = "okay";
+			};
+		};
+	};
+};
+
+&pmicintc {
+	keypad@148 {
+		linux,keymap = <
+			MATRIX_KEY(0, 0, KEY_VOLUMEUP)
+			MATRIX_KEY(0, 1, KEY_VOLUMEDOWN)
+			MATRIX_KEY(0, 2, KEY_CAMERA_FOCUS)
+			MATRIX_KEY(0, 3, KEY_CAMERA)
+			>;
+		keypad,num-rows = <1>;
+		keypad,num-columns = <5>;
 	};
 };

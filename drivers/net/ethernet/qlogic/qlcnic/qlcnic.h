@@ -39,8 +39,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 61
-#define QLCNIC_LINUX_VERSIONID  "5.3.61"
+#define _QLCNIC_LINUX_SUBVERSION 62
+#define QLCNIC_LINUX_VERSIONID  "5.3.62"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -540,6 +540,8 @@ struct qlcnic_hardware_context {
 	u8 lb_mode;
 	u16 vxlan_port;
 	struct device *hwmon_dev;
+	u32 post_mode;
+	bool run_post;
 };
 
 struct qlcnic_adapter_stats {
@@ -2283,6 +2285,7 @@ extern const struct ethtool_ops qlcnic_ethtool_failed_ops;
 
 #define PCI_DEVICE_ID_QLOGIC_QLE824X		0x8020
 #define PCI_DEVICE_ID_QLOGIC_QLE834X		0x8030
+#define PCI_DEVICE_ID_QLOGIC_QLE8830		0x8830
 #define PCI_DEVICE_ID_QLOGIC_VF_QLE834X	0x8430
 #define PCI_DEVICE_ID_QLOGIC_QLE844X		0x8040
 #define PCI_DEVICE_ID_QLOGIC_VF_QLE844X	0x8440
@@ -2307,6 +2310,7 @@ static inline bool qlcnic_83xx_check(struct qlcnic_adapter *adapter)
 	bool status;
 
 	status = ((device == PCI_DEVICE_ID_QLOGIC_QLE834X) ||
+		  (device == PCI_DEVICE_ID_QLOGIC_QLE8830) ||
 		  (device == PCI_DEVICE_ID_QLOGIC_QLE844X) ||
 		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X) ||
 		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X)) ? true : false;

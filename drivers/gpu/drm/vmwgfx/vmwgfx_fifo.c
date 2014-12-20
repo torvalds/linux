@@ -160,16 +160,21 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	return vmw_fifo_send_fence(dev_priv, &dummy);
 }
 
-void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason)
+void vmw_fifo_ping_host_locked(struct vmw_private *dev_priv, uint32_t reason)
 {
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
-
-	mutex_lock(&dev_priv->hw_mutex);
 
 	if (unlikely(ioread32(fifo_mem + SVGA_FIFO_BUSY) == 0)) {
 		iowrite32(1, fifo_mem + SVGA_FIFO_BUSY);
 		vmw_write(dev_priv, SVGA_REG_SYNC, reason);
 	}
+}
+
+void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason)
+{
+	mutex_lock(&dev_priv->hw_mutex);
+
+	vmw_fifo_ping_host_locked(dev_priv, reason);
 
 	mutex_unlock(&dev_priv->hw_mutex);
 }

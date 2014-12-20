@@ -2570,7 +2570,6 @@ static struct platform_driver mmcc_msm8974_driver = {
 	.remove		= mmcc_msm8974_remove,
 	.driver		= {
 		.name	= "mmcc-msm8974",
-		.owner	= THIS_MODULE,
 		.of_match_table = mmcc_msm8974_match_table,
 	},
 };

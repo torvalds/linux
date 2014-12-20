@@ -206,7 +206,8 @@ static struct bus_type ipack_bus_type = {
 };
 
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
-					    const struct ipack_bus_ops *ops)
+					    const struct ipack_bus_ops *ops,
+					    struct module *owner)
 {
 	int bus_nr;
 	struct ipack_bus_device *bus;
@@ -225,6 +226,7 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 	bus->parent = parent;
 	bus->slots = slots;
 	bus->ops = ops;
+	bus->owner = owner;
 	return bus;
 }
 EXPORT_SYMBOL_GPL(ipack_bus_register);

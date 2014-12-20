@@ -41,6 +41,7 @@
  * This code is not portable to processors with late data abort handling.
  */
 #define CODING_BITS(i)	(i & 0x0e000000)
+#define COND_BITS(i)	(i & 0xf0000000)
 
 #define LDST_I_BIT(i)	(i & (1 << 26))		/* Immediate constant	*/
 #define LDST_P_BIT(i)	(i & (1 << 24))		/* Preindex		*/
@@ -112,7 +113,7 @@ static int safe_usermode(int new_usermode, bool warn)
 		new_usermode |= UM_FIXUP;
 
 		if (warn)
-			printk(KERN_WARNING "alignment: ignoring faults is unsafe on this CPU.  Defaulting to fixup mode.\n");
+			pr_warn("alignment: ignoring faults is unsafe on this CPU.  Defaulting to fixup mode.\n");
 	}
 
 	return new_usermode;
@@ -522,7 +523,7 @@ do_alignment_ldmstm(unsigned long addr, unsigned long instr, struct pt_regs *reg
 	 * processor for us.
 	 */
 	if (addr != eaddr) {
-		printk(KERN_ERR "LDMSTM: PC = %08lx, instr = %08lx, "
+		pr_err("LDMSTM: PC = %08lx, instr = %08lx, "
 			"addr = %08lx, eaddr = %08lx\n",
 			 instruction_pointer(regs), instr, addr, eaddr);
 		show_regs(regs);
@@ -566,7 +567,7 @@ fault:
 	return TYPE_FAULT;
 
 bad:
-	printk(KERN_ERR "Alignment trap: not handling ldm with s-bit set\n");
+	pr_err("Alignment trap: not handling ldm with s-bit set\n");
 	return TYPE_ERROR;
 }
 
@@ -821,6 +822,8 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		break;
 
 	case 0x04000000:	/* ldr or str immediate */
+		if (COND_BITS(instr) == 0xf0000000) /* NEON VLDn, VSTn */
+			goto bad;
 		offset.un = OFFSET_BITS(instr);
 		handler = do_alignment_ldrstr;
 		break;
@@ -896,13 +899,13 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	return 0;
 
  swp:
-	printk(KERN_ERR "Alignment trap: not handling swp instruction\n");
+	pr_err("Alignment trap: not handling swp instruction\n");
 
  bad:
 	/*
 	 * Oops, we didn't handle the instruction.
 	 */
-	printk(KERN_ERR "Alignment trap: not handling instruction "
+	pr_err("Alignment trap: not handling instruction "
 		"%0*lx at [<%08lx>]\n",
 		isize << 1,
 		isize == 2 ? tinstr : instr, instrptr);

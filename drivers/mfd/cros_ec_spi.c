@@ -65,6 +65,12 @@
   */
 #define EC_SPI_RECOVERY_TIME_NS	(200 * 1000)
 
+/*
+ * The EC is unresponsive for a time after a reboot command.  Add a
+ * simple delay to make sure that the bus stays locked.
+ */
+#define EC_REBOOT_DELAY_MS	50
+
 /**
  * struct cros_ec_spi - information about a SPI-connected EC
  *
@@ -73,13 +79,11 @@
  *	if no record
  * @end_of_msg_delay: used to set the delay_usecs on the spi_transfer that
  *      is sent when we want to turn off CS at the end of a transaction.
- * @lock: mutex to ensure only one user of cros_ec_cmd_xfer_spi at a time
  */
 struct cros_ec_spi {
 	struct spi_device *spi;
 	s64 last_transfer_ns;
 	unsigned int end_of_msg_delay;
-	struct mutex lock;
 };
 
 static void debug_packet(struct device *dev, const char *name, u8 *ptr,
@@ -226,13 +230,6 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	int sum;
 	int ret = 0, final_ret;
 
-	/*
-	 * We have the shared ec_dev buffer plus we do lots of separate spi_sync
-	 * calls, so we need to make sure only one person is using this at a
-	 * time.
-	 */
-	mutex_lock(&ec_spi->lock);
-
 	len = cros_ec_prepare_tx(ec_dev, ec_msg);
 	dev_dbg(ec_dev->dev, "prepared, len=%d\n", len);
 
@@ -318,7 +315,9 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 
 	ret = len;
 exit:
-	mutex_unlock(&ec_spi->lock);
+	if (ec_msg->command == EC_CMD_REBOOT_EC)
+		msleep(EC_REBOOT_DELAY_MS);
+
 	return ret;
 }
 
@@ -350,7 +349,6 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	if (ec_spi == NULL)
 		return -ENOMEM;
 	ec_spi->spi = spi;
-	mutex_init(&ec_spi->lock);
 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
 		return -ENOMEM;

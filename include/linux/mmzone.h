@@ -431,6 +431,15 @@ struct zone {
 	 */
 	int			nr_migrate_reserve_block;
 
+#ifdef CONFIG_MEMORY_ISOLATION
+	/*
+	 * Number of isolated pageblock. It is used to solve incorrect
+	 * freepage counting problem due to racy retrieving migratetype
+	 * of pageblock. Protected by zone->lock.
+	 */
+	unsigned long		nr_isolate_pageblock;
+#endif
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/* see spanned/present_pages for more description */
 	seqlock_t		span_seqlock;
@@ -521,13 +530,13 @@ struct zone {
 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
 } ____cacheline_internodealigned_in_smp;
 
-typedef enum {
+enum zone_flags {
 	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
 	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
 	ZONE_CONGESTED,			/* zone has many dirty pages backed by
 					 * a congested BDI
 					 */
-	ZONE_TAIL_LRU_DIRTY,		/* reclaim scanning has recently found
+	ZONE_DIRTY,			/* reclaim scanning has recently found
 					 * many dirty file pages at the tail
 					 * of the LRU.
 					 */
@@ -535,52 +544,7 @@ typedef enum {
 					 * many pages under writeback
 					 */
 	ZONE_FAIR_DEPLETED,		/* fair zone policy batch depleted */
-} zone_flags_t;
-
-static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
-{
-	set_bit(flag, &zone->flags);
-}
-
-static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
-{
-	return test_and_set_bit(flag, &zone->flags);
-}
-
-static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
-{
-	clear_bit(flag, &zone->flags);
-}
-
-static inline int zone_is_reclaim_congested(const struct zone *zone)
-{
-	return test_bit(ZONE_CONGESTED, &zone->flags);
-}
-
-static inline int zone_is_reclaim_dirty(const struct zone *zone)
-{
-	return test_bit(ZONE_TAIL_LRU_DIRTY, &zone->flags);
-}
-
-static inline int zone_is_reclaim_writeback(const struct zone *zone)
-{
-	return test_bit(ZONE_WRITEBACK, &zone->flags);
-}
-
-static inline int zone_is_reclaim_locked(const struct zone *zone)
-{
-	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
-}
-
-static inline int zone_is_fair_depleted(const struct zone *zone)
-{
-	return test_bit(ZONE_FAIR_DEPLETED, &zone->flags);
-}
-
-static inline int zone_is_oom_locked(const struct zone *zone)
-{
-	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
-}
+};
 
 static inline unsigned long zone_end_pfn(const struct zone *zone)
 {
@@ -758,8 +722,8 @@ typedef struct pglist_data {
 	int nr_zones;
 #ifdef CONFIG_FLAT_NODE_MEM_MAP	/* means !SPARSEMEM */
 	struct page *node_mem_map;
-#ifdef CONFIG_MEMCG
-	struct page_cgroup *node_page_cgroup;
+#ifdef CONFIG_PAGE_EXTENSION
+	struct page_ext *node_page_ext;
 #endif
 #endif
 #ifndef CONFIG_NO_BOOTMEM
@@ -1114,7 +1078,7 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
 #define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
 
 struct page;
-struct page_cgroup;
+struct page_ext;
 struct mem_section {
 	/*
 	 * This is, logically, a pointer to an array of struct
@@ -1132,12 +1096,12 @@ struct mem_section {
 
 	/* See declaration of similar field in struct zone */
 	unsigned long *pageblock_flags;
-#ifdef CONFIG_MEMCG
+#ifdef CONFIG_PAGE_EXTENSION
 	/*
-	 * If !SPARSEMEM, pgdat doesn't have page_cgroup pointer. We use
-	 * section. (see memcontrol.h/page_cgroup.h about this.)
+	 * If !SPARSEMEM, pgdat doesn't have page_ext pointer. We use
+	 * section. (see page_ext.h about this.)
 	 */
-	struct page_cgroup *page_cgroup;
+	struct page_ext *page_ext;
 	unsigned long pad;
 #endif
 	/*

@@ -275,10 +275,12 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 			    &pnetwork->network)) {
 		notify_signal = 100 * translate_percentage_to_dbm(padapter->recvpriv.signal_strength);	/* dbm */
 	} else {
-		notify_signal = 100 * translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength);	/* dbm */
+		notify_signal = 100 * translate_percentage_to_dbm(
+			pnetwork->network.SignalStrength);	/* dbm */
 	}
 
 	bss = cfg80211_inform_bss(wiphy, notify_channel,
+				  CFG80211_BSS_FTYPE_UNKNOWN,
 				  pnetwork->network.MacAddress,
 				  pnetwork->network.tsf,
 				  pnetwork->network.capability,
@@ -470,7 +472,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 					  int set_tx, const u8 *sta_addr,
 					  struct key_params *keyparms)
 {
-	int ret = 0;
 	int key_len;
 	struct sta_info *psta = NULL, *pbcmc_sta = NULL;
 	struct rtw_adapter *padapter = netdev_priv(dev);
@@ -707,7 +708,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 exit:
 
-	return ret;
+	return 0;
 }
 #endif
 
@@ -849,7 +850,6 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 					    dot11PrivacyAlgrthm;
 				}
 			}
-		} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {	/* adhoc mode */
 		}
 	}
 
@@ -1118,7 +1118,7 @@ exit:
 	return ret;
 }
 
-int cfg80211_infrastructure_mode(struct rtw_adapter* padapter,
+static int cfg80211_infrastructure_mode(struct rtw_adapter *padapter,
 				 enum nl80211_iftype ifmode)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -2363,7 +2363,6 @@ void rtw_cfg80211_indicate_sta_assoc(struct rtw_adapter *padapter,
 			ie_offset = offsetof(struct ieee80211_mgmt,
 					     u.reassoc_req.variable);
 
-		sinfo.filled = 0;
 		sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
 		sinfo.assoc_req_ies = pmgmt_frame + ie_offset;
 		sinfo.assoc_req_ies_len = frame_len - ie_offset;
@@ -2379,7 +2378,7 @@ void rtw_cfg80211_indicate_sta_assoc(struct rtw_adapter *padapter,
 						      IEEE80211_BAND_5GHZ);
 
 	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, pmgmt_frame, frame_len,
-			 0, GFP_ATOMIC);
+			 0);
 #endif /* defined(RTW_USE_CFG80211_STA_EVENT) */
 }
 
@@ -2425,26 +2424,22 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 	frame_len = sizeof(struct ieee80211_hdr_3addr) + 2;
 
 	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, (u8 *)&mgmt, frame_len,
-			 0, GFP_ATOMIC);
+			 0);
 #endif /* defined(RTW_USE_CFG80211_STA_EVENT) */
 }
 
 static int rtw_cfg80211_monitor_if_open(struct net_device *ndev)
 {
-	int ret = 0;
-
 	DBG_8723A("%s\n", __func__);
 
-	return ret;
+	return 0;
 }
 
 static int rtw_cfg80211_monitor_if_close(struct net_device *ndev)
 {
-	int ret = 0;
-
 	DBG_8723A("%s\n", __func__);
 
-	return ret;
+	return 0;
 }
 
 static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
@@ -2573,11 +2568,9 @@ fail:
 static int
 rtw_cfg80211_monitor_if_set_mac_address(struct net_device *ndev, void *addr)
 {
-	int ret = 0;
-
 	DBG_8723A("%s\n", __func__);
 
-	return ret;
+	return 0;
 }
 
 static const struct net_device_ops rtw_cfg80211_monitor_if_ops = {
@@ -2855,8 +2848,10 @@ static int cfg80211_rtw_add_station(struct wiphy *wiphy,
 }
 
 static int cfg80211_rtw_del_station(struct wiphy *wiphy,
-				    struct net_device *ndev, const u8 *mac)
+				    struct net_device *ndev,
+				    struct station_del_parameters *params)
 {
+	const u8 *mac = params->mac;
 	int ret = 0;
 	struct list_head *phead, *plist, *ptmp;
 	u8 updated = 0;
@@ -3168,13 +3163,13 @@ static void rtw_cfg80211_init_ht_capab(struct ieee80211_sta_ht_cap *ht_cap,
 		ht_cap->mcs.rx_mask[1] = 0x00;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS7;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS7);
 	} else if ((rf_type == RF_1T2R) || (rf_type == RF_2T2R)) {
 		ht_cap->mcs.rx_mask[0] = 0xFF;
 		ht_cap->mcs.rx_mask[1] = 0xFF;
 		ht_cap->mcs.rx_mask[4] = 0x01;
 
-		ht_cap->mcs.rx_highest = MAX_BIT_RATE_40MHZ_MCS15;
+		ht_cap->mcs.rx_highest = cpu_to_le16(MAX_BIT_RATE_40MHZ_MCS15);
 	} else {
 		DBG_8723A("%s, error rf_type =%d\n", __func__, rf_type);
 	}

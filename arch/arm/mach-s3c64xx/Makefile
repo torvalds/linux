@@ -5,11 +5,6 @@
 #
 # Licensed under GPLv2
 
-obj-y				:=
-obj-m				:=
-obj-n				:=
-obj-				:=
-
 # Core
 
 obj-y				+= common.o

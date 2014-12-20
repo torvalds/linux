@@ -13,18 +13,14 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <net/wpan-phy.h>
+#include <linux/ieee802154.h>
+#include <net/cfg802154.h>
 #include <net/mac802154.h>
-#include <net/ieee802154.h>
 
 /* MRF24J40 Short Address Registers */
 #define REG_RXMCR    0x00  /* Receive MAC control */
@@ -43,6 +39,8 @@
 #define REG_TXSTBL   0x2E  /* TX Stabilization */
 #define REG_INTSTAT  0x31  /* Interrupt Status */
 #define REG_INTCON   0x32  /* Interrupt Control */
+#define REG_GPIO     0x33  /* GPIO */
+#define REG_TRISGPIO 0x34  /* GPIO direction */
 #define REG_RFCTL    0x36  /* RF Control Mode Register */
 #define REG_BBREG1   0x39  /* Baseband Registers */
 #define REG_BBREG2   0x3A  /* */
@@ -63,6 +61,7 @@
 #define REG_SLPCON1    0x220
 #define REG_WAKETIMEL  0x222  /* Wake-up Time Match Value Low */
 #define REG_WAKETIMEH  0x223  /* Wake-up Time Match Value High */
+#define REG_TESTMODE   0x22F  /* Test mode */
 #define REG_RX_FIFO    0x300  /* Receive FIFO */
 
 /* Device configuration: Only channels 11-26 on page 0 are supported. */
@@ -75,10 +74,12 @@
 #define RX_FIFO_SIZE 144 /* From datasheet */
 #define SET_CHANNEL_DELAY_US 192 /* From datasheet */
 
+enum mrf24j40_modules { MRF24J40, MRF24J40MA, MRF24J40MC };
+
 /* Device Private Data */
 struct mrf24j40 {
 	struct spi_device *spi;
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *hw;
 
 	struct mutex buffer_mutex; /* only used to protect buf */
 	struct completion tx_complete;
@@ -323,17 +324,17 @@ static int mrf24j40_read_rx_buf(struct mrf24j40 *devrec,
 #ifdef DEBUG
 	print_hex_dump(KERN_DEBUG, "mrf24j40 rx: ",
 		DUMP_PREFIX_OFFSET, 16, 1, data, *len, 0);
-	printk(KERN_DEBUG "mrf24j40 rx: lqi: %02hhx rssi: %02hhx\n",
-		lqi_rssi[0], lqi_rssi[1]);
+	pr_debug("mrf24j40 rx: lqi: %02hhx rssi: %02hhx\n",
+		 lqi_rssi[0], lqi_rssi[1]);
 #endif
 
 out:
 	return ret;
 }
 
-static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
+static int mrf24j40_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret = 0;
 
@@ -382,17 +383,17 @@ err:
 	return ret;
 }
 
-static int mrf24j40_ed(struct ieee802154_dev *dev, u8 *level)
+static int mrf24j40_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	/* TODO: */
-	printk(KERN_WARNING "mrf24j40: ed not implemented\n");
+	pr_warn("mrf24j40: ed not implemented\n");
 	*level = 0;
 	return 0;
 }
 
-static int mrf24j40_start(struct ieee802154_dev *dev)
+static int mrf24j40_start(struct ieee802154_hw *hw)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret;
 
@@ -407,11 +408,12 @@ static int mrf24j40_start(struct ieee802154_dev *dev)
 	return 0;
 }
 
-static void mrf24j40_stop(struct ieee802154_dev *dev)
+static void mrf24j40_stop(struct ieee802154_hw *hw)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret;
+
 	dev_dbg(printdev(devrec), "stop\n");
 
 	ret = read_short_reg(devrec, REG_INTCON, &val);
@@ -419,14 +421,11 @@ static void mrf24j40_stop(struct ieee802154_dev *dev)
 		return;
 	val |= 0x1|0x8; /* Set TXNIE and RXIE. Disable Interrupts */
 	write_short_reg(devrec, REG_INTCON, val);
-
-	return;
 }
 
-static int mrf24j40_set_channel(struct ieee802154_dev *dev,
-				int page, int channel)
+static int mrf24j40_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret;
 
@@ -454,17 +453,18 @@ static int mrf24j40_set_channel(struct ieee802154_dev *dev,
 	return 0;
 }
 
-static int mrf24j40_filter(struct ieee802154_dev *dev,
+static int mrf24j40_filter(struct ieee802154_hw *hw,
 			   struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 
 	dev_dbg(printdev(devrec), "filter\n");
 
-	if (changed & IEEE802515_AFILT_SADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		/* Short Addr */
 		u8 addrh, addrl;
+
 		addrh = le16_to_cpu(filt->short_addr) >> 8 & 0xff;
 		addrl = le16_to_cpu(filt->short_addr) & 0xff;
 
@@ -474,7 +474,7 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 			"Set short addr to %04hx\n", filt->short_addr);
 	}
 
-	if (changed & IEEE802515_AFILT_IEEEADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
 		/* Device Address */
 		u8 i, addr[8];
 
@@ -483,16 +483,17 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 			write_short_reg(devrec, REG_EADR0 + i, addr[i]);
 
 #ifdef DEBUG
-		printk(KERN_DEBUG "Set long addr to: ");
+		pr_debug("Set long addr to: ");
 		for (i = 0; i < 8; i++)
-			printk("%02hhx ", addr[7 - i]);
-		printk(KERN_DEBUG "\n");
+			pr_debug("%02hhx ", addr[7 - i]);
+		pr_debug("\n");
 #endif
 	}
 
-	if (changed & IEEE802515_AFILT_PANID_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		/* PAN ID */
 		u8 panidl, panidh;
+
 		panidh = le16_to_cpu(filt->pan_id) >> 8 & 0xff;
 		panidl = le16_to_cpu(filt->pan_id) & 0xff;
 		write_short_reg(devrec, REG_PANIDH, panidh);
@@ -501,7 +502,7 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 		dev_dbg(printdev(devrec), "Set PANID to %04hx\n", filt->pan_id);
 	}
 
-	if (changed & IEEE802515_AFILT_PANC_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
 		/* Pan Coordinator */
 		u8 val;
 		int ret;
@@ -542,7 +543,7 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 	val |= 4; /* SET RXDECINV */
 	write_short_reg(devrec, REG_BBREG1, val);
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = dev_alloc_skb(len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;
@@ -562,7 +563,7 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 	/* TODO: Other drivers call ieee20154_rx_irqsafe() here (eg: cc2040,
 	 * also from a workqueue).  I think irqsafe is not necessary here.
 	 * Can someone confirm? */
-	ieee802154_rx_irqsafe(devrec->dev, skb, lqi);
+	ieee802154_rx_irqsafe(devrec->hw, skb, lqi);
 
 	dev_dbg(printdev(devrec), "RX Handled\n");
 
@@ -577,9 +578,9 @@ out:
 	return ret;
 }
 
-static struct ieee802154_ops mrf24j40_ops = {
+static const struct ieee802154_ops mrf24j40_ops = {
 	.owner = THIS_MODULE,
-	.xmit = mrf24j40_tx,
+	.xmit_sync = mrf24j40_tx,
 	.ed = mrf24j40_ed,
 	.start = mrf24j40_start,
 	.stop = mrf24j40_stop,
@@ -690,6 +691,28 @@ static int mrf24j40_hw_init(struct mrf24j40 *devrec)
 	if (ret)
 		goto err_ret;
 
+	if (spi_get_device_id(devrec->spi)->driver_data == MRF24J40MC) {
+		/* Enable external amplifier.
+		 * From MRF24J40MC datasheet section 1.3: Operation.
+		 */
+		read_long_reg(devrec, REG_TESTMODE, &val);
+		val |= 0x7; /* Configure GPIO 0-2 to control amplifier */
+		write_long_reg(devrec, REG_TESTMODE, val);
+
+		read_short_reg(devrec, REG_TRISGPIO, &val);
+		val |= 0x8; /* Set GPIO3 as output. */
+		write_short_reg(devrec, REG_TRISGPIO, val);
+
+		read_short_reg(devrec, REG_GPIO, &val);
+		val |= 0x8; /* Set GPIO3 HIGH to enable U5 voltage regulator */
+		write_short_reg(devrec, REG_GPIO, val);
+
+		/* Reduce TX pwr to meet FCC requirements.
+		 * From MRF24J40MC datasheet section 3.1.1
+		 */
+		write_long_reg(devrec, REG_RFCON3, 0x28);
+	}
+
 	return 0;
 
 err_ret:
@@ -701,7 +724,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 	int ret = -ENOMEM;
 	struct mrf24j40 *devrec;
 
-	printk(KERN_INFO "mrf24j40: probe(). IRQ: %d\n", spi->irq);
+	dev_info(&spi->dev, "probe(). IRQ: %d\n", spi->irq);
 
 	devrec = devm_kzalloc(&spi->dev, sizeof(struct mrf24j40), GFP_KERNEL);
 	if (!devrec)
@@ -721,17 +744,18 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	/* Register with the 802154 subsystem */
 
-	devrec->dev = ieee802154_alloc_device(0, &mrf24j40_ops);
-	if (!devrec->dev)
+	devrec->hw = ieee802154_alloc_hw(0, &mrf24j40_ops);
+	if (!devrec->hw)
 		goto err_ret;
 
-	devrec->dev->priv = devrec;
-	devrec->dev->parent = &devrec->spi->dev;
-	devrec->dev->phy->channels_supported[0] = CHANNEL_MASK;
-	devrec->dev->flags = IEEE802154_HW_OMIT_CKSUM|IEEE802154_HW_AACK;
+	devrec->hw->priv = devrec;
+	devrec->hw->parent = &devrec->spi->dev;
+	devrec->hw->phy->channels_supported[0] = CHANNEL_MASK;
+	devrec->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
+			    IEEE802154_HW_AFILT;
 
 	dev_dbg(printdev(devrec), "registered mrf24j40\n");
-	ret = ieee802154_register_device(devrec->dev);
+	ret = ieee802154_register_hw(devrec->hw);
 	if (ret)
 		goto err_register_device;
 
@@ -756,9 +780,9 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 err_irq:
 err_hw_init:
-	ieee802154_unregister_device(devrec->dev);
+	ieee802154_unregister_hw(devrec->hw);
 err_register_device:
-	ieee802154_free_device(devrec->dev);
+	ieee802154_free_hw(devrec->hw);
 err_ret:
 	return ret;
 }
@@ -769,8 +793,8 @@ static int mrf24j40_remove(struct spi_device *spi)
 
 	dev_dbg(printdev(devrec), "remove\n");
 
-	ieee802154_unregister_device(devrec->dev);
-	ieee802154_free_device(devrec->dev);
+	ieee802154_unregister_hw(devrec->hw);
+	ieee802154_free_hw(devrec->hw);
 	/* TODO: Will ieee802154_free_device() wait until ->xmit() is
 	 * complete? */
 
@@ -778,8 +802,9 @@ static int mrf24j40_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id mrf24j40_ids[] = {
-	{ "mrf24j40", 0 },
-	{ "mrf24j40ma", 0 },
+	{ "mrf24j40", MRF24J40 },
+	{ "mrf24j40ma", MRF24J40MA },
+	{ "mrf24j40mc", MRF24J40MC },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, mrf24j40_ids);

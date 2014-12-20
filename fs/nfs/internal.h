@@ -218,13 +218,6 @@ static inline void nfs_fs_proc_exit(void)
 int nfs_sockaddr_match_ipaddr(const struct sockaddr *, const struct sockaddr *);
 #endif
 
-/* nfs3client.c */
-#if IS_ENABLED(CONFIG_NFS_V3)
-struct nfs_server *nfs3_create_server(struct nfs_mount_info *, struct nfs_subversion *);
-struct nfs_server *nfs3_clone_server(struct nfs_server *, struct nfs_fh *,
-				     struct nfs_fattr *, rpc_authflavor_t);
-#endif
-
 /* callback_xdr.c */
 extern struct svc_version nfs4_callback_version1;
 extern struct svc_version nfs4_callback_version4;
@@ -346,7 +339,6 @@ int nfs_file_release(struct inode *, struct file *);
 int nfs_lock(struct file *, int, struct file_lock *);
 int nfs_flock(struct file *, int, struct file_lock *);
 int nfs_check_flags(int);
-int nfs_setlease(struct file *, long, struct file_lock **);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;

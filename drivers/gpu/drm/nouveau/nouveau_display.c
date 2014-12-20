@@ -126,7 +126,7 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 	if (etime) *etime = ns_to_ktime(args.scan.time[1]);
 
 	if (*vpos < 0)
-		ret |= DRM_SCANOUTPOS_INVBL;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
 	return ret;
 }
 
@@ -479,6 +479,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GM204_DISP,
 			GM107_DISP,
 			GK110_DISP,
 			GK104_DISP,
@@ -550,14 +551,12 @@ nouveau_display_destroy(struct drm_device *dev)
 }
 
 int
-nouveau_display_suspend(struct drm_device *dev)
+nouveau_display_suspend(struct drm_device *dev, bool runtime)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_crtc *crtc;
 
 	nouveau_display_fini(dev);
 
-	NV_INFO(drm, "unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
 
@@ -570,21 +569,23 @@ nouveau_display_suspend(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-		nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		if (nv_crtc->cursor.nvbo) {
+			nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		}
 	}
 
 	return 0;
 }
 
 void
-nouveau_display_repin(struct drm_device *dev)
+nouveau_display_resume(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_crtc *crtc;
-	int ret;
+	int ret, head;
 
+	/* re-pin fb/cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
 
@@ -592,27 +593,22 @@ nouveau_display_repin(struct drm_device *dev)
 		if (!nouveau_fb || !nouveau_fb->nvbo)
 			continue;
 
-		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			NV_ERROR(drm, "Could not pin framebuffer\n");
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
 
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
 		if (!ret)
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
 		if (ret)
 			NV_ERROR(drm, "Could not pin/map cursor.\n");
 	}
-}
-
-void
-nouveau_display_resume(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-	int head;
 
 	nouveau_display_init(dev);
 
@@ -627,13 +623,21 @@ nouveau_display_resume(struct drm_device *dev)
 	for (head = 0; head < dev->mode_config.num_crtc; head++)
 		drm_vblank_on(dev, head);
 
+	/* This should ensure we don't hit a locking problem when someone
+	 * wakes us up via a connector.  We should never go into suspend
+	 * while the display is on anyways.
+	 */
+	if (runtime)
+		return;
+
 	drm_helper_resume_force_mode(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		u32 offset = nv_crtc->cursor.nvbo->bo.offset;
 
-		nv_crtc->cursor.set_offset(nv_crtc, offset);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
+		nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
 						 nv_crtc->cursor_saved_y);
 	}
@@ -658,7 +662,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* Synchronize with the old framebuffer */
-	ret = nouveau_fence_sync(old_bo->bo.sync_obj, chan);
+	ret = nouveau_fence_sync(old_bo, chan, false, false);
 	if (ret)
 		goto fail;
 
@@ -711,25 +715,30 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		return -ENOMEM;
 
 	if (new_bo != old_bo) {
-		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			goto fail_free;
 	}
 
 	mutex_lock(&cli->mutex);
+	ret = ttm_bo_reserve(&new_bo->bo, true, false, false, NULL);
+	if (ret)
+		goto fail_unpin;
 
 	/* synchronise rendering channel with the kernel's channel */
-	spin_lock(&new_bo->bo.bdev->fence_lock);
-	fence = nouveau_fence_ref(new_bo->bo.sync_obj);
-	spin_unlock(&new_bo->bo.bdev->fence_lock);
-	ret = nouveau_fence_sync(fence, chan);
-	nouveau_fence_unref(&fence);
-	if (ret)
+	ret = nouveau_fence_sync(new_bo, chan, false, true);
+	if (ret) {
+		ttm_bo_unreserve(&new_bo->bo);
 		goto fail_unpin;
+	}
 
-	ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
-	if (ret)
-		goto fail_unpin;
+	if (new_bo != old_bo) {
+		ttm_bo_unreserve(&new_bo->bo);
+
+		ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
+		if (ret)
+			goto fail_unpin;
+	}
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
@@ -775,7 +784,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Update the crtc struct and cleanup */
 	crtc->primary->fb = fb;
 
-	nouveau_bo_fence(old_bo, fence);
+	nouveau_bo_fence(old_bo, fence, false);
 	ttm_bo_unreserve(&old_bo->bo);
 	if (old_bo != new_bo)
 		nouveau_bo_unpin(old_bo);
@@ -867,6 +876,7 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	bo->gem.dumb = true;
 	ret = drm_gem_handle_create(file_priv, &bo->gem, &args->handle);
 	drm_gem_object_unreference_unlocked(&bo->gem);
 	return ret;
@@ -882,6 +892,14 @@ nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 	gem = drm_gem_object_lookup(dev, file_priv, handle);
 	if (gem) {
 		struct nouveau_bo *bo = nouveau_gem_object(gem);
+
+		/*
+		 * We don't allow dumb mmaps on objects created using another
+		 * interface.
+		 */
+		WARN_ONCE(!(gem->dumb || gem->import_attach),
+			  "Illegal dumb map of accelerated buffer.\n");
+
 		*poffset = drm_vma_node_offset_addr(&bo->bo.vma_node);
 		drm_gem_object_unreference_unlocked(gem);
 		return 0;

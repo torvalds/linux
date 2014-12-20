@@ -160,6 +160,8 @@ static void request_module_async(struct work_struct *work){
 		request_module("saa7134-empress");
 	if (card_is_dvb(dev))
 		request_module("saa7134-dvb");
+	if (card_is_go7007(dev))
+		request_module("saa7134-go7007");
 	if (alsa) {
 		if (dev->pci->device != PCI_DEVICE_ID_PHILIPS_SAA7130)
 			request_module("saa7134-alsa");
@@ -563,8 +565,12 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 			saa7134_irq_vbi_done(dev,status);
 
 		if ((report & SAA7134_IRQ_REPORT_DONE_RA2) &&
-		    card_has_mpeg(dev))
-			saa7134_irq_ts_done(dev,status);
+		    card_has_mpeg(dev)) {
+			if (dev->mops->irq_ts_done != NULL)
+				dev->mops->irq_ts_done(dev, status);
+			else
+				saa7134_irq_ts_done(dev, status);
+		}
 
 		if (report & SAA7134_IRQ_REPORT_GPIO16) {
 			switch (dev->has_remote) {
@@ -995,13 +1001,18 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_board_init1(dev);
 	saa7134_hwinit1(dev);
 
+	dev->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
+	if (IS_ERR(dev->alloc_ctx)) {
+		err = PTR_ERR(dev->alloc_ctx);
+		goto fail3;
+	}
 	/* get irq */
 	err = request_irq(pci_dev->irq, saa7134_irq,
 			  IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->name,pci_dev->irq);
-		goto fail3;
+		goto fail4;
 	}
 
 	/* wait a bit, register i2c bus */
@@ -1059,7 +1070,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	if (err < 0) {
 		printk(KERN_INFO "%s: can't register video device\n",
 		       dev->name);
-		goto fail4;
+		goto fail5;
 	}
 	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
 	       dev->name, video_device_node_name(dev->video_dev));
@@ -1072,7 +1083,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
-		goto fail4;
+		goto fail5;
 	printk(KERN_INFO "%s: registered device %s\n",
 	       dev->name, video_device_node_name(dev->vbi_dev));
 
@@ -1083,7 +1094,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[dev->nr]);
 		if (err < 0)
-			goto fail4;
+			goto fail5;
 		printk(KERN_INFO "%s: registered device %s\n",
 		       dev->name, video_device_node_name(dev->radio_dev));
 	}
@@ -1097,10 +1108,12 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	request_submodules(dev);
 	return 0;
 
- fail4:
+ fail5:
 	saa7134_unregister_video(dev);
 	saa7134_i2c_unregister(dev);
 	free_irq(pci_dev->irq, dev);
+ fail4:
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
  fail3:
 	saa7134_hwfini(dev);
 	iounmap(dev->lmmio);
@@ -1167,6 +1180,7 @@ static void saa7134_finidev(struct pci_dev *pci_dev)
 
 	/* release resources */
 	free_irq(pci_dev->irq, dev);
+	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
 	iounmap(dev->lmmio);
 	release_mem_region(pci_resource_start(pci_dev,0),
 			   pci_resource_len(pci_dev,0));

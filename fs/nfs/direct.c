@@ -178,7 +178,6 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 	return memcmp(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 /*
  * nfs_direct_cmp_commit_data_verf - compare verifier for commit data
  * @dreq - direct request possibly spanning multiple servers
@@ -197,7 +196,6 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
 	WARN_ON_ONCE(verfp->committed < 0);
 	return memcmp(verfp, &data->verf, sizeof(struct nfs_writeverf));
 }
-#endif
 
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
@@ -222,11 +220,9 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t 
 #else
 	VM_BUG_ON(iocb->ki_nbytes != PAGE_SIZE);
 
-	if (rw == READ || rw == KERNEL_READ)
-		return nfs_file_direct_read(iocb, iter, pos,
-				rw == READ ? true : false);
-	return nfs_file_direct_write(iocb, iter, pos,
-				rw == WRITE ? true : false);
+	if (rw == READ)
+		return nfs_file_direct_read(iocb, iter, pos);
+	return nfs_file_direct_write(iocb, iter, pos);
 #endif /* CONFIG_NFS_SWAP */
 }
 
@@ -270,6 +266,7 @@ static void nfs_direct_req_free(struct kref *kref)
 {
 	struct nfs_direct_req *dreq = container_of(kref, struct nfs_direct_req, kref);
 
+	nfs_free_pnfs_ds_cinfo(&dreq->ds_cinfo);
 	if (dreq->l_ctx != NULL)
 		nfs_put_lock_context(dreq->l_ctx);
 	if (dreq->ctx != NULL)
@@ -512,7 +509,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
  * cache.
  */
 ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
-				loff_t pos, bool uio)
+				loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -576,7 +573,6 @@ out:
 	return result;
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_pageio_descriptor desc;
@@ -699,17 +695,6 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 {
 	schedule_work(&dreq->work); /* Calls nfs_direct_write_schedule_work */
 }
-
-#else
-static void nfs_direct_write_schedule_work(struct work_struct *work)
-{
-}
-
-static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
-{
-	nfs_direct_complete(dreq, true);
-}
-#endif
 
 static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 {
@@ -893,7 +878,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  * is no atomic O_APPEND write facility in the NFS protocol.
  */
 ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
-				loff_t pos, bool uio)
+				loff_t pos)
 {
 	ssize_t result = -EINVAL;
 	struct file *file = iocb->ki_filp;

@@ -352,6 +352,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *mii_data = if_mii(ifr);
 	u16 val = mii_data->val_in;
+	bool change_autoneg = false;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
@@ -367,22 +368,29 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		if (mii_data->phy_id == phydev->addr) {
 			switch (mii_data->reg_num) {
 			case MII_BMCR:
-				if ((val & (BMCR_RESET | BMCR_ANENABLE)) == 0)
+				if ((val & (BMCR_RESET | BMCR_ANENABLE)) == 0) {
+					if (phydev->autoneg == AUTONEG_ENABLE)
+						change_autoneg = true;
 					phydev->autoneg = AUTONEG_DISABLE;
-				else
+					if (val & BMCR_FULLDPLX)
+						phydev->duplex = DUPLEX_FULL;
+					else
+						phydev->duplex = DUPLEX_HALF;
+					if (val & BMCR_SPEED1000)
+						phydev->speed = SPEED_1000;
+					else if (val & BMCR_SPEED100)
+						phydev->speed = SPEED_100;
+					else phydev->speed = SPEED_10;
+				}
+				else {
+					if (phydev->autoneg == AUTONEG_DISABLE)
+						change_autoneg = true;
 					phydev->autoneg = AUTONEG_ENABLE;
-				if (!phydev->autoneg && (val & BMCR_FULLDPLX))
-					phydev->duplex = DUPLEX_FULL;
-				else
-					phydev->duplex = DUPLEX_HALF;
-				if (!phydev->autoneg && (val & BMCR_SPEED1000))
-					phydev->speed = SPEED_1000;
-				else if (!phydev->autoneg &&
-					 (val & BMCR_SPEED100))
-					phydev->speed = SPEED_100;
+				}
 				break;
 			case MII_ADVERTISE:
-				phydev->advertising = val;
+				phydev->advertising = mii_adv_to_ethtool_adv_t(val);
+				change_autoneg = true;
 				break;
 			default:
 				/* do nothing */
@@ -396,6 +404,10 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		if (mii_data->reg_num == MII_BMCR &&
 		    val & BMCR_RESET)
 			return phy_init_hw(phydev);
+
+		if (change_autoneg)
+			return phy_start_aneg(phydev);
+
 		return 0;
 
 	case SIOCSHWTSTAMP:
@@ -955,7 +967,7 @@ static inline void mmd_phy_indirect(struct mii_bus *bus, int prtad, int devad,
  * 3) Write reg 13 // MMD Data Command for MMD DEVAD
  * 3) Read  reg 14 // Read MMD data
  */
-static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
+int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 				 int devad, int addr)
 {
 	struct phy_driver *phydrv = phydev->drv;
@@ -971,6 +983,7 @@ static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	}
 	return value;
 }
+EXPORT_SYMBOL(phy_read_mmd_indirect);
 
 /**
  * phy_write_mmd_indirect - writes data to the MMD registers
@@ -988,7 +1001,7 @@ static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
  * 3) Write reg 13 // MMD Data Command for MMD DEVAD
  * 3) Write reg 14 // Write MMD data
  */
-static void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
+void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 				   int devad, int addr, u32 data)
 {
 	struct phy_driver *phydrv = phydev->drv;
@@ -1002,6 +1015,7 @@ static void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 		phydrv->write_mmd_indirect(phydev, prtad, devad, addr, data);
 	}
 }
+EXPORT_SYMBOL(phy_write_mmd_indirect);
 
 /**
  * phy_init_eee - init and check the EEE feature
@@ -1017,12 +1031,14 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 {
 	/* According to 802.3az,the EEE is supported only in full duplex-mode.
 	 * Also EEE feature is active when core is operating with MII, GMII
-	 * or RGMII.
+	 * or RGMII. Internal PHYs are also allowed to proceed and should
+	 * return an error if they do not support EEE.
 	 */
 	if ((phydev->duplex == DUPLEX_FULL) &&
 	    ((phydev->interface == PHY_INTERFACE_MODE_MII) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_GMII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII))) {
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
+	     phy_is_internal(phydev))) {
 		int eee_lp, eee_cap, eee_adv;
 		u32 lp, cap, adv;
 		int status;

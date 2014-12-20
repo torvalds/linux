@@ -212,7 +212,6 @@ struct txrpt_ccx_8723a {
 #define txrpt_ccx_qtime_8723a(txrpt_ccx) ((txrpt_ccx)->ccx_qtime0+((txrpt_ccx)->ccx_qtime1<<8))
 
 void handle_txrpt_ccx_8723a(struct rtw_adapter *adapter, void *buf);
-void rtl8723a_update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem);
 void rtl8723a_fill_fake_txdesc(struct rtw_adapter *padapter, u8 *pDesc, u32 BufferLen, u8 IsPsPoll, u8 IsBTQosNull);
 
 int rtl8723au_hal_xmitframe_enqueue(struct rtw_adapter *padapter, struct xmit_frame *pxmitframe);

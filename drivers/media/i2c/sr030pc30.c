@@ -165,7 +165,7 @@ struct sr030pc30_info {
 };
 
 struct sr030pc30_format {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	enum v4l2_colorspace colorspace;
 	u16 ispctl1_reg;
 };
@@ -201,23 +201,23 @@ static const struct sr030pc30_frmsize sr030pc30_sizes[] = {
 /* supported pixel formats */
 static const struct sr030pc30_format sr030pc30_formats[] = {
 	{
-		.code		= V4L2_MBUS_FMT_YUYV8_2X8,
+		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x03,
 	}, {
-		.code		= V4L2_MBUS_FMT_YVYU8_2X8,
+		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x02,
 	}, {
-		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
+		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0,
 	}, {
-		.code		= V4L2_MBUS_FMT_UYVY8_2X8,
+		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x01,
 	}, {
-		.code		= V4L2_MBUS_FMT_RGB565_2X8_BE,
+		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 		.ispctl1_reg	= 0x40,
 	},
@@ -472,7 +472,7 @@ static int sr030pc30_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static int sr030pc30_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			      enum v4l2_mbus_pixelcode *code)
+			      u32 *code)
 {
 	if (!code || index >= ARRAY_SIZE(sr030pc30_formats))
 		return -EINVAL;

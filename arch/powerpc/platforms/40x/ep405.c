@@ -49,7 +49,7 @@ static void __iomem *bcsr_regs;
 /* there's more, can't be bothered typing them tho */
 
 
-static __initdata struct of_device_id ep405_of_bus[] = {
+static const struct of_device_id ep405_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb3", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },

@@ -35,6 +35,8 @@
 config SCSI_UFSHCD
 	tristate "Universal Flash Storage Controller Driver Core"
 	depends on SCSI && SCSI_DMA
+	select PM_DEVFREQ
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	---help---
 	This selects the support for UFS devices in Linux, say Y and make
 	  sure that you know the name of your UFS host adapter (the card

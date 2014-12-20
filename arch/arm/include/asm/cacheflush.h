@@ -466,6 +466,7 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
  */
 #define v7_exit_coherency_flush(level) \
 	asm volatile( \
+	".arch	armv7-a \n\t" \
 	"stmfd	sp!, {fp, ip} \n\t" \
 	"mrc	p15, 0, r0, c1, c0, 0	@ get SCTLR \n\t" \
 	"bic	r0, r0, #"__stringify(CR_C)" \n\t" \
@@ -486,6 +487,16 @@ int set_memory_rw(unsigned long addr, int numpages);
 int set_memory_x(unsigned long addr, int numpages);
 int set_memory_nx(unsigned long addr, int numpages);
 
+#ifdef CONFIG_DEBUG_RODATA
+void mark_rodata_ro(void);
+void set_kernel_text_rw(void);
+void set_kernel_text_ro(void);
+#else
+static inline void set_kernel_text_rw(void) { }
+static inline void set_kernel_text_ro(void) { }
+#endif
+
 void flush_uprobe_xol_access(struct page *page, unsigned long uaddr,
 			     void *kaddr, unsigned long len);
+
 #endif

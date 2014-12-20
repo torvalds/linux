@@ -500,7 +500,6 @@ static struct platform_driver pinctrl_falcon_driver = {
 	.probe = pinctrl_falcon_probe,
 	.driver = {
 		.name = "pinctrl-falcon",
-		.owner = THIS_MODULE,
 		.of_match_table = falcon_match,
 	},
 };

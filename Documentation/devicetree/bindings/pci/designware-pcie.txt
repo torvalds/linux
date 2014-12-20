@@ -23,3 +23,6 @@ Required properties:
 
 Optional properties:
 - reset-gpio: gpio pin number of power good signal
+- bus-range: PCI bus numbers covered (it is recommended for new devicetrees to
+  specify this property, to keep backwards compatibility a range of 0x00-0xff
+  is assumed if not present)

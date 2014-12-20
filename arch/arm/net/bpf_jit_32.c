@@ -12,11 +12,11 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/filter.h>
-#include <linux/moduleloader.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
+
 #include <asm/cacheflush.h>
 #include <asm/hwcap.h>
 #include <asm/opcodes.h>
@@ -172,6 +172,14 @@ static inline bool is_load_to_a(u16 inst)
 	default:
 		return false;
 	}
+}
+
+static void jit_fill_hole(void *area, unsigned int size)
+{
+	u32 *ptr;
+	/* We are guaranteed to have aligned memory. */
+	for (ptr = area; size >= sizeof(u32); size -= sizeof(u32))
+		*ptr++ = __opcode_to_mem_arm(ARM_INST_UDF);
 }
 
 static void build_prologue(struct jit_ctx *ctx)
@@ -859,9 +867,11 @@ b_epilogue:
 
 void bpf_jit_compile(struct bpf_prog *fp)
 {
+	struct bpf_binary_header *header;
 	struct jit_ctx ctx;
 	unsigned tmp_idx;
 	unsigned alloc_size;
+	u8 *target_ptr;
 
 	if (!bpf_jit_enable)
 		return;
@@ -897,13 +907,15 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	/* there's nothing after the epilogue on ARMv7 */
 	build_epilogue(&ctx);
 #endif
-
 	alloc_size = 4 * ctx.idx;
-	ctx.target = module_alloc(alloc_size);
-	if (unlikely(ctx.target == NULL))
+	header = bpf_jit_binary_alloc(alloc_size, &target_ptr,
+				      4, jit_fill_hole);
+	if (header == NULL)
 		goto out;
 
+	ctx.target = (u32 *) target_ptr;
 	ctx.idx = 0;
+
 	build_prologue(&ctx);
 	build_body(&ctx);
 	build_epilogue(&ctx);
@@ -919,8 +931,9 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		/* there are 2 passes here */
 		bpf_jit_dump(fp->len, alloc_size, 2, ctx.target);
 
+	set_memory_ro((unsigned long)header, header->pages);
 	fp->bpf_func = (void *)ctx.target;
-	fp->jited = 1;
+	fp->jited = true;
 out:
 	kfree(ctx.offsets);
 	return;
@@ -928,7 +941,15 @@ out:
 
 void bpf_jit_free(struct bpf_prog *fp)
 {
-	if (fp->jited)
-		module_free(NULL, fp->bpf_func);
-	kfree(fp);
+	unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;
+	struct bpf_binary_header *header = (void *)addr;
+
+	if (!fp->jited)
+		goto free_filter;
+
+	set_memory_rw(addr, header->pages);
+	bpf_jit_binary_free(header);
+
+free_filter:
+	bpf_prog_unlock_free(fp);
 }

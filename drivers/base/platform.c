@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/idr.h>
 #include <linux/acpi.h>
 #include <linux/clk/clk-conf.h>
@@ -506,11 +507,12 @@ static int platform_drv_probe(struct device *_dev)
 	if (ret < 0)
 		return ret;
 
-	acpi_dev_pm_attach(_dev, true);
-
-	ret = drv->probe(dev);
-	if (ret)
-		acpi_dev_pm_detach(_dev, true);
+	ret = dev_pm_domain_attach(_dev, true);
+	if (ret != -EPROBE_DEFER) {
+		ret = drv->probe(dev);
+		if (ret)
+			dev_pm_domain_detach(_dev, true);
+	}
 
 	if (drv->prevent_deferred_probe && ret == -EPROBE_DEFER) {
 		dev_warn(_dev, "probe deferral not supported\n");
@@ -532,7 +534,7 @@ static int platform_drv_remove(struct device *_dev)
 	int ret;
 
 	ret = drv->remove(dev);
-	acpi_dev_pm_detach(_dev, true);
+	dev_pm_domain_detach(_dev, true);
 
 	return ret;
 }
@@ -543,7 +545,7 @@ static void platform_drv_shutdown(struct device *_dev)
 	struct platform_device *dev = to_platform_device(_dev);
 
 	drv->shutdown(dev);
-	acpi_dev_pm_detach(_dev, true);
+	dev_pm_domain_detach(_dev, true);
 }
 
 /**
@@ -578,9 +580,10 @@ void platform_driver_unregister(struct platform_driver *drv)
 EXPORT_SYMBOL_GPL(platform_driver_unregister);
 
 /**
- * platform_driver_probe - register driver for non-hotpluggable device
+ * __platform_driver_probe - register driver for non-hotpluggable device
  * @drv: platform driver structure
  * @probe: the driver probe routine, probably from an __init section
+ * @module: module which will be the owner of the driver
  *
  * Use this instead of platform_driver_register() when you know the device
  * is not hotpluggable and has already been registered, and you want to
@@ -596,8 +599,8 @@ EXPORT_SYMBOL_GPL(platform_driver_unregister);
  * Returns zero if the driver registered and bound to a device, else returns
  * a negative error code and with the driver not registered.
  */
-int __init_or_module platform_driver_probe(struct platform_driver *drv,
-		int (*probe)(struct platform_device *))
+int __init_or_module __platform_driver_probe(struct platform_driver *drv,
+		int (*probe)(struct platform_device *), struct module *module)
 {
 	int retval, code;
 
@@ -612,7 +615,7 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 
 	/* temporary section violation during probe() */
 	drv->probe = probe;
-	retval = code = platform_driver_register(drv);
+	retval = code = __platform_driver_register(drv, module);
 
 	/*
 	 * Fixup that section violation, being paranoid about code scanning
@@ -631,27 +634,28 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 		platform_driver_unregister(drv);
 	return retval;
 }
-EXPORT_SYMBOL_GPL(platform_driver_probe);
+EXPORT_SYMBOL_GPL(__platform_driver_probe);
 
 /**
- * platform_create_bundle - register driver and create corresponding device
+ * __platform_create_bundle - register driver and create corresponding device
  * @driver: platform driver structure
  * @probe: the driver probe routine, probably from an __init section
  * @res: set of resources that needs to be allocated for the device
  * @n_res: number of resources
  * @data: platform specific data for this platform device
  * @size: size of platform specific data
+ * @module: module which will be the owner of the driver
  *
  * Use this in legacy-style modules that probe hardware directly and
  * register a single platform device and corresponding platform driver.
  *
  * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
  */
-struct platform_device * __init_or_module platform_create_bundle(
+struct platform_device * __init_or_module __platform_create_bundle(
 			struct platform_driver *driver,
 			int (*probe)(struct platform_device *),
 			struct resource *res, unsigned int n_res,
-			const void *data, size_t size)
+			const void *data, size_t size, struct module *module)
 {
 	struct platform_device *pdev;
 	int error;
@@ -674,7 +678,7 @@ struct platform_device * __init_or_module platform_create_bundle(
 	if (error)
 		goto err_pdev_put;
 
-	error = platform_driver_probe(driver, probe);
+	error = __platform_driver_probe(driver, probe, module);
 	if (error)
 		goto err_pdev_del;
 
@@ -687,7 +691,7 @@ err_pdev_put:
 err_out:
 	return ERR_PTR(error);
 }
-EXPORT_SYMBOL_GPL(platform_create_bundle);
+EXPORT_SYMBOL_GPL(__platform_create_bundle);
 
 /* modalias support enables more hands-off userspace setup:
  * (a) environment variable lets new-style hotplug events work once system is
@@ -1004,6 +1008,7 @@ int __init platform_bus_init(void)
 	error =  bus_register(&platform_bus_type);
 	if (error)
 		device_unregister(&platform_bus);
+	of_platform_register_reconfig_notifier();
 	return error;
 }
 

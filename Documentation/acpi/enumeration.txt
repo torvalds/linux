@@ -312,3 +312,30 @@ a code like this:
 
 There are also devm_* versions of these functions which release the
 descriptors once the device is released.
+
+MFD devices
+~~~~~~~~~~~
+The MFD devices register their children as platform devices. For the child
+devices there needs to be an ACPI handle that they can use to reference
+parts of the ACPI namespace that relate to them. In the Linux MFD subsystem
+we provide two ways:
+
+	o The children share the parent ACPI handle.
+	o The MFD cell can specify the ACPI id of the device.
+
+For the first case, the MFD drivers do not need to do anything. The
+resulting child platform device will have its ACPI_COMPANION() set to point
+to the parent device.
+
+If the ACPI namespace has a device that we can match using an ACPI id,
+the id should be set like:
+
+	static struct mfd_cell my_subdevice_cell = {
+		.name = "my_subdevice",
+		/* set the resources relative to the parent */
+		.acpi_pnpid = "XYZ0001",
+	};
+
+The ACPI id "XYZ0001" is then used to lookup an ACPI device directly under
+the MFD device and if found, that ACPI companion device is bound to the
+resulting child platform device.

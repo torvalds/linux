@@ -229,7 +229,7 @@ begin:
 			}
 		} else if (score == hiscore && reuseport) {
 			matches++;
-			if (((u64)phash * matches) >> 32 == 0)
+			if (reciprocal_scale(phash, matches) == 0)
 				result = sk;
 			phash = next_pseudo_random32(phash);
 		}

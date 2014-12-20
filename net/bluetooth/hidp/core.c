@@ -736,14 +736,10 @@ static int hidp_setup_hid(struct hidp_session *session,
 	struct hid_device *hid;
 	int err;
 
-	session->rd_data = kzalloc(req->rd_size, GFP_KERNEL);
-	if (!session->rd_data)
-		return -ENOMEM;
+	session->rd_data = memdup_user(req->rd_data, req->rd_size);
+	if (IS_ERR(session->rd_data))
+		return PTR_ERR(session->rd_data);
 
-	if (copy_from_user(session->rd_data, req->rd_data, req->rd_size)) {
-		err = -EFAULT;
-		goto fault;
-	}
 	session->rd_size = req->rd_size;
 
 	hid = hid_allocate_device();
@@ -915,7 +911,7 @@ static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 
 	/* connection management */
 	bacpy(&session->bdaddr, bdaddr);
-	session->conn = conn;
+	session->conn = l2cap_conn_get(conn);
 	session->user.probe = hidp_session_probe;
 	session->user.remove = hidp_session_remove;
 	session->ctrl_sock = ctrl_sock;
@@ -941,13 +937,13 @@ static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 	if (ret)
 		goto err_free;
 
-	l2cap_conn_get(session->conn);
 	get_file(session->intr_sock->file);
 	get_file(session->ctrl_sock->file);
 	*out = session;
 	return 0;
 
 err_free:
+	l2cap_conn_put(session->conn);
 	kfree(session);
 	return ret;
 }
@@ -1327,10 +1323,8 @@ int hidp_connection_add(struct hidp_connadd_req *req,
 
 	conn = NULL;
 	l2cap_chan_lock(chan);
-	if (chan->conn) {
-		l2cap_conn_get(chan->conn);
-		conn = chan->conn;
-	}
+	if (chan->conn)
+		conn = l2cap_conn_get(chan->conn);
 	l2cap_chan_unlock(chan);
 
 	if (!conn)

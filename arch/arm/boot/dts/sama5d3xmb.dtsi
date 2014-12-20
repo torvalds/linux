@@ -25,6 +25,8 @@
 			};
 
 			spi0: spi@f0004000 {
+				dmas = <0>, <0>;	/*  Do not use DMA for spi0 */
+
 				m25p80@0 {
 					compatible = "atmel,at25df321a";
 					spi-max-frequency = <50000000>;
@@ -51,6 +53,7 @@
 			};
 
 			usart1: serial@f0020000 {
+				dmas = <0>, <0>;	/*  Do not use DMA for usart1 */
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1 &pinctrl_usart1_rts_cts>;
 				status = "okay";
@@ -132,6 +135,7 @@
 			};
 
 			dbgu: serial@ffffee00 {
+				dmas = <0>, <0>;	/*  Do not use DMA for dbgu */
 				status = "okay";
 			};
 

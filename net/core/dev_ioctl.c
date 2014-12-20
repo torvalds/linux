@@ -142,10 +142,12 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 
 	case SIOCGIFHWADDR:
 		if (!dev->addr_len)
-			memset(ifr->ifr_hwaddr.sa_data, 0, sizeof ifr->ifr_hwaddr.sa_data);
+			memset(ifr->ifr_hwaddr.sa_data, 0,
+			       sizeof(ifr->ifr_hwaddr.sa_data));
 		else
 			memcpy(ifr->ifr_hwaddr.sa_data, dev->dev_addr,
-			       min(sizeof ifr->ifr_hwaddr.sa_data, (size_t) dev->addr_len));
+			       min(sizeof(ifr->ifr_hwaddr.sa_data),
+				   (size_t)dev->addr_len));
 		ifr->ifr_hwaddr.sa_family = dev->type;
 		return 0;
 
@@ -265,7 +267,8 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		if (ifr->ifr_hwaddr.sa_family != dev->type)
 			return -EINVAL;
 		memcpy(dev->broadcast, ifr->ifr_hwaddr.sa_data,
-		       min(sizeof ifr->ifr_hwaddr.sa_data, (size_t) dev->addr_len));
+		       min(sizeof(ifr->ifr_hwaddr.sa_data),
+			   (size_t)dev->addr_len));
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 		return 0;
 
@@ -365,11 +368,8 @@ void dev_load(struct net *net, const char *name)
 	no_module = !dev;
 	if (no_module && capable(CAP_NET_ADMIN))
 		no_module = request_module("netdev-%s", name);
-	if (no_module && capable(CAP_SYS_MODULE)) {
-		if (!request_module("%s", name))
-			pr_warn("Loading kernel module for a network device with CAP_SYS_MODULE (deprecated).  Use CAP_NET_ADMIN and alias netdev-%s instead.\n",
-				name);
-	}
+	if (no_module && capable(CAP_SYS_MODULE))
+		request_module("%s", name);
 }
 EXPORT_SYMBOL(dev_load);
 

@@ -120,6 +120,21 @@ config SQUASHFS_ZLIB
 
 	  If unsure, say Y.
 
+config SQUASHFS_LZ4
+	bool "Include support for LZ4 compressed file systems"
+	depends on SQUASHFS
+	select LZ4_DECOMPRESS
+	help
+	  Saying Y here includes support for reading Squashfs file systems
+	  compressed with LZ4 compression.  LZ4 compression is mainly
+	  aimed at embedded systems with slower CPUs where the overheads
+	  of zlib are too high.
+
+	  LZ4 is not the standard compression used in Squashfs and so most
+	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
 config SQUASHFS_LZO
 	bool "Include support for LZO compressed file systems"
 	depends on SQUASHFS

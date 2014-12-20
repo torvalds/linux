@@ -135,6 +135,7 @@ config MACVLAN
 config MACVTAP
 	tristate "MAC-VLAN based tap driver"
 	depends on MACVLAN
+	depends on INET
 	help
 	  This adds a specialized tap character device driver that is based
 	  on the MAC-VLAN network interface, called macvtap. A macvtap device
@@ -144,10 +145,29 @@ config MACVTAP
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
 
+
+config IPVLAN
+    tristate "IP-VLAN support"
+    depends on INET
+    depends on IPV6
+    ---help---
+      This allows one to create virtual devices off of a main interface
+      and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
+      on packets. All interfaces (including the main interface) share L2
+      making it transparent to the connected L2 switch.
+
+      Ipvlan devices can be added using the "ip" command from the
+      iproute2 package starting with the iproute2-X.Y.ZZ release:
+
+      "ip link add link <main-dev> [ NAME ] type ipvlan"
+
+      To compile this driver as a module, choose M here: the module
+      will be called ipvlan.
+
+
 config VXLAN
        tristate "Virtual eXtensible Local Area Network (VXLAN)"
        depends on INET
-       select NET_IP_TUNNEL
        select NET_UDP_TUNNEL
        ---help---
 	  This allows one to create vxlan virtual interfaces that provide
@@ -201,6 +221,7 @@ config RIONET_RX_SIZE
 
 config TUN
 	tristate "Universal TUN/TAP device driver support"
+	depends on INET
 	select CRC32
 	---help---
 	  TUN/TAP provides packet reception and transmission for user space

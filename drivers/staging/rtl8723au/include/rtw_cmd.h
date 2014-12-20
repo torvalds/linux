@@ -17,7 +17,6 @@
 
 #include <wlan_bssdef.h>
 #include <rtw_rf.h>
-#include <rtw_led.h>
 
 #define C2H_MEM_SZ (16*1024)
 
@@ -450,8 +449,7 @@ struct getrfintfs_parm {
 	u8	rfintfs;
 };
 
-struct Tx_Beacon_param
-{
+struct Tx_Beacon_param {
 	struct wlan_bssid_ex network;
 };
 
@@ -547,14 +545,14 @@ struct setratable_parm {
 };
 
 struct getratable_parm {
-                uint rsvd;
+	uint rsvd;
 };
 
 struct getratable_rsp {
-        u8 ss_ForceUp[NumRates];
-        u8 ss_ULevel[NumRates];
-        u8 ss_DLevel[NumRates];
-        u8 count_judge[NumRates];
+	u8 ss_ForceUp[NumRates];
+	u8 ss_ULevel[NumRates];
+	u8 ss_DLevel[NumRates];
+	u8 count_judge[NumRates];
 };
 
 /* to get TX,RX retry count */
@@ -699,7 +697,7 @@ int rtw_setrfintfs_cmd(struct rtw_adapter  *padapter, u8 mode);
 int rtw_setrttbl_cmd(struct rtw_adapter  *padapter, struct setratable_parm *prate_table);
 int rtw_getrttbl_cmd(struct rtw_adapter  *padapter, struct getratable_rsp *pval);
 
-int rtw_gettssi_cmd(struct rtw_adapter  *padapter, u8 offset,u8 *pval);
+int rtw_gettssi_cmd(struct rtw_adapter  *padapter, u8 offset, u8 *pval);
 int rtw_setfwdig_cmd(struct rtw_adapter*padapter, u8 type);
 int rtw_setfwra_cmd(struct rtw_adapter*padapter, u8 type);
 

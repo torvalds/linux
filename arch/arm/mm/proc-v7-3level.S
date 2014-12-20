@@ -157,9 +157,9 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 *  TFR   EV X F   IHD LR    S
 	 * .EEE ..EE PUI. .TAT 4RVI ZWRS BLDP WCAM
 	 * rxxx rrxx xxx0 0101 xxxx xxxx x111 xxxx < forced
-	 *   11    0 110    1  0011 1100 .111 1101 < we want
+	 *   11    0 110    0  0011 1100 .111 1101 < we want
 	 */
 	.align	2
 	.type	v7_crval, #object
 v7_crval:
-	crval	clear=0x0120c302, mmuset=0x30c23c7d, ucset=0x00c01c7c
+	crval	clear=0x0122c302, mmuset=0x30c03c7d, ucset=0x00c01c7c

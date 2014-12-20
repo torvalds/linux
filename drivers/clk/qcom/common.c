@@ -18,6 +18,7 @@
 #include <linux/reset-controller.h>
 
 #include "common.h"
+#include "clk-rcg.h"
 #include "clk-regmap.h"
 #include "reset.h"
 
@@ -26,6 +27,21 @@ struct qcom_cc {
 	struct clk_onecell_data data;
 	struct clk *clks[];
 };
+
+const
+struct freq_tbl *qcom_find_freq(const struct freq_tbl *f, unsigned long rate)
+{
+	if (!f)
+		return NULL;
+
+	for (; f->freq; f++)
+		if (rate <= f->freq)
+			return f;
+
+	/* Default to our fastest rate */
+	return f - 1;
+}
+EXPORT_SYMBOL_GPL(qcom_find_freq);
 
 struct regmap *
 qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)

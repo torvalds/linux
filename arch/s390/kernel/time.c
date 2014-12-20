@@ -61,10 +61,11 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace __kprobes sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return tod_to_ns(get_tod_clock_monotonic());
 }
+NOKPROBE_SYMBOL(sched_clock);
 
 /*
  * Monotonic_clock - returns # of nanoseconds passed since time_init()
@@ -92,7 +93,7 @@ void clock_comparator_work(void)
 	struct clock_event_device *cd;
 
 	S390_lowcore.clock_comparator = -1ULL;
-	cd = &__get_cpu_var(comparators);
+	cd = this_cpu_ptr(&comparators);
 	cd->event_handler(cd);
 }
 
@@ -232,6 +233,19 @@ void update_vsyscall(struct timekeeper *tk)
 		vdso_data->wtom_clock_nsec -= nsecps;
 		vdso_data->wtom_clock_sec++;
 	}
+
+	vdso_data->xtime_coarse_sec = tk->xtime_sec;
+	vdso_data->xtime_coarse_nsec =
+		(long)(tk->tkr.xtime_nsec >> tk->tkr.shift);
+	vdso_data->wtom_coarse_sec =
+		vdso_data->xtime_coarse_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->wtom_coarse_nsec =
+		vdso_data->xtime_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+	while (vdso_data->wtom_coarse_nsec >= NSEC_PER_SEC) {
+		vdso_data->wtom_coarse_nsec -= NSEC_PER_SEC;
+		vdso_data->wtom_coarse_sec++;
+	}
+
 	vdso_data->tk_mult = tk->tkr.mult;
 	vdso_data->tk_shift = tk->tkr.shift;
 	smp_wmb();
@@ -360,7 +374,7 @@ EXPORT_SYMBOL(get_sync_clock);
  */
 static void disable_sync_clock(void *dummy)
 {
-	atomic_t *sw_ptr = &__get_cpu_var(clock_sync_word);
+	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
 	/*
 	 * Clear the in-sync bit 2^31. All get_sync_clock calls will
 	 * fail until the sync bit is turned back on. In addition
@@ -377,7 +391,7 @@ static void disable_sync_clock(void *dummy)
  */
 static void enable_sync_clock(void)
 {
-	atomic_t *sw_ptr = &__get_cpu_var(clock_sync_word);
+	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
 	atomic_set_mask(0x80000000, sw_ptr);
 }
 

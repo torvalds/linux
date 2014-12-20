@@ -317,8 +317,8 @@ static inline void cxgbi_skcb_clear_flag(struct sk_buff *skb,
 	__clear_bit(flag, &(cxgbi_skcb_flags(skb)));
 }
 
-static inline int cxgbi_skcb_test_flag(struct sk_buff *skb,
-					enum cxgbi_skcb_flags flag)
+static inline int cxgbi_skcb_test_flag(const struct sk_buff *skb,
+				       enum cxgbi_skcb_flags flag)
 {
 	return test_bit(flag, &(cxgbi_skcb_flags(skb)));
 }
@@ -527,6 +527,7 @@ struct cxgbi_ports_map {
 #define CXGBI_FLAG_IPV4_SET		0x10
 struct cxgbi_device {
 	struct list_head list_head;
+	struct list_head rcu_node;
 	unsigned int flags;
 	struct net_device **ports;
 	void *lldev;
@@ -699,16 +700,13 @@ static inline void cxgbi_set_iscsi_ipv4(struct cxgbi_hba *chba, __be32 ipaddr)
 			chba->ndev->name);
 }
 
-static inline __be32 cxgbi_get_iscsi_ipv4(struct cxgbi_hba *chba)
-{
-	return chba->ipv4addr;
-}
-
 struct cxgbi_device *cxgbi_device_register(unsigned int, unsigned int);
 void cxgbi_device_unregister(struct cxgbi_device *);
 void cxgbi_device_unregister_all(unsigned int flag);
 struct cxgbi_device *cxgbi_device_find_by_lldev(void *);
 struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *, int *);
+struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *,
+						     int *);
 int cxgbi_hbas_add(struct cxgbi_device *, u64, unsigned int,
 			struct scsi_host_template *,
 			struct scsi_transport_template *);

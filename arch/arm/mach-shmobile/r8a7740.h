@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #ifndef __ASM_R8A7740_H__
@@ -49,15 +45,14 @@ extern void r8a7740_init_irq_of(void);
 extern void r8a7740_map_io(void);
 extern void r8a7740_add_early_devices(void);
 extern void r8a7740_add_standard_devices(void);
-extern void r8a7740_add_standard_devices_dt(void);
 extern void r8a7740_clock_init(u8 md_ck);
 extern void r8a7740_pinmux_init(void);
 extern void r8a7740_pm_init(void);
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && !defined(CONFIG_ARCH_MULTIPLATFORM)
 extern void __init r8a7740_init_pm_domains(void);
 #else
 static inline void r8a7740_init_pm_domains(void) {}
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && !CONFIG_ARCH_MULTIPLATFORM */
 
 #endif /* __ASM_R8A7740_H__ */

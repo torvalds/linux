@@ -302,9 +302,12 @@ static void g2d_fini_cmdlist(struct g2d_data *g2d)
 	struct exynos_drm_subdrv *subdrv = &g2d->subdrv;
 
 	kfree(g2d->cmdlist_node);
-	dma_free_attrs(subdrv->drm_dev->dev, G2D_CMDLIST_POOL_SIZE,
-			g2d->cmdlist_pool_virt,
-			g2d->cmdlist_pool, &g2d->cmdlist_dma_attrs);
+
+	if (g2d->cmdlist_pool_virt && g2d->cmdlist_pool) {
+		dma_free_attrs(subdrv->drm_dev->dev, G2D_CMDLIST_POOL_SIZE,
+				g2d->cmdlist_pool_virt,
+				g2d->cmdlist_pool, &g2d->cmdlist_dma_attrs);
+	}
 }
 
 static struct g2d_cmdlist_node *g2d_get_cmdlist(struct g2d_data *g2d)
@@ -1537,7 +1540,7 @@ static int g2d_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int g2d_runtime_suspend(struct device *dev)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);

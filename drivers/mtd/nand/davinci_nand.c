@@ -870,7 +870,6 @@ static struct platform_driver nand_davinci_driver = {
 	.remove		= nand_davinci_remove,
 	.driver		= {
 		.name	= "davinci_nand",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(davinci_nand_of_match),
 	},
 };

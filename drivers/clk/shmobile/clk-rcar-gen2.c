@@ -202,6 +202,7 @@ static const struct clk_div_table cpg_sdh_div_table[] = {
 };
 
 static const struct clk_div_table cpg_sd01_div_table[] = {
+	{  4,  8 },
 	{  5, 12 }, {  6, 16 }, {  7, 18 }, {  8, 24 },
 	{ 10, 36 }, { 11, 48 }, { 12, 10 }, {  0,  0 },
 };

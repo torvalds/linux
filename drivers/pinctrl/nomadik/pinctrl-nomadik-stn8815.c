@@ -291,6 +291,7 @@ static const unsigned u0_a_1_pins[] = { STN8815_PIN_B4, STN8815_PIN_D5,
 static const unsigned mmcsd_a_1_pins[] = { STN8815_PIN_B10, STN8815_PIN_A10,
 	STN8815_PIN_C11, STN8815_PIN_B11, STN8815_PIN_A11, STN8815_PIN_C12,
 	STN8815_PIN_B12, STN8815_PIN_A12, STN8815_PIN_C13, STN8815_PIN_C15 };
+static const unsigned mmcsd_b_1_pins[] = { STN8815_PIN_D15 };
 static const unsigned u1_a_1_pins[] = { STN8815_PIN_M2, STN8815_PIN_L1,
 					STN8815_PIN_F3, STN8815_PIN_F2 };
 static const unsigned i2c1_a_1_pins[] = { STN8815_PIN_L4, STN8815_PIN_L3 };
@@ -305,6 +306,7 @@ static const unsigned i2cusb_b_1_pins[] = { STN8815_PIN_C21, STN8815_PIN_C20 };
 static const struct nmk_pingroup nmk_stn8815_groups[] = {
 	STN8815_PIN_GROUP(u0_a_1, NMK_GPIO_ALT_A),
 	STN8815_PIN_GROUP(mmcsd_a_1, NMK_GPIO_ALT_A),
+	STN8815_PIN_GROUP(mmcsd_b_1, NMK_GPIO_ALT_B),
 	STN8815_PIN_GROUP(u1_a_1, NMK_GPIO_ALT_A),
 	STN8815_PIN_GROUP(i2c1_a_1, NMK_GPIO_ALT_A),
 	STN8815_PIN_GROUP(i2c0_a_1, NMK_GPIO_ALT_A),
@@ -317,7 +319,7 @@ static const struct nmk_pingroup nmk_stn8815_groups[] = {
 static const char * const a##_groups[] = { b };
 
 STN8815_FUNC_GROUPS(u0, "u0_a_1");
-STN8815_FUNC_GROUPS(mmcsd, "mmcsd_a_1");
+STN8815_FUNC_GROUPS(mmcsd, "mmcsd_a_1", "mmcsd_b_1");
 STN8815_FUNC_GROUPS(u1, "u1_a_1", "u1_b_1");
 STN8815_FUNC_GROUPS(i2c1, "i2c1_a_1");
 STN8815_FUNC_GROUPS(i2c0, "i2c0_a_1");

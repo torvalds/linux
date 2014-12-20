@@ -58,7 +58,7 @@ static int __init pcm037_variant_setup(char *str)
 	if (!strcmp("eet", str))
 		pcm037_instance = PCM037_EET;
 	else if (strcmp("pcm970", str))
-		pr_warning("Unknown pcm037 baseboard variant %s\n", str);
+		pr_warn("Unknown pcm037 baseboard variant %s\n", str);
 
 	return 1;
 }
@@ -624,7 +624,7 @@ static void __init pcm037_init(void)
 	/* LAN9217 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1), "lan9217-irq");
 	if (ret)
-		pr_warning("could not get LAN irq gpio\n");
+		pr_warn("could not get LAN irq gpio\n");
 	else {
 		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
 		smsc911x_resources[1].start =

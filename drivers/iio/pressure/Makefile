@@ -3,6 +3,7 @@
 #
 
 # When adding new entries keep the list in alphabetical order
+obj-$(CONFIG_BMP280) += bmp280.o
 obj-$(CONFIG_HID_SENSOR_PRESS)   += hid-sensor-press.o
 obj-$(CONFIG_MPL115) += mpl115.o
 obj-$(CONFIG_MPL3115) += mpl3115.o

@@ -90,6 +90,18 @@ config TOUCHSCREEN_AD7879_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879-spi.
 
+config TOUCHSCREEN_AR1021_I2C
+	tristate "Microchip AR1021 i2c touchscreen"
+	depends on I2C && OF
+	help
+	  Say Y here if you have the Microchip AR1021 touchscreen controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ar1021_i2c.
+
 config TOUCHSCREEN_ATMEL_MXT
 	tristate "Atmel mXT I2C Touchscreen"
 	depends on I2C
@@ -283,6 +295,19 @@ config TOUCHSCREEN_FUJITSU
 	  To compile this driver as a module, choose M here: the
 	  module will be called fujitsu-ts.
 
+config TOUCHSCREEN_GOODIX
+	tristate "Goodix I2C touchscreen"
+	depends on I2C && ACPI
+	help
+	  Say Y here if you have the Goodix touchscreen (such as one
+	  installed in Onda v975w tablets) connected to your
+	  system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called goodix.
+
 config TOUCHSCREEN_ILI210X
 	tristate "Ilitek ILI210X based touchscreen"
 	depends on I2C
@@ -321,6 +346,18 @@ config TOUCHSCREEN_GUNZE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gunze.
+
+config TOUCHSCREEN_ELAN
+	tristate "Elan eKTH I2C touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have an Elan eKTH I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called elants_i2c.
 
 config TOUCHSCREEN_ELO
 	tristate "Elo serial touchscreens"

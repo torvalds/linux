@@ -462,7 +462,7 @@ static int altera_jtaguart_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id altera_jtaguart_match[] = {
+static const struct of_device_id altera_jtaguart_match[] = {
 	{ .compatible = "ALTR,juart-1.0", },
 	{ .compatible = "altr,juart-1.0", },
 	{},
@@ -475,7 +475,6 @@ static struct platform_driver altera_jtaguart_platform_driver = {
 	.remove	= altera_jtaguart_remove,
 	.driver	= {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(altera_jtaguart_match),
 	},
 };

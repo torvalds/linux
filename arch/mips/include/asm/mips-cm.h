@@ -30,7 +30,7 @@ extern void __iomem *mips_cm_l2sync_base;
  * different way by defining a function with the same prototype except for the
  * name mips_cm_phys_base (without underscores).
  */
-extern phys_t __mips_cm_phys_base(void);
+extern phys_addr_t __mips_cm_phys_base(void);
 
 /**
  * mips_cm_probe - probe for a Coherence Manager

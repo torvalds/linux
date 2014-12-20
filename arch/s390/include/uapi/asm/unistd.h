@@ -286,7 +286,10 @@
 #define __NR_seccomp		348
 #define __NR_getrandom		349
 #define __NR_memfd_create	350
-#define NR_syscalls 351
+#define __NR_bpf		351
+#define __NR_s390_pci_mmio_write	352
+#define __NR_s390_pci_mmio_read		353
+#define NR_syscalls 354
 
 /* 
  * There are some system calls that are not present on 64 bit, some

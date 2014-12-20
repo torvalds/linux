@@ -60,7 +60,7 @@ int c4iw_wr_log = 0;
 module_param(c4iw_wr_log, int, 0444);
 MODULE_PARM_DESC(c4iw_wr_log, "Enables logging of work request timing data.");
 
-int c4iw_wr_log_size_order = 12;
+static int c4iw_wr_log_size_order = 12;
 module_param(c4iw_wr_log_size_order, int, 0444);
 MODULE_PARM_DESC(c4iw_wr_log_size_order,
 		 "Number of entries (log2) in the work request timing log.");
@@ -670,7 +670,7 @@ static int ep_open(struct inode *inode, struct file *file)
 	idr_for_each(&epd->devp->stid_idr, count_idrs, &count);
 	spin_unlock_irq(&epd->devp->lock);
 
-	epd->bufsize = count * 160;
+	epd->bufsize = count * 240;
 	epd->buf = vmalloc(epd->bufsize);
 	if (!epd->buf) {
 		ret = -ENOMEM;

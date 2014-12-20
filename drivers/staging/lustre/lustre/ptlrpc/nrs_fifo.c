@@ -157,7 +157,7 @@ static int nrs_fifo_res_get(struct ptlrpc_nrs_policy *policy,
  * \see nrs_request_get()
  */
 static
-struct ptlrpc_nrs_request * nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
+struct ptlrpc_nrs_request *nrs_fifo_req_get(struct ptlrpc_nrs_policy *policy,
 					     bool peek, bool force)
 {
 	struct nrs_fifo_head	  *head = policy->pol_private;

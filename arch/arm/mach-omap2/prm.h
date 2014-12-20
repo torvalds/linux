@@ -29,6 +29,7 @@ int of_prcm_init(void);
  * PRM_HAS_VOLTAGE: has voltage domains
  */
 #define PRM_HAS_IO_WAKEUP	(1 << 0)
+#define PRM_HAS_VOLTAGE		(1 << 1)
 
 /*
  * MAX_MODULE_SOFTRESET_WAIT: Maximum microseconds to wait for OMAP
@@ -127,6 +128,8 @@ struct prm_reset_src_map {
  * @was_any_context_lost_old: ptr to the SoC PRM context loss test fn
  * @clear_context_loss_flags_old: ptr to the SoC PRM context loss flag clear fn
  * @late_init: ptr to the late init function
+ * @assert_hardreset: ptr to the SoC PRM hardreset assert impl
+ * @deassert_hardreset: ptr to the SoC PRM hardreset deassert impl
  *
  * XXX @was_any_context_lost_old and @clear_context_loss_flags_old are
  * deprecated.
@@ -136,14 +139,27 @@ struct prm_ll_data {
 	bool (*was_any_context_lost_old)(u8 part, s16 inst, u16 idx);
 	void (*clear_context_loss_flags_old)(u8 part, s16 inst, u16 idx);
 	int (*late_init)(void);
+	int (*assert_hardreset)(u8 shift, u8 part, s16 prm_mod, u16 offset);
+	int (*deassert_hardreset)(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
+				  u16 offset, u16 st_offset);
+	int (*is_hardreset_asserted)(u8 shift, u8 part, s16 prm_mod,
+				     u16 offset);
+	void (*reset_system)(void);
 };
 
 extern int prm_register(struct prm_ll_data *pld);
 extern int prm_unregister(struct prm_ll_data *pld);
 
+int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset);
+int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
+				u16 offset, u16 st_offset);
+int omap_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset);
 extern u32 prm_read_reset_sources(void);
 extern bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx);
 extern void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx);
+void omap_prm_reset_system(void);
+
+void omap_prm_reconfigure_io_chain(void);
 
 #endif
 

@@ -7,10 +7,14 @@
 #define _ASM_S390_SIGCONTEXT_H
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 
-#define __NUM_GPRS 16
-#define __NUM_FPRS 16
-#define __NUM_ACRS 16
+#define __NUM_GPRS		16
+#define __NUM_FPRS		16
+#define __NUM_ACRS		16
+#define __NUM_VXRS		32
+#define __NUM_VXRS_LOW		16
+#define __NUM_VXRS_HIGH		16
 
 #ifndef __s390x__
 
@@ -58,6 +62,16 @@ typedef struct
 	_s390_regs_common regs;
 	_s390_fp_regs     fpregs;
 } _sigregs;
+
+typedef struct
+{
+#ifndef __s390x__
+	unsigned long gprs_high[__NUM_GPRS];
+#endif
+	unsigned long long vxrs_low[__NUM_VXRS_LOW];
+	__vector128 vxrs_high[__NUM_VXRS_HIGH];
+	unsigned char __reserved[128];
+} _sigregs_ext;
 
 struct sigcontext
 {

@@ -633,7 +633,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 	if (edac_op_state == EDAC_OPSTATE_INT) {
 		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
-				       mpc85xx_l2_isr, 0,
+				       mpc85xx_l2_isr, IRQF_SHARED,
 				       "[EDAC] L2 err", edac_dev);
 		if (res < 0) {
 			printk(KERN_ERR
@@ -715,7 +715,6 @@ static struct platform_driver mpc85xx_l2_err_driver = {
 	.remove = mpc85xx_l2_err_remove,
 	.driver = {
 		.name = "mpc85xx_l2_err",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc85xx_l2_err_of_match,
 	},
 };
@@ -1215,7 +1214,6 @@ static struct platform_driver mpc85xx_mc_err_driver = {
 	.remove = mpc85xx_mc_err_remove,
 	.driver = {
 		.name = "mpc85xx_mc_err",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc85xx_mc_err_of_match,
 	},
 };

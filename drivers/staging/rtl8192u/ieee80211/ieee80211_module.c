@@ -99,7 +99,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 {
 	struct ieee80211_device *ieee;
 	struct net_device *dev;
-	int i,err;
+	int i, err;
 
 	IEEE80211_DEBUG_INFO("Initializing...\n");
 

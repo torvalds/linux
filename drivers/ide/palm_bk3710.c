@@ -386,7 +386,6 @@ MODULE_ALIAS("platform:palm_bk3710");
 static struct platform_driver platform_bk_driver = {
 	.driver = {
 		.name = "palm_bk3710",
-		.owner = THIS_MODULE,
 	},
 };
 

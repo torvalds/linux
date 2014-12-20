@@ -1069,8 +1069,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	return ret;
 
 err_gpiochip_remove:
-	if (gpiochip_remove(&dev->gc) < 0)
-		hid_err(hdev, "error removing gpio chip\n");
+	gpiochip_remove(&dev->gc);
 err_free_i2c:
 	i2c_del_adapter(&dev->adap);
 err_free_dev:
@@ -1089,8 +1088,7 @@ static void cp2112_remove(struct hid_device *hdev)
 	struct cp2112_device *dev = hid_get_drvdata(hdev);
 
 	sysfs_remove_group(&hdev->dev.kobj, &cp2112_attr_group);
-	if (gpiochip_remove(&dev->gc))
-		hid_err(hdev, "unable to remove gpio chip\n");
+	gpiochip_remove(&dev->gc);
 	i2c_del_adapter(&dev->adap);
 	/* i2c_del_adapter has finished removing all i2c devices from our
 	 * adapter. Well behaved devices should no longer call our cp2112_xfer

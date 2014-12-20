@@ -38,7 +38,7 @@ struct mci {
 	__u32 pm :  1; /* 22 psw program mask and cc validity */
 	__u32 ia :  1; /* 23 psw instruction address validity */
 	__u32 fa :  1; /* 24 failing storage address validity */
-	__u32	 :  1; /* 25 */
+	__u32 vr :  1; /* 25 vector register validity */
 	__u32 ec :  1; /* 26 external damage code validity */
 	__u32 fp :  1; /* 27 floating point register validity */
 	__u32 gr :  1; /* 28 general register validity */

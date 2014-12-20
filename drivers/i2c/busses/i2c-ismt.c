@@ -14,10 +14,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
  *
@@ -81,7 +77,7 @@
 #define PCI_DEVICE_ID_INTEL_S1200_SMT1	0x0c5a
 #define PCI_DEVICE_ID_INTEL_AVOTON_SMT	0x1f15
 
-#define ISMT_DESC_ENTRIES	32	/* number of descriptor entries */
+#define ISMT_DESC_ENTRIES	2	/* number of descriptor entries */
 #define ISMT_MAX_RETRIES	3	/* number of SMBus retries to attempt */
 
 /* Hardware Descriptor Constants - Control Field */

@@ -82,6 +82,7 @@ static struct drm_driver bochs_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
 	.load			= bochs_load,
 	.unload			= bochs_unload,
+	.set_busid		= drm_pci_set_busid,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",

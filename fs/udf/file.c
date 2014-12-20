@@ -223,11 +223,18 @@ out:
 
 static int udf_release_file(struct inode *inode, struct file *filp)
 {
-	if (filp->f_mode & FMODE_WRITE) {
+	if (filp->f_mode & FMODE_WRITE &&
+	    atomic_read(&inode->i_writecount) > 1) {
+		/*
+		 * Grab i_mutex to avoid races with writes changing i_size
+		 * while we are running.
+		 */
+		mutex_lock(&inode->i_mutex);
 		down_write(&UDF_I(inode)->i_data_sem);
 		udf_discard_prealloc(inode);
 		udf_truncate_tail_extent(inode);
 		up_write(&UDF_I(inode)->i_data_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	return 0;
 }

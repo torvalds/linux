@@ -181,24 +181,30 @@ static void queue_shift_down(struct queue *q)
  * Gives us the oldest entry of the lowest popoulated level.  If the first
  * level is emptied then we shift down one level.
  */
-static struct list_head *queue_pop(struct queue *q)
+static struct list_head *queue_peek(struct queue *q)
 {
 	unsigned level;
-	struct list_head *r;
 
 	for (level = 0; level < NR_QUEUE_LEVELS; level++)
-		if (!list_empty(q->qs + level)) {
-			r = q->qs[level].next;
-			list_del(r);
-
-			/* have we just emptied the bottom level? */
-			if (level == 0 && list_empty(q->qs))
-				queue_shift_down(q);
-
-			return r;
-		}
+		if (!list_empty(q->qs + level))
+			return q->qs[level].next;
 
 	return NULL;
+}
+
+static struct list_head *queue_pop(struct queue *q)
+{
+	struct list_head *r = queue_peek(q);
+
+	if (r) {
+		list_del(r);
+
+		/* have we just emptied the bottom level? */
+		if (list_empty(q->qs))
+			queue_shift_down(q);
+	}
+
+	return r;
 }
 
 static struct list_head *list_pop(struct list_head *lh)
@@ -383,13 +389,6 @@ struct mq_policy {
 	unsigned generation;
 	unsigned generation_period; /* in lookups (will probably change) */
 
-	/*
-	 * Entries in the pre_cache whose hit count passes the promotion
-	 * threshold move to the cache proper.  Working out the correct
-	 * value for the promotion_threshold is crucial to this policy.
-	 */
-	unsigned promote_threshold;
-
 	unsigned discard_promote_adjustment;
 	unsigned read_promote_adjustment;
 	unsigned write_promote_adjustment;
@@ -406,6 +405,7 @@ struct mq_policy {
 #define DEFAULT_DISCARD_PROMOTE_ADJUSTMENT 1
 #define DEFAULT_READ_PROMOTE_ADJUSTMENT 4
 #define DEFAULT_WRITE_PROMOTE_ADJUSTMENT 8
+#define DISCOURAGE_DEMOTING_DIRTY_THRESHOLD 128
 
 /*----------------------------------------------------------------*/
 
@@ -518,6 +518,12 @@ static struct entry *pop(struct mq_policy *mq, struct queue *q)
 	return e;
 }
 
+static struct entry *peek(struct queue *q)
+{
+	struct list_head *h = queue_peek(q);
+	return h ? container_of(h, struct entry, list) : NULL;
+}
+
 /*
  * Has this entry already been updated?
  */
@@ -570,10 +576,6 @@ static void check_generation(struct mq_policy *mq)
 					break;
 			}
 		}
-
-		mq->promote_threshold = nr ? total / nr : 1;
-		if (mq->promote_threshold * nr < total)
-			mq->promote_threshold++;
 	}
 }
 
@@ -641,6 +643,30 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
 }
 
 /*
+ * Entries in the pre_cache whose hit count passes the promotion
+ * threshold move to the cache proper.  Working out the correct
+ * value for the promotion_threshold is crucial to this policy.
+ */
+static unsigned promote_threshold(struct mq_policy *mq)
+{
+	struct entry *e;
+
+	if (any_free_cblocks(mq))
+		return 0;
+
+	e = peek(&mq->cache_clean);
+	if (e)
+		return e->hit_count;
+
+	e = peek(&mq->cache_dirty);
+	if (e)
+		return e->hit_count + DISCOURAGE_DEMOTING_DIRTY_THRESHOLD;
+
+	/* This should never happen */
+	return 0;
+}
+
+/*
  * We modify the basic promotion_threshold depending on the specific io.
  *
  * If the origin block has been discarded then there's no cost to copy it
@@ -653,7 +679,7 @@ static unsigned adjusted_promote_threshold(struct mq_policy *mq,
 					   bool discarded_oblock, int data_dir)
 {
 	if (data_dir == READ)
-		return mq->promote_threshold + mq->read_promote_adjustment;
+		return promote_threshold(mq) + mq->read_promote_adjustment;
 
 	if (discarded_oblock && (any_free_cblocks(mq) || any_clean_cblocks(mq))) {
 		/*
@@ -663,7 +689,7 @@ static unsigned adjusted_promote_threshold(struct mq_policy *mq,
 		return mq->discard_promote_adjustment;
 	}
 
-	return mq->promote_threshold + mq->write_promote_adjustment;
+	return promote_threshold(mq) + mq->write_promote_adjustment;
 }
 
 static bool should_promote(struct mq_policy *mq, struct entry *e,
@@ -839,7 +865,8 @@ static int map(struct mq_policy *mq, dm_oblock_t oblock,
 	if (e && in_cache(mq, e))
 		r = cache_entry_found(mq, e, result);
 
-	else if (iot_pattern(&mq->tracker) == PATTERN_SEQUENTIAL)
+	else if (mq->tracker.thresholds[PATTERN_SEQUENTIAL] &&
+		 iot_pattern(&mq->tracker) == PATTERN_SEQUENTIAL)
 		result->op = POLICY_MISS;
 
 	else if (e)
@@ -1230,7 +1257,6 @@ static struct dm_cache_policy *mq_create(dm_cblock_t cache_size,
 	mq->tick = 0;
 	mq->hit_count = 0;
 	mq->generation = 0;
-	mq->promote_threshold = 0;
 	mq->discard_promote_adjustment = DEFAULT_DISCARD_PROMOTE_ADJUSTMENT;
 	mq->read_promote_adjustment = DEFAULT_READ_PROMOTE_ADJUSTMENT;
 	mq->write_promote_adjustment = DEFAULT_WRITE_PROMOTE_ADJUSTMENT;
@@ -1265,7 +1291,7 @@ bad_pre_cache_init:
 
 static struct dm_cache_policy_type mq_policy_type = {
 	.name = "mq",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create
@@ -1273,7 +1299,7 @@ static struct dm_cache_policy_type mq_policy_type = {
 
 static struct dm_cache_policy_type default_policy_type = {
 	.name = "default",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create,

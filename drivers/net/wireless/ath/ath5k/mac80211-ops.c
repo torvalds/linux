@@ -547,7 +547,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 
 static void
-ath5k_sw_scan_start(struct ieee80211_hw *hw)
+ath5k_sw_scan_start(struct ieee80211_hw *hw,
+		    struct ieee80211_vif *vif,
+		    const u8 *mac_addr)
 {
 	struct ath5k_hw *ah = hw->priv;
 	if (!ah->assoc)
@@ -556,7 +558,7 @@ ath5k_sw_scan_start(struct ieee80211_hw *hw)
 
 
 static void
-ath5k_sw_scan_complete(struct ieee80211_hw *hw)
+ath5k_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath5k_hw *ah = hw->priv;
 	ath5k_hw_set_ledstate(ah, ah->assoc ?
@@ -704,7 +706,7 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
  * reset.
  */
 static void
-ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
+ath5k_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
 	struct ath5k_hw *ah = hw->priv;
 

@@ -33,18 +33,23 @@
 
 static void ast_init_dram_2300(struct drm_device *dev);
 
-static void
-ast_enable_vga(struct drm_device *dev)
+void ast_enable_vga(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 
-	ast_io_write8(ast, 0x43, 0x01);
-	ast_io_write8(ast, 0x42, 0x01);
+	ast_io_write8(ast, AST_IO_VGA_ENABLE_PORT, 0x01);
+	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
 }
 
-#if 0 /* will use later */
-static bool
-ast_is_vga_enabled(struct drm_device *dev)
+void ast_enable_mmio(struct drm_device *dev)
+{
+	struct ast_private *ast = dev->dev_private;
+
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa1, 0xff, 0x04);
+}
+
+
+bool ast_is_vga_enabled(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	u8 ch;
@@ -52,7 +57,7 @@ ast_is_vga_enabled(struct drm_device *dev)
 	if (ast->chip == AST1180) {
 		/* TODO 1180 */
 	} else {
-		ch = ast_io_read8(ast, 0x43);
+		ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
 		if (ch) {
 			ast_open_key(ast);
 			ch = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xff);
@@ -61,7 +66,6 @@ ast_is_vga_enabled(struct drm_device *dev)
 	}
 	return 0;
 }
-#endif
 
 static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };
 static const u8 extreginfo_ast2300a0[] = { 0x0f, 0x04, 0x1c, 0xff };
@@ -371,6 +375,7 @@ void ast_post_gpu(struct drm_device *dev)
 	pci_write_config_dword(ast->dev->pdev, 0x04, reg);
 
 	ast_enable_vga(dev);
+	ast_enable_mmio(dev);
 	ast_open_key(ast);
 	ast_set_def_ext_reg(dev);
 

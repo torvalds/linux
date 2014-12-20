@@ -14,6 +14,29 @@ Optional properties:
  - phys: from the *Generic PHY* bindings
  - phy-names: from the *Generic PHY* bindings
  - tx-fifo-resize: determines if the FIFO *has* to be reallocated.
+ - snps,disable_scramble_quirk: true when SW should disable data scrambling.
+	Only really useful for FPGA builds.
+ - snps,has-lpm-erratum: true when DWC3 was configured with LPM Erratum enabled
+ - snps,lpm-nyet-threshold: LPM NYET threshold
+ - snps,u2exit_lfps_quirk: set if we want to enable u2exit lfps quirk
+ - snps,u2ss_inp3_quirk: set if we enable P3 OK for U2/SS Inactive quirk
+ - snps,req_p1p2p3_quirk: when set, the core will always request for
+			P1/P2/P3 transition sequence.
+ - snps,del_p1p2p3_quirk: when set core will delay P1/P2/P3 until a certain
+			amount of 8B10B errors occur.
+ - snps,del_phy_power_chg_quirk: when set core will delay PHY power change
+			from P0 to P1/P2/P3.
+ - snps,lfps_filter_quirk: when set core will filter LFPS reception.
+ - snps,rx_detect_poll_quirk: when set core will disable a 400us delay to start
+			Polling LFPS after RX.Detect.
+ - snps,tx_de_emphasis_quirk: when set core will set Tx de-emphasis value.
+ - snps,tx_de_emphasis: the value driven to the PHY is controlled by the
+			LTSSM during USB3 Compliance mode.
+ - snps,dis_u3_susphy_quirk: when set core will disable USB3 suspend phy.
+ - snps,dis_u2_susphy_quirk: when set core will disable USB2 suspend phy.
+ - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
+			utmi_l1_suspend_n, false when asserts utmi_sleep_n
+ - snps,hird-threshold: HIRD threshold
 
 This is usually a subnode to DWC3 glue to which it is connected.
 

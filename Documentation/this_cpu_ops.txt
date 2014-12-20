@@ -41,7 +41,6 @@ The following this_cpu() operations with implied preemption protection
 are defined. These operations can be used without worrying about
 preemption and interrupts.
 
-	this_cpu_add()
 	this_cpu_read(pcp)
 	this_cpu_write(pcp, val)
 	this_cpu_add(pcp, val)
@@ -225,7 +224,6 @@ still occur while an operation is in progress and if the interrupt too
 modifies the variable, then RMW actions can not be guaranteed to be
 safe.
 
-	__this_cpu_add()
 	__this_cpu_read(pcp)
 	__this_cpu_write(pcp, val)
 	__this_cpu_add(pcp, val)

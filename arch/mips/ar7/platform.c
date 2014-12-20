@@ -311,8 +311,7 @@ static void __init cpmac_get_mac(int instance, unsigned char *dev_addr)
 					&dev_addr[0], &dev_addr[1],
 					&dev_addr[2], &dev_addr[3],
 					&dev_addr[4], &dev_addr[5]) != 6) {
-			pr_warning("cannot parse mac address, "
-					"using random address\n");
+			pr_warn("cannot parse mac address, using random address\n");
 			eth_random_addr(dev_addr);
 		}
 	} else
@@ -665,7 +664,7 @@ static int __init ar7_register_devices(void)
 
 	res = platform_device_register(&physmap_flash);
 	if (res)
-		pr_warning("unable to register physmap-flash: %d\n", res);
+		pr_warn("unable to register physmap-flash: %d\n", res);
 
 	if (ar7_is_titan())
 		titan_fixup_devices();
@@ -673,13 +672,13 @@ static int __init ar7_register_devices(void)
 	ar7_device_disable(vlynq_low_data.reset_bit);
 	res = platform_device_register(&vlynq_low);
 	if (res)
-		pr_warning("unable to register vlynq-low: %d\n", res);
+		pr_warn("unable to register vlynq-low: %d\n", res);
 
 	if (ar7_has_high_vlynq()) {
 		ar7_device_disable(vlynq_high_data.reset_bit);
 		res = platform_device_register(&vlynq_high);
 		if (res)
-			pr_warning("unable to register vlynq-high: %d\n", res);
+			pr_warn("unable to register vlynq-high: %d\n", res);
 	}
 
 	if (ar7_has_high_cpmac()) {
@@ -689,9 +688,10 @@ static int __init ar7_register_devices(void)
 
 			res = platform_device_register(&cpmac_high);
 			if (res)
-				pr_warning("unable to register cpmac-high: %d\n", res);
+				pr_warn("unable to register cpmac-high: %d\n",
+					res);
 		} else
-			pr_warning("unable to add cpmac-high phy: %d\n", res);
+			pr_warn("unable to add cpmac-high phy: %d\n", res);
 	} else
 		cpmac_low_data.phy_mask = 0xffffffff;
 
@@ -700,18 +700,18 @@ static int __init ar7_register_devices(void)
 		cpmac_get_mac(0, cpmac_low_data.dev_addr);
 		res = platform_device_register(&cpmac_low);
 		if (res)
-			pr_warning("unable to register cpmac-low: %d\n", res);
+			pr_warn("unable to register cpmac-low: %d\n", res);
 	} else
-		pr_warning("unable to add cpmac-low phy: %d\n", res);
+		pr_warn("unable to add cpmac-low phy: %d\n", res);
 
 	detect_leds();
 	res = platform_device_register(&ar7_gpio_leds);
 	if (res)
-		pr_warning("unable to register leds: %d\n", res);
+		pr_warn("unable to register leds: %d\n", res);
 
 	res = platform_device_register(&ar7_udc);
 	if (res)
-		pr_warning("unable to register usb slave: %d\n", res);
+		pr_warn("unable to register usb slave: %d\n", res);
 
 	/* Register watchdog only if enabled in hardware */
 	bootcr = ioremap_nocache(AR7_REGS_DCL, 4);
@@ -726,7 +726,7 @@ static int __init ar7_register_devices(void)
 		ar7_wdt_res.end = ar7_wdt_res.start + 0x20;
 		res = platform_device_register(&ar7_wdt);
 		if (res)
-			pr_warning("unable to register watchdog: %d\n", res);
+			pr_warn("unable to register watchdog: %d\n", res);
 	}
 
 	return 0;

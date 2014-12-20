@@ -324,11 +324,9 @@ int s5p_jpeg_stream_stat_ok(void __iomem *regs)
 
 void s5p_jpeg_clear_int(void __iomem *regs)
 {
-	unsigned long reg;
-
-	reg = readl(regs + S5P_JPGINTST);
+	readl(regs + S5P_JPGINTST);
 	writel(S5P_INT_RELEASE, regs + S5P_JPGCOM);
-	reg = readl(regs + S5P_JPGOPR);
+	readl(regs + S5P_JPGOPR);
 }
 
 unsigned int s5p_jpeg_compressed_size(void __iomem *regs)

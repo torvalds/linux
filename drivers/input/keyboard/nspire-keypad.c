@@ -268,7 +268,6 @@ MODULE_DEVICE_TABLE(of, nspire_keypad_dt_match);
 static struct platform_driver nspire_keypad_driver = {
 	.driver = {
 		.name = "nspire-keypad",
-		.owner = THIS_MODULE,
 		.of_match_table = nspire_keypad_dt_match,
 	},
 	.probe = nspire_keypad_probe,

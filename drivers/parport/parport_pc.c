@@ -1702,6 +1702,46 @@ static int parport_ECP_supported(struct parport *pb)
 }
 #endif
 
+#ifdef CONFIG_X86_32
+static int intel_bug_present_check_epp(struct parport *pb)
+{
+	const struct parport_pc_private *priv = pb->private_data;
+	int bug_present = 0;
+
+	if (priv->ecr) {
+		/* store value of ECR */
+		unsigned char ecr = inb(ECONTROL(pb));
+		unsigned char i;
+		for (i = 0x00; i < 0x80; i += 0x20) {
+			ECR_WRITE(pb, i);
+			if (clear_epp_timeout(pb)) {
+				/* Phony EPP in ECP. */
+				bug_present = 1;
+				break;
+			}
+		}
+		/* return ECR into the inital state */
+		ECR_WRITE(pb, ecr);
+	}
+
+	return bug_present;
+}
+static int intel_bug_present(struct parport *pb)
+{
+/* Check whether the device is legacy, not PCI or PCMCIA. Only legacy is known to be affected. */
+	if (pb->dev != NULL) {
+		return 0;
+	}
+
+	return intel_bug_present_check_epp(pb);
+}
+#else
+static int intel_bug_present(struct parport *pb)
+{
+	return 0;
+}
+#endif /* CONFIG_X86_32 */
+
 static int parport_ECPPS2_supported(struct parport *pb)
 {
 	const struct parport_pc_private *priv = pb->private_data;
@@ -1722,8 +1762,6 @@ static int parport_ECPPS2_supported(struct parport *pb)
 
 static int parport_EPP_supported(struct parport *pb)
 {
-	const struct parport_pc_private *priv = pb->private_data;
-
 	/*
 	 * Theory:
 	 *	Bit 0 of STR is the EPP timeout bit, this bit is 0
@@ -1742,16 +1780,8 @@ static int parport_EPP_supported(struct parport *pb)
 		return 0;  /* No way to clear timeout */
 
 	/* Check for Intel bug. */
-	if (priv->ecr) {
-		unsigned char i;
-		for (i = 0x00; i < 0x80; i += 0x20) {
-			ECR_WRITE(pb, i);
-			if (clear_epp_timeout(pb)) {
-				/* Phony EPP in ECP. */
-				return 0;
-			}
-		}
-	}
+	if (intel_bug_present(pb))
+		return 0;
 
 	pb->modes |= PARPORT_MODE_EPP;
 
@@ -2981,7 +3011,6 @@ static int parport_pc_platform_probe(struct platform_device *pdev)
 
 static struct platform_driver parport_pc_platform_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "parport_pc",
 	},
 	.probe		= parport_pc_platform_probe,
@@ -3310,13 +3339,14 @@ static void __exit parport_pc_exit(void)
 	while (!list_empty(&ports_list)) {
 		struct parport_pc_private *priv;
 		struct parport *port;
+		struct device *dev;
 		priv = list_entry(ports_list.next,
 				  struct parport_pc_private, list);
 		port = priv->port;
-		if (port->dev && port->dev->bus == &platform_bus_type)
-			platform_device_unregister(
-				to_platform_device(port->dev));
+		dev = port->dev;
 		parport_pc_unregister_port(port);
+		if (dev && dev->bus == &platform_bus_type)
+			platform_device_unregister(to_platform_device(dev));
 	}
 }
 

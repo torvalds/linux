@@ -43,6 +43,8 @@
 #define IMX_CHIP_REVISION_1_1		0x11
 #define IMX_CHIP_REVISION_1_2		0x12
 #define IMX_CHIP_REVISION_1_3		0x13
+#define IMX_CHIP_REVISION_1_4		0x14
+#define IMX_CHIP_REVISION_1_5		0x15
 #define IMX_CHIP_REVISION_2_0		0x20
 #define IMX_CHIP_REVISION_2_1		0x21
 #define IMX_CHIP_REVISION_2_2		0x22
@@ -52,6 +54,8 @@
 #define IMX_CHIP_REVISION_3_2		0x32
 #define IMX_CHIP_REVISION_3_3		0x33
 #define IMX_CHIP_REVISION_UNKNOWN	0xff
+
+#define IMX_DDR_TYPE_LPDDR2		1
 
 #ifndef __ASSEMBLY__
 extern unsigned int __mxc_cpu_type;

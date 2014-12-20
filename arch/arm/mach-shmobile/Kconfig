@@ -1,5 +1,31 @@
 config ARCH_SHMOBILE
 	bool
+	select ZONE_DMA if ARM_LPAE
+
+config PM_RCAR
+	bool
+
+config PM_RMOBILE
+	bool
+
+config ARCH_RCAR_GEN1
+	bool
+	select PM_RCAR if PM || SMP
+	select RENESAS_INTC_IRQPIN
+	select SYS_SUPPORTS_SH_TMU
+
+config ARCH_RCAR_GEN2
+	bool
+	select PM_RCAR if PM || SMP
+	select RENESAS_IRQC
+	select SYS_SUPPORTS_SH_CMT
+	select PCI_DOMAINS if PCI
+
+config ARCH_RMOBILE
+	bool
+	select PM_RMOBILE if PM && !ARCH_SHMOBILE_MULTI
+	select SYS_SUPPORTS_SH_CMT
+	select SYS_SUPPORTS_SH_TMU
 
 menuconfig ARCH_SHMOBILE_MULTI
 	bool "Renesas ARM SoCs" if ARCH_MULTI_V7
@@ -12,7 +38,6 @@ menuconfig ARCH_SHMOBILE_MULTI
 	select NO_IOPORT_MAP
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_HAS_OPP
 
 if ARCH_SHMOBILE_MULTI
 
@@ -26,31 +51,28 @@ config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
 	select SYS_SUPPORTS_SH_MTU2
 
+config ARCH_R8A7740
+	bool "R-Mobile A1 (R8A77400)"
+	select ARCH_RMOBILE
+	select RENESAS_INTC_IRQPIN
+
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
-	select RENESAS_INTC_IRQPIN
-	select SYS_SUPPORTS_SH_TMU
+	select ARCH_RCAR_GEN1
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
+	select ARCH_RCAR_GEN2
 
 config ARCH_R8A7791
-	bool "R-Car M2 (R8A77910)"
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
+	bool "R-Car M2-W (R8A77910)"
+	select ARCH_RCAR_GEN2
+
+config ARCH_R8A7794
+	bool "R-Car E2 (R8A77940)"
+	select ARCH_RCAR_GEN2
 
 comment "Renesas ARM SoCs Board Type"
-
-config MACH_GENMAI
-	bool "Genmai board"
-	depends on ARCH_R7S72100
-
-config MACH_KOELSCH
-	bool "Koelsch board"
-	depends on ARCH_R8A7791
-	select MICREL_PHY if SH_ETH
 
 config MACH_LAGER
 	bool "Lager board"
@@ -71,93 +93,53 @@ comment "Renesas ARM SoCs System Type"
 
 config ARCH_SH7372
 	bool "SH-Mobile AP4 (SH7372)"
+	select ARCH_RMOBILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_CPU_SUSPEND if PM || CPU_IDLE
-	select CPU_V7
-	select SH_CLK_CPG
 	select SH_INTC
-	select SYS_SUPPORTS_SH_CMT
-	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
+	select ARCH_RMOBILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
-	select CPU_V7
 	select I2C
-	select SH_CLK_CPG
 	select SH_INTC
 	select RENESAS_INTC_IRQPIN
-	select SYS_SUPPORTS_SH_CMT
-	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_R8A73A4
 	bool "R-Mobile APE6 (R8A73A40)"
+	select ARCH_RMOBILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
-	select CPU_V7
-	select SH_CLK_CPG
 	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
-	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
+	select ARCH_RMOBILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
-	select CPU_V7
-	select SH_CLK_CPG
 	select RENESAS_INTC_IRQPIN
-	select SYS_SUPPORTS_SH_CMT
-	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_R8A7778
 	bool "R-Car M1A (R8A77781)"
+	select ARCH_RCAR_GEN1
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select CPU_V7
-	select SH_CLK_CPG
 	select ARM_GIC
-	select SYS_SUPPORTS_SH_TMU
-	select RENESAS_INTC_IRQPIN
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
+	select ARCH_RCAR_GEN1
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
-	select CPU_V7
-	select SH_CLK_CPG
-	select RENESAS_INTC_IRQPIN
-	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
+	select ARCH_RCAR_GEN2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
-	select CPU_V7
 	select MIGHT_HAVE_PCI
-	select SH_CLK_CPG
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-
-config ARCH_R8A7791
-	bool "R-Car M2 (R8A77910)"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select CPU_V7
-	select MIGHT_HAVE_PCI
-	select SH_CLK_CPG
-	select RENESAS_IRQC
-	select SYS_SUPPORTS_SH_CMT
-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-
-config ARCH_R7S72100
-	bool "RZ/A1H (R7S72100)"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select CPU_V7
-	select SH_CLK_CPG
-	select SYS_SUPPORTS_SH_MTU2
 
 comment "Renesas ARM SoCs Board Type"
 
@@ -197,21 +179,6 @@ config MACH_ARMADILLO800EVA
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
 
-config MACH_ARMADILLO800EVA_REFERENCE
-	bool "Armadillo-800 EVA board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7740
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SMSC_PHY if SH_ETH
-	select SND_SOC_WM8978 if SND_SIMPLE_CARD
-	select USE_OF
-	---help---
-	   Use reference implementation of Armadillo800 EVA board support
-	   which makes greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
 config MACH_BOCKW
 	bool "BOCK-W platform"
 	depends on ARCH_R8A7778
@@ -234,11 +201,6 @@ config MACH_BOCKW_REFERENCE
 
 	   This is intended to aid developers
 
-config MACH_GENMAI
-	bool "Genmai board"
-	depends on ARCH_R7S72100
-	select USE_OF
-
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
@@ -252,12 +214,6 @@ config MACH_LAGER
 	select USE_OF
 	select MICREL_PHY if SH_ETH
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
-
-config MACH_KOELSCH
-	bool "Koelsch board"
-	depends on ARCH_R8A7791
-	select USE_OF
-	select MICREL_PHY if SH_ETH
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"

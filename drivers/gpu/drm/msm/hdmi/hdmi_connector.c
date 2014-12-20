@@ -330,8 +330,6 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
-	hdmi_unreference(hdmi_connector->hdmi);
-
 	kfree(hdmi_connector);
 }
 
@@ -401,6 +399,9 @@ static const struct drm_connector_funcs hdmi_connector_funcs = {
 	.detect = hdmi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = hdmi_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
@@ -422,7 +423,7 @@ struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 		goto fail;
 	}
 
-	hdmi_connector->hdmi = hdmi_reference(hdmi);
+	hdmi_connector->hdmi = hdmi;
 	INIT_WORK(&hdmi_connector->hpd_work, hotplug_work);
 
 	connector = &hdmi_connector->base;

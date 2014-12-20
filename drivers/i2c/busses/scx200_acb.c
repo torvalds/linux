@@ -17,10 +17,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
     General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -548,7 +544,6 @@ static int scx200_remove(struct platform_device *pdev)
 static struct platform_driver scx200_pci_driver = {
 	.driver = {
 		.name = "cs5535-smb",
-		.owner = THIS_MODULE,
 	},
 	.probe = scx200_probe,
 	.remove = scx200_remove,

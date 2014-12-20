@@ -94,7 +94,7 @@ static inline void cfs_slow_warning(unsigned long now, int seconds, char *msg)
 	/*						      \
 	 * XXX nikita: non-portable initializer		 \
 	 */						     \
-	static time_t __next_message = 0;		       \
+	static time_t __next_message;		       \
 	int result;					     \
 								\
 	if (cfs_time_after(cfs_time_current(), __next_message)) \

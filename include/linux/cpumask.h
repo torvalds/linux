@@ -666,9 +666,18 @@ static inline size_t cpumask_size(void)
  *
  * This code makes NR_CPUS length memcopy and brings to a memory corruption.
  * cpumask_copy() provide safe copy functionality.
+ *
+ * Note that there is another evil here: If you define a cpumask_var_t
+ * as a percpu variable then the way to obtain the address of the cpumask
+ * structure differently influences what this_cpu_* operation needs to be
+ * used. Please use this_cpu_cpumask_var_t in those cases. The direct use
+ * of this_cpu_ptr() or this_cpu_read() will lead to failures when the
+ * other type of cpumask_var_t implementation is configured.
  */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 typedef struct cpumask *cpumask_var_t;
+
+#define this_cpu_cpumask_var_ptr(x) this_cpu_read(x)
 
 bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node);
 bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags);
@@ -680,6 +689,8 @@ void free_bootmem_cpumask_var(cpumask_var_t mask);
 
 #else
 typedef struct cpumask cpumask_var_t[1];
+
+#define this_cpu_cpumask_var_ptr(x) this_cpu_ptr(x)
 
 static inline bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags)
 {
@@ -791,6 +802,23 @@ static inline const struct cpumask *get_cpu_mask(unsigned int cpu)
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD		\
 }
 #endif /* NR_CPUS > BITS_PER_LONG */
+
+/**
+ * cpumap_print_to_pagebuf  - copies the cpumask into the buffer either
+ *	as comma-separated list of cpus or hex values of cpumask
+ * @list: indicates whether the cpumap must be list
+ * @mask: the cpumask to copy
+ * @buf: the buffer to copy into
+ *
+ * Returns the length of the (null-terminated) @buf string, zero if
+ * nothing is copied.
+ */
+static inline ssize_t
+cpumap_print_to_pagebuf(bool list, char *buf, const struct cpumask *mask)
+{
+	return bitmap_print_to_pagebuf(list, buf, cpumask_bits(mask),
+				      nr_cpumask_bits);
+}
 
 /*
  *

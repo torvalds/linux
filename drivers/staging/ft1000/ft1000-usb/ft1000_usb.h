@@ -28,8 +28,6 @@ struct app_info_block {
 					*/
 } __packed;
 
-#define DEBUG(args...) pr_info(args)
-
 #define FALSE           0
 #define TRUE            1
 
@@ -137,7 +135,7 @@ extern spinlock_t free_buff_lock;
 int ft1000_create_dev(struct ft1000_usb *dev);
 void ft1000_destroy_dev(struct net_device *dev);
 extern int card_send_command(struct ft1000_usb *ft1000dev,
-			      void *ptempbuffer, int size);
+			     void *ptempbuffer, int size);
 
 struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist);
 void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist);

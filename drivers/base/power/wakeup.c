@@ -24,6 +24,9 @@
  */
 bool events_check_enabled __read_mostly;
 
+/* If set and the system is suspending, terminate the suspend. */
+static bool pm_abort_suspend __read_mostly;
+
 /*
  * Combined counters of registered wakeup events and wakeup events in progress.
  * They need to be modified together atomically, so it's better to use one
@@ -719,7 +722,18 @@ bool pm_wakeup_pending(void)
 		pm_print_active_wakeup_sources();
 	}
 
-	return ret;
+	return ret || pm_abort_suspend;
+}
+
+void pm_system_wakeup(void)
+{
+	pm_abort_suspend = true;
+	freeze_wake();
+}
+
+void pm_wakeup_clear(void)
+{
+	pm_abort_suspend = false;
 }
 
 /**

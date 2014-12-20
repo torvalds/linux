@@ -1809,6 +1809,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 
 	switch (qc->dev->class) {
 	case ATA_DEV_ATA:
+	case ATA_DEV_ZAC:
 		if (err & ATA_ICRC)
 			qc->err_mask |= AC_ERR_ATA_BUS;
 		if (err & (ATA_UNC | ATA_AMNF))
@@ -3792,7 +3793,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 				struct ata_eh_context *ehc = &link->eh_context;
 				unsigned long tmp;
 
-				if (dev->class != ATA_DEV_ATA)
+				if (dev->class != ATA_DEV_ATA &&
+				    dev->class != ATA_DEV_ZAC)
 					continue;
 				if (!(ehc->i.dev_action[dev->devno] &
 				      ATA_EH_PARK))
@@ -3873,7 +3875,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 		/* retry flush if necessary */
 		ata_for_each_dev(dev, link, ALL) {
-			if (dev->class != ATA_DEV_ATA)
+			if (dev->class != ATA_DEV_ATA &&
+			    dev->class != ATA_DEV_ZAC)
 				continue;
 			rc = ata_eh_maybe_retry_flush(dev);
 			if (rc)

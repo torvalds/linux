@@ -23,7 +23,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
@@ -2207,6 +2206,10 @@ xfs_agf_verify(
 	      be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
 	      be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
 	      be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp)))
+		return false;
+
+	if (be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]) > XFS_BTREE_MAXLEVELS ||
+	    be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]) > XFS_BTREE_MAXLEVELS)
 		return false;
 
 	/*

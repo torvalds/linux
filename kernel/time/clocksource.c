@@ -792,7 +792,7 @@ int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 	/* Initialize mult/shift and max_idle_ns */
 	__clocksource_updatefreq_scale(cs, scale, freq);
 
-	/* Add clocksource to the clcoksource list */
+	/* Add clocksource to the clocksource list */
 	mutex_lock(&clocksource_mutex);
 	clocksource_enqueue(cs);
 	clocksource_enqueue_watchdog(cs);

@@ -394,8 +394,7 @@ static int sp8870_read_ber (struct dvb_frontend* fe, u32 * ber)
 	if (ret < 0)
 		return -EIO;
 
-	 tmp = ret << 6;
-
+	tmp = ret << 6;
 	if (tmp >= 0x3FFF0)
 		tmp = ~0;
 

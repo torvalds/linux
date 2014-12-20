@@ -64,7 +64,7 @@
  *
  * Note much of the activity is difficult to follow. For example a
  * device connect goes to devconnect, which will cause the "fake" root
- * hub port to show a connect and stop there. Then khubd will notice
+ * hub port to show a connect and stop there. Then hub_wq will notice
  * and call into the rh.c:hwahc_rc_port_reset() code to authenticate
  * the device (and this might require user intervention) and enable
  * the port.

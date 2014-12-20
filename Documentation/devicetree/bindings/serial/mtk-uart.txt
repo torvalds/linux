@@ -1,0 +1,22 @@
+* Mediatek Universal Asynchronous Receiver/Transmitter (UART)
+
+Required properties:
+- compatible should contain:
+  * "mediatek,mt6589-uart" for MT6589 compatible UARTS
+  * "mediatek,mt6582-uart" for MT6582 compatible UARTS
+  * "mediatek,mt6577-uart" for all compatible UARTS (MT6589, MT6582, MT6577)
+
+- reg: The base address of the UART register bank.
+
+- interrupts: A single interrupt specifier.
+
+- clocks: Clock driving the hardware.
+
+Example:
+
+	uart0: serial@11006000 {
+		compatible = "mediatek,mt6589-uart", "mediatek,mt6577-uart";
+		reg = <0x11006000 0x400>;
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&uart_clk>;
+	};

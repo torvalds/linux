@@ -564,12 +564,12 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	if (rs->rs_bound_addr == 0) {
 		ret = -ENOTCONN; /* XXX not a great errno */
-		goto out;
+		goto out_ret;
 	}
 
 	if (args->nr_local > UIO_MAXIOV) {
 		ret = -EMSGSIZE;
-		goto out;
+		goto out_ret;
 	}
 
 	/* Check whether to allocate the iovec area */
@@ -578,7 +578,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		iovs = sock_kmalloc(rds_rs_to_sk(rs), iov_size, GFP_KERNEL);
 		if (!iovs) {
 			ret = -ENOMEM;
-			goto out;
+			goto out_ret;
 		}
 	}
 
@@ -696,6 +696,7 @@ out:
 	if (iovs != iovstack)
 		sock_kfree_s(rds_rs_to_sk(rs), iovs, iov_size);
 	kfree(pages);
+out_ret:
 	if (ret)
 		rds_rdma_free_op(op);
 	else

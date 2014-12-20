@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/splice.h>
+#include <linux/falloc.h>
 #include <linux/fcntl.h>
 #include <linux/namei.h>
 #include <linux/delay.h>
@@ -445,6 +446,16 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		if (err)
 			goto out;
 		size_change = 1;
+
+		/*
+		 * RFC5661, Section 18.30.4:
+		 *   Changing the size of a file with SETATTR indirectly
+		 *   changes the time_modify and change attributes.
+		 *
+		 * (and similar for the older RFCs)
+		 */
+		if (iap->ia_size != i_size_read(inode))
+			iap->ia_valid |= ATTR_MTIME;
 	}
 
 	iap->ia_valid |= ATTR_CTIME;
@@ -523,6 +534,26 @@ __be32 nfsd4_set_nfs4_label(struct svc_rqst *rqstp, struct svc_fh *fhp,
 }
 #endif
 
+__be32 nfsd4_vfs_fallocate(struct svc_rqst *rqstp, struct svc_fh *fhp,
+			   struct file *file, loff_t offset, loff_t len,
+			   int flags)
+{
+	__be32 err;
+	int error;
+
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return nfserr_inval;
+
+	err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry, NFSD_MAY_WRITE);
+	if (err)
+		return err;
+
+	error = vfs_fallocate(file, flags, offset, len);
+	if (!error)
+		error = commit_metadata(fhp);
+
+	return nfserrno(error);
+}
 #endif /* defined(CONFIG_NFSD_V4) */
 
 #ifdef CONFIG_NFSD_V3
@@ -649,6 +680,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type,
 {
 	struct path	path;
 	struct inode	*inode;
+	struct file	*file;
 	int		flags = O_RDONLY|O_LARGEFILE;
 	__be32		err;
 	int		host_err = 0;
@@ -703,19 +735,25 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type,
 		else
 			flags = O_WRONLY|O_LARGEFILE;
 	}
-	*filp = dentry_open(&path, flags, current_cred());
-	if (IS_ERR(*filp)) {
-		host_err = PTR_ERR(*filp);
-		*filp = NULL;
-	} else {
-		host_err = ima_file_check(*filp, may_flags);
 
-		if (may_flags & NFSD_MAY_64BIT_COOKIE)
-			(*filp)->f_mode |= FMODE_64BITHASH;
-		else
-			(*filp)->f_mode |= FMODE_32BITHASH;
+	file = dentry_open(&path, flags, current_cred());
+	if (IS_ERR(file)) {
+		host_err = PTR_ERR(file);
+		goto out_nfserr;
 	}
 
+	host_err = ima_file_check(file, may_flags, 0);
+	if (host_err) {
+		nfsd_close(file);
+		goto out_nfserr;
+	}
+
+	if (may_flags & NFSD_MAY_64BIT_COOKIE)
+		file->f_mode |= FMODE_64BITHASH;
+	else
+		file->f_mode |= FMODE_32BITHASH;
+
+	*filp = file;
 out_nfserr:
 	err = nfserrno(host_err);
 out:
@@ -864,7 +902,7 @@ static __be32
 nfsd_vfs_read(struct svc_rqst *rqstp, struct file *file,
 	      loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
-	if (file->f_op->splice_read && rqstp->rq_splice_ok)
+	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
 		return nfsd_splice_read(rqstp, file, offset, count);
 	else
 		return nfsd_readv(file, offset, vec, vlen, count);
@@ -913,7 +951,6 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				unsigned long *cnt, int *stablep)
 {
 	struct svc_export	*exp;
-	struct dentry		*dentry;
 	struct inode		*inode;
 	mm_segment_t		oldfs;
 	__be32			err = 0;
@@ -921,9 +958,10 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int			stable = *stablep;
 	int			use_wgather;
 	loff_t			pos = offset;
+	loff_t			end = LLONG_MAX;
 	unsigned int		pflags = current->flags;
 
-	if (rqstp->rq_local)
+	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
 		/*
 		 * We want less throttling in balance_dirty_pages()
 		 * and shrink_inactive_list() so that nfs to
@@ -932,8 +970,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		 */
 		current->flags |= PF_LESS_THROTTLE;
 
-	dentry = file->f_path.dentry;
-	inode = dentry->d_inode;
+	inode = file_inode(file);
 	exp   = fhp->fh_export;
 
 	use_wgather = (rqstp->rq_vers == 2) && EX_WGATHER(exp);
@@ -952,10 +989,13 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	fsnotify_modify(file);
 
 	if (stable) {
-		if (use_wgather)
+		if (use_wgather) {
 			host_err = wait_for_concurrent_writes(file);
-		else
-			host_err = vfs_fsync_range(file, offset, offset+*cnt, 0);
+		} else {
+			if (*cnt)
+				end = offset + *cnt - 1;
+			host_err = vfs_fsync_range(file, offset, end, 0);
+		}
 	}
 
 out_nfserr:
@@ -964,7 +1004,7 @@ out_nfserr:
 		err = 0;
 	else
 		err = nfserrno(host_err);
-	if (rqstp->rq_local)
+	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
 		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
 	return err;
 }
@@ -1802,10 +1842,12 @@ struct readdir_data {
 	int		full;
 };
 
-static int nfsd_buffered_filldir(void *__buf, const char *name, int namlen,
-				 loff_t offset, u64 ino, unsigned int d_type)
+static int nfsd_buffered_filldir(struct dir_context *ctx, const char *name,
+				 int namlen, loff_t offset, u64 ino,
+				 unsigned int d_type)
 {
-	struct readdir_data *buf = __buf;
+	struct readdir_data *buf =
+		container_of(ctx, struct readdir_data, ctx);
 	struct buffered_dirent *de = (void *)(buf->dirent + buf->used);
 	unsigned int reclen;
 
@@ -1825,7 +1867,7 @@ static int nfsd_buffered_filldir(void *__buf, const char *name, int namlen,
 	return 0;
 }
 
-static __be32 nfsd_buffered_readdir(struct file *file, filldir_t func,
+static __be32 nfsd_buffered_readdir(struct file *file, nfsd_filldir_t func,
 				    struct readdir_cd *cdp, loff_t *offsetp)
 {
 	struct buffered_dirent *de;
@@ -1909,7 +1951,7 @@ static __be32 nfsd_buffered_readdir(struct file *file, filldir_t func,
  */
 __be32
 nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp, 
-	     struct readdir_cd *cdp, filldir_t func)
+	     struct readdir_cd *cdp, nfsd_filldir_t func)
 {
 	__be32		err;
 	struct file	*file;

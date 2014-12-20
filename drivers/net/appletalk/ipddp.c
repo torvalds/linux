@@ -74,7 +74,7 @@ static struct net_device * __init ipddp_init(void)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
+	netif_keep_dst(dev);
 	strcpy(dev->name, "ipddp%d");
 
 	if (version_printed++ == 0)

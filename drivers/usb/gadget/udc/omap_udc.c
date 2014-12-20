@@ -315,7 +315,7 @@ done(struct omap_ep *ep, struct omap_req *req, int status)
 	/* don't modify queue heads during completion callback */
 	ep->stopped = 1;
 	spin_unlock(&ep->udc->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->udc->lock);
 	ep->stopped = stopped;
 }
@@ -1311,8 +1311,7 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 
 static int omap_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int omap_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int omap_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops omap_gadget_ops = {
 	.get_frame		= omap_get_frame,
@@ -2102,8 +2101,7 @@ done:
 	return status;
 }
 
-static int omap_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int omap_udc_stop(struct usb_gadget *g)
 {
 	unsigned long	flags;
 	int		status = -ENODEV;
@@ -3026,7 +3024,6 @@ static struct platform_driver udc_driver = {
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= (char *) driver_name,
 	},
 };

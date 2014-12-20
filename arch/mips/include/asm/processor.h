@@ -397,12 +397,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define ARCH_HAS_PREFETCHW
 #define prefetchw(x) __builtin_prefetch((x), 1, 1)
 
-/*
- * See Documentation/scheduler/sched-arch.txt; prevents deadlock on SMP
- * systems.
- */
-#define __ARCH_WANT_UNLOCKED_CTXSW
-
 #endif
 
 #endif /* _ASM_PROCESSOR_H */

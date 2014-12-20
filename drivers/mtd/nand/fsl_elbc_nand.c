@@ -950,7 +950,6 @@ static const struct of_device_id fsl_elbc_nand_match[] = {
 static struct platform_driver fsl_elbc_nand_driver = {
 	.driver = {
 		.name = "fsl,elbc-fcm-nand",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_elbc_nand_match,
 	},
 	.probe = fsl_elbc_nand_probe,

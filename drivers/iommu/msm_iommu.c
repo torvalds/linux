@@ -73,8 +73,7 @@ fail:
 
 static void __disable_clocks(struct msm_iommu_drvdata *drvdata)
 {
-	if (drvdata->clk)
-		clk_disable(drvdata->clk);
+	clk_disable(drvdata->clk);
 	clk_disable(drvdata->pclk);
 }
 
@@ -603,10 +602,9 @@ fail:
 	return ret;
 }
 
-static int msm_iommu_domain_has_cap(struct iommu_domain *domain,
-				    unsigned long cap)
+static bool msm_iommu_capable(enum iommu_cap cap)
 {
-	return 0;
+	return false;
 }
 
 static void print_ctx_regs(void __iomem *base, int ctx)
@@ -675,14 +673,15 @@ fail:
 }
 
 static const struct iommu_ops msm_iommu_ops = {
+	.capable = msm_iommu_capable,
 	.domain_init = msm_iommu_domain_init,
 	.domain_destroy = msm_iommu_domain_destroy,
 	.attach_dev = msm_iommu_attach_dev,
 	.detach_dev = msm_iommu_detach_dev,
 	.map = msm_iommu_map,
 	.unmap = msm_iommu_unmap,
+	.map_sg = default_iommu_map_sg,
 	.iova_to_phys = msm_iommu_iova_to_phys,
-	.domain_has_cap = msm_iommu_domain_has_cap,
 	.pgsize_bitmap = MSM_IOMMU_PGSIZES,
 };
 

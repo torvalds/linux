@@ -64,8 +64,11 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 	if (!info->control.hw_key)
 		tail += IEEE80211_TKIP_ICV_LEN;
 
-	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < IEEE80211_TKIP_IV_LEN))
+	if (WARN(skb_tailroom(skb) < tail ||
+		 skb_headroom(skb) < IEEE80211_TKIP_IV_LEN,
+		 "mmic: not enough head/tail (%d/%d,%d/%d)\n",
+		 skb_headroom(skb), IEEE80211_TKIP_IV_LEN,
+		 skb_tailroom(skb), tail))
 		return TX_DROP;
 
 	key = &tx->key->conf.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY];
@@ -206,8 +209,6 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 
 	pos = skb_push(skb, IEEE80211_TKIP_IV_LEN);
 	memmove(pos, pos + IEEE80211_TKIP_IV_LEN, hdrlen);
-	skb_set_network_header(skb, skb_network_offset(skb) +
-				    IEEE80211_TKIP_IV_LEN);
 	pos += hdrlen;
 
 	/* the HW only needs room for the IV, but not the actual IV */
@@ -431,8 +432,6 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 
 	pos = skb_push(skb, IEEE80211_CCMP_HDR_LEN);
 	memmove(pos, pos + IEEE80211_CCMP_HDR_LEN, hdrlen);
-	skb_set_network_header(skb, skb_network_offset(skb) +
-				    IEEE80211_CCMP_HDR_LEN);
 
 	/* the HW only needs room for the IV, but not the actual IV */
 	if (info->control.hw_key &&
@@ -572,7 +571,6 @@ ieee80211_crypto_cs_encrypt(struct ieee80211_tx_data *tx,
 
 	pos = skb_push(skb, cs->hdr_len);
 	memmove(pos, pos + cs->hdr_len, hdrlen);
-	skb_set_network_header(skb, skb_network_offset(skb) + cs->hdr_len);
 
 	return TX_CONTINUE;
 }

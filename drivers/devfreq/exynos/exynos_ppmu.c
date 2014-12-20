@@ -73,6 +73,7 @@ void busfreq_mon_reset(struct busfreq_ppmu_data *ppmu_data)
 		exynos_ppmu_start(ppmu_base);
 	}
 }
+EXPORT_SYMBOL(busfreq_mon_reset);
 
 void exynos_read_ppmu(struct busfreq_ppmu_data *ppmu_data)
 {
@@ -97,6 +98,7 @@ void exynos_read_ppmu(struct busfreq_ppmu_data *ppmu_data)
 
 	busfreq_mon_reset(ppmu_data);
 }
+EXPORT_SYMBOL(exynos_read_ppmu);
 
 int exynos_get_busier_ppmu(struct busfreq_ppmu_data *ppmu_data)
 {
@@ -114,3 +116,4 @@ int exynos_get_busier_ppmu(struct busfreq_ppmu_data *ppmu_data)
 
 	return busy;
 }
+EXPORT_SYMBOL(exynos_get_busier_ppmu);

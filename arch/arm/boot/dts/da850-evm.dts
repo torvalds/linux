@@ -17,6 +17,18 @@
 	soc {
 		pmx_core: pinmux@1c14120 {
 			status = "okay";
+
+			mcasp0_pins: pinmux_mcasp0_pins {
+				pinctrl-single,bits = <
+					/*
+					 * AHCLKX, ACLKX, AFSX, AHCLKR, ACLKR,
+					 * AFSR, AMUTE
+					 */
+					0x00 0x11111111 0xffffffff
+					/* AXR11, AXR12 */
+					0x04 0x00011000 0x000ff000
+				>;
+			};
 		};
 		serial0: serial@1c42000 {
 			status = "okay";
@@ -39,6 +51,20 @@
 			tps: tps@48 {
 				reg = <0x48>;
 			};
+			tlv320aic3106: tlv320aic3106@18 {
+				#sound-dai-cells = <0>;
+				compatible = "ti,tlv320aic3106";
+				reg = <0x18>;
+				status = "okay";
+
+				/* Regulators */
+				IOVDD-supply = <&vdcdc2_reg>;
+				/* Derived from VBAT: Baseboard 3.3V / 1.8V */
+				AVDD-supply = <&vbat>;
+				DRVDD-supply = <&vbat>;
+				DVDD-supply = <&vbat>;
+			};
+
 		};
 		wdt: wdt@1c21000 {
 			status = "okay";
@@ -117,6 +143,33 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "DA850/OMAP-L138 EVM";
+		simple-audio-card,widgets =
+			"Line", "Line In",
+			"Line", "Line Out";
+		simple-audio-card,routing =
+			"LINE1L", "Line In",
+			"LINE1R", "Line In",
+			"Line Out", "LLOUT",
+			"Line Out", "RLOUT";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-master = <&link0_codec>;
+		simple-audio-card,frame-master = <&link0_codec>;
+		simple-audio-card,bitclock-inversion;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp0>;
+			system-clock-frequency = <24576000>;
+		};
+
+		link0_codec: simple-audio-card,codec {
+			sound-dai = <&tlv320aic3106>;
+			system-clock-frequency = <24576000>;
+		};
+	};
 };
 
 /include/ "tps6507x.dtsi"
@@ -169,4 +222,23 @@
 			regulator-boot-on;
 		};
 	};
+};
+
+&mcasp0 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcasp0_pins>;
+
+	op-mode = <0>;          /* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 4 serializer */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+		0 0 0 0
+		0 0 0 0
+		0 0 0 1
+		2 0 0 0
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };

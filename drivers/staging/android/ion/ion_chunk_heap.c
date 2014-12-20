@@ -126,7 +126,6 @@ static struct sg_table *ion_chunk_heap_map_dma(struct ion_heap *heap,
 static void ion_chunk_heap_unmap_dma(struct ion_heap *heap,
 				     struct ion_buffer *buffer)
 {
-	return;
 }
 
 static struct ion_heap_ops chunk_heap_ops = {

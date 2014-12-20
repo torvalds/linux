@@ -1,11 +1,4 @@
-* remove kzalloc casts
 * checkpatch fixes
-* sparse fixes
-* fix use of sizeof(). Example replace sizeof(struct board_t) 
-  with sizeof(*brd) and remove sizeof(char)
-* change name of board_t to dgnc_board
-* split two assignments into the two assignments on two lines;
-  don't use two equals signs
 * remove unecessary comments
 * remove unecessary error messages. Example kzalloc() has its 
   own error message. Adding an extra one is useless.

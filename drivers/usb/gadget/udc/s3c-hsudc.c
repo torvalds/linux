@@ -258,8 +258,7 @@ static void s3c_hsudc_complete_request(struct s3c_hsudc_ep *hsep,
 
 	hsep->stopped = 1;
 	spin_unlock(&hsudc->lock);
-	if (hsreq->req.complete != NULL)
-		hsreq->req.complete(&hsep->ep, &hsreq->req);
+	usb_gadget_giveback_request(&hsep->ep, &hsreq->req);
 	spin_lock(&hsudc->lock);
 	hsep->stopped = stopped;
 }
@@ -1173,8 +1172,6 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 	}
 
 	enable_irq(hsudc->irq);
-	dev_info(hsudc->dev, "bound driver %s\n", driver->driver.name);
-
 	s3c_hsudc_reconfig(hsudc);
 
 	pm_runtime_get_sync(hsudc->dev);
@@ -1191,8 +1188,7 @@ err_supplies:
 	return ret;
 }
 
-static int s3c_hsudc_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int s3c_hsudc_stop(struct usb_gadget *gadget)
 {
 	struct s3c_hsudc *hsudc = to_hsudc(gadget);
 	unsigned long flags;
@@ -1200,11 +1196,7 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	if (!hsudc)
 		return -ENODEV;
 
-	if (!driver || driver != hsudc->driver)
-		return -EINVAL;
-
 	spin_lock_irqsave(&hsudc->lock, flags);
-	hsudc->driver = NULL;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
 	s3c_hsudc_uninit_phy();
 
@@ -1221,9 +1213,8 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	disable_irq(hsudc->irq);
 
 	regulator_bulk_disable(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
+	hsudc->driver = NULL;
 
-	dev_info(hsudc->dev, "unregistered gadget driver '%s'\n",
-			driver->driver.name);
 	return 0;
 }
 
@@ -1268,10 +1259,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsudc) +
 			sizeof(struct s3c_hsudc_ep) * pd->epnum,
 			GFP_KERNEL);
-	if (!hsudc) {
-		dev_err(dev, "cannot allocate memory\n");
+	if (!hsudc)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, dev);
 	hsudc->dev = dev;
@@ -1355,7 +1344,6 @@ err_supplies:
 
 static struct platform_driver s3c_hsudc_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c-hsudc",
 	},
 	.probe		= s3c_hsudc_probe,

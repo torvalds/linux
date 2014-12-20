@@ -8,83 +8,40 @@
 #include <net/udp_tunnel.h>
 #include <net/net_namespace.h>
 
-int udp_sock_create(struct net *net, struct udp_port_cfg *cfg,
-		    struct socket **sockp)
+int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
+		     struct socket **sockp)
 {
-	int err = -EINVAL;
+	int err;
 	struct socket *sock = NULL;
+	struct sockaddr_in udp_addr;
 
-#if IS_ENABLED(CONFIG_IPV6)
-	if (cfg->family == AF_INET6) {
-		struct sockaddr_in6 udp6_addr;
+	err = sock_create_kern(AF_INET, SOCK_DGRAM, 0, &sock);
+	if (err < 0)
+		goto error;
 
-		err = sock_create_kern(AF_INET6, SOCK_DGRAM, 0, &sock);
-		if (err < 0)
-			goto error;
+	sk_change_net(sock->sk, net);
 
-		sk_change_net(sock->sk, net);
+	udp_addr.sin_family = AF_INET;
+	udp_addr.sin_addr = cfg->local_ip;
+	udp_addr.sin_port = cfg->local_udp_port;
+	err = kernel_bind(sock, (struct sockaddr *)&udp_addr,
+			  sizeof(udp_addr));
+	if (err < 0)
+		goto error;
 
-		udp6_addr.sin6_family = AF_INET6;
-		memcpy(&udp6_addr.sin6_addr, &cfg->local_ip6,
-		       sizeof(udp6_addr.sin6_addr));
-		udp6_addr.sin6_port = cfg->local_udp_port;
-		err = kernel_bind(sock, (struct sockaddr *)&udp6_addr,
-				  sizeof(udp6_addr));
-		if (err < 0)
-			goto error;
-
-		if (cfg->peer_udp_port) {
-			udp6_addr.sin6_family = AF_INET6;
-			memcpy(&udp6_addr.sin6_addr, &cfg->peer_ip6,
-			       sizeof(udp6_addr.sin6_addr));
-			udp6_addr.sin6_port = cfg->peer_udp_port;
-			err = kernel_connect(sock,
-					     (struct sockaddr *)&udp6_addr,
-					     sizeof(udp6_addr), 0);
-		}
-		if (err < 0)
-			goto error;
-
-		udp_set_no_check6_tx(sock->sk, !cfg->use_udp6_tx_checksums);
-		udp_set_no_check6_rx(sock->sk, !cfg->use_udp6_rx_checksums);
-	} else
-#endif
-	if (cfg->family == AF_INET) {
-		struct sockaddr_in udp_addr;
-
-		err = sock_create_kern(AF_INET, SOCK_DGRAM, 0, &sock);
-		if (err < 0)
-			goto error;
-
-		sk_change_net(sock->sk, net);
-
+	if (cfg->peer_udp_port) {
 		udp_addr.sin_family = AF_INET;
-		udp_addr.sin_addr = cfg->local_ip;
-		udp_addr.sin_port = cfg->local_udp_port;
-		err = kernel_bind(sock, (struct sockaddr *)&udp_addr,
-				  sizeof(udp_addr));
+		udp_addr.sin_addr = cfg->peer_ip;
+		udp_addr.sin_port = cfg->peer_udp_port;
+		err = kernel_connect(sock, (struct sockaddr *)&udp_addr,
+				     sizeof(udp_addr), 0);
 		if (err < 0)
 			goto error;
-
-		if (cfg->peer_udp_port) {
-			udp_addr.sin_family = AF_INET;
-			udp_addr.sin_addr = cfg->peer_ip;
-			udp_addr.sin_port = cfg->peer_udp_port;
-			err = kernel_connect(sock,
-					     (struct sockaddr *)&udp_addr,
-					     sizeof(udp_addr), 0);
-			if (err < 0)
-				goto error;
-		}
-
-		sock->sk->sk_no_check_tx = !cfg->use_udp_checksums;
-	} else {
-		return -EPFNOSUPPORT;
 	}
 
+	sock->sk->sk_no_check_tx = !cfg->use_udp_checksums;
 
 	*sockp = sock;
-
 	return 0;
 
 error:
@@ -95,6 +52,57 @@ error:
 	*sockp = NULL;
 	return err;
 }
-EXPORT_SYMBOL(udp_sock_create);
+EXPORT_SYMBOL(udp_sock_create4);
+
+void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
+			   struct udp_tunnel_sock_cfg *cfg)
+{
+	struct sock *sk = sock->sk;
+
+	/* Disable multicast loopback */
+	inet_sk(sk)->mc_loop = 0;
+
+	/* Enable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
+	udp_set_convert_csum(sk, true);
+
+	rcu_assign_sk_user_data(sk, cfg->sk_user_data);
+
+	udp_sk(sk)->encap_type = cfg->encap_type;
+	udp_sk(sk)->encap_rcv = cfg->encap_rcv;
+	udp_sk(sk)->encap_destroy = cfg->encap_destroy;
+
+	udp_tunnel_encap_enable(sock);
+}
+EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
+
+int udp_tunnel_xmit_skb(struct socket *sock, struct rtable *rt,
+			struct sk_buff *skb, __be32 src, __be32 dst,
+			__u8 tos, __u8 ttl, __be16 df, __be16 src_port,
+			__be16 dst_port, bool xnet)
+{
+	struct udphdr *uh;
+
+	__skb_push(skb, sizeof(*uh));
+	skb_reset_transport_header(skb);
+	uh = udp_hdr(skb);
+
+	uh->dest = dst_port;
+	uh->source = src_port;
+	uh->len = htons(skb->len);
+
+	udp_set_csum(sock->sk->sk_no_check_tx, skb, src, dst, skb->len);
+
+	return iptunnel_xmit(sock->sk, rt, skb, src, dst, IPPROTO_UDP,
+			     tos, ttl, df, xnet);
+}
+EXPORT_SYMBOL_GPL(udp_tunnel_xmit_skb);
+
+void udp_tunnel_sock_release(struct socket *sock)
+{
+	rcu_assign_sk_user_data(sock->sk, NULL);
+	kernel_sock_shutdown(sock, SHUT_RDWR);
+	sk_release_kernel(sock->sk);
+}
+EXPORT_SYMBOL_GPL(udp_tunnel_sock_release);
 
 MODULE_LICENSE("GPL");

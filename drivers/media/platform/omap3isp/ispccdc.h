@@ -12,16 +12,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #ifndef OMAP3_ISP_CCDC_H
@@ -103,6 +93,10 @@ struct ispccdc_lsc {
 #define CCDC_PAD_SOURCE_VP		2
 #define CCDC_PADS_NUM			3
 
+#define CCDC_FIELD_TOP			1
+#define CCDC_FIELD_BOTTOM		2
+#define CCDC_FIELD_BOTH			3
+
 /*
  * struct isp_ccdc_device - Structure for the CCDC module to store its own
  *			    information
@@ -123,11 +117,14 @@ struct ispccdc_lsc {
  * @lsc: Lens shading compensation configuration
  * @update: Bitmask of controls to update during the next interrupt
  * @shadow_update: Controls update in progress by userspace
+ * @bt656: Whether the input interface uses BT.656 synchronization
+ * @fields: The fields (CCDC_FIELD_*) stored in the current buffer
  * @underrun: A buffer underrun occurred and a new buffer has been queued
  * @state: Streaming state
  * @lock: Serializes shadow_update with interrupt handler
  * @wait: Wait queue used to stop the module
  * @stopping: Stopping state
+ * @running: Is the CCDC hardware running
  * @ioctl_lock: Serializes ioctl calls and LSC requests freeing
  */
 struct isp_ccdc_device {
@@ -151,11 +148,15 @@ struct isp_ccdc_device {
 	unsigned int update;
 	unsigned int shadow_update;
 
+	bool bt656;
+	unsigned int fields;
+
 	unsigned int underrun:1;
 	enum isp_pipeline_stream_state state;
 	spinlock_t lock;
 	wait_queue_head_t wait;
 	unsigned int stopping;
+	bool running;
 	struct mutex ioctl_lock;
 };
 

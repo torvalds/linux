@@ -566,22 +566,22 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 	*pbusy = 1;
 	*state = BUF_STATE_BUSY;
 	spin_unlock_irq(&fsg->common->lock);
+
 	rc = usb_ep_queue(ep, req, GFP_KERNEL);
-	if (rc != 0) {
-		*pbusy = 0;
-		*state = BUF_STATE_EMPTY;
+	if (rc == 0)
+		return;  /* All good, we're done */
 
-		/* We can't do much more than wait for a reset */
+	*pbusy = 0;
+	*state = BUF_STATE_EMPTY;
 
-		/*
-		 * Note: currently the net2280 driver fails zero-length
-		 * submissions if DMA is enabled.
-		 */
-		if (rc != -ESHUTDOWN &&
-		    !(rc == -EOPNOTSUPP && req->length == 0))
-			WARNING(fsg, "error in submission: %s --> %d\n",
-				ep->name, rc);
-	}
+	/* We can't do much more than wait for a reset */
+
+	/*
+	 * Note: currently the net2280 driver fails zero-length
+	 * submissions if DMA is enabled.
+	 */
+	if (rc != -ESHUTDOWN && !(rc == -EOPNOTSUPP && req->length == 0))
+		WARNING(fsg, "error in submission: %s --> %d\n", ep->name, rc);
 }
 
 static bool start_in_transfer(struct fsg_common *common, struct fsg_buffhd *bh)
@@ -3665,4 +3665,3 @@ void fsg_config_from_params(struct fsg_config *cfg,
 	cfg->fsg_num_buffers = fsg_num_buffers;
 }
 EXPORT_SYMBOL_GPL(fsg_config_from_params);
-

@@ -727,9 +727,7 @@ show_queue_type_field(struct device *dev, struct device_attribute *attr,
 	struct scsi_device *sdev = to_scsi_device(dev);
 	const char *name = "none";
 
-	if (sdev->ordered_tags)
-		name = "ordered";
-	else if (sdev->simple_tags)
+	if (sdev->simple_tags)
 		name = "simple";
 
 	return snprintf(buf, 20, "%s\n", name);
@@ -747,9 +745,12 @@ store_queue_type_field(struct device *dev, struct device_attribute *attr,
 	if (!sdev->tagged_supported || !sht->change_queue_type)
 		return -EINVAL;
 
-	if (strncmp(buf, "ordered", 7) == 0)
-		tag_type = MSG_ORDERED_TAG;
-	else if (strncmp(buf, "simple", 6) == 0)
+	/*
+	 * We're never issueing order tags these days, but allow the value
+	 * for backwards compatibility.
+	 */
+	if (strncmp(buf, "ordered", 7) == 0 ||
+	    strncmp(buf, "simple", 6) == 0)
 		tag_type = MSG_SIMPLE_TAG;
 	else if (strncmp(buf, "none", 4) != 0)
 		return -EINVAL;
@@ -876,11 +877,10 @@ sdev_store_queue_depth(struct device *dev, struct device_attribute *attr,
 
 	depth = simple_strtoul(buf, NULL, 0);
 
-	if (depth < 1)
+	if (depth < 1 || depth > sht->can_queue)
 		return -EINVAL;
 
-	retval = sht->change_queue_depth(sdev, depth,
-					 SCSI_QDEPTH_DEFAULT);
+	retval = sht->change_queue_depth(sdev, depth);
 	if (retval < 0)
 		return retval;
 
@@ -1044,10 +1044,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	pm_runtime_enable(&sdev->sdev_gendev);
 	scsi_autopm_put_target(starget);
 
-	/* The following call will keep sdev active indefinitely, until
-	 * its driver does a corresponding scsi_autopm_pm_device().  Only
-	 * drivers supporting autosuspend will do this.
-	 */
 	scsi_autopm_get_device(sdev);
 
 	error = device_add(&sdev->sdev_gendev);
@@ -1085,6 +1081,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		}
 	}
 
+	scsi_autopm_put_device(sdev);
 	return error;
 }
 
@@ -1263,7 +1260,19 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	sdev->sdev_dev.class = &sdev_class;
 	dev_set_name(&sdev->sdev_dev, "%d:%d:%d:%llu",
 		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
+	/*
+	 * Get a default scsi_level from the target (derived from sibling
+	 * devices).  This is the best we can do for guessing how to set
+	 * sdev->lun_in_cdb for the initial INQUIRY command.  For LUN 0 the
+	 * setting doesn't matter, because all the bits are zero anyway.
+	 * But it does matter for higher LUNs.
+	 */
 	sdev->scsi_level = starget->scsi_level;
+	if (sdev->scsi_level <= SCSI_2 &&
+			sdev->scsi_level != SCSI_UNKNOWN &&
+			!shost->no_scsi2_lun_in_cdb)
+		sdev->lun_in_cdb = 1;
+
 	transport_setup_device(&sdev->sdev_gendev);
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_add_tail(&sdev->same_target_siblings, &starget->devices);

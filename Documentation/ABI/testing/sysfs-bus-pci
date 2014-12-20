@@ -65,6 +65,16 @@ Description:
 		force a rescan of all PCI buses in the system, and
 		re-discover previously removed devices.
 
+What:		/sys/bus/pci/devices/.../msi_bus
+Date:		September 2014
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a zero value to this attribute disallows MSI and
+		MSI-X for any future drivers of the device.  If the device
+		is a bridge, MSI and MSI-X will be disallowed for future
+		drivers of all child devices under the bridge.  Drivers
+		must be reloaded for the new setting to take effect.
+
 What:		/sys/bus/pci/devices/.../msi_irqs/
 Date:		September, 2011
 Contact:	Neil Horman <nhorman@tuxdriver.com>
@@ -271,3 +281,16 @@ Description:
 		opt-out of driver binding using a driver_override name such as
 		"none".  Only a single driver may be specified in the override,
 		there is no support for parsing delimiters.
+
+What:		/sys/bus/pci/devices/.../numa_node
+Date:		Oct 2014
+Contact:	Prarit Bhargava <prarit@redhat.com>
+Description:
+		This file contains the NUMA node to which the PCI device is
+		attached, or -1 if the node is unknown.  The initial value
+		comes from an ACPI _PXM method or a similar firmware
+		source.  If that is missing or incorrect, this file can be
+		written to override the node.  In that case, please report
+		a firmware bug to the system vendor.  Writing to this file
+		taints the kernel with TAINT_FIRMWARE_WORKAROUND, which
+		reduces the supportability of your system.

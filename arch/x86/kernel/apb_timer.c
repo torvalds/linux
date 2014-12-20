@@ -146,7 +146,7 @@ static inline int is_apbt_capable(void)
 static int __init apbt_clockevent_register(void)
 {
 	struct sfi_timer_table_entry *mtmr;
-	struct apbt_dev *adev = &__get_cpu_var(cpu_apbt_dev);
+	struct apbt_dev *adev = this_cpu_ptr(&cpu_apbt_dev);
 
 	mtmr = sfi_get_mtmr(APBT_CLOCKEVENT0_NUM);
 	if (mtmr == NULL) {
@@ -185,8 +185,6 @@ static void apbt_setup_irq(struct apbt_dev *adev)
 
 	irq_modify_status(adev->irq, 0, IRQ_MOVE_PCNTXT);
 	irq_set_affinity(adev->irq, cpumask_of(adev->cpu));
-	/* APB timer irqs are set up as mp_irqs, timer is edge type */
-	__irq_set_handler(adev->irq, handle_edge_irq, 0, "edge");
 }
 
 /* Should be called with per cpu */
@@ -200,7 +198,7 @@ void apbt_setup_secondary_clock(void)
 	if (!cpu)
 		return;
 
-	adev = &__get_cpu_var(cpu_apbt_dev);
+	adev = this_cpu_ptr(&cpu_apbt_dev);
 	if (!adev->timer) {
 		adev->timer = dw_apb_clockevent_init(cpu, adev->name,
 			APBT_CLOCKEVENT_RATING, adev_virt_addr(adev),

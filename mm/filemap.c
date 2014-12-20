@@ -62,16 +62,16 @@
 /*
  * Lock ordering:
  *
- *  ->i_mmap_mutex		(truncate_pagecache)
+ *  ->i_mmap_rwsem		(truncate_pagecache)
  *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
  *      ->swap_lock		(exclusive_swap_page, others)
  *        ->mapping->tree_lock
  *
  *  ->i_mutex
- *    ->i_mmap_mutex		(truncate->unmap_mapping_range)
+ *    ->i_mmap_rwsem		(truncate->unmap_mapping_range)
  *
  *  ->mmap_sem
- *    ->i_mmap_mutex
+ *    ->i_mmap_rwsem
  *      ->page_table_lock or pte_lock	(various, mainly in memory.c)
  *        ->mapping->tree_lock	(arch-dependent flush_dcache_mmap_lock)
  *
@@ -85,7 +85,7 @@
  *    sb_lock			(fs/fs-writeback.c)
  *    ->mapping->tree_lock	(__sync_single_inode)
  *
- *  ->i_mmap_mutex
+ *  ->i_mmap_rwsem
  *    ->anon_vma.lock		(vma_adjust)
  *
  *  ->anon_vma.lock
@@ -105,7 +105,7 @@
  *    ->inode->i_lock		(zap_pte_range->set_page_dirty)
  *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
  *
- * ->i_mmap_mutex
+ * ->i_mmap_rwsem
  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
  */
 
@@ -670,17 +670,13 @@ EXPORT_SYMBOL(__page_cache_alloc);
  * at a cost of "thundering herd" phenomena during rare hash
  * collisions.
  */
-static wait_queue_head_t *page_waitqueue(struct page *page)
+wait_queue_head_t *page_waitqueue(struct page *page)
 {
 	const struct zone *zone = page_zone(page);
 
 	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
 }
-
-static inline void wake_up_page(struct page *page, int bit)
-{
-	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
-}
+EXPORT_SYMBOL(page_waitqueue);
 
 void wait_on_page_bit(struct page *page, int bit_nr)
 {
@@ -702,6 +698,19 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
 	return __wait_on_bit(page_waitqueue(page), &wait,
 			     bit_wait_io, TASK_KILLABLE);
 }
+
+int wait_on_page_bit_killable_timeout(struct page *page,
+				       int bit_nr, unsigned long timeout)
+{
+	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
+
+	wait.key.timeout = jiffies + timeout;
+	if (!test_bit(bit_nr, &page->flags))
+		return 0;
+	return __wait_on_bit(page_waitqueue(page), &wait,
+			     bit_wait_io_timeout, TASK_KILLABLE);
+}
+EXPORT_SYMBOL_GPL(wait_on_page_bit_killable_timeout);
 
 /**
  * add_page_wait_queue - Add an arbitrary waiter to a page's wait queue
@@ -727,7 +736,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
  *
  * Unlocks the page and wakes up sleepers in ___wait_on_page_locked().
  * Also wakes sleepers in wait_on_page_writeback() because the wakeup
- * mechananism between PageLocked pages and PageWriteback pages is shared.
+ * mechanism between PageLocked pages and PageWriteback pages is shared.
  * But that's OK - sleepers in wait_on_page_writeback() just go back to sleep.
  *
  * The mb is necessary to enforce ordering between the clear_bit and the read
@@ -1744,7 +1753,7 @@ EXPORT_SYMBOL(generic_file_read_iter);
 static int page_cache_read(struct file *file, pgoff_t offset)
 {
 	struct address_space *mapping = file->f_mapping;
-	struct page *page; 
+	struct page *page;
 	int ret;
 
 	do {
@@ -1761,7 +1770,7 @@ static int page_cache_read(struct file *file, pgoff_t offset)
 		page_cache_release(page);
 
 	} while (ret == AOP_TRUNCATED_PAGE);
-		
+
 	return ret;
 }
 
@@ -2455,7 +2464,7 @@ ssize_t generic_perform_write(struct file *file,
 	/*
 	 * Copies from kernel address space cannot fail (NFSD is a big user).
 	 */
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (!iter_is_iovec(i))
 		flags |= AOP_FLAG_UNINTERRUPTIBLE;
 
 	do {

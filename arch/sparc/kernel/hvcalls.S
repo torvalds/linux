@@ -821,3 +821,19 @@ ENTRY(sun4v_vt_set_perfreg)
 	retl
 	 nop
 ENDPROC(sun4v_vt_set_perfreg)
+
+ENTRY(sun4v_t5_get_perfreg)
+	mov	%o1, %o4
+	mov	HV_FAST_T5_GET_PERFREG, %o5
+	ta	HV_FAST_TRAP
+	stx	%o1, [%o4]
+	retl
+	 nop
+ENDPROC(sun4v_t5_get_perfreg)
+
+ENTRY(sun4v_t5_set_perfreg)
+	mov	HV_FAST_T5_SET_PERFREG, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+ENDPROC(sun4v_t5_set_perfreg)

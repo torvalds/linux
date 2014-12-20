@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -366,8 +367,17 @@ static int __init nf_log_ipv4_init(void)
 	if (ret < 0)
 		return ret;
 
-	nf_log_register(NFPROTO_IPV4, &nf_ip_logger);
+	ret = nf_log_register(NFPROTO_IPV4, &nf_ip_logger);
+	if (ret < 0) {
+		pr_err("failed to register logger\n");
+		goto err1;
+	}
+
 	return 0;
+
+err1:
+	unregister_pernet_subsys(&nf_log_ipv4_net_ops);
+	return ret;
 }
 
 static void __exit nf_log_ipv4_exit(void)

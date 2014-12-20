@@ -109,7 +109,6 @@ hv_cpu_startup:
 	sllx		%g5, THREAD_SHIFT, %g5
 	sub		%g5, (STACKFRAME_SZ + STACK_BIAS), %g5
 	add		%g6, %g5, %sp
-	mov		0, %fp
 
 	call		init_irqwork_curcpu
 	 nop

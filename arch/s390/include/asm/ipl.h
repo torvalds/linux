@@ -89,12 +89,12 @@ extern u32 ipl_flags;
 extern u32 dump_prefix_page;
 
 struct dump_save_areas {
-	struct save_area **areas;
+	struct save_area_ext **areas;
 	int count;
 };
 
 extern struct dump_save_areas dump_save_areas;
-struct save_area *dump_save_area_create(int cpu);
+struct save_area_ext *dump_save_area_create(int cpu);
 
 extern void do_reipl(void);
 extern void do_halt(void);

@@ -533,9 +533,9 @@ int tegra_dpaux_train(struct tegra_dpaux *dpaux, struct drm_dp_link *link,
 
 	for (i = 0; i < link->num_lanes; i++)
 		values[i] = DP_TRAIN_MAX_PRE_EMPHASIS_REACHED |
-			    DP_TRAIN_PRE_EMPHASIS_0 |
+			    DP_TRAIN_PRE_EMPH_LEVEL_0 |
 			    DP_TRAIN_MAX_SWING_REACHED |
-			    DP_TRAIN_VOLTAGE_SWING_400;
+			    DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
 
 	err = drm_dp_dpcd_write(&dpaux->aux, DP_TRAINING_LANE0_SET, values,
 				link->num_lanes);

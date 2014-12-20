@@ -371,9 +371,15 @@ void ath_ani_calibrate(unsigned long data)
 
 	/* Perform calibration if necessary */
 	if (longcal || shortcal) {
-		common->ani.caldone =
-			ath9k_hw_calibrate(ah, ah->curchan,
-					   ah->rxchainmask, longcal);
+		int ret = ath9k_hw_calibrate(ah, ah->curchan, ah->rxchainmask,
+					     longcal);
+		if (ret < 0) {
+			common->ani.caldone = 0;
+			ath9k_queue_reset(sc, RESET_TYPE_CALIBRATION);
+			return;
+		}
+
+		common->ani.caldone = ret;
 	}
 
 	ath_dbg(common, ANI,

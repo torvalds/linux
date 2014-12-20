@@ -1,8 +1,8 @@
 /dts-v1/;
 
-#include "skeleton.dtsi"
-
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/qcom,gcc-msm8974.h>
+#include "skeleton.dtsi"
 
 / {
 	model = "Qualcomm MSM8974";
@@ -235,6 +235,17 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <0 208 0>;
+		};
+
+		blsp_i2c11: i2c@f9967000 {
+			status = "disable";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9967000 0x1000>;
+			interrupts = <0 105 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP2_QUP5_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 };

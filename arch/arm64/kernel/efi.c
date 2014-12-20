@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -89,7 +90,8 @@ static int __init uefi_init(void)
 	 */
 	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
 		pr_err("System table signature incorrect\n");
-		return -EINVAL;
+		retval = -EINVAL;
+		goto out;
 	}
 	if ((efi.systab->hdr.revision >> 16) < 2)
 		pr_warn("Warning: EFI system table version %d.%02d, expected 2.00 or greater\n",
@@ -103,6 +105,7 @@ static int __init uefi_init(void)
 		for (i = 0; i < (int) sizeof(vendor) - 1 && *c16; ++i)
 			vendor[i] = c16[i];
 		vendor[i] = '\0';
+		early_memunmap(c16, sizeof(vendor));
 	}
 
 	pr_info("EFI v%u.%.02u by %s\n",
@@ -110,48 +113,28 @@ static int __init uefi_init(void)
 		efi.systab->hdr.revision & 0xffff, vendor);
 
 	retval = efi_config_init(NULL);
-	if (retval == 0)
-		set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
-	early_memunmap(c16, sizeof(vendor));
+out:
 	early_memunmap(efi.systab,  sizeof(efi_system_table_t));
-
 	return retval;
 }
-
-static __initdata char memory_type_name[][32] = {
-	{"Reserved"},
-	{"Loader Code"},
-	{"Loader Data"},
-	{"Boot Code"},
-	{"Boot Data"},
-	{"Runtime Code"},
-	{"Runtime Data"},
-	{"Conventional Memory"},
-	{"Unusable Memory"},
-	{"ACPI Reclaim Memory"},
-	{"ACPI Memory NVS"},
-	{"Memory Mapped I/O"},
-	{"MMIO Port Space"},
-	{"PAL Code"},
-};
 
 /*
  * Return true for RAM regions we want to permanently reserve.
  */
 static __init int is_reserve_region(efi_memory_desc_t *md)
 {
-	if (!is_normal_ram(md))
+	switch (md->type) {
+	case EFI_LOADER_CODE:
+	case EFI_LOADER_DATA:
+	case EFI_BOOT_SERVICES_CODE:
+	case EFI_BOOT_SERVICES_DATA:
+	case EFI_CONVENTIONAL_MEMORY:
 		return 0;
-
-	if (md->attribute & EFI_MEMORY_RUNTIME)
-		return 1;
-
-	if (md->type == EFI_ACPI_RECLAIM_MEMORY ||
-	    md->type == EFI_RESERVED_TYPE)
-		return 1;
-
-	return 0;
+	default:
+		break;
+	}
+	return is_normal_ram(md);
 }
 
 static __init void reserve_regions(void)
@@ -166,10 +149,13 @@ static __init void reserve_regions(void)
 		paddr = md->phys_addr;
 		npages = md->num_pages;
 
-		if (uefi_debug)
-			pr_info("  0x%012llx-0x%012llx [%s]",
+		if (uefi_debug) {
+			char buf[64];
+
+			pr_info("  0x%012llx-0x%012llx %s",
 				paddr, paddr + (npages << EFI_PAGE_SHIFT) - 1,
-				memory_type_name[md->type]);
+				efi_md_typeattr_format(buf, sizeof(buf), md));
+		}
 
 		memrange_efi_to_native(&paddr, &npages);
 		size = npages << PAGE_SHIFT;
@@ -393,11 +379,16 @@ static int __init arm64_enter_virtual_mode(void)
 		return -1;
 	}
 
-	pr_info("Remapping and enabling EFI services.\n");
-
-	/* replace early memmap mapping with permanent mapping */
 	mapsize = memmap.map_end - memmap.map;
 	early_memunmap(memmap.map, mapsize);
+
+	if (efi_runtime_disabled()) {
+		pr_info("EFI runtime services will be disabled.\n");
+		return -1;
+	}
+
+	pr_info("Remapping and enabling EFI services.\n");
+	/* replace early memmap mapping with permanent mapping */
 	memmap.map = (__force void *)ioremap_cache((phys_addr_t)memmap.phys_map,
 						   mapsize);
 	memmap.map_end = memmap.map + mapsize;
@@ -479,3 +470,17 @@ err_unmap:
 	return -1;
 }
 early_initcall(arm64_enter_virtual_mode);
+
+static int __init arm64_dmi_init(void)
+{
+	/*
+	 * On arm64, DMI depends on UEFI, and dmi_scan_machine() needs to
+	 * be called early because dmi_id_init(), which is an arch_initcall
+	 * itself, depends on dmi_scan_machine() having been called already.
+	 */
+	dmi_scan_machine();
+	if (dmi_available)
+		dmi_set_dump_stack_arch_desc();
+	return 0;
+}
+core_initcall(arm64_dmi_init);

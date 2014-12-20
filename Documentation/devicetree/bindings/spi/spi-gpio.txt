@@ -8,8 +8,10 @@ Required properties:
  - gpio-sck: GPIO spec for the SCK line to use
  - gpio-miso: GPIO spec for the MISO line to use
  - gpio-mosi: GPIO spec for the MOSI line to use
- - cs-gpios: GPIOs to use for chipselect lines
- - num-chipselects: number of chipselect lines
+ - cs-gpios: GPIOs to use for chipselect lines.
+             Not needed if num-chipselects = <0>.
+ - num-chipselects: Number of chipselect lines. Should be <0> if a single device
+                    with no chip select is connected.
 
 Example:
 

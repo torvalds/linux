@@ -128,8 +128,8 @@ struct fence_cb {
  * from irq context, so normal spinlocks can be used.
  *
  * A return value of false indicates the fence already passed,
- * or some failure occured that made it impossible to enable
- * signaling. True indicates succesful enabling.
+ * or some failure occurred that made it impossible to enable
+ * signaling. True indicates successful enabling.
  *
  * fence->status may be set in enable_signaling, but only when false is
  * returned.

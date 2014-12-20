@@ -51,7 +51,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
-#include <asm/spu.h>
+#include <asm/copro.h>
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
 #include <asm/fadump.h>
@@ -92,12 +92,14 @@ extern unsigned long dart_tablebase;
 
 static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+EXPORT_SYMBOL_GPL(mmu_psize_defs);
 
 struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
 EXPORT_SYMBOL_GPL(htab_hash_mask);
 int mmu_linear_psize = MMU_PAGE_4K;
+EXPORT_SYMBOL_GPL(mmu_linear_psize);
 int mmu_virtual_psize = MMU_PAGE_4K;
 int mmu_vmalloc_psize = MMU_PAGE_4K;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
@@ -105,6 +107,7 @@ int mmu_vmemmap_psize = MMU_PAGE_4K;
 #endif
 int mmu_io_psize = MMU_PAGE_4K;
 int mmu_kernel_ssize = MMU_SEGSIZE_256M;
+EXPORT_SYMBOL_GPL(mmu_kernel_ssize);
 int mmu_highuser_ssize = MMU_SEGSIZE_256M;
 u16 mmu_slb_size = 64;
 EXPORT_SYMBOL_GPL(mmu_slb_size);
@@ -333,70 +336,69 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 		return 0;
 
 	prop = of_get_flat_dt_prop(node, "ibm,segment-page-sizes", &size);
-	if (prop != NULL) {
-		pr_info("Page sizes from device-tree:\n");
-		size /= 4;
-		cur_cpu_spec->mmu_features &= ~(MMU_FTR_16M_PAGE);
-		while(size > 0) {
-			unsigned int base_shift = be32_to_cpu(prop[0]);
-			unsigned int slbenc = be32_to_cpu(prop[1]);
-			unsigned int lpnum = be32_to_cpu(prop[2]);
-			struct mmu_psize_def *def;
-			int idx, base_idx;
+	if (!prop)
+		return 0;
 
-			size -= 3; prop += 3;
-			base_idx = get_idx_from_shift(base_shift);
-			if (base_idx < 0) {
-				/*
-				 * skip the pte encoding also
-				 */
-				prop += lpnum * 2; size -= lpnum * 2;
-				continue;
-			}
-			def = &mmu_psize_defs[base_idx];
-			if (base_idx == MMU_PAGE_16M)
-				cur_cpu_spec->mmu_features |= MMU_FTR_16M_PAGE;
+	pr_info("Page sizes from device-tree:\n");
+	size /= 4;
+	cur_cpu_spec->mmu_features &= ~(MMU_FTR_16M_PAGE);
+	while(size > 0) {
+		unsigned int base_shift = be32_to_cpu(prop[0]);
+		unsigned int slbenc = be32_to_cpu(prop[1]);
+		unsigned int lpnum = be32_to_cpu(prop[2]);
+		struct mmu_psize_def *def;
+		int idx, base_idx;
 
-			def->shift = base_shift;
-			if (base_shift <= 23)
-				def->avpnm = 0;
-			else
-				def->avpnm = (1 << (base_shift - 23)) - 1;
-			def->sllp = slbenc;
-			/*
-			 * We don't know for sure what's up with tlbiel, so
-			 * for now we only set it for 4K and 64K pages
-			 */
-			if (base_idx == MMU_PAGE_4K || base_idx == MMU_PAGE_64K)
-				def->tlbiel = 1;
-			else
-				def->tlbiel = 0;
-
-			while (size > 0 && lpnum) {
-				unsigned int shift = be32_to_cpu(prop[0]);
-				int penc  = be32_to_cpu(prop[1]);
-
-				prop += 2; size -= 2;
-				lpnum--;
-
-				idx = get_idx_from_shift(shift);
-				if (idx < 0)
-					continue;
-
-				if (penc == -1)
-					pr_err("Invalid penc for base_shift=%d "
-					       "shift=%d\n", base_shift, shift);
-
-				def->penc[idx] = penc;
-				pr_info("base_shift=%d: shift=%d, sllp=0x%04lx,"
-					" avpnm=0x%08lx, tlbiel=%d, penc=%d\n",
-					base_shift, shift, def->sllp,
-					def->avpnm, def->tlbiel, def->penc[idx]);
-			}
+		size -= 3; prop += 3;
+		base_idx = get_idx_from_shift(base_shift);
+		if (base_idx < 0) {
+			/* skip the pte encoding also */
+			prop += lpnum * 2; size -= lpnum * 2;
+			continue;
 		}
-		return 1;
+		def = &mmu_psize_defs[base_idx];
+		if (base_idx == MMU_PAGE_16M)
+			cur_cpu_spec->mmu_features |= MMU_FTR_16M_PAGE;
+
+		def->shift = base_shift;
+		if (base_shift <= 23)
+			def->avpnm = 0;
+		else
+			def->avpnm = (1 << (base_shift - 23)) - 1;
+		def->sllp = slbenc;
+		/*
+		 * We don't know for sure what's up with tlbiel, so
+		 * for now we only set it for 4K and 64K pages
+		 */
+		if (base_idx == MMU_PAGE_4K || base_idx == MMU_PAGE_64K)
+			def->tlbiel = 1;
+		else
+			def->tlbiel = 0;
+
+		while (size > 0 && lpnum) {
+			unsigned int shift = be32_to_cpu(prop[0]);
+			int penc  = be32_to_cpu(prop[1]);
+
+			prop += 2; size -= 2;
+			lpnum--;
+
+			idx = get_idx_from_shift(shift);
+			if (idx < 0)
+				continue;
+
+			if (penc == -1)
+				pr_err("Invalid penc for base_shift=%d "
+				       "shift=%d\n", base_shift, shift);
+
+			def->penc[idx] = penc;
+			pr_info("base_shift=%d: shift=%d, sllp=0x%04lx,"
+				" avpnm=0x%08lx, tlbiel=%d, penc=%d\n",
+				base_shift, shift, def->sllp,
+				def->avpnm, def->tlbiel, def->penc[idx]);
+		}
 	}
-	return 0;
+
+	return 1;
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -867,7 +869,7 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 }
 
 #ifdef CONFIG_PPC_MM_SLICES
-unsigned int get_paca_psize(unsigned long addr)
+static unsigned int get_paca_psize(unsigned long addr)
 {
 	u64 lpsizes;
 	unsigned char *hpsizes;
@@ -901,10 +903,8 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	if (get_slice_psize(mm, addr) == MMU_PAGE_4K)
 		return;
 	slice_set_range_psize(mm, addr, 1, MMU_PAGE_4K);
-#ifdef CONFIG_SPU_BASE
-	spu_flush_all_slbs(mm);
-#endif
-	if (get_paca_psize(addr) != MMU_PAGE_4K) {
+	copro_flush_all_slbs(mm);
+	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
 		get_paca()->context = mm->context;
 		slb_flush_and_rebolt();
 	}
@@ -989,16 +989,17 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
  * -1 - critical hash insertion error
  * -2 - access not permitted by subpage protection mechanism
  */
-int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
+int hash_page_mm(struct mm_struct *mm, unsigned long ea,
+		 unsigned long access, unsigned long trap,
+		 unsigned long flags)
 {
 	enum ctx_state prev_state = exception_enter();
 	pgd_t *pgdir;
 	unsigned long vsid;
-	struct mm_struct *mm;
 	pte_t *ptep;
 	unsigned hugeshift;
 	const struct cpumask *tmp;
-	int rc, user_region = 0, local = 0;
+	int rc, user_region = 0;
 	int psize, ssize;
 
 	DBG_LOW("hash_page(ea=%016lx, access=%lx, trap=%lx\n",
@@ -1008,7 +1009,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
  	switch (REGION_ID(ea)) {
 	case USER_REGION_ID:
 		user_region = 1;
-		mm = current->mm;
 		if (! mm) {
 			DBG_LOW(" user region with no mm !\n");
 			rc = 1;
@@ -1019,7 +1019,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		vsid = get_vsid(mm->context.id, ea, ssize);
 		break;
 	case VMALLOC_REGION_ID:
-		mm = &init_mm;
 		vsid = get_kernel_vsid(ea, mmu_kernel_ssize);
 		if (ea < VMALLOC_END)
 			psize = mmu_vmalloc_psize;
@@ -1052,7 +1051,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	/* Check CPU locality */
 	tmp = cpumask_of(smp_processor_id());
 	if (user_region && cpumask_equal(mm_cpumask(mm), tmp))
-		local = 1;
+		flags |= HPTE_LOCAL_UPDATE;
 
 #ifndef CONFIG_PPC_64K_PAGES
 	/* If we use 4K pages and our psize is not 4K, then we might
@@ -1089,11 +1088,11 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	if (hugeshift) {
 		if (pmd_trans_huge(*(pmd_t *)ptep))
 			rc = __hash_page_thp(ea, access, vsid, (pmd_t *)ptep,
-					     trap, local, ssize, psize);
+					     trap, flags, ssize, psize);
 #ifdef CONFIG_HUGETLB_PAGE
 		else
 			rc = __hash_page_huge(ea, access, vsid, ptep, trap,
-					      local, ssize, hugeshift, psize);
+					      flags, ssize, hugeshift, psize);
 #else
 		else {
 			/*
@@ -1104,7 +1103,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			WARN_ON(1);
 		}
 #endif
-		check_paca_psize(ea, mm, psize, user_region);
+		if (current->mm == mm)
+			check_paca_psize(ea, mm, psize, user_region);
 
 		goto bail;
 	}
@@ -1141,18 +1141,18 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			       "to 4kB pages because of "
 			       "non-cacheable mapping\n");
 			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
-#ifdef CONFIG_SPU_BASE
-			spu_flush_all_slbs(mm);
-#endif
+			copro_flush_all_slbs(mm);
 		}
 	}
 
-	check_paca_psize(ea, mm, psize, user_region);
+	if (current->mm == mm)
+		check_paca_psize(ea, mm, psize, user_region);
 #endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_PPC_HAS_HASH_64K
 	if (psize == MMU_PAGE_64K)
-		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
+		rc = __hash_page_64K(ea, access, vsid, ptep, trap,
+				     flags, ssize);
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 	{
@@ -1161,7 +1161,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			rc = -2;
 		else
 			rc = __hash_page_4K(ea, access, vsid, ptep, trap,
-					    local, ssize, spp);
+					    flags, ssize, spp);
 	}
 
 	/* Dump some info in case of hash insertion failure, they should
@@ -1182,6 +1182,22 @@ bail:
 	exception_exit(prev_state);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(hash_page_mm);
+
+int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
+	      unsigned long dsisr)
+{
+	unsigned long flags = 0;
+	struct mm_struct *mm = current->mm;
+
+	if (REGION_ID(ea) == VMALLOC_REGION_ID)
+		mm = &init_mm;
+
+	if (dsisr & DSISR_NOHPTE)
+		flags |= HPTE_NOHPTE_UPDATE;
+
+	return hash_page_mm(mm, ea, access, trap, flags);
+}
 EXPORT_SYMBOL_GPL(hash_page);
 
 void hash_preload(struct mm_struct *mm, unsigned long ea,
@@ -1192,7 +1208,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	pgd_t *pgdir;
 	pte_t *ptep;
 	unsigned long flags;
-	int rc, ssize, local = 0;
+	int rc, ssize, update_flags = 0;
 
 	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
 
@@ -1243,16 +1259,17 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 	/* Is that local to this CPU ? */
 	if (cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		local = 1;
+		update_flags |= HPTE_LOCAL_UPDATE;
 
 	/* Hash it in */
 #ifdef CONFIG_PPC_HAS_HASH_64K
 	if (mm->context.user_psize == MMU_PAGE_64K)
-		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
+		rc = __hash_page_64K(ea, access, vsid, ptep, trap,
+				     update_flags, ssize);
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
-		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local, ssize,
-				    subpage_protection(mm, ea));
+		rc = __hash_page_4K(ea, access, vsid, ptep, trap, update_flags,
+				    ssize, subpage_protection(mm, ea));
 
 	/* Dump some info in case of hash insertion failure, they should
 	 * never happen so it is really useful to know if/when they do
@@ -1270,9 +1287,10 @@ out_exit:
  *          do not forget to update the assembly call site !
  */
 void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
-		     int local)
+		     unsigned long flags)
 {
 	unsigned long hash, index, shift, hidx, slot;
+	int local = flags & HPTE_LOCAL_UPDATE;
 
 	DBG_LOW("flush_hash_page(vpn=%016lx)\n", vpn);
 	pte_iterate_hashed_subpages(pte, psize, vpn, index, shift) {
@@ -1307,6 +1325,78 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 #endif
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
+			 pmd_t *pmdp, unsigned int psize, int ssize,
+			 unsigned long flags)
+{
+	int i, max_hpte_count, valid;
+	unsigned long s_addr;
+	unsigned char *hpte_slot_array;
+	unsigned long hidx, shift, vpn, hash, slot;
+	int local = flags & HPTE_LOCAL_UPDATE;
+
+	s_addr = addr & HPAGE_PMD_MASK;
+	hpte_slot_array = get_hpte_slot_array(pmdp);
+	/*
+	 * IF we try to do a HUGE PTE update after a withdraw is done.
+	 * we will find the below NULL. This happens when we do
+	 * split_huge_page_pmd
+	 */
+	if (!hpte_slot_array)
+		return;
+
+	if (ppc_md.hugepage_invalidate) {
+		ppc_md.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
+					   psize, ssize, local);
+		goto tm_abort;
+	}
+	/*
+	 * No bluk hpte removal support, invalidate each entry
+	 */
+	shift = mmu_psize_defs[psize].shift;
+	max_hpte_count = HPAGE_PMD_SIZE >> shift;
+	for (i = 0; i < max_hpte_count; i++) {
+		/*
+		 * 8 bits per each hpte entries
+		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
+		 */
+		valid = hpte_valid(hpte_slot_array, i);
+		if (!valid)
+			continue;
+		hidx =  hpte_hash_index(hpte_slot_array, i);
+
+		/* get the vpn */
+		addr = s_addr + (i * (1ul << shift));
+		vpn = hpt_vpn(addr, vsid, ssize);
+		hash = hpt_hash(vpn, shift, ssize);
+		if (hidx & _PTEIDX_SECONDARY)
+			hash = ~hash;
+
+		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot += hidx & _PTEIDX_GROUP_IX;
+		ppc_md.hpte_invalidate(slot, vpn, psize,
+				       MMU_PAGE_16M, ssize, local);
+	}
+tm_abort:
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/* Transactions are not aborted by tlbiel, only tlbie.
+	 * Without, syncing a page back to a block device w/ PIO could pick up
+	 * transactional data (bad!) so we force an abort here.  Before the
+	 * sync the page will be made read-only, which will flush_hash_page.
+	 * BIG ISSUE here: if the kernel uses a page from userspace without
+	 * unmapping it first, it may see the speculated version.
+	 */
+	if (local && cpu_has_feature(CPU_FTR_TM) &&
+	    current->thread.regs &&
+	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
+		tm_enable();
+		tm_abort(TM_CAUSE_TLBI);
+	}
+#endif
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
 void flush_hash_range(unsigned long number, int local)
 {
 	if (ppc_md.flush_hash_range)
@@ -1314,7 +1404,7 @@ void flush_hash_range(unsigned long number, int local)
 	else {
 		int i;
 		struct ppc64_tlb_batch *batch =
-			&__get_cpu_var(ppc64_tlb_batch);
+			this_cpu_ptr(&ppc64_tlb_batch);
 
 		for (i = 0; i < number; i++)
 			flush_hash_page(batch->vpn[i], batch->pte[i],
@@ -1424,7 +1514,7 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 			       mmu_kernel_ssize, 0);
 }
 
-void kernel_map_pages(struct page *page, int numpages, int enable)
+void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long flags, vaddr, lmi;
 	int i;

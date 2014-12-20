@@ -1,0 +1,52 @@
+/*
+ * Renesas SCIF(A) debugging macro include header
+ *
+ * Based on r8a7790.S
+ *
+ * Copyright (C) 2012-2013 Renesas Electronics Corporation
+ * Copyright (C) 1994-1999 Russell King
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#define SCIF_PHYS	CONFIG_DEBUG_UART_PHYS
+#define SCIF_VIRT	((SCIF_PHYS & 0x00ffffff) | 0xfd000000)
+
+#if CONFIG_DEBUG_UART_PHYS < 0xe6e00000
+/* SCIFA */
+#define FTDR		0x20
+#define FSR		0x14
+#else
+/* SCIF */
+#define FTDR		0x0c
+#define FSR		0x10
+#endif
+
+#define TDFE	(1 << 5)
+#define TEND	(1 << 6)
+
+	.macro	addruart, rp, rv, tmp
+	ldr	\rp, =SCIF_PHYS
+	ldr	\rv, =SCIF_VIRT
+	.endm
+
+	.macro	waituart, rd, rx
+1001:	ldrh	\rd, [\rx, #FSR]
+	tst	\rd, #TDFE
+	beq	1001b
+	.endm
+
+	.macro	senduart, rd, rx
+	strb	\rd, [\rx, #FTDR]
+	ldrh	\rd, [\rx, #FSR]
+	bic	\rd, \rd, #TEND
+	strh	\rd, [\rx, #FSR]
+	.endm
+
+	.macro	busyuart, rd, rx
+1001:	ldrh	\rd, [\rx, #FSR]
+	tst	\rd, #TEND
+	beq	1001b
+	.endm

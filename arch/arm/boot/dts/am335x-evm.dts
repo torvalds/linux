@@ -307,6 +307,13 @@
 			0x144 (PIN_INPUT_PULLDOWN | MUX_MODE4) /* rmii1_ref_clk.mcasp1_axr3 */
 		>;
 	};
+
+	dcan1_pins_default: dcan1_pins_default {
+		pinctrl-single,pins = <
+			0x168 (PIN_OUTPUT | MUX_MODE2) /* uart0_ctsn.d_can1_tx */
+			0x16c (PIN_INPUT_PULLDOWN | MUX_MODE2) /* uart0_rtsn.d_can1_rx */
+		>;
+	};
 };
 
 &uart0 {
@@ -437,9 +444,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&nandflash_pins_s0>;
-	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
+	ranges = <0 0 0x08000000 0x1000000>;	/* CS0: 16MB for NAND */
 	nand@0,0 {
-		reg = <0 0 0>; /* CS0, offset 0 */
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		ti,nand-ecc-opt = "bch8";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <8>;
@@ -489,7 +496,7 @@
 			reg = <0x00060000 0x00020000>;
 		};
 		partition@4 {
-			label = "NAND.u-boot-spl";
+			label = "NAND.u-boot-spl-os";
 			reg = <0x00080000 0x00040000>;
 		};
 		partition@5 {
@@ -663,4 +670,10 @@
 
 &aes {
 	status = "okay";
+};
+
+&dcan1 {
+	status = "disabled";	/* Enable only if Profile 1 is selected */
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan1_pins_default>;
 };

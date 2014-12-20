@@ -211,18 +211,16 @@ EXPORT_SYMBOL_GPL(torture_onoff_cleanup);
 /*
  * Print online/offline testing statistics.
  */
-char *torture_onoff_stats(char *page)
+void torture_onoff_stats(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	page += sprintf(page,
-		       "onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
-		       n_online_successes, n_online_attempts,
-		       n_offline_successes, n_offline_attempts,
-		       min_online, max_online,
-		       min_offline, max_offline,
-		       sum_online, sum_offline, HZ);
+	pr_cont("onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
+		n_online_successes, n_online_attempts,
+		n_offline_successes, n_offline_attempts,
+		min_online, max_online,
+		min_offline, max_offline,
+		sum_online, sum_offline, HZ);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-	return page;
 }
 EXPORT_SYMBOL_GPL(torture_onoff_stats);
 
@@ -635,8 +633,13 @@ EXPORT_SYMBOL_GPL(torture_init_end);
  *
  * This must be called before the caller starts shutting down its own
  * kthreads.
+ *
+ * Both torture_cleanup_begin() and torture_cleanup_end() must be paired,
+ * in order to correctly perform the cleanup. They are separated because
+ * threads can still need to reference the torture_type type, thus nullify
+ * only after completing all other relevant calls.
  */
-bool torture_cleanup(void)
+bool torture_cleanup_begin(void)
 {
 	mutex_lock(&fullstop_mutex);
 	if (ACCESS_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
@@ -651,12 +654,17 @@ bool torture_cleanup(void)
 	torture_shuffle_cleanup();
 	torture_stutter_cleanup();
 	torture_onoff_cleanup();
+	return false;
+}
+EXPORT_SYMBOL_GPL(torture_cleanup_begin);
+
+void torture_cleanup_end(void)
+{
 	mutex_lock(&fullstop_mutex);
 	torture_type = NULL;
 	mutex_unlock(&fullstop_mutex);
-	return false;
 }
-EXPORT_SYMBOL_GPL(torture_cleanup);
+EXPORT_SYMBOL_GPL(torture_cleanup_end);
 
 /*
  * Is it time for the current torture test to stop?

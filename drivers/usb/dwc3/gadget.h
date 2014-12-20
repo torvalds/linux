@@ -82,10 +82,11 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 void dwc3_ep0_interrupt(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event);
 void dwc3_ep0_out_start(struct dwc3 *dwc);
+int __dwc3_gadget_ep0_set_halt(struct usb_ep *ep, int value);
 int dwc3_gadget_ep0_set_halt(struct usb_ep *ep, int value);
 int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 		gfp_t gfp_flags);
-int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value);
+int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol);
 
 /**
  * dwc3_gadget_ep_get_transfer_index - Gets transfer index from HW
@@ -101,62 +102,6 @@ static inline u32 dwc3_gadget_ep_get_transfer_index(struct dwc3 *dwc, u8 number)
 	res_id = dwc3_readl(dwc->regs, DWC3_DEPCMD(number));
 
 	return DWC3_DEPCMD_GET_RSC_IDX(res_id);
-}
-
-/**
- * dwc3_gadget_event_string - returns event name
- * @event: the event code
- */
-static inline const char *dwc3_gadget_event_string(u8 event)
-{
-	switch (event) {
-	case DWC3_DEVICE_EVENT_DISCONNECT:
-		return "Disconnect";
-	case DWC3_DEVICE_EVENT_RESET:
-		return "Reset";
-	case DWC3_DEVICE_EVENT_CONNECT_DONE:
-		return "Connection Done";
-	case DWC3_DEVICE_EVENT_LINK_STATUS_CHANGE:
-		return "Link Status Change";
-	case DWC3_DEVICE_EVENT_WAKEUP:
-		return "WakeUp";
-	case DWC3_DEVICE_EVENT_EOPF:
-		return "End-Of-Frame";
-	case DWC3_DEVICE_EVENT_SOF:
-		return "Start-Of-Frame";
-	case DWC3_DEVICE_EVENT_ERRATIC_ERROR:
-		return "Erratic Error";
-	case DWC3_DEVICE_EVENT_CMD_CMPL:
-		return "Command Complete";
-	case DWC3_DEVICE_EVENT_OVERFLOW:
-		return "Overflow";
-	}
-
-	return "UNKNOWN";
-}
-
-/**
- * dwc3_ep_event_string - returns event name
- * @event: then event code
- */
-static inline const char *dwc3_ep_event_string(u8 event)
-{
-	switch (event) {
-	case DWC3_DEPEVT_XFERCOMPLETE:
-		return "Transfer Complete";
-	case DWC3_DEPEVT_XFERINPROGRESS:
-		return "Transfer In-Progress";
-	case DWC3_DEPEVT_XFERNOTREADY:
-		return "Transfer Not Ready";
-	case DWC3_DEPEVT_RXTXFIFOEVT:
-		return "FIFO";
-	case DWC3_DEPEVT_STREAMEVT:
-		return "Stream";
-	case DWC3_DEPEVT_EPCMDCMPLT:
-		return "Endpoint Command Complete";
-	}
-
-	return "UNKNOWN";
 }
 
 #endif /* __DRIVERS_USB_DWC3_GADGET_H */

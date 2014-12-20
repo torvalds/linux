@@ -498,7 +498,8 @@ void input_set_abs_params(struct input_dev *dev, unsigned int axis,
 	absinfo->fuzz = fuzz;
 	absinfo->flat = flat;
 
-	dev->absbit[BIT_WORD(axis)] |= BIT_MASK(axis);
+	__set_bit(EV_ABS, dev->evbit);
+	__set_bit(axis, dev->absbit);
 }
 EXPORT_SYMBOL(input_set_abs_params);
 
@@ -1774,7 +1775,7 @@ EXPORT_SYMBOL_GPL(input_class);
  */
 struct input_dev *input_allocate_device(void)
 {
-	static atomic_t input_no = ATOMIC_INIT(0);
+	static atomic_t input_no = ATOMIC_INIT(-1);
 	struct input_dev *dev;
 
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
@@ -1788,8 +1789,8 @@ struct input_dev *input_allocate_device(void)
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
 
-		dev_set_name(&dev->dev, "input%ld",
-			     (unsigned long) atomic_inc_return(&input_no) - 1);
+		dev_set_name(&dev->dev, "input%lu",
+			     (unsigned long)atomic_inc_return(&input_no));
 
 		__module_get(THIS_MODULE);
 	}

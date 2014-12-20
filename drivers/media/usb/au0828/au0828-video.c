@@ -28,16 +28,16 @@
  *
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/suspend.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include <media/tuner.h>
-#include "au0828.h"
 #include "au0828-reg.h"
 
 static DEFINE_MUTEX(au0828_sysfs_lock);
@@ -53,7 +53,7 @@ MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
 #define au0828_isocdbg(fmt, arg...) \
 do {\
 	if (isoc_debug) { \
-		printk(KERN_INFO "au0828 %s :"fmt, \
+		pr_info("au0828 %s :"fmt, \
 		       __func__ , ##arg);	   \
 	} \
   } while (0)
@@ -106,12 +106,12 @@ static inline void print_err_status(struct au0828_dev *dev,
 static int check_dev(struct au0828_dev *dev)
 {
 	if (dev->dev_state & DEV_DISCONNECTED) {
-		printk(KERN_INFO "v4l2 ioctl: device not present\n");
+		pr_info("v4l2 ioctl: device not present\n");
 		return -ENODEV;
 	}
 
 	if (dev->dev_state & DEV_MISCONFIGURED) {
-		printk(KERN_INFO "v4l2 ioctl: device is misconfigured; "
+		pr_info("v4l2 ioctl: device is misconfigured; "
 		       "close and open it again\n");
 		return -EIO;
 	}
@@ -159,6 +159,7 @@ static void au0828_irq_callback(struct urb *urb)
 		au0828_isocdbg("urb resubmit failed (error=%i)\n",
 			       urb->status);
 	}
+	dev->stream_state = STREAM_ON;
 }
 
 /*
@@ -198,6 +199,8 @@ static void au0828_uninit_isoc(struct au0828_dev *dev)
 	dev->isoc_ctl.urb = NULL;
 	dev->isoc_ctl.transfer_buffer = NULL;
 	dev->isoc_ctl.num_bufs = 0;
+
+	dev->stream_state = STREAM_OFF;
 }
 
 /*
@@ -717,7 +720,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		rc = videobuf_iolock(vq, &buf->vb, NULL);
 		if (rc < 0) {
-			printk(KERN_INFO "videobuf_iolock failed\n");
+			pr_info("videobuf_iolock failed\n");
 			goto fail;
 		}
 	}
@@ -730,7 +733,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 				      AU0828_MAX_ISO_BUFS, dev->max_pkt_size,
 				      au0828_isoc_copy);
 		if (rc < 0) {
-			printk(KERN_INFO "au0828_init_isoc failed\n");
+			pr_info("au0828_init_isoc failed\n");
 			goto fail;
 		}
 	}
@@ -801,7 +804,7 @@ static int au0828_analog_stream_enable(struct au0828_dev *d)
 		/* set au0828 interface0 to AS5 here again */
 		ret = usb_set_interface(d->usbdev, 0, 5);
 		if (ret < 0) {
-			printk(KERN_INFO "Au0828 can't set alt setting to 5!\n");
+			pr_info("Au0828 can't set alt setting to 5!\n");
 			return -EBUSY;
 		}
 	}
@@ -1090,7 +1093,7 @@ static int au0828_v4l2_close(struct file *filp)
 		   USB bandwidth */
 		ret = usb_set_interface(dev->usbdev, 0, 0);
 		if (ret < 0)
-			printk(KERN_INFO "Au0828 can't set alternate to 0!\n");
+			pr_info("Au0828 can't set alternate to 0!\n");
 	}
 	mutex_unlock(&dev->lock);
 
@@ -1344,7 +1347,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		return rc;
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
-		printk(KERN_INFO "%s queue busy\n", __func__);
+		pr_info("%s queue busy\n", __func__);
 		rc = -EBUSY;
 		goto out;
 	}
@@ -1868,6 +1871,69 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	return rc;
 }
 
+void au0828_v4l2_suspend(struct au0828_dev *dev)
+{
+	struct urb *urb;
+	int i;
+
+	pr_info("stopping V4L2\n");
+
+	if (dev->stream_state == STREAM_ON) {
+		pr_info("stopping V4L2 active URBs\n");
+		au0828_analog_stream_disable(dev);
+		/* stop urbs */
+		for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
+			urb = dev->isoc_ctl.urb[i];
+			if (urb) {
+				if (!irqs_disabled())
+					usb_kill_urb(urb);
+				else
+					usb_unlink_urb(urb);
+			}
+		}
+	}
+
+	if (dev->vid_timeout_running)
+		del_timer_sync(&dev->vid_timeout);
+	if (dev->vbi_timeout_running)
+		del_timer_sync(&dev->vbi_timeout);
+}
+
+void au0828_v4l2_resume(struct au0828_dev *dev)
+{
+	int i, rc;
+
+	pr_info("restarting V4L2\n");
+
+	if (dev->stream_state == STREAM_ON) {
+		au0828_stream_interrupt(dev);
+		au0828_init_tuner(dev);
+	}
+
+	if (dev->vid_timeout_running)
+		mod_timer(&dev->vid_timeout, jiffies + (HZ / 10));
+	if (dev->vbi_timeout_running)
+		mod_timer(&dev->vbi_timeout, jiffies + (HZ / 10));
+
+	/* If we were doing ac97 instead of i2s, it would go here...*/
+	au0828_i2s_init(dev);
+
+	au0828_analog_stream_enable(dev);
+
+	if (!(dev->stream_state == STREAM_ON)) {
+		au0828_analog_stream_reset(dev);
+		/* submit urbs */
+		for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
+			rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_ATOMIC);
+			if (rc) {
+				au0828_isocdbg("submit of urb %i failed (error=%i)\n",
+					       i, rc);
+				au0828_uninit_isoc(dev);
+			}
+		}
+	}
+}
+
 static struct v4l2_file_operations au0828_v4l_fops = {
 	.owner      = THIS_MODULE,
 	.open       = au0828_v4l2_open,
@@ -1939,7 +2005,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	retval = usb_set_interface(dev->usbdev,
 			interface->cur_altsetting->desc.bInterfaceNumber, 5);
 	if (retval != 0) {
-		printk(KERN_INFO "Failure setting usb interface0 to as5\n");
+		pr_info("Failure setting usb interface0 to as5\n");
 		return retval;
 	}
 
@@ -1963,7 +2029,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 		}
 	}
 	if (!(dev->isoc_in_endpointaddr)) {
-		printk(KERN_INFO "Could not locate isoc endpoint\n");
+		pr_info("Could not locate isoc endpoint\n");
 		kfree(dev);
 		return -ENODEV;
 	}

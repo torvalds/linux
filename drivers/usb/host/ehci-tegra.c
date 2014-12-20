@@ -206,7 +206,7 @@ static int tegra_ehci_hub_control(
 		if (tegra->port_resuming && !(temp & PORT_SUSPEND)) {
 			/* Resume completed, re-enable disconnect detection */
 			tegra->port_resuming = 0;
-			tegra_usb_phy_postresume(hcd->phy);
+			tegra_usb_phy_postresume(hcd->usb_phy);
 		}
 	}
 
@@ -259,7 +259,7 @@ static int tegra_ehci_hub_control(
 			goto done;
 
 		/* Disable disconnect detection during port resume */
-		tegra_usb_phy_preresume(hcd->phy);
+		tegra_usb_phy_preresume(hcd->usb_phy);
 
 		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
 
@@ -454,28 +454,24 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		err = PTR_ERR(u_phy);
 		goto cleanup_clk_en;
 	}
-	hcd->phy = u_phy;
+	hcd->usb_phy = u_phy;
 
 	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
 		"nvidia,needs-double-reset");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get I/O memory\n");
-		err = -ENXIO;
-		goto cleanup_clk_en;
-	}
-	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = resource_size(res);
 	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hcd->regs)) {
 		err = PTR_ERR(hcd->regs);
 		goto cleanup_clk_en;
 	}
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
+
 	ehci->caps = hcd->regs + 0x100;
 	ehci->has_hostpc = soc_config->has_hostpc;
 
-	err = usb_phy_init(hcd->phy);
+	err = usb_phy_init(hcd->usb_phy);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to initialize phy\n");
 		goto cleanup_clk_en;
@@ -484,13 +480,12 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 			     GFP_KERNEL);
 	if (!u_phy->otg) {
-		dev_err(&pdev->dev, "Failed to alloc memory for otg\n");
 		err = -ENOMEM;
 		goto cleanup_phy;
 	}
 	u_phy->otg->host = hcd_to_bus(hcd);
 
-	err = usb_phy_set_suspend(hcd->phy, 0);
+	err = usb_phy_set_suspend(hcd->usb_phy, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to power on the phy\n");
 		goto cleanup_phy;
@@ -517,7 +512,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 cleanup_otg_set_host:
 	otg_set_host(u_phy->otg, NULL);
 cleanup_phy:
-	usb_phy_shutdown(hcd->phy);
+	usb_phy_shutdown(hcd->usb_phy);
 cleanup_clk_en:
 	clk_disable_unprepare(tegra->clk);
 cleanup_hcd_create:
@@ -531,9 +526,9 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra =
 		(struct tegra_ehci_hcd *)hcd_to_ehci(hcd)->priv;
 
-	otg_set_host(hcd->phy->otg, NULL);
+	otg_set_host(hcd->usb_phy->otg, NULL);
 
-	usb_phy_shutdown(hcd->phy);
+	usb_phy_shutdown(hcd->usb_phy);
 	usb_remove_hcd(hcd);
 
 	clk_disable_unprepare(tegra->clk);

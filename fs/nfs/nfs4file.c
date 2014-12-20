@@ -3,10 +3,16 @@
  *
  *  Copyright (C) 1992  Rick Sladkey
  */
+#include <linux/fs.h>
+#include <linux/falloc.h>
 #include <linux/nfs_fs.h>
 #include "internal.h"
 #include "fscache.h"
 #include "pnfs.h"
+
+#ifdef CONFIG_NFS_V4_2
+#include "nfs42.h"
+#endif
 
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
@@ -115,8 +121,55 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	return ret;
 }
 
+#ifdef CONFIG_NFS_V4_2
+static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
+{
+	loff_t ret;
+
+	switch (whence) {
+	case SEEK_HOLE:
+	case SEEK_DATA:
+		ret = nfs42_proc_llseek(filep, offset, whence);
+		if (ret != -ENOTSUPP)
+			return ret;
+	default:
+		return nfs_file_llseek(filep, offset, whence);
+	}
+}
+
+static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t len)
+{
+	struct inode *inode = file_inode(filep);
+	long ret;
+
+	if (!S_ISREG(inode->i_mode))
+		return -EOPNOTSUPP;
+
+	if ((mode != 0) && (mode != (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE)))
+		return -EOPNOTSUPP;
+
+	ret = inode_newsize_ok(inode, offset + len);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&inode->i_mutex);
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		ret = nfs42_proc_deallocate(filep, offset, len);
+	else
+		ret = nfs42_proc_allocate(filep, offset, len);
+	mutex_unlock(&inode->i_mutex);
+
+	nfs_zap_caches(inode);
+	return ret;
+}
+#endif /* CONFIG_NFS_V4_2 */
+
 const struct file_operations nfs4_file_operations = {
+#ifdef CONFIG_NFS_V4_2
+	.llseek		= nfs4_file_llseek,
+#else
 	.llseek		= nfs_file_llseek,
+#endif
 	.read		= new_sync_read,
 	.write		= new_sync_write,
 	.read_iter	= nfs_file_read,
@@ -130,6 +183,9 @@ const struct file_operations nfs4_file_operations = {
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
+#ifdef CONFIG_NFS_V4_2
+	.fallocate	= nfs42_fallocate,
+#endif /* CONFIG_NFS_V4_2 */
 	.check_flags	= nfs_check_flags,
-	.setlease	= nfs_setlease,
+	.setlease	= simple_nosetlease,
 };

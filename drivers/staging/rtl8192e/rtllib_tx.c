@@ -224,6 +224,7 @@ static struct rtllib_txb *rtllib_alloc_txb(int nr_frags, int txb_size,
 {
 	struct rtllib_txb *txb;
 	int i;
+
 	txb = kmalloc(sizeof(struct rtllib_txb) + (sizeof(u8 *) * nr_frags),
 		      gfp_mask);
 	if (!txb)
@@ -353,7 +354,6 @@ FORCED_AGG_SETTING:
 		tcb_desc->ampdu_factor = 0;
 		break;
 	}
-	return;
 }
 
 static void rtllib_qurey_ShortPreambleMode(struct rtllib_device *ieee,
@@ -365,7 +365,6 @@ static void rtllib_qurey_ShortPreambleMode(struct rtllib_device *ieee,
 	else if (ieee->current_network.capability &
 		 WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
-	return;
 }
 
 static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
@@ -407,7 +406,6 @@ static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
 	if (pHTInfo->bCurBW40MHz && pHTInfo->bCurTxBW40MHz &&
 	    !ieee->bandwidth_auto_switch.bforced_tx20Mhz)
 		tcb_desc->bPacketBW = true;
-	return;
 }
 
 static void rtllib_query_protectionmode(struct rtllib_device *ieee,
@@ -438,6 +436,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 		return;
 	} else {
 		struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+
 		while (true) {
 			if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
 				tcb_desc->bCTSEnable	= true;
@@ -458,6 +457,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 			}
 			if (pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT) {
 				u8 HTOpMode = pHTInfo->CurrentOpMode;
+
 				if ((pHTInfo->bCurBW40MHz && (HTOpMode == 2 ||
 				     HTOpMode == 3)) ||
 				     (!pHTInfo->bCurBW40MHz && HTOpMode == 3)) {
@@ -518,6 +518,7 @@ u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 		return 0;
 	if (IsQoSDataFrame(skb->data)) {
 		struct tx_ts_record *pTS = NULL;
+
 		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
 		    skb->priority, TX_DIR, true))
 			return 0;

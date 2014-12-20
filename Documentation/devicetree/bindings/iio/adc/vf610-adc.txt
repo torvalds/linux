@@ -9,7 +9,7 @@ Required properties:
 - interrupts: Should contain the interrupt for the device
 - clocks: The clock is needed by the ADC controller, ADC clock source is ipg clock.
 - clock-names: Must contain "adc", matching entry in the clocks property.
-- vref-supply: The regulator supply ADC refrence voltage.
+- vref-supply: The regulator supply ADC reference voltage.
 
 Example:
 adc0: adc@4003b000 {

@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -59,8 +55,23 @@ u8 rtl_evm_db_to_percentage(char value)
 }
 EXPORT_SYMBOL(rtl_evm_db_to_percentage);
 
+u8 rtl_evm_dbm_jaguar(char value)
+{
+	char ret_val = value;
+
+	/* -33dB~0dB to 33dB ~ 0dB*/
+	if (ret_val == -128)
+		ret_val = 127;
+	else if (ret_val < 0)
+		ret_val = 0 - ret_val;
+
+	ret_val  = ret_val >> 1;
+	return ret_val;
+}
+EXPORT_SYMBOL(rtl_evm_dbm_jaguar);
+
 static long rtl_translate_todbm(struct ieee80211_hw *hw,
-				u8 signal_strength_index)
+			 u8 signal_strength_index)
 {
 	long signal_power;
 
@@ -106,6 +117,10 @@ static void rtl_process_ui_rssi(struct ieee80211_hw *hw,
 	u8 rfpath;
 	u32 last_rssi, tmpval;
 
+	if (!pstatus->packet_toself && !pstatus->packet_beacon)
+		return;
+
+	rtlpriv->stats.pwdb_all_cnt += pstatus->rx_pwdb_all;
 	rtlpriv->stats.rssi_calculate_cnt++;
 
 	if (rtlpriv->stats.ui_rssi.total_num++ >= PHY_RSSI_SLID_WIN_MAX) {
@@ -151,6 +166,12 @@ static void rtl_process_ui_rssi(struct ieee80211_hw *hw,
 			     (pstatus->rx_mimo_signalstrength[rfpath])) /
 			    (RX_SMOOTH_FACTOR);
 		}
+		rtlpriv->stats.rx_snr_db[rfpath] = pstatus->rx_snr[rfpath];
+		rtlpriv->stats.rx_evm_dbm[rfpath] =
+					pstatus->rx_mimo_evm_dbm[rfpath];
+		rtlpriv->stats.rx_cfo_short[rfpath] =
+					pstatus->cfo_short[rfpath];
+		rtlpriv->stats.rx_cfo_tail[rfpath] = pstatus->cfo_tail[rfpath];
 	}
 }
 
@@ -176,7 +197,6 @@ static void rtl_process_pwdb(struct ieee80211_hw *hw, struct rtl_stats *pstatus)
 	struct rtl_sta_info *drv_priv = NULL;
 	struct ieee80211_sta *sta = NULL;
 	long undec_sm_pwdb;
-	long undec_sm_cck;
 
 	rcu_read_lock();
 	if (rtlpriv->mac80211.opmode != NL80211_IFTYPE_STATION)
@@ -186,32 +206,20 @@ static void rtl_process_pwdb(struct ieee80211_hw *hw, struct rtl_stats *pstatus)
 	if (sta) {
 		drv_priv = (struct rtl_sta_info *) sta->drv_priv;
 		undec_sm_pwdb = drv_priv->rssi_stat.undec_sm_pwdb;
-		undec_sm_cck = drv_priv->rssi_stat.undec_sm_cck;
 	} else {
 		undec_sm_pwdb = rtlpriv->dm.undec_sm_pwdb;
-		undec_sm_cck = rtlpriv->dm.undec_sm_cck;
 	}
 
 	if (undec_sm_pwdb < 0)
 		undec_sm_pwdb = pstatus->rx_pwdb_all;
-	if (undec_sm_cck < 0)
-		undec_sm_cck = pstatus->rx_pwdb_all;
 	if (pstatus->rx_pwdb_all > (u32) undec_sm_pwdb) {
 		undec_sm_pwdb = (((undec_sm_pwdb) *
 		      (RX_SMOOTH_FACTOR - 1)) +
 		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 		undec_sm_pwdb = undec_sm_pwdb + 1;
 	} else {
-		undec_sm_pwdb = (((undec_sm_pwdb) * (RX_SMOOTH_FACTOR - 1)) +
-		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
-	}
-	if (pstatus->rx_pwdb_all > (u32) undec_sm_cck) {
-		undec_sm_cck = (((undec_sm_pwdb) *
+		undec_sm_pwdb = (((undec_sm_pwdb) *
 		      (RX_SMOOTH_FACTOR - 1)) +
-		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
-		undec_sm_cck = undec_sm_cck + 1;
-	} else {
-		undec_sm_pwdb = (((undec_sm_cck) * (RX_SMOOTH_FACTOR - 1)) +
 		     (pstatus->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 	}
 
@@ -245,7 +253,7 @@ static void rtl_process_ui_link_quality(struct ieee80211_hw *hw,
 	rtlpriv->stats.ui_link_quality.total_val += pstatus->signalquality;
 	rtlpriv->stats.ui_link_quality.elements[
 		rtlpriv->stats.ui_link_quality.index++] =
-						 pstatus->signalquality;
+							pstatus->signalquality;
 	if (rtlpriv->stats.ui_link_quality.index >=
 	    PHY_LINKQUALITY_SLID_WIN_MAX)
 		rtlpriv->stats.ui_link_quality.index = 0;
@@ -269,7 +277,7 @@ static void rtl_process_ui_link_quality(struct ieee80211_hw *hw,
 }
 
 void rtl_process_phyinfo(struct ieee80211_hw *hw, u8 *buffer,
-	struct rtl_stats *pstatus)
+			 struct rtl_stats *pstatus)
 {
 
 	if (!pstatus->packet_matchbssid)

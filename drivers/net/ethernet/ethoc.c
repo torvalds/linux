@@ -1222,8 +1222,6 @@ static int ethoc_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	ether_setup(netdev);
-
 	/* setup the net_device structure */
 	netdev->netdev_ops = &ethoc_netdev_ops;
 	netdev->watchdog_timeo = ETHOC_TIMEOUT;
@@ -1314,7 +1312,6 @@ static struct platform_driver ethoc_driver = {
 	.resume  = ethoc_resume,
 	.driver  = {
 		.name = "ethoc",
-		.owner = THIS_MODULE,
 		.of_match_table = ethoc_match,
 	},
 };

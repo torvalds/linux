@@ -209,6 +209,33 @@ struct ethtool_value {
 	__u32	data;
 };
 
+enum tunable_id {
+	ETHTOOL_ID_UNSPEC,
+	ETHTOOL_RX_COPYBREAK,
+	ETHTOOL_TX_COPYBREAK,
+};
+
+enum tunable_type_id {
+	ETHTOOL_TUNABLE_UNSPEC,
+	ETHTOOL_TUNABLE_U8,
+	ETHTOOL_TUNABLE_U16,
+	ETHTOOL_TUNABLE_U32,
+	ETHTOOL_TUNABLE_U64,
+	ETHTOOL_TUNABLE_STRING,
+	ETHTOOL_TUNABLE_S8,
+	ETHTOOL_TUNABLE_S16,
+	ETHTOOL_TUNABLE_S32,
+	ETHTOOL_TUNABLE_S64,
+};
+
+struct ethtool_tunable {
+	__u32	cmd;
+	__u32	id;
+	__u32	type_id;
+	__u32	len;
+	void	*data[0];
+};
+
 /**
  * struct ethtool_regs - hardware register dump
  * @cmd: Command number = %ETHTOOL_GREGS
@@ -507,6 +534,7 @@ struct ethtool_pauseparam {
  * @ETH_SS_NTUPLE_FILTERS: Previously used with %ETHTOOL_GRXNTUPLE;
  *	now deprecated
  * @ETH_SS_FEATURES: Device feature names
+ * @ETH_SS_RSS_HASH_FUNCS: RSS hush function names
  */
 enum ethtool_stringset {
 	ETH_SS_TEST		= 0,
@@ -514,6 +542,7 @@ enum ethtool_stringset {
 	ETH_SS_PRIV_FLAGS,
 	ETH_SS_NTUPLE_FILTERS,
 	ETH_SS_FEATURES,
+	ETH_SS_RSS_HASH_FUNCS,
 };
 
 /**
@@ -857,6 +886,8 @@ struct ethtool_rxfh_indir {
  * @key_size: On entry, the array size of the user buffer for the hash key,
  *	which may be zero.  On return from %ETHTOOL_GRSSH, the size of the
  *	hardware hash key.
+ * @hfunc: Defines the current RSS hash function used by HW (or to be set to).
+ *	Valid values are one of the %ETH_RSS_HASH_*.
  * @rsvd:	Reserved for future extensions.
  * @rss_config: RX ring/queue index for each hash value i.e., indirection table
  *	of @indir_size __u32 elements, followed by hash key of @key_size
@@ -866,14 +897,16 @@ struct ethtool_rxfh_indir {
  * size should be returned.  For %ETHTOOL_SRSSH, an @indir_size of
  * %ETH_RXFH_INDIR_NO_CHANGE means that indir table setting is not requested
  * and a @indir_size of zero means the indir table should be reset to default
- * values.
+ * values. An hfunc of zero means that hash function setting is not requested.
  */
 struct ethtool_rxfh {
 	__u32   cmd;
 	__u32	rss_context;
 	__u32   indir_size;
 	__u32   key_size;
-	__u32	rsvd[2];
+	__u8	hfunc;
+	__u8	rsvd8[3];
+	__u32	rsvd32;
 	__u32   rss_config[0];
 };
 #define ETH_RXFH_INDIR_NO_CHANGE	0xffffffff
@@ -1152,6 +1185,8 @@ enum ethtool_sfeatures_retval_bits {
 
 #define ETHTOOL_GRSSH		0x00000046 /* Get RX flow hash configuration */
 #define ETHTOOL_SRSSH		0x00000047 /* Set RX flow hash configuration */
+#define ETHTOOL_GTUNABLE	0x00000048 /* Get tunable configuration */
+#define ETHTOOL_STUNABLE	0x00000049 /* Set tunable configuration */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -1184,6 +1219,10 @@ enum ethtool_sfeatures_retval_bits {
 #define SUPPORTED_40000baseCR4_Full	(1 << 24)
 #define SUPPORTED_40000baseSR4_Full	(1 << 25)
 #define SUPPORTED_40000baseLR4_Full	(1 << 26)
+#define SUPPORTED_56000baseKR4_Full	(1 << 27)
+#define SUPPORTED_56000baseCR4_Full	(1 << 28)
+#define SUPPORTED_56000baseSR4_Full	(1 << 29)
+#define SUPPORTED_56000baseLR4_Full	(1 << 30)
 
 #define ADVERTISED_10baseT_Half		(1 << 0)
 #define ADVERTISED_10baseT_Full		(1 << 1)
@@ -1212,6 +1251,10 @@ enum ethtool_sfeatures_retval_bits {
 #define ADVERTISED_40000baseCR4_Full	(1 << 24)
 #define ADVERTISED_40000baseSR4_Full	(1 << 25)
 #define ADVERTISED_40000baseLR4_Full	(1 << 26)
+#define ADVERTISED_56000baseKR4_Full	(1 << 27)
+#define ADVERTISED_56000baseCR4_Full	(1 << 28)
+#define ADVERTISED_56000baseSR4_Full	(1 << 29)
+#define ADVERTISED_56000baseLR4_Full	(1 << 30)
 
 /* The following are all involved in forcing a particular link
  * mode for the device for setting things.  When getting the
@@ -1219,12 +1262,16 @@ enum ethtool_sfeatures_retval_bits {
  * it was forced up into this mode or autonegotiated.
  */
 
-/* The forced speed, 10Mb, 100Mb, gigabit, 2.5Gb, 10GbE. */
+/* The forced speed, 10Mb, 100Mb, gigabit, [2.5|10|20|40|56]GbE. */
 #define SPEED_10		10
 #define SPEED_100		100
 #define SPEED_1000		1000
 #define SPEED_2500		2500
 #define SPEED_10000		10000
+#define SPEED_20000		20000
+#define SPEED_40000		40000
+#define SPEED_56000		56000
+
 #define SPEED_UNKNOWN		-1
 
 /* Duplex, half or full. */
@@ -1314,6 +1361,10 @@ enum ethtool_sfeatures_retval_bits {
 #define ETH_MODULE_SFF_8079_LEN		256
 #define ETH_MODULE_SFF_8472		0x2
 #define ETH_MODULE_SFF_8472_LEN		512
+#define ETH_MODULE_SFF_8636		0x3
+#define ETH_MODULE_SFF_8636_LEN		256
+#define ETH_MODULE_SFF_8436		0x4
+#define ETH_MODULE_SFF_8436_LEN		256
 
 /* Reset flags */
 /* The reset() operation must clear the flags for the components which

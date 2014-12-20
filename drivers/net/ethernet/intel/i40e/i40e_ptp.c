@@ -382,11 +382,17 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 		incval = I40E_PTP_1GB_INCVAL;
 		break;
 	case I40E_LINK_SPEED_100MB:
-		dev_warn(&pf->pdev->dev,
-			 "%s: 1588 functionality is not supported at 100 Mbps. Stopping the PHC.\n",
-			 __func__);
+	{
+		static int warn_once;
+
+		if (!warn_once) {
+			dev_warn(&pf->pdev->dev,
+				 "1588 functionality is not supported at 100 Mbps. Stopping the PHC.\n");
+			warn_once++;
+		}
 		incval = 0;
 		break;
+	}
 	case I40E_LINK_SPEED_40GB:
 	default:
 		incval = I40E_PTP_40GB_INCVAL;
@@ -418,6 +424,9 @@ int i40e_ptp_get_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 {
 	struct hwtstamp_config *config = &pf->tstamp_config;
 
+	if (!(pf->flags & I40E_FLAG_PTP))
+		return -EOPNOTSUPP;
+
 	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
 		-EFAULT : 0;
 }
@@ -438,21 +447,11 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 				       struct hwtstamp_config *config)
 {
 	struct i40e_hw *hw = &pf->hw;
-	u32 pf_id, tsyntype, regval;
+	u32 tsyntype, regval;
 
 	/* Reserved for future extensions. */
 	if (config->flags)
 		return -EINVAL;
-
-	/* Confirm that 1588 is supported on this PF. */
-	pf_id = (rd32(hw, I40E_PRTTSYN_CTL0) & I40E_PRTTSYN_CTL0_PF_ID_MASK) >>
-		I40E_PRTTSYN_CTL0_PF_ID_SHIFT;
-	if (hw->pf_id != pf_id) {
-		dev_err(&pf->pdev->dev,
-			"PF %d attempted to control timestamp mode on port %d, which is owned by PF %d\n",
-			hw->pf_id, hw->port, pf_id);
-		return -EPERM;
-	}
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -556,6 +555,9 @@ int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 	struct hwtstamp_config config;
 	int err;
 
+	if (!(pf->flags & I40E_FLAG_PTP))
+		return -EOPNOTSUPP;
+
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
@@ -625,7 +627,21 @@ void i40e_ptp_init(struct i40e_pf *pf)
 {
 	struct net_device *netdev = pf->vsi[pf->lan_vsi]->netdev;
 	struct i40e_hw *hw = &pf->hw;
+	u32 pf_id;
 	long err;
+
+	/* Only one PF is assigned to control 1588 logic per port. Do not
+	 * enable any support for PFs not assigned via PRTTSYN_CTL0.PF_ID
+	 */
+	pf_id = (rd32(hw, I40E_PRTTSYN_CTL0) & I40E_PRTTSYN_CTL0_PF_ID_MASK) >>
+		I40E_PRTTSYN_CTL0_PF_ID_SHIFT;
+	if (hw->pf_id != pf_id) {
+		pf->flags &= ~I40E_FLAG_PTP;
+		dev_info(&pf->pdev->dev, "%s: PTP not supported on %s\n",
+			 __func__,
+			 netdev->name);
+		return;
+	}
 
 	/* we have to initialize the lock first, since we can't control
 	 * when the user will enter the PHC device entry points

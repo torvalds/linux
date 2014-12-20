@@ -459,7 +459,6 @@ static struct platform_driver twl4030_kp_driver = {
 	.probe		= twl4030_kp_probe,
 	.driver		= {
 		.name	= "twl4030_keypad",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl4030_keypad_dt_match_table),
 	},
 };

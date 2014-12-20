@@ -1,11 +1,10 @@
 #
 # Makefile for the linux kernel.
 #
-ccflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include \
+ccflags-$(CONFIG_ARCH_MULTIPLATFORM) := \
 	-I$(srctree)/arch/arm/plat-versatile/include
 
 obj-y					:= v2m.o
-obj-$(CONFIG_ARCH_VEXPRESS_CA9X4)	+= ct-ca9x4.o
 obj-$(CONFIG_ARCH_VEXPRESS_DCSCB)	+= dcscb.o	dcscb_setup.o
 CFLAGS_dcscb.o				+= -march=armv7-a
 CFLAGS_REMOVE_dcscb.o			= -pg

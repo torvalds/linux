@@ -530,7 +530,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	struct mips_abi *abi = current->thread.abi;
 #ifdef CONFIG_CPU_MICROMIPS
 	void *vdso;
-	unsigned int tmp = (unsigned int)current->mm->context.vdso;
+	unsigned long tmp = (unsigned long)current->mm->context.vdso;
 
 	set_isa16_mode(tmp);
 	vdso = (void *)tmp;
@@ -658,13 +658,13 @@ static int signal_setup(void)
 		save_fp_context = _save_fp_context;
 		restore_fp_context = _restore_fp_context;
 	} else {
-		save_fp_context = copy_fp_from_sigcontext;
-		restore_fp_context = copy_fp_to_sigcontext;
+		save_fp_context = copy_fp_to_sigcontext;
+		restore_fp_context = copy_fp_from_sigcontext;
 	}
 #endif /* CONFIG_SMP */
 #else
-	save_fp_context = copy_fp_from_sigcontext;;
-	restore_fp_context = copy_fp_to_sigcontext;
+	save_fp_context = copy_fp_to_sigcontext;
+	restore_fp_context = copy_fp_from_sigcontext;
 #endif
 
 	return 0;

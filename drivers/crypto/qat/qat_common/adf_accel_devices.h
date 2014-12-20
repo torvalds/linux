@@ -56,8 +56,6 @@
 #define PCI_VENDOR_ID_INTEL 0x8086
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
-#define ADF_DH895XCC_PMISC_BAR 1
-#define ADF_DH895XCC_ETR_BAR 2
 #define ADF_PCI_MAX_BARS 3
 #define ADF_DEVICE_NAME_LENGTH 32
 #define ADF_ETR_MAX_RINGS_PER_BANK 16
@@ -198,8 +196,7 @@ struct adf_accel_dev {
 	struct dentry *debugfs_dir;
 	struct list_head list;
 	struct module *owner;
-	uint8_t accel_id;
-	uint8_t numa_node;
 	struct adf_accel_pci accel_pci_dev;
+	uint8_t accel_id;
 } __packed;
 #endif

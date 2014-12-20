@@ -715,7 +715,7 @@ bna_bfi_rxf_ucast_set_rsp(struct bna_rxf *rxf,
 			struct bfi_msgq_mhdr *msghdr)
 {
 	struct bfi_enet_rsp *rsp =
-		(struct bfi_enet_rsp *)msghdr;
+		container_of(msghdr, struct bfi_enet_rsp, mh);
 
 	if (rsp->error) {
 		/* Clear ucast from cache */
@@ -732,7 +732,7 @@ bna_bfi_rxf_mcast_add_rsp(struct bna_rxf *rxf,
 	struct bfi_enet_mcast_add_req *req =
 		&rxf->bfi_enet_cmd.mcast_add_req;
 	struct bfi_enet_mcast_add_rsp *rsp =
-		(struct bfi_enet_mcast_add_rsp *)msghdr;
+		container_of(msghdr, struct bfi_enet_mcast_add_rsp, mh);
 
 	bna_rxf_mchandle_attach(rxf, (u8 *)&req->mac_addr,
 		ntohs(rsp->handle));
@@ -3410,7 +3410,7 @@ bna_bfi_tx_enet_start(struct bna_tx *tx)
 
 	cfg_req->tx_cfg.vlan_mode = BFI_ENET_TX_VLAN_WI;
 	cfg_req->tx_cfg.vlan_id = htons((u16)tx->txf_vlan_id);
-	cfg_req->tx_cfg.admit_tagged_frame = BNA_STATUS_T_DISABLED;
+	cfg_req->tx_cfg.admit_tagged_frame = BNA_STATUS_T_ENABLED;
 	cfg_req->tx_cfg.apply_vlan_filter = BNA_STATUS_T_DISABLED;
 
 	bfa_msgq_cmd_set(&tx->msgq_cmd, NULL, NULL,

@@ -1,6 +1,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include "internal.h"
+#include "nfs3_fs.h"
 
 #ifdef CONFIG_NFS_V3_ACL
 static struct rpc_stat		nfsacl_rpcstat = { &nfsacl_program };

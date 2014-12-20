@@ -90,9 +90,6 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 
 	/* Get memory resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		goto err_out;
-
 	addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
@@ -236,7 +233,6 @@ static struct platform_driver sxgbe_platform_driver = {
 	.remove	= sxgbe_platform_remove,
 	.driver	= {
 		.name		= SXGBE_RESOURCE_NAME,
-		.owner		= THIS_MODULE,
 		.pm		= &sxgbe_platform_pm_ops,
 		.of_match_table	= of_match_ptr(sxgbe_dt_ids),
 	},

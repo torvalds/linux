@@ -3,6 +3,7 @@ config SND_MFLD_MACHINE
 	depends on INTEL_SCU_IPC
 	select SND_SOC_SN95031
 	select SND_SST_MFLD_PLATFORM
+	select SND_SST_IPC_PCI
 	help
           This adds support for ASoC machine driver for Intel(R) MID Medfield platform
           used as alsa device in audio substem in Intel(R) MID devices
@@ -12,10 +13,23 @@ config SND_MFLD_MACHINE
 config SND_SST_MFLD_PLATFORM
 	tristate
 
+config SND_SST_IPC
+	tristate
+
+config SND_SST_IPC_PCI
+	tristate
+	select SND_SST_IPC
+
+config SND_SST_IPC_ACPI
+	tristate
+	select SND_SST_IPC
+	depends on ACPI
+
 config SND_SOC_INTEL_SST
 	tristate "ASoC support for Intel(R) Smart Sound Technology"
 	select SND_SOC_INTEL_SST_ACPI if ACPI
 	depends on (X86 || COMPILE_TEST)
+	depends on DW_DMAC_CORE
 	help
           This adds support for Intel(R) Smart Sound Technology (SST).
           Say Y if you have such a device
@@ -32,7 +46,8 @@ config SND_SOC_INTEL_BAYTRAIL
 
 config SND_SOC_INTEL_HASWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Haswell Lynxpoint"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C && \\
+		   I2C_DESIGNWARE_PLATFORM
 	select SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT5640
 	help
@@ -61,7 +76,8 @@ config SND_SOC_INTEL_BYT_MAX98090_MACH
 
 config SND_SOC_INTEL_BROADWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Broadwell Wildcatpoint"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && DW_DMAC
+	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && DW_DMAC && \\
+		   I2C_DESIGNWARE_PLATFORM
 	select SND_SOC_INTEL_HASWELL
 	select SND_COMPRESS_OFFLOAD
 	select SND_SOC_RT286
@@ -70,3 +86,27 @@ config SND_SOC_INTEL_BROADWELL_MACH
 	  Ultrabook platforms.
 	  Say Y if you have such a device
 	  If unsure select "N".
+
+config SND_SOC_INTEL_BYTCR_RT5640_MACH
+	tristate "ASoC Audio DSP Support for MID BYT Platform"
+	depends on X86
+	select SND_SOC_RT5640
+	select SND_SST_MFLD_PLATFORM
+	select SND_SST_IPC_ACPI
+	help
+	  This adds support for ASoC machine driver for Intel(R) MID Baytrail platform
+          used as alsa device in audio substem in Intel(R) MID devices
+          Say Y if you have such a device
+          If unsure select "N".
+
+config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
+        tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5672 codec"
+        depends on X86_INTEL_LPSS
+        select SND_SOC_RT5670
+        select SND_SST_MFLD_PLATFORM
+        select SND_SST_IPC_ACPI
+        help
+          This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
+          platforms with RT5672 audio codec.
+          Say Y if you have such a device
+          If unsure select "N".
