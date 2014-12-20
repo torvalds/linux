@@ -805,6 +805,12 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 						 * Parameter Request
 						 */
 
+		/* If the controller supports the Data Length Extension
+		 * feature, enable the corresponding event.
+		 */
+		if (hdev->le_features[0] & HCI_LE_DATA_LEN_EXT)
+			events[0] |= 0x40;	/* LE Data Length Change */
+
 		/* If the controller supports Extended Scanner Filter
 		 * Policies, enable the correspondig event.
 		 */
@@ -833,6 +839,14 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		if (hdev->commands[25] & 0x40) {
 			/* Read LE Advertising Channel TX Power */
 			hci_req_add(req, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
+		}
+
+		if (hdev->le_features[0] & HCI_LE_DATA_LEN_EXT) {
+			/* Read LE Maximum Data Length */
+			hci_req_add(req, HCI_OP_LE_READ_MAX_DATA_LEN, 0, NULL);
+
+			/* Read LE Suggested Default Data Length */
+			hci_req_add(req, HCI_OP_LE_READ_DEF_DATA_LEN, 0, NULL);
 		}
 
 		hci_set_le_support(req);
