@@ -570,6 +570,7 @@ static ssize_t write_port(struct file *file, const char __user *buf,
 		return -EFAULT;
 	while (count-- > 0 && i < 65536) {
 		char c;
+
 		if (__get_user(c, tmp)) {
 			if (tmp > buf)
 				break;
@@ -625,6 +626,7 @@ static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
 
 	while (iov_iter_count(iter)) {
 		size_t chunk = iov_iter_count(iter), n;
+
 		if (chunk > PAGE_SIZE)
 			chunk = PAGE_SIZE;	/* Just for latency reasons */
 		n = iov_iter_zero(chunk, iter);
