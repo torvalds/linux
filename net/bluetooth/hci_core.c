@@ -38,6 +38,7 @@
 #include <net/bluetooth/mgmt.h>
 
 #include "hci_request.h"
+#include "hci_debugfs.h"
 #include "smp.h"
 
 static void hci_rx_work(struct work_struct *work);
@@ -1865,6 +1866,8 @@ static int __hci_init(struct hci_dev *hdev)
 	debugfs_create_file("conn_info_max_age", 0644, hdev->debugfs, hdev,
 			    &conn_info_max_age_fops);
 
+	hci_debugfs_create_common(hdev);
+
 	if (lmp_bredr_capable(hdev)) {
 		debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
 				    hdev, &inquiry_cache_fops);
@@ -1874,6 +1877,8 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &dev_class_fops);
 		debugfs_create_file("voice_setting", 0444, hdev->debugfs,
 				    hdev, &voice_setting_fops);
+
+		hci_debugfs_create_bredr(hdev);
 	}
 
 	if (lmp_ssp_capable(hdev)) {
@@ -1943,6 +1948,8 @@ static int __hci_init(struct hci_dev *hdev)
 		debugfs_create_u16("discov_interleaved_timeout", 0644,
 				   hdev->debugfs,
 				   &hdev->discov_interleaved_timeout);
+
+		hci_debugfs_create_le(hdev);
 
 		smp_register(hdev);
 	}
