@@ -1889,8 +1889,8 @@ static int btrfs_issue_discard(struct block_device *bdev,
 	return blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_NOFS, 0);
 }
 
-static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
-				u64 num_bytes, u64 *actual_bytes)
+int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
+			 u64 num_bytes, u64 *actual_bytes)
 {
 	int ret;
 	u64 discarded_bytes = 0;
@@ -5727,7 +5727,8 @@ void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 	update_global_block_rsv(fs_info);
 }
 
-static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
+static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
+			      const bool return_free_space)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_block_group_cache *cache = NULL;
@@ -5751,7 +5752,8 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 
 		if (start < cache->last_byte_to_unpin) {
 			len = min(len, cache->last_byte_to_unpin - start);
-			btrfs_add_free_space(cache, start, len);
+			if (return_free_space)
+				btrfs_add_free_space(cache, start, len);
 		}
 
 		start += len;
@@ -5815,7 +5817,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 						   end + 1 - start, NULL);
 
 		clear_extent_dirty(unpin, start, end, GFP_NOFS);
-		unpin_extent_range(root, start, end);
+		unpin_extent_range(root, start, end, true);
 		cond_resched();
 	}
 
@@ -8872,6 +8874,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 				       cache_node);
 		rb_erase(&block_group->cache_node,
 			 &info->block_group_cache_tree);
+		RB_CLEAR_NODE(&block_group->cache_node);
 		spin_unlock(&info->block_group_cache_lock);
 
 		down_write(&block_group->space_info->groups_sem);
@@ -9130,6 +9133,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			spin_lock(&info->block_group_cache_lock);
 			rb_erase(&cache->cache_node,
 				 &info->block_group_cache_tree);
+			RB_CLEAR_NODE(&cache->cache_node);
 			spin_unlock(&info->block_group_cache_lock);
 			btrfs_put_block_group(cache);
 			goto error;
@@ -9271,6 +9275,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 		spin_lock(&root->fs_info->block_group_cache_lock);
 		rb_erase(&cache->cache_node,
 			 &root->fs_info->block_group_cache_tree);
+		RB_CLEAR_NODE(&cache->cache_node);
 		spin_unlock(&root->fs_info->block_group_cache_lock);
 		btrfs_put_block_group(cache);
 		return ret;
@@ -9690,13 +9695,7 @@ out:
 
 int btrfs_error_unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
 {
-	return unpin_extent_range(root, start, end);
-}
-
-int btrfs_error_discard_extent(struct btrfs_root *root, u64 bytenr,
-			       u64 num_bytes, u64 *actual_bytes)
-{
-	return btrfs_discard_extent(root, bytenr, num_bytes, actual_bytes);
+	return unpin_extent_range(root, start, end, false);
 }
 
 int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
