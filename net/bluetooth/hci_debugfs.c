@@ -1062,3 +1062,15 @@ void hci_debugfs_create_le(struct hci_dev *hdev)
 	debugfs_create_u16("discov_interleaved_timeout", 0644, hdev->debugfs,
 			   &hdev->discov_interleaved_timeout);
 }
+
+void hci_debugfs_create_conn(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	char name[6];
+
+	if (IS_ERR_OR_NULL(hdev->debugfs))
+		return;
+
+	snprintf(name, sizeof(name), "%u", conn->handle);
+	conn->debugfs = debugfs_create_dir(name, hdev->debugfs);
+}
