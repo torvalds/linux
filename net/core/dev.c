@@ -4602,6 +4602,15 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 		napi_gro_flush(n, HZ >= 1000);
 	}
 
+	/* Some drivers may have called napi_schedule
+	 * prior to exhausting their budget.
+	 */
+	if (unlikely(!list_empty(&n->poll_list))) {
+		pr_warn_once("%s: Budget exhausted after napi rescheduled\n",
+			     n->dev ? n->dev->name : "backlog");
+		goto out_unlock;
+	}
+
 	list_add_tail(&n->poll_list, repoll);
 
 out_unlock:
