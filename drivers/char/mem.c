@@ -28,7 +28,7 @@
 #include <linux/io.h>
 #include <linux/aio.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_IA64
 # include <linux/efi.h>
