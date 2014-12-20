@@ -4631,8 +4631,14 @@ static void net_rx_action(struct softirq_action *h)
 	list_splice_init(&sd->poll_list, &list);
 	local_irq_enable();
 
-	while (!list_empty(&list)) {
+	for (;;) {
 		struct napi_struct *n;
+
+		if (list_empty(&list)) {
+			if (!sd_has_rps_ipi_waiting(sd) && list_empty(&repoll))
+				return;
+			break;
+		}
 
 		n = list_first_entry(&list, struct napi_struct, poll_list);
 		budget -= napi_poll(n, &repoll);
@@ -4641,15 +4647,13 @@ static void net_rx_action(struct softirq_action *h)
 		 * Allow this to run for 2 jiffies since which will allow
 		 * an average latency of 1.5/HZ.
 		 */
-		if (unlikely(budget <= 0 || time_after_eq(jiffies, time_limit)))
-			goto softnet_break;
+		if (unlikely(budget <= 0 ||
+			     time_after_eq(jiffies, time_limit))) {
+			sd->time_squeeze++;
+			break;
+		}
 	}
 
-	if (!sd_has_rps_ipi_waiting(sd) &&
-	    list_empty(&list) &&
-	    list_empty(&repoll))
-		return;
-out:
 	local_irq_disable();
 
 	list_splice_tail_init(&sd->poll_list, &list);
@@ -4659,12 +4663,6 @@ out:
 		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 
 	net_rps_action_and_irq_enable(sd);
-
-	return;
-
-softnet_break:
-	sd->time_squeeze++;
-	goto out;
 }
 
 struct netdev_adjacent {
