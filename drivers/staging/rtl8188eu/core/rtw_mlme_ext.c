@@ -4937,11 +4937,6 @@ void addba_timer_hdl(void *function_context)
 	}
 }
 
-u8 NULL_hdl(struct adapter *padapter, u8 *pbuf)
-{
-	return H2C_SUCCESS;
-}
-
 u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 {
 	u8 type;

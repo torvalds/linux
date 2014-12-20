@@ -678,7 +678,6 @@ u8 read_bbreg_hdl(struct adapter *padapter, u8 *pbuf);
 u8 write_bbreg_hdl(struct adapter *padapter, u8 *pbuf);
 u8 read_rfreg_hdl(struct adapter *padapter, u8 *pbuf);
 u8 write_rfreg_hdl(struct adapter *padapter, u8 *pbuf);
-u8 NULL_hdl(struct adapter *padapter, u8 *pbuf);
 u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf);
 u8 disconnect_hdl(struct adapter *padapter, u8 *pbuf);
 u8 createbss_hdl(struct adapter *padapter, u8 *pbuf);
