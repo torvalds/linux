@@ -4634,16 +4634,15 @@ static void net_rx_action(struct softirq_action *h)
 	while (!list_empty(&list)) {
 		struct napi_struct *n;
 
+		n = list_first_entry(&list, struct napi_struct, poll_list);
+		budget -= napi_poll(n, &repoll);
+
 		/* If softirq window is exhausted then punt.
 		 * Allow this to run for 2 jiffies since which will allow
 		 * an average latency of 1.5/HZ.
 		 */
 		if (unlikely(budget <= 0 || time_after_eq(jiffies, time_limit)))
 			goto softnet_break;
-
-
-		n = list_first_entry(&list, struct napi_struct, poll_list);
-		budget -= napi_poll(n, &repoll);
 	}
 
 	if (!sd_has_rps_ipi_waiting(sd) &&
