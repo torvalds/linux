@@ -2896,6 +2896,12 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_conn_max_interval = 0x0038;
 	hdev->le_conn_latency = 0x0000;
 	hdev->le_supv_timeout = 0x002a;
+	hdev->le_def_tx_len = 0x001b;
+	hdev->le_def_tx_time = 0x0148;
+	hdev->le_max_tx_len = 0x001b;
+	hdev->le_max_tx_time = 0x0148;
+	hdev->le_max_rx_len = 0x001b;
+	hdev->le_max_rx_time = 0x0148;
 
 	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
 	hdev->discov_interleaved_timeout = DISCOV_INTERLEAVED_TIMEOUT;
