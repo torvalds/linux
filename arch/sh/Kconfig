@@ -223,7 +223,7 @@ config CPU_SHX3
 config ARCH_SHMOBILE
 	bool
 	select ARCH_SUSPEND_POSSIBLE
-	select PM_RUNTIME
+	select PM
 
 config CPU_HAS_PMU
        depends on CPU_SH4 || CPU_SH4A
