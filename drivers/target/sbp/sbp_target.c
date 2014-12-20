@@ -1237,7 +1237,7 @@ static void sbp_handle_command(struct sbp_target_request *req)
 
 	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
 			      req->sense_buf, unpacked_lun, data_length,
-			      MSG_SIMPLE_TAG, data_dir, 0))
+			      TCM_SIMPLE_TAG, data_dir, 0))
 		goto err;
 
 	return;

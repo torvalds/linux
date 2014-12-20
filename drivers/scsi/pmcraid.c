@@ -4251,7 +4251,6 @@ static struct scsi_host_template pmcraid_host_template = {
 	.slave_configure = pmcraid_slave_configure,
 	.slave_destroy = pmcraid_slave_destroy,
 	.change_queue_depth = pmcraid_change_queue_depth,
-	.change_queue_type  = scsi_change_queue_type,
 	.can_queue = PMCRAID_MAX_IO_CMD,
 	.this_id = -1,
 	.sg_tablesize = PMCRAID_MAX_IOADLS,

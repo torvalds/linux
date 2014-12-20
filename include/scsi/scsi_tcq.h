@@ -6,46 +6,10 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 
-#define MSG_SIMPLE_TAG	0x20
-#define MSG_HEAD_TAG	0x21
-#define MSG_ORDERED_TAG	0x22
-#define MSG_ACA_TAG	0x24	/* unsupported */
-
 #define SCSI_NO_TAG	(-1)    /* identify no tag in use */
 
 
 #ifdef CONFIG_BLOCK
-
-int scsi_change_queue_type(struct scsi_device *sdev, int tag_type);
-
-/**
- * scsi_get_tag_type - get the type of tag the device supports
- * @sdev:	the scsi device
- */
-static inline int scsi_get_tag_type(struct scsi_device *sdev)
-{
-	if (!sdev->tagged_supported)
-		return 0;
-	if (sdev->simple_tags)
-		return MSG_SIMPLE_TAG;
-	return 0;
-}
-
-static inline void scsi_set_tag_type(struct scsi_device *sdev, int tag)
-{
-	switch (tag) {
-	case MSG_ORDERED_TAG:
-	case MSG_SIMPLE_TAG:
-		sdev->simple_tags = 1;
-		break;
-	case 0:
-		/* fall through */
-	default:
-		sdev->simple_tags = 0;
-		break;
-	}
-}
-
 static inline struct scsi_cmnd *scsi_mq_find_tag(struct Scsi_Host *shost,
 						 int unique_tag)
 {
