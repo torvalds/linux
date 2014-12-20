@@ -8,7 +8,7 @@ config DM_PERSISTENT_DATA
 	 device-mapper targets such as the thin provisioning target.
 
 config DM_DEBUG_BLOCK_STACK_TRACING
-       boolean "Keep stack trace of persistent data block lock holders"
+       bool "Keep stack trace of persistent data block lock holders"
        depends on STACKTRACE_SUPPORT && DM_PERSISTENT_DATA
        select STACKTRACE
        ---help---
