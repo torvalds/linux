@@ -551,27 +551,6 @@ static u16 get_desc_addr_fr_q_idx(u16 queue_index)
 	return desc_address;
 }
 
-void rtl92ee_get_available_desc(struct ieee80211_hw *hw, u8 q_idx)
-{
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u16 point_diff = 0;
-	u16 current_tx_read_point = 0, current_tx_write_point = 0;
-	u32 tmp_4byte;
-
-	tmp_4byte = rtl_read_dword(rtlpriv,
-				   get_desc_addr_fr_q_idx(q_idx));
-	current_tx_read_point = (u16)((tmp_4byte >> 16) & 0x0fff);
-	current_tx_write_point = (u16)((tmp_4byte) & 0x0fff);
-
-	point_diff = ((current_tx_read_point > current_tx_write_point) ?
-		      (current_tx_read_point - current_tx_write_point) :
-		      (TX_DESC_NUM_92E - current_tx_write_point +
-		       current_tx_read_point));
-
-	rtlpci->tx_ring[q_idx].avl_desc = point_diff;
-}
-
 void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
 				 u8 *tx_bd_desc, u8 *desc, u8 queue_index,
 				 struct sk_buff *skb, dma_addr_t addr)
