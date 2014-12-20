@@ -47,6 +47,8 @@
 #include "../include/lustre_net.h"
 #include "../include/lustre_sec.h"
 
+#include "ptlrpc_internal.h"
+
 #define SEC_GC_INTERVAL (30 * 60)
 
 
