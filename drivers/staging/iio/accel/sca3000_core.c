@@ -223,33 +223,6 @@ error_ret:
 	return ret;
 }
 
-#ifdef SCA3000_DEBUG
-/**
- * sca3000_check_status() check the status register
- *
- * Only used for debugging purposes
- **/
-static int sca3000_check_status(struct device *dev)
-{
-	int ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct sca3000_state *st = iio_priv(indio_dev);
-
-	mutex_lock(&st->lock);
-	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_STATUS, 1);
-	if (ret < 0)
-		goto error_ret;
-	if (st->rx[0] & SCA3000_EEPROM_CS_ERROR)
-		dev_err(dev, "eeprom error\n");
-	if (st->rx[0] & SCA3000_SPI_FRAME_ERROR)
-		dev_err(dev, "Previous SPI Frame was corrupt\n");
-
-error_ret:
-	mutex_unlock(&st->lock);
-	return ret;
-}
-#endif /* SCA3000_DEBUG */
-
 /**
  * sca3000_show_rev() - sysfs interface to read the chip revision number
  **/
