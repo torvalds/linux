@@ -832,7 +832,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 		return 0;
 	}
 
-	em28xx_info("Closing input extension");
+	em28xx_info("Closing input extension\n");
 
 	em28xx_shutdown_buttons(dev);
 
