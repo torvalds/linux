@@ -448,27 +448,6 @@ static struct mempolicy *kernfs_vma_get_policy(struct vm_area_struct *vma,
 	return pol;
 }
 
-static int kernfs_vma_migrate(struct vm_area_struct *vma,
-			      const nodemask_t *from, const nodemask_t *to,
-			      unsigned long flags)
-{
-	struct file *file = vma->vm_file;
-	struct kernfs_open_file *of = kernfs_of(file);
-	int ret;
-
-	if (!of->vm_ops)
-		return 0;
-
-	if (!kernfs_get_active(of->kn))
-		return 0;
-
-	ret = 0;
-	if (of->vm_ops->migrate)
-		ret = of->vm_ops->migrate(vma, from, to, flags);
-
-	kernfs_put_active(of->kn);
-	return ret;
-}
 #endif
 
 static const struct vm_operations_struct kernfs_vm_ops = {
@@ -479,7 +458,6 @@ static const struct vm_operations_struct kernfs_vm_ops = {
 #ifdef CONFIG_NUMA
 	.set_policy	= kernfs_vma_set_policy,
 	.get_policy	= kernfs_vma_get_policy,
-	.migrate	= kernfs_vma_migrate,
 #endif
 };
 
