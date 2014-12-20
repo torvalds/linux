@@ -654,8 +654,6 @@ next_button:
 	if (dev->num_button_polling_addresses) {
 		memset(dev->button_polling_last_values, 0,
 		       EM28XX_NUM_BUTTON_ADDRESSES_MAX);
-		INIT_DELAYED_WORK(&dev->buttons_query_work,
-				  em28xx_query_buttons);
 		schedule_delayed_work(&dev->buttons_query_work,
 				      msecs_to_jiffies(dev->button_polling_interval));
 	}
@@ -689,6 +687,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	}
 
 	kref_get(&dev->ref);
+	INIT_DELAYED_WORK(&dev->buttons_query_work, em28xx_query_buttons);
 
 	if (dev->board.buttons)
 		em28xx_init_buttons(dev);
