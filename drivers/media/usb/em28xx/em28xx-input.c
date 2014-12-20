@@ -861,7 +861,7 @@ static int em28xx_ir_suspend(struct em28xx *dev)
 	if (dev->is_audio_only)
 		return 0;
 
-	em28xx_info("Suspending input extension");
+	em28xx_info("Suspending input extension\n");
 	if (ir)
 		cancel_delayed_work_sync(&ir->work);
 	cancel_delayed_work_sync(&dev->buttons_query_work);
@@ -878,7 +878,7 @@ static int em28xx_ir_resume(struct em28xx *dev)
 	if (dev->is_audio_only)
 		return 0;
 
-	em28xx_info("Resuming input extension");
+	em28xx_info("Resuming input extension\n");
 	/* if suspend calls ir_raw_event_unregister(), the should call
 	   ir_raw_event_register() */
 	if (ir)
