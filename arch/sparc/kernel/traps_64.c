@@ -2564,39 +2564,11 @@ void do_cee(struct pt_regs *regs)
 	die_if_kernel("TL0: Cache Error Exception", regs);
 }
 
-void do_cee_tl1(struct pt_regs *regs)
-{
-	exception_enter();
-	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
-	die_if_kernel("TL1: Cache Error Exception", regs);
-}
-
-void do_dae_tl1(struct pt_regs *regs)
-{
-	exception_enter();
-	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
-	die_if_kernel("TL1: Data Access Exception", regs);
-}
-
-void do_iae_tl1(struct pt_regs *regs)
-{
-	exception_enter();
-	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
-	die_if_kernel("TL1: Instruction Access Exception", regs);
-}
-
 void do_div0_tl1(struct pt_regs *regs)
 {
 	exception_enter();
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	die_if_kernel("TL1: DIV0 Exception", regs);
-}
-
-void do_fpdis_tl1(struct pt_regs *regs)
-{
-	exception_enter();
-	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
-	die_if_kernel("TL1: FPU Disabled", regs);
 }
 
 void do_fpieee_tl1(struct pt_regs *regs)
