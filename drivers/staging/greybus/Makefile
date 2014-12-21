@@ -2,6 +2,7 @@ greybus-y :=	core.o		\
 		debugfs.o	\
 		ap.o		\
 		manifest.o	\
+		module.o	\
 		interface.o	\
 		bundle.o	\
 		connection.o	\

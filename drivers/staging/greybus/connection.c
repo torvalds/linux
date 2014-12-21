@@ -237,7 +237,7 @@ void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
 	vaf.va = &args;
 
 	pr_err("greybus: [%hhu:%hhu:%hu]: %pV\n",
-		connection->bundle->intf->module_id,
+		connection->bundle->intf->module->module_id,
 		connection->bundle->id,
 		connection->bundle_cport_id, &vaf);
 

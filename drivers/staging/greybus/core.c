@@ -46,11 +46,14 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 
 static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
+	struct gb_module *module = NULL;
 	struct gb_interface *intf = NULL;
 	struct gb_bundle *bundle = NULL;
 	struct gb_connection *connection = NULL;
 
-	if (is_gb_interface(dev)) {
+	if (is_gb_module(dev)) {
+		module = to_gb_module(dev);
+	} else if (is_gb_interface(dev)) {
 		intf = to_gb_interface(dev);
 	} else if (is_gb_bundle(dev)) {
 		bundle = to_gb_bundle(dev);

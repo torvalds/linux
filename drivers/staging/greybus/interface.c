@@ -74,13 +74,15 @@ gb_interface_match_id(struct gb_interface *intf,
 	return NULL;
 }
 
+// FIXME, odds are you don't want to call this function, rework the caller to
+// not need it please.
 struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
 				       u8 module_id)
 {
 	struct gb_interface *intf;
 
 	list_for_each_entry(intf, &hd->interfaces, links)
-		if (intf->module_id == module_id)
+		if (intf->module->module_id == module_id)
 			return intf;
 
 	return NULL;
@@ -105,43 +107,51 @@ struct device_type greybus_interface_type = {
  *
  * Create a gb_interface structure to represent a discovered module.
  * The position within the Endo is encoded in the "module_id" argument.
- * Returns a pointer to the new module or a null pointer if a
+ * Returns a pointer to the new interfce or a null pointer if a
  * failure occurs due to memory exhaustion.
  */
 static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 						u8 module_id)
 {
+	struct gb_module *module;
 	struct gb_interface *intf;
 	int retval;
+	u8 interface_id = module_id;
 
-	intf = gb_interface_find(hd, module_id);
+	// FIXME we need an interface id here to check for this properly!
+	intf = gb_interface_find(hd, interface_id);
 	if (intf) {
 		dev_err(hd->parent, "Duplicate module id %d will not be created\n",
 			module_id);
 		return NULL;
 	}
 
+	module = gb_module_find_or_create(hd, module_id);
+	if (!module)
+		return NULL;
+
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
 	if (!intf)
 		return NULL;
 
 	intf->hd = hd;		/* XXX refcount? */
-	intf->module_id = module_id;
+	intf->module = module;
 	INIT_LIST_HEAD(&intf->bundles);
 
-	intf->dev.parent = hd->parent;
+	intf->dev.parent = &module->dev;
 	intf->dev.bus = &greybus_bus_type;
 	intf->dev.type = &greybus_interface_type;
 	intf->dev.groups = interface_groups;
 	intf->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&intf->dev);
-	dev_set_name(&intf->dev, "%d", module_id);
+	dev_set_name(&intf->dev, "%s:%d", dev_name(&module->dev), interface_id);
 
 	retval = device_add(&intf->dev);
 	if (retval) {
 		pr_err("failed to add module device for id 0x%02hhx\n",
 			module_id);
 		put_device(&intf->dev);
+		put_device(&module->dev);
 		kfree(intf);
 		return NULL;
 	}
@@ -169,6 +179,7 @@ static void gb_interface_destroy(struct gb_interface *intf)
 
 	kfree(intf->product_string);
 	kfree(intf->vendor_string);
+	put_device(&intf->module->dev);
 	/* kref_put(module->hd); */
 
 	device_del(&intf->dev);

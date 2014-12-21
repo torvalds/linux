@@ -21,6 +21,11 @@
 }
 #endif
 
+#ifndef __ATTR_RW
+#define __ATTR_RW(_name) __ATTR(_name, (S_IWUSR | S_IRUGO),		\
+		                         _name##_show, _name##_store)
+#endif
+
 #ifndef DEVICE_ATTR_RO
 #define DEVICE_ATTR_RO(_name) \
 	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
@@ -29,6 +34,11 @@
 #ifndef DEVICE_ATTR_WO
 #define DEVICE_ATTR_WO(_name) \
 	struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
+#endif
+
+#ifndef DEVICE_ATTR_RW
+#define DEVICE_ATTR_RW(_name) \
+	struct device_attribute dev_attr_##_name = __ATTR_RW(_name)
 #endif
 
 #ifndef U8_MAX

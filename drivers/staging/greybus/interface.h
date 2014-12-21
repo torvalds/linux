@@ -16,7 +16,7 @@ struct gb_interface {
 
 	struct list_head bundles;
 	struct list_head links;	/* greybus_host_device->interfaces */
-	u8 module_id;		/* Physical location within the Endo */
+	u8 interface_id;	/* Physical location within the Endo */
 
 	/* Information taken from the manifest module descriptor */
 	u16 vendor;
@@ -25,6 +25,7 @@ struct gb_interface {
 	char *product_string;
 	u64 unique_id;
 
+	struct gb_module *module;
 	struct greybus_host_device *hd;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)
