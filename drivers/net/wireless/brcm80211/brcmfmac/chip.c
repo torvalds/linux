@@ -101,14 +101,7 @@
 /* ARM Cortex M3 core, ID 0x82a */
 #define BCM4329_CORE_ARM_BASE		0x18002000
 #define BCM4329_RAMSIZE			0x48000
-
 /* bcm43143 */
-/* SDIO device core */
-#define BCM43143_CORE_BUS_BASE		0x18002000
-/* internal memory core */
-#define BCM43143_CORE_SOCRAM_BASE	0x18004000
-/* ARM Cortex M3 core, ID 0x82a */
-#define BCM43143_CORE_ARM_BASE		0x18003000
 #define BCM43143_RAMSIZE		0x70000
 
 #define CORE_SB(base, field) \
@@ -163,13 +156,6 @@ struct brcmf_core_priv {
 	struct list_head list;
 	struct brcmf_chip_priv *chip;
 };
-
-/* ARM CR4 core specific control flag bits */
-#define ARMCR4_BCMA_IOCTL_CPUHALT	0x0020
-
-/* D11 core specific control flag bits */
-#define D11_BCMA_IOCTL_PHYCLOCKEN	0x0004
-#define D11_BCMA_IOCTL_PHYRESET		0x0008
 
 struct brcmf_chip_priv {
 	struct brcmf_chip pub;
