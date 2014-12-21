@@ -200,6 +200,7 @@ struct brcmf_cfg80211_vif {
 	struct list_head list;
 	u16 mgmt_rx_reg;
 	bool mbss;
+	int is_11d;
 };
 
 /* association inform */
