@@ -79,6 +79,15 @@ static inline u64 cyclecounter_cyc2ns(const struct cyclecounter *cc,
 }
 
 /**
+ * timecounter_adjtime - Shifts the time of the clock.
+ * @delta:	Desired change in nanoseconds.
+ */
+static inline void timecounter_adjtime(struct timecounter *tc, s64 delta)
+{
+	tc->nsec += delta;
+}
+
+/**
  * timecounter_init - initialize a time counter
  * @tc:			Pointer to time counter which is to be initialized/reset
  * @cc:			A cycle counter, ready to be used.
