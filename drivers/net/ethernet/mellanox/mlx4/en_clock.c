@@ -147,12 +147,9 @@ static int mlx4_en_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct mlx4_en_dev *mdev = container_of(ptp, struct mlx4_en_dev,
 						ptp_clock_info);
 	unsigned long flags;
-	s64 now;
 
 	write_lock_irqsave(&mdev->clock_lock, flags);
-	now = timecounter_read(&mdev->clock);
-	now += delta;
-	timecounter_init(&mdev->clock, &mdev->cycles, now);
+	timecounter_adjtime(&mdev->clock, delta);
 	write_unlock_irqrestore(&mdev->clock_lock, flags);
 
 	return 0;
