@@ -14,6 +14,8 @@
 #include <linux/sched.h>
 #include <asm/mipsregs.h>
 
+#define OCTEON_CR_OPCODE_PRIORITY 300
+
 extern unsigned long octeon_crypto_enable(struct octeon_cop2_state *state);
 extern void octeon_crypto_disable(struct octeon_cop2_state *state,
 				  unsigned long flags);
