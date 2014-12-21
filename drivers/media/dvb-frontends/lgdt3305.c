@@ -241,6 +241,7 @@ static int lgdt3305_mpeg_mode_polarity(struct lgdt3305_state *state)
 	u8 val;
 	int ret;
 	enum lgdt3305_tp_clock_edge edge = state->cfg->tpclk_edge;
+	enum lgdt3305_tp_clock_mode mode = state->cfg->tpclk_mode;
 	enum lgdt3305_tp_valid_polarity valid = state->cfg->tpvalid_polarity;
 
 	lg_dbg("edge = %d, valid = %d\n", edge, valid);
@@ -253,6 +254,8 @@ static int lgdt3305_mpeg_mode_polarity(struct lgdt3305_state *state)
 
 	if (edge)
 		val |= 0x08;
+	if (mode)
+		val |= 0x40;
 	if (valid)
 		val |= 0x01;
 
