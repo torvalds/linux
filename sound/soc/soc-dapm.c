@@ -3880,7 +3880,6 @@ void snd_soc_dapm_auto_nc_pins(struct snd_soc_card *card)
 		switch (w->id) {
 		case snd_soc_dapm_input:
 		case snd_soc_dapm_output:
-		case snd_soc_dapm_micbias:
 			dev_dbg(card->dev, "ASoC: Auto NC: Checking widget %s\n",
 				w->name);
 			if (!snd_soc_dapm_widget_in_card_paths(card, w)) {
