@@ -894,7 +894,7 @@ static u32 brcmf_msgbuf_rxbuf_data_post(struct brcmf_msgbuf *msgbuf, u32 count)
 							      count,
 							      &alloced);
 	if (!ret_ptr) {
-		brcmf_err("Failed to reserve space in commonring\n");
+		brcmf_dbg(MSGBUF, "Failed to reserve space in commonring\n");
 		return 0;
 	}
 
