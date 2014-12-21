@@ -1093,9 +1093,8 @@ static int brcmf_get_pend_8021x_cnt(struct brcmf_if *ifp)
 	return atomic_read(&ifp->pend_8021x_cnt);
 }
 
-int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
+int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	int err;
 
 	err = wait_event_timeout(ifp->pend_8021x_wait,
