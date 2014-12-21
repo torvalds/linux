@@ -29,7 +29,7 @@
 #include "e1000_mac.h"
 #include "e1000_82575.h"
 
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/bitops.h>

@@ -38,7 +38,7 @@
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
 
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 

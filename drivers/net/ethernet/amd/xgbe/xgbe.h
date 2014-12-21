@@ -124,7 +124,7 @@
 #include <linux/if_vlan.h>
 #include <linux/bitops.h>
 #include <linux/ptp_clock_kernel.h>
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
 #include <net/dcbnl.h>
 
