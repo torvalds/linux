@@ -267,7 +267,6 @@ static struct platform_driver rt288x_pci_driver = {
 	.probe = rt288x_pci_probe,
 	.driver = {
 		.name = "rt288x-pci",
-		.owner = THIS_MODULE,
 		.of_match_table = rt288x_pci_match,
 	},
 };
