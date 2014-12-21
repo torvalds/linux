@@ -236,12 +236,12 @@ static inline int lgdt3305_mpeg_mode(struct lgdt3305_state *state,
 	return lgdt3305_set_reg_bit(state, LGDT3305_TP_CTRL_1, 5, mode);
 }
 
-static int lgdt3305_mpeg_mode_polarity(struct lgdt3305_state *state,
-				       enum lgdt3305_tp_clock_edge edge,
-				       enum lgdt3305_tp_valid_polarity valid)
+static int lgdt3305_mpeg_mode_polarity(struct lgdt3305_state *state)
 {
 	u8 val;
 	int ret;
+	enum lgdt3305_tp_clock_edge edge = state->cfg->tpclk_edge;
+	enum lgdt3305_tp_valid_polarity valid = state->cfg->tpvalid_polarity;
 
 	lg_dbg("edge = %d, valid = %d\n", edge, valid);
 
@@ -740,9 +740,7 @@ static int lgdt3304_set_parameters(struct dvb_frontend *fe)
 		goto fail;
 
 	/* lgdt3305_mpeg_mode_polarity calls lgdt3305_soft_reset */
-	ret = lgdt3305_mpeg_mode_polarity(state,
-					  state->cfg->tpclk_edge,
-					  state->cfg->tpvalid_polarity);
+	ret = lgdt3305_mpeg_mode_polarity(state);
 fail:
 	return ret;
 }
@@ -806,9 +804,7 @@ static int lgdt3305_set_parameters(struct dvb_frontend *fe)
 		goto fail;
 
 	/* lgdt3305_mpeg_mode_polarity calls lgdt3305_soft_reset */
-	ret = lgdt3305_mpeg_mode_polarity(state,
-					  state->cfg->tpclk_edge,
-					  state->cfg->tpvalid_polarity);
+	ret = lgdt3305_mpeg_mode_polarity(state);
 fail:
 	return ret;
 }
