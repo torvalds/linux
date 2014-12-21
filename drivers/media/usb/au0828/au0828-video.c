@@ -2029,7 +2029,6 @@ int au0828_analog_register(struct au0828_dev *dev,
 	}
 	if (!(dev->isoc_in_endpointaddr)) {
 		pr_info("Could not locate isoc endpoint\n");
-		kfree(dev);
 		return -ENODEV;
 	}
 
