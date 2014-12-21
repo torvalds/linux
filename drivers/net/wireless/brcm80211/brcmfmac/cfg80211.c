@@ -3982,7 +3982,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	brcmf_dbg(TRACE, "ssid=%s(%zu), auth_type=%d, inactivity_timeout=%d\n",
 		  settings->ssid, settings->ssid_len, settings->auth_type,
 		  settings->inactivity_timeout);
-
 	dev_role = ifp->vif->wdev.iftype;
 	mbss = ifp->vif->mbss;
 
@@ -5921,6 +5920,29 @@ int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
 				  vif_event_equals(event, action), timeout);
 }
 
+static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
+					struct regulatory_request *req)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
+	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
+	struct brcmf_fil_country_le ccreq;
+	int i;
+
+	brcmf_dbg(TRACE, "enter: initiator=%d, alpha=%c%c\n", req->initiator,
+		  req->alpha2[0], req->alpha2[1]);
+
+	/* ignore non-ISO3166 country codes */
+	for (i = 0; i < sizeof(req->alpha2); i++)
+		if (req->alpha2[i] < 'A' || req->alpha2[i] > 'Z') {
+			brcmf_err("not a ISO3166 code\n");
+			return;
+		}
+	memset(&ccreq, 0, sizeof(ccreq));
+	ccreq.rev = cpu_to_le32(-1);
+	memcpy(ccreq.ccode, req->alpha2, sizeof(req->alpha2));
+	brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq));
+}
+
 static void brcmf_free_wiphy(struct wiphy *wiphy)
 {
 	kfree(wiphy->iface_combinations);
@@ -5997,6 +6019,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		goto priv_out;
 
 	brcmf_dbg(INFO, "Registering custom regulatory\n");
+	wiphy->reg_notifier = brcmf_cfg80211_reg_notifier;
 	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy_apply_custom_regulatory(wiphy, &brcmf_regdom);
 

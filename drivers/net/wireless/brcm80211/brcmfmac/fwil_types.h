@@ -112,6 +112,7 @@
 #define BRCMF_WOWL_MAXPATTERNS		8
 #define BRCMF_WOWL_MAXPATTERNSIZE	128
 
+#define BRCMF_COUNTRY_BUF_SZ		4
 
 /* join preference types for join_pref iovar */
 enum brcmf_join_pref_types {
@@ -523,6 +524,19 @@ struct brcmf_mbss_ssid_le {
 	__le32	bsscfgidx;
 	__le32	SSID_len;
 	unsigned char SSID[32];
+};
+
+/**
+ * struct brcmf_fil_country_le - country configuration structure.
+ *
+ * @country_abbrev: null-terminated country code used in the country IE.
+ * @rev: revision specifier for ccode. on set, -1 indicates unspecified.
+ * @ccode: null-terminated built-in country code.
+ */
+struct brcmf_fil_country_le {
+	char country_abbrev[BRCMF_COUNTRY_BUF_SZ];
+	__le32 rev;
+	char ccode[BRCMF_COUNTRY_BUF_SZ];
 };
 
 #endif /* FWIL_TYPES_H_ */
