@@ -55,27 +55,32 @@ struct cyclecounter {
  * @cycle_last:		most recent cycle counter value seen by
  *			timecounter_read()
  * @nsec:		continuously increasing count
+ * @mask:		bit mask for maintaining the 'frac' field
+ * @frac:		accumulated fractional nanoseconds
  */
 struct timecounter {
 	const struct cyclecounter *cc;
 	cycle_t cycle_last;
 	u64 nsec;
+	u64 mask;
+	u64 frac;
 };
 
 /**
  * cyclecounter_cyc2ns - converts cycle counter cycles to nanoseconds
  * @cc:		Pointer to cycle counter.
  * @cycles:	Cycles
- *
- * XXX - This could use some mult_lxl_ll() asm optimization. Same code
- * as in cyc2ns, but with unsigned result.
+ * @mask:	bit mask for maintaining the 'frac' field
+ * @frac:	pointer to storage for the fractional nanoseconds.
  */
 static inline u64 cyclecounter_cyc2ns(const struct cyclecounter *cc,
-				      cycle_t cycles)
+				      cycle_t cycles, u64 mask, u64 *frac)
 {
-	u64 ret = (u64)cycles;
-	ret = (ret * cc->mult) >> cc->shift;
-	return ret;
+	u64 ns = (u64) cycles;
+
+	ns = (ns * cc->mult) + *frac;
+	*frac = ns & mask;
+	return ns >> cc->shift;
 }
 
 /**

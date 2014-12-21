@@ -240,7 +240,7 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_dev *dev = mdev->dev;
 	unsigned long flags;
-	u64 ns;
+	u64 ns, zero = 0;
 
 	rwlock_init(&mdev->clock_lock);
 
@@ -265,7 +265,7 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 	/* Calculate period in seconds to call the overflow watchdog - to make
 	 * sure counter is checked at least once every wrap around.
 	 */
-	ns = cyclecounter_cyc2ns(&mdev->cycles, mdev->cycles.mask);
+	ns = cyclecounter_cyc2ns(&mdev->cycles, mdev->cycles.mask, zero, &zero);
 	do_div(ns, NSEC_PER_SEC / 2 / HZ);
 	mdev->overflow_period = ns;
 
