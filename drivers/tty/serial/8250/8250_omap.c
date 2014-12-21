@@ -1331,7 +1331,6 @@ static struct platform_driver omap8250_platform_driver = {
 		.name		= "omap8250",
 		.pm		= &omap8250_dev_pm_ops,
 		.of_match_table = omap8250_dt_ids,
-		.owner		= THIS_MODULE,
 	},
 	.probe			= omap8250_probe,
 	.remove			= omap8250_remove,
