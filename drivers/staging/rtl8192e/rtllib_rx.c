@@ -2176,34 +2176,6 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 	return 0;
 }
 
-static inline u8 rtllib_SignalStrengthTranslate(u8  CurrSS)
-{
-	u8 RetSS;
-
-	if (CurrSS >= 71 && CurrSS <= 100)
-		RetSS = 90 + ((CurrSS - 70) / 3);
-	else if (CurrSS >= 41 && CurrSS <= 70)
-		RetSS = 78 + ((CurrSS - 40) / 3);
-	else if (CurrSS >= 31 && CurrSS <= 40)
-		RetSS = 66 + (CurrSS - 30);
-	else if (CurrSS >= 21 && CurrSS <= 30)
-		RetSS = 54 + (CurrSS - 20);
-	else if (CurrSS >= 5 && CurrSS <= 20)
-		RetSS = 42 + (((CurrSS - 5) * 2) / 3);
-	else if (CurrSS == 4)
-		RetSS = 36;
-	else if (CurrSS == 3)
-		RetSS = 27;
-	else if (CurrSS == 2)
-		RetSS = 18;
-	else if (CurrSS == 1)
-		RetSS = 9;
-	else
-		RetSS = CurrSS;
-
-	return RetSS;
-}
-
 static long rtllib_translate_todbm(u8 signal_strength_index)
 {
 	long	signal_power;
@@ -2329,13 +2301,6 @@ static inline int is_same_network(struct rtllib_network *src,
 		(dst->capability & WLAN_CAPABILITY_IBSS)) &&
 		((src->capability & WLAN_CAPABILITY_ESS) ==
 		(dst->capability & WLAN_CAPABILITY_ESS)));
-}
-
-static inline void update_ibss_network(struct rtllib_network *dst,
-				  struct rtllib_network *src)
-{
-	memcpy(&dst->stats, &src->stats, sizeof(struct rtllib_rx_stats));
-	dst->last_scanned = jiffies;
 }
 
 
