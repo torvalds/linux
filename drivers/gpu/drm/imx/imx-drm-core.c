@@ -116,8 +116,7 @@ int imx_drm_panel_format_pins(struct drm_encoder *encoder,
 	helper = &imx_crtc->imx_drm_helper_funcs;
 	if (helper->set_interface_pix_fmt)
 		return helper->set_interface_pix_fmt(encoder->crtc,
-				encoder->encoder_type, interface_pix_fmt,
-				hsync_pin, vsync_pin);
+				interface_pix_fmt, hsync_pin, vsync_pin);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(imx_drm_panel_format_pins);

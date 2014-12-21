@@ -46,7 +46,6 @@ struct ipu_crtc {
 	struct drm_framebuffer	*newfb;
 	int			irq;
 	u32			interface_pix_fmt;
-	unsigned long		di_clkflags;
 	int			di_hsync_pin;
 	int			di_vsync_pin;
 };
@@ -141,22 +140,42 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 			       int x, int y,
 			       struct drm_framebuffer *old_fb)
 {
+	struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-	int ret;
 	struct ipu_di_signal_cfg sig_cfg = {};
+	unsigned long encoder_types = 0;
 	u32 out_pixel_fmt;
+	int ret;
 
 	dev_dbg(ipu_crtc->dev, "%s: mode->hdisplay: %d\n", __func__,
 			mode->hdisplay);
 	dev_dbg(ipu_crtc->dev, "%s: mode->vdisplay: %d\n", __func__,
 			mode->vdisplay);
 
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		if (encoder->crtc == crtc)
+			encoder_types |= BIT(encoder->encoder_type);
+
+	dev_dbg(ipu_crtc->dev, "%s: attached to encoder types 0x%lx\n",
+		__func__, encoder_types);
+
+	/*
+	 * If we have DAC, TVDAC or LDB, then we need the IPU DI clock
+	 * to be the same as the LDB DI clock.
+	 */
+	if (encoder_types & (BIT(DRM_MODE_ENCODER_DAC) |
+			     BIT(DRM_MODE_ENCODER_TVDAC) |
+			     BIT(DRM_MODE_ENCODER_LVDS)))
+		sig_cfg.clkflags = IPU_DI_CLKMODE_SYNC | IPU_DI_CLKMODE_EXT;
+	else
+		sig_cfg.clkflags = 0;
+
 	out_pixel_fmt = ipu_crtc->interface_pix_fmt;
 
 	sig_cfg.enable_pol = 1;
 	sig_cfg.clk_pol = 0;
 	sig_cfg.pixel_fmt = out_pixel_fmt;
-	sig_cfg.clkflags = ipu_crtc->di_clkflags;
 	sig_cfg.v_to_h_sync = 0;
 	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
 	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
@@ -271,7 +290,7 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 	ipu_crtc->newfb = NULL;
 }
 
-static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
+static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc,
 		u32 pixfmt, int hsync_pin, int vsync_pin)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
@@ -279,19 +298,6 @@ static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
 	ipu_crtc->interface_pix_fmt = pixfmt;
 	ipu_crtc->di_hsync_pin = hsync_pin;
 	ipu_crtc->di_vsync_pin = vsync_pin;
-
-	switch (encoder_type) {
-	case DRM_MODE_ENCODER_DAC:
-	case DRM_MODE_ENCODER_TVDAC:
-	case DRM_MODE_ENCODER_LVDS:
-		ipu_crtc->di_clkflags = IPU_DI_CLKMODE_SYNC |
-			IPU_DI_CLKMODE_EXT;
-		break;
-	case DRM_MODE_ENCODER_TMDS:
-	case DRM_MODE_ENCODER_NONE:
-		ipu_crtc->di_clkflags = 0;
-		break;
-	}
 
 	return 0;
 }
