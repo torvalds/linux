@@ -366,7 +366,6 @@ MODULE_DEVICE_TABLE(acpi, sst_acpi_ids);
 static struct platform_driver sst_acpi_driver = {
 	.driver = {
 		.name			= "intel_sst_acpi",
-		.owner			= THIS_MODULE,
 		.acpi_match_table	= ACPI_PTR(sst_acpi_ids),
 		.pm			= &intel_sst_pm,
 	},
