@@ -785,22 +785,6 @@ int fm_rx_set_rds_system(struct fmdev *fmdev, u8 rds_mode)
 	return 0;
 }
 
-/* Returns current RDS operation mode */
-int fm_rx_get_rds_system(struct fmdev *fmdev, u8 *rds_mode)
-{
-	if (fmdev->curr_fmmode != FM_MODE_RX)
-		return -EPERM;
-
-	if (rds_mode == NULL) {
-		fmerr("Invalid memory\n");
-		return -ENOMEM;
-	}
-
-	*rds_mode = fmdev->rx.rds_mode;
-
-	return 0;
-}
-
 /* Configures Alternate Frequency switch mode */
 int fm_rx_set_af_switch(struct fmdev *fmdev, u8 af_mode)
 {
