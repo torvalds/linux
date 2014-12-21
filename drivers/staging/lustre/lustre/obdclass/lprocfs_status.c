@@ -45,6 +45,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre/lustre_idl.h"
 #include <linux/seq_file.h>
+#include <linux/ctype.h>
 
 static const char * const obd_connect_names[] = {
 	"read_only",
@@ -1896,16 +1897,16 @@ int lprocfs_write_frac_u64_helper(const char *buffer, unsigned long count,
 	}
 
 	units = 1;
-	switch (*end) {
-	case 'p': case 'P':
+	switch (tolower(*end)) {
+	case 'p':
 		units <<= 10;
-	case 't': case 'T':
+	case 't':
 		units <<= 10;
-	case 'g': case 'G':
+	case 'g':
 		units <<= 10;
-	case 'm': case 'M':
+	case 'm':
 		units <<= 10;
-	case 'k': case 'K':
+	case 'k':
 		units <<= 10;
 	}
 	/* Specified units override the multiplier */
