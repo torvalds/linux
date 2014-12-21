@@ -10,7 +10,7 @@
  *	in my own time even though it was in some ways related to commercial
  *	work I am currently employed to do there.
  *
- *	All the material in this file is subject to the Gnu license version 2.
+ *	All the material in this file is subject to the GNU license version 2.
  *	Neither Alan Cox nor the Swansea University Computer Society admit
  *	liability nor provide warranty for any of this software. This material
  *	is provided as is and at no charge.
