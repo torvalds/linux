@@ -789,7 +789,7 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	buffer->buffer_group.attrs[1] = &dev_attr_enable.attr;
 	if (buffer->attrs)
 		memcpy(&buffer->buffer_group.attrs[2], buffer->attrs,
-			sizeof(*&buffer->buffer_group.attrs) * (attrcount - 2));
+			sizeof(*&buffer->buffer_group.attrs) * attrcount);
 	buffer->buffer_group.attrs[attrcount+2] = NULL;
 
 	indio_dev->groups[indio_dev->groupcounter++] = &buffer->buffer_group;
