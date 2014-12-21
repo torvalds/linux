@@ -230,11 +230,6 @@ static inline int is_imx1_dma(struct imxdma_engine *imxdma)
 	return imxdma->devtype == IMX1_DMA;
 }
 
-static inline int is_imx21_dma(struct imxdma_engine *imxdma)
-{
-	return imxdma->devtype == IMX21_DMA;
-}
-
 static inline int is_imx27_dma(struct imxdma_engine *imxdma)
 {
 	return imxdma->devtype == IMX27_DMA;
