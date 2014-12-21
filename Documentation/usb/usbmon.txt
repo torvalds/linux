@@ -72,7 +72,7 @@ to listen on a single bus, otherwise, to listen on all buses, type:
 
 # cat /sys/kernel/debug/usb/usbmon/0u > /tmp/1.mon.out
 
-This process will be reading until killed. Naturally, the output can be
+This process will read until it is killed. Naturally, the output can be
 redirected to a desirable location. This is preferred, because it is going
 to be quite long.
 
