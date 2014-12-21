@@ -161,19 +161,11 @@
 			clock-output-names = "apb0_codec", "apb0_pio", "apb0_ir";
 		};
 
-		apb1_mux: apb1_mux@01c20058 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-apb1-mux-clk";
-			reg = <0x01c20058 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&osc32k>;
-			clock-output-names = "apb1_mux";
-		};
-
-		apb1: apb1@01c20058 {
+		apb1: clk@01c20058 {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun4i-a10-apb1-clk";
 			reg = <0x01c20058 0x4>;
-			clocks = <&apb1_mux>;
+			clocks = <&osc24M>, <&pll6 1>, <&osc32k>;
 			clock-output-names = "apb1";
 		};
 

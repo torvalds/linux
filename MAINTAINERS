@@ -2576,8 +2576,9 @@ F:	drivers/media/platform/coda/
 
 COMMON CLK FRAMEWORK
 M:	Mike Turquette <mturquette@linaro.org>
+M:	Stephen Boyd <sboyd@codeaurora.org>
 L:	linux-kernel@vger.kernel.org
-T:	git git://git.linaro.org/people/mturquette/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/clk/linux.git
 S:	Maintained
 F:	drivers/clk/
 X:	drivers/clk/clkdev.c

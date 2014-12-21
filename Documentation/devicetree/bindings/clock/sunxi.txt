@@ -10,14 +10,17 @@ Required properties:
 	"allwinner,sun4i-a10-pll1-clk" - for the main PLL clock and PLL4
 	"allwinner,sun6i-a31-pll1-clk" - for the main PLL clock on A31
 	"allwinner,sun8i-a23-pll1-clk" - for the main PLL clock on A23
+	"allwinner,sun9i-a80-pll4-clk" - for the peripheral PLLs on A80
 	"allwinner,sun4i-a10-pll5-clk" - for the PLL5 clock
 	"allwinner,sun4i-a10-pll6-clk" - for the PLL6 clock
 	"allwinner,sun6i-a31-pll6-clk" - for the PLL6 clock on A31
+	"allwinner,sun9i-a80-gt-clk" - for the GT bus clock on A80
 	"allwinner,sun4i-a10-cpu-clk" - for the CPU multiplexer clock
 	"allwinner,sun4i-a10-axi-clk" - for the AXI clock
 	"allwinner,sun8i-a23-axi-clk" - for the AXI clock on A23
 	"allwinner,sun4i-a10-axi-gates-clk" - for the AXI gates
 	"allwinner,sun4i-a10-ahb-clk" - for the AHB clock
+	"allwinner,sun9i-a80-ahb-clk" - for the AHB bus clocks on A80
 	"allwinner,sun4i-a10-ahb-gates-clk" - for the AHB gates on A10
 	"allwinner,sun5i-a13-ahb-gates-clk" - for the AHB gates on A13
 	"allwinner,sun5i-a10s-ahb-gates-clk" - for the AHB gates on A10s
@@ -26,24 +29,29 @@ Required properties:
 	"allwinner,sun6i-a31-ahb1-mux-clk" - for the AHB1 multiplexer on A31
 	"allwinner,sun6i-a31-ahb1-gates-clk" - for the AHB1 gates on A31
 	"allwinner,sun8i-a23-ahb1-gates-clk" - for the AHB1 gates on A23
+	"allwinner,sun9i-a80-ahb0-gates-clk" - for the AHB0 gates on A80
+	"allwinner,sun9i-a80-ahb1-gates-clk" - for the AHB1 gates on A80
+	"allwinner,sun9i-a80-ahb2-gates-clk" - for the AHB2 gates on A80
 	"allwinner,sun4i-a10-apb0-clk" - for the APB0 clock
 	"allwinner,sun6i-a31-apb0-clk" - for the APB0 clock on A31
 	"allwinner,sun8i-a23-apb0-clk" - for the APB0 clock on A23
+	"allwinner,sun9i-a80-apb0-clk" - for the APB0 bus clock on A80
 	"allwinner,sun4i-a10-apb0-gates-clk" - for the APB0 gates on A10
 	"allwinner,sun5i-a13-apb0-gates-clk" - for the APB0 gates on A13
 	"allwinner,sun5i-a10s-apb0-gates-clk" - for the APB0 gates on A10s
 	"allwinner,sun6i-a31-apb0-gates-clk" - for the APB0 gates on A31
 	"allwinner,sun7i-a20-apb0-gates-clk" - for the APB0 gates on A20
 	"allwinner,sun8i-a23-apb0-gates-clk" - for the APB0 gates on A23
+	"allwinner,sun9i-a80-apb0-gates-clk" - for the APB0 gates on A80
 	"allwinner,sun4i-a10-apb1-clk" - for the APB1 clock
-	"allwinner,sun4i-a10-apb1-mux-clk" - for the APB1 clock muxing
+	"allwinner,sun9i-a80-apb1-clk" - for the APB1 bus clock on A80
 	"allwinner,sun4i-a10-apb1-gates-clk" - for the APB1 gates on A10
 	"allwinner,sun5i-a13-apb1-gates-clk" - for the APB1 gates on A13
 	"allwinner,sun5i-a10s-apb1-gates-clk" - for the APB1 gates on A10s
 	"allwinner,sun6i-a31-apb1-gates-clk" - for the APB1 gates on A31
 	"allwinner,sun7i-a20-apb1-gates-clk" - for the APB1 gates on A20
 	"allwinner,sun8i-a23-apb1-gates-clk" - for the APB1 gates on A23
-	"allwinner,sun6i-a31-apb2-div-clk" - for the APB2 gates on A31
+	"allwinner,sun9i-a80-apb1-gates-clk" - for the APB1 gates on A80
 	"allwinner,sun6i-a31-apb2-gates-clk" - for the APB2 gates on A31
 	"allwinner,sun8i-a23-apb2-gates-clk" - for the APB2 gates on A23
 	"allwinner,sun5i-a13-mbus-clk" - for the MBUS clock on A13
@@ -63,8 +71,9 @@ Required properties for all clocks:
 	multiplexed clocks, the list order must match the hardware
 	programming order.
 - #clock-cells : from common clock binding; shall be set to 0 except for
-	"allwinner,*-gates-clk", "allwinner,sun4i-pll5-clk" and
-	"allwinner,sun4i-pll6-clk" where it shall be set to 1
+	the following compatibles where it shall be set to 1:
+	"allwinner,*-gates-clk", "allwinner,sun4i-pll5-clk",
+	"allwinner,sun4i-pll6-clk", "allwinner,sun6i-a31-pll6-clk"
 - clock-output-names : shall be the corresponding names of the outputs.
 	If the clock module only has one output, the name shall be the
 	module name.
@@ -79,6 +88,12 @@ Clock consumers should specify the desired clocks they use with a
 "clocks" phandle cell. Consumers that are using a gated clock should
 provide an additional ID in their clock property. This ID is the
 offset of the bit controlling this particular gate in the register.
+For the other clocks with "#clock-cells" = 1, the additional ID shall
+refer to the index of the output.
+
+For "allwinner,sun6i-a31-pll6-clk", there are 2 outputs. The first output
+is the normal PLL6 output, or "pll6". The second output is rate doubled
+PLL6, or "pll6x2".
 
 For example:
 
@@ -104,6 +119,14 @@ pll5: clk@01c20020 {
 	reg = <0x01c20020 0x4>;
 	clocks = <&osc24M>;
 	clock-output-names = "pll5_ddr", "pll5_other";
+};
+
+pll6: clk@01c20028 {
+	#clock-cells = <1>;
+	compatible = "allwinner,sun6i-a31-pll6-clk";
+	reg = <0x01c20028 0x4>;
+	clocks = <&osc24M>;
+	clock-output-names = "pll6", "pll6x2";
 };
 
 cpu: cpu@01c20054 {
