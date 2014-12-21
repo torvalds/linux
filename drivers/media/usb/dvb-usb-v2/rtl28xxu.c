@@ -29,20 +29,14 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int rtl28xxu_ctrl_msg(struct dvb_usb_device *d, struct rtl28xxu_req *req)
 {
+	struct rtl28xxu_dev *dev = d->priv;
 	int ret;
 	unsigned int pipe;
 	u8 requesttype;
-	u8 *buf;
-
-	buf = kmalloc(req->size, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto err;
-	}
 
 	if (req->index & CMD_WR_FLAG) {
 		/* write */
-		memcpy(buf, req->data, req->size);
+		memcpy(dev->buf, req->data, req->size);
 		requesttype = (USB_TYPE_VENDOR | USB_DIR_OUT);
 		pipe = usb_sndctrlpipe(d->udev, 0);
 	} else {
@@ -52,24 +46,17 @@ static int rtl28xxu_ctrl_msg(struct dvb_usb_device *d, struct rtl28xxu_req *req)
 	}
 
 	ret = usb_control_msg(d->udev, pipe, 0, requesttype, req->value,
-			req->index, buf, req->size, 1000);
-
+			req->index, dev->buf, req->size, 1000);
 	dvb_usb_dbg_usb_control_msg(d->udev, 0, requesttype, req->value,
-			req->index, buf, req->size);
-
-	if (ret > 0)
-		ret = 0;
-
-	/* read request, copy returned data to return buf */
-	if (!ret && requesttype == (USB_TYPE_VENDOR | USB_DIR_IN))
-		memcpy(req->data, buf, req->size);
-
-	kfree(buf);
-
-	if (ret)
+			req->index, dev->buf, req->size);
+	if (ret < 0)
 		goto err;
 
-	return ret;
+	/* read request, copy returned data to return buf */
+	if (requesttype == (USB_TYPE_VENDOR | USB_DIR_IN))
+		memcpy(req->data, dev->buf, req->size);
+
+	return 0;
 err:
 	dev_dbg(&d->intf->dev, "failed=%d\n", ret);
 	return ret;
