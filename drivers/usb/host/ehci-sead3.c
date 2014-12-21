@@ -178,7 +178,6 @@ static struct platform_driver ehci_hcd_sead3_driver = {
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name	= "sead3-ehci",
-		.owner	= THIS_MODULE,
 		.pm	= SEAD3_EHCI_PMOPS,
 	}
 };
