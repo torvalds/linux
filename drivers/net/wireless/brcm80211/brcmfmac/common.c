@@ -25,6 +25,9 @@
 #include "fwil.h"
 #include "fwil_types.h"
 #include "tracepoint.h"
+#include "common.h"
+
+const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 #define BRCMF_DEFAULT_BCN_TIMEOUT	3
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
