@@ -1500,9 +1500,11 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		if (conf->enable_beacon) {
 			vnt_beacon_enable(priv, vif, conf);
 
-			MACvRegBitsOn(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
+			MACvRegBitsOn(priv->PortOffset, MAC_REG_TCR,
+				      TCR_AUTOBCNTX);
 		} else {
-			MACvRegBitsOff(priv, MAC_REG_TCR, TCR_AUTOBCNTX);
+			MACvRegBitsOff(priv->PortOffset, MAC_REG_TCR,
+				       TCR_AUTOBCNTX);
 		}
 	}
 
