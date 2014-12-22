@@ -680,6 +680,15 @@ config GPIO_74X164
 	  8-outputs shift registers. This driver can be used to provide access
 	  to more gpio outputs.
 
+config GPIO_A10SYCON
+	tristate "Altera Arria10 System Controller GPIO"
+	depends on ARCH_SOCFPGA
+	select MFD_A10SYCON
+	help
+	  Driver for Arria10 GPIO expansion which includes reads of
+	  pushbuttons and DIP switches as well as writes to LEDs and
+	  peripheral reset.
+
 comment "AC97 GPIO expanders:"
 
 config GPIO_UCB1400

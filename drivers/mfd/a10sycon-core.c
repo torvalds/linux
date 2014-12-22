@@ -106,7 +106,18 @@ int a10sycon_device_init(struct a10sycon *a10sc)
 
 	init_completion(&a10sc->done);
 
+	ret = a10sycon_irq_init(a10sc);
+	if (ret != 0) {
+		dev_err(a10sc->dev, "a10sycon_irq_init failed: %d\n", ret);
+		return ret;
+	}
+
 	return 0;
+}
+
+void a10sycon_device_exit(struct a10sycon *a10sc)
+{
+	a10sycon_irq_exit(a10sc);
 }
 
 MODULE_LICENSE("GPL v2");
