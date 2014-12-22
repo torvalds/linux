@@ -304,7 +304,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 	size_t callchain_size = 0;
 	struct hist_entry *he;
 
-	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain)
+	if (symbol_conf.use_callchain)
 		callchain_size = sizeof(struct callchain_root);
 
 	he = zalloc(sizeof(*he) + callchain_size);
@@ -737,7 +737,7 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	iter->he = he;
 	he_cache[iter->curr++] = he;
 
-	callchain_append(he->callchain, &callchain_cursor, sample->period);
+	hist_entry__append_callchain(he, sample);
 
 	/*
 	 * We need to re-initialize the cursor since callchain_append()
@@ -810,7 +810,8 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	iter->he = he;
 	he_cache[iter->curr++] = he;
 
-	callchain_append(he->callchain, &cursor, sample->period);
+	if (symbol_conf.use_callchain)
+		callchain_append(he->callchain, &cursor, sample->period);
 	return 0;
 }
 
