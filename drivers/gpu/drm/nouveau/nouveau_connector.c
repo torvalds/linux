@@ -1199,14 +1199,18 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 	/* default scaling mode */
 	switch (nv_connector->type) {
-	case DCB_CONNECTOR_TV_0:
-	case DCB_CONNECTOR_TV_1:
-	case DCB_CONNECTOR_TV_3:
-	case DCB_CONNECTOR_VGA:
+	case DCB_CONNECTOR_LVDS:
+	case DCB_CONNECTOR_LVDS_SPWG:
+	case DCB_CONNECTOR_eDP:
+		/* see note in nouveau_connector_set_property() */
+		if (disp->disp.oclass < NV50_DISP) {
+			nv_connector->scaling_mode = DRM_MODE_SCALE_FULLSCREEN;
+			break;
+		}
 		nv_connector->scaling_mode = DRM_MODE_SCALE_NONE;
 		break;
 	default:
-		nv_connector->scaling_mode = DRM_MODE_SCALE_FULLSCREEN;
+		nv_connector->scaling_mode = DRM_MODE_SCALE_NONE;
 		break;
 	}
 
