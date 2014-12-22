@@ -5797,6 +5797,7 @@ F:	arch/x86/kernel/livepatch.c
 F:	Documentation/ABI/testing/sysfs-kernel-livepatch
 F:	samples/livepatch/
 L:	live-patching@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/livepatching.git
 
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
