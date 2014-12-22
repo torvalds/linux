@@ -458,8 +458,6 @@ void xen_setup_timer(int cpu)
 
 void xen_setup_cpu_clockevents(void)
 {
-	BUG_ON(preemptible());
-
 	clockevents_register_device(this_cpu_ptr(&xen_clock_events.evt));
 }
 
