@@ -2699,8 +2699,6 @@ static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
 		kfree(bdev);
 	}
 
-	i2c_set_clientdata(client, NULL);
-
 	return 0;
 }
 
