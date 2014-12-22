@@ -26,7 +26,7 @@
 
 #include "priv.h"
 
-static void
+void
 nouveau_pwr_pgob(struct nouveau_pwr *ppwr, bool enable)
 {
 	const struct nvkm_pwr_impl *impl = (void *)nv_oclass(ppwr);

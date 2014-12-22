@@ -26,6 +26,7 @@ int _nouveau_pwr_ctor(struct nouveau_object *, struct nouveau_object *,
 #define _nouveau_pwr_dtor _nouveau_subdev_dtor
 int _nouveau_pwr_init(struct nouveau_object *);
 int _nouveau_pwr_fini(struct nouveau_object *, bool);
+void nouveau_pwr_pgob(struct nouveau_pwr *ppwr, bool enable);
 
 struct nvkm_pwr_impl {
 	struct nouveau_oclass base;
