@@ -144,7 +144,7 @@ struct ep93xx_dma_desc {
  * @queue: pending descriptors which are handled next
  * @free_list: list of free descriptors which can be used
  * @runtime_addr: physical address currently used as dest/src (M2M only). This
- *                is set via %DMA_SLAVE_CONFIG before slave operation is
+ *                is set via .device_config before slave operation is
  *                prepared
  * @runtime_ctrl: M2M runtime values for the control register.
  *
