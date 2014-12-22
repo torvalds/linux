@@ -1995,8 +1995,8 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 
 	VPRINTK("ENTER\n");
 
-	/* set scsi removeable (RMB) bit per ata bit */
-	if (ata_id_removeable(args->id))
+	/* set scsi removable (RMB) bit per ata bit */
+	if (ata_id_removable(args->id))
 		hdr[1] |= (1 << 7);
 
 	if (args->dev->class == ATA_DEV_ZAC) {
