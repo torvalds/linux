@@ -1999,12 +1999,9 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
 	bio->bi_bdev = log->bdev;
-	bio->bi_io_vec[0].bv_page = bp->l_page;
-	bio->bi_io_vec[0].bv_len = LOGPSIZE;
-	bio->bi_io_vec[0].bv_offset = bp->l_offset;
 
-	bio->bi_vcnt = 1;
-	bio->bi_iter.bi_size = LOGPSIZE;
+	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
+	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
@@ -2145,12 +2142,9 @@ static void lbmStartIO(struct lbuf * bp)
 	bio = bio_alloc(GFP_NOFS, 1);
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
 	bio->bi_bdev = log->bdev;
-	bio->bi_io_vec[0].bv_page = bp->l_page;
-	bio->bi_io_vec[0].bv_len = LOGPSIZE;
-	bio->bi_io_vec[0].bv_offset = bp->l_offset;
 
-	bio->bi_vcnt = 1;
-	bio->bi_iter.bi_size = LOGPSIZE;
+	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
+	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;

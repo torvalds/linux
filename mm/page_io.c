@@ -33,12 +33,10 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 	if (bio) {
 		bio->bi_iter.bi_sector = map_swap_page(page, &bio->bi_bdev);
 		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
-		bio->bi_io_vec[0].bv_page = page;
-		bio->bi_io_vec[0].bv_len = PAGE_SIZE;
-		bio->bi_io_vec[0].bv_offset = 0;
-		bio->bi_vcnt = 1;
-		bio->bi_iter.bi_size = PAGE_SIZE;
 		bio->bi_end_io = end_io;
+
+		bio_add_page(bio, page, PAGE_SIZE, 0);
+		BUG_ON(bio->bi_iter.bi_size != PAGE_SIZE);
 	}
 	return bio;
 }
