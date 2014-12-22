@@ -9,8 +9,9 @@ ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
 CFLAGS_REMOVE_code-patching.o = -pg
 CFLAGS_REMOVE_feature-fixups.o = -pg
 
-obj-y			:= string.o alloc.o \
-			   crtsavres.o ppc_ksyms.o
+obj-y += string.o alloc.o crtsavres.o ppc_ksyms.o code-patching.o \
+	 feature-fixups.o
+
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
 
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \
@@ -33,8 +34,6 @@ endif
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
 
-obj-y			+= code-patching.o
-obj-y			+= feature-fixups.o
 obj-$(CONFIG_FTR_FIXUP_SELFTEST) += feature-fixups-test.o
 
 obj-$(CONFIG_ALTIVEC)	+= xor_vmx.o
