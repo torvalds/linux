@@ -1246,6 +1246,13 @@ static int netlink_release(struct socket *sock)
 		netlink_table_ungrab();
 	}
 
+	if (nlk->netlink_unbind) {
+		int i;
+
+		for (i = 0; i < nlk->ngroups; i++)
+			if (test_bit(i, nlk->groups))
+				nlk->netlink_unbind(i + 1);
+	}
 	kfree(nlk->groups);
 	nlk->groups = NULL;
 
