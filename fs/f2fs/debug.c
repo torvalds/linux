@@ -265,11 +265,16 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "CP calls: %d\n", si->cp_count);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
-		seq_printf(s, "  - data segments : %d\n", si->data_segs);
-		seq_printf(s, "  - node segments : %d\n", si->node_segs);
-		seq_printf(s, "Try to move %d blocks\n", si->tot_blks);
-		seq_printf(s, "  - data blocks : %d\n", si->data_blks);
-		seq_printf(s, "  - node blocks : %d\n", si->node_blks);
+		seq_printf(s, "  - data segments : %d (%d)\n",
+				si->data_segs, si->bg_data_segs);
+		seq_printf(s, "  - node segments : %d (%d)\n",
+				si->node_segs, si->bg_node_segs);
+		seq_printf(s, "Try to move %d blocks (BG: %d)\n", si->tot_blks,
+				si->bg_data_blks + si->bg_node_blks);
+		seq_printf(s, "  - data blocks : %d (%d)\n", si->data_blks,
+				si->bg_data_blks);
+		seq_printf(s, "  - node blocks : %d (%d)\n", si->node_blks,
+				si->bg_node_blks);
 		seq_printf(s, "\nExtent Hit Ratio: %d / %d\n",
 			   si->hit_ext, si->total_ext);
 		seq_printf(s, "\nExtent Tree Count: %d\n", si->ext_tree);

@@ -1634,7 +1634,9 @@ struct f2fs_stat_info {
 	int dirty_count, node_pages, meta_pages;
 	int prefree_count, call_count, cp_count;
 	int tot_segs, node_segs, data_segs, free_segs, free_secs;
+	int bg_node_segs, bg_data_segs;
 	int tot_blks, data_blks, node_blks;
+	int bg_data_blks, bg_node_blks;
 	int curseg[NR_CURSEG_TYPE];
 	int cursec[NR_CURSEG_TYPE];
 	int curzone[NR_CURSEG_TYPE];
@@ -1683,31 +1685,36 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 		((sbi)->block_count[(curseg)->alloc_type]++)
 #define stat_inc_inplace_blocks(sbi)					\
 		(atomic_inc(&(sbi)->inplace_count))
-#define stat_inc_seg_count(sbi, type)					\
+#define stat_inc_seg_count(sbi, type, gc_type)				\
 	do {								\
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		(si)->tot_segs++;					\
-		if (type == SUM_TYPE_DATA)				\
+		if (type == SUM_TYPE_DATA) {				\
 			si->data_segs++;				\
-		else							\
+			si->bg_data_segs += (gc_type == BG_GC) ? 1 : 0;	\
+		} else {						\
 			si->node_segs++;				\
+			si->bg_node_segs += (gc_type == BG_GC) ? 1 : 0;	\
+		}							\
 	} while (0)
 
 #define stat_inc_tot_blk_count(si, blks)				\
 	(si->tot_blks += (blks))
 
-#define stat_inc_data_blk_count(sbi, blks)				\
+#define stat_inc_data_blk_count(sbi, blks, gc_type)			\
 	do {								\
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		stat_inc_tot_blk_count(si, blks);			\
 		si->data_blks += (blks);				\
+		si->bg_data_blks += (gc_type == BG_GC) ? (blks) : 0;	\
 	} while (0)
 
-#define stat_inc_node_blk_count(sbi, blks)				\
+#define stat_inc_node_blk_count(sbi, blks, gc_type)			\
 	do {								\
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		stat_inc_tot_blk_count(si, blks);			\
 		si->node_blks += (blks);				\
+		si->bg_node_blks += (gc_type == BG_GC) ? (blks) : 0;	\
 	} while (0)
 
 int f2fs_build_stats(struct f2fs_sb_info *);
@@ -1729,10 +1736,10 @@ void f2fs_destroy_root_stats(void);
 #define stat_inc_seg_type(sbi, curseg)
 #define stat_inc_block_count(sbi, curseg)
 #define stat_inc_inplace_blocks(sbi)
-#define stat_inc_seg_count(si, type)
+#define stat_inc_seg_count(sbi, type, gc_type)
 #define stat_inc_tot_blk_count(si, blks)
-#define stat_inc_data_blk_count(si, blks)
-#define stat_inc_node_blk_count(sbi, blks)
+#define stat_inc_data_blk_count(sbi, blks, gc_type)
+#define stat_inc_node_blk_count(sbi, blks, gc_type)
 
 static inline int f2fs_build_stats(struct f2fs_sb_info *sbi) { return 0; }
 static inline void f2fs_destroy_stats(struct f2fs_sb_info *sbi) { }
