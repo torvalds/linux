@@ -401,6 +401,9 @@ nouveau_clock_nstate(struct nouveau_clock *clk, const char *mode, int arglen)
 {
 	int ret = 1;
 
+	if (clk->allow_reclock && !strncasecmpz(mode, "auto", arglen))
+		return -2;
+
 	if (strncasecmpz(mode, "disabled", arglen)) {
 		char save = mode[arglen];
 		long v;
