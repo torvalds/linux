@@ -5895,6 +5895,7 @@ static __init int hardware_setup(void)
 		kvm_x86_ops->update_cr8_intercept = NULL;
 	else {
 		kvm_x86_ops->hwapic_irr_update = NULL;
+		kvm_x86_ops->hwapic_isr_update = NULL;
 		kvm_x86_ops->deliver_posted_interrupt = NULL;
 		kvm_x86_ops->sync_pir_to_irr = vmx_sync_pir_to_irr_dummy;
 	}
@@ -7477,9 +7478,6 @@ static void vmx_hwapic_isr_update(struct kvm *kvm, int isr)
 {
 	u16 status;
 	u8 old;
-
-	if (!vmx_vm_has_apicv(kvm))
-		return;
 
 	if (isr == -1)
 		isr = 0;

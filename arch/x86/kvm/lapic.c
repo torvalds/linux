@@ -402,7 +402,7 @@ static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
 	 * because the processor can modify ISR under the hood.  Instead
 	 * just set SVI.
 	 */
-	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm)))
+	if (unlikely(kvm_x86_ops->hwapic_isr_update))
 		kvm_x86_ops->hwapic_isr_update(vcpu->kvm, vec);
 	else {
 		++apic->isr_count;
@@ -450,7 +450,7 @@ static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
 	 * on the other hand isr_count and highest_isr_cache are unused
 	 * and must be left alone.
 	 */
-	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm)))
+	if (unlikely(kvm_x86_ops->hwapic_isr_update))
 		kvm_x86_ops->hwapic_isr_update(vcpu->kvm,
 					       apic_find_highest_isr(apic));
 	else {
@@ -1742,7 +1742,9 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	if (kvm_x86_ops->hwapic_irr_update)
 		kvm_x86_ops->hwapic_irr_update(vcpu,
 				apic_find_highest_irr(apic));
-	kvm_x86_ops->hwapic_isr_update(vcpu->kvm, apic_find_highest_isr(apic));
+	if (unlikely(kvm_x86_ops->hwapic_isr_update))
+		kvm_x86_ops->hwapic_isr_update(vcpu->kvm,
+				apic_find_highest_isr(apic));
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	kvm_rtc_eoi_tracking_restore_one(vcpu);
 }
