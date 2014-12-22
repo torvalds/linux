@@ -9,6 +9,9 @@ static void usb20otg_hw_init(void)
 	/* Turn off differential receiver in suspend mode */
 	writel(UOC_HIWORD_UPDATE(0, 1, 2),
 		   RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON6);
+	/* Set disconnect detection trigger point to 600mv */
+	writel(UOC_HIWORD_UPDATE(1, 0xf, 11),
+		   RK_GRF_VIRT + RK312X_GRF_USBPHY0_CON7);
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
 	if (gpio_is_valid(control_usb->otg_gpios->gpio)) {
