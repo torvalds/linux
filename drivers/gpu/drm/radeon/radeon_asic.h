@@ -390,7 +390,6 @@ void r600_irq_suspend(struct radeon_device *rdev);
 void r600_disable_interrupts(struct radeon_device *rdev);
 void r600_rlc_stop(struct radeon_device *rdev);
 /* r600 audio */
-int r600_audio_init(struct radeon_device *rdev);
 void r600_audio_fini(struct radeon_device *rdev);
 void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock);
 void r600_hdmi_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
@@ -680,7 +679,6 @@ void trinity_dpm_enable_bapm(struct radeon_device *rdev, bool enable);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
-int dce6_audio_init(struct radeon_device *rdev);
 void dce6_audio_fini(struct radeon_device *rdev);
 
 /*

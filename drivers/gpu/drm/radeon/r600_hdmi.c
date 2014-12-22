@@ -70,15 +70,6 @@ static const struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
     { 148500,  4096, 148500,  6272, 165000,  6144, 148500 }, /* 148.50       MHz */
 };
 
-
-/*
- * check if the chipset is supported
- */
-static int r600_audio_chipset_supported(struct radeon_device *rdev)
-{
-	return ASIC_IS_DCE2(rdev) && !ASIC_IS_NODCE(rdev);
-}
-
 static struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
 {
 	struct r600_audio_pin status;
@@ -189,29 +180,6 @@ void r600_audio_enable(struct radeon_device *rdev,
 	}
 
 	WREG32(AZ_HOT_PLUG_CONTROL, tmp);
-}
-
-/*
- * initialize the audio vars
- */
-int r600_audio_init(struct radeon_device *rdev)
-{
-	if (!radeon_audio || !r600_audio_chipset_supported(rdev))
-		return 0;
-
-	rdev->audio.enabled = true;
-
-	rdev->audio.num_pins = 1;
-	rdev->audio.pin[0].channels = -1;
-	rdev->audio.pin[0].rate = -1;
-	rdev->audio.pin[0].bits_per_sample = -1;
-	rdev->audio.pin[0].status_bits = 0;
-	rdev->audio.pin[0].category_code = 0;
-	rdev->audio.pin[0].id = 0;
-	/* disable audio.  it will be set up later */
-	r600_audio_enable(rdev, &rdev->audio.pin[0], 0);
-
-	return 0;
 }
 
 /*
