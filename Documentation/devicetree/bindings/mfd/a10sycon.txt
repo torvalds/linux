@@ -1,0 +1,51 @@
+* Altera Arria10 System Control IC
+
+Required parent device properties:
+- compatible : "altr,a10sycon"
+- spi-max-frequency : Maximum SPI frequency.
+- reg : the SPI Chip Select address for the Arria10 System Controller chip
+- interrupts : IRQ line for the Arria10 System Controller chip
+- interrupt-controller: describes the Arria10 System Controller as an
+  interrupt controller  (has its own domain)
+- interrupt-parent: The GPIO line that is used for key interrupts.
+- #interrupt-cells : should be 2.
+
+The A10SyCon consists of this varied group of sub-devices:
+
+Device			 Supply Names	 Description
+------			 ------------	 -----------
+a10sycon-gpio		:		: GPIO Controller
+a10sycon-hwmon		:		: Hardware Monitor
+a10sycon-reset		:		: Reset Manager
+
+The input key and LEDs are implemented entirely in the device tree using
+the gpio-leds and gpio-keys frameworks.
+
+Example:
+
+        a10_sysctl: a10_sysctl@0 {
+		compatible = "altr,a10sycon";
+		reg = <0>;
+		interrupt-parent = <&gpio1>;
+		/* low-level active IRQ at GPIO1_5 */
+		interrupts = <5 0x8>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		spi-max-frequency = <100000>;
+
+		gpio4: gpio-controller {
+			compatible = "altr,a10sycon-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+		};
+
+		hwmon: a10hwmon {
+			compatible = "altr,a10sycon-hwmon";
+		};
+
+		a10rst: a10rst {
+			compatible = "altr,a10sycon-reset";
+			#reset-cells = <1>;
+		};
+	};
