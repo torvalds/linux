@@ -504,7 +504,7 @@ static int nbpf_prep_one(struct nbpf_link_desc *ldesc,
 	 * pauses DMA and reads out data received via DMA as well as those left
 	 * in the Rx FIFO. For this to work with the RAM side using burst
 	 * transfers we enable the SBE bit and terminate the transfer in our
-	 * DMA_PAUSE handler.
+	 * .device_pause handler.
 	 */
 	mem_xfer = nbpf_xfer_ds(chan->nbpf, size);
 
