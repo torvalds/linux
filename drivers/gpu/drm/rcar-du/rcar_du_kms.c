@@ -224,12 +224,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 
 	entity_ep_node = of_parse_phandle(ep->local_node, "remote-endpoint", 0);
 
-	while (1) {
-		ep_node = of_graph_get_next_endpoint(entity, ep_node);
-
-		if (!ep_node)
-			break;
-
+	for_each_endpoint_of_node(entity, ep_node) {
 		if (ep_node == entity_ep_node)
 			continue;
 
@@ -296,23 +291,18 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 {
 	struct device_node *np = rcdu->dev->of_node;
-	struct device_node *ep_node = NULL;
+	struct device_node *ep_node;
 	unsigned int num_encoders = 0;
 
 	/*
 	 * Iterate over the endpoints and create one encoder for each output
 	 * pipeline.
 	 */
-	while (1) {
+	for_each_endpoint_of_node(np, ep_node) {
 		enum rcar_du_output output;
 		struct of_endpoint ep;
 		unsigned int i;
 		int ret;
-
-		ep_node = of_graph_get_next_endpoint(np, ep_node);
-
-		if (ep_node == NULL)
-			break;
 
 		ret = of_graph_parse_endpoint(ep_node, &ep);
 		if (ret < 0) {
