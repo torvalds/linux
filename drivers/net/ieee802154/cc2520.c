@@ -19,7 +19,6 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/skbuff.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/ieee802154.h>
 
@@ -841,7 +840,6 @@ done:
 static int cc2520_probe(struct spi_device *spi)
 {
 	struct cc2520_private *priv;
-	struct pinctrl *pinctrl;
 	struct cc2520_platform_data *pdata;
 	int ret;
 
@@ -853,11 +851,6 @@ static int cc2520_probe(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, priv);
-
-	pinctrl = devm_pinctrl_get_select_default(&spi->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&spi->dev,
-			 "pinctrl pins are not configured\n");
 
 	pdata = cc2520_get_platform_data(spi);
 	if (!pdata) {
