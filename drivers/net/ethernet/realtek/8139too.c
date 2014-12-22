@@ -787,10 +787,10 @@ static struct net_device *rtl8139_init_board(struct pci_dev *pdev)
 	if (rc)
 		goto err_out;
 
+	disable_dev_on_err = 1;
 	rc = pci_request_regions (pdev, DRV_NAME);
 	if (rc)
 		goto err_out;
-	disable_dev_on_err = 1;
 
 	pci_set_master (pdev);
 
