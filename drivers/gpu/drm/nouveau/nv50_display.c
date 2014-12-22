@@ -550,6 +550,10 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	u32 *push;
 	int ret;
 
+	if (crtc->primary->fb->width != fb->width ||
+	    crtc->primary->fb->height != fb->height)
+		return -EINVAL;
+
 	swap_interval <<= 4;
 	if (swap_interval == 0)
 		swap_interval |= 0x100;
