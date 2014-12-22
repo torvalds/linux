@@ -188,7 +188,7 @@ static void of_dma_configure(struct device *dev)
 		size = dev->coherent_dma_mask;
 	} else {
 		offset = PFN_DOWN(paddr - dma_addr);
-		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
+		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", offset);
 	}
 	dev->dma_pfn_offset = offset;
 
