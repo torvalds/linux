@@ -180,6 +180,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &gk20a_volt_oclass;
+		device->oclass[NVDEV_SUBDEV_PWR    ] =  gk20a_pwr_oclass;
 		break;
 	case 0xf0:
 		device->cname = "GK110";

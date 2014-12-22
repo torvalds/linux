@@ -201,6 +201,7 @@ nouveau-y += core/subdev/pwr/nvc0.o
 nouveau-y += core/subdev/pwr/nvd0.o
 nouveau-y += core/subdev/pwr/gk104.o
 nouveau-y += core/subdev/pwr/nv108.o
+nouveau-y += core/subdev/pwr/gk20a.o
 nouveau-y += core/subdev/therm/base.o
 nouveau-y += core/subdev/therm/fan.o
 nouveau-y += core/subdev/therm/fannil.o

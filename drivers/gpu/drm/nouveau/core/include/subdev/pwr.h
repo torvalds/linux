@@ -38,6 +38,7 @@ extern struct nouveau_oclass *nvc0_pwr_oclass;
 extern struct nouveau_oclass *nvd0_pwr_oclass;
 extern struct nouveau_oclass *gk104_pwr_oclass;
 extern struct nouveau_oclass *nv108_pwr_oclass;
+extern struct nouveau_oclass *gk20a_pwr_oclass;
 
 /* interface to MEMX process running on PPWR */
 struct nouveau_memx;
