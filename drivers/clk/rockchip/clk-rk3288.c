@@ -805,6 +805,20 @@ static int rk3288_clk_suspend(void)
 		rk3288_saved_cru_regs[i] =
 				readl_relaxed(rk3288_cru_base + reg_id);
 	}
+
+	/*
+	 * Switch PLLs other than DPLL (for SDRAM) to slow mode to
+	 * avoid crashes on resume. The Mask ROM on the system will
+	 * put APLL, CPLL, and GPLL into slow mode at resume time
+	 * anyway (which is why we restore them), but we might not
+	 * even make it to the Mask ROM if this isn't done at suspend
+	 * time.
+	 *
+	 * NOTE: only APLL truly matters here, but we'll do them all.
+	 */
+
+	writel_relaxed(0xf3030000, rk3288_cru_base + RK3288_MODE_CON);
+
 	return 0;
 }
 
