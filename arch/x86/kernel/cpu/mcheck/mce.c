@@ -115,7 +115,7 @@ static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
  * CPU/chipset specific EDAC code can register a notifier call here to print
  * MCE errors in a human-readable form.
  */
-ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
+static ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
 
 /* Do initial initialization of a struct mce */
 void mce_setup(struct mce *m)
@@ -529,7 +529,7 @@ static void mce_schedule_work(void)
 		schedule_work(this_cpu_ptr(&mce_work));
 }
 
-DEFINE_PER_CPU(struct irq_work, mce_irq_work);
+static DEFINE_PER_CPU(struct irq_work, mce_irq_work);
 
 static void mce_irq_work_cb(struct irq_work *entry)
 {
@@ -1012,7 +1012,7 @@ static void mce_clear_state(unsigned long *toclear)
  */
 #define	MCE_INFO_MAX	16
 
-struct mce_info {
+static struct mce_info {
 	atomic_t		inuse;
 	struct task_struct	*t;
 	__u64			paddr;
