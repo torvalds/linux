@@ -1466,6 +1466,26 @@ out:
 }
 
 /******************************************************************************
+ * Encoder helpers
+ *****************************************************************************/
+static bool
+nv50_encoder_mode_fixup(struct drm_encoder *encoder,
+			const struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_connector *nv_connector;
+
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	if (nv_connector && nv_connector->native_mode) {
+		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE)
+			drm_mode_copy(adjusted_mode, nv_connector->native_mode);
+	}
+
+	return true;
+}
+
+/******************************************************************************
  * DAC
  *****************************************************************************/
 static void
@@ -1490,26 +1510,6 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 	};
 
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
-static bool
-nv50_dac_mode_fixup(struct drm_encoder *encoder,
-		    const struct drm_display_mode *mode,
-		    struct drm_display_mode *adjusted_mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector;
-
-	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	if (nv_connector && nv_connector->native_mode) {
-		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
-			int id = adjusted_mode->base.id;
-			*adjusted_mode = *nv_connector->native_mode;
-			adjusted_mode->base.id = id;
-		}
-	}
-
-	return true;
 }
 
 static void
@@ -1629,7 +1629,7 @@ nv50_dac_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs nv50_dac_hfunc = {
 	.dpms = nv50_dac_dpms,
-	.mode_fixup = nv50_dac_mode_fixup,
+	.mode_fixup = nv50_encoder_mode_fixup,
 	.prepare = nv50_dac_disconnect,
 	.commit = nv50_dac_commit,
 	.mode_set = nv50_dac_mode_set,
@@ -1834,26 +1834,6 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	}
 }
 
-static bool
-nv50_sor_mode_fixup(struct drm_encoder *encoder,
-		    const struct drm_display_mode *mode,
-		    struct drm_display_mode *adjusted_mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector;
-
-	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	if (nv_connector && nv_connector->native_mode) {
-		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
-			int id = adjusted_mode->base.id;
-			*adjusted_mode = *nv_connector->native_mode;
-			adjusted_mode->base.id = id;
-		}
-	}
-
-	return true;
-}
-
 static void
 nv50_sor_ctrl(struct nouveau_encoder *nv_encoder, u32 mask, u32 data)
 {
@@ -2035,7 +2015,7 @@ nv50_sor_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs nv50_sor_hfunc = {
 	.dpms = nv50_sor_dpms,
-	.mode_fixup = nv50_sor_mode_fixup,
+	.mode_fixup = nv50_encoder_mode_fixup,
 	.prepare = nv50_sor_disconnect,
 	.commit = nv50_sor_commit,
 	.mode_set = nv50_sor_mode_set,
@@ -2112,18 +2092,8 @@ nv50_pior_mode_fixup(struct drm_encoder *encoder,
 		     const struct drm_display_mode *mode,
 		     struct drm_display_mode *adjusted_mode)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector;
-
-	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	if (nv_connector && nv_connector->native_mode) {
-		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
-			int id = adjusted_mode->base.id;
-			*adjusted_mode = *nv_connector->native_mode;
-			adjusted_mode->base.id = id;
-		}
-	}
-
+	if (!nv50_encoder_mode_fixup(encoder, mode, adjusted_mode))
+		return false;
 	adjusted_mode->clock *= 2;
 	return true;
 }
