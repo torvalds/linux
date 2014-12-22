@@ -395,11 +395,11 @@ static inline int genl_set_err(struct genl_family *family, struct net *net,
 }
 
 static inline int genl_has_listeners(struct genl_family *family,
-				     struct sock *sk, unsigned int group)
+				     struct net *net, unsigned int group)
 {
 	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return -EINVAL;
 	group = family->mcgrp_offset + group;
-	return netlink_has_listeners(sk, group);
+	return netlink_has_listeners(net->genl_sock, group);
 }
 #endif	/* __NET_GENERIC_NETLINK_H */
