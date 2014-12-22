@@ -159,7 +159,7 @@ int nva3_clock_pll_calc(struct nouveau_clock *, struct nvbios_pll *,
 			int clk, struct nouveau_pll_vals *);
 
 int nouveau_clock_ustate(struct nouveau_clock *, int req, int pwr);
-int nouveau_clock_astate(struct nouveau_clock *, int req, int rel);
+int nouveau_clock_astate(struct nouveau_clock *, int req, int rel, bool wait);
 int nouveau_clock_dstate(struct nouveau_clock *, int req, int rel);
 int nouveau_clock_tstate(struct nouveau_clock *, int req, int rel);
 

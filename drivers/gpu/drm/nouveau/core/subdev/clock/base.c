@@ -430,13 +430,13 @@ nouveau_clock_ustate(struct nouveau_clock *clk, int req, int pwr)
 }
 
 int
-nouveau_clock_astate(struct nouveau_clock *clk, int req, int rel)
+nouveau_clock_astate(struct nouveau_clock *clk, int req, int rel, bool wait)
 {
 	if (!rel) clk->astate  = req;
 	if ( rel) clk->astate += rel;
 	clk->astate = min(clk->astate, clk->state_nr - 1);
 	clk->astate = max(clk->astate, 0);
-	return nouveau_pstate_calc(clk, true);
+	return nouveau_pstate_calc(clk, wait);
 }
 
 int
