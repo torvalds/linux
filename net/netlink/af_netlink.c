@@ -1091,8 +1091,10 @@ static void netlink_remove(struct sock *sk)
 	mutex_unlock(&nl_sk_hash_lock);
 
 	netlink_table_grab();
-	if (nlk_sk(sk)->subscriptions)
+	if (nlk_sk(sk)->subscriptions) {
 		__sk_del_bind_node(sk);
+		netlink_update_listeners(sk);
+	}
 	netlink_table_ungrab();
 }
 
@@ -1226,8 +1228,8 @@ static int netlink_release(struct socket *sock)
 
 	module_put(nlk->module);
 
-	netlink_table_grab();
 	if (netlink_is_kernel(sk)) {
+		netlink_table_grab();
 		BUG_ON(nl_table[sk->sk_protocol].registered == 0);
 		if (--nl_table[sk->sk_protocol].registered == 0) {
 			struct listeners *old;
@@ -1241,10 +1243,8 @@ static int netlink_release(struct socket *sock)
 			nl_table[sk->sk_protocol].flags = 0;
 			nl_table[sk->sk_protocol].registered = 0;
 		}
-	} else if (nlk->subscriptions) {
-		netlink_update_listeners(sk);
+		netlink_table_ungrab();
 	}
-	netlink_table_ungrab();
 
 	kfree(nlk->groups);
 	nlk->groups = NULL;
