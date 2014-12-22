@@ -1197,36 +1197,57 @@ nouveau_connector_create(struct drm_device *dev, int index)
 					      disp->color_vibrance_property,
 					      150);
 
+	/* default scaling mode */
 	switch (nv_connector->type) {
-	case DCB_CONNECTOR_VGA:
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			drm_object_attach_property(&connector->base,
-					dev->mode_config.scaling_mode_property,
-					nv_connector->scaling_mode);
-		}
-		/* fall-through */
 	case DCB_CONNECTOR_TV_0:
 	case DCB_CONNECTOR_TV_1:
 	case DCB_CONNECTOR_TV_3:
+	case DCB_CONNECTOR_VGA:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_NONE;
 		break;
 	default:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_FULLSCREEN;
+		break;
+	}
 
-		drm_object_attach_property(&connector->base,
-				dev->mode_config.scaling_mode_property,
-				nv_connector->scaling_mode);
+	/* scaling mode property */
+	switch (nv_connector->type) {
+	case DCB_CONNECTOR_TV_0:
+	case DCB_CONNECTOR_TV_1:
+	case DCB_CONNECTOR_TV_3:
+		break;
+	case DCB_CONNECTOR_VGA:
+		if (disp->disp.oclass < NV50_DISP)
+			break; /* can only scale on DFPs */
+		/* fall-through */
+	default:
+		drm_object_attach_property(&connector->base, dev->mode_config.
+					   scaling_mode_property,
+					   nv_connector->scaling_mode);
+		break;
+	}
+
+	/* dithering properties */
+	switch (nv_connector->type) {
+	case DCB_CONNECTOR_TV_0:
+	case DCB_CONNECTOR_TV_1:
+	case DCB_CONNECTOR_TV_3:
+	case DCB_CONNECTOR_VGA:
+		break;
+	default:
 		if (disp->dithering_mode) {
-			nv_connector->dithering_mode = DITHERING_MODE_AUTO;
 			drm_object_attach_property(&connector->base,
-						disp->dithering_mode,
-						nv_connector->dithering_mode);
+						   disp->dithering_mode,
+						   nv_connector->
+						   dithering_mode);
+			nv_connector->dithering_mode = DITHERING_MODE_AUTO;
 		}
 		if (disp->dithering_depth) {
-			nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
 			drm_object_attach_property(&connector->base,
-						disp->dithering_depth,
-						nv_connector->dithering_depth);
+						   disp->dithering_depth,
+						   nv_connector->
+						   dithering_depth);
+			nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
 		}
 		break;
 	}
