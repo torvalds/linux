@@ -641,7 +641,8 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 
 	ops->private = func;
 	ops->func = klp_ftrace_handler;
-	ops->flags = FTRACE_OPS_FL_SAVE_REGS | FTRACE_OPS_FL_DYNAMIC;
+	ops->flags = FTRACE_OPS_FL_SAVE_REGS | FTRACE_OPS_FL_DYNAMIC |
+		     FTRACE_OPS_FL_IPMODIFY;
 	func->fops = ops;
 	func->state = KLP_DISABLED;
 
