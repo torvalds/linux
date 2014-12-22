@@ -729,8 +729,11 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	 * effectively handles NONE/FULL scaling
 	 */
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	if (nv_connector && nv_connector->native_mode)
+	if (nv_connector && nv_connector->native_mode) {
 		mode = nv_connector->scaling_mode;
+		if (nv_connector->scaling_full) /* non-EDID LVDS/eDP mode */
+			mode = DRM_MODE_SCALE_FULLSCREEN;
+	}
 
 	if (mode != DRM_MODE_SCALE_NONE)
 		omode = nv_connector->native_mode;
@@ -1478,8 +1481,23 @@ nv50_encoder_mode_fixup(struct drm_encoder *encoder,
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (nv_connector && nv_connector->native_mode) {
-		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE)
-			drm_mode_copy(adjusted_mode, nv_connector->native_mode);
+		nv_connector->scaling_full = false;
+		if (nv_connector->scaling_mode == DRM_MODE_SCALE_NONE) {
+			switch (nv_connector->type) {
+			case DCB_CONNECTOR_LVDS:
+			case DCB_CONNECTOR_LVDS_SPWG:
+			case DCB_CONNECTOR_eDP:
+				/* force use of scaler for non-edid modes */
+				if (adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
+					return true;
+				nv_connector->scaling_full = true;
+				break;
+			default:
+				return true;
+			}
+		}
+
+		drm_mode_copy(adjusted_mode, nv_connector->native_mode);
 	}
 
 	return true;

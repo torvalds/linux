@@ -458,6 +458,28 @@ nouveau_connector_set_property(struct drm_connector *connector,
 
 		switch (value) {
 		case DRM_MODE_SCALE_NONE:
+			/* We allow 'None' for EDID modes, even on a fixed
+			 * panel (some exist with support for lower refresh
+			 * rates, which people might want to use for power
+			 * saving purposes).
+			 *
+			 * Non-EDID modes will force the use of GPU scaling
+			 * to the native mode regardless of this setting.
+			 */
+			switch (nv_connector->type) {
+			case DCB_CONNECTOR_LVDS:
+			case DCB_CONNECTOR_LVDS_SPWG:
+			case DCB_CONNECTOR_eDP:
+				/* ... except prior to G80, where the code
+				 * doesn't support such things.
+				 */
+				if (disp->disp.oclass < NV50_DISP)
+					return -EINVAL;
+				break;
+			default:
+				break;
+			}
+			break;
 		case DRM_MODE_SCALE_FULLSCREEN:
 		case DRM_MODE_SCALE_CENTER:
 		case DRM_MODE_SCALE_ASPECT:
@@ -465,11 +487,6 @@ nouveau_connector_set_property(struct drm_connector *connector,
 		default:
 			return -EINVAL;
 		}
-
-		/* LVDS always needs gpu scaling */
-		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS &&
-		    value == DRM_MODE_SCALE_NONE)
-			return -EINVAL;
 
 		/* Changing between GPU and panel scaling requires a full
 		 * modeset
@@ -661,8 +678,6 @@ nouveau_connector_scaler_modes_add(struct drm_connector *connector)
 					 false, false);
 			if (!m)
 				continue;
-
-			m->type |= DRM_MODE_TYPE_DRIVER;
 
 			drm_mode_probed_add(connector, m);
 			modes++;

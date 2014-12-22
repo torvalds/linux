@@ -72,6 +72,7 @@ struct nouveau_connector {
 	int dithering_mode;
 	int dithering_depth;
 	int scaling_mode;
+	bool scaling_full;
 	enum nouveau_underscan_type underscan;
 	u32 underscan_hborder;
 	u32 underscan_vborder;
