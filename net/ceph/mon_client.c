@@ -610,7 +610,7 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	err = do_generic_request(monc, req);
 
 out:
-	kref_put(&req->kref, release_generic_request);
+	put_generic_request(req);
 	return err;
 }
 EXPORT_SYMBOL(ceph_monc_do_statfs);
@@ -699,7 +699,7 @@ int ceph_monc_do_get_version(struct ceph_mon_client *monc, const char *what,
 
 	mutex_unlock(&monc->mutex);
 out:
-	kref_put(&req->kref, release_generic_request);
+	put_generic_request(req);
 	return err;
 }
 EXPORT_SYMBOL(ceph_monc_do_get_version);
