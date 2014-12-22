@@ -1097,8 +1097,6 @@ static int ssif_remove(struct i2c_client *client)
 	if (!ssif_info)
 		return 0;
 
-	i2c_set_clientdata(client, NULL);
-
 	/*
 	 * After this point, we won't deliver anything asychronously
 	 * to the message handler.  We can unregister ourself.
