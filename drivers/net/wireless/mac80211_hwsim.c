@@ -2150,14 +2150,14 @@ static int append_radio_msg(struct sk_buff *skb, int id,
 	if (param->regd) {
 		int i;
 
-		for (i = 0; hwsim_world_regdom_custom[i] != param->regd &&
-		     i < ARRAY_SIZE(hwsim_world_regdom_custom); i++)
-			;
+		for (i = 0; i < ARRAY_SIZE(hwsim_world_regdom_custom); i++) {
+			if (hwsim_world_regdom_custom[i] != param->regd)
+				continue;
 
-		if (i < ARRAY_SIZE(hwsim_world_regdom_custom)) {
 			ret = nla_put_u32(skb, HWSIM_ATTR_REG_CUSTOM_REG, i);
 			if (ret < 0)
 				return ret;
+			break;
 		}
 	}
 
