@@ -1049,6 +1049,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	};
 	struct iwl_d3_manager_config d3_cfg_cmd = {
 		.min_sleep_time = cpu_to_le32(1000),
+		.wakeup_flags = cpu_to_le32(IWL_WAKEUP_D3_CONFIG_FW_ERROR),
 	};
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
