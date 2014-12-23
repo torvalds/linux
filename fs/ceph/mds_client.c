@@ -2286,6 +2286,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	struct ceph_mds_request *req;
 	struct ceph_mds_reply_head *head = msg->front.iov_base;
 	struct ceph_mds_reply_info_parsed *rinfo;  /* parsed reply info */
+	struct ceph_snap_realm *realm;
 	u64 tid;
 	int err, result;
 	int mds = session->s_mds;
@@ -2401,11 +2402,13 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	}
 
 	/* snap trace */
+	realm = NULL;
 	if (rinfo->snapblob_len) {
 		down_write(&mdsc->snap_rwsem);
 		ceph_update_snap_trace(mdsc, rinfo->snapblob,
-			       rinfo->snapblob + rinfo->snapblob_len,
-			       le32_to_cpu(head->op) == CEPH_MDS_OP_RMSNAP);
+				rinfo->snapblob + rinfo->snapblob_len,
+				le32_to_cpu(head->op) == CEPH_MDS_OP_RMSNAP,
+				&realm);
 		downgrade_write(&mdsc->snap_rwsem);
 	} else {
 		down_read(&mdsc->snap_rwsem);
@@ -2423,6 +2426,8 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	mutex_unlock(&req->r_fill_mutex);
 
 	up_read(&mdsc->snap_rwsem);
+	if (realm)
+		ceph_put_snap_realm(mdsc, realm);
 out_err:
 	mutex_lock(&mdsc->mutex);
 	if (!req->r_aborted) {

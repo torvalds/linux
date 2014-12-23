@@ -577,7 +577,6 @@ void ceph_add_cap(struct inode *inode,
 		struct ceph_snap_realm *realm = ceph_lookup_snap_realm(mdsc,
 							       realmino);
 		if (realm) {
-			ceph_get_snap_realm(mdsc, realm);
 			spin_lock(&realm->inodes_with_caps_lock);
 			ci->i_snap_realm = realm;
 			list_add(&ci->i_snap_realm_item,
@@ -2447,13 +2446,13 @@ static void invalidate_aliases(struct inode *inode)
  */
 static void handle_cap_grant(struct ceph_mds_client *mdsc,
 			     struct inode *inode, struct ceph_mds_caps *grant,
-			     void *snaptrace, int snaptrace_len,
 			     u64 inline_version,
 			     void *inline_data, int inline_len,
 			     struct ceph_buffer *xattr_buf,
 			     struct ceph_mds_session *session,
 			     struct ceph_cap *cap, int issued)
 	__releases(ci->i_ceph_lock)
+	__releases(mdsc->snap_rwsem)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int mds = session->s_mds;
@@ -2654,10 +2653,6 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	spin_unlock(&ci->i_ceph_lock);
 
 	if (le32_to_cpu(grant->op) == CEPH_CAP_OP_IMPORT) {
-		down_write(&mdsc->snap_rwsem);
-		ceph_update_snap_trace(mdsc, snaptrace,
-				       snaptrace + snaptrace_len, false);
-		downgrade_write(&mdsc->snap_rwsem);
 		kick_flushing_inode_caps(mdsc, session, inode);
 		up_read(&mdsc->snap_rwsem);
 		if (newcaps & ~issued)
@@ -3067,6 +3062,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	struct ceph_cap *cap;
 	struct ceph_mds_caps *h;
 	struct ceph_mds_cap_peer *peer = NULL;
+	struct ceph_snap_realm *realm;
 	int mds = session->s_mds;
 	int op, issued;
 	u32 seq, mseq;
@@ -3168,11 +3164,23 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		goto done_unlocked;
 
 	case CEPH_CAP_OP_IMPORT:
+		realm = NULL;
+		if (snaptrace_len) {
+			down_write(&mdsc->snap_rwsem);
+			ceph_update_snap_trace(mdsc, snaptrace,
+					       snaptrace + snaptrace_len,
+					       false, &realm);
+			downgrade_write(&mdsc->snap_rwsem);
+		} else {
+			down_read(&mdsc->snap_rwsem);
+		}
 		handle_cap_import(mdsc, inode, h, peer, session,
 				  &cap, &issued);
-		handle_cap_grant(mdsc, inode, h,  snaptrace, snaptrace_len,
+		handle_cap_grant(mdsc, inode, h,
 				 inline_version, inline_data, inline_len,
 				 msg->middle, session, cap, issued);
+		if (realm)
+			ceph_put_snap_realm(mdsc, realm);
 		goto done_unlocked;
 	}
 
@@ -3192,7 +3200,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	case CEPH_CAP_OP_GRANT:
 		__ceph_caps_issued(ci, &issued);
 		issued |= __ceph_caps_dirty(ci);
-		handle_cap_grant(mdsc, inode, h, NULL, 0,
+		handle_cap_grant(mdsc, inode, h,
 				 inline_version, inline_data, inline_len,
 				 msg->middle, session, cap, issued);
 		goto done_unlocked;
