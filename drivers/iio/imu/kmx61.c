@@ -681,7 +681,7 @@ static int kmx61_chip_update_thresholds(struct kmx61_data *data)
 }
 
 static int kmx61_setup_any_motion_interrupt(struct kmx61_data *data,
-					    bool status, u8 device)
+					    bool status)
 {
 	u8 mode;
 	int ret;
@@ -980,7 +980,7 @@ static int kmx61_write_event_config(struct iio_dev *indio_dev,
 	if (ret < 0)
 		goto err_unlock;
 
-	ret = kmx61_setup_any_motion_interrupt(data, state, KMX61_ACC);
+	ret = kmx61_setup_any_motion_interrupt(data, state);
 	if (ret < 0) {
 		kmx61_set_power_state(data, false, KMX61_ACC);
 		goto err_unlock;
@@ -1066,7 +1066,7 @@ static int kmx61_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	if (data->acc_dready_trig == trig || data->mag_dready_trig == trig)
 		ret = kmx61_setup_new_data_interrupt(data, state, device);
 	else
-		ret = kmx61_setup_any_motion_interrupt(data, state, KMX61_ACC);
+		ret = kmx61_setup_any_motion_interrupt(data, state);
 	if (ret < 0) {
 		kmx61_set_power_state(data, false, device);
 		goto err_unlock;
