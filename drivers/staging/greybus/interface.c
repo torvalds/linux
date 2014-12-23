@@ -137,6 +137,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 	intf->hd = hd;		/* XXX refcount? */
 	intf->module = module;
 	INIT_LIST_HEAD(&intf->bundles);
+	INIT_LIST_HEAD(&intf->manifest_descs);
 
 	intf->dev.parent = &module->dev;
 	intf->dev.bus = &greybus_bus_type;

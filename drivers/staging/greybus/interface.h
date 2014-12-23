@@ -16,6 +16,7 @@ struct gb_interface {
 
 	struct list_head bundles;
 	struct list_head links;	/* greybus_host_device->interfaces */
+	struct list_head manifest_descs;
 	u8 interface_id;	/* Physical location within the Endo */
 
 	/* Information taken from the manifest module descriptor */

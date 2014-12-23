@@ -28,20 +28,18 @@ struct manifest_desc {
 	enum greybus_descriptor_type	type;
 };
 
-static LIST_HEAD(manifest_descs);
-
 static void release_manifest_descriptor(struct manifest_desc *descriptor)
 {
 	list_del(&descriptor->links);
 	kfree(descriptor);
 }
 
-static void release_manifest_descriptors(void)
+static void release_manifest_descriptors(struct gb_interface *intf)
 {
 	struct manifest_desc *descriptor;
 	struct manifest_desc *next;
 
-	list_for_each_entry_safe(descriptor, next, &manifest_descs, links)
+	list_for_each_entry_safe(descriptor, next, &intf->manifest_descs, links)
 		release_manifest_descriptor(descriptor);
 }
 
@@ -55,7 +53,8 @@ static void release_manifest_descriptors(void)
  * Returns the number of bytes consumed by the descriptor, or a
  * negative errno.
  */
-static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
+static int identify_descriptor(struct gb_interface *intf,
+			       struct greybus_descriptor *desc, size_t size)
 {
 	struct greybus_descriptor_header *desc_header = &desc->header;
 	struct manifest_desc *descriptor;
@@ -116,7 +115,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
 	descriptor->size = desc_size;
 	descriptor->data = (u8 *)desc + sizeof(*desc_header);
 	descriptor->type = desc_header->type;
-	list_add_tail(&descriptor->links, &manifest_descs);
+	list_add_tail(&descriptor->links, &intf->manifest_descs);
 
 	return desc_size;
 }
@@ -132,7 +131,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
  * Otherwise returns a pointer to a newly-allocated copy of the
  * descriptor string, or an error-coded pointer on failure.
  */
-static char *gb_string_get(u8 string_id)
+static char *gb_string_get(struct gb_interface *intf, u8 string_id)
 {
 	struct greybus_descriptor_string *desc_string;
 	struct manifest_desc *descriptor;
@@ -143,7 +142,7 @@ static char *gb_string_get(u8 string_id)
 	if (!string_id)
 		return NULL;
 
-	list_for_each_entry(descriptor, &manifest_descs, links) {
+	list_for_each_entry(descriptor, &intf->manifest_descs, links) {
 
 		if (descriptor->type != GREYBUS_TYPE_STRING)
 			continue;
@@ -175,7 +174,8 @@ static char *gb_string_get(u8 string_id)
  * for the functions that use them.  Returns the number of bundles
  * set up for the given interface, or 0 if there is an error.
  */
-static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
+static u32 gb_manifest_parse_cports(struct gb_interface *intf,
+				    struct gb_bundle *bundle)
 {
 	u32 count = 0;
 
@@ -187,7 +187,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 		bool found = false;
 
 		/* Find a cport descriptor */
-		list_for_each_entry(descriptor, &manifest_descs, links) {
+		list_for_each_entry(descriptor, &intf->manifest_descs, links) {
 			if (descriptor->type == GREYBUS_TYPE_CPORT) {
 				desc_cport = descriptor->data;
 				if (desc_cport->bundle == bundle->id) {
@@ -229,7 +229,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		bool found = false;
 
 		/* Find an bundle descriptor */
-		list_for_each_entry(descriptor, &manifest_descs, links) {
+		list_for_each_entry(descriptor, &intf->manifest_descs, links) {
 			if (descriptor->type == GREYBUS_TYPE_INTERFACE) {
 				found = true;
 				break;
@@ -245,7 +245,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 			return 0;	/* Error */
 
 		/* Now go set up this bundle's functions and cports */
-		if (!gb_manifest_parse_cports(bundle))
+		if (!gb_manifest_parse_cports(intf, bundle))
 			return 0;	/* Error parsing cports */
 
 		count++;
@@ -263,11 +263,12 @@ static bool gb_manifest_parse_module(struct gb_interface *intf,
 	struct greybus_descriptor_module *desc_module = module_desc->data;
 
 	/* Handle the strings first--they can fail */
-	intf->vendor_string = gb_string_get(desc_module->vendor_stringid);
+	intf->vendor_string = gb_string_get(intf, desc_module->vendor_stringid);
 	if (IS_ERR(intf->vendor_string))
 		return false;
 
-	intf->product_string = gb_string_get(desc_module->product_stringid);
+	intf->product_string = gb_string_get(intf,
+					     desc_module->product_stringid);
 	if (IS_ERR(intf->product_string)) {
 		goto out_free_vendor_string;
 	}
@@ -331,7 +332,7 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	bool result;
 
 	/* Manifest descriptor list should be empty here */
-	if (WARN_ON(!list_empty(&manifest_descs)))
+	if (WARN_ON(!list_empty(&intf->manifest_descs)))
 		return false;
 
 	/* we have to have at _least_ the manifest header */
@@ -364,7 +365,7 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	while (size) {
 		int desc_size;
 
-		desc_size = identify_descriptor(desc, size);
+		desc_size = identify_descriptor(intf, desc, size);
 		if (desc_size <= 0) {
 			if (!desc_size)
 				pr_err("zero-sized manifest descriptor\n");
@@ -376,7 +377,7 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	}
 
 	/* There must be a single module descriptor */
-	list_for_each_entry(descriptor, &manifest_descs, links) {
+	list_for_each_entry(descriptor, &intf->manifest_descs, links) {
 		if (descriptor->type == GREYBUS_TYPE_MODULE)
 			if (!found++)
 				module_desc = descriptor;
@@ -395,10 +396,10 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	 * We really should have no remaining descriptors, but we
 	 * don't know what newer format manifests might leave.
 	 */
-	if (result && !list_empty(&manifest_descs))
+	if (result && !list_empty(&intf->manifest_descs))
 		pr_info("excess descriptors in module manifest\n");
 out:
-	release_manifest_descriptors();
+	release_manifest_descriptors(intf);
 
 	return result;
 }
