@@ -4037,7 +4037,7 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc)
 	}
 }
 
-static void intel_enable_planes(struct drm_crtc *crtc)
+static void intel_enable_sprite_planes(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
@@ -4051,7 +4051,7 @@ static void intel_enable_planes(struct drm_crtc *crtc)
 	}
 }
 
-static void intel_disable_planes(struct drm_crtc *crtc)
+static void intel_disable_sprite_planes(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
@@ -4195,7 +4195,7 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
-	intel_enable_planes(crtc);
+	intel_enable_sprite_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
 	intel_crtc_dpms_overlay(intel_crtc, true);
 
@@ -4230,7 +4230,7 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 
 	intel_crtc_dpms_overlay(intel_crtc, false);
 	intel_crtc_update_cursor(crtc, false);
-	intel_disable_planes(crtc);
+	intel_disable_sprite_planes(crtc);
 	intel_disable_primary_hw_plane(crtc->primary, crtc);
 
 	/*
@@ -12012,8 +12012,14 @@ intel_disable_plane(struct drm_plane *plane)
 					  0, 0, 0, 0, 0, 0, 0, 0);
 }
 
-/* Common destruction function for both primary and cursor planes */
-static void intel_plane_destroy(struct drm_plane *plane)
+/**
+ * intel_plane_destroy - destroy a plane
+ * @plane: plane to destroy
+ *
+ * Common destruction function for all types of planes (primary, cursor,
+ * sprite).
+ */
+void intel_plane_destroy(struct drm_plane *plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	drm_plane_cleanup(plane);

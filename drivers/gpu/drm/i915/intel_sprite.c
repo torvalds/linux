@@ -1306,14 +1306,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	}
 }
 
-static void intel_destroy_plane(struct drm_plane *plane)
-{
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	intel_disable_plane(plane);
-	drm_plane_cleanup(plane);
-	kfree(intel_plane);
-}
-
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
@@ -1413,10 +1405,10 @@ int intel_plane_restore(struct drm_plane *plane)
 				  intel_plane->src_w, intel_plane->src_h);
 }
 
-static const struct drm_plane_funcs intel_plane_funcs = {
+static const struct drm_plane_funcs intel_sprite_plane_funcs = {
 	.update_plane = intel_update_plane,
 	.disable_plane = intel_disable_plane,
-	.destroy = intel_destroy_plane,
+	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property,
 };
 
@@ -1553,7 +1545,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane->commit_plane = intel_commit_sprite_plane;
 	possible_crtcs = (1 << pipe);
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
-				       &intel_plane_funcs,
+				       &intel_sprite_plane_funcs,
 				       plane_formats, num_plane_formats,
 				       DRM_PLANE_TYPE_OVERLAY);
 	if (ret) {
