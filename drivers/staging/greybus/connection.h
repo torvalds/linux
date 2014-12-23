@@ -33,6 +33,9 @@ struct gb_connection {
 	struct list_head		bundle_links;
 
 	struct gb_protocol		*protocol;
+	u8				protocol_id;
+	u8				major;
+	u8				minor;
 
 	enum gb_connection_state	state;
 
@@ -57,5 +60,7 @@ void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 __printf(2, 3)
 void gb_connection_err(struct gb_connection *connection, const char *fmt, ...);
+
+void gb_connection_bind_protocol(struct gb_connection *connection);
 
 #endif /* __CONNECTION_H */

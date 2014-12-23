@@ -206,6 +206,9 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 {
 	struct gb_protocol *protocol = operation->connection->protocol;
 
+	if (!protocol)
+		return;
+
 	/*
 	 * If the protocol has no incoming request handler, report
 	 * an error and mark the request bad.

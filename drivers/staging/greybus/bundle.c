@@ -45,6 +45,36 @@ struct device_type greybus_bundle_type = {
 /* XXX This could be per-host device or per-module */
 static DEFINE_SPINLOCK(gb_bundles_lock);
 
+static int __bundle_bind_protocols(struct device *dev, void *data)
+{
+	struct gb_bundle *bundle;
+	struct gb_connection *connection;
+
+	if (!is_gb_bundle(dev))
+		return 0;
+
+	bundle = to_gb_bundle(dev);
+
+	list_for_each_entry(connection, &bundle->connections, bundle_links) {
+		gb_connection_bind_protocol(connection);
+	}
+
+	return 0;
+}
+
+/*
+ * Walk all bundles in the system, and see if any connections are not bound to a
+ * specific prototcol.  If they are not, then try to find one for it and bind it
+ * to it.
+ *
+ * This is called after registering a new protocol.
+ */
+void gb_bundle_bind_protocols(void)
+{
+	bus_for_each_dev(&greybus_bus_type, NULL, NULL,
+			 __bundle_bind_protocols);
+}
+
 /*
  * Create a gb_bundle structure to represent a discovered
  * bundle.  Returns a pointer to the new bundle or a null

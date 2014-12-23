@@ -124,6 +124,32 @@ struct device_type greybus_connection_type = {
 	.release =	gb_connection_release,
 };
 
+
+void gb_connection_bind_protocol(struct gb_connection *connection)
+{
+	struct gb_bundle *bundle;
+	struct gb_protocol *protocol;
+
+	/* If we already have a protocol bound here, just return */
+	if (connection->protocol)
+		return;
+
+	protocol = gb_protocol_get(connection->protocol_id,
+				   connection->major,
+				   connection->minor);
+	if (!protocol)
+		return;
+	connection->protocol = protocol;
+
+	/*
+	 * If we have a valid device_id for the bundle, then we have an active
+	 * device, so bring up the connection at the same time.
+	 * */
+	bundle = connection->bundle;
+	if (bundle->device_id != 0xff)
+		gb_connection_init(connection);
+}
+
 /*
  * Set up a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -148,13 +174,9 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 	if (!connection)
 		return NULL;
 
-	/* XXX Will have to establish connections to get version */
-	connection->protocol = gb_protocol_get(protocol_id, major, minor);
-	if (!connection->protocol) {
-		pr_err("protocol 0x%02hhx not found\n", protocol_id);
-		kfree(connection);
-		return NULL;
-	}
+	connection->protocol_id = protocol_id;
+	connection->major = major;
+	connection->minor = minor;
 
 	hd = bundle->intf->hd;
 	connection->hd = hd;
@@ -186,6 +208,12 @@ struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 		kfree(connection);
 		return NULL;
 	}
+
+	/* XXX Will have to establish connections to get version */
+	gb_connection_bind_protocol(connection);
+	if (!connection->protocol)
+		dev_warn(&bundle->dev,
+			 "protocol 0x%02hhx handler not found\n", protocol_id);
 
 	spin_lock_irq(&gb_connections_lock);
 	list_add_tail(&connection->hd_links, &hd->connections);
@@ -250,8 +278,8 @@ int gb_connection_init(struct gb_connection *connection)
 	int ret;
 
 	if (!connection->protocol) {
-		gb_connection_err(connection, "uninitialized connection");
-		return -EIO;
+		dev_warn(&connection->dev, "init without protocol.\n");
+		return 0;
 	}
 
 	/* Need to enable the connection to initialize it */
@@ -266,7 +294,7 @@ int gb_connection_init(struct gb_connection *connection)
 void gb_connection_exit(struct gb_connection *connection)
 {
 	if (!connection->protocol) {
-		gb_connection_err(connection, "uninitialized connection");
+		dev_warn(&connection->dev, "exit without protocol.\n");
 		return;
 	}
 	connection->state = GB_CONNECTION_STATE_DESTROYING;
