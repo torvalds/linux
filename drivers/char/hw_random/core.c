@@ -372,14 +372,14 @@ static DEVICE_ATTR(rng_available, S_IRUGO,
 		   NULL);
 
 
-static void unregister_miscdev(void)
+static void __exit unregister_miscdev(void)
 {
 	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_available);
 	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_current);
 	misc_deregister(&rng_miscdev);
 }
 
-static int register_miscdev(void)
+static int __init register_miscdev(void)
 {
 	int err;
 
@@ -484,12 +484,6 @@ int hwrng_register(struct hwrng *rng)
 		if (err)
 			goto out_unlock;
 		set_current_rng(rng);
-
-		err = register_miscdev();
-		if (err) {
-			drop_current_rng();
-			goto out_unlock;
-		}
 	}
 	list_add_tail(&rng->list, &rng_list);
 
@@ -530,7 +524,6 @@ void hwrng_unregister(struct hwrng *rng)
 
 	if (list_empty(&rng_list)) {
 		mutex_unlock(&rng_mutex);
-		unregister_miscdev();
 		if (hwrng_fill)
 			kthread_stop(hwrng_fill);
 	} else
@@ -540,16 +533,24 @@ void hwrng_unregister(struct hwrng *rng)
 }
 EXPORT_SYMBOL_GPL(hwrng_unregister);
 
-static void __exit hwrng_exit(void)
+static int __init hwrng_modinit(void)
+{
+	return register_miscdev();
+}
+
+static void __exit hwrng_modexit(void)
 {
 	mutex_lock(&rng_mutex);
 	BUG_ON(current_rng);
 	kfree(rng_buffer);
 	kfree(rng_fillbuf);
 	mutex_unlock(&rng_mutex);
+
+	unregister_miscdev();
 }
 
-module_exit(hwrng_exit);
+module_init(hwrng_modinit);
+module_exit(hwrng_modexit);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver");
 MODULE_LICENSE("GPL");
