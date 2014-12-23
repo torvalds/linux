@@ -497,6 +497,7 @@ struct sst_module *sst_module_new(struct sst_fw *sst_fw,
 	sst_module->sst_fw = sst_fw;
 	sst_module->scratch_size = template->scratch_size;
 	sst_module->persistent_size = template->persistent_size;
+	sst_module->entry = template->entry;
 
 	INIT_LIST_HEAD(&sst_module->block_list);
 	INIT_LIST_HEAD(&sst_module->runtime_list);
