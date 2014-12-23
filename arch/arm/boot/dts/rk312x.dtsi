@@ -931,14 +931,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
+		ion_cma: rockchip,ion-heap@4 { /* CMA HEAP */
 			compatible = "rockchip,ion-heap";
-			rockchip,ion_heap = <1>;
+			rockchip,ion_heap = <4>;
 			reg = <0x00000000 0x800000>; /* 8MB */
 		};
-		rockchip,ion-heap@3 { /* VMALLOC HEAP */
+		rockchip,ion-heap@0 { /* VMALLOC HEAP */
 			compatible = "rockchip,ion-heap";
-			rockchip,ion_heap = <3>;
+			rockchip,ion_heap = <0>;
 		};
 	};
 	cif: cif@1010a000 {

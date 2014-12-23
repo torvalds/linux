@@ -45,7 +45,14 @@ extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
  						int id);
 extern int ion_handle_put(struct ion_handle *handle);
 
+#define ION_CMA_HEAP_NAME		"cma"
+#define ION_IOMMU_HEAP_NAME		"iommu"
+#define ION_VMALLOC_HEAP_NAME		"vmalloc"
+#define ION_DRM_HEAP_NAME		"drm"
+#define ION_CARVEOUT_HEAP_NAME		"carveout"
+
 #define MAX_ION_HEAP		10
+
 static struct ion_platform_heap ion_plat_heap[MAX_ION_HEAP];
 struct ion_platform_data ion_pdata = {
 	.nr = 0,
@@ -112,10 +119,6 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 	pr_debug("[%s %d] cmd=%X\n", __func__, __LINE__, cmd);
 
 	switch (cmd) {
-	case ION_IOC_CLEAN_CACHES:
-	case ION_IOC_INV_CACHES:
-	case ION_IOC_CLEAN_INV_CACHES:
-		break;
 	case ION_IOC_GET_PHYS:
 	{
 		struct ion_phys_data data;
@@ -137,47 +140,6 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			return ret;
 		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_phys_data)))
 			return -EFAULT;
-		break;
-	}
-	case ION_IOC_GET_SHARE_ID:
-	{
-		struct ion_share_id_data data;
-		struct dma_buf *dmabuf = NULL;
-
-		if (copy_from_user(&data, (void __user *)arg,
-					sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
-		dmabuf = dma_buf_get(data.fd);
-		if (IS_ERR(dmabuf))
-			return PTR_ERR(dmabuf);
-
-		data.id = (unsigned int)dmabuf;
-//		dma_buf_put(dmabuf);
-
-		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
-		break;
-	}
-	case ION_IOC_SHARE_BY_ID:
-	{
-		struct ion_share_id_data data;
-		int fd = 0;
-
-		if (copy_from_user(&data, (void __user *)arg,
-					sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
-		fd = dma_buf_fd((struct dma_buf*)data.id, O_CLOEXEC);
-		if (fd < 0)
-			return fd;
-
-		data.fd = fd;
-
-		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
 		break;
 	}
 	default:

@@ -807,7 +807,7 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 
 	mutex_lock(&buffer->lock);
 
-	if (ION_IS_CACHED(buffer->flags)) {
+	if (ion_buffer_cached(buffer)) {
 		pr_err("%s: Cannot map iommu as cached.\n", __func__);
 		ret = -EINVAL;
 		goto out;
