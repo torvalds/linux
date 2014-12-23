@@ -71,6 +71,7 @@ MODULE_PARM_DESC(default_quality,
 		 "default entropy content of hwrng per mill");
 
 static void drop_current_rng(void);
+static int hwrng_init(struct hwrng *rng);
 static void start_khwrngd(void);
 
 static inline int rng_get_data(struct hwrng *rng, u8 *buffer, size_t size,
@@ -103,11 +104,20 @@ static inline void cleanup_rng(struct kref *kref)
 	complete(&rng->cleanup_done);
 }
 
-static void set_current_rng(struct hwrng *rng)
+static int set_current_rng(struct hwrng *rng)
 {
+	int err;
+
 	BUG_ON(!mutex_is_locked(&rng_mutex));
+
+	err = hwrng_init(rng);
+	if (err)
+		return err;
+
 	drop_current_rng();
 	current_rng = rng;
+
+	return 0;
 }
 
 static void drop_current_rng(void)
@@ -149,7 +159,7 @@ static void put_rng(struct hwrng *rng)
 	mutex_unlock(&rng_mutex);
 }
 
-static inline int hwrng_init(struct hwrng *rng)
+static int hwrng_init(struct hwrng *rng)
 {
 	if (kref_get_unless_zero(&rng->ref))
 		goto skip_init;
@@ -310,15 +320,9 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 	err = -ENODEV;
 	list_for_each_entry(rng, &rng_list, list) {
 		if (strcmp(rng->name, buf) == 0) {
-			if (rng == current_rng) {
-				err = 0;
-				break;
-			}
-			err = hwrng_init(rng);
-			if (err)
-				break;
-			set_current_rng(rng);
 			err = 0;
+			if (rng != current_rng)
+				err = set_current_rng(rng);
 			break;
 		}
 	}
@@ -481,10 +485,9 @@ int hwrng_register(struct hwrng *rng)
 	old_rng = current_rng;
 	err = 0;
 	if (!old_rng) {
-		err = hwrng_init(rng);
+		err = set_current_rng(rng);
 		if (err)
 			goto out_unlock;
-		set_current_rng(rng);
 	}
 	list_add_tail(&rng->list, &rng_list);
 
@@ -518,8 +521,7 @@ void hwrng_unregister(struct hwrng *rng)
 
 			tail = list_entry(rng_list.prev, struct hwrng, list);
 
-			if (hwrng_init(tail) == 0)
-				set_current_rng(tail);
+			set_current_rng(tail);
 		}
 	}
 
