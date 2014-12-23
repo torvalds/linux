@@ -924,11 +924,11 @@ static int kmx61_read_event(struct iio_dev *indio_dev,
 }
 
 static int kmx61_write_event(struct iio_dev *indio_dev,
-			    const struct iio_chan_spec *chan,
-			    enum iio_event_type type,
-			    enum iio_event_direction dir,
-			    enum iio_event_info info,
-			    int val, int val2)
+			     const struct iio_chan_spec *chan,
+			     enum iio_event_type type,
+			     enum iio_event_direction dir,
+			     enum iio_event_info info,
+			     int val, int val2)
 {
 	struct kmx61_data *data = kmx61_get_data(indio_dev);
 
@@ -958,10 +958,10 @@ static int kmx61_read_event_config(struct iio_dev *indio_dev,
 }
 
 static int kmx61_write_event_config(struct iio_dev *indio_dev,
-				   const struct iio_chan_spec *chan,
-				   enum iio_event_type type,
-				   enum iio_event_direction dir,
-				   int state)
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir,
+				    int state)
 {
 	struct kmx61_data *data = kmx61_get_data(indio_dev);
 	int ret = 0;
