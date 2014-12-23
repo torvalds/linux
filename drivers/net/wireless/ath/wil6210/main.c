@@ -41,7 +41,7 @@ MODULE_PARM_DESC(itr_trsh, " Interrupt moderation threshold, usecs.");
 /* We allow allocation of more than 1 page buffers to support large packets.
  * It is suboptimal behavior performance wise in case MTU above page size.
  */
-unsigned int mtu_max = TXRX_BUF_LEN_DEFAULT - ETH_HLEN;
+unsigned int mtu_max = TXRX_BUF_LEN_DEFAULT - WIL_MAX_MPDU_OVERHEAD;
 static int mtu_max_set(const char *val, const struct kernel_param *kp)
 {
 	int ret;

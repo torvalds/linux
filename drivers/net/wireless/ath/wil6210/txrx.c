@@ -645,7 +645,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		.vring_cfg = {
 			.tx_sw_ring = {
 				.max_mpdu_size =
-					cpu_to_le16(mtu_max + ETH_HLEN),
+					cpu_to_le16(wil_mtu2macbuf(mtu_max)),
 				.ring_size = cpu_to_le16(size),
 			},
 			.ringid = id,

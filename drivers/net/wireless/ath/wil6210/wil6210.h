@@ -62,11 +62,21 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL_MAX_AGG_WSIZE	(32) /* FW/HW limit */
 /* Hardware offload block adds the following:
  * 26 bytes - 3-address QoS data header
+ *  8 bytes - IV + EIV (for GCMP)
  *  8 bytes - SNAP
+ * 16 bytes - MIC (for GCMP)
  *  4 bytes - CRC
- * 24 bytes - security related (if connection is secure)
  */
 #define WIL_MAX_MPDU_OVERHEAD	(62)
+
+/* Calculate MAC buffer size for the firmware. It includes all overhead,
+ * as it will go over the air, and need to be 8 byte aligned
+ */
+static inline u32 wil_mtu2macbuf(u32 mtu)
+{
+	return ALIGN(mtu + WIL_MAX_MPDU_OVERHEAD, 8);
+}
+
 /* Max supported by wil6210 value for interrupt threshold is 5sec. */
 #define WIL6210_ITR_TRSH_MAX (5000000)
 #define WIL6210_ITR_TRSH_DEFAULT	(300) /* usec */

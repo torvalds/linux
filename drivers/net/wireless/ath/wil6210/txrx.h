@@ -20,8 +20,8 @@
 #define BUF_SW_OWNED    (1)
 #define BUF_HW_OWNED    (0)
 
-/* size of max. Tx/Rx buffers, as supported by FW */
-#define TXRX_BUF_LEN_DEFAULT (2242)
+/* default size of MAC Tx/Rx buffers */
+#define TXRX_BUF_LEN_DEFAULT (2048)
 
 /* how many bytes to reserve for rtap header? */
 #define WIL6210_RTAP_SIZE (128)
