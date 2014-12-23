@@ -1334,6 +1334,7 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 		IWL_DEBUG_SCAN(mvm,
 			       "Sending scheduled scan with filtering, n_match_sets %d\n",
 			       req->n_match_sets);
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
 	} else {
 		IWL_DEBUG_SCAN(mvm,
 			       "Sending Scheduled scan without filtering\n");
