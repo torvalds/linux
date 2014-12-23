@@ -632,14 +632,17 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
  */
 struct mount *__lookup_mnt_last(struct vfsmount *mnt, struct dentry *dentry)
 {
-	struct mount *p, *res;
-	res = p = __lookup_mnt(mnt, dentry);
+	struct mount *p, *res = NULL;
+	p = __lookup_mnt(mnt, dentry);
 	if (!p)
 		goto out;
+	if (!(p->mnt.mnt_flags & MNT_UMOUNT))
+		res = p;
 	hlist_for_each_entry_continue(p, mnt_hash) {
 		if (&p->mnt_parent->mnt != mnt || p->mnt_mountpoint != dentry)
 			break;
-		res = p;
+		if (!(p->mnt.mnt_flags & MNT_UMOUNT))
+			res = p;
 	}
 out:
 	return res;
@@ -1336,9 +1339,8 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 		list_move(&p->mnt_list, &tmp_list);
 	}
 
-	/* Hide the mounts from lookup_mnt and mnt_mounts */
+	/* Hide the mounts from mnt_mounts */
 	list_for_each_entry(p, &tmp_list, mnt_list) {
-		hlist_del_init_rcu(&p->mnt_hash);
 		list_del_init(&p->mnt_child);
 	}
 
@@ -1365,6 +1367,7 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 			p->mnt_mountpoint = p->mnt.mnt_root;
 			p->mnt_parent = p;
 			p->mnt_mp = NULL;
+			hlist_del_init_rcu(&p->mnt_hash);
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
