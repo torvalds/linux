@@ -1448,6 +1448,8 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 
 	if (iwl_mvm_scan_pass_all(mvm, req))
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
+	else
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
 
 	if (req->n_ssids == 1 && req->ssids[0].ssid_len != 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
