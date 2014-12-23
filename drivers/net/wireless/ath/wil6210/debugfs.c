@@ -114,9 +114,10 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
 			seq_printf(s,
-				   "\n%pM CID %d TID %d BACK([%d] %d TU) [%3d|%3d] idle %3d%%\n",
+				   "\n%pM CID %d TID %d BACK([%d] %d TU A%s) [%3d|%3d] idle %3d%%\n",
 				   wil->sta[cid].addr, cid, tid,
 				   txdata->agg_wsize, txdata->agg_timeout,
+				   txdata->agg_amsdu ? "+" : "-",
 				   used, avail, (int)idle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');

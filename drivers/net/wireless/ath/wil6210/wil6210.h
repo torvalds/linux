@@ -315,6 +315,7 @@ struct vring_tx_data {
 	cycles_t idle, last_idle, begin;
 	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
 	u16 agg_timeout;
+	u8 agg_amsdu;
 	bool addba_in_progress; /* if set, agg_xxx is for request in progress */
 };
 
