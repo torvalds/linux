@@ -830,7 +830,12 @@ static int kmx61_read_raw(struct iio_dev *indio_dev,
 		}
 		mutex_lock(&data->lock);
 
-		kmx61_set_power_state(data, true, chan->address);
+		ret = kmx61_set_power_state(data, true, chan->address);
+		if (ret) {
+			mutex_unlock(&data->lock);
+			return ret;
+		}
+
 		ret = kmx61_read_measurement(data, base_reg, chan->scan_index);
 		if (ret < 0) {
 			kmx61_set_power_state(data, false, chan->address);
@@ -839,9 +844,11 @@ static int kmx61_read_raw(struct iio_dev *indio_dev,
 		}
 		*val = sign_extend32(ret >> chan->scan_type.shift,
 				     chan->scan_type.realbits - 1);
-		kmx61_set_power_state(data, false, chan->address);
+		ret = kmx61_set_power_state(data, false, chan->address);
 
 		mutex_unlock(&data->lock);
+		if (ret)
+			return ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
