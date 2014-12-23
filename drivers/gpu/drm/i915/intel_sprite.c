@@ -1277,15 +1277,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
 
-	intel_plane->crtc_x = state->base.crtc_x;
-	intel_plane->crtc_y = state->base.crtc_y;
-	intel_plane->crtc_w = state->base.crtc_w;
-	intel_plane->crtc_h = state->base.crtc_h;
-	intel_plane->src_x = state->base.src_x;
-	intel_plane->src_y = state->base.src_y;
-	intel_plane->src_w = state->base.src_w;
-	intel_plane->src_h = state->base.src_h;
-
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
@@ -1400,16 +1391,14 @@ int intel_plane_set_property(struct drm_plane *plane,
 
 int intel_plane_restore(struct drm_plane *plane)
 {
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-
 	if (!plane->crtc || !plane->fb)
 		return 0;
 
 	return plane->funcs->update_plane(plane, plane->crtc, plane->fb,
-				  intel_plane->crtc_x, intel_plane->crtc_y,
-				  intel_plane->crtc_w, intel_plane->crtc_h,
-				  intel_plane->src_x, intel_plane->src_y,
-				  intel_plane->src_w, intel_plane->src_h);
+				  plane->state->crtc_x, plane->state->crtc_y,
+				  plane->state->crtc_w, plane->state->crtc_h,
+				  plane->state->src_x, plane->state->src_y,
+				  plane->state->src_w, plane->state->src_h);
 }
 
 static const struct drm_plane_funcs intel_sprite_plane_funcs = {

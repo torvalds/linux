@@ -9616,7 +9616,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_plane *primary = crtc->primary;
-	struct intel_plane *intel_plane = to_intel_plane(primary);
 	enum pipe pipe = intel_crtc->pipe;
 	struct intel_unpin_work *work;
 	struct intel_engine_cs *ring;
@@ -9775,15 +9774,7 @@ free_work:
 
 	if (ret == -EIO) {
 out_hang:
-		ret = primary->funcs->update_plane(primary, crtc, fb,
-						   intel_plane->crtc_x,
-						   intel_plane->crtc_y,
-						   intel_plane->crtc_h,
-						   intel_plane->crtc_w,
-						   intel_plane->src_x,
-						   intel_plane->src_y,
-						   intel_plane->src_h,
-						   intel_plane->src_w);
+		ret = intel_plane_restore(primary);
 		if (ret == 0 && event) {
 			spin_lock_irq(&dev->event_lock);
 			drm_send_vblank_event(dev, pipe, event);
@@ -11823,14 +11814,6 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	crtc->x = src->x1 >> 16;
 	crtc->y = src->y1 >> 16;
 
-	intel_plane->crtc_x = state->base.crtc_x;
-	intel_plane->crtc_y = state->base.crtc_y;
-	intel_plane->crtc_w = state->base.crtc_w;
-	intel_plane->crtc_h = state->base.crtc_h;
-	intel_plane->src_x = state->base.src_x;
-	intel_plane->src_y = state->base.src_y;
-	intel_plane->src_w = state->base.src_w;
-	intel_plane->src_h = state->base.src_h;
 	intel_plane->obj = obj;
 
 	if (intel_crtc->active) {
@@ -12111,14 +12094,6 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	crtc->cursor_x = state->base.crtc_x;
 	crtc->cursor_y = state->base.crtc_y;
 
-	intel_plane->crtc_x = state->base.crtc_x;
-	intel_plane->crtc_y = state->base.crtc_y;
-	intel_plane->crtc_w = state->base.crtc_w;
-	intel_plane->crtc_h = state->base.crtc_h;
-	intel_plane->src_x = state->base.src_x;
-	intel_plane->src_y = state->base.src_y;
-	intel_plane->src_w = state->base.src_w;
-	intel_plane->src_h = state->base.src_h;
 	intel_plane->obj = obj;
 
 	if (intel_crtc->cursor_bo == obj)
