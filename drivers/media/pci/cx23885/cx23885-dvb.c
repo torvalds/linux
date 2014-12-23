@@ -1139,7 +1139,7 @@ static int dvb_register_ci_mac(struct cx23885_tsport *port)
 		u8 eeprom[256]; /* 24C02 i2c eeprom */
 		struct sp2_config sp2_config;
 		struct i2c_board_info info;
-		struct cx23885_i2c *i2c_bus2 = &dev->i2c_bus[1];
+		struct cx23885_i2c *i2c_bus = &dev->i2c_bus[0];
 
 		/* attach CI */
 		memset(&sp2_config, 0, sizeof(sp2_config));
@@ -1151,7 +1151,7 @@ static int dvb_register_ci_mac(struct cx23885_tsport *port)
 		info.addr = 0x40;
 		info.platform_data = &sp2_config;
 		request_module(info.type);
-		client_ci = i2c_new_device(&i2c_bus2->i2c_adap, &info);
+		client_ci = i2c_new_device(&i2c_bus->i2c_adap, &info);
 		if (client_ci == NULL || client_ci->dev.driver == NULL)
 			return -ENODEV;
 		if (!try_module_get(client_ci->dev.driver->owner)) {
