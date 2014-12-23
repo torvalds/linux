@@ -1146,7 +1146,7 @@ void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
 
 	if (mvm->d0i3_offloading && qos_seq) {
 		/* update qos seq numbers if offloading was enabled */
-		mvm_ap_sta = (struct iwl_mvm_sta *)sta->drv_priv;
+		mvm_ap_sta = iwl_mvm_sta_from_mac80211(sta);
 		for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
 			u16 seq = le16_to_cpu(qos_seq[i]);
 			/* firmware stores last-used one, we store next one */

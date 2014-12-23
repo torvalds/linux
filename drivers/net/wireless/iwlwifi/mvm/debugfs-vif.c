@@ -268,7 +268,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[ap_sta_id],
 						lockdep_is_held(&mvm->mutex));
 		if (!IS_ERR_OR_NULL(sta)) {
-			struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+			struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 			pos += scnprintf(buf+pos, bufsz-pos,
 					 "ap_sta_id %d - reduced Tx power %d\n",
