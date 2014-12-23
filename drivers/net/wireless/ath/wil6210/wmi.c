@@ -23,7 +23,7 @@
 #include "wmi.h"
 #include "trace.h"
 
-static uint max_assoc_sta = 1;
+static uint max_assoc_sta = WIL6210_MAX_CID;
 module_param(max_assoc_sta, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_assoc_sta, " Max number of stations associated to the AP");
 
