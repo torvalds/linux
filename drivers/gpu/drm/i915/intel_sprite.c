@@ -412,8 +412,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	u32 sprctl;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	u32 start_vbl_count;
-	bool atomic_update;
 
 	sprctl = I915_READ(SPCNTR(pipe, plane));
 
@@ -502,8 +500,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 		linear_offset += src_h * fb->pitches[0] + src_w * pixel_size;
 	}
 
-	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
-
 	intel_update_primary_plane(intel_crtc);
 
 	if (IS_CHERRYVIEW(dev) && pipe == PIPE_B)
@@ -525,9 +521,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 		   sprsurf_offset);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	if (atomic_update)
-		intel_pipe_update_end(intel_crtc, start_vbl_count);
 }
 
 static void
@@ -539,10 +532,6 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
 	int plane = intel_plane->plane;
-	u32 start_vbl_count;
-	bool atomic_update;
-
-	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
 	intel_update_primary_plane(intel_crtc);
 
@@ -552,9 +541,6 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	I915_WRITE(SPSURF(pipe, plane), 0);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	if (atomic_update)
-		intel_pipe_update_end(intel_crtc, start_vbl_count);
 
 	intel_update_sprite_watermarks(dplane, crtc, 0, 0, 0, false, false);
 }
@@ -626,8 +612,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	u32 sprctl, sprscale = 0;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	u32 start_vbl_count;
-	bool atomic_update;
 
 	sprctl = I915_READ(SPRCTL(pipe));
 
@@ -711,8 +695,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		}
 	}
 
-	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
-
 	intel_update_primary_plane(intel_crtc);
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
@@ -735,9 +717,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   i915_gem_obj_ggtt_offset(obj) + sprsurf_offset);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	if (atomic_update)
-		intel_pipe_update_end(intel_crtc, start_vbl_count);
 }
 
 static void
@@ -748,10 +727,6 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
-	u32 start_vbl_count;
-	bool atomic_update;
-
-	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
 	intel_update_primary_plane(intel_crtc);
 
@@ -763,9 +738,6 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	I915_WRITE(SPRSURF(pipe), 0);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	if (atomic_update)
-		intel_pipe_update_end(intel_crtc, start_vbl_count);
 
 	/*
 	 * Avoid underruns when disabling the sprite.
@@ -845,8 +817,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	unsigned long dvssurf_offset, linear_offset;
 	u32 dvscntr, dvsscale;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
-	u32 start_vbl_count;
-	bool atomic_update;
 
 	dvscntr = I915_READ(DVSCNTR(pipe));
 
@@ -921,8 +891,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		linear_offset += src_h * fb->pitches[0] + src_w * pixel_size;
 	}
 
-	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
-
 	intel_update_primary_plane(intel_crtc);
 
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
@@ -940,9 +908,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   i915_gem_obj_ggtt_offset(obj) + dvssurf_offset);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	if (atomic_update)
-		intel_pipe_update_end(intel_crtc, start_vbl_count);
 }
 
 static void
@@ -953,10 +918,6 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
-	u32 start_vbl_count;
-	bool atomic_update;
-
-	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
 	intel_update_primary_plane(intel_crtc);
 
@@ -967,9 +928,6 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	I915_WRITE(DVSSURF(pipe), 0);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	if (atomic_update)
-		intel_pipe_update_end(intel_crtc, start_vbl_count);
 
 	/*
 	 * Avoid underruns when disabling the sprite.

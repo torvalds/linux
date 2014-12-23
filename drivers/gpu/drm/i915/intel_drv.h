@@ -428,6 +428,10 @@ struct skl_pipe_wm {
  * and thus can't be run with interrupts disabled.
  */
 struct intel_crtc_atomic_commit {
+	/* vblank evasion */
+	bool evade;
+	unsigned start_vbl_count;
+
 	/* Sleepable operations to perform before commit */
 	bool wait_for_flips;
 	bool disable_fbc;
