@@ -777,6 +777,38 @@ static void wil_set_da_for_vring(struct wil6210_priv *wil,
 
 static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 			struct sk_buff *skb);
+
+static struct vring *wil_find_tx_vring_sta(struct wil6210_priv *wil,
+					   struct sk_buff *skb)
+{
+	struct vring *v;
+	int i;
+	u8 cid;
+
+	/* In the STA mode, it is expected to have only 1 VRING
+	 * for the AP we connected to.
+	 * find 1-st vring and see whether it is eligible for data
+	 */
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		v = &wil->vring_tx[i];
+		if (!v->va)
+			continue;
+
+		cid = wil->vring2cid_tid[i][0];
+		if (!wil->sta[cid].data_port_open &&
+		    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
+			break;
+
+		wil_dbg_txrx(wil, "Tx -> ring %d\n", i);
+
+		return v;
+	}
+
+	wil_dbg_txrx(wil, "Tx while no vrings active?\n");
+
+	return NULL;
+}
+
 /*
  * Find 1-st vring and return it; set dest address for this vring in skb
  * duplicate skb and send it to other active vrings
@@ -1056,15 +1088,19 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	pr_once_fw = false;
 
 	/* find vring */
-	if (is_unicast_ether_addr(eth->h_dest))
-		vring = wil_find_tx_vring(wil, skb);
-	else
-		vring = wil_tx_bcast(wil, skb);
+	if (wil->wdev->iftype == NL80211_IFTYPE_STATION) {
+		/* in STA mode (ESS), all to same VRING */
+		vring = wil_find_tx_vring_sta(wil, skb);
+	} else { /* direct communication, find matching VRING */
+		if (is_unicast_ether_addr(eth->h_dest))
+			vring = wil_find_tx_vring(wil, skb);
+		else
+			vring = wil_tx_bcast(wil, skb);
+	}
 	if (!vring) {
 		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
 		goto drop;
 	}
-
 	/* set up vring entry */
 	rc = wil_tx_vring(wil, vring, skb);
 
