@@ -399,6 +399,7 @@ struct ixgbe_thermal_sensor_data {
 
 #define IXGBE_WUPL      0x05900
 #define IXGBE_WUPM      0x05A00 /* wake up pkt memory 0x5A00-0x5A7C */
+#define IXGBE_VXLANCTRL	0x0000507C /* Rx filter VXLAN UDPPORT Register */
 #define IXGBE_FHFT(_n)	(0x09000 + ((_n) * 0x100)) /* Flex host filter table */
 #define IXGBE_FHFT_EXT(_n)	(0x09800 + ((_n) * 0x100)) /* Ext Flexible Host
 							    * Filter Table */
@@ -2122,6 +2123,7 @@ enum {
 #define IXGBE_RXD_STAT_IPCS     0x40    /* IP xsum calculated */
 #define IXGBE_RXD_STAT_PIF      0x80    /* passed in-exact filter */
 #define IXGBE_RXD_STAT_CRCV     0x100   /* Speculative CRC Valid */
+#define IXGBE_RXD_STAT_OUTERIPCS  0x100 /* Cloud IP xsum calculated */
 #define IXGBE_RXD_STAT_VEXT     0x200   /* 1st VLAN found */
 #define IXGBE_RXD_STAT_UDPV     0x400   /* Valid UDP checksum */
 #define IXGBE_RXD_STAT_DYNINT   0x800   /* Pkt caused INT via DYNINT */
@@ -2139,6 +2141,7 @@ enum {
 #define IXGBE_RXD_ERR_IPE       0x80    /* IP Checksum Error */
 #define IXGBE_RXDADV_ERR_MASK           0xfff00000 /* RDESC.ERRORS mask */
 #define IXGBE_RXDADV_ERR_SHIFT          20         /* RDESC.ERRORS shift */
+#define IXGBE_RXDADV_ERR_OUTERIPER	0x04000000 /* CRC IP Header error */
 #define IXGBE_RXDADV_ERR_FCEOFE         0x80000000 /* FCoEFe/IPE */
 #define IXGBE_RXDADV_ERR_FCERR          0x00700000 /* FCERR/FDIRERR */
 #define IXGBE_RXDADV_ERR_FDIR_LEN       0x00100000 /* FDIR Length error */
@@ -2227,6 +2230,8 @@ enum {
 #define IXGBE_RXDADV_PKTTYPE_UDP        0x00000200 /* UDP hdr present */
 #define IXGBE_RXDADV_PKTTYPE_SCTP       0x00000400 /* SCTP hdr present */
 #define IXGBE_RXDADV_PKTTYPE_NFS        0x00000800 /* NFS hdr present */
+#define IXGBE_RXDADV_PKTTYPE_VXLAN	0x00000800 /* VXLAN hdr present */
+#define IXGBE_RXDADV_PKTTYPE_TUNNEL	0x00010000 /* Tunnel type */
 #define IXGBE_RXDADV_PKTTYPE_IPSEC_ESP  0x00001000 /* IPSec ESP */
 #define IXGBE_RXDADV_PKTTYPE_IPSEC_AH   0x00002000 /* IPSec AH */
 #define IXGBE_RXDADV_PKTTYPE_LINKSEC    0x00004000 /* LinkSec Encap */
