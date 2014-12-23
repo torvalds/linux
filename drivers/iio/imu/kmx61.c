@@ -1192,8 +1192,6 @@ ack_intr:
 	if (ret < 0)
 		dev_err(&data->client->dev, "Error reading reg_inl\n");
 
-	ret = i2c_smbus_read_byte_data(data->client, KMX61_REG_INS1);
-
 	return IRQ_HANDLED;
 }
 
