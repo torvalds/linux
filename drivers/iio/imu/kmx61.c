@@ -1053,8 +1053,7 @@ static int kmx61_data_rdy_trigger_set_state(struct iio_trigger *trig,
 		goto err_unlock;
 	}
 
-
-	if (data->acc_dready_trig == trig || data->motion_trig)
+	if (data->acc_dready_trig == trig || data->motion_trig == trig)
 		device = KMX61_ACC;
 	else
 		device = KMX61_MAG;
