@@ -12,6 +12,7 @@
 #ifndef LINUX_HWRANDOM_H_
 #define LINUX_HWRANDOM_H_
 
+#include <linux/completion.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/kref.h>
@@ -46,7 +47,7 @@ struct hwrng {
 	/* internal. */
 	struct list_head list;
 	struct kref ref;
-	bool cleanup_done;
+	struct completion cleanup_done;
 };
 
 /** Register a new Hardware Random Number Generator driver. */
