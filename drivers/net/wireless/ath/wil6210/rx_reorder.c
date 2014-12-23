@@ -127,13 +127,24 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 	 * reported, and data Rx, few packets may be pass up before reorder
 	 * buffer get allocated. Catch up by pretending SSN is what we
 	 * see in the 1-st Rx packet
+	 *
+	 * Another scenario, Rx get delayed and we got packet from before
+	 * BACK. Pass it to the stack and wait.
 	 */
 	if (r->first_time) {
 		r->first_time = false;
 		if (seq != r->head_seq_num) {
-			wil_err(wil, "Error: 1-st frame with wrong sequence"
-				" %d, should be %d. Fixing...\n", seq,
-				r->head_seq_num);
+			if (seq_less(seq, r->head_seq_num)) {
+				wil_err(wil,
+					"Error: frame with early sequence 0x%03x, should be 0x%03x. Waiting...\n",
+					seq, r->head_seq_num);
+				r->first_time = true;
+				wil_netif_rx_any(skb, ndev);
+				goto out;
+			}
+			wil_err(wil,
+				"Error: 1-st frame with wrong sequence 0x%03x, should be 0x%03x. Fixing...\n",
+				seq, r->head_seq_num);
 			r->head_seq_num = seq;
 			r->ssn = seq;
 		}
@@ -279,6 +290,7 @@ static void wil_back_rx_handle(struct wil6210_priv *wil,
 	int ba_policy = req->ba_param_set & BIT(1);
 	u16 agg_timeout = req->ba_timeout;
 	u16 status = WLAN_STATUS_SUCCESS;
+	u16 ssn = req->ba_seq_ctrl >> 4;
 	unsigned long flags;
 	int rc;
 
@@ -297,9 +309,9 @@ static void wil_back_rx_handle(struct wil6210_priv *wil,
 	}
 
 	wil_dbg_wmi(wil,
-		    "ADDBA request for CID %d %pM TID %d size %d timeout %d AMSDU%s policy %d token %d\n",
+		    "ADDBA request for CID %d %pM TID %d size %d timeout %d AMSDU%s policy %d token %d SSN 0x%03x\n",
 		    cid, sta->addr, tid, req_agg_wsize, req->ba_timeout,
-		    agg_amsdu ? "+" : "-", !!ba_policy, req->dialog_token);
+		    agg_amsdu ? "+" : "-", !!ba_policy, req->dialog_token, ssn);
 
 	/* apply policies */
 	if (ba_policy) {
@@ -318,8 +330,7 @@ static void wil_back_rx_handle(struct wil6210_priv *wil,
 	spin_lock_irqsave(&sta->tid_rx_lock, flags);
 
 	wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
-	sta->tid_rx[tid] = wil_tid_ampdu_rx_alloc(wil, agg_wsize,
-						  req->ba_seq_ctrl >> 4);
+	sta->tid_rx[tid] = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
 
 	spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
 }
