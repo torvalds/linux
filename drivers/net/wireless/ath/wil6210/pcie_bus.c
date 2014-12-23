@@ -31,6 +31,36 @@ static bool debug_fw; /* = false; */
 module_param(debug_fw, bool, S_IRUGO);
 MODULE_PARM_DESC(debug_fw, " load driver if FW not ready. For FW debug");
 
+static
+void wil_set_capabilities(struct wil6210_priv *wil)
+{
+	u32 rev_id = ioread32(wil->csr + HOSTADDR(RGF_USER_JTAG_DEV_ID));
+
+	bitmap_zero(wil->hw_capabilities, hw_capability_last);
+
+	switch (rev_id) {
+	case JTAG_DEV_ID_MARLON_B0:
+		wil_info(wil, "Board hardware is Marlon B0\n");
+		wil->hw_version = HW_VER_MARLON_B0;
+		break;
+	case JTAG_DEV_ID_SPARROW_A0:
+		wil_info(wil, "Board hardware is Sparrow A0\n");
+		wil->hw_version = HW_VER_SPARROW_A0;
+		break;
+	case JTAG_DEV_ID_SPARROW_A1:
+		wil_info(wil, "Board hardware is Sparrow A1\n");
+		wil->hw_version = HW_VER_SPARROW_A1;
+		break;
+	case JTAG_DEV_ID_SPARROW_B0:
+		wil_info(wil, "Board hardware is Sparrow B0\n");
+		wil->hw_version = HW_VER_SPARROW_B0;
+		break;
+	default:
+		wil_err(wil, "Unknown board hardware 0x%08x\n", rev_id);
+		wil->hw_version = HW_VER_UNKNOWN;
+	}
+}
+
 void wil_disable_irq(struct wil6210_priv *wil)
 {
 	int irq = wil->pdev->irq;
@@ -205,7 +235,7 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, wil);
 	wil->pdev = pdev;
 	wil->board = board;
-
+	wil_set_capabilities(wil);
 	wil6210_clear_irq(wil);
 
 	wil->platform_handle =

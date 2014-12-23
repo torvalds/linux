@@ -188,6 +188,20 @@ struct RGF_ICR {
 #define RGF_CAF_PLL_LOCK_STATUS		(0x88afec)
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
+#define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
+	#define JTAG_DEV_ID_MARLON_B0	(0x0612072f)
+	#define JTAG_DEV_ID_SPARROW_A0	(0x0632072f)
+	#define JTAG_DEV_ID_SPARROW_A1	(0x1632072f)
+	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
+
+enum {
+	HW_VER_UNKNOWN,
+	HW_VER_MARLON_B0,  /* JTAG_DEV_ID_MARLON_B0  */
+	HW_VER_SPARROW_A0, /* JTAG_DEV_ID_SPARROW_A0 */
+	HW_VER_SPARROW_A1, /* JTAG_DEV_ID_SPARROW_A1 */
+	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
+};
+
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
 #define HOST_SW_INT (HOSTADDR(RGF_USER_USER_ICR) + \
@@ -426,6 +440,11 @@ enum {
 	fw_recovery_running = 2,
 };
 
+enum {
+	hw_capability_dummy, /* to avoid zero array */
+	hw_capability_last
+};
+
 struct wil_back_rx {
 	struct list_head list;
 	/* request params, converted to CPU byte order - what we asked for */
@@ -452,6 +471,7 @@ struct wil6210_priv {
 	DECLARE_BITMAP(status, wil_status_last);
 	u32 fw_version;
 	u32 hw_version;
+	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
 	struct wil_board *board;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	u32 recovery_count; /* num of FW recovery attempts in a short time */
