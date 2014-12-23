@@ -581,14 +581,8 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 			skb->protocol = htons(ETH_P_802_2);
 			wil_netif_rx_any(skb, ndev);
 		} else {
-			struct ethhdr *eth = (void *)skb->data;
-
 			skb->protocol = eth_type_trans(skb, ndev);
-
-			if (is_unicast_ether_addr(eth->h_dest))
-				wil_rx_reorder(wil, skb);
-			else
-				wil_netif_rx_any(skb, ndev);
+			wil_rx_reorder(wil, skb);
 		}
 	}
 	wil_rx_refill(wil, v->size);

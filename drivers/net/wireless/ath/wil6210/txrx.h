@@ -423,6 +423,11 @@ static inline int wil_rxdesc_mcs(struct vring_rx_desc *d)
 	return WIL_GET_BITS(d->mac.d1, 21, 24);
 }
 
+static inline int wil_rxdesc_mcast(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d1, 13, 14);
+}
+
 static inline int wil_rxdesc_phy_length(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->dma.d0, 16, 29);

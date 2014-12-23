@@ -97,14 +97,20 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 	int cid = wil_rxdesc_cid(d);
 	int mid = wil_rxdesc_mid(d);
 	u16 seq = wil_rxdesc_seq(d);
+	int mcast = wil_rxdesc_mcast(d);
 	struct wil_sta_info *sta = &wil->sta[cid];
 	struct wil_tid_ampdu_rx *r;
 	u16 hseq;
 	int index;
 	unsigned long flags;
 
-	wil_dbg_txrx(wil, "MID %d CID %d TID %d Seq 0x%03x\n",
-		     mid, cid, tid, seq);
+	wil_dbg_txrx(wil, "MID %d CID %d TID %d Seq 0x%03x mcast %01x\n",
+		     mid, cid, tid, seq, mcast);
+
+	if (unlikely(mcast)) {
+		wil_netif_rx_any(skb, ndev);
+		return;
+	}
 
 	spin_lock_irqsave(&sta->tid_rx_lock, flags);
 
