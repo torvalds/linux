@@ -746,7 +746,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 							      codec_dai);
 			if (ret < 0) {
 				dev_err(codec_dai->dev,
-					"ASoC: DAI prepare error: %d\n", ret);
+					"ASoC: codec DAI prepare error: %d\n",
+					ret);
 				goto out;
 			}
 		}
@@ -755,8 +756,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (cpu_dai->driver->ops && cpu_dai->driver->ops->prepare) {
 		ret = cpu_dai->driver->ops->prepare(substream, cpu_dai);
 		if (ret < 0) {
-			dev_err(cpu_dai->dev, "ASoC: DAI prepare error: %d\n",
-				ret);
+			dev_err(cpu_dai->dev,
+				"ASoC: cpu DAI prepare error: %d\n", ret);
 			goto out;
 		}
 	}
