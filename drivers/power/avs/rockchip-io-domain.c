@@ -116,15 +116,12 @@ static int rockchip_iodomain_notify(struct notifier_block *nb,
 	 * request something like a max of 3.6V when they really want 3.3V.
 	 * We could attempt to come up with better rules if this fails.
 	 */
-/*
 	if (event & REGULATOR_EVENT_PRE_VOLTAGE_CHANGE) {
 		struct pre_voltage_change_data *pvc_data = data;
 
 		uV = max_t(unsigned long, pvc_data->old_uV, pvc_data->max_uV);
-	} else 
-*/
-	if (event & (REGULATOR_EVENT_VOLTAGE_CHANGE)) {// |
-			    //REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE)) {
+	} else if (event & (REGULATOR_EVENT_VOLTAGE_CHANGE |
+			    REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE)) {
 		uV = (unsigned long)data;
 	} else {
 		return NOTIFY_OK;
@@ -135,15 +132,13 @@ static int rockchip_iodomain_notify(struct notifier_block *nb,
 	if (uV > MAX_VOLTAGE_3_3) {
 		dev_err(supply->iod->dev, "Voltage too high: %d\n", uV);
 
-		//if (event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
+		if (event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
 			return NOTIFY_BAD;
 	}
 
 	ret = rockchip_iodomain_write(supply, uV);
-/*
 	if (ret && event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
 		return NOTIFY_BAD;
-*/
 
 	dev_info(supply->iod->dev, "Setting to %d done\n", uV);
 	return NOTIFY_OK;
