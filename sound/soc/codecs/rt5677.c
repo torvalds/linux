@@ -3014,8 +3014,6 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 
 	{ "Stereo1 ADC MIXL", NULL, "Sto1 ADC MIXL" },
 	{ "Stereo1 ADC MIXL", NULL, "adc stereo1 filter" },
-	{ "adc stereo1 filter", NULL, "PLL1", is_sys_clk_from_pll },
-
 	{ "Stereo1 ADC MIXR", NULL, "Sto1 ADC MIXR" },
 	{ "Stereo1 ADC MIXR", NULL, "adc stereo1 filter" },
 	{ "adc stereo1 filter", NULL, "PLL1", is_sys_clk_from_pll },
@@ -3036,8 +3034,6 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 
 	{ "Stereo2 ADC MIXL", NULL, "Stereo2 ADC LR Mux" },
 	{ "Stereo2 ADC MIXL", NULL, "adc stereo2 filter" },
-	{ "adc stereo2 filter", NULL, "PLL1", is_sys_clk_from_pll },
-
 	{ "Stereo2 ADC MIXR", NULL, "Sto2 ADC MIXR" },
 	{ "Stereo2 ADC MIXR", NULL, "adc stereo2 filter" },
 	{ "adc stereo2 filter", NULL, "PLL1", is_sys_clk_from_pll },
@@ -3052,8 +3048,6 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 
 	{ "Stereo3 ADC MIXL", NULL, "Sto3 ADC MIXL" },
 	{ "Stereo3 ADC MIXL", NULL, "adc stereo3 filter" },
-	{ "adc stereo3 filter", NULL, "PLL1", is_sys_clk_from_pll },
-
 	{ "Stereo3 ADC MIXR", NULL, "Sto3 ADC MIXR" },
 	{ "Stereo3 ADC MIXR", NULL, "adc stereo3 filter" },
 	{ "adc stereo3 filter", NULL, "PLL1", is_sys_clk_from_pll },
@@ -3068,8 +3062,6 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 
 	{ "Stereo4 ADC MIXL", NULL, "Sto4 ADC MIXL" },
 	{ "Stereo4 ADC MIXL", NULL, "adc stereo4 filter" },
-	{ "adc stereo4 filter", NULL, "PLL1", is_sys_clk_from_pll },
-
 	{ "Stereo4 ADC MIXR", NULL, "Sto4 ADC MIXR" },
 	{ "Stereo4 ADC MIXR", NULL, "adc stereo4 filter" },
 	{ "adc stereo4 filter", NULL, "PLL1", is_sys_clk_from_pll },
@@ -3686,39 +3678,46 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "Stereo DAC MIXR", "DAC2 R Switch", "DAC2 R Mux" },
 	{ "Stereo DAC MIXR", "DAC1 L Switch", "DAC1 MIXL" },
 	{ "Stereo DAC MIXR", NULL, "dac stereo1 filter" },
+	{ "dac stereo1 filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Mono DAC MIXL", "ST L Switch", "Sidetone Mux" },
 	{ "Mono DAC MIXL", "DAC1 L Switch", "DAC1 MIXL" },
 	{ "Mono DAC MIXL", "DAC2 L Switch", "DAC2 L Mux" },
 	{ "Mono DAC MIXL", "DAC2 R Switch", "DAC2 R Mux" },
 	{ "Mono DAC MIXL", NULL, "dac mono2 left filter" },
+	{ "dac mono2 left filter", NULL, "PLL1", is_sys_clk_from_pll },
 	{ "Mono DAC MIXR", "ST R Switch", "Sidetone Mux" },
 	{ "Mono DAC MIXR", "DAC1 R Switch", "DAC1 MIXR" },
 	{ "Mono DAC MIXR", "DAC2 R Switch", "DAC2 R Mux" },
 	{ "Mono DAC MIXR", "DAC2 L Switch", "DAC2 L Mux" },
 	{ "Mono DAC MIXR", NULL, "dac mono2 right filter" },
+	{ "dac mono2 right filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "DD1 MIXL", "Sto DAC Mix L Switch", "Stereo DAC MIXL" },
 	{ "DD1 MIXL", "Mono DAC Mix L Switch", "Mono DAC MIXL" },
 	{ "DD1 MIXL", "DAC3 L Switch", "DAC3 L Mux" },
 	{ "DD1 MIXL", "DAC3 R Switch", "DAC3 R Mux" },
 	{ "DD1 MIXL", NULL, "dac mono3 left filter" },
+	{ "dac mono3 left filter", NULL, "PLL1", is_sys_clk_from_pll },
 	{ "DD1 MIXR", "Sto DAC Mix R Switch", "Stereo DAC MIXR" },
 	{ "DD1 MIXR", "Mono DAC Mix R Switch", "Mono DAC MIXR" },
 	{ "DD1 MIXR", "DAC3 L Switch", "DAC3 L Mux" },
 	{ "DD1 MIXR", "DAC3 R Switch", "DAC3 R Mux" },
 	{ "DD1 MIXR", NULL, "dac mono3 right filter" },
+	{ "dac mono3 right filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "DD2 MIXL", "Sto DAC Mix L Switch", "Stereo DAC MIXL" },
 	{ "DD2 MIXL", "Mono DAC Mix L Switch", "Mono DAC MIXL" },
 	{ "DD2 MIXL", "DAC4 L Switch", "DAC4 L Mux" },
 	{ "DD2 MIXL", "DAC4 R Switch", "DAC4 R Mux" },
 	{ "DD2 MIXL", NULL, "dac mono4 left filter" },
+	{ "dac mono4 left filter", NULL, "PLL1", is_sys_clk_from_pll },
 	{ "DD2 MIXR", "Sto DAC Mix R Switch", "Stereo DAC MIXR" },
 	{ "DD2 MIXR", "Mono DAC Mix R Switch", "Mono DAC MIXR" },
 	{ "DD2 MIXR", "DAC4 L Switch", "DAC4 L Mux" },
 	{ "DD2 MIXR", "DAC4 R Switch", "DAC4 R Mux" },
 	{ "DD2 MIXR", NULL, "dac mono4 right filter" },
+	{ "dac mono4 right filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo DAC MIX", NULL, "Stereo DAC MIXL" },
 	{ "Stereo DAC MIX", NULL, "Stereo DAC MIXR" },
@@ -3740,11 +3739,8 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "DAC3 SRC Mux", "DD MIX2L", "DD2 MIXL" },
 
 	{ "DAC 1", NULL, "DAC12 SRC Mux" },
-	{ "DAC 1", NULL, "PLL1", is_sys_clk_from_pll },
 	{ "DAC 2", NULL, "DAC12 SRC Mux" },
-	{ "DAC 2", NULL, "PLL1", is_sys_clk_from_pll },
 	{ "DAC 3", NULL, "DAC3 SRC Mux" },
-	{ "DAC 3", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "PDM1 L Mux", "STO1 DAC MIX", "Stereo DAC MIXL" },
 	{ "PDM1 L Mux", "MONO DAC MIX", "Mono DAC MIXL" },
