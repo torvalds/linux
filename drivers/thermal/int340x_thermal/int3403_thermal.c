@@ -369,6 +369,7 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 	p = buf.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
 		printk(KERN_WARNING "Invalid PPSS data\n");
+		kfree(buf.pointer);
 		return -EFAULT;
 	}
 
@@ -381,6 +382,7 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 
 	priv->priv = obj;
 
+	kfree(buf.pointer);
 	/* TODO: add ACPI notification support */
 
 	return result;
