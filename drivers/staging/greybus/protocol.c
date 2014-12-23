@@ -86,6 +86,7 @@ int gb_protocol_register(struct gb_protocol *protocol)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(gb_protocol_register);
 
 /*
  * De-register a previously registered protocol.
@@ -117,6 +118,7 @@ int gb_protocol_deregister(struct gb_protocol *protocol)
 
 	return protocol && !protocol_count;
 }
+EXPORT_SYMBOL_GPL(gb_protocol_deregister);
 
 /* Returns the requested protocol if available, or a null pointer */
 struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)

@@ -243,6 +243,7 @@ void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
 
 	va_end(args);
 }
+EXPORT_SYMBOL_GPL(gb_connection_err);
 
 int gb_connection_init(struct gb_connection *connection)
 {

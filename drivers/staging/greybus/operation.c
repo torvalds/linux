@@ -567,6 +567,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	return gb_operation_create_common(connection, type,
 					request_size, response_size);
 }
+EXPORT_SYMBOL_GPL(gb_operation_create);
 
 static struct gb_operation *
 gb_operation_create_incoming(struct gb_connection *connection, u16 id,
@@ -623,6 +624,7 @@ void gb_operation_put(struct gb_operation *operation)
 	if (!WARN_ON(!operation))
 		kref_put(&operation->kref, _gb_operation_destroy);
 }
+EXPORT_SYMBOL_GPL(gb_operation_put);
 
 /* Tell the requester we're done */
 static void gb_operation_sync_callback(struct gb_operation *operation)
@@ -710,6 +712,7 @@ int gb_operation_request_send_sync(struct gb_operation *operation)
 
 	return gb_operation_result(operation);
 }
+EXPORT_SYMBOL_GPL(gb_operation_request_send_sync);
 
 /*
  * Send a response for an incoming operation request.  A non-zero
@@ -958,6 +961,7 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(gb_operation_sync);
 
 int gb_operation_init(void)
 {
