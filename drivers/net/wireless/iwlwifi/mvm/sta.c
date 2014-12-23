@@ -1144,7 +1144,7 @@ static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm)
 static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (sta) {
 		struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
@@ -1280,7 +1280,7 @@ static inline u8 *iwl_mvm_get_mac_addr(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (sta)
 		return sta->addr;
