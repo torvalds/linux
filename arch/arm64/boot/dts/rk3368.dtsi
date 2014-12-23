@@ -37,11 +37,95 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		big0: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x0>;
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x100>;
+			enable-method = "psci";
 		};
+		big1: cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x101>;
+			enable-method = "psci";
+		};
+		big2: cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x102>;
+			enable-method = "psci";
+		};
+		big3: cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x103>;
+			enable-method = "psci";
+		};
+/*
+		little0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x0>;
+			enable-method = "psci";
+		};
+		little1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x1>;
+			enable-method = "psci";
+		};
+		little2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x2>;
+			enable-method = "psci";
+		};
+		little3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0 0x3>;
+			enable-method = "psci";
+		};
+*/
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&big0>;
+				};
+				core1 {
+					cpu = <&big1>;
+				};
+				core2 {
+					cpu = <&big2>;
+				};
+				core3 {
+					cpu = <&big3>;
+				};
+			};
+/*
+			cluster1 {
+				core0 {
+					cpu = <&little0>;
+				};
+				core1 {
+					cpu = <&little1>;
+				};
+				core2 {
+					cpu = <&little2>;
+				};
+				core3 {
+					cpu = <&little3>;
+				};
+			};
+*/
+		};
+	};
+
+	psci {
+		compatible = "arm,psci";
+		method = "smc";
+		cpu_on = <0xC4000003>;
 	};
 
 	gic: interrupt-controller@ffb70000 {
@@ -205,9 +289,9 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		pdma0: pdma@ffb20000 {
+		pdma0: pdma@ff600000 {
 			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x0 0xffb20000 0x0 0x4000>;
+			reg = <0x0 0xff600000 0x0 0x4000>;
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
