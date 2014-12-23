@@ -2027,7 +2027,7 @@ xlog_print_tic_res(
 		"  total reg   = %u bytes (o/flow = %u bytes)\n"
 		"  ophdrs      = %u (ophdr space = %u bytes)\n"
 		"  ophdr + reg = %u bytes\n"
-		"  num regions = %u\n",
+		"  num regions = %u",
 		((ticket->t_trans_type <= 0 ||
 		  ticket->t_trans_type > XFS_TRANS_TYPE_MAX) ?
 		  "bad-trans-type" : trans_type_str[ticket->t_trans_type-1]),

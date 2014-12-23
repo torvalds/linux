@@ -685,7 +685,7 @@ xfs_blkdev_get(
 				    mp);
 	if (IS_ERR(*bdevp)) {
 		error = PTR_ERR(*bdevp);
-		xfs_warn(mp, "Invalid device [%s], error=%d\n", name, error);
+		xfs_warn(mp, "Invalid device [%s], error=%d", name, error);
 	}
 
 	return error;
