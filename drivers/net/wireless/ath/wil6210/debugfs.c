@@ -390,24 +390,67 @@ static int wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
 	return 0;
 }
 
-static const struct dbg_off itr_cnt_off[] = {
+static const struct dbg_off lgc_itr_cnt_off[] = {
 	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_TRSH), doff_io32},
 	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_DATA), doff_io32},
 	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_CRL), doff_io32},
 	{},
 };
 
+static const struct dbg_off tx_itr_cnt_off[] = {
+	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_TRSH),
+	 doff_io32},
+	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_DATA),
+	 doff_io32},
+	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_CTL),
+	 doff_io32},
+	{"IDL_TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_TRSH),
+	 doff_io32},
+	{"IDL_DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_DATA),
+	 doff_io32},
+	{"IDL_CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_CTL),
+	 doff_io32},
+	{},
+};
+
+static const struct dbg_off rx_itr_cnt_off[] = {
+	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_TRSH),
+	 doff_io32},
+	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_DATA),
+	 doff_io32},
+	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_CTL),
+	 doff_io32},
+	{"IDL_TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_TRSH),
+	 doff_io32},
+	{"IDL_DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_DATA),
+	 doff_io32},
+	{"IDL_CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_CTL),
+	 doff_io32},
+	{},
+};
+
 static int wil6210_debugfs_create_ITR_CNT(struct wil6210_priv *wil,
 					  struct dentry *parent)
 {
-	struct dentry *d = debugfs_create_dir("ITR_CNT", parent);
+	struct dentry *d, *dtx, *drx;
 
+	d = debugfs_create_dir("ITR_CNT", parent);
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
-				    itr_cnt_off);
+	dtx = debugfs_create_dir("TX", d);
+	drx = debugfs_create_dir("RX", d);
+	if (IS_ERR_OR_NULL(dtx) || IS_ERR_OR_NULL(drx))
+		return -ENODEV;
 
+	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
+				    lgc_itr_cnt_off);
+
+	wil6210_debugfs_init_offset(wil, dtx, (void * __force)wil->csr,
+				    tx_itr_cnt_off);
+
+	wil6210_debugfs_init_offset(wil, drx, (void * __force)wil->csr,
+				    rx_itr_cnt_off);
 	return 0;
 }
 

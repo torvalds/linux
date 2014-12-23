@@ -157,13 +157,89 @@ void wil_unmask_irq(struct wil6210_priv *wil)
 	iowrite32(WIL_ICR_ICC_VALUE, wil->csr + HOSTADDR(RGF_DMA_EP_MISC_ICR) +
 		  offsetof(struct RGF_ICR, ICC));
 
-	/* interrupt moderation parameters */
-	wil_set_itr_trsh(wil);
-
 	wil6210_unmask_irq_pseudo(wil);
 	wil6210_unmask_irq_tx(wil);
 	wil6210_unmask_irq_rx(wil);
 	wil6210_unmask_irq_misc(wil);
+}
+
+/* target write operation */
+#define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
+
+static
+void wil_configure_interrupt_moderation_new(struct wil6210_priv *wil)
+{
+	/* Disable and clear tx counter before (re)configuration */
+	W(RGF_DMA_ITR_TX_CNT_CTL, BIT_DMA_ITR_TX_CNT_CTL_CLR);
+	W(RGF_DMA_ITR_TX_CNT_TRSH, wil->tx_max_burst_duration);
+	wil_info(wil, "set ITR_TX_CNT_TRSH = %d usec\n",
+		 wil->tx_max_burst_duration);
+	/* Configure TX max burst duration timer to use usec units */
+	W(RGF_DMA_ITR_TX_CNT_CTL,
+	  BIT_DMA_ITR_TX_CNT_CTL_EN | BIT_DMA_ITR_TX_CNT_CTL_EXT_TIC_SEL);
+
+	/* Disable and clear tx idle counter before (re)configuration */
+	W(RGF_DMA_ITR_TX_IDL_CNT_CTL, BIT_DMA_ITR_TX_IDL_CNT_CTL_CLR);
+	W(RGF_DMA_ITR_TX_IDL_CNT_TRSH, wil->tx_interframe_timeout);
+	wil_info(wil, "set ITR_TX_IDL_CNT_TRSH = %d usec\n",
+		 wil->tx_interframe_timeout);
+	/* Configure TX max burst duration timer to use usec units */
+	W(RGF_DMA_ITR_TX_IDL_CNT_CTL, BIT_DMA_ITR_TX_IDL_CNT_CTL_EN |
+				      BIT_DMA_ITR_TX_IDL_CNT_CTL_EXT_TIC_SEL);
+
+	/* Disable and clear rx counter before (re)configuration */
+	W(RGF_DMA_ITR_RX_CNT_CTL, BIT_DMA_ITR_RX_CNT_CTL_CLR);
+	W(RGF_DMA_ITR_RX_CNT_TRSH, wil->rx_max_burst_duration);
+	wil_info(wil, "set ITR_RX_CNT_TRSH = %d usec\n",
+		 wil->rx_max_burst_duration);
+	/* Configure TX max burst duration timer to use usec units */
+	W(RGF_DMA_ITR_RX_CNT_CTL,
+	  BIT_DMA_ITR_RX_CNT_CTL_EN | BIT_DMA_ITR_RX_CNT_CTL_EXT_TIC_SEL);
+
+	/* Disable and clear rx idle counter before (re)configuration */
+	W(RGF_DMA_ITR_RX_IDL_CNT_CTL, BIT_DMA_ITR_RX_IDL_CNT_CTL_CLR);
+	W(RGF_DMA_ITR_RX_IDL_CNT_TRSH, wil->rx_interframe_timeout);
+	wil_info(wil, "set ITR_RX_IDL_CNT_TRSH = %d usec\n",
+		 wil->rx_interframe_timeout);
+	/* Configure TX max burst duration timer to use usec units */
+	W(RGF_DMA_ITR_RX_IDL_CNT_CTL, BIT_DMA_ITR_RX_IDL_CNT_CTL_EN |
+				      BIT_DMA_ITR_RX_IDL_CNT_CTL_EXT_TIC_SEL);
+}
+
+static
+void wil_configure_interrupt_moderation_lgc(struct wil6210_priv *wil)
+{
+	/* disable, use usec resolution */
+	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_CLR);
+
+	wil_info(wil, "set ITR_TRSH = %d usec\n", wil->rx_max_burst_duration);
+	W(RGF_DMA_ITR_CNT_TRSH, wil->rx_max_burst_duration);
+	/* start it */
+	W(RGF_DMA_ITR_CNT_CRL,
+	  BIT_DMA_ITR_CNT_CRL_EN | BIT_DMA_ITR_CNT_CRL_EXT_TICK);
+}
+
+#undef W
+
+void wil_configure_interrupt_moderation(struct wil6210_priv *wil)
+{
+	wil_dbg_irq(wil, "%s()\n", __func__);
+
+	/* disable interrupt moderation for monitor
+	 * to get better timestamp precision
+	 */
+	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR)
+		return;
+
+	if (test_bit(hw_capability_advanced_itr_moderation,
+		     wil->hw_capabilities))
+		wil_configure_interrupt_moderation_new(wil);
+	else {
+		/* Advanced interrupt moderation is not available before
+		 * Sparrow v2. Will use legacy interrupt moderation
+		 */
+		wil_configure_interrupt_moderation_lgc(wil);
+	}
 }
 
 static irqreturn_t wil6210_irq_rx(int irq, void *cookie)

@@ -65,6 +65,10 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 
 	if (wil->hw_version >= HW_VER_SPARROW_A0)
 		set_bit(hw_capability_reset_v2, wil->hw_capabilities);
+
+	if (wil->hw_version >= HW_VER_SPARROW_B0)
+		set_bit(hw_capability_advanced_itr_moderation,
+			wil->hw_capabilities);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)

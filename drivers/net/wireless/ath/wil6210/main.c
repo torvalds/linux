@@ -33,10 +33,34 @@ static bool no_fw_load = true;
 module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
 
-static unsigned int itr_trsh = WIL6210_ITR_TRSH_DEFAULT;
+static unsigned int tx_interframe_timeout =
+		WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT;
 
-module_param(itr_trsh, uint, S_IRUGO);
-MODULE_PARM_DESC(itr_trsh, " Interrupt moderation threshold, usecs.");
+module_param(tx_interframe_timeout, uint, S_IRUGO);
+MODULE_PARM_DESC(tx_interframe_timeout,
+		 " Interrupt moderation TX interframe timeout, usecs.");
+
+static unsigned int rx_interframe_timeout =
+		WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT;
+
+module_param(rx_interframe_timeout, uint, S_IRUGO);
+MODULE_PARM_DESC(rx_interframe_timeout,
+		 " Interrupt moderation RX interframe timeout, usecs.");
+
+static unsigned int tx_max_burst_duration =
+		WIL6210_ITR_TX_MAX_BURST_DURATION_DEFAULT;
+
+module_param(tx_max_burst_duration, uint, S_IRUGO);
+MODULE_PARM_DESC(tx_max_burst_duration,
+		 " Interrupt moderation TX max burst duration, usecs.");
+
+static unsigned int rx_max_burst_duration =
+		WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT;
+
+module_param(rx_max_burst_duration, uint, S_IRUGO);
+MODULE_PARM_DESC(rx_max_burst_duration,
+		 " Interrupt moderation RX max burst duration, usecs.");
+
 
 /* We allow allocation of more than 1 page buffers to support large packets.
  * It is suboptimal behavior performance wise in case MTU above page size.
@@ -427,7 +451,10 @@ int wil_priv_init(struct wil6210_priv *wil)
 		goto out_wmi_wq;
 
 	wil->last_fw_recovery = jiffies;
-	wil->itr_trsh = itr_trsh;
+	wil->tx_interframe_timeout = tx_interframe_timeout;
+	wil->rx_interframe_timeout = rx_interframe_timeout;
+	wil->tx_max_burst_duration = tx_max_burst_duration;
+	wil->rx_max_burst_duration = rx_max_burst_duration;
 
 	return 0;
 
@@ -585,26 +612,6 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	return 0;
 }
 
-/**
- * wil_set_itr_trsh: - apply interrupt coalescing params
- */
-void wil_set_itr_trsh(struct wil6210_priv *wil)
-{
-	/* disable, use usec resolution */
-	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_EXT_TICK);
-
-	/* disable interrupt moderation for monitor
-	 * to get better timestamp precision
-	 */
-	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR)
-		return;
-
-	wil_info(wil, "set ITR_TRSH = %d usec\n", wil->itr_trsh);
-	W(RGF_DMA_ITR_CNT_TRSH, wil->itr_trsh);
-	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_EN |
-	  BIT_DMA_ITR_CNT_CRL_EXT_TICK); /* start it */
-}
-
 #undef R
 #undef W
 #undef S
@@ -708,6 +715,7 @@ int wil_reset(struct wil6210_priv *wil)
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
 
+	wil_configure_interrupt_moderation(wil);
 	wil_unmask_irq(wil);
 
 	/* we just started MAC, wait for FW ready */

@@ -76,7 +76,10 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 #define WIL_MAX_ETH_MTU		(IEEE80211_MAX_DATA_LEN_DMG - 8)
 /* Max supported by wil6210 value for interrupt threshold is 5sec. */
 #define WIL6210_ITR_TRSH_MAX (5000000)
-#define WIL6210_ITR_TRSH_DEFAULT	(300) /* usec */
+#define WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT (15) /* usec */
+#define WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT (15) /* usec */
+#define WIL6210_ITR_TX_MAX_BURST_DURATION_DEFAULT (500) /* usec */
+#define WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT (500) /* usec */
 #define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
 #define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
 #define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
@@ -152,7 +155,7 @@ struct RGF_ICR {
 	#define BIT_DMA_EP_MISC_ICR_TX_NO_ACT	BIT(1)
 	#define BIT_DMA_EP_MISC_ICR_FW_INT(n)	BIT(28+n) /* n = [0..3] */
 
-/* Interrupt moderation control */
+/* Legacy interrupt moderation control (before Sparrow v2)*/
 #define RGF_DMA_ITR_CNT_TRSH		(0x881c5c)
 #define RGF_DMA_ITR_CNT_DATA		(0x881c60)
 #define RGF_DMA_ITR_CNT_CRL		(0x881c64)
@@ -161,6 +164,46 @@ struct RGF_ICR {
 	#define BIT_DMA_ITR_CNT_CRL_FOREVER	BIT(2)
 	#define BIT_DMA_ITR_CNT_CRL_CLR		BIT(3)
 	#define BIT_DMA_ITR_CNT_CRL_REACH_TRSH	BIT(4)
+
+/* New (sparrow v2+) interrupt moderation control */
+#define RGF_DMA_ITR_TX_DESQ_NO_MOD		(0x881d40)
+#define RGF_DMA_ITR_TX_CNT_TRSH			(0x881d34)
+#define RGF_DMA_ITR_TX_CNT_DATA			(0x881d38)
+#define RGF_DMA_ITR_TX_CNT_CTL			(0x881d3c)
+	#define BIT_DMA_ITR_TX_CNT_CTL_EN		BIT(0)
+	#define BIT_DMA_ITR_TX_CNT_CTL_EXT_TIC_SEL	BIT(1)
+	#define BIT_DMA_ITR_TX_CNT_CTL_FOREVER		BIT(2)
+	#define BIT_DMA_ITR_TX_CNT_CTL_CLR		BIT(3)
+	#define BIT_DMA_ITR_TX_CNT_CTL_REACHED_TRESH	BIT(4)
+	#define BIT_DMA_ITR_TX_CNT_CTL_CROSS_EN		BIT(5)
+	#define BIT_DMA_ITR_TX_CNT_CTL_FREE_RUNNIG	BIT(6)
+#define RGF_DMA_ITR_TX_IDL_CNT_TRSH			(0x881d60)
+#define RGF_DMA_ITR_TX_IDL_CNT_DATA			(0x881d64)
+#define RGF_DMA_ITR_TX_IDL_CNT_CTL			(0x881d68)
+	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_EN			BIT(0)
+	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_EXT_TIC_SEL		BIT(1)
+	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_FOREVER		BIT(2)
+	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_CLR			BIT(3)
+	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_REACHED_TRESH	BIT(4)
+#define RGF_DMA_ITR_RX_DESQ_NO_MOD		(0x881d50)
+#define RGF_DMA_ITR_RX_CNT_TRSH			(0x881d44)
+#define RGF_DMA_ITR_RX_CNT_DATA			(0x881d48)
+#define RGF_DMA_ITR_RX_CNT_CTL			(0x881d4c)
+	#define BIT_DMA_ITR_RX_CNT_CTL_EN		BIT(0)
+	#define BIT_DMA_ITR_RX_CNT_CTL_EXT_TIC_SEL	BIT(1)
+	#define BIT_DMA_ITR_RX_CNT_CTL_FOREVER		BIT(2)
+	#define BIT_DMA_ITR_RX_CNT_CTL_CLR		BIT(3)
+	#define BIT_DMA_ITR_RX_CNT_CTL_REACHED_TRESH	BIT(4)
+	#define BIT_DMA_ITR_RX_CNT_CTL_CROSS_EN		BIT(5)
+	#define BIT_DMA_ITR_RX_CNT_CTL_FREE_RUNNIG	BIT(6)
+#define RGF_DMA_ITR_RX_IDL_CNT_TRSH			(0x881d54)
+#define RGF_DMA_ITR_RX_IDL_CNT_DATA			(0x881d58)
+#define RGF_DMA_ITR_RX_IDL_CNT_CTL			(0x881d5c)
+	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_EN			BIT(0)
+	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_EXT_TIC_SEL		BIT(1)
+	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_FOREVER		BIT(2)
+	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_CLR			BIT(3)
+	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_REACHED_TRESH	BIT(4)
 
 #define RGF_DMA_PSEUDO_CAUSE		(0x881c68)
 #define RGF_DMA_PSEUDO_CAUSE_MASK_SW	(0x881c6c)
@@ -435,6 +478,7 @@ enum {
 
 enum {
 	hw_capability_reset_v2 = 0,
+	hw_capability_advanced_itr_moderation = 1,
 	hw_capability_last
 };
 
@@ -475,7 +519,11 @@ struct wil6210_priv {
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
 	int sinfo_gen;
-	u32 itr_trsh;
+	/* interrupt moderation */
+	u32 tx_max_burst_duration;
+	u32 tx_interframe_timeout;
+	u32 rx_max_burst_duration;
+	u32 rx_interframe_timeout;
 	/* cached ISR registers */
 	u32 isr_misc;
 	/* mailbox related */
@@ -596,7 +644,6 @@ void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil);
-void wil_set_itr_trsh(struct wil6210_priv *wil);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
 void wil_link_on(struct wil6210_priv *wil);
@@ -653,6 +700,7 @@ int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
 void wil_mask_irq(struct wil6210_priv *wil);
 void wil_unmask_irq(struct wil6210_priv *wil);
+void wil_configure_interrupt_moderation(struct wil6210_priv *wil);
 void wil_disable_irq(struct wil6210_priv *wil);
 void wil_enable_irq(struct wil6210_priv *wil);
 int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
