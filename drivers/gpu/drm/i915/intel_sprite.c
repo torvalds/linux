@@ -33,6 +33,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_plane_helper.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -1081,11 +1082,12 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	uint32_t src_x, src_y, src_w, src_h;
 	struct drm_rect *src = &state->src;
 	struct drm_rect *dst = &state->dst;
-	struct drm_rect *orig_src = &state->orig_src;
 	const struct drm_rect *clip = &state->clip;
 	int hscale, vscale;
 	int max_scale, min_scale;
 	int pixel_size;
+
+	intel_crtc = intel_crtc ? intel_crtc : to_intel_crtc(plane->crtc);
 
 	if (!fb) {
 		state->visible = false;
@@ -1167,10 +1169,10 @@ intel_check_sprite_plane(struct drm_plane *plane,
 				    intel_plane->rotation);
 
 		/* sanity check to make sure the src viewport wasn't enlarged */
-		WARN_ON(src->x1 < (int) orig_src->x1 ||
-			src->y1 < (int) orig_src->y1 ||
-			src->x2 > (int) orig_src->x2 ||
-			src->y2 > (int) orig_src->y2);
+		WARN_ON(src->x1 < (int) state->base.src_x ||
+			src->y1 < (int) state->base.src_y ||
+			src->x2 > (int) state->base.src_x + state->base.src_w ||
+			src->y2 > (int) state->base.src_y + state->base.src_h);
 
 		/*
 		 * Hardware doesn't handle subpixel coordinates.
@@ -1267,7 +1269,7 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
@@ -1275,14 +1277,19 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
 
-	intel_plane->crtc_x = state->orig_dst.x1;
-	intel_plane->crtc_y = state->orig_dst.y1;
-	intel_plane->crtc_w = drm_rect_width(&state->orig_dst);
-	intel_plane->crtc_h = drm_rect_height(&state->orig_dst);
-	intel_plane->src_x = state->orig_src.x1;
-	intel_plane->src_y = state->orig_src.y1;
-	intel_plane->src_w = drm_rect_width(&state->orig_src);
-	intel_plane->src_h = drm_rect_height(&state->orig_src);
+	intel_plane->crtc_x = state->base.crtc_x;
+	intel_plane->crtc_y = state->base.crtc_y;
+	intel_plane->crtc_w = state->base.crtc_w;
+	intel_plane->crtc_h = state->base.crtc_h;
+	intel_plane->src_x = state->base.src_x;
+	intel_plane->src_y = state->base.src_y;
+	intel_plane->src_w = state->base.src_w;
+	intel_plane->src_h = state->base.src_h;
+
+	crtc = crtc ? crtc : plane->crtc;
+	intel_crtc = to_intel_crtc(crtc);
+
+	plane->fb = state->base.fb;
 	intel_plane->obj = obj;
 
 	if (intel_crtc->active) {
@@ -1406,10 +1413,12 @@ int intel_plane_restore(struct drm_plane *plane)
 }
 
 static const struct drm_plane_funcs intel_sprite_plane_funcs = {
-	.update_plane = intel_update_plane,
-	.disable_plane = intel_disable_plane,
+	.update_plane = drm_plane_helper_update,
+	.disable_plane = drm_plane_helper_disable,
 	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
 };
 
 static uint32_t ilk_plane_formats[] = {
@@ -1470,6 +1479,13 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane = kzalloc(sizeof(*intel_plane), GFP_KERNEL);
 	if (!intel_plane)
 		return -ENOMEM;
+
+	intel_plane->base.state =
+		intel_plane_duplicate_state(&intel_plane->base);
+	if (intel_plane->base.state == NULL) {
+		kfree(intel_plane);
+		return -ENOMEM;
+	}
 
 	switch (INTEL_INFO(dev)->gen) {
 	case 5:
@@ -1563,6 +1579,8 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		drm_object_attach_property(&intel_plane->base.base,
 					   dev->mode_config.rotation_property,
 					   intel_plane->rotation);
+
+	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 
  out:
 	return ret;

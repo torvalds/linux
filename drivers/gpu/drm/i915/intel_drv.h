@@ -248,8 +248,6 @@ struct intel_plane_state {
 	struct drm_rect src;
 	struct drm_rect dst;
 	struct drm_rect clip;
-	struct drm_rect orig_src;
-	struct drm_rect orig_dst;
 	bool visible;
 
 	/*
@@ -437,6 +435,7 @@ struct intel_crtc_atomic_commit {
 	bool disable_fbc;
 	bool pre_disable_primary;
 	bool update_wm;
+	unsigned disabled_planes;
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;
@@ -575,6 +574,7 @@ struct cxsr_latency {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 #define to_intel_plane(x) container_of(x, struct intel_plane, base)
+#define to_intel_plane_state(x) container_of(x, struct intel_plane_state, base)
 #define intel_fb_obj(x) (x ? to_intel_framebuffer(x)->obj : NULL)
 
 struct intel_hdmi {
@@ -1254,5 +1254,11 @@ void intel_pre_disable_primary(struct drm_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
+
+/* intel_atomic.c */
+struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
+void intel_plane_destroy_state(struct drm_plane *plane,
+			       struct drm_plane_state *state);
+extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
 
 #endif /* __INTEL_DRV_H__ */

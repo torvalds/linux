@@ -98,6 +98,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_config *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_config *pipe_config);
+static void intel_begin_crtc_commit(struct drm_crtc *crtc);
+static void intel_finish_crtc_commit(struct drm_crtc *crtc);
 
 static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
 {
@@ -9794,6 +9796,8 @@ out_hang:
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
+	.atomic_begin = intel_begin_crtc_commit,
+	.atomic_flush = intel_finish_crtc_commit,
 };
 
 /**
@@ -11674,7 +11678,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	unsigned frontbuffer_bits = 0;
 	int ret = 0;
 
-	if (WARN_ON(fb == plane->fb || !obj))
+	if (!obj)
 		return 0;
 
 	switch (plane->type) {
@@ -11741,13 +11745,16 @@ intel_check_primary_plane(struct drm_plane *plane,
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = state->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
 	int ret;
+
+	crtc = crtc ? crtc : plane->crtc;
+	intel_crtc = to_intel_crtc(crtc);
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    src, dest, clip,
@@ -11804,23 +11811,26 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_rect *src = &state->src;
+
+	crtc = crtc ? crtc : plane->crtc;
+	intel_crtc = to_intel_crtc(crtc);
 
 	plane->fb = fb;
 	crtc->x = src->x1 >> 16;
 	crtc->y = src->y1 >> 16;
 
-	intel_plane->crtc_x = state->orig_dst.x1;
-	intel_plane->crtc_y = state->orig_dst.y1;
-	intel_plane->crtc_w = drm_rect_width(&state->orig_dst);
-	intel_plane->crtc_h = drm_rect_height(&state->orig_dst);
-	intel_plane->src_x = state->orig_src.x1;
-	intel_plane->src_y = state->orig_src.y1;
-	intel_plane->src_w = drm_rect_width(&state->orig_src);
-	intel_plane->src_h = drm_rect_height(&state->orig_src);
+	intel_plane->crtc_x = state->base.crtc_x;
+	intel_plane->crtc_y = state->base.crtc_y;
+	intel_plane->crtc_w = state->base.crtc_w;
+	intel_plane->crtc_h = state->base.crtc_h;
+	intel_plane->src_x = state->base.src_x;
+	intel_plane->src_y = state->base.src_y;
+	intel_plane->src_w = state->base.src_w;
+	intel_plane->src_h = state->base.src_h;
 	intel_plane->obj = obj;
 
 	if (intel_crtc->active) {
@@ -11850,6 +11860,33 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_plane *intel_plane;
+	struct drm_plane *p;
+	unsigned fb_bits = 0;
+
+	/* Track fb's for any planes being disabled */
+	list_for_each_entry(p, &dev->mode_config.plane_list, head) {
+		intel_plane = to_intel_plane(p);
+
+		if (intel_crtc->atomic.disabled_planes &
+		    (1 << drm_plane_index(p))) {
+			switch (p->type) {
+			case DRM_PLANE_TYPE_PRIMARY:
+				fb_bits = INTEL_FRONTBUFFER_PRIMARY(intel_plane->pipe);
+				break;
+			case DRM_PLANE_TYPE_CURSOR:
+				fb_bits = INTEL_FRONTBUFFER_CURSOR(intel_plane->pipe);
+				break;
+			case DRM_PLANE_TYPE_OVERLAY:
+				fb_bits = INTEL_FRONTBUFFER_SPRITE(intel_plane->pipe);
+				break;
+			}
+
+			mutex_lock(&dev->struct_mutex);
+			i915_gem_track_fb(intel_fb_obj(p->fb), NULL, fb_bits);
+			mutex_unlock(&dev->struct_mutex);
+		}
+	}
 
 	if (intel_crtc->atomic.wait_for_flips)
 		intel_crtc_wait_for_pending_flips(crtc);
@@ -11907,111 +11944,6 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc)
 	memset(&intel_crtc->atomic, 0, sizeof(intel_crtc->atomic));
 }
 
-int
-intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
-		   struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-		   unsigned int crtc_w, unsigned int crtc_h,
-		   uint32_t src_x, uint32_t src_y,
-		   uint32_t src_w, uint32_t src_h)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_framebuffer *old_fb = plane->fb;
-	struct intel_plane_state state = {{ 0 }};
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int ret;
-
-	state.base.crtc = crtc ? crtc : plane->crtc;
-	state.base.fb = fb;
-
-	/* sample coordinates in 16.16 fixed point */
-	state.src.x1 = src_x;
-	state.src.x2 = src_x + src_w;
-	state.src.y1 = src_y;
-	state.src.y2 = src_y + src_h;
-
-	/* integer pixels */
-	state.dst.x1 = crtc_x;
-	state.dst.x2 = crtc_x + crtc_w;
-	state.dst.y1 = crtc_y;
-	state.dst.y2 = crtc_y + crtc_h;
-
-	state.clip.x1 = 0;
-	state.clip.y1 = 0;
-	state.clip.x2 = intel_crtc->active ? intel_crtc->config.pipe_src_w : 0;
-	state.clip.y2 = intel_crtc->active ? intel_crtc->config.pipe_src_h : 0;
-
-	state.orig_src = state.src;
-	state.orig_dst = state.dst;
-
-	ret = intel_plane->check_plane(plane, &state);
-	if (ret)
-		return ret;
-
-	if (fb != old_fb && fb) {
-		ret = intel_prepare_plane_fb(plane, fb);
-		if (ret)
-			return ret;
-	}
-
-	if (!state.base.fb) {
-		unsigned fb_bits = 0;
-
-		switch (plane->type) {
-		case DRM_PLANE_TYPE_PRIMARY:
-			fb_bits = INTEL_FRONTBUFFER_PRIMARY(intel_plane->pipe);
-			break;
-		case DRM_PLANE_TYPE_CURSOR:
-			fb_bits = INTEL_FRONTBUFFER_CURSOR(intel_plane->pipe);
-			break;
-		case DRM_PLANE_TYPE_OVERLAY:
-			fb_bits = INTEL_FRONTBUFFER_SPRITE(intel_plane->pipe);
-			break;
-		}
-
-		/*
-		 * 'prepare' is never called when plane is being disabled, so
-		 * we need to handle frontbuffer tracking here
-		 */
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_track_fb(intel_fb_obj(plane->fb), NULL, fb_bits);
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	intel_begin_crtc_commit(crtc);
-	intel_plane->commit_plane(plane, &state);
-	intel_finish_crtc_commit(crtc);
-
-	if (fb != old_fb && old_fb) {
-		if (intel_crtc->active)
-			intel_wait_for_vblank(dev, intel_crtc->pipe);
-		intel_cleanup_plane_fb(plane, old_fb);
-	}
-
-	plane->fb = fb;
-
-	return 0;
-}
-
-/**
- * intel_disable_plane - disable a plane
- * @plane: plane to disable
- *
- * General disable handler for all plane types.
- */
-int
-intel_disable_plane(struct drm_plane *plane)
-{
-	if (!plane->fb)
-		return 0;
-
-	if (WARN_ON(!plane->crtc))
-		return -EINVAL;
-
-	return plane->funcs->update_plane(plane, plane->crtc, NULL,
-					  0, 0, 0, 0, 0, 0, 0, 0);
-}
-
 /**
  * intel_plane_destroy - destroy a plane
  * @plane: plane to destroy
@@ -12022,15 +11954,19 @@ intel_disable_plane(struct drm_plane *plane)
 void intel_plane_destroy(struct drm_plane *plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	intel_plane_destroy_state(plane, plane->state);
 	drm_plane_cleanup(plane);
 	kfree(intel_plane);
 }
 
 static const struct drm_plane_funcs intel_primary_plane_funcs = {
-	.update_plane = intel_update_plane,
-	.disable_plane = intel_disable_plane,
+	.update_plane = drm_plane_helper_update,
+	.disable_plane = drm_plane_helper_disable,
 	.destroy = intel_plane_destroy,
-	.set_property = intel_plane_set_property
+	.set_property = intel_plane_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+
 };
 
 static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
@@ -12043,6 +11979,12 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (primary == NULL)
 		return NULL;
+
+	primary->base.state = intel_plane_duplicate_state(&primary->base);
+	if (primary->base.state == NULL) {
+		kfree(primary);
+		return NULL;
+	}
 
 	primary->can_scale = false;
 	primary->max_downscale = 1;
@@ -12079,6 +12021,8 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 				primary->rotation);
 	}
 
+	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
+
 	return &primary->base;
 }
 
@@ -12087,16 +12031,18 @@ intel_check_cursor_plane(struct drm_plane *plane,
 			 struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->base.crtc;
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = plane->dev;
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int crtc_w, crtc_h;
+	struct intel_crtc *intel_crtc;
 	unsigned stride;
 	int ret;
+
+	crtc = crtc ? crtc : plane->crtc;
+	intel_crtc = to_intel_crtc(crtc);
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    src, dest, clip,
@@ -12112,15 +12058,14 @@ intel_check_cursor_plane(struct drm_plane *plane,
 		goto finish;
 
 	/* Check for which cursor types we support */
-	crtc_w = drm_rect_width(&state->orig_dst);
-	crtc_h = drm_rect_height(&state->orig_dst);
-	if (!cursor_size_ok(dev, crtc_w, crtc_h)) {
-		DRM_DEBUG("Cursor dimension not supported\n");
+	if (!cursor_size_ok(dev, state->base.crtc_w, state->base.crtc_h)) {
+		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
+			  state->base.crtc_w, state->base.crtc_h);
 		return -EINVAL;
 	}
 
-	stride = roundup_pow_of_two(crtc_w) * 4;
-	if (obj->base.size < stride * crtc_h) {
+	stride = roundup_pow_of_two(state->base.crtc_w) * 4;
+	if (obj->base.size < stride * state->base.crtc_h) {
 		DRM_DEBUG_KMS("buffer is too small\n");
 		return -ENOMEM;
 	}
@@ -12138,8 +12083,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 
 finish:
 	if (intel_crtc->active) {
-		if (intel_crtc->cursor_width !=
-		    drm_rect_width(&state->orig_dst))
+		if (intel_crtc->cursor_width != state->base.crtc_w)
 			intel_crtc->atomic.update_wm = true;
 
 		intel_crtc->atomic.fb_bits |=
@@ -12154,24 +12098,27 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->base.crtc;
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = plane->dev;
+	struct intel_crtc *intel_crtc;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(state->base.fb);
 	uint32_t addr;
 
-	plane->fb = state->base.fb;
-	crtc->cursor_x = state->orig_dst.x1;
-	crtc->cursor_y = state->orig_dst.y1;
+	crtc = crtc ? crtc : plane->crtc;
+	intel_crtc = to_intel_crtc(crtc);
 
-	intel_plane->crtc_x = state->orig_dst.x1;
-	intel_plane->crtc_y = state->orig_dst.y1;
-	intel_plane->crtc_w = drm_rect_width(&state->orig_dst);
-	intel_plane->crtc_h = drm_rect_height(&state->orig_dst);
-	intel_plane->src_x = state->orig_src.x1;
-	intel_plane->src_y = state->orig_src.y1;
-	intel_plane->src_w = drm_rect_width(&state->orig_src);
-	intel_plane->src_h = drm_rect_height(&state->orig_src);
+	plane->fb = state->base.fb;
+	crtc->cursor_x = state->base.crtc_x;
+	crtc->cursor_y = state->base.crtc_y;
+
+	intel_plane->crtc_x = state->base.crtc_x;
+	intel_plane->crtc_y = state->base.crtc_y;
+	intel_plane->crtc_w = state->base.crtc_w;
+	intel_plane->crtc_h = state->base.crtc_h;
+	intel_plane->src_x = state->base.src_x;
+	intel_plane->src_y = state->base.src_y;
+	intel_plane->src_w = state->base.src_w;
+	intel_plane->src_h = state->base.src_h;
 	intel_plane->obj = obj;
 
 	if (intel_crtc->cursor_bo == obj)
@@ -12187,18 +12134,20 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = obj;
 update:
-	intel_crtc->cursor_width = drm_rect_width(&state->orig_dst);
-	intel_crtc->cursor_height = drm_rect_height(&state->orig_dst);
+	intel_crtc->cursor_width = state->base.crtc_w;
+	intel_crtc->cursor_height = state->base.crtc_h;
 
 	if (intel_crtc->active)
 		intel_crtc_update_cursor(crtc, state->visible);
 }
 
 static const struct drm_plane_funcs intel_cursor_plane_funcs = {
-	.update_plane = intel_update_plane,
-	.disable_plane = intel_disable_plane,
+	.update_plane = drm_plane_helper_update,
+	.disable_plane = drm_plane_helper_disable,
 	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
 };
 
 static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
@@ -12209,6 +12158,12 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
 	if (cursor == NULL)
 		return NULL;
+
+	cursor->base.state = intel_plane_duplicate_state(&cursor->base);
+	if (cursor->base.state == NULL) {
+		kfree(cursor);
+		return NULL;
+	}
 
 	cursor->can_scale = false;
 	cursor->max_downscale = 1;
@@ -12235,6 +12190,8 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 				dev->mode_config.rotation_property,
 				cursor->rotation);
 	}
+
+	drm_plane_helper_add(&cursor->base, &intel_plane_helper_funcs);
 
 	return &cursor->base;
 }
