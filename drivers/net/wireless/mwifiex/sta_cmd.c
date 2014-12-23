@@ -26,6 +26,10 @@
 #include "11n.h"
 #include "11ac.h"
 
+static bool disable_auto_ds;
+module_param(disable_auto_ds, bool, 0);
+MODULE_PARM_DESC(disable_auto_ds,
+		 "deepsleep enabled=0(default), deepsleep disabled=1");
 /*
  * This function prepares command to set/get RSSI information.
  *
@@ -2031,7 +2035,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	if (ret)
 		return -1;
 
-	if (first_sta && priv->adapter->iface_type != MWIFIEX_USB &&
+	if (!disable_auto_ds &&
+	    first_sta && priv->adapter->iface_type != MWIFIEX_USB &&
 	    priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
 		/* Enable auto deep sleep */
 		auto_ds.auto_ds = DEEP_SLEEP_ON;
