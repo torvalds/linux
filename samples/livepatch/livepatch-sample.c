@@ -26,12 +26,16 @@
  * kernel boot cmdline when /proc/cmdline is read.
  *
  * Example:
+ *
  * $ cat /proc/cmdline
  * <your cmdline>
+ *
  * $ insmod livepatch-sample.ko
  * $ cat /proc/cmdline
  * this has been live patched
- * $ echo 0 > /sys/kernel/livepatch/klp_sample/enabled
+ *
+ * $ echo 0 > /sys/kernel/livepatch/livepatch_sample/enabled
+ * $ cat /proc/cmdline
  * <your cmdline>
  */
 
