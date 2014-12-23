@@ -53,7 +53,7 @@ static int mtu_max_set(const char *val, const struct kernel_param *kp)
 	if (ret)
 		return ret;
 
-	if (mtu_max < 68 || mtu_max > IEEE80211_MAX_DATA_LEN_DMG)
+	if (mtu_max < 68 || mtu_max > WIL_MAX_ETH_MTU)
 		ret = -EINVAL;
 
 	return ret;

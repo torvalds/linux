@@ -77,6 +77,10 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 	return ALIGN(mtu + WIL_MAX_MPDU_OVERHEAD, 8);
 }
 
+/* MTU for Ethernet need to take into account 8-byte SNAP header
+ * to be added when encapsulating Ethernet frame into 802.11
+ */
+#define WIL_MAX_ETH_MTU		(IEEE80211_MAX_DATA_LEN_DMG - 8)
 /* Max supported by wil6210 value for interrupt threshold is 5sec. */
 #define WIL6210_ITR_TRSH_MAX (5000000)
 #define WIL6210_ITR_TRSH_DEFAULT	(300) /* usec */
