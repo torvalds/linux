@@ -1431,7 +1431,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	}
 
 	/* x y mirror ,jump line */
-	if (screen->y_mirror == 1) {
+	if ((screen->y_mirror == 1) ||
+	    (win->mirror_en == 1)) {
 		if (screen->interlace == 1) {
 			win->area[0].y_offset = yoffset * stride * 2 +
 			    ((win->area[0].yact - 1) * 2 + 1) * stride +
@@ -1451,7 +1452,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 		}
 	}
 	if (is_pic_yuv == 1) {
-		if (screen->y_mirror == 1) {
+		if ((screen->y_mirror == 1) ||
+		    (win->mirror_en == 1)) {
 			if (screen->interlace == 1) {
 				win->area[0].c_offset =
 				    uv_y_off * uv_stride * 2 +
@@ -3258,51 +3260,6 @@ static int rk_fb_set_par(struct fb_info *info)
 		break;
 	}
 
-	/* x y mirror ,jump line */
-	if (screen->y_mirror == 1) {
-		if (screen->interlace == 1) {
-			win->area[0].y_offset = yoffset * stride * 2 +
-			    ((win->area[0].yact - 1) * 2 + 1) * stride +
-			    xoffset * pixel_width / 8;
-		} else {
-			win->area[0].y_offset = yoffset * stride +
-			    (win->area[0].yact - 1) * stride +
-			    xoffset * pixel_width / 8;
-		}
-	} else {
-		if (screen->interlace == 1) {
-			win->area[0].y_offset =
-			    yoffset * stride * 2 + xoffset * pixel_width / 8;
-		} else {
-			win->area[0].y_offset =
-			    yoffset * stride + xoffset * pixel_width / 8;
-		}
-	}
-	if (is_pic_yuv == 1) {
-		if (screen->y_mirror == 1) {
-			if (screen->interlace == 1) {
-				win->area[0].c_offset =
-				    uv_y_off * uv_stride * 2 +
-				    ((uv_y_act - 1) * 2 + 1) * uv_stride +
-				    uv_x_off * pixel_width / 8;
-			} else {
-				win->area[0].c_offset = uv_y_off * uv_stride +
-				    (uv_y_act - 1) * uv_stride +
-				    uv_x_off * pixel_width / 8;
-			}
-		} else {
-			if (screen->interlace == 1) {
-				win->area[0].c_offset =
-				    uv_y_off * uv_stride * 2 +
-				    uv_x_off * pixel_width / 8;
-			} else {
-				win->area[0].c_offset =
-				    uv_y_off * uv_stride +
-				    uv_x_off * pixel_width / 8;
-			}
-		}
-	}
-
 	win->area[0].format = fb_data_fmt;
 	win->area[0].y_vir_stride = stride >> 2;
 	win->area[0].uv_vir_stride = uv_stride >> 2;
@@ -3577,7 +3534,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			dev_drv->ops->backlight_close(dev_drv, 1);
 		if (dev_drv->ops->dsp_black)
 			dev_drv->ops->dsp_black(dev_drv, 1);
-		if (dev_drv->ops->set_screen_scaler)
+		if ((dev_drv->ops->set_screen_scaler) &&
+		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
 			dev_drv->ops->set_screen_scaler(dev_drv,
 							dev_drv->screen0, 0);
 	}
@@ -3673,7 +3631,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	}
 	hdmi_switch_complete = 1;
 	if ((rk_fb->disp_mode == ONE_DUAL) || (rk_fb->disp_mode == NO_DUAL)) {
-		if (dev_drv->ops->set_screen_scaler)
+		if ((dev_drv->ops->set_screen_scaler) &&
+		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
 		if (dev_drv->ops->dsp_black)
 			dev_drv->ops->dsp_black(dev_drv, 0);
