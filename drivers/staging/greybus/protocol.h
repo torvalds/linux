@@ -36,8 +36,8 @@ struct gb_protocol {
 	gb_request_recv_t	request_recv;
 };
 
-bool gb_protocol_register(struct gb_protocol *protocol);
-bool gb_protocol_deregister(struct gb_protocol *protocol);
+int gb_protocol_register(struct gb_protocol *protocol);
+int gb_protocol_deregister(struct gb_protocol *protocol);
 
 struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor);
 void gb_protocol_put(struct gb_protocol *protocol);
@@ -47,28 +47,28 @@ void gb_protocol_put(struct gb_protocol *protocol);
  * Declared here for now.  They could be added via modules, or maybe
  * just use initcalls (which level?).
  */
-extern bool gb_battery_protocol_init(void);
+extern int gb_battery_protocol_init(void);
 extern void gb_battery_protocol_exit(void);
 
-extern bool gb_gpio_protocol_init(void);
+extern int gb_gpio_protocol_init(void);
 extern void gb_gpio_protocol_exit(void);
 
-extern bool gb_i2c_protocol_init(void);
+extern int gb_i2c_protocol_init(void);
 extern void gb_i2c_protocol_exit(void);
 
-extern bool gb_pwm_protocol_init(void);
+extern int gb_pwm_protocol_init(void);
 extern void gb_pwm_protocol_exit(void);
 
-extern bool gb_uart_protocol_init(void);
+extern int gb_uart_protocol_init(void);
 extern void gb_uart_protocol_exit(void);
 
-extern bool gb_sdio_protocol_init(void);
+extern int gb_sdio_protocol_init(void);
 extern void gb_sdio_protocol_exit(void);
 
-extern bool gb_vibrator_protocol_init(void);
+extern int gb_vibrator_protocol_init(void);
 extern void gb_vibrator_protocol_exit(void);
 
-extern bool gb_usb_protocol_init(void);
+extern int gb_usb_protocol_init(void);
 extern void gb_usb_protocol_exit(void);
 
 bool gb_protocol_init(void);

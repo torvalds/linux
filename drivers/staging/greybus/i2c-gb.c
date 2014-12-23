@@ -438,7 +438,7 @@ static struct gb_protocol i2c_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-bool gb_i2c_protocol_init(void)
+int gb_i2c_protocol_init(void)
 {
 	return gb_protocol_register(&i2c_protocol);
 }

@@ -384,7 +384,7 @@ static struct gb_protocol usb_protocol = {
 	.request_recv		= NULL,	/* FIXME we have requests!!! */
 };
 
-bool gb_usb_protocol_init(void)
+int gb_usb_protocol_init(void)
 {
 	return gb_protocol_register(&usb_protocol);
 }

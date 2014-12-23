@@ -367,7 +367,7 @@ static struct gb_protocol battery_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-bool gb_battery_protocol_init(void)
+int gb_battery_protocol_init(void)
 {
 	return gb_protocol_register(&battery_protocol);
 }

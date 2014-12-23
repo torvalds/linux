@@ -39,8 +39,7 @@ static struct gb_protocol *_gb_protocol_find(u8 id, u8 major, u8 minor)
 	return NULL;
 }
 
-/* Returns true if protocol was successfully registered, false otherwise */
-bool gb_protocol_register(struct gb_protocol *protocol)
+int gb_protocol_register(struct gb_protocol *protocol)
 {
 	struct gb_protocol *existing;
 	u8 id = protocol->id;
@@ -75,7 +74,7 @@ bool gb_protocol_register(struct gb_protocol *protocol)
 		/* A matching protocol has already been registered */
 		spin_unlock_irq(&gb_protocols_lock);
 
-		return false;
+		return -EEXIST;
 	}
 
 	/*
@@ -85,7 +84,7 @@ bool gb_protocol_register(struct gb_protocol *protocol)
 	list_add_tail(&protocol->links, &existing->links);
 	spin_unlock_irq(&gb_protocols_lock);
 
-	return true;
+	return 0;
 }
 
 /*
@@ -99,9 +98,12 @@ bool gb_protocol_register(struct gb_protocol *protocol)
  *
  * Returns true if successful, false otherwise.
  */
-bool gb_protocol_deregister(struct gb_protocol *protocol)
+int gb_protocol_deregister(struct gb_protocol *protocol)
 {
 	u8 protocol_count = 0;
+
+	if (!protocol)
+		return 0;
 
 	spin_lock_irq(&gb_protocols_lock);
 	protocol = _gb_protocol_find(protocol->id, protocol->major,
@@ -166,35 +168,35 @@ bool gb_protocol_init(void)
 {
 	bool ret = true;
 
-	if (!gb_battery_protocol_init()) {
+	if (gb_battery_protocol_init()) {
 		pr_err("error initializing battery protocol\n");
 		ret = false;
 	}
-	if (!gb_gpio_protocol_init()) {
+	if (gb_gpio_protocol_init()) {
 		pr_err("error initializing gpio protocol\n");
 		ret = false;
 	}
-	if (!gb_i2c_protocol_init()) {
+	if (gb_i2c_protocol_init()) {
 		pr_err("error initializing i2c protocol\n");
 		ret = false;
 	}
-	if (!gb_pwm_protocol_init()) {
+	if (gb_pwm_protocol_init()) {
 		pr_err("error initializing pwm protocol\n");
 		ret = false;
 	}
-	if (!gb_uart_protocol_init()) {
+	if (gb_uart_protocol_init()) {
 		pr_err("error initializing uart protocol\n");
 		ret = false;
 	}
-	if (!gb_sdio_protocol_init()) {
+	if (gb_sdio_protocol_init()) {
 		pr_err("error initializing sdio protocol\n");
 		ret = false;
 	}
-	if (!gb_vibrator_protocol_init()) {
+	if (gb_vibrator_protocol_init()) {
 		pr_err("error initializing vibrator protocol\n");
 		ret = false;
 	}
-	if (!gb_usb_protocol_init()) {
+	if (gb_usb_protocol_init()) {
 		pr_err("error initializing usb protocol\n");
 		ret = false;
 	}

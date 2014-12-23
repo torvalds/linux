@@ -87,7 +87,7 @@ static struct gb_protocol sdio_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-bool gb_sdio_protocol_init(void)
+int gb_sdio_protocol_init(void)
 {
 	return gb_protocol_register(&sdio_protocol);
 }

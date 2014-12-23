@@ -532,7 +532,7 @@ static struct gb_protocol gpio_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-bool gb_gpio_protocol_init(void)
+int gb_gpio_protocol_init(void)
 {
 	return gb_protocol_register(&gpio_protocol);
 }

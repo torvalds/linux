@@ -205,7 +205,7 @@ static struct gb_protocol vibrator_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-bool gb_vibrator_protocol_init(void)
+int gb_vibrator_protocol_init(void)
 {
 	int retval;
 

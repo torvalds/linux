@@ -775,7 +775,7 @@ static struct gb_protocol uart_protocol = {
 	.request_recv		= NULL,	/* FIXME we have 2 types of requests!!! */
 };
 
-bool gb_uart_protocol_init(void)
+int gb_uart_protocol_init(void)
 {
 	return gb_protocol_register(&uart_protocol);
 }

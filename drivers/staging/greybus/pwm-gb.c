@@ -319,7 +319,7 @@ static struct gb_protocol pwm_protocol = {
 	.request_recv		= NULL, /* no incoming requests */
 };
 
-bool gb_pwm_protocol_init(void)
+int gb_pwm_protocol_init(void)
 {
 	return gb_protocol_register(&pwm_protocol);
 }
