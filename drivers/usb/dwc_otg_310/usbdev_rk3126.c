@@ -449,10 +449,7 @@ static void usb20ehci_clock_init(void *pdata)
 	struct rkehci_platform_data *usbpdata = pdata;
 	struct clk *ahbclk, *phyclk;
 
-	if (soc_is_rk3126b())
-		ahbclk = devm_clk_get(usbpdata->dev, "hclk_hoct0_3126b");
-	else
-		ahbclk = devm_clk_get(usbpdata->dev, "hclk_hoct0_3126");
+	ahbclk = devm_clk_get(usbpdata->dev, "hclk_host0");
 	if (IS_ERR(ahbclk)) {
 		dev_err(usbpdata->dev, "Failed to get hclk_usb1\n");
 		return;
