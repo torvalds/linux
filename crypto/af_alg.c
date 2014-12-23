@@ -188,7 +188,7 @@ static int alg_setkey(struct sock *sk, char __user *ukey,
 	err = type->setkey(ask->private, key, keylen);
 
 out:
-	sock_kfree_s(sk, key, keylen);
+	sock_kzfree_s(sk, key, keylen);
 
 	return err;
 }
