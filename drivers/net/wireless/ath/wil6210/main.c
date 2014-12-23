@@ -217,16 +217,16 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 		wil_link_off(wil);
-		if (test_bit(wil_status_fwconnected, &wil->status)) {
-			clear_bit(wil_status_fwconnected, &wil->status);
+		if (test_bit(wil_status_fwconnected, wil->status)) {
+			clear_bit(wil_status_fwconnected, wil->status);
 			cfg80211_disconnected(ndev, reason_code,
 					      NULL, 0, GFP_KERNEL);
-		} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
+		} else if (test_bit(wil_status_fwconnecting, wil->status)) {
 			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
 		}
-		clear_bit(wil_status_fwconnecting, &wil->status);
+		clear_bit(wil_status_fwconnecting, wil->status);
 		break;
 	default:
 		break;
@@ -259,7 +259,7 @@ static void wil_scan_timer_fn(ulong x)
 {
 	struct wil6210_priv *wil = (void *)x;
 
-	clear_bit(wil_status_fwready, &wil->status);
+	clear_bit(wil_status_fwready, wil->status);
 	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
 	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
@@ -654,12 +654,13 @@ int wil_reset(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
-	WARN_ON(test_bit(wil_status_napi_en, &wil->status));
+	WARN_ON(test_bit(wil_status_napi_en, wil->status));
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 
-	wil->status = 0; /* prevent NAPI from being scheduled */
+	/* prevent NAPI from being scheduled */
+	bitmap_zero(wil->status, wil_status_last);
 
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
@@ -798,7 +799,7 @@ int __wil_up(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "NAPI enable\n");
 	napi_enable(&wil->napi_rx);
 	napi_enable(&wil->napi_tx);
-	set_bit(wil_status_napi_en, &wil->status);
+	set_bit(wil_status_napi_en, wil->status);
 
 	if (wil->platform_ops.bus_request)
 		wil->platform_ops.bus_request(wil->platform_handle,
@@ -831,7 +832,7 @@ int __wil_down(struct wil6210_priv *wil)
 		wil->platform_ops.bus_request(wil->platform_handle, 0);
 
 	wil_disable_irq(wil);
-	if (test_and_clear_bit(wil_status_napi_en, &wil->status)) {
+	if (test_and_clear_bit(wil_status_napi_en, wil->status)) {
 		napi_disable(&wil->napi_rx);
 		napi_disable(&wil->napi_tx);
 		wil_dbg_misc(wil, "NAPI disable\n");
@@ -846,15 +847,15 @@ int __wil_down(struct wil6210_priv *wil)
 		wil->scan_request = NULL;
 	}
 
-	if (test_bit(wil_status_fwconnected, &wil->status) ||
-	    test_bit(wil_status_fwconnecting, &wil->status))
+	if (test_bit(wil_status_fwconnected, wil->status) ||
+	    test_bit(wil_status_fwconnecting, wil->status))
 		wmi_send(wil, WMI_DISCONNECT_CMDID, NULL, 0);
 
 	/* make sure wil is idle (not connected) */
 	mutex_unlock(&wil->mutex);
 	while (iter--) {
-		int idle = !test_bit(wil_status_fwconnected, &wil->status) &&
-			   !test_bit(wil_status_fwconnecting, &wil->status);
+		int idle = !test_bit(wil_status_fwconnected, wil->status) &&
+			   !test_bit(wil_status_fwconnecting, wil->status);
 		if (idle)
 			break;
 		msleep(WAIT_FOR_DISCONNECT_INTERVAL_MS);

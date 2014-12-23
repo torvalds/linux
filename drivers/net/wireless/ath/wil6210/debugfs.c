@@ -1313,7 +1313,7 @@ static void wil6210_debugfs_init_isr(struct wil6210_priv *wil,
 /* fields in struct wil6210_priv */
 static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(secure_pcp,	S_IRUGO | S_IWUSR,	doff_u32),
-	WIL_FIELD(status,	S_IRUGO | S_IWUSR,	doff_ulong),
+	WIL_FIELD(status[0],	S_IRUGO | S_IWUSR,	doff_ulong),
 	WIL_FIELD(fw_version,	S_IRUGO,		doff_u32),
 	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
 	WIL_FIELD(recovery_count, S_IRUGO,		doff_u32),

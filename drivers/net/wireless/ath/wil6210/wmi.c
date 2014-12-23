@@ -202,7 +202,7 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 
 	might_sleep();
 
-	if (!test_bit(wil_status_fwready, &wil->status)) {
+	if (!test_bit(wil_status_fwready, wil->status)) {
 		wil_err(wil, "WMI: cannot send command while FW not ready\n");
 		return -EAGAIN;
 	}
@@ -305,7 +305,7 @@ static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
 	wil_dbg_wmi(wil, "WMI: got FW ready event\n");
 
 	wil_set_recovery_state(wil, fw_recovery_idle);
-	set_bit(wil_status_fwready, &wil->status);
+	set_bit(wil_status_fwready, wil->status);
 	/* let the reset sequence continue */
 	complete(&wil->wmi_ready);
 }
@@ -443,7 +443,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 	if ((wdev->iftype == NL80211_IFTYPE_STATION) ||
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
-		if (!test_bit(wil_status_fwconnecting, &wil->status)) {
+		if (!test_bit(wil_status_fwconnecting, wil->status)) {
 			wil_err(wil, "Not in connecting state\n");
 			return;
 		}
@@ -467,8 +467,8 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 		cfg80211_new_sta(ndev, evt->bssid, &sinfo, GFP_KERNEL);
 	}
-	clear_bit(wil_status_fwconnecting, &wil->status);
-	set_bit(wil_status_fwconnected, &wil->status);
+	clear_bit(wil_status_fwconnecting, wil->status);
+	set_bit(wil_status_fwconnected, wil->status);
 
 	/* FIXME FW can transmit only ucast frames to peer */
 	/* FIXME real ring_id instead of hard coded 0 */
@@ -726,7 +726,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 	ulong flags;
 	unsigned n;
 
-	if (!test_bit(wil_status_reset_done, &wil->status)) {
+	if (!test_bit(wil_status_reset_done, wil->status)) {
 		wil_err(wil, "Reset in progress. Cannot handle WMI event\n");
 		return;
 	}

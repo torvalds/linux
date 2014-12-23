@@ -102,7 +102,7 @@ static void wil6210_mask_irq_pseudo(struct wil6210_priv *wil)
 	iowrite32(WIL6210_IRQ_DISABLE, wil->csr +
 		  HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW));
 
-	clear_bit(wil_status_irqen, &wil->status);
+	clear_bit(wil_status_irqen, wil->status);
 }
 
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil)
@@ -130,7 +130,7 @@ static void wil6210_unmask_irq_pseudo(struct wil6210_priv *wil)
 {
 	wil_dbg_irq(wil, "%s()\n", __func__);
 
-	set_bit(wil_status_irqen, &wil->status);
+	set_bit(wil_status_irqen, wil->status);
 
 	iowrite32(WIL6210_IRQ_PSEUDO_MASK, wil->csr +
 		  HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW));
@@ -198,8 +198,8 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 				"of overflow\" interrupt\n");
 
 		isr &= ~(BIT_DMA_EP_RX_ICR_RX_DONE | BIT_DMA_EP_RX_ICR_RX_HTRSH);
-		if (test_bit(wil_status_reset_done, &wil->status)) {
-			if (test_bit(wil_status_napi_en, &wil->status)) {
+		if (test_bit(wil_status_reset_done, wil->status)) {
+			if (test_bit(wil_status_napi_en, wil->status)) {
 				wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
 				need_unmask = false;
 				napi_schedule(&wil->napi_rx);
@@ -248,7 +248,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 		isr &= ~BIT_DMA_EP_TX_ICR_TX_DONE;
 		/* clear also all VRING interrupts */
 		isr &= ~(BIT(25) - 1UL);
-		if (test_bit(wil_status_reset_done, &wil->status)) {
+		if (test_bit(wil_status_reset_done, wil->status)) {
 			wil_dbg_txrx(wil, "NAPI(Tx) schedule\n");
 			need_unmask = false;
 			napi_schedule(&wil->napi_tx);
@@ -310,7 +310,7 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 
 	if (isr & ISR_MISC_FW_ERROR) {
 		wil_err(wil, "Firmware error detected\n");
-		clear_bit(wil_status_fwready, &wil->status);
+		clear_bit(wil_status_fwready, wil->status);
 		/*
 		 * do not clear @isr here - we do 2-nd part in thread
 		 * there, user space get notified, and it should be done
@@ -321,7 +321,7 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	if (isr & ISR_MISC_FW_READY) {
 		wil_dbg_irq(wil, "IRQ: FW ready\n");
 		wil_cache_mbox_regs(wil);
-		set_bit(wil_status_reset_done, &wil->status);
+		set_bit(wil_status_reset_done, wil->status);
 		/**
 		 * Actual FW ready indicated by the
 		 * WMI_FW_READY_EVENTID
@@ -394,7 +394,7 @@ static irqreturn_t wil6210_thread_irq(int irq, void *cookie)
  */
 static int wil6210_debug_irq_mask(struct wil6210_priv *wil, u32 pseudo_cause)
 {
-	if (!test_bit(wil_status_irqen, &wil->status)) {
+	if (!test_bit(wil_status_irqen, wil->status)) {
 		u32 icm_rx = wil_ioread32_and_clear(wil->csr +
 				HOSTADDR(RGF_DMA_EP_RX_ICR) +
 				offsetof(struct RGF_ICR, ICM));

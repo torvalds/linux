@@ -341,6 +341,7 @@ enum { /* for wil6210_priv.status */
 	wil_status_reset_done,
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
+	wil_status_last /* keep last */
 };
 
 struct pci_dev;
@@ -448,7 +449,7 @@ struct wil6210_priv {
 	int n_msi;
 	struct wireless_dev *wdev;
 	void __iomem *csr;
-	ulong status;
+	DECLARE_BITMAP(status, wil_status_last);
 	u32 fw_version;
 	u32 hw_version;
 	struct wil_board *board;

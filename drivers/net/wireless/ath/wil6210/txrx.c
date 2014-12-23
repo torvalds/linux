@@ -726,7 +726,7 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 
 	/* make sure NAPI won't touch this vring */
 	wil->vring_tx_data[id].enabled = 0;
-	if (test_bit(wil_status_napi_en, &wil->status))
+	if (test_bit(wil_status_napi_en, wil->status))
 		napi_synchronize(&wil->napi_tx);
 
 	wil_vring_free(wil, vring, 1);
@@ -1038,14 +1038,14 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int rc;
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
-	if (!test_bit(wil_status_fwready, &wil->status)) {
+	if (!test_bit(wil_status_fwready, wil->status)) {
 		if (!pr_once_fw) {
 			wil_err(wil, "FW not ready\n");
 			pr_once_fw = true;
 		}
 		goto drop;
 	}
-	if (!test_bit(wil_status_fwconnected, &wil->status)) {
+	if (!test_bit(wil_status_fwconnected, wil->status)) {
 		wil_err(wil, "FW not connected\n");
 		goto drop;
 	}
