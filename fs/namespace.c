@@ -1331,8 +1331,10 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 	struct mount *p;
 
 	/* Gather the mounts to umount */
-	for (p = mnt; p; p = next_mnt(p, mnt))
+	for (p = mnt; p; p = next_mnt(p, mnt)) {
+		p->mnt.mnt_flags |= MNT_UMOUNT;
 		list_move(&p->mnt_list, &tmp_list);
+	}
 
 	/* Hide the mounts from lookup_mnt and mnt_mounts */
 	list_for_each_entry(p, &tmp_list, mnt_list) {

@@ -61,6 +61,7 @@ struct mnt_namespace;
 #define MNT_DOOMED		0x1000000
 #define MNT_SYNC_UMOUNT		0x2000000
 #define MNT_MARKED		0x4000000
+#define MNT_UMOUNT		0x8000000
 
 struct vfsmount {
 	struct dentry *mnt_root;	/* root of the mounted tree */
