@@ -30,14 +30,22 @@
 #include <linux/of.h>
 
 //#define DEBUG_ALSA_SPDIF_DAI
-#define ALSA_PRINT(fmt,args...)	printk(KERN_INFO "[aml-spdif-dai]" fmt,##args)
-#ifdef DEBUG_ALSA_SPDIF_DAI
-#define ALSA_DEBUG(fmt,args...) 	printk(KERN_INFO "[aml-spdif-dai]" fmt,##args)
-#define ALSA_TRACE()     			printk("[aml-spdif-dai] enter func %s,line %d\n",__FUNCTION__,__LINE__)
+//#define AML_M8_SPDIF_DEBUG
+#ifdef AML_M8_SPDIF_DEBUG
+	#define ALSA_PRINT(fmt,args...)	printk(KERN_INFO "[aml-spdif-dai]" fmt,##args)
+	#ifdef DEBUG_ALSA_SPDIF_DAI
+		#define ALSA_DEBUG(fmt,args...) 	printk(KERN_INFO "[aml-spdif-dai]" fmt,##args)
+		#define ALSA_TRACE()     			printk("[aml-spdif-dai] enter func %s,line %d\n",__FUNCTION__,__LINE__)
+	#else
+		#define ALSA_DEBUG(fmt,args...) 
+		#define ALSA_TRACE()   
+	#endif
 #else
-#define ALSA_DEBUG(fmt,args...) 
-#define ALSA_TRACE()   
+	#define ALSA_PRINT(fmt,args...)
+	#define ALSA_DEBUG(fmt,args...) 
+	#define ALSA_TRACE()
 #endif
+
 static unsigned last_iec_clock =  -1;
 extern int aout_notifier_call_chain(unsigned long val, void *v);
 //static  unsigned  playback_substream_handle = 0 ;

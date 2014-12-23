@@ -354,7 +354,6 @@ static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 {
     
     aml_audio_spdif_mute_flag = ucontrol->value.integer.value[0];
-    printk(KERN_INFO "aml_audio_set_spdif_mute: flag=%d\n",aml_audio_spdif_mute_flag);
     if(aml_audio_spdif_mute_flag){
         aml_spdif_pinmux_deinit(spdif_dev);
     }else{
@@ -376,7 +375,6 @@ static int aml_set_bias_level(struct snd_soc_card *card,
     struct aml_audio_private_data * p_aml_audio;
     int hp_state;
 
-    printk(KERN_DEBUG "enter %s level: %d\n", __func__, level);
     p_aml_audio = snd_soc_card_get_drvdata(card);
 	hp_state = p_aml_audio->detect_flag;
 

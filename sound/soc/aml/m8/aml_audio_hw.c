@@ -327,8 +327,6 @@ static void spdifin_reg_set(void)
 	u32 period_96k = (period_data / 48 + 1) >> 1;   // 96k min period
 	u32 period_192k = (period_data / 96 + 1) >> 1;  // 192k min period
 	
-	printk(KERN_INFO"spdifin_reg_set: clk_rate=%d\n", clk_rate);
-		
 	WRITE_MPEG_REG(AUDIN_SPDIF_MODE, (READ_MPEG_REG(AUDIN_SPDIF_MODE)&0x7fffc000)|(spdif_mode_14bit<<0));
 	WRITE_MPEG_REG(AUDIN_SPDIF_FS_CLK_RLTN, (period_32k<<0)|(period_44k<<6)|(period_48k<<12) 
 											|(period_96k<<18)|(period_192k<<24));  //Spdif_fs_clk_rltn
@@ -363,13 +361,11 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size)
 }
 void audio_in_i2s_set_buf(u32 addr, u32 size,u32 i2s_mode, u32 i2s_sync)
 {
-	printk("i2sin_fifo0_set_buf \n");		
 	i2sin_fifo0_set_buf(addr,size,i2s_mode,i2s_sync);
 	audio_in_buf_ready = 1;
 }
 void audio_in_spdif_set_buf(u32 addr, u32 size)
 {
-	printk("spdifin_fifo1_set_buf \n");			
 	spdifin_fifo1_set_buf(addr,size);
 	
 }
