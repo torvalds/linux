@@ -284,6 +284,7 @@ struct sdma_context_data {
 } __attribute__ ((packed));
 
 #define NUM_BD (int)(PAGE_SIZE / sizeof(struct sdma_buffer_descriptor))
+#define SDMA_BD_MAX_CNT	0xfffc /* align with 4 bytes */
 
 struct sdma_engine;
 
@@ -317,6 +318,7 @@ struct sdma_channel {
 	bool				bd_iram;
 	unsigned int			pc_from_device, pc_to_device;
 	unsigned int			device_to_device;
+	unsigned int                    pc_to_pc;
 	unsigned long			flags;
 	dma_addr_t			per_address, per_address2;
 	unsigned long			event_mask[2];
@@ -778,6 +780,7 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 	sdmac->pc_from_device = 0;
 	sdmac->pc_to_device = 0;
 	sdmac->device_to_device = 0;
+	sdmac->pc_to_pc = 0;
 
 	switch (peripheral_type) {
 	case IMX_DMATYPE_MEMORY:
@@ -857,6 +860,7 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 	sdmac->pc_from_device = per_2_emi;
 	sdmac->pc_to_device = emi_2_per;
 	sdmac->device_to_device = per_2_per;
+	sdmac->pc_to_pc = emi_2_emi;
 }
 
 static int sdma_load_context(struct sdma_channel *sdmac)
@@ -873,6 +877,8 @@ static int sdma_load_context(struct sdma_channel *sdmac)
 		load_address = sdmac->pc_from_device;
 	else if (sdmac->direction == DMA_DEV_TO_DEV)
 		load_address = sdmac->device_to_device;
+	else if (sdmac->direction == DMA_MEM_TO_MEM)
+		load_address = sdmac->pc_to_pc;
 	else
 		load_address = sdmac->pc_to_device;
 
@@ -1165,52 +1171,168 @@ static void sdma_free_chan_resources(struct dma_chan *chan)
 	clk_disable(sdma->clk_ahb);
 }
 
-static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
-		struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_transfer_direction direction,
-		unsigned long flags, void *context)
+static int sdma_transfer_init(struct sdma_channel *sdmac,
+			      enum dma_transfer_direction direction)
+{
+	int ret = 0;
+
+	sdmac->status = DMA_IN_PROGRESS;
+	sdmac->buf_tail = 0;
+	sdmac->flags = 0;
+	sdmac->direction = direction;
+
+	ret = sdma_load_context(sdmac);
+	if (ret)
+		return ret;
+
+	sdmac->chn_count = 0;
+
+	return ret;
+}
+
+static int check_bd_buswidth(struct sdma_buffer_descriptor *bd,
+			     struct sdma_channel *sdmac, int count,
+			     dma_addr_t dma_dst, dma_addr_t dma_src)
+{
+	int ret = 0;
+
+	switch (sdmac->word_size) {
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		bd->mode.command = 0;
+		if ((count | dma_dst | dma_src) & 3)
+			ret = -EINVAL;
+		break;
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		bd->mode.command = 2;
+		if ((count | dma_dst | dma_src) & 1)
+			ret = -EINVAL;
+		break;
+	case DMA_SLAVE_BUSWIDTH_1_BYTE:
+		 bd->mode.command = 1;
+		 break;
+	default:
+		 return -EINVAL;
+	}
+
+	return ret;
+}
+
+static struct dma_async_tx_descriptor *sdma_prep_memcpy(
+		struct dma_chan *chan, dma_addr_t dma_dst,
+		dma_addr_t dma_src, size_t len, unsigned long flags)
+{
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
+	struct sdma_engine *sdma = sdmac->sdma;
+	int channel = sdmac->channel;
+	size_t count;
+	int i = 0, param;
+	struct sdma_buffer_descriptor *bd;
+
+	if (!chan || !len || sdmac->status == DMA_IN_PROGRESS)
+		return NULL;
+
+	if (len >= NUM_BD * SDMA_BD_MAX_CNT) {
+		dev_err(sdma->dev, "channel%d: maximum bytes exceeded:%zu > %d\n",
+			channel, len, NUM_BD * SDMA_BD_MAX_CNT);
+		goto err_out;
+	}
+
+	dev_dbg(sdma->dev, "memcpy: %pad->%pad, len=%zu, channel=%d.\n",
+		&dma_src, &dma_dst, len, channel);
+
+	if (sdma_transfer_init(sdmac, DMA_MEM_TO_MEM))
+		goto err_out;
+
+	do {
+		count = min_t(size_t, len, SDMA_BD_MAX_CNT);
+		bd = &sdmac->bd[i];
+		bd->buffer_addr = dma_src;
+		bd->ext_buffer_addr = dma_dst;
+		bd->mode.count = count;
+
+		if (check_bd_buswidth(bd, sdmac, count, dma_dst, dma_src))
+			goto err_out;
+
+		dma_src += count;
+		dma_dst += count;
+		len -= count;
+		i++;
+
+		param = BD_DONE | BD_EXTD | BD_CONT;
+		/* last bd */
+		if (!len) {
+			param |= BD_INTR;
+			param |= BD_LAST;
+			param &= ~BD_CONT;
+		}
+
+		dev_dbg(sdma->dev, "entry %d: count: %d dma: 0x%u %s%s\n",
+				i, count, bd->buffer_addr,
+				param & BD_WRAP ? "wrap" : "",
+				param & BD_INTR ? " intr" : "");
+
+		bd->mode.status = param;
+		sdmac->chn_count += count;
+	} while (len);
+
+	sdmac->num_bd = i;
+	sdma->channel_control[channel].current_bd_ptr = sdmac->bd_phys;
+
+	return &sdmac->desc;
+err_out:
+	sdmac->status = DMA_ERROR;
+	return NULL;
+}
+
+/*
+ * Please ensure dst_nents no smaller than src_nents , also every sg_len of
+ * dst_sg node no smaller than src_sg. To simply things, please use the same
+ * size of dst_sg as src_sg.
+ */
+static struct dma_async_tx_descriptor *sdma_prep_sg(
+		struct dma_chan *chan,
+		struct scatterlist *dst_sg, unsigned int dst_nents,
+		struct scatterlist *src_sg, unsigned int src_nents,
+		enum dma_transfer_direction direction)
 {
 	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct sdma_engine *sdma = sdmac->sdma;
 	int ret, i, count;
 	int channel = sdmac->channel;
-	struct scatterlist *sg;
+	struct scatterlist *sg_src = src_sg, *sg_dst = dst_sg;
 
 	if (sdmac->status == DMA_IN_PROGRESS)
 		return NULL;
-	sdmac->status = DMA_IN_PROGRESS;
-
-	sdmac->flags = 0;
-
-	sdmac->buf_tail = 0;
 
 	dev_dbg(sdma->dev, "setting up %d entries for channel %d.\n",
-			sg_len, channel);
+			src_nents, channel);
 
-	sdmac->direction = direction;
-	ret = sdma_load_context(sdmac);
-	if (ret)
-		goto err_out;
-
-	if (sg_len > NUM_BD) {
+	if (src_nents > NUM_BD) {
 		dev_err(sdma->dev, "SDMA channel %d: maximum number of sg exceeded: %d > %d\n",
-				channel, sg_len, NUM_BD);
+				channel, src_nents, NUM_BD);
 		ret = -EINVAL;
 		goto err_out;
 	}
 
-	sdmac->chn_count = 0;
-	for_each_sg(sgl, sg, sg_len, i) {
+	if (sdma_transfer_init(sdmac, direction))
+		goto err_out;
+
+	for_each_sg(src_sg, sg_src, src_nents, i) {
 		struct sdma_buffer_descriptor *bd = &sdmac->bd[i];
 		int param;
 
-		bd->buffer_addr = sg->dma_address;
+		bd->buffer_addr = sg_src->dma_address;
 
-		count = sg_dma_len(sg);
+		if (direction == DMA_MEM_TO_MEM) {
+			BUG_ON(!sg_dst);
+			bd->ext_buffer_addr = sg_dst->dma_address;
+		}
 
-		if (count > 0xffff) {
+		count = sg_dma_len(sg_src);
+
+		if (count > SDMA_BD_MAX_CNT) {
 			dev_err(sdma->dev, "SDMA channel %d: maximum bytes for sg entry exceeded: %d > %d\n",
-					channel, count, 0xffff);
+					channel, count, SDMA_BD_MAX_CNT);
 			ret = -EINVAL;
 			goto err_out;
 		}
@@ -1218,52 +1340,59 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 		bd->mode.count = count;
 		sdmac->chn_count += count;
 
-		if (sdmac->word_size > DMA_SLAVE_BUSWIDTH_4_BYTES) {
-			ret =  -EINVAL;
+		if (direction == DMA_MEM_TO_MEM)
+			ret = check_bd_buswidth(bd, sdmac, count,
+						sg_dst->dma_address,
+						sg_src->dma_address);
+		else
+			ret = check_bd_buswidth(bd, sdmac, count, 0,
+						sg_src->dma_address);
+		if (ret)
 			goto err_out;
-		}
-
-		switch (sdmac->word_size) {
-		case DMA_SLAVE_BUSWIDTH_4_BYTES:
-			bd->mode.command = 0;
-			if (count & 3 || sg->dma_address & 3)
-				return NULL;
-			break;
-		case DMA_SLAVE_BUSWIDTH_2_BYTES:
-			bd->mode.command = 2;
-			if (count & 1 || sg->dma_address & 1)
-				return NULL;
-			break;
-		case DMA_SLAVE_BUSWIDTH_1_BYTE:
-			bd->mode.command = 1;
-			break;
-		default:
-			return NULL;
-		}
 
 		param = BD_DONE | BD_EXTD | BD_CONT;
 
-		if (i + 1 == sg_len) {
+		if (i + 1 == src_nents) {
 			param |= BD_INTR;
 			param |= BD_LAST;
 			param &= ~BD_CONT;
 		}
 
-		dev_dbg(sdma->dev, "entry %d: count: %d dma: %#llx %s%s\n",
-				i, count, (u64)sg->dma_address,
+		dev_dbg(sdma->dev, "entry %d: count: %d dma: 0x%pad %s%s\n",
+				i, count, &sg_src->dma_address,
 				param & BD_WRAP ? "wrap" : "",
 				param & BD_INTR ? " intr" : "");
 
 		bd->mode.status = param;
+		if (direction == DMA_MEM_TO_MEM)
+			sg_dst = sg_next(sg_dst);
 	}
 
-	sdmac->num_bd = sg_len;
+	sdmac->num_bd = src_nents;
 	sdma->channel_control[channel].current_bd_ptr = sdmac->bd_phys;
 
 	return &sdmac->desc;
 err_out:
 	sdmac->status = DMA_ERROR;
 	return NULL;
+}
+
+static struct dma_async_tx_descriptor *sdma_prep_memcpy_sg(
+		struct dma_chan *chan,
+		struct scatterlist *dst_sg, unsigned int dst_nents,
+		struct scatterlist *src_sg, unsigned int src_nents,
+		unsigned long flags)
+{
+	return sdma_prep_sg(chan, dst_sg, dst_nents, src_sg, src_nents,
+			   DMA_MEM_TO_MEM);
+}
+
+static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
+		struct dma_chan *chan, struct scatterlist *sgl,
+		unsigned int sg_len, enum dma_transfer_direction direction,
+		unsigned long flags, void *context)
+{
+	return sdma_prep_sg(chan, NULL, 0, sgl, sg_len, direction);
 }
 
 static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
@@ -1304,9 +1433,9 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 		goto err_out;
 	}
 
-	if (period_len > 0xffff) {
-		dev_err(sdma->dev, "SDMA channel %d: maximum period size exceeded: %d > %d\n",
-				channel, period_len, 0xffff);
+	if (period_len > SDMA_BD_MAX_CNT) {
+		dev_err(sdma->dev, "SDMA channel %d: maximum period size exceeded: %zu > %d\n",
+				channel, period_len, SDMA_BD_MAX_CNT);
 		goto err_out;
 	}
 
@@ -1332,8 +1461,8 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 		if (i + 1 == num_periods)
 			param |= BD_WRAP;
 
-		dev_dbg(sdma->dev, "entry %d: count: %d dma: %#llx %s%s\n",
-				i, period_len, (u64)dma_addr,
+		dev_dbg(sdma->dev, "entry %d: count: %d dma: %pad %s%s\n",
+				i, period_len, &dma_addr,
 				param & BD_WRAP ? "wrap" : "",
 				param & BD_INTR ? " intr" : "");
 
@@ -1376,6 +1505,8 @@ static int sdma_config(struct dma_chan *chan,
 			sdmac->per_address = dmaengine_cfg->src_addr;
 			sdmac->per_address2 = dmaengine_cfg->dst_addr;
 			sdmac->watermark_level = 0;
+	} else if (dmaengine_cfg->direction == DMA_MEM_TO_MEM) {
+			sdmac->word_size = dmaengine_cfg->dst_addr_width;
 	} else {
 		sdmac->per_address = dmaengine_cfg->dst_addr;
 		sdmac->watermark_level = dmaengine_cfg->dst_maxburst *
@@ -1761,6 +1892,7 @@ static int sdma_probe(struct platform_device *pdev)
 
 	dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);
 	dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
+	dma_cap_set(DMA_MEMCPY, sdma->dma_device.cap_mask);
 
 	INIT_LIST_HEAD(&sdma->dma_device.channels);
 	/* Initialize channel parameters */
@@ -1838,6 +1970,8 @@ static int sdma_probe(struct platform_device *pdev)
 	sdma->dma_device.dst_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
 	sdma->dma_device.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	sdma->dma_device.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	sdma->dma_device.device_prep_dma_memcpy = sdma_prep_memcpy;
+	sdma->dma_device.device_prep_dma_sg = sdma_prep_memcpy_sg;
 	sdma->dma_device.device_issue_pending = sdma_issue_pending;
 	sdma->dma_device.dev->dma_parms = &sdma->dma_parms;
 	dma_set_max_seg_size(sdma->dma_device.dev, 65535);
