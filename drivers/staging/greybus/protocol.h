@@ -53,9 +53,6 @@ extern void gb_battery_protocol_exit(void);
 extern int gb_gpio_protocol_init(void);
 extern void gb_gpio_protocol_exit(void);
 
-extern int gb_i2c_protocol_init(void);
-extern void gb_i2c_protocol_exit(void);
-
 extern int gb_pwm_protocol_init(void);
 extern void gb_pwm_protocol_exit(void);
 
@@ -73,5 +70,17 @@ extern void gb_usb_protocol_exit(void);
 
 bool gb_protocol_init(void);
 void gb_protocol_exit(void);
+
+#define gb_protocol_driver(__protocol)			\
+static int __init protocol_init(void)			\
+{							\
+	return gb_protocol_register(__protocol);	\
+}							\
+module_init(protocol_init);				\
+static void __exit protocol_exit(void)			\
+{							\
+	gb_protocol_deregister(__protocol);		\
+}							\
+module_exit(protocol_exit);
 
 #endif /* __PROTOCOL_H */

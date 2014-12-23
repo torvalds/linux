@@ -8,7 +8,6 @@ greybus-y :=	core.o		\
 		connection.o	\
 		protocol.o	\
 		operation.o	\
-		i2c-gb.o	\
 		gpio-gb.o	\
 		pwm-gb.o	\
 		sdio-gb.o	\
@@ -18,6 +17,7 @@ greybus-y :=	core.o		\
 		usb-gb.o
 
 obj-m += greybus.o
+obj-m += i2c-gb.o
 obj-m += es1-ap-usb.o
 
 KERNELVER		?= $(shell uname -r)
