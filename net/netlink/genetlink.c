@@ -983,7 +983,7 @@ static struct genl_multicast_group genl_ctrl_groups[] = {
 	{ .name = "notify", },
 };
 
-static int genl_bind(int group)
+static int genl_bind(struct net *net, int group)
 {
 	int i, err;
 	bool found = false;
@@ -997,8 +997,10 @@ static int genl_bind(int group)
 			    group < f->mcgrp_offset + f->n_mcgrps) {
 				int fam_grp = group - f->mcgrp_offset;
 
-				if (f->mcast_bind)
-					err = f->mcast_bind(fam_grp);
+				if (!f->netnsok && net != &init_net)
+					err = -ENOENT;
+				else if (f->mcast_bind)
+					err = f->mcast_bind(net, fam_grp);
 				else
 					err = 0;
 				found = true;
@@ -1014,7 +1016,7 @@ static int genl_bind(int group)
 	return err;
 }
 
-static void genl_unbind(int group)
+static void genl_unbind(struct net *net, int group)
 {
 	int i;
 	bool found = false;
@@ -1029,7 +1031,7 @@ static void genl_unbind(int group)
 				int fam_grp = group - f->mcgrp_offset;
 
 				if (f->mcast_unbind)
-					f->mcast_unbind(fam_grp);
+					f->mcast_unbind(net, fam_grp);
 				found = true;
 				break;
 			}
