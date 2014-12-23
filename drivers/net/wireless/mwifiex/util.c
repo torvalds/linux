@@ -97,6 +97,8 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 							      info->rx_tbl);
 		info->tx_tbl_num = mwifiex_get_tx_ba_stream_tbl(priv,
 								info->tx_tbl);
+		info->tdls_peer_num = mwifiex_get_tdls_list(priv,
+							    info->tdls_list);
 		info->ps_mode = adapter->ps_mode;
 		info->ps_state = adapter->ps_state;
 		info->is_deep_sleep = adapter->is_deep_sleep;

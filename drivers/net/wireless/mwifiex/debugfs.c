@@ -493,6 +493,15 @@ mwifiex_debug_read(struct file *file, char __user *ubuf,
 		}
 	}
 
+	if (info.tdls_peer_num) {
+		p += sprintf(p, "TDLS peer table:\n");
+		for (i = 0; i < info.tdls_peer_num; i++) {
+			p += sprintf(p, "peer = %pM",
+				     info.tdls_list[i].peer_addr);
+			p += sprintf(p, "\n");
+		}
+	}
+
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *) page,
 				      (unsigned long) p - page);
 

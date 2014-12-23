@@ -180,7 +180,11 @@ struct mwifiex_ds_tx_ba_stream_tbl {
 	u8 amsdu;
 };
 
-#define DBG_CMD_NUM	5
+#define DBG_CMD_NUM    5
+
+struct tdls_peer_info {
+	u8 peer_addr[ETH_ALEN];
+};
 
 struct mwifiex_debug_info {
 	u32 int_counter;
@@ -193,6 +197,9 @@ struct mwifiex_debug_info {
 	u32 rx_tbl_num;
 	struct mwifiex_ds_rx_reorder_tbl rx_tbl
 		[MWIFIEX_MAX_RX_BASTREAM_SUPPORTED];
+	u32 tdls_peer_num;
+	struct tdls_peer_info tdls_list
+		[MWIFIEX_MAX_TDLS_PEER_SUPPORTED];
 	u16 ps_mode;
 	u32 ps_state;
 	u8 is_deep_sleep;

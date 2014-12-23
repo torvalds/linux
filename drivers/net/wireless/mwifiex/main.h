@@ -1324,6 +1324,8 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 				       u8 *buf, int len);
 int mwifiex_tdls_oper(struct mwifiex_private *priv, const u8 *peer, u8 action);
 int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, const u8 *mac);
+int mwifiex_get_tdls_list(struct mwifiex_private *priv,
+			  struct tdls_peer_info *buf);
 void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv);
 bool mwifiex_is_bss_in_11ac_mode(struct mwifiex_private *priv);
 u8 mwifiex_get_center_freq_index(struct mwifiex_private *priv, u8 band,
