@@ -598,7 +598,7 @@ static ssize_t wil_write_addba(struct file *file, const char __user *buf,
 	if (agg_wsize > 0)
 		wmi_addba(wil, 0, agg_wsize, 0);
 	else
-		wmi_delba(wil, 0, 0);
+		wmi_delba_tx(wil, 0, 0);
 
 	return len;
 }

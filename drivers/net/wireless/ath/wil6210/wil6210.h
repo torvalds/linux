@@ -607,7 +607,8 @@ int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
 int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason);
 int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout);
-int wmi_delba(struct wil6210_priv *wil, u8 ringid, u16 reason);
+int wmi_delba_tx(struct wil6210_priv *wil, u8 ringid, u16 reason);
+int wmi_delba_rx(struct wil6210_priv *wil, u8 cidxtid, u16 reason);
 int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
 		      u16 status, bool amsdu, u16 agg_wsize, u16 timeout);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,

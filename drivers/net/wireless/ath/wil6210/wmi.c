@@ -1184,7 +1184,7 @@ int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout)
 	return wmi_send(wil, WMI_VRING_BA_EN_CMDID, &cmd, sizeof(cmd));
 }
 
-int wmi_delba(struct wil6210_priv *wil, u8 ringid, u16 reason)
+int wmi_delba_tx(struct wil6210_priv *wil, u8 ringid, u16 reason)
 {
 	struct wmi_vring_ba_dis_cmd cmd = {
 		.ringid = ringid,
@@ -1195,6 +1195,19 @@ int wmi_delba(struct wil6210_priv *wil, u8 ringid, u16 reason)
 		    ringid, reason);
 
 	return wmi_send(wil, WMI_VRING_BA_DIS_CMDID, &cmd, sizeof(cmd));
+}
+
+int wmi_delba_rx(struct wil6210_priv *wil, u8 cidxtid, u16 reason)
+{
+	struct wmi_rcp_delba_cmd cmd = {
+		.cidxtid = cidxtid,
+		.reason = cpu_to_le16(reason),
+	};
+
+	wil_dbg_wmi(wil, "%s(CID %d TID %d reason %d)\n", __func__,
+		    cidxtid & 0xf, (cidxtid >> 4) & 0xf, reason);
+
+	return wmi_send(wil, WMI_RCP_DELBA_CMDID, &cmd, sizeof(cmd));
 }
 
 int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
