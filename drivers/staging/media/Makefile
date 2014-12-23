@@ -7,6 +7,5 @@ obj-$(CONFIG_VIDEO_OMAP4)	+= omap4iss/
 obj-$(CONFIG_DVB_MN88472)       += mn88472/
 obj-$(CONFIG_DVB_MN88473)       += mn88473/
 obj-y				+= parport/
-obj-$(CONFIG_VIDEO_TLG2300)	+= tlg2300/
 obj-y                           += vino/
 

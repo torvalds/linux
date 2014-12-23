@@ -8393,12 +8393,6 @@ F:	kernel/time/clocksource.c
 F:	kernel/time/time*.c
 F:	kernel/time/ntp.c
 
-TLG2300 VIDEO4LINUX-2 DRIVER
-M:	Huang Shijie <shijie8@gmail.com>
-M:	Hans Verkuil <hverkuil@xs4all.nl>
-S:	Odd Fixes
-F:	drivers/media/usb/tlg2300/
-
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwanem@gmail.com>
 S:	Maintained
