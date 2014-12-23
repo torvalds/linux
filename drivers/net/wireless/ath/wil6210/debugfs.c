@@ -110,9 +110,11 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
-			seq_printf(s, "\n%pM CID %d TID %d [%3d|%3d] idle %3d%%\n",
-				   wil->sta[cid].addr, cid, tid, used, avail,
-				   (int)idle);
+			seq_printf(s,
+				   "\n%pM CID %d TID %d BACK([%d] %d TU) [%3d|%3d] idle %3d%%\n",
+				   wil->sta[cid].addr, cid, tid,
+				   txdata->agg_wsize, txdata->agg_timeout,
+				   used, avail, (int)idle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
@@ -555,6 +557,50 @@ static ssize_t wil_write_file_rxon(struct file *file, const char __user *buf,
 
 static const struct file_operations fops_rxon = {
 	.write = wil_write_file_rxon,
+	.open  = simple_open,
+};
+
+/* block ack for vring 0
+ * write 0 to it to trigger DELBA
+ * write positive agg_wsize to trigger ADDBA
+ */
+static ssize_t wil_write_addba(struct file *file, const char __user *buf,
+			       size_t len, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	int rc;
+	uint agg_wsize;
+	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
+
+	if (!kbuf)
+		return -ENOMEM;
+
+	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
+	if (rc != len) {
+		kfree(kbuf);
+		return rc >= 0 ? -EIO : rc;
+	}
+
+	kbuf[len] = '\0';
+	rc = kstrtouint(kbuf, 0, &agg_wsize);
+	kfree(kbuf);
+
+	if (rc)
+		return rc;
+
+	if (!wil->vring_tx[0].va)
+		return -EINVAL;
+
+	if (agg_wsize > 0)
+		wmi_addba(wil, 0, agg_wsize, 0);
+	else
+		wmi_delba(wil, 0, 0);
+
+	return len;
+}
+
+static const struct file_operations fops_addba = {
+	.write = wil_write_addba,
 	.open  = simple_open,
 };
 
@@ -1217,6 +1263,7 @@ static const struct {
 	{"rxon",		  S_IWUSR,	&fops_rxon},
 	{"tx_mgmt",		  S_IWUSR,	&fops_txmgmt},
 	{"wmi_send",		  S_IWUSR,	&fops_wmi},
+	{"addba",		  S_IWUSR,	&fops_addba},
 	{"temp",	S_IRUGO,		&fops_temp},
 	{"freq",	S_IRUGO,		&fops_freq},
 	{"link",	S_IRUGO,		&fops_link},

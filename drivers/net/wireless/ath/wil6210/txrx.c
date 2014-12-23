@@ -653,7 +653,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 			.encap_trans_type = WMI_VRING_ENC_TYPE_802_3,
 			.mac_ctrl = 0,
 			.to_resolution = 0,
-			.agg_max_wsize = 16,
+			.agg_max_wsize = 0,
 			.schd_params = {
 				.priority = cpu_to_le16(0),
 				.timeslot_us = cpu_to_le16(0xfff),

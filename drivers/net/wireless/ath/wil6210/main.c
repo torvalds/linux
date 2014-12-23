@@ -384,6 +384,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);
+	mutex_init(&wil->back_rx_mutex);
 
 	init_completion(&wil->wmi_ready);
 	init_completion(&wil->wmi_call);
@@ -396,25 +397,30 @@ int wil_priv_init(struct wil6210_priv *wil)
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
 	INIT_WORK(&wil->fw_error_worker, wil_fw_error_worker);
+	INIT_WORK(&wil->back_rx_worker, wil_back_rx_worker);
 
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
+	INIT_LIST_HEAD(&wil->back_rx_pending);
 	spin_lock_init(&wil->wmi_ev_lock);
 	init_waitqueue_head(&wil->wq);
 
-	wil->wmi_wq = create_singlethread_workqueue(WIL_NAME"_wmi");
+	wil->wmi_wq = create_singlethread_workqueue(WIL_NAME "_wmi");
 	if (!wil->wmi_wq)
 		return -EAGAIN;
 
-	wil->wmi_wq_conn = create_singlethread_workqueue(WIL_NAME"_connect");
-	if (!wil->wmi_wq_conn) {
-		destroy_workqueue(wil->wmi_wq);
-		return -EAGAIN;
-	}
+	wil->wq_service = create_singlethread_workqueue(WIL_NAME "_service");
+	if (!wil->wq_service)
+		goto out_wmi_wq;
 
 	wil->last_fw_recovery = jiffies;
 	wil->itr_trsh = itr_trsh;
 
 	return 0;
+
+out_wmi_wq:
+	destroy_workqueue(wil->wmi_wq);
+
+	return -EAGAIN;
 }
 
 /**
@@ -448,7 +454,9 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	mutex_unlock(&wil->mutex);
 	wmi_event_flush(wil);
-	destroy_workqueue(wil->wmi_wq_conn);
+	wil_back_rx_flush(wil);
+	cancel_work_sync(&wil->back_rx_worker);
+	destroy_workqueue(wil->wq_service);
 	destroy_workqueue(wil->wmi_wq);
 }
 
@@ -649,7 +657,7 @@ int wil_reset(struct wil6210_priv *wil)
 
 	wmi_event_flush(wil);
 
-	flush_workqueue(wil->wmi_wq_conn);
+	flush_workqueue(wil->wq_service);
 	flush_workqueue(wil->wmi_wq);
 
 	rc = wil_target_reset(wil);

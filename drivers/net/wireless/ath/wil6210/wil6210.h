@@ -57,6 +57,15 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
+#define WIL_MAX_AMPDU_SIZE	(64 * 1024) /* FW/HW limit */
+#define WIL_MAX_AGG_WSIZE	(32) /* FW/HW limit */
+/* Hardware offload block adds the following:
+ * 26 bytes - 3-address QoS data header
+ *  8 bytes - SNAP
+ *  4 bytes - CRC
+ * 24 bytes - security related (if connection is secure)
+ */
+#define WIL_MAX_MPDU_OVERHEAD	(62)
 /* Max supported by wil6210 value for interrupt threshold is 5sec. */
 #define WIL6210_ITR_TRSH_MAX (5000000)
 #define WIL6210_ITR_TRSH_DEFAULT	(300) /* usec */
@@ -303,6 +312,8 @@ struct vring {
 struct vring_tx_data {
 	int enabled;
 	cycles_t idle, last_idle, begin;
+	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
+	u16 agg_timeout;
 };
 
 enum { /* for wil6210_priv.status */
@@ -397,6 +408,16 @@ enum {
 	fw_recovery_running = 2,
 };
 
+struct wil_back_rx {
+	struct list_head list;
+	/* request params, converted to CPU byte order - what we asked for */
+	u8 cidxtid;
+	u8 dialog_token;
+	u16 ba_param_set;
+	u16 ba_timeout;
+	u16 ba_seq_ctrl;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -429,7 +450,7 @@ struct wil6210_priv {
 	u16 reply_size;
 	struct workqueue_struct *wmi_wq; /* for deferred calls */
 	struct work_struct wmi_event_worker;
-	struct workqueue_struct *wmi_wq_conn; /* for connect worker */
+	struct workqueue_struct *wq_service;
 	struct work_struct connect_worker;
 	struct work_struct disconnect_worker;
 	struct work_struct fw_error_worker;	/* for FW error recovery */
@@ -445,6 +466,10 @@ struct wil6210_priv {
 	spinlock_t wmi_ev_lock;
 	struct napi_struct napi_rx;
 	struct napi_struct napi_tx;
+	/* BACK */
+	struct list_head back_rx_pending;
+	struct mutex back_rx_mutex; /* protect @back_rx_pending */
+	struct work_struct back_rx_worker;
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
@@ -567,6 +592,15 @@ int wmi_p2p_cfg(struct wil6210_priv *wil, int channel);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
 int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason);
+int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout);
+int wmi_delba(struct wil6210_priv *wil, u8 ringid, u16 reason);
+int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
+		      u16 status, bool amsdu, u16 agg_wsize, u16 timeout);
+int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
+			 u8 dialog_token, __le16 ba_param_set,
+			 __le16 ba_timeout, __le16 ba_seq_ctrl);
+void wil_back_rx_worker(struct work_struct *work);
+void wil_back_rx_flush(struct wil6210_priv *wil);
 
 void wil6210_clear_irq(struct wil6210_priv *wil);
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);

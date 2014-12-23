@@ -219,3 +219,149 @@ void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 	kfree(r->reorder_time);
 	kfree(r);
 }
+
+/* ADDBA processing */
+static u16 wil_agg_size(struct wil6210_priv *wil, u16 req_agg_wsize)
+{
+	u16 max_agg_size = min_t(u16, WIL_MAX_AGG_WSIZE, WIL_MAX_AMPDU_SIZE /
+				 (mtu_max + WIL_MAX_MPDU_OVERHEAD));
+
+	if (!req_agg_wsize)
+		return max_agg_size;
+
+	return min(max_agg_size, req_agg_wsize);
+}
+
+/* Block Ack - Rx side (recipient */
+int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
+			 u8 dialog_token, __le16 ba_param_set,
+			 __le16 ba_timeout, __le16 ba_seq_ctrl)
+{
+	struct wil_back_rx *req = kzalloc(sizeof(*req), GFP_KERNEL);
+
+	if (!req)
+		return -ENOMEM;
+
+	req->cidxtid = cidxtid;
+	req->dialog_token = dialog_token;
+	req->ba_param_set = le16_to_cpu(ba_param_set);
+	req->ba_timeout = le16_to_cpu(ba_timeout);
+	req->ba_seq_ctrl = le16_to_cpu(ba_seq_ctrl);
+
+	mutex_lock(&wil->back_rx_mutex);
+	list_add_tail(&req->list, &wil->back_rx_pending);
+	mutex_unlock(&wil->back_rx_mutex);
+
+	queue_work(wil->wq_service, &wil->back_rx_worker);
+
+	return 0;
+}
+
+static void wil_back_rx_handle(struct wil6210_priv *wil,
+			       struct wil_back_rx *req)
+{
+	struct wil_sta_info *sta;
+	u8 cid, tid;
+	u16 agg_wsize = 0;
+	/* bit 0: A-MSDU supported
+	 * bit 1: policy (should be 0 for us)
+	 * bits 2..5: TID
+	 * bits 6..15: buffer size
+	 */
+	u16 req_agg_wsize = WIL_GET_BITS(req->ba_param_set, 6, 15);
+	bool agg_amsdu = !!(req->ba_param_set & BIT(0));
+	int ba_policy = req->ba_param_set & BIT(1);
+	u16 agg_timeout = req->ba_timeout;
+	u16 status = WLAN_STATUS_SUCCESS;
+	unsigned long flags;
+	int rc;
+
+	parse_cidxtid(req->cidxtid, &cid, &tid);
+
+	/* sanity checks */
+	if (cid >= WIL6210_MAX_CID) {
+		wil_err(wil, "BACK: invalid CID %d\n", cid);
+		return;
+	}
+
+	sta = &wil->sta[cid];
+	if (sta->status != wil_sta_connected) {
+		wil_err(wil, "BACK: CID %d not connected\n", cid);
+		return;
+	}
+
+	wil_dbg_wmi(wil,
+		    "ADDBA request for CID %d %pM TID %d size %d timeout %d AMSDU%s policy %d token %d\n",
+		    cid, sta->addr, tid, req_agg_wsize, req->ba_timeout,
+		    agg_amsdu ? "+" : "-", !!ba_policy, req->dialog_token);
+
+	/* apply policies */
+	if (ba_policy) {
+		wil_err(wil, "BACK requested unsupported ba_policy == 1\n");
+		status = WLAN_STATUS_INVALID_QOS_PARAM;
+	}
+	if (status == WLAN_STATUS_SUCCESS)
+		agg_wsize = wil_agg_size(wil, req_agg_wsize);
+
+	rc = wmi_addba_rx_resp(wil, cid, tid, req->dialog_token, status,
+			       agg_amsdu, agg_wsize, agg_timeout);
+	if (rc || (status != WLAN_STATUS_SUCCESS))
+		return;
+
+	/* apply */
+	spin_lock_irqsave(&sta->tid_rx_lock, flags);
+
+	wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
+	sta->tid_rx[tid] = wil_tid_ampdu_rx_alloc(wil, agg_wsize,
+						  req->ba_seq_ctrl >> 4);
+
+	spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
+}
+
+void wil_back_rx_flush(struct wil6210_priv *wil)
+{
+	struct wil_back_rx *evt, *t;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	mutex_lock(&wil->back_rx_mutex);
+
+	list_for_each_entry_safe(evt, t, &wil->back_rx_pending, list) {
+		list_del(&evt->list);
+		kfree(evt);
+	}
+
+	mutex_unlock(&wil->back_rx_mutex);
+}
+
+/* Retrieve next ADDBA request from the pending list */
+static struct list_head *next_back_rx(struct wil6210_priv *wil)
+{
+	struct list_head *ret = NULL;
+
+	mutex_lock(&wil->back_rx_mutex);
+
+	if (!list_empty(&wil->back_rx_pending)) {
+		ret = wil->back_rx_pending.next;
+		list_del(ret);
+	}
+
+	mutex_unlock(&wil->back_rx_mutex);
+
+	return ret;
+}
+
+void wil_back_rx_worker(struct work_struct *work)
+{
+	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
+						back_rx_worker);
+	struct wil_back_rx *evt;
+	struct list_head *lh;
+
+	while ((lh = next_back_rx(wil)) != NULL) {
+		evt = list_entry(lh, struct wil_back_rx, list);
+
+		wil_back_rx_handle(wil, evt);
+		kfree(evt);
+	}
+}
