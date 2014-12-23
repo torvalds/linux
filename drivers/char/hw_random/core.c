@@ -70,6 +70,7 @@ module_param(default_quality, ushort, 0644);
 MODULE_PARM_DESC(default_quality,
 		 "default entropy content of hwrng per mill");
 
+static void drop_current_rng(void);
 static void start_khwrngd(void);
 
 static inline int rng_get_data(struct hwrng *rng, u8 *buffer, size_t size,
@@ -105,6 +106,7 @@ static inline void cleanup_rng(struct kref *kref)
 static void set_current_rng(struct hwrng *rng)
 {
 	BUG_ON(!mutex_is_locked(&rng_mutex));
+	drop_current_rng();
 	current_rng = rng;
 }
 
@@ -315,7 +317,6 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 			err = hwrng_init(rng);
 			if (err)
 				break;
-			drop_current_rng();
 			set_current_rng(rng);
 			err = 0;
 			break;
