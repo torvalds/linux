@@ -224,7 +224,6 @@ static int remote_mouse_event(struct input_dev *dev, unsigned int scancode, unsi
 
 void remote_send_key(struct input_dev *dev, unsigned int scancode, unsigned int type,int event)
 {
-	printk("remote_send_key \n");
 	if(scancode == FN_KEY_SCANCODE && type == 1)
     {
     	// switch from key to pointer
@@ -282,7 +281,6 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode, unsigned int 
 				input_dbg("repeat ircode = 0x%02x, scancode = 0x%04x, maptable = %d \n", scancode, key_map[gp_remote->map_num][scancode],gp_remote->map_num);
 				break;
 		}
-		printk("%s sleep:%d\n", __func__, gp_remote->sleep);
 		if(gp_remote->sleep && scancode == 0x1a && key_map[gp_remote->map_num][scancode] == 0x0074){
 			printk(" set AO_RTI_STATUS_REG2 0x4853ffff \n");
 			WRITE_AOBUS_REG(AO_RTI_STATUS_REG2, 0x4853ffff); // tell uboot don't suspend
