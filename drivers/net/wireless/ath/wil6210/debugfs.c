@@ -1162,7 +1162,8 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 	int i;
 	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
 
-	seq_printf(s, "0x%03x [", r->head_seq_num);
+	seq_printf(s, "([%2d] %3d TU) 0x%03x [", r->buf_size, r->timeout,
+		   r->head_seq_num);
 	for (i = 0; i < r->buf_size; i++) {
 		if (i == index)
 			seq_printf(s, "%c", r->reorder_buf[i] ? 'O' : '|');
