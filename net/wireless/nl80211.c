@@ -59,13 +59,13 @@ enum nl80211_multicast_groups {
 };
 
 static const struct genl_multicast_group nl80211_mcgrps[] = {
-	[NL80211_MCGRP_CONFIG] = { .name = "config", },
-	[NL80211_MCGRP_SCAN] = { .name = "scan", },
-	[NL80211_MCGRP_REGULATORY] = { .name = "regulatory", },
-	[NL80211_MCGRP_MLME] = { .name = "mlme", },
-	[NL80211_MCGRP_VENDOR] = { .name = "vendor", },
+	[NL80211_MCGRP_CONFIG] = { .name = NL80211_MULTICAST_GROUP_CONFIG },
+	[NL80211_MCGRP_SCAN] = { .name = NL80211_MULTICAST_GROUP_SCAN },
+	[NL80211_MCGRP_REGULATORY] = { .name = NL80211_MULTICAST_GROUP_REG },
+	[NL80211_MCGRP_MLME] = { .name = NL80211_MULTICAST_GROUP_MLME },
+	[NL80211_MCGRP_VENDOR] = { .name = NL80211_MULTICAST_GROUP_VENDOR },
 #ifdef CONFIG_NL80211_TESTMODE
-	[NL80211_MCGRP_TESTMODE] = { .name = "testmode", }
+	[NL80211_MCGRP_TESTMODE] = { .name = NL80211_MULTICAST_GROUP_TESTMODE }
 #endif
 };
 
