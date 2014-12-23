@@ -81,7 +81,6 @@
 			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-#if 0
 	cpu_axi_bus: cpu_axi_bus {
 		compatible = "rockchip,cpu_axi_bus";
 		#address-cells = <2>;
@@ -93,80 +92,62 @@
 			#size-cells = <2>;
 			ranges;
 
-			/* service cpup */
-			bus_cpup {
+			dmac {
 				reg = <0x0 0xffa80000 0x0 0x20>;
 			};
-			/* service dmac */
-			bus_dmac {
+			crypto {
+				reg = <0x0 0xffa80080 0x0 0x20>;
+			};
+			bus_cpup {
 				reg = <0x0 0xffa90000 0x0 0x20>;
 			};
-			crypto {
-				reg = <0x0 0xffa90080 0x0 0x20>;
-			};
-			mcu {
-				reg = <0x0 0xffa90100 0x0 0x20>;
-			};
-			tsp {
-				reg = <0x0 0xffa90280 0x0 0x20>;
-			};
-			/* service cci */
 			cci_r {
 				reg = <0x0 0xffaa0000 0x0 0x20>;
 			};
 			cci_w {
 				reg = <0x0 0xffaa0080 0x0 0x20>;
 			};
-			/* service peri */
 			peri {
 				reg = <0x0 0xffab0000 0x0 0x20>;
 			};
-			/* service vio */
-			vio0_iep {
+			iep {
 				reg = <0x0 0xffad0000 0x0 0x20>;
 			};
-			vio0_isp_r0 {
+			isp_r0 {
 				reg = <0x0 0xffad0080 0x0 0x20>;
 			};
-			vio0_isp_r1 {
+			isp_r1 {
 				reg = <0x0 0xffad0100 0x0 0x20>;
 			};
-			vio0_isp_w0 {
+			isp_w0 {
 				reg = <0x0 0xffad0180 0x0 0x20>;
+				rockchip,priority = <2 2>;
 			};
-			vio0_isp_w1 {
+			isp_w1 {
 				reg = <0x0 0xffad0200 0x0 0x20>;
+				rockchip,priority = <2 2>;
 			};
-			vio_vip {
+			vip {
 				reg = <0x0 0xffad0280 0x0 0x20>;
 			};
-			vio1_vop {
+			vop {
 				reg = <0x0 0xffad0300 0x0 0x20>;
+				rockchip,priority = <2 2>;
 			};
-			vio1_rga_r {
+			rga_r {
 				reg = <0x0 0xffad0380 0x0 0x20>;
 			};
-			vio1_rga_w {
+			rga_w {
 				reg = <0x0 0xffad0400 0x0 0x20>;
-			};
-			/* service video */
-			video {
-				reg = <0x0 0xffae0000 0x0 0x20>;
 			};
 			hevc_r {
 				reg = <0x0 0xffae0000 0x0 0x20>;
-				rockchip,priority = <2 2>;
-			};
-			hevc_w {
-				reg = <0x0 0xffae0080 0x0 0x20>;
-				rockchip,priority = <2 2>;
 			};
 			vpu_r {
-				reg = <0x0 0xffae0100 0x0 0x20>;
+				reg = <0x0 0xffae0080 0x0 0x20>;
 			};
 			vpu_w {
-				reg = <0x0 0xffae0180 0x0 0x20>;
-				rockchip,priority = <2 2>;
+				reg = <0x0 0xffae0100 0x0 0x20>;
 			};
 		};
 
@@ -181,7 +162,6 @@
 			};
 		};
 	};
-#endif
 
 	timer {
 		compatible = "arm,armv8-timer";
