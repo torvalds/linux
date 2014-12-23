@@ -440,38 +440,6 @@ TRACE_EVENT(f2fs_truncate_partial_nodes,
 		__entry->err)
 );
 
-TRACE_EVENT_CONDITION(f2fs_submit_page_bio,
-
-	TP_PROTO(struct page *page, sector_t blkaddr, int type),
-
-	TP_ARGS(page, blkaddr, type),
-
-	TP_CONDITION(page->mapping),
-
-	TP_STRUCT__entry(
-		__field(dev_t,	dev)
-		__field(ino_t,	ino)
-		__field(pgoff_t,	index)
-		__field(sector_t,	blkaddr)
-		__field(int,	type)
-	),
-
-	TP_fast_assign(
-		__entry->dev		= page->mapping->host->i_sb->s_dev;
-		__entry->ino		= page->mapping->host->i_ino;
-		__entry->index		= page->index;
-		__entry->blkaddr	= blkaddr;
-		__entry->type		= type;
-	),
-
-	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
-		"blkaddr = 0x%llx, bio_type = %s%s",
-		show_dev_ino(__entry),
-		(unsigned long)__entry->index,
-		(unsigned long long)__entry->blkaddr,
-		show_bio_type(__entry->type))
-);
-
 TRACE_EVENT(f2fs_get_data_block,
 	TP_PROTO(struct inode *inode, sector_t iblock,
 				struct buffer_head *bh, int ret),
@@ -678,6 +646,57 @@ TRACE_EVENT(f2fs_reserve_new_block,
 		show_dev(__entry),
 		(unsigned int)__entry->nid,
 		__entry->ofs_in_node)
+);
+
+DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
+
+	TP_PROTO(struct page *page, block_t blkaddr, int rw, int type),
+
+	TP_ARGS(page, blkaddr, rw, type),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(ino_t, ino)
+		__field(pgoff_t, index)
+		__field(block_t, blkaddr)
+		__field(int, rw)
+		__field(int, type)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= page->mapping->host->i_sb->s_dev;
+		__entry->ino		= page->mapping->host->i_ino;
+		__entry->index		= page->index;
+		__entry->blkaddr	= blkaddr;
+		__entry->rw		= rw;
+		__entry->type		= type;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
+		"blkaddr = 0x%llx, rw = %s%s, type = %s",
+		show_dev_ino(__entry),
+		(unsigned long)__entry->index,
+		(unsigned long long)__entry->blkaddr,
+		show_bio_type(__entry->rw),
+		show_block_type(__entry->type))
+);
+
+DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_bio,
+
+	TP_PROTO(struct page *page, block_t blkaddr, int rw, int type),
+
+	TP_ARGS(page, blkaddr, rw, type),
+
+	TP_CONDITION(page->mapping)
+);
+
+DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_mbio,
+
+	TP_PROTO(struct page *page, block_t blkaddr, int rw, int type),
+
+	TP_ARGS(page, blkaddr, rw, type),
+
+	TP_CONDITION(page->mapping)
 );
 
 DECLARE_EVENT_CLASS(f2fs__submit_bio,
@@ -914,38 +933,6 @@ TRACE_EVENT(f2fs_writepages,
 		__entry->for_reclaim,
 		__entry->range_cyclic,
 		__entry->for_sync)
-);
-
-TRACE_EVENT(f2fs_submit_page_mbio,
-
-	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
-
-	TP_ARGS(page, rw, type, blk_addr),
-
-	TP_STRUCT__entry(
-		__field(dev_t,	dev)
-		__field(ino_t,	ino)
-		__field(int, rw)
-		__field(int, type)
-		__field(pgoff_t, index)
-		__field(block_t, block)
-	),
-
-	TP_fast_assign(
-		__entry->dev	= page->mapping->host->i_sb->s_dev;
-		__entry->ino	= page->mapping->host->i_ino;
-		__entry->rw	= rw;
-		__entry->type	= type;
-		__entry->index	= page->index;
-		__entry->block	= blk_addr;
-	),
-
-	TP_printk("dev = (%d,%d), ino = %lu, %s%s, %s, index = %lu, blkaddr = 0x%llx",
-		show_dev_ino(__entry),
-		show_bio_type(__entry->rw),
-		show_block_type(__entry->type),
-		(unsigned long)__entry->index,
-		(unsigned long long)__entry->block)
 );
 
 TRACE_EVENT(f2fs_write_checkpoint,
