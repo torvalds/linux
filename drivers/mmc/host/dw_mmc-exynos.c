@@ -230,10 +230,8 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	int ret;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(host->dev, "mem alloc failed for private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	for (idx = 0; idx < ARRAY_SIZE(exynos_compat); idx++) {
 		if (of_device_is_compatible(np, exynos_compat[idx].compatible))
