@@ -50,6 +50,7 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			    char _s, char _h)
 {
 	void __iomem *x = wmi_addr(wil, vring->hwtail);
+	u32 v;
 
 	seq_printf(s, "VRING %s = {\n", name);
 	seq_printf(s, "  pa     = %pad\n", &vring->pa);
@@ -58,10 +59,12 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 	seq_printf(s, "  swtail = %d\n", vring->swtail);
 	seq_printf(s, "  swhead = %d\n", vring->swhead);
 	seq_printf(s, "  hwtail = [0x%08x] -> ", vring->hwtail);
-	if (x)
-		seq_printf(s, "0x%08x\n", ioread32(x));
-	else
+	if (x) {
+		v = ioread32(x);
+		seq_printf(s, "0x%08x = %d\n", v, v);
+	} else {
 		seq_puts(s, "???\n");
+	}
 
 	if (vring->va && (vring->size < 1025)) {
 		uint i;
