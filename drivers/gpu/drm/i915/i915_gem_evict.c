@@ -214,6 +214,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	struct i915_vma *vma, *next;
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&vm->dev->struct_mutex));
 	trace_i915_gem_evict_vm(vm);
 
 	if (do_idle) {
@@ -222,6 +223,8 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 			return ret;
 
 		i915_gem_retire_requests(vm->dev);
+
+		WARN_ON(!list_empty(&vm->active_list));
 	}
 
 	list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
