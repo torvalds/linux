@@ -61,6 +61,13 @@ module_param(rx_max_burst_duration, uint, S_IRUGO);
 MODULE_PARM_DESC(rx_max_burst_duration,
 		 " Interrupt moderation RX max burst duration, usecs.");
 
+/* if not set via modparam, will be set to default value of 1/8 of
+ * rx ring size during init flow
+ */
+unsigned short rx_ring_overflow_thrsh = WIL6210_RX_HIGH_TRSH_INIT;
+module_param(rx_ring_overflow_thrsh, ushort, S_IRUGO);
+MODULE_PARM_DESC(rx_ring_overflow_thrsh,
+		 " RX ring overflow threshold in descriptors.");
 
 /* We allow allocation of more than 1 page buffers to support large packets.
  * It is suboptimal behavior performance wise in case MTU above page size.
@@ -456,6 +463,8 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->tx_max_burst_duration = tx_max_burst_duration;
 	wil->rx_max_burst_duration = rx_max_burst_duration;
 
+	if (rx_ring_overflow_thrsh == WIL6210_RX_HIGH_TRSH_INIT)
+		rx_ring_overflow_thrsh = WIL6210_RX_HIGH_TRSH_DEFAULT;
 	return 0;
 
 out_wmi_wq:

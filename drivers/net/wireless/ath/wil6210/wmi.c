@@ -1090,6 +1090,7 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 		.mid = 0, /* TODO - what is it? */
 		.decap_trans_type = WMI_DECAP_TYPE_802_3,
 		.reorder_type = WMI_RX_SW_REORDER,
+		.host_thrsh = cpu_to_le16(rx_ring_overflow_thrsh),
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;

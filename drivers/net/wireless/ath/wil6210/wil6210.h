@@ -25,6 +25,7 @@
 
 extern bool no_fw_recovery;
 extern unsigned int mtu_max;
+extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
 
 #define WIL_NAME "wil6210"
@@ -83,7 +84,9 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 #define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
 #define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
 #define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
-
+#define WIL6210_RX_HIGH_TRSH_INIT		(0)
+#define WIL6210_RX_HIGH_TRSH_DEFAULT \
+				(1 << (WIL_RX_RING_SIZE_ORDER_DEFAULT - 3))
 /* Hardware definitions begin */
 
 /*
