@@ -166,12 +166,14 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 
 static void wil_disconnect_cid(struct wil6210_priv *wil, int cid,
 			       u16 reason_code, bool from_event)
+__acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	uint i;
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 	struct wil_sta_info *sta = &wil->sta[cid];
 
+	might_sleep();
 	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
 		     sta->status);
 
@@ -194,15 +196,14 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid,
 
 	for (i = 0; i < WIL_STA_TID_NUM; i++) {
 		struct wil_tid_ampdu_rx *r;
-		unsigned long flags;
 
-		spin_lock_irqsave(&sta->tid_rx_lock, flags);
+		spin_lock_bh(&sta->tid_rx_lock);
 
 		r = sta->tid_rx[i];
 		sta->tid_rx[i] = NULL;
 		wil_tid_ampdu_rx_free(wil, r);
 
-		spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
+		spin_unlock_bh(&sta->tid_rx_lock);
 	}
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		if (wil->vring2cid_tid[i][0] == cid)

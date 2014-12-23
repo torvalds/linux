@@ -644,14 +644,15 @@ static void wmi_evt_addba_rx_req(struct wil6210_priv *wil, int id, void *d,
 }
 
 static void wmi_evt_delba(struct wil6210_priv *wil, int id, void *d, int len)
+__acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	struct wmi_delba_event *evt = d;
 	u8 cid, tid;
 	u16 reason = __le16_to_cpu(evt->reason);
 	struct wil_sta_info *sta;
 	struct wil_tid_ampdu_rx *r;
-	unsigned long flags;
 
+	might_sleep();
 	parse_cidxtid(evt->cidxtid, &cid, &tid);
 	wil_dbg_wmi(wil, "DELBA CID %d TID %d from %s reason %d\n",
 		    cid, tid,
@@ -681,13 +682,13 @@ static void wmi_evt_delba(struct wil6210_priv *wil, int id, void *d, int len)
 
 	sta = &wil->sta[cid];
 
-	spin_lock_irqsave(&sta->tid_rx_lock, flags);
+	spin_lock_bh(&sta->tid_rx_lock);
 
 	r = sta->tid_rx[tid];
 	sta->tid_rx[tid] = NULL;
 	wil_tid_ampdu_rx_free(wil, r);
 
-	spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
+	spin_unlock_bh(&sta->tid_rx_lock);
 }
 
 static const struct {

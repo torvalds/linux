@@ -89,7 +89,9 @@ static void wil_reorder_release(struct wil6210_priv *wil,
 	}
 }
 
+/* called in NAPI context */
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
+__acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
@@ -102,7 +104,6 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 	struct wil_tid_ampdu_rx *r;
 	u16 hseq;
 	int index;
-	unsigned long flags;
 
 	wil_dbg_txrx(wil, "MID %d CID %d TID %d Seq 0x%03x mcast %01x\n",
 		     mid, cid, tid, seq, mcast);
@@ -112,13 +113,12 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 		return;
 	}
 
-	spin_lock_irqsave(&sta->tid_rx_lock, flags);
+	spin_lock(&sta->tid_rx_lock);
 
 	r = sta->tid_rx[tid];
 	if (!r) {
-		spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
 		wil_netif_rx_any(skb, ndev);
-		return;
+		goto out;
 	}
 
 	hseq = r->head_seq_num;
@@ -196,7 +196,7 @@ void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 	wil_reorder_release(wil, r);
 
 out:
-	spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
+	spin_unlock(&sta->tid_rx_lock);
 }
 
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
@@ -276,6 +276,7 @@ int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 
 static void wil_back_rx_handle(struct wil6210_priv *wil,
 			       struct wil_back_rx *req)
+__acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	struct wil_sta_info *sta;
 	u8 cid, tid;
@@ -291,9 +292,9 @@ static void wil_back_rx_handle(struct wil6210_priv *wil,
 	u16 agg_timeout = req->ba_timeout;
 	u16 status = WLAN_STATUS_SUCCESS;
 	u16 ssn = req->ba_seq_ctrl >> 4;
-	unsigned long flags;
 	int rc;
 
+	might_sleep();
 	parse_cidxtid(req->cidxtid, &cid, &tid);
 
 	/* sanity checks */
@@ -327,12 +328,12 @@ static void wil_back_rx_handle(struct wil6210_priv *wil,
 		return;
 
 	/* apply */
-	spin_lock_irqsave(&sta->tid_rx_lock, flags);
+	spin_lock_bh(&sta->tid_rx_lock);
 
 	wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
 	sta->tid_rx[tid] = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
 
-	spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
+	spin_unlock_bh(&sta->tid_rx_lock);
 }
 
 void wil_back_rx_flush(struct wil6210_priv *wil)
