@@ -678,7 +678,7 @@ xfs_mountfs(
 		xfs_warn(mp, "correcting sb_features alignment problem");
 		sbp->sb_features2 |= sbp->sb_bad_features2;
 		sbp->sb_bad_features2 = sbp->sb_features2;
-		mp->m_update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
+		mp->m_update_flags |= XFS_SB_FEATURES2;
 
 		/*
 		 * Re-check for ATTR2 in case it was found in bad_features2
@@ -1436,8 +1436,7 @@ xfs_mount_log_sb(
 	int		error;
 
 	ASSERT(fields & (XFS_SB_UNIT | XFS_SB_WIDTH | XFS_SB_UUID |
-			 XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2 |
-			 XFS_SB_VERSIONNUM));
+			 XFS_SB_FEATURES2 | XFS_SB_VERSIONNUM));
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SB_UNIT);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
