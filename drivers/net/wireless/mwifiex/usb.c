@@ -1010,6 +1010,13 @@ static void mwifiex_usb_submit_rem_rx_urbs(struct mwifiex_adapter *adapter)
 	}
 }
 
+/* This function is called after the card has woken up. */
+static inline int
+mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
+{
+	return 0;
+}
+
 static struct mwifiex_if_ops usb_ops = {
 	.register_dev =		mwifiex_register_dev,
 	.unregister_dev =	mwifiex_unregister_dev,
