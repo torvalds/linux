@@ -301,6 +301,8 @@ static int int3403_sensor_remove(struct int3403_priv *priv)
 {
 	struct int3403_sensor *obj = priv->priv;
 
+	acpi_remove_notify_handler(priv->adev->handle,
+				   ACPI_DEVICE_NOTIFY, int3403_notify);
 	thermal_zone_device_unregister(obj->tzone);
 	return 0;
 }
