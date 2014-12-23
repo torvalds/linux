@@ -972,7 +972,7 @@ static int kmx61_write_event_config(struct iio_dev *indio_dev,
 	mutex_lock(&data->lock);
 
 	if (!state && data->motion_trig_on) {
-		data->ev_enable_state = 0;
+		data->ev_enable_state = false;
 		goto err_unlock;
 	}
 
