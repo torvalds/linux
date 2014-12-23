@@ -582,6 +582,8 @@ struct mwifiex_private {
 	struct idr ack_status_frames;
 	/* spin lock for ack status */
 	spinlock_t ack_status_lock;
+	/** rx histogram data */
+	struct mwifiex_histogram_data *hist_data;
 };
 
 enum mwifiex_ba_status {
@@ -1349,6 +1351,14 @@ void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 struct sk_buff *
 mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 				struct sk_buff *skb, u8 flag, u64 *cookie);
+
+void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
+			   s8 nflr);
+void mwifiex_hist_data_reset(struct mwifiex_private *priv);
+void mwifiex_hist_data_add(struct mwifiex_private *priv,
+			   u8 rx_rate, s8 snr, s8 nflr);
+u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
+			    u8 rx_rate, u8 ht_info);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

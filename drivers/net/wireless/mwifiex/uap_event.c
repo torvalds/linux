@@ -132,6 +132,8 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
 		memcpy(priv->netdev->dev_addr, adapter->event_body + 2,
 		       ETH_ALEN);
+		if (priv->hist_data)
+			mwifiex_hist_data_reset(priv);
 		break;
 	case EVENT_UAP_MIC_COUNTERMEASURES:
 		/* For future development */

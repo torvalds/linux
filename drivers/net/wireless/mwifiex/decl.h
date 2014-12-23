@@ -93,6 +93,14 @@
 #define MWIFIEX_TDLS_MAX_FAIL_COUNT      4
 #define MWIFIEX_AUTO_TDLS_IDLE_TIME     10
 
+/* 54M rates, index from 0 to 11 */
+#define MWIFIEX_RATE_INDEX_MCS0 12
+/* 12-27=MCS0-15(BW20) */
+#define MWIFIEX_BW20_MCS_NUM 15
+
+/* Rate index for OFDM 0 */
+#define MWIFIEX_RATE_INDEX_OFDM0   4
+
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,
@@ -205,4 +213,20 @@ struct mwifiex_chan_stats {
 	u16 cca_scan_dur;
 	u16 cca_busy_dur;
 } __packed;
+
+#define MWIFIEX_HIST_MAX_SAMPLES	1048576
+#define MWIFIEX_MAX_RX_RATES		     44
+#define MWIFIEX_MAX_AC_RX_RATES		     74
+#define MWIFIEX_MAX_SNR			    256
+#define MWIFIEX_MAX_NOISE_FLR		    256
+#define MWIFIEX_MAX_SIG_STRENGTH	    256
+
+struct mwifiex_histogram_data {
+	atomic_t rx_rate[MWIFIEX_MAX_AC_RX_RATES];
+	atomic_t snr[MWIFIEX_MAX_SNR];
+	atomic_t noise_flr[MWIFIEX_MAX_NOISE_FLR];
+	atomic_t sig_str[MWIFIEX_MAX_SIG_STRENGTH];
+	atomic_t num_samples;
+};
+
 #endif /* !_MWIFIEX_DECL_H_ */

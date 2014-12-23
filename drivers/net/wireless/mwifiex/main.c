@@ -847,6 +847,7 @@ static const struct net_device_ops mwifiex_netdev_ops = {
  *      - Nick name             : Set to null
  *      - Number of Tx timeout  : Set to 0
  *      - Device address        : Set to current address
+ *      - Rx histogram statistc : Set to 0
  *
  * In addition, the CFG80211 work queue is also created.
  */
@@ -867,6 +868,13 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 	priv->rsn_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->num_tx_timeout = 0;
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
+	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		priv->hist_data = kmalloc(sizeof(*priv->hist_data), GFP_KERNEL);
+		if (priv->hist_data)
+			mwifiex_hist_data_reset(priv);
+	}
 }
 
 /*

@@ -90,6 +90,10 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->is_data_rate_auto = true;
 	priv->data_rate = 0;
 
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
+	     GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) && priv->hist_data)
+		mwifiex_hist_data_reset(priv);
+
 	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 		priv->adhoc_state = ADHOC_IDLE;
 		priv->adhoc_is_link_sensed = false;

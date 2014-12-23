@@ -406,3 +406,44 @@ void mwifiex_del_all_sta_list(struct mwifiex_private *priv)
 	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 	return;
 }
+
+/* This function adds histogram data to histogram array*/
+void mwifiex_hist_data_add(struct mwifiex_private *priv,
+			   u8 rx_rate, s8 snr, s8 nflr)
+{
+	struct mwifiex_histogram_data *phist_data = priv->hist_data;
+
+	if (atomic_read(&phist_data->num_samples) > MWIFIEX_HIST_MAX_SAMPLES)
+		mwifiex_hist_data_reset(priv);
+	mwifiex_hist_data_set(priv, rx_rate, snr, nflr);
+}
+
+/* function to add histogram record */
+void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
+			   s8 nflr)
+{
+	struct mwifiex_histogram_data *phist_data = priv->hist_data;
+
+	atomic_inc(&phist_data->num_samples);
+	atomic_inc(&phist_data->rx_rate[rx_rate]);
+	atomic_inc(&phist_data->snr[snr]);
+	atomic_inc(&phist_data->noise_flr[128 + nflr]);
+	atomic_inc(&phist_data->sig_str[nflr - snr]);
+}
+
+/* function to reset histogram data during init/reset */
+void mwifiex_hist_data_reset(struct mwifiex_private *priv)
+{
+	int ix;
+	struct mwifiex_histogram_data *phist_data = priv->hist_data;
+
+	atomic_set(&phist_data->num_samples, 0);
+	for (ix = 0; ix < MWIFIEX_MAX_AC_RX_RATES; ix++)
+		atomic_set(&phist_data->rx_rate[ix], 0);
+	for (ix = 0; ix < MWIFIEX_MAX_SNR; ix++)
+		atomic_set(&phist_data->snr[ix], 0);
+	for (ix = 0; ix < MWIFIEX_MAX_NOISE_FLR; ix++)
+		atomic_set(&phist_data->noise_flr[ix], 0);
+	for (ix = 0; ix < MWIFIEX_MAX_SIG_STRENGTH; ix++)
+		atomic_set(&phist_data->sig_str[ix], 0);
+}

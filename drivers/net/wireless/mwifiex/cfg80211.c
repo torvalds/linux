@@ -2386,6 +2386,10 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
 
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
+	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)
+		kfree(priv->hist_data);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_del_virtual_intf);
