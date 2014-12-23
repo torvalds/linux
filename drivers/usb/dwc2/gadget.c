@@ -65,7 +65,7 @@ static inline void __bic32(void __iomem *ptr, u32 val)
 	writel(readl(ptr) & ~val, ptr);
 }
 
-/* forward decleration of functions */
+/* forward declaration of functions */
 static void s3c_hsotg_dump(struct dwc2_hsotg *hsotg);
 
 /**

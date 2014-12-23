@@ -381,7 +381,7 @@ struct dwc2_core_params {
  * @power_optimized     Are power optimizations enabled?
  * @num_dev_ep          Number of device endpoints available
  * @num_dev_perio_in_ep Number of device periodic IN endpoints
- *                      avaialable
+ *                      available
  * @dev_token_q_depth   Device Mode IN Token Sequence Learning Queue
  *                      Depth
  *                       0 to 30
