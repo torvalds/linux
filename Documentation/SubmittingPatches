@@ -354,40 +354,34 @@ server, and provide instead a URL (link) pointing to your patch.
 
 
 
-8) Name your kernel version.
+8) Respond to review comments.
+------------------------------
 
-It is important to note, either in the subject line or in the patch
-description, the kernel version to which this patch applies.
+Your patch will almost certainly get comments from reviewers on ways in
+which the patch can be improved.  You must respond to those comments;
+ignoring reviewers is a good way to get ignored in return.  Review comments
+or questions that do not lead to a code change should almost certainly
+bring about a comment or changelog entry so that the next reviewer better
+understands what is going on.
 
-If the patch does not apply cleanly to the latest kernel version,
-Linus will not apply it.
+Be sure to tell the reviewers what changes you are making and to thank them
+for their time.  Code review is a tiring and time-consuming process, and
+reviewers sometimes get grumpy.  Even in that case, though, respond
+politely and address the problems they have pointed out.
 
 
+9) Don't get discouraged - or impatient.
+----------------------------------------
 
-9) Don't get discouraged.  Re-submit.
+After you have submitted your change, be patient and wait.  Reviewers are
+busy people and may not get to your patch right away.
 
-After you have submitted your change, be patient and wait.  If Linus
-likes your change and applies it, it will appear in the next version
-of the kernel that he releases.
-
-However, if your change doesn't appear in the next version of the
-kernel, there could be any number of reasons.  It's YOUR job to
-narrow down those reasons, correct what was wrong, and submit your
-updated change.
-
-It is quite common for Linus to "drop" your patch without comment.
-That's the nature of the system.  If he drops your patch, it could be
-due to
-* Your patch did not apply cleanly to the latest kernel version.
-* Your patch was not sufficiently discussed on linux-kernel.
-* A style issue (see section 2).
-* An e-mail formatting issue (re-read this section).
-* A technical problem with your change.
-* He gets tons of e-mail, and yours got lost in the shuffle.
-* You are being annoying.
-
-When in doubt, solicit comments on linux-kernel mailing list.
-
+Once upon a time, patches used to disappear into the void without comment,
+but the development process works more smoothly than that now.  You should
+receive comments within a week or so; if that does not happen, make sure
+that you have sent your patches to the right place.  Wait for a minimum of
+one week before resubmitting or pinging reviewers - possibly longer during
+busy times like merge windows.
 
 
 10) Include PATCH in the subject
