@@ -127,6 +127,7 @@ static int proc_thermal_add(struct device *dev,
 	union acpi_object *elements, *ppcc;
 	union acpi_object *p;
 	int i;
+	int ret;
 
 	adev = ACPI_COMPANION(dev);
 
@@ -137,16 +138,20 @@ static int proc_thermal_add(struct device *dev,
 	p = buf.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
 		dev_err(dev, "Invalid PPCC data\n");
-		return -EFAULT;
+		ret = -EFAULT;
+		goto free_buffer;
 	}
 	if (!p->package.count) {
 		dev_err(dev, "Invalid PPCC package size\n");
-		return -EFAULT;
+		ret = -EFAULT;
+		goto free_buffer;
 	}
 
 	proc_priv = devm_kzalloc(dev, sizeof(*proc_priv), GFP_KERNEL);
-	if (!proc_priv)
-		return -ENOMEM;
+	if (!proc_priv) {
+		ret = -ENOMEM;
+		goto free_buffer;
+	}
 
 	proc_priv->dev = dev;
 	proc_priv->adev = adev;
@@ -154,9 +159,10 @@ static int proc_thermal_add(struct device *dev,
 	for (i = 0; i < min((int)p->package.count - 1, 2); ++i) {
 		elements = &(p->package.elements[i+1]);
 		if (elements->type != ACPI_TYPE_PACKAGE ||
-		    elements->package.count != 6)
-			return -EFAULT;
-
+		    elements->package.count != 6) {
+			ret = -EFAULT;
+			goto free_buffer;
+		}
 		ppcc = elements->package.elements;
 		proc_priv->power_limits[i].index = ppcc[0].integer.value;
 		proc_priv->power_limits[i].min_uw = ppcc[1].integer.value;
@@ -168,8 +174,13 @@ static int proc_thermal_add(struct device *dev,
 
 	*priv = proc_priv;
 
-	return sysfs_create_group(&dev->kobj,
-				  &power_limit_attribute_group);
+	ret = sysfs_create_group(&dev->kobj,
+				 &power_limit_attribute_group);
+
+free_buffer:
+	kfree(buf.pointer);
+
+	return ret;
 }
 
 void proc_thermal_remove(struct proc_thermal_device *proc_priv)
