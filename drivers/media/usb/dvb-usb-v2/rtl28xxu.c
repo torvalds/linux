@@ -523,6 +523,35 @@ err:
 	return ret;
 }
 
+static int rtl28xxu_identify_state(struct dvb_usb_device *d, const char **name)
+{
+	struct rtl28xxu_dev *dev = d_to_priv(d);
+	int ret;
+	struct rtl28xxu_req req_demod_i2c = {0x0020, CMD_I2C_DA_RD, 0, NULL};
+
+	dev_dbg(&d->intf->dev, "\n");
+
+	/*
+	 * Detect chip type using I2C command that is not supported
+	 * by old RTL2831U.
+	 */
+	ret = rtl28xxu_ctrl_msg(d, &req_demod_i2c);
+	if (ret == -EPIPE) {
+		dev->chip_id = CHIP_ID_RTL2831U;
+	} else if (ret == 0) {
+		dev->chip_id = CHIP_ID_RTL2832U;
+	} else {
+		dev_err(&d->intf->dev, "chip type detection failed %d\n", ret);
+		goto err;
+	}
+	dev_dbg(&d->intf->dev, "chip_id=%u\n", dev->chip_id);
+
+	return WARM;
+err:
+	dev_dbg(&d->intf->dev, "failed=%d\n", ret);
+	return ret;
+}
+
 static const struct rtl2830_platform_data rtl2830_mt2060_platform_data = {
 	.clk = 28800000,
 	.spec_inv = 1,
@@ -1590,6 +1619,7 @@ static const struct dvb_usb_device_properties rtl2831u_props = {
 	.adapter_nr = adapter_nr,
 	.size_of_priv = sizeof(struct rtl28xxu_dev),
 
+	.identify_state = rtl28xxu_identify_state,
 	.power_ctrl = rtl2831u_power_ctrl,
 	.i2c_algo = &rtl28xxu_i2c_algo,
 	.read_config = rtl2831u_read_config,
@@ -1620,6 +1650,7 @@ static const struct dvb_usb_device_properties rtl2832u_props = {
 	.adapter_nr = adapter_nr,
 	.size_of_priv = sizeof(struct rtl28xxu_dev),
 
+	.identify_state = rtl28xxu_identify_state,
 	.power_ctrl = rtl2832u_power_ctrl,
 	.frontend_ctrl = rtl2832u_frontend_ctrl,
 	.i2c_algo = &rtl28xxu_i2c_algo,
