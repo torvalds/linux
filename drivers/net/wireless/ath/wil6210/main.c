@@ -188,18 +188,29 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	struct wireless_dev *wdev = wil->wdev;
 
 	might_sleep();
-	if (bssid) {
-		cid = wil_find_cid(wil, bssid);
-		wil_dbg_misc(wil, "%s(%pM, CID %d)\n", __func__, bssid, cid);
-	} else {
-		wil_dbg_misc(wil, "%s(all)\n", __func__);
-	}
+	wil_dbg_misc(wil, "%s(bssid=%pM, reason=%d, ev%s)\n", __func__, bssid,
+		     reason_code, from_event ? "+" : "-");
 
-	if (cid >= 0) /* disconnect 1 peer */
-		wil_disconnect_cid(wil, cid, reason_code, from_event);
-	else /* disconnect all */
+	/* Cases are:
+	 * - disconnect single STA, still connected
+	 * - disconnect single STA, already disconnected
+	 * - disconnect all
+	 *
+	 * For "disconnect all", there are 2 options:
+	 * - bssid == NULL
+	 * - bssid is our MAC address
+	 */
+	if (bssid && memcmp(ndev->dev_addr, bssid, ETH_ALEN)) {
+		cid = wil_find_cid(wil, bssid);
+		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
+			     bssid, cid, reason_code);
+		if (cid >= 0) /* disconnect 1 peer */
+			wil_disconnect_cid(wil, cid, reason_code, from_event);
+	} else { /* all */
+		wil_dbg_misc(wil, "Disconnect all\n");
 		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
 			wil_disconnect_cid(wil, cid, reason_code, from_event);
+	}
 
 	/* link state */
 	switch (wdev->iftype) {
