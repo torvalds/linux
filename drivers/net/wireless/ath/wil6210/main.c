@@ -502,13 +502,10 @@ static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
 	u32 x;
-	u32 rev_id;
-	bool is_sparrow = (wil->board->board == WIL_BOARD_SPARROW);
+	bool is_reset_v2 = test_bit(hw_capability_reset_v2,
+				    wil->hw_capabilities);
 
-	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->board->name);
-
-	wil->hw_version = R(RGF_USER_FW_REV_ID);
-	rev_id = wil->hw_version & 0xff;
+	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
 	/* Clear MAC link up */
 	S(RGF_HP_CTRL, BIT(15));
@@ -520,7 +517,7 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	/* Clear Fw Download notification */
 	C(RGF_USER_USAGE_6, BIT(0));
 
-	if (is_sparrow) {
+	if (is_reset_v2) {
 		S(RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
 		/* XTAL stabilization should take about 3ms */
 		usleep_range(5000, 7000);
@@ -541,10 +538,11 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, is_sparrow ? 0x000000f0 : 0x00000170);
+	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3,
+	  is_reset_v2 ? 0x000000f0 : 0x00000170);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
 
-	if (is_sparrow) {
+	if (is_reset_v2) {
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
 	}
@@ -554,19 +552,14 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
-	if (is_sparrow) {
+	if (is_reset_v2) {
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000003);
 		/* reset A2 PCIE AHB */
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 	} else {
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
-		if (rev_id == 1) {
-			/* reset A1 BOTH PCIE AHB & PCIE RGF */
-			W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00000080);
-		} else {
-			W(RGF_PCIE_LOS_COUNTER_CTL, BIT(6) | BIT(8));
-			W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
-		}
+		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(6) | BIT(8));
+		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 	}
 
 	/* TODO: check order here!!! Erez code is different */
@@ -583,8 +576,7 @@ static int wil_target_reset(struct wil6210_priv *wil)
 		}
 	} while (x != HW_MACHINE_BOOT_DONE);
 
-	/* TODO: Erez check rev_id != 1 */
-	if (!is_sparrow && (rev_id != 1))
+	if (!is_reset_v2)
 		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
@@ -652,6 +644,9 @@ int wil_reset(struct wil6210_priv *wil)
 	int rc;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	if (wil->hw_version == HW_VER_UNKNOWN)
+		return -ENODEV;
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 	WARN_ON(test_bit(wil_status_napi_en, wil->status));

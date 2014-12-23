@@ -40,25 +40,31 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 
 	switch (rev_id) {
 	case JTAG_DEV_ID_MARLON_B0:
-		wil_info(wil, "Board hardware is Marlon B0\n");
+		wil->hw_name = "Marlon B0";
 		wil->hw_version = HW_VER_MARLON_B0;
 		break;
 	case JTAG_DEV_ID_SPARROW_A0:
-		wil_info(wil, "Board hardware is Sparrow A0\n");
+		wil->hw_name = "Sparrow A0";
 		wil->hw_version = HW_VER_SPARROW_A0;
 		break;
 	case JTAG_DEV_ID_SPARROW_A1:
-		wil_info(wil, "Board hardware is Sparrow A1\n");
+		wil->hw_name = "Sparrow A1";
 		wil->hw_version = HW_VER_SPARROW_A1;
 		break;
 	case JTAG_DEV_ID_SPARROW_B0:
-		wil_info(wil, "Board hardware is Sparrow B0\n");
+		wil->hw_name = "Sparrow B0";
 		wil->hw_version = HW_VER_SPARROW_B0;
 		break;
 	default:
 		wil_err(wil, "Unknown board hardware 0x%08x\n", rev_id);
+		wil->hw_name = "Unknown";
 		wil->hw_version = HW_VER_UNKNOWN;
 	}
+
+	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
+
+	if (wil->hw_version >= HW_VER_SPARROW_A0)
+		set_bit(hw_capability_reset_v2, wil->hw_capabilities);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)
@@ -179,12 +185,11 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct wil6210_priv *wil;
 	struct device *dev = &pdev->dev;
 	void __iomem *csr;
-	struct wil_board *board = (struct wil_board *)id->driver_data;
 	int rc;
 
 	/* check HW */
 	dev_info(&pdev->dev, WIL_NAME
-		 " \"%s\" device found [%04x:%04x] (rev %x)\n", board->name,
+		 " device found [%04x:%04x] (rev %x)\n",
 		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision);
 
 	if (pci_resource_len(pdev, 0) != WIL6210_MEM_SIZE) {
@@ -234,7 +239,6 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, wil);
 	wil->pdev = pdev;
-	wil->board = board;
 	wil_set_capabilities(wil);
 	wil6210_clear_irq(wil);
 
@@ -296,23 +300,10 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static const struct wil_board wil_board_marlon = {
-	.board = WIL_BOARD_MARLON,
-	.name = "marlon",
-};
-
-static const struct wil_board wil_board_sparrow = {
-	.board = WIL_BOARD_SPARROW,
-	.name = "sparrow",
-};
-
 static const struct pci_device_id wil6210_pcie_ids[] = {
-	{ PCI_DEVICE(0x1ae9, 0x0301),
-	  .driver_data = (kernel_ulong_t)&wil_board_marlon },
-	{ PCI_DEVICE(0x1ae9, 0x0310),
-	  .driver_data = (kernel_ulong_t)&wil_board_sparrow },
-	{ PCI_DEVICE(0x1ae9, 0x0302), /* same as above, firmware broken */
-	  .driver_data = (kernel_ulong_t)&wil_board_sparrow },
+	{ PCI_DEVICE(0x1ae9, 0x0301) },
+	{ PCI_DEVICE(0x1ae9, 0x0310) },
+	{ PCI_DEVICE(0x1ae9, 0x0302) }, /* same as above, firmware broken */
 	{ /* end: all zeroes */	},
 };
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);

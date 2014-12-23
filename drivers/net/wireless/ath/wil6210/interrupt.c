@@ -194,18 +194,19 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 		wil_dbg_irq(wil, "RX done\n");
 
 		if (isr & BIT_DMA_EP_RX_ICR_RX_HTRSH)
-			wil_err_ratelimited(wil, "Received \"Rx buffer is in risk "
-				"of overflow\" interrupt\n");
+			wil_err_ratelimited(wil,
+					    "Received \"Rx buffer is in risk of overflow\" interrupt\n");
 
-		isr &= ~(BIT_DMA_EP_RX_ICR_RX_DONE | BIT_DMA_EP_RX_ICR_RX_HTRSH);
+		isr &= ~(BIT_DMA_EP_RX_ICR_RX_DONE |
+			 BIT_DMA_EP_RX_ICR_RX_HTRSH);
 		if (test_bit(wil_status_reset_done, wil->status)) {
 			if (test_bit(wil_status_napi_en, wil->status)) {
 				wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
 				need_unmask = false;
 				napi_schedule(&wil->napi_rx);
 			} else {
-				wil_err(wil, "Got Rx interrupt while "
-					"stopping interface\n");
+				wil_err(wil,
+					"Got Rx interrupt while stopping interface\n");
 			}
 		} else {
 			wil_err(wil, "Got Rx interrupt while in reset\n");

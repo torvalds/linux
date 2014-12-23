@@ -32,13 +32,6 @@ extern int agg_wsize;
 
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
-struct wil_board {
-	int board;
-#define WIL_BOARD_MARLON	(1)
-#define WIL_BOARD_SPARROW	(2)
-	const char * const name;
-};
-
 /**
  * extract bits [@b0:@b1] (inclusive) from the value @x
  * it should be @b0 <= @b1, or result is incorrect
@@ -441,7 +434,7 @@ enum {
 };
 
 enum {
-	hw_capability_dummy, /* to avoid zero array */
+	hw_capability_reset_v2 = 0,
 	hw_capability_last
 };
 
@@ -471,8 +464,8 @@ struct wil6210_priv {
 	DECLARE_BITMAP(status, wil_status_last);
 	u32 fw_version;
 	u32 hw_version;
+	const char *hw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
-	struct wil_board *board;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	u32 recovery_count; /* num of FW recovery attempts in a short time */
 	u32 recovery_state; /* FW recovery state machine */
