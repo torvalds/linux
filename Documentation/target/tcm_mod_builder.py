@@ -389,9 +389,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.release_cmd			= " + fabric_mod_name + "_release_cmd,\n"
 	buf += "	.shutdown_session		= " + fabric_mod_name + "_shutdown_session,\n"
 	buf += "	.close_session			= " + fabric_mod_name + "_close_session,\n"
-	buf += "	.stop_session			= " + fabric_mod_name + "_stop_session,\n"
-	buf += "	.fall_back_to_erl0		= " + fabric_mod_name + "_reset_nexus,\n"
-	buf += "	.sess_logged_in			= " + fabric_mod_name + "_sess_logged_in,\n"
 	buf += "	.sess_get_index			= " + fabric_mod_name + "_sess_get_index,\n"
 	buf += "	.sess_get_initiator_sid		= NULL,\n"
 	buf += "	.write_pending			= " + fabric_mod_name + "_write_pending,\n"
@@ -402,7 +399,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.queue_data_in			= " + fabric_mod_name + "_queue_data_in,\n"
 	buf += "	.queue_status			= " + fabric_mod_name + "_queue_status,\n"
 	buf += "	.queue_tm_rsp			= " + fabric_mod_name + "_queue_tm_rsp,\n"
-	buf += "	.is_state_remove		= " + fabric_mod_name + "_is_state_remove,\n"
+	buf += "	.aborted_task			= " + fabric_mod_name + "_aborted_task,\n"
 	buf += "	/*\n"
 	buf += "	 * Setup function pointers for generic logic in target_core_fabric_configfs.c\n"
 	buf += "	 */\n"
@@ -428,7 +425,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	/*\n"
 	buf += "	 * Register the top level struct config_item_type with TCM core\n"
 	buf += "	 */\n"
-	buf += "	fabric = target_fabric_configfs_init(THIS_MODULE, \"" + fabric_mod_name[4:] + "\");\n"
+	buf += "	fabric = target_fabric_configfs_init(THIS_MODULE, \"" + fabric_mod_name + "\");\n"
 	buf += "	if (IS_ERR(fabric)) {\n"
 	buf += "		printk(KERN_ERR \"target_fabric_configfs_init() failed\\n\");\n"
 	buf += "		return PTR_ERR(fabric);\n"
@@ -595,7 +592,7 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 		if re.search('get_fabric_name', fo):
 			buf += "char *" + fabric_mod_name + "_get_fabric_name(void)\n"
 			buf += "{\n"
-			buf += "	return \"" + fabric_mod_name[4:] + "\";\n"
+			buf += "	return \"" + fabric_mod_name + "\";\n"
 			buf += "}\n\n"
 			bufi += "char *" + fabric_mod_name + "_get_fabric_name(void);\n"
 			continue
@@ -820,27 +817,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "}\n\n"
 			bufi += "void " + fabric_mod_name + "_close_session(struct se_session *);\n"
 
-		if re.search('stop_session\)\(', fo):
-			buf += "void " + fabric_mod_name + "_stop_session(struct se_session *se_sess, int sess_sleep , int conn_sleep)\n"
-			buf += "{\n"
-			buf += "	return;\n"
-			buf += "}\n\n"
-			bufi += "void " + fabric_mod_name + "_stop_session(struct se_session *, int, int);\n"
-
-		if re.search('fall_back_to_erl0\)\(', fo):
-			buf += "void " + fabric_mod_name + "_reset_nexus(struct se_session *se_sess)\n"
-			buf += "{\n"
-			buf += "	return;\n"
-			buf += "}\n\n"
-			bufi += "void " + fabric_mod_name + "_reset_nexus(struct se_session *);\n"
-
-		if re.search('sess_logged_in\)\(', fo):
-			buf += "int " + fabric_mod_name + "_sess_logged_in(struct se_session *se_sess)\n"
-			buf += "{\n"
-			buf += "	return 0;\n"
-			buf += "}\n\n"
-			bufi += "int " + fabric_mod_name + "_sess_logged_in(struct se_session *);\n"
-
 		if re.search('sess_get_index\)\(', fo):
 			buf += "u32 " + fabric_mod_name + "_sess_get_index(struct se_session *se_sess)\n"
 			buf += "{\n"
@@ -898,19 +874,18 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			bufi += "int " + fabric_mod_name + "_queue_status(struct se_cmd *);\n"
 
 		if re.search('queue_tm_rsp\)\(', fo):
-			buf += "int " + fabric_mod_name + "_queue_tm_rsp(struct se_cmd *se_cmd)\n"
+			buf += "void " + fabric_mod_name + "_queue_tm_rsp(struct se_cmd *se_cmd)\n"
 			buf += "{\n"
-			buf += "	return 0;\n"
+			buf += "	return;\n"
 			buf += "}\n\n"
-			bufi += "int " + fabric_mod_name + "_queue_tm_rsp(struct se_cmd *);\n"
+			bufi += "void " + fabric_mod_name + "_queue_tm_rsp(struct se_cmd *);\n"
 
-		if re.search('is_state_remove\)\(', fo):
-			buf += "int " + fabric_mod_name + "_is_state_remove(struct se_cmd *se_cmd)\n"
+		if re.search('aborted_task\)\(', fo):
+			buf += "void " + fabric_mod_name + "_aborted_task(struct se_cmd *se_cmd)\n"
 			buf += "{\n"
-			buf += "	return 0;\n"
+			buf += "	return;\n"
 			buf += "}\n\n"
-			bufi += "int " + fabric_mod_name + "_is_state_remove(struct se_cmd *);\n"
-
+			bufi += "void " + fabric_mod_name + "_aborted_task(struct se_cmd *);\n"
 
 	ret = p.write(buf)
 	if ret:
@@ -1018,11 +993,11 @@ def main(modname, proto_ident):
 	tcm_mod_build_kbuild(fabric_mod_dir, fabric_mod_name)
 	tcm_mod_build_kconfig(fabric_mod_dir, fabric_mod_name)
 
-	input = raw_input("Would you like to add " + fabric_mod_name + "to drivers/target/Makefile..? [yes,no]: ")
+	input = raw_input("Would you like to add " + fabric_mod_name + " to drivers/target/Makefile..? [yes,no]: ")
 	if input == "yes" or input == "y":
 		tcm_mod_add_kbuild(tcm_dir, fabric_mod_name)
 
-	input = raw_input("Would you like to add " + fabric_mod_name + "to drivers/target/Kconfig..? [yes,no]: ")
+	input = raw_input("Would you like to add " + fabric_mod_name + " to drivers/target/Kconfig..? [yes,no]: ")
 	if input == "yes" or input == "y":
 		tcm_mod_add_kconfig(tcm_dir, fabric_mod_name)
 
