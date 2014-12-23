@@ -701,8 +701,8 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
 	txdata->enabled = 1;
-	if (wil->sta[cid].data_port_open)
-		wil_addba_tx_request(wil, id);
+	if (wil->sta[cid].data_port_open && (agg_wsize >= 0))
+		wil_addba_tx_request(wil, id, agg_wsize);
 
 	return 0;
  out_free:

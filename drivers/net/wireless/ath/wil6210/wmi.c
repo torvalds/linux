@@ -27,6 +27,11 @@ static uint max_assoc_sta = 1;
 module_param(max_assoc_sta, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_assoc_sta, " Max number of stations associated to the AP");
 
+int agg_wsize; /* = 0; */
+module_param(agg_wsize, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(agg_wsize, " Window size for Tx Block Ack after connect;"
+		 " 0 - use default; < 0 - don't auto-establish");
+
 /**
  * WMI event receiving - theory of operations
  *
@@ -544,7 +549,7 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 	}
 }
 
-static void wil_addba_tx_cid(struct wil6210_priv *wil, u8 cid)
+static void wil_addba_tx_cid(struct wil6210_priv *wil, u8 cid, u16 wsize)
 {
 	struct vring_tx_data *t;
 	int i;
@@ -556,7 +561,7 @@ static void wil_addba_tx_cid(struct wil6210_priv *wil, u8 cid)
 		if (!t->enabled)
 			continue;
 
-		wil_addba_tx_request(wil, i);
+		wil_addba_tx_request(wil, i, wsize);
 	}
 }
 
@@ -574,7 +579,8 @@ static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
 	}
 
 	wil->sta[cid].data_port_open = true;
-	wil_addba_tx_cid(wil, cid);
+	if (agg_wsize >= 0)
+		wil_addba_tx_cid(wil, cid, agg_wsize);
 	netif_carrier_on(ndev);
 }
 

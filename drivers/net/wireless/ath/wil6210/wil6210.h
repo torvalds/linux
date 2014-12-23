@@ -25,6 +25,7 @@
 
 extern bool no_fw_recovery;
 extern unsigned int mtu_max;
+extern int agg_wsize;
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw"
@@ -613,7 +614,7 @@ int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
 void wil_back_rx_worker(struct work_struct *work);
 void wil_back_rx_flush(struct wil6210_priv *wil);
-int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid);
+int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize);
 void wil_back_tx_worker(struct work_struct *work);
 void wil_back_tx_flush(struct wil6210_priv *wil);
 

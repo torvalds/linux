@@ -437,7 +437,7 @@ void wil_back_tx_flush(struct wil6210_priv *wil)
 	mutex_unlock(&wil->back_tx_mutex);
 }
 
-int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid)
+int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize)
 {
 	struct wil_back_tx *req = kzalloc(sizeof(*req), GFP_KERNEL);
 
@@ -445,7 +445,7 @@ int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid)
 		return -ENOMEM;
 
 	req->ringid = ringid;
-	req->agg_wsize = wil_agg_size(wil, 0);
+	req->agg_wsize = wil_agg_size(wil, wsize);
 	req->agg_timeout = 0;
 
 	mutex_lock(&wil->back_tx_mutex);
