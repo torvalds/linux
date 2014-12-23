@@ -592,6 +592,7 @@ struct f2fs_sb_info {
 	struct f2fs_stat_info *stat_info;	/* FS status information */
 	unsigned int segment_count[2];		/* # of allocated segments */
 	unsigned int block_count[2];		/* # of allocated blocks */
+	atomic_t inplace_count;		/* # of inplace update */
 	int total_hit_ext, read_hit_ext;	/* extent cache hit ratio */
 	atomic_t inline_inode;			/* # of inline_data inodes */
 	atomic_t inline_dir;			/* # of inline_dentry inodes */
@@ -1523,6 +1524,7 @@ struct f2fs_stat_info {
 
 	unsigned int segment_count[2];
 	unsigned int block_count[2];
+	unsigned int inplace_count;
 	unsigned base_mem, cache_mem;
 };
 
@@ -1562,7 +1564,8 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 		((sbi)->segment_count[(curseg)->alloc_type]++)
 #define stat_inc_block_count(sbi, curseg)				\
 		((sbi)->block_count[(curseg)->alloc_type]++)
-
+#define stat_inc_inplace_blocks(sbi)					\
+		(atomic_inc(&(sbi)->inplace_count))
 #define stat_inc_seg_count(sbi, type)					\
 	do {								\
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
@@ -1608,6 +1611,7 @@ void f2fs_destroy_root_stats(void);
 #define stat_dec_inline_dir(inode)
 #define stat_inc_seg_type(sbi, curseg)
 #define stat_inc_block_count(sbi, curseg)
+#define stat_inc_inplace_blocks(sbi)
 #define stat_inc_seg_count(si, type)
 #define stat_inc_tot_blk_count(si, blks)
 #define stat_inc_data_blk_count(si, blks)

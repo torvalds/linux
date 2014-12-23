@@ -1230,6 +1230,7 @@ void write_data_page(struct page *page, struct dnode_of_data *dn,
 
 void rewrite_data_page(struct page *page, struct f2fs_io_info *fio)
 {
+	stat_inc_inplace_blocks(F2FS_P_SB(page));
 	f2fs_submit_page_mbio(F2FS_P_SB(page), page, fio);
 }
 
