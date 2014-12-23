@@ -1076,6 +1076,8 @@ struct host_cmd_ds_802_11_get_log {
 	__le32 tx_frame;
 	__le32 reserved;
 	__le32 wep_icv_err_cnt[4];
+	__le32 bcn_rcv_cnt;
+	__le32 bcn_miss_cnt;
 };
 
 /* Enumeration for rate format */

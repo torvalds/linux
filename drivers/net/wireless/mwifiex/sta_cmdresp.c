@@ -248,6 +248,8 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 			le32_to_cpu(get_log->wep_icv_err_cnt[2]);
 		stats->wep_icv_error[3] =
 			le32_to_cpu(get_log->wep_icv_err_cnt[3]);
+		stats->bcn_rcv_cnt = le32_to_cpu(get_log->bcn_rcv_cnt);
+		stats->bcn_miss_cnt = le32_to_cpu(get_log->bcn_miss_cnt);
 	}
 
 	return 0;

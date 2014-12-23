@@ -297,6 +297,8 @@ mwifiex_fw_dump_read(struct file *file, char __user *ubuf,
  *      - Number of FCS errors
  *      - Number of Tx frames
  *      - WEP ICV error counts
+ *      - Number of received beacons
+ *      - Number of missed beacons
  */
 static ssize_t
 mwifiex_getlog_read(struct file *file, char __user *ubuf,
@@ -333,7 +335,9 @@ mwifiex_getlog_read(struct file *file, char __user *ubuf,
 		     "wepicverrcnt-1   %u\n"
 		     "wepicverrcnt-2   %u\n"
 		     "wepicverrcnt-3   %u\n"
-		     "wepicverrcnt-4   %u\n",
+		     "wepicverrcnt-4   %u\n"
+		     "bcn_rcv_cnt   %u\n"
+		     "bcn_miss_cnt   %u\n",
 		     stats.mcast_tx_frame,
 		     stats.failed,
 		     stats.retry,
@@ -349,7 +353,9 @@ mwifiex_getlog_read(struct file *file, char __user *ubuf,
 		     stats.wep_icv_error[0],
 		     stats.wep_icv_error[1],
 		     stats.wep_icv_error[2],
-		     stats.wep_icv_error[3]);
+		     stats.wep_icv_error[3],
+		     stats.bcn_rcv_cnt,
+		     stats.bcn_miss_cnt);
 
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *) page,

@@ -137,6 +137,8 @@ struct mwifiex_ds_get_stats {
 	u32 fcs_error;
 	u32 tx_frame;
 	u32 wep_icv_error[4];
+	u32 bcn_rcv_cnt;
+	u32 bcn_miss_cnt;
 };
 
 #define MWIFIEX_MAX_VER_STR_LEN    128
