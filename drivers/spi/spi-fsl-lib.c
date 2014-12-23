@@ -102,8 +102,6 @@ void mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 	mpc8xxx_spi->rx_shift = 0;
 	mpc8xxx_spi->tx_shift = 0;
 
-	init_completion(&mpc8xxx_spi->done);
-
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->max_chipselect;
 
