@@ -41,6 +41,8 @@
 #include "util.h"
 #include "fw.h"
 #include "pcie.h"
+#include "usb.h"
+#include "sdio.h"
 
 extern const char driver_version[];
 
@@ -135,6 +137,8 @@ enum {
 
 /* Threshold for tx_timeout_cnt before we trigger a card reset */
 #define TX_TIMEOUT_THRESHOLD	6
+
+#define MWIFIEX_DRV_INFO_SIZE_MAX 0x40000
 
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
@@ -413,6 +417,7 @@ struct mwifiex_roc_cfg {
 };
 
 #define MWIFIEX_FW_DUMP_IDX		0xff
+#define MWIFIEX_DRV_INFO_IDX		20
 #define FW_DUMP_MAX_NAME_LEN		8
 #define FW_DUMP_HOST_READY		0xEE
 #define FW_DUMP_DONE			0xFF
@@ -867,6 +872,8 @@ struct mwifiex_adapter {
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
 	u8 curr_mem_idx;
+	void *drv_info_dump;
+	u32 drv_info_size;
 	bool scan_chan_gap_enabled;
 	struct sk_buff_head rx_data_q;
 	struct mwifiex_chan_stats *chan_stats;
@@ -1359,6 +1366,8 @@ void mwifiex_hist_data_add(struct mwifiex_private *priv,
 			   u8 rx_rate, s8 snr, s8 nflr);
 u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
 			    u8 rx_rate, u8 ht_info);
+
+void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

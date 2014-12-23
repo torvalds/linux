@@ -2023,6 +2023,8 @@ static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
 	u32 memory_size;
 	static char *env[] = { "DRIVER=mwifiex_sdio", "EVENT=fw_dump", NULL };
 
+	mwifiex_dump_drv_info(adapter);
+
 	if (!card->supports_fw_dump)
 		return;
 

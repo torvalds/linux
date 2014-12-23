@@ -411,6 +411,11 @@ mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 		entry->mem_size = 0;
 	}
 
+	if (adapter->drv_info_dump) {
+		vfree(adapter->drv_info_dump);
+		adapter->drv_info_size = 0;
+	}
+
 	if (adapter->sleep_cfm)
 		dev_kfree_skb_any(adapter->sleep_cfm);
 }
