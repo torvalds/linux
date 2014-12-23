@@ -465,6 +465,8 @@ static int kmx61_set_odr(struct kmx61_data *data, int val, int val2, u8 device)
 	if (ret < 0)
 		return ret;
 
+	data->odr_bits = odr_bits;
+
 	if (device & KMX61_ACC) {
 		ret = kmx61_set_wake_up_odr(data, val, val2);
 		if (ret)
