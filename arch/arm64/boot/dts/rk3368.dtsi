@@ -61,7 +61,6 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 		};
-/*
 		little0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
@@ -86,7 +85,6 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 		};
-*/
 
 		cpu-map {
 			cluster0 {
@@ -103,7 +101,6 @@
 					cpu = <&big3>;
 				};
 			};
-/*
 			cluster1 {
 				core0 {
 					cpu = <&little0>;
@@ -118,7 +115,6 @@
 					cpu = <&little3>;
 				};
 			};
-*/
 		};
 	};
 
