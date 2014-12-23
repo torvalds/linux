@@ -884,6 +884,12 @@ void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
 			     priv->netdev->name, priv->num_tx_timeout);
 	}
 
+	if (adapter->iface_type == MWIFIEX_SDIO) {
+		p += sprintf(p, "\n=== SDIO register DUMP===\n");
+		if (adapter->if_ops.reg_dump)
+			p += adapter->if_ops.reg_dump(adapter, p);
+	}
+
 	p += sprintf(p, "\n=== MORE DEBUG INFORMATION\n");
 	debug_info = kzalloc(sizeof(*debug_info), GFP_KERNEL);
 	if (debug_info) {
