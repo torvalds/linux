@@ -314,6 +314,7 @@ struct vring_tx_data {
 	cycles_t idle, last_idle, begin;
 	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
 	u16 agg_timeout;
+	bool addba_in_progress; /* if set, agg_xxx is for request in progress */
 };
 
 enum { /* for wil6210_priv.status */
@@ -418,6 +419,14 @@ struct wil_back_rx {
 	u16 ba_seq_ctrl;
 };
 
+struct wil_back_tx {
+	struct list_head list;
+	/* request params, converted to CPU byte order - what we asked for */
+	u8 ringid;
+	u8 agg_wsize;
+	u16 agg_timeout;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -470,6 +479,9 @@ struct wil6210_priv {
 	struct list_head back_rx_pending;
 	struct mutex back_rx_mutex; /* protect @back_rx_pending */
 	struct work_struct back_rx_worker;
+	struct list_head back_tx_pending;
+	struct mutex back_tx_mutex; /* protect @back_tx_pending */
+	struct work_struct back_tx_worker;
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
@@ -601,6 +613,9 @@ int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
 void wil_back_rx_worker(struct work_struct *work);
 void wil_back_rx_flush(struct wil6210_priv *wil);
+int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid);
+void wil_back_tx_worker(struct work_struct *work);
+void wil_back_tx_flush(struct wil6210_priv *wil);
 
 void wil6210_clear_irq(struct wil6210_priv *wil);
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);

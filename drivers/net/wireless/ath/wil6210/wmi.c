@@ -544,6 +544,22 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 	}
 }
 
+static void wil_addba_tx_cid(struct wil6210_priv *wil, u8 cid)
+{
+	struct vring_tx_data *t;
+	int i;
+
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		if (cid != wil->vring2cid_tid[i][0])
+			continue;
+		t = &wil->vring_tx_data[i];
+		if (!t->enabled)
+			continue;
+
+		wil_addba_tx_request(wil, i);
+	}
+}
+
 static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -558,6 +574,7 @@ static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
 	}
 
 	wil->sta[cid].data_port_open = true;
+	wil_addba_tx_cid(wil, cid);
 	netif_carrier_on(ndev);
 }
 
@@ -604,6 +621,7 @@ static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
 
 	txdata->agg_timeout = le16_to_cpu(evt->ba_timeout);
 	txdata->agg_wsize = evt->agg_wsize;
+	txdata->addba_in_progress = false;
 }
 
 static void wmi_evt_addba_rx_req(struct wil6210_priv *wil, int id, void *d,
@@ -642,6 +660,7 @@ static void wmi_evt_delba(struct wil6210_priv *wil, int id, void *d, int len)
 				wil_dbg_wmi(wil, "DELBA Tx vring %d\n", i);
 				txdata->agg_timeout = 0;
 				txdata->agg_wsize = 0;
+				txdata->addba_in_progress = false;
 
 				break; /* max. 1 matching ring */
 			}

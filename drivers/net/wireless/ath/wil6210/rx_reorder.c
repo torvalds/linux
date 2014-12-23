@@ -365,3 +365,94 @@ void wil_back_rx_worker(struct work_struct *work)
 		kfree(evt);
 	}
 }
+
+/* BACK - Tx (originator) side */
+static void wil_back_tx_handle(struct wil6210_priv *wil,
+			       struct wil_back_tx *req)
+{
+	struct vring_tx_data *txdata = &wil->vring_tx_data[req->ringid];
+	int rc;
+
+	if (txdata->addba_in_progress) {
+		wil_dbg_misc(wil, "ADDBA for vring[%d] already in progress\n",
+			     req->ringid);
+		return;
+	}
+	if (txdata->agg_wsize) {
+		wil_dbg_misc(wil,
+			     "ADDBA for vring[%d] already established wsize %d\n",
+			     req->ringid, txdata->agg_wsize);
+		return;
+	}
+	txdata->addba_in_progress = true;
+	rc = wmi_addba(wil, req->ringid, req->agg_wsize, req->agg_timeout);
+	if (rc)
+		txdata->addba_in_progress = false;
+}
+
+static struct list_head *next_back_tx(struct wil6210_priv *wil)
+{
+	struct list_head *ret = NULL;
+
+	mutex_lock(&wil->back_tx_mutex);
+
+	if (!list_empty(&wil->back_tx_pending)) {
+		ret = wil->back_tx_pending.next;
+		list_del(ret);
+	}
+
+	mutex_unlock(&wil->back_tx_mutex);
+
+	return ret;
+}
+
+void wil_back_tx_worker(struct work_struct *work)
+{
+	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
+						 back_tx_worker);
+	struct wil_back_tx *evt;
+	struct list_head *lh;
+
+	while ((lh = next_back_tx(wil)) != NULL) {
+		evt = list_entry(lh, struct wil_back_tx, list);
+
+		wil_back_tx_handle(wil, evt);
+		kfree(evt);
+	}
+}
+
+void wil_back_tx_flush(struct wil6210_priv *wil)
+{
+	struct wil_back_tx *evt, *t;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	mutex_lock(&wil->back_tx_mutex);
+
+	list_for_each_entry_safe(evt, t, &wil->back_tx_pending, list) {
+		list_del(&evt->list);
+		kfree(evt);
+	}
+
+	mutex_unlock(&wil->back_tx_mutex);
+}
+
+int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid)
+{
+	struct wil_back_tx *req = kzalloc(sizeof(*req), GFP_KERNEL);
+
+	if (!req)
+		return -ENOMEM;
+
+	req->ringid = ringid;
+	req->agg_wsize = wil_agg_size(wil, 0);
+	req->agg_timeout = 0;
+
+	mutex_lock(&wil->back_tx_mutex);
+	list_add_tail(&req->list, &wil->back_tx_pending);
+	mutex_unlock(&wil->back_tx_mutex);
+
+	queue_work(wil->wq_service, &wil->back_tx_worker);
+
+	return 0;
+}

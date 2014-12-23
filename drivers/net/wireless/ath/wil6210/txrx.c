@@ -701,6 +701,8 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
 	txdata->enabled = 1;
+	if (wil->sta[cid].data_port_open)
+		wil_addba_tx_request(wil, id);
 
 	return 0;
  out_free:
@@ -713,6 +715,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 {
 	struct vring *vring = &wil->vring_tx[id];
+	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
@@ -727,6 +730,7 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 		napi_synchronize(&wil->napi_tx);
 
 	wil_vring_free(wil, vring, 1);
+	memset(txdata, 0, sizeof(*txdata));
 }
 
 static struct vring *wil_find_tx_vring(struct wil6210_priv *wil,
