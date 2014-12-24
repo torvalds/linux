@@ -1,6 +1,9 @@
 #ifndef __NET_VXLAN_H
 #define __NET_VXLAN_H 1
 
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/if_vlan.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/udp.h>
@@ -51,16 +54,33 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
 		   __be16 src_port, __be16 dst_port, __be32 vni, bool xnet);
 
-static inline bool vxlan_gso_check(struct sk_buff *skb)
+static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
+						     netdev_features_t features)
 {
-	if ((skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL) &&
+	u8 l4_hdr = 0;
+
+	if (!skb->encapsulation)
+		return features;
+
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IP):
+		l4_hdr = ip_hdr(skb)->protocol;
+		break;
+	case htons(ETH_P_IPV6):
+		l4_hdr = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		return features;;
+	}
+
+	if ((l4_hdr == IPPROTO_UDP) &&
 	    (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
 	     skb->inner_protocol != htons(ETH_P_TEB) ||
 	     (skb_inner_mac_header(skb) - skb_transport_header(skb) !=
 	      sizeof(struct udphdr) + sizeof(struct vxlanhdr))))
-		return false;
+		return features & ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
 
-	return true;
+	return features;
 }
 
 /* IP header + UDP + VXLAN + Ethernet header */

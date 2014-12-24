@@ -2563,7 +2563,7 @@ static netdev_features_t harmonize_features(struct sk_buff *skb,
 
 netdev_features_t netif_skb_features(struct sk_buff *skb)
 {
-	const struct net_device *dev = skb->dev;
+	struct net_device *dev = skb->dev;
 	netdev_features_t features = dev->features;
 	u16 gso_segs = skb_shinfo(skb)->gso_segs;
 	__be16 protocol = skb->protocol;
@@ -2571,13 +2571,20 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 	if (gso_segs > dev->gso_max_segs || gso_segs < dev->gso_min_segs)
 		features &= ~NETIF_F_GSO_MASK;
 
+	/* If encapsulation offload request, verify we are testing
+	 * hardware encapsulation features instead of standard
+	 * features for the netdev
+	 */
+	if (skb->encapsulation)
+		features &= dev->hw_enc_features;
+
 	if (!vlan_tx_tag_present(skb)) {
 		if (unlikely(protocol == htons(ETH_P_8021Q) ||
 			     protocol == htons(ETH_P_8021AD))) {
 			struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 			protocol = veh->h_vlan_encapsulated_proto;
 		} else {
-			return harmonize_features(skb, features);
+			goto finalize;
 		}
 	}
 
@@ -2594,6 +2601,11 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 						     NETIF_F_GEN_CSUM |
 						     NETIF_F_HW_VLAN_CTAG_TX |
 						     NETIF_F_HW_VLAN_STAG_TX);
+
+finalize:
+	if (dev->netdev_ops->ndo_features_check)
+		features &= dev->netdev_ops->ndo_features_check(skb, dev,
+								features);
 
 	return harmonize_features(skb, features);
 }
@@ -2664,13 +2676,6 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 	skb = validate_xmit_vlan(skb, features);
 	if (unlikely(!skb))
 		goto out_null;
-
-	/* If encapsulation offload request, verify we are testing
-	 * hardware encapsulation features instead of standard
-	 * features for the netdev
-	 */
-	if (skb->encapsulation)
-		features &= dev->hw_enc_features;
 
 	if (netif_needs_gso(dev, skb, features)) {
 		struct sk_buff *segs;
