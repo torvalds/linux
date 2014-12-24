@@ -251,6 +251,12 @@ struct intel_plane_state {
 	struct drm_rect orig_src;
 	struct drm_rect orig_dst;
 	bool visible;
+
+	/*
+	 * used only for sprite planes to determine when to implicitly
+	 * enable/disable the primary plane
+	 */
+	bool hides_primary;
 };
 
 struct intel_plane_config {
@@ -415,6 +421,27 @@ struct skl_pipe_wm {
 	uint32_t linetime;
 };
 
+/*
+ * Tracking of operations that need to be performed at the beginning/end of an
+ * atomic commit, outside the atomic section where interrupts are disabled.
+ * These are generally operations that grab mutexes or might otherwise sleep
+ * and thus can't be run with interrupts disabled.
+ */
+struct intel_crtc_atomic_commit {
+	/* Sleepable operations to perform before commit */
+	bool wait_for_flips;
+	bool disable_fbc;
+	bool pre_disable_primary;
+	bool update_wm;
+
+	/* Sleepable operations to perform after commit */
+	unsigned fb_bits;
+	bool wait_vblank;
+	bool update_fbc;
+	bool post_enable_primary;
+	unsigned update_sprite_watermarks;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -468,6 +495,8 @@ struct intel_crtc {
 
 	int scanline_offset;
 	struct intel_mmio_flip mmio_flip;
+
+	struct intel_crtc_atomic_commit atomic;
 };
 
 struct intel_plane_wm_parameters {
@@ -1215,6 +1244,8 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 bool intel_pipe_update_start(struct intel_crtc *crtc,
 			     uint32_t *start_vbl_count);
 void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
+void intel_post_enable_primary(struct drm_crtc *crtc);
+void intel_pre_disable_primary(struct drm_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);

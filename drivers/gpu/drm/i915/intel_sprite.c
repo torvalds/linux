@@ -771,9 +771,8 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	 * Avoid underruns when disabling the sprite.
 	 * FIXME remove once watermark updates are done properly.
 	 */
-	intel_wait_for_vblank(dev, pipe);
-
-	intel_update_sprite_watermarks(plane, crtc, 0, 0, 0, false, false);
+	intel_crtc->atomic.wait_vblank = true;
+	intel_crtc->atomic.update_sprite_watermarks |= (1 << drm_plane_index(plane));
 }
 
 static int
@@ -976,12 +975,21 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	 * Avoid underruns when disabling the sprite.
 	 * FIXME remove once watermark updates are done properly.
 	 */
-	intel_wait_for_vblank(dev, pipe);
-
-	intel_update_sprite_watermarks(plane, crtc, 0, 0, 0, false, false);
+	intel_crtc->atomic.wait_vblank = true;
+	intel_crtc->atomic.update_sprite_watermarks |= (1 << drm_plane_index(plane));
 }
 
-static void
+/**
+ * intel_post_enable_primary - Perform operations after enabling primary plane
+ * @crtc: the CRTC whose primary plane was just enabled
+ *
+ * Performs potentially sleeping operations that must be done after the primary
+ * plane is enabled, such as updating FBC and IPS.  Note that this may be
+ * called due to an explicit primary plane update, or due to an implicit
+ * re-enable that is caused when a sprite plane is updated to no longer
+ * completely hide the primary plane.
+ */
+void
 intel_post_enable_primary(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1008,7 +1016,17 @@ intel_post_enable_primary(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static void
+/**
+ * intel_pre_disable_primary - Perform operations before disabling primary plane
+ * @crtc: the CRTC whose primary plane is to be disabled
+ *
+ * Performs potentially sleeping operations that must be done before the
+ * primary plane is enabled, such as updating FBC and IPS.  Note that this may
+ * be called due to an explicit primary plane update, or due to an implicit
+ * disable that is caused when a sprite plane completely hides the primary
+ * plane.
+ */
+void
 intel_pre_disable_primary(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1113,7 +1131,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 
 	if (!fb) {
 		state->visible = false;
-		return 0;
+		goto finish;
 	}
 
 	/* Don't modify another pipe's plane */
@@ -1260,6 +1278,29 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	dst->y1 = crtc_y;
 	dst->y2 = crtc_y + crtc_h;
 
+finish:
+	/*
+	 * If the sprite is completely covering the primary plane,
+	 * we can disable the primary and save power.
+	 */
+	state->hides_primary = fb != NULL && drm_rect_equals(dst, clip) &&
+		!colorkey_enabled(intel_plane);
+	WARN_ON(state->hides_primary && !state->visible && intel_crtc->active);
+
+	if (intel_crtc->active) {
+		if (intel_crtc->primary_enabled == state->hides_primary)
+			intel_crtc->atomic.wait_for_flips = true;
+
+		if (intel_crtc->primary_enabled && state->hides_primary)
+			intel_crtc->atomic.pre_disable_primary = true;
+
+		intel_crtc->atomic.fb_bits |=
+			INTEL_FRONTBUFFER_SPRITE(intel_crtc->pipe);
+
+		if (!intel_crtc->primary_enabled && !state->hides_primary)
+			intel_crtc->atomic.post_enable_primary = true;
+	}
+
 	return 0;
 }
 
@@ -1267,37 +1308,14 @@ static void
 intel_commit_sprite_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
-	struct drm_device *dev = plane->dev;
 	struct drm_crtc *crtc = state->base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	enum pipe pipe = intel_crtc->pipe;
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
-	struct drm_rect *dst = &state->dst;
-	const struct drm_rect *clip = &state->clip;
-	bool primary_enabled;
-
-	/*
-	 * 'prepare' is never called when plane is being disabled, so we need
-	 * to handle frontbuffer tracking here
-	 */
-	if (!fb) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_track_fb(intel_fb_obj(plane->fb), NULL,
-				  INTEL_FRONTBUFFER_SPRITE(pipe));
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	/*
-	 * If the sprite is completely covering the primary plane,
-	 * we can disable the primary and save power.
-	 */
-	primary_enabled = !drm_rect_equals(dst, clip) || colorkey_enabled(intel_plane);
-	WARN_ON(!primary_enabled && !state->visible && intel_crtc->active);
 
 	intel_plane->crtc_x = state->orig_dst.x1;
 	intel_plane->crtc_y = state->orig_dst.y1;
@@ -1310,15 +1328,7 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	intel_plane->obj = obj;
 
 	if (intel_crtc->active) {
-		bool primary_was_enabled = intel_crtc->primary_enabled;
-
-		intel_crtc->primary_enabled = primary_enabled;
-
-		if (primary_was_enabled != primary_enabled)
-			intel_crtc_wait_for_pending_flips(crtc);
-
-		if (primary_was_enabled && !primary_enabled)
-			intel_pre_disable_primary(crtc);
+		intel_crtc->primary_enabled = !state->hides_primary;
 
 		if (state->visible) {
 			crtc_x = state->dst.x1;
@@ -1335,12 +1345,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 		} else {
 			intel_plane->disable_plane(plane, crtc);
 		}
-
-
-		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_SPRITE(pipe));
-
-		if (!primary_was_enabled && primary_enabled)
-			intel_post_enable_primary(crtc);
 	}
 }
 
