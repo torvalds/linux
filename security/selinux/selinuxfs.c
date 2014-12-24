@@ -1195,30 +1195,8 @@ static const struct file_operations sel_commit_bools_ops = {
 
 static void sel_remove_entries(struct dentry *de)
 {
-	struct list_head *node;
-
-	spin_lock(&de->d_lock);
-	node = de->d_subdirs.next;
-	while (node != &de->d_subdirs) {
-		struct dentry *d = list_entry(node, struct dentry, d_child);
-
-		spin_lock_nested(&d->d_lock, DENTRY_D_LOCK_NESTED);
-		list_del_init(node);
-
-		if (d->d_inode) {
-			dget_dlock(d);
-			spin_unlock(&de->d_lock);
-			spin_unlock(&d->d_lock);
-			d_delete(d);
-			simple_unlink(de->d_inode, d);
-			dput(d);
-			spin_lock(&de->d_lock);
-		} else
-			spin_unlock(&d->d_lock);
-		node = de->d_subdirs.next;
-	}
-
-	spin_unlock(&de->d_lock);
+	d_genocide(de);
+	shrink_dcache_parent(de);
 }
 
 #define BOOL_DIR_NAME "booleans"
@@ -1668,37 +1646,13 @@ static int sel_make_class_dir_entries(char *classname, int index,
 	return rc;
 }
 
-static void sel_remove_classes(void)
-{
-	struct list_head *class_node;
-
-	list_for_each(class_node, &class_dir->d_subdirs) {
-		struct dentry *class_subdir = list_entry(class_node,
-					struct dentry, d_child);
-		struct list_head *class_subdir_node;
-
-		list_for_each(class_subdir_node, &class_subdir->d_subdirs) {
-			struct dentry *d = list_entry(class_subdir_node,
-						struct dentry, d_child);
-
-			if (d->d_inode)
-				if (d->d_inode->i_mode & S_IFDIR)
-					sel_remove_entries(d);
-		}
-
-		sel_remove_entries(class_subdir);
-	}
-
-	sel_remove_entries(class_dir);
-}
-
 static int sel_make_classes(void)
 {
 	int rc, nclasses, i;
 	char **classes;
 
 	/* delete any existing entries */
-	sel_remove_classes();
+	sel_remove_entries(class_dir);
 
 	rc = security_get_classes(&classes, &nclasses);
 	if (rc)
