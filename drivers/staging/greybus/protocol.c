@@ -165,9 +165,15 @@ struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)
 
 void gb_protocol_put(struct gb_protocol *protocol)
 {
-	u8 major = protocol->major;
-	u8 minor = protocol->minor;
+	u8 major;
+	u8 minor;
 	u8 protocol_count;
+
+	if (!protocol)
+		return;
+
+	major = protocol->major;
+	minor = protocol->minor;
 
 	spin_lock_irq(&gb_protocols_lock);
 	protocol = _gb_protocol_find(protocol->id, protocol->major,
