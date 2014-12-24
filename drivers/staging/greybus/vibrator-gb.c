@@ -205,7 +205,7 @@ static struct gb_protocol vibrator_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-int gb_vibrator_protocol_init(void)
+static __init int protocol_init(void)
 {
 	int retval;
 
@@ -216,8 +216,13 @@ int gb_vibrator_protocol_init(void)
 	return gb_protocol_register(&vibrator_protocol);
 }
 
-void gb_vibrator_protocol_exit(void)
+static __exit void protocol_exit(void)
 {
 	gb_protocol_deregister(&vibrator_protocol);
 	class_unregister(&vibrator_class);
 }
+
+module_init(protocol_init);
+module_exit(protocol_exit);
+
+MODULE_LICENSE("GPL v2");

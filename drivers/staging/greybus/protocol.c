@@ -203,10 +203,6 @@ bool gb_protocol_init(void)
 		pr_err("error initializing sdio protocol\n");
 		ret = false;
 	}
-	if (gb_vibrator_protocol_init()) {
-		pr_err("error initializing vibrator protocol\n");
-		ret = false;
-	}
 	if (gb_usb_protocol_init()) {
 		pr_err("error initializing usb protocol\n");
 		ret = false;
@@ -217,7 +213,6 @@ bool gb_protocol_init(void)
 void gb_protocol_exit(void)
 {
 	gb_usb_protocol_exit();
-	gb_vibrator_protocol_exit();
 	gb_sdio_protocol_exit();
 	gb_uart_protocol_exit();
 	gb_gpio_protocol_exit();

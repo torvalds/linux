@@ -66,9 +66,6 @@ extern void gb_uart_protocol_exit(void);
 extern int gb_sdio_protocol_init(void);
 extern void gb_sdio_protocol_exit(void);
 
-extern int gb_vibrator_protocol_init(void);
-extern void gb_vibrator_protocol_exit(void);
-
 extern int gb_usb_protocol_init(void);
 extern void gb_usb_protocol_exit(void);
 

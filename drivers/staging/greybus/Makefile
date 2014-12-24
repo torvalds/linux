@@ -13,11 +13,11 @@ greybus-y :=	core.o		\
 		sdio-gb.o	\
 		uart-gb.o	\
 		battery-gb.o	\
-		vibrator-gb.o	\
 		usb-gb.o
 
 obj-m += greybus.o
 obj-m += i2c-gb.o
+obj-m += vibrator-gb.o
 obj-m += es1-ap-usb.o
 
 KERNELVER		?= $(shell uname -r)
