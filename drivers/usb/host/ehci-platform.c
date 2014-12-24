@@ -185,6 +185,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
 			ehci->big_endian_mmio = ehci->big_endian_desc = 1;
 
+		if (of_property_read_bool(dev->dev.of_node,
+					  "needs-reset-on-resume"))
+			pdata->reset_on_resume = 1;
+
 		priv->phy = devm_phy_get(&dev->dev, "usb");
 		if (IS_ERR(priv->phy)) {
 			err = PTR_ERR(priv->phy);
@@ -340,7 +344,7 @@ static int ehci_platform_resume(struct device *dev)
 			return err;
 	}
 
-	ehci_resume(hcd, false);
+	ehci_resume(hcd, pdata->reset_on_resume);
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
