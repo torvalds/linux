@@ -370,7 +370,9 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy,
 	dev_dbg(phy->dev, "%s device has disconnected\n",
 		(speed == USB_SPEED_HIGH) ? "HS" : "FS/LS");
 
-	if (speed == USB_SPEED_HIGH)
+	/* Sometimes, the speed is not high speed when the error occurs */
+	if (readl(phy->io_priv + HW_USBPHY_CTRL) &
+			BM_USBPHY_CTRL_ENHOSTDISCONDETECT)
 		writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
 		       phy->io_priv + HW_USBPHY_CTRL_CLR);
 
