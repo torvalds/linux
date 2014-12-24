@@ -17,4 +17,7 @@ extern struct smp_operations hix5hd2_smp_ops;
 extern void hix5hd2_set_cpu(int cpu, bool enable);
 extern void hix5hd2_cpu_die(unsigned int cpu);
 
+extern struct smp_operations hip01_smp_ops;
+extern void hip01_set_cpu(int cpu, bool enable);
+extern void hip01_cpu_die(unsigned int cpu);
 #endif
