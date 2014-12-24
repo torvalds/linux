@@ -367,12 +367,6 @@ static struct gb_protocol battery_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-int gb_battery_protocol_init(void)
-{
-	return gb_protocol_register(&battery_protocol);
-}
+gb_protocol_driver(&battery_protocol);
 
-void gb_battery_protocol_exit(void)
-{
-	gb_protocol_deregister(&battery_protocol);
-}
+MODULE_LICENSE("GPL v2");

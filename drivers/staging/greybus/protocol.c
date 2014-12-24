@@ -183,10 +183,6 @@ bool gb_protocol_init(void)
 {
 	bool ret = true;
 
-	if (gb_battery_protocol_init()) {
-		pr_err("error initializing battery protocol\n");
-		ret = false;
-	}
 	if (gb_gpio_protocol_init()) {
 		pr_err("error initializing gpio protocol\n");
 		ret = false;
@@ -216,5 +212,4 @@ void gb_protocol_exit(void)
 	gb_sdio_protocol_exit();
 	gb_uart_protocol_exit();
 	gb_gpio_protocol_exit();
-	gb_battery_protocol_exit();
 }

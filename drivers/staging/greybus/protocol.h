@@ -51,9 +51,6 @@ void gb_protocol_put(struct gb_protocol *protocol);
  * Declared here for now.  They could be added via modules, or maybe
  * just use initcalls (which level?).
  */
-extern int gb_battery_protocol_init(void);
-extern void gb_battery_protocol_exit(void);
-
 extern int gb_gpio_protocol_init(void);
 extern void gb_gpio_protocol_exit(void);
 
