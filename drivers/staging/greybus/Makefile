@@ -7,14 +7,17 @@ greybus-y :=	core.o		\
 		bundle.o	\
 		connection.o	\
 		protocol.o	\
-		operation.o	\
-		gpio-gb.o	\
-		pwm-gb.o	\
+		operation.o
+
+gpbridge-y :=	gpb.o		\
 		sdio-gb.o	\
 		uart-gb.o	\
+		pwm-gb.o	\
+		gpio-gb.o	\
 		usb-gb.o
 
 obj-m += greybus.o
+obj-m += gpbridge.o
 obj-m += i2c-gb.o
 obj-m += vibrator-gb.o
 obj-m += battery-gb.o

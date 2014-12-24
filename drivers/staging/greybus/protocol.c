@@ -178,38 +178,3 @@ void gb_protocol_put(struct gb_protocol *protocol)
 		pr_err("protocol id %hhu version %hhu.%hhu not found\n",
 			protocol->id, major, minor);
 }
-
-bool gb_protocol_init(void)
-{
-	bool ret = true;
-
-	if (gb_gpio_protocol_init()) {
-		pr_err("error initializing gpio protocol\n");
-		ret = false;
-	}
-	if (gb_pwm_protocol_init()) {
-		pr_err("error initializing pwm protocol\n");
-		ret = false;
-	}
-	if (gb_uart_protocol_init()) {
-		pr_err("error initializing uart protocol\n");
-		ret = false;
-	}
-	if (gb_sdio_protocol_init()) {
-		pr_err("error initializing sdio protocol\n");
-		ret = false;
-	}
-	if (gb_usb_protocol_init()) {
-		pr_err("error initializing usb protocol\n");
-		ret = false;
-	}
-	return ret;
-}
-
-void gb_protocol_exit(void)
-{
-	gb_usb_protocol_exit();
-	gb_sdio_protocol_exit();
-	gb_uart_protocol_exit();
-	gb_gpio_protocol_exit();
-}

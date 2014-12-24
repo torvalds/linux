@@ -233,17 +233,8 @@ static int __init gb_init(void)
 		goto error_operation;
 	}
 
-	if (!gb_protocol_init()) {
-		/* This only fails for duplicate protocol registration */
-		retval = -EEXIST;
-		pr_err("gb_protocol_init failed\n");
-		goto error_protocol;
-	}
-
 	return 0;	/* Success */
 
-error_protocol:
-	gb_operation_exit();
 error_operation:
 	gb_ap_exit();
 error_ap:
@@ -256,7 +247,6 @@ error_bus:
 
 static void __exit gb_exit(void)
 {
-	gb_protocol_exit();
 	gb_operation_exit();
 	gb_ap_exit();
 	bus_unregister(&greybus_bus_type);
