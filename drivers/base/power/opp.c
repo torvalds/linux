@@ -123,7 +123,7 @@ do {									\
  * Search list of device OPPs for one containing matching device. Does a RCU
  * reader operation to grab the pointer needed.
  *
- * Returns pointer to 'struct device_opp' if found, otherwise -ENODEV or
+ * Return: pointer to 'struct device_opp' if found, otherwise -ENODEV or
  * -EINVAL based on type of error.
  *
  * Locking: This function must be called under rcu_read_lock(). device_opp
@@ -153,7 +153,7 @@ static struct device_opp *_find_device_opp(struct device *dev)
  * dev_pm_opp_get_voltage() - Gets the voltage corresponding to an available opp
  * @opp:	opp for which voltage has to be returned for
  *
- * Return voltage in micro volt corresponding to the opp, else
+ * Return: voltage in micro volt corresponding to the opp, else
  * return 0
  *
  * Locking: This function must be called under rcu_read_lock(). opp is a rcu
@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_voltage);
  * dev_pm_opp_get_freq() - Gets the frequency corresponding to an available opp
  * @opp:	opp for which frequency has to be returned for
  *
- * Return frequency in hertz corresponding to the opp, else
+ * Return: frequency in hertz corresponding to the opp, else
  * return 0
  *
  * Locking: This function must be called under rcu_read_lock(). opp is a rcu
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
  * dev_pm_opp_get_opp_count() - Get number of opps available in the opp list
  * @dev:	device for which we do this operation
  *
- * This function returns the number of available opps if there are any,
+ * Return: This function returns the number of available opps if there are any,
  * else returns 0 if none or the corresponding error value.
  *
  * Locking: This function takes rcu_read_lock().
@@ -251,9 +251,9 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
  * @freq:		frequency to search for
  * @available:		true/false - match for available opp
  *
- * Searches for exact match in the opp list and returns pointer to the matching
- * opp if found, else returns ERR_PTR in case of error and should be handled
- * using IS_ERR. Error return values can be:
+ * Return: Searches for exact match in the opp list and returns pointer to the
+ * matching opp if found, else returns ERR_PTR in case of error and should
+ * be handled using IS_ERR. Error return values can be:
  * EINVAL:	for bad pointer
  * ERANGE:	no match found for search
  * ENODEV:	if device not found in list of registered devices
@@ -307,7 +307,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
  * Search for the matching ceil *available* OPP from a starting freq
  * for a device.
  *
- * Returns matching *opp and refreshes *freq accordingly, else returns
+ * Return: matching *opp and refreshes *freq accordingly, else returns
  * ERR_PTR in case of error and should be handled using IS_ERR. Error return
  * values can be:
  * EINVAL:	for bad pointer
@@ -357,7 +357,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
  * Search for the matching floor *available* OPP from a starting freq
  * for a device.
  *
- * Returns matching *opp and refreshes *freq accordingly, else returns
+ * Return: matching *opp and refreshes *freq accordingly, else returns
  * ERR_PTR in case of error and should be handled using IS_ERR. Error return
  * values can be:
  * EINVAL:	for bad pointer
@@ -403,6 +403,15 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
 
+/**
+ * _add_device_opp() - Allocate a new device OPP table
+ * @dev:	device for which we do this operation
+ *
+ * New device node which uses OPPs - used when multiple devices with OPP tables
+ * are maintained.
+ *
+ * Return: valid device_opp pointer if success, else NULL.
+ */
 static struct device_opp *_add_device_opp(struct device *dev)
 {
 	struct device_opp *dev_opp;
@@ -424,6 +433,33 @@ static struct device_opp *_add_device_opp(struct device *dev)
 	return dev_opp;
 }
 
+/**
+ * _opp_add_dynamic() - Allocate a dynamic OPP.
+ * @dev:	device for which we do this operation
+ * @freq:	Frequency in Hz for this OPP
+ * @u_volt:	Voltage in uVolts for this OPP
+ * @dynamic:	Dynamically added OPPs.
+ *
+ * This function adds an opp definition to the opp list and returns status.
+ * The opp is made available by default and it can be controlled using
+ * dev_pm_opp_enable/disable functions and may be removed by dev_pm_opp_remove.
+ *
+ * NOTE: "dynamic" parameter impacts OPPs added by the of_init_opp_table and
+ * freed by of_free_opp_table.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * Hence this function internally uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ *
+ * Return:
+ * 0		On success OR
+ *		Duplicate OPPs (both freq and volt are same) and opp->available
+ * -EEXIST	Freq are same and volt are different OR
+ *		Duplicate OPPs (both freq and volt are same) and !opp->available
+ * -ENOMEM	Memory allocation failure
+ */
 static int _opp_add_dynamic(struct device *dev, unsigned long freq,
 			    long u_volt, bool dynamic)
 {
@@ -519,11 +555,11 @@ free_opp:
  * mutex cannot be locked.
  *
  * Return:
- * 0:		On success OR
+ * 0		On success OR
  *		Duplicate OPPs (both freq and volt are same) and opp->available
- * -EEXIST:	Freq are same and volt are different OR
+ * -EEXIST	Freq are same and volt are different OR
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
- * -ENOMEM:	Memory allocation failure
+ * -ENOMEM	Memory allocation failure
  */
 int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 {
@@ -531,6 +567,10 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_add);
 
+/**
+ * _kfree_opp_rcu() - Free OPP RCU handler
+ * @head:	RCU head
+ */
 static void _kfree_opp_rcu(struct rcu_head *head)
 {
 	struct dev_pm_opp *opp = container_of(head, struct dev_pm_opp, rcu_head);
@@ -538,6 +578,10 @@ static void _kfree_opp_rcu(struct rcu_head *head)
 	kfree_rcu(opp, rcu_head);
 }
 
+/**
+ * _kfree_device_rcu() - Free device_opp RCU handler
+ * @head:	RCU head
+ */
 static void _kfree_device_rcu(struct rcu_head *head)
 {
 	struct device_opp *device_opp = container_of(head, struct device_opp, rcu_head);
@@ -545,6 +589,17 @@ static void _kfree_device_rcu(struct rcu_head *head)
 	kfree_rcu(device_opp, rcu_head);
 }
 
+/**
+ * _opp_remove()  - Remove an OPP from a table definition
+ * @dev_opp:	points back to the device_opp struct this opp belongs to
+ * @opp:	pointer to the OPP to remove
+ *
+ * This function removes an opp definition from the opp list.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * It is assumed that the caller holds required mutex for an RCU updater
+ * strategy.
+ */
 static void _opp_remove(struct device_opp *dev_opp,
 			struct dev_pm_opp *opp)
 {
@@ -569,6 +624,12 @@ static void _opp_remove(struct device_opp *dev_opp,
  * @freq:	OPP to remove with matching 'freq'
  *
  * This function removes an opp from the opp list.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * Hence this function internally uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
  */
 void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 {
@@ -611,7 +672,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
  * Set the availability of an OPP with an RCU operation, opp_{enable,disable}
  * share a common logic which is isolated here.
  *
- * Returns -EINVAL for bad pointers, -ENOMEM if no memory available for the
+ * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
  * copy operation, returns 0 if no modifcation was done OR modification was
  * successful.
  *
@@ -700,6 +761,10 @@ unlock:
  * integrity of the internal data structures. Callers should ensure that
  * this function is *NOT* called under RCU protection or in contexts where
  * mutex locking or synchronize_rcu() blocking calls cannot be used.
+ *
+ * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
+ * copy operation, returns 0 if no modifcation was done OR modification was
+ * successful.
  */
 int dev_pm_opp_enable(struct device *dev, unsigned long freq)
 {
@@ -722,6 +787,10 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_enable);
  * integrity of the internal data structures. Callers should ensure that
  * this function is *NOT* called under RCU protection or in contexts where
  * mutex locking or synchronize_rcu() blocking calls cannot be used.
+ *
+ * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
+ * copy operation, returns 0 if no modifcation was done OR modification was
+ * successful.
  */
 int dev_pm_opp_disable(struct device *dev, unsigned long freq)
 {
@@ -732,6 +801,16 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_disable);
 /**
  * dev_pm_opp_get_notifier() - find notifier_head of the device with opp
  * @dev:	device pointer used to lookup device OPPs.
+ *
+ * Return: pointer to  notifier head if found, otherwise -ENODEV or
+ * -EINVAL based on type of error casted as pointer. value must be checked
+ *  with IS_ERR to determine valid pointer or error result.
+ *
+ * Locking: This function must be called under rcu_read_lock(). dev_opp is a RCU
+ * protected pointer. The reason for the same is that the opp pointer which is
+ * returned will remain valid for use with opp_get_{voltage, freq} only while
+ * under the locked area. The pointer returned must be used prior to unlocking
+ * with rcu_read_unlock() to maintain the integrity of the pointer.
  */
 struct srcu_notifier_head *dev_pm_opp_get_notifier(struct device *dev)
 {
@@ -750,6 +829,22 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
  * @dev:	device pointer used to lookup device OPPs.
  *
  * Register the initial OPP table with the OPP library for given device.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * Hence this function indirectly uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ *
+ * Return:
+ * 0		On success OR
+ *		Duplicate OPPs (both freq and volt are same) and opp->available
+ * -EEXIST	Freq are same and volt are different OR
+ *		Duplicate OPPs (both freq and volt are same) and !opp->available
+ * -ENOMEM	Memory allocation failure
+ * -ENODEV	when 'operating-points' property is not found or is invalid data
+ *		in device node.
+ * -ENODATA	when empty 'operating-points' property is found
  */
 int of_init_opp_table(struct device *dev)
 {
@@ -793,6 +888,12 @@ EXPORT_SYMBOL_GPL(of_init_opp_table);
  * @dev:	device pointer used to lookup device OPPs.
  *
  * Free OPPs created using static entries present in DT.
+ *
+ * Locking: The internal device_opp and opp structures are RCU protected.
+ * Hence this function indirectly uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
  */
 void of_free_opp_table(struct device *dev)
 {
