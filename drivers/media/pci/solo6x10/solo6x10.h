@@ -168,9 +168,9 @@ struct solo_enc_dev {
 					__aligned(4);
 
 	/* VOP stuff */
-	unsigned char		vop[64];
+	u8			vop[64];
 	int			vop_len;
-	unsigned char		jpeg_header[1024];
+	u8			jpeg_header[1024];
 	int			jpeg_len;
 
 	u32			fmt;
