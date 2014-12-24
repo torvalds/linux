@@ -12,8 +12,6 @@
 /* Greybus "public" definitions" */
 struct gb_module {
 	struct device dev;
-
-	struct list_head list;
 	u8 module_id;		/* Physical location within the Endo */
 };
 #define to_gb_module(d) container_of(d, struct gb_module, dev)

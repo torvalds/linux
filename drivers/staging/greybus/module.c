@@ -10,14 +10,6 @@
 #include "greybus.h"
 
 
-/*
- * List of modules in the system.  We really should just walk the list the
- * driver core provides us, but as we have lots of different things on the same
- * "bus" at the same time, a single list of modules is simplest for now.
- */
-static DEFINE_SPINLOCK(gb_modules_lock);
-static LIST_HEAD(module_list);
-
 /* module sysfs attributes */
 #define gb_module_attr(field, type)					\
 static ssize_t field##_show(struct device *dev,				\
@@ -58,10 +50,6 @@ static void greybus_module_release(struct device *dev)
 {
 	struct gb_module *module = to_gb_module(dev);
 
-	spin_lock(&gb_modules_lock);
-	list_del(&module->list);
-	spin_unlock(&gb_modules_lock);
-
 	kfree(module);
 }
 
@@ -70,24 +58,35 @@ struct device_type greybus_module_type = {
 	.release =	greybus_module_release,
 };
 
+static int module_find(struct device *dev, void *data)
+{
+	struct gb_module *module;
+	u8 *module_id = data;
+
+	if (!is_gb_module(dev))
+		return 0;
+
+	module = to_gb_module(dev);
+	if (module->module_id == *module_id)
+		return 1;
+
+	return 0;
+}
+
 /*
  * Search the list of modules in the system.  If one is found, return it, with
  * the reference count incremented.
  */
 static struct gb_module *gb_module_find(u8 module_id)
 {
-	struct gb_module *module;
+	struct device *dev;
+	struct gb_module *module = NULL;
 
-	spin_lock(&gb_modules_lock);
-	list_for_each_entry(module, &module_list, list) {
-		if (module->module_id == module_id) {
-			get_device(&module->dev);
-			goto exit;
-		}
-	}
-	module = NULL;
-exit:
-	spin_unlock(&gb_modules_lock);
+	dev = bus_find_device(&greybus_bus_type, NULL,
+			      &module_id, module_find);
+	if (dev)
+		module = to_gb_module(dev);
+
 	return module;
 }
 
@@ -118,10 +117,6 @@ static struct gb_module *gb_module_create(struct greybus_host_device *hd,
 		kfree(module);
 		return NULL;
 	}
-
-	spin_lock(&gb_modules_lock);
-	list_add_tail(&module->list, &module_list);
-	spin_unlock(&gb_modules_lock);
 
 	return module;
 }
