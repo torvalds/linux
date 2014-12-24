@@ -6255,8 +6255,10 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 out_fail:
 	btrfs_end_transaction(trans, root);
-	if (drop_on_err)
+	if (drop_on_err) {
+		inode_dec_link_count(inode);
 		iput(inode);
+	}
 	btrfs_balance_delayed_items(root);
 	btrfs_btree_balance_dirty(root);
 	return err;
