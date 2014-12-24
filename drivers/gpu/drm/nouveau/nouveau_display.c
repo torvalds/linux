@@ -876,7 +876,6 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	bo->gem.dumb = true;
 	ret = drm_gem_handle_create(file_priv, &bo->gem, &args->handle);
 	drm_gem_object_unreference_unlocked(&bo->gem);
 	return ret;
@@ -892,14 +891,6 @@ nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 	gem = drm_gem_object_lookup(dev, file_priv, handle);
 	if (gem) {
 		struct nouveau_bo *bo = nouveau_gem_object(gem);
-
-		/*
-		 * We don't allow dumb mmaps on objects created using another
-		 * interface.
-		 */
-		WARN_ONCE(!(gem->dumb || gem->import_attach),
-			  "Illegal dumb map of accelerated buffer.\n");
-
 		*poffset = drm_vma_node_offset_addr(&bo->bo.vma_node);
 		drm_gem_object_unreference_unlocked(gem);
 		return 0;
