@@ -201,20 +201,18 @@
 		rockchip,grf = <&grf>;
 		rockchip,pmu = <&pmu_grf>;
 
-		grf {
-			dvp-supply = "vccio";
-			flash0-supply = "vccio";
-			wifi-supply = "act_ldo6";
-			audio-supply = "vccio";
-			sdcard-supply = "vccio_sd";
-			gpio30-supply = "vccio";
-			gpio1830-supply = "vccio";
-		};
+		/*GRF_IO_VSEL*/
+		dvp-supply = <&ldo7_reg>;      /*DVPIO_VDD*/
+		flash0-supply = <&dcdc2_reg>;  /*FLASH0_VDD*/
+		wifi-supply = <&ldo7_reg>;     /*APIO2_VDD*/
+		audio-supply = <&dcdc2_reg>;   /*APIO3_VDD*/
+		sdcard-supply = <&ldo1_reg>;   /*SDMMC0_VDD*/
+		gpio30-supply = <&dcdc2_reg>;  /*APIO1_VDD*/
+		gpio1830-supply = <&dcdc2_reg>;/*ADIO4_VDD*/
 
-		pmu_grf {
-			pmu-supply = "act_ldo4";
-			vop-supply = "act_ldo4";
-		};
+		/*PMU_GRF_IO_VSEL*/
+		pmu-supply = <&ldo5_reg>;      /*PMUIO_VDD*/
+		vop-supply = <&ldo5_reg>;      /*LCDC_VDD*/
 	};
 };
 
