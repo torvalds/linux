@@ -186,7 +186,7 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 	/* Push Tunnel header. */
 	skb = __build_header(skb, tunnel_hlen);
 	if (IS_ERR(skb)) {
-		err = PTR_ERR(rt);
+		err = PTR_ERR(skb);
 		skb = NULL;
 		goto err_free_rt;
 	}
