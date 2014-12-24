@@ -767,6 +767,7 @@ static void gb_tty_exit(void)
 }
 
 static struct gb_protocol uart_protocol = {
+	.name			= "uart",
 	.id			= GREYBUS_PROTOCOL_UART,
 	.major			= 0,
 	.minor			= 1,

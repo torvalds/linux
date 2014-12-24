@@ -79,6 +79,7 @@ static void gb_sdio_connection_exit(struct gb_connection *connection)
 }
 
 static struct gb_protocol sdio_protocol = {
+	.name			= "sdio",
 	.id			= GREYBUS_PROTOCOL_SDIO,
 	.major			= 0,
 	.minor			= 1,

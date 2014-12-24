@@ -7,6 +7,8 @@
  * Released under the GPLv2 only.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "greybus.h"
 
 /* Global list of registered protocols */
@@ -86,6 +88,8 @@ int __gb_protocol_register(struct gb_protocol *protocol, struct module *module)
 	list_add_tail(&protocol->links, &existing->links);
 	spin_unlock_irq(&gb_protocols_lock);
 
+	pr_info("Registered %s protocol.\n", protocol->name);
+
 	/*
 	 * Go try to bind any unbound connections, as we have a
 	 * new protocol in the system
@@ -123,6 +127,9 @@ int gb_protocol_deregister(struct gb_protocol *protocol)
 			list_del(&protocol->links);
 	}
 	spin_unlock_irq(&gb_protocols_lock);
+
+	if (protocol)
+		pr_info("Deregistered %s protocol.\n", protocol->name);
 
 	return protocol && !protocol_count;
 }

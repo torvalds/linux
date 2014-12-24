@@ -359,6 +359,7 @@ static void gb_battery_connection_exit(struct gb_connection *connection)
 }
 
 static struct gb_protocol battery_protocol = {
+	.name			= "battery",
 	.id			= GREYBUS_PROTOCOL_BATTERY,
 	.major			= 0,
 	.minor			= 1,

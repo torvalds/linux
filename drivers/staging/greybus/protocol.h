@@ -35,6 +35,7 @@ struct gb_protocol {
 	gb_connection_exit_t	connection_exit;
 	gb_request_recv_t	request_recv;
 	struct module		*owner;
+	char			*name;
 };
 
 int __gb_protocol_register(struct gb_protocol *protocol, struct module *module);

@@ -376,6 +376,7 @@ static void gb_usb_connection_exit(struct gb_connection *connection)
 }
 
 static struct gb_protocol usb_protocol = {
+	.name			= "usb",
 	.id			= GREYBUS_PROTOCOL_USB,
 	.major			= 0,
 	.minor			= 1,
