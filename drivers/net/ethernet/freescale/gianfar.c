@@ -177,7 +177,7 @@ static int gfar_init_bds(struct net_device *ndev)
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	struct txbd8 *txbdp;
 	struct rxbd8 *rxbdp;
-	u32 *rfbptr;
+	u32 __iomem *rfbptr;
 	int i, j;
 	dma_addr_t bufaddr;
 
