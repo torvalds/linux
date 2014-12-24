@@ -1426,12 +1426,6 @@ void nf_ct_free_hashtable(void *hash, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
-void nf_conntrack_flush_report(struct net *net, u32 portid, int report)
-{
-	nf_ct_iterate_cleanup(net, kill_all, NULL, portid, report);
-}
-EXPORT_SYMBOL_GPL(nf_conntrack_flush_report);
-
 static int untrack_refs(void)
 {
 	int cnt = 0, cpu;
