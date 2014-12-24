@@ -54,6 +54,11 @@ module_param(max_num_of_queues_per_device, int, 0444);
 MODULE_PARM_DESC(max_num_of_queues_per_device,
 	"Maximum number of supported queues per device (1 = Minimum, 4096 = default)");
 
+int send_sigterm;
+module_param(send_sigterm, int, 0444);
+MODULE_PARM_DESC(send_sigterm,
+	"Send sigterm to HSA process on unhandled exception (0 = disable, 1 = enable)");
+
 bool kgd2kfd_init(unsigned interface_version, const struct kgd2kfd_calls **g2f)
 {
 	/*

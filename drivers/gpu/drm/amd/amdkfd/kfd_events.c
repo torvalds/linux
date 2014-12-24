@@ -872,10 +872,16 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 
 	/* Send SIGTERM no event of type "type" has been found*/
 	if (send_signal) {
-		dev_warn(kfd_device,
-			"Sending SIGTERM to HSA Process with PID %d ",
+		if (send_sigterm) {
+			dev_warn(kfd_device,
+				"Sending SIGTERM to HSA Process with PID %d ",
+					p->lead_thread->pid);
+			send_sig(SIGTERM, p->lead_thread, 0);
+		} else {
+			dev_err(kfd_device,
+				"HSA Process (PID %d) got unhandled exception",
 				p->lead_thread->pid);
-		send_sig(SIGTERM, p->lead_thread, 0);
+		}
 	}
 }
 

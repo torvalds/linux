@@ -74,6 +74,12 @@ extern int max_num_of_queues_per_device;
 /* Kernel module parameter to specify the scheduling policy */
 extern int sched_policy;
 
+/*
+ * Kernel module parameter to specify whether to send sigterm to HSA process on
+ * unhandled exception
+ */
+extern int send_sigterm;
+
 /**
  * enum kfd_sched_policy
  *
