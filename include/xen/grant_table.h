@@ -45,6 +45,8 @@
 #include <asm/xen/hypervisor.h>
 
 #include <xen/features.h>
+#include <linux/mm_types.h>
+#include <linux/page-flags.h>
 
 #define GNTTAB_RESERVED_XENSTORE 1
 
@@ -184,5 +186,23 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
  */
 void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count);
 void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count);
+
+
+struct xen_page_foreign {
+	domid_t domid;
+	grant_ref_t gref;
+};
+
+static inline struct xen_page_foreign *xen_page_foreign(struct page *page)
+{
+	if (!PageForeign(page))
+		return NULL;
+#if BITS_PER_LONG < 64
+	return (struct xen_page_foreign *)page->private;
+#else
+	BUILD_BUG_ON(sizeof(struct xen_page_foreign) > BITS_PER_LONG);
+	return (struct xen_page_foreign *)&page->private;
+#endif
+}
 
 #endif /* __ASM_GNTTAB_H__ */

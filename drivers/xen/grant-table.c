@@ -679,11 +679,26 @@ EXPORT_SYMBOL_GPL(gnttab_free_auto_xlat_frames);
  */
 int gnttab_alloc_pages(int nr_pages, struct page **pages)
 {
+	int i;
 	int ret;
 
 	ret = alloc_xenballooned_pages(nr_pages, pages, false);
 	if (ret < 0)
 		return ret;
+
+	for (i = 0; i < nr_pages; i++) {
+#if BITS_PER_LONG < 64
+		struct xen_page_foreign *foreign;
+
+		foreign = kzalloc(sizeof(*foreign), GFP_KERNEL);
+		if (!foreign) {
+			gnttab_free_pages(nr_pages, pages);
+			return -ENOMEM;
+		}
+		set_page_private(pages[i], (unsigned long)foreign);
+#endif
+		SetPagePrivate(pages[i]);
+	}
 
 	return 0;
 }
@@ -696,6 +711,16 @@ EXPORT_SYMBOL(gnttab_alloc_pages);
  */
 void gnttab_free_pages(int nr_pages, struct page **pages)
 {
+	int i;
+
+	for (i = 0; i < nr_pages; i++) {
+		if (PagePrivate(pages[i])) {
+#if BITS_PER_LONG < 64
+			kfree((void *)page_private(pages[i]));
+#endif
+			ClearPagePrivate(pages[i]);
+		}
+	}
 	free_xenballooned_pages(nr_pages, pages);
 }
 EXPORT_SYMBOL(gnttab_free_pages);
@@ -756,11 +781,21 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 	if (ret)
 		return ret;
 
-	/* Retry eagain maps */
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
+		/* Retry eagain maps */
 		if (map_ops[i].status == GNTST_eagain)
 			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref, map_ops + i,
 						&map_ops[i].status, __func__);
+
+		if (map_ops[i].status == GNTST_okay) {
+			struct xen_page_foreign *foreign;
+
+			SetPageForeign(pages[i]);
+			foreign = xen_page_foreign(pages[i]);
+			foreign->domid = map_ops[i].dom;
+			foreign->gref = map_ops[i].ref;
+		}
+	}
 
 	return set_foreign_p2m_mapping(map_ops, kmap_ops, pages, count);
 }
@@ -770,11 +805,15 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count)
 {
+	unsigned int i;
 	int ret;
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < count; i++)
+		ClearPageForeign(pages[i]);
 
 	return clear_foreign_p2m_mapping(unmap_ops, kunmap_ops, pages, count);
 }
