@@ -123,6 +123,8 @@ dtb-$(CONFIG_ARCH_HIX5HD2) += \
 dtb-$(CONFIG_ARCH_HIGHBANK) += \
 	highbank.dtb \
 	ecx-2000.dtb
+dtb-$(CONFIG_ARCH_HIP01) += \
+	hip01-ca9x2.dtb
 dtb-$(CONFIG_ARCH_HIP04) += \
 	hip04-d01.dtb
 dtb-$(CONFIG_ARCH_INTEGRATOR) += \
