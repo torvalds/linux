@@ -91,7 +91,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 {
 	struct gb_connection *connection = to_gb_connection(dev);
 
-	return sprintf(buf, "%d", connection->state);
+	return sprintf(buf, "%d\n", connection->state);
 }
 static DEVICE_ATTR_RO(state);
 
@@ -100,7 +100,7 @@ protocol_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gb_connection *connection = to_gb_connection(dev);
 
-	return sprintf(buf, "%d", connection->protocol->id);
+	return sprintf(buf, "%d\n", connection->protocol->id);
 }
 static DEVICE_ATTR_RO(protocol_id);
 

@@ -18,7 +18,7 @@ static ssize_t device_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
-	return sprintf(buf, "%d", bundle->device_id);
+	return sprintf(buf, "%d\n", bundle->device_id);
 }
 static DEVICE_ATTR_RO(device_id);
 
