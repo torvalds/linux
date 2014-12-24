@@ -650,9 +650,9 @@ TRACE_EVENT(f2fs_reserve_new_block,
 
 DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 
-	TP_PROTO(struct page *page, block_t blkaddr, int rw, int type),
+	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, blkaddr, rw, type),
+	TP_ARGS(page, fio),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -667,9 +667,9 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 		__entry->dev		= page->mapping->host->i_sb->s_dev;
 		__entry->ino		= page->mapping->host->i_ino;
 		__entry->index		= page->index;
-		__entry->blkaddr	= blkaddr;
-		__entry->rw		= rw;
-		__entry->type		= type;
+		__entry->blkaddr	= fio->blk_addr;
+		__entry->rw		= fio->rw;
+		__entry->type		= fio->type;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
@@ -683,27 +683,28 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 
 DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_bio,
 
-	TP_PROTO(struct page *page, block_t blkaddr, int rw, int type),
+	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, blkaddr, rw, type),
+	TP_ARGS(page, fio),
 
 	TP_CONDITION(page->mapping)
 );
 
 DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_mbio,
 
-	TP_PROTO(struct page *page, block_t blkaddr, int rw, int type),
+	TP_PROTO(struct page *page, struct f2fs_io_info *fio),
 
-	TP_ARGS(page, blkaddr, rw, type),
+	TP_ARGS(page, fio),
 
 	TP_CONDITION(page->mapping)
 );
 
 DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
-	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
+	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
+						struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio),
+	TP_ARGS(sb, fio, bio),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -715,8 +716,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->rw		= rw;
-		__entry->type		= type;
+		__entry->rw		= fio->rw;
+		__entry->type		= fio->type;
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->size		= bio->bi_iter.bi_size;
 	),
@@ -731,18 +732,20 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_write_bio,
 
-	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
+	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
+							struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio),
+	TP_ARGS(sb, fio, bio),
 
 	TP_CONDITION(bio)
 );
 
 DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_read_bio,
 
-	TP_PROTO(struct super_block *sb, int rw, int type, struct bio *bio),
+	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
+							struct bio *bio),
 
-	TP_ARGS(sb, rw, type, bio),
+	TP_ARGS(sb, fio, bio),
 
 	TP_CONDITION(bio)
 );
