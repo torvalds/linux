@@ -1241,12 +1241,6 @@ static void xenvif_fill_frags(struct xenvif_queue *queue, struct sk_buff *skb)
 		/* Take an extra reference to offset network stack's put_page */
 		get_page(queue->mmap_pages[pending_idx]);
 	}
-	/* FIXME: __skb_fill_page_desc set this to true because page->pfmemalloc
-	 * overlaps with "index", and "mapping" is not set. I think mapping
-	 * should be set. If delivered to local stack, it would drop this
-	 * skb in sk_filter unless the socket has the right to use it.
-	 */
-	skb->pfmemalloc	= false;
 }
 
 static int xenvif_get_extras(struct xenvif_queue *queue,

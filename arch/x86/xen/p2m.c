@@ -682,9 +682,10 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 		pfn = page_to_pfn(pages[i]);
 
 		WARN_ON(PagePrivate(pages[i]));
+		WARN(pfn_to_mfn(pfn) != INVALID_P2M_ENTRY, "page must be ballooned");
+
 		SetPagePrivate(pages[i]);
 		set_page_private(pages[i], mfn);
-		pages[i]->index = pfn_to_mfn(pfn);
 
 		if (unlikely(!set_phys_to_machine(pfn, FOREIGN_FRAME(mfn)))) {
 			ret = -ENOMEM;
@@ -718,7 +719,7 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 		set_page_private(pages[i], INVALID_P2M_ENTRY);
 		WARN_ON(!PagePrivate(pages[i]));
 		ClearPagePrivate(pages[i]);
-		set_phys_to_machine(pfn, pages[i]->index);
+		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 	}
 	if (kunmap_ops)
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref,
