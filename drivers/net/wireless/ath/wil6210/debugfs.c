@@ -101,8 +101,8 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 			char name[10];
 			/* performance monitoring */
 			cycles_t now = get_cycles();
-			cycles_t idle = txdata->idle * 100;
-			cycles_t total = now - txdata->begin;
+			uint64_t idle = txdata->idle * 100;
+			uint64_t total = now - txdata->begin;
 
 			do_div(idle, total);
 			txdata->begin = now;
