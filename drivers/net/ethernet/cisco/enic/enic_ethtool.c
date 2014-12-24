@@ -24,6 +24,7 @@
 #include "enic_dev.h"
 #include "enic_clsf.h"
 #include "vnic_rss.h"
+#include "vnic_stats.h"
 
 struct enic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -38,6 +39,11 @@ struct enic_stat {
 #define ENIC_RX_STAT(stat) { \
 	.name = #stat, \
 	.index = offsetof(struct vnic_rx_stats, stat) / sizeof(u64) \
+}
+
+#define ENIC_GEN_STAT(stat) { \
+	.name = #stat, \
+	.index = offsetof(struct vnic_gen_stats, stat) / sizeof(u64)\
 }
 
 static const struct enic_stat enic_tx_stats[] = {
@@ -78,8 +84,13 @@ static const struct enic_stat enic_rx_stats[] = {
 	ENIC_RX_STAT(rx_frames_to_max),
 };
 
+static const struct enic_stat enic_gen_stats[] = {
+	ENIC_GEN_STAT(dma_map_error),
+};
+
 static const unsigned int enic_n_tx_stats = ARRAY_SIZE(enic_tx_stats);
 static const unsigned int enic_n_rx_stats = ARRAY_SIZE(enic_rx_stats);
+static const unsigned int enic_n_gen_stats = ARRAY_SIZE(enic_gen_stats);
 
 void enic_intr_coal_set_rx(struct enic *enic, u32 timer)
 {
@@ -146,6 +157,10 @@ static void enic_get_strings(struct net_device *netdev, u32 stringset,
 			memcpy(data, enic_rx_stats[i].name, ETH_GSTRING_LEN);
 			data += ETH_GSTRING_LEN;
 		}
+		for (i = 0; i < enic_n_gen_stats; i++) {
+			memcpy(data, enic_gen_stats[i].name, ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
 		break;
 	}
 }
@@ -154,7 +169,7 @@ static int enic_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return enic_n_tx_stats + enic_n_rx_stats;
+		return enic_n_tx_stats + enic_n_rx_stats + enic_n_gen_stats;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -173,6 +188,8 @@ static void enic_get_ethtool_stats(struct net_device *netdev,
 		*(data++) = ((u64 *)&vstats->tx)[enic_tx_stats[i].index];
 	for (i = 0; i < enic_n_rx_stats; i++)
 		*(data++) = ((u64 *)&vstats->rx)[enic_rx_stats[i].index];
+	for (i = 0; i < enic_n_gen_stats; i++)
+		*(data++) = ((u64 *)&enic->gen_stats)[enic_gen_stats[i].index];
 }
 
 static u32 enic_get_msglevel(struct net_device *netdev)
