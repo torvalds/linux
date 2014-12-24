@@ -24,6 +24,8 @@ struct gb_bundle {
 };
 #define to_gb_bundle(d) container_of(d, struct gb_bundle, dev)
 
+#define GB_DEVICE_ID_BAD	0xff
+
 /* Greybus "private" definitions" */
 struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 module_id);
 void gb_bundle_destroy(struct gb_interface *intf);

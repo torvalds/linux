@@ -91,8 +91,10 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 interface_id)
 
 	bundle->intf = intf;
 	bundle->id = interface_id;
-	bundle->device_id = 0xff;	/* Invalid device id to start with */
 	INIT_LIST_HEAD(&bundle->connections);
+
+	/* Invalid device id to start with */
+	bundle->device_id = GB_DEVICE_ID_BAD;
 
 	/* Build up the bundle device structures and register it with the
 	 * driver core */

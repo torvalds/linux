@@ -146,7 +146,7 @@ void gb_connection_bind_protocol(struct gb_connection *connection)
 	 * device, so bring up the connection at the same time.
 	 * */
 	bundle = connection->bundle;
-	if (bundle->device_id != 0xff)
+	if (bundle->device_id != GB_DEVICE_ID_BAD)
 		gb_connection_init(connection);
 }
 
