@@ -77,6 +77,7 @@ struct kvm_ioapic {
 	struct rtc_status rtc_status;
 	struct delayed_work eoi_inject;
 	u32 irq_eoi[IOAPIC_NUM_PINS];
+	u32 irr_delivered;
 };
 
 #ifdef DEBUG
