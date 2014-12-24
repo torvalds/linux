@@ -116,7 +116,8 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void gfar_reset_task(struct work_struct *work);
 static void gfar_timeout(struct net_device *dev);
 static int gfar_close(struct net_device *dev);
-struct sk_buff *gfar_new_skb(struct net_device *dev, dma_addr_t *bufaddr);
+static struct sk_buff *gfar_new_skb(struct net_device *dev,
+				    dma_addr_t *bufaddr);
 static int gfar_set_mac_address(struct net_device *dev);
 static int gfar_change_mtu(struct net_device *dev, int new_mtu);
 static irqreturn_t gfar_error(int irq, void *dev_id);
@@ -554,7 +555,7 @@ static void gfar_ints_enable(struct gfar_private *priv)
 	}
 }
 
-void lock_tx_qs(struct gfar_private *priv)
+static void lock_tx_qs(struct gfar_private *priv)
 {
 	int i;
 
@@ -562,7 +563,7 @@ void lock_tx_qs(struct gfar_private *priv)
 		spin_lock(&priv->tx_queue[i]->txlock);
 }
 
-void unlock_tx_qs(struct gfar_private *priv)
+static void unlock_tx_qs(struct gfar_private *priv)
 {
 	int i;
 
@@ -2671,7 +2672,7 @@ static struct sk_buff *gfar_alloc_skb(struct net_device *dev)
 	return skb;
 }
 
-struct sk_buff *gfar_new_skb(struct net_device *dev, dma_addr_t *bufaddr)
+static struct sk_buff *gfar_new_skb(struct net_device *dev, dma_addr_t *bufaddr)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct sk_buff *skb;
