@@ -154,4 +154,7 @@ void mcip_init_early_smp(void)
 		__mcip_cmd_data(CMD_DEBUG_SET_SELECT, 0, 0xf);
 		__mcip_cmd_data(CMD_DEBUG_SET_MASK, 0xf, 0xf);
 	}
+
+	if (IS_ENABLED(CONFIG_ARC_HAS_GRTC) && !mp.grtc)
+		panic("kernel trying to use non-existent GRTC\n");
 }

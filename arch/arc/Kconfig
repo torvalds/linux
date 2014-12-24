@@ -384,6 +384,11 @@ config ARC_HAS_RTC
 	default n
 	depends on !SMP
 
+config ARC_HAS_GRTC
+	bool "SMP synchronized 64-bit cycle counter"
+	default y
+	depends on SMP
+
 config ARC_NUMBER_OF_INTERRUPTS
 	int "Number of interrupts"
 	range 8 240

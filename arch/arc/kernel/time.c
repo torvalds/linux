@@ -45,6 +45,8 @@
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
 
+#include <asm/mcip.h>
+
 /* Timer related Aux registers */
 #define ARC_REG_TIMER0_LIMIT	0x23	/* timer 0 limit */
 #define ARC_REG_TIMER0_CTRL	0x22	/* timer 0 control */
@@ -59,6 +61,48 @@
 #define ARC_TIMER_MAX	0xFFFFFFFF
 
 /********** Clock Source Device *********/
+
+#ifdef CONFIG_ARC_HAS_GRTC
+
+static int arc_counter_setup(void)
+{
+	return 1;
+}
+
+static cycle_t arc_counter_read(struct clocksource *cs)
+{
+	unsigned long flags;
+	union {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		struct { u32 h, l; };
+#else
+		struct { u32 l, h; };
+#endif
+		cycle_t  full;
+	} stamp;
+
+	local_irq_save(flags);
+
+	__mcip_cmd(CMD_GRTC_READ_LO, 0);
+	stamp.l = read_aux_reg(ARC_REG_MCIP_READBACK);
+
+	__mcip_cmd(CMD_GRTC_READ_HI, 0);
+	stamp.h = read_aux_reg(ARC_REG_MCIP_READBACK);
+
+	local_irq_restore(flags);
+
+	return stamp.full;
+}
+
+static struct clocksource arc_counter = {
+	.name   = "ARConnect GRTC",
+	.rating = 400,
+	.read   = arc_counter_read,
+	.mask   = CLOCKSOURCE_MASK(64),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+#else
 
 #ifdef CONFIG_ARC_HAS_RTC
 
@@ -134,6 +178,7 @@ static struct clocksource arc_counter = {
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+#endif
 #endif
 
 /********** Clock Event Device *********/
