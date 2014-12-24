@@ -922,7 +922,7 @@ int ehci_hub_control(
 				break;
 #ifdef CONFIG_USB_OTG
 			if ((hcd->self.otg_port == (wIndex + 1))
-			    && hcd->self.b_hnp_enable) {
+			    && hcd->self.b_hnp_enable && !hcd->self.otg_fsm) {
 				otg_start_hnp(hcd->usb_phy->otg);
 				break;
 			}
