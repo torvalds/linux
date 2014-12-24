@@ -66,6 +66,9 @@ extern void gb_sdio_protocol_exit(void);
 extern int gb_usb_protocol_init(void);
 extern void gb_usb_protocol_exit(void);
 
+extern int gb_i2c_protocol_init(void);
+extern void gb_i2c_protocol_exit(void);
+
 #define gb_protocol_driver(__protocol)			\
 static int __init protocol_init(void)			\
 {							\

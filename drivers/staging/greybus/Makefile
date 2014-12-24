@@ -14,11 +14,11 @@ gpbridge-y :=	gpb.o		\
 		uart-gb.o	\
 		pwm-gb.o	\
 		gpio-gb.o	\
+		i2c-gb.o	\
 		usb-gb.o
 
 obj-m += greybus.o
 obj-m += gpbridge.o
-obj-m += i2c-gb.o
 obj-m += vibrator-gb.o
 obj-m += battery-gb.o
 obj-m += es1-ap-usb.o

@@ -438,6 +438,12 @@ static struct gb_protocol i2c_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-gb_protocol_driver(&i2c_protocol);
+int gb_i2c_protocol_init(void)
+{
+	return gb_protocol_register(&i2c_protocol);
+}
 
-MODULE_LICENSE("GPL v2");
+void gb_i2c_protocol_exit(void)
+{
+	gb_protocol_deregister(&i2c_protocol);
+}
