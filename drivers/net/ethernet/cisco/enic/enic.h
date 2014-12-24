@@ -242,6 +242,18 @@ static inline unsigned int enic_msix_notify_intr(struct enic *enic)
 	return enic->rq_count + enic->wq_count + 1;
 }
 
+static inline int enic_dma_map_check(struct enic *enic, dma_addr_t dma_addr)
+{
+	if (unlikely(pci_dma_mapping_error(enic->pdev, dma_addr))) {
+		net_warn_ratelimited("%s: PCI dma mapping failed!\n",
+				     enic->netdev->name);
+
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 void enic_reset_addr_lists(struct enic *enic);
 int enic_sriov_enabled(struct enic *enic);
 int enic_is_valid_vf(struct enic *enic, int vf);
