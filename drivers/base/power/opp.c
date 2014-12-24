@@ -117,7 +117,7 @@ do {									\
 } while (0)
 
 /**
- * find_device_opp() - find device_opp struct using device pointer
+ * _find_device_opp() - find device_opp struct using device pointer
  * @dev:	device pointer used to lookup device OPPs
  *
  * Search list of device OPPs for one containing matching device. Does a RCU
@@ -130,7 +130,7 @@ do {									\
  * is a RCU protected pointer. This means that device_opp is valid as long
  * as we are under RCU lock.
  */
-static struct device_opp *find_device_opp(struct device *dev)
+static struct device_opp *_find_device_opp(struct device *dev)
 {
 	struct device_opp *tmp_dev_opp, *dev_opp = ERR_PTR(-ENODEV);
 
@@ -226,7 +226,7 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 
 	rcu_read_lock();
 
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		count = PTR_ERR(dev_opp);
 		dev_err(dev, "%s: device OPP not found (%d)\n",
@@ -280,7 +280,7 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 
 	opp_rcu_lockdep_assert();
 
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		int r = PTR_ERR(dev_opp);
 		dev_err(dev, "%s: device OPP not found (%d)\n", __func__, r);
@@ -333,7 +333,7 @@ struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp))
 		return ERR_CAST(dev_opp);
 
@@ -383,7 +383,7 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp))
 		return ERR_CAST(dev_opp);
 
@@ -403,7 +403,7 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
 
-static struct device_opp *add_device_opp(struct device *dev)
+static struct device_opp *_add_device_opp(struct device *dev)
 {
 	struct device_opp *dev_opp;
 
@@ -424,8 +424,8 @@ static struct device_opp *add_device_opp(struct device *dev)
 	return dev_opp;
 }
 
-static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
-				  unsigned long u_volt, bool dynamic)
+static int _opp_add_dynamic(struct device *dev, unsigned long freq,
+			    long u_volt, bool dynamic)
 {
 	struct device_opp *dev_opp = NULL;
 	struct dev_pm_opp *opp, *new_opp;
@@ -449,9 +449,9 @@ static int dev_pm_opp_add_dynamic(struct device *dev, unsigned long freq,
 	new_opp->dynamic = dynamic;
 
 	/* Check for existing list for 'dev' */
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
-		dev_opp = add_device_opp(dev);
+		dev_opp = _add_device_opp(dev);
 		if (!dev_opp) {
 			ret = -ENOMEM;
 			goto free_opp;
@@ -527,26 +527,26 @@ free_opp:
  */
 int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 {
-	return dev_pm_opp_add_dynamic(dev, freq, u_volt, true);
+	return _opp_add_dynamic(dev, freq, u_volt, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_add);
 
-static void kfree_opp_rcu(struct rcu_head *head)
+static void _kfree_opp_rcu(struct rcu_head *head)
 {
 	struct dev_pm_opp *opp = container_of(head, struct dev_pm_opp, rcu_head);
 
 	kfree_rcu(opp, rcu_head);
 }
 
-static void kfree_device_rcu(struct rcu_head *head)
+static void _kfree_device_rcu(struct rcu_head *head)
 {
 	struct device_opp *device_opp = container_of(head, struct device_opp, rcu_head);
 
 	kfree_rcu(device_opp, rcu_head);
 }
 
-static void __dev_pm_opp_remove(struct device_opp *dev_opp,
-				struct dev_pm_opp *opp)
+static void _opp_remove(struct device_opp *dev_opp,
+			struct dev_pm_opp *opp)
 {
 	/*
 	 * Notify the changes in the availability of the operable
@@ -554,12 +554,12 @@ static void __dev_pm_opp_remove(struct device_opp *dev_opp,
 	 */
 	srcu_notifier_call_chain(&dev_opp->srcu_head, OPP_EVENT_REMOVE, opp);
 	list_del_rcu(&opp->node);
-	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, kfree_opp_rcu);
+	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
 
 	if (list_empty(&dev_opp->opp_list)) {
 		list_del_rcu(&dev_opp->node);
 		call_srcu(&dev_opp->srcu_head.srcu, &dev_opp->rcu_head,
-			  kfree_device_rcu);
+			  _kfree_device_rcu);
 	}
 }
 
@@ -579,7 +579,7 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 	/* Hold our list modification lock here */
 	mutex_lock(&dev_opp_list_lock);
 
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp))
 		goto unlock;
 
@@ -596,14 +596,14 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 		goto unlock;
 	}
 
-	__dev_pm_opp_remove(dev_opp, opp);
+	_opp_remove(dev_opp, opp);
 unlock:
 	mutex_unlock(&dev_opp_list_lock);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 
 /**
- * opp_set_availability() - helper to set the availability of an opp
+ * _opp_set_availability() - helper to set the availability of an opp
  * @dev:		device for which we do this operation
  * @freq:		OPP frequency to modify availability
  * @availability_req:	availability status requested for this opp
@@ -621,8 +621,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex locking or synchronize_rcu() blocking calls cannot be used.
  */
-static int opp_set_availability(struct device *dev, unsigned long freq,
-		bool availability_req)
+static int _opp_set_availability(struct device *dev, unsigned long freq,
+				 bool availability_req)
 {
 	struct device_opp *dev_opp;
 	struct dev_pm_opp *new_opp, *tmp_opp, *opp = ERR_PTR(-ENODEV);
@@ -638,7 +638,7 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 	mutex_lock(&dev_opp_list_lock);
 
 	/* Find the device_opp */
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		r = PTR_ERR(dev_opp);
 		dev_warn(dev, "%s: Device OPP not found (%d)\n", __func__, r);
@@ -668,7 +668,7 @@ static int opp_set_availability(struct device *dev, unsigned long freq,
 
 	list_replace_rcu(&opp->node, &new_opp->node);
 	mutex_unlock(&dev_opp_list_lock);
-	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, kfree_opp_rcu);
+	call_srcu(&dev_opp->srcu_head.srcu, &opp->rcu_head, _kfree_opp_rcu);
 
 	/* Notify the change of the OPP availability */
 	if (availability_req)
@@ -703,7 +703,7 @@ unlock:
  */
 int dev_pm_opp_enable(struct device *dev, unsigned long freq)
 {
-	return opp_set_availability(dev, freq, true);
+	return _opp_set_availability(dev, freq, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_enable);
 
@@ -725,7 +725,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_enable);
  */
 int dev_pm_opp_disable(struct device *dev, unsigned long freq)
 {
-	return opp_set_availability(dev, freq, false);
+	return _opp_set_availability(dev, freq, false);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_disable);
 
@@ -735,7 +735,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_disable);
  */
 struct srcu_notifier_head *dev_pm_opp_get_notifier(struct device *dev)
 {
-	struct device_opp *dev_opp = find_device_opp(dev);
+	struct device_opp *dev_opp = _find_device_opp(dev);
 
 	if (IS_ERR(dev_opp))
 		return ERR_CAST(dev_opp); /* matching type */
@@ -778,7 +778,7 @@ int of_init_opp_table(struct device *dev)
 		unsigned long freq = be32_to_cpup(val++) * 1000;
 		unsigned long volt = be32_to_cpup(val++);
 
-		if (dev_pm_opp_add_dynamic(dev, freq, volt, false))
+		if (_opp_add_dynamic(dev, freq, volt, false))
 			dev_warn(dev, "%s: Failed to add OPP %ld\n",
 				 __func__, freq);
 		nr -= 2;
@@ -800,7 +800,7 @@ void of_free_opp_table(struct device *dev)
 	struct dev_pm_opp *opp, *tmp;
 
 	/* Check for existing list for 'dev' */
-	dev_opp = find_device_opp(dev);
+	dev_opp = _find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
 		int error = PTR_ERR(dev_opp);
 		if (error != -ENODEV)
@@ -817,7 +817,7 @@ void of_free_opp_table(struct device *dev)
 	/* Free static OPPs */
 	list_for_each_entry_safe(opp, tmp, &dev_opp->opp_list, node) {
 		if (!opp->dynamic)
-			__dev_pm_opp_remove(dev_opp, opp);
+			_opp_remove(dev_opp, opp);
 	}
 
 	mutex_unlock(&dev_opp_list_lock);
