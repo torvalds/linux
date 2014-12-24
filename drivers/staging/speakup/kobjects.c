@@ -566,7 +566,7 @@ ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
 				if (ch >= ' ' && ch < '~')
 					*cp1++ = ch;
 				else
-					cp1 += sprintf(cp1, "\\""x%02x", ch);
+					cp1 += sprintf(cp1, "\\x%02x", ch);
 			}
 			*cp1++ = '"';
 			*cp1++ = '\n';
