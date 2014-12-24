@@ -34,10 +34,14 @@ struct gb_protocol {
 	gb_connection_init_t	connection_init;
 	gb_connection_exit_t	connection_exit;
 	gb_request_recv_t	request_recv;
+	struct module		*owner;
 };
 
-int gb_protocol_register(struct gb_protocol *protocol);
+int __gb_protocol_register(struct gb_protocol *protocol, struct module *module);
 int gb_protocol_deregister(struct gb_protocol *protocol);
+
+#define gb_protocol_register(protocol) \
+	__gb_protocol_register(protocol, THIS_MODULE)
 
 struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor);
 void gb_protocol_put(struct gb_protocol *protocol);

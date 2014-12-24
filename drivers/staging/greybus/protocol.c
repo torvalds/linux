@@ -39,12 +39,14 @@ static struct gb_protocol *_gb_protocol_find(u8 id, u8 major, u8 minor)
 	return NULL;
 }
 
-int gb_protocol_register(struct gb_protocol *protocol)
+int __gb_protocol_register(struct gb_protocol *protocol, struct module *module)
 {
 	struct gb_protocol *existing;
 	u8 id = protocol->id;
 	u8 major = protocol->major;
 	u8 minor = protocol->minor;
+
+	protocol->owner = module;
 
 	/*
 	 * The protocols list is sorted first by protocol id (low to
@@ -92,7 +94,7 @@ int gb_protocol_register(struct gb_protocol *protocol)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_protocol_register);
+EXPORT_SYMBOL_GPL(__gb_protocol_register);
 
 /*
  * De-register a previously registered protocol.
@@ -135,9 +137,13 @@ struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)
 	spin_lock_irq(&gb_protocols_lock);
 	protocol = _gb_protocol_find(id, major, minor);
 	if (protocol) {
-		protocol_count = protocol->count;
-		if (protocol_count != U8_MAX)
-			protocol->count++;
+		if (!try_module_get(protocol->owner)) {
+			protocol = NULL;
+		} else {
+			protocol_count = protocol->count;
+			if (protocol_count != U8_MAX)
+				protocol->count++;
+		}
 	}
 	spin_unlock_irq(&gb_protocols_lock);
 
@@ -163,6 +169,7 @@ void gb_protocol_put(struct gb_protocol *protocol)
 		protocol_count = protocol->count;
 		if (protocol_count)
 			protocol->count--;
+		module_put(protocol->owner);
 	}
 	spin_unlock_irq(&gb_protocols_lock);
 	if (protocol)
