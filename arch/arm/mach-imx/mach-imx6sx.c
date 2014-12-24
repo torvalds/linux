@@ -12,11 +12,61 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
+#include <linux/fec.h>
+#include <linux/netdevice.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
 #include "cpuidle.h"
+
+static struct fec_platform_data fec_pdata[2];
+
+static void imx6sx_fec1_sleep_enable(int enabled)
+{
+	struct regmap *gpr;
+
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6sx-iomuxc-gpr");
+	if (!IS_ERR(gpr)) {
+		if (enabled)
+			regmap_update_bits(gpr, IOMUXC_GPR4,
+					   IMX6SX_GPR4_FEC_ENET1_STOP_REQ,
+					   IMX6SX_GPR4_FEC_ENET1_STOP_REQ);
+		else
+			regmap_update_bits(gpr, IOMUXC_GPR4,
+					   IMX6SX_GPR4_FEC_ENET1_STOP_REQ, 0);
+	} else
+		pr_err("failed to find fsl,imx6sx-iomux-gpr regmap\n");
+}
+
+static void imx6sx_fec2_sleep_enable(int enabled)
+{
+	struct regmap *gpr;
+
+	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6sx-iomuxc-gpr");
+	if (!IS_ERR(gpr)) {
+		if (enabled)
+			regmap_update_bits(gpr, IOMUXC_GPR4,
+					   IMX6SX_GPR4_FEC_ENET2_STOP_REQ,
+					   IMX6SX_GPR4_FEC_ENET2_STOP_REQ);
+		else
+			regmap_update_bits(gpr, IOMUXC_GPR4,
+					   IMX6SX_GPR4_FEC_ENET2_STOP_REQ, 0);
+	} else
+		pr_err("failed to find fsl,imx6sx-iomux-gpr regmap\n");
+}
+
+static void __init imx6sx_enet_plt_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_node_by_path("/soc/aips-bus@02100000/ethernet@02188000");
+	if (np && of_get_property(np, "fsl,magic-packet", NULL))
+		fec_pdata[0].sleep_mode_enable = imx6sx_fec1_sleep_enable;
+	np = of_find_node_by_path("/soc/aips-bus@02100000/ethernet@021b4000");
+	if (np && of_get_property(np, "fsl,magic-packet", NULL))
+		fec_pdata[1].sleep_mode_enable = imx6sx_fec2_sleep_enable;
+}
 
 static int ar8031_phy_fixup(struct phy_device *dev)
 {
