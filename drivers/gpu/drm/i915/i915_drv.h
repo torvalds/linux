@@ -678,6 +678,11 @@ struct i915_ctx_hang_stats {
 	/* Time when this context was last blamed for a GPU reset */
 	unsigned long guilty_ts;
 
+	/* If the contexts causes a second GPU hang within this time,
+	 * it is permanently banned from submitting any more work.
+	 */
+	unsigned long ban_period_seconds;
+
 	/* This context is banned to submit more work */
 	bool banned;
 };

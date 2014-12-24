@@ -2535,7 +2535,8 @@ static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
 	if (ctx->hang_stats.banned)
 		return true;
 
-	if (elapsed <= DRM_I915_CTX_BAN_PERIOD) {
+	if (ctx->hang_stats.ban_period_seconds &&
+	    elapsed <= ctx->hang_stats.ban_period_seconds) {
 		if (!i915_gem_context_is_default(ctx)) {
 			DRM_DEBUG("context hanging too fast, banning!\n");
 			return true;

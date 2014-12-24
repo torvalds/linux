@@ -222,6 +222,8 @@ __create_hw_context(struct drm_device *dev,
 	 * is no remap info, it will be a NOP. */
 	ctx->remap_slice = (1 << NUM_L3_SLICES(dev)) - 1;
 
+	ctx->hang_stats.ban_period_seconds = DRM_I915_CTX_BAN_PERIOD;
+
 	return ctx;
 
 err_out:
