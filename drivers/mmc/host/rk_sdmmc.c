@@ -3627,6 +3627,9 @@ static void dw_mci_init_dma(struct dw_mci *host)
 			__func__);
 		goto no_dma;
 	}
+	#ifdef CONFIG_ARM64
+	memset(host->sg_cpu, 0, PAGE_SIZE);
+	#endif
 
 	/* Determine which DMA interface to use */
 #if defined(CONFIG_MMC_DW_IDMAC)
