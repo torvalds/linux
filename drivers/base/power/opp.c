@@ -742,6 +742,7 @@ struct srcu_notifier_head *dev_pm_opp_get_notifier(struct device *dev)
 
 	return &dev_opp->srcu_head;
 }
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
 
 #ifdef CONFIG_OF
 /**
