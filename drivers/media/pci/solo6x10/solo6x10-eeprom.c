@@ -103,7 +103,7 @@ unsigned int solo_eeprom_ewen(struct solo_dev *solo_dev, int w_en)
 __be16 solo_eeprom_read(struct solo_dev *solo_dev, int loc)
 {
 	int read_cmd = loc | (EE_READ_CMD << ADDR_LEN);
-	unsigned short retval = 0;
+	u16 retval = 0;
 	int i;
 
 	solo_eeprom_cmd(solo_dev, read_cmd);
