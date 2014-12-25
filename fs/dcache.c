@@ -2187,37 +2187,6 @@ struct dentry *d_hash_and_lookup(struct dentry *dir, struct qstr *name)
 }
 EXPORT_SYMBOL(d_hash_and_lookup);
 
-/**
- * d_validate - verify dentry provided from insecure source (deprecated)
- * @dentry: The dentry alleged to be valid child of @dparent
- * @dparent: The parent dentry (known to be valid)
- *
- * An insecure source has sent us a dentry, here we verify it and dget() it.
- * This is used by ncpfs in its readdir implementation.
- * Zero is returned in the dentry is invalid.
- *
- * This function is slow for big directories, and deprecated, do not use it.
- */
-int d_validate(struct dentry *dentry, struct dentry *dparent)
-{
-	struct dentry *child;
-
-	spin_lock(&dparent->d_lock);
-	list_for_each_entry(child, &dparent->d_subdirs, d_child) {
-		if (dentry == child) {
-			spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-			__dget_dlock(dentry);
-			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dparent->d_lock);
-			return 1;
-		}
-	}
-	spin_unlock(&dparent->d_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(d_validate);
-
 /*
  * When a file is deleted, we have two options:
  * - turn this dentry into a negative dentry
