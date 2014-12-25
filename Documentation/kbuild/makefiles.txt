@@ -531,8 +531,9 @@ more details, with real examples.
 	than or equal to gcc 3.0.
 
     cc-ifversion
-	cc-ifversion tests the version of $(CC) and equals last argument if
-	version expression is true.
+	cc-ifversion tests the version of $(CC) and equals the fourth parameter
+	if version expression is true, or the fifth (if given) if the version
+	expression is false.
 
 	Example:
 		#fs/reiserfs/Makefile
