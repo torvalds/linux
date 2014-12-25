@@ -3404,6 +3404,7 @@ static struct fb_ops fb_ops = {
 	.fb_set_par = rk_fb_set_par,
 	.fb_blank = rk_fb_blank,
 	.fb_ioctl = rk_fb_ioctl,
+	.fb_compat_ioctl = rk_fb_ioctl,
 	.fb_pan_display = rk_fb_pan_display,
 	.fb_read = rk_fb_read,
 	.fb_write = rk_fb_write,
