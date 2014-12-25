@@ -170,6 +170,7 @@
 #define PrivUD      ((u64)1 << 51)  /* #UD instead of #GP on CPL > 0 */
 #define NearBranch  ((u64)1 << 52)  /* Near branches */
 #define No16	    ((u64)1 << 53)  /* No 16 bit operand */
+#define IncSP       ((u64)1 << 54)  /* SP is incremented before ModRM calc */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -1227,6 +1228,10 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 			else {
 				modrm_ea += reg_read(ctxt, base_reg);
 				adjust_modrm_seg(ctxt, base_reg);
+				/* Increment ESP on POP [ESP] */
+				if ((ctxt->d & IncSP) &&
+				    base_reg == VCPU_REGS_RSP)
+					modrm_ea += ctxt->op_bytes;
 			}
 			if (index_reg != 4)
 				modrm_ea += reg_read(ctxt, index_reg) << scale;
@@ -3758,7 +3763,7 @@ static const struct opcode group1[] = {
 };
 
 static const struct opcode group1A[] = {
-	I(DstMem | SrcNone | Mov | Stack, em_pop), N, N, N, N, N, N, N,
+	I(DstMem | SrcNone | Mov | Stack | IncSP, em_pop), N, N, N, N, N, N, N,
 };
 
 static const struct opcode group2[] = {
