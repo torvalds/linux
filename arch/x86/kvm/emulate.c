@@ -1444,28 +1444,8 @@ static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 		ops->get_gdt(ctxt, dt);
 }
 
-/* allowed just for 8 bytes segments */
-static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
-				   u16 selector, struct desc_struct *desc,
-				   ulong *desc_addr_p)
-{
-	struct desc_ptr dt;
-	u16 index = selector >> 3;
-	ulong addr;
-
-	get_descriptor_table_ptr(ctxt, selector, &dt);
-
-	if (dt.size < index * 8 + 7)
-		return emulate_gp(ctxt, selector & 0xfffc);
-
-	*desc_addr_p = addr = dt.address + index * 8;
-	return ctxt->ops->read_std(ctxt, addr, desc, sizeof *desc,
-				   &ctxt->exception);
-}
-
-/* allowed just for 8 bytes segments */
-static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
-				    u16 selector, struct desc_struct *desc)
+static int get_descriptor_ptr(struct x86_emulate_ctxt *ctxt,
+			      u16 selector, ulong *desc_addr_p)
 {
 	struct desc_ptr dt;
 	u16 index = selector >> 3;
@@ -1477,6 +1457,47 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		return emulate_gp(ctxt, selector & 0xfffc);
 
 	addr = dt.address + index * 8;
+
+#ifdef CONFIG_X86_64
+	if (addr >> 32 != 0) {
+		u64 efer = 0;
+
+		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
+		if (!(efer & EFER_LMA))
+			addr &= (u32)-1;
+	}
+#endif
+
+	*desc_addr_p = addr;
+	return X86EMUL_CONTINUE;
+}
+
+/* allowed just for 8 bytes segments */
+static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				   u16 selector, struct desc_struct *desc,
+				   ulong *desc_addr_p)
+{
+	int rc;
+
+	rc = get_descriptor_ptr(ctxt, selector, desc_addr_p);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	return ctxt->ops->read_std(ctxt, *desc_addr_p, desc, sizeof(*desc),
+				   &ctxt->exception);
+}
+
+/* allowed just for 8 bytes segments */
+static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				    u16 selector, struct desc_struct *desc)
+{
+	int rc;
+	ulong addr;
+
+	rc = get_descriptor_ptr(ctxt, selector, &addr);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
 	return ctxt->ops->write_std(ctxt, addr, desc, sizeof *desc,
 				    &ctxt->exception);
 }
