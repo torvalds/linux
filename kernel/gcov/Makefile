@@ -13,10 +13,10 @@ else
   cc-ver := $(cc-version)
 endif
 
-obj-$(CONFIG_GCOV_KERNEL) := base.o fs.o
+obj-y := base.o fs.o
 
 ifeq ($(call if-lt, $(cc-ver), 0407),1)
-  obj-$(CONFIG_GCOV_KERNEL) += gcc_3_4.o
+  obj-y += gcc_3_4.o
 else
-  obj-$(CONFIG_GCOV_KERNEL) += gcc_4_7.o
+  obj-y += gcc_4_7.o
 endif
