@@ -3027,7 +3027,7 @@ static int em_call_far(struct x86_emulate_ctxt *ctxt)
 	rc = __load_segment_descriptor(ctxt, sel, VCPU_SREG_CS, cpl,
 				       X86_TRANSFER_CALL_JMP, &new_desc);
 	if (rc != X86EMUL_CONTINUE)
-		return X86EMUL_CONTINUE;
+		return rc;
 
 	rc = assign_eip_far(ctxt, ctxt->src.val, &new_desc);
 	if (rc != X86EMUL_CONTINUE)
