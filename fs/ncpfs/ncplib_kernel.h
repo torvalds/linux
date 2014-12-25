@@ -184,36 +184,6 @@ ncp_new_dentry(struct dentry* dentry)
 	dentry->d_time = jiffies;
 }
 
-static inline void
-ncp_renew_dentries(struct dentry *parent)
-{
-	struct ncp_server *server = NCP_SERVER(parent->d_inode);
-	struct dentry *dentry;
-
-	spin_lock(&parent->d_lock);
-	list_for_each_entry(dentry, &parent->d_subdirs, d_child) {
-		if (dentry->d_fsdata == NULL)
-			ncp_age_dentry(server, dentry);
-		else
-			ncp_new_dentry(dentry);
-	}
-	spin_unlock(&parent->d_lock);
-}
-
-static inline void
-ncp_invalidate_dircache_entries(struct dentry *parent)
-{
-	struct ncp_server *server = NCP_SERVER(parent->d_inode);
-	struct dentry *dentry;
-
-	spin_lock(&parent->d_lock);
-	list_for_each_entry(dentry, &parent->d_subdirs, d_child) {
-		dentry->d_fsdata = NULL;
-		ncp_age_dentry(server, dentry);
-	}
-	spin_unlock(&parent->d_lock);
-}
-
 struct ncp_cache_head {
 	time_t		mtime;
 	unsigned long	time;	/* cache age */
