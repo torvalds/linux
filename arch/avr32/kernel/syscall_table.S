@@ -297,4 +297,41 @@ sys_call_table:
 	.long	sys_eventfd
 	.long	sys_recvmmsg
 	.long	sys_setns
+	.long	sys_pread64
+	.long	sys_pwrite64		/* 285 */
+	.long	sys_timerfd_create
+	.long	__sys_fallocate
+	.long	sys_timerfd_settime
+	.long	sys_timerfd_gettime
+	.long	sys_signalfd4		/* 290 */
+	.long	sys_eventfd2
+	.long	sys_epoll_create1
+	.long	sys_dup3
+	.long	sys_pipe2
+	.long	sys_inotify_init1	/* 295 */
+	.long	sys_preadv
+	.long	sys_pwritev
+	.long	sys_rt_tgsigqueueinfo
+	.long	sys_perf_event_open
+	.long	sys_recvmmsg		/* 300 */
+	.long	sys_fanotify_init
+	.long	__sys_fanotify_mark
+	.long	sys_prlimit64
+	.long	sys_name_to_handle_at
+	.long	sys_open_by_handle_at	/* 305 */
+	.long	sys_clock_adjtime
+	.long	sys_syncfs
+	.long	sys_sendmmsg
+	.long	__sys_process_vm_readv
+	.long	__sys_process_vm_writev	/* 310 */
+	.long	sys_kcmp
+	.long	sys_finit_module
+	.long	sys_sched_setattr
+	.long	sys_sched_getattr
+	.long	sys_renameat2		/* 315 */
+	.long	sys_seccomp
+	.long	sys_getrandom
+	.long	sys_memfd_create
+	.long	sys_bpf
+	.long	sys_execveat		/* 320 */
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */
