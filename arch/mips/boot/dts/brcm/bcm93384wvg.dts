@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "bcm3384.dtsi"
+/include/ "bcm3384_zephyr.dtsi"
 
 / {
 	compatible = "brcm,bcm93384wvg", "brcm,bcm3384";
@@ -9,13 +9,6 @@
 	chosen {
 		bootargs = "console=ttyS0,115200";
 		stdout-path = &uart0;
-	};
-
-	memory@0 {
-		device_type = "memory";
-		reg = <0x0 0x04000000>;
-		dma-xor-mask = <0x08000000>;
-		dma-xor-limit = <0x0fffffff>;
 	};
 };
 
