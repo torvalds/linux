@@ -31,7 +31,9 @@
 #include <linux/of_fdt.h>
 #endif
 
-static struct ion_device *idev;
+struct ion_device *rockchip_ion_dev;
+EXPORT_SYMBOL(rockchip_ion_dev);
+
 static int num_heaps;
 static struct ion_heap **heaps;
 
@@ -102,7 +104,7 @@ static int rockchip_ion_populate_heap(struct ion_platform_heap *heap)
 
 struct ion_client *rockchip_ion_client_create(const char *name)
 {
-	return ion_client_create(idev, name);
+	return ion_client_create(rockchip_ion_dev, name);
 }
 EXPORT_SYMBOL(rockchip_ion_client_create);
 
@@ -190,6 +192,7 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 static int rockchip_ion_probe(struct platform_device *pdev)
 {
 	struct ion_platform_data *pdata;
+	struct ion_device *idev;
 	int err;
 	int i;
 
@@ -216,6 +219,7 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 		kfree(heaps);
 		return PTR_ERR(idev);
 	}
+	rockchip_ion_dev = idev;
 	/* create the heaps as specified in the board file */
 	for (i = 0; i < num_heaps; i++) {
 		struct ion_platform_heap *heap_data = &pdata->heaps[i];
