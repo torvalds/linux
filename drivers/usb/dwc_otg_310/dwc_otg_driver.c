@@ -1530,10 +1530,51 @@ clk_disable:
 	return retval;
 }
 
+#ifdef CONFIG_PM
+static int dwc_otg_pm_suspend(struct device *dev)
+{
+	dwc_otg_device_t *dwc_otg_device;
+	struct dwc_otg_platform_data *pdata_otg;
+
+	dev_dbg(dev, "dwc_otg PM suspend\n");
+
+	dwc_otg_device = dev_get_platdata(dev);
+	pdata_otg = dwc_otg_device->pldata;
+	pdata_otg->phy_suspend(pdata_otg, USB_PHY_SUSPEND);
+
+	return 0;
+}
+
+static int dwc_otg_pm_resume(struct device *dev)
+{
+	dwc_otg_device_t *dwc_otg_device;
+	struct dwc_otg_platform_data *pdata_otg;
+
+	dev_dbg(dev, "dwc_otg PM resume\n");
+
+	dwc_otg_device = dev_get_platdata(dev);
+	pdata_otg = dwc_otg_device->pldata;
+	pdata_otg->phy_suspend(pdata_otg, USB_PHY_ENABLED);
+
+	return 0;
+}
+#else
+#define dwc_otg_pm_suspend     NULL
+#define dwc_otg_pm_resume      NULL
+#endif
+
+static const struct dev_pm_ops dwc_otg_dev_pm_ops = {
+	.suspend = dwc_otg_pm_suspend,
+	.resume = dwc_otg_pm_resume,
+};
+
 static struct platform_driver dwc_otg_driver = {
 	.driver = {
 		   .name = (char *)dwc_otg20_driver_name,
 		   .of_match_table = of_match_ptr(usb20_otg_of_match),
+#ifdef CONFIG_PM
+		   .pm = &dwc_otg_dev_pm_ops,
+#endif
 		   },
 	.probe = otg20_driver_probe,
 	.remove = otg20_driver_remove,
