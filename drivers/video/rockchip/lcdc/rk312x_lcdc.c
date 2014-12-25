@@ -756,24 +756,6 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 static void rk312x_lcdc_deinit(struct lcdc_device *lcdc_dev)
 {
-	u32 mask, val;
-
-	spin_lock(&lcdc_dev->reg_lock);
-	if (likely(lcdc_dev->clk_on)) {
-		mask = m_FS_INT_CLEAR | m_FS_INT_EN |
-			m_LF_INT_CLEAR | m_LF_INT_EN |
-			m_BUS_ERR_INT_CLEAR | m_BUS_ERR_INT_EN;
-		val = v_FS_INT_CLEAR(0) | v_FS_INT_EN(0) |
-			v_LF_INT_CLEAR(0) | v_LF_INT_EN(0) |
-			v_BUS_ERR_INT_CLEAR(0) | v_BUS_ERR_INT_EN(0);
-		lcdc_msk_reg(lcdc_dev, INT_STATUS, mask, val);
-		lcdc_set_bit(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY);
-		lcdc_cfg_done(lcdc_dev);
-		spin_unlock(&lcdc_dev->reg_lock);
-	} else {
-		spin_unlock(&lcdc_dev->reg_lock);
-	}
-	mdelay(1);
 }
 
 static u32 calc_sclk_freq(struct rk_screen *src_screen,
@@ -2609,9 +2591,8 @@ static void rk312x_lcdc_shutdown(struct platform_device *pdev)
 {
 	struct lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
 
+	rk312x_lcdc_early_suspend(&lcdc_dev->driver);
 	rk312x_lcdc_deinit(lcdc_dev);
-	rk312x_lcdc_clk_disable(lcdc_dev);
-	rk_disp_pwr_disable(&lcdc_dev->driver);
 
 	if (lcdc_dev->backlight)
 		put_device(&lcdc_dev->backlight->dev);
