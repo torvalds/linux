@@ -1618,10 +1618,13 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	if (seg_desc.s) {
 		/* mark segment as accessed */
-		seg_desc.type |= 1;
-		ret = write_segment_descriptor(ctxt, selector, &seg_desc);
-		if (ret != X86EMUL_CONTINUE)
-			return ret;
+		if (!(seg_desc.type & 1)) {
+			seg_desc.type |= 1;
+			ret = write_segment_descriptor(ctxt, selector,
+						       &seg_desc);
+			if (ret != X86EMUL_CONTINUE)
+				return ret;
+		}
 	} else if (ctxt->mode == X86EMUL_MODE_PROT64) {
 		ret = ctxt->ops->read_std(ctxt, desc_addr+8, &base3,
 				sizeof(base3), &ctxt->exception);
