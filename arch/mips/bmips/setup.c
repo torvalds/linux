@@ -33,7 +33,7 @@ void __init prom_free_prom_memory(void)
 
 const char *get_system_type(void)
 {
-	return "BCM3384";
+	return "Generic BMIPS kernel";
 }
 
 void __init plat_time_init(void)

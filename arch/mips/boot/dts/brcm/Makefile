@@ -1,4 +1,4 @@
-dtb-$(CONFIG_BCM3384)		+= bcm93384wvg.dtb
+dtb-$(CONFIG_BMIPS_GENERIC)	+= bcm93384wvg.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
 

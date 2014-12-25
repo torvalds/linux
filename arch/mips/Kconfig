@@ -134,8 +134,8 @@ config ATH79
 	help
 	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
 
-config BCM3384
-	bool "Broadcom BCM3384 based boards"
+config BMIPS_GENERIC
+	bool "Broadcom Generic BMIPS kernel"
 	select BOOT_RAW
 	select NO_EXCEPT_FILL
 	select USE_OF
@@ -155,10 +155,10 @@ config BCM3384
 	select USB_OHCI_BIG_ENDIAN_DESC
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	help
-	  Support for BCM3384 based boards.  BCM3384/BCM33843 is a cable modem
-	  chipset with a Linux application processor that is often used to
-	  provide Samba services, a CUPS print server, and/or advanced routing
-	  features.
+	  Build a generic DT-based kernel image that boots on select
+	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
+	  box chips.  Note that CONFIG_CPU_BIG_ENDIAN/CONFIG_CPU_LITTLE_ENDIAN
+	  must be set appropriately for your board.
 
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
