@@ -1921,7 +1921,7 @@ static struct tipc_node *tipc_link_find_owner(const char *link_name,
 {
 	struct tipc_link *l_ptr;
 	struct tipc_node *n_ptr;
-	struct tipc_node *found_node = 0;
+	struct tipc_node *found_node = NULL;
 	int i;
 
 	*bearer_id = 0;
