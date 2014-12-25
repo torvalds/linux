@@ -1545,25 +1545,33 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
         struct dw_mci *host = slot->host;
         int gpio_cd = mmc_gpio_get_cd(mmc);
         int gpio_val;
+	int irq;
 
-        if ((soc_is_rk3126() || soc_is_rk3126b()) &&
+        if ((soc_is_rk3126() || soc_is_rk3126b() || soc_is_rk3036()) &&
                 (mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
-                gpio_cd = slot->cd_gpio;
-                if (gpio_is_valid(gpio_cd)) {
+		gpio_cd = slot->cd_gpio;
+		irq = gpio_to_irq(gpio_cd);
+		if (gpio_is_valid(gpio_cd)) {
                         gpio_val = gpio_get_value(gpio_cd);
                         msleep(10);
                         if (gpio_val == gpio_get_value(gpio_cd)) {
                                 gpio_cd = gpio_get_value(gpio_cd) == 0 ? 1 : 0;
                                 if (gpio_cd == 0) {
-                                        /* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
+                                        irq_set_irq_type(irq, IRQF_TRIGGER_LOW | IRQF_ONESHOT);
+					/* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
                                         grf_writel((0x1 << 24) | (1 << 8), RK312X_GRF_SOC_CON0);
                                         dw_mci_ctrl_all_reset(host);
                                 } else {
+					irq_set_irq_type(irq, IRQF_TRIGGER_HIGH | IRQF_ONESHOT);
                                         /* Really card detected: SHOULD disable force_jtag */
                                         grf_writel((0x1 << 24) | (0 << 8), RK312X_GRF_SOC_CON0);
                                 }
                         } else {
                                 /* Jitter */
+				gpio_val = gpio_get_value(gpio_cd);
+				(gpio_val == 0) ? 
+					irq_set_irq_type(irq, IRQF_TRIGGER_HIGH  | IRQF_ONESHOT) :
+					irq_set_irq_type(irq, IRQF_TRIGGER_LOW  | IRQF_ONESHOT);
                                 return slot->last_detect_state;
                         }
                 } else {
@@ -3209,6 +3217,11 @@ static irqreturn_t dw_mci_gpio_cd_irqt(int irq, void *dev_id)
         struct mmc_host *mmc = dev_id;
         struct dw_mci_slot *slot = mmc_priv(mmc);
         struct dw_mci *host = slot->host;
+	int gpio_cd = slot->cd_gpio;
+
+	(gpio_get_value(gpio_cd)  == 0) ? 
+		irq_set_irq_type(irq, IRQF_TRIGGER_HIGH  | IRQF_ONESHOT) : 
+		irq_set_irq_type(irq, IRQF_TRIGGER_LOW | IRQF_ONESHOT);
 
         /* wakeup system whether gpio debounce or not */
         rk_send_wakeup_key();
@@ -3241,7 +3254,7 @@ static void dw_mci_of_set_cd_gpio_irq(struct device *dev, u32 gpio,
 	if (irq >= 0) {
 		ret = devm_request_threaded_irq(&mmc->class_dev, irq,
 						NULL, dw_mci_gpio_cd_irqt,
-						IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"dw_mci_cd", mmc);
 		if (ret < 0) {
 			irq = ret;
@@ -3439,7 +3452,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
         }
 
         /* We assume only low-level chip use gpio_cd */
-        if ((soc_is_rk3126() || soc_is_rk3126b()) &&
+        if ((soc_is_rk3126() || soc_is_rk3126b() soc_is_rk3036()) &&
                 (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
                 slot->cd_gpio = of_get_named_gpio(host->dev->of_node, "cd-gpios", 0);
                 if (gpio_is_valid(slot->cd_gpio)) {
@@ -4192,8 +4205,8 @@ int dw_mci_suspend(struct dw_mci *host)
                 mci_writel(host, INTMASK, 0x00);
                 mci_writel(host, CTRL, 0x00);
 
-                /* Soc rk3126 already in gpio_cd mode */
-                if (!soc_is_rk3126() && !soc_is_rk3126b()) {
+                /* Soc rk3126/3036 already in gpio_cd mode */
+                if (!soc_is_rk3126() && !soc_is_rk3126b() && !soc_is_rk3036()) {
                         dw_mci_of_get_cd_gpio(host->dev, 0, host->mmc);
                         enable_irq_wake(host->mmc->slot.cd_irq);
                 }
@@ -4222,8 +4235,8 @@ int dw_mci_resume(struct dw_mci *host)
 
     	/*only for sdmmc controller*/
 	if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
-                /* Soc rk3126 already in gpio_cd mode */
-                if (!soc_is_rk3126() && !soc_is_rk3126b()) {
+                /* Soc rk3126/3036 already in gpio_cd mode */
+                if (!soc_is_rk3126() && !soc_is_rk3126b() && !soc_is_rk3036()) {
                         disable_irq_wake(host->mmc->slot.cd_irq);
                         mmc_gpio_free_cd(host->mmc);
                 }
