@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kconfig.h>
+#include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -120,10 +121,15 @@ static int bcm7120_l2_intc_init_one(struct device_node *dn,
 	/* For multiple parent IRQs with multiple words, this looks like:
 	 * <irq0_w0 irq0_w1 irq1_w0 irq1_w1 ...>
 	 */
-	for (idx = 0; idx < data->n_words; idx++)
-		data->irq_map_mask[idx] |=
-			be32_to_cpup(data->map_mask_prop +
-				     irq * data->n_words + idx);
+	for (idx = 0; idx < data->n_words; idx++) {
+		if (data->map_mask_prop) {
+			data->irq_map_mask[idx] |=
+				be32_to_cpup(data->map_mask_prop +
+					     irq * data->n_words + idx);
+		} else {
+			data->irq_map_mask[idx] = 0xffffffff;
+		}
+	}
 
 	irq_set_handler_data(parent_irq, data);
 	irq_set_chained_handler(parent_irq, bcm7120_l2_intc_irq_handle);
@@ -162,6 +168,37 @@ static int __init bcm7120_l2_intc_iomap_7120(struct device_node *dn,
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+static int __init bcm7120_l2_intc_iomap_3380(struct device_node *dn,
+					     struct bcm7120_l2_intc_data *data)
+{
+	unsigned int gc_idx;
+
+	for (gc_idx = 0; gc_idx < MAX_WORDS; gc_idx++) {
+		unsigned int map_idx = gc_idx * 2;
+		void __iomem *en = of_iomap(dn, map_idx + 0);
+		void __iomem *stat = of_iomap(dn, map_idx + 1);
+		void __iomem *base = min(en, stat);
+
+		data->map_base[map_idx + 0] = en;
+		data->map_base[map_idx + 1] = stat;
+
+		if (!base)
+			break;
+
+		data->pair_base[gc_idx] = base;
+		data->en_offset[gc_idx] = en - base;
+		data->stat_offset[gc_idx] = stat - base;
+	}
+
+	if (!gc_idx) {
+		pr_err("unable to map registers\n");
+		return -EINVAL;
+	}
+
+	data->n_words = gc_idx;
 	return 0;
 }
 
@@ -279,5 +316,15 @@ int __init bcm7120_l2_intc_probe_7120(struct device_node *dn,
 				     "BCM7120 L2");
 }
 
+int __init bcm7120_l2_intc_probe_3380(struct device_node *dn,
+				      struct device_node *parent)
+{
+	return bcm7120_l2_intc_probe(dn, parent, bcm7120_l2_intc_iomap_3380,
+				     "BCM3380 L2");
+}
+
 IRQCHIP_DECLARE(bcm7120_l2_intc, "brcm,bcm7120-l2-intc",
 		bcm7120_l2_intc_probe_7120);
+
+IRQCHIP_DECLARE(bcm3380_l2_intc, "brcm,bcm3380-l2-intc",
+		bcm7120_l2_intc_probe_3380);
