@@ -1881,6 +1881,10 @@ static inline int lcdc_grf_writel(struct regmap *base,
 #define CUBIC_CATROM   2
 #define CUBIC_MITCHELL 3
 
+#define FBDC_FMT_RGB565		0x5
+#define FBDC_FMT_U8U8U8U8	0xc /*ARGB888*/
+#define FBDC_FMT_U8U8U8		0x3a /*RGBP888*/
+
 #define CUBIC_MODE_SELETION      CUBIC_PRECISE
 
 /*************************************************************/

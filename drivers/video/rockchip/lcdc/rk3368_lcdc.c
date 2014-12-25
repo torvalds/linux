@@ -322,7 +322,7 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
 
 	spin_lock(&lcdc_dev->reg_lock);
-	for (reg = 0; reg < FRC_LOWER11_1; reg += 4) {
+	for (reg = 0; reg < SCAN_LINE_NUM; reg += 4) {
 		val = lcdc_readl_backup(lcdc_dev, reg);
 		switch (reg) {
 		case WIN0_ACT_INFO:
@@ -896,6 +896,7 @@ static int rk3368_init_fbdc_config(struct rk_lcdc_driver *dev_drv, int win_id)
 		break;
 	case VOP_FORMAT_RGB565:
 		mb_w_size = 32;
+		fbdc_dsp_width_ratio = 1;
 		break;
 	default:
 		dev_err(lcdc_dev->dev,
