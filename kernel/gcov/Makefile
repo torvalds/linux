@@ -21,7 +21,7 @@ else
 # is not available. We can probably move if-lt to Kbuild.include, so it's also
 # not defined during clean or to include Kbuild.include in
 # scripts/Makefile.clean. But the following workaround seems least invasive.
-  cc-ver := $(if $(call cc-version),$(call cc-version),0)
+  cc-ver := $(if $(cc-version),$(cc-version),0)
 endif
 
 obj-$(CONFIG_GCOV_KERNEL) := base.o fs.o
