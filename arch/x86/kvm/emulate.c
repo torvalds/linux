@@ -4909,8 +4909,12 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		/* optimisation - avoid slow emulated read if Mov */
 		rc = segmented_read(ctxt, ctxt->dst.addr.mem,
 				   &ctxt->dst.val, ctxt->dst.bytes);
-		if (rc != X86EMUL_CONTINUE)
+		if (rc != X86EMUL_CONTINUE) {
+			if (rc == X86EMUL_PROPAGATE_FAULT &&
+			    ctxt->exception.vector == PF_VECTOR)
+				ctxt->exception.error_code |= PFERR_WRITE_MASK;
 			goto done;
+		}
 	}
 	ctxt->dst.orig_val = ctxt->dst.val;
 
