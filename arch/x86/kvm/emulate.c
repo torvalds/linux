@@ -86,6 +86,7 @@
 #define DstAcc      (OpAcc << DstShift)
 #define DstDI       (OpDI << DstShift)
 #define DstMem64    (OpMem64 << DstShift)
+#define DstMem16    (OpMem16 << DstShift)
 #define DstImmUByte (OpImmUByte << DstShift)
 #define DstDX       (OpDX << DstShift)
 #define DstAccLo    (OpAccLo << DstShift)
@@ -1057,8 +1058,6 @@ static int em_fnstcw(struct x86_emulate_ctxt *ctxt)
 	asm volatile("fnstcw %0": "+m"(fcw));
 	ctxt->ops->put_fpu(ctxt);
 
-	/* force 2 byte destination */
-	ctxt->dst.bytes = 2;
 	ctxt->dst.val = fcw;
 
 	return X86EMUL_CONTINUE;
@@ -1075,8 +1074,6 @@ static int em_fnstsw(struct x86_emulate_ctxt *ctxt)
 	asm volatile("fnstsw %0": "+m"(fsw));
 	ctxt->ops->put_fpu(ctxt);
 
-	/* force 2 byte destination */
-	ctxt->dst.bytes = 2;
 	ctxt->dst.val = fsw;
 
 	return X86EMUL_CONTINUE;
@@ -3863,7 +3860,7 @@ static const struct gprefix pfx_0f_e7 = {
 };
 
 static const struct escape escape_d9 = { {
-	N, N, N, N, N, N, N, I(DstMem, em_fnstcw),
+	N, N, N, N, N, N, N, I(DstMem16 | Mov, em_fnstcw),
 }, {
 	/* 0xC0 - 0xC7 */
 	N, N, N, N, N, N, N, N,
@@ -3905,7 +3902,7 @@ static const struct escape escape_db = { {
 } };
 
 static const struct escape escape_dd = { {
-	N, N, N, N, N, N, N, I(DstMem, em_fnstsw),
+	N, N, N, N, N, N, N, I(DstMem16 | Mov, em_fnstsw),
 }, {
 	/* 0xC0 - 0xC7 */
 	N, N, N, N, N, N, N, N,
