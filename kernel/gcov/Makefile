@@ -10,18 +10,7 @@ ifeq ($(CONFIG_GCOV_FORMAT_3_4),y)
 else ifeq ($(CONFIG_GCOV_FORMAT_4_7),y)
   cc-ver := 0407
 else
-# Use cc-version if available, otherwise set 0
-#
-# scripts/Kbuild.include, which contains cc-version function, is not included
-# during make clean "make -f scripts/Makefile.clean obj=kernel/gcov"
-# Meaning cc-ver is empty causing if-lt test to fail with
-# "/bin/sh: line 0: [: -lt: unary operator expected" error mesage.
-# This has no affect on the clean phase, but the error message could be
-# confusing/annoying. So this dummy workaround sets cc-ver to zero if cc-version
-# is not available. We can probably move if-lt to Kbuild.include, so it's also
-# not defined during clean or to include Kbuild.include in
-# scripts/Makefile.clean. But the following workaround seems least invasive.
-  cc-ver := $(if $(cc-version),$(cc-version),0)
+  cc-ver := $(cc-version)
 endif
 
 obj-$(CONFIG_GCOV_KERNEL) := base.o fs.o
