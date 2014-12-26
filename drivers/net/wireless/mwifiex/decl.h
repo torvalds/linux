@@ -32,9 +32,12 @@
 
 #define MWIFIEX_MAX_BSS_NUM         (3)
 
-#define MWIFIEX_MIN_DATA_HEADER_LEN 36	/* sizeof(mwifiex_txpd)
-					 *   + 4 byte alignment
-					 */
+#define MWIFIEX_DMA_ALIGN_SZ	    64
+#define MAX_TXPD_SZ		    32
+#define INTF_HDR_ALIGN		     4
+
+#define MWIFIEX_MIN_DATA_HEADER_LEN (MWIFIEX_DMA_ALIGN_SZ + INTF_HDR_ALIGN + \
+				     MAX_TXPD_SZ)
 #define MWIFIEX_MGMT_FRAME_HEADER_SIZE	8	/* sizeof(pkt_type)
 						 *   + sizeof(tx_control)
 						 */
