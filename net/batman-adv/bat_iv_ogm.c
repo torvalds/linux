@@ -392,8 +392,8 @@ static uint8_t batadv_hop_penalty(uint8_t tq,
 }
 
 /* is there another aggregated packet here? */
-static int batadv_iv_ogm_aggr_packet(int buff_pos, int packet_len,
-				     __be16 tvlv_len)
+static bool batadv_iv_ogm_aggr_packet(int buff_pos, int packet_len,
+				      __be16 tvlv_len)
 {
 	int next_buff_pos = 0;
 
