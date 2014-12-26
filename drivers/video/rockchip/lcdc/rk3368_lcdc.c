@@ -619,6 +619,7 @@ static int rk3368_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	for (i = 0; i < win->area_num; i++) {
 		ppixel_alpha |= ((win->area[i].format == ARGB888) ||
+				 (win->area[i].format == FBDC_ARGB_888) ||
 				 (win->area[i].format == ABGR888)) ? 1 : 0;
 	}
 	global_alpha = (win->g_alpha_val == 0) ? 0 : 1;
@@ -991,7 +992,6 @@ static int rk3368_init_fbdc_config(struct rk_lcdc_driver *dev_drv, int win_id)
 		    (fbdc_mb_yst * fbdc_mb_vir_width) + fbdc_mb_xst;
 	}
 	/*fbdc fmt maybe need to change*/
-	win->area[0].fbdc_fmt_cfg = win->area[0].fbdc_data_format;
 	win->area[0].fbdc_dsp_width_ratio = fbdc_dsp_width_ratio;
 	win->area[0].fbdc_mb_vir_width = fbdc_mb_vir_width;
 	win->area[0].fbdc_mb_vir_height = fbdc_mb_vir_height;
@@ -1052,8 +1052,13 @@ static int rk3368_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	if (win->state == 1) {
 		rk3368_lcdc_csc_mode(lcdc_dev, win);
-		if (win->area[0].fbdc_en)
+		if (win->area[0].fbdc_en) {
 			rk3368_fbdc_reg_update(&lcdc_dev->driver, win_id);
+		} else {
+			mask = m_IFBDC_CTRL_FBDC_EN;
+			val = v_IFBDC_CTRL_FBDC_EN(0);
+			lcdc_msk_reg(lcdc_dev, IFBDC_CTRL, mask, val);
+		}
 		mask = m_WIN0_EN | m_WIN0_DATA_FMT | m_WIN0_FMT_10 |
 		    m_WIN0_LB_MODE | m_WIN0_RB_SWAP | m_WIN0_X_MIRROR |
 		    m_WIN0_Y_MIRROR | m_WIN0_CSC_MODE;
@@ -1145,8 +1150,13 @@ static int rk3368_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	if (win->state == 1) {
 		rk3368_lcdc_csc_mode(lcdc_dev, win);
-		if (win->area[0].fbdc_en)
+		if (win->area[0].fbdc_en) {
 			rk3368_fbdc_reg_update(&lcdc_dev->driver, win_id);
+		} else {
+			mask = m_IFBDC_CTRL_FBDC_EN;
+			val = v_IFBDC_CTRL_FBDC_EN(0);
+			lcdc_msk_reg(lcdc_dev, IFBDC_CTRL, mask, val);
+		}
 
 		mask = m_WIN2_EN | m_WIN2_CSC_MODE;
 		val = v_WIN2_EN(1) | v_WIN1_CSC_MODE(win->csc_mode);
@@ -2591,6 +2601,24 @@ static int win_0_1_set_par(struct lcdc_device *lcdc_dev,
 	if (likely(lcdc_dev->clk_on)) {
 		rk3368_lcdc_cal_scl_fac(win);	/*fac,lb,gt2,gt4 */
 		switch (win->area[0].format) {
+		case FBDC_RGB_565:
+			fmt_cfg = 2;
+			swap_rb = 0;
+			win->fmt_10 = 0;
+			win->area[0].fbdc_fmt_cfg = 0x05;
+			break;
+		case FBDC_ARGB_888:
+			fmt_cfg = 0;
+			swap_rb = 0;
+			win->fmt_10 = 0;
+			win->area[0].fbdc_fmt_cfg = 0x0c;
+			break;
+		case FBDC_RGBX_888:
+			fmt_cfg = 0;
+			swap_rb = 0;
+			win->fmt_10 = 0;
+			win->area[0].fbdc_fmt_cfg = 0x3a;
+			break;
 		case ARGB888:
 			fmt_cfg = 0;
 			swap_rb = 0;
@@ -2685,6 +2713,24 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 		DBG(2, "lcdc[%d]:win[%d]>>\n>\n", lcdc_dev->id, win->id);
 		for (i = 0; i < win->area_num; i++) {
 			switch (win->area[i].format) {
+			case FBDC_RGB_565:
+				fmt_cfg = 2;
+				swap_rb = 0;
+				win->fmt_10 = 0;
+				win->area[0].fbdc_fmt_cfg = 0x05;
+				break;
+			case FBDC_ARGB_888:
+				fmt_cfg = 0;
+				swap_rb = 0;
+				win->fmt_10 = 0;
+				win->area[0].fbdc_fmt_cfg = 0x0c;
+				break;
+			case FBDC_RGBX_888:
+				fmt_cfg = 0;
+				swap_rb = 0;
+				win->fmt_10 = 0;
+				win->area[0].fbdc_fmt_cfg = 0x3a;
+				break;
 			case ARGB888:
 				fmt_cfg = 0;
 				swap_rb = 0;

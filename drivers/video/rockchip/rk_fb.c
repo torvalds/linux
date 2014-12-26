@@ -147,12 +147,15 @@ int rk_fb_pixel_width(int data_format)
 	case XBGR888:
 	case ABGR888:
 	case ARGB888:
+	case FBDC_ARGB_888:
+	case FBDC_RGBX_888:
 		pixel_width = 4 * 8;
 		break;
 	case RGB888:
 		pixel_width = 3 * 8;
 		break;
 	case RGB565:
+	case FBDC_RGB_565:
 		pixel_width = 2 * 8;
 		break;
 	case YUV422:
@@ -210,6 +213,15 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 			break;
 		case HAL_PIXEL_FORMAT_YCrCb_420_SP_10:	/* yuv444 */
 			fb_data_fmt = YUV444_A;
+			break;
+		case HAL_PIXEL_FORMAT_FBDC_RGB565:	/* fbdc rgb565*/
+			fb_data_fmt = FBDC_RGB_565;
+			break;
+		case HAL_PIXEL_FORMAT_FBDC_U8U8U8U8:	/* fbdc argb888 */
+			fb_data_fmt = FBDC_ARGB_888;
+			break;
+		case HAL_PIXEL_FORMAT_FBDC_U8U8U8:	/* fbdc rgb888 */
+			fb_data_fmt = FBDC_RGBX_888;
 			break;
 		default:
 			printk(KERN_WARNING "%s:un supported format:0x%x\n",
@@ -527,6 +539,15 @@ char *get_format_string(enum data_format format, char *fmt)
 		break;
 	case ABGR888:
 		strcpy(fmt, "ABGR888");
+		break;
+	case FBDC_RGB_565:
+		strcpy(fmt, "FBDC_RGB_565");
+		break;
+	case FBDC_ARGB_888:
+		strcpy(fmt, "FBDC_ARGB_888");
+		break;
+	case FBDC_RGBX_888:
+		strcpy(fmt, "FBDC_RGBX_888");
 		break;
 	default:
 		strcpy(fmt, "invalid");
@@ -2261,11 +2282,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 
 	rk_fb_get_prmry_screen(&primary_screen);
 	reg_win_data->mirror_en = win_par->mirror_en;
-	reg_win_data->reg_area_data[0].fbdc_en = win_par->area_par[0].fbdc_en;
-	reg_win_data->reg_area_data[0].fbdc_cor_en =
-		win_par->area_par[0].fbdc_cor_en;
-	reg_win_data->reg_area_data[0].fbdc_data_format =
-		win_par->area_par[0].fbdc_data_format;
 	for (i = 0; i < reg_win_data->area_num; i++) {
 		if (rk_fb->disp_policy == DISPLAY_POLICY_BOX)
 			rk_fb_check_config_var(&win_par->area_par[i], screen);
@@ -2274,9 +2290,17 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 
 		fb_data_fmt = rk_fb_data_fmt(win_par->area_par[i].data_format, 0);
 		reg_win_data->reg_area_data[i].data_format = fb_data_fmt;
+		if (fb_data_fmt >= FBDC_RGB_565) {
+			reg_win_data->reg_area_data[i].fbdc_en = 1;
+			reg_win_data->reg_area_data[i].fbdc_cor_en = 1;
+		} else {
+			reg_win_data->reg_area_data[i].fbdc_en = 0;
+			reg_win_data->reg_area_data[i].fbdc_cor_en = 0;
+		}
 		pixel_width = rk_fb_pixel_width(fb_data_fmt);
 
 		ppixel_a |= ((fb_data_fmt == ARGB888) ||
+			     (fb_data_fmt == FBDC_ARGB_888) ||
 			     (fb_data_fmt == ABGR888)) ? 1 : 0;
 		/* visiable pos in panel */
 		reg_win_data->reg_area_data[i].xpos = win_par->area_par[i].xpos;
@@ -3214,6 +3238,13 @@ static int rk_fb_set_par(struct fb_info *info)
 	}
 
 	fb_data_fmt = rk_fb_data_fmt(data_format, var->bits_per_pixel);
+	if (fb_data_fmt >= FBDC_RGB_565) {
+		win->area[0].fbdc_en = 1;
+		win->area[0].fbdc_cor_en = 1;
+	} else {
+		win->area[0].fbdc_en = 0;
+		win->area[0].fbdc_cor_en = 0;
+	}
 	pixel_width = rk_fb_pixel_width(fb_data_fmt);
 	vir_width_bit = pixel_width * xvir;
 	/* pixel_width = byte_num * 8 */
@@ -3277,6 +3308,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->area_num = 1;
 	win->alpha_mode = 4;	/* AB_SRC_OVER; */
 	win->alpha_en = ((win->area[0].format == ARGB888) ||
+			 (win->area[0].format == FBDC_ARGB_888) ||
 			 (win->area[0].format == ABGR888)) ? 1 : 0;
 	win->g_alpha_val = 0;
 
