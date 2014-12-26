@@ -64,7 +64,9 @@ static void batadv_ring_buffer_set(uint8_t lq_recv[], uint8_t *lq_index,
 static uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
 {
 	const uint8_t *ptr;
-	uint16_t count = 0, i = 0, sum = 0;
+	uint16_t count = 0;
+	uint16_t i = 0;
+	uint16_t sum = 0;
 
 	ptr = lq_recv;
 
