@@ -29,8 +29,6 @@ DMA-ISA-LPC.txt
 	- How to do DMA with ISA (and LPC) devices.
 DMA-attributes.txt
 	- listing of the various possible attributes a DMA region can have
-dmatest.txt
-	- how to compile, configure and use the dmatest system.
 DocBook/
 	- directory with DocBook templates etc. for kernel documentation.
 EDID/
@@ -163,8 +161,6 @@ digsig.txt
 	-info on the Digital Signature Verification API
 dma-buf-sharing.txt
 	- the DMA Buffer Sharing API Guide
-dmaengine.txt
-	-the DMA Engine API Guide
 dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-model/
