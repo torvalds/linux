@@ -403,8 +403,8 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 	do {
 		LASSERT(niov > 0);
 		LASSERT(nkiov > 0);
-		this_nob = MIN(iov->iov_len - iovoffset,
-			       kiov->kiov_len - kiovoffset);
+		this_nob = min(iov->iov_len - iovoffset,
+			       (__kernel_size_t) kiov->kiov_len - kiovoffset);
 		this_nob = min(this_nob, nob);
 
 		if (addr == NULL)
@@ -474,7 +474,7 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 	do {
 		LASSERT(nkiov > 0);
 		LASSERT(niov > 0);
-		this_nob = MIN(kiov->kiov_len - kiovoffset,
+		this_nob = min((__kernel_size_t) kiov->kiov_len - kiovoffset,
 			       iov->iov_len - iovoffset);
 		this_nob = min(this_nob, nob);
 
