@@ -279,7 +279,7 @@ static inline void _batadv_dbg(int type __always_unused,
  *
  * note: can't use ether_addr_equal() as it requires aligned memory
  */
-static inline int batadv_compare_eth(const void *data1, const void *data2)
+static inline bool batadv_compare_eth(const void *data1, const void *data2)
 {
 	return ether_addr_equal_unaligned(data1, data2);
 }
