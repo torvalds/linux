@@ -409,7 +409,7 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 				     struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	char *fwd_str;
+	const char *fwd_str;
 	uint8_t packet_num;
 	int16_t buff_pos;
 	struct batadv_ogm_packet *batadv_ogm_packet;
