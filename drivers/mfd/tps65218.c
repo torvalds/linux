@@ -204,6 +204,7 @@ static struct regmap_irq_chip tps65218_irq_chip = {
 
 	.num_regs = 2,
 	.mask_base = TPS65218_REG_INT_MASK1,
+	.status_base = TPS65218_REG_INT1,
 };
 
 static const struct of_device_id of_tps65218_match_table[] = {
