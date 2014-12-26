@@ -843,8 +843,7 @@ static int cc2520_probe(struct spi_device *spi)
 	struct cc2520_platform_data *pdata;
 	int ret;
 
-	priv = devm_kzalloc(&spi->dev,
-			    sizeof(struct cc2520_private), GFP_KERNEL);
+	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto err_ret;
