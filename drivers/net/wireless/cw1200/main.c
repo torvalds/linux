@@ -374,9 +374,8 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 	INIT_WORK(&priv->update_filtering_work, cw1200_update_filtering_work);
 	INIT_WORK(&priv->set_beacon_wakeup_period_work,
 		  cw1200_set_beacon_wakeup_period_work);
-	init_timer(&priv->mcast_timeout);
-	priv->mcast_timeout.data = (unsigned long)priv;
-	priv->mcast_timeout.function = cw1200_mcast_timeout;
+	setup_timer(&priv->mcast_timeout, cw1200_mcast_timeout,
+		    (unsigned long)priv);
 
 	if (cw1200_queue_stats_init(&priv->tx_queue_stats,
 				    CW1200_LINK_ID_MAX,
