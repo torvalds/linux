@@ -96,9 +96,29 @@
 		regulator-boot-on;
 		vin-supply = <&v1_5dreg>;
 	};
+
+	gpio_keys: gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_pins_default>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		switch@0 {
+			label = "power-button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
 &am43xx_pinmux {
+	gpio_keys_pins_default: gpio_keys_pins_default {
+		pinctrl-single,pins = <
+			0x1b8 (PIN_INPUT | MUX_MODE7)	/* cam0_field.gpio4_2 */
+		>;
+	};
+
 	i2c0_pins_default: i2c0_pins_default {
 		pinctrl-single,pins = <
 			0x188 (PIN_INPUT | SLEWCTRL_FAST | MUX_MODE0) /* i2c0_sda.i2c0_sda */
@@ -279,6 +299,10 @@
 };
 
 &gpio1 {
+	status = "okay";
+};
+
+&gpio4 {
 	status = "okay";
 };
 
