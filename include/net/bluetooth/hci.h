@@ -102,6 +102,16 @@ enum {
 	 */
 	HCI_QUIRK_FIXUP_BUFFER_SIZE,
 
+	/* When this quirk is set, then the HCI Read Local Supported
+	 * Commands command is not supported. In general Bluetooth 1.2
+	 * and later controllers should support this command. However
+	 * some controllers indicate Bluetooth 1.2 support, but do
+	 * not support this command.
+	 *
+	 * This quirk must be set before hci_register_dev is called.
+	 */
+	HCI_QUIRK_BROKEN_LOCAL_COMMANDS,
+
 	/* When this quirk is set, then no stored link key handling
 	 * is performed. This is mainly due to the fact that the
 	 * HCI Delete Stored Link Key command is advertised, but
