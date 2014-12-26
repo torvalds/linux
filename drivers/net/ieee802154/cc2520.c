@@ -844,10 +844,8 @@ static int cc2520_probe(struct spi_device *spi)
 	int ret;
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	if (!priv)
+		return -ENOMEM;
 
 	spi_set_drvdata(spi, priv);
 
@@ -861,10 +859,8 @@ static int cc2520_probe(struct spi_device *spi)
 
 	priv->buf = devm_kzalloc(&spi->dev,
 				 SPI_COMMAND_BUFFER, GFP_KERNEL);
-	if (!priv->buf) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	if (!priv->buf)
+		return -ENOMEM;
 
 	mutex_init(&priv->buffer_mutex);
 	INIT_WORK(&priv->fifop_irqwork, cc2520_fifop_irqwork);
@@ -981,8 +977,6 @@ static int cc2520_probe(struct spi_device *spi)
 err_hw_init:
 	mutex_destroy(&priv->buffer_mutex);
 	flush_work(&priv->fifop_irqwork);
-
-err_ret:
 	return ret;
 }
 
