@@ -444,6 +444,11 @@
 			regulator-always-on;
 		};
 
+		power-button {
+			compatible = "ti,tps65218-pwrbutton";
+			status = "okay";
+			interrupts = <3 IRQ_TYPE_EDGE_BOTH>;
+		};
 	};
 
 	at24@50 {
