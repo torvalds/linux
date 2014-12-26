@@ -2194,9 +2194,8 @@ static void usbvision_power_off_timer(unsigned long data)
 
 void usbvision_init_power_off_timer(struct usb_usbvision *usbvision)
 {
-	init_timer(&usbvision->power_off_timer);
-	usbvision->power_off_timer.data = (long)usbvision;
-	usbvision->power_off_timer.function = usbvision_power_off_timer;
+	setup_timer(&usbvision->power_off_timer, usbvision_power_off_timer,
+		    (unsigned long)usbvision);
 }
 
 void usbvision_set_power_off_timer(struct usb_usbvision *usbvision)
