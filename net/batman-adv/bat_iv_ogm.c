@@ -750,13 +750,13 @@ static void batadv_iv_ogm_queue_add(struct batadv_priv *bat_priv,
 	unsigned long max_aggregation_jiffies;
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)packet_buff;
-	direct_link = batadv_ogm_packet->flags & BATADV_DIRECTLINK ? 1 : 0;
+	direct_link = !!(batadv_ogm_packet->flags & BATADV_DIRECTLINK);
 	max_aggregation_jiffies = msecs_to_jiffies(BATADV_MAX_AGGREGATION_MS);
 
 	/* find position for the packet in the forward queue */
 	spin_lock_bh(&bat_priv->forw_bat_list_lock);
 	/* own packets are not to be aggregated */
-	if ((atomic_read(&bat_priv->aggregated_ogms)) && (!own_packet)) {
+	if (atomic_read(&bat_priv->aggregated_ogms) && !own_packet) {
 		hlist_for_each_entry(forw_packet_pos,
 				     &bat_priv->forw_bat_list, list) {
 			if (batadv_iv_ogm_can_aggregate(batadv_ogm_packet,
