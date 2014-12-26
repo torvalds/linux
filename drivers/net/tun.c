@@ -1380,7 +1380,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 	skb = __skb_recv_datagram(tfile->socket.sk, noblock ? MSG_DONTWAIT : 0,
 				  &peeked, &off, &err);
 	if (!skb)
-		return 0;
+		return err;
 
 	ret = tun_put_user(tun, tfile, skb, to);
 	if (unlikely(ret < 0))
