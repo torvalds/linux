@@ -1359,9 +1359,7 @@ static int isp1760_run(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	init_timer(&errata2_timer);
-	errata2_timer.function = errata2_function;
-	errata2_timer.data = (unsigned long) hcd;
+	setup_timer(&errata2_timer, errata2_function, (unsigned long)hcd);
 	errata2_timer.expires = jiffies + SLOT_CHECK_PERIOD * HZ / 1000;
 	add_timer(&errata2_timer);
 
