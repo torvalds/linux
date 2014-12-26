@@ -49,6 +49,7 @@ struct poll_table_struct;
  * @p_h264_scal_mtrx:	Pointer to a struct v4l2_ctrl_h264_scaling_matrix.
  * @p_h264_slice_param:	Pointer to a struct v4l2_ctrl_h264_slice_param.
  * @p_h264_decode_param: Pointer to a struct v4l2_ctrl_h264_decode_param.
+ * @p_vp8_frame_hdr:	Pointer to a struct v4l2_ctrl_vp8_frame_hdr.
  * @p:		Pointer to a compound value.
  */
 union v4l2_ctrl_ptr {
@@ -63,6 +64,7 @@ union v4l2_ctrl_ptr {
 	struct v4l2_ctrl_h264_scaling_matrix *p_h264_scal_mtrx;
 	struct v4l2_ctrl_h264_slice_param *p_h264_slice_param;
 	struct v4l2_ctrl_h264_decode_param *p_h264_decode_param;
+	struct v4l2_ctrl_vp8_frame_hdr *p_vp8_frame_hdr;
 	void *p;
 };
 
