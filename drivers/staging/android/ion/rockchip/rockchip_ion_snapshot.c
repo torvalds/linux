@@ -68,7 +68,7 @@ static const struct file_operations ion_snapshot_fops = {
 	.read = ion_snapshot_read,
 };
 
-char *rockchip_ion_snapshot_get(size_t *size)
+char *rockchip_ion_snapshot_get(unsigned *size)
 {
 	*size = LOG_BUF_LEN;
 	return ion_snapshot_buf;
@@ -127,14 +127,12 @@ static int __init rockchip_ion_snapshot_init(void)
 
 	ion_snapshot_buf = last_ion_vmap(virt_to_phys(log_buf), 1 << LOG_BUF_PAGE_ORDER);
 	if (!ion_snapshot_buf) {
-		pr_err("failed to map %d pages at 0x%lx\n", 1 << LOG_BUF_PAGE_ORDER,
-			(unsigned long)virt_to_phys(log_buf));
+		pr_err("failed to map %d pages at 0x%08x\n", 1 << LOG_BUF_PAGE_ORDER, virt_to_phys(log_buf));
 		return 0;
 	}
 
-	pr_info("0x%lx map to 0x%p and copy to 0x%p (version 0.1)\n", 
-			(unsigned long)virt_to_phys(log_buf), ion_snapshot_buf,
-			last_ion_buf);
+	pr_info("0x%08x map to 0x%p and copy to 0x%p (version 0.1)\n", 
+			virt_to_phys(log_buf), ion_snapshot_buf, last_ion_buf);
 
 	memcpy(last_ion_buf, ion_snapshot_buf, LOG_BUF_LEN);
 	memset(ion_snapshot_buf, 0, LOG_BUF_LEN);

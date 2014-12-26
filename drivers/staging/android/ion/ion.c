@@ -123,7 +123,7 @@ struct ion_handle {
 static void ion_iommu_force_unmap(struct ion_buffer *buffer);
 #endif
 #ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
-extern char *rockchip_ion_snapshot_get(size_t *size);
+extern char *rockchip_ion_snapshot_get(unsigned *size);
 extern int rockchip_ion_snapshot_debugfs(struct dentry* root);
 static int ion_snapshot_save(struct ion_device *idev, size_t len);
 #endif
@@ -285,7 +285,7 @@ err2:
 
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
-	trace_ion_buffer_destroy("", (void*)buffer, buffer->size);
+	trace_ion_buffer_destroy("", (unsigned int)buffer, buffer->size);
 
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
@@ -551,7 +551,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		handle = ERR_PTR(ret);
 	}
 
-	trace_ion_buffer_alloc(client->display_name, (void*)buffer,
+	trace_ion_buffer_alloc(client->display_name, (unsigned int)buffer,
 		buffer->size);
 
 	return handle;
@@ -573,7 +573,7 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 		return;
 	}
 	mutex_unlock(&client->lock);
-	trace_ion_buffer_free(client->display_name, (void*)handle->buffer,
+	trace_ion_buffer_free(client->display_name, (unsigned int)handle->buffer,
 			handle->buffer->size);
 	ion_handle_put(handle);
 }
@@ -684,8 +684,8 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
 	vaddr = ion_handle_kmap_get(handle);
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
-	trace_ion_kernel_map(client->display_name, (void*)buffer,
-			buffer->size, (void*)vaddr);
+	trace_ion_kernel_map(client->display_name, (unsigned int)buffer,
+			buffer->size, (unsigned int)vaddr);
 	return vaddr;
 }
 EXPORT_SYMBOL(ion_map_kernel);
@@ -697,7 +697,7 @@ void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle)
 	mutex_lock(&client->lock);
 	buffer = handle->buffer;
 	mutex_lock(&buffer->lock);
-	trace_ion_kernel_unmap(client->display_name, (void*)buffer,
+	trace_ion_kernel_unmap(client->display_name, (unsigned int)buffer,
 			buffer->size);
 	ion_handle_kmap_put(handle);
 	mutex_unlock(&buffer->lock);
@@ -722,7 +722,7 @@ static void ion_iommu_add(struct ion_buffer *buffer,
 		} else if (iommu->key > entry->key) {
 			p = &(*p)->rb_right;
 		} else {
-			pr_err("%s: buffer %p already has mapping for domainid %lx\n",
+			pr_err("%s: buffer %p already has mapping for domainid %x\n",
 				__func__,
 				buffer,
 				iommu->key);
@@ -735,7 +735,7 @@ static void ion_iommu_add(struct ion_buffer *buffer,
 }
 
 static struct ion_iommu_map *ion_iommu_lookup(struct ion_buffer *buffer,
-						unsigned long key)
+						uint32_t key)
 {
 	struct rb_node **p = &buffer->iommu_maps.rb_node;
 	struct rb_node *parent = NULL;
@@ -768,7 +768,7 @@ static struct ion_iommu_map *__ion_iommu_map(struct ion_buffer *buffer,
 		return ERR_PTR(-ENOMEM);
 
 	data->buffer = buffer;
-	data->key = (unsigned long)iommu_dev;
+	data->key = (uint32_t)iommu_dev;
 
 	ret = buffer->heap->ops->map_iommu(buffer, iommu_dev, data,
 						buffer->size, buffer->flags);
@@ -821,13 +821,13 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 	}
 
 	if (buffer->size & ~PAGE_MASK) {
-		pr_debug("%s: buffer size %zu is not aligned to %lx", __func__,
+		pr_debug("%s: buffer size %x is not aligned to %lx", __func__,
 			buffer->size, PAGE_SIZE);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	iommu_map = ion_iommu_lookup(buffer, (unsigned long)iommu_dev);
+	iommu_map = ion_iommu_lookup(buffer, (uint32_t)iommu_dev);
 	if (!iommu_map) {
 		pr_debug("%s: create new map for buffer(%p)\n", __func__, buffer);
 		iommu_map = __ion_iommu_map(buffer, iommu_dev, iova);
@@ -837,7 +837,7 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 		pr_debug("%s: buffer(%p) already mapped\n", __func__, buffer);
 		if (iommu_map->mapped_size != buffer->size) {
 			pr_err("%s: handle %p is already mapped with length"
-					" %d, trying to map with length %zu\n",
+					" %x, trying to map with length %x\n",
 				__func__, handle, iommu_map->mapped_size, buffer->size);
 			ret = -EINVAL;
 		} else {
@@ -848,7 +848,7 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 	if (!ret)
 		buffer->iommu_map_cnt++;
 	*size = buffer->size;
-	trace_ion_iommu_map(client->display_name, (void*)buffer, buffer->size,
+	trace_ion_iommu_map(client->display_name, (unsigned int)buffer, buffer->size,
 		dev_name(iommu_dev), *iova, *size, buffer->iommu_map_cnt);
 out:
 	mutex_unlock(&buffer->lock);
@@ -863,7 +863,7 @@ static void ion_iommu_release(struct kref *kref)
 						ref);
 	struct ion_buffer *buffer = map->buffer;
 
-	trace_ion_iommu_release("", (void*)buffer, buffer->size,
+	trace_ion_iommu_release("", (unsigned int)buffer, buffer->size,
 		"", map->iova_addr, map->mapped_size, buffer->iommu_map_cnt);
 
 	rb_erase(&map->node, &buffer->iommu_maps);
@@ -906,7 +906,7 @@ void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
 
 	mutex_lock(&buffer->lock);
 
-	iommu_map = ion_iommu_lookup(buffer, (unsigned long)iommu_dev);
+	iommu_map = ion_iommu_lookup(buffer, (uint32_t)iommu_dev);
 
 	if (!iommu_map) {
 		WARN(1, "%s: (%p) was never mapped for %p\n", __func__,
@@ -918,7 +918,7 @@ void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
 
 	buffer->iommu_map_cnt--;
 
-	trace_ion_iommu_unmap(client->display_name, (void*)buffer, buffer->size,
+	trace_ion_iommu_unmap(client->display_name, (unsigned int)buffer, buffer->size,
 		dev_name(iommu_dev), iommu_map->iova_addr,
 		iommu_map->mapped_size, buffer->iommu_map_cnt);
 out:
@@ -942,8 +942,7 @@ static int ion_debug_client_show_buffer_map(struct seq_file *s, struct ion_buffe
 	while (node != NULL) {
 		iommu_map = rb_entry(node, struct ion_iommu_map, node);
 		seq_printf(s, "%16.16s:   0x%08lx   0x%08x   0x%08x %8zuKB %4d\n",
-			"<iommu>", iommu_map->iova_addr, 0, 0,
-			(size_t)iommu_map->mapped_size>>10,
+			"<iommu>", iommu_map->iova_addr, 0, 0, iommu_map->mapped_size>>10,
 			atomic_read(&iommu_map->ref.refcount));
 
 		node = rb_next(node);
@@ -1482,7 +1481,7 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
 	if (fd < 0)
 		dma_buf_put(dmabuf);
 
-	trace_ion_buffer_share(client->display_name, (void*)handle->buffer,
+	trace_ion_buffer_share(client->display_name, (unsigned int)handle->buffer,
 				handle->buffer->size, fd);
 	return fd;
 }
@@ -1530,7 +1529,7 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
 		handle = ERR_PTR(ret);
 	}
 
-	trace_ion_buffer_import(client->display_name, (void*)buffer,
+	trace_ion_buffer_import(client->display_name, (unsigned int)buffer,
 				buffer->size);
 end:
 	dma_buf_put(dmabuf);
@@ -1871,8 +1870,8 @@ static int ion_cma_heap_debug_show(struct seq_file *s, void *unused)
 	seq_printf(s, "%s Heap bitmap:\n", heap->name);
 
 	for(i = rows - 1; i>= 0; i--){
-		seq_printf(s, "%.4uM@0x%lx: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
-				i+1, (unsigned long)base+(i)*SZ_1M,
+		seq_printf(s, "%.4uM@0x%08x: %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
+				i+1, base+(i)*SZ_1M,
 				cma->bitmap[i*8 + 7],
 				cma->bitmap[i*8 + 6],
 				cma->bitmap[i*8 + 5],
@@ -1882,8 +1881,8 @@ static int ion_cma_heap_debug_show(struct seq_file *s, void *unused)
 				cma->bitmap[i*8 + 1],
 				cma->bitmap[i*8]);
 	}
-	seq_printf(s, "Heap size: %luM, Heap base: 0x%lx\n",
-		(cma->count)>>8, (unsigned long)base);
+	seq_printf(s, "Heap size: %luM, Heap base: 0x%08x\n",
+		(cma->count)>>8, base);
 
 	return 0;
 }
@@ -2113,10 +2112,10 @@ static int ion_snapshot_save(struct ion_device *idev, size_t len)
 	}
 	memset(seqf.buf, 0, seqf.size);
 	seqf.count = 0;
-	pr_debug("%s: save snapshot 0x%zx@0x%lx\n", __func__, seqf.size,
-		(unsigned long)__pa(seqf.buf));
+	pr_debug("%s: save snapshot 0x%x@0x%lx\n", __func__, seqf.size,
+		__pa(seqf.buf));
 
-	seq_printf(&seqf, "call by comm: %s pid: %d, alloc: %zuKB\n",
+	seq_printf(&seqf, "call by comm: %s pid: %d, alloc: %uKB\n",
 		current->comm, current->pid, len>>10);
 
 	down_read(&idev->lock);

@@ -174,7 +174,7 @@ static int ion_drm_heap_map_iommu(struct ion_buffer *buffer,
 	struct sg_table *table = (struct sg_table*)buffer->priv_virt;
 
 	data->iova_addr = rockchip_iovmm_map(iommu_dev, table->sgl, 0, iova_length);
-	pr_debug("%s: map %lx -> %lx\n", __func__, (unsigned long)table->sgl->dma_address,
+	pr_debug("%s: map %x -> %lx\n", __func__, table->sgl->dma_address,
 		data->iova_addr);
 	if (IS_ERR_VALUE(data->iova_addr)) {
 		pr_err("%s: rockchip_iovmm_map() failed: %lx\n", __func__,
@@ -226,7 +226,7 @@ struct ion_heap *ion_drm_heap_create(struct ion_platform_heap *heap_data)
 	page = pfn_to_page(PFN_DOWN(heap_data->base));
 	size = heap_data->size;
 
-	printk("%s: %zx@%lx\n", __func__, size, heap_data->base);
+	printk("%s: %x@%lx\n", __func__, size, heap_data->base);
 
 	ion_pages_sync_for_device(NULL, page, size, DMA_BIDIRECTIONAL);
 
