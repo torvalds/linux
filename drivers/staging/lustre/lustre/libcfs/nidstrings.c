@@ -143,8 +143,43 @@ static int libcfs_num_str2addr(const char *str, int nob, __u32 *addr)
 	return 0;
 }
 
-static int  libcfs_num_parse(char *str, int len, struct list_head *list);
-static int  libcfs_num_match(__u32 addr, struct list_head *list);
+/**
+ * Nf_parse_addrlist method for networks using numeric addresses.
+ *
+ * Examples of such networks are gm and elan.
+ *
+ * \retval 0 if \a str parsed to numeric address
+ * \retval errno otherwise
+ */
+static int
+libcfs_num_parse(char *str, int len, struct list_head *list)
+{
+	struct cfs_expr_list *el;
+	int	rc;
+
+	rc = cfs_expr_list_parse(str, len, 0, MAX_NUMERIC_VALUE, &el);
+	if (rc == 0)
+		list_add_tail(&el->el_link, list);
+
+	return rc;
+}
+
+/*
+ * Nf_match_addr method for networks using numeric addresses
+ *
+ * \retval 1 on match
+ * \retval 0 otherwise
+ */
+static int
+libcfs_num_match(__u32 addr, struct list_head *numaddr)
+{
+	struct cfs_expr_list *el;
+
+	LASSERT(!list_empty(numaddr));
+	el = list_entry(numaddr->next, struct cfs_expr_list, el_link);
+
+	return cfs_expr_list_match(addr, el);
+}
 
 struct netstrfns {
 	int	  nf_type;
@@ -572,27 +607,6 @@ struct addrrange {
 };
 
 /**
- * Nf_parse_addrlist method for networks using numeric addresses.
- *
- * Examples of such networks are gm and elan.
- *
- * \retval 0 if \a str parsed to numeric address
- * \retval errno otherwise
- */
-static int
-libcfs_num_parse(char *str, int len, struct list_head *list)
-{
-	struct cfs_expr_list *el;
-	int	rc;
-
-	rc = cfs_expr_list_parse(str, len, 0, MAX_NUMERIC_VALUE, &el);
-	if (rc == 0)
-		list_add_tail(&el->el_link, list);
-
-	return rc;
-}
-
-/**
  * Parses \<addrrange\> token on the syntax.
  *
  * Allocates struct addrrange and links to \a nidrange via
@@ -797,23 +811,6 @@ cfs_parse_nidlist(char *str, int len, struct list_head *nidlist)
 	return 1;
 }
 EXPORT_SYMBOL(cfs_parse_nidlist);
-
-/*
- * Nf_match_addr method for networks using numeric addresses
- *
- * \retval 1 on match
- * \retval 0 otherwise
- */
-static int
-libcfs_num_match(__u32 addr, struct list_head *numaddr)
-{
-	struct cfs_expr_list *el;
-
-	LASSERT(!list_empty(numaddr));
-	el = list_entry(numaddr->next, struct cfs_expr_list, el_link);
-
-	return cfs_expr_list_match(addr, el);
-}
 
 /**
  * Matches a nid (\a nid) against the compiled list of nidranges (\a nidlist).
