@@ -1431,7 +1431,7 @@ static int tty_driver_install_tty(struct tty_driver *driver,
  *	@driver: the driver for the tty
  *	@idx:	 the minor number
  *
- *	Remvoe a tty object from the driver tables. The tty->index field
+ *	Remove a tty object from the driver tables. The tty->index field
  *	will be set by the time this is called.
  *
  *	Locking: tty_mutex for now
