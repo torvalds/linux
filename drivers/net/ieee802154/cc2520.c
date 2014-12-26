@@ -650,6 +650,7 @@ static int cc2520_register(struct cc2520_private *priv)
 	priv->hw->parent = &priv->spi->dev;
 	priv->hw->extra_tx_headroom = 0;
 	priv->hw->vif_data_size = sizeof(*priv);
+	ieee802154_random_extended_addr(&priv->hw->phy->perm_extended_addr);
 
 	/* We do support only 2.4 Ghz */
 	priv->hw->phy->channels_supported[0] = 0x7FFF800;
