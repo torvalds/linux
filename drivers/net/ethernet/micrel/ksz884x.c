@@ -4342,9 +4342,7 @@ static void ksz_init_timer(struct ksz_timer_info *info, int period,
 {
 	info->max = 0;
 	info->period = period;
-	init_timer(&info->timer);
-	info->timer.function = function;
-	info->timer.data = (unsigned long) data;
+	setup_timer(&info->timer, function, (unsigned long)data);
 }
 
 static void ksz_update_timer(struct ksz_timer_info *info)
