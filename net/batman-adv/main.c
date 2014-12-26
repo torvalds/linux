@@ -513,14 +513,12 @@ static struct batadv_algo_ops *batadv_algo_get(char *name)
 int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 {
 	struct batadv_algo_ops *bat_algo_ops_tmp;
-	int ret;
 
 	bat_algo_ops_tmp = batadv_algo_get(bat_algo_ops->name);
 	if (bat_algo_ops_tmp) {
 		pr_info("Trying to register already registered routing algorithm: %s\n",
 			bat_algo_ops->name);
-		ret = -EEXIST;
-		goto out;
+		return -EEXIST;
 	}
 
 	/* all algorithms must implement all ops (for now) */
@@ -534,16 +532,13 @@ int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 	    !bat_algo_ops->bat_neigh_is_equiv_or_better) {
 		pr_info("Routing algo '%s' does not implement required ops\n",
 			bat_algo_ops->name);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	INIT_HLIST_NODE(&bat_algo_ops->list);
 	hlist_add_head(&bat_algo_ops->list, &batadv_algo_list);
-	ret = 0;
 
-out:
-	return ret;
+	return 0;
 }
 
 int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
