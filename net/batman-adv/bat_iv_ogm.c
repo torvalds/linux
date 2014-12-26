@@ -544,58 +544,62 @@ batadv_iv_ogm_can_aggregate(const struct batadv_ogm_packet *new_bat_ogm_packet,
 	 * - the send time is within our MAX_AGGREGATION_MS time
 	 * - the resulting packet wont be bigger than
 	 *   MAX_AGGREGATION_BYTES
+	 * otherwise aggregation is not possible
 	 */
-	if (time_before(send_time, forw_packet->send_time) &&
-	    time_after_eq(aggregation_end_time, forw_packet->send_time) &&
-	    (aggregated_bytes <= BATADV_MAX_AGGREGATION_BYTES)) {
-		/* check aggregation compatibility
-		 * -> direct link packets are broadcasted on
-		 *    their interface only
-		 * -> aggregate packet if the current packet is
-		 *    a "global" packet as well as the base
-		 *    packet
-		 */
-		primary_if = batadv_primary_if_get_selected(bat_priv);
-		if (!primary_if)
-			goto out;
+	if (!time_before(send_time, forw_packet->send_time) ||
+	    !time_after_eq(aggregation_end_time, forw_packet->send_time))
+		return false;
 
-		/* packet is not leaving on the same interface. */
-		if (forw_packet->if_outgoing != if_outgoing)
-			goto out;
+	if (aggregated_bytes > BATADV_MAX_AGGREGATION_BYTES)
+		return false;
 
-		/* packets without direct link flag and high TTL
-		 * are flooded through the net
-		 */
-		if ((!directlink) &&
-		    (!(batadv_ogm_packet->flags & BATADV_DIRECTLINK)) &&
-		    (batadv_ogm_packet->ttl != 1) &&
+	/* packet is not leaving on the same interface. */
+	if (forw_packet->if_outgoing != if_outgoing)
+		return false;
 
-		    /* own packets originating non-primary
-		     * interfaces leave only that interface
-		     */
-		    ((!forw_packet->own) ||
-		     (forw_packet->if_incoming == primary_if))) {
-			res = true;
-			goto out;
-		}
+	/* check aggregation compatibility
+	 * -> direct link packets are broadcasted on
+	 *    their interface only
+	 * -> aggregate packet if the current packet is
+	 *    a "global" packet as well as the base
+	 *    packet
+	 */
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		return false;
 
-		/* if the incoming packet is sent via this one
-		 * interface only - we still can aggregate
-		 */
-		if ((directlink) &&
-		    (new_bat_ogm_packet->ttl == 1) &&
-		    (forw_packet->if_incoming == if_incoming) &&
+	/* packets without direct link flag and high TTL
+	 * are flooded through the net
+	 */
+	if (!directlink &&
+	    !(batadv_ogm_packet->flags & BATADV_DIRECTLINK) &&
+	    batadv_ogm_packet->ttl != 1 &&
 
-		    /* packets from direct neighbors or
-		     * own secondary interface packets
-		     * (= secondary interface packets in general)
-		     */
-		    (batadv_ogm_packet->flags & BATADV_DIRECTLINK ||
-		     (forw_packet->own &&
-		      forw_packet->if_incoming != primary_if))) {
-			res = true;
-			goto out;
-		}
+	    /* own packets originating non-primary
+	     * interfaces leave only that interface
+	     */
+	    (!forw_packet->own ||
+	     forw_packet->if_incoming == primary_if)) {
+		res = true;
+		goto out;
+	}
+
+	/* if the incoming packet is sent via this one
+	 * interface only - we still can aggregate
+	 */
+	if (directlink &&
+	    new_bat_ogm_packet->ttl == 1 &&
+	    forw_packet->if_incoming == if_incoming &&
+
+	    /* packets from direct neighbors or
+	     * own secondary interface packets
+	     * (= secondary interface packets in general)
+	     */
+	    (batadv_ogm_packet->flags & BATADV_DIRECTLINK ||
+	     (forw_packet->own &&
+	      forw_packet->if_incoming != primary_if))) {
+		res = true;
+		goto out;
 	}
 
 out:
