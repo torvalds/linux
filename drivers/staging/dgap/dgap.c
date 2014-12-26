@@ -1400,27 +1400,27 @@ static int dgap_remap(struct board_t *brd)
 		return -ENOMEM;
 
 	if (!request_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000,
-					"dgap")) {
-		release_mem_region(brd->membase, 0x200000);
-		return -ENOMEM;
-	}
+					"dgap"))
+		goto err_req_mem;
 
 	brd->re_map_membase = ioremap(brd->membase, 0x200000);
-	if (!brd->re_map_membase) {
-		release_mem_region(brd->membase, 0x200000);
-		release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
-		return -ENOMEM;
-	}
+	if (!brd->re_map_membase)
+		goto err_remap_mem;
 
 	brd->re_map_port = ioremap((brd->membase + PCI_IO_OFFSET), 0x200000);
-	if (!brd->re_map_port) {
-		release_mem_region(brd->membase, 0x200000);
-		release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
-		iounmap(brd->re_map_membase);
-		return -ENOMEM;
-	}
+	if (!brd->re_map_port)
+		goto err_remap_port;
 
 	return 0;
+
+err_remap_port:
+	iounmap(brd->re_map_membase);
+err_remap_mem:
+	release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
+err_req_mem:
+	release_mem_region(brd->membase, 0x200000);
+
+	return -ENOMEM;
 }
 
 static void dgap_unmap(struct board_t *brd)
