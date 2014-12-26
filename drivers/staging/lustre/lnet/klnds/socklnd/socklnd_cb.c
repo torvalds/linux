@@ -1087,7 +1087,7 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 	niov = 0;
 
 	do {
-		nob = MIN (nob_to_skip, sizeof (ksocknal_slop_buffer));
+		nob = min_t(int, nob_to_skip, sizeof(ksocknal_slop_buffer));
 
 		conn->ksnc_rx_iov[niov].iov_base = ksocknal_slop_buffer;
 		conn->ksnc_rx_iov[niov].iov_len  = nob;
