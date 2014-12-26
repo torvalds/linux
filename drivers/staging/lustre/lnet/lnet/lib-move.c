@@ -1530,7 +1530,7 @@ lnet_parse_reply(lnet_ni_t *ni, lnet_msg_t *msg)
 	LASSERT(md->md_offset == 0);
 
 	rlength = hdr->payload_length;
-	mlength = MIN(rlength, (int)md->md_length);
+	mlength = min_t(int, rlength, md->md_length);
 
 	if (mlength < rlength &&
 	    (md->md_options & LNET_MD_TRUNCATE) == 0) {
