@@ -133,9 +133,8 @@ bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 			return false;
 
 		priv->eee_active = 1;
-		init_timer(&priv->eee_ctrl_timer);
-		priv->eee_ctrl_timer.function = sxgbe_eee_ctrl_timer;
-		priv->eee_ctrl_timer.data = (unsigned long)priv;
+		setup_timer(&priv->eee_ctrl_timer, sxgbe_eee_ctrl_timer,
+			    (unsigned long)priv);
 		priv->eee_ctrl_timer.expires = SXGBE_LPI_TIMER(eee_timer);
 		add_timer(&priv->eee_ctrl_timer);
 
@@ -1009,10 +1008,9 @@ static void sxgbe_tx_init_coalesce(struct sxgbe_priv_data *priv)
 		struct sxgbe_tx_queue *p = priv->txq[queue_num];
 		p->tx_coal_frames =  SXGBE_TX_FRAMES;
 		p->tx_coal_timer = SXGBE_COAL_TX_TIMER;
-		init_timer(&p->txtimer);
+		setup_timer(&p->txtimer, sxgbe_tx_timer,
+			    (unsigned long)&priv->txq[queue_num]);
 		p->txtimer.expires = SXGBE_COAL_TIMER(p->tx_coal_timer);
-		p->txtimer.data = (unsigned long)&priv->txq[queue_num];
-		p->txtimer.function = sxgbe_tx_timer;
 		add_timer(&p->txtimer);
 	}
 }
