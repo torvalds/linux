@@ -6978,8 +6978,8 @@ OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Grant Likely <grant.likely@linaro.org>
 M:	Rob Herring <robh+dt@kernel.org>
 L:	devicetree@vger.kernel.org
-W:	http://fdt.secretlab.ca
-T:	git git://git.secretlab.ca/git/linux-2.6.git
+W:	http://www.devicetree.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/glikely/linux.git
 S:	Maintained
 F:	drivers/of/
 F:	include/linux/of*.h
