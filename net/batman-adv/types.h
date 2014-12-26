@@ -183,9 +183,10 @@ struct batadv_orig_node_vlan {
 
 /**
  * struct batadv_orig_bat_iv - B.A.T.M.A.N. IV private orig_node members
- * @bcast_own: bitfield containing the number of our OGMs this orig_node
- *  rebroadcasted "back" to us (relative to last_real_seqno)
- * @bcast_own_sum: counted result of bcast_own
+ * @bcast_own: set of bitfields (one per hard interface) where each one counts
+ * the number of our OGMs this orig_node rebroadcasted "back" to us  (relative
+ * to last_real_seqno). Every bitfield is BATADV_TQ_LOCAL_WINDOW_SIZE bits long.
+ * @bcast_own_sum: sum of bcast_own
  * @ogm_cnt_lock: lock protecting bcast_own, bcast_own_sum,
  *  neigh_node->bat_iv.real_bits & neigh_node->bat_iv.real_packet_count
  */
