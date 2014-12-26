@@ -15,7 +15,8 @@
 
 
 
-
+#include "mali_kbase.h"
+#ifdef BASE_LEGACY_UK7_SUPPORT
 
 /**
  * @file mali_kbase_cpuprops.h
@@ -31,15 +32,12 @@
 struct kbase_uk_cpuprops;
 
 /**
- * @brief Default implementation of @ref KBASE_CONFIG_ATTR_CPU_SPEED_FUNC.
- *
- * This function sets clock_speed to 100, so will be an underestimate for
- * any real system.
- *
- * See @ref kbase_cpuprops_clock_speed_function for details on the parameters
- * and return value.
+ * This file is kept for the backward compatibility reasons.
+ * It shall be removed as soon as KBASE_FUNC_CPU_PROPS_REG_DUMP_OBSOLETE
+ * (previously KBASE_FUNC_CPU_PROPS_REG_DUMP) ioctl call
+ * is removed. Removal of KBASE_FUNC_CPU_PROPS_REG_DUMP is part of having
+ * the function for reading cpu properties moved from base to osu.
  */
-int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed);
 
 /**
  * @brief Provides CPU properties data.
@@ -54,3 +52,4 @@ int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed);
 mali_error kbase_cpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_cpuprops * const kbase_props);
 
 #endif /*_KBASE_CPUPROPS_H_*/
+#endif /* BASE_LEGACY_UK7_SUPPORT */

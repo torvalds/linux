@@ -57,7 +57,7 @@
 		BT,wake_gpio = <&gpio1 GPIO_B4 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 GPIO_C6 GPIO_ACTIVE_LOW>;
 
-	        status = "okay";
+	        status = "disabled";
 	};
 
 	power-led {

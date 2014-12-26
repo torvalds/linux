@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r5p0-02dev0"
+MALI_RELEASE_NAME ?= "r5p0-06rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -187,7 +187,7 @@ ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
 	endif
 
 	ifeq ($(CONFIG_MALI_PLATFORM_JUNO_SOC),y)
-		SRC += platform/juno_soc/mali_kbase_config_vexpress.c
+		SRC += platform/juno_soc/mali_kbase_config_juno_soc.c
 		ccflags-y += -I$(src)/platform/juno_soc
 	endif
 

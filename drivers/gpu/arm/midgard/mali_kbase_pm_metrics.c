@@ -37,6 +37,10 @@
    Exceeding this will cause overflow */
 #define KBASE_PM_TIME_SHIFT			8
 
+/* Maximum time between sampling of utilization data, without resetting the
+ * counters. */
+#define MALI_UTILIZATION_MAX_PERIOD 100000 /* ns = 100ms */
+
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 {
@@ -76,6 +80,8 @@ mali_error kbasep_pm_metrics_init(struct kbase_device *kbdev)
 	kbdev->pm.metrics.time_period_start = ktime_get();
 	kbdev->pm.metrics.time_busy = 0;
 	kbdev->pm.metrics.time_idle = 0;
+	kbdev->pm.metrics.prev_busy = 0;
+	kbdev->pm.metrics.prev_idle = 0;
 	kbdev->pm.metrics.gpu_active = MALI_TRUE;
 	kbdev->pm.metrics.active_cl_ctx[0] = 0;
 	kbdev->pm.metrics.active_cl_ctx[1] = 0;
@@ -217,9 +223,14 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev, ktime
 	}
 }
 
-/*caller needs to hold kbdev->pm.metrics.lock before calling this function*/
-static void kbase_pm_get_dvfs_utilisation_reset(struct kbase_device *kbdev, ktime_t now)
+/* Caller needs to hold kbdev->pm.metrics.lock before calling this function. */
+static void kbase_pm_reset_dvfs_utilisation_unlocked(struct kbase_device *kbdev, ktime_t now)
 {
+	/* Store previous value */
+	kbdev->pm.metrics.prev_idle = kbdev->pm.metrics.time_idle;
+	kbdev->pm.metrics.prev_busy = kbdev->pm.metrics.time_busy;
+
+	/* Reset current values */
 	kbdev->pm.metrics.time_period_start = now;
 	kbdev->pm.metrics.time_idle = 0;
 	kbdev->pm.metrics.time_busy = 0;
@@ -228,23 +239,39 @@ static void kbase_pm_get_dvfs_utilisation_reset(struct kbase_device *kbdev, ktim
 	kbdev->pm.metrics.busy_gl = 0;
 }
 
-void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev, unsigned long *total, unsigned long *busy, bool reset)
+void kbase_pm_reset_dvfs_utilisation(struct kbase_device *kbdev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
+	kbase_pm_reset_dvfs_utilisation_unlocked(kbdev, ktime_get());
+	spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
+}
+
+void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
+		unsigned long *total_out, unsigned long *busy_out)
 {
 	ktime_t now = ktime_get();
-	unsigned long tmp, flags;
+	unsigned long flags, busy, total;
 
 	spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
 	kbase_pm_get_dvfs_utilisation_calc(kbdev, now);
 
-	tmp = kbdev->pm.metrics.busy_gl;
-	tmp += kbdev->pm.metrics.busy_cl[0];
-	tmp += kbdev->pm.metrics.busy_cl[1];
+	busy = kbdev->pm.metrics.time_busy;
+	total = busy + kbdev->pm.metrics.time_idle;
 
-	*busy = tmp;
-	*total = tmp + kbdev->pm.metrics.time_idle;
+	/* Reset stats if older than MALI_UTILIZATION_MAX_PERIOD (default
+	 * 100ms) */
+	if (total >= MALI_UTILIZATION_MAX_PERIOD) {
+		kbase_pm_reset_dvfs_utilisation_unlocked(kbdev, now);
+	} else if (total < (MALI_UTILIZATION_MAX_PERIOD / 2)) {
+		total += kbdev->pm.metrics.prev_idle +
+				kbdev->pm.metrics.prev_busy;
+		busy += kbdev->pm.metrics.prev_busy;
+	}
 
-	if (reset)
-		kbase_pm_get_dvfs_utilisation_reset(kbdev, now);
+	*total_out = total;
+	*busy_out = busy;
 	spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
 }
 
@@ -299,7 +326,7 @@ int kbase_pm_get_dvfs_utilisation_old(struct kbase_device *kbdev, int *util_gl_s
 	}
 
 out:
-	kbase_pm_get_dvfs_utilisation_reset(kbdev, now);
+	kbase_pm_reset_dvfs_utilisation_unlocked(kbdev, now);
 
 	return utilisation;
 }

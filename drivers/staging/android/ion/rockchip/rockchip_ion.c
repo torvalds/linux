@@ -47,7 +47,14 @@ extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
  						int id);
 extern int ion_handle_put(struct ion_handle *handle);
 
+#define ION_CMA_HEAP_NAME		"cma"
+#define ION_IOMMU_HEAP_NAME		"iommu"
+#define ION_VMALLOC_HEAP_NAME		"vmalloc"
+#define ION_DRM_HEAP_NAME		"drm"
+#define ION_CARVEOUT_HEAP_NAME		"carveout"
+
 #define MAX_ION_HEAP		10
+
 static struct ion_platform_heap ion_plat_heap[MAX_ION_HEAP];
 struct ion_platform_data ion_pdata = {
 	.nr = 0,
@@ -114,10 +121,6 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 	pr_debug("[%s %d] cmd=%X\n", __func__, __LINE__, cmd);
 
 	switch (cmd) {
-	case ION_IOC_CLEAN_CACHES:
-	case ION_IOC_INV_CACHES:
-	case ION_IOC_CLEAN_INV_CACHES:
-		break;
 	case ION_IOC_GET_PHYS:
 	{
 		struct ion_phys_data data;
@@ -139,47 +142,6 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			return ret;
 		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_phys_data)))
 			return -EFAULT;
-		break;
-	}
-	case ION_IOC_GET_SHARE_ID:
-	{
-		struct ion_share_id_data data;
-		struct dma_buf *dmabuf = NULL;
-
-		if (copy_from_user(&data, (void __user *)arg,
-					sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
-		dmabuf = dma_buf_get(data.fd);
-		if (IS_ERR(dmabuf))
-			return PTR_ERR(dmabuf);
-
-		data.id = (unsigned int)dmabuf;
-//		dma_buf_put(dmabuf);
-
-		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
-		break;
-	}
-	case ION_IOC_SHARE_BY_ID:
-	{
-		struct ion_share_id_data data;
-		int fd = 0;
-
-		if (copy_from_user(&data, (void __user *)arg,
-					sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
-		fd = dma_buf_fd((struct dma_buf*)data.id, O_CLOEXEC);
-		if (fd < 0)
-			return fd;
-
-		data.fd = fd;
-
-		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_share_id_data)))
-			return -EFAULT;
-
 		break;
 	}
 	default:
@@ -274,7 +236,7 @@ int __init rockchip_ion_find_heap(unsigned long node, const char *uname,
 		return 0;
 
 	prop = of_get_flat_dt_prop(node, "rockchip,ion_heap", &len);
-	if (!prop || (len != sizeof(unsigned long)))
+	if (!prop || (len != sizeof(__be32)))
 		return 0;
 
 	heap = &pdata->heaps[pdata->nr++];
@@ -283,14 +245,14 @@ int __init rockchip_ion_find_heap(unsigned long node, const char *uname,
 	rockchip_ion_populate_heap(heap);
 
 	prop = of_get_flat_dt_prop(node, "reg", &len);
-	if (prop && (len >= 2*sizeof(unsigned long))) {
+	if (prop && (len >= 2*sizeof(__be32))) {
 		heap->base = be32_to_cpu(prop[0]);
 		heap->size = be32_to_cpu(prop[1]);
-		if (len==3*sizeof(unsigned long))
+		if (len==3*sizeof(__be32))
 			heap->align = be32_to_cpu(prop[2]);
 	}
 
-	pr_info("ion heap(%s): base(%lx) size(%x) align(%lx)\n", heap->name,
+	pr_info("ion heap(%s): base(%lx) size(%zx) align(%lx)\n", heap->name,
 			heap->base, heap->size, heap->align);
 	return 0;
 }

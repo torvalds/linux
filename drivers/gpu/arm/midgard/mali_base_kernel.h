@@ -32,6 +32,10 @@
 /* Support UK6 IOCTLS */
 #define BASE_LEGACY_UK6_SUPPORT 1
 
+/* Support UK7 IOCTLS */
+/* NB: To support UK6 we also need to support UK7 */
+#define BASE_LEGACY_UK7_SUPPORT 1
+
 typedef mali_addr64 base_mem_handle;
 
 #include "mali_base_mem_priv.h"
@@ -820,13 +824,14 @@ typedef enum base_jd_event_code {
 	BASE_JD_EVENT_ACCESS_FLAG = 0xD8,
 
 	/* SW defined exceptions */
-	BASE_JD_EVENT_MEM_GROWTH_FAILED = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x000,
-	BASE_JD_EVENT_TIMED_OUT = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x001,
-	BASE_JD_EVENT_JOB_CANCELLED = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x002,
-	BASE_JD_EVENT_JOB_INVALID = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x003,
-	BASE_JD_EVENT_PM_EVENT = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x004,
+	BASE_JD_EVENT_MEM_GROWTH_FAILED	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x000,
+	BASE_JD_EVENT_TIMED_OUT		= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x001,
+	BASE_JD_EVENT_JOB_CANCELLED	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x002,
+	BASE_JD_EVENT_JOB_INVALID	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x003,
+	BASE_JD_EVENT_PM_EVENT		= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x004,
+	BASE_JD_EVENT_FORCE_REPLAY	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x005,
 
-	BASE_JD_EVENT_BAG_INVALID = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_BAG | 0x003,
+	BASE_JD_EVENT_BAG_INVALID	= BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_BAG | 0x003,
 
 	/** End of HW fault and SW Error status codes */
 	BASE_JD_EVENT_RANGE_HW_FAULT_OR_SW_ERROR_END = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_RESERVED | 0x3FF,
@@ -1482,128 +1487,6 @@ enum basep_context_private_flags {
  * @addtogroup base_api Base APIs
  * @{
  */
-/**
- * @addtogroup basecpuprops Base CPU Properties
- * @{
- */
-
-/**
- * @brief CPU Property Flag for base_cpu_props::cpu_flags, indicating a
- * Little Endian System. If not set in base_cpu_props::cpu_flags, then the
- * system is Big Endian.
- *
- * The compile-time equivalent is @ref OSU_CONFIG_CPU_LITTLE_ENDIAN.
- */
-#define BASE_CPU_PROPERTY_FLAG_LITTLE_ENDIAN F_BIT_0
-
-
-/**
- * @brief Platform dynamic CPU ID properties structure
- */
-typedef struct base_cpu_id_props
-{
-	/**
-	 * CPU ID
-	 */
-	u32 id;
-
-	/**
-	 * CPU Part number
-	 */
-	u16 part;
-
-	/**
-	 * ASCII code of implementer trademark
-	 */
-	u8 implementer;
-
-	/**
-	 * CPU Variant
-	 */
-	u8 variant;
-
-	/**
-	 * CPU Architecture
-	 */
-	u8 arch;
-
-	/**
-	 * CPU revision
-	 */
-	u8 rev;
-	
-	/**
-	Validity of CPU id where 0-invalid and
-	1-valid only if ALL the cpu_id props are valid
-	*/
-	u8 valid;  
-
-	u8 padding[1];
-} base_cpu_id_props;
-
-
-/** @brief Platform Dynamic CPU properties structure */
-typedef struct base_cpu_props {
-	u32 nr_cores;	     /**< Number of CPU cores */
-
-    /**
-     * CPU page size as a Logarithm to Base 2. The compile-time
-     * equivalent is @ref OSU_CONFIG_CPU_PAGE_SIZE_LOG2
-     */
-	u32 cpu_page_size_log2;
-
-    /**
-     * CPU L1 Data cache line size as a Logarithm to Base 2. The compile-time
-     * equivalent is @ref OSU_CONFIG_CPU_L1_DCACHE_LINE_SIZE_LOG2.
-     */
-	u32 cpu_l1_dcache_line_size_log2;
-
-    /**
-     * CPU L1 Data cache size, in bytes. The compile-time equivalient is
-     * @ref OSU_CONFIG_CPU_L1_DCACHE_SIZE.
-     *
-     * This CPU Property is mainly provided to implement OpenCL's
-     * clGetDeviceInfo(), which allows the CL_DEVICE_GLOBAL_MEM_CACHE_SIZE
-     * hint to be queried.
-     */
-	u32 cpu_l1_dcache_size;
-
-    /**
-     * CPU Property Flags bitpattern.
-     *
-     * This is a combination of bits as specified by the macros prefixed with
-     * 'BASE_CPU_PROPERTY_FLAG_'.
-     */
-	u32 cpu_flags;
-
-    /**
-     * Maximum clock speed in MHz.
-     * @usecase 'Maximum' CPU Clock Speed information is required by OpenCL's
-     * clGetDeviceInfo() function for the CL_DEVICE_MAX_CLOCK_FREQUENCY hint.
-     */
-	u32 max_cpu_clock_speed_mhz;
-
-    /**
-     * @brief Total memory, in bytes.
-     *
-     * This is the theoretical maximum memory available to the CPU. It is
-     * unlikely that a client will be able to allocate all of this memory for
-     * their own purposes, but this at least provides an upper bound on the
-     * memory available to the CPU.
-     *
-     * This is required for OpenCL's clGetDeviceInfo() call when
-     * CL_DEVICE_GLOBAL_MEM_SIZE is requested, for OpenCL CPU devices.
-     */
-	u64 available_memory_size;
-
-	/**
-	 * CPU ID detailed info
-	 */
-	struct base_cpu_id_props cpu_id;
-
-	u32 padding;
-} base_cpu_props;
-/** @} end group basecpuprops */
 
 /**
  * @brief The payload for a replay job. This must be in GPU memory.

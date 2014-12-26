@@ -293,6 +293,8 @@ STATIC mali_bool kbase_pm_transition_core_type(struct kbase_device *kbdev, enum 
 	present = kbase_pm_get_present_cores(kbdev, type);
 	trans = kbase_pm_get_trans_cores(kbdev, type);
 	ready = kbase_pm_get_ready_cores(kbdev, type);
+	/* mask off ready from trans in case transitions finished between the register reads */
+	trans &= ~ready;
 
 	powering_on_trans = trans & *powering_on;
 	*powering_on = powering_on_trans;
@@ -452,7 +454,7 @@ mali_bool MOCKABLE(kbase_pm_check_transitions_nolock) (struct kbase_device *kbde
 	}
 
 	desired_l3_state = get_desired_cache_status(kbdev->l3_present_bitmap, desired_l2_state);
-	prev_l2_available_bitmap = l2_available_bitmap;
+	prev_l2_available_bitmap = kbdev->l2_available_bitmap;
 	in_desired_state &= kbase_pm_transition_core_type(kbdev, KBASE_PM_CORE_L3, desired_l3_state, 0, NULL, &kbdev->pm.powering_on_l3_state);
 	in_desired_state &= kbase_pm_transition_core_type(kbdev, KBASE_PM_CORE_L2, desired_l2_state, 0, &l2_available_bitmap, &kbdev->pm.powering_on_l2_state);
 

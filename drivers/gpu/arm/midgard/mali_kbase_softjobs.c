@@ -91,7 +91,7 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 	} while (hi1 != hi2);
 
 	/* Record the CPU's idea of current time */
-	getnstimeofday(&ts);
+	getrawmonotonic(&ts);
 
 	kbase_pm_release_gpu_cycle_counter(kctx->kbdev);
 
@@ -128,12 +128,12 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 		return 0;
 
 	dma_sync_single_for_cpu(katom->kctx->kbdev->dev,
-			page_private(pfn_to_page(PFN_DOWN(addr))) +
+			kbase_dma_addr(pfn_to_page(PFN_DOWN(addr))) +
 			offset, sizeof(data),
 			DMA_BIDIRECTIONAL);
 	memcpy(page + offset, &data, sizeof(data));
 	dma_sync_single_for_device(katom->kctx->kbdev->dev,
-			page_private(pfn_to_page(PFN_DOWN(addr))) +
+			kbase_dma_addr(pfn_to_page(PFN_DOWN(addr))) +
 			offset, sizeof(data),
 			DMA_BIDIRECTIONAL);
 	kunmap(pfn_to_page(PFN_DOWN(addr)));

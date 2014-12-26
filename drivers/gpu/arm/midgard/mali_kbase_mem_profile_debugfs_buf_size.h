@@ -16,16 +16,18 @@
 
 
 /**
- * @file
- * Software workarounds configuration for Hardware issues.
+ * @file mali_kbase_mem_profile_debugfs_buf_size.h
+ * Header file for the size of the buffer to accumulate the histogram report text in
  */
 
-#ifndef _BASE_HWCONFIG_H_
-#define _BASE_HWCONFIG_H_
+#ifndef _KBASE_MEM_PROFILE_DEBUGFS_BUF_SIZE_H_
+#define _KBASE_MEM_PROFILE_DEBUGFS_BUF_SIZE_H_
 
-#include <malisw/mali_malisw.h>
+/**
+ * The size of the buffer to accumulate the histogram report text in
+ * @see @ref CCTXP_HIST_BUF_SIZE_MAX_LENGTH_REPORT
+ */
+#define KBASE_MEM_PROFILE_MAX_BUF_SIZE ( ( size_t ) ( 64 + ( ( 80 + ( 56 * 64 ) ) * 15 ) + 56 ) )
 
-#include "mali_base_hwconfig_issues.h"
-#include "mali_base_hwconfig_features.h"
+#endif  /*_KBASE_MEM_PROFILE_DEBUGFS_BUF_SIZE_H_*/
 
-#endif /* _BASE_HWCONFIG_H_ */

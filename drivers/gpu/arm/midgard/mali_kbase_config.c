@@ -19,7 +19,6 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
-#include <mali_kbase_cpuprops.h>
 #include <mali_kbase_config_defaults.h>
 
 /* Specifies how many attributes are permitted in the config (excluding terminating attribute).
@@ -56,6 +55,14 @@ const struct kbase_attribute *kbasep_get_next_attribute(const struct kbase_attri
 }
 
 KBASE_EXPORT_TEST_API(kbasep_get_next_attribute)
+
+int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed)
+{
+	KBASE_DEBUG_ASSERT(NULL != clock_speed);
+
+	*clock_speed = 100;
+	return 0;
+}
 
 uintptr_t kbasep_get_config_value(struct kbase_device *kbdev, const struct kbase_attribute *attributes, int attribute_id)
 {

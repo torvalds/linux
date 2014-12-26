@@ -341,6 +341,6 @@ kernel.img: zImage
 
 LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
 LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
-%.img: %.dtb kernel.img $(LOGO)
+%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
 	$(Q)$(srctree)/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb $(LOGO) $(LOGO_KERNEL)
 	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'

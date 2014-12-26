@@ -105,7 +105,8 @@ u32 kbase_get_profiling_control(struct kbase_device *kbdev, u32 control);
 void kbase_synchronize_irqs(struct kbase_device *kbdev);
 void kbase_synchronize_irqs(struct kbase_device *kbdev);
 
-struct kbase_context *kbase_create_context(struct kbase_device *kbdev);
+struct kbase_context *
+kbase_create_context(struct kbase_device *kbdev, bool is_compat);
 void kbase_destroy_context(struct kbase_context *kctx);
 mali_error kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags);
 

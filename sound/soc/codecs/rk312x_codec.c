@@ -922,15 +922,27 @@ static int rk312x_capture_path_put(struct snd_kcontrol *kcontrol,
 	case Main_Mic:
 		if (pre_path == MIC_OFF) {
 			rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
-			snd_soc_write(rk312x_priv->codec, 0x94, 0x20|rk312x_priv->capture_volume);
-			snd_soc_write(rk312x_priv->codec, 0x98, rk312x_priv->capture_volume);
+			/* snd_soc_write(rk312x_priv->codec, 0x94,
+					 0x20|rk312x_priv->capture_volume); */
+			/* snd_soc_write(rk312x_priv->codec, 0x98,
+					 rk312x_priv->capture_volume); */
+			snd_soc_write(rk312x_priv->codec, 0x10c,
+				      0x20|rk312x_priv->capture_volume);
+			snd_soc_write(rk312x_priv->codec, 0x14c,
+				      0x20|rk312x_priv->capture_volume);
 		}
 		break;
 	case Hands_Free_Mic:
 		if (pre_path == MIC_OFF) {
 			rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
-			snd_soc_write(rk312x_priv->codec, 0x94, 0x20|rk312x_priv->capture_volume);
-			snd_soc_write(rk312x_priv->codec, 0x98, rk312x_priv->capture_volume);
+			/* snd_soc_write(rk312x_priv->codec,0x94,
+					 0x20|rk312x_priv->capture_volume); */
+			/* snd_soc_write(rk312x_priv->codec,
+					 0x98, rk312x_priv->capture_volume); */
+			snd_soc_write(rk312x_priv->codec,
+				      0x10c, 0x20|rk312x_priv->capture_volume);
+			snd_soc_write(rk312x_priv->codec,
+				      0x14c, 0x20|rk312x_priv->capture_volume);
 		}
 		break;
 	case BT_Sco_Mic:
@@ -1767,8 +1779,15 @@ static struct rk312x_reg_val_typ capture_power_up_list[] = {
 	{0x98, CAP_VOL},
 	{0x88, 0xf7},
 	{0x28, 0x3c},
-	{0x124, 0x78},
-	{0x164, 0x78},
+	/* {0x124, 0x78}, */
+	/* {0x164, 0x78}, */
+	{0x10c, 0x20 | CAP_VOL},
+	{0x14c, 0x20 | CAP_VOL},
+	/*close left channel*/
+	{0x90, 0x07},
+	{0x88, 0xd7},
+	{0x8c, 0x07},
+	{0x9c, 0x0e},
 
 };
 #define RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN ARRAY_SIZE(capture_power_up_list)
@@ -1788,8 +1807,10 @@ static struct rk312x_reg_val_typ capture_power_down_list[] = {
 	{0x88, 0x00},
 	{0x90, 0x44},
 	{0x28, 0x0c},
-	{0x124, 0x38},
-	{0x164, 0x38},
+	{0x10c, 0x2c},
+	{0x14c, 0x2c},
+	/* {0x124, 0x38}, */
+	/* {0x164, 0x38}, */
 };
 #define RK312x_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(\
 				capture_power_down_list)
@@ -1814,9 +1835,22 @@ static int rk312x_codec_power_up(int type)
 				      playback_power_up_list[i].value);
 		}
 	} else if (type == RK312x_CODEC_CAPTURE) {
-		for (i = 0; i < RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN; i++) {
-			snd_soc_write(codec, capture_power_up_list[i].reg,
-				      capture_power_up_list[i].value);
+		if (rk312x_priv->rk312x_for_mid == 1) {
+			for (i = 0;
+			     i < RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN;
+			     i++) {
+				snd_soc_write(codec,
+					      capture_power_up_list[i].reg,
+					      capture_power_up_list[i].value);
+			}
+		} else {
+			for (i = 0;
+			     i < RK312x_CODEC_CAPTURE_POWER_UP_LIST_LEN - 4;
+			     i++) {
+				snd_soc_write(codec,
+					      capture_power_up_list[i].reg,
+					      capture_power_up_list[i].value);
+			}
 		}
 	} else if (type == RK312x_CODEC_INCALL) {
 		snd_soc_update_bits(codec, RK312x_ALC_MUNIN_CTL,
@@ -1874,8 +1908,14 @@ static void  rk312x_codec_capture_work(struct work_struct *work)
 		break;
 	case RK312x_CODEC_WORK_POWER_UP:
 		rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
-		snd_soc_write(rk312x_priv->codec, 0x94, 0x20|rk312x_priv->capture_volume);
-		snd_soc_write(rk312x_priv->codec, 0x98, rk312x_priv->capture_volume);
+		/* snd_soc_write(rk312x_priv->codec,
+				 0x94, 0x20|rk312x_priv->capture_volume); */
+		/* snd_soc_write(rk312x_priv->codec,
+				 0x98, rk312x_priv->capture_volume); */
+		snd_soc_write(rk312x_priv->codec,
+			      0x10c, 0x20|rk312x_priv->capture_volume);
+		snd_soc_write(rk312x_priv->codec,
+			      0x14c, 0x20|rk312x_priv->capture_volume);
 		break;
 	default:
 		break;

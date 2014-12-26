@@ -28,7 +28,9 @@
 struct kbase_gator_hwcnt_handles {
 	struct kbase_device  *kbdev;
 	struct kbase_context *kctx;
-	struct kbase_hwc_dma_mapping kernel_dump_buffer_handle;
+	mali_addr64 hwcnt_gpu_va;
+	void *hwcnt_cpu_va;
+	struct kbase_vmap_struct hwcnt_map;
 };
 
 const char * const *kbase_gator_hwcnt_init_names(uint32_t *total_number_of_counters)
@@ -75,13 +77,11 @@ const char * const *kbase_gator_hwcnt_init_names(uint32_t *total_number_of_count
 			*total_number_of_counters = ARRAY_SIZE(hardware_counter_names_mali_t76x);
 			break;
 #endif /* MALI_INCLUDE_TRFX */
-#ifdef MALI_INCLUDE_TF2X
-	/* If we are using a Mali-TF2X device - for now just mimic the T760 counters */
-	case GPU_ID_PI_TF2X:
+	/* If we are using a Mali-T86X device - for now just mimic the T760 counters */
+	case GPU_ID_PI_T86X:
 			hardware_counter_names = hardware_counter_names_mali_t76x;
 			*total_number_of_counters = ARRAY_SIZE(hardware_counter_names_mali_t76x);
 			break;
-#endif /* MALI_INCLUDE_TF2X */
 	default:
 			hardware_counter_names = NULL;
 			*total_number_of_counters = 0;
@@ -113,6 +113,10 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 	struct kbase_uk_hwcnt_setup setup;
 	mali_error err;
 	uint32_t dump_size = 0, i = 0;
+	struct kbase_va_region *reg;
+	u64 flags;
+	u64 nr_pages;
+	u16 va_alignment = 0;
 
 	if (!in_out_info)
 		return NULL;
@@ -127,7 +131,7 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 		goto free_hand;
 
 	/* Create a kbase_context */
-	hand->kctx = kbase_create_context(hand->kbdev);
+	hand->kctx = kbase_create_context(hand->kbdev, true);
 	if (!hand->kctx)
 		goto release_device;
 
@@ -182,9 +186,10 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 #ifdef MALI_INCLUDE_TFRX
 				|| (in_out_info->gpu_id == GPU_ID_PI_TFRX)
 #endif /* MALI_INCLUDE_TFRX */
-#ifdef MALI_INCLUDE_TF2X
-				|| (in_out_info->gpu_id == GPU_ID_PI_TF2X)
-#endif /* MALI_INCLUDE_TF2X */
+				|| (in_out_info->gpu_id == GPU_ID_PI_T86X)
+#ifdef MALI_INCLUDE_TGAL
+				|| (in_out_info->gpu_id == GPU_ID_PI_TGAL)
+#endif
 			) {
 		uint32_t nr_l2, nr_sc, j;
 		uint64_t core_mask;
@@ -222,11 +227,23 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 
 	in_out_info->size = dump_size;
 
-	in_out_info->kernel_dump_buffer = kbase_va_alloc(hand->kctx, dump_size, &hand->kernel_dump_buffer_handle);
-	if (!in_out_info->kernel_dump_buffer)
+	flags = BASE_MEM_PROT_CPU_RD | BASE_MEM_PROT_GPU_WR;
+	nr_pages = PFN_UP(dump_size);
+	reg = kbase_mem_alloc(hand->kctx, nr_pages, nr_pages, 0,
+			&flags, &hand->hwcnt_gpu_va, &va_alignment);
+	if (!reg)
 		goto free_layout;
 
-	setup.dump_buffer = (uintptr_t)in_out_info->kernel_dump_buffer;
+	hand->hwcnt_cpu_va = kbase_vmap(hand->kctx, hand->hwcnt_gpu_va,
+			dump_size, &hand->hwcnt_map);
+
+	if (!hand->hwcnt_cpu_va)
+		goto free_buffer;
+
+	in_out_info->kernel_dump_buffer = hand->hwcnt_cpu_va;
+
+	/*setup.dump_buffer = (uintptr_t)in_out_info->kernel_dump_buffer;*/
+	setup.dump_buffer = hand->hwcnt_gpu_va;
 	setup.jm_bm = in_out_info->bitmask[0];
 	setup.tiler_bm = in_out_info->bitmask[1];
 	setup.shader_bm = in_out_info->bitmask[2];
@@ -237,14 +254,17 @@ struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcn
 
 	err = kbase_instr_hwcnt_enable(hand->kctx, &setup);
 	if (err != MALI_ERROR_NONE)
-		goto free_buffer;
+		goto free_unmap;
 
 	kbase_instr_hwcnt_clear(hand->kctx);
 
 	return hand;
 
+free_unmap:
+	kbase_vunmap(hand->kctx, &hand->hwcnt_map);
+
 free_buffer:
-	kbase_va_free(hand->kctx, &hand->kernel_dump_buffer_handle);
+	kbase_mem_free(hand->kctx, hand->hwcnt_gpu_va);
 
 free_layout:
 	kfree(in_out_info->hwc_layout);
@@ -269,7 +289,8 @@ void kbase_gator_hwcnt_term(struct kbase_gator_hwcnt_info *in_out_info, struct k
 
 	if (opaque_handles) {
 		kbase_instr_hwcnt_disable(opaque_handles->kctx);
-		kbase_va_free(opaque_handles->kctx, &opaque_handles->kernel_dump_buffer_handle);
+		kbase_vunmap(opaque_handles->kctx, &opaque_handles->hwcnt_map);
+		kbase_mem_free(opaque_handles->kctx, opaque_handles->hwcnt_gpu_va);
 		kbase_destroy_context(opaque_handles->kctx);
 		kbase_release_device(opaque_handles->kbdev);
 		kfree(opaque_handles);

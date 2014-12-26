@@ -656,6 +656,29 @@ static inline void kbase_wait_write_flush(struct kbase_context *kctx)
 void kbase_wait_write_flush(struct kbase_context *kctx);
 #endif
 
+static inline void kbase_set_dma_addr(struct page *p, dma_addr_t dma_addr)
+{
+	SetPagePrivate(p);
+	if (sizeof(dma_addr_t) > sizeof(p->private)) {
+		/* on 32-bit ARM with LPAE dma_addr_t becomes larger, but the
+		 * private filed stays the same. So we have to be clever and
+		 * use the fact that we only store DMA addresses of whole pages,
+		 * so the low bits should be zero */
+		KBASE_DEBUG_ASSERT(!(dma_addr & (PAGE_SIZE - 1)));
+		set_page_private(p, dma_addr >> PAGE_SHIFT);
+	} else {
+		set_page_private(p, dma_addr);
+	}
+}
+
+static inline dma_addr_t kbase_dma_addr(struct page *p)
+{
+	if (sizeof(dma_addr_t) > sizeof(p->private))
+		return ((dma_addr_t)page_private(p)) << PAGE_SHIFT;
+
+	return (dma_addr_t)page_private(p);
+}
+
 /**
 * @brief Process a bus or page fault.
 *

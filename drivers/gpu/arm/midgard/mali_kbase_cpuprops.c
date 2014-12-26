@@ -21,6 +21,8 @@
  */
 
 #include "mali_kbase.h"
+#ifdef BASE_LEGACY_UK7_SUPPORT
+
 #include "mali_kbase_cpuprops.h"
 #include "mali_kbase_uku.h"
 #include <mali_kbase_config.h>
@@ -46,7 +48,6 @@
 
 /*Below value sourced from OSK*/
 #define L1_DCACHE_SIZE ((u32)0x00008000)
-
 
 /**
  * @brief Retrieves detailed CPU info from given cpu_val ( ID reg )
@@ -79,13 +80,13 @@ static void kbasep_cpuprops_uk_get_cpu_id_info(struct kbase_uk_cpuprops * const 
 }
 #endif
 
-int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed)
-{
-	KBASE_DEBUG_ASSERT(NULL != clock_speed);
-
-	*clock_speed = 100;
-	return 0;
-}
+/**
+ * This function (and file!) is kept for the backward compatibility reasons.
+ * It shall be removed as soon as KBASE_FUNC_CPU_PROPS_REG_DUMP_OBSOLETE
+ * (previously KBASE_FUNC_CPU_PROPS_REG_DUMP) ioctl call
+ * is removed. Removal of KBASE_FUNC_CPU_PROPS_REG_DUMP is part of having
+ * the function for reading cpu properties moved from base to osu.
+ */
 
 mali_error kbase_cpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_cpuprops * const kbase_props)
 {
@@ -103,13 +104,10 @@ mali_error kbase_cpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_
 
 	/* check if kernel supports dynamic frequency scaling */
 	max_cpu_freq = cpufreq_quick_get_max(KBASE_DEFAULT_CPU_NUM);
-	if (max_cpu_freq != 0)
-	{
+	if (max_cpu_freq != 0) {
 		/* convert from kHz to mHz */
 		kbase_props->props.max_cpu_clock_speed_mhz = max_cpu_freq / 1000;
-	}
-	else 
-	{
+	} else {
 		/* fallback if CONFIG_CPU_FREQ turned off */
 		int result;
 		kbase_cpuprops_clock_speed_function kbase_cpuprops_uk_get_clock_speed;
@@ -122,3 +120,5 @@ mali_error kbase_cpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_
 
 	return MALI_ERROR_NONE;
 }
+
+#endif /* BASE_LEGACY_UK7_SUPPORT */
