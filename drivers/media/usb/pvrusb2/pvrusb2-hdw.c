@@ -2425,22 +2425,18 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	}
 	if (!hdw) goto fail;
 
-	init_timer(&hdw->quiescent_timer);
-	hdw->quiescent_timer.data = (unsigned long)hdw;
-	hdw->quiescent_timer.function = pvr2_hdw_quiescent_timeout;
+	setup_timer(&hdw->quiescent_timer, pvr2_hdw_quiescent_timeout,
+		    (unsigned long)hdw);
 
-	init_timer(&hdw->decoder_stabilization_timer);
-	hdw->decoder_stabilization_timer.data = (unsigned long)hdw;
-	hdw->decoder_stabilization_timer.function =
-		pvr2_hdw_decoder_stabilization_timeout;
+	setup_timer(&hdw->decoder_stabilization_timer,
+		    pvr2_hdw_decoder_stabilization_timeout,
+		    (unsigned long)hdw);
 
-	init_timer(&hdw->encoder_wait_timer);
-	hdw->encoder_wait_timer.data = (unsigned long)hdw;
-	hdw->encoder_wait_timer.function = pvr2_hdw_encoder_wait_timeout;
+	setup_timer(&hdw->encoder_wait_timer, pvr2_hdw_encoder_wait_timeout,
+		    (unsigned long)hdw);
 
-	init_timer(&hdw->encoder_run_timer);
-	hdw->encoder_run_timer.data = (unsigned long)hdw;
-	hdw->encoder_run_timer.function = pvr2_hdw_encoder_run_timeout;
+	setup_timer(&hdw->encoder_run_timer, pvr2_hdw_encoder_run_timeout,
+		    (unsigned long)hdw);
 
 	hdw->master_state = PVR2_STATE_DEAD;
 
@@ -3680,10 +3676,8 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 	hdw->ctl_timeout_flag = 0;
 	hdw->ctl_write_pend_flag = 0;
 	hdw->ctl_read_pend_flag = 0;
-	init_timer(&timer);
+	setup_timer(&timer, pvr2_ctl_timeout, (unsigned long)hdw);
 	timer.expires = jiffies + timeout;
-	timer.data = (unsigned long)hdw;
-	timer.function = pvr2_ctl_timeout;
 
 	if (write_len) {
 		hdw->cmd_debug_state = 2;
