@@ -83,9 +83,8 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	}
 	mwifiex_init_lock_list(adapter);
 
-	init_timer(&adapter->cmd_timer);
-	adapter->cmd_timer.function = mwifiex_cmd_timeout_func;
-	adapter->cmd_timer.data = (unsigned long) adapter;
+	setup_timer(&adapter->cmd_timer, mwifiex_cmd_timeout_func,
+		    (unsigned long)adapter);
 
 	return 0;
 
