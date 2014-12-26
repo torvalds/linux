@@ -28,7 +28,7 @@
 
 /**
  * enum batadv_dup_status - duplicate status
- * @BATADV_NO_DUP: the packet is a duplicate
+ * @BATADV_NO_DUP: the packet is no duplicate
  * @BATADV_ORIG_DUP: OGM is a duplicate in the originator (but not for the
  *  neighbor)
  * @BATADV_NEIGH_DUP: OGM is a duplicate for the neighbor
