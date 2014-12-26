@@ -1397,9 +1397,8 @@ void mwifiex_check_auto_tdls(unsigned long context)
 
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv)
 {
-	init_timer(&priv->auto_tdls_timer);
-	priv->auto_tdls_timer.function = mwifiex_check_auto_tdls;
-	priv->auto_tdls_timer.data = (unsigned long)priv;
+	setup_timer(&priv->auto_tdls_timer, mwifiex_check_auto_tdls,
+		    (unsigned long)priv);
 	priv->auto_tdls_timer_active = true;
 	mod_timer(&priv->auto_tdls_timer,
 		  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
