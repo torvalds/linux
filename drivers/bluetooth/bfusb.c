@@ -696,6 +696,8 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hdev->flush = bfusb_flush;
 	hdev->send  = bfusb_send_frame;
 
+	set_bit(HCI_QUIRK_BROKEN_LOCAL_COMMANDS, &hdev->quirks);
+
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
 		hci_free_dev(hdev);
