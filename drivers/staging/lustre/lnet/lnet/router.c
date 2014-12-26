@@ -793,7 +793,7 @@ lnet_update_ni_status_locked(void)
 	LASSERT(the_lnet.ln_routing);
 
 	timeout = router_ping_timeout +
-		  MAX(live_router_check_interval, dead_router_check_interval);
+		  max(live_router_check_interval, dead_router_check_interval);
 
 	now = get_seconds();
 	list_for_each_entry(ni, &the_lnet.ln_nis, ni_list) {
@@ -1593,7 +1593,7 @@ lnet_router_checker (void)
 		return;
 
 	if (last != 0 &&
-	    interval > MAX(live_router_check_interval,
+	    interval > max(live_router_check_interval,
 			   dead_router_check_interval))
 		CNETERR("Checker(%d/%d) not called for %d seconds\n",
 			live_router_check_interval, dead_router_check_interval,

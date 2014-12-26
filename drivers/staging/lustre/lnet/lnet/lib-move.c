@@ -201,9 +201,9 @@ lnet_copy_iov2iov(unsigned int ndiov, struct kvec *diov, unsigned int doffset,
 	do {
 		LASSERT(ndiov > 0);
 		LASSERT(nsiov > 0);
-		this_nob = MIN(diov->iov_len - doffset,
+		this_nob = min(diov->iov_len - doffset,
 			       siov->iov_len - soffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(this_nob, nob);
 
 		memcpy((char *)diov->iov_base + doffset,
 			(char *)siov->iov_base + soffset, this_nob);
@@ -322,9 +322,9 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 	do {
 		LASSERT(ndiov > 0);
 		LASSERT(nsiov > 0);
-		this_nob = MIN(diov->kiov_len - doffset,
+		this_nob = min(diov->kiov_len - doffset,
 			       siov->kiov_len - soffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(this_nob, nob);
 
 		if (daddr == NULL)
 			daddr = ((char *)kmap(diov->kiov_page)) +
@@ -405,7 +405,7 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 		LASSERT(nkiov > 0);
 		this_nob = MIN(iov->iov_len - iovoffset,
 			       kiov->kiov_len - kiovoffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(this_nob, nob);
 
 		if (addr == NULL)
 			addr = ((char *)kmap(kiov->kiov_page)) +
@@ -476,7 +476,7 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 		LASSERT(niov > 0);
 		this_nob = MIN(kiov->kiov_len - kiovoffset,
 			       iov->iov_len - iovoffset);
-		this_nob = MIN(this_nob, nob);
+		this_nob = min(this_nob, nob);
 
 		if (addr == NULL)
 			addr = ((char *)kmap(kiov->kiov_page)) +

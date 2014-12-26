@@ -1950,10 +1950,10 @@ ksocknal_connect (ksock_route_t *route)
 	/* This is a retry rather than a new connection */
 	route->ksnr_retry_interval *= 2;
 	route->ksnr_retry_interval =
-		MAX(route->ksnr_retry_interval,
+		max(route->ksnr_retry_interval,
 		    cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms)/1000);
 	route->ksnr_retry_interval =
-		MIN(route->ksnr_retry_interval,
+		min(route->ksnr_retry_interval,
 		    cfs_time_seconds(*ksocknal_tunables.ksnd_max_reconnectms)/1000);
 
 	LASSERT (route->ksnr_retry_interval != 0);

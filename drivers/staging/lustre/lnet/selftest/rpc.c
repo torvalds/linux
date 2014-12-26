@@ -559,7 +559,7 @@ srpc_add_buffer(struct swi_workitem *wi)
 		LASSERT(scd->scd_buf_posting > 0);
 		scd->scd_buf_posting--;
 		scd->scd_buf_total++;
-		scd->scd_buf_low = MAX(2, scd->scd_buf_total / 4);
+		scd->scd_buf_low = max(2, scd->scd_buf_total / 4);
 	}
 
 	if (rc != 0) {
@@ -1486,7 +1486,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		if (scd->scd_buf_err == 0 && /* adding buffer is enabled */
 		    scd->scd_buf_adjust == 0 &&
 		    scd->scd_buf_nposted < scd->scd_buf_low) {
-			scd->scd_buf_adjust = MAX(scd->scd_buf_total / 2,
+			scd->scd_buf_adjust = max(scd->scd_buf_total / 2,
 						  SFW_TEST_WI_MIN);
 			swi_schedule_workitem(&scd->scd_buf_wi);
 		}
