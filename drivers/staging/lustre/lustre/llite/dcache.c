@@ -263,14 +263,6 @@ void ll_invalidate_aliases(struct inode *inode)
 		       dentry, dentry, dentry->d_parent,
 		       dentry->d_inode, dentry->d_flags);
 
-		if (unlikely(dentry == dentry->d_sb->s_root)) {
-			CERROR("%s: called on root dentry=%p, fid="DFID"\n",
-			       ll_get_fsname(dentry->d_sb, NULL, 0),
-			       dentry, PFID(ll_inode2fid(inode)));
-			lustre_dump_dentry(dentry, 1);
-			dump_stack();
-		}
-
 		d_lustre_invalidate(dentry, 0);
 	}
 	ll_unlock_dcache(inode);
