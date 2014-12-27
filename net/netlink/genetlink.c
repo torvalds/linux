@@ -983,11 +983,70 @@ static struct genl_multicast_group genl_ctrl_groups[] = {
 	{ .name = "notify", },
 };
 
+static int genl_bind(int group)
+{
+	int i, err;
+	bool found = false;
+
+	down_read(&cb_lock);
+	for (i = 0; i < GENL_FAM_TAB_SIZE; i++) {
+		struct genl_family *f;
+
+		list_for_each_entry(f, genl_family_chain(i), family_list) {
+			if (group >= f->mcgrp_offset &&
+			    group < f->mcgrp_offset + f->n_mcgrps) {
+				int fam_grp = group - f->mcgrp_offset;
+
+				if (f->mcast_bind)
+					err = f->mcast_bind(fam_grp);
+				else
+					err = 0;
+				found = true;
+				break;
+			}
+		}
+	}
+	up_read(&cb_lock);
+
+	if (WARN_ON(!found))
+		err = 0;
+
+	return err;
+}
+
+static void genl_unbind(int group)
+{
+	int i;
+	bool found = false;
+
+	down_read(&cb_lock);
+	for (i = 0; i < GENL_FAM_TAB_SIZE; i++) {
+		struct genl_family *f;
+
+		list_for_each_entry(f, genl_family_chain(i), family_list) {
+			if (group >= f->mcgrp_offset &&
+			    group < f->mcgrp_offset + f->n_mcgrps) {
+				int fam_grp = group - f->mcgrp_offset;
+
+				if (f->mcast_unbind)
+					f->mcast_unbind(fam_grp);
+				found = true;
+				break;
+			}
+		}
+	}
+	up_read(&cb_lock);
+
+	WARN_ON(!found);
+}
+
 static int __net_init genl_pernet_init(struct net *net)
 {
 	struct netlink_kernel_cfg cfg = {
 		.input		= genl_rcv,
 		.flags		= NL_CFG_F_NONROOT_RECV,
+		.bind		= genl_bind,
+		.unbind		= genl_unbind,
 	};
 
 	/* we'll bump the group number right afterwards */
