@@ -61,6 +61,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
+#include <linux/skbuff.h>
 #include "iwl-trans.h"
 #include "mvm.h"
 #include "fw-api.h"
@@ -234,6 +235,19 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
+			    struct sk_buff *skb,
+			    u32 status)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+
+	if (mvmvif->features & NETIF_F_RXCSUM &&
+	    status & RX_MPDU_RES_STATUS_CSUM_DONE &&
+	    status & RX_MPDU_RES_STATUS_CSUM_OK)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+}
+
 /*
  * iwl_mvm_rx_rx_mpdu - REPLY_RX_MPDU_CMD handler
  *
@@ -361,6 +375,9 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
 		}
 	}
+
+	if (sta && ieee80211_is_data(hdr->frame_control))
+		iwl_mvm_rx_csum(sta, skb, rx_pkt_status);
 
 	rcu_read_unlock();
 

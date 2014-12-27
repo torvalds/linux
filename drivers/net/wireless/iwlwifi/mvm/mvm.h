@@ -357,6 +357,7 @@ struct iwl_mvm_vif_bf_data {
  *	# of received beacons accumulated over FW restart, and the current
  *	average signal of beacons retrieved from the firmware
  * @csa_failed: CSA failed to schedule time event, report an error later
+ * @features: hw features active for this vif
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -437,6 +438,9 @@ struct iwl_mvm_vif {
 	/* Indicates that CSA countdown may be started */
 	bool csa_countdown;
 	bool csa_failed;
+
+	/* TCP Checksum Offload */
+	netdev_features_t features;
 };
 
 static inline struct iwl_mvm_vif *
@@ -941,6 +945,12 @@ static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_BT_COEX_RRC) &&
 		IWL_MVM_BT_COEX_RRC;
+}
+
+static inline bool iwl_mvm_is_csum_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT);
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];

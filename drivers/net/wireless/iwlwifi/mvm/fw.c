@@ -752,6 +752,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	if (iwl_mvm_is_csum_supported(mvm) &&
+	    mvm->cfg->features & NETIF_F_RXCSUM)
+		iwl_trans_write_prph(mvm->trans, RX_EN_CSUM, 0x3);
+
 	/* allow FW/transport low power modes if not during restart */
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		iwl_mvm_unref(mvm, IWL_MVM_REF_UCODE_DOWN);
