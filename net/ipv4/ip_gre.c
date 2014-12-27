@@ -673,6 +673,7 @@ static bool ipgre_netlink_encap_parms(struct nlattr *data[],
 static int gre_tap_init(struct net_device *dev)
 {
 	__gre_tunnel_init(dev);
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	return ip_tunnel_init(dev);
 }
