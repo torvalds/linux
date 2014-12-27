@@ -362,12 +362,11 @@ static void __init pxa27x_base_clocks_init(void)
 	clk_register_clk_pxa27x_lcd_base();
 }
 
-static int __init pxa27x_clocks_init(void)
+int __init pxa27x_clocks_init(void)
 {
 	pxa27x_base_clocks_init();
 	return clk_pxa_cken_init(pxa27x_clocks, ARRAY_SIZE(pxa27x_clocks));
 }
-postcore_initcall(pxa27x_clocks_init);
 
 static void __init pxa27x_dt_clocks_init(struct device_node *np)
 {
