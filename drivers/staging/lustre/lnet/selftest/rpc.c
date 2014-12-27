@@ -468,6 +468,7 @@ srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 
 static int
 srpc_service_post_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
+	__must_hold(&scd->scd_lock)
 {
 	struct srpc_service	*sv = scd->scd_svc;
 	struct srpc_msg		*msg = &buf->buf_msg;
