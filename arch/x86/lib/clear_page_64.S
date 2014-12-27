@@ -67,7 +67,7 @@ ENDPROC(clear_page)
 	.previous
 	.section .altinstructions,"a"
 	altinstruction_entry clear_page,1b,X86_FEATURE_REP_GOOD,\
-			     .Lclear_page_end-clear_page, 2b-1b
+			     .Lclear_page_end-clear_page, 2b-1b, 0
 	altinstruction_entry clear_page,2b,X86_FEATURE_ERMS,   \
-			     .Lclear_page_end-clear_page,3b-2b
+			     .Lclear_page_end-clear_page,3b-2b, 0
 	.previous

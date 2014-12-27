@@ -33,7 +33,7 @@
 	662: __ASM_CLAC ;						\
 	.popsection ;							\
 	.pushsection .altinstructions, "a" ;				\
-	altinstruction_entry 661b, 662b, X86_FEATURE_SMAP, 3, 3 ;	\
+	altinstruction_entry 661b, 662b, X86_FEATURE_SMAP, 3, 3, 0 ;	\
 	.popsection
 
 #define ASM_STAC							\
@@ -42,7 +42,7 @@
 	662: __ASM_STAC ;						\
 	.popsection ;							\
 	.pushsection .altinstructions, "a" ;				\
-	altinstruction_entry 661b, 662b, X86_FEATURE_SMAP, 3, 3 ;	\
+	altinstruction_entry 661b, 662b, X86_FEATURE_SMAP, 3, 3, 0 ;	\
 	.popsection
 
 #else /* CONFIG_X86_SMAP */

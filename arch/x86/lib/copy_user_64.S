@@ -36,8 +36,8 @@
 	.previous
 
 	.section .altinstructions,"a"
-	altinstruction_entry 0b,2b,\feature1,5,5
-	altinstruction_entry 0b,3b,\feature2,5,5
+	altinstruction_entry 0b,2b,\feature1,5,5,0
+	altinstruction_entry 0b,3b,\feature2,5,5,0
 	.previous
 	.endm
 
