@@ -79,7 +79,9 @@ static int bcma_chipco_watchdog_ticks_per_ms(struct bcma_drv_cc *cc)
 
 	if (cc->capabilities & BCMA_CC_CAP_PMU) {
 		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
-			/* 4706 CC and PMU watchdogs are clocked at 1/4 of ALP clock */
+			/* 4706 CC and PMU watchdogs are clocked at 1/4 of ALP
+			 * clock
+			 */
 			return bcma_chipco_get_alp_clock(cc) / 4000;
 		else
 			/* based on 32KHz ILP clock */
@@ -97,7 +99,8 @@ int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 	wdt.driver_data = cc;
 	wdt.timer_set = bcma_chipco_watchdog_timer_set_wdt;
 	wdt.timer_set_ms = bcma_chipco_watchdog_timer_set_ms_wdt;
-	wdt.max_timer_ms = bcma_chipco_watchdog_get_max_timer(cc) / cc->ticks_per_ms;
+	wdt.max_timer_ms =
+		bcma_chipco_watchdog_get_max_timer(cc) / cc->ticks_per_ms;
 
 	pdev = platform_device_register_data(NULL, "bcm47xx-wdt",
 					     cc->core->bus->num, &wdt,
@@ -335,7 +338,8 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 				       | BCMA_CC_CORECTL_UARTCLKEN);
 		}
 	} else {
-		bcma_err(cc->core->bus, "serial not supported on this device ccrev: 0x%x\n", ccrev);
+		bcma_err(cc->core->bus, "serial not supported on this device ccrev: 0x%x\n",
+			 ccrev);
 		return;
 	}
 
