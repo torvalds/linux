@@ -103,7 +103,7 @@ do {				    \
 #define sfw_test_active(t)      (atomic_read(&(t)->tsi_nactive) != 0)
 #define sfw_batch_active(b)     (atomic_read(&(b)->bat_nactive) != 0)
 
-struct smoketest_framework {
+static struct smoketest_framework {
 	struct list_head	 fw_zombie_rpcs;     /* RPCs to be recycled */
 	struct list_head	 fw_zombie_sessions; /* stopping sessions */
 	struct list_head	 fw_tests;	   /* registered test cases */

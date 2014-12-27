@@ -54,7 +54,7 @@ typedef enum {
 	SRPC_STATE_STOPPING,
 } srpc_state_t;
 
-struct smoketest_rpc {
+static struct smoketest_rpc {
 	spinlock_t	 rpc_glock;	/* global lock */
 	srpc_service_t	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
 	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
