@@ -788,7 +788,7 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 	char pfmt[20] = " ";
 
 	if (!pair)
-		goto dummy_print;
+		goto no_print;
 
 	switch (comparison_method) {
 	case COMPUTE_DELTA:
@@ -797,8 +797,6 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 		else
 			diff = compute_delta(he, pair);
 
-		if (fabs(diff) < 0.01)
-			goto dummy_print;
 		scnprintf(pfmt, 20, "%%%+d.2f%%%%", dfmt->header_width - 1);
 		return percent_color_snprintf(hpp->buf, hpp->size,
 					pfmt, diff);
@@ -829,6 +827,9 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 		BUG_ON(1);
 	}
 dummy_print:
+	return scnprintf(hpp->buf, hpp->size, "%*s",
+			dfmt->header_width, "N/A");
+no_print:
 	return scnprintf(hpp->buf, hpp->size, "%*s",
 			dfmt->header_width, pfmt);
 }
@@ -879,14 +880,15 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 		else
 			diff = compute_delta(he, pair);
 
-		if (fabs(diff) >= 0.01)
-			scnprintf(buf, size, "%+4.2F%%", diff);
+		scnprintf(buf, size, "%+4.2F%%", diff);
 		break;
 
 	case PERF_HPP_DIFF__RATIO:
 		/* No point for ratio number if we are dummy.. */
-		if (he->dummy)
+		if (he->dummy) {
+			scnprintf(buf, size, "N/A");
 			break;
+		}
 
 		if (pair->diff.computed)
 			ratio = pair->diff.period_ratio;
@@ -899,8 +901,10 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 
 	case PERF_HPP_DIFF__WEIGHTED_DIFF:
 		/* No point for wdiff number if we are dummy.. */
-		if (he->dummy)
+		if (he->dummy) {
+			scnprintf(buf, size, "N/A");
 			break;
+		}
 
 		if (pair->diff.computed)
 			wdiff = pair->diff.wdiff;
