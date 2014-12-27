@@ -1438,7 +1438,7 @@ static ssize_t enable_ints_write(struct file *file,
 		return -EFAULT;
 	}
 
-	i = kstrtoint(buf, 10 , &new_value);
+	i = kstrtoint(buf, 10, &new_value);
 
 	if (i != 0) {
 		LOGERR("Failed to scan value for enable_ints, buf<<%.*s>>",
