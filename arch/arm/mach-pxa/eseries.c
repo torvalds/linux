@@ -683,7 +683,7 @@ static unsigned long e750_pin_config[] __initdata = {
 	/* PC Card */
 	GPIO8_GPIO,   /* CD0 */
 	GPIO44_GPIO,  /* CD1 */
-	GPIO11_GPIO,  /* IRQ0 */
+	/* GPIO11_GPIO,  IRQ0 */
 	GPIO6_GPIO,   /* IRQ1 */
 	GPIO27_GPIO,  /* RST0 */
 	GPIO24_GPIO,  /* RST1 */
@@ -778,6 +778,9 @@ static unsigned long e800_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+
+	/* tc6393xb */
+	GPIO11_3_6MHz,
 };
 
 static struct w100_gen_regs e800_lcd_regs = {

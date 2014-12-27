@@ -101,6 +101,9 @@ static unsigned long lubbock_pin_config[] __initdata = {
 	GPIO6_MMC_CLK,
 	GPIO8_MMC_CS0,
 
+	/* SA1111 chip */
+	GPIO11_3_6MHz,
+
 	/* wakeup */
 	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
 };
