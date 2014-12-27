@@ -671,6 +671,7 @@ static void update_memslots(struct kvm_memslots *slots,
 
 	WARN_ON(mslots[i].id != id);
 	if (!new->npages) {
+		WARN_ON(!mslots[i].npages);
 		new->base_gfn = 0;
 		if (mslots[i].npages)
 			slots->used_slots--;
@@ -704,7 +705,8 @@ static void update_memslots(struct kvm_memslots *slots,
 			slots->id_to_index[mslots[i].id] = i;
 			i--;
 		}
-	}
+	} else
+		WARN_ON_ONCE(i != slots->used_slots);
 
 	mslots[i] = *new;
 	slots->id_to_index[mslots[i].id] = i;
