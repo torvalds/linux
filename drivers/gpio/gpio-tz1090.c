@@ -573,7 +573,7 @@ static int tz1090_gpio_probe(struct platform_device *pdev)
 
 	/* Ioremap the registers */
 	priv.reg = devm_ioremap(&pdev->dev, res_regs->start,
-				 res_regs->end - res_regs->start);
+				resource_size(res_regs));
 	if (!priv.reg) {
 		dev_err(&pdev->dev, "unable to ioremap registers\n");
 		return -ENOMEM;
