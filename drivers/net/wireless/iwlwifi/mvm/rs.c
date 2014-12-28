@@ -2862,12 +2862,13 @@ static void rs_fill_rates_for_column(struct iwl_mvm *mvm,
 	int index = *rs_table_index;
 
 	for (i = 0; i < num_rates && index < end; i++) {
-		ucode_rate = cpu_to_le32(ucode_rate_from_rs_rate(mvm, rate));
-		for (j = 0; j < num_retries && index < end; j++, index++)
+		for (j = 0; j < num_retries && index < end; j++, index++) {
+			ucode_rate = cpu_to_le32(ucode_rate_from_rs_rate(mvm,
+									 rate));
 			rs_table[index] = ucode_rate;
-
-		if (toggle_ant)
-			rs_toggle_antenna(valid_tx_ant, rate);
+			if (toggle_ant)
+				rs_toggle_antenna(valid_tx_ant, rate);
+		}
 
 		prev_rate_idx = rate->index;
 		bottom_reached = rs_get_lower_rate_in_column(lq_sta, rate);
@@ -2875,7 +2876,7 @@ static void rs_fill_rates_for_column(struct iwl_mvm *mvm,
 			break;
 	}
 
-	if (!bottom_reached)
+	if (!bottom_reached && !is_legacy(rate))
 		rate->index = prev_rate_idx;
 
 	*rs_table_index = index;
@@ -2925,7 +2926,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 		num_retries = IWL_MVM_RS_HT_VHT_RETRIES_PER_RATE;
 	} else {
 		num_rates = IWL_MVM_RS_INITIAL_LEGACY_NUM_RATES;
-		num_retries = IWL_MVM_RS_LEGACY_RETRIES_PER_RATE;
+		num_retries = IWL_MVM_RS_INITIAL_LEGACY_RETRIES;
 		toggle_ant = true;
 	}
 
@@ -2941,7 +2942,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 		lq_cmd->mimo_delim = index;
 	} else if (is_legacy(&rate)) {
 		num_rates = IWL_MVM_RS_SECONDARY_LEGACY_NUM_RATES;
-		num_retries = IWL_MVM_RS_LEGACY_RETRIES_PER_RATE;
+		num_retries = IWL_MVM_RS_SECONDARY_LEGACY_RETRIES;
 	} else {
 		WARN_ON_ONCE(1);
 	}
@@ -2955,7 +2956,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	rs_get_lower_rate_down_column(lq_sta, &rate);
 
 	num_rates = IWL_MVM_RS_SECONDARY_LEGACY_NUM_RATES;
-	num_retries = IWL_MVM_RS_LEGACY_RETRIES_PER_RATE;
+	num_retries = IWL_MVM_RS_SECONDARY_LEGACY_RETRIES;
 
 	rs_fill_rates_for_column(mvm, lq_sta, &rate, lq_cmd->rs_table, &index,
 				 num_rates, num_retries, valid_tx_ant,
