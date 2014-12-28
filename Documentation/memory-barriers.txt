@@ -794,7 +794,7 @@ In summary:
       However, they do -not- guarantee any other sort of ordering:
       Not prior loads against later loads, nor prior stores against
       later anything.  If you need these other forms of ordering,
-      use smb_rmb(), smp_wmb(), or, in the case of prior stores and
+      use smp_rmb(), smp_wmb(), or, in the case of prior stores and
       later loads, smp_mb().
 
   (*) If both legs of the "if" statement begin with identical stores
