@@ -917,6 +917,10 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 	bool nvm_lar = mvm->nvm_data->lar_enabled;
 	bool tlv_lar = mvm->fw->ucode_capa.capa[0] &
 		IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+
+	if (iwlwifi_mod_params.lar_disable)
+		return false;
+
 	/*
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM

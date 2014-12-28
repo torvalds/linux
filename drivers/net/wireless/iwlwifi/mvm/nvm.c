@@ -264,7 +264,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 {
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 	const __le16 *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
-	bool is_family_8000_a_step = false;
+	bool is_family_8000_a_step = false, lar_enabled;
 
 	/* Checking for required sections */
 	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
@@ -312,13 +312,14 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		(const __le16 *)sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data;
 	phy_sku = (const __le16 *)sections[NVM_SECTION_TYPE_PHY_SKU].data;
 
+	lar_enabled = !iwlwifi_mod_params.lar_disable &&
+		      (mvm->fw->ucode_capa.capa[0] &
+		       IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
 				  regulatory, mac_override, phy_sku,
-				  mvm->fw->valid_tx_ant,
-				  mvm->fw->valid_rx_ant,
-				  mvm->fw->ucode_capa.capa[0] &
-				  IWL_UCODE_TLV_CAPA_LAR_SUPPORT,
-				  is_family_8000_a_step);
+				  mvm->fw->valid_tx_ant, mvm->fw->valid_rx_ant,
+				  lar_enabled, is_family_8000_a_step);
 }
 
 #define MAX_NVM_FILE_LEN	16384
