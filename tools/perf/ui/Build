@@ -1,0 +1,8 @@
+libperf-y += setup.o
+libperf-y += helpline.o
+libperf-y += progress.o
+libperf-y += util.o
+libperf-y += hist.o
+libperf-y += stdio/hist.o
+
+CFLAGS_setup.o += -DLIBDIR="BUILD_STR($(LIBDIR))"
