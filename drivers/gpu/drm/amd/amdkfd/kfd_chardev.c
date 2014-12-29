@@ -523,35 +523,36 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 
 	switch (cmd) {
-	case KFD_IOC_GET_VERSION:
+	case AMDKFD_IOC_GET_VERSION:
 		retcode = kfd_ioctl_get_version(filep, process, kdata);
 		break;
-	case KFD_IOC_CREATE_QUEUE:
+
+	case AMDKFD_IOC_CREATE_QUEUE:
 		retcode = kfd_ioctl_create_queue(filep, process,
 						kdata);
 		break;
 
-	case KFD_IOC_DESTROY_QUEUE:
+	case AMDKFD_IOC_DESTROY_QUEUE:
 		retcode = kfd_ioctl_destroy_queue(filep, process,
 						kdata);
 		break;
 
-	case KFD_IOC_SET_MEMORY_POLICY:
+	case AMDKFD_IOC_SET_MEMORY_POLICY:
 		retcode = kfd_ioctl_set_memory_policy(filep, process,
 						kdata);
 		break;
 
-	case KFD_IOC_GET_CLOCK_COUNTERS:
+	case AMDKFD_IOC_GET_CLOCK_COUNTERS:
 		retcode = kfd_ioctl_get_clock_counters(filep, process,
 						kdata);
 		break;
 
-	case KFD_IOC_GET_PROCESS_APERTURES:
+	case AMDKFD_IOC_GET_PROCESS_APERTURES:
 		retcode = kfd_ioctl_get_process_apertures(filep, process,
 						kdata);
 		break;
 
-	case KFD_IOC_UPDATE_QUEUE:
+	case AMDKFD_IOC_UPDATE_QUEUE:
 		retcode = kfd_ioctl_update_queue(filep, process,
 						kdata);
 		break;
