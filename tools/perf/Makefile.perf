@@ -346,15 +346,6 @@ ifneq ($(OUTPUT),)
   CFLAGS += -I$(OUTPUT)
 endif
 
-ifndef NO_LIBDW_DWARF_UNWIND
-  LIB_OBJS += $(OUTPUT)util/unwind-libdw.o
-  LIB_H += util/unwind-libdw.h
-endif
-
-ifndef NO_LIBUNWIND
-  LIB_OBJS += $(OUTPUT)util/unwind-libunwind.o
-endif
-
 ifndef NO_SLANG
   LIB_OBJS += $(OUTPUT)ui/browser.o
   LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
