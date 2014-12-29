@@ -341,14 +341,7 @@ endif
 
 ifndef NO_GTK2
   ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
-
-  GTK_OBJS += $(OUTPUT)ui/gtk/browser.o
-  GTK_OBJS += $(OUTPUT)ui/gtk/hists.o
-  GTK_OBJS += $(OUTPUT)ui/gtk/setup.o
-  GTK_OBJS += $(OUTPUT)ui/gtk/util.o
-  GTK_OBJS += $(OUTPUT)ui/gtk/helpline.o
-  GTK_OBJS += $(OUTPUT)ui/gtk/progress.o
-  GTK_OBJS += $(OUTPUT)ui/gtk/annotate.o
+  GTK_IN := $(OUTPUT)gtk-in.o
 
 install-gtk: $(OUTPUT)libperf-gtk.so
 	$(call QUIET_INSTALL, 'GTK UI') \
@@ -416,10 +409,10 @@ $(OUTPUT)perf: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS) $(PERF_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(OUTPUT)perf.o \
                $(BUILTIN_OBJS) $(PERF_IN) $(LIBS) -o $@
 
-$(GTK_OBJS): $(OUTPUT)%.o: %.c $(LIB_H)
-	$(QUIET_CC)$(CC) -o $@ -c -fPIC $(CFLAGS) $(GTK_CFLAGS) $<
+$(GTK_IN): FORCE
+	@$(MAKE) $(build)=gtk
 
-$(OUTPUT)libperf-gtk.so: $(GTK_OBJS) $(PERFLIBS)
+$(OUTPUT)libperf-gtk.so: $(GTK_IN) $(PERFLIBS)
 	$(QUIET_LINK)$(CC) -o $@ -shared $(LDFLAGS) $(filter %.o,$^) $(GTK_LIBS)
 
 $(OUTPUT)common-cmds.h: util/generate-cmdlist.sh command-list.txt
@@ -699,7 +692,7 @@ config-clean:
 	@$(MAKE) -C config/feature-checks clean >/dev/null
 
 clean: $(LIBTRACEEVENT)-clean $(LIBAPIKFS)-clean config-clean
-	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(OUTPUT)perf.o $(LANG_BINDINGS) $(GTK_OBJS)
+	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(OUTPUT)perf.o $(LANG_BINDINGS)
 	@find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	@$(RM) .config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
