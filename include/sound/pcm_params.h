@@ -38,31 +38,6 @@ int snd_pcm_hw_param_value(const struct snd_pcm_hw_params *params,
 #define MASK_OFS(i)	((i) >> 5)
 #define MASK_BIT(i)	(1U << ((i) & 31))
 
-static inline unsigned int ld2(u_int32_t v)
-{
-        unsigned r = 0;
-
-        if (v >= 0x10000) {
-                v >>= 16;
-                r += 16;
-        }
-        if (v >= 0x100) {
-                v >>= 8;
-                r += 8;
-        }
-        if (v >= 0x10) {
-                v >>= 4;
-                r += 4;
-        }
-        if (v >= 4) {
-                v >>= 2;
-                r += 2;
-        }
-        if (v >= 2)
-                r++;
-        return r;
-}
-
 static inline size_t snd_mask_sizeof(void)
 {
 	return sizeof(struct snd_mask);
@@ -102,7 +77,7 @@ static inline unsigned int snd_mask_max(const struct snd_mask *mask)
 	int i;
 	for (i = SNDRV_MASK_SIZE - 1; i >= 0; i--) {
 		if (mask->bits[i])
-			return ld2(mask->bits[i]) + (i << 5);
+			return __fls(mask->bits[i]) + (i << 5);
 	}
 	return 0;
 }
