@@ -20,6 +20,7 @@ perf-y += builtin-inject.o
 perf-y += builtin-mem.o
 
 perf-$(CONFIG_AUDIT) += builtin-trace.o
+perf-$(CONFIG_LIBELF) += builtin-probe.o
 
 perf-y += bench/
 perf-y += tests/
