@@ -456,6 +456,7 @@ ifndef NO_LIBAUDIT
   else
     CFLAGS += -DHAVE_LIBAUDIT_SUPPORT
     EXTLIBS += -laudit
+    $(call detected,CONFIG_AUDIT)
   endif
 endif
 
@@ -831,3 +832,6 @@ $(call detected_var,PYTHON_WORD)
 ifneq ($(OUTPUT),)
 $(call detected_var,OUTPUT)
 endif
+$(call detected_var,htmldir_SQ)
+$(call detected_var,infodir_SQ)
+$(call detected_var,mandir_SQ)

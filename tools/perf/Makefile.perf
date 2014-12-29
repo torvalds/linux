@@ -425,26 +425,7 @@ LIB_OBJS += $(OUTPUT)ui/stdio/hist.o
 
 LIB_OBJS += $(OUTPUT)arch/common.o
 
-BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
-BUILTIN_OBJS += $(OUTPUT)builtin-diff.o
-BUILTIN_OBJS += $(OUTPUT)builtin-evlist.o
-BUILTIN_OBJS += $(OUTPUT)builtin-help.o
-BUILTIN_OBJS += $(OUTPUT)builtin-sched.o
-BUILTIN_OBJS += $(OUTPUT)builtin-buildid-list.o
-BUILTIN_OBJS += $(OUTPUT)builtin-buildid-cache.o
-BUILTIN_OBJS += $(OUTPUT)builtin-list.o
-BUILTIN_OBJS += $(OUTPUT)builtin-record.o
-BUILTIN_OBJS += $(OUTPUT)builtin-report.o
-BUILTIN_OBJS += $(OUTPUT)builtin-stat.o
-BUILTIN_OBJS += $(OUTPUT)builtin-timechart.o
-BUILTIN_OBJS += $(OUTPUT)builtin-top.o
-BUILTIN_OBJS += $(OUTPUT)builtin-script.o
 BUILTIN_OBJS += $(OUTPUT)builtin-probe.o
-BUILTIN_OBJS += $(OUTPUT)builtin-kmem.o
-BUILTIN_OBJS += $(OUTPUT)builtin-lock.o
-BUILTIN_OBJS += $(OUTPUT)builtin-kvm.o
-BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
-BUILTIN_OBJS += $(OUTPUT)builtin-mem.o
 
 PERFLIBS = $(LIB_FILE) $(LIBAPIKFS) $(LIBTRACEEVENT)
 
@@ -484,10 +465,6 @@ endif
 
 ifndef NO_LIBUNWIND
   LIB_OBJS += $(OUTPUT)util/unwind-libunwind.o
-endif
-
-ifndef NO_LIBAUDIT
-  BUILTIN_OBJS += $(OUTPUT)builtin-trace.o
 endif
 
 ifndef NO_SLANG
@@ -573,7 +550,7 @@ PERF_IN := $(OUTPUT)perf-in.o
 export srctree OUTPUT RM CC LD AR CFLAGS V
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
-$(PERF_IN): FORCE
+$(PERF_IN): $(OUTPUT)common-cmds.h FORCE
 	@$(MAKE) $(build)=perf
 
 $(OUTPUT)perf.o: perf.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
@@ -590,18 +567,6 @@ $(GTK_OBJS): $(OUTPUT)%.o: %.c $(LIB_H)
 
 $(OUTPUT)libperf-gtk.so: $(GTK_OBJS) $(PERFLIBS)
 	$(QUIET_LINK)$(CC) -o $@ -shared $(LDFLAGS) $(filter %.o,$^) $(GTK_LIBS)
-
-$(OUTPUT)builtin-help.o: builtin-help.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) \
-		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
-		'-DPERF_MAN_PATH="$(mandir_SQ)"' \
-		'-DPERF_INFO_PATH="$(infodir_SQ)"' $<
-
-$(OUTPUT)builtin-timechart.o: builtin-timechart.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) \
-		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
-		'-DPERF_MAN_PATH="$(mandir_SQ)"' \
-		'-DPERF_INFO_PATH="$(infodir_SQ)"' $<
 
 $(OUTPUT)common-cmds.h: util/generate-cmdlist.sh command-list.txt
 
