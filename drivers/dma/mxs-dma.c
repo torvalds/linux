@@ -848,6 +848,10 @@ static int __init mxs_dma_probe(struct platform_device *pdev)
 	mxs_dma->dma_device.device_pause = mxs_dma_pause_chan;
 	mxs_dma->dma_device.device_resume = mxs_dma_resume_chan;
 	mxs_dma->dma_device.device_terminate_all = mxs_dma_terminate_all;
+	mxs_dma->dma_device.src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
+	mxs_dma->dma_device.dst_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
+	mxs_dma->dma_device.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	mxs_dma->dma_device.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	mxs_dma->dma_device.device_issue_pending = mxs_dma_enable_chan;
 
 	ret = dma_async_device_register(&mxs_dma->dma_device);
