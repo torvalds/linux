@@ -4151,6 +4151,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	/* show logo for primary display device */
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE)
 	if (dev_drv->prop == PRMRY) {
+		u16 xact, yact;
+		int format;
+		u32 dsp_addr;
 		struct fb_info *main_fbi = rk_fb->fb[0];
 		main_fbi->fbops->fb_open(main_fbi, 1);
 
@@ -4165,8 +4168,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		dev_drv->uboot_logo = support_uboot_display();
 
-		if (uboot_logo_offset && uboot_logo_base) {
-			struct rk_lcdc_win *win = dev_drv->win[0];
+		if (dev_drv->uboot_logo &&
+		    uboot_logo_offset && uboot_logo_base) {
 			int width, height, bits;
 			phys_addr_t start = uboot_logo_base + uboot_logo_offset;
 			unsigned int size = uboot_logo_size - uboot_logo_offset;
@@ -4175,6 +4178,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			char *vaddr;
 			int i = 0;
 
+			if (dev_drv->ops->get_dspbuf_info)
+				dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
+					&yact, &format,	&dsp_addr);
 			nr_pages = size >> PAGE_SHIFT;
 			pages = kzalloc(sizeof(struct page) * nr_pages,
 					GFP_KERNEL);
@@ -4199,35 +4205,75 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			}
 			kfree(pages);
 			vunmap(vaddr);
-			if (width > main_fbi->var.xres ||
-			    height > main_fbi->var.yres) {
-				pr_err("ERROR: logo size out of screen range");
+			if (dev_drv->uboot_logo &&
+			    (width != xact || height != yact)) {
+				pr_err("can't support uboot kernel logo use different size [%dx%d] != [%dx%d]\n",
+					xact, yact, width, height);
 				return 0;
 			}
 
-			win->area[0].format = rk_fb_data_fmt(0, bits);
-			win->area[0].y_vir_stride = width * bits >> 5;
-			win->area[0].xpos = (main_fbi->var.xres - width) >> 1;
-			win->area[0].ypos = (main_fbi->var.yres - height) >> 1;
-			win->area[0].xsize = width;
-			win->area[0].ysize = height;
-			win->area[0].xact = width;
-			win->area[0].yact = height;
-			win->area[0].xvir = win->area[0].y_vir_stride;
-			win->area[0].yvir = height;
-			win->area[0].smem_start = main_fbi->fix.smem_start;
-			win->area[0].y_offset = 0;
+			if (dev_drv->ops->post_dspbuf) {
+				dev_drv->ops->post_dspbuf(dev_drv,
+					main_fbi->fix.smem_start,
+					rk_fb_data_fmt(0, bits),
+					width, height, width * bits >> 5);
+			}
+			if (dev_drv->iommu_enabled) {
+				rk_fb_poll_wait_frame_complete();
+				if (dev_drv->ops->mmu_en)
+					dev_drv->ops->mmu_en(dev_drv);
+				freed_index = 0;
+			}
 
-			win->area_num = 1;
-			win->alpha_mode = 4;
-			win->alpha_en = 0;
-			win->g_alpha_val = 0;
+			return 0;
+		} else if (dev_drv->uboot_logo && uboot_logo_base) {
+			phys_addr_t start = uboot_logo_base;
+			int logo_len, i=0;
+			unsigned int nr_pages;
+			struct page **pages;
+			char *vaddr;
 
-			win->state = 1;
-			dev_drv->ops->set_par(dev_drv, 0);
-			dev_drv->ops->pan_display(dev_drv, 0);
-			dev_drv->ops->cfg_done(dev_drv);
+			dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
+					              &yact, &format,
+						      &start);
+			logo_len = rk_fb_pixel_width(format) * xact * yact >> 3;
+			if (logo_len > uboot_logo_size ||
+			    logo_len > main_fbi->fix.smem_len) {
+				pr_err("logo size > uboot reserve buffer size\n");
+				return -1;
+			}
 
+			nr_pages = uboot_logo_size >> PAGE_SHIFT;
+			pages = kzalloc(sizeof(struct page) * nr_pages,
+					GFP_KERNEL);
+			while (i < nr_pages) {
+				pages[i] = phys_to_page(start);
+				start += PAGE_SIZE;
+				i++;
+			}
+			vaddr = vmap(pages, nr_pages, VM_MAP,
+					pgprot_writecombine(PAGE_KERNEL));
+			if (!vaddr) {
+				pr_err("failed to vmap phy addr %x\n",
+					uboot_logo_base);
+				return -1;
+			}
+
+			memcpy(main_fbi->screen_base, vaddr, logo_len);
+
+			kfree(pages);
+			vunmap(vaddr);
+
+			dev_drv->ops->post_dspbuf(dev_drv,
+					main_fbi->fix.smem_start,
+					format,	xact, yact,
+					xact * rk_fb_pixel_width(format) >> 5);
+			if (dev_drv->iommu_enabled) {
+				rk_fb_poll_wait_frame_complete();
+				if (dev_drv->ops->mmu_en)
+					dev_drv->ops->mmu_en(dev_drv);
+				freed_index = 0;
+			}
 			return 0;
 		}
 #if defined(CONFIG_LOGO)

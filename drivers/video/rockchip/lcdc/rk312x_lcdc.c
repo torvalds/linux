@@ -1057,6 +1057,52 @@ static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
 		}
 }
 
+static int rk312x_get_dspbuf_info(struct rk_lcdc_driver *dev_drv, u16 *xact,
+				  u16 *yact, int *format, u32 *dsp_addr)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+	u32 val;
+
+	spin_lock(&lcdc_dev->reg_lock);
+
+	val = lcdc_readl(lcdc_dev, WIN0_ACT_INFO);
+	*xact = (val & m_ACT_WIDTH)+1;
+	*yact = ((val & m_ACT_HEIGHT)>>16)+1;
+
+	val = lcdc_readl(lcdc_dev, SYS_CTRL);
+
+	*format = (val & m_WIN0_FORMAT) >> 3;
+	*dsp_addr = lcdc_readl(lcdc_dev, WIN0_YRGB_MST);
+
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return 0;
+}
+
+static int rk312x_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
+			      int format, u16 xact, u16 yact, u16 xvir)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+	u32 val, mask;
+
+	mask = m_WIN0_FORMAT;
+	val = v_WIN0_FORMAT(format);
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
+
+	lcdc_msk_reg(lcdc_dev, WIN0_VIR, m_YRGB_VIR,
+			v_YRGB_VIR(xvir));
+	lcdc_writel(lcdc_dev, WIN0_ACT_INFO, v_ACT_WIDTH(xact) |
+		    v_ACT_HEIGHT(yact));
+
+	lcdc_writel(lcdc_dev, WIN0_YRGB_MST, rgb_mst);
+
+	lcdc_cfg_done(lcdc_dev);
+
+	return 0;
+}
+
 static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
 	u16 face = 0;
@@ -2395,6 +2441,8 @@ static int rk312x_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = rk312x_lcdc_open,
 	.load_screen = rk312x_load_screen,
+	.get_dspbuf_info = rk312x_get_dspbuf_info,
+	.post_dspbuf = rk312x_post_dspbuf,
 	.set_par = rk312x_lcdc_set_par,
 	.pan_display = rk312x_lcdc_pan_display,
 	.direct_set_addr = rk312x_lcdc_direct_set_win_addr,

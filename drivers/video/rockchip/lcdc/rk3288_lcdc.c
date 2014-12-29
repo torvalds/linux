@@ -1063,6 +1063,52 @@ static int rk3288_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
 
 }
 
+static int rk3288_get_dspbuf_info(struct rk_lcdc_driver *dev_drv, u16 *xact,
+				  u16 *yact, int *format, u32 *dsp_addr)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+	u32 val;
+
+	spin_lock(&lcdc_dev->reg_lock);
+
+	val = lcdc_readl(lcdc_dev, WIN0_ACT_INFO);
+	*xact = (val & m_WIN0_ACT_WIDTH) + 1;
+	*yact = ((val & m_WIN0_ACT_HEIGHT)>>16) + 1;
+
+	val = lcdc_readl(lcdc_dev, WIN0_CTRL0);
+	*format = (val & m_WIN0_DATA_FMT) >> 1;
+	*dsp_addr = lcdc_readl(lcdc_dev, WIN0_YRGB_MST);
+
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return 0;
+}
+
+static int rk3288_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
+			      int format, u16 xact, u16 yact, u16 xvir)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+	u32 val, mask;
+	int swap = (format == RGB888) ? 1 : 0;
+
+	mask = m_WIN0_DATA_FMT | m_WIN0_RB_SWAP;
+	val = v_WIN0_DATA_FMT(format) | v_WIN0_RB_SWAP(swap);
+	lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
+
+	lcdc_msk_reg(lcdc_dev, WIN0_VIR, m_WIN0_VIR_STRIDE,
+			v_WIN0_VIR_STRIDE(xvir));
+	lcdc_writel(lcdc_dev, WIN0_ACT_INFO, v_WIN0_ACT_WIDTH(xact) |
+		    v_WIN0_ACT_HEIGHT(yact));
+
+	lcdc_writel(lcdc_dev, WIN0_YRGB_MST, rgb_mst);
+
+	lcdc_cfg_done(lcdc_dev);
+
+	return 0;
+}
+
 static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
 	u16 face = 0;
@@ -3535,6 +3581,8 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open 			= rk3288_lcdc_open,
 	.win_direct_en		= rk3288_lcdc_win_direct_en,
 	.load_screen 		= rk3288_load_screen,
+	.get_dspbuf_info	= rk3288_get_dspbuf_info,
+	.post_dspbuf		= rk3288_post_dspbuf,
 	.set_par 		= rk3288_lcdc_set_par,
 	.pan_display 		= rk3288_lcdc_pan_display,
 	.direct_set_addr 	= rk3288_lcdc_direct_set_win_addr,
