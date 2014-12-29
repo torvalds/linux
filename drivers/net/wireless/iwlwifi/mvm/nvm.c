@@ -565,6 +565,8 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
 	if (!mvm->nvm_data)
 		return -ENODATA;
+	IWL_DEBUG_EEPROM(mvm->trans->dev, "nvm version = %x\n",
+			 mvm->nvm_data->nvm_version);
 
 	return 0;
 }
