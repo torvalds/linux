@@ -325,12 +325,24 @@ static inline int snd_interval_eq(const struct snd_interval *i1, const struct sn
 		i1->max == i2->max && i1->openmax == i2->openmax;
 }
 
-#define params_access(p) ((__force snd_pcm_access_t)\
-		snd_mask_min(hw_param_mask_c((p), SNDRV_PCM_HW_PARAM_ACCESS)))
-#define params_format(p) ((__force snd_pcm_format_t)\
-		snd_mask_min(hw_param_mask_c((p), SNDRV_PCM_HW_PARAM_FORMAT)))
-#define params_subformat(p) \
-	snd_mask_min(hw_param_mask_c((p), SNDRV_PCM_HW_PARAM_SUBFORMAT))
+static inline snd_pcm_access_t params_access(const struct snd_pcm_hw_params *p)
+{
+	return (__force snd_pcm_access_t)snd_mask_min(hw_param_mask_c(p,
+		SNDRV_PCM_HW_PARAM_ACCESS));
+}
+
+static inline snd_pcm_format_t params_format(const struct snd_pcm_hw_params *p)
+{
+	return (__force snd_pcm_format_t)snd_mask_min(hw_param_mask_c(p,
+		SNDRV_PCM_HW_PARAM_FORMAT));
+}
+
+static inline snd_pcm_subformat_t
+params_subformat(const struct snd_pcm_hw_params *p)
+{
+	return (__force snd_pcm_subformat_t)snd_mask_min(hw_param_mask_c(p,
+		SNDRV_PCM_HW_PARAM_SUBFORMAT));
+}
 
 static inline unsigned int
 params_period_bytes(const struct snd_pcm_hw_params *p)
