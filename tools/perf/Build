@@ -1,2 +1,3 @@
 perf-y += builtin-bench.o
 perf-y += bench/
+perf-y += tests/

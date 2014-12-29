@@ -425,45 +425,6 @@ LIB_OBJS += $(OUTPUT)ui/stdio/hist.o
 
 LIB_OBJS += $(OUTPUT)arch/common.o
 
-LIB_OBJS += $(OUTPUT)tests/parse-events.o
-LIB_OBJS += $(OUTPUT)tests/dso-data.o
-LIB_OBJS += $(OUTPUT)tests/attr.o
-LIB_OBJS += $(OUTPUT)tests/vmlinux-kallsyms.o
-LIB_OBJS += $(OUTPUT)tests/open-syscall.o
-LIB_OBJS += $(OUTPUT)tests/open-syscall-all-cpus.o
-LIB_OBJS += $(OUTPUT)tests/open-syscall-tp-fields.o
-LIB_OBJS += $(OUTPUT)tests/mmap-basic.o
-LIB_OBJS += $(OUTPUT)tests/perf-record.o
-LIB_OBJS += $(OUTPUT)tests/rdpmc.o
-LIB_OBJS += $(OUTPUT)tests/evsel-roundtrip-name.o
-LIB_OBJS += $(OUTPUT)tests/evsel-tp-sched.o
-LIB_OBJS += $(OUTPUT)tests/fdarray.o
-LIB_OBJS += $(OUTPUT)tests/pmu.o
-LIB_OBJS += $(OUTPUT)tests/hists_common.o
-LIB_OBJS += $(OUTPUT)tests/hists_link.o
-LIB_OBJS += $(OUTPUT)tests/hists_filter.o
-LIB_OBJS += $(OUTPUT)tests/hists_output.o
-LIB_OBJS += $(OUTPUT)tests/hists_cumulate.o
-LIB_OBJS += $(OUTPUT)tests/python-use.o
-LIB_OBJS += $(OUTPUT)tests/bp_signal.o
-LIB_OBJS += $(OUTPUT)tests/bp_signal_overflow.o
-LIB_OBJS += $(OUTPUT)tests/task-exit.o
-LIB_OBJS += $(OUTPUT)tests/sw-clock.o
-ifeq ($(ARCH),x86)
-LIB_OBJS += $(OUTPUT)tests/perf-time-to-tsc.o
-endif
-LIB_OBJS += $(OUTPUT)tests/code-reading.o
-LIB_OBJS += $(OUTPUT)tests/sample-parsing.o
-LIB_OBJS += $(OUTPUT)tests/parse-no-sample-id-all.o
-ifndef NO_DWARF_UNWIND
-ifeq ($(ARCH),$(filter $(ARCH),x86 arm))
-LIB_OBJS += $(OUTPUT)tests/dwarf-unwind.o
-endif
-endif
-LIB_OBJS += $(OUTPUT)tests/mmap-thread-lookup.o
-LIB_OBJS += $(OUTPUT)tests/thread-mg-share.o
-LIB_OBJS += $(OUTPUT)tests/switch-tracking.o
-
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 BUILTIN_OBJS += $(OUTPUT)builtin-diff.o
 BUILTIN_OBJS += $(OUTPUT)builtin-evlist.o
@@ -483,7 +444,6 @@ BUILTIN_OBJS += $(OUTPUT)builtin-kmem.o
 BUILTIN_OBJS += $(OUTPUT)builtin-lock.o
 BUILTIN_OBJS += $(OUTPUT)builtin-kvm.o
 BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
-BUILTIN_OBJS += $(OUTPUT)tests/builtin-test.o
 BUILTIN_OBJS += $(OUTPUT)builtin-mem.o
 
 PERFLIBS = $(LIB_FILE) $(LIBAPIKFS) $(LIBTRACEEVENT)
@@ -525,7 +485,6 @@ endif
 ifndef NO_LIBUNWIND
   LIB_OBJS += $(OUTPUT)util/unwind-libunwind.o
 endif
-LIB_OBJS += $(OUTPUT)tests/keep-tracking.o
 
 ifndef NO_LIBAUDIT
   BUILTIN_OBJS += $(OUTPUT)builtin-trace.o
@@ -699,20 +658,6 @@ $(OUTPUT)util/exec_cmd.o: util/exec_cmd.c $(OUTPUT)PERF-CFLAGS
 		'-DPERF_EXEC_PATH="$(perfexecdir_SQ)"' \
 		'-DPREFIX="$(prefix_SQ)"' \
 		$<
-
-$(OUTPUT)tests/attr.o: tests/attr.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) \
-		'-DBINDIR="$(bindir_SQ)"' -DPYTHON='"$(PYTHON_WORD)"' \
-		$<
-
-$(OUTPUT)tests/python-use.o: tests/python-use.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) \
-		-DPYTHONPATH='"$(OUTPUT)python"' \
-		-DPYTHON='"$(PYTHON_WORD)"' \
-		$<
-
-$(OUTPUT)tests/dwarf-unwind.o: tests/dwarf-unwind.c
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -fno-optimize-sibling-calls $<
 
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
