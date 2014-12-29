@@ -24,8 +24,6 @@
 #include "gc.h"
 #include <trace/events/f2fs.h>
 
-static struct kmem_cache *winode_slab;
-
 static int gc_thread_func(void *data)
 {
 	struct f2fs_sb_info *sbi = data;
@@ -356,7 +354,7 @@ static void add_gc_inode(struct gc_inode_list *gc_list, struct inode *inode)
 		iput(inode);
 		return;
 	}
-	new_ie = f2fs_kmem_cache_alloc(winode_slab, GFP_NOFS);
+	new_ie = f2fs_kmem_cache_alloc(inode_entry_slab, GFP_NOFS);
 	new_ie->inode = inode;
 retry:
 	if (radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie)) {
@@ -373,7 +371,7 @@ static void put_gc_inode(struct gc_inode_list *gc_list)
 		radix_tree_delete(&gc_list->iroot, ie->inode->i_ino);
 		iput(ie->inode);
 		list_del(&ie->list);
-		kmem_cache_free(winode_slab, ie);
+		kmem_cache_free(inode_entry_slab, ie);
 	}
 }
 
@@ -749,18 +747,4 @@ stop:
 void build_gc_manager(struct f2fs_sb_info *sbi)
 {
 	DIRTY_I(sbi)->v_ops = &default_v_ops;
-}
-
-int __init create_gc_caches(void)
-{
-	winode_slab = f2fs_kmem_cache_create("f2fs_gc_inodes",
-			sizeof(struct inode_entry));
-	if (!winode_slab)
-		return -ENOMEM;
-	return 0;
-}
-
-void destroy_gc_caches(void)
-{
-	kmem_cache_destroy(winode_slab);
 }
