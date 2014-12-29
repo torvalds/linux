@@ -434,9 +434,28 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 				  struct mmc_request *mrq)
 {
 	struct mmc_command *cmd;
+	u32 timeout = 0;
+
+	if (!mrq->cmd->data) {
+		timeout = 500;
+	} else {
+		timeout = mrq->cmd->data->blocks * mrq->cmd->data->blksz * 500;
+		if(!timeout)
+			timeout = 1000;
+		else if (timeout > 8 * 1000)
+			timeout = 8000;
+	}
 
 	while (1) {
-		wait_for_completion(&mrq->completion);
+		if (!wait_for_completion_timeout(&mrq->completion, msecs_to_jiffies(timeout))) {
+			cmd = mrq->cmd;
+			cmd->error = -ETIMEDOUT;
+			host->ops->post_tmo(host);
+			dev_err(mmc_dev(host), "req failed (CMD%u): error = %d, timeout = %dms\n",
+						cmd->opcode, cmd->error, timeout);
+			if (!cmd->data)
+				break;
+		}
 
 		cmd = mrq->cmd;
 
