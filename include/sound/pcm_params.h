@@ -325,20 +325,6 @@ static inline int snd_interval_eq(const struct snd_interval *i1, const struct sn
 		i1->max == i2->max && i1->openmax == i2->openmax;
 }
 
-static inline unsigned int add(unsigned int a, unsigned int b)
-{
-	if (a >= UINT_MAX - b)
-		return UINT_MAX;
-	return a + b;
-}
-
-static inline unsigned int sub(unsigned int a, unsigned int b)
-{
-	if (a > b)
-		return a - b;
-	return 0;
-}
-
 #define params_access(p) ((__force snd_pcm_access_t)\
 		snd_mask_min(hw_param_mask_c((p), SNDRV_PCM_HW_PARAM_ACCESS)))
 #define params_format(p) ((__force snd_pcm_format_t)\
