@@ -601,7 +601,7 @@ static int k3_dma_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
-static int k3_dma_pause(struct dma_chan *chan)
+static int k3_dma_transfer_pause(struct dma_chan *chan)
 {
 	struct k3_dma_chan *c = to_k3_chan(chan);
 	struct k3_dma_dev *d = to_k3_dma(chan->device);
@@ -622,7 +622,7 @@ static int k3_dma_pause(struct dma_chan *chan)
 	return 0;
 }
 
-static int k3_dma_resume(struct dma_chan *chan)
+static int k3_dma_transfer_resume(struct dma_chan *chan)
 {
 	struct k3_dma_chan *c = to_k3_chan(chan);
 	struct k3_dma_dev *d = to_k3_dma(chan->device);
@@ -735,8 +735,8 @@ static int k3_dma_probe(struct platform_device *op)
 	d->slave.device_prep_slave_sg = k3_dma_prep_slave_sg;
 	d->slave.device_issue_pending = k3_dma_issue_pending;
 	d->slave.device_config = k3_dma_config;
-	d->slave.device_pause = k3_dma_pause;
-	d->slave.device_resume = k3_dma_resume;
+	d->slave.device_pause = k3_dma_transfer_pause;
+	d->slave.device_resume = k3_dma_transfer_resume;
 	d->slave.device_terminate_all = k3_dma_terminate_all;
 	d->slave.copy_align = DMA_ALIGN;
 
