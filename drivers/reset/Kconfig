@@ -11,3 +11,11 @@ menuconfig RESET_CONTROLLER
 	  via GPIOs or SoC-internal reset controller modules.
 
 	  If unsure, say no.
+
+config A10SYCON_RESET
+	tristate "Altera Arria10 System Control Reset"
+	depends on ARCH_SOCFPGA && RESET_CONTROLLER
+	select MFD_A10SYCON
+	help
+	  This option enables support for the external reset functions
+	  on the Altera Arria10 System Controller.
