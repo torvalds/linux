@@ -33,10 +33,8 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/buffer_head.h>
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
-#include <linux/version.h>
 #include <linux/input/mt.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
