@@ -102,7 +102,7 @@ static int acpi_i2c_add_resource(struct acpi_resource *ares, void *data)
 		struct acpi_resource_i2c_serialbus *sb;
 
 		sb = &ares->data.i2c_serial_bus;
-		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_I2C) {
+		if (!info->addr && sb->type == ACPI_RESOURCE_SERIAL_TYPE_I2C) {
 			info->addr = sb->slave_address;
 			if (sb->access_mode == ACPI_I2C_10BIT_MODE)
 				info->flags |= I2C_CLIENT_TEN;
