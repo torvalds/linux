@@ -1300,7 +1300,7 @@ static int snd_pcm_hw_rule_msbits(struct snd_pcm_hw_params *params,
 	unsigned int msbits = l >> 16;
 	struct snd_interval *i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
 	if (snd_interval_single(i) && snd_interval_value(i) == width)
-		params->msbits = msbits;
+		params->msbits = min_not_zero(params->msbits, msbits);
 	return 0;
 }
 
