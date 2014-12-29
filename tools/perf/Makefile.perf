@@ -93,6 +93,7 @@ $(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
 	@touch $(OUTPUT)PERF-VERSION-FILE
 
 CC = $(CROSS_COMPILE)gcc
+LD = $(CROSS_COMPILE)ld
 AR = $(CROSS_COMPILE)ar
 PKG_CONFIG = $(CROSS_COMPILE)pkg-config
 
@@ -464,21 +465,6 @@ LIB_OBJS += $(OUTPUT)tests/thread-mg-share.o
 LIB_OBJS += $(OUTPUT)tests/switch-tracking.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
-BUILTIN_OBJS += $(OUTPUT)builtin-bench.o
-# Benchmark modules
-BUILTIN_OBJS += $(OUTPUT)bench/sched-messaging.o
-BUILTIN_OBJS += $(OUTPUT)bench/sched-pipe.o
-ifeq ($(ARCH), x86)
-ifeq ($(IS_64_BIT), 1)
-BUILTIN_OBJS += $(OUTPUT)bench/mem-memcpy-x86-64-asm.o
-BUILTIN_OBJS += $(OUTPUT)bench/mem-memset-x86-64-asm.o
-endif
-endif
-BUILTIN_OBJS += $(OUTPUT)bench/mem-memcpy.o
-BUILTIN_OBJS += $(OUTPUT)bench/futex-hash.o
-BUILTIN_OBJS += $(OUTPUT)bench/futex-wake.o
-BUILTIN_OBJS += $(OUTPUT)bench/futex-requeue.o
-
 BUILTIN_OBJS += $(OUTPUT)builtin-diff.o
 BUILTIN_OBJS += $(OUTPUT)builtin-evlist.o
 BUILTIN_OBJS += $(OUTPUT)builtin-help.o
@@ -597,10 +583,6 @@ ifeq ($(NO_PERF_REGS),0)
   LIB_OBJS += $(OUTPUT)util/perf_regs.o
 endif
 
-ifndef NO_LIBNUMA
-  BUILTIN_OBJS += $(OUTPUT)bench/numa.o
-endif
-
 ifndef NO_ZLIB
   LIB_OBJS += $(OUTPUT)util/zlib.o
 endif
@@ -627,14 +609,22 @@ shell_compatibility_test: please_set_SHELL_PATH_to_a_more_modern_shell
 strip: $(PROGRAMS) $(OUTPUT)perf
 	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) $(OUTPUT)perf
 
+PERF_IN := $(OUTPUT)perf-in.o
+
+export srctree OUTPUT RM CC LD AR CFLAGS V
+build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+
+$(PERF_IN): FORCE
+	@$(MAKE) $(build)=perf
+
 $(OUTPUT)perf.o: perf.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -include $(OUTPUT)PERF-VERSION-FILE \
 		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
 		$(CFLAGS) -c $(filter %.c,$^) -o $@
 
-$(OUTPUT)perf: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS)
+$(OUTPUT)perf: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS) $(PERF_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(OUTPUT)perf.o \
-               $(BUILTIN_OBJS) $(LIBS) -o $@
+               $(BUILTIN_OBJS) $(PERF_IN) $(LIBS) -o $@
 
 $(GTK_OBJS): $(OUTPUT)%.o: %.c $(LIB_H)
 	$(QUIET_CC)$(CC) -o $@ -c -fPIC $(CFLAGS) $(GTK_CFLAGS) $<
@@ -989,6 +979,8 @@ config-clean:
 
 clean: $(LIBTRACEEVENT)-clean $(LIBAPIKFS)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(OUTPUT)perf.o $(LANG_BINDINGS) $(GTK_OBJS)
+	@find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
+	@$(RM) .config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS $(OUTPUT)PERF-FEATURES $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex*
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
@@ -1004,7 +996,9 @@ else
     GIT-HEAD-PHONY =
 endif
 
+FORCE:
+
 .PHONY: all install clean config-clean strip install-gtk
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
-.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope .FORCE-PERF-CFLAGS
+.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope .FORCE-PERF-CFLAGS FORCE
 
