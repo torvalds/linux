@@ -194,7 +194,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	for (;;) {
 		res = p9_client_lock_dotl(fid, &flock, &status);
 		if (res < 0)
-			break;
+			goto out_unlock;
 
 		if (status != P9_LOCK_BLOCKED)
 			break;
@@ -220,6 +220,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 		BUG();
 	}
 
+out_unlock:
 	/*
 	 * incase server returned error for lock request, revert
 	 * it locally
