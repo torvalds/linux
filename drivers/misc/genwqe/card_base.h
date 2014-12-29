@@ -34,7 +34,6 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/version.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
