@@ -223,8 +223,9 @@ static int smp_f4(struct crypto_hash *tfm_cmac, const u8 u[32], const u8 v[32],
 	return err;
 }
 
-static int smp_f5(struct crypto_hash *tfm_cmac, u8 w[32], u8 n1[16], u8 n2[16],
-		  u8 a1[7], u8 a2[7], u8 mackey[16], u8 ltk[16])
+static int smp_f5(struct crypto_hash *tfm_cmac, const u8 w[32],
+		  const u8 n1[16], const u8 n2[16], const u8 a1[7],
+		  const u8 a2[7], u8 mackey[16], u8 ltk[16])
 {
 	/* The btle, salt and length "magic" values are as defined in
 	 * the SMP section of the Bluetooth core specification. In ASCII
@@ -276,7 +277,7 @@ static int smp_f5(struct crypto_hash *tfm_cmac, u8 w[32], u8 n1[16], u8 n2[16],
 }
 
 static int smp_f6(struct crypto_hash *tfm_cmac, const u8 w[16],
-		  const u8 n1[16], u8 n2[16], const u8 r[16],
+		  const u8 n1[16], const u8 n2[16], const u8 r[16],
 		  const u8 io_cap[3], const u8 a1[7], const u8 a2[7],
 		  u8 res[16])
 {
