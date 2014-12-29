@@ -482,21 +482,79 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 	return 0;
 }
 
+#define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
+	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+
+/** Ioctl table */
+static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_VERSION,
+			kfd_ioctl_get_version, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_CREATE_QUEUE,
+			kfd_ioctl_create_queue, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DESTROY_QUEUE,
+			kfd_ioctl_destroy_queue, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_MEMORY_POLICY,
+			kfd_ioctl_set_memory_policy, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_CLOCK_COUNTERS,
+			kfd_ioctl_get_clock_counters, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_PROCESS_APERTURES,
+			kfd_ioctl_get_process_apertures, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_UPDATE_QUEUE,
+			kfd_ioctl_update_queue, 0),
+};
+
+#define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
+
 static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	struct kfd_process *process;
+	amdkfd_ioctl_t *func;
+	const struct amdkfd_ioctl_desc *ioctl = NULL;
+	unsigned int nr = _IOC_NR(cmd);
 	char stack_kdata[128];
 	char *kdata = NULL;
 	unsigned int usize, asize;
 	int retcode = -EINVAL;
 
-	dev_dbg(kfd_device,
-		"ioctl cmd 0x%x (#%d), arg 0x%lx\n",
-		cmd, _IOC_NR(cmd), arg);
+	if (nr >= AMDKFD_CORE_IOCTL_COUNT)
+		goto err_i1;
+
+	if ((nr >= AMDKFD_COMMAND_START) && (nr < AMDKFD_COMMAND_END)) {
+		u32 amdkfd_size;
+
+		ioctl = &amdkfd_ioctls[nr];
+
+		amdkfd_size = _IOC_SIZE(ioctl->cmd);
+		usize = asize = _IOC_SIZE(cmd);
+		if (amdkfd_size > asize)
+			asize = amdkfd_size;
+
+		cmd = ioctl->cmd;
+	} else
+		goto err_i1;
+
+	dev_dbg(kfd_device, "ioctl cmd 0x%x (#%d), arg 0x%lx\n", cmd, nr, arg);
 
 	process = kfd_get_process(current);
-	if (IS_ERR(process))
-		return PTR_ERR(process);
+	if (IS_ERR(process)) {
+		dev_dbg(kfd_device, "no process\n");
+		goto err_i1;
+	}
+
+	/* Do not trust userspace, use our own definition */
+	func = ioctl->func;
+
+	if (unlikely(!func)) {
+		dev_dbg(kfd_device, "no function\n");
+		retcode = -EINVAL;
+		goto err_i1;
+	}
 
 	if (cmd & (IOC_IN | IOC_OUT)) {
 		if (asize <= sizeof(stack_kdata)) {
@@ -521,55 +579,17 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		memset(kdata, 0, usize);
 	}
 
-
-	switch (cmd) {
-	case AMDKFD_IOC_GET_VERSION:
-		retcode = kfd_ioctl_get_version(filep, process, kdata);
-		break;
-
-	case AMDKFD_IOC_CREATE_QUEUE:
-		retcode = kfd_ioctl_create_queue(filep, process,
-						kdata);
-		break;
-
-	case AMDKFD_IOC_DESTROY_QUEUE:
-		retcode = kfd_ioctl_destroy_queue(filep, process,
-						kdata);
-		break;
-
-	case AMDKFD_IOC_SET_MEMORY_POLICY:
-		retcode = kfd_ioctl_set_memory_policy(filep, process,
-						kdata);
-		break;
-
-	case AMDKFD_IOC_GET_CLOCK_COUNTERS:
-		retcode = kfd_ioctl_get_clock_counters(filep, process,
-						kdata);
-		break;
-
-	case AMDKFD_IOC_GET_PROCESS_APERTURES:
-		retcode = kfd_ioctl_get_process_apertures(filep, process,
-						kdata);
-		break;
-
-	case AMDKFD_IOC_UPDATE_QUEUE:
-		retcode = kfd_ioctl_update_queue(filep, process,
-						kdata);
-		break;
-
-	default:
-		dev_dbg(kfd_device,
-			"unknown ioctl cmd 0x%x, arg 0x%lx)\n",
-			cmd, arg);
-		retcode = -EINVAL;
-		break;
-	}
+	retcode = func(filep, process, kdata);
 
 	if (cmd & IOC_OUT)
 		if (copy_to_user((void __user *)arg, kdata, usize) != 0)
 			retcode = -EFAULT;
 
 err_i1:
+	if (!ioctl)
+		dev_dbg(kfd_device, "invalid ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
+			  task_pid_nr(current), cmd, nr);
+
 	if (kdata != stack_kdata)
 		kfree(kdata);
 
