@@ -339,24 +339,6 @@ ifneq ($(OUTPUT),)
   CFLAGS += -I$(OUTPUT)
 endif
 
-ifndef NO_SLANG
-  LIB_OBJS += $(OUTPUT)ui/browser.o
-  LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
-  LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
-  LIB_OBJS += $(OUTPUT)ui/browsers/map.o
-  LIB_OBJS += $(OUTPUT)ui/browsers/scripts.o
-  LIB_OBJS += $(OUTPUT)ui/browsers/header.o
-  LIB_OBJS += $(OUTPUT)ui/tui/setup.o
-  LIB_OBJS += $(OUTPUT)ui/tui/util.o
-  LIB_OBJS += $(OUTPUT)ui/tui/helpline.o
-  LIB_OBJS += $(OUTPUT)ui/tui/progress.o
-  LIB_H += ui/tui/tui.h
-  LIB_H += ui/browser.h
-  LIB_H += ui/browsers/map.h
-  LIB_H += ui/keysyms.h
-  LIB_H += ui/libslang.h
-endif
-
 ifndef NO_GTK2
   ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
 
@@ -483,21 +465,6 @@ $(OUTPUT)%.o: %.S
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $<
 $(OUTPUT)%.s: %.S
 	$(QUIET_CC)$(CC) -o $@ -E $(CFLAGS) $<
-
-$(OUTPUT)ui/browser.o: ui/browser.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DENABLE_SLFUTURE_CONST $<
-
-$(OUTPUT)ui/browsers/annotate.o: ui/browsers/annotate.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DENABLE_SLFUTURE_CONST $<
-
-$(OUTPUT)ui/browsers/hists.o: ui/browsers/hists.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DENABLE_SLFUTURE_CONST $<
-
-$(OUTPUT)ui/browsers/map.o: ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DENABLE_SLFUTURE_CONST $<
-
-$(OUTPUT)ui/browsers/scripts.o: ui/browsers/scripts.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
 $(OUTPUT)util/scripting-engines/trace-event-perl.o: util/scripting-engines/trace-event-perl.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow -Wno-undef -Wno-switch-default $<

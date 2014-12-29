@@ -479,6 +479,7 @@ ifndef NO_SLANG
     CFLAGS += -I/usr/include/slang
     CFLAGS += -DHAVE_SLANG_SUPPORT
     EXTLIBS += -lslang
+    $(call detected,CONFIG_SLANG)
   endif
 endif
 
