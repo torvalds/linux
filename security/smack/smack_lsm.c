@@ -3312,7 +3312,7 @@ static int smack_unix_stream_connect(struct sock *sock,
 
 	if (!smack_privileged(CAP_MAC_OVERRIDE)) {
 		skp = ssp->smk_out;
-		okp = osp->smk_out;
+		okp = osp->smk_in;
 #ifdef CONFIG_AUDIT
 		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
 		smk_ad_setfield_u_net_sk(&ad, other);
@@ -3320,6 +3320,8 @@ static int smack_unix_stream_connect(struct sock *sock,
 		rc = smk_access(skp, okp, MAY_WRITE, &ad);
 		rc = smk_bu_note("UDS connect", skp, okp, MAY_WRITE, rc);
 		if (rc == 0) {
+			okp = osp->smk_out;
+			skp = ssp->smk_in;
 			rc = smk_access(okp, skp, MAY_WRITE, NULL);
 			rc = smk_bu_note("UDS connect", okp, skp,
 						MAY_WRITE, rc);
