@@ -463,6 +463,10 @@ struct wl12xx_vif {
 	/* work for canceling ROC after pending auth reply */
 	struct delayed_work pending_auth_complete_work;
 
+	/* update rate conrol */
+	enum ieee80211_sta_rx_bandwidth rc_update_bw;
+	struct work_struct rc_update_work;
+
 	/*
 	 * total freed FW packets on the link.
 	 * For STA this holds the PN of the link to the AP.
