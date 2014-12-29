@@ -1,0 +1,20 @@
+* Atmel AC97 controller
+
+Required properties:
+  - compatible: "atmel,at91sam9263-ac97c"
+  - reg: Address and length of the register set for the device
+  - interrupts: Should contain AC97 interrupt
+  - ac97-gpios: Please refer to soc-ac97link.txt, only ac97-reset is used
+Optional properties:
+  - pinctrl-names, pinctrl-0: Please refer to pinctrl-bindings.txt
+
+Example:
+sound@fffa0000 {
+       compatible = "atmel,at91sam9263-ac97c";
+       pinctrl-names = "default";
+       pinctrl-0 = <&pinctrl_ac97>;
+       reg = <0xfffa0000 0x4000>;
+       interrupts = <18 IRQ_TYPE_LEVEL_HIGH 5>;
+
+       ac97-gpios = <&pioB 0 0 &pioB 2 0 &pioC 29 GPIO_ACTIVE_LOW>;
+};
