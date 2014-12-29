@@ -32,7 +32,10 @@ enum {
 	ACX_SIM_CONFIG			 = 0x0053,
 	ACX_CLEAR_STATISTICS		 = 0x0054,
 	ACX_AUTO_RX_STREAMING		 = 0x0055,
-	ACX_PEER_CAP			 = 0x0056
+	ACX_PEER_CAP			 = 0x0056,
+	ACX_INTERRUPT_NOTIFY		 = 0x0057,
+	ACX_RX_BA_FILTER		 = 0x0058
+
 };
 
 /* numbers of bits the length field takes (add 1 for the actual number) */
@@ -326,6 +329,24 @@ struct wlcore_acx_peer_cap {
 	u8 padding;
 } __packed;
 
+/*
+ * ACX_INTERRUPT_NOTIFY
+ * enable/disable fast-link/PSM notification from FW
+ */
+struct wl18xx_acx_interrupt_notify {
+	struct acx_header header;
+	u32 enable;
+};
+
+/*
+ * ACX_RX_BA_FILTER
+ * enable/disable RX BA filtering in FW
+ */
+struct wl18xx_acx_rx_ba_filter {
+	struct acx_header header;
+	u32 enable;
+};
+
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
 				  u32 len_field_size);
@@ -336,5 +357,7 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 			    struct ieee80211_sta_ht_cap *ht_cap,
 			    bool allow_ht_operation,
 			    u32 rate_set, u8 hlid);
+int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl, bool action);
+int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action);
 
 #endif /* __WL18XX_ACX_H__ */

@@ -218,6 +218,22 @@ wlcore_hw_sta_rc_update(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 }
 
 static inline int
+wlcore_hw_interrupt_notify(struct wl1271 *wl, bool action)
+{
+	if (wl->ops->interrupt_notify)
+		return wl->ops->interrupt_notify(wl, action);
+	return 0;
+}
+
+static inline int
+wlcore_hw_rx_ba_filter(struct wl1271 *wl, bool action)
+{
+	if (wl->ops->rx_ba_filter)
+		return wl->ops->rx_ba_filter(wl, action);
+	return 0;
+}
+
+static inline int
 wlcore_hw_set_peer_cap(struct wl1271 *wl,
 		       struct ieee80211_sta_ht_cap *ht_cap,
 		       bool allow_ht_operation,
