@@ -868,6 +868,7 @@ static int scsi_try_bus_device_reset(struct scsi_cmnd *scmd)
 
 /**
  * scsi_try_to_abort_cmd - Ask host to abort a SCSI command
+ * @hostt:	SCSI driver host template
  * @scmd:	SCSI cmd used to send a target reset
  *
  * Return value:
