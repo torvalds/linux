@@ -9,7 +9,6 @@
 
 #include <linux/clk.h>
 #include <linux/cpu_cooling.h>
-#include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -454,15 +453,10 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id =
 		of_match_device(of_imx_thermal_match, &pdev->dev);
 	struct imx_thermal_data *data;
-	struct cpumask clip_cpus;
 	struct regmap *map;
 	int measure_freq;
 	int ret;
 
-	if (!cpufreq_get_current_driver()) {
-		dev_dbg(&pdev->dev, "no cpufreq driver!");
-		return -EPROBE_DEFER;
-	}
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -516,12 +510,13 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	regmap_write(map, MISC0 + REG_SET, MISC0_REFTOP_SELBIASOFF);
 	regmap_write(map, TEMPSENSE0 + REG_SET, TEMPSENSE0_POWER_DOWN);
 
-	cpumask_set_cpu(0, &clip_cpus);
-	data->cdev = cpufreq_cooling_register(&clip_cpus);
+	data->cdev = cpufreq_cooling_register(cpu_present_mask);
 	if (IS_ERR(data->cdev)) {
 		ret = PTR_ERR(data->cdev);
-		dev_err(&pdev->dev,
-			"failed to register cpufreq cooling device: %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"failed to register cpufreq cooling device: %d\n",
+				ret);
 		return ret;
 	}
 
