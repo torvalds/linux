@@ -37,6 +37,9 @@ subdir-obj-y :=
 build-file := $(dir)/Build
 include $(build-file)
 
+quiet_cmd_flex  = FLEX     $@
+quiet_cmd_bison = BISON    $@
+
 # Create directory unless it exists
 quiet_cmd_mkdir = MKDIR    $(dir $@)
       cmd_mkdir = mkdir -p $(dir $@)

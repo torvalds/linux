@@ -30,3 +30,6 @@ paths += -DPERF_MAN_PATH="BUILD_STR($(mandir_SQ))"
 
 CFLAGS_builtin-help.o      += $(paths)
 CFLAGS_builtin-timechart.o += $(paths)
+
+libperf-y += util/
+libperf-y += arch/

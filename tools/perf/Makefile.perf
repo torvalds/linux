@@ -82,6 +82,11 @@ endif
 
 ifneq ($(OUTPUT),)
 #$(info Determined 'OUTPUT' to be $(OUTPUT))
+# Adding $(OUTPUT) as a directory to look for source files,
+# because use generated output files as sources dependency
+# for flex/bison parsers.
+VPATH += $(OUTPUT)
+export VPATH
 endif
 
 # Do not use make's built-in rules
@@ -211,21 +216,6 @@ endif
 
 export PERL_PATH
 
-$(OUTPUT)util/parse-events-flex.c: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
-	$(QUIET_FLEX)$(FLEX) -o $@ --header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DEBUG_FLEX) util/parse-events.l
-
-$(OUTPUT)util/parse-events-bison.c: util/parse-events.y
-	$(QUIET_BISON)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $(OUTPUT)util/parse-events-bison.c -p parse_events_
-
-$(OUTPUT)util/pmu-flex.c: util/pmu.l $(OUTPUT)util/pmu-bison.c
-	$(QUIET_FLEX)$(FLEX) -o $@ --header-file=$(OUTPUT)util/pmu-flex.h util/pmu.l
-
-$(OUTPUT)util/pmu-bison.c: util/pmu.y
-	$(QUIET_BISON)$(BISON) -v util/pmu.y -d -o $(OUTPUT)util/pmu-bison.c -p perf_pmu_
-
-$(OUTPUT)util/parse-events.o: $(OUTPUT)util/parse-events-flex.c $(OUTPUT)util/parse-events-bison.c
-$(OUTPUT)util/pmu.o: $(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-bison.c
-
 LIB_FILE=$(OUTPUT)libperf.a
 
 LIB_H += ../lib/symbol/kallsyms.h
@@ -337,84 +327,8 @@ LIB_H += util/data.h
 LIB_H += util/kvm-stat.h
 LIB_H += util/thread-stack.h
 
-LIB_OBJS += $(OUTPUT)util/abspath.o
-LIB_OBJS += $(OUTPUT)util/alias.o
-LIB_OBJS += $(OUTPUT)util/annotate.o
-LIB_OBJS += $(OUTPUT)util/build-id.o
-LIB_OBJS += $(OUTPUT)util/config.o
-LIB_OBJS += $(OUTPUT)util/ctype.o
-LIB_OBJS += $(OUTPUT)util/db-export.o
-LIB_OBJS += $(OUTPUT)util/pmu.o
-LIB_OBJS += $(OUTPUT)util/environment.o
-LIB_OBJS += $(OUTPUT)util/event.o
-LIB_OBJS += $(OUTPUT)util/evlist.o
-LIB_OBJS += $(OUTPUT)util/evsel.o
-LIB_OBJS += $(OUTPUT)util/exec_cmd.o
-LIB_OBJS += $(OUTPUT)util/find_next_bit.o
-LIB_OBJS += $(OUTPUT)util/help.o
-LIB_OBJS += $(OUTPUT)util/kallsyms.o
-LIB_OBJS += $(OUTPUT)util/levenshtein.o
-LIB_OBJS += $(OUTPUT)util/parse-options.o
-LIB_OBJS += $(OUTPUT)util/parse-events.o
-LIB_OBJS += $(OUTPUT)util/path.o
-LIB_OBJS += $(OUTPUT)util/rbtree.o
-LIB_OBJS += $(OUTPUT)util/bitmap.o
-LIB_OBJS += $(OUTPUT)util/hweight.o
-LIB_OBJS += $(OUTPUT)util/run-command.o
-LIB_OBJS += $(OUTPUT)util/quote.o
-LIB_OBJS += $(OUTPUT)util/strbuf.o
-LIB_OBJS += $(OUTPUT)util/string.o
-LIB_OBJS += $(OUTPUT)util/strlist.o
-LIB_OBJS += $(OUTPUT)util/strfilter.o
-LIB_OBJS += $(OUTPUT)util/top.o
-LIB_OBJS += $(OUTPUT)util/usage.o
-LIB_OBJS += $(OUTPUT)util/wrapper.o
-LIB_OBJS += $(OUTPUT)util/sigchain.o
-LIB_OBJS += $(OUTPUT)util/dso.o
-LIB_OBJS += $(OUTPUT)util/symbol.o
 LIB_OBJS += $(OUTPUT)util/symbol-elf.o
-LIB_OBJS += $(OUTPUT)util/color.o
-LIB_OBJS += $(OUTPUT)util/pager.o
-LIB_OBJS += $(OUTPUT)util/header.o
-LIB_OBJS += $(OUTPUT)util/callchain.o
-LIB_OBJS += $(OUTPUT)util/values.o
-LIB_OBJS += $(OUTPUT)util/debug.o
-LIB_OBJS += $(OUTPUT)util/machine.o
-LIB_OBJS += $(OUTPUT)util/map.o
-LIB_OBJS += $(OUTPUT)util/pstack.o
-LIB_OBJS += $(OUTPUT)util/session.o
-LIB_OBJS += $(OUTPUT)util/ordered-events.o
-LIB_OBJS += $(OUTPUT)util/comm.o
-LIB_OBJS += $(OUTPUT)util/thread.o
-LIB_OBJS += $(OUTPUT)util/thread_map.o
-LIB_OBJS += $(OUTPUT)util/trace-event-parse.o
-LIB_OBJS += $(OUTPUT)util/parse-events-flex.o
-LIB_OBJS += $(OUTPUT)util/parse-events-bison.o
-LIB_OBJS += $(OUTPUT)util/pmu-flex.o
-LIB_OBJS += $(OUTPUT)util/pmu-bison.o
-LIB_OBJS += $(OUTPUT)util/trace-event-read.o
-LIB_OBJS += $(OUTPUT)util/trace-event-info.o
-LIB_OBJS += $(OUTPUT)util/trace-event-scripting.o
-LIB_OBJS += $(OUTPUT)util/trace-event.o
-LIB_OBJS += $(OUTPUT)util/svghelper.o
-LIB_OBJS += $(OUTPUT)util/sort.o
-LIB_OBJS += $(OUTPUT)util/hist.o
 LIB_OBJS += $(OUTPUT)util/probe-event.o
-LIB_OBJS += $(OUTPUT)util/util.o
-LIB_OBJS += $(OUTPUT)util/xyarray.o
-LIB_OBJS += $(OUTPUT)util/cpumap.o
-LIB_OBJS += $(OUTPUT)util/cgroup.o
-LIB_OBJS += $(OUTPUT)util/target.o
-LIB_OBJS += $(OUTPUT)util/rblist.o
-LIB_OBJS += $(OUTPUT)util/intlist.o
-LIB_OBJS += $(OUTPUT)util/vdso.o
-LIB_OBJS += $(OUTPUT)util/stat.o
-LIB_OBJS += $(OUTPUT)util/record.o
-LIB_OBJS += $(OUTPUT)util/srcline.o
-LIB_OBJS += $(OUTPUT)util/data.o
-LIB_OBJS += $(OUTPUT)util/tsc.o
-LIB_OBJS += $(OUTPUT)util/cloexec.o
-LIB_OBJS += $(OUTPUT)util/thread-stack.o
 
 LIB_OBJS += $(OUTPUT)ui/setup.o
 LIB_OBJS += $(OUTPUT)ui/helpline.o
@@ -422,8 +336,6 @@ LIB_OBJS += $(OUTPUT)ui/progress.o
 LIB_OBJS += $(OUTPUT)ui/util.o
 LIB_OBJS += $(OUTPUT)ui/hist.o
 LIB_OBJS += $(OUTPUT)ui/stdio/hist.o
-
-LIB_OBJS += $(OUTPUT)arch/common.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-probe.o
 
@@ -547,7 +459,7 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 
 PERF_IN := $(OUTPUT)perf-in.o
 
-export srctree OUTPUT RM CC LD AR CFLAGS V
+export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 $(PERF_IN): $(OUTPUT)common-cmds.h FORCE
@@ -601,12 +513,6 @@ endif
 # These two need to be here so that when O= is not used they take precedence
 # over the general rule for .o
 
-$(OUTPUT)util/%-flex.o: $(OUTPUT)util/%-flex.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c -Iutil/ $(CFLAGS) -w $<
-
-$(OUTPUT)util/%-bison.o: $(OUTPUT)util/%-bison.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c -Iutil/ $(CFLAGS) -DYYENABLE_NLS=0 -DYYLTYPE_IS_TRIVIAL=0 -w $<
-
 $(OUTPUT)%.o: %.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $<
 $(OUTPUT)%.i: %.c $(OUTPUT)PERF-CFLAGS
@@ -617,15 +523,6 @@ $(OUTPUT)%.o: %.S
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $<
 $(OUTPUT)%.s: %.S
 	$(QUIET_CC)$(CC) -o $@ -E $(CFLAGS) $<
-
-$(OUTPUT)util/exec_cmd.o: util/exec_cmd.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) \
-		'-DPERF_EXEC_PATH="$(perfexecdir_SQ)"' \
-		'-DPREFIX="$(prefix_SQ)"' \
-		$<
-
-$(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
 $(OUTPUT)ui/setup.o: ui/setup.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DLIBDIR='"$(libdir_SQ)"' $<
@@ -644,21 +541,6 @@ $(OUTPUT)ui/browsers/map.o: ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
 
 $(OUTPUT)ui/browsers/scripts.o: ui/browsers/scripts.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DENABLE_SLFUTURE_CONST $<
-
-$(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $<
-
-$(OUTPUT)util/rbtree.o: ../../lib/rbtree.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -Wno-unused-parameter -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
-
-$(OUTPUT)util/hweight.o: ../../lib/hweight.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -Wno-unused-parameter -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
-
-$(OUTPUT)util/find_next_bit.o: ../lib/util/find_next_bit.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -Wno-unused-parameter -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
-
-$(OUTPUT)util/parse-events.o: util/parse-events.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -Wno-redundant-decls $<
 
 $(OUTPUT)util/scripting-engines/trace-event-perl.o: util/scripting-engines/trace-event-perl.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow -Wno-undef -Wno-switch-default $<
@@ -703,8 +585,13 @@ $(DIRECTORY_DEPS): | $(OUTPUT_DIRECTORIES)
 $(OUTPUT_DIRECTORIES):
 	$(QUIET_MKDIR)$(MKDIR) -p $@ 2>/dev/null
 
-$(LIB_FILE): $(LIB_OBJS)
-	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIB_OBJS)
+LIBPERF_IN := $(OUTPUT)libperf-in.o
+
+$(LIBPERF_IN): FORCE
+	@$(MAKE) $(build)=libperf
+
+$(LIB_FILE): $(LIB_OBJS) $(LIBPERF_IN)
+	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIBPERF_IN) $(LIB_OBJS)
 
 # libtraceevent.a
 TE_SOURCES = $(wildcard $(TRACE_EVENT_DIR)*.[ch])
