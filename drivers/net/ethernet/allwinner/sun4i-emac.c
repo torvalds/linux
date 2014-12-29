@@ -850,8 +850,10 @@ static int emac_probe(struct platform_device *pdev)
 	}
 
 	db->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(db->clk))
+	if (IS_ERR(db->clk)) {
+		ret = PTR_ERR(db->clk);
 		goto out;
+	}
 
 	clk_prepare_enable(db->clk);
 
