@@ -798,10 +798,8 @@ static void __touch_mnt_namespace(struct mnt_namespace *ns)
 /*
  * vfsmount lock must be held for write
  */
-static void detach_mnt(struct mount *mnt, struct path *old_path)
+static void unhash_mnt(struct mount *mnt)
 {
-	old_path->dentry = mnt->mnt_mountpoint;
-	old_path->mnt = &mnt->mnt_parent->mnt;
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt_child);
@@ -809,6 +807,16 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
 	hlist_del_init(&mnt->mnt_mp_list);
 	put_mountpoint(mnt->mnt_mp);
 	mnt->mnt_mp = NULL;
+}
+
+/*
+ * vfsmount lock must be held for write
+ */
+static void detach_mnt(struct mount *mnt, struct path *old_path)
+{
+	old_path->dentry = mnt->mnt_mountpoint;
+	old_path->mnt = &mnt->mnt_parent->mnt;
+	unhash_mnt(mnt);
 }
 
 /*
@@ -1362,15 +1370,10 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 
 		pin_insert_group(&p->mnt_umount, &p->mnt_parent->mnt, &unmounted);
 		if (mnt_has_parent(p)) {
-			hlist_del_init(&p->mnt_mp_list);
-			put_mountpoint(p->mnt_mp);
 			mnt_add_count(p->mnt_parent, -1);
 			/* old mountpoint will be dropped when we can do that */
 			p->mnt_ex_mountpoint = p->mnt_mountpoint;
-			p->mnt_mountpoint = p->mnt.mnt_root;
-			p->mnt_parent = p;
-			p->mnt_mp = NULL;
-			hlist_del_init_rcu(&p->mnt_hash);
+			unhash_mnt(p);
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
