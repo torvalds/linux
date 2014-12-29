@@ -1483,7 +1483,7 @@ static int sdma_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -EINVAL;
+		return irq;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sdma->regs = devm_ioremap_resource(&pdev->dev, iores);
