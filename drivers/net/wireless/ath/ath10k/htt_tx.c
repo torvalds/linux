@@ -475,8 +475,10 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	skb_cb->htt.txbuf = dma_pool_alloc(htt->tx_pool, GFP_ATOMIC,
 					   &paddr);
-	if (!skb_cb->htt.txbuf)
+	if (!skb_cb->htt.txbuf) {
+		res = -ENOMEM;
 		goto err_free_msdu_id;
+	}
 	skb_cb->htt.txbuf_paddr = paddr;
 
 	skb_cb->paddr = dma_map_single(dev, msdu->data, msdu->len,
