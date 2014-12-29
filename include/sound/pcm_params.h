@@ -363,9 +363,7 @@ params_subformat(const struct snd_pcm_hw_params *p)
 static inline unsigned int
 params_period_bytes(const struct snd_pcm_hw_params *p)
 {
-	return (params_period_size(p) *
-		snd_pcm_format_physical_width(params_format(p)) *
-		params_channels(p)) / 8;
+	return hw_param_interval_c(p, SNDRV_PCM_HW_PARAM_PERIOD_BYTES)->min;
 }
 
 /**
