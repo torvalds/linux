@@ -55,7 +55,7 @@
 
 #define RGA_TEST_CASE 0
 
-#define RGA_TEST 1
+#define RGA_TEST 0
 #define RGA_TEST_TIME 0
 #define RGA_TEST_FLUSH_TIME 0
 #define RGA_INFO_BUS_ERROR 1
