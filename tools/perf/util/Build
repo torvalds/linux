@@ -82,6 +82,9 @@ ifndef CONFIG_LIBELF
 libperf-y += symbol-minimal.o
 endif
 
+libperf-$(CONFIG_DWARF) += probe-finder.o
+libperf-$(CONFIG_DWARF) += dwarf-aux.o
+
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_exec_cmd.o += -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))" -DPREFIX="BUILD_STR($(prefix_SQ))"
 
