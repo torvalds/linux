@@ -82,6 +82,10 @@ static void wl1271_reg_notify(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct wl1271 *wl = hw->priv;
 
+	/* copy the current dfs region */
+	if (request)
+		wl->dfs_region = request->dfs_region;
+
 	wlcore_regdomain_config(wl);
 }
 

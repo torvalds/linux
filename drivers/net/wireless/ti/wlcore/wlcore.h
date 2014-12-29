@@ -465,6 +465,9 @@ struct wl1271 {
 	/* HW HT (11n) capabilities */
 	struct ieee80211_sta_ht_cap ht_cap[WLCORE_NUM_BANDS];
 
+	/* the current dfs region */
+	enum nl80211_dfs_regions dfs_region;
+
 	/* size of the private FW status data */
 	size_t fw_status_len;
 	size_t fw_status_priv_len;

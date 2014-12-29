@@ -1736,6 +1736,7 @@ int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl)
 
 	cmd->ch_bit_map1 = cpu_to_le32(tmp_ch_bitmap[0]);
 	cmd->ch_bit_map2 = cpu_to_le32(tmp_ch_bitmap[1]);
+	cmd->dfs_region = wl->dfs_region;
 
 	wl1271_debug(DEBUG_CMD,
 		     "cmd reg domain bitmap1: 0x%08x, bitmap2: 0x%08x",
