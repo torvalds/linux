@@ -24,6 +24,7 @@
 #include "../wlcore/acx.h"
 
 #include "acx.h"
+#include "wl18xx.h"
 
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
@@ -243,6 +244,37 @@ int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action)
 	if (ret < 0) {
 		wl1271_warning("acx rx ba activity filter setting failed: %d",
 			       ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl18xx_acx_ap_sleep(struct wl1271 *wl)
+{
+	struct wl18xx_priv *priv = wl->priv;
+	struct acx_ap_sleep_cfg *acx;
+	struct conf_ap_sleep_settings *conf = &priv->conf.ap_sleep;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx config ap sleep");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->idle_duty_cycle = conf->idle_duty_cycle;
+	acx->connected_duty_cycle = conf->connected_duty_cycle;
+	acx->max_stations_thresh = conf->max_stations_thresh;
+	acx->idle_conn_thresh = conf->idle_conn_thresh;
+
+	ret = wl1271_cmd_configure(wl, ACX_AP_SLEEP_CFG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx config ap-sleep failed: %d", ret);
 		goto out;
 	}
 

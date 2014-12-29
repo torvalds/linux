@@ -568,6 +568,12 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.high_power_val_2nd		= 0xff,
 		.tx_rf_margin			= 1,
 	},
+	.ap_sleep = {               /* disabled by default */
+		.idle_duty_cycle        = 0,
+		.connected_duty_cycle   = 0,
+		.max_stations_thresh    = 0,
+		.idle_conn_thresh       = 0,
+	},
 };
 
 static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
@@ -1696,6 +1702,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.smart_config_set_group_key = wl18xx_cmd_smart_config_set_group_key,
 	.interrupt_notify = wl18xx_acx_interrupt_notify_config,
 	.rx_ba_filter	= wl18xx_acx_rx_ba_filter,
+	.ap_sleep	= wl18xx_acx_ap_sleep,
 };
 
 /* HT cap appropriate for wide channels in 2Ghz */

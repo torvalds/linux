@@ -118,6 +118,7 @@ struct wlcore_ops {
 			     struct wl1271_link *lnk);
 	int (*interrupt_notify)(struct wl1271 *wl, bool action);
 	int (*rx_ba_filter)(struct wl1271 *wl, bool action);
+	int (*ap_sleep)(struct wl1271 *wl);
 	int (*smart_config_start)(struct wl1271 *wl, u32 group_bitmap);
 	int (*smart_config_stop)(struct wl1271 *wl);
 	int (*smart_config_set_group_key)(struct wl1271 *wl, u16 group_id,

@@ -56,9 +56,6 @@ void wl1271_elp_work(struct work_struct *work)
 		goto out;
 
 	wl12xx_for_each_wlvif(wl, wlvif) {
-		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-			goto out;
-
 		if (!test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags) &&
 		    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 			goto out;
@@ -95,9 +92,6 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 		return;
 
 	wl12xx_for_each_wlvif(wl, wlvif) {
-		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
-			return;
-
 		if (!test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags) &&
 		    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 			return;

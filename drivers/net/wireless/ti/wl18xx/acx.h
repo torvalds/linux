@@ -34,8 +34,8 @@ enum {
 	ACX_AUTO_RX_STREAMING		 = 0x0055,
 	ACX_PEER_CAP			 = 0x0056,
 	ACX_INTERRUPT_NOTIFY		 = 0x0057,
-	ACX_RX_BA_FILTER		 = 0x0058
-
+	ACX_RX_BA_FILTER		 = 0x0058,
+	ACX_AP_SLEEP_CFG                 = 0x0059
 };
 
 /* numbers of bits the length field takes (add 1 for the actual number) */
@@ -347,6 +347,26 @@ struct wl18xx_acx_rx_ba_filter {
 	u32 enable;
 };
 
+struct acx_ap_sleep_cfg {
+	struct acx_header header;
+	/* Duty Cycle (20-80% of staying Awake) for IDLE AP
+	 * (0: disable)
+	 */
+	u8 idle_duty_cycle;
+	/* Duty Cycle (20-80% of staying Awake) for Connected AP
+	 * (0: disable)
+	 */
+	u8 connected_duty_cycle;
+	/* Maximum stations that are allowed to be connected to AP
+	 *  (255: no limit)
+	 */
+	u8 max_stations_thresh;
+	/* Timeout till enabling the Sleep Mechanism after data stops
+	 * [unit: 100 msec]
+	 */
+	u8 idle_conn_thresh;
+} __packed;
+
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
 				  u32 len_field_size);
@@ -359,5 +379,6 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 			    u32 rate_set, u8 hlid);
 int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl, bool action);
 int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action);
+int wl18xx_acx_ap_sleep(struct wl1271 *wl);
 
 #endif /* __WL18XX_ACX_H__ */

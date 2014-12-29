@@ -234,6 +234,15 @@ wlcore_hw_rx_ba_filter(struct wl1271 *wl, bool action)
 }
 
 static inline int
+wlcore_hw_ap_sleep(struct wl1271 *wl)
+{
+	if (wl->ops->ap_sleep)
+		return wl->ops->ap_sleep(wl);
+
+	return 0;
+}
+
+static inline int
 wlcore_hw_set_peer_cap(struct wl1271 *wl,
 		       struct ieee80211_sta_ht_cap *ht_cap,
 		       bool allow_ht_operation,

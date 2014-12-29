@@ -1731,6 +1731,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.lnk_low_prio		= wl12xx_lnk_low_prio,
 	.interrupt_notify	= NULL,
 	.rx_ba_filter		= NULL,
+	.ap_sleep		= NULL,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
