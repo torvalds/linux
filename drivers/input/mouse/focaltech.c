@@ -424,11 +424,6 @@ fail:
 	return error;
 }
 
-bool focaltech_supported(void)
-{
-	return true;
-}
-
 #else /* CONFIG_MOUSE_PS2_FOCALTECH */
 
 int focaltech_init(struct psmouse *psmouse)
@@ -436,11 +431,6 @@ int focaltech_init(struct psmouse *psmouse)
 	focaltech_reset(psmouse);
 
 	return 0;
-}
-
-bool focaltech_supported(void)
-{
-	return false;
 }
 
 #endif /* CONFIG_MOUSE_PS2_FOCALTECH */

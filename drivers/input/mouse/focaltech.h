@@ -19,6 +19,5 @@
 
 int focaltech_detect(struct psmouse *psmouse, bool set_properties);
 int focaltech_init(struct psmouse *psmouse);
-bool focaltech_supported(void);
 
 #endif
