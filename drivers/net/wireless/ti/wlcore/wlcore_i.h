@@ -434,6 +434,8 @@ struct wl12xx_vif {
 
 	bool wmm_enabled;
 
+	bool radar_enabled;
+
 	/* Rx Streaming */
 	struct work_struct rx_streaming_enable_work;
 	struct work_struct rx_streaming_disable_work;

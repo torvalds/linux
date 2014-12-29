@@ -123,6 +123,8 @@ struct wlcore_ops {
 	int (*smart_config_stop)(struct wl1271 *wl);
 	int (*smart_config_set_group_key)(struct wl1271 *wl, u16 group_id,
 					  u8 key_len, u8 *key);
+	int (*set_cac)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+		       bool start);
 };
 
 enum wlcore_partitions {

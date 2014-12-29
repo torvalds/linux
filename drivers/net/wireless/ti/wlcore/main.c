@@ -4629,10 +4629,46 @@ static void wlcore_op_change_chanctx(struct ieee80211_hw *hw,
 				     struct ieee80211_chanctx_conf *ctx,
 				     u32 changed)
 {
+	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif;
+	int ret;
+	int channel = ieee80211_frequency_to_channel(
+		ctx->def.chan->center_freq);
+
 	wl1271_debug(DEBUG_MAC80211,
 		     "mac80211 change chanctx %d (type %d) changed 0x%x",
-		     ieee80211_frequency_to_channel(ctx->def.chan->center_freq),
-		     cfg80211_get_chandef_type(&ctx->def), changed);
+		     channel, cfg80211_get_chandef_type(&ctx->def), changed);
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+
+		rcu_read_lock();
+		if (rcu_access_pointer(vif->chanctx_conf) != ctx) {
+			rcu_read_unlock();
+			continue;
+		}
+		rcu_read_unlock();
+
+		/* start radar if needed */
+		if (changed & IEEE80211_CHANCTX_CHANGE_RADAR &&
+		    wlvif->bss_type == BSS_TYPE_AP_BSS &&
+		    ctx->radar_enabled && !wlvif->radar_enabled &&
+		    ctx->def.chan->dfs_state == NL80211_DFS_USABLE) {
+			wl1271_debug(DEBUG_MAC80211, "Start radar detection");
+			wlcore_hw_set_cac(wl, wlvif, true);
+			wlvif->radar_enabled = true;
+		}
+	}
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
 }
 
 static int wlcore_op_assign_vif_chanctx(struct ieee80211_hw *hw,
@@ -4643,12 +4679,25 @@ static int wlcore_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int channel = ieee80211_frequency_to_channel(
 		ctx->def.chan->center_freq);
+	int ret = -EINVAL;
 
 	wl1271_debug(DEBUG_MAC80211,
-		     "mac80211 assign chanctx (role %d) %d (type %d)",
-		     wlvif->role_id, channel, cfg80211_get_chandef_type(&ctx->def));
+		     "mac80211 assign chanctx (role %d) %d (type %d) (radar %d dfs_state %d)",
+		     wlvif->role_id, channel,
+		     cfg80211_get_chandef_type(&ctx->def),
+		     ctx->radar_enabled, ctx->def.chan->dfs_state);
 
 	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
+	if (unlikely(!test_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags)))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
 	wlvif->band = ctx->def.chan->band;
 	wlvif->channel = channel;
@@ -4657,6 +4706,15 @@ static int wlcore_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	/* update default rates according to the band */
 	wl1271_set_band_rate(wl, wlvif);
 
+	if (ctx->radar_enabled &&
+	    ctx->def.chan->dfs_state == NL80211_DFS_USABLE) {
+		wl1271_debug(DEBUG_MAC80211, "Start radar detection");
+		wlcore_hw_set_cac(wl, wlvif, true);
+		wlvif->radar_enabled = true;
+	}
+
+	wl1271_ps_elp_sleep(wl);
+out:
 	mutex_unlock(&wl->mutex);
 
 	return 0;
@@ -4668,6 +4726,7 @@ static void wlcore_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	int ret;
 
 	wl1271_debug(DEBUG_MAC80211,
 		     "mac80211 unassign chanctx (role %d) %d (type %d)",
@@ -4676,6 +4735,97 @@ static void wlcore_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		     cfg80211_get_chandef_type(&ctx->def));
 
 	wl1271_tx_flush(wl);
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
+	if (unlikely(!test_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags)))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	if (wlvif->radar_enabled) {
+		wl1271_debug(DEBUG_MAC80211, "Stop radar detection");
+		wlcore_hw_set_cac(wl, wlvif, false);
+		wlvif->radar_enabled = false;
+	}
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+}
+
+static int __wlcore_switch_vif_chan(struct wl1271 *wl,
+				    struct wl12xx_vif *wlvif,
+				    struct ieee80211_chanctx_conf *new_ctx)
+{
+	int channel = ieee80211_frequency_to_channel(
+		new_ctx->def.chan->center_freq);
+
+	wl1271_debug(DEBUG_MAC80211,
+		     "switch vif (role %d) %d -> %d chan_type: %d",
+		     wlvif->role_id, wlvif->channel, channel,
+		     cfg80211_get_chandef_type(&new_ctx->def));
+
+	if (WARN_ON_ONCE(wlvif->bss_type != BSS_TYPE_AP_BSS))
+		return 0;
+
+	if (wlvif->radar_enabled) {
+		wl1271_debug(DEBUG_MAC80211, "Stop radar detection");
+		wlcore_hw_set_cac(wl, wlvif, false);
+		wlvif->radar_enabled = false;
+	}
+
+	wlvif->band = new_ctx->def.chan->band;
+	wlvif->channel = channel;
+	wlvif->channel_type = cfg80211_get_chandef_type(&new_ctx->def);
+
+	/* start radar if needed */
+	if (new_ctx->radar_enabled) {
+		wl1271_debug(DEBUG_MAC80211, "Start radar detection");
+		wlcore_hw_set_cac(wl, wlvif, true);
+		wlvif->radar_enabled = true;
+	}
+
+	return 0;
+}
+
+static int
+wlcore_op_switch_vif_chanctx(struct ieee80211_hw *hw,
+			     struct ieee80211_vif_chanctx_switch *vifs,
+			     int n_vifs,
+			     enum ieee80211_chanctx_switch_mode mode)
+{
+	struct wl1271 *wl = hw->priv;
+	int i, ret;
+
+	wl1271_debug(DEBUG_MAC80211,
+		     "mac80211 switch chanctx n_vifs %d mode %d",
+		     n_vifs, mode);
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	for (i = 0; i < n_vifs; i++) {
+		struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vifs[i].vif);
+
+		ret = __wlcore_switch_vif_chan(wl, wlvif, vifs[i].new_ctx);
+		if (ret)
+			goto out_sleep;
+	}
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+
+	return 0;
 }
 
 static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
@@ -5665,6 +5815,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.change_chanctx = wlcore_op_change_chanctx,
 	.assign_vif_chanctx = wlcore_op_assign_vif_chanctx,
 	.unassign_vif_chanctx = wlcore_op_unassign_vif_chanctx,
+	.switch_vif_chanctx = wlcore_op_switch_vif_chanctx,
 	.sta_rc_update = wlcore_op_sta_rc_update,
 	.get_rssi = wlcore_op_get_rssi,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)

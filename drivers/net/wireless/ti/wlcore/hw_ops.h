@@ -311,4 +311,13 @@ wlcore_smart_config_set_group_key(struct wl1271 *wl, u16 group_id,
 
 	return wl->ops->smart_config_set_group_key(wl, group_id, key_len, key);
 }
+
+static inline int
+wlcore_hw_set_cac(struct wl1271 *wl, struct wl12xx_vif *wlvif, bool start)
+{
+	if (!wl->ops->set_cac)
+		return -EINVAL;
+
+	return wl->ops->set_cac(wl, wlvif, start);
+}
 #endif
