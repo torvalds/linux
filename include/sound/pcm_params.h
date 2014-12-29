@@ -325,18 +325,30 @@ static inline int snd_interval_eq(const struct snd_interval *i1, const struct sn
 		i1->max == i2->max && i1->openmax == i2->openmax;
 }
 
+/**
+ * params_access - get the access type from the hw params
+ * @p: hw params
+ */
 static inline snd_pcm_access_t params_access(const struct snd_pcm_hw_params *p)
 {
 	return (__force snd_pcm_access_t)snd_mask_min(hw_param_mask_c(p,
 		SNDRV_PCM_HW_PARAM_ACCESS));
 }
 
+/**
+ * params_format - get the sample format from the hw params
+ * @p: hw params
+ */
 static inline snd_pcm_format_t params_format(const struct snd_pcm_hw_params *p)
 {
 	return (__force snd_pcm_format_t)snd_mask_min(hw_param_mask_c(p,
 		SNDRV_PCM_HW_PARAM_FORMAT));
 }
 
+/**
+ * params_subformat - get the sample subformat from the hw params
+ * @p: hw params
+ */
 static inline snd_pcm_subformat_t
 params_subformat(const struct snd_pcm_hw_params *p)
 {
@@ -344,6 +356,10 @@ params_subformat(const struct snd_pcm_hw_params *p)
 		SNDRV_PCM_HW_PARAM_SUBFORMAT));
 }
 
+/**
+ * params_period_bytes - get the period size (in bytes) from the hw params
+ * @p: hw params
+ */
 static inline unsigned int
 params_period_bytes(const struct snd_pcm_hw_params *p)
 {
@@ -352,14 +368,27 @@ params_period_bytes(const struct snd_pcm_hw_params *p)
 		params_channels(p)) / 8;
 }
 
-static inline int
-params_width(const struct snd_pcm_hw_params *p)
+/**
+ * params_width - get the number of bits of the sample format from the hw params
+ * @p: hw params
+ *
+ * This function returns the number of bits per sample that the selected sample
+ * format of the hw params has.
+ */
+static inline int params_width(const struct snd_pcm_hw_params *p)
 {
 	return snd_pcm_format_width(params_format(p));
 }
 
-static inline int
-params_physical_width(const struct snd_pcm_hw_params *p)
+/*
+ * params_physical_width - get the storage size of the sample format from the hw params
+ * @p: hw params
+ *
+ * This functions returns the number of bits per sample that the selected sample
+ * format of the hw params takes up in memory. This will be equal or larger than
+ * params_width().
+ */
+static inline int params_physical_width(const struct snd_pcm_hw_params *p)
 {
 	return snd_pcm_format_physical_width(params_format(p));
 }
