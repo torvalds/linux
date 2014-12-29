@@ -154,6 +154,7 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 			ieee80211_chswitch_done(vif, success);
 			cancel_delayed_work(&wlvif->channel_switch_work);
 		} else {
+			set_bit(WLVIF_FLAG_BEACON_DISABLED, &wlvif->flags);
 			ieee80211_csa_finish(vif);
 		}
 	}

@@ -66,6 +66,13 @@ struct wl18xx_cmd_dfs_radar_debug {
 	u8 padding[3];
 } __packed;
 
+struct wl18xx_cmd_dfs_master_restart {
+	struct wl1271_cmd_header header;
+
+	u8 role_id;
+	u8 padding[3];
+} __packed;
+
 /* cac_start and cac_stop share the same params */
 struct wlcore_cmd_cac_start {
 	struct wl1271_cmd_header header;
@@ -85,4 +92,5 @@ int wl18xx_cmd_smart_config_set_group_key(struct wl1271 *wl, u16 group_id,
 					  u8 key_len, u8 *key);
 int wl18xx_cmd_set_cac(struct wl1271 *wl, struct wl12xx_vif *wlvif, bool start);
 int wl18xx_cmd_radar_detection_debug(struct wl1271 *wl, u8 channel);
+int wl18xx_cmd_dfs_master_restart(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 #endif

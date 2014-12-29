@@ -125,6 +125,7 @@ struct wlcore_ops {
 					  u8 key_len, u8 *key);
 	int (*set_cac)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       bool start);
+	int (*dfs_master_restart)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 };
 
 enum wlcore_partitions {

@@ -320,4 +320,13 @@ wlcore_hw_set_cac(struct wl1271 *wl, struct wl12xx_vif *wlvif, bool start)
 
 	return wl->ops->set_cac(wl, wlvif, start);
 }
+
+static inline int
+wlcore_hw_dfs_master_restart(struct wl1271 *wl, struct wl12xx_vif *wlvif)
+{
+	if (!wl->ops->dfs_master_restart)
+		return -EINVAL;
+
+	return wl->ops->dfs_master_restart(wl, wlvif);
+}
 #endif
