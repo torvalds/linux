@@ -435,20 +435,8 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	return 0;
 }
 
-static void __maybe_unused
-	rk3368_lcdc_deint(struct lcdc_device *lcdc_dev)
+static void rk3368_lcdc_deint(struct lcdc_device *lcdc_dev)
 {
-	rk3368_lcdc_disable_irq(lcdc_dev);
-	spin_lock(&lcdc_dev->reg_lock);
-	if (likely(lcdc_dev->clk_on)) {
-		lcdc_dev->clk_on = 0;
-		lcdc_set_bit(lcdc_dev, SYS_CTRL, m_STANDBY_EN);
-		lcdc_cfg_done(lcdc_dev);
-		spin_unlock(&lcdc_dev->reg_lock);
-	} else {
-		spin_unlock(&lcdc_dev->reg_lock);
-	}
-	mdelay(1);
 }
 
 static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
@@ -4416,12 +4404,8 @@ static void rk3368_lcdc_shutdown(struct platform_device *pdev)
 {
 	struct lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
 
-	if (0) {/*maybe lead to crash*/
-		rk3368_lcdc_deint(lcdc_dev);
-		rk_disp_pwr_disable(&lcdc_dev->driver);
-	} else {
-		rk3368_lcdc_early_suspend(&lcdc_dev->driver);
-	}
+	rk3368_lcdc_early_suspend(&lcdc_dev->driver);
+	rk3368_lcdc_deint(lcdc_dev);
 }
 
 #if defined(CONFIG_OF)
