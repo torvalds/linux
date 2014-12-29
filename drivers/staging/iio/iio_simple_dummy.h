@@ -117,8 +117,7 @@ enum iio_simple_dummy_scan_elements {
 int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev);
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev);
 #else
-static inline int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *channels, unsigned int num_channels)
+static inline int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 {
 	return 0;
 };
