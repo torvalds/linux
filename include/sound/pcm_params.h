@@ -92,7 +92,7 @@ static inline unsigned int snd_mask_min(const struct snd_mask *mask)
 	int i;
 	for (i = 0; i < SNDRV_MASK_SIZE; i++) {
 		if (mask->bits[i])
-			return ffs(mask->bits[i]) - 1 + (i << 5);
+			return __ffs(mask->bits[i]) + (i << 5);
 	}
 	return 0;
 }
