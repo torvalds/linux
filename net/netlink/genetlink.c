@@ -985,8 +985,7 @@ static struct genl_multicast_group genl_ctrl_groups[] = {
 
 static int genl_bind(struct net *net, int group)
 {
-	int i, err;
-	bool found = false;
+	int i, err = 0;
 
 	down_read(&cb_lock);
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++) {
@@ -1003,15 +1002,11 @@ static int genl_bind(struct net *net, int group)
 					err = f->mcast_bind(net, fam_grp);
 				else
 					err = 0;
-				found = true;
 				break;
 			}
 		}
 	}
 	up_read(&cb_lock);
-
-	if (WARN_ON(!found))
-		err = 0;
 
 	return err;
 }
