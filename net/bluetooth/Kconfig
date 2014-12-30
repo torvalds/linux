@@ -77,4 +77,11 @@ config BT_SELFTEST
 	  subsystem is compiled into the kernel image, then the test cases
 	  are run late in the initcall hierarchy.
 
+config BT_SELFTEST_ECDH
+	bool "ECDH test cases"
+	depends on BT_LE && BT_SELFTEST
+	help
+	  Run test cases for ECDH cryptographic functionality used by the
+	  Bluetooth Low Energy Secure Connections feature.
+
 source "drivers/bluetooth/Kconfig"
