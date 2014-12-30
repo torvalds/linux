@@ -79,6 +79,11 @@ struct enclosure_component_callbacks {
 	int (*set_locate)(struct enclosure_device *,
 			  struct enclosure_component *,
 			  enum enclosure_component_setting);
+	void (*get_power_status)(struct enclosure_device *,
+				 struct enclosure_component *);
+	int (*set_power_status)(struct enclosure_device *,
+				struct enclosure_component *,
+				int);
 	int (*show_id)(struct enclosure_device *, char *buf);
 };
 
@@ -94,6 +99,7 @@ struct enclosure_component {
 	int locate;
 	int slot;
 	enum enclosure_status status;
+	int power_status;
 };
 
 struct enclosure_device {
