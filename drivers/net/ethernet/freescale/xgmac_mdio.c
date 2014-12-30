@@ -187,14 +187,13 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bus = mdiobus_alloc_size(PHY_MAX_ADDR * sizeof(int));
+	bus = mdiobus_alloc();
 	if (!bus)
 		return -ENOMEM;
 
 	bus->name = "Freescale XGMAC MDIO Bus";
 	bus->read = xgmac_mdio_read;
 	bus->write = xgmac_mdio_write;
-	bus->irq = bus->priv;
 	bus->parent = &pdev->dev;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%llx", (unsigned long long)res.start);
 
